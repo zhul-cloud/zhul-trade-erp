@@ -1,0 +1,7 @@
+{
+  "enabledPlugins": {
+    "andrej-karpathy-skills@karpathy-skills": true,
+    "everything-claude-code@everything-claude-code": true,
+    "openpencil-skill@openpencil-skill": true
+  }
+}

@@ -1,0 +1,9 @@
+target/
+*.class
+.idea/
+*.iml
+application-dev.yml
+application-prod.yml
+.env
+*.log
+.gstack/

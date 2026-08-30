@@ -1,0 +1,44 @@
+# dependencies
+**/node_modules
+
+# backend build output
+zhul-erp-backend/target/
+**/*.class
+
+# backend local/prod config (contains real local credentials, never commit)
+zhul-erp-backend/src/main/resources/application-dev.yml
+zhul-erp-backend/src/main/resources/application-prod.yml
+.env
+
+# frontend build output
+zhul-erp-frontend/dist
+zhul-erp-frontend/build
+zhul-erp-frontend/src/.umi
+zhul-erp-frontend/src/.umi-production
+zhul-erp-frontend/src/.umi-test
+zhul-erp-frontend/src/.umi-undefined
+zhul-erp-frontend/.turbopack
+zhul-erp-frontend/.wrangler
+zhul-erp-frontend/coverage
+zhul-erp-frontend/screenshot
+zhul-erp-frontend/.firebase
+zhul-erp-frontend/.worktrees
+zhul-erp-frontend/.history
+zhul-erp-frontend/yarn.lock
+zhul-erp-frontend/requestRecord.mock.js
+
+# IDE / OS
+.idea/
+*.iml
+.vscode/
+.DS_Store
+
+# logs
+*.log
+npm-debug.log*
+yarn-error.log
+
+# local tool state (not project source)
+.gstack/
+.claude/settings.local.json
+*bak
