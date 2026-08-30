@@ -15,7 +15,7 @@ public class Knife4jConfig {
             .info(new Info()
                 .title("烛龙ERP API")
                 .description("外贸业财一体化智能中台接口文档")
-                .version("v1.0.0")
+                .version("v1.1.0")
                 .contact(new Contact().name("烛龙团队")))
             .addSecurityItem(new SecurityRequirement().addList("Authorization"))
             .schemaRequirement("Authorization", new SecurityScheme()

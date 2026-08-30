@@ -109,7 +109,7 @@ const AuthLayout: React.FC<AuthLayoutProps> = ({
           fontSize: 12,
         }}
       >
-        {appearance?.loginFooter || '© 2026 烛龙科技'}　版本 1.0.0
+        {appearance?.loginFooter || '© 2026 烛龙科技'}　版本 1.1.0
       </div>
     </div>
   );
