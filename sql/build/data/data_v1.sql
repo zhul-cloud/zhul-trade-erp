@@ -108,3 +108,29 @@ INSERT INTO `dict_item` (`tenant_id`, `dict_type_id`, `dict_type`, `item_code`, 
 SELECT 0, id, dict_type, 'ENABLED', '启用', '1', 'success', 1, 1, 1, 'sys', 'sys' FROM `dict_type` WHERE dict_type = 'sys_user_status';
 INSERT INTO `dict_item` (`tenant_id`, `dict_type_id`, `dict_type`, `item_code`, `item_name`, `item_value`, `css_class`, `sort_order`, `is_default`, `status`, `create_by`, `update_by`)
 SELECT 0, id, dict_type, 'DISABLED', '禁用', '0', 'default', 2, 0, 1, 'sys', 'sys' FROM `dict_type` WHERE dict_type = 'sys_user_status';
+
+-- ===========================
+-- 示例租户 & 初始管理员账号（仅用于本地快速体验，生产环境请自行创建并删除）
+-- 登录：admin / admin123
+-- ===========================
+INSERT INTO `tenant_package` (`id`, `name`, `menu_ids`, `remark`, `status`, `create_by`, `update_by`) VALUES
+(1, '标准版', '[]', '默认套餐', 1, 'sys', 'sys');
+
+INSERT INTO `tenant` (`id`, `code`, `name`, `package_id`, `contact_name`, `contact_phone`, `status`, `create_by`, `update_by`) VALUES
+(1000, 'TN1000', '示例科技有限公司', 1, '系统管理员', '13800000000', 1, 'sys', 'sys');
+
+INSERT INTO `department` (`id`, `tenant_id`, `pid`, `code`, `name`, `all_name`, `sort`, `status`, `create_by`, `update_by`) VALUES
+(10001, 1000, 0, 'DP10001', '总经办', '总经办', 1, 1, 'sys', 'sys');
+
+INSERT INTO `position` (`id`, `tenant_id`, `code`, `name`, `sort`, `status`, `create_by`, `update_by`) VALUES
+(10000, 1000, 'POS10000', '系统管理员', 1, 1, 'sys', 'sys');
+
+INSERT INTO `user_basic` (`id`, `tenant_id`, `pid`, `name`, `type`, `username`, `phone`, `dept_id`, `position_id`, `role_code`, `email`, `nickname`, `status`, `create_by`, `update_by`) VALUES
+(1000000000, 1000, 0, '无名氏', 1, 'admin', '13800000000', 10001, 10000, 'ROLE_SYSADM', 'admin@example.com', 'Admin', 1, 'sys', 'sys');
+
+INSERT INTO `account` (`id`, `tenant_id`, `user_id`, `username`, `phone`, `email`, `admin_flag`, `login_status`, `status`, `create_by`, `update_by`) VALUES
+(10000000, 1000, 1000000000, 'admin', '13800000000', 'admin@example.com', 1, 0, 1, 'sys', 'sys');
+
+-- 密码 admin123 的 BCrypt 哈希（仅示例账号使用，生产环境务必修改密码）
+INSERT INTO `account_local_auth` (`account_id`, `username`, `password`, `salt`, `create_by`, `update_by`) VALUES
+(10000000, 'admin', '$2a$10$j7sZ9u5D7vUyr6m5MpUKQOQ1heKoS/MAu2ONRxlyL7uL944TDOlSO', '', 'sys', 'sys');
