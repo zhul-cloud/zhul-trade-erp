@@ -89,13 +89,55 @@ resource ──< role_resource >── role
 
 ---
 
+## v1.1.0 — 主数据域 & 询盘中心
+
+SQL 文件：`sql/build/sql/schema_v1.1.sql`（依赖 `schema_v1.sql` 先执行，不修改 v1.0.0 任何已有表）
+
+来源：`openspec/changes/add-inquiry-management/`（proposal.md / design.md / specs），PRD 见
+`docs/02-产品PRD/03-业务域/00-询盘中心/00-询盘单/询盘单-PRD-V1.0.md`。
+
+### 表清单（新增 8 张）
+
+| # | 表名 | 说明 | tenant_id |
+|---|------|------|-----------|
+| 1 | `customer` | 客户主数据（最小可用） | ✅ |
+| 2 | `supplier` | 供应商主数据（最小可用） | ✅ |
+| 3 | `customer_inquiry` | 客户询盘（原始诉求全貌） | ✅ |
+| 4 | `inquiry_order` | 询盘单（按品牌+品类拆分的可分配单元） | ✅ |
+| 5 | `inquiry_order_item` | 询盘单明细 | ✅ |
+| 6 | `inquiry_order_supplier` | 询盘单-报价来源关联（正式供应商/电商询价渠道） | ✅ |
+| 7 | `inquiry_order_item_quote` | 型号×报价来源交叉报价表 | ✅ |
+| 8 | `ai_task` | 通用 AI 任务（Java↔AI编排服务异步契约，非询盘专属） | ✅ |
+
+### 核心实体关系
+
+```
+customer ──< customer_inquiry ──< inquiry_order ──< inquiry_order_item
+                    │                    │                   │
+                 ai_task            ai_task          inquiry_order_item_quote
+                                         │                   │
+                                inquiry_order_supplier ──────┘
+                                         │
+                                     supplier（source_type=1 时关联；
+                                     source_type=2 电商询价渠道时为空）
+```
+
+### 关键设计点（详见 design.md 决策记录）
+
+- `inquiry_order.customer_inquiry_id` 可空：支持跳过 AI 手动创建询盘单
+- `ai_task` 是通用表，不与询盘业务耦合，未来新 skill 复用同一张表（`skill_id` 区分）
+- `inquiry_order_supplier.supplier_id` 可空：`source_type=2`（电商询价渠道，如淘宝/1688/闲鱼）时用 `channel_platform`/`channel_name`/`channel_link` 代替，不创建 `supplier` 主数据记录（决策11）
+- `inquiry_order_item_quote` 关联 `inquiry_order_supplier_id`（不直接存 `supplier_id`），正式供应商与电商询价渠道两种来源统一取报价方信息
+- 询盘相关业务编号（`inquiry_code`/`item_code`）沿用"日期+流水号"惯例，与部门/岗位这类内部管理编码（前缀+自增主键）分开，不占用 AUTO_INCREMENT 起始值设计
+
+---
+
 ## 后续版本规划
 
 | 版本 | 域 | 核心表（待设计） |
 |------|----|-----------------|
-| v1.1 | 主数据域 | customer, supplier, currency, exchange_rate |
 | v1.2 | 商品域 | product, product_spec, product_brand |
-| v2.0 | 业务域 | inquiry, quotation, sales_order, order_item |
+| v2.0 | 业务域 | quotation, sales_order, order_item |
 | v2.1 | 采购域 | purchase_order, purchase_item |
 | v2.2 | 仓储域 | warehouse, inventory, stock_in, stock_out |
 | v2.3 | 配送域 | shipment, logistics_tracking |
