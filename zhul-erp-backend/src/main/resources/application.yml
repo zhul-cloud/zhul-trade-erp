@@ -57,6 +57,12 @@ zhul:
     callback-base-url: ${AI_TASK_CALLBACK_BASE_URL:http://localhost:8080}
     # webhook 回调鉴权共享密钥，AI 编排服务回调时须在 X-AI-Callback-Token 头携带同样的值
     callback-token: ${AI_TASK_CALLBACK_TOKEN:zhul-erp-ai-callback-secret}
+    # 任务停留在"排队中/处理中"超过这个时长（分钟）视为超时，标记失败并转人工。
+    # 接入真实 AI 编排服务（scripts/ai-orchestrator，联网搜索验证多个型号）后处理耗时
+    # 是分钟级的，这个阈值必须明显大于真实处理时间，否则会把还在正常处理的任务误判为超时
+    timeout-minutes: ${AI_TASK_TIMEOUT_MINUTES:20}
+    # 超时扫描的执行间隔（毫秒）
+    timeout-check-interval-ms: ${AI_TASK_TIMEOUT_CHECK_INTERVAL_MS:60000}
 
 knife4j:
   enable: true

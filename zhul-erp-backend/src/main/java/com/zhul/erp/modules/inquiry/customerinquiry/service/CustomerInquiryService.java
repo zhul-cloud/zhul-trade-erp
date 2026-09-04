@@ -20,6 +20,9 @@ public interface CustomerInquiryService {
     /** 仅"待解析"状态可调用：创建AI任务并提交，状态转为"解析中" */
     CustomerInquiryVO startAiParse(Long id);
 
+    /** 仅"解析失败"状态可调用：复用原始内容重新发起一次AI解析，状态转为"解析中" */
+    CustomerInquiryVO retryParse(Long id);
+
     /** 拆单预览：直接渲染 ai_task.output，不落地 inquiry_order（仅"待确认"状态可查看） */
     InquiryPreviewVO getPreview(Long id);
 

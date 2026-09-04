@@ -71,10 +71,22 @@ public class AiTaskServiceImpl implements AiTaskService {
     private void submit(AiTaskDO task, String inputJson) {
         orchestratorClient.submit(task.getSkillId(), task.getId(), inputJson)
                 .thenAccept(result -> {
+                    LocalDateTime now = LocalDateTime.now();
                     if (result.isAccepted()) {
-                        markStatus(task.getId(), AiTaskStatus.PROCESSING, null, null, LocalDateTime.now(), null);
+                        markStatus(task.getId(), AiTaskStatus.PROCESSING, null, null, now, null);
                     } else {
-                        markStatus(task.getId(), AiTaskStatus.FAILED, null, result.getErrorMessage(), null, LocalDateTime.now());
+                        // 提交阶段就失败（如连不上AI编排服务）——这不是走 webhook 回调的路径，
+                        // 之前这里只更新了 ai_task 自身状态，没有像 handleCallback() 一样调用
+                        // resultDispatcher，导致发起方（如 customer_inquiry）永远收不到失败通知、
+                        // 一直卡在"解析中"。这里补上同样的分发，让提交失败和回调失败走统一路径。
+                        markStatus(task.getId(), AiTaskStatus.FAILED, null, result.getErrorMessage(), null, now);
+                        AiTaskDO failed = new AiTaskDO();
+                        failed.setId(task.getId());
+                        failed.setSkillId(task.getSkillId());
+                        failed.setStatus(AiTaskStatus.FAILED);
+                        failed.setErrorMessage(result.getErrorMessage());
+                        failed.setCompletedAt(now);
+                        resultDispatcher.dispatch(failed);
                     }
                 });
     }

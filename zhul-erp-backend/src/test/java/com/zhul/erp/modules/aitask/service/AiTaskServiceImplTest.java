@@ -95,6 +95,35 @@ class AiTaskServiceImplTest {
     }
 
     @Test
+    void createAndSubmit_whenOrchestratorRejects_marksFailedAndDispatches() {
+        // 复现真实踩过的坑：提交阶段就失败（比如连不上 AI 编排服务）时，之前只更新了
+        // ai_task 自身状态，没有像 handleCallback() 一样调用 resultDispatcher，导致
+        // customer_inquiry 等发起方永远收不到失败通知、一直卡在"解析中"。
+        doAnswer(invocation -> {
+            AiTaskDO arg = invocation.getArgument(0);
+            arg.setId(43L);
+            return 1;
+        }).when(aiTaskMapper).insert(any(AiTaskDO.class));
+
+        CompletableFuture<AiOrchestratorSubmitResult> pending = new CompletableFuture<>();
+        when(orchestratorClient.submit(eq("inquiry-parse-and-split"), eq(43L), eq("{}"))).thenReturn(pending);
+
+        aiTaskService.createAndSubmit("inquiry-parse-and-split", "{}", 1000L);
+        pending.complete(AiOrchestratorSubmitResult.rejected("java.net.ConnectException"));
+
+        ArgumentCaptor<AiTaskDO> updateCaptor = ArgumentCaptor.forClass(AiTaskDO.class);
+        verify(aiTaskMapper, times(1)).updateById(updateCaptor.capture());
+        assertThat(updateCaptor.getValue().getStatus()).isEqualTo(AiTaskStatus.FAILED);
+        assertThat(updateCaptor.getValue().getErrorMessage()).isEqualTo("java.net.ConnectException");
+
+        ArgumentCaptor<AiTaskDO> dispatchCaptor = ArgumentCaptor.forClass(AiTaskDO.class);
+        verify(resultDispatcher, times(1)).dispatch(dispatchCaptor.capture());
+        assertThat(dispatchCaptor.getValue().getId()).isEqualTo(43L);
+        assertThat(dispatchCaptor.getValue().getStatus()).isEqualTo(AiTaskStatus.FAILED);
+        assertThat(dispatchCaptor.getValue().getSkillId()).isEqualTo("inquiry-parse-and-split");
+    }
+
+    @Test
     void handleCallback_success_marksCompletedAndDispatches() {
         AiTaskDO existing = new AiTaskDO();
         existing.setId(1L);

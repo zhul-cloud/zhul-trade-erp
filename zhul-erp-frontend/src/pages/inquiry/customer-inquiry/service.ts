@@ -126,6 +126,16 @@ export async function startAiParse(id: number): Promise<CustomerInquiryItem> {
   return res.data;
 }
 
+export async function retryParse(id: number): Promise<CustomerInquiryItem> {
+  const res = await request(
+    `/api/v1/inquiry/customer-inquiries/${id}/retry-parse`,
+    {
+      method: 'POST',
+    },
+  );
+  return res.data;
+}
+
 export async function getInquiryPreview(id: number): Promise<InquiryPreview> {
   const res = await request(
     `/api/v1/inquiry/customer-inquiries/${id}/preview`,

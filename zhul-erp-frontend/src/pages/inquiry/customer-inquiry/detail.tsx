@@ -38,6 +38,7 @@ import {
   getCustomerInquiry,
   getInquiryPreview,
   listRelatedInquiryOrders,
+  retryParse,
   startAiParse,
 } from './service';
 
@@ -67,6 +68,7 @@ const CustomerInquiryDetail: React.FC = () => {
     [],
   );
   const [starting, setStarting] = useState(false);
+  const [retrying, setRetrying] = useState(false);
   const [confirming, setConfirming] = useState(false);
 
   const load = async () => {
@@ -121,6 +123,17 @@ const CustomerInquiryDetail: React.FC = () => {
       await load();
     } finally {
       setStarting(false);
+    }
+  };
+
+  const handleRetryParse = async () => {
+    setRetrying(true);
+    try {
+      await retryParse(inquiryId);
+      message.success('已重新发起 AI 解析');
+      await load();
+    } finally {
+      setRetrying(false);
     }
   };
 
@@ -375,15 +388,25 @@ const CustomerInquiryDetail: React.FC = () => {
           title="AI 解析失败"
           description={inquiry.remark || '未知原因，请重试或改为手动创建询盘单'}
           action={
-            <Button
-              onClick={() =>
-                history.push(
-                  `/inquiry/orders/new?customerInquiryId=${inquiryId}`,
-                )
-              }
-            >
-              手动创建询盘单
-            </Button>
+            <Space>
+              <Button
+                type="primary"
+                icon={<ThunderboltOutlined />}
+                loading={retrying}
+                onClick={handleRetryParse}
+              >
+                重试
+              </Button>
+              <Button
+                onClick={() =>
+                  history.push(
+                    `/inquiry/orders/new?customerInquiryId=${inquiryId}`,
+                  )
+                }
+              >
+                手动创建询盘单
+              </Button>
+            </Space>
           }
         />
       )}

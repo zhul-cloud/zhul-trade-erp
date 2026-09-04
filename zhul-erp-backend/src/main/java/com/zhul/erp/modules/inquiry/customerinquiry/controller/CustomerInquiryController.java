@@ -52,6 +52,11 @@ public class CustomerInquiryController {
         return Result.ok(customerInquiryService.startAiParse(id));
     }
 
+    @PostMapping("/{id}/retry-parse")
+    public Result<CustomerInquiryVO> retryParse(@PathVariable Long id) {
+        return Result.ok(customerInquiryService.retryParse(id));
+    }
+
     @GetMapping("/{id}/preview")
     public Result<InquiryPreviewVO> getPreview(@PathVariable Long id) {
         return Result.ok(customerInquiryService.getPreview(id));

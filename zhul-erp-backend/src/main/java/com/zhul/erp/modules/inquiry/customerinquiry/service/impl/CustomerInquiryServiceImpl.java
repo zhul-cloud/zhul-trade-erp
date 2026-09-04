@@ -135,6 +135,25 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
         if (inquiry.getStatus() == null || inquiry.getStatus() != CustomerInquiryStatus.PENDING_PARSE) {
             throw new BizException("仅'待解析'状态可以发起AI解析");
         }
+        return submitParseTask(inquiry);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public CustomerInquiryVO retryParse(Long id) {
+        CustomerInquiryDO inquiry = getOrThrow(id);
+        if (inquiry.getStatus() == null || inquiry.getStatus() != CustomerInquiryStatus.PARSE_FAILED) {
+            throw new BizException("仅'解析失败'状态可以重试");
+        }
+        // 重试复用原始内容重新发起一次解析，旧的失败原因先清空，避免重试成功后残留上一次的
+        // 失败信息；沿用同一套"创建AI任务→提交→状态转解析中"逻辑，与首次发起没有区别，
+        // 唯一不同只是允许发起的前置状态是"解析失败"而不是"待解析"。
+        inquiry.setRemark("");
+        return submitParseTask(inquiry);
+    }
+
+    /** 首次发起解析、失败后重试共用：创建AI任务、提交、把客户询盘状态转为"解析中"。 */
+    private CustomerInquiryVO submitParseTask(CustomerInquiryDO inquiry) {
         String inputJson = writeJsonSafely(Map.of(
                 "customerInquiryId", inquiry.getId(),
                 "source", inquiry.getSource() != null ? inquiry.getSource() : 0,

@@ -209,6 +209,36 @@ class CustomerInquiryServiceImplTest {
     }
 
     @Test
+    void retryParse_fromParseFailed_createsNewTaskAndTransitionsToParsing() {
+        CustomerInquiryDO inquiry = pendingParseInquiry();
+        inquiry.setStatus(CustomerInquiryStatus.PARSE_FAILED);
+        inquiry.setAiTaskId(500L);
+        inquiry.setRemark("java.net.ConnectException");
+        when(customerInquiryMapper.selectById(1L)).thenReturn(inquiry);
+        AiTaskVO task = new AiTaskVO();
+        task.setId(600L);
+        when(aiTaskService.createAndSubmit(eq("inquiry-parse-and-split"), anyString(), any())).thenReturn(task);
+
+        CustomerInquiryVO result = service.retryParse(1L);
+
+        assertThat(result.getStatus()).isEqualTo(CustomerInquiryStatus.PARSING);
+        assertThat(result.getAiTaskId()).isEqualTo(600L);
+        ArgumentCaptor<CustomerInquiryDO> captor = ArgumentCaptor.forClass(CustomerInquiryDO.class);
+        verify(customerInquiryMapper).updateById(captor.capture());
+        assertThat(captor.getValue().getRemark()).isEmpty();
+    }
+
+    @Test
+    void retryParse_fromNonParseFailedStatus_throwsBizException() {
+        CustomerInquiryDO inquiry = pendingParseInquiry();
+        inquiry.setStatus(CustomerInquiryStatus.PENDING_PARSE);
+        when(customerInquiryMapper.selectById(1L)).thenReturn(inquiry);
+
+        assertThrows(BizException.class, () -> service.retryParse(1L));
+        verify(aiTaskService, never()).createAndSubmit(anyString(), anyString(), any());
+    }
+
+    @Test
     void applyParseSuccess_computesStatsAndTransitionsToPendingConfirm() {
         CustomerInquiryDO inquiry = pendingParseInquiry();
         inquiry.setStatus(CustomerInquiryStatus.PARSING);
