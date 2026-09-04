@@ -6,6 +6,8 @@
 | V1.1 | 2026-09-03 | 产品组 | 原型评审反馈：①客户询盘提交后不再自动触发 AI 解析，新增"待解析"态与手动"开始AI解析"入口（3.2、5.1、6.2.2、6.3.1）；②拆单预览页去除组内 AI 询价话术预览展示（话术仍在询盘单确认后于 P05 询价话术 Tab 展示，见 6.5.1） |
 | V1.2 | 2026-09-03 | 产品组 | 电商询价（淘宝/1688/闲鱼）不再强制建成正式供应商：`inquiry_order_supplier` 新增 `source_type`/`channel_platform`/`channel_name`/`channel_link`，`supplier_id` 改为条件必填；`inquiry_order_item_quote` 改为关联 `inquiry_order_supplier_id`；新增"转为正式供应商"动作（2.6、2.7、6.5、6.8、7），详见 `openspec/changes/add-inquiry-management/design.md` 决策11 |
 | V1.3 | 2026-09-04 | 产品组 | 实现阶段修正：手动新建询盘单选择客户时，不再借用/自动创建 `customer_inquiry` 挂载记录（该方案会导致 P01 列表出现无原始内容的空壳询盘，与决策4/11的"避免语义混淆"原则冲突）。改为给 `inquiry_order` 新增独立的可空 `customer_id` 字段直接承载该选择，与 `customer_inquiry_id` 两个外键互不干扰（2.4、6.6），详见 `openspec/changes/add-inquiry-management/design.md` 决策12 |
+| V1.4 | 2026-09-04 | 产品组 | 真实使用中发现并修复：AI 提交阶段失败（如连不上编排服务）此前不会通知客户询盘，导致状态永远停在"解析中"；已修复为与 webhook 回调失败走同一条通知路径，并新增超时兜底（默认20分钟无回调即标记失败）。"解析失败"态新增"重试"按钮，复用原始内容重新发起解析（6.3.5） |
+| V1.5 | 2026-09-04 | 产品组 | 接入真实 AI 编排服务（此前一直是返回固定假数据的占位 stub）：新增 `scripts/ai-orchestrator`，用 Claude Code 非交互模式真实执行"烛龙询盘助手"的 inquiry-parser + order-splitter 两个 skill（含真实联网搜索验证型号），zhul-erp-backend 侧代码无需改动。**每次"开始AI解析"/"重试"会产生真实API费用**，详见 `openspec/changes/add-inquiry-management/design.md` 决策14与 `scripts/ai-orchestrator/README.md` |
 
 ---
 
@@ -402,7 +404,9 @@ P06 弹窗：选择/新建客户（可选，不选则 customer_inquiry_id 为空
 #### 6.3.5 「解析失败」态
 
 - 展示失败原因（`ai_task.error_message`）
+- 展示"重试"按钮（primary）：复用已保存的原始内容重新发起一次 AI 解析，无需重新录入，点击后状态转回"解析中"
 - 展示"手动创建询盘单"按钮，跳转 P06 并预填 `customer_inquiry_id`
+- 失败原因统一归为三类，UI 上不做区分展示：AI 编排服务回调报告失败、提交阶段就连不上编排服务、长时间无回调触发的超时失败（默认20分钟，`AI_TASK_TIMEOUT_MINUTES` 可配置；20分钟是按接入真实 AI 编排服务后联网搜索验证多个型号的实际耗时留出的余量，而不是本地假数据 stub 的耗时）
 
 ### 6.4 P04 询盘单列表
 

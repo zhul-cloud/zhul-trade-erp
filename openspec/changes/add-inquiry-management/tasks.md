@@ -76,3 +76,20 @@
 ## 10. 可选 / 后续（不阻塞本次验收）
 
 - [ ] 10.1 （可选）工作台"待办事项"接入"待解析"/"待确认"/"待分配"提醒（design.md Risks 与 PRD 默认假设 7 均标注为建议但不阻塞）
+
+## 11. 上线后修复（真实使用中发现，design.md 决策13）
+
+- [x] 11.1 修复 `AiTaskServiceImpl.submit()` 提交阶段失败时不通知业务层的 bug：AI 编排服务提交阶段就失败（如连接被拒绝）会正确标记 `ai_task` 为失败，但从未调用 `resultDispatcher.dispatch()`，导致 `customer_inquiry` 永远停留在"解析中"。已修复为和 webhook 回调失败走同一条通知路径，新增单测覆盖
+- [x] 11.2 新增 `AiTaskTimeoutWatchdog` 定时任务：任务停留"排队中/处理中"超过阈值（默认5分钟，`zhul.ai-task.timeout-minutes` 可配置）且未收到任何回调，标记失败并走 11.1 的统一分发路径——补齐 PRD 第7节"AI 处理超时（无回调）"当初写好但未实现的兜底规则，新增单测覆盖
+- [x] 11.3 客户询盘"解析失败"态新增"重试"按钮（`POST /{id}/retry-parse`）：复用已保存的原始内容重新发起一次 AI 解析，状态转回"解析中"；仅"解析失败"状态可调用，新增单测覆盖首次重试成功与非法状态调用两种场景
+
+验证：`mvn test` 93/93 通过；对真实卡住的记录（IQ20260904006）用重试接口验证了完整链路——从"解析失败"重试到 webhook 回调成功、进入"待确认"态，型号数据正确。
+
+## 12. 接入真实 AI 编排服务（design.md 决策14，超出原 Non-Goals 范围，用户明确要求后追加）
+
+- [x] 12.1 新增 `scripts/ai-orchestrator/`：真实实现（区别于 `scripts/ai-orchestrator-stub` 占位脚本），把"烛龙询盘助手"的 `inquiry-parser`、`order-splitter` 两个 skill 的 `SKILL.md` 复制进 `skills/` 子目录（符合 design.md 决策2"skill 与服务代码同仓库同提交"），用 `claude -p`（Claude Code 非交互模式，走当前账号 OAuth 登录态）+ `--json-schema` 输出符合后端字段约定的结构化 JSON，`--allowedTools WebSearch` + `--permission-prompts none` 精确放行联网搜索、其余工具自动拒绝
+- [x] 12.2 调大 `AiTaskTimeoutWatchdog`（11.2）的默认超时阈值从5分钟到20分钟，匹配真实AI处理的分钟级耗时，避免误判超时；同步更新 `application.yml` 注释和 PRD 相应描述
+- [x] 12.3 用 `--max-budget-usd`（默认 $5，`AI_ORCHESTRATOR_MAX_BUDGET_USD` 可配）给单次调用设费用上限，写入 README 明确告知这是真实付费调用，`scripts/ai-orchestrator-stub` 保留不动供不想产生费用时切换回去联调
+
+验证：实测3次真实调用（2组不同型号组合），确认联网搜索确实真实发生（`modelUsage.<model>.webSearchRequests` 非零）、输出结构与后端 `AiParseGroupDTO`/`AiParseItemDTO` 契约完全匹配、grouping/模版内容与"烛龙询盘助手"原 skill 设计风格一致；单次2型号调用费用约 $0.28～$0.34，耗时 45～70 秒。
+
