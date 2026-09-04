@@ -108,6 +108,36 @@ export default [
     ],
   },
   {
+    path: '/inquiry',
+    name: 'inquiry',
+    icon: 'mail',
+    routes: [
+      { path: '/inquiry', redirect: '/inquiry/customer-inquiries' },
+      {
+        path: '/inquiry/customer-inquiries',
+        name: 'customerInquiry',
+        icon: 'inbox',
+        component: './inquiry/customer-inquiry',
+      },
+      {
+        path: '/inquiry/customer-inquiries/:id',
+        hideInMenu: true,
+        component: './inquiry/customer-inquiry/detail',
+      },
+      {
+        path: '/inquiry/orders',
+        name: 'order',
+        icon: 'shoppingCart',
+        component: './inquiry/order',
+      },
+      {
+        path: '/inquiry/orders/:id',
+        hideInMenu: true,
+        component: './inquiry/order/detail',
+      },
+    ],
+  },
+  {
     path: '/tenant',
     name: 'tenant',
     icon: 'cluster',
