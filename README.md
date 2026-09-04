@@ -54,6 +54,8 @@
 | Redis | 6+ |
 | Docker（可选，用于一键启动 MySQL / Redis） | 最新稳定版 |
 
+> **macOS + Homebrew 用户注意**：`brew install openjdk` 装的是最新版 JDK（如 26），如果机器上同时装过 `openjdk@17`，默认的 `mvn`/`java` 命令可能解析到新版 JDK，导致 Lombok 注解处理器静默失效（编译报一堆"找不到符号"，看起来像随机的类找不到 getter/setter）。执行 `mvn compile`/`mvn test` 前先 `export JAVA_HOME=$(brew --prefix openjdk@17)` 确认指向 JDK 17。
+
 ### 1. 克隆项目
 
 ```bash

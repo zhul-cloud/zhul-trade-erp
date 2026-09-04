@@ -50,6 +50,13 @@ zhul:
     aes-key: ${AES_KEY:zhul-erp-config-aes-key}
   upload:
     dir: ${UPLOAD_DIR:./uploads}
+  ai-task:
+    # AI 编排服务地址（本次不实现该服务本身，本地联调可指向 scripts/ai-orchestrator-stub）
+    orchestrator-base-url: ${AI_ORCHESTRATOR_BASE_URL:http://localhost:8899}
+    # zhul-erp-backend 自身对外可达地址，用于拼出 webhook 回调地址
+    callback-base-url: ${AI_TASK_CALLBACK_BASE_URL:http://localhost:8080}
+    # webhook 回调鉴权共享密钥，AI 编排服务回调时须在 X-AI-Callback-Token 头携带同样的值
+    callback-token: ${AI_TASK_CALLBACK_TOKEN:zhul-erp-ai-callback-secret}
 
 knife4j:
   enable: true
