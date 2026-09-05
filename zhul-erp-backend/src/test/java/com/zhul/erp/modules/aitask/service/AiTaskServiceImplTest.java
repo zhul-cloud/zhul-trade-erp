@@ -17,6 +17,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.util.concurrent.CompletableFuture;
 
@@ -92,6 +93,38 @@ class AiTaskServiceImplTest {
         ArgumentCaptor<AiTaskDO> captor = ArgumentCaptor.forClass(AiTaskDO.class);
         verify(aiTaskMapper, times(1)).updateById(captor.capture());
         assertThat(captor.getValue().getStatus()).isEqualTo(AiTaskStatus.PROCESSING);
+    }
+
+    @Test
+    void createAndSubmit_withActiveTransaction_deferSubmitUntilAfterCommit() {
+        // 复现真实事故：create() 插入的 ai_task 还在事务里没提交，submit() 却立刻发起了
+        // 异步 HTTP 请求；如果 AI 编排服务响应快到回调能在事务提交前打回来（真实场景：
+        // 客户询盘走图片/Excel录入、rawContent为空，编排服务同步立刻拒绝），
+        // handleCallback() 在另一个数据库连接里查不到这条未提交的记录，回调直接丢失，
+        // 只能等 AiTaskTimeoutWatchdog 几十分钟后兜底、报出跟真实原因无关的超时提示。
+        // 修复：submit() 必须注册在事务提交之后才真正调用编排服务。
+        doAnswer(invocation -> {
+            AiTaskDO arg = invocation.getArgument(0);
+            arg.setId(44L);
+            return 1;
+        }).when(aiTaskMapper).insert(any(AiTaskDO.class));
+        when(orchestratorClient.submit(any(), any(), any())).thenReturn(new CompletableFuture<>());
+
+        TransactionSynchronizationManager.initSynchronization();
+        try {
+            aiTaskService.createAndSubmit("inquiry-parse-and-split", "{}", 1000L);
+
+            // 事务还没提交——不应该已经调用编排服务
+            verify(orchestratorClient, times(0)).submit(any(), any(), any());
+
+            TransactionSynchronizationManager.getSynchronizations()
+                    .forEach(sync -> sync.afterCommit());
+        } finally {
+            TransactionSynchronizationManager.clearSynchronization();
+        }
+
+        // 事务提交后，才真正发起提交
+        verify(orchestratorClient, times(1)).submit(eq("inquiry-parse-and-split"), eq(44L), eq("{}"));
     }
 
     @Test

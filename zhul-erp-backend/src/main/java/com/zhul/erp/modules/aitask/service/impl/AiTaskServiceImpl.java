@@ -15,6 +15,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.LocalDateTime;
 
@@ -67,8 +69,33 @@ public class AiTaskServiceImpl implements AiTaskService {
      * inputJson 只用于本次提交请求体，不落库——ai_task 表按 design.md/PRD 的字段定义
      * 只存 output（处理结果），不存 input，输入数据的留存由发起方（如 customer_inquiry
      * 的 raw_content）自行负责。
+     *
+     * <p>真实踩过的坑：这里发起的是异步 HTTP 调用，而 create() 插入的 ai_task 这时候
+     * 还在 createAndSubmit() 所在的事务里、尚未提交。如果 AI 编排服务响应快到回调能在
+     * 事务提交前打回来（比如编排服务同步校验后立刻判定失败，不需要真正跑一次 AI），
+     * handleCallback() 用另一个数据库连接查 {@code aiTaskMapper.selectById(taskId)}
+     * 会因为看不到未提交的行而报"AI任务不存在"，这条回调就白白丢了，任务只能等
+     * AiTaskTimeoutWatchdog 在几十分钟后兜底、报出一个跟真实失败原因无关的超时提示。
+     * 用 Claude Code 联网搜索走真实流程时几十秒到几分钟起步，不会撞见这个时间窗口；
+     * 但客户询盘走图片/Excel录入时 rawContent 为空、编排服务会立刻同步拒绝，稳定复现。
+     * 所以提交动作必须等当前事务真正提交之后才发起，不能指望"响应总是比事务提交慢"。
      */
     private void submit(AiTaskDO task, String inputJson) {
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    doSubmit(task, inputJson);
+                }
+            });
+        } else {
+            // 理论上 createAndSubmit() 总是带着 @Transactional 被 Spring 代理调用，
+            // 这个分支只在没有事务上下文时（比如单测直接 new 出来调用）兜底，保持行为一致。
+            doSubmit(task, inputJson);
+        }
+    }
+
+    private void doSubmit(AiTaskDO task, String inputJson) {
         orchestratorClient.submit(task.getSkillId(), task.getId(), inputJson)
                 .thenAccept(result -> {
                     LocalDateTime now = LocalDateTime.now();
