@@ -154,7 +154,9 @@
 | GET / PUT / DELETE | `/products/{id}/reference-price` | 一对一；PUT 保存并计算本位币金额；DELETE 清除 |
 | PATCH | `/products/{id}/faqs/{itemId}/approve` | 审核确认待审核 FAQ：`source` 3→2，记录 `reviewed_by`、`reviewed_at`；仅平台账号 |
 
-错误码：`PRODUCT_NOT_FOUND`、`PRODUCT_DUPLICATE`（`detail`: `existingId`、`deleted`）、`PRODUCT_MPN_INVALID`、`PRODUCT_MPN_IMMUTABLE`、`PRODUCT_IN_USE`（`detail.usageCount`）、`PRODUCT_SERIES_MISMATCH`、`PRODUCT_LIFECYCLE_SOURCE_REQUIRED`、`BRAND_DUPLICATE`、`BRAND_IN_USE`、`CATEGORY_DUPLICATE`、`CATEGORY_IN_USE`、`CATEGORY_CODE_IMMUTABLE`、`SERIES_DUPLICATE`、`SERIES_IN_USE`、`RELATIONSHIP_INVALID`、`RELATIONSHIP_DUPLICATE`、`CONTENT_NOT_FOUND`、`CONTENT_DUPLICATE`、`DOCUMENT_URL_INVALID`、`FAQ_NOT_PENDING`、`MEDIA_URL_INVALID`、`MEDIA_FILE_INVALID`、`MEDIA_TOO_LARGE`、`MEDIA_NOT_IMAGE`、`LOGISTICS_INVALID`、`HS_CODE_INVALID`、`COUNTRY_CODE_INVALID`、`PRICE_INVALID`、`CURRENCY_REQUIRED`、`PLATFORM_ADMIN_REQUIRED`。
+**错误响应格式**：沿用现有约定 `{code: number, message, data}`，**数字 `code` 与 `message` 不变**（前端依赖 `code !== 0` 判错）；字符串错误码和 `detail` 放在 `data` 里：`{"code": 500, "message": "该型号已存在", "data": {"errorCode": "PRODUCT_DUPLICATE", "detail": {"existingId": 12, "deleted": false}}}`。这与 `coding.md` 里 `{"code": "ORDER_NOT_FOUND"}` 的写法不同，是为了不破坏现有前后端契约；`BizException` 增加可选的 `errorCode` 和 `detail`（任务 0.3）。
+
+错误码：`PRODUCT_NOT_FOUND`、`PRODUCT_DUPLICATE`（`detail`: `existingId`、`deleted`）、`PRODUCT_MPN_INVALID`、`PRODUCT_MPN_IMMUTABLE`、`PRODUCT_IN_USE`（`detail.usageCount`）、`PRODUCT_SERIES_MISMATCH`、`PRODUCT_LIFECYCLE_SOURCE_REQUIRED`、`BRAND_NOT_FOUND`、`BRAND_DUPLICATE`、`BRAND_IN_USE`、`CATEGORY_NOT_FOUND`、`CATEGORY_DUPLICATE`、`CATEGORY_IN_USE`、`CATEGORY_CODE_IMMUTABLE`、`SERIES_NOT_FOUND`、`SERIES_DUPLICATE`、`SERIES_IN_USE`、`RELATIONSHIP_INVALID`、`RELATIONSHIP_DUPLICATE`、`CONTENT_NOT_FOUND`、`CONTENT_DUPLICATE`、`DOCUMENT_URL_INVALID`、`FAQ_NOT_PENDING`、`MEDIA_URL_INVALID`、`MEDIA_FILE_INVALID`、`MEDIA_TOO_LARGE`、`MEDIA_NOT_IMAGE`、`LOGISTICS_INVALID`、`HS_CODE_INVALID`、`COUNTRY_CODE_INVALID`、`PRICE_INVALID`、`CURRENCY_REQUIRED`、`PLATFORM_ADMIN_REQUIRED`、`PARAM_INVALID`（必填 / 长度 / 格式等通用校验，具体原因在 `message`）。同名记录已被软删除时，品牌、品类、系列的 `*_DUPLICATE` 同样带 `detail.deleted=true`，但本期没有品牌 / 品类 / 系列的恢复接口，只提示"曾被删除，不能重复创建"。
 
 **查找细节**（对应 `product-lookup` spec）：
 - 关键词先做与 3.4 相同的归一化；**归一化后为空时跳过型号前缀分支**，否则 `LIKE '%'` 会匹配全部商品。此时仍允许按产品名称匹配。
@@ -168,7 +170,7 @@
 
 ### 11. 数据模型
 
-通用约定：主键 `bigint(20) AUTO_INCREMENT`；审计四件套；`deleted_at`；`status`；无数据库外键，一致性由 Service 保证；InnoDB、utf8mb4。品牌名称、系列名称的"忽略大小写"依赖数据库默认的不区分大小写排序规则，**实现时需确认 MySQL 8 实际使用的排序规则**，首尾空格由 Service 去除。
+通用约定：主键 `bigint(20) AUTO_INCREMENT`；审计四件套；`deleted_at`；`status`；无数据库外键，一致性由 Service 保证；InnoDB、utf8mb4。`product_specification` 的 `(product_id, spec_key)` 只建普通索引、不建唯一键：规格是"整体替换"（软删旧行再插新行），唯一键会让相同规格编码无法重新插入，同一商品内规格编码不重复由 Service 校验并靠锁商品行串行化。品牌名称、系列名称的"忽略大小写"依赖数据库默认的排序规则。**已于 2026-09-19 在本机 MySQL 8 实测**：表默认排序规则为 `utf8mb4_0900_ai_ci`，`Siemens` 与 `siemens`、`S7-1200` 与 `s7-1200`、商品归一化型号的大小写变体都会触发唯一键冲突；但该规则不补齐尾部空格，`Siemens ` 与 `Siemens` 会被当成两个值，所以**首尾空格必须由 Service 在写入前去除**，不能指望数据库。
 
 ```sql
 -- schema_v1.2.sql（依赖 schema_v1.sql、schema_v1.1.sql；不修改任何已有表）
@@ -295,7 +297,7 @@ CREATE TABLE `product_specification`
     `update_time` datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     `update_by`   varchar(32)  NOT NULL DEFAULT 'sys' COMMENT '更新人',
     PRIMARY KEY (`id`),
-    UNIQUE KEY `uk_product_spec_key` (`product_id`, `spec_key`),
+    KEY `idx_product_spec_key` (`product_id`, `spec_key`),
     KEY `idx_tenant_id` (`tenant_id`),
     KEY `idx_product_id` (`product_id`),
     KEY `idx_deleted_at` (`deleted_at`)
@@ -534,7 +536,7 @@ CREATE TABLE `product_reference_price`
 3. **存储抽象**：商品模块新建自己的存储接口（`ProductMediaStorageService`），沿用询盘附件的做法——返回可访问的 URL，当前落本地磁盘（`zhul.upload.dir` 下的 `product` 子目录），后续迁 OSS 时只替换实现类。**不复用询盘模块的接口**，因为依赖方向应是各业务模块 → 公共能力，而不是商品模块 → 询盘模块。
 4. **物流**：`product_logistics`（一对一）。重量固定 kg（3 位小数）、尺寸固定 mm（1 位小数），列名带单位，避免单位歧义；未维护为 NULL，不是 0。毛重填写时不得小于净重。`is_dangerous` 标记危险品或含电池等限运品，`shipping_note` 写具体说明。
 5. **海关**：`product_customs`（一对一）。`hs_code` 一个商品一个，去掉点和空格后须为 6–10 位数字，只存数字；原产国为 ISO 3166-1 alpha-2 大写码；出口退税率为 0–100 的两位小数。**原产国是默认值**：同一型号不同批次可能产自不同国家（独立站规格里就有 `Germany / China`），实际以货物单据为准，这一点在界面上要写明。
-6. **参考价**：`product_reference_price`（一对一）。它是**平台层面的参考价**（厂商目录价、市场参考价），不是任何租户的报价或售价，界面上要写明。沿用询盘报价的做法：原币 + 币种 + 汇率 + 本位币；币种必填才能存金额；金额必须大于 0；汇率未维护时本位币为 NULL，界面显示"未计算"，不是 0。金额与本位币保留 2 位、HALF_UP，汇率 6 位；币种为 CNY 时汇率为 1。本位币只在保存时按当时汇率计算，不随汇率变动自动重算。汇率的取值来源在实现时对照询盘报价的取法。
+6. **参考价**：`product_reference_price`（一对一）。它是**平台层面的参考价**（厂商目录价、市场参考价），不是任何租户的报价或售价，界面上要写明。沿用询盘报价的做法：原币 + 币种 + 汇率 + 本位币；币种必填才能存金额；金额必须大于 0；汇率未维护时本位币为 NULL，界面显示"未计算"，不是 0。金额与本位币保留 2 位、HALF_UP，汇率 6 位；币种为 CNY 时汇率为 1。本位币只在保存时按当时汇率计算，不随汇率变动自动重算。汇率由请求传入（与询盘报价 `inquiry_order_item_quote` 一致：现有系统没有汇率表，服务端只用传入的汇率计算本位币）；未传汇率且币种不是 CNY 时本位币为空。
 7. **一对一表的清除与恢复**：唯一键 `(tenant_id, product_id)` 含已软删除行。物流、海关没有 DELETE，清空字段即可；参考价的 `DELETE` 是软删除，之后再 `PUT` 时复活原行并覆盖内容。
 8. **权限与读取**：沿用 `product:product:edit` + `PlatformScopeGuard`，不新增权限码；读取对所有租户开放。随商品一起被删除和恢复。
 
@@ -622,7 +624,7 @@ CREATE TABLE `product_reference_price`
 - Q7：迁移的 FAQ（**84 个商品共 222 条**，不是 84 条）是否视为已人工审核？（默认保守置为 `source=3` 待审核；卖家承诺类条目已决定不导入，见决策 12。）
 - Q11：被排除的卖家类 FAQ 与站点内容放在哪里？（默认只保留在干跑报告与独立站本地 `js/data.js`，不改独立站；「租户商品扩展」落地时再迁移。）
 - ~~Q8：HS 编码、原产国、重量体积是否预留？~~ **已纳入（2026-09-19）**：见决策 13，HS 编码一个商品一个。
-- Q12：参考价的汇率取自哪里？（默认沿用询盘报价的取法；实现时确认现有汇率来源，取不到则本位币留空。）
+- ~~Q12：参考价的汇率取自哪里？~~ **已解决（2026-09-19）**：现有询盘报价由请求传入汇率，系统里没有汇率表；参考价沿用同样做法。
 - Q14：全站外壳（侧栏、顶栏）与主题令牌升级由谁负责、何时做？（用户已确认采用深色默认、浅色并存，品牌主色由 `#1677FF` 调整为 `#2563EB` 并增加蓝 → 靛 → 青渐变；这会影响全站，本 change 不含，需另立 change，如 `upgrade-app-shell`；升级前商品页沿用旧外壳。）
 - Q13：图片视频的存储何时迁 OSS？（当前落本地磁盘，多实例部署或需要备份前必须迁移；默认上线前不迁，单实例部署。）
 - Q9：独立站构建机能否访问 ERP API？（wiki 遗留问题；若 ERP 在内网，"实时调用"方案不成立。）

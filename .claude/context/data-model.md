@@ -132,11 +132,49 @@ customer ──< customer_inquiry ──< inquiry_order ──< inquiry_order_it
 
 ---
 
+## v1.2.0 — 商品主数据
+
+SQL 文件：`sql/build/sql/schema_v1.2.sql`（依赖 `schema_v1.sql`、`schema_v1.1.sql` 先执行，不修改任何已有表）；菜单与按钮权限种子：`sql/build/data/data_v1.2.sql`
+
+来源：`openspec/changes/add-product-master-core/`（proposal.md / design.md 决策 1–14 / specs），PRD 见
+`docs/02-产品PRD/02-商品域/00-商品主数据/商品主数据-PRD-V1.0.md`。
+
+### 平台级共享数据（与其他表的重要区别）
+
+本版本 13 张表**全部是平台共享数据**：`tenant_id` 列保留（沿用统一的租户过滤与索引约定），但**值固定为 0**，所有租户读到同一份数据；写入必须同时满足权限码（`product:*`）和平台账号（JWT `tenantId=0`，由 `PlatformScopeGuard` 判定），读取只要求登录。
+
+### 表清单（新增 13 张）
+
+| # | 表名 | 说明 |
+|---|------|------|
+| 1 | `product_brand` | 品牌（含 `is_genuine` 原厂/兼容标记） |
+| 2 | `product_category` | 品类（`category_code` 沿用独立站 URL，有商品后不可改） |
+| 3 | `product_series` | 系列（归属品牌） |
+| 4 | `product` | 商品主表（Part Number 实体，唯一键 `tenant_id + brand_id + mpn_normalized`，含已软删除行） |
+| 5 | `product_specification` | 规格参数（整体替换保存） |
+| 6 | `product_relationship` | 型号关系（替代 / 兼容 / 交叉引用，含置信度） |
+| 7 | `product_document` | 技术资料（只存文件地址） |
+| 8 | `product_application` | 应用场景 |
+| 9 | `product_faq` | FAQ（`source=3` 待审核，不对租户账号返回） |
+| 10 | `product_media` | 图片与视频（一个商品一张主图） |
+| 11 | `product_logistics` | 物流信息（一对一） |
+| 12 | `product_customs` | 海关信息（一对一，HS 编码只存数字） |
+| 13 | `product_reference_price` | 平台参考价（一对一，原币 + 币种 + 汇率 + 本位币，不是报价） |
+
+### 关键设计点
+
+- 型号归一化：NFKC → 小写 → 去掉所有非字母数字，存 `mpn_normalized`；原始型号 `mpn_raw` 只去首尾空格
+- 所有表软删除（`deleted_at`）；商品被引用后不可删除（`ProductUsageChecker` 扩展点），已软删除的型号仍占唯一键，重复新建走"恢复"
+- `product_specification` 的 `(product_id, spec_key)` 只建普通索引：整体替换会软删旧行，唯一键会拦住相同编码的重新插入
+- 品牌、系列名称的大小写不敏感来自 `utf8mb4_0900_ai_ci`；该排序规则不补齐尾部空格，所以首尾空格由 Service 去除
+- 档案完整度（10 个模块）不落库，由各子表实时计算
+
+---
+
 ## 后续版本规划
 
 | 版本 | 域 | 核心表（待设计） |
 |------|----|-----------------|
-| v1.2 | 商品域 | product, product_spec, product_brand |
 | v2.0 | 业务域 | quotation, sales_order, order_item |
 | v2.1 | 采购域 | purchase_order, purchase_item |
 | v2.2 | 仓储域 | warehouse, inventory, stock_in, stock_out |

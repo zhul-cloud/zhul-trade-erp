@@ -1,5 +1,6 @@
 package com.zhul.erp.common.exception;
 
+import com.zhul.erp.common.result.ErrorData;
 import com.zhul.erp.common.result.Result;
 import com.zhul.erp.common.result.ResultCode;
 import lombok.extern.slf4j.Slf4j;
@@ -20,11 +21,14 @@ import java.util.stream.Collectors;
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(BizException.class)
-    public Result<Void> handleBizException(BizException e) {
-        log.warn("业务异常: code={}, message={}", e.getCode(), e.getMessage());
-        Result<Void> result = new Result<>();
+    public Result<ErrorData> handleBizException(BizException e) {
+        log.warn("业务异常: code={}, errorCode={}, message={}", e.getCode(), e.getErrorCode(), e.getMessage());
+        Result<ErrorData> result = new Result<>();
         result.setCode(e.getCode());
         result.setMessage(e.getMessage());
+        if (e.getErrorCode() != null) {
+            result.setData(new ErrorData(e.getErrorCode(), e.getDetail()));
+        }
         return result;
     }
 
@@ -54,7 +58,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(MaxUploadSizeExceededException.class)
     public Result<Void> handleMaxUploadSizeExceeded(MaxUploadSizeExceededException e) {
         log.warn("上传文件过大: {}", e.getMessage());
-        return Result.fail("图片大小不能超过5MB");
+        return Result.fail("上传文件过大，请压缩后重试");
     }
 
     @ExceptionHandler(AccessDeniedException.class)

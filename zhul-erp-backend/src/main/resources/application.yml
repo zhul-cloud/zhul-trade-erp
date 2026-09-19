@@ -31,8 +31,9 @@ spring:
 
   servlet:
     multipart:
-      max-file-size: 5MB
-      max-request-size: 5MB
+      # 商品视频最大 100MB；各上传接口自己再按业务限制校验大小（图片、询盘附件仍是 5MB）
+      max-file-size: 100MB
+      max-request-size: 100MB
 
 mybatis-plus:
   mapper-locations: classpath:mapper/**/*.xml

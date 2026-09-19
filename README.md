@@ -155,6 +155,14 @@ cd zhul-erp-backend
 mvn spring-boot:run       # 启动开发服务
 mvn clean package         # 打包
 
+# 后端测试（本机 Maven 默认会拿到更高版本的 JDK，先 source 这个脚本固定为 JDK 17，并检查 MySQL / Redis）
+source scripts/dev-env.sh
+mvn -q -o test -Dtest='Product*Test'
+
+# 集成测试用独立的 zhul_erp_test 库（不会碰开发库）。首次运行或表结构变化后重建：
+sql/build/test/reset-test-db.sh
+mvn -q -o test -Dtest=IntegrationTestSmokeTest
+
 # 前端
 cd zhul-erp-frontend
 npm run dev                # 启动开发服务（不带 mock）
