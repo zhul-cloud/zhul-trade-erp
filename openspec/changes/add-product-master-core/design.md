@@ -16,20 +16,21 @@
 - 把"平台共享"落成可执行的读写规则，避免租户越权修改共享数据
 - 型号去重要能识别空格、连字符、大小写、全角等写法差异
 - 维护商品的技术资料、应用场景、FAQ，并给 FAQ 设发布门禁：未经人工审核的内容不能被租户读到（决策 12）
+- 维护商品的图片与视频（支持上传）、物流信息、海关信息和平台共享参考价（决策 13）
 
 **Non-Goals：**
-- 不做价格、库存、成色、MOQ、交期（租户级商业数据）与独立站 SEO 发布字段（`seo_slug`/`index_status`/`page_tier`）
+- 不做各租户自己的采购价、售价、库存、成色、MOQ、交期（租户级商业数据）与独立站 SEO 发布字段（`seo_slug`/`index_status`/`page_tier`）；平台共享的**参考价**在范围内（决策 13）
 - 不把卖家自己的质保、库存、发货、联系方式类 FAQ 放进平台共享的 `product_faq`（决策 12）
 - 不改询盘模块：`inquiry_order_item.product_id` 与 `ProductUsageChecker` 的询盘侧实现留给 `link-inquiry-to-product`
 - 不切换独立站数据源；`ErpProductRepository` 的对接不在本次范围
-- 不做 HS 编码、原产国、重量体积；不做商品图片与技术资料文件的上传实现（`main_image_url`、`file_url` 只存地址）
+- 不做技术资料文件的上传（`file_url` 只存地址）；图片与视频支持上传（决策 13）
 - 本模块**没有金额字段**，不涉及舍入与汇率规则
 
 ## Decisions
 
 ### 1. 平台共享 = 保留 `tenant_id` 列，值固定为 0
 
-**决策**：九张表都保留 `tenant_id`，值恒为 0。读取恒带 `tenant_id = 0`（本期不存在租户私有行）；写入时服务端强制写 0，忽略客户端传入。COMMENT 统一为"租户ID（0=平台级共享，本模块所有数据均为0）"。
+**决策**：十三张表都保留 `tenant_id`，值恒为 0。读取恒带 `tenant_id = 0`（本期不存在租户私有行）；写入时服务端强制写 0，忽略客户端传入。COMMENT 统一为"租户ID（0=平台级共享，本模块所有数据均为0）"。
 
 **理由**：这是项目已有约定（见 Context），与 `dict` 一致；保留列意味着将来若要允许"租户私有商品"，只需放开 `tenant_id>0` 的写入与读取并集，不需要改表结构；所有业务表统一有 `tenant_id` 也符合 `coding.md`。
 
@@ -44,7 +45,7 @@
 | `product:brand:add` / `edit` / `delete` | 品牌 新增 / 修改与启停 / 删除 |
 | `product:category:add` / `edit` / `delete` | 品类，同上 |
 | `product:series:add` / `edit` / `delete` | 系列，同上 |
-| `product:product:add` / `edit` / `delete` | 商品 新增 / 修改、启停、恢复、规格、型号关系、技术资料、应用场景、FAQ（含审核）/ 删除 |
+| `product:product:add` / `edit` / `delete` | 商品 新增 / 修改、启停、恢复、规格、型号关系、技术资料、应用场景、FAQ（含审核）、图片视频（含上传、设主图）、物流、海关、参考价 / 删除 |
 
 **理由**：`perm.has` 只看角色不看租户。租户管理员若能把 `product:*` 分给自己的角色，仅靠 ① 就能修改全平台共享数据。② 用 JWT 里已有的 `tenantId` 判断，不需要新增账号字段。
 
@@ -60,9 +61,11 @@
 
 **已确认**：用户于 2026-09-19 确认价格、库存等移出商品主表。
 
+**修订（2026-09-19，见决策 13）**：用户随后要求商品主数据包含价格信息，选择**平台共享的参考价**，另建 `product_reference_price`，不放进 `product`。本决策里的"价格"指**各租户自己的采购价和售价**，它们仍不放进共享表，仍留给「租户商品扩展」。
+
 **理由**：价格、库存、成色、交期是**每个租户各自的**，放进平台共享表等于所有租户共用同一价格和库存，逻辑上不成立。`seo_slug`/`index_status`/`page_tier` 是某个租户独立站的发布决策，slug 也可由消费方按品牌/系列/型号派生。
 
-**代价**：独立站在"租户商品扩展"出现之前拿不到价格（87 条里有 70 条带 `sell_price`）和库存状态，因此**不能完全切换到 ERP 数据源**，继续使用本地 `LocalProductRepository`。品牌、品类、系列、规格、型号关系可以先切。
+**代价**：独立站在"租户商品扩展"出现之前拿不到自己的售价和库存状态（87 条里 70 条带 `sell_price`，其中 56 条是外部参考价、可作为平台参考价迁入，14 条是采购报价、不能），因此**不能完全切换到 ERP 数据源**，继续使用本地 `LocalProductRepository`。品牌、品类、系列、规格、型号关系可以先切。
 
 **备选方案**：(a) 商业字段留在 `product`：违背平台共享。(b) 本期同时建 `product_tenant_offer` 扩展表：范围翻倍，且它涉及价格金额与币种，应与报价中心一并设计。均已否决；扩展表字段沿用草案对应列，金额 `DECIMAL(18,2)` + 币种。
 
@@ -107,7 +110,7 @@
 
 ### 8. 商品保留 `deleted_at`，虽然 `coding.md` 说"基础表只用 status"
 
-**决策**：九张表都有 `deleted_at`；品牌、品类、系列、商品另有 `status`（规格、型号关系与三类内容表没有启停语义，不设 `status`）。
+**决策**：十三张表都有 `deleted_at`；品牌、品类、系列、商品另有 `status`（规格、型号关系与其余子表没有启停语义，不设 `status`）。
 
 **理由**：全局规则"任何删除必须软删除"；商品会被业务单据引用，物理删除会断链。`coding.md` 的"基础表（用户、权限、字典、资源）只用 status"针对的是配置类数据，商品主数据更接近被单据引用的业务数据。
 
@@ -135,17 +138,23 @@
 |------|------|------|
 | GET | `/brands`、`/categories`、`/series` | 分页列表；`/options` 返回全部启用项（品牌、品类走缓存），系列支持 `brandId` |
 | POST / PUT / PATCH `/{id}/status` / DELETE | 同上各资源 | 增改启停删 |
-| GET | `/products` | 分页；`keyword`、`brandId`、`categoryId`、`seriesId`、`lifecycleStatus`、`status`；`includeDeleted=true` 仅平台账号 |
-| GET | `/products/search?keyword=&limit=` | 选择器 |
+| GET | `/products` | 分页；`keyword`、`brandId`、`categoryId`、`seriesId`、`lifecycleStatus`、`status`；`includeDeleted=true` 与 `missing=media\|logistics\|customs\|price` 仅平台账号；平台账号的结果带 `completeness`（决策 14） |
+| GET | `/products/completeness-summary` | 各缺项的商品数（缺图片 / 缺物流 / 缺海关 / 缺参考价），仅平台账号，供列表提示条使用 |
+| GET | `/products/search?keyword=&limit=&brandId=` | 选择器；可选 `brandId` 限定品牌，供向导第 1 步提示相近型号 |
 | GET | `/products/match?brand=&mpn=` | 匹配，返回 `{exact, candidates}` |
-| GET | `/products/{id}` | 详情，含 `usageCount` |
+| GET | `/products/{id}` | 详情，含 `usageCount`；平台账号另含 `completeness` |
 | POST / PUT / PATCH `/{id}/status` / DELETE / POST `/{id}/restore` | `/products` | 增改启停删恢复 |
 | GET / PUT | `/products/{id}/specifications` | PUT 为整体替换 |
 | GET / POST / PUT / DELETE | `/products/{id}/relationships[/{relId}]` | POST 支持 `createReverse` |
 | GET / POST / PUT / DELETE | `/products/{id}/documents[/{itemId}]`、`/applications[/{itemId}]`、`/faqs[/{itemId}]` | 技术资料、应用场景、FAQ 各自增删改（决策 12）；列表按 `sort_order, id`；**FAQ 的读取接口对租户账号服务端过滤 `source=3`** |
+| GET / POST / PUT / DELETE | `/products/{id}/media[/{itemId}]` | 图片与视频：登记外链、改标题与排序、删除；列表按 `is_main desc, sort_order, id`（决策 13） |
+| POST | `/products/{id}/media/upload` | multipart 上传一个文件（`file`、`mediaType`），成功返回新建的媒体行；**加限流** |
+| PATCH | `/products/{id}/media/{itemId}/main` | 设为主图（仅图片；同一事务取消原主图） |
+| GET / PUT | `/products/{id}/logistics`、`/customs` | 一对一，PUT 为整体保存；没有记录时 GET 返回空对象 |
+| GET / PUT / DELETE | `/products/{id}/reference-price` | 一对一；PUT 保存并计算本位币金额；DELETE 清除 |
 | PATCH | `/products/{id}/faqs/{itemId}/approve` | 审核确认待审核 FAQ：`source` 3→2，记录 `reviewed_by`、`reviewed_at`；仅平台账号 |
 
-错误码：`PRODUCT_NOT_FOUND`、`PRODUCT_DUPLICATE`（`detail`: `existingId`、`deleted`）、`PRODUCT_MPN_INVALID`、`PRODUCT_MPN_IMMUTABLE`、`PRODUCT_IN_USE`（`detail.usageCount`）、`PRODUCT_SERIES_MISMATCH`、`PRODUCT_LIFECYCLE_SOURCE_REQUIRED`、`BRAND_DUPLICATE`、`BRAND_IN_USE`、`CATEGORY_DUPLICATE`、`CATEGORY_IN_USE`、`CATEGORY_CODE_IMMUTABLE`、`SERIES_DUPLICATE`、`SERIES_IN_USE`、`RELATIONSHIP_INVALID`、`RELATIONSHIP_DUPLICATE`、`CONTENT_NOT_FOUND`、`CONTENT_DUPLICATE`、`DOCUMENT_URL_INVALID`、`FAQ_NOT_PENDING`、`PLATFORM_ADMIN_REQUIRED`。
+错误码：`PRODUCT_NOT_FOUND`、`PRODUCT_DUPLICATE`（`detail`: `existingId`、`deleted`）、`PRODUCT_MPN_INVALID`、`PRODUCT_MPN_IMMUTABLE`、`PRODUCT_IN_USE`（`detail.usageCount`）、`PRODUCT_SERIES_MISMATCH`、`PRODUCT_LIFECYCLE_SOURCE_REQUIRED`、`BRAND_DUPLICATE`、`BRAND_IN_USE`、`CATEGORY_DUPLICATE`、`CATEGORY_IN_USE`、`CATEGORY_CODE_IMMUTABLE`、`SERIES_DUPLICATE`、`SERIES_IN_USE`、`RELATIONSHIP_INVALID`、`RELATIONSHIP_DUPLICATE`、`CONTENT_NOT_FOUND`、`CONTENT_DUPLICATE`、`DOCUMENT_URL_INVALID`、`FAQ_NOT_PENDING`、`MEDIA_URL_INVALID`、`MEDIA_FILE_INVALID`、`MEDIA_TOO_LARGE`、`MEDIA_NOT_IMAGE`、`LOGISTICS_INVALID`、`HS_CODE_INVALID`、`COUNTRY_CODE_INVALID`、`PRICE_INVALID`、`CURRENCY_REQUIRED`、`PLATFORM_ADMIN_REQUIRED`。
 
 **查找细节**（对应 `product-lookup` spec）：
 - 关键词先做与 3.4 相同的归一化；**归一化后为空时跳过型号前缀分支**，否则 `LIKE '%'` 会匹配全部商品。此时仍允许按产品名称匹配。
@@ -247,7 +256,6 @@ CREATE TABLE `product`
     `product_name`      varchar(128) NOT NULL DEFAULT '' COMMENT '产品名称，如SITOP Power Supply',
     `short_description` varchar(500) NOT NULL DEFAULT '' COMMENT '简介，需能追溯到官方资料或询盘单，不得凭空扩写',
     `spec_summary`      varchar(300) NOT NULL DEFAULT '' COMMENT '一句话核心规格摘要，列表页展示',
-    `main_image_url`    varchar(256) NOT NULL DEFAULT '' COMMENT '主图地址',
     `lifecycle_status`  tinyint(2)   NOT NULL DEFAULT 6 COMMENT '生命周期（1-在产Active、2-现行Current、3-旧款Legacy、4-已停产Discontinued、5-停产无替代Obsolete、6-未知Unknown）；是否有替代型号查product_relationship',
     `lifecycle_source`  varchar(128) NOT NULL DEFAULT '' COMMENT '生命周期判断依据；lifecycle_status为4或5时必填',
     `status`            tinyint(2)   NOT NULL DEFAULT 1 COMMENT '状态（0-禁用、1-启用）',
@@ -391,11 +399,115 @@ CREATE TABLE `product_faq`
     KEY `idx_source` (`source`),
     KEY `idx_deleted_at` (`deleted_at`)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '商品FAQ表';
+
+DROP TABLE IF EXISTS `product_media`;
+CREATE TABLE `product_media`
+(
+    `id`           bigint(20)   NOT NULL AUTO_INCREMENT COMMENT '主键',
+    `tenant_id`    int(11)      NOT NULL DEFAULT 0 COMMENT '租户ID（0=平台级共享，本模块所有数据均为0）',
+    `product_id`   bigint(20)   NOT NULL DEFAULT 0 COMMENT '商品ID，关联product.id',
+    `media_type`   tinyint(2)   NOT NULL DEFAULT 1 COMMENT '媒体类型（1-图片、2-视频）',
+    `file_url`     varchar(512) NOT NULL DEFAULT '' COMMENT '文件地址：上传后为站内路径（/uploads/product/...），外链为http(s)地址；不允许其他协议',
+    `storage_type` tinyint(2)   NOT NULL DEFAULT 1 COMMENT '存储方式（1-平台上传、2-外部链接）',
+    `cover_url`    varchar(512) NOT NULL DEFAULT '' COMMENT '视频封面地址，仅视频使用，地址规则同file_url',
+    `title`        varchar(128) NOT NULL DEFAULT '' COMMENT '标题；图片时同时作为替代文字（无障碍与SEO用）',
+    `file_size`    bigint(20)   NOT NULL DEFAULT 0 COMMENT '文件大小（字节），仅上传时记录，外链为0',
+    `is_main`      tinyint(2)   NOT NULL DEFAULT 0 COMMENT '是否主图（0-否、1-是）；仅图片可为1，同一商品未删除行内最多一张',
+    `source`       varchar(128) NOT NULL DEFAULT '' COMMENT '来源，如 Manufacturer Website',
+    `sort_order`   int(11)      NOT NULL DEFAULT 0 COMMENT '排序',
+    `deleted_at`   datetime     NULL COMMENT '软删除时间，NULL表示未删除',
+    `create_time`  datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `create_by`    varchar(32)  NOT NULL DEFAULT 'sys' COMMENT '创建人',
+    `update_time`  datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
+    `update_by`    varchar(32)  NOT NULL DEFAULT 'sys' COMMENT '更新人',
+    PRIMARY KEY (`id`),
+    KEY `idx_tenant_id` (`tenant_id`),
+    KEY `idx_product_id` (`product_id`),
+    KEY `idx_product_main` (`product_id`, `is_main`),
+    KEY `idx_deleted_at` (`deleted_at`)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '商品图片与视频表';
+
+DROP TABLE IF EXISTS `product_logistics`;
+CREATE TABLE `product_logistics`
+(
+    `id`                bigint(20)    NOT NULL AUTO_INCREMENT COMMENT '主键',
+    `tenant_id`         int(11)       NOT NULL DEFAULT 0 COMMENT '租户ID（0=平台级共享，本模块所有数据均为0）',
+    `product_id`        bigint(20)    NOT NULL DEFAULT 0 COMMENT '商品ID，关联product.id；一个商品最多一行',
+    `net_weight_kg`     decimal(10,3) NULL COMMENT '净重（kg）；未维护为NULL，不是0',
+    `gross_weight_kg`   decimal(10,3) NULL COMMENT '毛重（kg，含包装）；填写时不得小于净重',
+    `length_mm`         decimal(10,1) NULL COMMENT '单品长（mm）',
+    `width_mm`          decimal(10,1) NULL COMMENT '单品宽（mm）',
+    `height_mm`         decimal(10,1) NULL COMMENT '单品高（mm）',
+    `package_type`      varchar(32)   NOT NULL DEFAULT '' COMMENT '包装类型，如 盒装/箱装/托盘',
+    `package_length_mm` decimal(10,1) NULL COMMENT '包装长（mm）',
+    `package_width_mm`  decimal(10,1) NULL COMMENT '包装宽（mm）',
+    `package_height_mm` decimal(10,1) NULL COMMENT '包装高（mm）',
+    `package_quantity`  int(11)       NULL COMMENT '每个包装内的件数',
+    `is_dangerous`      tinyint(2)    NOT NULL DEFAULT 0 COMMENT '是否危险品或含电池等限运品（0-否、1-是）',
+    `shipping_note`     varchar(255)  NOT NULL DEFAULT '' COMMENT '运输备注，如 需防潮、含锂电池',
+    `deleted_at`        datetime      NULL COMMENT '软删除时间，NULL表示未删除',
+    `create_time`       datetime      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `create_by`         varchar(32)   NOT NULL DEFAULT 'sys' COMMENT '创建人',
+    `update_time`       datetime      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
+    `update_by`         varchar(32)   NOT NULL DEFAULT 'sys' COMMENT '更新人',
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_tenant_product` (`tenant_id`, `product_id`),
+    KEY `idx_tenant_id` (`tenant_id`),
+    KEY `idx_deleted_at` (`deleted_at`)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '商品物流信息表（一对一）';
+
+DROP TABLE IF EXISTS `product_customs`;
+CREATE TABLE `product_customs`
+(
+    `id`                   bigint(20)    NOT NULL AUTO_INCREMENT COMMENT '主键',
+    `tenant_id`            int(11)       NOT NULL DEFAULT 0 COMMENT '租户ID（0=平台级共享，本模块所有数据均为0）',
+    `product_id`           bigint(20)    NOT NULL DEFAULT 0 COMMENT '商品ID，关联product.id；一个商品最多一行',
+    `hs_code`              varchar(10)   NOT NULL DEFAULT '' COMMENT 'HS编码，仅数字（去掉点和空格后6~10位）；一个商品一个，空表示未维护',
+    `customs_name_cn`      varchar(128)  NOT NULL DEFAULT '' COMMENT '申报品名（中文）',
+    `customs_name_en`      varchar(128)  NOT NULL DEFAULT '' COMMENT '申报品名（英文）',
+    `origin_country`       char(2)       NOT NULL DEFAULT '' COMMENT '默认原产国，ISO 3166-1 alpha-2大写（如DE/CN）；同一型号不同批次可能不同，实际以货物单据为准',
+    `declaration_elements` varchar(500)  NOT NULL DEFAULT '' COMMENT '申报要素',
+    `supervision_conditions` varchar(32) NOT NULL DEFAULT '' COMMENT '监管条件代码，如A/B；无则为空',
+    `export_rebate_rate`   decimal(5,2)  NULL COMMENT '出口退税率（%，0~100）；政策会调整，以最近一次维护为准；未维护为NULL',
+    `deleted_at`           datetime      NULL COMMENT '软删除时间，NULL表示未删除',
+    `create_time`          datetime      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `create_by`            varchar(32)   NOT NULL DEFAULT 'sys' COMMENT '创建人',
+    `update_time`          datetime      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
+    `update_by`            varchar(32)   NOT NULL DEFAULT 'sys' COMMENT '更新人',
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_tenant_product` (`tenant_id`, `product_id`),
+    KEY `idx_tenant_id` (`tenant_id`),
+    KEY `idx_hs_code` (`hs_code`),
+    KEY `idx_deleted_at` (`deleted_at`)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '商品海关信息表（一对一）';
+
+DROP TABLE IF EXISTS `product_reference_price`;
+CREATE TABLE `product_reference_price`
+(
+    `id`             bigint(20)     NOT NULL AUTO_INCREMENT COMMENT '主键',
+    `tenant_id`      int(11)        NOT NULL DEFAULT 0 COMMENT '租户ID（0=平台级共享，本模块所有数据均为0）',
+    `product_id`     bigint(20)     NOT NULL DEFAULT 0 COMMENT '商品ID，关联product.id；一个商品最多一行',
+    `price_original` decimal(18, 2) NOT NULL COMMENT '参考价（原币），必须大于0；这是平台层面的参考价，不是任何租户的报价或售价',
+    `currency_code`  char(3)        NOT NULL COMMENT '币种（ISO 4217，如USD/CNY）；金额必须带币种',
+    `exchange_rate`  decimal(18, 6) NULL COMMENT '汇率（原币→本位币CNY）；币种为CNY时为1；非CNY且汇率未维护时为NULL',
+    `price_cny`      decimal(18, 2) NULL COMMENT '参考价（本位币），由原币与汇率计算，HALF_UP保留2位；汇率未维护时为NULL（展示为"未计算"，不是0元）',
+    `price_source`   varchar(128)   NOT NULL DEFAULT '' COMMENT '价格来源，如 厂商官网目录价、eBay参考价',
+    `price_date`     date           NULL COMMENT '取价日期；未知为NULL',
+    `deleted_at`     datetime       NULL COMMENT '软删除时间，NULL表示未删除',
+    `create_time`    datetime       NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `create_by`      varchar(32)    NOT NULL DEFAULT 'sys' COMMENT '创建人',
+    `update_time`    datetime       NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
+    `update_by`      varchar(32)    NOT NULL DEFAULT 'sys' COMMENT '更新人',
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_tenant_product` (`tenant_id`, `product_id`),
+    KEY `idx_tenant_id` (`tenant_id`),
+    KEY `idx_deleted_at` (`deleted_at`)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '商品平台参考价表（一对一）';
 ```
 
 ### 12. 技术资料、应用场景、FAQ 并入本 change
 
-**背景**：原计划作为 M2 另起 `add-product-master-content`（v1.2.1）。用户于 2026-09-19 要求一并设计，因此九张表同进 `schema_v1.2.sql`，随 v1.2.0 交付；实现顺序上内容类任务排在商品主体之后（tasks 5.12 起），商品主体完成即可支撑询盘关联。
+**背景**：原计划作为 M2 另起 `add-product-master-content`（v1.2.1）。用户于 2026-09-19 要求一并设计，因此内容三张表并入后共九张，同进 `schema_v1.2.sql`（2026-09-19 又增加图片视频、物流、海关、参考价，共十三张，见决策 13），随 v1.2.0 交付；实现顺序上内容类任务排在商品主体之后（tasks 5.12 起），商品主体完成即可支撑询盘关联。
 
 **决策**：
 
@@ -411,6 +523,43 @@ CREATE TABLE `product_faq`
 
 **备选方案**：(a) 仍另起 change：已被用户否决。(b) 用独立的 `review_status` 与 `source` 分离，`source` 只表示出处：语义更干净，但 wiki 里 `mapErpFaqToSiteFaq()` 已按 `source=3` 过滤、PRD 也按此定义，改动面更大。**已接受的代价**：批准后 `source` 变 2，丢失"曾由 AI 起草"的出处，只保留 `reviewed_by`/`reviewed_at` 作为审核痕迹。(c) 把卖家类 FAQ 也导入并靠审核删除：审核疏漏一次，其他租户就会读到某家的质保和邮箱。已否决。
 
+### 13. 图片与视频、物流、海关、参考价并入本 change
+
+**背景**：用户于 2026-09-19 要求商品主数据还包括图片、视频、物流、海关、价格信息。价格与决策 3 冲突（共享的商品表不能放各租户自己的价格），经确认选择**平台共享参考价**；图片视频选择**平台共享且支持上传**；HS 编码**一个商品一个**。
+
+**决策**：
+
+1. **图片与视频**：`product_media`（一对多）。图片限 `jpg/jpeg/png/webp` 且 ≤5MB，视频限 `mp4/webm` 且 ≤100MB。可以上传，也可以登记外链（`storage_type` 区分）。`product.main_image_url` **删除**，主图由 `is_main=1` 表示，避免两处各存一份；同一商品最多一张主图，设主图时锁商品行、取消原主图、置新主图，同一事务完成。视频不能设为主图（`MEDIA_NOT_IMAGE`）。
+2. **上传的安全要求**（`coding.md` 要求服务端校验）：同时校验扩展名和文件头，两者不一致或不在白名单内一律拒绝；**不允许 SVG**（可内嵌脚本）；存盘文件名用随机串，不使用客户端文件名；上传接口加限流；大文件以流式写盘，不整体读入内存。外链与视频封面沿用 `file_url` 的地址规则：`http://`、`https://` 或单个 `/` 开头（`MEDIA_URL_INVALID`）。
+3. **存储抽象**：商品模块新建自己的存储接口（`ProductMediaStorageService`），沿用询盘附件的做法——返回可访问的 URL，当前落本地磁盘（`zhul.upload.dir` 下的 `product` 子目录），后续迁 OSS 时只替换实现类。**不复用询盘模块的接口**，因为依赖方向应是各业务模块 → 公共能力，而不是商品模块 → 询盘模块。
+4. **物流**：`product_logistics`（一对一）。重量固定 kg（3 位小数）、尺寸固定 mm（1 位小数），列名带单位，避免单位歧义；未维护为 NULL，不是 0。毛重填写时不得小于净重。`is_dangerous` 标记危险品或含电池等限运品，`shipping_note` 写具体说明。
+5. **海关**：`product_customs`（一对一）。`hs_code` 一个商品一个，去掉点和空格后须为 6–10 位数字，只存数字；原产国为 ISO 3166-1 alpha-2 大写码；出口退税率为 0–100 的两位小数。**原产国是默认值**：同一型号不同批次可能产自不同国家（独立站规格里就有 `Germany / China`），实际以货物单据为准，这一点在界面上要写明。
+6. **参考价**：`product_reference_price`（一对一）。它是**平台层面的参考价**（厂商目录价、市场参考价），不是任何租户的报价或售价，界面上要写明。沿用询盘报价的做法：原币 + 币种 + 汇率 + 本位币；币种必填才能存金额；金额必须大于 0；汇率未维护时本位币为 NULL，界面显示"未计算"，不是 0。金额与本位币保留 2 位、HALF_UP，汇率 6 位；币种为 CNY 时汇率为 1。本位币只在保存时按当时汇率计算，不随汇率变动自动重算。汇率的取值来源在实现时对照询盘报价的取法。
+7. **一对一表的清除与恢复**：唯一键 `(tenant_id, product_id)` 含已软删除行。物流、海关没有 DELETE，清空字段即可；参考价的 `DELETE` 是软删除，之后再 `PUT` 时复活原行并覆盖内容。
+8. **权限与读取**：沿用 `product:product:edit` + `PlatformScopeGuard`，不新增权限码；读取对所有租户开放。随商品一起被删除和恢复。
+
+**理由**：图片、视频、重量、HS 编码、原产国都是关于零件本身的事实，适合共享；参考价是市场信息，不属于任何一个租户的商业决策。租户各自的采购价和售价仍留给「租户商品扩展」。
+
+**备选方案**：(a) 价格做成租户级表：更接近"报价"，但要改成"写入按租户"的权限模型，用户未选。(b) 保留 `main_image_url` 再加图库表：两处各存一份主图，容易不一致。(c) 复用询盘模块的附件存储：依赖方向反了。(d) 按目的国存多条 HS 编码：录入量大，目前没有数据来源，用户选了一个商品一个。均已否决。
+
+### 14. 新建向导、档案完整度与缺项筛选
+
+**背景**：用户于 2026-09-19 认为原型没达到消费级，要求站在新人角度简化流程：新建商品改成分步向导，详情页改成单页卡片，并让人一眼看出还缺什么。这引入了几项后端和前端的约定。
+
+**决策**：
+
+1. **创建时机在向导第 2 步**：第 2 步点「创建并继续」时调用 `POST /products`（品牌、型号、品类、系列、生命周期）；第 3 步的图片走 `POST /products/{id}/media/upload`，第 4 步的名称、规格摘要、简介走 `PUT /products/{id}`。图片上传接口挂在已存在的商品下，所以不做"临时上传区"。
+2. **草稿只存前端本地**：第 1、2 步的输入保存在浏览器本地存储（键带账号标识，7 天过期），商品创建后清除；**服务端不新增草稿表**。代价：不跨设备。
+3. **档案完整度是计算值，不落库**：共 10 个模块（口径见 PRD 2.14）。`GET /products` 和 `GET /products/{id}` 对平台账号返回 `completeness`（已完成数、总数、各模块是否完成），租户账号不返回。列表按当前页的商品 ID **批量**查各子表，不逐个商品查询。
+4. **缺项筛选**：`GET /products?missing=media|logistics|customs|price` 用 `NOT EXISTS` 子查询实现，仅平台账号；租户传入被忽略。`completeness-summary` 返回各缺项的商品数。当前数据量只有 87 个商品，统计不做缓存，商品数超过 1 万时再评估。
+5. **相近型号**：向导第 1 步取归一化型号的前 6 位，调用带 `brandId` 的 `search`，在该品牌下取最多 3 条。
+6. **卡片独立保存**：档案页每张卡片各自调用对应的模块接口，没有"整页保存"，不需要新增后端接口。
+7. **界面风格**：采用 V3 方案 D（信任蓝 + 中性灰，渐变限用于 Logo、主按钮、卡片顶线、关键数字、进度条、向导背景），**深色为默认主题、浅色并存**，品牌主色仍为蓝色系（由 `#1677FF` 调整为 `#2563EB`）；前端用 Ant Design 的深色 / 浅色算法加一套令牌切换（令牌见 `ui-design-patterns.md`）。全站外壳（侧栏、顶栏）需要统一升级，**另立 change**；本 change 的前端先按新风格实现页面内容，外壳沿用现有。
+
+**理由**：完整度是纯派生信息，落库会带来"子表变了但没同步"的一致性问题；向导第 2 步创建能避免临时上传区和孤儿文件清理；草稿本地存储最简单，且符合"第 1、2 步只有几个字段"的实际体量。
+
+**备选方案**：(a) 最后一步一次性提交：需要临时上传区、定期清理未绑定文件、创建时再绑定，复杂度高，已否决。(b) 服务端草稿表：能跨设备，但要新增表、状态和清理任务，本期不值得。(c) 完整度落库并在每次子表变更时刷新：一致性风险，已否决。
+
 ## Risks / Trade-offs
 
 - **[风险] 平台账号 `tenantId=0` 的前提未在代码中独立核实**（用户已确认，但仓库无种子账号可对照）→ 实现时用集成测试固化该约定；`PlatformScopeGuard` 是唯一判定点，识别规则变化只改这一处。
@@ -421,17 +570,25 @@ CREATE TABLE `product_faq`
 - **[风险] FAQ 夹带卖家承诺**（决策 12）→ 干跑按关键词标出并**不导入**；关键词会有误伤和漏网，所以干跑输出完整清单供人工复核，验收要求导入结果中不含 `Fouwell`。
 - **[风险] 唯一一份技术资料的文件不在仓库里**（`/datasheets/6ES7212-1AE40-0XB0.pdf` 是独立站相对路径，`fouwell-website/` 下没有 `datasheets/` 目录）→ 原样迁入并 `verified=0`，干跑报告；文件由独立站部署提供，本 change 不做上传。
 - **[权衡] 内容表没有唯一键** → 应用层查重，并发下可能重复，写入仅限平台管理员，可接受（决策 12）。
+- **[风险] 上传文件的安全**（伪装扩展名、SVG 内嵌脚本、超大文件占满磁盘、路径穿越）→ 扩展名加文件头双重校验、禁 SVG、随机文件名、限流、流式写盘、上传目录不解析执行脚本（决策 13）。
+- **[风险] 本地磁盘存储不适合多实例部署**（文件只在一台机器上，无备份）→ 通过存储接口保持可迁 OSS；上线多实例前必须先迁移，列入 Open Questions（Q13）。
+- **[风险] 参考价被误当作报价** → 表名、字段注释和界面文案都写明"平台参考价，不是报价或售价"；租户各自的价格仍不进共享表。
+- **[风险] 汇率变化后本位币金额过时** → 本位币只在保存时计算，界面同时显示所用汇率；不自动重算，避免改动已展示的数字。
+- **[风险] 完整度的批量查询在商品量大时变慢** → 每页只查当前页商品；`missing` 筛选用 `NOT EXISTS`；商品数超过 1 万时评估汇总表或缓存（决策 14）。
+- **[权衡] 草稿只存浏览器本地** → 换设备或清缓存会丢失第 1、2 步的输入，但这两步只有几个字段，丢失代价很小。
+- **[风险] 商品页新风格与现有外壳不一致** → 全站外壳升级另立 change，升级前商品页沿用旧外壳，视觉上有差异，需要在上线前处理（Q14）。
+- **[权衡] 原产国只存默认值** → 不按批次记录；界面注明以货物单据为准，批次级信息留给采购或入库模块。
 - **[权衡] 唯一键含已软删除行** → 已删除的型号只能恢复，不能重建；换来标识稳定。
 - **[权衡] 产品名称搜索为 `LIKE '%kw%'`，不走索引** → 目录规模下可接受，上量后再评估全文索引。
-- **[权衡] 一次交付九张表** → 范围比只做六张表大；靠 tasks 顺序（内容类任务排在商品主体之后）保持可分段合并，商品主体完成即可支撑询盘关联。
+- **[权衡] 一次交付十三张表** → 范围比只做六张表大；靠 tasks 顺序（内容类任务排在商品主体之后）保持可分段合并，商品主体完成即可支撑询盘关联。
 
 ## Migration Plan
 
 全部为新增表和新增模块，不修改任何已有表，风险面小。
 
-1. 执行 `schema_v1.2.sql`（九张表）；回滚仅需 `DROP` 这九张表
+1. 执行 `schema_v1.2.sql`（十三张表）；回滚仅需 `DROP` 这十三张表
 2. `resource` 表新增菜单与按钮资源（`type=3`）
-3. 迁移脚本（Node，读取 `fouwell-website/js/data.js`），先**干跑**，再导入，生成幂等 SQL（`INSERT ... ON DUPLICATE KEY UPDATE`）。所有迁移行 `create_by='migration'`，回滚：`UPDATE ... SET deleted_at=NOW() WHERE create_by='migration'`。内容类三张表用 `INSERT ... SELECT ... WHERE NOT EXISTS`（同商品下同文件地址 / 标题 / 问题）保持幂等。干跑必须报告（不得静默合并或静默丢弃）：同品牌下归一化型号碰撞、品牌名近似重复、空型号、缺品类、**FAQ 中疑似卖家承诺的条目（完整清单与命中的关键词）**、技术资料文件是否存在
+3. 迁移脚本（Node，读取 `fouwell-website/js/data.js`），先**干跑**，再导入，生成幂等 SQL（`INSERT ... ON DUPLICATE KEY UPDATE`）。所有迁移行 `create_by='migration'`，回滚：`UPDATE ... SET deleted_at=NOW() WHERE create_by='migration'`。内容类三张表用 `INSERT ... SELECT ... WHERE NOT EXISTS`（同商品下同文件地址 / 标题 / 问题）保持幂等。干跑必须报告（不得静默合并或静默丢弃）：同品牌下归一化型号碰撞、品牌名近似重复、空型号、缺品类、**FAQ 中疑似卖家承诺的条目（完整清单与命中的关键词）**、技术资料文件是否存在、**参考价迁入与排除的条数**、规格中的重量 / 尺寸 / 原产国自由文本条数（不自动解析，只报数）
 
 | `js/data.js` | ERP | 规则 |
 |--------------|-----|------|
@@ -442,14 +599,17 @@ CREATE TABLE `product_faq`
 | `spec` | `spec_summary` | |
 | `status` | `lifecycle_status` | `instock`→1、`legacy`→3、`discont`→4；带 `no_known_replacement` 的 1 条→5；`lifecycle_source` 写"迁移自独立站 status=xxx，未逐条核实" |
 | `specs`（84 条，`[标签, 值]`） | `product_specification` | `spec_label`=标签，`spec_value`=值，`spec_unit` 留空（值里自带单位，无法可靠拆分），`spec_key`=标签转小写蛇形（同商品内重名加 `_2`），`verified=0`，`source`=独立站迁移 |
-| `photo` | `main_image_url` | 由独立站资源路径拼接，规则迁移时确认 |
+| `photo`（52 张）、`linkedin` | 不迁移 | 福唯自己的现货实拍图和营销图，不是零件通用图（决策 13）；迁移后主图为空，由平台账号上传官方图 |
 | `compatibility`（12 条） | `product_relationship` | **子字段结构未检视**：已含 `relationship_type` 则按其映射，否则默认类型 5、置信度 3 |
-| `sell_price*`、`price_source`、`condition_note*`、`linkedin` | 不迁移 | 属租户级/站点级数据（决策 3） |
+| `sell_price` + `sell_price_currency` + `price_source`（`ebay_ref` 53 条、`web_ref` 3 条，共 56 条） | `product_reference_price` | `price_original`=`sell_price`，`currency_code`=`USD`，`exchange_rate` / `price_cny` 留空（汇率未维护），`price_source`=`eBay 参考价（独立站迁移）` 或 `网络参考价（独立站迁移）`，`price_date` 留空 |
+| `sell_price`（`procurement_quote_min` 14 条）、`condition_note*` | 不迁移 | 采购报价是福唯自己的成本，属租户级数据（决策 3） |
+| `specs` 中的 `Net weight`、`Dimensions`、`Origin` / `Country of origin` | 不自动迁移 | 自由文本且混有多值（如 `Germany / China`），干跑只报数（重量 1、尺寸 1、原产国 26），由人工录入物流与海关 |
+| `product_logistics`、`product_customs` | 迁移后为空 | 没有可靠来源，HS 编码一个都没有 |
 | `datasheet`（仅 1 个商品，字符串路径） | `product_document` | `document_type=1`、`title`=`Datasheet`、`file_url`=原路径、`language`=`en`、`verified=0`、`source`=独立站迁移；文件不在仓库，干跑报告 |
 | `applications`（84 个商品共 117 条，`{icon, title, desc}`） | `product_application` | `title`、`description`=`desc`、`icon`=`icon`（emoji 原样，29 种）、`sort_order`=数组顺序、`verified=0` |
 | `faq`（84 个商品共 222 条，`{q, a}`） | `product_faq` | `question`=`q`、`answer`=`a`、`source=3`（Q7）、`sort_order`=数组顺序；**命中卖家承诺关键词的条目不导入**（决策 12）。关键词范围：品牌名 `Fouwell`、邮箱与电话、质保 `warranty`、库存与发货 `in stock` / `ship` / `lead time` / `MOQ`、价格 `price` / `quote`、第一人称 `we` / `our`；以干跑清单人工复核为准，误伤的条目由人工加入放行清单后再导入 |
 
-验收：商品 87 / 品牌 40 / 品类 6 / 系列 80，无唯一键冲突；技术资料 1 条；应用场景 117 条（84 个商品）；FAQ = 222 − 干跑排除数（排除数以干跑清单为准），全部 `source=3`，且导入结果中没有任何一条含 `Fouwell`；抽查 5 条商品，规格与独立站页面一致。
+验收：商品 87 / 品牌 40 / 品类 6 / 系列 80，无唯一键冲突；参考价 56 条（全部 USD、本位币为空），排除 14 条采购报价；图片视频、物流、海关 0 行；技术资料 1 条；应用场景 117 条（84 个商品）；FAQ = 222 − 干跑排除数（排除数以干跑清单为准），全部 `source=3`，且导入结果中没有任何一条含 `Fouwell`；抽查 5 条商品，规格与独立站页面一致。
 
 ## Open Questions
 
@@ -461,7 +621,10 @@ CREATE TABLE `product_faq`
 - Q6：计量单位是否单独做字典？（默认本期不做。）
 - Q7：迁移的 FAQ（**84 个商品共 222 条**，不是 84 条）是否视为已人工审核？（默认保守置为 `source=3` 待审核；卖家承诺类条目已决定不导入，见决策 12。）
 - Q11：被排除的卖家类 FAQ 与站点内容放在哪里？（默认只保留在干跑报告与独立站本地 `js/data.js`，不改独立站；「租户商品扩展」落地时再迁移。）
-- Q8：HS 编码、原产国、重量体积是否预留？（默认不加，出现报关需求再补。）
+- ~~Q8：HS 编码、原产国、重量体积是否预留？~~ **已纳入（2026-09-19）**：见决策 13，HS 编码一个商品一个。
+- Q12：参考价的汇率取自哪里？（默认沿用询盘报价的取法；实现时确认现有汇率来源，取不到则本位币留空。）
+- Q14：全站外壳（侧栏、顶栏）与主题令牌升级由谁负责、何时做？（用户已确认采用深色默认、浅色并存，品牌主色由 `#1677FF` 调整为 `#2563EB` 并增加蓝 → 靛 → 青渐变；这会影响全站，本 change 不含，需另立 change，如 `upgrade-app-shell`；升级前商品页沿用旧外壳。）
+- Q13：图片视频的存储何时迁 OSS？（当前落本地磁盘，多实例部署或需要备份前必须迁移；默认上线前不迁，单实例部署。）
 - Q9：独立站构建机能否访问 ERP API？（wiki 遗留问题；若 ERP 在内网，"实时调用"方案不成立。）
 - Q10：询盘明细 `category` 是 `varchar(32)` 自由文本，如何映射到 `category_code`？（默认关联商品时以商品的品类为准，历史明细不回填；属 `link-inquiry-to-product`。）
 - wiki 记录商品数为 84、实测 87：**已查清**，84 是 2026-09-18 全站深度页升级时的独立站SKU数，同日又发布 3 个 WECON 型号（84→87），与预干跑一致；`compatibility` 子字段结构未检视；`resource` 表种子数据的具体写法未找到样例。
