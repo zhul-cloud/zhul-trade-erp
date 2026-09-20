@@ -11,7 +11,13 @@ import {
   type SeriesOption,
   seriesApi,
 } from '../../service';
-import { CardShell, Field, FieldGrid, useUnsaved } from './CardShell';
+import {
+  CardShell,
+  Field,
+  FieldGrid,
+  useEditFocus,
+  useUnsaved,
+} from './CardShell';
 
 interface FormValues {
   brandId: number;
@@ -103,6 +109,7 @@ export const BasicCard: React.FC<{
   };
 
   useUnsaved('basic', editing && dirty ? { save, discard } : null);
+  useEditFocus('card-basic', editing);
 
   const lockHint = '已被引用，不可修改';
 

@@ -10,7 +10,7 @@ import { EmptyHint } from '../../components/EmptyHint';
 import { Pill } from '../../components/Pills';
 import { readBizError, type SpecItem, specApi } from '../../service';
 import { useProductTheme } from '../../theme';
-import { CardEmpty, CardShell, useUnsaved } from './CardShell';
+import { CardEmpty, CardShell, useEditFocus, useUnsaved } from './CardShell';
 
 /** 规格名称 → 规格编码：小写、空格变下划线，只留字母数字 */
 const slug = (label: string) =>
@@ -92,6 +92,7 @@ export const SpecCard: React.FC<{
   };
 
   useUnsaved('specs', editing && dirty ? { save, discard } : null);
+  useEditFocus('card-specs', editing);
 
   return (
     <CardShell

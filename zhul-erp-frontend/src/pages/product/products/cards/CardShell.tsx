@@ -3,6 +3,32 @@ import React, { createContext, useContext, useEffect, useRef } from 'react';
 import { Pill } from '../../components/Pills';
 import { useProductTheme } from '../../theme';
 
+/**
+ * 卡片进入编辑态或退出编辑态时，触发它的按钮会被卸载，焦点会掉回页面顶部。
+ * 进入编辑：把焦点交给卡片里的第一个输入框；退出：交给卡片标题，键盘用户不会丢失位置。
+ */
+export function useEditFocus(cardId: string, editing: boolean) {
+  const previous = useRef(editing);
+  useEffect(() => {
+    if (previous.current === editing) return;
+    previous.current = editing;
+    if (editing) focusFirstField(cardId);
+    else focusCardTitle(cardId);
+  }, [cardId, editing]);
+}
+
+export const focusFirstField = (cardId: string) =>
+  setTimeout(() => {
+    document
+      .querySelector<HTMLElement>(`#${cardId} input, #${cardId} textarea`)
+      ?.focus();
+  }, 50);
+
+export const focusCardTitle = (cardId: string) =>
+  setTimeout(() => {
+    document.getElementById(`${cardId}-title`)?.focus();
+  }, 50);
+
 /** 有未保存修改的卡片登记在这里，页面底部的保存条据此显示，离开页面前据此提示。 */
 export interface UnsavedEntry {
   save: () => Promise<void>;
@@ -69,6 +95,7 @@ export const CardShell: React.FC<{
       >
         <h2
           id={`${id}-title`}
+          tabIndex={-1}
           style={{
             margin: 0,
             fontSize: 16,

@@ -187,6 +187,16 @@ const ProductListInner: React.FC = () => {
     load();
   }, [load]);
 
+  // antd 表格为测量列宽渲染了一行 aria-hidden 的隐藏行，行里带一个"全选"复选框，键盘会 Tab 到它。
+  // 组件库没有提供关闭的选项，这里把隐藏行里的输入从 Tab 顺序里拿掉。
+  useEffect(() => {
+    for (const el of document.querySelectorAll<HTMLElement>(
+      '.ant-table-measure-row input',
+    )) {
+      el.tabIndex = -1;
+    }
+  }, [rows, loading, firstLoad]);
+
   const updateFilters = (patch: Partial<Filters>) => {
     setFilters((prev) => {
       const next = { ...prev, ...patch };

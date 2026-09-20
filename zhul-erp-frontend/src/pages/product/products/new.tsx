@@ -78,7 +78,46 @@ type DupState =
   | { kind: 'existsByCreate'; id: number; display: string }
   | { kind: 'deleted'; id: number; display: string };
 
+const VISUALLY_HIDDEN: React.CSSProperties = {
+  position: 'absolute',
+  width: 1,
+  height: 1,
+  overflow: 'hidden',
+  clip: 'rect(0 0 0 0)',
+};
+
+/** 窄屏（手机）时步骤条只显示当前步骤的文字，其余只留序号，其它步骤名仍然给读屏 */
+function useNarrow(maxWidth = 560) {
+  const query = `(max-width: ${maxWidth}px)`;
+  const [narrow, setNarrow] = useState(() => window.matchMedia(query).matches);
+  useEffect(() => {
+    const mql = window.matchMedia(query);
+    const onChange = () => setNarrow(mql.matches);
+    mql.addEventListener('change', onChange);
+    return () => mql.removeEventListener('change', onChange);
+  }, [query]);
+  return narrow;
+}
+
+/** 单选组的方向键：←↑ 上一个、→↓ 下一个，移动焦点并选中（ARIA radio 模式） */
+const onRadioKey = (e: React.KeyboardEvent<HTMLElement>) => {
+  const keys = ['ArrowLeft', 'ArrowUp', 'ArrowRight', 'ArrowDown'];
+  if (!keys.includes(e.key)) return;
+  const group = e.currentTarget.closest('[role="radiogroup"]');
+  const radios = Array.from(
+    group?.querySelectorAll<HTMLElement>('[role="radio"]') ?? [],
+  );
+  const index = radios.indexOf(e.currentTarget);
+  if (index < 0 || radios.length < 2) return;
+  e.preventDefault();
+  const step = e.key === 'ArrowLeft' || e.key === 'ArrowUp' ? -1 : 1;
+  const next = radios[(index + step + radios.length) % radios.length];
+  next.focus();
+  next.click();
+};
+
 const WizardInner: React.FC = () => {
+  const narrow = useNarrow();
   const { message } = App.useApp();
   const { palette, mode, toggle } = useProductTheme();
   const { initialState } = useModel('@@initialState');
@@ -430,7 +469,7 @@ const WizardInner: React.FC = () => {
           display: 'flex',
           alignItems: 'center',
           gap: 16,
-          padding: '16px 32px',
+          padding: '16px clamp(12px, 3vw, 32px)',
           borderBottom: `1px solid ${palette.hairline}`,
           background: '#0A101D',
           flexWrap: 'wrap',
@@ -452,7 +491,7 @@ const WizardInner: React.FC = () => {
             margin: 0,
             padding: 0,
             flex: 1,
-            minWidth: 320,
+            minWidth: 'min(320px, 100%)',
             justifyContent: 'center',
           }}
         >
@@ -493,8 +532,16 @@ const WizardInner: React.FC = () => {
                 >
                   {state === 'done' ? '✓' : n}
                 </span>
-                {label}
-                {n < STEPS.length && (
+                <span
+                  style={
+                    narrow && state !== 'current'
+                      ? VISUALLY_HIDDEN
+                      : { whiteSpace: 'nowrap' }
+                  }
+                >
+                  {label}
+                </span>
+                {n < STEPS.length && !narrow && (
                   <span
                     aria-hidden="true"
                     style={{ width: 24, height: 1, background: '#334155' }}
@@ -519,7 +566,7 @@ const WizardInner: React.FC = () => {
         style={{
           display: 'flex',
           gap: 32,
-          padding: '40px 32px',
+          padding: '40px clamp(12px, 3vw, 32px)',
           maxWidth: 1280,
           margin: '0 auto',
           flexWrap: 'wrap',
@@ -547,6 +594,7 @@ const WizardInner: React.FC = () => {
                   <button
                     type="button"
                     role="radio"
+                    onKeyDown={onRadioKey}
                     aria-checked={draft.brandId === b.id}
                     key={b.id}
                     style={bigChoice(draft.brandId === b.id)}
@@ -591,6 +639,7 @@ const WizardInner: React.FC = () => {
                 size="large"
                 value={draft.mpn}
                 onChange={(e) => patch({ mpn: e.target.value })}
+                onPressEnter={() => step1Ready && setStep(2)}
                 maxLength={128}
                 status={
                   dup.kind === 'exists' || dup.kind === 'existsByCreate'
@@ -682,6 +731,7 @@ const WizardInner: React.FC = () => {
                   <button
                     type="button"
                     role="radio"
+                    onKeyDown={onRadioKey}
                     aria-checked={draft.categoryId === c.id}
                     key={c.id}
                     style={bigChoice(draft.categoryId === c.id)}
@@ -710,6 +760,7 @@ const WizardInner: React.FC = () => {
                   <button
                     type="button"
                     role="radio"
+                    onKeyDown={onRadioKey}
                     aria-checked={!draft.seriesId}
                     onClick={() => patch({ seriesId: undefined })}
                     style={{
@@ -729,6 +780,7 @@ const WizardInner: React.FC = () => {
                     <button
                       type="button"
                       role="radio"
+                      onKeyDown={onRadioKey}
                       aria-checked={draft.seriesId === s.id}
                       key={s.id}
                       onClick={() => patch({ seriesId: s.id })}
@@ -1141,7 +1193,7 @@ const WizardInner: React.FC = () => {
             right: 0,
             bottom: 0,
             zIndex: 10,
-            padding: '14px 32px',
+            padding: '14px clamp(12px, 3vw, 32px)',
             background: '#0A101D',
             borderTop: `1px solid ${palette.hairline}`,
             display: 'flex',

@@ -125,6 +125,16 @@ const useStyles = createStyles(
       outline-offset: 2px;
     }
 
+    /* 下拉框、日期框、带前缀的输入框：焦点在内部的 input 上，外框画出焦点环；表头排序键盘可达 */
+    .ant-select:focus-within,
+    .ant-picker:focus-within,
+    .ant-input-affix-wrapper:focus-within,
+    .ant-input-number:focus-within,
+    .ant-table-thead th[tabindex]:focus-visible {
+      outline: 2px solid ${p.link};
+      outline-offset: 2px;
+    }
+
     /* 表格里的数字、金额、汇率用等宽数字 */
     .num {
       font-variant-numeric: tabular-nums;

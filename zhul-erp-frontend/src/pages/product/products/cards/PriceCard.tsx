@@ -19,6 +19,7 @@ import {
   CardShell,
   Field,
   FieldGrid,
+  useEditFocus,
   useUnsaved,
 } from './CardShell';
 
@@ -95,6 +96,7 @@ export const PriceCard: React.FC<{
     }
   };
 
+  useEditFocus('card-price', editing);
   useUnsaved(
     'price',
     editing && dirty

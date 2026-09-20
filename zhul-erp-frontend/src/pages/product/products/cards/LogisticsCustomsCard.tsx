@@ -23,6 +23,7 @@ import {
   CardShell,
   Field,
   FieldGrid,
+  useEditFocus,
   useUnsaved,
 } from './CardShell';
 
@@ -113,6 +114,8 @@ export const LogisticsCustomsCard: React.FC<{
     }
   };
 
+  useEditFocus('card-logistics', editL);
+  useEditFocus('card-customs', editC);
   useUnsaved(
     'logistics',
     editL && dirtyL
