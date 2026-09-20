@@ -1,0 +1,391 @@
+{
+ "product/创建商品": [
+  "ProductCoreIntegrationTest#createProductWithDefaults",
+  "ProductServiceImplTest#createStoresRawTrimmedAndDefaultsDisplayLifecycleAndStatus"
+ ],
+ "product/系列不属于所选品牌被拒绝": [
+  "ProductServiceImplTest#seriesOfAnotherBrandIsRejected"
+ ],
+ "product/空格写法不同的同一型号被拒绝": [
+  "ProductCoreIntegrationTest#differentWritingsOfTheSameModelAreDuplicates"
+ ],
+ "product/大小写和连字符不同的同一型号被拒绝": [
+  "ProductCoreIntegrationTest#differentWritingsOfTheSameModelAreDuplicates"
+ ],
+ "product/全角字符视为同一型号": [
+  "ProductCoreIntegrationTest#differentWritingsOfTheSameModelAreDuplicates"
+ ],
+ "product/不同品牌允许相同型号": [
+  "ProductCoreIntegrationTest#sameModelUnderDifferentBrandsCoexists"
+ ],
+ "product/型号不含字母数字被拒绝": [
+  "ProductCoreIntegrationTest#modelWithoutLettersOrDigitsIsRejected"
+ ],
+ "product/并发创建同一型号只成功一个": [
+  "ProductCoreIntegrationTest#concurrentCreatesOfTheSameModelSucceedOnlyOnce"
+ ],
+ "product/新建命中已删除商品": [
+  "ProductCoreIntegrationTest#deletedModelCannotBeRecreatedButCanBeRestoredWithAllData"
+ ],
+ "product/恢复已删除商品": [
+  "ProductCoreIntegrationTest#deletedModelCannotBeRecreatedButCanBeRestoredWithAllData"
+ ],
+ "product/停产状态缺少依据被拒绝": [
+  "ProductServiceImplTest#discontinuedWithoutSourceIsRejected"
+ ],
+ "product/新建商品默认生命周期": [
+  "ProductCoreIntegrationTest#createProductWithDefaults"
+ ],
+ "product/停产无替代但存在替代关系时警告": [
+  "ProductCoreIntegrationTest#lifecycleRulesAgainstRealData",
+  "ProductServiceImplTest#obsoleteWithReplacementRelationshipSavesWithWarning"
+ ],
+ "product/停用被引用的商品": [
+  "ProductServiceImplTest#disablingReferencedProductIsAllowed",
+  "ProductCoreIntegrationTest#deleteAndImmutabilityDependOnUsage",
+  "ProductCoreIntegrationTest#searchOnlyReturnsEnabledAndUndeletedProducts"
+ ],
+ "product/删除被引用的商品": [
+  "ProductCoreIntegrationTest#deleteAndImmutabilityDependOnUsage",
+  "ProductServiceImplTest#deleteReferencedProductIsRejectedWithUsageCount"
+ ],
+ "product/删除未被引用的商品": [
+  "ProductServiceImplTest#deleteUnreferencedProductSoftDeletes"
+ ],
+ "product/修改被引用商品的型号": [
+  "ProductServiceImplTest#referencedProductCannotChangeMpnOrBrand",
+  "ProductCoreIntegrationTest#deleteAndImmutabilityDependOnUsage"
+ ],
+ "product/修改被引用商品的产品名称": [
+  "ProductServiceImplTest#referencedProductCanStillChangeName",
+  "ProductCoreIntegrationTest#deleteAndImmutabilityDependOnUsage"
+ ],
+ "product/整体替换规格": [
+  "ProductCoreIntegrationTest#replacingSpecificationsLeavesExactlyTheSubmittedSet"
+ ],
+ "product/规格编码重复被拒绝": [
+  "ProductCoreIntegrationTest#duplicateKeyRejectsWholeSubmissionAndKeepsOldSpecs"
+ ],
+ "product/关联目录外的旧型号": [
+  "ProductCoreIntegrationTest#relationToModelOutsideCatalogKeepsOnlyText"
+ ],
+ "product/不能关联自己": [
+  "ProductCoreIntegrationTest#cannotRelateToItselfInAnyWriting"
+ ],
+ "product/重复关系被拒绝": [
+  "ProductCoreIntegrationTest#duplicateRelationIsRejectedButDifferentTypeIsAllowed"
+ ],
+ "product/已验证置信度必须有核实人": [
+  "ProductCoreIntegrationTest#verifiedConfidenceNeedsVerifierAndStampsTime"
+ ],
+ "product/关联型号命中目录中唯一商品时自动关联": [
+  "ProductCoreIntegrationTest#uniqueCatalogHitIsLinkedAutomaticallyButAmbiguousOneIsNot"
+ ],
+ "product/关联型号在多个品牌下都存在时不自动关联": [
+  "ProductCoreIntegrationTest#uniqueCatalogHitIsLinkedAutomaticallyButAmbiguousOneIsNot"
+ ],
+ "product/对称类型创建反向关系": [
+  "ProductCoreIntegrationTest#symmetricRelationCanCreateReverseInOneTransaction"
+ ],
+ "product/非对称类型不生成反向关系": [
+  "ProductCoreIntegrationTest#asymmetricRelationIgnoresReverseRequest"
+ ],
+ "product/反向关系创建失败时整体回滚": [
+  "ProductCoreIntegrationTest#reverseFailureRollsBackTheForwardRelation"
+ ],
+ "product/添加技术资料": [
+  "ProductContentIntegrationTest#addDocumentDefaultsLanguageAndUnverified"
+ ],
+ "product/非法文件地址被拒绝": [
+  "ProductContentIntegrationTest#unsafeDocumentUrlsAreRejectedAndSitePathIsAccepted",
+  "UrlRulesTest#rejectsEverythingElse"
+ ],
+ "product/站内路径可以保存": [
+  "ProductContentIntegrationTest#unsafeDocumentUrlsAreRejectedAndSitePathIsAccepted"
+ ],
+ "product/同一商品重复的文件地址被拒绝": [
+  "ProductContentIntegrationTest#duplicateDocumentUrlOnSameProductIsRejectedButAllowedOnAnotherProduct"
+ ],
+ "product/资料只属于一个商品": [
+  "ProductContentIntegrationTest#documentsBelongToOneProductOnly"
+ ],
+ "product/标记已核实时记录核实时间": [
+  "ProductContentIntegrationTest#verifyingDocumentStampsTimeAndUnverifyingClearsIt"
+ ],
+ "product/添加应用场景": [
+  "ProductContentIntegrationTest#addApplicationDefaultsToUnverified"
+ ],
+ "product/标题为空被拒绝": [
+  "ProductContentIntegrationTest#applicationTitleRulesAreEnforced"
+ ],
+ "product/同一商品重复标题被拒绝": [
+  "ProductContentIntegrationTest#applicationTitleRulesAreEnforced"
+ ],
+ "product/平台账号新增 FAQ": [
+  "ProductContentIntegrationTest#manualFaqHasSourceTwoAndTenantsCanReadIt"
+ ],
+ "product/待审核 FAQ 对租户账号不可见": [
+  "ProductContentIntegrationTest#pendingFaqIsHiddenFromTenantsButVisibleToPlatform",
+  "ProductContentIntegrationTest#pendingFaqIsAlsoHiddenOnTheControllerReadPath",
+  "ProductApiContractTest#pendingFaqNeverLeavesTheServerForTenantTokens"
+ ],
+ "product/审核确认待审核 FAQ": [
+  "ProductContentIntegrationTest#approvingPendingFaqPublishesItAndRecordsReviewer"
+ ],
+ "product/已确认的 FAQ 不能再次审核": [
+  "ProductContentIntegrationTest#alreadyConfirmedFaqCannotBeApprovedAgain"
+ ],
+ "product/同一商品重复问题被拒绝": [
+  "ProductContentIntegrationTest#duplicateQuestionIgnoringCaseAndSpacesIsRejectedEvenAgainstPendingOnes"
+ ],
+ "product/修改内容不改变来源": [
+  "ProductContentIntegrationTest#editingPendingFaqKeepsItPending"
+ ],
+ "product/上传图片": [
+  "ProductContentIntegrationTest#uploadedImageIsSavedOnDiskAndRecordedAsPlatformUpload",
+  "ProductApiContractTest#multipartUploadWorksEndToEndAndTenantUploadIsRefused"
+ ],
+ "product/超过大小上限被拒绝": [
+  "ProductContentIntegrationTest#rejectedUploadsSaveNothingAndLeaveMediaUnchanged",
+  "ProductMediaStorageServiceImplTest#imageSizeBoundaryIsFiveMegabytes",
+  "ProductMediaStorageServiceImplTest#videoAllowsMoreThanImageButNotMoreThanHundredMegabytes"
+ ],
+ "product/扩展名与文件头不一致被拒绝": [
+  "ProductMediaStorageServiceImplTest#extensionMustMatchFileHeader"
+ ],
+ "product/SVG 被拒绝": [
+  "ProductMediaStorageServiceImplTest#svgIsAlwaysRejected"
+ ],
+ "product/登记外部链接": [
+  "ProductContentIntegrationTest#externalLinkIsRecordedWithoutDownloading"
+ ],
+ "product/非法地址被拒绝": [
+  "ProductContentIntegrationTest#unsafeMediaAndCoverUrlsAreRejected"
+ ],
+ "product/设置主图会取消原主图": [
+  "ProductContentIntegrationTest#settingAnotherImageAsMainReplacesTheOldMain",
+  "ProductContentIntegrationTest#concurrentSetMainLeavesExactlyOneMainImage"
+ ],
+ "product/视频不能设为主图": [
+  "ProductContentIntegrationTest#videoCanBeUploadedButNotSetAsMain"
+ ],
+ "product/保存物流信息": [
+  "ProductLogisticsServiceImplTest#savesWeightsAndDimensionsLeavingOthersNull",
+  "ProductContentIntegrationTest#logisticsIsOverwrittenAsAWholeAndCanBeCleared"
+ ],
+ "product/毛重小于净重被拒绝": [
+  "ProductLogisticsServiceImplTest#grossWeightBelowNetWeightIsRejected"
+ ],
+ "product/非正数被拒绝": [
+  "ProductLogisticsServiceImplTest#zeroAndNegativeValuesAreRejectedForEveryNumericField"
+ ],
+ "product/没有物流信息时读取": [
+  "ProductContentIntegrationTest#productWithoutLogisticsReadsAsEmptyObject",
+  "ProductLogisticsServiceImplTest#readWithoutRowReturnsNullNumbersNotZero"
+ ],
+ "product/保存带分隔符的 HS 编码": [
+  "ProductCustomsServiceImplTest#hsCodeWithDotsAndSpacesIsStoredAsDigitsOnly",
+  "ProductContentIntegrationTest#customsIsSavedWithDigitsOnlyHsCodeAndOverwritten"
+ ],
+ "product/非法 HS 编码被拒绝": [
+  "ProductCustomsServiceImplTest#hsCodeOutsideSixToTenDigitsOrWithLettersIsRejected"
+ ],
+ "product/非法国家码被拒绝": [
+  "ProductCustomsServiceImplTest#originCountryMustBeIsoAlpha2Uppercase"
+ ],
+ "product/退税率越界被拒绝": [
+  "ProductCustomsServiceImplTest#rebateRateBoundariesAndRounding"
+ ],
+ "product/保存美元参考价并折算": [
+  "ProductReferencePriceServiceImplTest#usdIsConvertedWithSixDecimalRateAndHalfUpRounding"
+ ],
+ "product/汇率未维护时本位币为空": [
+  "ProductReferencePriceServiceImplTest#missingRateLeavesBaseAmountEmptyNotZero",
+  "ProductContentIntegrationTest#referencePriceWithoutRateHasNoBaseAmount"
+ ],
+ "product/本位币参考价汇率为 1": [
+  "ProductReferencePriceServiceImplTest#baseCurrencyHasRateOneAndIgnoresSuppliedRate"
+ ],
+ "product/缺少币种被拒绝": [
+  "ProductReferencePriceServiceImplTest#missingOrBlankCurrencyIsRejected"
+ ],
+ "product/零或负数金额被拒绝": [
+  "ProductReferencePriceServiceImplTest#zeroAndNegativeAmountsAreRejected"
+ ],
+ "product/清除后再次保存": [
+  "ProductContentIntegrationTest#clearingThenSavingAgainReusesTheRowAndKeepsOnlyTheLastSave"
+ ],
+ "product/不同租户读到同一份参考价": [
+  "ProductContentIntegrationTest#referencePriceIsConvertedAndReadBackIdenticallyByEveryTenant"
+ ],
+ "product/刚创建的商品": [
+  "ProductContentIntegrationTest#freshProductIsOneOfTenForPlatformAccounts"
+ ],
+ "product/缺图片、物流、海关": [
+  "ProductContentIntegrationTest#productWithoutMediaLogisticsCustomsIsSevenOfTen"
+ ],
+ "product/待审核 FAQ 不计入": [
+  "ProductContentIntegrationTest#onlyPendingFaqsDoNotCountForFaqModule"
+ ],
+ "product/有图片但没有主图": [
+  "ProductContentIntegrationTest#completenessTracksEachModuleThroughRealData"
+ ],
+ "product/租户账号看不到完整度": [
+  "ProductContentIntegrationTest#tenantAccountsNeverSeeCompleteness"
+ ],
+ "product/完整度不足不影响使用": [
+  "ProductServiceImplTest#disablingReferencedProductIsAllowed",
+  "ProductCoreIntegrationTest#deleteAndImmutabilityDependOnUsage"
+ ],
+ "product/缺图片筛选": [
+  "ProductContentIntegrationTest#missingFilterListsOnlyMatchingProductsAndSummaryMatchesFilterCounts"
+ ],
+ "product/缺项数量与筛选结果一致": [
+  "ProductContentIntegrationTest#summaryAndFilterAgreeOnAMixedCatalog"
+ ],
+ "product/租户账号的缺项筛选被忽略": [
+  "ProductContentIntegrationTest#tenantMissingFilterIsIgnoredAndInvalidValueIsRejectedForPlatform"
+ ],
+ "product/不同租户读到同一份商品": [
+  "ProductCoreIntegrationTest#differentTenantsSeeTheSameProduct"
+ ],
+ "product/租户账号写入被拒绝": [
+  "ProductCoreIntegrationTest#tenantAccountWritesAreRejectedEvenWithPermission",
+  "ProductApiContractTest#tenantTokenCanReadButWriteReturnsPlatformAdminRequired"
+ ],
+ "product/无权限码的平台账号被拒绝": [
+  "ProductCoreIntegrationTest#platformAccountWithoutPermissionIsDenied",
+  "ProductApiContractTest#platformAccountWithoutPermissionGets403"
+ ],
+ "product/超级管理员的平台账号可以写入": [
+  "ProductCoreIntegrationTest#adminPlatformAccountCanCreate",
+  "ProductContentIntegrationTest#adminPlatformAccountCanUseWriteEndpoints"
+ ],
+ "product/租户账号审核 FAQ 被拒绝": [
+  "ProductContentIntegrationTest#everyWriteEndpointRejectsTenantAccountsEvenWithEditPermission"
+ ],
+ "product/租户账号上传文件被拒绝": [
+  "ProductContentIntegrationTest#tenantUploadIsRejectedAndNothingIsSaved",
+  "ProductApiContractTest#multipartUploadWorksEndToEndAndTenantUploadIsRefused"
+ ],
+ "brand/创建品牌": [
+  "BrandServiceImplTest#createDefaultsToEnabledAndGenuineWithPlatformTenant"
+ ],
+ "brand/品牌名称重复被拒绝": [
+  "BrandServiceImplTest#createWithExistingNameIsRejectedWithExistingId",
+  "ProductMasterDataIntegrationTest#brandNameIsUniqueIgnoringCaseAgainstRealDatabase"
+ ],
+ "brand/品牌名称为空被拒绝": [
+  "BrandServiceImplTest#blankOrMissingNameIsRejected"
+ ],
+ "brand/标记为兼容品牌": [
+  "BrandServiceImplTest#compatibleBrandFlagIsSaved"
+ ],
+ "brand/停用品牌": [
+  "ProductMasterDataIntegrationTest#disabledBrandLeavesOptionsButStaysInList",
+  "BrandServiceImplTest#disablingBrandUpdatesStatusAndEvictsCache"
+ ],
+ "brand/删除有商品的品牌": [
+  "BrandServiceImplTest#deleteBrandWithProductsIsRejectedWithUsageCount",
+  "ProductMasterDataIntegrationTest#brandWithProductsCannotBeDeletedThenCanAfterProductsAreGone"
+ ],
+ "brand/删除无商品的品牌": [
+  "BrandServiceImplTest#deleteBrandWithoutProductsSoftDeletes"
+ ],
+ "brand/租户用户读取品牌": [
+  "ProductMasterDataIntegrationTest#readEndpointsOnlyNeedLogin",
+  "ProductMasterDataIntegrationTest#tenantAccountsReadTheSameDataAndRowsAreStoredWithTenantZero"
+ ],
+ "brand/租户用户写入被拒绝": [
+  "BrandServiceImplTest#tenantAccountCannotWriteEvenIfPermissionGranted",
+  "ProductMasterDataIntegrationTest#permissionGrantedButTenantAccountStillRejected"
+ ],
+ "category/创建品类": [
+  "CategoryServiceImplTest#createSavesEnabledCategoryForPlatform"
+ ],
+ "category/编码重复被拒绝": [
+  "CategoryServiceImplTest#duplicateCodeIsRejected"
+ ],
+ "category/编码格式不合法被拒绝": [
+  "CategoryServiceImplTest#invalidCodeFormatsAreRejected"
+ ],
+ "category/修改已使用品类的编码": [
+  "CategoryServiceImplTest#codeOfCategoryWithProductsCannotBeChanged",
+  "ProductMasterDataIntegrationTest#categoryCodeLockedOnceProductsExistButNameStillEditable"
+ ],
+ "category/修改已使用品类的名称": [
+  "CategoryServiceImplTest#nameOfCategoryWithProductsCanBeChanged",
+  "ProductMasterDataIntegrationTest#categoryCodeLockedOnceProductsExistButNameStillEditable"
+ ],
+ "category/停用品类": [
+  "CategoryServiceImplTest#disableCategoryUpdatesStatusAndEvictsCache"
+ ],
+ "category/删除有商品的品类": [
+  "CategoryServiceImplTest#deleteCategoryWithProductsIsRejected"
+ ],
+ "category/租户用户写入被拒绝": [
+  "CategoryServiceImplTest#tenantAccountCannotWriteButCanRead"
+ ],
+ "series/创建系列": [
+  "SeriesServiceImplTest#createSeriesUnderExistingBrand"
+ ],
+ "series/同品牌下系列重名被拒绝": [
+  "SeriesServiceImplTest#duplicateNameUnderSameBrandIsRejected",
+  "ProductMasterDataIntegrationTest#seriesNameIsUniquePerBrandIgnoringCase"
+ ],
+ "series/不同品牌下允许同名系列": [
+  "SeriesServiceImplTest#sameNameUnderDifferentBrandIsAllowed",
+  "ProductMasterDataIntegrationTest#seriesNameIsUniquePerBrandIgnoringCase"
+ ],
+ "series/按品牌获取系列选项": [
+  "ProductMasterDataIntegrationTest#seriesNameIsUniquePerBrandIgnoringCase",
+  "ProductMasterDataIntegrationTest#seriesOptionsForUnknownBrandAreEmpty"
+ ],
+ "series/删除有商品的系列": [
+  "SeriesServiceImplTest#deleteSeriesWithProductsIsRejected",
+  "ProductMasterDataIntegrationTest#seriesWithProductsCannotBeDeleted"
+ ],
+ "series/租户用户写入被拒绝": [
+  "SeriesServiceImplTest#tenantAccountCannotWrite"
+ ],
+ "product-lookup/空格和大小写不影响命中": [
+  "ProductCoreIntegrationTest#searchIgnoresSpacesHyphensAndCase"
+ ],
+ "product-lookup/只返回启用且未删除的商品": [
+  "ProductCoreIntegrationTest#searchOnlyReturnsEnabledAndUndeletedProducts"
+ ],
+ "product-lookup/结果数量上限": [
+  "ProductCoreIntegrationTest#searchLimitDefaultsTo20AndCapsAt50"
+ ],
+ "product-lookup/空关键词": [
+  "ProductCoreIntegrationTest#blankKeywordAndSymbolOnlyKeywordDoNotReturnEverything"
+ ],
+ "product-lookup/按产品名称匹配": [
+  "ProductCoreIntegrationTest#searchMatchesProductNameAndEscapesWildcards"
+ ],
+ "product-lookup/精确匹配": [
+  "ProductCoreIntegrationTest#matchReturnsExactAndCandidates"
+ ],
+ "product-lookup/品牌不同但型号相同列为候选": [
+  "ProductCoreIntegrationTest#matchWithOtherBrandOnlyListsCandidate"
+ ],
+ "product-lookup/品牌名称不存在": [
+  "ProductCoreIntegrationTest#matchWithUnknownBrandStillReturnsCandidates"
+ ],
+ "product-lookup/无任何匹配": [
+  "ProductCoreIntegrationTest#matchWithNothingOrDisabledProductIsEmpty"
+ ],
+ "product-lookup/已停用商品不参与匹配": [
+  "ProductCoreIntegrationTest#matchWithNothingOrDisabledProductIsEmpty"
+ ],
+ "product-lookup/租户用户搜索商品": [
+  "ProductCoreIntegrationTest#readEndpointsOnlyNeedLogin",
+  "ProductApiContractTest#tenantTokenCanReadButWriteReturnsPlatformAdminRequired"
+ ],
+ "product-lookup/品牌下的相近型号": [
+  "ProductCoreIntegrationTest#searchCanBeLimitedToOneBrandForSimilarModelHints"
+ ],
+ "product-lookup/不返回其他品牌": [
+  "ProductCoreIntegrationTest#searchCanBeLimitedToOneBrandForSimilarModelHints"
+ ]
+}
