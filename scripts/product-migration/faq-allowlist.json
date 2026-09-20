@@ -1,0 +1,8 @@
+[
+  {
+    "brand": "Siemens",
+    "model": "6ES7212-1AE40-0XB0",
+    "question": "How does the CPU 1212C compare with other S7-1200 models (1211C / 1214C / 1215C / 1217C)?",
+    "reason": "干跑因答案里的 price-per-I/O 命中「价格」规则；通读后是纯产品对比，没有卖家承诺（2026-09-20 人工复核）"
+  }
+]

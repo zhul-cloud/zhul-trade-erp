@@ -594,7 +594,7 @@ CREATE TABLE `product_reference_price`
 
 | `js/data.js` | ERP | 规则 |
 |--------------|-----|------|
-| `brand` | `product_brand.brand_name` | 去重后 40 个；国家/Logo/主题色/`is_genuine` 取自独立站品牌数据与 `NON_GENUINE_BRANDS` |
+| `brand` | `product_brand.brand_name` | 去重后 40 个；国家 / 主题色 / `is_genuine` 取自独立站品牌数据与 `NON_GENUINE_BRANDS`（`General`、`PWERUN` 为非原厂）；独立站品牌表里没有的 21 个品牌国家和主题色留空。**Logo 不迁移**：独立站的 Logo 是站内相对路径（`/assets/brands/real/xxx.svg`），在 ERP 域名下打不开，界面回退为字母标，之后由平台账号上传 |
 | `cat` | `product_category.category_code` | 6 个 key 原样使用（`controllers/drives/servo/sensors/hmi/spares`）；名称取自独立站品类名称表 |
 | `series` | `product_series` | 按（品牌, 系列）去重创建，预期 80 个 |
 | `model` | `mpn_raw` / `mpn_display` | 原样；`mpn_normalized` 由归一化函数生成 |
@@ -602,16 +602,16 @@ CREATE TABLE `product_reference_price`
 | `status` | `lifecycle_status` | `instock`→1、`legacy`→3、`discont`→4；带 `no_known_replacement` 的 1 条→5；`lifecycle_source` 写"迁移自独立站 status=xxx，未逐条核实" |
 | `specs`（84 条，`[标签, 值]`） | `product_specification` | `spec_label`=标签，`spec_value`=值，`spec_unit` 留空（值里自带单位，无法可靠拆分），`spec_key`=标签转小写蛇形（同商品内重名加 `_2`），`verified=0`，`source`=独立站迁移 |
 | `photo`（52 张）、`linkedin` | 不迁移 | 福唯自己的现货实拍图和营销图，不是零件通用图（决策 13）；迁移后主图为空，由平台账号上传官方图 |
-| `compatibility`（12 条） | `product_relationship` | **子字段结构未检视**：已含 `relationship_type` 则按其映射，否则默认类型 5、置信度 3 |
+| `compatibility`（12 个商品共 22 条，`{from, type?, note}`） | `product_relationship` | **已检视（2026-09-20）**。`from` 是"较早的型号"（当前商品替代它 / 是它的后续），`type` 有 `direct`→1、`successor`→2、`functional`→3、`compatible`→4（共 10 条带 type），没有 type 的默认类型 5、置信度 3。**方向约定**：关系挂在商品 A 下，读作"关联型号 X 是 A 的{官方替代 / 后续型号}"，所以 `direct` / `successor` 要挂在 `from` 对应的商品下、关联到当前商品；`from` 不在目录里时无法建立（干跑报告）。对称类型（`functional` / `compatible` / 默认 5）挂在当前商品下，两端都在目录内时补反向关系。**`from` 等于自己**（如 FR-A740-7.5K 自己的条目，替代型号只写在说明里）跳过，由对端条目覆盖；**`from` 是一段描述而不是型号**（如 "Older non-EtherCAT Accurax G5"）无法自动关联，报告后由人工处理。说明里含卖家措辞的去掉说明。实测：导入 8 条，跳过 3 条，人工 12 条 |
 | `sell_price` + `sell_price_currency` + `price_source`（`ebay_ref` 53 条、`web_ref` 3 条，共 56 条） | `product_reference_price` | `price_original`=`sell_price`，`currency_code`=`USD`，`exchange_rate` / `price_cny` 留空（汇率未维护），`price_source`=`eBay 参考价（独立站迁移）` 或 `网络参考价（独立站迁移）`，`price_date` 留空 |
 | `sell_price`（`procurement_quote_min` 14 条）、`condition_note*` | 不迁移 | 采购报价是福唯自己的成本，属租户级数据（决策 3） |
 | `specs` 中的 `Net weight`、`Dimensions`、`Origin` / `Country of origin` | 不自动迁移 | 自由文本且混有多值（如 `Germany / China`），干跑只报数（重量 1、尺寸 1、原产国 26），由人工录入物流与海关 |
 | `product_logistics`、`product_customs` | 迁移后为空 | 没有可靠来源，HS 编码一个都没有 |
 | `datasheet`（仅 1 个商品，字符串路径） | `product_document` | `document_type=1`、`title`=`Datasheet`、`file_url`=原路径、`language`=`en`、`verified=0`、`source`=独立站迁移；文件不在仓库，干跑报告 |
 | `applications`（84 个商品共 117 条，`{icon, title, desc}`） | `product_application` | `title`、`description`=`desc`、`icon`=`icon`（emoji 原样，29 种）、`sort_order`=数组顺序、`verified=0` |
-| `faq`（84 个商品共 222 条，`{q, a}`） | `product_faq` | `question`=`q`、`answer`=`a`、`source=3`（Q7）、`sort_order`=数组顺序；**命中卖家承诺关键词的条目不导入**（决策 12）。关键词范围：品牌名 `Fouwell`、邮箱与电话、质保 `warranty`、库存与发货 `in stock` / `ship` / `lead time` / `MOQ`、价格 `price` / `quote`、第一人称 `we` / `our`；以干跑清单人工复核为准，误伤的条目由人工加入放行清单后再导入 |
+| `faq`（84 个商品共 222 条，`{q, a}`） | `product_faq` | `question`=`q`、`answer`=`a`、`source=3`（Q7）、`sort_order`=数组顺序；**命中卖家承诺关键词的条目不导入**（决策 12）。关键词范围：品牌名 `Fouwell`、邮箱与电话、质保 `warranty`、库存与发货 `in stock` / `ship` / `lead time` / `MOQ`、价格 `price` / `quote`、第一人称 `we` / `our`；以干跑清单人工复核为准，误伤的条目由人工加入放行清单（`scripts/product-migration/faq-allowlist.json`）后再导入。**实测（2026-09-20）**：222 条中命中 140 条被排除、放行 1 条（答案里的 `price-per-I/O` 是产品对比，非卖家承诺），导入 82 条（69 个商品）；命中的多数是"库存 / 发货 / 质保"这类卖家问答，或答案里夹带 "we / our / tell us" 的措辞 |
 
-验收：商品 87 / 品牌 40 / 品类 6 / 系列 80，无唯一键冲突；参考价 56 条（全部 USD、本位币为空），排除 14 条采购报价；图片视频、物流、海关 0 行；技术资料 1 条；应用场景 117 条（84 个商品）；FAQ = 222 − 干跑排除数（排除数以干跑清单为准），全部 `source=3`，且导入结果中没有任何一条含 `Fouwell`；抽查 5 条商品，规格与独立站页面一致。
+验收：商品 87 / 品牌 40 / 品类 6 / 系列 80，无唯一键冲突；参考价 56 条（全部 USD、本位币为空），排除 14 条采购报价；图片视频、物流、海关 0 行；技术资料 1 条；应用场景 117 条（84 个商品）；FAQ = 222 − 干跑排除数 140 = 82，全部 `source=3`，且导入结果中没有任何一条含 `Fouwell`；抽查 5 条商品，规格与独立站页面一致。
 
 ## Open Questions
 
