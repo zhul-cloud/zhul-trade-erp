@@ -136,7 +136,7 @@ customer ──< customer_inquiry ──< inquiry_order ──< inquiry_order_it
 
 SQL 文件：`sql/build/sql/schema_v1.2.sql`（依赖 `schema_v1.sql`、`schema_v1.1.sql` 先执行，不修改任何已有表）；菜单与按钮权限种子：`sql/build/data/data_v1.2.sql`
 
-来源：`openspec/changes/add-product-master-core/`（proposal.md / design.md 决策 1–14 / specs），PRD 见
+来源：`openspec/changes/archive/2026-09-20-add-product-master-core/`（proposal.md / design.md 决策 1–14 / specs），PRD 见
 `docs/02-产品PRD/02-商品域/00-商品主数据/商品主数据-PRD-V1.0.md`。
 
 ### 平台级共享数据（与其他表的重要区别）

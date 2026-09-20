@@ -2,10 +2,10 @@
 
 | 版本 | 日期 | 作者 | 变更说明 |
 |------|------|------|----------|
-| V1.0 | 2026-09-19 | 产品组 | 初稿（待评审）。含技术资料、应用场景、FAQ，一并在 v1.2.0 交付。决策与待确认项见 `openspec/changes/add-product-master-core/design.md` |
+| V1.0 | 2026-09-19 | 产品组 | 初稿（待评审）。含技术资料、应用场景、FAQ，一并在 v1.2.0 交付。决策与待确认项见 `openspec/changes/archive/2026-09-20-add-product-master-core/design.md` |
 | V1.1 | 2026-09-19 | 产品组 | 交互改版：新建商品改为 5 步向导；商品详情改为单页卡片并新增「档案完整度」；列表新增完整度列和缺项快捷筛选。界面见 `docs/03-产品原型/02-商品域/`（V3 方案 D：信任蓝 + 渐变，深色默认、浅色并存） |
 
-> 表结构、API、事务与迁移见 `openspec/changes/add-product-master-core/design.md`（下称 design.md）。本文只写业务规则和页面。
+> 表结构、API、事务与迁移见 `openspec/changes/archive/2026-09-20-add-product-master-core/design.md`（下称 design.md）。本文只写业务规则和页面。
 > 文中的 Q 编号（Q1、Q3 等）指 design.md「Open Questions」。
 > 本文覆盖 v1.2.0 全部范围，含技术资料、应用场景、FAQ，不分期。
 

@@ -3,13 +3,13 @@
 // 核对：specs 下每个 Scenario 都在 scenario-coverage.json 里登记了至少一个测试，
 // 且登记的每个测试方法在后端测试源码里真实存在。通过只说明"场景都有对应测试"；
 // 这些测试是否通过，要看后端全量测试（mvn test）的结果。
-// 用法：node openspec/changes/add-product-master-core/check-scenario-coverage.js
+// 用法：node openspec/changes/archive/2026-09-20-add-product-master-core/check-scenario-coverage.js
 const fs = require('node:fs');
 const path = require('node:path');
 
 const here = __dirname;
 const specsDir = path.join(here, 'specs', 'product');
-const testRoot = path.resolve(here, '../../../zhul-erp-backend/src/test/java');
+const testRoot = path.resolve(here, '../../../../zhul-erp-backend/src/test/java');
 const map = JSON.parse(fs.readFileSync(path.join(here, 'scenario-coverage.json'), 'utf8'));
 
 const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true })

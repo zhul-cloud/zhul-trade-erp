@@ -60,7 +60,7 @@ docs/
 |------|------|------|
 | 商品主数据 | [商品主数据-PRD-V1.0.md](02-产品PRD/02-商品域/00-商品主数据/商品主数据-PRD-V1.0.md) | V1.0（初稿） |
 
-架构设计见 OpenSpec change `openspec/changes/add-product-master-core/`（`design.md`）。
+架构设计见 OpenSpec change `openspec/changes/archive/2026-09-20-add-product-master-core/`（`design.md`）。
 
 ## 数据模型
 

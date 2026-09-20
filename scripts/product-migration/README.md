@@ -1,7 +1,7 @@
 # 商品主数据迁移（独立站 → ERP）
 
 一次性迁移，把独立站 `fouwell-website/js/data.js` 里的 87 个商品导入 v1.2.0 的商品主数据。设计依据见
-`openspec/changes/add-product-master-core/design.md` 的「Migration Plan」。**没有任何一步会写库，除非你自己执行生成的 SQL。**
+`openspec/changes/archive/2026-09-20-add-product-master-core/design.md` 的「Migration Plan」。**没有任何一步会写库，除非你自己执行生成的 SQL。**
 
 ## 步骤
 

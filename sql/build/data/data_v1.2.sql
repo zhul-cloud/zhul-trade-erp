@@ -1,6 +1,6 @@
 -- data_v1.2.sql：v1.2.0 商品主数据的菜单与按钮权限种子（依赖 data_v1.sql，可重复执行）
 -- 编码规则沿用 data_v1.sql：code = 'RS' + type + id
--- 权限码见 openspec/changes/add-product-master-core/design.md 决策 2；写接口另需平台账号（tenantId=0），
+-- 权限码见 openspec/changes/archive/2026-09-20-add-product-master-core/design.md 决策 2；写接口另需平台账号（tenantId=0），
 -- 所以租户管理员即使被分配了这些按钮，也只能读、不能写。
 USE zhul_erp;
 
