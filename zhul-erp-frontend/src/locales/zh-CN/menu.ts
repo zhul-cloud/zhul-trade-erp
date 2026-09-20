@@ -67,4 +67,9 @@ export default {
   'menu.inquiry': '询盘中心',
   'menu.inquiry.customerInquiry': '客户询盘',
   'menu.inquiry.order': '询盘单',
+  'menu.product': '商品管理',
+  'menu.product.products': '商品列表',
+  'menu.product.brands': '品牌管理',
+  'menu.product.categories': '品类管理',
+  'menu.product.series': '系列管理',
 };

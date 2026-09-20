@@ -1,3 +1,5 @@
+import { isPlatformAccount } from '@/utils/platform';
+
 export default function access(initialState: {
   currentUser?: API.CurrentUser & { permissions?: string[] };
 }) {
@@ -6,6 +8,9 @@ export default function access(initialState: {
   const perms = new Set(currentUser?.permissions || []);
 
   const can = (key: string) => isAdmin || perms.has('*') || perms.has(key);
+  // 商品主数据是平台共享数据：写按钮除了权限码，还要求平台账号（服务端同样会校验）
+  const platform = isPlatformAccount();
+  const canWrite = (key: string) => platform && can(key);
 
   return {
     canAdmin: isAdmin,
@@ -22,6 +27,12 @@ export default function access(initialState: {
     systemLogLogin: can('/system/log/login'),
     tenantList: can('/tenant/list'),
     tenantPackage: can('/tenant/package'),
+    productBrand: can('/product/brands'),
+    productCategory: can('/product/categories'),
+    productSeries: can('/product/series'),
+    productList: can('/product/products'),
+    // 平台账号才有档案完整度、缺项筛选等平台视角
+    productPlatform: platform,
     // 按钮级 - 用户管理
     'system:user:add': can('system:user:add'),
     'system:user:edit': can('system:user:edit'),
@@ -55,5 +66,18 @@ export default function access(initialState: {
     'system:config:delete': can('system:config:delete'),
     // 按钮级 - 登录日志
     'system:log:login:forceLogout': can('system:log:login:forceLogout'),
+    // 按钮级 - 商品主数据（品牌 / 品类 / 系列 / 商品）
+    'product:brand:add': canWrite('product:brand:add'),
+    'product:brand:edit': canWrite('product:brand:edit'),
+    'product:brand:delete': canWrite('product:brand:delete'),
+    'product:category:add': canWrite('product:category:add'),
+    'product:category:edit': canWrite('product:category:edit'),
+    'product:category:delete': canWrite('product:category:delete'),
+    'product:series:add': canWrite('product:series:add'),
+    'product:series:edit': canWrite('product:series:edit'),
+    'product:series:delete': canWrite('product:series:delete'),
+    'product:product:add': canWrite('product:product:add'),
+    'product:product:edit': canWrite('product:product:edit'),
+    'product:product:delete': canWrite('product:product:delete'),
   };
 }

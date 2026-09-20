@@ -138,6 +138,55 @@ export default [
     ],
   },
   {
+    // 新建向导占满整页（没有侧栏和顶栏）。layout: false 只对顶层路由生效，所以放在 /product 分组外面
+    path: '/product/products/new',
+    layout: false,
+    access: 'productList',
+    component: './product/products/new',
+  },
+  {
+    path: '/product',
+    name: 'product',
+    icon: 'shopping',
+    routes: [
+      { path: '/product', redirect: '/product/products' },
+      {
+        path: '/product/products',
+        name: 'products',
+        icon: 'database',
+        access: 'productList',
+        component: './product/products',
+      },
+      {
+        path: '/product/products/:id',
+        hideInMenu: true,
+        access: 'productList',
+        component: './product/products/detail',
+      },
+      {
+        path: '/product/brands',
+        name: 'brands',
+        icon: 'tag',
+        access: 'productBrand',
+        component: './product/brand',
+      },
+      {
+        path: '/product/categories',
+        name: 'categories',
+        icon: 'appstore',
+        access: 'productCategory',
+        component: './product/category',
+      },
+      {
+        path: '/product/series',
+        name: 'series',
+        icon: 'cluster',
+        access: 'productSeries',
+        component: './product/series',
+      },
+    ],
+  },
+  {
     path: '/tenant',
     name: 'tenant',
     icon: 'cluster',
