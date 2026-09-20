@@ -135,6 +135,14 @@ const useStyles = createStyles(
       outline-offset: 2px;
     }
 
+    /* 输入框的清除按钮图标只有 12px，加大可点击区域到 24×24 */
+    .ant-input-clear-icon,
+    .ant-select-clear {
+      padding: 6px;
+      margin: -6px;
+      box-sizing: content-box;
+    }
+
     /* 表格里的数字、金额、汇率用等宽数字 */
     .num {
       font-variant-numeric: tabular-nums;
@@ -244,6 +252,8 @@ export const ProductThemeProvider: React.FC<{
           borderColor: palette.hairline,
         },
         Card: { headerFontSize: 16 },
+        // 交互目标不小于 24×24：开关 44×24
+        Switch: { trackHeight: 24, handleSize: 20, trackMinWidth: 44 },
       },
     }),
     [mode, palette],
