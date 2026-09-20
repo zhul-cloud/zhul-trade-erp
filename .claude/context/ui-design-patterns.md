@@ -204,6 +204,14 @@
 
 以 `theme.darkAlgorithm` 为默认、`defaultAlgorithm` 并存，提供主题切换并记住选择。令牌参考：`colorPrimary` `#2563EB`，`colorLink` 深色 `#60A5FA` / 浅色 `#1D4ED8`，`colorBgBase` `#0B1220`，`colorBgContainer` `#111A2C`，`colorBorder` `#64748B`（控件边界），`colorBorderSecondary` `#1E293B`，`borderRadius` 10，`borderRadiusLG` 16；主按钮的蓝 → 靛渐变用自定义样式实现。**品牌主色仍为蓝色系，由 Ant Design 默认的 `#1677FF` 调整为 `#2563EB`，并增加蓝 → 靛 → 青渐变用于强调**，会影响全站，随外壳升级一起落地。
 
+### 前端落地位置与主题范围（2026-09-20，外壳统一）
+
+- 全局主题在 `src/theme/`：`palette.ts`（令牌）、`store.ts`（模式存 `localStorage.zhul_theme`，默认深色）、`antd.ts`（antd 主题）、`shell.ts`（ProLayout 令牌）、`AppTheme.tsx`（`useAppTheme`、全站样式、`AppThemeSync`）。`AppThemeSync` 挂在 `app.tsx` 的 `innerProvider`，经 umi antd 插件的 `useAntdConfigSetter` 写入主题，所以弹窗、消息、无外壳的向导页都拿到同一份
+- 外壳组件在 `src/components/Shell/`：`AppLogo`（侧栏顶）、`SidebarUser`（侧栏底用户卡，含退出）、`TopBar`（内容区吸顶 60 高顶栏：主题切换、文档、版本、语言）。ProLayout 的 `side` 布局桌面端不渲染 Header，所以顶栏放在 `childrenRender` 里
+- **所有页面都跟随主题**（含登录、找回密码，没有外壳的页面顶角自带切换按钮）。页面里取色只走两条路：组件内用 `useAppTheme().palette`，模块顶层（没法调 hook 的地方）用 CSS 变量 `var(--z-ink)` / `var(--z-hairline)` 等（由 `AppTheme.tsx` 的 `:root` 注入，键名同 `palette.ts`），**不要再写十六进制**。状态标签（`Tag` 的 success/warning/error/processing）由全站样式统一成语义色 + 浅底，不需要每页自己配色
+- 开发注意：utoo pack 的 dev 服务在 HMR 之后重新加载页面，可能仍拿到旧的入口 chunk；改了 `app.tsx` 或 `theme/` 后如果页面没变化，重启前端（`scripts/dev-down.sh && scripts/dev-up.sh`）
+- 依赖 `setInitialState` / `setAntdConfig` 的 effect，不要把 setter 放进依赖数组（引用会随状态变化，形成死循环），用 ref 持有
+
 ### 可访问性与规范补充（2026-09-19，ui-ux-pro-max 审查后补充）
 
 审查依据：ui-ux-pro-max 的 200 多条规则，加上对原型 1400 个文字节点的对比度、字号和描边的逐项计算。修复后：小于 12px 的文字 88 处 → 0，控件描边 1.51:1 → 3.12:1，文字对比度问题只剩品牌字母标（Logo 类，可豁免）。

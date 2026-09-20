@@ -1,8 +1,7 @@
 import { LinkOutlined } from '@ant-design/icons';
 import type { Settings as LayoutSettings } from '@ant-design/pro-components';
-import { SettingDrawer } from '@ant-design/pro-components';
 import type { RequestConfig, RunTimeLayoutConfig } from '@umijs/max';
-import { history, Link, request as umiRequest } from '@umijs/max';
+import { history, Link, request as umiRequest, useModel } from '@umijs/max';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import React from 'react';
@@ -11,7 +10,6 @@ import React from 'react';
 dayjs.extend(relativeTime);
 
 import {
-  AvatarDropdown,
   DocLink,
   ErrorBoundary,
   Footer,
@@ -19,10 +17,40 @@ import {
   OfflineBanner,
   VersionDropdown,
 } from '@/components';
+import { AppLogo, SidebarUser, ThemeToggle, TopBar } from '@/components/Shell';
+import { AppThemeSync, useAppTheme } from '@/theme/AppTheme';
+import { buildShellSettings } from '@/theme/shell';
+import { getThemeMode } from '@/theme/store';
 import defaultSettings from '../config/defaultSettings';
 import { errorConfig } from './requestErrorConfig';
 
 const isDev = process.env.NODE_ENV === 'development';
+
+/** 主题切换时把外壳令牌（侧栏、顶栏、内容区）同步进 initialState.settings，ProLayout 从那里读 */
+const ShellThemeSync: React.FC = () => {
+  const { mode } = useAppTheme();
+  const { setInitialState } = useModel('@@initialState');
+  // setInitialState 的引用会随 initialState 变化，依赖它会死循环，只在 mode 变化时同步
+  const setterRef = React.useRef(setInitialState);
+  setterRef.current = setInitialState;
+  React.useEffect(() => {
+    setterRef.current((s) => ({
+      ...s,
+      settings: {
+        ...s?.settings,
+        ...buildShellSettings(mode),
+      } as Partial<LayoutSettings>,
+    }));
+  }, [mode]);
+  return null;
+};
+
+/** 外壳设置 = 项目默认设置 + 当前主题对应的令牌（侧栏、顶栏、内容区） */
+const initialShellSettings = () =>
+  ({
+    ...defaultSettings,
+    ...buildShellSettings(getThemeMode()),
+  }) as Partial<LayoutSettings>;
 const loginPath = '/login';
 const publicPaths = [
   loginPath,
@@ -88,23 +116,21 @@ export async function getInitialState(): Promise<{
     return {
       fetchUserInfo,
       currentUser,
-      settings: defaultSettings as Partial<LayoutSettings>,
+      settings: initialShellSettings(),
       settingDrawerOpen: false,
     };
   }
   return {
     fetchUserInfo,
-    settings: defaultSettings as Partial<LayoutSettings>,
+    settings: initialShellSettings(),
     settingDrawerOpen: false,
   };
 }
 
 // ProLayout 支持的api https://procomponents.ant.design/components/layout
-export const layout: RunTimeLayoutConfig = ({
-  initialState,
-  setInitialState,
-}) => {
+export const layout: RunTimeLayoutConfig = ({ initialState }) => {
   return {
+    siderWidth: 240,
     menuItemRender: (item, dom) => {
       if (item.path) {
         return (
@@ -115,21 +141,11 @@ export const layout: RunTimeLayoutConfig = ({
       }
       return dom;
     },
-    actionsRender: () => [
-      <DocLink key="doc" />,
-      <VersionDropdown key="version" />,
-      <LangDropdown key="lang" />,
-    ],
-    avatarProps: {
-      src: initialState?.currentUser?.avatar,
-      title: 'ProUser',
-      render: (_, avatarChildren) => (
-        <AvatarDropdown>{avatarChildren}</AvatarDropdown>
-      ),
-    },
-    // waterMarkProps: {
-    //   content: initialState?.currentUser?.name,
-    // },
+    // 当前用户卡放在侧栏底部（menuFooterRender），顶栏不再重复放头像
+    menuHeaderRender: (_logo, _title, props) => (
+      <AppLogo collapsed={props?.collapsed} />
+    ),
+    menuFooterRender: (props) => <SidebarUser collapsed={props?.collapsed} />,
     footerRender: () => <Footer />,
     onPageChange: () => {
       const { location } = history;
@@ -140,26 +156,7 @@ export const layout: RunTimeLayoutConfig = ({
         );
       }
     },
-    bgLayoutImgList: [
-      {
-        src: 'https://mdn.alipayobjects.com/yuyan_qk0oxh/afts/img/D2LWSqNny4sAAAAAAAAAAAAAFl94AQBr',
-        left: 85,
-        bottom: 100,
-        height: '303px',
-      },
-      {
-        src: 'https://mdn.alipayobjects.com/yuyan_qk0oxh/afts/img/C2TWRpJpiC0AAAAAAAAAAAAAFl94AQBr',
-        bottom: -68,
-        right: -45,
-        height: '303px',
-      },
-      {
-        src: 'https://mdn.alipayobjects.com/yuyan_qk0oxh/afts/img/F6vSTbj8KpYAAAAAAAAAAAAAFl94AQBr',
-        bottom: 0,
-        left: 0,
-        width: '331px',
-      },
-    ],
+    bgLayoutImgList: [],
     links: isDev
       ? [
           <Link key="openapi" to="/umi/plugin/openapi" target="_blank">
@@ -171,36 +168,21 @@ export const layout: RunTimeLayoutConfig = ({
     // Replace ProLayout's default ErrorBoundary with our offline-aware version,
     // so chunk load errors show friendly messages instead of "Something went wrong."
     ErrorBoundary,
-    menuHeaderRender: undefined,
     // 自定义 403 页面
     // unAccessible: <div>unAccessible</div>,
     // 增加一个 loading 的状态
-    childrenRender: (children) => {
-      // if (initialState?.loading) return <PageLoading />;
-      return (
-        <>
-          {children}
-          <SettingDrawer
-            disableUrlParams
-            enableDarkTheme
-            collapse={initialState?.settingDrawerOpen}
-            onCollapseChange={(open) => {
-              setInitialState((s) => ({
-                ...s,
-                settingDrawerOpen: open,
-              }));
-            }}
-            settings={initialState?.settings}
-            onSettingChange={(settings) => {
-              setInitialState((s) => ({
-                ...s,
-                settings,
-              }));
-            }}
-          />
-        </>
-      );
-    },
+    childrenRender: (children) => (
+      <>
+        <ShellThemeSync />
+        <TopBar>
+          <ThemeToggle />
+          <DocLink />
+          <VersionDropdown />
+          <LangDropdown />
+        </TopBar>
+        {children}
+      </>
+    ),
     ...initialState?.settings,
   };
 };
@@ -215,6 +197,11 @@ export const request: RequestConfig = {
   withCredentials: true,
   ...errorConfig,
 };
+
+/** 主题同步放在 innerProvider：它在 antd 的 ConfigProvider 之内，所有页面（含没有外壳的向导页）都被覆盖 */
+export function innerProvider(container: React.ReactNode) {
+  return <AppThemeSync>{container}</AppThemeSync>;
+}
 
 export function rootContainer(container: React.ReactNode) {
   return (

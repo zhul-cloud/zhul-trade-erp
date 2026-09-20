@@ -1,9 +1,4 @@
-import {
-  ArrowLeftOutlined,
-  LockOutlined,
-  MoonOutlined,
-  SunOutlined,
-} from '@ant-design/icons';
+import { ArrowLeftOutlined, LockOutlined } from '@ant-design/icons';
 import { history, useAccess, useParams, useSearchParams } from '@umijs/max';
 import {
   Alert,
@@ -234,7 +229,7 @@ const Sidebar: React.FC<{
 
 const DetailInner: React.FC = () => {
   const { message, modal } = App.useApp();
-  const { palette, mode, toggle } = useProductTheme();
+  const { palette } = useProductTheme();
   const access = useAccess();
   const params = useParams<{ id: string }>();
   const [search] = useSearchParams();
@@ -421,11 +416,6 @@ const DetailInner: React.FC = () => {
           </div>
         </div>
         <Space>
-          <Button
-            aria-label={mode === 'dark' ? '切换到浅色主题' : '切换到深色主题'}
-            icon={mode === 'dark' ? <SunOutlined /> : <MoonOutlined />}
-            onClick={toggle}
-          />
           {canEdit && (
             <>
               <Button onClick={toggleStatus}>

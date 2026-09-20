@@ -1,9 +1,20 @@
 import React, { useEffect, useState } from 'react';
+import { ThemeToggle } from '@/components/Shell';
 import type { AppearanceInfo } from '@/services/zhul/public';
 import { getAppearance } from '@/services/zhul/public';
+import { useAppTheme } from '@/theme/AppTheme';
+import { LOGO_GRADIENT } from '@/theme/palette';
 
-const DEFAULT_LOGO = '/logo.svg';
-const DEFAULT_GRADIENT = 'linear-gradient(135deg, #1890ff 0%, #0050b3 100%)';
+/** 极光底：蓝、靛、青三团柔光叠在主题底色上，深色下亮一些，浅色下淡一些 */
+const aurora = (dark: boolean, canvas: string) => {
+  const a = dark ? [0.32, 0.26, 0.16] : [0.16, 0.12, 0.1];
+  return [
+    `radial-gradient(60% 50% at 18% 8%, rgba(37, 99, 235, ${a[0]}), transparent)`,
+    `radial-gradient(50% 42% at 88% 0%, rgba(99, 102, 241, ${a[1]}), transparent)`,
+    `radial-gradient(46% 40% at 62% 100%, rgba(34, 211, 238, ${a[2]}), transparent)`,
+    canvas,
+  ].join(', ');
+};
 
 interface AuthLayoutProps {
   children: React.ReactNode;
@@ -16,6 +27,7 @@ const AuthLayout: React.FC<AuthLayoutProps> = ({
 }) => {
   const [appearance, setAppearance] = useState<AppearanceInfo>();
   const [bgLoaded, setBgLoaded] = useState(false);
+  const { mode, palette: p } = useAppTheme();
 
   useEffect(() => {
     getAppearance().then(setAppearance);
@@ -43,10 +55,11 @@ const AuthLayout: React.FC<AuthLayoutProps> = ({
     };
   }, [appearance?.loginBackgroundUrl]);
 
+  // 后台配置了可用的背景图就用图（叠一层主题底色保证文字对比度），否则用极光底
   const bg =
     bgLoaded && appearance?.loginBackgroundUrl
-      ? `url(${appearance.loginBackgroundUrl}) center / cover no-repeat`
-      : DEFAULT_GRADIENT;
+      ? `linear-gradient(${p.canvas}b3, ${p.canvas}b3), url(${appearance.loginBackgroundUrl}) center / cover no-repeat`
+      : aurora(mode === 'dark', p.canvas);
 
   return (
     <div
@@ -60,23 +73,43 @@ const AuthLayout: React.FC<AuthLayoutProps> = ({
         justifyContent: 'center',
         padding: '32px 16px 72px',
         boxSizing: 'border-box',
+        position: 'relative',
       }}
     >
+      <div style={{ position: 'absolute', top: 16, right: 24 }}>
+        <ThemeToggle />
+      </div>
       <div style={{ textAlign: 'center', marginBottom: 24 }}>
-        <img
-          src={appearance?.logoUrl || DEFAULT_LOGO}
-          alt={appearance?.siteName || '烛龙ERP'}
-          style={{ width: 120, height: 40, objectFit: 'contain' }}
-          onError={(e) => {
-            if (e.currentTarget.src.indexOf(DEFAULT_LOGO) === -1) {
-              e.currentTarget.src = DEFAULT_LOGO;
-            }
-          }}
-        />
+        {appearance?.logoUrl ? (
+          <img
+            src={appearance.logoUrl}
+            alt={appearance.siteName || '烛龙ERP'}
+            style={{ width: 120, height: 40, objectFit: 'contain' }}
+          />
+        ) : (
+          <span
+            role="img"
+            aria-label={appearance?.siteName || '烛龙ERP'}
+            style={{
+              width: 48,
+              height: 48,
+              borderRadius: 14,
+              background: LOGO_GRADIENT,
+              color: '#FFFFFF',
+              fontWeight: 800,
+              fontSize: 24,
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            烛
+          </span>
+        )}
         <div
           style={{
             fontSize: 12,
-            color: 'rgba(255,255,255,0.85)',
+            color: p.sub,
             marginTop: 8,
           }}
         >
@@ -88,10 +121,11 @@ const AuthLayout: React.FC<AuthLayoutProps> = ({
         style={{
           width: cardWidth,
           maxWidth: '100%',
-          background: '#fff',
-          borderRadius: 8,
+          background: p.card,
+          border: `1px solid ${p.hairline}`,
+          borderRadius: 16,
           padding: 32,
-          boxShadow: '0 4px 24px rgba(0,0,0,0.15)',
+          boxShadow: '0 12px 40px rgba(2, 6, 23, 0.28)',
           boxSizing: 'border-box',
         }}
       >
@@ -105,7 +139,7 @@ const AuthLayout: React.FC<AuthLayoutProps> = ({
           left: 0,
           right: 0,
           textAlign: 'center',
-          color: 'rgba(255,255,255,0.5)',
+          color: p.mute,
           fontSize: 12,
         }}
       >
