@@ -21,6 +21,7 @@ import CustomerQuickCreateModal from '@/components/CustomerQuickCreateModal';
 import { getUserList } from '@/pages/system/user/service';
 import type { CustomerItem } from '@/services/zhul/masterdata';
 import { getCustomer, searchCustomers } from '@/services/zhul/masterdata';
+import { useAppTheme } from '@/theme/AppTheme';
 import {
   CUSTOMER_INQUIRY_SOURCE_META,
   CUSTOMER_INQUIRY_STATUS,
@@ -37,6 +38,7 @@ const startOfMonth = (): string => {
 const today = (): string => new Date().toISOString().slice(0, 10);
 
 const CustomerInquiryList: React.FC = () => {
+  const { palette: p } = useAppTheme();
   const actionRef = useRef<ActionType>(null);
   const [customerNameMap, setCustomerNameMap] = useState<
     Record<number, string>
@@ -141,29 +143,29 @@ const CustomerInquiryList: React.FC = () => {
   const statCards = [
     {
       icon: <InboxOutlined />,
-      color: '#1677FF',
-      bg: '#E8F3FF',
+      color: p.link,
+      bg: p.accentSoft,
       label: '本月新增询盘',
       value: stats.newThisMonth,
     },
     {
       icon: <SmileOutlined />,
-      color: '#EA580C',
-      bg: '#FFF7ED',
+      color: p.orange,
+      bg: p.orangeSoft,
       label: '待确认',
       value: stats.pendingConfirm,
     },
     {
       icon: <DollarOutlined />,
-      color: '#7C3AED',
-      bg: '#F3E8FF',
+      color: p.violet,
+      bg: p.violetSoft,
       label: '待报价',
       value: stats.pendingQuote,
     },
     {
       icon: <CheckCircleOutlined />,
-      color: '#16A34A',
-      bg: '#F0FDF4',
+      color: p.green,
+      bg: p.greenSoft,
       label: '本月已成交',
       value: stats.dealCount,
     },
@@ -229,7 +231,7 @@ const CustomerInquiryList: React.FC = () => {
       search: false,
       render: (_, record) =>
         record.pendingVerifyCount > 0 ? (
-          <span style={{ color: '#EA580C' }}>{record.pendingVerifyCount}</span>
+          <span style={{ color: p.orange }}>{record.pendingVerifyCount}</span>
         ) : (
           record.pendingVerifyCount
         ),
@@ -299,7 +301,7 @@ const CustomerInquiryList: React.FC = () => {
               >
                 {s.icon}
               </div>
-              <span style={{ color: 'rgba(0,0,0,0.45)' }}>{s.label}</span>
+              <span style={{ color: p.mute }}>{s.label}</span>
             </Space>
             <div style={{ fontSize: 28, fontWeight: 700, marginTop: 12 }}>
               {s.value ?? '-'}
@@ -408,7 +410,7 @@ const CustomerInquiryList: React.FC = () => {
             dropdownRender: (menu: React.ReactNode) => (
               <>
                 {menu}
-                <div style={{ padding: 8, borderTop: '1px solid #f0f0f0' }}>
+                <div style={{ padding: 8, borderTop: `1px solid ${p.hairline}` }}>
                   <a onClick={() => setQuickCreateOpen(true)}>+ 新建客户</a>
                 </div>
               </>

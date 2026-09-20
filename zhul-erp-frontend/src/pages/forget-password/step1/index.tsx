@@ -4,9 +4,11 @@ import { Alert, Button, Form, Input } from 'antd';
 import React, { useState } from 'react';
 import { AuthLayout } from '@/components';
 import { sendResetCode } from '@/services/zhul/auth';
+import { useAppTheme } from '@/theme/AppTheme';
 import StepsBar from '../components/StepsBar';
 
 const Step1: React.FC = () => {
+  const { palette: p } = useAppTheme();
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -49,7 +51,7 @@ const Step1: React.FC = () => {
             fontSize: 20,
             fontWeight: 600,
             textAlign: 'center',
-            color: '#262626',
+            color: p.ink,
           }}
         >
           忘记密码
@@ -117,7 +119,7 @@ const Step1: React.FC = () => {
           </Button>
         </Form.Item>
       </Form>
-      <div style={{ fontSize: 12, color: '#8c8c8c', textAlign: 'center' }}>
+      <div style={{ fontSize: 12, color: p.mute, textAlign: 'center' }}>
         验证码将发送到注册邮箱，有效期10分钟
       </div>
     </AuthLayout>

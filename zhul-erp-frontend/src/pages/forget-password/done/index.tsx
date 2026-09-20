@@ -3,8 +3,10 @@ import { Helmet, history } from '@umijs/max';
 import { Button } from 'antd';
 import React, { useEffect, useState } from 'react';
 import { AuthLayout } from '@/components';
+import { useAppTheme } from '@/theme/AppTheme';
 
 const Done: React.FC = () => {
+  const { palette: p } = useAppTheme();
   const [countdown, setCountdown] = useState(3);
 
   useEffect(() => {
@@ -27,24 +29,24 @@ const Done: React.FC = () => {
         <title>密码重置成功 - 烛龙ERP</title>
       </Helmet>
       <div style={{ textAlign: 'center' }}>
-        <CheckCircleFilled style={{ fontSize: 72, color: '#52c41a' }} />
+        <CheckCircleFilled style={{ fontSize: 72, color: p.green }} />
         <div
           style={{
             fontSize: 20,
             fontWeight: 600,
-            color: '#262626',
+            color: p.ink,
             marginTop: 20,
           }}
         >
           密码重置成功
         </div>
-        <div style={{ fontSize: 14, color: '#595959', marginTop: 12 }}>
+        <div style={{ fontSize: 14, color: p.mute, marginTop: 12 }}>
           您的密码已重置，请使用新密码重新登录
         </div>
         <div
           style={{
             fontSize: 12,
-            color: '#8c8c8c',
+            color: p.mute,
             marginTop: 8,
             marginBottom: 24,
           }}

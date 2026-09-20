@@ -18,6 +18,7 @@ import {
   Typography,
 } from 'antd';
 import React, { useEffect, useState } from 'react';
+import { useAppTheme } from '@/theme/AppTheme';
 import {
   CONFIDENCE_META,
   CUSTOMER_INQUIRY_MANUAL_ADVANCE_SEQUENCE,
@@ -52,6 +53,7 @@ interface EditableGroup {
 const { Title, Text, Paragraph } = Typography;
 
 const CustomerInquiryDetail: React.FC = () => {
+  const { palette: p } = useAppTheme();
   const { id } = useParams<{ id: string }>();
   const inquiryId = Number(id);
   const [inquiry, setInquiry] = useState<CustomerInquiryItem | null>(null);
@@ -234,7 +236,7 @@ const CustomerInquiryDetail: React.FC = () => {
             </Paragraph>
           </Card>
           <Card style={{ textAlign: 'center', padding: '48px 0' }}>
-            <ThunderboltOutlined style={{ fontSize: 40, color: '#1677FF' }} />
+            <ThunderboltOutlined style={{ fontSize: 40, color: p.link }} />
             <Title level={4}>AI 尚未开始解析</Title>
             <Text type="secondary">
               确认原始内容无误后，点击下方按钮发起 AI
@@ -268,16 +270,16 @@ const CustomerInquiryDetail: React.FC = () => {
           <>
             <Space size={32} style={{ marginBottom: 16 }}>
               <span>共明细数 {previewStats.totalItemCount}</span>
-              <span style={{ color: '#16A34A' }}>
+              <span style={{ color: p.green }}>
                 确认 {previewStats.confirmedCount}
               </span>
-              <span style={{ color: '#1677FF' }}>
+              <span style={{ color: p.link }}>
                 已纠正 {previewStats.correctedCount}
               </span>
-              <span style={{ color: '#EAB308' }}>
+              <span style={{ color: p.orange }}>
                 待核实 {previewStats.pendingVerifyCount}
               </span>
-              <span style={{ color: '#DC2626' }}>
+              <span style={{ color: p.red }}>
                 未识别 {previewStats.unrecognizedCount}
               </span>
             </Space>
@@ -295,9 +297,9 @@ const CustomerInquiryDetail: React.FC = () => {
                   onRow={(record) => ({
                     style:
                       record.confidence === 4
-                        ? { background: '#FEF2F2' }
+                        ? { background: p.redSoft }
                         : record.confidence === 3
-                          ? { background: '#FFFBEB' }
+                          ? { background: p.orangeSoft }
                           : undefined,
                   })}
                   columns={[

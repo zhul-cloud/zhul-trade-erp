@@ -26,6 +26,7 @@ import {
   Tooltip,
 } from 'antd';
 import React, { useEffect, useMemo, useState } from 'react';
+import { useAppTheme } from '@/theme/AppTheme';
 import type { DictItemRow, DictTypeItem } from './service';
 import {
   createDictItem,
@@ -59,6 +60,7 @@ type TypeDrawerMode = 'create' | 'edit';
 type ItemDrawerMode = 'create' | 'edit';
 
 const DictPage: React.FC = () => {
+  const { palette: p } = useAppTheme();
   const { message, modal } = App.useApp();
   const access = useAccess();
 
@@ -266,7 +268,7 @@ const DictPage: React.FC = () => {
           padding: '8px 10px',
           borderRadius: 8,
           cursor: 'pointer',
-          background: selected ? '#EAF2FF' : 'transparent',
+          background: selected ? p.accentSoft : 'transparent',
           marginBottom: 2,
         }}
       >
@@ -276,16 +278,14 @@ const DictPage: React.FC = () => {
               style={{
                 fontSize: 13,
                 fontWeight: selected ? 600 : 500,
-                color: selected ? '#1677FF' : '#111111',
+                color: selected ? p.link : p.ink,
               }}
             >
               {t.dictName}
             </span>
             {t.isBuiltin === 1 && <Tag style={{ fontSize: 10 }}>内置</Tag>}
           </Space>
-          <div
-            style={{ fontSize: 11, color: '#94A3B8', fontFamily: 'monospace' }}
-          >
+          <div style={{ fontSize: 11, color: p.mute, fontFamily: 'monospace' }}>
             {t.dictType}
           </div>
         </div>
@@ -293,18 +293,18 @@ const DictPage: React.FC = () => {
           <Space size={8} onClick={(e) => e.stopPropagation()}>
             {canEdit && (
               <EditOutlined
-                style={{ color: '#5B6B82', fontSize: 13 }}
+                style={{ color: p.mute, fontSize: 13 }}
                 onClick={() => openEditType(t)}
               />
             )}
             {canDelete &&
               (t.isBuiltin === 1 ? (
                 <Tooltip title="系统内置字典不可删除">
-                  <DeleteOutlined style={{ color: '#D1D5DB', fontSize: 13 }} />
+                  <DeleteOutlined style={{ color: p.faint, fontSize: 13 }} />
                 </Tooltip>
               ) : (
                 <DeleteOutlined
-                  style={{ color: '#DC2626', fontSize: 13 }}
+                  style={{ color: p.red, fontSize: 13 }}
                   onClick={() => handleDeleteType(t)}
                 />
               ))}
@@ -355,7 +355,7 @@ const DictPage: React.FC = () => {
           {canEdit && <a onClick={() => openEditItem(record)}>编辑</a>}
           {canDelete && (
             <a
-              style={{ color: '#DC2626' }}
+              style={{ color: p.red }}
               onClick={() => handleDeleteItem(record)}
             >
               删除
@@ -371,10 +371,10 @@ const DictPage: React.FC = () => {
       <div
         style={{
           display: 'flex',
-          background: '#fff',
+          background: p.card,
           borderRadius: 12,
           overflow: 'hidden',
-          border: '1px solid #F0F0F0',
+          border: `1px solid ${p.hairline}`,
           minHeight: 640,
         }}
       >
@@ -384,7 +384,7 @@ const DictPage: React.FC = () => {
             width: 300,
             flexShrink: 0,
             padding: 16,
-            borderRight: '1px solid #F0F0F0',
+            borderRight: `1px solid ${p.hairline}`,
           }}
         >
           {canAdd && (
@@ -416,7 +416,7 @@ const DictPage: React.FC = () => {
                     style={{
                       fontSize: 12,
                       fontWeight: 600,
-                      color: '#94A3B8',
+                      color: p.mute,
                       margin: '8px 4px',
                     }}
                   >
@@ -431,7 +431,7 @@ const DictPage: React.FC = () => {
                     style={{
                       fontSize: 12,
                       fontWeight: 600,
-                      color: '#94A3B8',
+                      color: p.mute,
                       margin: '12px 4px 8px',
                     }}
                   >
@@ -463,7 +463,7 @@ const DictPage: React.FC = () => {
                   <div
                     style={{
                       fontSize: 12,
-                      color: '#94A3B8',
+                      color: p.mute,
                       fontFamily: 'monospace',
                     }}
                   >

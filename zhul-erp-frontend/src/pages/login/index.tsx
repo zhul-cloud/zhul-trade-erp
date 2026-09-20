@@ -4,6 +4,7 @@ import { Alert, App, Button, Checkbox, Form, Input } from 'antd';
 import React, { useEffect, useRef, useState } from 'react';
 import { AuthLayout } from '@/components';
 import { login } from '@/services/zhul/auth';
+import { useAppTheme } from '@/theme/AppTheme';
 import { setToken } from '@/utils/tokenStore';
 
 interface LoginErrorState {
@@ -24,6 +25,7 @@ const getSafeRedirectUrl = (redirect: string | null): string => {
 };
 
 const LoginPage: React.FC = () => {
+  const { palette: p } = useAppTheme();
   const [form] = Form.useForm();
   const { message } = App.useApp();
   const { setInitialState } = useModel('@@initialState');
@@ -105,7 +107,7 @@ const LoginPage: React.FC = () => {
         style={{
           fontSize: 24,
           fontWeight: 600,
-          color: '#262626',
+          color: p.ink,
           textAlign: 'center',
           marginBottom: 24,
         }}

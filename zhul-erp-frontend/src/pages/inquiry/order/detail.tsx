@@ -16,6 +16,7 @@ import {
 } from 'antd';
 import React, { useEffect, useState } from 'react';
 import { getUserList } from '@/pages/system/user/service';
+import { useAppTheme } from '@/theme/AppTheme';
 import {
   CHANNEL_PLATFORM_META,
   CONFIDENCE_META,
@@ -47,6 +48,7 @@ import {
 const { Title, Paragraph } = Typography;
 
 const InquiryOrderDetail: React.FC = () => {
+  const { palette: p } = useAppTheme();
   const { id } = useParams<{ id: string }>();
   const [searchParams] = useSearchParams();
 
@@ -308,7 +310,7 @@ const InquiryOrderDetail: React.FC = () => {
                           <span
                             style={
                               cell.lowestPrice
-                                ? { background: '#F0FDF4', padding: '2px 6px', borderRadius: 4 }
+                                ? { background: p.greenSoft, padding: '2px 6px', borderRadius: 4 }
                                 : undefined
                             }
                           >

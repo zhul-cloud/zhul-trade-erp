@@ -29,6 +29,7 @@ import {
 import { useAccess } from '@umijs/max';
 import { App, Button, Card, Input, Popconfirm, Space, Tag } from 'antd';
 import React, { useEffect, useMemo, useState } from 'react';
+import { useAppTheme } from '@/theme/AppTheme';
 import type { MenuItem } from './service';
 import {
   createMenu,
@@ -132,7 +133,12 @@ const highlightMatch = (text: string, keyword: string) => {
   return (
     <>
       {text.slice(0, idx)}
-      <span style={{ background: '#FEF3C7', color: '#B45309' }}>
+      <span
+        style={{
+          background: 'var(--ant-color-warning-bg)',
+          color: 'var(--ant-color-warning-text)',
+        }}
+      >
         {text.slice(idx, idx + kw.length)}
       </span>
       {text.slice(idx + kw.length)}
@@ -147,13 +153,19 @@ const groupTitle = (icon: React.ReactNode, text: string) => (
       {icon}
       {text}
     </Space>
-    <div style={{ borderBottom: '1px solid #E5E7EB', marginTop: 8 }} />
+    <div
+      style={{
+        borderBottom: '1px solid var(--ant-color-border-secondary)',
+        marginTop: 8,
+      }}
+    />
   </div>
 );
 
 type DrawerMode = 'create' | 'edit';
 
 const MenuPage: React.FC = () => {
+  const { palette: p } = useAppTheme();
   const { message, modal } = App.useApp();
   const access = useAccess();
 
@@ -319,16 +331,13 @@ const MenuPage: React.FC = () => {
             </div>
             <div
               style={{
-                background: '#F3F4F6',
+                background: p.inset,
                 borderRadius: 8,
                 padding: '12px 16px',
               }}
             >
               {check.children.map((c) => (
-                <div
-                  key={c.name}
-                  style={{ color: '#6B7280', padding: '2px 0' }}
-                >
+                <div key={c.name} style={{ color: p.mute, padding: '2px 0' }}>
                   · {c.name}（{typeMap[c.type]?.text}
                   {c.type === 2 && c.buttonCount != null
                     ? `，含 ${c.buttonCount} 个按钮`
@@ -337,7 +346,7 @@ const MenuPage: React.FC = () => {
                 </div>
               ))}
             </div>
-            <div style={{ marginTop: 12, color: '#6B7280' }}>
+            <div style={{ marginTop: 12, color: p.mute }}>
               请先删除全部子节点后再执行此操作。
             </div>
           </div>
@@ -350,7 +359,7 @@ const MenuPage: React.FC = () => {
       modal.confirm({
         title: '删除确认',
         width: 480,
-        icon: <WarningOutlined style={{ color: '#F59E0B' }} />,
+        icon: <WarningOutlined style={{ color: p.orange }} />,
         content: (
           <div>
             <div style={{ marginBottom: 12 }}>
@@ -358,16 +367,16 @@ const MenuPage: React.FC = () => {
             </div>
             <div
               style={{
-                background: '#FFFBEB',
+                background: p.orangeSoft,
                 borderRadius: 8,
                 padding: '12px 16px',
-                color: '#D97706',
+                color: p.orange,
               }}
             >
               {check.referencedRoles.join('、')} 共{' '}
               {check.referencedRoles.length} 个角色
             </div>
-            <div style={{ marginTop: 12, color: '#6B7280' }}>
+            <div style={{ marginTop: 12, color: p.mute }}>
               删除后，上述角色将自动失去此节点权限，且操作不可恢复。确认继续删除？
             </div>
           </div>
@@ -408,7 +417,7 @@ const MenuPage: React.FC = () => {
           style={{
             fontFamily: 'monospace',
             cursor: 'pointer',
-            color: '#6B7280',
+            color: p.mute,
           }}
           onClick={() => {
             navigator.clipboard?.writeText(record.code);
@@ -458,7 +467,7 @@ const MenuPage: React.FC = () => {
           >
             {record.sort}
             {canEdit && (
-              <EditOutlined style={{ fontSize: 12, color: '#9CA3AF' }} />
+              <EditOutlined style={{ fontSize: 12, color: p.mute }} />
             )}
           </Space>
         ),
@@ -501,14 +510,14 @@ const MenuPage: React.FC = () => {
               }
               onConfirm={() => handleToggleStatus(record)}
             >
-              <a style={{ color: record.status === 1 ? '#DC2626' : '#16A34A' }}>
+              <a style={{ color: record.status === 1 ? p.red : p.green }}>
                 {record.status === 1 ? '禁用' : '启用'}
               </a>
             </Popconfirm>
           )}
           {canDelete && (
             <a
-              style={{ color: '#DC2626' }}
+              style={{ color: p.red }}
               onClick={() => handleDeleteClick(record)}
             >
               删除
@@ -522,32 +531,32 @@ const MenuPage: React.FC = () => {
   const statCards = [
     {
       icon: <AppstoreOutlined />,
-      color: '#1677FF',
-      bg: '#E8F3FF',
+      color: p.link,
+      bg: p.accentSoft,
       label: '节点总数',
       value: stats.total,
       hint: '3 级树形结构',
     },
     {
       icon: <FolderOutlined />,
-      color: '#1677FF',
-      bg: '#E8F3FF',
+      color: p.link,
+      bg: p.accentSoft,
       label: '目录',
       value: stats.dir,
       hint: '第一级节点',
     },
     {
       icon: <MenuOutlined />,
-      color: '#16A34A',
-      bg: '#F0FDF4',
+      color: p.green,
+      bg: p.greenSoft,
       label: '菜单',
       value: stats.menu,
       hint: '对应前端页面',
     },
     {
       icon: <ThunderboltOutlined />,
-      color: '#F59E0B',
-      bg: '#FFFBEB',
+      color: p.orange,
+      bg: p.orangeSoft,
       label: '按钮',
       value: stats.button,
       hint: '页面操作权限点',
@@ -683,12 +692,12 @@ const MenuPage: React.FC = () => {
               >
                 {s.icon}
               </div>
-              <span style={{ color: 'rgba(0,0,0,0.45)' }}>{s.label}</span>
+              <span style={{ color: p.mute }}>{s.label}</span>
             </Space>
             <div style={{ fontSize: 28, fontWeight: 700, marginTop: 12 }}>
               {s.value}
             </div>
-            <div style={{ fontSize: 12, color: '#16A34A', marginTop: 4 }}>
+            <div style={{ fontSize: 12, color: p.green, marginTop: 4 }}>
               {s.hint}
             </div>
           </Card>

@@ -25,6 +25,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import CustomerQuickCreateModal from '@/components/CustomerQuickCreateModal';
 import { getUserList } from '@/pages/system/user/service';
 import type { CustomerItem } from '@/services/zhul/masterdata';
+import { useAppTheme } from '@/theme/AppTheme';
 import { INQUIRY_ORDER_STATUS, INQUIRY_ORDER_STATUS_META } from '../constants';
 import type { InquiryOrderItem } from './service';
 import { createInquiryOrderManual, pageInquiryOrders } from './service';
@@ -36,6 +37,7 @@ const CATEGORY_OPTIONS = [
 ].map((c) => ({ label: c, value: c }));
 
 const InquiryOrderList: React.FC = () => {
+  const { palette: p } = useAppTheme();
   const actionRef = useRef<ActionType>(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const [tab, setTab] = useState<'mine' | 'all'>('mine');
@@ -108,10 +110,10 @@ const InquiryOrderList: React.FC = () => {
   };
 
   const statCards = [
-    { icon: <UserDeleteOutlined />, color: '#EA580C', bg: '#FFF7ED', label: '待分配', value: stats.pendingAssign },
-    { icon: <ProfileOutlined />, color: '#1677FF', bg: '#E8F3FF', label: '我的待处理', value: stats.mine },
-    { icon: <SendOutlined />, color: '#7C3AED', bg: '#F3E8FF', label: '本月已发供应商', value: stats.sentThisMonth },
-    { icon: <CheckCircleOutlined />, color: '#16A34A', bg: '#F0FDF4', label: '本月已成交', value: stats.dealCount },
+    { icon: <UserDeleteOutlined />, color: p.orange, bg: p.orangeSoft, label: '待分配', value: stats.pendingAssign },
+    { icon: <ProfileOutlined />, color: p.link, bg: p.accentSoft, label: '我的待处理', value: stats.mine },
+    { icon: <SendOutlined />, color: p.violet, bg: p.violetSoft, label: '本月已发供应商', value: stats.sentThisMonth },
+    { icon: <CheckCircleOutlined />, color: p.green, bg: p.greenSoft, label: '本月已成交', value: stats.dealCount },
   ];
 
   const columns: ProColumns<InquiryOrderItem>[] = [
@@ -174,7 +176,7 @@ const InquiryOrderList: React.FC = () => {
               <div style={{ width: 36, height: 36, borderRadius: 10, background: s.bg, color: s.color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>
                 {s.icon}
               </div>
-              <span style={{ color: 'rgba(0,0,0,0.45)' }}>{s.label}</span>
+              <span style={{ color: p.mute }}>{s.label}</span>
             </Space>
             <div style={{ fontSize: 28, fontWeight: 700, marginTop: 12 }}>{s.value ?? '-'}</div>
           </Card>
@@ -249,6 +251,7 @@ const ManualCreateModal: React.FC<{
   onOpenChange: (open: boolean) => void;
   customerInquiryId?: number;
 }> = ({ open, onOpenChange, customerInquiryId }) => {
+  const { palette: p } = useAppTheme();
   const [form] = Form.useForm();
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerItem | undefined>();
   const [customerOptions, setCustomerOptions] = useState<{ label: string; value: number }[]>([]);
@@ -335,7 +338,7 @@ const ManualCreateModal: React.FC<{
               dropdownRender={(menu) => (
                 <>
                   {menu}
-                  <div style={{ padding: 8, borderTop: '1px solid #f0f0f0' }}>
+                  <div style={{ padding: 8, borderTop: `1px solid ${p.hairline}` }}>
                     <a onClick={() => setQuickCreateOpen(true)}>+ 新建客户</a>
                   </div>
                 </>

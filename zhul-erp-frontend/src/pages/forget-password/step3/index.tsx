@@ -4,6 +4,7 @@ import { Alert, Button, Form, Input, Progress } from 'antd';
 import React, { useEffect, useState } from 'react';
 import { AuthLayout } from '@/components';
 import { resetPassword } from '@/services/zhul/auth';
+import { useAppTheme } from '@/theme/AppTheme';
 import StepsBar from '../components/StepsBar';
 
 interface Strength {
@@ -13,7 +14,7 @@ interface Strength {
 }
 
 function evaluateStrength(pw: string): Strength {
-  if (!pw) return { percent: 0, color: '#f0f0f0', label: '' };
+  if (!pw) return { percent: 0, color: 'var(--z-hairline)', label: '' };
   const len = pw.length;
   const hasLetter = /[A-Za-z]/.test(pw);
   const hasDigit = /[0-9]/.test(pw);
@@ -22,25 +23,26 @@ function evaluateStrength(pw: string): Strength {
   const isPureLetter = /^[A-Za-z]+$/.test(pw);
 
   if (isPureDigit || isPureLetter || len < 8) {
-    return { percent: 33, color: '#ff4d4f', label: '弱' };
+    return { percent: 33, color: 'var(--z-red)', label: '弱' };
   }
   if ((hasLetter && hasDigit && len >= 12) || (hasSpecial && len >= 8)) {
-    return { percent: 100, color: '#52c41a', label: '强' };
+    return { percent: 100, color: 'var(--z-green)', label: '强' };
   }
   if (hasLetter && hasDigit) {
-    return { percent: 66, color: '#faad14', label: '一般' };
+    return { percent: 66, color: 'var(--z-orange)', label: '一般' };
   }
-  return { percent: 33, color: '#ff4d4f', label: '弱' };
+  return { percent: 33, color: 'var(--z-red)', label: '弱' };
 }
 
 const Step3: React.FC = () => {
+  const { palette: p } = useAppTheme();
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [expiredError, setExpiredError] = useState(false);
   const [fieldError, setFieldError] = useState<string | null>(null);
   const [strength, setStrength] = useState<Strength>({
     percent: 0,
-    color: '#f0f0f0',
+    color: 'var(--z-hairline)',
     label: '',
   });
 
@@ -98,7 +100,7 @@ const Step3: React.FC = () => {
           fontSize: 20,
           fontWeight: 600,
           textAlign: 'center',
-          color: '#262626',
+          color: p.ink,
           marginBottom: 16,
         }}
       >

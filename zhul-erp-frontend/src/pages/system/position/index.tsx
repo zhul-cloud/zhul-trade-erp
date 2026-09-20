@@ -10,6 +10,7 @@ import {
 import { useAccess } from '@umijs/max';
 import { App, Badge, Button, Input, Popconfirm } from 'antd';
 import React, { useRef, useState } from 'react';
+import { useAppTheme } from '@/theme/AppTheme';
 import type { PositionItem } from './service';
 import {
   createPosition,
@@ -24,6 +25,7 @@ import {
 const CODE_PATTERN = /^[A-Za-z0-9_]{2,32}$/;
 
 const PositionPage: React.FC = () => {
+  const { palette: p } = useAppTheme();
   const actionRef = useRef<ActionType>();
   const { message, modal } = App.useApp();
   const access = useAccess();
@@ -175,7 +177,7 @@ const PositionPage: React.FC = () => {
             onOpenChange={(open) => open && loadDisableWarning(record)}
             onConfirm={() => handleToggleStatus(record)}
           >
-            <a style={{ color: record.status === 1 ? '#F59E0B' : '#16A34A' }}>
+            <a style={{ color: record.status === 1 ? p.orange : p.green }}>
               {record.status === 1 ? '禁用' : '启用'}
             </a>
           </Popconfirm>
@@ -183,7 +185,7 @@ const PositionPage: React.FC = () => {
         canDelete && (
           <a
             key="delete"
-            style={{ color: '#DC2626' }}
+            style={{ color: p.red }}
             onClick={() => handleDeleteClick(record)}
           >
             删除

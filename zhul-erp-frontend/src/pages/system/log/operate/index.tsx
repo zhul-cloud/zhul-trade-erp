@@ -4,6 +4,7 @@ import { ProTable } from '@ant-design/pro-components';
 import { Alert, App, Button, Descriptions, Modal, Tag } from 'antd';
 import dayjs from 'dayjs';
 import React, { useRef, useState } from 'react';
+import { useAppTheme } from '@/theme/AppTheme';
 import type { OperateLogDetail, OperateLogItem } from './service';
 import {
   exportOperateLogs,
@@ -27,9 +28,9 @@ function renderJsonPanel(value: unknown, emptyText: string) {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          color: '#94A3B8',
+          color: 'var(--z-mute)',
           fontSize: 13,
-          background: '#F8F8F8',
+          background: 'var(--z-inset)',
           borderRadius: 8,
         }}
       >
@@ -43,7 +44,7 @@ function renderJsonPanel(value: unknown, emptyText: string) {
         margin: 0,
         height: 220,
         overflow: 'auto',
-        background: '#F8F8F8',
+        background: 'var(--z-inset)',
         borderRadius: 8,
         padding: '12px 14px',
         fontFamily: 'monospace',
@@ -57,6 +58,7 @@ function renderJsonPanel(value: unknown, emptyText: string) {
 }
 
 const OperateLogPage: React.FC = () => {
+  const { palette: p } = useAppTheme();
   const actionRef = useRef<ActionType>();
   const { message } = App.useApp();
 
@@ -252,7 +254,7 @@ const OperateLogPage: React.FC = () => {
               column={2}
               size="small"
               style={{
-                background: '#FAFBFC',
+                background: p.inset,
                 padding: 16,
                 borderRadius: 10,
                 marginBottom: 20,
@@ -285,7 +287,7 @@ const OperateLogPage: React.FC = () => {
               <div
                 style={{
                   textAlign: 'center',
-                  color: '#94A3B8',
+                  color: p.mute,
                   padding: '32px 0',
                 }}
               >
@@ -306,7 +308,7 @@ const OperateLogPage: React.FC = () => {
                     margin: 0,
                     maxHeight: 300,
                     overflow: 'auto',
-                    background: '#F8F8F8',
+                    background: p.inset,
                     borderRadius: 8,
                     padding: '12px 14px',
                     fontFamily: 'monospace',
@@ -327,7 +329,7 @@ const OperateLogPage: React.FC = () => {
                     style={{
                       fontSize: 12,
                       fontWeight: 600,
-                      color: '#5B6B82',
+                      color: p.mute,
                       marginBottom: 8,
                     }}
                   >
@@ -340,7 +342,7 @@ const OperateLogPage: React.FC = () => {
                     style={{
                       fontSize: 12,
                       fontWeight: 600,
-                      color: '#5B6B82',
+                      color: p.mute,
                       marginBottom: 8,
                     }}
                   >

@@ -37,6 +37,7 @@ import {
   getMenuTree,
   getRoleMenuIds,
 } from '@/pages/system/menu/service';
+import { useAppTheme } from '@/theme/AppTheme';
 import type { RoleItem, RoleStats } from './service';
 import {
   createRole,
@@ -125,6 +126,7 @@ const toAntdTree = (list: MenuItem[]): any[] =>
   }));
 
 const RolePage: React.FC = () => {
+  const { palette: p } = useAppTheme();
   const actionRef = useRef<ActionType>();
   const { message, modal } = App.useApp();
   const access = useAccess();
@@ -284,21 +286,21 @@ const RolePage: React.FC = () => {
         content: (
           <div>
             <div style={{ marginBottom: 12 }}>
-              <WarningOutlined style={{ color: '#F59E0B', marginRight: 8 }} />
+              <WarningOutlined style={{ color: p.orange, marginRight: 8 }} />
               角色「{record.name}」已分配给 {check.userCount} 名用户：
             </div>
             <div
               style={{
-                background: '#F3F4F6',
+                background: p.inset,
                 borderRadius: 8,
                 padding: '12px 16px',
-                color: '#6B7280',
+                color: p.mute,
               }}
             >
               {check.sampleUserNames.join('、')}
               {extra > 0 ? ` 等 ${check.userCount} 人` : ''}
             </div>
-            <div style={{ marginTop: 12, color: '#6B7280' }}>
+            <div style={{ marginTop: 12, color: p.mute }}>
               请先在用户管理中移除这些用户的该角色，再执行删除操作。
             </div>
           </div>
@@ -358,7 +360,7 @@ const RolePage: React.FC = () => {
       width: 100,
       search: false,
       render: (_, record) => (
-        <span style={{ color: '#1677FF' }}>{record.userCount} 人</span>
+        <span style={{ color: p.link }}>{record.userCount} 人</span>
       ),
     },
     {
@@ -371,7 +373,7 @@ const RolePage: React.FC = () => {
           {canEdit && <a onClick={() => openEdit(record)}>编辑</a>}
           {canEdit && (
             <a
-              style={{ color: record.status === 1 ? '#DC2626' : '#16A34A' }}
+              style={{ color: record.status === 1 ? p.red : p.green }}
               onClick={() => handleToggleStatus(record)}
             >
               {record.status === 1 ? '禁用' : '启用'}
@@ -379,7 +381,7 @@ const RolePage: React.FC = () => {
           )}
           {canDelete && record.isBuiltIn !== 1 && (
             <a
-              style={{ color: '#DC2626' }}
+              style={{ color: p.red }}
               onClick={() => handleDeleteClick(record)}
             >
               删除
@@ -394,32 +396,32 @@ const RolePage: React.FC = () => {
     ? [
         {
           icon: <SafetyOutlined />,
-          color: '#1677FF',
-          bg: '#E8F3FF',
+          color: p.link,
+          bg: p.accentSoft,
           label: '角色总数',
           value: stats.total,
           hint: `覆盖 ${stats.deptCoverage} 个部门`,
         },
         {
           icon: <CheckCircleOutlined />,
-          color: '#16A34A',
-          bg: '#F0FDF4',
+          color: p.green,
+          bg: p.greenSoft,
           label: '启用角色',
           value: stats.enabledCount,
           hint: `占比 ${stats.enabledRate}%`,
         },
         {
           icon: <LockOutlined />,
-          color: '#7C3AED',
-          bg: '#F5F3FF',
+          color: p.violet,
+          bg: p.violetSoft,
           label: '内置角色',
           value: stats.builtInCount,
           hint: '不可删除',
         },
         {
           icon: <TeamOutlined />,
-          color: '#F59E0B',
-          bg: '#FFFBEB',
+          color: p.orange,
+          bg: p.orangeSoft,
           label: '自定义角色',
           value: stats.customCount,
           hint: '可自由配置',
@@ -457,12 +459,12 @@ const RolePage: React.FC = () => {
               >
                 {s.icon}
               </div>
-              <span style={{ color: 'rgba(0,0,0,0.45)' }}>{s.label}</span>
+              <span style={{ color: p.mute }}>{s.label}</span>
             </Space>
             <div style={{ fontSize: 28, fontWeight: 700, marginTop: 12 }}>
               {s.value}
             </div>
-            <div style={{ fontSize: 12, color: '#16A34A', marginTop: 4 }}>
+            <div style={{ fontSize: 12, color: p.green, marginTop: 4 }}>
               {s.hint}
             </div>
           </Card>
@@ -530,7 +532,7 @@ const RolePage: React.FC = () => {
           name="permissionScope"
           label={
             <span>
-              数据权限范围 <span style={{ color: '#FF4D4F' }}>*</span>
+              数据权限范围 <span style={{ color: p.red }}>*</span>
             </span>
           }
           rules={[{ required: true, message: '请选择数据权限范围' }]}
@@ -541,9 +543,7 @@ const RolePage: React.FC = () => {
               {SCOPE_OPTIONS.map((opt) => (
                 <Radio key={opt.value} value={opt.value}>
                   <div style={{ fontWeight: 500 }}>{opt.title}</div>
-                  <div style={{ fontSize: 12, color: '#9CA3AF' }}>
-                    {opt.desc}
-                  </div>
+                  <div style={{ fontSize: 12, color: p.mute }}>{opt.desc}</div>
                 </Radio>
               ))}
             </Space>
@@ -638,7 +638,7 @@ const RolePage: React.FC = () => {
           onCheck={(keys) => setCheckedKeys(keys as number[])}
           treeData={antdMenuTree}
         />
-        <div style={{ marginTop: 16, color: 'rgba(0,0,0,0.45)' }}>
+        <div style={{ marginTop: 16, color: p.mute }}>
           已选 {permCheckedCount} 个权限
         </div>
       </DrawerForm>

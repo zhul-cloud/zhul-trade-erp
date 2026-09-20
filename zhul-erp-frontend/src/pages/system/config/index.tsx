@@ -29,6 +29,7 @@ import {
   Upload,
 } from 'antd';
 import React, { useEffect, useRef, useState } from 'react';
+import { useAppTheme } from '@/theme/AppTheme';
 import type { ConfigGroupCount, ConfigItem, ConfigType } from './service';
 import {
   createConfig,
@@ -48,6 +49,7 @@ const GROUP_OPTIONS = [
 ];
 
 const ImageUrlField: React.FC<{ name: string }> = ({ name }) => {
+  const { palette: p } = useAppTheme();
   const { message } = App.useApp();
   const form = Form.useFormInstance();
   const value = Form.useWatch(name, form);
@@ -116,7 +118,7 @@ const ImageUrlField: React.FC<{ name: string }> = ({ name }) => {
               maxHeight: 80,
               maxWidth: '100%',
               borderRadius: 6,
-              border: '1px solid #EEF0F3',
+              border: `1px solid ${p.hairline}`,
               display: 'block',
             }}
             onError={(e) => {
@@ -141,6 +143,7 @@ const TYPE_COLOR: Record<ConfigType, string> = {
 };
 
 const ConfigPage: React.FC = () => {
+  const { palette: p } = useAppTheme();
   const actionRef = useRef<ActionType>();
   const { message, modal } = App.useApp();
   const access = useAccess();
@@ -341,10 +344,7 @@ const ConfigPage: React.FC = () => {
         <Space size={14}>
           {canEdit && <a onClick={() => openEdit(record)}>编辑</a>}
           {canDelete && record.isBuiltin !== 1 && (
-            <a
-              style={{ color: '#DC2626' }}
-              onClick={() => handleDelete(record)}
-            >
+            <a style={{ color: p.red }} onClick={() => handleDelete(record)}>
               删除
             </a>
           )}
@@ -527,8 +527,8 @@ const ConfigPage: React.FC = () => {
           <>
             <div
               style={{
-                background: '#FAFBFC',
-                border: '1px solid #F0F0F0',
+                background: p.inset,
+                border: `1px solid ${p.hairline}`,
                 borderRadius: 10,
                 padding: 16,
                 marginBottom: 24,
@@ -542,7 +542,7 @@ const ConfigPage: React.FC = () => {
                 value={editingConfig.isBuiltin === 1 ? '内置' : '自定义'}
               />
               {editingConfig.remark && (
-                <div style={{ fontSize: 12, color: '#5B6B82', marginTop: 8 }}>
+                <div style={{ fontSize: 12, color: p.mute, marginTop: 8 }}>
                   {editingConfig.remark}
                 </div>
               )}
@@ -560,7 +560,7 @@ const ConfigPage: React.FC = () => {
         {editingConfig && needsRestart(editingConfig.remark) && (
           <div
             style={{
-              background: '#FFFBEB',
+              background: p.orangeSoft,
               borderRadius: 8,
               padding: '10px 12px',
               display: 'flex',
@@ -569,8 +569,8 @@ const ConfigPage: React.FC = () => {
               marginTop: 8,
             }}
           >
-            <WarningOutlined style={{ color: '#D97706' }} />
-            <span style={{ color: '#D97706', fontSize: 12 }}>
+            <WarningOutlined style={{ color: p.orange }} />
+            <span style={{ color: p.orange, fontSize: 12 }}>
               该配置修改后需重启服务生效
             </span>
           </div>
@@ -670,27 +670,30 @@ const InfoRow: React.FC<{ label: string; value: string; mono?: boolean }> = ({
   label,
   value,
   mono,
-}) => (
-  <div
-    style={{
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      marginBottom: 6,
-    }}
-  >
-    <span style={{ fontSize: 12, color: '#94A3B8' }}>{label}</span>
-    <span
+}) => {
+  const { palette: p } = useAppTheme();
+  return (
+    <div
       style={{
-        fontSize: 13,
-        fontWeight: 500,
-        color: '#111111',
-        fontFamily: mono ? 'monospace' : undefined,
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 6,
       }}
     >
-      {value}
-    </span>
-  </div>
-);
+      <span style={{ fontSize: 12, color: p.mute }}>{label}</span>
+      <span
+        style={{
+          fontSize: 13,
+          fontWeight: 500,
+          color: p.ink,
+          fontFamily: mono ? 'monospace' : undefined,
+        }}
+      >
+        {value}
+      </span>
+    </div>
+  );
+};
 
 export default ConfigPage;

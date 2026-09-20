@@ -4,11 +4,13 @@ import { Alert, Button, Input } from 'antd';
 import React, { useEffect, useRef, useState } from 'react';
 import { AuthLayout } from '@/components';
 import { sendResetCode, verifyResetCode } from '@/services/zhul/auth';
+import { useAppTheme } from '@/theme/AppTheme';
 import StepsBar from '../components/StepsBar';
 
 const RESEND_SECONDS = 60;
 
 const Step2: React.FC = () => {
+  const { palette: p } = useAppTheme();
   const username = sessionStorage.getItem('fpUsername');
   const email = sessionStorage.getItem('fpEmail');
 
@@ -115,7 +117,7 @@ const Step2: React.FC = () => {
             fontSize: 20,
             fontWeight: 600,
             textAlign: 'center',
-            color: '#262626',
+            color: p.ink,
           }}
         >
           忘记密码
@@ -127,7 +129,7 @@ const Step2: React.FC = () => {
       <div
         style={{
           fontSize: 12,
-          color: '#8c8c8c',
+          color: p.mute,
           textAlign: 'center',
           marginBottom: 16,
         }}
@@ -154,7 +156,7 @@ const Step2: React.FC = () => {
       {errorText && (
         <div
           style={{
-            color: '#ff4d4f',
+            color: p.red,
             fontSize: 13,
             textAlign: 'center',
             marginBottom: 8,
@@ -166,9 +168,7 @@ const Step2: React.FC = () => {
 
       <div style={{ textAlign: 'right', marginBottom: 24 }}>
         {countdown > 0 ? (
-          <span
-            style={{ color: '#bfbfbf', fontSize: 13, cursor: 'not-allowed' }}
-          >
+          <span style={{ color: p.faint, fontSize: 13, cursor: 'not-allowed' }}>
             重新发送验证码（{countdown}秒后可重发）
           </span>
         ) : (

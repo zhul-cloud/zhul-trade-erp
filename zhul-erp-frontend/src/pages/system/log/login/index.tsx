@@ -5,6 +5,7 @@ import { useAccess } from '@umijs/max';
 import { Alert, App, Button, Tag, Tooltip } from 'antd';
 import dayjs from 'dayjs';
 import React, { useRef, useState } from 'react';
+import { useAppTheme } from '@/theme/AppTheme';
 import type { LoginLogItem } from './service';
 import { exportLoginLogs, forceLogout, getLoginLogList } from './service';
 
@@ -15,6 +16,7 @@ const DEFAULT_RANGE: [dayjs.Dayjs, dayjs.Dayjs] = [
 ];
 
 const LoginLogPage: React.FC = () => {
+  const { palette: p } = useAppTheme();
   const actionRef = useRef<ActionType>();
   const { message, modal } = App.useApp();
   const access = useAccess();
@@ -100,7 +102,7 @@ const LoginLogPage: React.FC = () => {
             {r.result === 1 ? '成功' : '失败'}
           </Tag>
           {r.online && (
-            <span style={{ color: '#1677FF', fontSize: 12, marginLeft: 4 }}>
+            <span style={{ color: p.link, fontSize: 12, marginLeft: 4 }}>
               ● 在线
             </span>
           )}
@@ -146,7 +148,7 @@ const LoginLogPage: React.FC = () => {
       ellipsis: true,
       search: false,
       render: (_, r) => (
-        <span style={{ color: r.location === '未知' ? '#94A3B8' : undefined }}>
+        <span style={{ color: r.location === '未知' ? p.mute : undefined }}>
           {r.location}
         </span>
       ),

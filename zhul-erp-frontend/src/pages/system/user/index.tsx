@@ -30,6 +30,7 @@ import {
   Tag,
 } from 'antd';
 import React, { useEffect, useRef, useState } from 'react';
+import { useAppTheme } from '@/theme/AppTheme';
 import type { UserItem, UserStats } from './service';
 import {
   createUser,
@@ -54,6 +55,7 @@ const AVATAR_COLORS = [
 ];
 
 const UserPage: React.FC = () => {
+  const { palette: p } = useAppTheme();
   const actionRef = useRef<ActionType>();
   const { message } = App.useApp();
   const access = useAccess();
@@ -159,7 +161,7 @@ const UserPage: React.FC = () => {
         {icon}
         {text}
       </Space>
-      <div style={{ borderBottom: '1px solid #E5E7EB', marginTop: 8 }} />
+      <div style={{ borderBottom: `1px solid ${p.hairline}`, marginTop: 8 }} />
     </div>
   );
 
@@ -273,9 +275,7 @@ const UserPage: React.FC = () => {
           </Avatar>
           <div>
             <div style={{ fontWeight: 600 }}>{record.name}</div>
-            <div style={{ fontSize: 12, color: 'rgba(0,0,0,0.45)' }}>
-              {record.username}
-            </div>
+            <div style={{ fontSize: 12, color: p.mute }}>{record.username}</div>
           </div>
         </Space>
       ),
@@ -368,7 +368,7 @@ const UserPage: React.FC = () => {
               }
               onConfirm={() => handleStatusChange(record)}
             >
-              <a style={{ color: record.status === 1 ? '#ff4d4f' : '#52c41a' }}>
+              <a style={{ color: record.status === 1 ? p.red : p.green }}>
                 {record.status === 1 ? '禁用' : '启用'}
               </a>
             </Popconfirm>
@@ -378,7 +378,7 @@ const UserPage: React.FC = () => {
               title="确认删除该用户？"
               onConfirm={() => handleDelete(record.id)}
             >
-              <a style={{ color: '#ff4d4f' }}>删除</a>
+              <a style={{ color: p.red }}>删除</a>
             </Popconfirm>
           )}
         </Space>
@@ -389,29 +389,29 @@ const UserPage: React.FC = () => {
   const statCards = [
     {
       icon: <TeamOutlined />,
-      color: '#1677FF',
-      bg: '#E8F3FF',
+      color: p.link,
+      bg: p.accentSoft,
       label: '总用户数',
       value: stats?.total,
     },
     {
       icon: <CheckCircleOutlined />,
-      color: '#16A34A',
-      bg: '#F0FDF4',
+      color: p.green,
+      bg: p.greenSoft,
       label: '启用用户',
       value: stats?.enabled,
     },
     {
       icon: <StopOutlined />,
-      color: '#6B7280',
-      bg: '#F3F4F6',
+      color: p.mute,
+      bg: p.inset,
       label: '禁用用户',
       value: stats?.disabled,
     },
     {
       icon: <UserAddOutlined />,
-      color: '#7C3AED',
-      bg: '#F3E8FF',
+      color: p.violet,
+      bg: p.violetSoft,
       label: '本月新增',
       value: stats?.newThisMonth,
     },
@@ -445,7 +445,7 @@ const UserPage: React.FC = () => {
               >
                 {s.icon}
               </div>
-              <span style={{ color: 'rgba(0,0,0,0.45)' }}>{s.label}</span>
+              <span style={{ color: p.mute }}>{s.label}</span>
             </Space>
             <div style={{ fontSize: 28, fontWeight: 700, marginTop: 12 }}>
               {s.value ?? '-'}

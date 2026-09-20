@@ -15,6 +15,7 @@ import React, { useEffect, useState } from 'react';
 import SupplierQuickCreateModal from '@/components/SupplierQuickCreateModal';
 import type { SupplierItem } from '@/services/zhul/masterdata';
 import { searchSuppliers } from '@/services/zhul/masterdata';
+import { useAppTheme } from '@/theme/AppTheme';
 import { CHANNEL_PLATFORM_META, SOURCE_TYPE } from '../constants';
 import type {
   InquiryOrderItemDetail,
@@ -48,6 +49,7 @@ const AddSupplierQuoteModal: React.FC<AddSupplierQuoteModalProps> = ({
   suppliers,
   onChanged,
 }) => {
+  const { palette: p } = useAppTheme();
   const [activeTab, setActiveTab] = useState<'supplier' | 'quote'>('supplier');
   const [sourceType, setSourceType] = useState<number>(
     SOURCE_TYPE.FORMAL_SUPPLIER,
@@ -192,7 +194,7 @@ const AddSupplierQuoteModal: React.FC<AddSupplierQuoteModalProps> = ({
                               <div
                                 style={{
                                   padding: 8,
-                                  borderTop: '1px solid #f0f0f0',
+                                  borderTop: `1px solid ${p.hairline}`,
                                 }}
                               >
                                 <a onClick={() => setQuickCreateOpen(true)}>
