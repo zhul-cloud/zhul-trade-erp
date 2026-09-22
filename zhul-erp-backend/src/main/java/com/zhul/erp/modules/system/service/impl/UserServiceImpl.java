@@ -65,6 +65,7 @@ public class UserServiceImpl implements UserService {
         if (query.getStatus() != null) {
             wrapper.eq(UserBasicDO::getStatus, query.getStatus());
         }
+        wrapper.orderByDesc(UserBasicDO::getUpdateTime);
 
         Page<UserBasicDO> pageParam = new Page<>(query.getPage(), query.getPageSize());
         Page<UserBasicDO> pageResult = userBasicMapper.selectPage(pageParam, wrapper);
@@ -83,7 +84,10 @@ public class UserServiceImpl implements UserService {
             vo.setPositionId(user.getPositionId());
             vo.setRoleCode(user.getRoleCode());
             vo.setStatus(user.getStatus());
+            vo.setCreateBy(user.getCreateBy());
             vo.setCreateTime(user.getCreateTime());
+            vo.setUpdateBy(user.getUpdateBy());
+            vo.setUpdateTime(user.getUpdateTime());
 
             if (user.getDeptId() != null) {
                 DepartmentDO dept = departmentMapper.selectById(user.getDeptId());

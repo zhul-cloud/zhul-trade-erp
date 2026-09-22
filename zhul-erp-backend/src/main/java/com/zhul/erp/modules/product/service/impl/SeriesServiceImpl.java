@@ -240,7 +240,9 @@ public class SeriesServiceImpl implements SeriesService {
         vo.setDescription(series.getDescription());
         vo.setStatus(series.getStatus());
         vo.setProductCount(productCount);
+        vo.setCreateBy(series.getCreateBy());
         vo.setCreateTime(series.getCreateTime());
+        vo.setUpdateBy(series.getUpdateBy());
         vo.setUpdateTime(series.getUpdateTime());
         return vo;
     }

@@ -30,6 +30,7 @@ import {
 } from 'antd';
 import React, { useEffect, useRef, useState } from 'react';
 import { useAppTheme } from '@/theme/AppTheme';
+import { formatDateTime } from '@/utils/format';
 import type { ConfigGroupCount, ConfigItem, ConfigType } from './service';
 import {
   createConfig,
@@ -335,6 +336,28 @@ const ConfigPage: React.FC = () => {
         ) : (
           <Badge color="default" text="自定义" />
         ),
+    },
+    {
+      title: '创建时间',
+      dataIndex: 'createTime',
+      width: 160,
+      render: (_, r) => formatDateTime(r.createTime),
+    },
+    {
+      title: '创建人',
+      dataIndex: 'createBy',
+      width: 90,
+    },
+    {
+      title: '更新时间',
+      dataIndex: 'updateTime',
+      width: 160,
+      render: (_, r) => formatDateTime(r.updateTime),
+    },
+    {
+      title: '更新人',
+      dataIndex: 'updateBy',
+      width: 90,
     },
     {
       title: '操作',

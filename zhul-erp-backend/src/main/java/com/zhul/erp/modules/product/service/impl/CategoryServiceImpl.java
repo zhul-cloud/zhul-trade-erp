@@ -91,6 +91,7 @@ public class CategoryServiceImpl implements CategoryService {
             vo.setId(category.getId());
             vo.setCategoryCode(category.getCategoryCode());
             vo.setCategoryName(category.getCategoryName());
+            vo.setDescription(category.getDescription());
             options.add(vo);
         }
         optionsCache.put(ProductConstants.CACHE_KEY_CATEGORY_OPTIONS, options);
@@ -109,6 +110,7 @@ public class CategoryServiceImpl implements CategoryService {
         category.setTenantId(ProductConstants.PLATFORM_TENANT_ID);
         category.setCategoryCode(code);
         category.setCategoryName(name);
+        category.setDescription(TextRules.optional(req.getDescription(), "品类简介", ProductConstants.DESCRIPTION_MAX));
         category.setSortOrder(req.getSortOrder() == null ? 0 : req.getSortOrder());
         category.setStatus(ProductConstants.STATUS_ENABLED);
         try {
@@ -140,6 +142,7 @@ public class CategoryServiceImpl implements CategoryService {
         change.setId(id);
         change.setCategoryCode(code);
         change.setCategoryName(name);
+        change.setDescription(TextRules.optional(req.getDescription(), "品类简介", ProductConstants.DESCRIPTION_MAX));
         change.setSortOrder(req.getSortOrder() == null ? current.getSortOrder() : req.getSortOrder());
         try {
             categoryMapper.updateById(change);
@@ -245,10 +248,13 @@ public class CategoryServiceImpl implements CategoryService {
         vo.setId(category.getId());
         vo.setCategoryCode(category.getCategoryCode());
         vo.setCategoryName(category.getCategoryName());
+        vo.setDescription(category.getDescription());
         vo.setSortOrder(category.getSortOrder());
         vo.setStatus(category.getStatus());
         vo.setProductCount(productCount);
+        vo.setCreateBy(category.getCreateBy());
         vo.setCreateTime(category.getCreateTime());
+        vo.setUpdateBy(category.getUpdateBy());
         vo.setUpdateTime(category.getUpdateTime());
         return vo;
     }

@@ -20,5 +20,8 @@ public class InquiryOrderVO {
     private String emailTemplateEn;
     private Long aiTaskId;
     private String remark;
+    private String createBy;
     private LocalDateTime createTime;
+    private String updateBy;
+    private LocalDateTime updateTime;
 }

@@ -38,6 +38,7 @@ import {
   getRoleMenuIds,
 } from '@/pages/system/menu/service';
 import { useAppTheme } from '@/theme/AppTheme';
+import { formatDateTime } from '@/utils/format';
 import type { RoleItem, RoleStats } from './service';
 import {
   createRole,
@@ -362,6 +363,32 @@ const RolePage: React.FC = () => {
       render: (_, record) => (
         <span style={{ color: p.link }}>{record.userCount} 人</span>
       ),
+    },
+    {
+      title: '创建时间',
+      dataIndex: 'createTime',
+      search: false,
+      width: 160,
+      render: (_, r) => formatDateTime(r.createTime),
+    },
+    {
+      title: '创建人',
+      dataIndex: 'createBy',
+      search: false,
+      width: 90,
+    },
+    {
+      title: '更新时间',
+      dataIndex: 'updateTime',
+      search: false,
+      width: 160,
+      render: (_, r) => formatDateTime(r.updateTime),
+    },
+    {
+      title: '更新人',
+      dataIndex: 'updateBy',
+      search: false,
+      width: 90,
     },
     {
       title: '操作',

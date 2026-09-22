@@ -13,5 +13,8 @@ public class RoleVO {
     private Integer isBuiltIn;
     private Integer userCount;
     private String remark;
+    private String createBy;
     private LocalDateTime createTime;
+    private String updateBy;
+    private LocalDateTime updateTime;
 }

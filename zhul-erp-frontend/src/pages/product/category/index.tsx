@@ -4,13 +4,15 @@ import {
   ModalForm,
   ProFormDigit,
   ProFormText,
+  ProFormTextArea,
   ProTable,
 } from '@ant-design/pro-components';
 import { useAccess } from '@umijs/max';
 import { App, Button, Tooltip } from 'antd';
-import dayjs from 'dayjs';
 import React, { useRef, useState } from 'react';
+import { formatDateTime } from '@/utils/format';
 import { Pill } from '../components/Pills';
+import { DESCRIPTION_MAX } from '../constants';
 import { type Category, categoryApi } from '../service';
 import { PageHeader, ProductThemeProvider } from '../theme';
 
@@ -86,6 +88,15 @@ const CategoryPage: React.FC = () => {
     },
     { title: '品类名称', dataIndex: 'categoryName', search: false },
     {
+      title: '简介',
+      dataIndex: 'description',
+      search: false,
+      ellipsis: true,
+      width: 260,
+      render: (_, r) =>
+        r.description || <span style={{ opacity: 0.6 }}>未填写</span>,
+    },
+    {
       title: '排序',
       dataIndex: 'sortOrder',
       search: false,
@@ -111,18 +122,39 @@ const CategoryPage: React.FC = () => {
         ),
     },
     {
+      title: '创建时间',
+      dataIndex: 'createTime',
+      search: false,
+      width: 160,
+      render: (_, r) => (
+        <span className="num">{formatDateTime(r.createTime)}</span>
+      ),
+    },
+    {
+      title: '创建人',
+      dataIndex: 'createBy',
+      search: false,
+      width: 90,
+    },
+    {
       title: '更新时间',
       dataIndex: 'updateTime',
       search: false,
+      width: 160,
       render: (_, r) => (
-        <span className="num">
-          {dayjs(r.updateTime).format('YYYY-MM-DD HH:mm')}
-        </span>
+        <span className="num">{formatDateTime(r.updateTime)}</span>
       ),
+    },
+    {
+      title: '更新人',
+      dataIndex: 'updateBy',
+      search: false,
+      width: 90,
     },
     {
       title: '操作',
       valueType: 'option',
+      width: 150,
       render: (_, row) => [
         access['product:category:edit'] && (
           <a key="edit" onClick={() => openForm(row)}>
@@ -202,6 +234,7 @@ const CategoryPage: React.FC = () => {
       <ModalForm<{
         categoryCode: string;
         categoryName: string;
+        description?: string;
         sortOrder?: number;
       }>
         title={editing ? '编辑品类' : '新增品类'}
@@ -248,6 +281,18 @@ const CategoryPage: React.FC = () => {
             { required: true, message: '请输入品类名称' },
             { max: 64, message: '名称不超过 64 个字符' },
           ]}
+        />
+        <ProFormTextArea
+          name="description"
+          label="品类简介"
+          placeholder="一两句话介绍这个品类，独立站品类页会用到"
+          fieldProps={{
+            maxLength: DESCRIPTION_MAX,
+            showCount: true,
+            autoSize: { minRows: 3, maxRows: 6 },
+          }}
+          rules={[{ max: DESCRIPTION_MAX, message: '简介不能超过 500 个字符' }]}
+          extra="属于品类本身，所有品牌下的商品共用；有商品后也可以修改"
         />
         <ProFormDigit
           name="sortOrder"

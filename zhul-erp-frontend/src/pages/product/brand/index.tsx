@@ -2,15 +2,25 @@ import { PlusOutlined } from '@ant-design/icons';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import {
   ModalForm,
+  ProForm,
   ProFormRadio,
+  ProFormSelect,
   ProFormText,
+  ProFormTextArea,
   ProTable,
 } from '@ant-design/pro-components';
 import { useAccess } from '@umijs/max';
 import { App, Button, Space, Tooltip } from 'antd';
-import dayjs from 'dayjs';
 import React, { useRef, useState } from 'react';
+import { formatDateTime } from '@/utils/format';
+import BrandColorInput from '../components/BrandColorInput';
 import { BrandMark, Pill } from '../components/Pills';
+import { useCountries } from '../components/useCountries';
+import {
+  BRAND_COLOR_PATTERN,
+  DESCRIPTION_MAX,
+  randomBrandColor,
+} from '../constants';
 import { type Brand, brandApi } from '../service';
 import { PageHeader, ProductThemeProvider } from '../theme';
 
@@ -20,9 +30,13 @@ const BrandPage: React.FC = () => {
   const actionRef = useRef<ActionType>(undefined);
   const [editing, setEditing] = useState<Brand | null>(null);
   const [open, setOpen] = useState(false);
+  // 新建品牌时预填的随机主题色：打开表单时取一次，不能放在 initialValues 里每次渲染重算
+  const [defaultColor, setDefaultColor] = useState('');
+  const { options: countryOptions, zhOf: countryZh } = useCountries();
 
   const openForm = (row: Brand | null) => {
     setEditing(row);
+    if (!row) setDefaultColor(randomBrandColor());
     setOpen(true);
   };
 
@@ -87,15 +101,26 @@ const BrandPage: React.FC = () => {
       ),
     },
     {
-      title: '原产国',
+      title: '原产地',
       dataIndex: 'country',
       search: false,
-      render: (_, r) => r.country || '—',
+      width: 110,
+      render: (_, r) => countryZh(r.country) || '—',
     },
     {
-      title: '是否原厂正品',
+      title: '简介',
+      dataIndex: 'description',
+      search: false,
+      ellipsis: true,
+      width: 200,
+      render: (_, r) =>
+        r.description || <span style={{ opacity: 0.6 }}>未填写</span>,
+    },
+    {
+      title: '类型',
       dataIndex: 'isGenuine',
       search: false,
+      width: 120,
       render: (_, r) =>
         r.isGenuine === 1 ? (
           <Pill tone="green">原厂正品</Pill>
@@ -122,18 +147,39 @@ const BrandPage: React.FC = () => {
         ),
     },
     {
+      title: '创建时间',
+      dataIndex: 'createTime',
+      search: false,
+      width: 160,
+      render: (_, r) => (
+        <span className="num">{formatDateTime(r.createTime)}</span>
+      ),
+    },
+    {
+      title: '创建人',
+      dataIndex: 'createBy',
+      search: false,
+      width: 90,
+    },
+    {
       title: '更新时间',
       dataIndex: 'updateTime',
       search: false,
+      width: 160,
       render: (_, r) => (
-        <span className="num">
-          {dayjs(r.updateTime).format('YYYY-MM-DD HH:mm')}
-        </span>
+        <span className="num">{formatDateTime(r.updateTime)}</span>
       ),
+    },
+    {
+      title: '更新人',
+      dataIndex: 'updateBy',
+      search: false,
+      width: 90,
     },
     {
       title: '操作',
       valueType: 'option',
+      width: 150,
       render: (_, row) => [
         access['product:brand:edit'] && (
           <a key="edit" onClick={() => openForm(row)}>
@@ -213,14 +259,17 @@ const BrandPage: React.FC = () => {
         country?: string;
         logoUrl?: string;
         brandColor?: string;
+        description?: string;
         isGenuine: number;
       }>
         title={editing ? '编辑品牌' : '新增品牌'}
         open={open}
         onOpenChange={setOpen}
-        width={520}
+        width={560}
         modalProps={{ destroyOnHidden: true }}
-        initialValues={editing ? { ...editing } : { isGenuine: 1 }}
+        initialValues={
+          editing ? { ...editing } : { isGenuine: 1, brandColor: defaultColor }
+        }
         onFinish={async (values) => {
           if (editing) await brandApi.update(editing.id, values);
           else await brandApi.create(values);
@@ -239,22 +288,44 @@ const BrandPage: React.FC = () => {
           ]}
           extra="不区分大小写，Siemens 和 siemens 视为同一个品牌"
         />
-        <ProFormText
-          name="country"
-          label="原产国 / 地区"
-          placeholder="如 Germany"
-          rules={[{ max: 64 }]}
-        />
-        <ProFormText
-          name="brandColor"
-          label="品牌主题色"
-          placeholder="#009999"
-          rules={[
-            {
-              pattern: /^(#[0-9A-Fa-f]{6})?$/,
-              message: '格式应为 #RRGGBB，如 #009999',
-            },
-          ]}
+        <ProForm.Group>
+          <ProFormSelect
+            name="country"
+            label="原产地"
+            width="sm"
+            placeholder="选择或搜索国家 / 地区"
+            options={countryOptions}
+            fieldProps={{
+              showSearch: true,
+              allowClear: true,
+              optionFilterProp: 'label',
+            }}
+            extra="只能从清单里选，中文名或英文名都能搜"
+          />
+          <ProForm.Item
+            name="brandColor"
+            label="品牌主题色"
+            rules={[
+              {
+                pattern: BRAND_COLOR_PATTERN,
+                message: '主题色格式应为 #RRGGBB',
+              },
+            ]}
+            extra="新建时随机预填一个，可改、可清空"
+          >
+            <BrandColorInput />
+          </ProForm.Item>
+        </ProForm.Group>
+        <ProFormTextArea
+          name="description"
+          label="品牌简介"
+          placeholder="一两句话介绍这个品牌，独立站品牌页会用到"
+          fieldProps={{
+            maxLength: DESCRIPTION_MAX,
+            showCount: true,
+            autoSize: { minRows: 3, maxRows: 6 },
+          }}
+          rules={[{ max: DESCRIPTION_MAX, message: '简介不能超过 500 个字符' }]}
         />
         <ProFormText
           name="logoUrl"

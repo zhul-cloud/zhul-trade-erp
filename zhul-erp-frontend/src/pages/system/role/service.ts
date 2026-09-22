@@ -9,7 +9,10 @@ export interface RoleItem {
   isBuiltIn: number;
   userCount: number;
   remark: string;
+  createBy: string;
   createTime: string;
+  updateBy: string;
+  updateTime: string;
 }
 
 export interface RoleStats {

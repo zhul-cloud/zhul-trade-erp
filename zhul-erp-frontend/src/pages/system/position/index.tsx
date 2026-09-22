@@ -145,6 +145,25 @@ const PositionPage: React.FC = () => {
       valueType: 'dateTime',
     },
     {
+      title: '创建人',
+      dataIndex: 'createBy',
+      width: 90,
+      search: false,
+    },
+    {
+      title: '更新时间',
+      dataIndex: 'updateTime',
+      width: 160,
+      search: false,
+      valueType: 'dateTime',
+    },
+    {
+      title: '更新人',
+      dataIndex: 'updateBy',
+      width: 90,
+      search: false,
+    },
+    {
       title: '操作',
       valueType: 'option',
       width: 160,

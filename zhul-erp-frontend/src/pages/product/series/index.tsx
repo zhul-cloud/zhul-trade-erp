@@ -9,8 +9,8 @@ import {
 } from '@ant-design/pro-components';
 import { useAccess } from '@umijs/max';
 import { App, Button, Tooltip } from 'antd';
-import dayjs from 'dayjs';
 import React, { useRef, useState } from 'react';
+import { formatDateTime } from '@/utils/format';
 import { Pill } from '../components/Pills';
 import { brandApi, type Series, seriesApi } from '../service';
 import { PageHeader, ProductThemeProvider } from '../theme';
@@ -120,14 +120,34 @@ const SeriesPage: React.FC = () => {
         ),
     },
     {
+      title: '创建时间',
+      dataIndex: 'createTime',
+      search: false,
+      width: 160,
+      render: (_, r) => (
+        <span className="num">{formatDateTime(r.createTime)}</span>
+      ),
+    },
+    {
+      title: '创建人',
+      dataIndex: 'createBy',
+      search: false,
+      width: 90,
+    },
+    {
       title: '更新时间',
       dataIndex: 'updateTime',
       search: false,
+      width: 160,
       render: (_, r) => (
-        <span className="num">
-          {dayjs(r.updateTime).format('YYYY-MM-DD HH:mm')}
-        </span>
+        <span className="num">{formatDateTime(r.updateTime)}</span>
       ),
+    },
+    {
+      title: '更新人',
+      dataIndex: 'updateBy',
+      search: false,
+      width: 90,
     },
     {
       title: '操作',

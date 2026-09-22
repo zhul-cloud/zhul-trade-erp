@@ -26,6 +26,7 @@ import CustomerQuickCreateModal from '@/components/CustomerQuickCreateModal';
 import { getUserList } from '@/pages/system/user/service';
 import type { CustomerItem } from '@/services/zhul/masterdata';
 import { useAppTheme } from '@/theme/AppTheme';
+import { formatDateTime } from '@/utils/format';
 import { INQUIRY_ORDER_STATUS, INQUIRY_ORDER_STATUS_META } from '../constants';
 import type { InquiryOrderItem } from './service';
 import { createInquiryOrderManual, pageInquiryOrders } from './service';
@@ -156,7 +157,22 @@ const InquiryOrderList: React.FC = () => {
       valueEnum: { true: { text: '是' }, false: { text: '否' } },
       search: { transform: (value) => ({ manualOnly: value === 'true' }) },
     },
-    { title: '创建时间', dataIndex: 'createTime', width: 160, search: false },
+    {
+      title: '创建时间',
+      dataIndex: 'createTime',
+      width: 160,
+      search: false,
+      render: (_, r) => formatDateTime(r.createTime),
+    },
+    { title: '创建人', dataIndex: 'createBy', width: 90, search: false },
+    {
+      title: '更新时间',
+      dataIndex: 'updateTime',
+      width: 160,
+      search: false,
+      render: (_, r) => formatDateTime(r.updateTime),
+    },
+    { title: '更新人', dataIndex: 'updateBy', width: 90, search: false },
     {
       title: '操作',
       width: 100,

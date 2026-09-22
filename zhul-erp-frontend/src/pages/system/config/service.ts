@@ -12,7 +12,9 @@ export interface ConfigItem {
   isEncrypted: number;
   configGroup: string;
   remark: string;
+  createBy: string;
   createTime: string;
+  updateBy: string;
   updateTime: string;
 }
 

@@ -30,6 +30,7 @@ import { useAccess } from '@umijs/max';
 import { App, Button, Card, Input, Popconfirm, Space, Tag } from 'antd';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useAppTheme } from '@/theme/AppTheme';
+import { formatDateTime } from '@/utils/format';
 import type { MenuItem } from './service';
 import {
   createMenu,
@@ -487,6 +488,28 @@ const MenuPage: React.FC = () => {
       dataIndex: 'isHidden',
       width: 70,
       render: (_, r) => (r.type === 3 ? '--' : r.isHidden === 1 ? '是' : '否'),
+    },
+    {
+      title: '创建时间',
+      dataIndex: 'createTime',
+      width: 160,
+      render: (_, r) => formatDateTime(r.createTime),
+    },
+    {
+      title: '创建人',
+      dataIndex: 'createBy',
+      width: 90,
+    },
+    {
+      title: '更新时间',
+      dataIndex: 'updateTime',
+      width: 160,
+      render: (_, r) => formatDateTime(r.updateTime),
+    },
+    {
+      title: '更新人',
+      dataIndex: 'updateBy',
+      width: 90,
     },
     {
       title: '操作',

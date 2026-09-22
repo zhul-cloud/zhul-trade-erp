@@ -15,7 +15,10 @@ export interface InquiryOrderItem {
   emailTemplateEn?: string;
   aiTaskId?: number;
   remark?: string;
+  createBy: string;
   createTime: string;
+  updateBy: string;
+  updateTime: string;
 }
 
 export interface InquiryOrderPageQuery {

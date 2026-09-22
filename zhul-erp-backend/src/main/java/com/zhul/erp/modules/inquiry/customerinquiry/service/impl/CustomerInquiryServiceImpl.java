@@ -22,7 +22,9 @@ import com.zhul.erp.modules.inquiry.customerinquiry.dto.CustomerInquiryVO;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.InquiryPreviewVO;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.SubmitCustomerInquiryRequest;
 import com.zhul.erp.modules.inquiry.customerinquiry.entity.CustomerInquiryDO;
+import com.zhul.erp.modules.inquiry.customerinquiry.constants.CustomerInquirySource;
 import com.zhul.erp.modules.inquiry.customerinquiry.repository.CustomerInquiryMapper;
+import com.zhul.erp.modules.inquiry.customerinquiry.service.AttachmentStorageService;
 import com.zhul.erp.modules.inquiry.customerinquiry.service.CustomerInquiryService;
 import com.zhul.erp.modules.inquiry.inquiryorder.dto.InquiryOrderVO;
 import com.zhul.erp.modules.inquiry.inquiryorder.service.InquiryOrderService;
@@ -39,8 +41,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.nio.file.Path;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -59,6 +63,7 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
     private final CustomerService customerService;
     private final CurrentUserResolver currentUserResolver;
     private final ObjectMapper objectMapper;
+    private final AttachmentStorageService attachmentStorageService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -112,7 +117,7 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
         if (query.getOwnerId() != null) {
             wrapper.eq(CustomerInquiryDO::getOwnerId, query.getOwnerId());
         }
-        wrapper.orderByDesc(CustomerInquiryDO::getCreateTime);
+        wrapper.orderByDesc(CustomerInquiryDO::getUpdateTime);
 
         Page<CustomerInquiryDO> pageParam = new Page<>(query.getPage(), query.getPageSize());
         Page<CustomerInquiryDO> pageResult = customerInquiryMapper.selectPage(pageParam, wrapper);
@@ -152,14 +157,40 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
         return submitParseTask(inquiry);
     }
 
-    /** 首次发起解析、失败后重试共用：创建AI任务、提交、把客户询盘状态转为"解析中"。 */
+    /**
+     * 首次发起解析、失败后重试共用：创建AI任务、提交、把客户询盘状态转为"解析中"。
+     *
+     * <p>Excel/图片附件的处理方式不一样：Excel 在这里用 Apache POI 直接把表格内容抽成
+     * 文本，当成普通 rawContent 走已有的文本解析流程（AI 不需要知道这条询盘原本是
+     * 文件输入）；图片没有机械抽取文本这一说，改成把附件的本地绝对路径通过
+     * {@code rawAttachmentPath} 字段传给 AI 编排服务，由它自己决定怎么读图（本仓库的
+     * {@code scripts/ai-orchestrator} 会用 Claude 的 Read 工具查看图片铭牌）。
+     */
     private CustomerInquiryVO submitParseTask(CustomerInquiryDO inquiry) {
-        String inputJson = writeJsonSafely(Map.of(
-                "customerInquiryId", inquiry.getId(),
-                "source", inquiry.getSource() != null ? inquiry.getSource() : 0,
-                "rawContent", inquiry.getRawContent() != null ? inquiry.getRawContent() : "",
-                "rawAttachmentUrl", inquiry.getRawAttachmentUrl() != null ? inquiry.getRawAttachmentUrl() : ""
-        ));
+        String effectiveRawContent = inquiry.getRawContent();
+        String attachmentPath = null;
+
+        if (!StringUtils.hasText(effectiveRawContent) && StringUtils.hasText(inquiry.getRawAttachmentUrl())) {
+            Integer source = inquiry.getSource();
+            if (source != null && source == CustomerInquirySource.EXCEL) {
+                Path resolved = attachmentStorageService.resolveToAbsolutePath(inquiry.getRawAttachmentUrl());
+                effectiveRawContent = attachmentStorageService.extractExcelText(resolved);
+                inquiry.setRawContent(effectiveRawContent);
+            } else if (source != null && source == CustomerInquirySource.IMAGE) {
+                attachmentPath = attachmentStorageService.resolveToAbsolutePath(inquiry.getRawAttachmentUrl()).toString();
+            }
+        }
+
+        Map<String, Object> input = new HashMap<>();
+        input.put("customerInquiryId", inquiry.getId());
+        input.put("source", inquiry.getSource() != null ? inquiry.getSource() : 0);
+        input.put("rawContent", effectiveRawContent != null ? effectiveRawContent : "");
+        input.put("rawAttachmentUrl", inquiry.getRawAttachmentUrl() != null ? inquiry.getRawAttachmentUrl() : "");
+        if (attachmentPath != null) {
+            input.put("rawAttachmentPath", attachmentPath);
+        }
+        String inputJson = writeJsonSafely(input);
+
         AiTaskVO task = aiTaskService.createAndSubmit(PARSE_SKILL_ID, inputJson, currentUserResolver.resolve());
         inquiry.setAiTaskId(task.getId());
         inquiry.setStatus(CustomerInquiryStatus.PARSING);
@@ -422,7 +453,10 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
         vo.setOwnerId(inquiry.getOwnerId());
         vo.setAiTaskId(inquiry.getAiTaskId());
         vo.setRemark(inquiry.getRemark());
+        vo.setCreateBy(inquiry.getCreateBy());
         vo.setCreateTime(inquiry.getCreateTime());
+        vo.setUpdateBy(inquiry.getUpdateBy());
+        vo.setUpdateTime(inquiry.getUpdateTime());
         return vo;
     }
 }

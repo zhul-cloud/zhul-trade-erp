@@ -16,7 +16,10 @@ export interface CustomerInquiryItem {
   ownerId?: number;
   aiTaskId?: number;
   remark?: string;
+  createBy: string;
   createTime: string;
+  updateBy: string;
+  updateTime: string;
 }
 
 export interface CustomerInquiryPageQuery {
@@ -85,6 +88,35 @@ export interface ConfirmSplitItemPayload {
 export interface ConfirmSplitGroupPayload {
   groupIndex: number;
   items: ConfirmSplitItemPayload[];
+}
+
+export interface AttachmentUploadResult {
+  url: string;
+  filename: string;
+}
+
+export async function uploadInquiryImage(
+  file: File,
+): Promise<AttachmentUploadResult> {
+  const formData = new FormData();
+  formData.append('file', file);
+  const res = await request(
+    '/api/v1/inquiry/customer-inquiries/attachments/image',
+    { method: 'POST', data: formData, requestType: 'form' },
+  );
+  return res.data;
+}
+
+export async function uploadInquiryExcel(
+  file: File,
+): Promise<AttachmentUploadResult> {
+  const formData = new FormData();
+  formData.append('file', file);
+  const res = await request(
+    '/api/v1/inquiry/customer-inquiries/attachments/excel',
+    { method: 'POST', data: formData, requestType: 'form' },
+  );
+  return res.data;
 }
 
 export async function submitCustomerInquiry(

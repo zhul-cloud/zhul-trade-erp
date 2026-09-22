@@ -46,6 +46,7 @@ public class RoleServiceImpl implements RoleService {
     @Override
     public PageResult<RoleVO> listRoles(Integer page, Integer pageSize, String name, String code, Integer status) {
         LambdaQueryWrapper<RoleDO> wrapper = buildWrapper(name, code, status);
+        wrapper.orderByDesc(RoleDO::getUpdateTime);
 
         Page<RoleDO> pageParam = new Page<>(page, pageSize);
         Page<RoleDO> pageResult = roleMapper.selectPage(pageParam, wrapper);
@@ -254,7 +255,10 @@ public class RoleServiceImpl implements RoleService {
             vo.setIsBuiltIn(role.getIsBuiltIn());
             vo.setUserCount(userCountByRoleCode.getOrDefault(role.getCode(), 0L).intValue());
             vo.setRemark(role.getRemark());
+            vo.setCreateBy(role.getCreateBy());
             vo.setCreateTime(role.getCreateTime());
+            vo.setUpdateBy(role.getUpdateBy());
+            vo.setUpdateTime(role.getUpdateTime());
             voList.add(vo);
         }
         return voList;

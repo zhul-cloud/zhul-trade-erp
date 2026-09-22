@@ -22,13 +22,19 @@ import { getUserList } from '@/pages/system/user/service';
 import type { CustomerItem } from '@/services/zhul/masterdata';
 import { getCustomer, searchCustomers } from '@/services/zhul/masterdata';
 import { useAppTheme } from '@/theme/AppTheme';
+import { formatDateTime } from '@/utils/format';
 import {
   CUSTOMER_INQUIRY_SOURCE_META,
   CUSTOMER_INQUIRY_STATUS,
   CUSTOMER_INQUIRY_STATUS_META,
 } from '../constants';
 import type { CustomerInquiryItem } from './service';
-import { pageCustomerInquiries, submitCustomerInquiry } from './service';
+import {
+  pageCustomerInquiries,
+  submitCustomerInquiry,
+  uploadInquiryExcel,
+  uploadInquiryImage,
+} from './service';
 
 const startOfMonth = (): string => {
   const now = new Date();
@@ -250,7 +256,22 @@ const CustomerInquiryList: React.FC = () => {
       render: (_, record) =>
         record.ownerId ? (ownerNameMap[record.ownerId] ?? record.ownerId) : '-',
     },
-    { title: '创建时间', dataIndex: 'createTime', width: 160, search: false },
+    {
+      title: '创建时间',
+      dataIndex: 'createTime',
+      width: 160,
+      search: false,
+      render: (_, r) => formatDateTime(r.createTime),
+    },
+    { title: '创建人', dataIndex: 'createBy', width: 90, search: false },
+    {
+      title: '更新时间',
+      dataIndex: 'updateTime',
+      width: 160,
+      search: false,
+      render: (_, r) => formatDateTime(r.updateTime),
+    },
+    { title: '更新人', dataIndex: 'updateBy', width: 90, search: false },
     {
       title: '操作',
       dataIndex: 'option',
@@ -378,11 +399,15 @@ const CustomerInquiryList: React.FC = () => {
             excel: 2,
             image: 3,
           };
+          if (sourceTab !== 'text' && !values.attachment?.[0]?.response?.url) {
+            message.error('请先等待文件上传完成');
+            return false;
+          }
           const created = await submitCustomerInquiry({
             customerId: selectedCustomer.id,
             source: sourceMap[sourceTab],
             rawContent: values.rawContent,
-            rawAttachmentUrl: values.attachment?.[0]?.name,
+            rawAttachmentUrl: values.attachment?.[0]?.response?.url,
             inquiryDate: today(),
             expectedReplyDate: values.expectedReplyDate,
             remark: values.remark,
@@ -410,7 +435,9 @@ const CustomerInquiryList: React.FC = () => {
             dropdownRender: (menu: React.ReactNode) => (
               <>
                 {menu}
-                <div style={{ padding: 8, borderTop: `1px solid ${p.hairline}` }}>
+                <div
+                  style={{ padding: 8, borderTop: `1px solid ${p.hairline}` }}
+                >
                   <a onClick={() => setQuickCreateOpen(true)}>+ 新建客户</a>
                 </div>
               </>
@@ -442,10 +469,17 @@ const CustomerInquiryList: React.FC = () => {
                   title="点击或拖拽 Excel 文件到此处"
                   fieldProps={{
                     accept: '.xlsx,.xls,.csv',
-                    beforeUpload: () => false,
                     maxCount: 1,
+                    customRequest: async ({ file, onSuccess, onError }) => {
+                      try {
+                        const result = await uploadInquiryExcel(file as File);
+                        onSuccess?.(result);
+                      } catch (e) {
+                        onError?.(e as Error);
+                      }
+                    },
                   }}
-                  extra="仅支持 .xlsx/.xls/.csv，暂未接入真实文件存储服务，此处仅记录文件名（见完成报告说明）"
+                  extra="仅支持 .xlsx/.xls/.csv，最大 5MB"
                 />
               ),
             },
@@ -455,13 +489,20 @@ const CustomerInquiryList: React.FC = () => {
               children: (
                 <ProFormUploadDragger
                   name="attachment"
-                  title="点击或拖拽图片到此处（支持多图）"
+                  title="点击或拖拽图片到此处（暂仅使用第一张图片解析）"
                   fieldProps={{
                     accept: '.jpg,.jpeg,.png',
-                    beforeUpload: () => false,
                     multiple: true,
+                    customRequest: async ({ file, onSuccess, onError }) => {
+                      try {
+                        const result = await uploadInquiryImage(file as File);
+                        onSuccess?.(result);
+                      } catch (e) {
+                        onError?.(e as Error);
+                      }
+                    },
                   }}
-                  extra="仅支持 .jpg/.png，暂未接入真实文件存储服务，此处仅记录文件名"
+                  extra="仅支持 .jpg/.png，最大 5MB"
                 />
               ),
             },

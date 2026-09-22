@@ -233,6 +233,10 @@ public class MenuServiceImpl implements MenuService {
         vo.setIsCache(r.getIsCache());
         vo.setIsHidden(r.getIsHidden());
         vo.setStatus(r.getStatus());
+        vo.setCreateBy(r.getCreateBy());
+        vo.setCreateTime(r.getCreateTime());
+        vo.setUpdateBy(r.getUpdateBy());
+        vo.setUpdateTime(r.getUpdateTime());
         return vo;
     }
 }

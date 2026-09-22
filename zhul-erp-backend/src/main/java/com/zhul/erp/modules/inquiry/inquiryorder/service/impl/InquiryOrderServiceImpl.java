@@ -202,7 +202,7 @@ public class InquiryOrderServiceImpl implements InquiryOrderService {
         } else if (query.getAssigneeId() != null) {
             wrapper.eq(InquiryOrderDO::getAssigneeId, query.getAssigneeId());
         }
-        wrapper.orderByDesc(InquiryOrderDO::getCreateTime);
+        wrapper.orderByDesc(InquiryOrderDO::getUpdateTime);
 
         Page<InquiryOrderDO> pageParam = new Page<>(query.getPage(), query.getPageSize());
         Page<InquiryOrderDO> pageResult = inquiryOrderMapper.selectPage(pageParam, wrapper);
@@ -531,7 +531,10 @@ public class InquiryOrderServiceImpl implements InquiryOrderService {
         vo.setEmailTemplateEn(order.getEmailTemplateEn());
         vo.setAiTaskId(order.getAiTaskId());
         vo.setRemark(order.getRemark());
+        vo.setCreateBy(order.getCreateBy());
         vo.setCreateTime(order.getCreateTime());
+        vo.setUpdateBy(order.getUpdateBy());
+        vo.setUpdateTime(order.getUpdateTime());
         return vo;
     }
 

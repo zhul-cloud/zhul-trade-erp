@@ -171,7 +171,9 @@ public class PositionServiceImpl implements PositionService {
             vo.setSort(position.getSort());
             vo.setStatus(position.getStatus());
             vo.setRemark(position.getRemark());
+            vo.setCreateBy(position.getCreateBy());
             vo.setCreateTime(position.getCreateTime());
+            vo.setUpdateBy(position.getUpdateBy());
             vo.setUpdateTime(position.getUpdateTime());
             result.add(vo);
         }

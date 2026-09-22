@@ -56,10 +56,13 @@ export interface Brand {
   country: string;
   logoUrl: string;
   brandColor: string;
+  description: string;
   isGenuine: number;
   status: number;
   productCount: number;
+  createBy: string;
   createTime: string;
+  updateBy: string;
   updateTime: string;
 }
 
@@ -67,6 +70,7 @@ export interface BrandOption {
   id: number;
   brandName: string;
   logoUrl: string;
+  description: string;
   isGenuine: number;
 }
 
@@ -75,6 +79,7 @@ export interface SaveBrand {
   country?: string;
   logoUrl?: string;
   brandColor?: string;
+  description?: string;
   isGenuine?: number;
 }
 
@@ -82,9 +87,13 @@ export interface Category {
   id: number;
   categoryCode: string;
   categoryName: string;
+  description: string;
   sortOrder: number;
   status: number;
   productCount: number;
+  createBy: string;
+  createTime: string;
+  updateBy: string;
   updateTime: string;
 }
 
@@ -92,11 +101,13 @@ export interface CategoryOption {
   id: number;
   categoryCode: string;
   categoryName: string;
+  description: string;
 }
 
 export interface SaveCategory {
   categoryCode: string;
   categoryName: string;
+  description?: string;
   sortOrder?: number;
 }
 
@@ -108,6 +119,9 @@ export interface Series {
   description: string;
   status: number;
   productCount: number;
+  createBy: string;
+  createTime: string;
+  updateBy: string;
   updateTime: string;
 }
 
@@ -116,6 +130,17 @@ export interface SeriesOption {
   brandId: number;
   seriesName: string;
 }
+
+/** 国家/地区清单项：品牌原产地下拉的数据源，品牌保存的是 nameEn */
+export interface Country {
+  code: string;
+  nameEn: string;
+  nameZh: string;
+}
+
+export const countryApi = {
+  list: () => call<Country[]>(`${BASE}/countries`),
+};
 
 export const brandApi = {
   page: (params: PageParams & { keyword?: string; status?: number }) =>

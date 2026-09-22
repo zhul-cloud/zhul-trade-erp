@@ -16,6 +16,7 @@ import com.zhul.erp.modules.product.repository.IdCount;
 import com.zhul.erp.modules.product.repository.ProductBrandMapper;
 import com.zhul.erp.modules.product.repository.ProductMapper;
 import com.zhul.erp.modules.product.service.BrandService;
+import com.zhul.erp.modules.product.support.CountryCatalog;
 import com.zhul.erp.modules.product.support.LikeUtils;
 import com.zhul.erp.modules.product.support.OptionsCache;
 import com.zhul.erp.modules.product.support.PlatformScopeGuard;
@@ -31,6 +32,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.regex.Pattern;
 
@@ -45,6 +47,7 @@ public class BrandServiceImpl implements BrandService {
     private final ProductMapper productMapper;
     private final PlatformScopeGuard platformScopeGuard;
     private final OptionsCache optionsCache;
+    private final CountryCatalog countryCatalog;
 
     @Override
     public PageResult<BrandVO> page(BrandQuery query) {
@@ -87,6 +90,7 @@ public class BrandServiceImpl implements BrandService {
             vo.setId(brand.getId());
             vo.setBrandName(brand.getBrandName());
             vo.setLogoUrl(brand.getLogoUrl());
+            vo.setDescription(brand.getDescription());
             vo.setIsGenuine(brand.getIsGenuine());
             options.add(vo);
         }
@@ -104,9 +108,10 @@ public class BrandServiceImpl implements BrandService {
         ProductBrandDO brand = new ProductBrandDO();
         brand.setTenantId(ProductConstants.PLATFORM_TENANT_ID);
         brand.setBrandName(name);
-        brand.setCountry(TextRules.optional(req.getCountry(), "原产国", 64));
+        brand.setCountry(validCountry(req.getCountry()));
         brand.setLogoUrl(TextRules.optional(req.getLogoUrl(), "Logo 地址", 256));
         brand.setBrandColor(validColor(req.getBrandColor()));
+        brand.setDescription(TextRules.optional(req.getDescription(), "品牌简介", ProductConstants.DESCRIPTION_MAX));
         brand.setIsGenuine(genuine(req.getIsGenuine(), 1));
         brand.setStatus(ProductConstants.STATUS_ENABLED);
         try {
@@ -130,9 +135,10 @@ public class BrandServiceImpl implements BrandService {
         ProductBrandDO change = new ProductBrandDO();
         change.setId(id);
         change.setBrandName(name);
-        change.setCountry(TextRules.optional(req.getCountry(), "原产国", 64));
+        change.setCountry(validCountry(req.getCountry()));
         change.setLogoUrl(TextRules.optional(req.getLogoUrl(), "Logo 地址", 256));
         change.setBrandColor(validColor(req.getBrandColor()));
+        change.setDescription(TextRules.optional(req.getDescription(), "品牌简介", ProductConstants.DESCRIPTION_MAX));
         change.setIsGenuine(genuine(req.getIsGenuine(), current.getIsGenuine()));
         try {
             brandMapper.updateById(change);
@@ -215,12 +221,29 @@ public class BrandServiceImpl implements BrandService {
                 .isNull(ProductDO::getDeletedAt));
     }
 
+    /** 主题色：可空；非空必须是 #RRGGBB，统一存为大写 */
     private static String validColor(String color) {
         String text = TextRules.optional(color, "品牌主题色", 16);
-        if (!text.isEmpty() && !HEX_COLOR.matcher(text).matches()) {
-            throw BizException.of(ProductErrorCodes.PARAM_INVALID, "品牌主题色格式不正确，应为 #RRGGBB");
+        if (text.isEmpty()) {
+            return text;
         }
-        return text;
+        if (!HEX_COLOR.matcher(text).matches()) {
+            throw BizException.of(ProductErrorCodes.PARAM_INVALID, "主题色格式应为 #RRGGBB");
+        }
+        return text.toUpperCase(Locale.ROOT);
+    }
+
+    /** 原产地：可空；非空必须在国家清单内，存清单里的规范英文名 */
+    private String validCountry(String country) {
+        String text = TextRules.optional(country, "原产地", 64);
+        if (text.isEmpty()) {
+            return text;
+        }
+        String canonical = countryCatalog.canonicalName(text);
+        if (canonical == null) {
+            throw BizException.of(ProductErrorCodes.PARAM_INVALID, "原产地不在可选清单内");
+        }
+        return canonical;
     }
 
     private static int genuine(Integer value, int fallback) {
@@ -248,10 +271,13 @@ public class BrandServiceImpl implements BrandService {
         vo.setCountry(brand.getCountry());
         vo.setLogoUrl(brand.getLogoUrl());
         vo.setBrandColor(brand.getBrandColor());
+        vo.setDescription(brand.getDescription());
         vo.setIsGenuine(brand.getIsGenuine());
         vo.setStatus(brand.getStatus());
         vo.setProductCount(productCount);
+        vo.setCreateBy(brand.getCreateBy());
         vo.setCreateTime(brand.getCreateTime());
+        vo.setUpdateBy(brand.getUpdateBy());
         vo.setUpdateTime(brand.getUpdateTime());
         return vo;
     }

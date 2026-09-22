@@ -12,6 +12,8 @@ public class PositionVO {
     private Integer sort;
     private Integer status;
     private String remark;
+    private String createBy;
     private LocalDateTime createTime;
+    private String updateBy;
     private LocalDateTime updateTime;
 }
