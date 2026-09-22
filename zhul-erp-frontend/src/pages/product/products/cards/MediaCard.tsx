@@ -1,6 +1,8 @@
 import {
   ArrowDownOutlined,
   ArrowUpOutlined,
+  CheckCircleFilled,
+  CloseCircleFilled,
   DeleteOutlined,
   PlayCircleFilled,
   StarFilled,
@@ -36,7 +38,25 @@ const formatSize = (n: number) =>
     ? `${(n / 1024 / 1024).toFixed(1)} MB`
     : `${Math.max(1, Math.round(n / 1024))} KB`;
 
-/** 上传弹窗（M09）：格式和大小先在浏览器里预检，通过后显示进度，可取消 */
+interface PendingFile {
+  uid: string;
+  file: File;
+  previewUrl?: string;
+  problem?: string;
+  status: 'pending' | 'uploading' | 'done' | 'error';
+  progress: number;
+  error?: string;
+}
+
+let pendingUidSeq = 0;
+const nextPendingUid = () => `f${Date.now()}-${pendingUidSeq++}`;
+
+/**
+ * 上传弹窗（M09）：格式和大小先在浏览器里预检，通过后显示进度，可取消。
+ * 图片支持一次选择多张，按顺序逐个上传（复用单文件上传接口），互不阻塞——
+ * 某一张失败不影响其它张继续；重新点「上传」会自动重试失败/未完成的部分。
+ * 视频仍保持单文件（本来体积就大，一次一个更稳）。
+ */
 export const UploadModal: React.FC<{
   productId: number;
   open: boolean;
@@ -47,63 +67,150 @@ export const UploadModal: React.FC<{
   const { message } = App.useApp();
   const { palette } = useProductTheme();
   const [mediaType, setMediaType] = useState<1 | 2>(1);
-  const [file, setFile] = useState<File>();
+  const [files, setFiles] = useState<PendingFile[]>([]);
   const [title, setTitle] = useState('');
   const [setMain, setSetMain] = useState(!!defaultSetMain);
-  const [progress, setProgress] = useState(0);
   const [uploading, setUploading] = useState(false);
-  const [problem, setProblem] = useState<string>();
   const abort = useRef<AbortController>(undefined);
+  const cancelled = useRef(false);
+  const createdUrls = useRef<string[]>([]);
+
+  // 弹窗销毁（destroyOnHidden）时统一回收所有生成过的缩略图 objectURL，避免内存泄漏
+  useEffect(() => {
+    return () => {
+      createdUrls.current.forEach((u) => {
+        URL.revokeObjectURL(u);
+      });
+    };
+  }, []);
 
   useEffect(() => {
     if (open) {
       setMediaType(1);
-      setFile(undefined);
+      setFiles([]);
       setTitle('');
       setSetMain(!!defaultSetMain);
-      setProgress(0);
-      setProblem(undefined);
+      setUploading(false);
     }
   }, [open, defaultSetMain]);
 
-  const pick = (f: File, type: 1 | 2) => {
-    setFile(f);
-    setProblem(precheckUpload(f, type));
+  const addFiles = (list: File[], type: 1 | 2) => {
+    const items: PendingFile[] = list.map((f) => {
+      const previewUrl = type === 1 ? URL.createObjectURL(f) : undefined;
+      if (previewUrl) createdUrls.current.push(previewUrl);
+      return {
+        uid: nextPendingUid(),
+        file: f,
+        previewUrl,
+        problem: precheckUpload(f, type),
+        status: 'pending',
+        progress: 0,
+      };
+    });
+    // 视频保持单文件：重新选择即替换；图片允许多次选择累加
+    setFiles((prev) => (type === 2 ? items.slice(0, 1) : [...prev, ...items]));
+  };
+
+  const removeFile = (uid: string) => {
+    setFiles((prev) => {
+      const target = prev.find((f) => f.uid === uid);
+      if (target?.previewUrl) URL.revokeObjectURL(target.previewUrl);
+      return prev.filter((f) => f.uid !== uid);
+    });
   };
 
   const submit = async () => {
-    if (!file || problem) return;
-    abort.current = new AbortController();
+    const targets = files.filter((f) => f.status !== 'done');
+    if (targets.length === 0 || uploading) return;
     setUploading(true);
-    setProgress(0);
-    try {
-      await uploadMedia(productId, {
-        file,
-        mediaType,
-        title: title.trim() || undefined,
-        setMain: mediaType === 1 && setMain,
-        onProgress: setProgress,
-        signal: abort.current.signal,
-      });
-      message.success('已上传');
-      onDone();
-      onClose();
-    } catch (e) {
-      if ((e as { code?: string })?.code === 'ERR_CANCELED') {
-        message.info('已取消上传');
-      } else {
-        // 服务端再次校验失败时给出具体原因，可以重试
-        setProblem(readBizError(e).message);
+    cancelled.current = false;
+    let successCount = 0;
+    let mainAssigned = false;
+    for (const f of targets) {
+      if (cancelled.current) break;
+      abort.current = new AbortController();
+      setFiles((prev) =>
+        prev.map((x) =>
+          x.uid === f.uid
+            ? { ...x, status: 'uploading', progress: 0, error: undefined }
+            : x,
+        ),
+      );
+      try {
+        await uploadMedia(productId, {
+          file: f.file,
+          mediaType,
+          title: title.trim() || undefined,
+          setMain: mediaType === 1 && setMain && !mainAssigned,
+          onProgress: (p) =>
+            setFiles((prev) =>
+              prev.map((x) => (x.uid === f.uid ? { ...x, progress: p } : x)),
+            ),
+          signal: abort.current.signal,
+        });
+        mainAssigned = mainAssigned || (mediaType === 1 && setMain);
+        successCount += 1;
+        setFiles((prev) =>
+          prev.map((x) =>
+            x.uid === f.uid ? { ...x, status: 'done', progress: 100 } : x,
+          ),
+        );
+        onDone(); // 每张成功即刷新底部列表，取消剩余部分时已上传的不会丢
+      } catch (e) {
+        if ((e as { code?: string })?.code === 'ERR_CANCELED') {
+          setFiles((prev) =>
+            prev.map((x) =>
+              x.uid === f.uid ? { ...x, status: 'pending', progress: 0 } : x,
+            ),
+          );
+          break;
+        }
+        // 服务端再次校验失败时给出具体原因，重新点「上传」会重试
+        setFiles((prev) =>
+          prev.map((x) =>
+            x.uid === f.uid
+              ? {
+                  ...x,
+                  status: 'error',
+                  progress: 0,
+                  error: readBizError(e).message,
+                }
+              : x,
+          ),
+        );
       }
-    } finally {
-      setUploading(false);
+    }
+    setUploading(false);
+    if (successCount === 0) return;
+    if (successCount === targets.length) {
+      message.success(
+        targets.length === 1 ? '已上传' : `已上传 ${targets.length} 张`,
+      );
+      onClose();
+    } else {
+      message.info(
+        `已上传 ${successCount}/${targets.length}，其余失败，可重试或移除后再试`,
+      );
+    }
+  };
+
+  const cancelUpload = () => {
+    if (uploading) {
+      cancelled.current = true;
+      abort.current?.abort();
+    } else {
+      onClose();
     }
   };
 
   const close = () => {
+    cancelled.current = true;
     abort.current?.abort();
     onClose();
   };
+
+  const hasBlockingProblem = files.some((f) => f.problem);
+  const pendingCount = files.filter((f) => f.status !== 'done').length;
 
   return (
     <Modal
@@ -112,17 +219,17 @@ export const UploadModal: React.FC<{
       onCancel={close}
       destroyOnHidden
       footer={[
-        <Button key="cancel" onClick={close}>
+        <Button key="cancel" onClick={cancelUpload}>
           {uploading ? '取消上传' : '取消'}
         </Button>,
         <Button
           key="ok"
           type="primary"
-          disabled={!file || !!problem || uploading}
+          disabled={pendingCount === 0 || hasBlockingProblem || uploading}
           loading={uploading}
           onClick={submit}
         >
-          上传
+          {pendingCount > 1 ? `上传（${pendingCount}）` : '上传'}
         </Button>,
       ]}
     >
@@ -131,8 +238,10 @@ export const UploadModal: React.FC<{
           value={mediaType}
           onChange={(e) => {
             setMediaType(e.target.value);
-            setFile(undefined);
-            setProblem(undefined);
+            files.forEach((f) => {
+              if (f.previewUrl) URL.revokeObjectURL(f.previewUrl);
+            });
+            setFiles([]);
           }}
           optionType="button"
           options={[
@@ -142,11 +251,13 @@ export const UploadModal: React.FC<{
         />
         <Upload.Dragger
           accept={mediaType === 1 ? '.jpg,.jpeg,.png,.webp' : '.mp4,.webm'}
-          multiple={false}
+          multiple={mediaType === 1}
           showUploadList={false}
           disabled={uploading}
-          beforeUpload={(f) => {
-            pick(f, mediaType);
+          beforeUpload={(f, fileList) => {
+            // antd 对多选的每个文件都会调用一次 beforeUpload；fileList 是本次选择的全部文件，
+            // 只在处理第一个时整批加入，避免同一批被重复 addFiles 多次
+            if (fileList[0] === f) addFiles(fileList, mediaType);
             return false;
           }}
         >
@@ -155,32 +266,143 @@ export const UploadModal: React.FC<{
           </p>
           <p style={{ color: palette.sub, fontSize: 13, margin: 0 }}>
             {mediaType === 1
-              ? '支持 jpg、jpeg、png、webp，不超过 5MB'
+              ? '支持 jpg、jpeg、png、webp，不超过 5MB，可一次选择多张'
               : '支持 mp4、webm，不超过 100MB'}
           </p>
         </Upload.Dragger>
-        {file && (
-          <div>
-            <div style={{ fontSize: 14 }}>
-              {file.name} · <span className="num">{formatSize(file.size)}</span>
-            </div>
-            {problem && (
+        {files.length > 0 && (
+          <div
+            style={{
+              maxHeight: 260,
+              overflowY: 'auto',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 8,
+            }}
+          >
+            {files.map((f) => (
               <div
-                role="alert"
-                style={{ color: palette.red, fontSize: 13, marginTop: 4 }}
+                key={f.uid}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  padding: '6px 8px',
+                  border: `1px solid ${palette.hairline}`,
+                  borderRadius: 8,
+                }}
               >
-                {problem}
+                {f.previewUrl && (
+                  <div
+                    style={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: 6,
+                      overflow: 'hidden',
+                      flexShrink: 0,
+                      background: palette.inset,
+                    }}
+                  >
+                    <img
+                      src={f.previewUrl}
+                      alt=""
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'cover',
+                      }}
+                    />
+                  </div>
+                )}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div
+                    style={{
+                      fontSize: 13,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                    }}
+                    title={f.file.name}
+                  >
+                    {f.file.name}
+                  </div>
+                  <div style={{ fontSize: 12, color: palette.sub }}>
+                    <span className="num">{formatSize(f.file.size)}</span>
+                    {f.problem && (
+                      <span
+                        role="alert"
+                        style={{ color: palette.red, marginLeft: 8 }}
+                      >
+                        {f.problem}
+                      </span>
+                    )}
+                    {f.status === 'error' && (
+                      <span
+                        role="alert"
+                        style={{ color: palette.red, marginLeft: 8 }}
+                      >
+                        {f.error}
+                      </span>
+                    )}
+                  </div>
+                  {f.status === 'uploading' && (
+                    <Progress
+                      percent={f.progress}
+                      size="small"
+                      showInfo={false}
+                      aria-label={`${f.file.name} 上传进度`}
+                    />
+                  )}
+                </div>
+                <div style={{ flexShrink: 0 }}>
+                  {f.status === 'done' ? (
+                    <CheckCircleFilled
+                      style={{ color: palette.green, fontSize: 16 }}
+                    />
+                  ) : f.status === 'uploading' ? (
+                    <span
+                      className="num"
+                      style={{ fontSize: 12, color: palette.sub }}
+                    >
+                      {f.progress}%
+                    </span>
+                  ) : f.status === 'error' ? (
+                    <Space size={4}>
+                      <CloseCircleFilled
+                        style={{ color: palette.red, fontSize: 16 }}
+                      />
+                      <Button
+                        size="small"
+                        type="text"
+                        aria-label={`移除 ${f.file.name}`}
+                        icon={<DeleteOutlined />}
+                        onClick={() => removeFile(f.uid)}
+                      />
+                    </Space>
+                  ) : (
+                    <Button
+                      size="small"
+                      type="text"
+                      aria-label={`移除 ${f.file.name}`}
+                      icon={<DeleteOutlined />}
+                      disabled={uploading}
+                      onClick={() => removeFile(f.uid)}
+                    />
+                  )}
+                </div>
               </div>
-            )}
+            ))}
           </div>
         )}
-        {uploading && <Progress percent={progress} aria-label="上传进度" />}
         <div>
           <label
             htmlFor="upload-title"
             style={{ display: 'block', marginBottom: 4, fontSize: 13 }}
           >
-            标题{mediaType === 1 ? '（同时作为图片的替代文字）' : ''}
+            标题
+            {mediaType === 1
+              ? `（同时作为图片的替代文字${files.length > 1 ? '，应用到本次所有图片' : ''}）`
+              : ''}
           </label>
           <Input
             id="upload-title"
@@ -194,7 +416,7 @@ export const UploadModal: React.FC<{
             checked={setMain}
             onChange={(e) => setSetMain(e.target.checked)}
           >
-            设为主图
+            设为主图{files.length > 1 ? '（取本次第一张上传成功的）' : ''}
           </Checkbox>
         )}
       </Space>
