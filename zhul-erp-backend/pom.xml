@@ -66,6 +66,16 @@
             <scope>runtime</scope>
         </dependency>
 
+        <!-- Flyway：启动时自动执行 src/main/resources/db 下的迁移脚本，版本号见 pom parent 的依赖管理 -->
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-mysql</artifactId>
+        </dependency>
+
         <!-- MyBatis Plus (Spring Boot 3 专用) -->
         <dependency>
             <groupId>com.baomidou</groupId>

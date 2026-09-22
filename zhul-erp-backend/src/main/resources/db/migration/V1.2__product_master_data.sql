@@ -1,5 +1,5 @@
+-- V1.2：商品主数据（由 sql/build/sql/schema_v1.2.sql 迁移而来）
 -- schema_v1.2.sql（依赖 schema_v1.sql、schema_v1.1.sql；不修改任何已有表）
-use zhul_erp;
 
 -- ============================
 -- v1.2.0  商品主数据

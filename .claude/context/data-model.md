@@ -2,7 +2,8 @@
 
 ## v1.0.0 — 系统基础 & 用户域
 
-SQL 文件：`sql/build/sql/schema_v1.sql`
+SQL 文件：`zhul-erp-backend/src/main/resources/db/migration/V1__init.sql`（Flyway 迁移，启动时自动执行；
+历史上曾放在 `sql/build/sql/schema_v1.sql`，2026-09-22 迁移到 Flyway 后这份路径已废弃）
 
 ### 表清单（共 20 张）
 
@@ -91,7 +92,7 @@ resource ──< role_resource >── role
 
 ## v1.1.0 — 主数据域 & 询盘中心
 
-SQL 文件：`sql/build/sql/schema_v1.1.sql`（依赖 `schema_v1.sql` 先执行，不修改 v1.0.0 任何已有表）
+SQL 文件：`zhul-erp-backend/src/main/resources/db/migration/V1.1__master_data_and_inquiry.sql`（Flyway 迁移，不修改 v1.0.0 任何已有表）
 
 来源：`openspec/changes/add-inquiry-management/`（proposal.md / design.md / specs），PRD 见
 `docs/02-产品PRD/03-业务域/00-询盘中心/00-询盘单/询盘单-PRD-V1.0.md`。
@@ -134,7 +135,9 @@ customer ──< customer_inquiry ──< inquiry_order ──< inquiry_order_it
 
 ## v1.2.0 — 商品主数据
 
-SQL 文件：`sql/build/sql/schema_v1.2.sql`（依赖 `schema_v1.sql`、`schema_v1.1.sql` 先执行，不修改任何已有表）；菜单与按钮权限种子：`sql/build/data/data_v1.2.sql`
+SQL 文件：`zhul-erp-backend/src/main/resources/db/migration/V1.2__product_master_data.sql`（Flyway 迁移，不修改任何已有表）；
+菜单与按钮权限种子：`V1.2.0.1__product_menu_resources.sql`（同目录，结构性数据，任何环境都会执行）；
+示例平台账号种子（仅本地体验用）：`zhul-erp-backend/src/main/resources/db/dev-data/V1.2.0.2__dev_seed_platform_account.sql`
 
 来源：`openspec/changes/archive/2026-09-20-add-product-master-core/`（proposal.md / design.md 决策 1–14 / specs），PRD 见
 `docs/02-产品PRD/02-商品域/00-商品主数据/商品主数据-PRD-V1.0.md`。
@@ -147,8 +150,8 @@ SQL 文件：`sql/build/sql/schema_v1.2.sql`（依赖 `schema_v1.sql`、`schema_
 
 | # | 表名 | 说明 |
 |---|------|------|
-| 1 | `product_brand` | 品牌（含 `is_genuine` 原厂/兼容标记） |
-| 2 | `product_category` | 品类（`category_code` 沿用独立站 URL，有商品后不可改） |
+| 1 | `product_brand` | 品牌（含 `is_genuine` 原厂/兼容标记、`description` 简介；`country` 取自统一国家清单，存英文名；`brand_color` 为 `#RRGGBB`） |
+| 2 | `product_category` | 品类（`category_code` 沿用独立站 URL，有商品后不可改；`description` 简介） |
 | 3 | `product_series` | 系列（归属品牌） |
 | 4 | `product` | 商品主表（Part Number 实体，唯一键 `tenant_id + brand_id + mpn_normalized`，含已软删除行） |
 | 5 | `product_specification` | 规格参数（整体替换保存） |

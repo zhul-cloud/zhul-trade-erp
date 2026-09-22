@@ -9,6 +9,7 @@
 | 后端 | Java 17 + Spring Boot 3.x |
 | 前端 | React 18 + Ant Design Pro 6.x |
 | 数据库 | MySQL 8.0 |
+| 数据库迁移 | Flyway（2026-09-22 起，取代手动执行 SQL 文件） |
 | 缓存 | Redis |
 | 消息队列 | RabbitMQ（业财联动异步事件） |
 | API 文档 | Knife4j (Swagger3) |
@@ -29,6 +30,7 @@
 | 代码分层 | 标准三层：Controller / Service / Repository | 团队上手快，Spring Boot 默认风格 |
 | 汇率更新 | 定时任务自动拉取，每日更新 | 减少人工维护 |
 | 时间存储 | UTC，展示时转用户时区 | 多地区业务标准 |
+| Schema 版本管理 | Flyway 迁移文件（`zhul-erp-backend/src/main/resources/db/migration`），后端启动时自动执行；结构性种子数据（菜单/内置角色/字典）也在这里，示例账号等仅本地用的种子放 `db/dev-data`，只有 `application-dev.yml` 才加载 | 手动维护"一份完整 schema.sql"既没法覆盖已部署环境的增量升级，也没有机制防止忘记同步；Flyway 自动追踪已执行版本，新环境和已有环境都能正确处理，单一数据源不重复 |
 | 前端状态 | Ant Design Pro umi model（dva） | 与 ADP 深度集成，开箱即用 |
 
 ## 待确认项

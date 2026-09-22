@@ -69,13 +69,10 @@ cd zhul-trade-erp
 docker compose up -d
 ```
 
-首次启动会自动创建 `zhul_erp` 数据库并导入表结构（`sql/build/sql/schema_v1.sql`）与初始化数据（`sql/build/data/data_v1.sql`，含一个可直接登录的示例管理员账号）。
+首次启动只会创建一个空的 `zhul_erp` 数据库（`MYSQL_DATABASE` 环境变量），表结构和初始化数据不在这一步导入——
+交给后端启动时的 Flyway 自动完成，见下一步。
 
-> 没有 Docker？也可以自行安装 MySQL 8 / Redis，然后手动执行：
-> ```bash
-> mysql -uroot -p < sql/build/sql/schema_v1.sql
-> mysql -uroot -p < sql/build/data/data_v1.sql
-> ```
+> 没有 Docker？也可以自行安装 MySQL 8 / Redis，不需要手动执行任何 SQL 文件。
 
 ### 3. 启动后端
 
@@ -85,6 +82,11 @@ cp src/main/resources/application-dev.yml.example src/main/resources/application
 # 默认配置已匹配 docker-compose 的账号密码，本地开发一般无需修改
 mvn spring-boot:run
 ```
+
+后端启动时 Flyway 会自动建表并导入初始化数据（菜单、内置角色、字典等结构性数据，以及
+`application-dev.yml` 里额外开启的示例管理员/平台账号种子），不需要手动执行 SQL 文件。
+迁移脚本见 `zhul-erp-backend/src/main/resources/db/migration`（任何环境都会执行）和
+`db/dev-data`（仅本地开发，见 `application-dev.yml` 里的 `spring.flyway.locations`）。
 
 后端默认监听 `http://localhost:8080`，接口文档：`http://localhost:8080/doc.html`。
 
@@ -102,25 +104,28 @@ npm run dev
 
 浏览器打开 `http://localhost:8000`，使用初始化数据中的示例账号登录：
 
-| 用户名 | 密码 |
-|--------|------|
-| `admin` | `admin123` |
+| 用户名 | 密码 | 说明 |
+|--------|------|------|
+| `admin` | `admin123` | 租户账号（`tenant_id=1000`），日常业务操作 |
+| `platform` | `admin123` | 平台账号（`tenant_id=0`），可维护商品主数据（品牌/品类/系列等全租户共享数据） |
 
-> 该账号仅用于本地快速体验，生产环境部署前请务必修改密码或删除示例数据。
+> 这两个账号仅用于本地快速体验，生产环境部署前请务必修改密码或删除示例数据
+> （不要在生产环境的 `spring.flyway.locations` 里加 `classpath:db/dev-data`）。
 
 ## 项目结构
 
 ```
 .
-├── docker-compose.yml          # 一键启动本地 MySQL / Redis
-├── sql/build/
-│   ├── sql/schema_v1.sql       # 建表脚本
-│   └── data/data_v1.sql        # 初始化数据（菜单、角色、字典、示例管理员账号）
+├── docker-compose.yml          # 一键启动本地 MySQL（空库）/ Redis
 ├── zhul-erp-backend/           # Spring Boot 后端
-│   └── src/main/java/com/zhul/erp/
-│       ├── common/             # 通用工具、异常、返回体
-│       ├── framework/          # 安全、租户上下文、全局配置
-│       └── modules/            # 业务模块（auth 用户认证、system 系统管理…）
+│   └── src/main/
+│       ├── java/com/zhul/erp/
+│       │   ├── common/         # 通用工具、异常、返回体
+│       │   ├── framework/      # 安全、租户上下文、全局配置
+│       │   └── modules/        # 业务模块（auth 用户认证、system 系统管理…）
+│       └── resources/db/
+│           ├── migration/      # Flyway 迁移脚本（建表+结构性种子数据），任何环境都会执行
+│           └── dev-data/       # 示例账号等仅本地体验用的种子，只有 application-dev.yml 才加载
 ├── zhul-erp-frontend/          # Ant Design Pro 前端
 │   └── src/
 │       ├── pages/              # 页面（按域划分，与后端模块对应）
@@ -159,8 +164,8 @@ mvn clean package         # 打包
 source scripts/dev-env.sh
 mvn -q -o test -Dtest='Product*Test'
 
-# 集成测试用独立的 zhul_erp_test 库（不会碰开发库）。首次运行或表结构变化后重建：
-sql/build/test/reset-test-db.sh
+# 集成测试用独立的 zhul_erp_test 库（不会碰开发库），Flyway 会在测试上下文启动时自动建表，
+# 不需要手动建库。迁移脚本改坏了想彻底重来，删库重建：sql/build/test/reset-test-db.sh
 mvn -q -o test -Dtest=IntegrationTestSmokeTest
 
 # 前端

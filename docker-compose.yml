@@ -5,12 +5,13 @@ services:
     restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: root
+      # 只建空库，不再挂载 init 脚本：表结构和种子数据改由后端启动时 Flyway 自动执行
+      # （src/main/resources/db/migration + db/dev-data），docker-compose 这边只负责起数据库本身
+      MYSQL_DATABASE: zhul_erp
     ports:
       - "3306:3306"
     volumes:
       - zhul_erp_mysql_data:/var/lib/mysql
-      - ./sql/build/sql/schema_v1.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
-      - ./sql/build/data/data_v1.sql:/docker-entrypoint-initdb.d/02-data.sql:ro
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot"]
       interval: 5s

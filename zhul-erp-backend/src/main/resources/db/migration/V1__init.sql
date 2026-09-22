@@ -1,6 +1,7 @@
-drop schema if exists zhul_erp;
-create schema zhul_erp default character set utf8mb4 collate utf8mb4_general_ci;
-use zhul_erp;
+-- V1__init.sql：系统基础 & 用户域，共 20 张表
+-- 由旧的 sql/build/sql/schema_v1.sql 迁移而来（Flyway 管理 schema 的创建与选择，
+-- 迁移脚本本身不需要 drop/create schema/use）
+
 
 -- ============================
 -- v1.0.0  系统基础 & 用户域
