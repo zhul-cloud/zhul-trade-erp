@@ -66,6 +66,16 @@ export default function access(initialState: {
     'system:config:delete': can('system:config:delete'),
     // 按钮级 - 登录日志
     'system:log:login:forceLogout': can('system:log:login:forceLogout'),
+    // 按钮级 - 租户管理（读写都要求平台账号，跟商品主数据一样服务端会再校验一次）
+    'tenant:list:add': canWrite('tenant:list:add'),
+    'tenant:list:edit': canWrite('tenant:list:edit'),
+    'tenant:list:status': canWrite('tenant:list:status'),
+    'tenant:list:resetPwd': canWrite('tenant:list:resetPwd'),
+    // 按钮级 - 套餐管理（同上，读写都要求平台账号）
+    'tenant:package:add': canWrite('tenant:package:add'),
+    'tenant:package:edit': canWrite('tenant:package:edit'),
+    'tenant:package:status': canWrite('tenant:package:status'),
+    'tenant:package:delete': canWrite('tenant:package:delete'),
     // 按钮级 - 商品主数据（品牌 / 品类 / 系列 / 商品）
     'product:brand:add': canWrite('product:brand:add'),
     'product:brand:edit': canWrite('product:brand:edit'),
