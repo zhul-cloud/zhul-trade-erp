@@ -25,8 +25,10 @@ export default function access(initialState: {
     systemConfig: can('/system/config'),
     systemLogOperate: can('/system/log/operate'),
     systemLogLogin: can('/system/log/login'),
-    tenantList: can('/tenant/list'),
-    tenantPackage: can('/tenant/package'),
+    // 租户/套餐管理入口本身也要求平台账号：admin_flag=1 对任何租户管理员都成立，
+    // 光靠 can() 区分不出"平台超管"和"租户内超管"，得再叠加 isPlatformAccount()
+    tenantList: canWrite('/tenant/list'),
+    tenantPackage: canWrite('/tenant/package'),
     productBrand: can('/product/brands'),
     productCategory: can('/product/categories'),
     productSeries: can('/product/series'),
