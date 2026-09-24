@@ -16,9 +16,11 @@ import {
   OfflineBanner,
 } from '@/components';
 import { AppLogo, SidebarUser, ThemeToggle, TopBar } from '@/components/Shell';
+import { getMenuTree, type MenuItem } from '@/pages/system/menu/service';
 import { AppThemeSync, useAppTheme } from '@/theme/AppTheme';
 import { buildShellSettings } from '@/theme/shell';
 import { getThemeMode } from '@/theme/store';
+import { toProLayoutMenu } from '@/utils/menuOrder';
 import defaultSettings from '../config/defaultSettings';
 import { errorConfig } from './requestErrorConfig';
 
@@ -75,6 +77,9 @@ export async function getInitialState(): Promise<{
     | undefined
   >;
   settingDrawerOpen?: boolean;
+  // 侧边栏的顺序/名称/图标/层级全部来自「菜单管理」的原始树，而不是 routes.ts 里
+  // 写死的书写顺序/英文 name——由 layout 里的 menu.request 直接转成 ProLayout 菜单数据
+  menuTree?: MenuItem[];
 }> {
   const fetchUserInfo = async () => {
     try {
@@ -88,12 +93,9 @@ export async function getInitialState(): Promise<{
       }
       const currentUser = JSON.parse(userStr) as API.CurrentUser;
 
-      // 超级管理员拥有所有权限
-      if (currentUser.access === 'admin') {
-        return { ...currentUser, permissions: ['*'] };
-      }
-
-      // 普通用户从后端获取权限列表（菜单路径 + 按钮权限码混合）
+      // 权限列表统一由后端算好再给前端：已经把平台超管/租户套餐/角色三层限制都
+      // 算进去了（管理员账号不再是前端直通的万能通行证，租户套餐没给的菜单/按钮，
+      // 即使是租户自己的管理员登录也不会出现在这份列表里）。
       // 走统一的 request（而非裸 fetch），token 过期时才能命中刷新重放逻辑
       try {
         const permissions: string[] = await umiRequest('/api/v1/auth/menus', {
@@ -115,9 +117,13 @@ export async function getInitialState(): Promise<{
   const { location } = history;
   if (!publicPaths.includes(location.pathname)) {
     const currentUser = await fetchUserInfo();
+    const menuTree = currentUser
+      ? await getMenuTree().catch(() => [])
+      : undefined;
     return {
       fetchUserInfo,
       currentUser,
+      menuTree,
       settings: initialShellSettings(),
       settingDrawerOpen: false,
     };
@@ -133,10 +139,34 @@ export async function getInitialState(): Promise<{
 export const layout: RunTimeLayoutConfig = ({ initialState }) => {
   return {
     siderWidth: 240,
+    // 侧边栏菜单树完全由「菜单管理」的数据 + 当前用户的有效权限决定，不再从 umi 由
+    // routes.ts 派生出的 menuData 上打补丁（那棵树里混着重定向占位节点，容易把只用
+    // 于路由跳转、本该隐藏的节点误当成真实菜单项渲染出来），也直接忽略传入的
+    // menuData 参数、完全用后端数据重新生成一份。改了 sort/name/icon 或套餐/角色
+    // 权限，刷新页面即生效。
+    // 用同步的 menuDataRender 而不是 menu.request：initialState.menuTree 在
+    // getInitialState 里已经 await 过了，这里不需要再异步请求一次——ProLayout 的
+    // menu.request 是异步的，会让菜单树先以空数组挂载、请求成功后才二次渲染，这次
+    // 排查发现这个额外的异步重渲染会把每个菜单项的宽度算错（图标+文字被压缩到只有
+    // 几十像素，文字被省略号截断到只剩第一个字）。同步渲染没有这个问题。
+    menuDataRender: () => {
+      const allowed = new Set(initialState?.currentUser?.permissions ?? []);
+      return toProLayoutMenu(initialState?.menuTree ?? [], allowed);
+    },
+    menu: { locale: false },
     menuItemRender: (item, dom) => {
       if (item.path) {
         return (
-          <Link to={item.path} prefetch>
+          // display:block + width:100%：<a> 默认是 inline，百分比宽度的子元素
+          // （ProComponents 菜单项内部布局靠 width:100% 撑满）在 inline 容器里没有
+          // 明确的包含块可以撑，会直接退化成按内容收缩——图标+文字被压缩到几十像素，
+          // 文字用省略号只剩第一个字。这是这次改动之外一直存在的旧问题，只是之前
+          // 只用无障碍树核对过文字内容，没有真的用截图看过侧边栏才没发现。
+          <Link
+            to={item.path}
+            prefetch
+            style={{ display: 'block', width: '100%' }}
+          >
             {dom}
           </Link>
         );
