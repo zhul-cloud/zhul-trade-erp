@@ -67,6 +67,7 @@ const LoginPage: React.FC = () => {
             avatar: res.data.avatarUrl || '',
             userid: res.data.username,
             access: res.data.isAdmin ? 'admin' : 'user',
+            tenantName: res.data.tenantName || '',
           }),
         );
 

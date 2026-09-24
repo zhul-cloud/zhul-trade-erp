@@ -16,4 +16,6 @@ public class LoginResponse {
     private String nickname;
     private String avatarUrl;
     private Boolean isAdmin;
+    /** 平台账号（tenantId=0）固定返回"平台管理"；其余账号返回所属租户名称 */
+    private String tenantName;
 }

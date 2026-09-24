@@ -1,4 +1,3 @@
-import { LinkOutlined } from '@ant-design/icons';
 import type { Settings as LayoutSettings } from '@ant-design/pro-components';
 import type { RequestConfig, RunTimeLayoutConfig } from '@umijs/max';
 import { history, Link, request as umiRequest, useModel } from '@umijs/max';
@@ -15,7 +14,6 @@ import {
   Footer,
   LangDropdown,
   OfflineBanner,
-  VersionDropdown,
 } from '@/components';
 import { AppLogo, SidebarUser, ThemeToggle, TopBar } from '@/components/Shell';
 import { AppThemeSync, useAppTheme } from '@/theme/AppTheme';
@@ -67,10 +65,14 @@ const publicPaths = [
  * */
 export async function getInitialState(): Promise<{
   settings?: Partial<LayoutSettings>;
-  currentUser?: API.CurrentUser & { permissions?: string[] };
+  currentUser?: API.CurrentUser & {
+    permissions?: string[];
+    tenantName?: string;
+  };
   loading?: boolean;
   fetchUserInfo?: () => Promise<
-    (API.CurrentUser & { permissions?: string[] }) | undefined
+    | (API.CurrentUser & { permissions?: string[]; tenantName?: string })
+    | undefined
   >;
   settingDrawerOpen?: boolean;
 }> {
@@ -157,14 +159,7 @@ export const layout: RunTimeLayoutConfig = ({ initialState }) => {
       }
     },
     bgLayoutImgList: [],
-    links: isDev
-      ? [
-          <Link key="openapi" to="/umi/plugin/openapi" target="_blank">
-            <LinkOutlined />
-            <span>OpenAPI 文档</span>
-          </Link>,
-        ]
-      : [],
+    links: [],
     // Replace ProLayout's default ErrorBoundary with our offline-aware version,
     // so chunk load errors show friendly messages instead of "Something went wrong."
     ErrorBoundary,
@@ -177,7 +172,6 @@ export const layout: RunTimeLayoutConfig = ({ initialState }) => {
         <TopBar>
           <ThemeToggle />
           <DocLink />
-          <VersionDropdown />
           <LangDropdown />
         </TopBar>
         {children}

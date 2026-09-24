@@ -14,6 +14,7 @@ export interface LoginResult {
   nickname: string;
   avatarUrl: string;
   isAdmin: boolean;
+  tenantName: string;
 }
 
 export interface ApiResponse<T> {
