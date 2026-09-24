@@ -57,7 +57,8 @@ public class RoleServiceImpl implements RoleService {
 
     @Override
     public List<RoleVO> allRoles() {
-        LambdaQueryWrapper<RoleDO> wrapper = buildWrapper(null, null, null);
+        // 只给下拉选择用：已禁用的角色（如下线的内置角色）不应该再被选中
+        LambdaQueryWrapper<RoleDO> wrapper = buildWrapper(null, null, 1);
         List<RoleDO> roles = roleMapper.selectList(wrapper);
         return toVoList(roles);
     }
