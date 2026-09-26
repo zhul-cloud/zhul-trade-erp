@@ -312,6 +312,52 @@ class ProductApiContractTest extends IntegrationTestBase {
     }
 
     @Test
+    void countryCatalogIsReadableByTenantTokensAndCarriesBothNames() throws Exception {
+        String tenant = token("contract_tenant_user", 1001);
+
+        JsonNode list = call(get(BASE + "/countries"), tenant);
+
+        assertEquals(0, list.path("code").asInt());
+        assertEquals(249, list.path("data").size());
+        JsonNode first = list.path("data").get(0);
+        assertTrue(first.has("code") && first.has("nameEn") && first.has("nameZh"));
+        boolean hasTaiwan = false;
+        for (JsonNode c : list.path("data")) {
+            if ("Taiwan, China".equals(c.path("nameEn").asText())) {
+                hasTaiwan = true;
+                assertEquals("中国台湾", c.path("nameZh").asText());
+            }
+        }
+        assertTrue(hasTaiwan);
+        assertEquals(401, call(get(BASE + "/countries"), null).path("code").asInt());
+    }
+
+    @Test
+    void brandAndCategoryCarryDescriptionAndValidationErrorsUseParamInvalid() throws Exception {
+        loginAsAdmin("contract_admin");
+        String admin = token("contract_admin", 0);
+
+        JsonNode brand = call(json(post(BASE + "/brands"),
+                "{\"brandName\":\"Siemens\",\"country\":\"Germany\",\"brandColor\":\"#009999\","
+                        + "\"description\":\"德国工业自动化厂商\"}"), admin);
+        assertEquals(0, brand.path("code").asInt());
+        assertEquals("德国工业自动化厂商", brand.path("data").path("description").asText());
+
+        JsonNode badCountry = call(json(post(BASE + "/brands"),
+                "{\"brandName\":\"X\",\"country\":\"Deutschland1\"}"), admin);
+        assertEquals("PARAM_INVALID", badCountry.path("data").path("errorCode").asText());
+        JsonNode badColor = call(json(post(BASE + "/brands"),
+                "{\"brandName\":\"Y\",\"brandColor\":\"red\"}"), admin);
+        assertEquals("PARAM_INVALID", badColor.path("data").path("errorCode").asText());
+
+        JsonNode category = call(json(post(BASE + "/categories"),
+                "{\"categoryCode\":\"servo\",\"categoryName\":\"Servo\",\"description\":\"伺服驱动器与电机\"}"), admin);
+        assertEquals("伺服驱动器与电机", category.path("data").path("description").asText());
+        assertEquals("伺服驱动器与电机",
+                call(get(BASE + "/categories/options"), admin).path("data").get(0).path("description").asText());
+    }
+
+    @Test
     void optionsAndStatusEndpointsAlsoFollowTheContract() throws Exception {
         loginAsAdmin("contract_admin");
         String admin = token("contract_admin", 0);

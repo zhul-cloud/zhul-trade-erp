@@ -26,6 +26,8 @@ public class ProductBrandDO {
     private String logoUrl;
     /** 品牌主题色（HEX），独立站展示用 */
     private String brandColor;
+    /** 品牌简介，选填，独立站品牌页使用 */
+    private String description;
     /** 是否原厂正品品牌（0-兼容/非原厂、1-原厂正品）；为0时下游不得对该品牌商品使用"Genuine"类正品断言 */
     private Integer isGenuine;
     /** 状态（0-禁用、1-启用） */

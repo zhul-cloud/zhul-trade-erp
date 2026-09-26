@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -38,10 +39,16 @@ public class CategoryController {
         return Result.ok(categoryService.page(query));
     }
 
-    /** 全部启用品类（走缓存） */
+    /** 启用品类（走缓存）；level 为空或 1 只返回一级品类，2 只返回细分品类，0 返回全部 */
     @GetMapping("/options")
-    public Result<List<CategoryOptionVO>> options() {
-        return Result.ok(categoryService.options());
+    public Result<List<CategoryOptionVO>> options(@RequestParam(required = false) Integer level) {
+        return Result.ok(categoryService.options(level));
+    }
+
+    /** 两级品类树（含停用的，品类管理页用） */
+    @GetMapping("/tree")
+    public Result<List<CategoryVO>> tree() {
+        return Result.ok(categoryService.tree());
     }
 
     @PostMapping

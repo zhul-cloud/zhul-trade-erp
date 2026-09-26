@@ -1,6 +1,5 @@
 package com.zhul.erp.modules.auth.controller;
 
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.zhul.erp.common.result.Result;
 import com.zhul.erp.modules.auth.dto.LoginRequest;
 import com.zhul.erp.modules.auth.dto.LoginResponse;
@@ -10,8 +9,6 @@ import com.zhul.erp.modules.auth.dto.SendResetCodeRequest;
 import com.zhul.erp.modules.auth.dto.VerifyResetCodeRequest;
 import com.zhul.erp.modules.auth.dto.VerifyResetCodeResponse;
 import com.zhul.erp.modules.auth.service.AuthService;
-import com.zhul.erp.modules.system.entity.UserBasicDO;
-import com.zhul.erp.modules.system.repository.UserBasicMapper;
 import com.zhul.erp.modules.system.service.MenuService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -23,7 +20,6 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.ArrayList;
 import java.util.List;
 
 @Tag(name = "认证管理", description = "登录、退出、Token刷新、找回密码")
@@ -34,7 +30,6 @@ public class AuthController {
 
     private final AuthService authService;
     private final MenuService menuService;
-    private final UserBasicMapper userBasicMapper;
 
     @Operation(summary = "用户登录")
     @PostMapping("/login")
@@ -82,14 +77,6 @@ public class AuthController {
     @GetMapping("/menus")
     public Result<List<String>> currentUserMenus() {
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
-        UserBasicDO user = userBasicMapper.selectOne(
-            new LambdaQueryWrapper<UserBasicDO>()
-                .eq(UserBasicDO::getUsername, username)
-                .last("LIMIT 1")
-        );
-        if (user == null || !StringUtils.hasText(user.getRoleCode())) {
-            return Result.ok(new ArrayList<>());
-        }
-        return Result.ok(menuService.getUserMenuPaths(user.getRoleCode()));
+        return Result.ok(menuService.getEffectiveMenuKeys(username));
     }
 }

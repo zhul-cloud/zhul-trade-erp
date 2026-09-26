@@ -7,7 +7,10 @@ export default function access(initialState: {
   const isAdmin = currentUser?.access === 'admin';
   const perms = new Set(currentUser?.permissions || []);
 
-  const can = (key: string) => isAdmin || perms.has('*') || perms.has(key);
+  // permissions 数组现在由后端统一算好（平台超管/租户套餐/角色三层限制都已经算进去），
+  // 前端不再对 admin 账号做直通——否则租户套餐没勾的菜单，管理员账号照样能在前端看到，
+  // 跟服务端接口的实际拦截结果不一致。isAdmin 只用来做"管理员/成员"这类纯展示文案。
+  const can = (key: string) => perms.has(key);
   // 商品主数据是平台共享数据：写按钮除了权限码，还要求平台账号（服务端同样会校验）
   const platform = isPlatformAccount();
   const canWrite = (key: string) => platform && can(key);
@@ -16,6 +19,9 @@ export default function access(initialState: {
     canAdmin: isAdmin,
     // 菜单级
     dashboard: can('/dashboard'),
+    inquiryMenu: can('/inquiry'),
+    inquiryCustomerInquiry: can('/inquiry/customer-inquiries'),
+    inquiryOrder: can('/inquiry/orders'),
     systemUser: can('/system/user'),
     systemRole: can('/system/role'),
     systemMenu: can('/system/menu'),
@@ -33,6 +39,10 @@ export default function access(initialState: {
     productCategory: can('/product/categories'),
     productSeries: can('/product/series'),
     productList: can('/product/products'),
+    // 客商管理：partnerMenu 是两个子权限任一为真，供 /partner 父路由的 access 用
+    partnerCustomer: can('/partner/customers'),
+    partnerSupplier: can('/partner/suppliers'),
+    partnerMenu: can('/partner/customers') || can('/partner/suppliers'),
     // 平台账号才有档案完整度、缺项筛选等平台视角
     productPlatform: platform,
     // 按钮级 - 用户管理
@@ -91,5 +101,17 @@ export default function access(initialState: {
     'product:product:add': canWrite('product:product:add'),
     'product:product:edit': canWrite('product:product:edit'),
     'product:product:delete': canWrite('product:product:delete'),
+    // 按钮级 - 客户管理 / 供应商管理（租户自己的数据，不要求平台账号，跟商品主数据不同）
+    'partner:customer:add': can('partner:customer:add'),
+    'partner:customer:edit': can('partner:customer:edit'),
+    'partner:customer:delete': can('partner:customer:delete'),
+    'partner:customer:status': can('partner:customer:status'),
+    'partner:customer:transfer': can('partner:customer:transfer'),
+    'partner:customer:export': can('partner:customer:export'),
+    'partner:supplier:add': can('partner:supplier:add'),
+    'partner:supplier:edit': can('partner:supplier:edit'),
+    'partner:supplier:delete': can('partner:supplier:delete'),
+    'partner:supplier:status': can('partner:supplier:status'),
+    'partner:supplier:export': can('partner:supplier:export'),
   };
 }

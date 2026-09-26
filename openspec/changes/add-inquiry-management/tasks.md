@@ -99,3 +99,12 @@
 - [x] 13.2 用真实卡住的记录（`IQ20260904011`，图片输入、`raw_content`为空）验证修复：重试后3秒内正确进入"解析失败"并报出准确原因（"rawContent 为空，本地编排服务暂不支持图片/Excel附件解析"），不再需要等 20 分钟、也不再显示无关的超时提示
 
 验证：`mvn test` 94/94 通过（含新增的竞态复现单测）；真实记录重试验证符合预期。**顺带确认一个已知的既有缺口**（不是本次引入，之前实现阶段就已如此）：P02"图片上传"入口目前没有真实的文件存储后端，`raw_content` 恒为空，图片类客户询盘现阶段无法真正解析，只能得到"暂不支持"的明确失败提示——这是功能未完成，不是这次修复的bug。
+
+## 14. 补齐图片/Excel 附件真实上传（design.md 决策16，修复13.2末尾记录的已知缺口）
+
+- [x] 14.1 新增 `AttachmentStorageService`/`AttachmentStorageServiceImpl`：本地磁盘存储（`{zhul.upload.dir}/customer-inquiry/{tenantId}/{uuid}.{ext}`），类型校验（图片 jpg/jpeg/png，Excel xlsx/xls/csv）、5MB 大小限制、路径穿越防护；`CustomerInquiryController` 新增 `POST /attachments/image`、`POST /attachments/excel` 两个上传端点
+- [x] 14.2 `CustomerInquiryServiceImpl.submitParseTask()` 接入附件：Excel 来源用 Apache POI（`extractExcelText`）机械抽取表格文本、回写 `raw_content`，走已有文本解析路径；图片来源把本地绝对路径以新字段 `rawAttachmentPath` 传给 AI 编排服务，不再机械处理
+- [x] 14.3 `scripts/ai-orchestrator/server.py` 支持 `rawAttachmentPath`：改用 `--allowedTools "WebSearch Read(<path>)"` 精确放行 Claude 读取这一个图片文件，让 Claude 自己识别图片里的型号/文字后再走原有 skill 流程；`rawContent`/`rawAttachmentPath` 均为空时明确失败而不是假装处理
+- [x] 14.4 前端 P02 图片/Excel 上传 tab 由 `beforeUpload: () => false` 占位改为真实 `customRequest` 调用 14.1 的两个端点，`rawAttachmentUrl` 改用上传返回的真实 URL（此前占位实现只记录了文件名）
+
+验证：`mvn test` 105/105 通过（新增 `AttachmentStorageServiceImplTest` 9例 + `CustomerInquiryServiceImplTest` 新增2例覆盖 Excel 抽取回写与图片路径透传）；`tsc --noEmit`/`biome check` 对改动文件均无新增错误（与改动前基线比对一致）；用真实图片/Excel文件对两个上传端点做了 curl 验证，确认文件落在项目本地目录且能通过 `/uploads/**` 静态访问。OSS 迁移留待后续独立变更（只需替换 `AttachmentStorageServiceImpl`）。

@@ -122,12 +122,25 @@ def build_system_prompt() -> str:
 """
 
 
-def call_claude(raw_content: str) -> dict:
+def call_claude(raw_content: str, image_path: str = None) -> dict:
     system_prompt = build_system_prompt()
+    if image_path:
+        # 图片输入没有机械抽取文本的办法（不像 Excel 能用 POI 读表格），
+        # 改成把本地绝对路径喂给 Claude，让它自己用 Read 工具看图识字——
+        # `Read(<path>)` 精确只放行这一个文件，不是任意路径都能读。
+        prompt_text = (
+            f"这条询盘没有文本内容，原始信息是一张图片，本地路径是：{image_path}\n"
+            f"请先用 Read 工具读取这张图片，识别图片里的文字、型号、数量等询盘信息，"
+            f"识别出来的内容当成询盘原文，再按下面的 skill 流程继续处理。"
+        )
+        allowed_tools = f"WebSearch Read({image_path})"
+    else:
+        prompt_text = raw_content
+        allowed_tools = "WebSearch"
     cmd = [
         CLAUDE_BIN,
         "-p",
-        raw_content,
+        prompt_text,
         "--append-system-prompt",
         system_prompt,
         "--output-format",
@@ -135,7 +148,7 @@ def call_claude(raw_content: str) -> dict:
         "--json-schema",
         json.dumps(OUTPUT_SCHEMA),
         "--allowedTools",
-        "WebSearch",
+        allowed_tools,
         "--permission-prompts",
         "none",
         "--max-budget-usd",
@@ -177,13 +190,19 @@ def process_job(payload: dict, callback_url: str):
     try:
         input_data = payload.get("input") or {}
         raw_content = (input_data.get("rawContent") or "").strip()
-        if not raw_content:
-            # 图片/Excel 输入目前没有真实的文件存储和下载能力（见前端实现说明），
-            # rawAttachmentUrl 只是占位字符串，这里没法真的去读取——只处理有
-            # 文本内容的情况，没有文本内容时明确失败而不是假装处理。
-            send_callback(callback_url, "failed", error="rawContent 为空，本地编排服务暂不支持图片/Excel附件解析")
+        attachment_path = (input_data.get("rawAttachmentPath") or "").strip()
+        # Excel 附件在后端已经用 POI 抽取成文本塞进了 rawContent，走的还是这里的
+        # 文本分支；只有图片附件才会走 rawAttachmentPath 这条单独的看图分支。
+        if not raw_content and not attachment_path:
+            send_callback(callback_url, "failed", error="rawContent 和 rawAttachmentPath 均为空，无法解析")
             return
-        output = call_claude(raw_content)
+        if raw_content:
+            output = call_claude(raw_content)
+        else:
+            if not os.path.isfile(attachment_path):
+                send_callback(callback_url, "failed", error=f"图片文件不存在: {attachment_path}")
+                return
+            output = call_claude("", image_path=attachment_path)
         send_callback(callback_url, "success", output=output)
     except subprocess.TimeoutExpired:
         send_callback(callback_url, "failed", error=f"claude 处理超过 {CLAUDE_TIMEOUT_SECONDS} 秒未完成")

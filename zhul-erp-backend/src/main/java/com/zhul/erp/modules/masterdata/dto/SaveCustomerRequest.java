@@ -1,16 +1,20 @@
 package com.zhul.erp.modules.masterdata.dto;
 
-import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.ToString;
 
+/**
+ * 新增客户：管理页新增与询盘快速创建共用。快速创建只传名称和国家，其余取默认值；
+ * 编码为空时系统生成，负责人为空时为当前用户。
+ */
 @Data
-public class SaveCustomerRequest {
-    @NotBlank(message = "客户名称不能为空")
-    private String name;
-    private String country;
-    private String contactName;
-    private String contactPhone;
-    private String contactEmail;
-    /** 名称与已有客户重复时，是否仍然强制新建（默认 false：先返回重复提示，不新建） */
-    private boolean force = false;
+@EqualsAndHashCode(callSuper = true)
+@ToString(callSuper = true)
+public class SaveCustomerRequest extends AbstractCustomerRequest {
+    @Pattern(regexp = "^[A-Za-z0-9]{0,20}$", message = "客户编码只能包含字母和数字，最多20位")
+    private String customerCode;
+    /** 负责业务员 user_basic.id，为空时为当前用户 */
+    private Long ownerId;
 }

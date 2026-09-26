@@ -3,6 +3,7 @@ package com.zhul.erp.modules.system.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.zhul.erp.common.exception.BizException;
+import com.zhul.erp.framework.security.EffectivePermissionResolver;
 import com.zhul.erp.modules.system.dto.DeleteCheckVO;
 import com.zhul.erp.modules.system.dto.MenuVO;
 import com.zhul.erp.modules.system.dto.SaveMenuRequest;
@@ -20,6 +21,7 @@ import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -29,6 +31,7 @@ public class MenuServiceImpl implements MenuService {
     private final ResourceMapper resourceMapper;
     private final RoleResourceMapper roleResourceMapper;
     private final RoleMapper roleMapper;
+    private final EffectivePermissionResolver permissionResolver;
 
     @Override
     public List<MenuVO> getMenuTree() {
@@ -151,7 +154,7 @@ public class MenuServiceImpl implements MenuService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void updateStatus(Integer id, Integer status) {
-        resourceMapper.update(null, new LambdaUpdateWrapper<ResourceDO>()
+        resourceMapper.update(new ResourceDO(), new LambdaUpdateWrapper<ResourceDO>()
             .eq(ResourceDO::getId, id)
             .set(ResourceDO::getStatus, status));
         if (status == 0) {
@@ -164,7 +167,7 @@ public class MenuServiceImpl implements MenuService {
             new LambdaQueryWrapper<ResourceDO>().eq(ResourceDO::getPid, parentId)
         );
         for (ResourceDO child : children) {
-            resourceMapper.update(null, new LambdaUpdateWrapper<ResourceDO>()
+            resourceMapper.update(new ResourceDO(), new LambdaUpdateWrapper<ResourceDO>()
                 .eq(ResourceDO::getId, child.getId())
                 .set(ResourceDO::getStatus, 0));
             cascadeDisable(child.getId());
@@ -173,7 +176,7 @@ public class MenuServiceImpl implements MenuService {
 
     @Override
     public void updateSort(Integer id, Integer sort) {
-        resourceMapper.update(null, new LambdaUpdateWrapper<ResourceDO>()
+        resourceMapper.update(new ResourceDO(), new LambdaUpdateWrapper<ResourceDO>()
             .eq(ResourceDO::getId, id)
             .set(ResourceDO::getSort, sort));
     }
@@ -204,14 +207,15 @@ public class MenuServiceImpl implements MenuService {
     }
 
     @Override
-    public List<String> getUserMenuPaths(String roleCode) {
-        if (!StringUtils.hasText(roleCode)) return new ArrayList<>();
-        List<Integer> menuIds = getRoleMenuIds(roleCode);
-        if (menuIds.isEmpty()) return new ArrayList<>();
-        List<ResourceDO> resources = resourceMapper.selectBatchIds(menuIds);
+    public List<String> getEffectiveMenuKeys(String username) {
+        Set<Integer> allowed = permissionResolver.resolveAllowedResourceIds(username);
+        List<ResourceDO> resources = allowed == null
+            ? resourceMapper.selectList(null)
+            : (allowed.isEmpty() ? new ArrayList<>() : resourceMapper.selectBatchIds(allowed));
         return resources.stream()
-            .filter(r -> StringUtils.hasText(r.getPath()))
-            .map(ResourceDO::getPath)
+            .map(r -> StringUtils.hasText(r.getPath()) ? r.getPath() : r.getPermission())
+            .filter(StringUtils::hasText)
+            .distinct()
             .collect(Collectors.toList());
     }
 

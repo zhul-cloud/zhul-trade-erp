@@ -34,6 +34,8 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -341,6 +343,22 @@ public class LogServiceImpl implements LogService {
     }
 
     private void recordForceLogoutOperateLog(int successCount, HttpServletRequest request) {
+        Map<String, Object> after = new HashMap<>();
+        after.put("forceLogoutCount", successCount);
+        writeOperateLog("登录日志", "强制下线", null, after, request);
+    }
+
+    @Override
+    public void recordOperateLog(String menu, String operation, Object before, Object after) {
+        HttpServletRequest request = null;
+        if (RequestContextHolder.getRequestAttributes() instanceof ServletRequestAttributes attrs) {
+            request = attrs.getRequest();
+        }
+        writeOperateLog(menu, operation, before, after, request);
+    }
+
+    private void writeOperateLog(String menu, String operation, Object before, Object after,
+                                 HttpServletRequest request) {
         AccountDO operator = currentAccount();
         SysLogDO log = new SysLogDO();
         log.setTenantId(effectiveTenantId());
@@ -348,15 +366,13 @@ public class LogServiceImpl implements LogService {
         log.setOperatorCode(operator != null ? String.valueOf(operator.getId()) : "");
         log.setOperatorName(operator != null ? operator.getUsername() : "");
         log.setOperateTime(LocalDateTime.now());
-        log.setOperation("强制下线");
-        log.setMenu("登录日志");
+        log.setOperation(operation);
+        log.setMenu(menu);
         log.setResult(1);
-        log.setIp(IpUtils.getClientIp(request));
+        log.setIp(request != null ? IpUtils.getClientIp(request) : "");
 
         Map<String, Object> content = new HashMap<>();
-        content.put("before", null);
-        Map<String, Object> after = new HashMap<>();
-        after.put("forceLogoutCount", successCount);
+        content.put("before", before);
         content.put("after", after);
         try {
             log.setContent(objectMapper.writeValueAsString(content));

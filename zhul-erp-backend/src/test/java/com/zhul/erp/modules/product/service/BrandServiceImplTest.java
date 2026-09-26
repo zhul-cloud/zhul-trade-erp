@@ -12,11 +12,15 @@ import com.zhul.erp.modules.product.dto.BrandVO;
 import com.zhul.erp.modules.product.dto.SaveBrandRequest;
 import com.zhul.erp.modules.product.entity.ProductBrandDO;
 import com.zhul.erp.modules.product.repository.IdCount;
+import com.zhul.erp.modules.product.entity.ProductBrandAliasDO;
+import com.zhul.erp.modules.product.repository.ProductBrandAliasMapper;
 import com.zhul.erp.modules.product.repository.ProductBrandMapper;
 import com.zhul.erp.modules.product.repository.ProductMapper;
 import com.zhul.erp.modules.product.service.impl.BrandServiceImpl;
+import com.zhul.erp.modules.product.support.CountryCatalog;
 import com.zhul.erp.modules.product.support.OptionsCache;
 import com.zhul.erp.modules.product.support.PlatformScopeGuard;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -50,13 +54,18 @@ class BrandServiceImplTest {
     private ProductMapper productMapper;
     @Mock
     private OptionsCache optionsCache;
+    @Mock
+    private ProductBrandAliasMapper aliasMapper;
 
     private BrandServiceImpl service;
 
     @BeforeEach
-    void setUp() {
+    void setUp() throws Exception {
         TenantContext.setTenantId(0);
-        service = new BrandServiceImpl(brandMapper, productMapper, new PlatformScopeGuard(), optionsCache);
+        CountryCatalog countryCatalog = new CountryCatalog(new ObjectMapper());
+        countryCatalog.load();
+        service = new BrandServiceImpl(brandMapper, productMapper, new PlatformScopeGuard(), optionsCache,
+                countryCatalog, aliasMapper);
     }
 
     @AfterEach
@@ -181,6 +190,130 @@ class BrandServiceImplTest {
         SaveBrandRequest goodColor = request("A");
         goodColor.setBrandColor("#009999");
         service.create(goodColor);
+    }
+
+    // ---------- 简介、原产地、主题色（enrich-brand-category-info） ----------
+
+    private ProductBrandDO createAndCapture(SaveBrandRequest req) {
+        service.create(req);
+        ArgumentCaptor<ProductBrandDO> captor = ArgumentCaptor.forClass(ProductBrandDO.class);
+        verify(brandMapper).insert(captor.capture());
+        return captor.getValue();
+    }
+
+    @Test
+    void descriptionIsSavedTrimmedAndReturned() {
+        SaveBrandRequest req = request("Siemens");
+        req.setDescription("  德国工业自动化厂商，产品覆盖 PLC、驱动和工业通信  ");
+
+        BrandVO vo = service.create(req);
+
+        ArgumentCaptor<ProductBrandDO> captor = ArgumentCaptor.forClass(ProductBrandDO.class);
+        verify(brandMapper).insert(captor.capture());
+        assertEquals("德国工业自动化厂商，产品覆盖 PLC、驱动和工业通信", captor.getValue().getDescription());
+        assertEquals("德国工业自动化厂商，产品覆盖 PLC、驱动和工业通信", vo.getDescription());
+    }
+
+    @Test
+    void missingDescriptionIsSavedAsEmpty() {
+        assertEquals("", createAndCapture(request("Siemens")).getDescription());
+    }
+
+    @Test
+    void descriptionLengthBoundaryIs500() {
+        SaveBrandRequest ok = request("A");
+        ok.setDescription("字".repeat(500));
+        service.create(ok);
+
+        SaveBrandRequest tooLong = request("B");
+        tooLong.setDescription("字".repeat(501));
+        assertBiz(() -> service.create(tooLong), ProductErrorCodes.PARAM_INVALID);
+        verify(brandMapper, org.mockito.Mockito.times(1)).insert(any(ProductBrandDO.class));
+    }
+
+    @Test
+    void updateWritesDescriptionAndCanClearIt() {
+        ProductBrandDO current = brand(3L, "Siemens");
+        when(brandMapper.selectOne(any())).thenReturn(current, (ProductBrandDO) null, current);
+        SaveBrandRequest req = request("Siemens");
+        req.setDescription("");
+
+        service.update(3L, req);
+
+        ArgumentCaptor<ProductBrandDO> captor = ArgumentCaptor.forClass(ProductBrandDO.class);
+        verify(brandMapper).updateById(captor.capture());
+        // 空串会被写入（清空简介），而不是被当成 null 跳过
+        assertEquals("", captor.getValue().getDescription());
+    }
+
+    @Test
+    void countryFromCatalogIsSavedAsCanonicalEnglishName() {
+        SaveBrandRequest req = request("Siemens");
+        req.setCountry("  germany ");
+        assertEquals("Germany", createAndCapture(req).getCountry());
+    }
+
+    @Test
+    void countryOutsideCatalogIsRejected() {
+        SaveBrandRequest req = request("Siemens");
+        req.setCountry("Deutschland1");
+
+        assertBiz(() -> service.create(req), ProductErrorCodes.PARAM_INVALID);
+        verify(brandMapper, never()).insert(any(ProductBrandDO.class));
+    }
+
+    @Test
+    void chineseNameIsNotAcceptedAsStoredCountry() {
+        SaveBrandRequest req = request("Siemens");
+        req.setCountry("德国");
+
+        assertBiz(() -> service.create(req), ProductErrorCodes.PARAM_INVALID);
+    }
+
+    @Test
+    void missingCountryIsAllowed() {
+        assertEquals("", createAndCapture(request("Siemens")).getCountry());
+    }
+
+    @Test
+    void taiwanKeepsExistingSpelling() {
+        SaveBrandRequest req = request("Delta");
+        req.setCountry("Taiwan, China");
+        assertEquals("Taiwan, China", createAndCapture(req).getCountry());
+    }
+
+    @Test
+    void colorIsStoredUppercase() {
+        SaveBrandRequest req = request("Mitsubishi");
+        req.setBrandColor("#e60012");
+        assertEquals("#E60012", createAndCapture(req).getBrandColor());
+    }
+
+    @Test
+    void malformedColorsAreRejected() {
+        for (String bad : new String[]{"red", "#12345", "#1234567", "009999", "#GGGGGG", "#00 999"}) {
+            SaveBrandRequest req = request("A");
+            req.setBrandColor(bad);
+            assertBiz(() -> service.create(req), ProductErrorCodes.PARAM_INVALID);
+        }
+        verify(brandMapper, never()).insert(any(ProductBrandDO.class));
+    }
+
+    @Test
+    void emptyColorIsAllowed() {
+        SaveBrandRequest req = request("A");
+        req.setBrandColor("");
+        assertEquals("", createAndCapture(req).getBrandColor());
+    }
+
+    @Test
+    void optionsCarryDescription() {
+        ProductBrandDO abb = brand(1L, "ABB");
+        abb.setDescription("瑞士电气与自动化集团");
+        when(optionsCache.get(ProductConstants.CACHE_KEY_BRAND_OPTIONS, BrandOptionVO.class)).thenReturn(null);
+        when(brandMapper.selectList(any())).thenReturn(List.of(abb));
+
+        assertEquals("瑞士电气与自动化集团", service.options().get(0).getDescription());
     }
 
     // ---------- 修改与启停 ----------
@@ -344,5 +477,69 @@ class BrandServiceImplTest {
 
         assertEquals(0, result.getRecords().size());
         verifyNoInteractions(productMapper);
+    }
+
+    // ---------- 别名（add-supplier-brand-category） ----------
+
+    private static ProductBrandAliasDO alias(Long brandId, String alias) {
+        ProductBrandAliasDO a = new ProductBrandAliasDO();
+        a.setBrandId(brandId);
+        a.setAlias(alias);
+        a.setAliasKey(alias.trim().toLowerCase(java.util.Locale.ROOT));
+        return a;
+    }
+
+    @Test
+    void updateReplacesAliasesDedupedAndIgnoresOwnName() {
+        when(brandMapper.selectOne(any())).thenReturn(brand(1L, "Siemens"), (ProductBrandDO) null, null, null, brand(1L, "Siemens"));
+        SaveBrandRequest req = request("Siemens");
+        req.setAliases(List.of("西门子", " SIEMENS AG ", "siemens ag", "siemens"));
+
+        service.update(1L, req);
+
+        ArgumentCaptor<ProductBrandAliasDO> captor = ArgumentCaptor.forClass(ProductBrandAliasDO.class);
+        verify(aliasMapper, org.mockito.Mockito.times(2)).insert(captor.capture());
+        assertEquals(List.of("西门子", "SIEMENS AG"), captor.getAllValues().stream().map(ProductBrandAliasDO::getAlias).toList());
+        assertEquals("siemens ag", captor.getAllValues().get(1).getAliasKey());
+    }
+
+    @Test
+    void aliasTakenByAnotherBrandIsRejected() {
+        when(brandMapper.selectOne(any())).thenReturn(brand(2L, "ABB"), (ProductBrandDO) null, null);
+        when(aliasMapper.selectOne(any())).thenReturn(null, alias(1L, "西门子"));
+        when(brandMapper.selectById(1L)).thenReturn(brand(1L, "Siemens"));
+        SaveBrandRequest req = request("ABB");
+        req.setAliases(List.of("西门子"));
+
+        BizException e = assertBiz(() -> service.update(2L, req), ProductErrorCodes.BRAND_ALIAS_CONFLICT);
+        assertEquals("「西门子」已是品牌 Siemens 的别名", e.getMessage());
+        verify(aliasMapper, never()).insert(any(ProductBrandAliasDO.class));
+    }
+
+    @Test
+    void aliasEqualToAnotherBrandNameIsRejected() {
+        when(brandMapper.selectOne(any())).thenReturn(brand(2L, "ABB"), (ProductBrandDO) null, brand(3L, "Omron"));
+        SaveBrandRequest req = request("ABB");
+        req.setAliases(List.of("omron"));
+
+        assertBiz(() -> service.update(2L, req), ProductErrorCodes.BRAND_ALIAS_CONFLICT);
+    }
+
+    @Test
+    void brandNameEqualToAnotherBrandsAliasIsRejected() {
+        when(aliasMapper.selectOne(any())).thenReturn(alias(1L, "西门子"));
+        when(brandMapper.selectById(1L)).thenReturn(brand(1L, "Siemens"));
+
+        assertBiz(() -> service.create(request("西门子")), ProductErrorCodes.BRAND_ALIAS_CONFLICT);
+        verify(brandMapper, never()).insert(any(ProductBrandDO.class));
+    }
+
+    @Test
+    void deleteBrandUsedBySupplierIsRejected() {
+        when(brandMapper.selectOne(any())).thenReturn(brand(1L, "ABB"));
+        when(brandMapper.countSupplierScopes(1L)).thenReturn(2L);
+
+        BizException e = assertBiz(() -> service.delete(1L), ProductErrorCodes.BRAND_IN_USE);
+        assertEquals("该品牌已被供应商主营产品使用，可改为停用", e.getMessage());
     }
 }

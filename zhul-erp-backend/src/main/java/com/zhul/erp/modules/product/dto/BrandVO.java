@@ -3,6 +3,7 @@ package com.zhul.erp.modules.product.dto;
 import lombok.Data;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 public class BrandVO {
@@ -16,6 +17,8 @@ public class BrandVO {
     private Integer status;
     /** 下面未删除的商品数量 */
     private Long productCount;
+    /** 别名 */
+    private List<String> aliases;
     private String createBy;
     private LocalDateTime createTime;
     private String updateBy;

@@ -2,6 +2,37 @@
 // zhul-erp-backend .../modules/product/constants/{LifecycleStatus,RelationshipType,RelationshipConfidence}.java
 // 文案与配色依据 PRD 6.4、6.5 及 design.md 决策 7、11。
 
+// 品牌主题色：新建品牌时从这组色里随机取一个预填。都取中深色调，
+// 白色首字母在品牌标识上、以及在深色和浅色背景上都清晰可读。
+export const BRAND_COLOR_PRESETS = [
+  '#2563EB',
+  '#0F766E',
+  '#B45309',
+  '#7C3AED',
+  '#BE123C',
+  '#0369A1',
+  '#15803D',
+  '#C2410C',
+  '#4338CA',
+  '#A21CAF',
+  '#0E7490',
+  '#475569',
+  '#9D174D',
+  '#1D4ED8',
+  '#047857',
+  '#B91C1C',
+] as const;
+
+/** 与后端一致：品牌主题色必须是 #RRGGBB */
+export const BRAND_COLOR_PATTERN = /^#[0-9A-Fa-f]{6}$/;
+
+/** 随机取一个预设品牌色；rand 便于测试时传入固定值 */
+export function randomBrandColor(rand: () => number = Math.random): string {
+  return BRAND_COLOR_PRESETS[Math.floor(rand() * BRAND_COLOR_PRESETS.length)];
+}
+
+export const DESCRIPTION_MAX = 500;
+
 export const LIFECYCLE = {
   ACTIVE: 1,
   CURRENT: 2,

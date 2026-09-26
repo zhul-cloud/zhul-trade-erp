@@ -171,16 +171,16 @@ public class TenantServiceImpl implements TenantService {
                     .set(UserBasicDO::getPhone, req.getContactPhone())
                     .set(UserBasicDO::getEmail, req.getContactEmail())
                     .set(UserBasicDO::getUsername, req.getContactEmail());
-            userBasicMapper.update(null, userWrapper);
+            userBasicMapper.update(new UserBasicDO(), userWrapper);
 
             LambdaUpdateWrapper<AccountDO> accountWrapper = new LambdaUpdateWrapper<AccountDO>()
                     .eq(AccountDO::getId, adminAccount.getId())
                     .set(AccountDO::getPhone, req.getContactPhone())
                     .set(AccountDO::getEmail, req.getContactEmail())
                     .set(AccountDO::getUsername, req.getContactEmail());
-            accountMapper.update(null, accountWrapper);
+            accountMapper.update(new AccountDO(), accountWrapper);
 
-            accountLocalAuthMapper.update(null, new LambdaUpdateWrapper<AccountLocalAuthDO>()
+            accountLocalAuthMapper.update(new AccountLocalAuthDO(), new LambdaUpdateWrapper<AccountLocalAuthDO>()
                     .eq(AccountLocalAuthDO::getAccountId, adminAccount.getId())
                     .set(AccountLocalAuthDO::getUsername, req.getContactEmail()));
         }
@@ -201,9 +201,9 @@ public class TenantServiceImpl implements TenantService {
 
         // 登录只看 account.status（见 AuthServiceImpl），级联同步才能真正拦住/放开该租户下的用户登录；
         // user_basic.status 一起同步只是为了跟用户管理页面展示的状态保持一致
-        accountMapper.update(null, new LambdaUpdateWrapper<AccountDO>()
+        accountMapper.update(new AccountDO(), new LambdaUpdateWrapper<AccountDO>()
                 .eq(AccountDO::getTenantId, id).set(AccountDO::getStatus, status));
-        userBasicMapper.update(null, new LambdaUpdateWrapper<UserBasicDO>()
+        userBasicMapper.update(new UserBasicDO(), new LambdaUpdateWrapper<UserBasicDO>()
                 .eq(UserBasicDO::getTenantId, id).set(UserBasicDO::getStatus, status));
     }
 
@@ -256,7 +256,7 @@ public class TenantServiceImpl implements TenantService {
         }
 
         String tempPassword = generateTempPassword();
-        accountLocalAuthMapper.update(null, new LambdaUpdateWrapper<AccountLocalAuthDO>()
+        accountLocalAuthMapper.update(new AccountLocalAuthDO(), new LambdaUpdateWrapper<AccountLocalAuthDO>()
                 .eq(AccountLocalAuthDO::getAccountId, account.getId())
                 .set(AccountLocalAuthDO::getPassword, BCrypt.hashpw(tempPassword, BCrypt.gensalt()))
                 .set(AccountLocalAuthDO::getFailCount, 0)

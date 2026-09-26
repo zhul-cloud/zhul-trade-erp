@@ -22,7 +22,11 @@ public class ProductCategoryDO {
     private String categoryCode;
     /** 品类名称，如PLC & Controllers */
     private String categoryName;
-    /** 上级品类ID，关联product_category.id；当前只有一级品类，预留，暂不使用 */
+    /** 中文名称：细分品类必填，一级品类选填；业务界面优先显示 */
+    private String categoryNameZh;
+    /** 品类简介，选填，独立站品类页使用；属于品类本身，所有品牌下的商品共用 */
+    private String description;
+    /** 上级品类ID：NULL 为一级品类（独立站品类），非空为细分品类（最多两级，只用于供应商主营产品与询盘匹配） */
     private Long parentId;
     /** 排序 */
     private Integer sortOrder;

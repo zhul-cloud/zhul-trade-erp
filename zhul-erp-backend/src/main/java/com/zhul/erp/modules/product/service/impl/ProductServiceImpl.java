@@ -317,6 +317,9 @@ public class ProductServiceImpl implements ProductService {
         }
         Long categoryId = req.getCategoryId();
         ProductCategoryDO category = activeCategory(categoryId);
+        if (category.getParentId() != null) {
+            throw BizException.of(ProductErrorCodes.CATEGORY_LEVEL_INVALID, "商品只能选择一级品类");
+        }
         if ((current == null || !Objects.equals(categoryId, current.getCategoryId()))
                 && !Objects.equals(category.getStatus(), ProductConstants.STATUS_ENABLED)) {
             throw BizException.of(ProductErrorCodes.PARAM_INVALID, "品类已停用，不能用于新商品");

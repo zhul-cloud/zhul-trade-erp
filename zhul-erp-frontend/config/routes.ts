@@ -49,6 +49,8 @@ export default [
     path: '/product',
     name: 'product',
     icon: 'shopping',
+    // 父路由也要挂 access，理由同 /tenant、/inquiry
+    access: 'productList',
     routes: [
       { path: '/product', redirect: '/product/products' },
       {
@@ -88,31 +90,100 @@ export default [
     ],
   },
   {
+    path: '/partner',
+    name: 'partner',
+    icon: 'contacts',
+    // 父路由也要挂 access，理由同 /tenant、/inquiry、/product；用 partnerMenu（两个子权限
+    // 任一为真）而不是直接复用 partnerCustomer，避免只有供应商权限、没有客户权限的角色被
+    // 父路由的 access 连带挡住，进不了 /partner/suppliers
+    access: 'partnerMenu',
+    routes: [
+      { path: '/partner', redirect: '/partner/customers' },
+      {
+        path: '/partner/customers',
+        name: 'customers',
+        icon: 'solution',
+        access: 'partnerCustomer',
+        component: './partner/customer',
+      },
+      {
+        path: '/partner/customers/new',
+        hideInMenu: true,
+        access: 'partnerCustomer',
+        component: './partner/customer/form',
+      },
+      {
+        path: '/partner/customers/:id/edit',
+        hideInMenu: true,
+        access: 'partnerCustomer',
+        component: './partner/customer/form',
+      },
+      {
+        path: '/partner/customers/:id',
+        hideInMenu: true,
+        access: 'partnerCustomer',
+        component: './partner/customer/detail',
+      },
+      {
+        path: '/partner/suppliers',
+        name: 'suppliers',
+        icon: 'shop',
+        access: 'partnerSupplier',
+        component: './partner/supplier',
+      },
+      {
+        path: '/partner/suppliers/new',
+        hideInMenu: true,
+        access: 'partnerSupplier',
+        component: './partner/supplier/form',
+      },
+      {
+        path: '/partner/suppliers/:id/edit',
+        hideInMenu: true,
+        access: 'partnerSupplier',
+        component: './partner/supplier/form',
+      },
+      {
+        path: '/partner/suppliers/:id',
+        hideInMenu: true,
+        access: 'partnerSupplier',
+        component: './partner/supplier/detail',
+      },
+    ],
+  },
+  {
     path: '/inquiry',
     name: 'inquiry',
     icon: 'mail',
+    // 父路由也要挂 access（同 /tenant 的教训）：不挂的话子路由权限判断再准，
+    // 侧边栏这个父分组本身照样会露出来
+    access: 'inquiryMenu',
     routes: [
       { path: '/inquiry', redirect: '/inquiry/customer-inquiries' },
       {
         path: '/inquiry/customer-inquiries',
         name: 'customerInquiry',
         icon: 'inbox',
+        access: 'inquiryCustomerInquiry',
         component: './inquiry/customer-inquiry',
       },
       {
         path: '/inquiry/customer-inquiries/:id',
         hideInMenu: true,
+        access: 'inquiryCustomerInquiry',
         component: './inquiry/customer-inquiry/detail',
       },
       {
         path: '/inquiry/orders',
         name: 'order',
         icon: 'shoppingCart',
+        access: 'inquiryOrder',
         component: './inquiry/order',
       },
       {
         path: '/inquiry/orders/:id',
         hideInMenu: true,
+        access: 'inquiryOrder',
         component: './inquiry/order/detail',
       },
     ],
@@ -121,6 +192,8 @@ export default [
     path: '/system',
     name: 'system',
     icon: 'setting',
+    // 父路由也要挂 access，理由同 /tenant、/inquiry
+    access: 'systemUser',
     routes: [
       { path: '/system', redirect: '/system/user' },
       {

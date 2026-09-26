@@ -1,6 +1,12 @@
-import { ModalForm, ProForm, ProFormText } from '@ant-design/pro-components';
+import {
+  ModalForm,
+  ProForm,
+  ProFormSelect,
+  ProFormText,
+} from '@ant-design/pro-components';
 import { Modal, message } from 'antd';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import { type BrandOption, brandApi } from '@/pages/product/service';
 import type { SupplierItem } from '@/services/zhul/masterdata';
 import { createSupplier } from '@/services/zhul/masterdata';
 
@@ -22,14 +28,33 @@ const SupplierQuickCreateModal: React.FC<SupplierQuickCreateModalProps> = ({
   onCreated,
   initialName,
 }) => {
-  const submit = async (values: {
+  const [brands, setBrands] = useState<BrandOption[]>([]);
+  useEffect(() => {
+    if (open)
+      brandApi
+        .options()
+        .then(setBrands)
+        .catch(() => undefined);
+  }, [open]);
+
+  const submit = async ({
+    brandNames,
+    ...rest
+  }: {
     name: string;
     country?: string;
     contactName?: string;
     contactPhone?: string;
     contactEmail?: string;
-    mainBrands?: string;
+    brandNames?: string[];
   }): Promise<boolean> => {
+    const values = {
+      ...rest,
+      productScopes: (brandNames ?? [])
+        .map((n) => n.trim())
+        .filter(Boolean)
+        .map((brandName) => ({ brandName, categoryIds: [] })),
+    };
     const result = await createSupplier(values);
     if (result.duplicate && result.existingSupplier) {
       const existing = result.existingSupplier;
@@ -107,10 +132,26 @@ const SupplierQuickCreateModal: React.FC<SupplierQuickCreateModalProps> = ({
           width="md"
         />
       </ProForm.Group>
-      <ProFormText
-        name="mainBrands"
+      <ProFormSelect
+        name="brandNames"
         label="主营品牌"
-        placeholder="多个品牌用逗号分隔，仅辅助展示"
+        mode="tags"
+        placeholder="搜索或输入品牌，可多选"
+        extra="清单里没有的品牌可直接输入，保存为待确认品牌；细分品类可稍后在供应商管理中补充"
+        options={brands.map((b) => ({
+          value: b.brandName,
+          label: b.brandName,
+          aliases: b.aliases ?? [],
+        }))}
+        fieldProps={{
+          tokenSeparators: [',', '，'],
+          filterOption: (input, option) =>
+            !!option &&
+            [
+              String(option.label),
+              ...((option.aliases as string[]) ?? []),
+            ].some((t) => t.toLowerCase().includes(input.trim().toLowerCase())),
+        }}
       />
     </ModalForm>
   );

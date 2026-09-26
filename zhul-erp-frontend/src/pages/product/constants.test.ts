@@ -1,8 +1,11 @@
 import {
+  BRAND_COLOR_PATTERN,
+  BRAND_COLOR_PRESETS,
   isSafeUrl,
   normalizeHsCode,
   normalizeMpn,
   precheckUpload,
+  randomBrandColor,
   UPLOAD_TYPE_MESSAGE,
 } from './constants';
 
@@ -88,4 +91,43 @@ describe('normalizeHsCode', () => {
     expect(normalizeHsCode('8537.10.90')).toBe('85371090');
     expect(normalizeHsCode(' 8537 10 90 ')).toBe('85371090');
   });
+});
+
+describe('randomBrandColor（品牌主题色默认值）', () => {
+  it('预设色都符合 #RRGGBB，且没有重复', () => {
+    for (const color of BRAND_COLOR_PRESETS) {
+      expect(color).toMatch(BRAND_COLOR_PATTERN);
+    }
+    expect(new Set(BRAND_COLOR_PRESETS).size).toBe(BRAND_COLOR_PRESETS.length);
+  });
+
+  it('随机数取边界值时不越界', () => {
+    expect(randomBrandColor(() => 0)).toBe(BRAND_COLOR_PRESETS[0]);
+    expect(randomBrandColor(() => 0.9999999)).toBe(
+      BRAND_COLOR_PRESETS[BRAND_COLOR_PRESETS.length - 1],
+    );
+  });
+
+  it('多次随机的结果总在预设内，并且不总是同一个', () => {
+    const seen = new Set<string>();
+    for (let i = 0; i < 300; i++) {
+      const color = randomBrandColor();
+      expect(BRAND_COLOR_PRESETS).toContain(color);
+      seen.add(color);
+    }
+    expect(seen.size).toBeGreaterThan(1);
+  });
+});
+
+describe('BRAND_COLOR_PATTERN（与后端校验一致）', () => {
+  it.each(['#009999', '#e60012', '#ABCDEF'])('接受 %s', (v) =>
+    expect(BRAND_COLOR_PATTERN.test(v)).toBe(true));
+  it.each([
+    'red',
+    '#12345',
+    '#1234567',
+    '009999',
+    '#GGGGGG',
+    '',
+  ])('拒绝 %s', (v) => expect(BRAND_COLOR_PATTERN.test(v)).toBe(false));
 });

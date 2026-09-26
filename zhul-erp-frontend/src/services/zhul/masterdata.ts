@@ -2,7 +2,10 @@ import { request } from '@umijs/max';
 
 export interface CustomerItem {
   id: number;
+  /** 客户编码，快速创建时由系统自动生成 */
+  customerCode?: string;
   name: string;
+  nameCn?: string;
   country?: string;
   contactName?: string;
   contactPhone?: string;
@@ -13,23 +16,25 @@ export interface CustomerItem {
 
 export interface SupplierItem {
   id: number;
+  /** 供应商编码，询盘内联创建时由系统自动生成 */
+  supplierCode?: string;
   name: string;
+  shortName?: string;
   country?: string;
   contactName?: string;
   contactPhone?: string;
   contactEmail?: string;
-  mainBrands?: string;
   status?: number;
   createTime?: string;
 }
 
+/** 快速创建客户：英文名称与国家（系统国家清单英文名）必填，其余取默认值 */
 export interface SaveCustomerPayload {
   name: string;
-  country?: string;
+  country: string;
   contactName?: string;
   contactPhone?: string;
   contactEmail?: string;
-  force?: boolean;
 }
 
 export interface SaveSupplierPayload {
@@ -38,14 +43,13 @@ export interface SaveSupplierPayload {
   contactName?: string;
   contactPhone?: string;
   contactEmail?: string;
-  mainBrands?: string;
+  /** 主营品牌名称（可为别名或清单外的新名称），均按该品牌全部品类保存 */
+  productScopes?: { brandName: string; categoryIds: number[] }[];
   force?: boolean;
 }
 
 export interface CreateResult<T> {
   duplicate: boolean;
-  existingCustomer?: T;
-  createdCustomer?: T;
   existingSupplier?: T;
   createdSupplier?: T;
 }
@@ -58,15 +62,22 @@ export async function searchCustomers(keyword?: string): Promise<CustomerItem[]>
   return res.data ?? [];
 }
 
+/** 只返回引用信息（编码、名称、国家、状态），供询盘等模块回显，不按数据权限过滤 */
 export async function getCustomer(id: number): Promise<CustomerItem> {
   const res = await request(`/api/v1/masterdata/customers/${id}`, { method: 'GET' });
   return res.data;
 }
 
-export async function createCustomer(
-  data: SaveCustomerPayload,
-): Promise<CreateResult<CustomerItem>> {
-  const res = await request('/api/v1/masterdata/customers', { method: 'POST', data });
+/**
+ * 快速创建客户。名称 + 国家与已有客户重复时接口返回 CUSTOMER_DUPLICATE，由调用方处理
+ * （不弹全局错误提示）；错误对象的 info.data.detail 里有 existingId、selectable、ownerName。
+ */
+export async function createCustomer(data: SaveCustomerPayload): Promise<CustomerItem> {
+  const res = await request('/api/v1/masterdata/customers', {
+    method: 'POST',
+    data,
+    skipErrorHandler: true,
+  });
   return res.data;
 }
 

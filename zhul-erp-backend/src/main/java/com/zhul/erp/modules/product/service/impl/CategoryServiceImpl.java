@@ -1,6 +1,7 @@
 package com.zhul.erp.modules.product.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.zhul.erp.common.exception.BizException;
 import com.zhul.erp.common.result.PageResult;
@@ -32,6 +33,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.regex.Pattern;
 
 @Service
@@ -40,6 +42,7 @@ public class CategoryServiceImpl implements CategoryService {
 
     private static final int CODE_MAX = 32;
     private static final int NAME_MAX = 64;
+    private static final int NAME_ZH_MAX = 32;
     private static final Pattern CODE_PATTERN = Pattern.compile("^[a-z][a-z0-9_]*$");
 
     private final ProductCategoryMapper categoryMapper;
@@ -53,12 +56,15 @@ public class CategoryServiceImpl implements CategoryService {
                 .eq(ProductCategoryDO::getTenantId, ProductConstants.PLATFORM_TENANT_ID)
                 .isNull(ProductCategoryDO::getDeletedAt)
                 .eq(query.getStatus() != null, ProductCategoryDO::getStatus, query.getStatus())
+                .isNull(query.getParentId() == null, ProductCategoryDO::getParentId)
+                .eq(query.getParentId() != null, ProductCategoryDO::getParentId, query.getParentId())
                 .orderByAsc(ProductCategoryDO::getSortOrder)
                 .orderByAsc(ProductCategoryDO::getId);
         if (StringUtils.hasText(query.getKeyword())) {
             String keyword = LikeUtils.escape(query.getKeyword().trim());
             wrapper.and(w -> w.like(ProductCategoryDO::getCategoryCode, keyword)
-                    .or().like(ProductCategoryDO::getCategoryName, keyword));
+                    .or().like(ProductCategoryDO::getCategoryName, keyword)
+                    .or().like(ProductCategoryDO::getCategoryNameZh, keyword));
         }
         Page<ProductCategoryDO> page = categoryMapper.selectPage(
                 new Page<>(query.pageOrDefault(), query.pageSizeOrDefault()), wrapper);
@@ -73,7 +79,17 @@ public class CategoryServiceImpl implements CategoryService {
     }
 
     @Override
-    public List<CategoryOptionVO> options() {
+    public List<CategoryOptionVO> options(Integer level) {
+        List<CategoryOptionVO> all = allOptions();
+        if (level != null && level == 0) {
+            return all;
+        }
+        boolean subLevel = level != null && level == 2;
+        return all.stream().filter(o -> (o.getParentId() != null) == subLevel).toList();
+    }
+
+    /** 全部启用品类（两级都有），缓存整份清单，按层级在内存里过滤 */
+    private List<CategoryOptionVO> allOptions() {
         List<CategoryOptionVO> cached = optionsCache.get(ProductConstants.CACHE_KEY_CATEGORY_OPTIONS,
                 CategoryOptionVO.class);
         if (cached != null) {
@@ -91,6 +107,8 @@ public class CategoryServiceImpl implements CategoryService {
             vo.setId(category.getId());
             vo.setCategoryCode(category.getCategoryCode());
             vo.setCategoryName(category.getCategoryName());
+            vo.setCategoryNameZh(category.getCategoryNameZh());
+            vo.setParentId(category.getParentId());
             vo.setDescription(category.getDescription());
             options.add(vo);
         }
@@ -104,9 +122,13 @@ public class CategoryServiceImpl implements CategoryService {
         platformScopeGuard.requirePlatform();
         String code = validCode(req.getCategoryCode());
         String name = TextRules.required(req.getCategoryName(), "品类名称", NAME_MAX);
+        Long parentId = validParent(req.getParentId(), null);
+        String nameZh = validNameZh(req.getCategoryNameZh(), parentId);
         assertCodeFree(code, null);
 
         ProductCategoryDO category = new ProductCategoryDO();
+        category.setParentId(parentId);
+        category.setCategoryNameZh(nameZh);
         category.setTenantId(ProductConstants.PLATFORM_TENANT_ID);
         category.setCategoryCode(code);
         category.setCategoryName(name);
@@ -130,6 +152,11 @@ public class CategoryServiceImpl implements CategoryService {
         String code = validCode(req.getCategoryCode());
         String name = TextRules.required(req.getCategoryName(), "品类名称", NAME_MAX);
         long usage = countProducts(id);
+        Long parentId = validParent(req.getParentId(), current);
+        if (parentId != null && usage > 0) {
+            throw BizException.of(ProductErrorCodes.CATEGORY_LEVEL_INVALID, "该品类下已有商品，商品只能挂一级品类，不能改为细分品类");
+        }
+        String nameZh = validNameZh(req.getCategoryNameZh(), parentId);
         if (!code.equals(current.getCategoryCode())) {
             if (usage > 0) {
                 throw BizException.of(ProductErrorCodes.CATEGORY_CODE_IMMUTABLE,
@@ -142,10 +169,17 @@ public class CategoryServiceImpl implements CategoryService {
         change.setId(id);
         change.setCategoryCode(code);
         change.setCategoryName(name);
+        change.setCategoryNameZh(nameZh);
         change.setDescription(TextRules.optional(req.getDescription(), "品类简介", ProductConstants.DESCRIPTION_MAX));
         change.setSortOrder(req.getSortOrder() == null ? current.getSortOrder() : req.getSortOrder());
         try {
             categoryMapper.updateById(change);
+            if (!Objects.equals(parentId, current.getParentId())) {
+                // 只带部分字段的 updateById 不会把 null 写回，一级 / 细分之间切换时单独更新 parent_id
+                categoryMapper.update(new ProductCategoryDO(), new LambdaUpdateWrapper<ProductCategoryDO>()
+                        .set(ProductCategoryDO::getParentId, parentId)
+                        .eq(ProductCategoryDO::getId, id));
+            }
         } catch (DuplicateKeyException e) {
             throw duplicate(null, false, e);
         }
@@ -176,11 +210,76 @@ public class CategoryServiceImpl implements CategoryService {
             throw BizException.of(ProductErrorCodes.CATEGORY_IN_USE,
                     "已有 " + usage + " 个商品使用该品类，请先停用", Map.of("usageCount", usage));
         }
+        if (countChildren(id) > 0) {
+            throw BizException.of(ProductErrorCodes.CATEGORY_HAS_CHILDREN, "该品类下还有细分品类，请先删除或移走细分品类");
+        }
+        long supplierUsage = categoryMapper.countSupplierScopes(id);
+        if (supplierUsage > 0) {
+            throw BizException.of(ProductErrorCodes.CATEGORY_IN_USE, "该品类已被供应商主营产品使用，可改为停用",
+                    Map.of("supplierUsageCount", supplierUsage));
+        }
         ProductCategoryDO change = new ProductCategoryDO();
         change.setId(id);
         change.setDeletedAt(LocalDateTime.now());
         categoryMapper.updateById(change);
         optionsCache.evictAfterCommit(ProductConstants.CACHE_KEY_CATEGORY_OPTIONS);
+    }
+
+    @Override
+    public List<CategoryVO> tree() {
+        List<ProductCategoryDO> all = categoryMapper.selectList(new LambdaQueryWrapper<ProductCategoryDO>()
+                .eq(ProductCategoryDO::getTenantId, ProductConstants.PLATFORM_TENANT_ID)
+                .isNull(ProductCategoryDO::getDeletedAt)
+                .orderByAsc(ProductCategoryDO::getSortOrder)
+                .orderByAsc(ProductCategoryDO::getId));
+        Map<Long, Long> counts = toCountMap(all.isEmpty() ? List.of()
+                : productMapper.countByCategoryIds(all.stream().map(ProductCategoryDO::getId).toList()));
+        Map<Long, List<CategoryVO>> children = new HashMap<>(all.size() * 2);
+        List<CategoryVO> roots = new ArrayList<>();
+        for (ProductCategoryDO c : all) {
+            CategoryVO vo = toVO(c, counts.getOrDefault(c.getId(), 0L));
+            if (c.getParentId() == null) {
+                vo.setChildren(children.computeIfAbsent(c.getId(), k -> new ArrayList<>()));
+                roots.add(vo);
+            } else {
+                children.computeIfAbsent(c.getParentId(), k -> new ArrayList<>()).add(vo);
+            }
+        }
+        return roots;
+    }
+
+    /**
+     * 上级品类校验：为空表示一级；否则上级必须是未删除的一级品类，且自己不能有细分品类（最多两级）。
+     * current 为空表示新建。
+     */
+    private Long validParent(Long parentId, ProductCategoryDO current) {
+        if (parentId == null) {
+            return null;
+        }
+        if (current != null && parentId.equals(current.getId())) {
+            throw BizException.of(ProductErrorCodes.CATEGORY_LEVEL_INVALID, "品类不能以自己为上级");
+        }
+        ProductCategoryDO parent = getActive(parentId);
+        if (parent.getParentId() != null) {
+            throw BizException.of(ProductErrorCodes.CATEGORY_LEVEL_INVALID, "品类最多两级，不能在细分品类下再建品类");
+        }
+        if (current != null && countChildren(current.getId()) > 0) {
+            throw BizException.of(ProductErrorCodes.CATEGORY_LEVEL_INVALID, "该品类下还有细分品类，不能挂到其他品类下");
+        }
+        return parentId;
+    }
+
+    private static String validNameZh(String raw, Long parentId) {
+        return parentId != null
+                ? TextRules.required(raw, "中文名称", NAME_ZH_MAX)
+                : TextRules.optional(raw, "中文名称", NAME_ZH_MAX);
+    }
+
+    private long countChildren(Long id) {
+        return categoryMapper.selectCount(new LambdaQueryWrapper<ProductCategoryDO>()
+                .eq(ProductCategoryDO::getTenantId, ProductConstants.PLATFORM_TENANT_ID)
+                .eq(ProductCategoryDO::getParentId, id)
+                .isNull(ProductCategoryDO::getDeletedAt));
     }
 
     private ProductCategoryDO getActive(Long id) {
@@ -248,6 +347,8 @@ public class CategoryServiceImpl implements CategoryService {
         vo.setId(category.getId());
         vo.setCategoryCode(category.getCategoryCode());
         vo.setCategoryName(category.getCategoryName());
+        vo.setCategoryNameZh(category.getCategoryNameZh());
+        vo.setParentId(category.getParentId());
         vo.setDescription(category.getDescription());
         vo.setSortOrder(category.getSortOrder());
         vo.setStatus(category.getStatus());

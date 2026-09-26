@@ -60,6 +60,8 @@ export interface Brand {
   isGenuine: number;
   status: number;
   productCount: number;
+  /** 别名：询盘原文、供应商手填的其他写法 */
+  aliases: string[];
   createBy: string;
   createTime: string;
   updateBy: string;
@@ -72,6 +74,7 @@ export interface BrandOption {
   logoUrl: string;
   description: string;
   isGenuine: number;
+  aliases?: string[];
 }
 
 export interface SaveBrand {
@@ -81,12 +84,20 @@ export interface SaveBrand {
   brandColor?: string;
   description?: string;
   isGenuine?: number;
+  /** 为空不修改，空数组清空 */
+  aliases?: string[];
 }
 
 export interface Category {
   id: number;
   categoryCode: string;
   categoryName: string;
+  /** 中文名：细分品类必填 */
+  categoryNameZh: string;
+  /** 上级品类，一级品类为空 */
+  parentId?: number | null;
+  /** 细分品类（树形接口返回） */
+  children?: Category[];
   description: string;
   sortOrder: number;
   status: number;
@@ -101,12 +112,17 @@ export interface CategoryOption {
   id: number;
   categoryCode: string;
   categoryName: string;
+  categoryNameZh?: string;
+  parentId?: number | null;
   description: string;
 }
 
 export interface SaveCategory {
   categoryCode: string;
   categoryName: string;
+  categoryNameZh?: string;
+  /** 为空建一级品类，否则建该一级品类下的细分品类 */
+  parentId?: number | null;
   description?: string;
   sortOrder?: number;
 }
@@ -162,7 +178,11 @@ export const brandApi = {
 export const categoryApi = {
   page: (params: PageParams & { keyword?: string; status?: number }) =>
     call<PageResult<Category>>(`${BASE}/categories`, { params }),
-  options: () => call<CategoryOption[]>(`${BASE}/categories/options`),
+  /** level：1 或不传只返回一级品类，2 只返回细分品类，0 返回全部 */
+  options: (level?: number) =>
+    call<CategoryOption[]>(`${BASE}/categories/options`, { params: { level } }),
+  /** 两级品类树（含停用的） */
+  tree: () => call<Category[]>(`${BASE}/categories/tree`),
   create: (data: SaveCategory) =>
     call<Category>(`${BASE}/categories`, { method: 'POST', data }),
   update: (id: number, data: SaveCategory) =>
@@ -174,6 +194,28 @@ export const categoryApi = {
     }),
   remove: (id: number) =>
     call<void>(`${BASE}/categories/${id}`, { method: 'DELETE' }),
+};
+
+/** 待确认品牌：供应商主营产品里手填、品牌清单中没有的名称（仅平台账号） */
+export interface PendingBrand {
+  pendingKey: string;
+  name: string;
+  supplierCount: number;
+  firstSeen: string;
+}
+
+export const pendingBrandApi = {
+  list: () => call<PendingBrand[]>('/api/v1/masterdata/pending-brands'),
+  linkAsAlias: (pendingKey: string, brandId: number) =>
+    call<void>('/api/v1/masterdata/pending-brands/alias', {
+      method: 'POST',
+      data: { pendingKey, brandId },
+    }),
+  createBrand: (pendingKey: string, brand: SaveBrand) =>
+    call<number>('/api/v1/masterdata/pending-brands/brand', {
+      method: 'POST',
+      data: { pendingKey, brand },
+    }),
 };
 
 export const seriesApi = {

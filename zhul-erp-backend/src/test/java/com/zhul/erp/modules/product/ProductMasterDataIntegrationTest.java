@@ -305,7 +305,7 @@ class ProductMasterDataIntegrationTest extends IntegrationTestBase {
     @Test
     void categoryOptionsAreCachedAndEvictedAfterWrite() {
         long id = categoryService.create(categoryRequest("servo", "Servo")).getId();
-        categoryService.options();
+        categoryService.options(null);
         assertTrue(Boolean.TRUE.equals(redis.hasKey(ProductConstants.CACHE_KEY_CATEGORY_OPTIONS)));
 
         categoryService.updateStatus(id, 0);
@@ -335,6 +335,70 @@ class ProductMasterDataIntegrationTest extends IntegrationTestBase {
         List<BrandOptionVO> fromCache = brandService.options();
 
         assertEquals(fromDb, fromCache);
+    }
+
+    // ---------- 简介、原产地、主题色（enrich-brand-category-info） ----------
+
+    @Test
+    void brandDescriptionCountryAndColorArePersistedAndNormalised() {
+        SaveBrandRequest req = brandRequest("Siemens");
+        req.setDescription("德国工业自动化厂商");
+        req.setCountry("germany");
+        req.setBrandColor("#009aff");
+
+        long id = brandService.create(req).getId();
+
+        Map<String, Object> row = jdbc.queryForMap(
+                "select description, country, brand_color from product_brand where id = ?", id);
+        assertEquals("德国工业自动化厂商", row.get("description"));
+        assertEquals("Germany", row.get("country"));
+        assertEquals("#009AFF", row.get("brand_color"));
+    }
+
+    @Test
+    void invalidCountryAndColorAreRejectedAndNothingIsPersisted() {
+        SaveBrandRequest badCountry = brandRequest("A");
+        badCountry.setCountry("Deutschland1");
+        SaveBrandRequest badColor = brandRequest("B");
+        badColor.setBrandColor("red");
+
+        assertThrows(BizException.class, () -> brandService.create(badCountry));
+        assertThrows(BizException.class, () -> brandService.create(badColor));
+
+        assertEquals(0, jdbc.queryForObject("select count(*) from product_brand", Integer.class));
+    }
+
+    @Test
+    void brandOptionsShowNewDescriptionAfterUpdate() {
+        long id = brandService.create(brandRequest("ABB")).getId();
+        assertEquals("", brandService.options().get(0).getDescription());
+        assertTrue(Boolean.TRUE.equals(redis.hasKey(ProductConstants.CACHE_KEY_BRAND_OPTIONS)));
+
+        SaveBrandRequest update = brandRequest("ABB");
+        update.setDescription("瑞士电气与自动化集团");
+        brandService.update(id, update);
+
+        assertFalse(Boolean.TRUE.equals(redis.hasKey(ProductConstants.CACHE_KEY_BRAND_OPTIONS)), "修改简介后缓存应被清除");
+        assertEquals("瑞士电气与自动化集团", brandService.options().get(0).getDescription());
+    }
+
+    @Test
+    void categoryDescriptionIsPersistedAndEditableAfterProductsExist() {
+        SaveCategoryRequest create = categoryRequest("drives", "Drives");
+        create.setDescription("变频器与软启动器");
+        long categoryId = categoryService.create(create).getId();
+        long brandId = brandService.create(brandRequest("ABB")).getId();
+        insertProduct(brandId, categoryId, null, "ACS580");
+        assertEquals("变频器与软启动器", categoryService.options(null).get(0).getDescription());
+
+        SaveCategoryRequest update = categoryRequest("drives", "Drives");
+        update.setDescription("变频器与软启动器，用于电机调速和启停");
+        categoryService.update(categoryId, update);
+
+        assertEquals("变频器与软启动器，用于电机调速和启停", jdbc.queryForObject(
+                "select description from product_category where id = ?", String.class, categoryId));
+        assertEquals("变频器与软启动器，用于电机调速和启停", categoryService.options(null).get(0).getDescription(),
+                "修改简介后选项缓存应被清除，读到新简介");
     }
 
     @Test

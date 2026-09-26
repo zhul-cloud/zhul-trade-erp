@@ -13,6 +13,9 @@ public final class ProductConstants {
     public static final int STATUS_ENABLED = 1;
 
     /** 品牌选项缓存，Cache-Aside，TTL 300s，写库事务提交后删除 */
+    /** 品牌、品类简介的长度上限 */
+    public static final int DESCRIPTION_MAX = 500;
+
     public static final String CACHE_KEY_BRAND_OPTIONS = "zhul:erp:list:0:product_brand";
     /** 品类选项缓存，规则同上 */
     public static final String CACHE_KEY_CATEGORY_OPTIONS = "zhul:erp:list:0:product_category";

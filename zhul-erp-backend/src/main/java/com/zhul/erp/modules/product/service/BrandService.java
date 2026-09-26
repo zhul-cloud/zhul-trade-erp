@@ -19,6 +19,9 @@ public interface BrandService {
 
     BrandVO update(Long id, SaveBrandRequest req);
 
+    /** 给品牌追加一个别名（平台账号）；与自己名称相同或已是自己的别名时不重复添加，与其他品牌冲突时拒绝 */
+    void addAlias(Long brandId, String alias);
+
     void updateStatus(Long id, Integer status);
 
     /** 软删除；下面仍有未删除商品时拒绝 */

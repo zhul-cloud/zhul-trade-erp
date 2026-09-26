@@ -205,6 +205,18 @@ AI 拆单确认 → 待分配（inquiry_order 已创建，assignee_id 为空）
 
 **理由**："往一个可能立刻回调自己的外部服务发起异步 HTTP 请求"这个动作本身不应该在数据库事务提交之前发生——这是一条通用的正确性原则，不是"AI服务碰巧比较快"这种运气问题的临时缓解：任何足够快的下游实现（无论是这次的真实编排服务同步拒绝，还是未来别的 skill 接入了一个校验很快的实现）都可能触发同样的竞态，修在"提交时机"上才是根治，而不是继续加长超时阈值。
 
+### 16. 图片/Excel 附件先落项目本地磁盘，抽象出 `AttachmentStorageService` 接口预留 OSS 迁移
+
+**背景**：决策14接入真实 AI 之后，前端 P02"图片上传"/"Excel上传"两个 tab 一直是 `beforeUpload: () => false` 的占位实现——文件根本没有真的上传，`rawAttachmentUrl` 只记了个文件名。用户明确要求现在就把这两条路径打通，存储位置"先存在项目的独立目录下面，后续再上传到 OSS"。
+
+**决策**：
+- 新增 `AttachmentStorageService` 接口（`storeImage`/`storeExcel`/`resolveToAbsolutePath`/`extractExcelText`），当前唯一实现 `AttachmentStorageServiceImpl` 落本地磁盘——复用已有的 `zhul.upload.dir` 配置，单独开一个 `customer-inquiry/{tenantId}/{uuid}.{ext}` 子目录，与 `ConfigServiceImpl.uploadImage()` 已有的 `images/` 子目录并列、不冲突。校验规则：仅 jpg/jpeg/png（图片）、xlsx/xls/csv（Excel），单文件最大 5MB。
+- Excel 走「机械抽取文本」路线：`AiTaskServiceImpl` 提交解析任务前，若 `rawContent` 为空且来源是 Excel，用 Apache POI（`extractExcelText`）把表格内容拼成一段 tab 分隔文本，当成普通文本 `rawContent` 走已有的 AI 解析流程——AI 侧不需要知道这条询盘原本是文件输入，也不需要新增 skill 逻辑。抽取结果会回写到 `customer_inquiry.raw_content`，重试解析时不用重复抽取。
+- 图片没有"机械抽取文本"这个选项，走单独的「附件路径直传」路线：把本地绝对路径通过新字段 `rawAttachmentPath` 传给 `scripts/ai-orchestrator`，编排服务改成用 `--allowedTools "WebSearch Read(<path>)"` 精确只放行 Claude 读这一个文件，用 Claude 自己的读图能力识别文字/型号，而不是本地写一个 OCR 服务。
+- 迁移到 OSS 时只需要替换 `AttachmentStorageServiceImpl` 这一个类（`storeImage`/`storeExcel` 改成传给 OSS SDK，`resolveToAbsolutePath` 改成下载到临时文件或直接返回可读的 OSS 内网地址），接口、`CustomerInquiryServiceImpl` 的调用方式、前端都不需要跟着改。
+
+**理由**：项目 CLAUDE.md 已有"先落本地目录、后续迁移 OSS"的既有惯例（`ConfigServiceImpl.uploadImage()`），复用同一套模式认知成本最低；图片和 Excel 的技术路线本质不同（机械抽取 vs. 交给 AI 自己看），没有必要为了"统一处理"强行做成一样，接口层面统一（`AttachmentStorageService`）已经足够划清将来 OSS 迁移的边界。
+
 ## Risks / Trade-offs
 
 - **[风险] `inquiry-parser` 对每个型号都执行联网搜索，一条含 10~20 个型号的询盘处理耗时可能是分钟级，且有真实的 API 调用成本** → 缓解：已确定为异步流程（业务员提交后可离开，处理完成后回来查看待确认状态），不做同步等待

@@ -94,6 +94,65 @@ class CategoryServiceImplTest {
     }
 
     @Test
+    void descriptionIsSavedTrimmed() {
+        SaveCategoryRequest req = request("controllers", "PLC & Controllers");
+        req.setDescription("  可编程逻辑控制器及配套模块  ");
+
+        service.create(req);
+
+        ArgumentCaptor<ProductCategoryDO> captor = ArgumentCaptor.forClass(ProductCategoryDO.class);
+        verify(categoryMapper).insert(captor.capture());
+        assertEquals("可编程逻辑控制器及配套模块", captor.getValue().getDescription());
+    }
+
+    @Test
+    void missingDescriptionIsSavedAsEmpty() {
+        service.create(request("controllers", "PLC & Controllers"));
+
+        ArgumentCaptor<ProductCategoryDO> captor = ArgumentCaptor.forClass(ProductCategoryDO.class);
+        verify(categoryMapper).insert(captor.capture());
+        assertEquals("", captor.getValue().getDescription());
+    }
+
+    @Test
+    void descriptionLengthBoundaryIs500() {
+        SaveCategoryRequest ok = request("a", "N");
+        ok.setDescription("字".repeat(500));
+        service.create(ok);
+
+        SaveCategoryRequest tooLong = request("b", "N");
+        tooLong.setDescription("字".repeat(501));
+        assertBiz(() -> service.create(tooLong), ProductErrorCodes.PARAM_INVALID);
+        verify(categoryMapper, org.mockito.Mockito.times(1)).insert(any(ProductCategoryDO.class));
+    }
+
+    @Test
+    void descriptionOfCategoryWithProductsCanBeChangedWithoutChangingCode() {
+        ProductCategoryDO current = category(3L, "drives", "Drives");
+        when(categoryMapper.selectOne(any())).thenReturn(current, current);
+        when(productMapper.selectCount(any())).thenReturn(4L);
+        SaveCategoryRequest req = request("drives", "Drives");
+        req.setDescription("变频器与软启动器，用于电机调速和启停");
+
+        service.update(3L, req);
+
+        ArgumentCaptor<ProductCategoryDO> captor = ArgumentCaptor.forClass(ProductCategoryDO.class);
+        verify(categoryMapper).updateById(captor.capture());
+        assertEquals("drives", captor.getValue().getCategoryCode());
+        assertEquals("变频器与软启动器，用于电机调速和启停", captor.getValue().getDescription());
+    }
+
+    @Test
+    void optionsCarryDescription() {
+        ProductCategoryDO servo = category(2L, "servo", "Servo Systems");
+        servo.setDescription("伺服驱动器与电机");
+        when(optionsCache.get(ProductConstants.CACHE_KEY_CATEGORY_OPTIONS, CategoryOptionVO.class)).thenReturn(null);
+        when(categoryMapper.selectList(any())).thenReturn(List.of(servo));
+
+        assertEquals("伺服驱动器与电机", service.options(null).get(0).getDescription());
+    }
+
+    @Test
     void duplicateCodeIsRejected() {
         when(categoryMapper.selectOne(any())).thenReturn(category(2L, "servo", "Servo"));
 
@@ -205,6 +264,89 @@ class CategoryServiceImplTest {
         verifyNoInteractions(categoryMapper, productMapper);
 
         when(optionsCache.get(ProductConstants.CACHE_KEY_CATEGORY_OPTIONS, CategoryOptionVO.class)).thenReturn(List.of());
-        assertEquals(0, service.options().size());
+        assertEquals(0, service.options(null).size());
+    }
+
+    // ---------------------------------------------------------------- 两级品类（add-supplier-brand-category）
+
+    private static ProductCategoryDO sub(Long id, String code, Long parentId) {
+        ProductCategoryDO c = category(id, code, code);
+        c.setParentId(parentId);
+        c.setCategoryNameZh("伺服驱动器");
+        return c;
+    }
+
+    private void stubActive(ProductCategoryDO c) {
+        when(categoryMapper.selectOne(any())).thenReturn(c);
+    }
+
+    @Test
+    void createSubCategoryUnderTopLevel() {
+        stubActive(category(1L, "servo", "Servo Systems"));
+        // 父品类查询之后是编码查重：第二次返回 null
+        when(categoryMapper.selectOne(any())).thenReturn(category(1L, "servo", "Servo Systems"), (ProductCategoryDO) null);
+        SaveCategoryRequest req = request("servo_drive", "Servo Drives");
+        req.setParentId(1L);
+        req.setCategoryNameZh("伺服驱动器");
+
+        service.create(req);
+
+        ArgumentCaptor<ProductCategoryDO> captor = ArgumentCaptor.forClass(ProductCategoryDO.class);
+        verify(categoryMapper).insert(captor.capture());
+        assertEquals(1L, captor.getValue().getParentId());
+        assertEquals("伺服驱动器", captor.getValue().getCategoryNameZh());
+    }
+
+    @Test
+    void cannotCreateThirdLevel() {
+        stubActive(sub(2L, "servo_drive", 1L));
+        SaveCategoryRequest req = request("servo_drive_ac", "AC Servo Drives");
+        req.setParentId(2L);
+        req.setCategoryNameZh("交流伺服");
+
+        assertBiz(() -> service.create(req), ProductErrorCodes.CATEGORY_LEVEL_INVALID);
+        verify(categoryMapper, never()).insert(any(ProductCategoryDO.class));
+    }
+
+    @Test
+    void subCategoryRequiresChineseName() {
+        stubActive(category(1L, "servo", "Servo Systems"));
+        SaveCategoryRequest req = request("servo_drive", "Servo Drives");
+        req.setParentId(1L);
+
+        BizException e = assertThrows(BizException.class, () -> service.create(req));
+        assertTrue(e.getMessage().contains("中文名称"));
+    }
+
+    @Test
+    void deleteTopLevelWithChildrenIsRejected() {
+        stubActive(category(1L, "servo", "Servo Systems"));
+        when(categoryMapper.selectCount(any())).thenReturn(2L);
+
+        assertBiz(() -> service.delete(1L), ProductErrorCodes.CATEGORY_HAS_CHILDREN);
+    }
+
+    @Test
+    void deleteSubCategoryUsedBySupplierIsRejected() {
+        stubActive(sub(2L, "plc_cpu", 1L));
+        when(categoryMapper.countSupplierScopes(2L)).thenReturn(3L);
+
+        BizException e = assertBiz(() -> service.delete(2L), ProductErrorCodes.CATEGORY_IN_USE);
+        assertEquals("该品类已被供应商主营产品使用，可改为停用", e.getMessage());
+    }
+
+    @Test
+    void optionsFilterByLevel() {
+        CategoryOptionVO top = new CategoryOptionVO();
+        top.setId(1L);
+        CategoryOptionVO child = new CategoryOptionVO();
+        child.setId(2L);
+        child.setParentId(1L);
+        when(optionsCache.get(ProductConstants.CACHE_KEY_CATEGORY_OPTIONS, CategoryOptionVO.class))
+                .thenReturn(List.of(top, child));
+
+        assertEquals(List.of(top), service.options(null));
+        assertEquals(List.of(child), service.options(2));
+        assertEquals(2, service.options(0).size());
     }
 }

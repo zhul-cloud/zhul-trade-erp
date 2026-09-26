@@ -153,7 +153,7 @@ public class RoleServiceImpl implements RoleService {
         if (request.getRemark() != null) {
             wrapper.set(RoleDO::getRemark, request.getRemark());
         }
-        roleMapper.update(null, wrapper);
+        roleMapper.update(new RoleDO(), wrapper);
 
         Integer effectiveScope = request.getPermissionScope() != null
                 ? request.getPermissionScope() : role.getPermissionScope();

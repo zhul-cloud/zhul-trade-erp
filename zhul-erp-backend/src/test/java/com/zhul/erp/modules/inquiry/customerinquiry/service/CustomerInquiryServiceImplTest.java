@@ -17,6 +17,7 @@ import com.zhul.erp.modules.inquiry.customerinquiry.dto.InquiryPreviewVO;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.SubmitCustomerInquiryRequest;
 import com.zhul.erp.modules.inquiry.customerinquiry.entity.CustomerInquiryDO;
 import com.zhul.erp.modules.inquiry.customerinquiry.repository.CustomerInquiryMapper;
+import com.zhul.erp.modules.inquiry.customerinquiry.service.AttachmentStorageService;
 import com.zhul.erp.modules.inquiry.customerinquiry.service.impl.CustomerInquiryServiceImpl;
 import com.zhul.erp.modules.inquiry.inquiryorder.dto.InquiryOrderVO;
 import com.zhul.erp.modules.inquiry.inquiryorder.service.InquiryOrderService;
@@ -35,6 +36,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Set;
 
@@ -70,13 +72,15 @@ class CustomerInquiryServiceImplTest {
     private CustomerService customerService;
     @Mock
     private CurrentUserResolver currentUserResolver;
+    @Mock
+    private AttachmentStorageService attachmentStorageService;
 
     private CustomerInquiryServiceImpl service;
 
     @BeforeEach
     void setUp() {
         service = new CustomerInquiryServiceImpl(customerInquiryMapper, codeGenerator, aiTaskService,
-                inquiryOrderService, customerService, currentUserResolver, new ObjectMapper());
+                inquiryOrderService, customerService, currentUserResolver, new ObjectMapper(), attachmentStorageService);
         TenantContext.setTenantId(1);
     }
 
@@ -236,6 +240,48 @@ class CustomerInquiryServiceImplTest {
 
         assertThrows(BizException.class, () -> service.retryParse(1L));
         verify(aiTaskService, never()).createAndSubmit(anyString(), anyString(), any());
+    }
+
+    @Test
+    void startAiParse_forExcelSourceWithoutRawContent_extractsTextFromAttachment() throws Exception {
+        CustomerInquiryDO inquiry = pendingParseInquiry();
+        inquiry.setSource(CustomerInquirySource.EXCEL);
+        inquiry.setRawAttachmentUrl("/uploads/customer-inquiry/1/abc.xlsx");
+        when(customerInquiryMapper.selectById(1L)).thenReturn(inquiry);
+        Path resolved = Path.of("/data/uploads/customer-inquiry/1/abc.xlsx");
+        when(attachmentStorageService.resolveToAbsolutePath("/uploads/customer-inquiry/1/abc.xlsx")).thenReturn(resolved);
+        when(attachmentStorageService.extractExcelText(resolved)).thenReturn("型号\t数量\nABC-123\t10");
+        AiTaskVO task = new AiTaskVO();
+        task.setId(500L);
+        when(aiTaskService.createAndSubmit(eq("inquiry-parse-and-split"), anyString(), any())).thenReturn(task);
+
+        service.startAiParse(1L);
+
+        ArgumentCaptor<String> inputJsonCaptor = ArgumentCaptor.forClass(String.class);
+        verify(aiTaskService).createAndSubmit(eq("inquiry-parse-and-split"), inputJsonCaptor.capture(), any());
+        assertThat(inputJsonCaptor.getValue()).contains("ABC-123");
+        assertThat(inquiry.getRawContent()).isEqualTo("型号\t数量\nABC-123\t10");
+    }
+
+    @Test
+    void startAiParse_forImageSourceWithoutRawContent_passesResolvedAttachmentPath() {
+        CustomerInquiryDO inquiry = pendingParseInquiry();
+        inquiry.setSource(CustomerInquirySource.IMAGE);
+        inquiry.setRawAttachmentUrl("/uploads/customer-inquiry/1/photo.png");
+        when(customerInquiryMapper.selectById(1L)).thenReturn(inquiry);
+        Path resolved = Path.of("/data/uploads/customer-inquiry/1/photo.png");
+        when(attachmentStorageService.resolveToAbsolutePath("/uploads/customer-inquiry/1/photo.png")).thenReturn(resolved);
+        AiTaskVO task = new AiTaskVO();
+        task.setId(500L);
+        when(aiTaskService.createAndSubmit(eq("inquiry-parse-and-split"), anyString(), any())).thenReturn(task);
+
+        service.startAiParse(1L);
+
+        ArgumentCaptor<String> inputJsonCaptor = ArgumentCaptor.forClass(String.class);
+        verify(aiTaskService).createAndSubmit(eq("inquiry-parse-and-split"), inputJsonCaptor.capture(), any());
+        assertThat(inputJsonCaptor.getValue()).contains("rawAttachmentPath");
+        assertThat(inputJsonCaptor.getValue()).contains(resolved.toString().replace("\\", "\\\\"));
+        assertThat(inquiry.getRawContent()).isNull();
     }
 
     @Test

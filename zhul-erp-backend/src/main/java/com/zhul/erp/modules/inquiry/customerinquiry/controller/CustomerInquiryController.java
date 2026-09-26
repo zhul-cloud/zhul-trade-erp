@@ -3,11 +3,13 @@ package com.zhul.erp.modules.inquiry.customerinquiry.controller;
 import com.zhul.erp.common.result.PageResult;
 import com.zhul.erp.common.result.Result;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.AdvanceCustomerInquiryStatusRequest;
+import com.zhul.erp.modules.inquiry.customerinquiry.dto.AttachmentVO;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.ConfirmSplitRequest;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.CustomerInquiryPageQuery;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.CustomerInquiryVO;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.InquiryPreviewVO;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.SubmitCustomerInquiryRequest;
+import com.zhul.erp.modules.inquiry.customerinquiry.service.AttachmentStorageService;
 import com.zhul.erp.modules.inquiry.customerinquiry.service.CustomerInquiryService;
 import com.zhul.erp.modules.inquiry.inquiryorder.dto.InquiryOrderVO;
 import com.zhul.erp.modules.inquiry.inquiryorder.service.InquiryOrderService;
@@ -19,7 +21,9 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -31,6 +35,17 @@ public class CustomerInquiryController {
     private final CustomerInquiryService customerInquiryService;
     /** 仅用于 P03"已确认"态展示关联询盘单列表，只读查询，不做写操作编排 */
     private final InquiryOrderService inquiryOrderService;
+    private final AttachmentStorageService attachmentStorageService;
+
+    @PostMapping("/attachments/image")
+    public Result<AttachmentVO> uploadImage(@RequestPart("file") MultipartFile file) {
+        return Result.ok(attachmentStorageService.storeImage(file));
+    }
+
+    @PostMapping("/attachments/excel")
+    public Result<AttachmentVO> uploadExcel(@RequestPart("file") MultipartFile file) {
+        return Result.ok(attachmentStorageService.storeExcel(file));
+    }
 
     @PostMapping
     public Result<CustomerInquiryVO> submit(@Valid @RequestBody SubmitCustomerInquiryRequest req) {

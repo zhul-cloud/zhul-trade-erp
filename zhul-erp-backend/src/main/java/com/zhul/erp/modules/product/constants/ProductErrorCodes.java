@@ -19,11 +19,16 @@ public final class ProductErrorCodes {
     public static final String BRAND_NOT_FOUND = "BRAND_NOT_FOUND";
     public static final String BRAND_DUPLICATE = "BRAND_DUPLICATE";
     public static final String BRAND_IN_USE = "BRAND_IN_USE";
+    /** 别名与其他品牌的名称或别名冲突 */
+    public static final String BRAND_ALIAS_CONFLICT = "BRAND_ALIAS_CONFLICT";
 
     public static final String CATEGORY_NOT_FOUND = "CATEGORY_NOT_FOUND";
     public static final String CATEGORY_DUPLICATE = "CATEGORY_DUPLICATE";
     public static final String CATEGORY_IN_USE = "CATEGORY_IN_USE";
     public static final String CATEGORY_CODE_IMMUTABLE = "CATEGORY_CODE_IMMUTABLE";
+    /** 品类层级不合法：挂到细分品类下、有细分品类的品类挂到别处、商品选了细分品类等 */
+    public static final String CATEGORY_LEVEL_INVALID = "CATEGORY_LEVEL_INVALID";
+    public static final String CATEGORY_HAS_CHILDREN = "CATEGORY_HAS_CHILDREN";
 
     public static final String SERIES_NOT_FOUND = "SERIES_NOT_FOUND";
     public static final String SERIES_DUPLICATE = "SERIES_DUPLICATE";
