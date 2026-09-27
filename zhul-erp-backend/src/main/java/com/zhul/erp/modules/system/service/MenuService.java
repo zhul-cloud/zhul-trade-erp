@@ -15,6 +15,10 @@ public interface MenuService {
     void updateSort(Integer id, Integer sort);
     List<Integer> getRoleMenuIds(String roleCode);
     void assignRoleMenus(String roleCode, List<Integer> menuIds);
-    /** 获取用户可访问的路由 path 列表（用于前端权限控制） */
-    List<String> getUserMenuPaths(String roleCode);
+    /**
+     * 计算某账号最终能看到的菜单 path + 按钮 permission code 混合列表，给前端一次性
+     * 判断权限用（已经把平台超管/租户套餐/角色的限制都算进去，口径与
+     * {@link com.zhul.erp.framework.security.PermissionChecker} 一致）。
+     */
+    List<String> getEffectiveMenuKeys(String username);
 }

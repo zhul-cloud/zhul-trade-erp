@@ -74,7 +74,7 @@ public class ConfigServiceImpl implements ConfigService {
         }
         merged.sort((a, b) -> {
             int cmp = a.getConfigGroup().compareTo(b.getConfigGroup());
-            return cmp != 0 ? cmp : a.getCreateTime().compareTo(b.getCreateTime());
+            return cmp != 0 ? cmp : b.getUpdateTime().compareTo(a.getUpdateTime());
         });
 
         long total = merged.size();
@@ -303,7 +303,9 @@ public class ConfigServiceImpl implements ConfigService {
             vo.setIsEncrypted(config.getIsEncrypted());
             vo.setConfigGroup(config.getConfigGroup());
             vo.setRemark(config.getRemark());
+            vo.setCreateBy(config.getCreateBy());
             vo.setCreateTime(config.getCreateTime());
+            vo.setUpdateBy(config.getUpdateBy());
             vo.setUpdateTime(config.getUpdateTime());
             result.add(vo);
         }

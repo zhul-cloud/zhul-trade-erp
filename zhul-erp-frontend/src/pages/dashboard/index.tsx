@@ -30,23 +30,24 @@ import {
   topCustomers,
 } from './data';
 
+// 取色走全局主题的 CSS 变量（见 theme/AppTheme.tsx），深浅色自动切换
 const COLOR = {
-  white: '#FFFFFF',
-  border: '#EEF0F3',
-  text: '#111111',
-  textSub: '#6B7280',
-  textSubtle: '#9CA3AF',
-  primary: '#1677FF',
-  primarySoft: '#E8F3FF',
-  green: '#16A34A',
-  greenSoft: '#F0FDF4',
-  red: '#DC2626',
-  redSoft: '#FEF2F2',
-  orange: '#F97316',
-  orangeSoft: '#FFF3E8',
-  purple: '#7C3AED',
-  purpleSoft: '#F3E8FF',
-  graySoft: '#F3F4F6',
+  white: 'var(--z-card)',
+  border: 'var(--z-hairline)',
+  text: 'var(--z-ink)',
+  textSub: 'var(--z-mute)',
+  textSubtle: 'var(--z-mute)',
+  primary: 'var(--z-link)',
+  primarySoft: 'var(--z-accentSoft)',
+  green: 'var(--z-green)',
+  greenSoft: 'var(--z-greenSoft)',
+  red: 'var(--z-red)',
+  redSoft: 'var(--z-redSoft)',
+  orange: 'var(--z-orange)',
+  orangeSoft: 'var(--z-orangeSoft)',
+  purple: 'var(--z-violet)',
+  purpleSoft: 'var(--z-violetSoft)',
+  graySoft: 'var(--z-inset)',
 } as const;
 
 const KPI_ICONS = {
@@ -297,7 +298,9 @@ const DashboardPage: React.FC = () => {
                           width: 32,
                           height: barH,
                           borderRadius: '6px 6px 0 0',
-                          background: isLast ? COLOR.primary : '#BFDBFE',
+                          background: isLast
+                            ? COLOR.primary
+                            : 'var(--z-accentLine)',
                         }}
                       />
                     </div>
@@ -535,11 +538,11 @@ const DashboardPage: React.FC = () => {
           {topCustomers.map((c, i) => {
             const rankColors =
               i === 0
-                ? { fg: '#B45309', bg: '#FEF3C7' }
+                ? { fg: COLOR.orange, bg: COLOR.orangeSoft }
                 : i === 1
-                  ? { fg: '#64748B', bg: '#F1F5F9' }
+                  ? { fg: COLOR.primary, bg: COLOR.primarySoft }
                   : i === 2
-                    ? { fg: '#B45309', bg: '#FBEEE6' }
+                    ? { fg: COLOR.purple, bg: COLOR.purpleSoft }
                     : { fg: COLOR.textSubtle, bg: COLOR.graySoft };
             return (
               <div

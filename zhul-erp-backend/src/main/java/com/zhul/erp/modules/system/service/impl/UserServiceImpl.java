@@ -65,6 +65,7 @@ public class UserServiceImpl implements UserService {
         if (query.getStatus() != null) {
             wrapper.eq(UserBasicDO::getStatus, query.getStatus());
         }
+        wrapper.orderByDesc(UserBasicDO::getUpdateTime);
 
         Page<UserBasicDO> pageParam = new Page<>(query.getPage(), query.getPageSize());
         Page<UserBasicDO> pageResult = userBasicMapper.selectPage(pageParam, wrapper);
@@ -83,7 +84,10 @@ public class UserServiceImpl implements UserService {
             vo.setPositionId(user.getPositionId());
             vo.setRoleCode(user.getRoleCode());
             vo.setStatus(user.getStatus());
+            vo.setCreateBy(user.getCreateBy());
             vo.setCreateTime(user.getCreateTime());
+            vo.setUpdateBy(user.getUpdateBy());
+            vo.setUpdateTime(user.getUpdateTime());
 
             if (user.getDeptId() != null) {
                 DepartmentDO dept = departmentMapper.selectById(user.getDeptId());
@@ -138,7 +142,7 @@ public class UserServiceImpl implements UserService {
         LambdaUpdateWrapper<UserBasicDO> wrapper = new LambdaUpdateWrapper<>();
         wrapper.eq(UserBasicDO::getId, userId)
                .set(UserBasicDO::getStatus, status);
-        userBasicMapper.update(null, wrapper);
+        userBasicMapper.update(new UserBasicDO(), wrapper);
     }
 
     @Override
@@ -212,7 +216,7 @@ public class UserServiceImpl implements UserService {
         if (request.getStatus() != null) {
             wrapper.set(UserBasicDO::getStatus, request.getStatus());
         }
-        userBasicMapper.update(null, wrapper);
+        userBasicMapper.update(new UserBasicDO(), wrapper);
     }
 
     @Override
@@ -221,12 +225,12 @@ public class UserServiceImpl implements UserService {
         LambdaUpdateWrapper<UserBasicDO> userWrapper = new LambdaUpdateWrapper<UserBasicDO>()
                 .eq(UserBasicDO::getId, userId)
                 .set(UserBasicDO::getStatus, 0);
-        userBasicMapper.update(null, userWrapper);
+        userBasicMapper.update(new UserBasicDO(), userWrapper);
 
         LambdaUpdateWrapper<AccountDO> accountWrapper = new LambdaUpdateWrapper<AccountDO>()
                 .eq(AccountDO::getUserId, userId)
                 .set(AccountDO::getStatus, 0);
-        accountMapper.update(null, accountWrapper);
+        accountMapper.update(new AccountDO(), accountWrapper);
     }
 
     @Override
@@ -240,6 +244,6 @@ public class UserServiceImpl implements UserService {
         LambdaUpdateWrapper<AccountLocalAuthDO> wrapper = new LambdaUpdateWrapper<AccountLocalAuthDO>()
                 .eq(AccountLocalAuthDO::getAccountId, account.getId())
                 .set(AccountLocalAuthDO::getPassword, BCrypt.hashpw(newPassword, BCrypt.gensalt()));
-        accountLocalAuthMapper.update(null, wrapper);
+        accountLocalAuthMapper.update(new AccountLocalAuthDO(), wrapper);
     }
 }

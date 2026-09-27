@@ -17,6 +17,7 @@ import { useAccess } from '@umijs/max';
 import { App, Button, Empty, Input, Space, Tag, Tree } from 'antd';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { getUserList } from '@/pages/system/user/service';
+import { useAppTheme } from '@/theme/AppTheme';
 import type { DeptItem } from './service';
 import {
   createDept,
@@ -88,7 +89,12 @@ const toAntdTree = (list: DeptItem[]): any[] =>
     key: item.id,
     title: (
       <Space size={6}>
-        <span style={{ color: item.status === 0 ? '#9CA3AF' : undefined }}>
+        <span
+          style={{
+            color:
+              item.status === 0 ? 'var(--ant-color-text-tertiary)' : undefined,
+          }}
+        >
           {item.name}
         </span>
         {item.status === 0 && (
@@ -120,6 +126,7 @@ const toTreeSelectData = (list: DeptItem[], excludeIds: number[]): any[] =>
     }));
 
 const DeptPage: React.FC = () => {
+  const { palette: p } = useAppTheme();
   const { message, modal } = App.useApp();
   const access = useAccess();
 
@@ -332,10 +339,10 @@ const DeptPage: React.FC = () => {
         style={{
           display: 'flex',
           gap: 0,
-          background: '#fff',
+          background: p.card,
           borderRadius: 12,
           overflow: 'hidden',
-          border: '1px solid #F0F0F0',
+          border: `1px solid ${p.hairline}`,
           minHeight: 640,
         }}
       >
@@ -345,7 +352,7 @@ const DeptPage: React.FC = () => {
             width: 280,
             flexShrink: 0,
             padding: 16,
-            borderRight: '1px solid #F0F0F0',
+            borderRight: `1px solid ${p.hairline}`,
           }}
         >
           <Input
@@ -423,8 +430,8 @@ const DeptPage: React.FC = () => {
           {selectedDept ? (
             <div
               style={{
-                background: '#FAFBFC',
-                border: '1px solid #F0F0F0',
+                background: p.inset,
+                border: `1px solid ${p.hairline}`,
                 borderRadius: 12,
                 padding: 24,
               }}
@@ -452,7 +459,7 @@ const DeptPage: React.FC = () => {
                 <Field
                   label="状态"
                   value={selectedDept.status === 1 ? '启用' : '禁用'}
-                  dot={selectedDept.status === 1 ? '#16A34A' : '#9CA3AF'}
+                  dot={selectedDept.status === 1 ? p.green : p.mute}
                 />
                 <Field label="排序号" value={String(selectedDept.sort)} />
                 <Field
@@ -470,9 +477,7 @@ const DeptPage: React.FC = () => {
             </div>
           ) : (
             <Empty
-              image={
-                <BankOutlined style={{ fontSize: 48, color: '#D1D5DB' }} />
-              }
+              image={<BankOutlined style={{ fontSize: 48, color: p.faint }} />}
               description="请选择左侧部门查看详情"
               style={{ marginTop: 80 }}
             />
@@ -600,35 +605,38 @@ const Field: React.FC<{ label: string; value: string; dot?: string }> = ({
   label,
   value,
   dot,
-}) => (
-  <div>
-    <div style={{ fontSize: 12, color: '#94A3B8', marginBottom: 5 }}>
-      {label}
+}) => {
+  const { palette: p } = useAppTheme();
+  return (
+    <div>
+      <div style={{ fontSize: 12, color: p.mute, marginBottom: 5 }}>
+        {label}
+      </div>
+      <div
+        style={{
+          fontSize: 14,
+          fontWeight: 500,
+          color: p.ink,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 6,
+        }}
+      >
+        {dot && (
+          <span
+            style={{
+              width: 7,
+              height: 7,
+              borderRadius: '50%',
+              background: dot,
+              display: 'inline-block',
+            }}
+          />
+        )}
+        {value}
+      </div>
     </div>
-    <div
-      style={{
-        fontSize: 14,
-        fontWeight: 500,
-        color: '#111111',
-        display: 'flex',
-        alignItems: 'center',
-        gap: 6,
-      }}
-    >
-      {dot && (
-        <span
-          style={{
-            width: 7,
-            height: 7,
-            borderRadius: '50%',
-            background: dot,
-            display: 'inline-block',
-          }}
-        />
-      )}
-      {value}
-    </div>
-  </div>
-);
+  );
+};
 
 export default DeptPage;

@@ -62,6 +62,8 @@ PRIMARY KEY (`id`)
 - RESTful 风格，资源用复数名词：/orders, /customers
 - 分页参数统一：page, page_size，响应包含 total
 - 错误响应格式：{"code": "ORDER_NOT_FOUND", "message": "...", "detail": {...}}
+- 列表分页接口默认排序、固定字段（创建时间/创建人/更新时间/更新人）等统一规范见
+  `.claude/context/ui-design-patterns.md`"列表页统一规范"
 - 所有金额在 API 响应中附带 currency_code
 
 ## 安全规范（阿里规约）

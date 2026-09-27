@@ -15,7 +15,10 @@ export interface UserItem {
   roleCode: string;
   roleName: string;
   status: number;
+  createBy: string;
   createTime: string;
+  updateBy: string;
+  updateTime: string;
 }
 
 export interface UserPageResult {

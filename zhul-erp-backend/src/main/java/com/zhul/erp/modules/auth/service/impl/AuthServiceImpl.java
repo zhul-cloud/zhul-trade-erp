@@ -28,6 +28,8 @@ import com.zhul.erp.modules.system.repository.AccountLocalAuthMapper;
 import com.zhul.erp.modules.system.repository.AccountMapper;
 import com.zhul.erp.modules.system.repository.UserBasicMapper;
 import com.zhul.erp.modules.system.service.LogService;
+import com.zhul.erp.modules.tenant.entity.TenantDO;
+import com.zhul.erp.modules.tenant.repository.TenantMapper;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -56,6 +58,7 @@ public class AuthServiceImpl implements AuthService {
     private final AccountLocalAuthMapper accountLocalAuthMapper;
     private final AccountAccessTokenMapper accountAccessTokenMapper;
     private final UserBasicMapper userBasicMapper;
+    private final TenantMapper tenantMapper;
     private final JwtUtils jwtUtils;
     private final StringRedisTemplate redisTemplate;
     private final LogService logService;
@@ -201,6 +204,7 @@ public class AuthServiceImpl implements AuthService {
             .nickname(userBasic != null ? userBasic.getNickname() : account.getUsername())
             .avatarUrl(userBasic != null ? userBasic.getAvatarUrl() : "")
             .isAdmin(account.getAdminFlag() != null && account.getAdminFlag() == 1)
+            .tenantName(resolveTenantName(account.getTenantId()))
             .build();
 
         try {
@@ -441,6 +445,15 @@ public class AuthServiceImpl implements AuthService {
     private void recordLoginFailure(AccountDO account, HttpServletRequest httpRequest, String failReason) {
         logService.recordLoginLog(account.getTenantId(), account.getId(), account.getUsername(), 0,
                 IpUtils.getClientIp(httpRequest), httpRequest.getHeader("User-Agent"), null, failReason);
+    }
+
+    /** tenantId=0 是平台级账号，没有对应的 tenant 行，固定展示"平台管理" */
+    private String resolveTenantName(Integer tenantId) {
+        if (tenantId == null || tenantId == 0) {
+            return "平台管理";
+        }
+        TenantDO tenant = tenantMapper.selectById(tenantId);
+        return tenant != null ? tenant.getName() : "";
     }
 
     private String summarizeUserAgent(String userAgentHeader) {

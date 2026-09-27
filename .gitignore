@@ -42,3 +42,4 @@ yarn-error.log
 .gstack/
 .claude/settings.local.json
 *bak
+zhul-erp-backend/private-uploads/

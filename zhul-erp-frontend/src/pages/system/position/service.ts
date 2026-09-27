@@ -7,7 +7,10 @@ export interface PositionItem {
   sort: number;
   status: number;
   remark: string;
+  createBy: string;
   createTime: string;
+  updateBy: string;
+  updateTime: string;
 }
 
 export interface PositionDeleteCheck {

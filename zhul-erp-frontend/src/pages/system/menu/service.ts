@@ -17,6 +17,10 @@ export interface MenuItem {
   isCache: number;
   isHidden: number;
   status: number;
+  createBy: string;
+  createTime: string;
+  updateBy: string;
+  updateTime: string;
   children?: MenuItem[];
 }
 

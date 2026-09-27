@@ -15,6 +15,8 @@ public class ConfigVO {
     private Integer isEncrypted;
     private String configGroup;
     private String remark;
+    private String createBy;
     private LocalDateTime createTime;
+    private String updateBy;
     private LocalDateTime updateTime;
 }

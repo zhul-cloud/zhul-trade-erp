@@ -46,6 +46,7 @@ public class RoleServiceImpl implements RoleService {
     @Override
     public PageResult<RoleVO> listRoles(Integer page, Integer pageSize, String name, String code, Integer status) {
         LambdaQueryWrapper<RoleDO> wrapper = buildWrapper(name, code, status);
+        wrapper.orderByDesc(RoleDO::getUpdateTime);
 
         Page<RoleDO> pageParam = new Page<>(page, pageSize);
         Page<RoleDO> pageResult = roleMapper.selectPage(pageParam, wrapper);
@@ -56,7 +57,8 @@ public class RoleServiceImpl implements RoleService {
 
     @Override
     public List<RoleVO> allRoles() {
-        LambdaQueryWrapper<RoleDO> wrapper = buildWrapper(null, null, null);
+        // 只给下拉选择用：已禁用的角色（如下线的内置角色）不应该再被选中
+        LambdaQueryWrapper<RoleDO> wrapper = buildWrapper(null, null, 1);
         List<RoleDO> roles = roleMapper.selectList(wrapper);
         return toVoList(roles);
     }
@@ -151,7 +153,7 @@ public class RoleServiceImpl implements RoleService {
         if (request.getRemark() != null) {
             wrapper.set(RoleDO::getRemark, request.getRemark());
         }
-        roleMapper.update(null, wrapper);
+        roleMapper.update(new RoleDO(), wrapper);
 
         Integer effectiveScope = request.getPermissionScope() != null
                 ? request.getPermissionScope() : role.getPermissionScope();
@@ -254,7 +256,10 @@ public class RoleServiceImpl implements RoleService {
             vo.setIsBuiltIn(role.getIsBuiltIn());
             vo.setUserCount(userCountByRoleCode.getOrDefault(role.getCode(), 0L).intValue());
             vo.setRemark(role.getRemark());
+            vo.setCreateBy(role.getCreateBy());
             vo.setCreateTime(role.getCreateTime());
+            vo.setUpdateBy(role.getUpdateBy());
+            vo.setUpdateTime(role.getUpdateTime());
             voList.add(vo);
         }
         return voList;

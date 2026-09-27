@@ -80,7 +80,7 @@ public class DictItemServiceImpl implements DictItemService {
     }
 
     private void clearOtherDefaults(Integer dictTypeId, Integer keepId) {
-        dictItemMapper.update(null, new LambdaUpdateWrapper<DictItemDO>()
+        dictItemMapper.update(new DictItemDO(), new LambdaUpdateWrapper<DictItemDO>()
                 .eq(DictItemDO::getDictTypeId, dictTypeId)
                 .ne(DictItemDO::getId, keepId)
                 .set(DictItemDO::getIsDefault, 0));

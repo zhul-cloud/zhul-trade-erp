@@ -99,6 +99,7 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 - 金额字段统一用 decimal/Numeric 类型，禁用 float
 - 日期时间统一存 UTC，展示时按用户时区转换
 - 所有 UI 设计 / 原型设计任务，统一使用 OpenPencil（`op` CLI / openpencil-design 技能）完成，无需用户每次特别说明
+- 所有原型的界面风格和交互必须符合消费级互联网产品该有的质感：视觉克制、层次清晰、反馈及时、状态完整，不能停留在"能用的后台表单"。具体要求见 `.claude/context/ui-design-patterns.md` 的「消费级质感」一节（2026-09-19 追加）
 
 ## 上下文文件索引
 
