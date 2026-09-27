@@ -31,9 +31,30 @@ export const labelOf = (
   value?: number,
 ): string | undefined => options.find((o) => o.value === value)?.label;
 
-export const SUPPLIER_CODE_PATTERN = /^[A-Za-z0-9]{1,20}$/;
 export const CREDIT_CODE_PATTERN = /^[0-9A-Za-z]{18}$/;
-export const BANK_ACCOUNT_PATTERN = /^\d{1,30}$/;
+/** 收款账号：仅数字，8 到 30 位（与后端一致） */
+export const ACCOUNT_NO_PATTERN = /^\d{8,30}$/;
+export const PHONE_PATTERN = /^1\d{10}$/;
+export const ID_NO_PATTERN = /^\d{17}[\dXx]$/;
+
+/** 收款账户类型，码值与 V1.2.11 迁移注释一致 */
+export const ACCOUNT_CORPORATE = 1;
+export const ACCOUNT_PERSONAL = 2;
+export const MAX_ACCOUNTS = 10;
+
+/** 附件类型，码值与 V1.2.11 迁移注释一致；按此顺序分行展示 */
+export const ATTACHMENT_CATEGORIES = [
+  { value: 1, label: '营业执照' },
+  { value: 2, label: '开户许可证' },
+  { value: 3, label: '资质证书' },
+  { value: 4, label: '合同' },
+  { value: 5, label: '其他' },
+];
+export const BUSINESS_LICENSE = 1;
+export const MAX_ATTACHMENTS = 20;
+export const ATTACHMENT_MAX_BYTES = 10 * 1024 * 1024;
+export const ATTACHMENT_ACCEPT =
+  '.pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png';
 
 export const DISABLE_CONFIRM_TEXT =
   '禁用后该供应商将无法在新的询价、采购单中被选择，已有单据不受影响。';

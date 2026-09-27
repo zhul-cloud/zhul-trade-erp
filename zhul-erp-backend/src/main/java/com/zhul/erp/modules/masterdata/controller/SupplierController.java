@@ -4,6 +4,8 @@ import com.zhul.erp.common.result.PageResult;
 import com.zhul.erp.common.result.Result;
 import com.zhul.erp.modules.masterdata.dto.CreateSupplierFromChannelRequest;
 import com.zhul.erp.modules.masterdata.dto.SaveSupplierRequest;
+import com.zhul.erp.modules.masterdata.dto.SupplierAttachmentFile;
+import com.zhul.erp.modules.masterdata.dto.SupplierAttachmentUploadVO;
 import com.zhul.erp.modules.masterdata.dto.SupplierBatchDeleteRequest;
 import com.zhul.erp.modules.masterdata.dto.SupplierBatchDeleteResultVO;
 import com.zhul.erp.modules.masterdata.dto.SupplierCreateResultVO;
@@ -25,12 +27,15 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
@@ -69,7 +74,7 @@ public class SupplierController {
         return Result.ok(supplierService.page(query));
     }
 
-    /** 导出当前筛选结果（不分页），银行账号脱敏 */
+    /** 导出当前筛选结果（不分页），收款账号脱敏 */
     @GetMapping("/export")
     @PreAuthorize("@perm.has('partner:supplier:export')")
     public void export(SupplierPageQuery query, HttpServletResponse response) throws IOException {
@@ -83,12 +88,34 @@ public class SupplierController {
         }
     }
 
+    /** 上传附件（新增、编辑供应商时用），文件存私有目录；返回的 fileKey 随供应商保存才生效 */
+    @PostMapping("/attachments")
+    @PreAuthorize("@perm.has('partner:supplier:add') or @perm.has('partner:supplier:edit')")
+    public Result<SupplierAttachmentUploadVO> uploadAttachment(@RequestPart("file") MultipartFile file) {
+        return Result.ok(supplierService.uploadAttachment(file));
+    }
+
+    /** 预览（inline=true）或下载附件；只能访问本租户的附件，需要能访问供应商管理菜单 */
+    @GetMapping("/{id}/attachments/{attachmentId}")
+    @PreAuthorize("@perm.canAccessMenu('/partner/suppliers')")
+    public void downloadAttachment(@PathVariable Long id, @PathVariable Long attachmentId,
+                                   @RequestParam(defaultValue = "false") boolean inline,
+                                   HttpServletResponse response) throws IOException {
+        SupplierAttachmentFile file = supplierService.getAttachmentFile(id, attachmentId);
+        response.setContentType(file.contentType());
+        response.setContentLengthLong(Files.size(file.path()));
+        response.setHeader(HttpHeaders.CONTENT_DISPOSITION, (inline ? "inline" : "attachment")
+                + "; filename*=UTF-8''" + URLEncoder.encode(file.fileName(), StandardCharsets.UTF_8).replace("+", "%20"));
+        response.setHeader("X-Content-Type-Options", "nosniff");
+        Files.copy(file.path(), response.getOutputStream());
+    }
+
     @GetMapping("/{id}")
     public Result<SupplierVO> getById(@PathVariable Long id) {
         return Result.ok(supplierService.getById(id));
     }
 
-    /** 编辑页取数：银行账号明文，所以要求编辑权限 */
+    /** 编辑页取数：收款账号、手机号为明文，所以要求编辑权限 */
     @GetMapping("/{id}/form")
     @PreAuthorize("@perm.has('partner:supplier:edit')")
     public Result<SupplierFormVO> getFormById(@PathVariable Long id) {

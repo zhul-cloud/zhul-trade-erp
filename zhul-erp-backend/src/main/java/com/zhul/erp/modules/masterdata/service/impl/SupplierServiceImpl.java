@@ -4,12 +4,14 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.zhul.erp.common.exception.BizException;
 import com.zhul.erp.common.result.PageResult;
-import com.zhul.erp.common.utils.SensitiveDataMasker;
 import com.zhul.erp.framework.tenant.TenantContext;
 import com.zhul.erp.modules.masterdata.constants.SupplierConstants;
 import com.zhul.erp.modules.masterdata.dto.AbstractSupplierRequest;
 import com.zhul.erp.modules.masterdata.dto.CreateSupplierFromChannelRequest;
 import com.zhul.erp.modules.masterdata.dto.SaveSupplierRequest;
+import com.zhul.erp.modules.masterdata.dto.SupplierAttachmentFile;
+import com.zhul.erp.modules.masterdata.dto.SupplierAttachmentUploadVO;
+import com.zhul.erp.modules.masterdata.dto.SupplierBankAccountVO;
 import com.zhul.erp.modules.masterdata.dto.SupplierBatchDeleteResultVO;
 import com.zhul.erp.modules.masterdata.dto.SupplierCreateResultVO;
 import com.zhul.erp.modules.masterdata.dto.SupplierFormVO;
@@ -18,9 +20,11 @@ import com.zhul.erp.modules.masterdata.dto.SupplierProductScopeRequest;
 import com.zhul.erp.modules.masterdata.dto.SupplierProductScopeVO;
 import com.zhul.erp.modules.masterdata.dto.SupplierVO;
 import com.zhul.erp.modules.masterdata.dto.UpdateSupplierRequest;
+import com.zhul.erp.modules.masterdata.entity.SupplierAttachmentDO;
 import com.zhul.erp.modules.masterdata.entity.SupplierDO;
 import com.zhul.erp.modules.masterdata.repository.SupplierMapper;
 import com.zhul.erp.modules.masterdata.service.SupplierService;
+import com.zhul.erp.modules.masterdata.support.SupplierAttachmentStorage;
 import lombok.RequiredArgsConstructor;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
@@ -29,6 +33,7 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -49,12 +54,15 @@ public class SupplierServiceImpl implements SupplierService {
     private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
     private static final String[] EXPORT_HEADERS = {
         "供应商编码", "供应商名称", "供应商简称", "供应商类型", "所属行业", "统一社会信用代码", "法人代表",
-        "注册资本（万元）", "成立日期", "联系人", "联系电话", "联系邮箱", "所在地区", "详细地址", "开户银行",
-        "银行账号", "状态", "备注", "创建时间", "创建人", "更新时间", "更新人", "主营产品"
+        "注册资本（万元）", "成立日期", "联系人", "联系电话", "联系邮箱", "微信", "所在地区", "详细地址",
+        "收款账户", "状态", "备注", "创建时间", "创建人", "更新时间", "更新人", "主营产品"
     };
 
     private final SupplierMapper supplierMapper;
     private final SupplierProductScopeSync scopeSync;
+    private final SupplierBankAccountSync accountSync;
+    private final SupplierAttachmentSync attachmentSync;
+    private final SupplierAttachmentStorage attachmentStorage;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -62,10 +70,6 @@ public class SupplierServiceImpl implements SupplierService {
         int tenantId = currentTenantId();
         SupplierCreateResultVO result = new SupplierCreateResultVO();
 
-        String manualCode = normalizeUpper(req.getSupplierCode());
-        if (!manualCode.isEmpty() && findActiveByCode(tenantId, manualCode) != null) {
-            throw BizException.of(SupplierConstants.ERROR_CODE_DUPLICATE, "供应商编码已存在，请更换");
-        }
         checkCreditCodeUnique(tenantId, normalizeUpper(req.getCreditCode()), null);
         List<SupplierProductScopeSync.Scope> scopes =
                 req.getProductScopes() == null ? null : scopeSync.normalize(req.getProductScopes());
@@ -82,18 +86,14 @@ public class SupplierServiceImpl implements SupplierService {
         applyFields(supplier, req);
         supplier.setSupplierType(req.getSupplierType() != null ? req.getSupplierType() : SupplierConstants.UNSET);
         supplier.setStatus(req.getStatus() != null ? req.getStatus() : 1);
-        if (!manualCode.isEmpty()) {
-            supplier.setSupplierCode(manualCode);
-        }
+        // 编码一律自动生成：先插入拿到主键，再按 SUP + 5 位补零主键回填
         supplierMapper.insert(supplier);
-
-        if (manualCode.isEmpty()) {
-            supplier.setSupplierCode(generateCode(tenantId, supplier.getId()));
-            supplierMapper.updateById(supplier);
-        }
+        supplier.setSupplierCode(generateCode(tenantId, supplier.getId()));
+        supplierMapper.updateById(supplier);
         if (scopes != null) {
             scopeSync.replace(tenantId, supplier.getId(), scopes);
         }
+        saveAccountsAndAttachments(tenantId, supplier.getId(), req);
 
         result.setDuplicate(false);
         result.setCreatedSupplier(toVo(supplier));
@@ -141,7 +141,7 @@ public class SupplierServiceImpl implements SupplierService {
             return null;
         }
         SupplierVO vo = toVo(supplier);
-        vo.setProductScopes(scopeSync.load(List.of(id)).getOrDefault(id, List.of()));
+        fillDetail(vo, id, false);
         return vo;
     }
 
@@ -150,8 +150,7 @@ public class SupplierServiceImpl implements SupplierService {
         SupplierDO supplier = getActiveOrThrow(id);
         SupplierFormVO vo = new SupplierFormVO();
         fillVo(vo, supplier);
-        vo.setBankAccount(supplier.getBankAccount());
-        vo.setProductScopes(scopeSync.load(List.of(id)).getOrDefault(id, List.of()));
+        fillDetail(vo, id, true);
         return vo;
     }
 
@@ -208,8 +207,9 @@ public class SupplierServiceImpl implements SupplierService {
             throw new BizException("导出数据超过" + SupplierConstants.EXPORT_MAX_ROWS + "条，请缩小筛选范围后再导出");
         }
         List<SupplierDO> suppliers = supplierMapper.selectList(wrapper);
-        Map<Long, List<SupplierProductScopeVO>> scopes =
-                scopeSync.load(suppliers.stream().map(SupplierDO::getId).toList());
+        List<Long> ids = suppliers.stream().map(SupplierDO::getId).toList();
+        Map<Long, List<SupplierProductScopeVO>> scopes = scopeSync.load(ids);
+        Map<Long, List<SupplierBankAccountVO>> accounts = accountSync.load(ids, false);
 
         Workbook workbook = new XSSFWorkbook();
         Sheet sheet = workbook.createSheet("供应商基础信息");
@@ -228,8 +228,8 @@ public class SupplierServiceImpl implements SupplierService {
                 // 金额以字符串写入，避免经过 double
                 s.getRegisteredCapital() == null ? "" : s.getRegisteredCapital().toPlainString(),
                 s.getEstablishedDate() == null ? "" : s.getEstablishedDate().format(DATE_FMT),
-                s.getContactName(), s.getContactPhone(), s.getContactEmail(), s.getRegion(), s.getAddress(),
-                s.getBankName(), SensitiveDataMasker.maskBankAccount(s.getBankAccount()),
+                s.getContactName(), s.getContactPhone(), s.getContactEmail(), s.getWechat(), s.getRegion(),
+                s.getAddress(), SupplierBankAccountSync.toText(accounts.get(s.getId())),
                 Objects.equals(s.getStatus(), 1) ? "启用" : "禁用",
                 s.getRemark(),
                 s.getCreateTime() == null ? "" : s.getCreateTime().format(TIME_FMT), s.getCreateBy(),
@@ -268,6 +268,35 @@ public class SupplierServiceImpl implements SupplierService {
         if (scopes != null) {
             scopeSync.replace(supplier.getTenantId(), id, scopes);
         }
+        saveAccountsAndAttachments(supplier.getTenantId(), id, req);
+    }
+
+    /** 收款账户、附件：请求里为 null 表示不修改 */
+    private void saveAccountsAndAttachments(int tenantId, long supplierId, AbstractSupplierRequest req) {
+        if (req.getAccounts() != null) {
+            accountSync.merge(tenantId, supplierId, req.getAccounts());
+        }
+        if (req.getAttachments() != null) {
+            attachmentSync.merge(tenantId, supplierId, req.getAttachments());
+        }
+    }
+
+    /** 详情与编辑取数共用：主营产品、收款账户（plain 决定账号是否明文）、附件 */
+    private void fillDetail(SupplierVO vo, Long id, boolean plain) {
+        vo.setProductScopes(scopeSync.load(List.of(id)).getOrDefault(id, List.of()));
+        vo.setAccounts(accountSync.load(List.of(id), plain).getOrDefault(id, List.of()));
+        vo.setAttachments(attachmentSync.load(List.of(id)).getOrDefault(id, List.of()));
+    }
+
+    @Override
+    public SupplierAttachmentUploadVO uploadAttachment(MultipartFile file) {
+        return attachmentStorage.store(currentTenantId(), file);
+    }
+
+    @Override
+    public SupplierAttachmentFile getAttachmentFile(Long supplierId, Long attachmentId) {
+        SupplierAttachmentDO row = attachmentSync.getForDownload(currentTenantId(), supplierId, attachmentId);
+        return new SupplierAttachmentFile(attachmentSync.fileOf(row), row.getFileName(), row.getContentType());
     }
 
     @Override
@@ -297,7 +326,10 @@ public class SupplierServiceImpl implements SupplierService {
         return done;
     }
 
-    /** 写入新增 / 更新共用的字段；文本统一去首尾空格、null 存空串。country 为 null 时保持原值；main_brands 已由主营产品取代，不再写入 */
+    /**
+     * 写入新增 / 更新共用的字段；文本统一去首尾空格、null 存空串。country 为 null 时保持原值；
+     * main_brands 已由主营产品取代、bank_name / bank_account 已由收款账户取代，均不再写入
+     */
     private void applyFields(SupplierDO supplier, AbstractSupplierRequest req) {
         supplier.setName(req.getName().trim());
         supplier.setShortName(normalize(req.getShortName()));
@@ -309,17 +341,16 @@ public class SupplierServiceImpl implements SupplierService {
         supplier.setContactName(normalize(req.getContactName()));
         supplier.setContactPhone(normalize(req.getContactPhone()));
         supplier.setContactEmail(normalize(req.getContactEmail()));
+        supplier.setWechat(normalize(req.getWechat()));
         supplier.setRegion(normalize(req.getRegion()));
         supplier.setAddress(normalize(req.getAddress()));
-        supplier.setBankName(normalize(req.getBankName()));
-        supplier.setBankAccount(normalize(req.getBankAccount()));
         supplier.setRemark(normalize(req.getRemark()));
         if (req.getCountry() != null) {
             supplier.setCountry(req.getCountry().trim());
         }
     }
 
-    /** SUP + 5 位补零主键；与他人手工录入的编码撞上时追加数字后缀直到唯一 */
+    /** SUP + 5 位补零主键；与早期手工录入的编码撞上时追加数字后缀直到唯一 */
     private String generateCode(int tenantId, Long id) {
         String base = SupplierConstants.CODE_PREFIX + String.format("%05d", id);
         String candidate = base;
@@ -419,7 +450,7 @@ public class SupplierServiceImpl implements SupplierService {
         return vo;
     }
 
-    /** 银行账号一律脱敏；需要明文的编辑取数在调用方覆盖 */
+    /** 基础字段；列表不加载收款账户和附件（给空列表），详情与编辑取数由 fillDetail 补齐 */
     private void fillVo(SupplierVO vo, SupplierDO supplier) {
         vo.setId(supplier.getId());
         vo.setSupplierCode(supplier.getSupplierCode());
@@ -435,10 +466,11 @@ public class SupplierServiceImpl implements SupplierService {
         vo.setContactName(supplier.getContactName());
         vo.setContactPhone(supplier.getContactPhone());
         vo.setContactEmail(supplier.getContactEmail());
+        vo.setWechat(supplier.getWechat());
         vo.setRegion(supplier.getRegion());
         vo.setAddress(supplier.getAddress());
-        vo.setBankName(supplier.getBankName());
-        vo.setBankAccount(SensitiveDataMasker.maskBankAccount(supplier.getBankAccount()));
+        vo.setAccounts(List.of());
+        vo.setAttachments(List.of());
         vo.setRemark(supplier.getRemark());
         vo.setStatus(supplier.getStatus());
         vo.setCreateTime(supplier.getCreateTime());

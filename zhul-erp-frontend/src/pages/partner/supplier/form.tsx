@@ -3,6 +3,7 @@ import {
   BankOutlined,
   InfoCircleOutlined,
   LockOutlined,
+  PaperClipOutlined,
   PhoneOutlined,
   WalletOutlined,
 } from '@ant-design/icons';
@@ -25,12 +26,22 @@ import React, { useEffect, useState } from 'react';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatDateTime } from '@/utils/format';
+import {
+  AccountListEditor,
+  type AccountRow,
+  toAccountPayload,
+  toAccountRows,
+} from './accounts';
+import {
+  AttachmentEditor,
+  type AttachmentRow,
+  toAttachmentPayload,
+  toAttachmentRows,
+} from './attachments';
 import { LIST_PATH, PageTitle, SectionCard } from './components';
 import {
-  BANK_ACCOUNT_PATTERN,
   CREDIT_CODE_PATTERN,
   INDUSTRY_OPTIONS,
-  SUPPLIER_CODE_PATTERN,
   SUPPLIER_TYPE_OPTIONS,
 } from './constants';
 import {
@@ -51,16 +62,22 @@ import {
 /** 表单内部值：日期、地区、注册资本的控件值与接口格式不同 */
 type FormState = Omit<
   SupplierFormValues,
-  'establishedDate' | 'region' | 'registeredCapital' | 'productScopes'
+  | 'establishedDate'
+  | 'region'
+  | 'registeredCapital'
+  | 'productScopes'
+  | 'accounts'
+  | 'attachments'
 > & {
   productScopes?: ScopeRow[];
+  accounts?: AccountRow[];
+  attachments?: AttachmentRow[];
   establishedDate?: Dayjs | null;
   region?: string[];
   registeredCapital?: string | null;
 };
 
 const FIELD_LABELS: Record<string, string> = {
-  supplierCode: '供应商编码',
   name: '供应商名称',
   shortName: '供应商简称',
   supplierType: '供应商类型',
@@ -73,13 +90,11 @@ const FIELD_LABELS: Record<string, string> = {
   contactPhone: '联系电话',
   contactEmail: '联系邮箱',
   address: '详细地址',
-  bankName: '开户银行',
-  bankAccount: '银行账号',
+  wechat: '微信',
   remark: '备注',
 };
 
 const toFormState = (s: SupplierItem): FormState => ({
-  supplierCode: s.supplierCode,
   name: s.name,
   shortName: s.shortName,
   // 存量数据的"未设置"（0）不回填，让用户补选一个真实类型
@@ -96,19 +111,19 @@ const toFormState = (s: SupplierItem): FormState => ({
   contactName: s.contactName,
   contactPhone: s.contactPhone,
   contactEmail: s.contactEmail,
+  wechat: s.wechat,
   region: s.region ? s.region.split('/') : undefined,
   address: s.address,
-  bankName: s.bankName,
-  bankAccount: s.bankAccount,
   remark: s.remark,
   productScopes: toScopeRows(s.productScopes),
+  accounts: toAccountRows(s.accounts),
+  attachments: toAttachmentRows(s.attachments),
 });
 
 /** 选填文本清空时传空串（后端据此清空），不传 undefined */
 const text = (v?: string) => (v ?? '').trim();
 
 const toPayload = (v: FormState): SupplierFormValues => ({
-  supplierCode: text(v.supplierCode),
   name: text(v.name),
   shortName: text(v.shortName),
   supplierType: v.supplierType,
@@ -123,12 +138,13 @@ const toPayload = (v: FormState): SupplierFormValues => ({
   contactName: text(v.contactName),
   contactPhone: text(v.contactPhone),
   contactEmail: text(v.contactEmail),
+  wechat: text(v.wechat),
   region: v.region?.length ? v.region.join('/') : '',
   address: text(v.address),
-  bankName: text(v.bankName),
-  bankAccount: text(v.bankAccount),
   remark: text(v.remark),
   productScopes: toScopePayload(v.productScopes),
+  accounts: toAccountPayload(v.accounts),
+  attachments: toAttachmentPayload(v.attachments),
 });
 
 const SupplierFormPage: React.FC = () => {
@@ -138,6 +154,8 @@ const SupplierFormPage: React.FC = () => {
   const access = useAccess() as Record<string, boolean>;
   const { palette } = useAppTheme();
   const [form] = Form.useForm<FormState>();
+  // 对公账户户名默认取供应商名称
+  const supplierName = Form.useWatch('name', form);
 
   const [record, setRecord] = useState<SupplierItem | null>();
   const [loading, setLoading] = useState(editing);
@@ -213,10 +231,7 @@ const SupplierFormPage: React.FC = () => {
       leave();
     } catch (e) {
       const err = readBizError(e);
-      if (err.errorCode === 'SUPPLIER_CODE_DUPLICATE') {
-        form.setFields([{ name: 'supplierCode', errors: [err.message] }]);
-        form.scrollToField('supplierCode', { focus: true });
-      } else if (err.errorCode === 'SUPPLIER_CREDIT_CODE_DUPLICATE') {
+      if (err.errorCode === 'SUPPLIER_CREDIT_CODE_DUPLICATE') {
         form.setFields([{ name: 'creditCode', errors: [err.message] }]);
         form.scrollToField('creditCode', { focus: true });
       } else {
@@ -303,7 +318,12 @@ const SupplierFormPage: React.FC = () => {
           form={form}
           layout="vertical"
           validateTrigger="onBlur"
-          initialValues={{ status: 1, productScopes: [] }}
+          initialValues={{
+            status: 1,
+            productScopes: [],
+            accounts: [],
+            attachments: [],
+          }}
           onFinish={submit}
           onFinishFailed={onFinishFailed}
           requiredMark
@@ -336,37 +356,23 @@ const SupplierFormPage: React.FC = () => {
           <SectionCard icon={<InfoCircleOutlined />} title="基本信息">
             <div style={grid}>
               <Form.Item
-                name="supplierCode"
                 label="供应商编码"
-                required
                 extra={
                   editing
                     ? '创建后不可修改'
-                    : '全局唯一，最大20位，仅支持字母数字'
-                }
-                rules={
-                  editing
-                    ? []
-                    : [
-                        { required: true, message: '请输入供应商编码' },
-                        {
-                          pattern: SUPPLIER_CODE_PATTERN,
-                          message: '供应商编码只能包含字母和数字，最多20位',
-                        },
-                      ]
+                    : '系统按 SUP + 5 位流水号生成，如 SUP00009'
                 }
               >
                 <Input
-                  placeholder="请输入供应商编码"
-                  maxLength={20}
-                  readOnly={editing}
+                  value={editing ? record?.supplierCode : undefined}
+                  placeholder="保存后自动生成"
+                  readOnly
+                  className="num"
                   suffix={
-                    editing ? (
-                      <LockOutlined
-                        aria-label="只读"
-                        style={{ color: palette.mute }}
-                      />
-                    ) : undefined
+                    <LockOutlined
+                      aria-label="只读"
+                      style={{ color: palette.mute }}
+                    />
                   }
                 />
               </Form.Item>
@@ -496,6 +502,14 @@ const SupplierFormPage: React.FC = () => {
               >
                 <Input placeholder="请输入联系邮箱" maxLength={100} />
               </Form.Item>
+              <Form.Item
+                name="wechat"
+                label="微信"
+                extra="微信号或绑定的手机号"
+                rules={[{ max: 64, message: '微信不能超过64个字符' }]}
+              >
+                <Input placeholder="请输入微信" maxLength={64} />
+              </Form.Item>
               <Form.Item name="region" label="所在地区">
                 <Cascader<RegionNode>
                   placeholder="请选择所在地区"
@@ -521,39 +535,10 @@ const SupplierFormPage: React.FC = () => {
           </SectionCard>
 
           <SectionCard icon={<WalletOutlined />} title="结算信息">
-            <div style={grid}>
-              <Form.Item
-                name="bankName"
-                label="开户银行"
-                rules={[{ max: 100, message: '开户银行不能超过100个字符' }]}
-              >
-                <Input
-                  placeholder="请输入开户行名称（含支行）"
-                  maxLength={100}
-                />
-              </Form.Item>
-              <Form.Item
-                name="bankAccount"
-                label="银行账号"
-                extra={
-                  editing
-                    ? '编辑态明文展示，保存后列表、详情只显示前4位和后4位'
-                    : undefined
-                }
-                rules={[
-                  {
-                    pattern: BANK_ACCOUNT_PATTERN,
-                    message: '银行账号只能包含数字',
-                  },
-                ]}
-              >
-                <Input
-                  placeholder="请输入银行账号"
-                  maxLength={30}
-                  inputMode="numeric"
-                  className="num"
-                />
-              </Form.Item>
+            <Form.Item name="accounts" noStyle>
+              <AccountListEditor supplierName={supplierName ?? ''} />
+            </Form.Item>
+            <div style={{ ...grid, marginTop: 20 }}>
               <Form.Item
                 name="remark"
                 label="备注"
@@ -572,6 +557,12 @@ const SupplierFormPage: React.FC = () => {
 
           <SectionCard icon={<AppstoreOutlined />} title="主营产品">
             <ProductScopeEditor />
+          </SectionCard>
+
+          <SectionCard icon={<PaperClipOutlined />} title="附件">
+            <Form.Item name="attachments" noStyle>
+              <AttachmentEditor supplierId={editing ? Number(id) : undefined} />
+            </Form.Item>
           </SectionCard>
 
           {editing && record && (

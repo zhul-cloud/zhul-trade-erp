@@ -19,7 +19,7 @@ import java.util.List;
 /**
  * 新增、更新供应商共用的字段与校验。选填的文本字段允许空串（表示未填 / 清空）。
  * country 只有询盘内联创建和旧接口在用，管理页不传；更新时为 null 表示不修改。
- * productScopes 为 null 表示不修改主营产品，空列表表示清空。
+ * productScopes、accounts、attachments 为 null 表示不修改，空列表表示清空。
  */
 @Data
 public abstract class AbstractSupplierRequest {
@@ -51,14 +51,20 @@ public abstract class AbstractSupplierRequest {
     @Email(message = "请输入正确的邮箱格式")
     @Size(max = 100, message = "联系邮箱不能超过100个字符")
     private String contactEmail;
+
+    @Size(max = 64, message = "微信不能超过64个字符")
+    private String wechat;
     @Size(max = 100, message = "所在地区不能超过100个字符")
     private String region;
     @Size(max = 200, message = "详细地址不能超过200个字符")
     private String address;
-    @Size(max = 100, message = "开户银行不能超过100个字符")
-    private String bankName;
-    @Pattern(regexp = "^\\d{0,30}$", message = "银行账号只能包含数字，最多30位")
-    private String bankAccount;
+    @Valid
+    @Size(max = 10, message = "每个供应商最多 10 个收款账户")
+    private List<SupplierBankAccountRequest> accounts;
+
+    @Valid
+    @Size(max = 20, message = "每个供应商最多 20 个附件")
+    private List<SupplierAttachmentRequest> attachments;
     @Valid
     @Size(max = 50, message = "主营品牌最多 50 个")
     private List<SupplierProductScopeRequest> productScopes;

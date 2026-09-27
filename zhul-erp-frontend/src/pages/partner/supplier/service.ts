@@ -8,6 +8,39 @@ export interface SupplierProductScope {
   categories: { id: number; name: string }[];
 }
 
+/** 收款账户。详情里账号、手机号脱敏，编辑取数里为明文；身份证号任何时候都只给脱敏值 */
+export interface SupplierAccount {
+  id: number;
+  /** 1-对公、2-对私 */
+  accountType: number;
+  accountName: string;
+  bankName: string;
+  accountNo: string;
+  payeePhone: string;
+  payeeIdNoMasked: string;
+  defaultAccount: boolean;
+}
+
+/** 已保存的附件（不含存储路径，经下载接口获取文件） */
+export interface SupplierAttachment {
+  id: number;
+  /** 1-营业执照、2-开户许可证、3-资质证书、4-合同、5-其他 */
+  category: number;
+  fileName: string;
+  fileSize: number;
+  contentType: string;
+  createBy: string;
+  createTime: string;
+}
+
+/** 上传接口返回：保存供应商时带上 fileKey 才生效 */
+export interface UploadedAttachment {
+  fileKey: string;
+  fileName: string;
+  fileSize: number;
+  contentType: string;
+}
+
 export interface SupplierItem {
   id: number;
   supplierCode: string;
@@ -25,12 +58,14 @@ export interface SupplierItem {
   contactName: string;
   contactPhone: string;
   contactEmail: string;
+  wechat: string;
   /** 省/市/区，用 / 分隔 */
   region: string;
   address: string;
-  bankName: string;
-  /** 列表、详情里是脱敏值；编辑取数接口返回明文 */
-  bankAccount: string;
+  /** 列表里为空，详情与编辑取数才有 */
+  accounts: SupplierAccount[];
+  /** 列表里为空，详情与编辑取数才有 */
+  attachments: SupplierAttachment[];
   productScopes: SupplierProductScope[];
   remark: string;
   status: number;
@@ -51,7 +86,6 @@ export interface SupplierQuery {
 }
 
 export interface SupplierFormValues {
-  supplierCode?: string;
   name: string;
   shortName?: string;
   supplierType: number;
@@ -65,11 +99,28 @@ export interface SupplierFormValues {
   contactName?: string;
   contactPhone?: string;
   contactEmail?: string;
+  wechat?: string;
   region?: string;
   address?: string;
-  bankName?: string;
-  bankAccount?: string;
   remark?: string;
+  /** 带 id 为更新已有账户；payeeIdNo 不传表示沿用原值、空串表示清空 */
+  accounts: {
+    id?: number;
+    accountType: number;
+    accountName: string;
+    bankName: string;
+    accountNo: string;
+    payeePhone?: string;
+    payeeIdNo?: string;
+    defaultAccount: boolean;
+  }[];
+  /** 带 id 为保留已有附件；不带 id 时 fileKey 为上传接口返回值 */
+  attachments: {
+    id?: number;
+    category: number;
+    fileName?: string;
+    fileKey?: string;
+  }[];
   productScopes: {
     brandId?: number;
     brandName?: string;
@@ -120,7 +171,7 @@ export const supplierApi = {
       ...quiet,
     }).then((r) => r.data),
 
-  /** 管理页新增：编码是唯一标识，同名允许存在，所以带 force 跳过"同名提示复用" */
+  /** 管理页新增：编码由系统生成，同名允许存在，所以带 force 跳过"同名提示复用" */
   create: (data: SupplierFormValues) =>
     request(BASE, { method: 'POST', data: { ...data, force: true }, ...quiet }),
 
@@ -137,6 +188,32 @@ export const supplierApi = {
       `${BASE}/batch-delete`,
       { method: 'POST', data: { ids } },
     ).then((r) => r.data),
+
+  /** 上传附件到私有存储，返回的 fileKey 随供应商保存才生效 */
+  uploadAttachment: (file: File) => {
+    const data = new FormData();
+    data.append('file', file);
+    return request<{ data: UploadedAttachment }>(`${BASE}/attachments`, {
+      method: 'POST',
+      data,
+      requestType: 'form',
+      ...quiet,
+    }).then((r) => r.data);
+  },
+
+  /** 取附件文件（接口需要登录与权限，不能直接用 <a href>），返回浏览器本地地址，用完需 revoke */
+  attachmentBlobUrl: async (supplierId: number, attachmentId: number) => {
+    const blob: Blob = await request(
+      `${BASE}/${supplierId}/attachments/${attachmentId}`,
+      {
+        method: 'GET',
+        params: { inline: true },
+        responseType: 'blob',
+        ...quiet,
+      },
+    );
+    return window.URL.createObjectURL(blob);
+  },
 
   /** 导出当前筛选结果为 xlsx 并触发下载 */
   async export(

@@ -43,11 +43,14 @@ public class SupplierDO {
     private String contactName;
     private String contactPhone;
     private String contactEmail;
+    /** 微信（微信号或绑定手机号） */
+    private String wechat;
     /** 所在地区（省/市/区名称，用/分隔） */
     private String region;
     private String address;
+    /** 已停用：由 supplier_bank_account 取代，V1.2.11 起不再写入 */
     private String bankName;
-    /** 银行账号明文，对外展示一律经 SensitiveDataMasker 脱敏 */
+    /** 已停用：由 supplier_bank_account 取代，V1.2.11 起不再写入 */
     private String bankAccount;
     /** 主营品牌（逗号分隔，仅辅助展示，不做强校验） */
     private String mainBrands;

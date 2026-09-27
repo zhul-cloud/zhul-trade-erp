@@ -59,6 +59,8 @@ zhul:
     aes-key: ${AES_KEY:zhul-erp-config-aes-key}
   upload:
     dir: ${UPLOAD_DIR:./uploads}
+    # 私有文件（供应商营业执照、合同等），不在 /uploads 静态资源映射内，只能经需要权限的接口下载
+    private-dir: ${UPLOAD_PRIVATE_DIR:./private-uploads}
   ai-task:
     # AI 编排服务地址（本次不实现该服务本身，本地联调可指向 scripts/ai-orchestrator-stub）
     orchestrator-base-url: ${AI_ORCHESTRATOR_BASE_URL:http://localhost:8899}

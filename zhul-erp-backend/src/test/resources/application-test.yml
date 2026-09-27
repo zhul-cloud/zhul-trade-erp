@@ -16,6 +16,7 @@ spring:
 zhul:
   upload:
     dir: ./target/test-uploads
+    private-dir: ./target/test-private-uploads
   ai-task:
     # 测试里不需要超时扫描去动数据
     timeout-check-interval-ms: 3600000

@@ -29,9 +29,27 @@ public final class SupplierConstants {
             5, "金融服务",
             6, "其他");
 
+    /** 收款账户类型 */
+    public static final int ACCOUNT_CORPORATE = 1;
+    public static final int ACCOUNT_PERSONAL = 2;
+    public static final Map<Integer, String> ACCOUNT_TYPE_LABELS = Map.of(
+            ACCOUNT_CORPORATE, "对公",
+            ACCOUNT_PERSONAL, "对私");
+    public static final int MAX_ACCOUNTS = 10;
+
+    /** 附件类型 */
+    public static final int ATTACHMENT_BUSINESS_LICENSE = 1;
+    public static final Map<Integer, String> ATTACHMENT_CATEGORY_LABELS = Map.of(
+            ATTACHMENT_BUSINESS_LICENSE, "营业执照",
+            2, "开户许可证",
+            3, "资质证书",
+            4, "合同",
+            5, "其他");
+    public static final int MAX_ATTACHMENTS = 20;
+    public static final long ATTACHMENT_MAX_BYTES = 10L * 1024 * 1024;
+
     /** 导出行数上限，超出提示缩小筛选范围 */
     public static final int EXPORT_MAX_ROWS = 5000;
 
-    public static final String ERROR_CODE_DUPLICATE = "SUPPLIER_CODE_DUPLICATE";
     public static final String ERROR_CREDIT_CODE_DUPLICATE = "SUPPLIER_CREDIT_CODE_DUPLICATE";
 }

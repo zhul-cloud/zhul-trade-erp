@@ -5,6 +5,7 @@ import {
   EditOutlined,
   HistoryOutlined,
   InfoCircleOutlined,
+  PaperClipOutlined,
   PhoneOutlined,
   WalletOutlined,
 } from '@ant-design/icons';
@@ -14,6 +15,8 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatDateTime } from '@/utils/format';
+import { AccountCard } from './accounts';
+import { AttachmentGroups } from './attachments';
 import {
   LIST_PATH,
   PageTitle,
@@ -172,6 +175,7 @@ const SupplierDetailPage: React.FC = () => {
               {record.contactPhone}
             </Field>
             <Field label="联系邮箱">{record.contactEmail}</Field>
+            <Field label="微信">{record.wechat}</Field>
             <Field label="所在地区">
               {record.region ? record.region.split('/').join(' / ') : ''}
             </Field>
@@ -182,16 +186,27 @@ const SupplierDetailPage: React.FC = () => {
         </SectionCard>
 
         <SectionCard icon={<WalletOutlined />} title="结算信息">
-          <Grid>
-            <Field label="开户银行">{record.bankName}</Field>
-            <Field label="银行账号" mono>
-              {record.bankAccount}
-            </Field>
-          </Grid>
+          {record.accounts.length ? (
+            <div style={{ display: 'grid', gap: 10 }}>
+              {record.accounts.map((a) => (
+                <AccountCard key={a.id} row={a} />
+              ))}
+            </div>
+          ) : (
+            <span style={{ color: palette.mute }}>未添加收款账户</span>
+          )}
         </SectionCard>
 
         <SectionCard icon={<AppstoreOutlined />} title="主营产品">
           <ScopeLines scopes={record.productScopes} />
+        </SectionCard>
+
+        <SectionCard icon={<PaperClipOutlined />} title="附件">
+          <AttachmentGroups
+            supplierId={record.id}
+            attachments={record.attachments}
+            editPath={canEdit ? `${LIST_PATH}/${record.id}/edit` : undefined}
+          />
         </SectionCard>
 
         <SectionCard icon={<HistoryOutlined />} title="系统信息">

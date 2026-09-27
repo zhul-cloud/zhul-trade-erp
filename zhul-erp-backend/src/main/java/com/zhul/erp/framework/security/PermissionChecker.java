@@ -37,4 +37,23 @@ public class PermissionChecker {
         Set<Integer> allowed = permissionResolver.resolveAllowedResourceIds(username);
         return allowed == null || allowed.contains(resource.getId());
     }
+
+    /**
+     * 检查当前用户能否访问某个菜单（按菜单路径找到 type=2 的菜单资源，再看是否在有效资源范围内）。
+     * 用于没有单独按钮权限的「查看」类接口，如供应商附件下载。
+     */
+    public boolean canAccessMenu(String path) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated()) return false;
+
+        ResourceDO menu = resourceMapper.selectOne(
+                new LambdaQueryWrapper<ResourceDO>()
+                        .eq(ResourceDO::getPath, path)
+                        .eq(ResourceDO::getType, 2)
+                        .last("LIMIT 1"));
+        if (menu == null) return false;
+
+        Set<Integer> allowed = permissionResolver.resolveAllowedResourceIds(auth.getName());
+        return allowed == null || allowed.contains(menu.getId());
+    }
 }

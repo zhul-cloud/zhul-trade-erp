@@ -6,6 +6,9 @@ import com.zhul.erp.common.result.PageResult;
 import com.zhul.erp.framework.tenant.TenantContext;
 import com.zhul.erp.modules.masterdata.constants.SupplierConstants;
 import com.zhul.erp.modules.masterdata.dto.CreateSupplierFromChannelRequest;
+import com.zhul.erp.modules.masterdata.dto.SupplierAttachmentRequest;
+import com.zhul.erp.modules.masterdata.dto.SupplierBankAccountRequest;
+import com.zhul.erp.modules.masterdata.dto.SupplierBankAccountVO;
 import com.zhul.erp.modules.masterdata.dto.SupplierBatchDeleteResultVO;
 import com.zhul.erp.modules.masterdata.dto.SupplierFormVO;
 import com.zhul.erp.modules.masterdata.dto.SaveSupplierRequest;
@@ -16,8 +19,11 @@ import com.zhul.erp.modules.masterdata.dto.SupplierVO;
 import com.zhul.erp.modules.masterdata.dto.UpdateSupplierRequest;
 import com.zhul.erp.modules.masterdata.entity.SupplierDO;
 import com.zhul.erp.modules.masterdata.repository.SupplierMapper;
+import com.zhul.erp.modules.masterdata.service.impl.SupplierAttachmentSync;
+import com.zhul.erp.modules.masterdata.service.impl.SupplierBankAccountSync;
 import com.zhul.erp.modules.masterdata.service.impl.SupplierProductScopeSync;
 import com.zhul.erp.modules.masterdata.service.impl.SupplierServiceImpl;
+import com.zhul.erp.modules.masterdata.support.SupplierAttachmentStorage;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -32,10 +38,14 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -49,7 +59,8 @@ import static org.mockito.Mockito.when;
  * - 同租户内供应商名称重复提示
  * - 供应商记录仅支持软删除
  * - 分页查询供应商列表 / 更新供应商记录 / 启用禁用供应商记录
- * 以及 enrich-supplier-basic-info：编码唯一与自动生成、信用代码唯一、银行账号脱敏、批量删除、导出
+ * 以及 enrich-supplier-basic-info：信用代码唯一、批量删除、导出；
+ * enrich-supplier-settlement-attachments：编码一律自动生成、微信、收款账户与附件的保存和读取入口
  */
 @ExtendWith(MockitoExtension.class)
 class SupplierServiceImplTest {
@@ -58,12 +69,18 @@ class SupplierServiceImplTest {
     private SupplierMapper supplierMapper;
     @Mock
     private SupplierProductScopeSync scopeSync;
+    @Mock
+    private SupplierBankAccountSync accountSync;
+    @Mock
+    private SupplierAttachmentSync attachmentSync;
+    @Mock
+    private SupplierAttachmentStorage attachmentStorage;
 
     private SupplierServiceImpl supplierService;
 
     @BeforeEach
     void setUp() {
-        supplierService = new SupplierServiceImpl(supplierMapper, scopeSync);
+        supplierService = new SupplierServiceImpl(supplierMapper, scopeSync, accountSync, attachmentSync, attachmentStorage);
         TenantContext.setTenantId(1);
     }
 
@@ -281,35 +298,7 @@ class SupplierServiceImplTest {
     // ---------- enrich-supplier-basic-info ----------
 
     @Test
-    void create_withManualCode_savesUppercasedCodeWithoutGenerating() {
-        when(supplierMapper.selectOne(any())).thenReturn(null);
-        stubInsertAssignsId(20L);
-
-        SaveSupplierRequest req = fullRequest();
-        req.setSupplierCode("sup88");
-
-        SupplierCreateResultVO result = supplierService.create(req);
-
-        assertThat(result.getCreatedSupplier().getSupplierCode()).isEqualTo("SUP88");
-        assertThat(result.getCreatedSupplier().getSupplierType()).isEqualTo(1);
-        verify(supplierMapper, never()).updateById(any());
-    }
-
-    @Test
-    void create_withDuplicateManualCode_throwsCodeDuplicate() {
-        when(supplierMapper.selectOne(any())).thenReturn(supplier(9L, "已有供应商"));
-
-        SaveSupplierRequest req = fullRequest();
-        req.setSupplierCode("SUP00001");
-
-        BizException e = assertThrows(BizException.class, () -> supplierService.create(req));
-        assertThat(e.getErrorCode()).isEqualTo(SupplierConstants.ERROR_CODE_DUPLICATE);
-        assertThat(e.getMessage()).isEqualTo("供应商编码已存在，请更换");
-        verify(supplierMapper, never()).insert(any(SupplierDO.class));
-    }
-
-    @Test
-    void create_withoutCode_generatesPaddedCodeFromId() {
+    void create_alwaysGeneratesPaddedCodeFromId() {
         when(supplierMapper.selectOne(any())).thenReturn(null);
         stubInsertAssignsId(12L);
 
@@ -325,8 +314,8 @@ class SupplierServiceImplTest {
     }
 
     @Test
-    void create_withoutCode_whenGeneratedCodeTaken_appendsSuffix() {
-        // 依次是：名称判重（无）、SUP00012 已被手工编码占用、SUP000121 可用
+    void create_whenGeneratedCodeTaken_appendsSuffix() {
+        // 依次是：名称判重（无）、SUP00012 已被早期手工编码占用、SUP000121 可用
         when(supplierMapper.selectOne(any())).thenReturn(null, supplier(5L, "手工编码的供应商"), null);
         stubInsertAssignsId(12L);
 
@@ -340,10 +329,10 @@ class SupplierServiceImplTest {
 
     @Test
     void create_withCreditCodeUsedByAnother_throwsWithHolderName() {
-        when(supplierMapper.selectOne(any())).thenReturn(null, supplier(3L, "上海电子科技有限公司"));
+        // 信用代码判重是第一次查询，直接命中
+        when(supplierMapper.selectOne(any())).thenReturn(supplier(3L, "上海电子科技有限公司"));
 
         SaveSupplierRequest req = fullRequest();
-        req.setSupplierCode("SUP90");
         req.setCreditCode("91310115ma1g832x01");
 
         BizException e = assertThrows(BizException.class, () -> supplierService.create(req));
@@ -354,12 +343,11 @@ class SupplierServiceImplTest {
 
     @Test
     void create_withBlankCreditCode_skipsUniquenessCheck() {
-        // 手工编码判重、名称判重各查一次，信用代码为空不查
+        // 名称判重、生成编码判重各查一次，信用代码为空不查
         when(supplierMapper.selectOne(any())).thenReturn(null);
         stubInsertAssignsId(21L);
 
         SaveSupplierRequest req = fullRequest();
-        req.setSupplierCode("SUP91");
         req.setCreditCode("");
 
         supplierService.create(req);
@@ -368,19 +356,48 @@ class SupplierServiceImplTest {
     }
 
     @Test
-    void create_uppercasesCreditCodeAndMasksBankAccountInResult() {
+    void create_uppercasesCreditCodeAndSavesWechat() {
         when(supplierMapper.selectOne(any())).thenReturn(null);
         stubInsertAssignsId(22L);
 
         SaveSupplierRequest req = fullRequest();
-        req.setSupplierCode("SUP92");
         req.setCreditCode("91310115ma1g832x01");
-        req.setBankAccount("6222021234560008888");
+        req.setWechat(" zhangsan_sh ");
 
         SupplierVO created = supplierService.create(req).getCreatedSupplier();
 
         assertThat(created.getCreditCode()).isEqualTo("91310115MA1G832X01");
-        assertThat(created.getBankAccount()).isEqualTo("6222 **** **** 8888");
+        assertThat(created.getWechat()).isEqualTo("zhangsan_sh");
+        assertThat(created.getSupplierCode()).isEqualTo("SUP00022");
+    }
+
+    @Test
+    void create_withAccountsAndAttachments_mergesThemForNewSupplier() {
+        when(supplierMapper.selectOne(any())).thenReturn(null);
+        stubInsertAssignsId(23L);
+        SaveSupplierRequest req = fullRequest();
+        req.setAccounts(List.of(new SupplierBankAccountRequest()));
+        req.setAttachments(List.of(new SupplierAttachmentRequest()));
+
+        supplierService.create(req);
+
+        verify(accountSync).merge(1, 23L, req.getAccounts());
+        verify(attachmentSync).merge(1, 23L, req.getAttachments());
+    }
+
+    @Test
+    void update_withoutAccountsOrAttachments_leavesThemUntouched() {
+        when(supplierMapper.selectById(1L)).thenReturn(supplier(1L, "A 公司"));
+        when(supplierMapper.selectOne(any())).thenReturn(null);
+        UpdateSupplierRequest req = new UpdateSupplierRequest();
+        req.setName("A 公司");
+        req.setSupplierType(1);
+        req.setStatus(1);
+
+        supplierService.update(1L, req);
+
+        verify(accountSync, never()).merge(any(Integer.class), anyLong(), any());
+        verify(attachmentSync, never()).merge(any(Integer.class), anyLong(), any());
     }
 
     @Test
@@ -397,7 +414,7 @@ class SupplierServiceImplTest {
         req.setStatus(0);
         req.setRegisteredCapital(new BigDecimal("5000.00"));
         req.setRegion("上海市/上海市/浦东新区");
-        req.setBankAccount("6222021234560008888");
+        req.setWechat("zhangsan_sh");
 
         supplierService.update(1L, req);
 
@@ -409,7 +426,7 @@ class SupplierServiceImplTest {
         assertThat(saved.getStatus()).isEqualTo(0);
         assertThat(saved.getRegisteredCapital()).isEqualByComparingTo("5000.00");
         assertThat(saved.getRegion()).isEqualTo("上海市/上海市/浦东新区");
-        assertThat(saved.getBankAccount()).isEqualTo("6222021234560008888");
+        assertThat(saved.getWechat()).isEqualTo("zhangsan_sh");
         // 管理页不传 country，更新时保持原值
         assertThat(saved.getCountry()).isEqualTo("China");
     }
@@ -451,14 +468,15 @@ class SupplierServiceImplTest {
     }
 
     @Test
-    void getById_masksBankAccount_getFormById_returnsPlainText() {
-        SupplierDO s = supplier(1L, "A 公司");
-        s.setBankAccount("6222021234560008888");
-        when(supplierMapper.selectById(1L)).thenReturn(s);
+    void getById_loadsMaskedAccounts_getFormById_loadsPlainAccounts() {
+        when(supplierMapper.selectById(1L)).thenReturn(supplier(1L, "A 公司"));
 
-        assertThat(supplierService.getById(1L).getBankAccount()).isEqualTo("6222 **** **** 8888");
+        supplierService.getById(1L);
+        verify(accountSync).load(List.of(1L), false);
         SupplierFormVO form = supplierService.getFormById(1L);
-        assertThat(form.getBankAccount()).isEqualTo("6222021234560008888");
+        verify(accountSync).load(List.of(1L), true);
+        verify(attachmentSync, times(2)).load(List.of(1L));
+        assertThat(form.getAccounts()).isEmpty();
     }
 
     @Test
@@ -517,19 +535,29 @@ class SupplierServiceImplTest {
         s.setSupplierType(1);
         s.setStatus(1);
         s.setRegisteredCapital(new BigDecimal("5000.00"));
-        s.setBankAccount("6222021234560008888");
+        s.setWechat("zhangsan_sh");
+        SupplierBankAccountVO account = new SupplierBankAccountVO();
+        account.setAccountType(SupplierConstants.ACCOUNT_CORPORATE);
+        account.setAccountName("上海电子科技有限公司");
+        account.setBankName("招商银行上海张江支行");
+        account.setAccountNo("6222 **** **** 8888");
+        account.setDefaultAccount(true);
         when(supplierMapper.selectCount(any())).thenReturn(1L);
         when(supplierMapper.selectList(any())).thenReturn(List.of(s));
+        when(accountSync.load(anyList(), eq(false))).thenReturn(Map.of(1L, List.of(account)));
 
         try (Workbook workbook = supplierService.export(new SupplierPageQuery())) {
             Sheet sheet = workbook.getSheetAt(0);
             assertThat(sheet.getRow(0).getCell(0).getStringCellValue()).isEqualTo("供应商编码");
-            assertThat(sheet.getRow(0).getCell(15).getStringCellValue()).isEqualTo("银行账号");
+            assertThat(sheet.getRow(0).getCell(12).getStringCellValue()).isEqualTo("微信");
+            assertThat(sheet.getRow(0).getCell(15).getStringCellValue()).isEqualTo("收款账户");
             assertThat(sheet.getLastRowNum()).isEqualTo(1);
             assertThat(sheet.getRow(1).getCell(0).getStringCellValue()).isEqualTo("SUP00001");
             assertThat(sheet.getRow(1).getCell(3).getStringCellValue()).isEqualTo("生产商");
             assertThat(sheet.getRow(1).getCell(7).getStringCellValue()).isEqualTo("5000.00");
-            assertThat(sheet.getRow(1).getCell(15).getStringCellValue()).isEqualTo("6222 **** **** 8888");
+            assertThat(sheet.getRow(1).getCell(12).getStringCellValue()).isEqualTo("zhangsan_sh");
+            assertThat(sheet.getRow(1).getCell(15).getStringCellValue())
+                    .isEqualTo("[对公·默认] 上海电子科技有限公司 / 招商银行上海张江支行 / 6222 **** **** 8888");
         }
     }
 
