@@ -152,6 +152,36 @@ export default [
     ],
   },
   {
+    path: '/crm',
+    name: 'crm',
+    icon: 'userAdd',
+    // 父路由也要挂 access，理由同 /inquiry
+    access: 'crmMenu',
+    routes: [
+      { path: '/crm', redirect: '/crm/opportunities' },
+      {
+        path: '/crm/opportunities',
+        name: 'opportunity',
+        icon: 'unorderedList',
+        access: 'crmOpportunity',
+        component: './crm/opportunity',
+      },
+      {
+        path: '/crm/opportunities/:id',
+        hideInMenu: true,
+        access: 'crmOpportunity',
+        component: './crm/opportunity/detail',
+      },
+      {
+        path: '/crm/opportunity-stats',
+        name: 'opportunityStats',
+        icon: 'barChart',
+        access: 'crmOpportunityStats',
+        component: './crm/opportunity/stats',
+      },
+    ],
+  },
+  {
     path: '/inquiry',
     name: 'inquiry',
     icon: 'mail',
@@ -160,19 +190,6 @@ export default [
     access: 'inquiryMenu',
     routes: [
       { path: '/inquiry', redirect: '/inquiry/customer-inquiries' },
-      {
-        path: '/inquiry/opportunities',
-        name: 'opportunity',
-        icon: 'userAdd',
-        access: 'inquiryOpportunity',
-        component: './inquiry/opportunity',
-      },
-      {
-        path: '/inquiry/opportunities/:id',
-        hideInMenu: true,
-        access: 'inquiryOpportunity',
-        component: './inquiry/opportunity/detail',
-      },
       {
         path: '/inquiry/customer-inquiries',
         name: 'customerInquiry',

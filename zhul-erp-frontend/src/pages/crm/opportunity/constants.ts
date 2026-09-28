@@ -42,4 +42,4 @@ export const ATTACHMENT_ACCEPT =
 export const ATTACHMENT_MAX_BYTES = 10 * 1024 * 1024;
 export const MAX_ATTACHMENTS = 10;
 
-export const LIST_PATH = '/inquiry/opportunities';
+export const LIST_PATH = '/crm/opportunities';

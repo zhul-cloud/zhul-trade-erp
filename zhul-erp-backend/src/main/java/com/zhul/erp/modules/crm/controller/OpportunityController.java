@@ -41,7 +41,7 @@ import java.util.Map;
 
 /**
  * 商机管理：登记（同时建客户）、阶段流转、列表 / 详情、附件、每日统计。
- * 查看类接口要求能访问「商机管理」菜单，写操作要求对应按钮权限；数据范围由数据权限控制。
+ * 查看类接口要求能访问「商机列表」菜单（统计要求「商机统计」菜单），写操作要求对应按钮权限；数据范围由数据权限控制。
  * 见 openspec/changes/add-opportunity-management/。
  */
 @RestController
@@ -49,7 +49,8 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class OpportunityController {
 
-    private static final String VIEW = "@perm.canAccessMenu('/inquiry/opportunities')";
+    private static final String VIEW = "@perm.canAccessMenu('/crm/opportunities')";
+    private static final String VIEW_STATS = "@perm.canAccessMenu('/crm/opportunity-stats')";
 
     private final OpportunityService opportunityService;
 
@@ -72,7 +73,7 @@ public class OpportunityController {
     }
 
     @GetMapping("/stats")
-    @PreAuthorize(VIEW)
+    @PreAuthorize(VIEW_STATS)
     public Result<OpportunityStatsVO> stats(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,

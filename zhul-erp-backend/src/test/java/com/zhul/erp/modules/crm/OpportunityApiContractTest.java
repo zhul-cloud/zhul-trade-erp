@@ -40,6 +40,7 @@ class OpportunityApiContractTest extends IntegrationTestBase {
     private static final long SELF = 99000002L;
     private static final long OTHER_OWNER = 99000021L;
     private static final int MENU = 100053;
+    private static final int MENU_STATS = 100071;
     private static final int RES_ADD = 110161;
     private static final int RES_EDIT = 110162;
 
@@ -190,7 +191,7 @@ class OpportunityApiContractTest extends IntegrationTestBase {
         jdbc.update("update opportunity set owner_id = ? where id = ?", SELF, own);
         jdbc.update("update opportunity set owner_id = ? where id = ?", OTHER_OWNER, others);
 
-        loginWithResources("opp_staff", MENU);
+        loginWithResources("opp_staff", MENU, MENU_STATS);
         String staff = token("opp_staff");
         JsonNode page = ok(call(get(BASE + "/page"), staff));
         assertEquals(1, page.path("total").asInt());
@@ -201,7 +202,11 @@ class OpportunityApiContractTest extends IntegrationTestBase {
         assertEquals(403, perform(json(post(BASE + "/" + own + "/stage"), "{\"toStage\":\"S2\"}"), staff).getStatus());
 
         loginWithResources("opp_nomenu", RES_EDIT);
-        assertEquals(403, perform(get(BASE + "/page"), token("opp_nomenu")).getStatus(), "查看要求能访问商机菜单");
+        assertEquals(403, perform(get(BASE + "/page"), token("opp_nomenu")).getStatus(), "查看要求能访问商机列表菜单");
+
+        loginWithResources("opp_liststaff", MENU);
+        assertEquals(403, perform(get(BASE + "/stats").param("from", today).param("to", today), token("opp_liststaff")).getStatus(),
+                "统计要求能访问商机统计菜单");
     }
 
     @Test

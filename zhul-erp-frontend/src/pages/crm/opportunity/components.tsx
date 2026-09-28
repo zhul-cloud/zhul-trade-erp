@@ -105,16 +105,18 @@ export const StagePill: React.FC<{
 /** 面包屑 + 标题 + 右侧操作 */
 export const PageTitle: React.FC<{
   title: React.ReactNode;
+  /** 面包屑第二级：商机列表 / 商机统计 */
+  section?: string;
   current?: string;
   description?: React.ReactNode;
   actions?: React.ReactNode;
-}> = ({ title, current, description, actions }) => {
+}> = ({ title, section = '商机列表', current, description, actions }) => {
   const { palette } = useAppTheme();
   const items = [
-    { title: '询盘管理' },
+    { title: '商机管理' },
     current
-      ? { title: <Link to={LIST_PATH}>商机管理</Link> }
-      : { title: '商机管理' },
+      ? { title: <Link to={LIST_PATH}>商机列表</Link> }
+      : { title: section },
     ...(current ? [{ title: current }] : []),
   ];
   return (

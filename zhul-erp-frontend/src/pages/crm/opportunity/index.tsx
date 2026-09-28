@@ -6,18 +6,9 @@ import {
   SearchOutlined,
   UserAddOutlined,
 } from '@ant-design/icons';
-import { history, useAccess, useModel, useSearchParams } from '@umijs/max';
+import { history, useAccess, useModel } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
-import {
-  Button,
-  DatePicker,
-  Form,
-  Input,
-  Select,
-  Skeleton,
-  Table,
-  Tabs,
-} from 'antd';
+import { Button, DatePicker, Form, Input, Select, Skeleton, Table } from 'antd';
 import type { Dayjs } from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
@@ -32,7 +23,7 @@ import {
   LIST_PATH,
 } from './constants';
 import RegisterDrawer from './RegisterDrawer';
-import StatsPanel, { rate } from './StatsPanel';
+import { rate } from './StatsPanel';
 import {
   type OpportunityItem,
   type OpportunityQuery,
@@ -63,8 +54,6 @@ const OpportunityPage: React.FC = () => {
   const { palette } = useAppTheme();
   const access = useAccess() as Record<string, boolean>;
   const { initialState } = useModel('@@initialState');
-  const [params, setParams] = useSearchParams();
-  const tab = params.get('tab') === 'stats' ? 'stats' : 'list';
   const canAdd = !!access['crm:opportunity:add'];
 
   const [form] = Form.useForm<FilterState>();
@@ -117,12 +106,12 @@ const OpportunityPage: React.FC = () => {
   }, [query, page, pageSize]);
 
   useEffect(() => {
-    if (tab === 'list') load();
-  }, [tab, load]);
+    load();
+  }, [load]);
 
   useEffect(() => {
-    if (tab === 'list') loadSummary();
-  }, [tab, loadSummary]);
+    loadSummary();
+  }, [loadSummary]);
 
   const activeIndex = (code: string) =>
     stages
@@ -309,7 +298,7 @@ const OpportunityPage: React.FC = () => {
   return (
     <div style={{ color: palette.ink }}>
       <PageTitle
-        title="商机管理"
+        title="商机列表"
         description="记录每个新客户从首次接触到赢单的过程；老客户的新需求请直接新建询盘。"
         actions={
           canAdd && (
@@ -323,158 +312,142 @@ const OpportunityPage: React.FC = () => {
           )
         }
       />
-      <Tabs
-        activeKey={tab}
-        onChange={(k) => setParams(k === 'stats' ? { tab: 'stats' } : {})}
-        items={[
-          { key: 'list', label: '商机列表' },
-          { key: 'stats', label: '每日统计' },
-        ]}
-      />
-      {tab === 'stats' ? (
-        <StatsPanel />
-      ) : (
-        <div style={{ display: 'grid', gap: 20 }}>
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(4, 1fr)',
-              gap: 16,
-            }}
-          >
-            {kpis.map((k) => (
-              <Card key={k.label} style={{ padding: 20 }}>
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 10,
-                    color: palette.mute,
-                  }}
-                >
-                  <span
-                    aria-hidden
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      width: 32,
-                      height: 32,
-                      borderRadius: 10,
-                      color: k.color,
-                      background: palette.accentSoft,
-                    }}
-                  >
-                    {k.icon}
-                  </span>
-                  {k.label}
-                </div>
-                {summary ? (
-                  <div
-                    className="num"
-                    style={{
-                      fontSize: 28,
-                      fontWeight: 700,
-                      margin: '10px 0 4px',
-                    }}
-                  >
-                    {k.value}
-                  </div>
-                ) : (
-                  <Skeleton
-                    active
-                    paragraph={false}
-                    style={{ margin: '12px 0' }}
-                  />
-                )}
-                <div style={{ fontSize: 12, color: k.color }}>{k.hint}</div>
-              </Card>
-            ))}
-          </div>
-
-          <Card>
-            <Form<FilterState>
-              form={form}
-              layout="vertical"
-              initialValues={{ stage: 'ACTIVE' }}
-              onFinish={search}
-            >
+      <div style={{ display: 'grid', gap: 20 }}>
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(4, 1fr)',
+            gap: 16,
+          }}
+        >
+          {kpis.map((k) => (
+            <Card key={k.label} style={{ padding: 20 }}>
               <div
                 style={{
                   display: 'flex',
-                  gap: 20,
-                  alignItems: 'flex-end',
-                  flexWrap: 'wrap',
+                  alignItems: 'center',
+                  gap: 10,
+                  color: palette.mute,
                 }}
               >
-                <Form.Item
-                  name="keyword"
-                  label="关键词"
-                  style={{ flex: 1, minWidth: 260, marginBottom: 0 }}
+                <span
+                  aria-hidden
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: 32,
+                    height: 32,
+                    borderRadius: 10,
+                    color: k.color,
+                    background: palette.accentSoft,
+                  }}
                 >
-                  <Input
-                    allowClear
-                    prefix={<SearchOutlined />}
-                    placeholder="联系人、客户名称、邮箱或 WhatsApp"
-                  />
-                </Form.Item>
-                <Form.Item
-                  name="sourceChannel"
-                  label="来源渠道"
-                  style={{ width: 180, marginBottom: 0 }}
-                >
-                  <Select
-                    allowClear
-                    placeholder="全部"
-                    options={CHANNEL_OPTIONS}
-                  />
-                </Form.Item>
-                <Form.Item
-                  name="stage"
-                  label="阶段"
-                  style={{ width: 160, marginBottom: 0 }}
-                >
-                  <Select
-                    allowClear
-                    placeholder="全部"
-                    options={stageOptions}
-                  />
-                </Form.Item>
-                {owners.length > 0 && (
-                  <Form.Item
-                    name="ownerId"
-                    label="负责人"
-                    style={{ width: 150, marginBottom: 0 }}
-                  >
-                    <Select
-                      allowClear
-                      showSearch={{ optionFilterProp: 'label' }}
-                      placeholder="全部"
-                      options={owners}
-                    />
-                  </Form.Item>
-                )}
-                <Form.Item
-                  name="range"
-                  label="首次接触日期"
-                  style={{ width: 260, marginBottom: 0 }}
-                >
-                  <DatePicker.RangePicker style={{ width: '100%' }} />
-                </Form.Item>
-                <div style={{ display: 'flex', gap: 10 }}>
-                  <Button onClick={reset}>重置</Button>
-                  <Button type="primary" htmlType="submit">
-                    查询
-                  </Button>
-                </div>
+                  {k.icon}
+                </span>
+                {k.label}
               </div>
-            </Form>
-          </Card>
-
-          <div style={{ fontSize: 14, fontWeight: 600 }}>共 {total} 条记录</div>
-          {body}
+              {summary ? (
+                <div
+                  className="num"
+                  style={{
+                    fontSize: 28,
+                    fontWeight: 700,
+                    margin: '10px 0 4px',
+                  }}
+                >
+                  {k.value}
+                </div>
+              ) : (
+                <Skeleton
+                  active
+                  paragraph={false}
+                  style={{ margin: '12px 0' }}
+                />
+              )}
+              <div style={{ fontSize: 12, color: k.color }}>{k.hint}</div>
+            </Card>
+          ))}
         </div>
-      )}
+
+        <Card>
+          <Form<FilterState>
+            form={form}
+            layout="vertical"
+            initialValues={{ stage: 'ACTIVE' }}
+            onFinish={search}
+          >
+            <div
+              style={{
+                display: 'flex',
+                gap: 20,
+                alignItems: 'flex-end',
+                flexWrap: 'wrap',
+              }}
+            >
+              <Form.Item
+                name="keyword"
+                label="关键词"
+                style={{ flex: 1, minWidth: 260, marginBottom: 0 }}
+              >
+                <Input
+                  allowClear
+                  prefix={<SearchOutlined />}
+                  placeholder="联系人、客户名称、邮箱或 WhatsApp"
+                />
+              </Form.Item>
+              <Form.Item
+                name="sourceChannel"
+                label="来源渠道"
+                style={{ width: 180, marginBottom: 0 }}
+              >
+                <Select
+                  allowClear
+                  placeholder="全部"
+                  options={CHANNEL_OPTIONS}
+                />
+              </Form.Item>
+              <Form.Item
+                name="stage"
+                label="阶段"
+                style={{ width: 160, marginBottom: 0 }}
+              >
+                <Select allowClear placeholder="全部" options={stageOptions} />
+              </Form.Item>
+              {owners.length > 0 && (
+                <Form.Item
+                  name="ownerId"
+                  label="负责人"
+                  style={{ width: 150, marginBottom: 0 }}
+                >
+                  <Select
+                    allowClear
+                    showSearch={{ optionFilterProp: 'label' }}
+                    placeholder="全部"
+                    options={owners}
+                  />
+                </Form.Item>
+              )}
+              <Form.Item
+                name="range"
+                label="首次接触日期"
+                style={{ width: 260, marginBottom: 0 }}
+              >
+                <DatePicker.RangePicker style={{ width: '100%' }} />
+              </Form.Item>
+              <div style={{ display: 'flex', gap: 10 }}>
+                <Button onClick={reset}>重置</Button>
+                <Button type="primary" htmlType="submit">
+                  查询
+                </Button>
+              </div>
+            </div>
+          </Form>
+        </Card>
+
+        <div style={{ fontSize: 14, fontWeight: 600 }}>共 {total} 条记录</div>
+        {body}
+      </div>
       <RegisterDrawer
         open={drawerOpen}
         ownerName={initialState?.currentUser?.name}

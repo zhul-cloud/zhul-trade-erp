@@ -77,7 +77,7 @@ customer_inquiry 新增 opportunity_id（可空，建索引）
 
 ### 8. 菜单与权限
 
-「询盘管理」下新增菜单「商机管理」（`/inquiry/opportunities`，排在询盘单列表之前），页面内两个页签：商机列表、每日统计。按钮权限：`crm:opportunity:add`（登记）、`crm:opportunity:edit`（编辑基本信息、阶段操作）、`crm:opportunity:export`（导出列表，本期可不做前端入口）。附件下载要求能访问该菜单。
+「商机管理」是独立的一级菜单（`/crm`，排在「询盘管理」之前），和询盘分开，下设两个菜单：「商机列表」（`/crm/opportunities`，详情 `/crm/opportunities/:id`）和「商机统计」（`/crm/opportunity-stats`），可以分别授权，比如只给主管开统计。按钮权限：`crm:opportunity:add`（登记）、`crm:opportunity:edit`（编辑基本信息、阶段操作）、`crm:opportunity:export`（导出列表，本期可不做前端入口）。列表、详情、附件下载要求能访问「商机列表」，统计接口要求能访问「商机统计」。已授权旧菜单的角色升级时自动补上新目录和「商机统计」，看到的内容不变。
 
 ## Risks / Trade-offs
 

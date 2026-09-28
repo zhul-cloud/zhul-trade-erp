@@ -20,7 +20,10 @@ export default function access(initialState: {
     // 菜单级
     dashboard: can('/dashboard'),
     inquiryMenu: can('/inquiry'),
-    inquiryOpportunity: can('/inquiry/opportunities'),
+    // 商机管理：crmMenu 是两个子菜单任一为真，供 /crm 父路由的 access 用
+    crmOpportunity: can('/crm/opportunities'),
+    crmOpportunityStats: can('/crm/opportunity-stats'),
+    crmMenu: can('/crm/opportunities') || can('/crm/opportunity-stats'),
     inquiryCustomerInquiry: can('/inquiry/customer-inquiries'),
     inquiryOrder: can('/inquiry/orders'),
     systemUser: can('/system/user'),

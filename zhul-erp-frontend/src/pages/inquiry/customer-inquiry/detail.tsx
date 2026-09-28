@@ -231,9 +231,7 @@ const CustomerInquiryDetail: React.FC = () => {
             {inquiry.opportunityCode ? (
               <a
                 onClick={() =>
-                  history.push(
-                    `/inquiry/opportunities/${inquiry.opportunityId}`,
-                  )
+                  history.push(`/crm/opportunities/${inquiry.opportunityId}`)
                 }
               >
                 {inquiry.opportunityCode} · {inquiry.opportunityCustomerName} ·{' '}
