@@ -20,6 +20,7 @@ export default function access(initialState: {
     // 菜单级
     dashboard: can('/dashboard'),
     inquiryMenu: can('/inquiry'),
+    inquiryOpportunity: can('/inquiry/opportunities'),
     inquiryCustomerInquiry: can('/inquiry/customer-inquiries'),
     inquiryOrder: can('/inquiry/orders'),
     systemUser: can('/system/user'),
@@ -45,6 +46,9 @@ export default function access(initialState: {
     partnerMenu: can('/partner/customers') || can('/partner/suppliers'),
     // 平台账号才有档案完整度、缺项筛选等平台视角
     productPlatform: platform,
+    // 按钮级 - 商机
+    'crm:opportunity:add': can('crm:opportunity:add'),
+    'crm:opportunity:edit': can('crm:opportunity:edit'),
     // 按钮级 - 用户管理
     'system:user:add': can('system:user:add'),
     'system:user:edit': can('system:user:edit'),

@@ -65,6 +65,7 @@ export default {
   'menu.tenant.list': '租户列表',
   'menu.tenant.package': '套餐管理',
   'menu.inquiry': '询盘中心',
+  'menu.inquiry.opportunity': '商机管理',
   'menu.inquiry.customerInquiry': '客户询盘',
   'menu.inquiry.order': '询盘单',
   'menu.product': '商品管理',

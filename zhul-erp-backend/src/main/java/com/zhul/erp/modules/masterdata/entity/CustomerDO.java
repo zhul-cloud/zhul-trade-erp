@@ -50,6 +50,10 @@ public class CustomerDO {
     private String contactPhone;
     private String contactEmail;
     private String whatsapp;
+    /** 联系方式比较键（见 ContactKeys），登记商机时查重用 */
+    private String emailKey;
+    private String whatsappKey;
+    private String phoneKey;
     private String otherIm;
     private String currency;
     private String incoterm;

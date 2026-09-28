@@ -27,6 +27,7 @@ import {
   GradePill,
   LIST_PATH,
   PageTitle,
+  Pill,
   RolePill,
   TransferModal,
 } from './components';
@@ -160,7 +161,7 @@ const CustomerListPage: React.FC = () => {
       content: (
         <>
           <div style={{ fontWeight: 600, marginBottom: 8 }}>
-            确认删除客户「{record.name}（{record.customerCode}）」吗？
+            确认删除客户「{record.displayName}（{record.customerCode}）」吗？
           </div>
           <div style={{ color: palette.sub, fontSize: 13 }}>
             删除后不可恢复。如只是暂停合作，建议改为禁用。已有询盘或单据记录的客户不能删除。
@@ -266,9 +267,10 @@ const CustomerListPage: React.FC = () => {
       title: '客户名称',
       dataIndex: 'name',
       width: 230,
-      render: (v: string, r) => (
-        <span title={v}>
-          {stacked(v, r.nameCn, {
+      render: (_: string, r) => (
+        <span title={r.displayName}>
+          {r.nameMissing && <Pill tone="orange">未填客户名称</Pill>}
+          {stacked(r.displayName, r.nameCn, {
             fontWeight: 600,
             color: palette.ink,
             overflow: 'hidden',
@@ -329,8 +331,8 @@ const CustomerListPage: React.FC = () => {
           loading={togglingId === r.id}
           aria-label={
             v === 1
-              ? `${r.name} 已启用，点击禁用`
-              : `${r.name} 已禁用，点击启用`
+              ? `${r.displayName} 已启用，点击禁用`
+              : `${r.displayName} 已禁用，点击启用`
           }
           onChange={(checked) => toggleStatus(r, checked)}
         />
@@ -582,7 +584,7 @@ const CustomerListPage: React.FC = () => {
               // antd 的类型里没有 aria-label，但会透传给复选框；读屏靠它知道选的是哪一行
               getCheckboxProps: (r: CustomerListItem) =>
                 ({
-                  'aria-label': `选择 ${r.name}`,
+                  'aria-label': `选择 ${r.displayName}`,
                 }) as unknown as Partial<CheckboxProps>,
             }}
             pagination={{

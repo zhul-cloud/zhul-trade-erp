@@ -10,6 +10,13 @@ public class CustomerInquiryVO {
     private Long id;
     private String inquiryCode;
     private Long customerId;
+    /** 来源商机ID（可空） */
+    private Long opportunityId;
+    /** 来源商机摘要：详情接口且在数据权限内时才有，否则为空 */
+    private String opportunityCode;
+    private String opportunityCustomerName;
+    private Integer opportunitySourceChannel;
+    private String opportunityStageName;
     private Integer source;
     private String rawContent;
     private String rawAttachmentUrl;

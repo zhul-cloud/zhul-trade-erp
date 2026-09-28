@@ -18,6 +18,8 @@ public class CustomerInquiryDO {
     private Integer tenantId;
     private String inquiryCode;
     private Long customerId;
+    /** 来源商机ID，从商机创建时写入，可空 */
+    private Long opportunityId;
     /** 询盘来源，见 CustomerInquirySource */
     private Integer source;
     private String rawContent;

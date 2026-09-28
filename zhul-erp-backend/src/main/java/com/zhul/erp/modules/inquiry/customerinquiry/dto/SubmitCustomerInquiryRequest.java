@@ -13,6 +13,8 @@ import java.time.LocalDate;
 public class SubmitCustomerInquiryRequest {
     @NotNull(message = "客户不能为空")
     private Long customerId;
+    /** 来源商机（可空）：从商机创建时传入，必须与客户一致 */
+    private Long opportunityId;
     @NotNull(message = "询盘来源不能为空")
     private Integer source;
     private String rawContent;

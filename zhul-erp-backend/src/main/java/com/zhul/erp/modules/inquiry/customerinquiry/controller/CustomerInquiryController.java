@@ -26,6 +26,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1/inquiry/customer-inquiries")
@@ -45,6 +46,12 @@ public class CustomerInquiryController {
     @PostMapping("/attachments/excel")
     public Result<AttachmentVO> uploadExcel(@RequestPart("file") MultipartFile file) {
         return Result.ok(attachmentStorageService.storeExcel(file));
+    }
+
+    /** 把来源商机的一个附件（图片或 Excel）复制为询盘附件 */
+    @PostMapping("/attachments/from-opportunity")
+    public Result<AttachmentVO> copyFromOpportunity(@RequestBody Map<String, Long> body) {
+        return Result.ok(customerInquiryService.copyOpportunityAttachment(body.get("opportunityId"), body.get("attachmentId")));
     }
 
     @PostMapping

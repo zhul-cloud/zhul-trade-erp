@@ -84,6 +84,29 @@ public class AttachmentStorageServiceImpl implements AttachmentStorageService {
     }
 
     @Override
+    public AttachmentVO copyFrom(Path source, String originalName) {
+        String ext = extensionOf(originalName);
+        String normalizedExt = ALLOWED_IMAGE_EXT.containsKey(ext) ? ALLOWED_IMAGE_EXT.get(ext) : ALLOWED_EXCEL_EXT.get(ext);
+        if (normalizedExt == null) {
+            throw new BizException("仅支持图片（JPG/PNG）或 Excel（XLSX/XLS/CSV）附件");
+        }
+        try {
+            if (Files.size(source) > MAX_FILE_SIZE) {
+                throw new BizException("文件大小不能超过5MB");
+            }
+            int tenantId = currentTenantId();
+            Path targetDir = Path.of(uploadDir, SUB_DIR, String.valueOf(tenantId));
+            Files.createDirectories(targetDir);
+            String storedFilename = UUID.randomUUID().toString().replace("-", "") + "." + normalizedExt;
+            Files.copy(source, targetDir.resolve(storedFilename));
+            return new AttachmentVO("/uploads/" + SUB_DIR + "/" + tenantId + "/" + storedFilename, originalName);
+        } catch (IOException e) {
+            log.error("复制附件失败", e);
+            throw new BizException("附件复制失败，请稍后重试");
+        }
+    }
+
+    @Override
     public Path resolveToAbsolutePath(String url) {
         if (url == null || !url.startsWith("/uploads/")) {
             throw new BizException("附件地址不合法: " + url);

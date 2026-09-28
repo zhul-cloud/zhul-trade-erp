@@ -226,6 +226,24 @@ const CustomerInquiryDetail: React.FC = () => {
         <Descriptions.Item label="创建时间">
           {inquiry.createTime}
         </Descriptions.Item>
+        {inquiry.opportunityId && (
+          <Descriptions.Item label="来源商机">
+            {inquiry.opportunityCode ? (
+              <a
+                onClick={() =>
+                  history.push(
+                    `/inquiry/opportunities/${inquiry.opportunityId}`,
+                  )
+                }
+              >
+                {inquiry.opportunityCode} · {inquiry.opportunityCustomerName} ·{' '}
+                {inquiry.opportunityStageName}
+              </a>
+            ) : (
+              '有（不在你的数据权限范围内）'
+            )}
+          </Descriptions.Item>
+        )}
       </Descriptions>
 
       {inquiry.status === CUSTOMER_INQUIRY_STATUS.PENDING_PARSE && (

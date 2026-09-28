@@ -20,6 +20,7 @@ import {
   LIST_PATH,
   PageTitle,
   PartyGroups,
+  Pill,
   RolePill,
   SectionCard,
   StatusPill,
@@ -259,7 +260,8 @@ const CustomerDetailPage: React.FC = () => {
     const r = record;
     title = (
       <>
-        <span style={{ wordBreak: 'break-word' }}>{r.name}</span>
+        <span style={{ wordBreak: 'break-word' }}>{r.displayName}</span>
+        {r.nameMissing && <Pill tone="orange">未填客户名称</Pill>}
         <RolePill value={r.customerRole} />
         <GradePill value={r.customerGrade} />
         <StatusPill status={r.status} />

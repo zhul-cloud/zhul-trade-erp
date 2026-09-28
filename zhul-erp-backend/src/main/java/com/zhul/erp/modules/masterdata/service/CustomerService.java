@@ -4,6 +4,7 @@ import com.zhul.erp.common.result.PageResult;
 import com.zhul.erp.modules.masterdata.dto.AssignableOwnersVO;
 import com.zhul.erp.modules.masterdata.dto.CustomerBatchDeleteResultVO;
 import com.zhul.erp.modules.masterdata.dto.CustomerDetailVO;
+import com.zhul.erp.modules.masterdata.dto.CustomerLeadCommand;
 import com.zhul.erp.modules.masterdata.dto.CustomerPageQuery;
 import com.zhul.erp.modules.masterdata.dto.CustomerRefVO;
 import com.zhul.erp.modules.masterdata.dto.CustomerTransferRequest;
@@ -56,4 +57,11 @@ public interface CustomerService {
 
     /** 补算 name_key 为空的客户（启动时调用，幂等），返回处理条数 */
     int backfillNameKeys();
+
+    /**
+     * 登记商机时创建客户：客户名称可为空；按「名称 + 国家」、邮箱、WhatsApp、电话任一相同查重，
+     * 命中时抛 CUSTOMER_DUPLICATE（detail 含 existingId、selectable、ownerName、displayName、matchedBy）。
+     * 负责人为当前用户。返回新客户 ID。
+     */
+    Long createLead(CustomerLeadCommand cmd);
 }

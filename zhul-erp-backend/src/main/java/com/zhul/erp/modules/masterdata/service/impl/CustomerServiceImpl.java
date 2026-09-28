@@ -13,6 +13,7 @@ import com.zhul.erp.modules.masterdata.dto.AbstractCustomerRequest;
 import com.zhul.erp.modules.masterdata.dto.AssignableOwnersVO;
 import com.zhul.erp.modules.masterdata.dto.CustomerBatchDeleteResultVO;
 import com.zhul.erp.modules.masterdata.dto.CustomerDetailVO;
+import com.zhul.erp.modules.masterdata.dto.CustomerLeadCommand;
 import com.zhul.erp.modules.masterdata.dto.CustomerPageQuery;
 import com.zhul.erp.modules.masterdata.dto.CustomerPartyRequest;
 import com.zhul.erp.modules.masterdata.dto.CustomerRefVO;
@@ -24,6 +25,7 @@ import com.zhul.erp.modules.masterdata.entity.CustomerDO;
 import com.zhul.erp.modules.masterdata.entity.CustomerPartyDO;
 import com.zhul.erp.modules.masterdata.repository.CustomerMapper;
 import com.zhul.erp.modules.masterdata.service.CustomerService;
+import com.zhul.erp.modules.masterdata.support.ContactKeys;
 import com.zhul.erp.modules.masterdata.support.CustomerNameNormalizer;
 import com.zhul.erp.modules.product.support.CountryCatalog;
 import com.zhul.erp.modules.system.entity.DepartmentDO;
@@ -143,6 +145,117 @@ public class CustomerServiceImpl implements CustomerService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    public Long createLead(CustomerLeadCommand cmd) {
+        int tenantId = currentTenantId();
+        DataScope scope = dataScopeResolver.current();
+        String name = text(cmd.name());
+        requireNoCjk(name);
+        String country = canonicalCountry(cmd.country());
+
+        CustomerDO customer = new CustomerDO();
+        customer.setTenantId(tenantId);
+        customer.setName(name);
+        customer.setNameKey(CustomerNameNormalizer.normalize(name));
+        customer.setContactName(text(cmd.contactName()));
+        customer.setCountry(country);
+        customer.setSourceChannel(cmd.sourceChannel());
+        customer.setContactEmail(text(cmd.contactEmail()));
+        customer.setWhatsapp(text(cmd.whatsapp()));
+        customer.setContactPhone(text(cmd.contactPhone()));
+        customer.setWebsite(text(cmd.website()));
+        applyContactKeys(customer);
+        checkLeadDuplicate(tenantId, customer, scope);
+
+        customer.setNameCn("");
+        customer.setShortName("");
+        customer.setIndustry(CustomerConstants.UNSET);
+        customer.setCustomerGrade(CustomerConstants.UNSET);
+        customer.setCustomerRole(CustomerConstants.UNSET);
+        customer.setExternalRef("");
+        customer.setRemark("");
+        customer.setState("");
+        customer.setCity("");
+        customer.setPostcode("");
+        customer.setAddress("");
+        customer.setTaxId("");
+        customer.setTimezone("");
+        customer.setContactTitle("");
+        customer.setOtherIm("");
+        customer.setCurrency(CustomerConstants.DEFAULT_CURRENCY);
+        customer.setIncoterm("");
+        customer.setIncotermPlace("");
+        customer.setPaymentMethod(CustomerConstants.UNSET);
+        customer.setShippingMethod(CustomerConstants.UNSET);
+        customer.setDestinationPort("");
+        customer.setCreditCurrency("");
+        customer.setOwnerId(scope.selfId() != null ? scope.selfId() : 0L);
+        customer.setStatus(1);
+        customerMapper.insert(customer);
+        customer.setCustomerCode(generateCode(tenantId, customer.getId()));
+        customerMapper.updateById(customer);
+        return customer.getId();
+    }
+
+    /**
+     * 登记商机的查重：名称 + 国家（名称为空时跳过）、邮箱、WhatsApp、电话任一相同即命中；
+     * 不受数据权限限制，命中时只透露展示名与负责人。
+     */
+    private void checkLeadDuplicate(int tenantId, CustomerDO c, DataScope scope) {
+        List<String[]> checks = new ArrayList<>(4);
+        if (!c.getNameKey().isEmpty()) {
+            checks.add(new String[]{"name", c.getNameKey()});
+        }
+        if (!c.getEmailKey().isEmpty()) {
+            checks.add(new String[]{"email", c.getEmailKey()});
+        }
+        if (!c.getWhatsappKey().isEmpty()) {
+            checks.add(new String[]{"whatsapp", c.getWhatsappKey()});
+        }
+        if (!c.getPhoneKey().isEmpty()) {
+            checks.add(new String[]{"phone", c.getPhoneKey()});
+        }
+        for (String[] check : checks) {
+            LambdaQueryWrapper<CustomerDO> w = new LambdaQueryWrapper<CustomerDO>()
+                    .eq(CustomerDO::getTenantId, tenantId)
+                    .isNull(CustomerDO::getDeletedAt)
+                    .last("LIMIT 1");
+            switch (check[0]) {
+                case "name" -> w.eq(CustomerDO::getNameKey, check[1]).eq(CustomerDO::getCountry, c.getCountry());
+                case "email" -> w.eq(CustomerDO::getEmailKey, check[1]);
+                case "whatsapp" -> w.eq(CustomerDO::getWhatsappKey, check[1]);
+                default -> w.eq(CustomerDO::getPhoneKey, check[1]);
+            }
+            CustomerDO dup = customerMapper.selectOne(w);
+            if (dup == null) {
+                continue;
+            }
+            String ownerName = ownerNames(List.of(dup)).get(dup.getOwnerId());
+            String displayName = displayName(dup);
+            Map<String, Object> detail = new LinkedHashMap<>();
+            detail.put("existingId", dup.getId());
+            detail.put("selectable", scope.canSee(dup.getOwnerId()));
+            detail.put("ownerName", ownerName);
+            detail.put("displayName", displayName);
+            detail.put("matchedBy", check[0]);
+            String owner = ownerName != null ? "负责人 " + ownerName : "尚未分配负责人";
+            throw BizException.of(CustomerConstants.ERROR_DUPLICATE,
+                    "该客户已存在（" + displayName + "，" + owner + "），老客户的新需求请新建询盘", detail);
+        }
+    }
+
+    private static void applyContactKeys(CustomerDO c) {
+        c.setEmailKey(ContactKeys.email(c.getContactEmail()));
+        c.setWhatsappKey(ContactKeys.phone(c.getWhatsapp()));
+        c.setPhoneKey(ContactKeys.phone(c.getContactPhone()));
+    }
+
+    /** 展示名：有客户名称用名称，否则用联系人名称 */
+    static String displayName(CustomerDO c) {
+        return StringUtils.hasText(c.getName()) ? c.getName() : c.getContactName();
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
     public void updateStatus(Long id, Integer status) {
         CustomerDO customer = getActiveInScope(id, dataScopeResolver.current());
         customer.setStatus(status);
@@ -242,6 +355,7 @@ public class CustomerServiceImpl implements CustomerService {
         c.setContactEmail(text(req.getContactEmail()));
         c.setContactPhone(text(req.getContactPhone()));
         c.setWhatsapp(text(req.getWhatsapp()));
+        applyContactKeys(c);
         c.setOtherIm(text(req.getOtherIm()));
         String currency = text(req.getCurrency()).toUpperCase(Locale.ROOT);
         c.setCurrency(currency.isEmpty() ? CustomerConstants.DEFAULT_CURRENCY : currency);
@@ -258,6 +372,10 @@ public class CustomerServiceImpl implements CustomerService {
 
     /** 规范化名称 + 国家查重，不受数据权限限制；命中时只透露负责人姓名 */
     private void checkDuplicate(int tenantId, String country, String nameKey, Long selfId, DataScope scope) {
+        if (nameKey.isEmpty()) {
+            // 名称为空（经商机登记暂缺客户名称）不参与名称查重，否则会和所有无名称客户撞上
+            return;
+        }
         CustomerDO dup = customerMapper.selectOne(new LambdaQueryWrapper<CustomerDO>()
                 .eq(CustomerDO::getTenantId, tenantId)
                 .eq(CustomerDO::getCountry, country)
@@ -297,8 +415,12 @@ public class CustomerServiceImpl implements CustomerService {
                 .eq(CustomerDO::getTenantId, currentTenantId())
                 .isNull(CustomerDO::getDeletedAt)
                 .eq(CustomerDO::getStatus, 1)
-                .like(StringUtils.hasText(keyword), CustomerDO::getName, keyword)
                 .last("LIMIT " + SEARCH_LIMIT);
+        if (StringUtils.hasText(keyword)) {
+            // 经商机登记的客户可能没有客户名称，按联系人名称也能搜到
+            String kw = keyword.trim();
+            wrapper.and(w -> w.like(CustomerDO::getName, kw).or().like(CustomerDO::getContactName, kw));
+        }
         return toVos(customerMapper.selectList(wrapper));
     }
 
@@ -312,7 +434,7 @@ public class CustomerServiceImpl implements CustomerService {
         if (StringUtils.hasText(keyword)) {
             String kw = keyword.trim();
             wrapper.and(w -> w.like(CustomerDO::getName, kw).or().like(CustomerDO::getNameCn, kw)
-                    .or().like(CustomerDO::getShortName, kw));
+                    .or().like(CustomerDO::getShortName, kw).or().like(CustomerDO::getContactName, kw));
         }
         wrapper.orderByDesc(CustomerDO::getUpdateTime).last("LIMIT " + SEARCH_LIMIT);
         return toVos(customerMapper.selectList(wrapper));
@@ -338,6 +460,8 @@ public class CustomerServiceImpl implements CustomerService {
         vo.setId(customer.getId());
         vo.setCustomerCode(customer.getCustomerCode());
         vo.setName(customer.getName());
+        vo.setDisplayName(displayName(customer));
+        vo.setNameMissing(!StringUtils.hasText(customer.getName()));
         vo.setCountry(customer.getCountry());
         vo.setStatus(customer.getStatus());
         return vo;
@@ -686,6 +810,8 @@ public class CustomerServiceImpl implements CustomerService {
         vo.setId(c.getId());
         vo.setCustomerCode(c.getCustomerCode());
         vo.setName(c.getName());
+        vo.setDisplayName(displayName(c));
+        vo.setNameMissing(!StringUtils.hasText(c.getName()));
         vo.setNameCn(c.getNameCn());
         vo.setShortName(c.getShortName());
         vo.setCountry(c.getCountry());

@@ -4,6 +4,12 @@ export interface CustomerInquiryItem {
   id: number;
   inquiryCode: string;
   customerId: number;
+  /** 来源商机（可空）；详情接口且在数据权限内时带摘要 */
+  opportunityId?: number;
+  opportunityCode?: string;
+  opportunityCustomerName?: string;
+  opportunitySourceChannel?: number;
+  opportunityStageName?: string;
   source: number;
   rawContent?: string;
   rawAttachmentUrl?: string;
@@ -65,6 +71,8 @@ export interface InquiryPreview {
 
 export interface SubmitCustomerInquiryPayload {
   customerId: number;
+  /** 从商机创建时传入，必须与客户一致 */
+  opportunityId?: number;
   source: number;
   rawContent?: string;
   rawAttachmentUrl?: string;

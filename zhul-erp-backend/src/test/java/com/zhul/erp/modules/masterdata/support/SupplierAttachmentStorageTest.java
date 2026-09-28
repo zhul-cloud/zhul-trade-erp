@@ -1,6 +1,7 @@
 package com.zhul.erp.modules.masterdata.support;
 
 import com.zhul.erp.common.exception.BizException;
+import com.zhul.erp.framework.storage.PrivateFileStorage;
 import com.zhul.erp.modules.masterdata.dto.SupplierAttachmentUploadVO;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -20,16 +21,7 @@ class SupplierAttachmentStorageTest {
     Path root;
 
     private SupplierAttachmentStorage storage() {
-        return new SupplierAttachmentStorage(root.toString());
-    }
-
-    @Test
-    void detect_byFileHeaderNotExtension() {
-        assertThat(SupplierAttachmentStorage.detect("%PDF-1.7".getBytes(StandardCharsets.US_ASCII))).isEqualTo("pdf");
-        assertThat(SupplierAttachmentStorage.detect(new byte[]{(byte) 0x89, 'P', 'N', 'G', 0, 0})).isEqualTo("png");
-        assertThat(SupplierAttachmentStorage.detect(new byte[]{(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, 0})).isEqualTo("jpg");
-        assertThat(SupplierAttachmentStorage.detect(new byte[]{'I', 'I', 42, 0})).isNull();
-        assertThat(SupplierAttachmentStorage.detect(new byte[0])).isNull();
+        return new SupplierAttachmentStorage(new PrivateFileStorage(root.toString()));
     }
 
     @Test
@@ -65,6 +57,8 @@ class SupplierAttachmentStorageTest {
         assertThat(s.resolveOwned(key, 7)).exists();
         assertThrows(BizException.class, () -> s.resolveOwned(key, 8));
         assertThrows(BizException.class, () -> s.resolveOwned("supplier/7/202609/../../../etc/passwd", 7));
+        // 其他模块的文件不能当作供应商附件引用
+        assertThrows(BizException.class, () -> s.resolveOwned(key.replace("supplier/", "opportunity/"), 7));
         assertThrows(BizException.class, () -> s.resolveOwned("supplier/7/202609/" + "b".repeat(32) + ".png", 7));
         assertThrows(BizException.class, () -> s.resolveOwned(null, 7));
     }

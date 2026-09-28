@@ -5,6 +5,9 @@ export interface CustomerItem {
   /** 客户编码，快速创建时由系统自动生成 */
   customerCode?: string;
   name: string;
+  /** 展示名：有客户名称用名称，否则用联系人名称（经商机登记的客户可能暂缺名称） */
+  displayName?: string;
+  nameMissing?: boolean;
   nameCn?: string;
   country?: string;
   contactName?: string;

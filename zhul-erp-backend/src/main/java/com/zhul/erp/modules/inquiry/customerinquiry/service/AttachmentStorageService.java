@@ -19,6 +19,12 @@ public interface AttachmentStorageService {
     /** 校验类型/大小并保存Excel/CSV文件，返回可直接通过浏览器访问的相对URL。 */
     AttachmentVO storeExcel(MultipartFile file);
 
+    /**
+     * 把已有文件（如商机的私有附件）复制为询盘附件，按扩展名当作图片或 Excel，大小与类型规则同上传。
+     * 返回可直接用作 rawAttachmentUrl 的相对URL。
+     */
+    AttachmentVO copyFrom(Path source, String originalName);
+
     /** 把 storeImage/storeExcel 返回的相对URL解析回本地磁盘的绝对路径。 */
     Path resolveToAbsolutePath(String url);
 

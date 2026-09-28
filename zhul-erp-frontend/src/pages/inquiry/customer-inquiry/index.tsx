@@ -14,7 +14,7 @@ import {
   ProFormUploadDragger,
   ProTable,
 } from '@ant-design/pro-components';
-import { history } from '@umijs/max';
+import { history, useSearchParams } from '@umijs/max';
 import { Button, Card, message, Space, Tabs, Tag } from 'antd';
 import React, { useEffect, useRef, useState } from 'react';
 import CustomerQuickCreateModal from '@/components/CustomerQuickCreateModal';
@@ -110,6 +110,24 @@ const CustomerInquiryList: React.FC = () => {
     load();
   }, []);
 
+  // 从商机登记的查重提示跳过来（?newForCustomer=客户ID）：直接打开新建弹窗并选好客户
+  const [searchParams, setSearchParams] = useSearchParams();
+  useEffect(() => {
+    const id = Number(searchParams.get('newForCustomer'));
+    if (!id) return;
+    getCustomer(id)
+      .then((c) => {
+        if (!c) return;
+        const label = c.displayName || c.name;
+        setSelectedCustomer({ ...c, name: label });
+        setCustomerOptions([{ label, value: c.id }]);
+        setCreateOpen(true);
+      })
+      .catch(() => undefined)
+      .finally(() => setSearchParams({}, { replace: true }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // 负责人下拉/展示：用户数量在本项目规模下预期有限，一次性拉一页（200条）建立 id→姓名 映射，
   // 而不是逐个 id 反查（后端没有按 id 批量查询用户的接口）。
   useEffect(() => {
@@ -140,7 +158,7 @@ const CustomerInquiryList: React.FC = () => {
     setCustomerNameMap((prev) => {
       const next = { ...prev };
       fetched.forEach((c) => {
-        if (c) next[c.id] = c.name;
+        if (c) next[c.id] = c.displayName || c.name;
       });
       return next;
     });
@@ -291,7 +309,9 @@ const CustomerInquiryList: React.FC = () => {
 
   const handleCustomerSearch = async (keyword: string) => {
     const list = await searchCustomers(keyword);
-    setCustomerOptions(list.map((c) => ({ label: c.name, value: c.id })));
+    setCustomerOptions(
+      list.map((c) => ({ label: c.displayName || c.name, value: c.id })),
+    );
   };
 
   return (

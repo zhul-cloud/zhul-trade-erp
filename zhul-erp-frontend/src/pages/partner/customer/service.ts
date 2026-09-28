@@ -4,6 +4,9 @@ export interface CustomerListItem {
   id: number;
   customerCode: string;
   name: string;
+  /** 展示名：有客户名称用名称，否则用联系人名称（经商机登记的客户可能暂缺名称） */
+  displayName: string;
+  nameMissing: boolean;
   nameCn: string;
   shortName: string;
   country: string;

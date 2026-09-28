@@ -12,6 +12,8 @@ import com.zhul.erp.modules.inquiry.customerinquiry.dto.AdvanceCustomerInquirySt
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.ConfirmSplitGroupRequest;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.ConfirmSplitItemRequest;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.ConfirmSplitRequest;
+import com.zhul.erp.modules.crm.dto.OpportunityVO;
+import com.zhul.erp.modules.crm.service.OpportunityService;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.CustomerInquiryVO;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.InquiryPreviewVO;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.SubmitCustomerInquiryRequest;
@@ -75,12 +77,16 @@ class CustomerInquiryServiceImplTest {
     @Mock
     private AttachmentStorageService attachmentStorageService;
 
+    @Mock
+    private OpportunityService opportunityService;
+
     private CustomerInquiryServiceImpl service;
 
     @BeforeEach
     void setUp() {
         service = new CustomerInquiryServiceImpl(customerInquiryMapper, codeGenerator, aiTaskService,
-                inquiryOrderService, customerService, currentUserResolver, new ObjectMapper(), attachmentStorageService);
+                inquiryOrderService, customerService, currentUserResolver, new ObjectMapper(), attachmentStorageService,
+                opportunityService);
         TenantContext.setTenantId(1);
     }
 
@@ -494,5 +500,46 @@ class CustomerInquiryServiceImplTest {
         inquiry.setCustomerId(10L);
         inquiry.setStatus(CustomerInquiryStatus.PENDING_PARSE);
         return inquiry;
+    }
+
+    // ---------------------------------------------------------------- 来源商机（add-opportunity-management）
+
+    @Test
+    void submit_withOpportunityOfAnotherCustomer_rejected() {
+        when(customerService.getById(7L)).thenReturn(new CustomerVO());
+        when(opportunityService.customerIdOf(3L)).thenReturn(8L);
+        SubmitCustomerInquiryRequest req =
+                new SubmitCustomerInquiryRequest();
+        req.setCustomerId(7L);
+        req.setSource(1);
+        req.setRawContent("S7-1200 x 50");
+        req.setOpportunityId(3L);
+
+        BizException e = assertThrows(
+                BizException.class, () -> service.submit(req));
+        assertThat(e.getMessage()).isEqualTo("来源商机与客户不一致");
+    }
+
+    @Test
+    void getById_withVisibleOpportunity_fillsSummary() {
+        CustomerInquiryDO inquiry =
+                new CustomerInquiryDO();
+        inquiry.setId(5L);
+        inquiry.setTenantId(1);
+        inquiry.setCustomerId(7L);
+        inquiry.setOpportunityId(3L);
+        when(customerInquiryMapper.selectById(5L)).thenReturn(inquiry);
+        OpportunityVO opp = new OpportunityVO();
+        opp.setOpportunityCode("OPP20260928001");
+        opp.setCustomerName("John");
+        opp.setSourceChannel(5);
+        opp.setStageName("有效商机");
+        when(opportunityService.findVisible(3L)).thenReturn(opp);
+
+        CustomerInquiryVO vo = service.getById(5L);
+
+        assertThat(vo.getOpportunityId()).isEqualTo(3L);
+        assertThat(vo.getOpportunityCode()).isEqualTo("OPP20260928001");
+        assertThat(vo.getOpportunityStageName()).isEqualTo("有效商机");
     }
 }

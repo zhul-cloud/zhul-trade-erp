@@ -161,6 +161,19 @@ export default [
     routes: [
       { path: '/inquiry', redirect: '/inquiry/customer-inquiries' },
       {
+        path: '/inquiry/opportunities',
+        name: 'opportunity',
+        icon: 'userAdd',
+        access: 'inquiryOpportunity',
+        component: './inquiry/opportunity',
+      },
+      {
+        path: '/inquiry/opportunities/:id',
+        hideInMenu: true,
+        access: 'inquiryOpportunity',
+        component: './inquiry/opportunity/detail',
+      },
+      {
         path: '/inquiry/customer-inquiries',
         name: 'customerInquiry',
         icon: 'inbox',

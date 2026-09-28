@@ -1,6 +1,7 @@
 package com.zhul.erp.modules.inquiry.customerinquiry.service;
 
 import com.zhul.erp.common.result.PageResult;
+import com.zhul.erp.modules.inquiry.customerinquiry.dto.AttachmentVO;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.AdvanceCustomerInquiryStatusRequest;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.ConfirmSplitRequest;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.CustomerInquiryPageQuery;
@@ -14,6 +15,9 @@ public interface CustomerInquiryService {
     CustomerInquiryVO submit(SubmitCustomerInquiryRequest req);
 
     PageResult<CustomerInquiryVO> page(CustomerInquiryPageQuery query);
+
+    /** 把来源商机的一个附件复制为询盘附件，返回可用作 rawAttachmentUrl 的地址 */
+    AttachmentVO copyOpportunityAttachment(Long opportunityId, Long attachmentId);
 
     CustomerInquiryVO getById(Long id);
 

@@ -1,5 +1,9 @@
 package com.zhul.erp.modules.inquiry.customerinquiry.service.impl;
 
+import java.util.Objects;
+import com.zhul.erp.modules.inquiry.customerinquiry.dto.AttachmentVO;
+import com.zhul.erp.modules.crm.service.OpportunityService;
+import com.zhul.erp.modules.crm.dto.OpportunityVO;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -64,6 +68,7 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
     private final CurrentUserResolver currentUserResolver;
     private final ObjectMapper objectMapper;
     private final AttachmentStorageService attachmentStorageService;
+    private final OpportunityService opportunityService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -71,9 +76,14 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
         if (customerService.getById(req.getCustomerId()) == null) {
             throw new BizException("客户不存在");
         }
+        if (req.getOpportunityId() != null
+                && !Objects.equals(opportunityService.customerIdOf(req.getOpportunityId()), req.getCustomerId())) {
+            throw new BizException("来源商机与客户不一致");
+        }
         CustomerInquiryDO inquiry = new CustomerInquiryDO();
         inquiry.setTenantId(currentTenantId());
         inquiry.setCustomerId(req.getCustomerId());
+        inquiry.setOpportunityId(req.getOpportunityId());
         inquiry.setSource(req.getSource());
         inquiry.setRawContent(req.getRawContent());
         inquiry.setRawAttachmentUrl(req.getRawAttachmentUrl());
@@ -130,7 +140,21 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
 
     @Override
     public CustomerInquiryVO getById(Long id) {
-        return toVo(getOrThrow(id));
+        CustomerInquiryVO vo = toVo(getOrThrow(id));
+        OpportunityVO opp = vo.getOpportunityId() == null ? null : opportunityService.findVisible(vo.getOpportunityId());
+        if (opp != null) {
+            vo.setOpportunityCode(opp.getOpportunityCode());
+            vo.setOpportunityCustomerName(opp.getCustomerName());
+            vo.setOpportunitySourceChannel(opp.getSourceChannel());
+            vo.setOpportunityStageName(opp.getStageName());
+        }
+        return vo;
+    }
+
+    @Override
+    public AttachmentVO copyOpportunityAttachment(Long opportunityId, Long attachmentId) {
+        OpportunityService.AttachmentFile file = opportunityService.attachmentFile(opportunityId, attachmentId);
+        return attachmentStorageService.copyFrom(file.path(), file.fileName());
     }
 
     @Override
@@ -441,6 +465,7 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
         vo.setId(inquiry.getId());
         vo.setInquiryCode(inquiry.getInquiryCode());
         vo.setCustomerId(inquiry.getCustomerId());
+        vo.setOpportunityId(inquiry.getOpportunityId());
         vo.setSource(inquiry.getSource());
         vo.setRawContent(inquiry.getRawContent());
         vo.setRawAttachmentUrl(inquiry.getRawAttachmentUrl());
