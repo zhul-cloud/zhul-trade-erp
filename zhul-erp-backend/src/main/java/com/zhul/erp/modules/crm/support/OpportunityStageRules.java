@@ -82,7 +82,8 @@ public class OpportunityStageRules {
             return a.get(a.size() - 1);
         }
 
-        private OpportunityStageDO firstValid() {
+        /** 第一个计为有效的进行中阶段（默认 S3） */
+        public OpportunityStageDO firstValid() {
             return active().stream().filter(s -> Objects.equals(s.getCountsAsValid(), 1)).findFirst().orElse(last());
         }
 

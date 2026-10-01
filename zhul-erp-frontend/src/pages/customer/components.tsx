@@ -38,7 +38,7 @@ import {
   readBizError,
 } from './service';
 
-export const LIST_PATH = '/partner/customers';
+export const LIST_PATH = '/customer/list';
 
 export const Pill: React.FC<{ tone: Tone; children: React.ReactNode }> = ({
   tone,
@@ -106,10 +106,10 @@ export const PageTitle: React.FC<{
 }> = ({ title, current, description, actions }) => {
   const { palette } = useAppTheme();
   const items = [
-    { title: '客商管理' },
+    { title: '客户管理' },
     current
-      ? { title: <Link to={LIST_PATH}>客户管理</Link> }
-      : { title: '客户管理' },
+      ? { title: <Link to={LIST_PATH}>客户列表</Link> }
+      : { title: '客户列表' },
     ...(current ? [{ title: current }] : []),
   ];
   return (

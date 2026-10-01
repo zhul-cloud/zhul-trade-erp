@@ -9,7 +9,7 @@ import {
   type SupplierTypeTone,
 } from './constants';
 
-export const LIST_PATH = '/partner/suppliers';
+export const LIST_PATH = '/supplier/list';
 
 /** 供应商类型胶囊；0（存量数据、询盘内联创建）显示「未设置」 */
 export const SupplierTypePill: React.FC<{ value?: number }> = ({ value }) => {
@@ -74,10 +74,10 @@ export const PageTitle: React.FC<{
 }> = ({ title, current, description, actions }) => {
   const { palette } = useAppTheme();
   const items = [
-    { title: '客商管理' },
+    { title: '供应商管理' },
     current
-      ? { title: <Link to={LIST_PATH}>供应商管理</Link> }
-      : { title: '供应商管理' },
+      ? { title: <Link to={LIST_PATH}>供应商列表</Link> }
+      : { title: '供应商列表' },
     ...(current ? [{ title: current }] : []),
   ];
   return (

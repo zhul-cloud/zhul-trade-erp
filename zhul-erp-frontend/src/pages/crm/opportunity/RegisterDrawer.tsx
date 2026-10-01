@@ -278,7 +278,7 @@ const RegisterDrawer: React.FC<{
                 {duplicate.selectable && (
                   <a
                     onClick={() =>
-                      history.push(`/partner/customers/${duplicate.existingId}`)
+                      history.push(`/customer/list/${duplicate.existingId}`)
                     }
                   >
                     查看客户

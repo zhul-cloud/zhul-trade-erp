@@ -271,12 +271,14 @@ const OpportunityDetailPage: React.FC = () => {
                 编辑
               </Button>
             )}
-            <Button
-              icon={<FileAddOutlined />}
-              onClick={() => setCreatingInquiry(true)}
-            >
-              创建客户询盘
-            </Button>
+            {isActive && (
+              <Button
+                icon={<FileAddOutlined />}
+                onClick={() => setCreatingInquiry(true)}
+              >
+                创建客户询盘
+              </Button>
+            )}
           </>
         }
       />
@@ -368,11 +370,7 @@ const OpportunityDetailPage: React.FC = () => {
           <Card
             title="客户与联系方式"
             extra={
-              <a
-                onClick={() =>
-                  history.push(`/partner/customers/${d.customerId}`)
-                }
-              >
+              <a onClick={() => history.push(`/customer/list/${d.customerId}`)}>
                 去客户档案补全
               </a>
             }
@@ -473,11 +471,17 @@ const OpportunityDetailPage: React.FC = () => {
 
           <Card
             title="关联询盘"
-            extra={<a onClick={() => setCreatingInquiry(true)}>创建客户询盘</a>}
+            extra={
+              isActive && (
+                <a onClick={() => setCreatingInquiry(true)}>创建客户询盘</a>
+              )
+            }
           >
             {d.inquiries.length === 0 ? (
               <div style={{ color: palette.mute }}>
-                还没有询盘。客户需求明确后，可以从这里创建客户询盘交给 AI 解析。
+                {isActive
+                  ? '还没有询盘。客户需求明确后，可以从这里创建客户询盘交给 AI 解析。'
+                  : '还没有询盘。商机已结束，老客户的新需求请在客户询盘列表新建。'}
               </div>
             ) : (
               <div style={{ display: 'grid', gap: 8 }}>
@@ -604,6 +608,11 @@ const OpportunityDetailPage: React.FC = () => {
       />
       <CreateInquiryModal
         detail={d}
+        advanceTo={
+          isActive && !inValidStage
+            ? active.find((s) => s.countsAsValid)
+            : undefined
+        }
         open={creatingInquiry}
         onClose={() => setCreatingInquiry(false)}
       />

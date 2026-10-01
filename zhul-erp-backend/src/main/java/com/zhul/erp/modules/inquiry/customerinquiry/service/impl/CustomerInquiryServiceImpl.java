@@ -96,6 +96,9 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
         inquiry.setOwnerId(currentUserResolver.resolve());
         inquiry.setRemark(req.getRemark());
         insertWithRetry(inquiry);
+        if (req.getOpportunityId() != null) {
+            opportunityService.onInquiryCreated(req.getOpportunityId(), inquiry.getInquiryCode());
+        }
         return toVo(inquiry);
     }
 

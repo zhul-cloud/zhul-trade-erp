@@ -43,10 +43,11 @@ export default function access(initialState: {
     productCategory: can('/product/categories'),
     productSeries: can('/product/series'),
     productList: can('/product/products'),
-    // 客商管理：partnerMenu 是两个子权限任一为真，供 /partner 父路由的 access 用
-    partnerCustomer: can('/partner/customers'),
-    partnerSupplier: can('/partner/suppliers'),
-    partnerMenu: can('/partner/customers') || can('/partner/suppliers'),
+    // 客户管理、供应商管理：目录 access 目前等于列表页，以后加评分页时改成任一子页为真
+    customerList: can('/customer/list'),
+    customerMenu: can('/customer/list'),
+    supplierList: can('/supplier/list'),
+    supplierMenu: can('/supplier/list'),
     // 平台账号才有档案完整度、缺项筛选等平台视角
     productPlatform: platform,
     // 按钮级 - 商机

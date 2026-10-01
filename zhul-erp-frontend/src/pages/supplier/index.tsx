@@ -333,7 +333,7 @@ const SupplierListPage: React.FC = () => {
         跳到主要内容
       </a>
       <PageTitle
-        title="供应商管理"
+        title="供应商列表"
         description="维护企业供应商工商信息、联系方式与结算账户，作为采购与结算业务的统一数据来源。"
       />
 

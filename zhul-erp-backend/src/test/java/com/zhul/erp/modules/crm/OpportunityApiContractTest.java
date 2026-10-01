@@ -260,8 +260,23 @@ class OpportunityApiContractTest extends IntegrationTestBase {
                 + copied.path("url").asText() + "\",\"opportunityId\":" + id + "}"), admin)).path("id").asLong();
         JsonNode inquiry = ok(call(get(inquiryBase + "/" + inquiryId), admin));
         assertEquals(opp.path("opportunityCode").asText(), inquiry.path("opportunityCode").asText());
-        assertEquals("新商机", inquiry.path("opportunityStageName").asText());
-        assertEquals(inquiryId, ok(call(get(BASE + "/" + id), admin)).path("inquiries").get(0).path("id").asLong());
-        assertEquals("S1", ok(call(get(BASE + "/" + id), admin)).path("stageCode").asText(), "转询盘不自动改阶段");
+        assertEquals("有效商机", inquiry.path("opportunityStageName").asText());
+        JsonNode after = ok(call(get(BASE + "/" + id), admin));
+        assertEquals(inquiryId, after.path("inquiries").get(0).path("id").asLong());
+        assertEquals("S3", after.path("stageCode").asText(), "S1 创建询盘后自动推进到 S3");
+        JsonNode autoLog = after.path("stageLogs").get(0);
+        assertEquals(2, after.path("stageLogs").size(), "登记、自动推进");
+        assertTrue(autoLog.path("note").asText().startsWith("创建客户询盘 " + inquiry.path("inquiryCode").asText()), autoLog.toString());
+
+        // 已在有效阶段：再建询盘不改阶段
+        ok(call(json(post(BASE + "/" + id + "/stage"), "{\"toStage\":\"S4\"}"), admin));
+        ok(call(json(post(inquiryBase), "{\"customerId\":" + customerId + ",\"source\":1,\"rawContent\":\"追加 10 台\",\"opportunityId\":" + id + "}"), admin));
+        assertEquals("S4", ok(call(get(BASE + "/" + id), admin)).path("stageCode").asText());
+
+        // 已结束：不能再从商机创建询盘，询盘也不会写入
+        ok(call(json(post(BASE + "/" + id + "/close"), "{\"result\":\"LOST\",\"reason\":11}"), admin));
+        JsonNode closed = call(json(post(inquiryBase), "{\"customerId\":" + customerId + ",\"source\":1,\"rawContent\":\"x\",\"opportunityId\":" + id + "}"), admin);
+        assertEquals("商机已结束，不能再创建询盘；老客户的新需求请在客户询盘列表新建", closed.path("message").asText());
+        assertEquals(2, jdbc.queryForObject("select count(*) from customer_inquiry where opportunity_id = ?", Integer.class, id));
     }
 }

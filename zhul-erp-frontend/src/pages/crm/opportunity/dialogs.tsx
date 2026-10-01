@@ -29,6 +29,7 @@ import {
 } from './constants';
 import {
   type OpportunityDetail,
+  type OpportunityStage,
   opportunityApi,
   readBizError,
 } from './service';
@@ -324,9 +325,11 @@ export const EditModal: React.FC<{
  */
 export const CreateInquiryModal: React.FC<{
   detail: OpportunityDetail;
+  /** 当前还没到有效阶段时，创建询盘会自动推进到的阶段 */
+  advanceTo?: OpportunityStage;
   open: boolean;
   onClose: () => void;
-}> = ({ detail, open, onClose }) => {
+}> = ({ detail, advanceTo, open, onClose }) => {
   const { palette } = useAppTheme();
   const { message } = App.useApp();
   const [content, setContent] = useState('');
@@ -392,7 +395,10 @@ export const CreateInquiryModal: React.FC<{
         <span style={{ color: palette.ink, fontWeight: 600 }}>
           {detail.customerName}
         </span>
-        ，创建后询盘会关联这条商机，商机阶段不会自动变化。
+        ，创建后询盘会关联这条商机
+        {advanceTo
+          ? `，商机会自动推进到「${advanceTo.code} ${advanceTo.name}」。`
+          : '。'}
       </div>
       <div style={{ marginBottom: 8 }}>询盘内容</div>
       <Input.TextArea

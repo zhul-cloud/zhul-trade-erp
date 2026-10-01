@@ -52,6 +52,12 @@ public interface OpportunityService {
      */
     Long customerIdOf(Long opportunityId);
 
+    /**
+     * 从商机创建了客户询盘后调用（与询盘写入同一事务）：已结束的商机不能再创建询盘；
+     * 还没到有效阶段的（S1、S2）自动推进到第一个有效阶段并记入阶段记录
+     */
+    void onInquiryCreated(Long opportunityId, String inquiryCode);
+
     /** 询盘详情回显来源商机：本租户、未删除且在数据权限内时返回，否则返回 null */
     OpportunityVO findVisible(Long id);
 

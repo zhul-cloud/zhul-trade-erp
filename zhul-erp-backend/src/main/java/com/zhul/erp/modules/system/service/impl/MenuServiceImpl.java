@@ -15,12 +15,16 @@ import com.zhul.erp.modules.system.repository.RoleMapper;
 import com.zhul.erp.modules.system.repository.RoleResourceMapper;
 import com.zhul.erp.modules.system.service.MenuService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -33,12 +37,44 @@ public class MenuServiceImpl implements MenuService {
     private final RoleMapper roleMapper;
     private final EffectivePermissionResolver permissionResolver;
 
+    /**
+     * 菜单树只返回当前账号自己能访问的部分（含上级目录）：平台超管看到全部，
+     * 租户管理员只看到套餐内的菜单，所以给角色分配权限时不会出现租户管理等平台菜单。
+     */
     @Override
     public List<MenuVO> getMenuTree() {
         List<ResourceDO> all = resourceMapper.selectList(
             new LambdaQueryWrapper<ResourceDO>().orderByAsc(ResourceDO::getSort)
         );
+        Set<Integer> visible = visibleIds(currentUsername(), all);
+        if (visible != null) {
+            all = all.stream().filter(r -> visible.contains(r.getId())).collect(Collectors.toList());
+        }
         return buildTree(all, 0);
+    }
+
+    /** 当前账号能访问的资源 ID 加上它们的全部上级；null 表示不受限 */
+    private Set<Integer> visibleIds(String username, List<ResourceDO> all) {
+        Set<Integer> allowed = permissionResolver.resolveAllowedResourceIds(username);
+        if (allowed == null) {
+            return null;
+        }
+        Map<Integer, Integer> parentOf = new HashMap<>(all.size() * 2);
+        for (ResourceDO r : all) {
+            parentOf.put(r.getId(), r.getPid());
+        }
+        Set<Integer> result = new HashSet<>(allowed.size() * 2);
+        for (Integer id : allowed) {
+            Integer cur = id;
+            while (cur != null && cur != 0 && result.add(cur)) {
+                cur = parentOf.get(cur);
+            }
+        }
+        return result;
+    }
+
+    private static String currentUsername() {
+        return SecurityContextHolder.getContext().getAuthentication().getName();
     }
 
     private List<MenuVO> buildTree(List<ResourceDO> all, int pid) {
@@ -191,6 +227,12 @@ public class MenuServiceImpl implements MenuService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void assignRoleMenus(String roleCode, List<Integer> menuIds) {
+        if (menuIds != null && !menuIds.isEmpty()) {
+            Set<Integer> visible = visibleIds(currentUsername(), resourceMapper.selectList(null));
+            if (visible != null && !visible.containsAll(menuIds)) {
+                throw new BizException("包含当前账号无权分配的菜单");
+            }
+        }
         roleResourceMapper.delete(
             new LambdaQueryWrapper<RoleResourceDO>().eq(RoleResourceDO::getRoleCode, roleCode)
         );
@@ -208,10 +250,13 @@ public class MenuServiceImpl implements MenuService {
 
     @Override
     public List<String> getEffectiveMenuKeys(String username) {
-        Set<Integer> allowed = permissionResolver.resolveAllowedResourceIds(username);
-        List<ResourceDO> resources = allowed == null
-            ? resourceMapper.selectList(null)
-            : (allowed.isEmpty() ? new ArrayList<>() : resourceMapper.selectBatchIds(allowed));
+        // 角色只勾了部分子菜单时，上级目录不一定存进了 role_resource，这里统一补上，
+        // 否则侧边栏会因为目录本身不在权限里而把整组菜单隐藏
+        List<ResourceDO> all = resourceMapper.selectList(null);
+        Set<Integer> visible = visibleIds(username, all);
+        List<ResourceDO> resources = visible == null
+            ? all
+            : all.stream().filter(r -> visible.contains(r.getId())).collect(Collectors.toList());
         return resources.stream()
             .map(r -> StringUtils.hasText(r.getPath()) ? r.getPath() : r.getPermission())
             .filter(StringUtils::hasText)
