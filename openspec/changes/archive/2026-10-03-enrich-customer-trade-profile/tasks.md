@@ -47,4 +47,4 @@
 
 ## 7. 规格归档准备
 
-- [ ] 7.1 在本变更 specs 中把被取代的旧需求写清楚：归档顺序为 `add-inquiry-management` → `add-customer-supplier-management` → 本变更；本变更归档前，把 `master-data/customer` 中「创建客户记录」「同租户内客户名称重复提示」「客户记录仅支持软删除」改写为 MODIFIED（按本变更的新规则），并用 `openspec validate --strict` 验证
+- [x] 7.1 在本变更 specs 中把被取代的旧需求写清楚：归档顺序为 `add-inquiry-management` → `add-customer-supplier-management` → 本变更；本变更归档前，把 `master-data/customer` 中「创建客户记录」「同租户内客户名称重复提示」「客户记录仅支持软删除」改写为 MODIFIED（按本变更的新规则），并用 `openspec validate --strict` 验证。实际处理：「同租户内客户名称重复提示」「客户记录仅支持软删除」写为 MODIFIED（保留原场景名、按新规则改写内容）；「创建客户记录」原场景"仅填写名称创建成功"与新规则矛盾，改为 REMOVED，由「外贸客户档案字段」「快速创建客户」取代；strict 校验通过
