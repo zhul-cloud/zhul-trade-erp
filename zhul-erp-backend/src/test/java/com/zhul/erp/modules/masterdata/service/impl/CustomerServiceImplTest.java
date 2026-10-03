@@ -22,6 +22,7 @@ import com.zhul.erp.modules.product.support.CountryCatalog;
 import com.zhul.erp.modules.system.entity.UserBasicDO;
 import com.zhul.erp.modules.system.repository.DepartmentMapper;
 import com.zhul.erp.modules.system.repository.UserBasicMapper;
+import com.zhul.erp.modules.system.service.DictItemService;
 import com.zhul.erp.modules.system.service.LogService;
 import com.zhul.erp.support.MybatisPlusTestSupport;
 import org.apache.poi.ss.usermodel.Sheet;
@@ -73,6 +74,7 @@ class CustomerServiceImplTest {
     @Mock private UserBasicMapper userBasicMapper;
     @Mock private DepartmentMapper departmentMapper;
     @Mock private LogService logService;
+    @Mock private DictItemService dictItemService;
 
     private CustomerServiceImpl service;
     private final List<CustomerPartyDO> insertedParties = new ArrayList<>();
@@ -86,7 +88,7 @@ class CustomerServiceImplTest {
     @BeforeEach
     void setUp() {
         service = new CustomerServiceImpl(customerMapper, new CustomerPartySync(partyMapper), dataScopeResolver,
-                countryCatalog, userBasicMapper, departmentMapper, logService);
+                countryCatalog, userBasicMapper, departmentMapper, logService, dictItemService);
         TenantContext.setTenantId(1);
         when(dataScopeResolver.current()).thenReturn(new DataScope(DataScope.Type.SELF, SELF, Set.of(SELF)));
         when(countryCatalog.canonicalName(anyString())).thenAnswer(inv -> {

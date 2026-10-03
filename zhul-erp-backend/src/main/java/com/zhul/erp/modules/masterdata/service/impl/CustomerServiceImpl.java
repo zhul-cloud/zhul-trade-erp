@@ -3,6 +3,7 @@ package com.zhul.erp.modules.masterdata.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.zhul.erp.common.constants.DictTypes;
 import com.zhul.erp.common.exception.BizException;
 import com.zhul.erp.common.result.PageResult;
 import com.zhul.erp.framework.security.DataScope;
@@ -32,6 +33,7 @@ import com.zhul.erp.modules.system.entity.DepartmentDO;
 import com.zhul.erp.modules.system.entity.UserBasicDO;
 import com.zhul.erp.modules.system.repository.DepartmentMapper;
 import com.zhul.erp.modules.system.repository.UserBasicMapper;
+import com.zhul.erp.modules.system.service.DictItemService;
 import com.zhul.erp.modules.system.service.LogService;
 import lombok.RequiredArgsConstructor;
 import org.apache.poi.ss.usermodel.Row;
@@ -80,6 +82,7 @@ public class CustomerServiceImpl implements CustomerService {
     private final UserBasicMapper userBasicMapper;
     private final DepartmentMapper departmentMapper;
     private final LogService logService;
+    private final DictItemService dictItemService;
 
     // ---------------------------------------------------------------- 新增 / 更新
 
@@ -158,6 +161,7 @@ public class CustomerServiceImpl implements CustomerService {
         customer.setNameKey(CustomerNameNormalizer.normalize(name));
         customer.setContactName(text(cmd.contactName()));
         customer.setCountry(country);
+        dictItemService.requireEnabledValue(DictTypes.SOURCE_CHANNEL, cmd.sourceChannel(), "来源渠道不正确");
         customer.setSourceChannel(cmd.sourceChannel());
         customer.setContactEmail(text(cmd.contactEmail()));
         customer.setWhatsapp(text(cmd.whatsapp()));
@@ -340,7 +344,12 @@ public class CustomerServiceImpl implements CustomerService {
         c.setIndustry(orUnset(req.getIndustry()));
         c.setWebsite(text(req.getWebsite()));
         c.setCustomerGrade(orUnset(req.getCustomerGrade()));
-        c.setSourceChannel(orUnset(req.getSourceChannel()));
+        Integer source = orUnset(req.getSourceChannel());
+        // 未设置（0）或沿用原值时不校验，原值所在字典项停用后编辑其他字段不受影响
+        if (source != 0 && !Objects.equals(source, c.getSourceChannel())) {
+            dictItemService.requireEnabledValue(DictTypes.SOURCE_CHANNEL, source, "客户来源不正确");
+        }
+        c.setSourceChannel(source);
         c.setExternalRef(text(req.getExternalRef()));
         c.setRemark(text(req.getRemark()));
         c.setCountry(req.getCountry());
@@ -657,6 +666,7 @@ public class CustomerServiceImpl implements CustomerService {
         }
         List<CustomerDO> customers = customerMapper.selectList(wrapper);
         Map<Long, String> owners = ownerNames(customers);
+        Map<Integer, String> sourceLabels = dictItemService.intLabels(DictTypes.SOURCE_CHANNEL);
 
         Workbook workbook = new XSSFWorkbook();
         Sheet sheet = workbook.createSheet("客户档案");
@@ -671,7 +681,7 @@ public class CustomerServiceImpl implements CustomerService {
                 label(CustomerConstants.ROLE_LABELS, c.getCustomerRole(), "未设置"),
                 label(CustomerConstants.INDUSTRY_LABELS, c.getIndustry(), ""),
                 label(CustomerConstants.GRADE_LABELS, c.getCustomerGrade(), "未分级"),
-                label(CustomerConstants.SOURCE_LABELS, c.getSourceChannel(), ""),
+                label(sourceLabels, c.getSourceChannel(), ""),
                 owners.getOrDefault(c.getOwnerId(), ""), c.getExternalRef(),
                 c.getCountry(), c.getState(), c.getCity(), c.getPostcode(), c.getAddress(), c.getTaxId(), c.getTimezone(),
                 c.getContactName(), c.getContactTitle(), c.getContactEmail(), c.getContactPhone(), c.getWhatsapp(),

@@ -6,11 +6,7 @@ import com.zhul.erp.modules.aitask.service.AiTaskResultHandler;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
-/**
- * skill_id=inquiry-parse-and-split 的结果处理器（任务4.4）。声明为 @Component 后，
- * aitask 模块的 AiTaskResultDispatcher 会自动收集到它——不需要修改 aitask 模块任何
- * 已有代码，验证了 design.md 决策3"新增skill只需新增处理器"的核心诉求。
- */
+/** skill_id=inquiry-parse-and-split 的结果处理器：由 aitask 模块的分发器自动收集 */
 @Component
 @RequiredArgsConstructor
 public class InquiryParseResultHandler implements AiTaskResultHandler {

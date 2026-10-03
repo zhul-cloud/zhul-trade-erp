@@ -18,6 +18,14 @@ public class BizException extends RuntimeException {
         this.detail = null;
     }
 
+    /** 业务提示 + 保留原始异常（如解析失败） */
+    public BizException(String message, Throwable cause) {
+        super(message, cause);
+        this.code = 500;
+        this.errorCode = null;
+        this.detail = null;
+    }
+
     public BizException(ResultCode rc) {
         super(rc.getMessage());
         this.code = rc.getCode();

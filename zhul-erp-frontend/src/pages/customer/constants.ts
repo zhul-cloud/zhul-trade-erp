@@ -34,17 +34,6 @@ export const GRADE_OPTIONS: Option[] = [
   { value: 0, label: '未分级' },
 ];
 
-export const SOURCE_OPTIONS: Option[] = [
-  '阿里巴巴国际站',
-  '中国制造网',
-  '独立站',
-  '展会',
-  '社交媒体',
-  '老客户转介绍',
-  '主动开发',
-  '其他',
-].map((label, i) => ({ value: i + 1, label }));
-
 export const PAYMENT_OPTIONS: Option[] = [
   'T/T 全额预付',
   'T/T 定金 + 发货前付尾款',

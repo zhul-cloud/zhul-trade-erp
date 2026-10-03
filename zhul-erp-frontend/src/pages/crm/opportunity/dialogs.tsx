@@ -16,13 +16,15 @@ import {
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import React, { useRef, useState } from 'react';
-import { submitCustomerInquiry } from '@/pages/inquiry/customer-inquiry/service';
+import { useLevels } from '@/pages/inquiry/shared/components';
+import { LEVEL_DEFAULT } from '@/pages/inquiry/shared/constants';
+import { inquiryApi } from '@/pages/inquiry/shared/service';
 import { useAppTheme } from '@/theme/AppTheme';
+import { DICT_SOURCE_CHANNEL, useDictOptions } from '@/utils/dict';
 import { FileChip, fileMeta, iconButton } from './components';
 import {
   ATTACHMENT_ACCEPT,
   ATTACHMENT_MAX_BYTES,
-  CHANNEL_OPTIONS,
   INVALID_REASONS,
   LOST_REASONS,
   MAX_ATTACHMENTS,
@@ -131,6 +133,7 @@ export const EditModal: React.FC<{
   onClose: () => void;
   onDone: () => void;
 }> = ({ detail, onClose, onDone }) => {
+  const { options: sourceOptions } = useDictOptions(DICT_SOURCE_CHANNEL);
   const { palette } = useAppTheme();
   const { message } = App.useApp();
   const [form] = Form.useForm<EditState>();
@@ -232,7 +235,7 @@ export const EditModal: React.FC<{
             label="来源渠道"
             rules={[{ required: true, message: '请选择来源渠道' }]}
           >
-            <Select options={CHANNEL_OPTIONS} />
+            <Select options={sourceOptions} />
           </Form.Item>
           <Form.Item
             name="firstContactDate"
@@ -334,7 +337,9 @@ export const CreateInquiryModal: React.FC<{
   const { message } = App.useApp();
   const [content, setContent] = useState('');
   const [attachmentId, setAttachmentId] = useState<number>(0);
+  const [level, setLevel] = useState<number>(LEVEL_DEFAULT);
   const [saving, setSaving] = useState(false);
+  const { levelOptions } = useLevels();
 
   return (
     <Modal
@@ -349,6 +354,7 @@ export const CreateInquiryModal: React.FC<{
         if (o) {
           setContent(detail.demandSummary ?? '');
           setAttachmentId(0);
+          setLevel(LEVEL_DEFAULT);
         }
       }}
       onCancel={onClose}
@@ -359,32 +365,37 @@ export const CreateInquiryModal: React.FC<{
           return;
         }
         setSaving(true);
-        let rawAttachmentUrl: string | undefined;
-        let source = 1;
+        let attachments: { fileKey: string; fileName: string }[] = [];
         if (att) {
           try {
-            rawAttachmentUrl = (
-              await opportunityApi.copyToInquiry(detail.id, att.id)
-            ).url;
-            source = att.contentType.startsWith('image/') ? 3 : 2;
+            const copied = await inquiryApi.copyFromOpportunity(
+              detail.id,
+              att.id,
+            );
+            attachments = [
+              { fileKey: copied.fileKey, fileName: copied.fileName },
+            ];
           } catch (e) {
             message.error(readBizError(e).message);
             setSaving(false);
             return;
           }
         }
-        // 提交询盘走全局错误提示，这里不再重复提示
         try {
-          const created = await submitCustomerInquiry({
+          const created = await inquiryApi.submit({
             customerId: detail.customerId,
             opportunityId: detail.id,
-            source,
+            // 询盘来源与商机来源渠道同一套字典，直接沿用
+            source: detail.sourceChannel,
             rawContent: content.trim() || undefined,
-            rawAttachmentUrl,
+            attachments,
             inquiryDate: dayjs().format('YYYY-MM-DD'),
+            level,
           });
-          message.success('客户询盘已创建');
+          message.success('客户询盘已创建，可以 AI 解析或手动录入型号');
           history.push(`/inquiry/customer-inquiries/${created.id}`);
+        } catch (e) {
+          message.error(readBizError(e).message);
         } finally {
           setSaving(false);
         }
@@ -400,6 +411,20 @@ export const CreateInquiryModal: React.FC<{
           ? `，商机会自动推进到「${advanceTo.code} ${advanceTo.name}」。`
           : '。'}
       </div>
+      <div style={{ marginBottom: 8 }}>
+        询盘等级{' '}
+        <span style={{ fontSize: 12, color: palette.mute }}>
+          S 最优先、C 最低，采购按等级决定先处理哪个询盘
+        </span>
+      </div>
+      <Radio.Group
+        optionType="button"
+        buttonStyle="solid"
+        value={level}
+        onChange={(e) => setLevel(e.target.value)}
+        options={levelOptions}
+        style={{ marginBottom: 16 }}
+      />
       <div style={{ marginBottom: 8 }}>询盘内容</div>
       <Input.TextArea
         rows={5}

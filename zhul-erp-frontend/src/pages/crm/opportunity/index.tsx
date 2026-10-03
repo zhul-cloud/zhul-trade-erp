@@ -14,14 +14,10 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
 import { getUserList } from '@/pages/system/user/service';
 import { useAppTheme } from '@/theme/AppTheme';
+import { DICT_SOURCE_CHANNEL, useDictOptions } from '@/utils/dict';
 import { formatDateTime } from '@/utils/format';
 import { Card, PageTitle, Pill, StagePill } from './components';
-import {
-  CATEGORY_ACTIVE,
-  CHANNEL_OPTIONS,
-  channelLabel,
-  LIST_PATH,
-} from './constants';
+import { CATEGORY_ACTIVE, LIST_PATH } from './constants';
 import RegisterDrawer from './RegisterDrawer';
 import { rate } from './StatsPanel';
 import {
@@ -51,6 +47,10 @@ const toQuery = (f: FilterState): OpportunityQuery => ({
 });
 
 const OpportunityPage: React.FC = () => {
+  const { options: sourceOptions, labelOf: sourceLabel } = useDictOptions(
+    DICT_SOURCE_CHANNEL,
+    '未设置',
+  );
   const { palette } = useAppTheme();
   const access = useAccess() as Record<string, boolean>;
   const { initialState } = useModel('@@initialState');
@@ -158,7 +158,7 @@ const OpportunityPage: React.FC = () => {
       title: '来源渠道',
       dataIndex: 'sourceChannel',
       width: 140,
-      render: (v: number) => channelLabel(v),
+      render: (v: number) => sourceLabel(v),
     },
     {
       title: '首次接触',
@@ -401,11 +401,7 @@ const OpportunityPage: React.FC = () => {
                 label="来源渠道"
                 style={{ width: 180, marginBottom: 0 }}
               >
-                <Select
-                  allowClear
-                  placeholder="全部"
-                  options={CHANNEL_OPTIONS}
-                />
+                <Select allowClear placeholder="全部" options={sourceOptions} />
               </Form.Item>
               <Form.Item
                 name="stage"

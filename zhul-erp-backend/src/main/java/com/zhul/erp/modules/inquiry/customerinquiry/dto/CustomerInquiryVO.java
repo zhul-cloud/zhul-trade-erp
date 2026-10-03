@@ -5,32 +5,32 @@ import lombok.Data;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
+/** 客户询盘列表行 */
 @Data
 public class CustomerInquiryVO {
     private Long id;
     private String inquiryCode;
     private Long customerId;
-    /** 来源商机ID（可空） */
-    private Long opportunityId;
-    /** 来源商机摘要：详情接口且在数据权限内时才有，否则为空 */
-    private String opportunityCode;
-    private String opportunityCustomerName;
-    private Integer opportunitySourceChannel;
-    private String opportunityStageName;
+    private String customerName;
+    private String customerCountry;
+    private Integer customerType;
     private Integer source;
-    private String rawContent;
-    private String rawAttachmentUrl;
     private LocalDate inquiryDate;
-    private LocalDate expectedReplyDate;
+    private LocalDate quoteDeadline;
+    private Boolean urgent;
+    private Integer level;
     private Integer status;
-    private Integer totalOrderCount;
+    private Integer parseMode;
     private Integer totalItemCount;
+    private Integer totalQuantity;
+    private Integer pricedItemCount;
+    private Integer taskCount;
+    private Integer timeoutTaskCount;
     private Integer pendingVerifyCount;
+    private Boolean needsReview;
     private Long ownerId;
-    private Long aiTaskId;
-    private String remark;
-    private String createBy;
+    private String ownerName;
+    private Long opportunityId;
     private LocalDateTime createTime;
-    private String updateBy;
     private LocalDateTime updateTime;
 }

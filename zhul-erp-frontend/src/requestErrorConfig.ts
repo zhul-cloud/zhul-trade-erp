@@ -29,8 +29,15 @@ interface BizErrorInfo {
   data: unknown;
 }
 
-function buildBizError(code: number, msg: string, data: unknown): Error {
+function buildBizError(
+  code: number,
+  msg: string,
+  data: unknown,
+  response?: unknown,
+): Error {
   const error: any = new Error(msg);
+  // 保留原始响应：各页面的 readBizError 会优先读 response.data.message
+  if (response) error.response = response;
   error.name = 'BizError';
   error.info = {
     errorCode: code,
@@ -122,9 +129,8 @@ export const errorConfig: RequestConfig = {
           }
         }
       } else if (error.response) {
-        // Axios 的错误
-        // 请求成功发出且服务器也响应了状态码，但状态代码超出了 2xx 的范围
-        message.error(`Response status:${error.response.status}`);
+        // 非 2xx 且响应体不是后端统一格式（如网关 502 的 HTML 页），没有可用的中文原因
+        message.error(`请求失败（HTTP ${error.response.status}），请稍后重试`);
       } else if (typeof navigator !== 'undefined' && !navigator.onLine) {
         message.error(
           getIntl().formatMessage({
@@ -134,9 +140,9 @@ export const errorConfig: RequestConfig = {
           }),
         );
       } else if (error.request) {
-        message.error('None response! Please retry.');
+        message.error('服务器没有响应，请稍后重试');
       } else {
-        message.error('Request error, please retry.');
+        message.error('请求出错，请稍后重试');
       }
     },
   },
@@ -162,43 +168,59 @@ export const errorConfig: RequestConfig = {
   // 业务失败通过 code !== 0 表达，因此在这里统一识别并抛出，
   // 使各页面的 try/catch 能拿到真实的后端错误信息。
   responseInterceptors: [
-    async (response) => {
-      // 非 JSON 响应（如 blob 文件下载）不做业务码校验
-      const data = response.data as any;
-      if (!data || typeof data.code !== 'number') {
-        return response;
-      }
-      if (data.code === 401) {
-        const url: string = (response.config as any)?.url || '';
-        const isAuthEndpoint = [
-          '/api/v1/auth/refresh',
-          '/api/v1/auth/login',
-          '/api/v1/auth/logout',
-        ].some((p) => url.includes(p));
-        // 未登录页/登录/登出/刷新接口自身返回 401 时不再尝试刷新，直接跳转登录页
-        if (!isAuthEndpoint) {
-          const newToken = await getRefreshedAccessToken();
-          if (newToken) {
-            try {
-              return await axios({
-                ...response.config,
-                headers: {
-                  ...response.config?.headers,
-                  Authorization: `Bearer ${newToken}`,
-                },
-              });
-            } catch {
-              // 重放请求失败，走下方统一的过期跳转
+    [
+      async (response) => {
+        // 非 JSON 响应（如 blob 文件下载）不做业务码校验
+        const data = response.data as any;
+        if (!data || typeof data.code !== 'number') {
+          return response;
+        }
+        if (data.code === 401) {
+          const url: string = (response.config as any)?.url || '';
+          const isAuthEndpoint = [
+            '/api/v1/auth/refresh',
+            '/api/v1/auth/login',
+            '/api/v1/auth/logout',
+          ].some((p) => url.includes(p));
+          // 未登录页/登录/登出/刷新接口自身返回 401 时不再尝试刷新，直接跳转登录页
+          if (!isAuthEndpoint) {
+            const newToken = await getRefreshedAccessToken();
+            if (newToken) {
+              try {
+                return await axios({
+                  ...response.config,
+                  headers: {
+                    ...response.config?.headers,
+                    Authorization: `Bearer ${newToken}`,
+                  },
+                });
+              } catch {
+                // 重放请求失败，走下方统一的过期跳转
+              }
             }
           }
+          redirectToLoginExpired();
+          return response;
         }
-        redirectToLoginExpired();
+        if (data.code !== 0) {
+          throw buildBizError(data.code, data.message, data.data);
+        }
         return response;
-      }
-      if (data.code !== 0) {
-        throw buildBizError(data.code, data.message, data.data);
-      }
-      return response;
-    },
+      },
+      // 非 2xx 响应（参数错误 400、方法不对 405、接口不存在 404、系统错误 500 等）：
+      // 后端同样返回 { code, message }，转成与业务失败一致的错误，统一显示后端的中文原因
+      (error: any) => {
+        const data = error?.response?.data;
+        if (data && typeof data.code === 'number' && data.message) {
+          throw buildBizError(
+            data.code,
+            data.message,
+            data.data,
+            error.response,
+          );
+        }
+        throw error;
+      },
+    ],
   ],
 };

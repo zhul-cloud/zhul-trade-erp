@@ -14,6 +14,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useCountries } from '@/pages/product/components/useCountries';
 import { useAppTheme } from '@/theme/AppTheme';
+import { DICT_SOURCE_CHANNEL, useDictOptions } from '@/utils/dict';
 import { formatDateTime } from '@/utils/format';
 import {
   GradePill,
@@ -32,7 +33,6 @@ import {
   labelOf,
   PAYMENT_OPTIONS,
   SHIPPING_OPTIONS,
-  SOURCE_OPTIONS,
 } from './constants';
 import { type CustomerDetail, customerApi, readBizError } from './service';
 import { localTimeInfo, zoneLabel } from './time';
@@ -190,6 +190,7 @@ const SideRow: React.FC<{ label: string; children: React.ReactNode }> = ({
 };
 
 const CustomerDetailPage: React.FC = () => {
+  const { labelOf: sourceLabel } = useDictOptions(DICT_SOURCE_CHANNEL);
   const { id } = useParams<{ id: string }>();
   const access = useAccess() as Record<string, boolean>;
   const { palette } = useAppTheme();
@@ -447,9 +448,7 @@ const CustomerDetailPage: React.FC = () => {
                 </div>
               </div>
             </div>
-            <SideRow label="客户来源">
-              {labelOf(SOURCE_OPTIONS, r.sourceChannel)}
-            </SideRow>
+            <SideRow label="客户来源">{sourceLabel(r.sourceChannel)}</SideRow>
             <SideRow label="客户等级">
               <GradePill value={r.customerGrade} />
             </SideRow>

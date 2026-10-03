@@ -22,6 +22,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useCountries } from '@/pages/product/components/useCountries';
 import { useAppTheme } from '@/theme/AppTheme';
+import { DICT_SOURCE_CHANNEL, useDictOptions } from '@/utils/dict';
 import { formatDateTime } from '@/utils/format';
 import {
   GradePill,
@@ -31,13 +32,7 @@ import {
   RolePill,
   TransferModal,
 } from './components';
-import {
-  DISABLE_CONFIRM_TEXT,
-  GRADE_OPTIONS,
-  labelOf,
-  ROLE_OPTIONS,
-  SOURCE_OPTIONS,
-} from './constants';
+import { DISABLE_CONFIRM_TEXT, GRADE_OPTIONS, ROLE_OPTIONS } from './constants';
 import {
   type AssignableOwners,
   type CustomerListItem,
@@ -57,6 +52,8 @@ const compact = (q: CustomerQuery): CustomerQuery =>
   ) as CustomerQuery;
 
 const CustomerListPage: React.FC = () => {
+  const { options: sourceOptions, labelOf: sourceLabel } =
+    useDictOptions(DICT_SOURCE_CHANNEL);
   const { message, modal } = App.useApp();
   const access = useAccess() as Record<string, boolean>;
   const { palette } = useAppTheme();
@@ -302,7 +299,7 @@ const CustomerListPage: React.FC = () => {
       title: '客户来源',
       dataIndex: 'sourceChannel',
       width: 120,
-      render: (v: number) => labelOf(SOURCE_OPTIONS, v) ?? '—',
+      render: (v: number) => sourceLabel(v),
     },
     ...(showOwner
       ? [
@@ -437,7 +434,7 @@ const CustomerListPage: React.FC = () => {
             <Select placeholder="全部" allowClear options={GRADE_OPTIONS} />
           </Form.Item>
           <Form.Item name="sourceChannel" label={label('客户来源')}>
-            <Select placeholder="全部" allowClear options={SOURCE_OPTIONS} />
+            <Select placeholder="全部" allowClear options={sourceOptions} />
           </Form.Item>
           {showOwner && (
             <Form.Item name="ownerId" label={label('负责业务员')}>

@@ -2,6 +2,7 @@ package com.zhul.erp.modules.crm.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.zhul.erp.common.constants.DictTypes;
 import com.zhul.erp.common.exception.BizException;
 import com.zhul.erp.common.result.PageResult;
 import com.zhul.erp.framework.security.DataScope;
@@ -33,13 +34,13 @@ import com.zhul.erp.modules.crm.repository.OpportunityMapper;
 import com.zhul.erp.modules.crm.repository.OpportunityStageLogMapper;
 import com.zhul.erp.modules.crm.service.OpportunityService;
 import com.zhul.erp.modules.crm.support.OpportunityStageRules;
-import com.zhul.erp.modules.masterdata.constants.CustomerConstants;
 import com.zhul.erp.modules.masterdata.dto.CustomerLeadCommand;
 import com.zhul.erp.modules.masterdata.entity.CustomerDO;
 import com.zhul.erp.modules.masterdata.repository.CustomerMapper;
 import com.zhul.erp.modules.masterdata.service.CustomerService;
 import com.zhul.erp.modules.system.entity.UserBasicDO;
 import com.zhul.erp.modules.system.repository.UserBasicMapper;
+import com.zhul.erp.modules.system.service.DictItemService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -84,6 +85,7 @@ public class OpportunityServiceImpl implements OpportunityService {
     private final UserBasicMapper userBasicMapper;
     private final DataScopeResolver dataScopeResolver;
     private final PrivateFileStorage fileStorage;
+    private final DictItemService dictItemService;
 
     // ---------------------------------------------------------------- 阶段配置
 
@@ -139,6 +141,9 @@ public class OpportunityServiceImpl implements OpportunityService {
     @Transactional(rollbackFor = Exception.class)
     public void update(Long id, UpdateOpportunityRequest req) {
         OpportunityDO o = getInScope(id);
+        if (!Objects.equals(req.getSourceChannel(), o.getSourceChannel())) {
+            dictItemService.requireEnabledValue(DictTypes.SOURCE_CHANNEL, req.getSourceChannel(), "来源渠道不正确");
+        }
         o.setSourceChannel(req.getSourceChannel());
         o.setFirstContactDate(req.getFirstContactDate());
         o.setDemandSummary(text(req.getDemandSummary()));
@@ -319,7 +324,8 @@ public class OpportunityServiceImpl implements OpportunityService {
         switch (by) {
             case "channel" -> {
                 rows = opportunityMapper.statsByChannel(w);
-                labeler = k -> CustomerConstants.SOURCE_LABELS.getOrDefault(Integer.valueOf(k), "未设置");
+                Map<Integer, String> sourceLabels = dictItemService.intLabels(DictTypes.SOURCE_CHANNEL);
+                labeler = k -> sourceLabels.getOrDefault(Integer.valueOf(k), "未设置");
             }
             case "owner" -> {
                 rows = opportunityMapper.statsByOwner(w);

@@ -20,11 +20,11 @@ import dayjs, { type Dayjs } from 'dayjs';
 import React, { useEffect, useRef, useState } from 'react';
 import { useCountries } from '@/pages/product/components/useCountries';
 import { useAppTheme } from '@/theme/AppTheme';
+import { DICT_SOURCE_CHANNEL, useDictOptions } from '@/utils/dict';
 import { FileChip, fileMeta, iconButton } from './components';
 import {
   ATTACHMENT_ACCEPT,
   ATTACHMENT_MAX_BYTES,
-  CHANNEL_OPTIONS,
   MAX_ATTACHMENTS,
 } from './constants';
 import { opportunityApi, readBizError, type UploadedFile } from './service';
@@ -66,6 +66,7 @@ const RegisterDrawer: React.FC<{
   onSaved: () => void;
   ownerName?: string;
 }> = ({ open, onClose, onSaved, ownerName }) => {
+  const { options: sourceOptions } = useDictOptions(DICT_SOURCE_CHANNEL);
   const { palette } = useAppTheme();
   const { message } = App.useApp();
   const [form] = Form.useForm<FormState>();
@@ -323,7 +324,7 @@ const RegisterDrawer: React.FC<{
             label="来源渠道"
             rules={[{ required: true, message: '请选择来源渠道' }]}
           >
-            <Select placeholder="请选择" options={CHANNEL_OPTIONS} />
+            <Select placeholder="请选择" options={sourceOptions} />
           </Form.Item>
           <Form.Item
             name="firstContactDate"

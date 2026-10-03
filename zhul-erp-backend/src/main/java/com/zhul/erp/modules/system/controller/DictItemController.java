@@ -31,6 +31,12 @@ public class DictItemController {
         return Result.ok(dictItemService.listByDictTypeId(dictTypeId));
     }
 
+    /** 业务页面下拉用：按字典类型编码取字典项（含停用项，前端只把启用项放进下拉），登录即可访问 */
+    @GetMapping(params = "dictType")
+    public Result<List<DictItemVO>> listByDictType(@RequestParam String dictType) {
+        return Result.ok(dictItemService.listByDictType(dictType));
+    }
+
     @PreAuthorize("@perm.has('system:dict:add')")
     @PostMapping
     public Result<Void> create(@Valid @RequestBody SaveDictItemRequest req) {

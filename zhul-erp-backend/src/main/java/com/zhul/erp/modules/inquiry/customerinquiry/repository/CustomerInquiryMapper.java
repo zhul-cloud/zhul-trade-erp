@@ -13,4 +13,8 @@ public interface CustomerInquiryMapper extends BaseMapper<CustomerInquiryDO> {
     @Select("SELECT MAX(CAST(SUBSTRING(inquiry_code, -3) AS UNSIGNED)) FROM customer_inquiry " +
             "WHERE tenant_id = #{tenantId} AND inquiry_code LIKE CONCAT(#{prefix}, '%')")
     Integer selectMaxSequenceByPrefix(@Param("tenantId") int tenantId, @Param("prefix") String prefix);
+
+    /** 锁住客户询盘行：多人同时提交回价时串行重算进度（design.md 决策 12） */
+    @Select("SELECT id FROM customer_inquiry WHERE id = #{id} FOR UPDATE")
+    Long lockById(@Param("id") Long id);
 }

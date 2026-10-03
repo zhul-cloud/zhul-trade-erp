@@ -40,7 +40,6 @@ public abstract class AbstractCustomerRequest {
     @Max(value = 3, message = "客户等级不正确")
     private Integer customerGrade;
     @Min(value = 0, message = "客户来源不正确")
-    @Max(value = 8, message = "客户来源不正确")
     private Integer sourceChannel;
     @Size(max = 50, message = "小满客户编号不能超过50个字符")
     private String externalRef;

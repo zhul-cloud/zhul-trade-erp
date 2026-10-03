@@ -11,11 +11,12 @@ import {
   TrophyOutlined,
 } from '@ant-design/icons';
 import { history, useAccess, useParams } from '@umijs/max';
-import { App, Button, Dropdown, Skeleton, Tag } from 'antd';
+import { App, Button, Dropdown, Skeleton } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
-import { CUSTOMER_INQUIRY_STATUS_META } from '@/pages/inquiry/constants';
+import { StatusPill } from '@/pages/inquiry/shared/components';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useAppTheme } from '@/theme/AppTheme';
+import { DICT_SOURCE_CHANNEL, useDictOptions } from '@/utils/dict';
 import { formatDateTime } from '@/utils/format';
 import {
   Card,
@@ -27,7 +28,7 @@ import {
   PreviewButton,
   StagePill,
 } from './components';
-import { CATEGORY_ACTIVE, channelLabel, LIST_PATH } from './constants';
+import { CATEGORY_ACTIVE, LIST_PATH } from './constants';
 import { CloseModal, CreateInquiryModal, EditModal } from './dialogs';
 import {
   type OpportunityDetail,
@@ -39,6 +40,10 @@ import {
 const EMPTY = '—';
 
 const OpportunityDetailPage: React.FC = () => {
+  const { labelOf: sourceLabel } = useDictOptions(
+    DICT_SOURCE_CHANNEL,
+    '未设置',
+  );
   const { id } = useParams<{ id: string }>();
   const { palette } = useAppTheme();
   const { message, modal } = App.useApp();
@@ -256,7 +261,7 @@ const OpportunityDetailPage: React.FC = () => {
               category={d.stageCategory}
               index={idx}
             />
-            <Pill tone="gray">{channelLabel(d.sourceChannel)}</Pill>
+            <Pill tone="gray">{sourceLabel(d.sourceChannel)}</Pill>
             {d.customerNameMissing && <Pill tone="orange">未填客户名称</Pill>}
             <span style={{ color: palette.mute }}>
               首次接触 {d.firstContactDate} · 负责人 {d.ownerName || '未分配'} ·{' '}
@@ -486,7 +491,6 @@ const OpportunityDetailPage: React.FC = () => {
             ) : (
               <div style={{ display: 'grid', gap: 8 }}>
                 {d.inquiries.map((q) => {
-                  const meta = CUSTOMER_INQUIRY_STATUS_META[q.status];
                   return (
                     <div
                       key={q.id}
@@ -506,7 +510,7 @@ const OpportunityDetailPage: React.FC = () => {
                       >
                         {q.inquiryCode}
                       </a>
-                      {meta && <Tag color={meta.color}>{meta.text}</Tag>}
+                      <StatusPill status={q.status} />
                       <span style={{ color: palette.mute }}>
                         {q.totalOrderCount} 张询盘单 · {q.inquiryDate}
                       </span>

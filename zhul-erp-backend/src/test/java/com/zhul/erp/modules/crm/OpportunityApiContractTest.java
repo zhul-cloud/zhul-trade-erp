@@ -62,6 +62,7 @@ class OpportunityApiContractTest extends IntegrationTestBase {
     }
 
     private void cleanup() {
+        jdbc.update("delete from customer_inquiry_attachment where tenant_id = 0");
         jdbc.update("delete from customer_inquiry where tenant_id = 0");
         jdbc.update("delete from opportunity_attachment where tenant_id = 0");
         jdbc.update("delete from opportunity_stage_log where tenant_id = 0");
@@ -251,16 +252,18 @@ class OpportunityApiContractTest extends IntegrationTestBase {
         String inquiryBase = "/api/v1/inquiry/customer-inquiries";
         JsonNode copied = ok(call(json(post(inquiryBase + "/attachments/from-opportunity"),
                 "{\"opportunityId\":" + id + ",\"attachmentId\":" + attId + "}"), admin));
-        assertTrue(copied.path("url").asText().startsWith("/uploads/customer-inquiry/"), copied.toString());
+        assertTrue(copied.path("fileKey").asText().startsWith("customer-inquiry/0/"), copied.toString());
 
         JsonNode wrong = call(json(post(inquiryBase), "{\"customerId\":" + (customerId + 999) + ",\"source\":2,\"opportunityId\":" + id + "}"), admin);
         assertFalse(wrong.path("code").asInt() == 0, "客户不存在或与商机不一致都应拒绝");
 
-        long inquiryId = ok(call(json(post(inquiryBase), "{\"customerId\":" + customerId + ",\"source\":2,\"rawAttachmentUrl\":\""
-                + copied.path("url").asText() + "\",\"opportunityId\":" + id + "}"), admin)).path("id").asLong();
-        JsonNode inquiry = ok(call(get(inquiryBase + "/" + inquiryId), admin));
-        assertEquals(opp.path("opportunityCode").asText(), inquiry.path("opportunityCode").asText());
-        assertEquals("有效商机", inquiry.path("opportunityStageName").asText());
+        long inquiryId = ok(call(json(post(inquiryBase), "{\"customerId\":" + customerId + ",\"source\":2,\"attachments\":[{\"fileKey\":\""
+                + copied.path("fileKey").asText() + "\",\"fileName\":\"bom.csv\"}],\"opportunityId\":" + id + "}"), admin)).path("id").asLong();
+        JsonNode detail = ok(call(get(inquiryBase + "/" + inquiryId), admin));
+        JsonNode inquiry = detail.path("inquiry");
+        assertEquals(opp.path("opportunityCode").asText(), detail.path("opportunityCode").asText());
+        assertEquals("有效商机", detail.path("opportunityStageName").asText());
+        assertEquals("bom.csv", detail.path("attachments").get(0).path("fileName").asText());
         JsonNode after = ok(call(get(BASE + "/" + id), admin));
         assertEquals(inquiryId, after.path("inquiries").get(0).path("id").asLong());
         assertEquals("S3", after.path("stageCode").asText(), "S1 创建询盘后自动推进到 S3");

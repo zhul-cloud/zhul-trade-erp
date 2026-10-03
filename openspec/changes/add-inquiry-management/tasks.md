@@ -1,3 +1,5 @@
+> **已被 `redesign-inquiry-sourcing` 取代（2026-10-01）**：客户询盘、询盘单、询价报价按「型号明细为中心」重新设计；本变更剩余任务不再继续，归档时不同步规格到主规格。
+
 ## 1. 数据库建表
 
 - [x] 1.1 按 `.claude/rules/coding.md` 建表规范编写 `customer`、`supplier` 建表 SQL（含审计字段、`tenant_id`+`deleted_at`、索引），追加到新的 `sql/build/sql/schema_v1.1.sql`，并通过本地 MySQL 8 执行校验无报错

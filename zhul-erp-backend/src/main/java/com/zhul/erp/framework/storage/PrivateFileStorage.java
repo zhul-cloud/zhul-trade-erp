@@ -32,7 +32,7 @@ import java.util.regex.Pattern;
 public class PrivateFileStorage {
 
     private static final Pattern KEY_PATTERN =
-            Pattern.compile("^([a-z]+)/(\\d+)/\\d{6}/[0-9a-f]{32}\\.(pdf|jpg|png|xlsx|xls|csv)$");
+            Pattern.compile("^([a-z][a-z-]*)/(\\d+)/\\d{6}/[0-9a-f]{32}\\.(pdf|jpg|png|xlsx|xls|csv)$");
     private static final DateTimeFormatter MONTH = DateTimeFormatter.ofPattern("yyyyMM");
     private static final int HEADER_BYTES = 512;
     private static final int NAME_MAX = 200;
@@ -80,6 +80,21 @@ public class PrivateFileStorage {
             throw new UncheckedIOException("保存上传文件失败", e);
         }
         return new StoredFile(key, cleanFileName(file.getOriginalFilename(), ext), file.getSize(), contentTypeOf(key));
+    }
+
+    /** 把一个已存在的私有文件（如商机附件）复制到另一个模块下，类型沿用源文件的扩展名 */
+    public StoredFile copy(String module, int tenantId, Path source, String fileName) {
+        String ext = extOf(source.getFileName().toString());
+        String key = module + "/" + tenantId + "/" + LocalDate.now().format(MONTH) + "/"
+                + UUID.randomUUID().toString().replace("-", "") + "." + ext;
+        Path target = root.resolve(key);
+        try {
+            Files.createDirectories(target.getParent());
+            Files.copy(source, target, StandardCopyOption.REPLACE_EXISTING);
+            return new StoredFile(key, cleanFileName(fileName, ext), Files.size(target), contentTypeOf(key));
+        } catch (IOException e) {
+            throw new UncheckedIOException("复制附件失败", e);
+        }
     }
 
     /** fileKey 属于该模块、该租户且文件存在时返回其绝对路径，否则抛业务异常 */

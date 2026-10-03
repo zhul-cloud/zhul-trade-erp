@@ -2,8 +2,6 @@ package com.zhul.erp.modules.crm.dto;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
-import jakarta.validation.constraints.Max;
-import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PastOrPresent;
@@ -26,8 +24,6 @@ public class RegisterOpportunityRequest {
     private String country;
 
     @NotNull(message = "请选择来源渠道")
-    @Min(value = 1, message = "来源渠道不正确")
-    @Max(value = 8, message = "来源渠道不正确")
     private Integer sourceChannel;
 
     @NotNull(message = "请选择首次接触日期")

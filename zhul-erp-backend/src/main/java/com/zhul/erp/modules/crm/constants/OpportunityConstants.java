@@ -35,10 +35,6 @@ public final class OpportunityConstants {
     public static final Map<Integer, String> LOST_REASONS = Map.of(
             11, "价格", 12, "交期", 13, "无货源", 14, "客户取消", 15, "选择了竞争对手", 19, "其他");
 
-    /** 来源渠道：与客户来源渠道同一套枚举 */
-    public static final int CHANNEL_MIN = 1;
-    public static final int CHANNEL_MAX = 8;
-
     /** 需求附件：图片与 Excel，单个 ≤10MB，每条商机 ≤10 个 */
     public static final String ATTACHMENT_MODULE = "opportunity";
     public static final Set<String> ATTACHMENT_EXTS = Set.of("jpg", "png", "xlsx", "xls", "csv");

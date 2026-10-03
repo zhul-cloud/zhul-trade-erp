@@ -26,6 +26,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useCountries } from '@/pages/product/components/useCountries';
 import { useAppTheme } from '@/theme/AppTheme';
+import { DICT_SOURCE_CHANNEL, useDictOptions } from '@/utils/dict';
 import { formatDateTime } from '@/utils/format';
 import {
   LIST_PATH,
@@ -49,7 +50,6 @@ import {
   PHONE_PATTERN,
   ROLE_OPTIONS,
   SHIPPING_OPTIONS,
-  SOURCE_OPTIONS,
 } from './constants';
 import {
   type AssignableOwners,
@@ -190,6 +190,7 @@ const toPayload = (
 });
 
 const CustomerFormPage: React.FC = () => {
+  const { options: sourceOptions } = useDictOptions(DICT_SOURCE_CHANNEL);
   const { id } = useParams<{ id?: string }>();
   const [searchParams] = useSearchParams();
   const editing = !!id;
@@ -640,7 +641,7 @@ const CustomerFormPage: React.FC = () => {
               <Form.Item name="sourceChannel" label="客户来源">
                 <Select
                   placeholder="请选择客户来源"
-                  options={SOURCE_OPTIONS}
+                  options={sourceOptions}
                   allowClear
                 />
               </Form.Item>

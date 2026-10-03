@@ -1,18 +1,3 @@
-/** 来源渠道，与客户来源渠道同一套码值 */
-export const CHANNEL_OPTIONS = [
-  '阿里巴巴国际站',
-  '中国制造网',
-  '独立站',
-  '展会',
-  '社交媒体',
-  '老客户转介绍',
-  '主动开发',
-  '其他',
-].map((label, i) => ({ value: i + 1, label }));
-
-export const channelLabel = (v?: number) =>
-  CHANNEL_OPTIONS.find((o) => o.value === v)?.label ?? '未设置';
-
 /** 阶段类别 */
 export const CATEGORY_ACTIVE = 1;
 export const CATEGORY_WON = 2;

@@ -1,0 +1,40 @@
+package com.zhul.erp.modules.inquiry.sourcing.service;
+
+import com.zhul.erp.modules.inquiry.sourcing.dto.MyTaskDetailVO;
+import com.zhul.erp.modules.inquiry.sourcing.dto.MyTaskVO;
+import com.zhul.erp.modules.inquiry.sourcing.dto.PartTimeBoardVO;
+import com.zhul.erp.modules.inquiry.sourcing.dto.ReturnTaskRequest;
+import com.zhul.erp.modules.inquiry.sourcing.dto.SaveQuotesRequest;
+import com.zhul.erp.modules.inquiry.sourcing.entity.SourcingTaskDO;
+
+import java.util.List;
+
+/** 采购（含兼职采购）处理自己的询价任务；返回内容一律不含客户信息 */
+public interface MyTaskService {
+
+    /** done=false 为待处理（询价中），true 为已回价 */
+    List<MyTaskVO> myTasks(boolean done);
+
+    MyTaskDetailVO detail(Long taskId);
+
+    /** 兼职工作台：本人待办与回价统计 */
+    PartTimeBoardVO partTimeBoard();
+
+    void saveQuotes(Long taskId, SaveQuotesRequest req);
+
+    void returnTask(Long taskId, ReturnTaskRequest req);
+
+    /** 本人当前有效分配的任务，否则抛「询价任务不存在」 */
+    SourcingTaskDO myTask(Long taskId);
+
+    /** 把一个型号本次的结果写入询价记录（在线录入与导入共用）；submit 时由调用方负责重算进度 */
+    void writeQuotes(SourcingTaskDO task, Long quotedBy, List<QuoteDraft> drafts, boolean submit, int entryMode, Long importId);
+
+    /** 提交后重算明细、任务与客户询盘进度，并记录提交时间 */
+    void afterSubmit(SourcingTaskDO task, Long quotedBy, List<Long> itemIds);
+
+    /** 一条待写入的询价结果；noStock 为真时只记无货说明 */
+    record QuoteDraft(Long itemId, boolean noStock, Integer channel, String shopName, Long supplierId, java.math.BigDecimal unitPrice,
+                      boolean taxIncluded, Integer taxRate, Integer itemCondition, Integer leadTime, String note, boolean recommended) {
+    }
+}

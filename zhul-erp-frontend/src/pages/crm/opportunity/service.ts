@@ -232,10 +232,4 @@ export const opportunityApi = {
     );
     return window.URL.createObjectURL(blob);
   },
-  /** 把商机附件复制为客户询盘附件，返回询盘可用的附件地址 */
-  copyToInquiry: (opportunityId: number, attachmentId: number) =>
-    post<{ url: string; originalName: string }>(
-      '/api/v1/inquiry/customer-inquiries/attachments/from-opportunity',
-      { opportunityId, attachmentId },
-    ),
 };

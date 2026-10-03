@@ -80,3 +80,16 @@ export function toProLayoutMenu(
         : undefined,
     }));
 }
+
+/** 菜单里排在最前的可访问页面（深度优先取第一个叶子），用作没有工作台权限时的首页 */
+export function firstMenuPath(menu: ProLayoutMenuItem[]): string | undefined {
+  for (const m of menu) {
+    if (m.children?.length) {
+      const p = firstMenuPath(m.children);
+      if (p) return p;
+    } else {
+      return m.path;
+    }
+  }
+  return undefined;
+}

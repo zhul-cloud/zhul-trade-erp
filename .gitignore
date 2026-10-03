@@ -43,3 +43,6 @@ yarn-error.log
 .claude/settings.local.json
 *bak
 zhul-erp-backend/private-uploads/
+
+# runtime uploads (local test attachments, never commit)
+zhul-erp-backend/uploads/

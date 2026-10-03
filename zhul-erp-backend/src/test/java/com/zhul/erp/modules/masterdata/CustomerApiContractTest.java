@@ -217,7 +217,7 @@ class CustomerApiContractTest extends IntegrationTestBase {
         String admin = token("cust_admin");
         long referenced = create(admin, "{\"name\":\"Referenced Ltd\",\"country\":\"Germany\"}");
         long free = create(admin, "{\"name\":\"Free Ltd\",\"country\":\"Germany\"}");
-        jdbc.update("insert into customer_inquiry (tenant_id, customer_id, inquiry_date) values (0, ?, curdate())", referenced);
+        jdbc.update("insert into customer_inquiry (tenant_id, customer_id, inquiry_date, quote_deadline) values (0, ?, curdate(), curdate())", referenced);
 
         assertEquals("该客户已有询盘或单据记录，不能删除，可改为禁用",
                 call(delete(BASE + "/" + referenced), admin).path("message").asText());
