@@ -80,7 +80,10 @@ const PriceHistoryPage: React.FC = () => {
       render: (_, r) => (
         <span style={{ display: 'inline-flex', flexDirection: 'column' }}>
           <span style={{ color: palette.ink, fontWeight: 600 }}>{r.model}</span>
-          <span style={{ color: palette.mute, fontSize: 12 }}>{r.brand}</span>
+          <span style={{ color: palette.mute, fontSize: 12 }}>
+            {r.brand}
+            {r.category ? ` · ${r.category}` : ''}
+          </span>
         </span>
       ),
     },

@@ -402,6 +402,7 @@ export interface ImportFile {
 export interface PriceHistoryGroup {
   brand: string;
   model: string;
+  category?: string;
   brandKey: string;
   modelKey: string;
   minPriceCny?: number;

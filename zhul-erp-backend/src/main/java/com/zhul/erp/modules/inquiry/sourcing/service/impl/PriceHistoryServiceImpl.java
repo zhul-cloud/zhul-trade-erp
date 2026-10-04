@@ -12,6 +12,8 @@ import com.zhul.erp.modules.inquiry.customerinquiry.dto.PriceHistoryGroupVO;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.PriceHistoryQuery;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.PriceMatchVO;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.PriceRecordVO;
+import com.zhul.erp.modules.inquiry.item.entity.InquiryItemDO;
+import com.zhul.erp.modules.inquiry.item.repository.InquiryItemMapper;
 import com.zhul.erp.modules.inquiry.sourcing.entity.SourcingQuoteDO;
 import com.zhul.erp.modules.inquiry.sourcing.repository.SourcingQuoteMapper;
 import com.zhul.erp.modules.inquiry.sourcing.service.PriceHistoryService;
@@ -39,6 +41,7 @@ public class PriceHistoryServiceImpl implements PriceHistoryService {
     private static final int MATCH_LIMIT = 50;
 
     private final SourcingQuoteMapper quoteMapper;
+    private final InquiryItemMapper itemMapper;
     private final PriceKeys priceKeys;
     private final InquiryLookups lookups;
     private final PermissionChecker perm;
@@ -123,9 +126,14 @@ public class PriceHistoryServiceImpl implements PriceHistoryService {
                             .in(SourcingQuoteDO::getModelKey, modelKeys)
                             .orderByDesc(SourcingQuoteDO::getQuotedAt))
                     .stream().collect(Collectors.groupingBy(r -> r.getBrandKey() + "|" + r.getModelKey(), LinkedHashMap::new, Collectors.toList()));
+            Map<Long, String> categories = categories(byGroup.values().stream().flatMap(List::stream)
+                    .map(SourcingQuoteDO::getInquiryItemId).toList());
             LocalDate today = LocalDate.now();
             for (PriceHistoryGroupVO g : groups) {
-                g.setRecords(toVos(byGroup.getOrDefault(g.getBrandKey() + "|" + g.getModelKey(), List.of())));
+                List<SourcingQuoteDO> records = byGroup.getOrDefault(g.getBrandKey() + "|" + g.getModelKey(), List.of());
+                g.setRecords(toVos(records));
+                g.setCategory(records.stream().map(r -> categories.get(r.getInquiryItemId()))
+                        .filter(StringUtils::hasText).findFirst().orElse(null));
                 g.setDaysAgo(g.getLastQuotedAt() == null ? null : ChronoUnit.DAYS.between(g.getLastQuotedAt().toLocalDate(), today));
             }
         }
@@ -171,6 +179,20 @@ public class PriceHistoryServiceImpl implements PriceHistoryService {
             map.put(q.getId(), vo);
         }
         return map;
+    }
+
+    /** 型号明细 ID → 品类；导入等没有关联明细的记录（ID 为 0）不查 */
+    private Map<Long, String> categories(Collection<Long> itemIds) {
+        List<Long> ids = itemIds.stream().filter(id -> id != null && id > 0).distinct().toList();
+        if (ids.isEmpty()) {
+            return Map.of();
+        }
+        return itemMapper.selectList(new LambdaQueryWrapper<InquiryItemDO>()
+                        .select(InquiryItemDO::getId, InquiryItemDO::getCategory)
+                        .eq(InquiryItemDO::getTenantId, tenantId())
+                        .in(InquiryItemDO::getId, ids))
+                .stream().filter(i -> StringUtils.hasText(i.getCategory()))
+                .collect(Collectors.toMap(InquiryItemDO::getId, InquiryItemDO::getCategory));
     }
 
     private LambdaQueryWrapper<SourcingQuoteDO> submitted() {

@@ -237,6 +237,7 @@ class SourcingContractTest extends InquiryContractSupport {
         assertEquals(1, history.path("total").asInt(), "按归一化型号模糊搜索");
         assertEquals(0, new BigDecimal("1800").compareTo(history.path("records").get(0).path("minPriceCny").decimalValue()));
         assertEquals(2, history.path("records").get(0).path("recordCount").asInt());
+        assertEquals("变频器", history.path("records").get(0).path("category").asText(), "品类取自型号明细");
         assertTrue(history.path("records").get(0).path("records").findValuesAsText("shopName").contains("明和电气"), "管理员可以看到店铺");
         JsonNode masked = ok(call(json(post(HISTORY + "/page"), "{\"model\":\"e84 dgdv\"}"), lin)).path("records").get(0).path("records");
         assertEquals(2, masked.size());

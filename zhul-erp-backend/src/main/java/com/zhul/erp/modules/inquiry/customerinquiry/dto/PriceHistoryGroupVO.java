@@ -11,6 +11,8 @@ import java.util.List;
 public class PriceHistoryGroupVO {
     private String brand;
     private String model;
+    /** 品类：取该组最近一条有品类的型号明细 */
+    private String category;
     private String brandKey;
     private String modelKey;
     private BigDecimal minPriceCny;
