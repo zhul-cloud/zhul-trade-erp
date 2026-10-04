@@ -23,6 +23,7 @@ import {
   Skeleton,
   Tooltip,
 } from 'antd';
+import dayjs from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -57,6 +58,7 @@ import {
 import ImportModal from '../shared/ImportModal';
 import {
   type ItemQuotes,
+  type MyQuote,
   type MyTask,
   type MyTaskItem,
   myTaskApi,
@@ -94,6 +96,21 @@ const DEFAULT_TAX_RATE = 13;
 
 const ENTRY_COLUMNS =
   '36px 100px minmax(140px, 1.2fr) 190px 130px 110px minmax(100px, 1fr) 32px';
+/** 兼职采购没有「推荐」列：推荐由采购负责人审核时选定 */
+const ENTRY_COLUMNS_NO_REC =
+  '100px minmax(140px, 1.2fr) 190px 130px 110px minmax(100px, 1fr) 32px';
+
+/** 已提交的回价：已提交，或兼职提交后待审核 */
+const isSubmitted = (q: MyQuote) => q.status === 2 || q.status === 3;
+
+const REVIEW_PILL: Record<
+  number,
+  { label: string; tone: 'accent' | 'green' | 'orange' }
+> = {
+  1: { label: '待审核', tone: 'accent' },
+  2: { label: '已通过', tone: 'green' },
+  3: { label: '被退回', tone: 'orange' },
+};
 
 const entryError = (e: DraftEntry) => {
   if (e.unitPrice == null) return '请填写单价';
@@ -120,6 +137,7 @@ const MyTasksPage: React.FC = () => {
   const [detail, setDetail] = useState<{
     task: MyTask;
     items: MyTaskItem[];
+    reviewRequired?: boolean;
   } | null>(null);
   const [state, setState] = useState<Record<number, ItemState>>({});
   const [error, setError] = useState('');
@@ -165,7 +183,7 @@ const MyTasksPage: React.FC = () => {
         const hasDraft = it.quotes.some((q) => q.status === 1);
         const base =
           !hasDraft && d.task.editable !== false
-            ? it.quotes.filter((q) => q.status === 2)
+            ? it.quotes.filter(isSubmitted)
             : it.quotes.filter((q) => q.status === 1);
         next[it.id] = {
           drafts: base
@@ -193,7 +211,7 @@ const MyTasksPage: React.FC = () => {
         if (
           next[it.id].drafts.length === 0 &&
           !next[it.id].noStock &&
-          !it.quotes.some((q) => q.status === 2)
+          !it.quotes.some(isSubmitted)
         ) {
           next[it.id].drafts = [newEntry()];
         }
@@ -304,7 +322,11 @@ const MyTasksPage: React.FC = () => {
     try {
       await myTaskApi.save(detail.task.id, effective, submit);
       message.success(
-        submit ? `已提交 ${effective.length} 个型号的回价` : '草稿已保存',
+        !submit
+          ? '草稿已保存'
+          : detail.reviewRequired
+            ? `已提交 ${effective.length} 个型号，等采购负责人审核后业务员就能看到`
+            : `已提交 ${effective.length} 个型号的回价`,
       );
       await Promise.all([loadDetail(detail.task.id), loadList()]);
     } catch (e) {
@@ -322,6 +344,8 @@ const MyTasksPage: React.FC = () => {
   };
 
   const editable = detail?.task.editable !== false;
+  const review = !!detail?.reviewRequired;
+  const columns = review ? ENTRY_COLUMNS_NO_REC : ENTRY_COLUMNS;
 
   if (error) return <ErrorHint message={error} onRetry={loadList} />;
 
@@ -537,9 +561,11 @@ const MyTasksPage: React.FC = () => {
                   ? ` · 报价截止 ${detail.task.quoteDeadline}`
                   : ''}{' '}
                 · 已填 {detail.task.filledCount}/{detail.task.itemCount} ·
-                {editable
-                  ? '可以部分提交，已提交的型号会立刻计入回价；业务员报价前都可以修改，修改会留痕'
-                  : '业务员已经报价，回价只能查看不能修改'}
+                {!editable
+                  ? '业务员已经报价，回价只能查看不能修改'
+                  : review
+                    ? '可以部分提交，提交的型号进入待审核，采购负责人审核通过后业务员才能看到；审核通过后仍可修改，修改后重新审核'
+                    : '可以部分提交，已提交的型号会立刻计入回价；业务员报价前都可以修改，修改会留痕'}
               </div>
             </Card>
 
@@ -553,7 +579,11 @@ const MyTasksPage: React.FC = () => {
             {detail.items.map((it) => {
               const s = state[it.id];
               if (!s) return null;
-              const submitted = it.quotes.filter((q) => q.status === 2);
+              const submitted = it.quotes.filter(isSubmitted);
+              const voided = it.quotes.filter((q) => q.status === 4);
+              const rv = it.reviewStatus
+                ? REVIEW_PILL[it.reviewStatus]
+                : undefined;
               const diff = DIFFICULTY_OPTIONS.find(
                 (d) => d.value === it.difficulty,
               )?.label;
@@ -617,6 +647,11 @@ const MyTasksPage: React.FC = () => {
                         难度 {diff}
                       </span>
                     )}
+                    {rv && (
+                      <Pill tone={rv.tone} dot>
+                        {rv.label}
+                      </Pill>
+                    )}
                     <Checkbox
                       style={{ marginLeft: 'auto' }}
                       checked={s.noStock}
@@ -627,6 +662,53 @@ const MyTasksPage: React.FC = () => {
                       无货
                     </Checkbox>
                   </div>
+                  {it.reviewStatus === 3 && (
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 10,
+                        marginTop: 12,
+                        padding: '10px 14px',
+                        borderRadius: 10,
+                        background: palette.orangeSoft,
+                        color: palette.orange,
+                        fontSize: 13,
+                      }}
+                    >
+                      <RollbackOutlined />
+                      <span style={{ flex: 1 }}>被退回：{it.reviewNote}</span>
+                      <span style={{ color: palette.mute, fontSize: 12 }}>
+                        {it.reviewedByName}
+                        {it.reviewedAt
+                          ? ` · ${dayjs(it.reviewedAt).format('MM-DD HH:mm')}`
+                          : ''}
+                      </span>
+                    </div>
+                  )}
+                  {it.reviewStatus === 1 && (
+                    <div
+                      style={{
+                        color: palette.mute,
+                        fontSize: 12,
+                        marginTop: 6,
+                      }}
+                    >
+                      已提交，等待采购负责人审核；审核前业务员看不到。仍可修改，修改后重新提交。
+                    </div>
+                  )}
+                  {it.reviewStatus === 2 && (
+                    <div
+                      style={{
+                        color: palette.mute,
+                        fontSize: 12,
+                        marginTop: 6,
+                      }}
+                    >
+                      {it.reviewedByName ? `${it.reviewedByName} ` : ''}
+                      审核通过，业务员已能看到。修改后重新进入审核，审核通过前业务员仍看到当前价格。
+                    </div>
+                  )}
                   {it.description && (
                     <div
                       style={{
@@ -735,10 +817,29 @@ const MyTasksPage: React.FC = () => {
                               <span style={{ color: palette.sub }}>
                                 <LeadTimeText value={q.leadTime} fallback="" />
                               </span>
-                              {q.recommended && <Pill tone="green">推荐</Pill>}
+                              {q.recommended && (
+                                <Pill tone="green">
+                                  {review ? '负责人选为推荐' : '推荐'}
+                                </Pill>
+                              )}
                             </>
                           )}
                         </div>
+                      ))}
+                    </div>
+                  )}
+                  {voided.length > 0 && (
+                    <div style={{ display: 'grid', gap: 4, marginBottom: 12 }}>
+                      {voided.map((q) => (
+                        <span
+                          key={q.id}
+                          style={{ color: palette.mute, fontSize: 12 }}
+                        >
+                          <Pill tone="red">已作废</Pill>{' '}
+                          {formatCny(q.unitPrice)} {channelLabel(q.channel)} ·{' '}
+                          {q.shopName || '—'}
+                          {q.reviewNote ? `：${q.reviewNote}` : ''}
+                        </span>
                       ))}
                     </div>
                   )}
@@ -766,15 +867,17 @@ const MyTasksPage: React.FC = () => {
                         <div
                           style={{
                             display: 'grid',
-                            gridTemplateColumns: ENTRY_COLUMNS,
+                            gridTemplateColumns: columns,
                             gap: 8,
                             color: palette.mute,
                             fontSize: 12,
                           }}
                         >
-                          <Tooltip title="报给业务员的价格：每个型号标一条；不标时按全新原装里最低价自动推荐">
-                            <span>推荐</span>
-                          </Tooltip>
+                          {!review && (
+                            <Tooltip title="报给业务员的价格：每个型号标一条；不标时按全新原装里最低价自动推荐">
+                              <span>推荐</span>
+                            </Tooltip>
+                          )}
                           <span>渠道</span>
                           <span>店铺 / 供应商</span>
                           <Tooltip title="默认不含税；店家只给含税价时勾「含税」并选税率，系统按不含税价比价">
@@ -796,25 +899,29 @@ const MyTasksPage: React.FC = () => {
                             key={d.key}
                             style={{
                               display: 'grid',
-                              gridTemplateColumns: ENTRY_COLUMNS,
+                              gridTemplateColumns: columns,
                               gap: 8,
                               alignItems: 'start',
                             }}
                           >
-                            <Radio
-                              aria-label="设为推荐报价"
-                              checked={!!d.recommended}
-                              style={{ marginTop: 4 }}
-                              onClick={() =>
-                                patchItem(it.id, {
-                                  drafts: s.drafts.map((x) => ({
-                                    ...x,
-                                    recommended:
-                                      x.key === d.key ? !d.recommended : false,
-                                  })),
-                                })
-                              }
-                            />
+                            {!review && (
+                              <Radio
+                                aria-label="设为推荐报价"
+                                checked={!!d.recommended}
+                                style={{ marginTop: 4 }}
+                                onClick={() =>
+                                  patchItem(it.id, {
+                                    drafts: s.drafts.map((x) => ({
+                                      ...x,
+                                      recommended:
+                                        x.key === d.key
+                                          ? !d.recommended
+                                          : false,
+                                    })),
+                                  })
+                                }
+                              />
+                            )}
                             <Select
                               size="small"
                               value={d.channel}
@@ -991,7 +1098,8 @@ const MyTasksPage: React.FC = () => {
                       >
                         <PlusOutlined /> 再加一条报价
                       </a>
-                      {s.drafts.length > 1 &&
+                      {!review &&
+                        s.drafts.length > 1 &&
                         !s.drafts.some((x) => x.recommended) && (
                           <span style={{ color: palette.mute, fontSize: 12 }}>
                             没有标推荐时，按全新原装里最低价自动推荐

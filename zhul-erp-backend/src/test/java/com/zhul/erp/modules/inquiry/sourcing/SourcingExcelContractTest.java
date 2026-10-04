@@ -200,20 +200,36 @@ class SourcingExcelContractTest extends InquiryContractSupport {
         file.put("rows", confirmRows);
         ok(call(json(post(MY + "/import/confirm"), write(Map.of("files", List.of(file)))), wang));
 
-        assertEquals(3, jdbc.queryForObject("select count(*) from sourcing_quote where task_id = ? and entry_mode = 2 and status = 2", Integer.class, task));
+        assertEquals(3, jdbc.queryForObject("select count(*) from sourcing_quote where task_id = ? and entry_mode = 2 and status = 3", Integer.class, task),
+                "兼职采购导入的回价进入待审核");
         assertEquals(PART_TIMER, jdbc.queryForObject("select on_behalf_of from sourcing_import where task_id = ?", Long.class, task));
-        assertEquals(2, jdbc.queryForObject("select count(*) from inquiry_item where sourcing_task_id = ? and quote_status <> 1", Integer.class, task),
-                "两个型号有结果，一个仍待询价");
+        assertEquals(0, jdbc.queryForObject("select count(*) from inquiry_item where sourcing_task_id = ? and quote_status <> 1", Integer.class, task),
+                "审核前不计入回价进度");
 
-        // 采购负责人代兼职采购导入：询价人记为兼职采购
+        // 采购负责人代兼职采购导入：询价人记为兼职采购，同样进入待审核
         Map<String, Object> proxyRow = new LinkedHashMap<>();
-        long lastItem = jdbc.queryForObject("select id from inquiry_item where sourcing_task_id = ? and quote_status = 1", Long.class, task);
+        long lastItem = jdbc.queryForObject("select id from inquiry_item where sourcing_task_id = ? and id not in "
+                + "(select inquiry_item_id from sourcing_quote where task_id = ? and deleted_at is null)", Long.class, task, task);
         proxyRow.put("itemId", lastItem);
         proxyRow.put("channel", 1);
         proxyRow.put("noStock", false);
         proxyRow.put("unitPrice", "12.00");
         ok(call(json(post(BOARD + "/import/confirm"), write(Map.of("files", List.of(Map.of("taskId", task, "rows", List.of(proxyRow)))))), admin));
         assertEquals(PART_TIMER, jdbc.queryForObject("select quoted_by from sourcing_quote where inquiry_item_id = ?", Long.class, lastItem));
+        assertEquals(3, jdbc.queryForObject("select status from sourcing_quote where inquiry_item_id = ?", Integer.class, lastItem));
+        assertEquals(2, jdbc.queryForObject("select status from sourcing_task where id = ?", Integer.class, task), "审核前任务仍在询价中");
+
+        // 采购负责人逐型号选推荐后通过：任务回齐
+        List<Map<String, Object>> approve = new ArrayList<>();
+        for (Long itemId : jdbc.queryForList("select id from inquiry_item where sourcing_task_id = ?", Long.class, task)) {
+            Map<String, Object> a = new LinkedHashMap<>();
+            a.put("itemId", itemId);
+            a.put("quotedBy", PART_TIMER);
+            a.put("recommendedQuoteId", jdbc.queryForList("select id from sourcing_quote where inquiry_item_id = ? and no_stock = 0", Long.class, itemId)
+                    .stream().findFirst().orElse(null));
+            approve.add(a);
+        }
+        ok(call(json(post(BOARD + "/reviews/" + task + "/approve"), write(Map.of("items", approve))), admin));
         assertEquals(3, jdbc.queryForObject("select status from sourcing_task where id = ?", Integer.class, task));
 
         // 兼职工作台：只统计本人；本月回价 3 个型号（含负责人代导入的那条）

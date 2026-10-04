@@ -238,6 +238,11 @@ export interface BoardTask {
   recommendedName?: string;
   recommendReason?: string;
   assignees: Purchaser[];
+  /** 待审核页签：有待审核回价的型号数、最早一批提交时间与已等待分钟数、提交的兼职采购 */
+  reviewItemCount?: number;
+  reviewSubmittedAt?: string;
+  reviewWaitingMinutes?: number;
+  reviewBuyerNames?: string[];
 }
 
 export interface Board {
@@ -254,6 +259,10 @@ export interface Board {
     autoAssign: boolean;
     /** 已回价、业务员还没报价的任务数 */
     done?: number;
+    /** 有兼职回价待审核的任务数、型号数，最早一批已等待分钟数 */
+    pendingReview?: number;
+    pendingReviewItems?: number;
+    longestReviewMinutes?: number;
   };
   tasks: BoardTask[];
   purchasers: Purchaser[];
@@ -321,7 +330,10 @@ export interface MyQuote {
   note: string;
   recommended?: boolean;
   noStock: boolean;
+  /** 1-草稿、2-已提交、3-待审核、4-已作废 */
   status: number;
+  /** 作废原因（status=4）或退回原因（被退回的草稿） */
+  reviewNote?: string;
   quotedAt?: string;
 }
 
@@ -338,6 +350,11 @@ export interface MyTaskItem {
   inquiryScript: string;
   searchKeywords: string[];
   quotes: MyQuote[];
+  /** 兼职回价的审核状态：1-待审核、2-已通过、3-被退回 */
+  reviewStatus?: number;
+  reviewNote?: string;
+  reviewedByName?: string;
+  reviewedAt?: string;
 }
 
 export interface QuoteEntry {
@@ -517,6 +534,16 @@ export const boardApi = {
   taskDetail: (id: number) => get<BoardTaskDetail>(`${BOARD}/tasks/${id}`),
   itemHistory: (itemId: number) =>
     get<ItemHistoryEntry[]>(`${BOARD}/items/${itemId}/history`),
+  reviewDetail: (taskId: number) =>
+    get<ReviewDetail>(`${BOARD}/reviews/${taskId}`),
+  approveReview: (taskId: number, items: ReviewApproveItem[]) =>
+    send<void>('POST', `${BOARD}/reviews/${taskId}/approve`, { items }),
+  rejectReview: (
+    taskId: number,
+    items: { itemId: number; quotedBy: number }[],
+    reason: string,
+  ) =>
+    send<void>('POST', `${BOARD}/reviews/${taskId}/reject`, { items, reason }),
   /** 指定采购成本价；quoteId 为 null 时恢复按推荐自动取 */
   setCostQuote: (itemId: number, quoteId: number | null) =>
     send<void>('PUT', `${BOARD}/items/${itemId}/cost-quote`, { quoteId }),
@@ -595,8 +622,8 @@ export interface BoardTaskItem {
 }
 
 export interface ItemHistoryEntry {
-  /** QUOTE-回价版本、COST-成本价调整 */
-  type: 'QUOTE' | 'COST';
+  /** QUOTE-回价版本、COST-成本价调整、REVIEW-审核兼职回价 */
+  type: 'QUOTE' | 'COST' | 'REVIEW';
   time: string;
   operatorName?: string;
   action: string;
@@ -611,10 +638,42 @@ export interface BoardTaskDetail {
   items: BoardTaskItem[];
 }
 
+/** 待审核的一个型号：某位兼职采购提交的一批回价 */
+export interface ReviewItem {
+  itemId: number;
+  model: string;
+  originalModel: string;
+  quantity: number;
+  unit: string;
+  description: string;
+  quotedBy: number;
+  quotedByName?: string;
+  submittedAt?: string;
+  quotes: PriceRecord[];
+  /** 同品牌同型号历史询价最低价 */
+  historyLowest?: PriceRecord;
+}
+
+export interface ReviewDetail {
+  task: BoardTask;
+  items: ReviewItem[];
+  /** 还没有任何回价的型号数 */
+  unsubmittedCount: number;
+}
+
+export interface ReviewApproveItem {
+  itemId: number;
+  quotedBy: number;
+  recommendedQuoteId?: number | null;
+  voids: { quoteId: number; reason?: string }[];
+}
+
 export const myTaskApi = {
   list: (done: boolean) => get<MyTask[]>(MY, { done }),
   detail: (id: number) =>
-    get<{ task: MyTask; items: MyTaskItem[] }>(`${MY}/${id}`),
+    get<{ task: MyTask; items: MyTaskItem[]; reviewRequired?: boolean }>(
+      `${MY}/${id}`,
+    ),
   save: (id: number, items: ItemQuotes[], submit: boolean) =>
     send<void>('PUT', `${MY}/${id}/quotes`, { items, submit }),
   returnTask: (id: number, reason: number, note?: string) =>

@@ -19,4 +19,10 @@ public class MyTaskItemVO {
     private String inquiryScript;
     private List<String> searchKeywords;
     private List<MyQuoteVO> quotes;
+    /** 兼职回价的审核状态：1-待审核、2-已通过、3-被退回；不需要审核或还没提交时为空 */
+    private Integer reviewStatus;
+    /** 被退回时的退回原因 */
+    private String reviewNote;
+    private String reviewedByName;
+    private java.time.LocalDateTime reviewedAt;
 }

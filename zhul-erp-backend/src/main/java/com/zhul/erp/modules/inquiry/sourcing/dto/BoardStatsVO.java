@@ -14,6 +14,12 @@ public class BoardStatsVO {
     private Integer returnedForDoubt;
     /** 已回价、业务员还没报价的任务数（采购负责人还能看修改记录、调整成本价） */
     private Integer done;
+    /** 有兼职回价待审核的任务数 */
+    private Integer pendingReview;
+    /** 待审核的型号数 */
+    private Integer pendingReviewItems;
+    /** 待审核里最早一批已等待的分钟数 */
+    private Long longestReviewMinutes;
     private Integer timeoutHours;
     private Integer urgentTimeoutHours;
     private Boolean autoAssign;

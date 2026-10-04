@@ -48,6 +48,10 @@ public class SourcingQuoteDO {
     private Long importId;
     /** 提交批次：同一次写入的记录相同 */
     private String submitBatch;
+    /** 审核说明：退回原因或作废原因 */
+    private String reviewNote;
+    private Long reviewedBy;
+    private LocalDateTime reviewedAt;
     private LocalDateTime deletedAt;
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createTime;

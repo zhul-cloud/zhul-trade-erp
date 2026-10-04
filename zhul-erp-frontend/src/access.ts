@@ -34,6 +34,7 @@ export default function access(initialState: {
     'inquiry:rule:edit': can('inquiry:rule:edit'),
     'inquiry:import:proxy': can('inquiry:import:proxy'),
     'inquiry:supplier:view': can('inquiry:supplier:view'),
+    'inquiry:quote:review': can('inquiry:quote:review'),
     systemUser: can('/system/user'),
     systemRole: can('/system/role'),
     systemMenu: can('/system/menu'),

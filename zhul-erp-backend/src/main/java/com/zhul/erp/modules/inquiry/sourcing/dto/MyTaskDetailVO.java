@@ -9,4 +9,6 @@ import java.util.List;
 public class MyTaskDetailVO {
     private MyTaskVO task;
     private List<MyTaskItemVO> items;
+    /** 本人回价是否需要采购负责人审核（兼职采购）：是则不显示「推荐」列 */
+    private Boolean reviewRequired;
 }

@@ -228,6 +228,19 @@ public class SourcingTaskServiceImpl implements SourcingTaskService {
             open = new ArrayList<>(open);
             open.addAll(taskMapper.selectList(doneQuery));
         }
+        Map<Long, List<SourcingQuoteDO>> reviewByTask = pendingReviewByTask(tenantId);
+        if (status0 == InquiryConstants.BOARD_TAB_REVIEW) {
+            // 多人比价时正式采购可能已回齐（任务已回价），兼职那份仍在审核
+            java.util.Set<Long> loaded = open.stream().map(SourcingTaskDO::getId).collect(Collectors.toSet());
+            List<Long> doneIds = reviewByTask.keySet().stream().filter(id -> !loaded.contains(id)).toList();
+            if (!doneIds.isEmpty()) {
+                open = new ArrayList<>(open);
+                open.addAll(taskMapper.selectList(new LambdaQueryWrapper<SourcingTaskDO>()
+                        .in(SourcingTaskDO::getId, doneIds)
+                        .eq(SourcingTaskDO::getStatus, InquiryConstants.TASK_DONE)
+                        .isNull(SourcingTaskDO::getDeletedAt)));
+            }
+        }
         Map<Long, List<SourcingTaskAssigneeDO>> assignees = activeAssignees(open.stream().map(SourcingTaskDO::getId).toList());
         List<PurchaserVO> purchasers = purchasers(open, assignees);
         Map<Long, PurchaserVO> purchaserById = purchasers.stream().collect(Collectors.toMap(PurchaserVO::getId, p -> p));
@@ -256,7 +269,8 @@ public class SourcingTaskServiceImpl implements SourcingTaskService {
                         doubt++;
                     }
                 }
-            } else {
+            } else if (!reviewByTask.containsKey(t.getId())) {
+                // 有待审核回价的任务归「待审核」页签，不重复计入询价中
                 sourcing++;
                 if (as.size() > 1) {
                     multi++;
@@ -265,7 +279,10 @@ public class SourcingTaskServiceImpl implements SourcingTaskService {
                     timeout++;
                 }
             }
-            if (t.getStatus() != status0) {
+            List<SourcingQuoteDO> pendingReview = reviewByTask.get(t.getId());
+            boolean listed = status0 == InquiryConstants.BOARD_TAB_REVIEW ? pendingReview != null
+                    : t.getStatus() == status0 && !(status0 == InquiryConstants.TASK_SOURCING && pendingReview != null);
+            if (!listed) {
                 continue;
             }
             BoardTaskVO vo = new BoardTaskVO();
@@ -293,15 +310,26 @@ public class SourcingTaskServiceImpl implements SourcingTaskService {
                 vo.setRecommendedName(rec.purchaser.getName());
                 vo.setRecommendReason(rec.reason);
             }
+            if (pendingReview != null) {
+                applyReview(vo, pendingReview, now);
+            }
             rows.add(vo);
         }
-        // 超时 → 紧急 → 询盘等级（S 最先）→ 等得久的在前
-        rows.sort(Comparator.comparing((BoardTaskVO r) -> !Boolean.TRUE.equals(r.getTimeout()))
-                .thenComparing(r -> !Boolean.TRUE.equals(r.getUrgent()))
-                .thenComparing(BoardTaskVO::getLevel, Comparator.nullsLast(Comparator.naturalOrder()))
-                .thenComparing(BoardTaskVO::getWaitingMinutes, Comparator.nullsLast(Comparator.reverseOrder()))
-                .thenComparing(BoardTaskVO::getFirstAssignedAt, Comparator.nullsLast(Comparator.naturalOrder()))
-                .thenComparing(BoardTaskVO::getTaskCode));
+        if (status0 == InquiryConstants.BOARD_TAB_REVIEW) {
+            // 紧急 → 询盘等级（S 最先）→ 最早提交的在前
+            rows.sort(Comparator.comparing((BoardTaskVO r) -> !Boolean.TRUE.equals(r.getUrgent()))
+                    .thenComparing(BoardTaskVO::getLevel, Comparator.nullsLast(Comparator.naturalOrder()))
+                    .thenComparing(BoardTaskVO::getReviewSubmittedAt, Comparator.nullsLast(Comparator.naturalOrder()))
+                    .thenComparing(BoardTaskVO::getTaskCode));
+        } else {
+            // 超时 → 紧急 → 询盘等级（S 最先）→ 等得久的在前
+            rows.sort(Comparator.comparing((BoardTaskVO r) -> !Boolean.TRUE.equals(r.getTimeout()))
+                    .thenComparing(r -> !Boolean.TRUE.equals(r.getUrgent()))
+                    .thenComparing(BoardTaskVO::getLevel, Comparator.nullsLast(Comparator.naturalOrder()))
+                    .thenComparing(BoardTaskVO::getWaitingMinutes, Comparator.nullsLast(Comparator.reverseOrder()))
+                    .thenComparing(BoardTaskVO::getFirstAssignedAt, Comparator.nullsLast(Comparator.naturalOrder()))
+                    .thenComparing(BoardTaskVO::getTaskCode));
+        }
         stats.setUnassigned(unassigned);
         stats.setLongestWaitingMinutes(longest);
         stats.setSourcing(sourcing);
@@ -310,6 +338,12 @@ public class SourcingTaskServiceImpl implements SourcingTaskService {
         stats.setReturned(returned);
         stats.setReturnedForDoubt(doubt);
         stats.setDone((int) doneCount);
+        stats.setPendingReview(reviewByTask.size());
+        stats.setPendingReviewItems((int) reviewByTask.values().stream().flatMap(List::stream)
+                .map(SourcingQuoteDO::getInquiryItemId).distinct().count());
+        stats.setLongestReviewMinutes(reviewByTask.values().stream().flatMap(List::stream)
+                .map(SourcingQuoteDO::getQuotedAt).filter(Objects::nonNull).min(Comparator.naturalOrder())
+                .map(at -> Math.max(0, Duration.between(at, now).toMinutes())).orElse(0L));
         stats.setTimeoutHours(limits.normalHours());
         stats.setUrgentTimeoutHours(limits.urgentHours());
         stats.setAutoAssign(settings.autoAssign(tenantId));
@@ -729,6 +763,35 @@ public class SourcingTaskServiceImpl implements SourcingTaskService {
                 .stream().collect(Collectors.groupingBy(SourcingTaskAssigneeDO::getTaskId));
     }
 
+    /**
+     * 有兼职回价待审核的任务 → 待审核记录（任务询价中或已回价、客户询盘还没报价也没取消）。
+     * 报价后回价只读，留在待审核里也审不了，所以不列出。
+     */
+    private Map<Long, List<SourcingQuoteDO>> pendingReviewByTask(int tenantId) {
+        List<SourcingQuoteDO> pending = quoteMapper.selectList(new LambdaQueryWrapper<SourcingQuoteDO>()
+                .select(SourcingQuoteDO::getTaskId, SourcingQuoteDO::getInquiryItemId, SourcingQuoteDO::getQuotedBy,
+                        SourcingQuoteDO::getQuotedAt)
+                .eq(SourcingQuoteDO::getTenantId, tenantId)
+                .eq(SourcingQuoteDO::getStatus, InquiryConstants.QUOTE_PENDING_REVIEW)
+                .isNull(SourcingQuoteDO::getDeletedAt)
+                .inSql(SourcingQuoteDO::getTaskId, "select id from sourcing_task where status in ("
+                        + InquiryConstants.TASK_SOURCING + "," + InquiryConstants.TASK_DONE + ") and deleted_at is null")
+                .inSql(SourcingQuoteDO::getCustomerInquiryId, "select id from customer_inquiry where status in ("
+                        + InquiryConstants.STATUS_SOURCING + "," + InquiryConstants.STATUS_READY_TO_QUOTE + ") and deleted_at is null"));
+        return pending.stream().collect(Collectors.groupingBy(SourcingQuoteDO::getTaskId));
+    }
+
+    private void applyReview(BoardTaskVO vo, List<SourcingQuoteDO> pending, LocalDateTime now) {
+        vo.setReviewItemCount((int) pending.stream().map(SourcingQuoteDO::getInquiryItemId).distinct().count());
+        LocalDateTime first = pending.stream().map(SourcingQuoteDO::getQuotedAt).filter(Objects::nonNull)
+                .min(Comparator.naturalOrder()).orElse(null);
+        vo.setReviewSubmittedAt(first);
+        vo.setReviewWaitingMinutes(first == null ? null : Math.max(0, Duration.between(first, now).toMinutes()));
+        Map<Long, String> names = lookups.userNames(pending.stream().map(SourcingQuoteDO::getQuotedBy).distinct().toList());
+        vo.setReviewBuyerNames(pending.stream().map(SourcingQuoteDO::getQuotedBy).distinct()
+                .map(names::get).filter(Objects::nonNull).toList());
+    }
+
     private int pricedCount(Long taskId) {
         return Math.toIntExact(itemMapper.selectCount(new LambdaQueryWrapper<InquiryItemDO>()
                 .eq(InquiryItemDO::getSourcingTaskId, taskId)
@@ -784,6 +847,8 @@ public class SourcingTaskServiceImpl implements SourcingTaskService {
 
     private static final String COST_PICK = "指定采购成本价";
     private static final String COST_RESET = "成本价恢复自动";
+    private static final List<String> LOGGED_OPERATIONS = List.of(COST_PICK, COST_RESET,
+            InquiryConstants.LOG_REVIEW_APPROVE, InquiryConstants.LOG_REVIEW_REJECT);
 
     /** 成本价对应记录的简述，如「¥940.00 林熙」 */
     private String quoteNote(Long quoteId) {
@@ -822,22 +887,24 @@ public class SourcingTaskServiceImpl implements SourcingTaskService {
             e.setQuotes(priceHistoryService.toVos(v));
             entries.add(e);
         }
-        // 采购负责人调整成本价：操作日志里记了型号 ID
+        // 采购负责人调整成本价、审核兼职回价：操作日志里记了型号 ID
         for (SysLogDO log : sysLogMapper.selectList(new LambdaQueryWrapper<SysLogDO>()
                 .eq(SysLogDO::getTenantId, item.getTenantId())
                 .eq(SysLogDO::getMenu, "分配工作台")
-                .in(SysLogDO::getOperation, COST_PICK, COST_RESET)
+                .in(SysLogDO::getOperation, LOGGED_OPERATIONS)
                 .and(w -> w.like(SysLogDO::getContent, "\"itemId\":" + itemId + ",").or()
                         .like(SysLogDO::getContent, "\"itemId\":" + itemId + "}"))
                 .isNull(SysLogDO::getDeletedAt))) {
+            boolean cost = COST_PICK.equals(log.getOperation()) || COST_RESET.equals(log.getOperation());
             ItemHistoryEntryVO e = new ItemHistoryEntryVO();
-            e.setType("COST");
+            e.setType(cost ? "COST" : "REVIEW");
             e.setTime(log.getOperateTime());
             e.setAction(log.getOperation());
             try {
                 com.fasterxml.jackson.databind.JsonNode after = objectMapper.readTree(log.getContent()).path("after");
                 e.setOperatorName(after.path("operator").asText(log.getOperatorName()));
-                e.setNote(COST_PICK.equals(log.getOperation()) ? "指定为 " + after.path("quote").asText()
+                e.setNote(!cost ? after.path("note").asText()
+                        : COST_PICK.equals(log.getOperation()) ? "指定为 " + after.path("quote").asText()
                         : "恢复按推荐报价自动取，当前为 " + after.path("quote").asText());
             } catch (JsonProcessingException ex) {
                 e.setOperatorName(log.getOperatorName());
@@ -872,7 +939,7 @@ public class SourcingTaskServiceImpl implements SourcingTaskService {
         long costChanges = sysLogMapper.selectCount(new LambdaQueryWrapper<SysLogDO>()
                 .eq(SysLogDO::getTenantId, tenantId())
                 .eq(SysLogDO::getMenu, "分配工作台")
-                .in(SysLogDO::getOperation, COST_PICK, COST_RESET)
+                .in(SysLogDO::getOperation, LOGGED_OPERATIONS)
                 .and(w -> w.like(SysLogDO::getContent, "\"itemId\":" + itemId + ",").or()
                         .like(SysLogDO::getContent, "\"itemId\":" + itemId + "}"))
                 .isNull(SysLogDO::getDeletedAt));

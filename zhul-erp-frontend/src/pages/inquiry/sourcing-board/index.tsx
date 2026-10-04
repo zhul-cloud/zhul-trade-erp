@@ -4,7 +4,7 @@ import {
   DownloadOutlined,
   InboxOutlined,
   OrderedListOutlined,
-  RollbackOutlined,
+  SafetyCertificateOutlined,
   SettingOutlined,
   ThunderboltOutlined,
   UploadOutlined,
@@ -21,6 +21,7 @@ import {
   Segmented,
   Skeleton,
 } from 'antd';
+import dayjs from 'dayjs';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -44,12 +45,22 @@ import {
   type RulePreview,
   readBizError,
 } from '../shared/service';
+import ReviewDrawer from './ReviewDrawer';
 import TaskDetailDrawer from './TaskDetailDrawer';
 
 const UNASSIGNED = 1;
 const SOURCING = 2;
 /** 已回价、业务员还没报价：可以看修改记录、调整采购成本价 */
 const DONE = 3;
+/** 待审核：任务下有兼职回价等采购负责人审核（不是任务状态，与后端 BOARD_TAB_REVIEW 一致） */
+const REVIEW = 5;
+
+const TAB_HINT: Record<number, string> = {
+  [REVIEW]:
+    '「待审核」：兼职采购提交的回价，审核通过后业务员才能看到；正式采购的回价不经过这里',
+  [DONE]:
+    '「已回价」：已回齐、业务员还没报价的任务，可看回价、看修改记录、定成本价',
+};
 
 /** 分配工作台：采购负责人把待分配的询价任务交给合适的采购 */
 const SourcingBoardPage: React.FC = () => {
@@ -68,6 +79,7 @@ const SourcingBoardPage: React.FC = () => {
   const [preview, setPreview] = useState<RulePreview[] | null>(null);
   const [importOpen, setImportOpen] = useState(false);
   const [detailId, setDetailId] = useState<number>();
+  const [reviewId, setReviewId] = useState<number>();
 
   const load = useCallback(async () => {
     setError('');
@@ -233,16 +245,16 @@ const SourcingBoardPage: React.FC = () => {
               }
             />
             <Stat
-              icon={<RollbackOutlined />}
-              color={palette.orange}
-              soft={palette.orangeSoft}
-              label="被退回"
-              value={s.returned}
+              icon={<SafetyCertificateOutlined />}
+              color={palette.link}
+              soft={palette.accentSoft}
+              label="待审核"
+              value={s.pendingReview ?? 0}
               hint={
                 <span style={{ color: palette.mute }}>
-                  {s.returnedForDoubt
-                    ? `型号存疑 ${s.returnedForDoubt}`
-                    : '退回的任务会回到待分配池'}
+                  {s.pendingReview
+                    ? `兼职回价 ${s.pendingReviewItems ?? 0} 个型号 · 最久已等 ${formatMinutes(s.longestReviewMinutes)}`
+                    : '兼职提交的回价审核后才给业务员看'}
                 </span>
               }
             />
@@ -266,14 +278,28 @@ const SourcingBoardPage: React.FC = () => {
                   options={[
                     { value: UNASSIGNED, label: `待分配 ${s.unassigned}` },
                     { value: SOURCING, label: `询价中 ${s.sourcing}` },
+                    { value: REVIEW, label: `待审核 ${s.pendingReview ?? 0}` },
                     { value: DONE, label: `已回价 ${s.done ?? 0}` },
                   ]}
                 />
+                {TAB_HINT[tab] && (
+                  <span
+                    style={{
+                      color: palette.mute,
+                      fontSize: 12,
+                      flex: 1,
+                      minWidth: 0,
+                    }}
+                  >
+                    {TAB_HINT[tab]}
+                  </span>
+                )}
                 <span
                   style={{
                     marginLeft: 'auto',
                     color: palette.mute,
                     fontSize: 12,
+                    whiteSpace: 'nowrap',
                   }}
                 >
                   自动分配
@@ -352,7 +378,14 @@ const SourcingBoardPage: React.FC = () => {
                 </div>
               )}
 
-              {groups.length === 0 && (
+              {tab === REVIEW && (
+                <ReviewList
+                  tasks={board.tasks}
+                  onOpen={setReviewId}
+                  onOpenTask={setDetailId}
+                />
+              )}
+              {tab !== REVIEW && groups.length === 0 && (
                 <Card>
                   <EmptyHint
                     title={
@@ -368,276 +401,287 @@ const SourcingBoardPage: React.FC = () => {
                   />
                 </Card>
               )}
-              {groups.map(([brand, tasks]) => (
-                <Card key={brand} style={{ padding: 0, overflow: 'hidden' }}>
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 10,
-                      padding: '14px 20px',
-                      background: palette.inset,
-                    }}
-                  >
-                    {tab === UNASSIGNED && canAssign && (
-                      <Checkbox
-                        checked={tasks.every((t) => selected.includes(t.id))}
-                        indeterminate={
-                          tasks.some((t) => selected.includes(t.id)) &&
-                          !tasks.every((t) => selected.includes(t.id))
-                        }
-                        onChange={(e) =>
-                          setSelected((prev) =>
-                            e.target.checked
-                              ? [
-                                  ...new Set([
-                                    ...prev,
-                                    ...tasks.map((t) => t.id),
-                                  ]),
-                                ]
-                              : prev.filter(
-                                  (id) => !tasks.some((t) => t.id === id),
-                                ),
-                          )
-                        }
-                      />
-                    )}
-                    <span
-                      style={{
-                        fontSize: 15,
-                        fontWeight: 700,
-                        color: palette.ink,
-                      }}
-                    >
-                      {brand}
-                    </span>
-                    <Pill tone="gray">{tasks.length} 个任务</Pill>
-                  </div>
-                  {tasks.map((t) => (
+              {tab !== REVIEW &&
+                groups.map(([brand, tasks]) => (
+                  <Card key={brand} style={{ padding: 0, overflow: 'hidden' }}>
                     <div
-                      key={t.id}
-                      draggable={tab === UNASSIGNED && canAssign}
-                      onDragStart={(e) =>
-                        e.dataTransfer.setData('text/plain', String(t.id))
-                      }
                       style={{
-                        display: 'grid',
-                        gridTemplateColumns:
-                          tab === UNASSIGNED
-                            ? '24px 260px 120px minmax(0, 1fr) auto'
-                            : '260px 140px minmax(0, 1fr) auto',
-                        gap: 14,
+                        display: 'flex',
                         alignItems: 'center',
+                        gap: 10,
                         padding: '14px 20px',
-                        borderTop: `1px solid ${palette.hairline}`,
-                        background: selected.includes(t.id)
-                          ? palette.hover
-                          : 'transparent',
-                        cursor:
-                          tab === UNASSIGNED && canAssign ? 'grab' : 'default',
+                        background: palette.inset,
                       }}
                     >
-                      {tab === UNASSIGNED && (
+                      {tab === UNASSIGNED && canAssign && (
                         <Checkbox
-                          disabled={!canAssign}
-                          checked={selected.includes(t.id)}
+                          checked={tasks.every((t) => selected.includes(t.id))}
+                          indeterminate={
+                            tasks.some((t) => selected.includes(t.id)) &&
+                            !tasks.every((t) => selected.includes(t.id))
+                          }
                           onChange={(e) =>
                             setSelected((prev) =>
                               e.target.checked
-                                ? [...prev, t.id]
-                                : prev.filter((x) => x !== t.id),
+                                ? [
+                                    ...new Set([
+                                      ...prev,
+                                      ...tasks.map((t) => t.id),
+                                    ]),
+                                  ]
+                                : prev.filter(
+                                    (id) => !tasks.some((t) => t.id === id),
+                                  ),
                             )
                           }
                         />
                       )}
-                      <div style={{ display: 'grid', gap: 4 }}>
-                        <span
-                          style={{
-                            display: 'inline-flex',
-                            gap: 6,
-                            alignItems: 'center',
-                            flexWrap: 'wrap',
-                          }}
-                        >
-                          <a onClick={() => setDetailId(t.id)}>{t.taskCode}</a>
-                          <LevelPill value={t.level} />
-                          {t.urgent && <Pill tone="red">紧急</Pill>}
-                          {t.returnReason > 0 && t.status === UNASSIGNED && (
-                            <Pill tone="orange">被退回</Pill>
-                          )}
-                        </span>
-                        <span style={{ color: palette.mute, fontSize: 12 }}>
-                          {t.brand}
-                          {t.category ? ` · ${t.category}` : ''} · {t.itemCount}{' '}
-                          个型号
-                        </span>
-                        <span
-                          style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: 4,
-                            color: palette.sub,
-                            fontSize: 12,
-                          }}
-                        >
-                          <UserOutlined style={{ color: palette.mute }} />
-                          业务员 {t.salesName || '—'}
-                        </span>
-                        <CustomerBrief
-                          customerType={t.customerType}
-                          customerName={t.customerName}
-                        />
-                      </div>
-                      {tab === UNASSIGNED ? (
-                        <div style={{ display: 'grid', gap: 2 }}>
+                      <span
+                        style={{
+                          fontSize: 15,
+                          fontWeight: 700,
+                          color: palette.ink,
+                        }}
+                      >
+                        {brand}
+                      </span>
+                      <Pill tone="gray">{tasks.length} 个任务</Pill>
+                    </div>
+                    {tasks.map((t) => (
+                      <div
+                        key={t.id}
+                        draggable={tab === UNASSIGNED && canAssign}
+                        onDragStart={(e) =>
+                          e.dataTransfer.setData('text/plain', String(t.id))
+                        }
+                        style={{
+                          display: 'grid',
+                          gridTemplateColumns:
+                            tab === UNASSIGNED
+                              ? '24px 260px 120px minmax(0, 1fr) auto'
+                              : '260px 140px minmax(0, 1fr) auto',
+                          gap: 14,
+                          alignItems: 'center',
+                          padding: '14px 20px',
+                          borderTop: `1px solid ${palette.hairline}`,
+                          background: selected.includes(t.id)
+                            ? palette.hover
+                            : 'transparent',
+                          cursor:
+                            tab === UNASSIGNED && canAssign
+                              ? 'grab'
+                              : 'default',
+                        }}
+                      >
+                        {tab === UNASSIGNED && (
+                          <Checkbox
+                            disabled={!canAssign}
+                            checked={selected.includes(t.id)}
+                            onChange={(e) =>
+                              setSelected((prev) =>
+                                e.target.checked
+                                  ? [...prev, t.id]
+                                  : prev.filter((x) => x !== t.id),
+                              )
+                            }
+                          />
+                        )}
+                        <div style={{ display: 'grid', gap: 4 }}>
+                          <span
+                            style={{
+                              display: 'inline-flex',
+                              gap: 6,
+                              alignItems: 'center',
+                              flexWrap: 'wrap',
+                            }}
+                          >
+                            <a onClick={() => setDetailId(t.id)}>
+                              {t.taskCode}
+                            </a>
+                            <LevelPill value={t.level} />
+                            {t.urgent && <Pill tone="red">紧急</Pill>}
+                            {t.returnReason > 0 && t.status === UNASSIGNED && (
+                              <Pill tone="orange">被退回</Pill>
+                            )}
+                          </span>
                           <span style={{ color: palette.mute, fontSize: 12 }}>
-                            已等待
+                            {t.brand}
+                            {t.category ? ` · ${t.category}` : ''} ·{' '}
+                            {t.itemCount} 个型号
                           </span>
                           <span
                             style={{
-                              fontWeight: 600,
-                              color:
-                                (t.waitingMinutes ?? 0) > 120
-                                  ? palette.orange
-                                  : palette.sub,
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: 4,
+                              color: palette.sub,
+                              fontSize: 12,
                             }}
                           >
-                            {formatMinutes(t.waitingMinutes)}
+                            <UserOutlined style={{ color: palette.mute }} />
+                            业务员 {t.salesName || '—'}
                           </span>
-                        </div>
-                      ) : (
-                        <div style={{ display: 'grid', gap: 4 }}>
-                          <TaskStatusPill
-                            status={t.status}
-                            timeout={t.timeout}
+                          <CustomerBrief
+                            customerType={t.customerType}
+                            customerName={t.customerName}
                           />
-                          <span style={{ color: palette.mute, fontSize: 12 }}>
-                            已回价 {t.pricedCount}/{t.itemCount}
-                          </span>
                         </div>
-                      )}
-                      <div style={{ display: 'grid', gap: 2, minWidth: 0 }}>
                         {tab === UNASSIGNED ? (
-                          <>
-                            <span
-                              style={{ color: palette.ink, fontWeight: 600 }}
-                            >
-                              <ThunderboltOutlined
-                                style={{ color: palette.link }}
-                              />{' '}
-                              推荐 {t.recommendedName ?? '—'}
+                          <div style={{ display: 'grid', gap: 2 }}>
+                            <span style={{ color: palette.mute, fontSize: 12 }}>
+                              已等待
                             </span>
                             <span
                               style={{
-                                color: t.returnReason
-                                  ? palette.orange
-                                  : palette.mute,
-                                fontSize: 12,
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                                whiteSpace: 'nowrap',
+                                fontWeight: 600,
+                                color:
+                                  (t.waitingMinutes ?? 0) > 120
+                                    ? palette.orange
+                                    : palette.sub,
                               }}
                             >
-                              {t.returnReason
-                                ? `${t.returnedByName ?? ''}退回：${t.returnReasonLabel}${t.returnNote ? `，${t.returnNote}` : ''}`
-                                : t.recommendReason}
+                              {formatMinutes(t.waitingMinutes)}
                             </span>
-                          </>
+                          </div>
                         ) : (
-                          <span style={{ color: palette.sub }}>
-                            {t.assignees.map((a) => a.name).join(' + ') || '—'}
-                            {t.assignees.length > 1 && (
-                              <span style={{ color: palette.mute }}>
-                                （比价）
+                          <div style={{ display: 'grid', gap: 4 }}>
+                            <TaskStatusPill
+                              status={t.status}
+                              timeout={t.timeout}
+                            />
+                            <span style={{ color: palette.mute, fontSize: 12 }}>
+                              已回价 {t.pricedCount}/{t.itemCount}
+                            </span>
+                          </div>
+                        )}
+                        <div style={{ display: 'grid', gap: 2, minWidth: 0 }}>
+                          {tab === UNASSIGNED ? (
+                            <>
+                              <span
+                                style={{ color: palette.ink, fontWeight: 600 }}
+                              >
+                                <ThunderboltOutlined
+                                  style={{ color: palette.link }}
+                                />{' '}
+                                推荐 {t.recommendedName ?? '—'}
                               </span>
-                            )}
-                          </span>
+                              <span
+                                style={{
+                                  color: t.returnReason
+                                    ? palette.orange
+                                    : palette.mute,
+                                  fontSize: 12,
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis',
+                                  whiteSpace: 'nowrap',
+                                }}
+                              >
+                                {t.returnReason
+                                  ? `${t.returnedByName ?? ''}退回：${t.returnReasonLabel}${t.returnNote ? `，${t.returnNote}` : ''}`
+                                  : t.recommendReason}
+                              </span>
+                            </>
+                          ) : (
+                            <span style={{ color: palette.sub }}>
+                              {t.assignees.map((a) => a.name).join(' + ') ||
+                                '—'}
+                              {t.assignees.length > 1 && (
+                                <span style={{ color: palette.mute }}>
+                                  （比价）
+                                </span>
+                              )}
+                            </span>
+                          )}
+                        </div>
+                        {tab === DONE ? (
+                          <Button
+                            size="small"
+                            onClick={() => setDetailId(t.id)}
+                          >
+                            看回价 / 定成本价
+                          </Button>
+                        ) : (
+                          canAssign && (
+                            <span style={{ display: 'inline-flex', gap: 6 }}>
+                              {tab === UNASSIGNED ? (
+                                <>
+                                  {t.recommendedId && (
+                                    <Button
+                                      size="small"
+                                      loading={busy}
+                                      onClick={() =>
+                                        run(
+                                          () =>
+                                            boardApi.assign(
+                                              [t.id],
+                                              t.recommendedId as number,
+                                            ),
+                                          `已分配给 ${t.recommendedName}`,
+                                        )
+                                      }
+                                    >
+                                      分配给 {t.recommendedName}
+                                    </Button>
+                                  )}
+                                  <Dropdown
+                                    menu={purchaserMenu((p) =>
+                                      run(
+                                        () => boardApi.assign([t.id], p.id),
+                                        `已分配给 ${p.name}`,
+                                      ),
+                                    )}
+                                    trigger={['click']}
+                                  >
+                                    <Button size="small">其他人…</Button>
+                                  </Dropdown>
+                                </>
+                              ) : (
+                                <>
+                                  <Dropdown
+                                    menu={purchaserMenu(
+                                      (p) =>
+                                        modal.confirm({
+                                          title: `改派给 ${p.name}？`,
+                                          content:
+                                            '原来的采购将看不到这个任务，他已录入的价格会保留。',
+                                          okText: '改派',
+                                          cancelText: '取消',
+                                          onOk: () =>
+                                            run(
+                                              () =>
+                                                boardApi.reassign(t.id, p.id),
+                                              `已改派给 ${p.name}`,
+                                            ),
+                                        }),
+                                      t.assignees.map((a) => a.id),
+                                    )}
+                                    trigger={['click']}
+                                  >
+                                    <Button size="small">改派</Button>
+                                  </Dropdown>
+                                  <Dropdown
+                                    menu={purchaserMenu(
+                                      (p) =>
+                                        run(
+                                          () =>
+                                            boardApi.addAssignee(t.id, p.id),
+                                          `已追加 ${p.name} 比价`,
+                                        ),
+                                      t.assignees.map((a) => a.id),
+                                    )}
+                                    trigger={['click']}
+                                  >
+                                    <Button size="small">追加比价</Button>
+                                  </Dropdown>
+                                </>
+                              )}
+                            </span>
+                          )
                         )}
                       </div>
-                      {tab === DONE ? (
-                        <Button size="small" onClick={() => setDetailId(t.id)}>
-                          看回价 / 定成本价
-                        </Button>
-                      ) : (
-                        canAssign && (
-                          <span style={{ display: 'inline-flex', gap: 6 }}>
-                            {tab === UNASSIGNED ? (
-                              <>
-                                {t.recommendedId && (
-                                  <Button
-                                    size="small"
-                                    loading={busy}
-                                    onClick={() =>
-                                      run(
-                                        () =>
-                                          boardApi.assign(
-                                            [t.id],
-                                            t.recommendedId as number,
-                                          ),
-                                        `已分配给 ${t.recommendedName}`,
-                                      )
-                                    }
-                                  >
-                                    分配给 {t.recommendedName}
-                                  </Button>
-                                )}
-                                <Dropdown
-                                  menu={purchaserMenu((p) =>
-                                    run(
-                                      () => boardApi.assign([t.id], p.id),
-                                      `已分配给 ${p.name}`,
-                                    ),
-                                  )}
-                                  trigger={['click']}
-                                >
-                                  <Button size="small">其他人…</Button>
-                                </Dropdown>
-                              </>
-                            ) : (
-                              <>
-                                <Dropdown
-                                  menu={purchaserMenu(
-                                    (p) =>
-                                      modal.confirm({
-                                        title: `改派给 ${p.name}？`,
-                                        content:
-                                          '原来的采购将看不到这个任务，他已录入的价格会保留。',
-                                        okText: '改派',
-                                        cancelText: '取消',
-                                        onOk: () =>
-                                          run(
-                                            () => boardApi.reassign(t.id, p.id),
-                                            `已改派给 ${p.name}`,
-                                          ),
-                                      }),
-                                    t.assignees.map((a) => a.id),
-                                  )}
-                                  trigger={['click']}
-                                >
-                                  <Button size="small">改派</Button>
-                                </Dropdown>
-                                <Dropdown
-                                  menu={purchaserMenu(
-                                    (p) =>
-                                      run(
-                                        () => boardApi.addAssignee(t.id, p.id),
-                                        `已追加 ${p.name} 比价`,
-                                      ),
-                                    t.assignees.map((a) => a.id),
-                                  )}
-                                  trigger={['click']}
-                                >
-                                  <Button size="small">追加比价</Button>
-                                </Dropdown>
-                              </>
-                            )}
-                          </span>
-                        )
-                      )}
-                    </div>
-                  ))}
-                </Card>
-              ))}
+                    ))}
+                  </Card>
+                ))}
             </div>
 
             <div style={{ display: 'grid', gap: 12 }}>
@@ -829,6 +873,11 @@ const SourcingBoardPage: React.FC = () => {
         taskId={detailId}
         onClose={() => setDetailId(undefined)}
       />
+      <ReviewDrawer
+        taskId={reviewId}
+        onClose={() => setReviewId(undefined)}
+        onChanged={load}
+      />
 
       <ImportModal
         open={importOpen}
@@ -842,6 +891,131 @@ const SourcingBoardPage: React.FC = () => {
         }}
       />
     </div>
+  );
+};
+
+/** 待审核页签：不按品牌分组，按紧急、询盘等级、最早提交排好序（后端已排序） */
+const ReviewList: React.FC<{
+  tasks: BoardTask[];
+  onOpen: (id: number) => void;
+  onOpenTask: (id: number) => void;
+}> = ({ tasks, onOpen, onOpenTask }) => {
+  const { palette } = useAppTheme();
+  if (tasks.length === 0) {
+    return (
+      <Card>
+        <EmptyHint
+          title="没有待审核的兼职回价"
+          description="兼职采购提交的回价会出现在这里，审核后业务员才能看到。"
+        />
+      </Card>
+    );
+  }
+  const items = tasks.reduce((n, t) => n + (t.reviewItemCount ?? 0), 0);
+  return (
+    <Card style={{ padding: 0, overflow: 'hidden' }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10,
+          padding: '14px 20px',
+          background: palette.inset,
+        }}
+      >
+        <span style={{ fontSize: 15, fontWeight: 700, color: palette.ink }}>
+          兼职回价待审核
+        </span>
+        <Pill tone="gray">
+          {tasks.length} 个任务 · {items} 个型号
+        </Pill>
+        <span style={{ marginLeft: 'auto', color: palette.mute, fontSize: 12 }}>
+          按紧急、询盘等级、最早提交排序
+        </span>
+      </div>
+      {tasks.map((t) => (
+        <div
+          key={t.id}
+          style={{
+            display: 'grid',
+            gridTemplateColumns: '280px 200px minmax(0, 1fr) auto',
+            gap: 14,
+            alignItems: 'center',
+            padding: '16px 20px',
+            borderTop: `1px solid ${palette.hairline}`,
+          }}
+        >
+          <div style={{ display: 'grid', gap: 4 }}>
+            <span
+              style={{
+                display: 'inline-flex',
+                gap: 6,
+                alignItems: 'center',
+                flexWrap: 'wrap',
+              }}
+            >
+              <a onClick={() => onOpenTask(t.id)}>{t.taskCode}</a>
+              <LevelPill value={t.level} />
+              {t.urgent && <Pill tone="red">紧急</Pill>}
+            </span>
+            <span style={{ color: palette.mute, fontSize: 12 }}>
+              {t.brand}
+              {t.category ? ` · ${t.category}` : ''} · {t.itemCount} 个型号
+            </span>
+            <span
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                color: palette.sub,
+                fontSize: 12,
+              }}
+            >
+              <UserOutlined style={{ color: palette.mute }} />
+              {(t.reviewBuyerNames ?? []).join('、') || '—'}
+              <Pill tone="violet">兼职</Pill>
+            </span>
+          </div>
+          <div style={{ display: 'grid', gap: 2 }}>
+            <span style={{ color: palette.mute, fontSize: 12 }}>
+              待审核型号
+            </span>
+            <b style={{ color: palette.ink, fontSize: 15 }}>
+              {t.reviewItemCount ?? 0} / {t.itemCount}
+            </b>
+            <span style={{ color: palette.mute, fontSize: 12 }}>
+              业务员已可见 {t.pricedCount} 个
+            </span>
+          </div>
+          <div style={{ display: 'grid', gap: 2 }}>
+            <span style={{ color: palette.mute, fontSize: 12 }}>
+              {t.reviewSubmittedAt
+                ? `${dayjs(t.reviewSubmittedAt).format('MM-DD HH:mm')} 提交`
+                : '—'}
+            </span>
+            <span
+              style={{
+                fontWeight: 600,
+                color:
+                  (t.reviewWaitingMinutes ?? 0) > 120
+                    ? palette.orange
+                    : palette.sub,
+              }}
+            >
+              已等 {formatMinutes(t.reviewWaitingMinutes)}
+            </span>
+          </div>
+          <Button
+            type="primary"
+            ghost
+            icon={<SafetyCertificateOutlined />}
+            onClick={() => onOpen(t.id)}
+          >
+            去审核
+          </Button>
+        </div>
+      ))}
+    </Card>
   );
 };
 

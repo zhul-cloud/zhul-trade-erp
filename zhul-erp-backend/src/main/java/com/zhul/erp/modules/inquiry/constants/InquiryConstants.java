@@ -63,6 +63,8 @@ public final class InquiryConstants {
     public static final int TASK_SOURCING = 2;
     public static final int TASK_DONE = 3;
     public static final int TASK_CANCELLED = 4;
+    /** 分配工作台「待审核」页签的查询值（不是任务状态：任务下有兼职回价待审核） */
+    public static final int BOARD_TAB_REVIEW = 5;
 
     /** 分配方式 */
     public static final int ASSIGN_MANUAL = 1;
@@ -87,6 +89,8 @@ public final class InquiryConstants {
 
     /** 按钮权限：查看货源信息（询价平台、店铺），供应链内部信息，业务员默认没有 */
     public static final String PERM_SUPPLIER_VIEW = "inquiry:supplier:view";
+    /** 按钮权限：审核兼职回价 */
+    public static final String PERM_QUOTE_REVIEW = "inquiry:quote:review";
 
     /** 货况：全新原装（默认选价优先），其余码值见字典 inquiry_item_condition */
     public static final int CONDITION_NEW = 1;
@@ -97,6 +101,18 @@ public final class InquiryConstants {
     /** 询价记录状态 */
     public static final int QUOTE_DRAFT = 1;
     public static final int QUOTE_SUBMITTED = 2;
+    /** 兼职采购提交后等待采购负责人审核，审核通过前不计入任何价格 */
+    public static final int QUOTE_PENDING_REVIEW = 3;
+    /** 审核时作废，不计入任何价格，仅留痕 */
+    public static final int QUOTE_VOIDED = 4;
+
+    /** 兼职回价在「我的询价任务」中的审核状态 */
+    public static final int REVIEW_PENDING = 1;
+    public static final int REVIEW_APPROVED = 2;
+    public static final int REVIEW_REJECTED = 3;
+    /** 审核操作日志（菜单「分配工作台」），型号的修改记录按这两个操作名读取 */
+    public static final String LOG_REVIEW_APPROVE = "审核通过兼职回价";
+    public static final String LOG_REVIEW_REJECT = "退回兼职回价";
 
     /** 录入方式 */
     public static final int ENTRY_ONLINE = 1;

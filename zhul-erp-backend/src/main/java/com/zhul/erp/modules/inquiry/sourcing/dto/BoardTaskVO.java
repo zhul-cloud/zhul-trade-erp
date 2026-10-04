@@ -41,4 +41,11 @@ public class BoardTaskVO {
     /** 推荐理由，如「Mitsubishi 询过 23 次 · 进行中 8」 */
     private String recommendReason;
     private List<PurchaserVO> assignees;
+    /** 待审核页签：有待审核回价的型号数 */
+    private Integer reviewItemCount;
+    /** 待审核页签：最早一批提交时间与已等待分钟数 */
+    private LocalDateTime reviewSubmittedAt;
+    private Long reviewWaitingMinutes;
+    /** 待审核页签：提交回价的兼职采购 */
+    private List<String> reviewBuyerNames;
 }

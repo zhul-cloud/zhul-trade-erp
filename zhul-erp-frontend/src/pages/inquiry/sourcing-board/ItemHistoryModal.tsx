@@ -95,11 +95,18 @@ const ItemHistoryModal: React.FC<{
         <Timeline
           style={{ marginTop: 16 }}
           items={entries.map((e) => ({
-            color: e.type === 'COST' ? 'orange' : e.current ? 'green' : 'gray',
+            color:
+              e.type === 'COST'
+                ? 'orange'
+                : e.type === 'REVIEW'
+                  ? 'blue'
+                  : e.current
+                    ? 'green'
+                    : 'gray',
             content: (
               <div style={{ display: 'grid', gap: 6 }}>
                 {head(e)}
-                {e.type === 'COST' ? (
+                {e.type !== 'QUOTE' ? (
                   <span style={{ color: palette.sub, fontSize: 13 }}>
                     {e.note}
                   </span>

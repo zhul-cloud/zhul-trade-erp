@@ -78,6 +78,10 @@ public class MyTaskServiceImpl implements MyTaskService {
     private final SupplierMapper supplierMapper;
     private final LogService logService;
 
+    /** 兼职工作台按提交统计工作量：已提交、待审核、审核时作废的都算，与是否审核通过无关 */
+    private static final List<Integer> WORK_STATUSES = List.of(InquiryConstants.QUOTE_SUBMITTED,
+            InquiryConstants.QUOTE_PENDING_REVIEW, InquiryConstants.QUOTE_VOIDED);
+
     @Override
     public List<MyTaskVO> myTasks(boolean done) {
         Long me = me();
@@ -127,7 +131,7 @@ public class MyTaskServiceImpl implements MyTaskService {
                 .select(SourcingQuoteDO::getInquiryItemId, SourcingQuoteDO::getNoStock, SourcingQuoteDO::getQuotedAt)
                 .eq(SourcingQuoteDO::getTenantId, tenantId())
                 .eq(SourcingQuoteDO::getQuotedBy, me)
-                .eq(SourcingQuoteDO::getStatus, InquiryConstants.QUOTE_SUBMITTED)
+                .in(SourcingQuoteDO::getStatus, WORK_STATUSES)
                 .ge(SourcingQuoteDO::getQuotedAt, from)
                 .isNull(SourcingQuoteDO::getDeletedAt));
         Set<Long> monthItems = new HashSet<>();
@@ -164,7 +168,7 @@ public class MyTaskServiceImpl implements MyTaskService {
                         .select("COUNT(DISTINCT inquiry_item_id)")
                         .eq("tenant_id", tenantId())
                         .eq("quoted_by", me)
-                        .eq("status", InquiryConstants.QUOTE_SUBMITTED)
+                        .in("status", WORK_STATUSES)
                         .isNull("deleted_at"))
                 .stream().findFirst().map(o -> ((Number) o).intValue()).orElse(0));
 
@@ -220,6 +224,9 @@ public class MyTaskServiceImpl implements MyTaskService {
                         .isNull(SourcingQuoteDO::getDeletedAt)
                         .orderByAsc(SourcingQuoteDO::getId))
                 .stream().collect(Collectors.groupingBy(SourcingQuoteDO::getInquiryItemId));
+        boolean review = needsReview(me);
+        Map<Long, String> reviewers = review ? lookups.userNames(quotes.values().stream().flatMap(List::stream)
+                .map(SourcingQuoteDO::getReviewedBy).filter(Objects::nonNull).distinct().toList()) : Map.of();
         List<MyTaskItemVO> rows = new ArrayList<>(items.size());
         for (InquiryItemDO i : items) {
             MyTaskItemVO vo = new MyTaskItemVO();
@@ -234,14 +241,48 @@ public class MyTaskServiceImpl implements MyTaskService {
             vo.setDifficulty(i.getDifficulty());
             vo.setInquiryScript(StringUtils.hasText(i.getInquiryScript()) ? i.getInquiryScript() : defaultScript(i));
             vo.setSearchKeywords(keywords(i));
-            vo.setQuotes(quotes.getOrDefault(i.getId(), List.of()).stream().map(MyTaskServiceImpl::toQuoteVo).toList());
+            List<SourcingQuoteDO> own = quotes.getOrDefault(i.getId(), List.of());
+            if (review) {
+                own = applyReviewState(vo, own, reviewers);
+            }
+            vo.setQuotes(own.stream().map(MyTaskServiceImpl::toQuoteVo).toList());
             rows.add(vo);
         }
         MyTaskDetailVO vo = new MyTaskDetailVO();
         vo.setTask(toVo(task, mine, me, TaskTimeout.of(settings, tenantId()), LocalDateTime.now()));
         applyBrief(vo.getTask(), lookups.briefs(List.of(task.getCustomerInquiryId()), lookups.isPartTime(me)).get(task.getCustomerInquiryId()));
         vo.setItems(rows);
+        vo.setReviewRequired(review);
         return vo;
+    }
+
+    /**
+     * 兼职采购的型号审核状态；返回要展示的记录：有草稿或待审核时只展示正在改的这一版，
+     * 否则展示上次审核通过的版本（含作废的记录）。
+     */
+    private static List<SourcingQuoteDO> applyReviewState(MyTaskItemVO vo, List<SourcingQuoteDO> mine, Map<Long, String> reviewers) {
+        List<SourcingQuoteDO> working = mine.stream().filter(q -> q.getStatus() == InquiryConstants.QUOTE_DRAFT
+                || q.getStatus() == InquiryConstants.QUOTE_PENDING_REVIEW).toList();
+        SourcingQuoteDO rejected = working.stream()
+                .filter(q -> q.getStatus() == InquiryConstants.QUOTE_DRAFT && StringUtils.hasText(q.getReviewNote()))
+                .findFirst().orElse(null);
+        SourcingQuoteDO approved = mine.stream().filter(q -> q.getStatus() == InquiryConstants.QUOTE_SUBMITTED).findFirst().orElse(null);
+        SourcingQuoteDO basis = null;
+        if (working.stream().anyMatch(q -> q.getStatus() == InquiryConstants.QUOTE_PENDING_REVIEW)) {
+            vo.setReviewStatus(InquiryConstants.REVIEW_PENDING);
+        } else if (rejected != null) {
+            vo.setReviewStatus(InquiryConstants.REVIEW_REJECTED);
+            vo.setReviewNote(rejected.getReviewNote());
+            basis = rejected;
+        } else if (approved != null) {
+            vo.setReviewStatus(InquiryConstants.REVIEW_APPROVED);
+            basis = approved;
+        }
+        if (basis != null) {
+            vo.setReviewedByName(reviewers.get(basis.getReviewedBy()));
+            vo.setReviewedAt(basis.getReviewedAt());
+        }
+        return working.isEmpty() ? mine : working;
     }
 
     /** 没有 AI 话术时的默认话术，沿用知识库的询价模版 */
@@ -282,6 +323,7 @@ public class MyTaskServiceImpl implements MyTaskService {
         vo.setNoStock(Objects.equals(q.getNoStock(), 1));
         vo.setRecommended(Objects.equals(q.getRecommended(), 1));
         vo.setStatus(q.getStatus());
+        vo.setReviewNote(q.getReviewNote());
         vo.setQuotedAt(q.getQuotedAt());
         return vo;
     }
@@ -309,8 +351,10 @@ public class MyTaskServiceImpl implements MyTaskService {
             }
         }
         List<Long> itemIds = req.getItems().stream().map(ItemQuotesRequest::getItemId).distinct().toList();
-        // 本次涉及的型号，先清掉本人尚未提交的草稿；提交时连本人已提交的一起替换（修改回价），旧版本软删除并留痕
-        List<SourcingQuoteDO> replaced = submit ? quoteMapper.selectList(new LambdaQueryWrapper<SourcingQuoteDO>()
+        boolean review = needsReview(me);
+        // 本次涉及的型号，先清掉本人尚未提交的草稿；提交时连本人已提交的一起替换（修改回价），旧版本软删除并留痕。
+        // 兼职采购提交时只替换草稿与待审核的记录，上次审核通过的版本保留到新版本审核通过（见 QuoteReviewServiceImpl）
+        List<SourcingQuoteDO> replaced = submit && !review ? quoteMapper.selectList(new LambdaQueryWrapper<SourcingQuoteDO>()
                 .eq(SourcingQuoteDO::getTaskId, taskId)
                 .eq(SourcingQuoteDO::getQuotedBy, me)
                 .eq(SourcingQuoteDO::getStatus, InquiryConstants.QUOTE_SUBMITTED)
@@ -319,8 +363,9 @@ public class MyTaskServiceImpl implements MyTaskService {
         quoteMapper.update(new SourcingQuoteDO(), new LambdaUpdateWrapper<SourcingQuoteDO>()
                 .eq(SourcingQuoteDO::getTaskId, taskId)
                 .eq(SourcingQuoteDO::getQuotedBy, me)
-                .in(SourcingQuoteDO::getStatus, submit ? List.of(InquiryConstants.QUOTE_DRAFT, InquiryConstants.QUOTE_SUBMITTED)
-                        : List.of(InquiryConstants.QUOTE_DRAFT))
+                .in(SourcingQuoteDO::getStatus, !submit ? List.of(InquiryConstants.QUOTE_DRAFT)
+                        : review ? List.of(InquiryConstants.QUOTE_DRAFT, InquiryConstants.QUOTE_PENDING_REVIEW)
+                        : List.of(InquiryConstants.QUOTE_DRAFT, InquiryConstants.QUOTE_SUBMITTED))
                 .in(SourcingQuoteDO::getInquiryItemId, itemIds)
                 .isNull(SourcingQuoteDO::getDeletedAt)
                 .set(SourcingQuoteDO::getDeletedAt, LocalDateTime.now()));
@@ -376,7 +421,9 @@ public class MyTaskServiceImpl implements MyTaskService {
         Map<Long, InquiryItemDO> items = taskItems(task.getId()).stream().collect(Collectors.toMap(InquiryItemDO::getId, i -> i));
         QuoteDictSnapshot dicts = quoteDicts.snapshot();
         LocalDateTime now = LocalDateTime.now();
-        java.util.Set<QuoteDraft> recommended = recommendedDrafts(drafts, items);
+        // 兼职采购不标推荐，推荐由审核人选定
+        boolean review = needsReview(quotedBy);
+        java.util.Set<QuoteDraft> recommended = review ? java.util.Set.of() : recommendedDrafts(drafts, items);
         String batch = java.util.UUID.randomUUID().toString();
         for (QuoteDraft d : drafts) {
             InquiryItemDO item = items.get(d.itemId());
@@ -441,7 +488,7 @@ public class MyTaskServiceImpl implements MyTaskService {
             q.setRecommended(recommended.contains(d) ? 1 : 0);
             q.setQuotedBy(quotedBy);
             q.setQuotedAt(submit ? now : null);
-            q.setStatus(submit ? InquiryConstants.QUOTE_SUBMITTED : InquiryConstants.QUOTE_DRAFT);
+            q.setStatus(submit ? submittedStatus(review) : InquiryConstants.QUOTE_DRAFT);
             q.setEntryMode(entryMode);
             q.setImportId(importId);
             q.setSubmitBatch(batch);
@@ -514,7 +561,8 @@ public class MyTaskServiceImpl implements MyTaskService {
                 .eq(SourcingQuoteDO::getStatus, InquiryConstants.QUOTE_DRAFT)
                 .in(SourcingQuoteDO::getInquiryItemId, itemIds)
                 .isNull(SourcingQuoteDO::getDeletedAt)
-                .set(SourcingQuoteDO::getStatus, InquiryConstants.QUOTE_SUBMITTED)
+                .set(SourcingQuoteDO::getStatus, submittedStatus(needsReview(quotedBy)))
+                .set(SourcingQuoteDO::getReviewNote, "")
                 .set(SourcingQuoteDO::getQuotedAt, LocalDateTime.now()));
         progress.refreshItems(itemIds);
         progress.refreshTask(task.getId());
@@ -591,6 +639,15 @@ public class MyTaskServiceImpl implements MyTaskService {
                 .eq(InquiryItemDO::getSourcingTaskId, taskId)
                 .isNull(InquiryItemDO::getDeletedAt)
                 .orderByAsc(InquiryItemDO::getLineNo));
+    }
+
+    /** 兼职采购的回价须经采购负责人审核 */
+    private boolean needsReview(Long quotedBy) {
+        return lookups.isPartTime(quotedBy);
+    }
+
+    private static int submittedStatus(boolean review) {
+        return review ? InquiryConstants.QUOTE_PENDING_REVIEW : InquiryConstants.QUOTE_SUBMITTED;
     }
 
     private Long me() {

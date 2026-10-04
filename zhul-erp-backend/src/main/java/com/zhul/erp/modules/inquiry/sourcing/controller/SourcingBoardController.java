@@ -1,6 +1,10 @@
 package com.zhul.erp.modules.inquiry.sourcing.controller;
 
 import com.zhul.erp.common.result.Result;
+import com.zhul.erp.modules.inquiry.sourcing.dto.ReviewApproveRequest;
+import com.zhul.erp.modules.inquiry.sourcing.dto.ReviewDetailVO;
+import com.zhul.erp.modules.inquiry.sourcing.dto.ReviewRejectRequest;
+import com.zhul.erp.modules.inquiry.sourcing.service.QuoteReviewService;
 import com.zhul.erp.modules.inquiry.sourcing.dto.AssignRequest;
 import com.zhul.erp.modules.inquiry.sourcing.dto.AssignRulesVO;
 import com.zhul.erp.modules.inquiry.sourcing.dto.AssigneeRequest;
@@ -46,9 +50,11 @@ public class SourcingBoardController {
     private static final String ASSIGN = "@perm.has('inquiry:task:assign')";
     private static final String RULE = "@perm.has('inquiry:rule:edit')";
     private static final String PROXY = "@perm.has('inquiry:import:proxy')";
+    private static final String REVIEW = "@perm.has('inquiry:quote:review')";
 
     private final SourcingTaskService taskService;
     private final SourcingExcelService excelService;
+    private final QuoteReviewService reviewService;
 
     @GetMapping
     @PreAuthorize(VIEW)
@@ -66,6 +72,26 @@ public class SourcingBoardController {
     @PreAuthorize(ASSIGN)
     public Result<Void> setCostQuote(@PathVariable Long itemId, @RequestBody SetCostQuoteRequest req) {
         taskService.setCostQuote(itemId, req.getQuoteId());
+        return Result.ok();
+    }
+
+    @GetMapping("/reviews/{taskId}")
+    @PreAuthorize(VIEW)
+    public Result<ReviewDetailVO> reviewDetail(@PathVariable Long taskId) {
+        return Result.ok(reviewService.detail(taskId));
+    }
+
+    @PostMapping("/reviews/{taskId}/approve")
+    @PreAuthorize(REVIEW)
+    public Result<Void> approve(@PathVariable Long taskId, @Valid @RequestBody ReviewApproveRequest req) {
+        reviewService.approve(taskId, req);
+        return Result.ok();
+    }
+
+    @PostMapping("/reviews/{taskId}/reject")
+    @PreAuthorize(REVIEW)
+    public Result<Void> reject(@PathVariable Long taskId, @Valid @RequestBody ReviewRejectRequest req) {
+        reviewService.reject(taskId, req);
         return Result.ok();
     }
 
