@@ -325,7 +325,7 @@ const ImportModal: React.FC<{
                 <span>型号</span>
                 <span>渠道</span>
                 <span>店铺</span>
-                <span>单价 ¥</span>
+                <span>单价（CNY）</span>
                 <span>货况</span>
                 <span>货期</span>
                 <span>忽略</span>

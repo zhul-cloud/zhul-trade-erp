@@ -27,12 +27,12 @@ import dayjs from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useAppTheme } from '@/theme/AppTheme';
+import { formatAmount } from '@/utils/format';
 import {
   Card,
   ConditionPill,
   CustomerBrief,
   excludeTax,
-  formatCny,
   LeadTimeText,
   LevelPill,
   PageTitle,
@@ -182,7 +182,7 @@ const MyTasksPage: React.FC = () => {
         // 有草稿先接着草稿改；没有草稿、但已提交过且还能修改时，把已提交的回价载入编辑器（修改回价）
         const hasDraft = it.quotes.some((q) => q.status === 1);
         const base =
-          !hasDraft && d.task.editable !== false
+          !hasDraft && d.task.editable !== false && !it.locked
             ? it.quotes.filter(isSubmitted)
             : it.quotes.filter((q) => q.status === 1);
         next[it.id] = {
@@ -252,7 +252,8 @@ const MyTasksPage: React.FC = () => {
     let invalid = '';
     for (const it of detail?.items ?? []) {
       const s = state[it.id];
-      if (!s) continue;
+      // 已报给客户的型号回价只读，不随本次保存提交
+      if (!s || it.locked) continue;
       const hasDraft =
         s.noStock || s.drafts.some((d) => d.unitPrice != null || d.shopName);
       // 保存草稿只带改过的型号；提交时连同之前存过的草稿一起提交。
@@ -562,10 +563,10 @@ const MyTasksPage: React.FC = () => {
                   : ''}{' '}
                 · 已填 {detail.task.filledCount}/{detail.task.itemCount} ·
                 {!editable
-                  ? '业务员已经报价，回价只能查看不能修改'
+                  ? '回价只能查看：询盘已取消，或型号都已报给客户'
                   : review
                     ? '可以部分提交，提交的型号进入待审核，采购负责人审核通过后业务员才能看到；审核通过后仍可修改，修改后重新审核'
-                    : '可以部分提交，已提交的型号会立刻计入回价；业务员报价前都可以修改，修改会留痕'}
+                    : '可以部分提交，已提交的型号会立刻计入回价；型号报给客户前都可以修改，修改会留痕'}
               </div>
             </Card>
 
@@ -573,12 +574,14 @@ const MyTasksPage: React.FC = () => {
               <Alert
                 type="info"
                 showIcon
-                title="业务员已经报价，回价只能查看不能修改"
+                title="回价只能查看：询盘已取消，或型号都已报给客户"
               />
             )}
             {detail.items.map((it) => {
               const s = state[it.id];
               if (!s) return null;
+              // 型号已报给客户后只读，同一任务里其他型号仍可修改
+              const itemEditable = editable && !it.locked;
               const submitted = it.quotes.filter(isSubmitted);
               const voided = it.quotes.filter((q) => q.status === 4);
               const rv = it.reviewStatus
@@ -609,6 +612,9 @@ const MyTasksPage: React.FC = () => {
                     <span style={{ color: palette.sub }}>
                       {it.quantity} {it.unit}
                     </span>
+                    {it.locked && (
+                      <Pill tone="violet">已报给客户，回价只读</Pill>
+                    )}
                     <span
                       style={{
                         display: 'inline-flex',
@@ -624,6 +630,7 @@ const MyTasksPage: React.FC = () => {
                         aria-label="生产状态"
                         style={{ width: 84 }}
                         value={s.lifecycle}
+                        disabled={!itemEditable}
                         options={lifecycleOptions}
                         onChange={(v) => patchItem(it.id, { lifecycle: v })}
                       />
@@ -778,56 +785,63 @@ const MyTasksPage: React.FC = () => {
                     )}
                   </div>
 
-                  {submitted.length > 0 && (!editable || !s.submittedBase) && (
-                    <div style={{ display: 'grid', gap: 6, marginBottom: 12 }}>
-                      <span style={{ color: palette.mute, fontSize: 12 }}>
-                        已提交
-                      </span>
-                      {submitted.map((q) => (
-                        <div
-                          key={q.id}
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 12,
-                            padding: '6px 12px',
-                            borderRadius: 10,
-                            background: palette.inset,
-                            fontSize: 13,
-                          }}
-                        >
-                          {q.noStock ? (
-                            <span style={{ color: palette.mute }}>
-                              无货{q.note ? ` · ${q.note}` : ''}
-                            </span>
-                          ) : (
-                            <>
-                              <b style={{ color: palette.ink, width: 90 }}>
-                                {formatCny(q.unitPrice)}
-                              </b>
-                              <TaxHint
-                                taxIncluded={q.taxIncluded}
-                                taxRate={q.taxRate}
-                                unitPrice={q.unitPrice}
-                              />
-                              <ConditionPill value={q.itemCondition} />
-                              <span>
-                                {channelLabel(q.channel)} · {q.shopName || '—'}
+                  {submitted.length > 0 &&
+                    (!itemEditable || !s.submittedBase) && (
+                      <div
+                        style={{ display: 'grid', gap: 6, marginBottom: 12 }}
+                      >
+                        <span style={{ color: palette.mute, fontSize: 12 }}>
+                          已提交
+                        </span>
+                        {submitted.map((q) => (
+                          <div
+                            key={q.id}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 12,
+                              padding: '6px 12px',
+                              borderRadius: 10,
+                              background: palette.inset,
+                              fontSize: 13,
+                            }}
+                          >
+                            {q.noStock ? (
+                              <span style={{ color: palette.mute }}>
+                                无货{q.note ? ` · ${q.note}` : ''}
                               </span>
-                              <span style={{ color: palette.sub }}>
-                                <LeadTimeText value={q.leadTime} fallback="" />
-                              </span>
-                              {q.recommended && (
-                                <Pill tone="green">
-                                  {review ? '负责人选为推荐' : '推荐'}
-                                </Pill>
-                              )}
-                            </>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                            ) : (
+                              <>
+                                <b style={{ color: palette.ink, width: 90 }}>
+                                  {formatAmount(q.unitPrice)}
+                                </b>
+                                <TaxHint
+                                  taxIncluded={q.taxIncluded}
+                                  taxRate={q.taxRate}
+                                  unitPrice={q.unitPrice}
+                                />
+                                <ConditionPill value={q.itemCondition} />
+                                <span>
+                                  {channelLabel(q.channel)} ·{' '}
+                                  {q.shopName || '—'}
+                                </span>
+                                <span style={{ color: palette.sub }}>
+                                  <LeadTimeText
+                                    value={q.leadTime}
+                                    fallback=""
+                                  />
+                                </span>
+                                {q.recommended && (
+                                  <Pill tone="green">
+                                    {review ? '负责人选为推荐' : '推荐'}
+                                  </Pill>
+                                )}
+                              </>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   {voided.length > 0 && (
                     <div style={{ display: 'grid', gap: 4, marginBottom: 12 }}>
                       {voided.map((q) => (
@@ -836,15 +850,15 @@ const MyTasksPage: React.FC = () => {
                           style={{ color: palette.mute, fontSize: 12 }}
                         >
                           <Pill tone="red">已作废</Pill>{' '}
-                          {formatCny(q.unitPrice)} {channelLabel(q.channel)} ·{' '}
-                          {q.shopName || '—'}
+                          {formatAmount(q.unitPrice)} {channelLabel(q.channel)}{' '}
+                          · {q.shopName || '—'}
                           {q.reviewNote ? `：${q.reviewNote}` : ''}
                         </span>
                       ))}
                     </div>
                   )}
 
-                  {!editable ? null : s.noStock ? (
+                  {!itemEditable ? null : s.noStock ? (
                     <Input
                       placeholder="无货说明，如：1688、淘宝、闲鱼都没有现货，代理商要 8 周"
                       value={s.noStockNote}
@@ -881,7 +895,7 @@ const MyTasksPage: React.FC = () => {
                           <span>渠道</span>
                           <span>店铺 / 供应商</span>
                           <Tooltip title="默认不含税；店家只给含税价时勾「含税」并选税率，系统按不含税价比价">
-                            <span>单价 ¥</span>
+                            <span>单价（CNY）</span>
                           </Tooltip>
                           <span>货况</span>
                           <span>货期</span>
@@ -1027,7 +1041,7 @@ const MyTasksPage: React.FC = () => {
                                   style={{ color: palette.mute, fontSize: 12 }}
                                 >
                                   不含税{' '}
-                                  {formatCny(
+                                  {formatAmount(
                                     excludeTax(
                                       d.unitPrice,
                                       d.taxRate ?? DEFAULT_TAX_RATE,

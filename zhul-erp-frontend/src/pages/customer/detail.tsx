@@ -15,7 +15,7 @@ import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useCountries } from '@/pages/product/components/useCountries';
 import { useAppTheme } from '@/theme/AppTheme';
 import { DICT_SOURCE_CHANNEL, useDictOptions } from '@/utils/dict';
-import { formatDateTime } from '@/utils/format';
+import { formatAmount, formatDateTime } from '@/utils/format';
 import {
   GradePill,
   LIST_PATH,
@@ -400,7 +400,7 @@ const CustomerDetailPage: React.FC = () => {
               )}
               <Field label="信用额度" mono>
                 {r.creditLimit != null &&
-                  `${r.creditCurrency} ${Number(r.creditLimit).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                  formatAmount(r.creditLimit, r.creditCurrency)}
               </Field>
               <Field label="运输方式">
                 {labelOf(SHIPPING_OPTIONS, r.shippingMethod)}

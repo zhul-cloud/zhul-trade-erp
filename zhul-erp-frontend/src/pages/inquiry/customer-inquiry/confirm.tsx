@@ -26,11 +26,11 @@ import BrandCategoryPicker from '@/components/BrandCategoryPicker';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useAppTheme } from '@/theme/AppTheme';
 import { DICT_SOURCE_CHANNEL, useDictOptions } from '@/utils/dict';
+import { formatAmount } from '@/utils/format';
 import {
   AgeText,
   Card,
   ConditionPill,
-  formatCny,
   LeadTimeText,
   PageTitle,
   Pill,
@@ -233,7 +233,7 @@ const ConfirmPage: React.FC = () => {
       message.success(
         pending.length
           ? `已确认，生成 ${groups.length} 个询价任务，等待采购负责人分配`
-          : '已确认，全部复用历史价，可以出报价单了',
+          : '已确认，全部复用历史价，可以去报价了',
       );
       writeSaved(inquiryId, null);
       history.replace(`${PATHS.inquiries}/${inquiryId}`);
@@ -377,7 +377,7 @@ const ConfirmPage: React.FC = () => {
               </span>
               {q && (
                 <span style={{ fontSize: 12, color: palette.sub }}>
-                  {formatCny(q.unitPriceCny)} · <AgeText days={q.daysAgo} />
+                  {formatAmount(q.unitPriceCny)} · <AgeText days={q.daysAgo} />
                 </span>
               )}
             </div>
@@ -469,7 +469,7 @@ const ConfirmPage: React.FC = () => {
                 }}
               >
                 <b style={{ color: palette.ink, minWidth: 90 }}>
-                  {formatCny(q.unitPriceCny)}
+                  {formatAmount(q.unitPriceCny)}
                 </b>
                 <TaxHint
                   taxIncluded={q.taxIncluded}
@@ -512,7 +512,7 @@ const ConfirmPage: React.FC = () => {
             其他品牌也有同型号记录（仅作参考，不默认复用）：
             {others
               .slice(0, 3)
-              .map((q) => `${q.brand} ${formatCny(q.unitPriceCny)}`)
+              .map((q) => `${q.brand} ${formatAmount(q.unitPriceCny)}`)
               .join('；')}
           </div>
         )}

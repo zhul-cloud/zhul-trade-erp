@@ -22,6 +22,8 @@ export interface DictItemRow {
   dictType: string;
   itemCode: string;
   itemName: string;
+  /** 英文名称：对外单据与文字报价使用 */
+  itemNameEn?: string;
   itemValue: string;
   cssClass: string;
   sortOrder: number;
@@ -82,6 +84,8 @@ export interface SaveDictItemPayload {
   dictTypeId: number;
   itemCode: string;
   itemName: string;
+  /** 英文名称：对外单据与文字报价使用 */
+  itemNameEn?: string;
   itemValue: string;
   cssClass?: string;
   sortOrder?: number;

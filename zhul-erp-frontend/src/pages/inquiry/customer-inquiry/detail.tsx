@@ -3,14 +3,23 @@ import {
   FileTextOutlined,
   UserOutlined,
 } from '@ant-design/icons';
-import { history, Link, useParams } from '@umijs/max';
+import { history, Link, useAccess, useParams } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { Alert, App, Button, Select, Skeleton, Table, Tooltip } from 'antd';
 import React, { useEffect, useState } from 'react';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
+import {
+  PATHS as QUOTATION_PATHS,
+  QuotationStatusPill,
+} from '@/pages/quotation/components';
+import {
+  type QuotationListItem,
+  quotationApi,
+} from '@/pages/quotation/service';
+import { ChainCard } from '@/pages/sales/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { DICT_SOURCE_CHANNEL, useDictOptions } from '@/utils/dict';
-import { formatDateTime } from '@/utils/format';
+import { formatAmount, formatDateTime } from '@/utils/format';
 import {
   Card,
   CustomerTypePill,
@@ -66,6 +75,9 @@ const CustomerInquiryDetailPage: React.FC = () => {
   const [detail, setDetail] = useState<InquiryDetail | null>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [quotations, setQuotations] = useState<QuotationListItem[]>();
+  const access = useAccess() as Record<string, boolean>;
+  const canQuote = !!access.quotationList;
 
   const load = async () => {
     setError('');
@@ -73,6 +85,28 @@ const CustomerInquiryDetailPage: React.FC = () => {
       setDetail(await inquiryApi.detail(inquiryId));
     } catch (e) {
       setError(readBizError(e).message);
+    }
+    if (canQuote) {
+      quotationApi
+        .byInquiry(inquiryId)
+        .then(setQuotations)
+        .catch(() => setQuotations([]));
+    }
+  };
+
+  /** 去报价：直接按询盘报价，带入这个询盘全部已回价的型号 */
+  const goQuote = async () => {
+    setBusy(true);
+    try {
+      const q = await quotationApi.create({ inquiryIds: [inquiryId] });
+      if (q.pendingItemCount) {
+        message.info(`还有 ${q.pendingItemCount} 个型号在询价，回价后可以再报`);
+      }
+      history.push(QUOTATION_PATHS.detail(q.id));
+    } catch (e) {
+      message.error(readBizError(e).message);
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -109,6 +143,8 @@ const CustomerInquiryDetailPage: React.FC = () => {
   if (!detail) return <Skeleton active paragraph={{ rows: 12 }} />;
 
   const inq = detail.inquiry;
+  const pricedCount = detail.items.filter((i) => i.selectedQuote).length;
+  const quotedCount = detail.items.filter((i) => i.quoted).length;
   const cancellable =
     inq.status <= STATUS.READY && inq.status !== STATUS.CANCELLED;
 
@@ -197,7 +233,11 @@ const CustomerInquiryDetailPage: React.FC = () => {
       title: '回价',
       width: 110,
       render: (_, r) =>
-        r.priceSource === PRICE_SOURCE_HISTORY ? (
+        r.quoted ? (
+          <Pill tone="violet" dot>
+            已报出
+          </Pill>
+        ) : r.priceSource === PRICE_SOURCE_HISTORY ? (
           <Pill tone="cyan" dot>
             复用历史价
           </Pill>
@@ -344,19 +384,28 @@ const CustomerInquiryDetailPage: React.FC = () => {
                 去确认型号
               </Button>
             )}
-            {inq.status >= STATUS.SOURCING && inq.status <= STATUS.QUOTED && (
-              <Tooltip
-                title={
-                  inq.status === STATUS.READY
-                    ? '报价单在下一期上线'
-                    : '全部型号有价格或无货后可用'
-                }
-              >
-                <Button icon={<FileTextOutlined />} disabled>
-                  出报价单
-                </Button>
-              </Tooltip>
-            )}
+            {canQuote &&
+              inq.status >= STATUS.SOURCING &&
+              inq.status !== STATUS.CANCELLED && (
+                <Tooltip
+                  title={
+                    pricedCount === 0
+                      ? '还没有回价的型号，回价后才能报价'
+                      : inq.status === STATUS.SOURCING
+                        ? '先报已回价的型号，其余回价后可以再报'
+                        : undefined
+                  }
+                >
+                  <Button
+                    type="primary"
+                    icon={<FileTextOutlined />}
+                    disabled={busy || pricedCount === 0}
+                    onClick={goQuote}
+                  >
+                    {inq.status >= STATUS.QUOTED ? '再报一张' : '去报价'}
+                  </Button>
+                </Tooltip>
+              )}
           </>
         }
       />
@@ -424,6 +473,11 @@ const CustomerInquiryDetailPage: React.FC = () => {
                 total={inq.totalItemCount}
                 width={200}
               />
+              {quotedCount > 0 && (
+                <span style={{ color: palette.violet, fontSize: 12 }}>
+                  已报出 {quotedCount}/{inq.totalItemCount}
+                </span>
+              )}
             </span>
           )}
         </div>
@@ -551,6 +605,73 @@ const CustomerInquiryDetailPage: React.FC = () => {
           </Card>
         </div>
         <div style={{ display: 'grid', gap: 12 }}>
+          {canQuote && inq.status >= STATUS.SOURCING && (
+            <>
+              <h2 style={{ margin: 0, fontSize: 16, color: palette.ink }}>
+                报价单
+              </h2>
+              {!quotations ? (
+                <Skeleton active paragraph={{ rows: 2 }} />
+              ) : quotations.length === 0 ? (
+                <Card style={{ padding: 16 }}>
+                  <span style={{ color: palette.mute }}>
+                    {pricedCount > 0
+                      ? '还没有报价单。点右上角「去报价」，带入已回价的型号，定价后发给客户。'
+                      : '型号回价后就可以报价，询价中的询盘可以先报已回价的型号。'}
+                  </span>
+                </Card>
+              ) : (
+                quotations.map((qt) => (
+                  <Card key={qt.id} style={{ padding: 16 }}>
+                    <div
+                      style={{ display: 'flex', alignItems: 'center', gap: 8 }}
+                    >
+                      <Link to={QUOTATION_PATHS.detail(qt.id)}>
+                        <b>{qt.quotationNo}</b>
+                      </Link>
+                      <span style={{ marginLeft: 'auto' }}>
+                        <QuotationStatusPill status={qt.status} />
+                      </span>
+                    </div>
+                    <div
+                      style={{
+                        display: 'flex',
+                        gap: 8,
+                        marginTop: 8,
+                        color: palette.sub,
+                        fontSize: 12,
+                      }}
+                    >
+                      <span>{qt.itemCount} 个型号</span>
+                      <b
+                        style={{
+                          marginLeft: 'auto',
+                          color: palette.ink,
+                          fontVariantNumeric: 'tabular-nums',
+                        }}
+                      >
+                        {formatAmount(qt.totalAmount, qt.currencyCode)}
+                      </b>
+                    </div>
+                    <div
+                      style={{
+                        color: palette.mute,
+                        fontSize: 12,
+                        marginTop: 4,
+                      }}
+                    >
+                      {qt.ownerName ?? '—'} ·{' '}
+                      {formatDateTime(qt.sentAt ?? qt.createTime).slice(0, 16)}
+                      {qt.sentAt ? ' 发送' : ' 创建'}
+                    </div>
+                  </Card>
+                ))
+              )}
+              {quotations && quotations.length > 0 && (
+                <ChainCard type="inquiry" id={inquiryId} />
+              )}
+            </>
+          )}
           <h2 style={{ margin: 0, fontSize: 16, color: palette.ink }}>
             询价任务
           </h2>

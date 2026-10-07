@@ -590,7 +590,7 @@ const CustomerInquiryPage: React.FC = () => {
       <PageTitle
         crumbs={['客户询盘']}
         title="客户询盘"
-        description="一个客户的一次需求。确认型号后按品牌拆给采购询价，价格回齐即可出报价单。"
+        description="一个客户的一次需求。确认型号后按品牌拆给采购询价，有回价的型号就可以去报价。"
         actions={
           <Button
             type="primary"
@@ -637,9 +637,7 @@ const CustomerInquiryPage: React.FC = () => {
           label="可报价"
           value={stats?.ready}
           hint={
-            <span style={{ color: palette.green }}>
-              价格已回齐，等你出报价单
-            </span>
+            <span style={{ color: palette.green }}>价格已回齐，可以去报价</span>
           }
           onClick={() => quickStatus(STATUS.READY)}
         />

@@ -98,6 +98,8 @@ export interface InquiryItem {
   taskCode?: string;
   selectedQuote?: PriceRecord;
   noStockNote?: string;
+  /** 已报给客户（出现在已发送及之后的报价单中） */
+  quoted?: boolean;
 }
 
 export interface TaskBrief {
@@ -351,6 +353,8 @@ export interface MyTaskItem {
   searchKeywords: string[];
   quotes: MyQuote[];
   /** 兼职回价的审核状态：1-待审核、2-已通过、3-被退回 */
+  /** 已报给客户（出现在已发送及之后的报价单中），回价只读 */
+  locked?: boolean;
   reviewStatus?: number;
   reviewNote?: string;
   reviewedByName?: string;

@@ -6,11 +6,11 @@ import type { Dayjs } from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useAppTheme } from '@/theme/AppTheme';
+import { formatAmount } from '@/utils/format';
 import {
   AgeText,
   Card,
   ConditionPill,
-  formatCny,
   LeadTimeText,
   PageTitle,
   SupplierText,
@@ -94,14 +94,14 @@ const PriceHistoryPage: React.FC = () => {
         r.minPriceCny == null ? (
           <span style={{ color: palette.mute }}>无货</span>
         ) : (
-          <b style={{ color: palette.green }}>{formatCny(r.minPriceCny)}</b>
+          <b style={{ color: palette.green }}>{formatAmount(r.minPriceCny)}</b>
         ),
     },
     {
       title: '最高价',
       width: 130,
       render: (_, r) =>
-        r.maxPriceCny == null ? '—' : formatCny(r.maxPriceCny),
+        r.maxPriceCny == null ? '—' : formatAmount(r.maxPriceCny),
     },
     { title: '记录数', dataIndex: 'recordCount', width: 90 },
     {
@@ -126,7 +126,7 @@ const PriceHistoryPage: React.FC = () => {
           }}
         >
           <b style={{ color: q.noStock ? palette.mute : palette.ink }}>
-            {q.noStock ? '无货' : formatCny(q.unitPriceCny)}
+            {q.noStock ? '无货' : formatAmount(q.unitPriceCny)}
           </b>
           <span>
             {q.noStock ? '' : <ConditionPill value={q.itemCondition} />}

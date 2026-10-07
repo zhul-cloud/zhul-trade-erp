@@ -20,11 +20,11 @@ import dayjs from 'dayjs';
 import React, { useEffect, useState } from 'react';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useAppTheme } from '@/theme/AppTheme';
+import { formatAmount } from '@/utils/format';
 import {
   ConditionPill,
   CustomerBrief,
   DeadlineText,
-  formatCny,
   LeadTimeText,
   LevelPill,
   Pill,
@@ -396,7 +396,7 @@ const ReviewDrawer: React.FC<{
                 >
                   <HistoryOutlined />
                   {it.historyLowest
-                    ? `历史询价最低：${formatCny(it.historyLowest.unitPriceCny)}${it.historyLowest.quotedAt ? ` · ${dayjs(it.historyLowest.quotedAt).format('MM-DD')}` : ''}${it.historyLowest.quotedByName ? `（${it.historyLowest.quotedByName}）` : ''}`
+                    ? `历史询价最低：${formatAmount(it.historyLowest.unitPriceCny)}${it.historyLowest.quotedAt ? ` · ${dayjs(it.historyLowest.quotedAt).format('MM-DD')}` : ''}${it.historyLowest.quotedByName ? `（${it.historyLowest.quotedByName}）` : ''}`
                     : '历史询价：没有这个型号的记录'}
                 </span>
                 {noStockOnly && (
@@ -465,7 +465,7 @@ const ReviewDrawer: React.FC<{
                             textDecoration: voided ? 'line-through' : 'none',
                           }}
                         >
-                          {formatCny(q.unitPriceCny)}
+                          {formatAmount(q.unitPriceCny)}
                         </b>
                         <TaxHint
                           taxIncluded={q.taxIncluded}

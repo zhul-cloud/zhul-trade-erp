@@ -4,11 +4,11 @@ import { App, Drawer, Radio, Skeleton } from 'antd';
 import React, { useEffect, useState } from 'react';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useAppTheme } from '@/theme/AppTheme';
+import { formatAmount } from '@/utils/format';
 import {
   ConditionPill,
   CustomerBrief,
   DeadlineText,
-  formatCny,
   LeadTimeText,
   LevelPill,
   Pill,
@@ -287,7 +287,7 @@ const TaskDetailDrawer: React.FC<{
                               />
                             )}
                             <b style={{ color: palette.ink, minWidth: 80 }}>
-                              {formatCny(q.unitPriceCny)}
+                              {formatAmount(q.unitPriceCny)}
                             </b>
                             <TaxHint
                               taxIncluded={q.taxIncluded}

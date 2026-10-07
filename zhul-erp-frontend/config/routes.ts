@@ -30,7 +30,7 @@ export default [
     ],
   },
   // 以下顶层业务菜单的先后顺序跟数据库「菜单管理」（resource 表）的 sort 值保持一致：
-  // 工作台(1) → 商品管理(2) → 询盘管理(3) → 系统管理(98) → 租户管理(99)
+  // 工作台(1) → 商品管理(2) → 询盘管理(3) → 报价中心(4) → 系统管理(98) → 租户管理(99)
   {
     path: '/dashboard',
     name: 'dashboard',
@@ -255,6 +255,72 @@ export default [
     ],
   },
   {
+    path: '/quotation',
+    name: 'quotation',
+    icon: 'fileText',
+    // 父路由也要挂 access，理由同 /inquiry
+    access: 'quotationMenu',
+    routes: [
+      { path: '/quotation', redirect: '/quotation/quotations' },
+      {
+        path: '/quotation/quotations',
+        name: 'quotations',
+        icon: 'fileText',
+        access: 'quotationList',
+        component: './quotation',
+      },
+      {
+        path: '/quotation/quotations/:id',
+        hideInMenu: true,
+        access: 'quotationList',
+        component: './quotation/detail',
+      },
+      {
+        path: '/quotation/pricing',
+        name: 'pricing',
+        icon: 'percentage',
+        access: 'quotationPricing',
+        component: './quotation/pricing',
+      },
+    ],
+  },
+  {
+    path: '/sales',
+    name: 'sales',
+    icon: 'accountBook',
+    // 父路由也要挂 access，理由同 /inquiry
+    access: 'salesMenu',
+    routes: [
+      { path: '/sales', redirect: '/sales/pi' },
+      {
+        path: '/sales/pi',
+        name: 'pi',
+        icon: 'fileDone',
+        access: 'salesPi',
+        component: './sales/pi',
+      },
+      {
+        path: '/sales/pi/:id',
+        hideInMenu: true,
+        access: 'salesPi',
+        component: './sales/pi/detail',
+      },
+      {
+        path: '/sales/orders',
+        name: 'orders',
+        icon: 'container',
+        access: 'salesOrders',
+        component: './sales/orders',
+      },
+      {
+        path: '/sales/orders/:id',
+        hideInMenu: true,
+        access: 'salesOrders',
+        component: './sales/orders/detail',
+      },
+    ],
+  },
+  {
     path: '/system',
     name: 'system',
     icon: 'setting',
@@ -303,6 +369,27 @@ export default [
         icon: 'book',
         access: 'systemDict',
         component: './system/dict',
+      },
+      {
+        path: '/system/exchange-rate',
+        name: 'exchangeRate',
+        icon: 'transaction',
+        access: 'systemExchangeRate',
+        component: './system/exchange-rate',
+      },
+      {
+        path: '/system/document-template',
+        name: 'documentTemplate',
+        icon: 'fileExcel',
+        access: 'systemDocumentTemplate',
+        component: './system/document-template',
+      },
+      {
+        path: '/system/bank-account',
+        name: 'bankAccount',
+        icon: 'bank',
+        access: 'systemBankAccount',
+        component: './system/bank-account',
       },
       {
         path: '/system/config',

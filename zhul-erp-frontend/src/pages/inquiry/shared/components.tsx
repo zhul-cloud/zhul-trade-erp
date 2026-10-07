@@ -11,6 +11,7 @@ import {
   DICT_TAX_RATE,
   useDictOptions,
 } from '@/utils/dict';
+import { formatAmount } from '@/utils/format';
 import {
   channelLabel,
   conditionTone,
@@ -24,13 +25,14 @@ export { Card, FileChip, Pill } from '@/pages/crm/opportunity/components';
 /** 宽屏（≥1200px）左右两栏，窄屏上下排列 */
 export const useWide = () => !!Grid.useBreakpoint().xl;
 
-/** 面包屑「询盘管理 / …」+ 标题 + 右侧操作 */
+/** 面包屑「询盘管理 / …」+ 标题 + 右侧操作；root 为面包屑第一级（默认询盘管理） */
 export const PageTitle: React.FC<{
   crumbs: React.ReactNode[];
   title: React.ReactNode;
   description?: React.ReactNode;
   actions?: React.ReactNode;
-}> = ({ crumbs, title, description, actions }) => {
+  root?: string;
+}> = ({ crumbs, title, description, actions, root = '询盘管理' }) => {
   const { palette } = useAppTheme();
   return (
     <header
@@ -45,7 +47,7 @@ export const PageTitle: React.FC<{
     >
       <div style={{ minWidth: 0 }}>
         <Breadcrumb
-          items={['询盘管理', ...crumbs].map((c) => ({ title: c }))}
+          items={[root, ...crumbs].map((c) => ({ title: c }))}
           style={{ fontSize: 13 }}
         />
         <h1
@@ -199,7 +201,7 @@ export const useTaxRates = () => {
 export const excludeTax = (price: number, rate: number) =>
   Math.round((price / (1 + rate / 100)) * 100) / 100;
 
-/** 含税报价的说明：含税价 ¥113.00 · 13%；不含税报价不显示 */
+/** 含税报价的说明：含税价 CNY 113.00 · 13%；不含税报价不显示 */
 export const TaxHint: React.FC<{
   taxIncluded?: boolean;
   taxRate?: number;
@@ -209,7 +211,7 @@ export const TaxHint: React.FC<{
   if (!taxIncluded) return null;
   return (
     <span style={{ color: palette.mute, fontSize: 12 }}>
-      含税价 {formatCny(unitPrice)} · {Number(taxRate ?? 13)}%
+      含税价 {formatAmount(unitPrice)} · {Number(taxRate ?? 13)}%
     </span>
   );
 };
@@ -275,13 +277,7 @@ export const Progress: React.FC<{
   );
 };
 
-/** 人民币金额：两位小数，千分位 */
-export const formatCny = (v?: number | null) =>
-  v == null
-    ? '—'
-    : `¥${Number(v).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-
-/** 一条历史价格的摘要：¥4,120.00 · 全新原装 · 现货 */
+/** 一条历史价格的摘要：CNY 4,120.00 · 全新原装 · 现货 */
 export const PriceSummary: React.FC<{ value?: PriceRecord }> = ({
   value: q,
 }) => {
@@ -291,11 +287,11 @@ export const PriceSummary: React.FC<{ value?: PriceRecord }> = ({
   return (
     <>
       {[
-        formatCny(q.unitPriceCny),
+        formatAmount(q.unitPriceCny),
         conditionLabel(q.itemCondition),
         leadTimeLabel(q.leadTime),
         q.taxIncluded
-          ? `含税价 ${formatCny(q.unitPrice)}（${Number(q.taxRate ?? 13)}%）`
+          ? `含税价 ${formatAmount(q.unitPrice)}（${Number(q.taxRate ?? 13)}%）`
           : '',
       ]
         .filter(Boolean)
