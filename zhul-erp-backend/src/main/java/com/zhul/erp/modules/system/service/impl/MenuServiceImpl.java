@@ -55,16 +55,29 @@ public class MenuServiceImpl implements MenuService {
 
     /** 当前账号能访问的资源 ID 加上它们的全部上级；null 表示不受限 */
     private Set<Integer> visibleIds(String username, List<ResourceDO> all) {
+        return visibleIds(username, all, false);
+    }
+
+    /** pagesOnly 为 true 时只从目录与页面往上补上级，按钮本身保留但不带出它所在的页面 */
+    private Set<Integer> visibleIds(String username, List<ResourceDO> all, boolean pagesOnly) {
         Set<Integer> allowed = permissionResolver.resolveAllowedResourceIds(username);
         if (allowed == null) {
             return null;
         }
         Map<Integer, Integer> parentOf = new HashMap<>(all.size() * 2);
+        Set<Integer> buttons = new HashSet<>();
         for (ResourceDO r : all) {
             parentOf.put(r.getId(), r.getPid());
+            if (r.getType() != null && r.getType() == 3) {
+                buttons.add(r.getId());
+            }
         }
         Set<Integer> result = new HashSet<>(allowed.size() * 2);
         for (Integer id : allowed) {
+            if (pagesOnly && buttons.contains(id)) {
+                result.add(id);
+                continue;
+            }
             Integer cur = id;
             while (cur != null && cur != 0 && result.add(cur)) {
                 cur = parentOf.get(cur);
@@ -251,9 +264,11 @@ public class MenuServiceImpl implements MenuService {
     @Override
     public List<String> getEffectiveMenuKeys(String username) {
         // 角色只勾了部分子菜单时，上级目录不一定存进了 role_resource，这里统一补上，
-        // 否则侧边栏会因为目录本身不在权限里而把整组菜单隐藏
+        // 否则侧边栏会因为目录本身不在权限里而把整组菜单隐藏。
+        // 只从目录与页面往上补：只有某页面下的按钮（如「查看货源信息」挂在历史询价下）时，
+        // 不能因此让这个页面出现在侧边栏，否则点进去也是无权限
         List<ResourceDO> all = resourceMapper.selectList(null);
-        Set<Integer> visible = visibleIds(username, all);
+        Set<Integer> visible = visibleIds(username, all, true);
         List<ResourceDO> resources = visible == null
             ? all
             : all.stream().filter(r -> visible.contains(r.getId())).collect(Collectors.toList());

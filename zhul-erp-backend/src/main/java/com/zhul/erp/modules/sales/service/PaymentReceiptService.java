@@ -1,7 +1,10 @@
 package com.zhul.erp.modules.sales.service;
 
+import com.zhul.erp.common.result.PageResult;
 import com.zhul.erp.modules.sales.dto.ConfirmReceiptRequest;
 import com.zhul.erp.modules.sales.dto.PiVO;
+import com.zhul.erp.modules.sales.dto.ReceiptDeskQuery;
+import com.zhul.erp.modules.sales.dto.ReceiptDeskRowVO;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
@@ -24,6 +27,9 @@ public interface PaymentReceiptService {
     PiVO confirm(Long piId, ConfirmReceiptRequest req);
 
     PiVO voidReceipt(Long piId, Long receiptId, String reason);
+
+    /** 到账登记工作列表：默认只列有待确认水单、或已有到账但未收齐的 PI */
+    PageResult<ReceiptDeskRowVO> desk(ReceiptDeskQuery query);
 
     /** 可记为手续费的差额上限（PI 币种金额） */
     BigDecimal feeTolerance();

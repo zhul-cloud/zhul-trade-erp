@@ -29,8 +29,9 @@ class MenuPermissionIntegrationTest extends IntegrationTestBase {
     private static final int TENANT_ADMIN_ID = 99000031;
     private static final String TENANT_ADMIN = "it_menu_tenant_admin";
     private static final int DIR_TENANT = 100003;
-    private static final int DIR_CUSTOMER = 100006;
-    private static final int DIR_SUPPLIER = 100008;
+    /** 菜单按部门分组后，客户在「业务管理」下，供应商在「采购管理」下 */
+    private static final int DIR_BUSINESS = 100081;
+    private static final int DIR_PURCHASE = 100082;
     private static final int MENU_CUSTOMER = 100061;
     private static final int MENU_SUPPLIER = 100062;
 
@@ -39,7 +40,7 @@ class MenuPermissionIntegrationTest extends IntegrationTestBase {
     @BeforeEach
     void setUp() {
         cleanup();
-        jdbc.update("insert into tenant_package (id, name, menu_ids) values (?, 'IT-套餐', '[100006, 100061, 100062, 110141]')", PACKAGE);
+        jdbc.update("insert into tenant_package (id, name, menu_ids) values (?, 'IT-套餐', '[100061, 100062, 110141]')", PACKAGE);
         jdbc.update("insert into tenant (id, name, package_id) values (?, 'IT-租户', ?)", TENANT, PACKAGE);
         jdbc.update("insert into account (id, tenant_id, user_id, username, admin_flag) values (?, ?, ?, ?, 1)",
                 TENANT_ADMIN_ID, TENANT, TENANT_ADMIN_ID, TENANT_ADMIN);
@@ -73,7 +74,7 @@ class MenuPermissionIntegrationTest extends IntegrationTestBase {
                 new UsernamePasswordAuthenticationToken(TENANT_ADMIN, null, List.of()));
         List<Integer> visible = ids(menuService.getMenuTree());
         assertFalse(visible.contains(DIR_TENANT), "租户管理员看不到租户管理");
-        assertTrue(visible.containsAll(List.of(DIR_CUSTOMER, DIR_SUPPLIER, MENU_CUSTOMER, MENU_SUPPLIER, 110141)), visible.toString());
+        assertTrue(visible.containsAll(List.of(DIR_BUSINESS, DIR_PURCHASE, MENU_CUSTOMER, MENU_SUPPLIER, 110141)), visible.toString());
 
         BizException e = assertThrows(BizException.class,
                 () -> menuService.assignRoleMenus("IT_MENU_ROLE", List.of(MENU_CUSTOMER, DIR_TENANT)));
@@ -90,9 +91,9 @@ class MenuPermissionIntegrationTest extends IntegrationTestBase {
     void roleWithOnlyChildMenu_stillGetsParentDirectory() {
         loginWithResources("it_menu_staff", MENU_CUSTOMER);
         List<String> keys = menuService.getEffectiveMenuKeys("it_menu_staff");
-        assertTrue(keys.contains("/customer"), "只授权客户列表时，客户管理目录也要返回：" + keys);
+        assertTrue(keys.contains("/business"), "只授权客户时，所在的业务管理分组也要返回：" + keys);
         assertTrue(keys.contains("/customer/list"));
-        assertFalse(keys.contains("/supplier"), "没授权的供应商管理不能出现");
+        assertFalse(keys.contains("/purchase"), "没授权供应商时，采购管理分组不能出现");
         assertFalse(keys.contains("/supplier/list"));
     }
 }

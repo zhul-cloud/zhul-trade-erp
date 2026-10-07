@@ -5,15 +5,25 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhul.erp.common.exception.BizException;
+import com.zhul.erp.common.result.PageResult;
+import com.zhul.erp.framework.security.DataScopeResolver;
 import com.zhul.erp.framework.storage.PrivateFileStorage;
 import com.zhul.erp.modules.inquiry.support.CurrentUserResolver;
+import com.zhul.erp.modules.inquiry.support.InquiryLookups;
+import com.zhul.erp.modules.masterdata.entity.CustomerDO;
+import com.zhul.erp.modules.masterdata.repository.CustomerMapper;
 import com.zhul.erp.modules.sales.constants.SalesConstants;
 import com.zhul.erp.modules.sales.dto.ConfirmReceiptRequest;
 import com.zhul.erp.modules.sales.dto.PiVO;
+import com.zhul.erp.modules.sales.dto.ReceiptDeskQuery;
+import com.zhul.erp.modules.sales.dto.ReceiptDeskRowVO;
 import com.zhul.erp.modules.sales.dto.ReceiptVO;
 import com.zhul.erp.modules.sales.entity.PaymentReceiptDO;
 import com.zhul.erp.modules.sales.entity.ProformaInvoiceDO;
+import com.zhul.erp.modules.sales.entity.SalesOrderDO;
 import com.zhul.erp.modules.sales.repository.PaymentReceiptMapper;
+import com.zhul.erp.modules.sales.repository.ProformaInvoiceMapper;
+import com.zhul.erp.modules.sales.repository.SalesOrderMapper;
 import com.zhul.erp.modules.sales.service.PaymentReceiptService;
 import com.zhul.erp.modules.sales.service.PiService;
 import com.zhul.erp.modules.sales.support.PiStore;
@@ -24,9 +34,11 @@ import com.zhul.erp.modules.system.repository.SysConfigMapper;
 import com.zhul.erp.modules.system.service.BankAccountService;
 import com.zhul.erp.modules.system.service.ExchangeRateService;
 import com.zhul.erp.modules.system.service.LogService;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
@@ -34,11 +46,15 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -58,6 +74,11 @@ public class PaymentReceiptServiceImpl implements PaymentReceiptService {
     private final CurrentUserResolver currentUser;
     private final LogService logService;
     private final ObjectMapper objectMapper;
+    private final ProformaInvoiceMapper piMapper;
+    private final SalesOrderMapper orderMapper;
+    private final CustomerMapper customerMapper;
+    private final DataScopeResolver dataScopeResolver;
+    private final InquiryLookups lookups;
 
     // ---------------------------------------------------------------- 水单
 
@@ -231,6 +252,120 @@ public class PaymentReceiptServiceImpl implements PaymentReceiptService {
                 Map.of("piNo", pi.getPiNo(), "amount", pi.getCurrencyCode() + " " + r.getAmount(), "status", "有效"),
                 Map.of("piNo", pi.getPiNo(), "status", "已作废", "reason", r.getVoidReason()));
         return piService.detail(piId, null);
+    }
+
+    // ---------------------------------------------------------------- 到账登记工作列表
+
+    @Override
+    public PageResult<ReceiptDeskRowVO> desk(ReceiptDeskQuery q) {
+        int tenant = PiStore.tenantId();
+        LambdaQueryWrapper<ProformaInvoiceDO> w = new LambdaQueryWrapper<ProformaInvoiceDO>()
+                .eq(ProformaInvoiceDO::getTenantId, tenant)
+                .in(ProformaInvoiceDO::getStatus, RECEIVABLE)
+                .isNull(ProformaInvoiceDO::getDeletedAt);
+        dataScopeResolver.current().apply(w, ProformaInvoiceDO::getOwnerId);
+        if (q.getReceiptStatus() != null) {
+            w.eq(ProformaInvoiceDO::getReceiptStatus, q.getReceiptStatus());
+        }
+        if (StringUtils.hasText(q.getKeyword())) {
+            String kw = q.getKeyword().trim();
+            List<Long> customerIds = customerMapper.selectList(new LambdaQueryWrapper<CustomerDO>()
+                            .select(CustomerDO::getId)
+                            .eq(CustomerDO::getTenantId, tenant)
+                            .and(x -> x.like(CustomerDO::getName, kw).or().like(CustomerDO::getShortName, kw))
+                            .last("LIMIT 500"))
+                    .stream().map(CustomerDO::getId).toList();
+            // 编号按包含匹配：客户水单上写的不带前缀的编号也能找到
+            w.and(x -> {
+                x.like(ProformaInvoiceDO::getPiNo, kw);
+                if (!customerIds.isEmpty()) {
+                    x.or().in(ProformaInvoiceDO::getCustomerId, customerIds);
+                }
+            });
+        }
+        List<ProformaInvoiceDO> pis = piMapper.selectList(w);
+        if (pis.isEmpty()) {
+            return PageResult.of(0L, List.of());
+        }
+        List<Long> ids = pis.stream().map(ProformaInvoiceDO::getId).toList();
+        List<PaymentReceiptDO> records = receiptMapper.selectList(new LambdaQueryWrapper<PaymentReceiptDO>()
+                .in(PaymentReceiptDO::getPiId, ids)
+                .eq(PaymentReceiptDO::getStatus, SalesConstants.RECORD_VALID)
+                .isNull(PaymentReceiptDO::getDeletedAt));
+        Set<Long> matched = new HashSet<>();
+        records.stream().filter(r -> r.getKind() == SalesConstants.KIND_RECEIPT && r.getSlipId() != null)
+                .forEach(r -> matched.add(r.getSlipId()));
+        Map<Long, List<PaymentReceiptDO>> pending = new HashMap<>();
+        records.stream().filter(r -> r.getKind() == SalesConstants.KIND_SLIP && !matched.contains(r.getId()))
+                .sorted(Comparator.comparing(PaymentReceiptDO::getReceiptDate, Comparator.nullsLast(Comparator.naturalOrder())))
+                .forEach(r -> pending.computeIfAbsent(r.getPiId(), k -> new ArrayList<>()).add(r));
+
+        boolean all = Boolean.TRUE.equals(q.getAll());
+        List<ProformaInvoiceDO> rows = pis.stream()
+                .filter(p -> all || pending.containsKey(p.getId()) || (p.getReceivedAmount().signum() > 0
+                        && p.getReceivedAmount().add(p.getFeeDiffAmount()).compareTo(p.getTotalAmount()) < 0))
+                // 最早一张待确认水单在前，没有待确认水单的排后面
+                .sorted(Comparator.<ProformaInvoiceDO, LocalDate>comparing(p -> earliest(pending.get(p.getId())),
+                                Comparator.nullsLast(Comparator.naturalOrder()))
+                        .thenComparing(ProformaInvoiceDO::getCreateTime, Comparator.reverseOrder()))
+                .toList();
+        int size = q.getPageSize() == null || q.getPageSize() <= 0 ? 20 : Math.min(q.getPageSize(), 100);
+        int page = Math.max(1, q.getPage() == null ? 1 : q.getPage());
+        List<ProformaInvoiceDO> slice = rows.stream().skip((long) (page - 1) * size).limit(size).toList();
+        if (slice.isEmpty()) {
+            return PageResult.of((long) rows.size(), List.of());
+        }
+        Map<Long, CustomerDO> customers = lookups.customers(slice.stream().map(ProformaInvoiceDO::getCustomerId).toList());
+        Map<Long, String> users = lookups.userNames(slice.stream().map(ProformaInvoiceDO::getOwnerId).toList());
+        Map<Long, SalesOrderDO> orders = orderMapper.selectList(new LambdaQueryWrapper<SalesOrderDO>()
+                        .in(SalesOrderDO::getPiId, slice.stream().map(ProformaInvoiceDO::getId).toList())
+                        .eq(SalesOrderDO::getStatus, SalesConstants.SO_ACTIVE)
+                        .isNull(SalesOrderDO::getDeletedAt))
+                .stream().collect(Collectors.toMap(SalesOrderDO::getPiId, o -> o, (a, b) -> a));
+        List<ReceiptDeskRowVO> list = new ArrayList<>(slice.size());
+        for (ProformaInvoiceDO p : slice) {
+            ReceiptDeskRowVO vo = new ReceiptDeskRowVO();
+            vo.setPiId(p.getId());
+            vo.setPiNo(p.getPiNo());
+            vo.setPiStatus(p.getStatus());
+            vo.setCustomerId(p.getCustomerId());
+            vo.setCustomerName(InquiryLookups.customerName(customers.get(p.getCustomerId())));
+            vo.setOwnerId(p.getOwnerId());
+            vo.setOwnerName(users.get(p.getOwnerId()));
+            vo.setCurrencyCode(p.getCurrencyCode());
+            vo.setTotalAmount(p.getTotalAmount());
+            vo.setReceivedAmount(p.getReceivedAmount());
+            vo.setFeeDiffAmount(p.getFeeDiffAmount());
+            vo.setRemainingAmount(p.getTotalAmount().subtract(p.getReceivedAmount()).subtract(p.getFeeDiffAmount()));
+            vo.setReceiptStatus(p.getReceiptStatus());
+            vo.setReceiptStatusName(SalesConstants.RECEIPT_STATUS_NAMES.get(p.getReceiptStatus()));
+            SalesOrderDO o = orders.get(p.getId());
+            vo.setOrderId(o == null ? null : o.getId());
+            vo.setSoNo(o == null ? null : o.getSoNo());
+            List<PaymentReceiptDO> slips = pending.getOrDefault(p.getId(), List.of());
+            vo.setPendingSlips(slips.stream().map(r -> {
+                ReceiptVO s = new ReceiptVO();
+                s.setId(r.getId());
+                s.setKind(r.getKind());
+                s.setAmount(r.getAmount());
+                s.setAmountCny(r.getAmountCny());
+                s.setReceiptDate(r.getReceiptDate());
+                s.setFiles(fromJson(r.getFileKeys()));
+                s.setNote(r.getNote());
+                s.setStatus(r.getStatus());
+                s.setMatched(false);
+                s.setCreateTime(r.getCreateTime());
+                return s;
+            }).toList());
+            vo.setEarliestSlipDate(earliest(slips));
+            list.add(vo);
+        }
+        return PageResult.of((long) rows.size(), list);
+    }
+
+    private static LocalDate earliest(List<PaymentReceiptDO> slips) {
+        return slips == null ? null : slips.stream().map(PaymentReceiptDO::getReceiptDate).filter(Objects::nonNull)
+                .min(Comparator.naturalOrder()).orElse(null);
     }
 
     @Override

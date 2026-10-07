@@ -1,9 +1,12 @@
 package com.zhul.erp.modules.sales.controller;
 
+import com.zhul.erp.common.result.PageResult;
 import com.zhul.erp.common.result.Result;
 import com.zhul.erp.framework.storage.PrivateFileStorage;
 import com.zhul.erp.modules.sales.dto.ConfirmReceiptRequest;
 import com.zhul.erp.modules.sales.dto.PiVO;
+import com.zhul.erp.modules.sales.dto.ReceiptDeskQuery;
+import com.zhul.erp.modules.sales.dto.ReceiptDeskRowVO;
 import com.zhul.erp.modules.sales.dto.VoidReceiptRequest;
 import com.zhul.erp.modules.sales.service.PaymentReceiptService;
 import jakarta.servlet.http.HttpServletResponse;
@@ -32,7 +35,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 
-/** PI 收款：上传水单需要「上传付款水单」，登记与作废到账需要「登记到账」（财务）；均受 PI 数据范围限制 */
+/** PI 收款：上传水单需要「上传付款水单」，登记与作废到账需要「登记到账」（财务，入口为财务管理 → 到账登记）；均受 PI 数据范围限制 */
 @RestController
 @RequestMapping("/api/v1/sales/pis")
 @RequiredArgsConstructor
@@ -77,6 +80,13 @@ public class PaymentReceiptController {
     @PreAuthorize("@perm.has('sales:pi:receipt-confirm')")
     public Result<PiVO> voidReceipt(@PathVariable Long id, @PathVariable Long receiptId, @Valid @RequestBody VoidReceiptRequest req) {
         return Result.ok(service.voidReceipt(id, receiptId, req.getReason()));
+    }
+
+    /** 财务管理 → 到账登记 */
+    @PostMapping("/receipt-desk")
+    @PreAuthorize("@perm.canAccessMenu('/finance/receipts') and @perm.has('sales:pi:receipt-confirm')")
+    public Result<PageResult<ReceiptDeskRowVO>> desk(@RequestBody ReceiptDeskQuery query) {
+        return Result.ok(service.desk(query));
     }
 
     @GetMapping("/receipt-settings")

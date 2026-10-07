@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
-/** 收款账户：列表需要「收款账户」菜单（账号脱敏）；开 PI 用的启用账户选项要求「PI」菜单；维护需要「管理收款账户」 */
+/** 收款账户：列表需要「收款账户」菜单（账号脱敏）；启用账户选项供开 PI 与登记到账使用；维护需要「管理收款账户」 */
 @RestController
 @RequestMapping("/api/v1/system/bank-accounts")
 @RequiredArgsConstructor
@@ -33,7 +33,7 @@ public class BankAccountController {
     }
 
     @GetMapping("/options")
-    @PreAuthorize("@perm.canAccessMenu('/sales/pi') or @perm.canAccessMenu('/system/bank-account')")
+    @PreAuthorize("@perm.canAccessMenu('/sales/pi') or @perm.canAccessMenu('/finance/receipts') or @perm.canAccessMenu('/system/bank-account')")
     public Result<List<BankAccountVO>> options() {
         return Result.ok(service.enabledOptions());
     }

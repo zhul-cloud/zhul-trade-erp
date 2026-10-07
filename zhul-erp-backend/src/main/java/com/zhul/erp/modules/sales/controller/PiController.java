@@ -89,7 +89,7 @@ public class PiController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("@perm.canAccessMenu('/sales/pi')")
+    @PreAuthorize("@perm.canAccessMenu('/sales/pi') or @perm.canAccessMenu('/finance/receipts')")
     public Result<PiVO> detail(@PathVariable Long id, @RequestParam(required = false) Integer version) {
         return Result.ok(service.detail(id, version));
     }

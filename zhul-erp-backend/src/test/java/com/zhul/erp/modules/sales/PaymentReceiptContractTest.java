@@ -82,4 +82,52 @@ class PaymentReceiptContractTest extends SalesContractSupport {
                 "bankAccountId", 1))), rep).getStatus(), "业务员没有登记到账权限");
         assertEquals(List.of(1), ok(call(get(PI + "/" + id), rep)).path("receipts").findValues("kind").stream().map(JsonNode::asInt).toList());
     }
+
+    // ---------------------------------------------------------------- 到账登记工作列表
+
+    private static final String DESK = PI + "/receipt-desk";
+    private static final int MENU_RECEIPT_DESK = 100085;
+
+    @Test
+    void financeHandlesPendingSlip_fromReceiptDesk() throws Exception {
+        long id = pi1333();
+        String piNo = ok(call(get(PI + "/" + id), admin)).path("piNo").asText();
+        long slipId = ok(uploadSlip(id, "667.00", "2026-10-07", admin)).path("receipts").get(0).path("id").asLong();
+
+        // 总经理兼财务：只有到账登记菜单与登记到账按钮，没有 PI 菜单
+        loginWithResources("it_finance", MENU_RECEIPT_DESK, BTN_CONFIRM);
+        String fin = token("it_finance");
+        JsonNode page = ok(call(json(post(DESK), write(java.util.Map.of("keyword", piNo.substring(2)))), fin));
+        assertEquals(1, page.path("total").asInt(), "不带前缀的编号也能搜到");
+        JsonNode row = page.path("records").get(0);
+        money("1333.65", row.path("remainingAmount"));
+        money("667.00", row.path("pendingSlips").get(0).path("amount"));
+        assertEquals("slip.png", row.path("pendingSlips").get(0).path("files").get(0).path("fileName").asText());
+        assertEquals(200, perform(get(PI + "/" + id), fin).getStatus(), "登记到账前要看 PI 的剩余金额与水单");
+
+        ok(confirmReceipt(id, "667.00", slipId, false, fin));
+        JsonNode after = ok(call(json(post(DESK), "{}"), fin)).path("records").get(0);
+        money("667.00", after.path("receivedAmount"));
+        assertEquals("部分到账", after.path("receiptStatusName").asText());
+        assertEquals(0, after.path("pendingSlips").size(), "水单已对应到账");
+    }
+
+    @Test
+    void fullyReceivedLeavesDefaultList_allStillShowsIt() throws Exception {
+        long c = customer("Pacific Controls", "Australia");
+        long id = sentPi(quotationItemIds(quotation(c, 2, "USD", null, l("6ES7214", 1, "5000", "1000"))), null);
+        ok(confirmReceipt(id, "400", null, false, admin));
+        assertEquals(1, ok(call(json(post(DESK), "{}"), admin)).path("total").asInt(), "已有到账但未收齐");
+        ok(confirmReceipt(id, "600", null, false, admin));
+        assertEquals(0, ok(call(json(post(DESK), "{}"), admin)).path("total").asInt());
+        JsonNode all = ok(call(json(post(DESK), "{\"all\":true}"), admin));
+        assertEquals(1, all.path("total").asInt());
+        assertEquals("已到账", all.path("records").get(0).path("receiptStatusName").asText());
+    }
+
+    @Test
+    void salesWithoutConfirmPermissionCannotOpenDesk() throws Exception {
+        loginWithResources("it_sales_rep2", MENU_PI, BTN_SLIP);
+        assertEquals(403, perform(json(post(DESK), "{}"), token("it_sales_rep2")).getStatus());
+    }
 }
