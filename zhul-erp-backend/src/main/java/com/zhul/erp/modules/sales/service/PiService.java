@@ -50,7 +50,8 @@ public interface PiService {
     PageResult<PiListVO> page(PiPageQuery query);
 
     /** PI 客户的发票抬头与收货人，供改选买方 / 收货人 */
-    List<PartyOptionVO> parties(Long id);
+    /** customerId 为空时取 PI 的客户；传入时须在当前用户的数据范围内（如母公司付款） */
+    List<PartyOptionVO> parties(Long id, Long customerId);
 
     /** PI 的收款记录（订单详情也展示这一组） */
     List<ReceiptVO> receipts(Long piId);

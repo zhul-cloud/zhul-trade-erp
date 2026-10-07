@@ -10,4 +10,6 @@ public class PartyOptionVO extends PartyDTO {
     /** 1-收货人、2-通知方、3-发票抬头 */
     private Integer partyType;
     private Boolean isDefault;
+    /** 取自客户注册信息（不是单证主体） */
+    private Boolean registration;
 }

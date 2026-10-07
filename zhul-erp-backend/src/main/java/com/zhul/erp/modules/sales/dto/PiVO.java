@@ -12,6 +12,8 @@ public class PiVO {
     private String piNo;
     private Long customerId;
     private String customerName;
+    /** 客户国家：贸易术语 DAP 的默认地点 */
+    private String customerCountry;
     private Long ownerId;
     private String ownerName;
     private String currencyCode;

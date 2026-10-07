@@ -23,7 +23,7 @@ public final class Placeholders {
             "item.no", "item.model", "item.brand", "item.category", "item.description", "item.condition", "item.conditionEn",
             "item.leadTime", "item.leadTimeEn", "item.warranty", "item.qty", "item.unitPrice", "item.unitPriceShort", "item.amount");
 
-    public static final Set<String> FEE = Set.of("fee.name", "fee.amount");
+    public static final Set<String> FEE = Set.of("fee.no", "fee.name", "fee.amount");
 
     /** PI 表头：PI 信息、买方、收货人、卖方、收款账户 */
     public static final Set<String> PI_HEADER = Set.of(
@@ -38,7 +38,7 @@ public final class Placeholders {
             "bank.branchCode");
 
     public static final Set<String> PI_ITEM;
-    public static final Set<String> PI_FEE = Set.of("fee.name", "fee.amount", "fee.remark");
+    public static final Set<String> PI_FEE = Set.of("fee.no", "fee.name", "fee.amount", "fee.remark");
 
     static {
         Set<String> s = new HashSet<>(ITEM);

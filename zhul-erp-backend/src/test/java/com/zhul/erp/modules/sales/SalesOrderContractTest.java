@@ -111,6 +111,8 @@ class SalesOrderContractTest extends SalesContractSupport {
         String piNo = ok(call(get(PI + "/" + pi), admin)).path("piNo").asText();
         JsonNode found = ok(call(json(post(SO + "/page"), write(Map.of("keyword", piNo.substring(2)))), admin));
         assertEquals(2, found.path("total").asInt());
+        assertEquals(7, found.path("records").get(0).path("totalQuantity").asInt(), "1 + 2 + 2 + 2");
+        assertEquals("India", found.path("records").get(0).path("customerCountry").asText());
         assertEquals(1, ok(call(json(post(SO + "/page"), "{\"status\":1}"), admin)).path("total").asInt());
     }
 

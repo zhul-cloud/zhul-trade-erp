@@ -52,12 +52,12 @@ class PiRenderTest {
         List<PiItemDO> items = new ArrayList<>();
         for (int k = 1; k <= 12; k++) {
             PiItemDO i = new PiItemDO();
-            i.setModel("MODEL-" + k);
+            i.setModel(k == 12 ? "6ES7214-1AG40-0XB0 + 6ES7231-4HD32-0XB0" : "MODEL-" + k);
             i.setQuantity(k);
             i.setUnitPrice(new BigDecimal("10.50"));
             i.setCostPrice(new BigDecimal("50"));
             i.setHsCode("8537109" + (k % 10));
-            i.setOriginCountry("Germany");
+            i.setOriginCountry(k == 12 ? "Germany (re-packed in Netherlands)" : "Germany");
             i.setItemCondition(0);
             i.setLeadTime(0);
             PiCalculator.applyLine(i, pi.getExchangeRate());
@@ -102,7 +102,13 @@ class PiRenderTest {
             DataFormatter fmt = new DataFormatter();
             // 明细 13~24 行，费用 25~27 行（运费、手续费、折扣），合计第 28 行
             assertThat(fmt.formatCellValue(sheet.getRow(12).getCell(2))).isEqualTo("MODEL-1");
-            assertThat(fmt.formatCellValue(sheet.getRow(23).getCell(2))).isEqualTo("MODEL-12");
+            assertThat(fmt.formatCellValue(sheet.getRow(23).getCell(2))).startsWith("6ES7214-1AG40-0XB0 +");
+            // 费用行序号接着型号行：运费 13、手续费 14、折扣 15
+            assertThat(sheet.getRow(24).getCell(1).getNumericCellValue()).isEqualTo(13);
+            assertThat(sheet.getRow(26).getCell(1).getNumericCellValue()).isEqualTo(15);
+            // 原产国列（F）按最长内容加宽；型号列（C:E 合并）本来够宽，不变
+            assertThat(sheet.getColumnWidth(5)).isGreaterThanOrEqualTo(("Germany (re-packed in Netherlands)".length() + 2) * 256);
+            assertThat(sheet.getColumnWidth(2) + sheet.getColumnWidth(3) + sheet.getColumnWidth(4)).isEqualTo(templateWidth(2, 4));
             assertThat(fmt.formatCellValue(sheet.getRow(23).getCell(6))).isEqualTo("85371092");
             assertThat(sheet.getRow(24).getCell(2).getStringCellValue()).isEqualTo("Shipping Cost");
             assertThat(sheet.getRow(26).getCell(2).getStringCellValue()).isEqualTo("Discount");
@@ -120,6 +126,9 @@ class PiRenderTest {
             assertThat(all.toString()).contains("10141740757803", "CHASSGSGXXX", "DESTINATION: India")
                     .doesNotContain("${", "Rev.", "50.00");
         }
+        // 数字类占位符写成纯数字单元格，不残留内联文字（Excel / WPS 会显示残留的 ${item.no}）
+        String xml = sheetXml(out);
+        assertThat(xml).doesNotContain("${").doesNotContain("t=\"n\"><v>1.0</v><is>");
         // 公章、签名在明细之下：随 11 行明细 + 2 行费用下移 13 行；Logo 不动
         List<Integer> after = pictureRows(out);
         assertThat(after).containsExactly(before.get(0), before.get(1) + 13, before.get(2) + 13);
@@ -143,6 +152,27 @@ class PiRenderTest {
             assertThat(problems).hasSize(1);
             assertThat(problems.get(0).toString()).contains("B5", "不认识的占位符 ${seller.nmae}");
         }
+    }
+
+    private static int templateWidth(int from, int to) throws Exception {
+        try (XSSFWorkbook wb = new XSSFWorkbook(new ByteArrayInputStream(resource("document-template/fouwell-pi-v2.xlsx")))) {
+            int w = 0;
+            for (int c = from; c <= to; c++) {
+                w += wb.getSheetAt(0).getColumnWidth(c);
+            }
+            return w;
+        }
+    }
+
+    private static String sheetXml(byte[] xlsx) throws Exception {
+        try (java.util.zip.ZipInputStream z = new java.util.zip.ZipInputStream(new ByteArrayInputStream(xlsx))) {
+            for (var e = z.getNextEntry(); e != null; e = z.getNextEntry()) {
+                if (e.getName().equals("xl/worksheets/sheet1.xml")) {
+                    return new String(z.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+                }
+            }
+        }
+        throw new IllegalStateException("没有 sheet1.xml");
     }
 
     /** 图片起点行，从小到大 */

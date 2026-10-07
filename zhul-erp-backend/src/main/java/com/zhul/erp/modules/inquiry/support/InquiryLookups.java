@@ -67,6 +67,30 @@ public class InquiryLookups {
         return map;
     }
 
+    /**
+     * 单据的新 / 老客户：任一来源客户询盘为老客户即为老客户（报价单、PI、销售订单列表共用）。
+     * inquiryIdsByDoc：单据 ID → 来源客户询盘 ID；返回单据 ID → 1-新客户、2-老客户（没有来源询盘的单据不在结果里）
+     */
+    public Map<Long, Integer> customerTypes(Map<Long, ? extends Collection<Long>> inquiryIdsByDoc) {
+        List<Long> keys = inquiryIdsByDoc.values().stream().flatMap(Collection::stream).filter(Objects::nonNull).distinct().toList();
+        Map<Long, Integer> typeOf = new HashMap<>(keys.size() * 2);
+        if (!keys.isEmpty()) {
+            customerInquiryMapper.selectList(new LambdaQueryWrapper<CustomerInquiryDO>()
+                            .select(CustomerInquiryDO::getId, CustomerInquiryDO::getCustomerType)
+                            .in(CustomerInquiryDO::getId, keys))
+                    .forEach(i -> typeOf.put(i.getId(), i.getCustomerType()));
+        }
+        Map<Long, Integer> result = new HashMap<>(inquiryIdsByDoc.size() * 2);
+        inquiryIdsByDoc.forEach((doc, ids) -> {
+            if (ids.stream().anyMatch(id -> Objects.equals(typeOf.get(id), InquiryConstants.CUSTOMER_RETURNING))) {
+                result.put(doc, InquiryConstants.CUSTOMER_RETURNING);
+            } else if (ids.stream().anyMatch(typeOf::containsKey)) {
+                result.put(doc, InquiryConstants.CUSTOMER_NEW);
+            }
+        });
+        return result;
+    }
+
     /** 客户询盘 ID → 负责业务员 ID */
     public Map<Long, Long> inquiryOwners(Collection<Long> ids) {
         List<Long> keys = ids.stream().filter(Objects::nonNull).distinct().toList();

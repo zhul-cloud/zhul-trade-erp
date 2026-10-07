@@ -96,8 +96,8 @@ public class PiController {
 
     @GetMapping("/{id}/parties")
     @PreAuthorize("@perm.canAccessMenu('/sales/pi')")
-    public Result<List<PartyOptionVO>> parties(@PathVariable Long id) {
-        return Result.ok(service.parties(id));
+    public Result<List<PartyOptionVO>> parties(@PathVariable Long id, @RequestParam(required = false) Long customerId) {
+        return Result.ok(service.parties(id, customerId));
     }
 
     @PutMapping("/{id}")

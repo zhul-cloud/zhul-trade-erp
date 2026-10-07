@@ -48,6 +48,8 @@ public final class QuotationConstants {
 
     public static final int VALID_DAYS = 15;
     public static final String DEFAULT_WARRANTY = "1 year";
+    /** 客户没有默认交易条件时：DAP，地点为客户国家 */
+    public static final String DEFAULT_INCOTERM = "DAP";
     public static final String DEFAULT_CURRENCY = "USD";
     public static final String LOST_REASON_OTHER = "OTHER";
     public static final int MAX_ITEMS = 300;

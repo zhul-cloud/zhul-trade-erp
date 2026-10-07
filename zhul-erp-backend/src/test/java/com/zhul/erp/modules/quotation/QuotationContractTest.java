@@ -193,6 +193,18 @@ class QuotationContractTest extends InquiryContractSupport {
     }
 
     @Test
+    void incotermDefaultsToDapAndCustomerCountry_unlessCustomerHasTerms() throws Exception {
+        long c = customer("Pacific Controls", "Australia");
+        JsonNode q = byInquiries(seedInquiry(c, 6, "2026-10-03", m("6ES7214-1AG40-0XB0", "2640")));
+        assertEquals("DAP", q.path("incoterm").asText());
+        assertEquals("Australia", q.path("incotermPlace").asText());
+        jdbc.update("update customer set incoterm = 'FOB', incoterm_place = 'Shanghai' where id = ?", c);
+        JsonNode q2 = byInquiries(seedInquiry(c, 6, "2026-10-04", m("6ES7231-4HD32-0XB0", "880")));
+        assertEquals("FOB", q2.path("incoterm").asText(), "客户档案有默认交易条件时取客户的");
+        assertEquals("Shanghai", q2.path("incotermPlace").asText());
+    }
+
+    @Test
     void mergeInquiriesOfSameCustomer_pendingNotice_differentCustomerRejected() throws Exception {
         long c = customer("Pacific Controls", "Australia");
         long a = seedInquiry(c, 6, "2026-10-03", m("6ES7214-1AG40-0XB0", "2640"), m("6ES7231-4HD32-0XB0", "880"));
@@ -531,6 +543,8 @@ class QuotationContractTest extends InquiryContractSupport {
         jdbc.update("update quotation set owner_id = ? where id = ?", BUYER_LIN, othersId);
         JsonNode byModel = ok(call(json(post(QT + "/page"), "{\"keyword\":\"6ES7214\"}"), admin));
         assertEquals(1, byModel.path("total").asInt(), "按型号搜索");
+        assertEquals("Australia", byModel.path("records").get(0).path("customerCountry").asText());
+        assertEquals(1, byModel.path("records").get(0).path("totalQuantity").asInt());
 
         loginWithResources("it_qt_staff", MENU_QUOTATION);
         String staff = token("it_qt_staff");

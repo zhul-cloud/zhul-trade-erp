@@ -171,8 +171,10 @@ public class QuotationServiceImpl implements QuotationService {
         q.setCurrencyCode(currency);
         q.setExchangeRate(rate.rate());
         q.setRateTime(rate.rateTime());
-        q.setIncoterm(nz(customer.getIncoterm()));
-        q.setIncotermPlace(nz(customer.getIncotermPlace()));
+        // 客户档案有默认交易条件时取客户的，没有时为 DAP + 客户国家
+        boolean customerTerms = StringUtils.hasText(customer.getIncoterm());
+        q.setIncoterm(customerTerms ? customer.getIncoterm() : QuotationConstants.DEFAULT_INCOTERM);
+        q.setIncotermPlace(customerTerms ? nz(customer.getIncotermPlace()) : nz(customer.getCountry()));
         q.setValidUntil(LocalDate.now().plusDays(QuotationConstants.VALID_DAYS));
         q.setRemark("");
         q.setStatus(QuotationConstants.STATUS_DRAFT);
@@ -579,6 +581,7 @@ public class QuotationServiceImpl implements QuotationService {
         vo.setQuotationNo(q.getQuotationNo());
         vo.setCustomerId(q.getCustomerId());
         vo.setCustomerName(InquiryLookups.customerName(customer));
+        vo.setCustomerCountry(customer == null ? null : customer.getCountry());
         vo.setOwnerId(q.getOwnerId());
         vo.setOwnerName(users.get(q.getOwnerId()));
         vo.setCurrencyCode(q.getCurrencyCode());
@@ -855,18 +858,21 @@ public class QuotationServiceImpl implements QuotationService {
         }
         List<Long> ids = rows.stream().map(QuotationDO::getId).toList();
         List<QuotationItemDO> items = itemMapper.selectList(new LambdaQueryWrapper<QuotationItemDO>()
-                .select(QuotationItemDO::getQuotationId, QuotationItemDO::getCustomerInquiryId)
+                .select(QuotationItemDO::getQuotationId, QuotationItemDO::getCustomerInquiryId, QuotationItemDO::getQuantity)
                 .in(QuotationItemDO::getQuotationId, ids)
                 .isNull(QuotationItemDO::getDeletedAt));
         Map<Long, Integer> counts = new HashMap<>();
+        Map<Long, Integer> quantities = new HashMap<>();
         Map<Long, Set<Long>> inquiriesByQuotation = new HashMap<>();
         for (QuotationItemDO i : items) {
             counts.merge(i.getQuotationId(), 1, Integer::sum);
+            quantities.merge(i.getQuotationId(), nz(i.getQuantity()), Integer::sum);
             inquiriesByQuotation.computeIfAbsent(i.getQuotationId(), k -> new TreeSet<>()).add(i.getCustomerInquiryId());
         }
         Map<Long, String> codes = lookups.inquiryCodes(items.stream().map(QuotationItemDO::getCustomerInquiryId).distinct().toList());
         Map<Long, CustomerDO> customers = lookups.customers(rows.stream().map(QuotationDO::getCustomerId).toList());
         Map<Long, String> users = lookups.userNames(rows.stream().map(QuotationDO::getOwnerId).toList());
+        Map<Long, Integer> customerTypes = lookups.customerTypes(inquiriesByQuotation);
         List<QuotationListVO> list = new ArrayList<>(rows.size());
         for (QuotationDO q : rows) {
             QuotationListVO vo = new QuotationListVO();
@@ -874,6 +880,9 @@ public class QuotationServiceImpl implements QuotationService {
             vo.setQuotationNo(q.getQuotationNo());
             vo.setCustomerId(q.getCustomerId());
             vo.setCustomerName(InquiryLookups.customerName(customers.get(q.getCustomerId())));
+            vo.setCustomerCountry(customers.get(q.getCustomerId()) == null ? null : customers.get(q.getCustomerId()).getCountry());
+            vo.setCustomerType(customerTypes.get(q.getId()));
+            vo.setTotalQuantity(quantities.getOrDefault(q.getId(), 0));
             vo.setItemCount(counts.getOrDefault(q.getId(), 0));
             vo.setCurrencyCode(q.getCurrencyCode());
             vo.setTotalAmount(q.getTotalAmount());

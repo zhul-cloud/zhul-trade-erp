@@ -438,11 +438,17 @@ public class SalesOrderServiceImpl implements SalesOrderService {
     private List<SalesOrderListVO> toListVos(List<SalesOrderDO> rows) {
         List<Long> ids = rows.stream().map(SalesOrderDO::getId).toList();
         Map<Long, Integer> counts = new HashMap<>();
-        orderItemMapper.selectList(new LambdaQueryWrapper<SalesOrderItemDO>()
-                        .select(SalesOrderItemDO::getSoId)
-                        .in(SalesOrderItemDO::getSoId, ids)
-                        .isNull(SalesOrderItemDO::getDeletedAt))
-                .forEach(i -> counts.merge(i.getSoId(), 1, Integer::sum));
+        Map<Long, Integer> quantities = new HashMap<>();
+        Map<Long, Set<Long>> inquiriesByOrder = new HashMap<>();
+        for (SalesOrderItemDO i : orderItemMapper.selectList(new LambdaQueryWrapper<SalesOrderItemDO>()
+                .select(SalesOrderItemDO::getSoId, SalesOrderItemDO::getQuantity, SalesOrderItemDO::getCustomerInquiryId)
+                .in(SalesOrderItemDO::getSoId, ids)
+                .isNull(SalesOrderItemDO::getDeletedAt))) {
+            counts.merge(i.getSoId(), 1, Integer::sum);
+            quantities.merge(i.getSoId(), i.getQuantity() == null ? 0 : i.getQuantity(), Integer::sum);
+            inquiriesByOrder.computeIfAbsent(i.getSoId(), k -> new TreeSet<>()).add(i.getCustomerInquiryId());
+        }
+        Map<Long, Integer> customerTypes = lookups.customerTypes(inquiriesByOrder);
         Map<Long, ProformaInvoiceDO> pis = piMapper.selectBatchIds(rows.stream().map(SalesOrderDO::getPiId).collect(Collectors.toSet()))
                 .stream().collect(Collectors.toMap(ProformaInvoiceDO::getId, p -> p));
         Map<Long, CustomerDO> customers = lookups.customers(rows.stream().map(SalesOrderDO::getCustomerId).toList());
@@ -455,6 +461,9 @@ public class SalesOrderServiceImpl implements SalesOrderService {
             vo.setSoNo(o.getSoNo());
             vo.setCustomerId(o.getCustomerId());
             vo.setCustomerName(InquiryLookups.customerName(customers.get(o.getCustomerId())));
+            vo.setCustomerCountry(customers.get(o.getCustomerId()) == null ? null : customers.get(o.getCustomerId()).getCountry());
+            vo.setCustomerType(customerTypes.get(o.getId()));
+            vo.setTotalQuantity(quantities.getOrDefault(o.getId(), 0));
             vo.setItemCount(counts.getOrDefault(o.getId(), 0));
             vo.setCurrencyCode(o.getCurrencyCode());
             vo.setTotalAmount(o.getTotalAmount());

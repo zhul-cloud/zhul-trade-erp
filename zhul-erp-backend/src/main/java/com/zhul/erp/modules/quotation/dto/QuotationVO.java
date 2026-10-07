@@ -14,6 +14,8 @@ public class QuotationVO {
     private String quotationNo;
     private Long customerId;
     private String customerName;
+    /** 客户国家：贸易术语 DAP 的默认地点 */
+    private String customerCountry;
     private Integer customerType;
     private Long ownerId;
     private String ownerName;

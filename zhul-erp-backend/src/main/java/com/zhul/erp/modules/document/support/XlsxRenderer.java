@@ -4,6 +4,7 @@ import com.zhul.erp.common.exception.BizException;
 import com.zhul.erp.modules.document.constants.DocTypes;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellType;
+import org.apache.poi.ss.usermodel.DataFormatter;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.util.CellRangeAddress;
@@ -19,6 +20,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
@@ -34,6 +36,8 @@ public final class XlsxRenderer {
     private static final Pattern CELL_REF = Pattern.compile("(?<![A-Za-z_$])(\\$?)([A-Z]{1,3})(\\$?)(\\d+)(?![\\d(])");
     /** 区域引用 A1:B2 */
     private static final Pattern AREA_REF = Pattern.compile("(\\$?[A-Z]{1,3}\\$?)(\\d+):(\\$?[A-Z]{1,3}\\$?)(\\d+)");
+
+    private static final int MAX_COLUMN_CHARS = 60;
 
     private XlsxRenderer() {
     }
@@ -52,17 +56,18 @@ public final class XlsxRenderer {
             XSSFSheet sheet = wb.getSheetAt(0);
             int itemRow = layout.itemRow();
             int feeRow = layout.feeRow();
+            List<Map<String, Object>> fees = numberFees(model);
             if (sheet.getRepeatingRows() == null && itemRow > 0) {
                 sheet.setRepeatingRows(new CellRangeAddress(itemRow - 1, itemRow - 1, -1, -1));
             }
             // 先处理靠下的那一行，靠上那一行展开时会把它整体下移，引用随之更新
             if (feeRow > itemRow) {
-                expand(sheet, feeRow, model.fees(), model.header());
+                expand(sheet, feeRow, fees, model.header());
                 expand(sheet, itemRow, model.items(), model.header());
             } else {
                 expand(sheet, itemRow, model.items(), model.header());
                 if (feeRow >= 0) {
-                    expand(sheet, feeRow, model.fees(), model.header());
+                    expand(sheet, feeRow, fees, model.header());
                 }
             }
             fillHeader(sheet, model.header());
@@ -78,6 +83,18 @@ public final class XlsxRenderer {
         } catch (IOException e) {
             throw new BizException(typeName + "模版无法打开，请检查是否为有效的 Excel 文件", e);
         }
+    }
+
+    /** 费用行的序号接着型号行往下编（如 9 个型号时运费为 10），对应占位符 ${fee.no} */
+    private static List<Map<String, Object>> numberFees(RenderModel model) {
+        List<Map<String, Object>> fees = new ArrayList<>(model.fees().size());
+        int no = model.items().size();
+        for (Map<String, Object> f : model.fees()) {
+            Map<String, Object> copy = new LinkedHashMap<>(f);
+            copy.put("fee.no", ++no);
+            fees.add(copy);
+        }
+        return fees;
     }
 
     /** 把第 rowIdx 行展开成 rows.size() 行；没有数据时删除这一行 */
@@ -110,6 +127,56 @@ public final class XlsxRenderer {
                 fillCell(cell, rows.get(k), header);
             }
         }
+        widenColumns(sheet, rowIdx, rowIdx + n - 1);
+    }
+
+    /**
+     * 明细 / 费用行填完后，按内容估算显示宽度（中日韩字符按 2、其他按 1 个字符宽，留 2 个余量），
+     * 列宽不够时加宽，单列最多 60 个字符宽；合并单元格按合并范围的总宽度判断，不够时加宽范围内最后一列。只加宽不缩窄。
+     */
+    static void widenColumns(Sheet sheet, int firstRow, int lastRow) {
+        DataFormatter fmt = new DataFormatter();
+        List<CellRangeAddress> merges = sheet.getMergedRegions();
+        for (int r = firstRow; r <= lastRow; r++) {
+            Row row = sheet.getRow(r);
+            if (row == null) {
+                continue;
+            }
+            for (Cell cell : row) {
+                if (cell.getCellType() == CellType.FORMULA || cell.getCellType() == CellType.BLANK) {
+                    continue;
+                }
+                String text = fmt.formatCellValue(cell);
+                if (text.isEmpty() || text.contains("\n")) {
+                    continue;
+                }
+                int first = cell.getColumnIndex();
+                int last = first;
+                for (CellRangeAddress m : merges) {
+                    if (m.isInRange(cell)) {
+                        first = m.getFirstColumn();
+                        last = m.getLastColumn();
+                        break;
+                    }
+                }
+                int need = Math.min(displayWidth(text) + 2, MAX_COLUMN_CHARS) * 256;
+                int have = 0;
+                for (int c = first; c <= last; c++) {
+                    have += sheet.getColumnWidth(c);
+                }
+                if (have < need) {
+                    sheet.setColumnWidth(last, Math.min(sheet.getColumnWidth(last) + need - have, MAX_COLUMN_CHARS * 256));
+                }
+            }
+        }
+    }
+
+    private static int displayWidth(String text) {
+        int w = 0;
+        for (int i = 0; i < text.length(); i++) {
+            w += text.charAt(i) > 0x2E80 ? 2 : 1;
+        }
+        return w;
     }
 
     private static void removeRow(XSSFSheet sheet, int rowIdx) {
@@ -258,9 +325,12 @@ public final class XlsxRenderer {
         if (whole.matches()) {
             String name = whole.group(1);
             Object v = values.containsKey(name) ? values.get(name) : header.get(name);
+            // 先清空再写数字：模版里的内联文字单元格直接写数字会残留 <is> 原文，Excel / WPS 显示的是原文
             if (v instanceof BigDecimal b) {
+                cell.setBlank();
                 cell.setCellValue(b.doubleValue());
             } else if (v instanceof Integer i) {
+                cell.setBlank();
                 cell.setCellValue(i);
             } else if (values.containsKey(name) || header.containsKey(name)) {
                 setText(cell, RenderModel.text(v));

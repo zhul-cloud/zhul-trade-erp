@@ -13,12 +13,16 @@ import com.zhul.erp.modules.product.repository.ProductCustomsMapper;
 import com.zhul.erp.modules.sales.dto.BankSnapshotDTO;
 import com.zhul.erp.modules.sales.dto.PartyDTO;
 import com.zhul.erp.modules.sales.dto.PartyOptionVO;
+import com.zhul.erp.modules.system.dto.DictItemVO;
 import com.zhul.erp.modules.system.entity.BankAccountDO;
+import com.zhul.erp.modules.system.service.DictItemService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -33,13 +37,16 @@ public class PiDefaults {
     private final CustomerPartyMapper partyMapper;
     private final InquiryItemMapper inquiryItemMapper;
     private final ProductCustomsMapper customsMapper;
+    private final DictItemService dictItemService;
 
     /** 默认发票抬头；没有时用客户注册信息 */
     public PartyDTO buyer(CustomerDO c) {
         CustomerPartyDO p = defaultParty(c.getId(), CustomerConstants.PARTY_BILL_TO);
-        if (p != null) {
-            return toDto(p);
-        }
+        return p != null ? toDto(p) : registrationOf(c);
+    }
+
+    /** 客户注册信息（英文名称、地址、税号、联系人）作为单证主体 */
+    private static PartyDTO registrationOf(CustomerDO c) {
         PartyDTO d = new PartyDTO();
         d.setName(c.getName());
         d.setCountry(c.getCountry());
@@ -60,9 +67,10 @@ public class PiDefaults {
         return p == null ? null : toDto(p);
     }
 
-    /** 客户的发票抬头与收货人（默认在前） */
-    public List<PartyOptionVO> options(Long customerId) {
-        return partyMapper.selectList(new LambdaQueryWrapper<CustomerPartyDO>()
+    /** 客户的发票抬头与收货人（默认在前），最后附一条客户注册信息供选作买方 */
+    public List<PartyOptionVO> options(CustomerDO customer) {
+        Long customerId = customer.getId();
+        List<PartyOptionVO> list = new ArrayList<>(partyMapper.selectList(new LambdaQueryWrapper<CustomerPartyDO>()
                         .eq(CustomerPartyDO::getCustomerId, customerId)
                         .in(CustomerPartyDO::getPartyType, CustomerConstants.PARTY_BILL_TO, CustomerConstants.PARTY_CONSIGNEE)
                         .isNull(CustomerPartyDO::getDeletedAt)
@@ -84,8 +92,26 @@ public class PiDefaults {
                     o.setEmail(d.getEmail());
                     o.setPartyType(p.getPartyType());
                     o.setIsDefault(Objects.equals(p.getIsDefault(), 1));
+                    o.setRegistration(false);
                     return o;
-                }).toList();
+                }).toList());
+        PartyDTO reg = registrationOf(customer);
+        PartyOptionVO o = new PartyOptionVO();
+        o.setName(reg.getName());
+        o.setCountry(reg.getCountry());
+        o.setState(reg.getState());
+        o.setCity(reg.getCity());
+        o.setPostcode(reg.getPostcode());
+        o.setAddress(reg.getAddress());
+        o.setTaxId(reg.getTaxId());
+        o.setContact(reg.getContact());
+        o.setPhone(reg.getPhone());
+        o.setEmail(reg.getEmail());
+        o.setPartyType(CustomerConstants.PARTY_BILL_TO);
+        o.setIsDefault(false);
+        o.setRegistration(true);
+        list.add(o);
+        return list;
     }
 
     /** 新填的买方 / 收货人存为客户单证主体；该类型还没有默认时成为默认 */
@@ -118,25 +144,51 @@ public class PiDefaults {
         return p.getId();
     }
 
-    /** 按客户付款方式生成英文付款条件 */
-    public static String paymentTerm(CustomerDO c) {
-        Integer m = c.getPaymentMethod();
-        int deposit = c.getDepositRatio() == null ? 30 : c.getDepositRatio();
-        int days = c.getPaymentDays() == null ? 30 : c.getPaymentDays();
-        if (m == null || m == 0) {
-            return "T/T 100% in advance";
+    public static final String DICT_PAYMENT_TERM = "pi_payment_term";
+    public static final String DICT_PORT = "port_of_shipment";
+    public static final String DICT_DELIVERY = "pi_delivery_time";
+    public static final String DICT_LEAD_TIME = "inquiry_lead_time";
+    public static final String FALLBACK_PAYMENT_TERM = "T/T 100% in advance";
+    public static final String FALLBACK_PORT = "Hong Kong";
+
+    /** 字典默认项的英文名（没有英文名用中文名）；字典没有默认项时用 fallback */
+    public String defaultText(String dictType, String fallback) {
+        return dictItemService.listByDictType(dictType).stream()
+                .filter(d -> Objects.equals(d.getStatus(), 1) && Objects.equals(d.getIsDefault(), 1))
+                .findFirst().map(PiDefaults::text).orElse(fallback);
+    }
+
+    /** 交期：取型号中排序最靠后（最长）的货期，找编码相同的交期字典项；找不到时用交期字典的默认项 */
+    public String deliveryTime(List<Integer> leadTimes) {
+        Map<String, DictItemVO> leadByValue = new HashMap<>();
+        for (DictItemVO d : dictItemService.listByDictType(DICT_LEAD_TIME)) {
+            leadByValue.put(d.getItemValue(), d);
         }
-        return switch (m) {
-            case 1 -> "T/T 100% in advance";
-            case 2 -> "T/T " + deposit + "% deposit, balance before shipment";
-            case 3 -> "T/T " + deposit + "% deposit, balance against copy of B/L";
-            case 4 -> "L/C at sight";
-            case 5 -> "L/C " + days + " days";
-            case 6 -> "D/P at sight";
-            case 7 -> "D/A " + days + " days";
-            case 8 -> "O/A " + days + " days";
-            default -> "";
-        };
+        DictItemVO longest = leadTimes.stream().filter(Objects::nonNull).map(v -> leadByValue.get(String.valueOf(v)))
+                .filter(Objects::nonNull)
+                .max(Comparator.comparing(d -> d.getSortOrder() == null ? 0 : d.getSortOrder()))
+                .orElse(null);
+        if (longest != null) {
+            for (DictItemVO d : dictItemService.listByDictType(DICT_DELIVERY)) {
+                if (Objects.equals(d.getStatus(), 1) && longest.getItemCode().equals(d.getItemCode())) {
+                    return text(d);
+                }
+            }
+        }
+        return defaultText(DICT_DELIVERY, "");
+    }
+
+    private static String text(DictItemVO d) {
+        return StringUtils.hasText(d.getItemNameEn()) ? d.getItemNameEn() : d.getItemName();
+    }
+
+    /** 收货人与买方相同时的快照（不关联单证主体） */
+    public static PartyDTO sameAs(PartyDTO buyer) {
+        PartyDTO c = normalize(buyer);
+        if (c != null) {
+            c.setPartyId(null);
+        }
+        return c;
     }
 
     /** 询盘型号 → 商品海关信息（HS 编码、原产国） */

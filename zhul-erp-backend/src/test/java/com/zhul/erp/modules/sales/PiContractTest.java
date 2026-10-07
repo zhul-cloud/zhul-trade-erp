@@ -96,7 +96,47 @@ class PiContractTest extends SalesContractSupport {
         long plain = customer("Plain Co", "Japan");
         JsonNode v2 = ok(createPi(quotationItemIds(quotation(plain, 2, "USD", null, FOUR[0])))).path("version");
         assertEquals("Plain Co", v2.path("buyer").path("name").asText(), "没有发票抬头时取客户注册信息");
-        assertTrue(v2.path("consignee").isNull() || v2.path("consignee").isMissingNode());
+        assertEquals("Plain Co", v2.path("consignee").path("name").asText(), "没有收货人时与买方相同");
+        assertTrue(v2.path("consignee").path("partyId").isNull() || v2.path("consignee").path("partyId").isMissingNode());
+    }
+
+    @Test
+    void defaultsFromDictionaries_deliveryByLongestLeadTime() throws Exception {
+        long c = customer("ACROBOT", "India");
+        long q = quotation(c, 2, "USD", null, FOUR);
+        // 第 2 行货期改为 1-2 周（码值 6），其余为现货
+        jdbc.update("update quotation_item set lead_time = 6 where quotation_id = ? and line_no = 2", q);
+        JsonNode v = ok(createPi(quotationItemIds(q))).path("version");
+        assertEquals("1-2 weeks after payment", v.path("deliveryTime").asText());
+        assertEquals("T/T 100% in advance", v.path("paymentTerm").asText());
+        assertEquals("Hong Kong", v.path("portOfShipment").asText());
+        assertEquals("FOB", v.path("incoterm").asText(), "沿用报价单的贸易术语");
+
+        jdbc.update("update quotation set incoterm = '', incoterm_place = '' where id = ?", q);
+        long q2 = quotation(c, 2, "USD", null, l("3RT2026", 1, "100", "20"));
+        jdbc.update("update quotation set incoterm = '' where id = ?", q2);
+        JsonNode v2 = ok(createPi(quotationItemIds(q2))).path("version");
+        assertEquals("DAP", v2.path("incoterm").asText(), "报价单没有贸易术语时为 DAP + 客户国家");
+        assertEquals("India", v2.path("incotermPlace").asText());
+        assertEquals("3-5 days after payment", v2.path("deliveryTime").asText(), "现货对应付款后 3-5 天");
+    }
+
+    @Test
+    void buyerFromAnotherOwnCustomer() throws Exception {
+        long c = customer("ACROBOT", "India");
+        long group = customer("ACROBOT GROUP", "Singapore");
+        jdbc.update("insert into customer_party (tenant_id, customer_id, party_type, company_name, country, address, is_default) values "
+                + "(0, ?, 3, 'ACROBOT GROUP PTE LTD', 'Singapore', '1 Raffles Place', 1)", group);
+        long id = ok(createPi(quotationItemIds(quotation(c, 2, "USD", null, FOUR[0])))).path("id").asLong();
+        JsonNode own = ok(call(get(PI + "/" + id + "/parties"), admin));
+        assertTrue(own.get(own.size() - 1).path("registration").asBoolean(), "最后一条是客户注册信息");
+        JsonNode other = ok(call(get(PI + "/" + id + "/parties").param("customerId", String.valueOf(group)), admin));
+        assertEquals("ACROBOT GROUP PTE LTD", other.get(0).path("name").asText());
+
+        jdbc.update("update customer set owner_id = ? where id = ?", BUYER_LIN, group);
+        loginWithResources("it_pi_scope", MENU_PI);
+        assertEquals("客户不存在", call(get(PI + "/" + id + "/parties").param("customerId", String.valueOf(group)),
+                token("it_pi_scope")).path("message").asText(), "不在自己数据范围内的客户不能选");
     }
 
     // ---------------------------------------------------------------- 内容与计算
@@ -243,6 +283,10 @@ class PiContractTest extends SalesContractSupport {
         JsonNode byModel = ok(call(json(post(PI + "/page"), "{\"keyword\":\"6AV2123\"}"), admin));
         assertEquals(1, byModel.path("total").asInt(), "按型号搜索");
         assertEquals(others, byModel.path("records").get(0).path("id").asLong());
+        JsonNode row = byModel.path("records").get(0);
+        assertEquals(4, row.path("totalQuantity").asInt(), "两行各 2 件");
+        assertEquals("Australia", row.path("customerCountry").asText());
+        assertEquals(1, row.path("customerType").asInt(), "来源询盘为新客户");
         String no = ok(call(get(PI + "/" + mine), admin)).path("piNo").asText();
         JsonNode byNo = ok(call(json(post(PI + "/page"), write(Map.of("keyword", no.substring(2)))), admin));
         assertEquals(1, byNo.path("total").asInt(), "不带前缀的编号也能搜到");

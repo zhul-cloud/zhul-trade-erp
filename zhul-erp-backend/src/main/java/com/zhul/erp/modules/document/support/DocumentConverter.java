@@ -43,6 +43,8 @@ public class DocumentConverter {
             + "\"MaxImageResolution\":{\"type\":\"long\",\"value\":\"150\"},\"Quality\":{\"type\":\"long\",\"value\":\"80\"}}";
     private static final int TIMEOUT_SECONDS = 30;
     private static final int PREVIEW_CACHE_SIZE = 50;
+    /** 预览图分辨率：放大查看时 A4 宽约 1240 像素，高分屏上文字仍清晰 */
+    private static final int PREVIEW_DPI = 150;
 
     private final String configuredPath;
     private final Path workDir;
@@ -188,7 +190,7 @@ public class DocumentConverter {
         try (PDDocument doc = Loader.loadPDF(pdf)) {
             PDFRenderer renderer = new PDFRenderer(doc);
             for (int i = 0; i < doc.getNumberOfPages(); i++) {
-                pages.add(renderer.renderImageWithDPI(i, 120, ImageType.RGB));
+                pages.add(renderer.renderImageWithDPI(i, PREVIEW_DPI, ImageType.RGB));
             }
         } catch (IOException e) {
             throw new BizException("图片生成失败，可以先下载 Excel", e);

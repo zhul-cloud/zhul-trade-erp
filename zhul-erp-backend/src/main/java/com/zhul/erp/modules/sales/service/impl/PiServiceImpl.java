@@ -290,16 +290,21 @@ public class PiServiceImpl implements PiService {
         v.setVersionNo(1);
         v.setStatus(SalesConstants.VERSION_EDITING);
         PartyDTO buyer = defaults.buyer(customer);
+        // 没有默认收货人时与买方相同（页面标「同买方」）
         PartyDTO consignee = defaults.consignee(customer.getId());
+        if (consignee == null) {
+            consignee = PiDefaults.sameAs(buyer);
+        }
         v.setBuyerJson(store.toJson(buyer));
         v.setBuyerPartyId(buyer.getPartyId());
         v.setConsigneeJson(store.toJson(consignee));
         v.setConsigneePartyId(consignee == null ? null : consignee.getPartyId());
         v.setDeliveryTime("");
-        v.setPaymentTerm(PiDefaults.paymentTerm(customer));
-        v.setIncoterm(nz(first.getIncoterm()));
-        v.setIncotermPlace(nz(first.getIncotermPlace()));
-        v.setPortOfShipment("");
+        v.setPaymentTerm(defaults.defaultText(PiDefaults.DICT_PAYMENT_TERM, PiDefaults.FALLBACK_PAYMENT_TERM));
+        boolean quotedTerms = StringUtils.hasText(first.getIncoterm());
+        v.setIncoterm(quotedTerms ? first.getIncoterm() : QuotationConstants.DEFAULT_INCOTERM);
+        v.setIncotermPlace(quotedTerms ? nz(first.getIncotermPlace()) : nz(customer.getCountry()));
+        v.setPortOfShipment(defaults.defaultText(PiDefaults.DICT_PORT, PiDefaults.FALLBACK_PORT));
         v.setRemark("");
         BankAccountDO bank = bankAccountService.defaultFor(picked.currency());
         v.setBankAccountId(bank == null ? null : bank.getId());
@@ -309,6 +314,7 @@ public class PiServiceImpl implements PiService {
         versionMapper.insert(v);
 
         List<PiItemDO> items = newLines(pi, v, picked, 1);
+        v.setDeliveryTime(defaults.deliveryTime(items.stream().map(PiItemDO::getLeadTime).toList()));
         List<PiFeeDO> fees = new ArrayList<>();
         if (picked.quotations().size() == 1 && !Boolean.FALSE.equals(req.getIncludeFees())) {
             for (QuotationFeeDO f : quotationStore.fees(first.getId())) {
@@ -727,6 +733,7 @@ public class PiServiceImpl implements PiService {
         vo.setPiNo(pi.getPiNo());
         vo.setCustomerId(pi.getCustomerId());
         vo.setCustomerName(InquiryLookups.customerName(customer));
+        vo.setCustomerCountry(customer == null ? null : customer.getCountry());
         vo.setOwnerId(pi.getOwnerId());
         vo.setOwnerName(users.get(pi.getOwnerId()));
         vo.setCurrencyCode(pi.getCurrencyCode());
@@ -986,8 +993,14 @@ public class PiServiceImpl implements PiService {
     }
 
     @Override
-    public List<PartyOptionVO> parties(Long id) {
-        return defaults.options(store.visible(id).getCustomerId());
+    public List<PartyOptionVO> parties(Long id, Long customerId) {
+        ProformaInvoiceDO pi = store.visible(id);
+        CustomerDO customer = customerMapper.selectById(customerId == null ? pi.getCustomerId() : customerId);
+        if (customer == null || customer.getDeletedAt() != null || !Objects.equals(customer.getTenantId(), PiStore.tenantId())
+                || (customerId != null && !customerId.equals(pi.getCustomerId()) && !dataScopeResolver.current().canSee(customer.getOwnerId()))) {
+            throw new BizException("客户不存在");
+        }
+        return defaults.options(customer);
     }
 
     @Override
@@ -1062,14 +1075,19 @@ public class PiServiceImpl implements PiService {
                 .stream().filter(v -> Objects.equals(shownVersion.get(v.getPiId()), v.getVersionNo()))
                 .collect(Collectors.toMap(PiVersionDO::getPiId, PiVersionDO::getId, (a, b) -> a));
         Map<Long, Set<Long>> quotationsByPi = new HashMap<>();
+        Map<Long, Set<Long>> inquiriesByPi = new HashMap<>();
+        Map<Long, Integer> quantities = new HashMap<>();
         if (!versionIdByPi.isEmpty()) {
             for (PiItemDO i : itemMapper.selectList(new LambdaQueryWrapper<PiItemDO>()
-                    .select(PiItemDO::getPiId, PiItemDO::getQuotationId)
+                    .select(PiItemDO::getPiId, PiItemDO::getQuotationId, PiItemDO::getCustomerInquiryId, PiItemDO::getQuantity)
                     .in(PiItemDO::getVersionId, versionIdByPi.values())
                     .isNull(PiItemDO::getDeletedAt))) {
                 quotationsByPi.computeIfAbsent(i.getPiId(), k -> new TreeSet<>()).add(i.getQuotationId());
+                inquiriesByPi.computeIfAbsent(i.getPiId(), k -> new TreeSet<>()).add(i.getCustomerInquiryId());
+                quantities.merge(i.getPiId(), nz(i.getQuantity()), Integer::sum);
             }
         }
+        Map<Long, Integer> customerTypes = lookups.customerTypes(inquiriesByPi);
         Map<Long, String> quotationNos = quotationNos(quotationsByPi.values().stream().flatMap(Set::stream).toList());
         Map<Long, SalesOrderDO> orders = orderMapper.selectList(new LambdaQueryWrapper<SalesOrderDO>()
                         .in(SalesOrderDO::getPiId, ids)
@@ -1085,6 +1103,9 @@ public class PiServiceImpl implements PiService {
             vo.setPiNo(p.getPiNo());
             vo.setCustomerId(p.getCustomerId());
             vo.setCustomerName(InquiryLookups.customerName(customers.get(p.getCustomerId())));
+            vo.setCustomerCountry(customers.get(p.getCustomerId()) == null ? null : customers.get(p.getCustomerId()).getCountry());
+            vo.setCustomerType(customerTypes.get(p.getId()));
+            vo.setTotalQuantity(quantities.getOrDefault(p.getId(), 0));
             vo.setItemCount(p.getItemCount());
             vo.setCurrencyCode(p.getCurrencyCode());
             vo.setTotalAmount(p.getTotalAmount());
