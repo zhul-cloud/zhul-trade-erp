@@ -54,6 +54,13 @@ else
   wait_port 8899 "AI 编排服务($AI)" 15 ai
 fi
 
+echo "== LibreOffice（报价单 PDF / 图片导出与实时预览）"
+if [ -x /Applications/LibreOffice.app/Contents/MacOS/soffice ] || command -v soffice >/dev/null 2>&1; then
+  echo "  ✓ 已安装"
+else
+  echo "  ⚠ 没有找到 soffice：PDF / 图片导出和报价单预览不可用，Excel 导出不受影响（安装：brew install --cask libreoffice）"
+fi
+
 echo "== 后端"
 if listening 8080; then echo "  ✓ 8080 已被占用，视为已在运行"
 else
