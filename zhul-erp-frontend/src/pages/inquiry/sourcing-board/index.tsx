@@ -62,7 +62,7 @@ const TAB_HINT: Record<number, string> = {
     '「已回价」：已回齐、业务员还没报价的任务，可看回价、看修改记录、定成本价',
 };
 
-/** 分配工作台：采购负责人把待分配的询价任务交给合适的采购 */
+/** 询价分配：采购负责人把待分配的询价任务交给合适的采购 */
 const SourcingBoardPage: React.FC = () => {
   const wide = useWide();
   const { palette } = useAppTheme();
@@ -163,8 +163,8 @@ const SourcingBoardPage: React.FC = () => {
   return (
     <div>
       <PageTitle
-        crumbs={['分配工作台']}
-        title="分配工作台"
+        crumbs={['询价分配']}
+        title="询价分配"
         description="把待分配的询价任务交给合适的采购；推荐依据近 180 天的品牌熟悉度和当前负载。"
         actions={
           <>
@@ -697,7 +697,7 @@ const SourcingBoardPage: React.FC = () => {
               >
                 {board.purchasers.length === 0 ? (
                   <div style={{ color: palette.mute }}>
-                    还没有采购人员：给账号分配带「我的询价任务」菜单的角色（兼职采购用内置角色「兼职采购」）。
+                    还没有采购人员：给账号分配带「我的询价」菜单的角色（兼职采购用内置角色「兼职采购」）。
                   </div>
                 ) : (
                   <div style={{ display: 'grid', gap: 8 }}>

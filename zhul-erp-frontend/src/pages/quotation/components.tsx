@@ -43,7 +43,7 @@ export const QuotationStatusPill: React.FC<{ status: number }> = ({
   );
 };
 
-/** 面包屑「报价中心 / …」 */
+/** 面包屑「分组 / …」（报价单在业务管理、定价策略在业务设置，按页面路径取） */
 export const QuotationPageTitle: React.FC<
   Omit<React.ComponentProps<typeof PageTitle>, 'root'>
-> = (props) => <PageTitle root="报价中心" {...props} />;
+> = (props) => <PageTitle {...props} />;

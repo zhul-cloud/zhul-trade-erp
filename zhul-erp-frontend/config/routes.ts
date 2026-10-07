@@ -30,7 +30,8 @@ export default [
     ],
   },
   // 以下顶层业务菜单的先后顺序跟数据库「菜单管理」（resource 表）的 sort 值保持一致：
-  // 工作台(1) → 商品管理(2) → 询盘管理(3) → 报价中心(4) → 系统管理(98) → 租户管理(99)
+  // 侧边栏的分组、名称与顺序来自后端 resource 表（按部门：业务管理、采购管理、财务管理、商品资料、业务设置、系统管理），
+  // 这里只负责路由与 access；页面路径沿用原来的前缀，与侧边栏分组无关（见 src/utils/menuGroup.ts）
   {
     path: '/dashboard',
     name: 'dashboard',
@@ -50,7 +51,7 @@ export default [
     name: 'product',
     icon: 'shopping',
     // 父路由也要挂 access，理由同 /tenant、/inquiry
-    access: 'productList',
+    access: 'productMenu',
     routes: [
       { path: '/product', redirect: '/product/products' },
       {
@@ -89,7 +90,7 @@ export default [
       },
     ],
   },
-  // 客户管理、供应商管理各自一个一级菜单（原「客商管理」拆分），后续评分页面挂在各自目录下
+  // 客户（业务管理）、供应商（采购管理）的页面路由，后续评分页面挂在各自目录下
   {
     path: '/customer',
     name: 'customer',
@@ -321,11 +322,27 @@ export default [
     ],
   },
   {
+    path: '/finance',
+    name: 'finance',
+    icon: 'wallet',
+    access: 'financeMenu',
+    routes: [
+      { path: '/finance', redirect: '/finance/receipts' },
+      {
+        path: '/finance/receipts',
+        name: 'receipts',
+        icon: 'audit',
+        access: 'financeReceipts',
+        component: './finance/receipts',
+      },
+    ],
+  },
+  {
     path: '/system',
     name: 'system',
     icon: 'setting',
     // 父路由也要挂 access，理由同 /tenant、/inquiry
-    access: 'systemUser',
+    access: 'systemGroup',
     routes: [
       { path: '/system', redirect: '/system/user' },
       {
@@ -392,6 +409,13 @@ export default [
         component: './system/bank-account',
       },
       {
+        path: '/system/document-numbering',
+        name: 'documentNumbering',
+        icon: 'number',
+        access: 'systemDocumentNumbering',
+        component: './system/document-numbering',
+      },
+      {
         path: '/system/config',
         name: 'config',
         icon: 'tool',
@@ -420,7 +444,7 @@ export default [
     icon: 'cluster',
     // 父路由也要挂 access：子路由各自的 access 只挡得住子页面本身，挡不住这个父分组
     // 在侧边栏里露出来（umi 的菜单渲染不会因为子路由全部无权限就自动隐藏父分组）
-    access: 'tenantList',
+    access: 'tenantMenu',
     routes: [
       { path: '/tenant', redirect: '/tenant/list' },
       {

@@ -1,8 +1,4 @@
-import {
-  InfoCircleOutlined,
-  NumberOutlined,
-  PlusOutlined,
-} from '@ant-design/icons';
+import { InfoCircleOutlined, PlusOutlined } from '@ant-design/icons';
 import { useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import {
@@ -16,7 +12,6 @@ import {
   Space,
   Table,
 } from 'antd';
-import dayjs from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
 import { Card, PageTitle, Pill } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
@@ -25,12 +20,9 @@ import { useAppTheme } from '@/theme/AppTheme';
 import {
   type BankAccount,
   bankAccountApi,
-  prefixApi,
   readBizError,
   type SaveBankAccount,
 } from './service';
-
-const PREFIX_RULE = /^[A-Z]{2,4}$/;
 
 // ---------------------------------------------------------------- 新增 / 编辑
 
@@ -162,130 +154,6 @@ const AccountModal: React.FC<{
         </Form>
       )}
     </Modal>
-  );
-};
-
-// ---------------------------------------------------------------- 单据前缀
-
-const PrefixCard: React.FC<{ editable: boolean }> = ({ editable }) => {
-  const { message } = App.useApp();
-  const { palette } = useAppTheme();
-  const [saved, setSaved] = useState<string>();
-  const [value, setValue] = useState('');
-  const [busy, setBusy] = useState(false);
-
-  useEffect(() => {
-    prefixApi
-      .get()
-      .then((r) => {
-        setSaved(r.prefix);
-        setValue(r.prefix);
-      })
-      .catch(() => setSaved(''));
-  }, []);
-
-  const v = value.trim();
-  const invalid = v !== '' && !PREFIX_RULE.test(v);
-  const today = dayjs().format('YYYYMMDD');
-  const shown = invalid ? (saved ?? '') : v;
-  const samples: [string, boolean][] = [
-    ['QT', true],
-    ['PI', true],
-    ['CI', true],
-    ['SO', false],
-    ['IQ', false],
-  ];
-
-  const save = async () => {
-    setBusy(true);
-    try {
-      const r = await prefixApi.save(v);
-      setSaved(r.prefix);
-      setValue(r.prefix);
-      message.success(
-        r.prefix ? `单据前缀已改为 ${r.prefix}` : '已去掉单据前缀',
-      );
-    } catch (e) {
-      message.error(readBizError(e).message);
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  return (
-    <Card style={{ padding: 20, marginTop: 16 }}>
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8,
-          marginBottom: 12,
-        }}
-      >
-        <NumberOutlined style={{ color: palette.link }} />
-        <b style={{ color: palette.ink }}>单据编号前缀（系统设置）</b>
-      </div>
-      {saved === undefined ? (
-        <Skeleton active paragraph={{ rows: 2 }} />
-      ) : (
-        <div
-          style={{
-            display: 'flex',
-            gap: 24,
-            flexWrap: 'wrap',
-            alignItems: 'flex-start',
-          }}
-        >
-          <div style={{ width: 220 }}>
-            <div style={{ fontSize: 13, color: palette.sub, marginBottom: 6 }}>
-              前缀
-            </div>
-            <Space.Compact style={{ width: '100%' }}>
-              <Input
-                value={value}
-                maxLength={4}
-                disabled={!editable}
-                placeholder="如 FW，可留空"
-                status={invalid ? 'error' : undefined}
-                onChange={(e) => setValue(e.target.value.toUpperCase())}
-                aria-label="单据前缀"
-              />
-              {editable && (
-                <Button
-                  type="primary"
-                  loading={busy}
-                  disabled={invalid || v === saved}
-                  onClick={save}
-                >
-                  保存
-                </Button>
-              )}
-            </Space.Compact>
-            {invalid && (
-              <div style={{ fontSize: 12, color: palette.red, marginTop: 4 }}>
-                单据前缀只能是 2–4 位大写字母
-              </div>
-            )}
-          </div>
-          <div>
-            <div style={{ fontSize: 13, color: palette.sub, marginBottom: 6 }}>
-              预览
-            </div>
-            <Space size={8} wrap>
-              {samples.map(([type, external]) => (
-                <Pill key={type} tone={external ? 'accent' : 'gray'}>
-                  {`${external ? shown : ''}${type}${today}001`}
-                </Pill>
-              ))}
-            </Space>
-          </div>
-        </div>
-      )}
-      <div style={{ fontSize: 12, color: palette.mute, marginTop: 12 }}>
-        只加在对外单据（报价单、PI、CI、PL、采购单、借项 /
-        贷项通知单、对账单）上；询盘、销售订单等内部单据不加。不含连字符等符号，避免客户系统不支持；修改前缀只影响之后新建的单据。
-      </div>
-    </Card>
   );
 };
 
@@ -446,7 +314,6 @@ const BankAccountPage: React.FC = () => {
   return (
     <div>
       <PageTitle
-        root="系统管理"
         crumbs={['收款账户']}
         title="收款账户"
         description="显示在 PI 等对外单据上的收款银行信息；开 PI 时按币种带出默认账户。"
@@ -496,12 +363,12 @@ const BankAccountPage: React.FC = () => {
         >
           <InfoCircleOutlined style={{ color: palette.link }} />
           账号在列表与日志中只显示后 4 位，PI
-          上显示完整账号。停用默认账户前要先把同币种的另一个账户设为默认。
+          上显示完整账号。停用默认账户前要先把同币种的另一个账户设为默认。单据前缀在「业务设置
+          → 单据编号」设置。
           {missing.length > 0 &&
             `${missing.join('、')} 还没有启用的账户：这些币种的 PI 可以存草稿，发送时提示添加。`}
         </div>
       )}
-      <PrefixCard editable={!!access['system:config:edit']} />
       <AccountModal
         open={modalOpen}
         editing={editing}

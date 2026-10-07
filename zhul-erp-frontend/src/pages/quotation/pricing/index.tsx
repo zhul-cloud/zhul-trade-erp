@@ -116,7 +116,7 @@ const PricingStrategyPage: React.FC = () => {
 
   useEffect(() => {
     load();
-    // 汇率卡片：没有「汇率设置」菜单权限时不显示
+    // 汇率卡片：没有「汇率」菜单权限时不显示
     exchangeRateApi
       .list()
       .then(setRates)
@@ -519,7 +519,7 @@ const PricingStrategyPage: React.FC = () => {
                   fontWeight: 600,
                 }}
               >
-                <LockOutlined /> 汇率在「系统管理 → 汇率设置」统一维护
+                <LockOutlined /> 汇率在「业务设置 → 汇率」统一维护
               </div>
               <div
                 style={{
@@ -540,7 +540,7 @@ const PricingStrategyPage: React.FC = () => {
                 icon={<ArrowRightOutlined />}
                 onClick={() => history.push('/system/exchange-rate')}
               >
-                前往汇率设置
+                前往汇率
               </Button>
             </Card>
           )}

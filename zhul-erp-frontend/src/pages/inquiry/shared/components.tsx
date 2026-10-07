@@ -1,3 +1,4 @@
+import { useLocation } from '@umijs/max';
 import { Breadcrumb, Grid } from 'antd';
 import dayjs from 'dayjs';
 import React from 'react';
@@ -12,6 +13,7 @@ import {
   useDictOptions,
 } from '@/utils/dict';
 import { formatAmount } from '@/utils/format';
+import { menuGroupOf } from '@/utils/menuGroup';
 import {
   channelLabel,
   conditionTone,
@@ -25,15 +27,17 @@ export { Card, FileChip, Pill } from '@/pages/crm/opportunity/components';
 /** 宽屏（≥1200px）左右两栏，窄屏上下排列 */
 export const useWide = () => !!Grid.useBreakpoint().xl;
 
-/** 面包屑「询盘管理 / …」+ 标题 + 右侧操作；root 为面包屑第一级（默认询盘管理） */
+/** 面包屑「分组 / …」+ 标题 + 右侧操作；root 为面包屑第一级（默认按当前页面路径取侧边栏分组） */
 export const PageTitle: React.FC<{
   crumbs: React.ReactNode[];
   title: React.ReactNode;
   description?: React.ReactNode;
   actions?: React.ReactNode;
   root?: string;
-}> = ({ crumbs, title, description, actions, root = '询盘管理' }) => {
+}> = ({ crumbs, title, description, actions, root }) => {
   const { palette } = useAppTheme();
+  const { pathname } = useLocation();
+  const group = root ?? menuGroupOf(pathname);
   return (
     <header
       style={{
@@ -47,7 +51,7 @@ export const PageTitle: React.FC<{
     >
       <div style={{ minWidth: 0 }}>
         <Breadcrumb
-          items={[root, ...crumbs].map((c) => ({ title: c }))}
+          items={[group, ...crumbs].map((c) => ({ title: c }))}
           style={{ fontSize: 13 }}
         />
         <h1

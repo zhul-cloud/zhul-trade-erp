@@ -1,3 +1,4 @@
+import { useSearchParams } from '@umijs/max';
 import { DatePicker, Segmented, Skeleton, Table } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import React, { useEffect, useState } from 'react';
@@ -42,8 +43,13 @@ export const rate = (valid: number, total: number) =>
 
 const StatsPanel: React.FC = () => {
   const { palette } = useAppTheme();
-  const [preset, setPreset] = useState<Preset>('week');
-  const [range, setRange] = useState<[Dayjs, Dayjs]>(rangeOf('week'));
+  // 从工作台商机统计卡片点「查看完整统计」时带 ?preset=，沿用卡片上选的区间
+  const [search] = useSearchParams();
+  const initial = PRESETS.some((p) => p.value === search.get('preset'))
+    ? (search.get('preset') as Preset)
+    : 'week';
+  const [preset, setPreset] = useState<Preset>(initial);
+  const [range, setRange] = useState<[Dayjs, Dayjs]>(rangeOf(initial));
   const [groupBy, setGroupBy] = useState<GroupBy>('channel');
   const [data, setData] = useState<OpportunityStats | null>(null);
   const [loading, setLoading] = useState(true);

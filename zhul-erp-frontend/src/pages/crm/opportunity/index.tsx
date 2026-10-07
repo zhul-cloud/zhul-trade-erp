@@ -298,7 +298,7 @@ const OpportunityPage: React.FC = () => {
   return (
     <div style={{ color: palette.ink }}>
       <PageTitle
-        title="商机列表"
+        title="商机"
         description="记录每个新客户从首次接触到赢单的过程；老客户的新需求请直接新建询盘。"
         actions={
           canAdd && (

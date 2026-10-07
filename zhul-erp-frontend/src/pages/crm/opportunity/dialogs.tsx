@@ -127,7 +127,7 @@ type EditFile = {
   localUrl?: string;
 };
 
-/** 编辑商机：渠道、首次接触日期、需求摘要与附件；客户信息在客户管理维护 */
+/** 编辑商机：渠道、首次接触日期、需求摘要与附件；客户信息在「业务管理 → 客户」维护 */
 export const EditModal: React.FC<{
   detail: OpportunityDetail | null;
   onClose: () => void;

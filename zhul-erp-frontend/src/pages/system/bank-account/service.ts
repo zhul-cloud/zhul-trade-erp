@@ -61,16 +61,3 @@ export const bankAccountApi = {
   setEnabled: (id: number, enabled: boolean) =>
     send<void>('PUT', `${API}/${id}/enabled`, undefined, { enabled }),
 };
-
-export const prefixApi = {
-  get: () =>
-    get<{ prefix: string }>('/api/v1/system/document-numbering/prefix'),
-  save: (prefix: string) =>
-    send<{ prefix: string }>(
-      'PUT',
-      '/api/v1/system/document-numbering/prefix',
-      {
-        prefix,
-      },
-    ),
-};

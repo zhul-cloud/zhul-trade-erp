@@ -20,6 +20,7 @@ import {
 import React, { useEffect, useState } from 'react';
 import { useCountries } from '@/pages/product/components/useCountries';
 import { useAppTheme } from '@/theme/AppTheme';
+import { menuGroupOf } from '@/utils/menuGroup';
 import {
   CJK_PATTERN,
   ENGLISH_ONLY_MESSAGE,
@@ -106,10 +107,8 @@ export const PageTitle: React.FC<{
 }> = ({ title, current, description, actions }) => {
   const { palette } = useAppTheme();
   const items = [
-    { title: '客户管理' },
-    current
-      ? { title: <Link to={LIST_PATH}>客户列表</Link> }
-      : { title: '客户列表' },
+    { title: menuGroupOf(LIST_PATH) },
+    current ? { title: <Link to={LIST_PATH}>客户</Link> } : { title: '客户' },
     ...(current ? [{ title: current }] : []),
   ];
   return (

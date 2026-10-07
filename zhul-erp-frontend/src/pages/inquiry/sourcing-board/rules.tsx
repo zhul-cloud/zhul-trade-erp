@@ -225,7 +225,7 @@ const AssignRulesPage: React.FC = () => {
       <PageTitle
         crumbs={[
           <Link key="b" to={PATHS.board}>
-            分配工作台
+            询价分配
           </Link>,
           '分配规则',
         ]}

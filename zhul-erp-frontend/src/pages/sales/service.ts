@@ -215,6 +215,35 @@ export interface PiQuery {
   pageSize: number;
 }
 
+export interface ReceiptDeskRow {
+  piId: number;
+  piNo: string;
+  piStatus: number;
+  customerId: number;
+  customerName: string;
+  ownerId: number;
+  ownerName?: string;
+  currencyCode: string;
+  totalAmount: number;
+  receivedAmount: number;
+  feeDiffAmount: number;
+  remainingAmount: number;
+  receiptStatus: number;
+  receiptStatusName: string;
+  orderId?: number;
+  soNo?: string;
+  pendingSlips: Receipt[];
+  earliestSlipDate?: string;
+}
+
+export interface ReceiptDeskQuery {
+  keyword?: string;
+  receiptStatus?: number;
+  all?: boolean;
+  page: number;
+  pageSize: number;
+}
+
 export interface CandidateLine {
   quotationItemId: number;
   lineNo: number;
@@ -534,6 +563,13 @@ export const piApi = {
   receiptSettings: () =>
     get<{ feeTolerance: number }>(`${PI}/receipt-settings`),
   convert: (id: number) => send<Order>('POST', `${PI}/${id}/convert`),
+  /** 财务管理 → 到账登记 */
+  receiptDesk: (q: ReceiptDeskQuery) =>
+    send<{ total: number; records: ReceiptDeskRow[] }>(
+      'POST',
+      `${PI}/receipt-desk`,
+      q,
+    ),
 };
 
 export const orderApi = {

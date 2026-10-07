@@ -2,6 +2,7 @@ import { Link } from '@umijs/max';
 import { Breadcrumb } from 'antd';
 import React from 'react';
 import { useAppTheme } from '@/theme/AppTheme';
+import { menuGroupOf } from '@/utils/menuGroup';
 import {
   labelOf,
   SUPPLIER_TYPE_OPTIONS,
@@ -74,10 +75,10 @@ export const PageTitle: React.FC<{
 }> = ({ title, current, description, actions }) => {
   const { palette } = useAppTheme();
   const items = [
-    { title: '供应商管理' },
+    { title: menuGroupOf(LIST_PATH) },
     current
-      ? { title: <Link to={LIST_PATH}>供应商列表</Link> }
-      : { title: '供应商列表' },
+      ? { title: <Link to={LIST_PATH}>供应商</Link> }
+      : { title: '供应商' },
     ...(current ? [{ title: current }] : []),
   ];
   return (

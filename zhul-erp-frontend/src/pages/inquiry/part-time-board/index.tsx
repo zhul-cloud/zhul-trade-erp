@@ -153,7 +153,7 @@ const TodoRow: React.FC<{ task: MyTask }> = ({ task: t }) => {
   );
 };
 
-/** 兼职工作台：兼职采购登录后的首页，看自己的待办和回价统计 */
+/** 兼职看板：兼职采购登录后的首页，看自己的待办和回价统计 */
 const PartTimeBoardPage: React.FC = () => {
   const wide = useWide();
   const { palette } = useAppTheme();
@@ -180,8 +180,8 @@ const PartTimeBoardPage: React.FC = () => {
   return (
     <div>
       <PageTitle
-        crumbs={['兼职工作台']}
-        title={name ? `你好，${name}` : '兼职工作台'}
+        crumbs={['兼职看板']}
+        title={name ? `你好，${name}` : '兼职看板'}
         description="分配给你的询价任务和本月回价情况，点任务直接去填价。"
         actions={
           <Button type="primary" onClick={() => history.push(PATHS.myTasks)}>

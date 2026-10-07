@@ -53,7 +53,9 @@ const SupplierSelect: React.FC<{
       loading={loading}
       options={merged}
       showSearch={{ onSearch: search, filterOption: false }}
-      notFoundContent={loading ? '搜索中…' : '没有找到，请先在供应商管理中新建'}
+      notFoundContent={
+        loading ? '搜索中…' : '没有找到，请先在「采购管理 → 供应商」中新建'
+      }
       onChange={(v?: number) =>
         onChange(v, merged.find((o) => o.value === v)?.label ?? '')
       }

@@ -13,13 +13,22 @@ export default function access(initialState: {
   const can = (key: string) => perms.has(key);
   // 商品主数据是平台共享数据：写按钮除了权限码，还要求平台账号（服务端同样会校验）
   const platform = isPlatformAccount();
+  // 父级路由（/inquiry、/system 等）只是把页面路径归在一起，侧边栏分组由后端菜单决定、和路径前缀无关；
+  // 父级路由的 access 取「任一子页面可访问」，否则只有某个子页面权限的人会被父级路由拦掉
+  const any = (...keys: string[]) => keys.some(can);
   const canWrite = (key: string) => platform && can(key);
 
   return {
     canAdmin: isAdmin,
     // 菜单级
     dashboard: can('/dashboard'),
-    inquiryMenu: can('/inquiry'),
+    inquiryMenu: any(
+      '/inquiry/customer-inquiries',
+      '/inquiry/sourcing-board',
+      '/inquiry/my-tasks',
+      '/inquiry/price-history',
+      '/inquiry/part-time-board',
+    ),
     // 商机管理：crmMenu 是两个子菜单任一为真，供 /crm 父路由的 access 用
     crmOpportunity: can('/crm/opportunities'),
     crmOpportunityStats: can('/crm/opportunity-stats'),
@@ -36,16 +45,34 @@ export default function access(initialState: {
     'inquiry:supplier:view': can('inquiry:supplier:view'),
     'inquiry:quote:review': can('inquiry:quote:review'),
     // 报价中心
-    quotationMenu: can('/quotation'),
+    quotationMenu: any('/quotation/quotations', '/quotation/pricing'),
     quotationList: can('/quotation/quotations'),
     quotationPricing: can('/quotation/pricing'),
     'quotation:pricing:edit': can('quotation:pricing:edit'),
     // 销售管理
-    salesMenu: can('/sales/pi') || can('/sales/orders'),
+    salesMenu: any('/sales/pi', '/sales/orders'),
+    // 财务管理
+    financeMenu: any('/finance/receipts'),
+    financeReceipts: can('/finance/receipts'),
     salesPi: can('/sales/pi'),
     salesOrders: can('/sales/orders'),
     'sales:pi:receipt-slip': can('sales:pi:receipt-slip'),
     'sales:pi:receipt-confirm': can('sales:pi:receipt-confirm'),
+    systemGroup: any(
+      '/system/user',
+      '/system/role',
+      '/system/menu',
+      '/system/dept',
+      '/system/position',
+      '/system/dict',
+      '/system/config',
+      '/system/exchange-rate',
+      '/system/document-template',
+      '/system/bank-account',
+      '/system/document-numbering',
+      '/system/log/operate',
+      '/system/log/login',
+    ),
     systemUser: can('/system/user'),
     systemRole: can('/system/role'),
     systemMenu: can('/system/menu'),
@@ -56,6 +83,8 @@ export default function access(initialState: {
     systemExchangeRate: can('/system/exchange-rate'),
     systemDocumentTemplate: can('/system/document-template'),
     systemBankAccount: can('/system/bank-account'),
+    systemDocumentNumbering: can('/system/document-numbering'),
+    'system:document-numbering:edit': can('system:document-numbering:edit'),
     'system:bank-account:edit': can('system:bank-account:edit'),
     'system:exchange-rate:edit': can('system:exchange-rate:edit'),
     'system:document-template:edit': can('system:document-template:edit'),
@@ -64,11 +93,18 @@ export default function access(initialState: {
     // 租户/套餐管理入口本身也要求平台账号：admin_flag=1 对任何租户管理员都成立，
     // 光靠 can() 区分不出"平台超管"和"租户内超管"，得再叠加 isPlatformAccount()
     tenantList: canWrite('/tenant/list'),
+    tenantMenu: canWrite('/tenant/list') || canWrite('/tenant/package'),
     tenantPackage: canWrite('/tenant/package'),
     productBrand: can('/product/brands'),
     productCategory: can('/product/categories'),
     productSeries: can('/product/series'),
     productList: can('/product/products'),
+    productMenu: any(
+      '/product/products',
+      '/product/brands',
+      '/product/categories',
+      '/product/series',
+    ),
     // 客户管理、供应商管理：目录 access 目前等于列表页，以后加评分页时改成任一子页为真
     customerList: can('/customer/list'),
     customerMenu: can('/customer/list'),

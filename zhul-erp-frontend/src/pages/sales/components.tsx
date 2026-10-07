@@ -81,10 +81,10 @@ export const OrderStatusPill: React.FC<{ status: number }> = ({ status }) => (
   <StatusPill meta={ORDER_META} status={status} />
 );
 
-/** 面包屑「销售管理 / …」 */
+/** 面包屑「业务管理 / …」（按页面路径取分组） */
 export const SalesPageTitle: React.FC<
   Omit<React.ComponentProps<typeof PageTitle>, 'root'>
-> = (props) => <PageTitle root="销售管理" {...props} />;
+> = (props) => <PageTitle {...props} />;
 
 /** 买方 / 收货人的一行地址 */
 export const partyAddress = (p?: {

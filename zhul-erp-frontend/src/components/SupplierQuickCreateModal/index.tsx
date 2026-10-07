@@ -137,7 +137,7 @@ const SupplierQuickCreateModal: React.FC<SupplierQuickCreateModalProps> = ({
         label="主营品牌"
         mode="tags"
         placeholder="搜索或输入品牌，可多选"
-        extra="清单里没有的品牌可直接输入，保存为待确认品牌；细分品类可稍后在供应商管理中补充"
+        extra="清单里没有的品牌可直接输入，保存为待确认品牌；细分品类可稍后在「采购管理 → 供应商」中补充"
         options={brands.map((b) => ({
           value: b.brandName,
           label: b.brandName,

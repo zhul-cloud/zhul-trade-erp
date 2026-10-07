@@ -694,7 +694,7 @@ const ConfirmPage: React.FC = () => {
                   </div>
                 ))}
                 <div style={{ color: palette.mute, fontSize: 12 }}>
-                  <ApartmentOutlined /> 确认后进入分配工作台，由采购负责人分配。
+                  <ApartmentOutlined /> 确认后进入询价分配，由采购负责人分配。
                 </div>
               </div>
             )}

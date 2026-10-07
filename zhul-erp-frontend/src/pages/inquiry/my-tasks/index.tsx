@@ -119,7 +119,7 @@ const entryError = (e: DraftEntry) => {
   return '';
 };
 
-/** 我的询价任务：只看分配给自己的任务，逐个型号录入各渠道的询价结果 */
+/** 我的询价：只看分配给自己的任务，逐个型号录入各渠道的询价结果 */
 const MyTasksPage: React.FC = () => {
   const wide = useWide();
   const { palette } = useAppTheme();
@@ -129,7 +129,7 @@ const MyTasksPage: React.FC = () => {
   const { lifecycleOptions } = useLifecycles();
   const [done, setDone] = useState(false);
   const [tasks, setTasks] = useState<MyTask[] | null>(null);
-  // 从兼职工作台点进来时带 ?task=任务ID，直接打开该任务
+  // 从兼职看板点进来时带 ?task=任务ID，直接打开该任务
   const [activeId, setActiveId] = useState<number | undefined>(() => {
     const id = Number(new URLSearchParams(window.location.search).get('task'));
     return Number.isInteger(id) && id > 0 ? id : undefined;
@@ -353,8 +353,8 @@ const MyTasksPage: React.FC = () => {
   return (
     <div>
       <PageTitle
-        crumbs={['我的询价任务']}
-        title="我的询价任务"
+        crumbs={['我的询价']}
+        title="我的询价"
         description="逐个型号问价，填好提交即可；也可以下载询价包在 Excel 里填，填完上传回来。"
         actions={
           <>

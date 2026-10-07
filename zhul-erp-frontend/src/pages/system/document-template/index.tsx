@@ -307,7 +307,6 @@ const DocumentTemplatePage: React.FC = () => {
   return (
     <div>
       <PageTitle
-        root="系统管理"
         crumbs={['单据模版']}
         title="单据模版"
         description="报价单、PI、CI、PL 与文字报价统一管理；每类单据只有一个默认版本，所有业务员导出都用它。"
