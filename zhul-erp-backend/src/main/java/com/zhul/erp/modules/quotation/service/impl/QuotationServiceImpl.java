@@ -1,6 +1,7 @@
 package com.zhul.erp.modules.quotation.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.zhul.erp.common.exception.BizException;
 import com.zhul.erp.common.result.PageResult;
 import com.zhul.erp.framework.security.DataScope;
@@ -31,15 +32,18 @@ import com.zhul.erp.modules.quotation.entity.QuotationDO;
 import com.zhul.erp.modules.quotation.entity.QuotationFeeDO;
 import com.zhul.erp.modules.quotation.entity.QuotationItemDO;
 import com.zhul.erp.modules.quotation.entity.QuotationSendLogDO;
+import com.zhul.erp.modules.quotation.entity.QuotationVersionDO;
 import com.zhul.erp.modules.quotation.repository.QuotationFeeMapper;
 import com.zhul.erp.modules.quotation.repository.QuotationItemMapper;
 import com.zhul.erp.modules.quotation.repository.QuotationMapper;
 import com.zhul.erp.modules.quotation.repository.QuotationSendLogMapper;
+import com.zhul.erp.modules.quotation.repository.QuotationVersionMapper;
 import com.zhul.erp.modules.quotation.service.QuotationService;
 import com.zhul.erp.modules.quotation.support.InquiryStatusSync;
 import com.zhul.erp.modules.quotation.support.PricingSettings;
 import com.zhul.erp.modules.quotation.support.PricingStrategy;
 import com.zhul.erp.modules.quotation.support.QuotationCalculator;
+import com.zhul.erp.modules.quotation.support.QuotationPis;
 import com.zhul.erp.modules.quotation.support.QuotationPricing;
 import com.zhul.erp.modules.quotation.support.QuotationRenderModels;
 import com.zhul.erp.modules.quotation.support.QuotationStore;
@@ -91,6 +95,8 @@ public class QuotationServiceImpl implements QuotationService {
     private final QuotationItemMapper itemMapper;
     private final QuotationFeeMapper feeMapper;
     private final QuotationSendLogMapper sendLogMapper;
+    private final QuotationVersionMapper versionMapper;
+    private final QuotationPis quotationPis;
     private final CustomerInquiryMapper inquiryMapper;
     private final InquiryItemMapper inquiryItemMapper;
     private final CustomerMapper customerMapper;
@@ -187,7 +193,7 @@ public class QuotationServiceImpl implements QuotationService {
         q.setTotalAmountCny(BigDecimal.ZERO);
         insertWithNo(q);
 
-        List<QuotationItemDO> lines = newLines(q, picked, inquiries, 1);
+        List<QuotationItemDO> lines = newLines(q, picked, inquiries, 1, 1, 1);
         lines.forEach(itemMapper::insert);
         QuotationCalculator.applyTotals(q, lines, List.of());
         quotationMapper.updateById(q);
@@ -202,8 +208,9 @@ public class QuotationServiceImpl implements QuotationService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public QuotationVO addItems(Long id, AddQuotationItemsRequest req) {
-        QuotationDO q = store.requireDraft(id);
-        List<QuotationItemDO> existing = store.items(id);
+        QuotationStore.Edit e = store.editable(id);
+        QuotationDO q = e.header();
+        List<QuotationItemDO> existing = store.items(id, e.versionNo());
         Set<Long> already = existing.stream().map(QuotationItemDO::getInquiryItemId).collect(Collectors.toSet());
         List<InquiryItemDO> items = activeItems(req.getItemIds()).stream().filter(i -> !already.contains(i.getId())).toList();
         if (items.isEmpty()) {
@@ -228,18 +235,18 @@ public class QuotationServiceImpl implements QuotationService {
             picked.add(c);
         }
         int next = existing.stream().mapToInt(i -> nz(i.getLineNo())).max().orElse(0) + 1;
-        List<QuotationItemDO> lines = newLines(q, picked, inquiries, next);
+        List<QuotationItemDO> lines = newLines(q, picked, inquiries, next, e.versionNo(), e.current());
         lines.forEach(itemMapper::insert);
         List<QuotationItemDO> all = new ArrayList<>(existing);
         all.addAll(lines);
-        QuotationCalculator.applyTotals(q, all, store.fees(id));
-        quotationMapper.updateById(q);
+        QuotationCalculator.applyTotals(q, all, store.fees(id, e.versionNo()));
+        store.saveHeader(e);
         return detail(id);
     }
 
     /** 由候选型号生成报价行：带出采购成本价、货况货期、建议毛利率与售价、转人工提示 */
     private List<QuotationItemDO> newLines(QuotationDO q, List<QuoteCandidates.Candidate> picked,
-                                           Map<Long, CustomerInquiryDO> inquiries, int firstLineNo) {
+                                           Map<Long, CustomerInquiryDO> inquiries, int firstLineNo, int versionNo, int current) {
         PricingStrategy strategy = pricingSettings.load(q.getTenantId());
         Map<Integer, String> conditionNames = dictItemService.intLabels(QuotationConstants.DICT_CONDITION);
         Set<String> premiumKeys = strategy.premiumBrands().stream().map(b -> priceKeys.brand(b).brandKey()).collect(Collectors.toSet());
@@ -251,6 +258,8 @@ public class QuotationServiceImpl implements QuotationService {
             QuotationItemDO line = new QuotationItemDO();
             line.setTenantId(q.getTenantId());
             line.setQuotationId(q.getId());
+            line.setVersionNo(versionNo);
+            line.setIsCurrent(current);
             line.setLineNo(lineNo++);
             line.setCustomerInquiryId(src.getCustomerInquiryId());
             line.setInquiryItemId(src.getId());
@@ -302,24 +311,24 @@ public class QuotationServiceImpl implements QuotationService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public QuotationVO save(Long id, SaveQuotationRequest req) {
-        QuotationDO q = store.requireDraft(id);
+        store.editable(id);
         quotationMapper.lockById(id);
-        q = store.requireDraft(id);
-        QuotationStore.Applied applied = store.apply(q, store.items(id), req);
-        quotationMapper.updateById(q);
+        QuotationStore.Edit e = store.editable(id);
+        QuotationStore.Applied applied = store.apply(e.header(), e.versionNo(), store.items(id, e.versionNo()), req);
+        store.saveHeader(e);
         applied.items().forEach(itemMapper::updateById);
         LocalDateTime now = LocalDateTime.now();
         for (QuotationItemDO removed : applied.removed()) {
             removed.setDeletedAt(now);
             itemMapper.updateById(removed);
         }
-        replaceFees(q, applied.fees());
+        replaceFees(id, e.versionNo(), applied.fees());
         return detail(id);
     }
 
     /** 费用行按位置复用已有行，多出的软删除 */
-    private void replaceFees(QuotationDO q, List<QuotationFeeDO> fees) {
-        List<QuotationFeeDO> old = store.fees(q.getId());
+    private void replaceFees(Long id, int versionNo, List<QuotationFeeDO> fees) {
+        List<QuotationFeeDO> old = store.fees(id, versionNo);
         for (int i = 0; i < Math.max(old.size(), fees.size()); i++) {
             if (i < fees.size() && i < old.size()) {
                 QuotationFeeDO target = old.get(i);
@@ -342,12 +351,13 @@ public class QuotationServiceImpl implements QuotationService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public QuotationVO recalcRate(Long id) {
-        QuotationDO q = store.requireDraft(id);
+        QuotationStore.Edit e = store.editable(id);
+        QuotationDO q = e.header();
         ExchangeRateService.Snapshot rate = exchangeRateService.require(q.getCurrencyCode());
         BigDecimal before = q.getExchangeRate();
         q.setExchangeRate(rate.rate());
         q.setRateTime(rate.rateTime());
-        List<QuotationItemDO> items = store.items(id);
+        List<QuotationItemDO> items = store.items(id, e.versionNo());
         for (QuotationItemDO item : items) {
             // 直接改过外币售价的行，按当时的毛利率重算
             if (item.getPricingMode() == QuotationPricing.MODE_PRICE && item.getCostPrice() != null && item.getMarginRate() != null
@@ -357,10 +367,10 @@ public class QuotationServiceImpl implements QuotationService {
             QuotationCalculator.applyLine(item, q.getExchangeRate());
             itemMapper.updateById(item);
         }
-        List<QuotationFeeDO> fees = store.fees(id);
+        List<QuotationFeeDO> fees = store.fees(id, e.versionNo());
         QuotationCalculator.applyTotals(q, items, fees);
         fees.forEach(feeMapper::updateById);
-        quotationMapper.updateById(q);
+        store.saveHeader(e);
         logService.recordOperateLog(QuotationConstants.MENU, "按新汇率重算",
                 Map.of("quotationNo", q.getQuotationNo(), "rate", before.toPlainString()),
                 Map.of("quotationNo", q.getQuotationNo(), "rate", rate.rate().toPlainString()));
@@ -395,34 +405,187 @@ public class QuotationServiceImpl implements QuotationService {
         }
         QuotationDO q = lockVisible(id);
         if (q.getStatus() == QuotationConstants.STATUS_DRAFT) {
-            List<QuotationItemDO> items = store.items(id);
-            if (items.isEmpty()) {
-                throw new BizException("报价单没有型号，不能发送");
-            }
-            for (QuotationItemDO i : items) {
-                if (i.getUnitPrice() == null || i.getUnitPrice().signum() <= 0) {
-                    throw new BizException("第 " + i.getLineNo() + " 行（" + i.getModel() + "）还没有售价");
-                }
-            }
+            requirePrices(store.items(id));
             Set<Long> inquiryIds = statusSync.inquiryIdsOf(id);
             statusSync.lock(inquiryIds);
             q.setStatus(QuotationConstants.STATUS_SENT);
             q.setSentAt(LocalDateTime.now());
             quotationMapper.updateById(q);
+            insertSentVersion(q);
             statusSync.sync(inquiryIds);
             logService.recordOperateLog(QuotationConstants.MENU, "标为已发送", Map.of("quotationNo", q.getQuotationNo(), "status", "草稿"),
                     Map.of("quotationNo", q.getQuotationNo(), "status", "已发送", "channel", QuotationConstants.CHANNEL_NAMES.get(channel)));
+        } else if (q.getStatus() == QuotationConstants.STATUS_SENT && q.getEditingVersionNo() != null) {
+            q = sendRevision(q, channel);
         } else if (q.getStatus() != QuotationConstants.STATUS_SENT) {
             throw new BizException("报价单已" + QuotationConstants.STATUS_NAMES.get(q.getStatus()) + "，不能再标为已发送");
         }
         QuotationSendLogDO sendLog = new QuotationSendLogDO();
         sendLog.setTenantId(q.getTenantId());
         sendLog.setQuotationId(id);
+        sendLog.setVersionNo(q.getCurrentVersionNo());
         sendLog.setChannel(channel);
         sendLog.setSentBy(currentUserId());
         sendLog.setSentAt(LocalDateTime.now());
         sendLogMapper.insert(sendLog);
         return detail(id);
+    }
+
+    private static void requirePrices(List<QuotationItemDO> items) {
+        if (items.isEmpty()) {
+            throw new BizException("报价单没有型号，不能发送");
+        }
+        for (QuotationItemDO i : items) {
+            if (i.getUnitPrice() == null || i.getUnitPrice().signum() <= 0) {
+                throw new BizException("第 " + i.getLineNo() + " 行（" + i.getModel() + "）还没有售价");
+            }
+        }
+    }
+
+    /** 草稿第一次发送时保存 Rev.1 的表头快照 */
+    private void insertSentVersion(QuotationDO q) {
+        QuotationVersionDO v = new QuotationVersionDO();
+        v.setTenantId(q.getTenantId());
+        v.setQuotationId(q.getId());
+        v.setVersionNo(q.getCurrentVersionNo());
+        v.setStatus(QuotationConstants.VERSION_SENT);
+        QuotationStore.copyHeader(q, v);
+        v.setSentAt(q.getSentAt());
+        versionMapper.insert(v);
+    }
+
+    /** 发送修改中的新版本：新版本成为当前版本，表头写回报价单，客户询盘按新版本重新判断 */
+    private QuotationDO sendRevision(QuotationDO q, int channel) {
+        int from = q.getCurrentVersionNo();
+        int to = q.getEditingVersionNo();
+        requirePrices(store.items(q.getId(), to));
+        Set<Long> inquiryIds = new TreeSet<>(statusSync.inquiryIdsOf(q.getId()));
+        store.items(q.getId(), to).forEach(i -> inquiryIds.add(i.getCustomerInquiryId()));
+        statusSync.lock(inquiryIds);
+        LocalDateTime now = LocalDateTime.now();
+        flipCurrent(q.getId(), from, 0);
+        flipCurrent(q.getId(), to, 1);
+        QuotationVersionDO v = store.version(q.getId(), to);
+        v.setStatus(QuotationConstants.VERSION_SENT);
+        v.setSentAt(now);
+        versionMapper.updateById(v);
+        QuotationDO next = QuotationStore.overlay(q, v);
+        next.setCurrentVersionNo(to);
+        next.setEditingVersionNo(null);
+        quotationMapper.updateById(next);
+        statusSync.sync(inquiryIds);
+        logService.recordOperateLog(QuotationConstants.MENU, "发送新版本", Map.of("quotationNo", q.getQuotationNo(), "version", "Rev." + from),
+                Map.of("quotationNo", q.getQuotationNo(), "version", "Rev." + to, "channel", QuotationConstants.CHANNEL_NAMES.get(channel)));
+        log.info("报价单发送新版本，quotationNo={}, Rev.{} -> Rev.{}", q.getQuotationNo(), from, to);
+        return next;
+    }
+
+    private void flipCurrent(Long id, int versionNo, int current) {
+        LocalDateTime now = LocalDateTime.now();
+        itemMapper.update(null, new LambdaUpdateWrapper<QuotationItemDO>()
+                .set(QuotationItemDO::getIsCurrent, current).set(QuotationItemDO::getUpdateTime, now)
+                .eq(QuotationItemDO::getQuotationId, id).eq(QuotationItemDO::getVersionNo, versionNo));
+        feeMapper.update(null, new LambdaUpdateWrapper<QuotationFeeDO>()
+                .set(QuotationFeeDO::getIsCurrent, current).set(QuotationFeeDO::getUpdateTime, now)
+                .eq(QuotationFeeDO::getQuotationId, id).eq(QuotationFeeDO::getVersionNo, versionNo));
+    }
+
+    // ---------------------------------------------------------------- 版本
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public QuotationVO revise(Long id) {
+        QuotationDO q = lockVisible(id);
+        if (q.getStatus() != QuotationConstants.STATUS_SENT) {
+            throw new BizException(q.getStatus() == QuotationConstants.STATUS_DRAFT ? "草稿报价单可以直接修改"
+                    : "报价单已" + QuotationConstants.STATUS_NAMES.get(q.getStatus()) + "，不能出新版本");
+        }
+        if (q.getEditingVersionNo() != null) {
+            throw new BizException("已有修改中的 Rev." + q.getEditingVersionNo() + "，请先发送或放弃");
+        }
+        QuotationPis.Brief pi = quotationPis.activeOf(id);
+        if (pi != null) {
+            throw new BizException("已开 PI " + pi.piNo() + "，请在 PI 上修改");
+        }
+        int next = Math.max(maxVersionNo(id), q.getCurrentVersionNo()) + 1;
+        QuotationVersionDO v = new QuotationVersionDO();
+        v.setTenantId(q.getTenantId());
+        v.setQuotationId(id);
+        v.setVersionNo(next);
+        v.setStatus(QuotationConstants.VERSION_EDITING);
+        QuotationStore.copyHeader(q, v);
+        versionMapper.insert(v);
+        for (QuotationItemDO s : store.items(id)) {
+            QuotationItemDO line = copyLine(s);
+            line.setQuotationId(id);
+            line.setVersionNo(next);
+            line.setIsCurrent(0);
+            // 原样复制已算好的金额（不重算），新版本保存时再按编辑内容重算
+            line.setUnitPriceCny(s.getUnitPriceCny());
+            line.setAmount(s.getAmount());
+            line.setAmountCny(s.getAmountCny());
+            line.setNetProfit(s.getNetProfit());
+            line.setNetProfitCny(s.getNetProfitCny());
+            itemMapper.insert(line);
+        }
+        for (QuotationFeeDO s : store.fees(id)) {
+            QuotationFeeDO f = new QuotationFeeDO();
+            f.setTenantId(s.getTenantId());
+            f.setQuotationId(id);
+            f.setVersionNo(next);
+            f.setIsCurrent(0);
+            f.setFeeName(s.getFeeName());
+            f.setAmount(s.getAmount());
+            f.setAmountCny(s.getAmountCny());
+            f.setSortOrder(s.getSortOrder());
+            feeMapper.insert(f);
+        }
+        q.setEditingVersionNo(next);
+        quotationMapper.updateById(q);
+        logService.recordOperateLog(QuotationConstants.MENU, "出新版本", Map.of("quotationNo", q.getQuotationNo(), "version", "Rev." + q.getCurrentVersionNo()),
+                Map.of("quotationNo", q.getQuotationNo(), "version", "Rev." + next));
+        return detail(id, next);
+    }
+
+    /** 版本号含已放弃的版本，避免放弃后再出新版本时重号 */
+    private int maxVersionNo(Long id) {
+        return versionMapper.selectList(new LambdaQueryWrapper<QuotationVersionDO>()
+                        .select(QuotationVersionDO::getVersionNo)
+                        .eq(QuotationVersionDO::getQuotationId, id))
+                .stream().mapToInt(QuotationVersionDO::getVersionNo).max().orElse(0);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public QuotationVO abandon(Long id) {
+        QuotationDO q = lockVisible(id);
+        if (q.getEditingVersionNo() == null) {
+            throw new BizException("没有修改中的版本");
+        }
+        int no = q.getEditingVersionNo();
+        discardRevision(q);
+        logService.recordOperateLog(QuotationConstants.MENU, "放弃新版本", Map.of("quotationNo", q.getQuotationNo(), "version", "Rev." + no),
+                Map.of("quotationNo", q.getQuotationNo(), "version", "Rev." + q.getCurrentVersionNo()));
+        return detail(id);
+    }
+
+    /** 放弃修改中的版本：软删除其型号行与费用行，版本标为已放弃 */
+    private void discardRevision(QuotationDO q) {
+        int no = q.getEditingVersionNo();
+        LocalDateTime now = LocalDateTime.now();
+        itemMapper.update(null, new LambdaUpdateWrapper<QuotationItemDO>()
+                .set(QuotationItemDO::getDeletedAt, now).set(QuotationItemDO::getUpdateTime, now)
+                .eq(QuotationItemDO::getQuotationId, q.getId()).eq(QuotationItemDO::getVersionNo, no)
+                .isNull(QuotationItemDO::getDeletedAt));
+        feeMapper.update(null, new LambdaUpdateWrapper<QuotationFeeDO>()
+                .set(QuotationFeeDO::getDeletedAt, now).set(QuotationFeeDO::getUpdateTime, now)
+                .eq(QuotationFeeDO::getQuotationId, q.getId()).eq(QuotationFeeDO::getVersionNo, no)
+                .isNull(QuotationFeeDO::getDeletedAt));
+        QuotationVersionDO v = store.version(q.getId(), no);
+        v.setStatus(QuotationConstants.VERSION_ABANDONED);
+        versionMapper.updateById(v);
+        q.setEditingVersionNo(null);
+        quotationMapper.updateById(q);
     }
 
     @Override
@@ -455,6 +618,8 @@ public class QuotationServiceImpl implements QuotationService {
         for (QuotationItemDO s : store.items(id)) {
             QuotationItemDO line = copyLine(s);
             line.setQuotationId(q.getId());
+            line.setVersionNo(1);
+            line.setIsCurrent(1);
             QuotationCalculator.applyLine(line, q.getExchangeRate());
             itemMapper.insert(line);
             lines.add(line);
@@ -464,6 +629,8 @@ public class QuotationServiceImpl implements QuotationService {
             QuotationFeeDO f = new QuotationFeeDO();
             f.setTenantId(q.getTenantId());
             f.setQuotationId(q.getId());
+            f.setVersionNo(1);
+            f.setIsCurrent(1);
             f.setFeeName(s.getFeeName());
             f.setAmount(s.getAmount());
             f.setSortOrder(s.getSortOrder());
@@ -534,6 +701,9 @@ public class QuotationServiceImpl implements QuotationService {
             throw new BizException(q.getStatus() == QuotationConstants.STATUS_DRAFT ? "草稿报价单请先标为已发送"
                     : "报价单已" + QuotationConstants.STATUS_NAMES.get(q.getStatus()) + "，不能再修改状态");
         }
+        if (q.getEditingVersionNo() != null) {
+            discardRevision(q);
+        }
         Set<Long> inquiryIds = statusSync.inquiryIdsOf(id);
         statusSync.lock(inquiryIds);
         q.setStatus(target);
@@ -568,9 +738,16 @@ public class QuotationServiceImpl implements QuotationService {
 
     @Override
     public QuotationVO detail(Long id) {
-        QuotationDO q = store.visible(id);
-        List<QuotationItemDO> items = store.items(id);
-        List<QuotationFeeDO> fees = store.fees(id);
+        return detail(id, null);
+    }
+
+    @Override
+    public QuotationVO detail(Long id, Integer versionNo) {
+        QuotationStore.View view = store.view(id, versionNo);
+        QuotationDO q = view.header();
+        List<QuotationItemDO> items = view.items();
+        List<QuotationFeeDO> fees = view.fees();
+        boolean viewingEditing = q.getEditingVersionNo() != null && view.versionNo() == q.getEditingVersionNo();
         QuotationRenderModels.Labels labels = store.labels();
         Map<Long, String> inquiryCodes = lookups.inquiryCodes(items.stream().map(QuotationItemDO::getCustomerInquiryId).toList());
         CustomerDO customer = customerMapper.selectById(q.getCustomerId());
@@ -611,7 +788,26 @@ public class QuotationServiceImpl implements QuotationService {
         vo.setSentAt(q.getSentAt());
         vo.setClosedAt(q.getClosedAt());
         vo.setCreateTime(q.getCreateTime());
-        vo.setEditable(q.getStatus() == QuotationConstants.STATUS_DRAFT);
+        vo.setEditable(q.getStatus() == QuotationConstants.STATUS_DRAFT || viewingEditing);
+        vo.setVersionNo(view.versionNo());
+        vo.setCurrentVersionNo(q.getCurrentVersionNo());
+        vo.setEditingVersionNo(q.getEditingVersionNo());
+        vo.setVersions(store.versions(id).stream().map(x -> {
+            QuotationVO.VersionBrief b = new QuotationVO.VersionBrief();
+            b.setVersionNo(x.getVersionNo());
+            b.setStatus(x.getStatus());
+            b.setTotalAmount(x.getTotalAmount());
+            b.setSentAt(x.getSentAt());
+            b.setCreateTime(x.getCreateTime());
+            return b;
+        }).toList());
+        if (q.getStatus() == QuotationConstants.STATUS_SENT && q.getEditingVersionNo() == null) {
+            QuotationPis.Brief pi = quotationPis.activeOf(id);
+            if (pi != null) {
+                vo.setActivePiId(pi.id());
+                vo.setActivePiNo(pi.piNo());
+            }
+        }
         vo.setItems(items.stream().map(i -> toItemVo(i, labels, inquiryCodes)).toList());
         vo.setFees(fees.stream().map(f -> {
             QuotationFeeVO fv = new QuotationFeeVO();
@@ -624,7 +820,7 @@ public class QuotationServiceImpl implements QuotationService {
         vo.setInquiryCodes(items.stream().map(i -> inquiryCodes.get(i.getCustomerInquiryId())).filter(Objects::nonNull)
                 .distinct().toList());
         applyReturningCustomer(vo, q, items);
-        if (q.getStatus() == QuotationConstants.STATUS_DRAFT && !"CNY".equals(q.getCurrencyCode())) {
+        if ((q.getStatus() == QuotationConstants.STATUS_DRAFT || viewingEditing) && !"CNY".equals(q.getCurrencyCode())) {
             try {
                 BigDecimal system = exchangeRateService.require(q.getCurrencyCode()).rate();
                 if (system.compareTo(q.getExchangeRate()) != 0) {
@@ -669,6 +865,7 @@ public class QuotationServiceImpl implements QuotationService {
         Map<Long, String> names = lookups.userNames(rows.stream().map(QuotationSendLogDO::getSentBy).toList());
         return rows.stream().map(r -> {
             QuotationVO.SendLog s = new QuotationVO.SendLog();
+            s.setVersionNo(r.getVersionNo());
             s.setChannel(r.getChannel());
             s.setChannelName(QuotationConstants.CHANNEL_NAMES.get(r.getChannel()));
             s.setSentByName(names.get(r.getSentBy()));
@@ -763,6 +960,7 @@ public class QuotationServiceImpl implements QuotationService {
                             .select(QuotationItemDO::getQuotationId)
                             .eq(QuotationItemDO::getTenantId, tenant)
                             .like(QuotationItemDO::getModel, kw)
+                            .eq(QuotationItemDO::getIsCurrent, 1)
                             .isNull(QuotationItemDO::getDeletedAt)
                             .last("LIMIT " + KEYWORD_LIMIT))
                     .stream().map(QuotationItemDO::getQuotationId).distinct().toList();
@@ -816,6 +1014,7 @@ public class QuotationServiceImpl implements QuotationService {
                         .in(QuotationItemDO::getQuotationId, monthIds)
                         .isNotNull(QuotationItemDO::getFloorMargin)
                         .apply("margin_rate < floor_margin")
+                        .eq(QuotationItemDO::getIsCurrent, 1)
                         .isNull(QuotationItemDO::getDeletedAt))
                 .stream().map(QuotationItemDO::getQuotationId).distinct().count());
         return vo;
@@ -840,6 +1039,7 @@ public class QuotationServiceImpl implements QuotationService {
         Set<Long> ids = itemMapper.selectList(new LambdaQueryWrapper<QuotationItemDO>()
                         .select(QuotationItemDO::getQuotationId)
                         .eq(QuotationItemDO::getCustomerInquiryId, inquiryId)
+                        .eq(QuotationItemDO::getIsCurrent, 1)
                         .isNull(QuotationItemDO::getDeletedAt))
                 .stream().map(QuotationItemDO::getQuotationId).collect(Collectors.toSet());
         if (ids.isEmpty()) {
@@ -860,6 +1060,7 @@ public class QuotationServiceImpl implements QuotationService {
         List<QuotationItemDO> items = itemMapper.selectList(new LambdaQueryWrapper<QuotationItemDO>()
                 .select(QuotationItemDO::getQuotationId, QuotationItemDO::getCustomerInquiryId, QuotationItemDO::getQuantity)
                 .in(QuotationItemDO::getQuotationId, ids)
+                .eq(QuotationItemDO::getIsCurrent, 1)
                 .isNull(QuotationItemDO::getDeletedAt));
         Map<Long, Integer> counts = new HashMap<>();
         Map<Long, Integer> quantities = new HashMap<>();
@@ -896,6 +1097,8 @@ public class QuotationServiceImpl implements QuotationService {
             vo.setOwnerName(users.get(q.getOwnerId()));
             vo.setCreateTime(q.getCreateTime());
             vo.setSentAt(q.getSentAt());
+            vo.setCurrentVersionNo(q.getCurrentVersionNo());
+            vo.setEditingVersionNo(q.getEditingVersionNo());
             list.add(vo);
         }
         return list;

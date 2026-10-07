@@ -21,7 +21,7 @@ import java.util.Map;
 public final class QuotationRenderModels {
 
     private static final DateTimeFormatter DATE = DateTimeFormatter.ISO_LOCAL_DATE;
-    private static final Map<String, String> SYMBOLS = Map.of("USD", "$", "EUR", "€", "GBP", "£", "JPY", "¥", "CNY", "¥");
+    private static final Map<String, String> SYMBOLS = Map.of("USD", "$", "EUR", "€", "GBP", "£", "JPY", "¥", "RUB", "₽", "CNY", "¥");
 
     private QuotationRenderModels() {
     }

@@ -19,6 +19,9 @@ public class QuotationItemDO {
     private Long id;
     private Integer tenantId;
     private Long quotationId;
+    private Integer versionNo;
+    /** 1-当前版本 */
+    private Integer isCurrent;
     private Integer lineNo;
     private Long customerInquiryId;
     private Long inquiryItemId;

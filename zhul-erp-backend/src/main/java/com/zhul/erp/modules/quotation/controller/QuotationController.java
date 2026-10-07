@@ -95,8 +95,18 @@ public class QuotationController {
     }
 
     @GetMapping("/{id}")
-    public Result<QuotationVO> detail(@PathVariable Long id) {
-        return Result.ok(service.detail(id));
+    public Result<QuotationVO> detail(@PathVariable Long id, @RequestParam(required = false) Integer version) {
+        return Result.ok(service.detail(id, version));
+    }
+
+    @PostMapping("/{id}/revise")
+    public Result<QuotationVO> revise(@PathVariable Long id) {
+        return Result.ok(service.revise(id));
+    }
+
+    @PostMapping("/{id}/abandon")
+    public Result<QuotationVO> abandon(@PathVariable Long id) {
+        return Result.ok(service.abandon(id));
     }
 
     @PutMapping("/{id}")
@@ -143,14 +153,14 @@ public class QuotationController {
     // ---------------------------------------------------------------- 对外文件
 
     @GetMapping("/{id}/text")
-    public Result<QuoteTextVO> text(@PathVariable Long id) {
-        return Result.ok(documentService.text(id));
+    public Result<QuoteTextVO> text(@PathVariable Long id, @RequestParam(required = false) Integer version) {
+        return Result.ok(documentService.text(id, version));
     }
 
     @GetMapping("/{id}/export")
     public void export(@PathVariable Long id, @RequestParam(defaultValue = "xlsx") String format,
-                       HttpServletResponse response) throws IOException {
-        TemplateFile file = documentService.export(id, format);
+                       @RequestParam(required = false) Integer version, HttpServletResponse response) throws IOException {
+        TemplateFile file = documentService.export(id, format, version);
         response.setContentType(file.contentType());
         response.setContentLength(file.content().length);
         response.setHeader(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename*=UTF-8''"

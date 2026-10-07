@@ -513,7 +513,8 @@ public class SalesOrderServiceImpl implements SalesOrderService {
                 inquiryIds.addAll(quotationItemMapper.selectList(new LambdaQueryWrapper<QuotationItemDO>()
                                 .select(QuotationItemDO::getCustomerInquiryId)
                                 .eq(QuotationItemDO::getQuotationId, id)
-                                .isNull(QuotationItemDO::getDeletedAt))
+                                .eq(QuotationItemDO::getIsCurrent, 1)
+                .isNull(QuotationItemDO::getDeletedAt))
                         .stream().map(QuotationItemDO::getCustomerInquiryId).toList());
                 piIds.addAll(piIdsBy(PiItemDO::getQuotationId, Set.of(id)));
                 orderIds.addAll(orderIdsBy(SalesOrderItemDO::getQuotationId, Set.of(id)));
@@ -569,7 +570,8 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         return quotationItemMapper.selectList(new LambdaQueryWrapper<QuotationItemDO>()
                         .select(QuotationItemDO::getQuotationId)
                         .in(QuotationItemDO::getCustomerInquiryId, inquiryIds)
-                        .isNull(QuotationItemDO::getDeletedAt))
+                        .eq(QuotationItemDO::getIsCurrent, 1)
+                .isNull(QuotationItemDO::getDeletedAt))
                 .stream().map(QuotationItemDO::getQuotationId).collect(Collectors.toSet());
     }
 

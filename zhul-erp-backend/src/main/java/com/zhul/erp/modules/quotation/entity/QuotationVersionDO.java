@@ -12,17 +12,17 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
-/** 报价单 */
+/** 报价单版本的表头快照：已发送的版本只读；修改中的新版本在这里编辑表头 */
 @Data
-@TableName("quotation")
-public class QuotationDO {
+@TableName("quotation_version")
+public class QuotationVersionDO {
     @TableId(type = IdType.AUTO)
     private Long id;
     private Integer tenantId;
-    private String quotationNo;
-    private Long customerId;
-    private Long ownerId;
-    private String currencyCode;
+    private Long quotationId;
+    private Integer versionNo;
+    /** 1-编辑中、2-已发送、3-已放弃，见 QuotationConstants.VERSION_* */
+    private Integer status;
     private BigDecimal exchangeRate;
     private LocalDateTime rateTime;
     private String incoterm;
@@ -30,17 +30,6 @@ public class QuotationDO {
     @TableField(updateStrategy = FieldStrategy.ALWAYS)
     private LocalDate validUntil;
     private String remark;
-    /** 状态，见 QuotationConstants.STATUS_* */
-    private Integer status;
-    private String lostReason;
-    private String lostReasonName;
-    private String lostNote;
-    private Long copiedFromId;
-    /** 当前版本号：已发送报价单为当前有效版本，草稿为 1 */
-    private Integer currentVersionNo;
-    /** 修改中的新版本号，没有时为空 */
-    @TableField(updateStrategy = FieldStrategy.ALWAYS)
-    private Integer editingVersionNo;
     private BigDecimal itemAmount;
     private BigDecimal feeAmount;
     private BigDecimal totalAmount;
@@ -52,7 +41,6 @@ public class QuotationDO {
     @TableField(updateStrategy = FieldStrategy.ALWAYS)
     private BigDecimal marginRate;
     private LocalDateTime sentAt;
-    private LocalDateTime closedAt;
     private LocalDateTime deletedAt;
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createTime;

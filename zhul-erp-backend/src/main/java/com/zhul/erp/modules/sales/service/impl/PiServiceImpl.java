@@ -179,7 +179,8 @@ public class PiServiceImpl implements PiService {
         List<Long> ids = rows.stream().map(QuotationDO::getId).toList();
         Map<Long, List<QuotationItemDO>> itemsByQuotation = quotationItemMapper.selectList(new LambdaQueryWrapper<QuotationItemDO>()
                         .in(QuotationItemDO::getQuotationId, ids)
-                        .isNull(QuotationItemDO::getDeletedAt)
+                        .eq(QuotationItemDO::getIsCurrent, 1)
+                .isNull(QuotationItemDO::getDeletedAt)
                         .orderByAsc(QuotationItemDO::getLineNo))
                 .stream().collect(Collectors.groupingBy(QuotationItemDO::getQuotationId));
         Map<Long, String> inPi = piNosByQuotationItem(itemsByQuotation.values().stream().flatMap(List::stream)
@@ -387,6 +388,9 @@ public class PiServiceImpl implements PiService {
                 .collect(Collectors.toMap(QuotationItemDO::getId, i -> i));
         if (byId.size() != quantities.size()) {
             throw new BizException("部分型号不存在，请刷新后再试");
+        }
+        if (byId.values().stream().anyMatch(i -> !Objects.equals(i.getIsCurrent(), 1))) {
+            throw new BizException("报价单已发出新版本，请刷新后重新选择型号");
         }
         List<QuotationItemDO> ordered = quantities.keySet().stream().map(byId::get).toList();
         Map<Long, QuotationDO> quotations = new LinkedHashMap<>();

@@ -21,6 +21,15 @@ public interface QuotationService {
 
     QuotationVO detail(Long id);
 
+    /** 查看指定版本；versionNo 为空时为修改中的版本，没有时为当前版本 */
+    QuotationVO detail(Long id, Integer versionNo);
+
+    /** 已发送的报价单出新版本（编号不变） */
+    QuotationVO revise(Long id);
+
+    /** 放弃修改中的新版本 */
+    QuotationVO abandon(Long id);
+
     QuotationVO save(Long id, SaveQuotationRequest req);
 
     /** 草稿按当前系统汇率重算（各行保持毛利率） */

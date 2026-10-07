@@ -133,7 +133,8 @@ class PricingStrategyContractTest extends TenantContractSupport {
     void modifyExchangeRate_keepsLog_andRejectsIllegalValues() throws Exception {
         String a = token("it_price_admin", TENANT_A);
         JsonNode list = ok(call(get(RATES), a));
-        assertEquals(4, list.size());
+        assertEquals(5, list.size(), "USD、EUR、GBP、JPY、RUB");
+        assertEquals("RUB", list.get(4).path("currencyCode").asText());
         assertTrue(absent(list.get(0).path("rate")), "新租户还没有设置汇率");
 
         ok(call(json(put(RATES + "/USD"), "{\"rate\":7.15}"), a));

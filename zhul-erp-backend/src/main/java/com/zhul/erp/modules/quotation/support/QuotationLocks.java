@@ -43,6 +43,7 @@ public class QuotationLocks {
         List<QuotationItemDO> rows = itemMapper.selectList(new LambdaQueryWrapper<QuotationItemDO>()
                 .select(QuotationItemDO::getInquiryItemId, QuotationItemDO::getQuotationId)
                 .in(QuotationItemDO::getInquiryItemId, new HashSet<>(inquiryItemIds))
+                .eq(QuotationItemDO::getIsCurrent, 1)
                 .isNull(QuotationItemDO::getDeletedAt));
         if (rows.isEmpty()) {
             return result;

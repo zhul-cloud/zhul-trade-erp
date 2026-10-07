@@ -63,28 +63,29 @@ public class QuotationDocumentServiceImpl implements QuotationDocumentService {
     private final AtomicLong seqSource = new AtomicLong();
 
     @Override
-    public QuoteTextVO text(Long id) {
-        QuotationDO q = store.visible(id);
+    public QuoteTextVO text(Long id, Integer versionNo) {
+        QuotationStore.View v = store.view(id, versionNo);
         DocumentTemplateService.Resolved tpl = templateService.resolveDefault(DocTypes.TEXT_QUOTE);
         QuoteTextVO vo = new QuoteTextVO();
-        vo.setText(TextTemplateEngine.render(tpl.text(), model(q, store.items(id), store.fees(id))));
+        vo.setText(TextTemplateEngine.render(tpl.text(), model(v.header(), v.items(), v.fees())));
         vo.setTemplateVersionNo(tpl.versionNo());
         return vo;
     }
 
     @Override
-    public TemplateFile export(Long id, String format) {
-        QuotationDO q = store.visible(id);
+    public TemplateFile export(Long id, String format, Integer versionNo) {
+        QuotationStore.View v = store.view(id, versionNo);
+        QuotationDO q = v.header();
         String f = format == null ? "xlsx" : format.trim().toLowerCase(Locale.ROOT);
         if (!List.of("xlsx", "pdf", "jpg").contains(f)) {
             throw new BizException("导出格式只支持 Excel、PDF、图片");
         }
-        List<QuotationItemDO> items = store.items(id);
+        List<QuotationItemDO> items = v.items();
         if (items.isEmpty()) {
             throw new BizException("报价单没有型号，不能导出");
         }
         DocumentTemplateService.Resolved tpl = templateService.resolveDefault(DocTypes.QUOTATION);
-        byte[] xlsx = XlsxRenderer.render(tpl.file(), model(q, items, store.fees(id)));
+        byte[] xlsx = XlsxRenderer.render(tpl.file(), model(q, items, v.fees()));
         String base = fileBase(q);
         return switch (f) {
             case "pdf" -> new TemplateFile(base + ".pdf", "application/pdf", converter.toPdf(xlsx));
@@ -95,7 +96,8 @@ public class QuotationDocumentServiceImpl implements QuotationDocumentService {
 
     @Override
     public PreviewVO preview(PreviewRequest req) {
-        QuotationDO saved = store.visible(req.getQuotationId());
+        QuotationStore.View working = store.view(req.getQuotationId(), null);
+        QuotationDO saved = working.header();
         PreviewVO vo = new PreviewVO();
         if (!converter.available()) {
             vo.setUnavailable(true);
@@ -104,8 +106,7 @@ public class QuotationDocumentServiceImpl implements QuotationDocumentService {
         }
         // 在副本上套用编辑中的内容，不落库
         QuotationDO q = copyHeader(saved);
-        List<QuotationItemDO> items = store.items(saved.getId());
-        QuotationStore.Applied applied = store.apply(q, items, req.getContent());
+        QuotationStore.Applied applied = store.apply(q, working.versionNo(), working.items(), req.getContent());
         RenderModel model = model(q, applied.items(), applied.fees());
         DocumentTemplateService.Resolved tpl = templateService.resolveDefault(DocTypes.QUOTATION);
         Long user = currentUser.resolve();
@@ -181,6 +182,7 @@ public class QuotationDocumentServiceImpl implements QuotationDocumentService {
         q.setExchangeRate(s.getExchangeRate());
         q.setRateTime(s.getRateTime());
         q.setStatus(s.getStatus());
+        q.setCurrentVersionNo(s.getCurrentVersionNo());
         q.setCreateTime(s.getCreateTime());
         return q;
     }

@@ -31,4 +31,8 @@ public class QuotationListVO {
     private String ownerName;
     private LocalDateTime createTime;
     private LocalDateTime sentAt;
+    /** 当前版本号 */
+    private Integer currentVersionNo;
+    /** 修改中的新版本号，没有时为空 */
+    private Integer editingVersionNo;
 }

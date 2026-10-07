@@ -44,7 +44,8 @@ public class InquiryStatusSync {
         return itemMapper.selectList(new LambdaQueryWrapper<QuotationItemDO>()
                         .select(QuotationItemDO::getCustomerInquiryId)
                         .eq(QuotationItemDO::getQuotationId, quotationId)
-                        .isNull(QuotationItemDO::getDeletedAt))
+                        .eq(QuotationItemDO::getIsCurrent, 1)
+                .isNull(QuotationItemDO::getDeletedAt))
                 .stream().map(QuotationItemDO::getCustomerInquiryId).collect(Collectors.toCollection(TreeSet::new));
     }
 
@@ -87,7 +88,8 @@ public class InquiryStatusSync {
         Set<Long> quotationIds = itemMapper.selectList(new LambdaQueryWrapper<QuotationItemDO>()
                         .select(QuotationItemDO::getQuotationId)
                         .eq(QuotationItemDO::getCustomerInquiryId, inquiryId)
-                        .isNull(QuotationItemDO::getDeletedAt))
+                        .eq(QuotationItemDO::getIsCurrent, 1)
+                .isNull(QuotationItemDO::getDeletedAt))
                 .stream().map(QuotationItemDO::getQuotationId).collect(Collectors.toSet());
         if (quotationIds.isEmpty()) {
             return Set.of();

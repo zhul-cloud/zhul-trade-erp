@@ -24,4 +24,6 @@ public class QuoteInquiryVO {
     private Integer pricedCount;
     /** 已在草稿报价单中时的编号 */
     private String draftQuotationNo;
+    /** 已有草稿时点击直接打开这张草稿 */
+    private Long draftQuotationId;
 }

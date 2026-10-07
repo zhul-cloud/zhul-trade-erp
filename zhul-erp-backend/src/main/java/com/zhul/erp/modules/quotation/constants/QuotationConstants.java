@@ -36,6 +36,10 @@ public final class QuotationConstants {
             STATUS_DRAFT, "草稿", STATUS_SENT, "已发送", STATUS_WON, "已成交", STATUS_LOST, "未成交", STATUS_VOID, "已作废",
             STATUS_PARTIAL, "部分成交");
     /** 报价单到了这些状态，其中的型号对客户已报出：回价只读 */
+    /** 版本状态 */
+    public static final int VERSION_EDITING = 1;
+    public static final int VERSION_SENT = 2;
+    public static final int VERSION_ABANDONED = 3;
     public static final java.util.Set<Integer> ITEM_LOCKING_STATUSES = java.util.Set.of(STATUS_SENT, STATUS_WON, STATUS_LOST, STATUS_PARTIAL);
 
     /** 发送方式 */

@@ -8,10 +8,10 @@ import com.zhul.erp.modules.quotation.dto.QuoteTextVO;
 /** 报价单对外文件：文字报价、正式报价单（Excel / PDF / 图片）、编辑时实时预览；均不含成本与利润 */
 public interface QuotationDocumentService {
 
-    QuoteTextVO text(Long id);
+    QuoteTextVO text(Long id, Integer versionNo);
 
     /** format：xlsx / pdf / jpg */
-    TemplateFile export(Long id, String format);
+    TemplateFile export(Long id, String format, Integer versionNo);
 
     PreviewVO preview(PreviewRequest req);
 

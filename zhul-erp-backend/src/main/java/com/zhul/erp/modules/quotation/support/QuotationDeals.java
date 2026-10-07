@@ -74,6 +74,7 @@ public class QuotationDeals {
         List<QuotationItemDO> items = itemMapper.selectList(new LambdaQueryWrapper<QuotationItemDO>()
                 .select(QuotationItemDO::getWon)
                 .eq(QuotationItemDO::getQuotationId, quotationId)
+                .eq(QuotationItemDO::getIsCurrent, 1)
                 .isNull(QuotationItemDO::getDeletedAt));
         long won = items.stream().filter(i -> i.getWon() != null && i.getWon() == 1).count();
         int target = won == 0 ? QuotationConstants.STATUS_SENT

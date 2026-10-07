@@ -40,7 +40,7 @@ public final class CustomerConstants {
 
     /** Incoterms 2020 */
     public static final List<String> INCOTERMS = List.of("EXW", "FCA", "FOB", "CFR", "CIF", "CPT", "CIP", "DAP", "DPU", "DDP");
-    public static final List<String> CURRENCIES = List.of("USD", "EUR", "GBP", "JPY", "CNY");
+    public static final List<String> CURRENCIES = List.of("USD", "EUR", "GBP", "JPY", "RUB", "CNY");
 
     public static final int PARTY_CONSIGNEE = 1;
     public static final int PARTY_NOTIFY = 2;

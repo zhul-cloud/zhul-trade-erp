@@ -56,6 +56,7 @@ class QuotationDocumentServiceTest {
         item.setAmount(new BigDecimal("410.26"));
         when(store.items(1L)).thenReturn(List.of(item));
         when(store.fees(1L)).thenReturn(List.of());
+        when(store.view(1L, null)).thenReturn(new QuotationStore.View(q, 1, List.of(item), List.of()));
         when(store.labels()).thenReturn(new QuotationRenderModels.Labels(Map.of(), Map.of(), Map.of(), Map.of()));
         byte[] tpl;
         try (var in = new ClassPathResource("document-template/quotation-v1.xlsx").getInputStream()) {
@@ -79,10 +80,10 @@ class QuotationDocumentServiceTest {
     @Test
     void pdfUnavailableButExcelWorks() throws Exception {
         quotation();
-        assertThatThrownBy(() -> service.export(1L, "pdf")).isInstanceOf(BizException.class)
+        assertThatThrownBy(() -> service.export(1L, "pdf", null)).isInstanceOf(BizException.class)
                 .hasMessage("PDF / 图片暂时无法生成，可以先下载 Excel");
-        assertThatThrownBy(() -> service.export(1L, "jpg")).hasMessage("PDF / 图片暂时无法生成，可以先下载 Excel");
-        assertThat(service.export(1L, "xlsx").content()).isNotEmpty();
-        assertThat(service.export(1L, "xlsx").fileName()).isEqualTo("QT20261004001.xlsx");
+        assertThatThrownBy(() -> service.export(1L, "jpg", null)).hasMessage("PDF / 图片暂时无法生成，可以先下载 Excel");
+        assertThat(service.export(1L, "xlsx", null).content()).isNotEmpty();
+        assertThat(service.export(1L, "xlsx", null).fileName()).isEqualTo("QT20261004001.xlsx");
     }
 }

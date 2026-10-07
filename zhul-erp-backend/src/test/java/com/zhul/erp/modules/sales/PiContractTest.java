@@ -83,6 +83,32 @@ class PiContractTest extends SalesContractSupport {
     }
 
     @Test
+    void quotationWithActivePiCannotRevise_editingRevisionDoesNotChangePiCandidates() throws Exception {
+        long c = customer("ACROBOT", "India");
+        long q = quotation(c, 2, "USD", null, FOUR);
+
+        // 修改中的新版本删掉一行，开 PI 的候选仍按当前版本
+        ok(call(post("/api/v1/quotations/" + q + "/revise"), admin));
+        JsonNode rev = ok(call(get("/api/v1/quotations/" + q), admin));
+        assertEquals(2, rev.path("versionNo").asInt());
+        jdbc.update("update quotation_item set deleted_at = NOW() where quotation_id = ? and version_no = 2 order by line_no desc limit 1", q);
+        assertEquals(FOUR.length - 1, ok(call(get("/api/v1/quotations/" + q), admin)).path("items").size());
+        JsonNode cand = ok(call(get(PI + "/candidates/quotations/" + q), admin));
+        assertEquals(FOUR.length, cand.path("items").size());
+        ok(call(post("/api/v1/quotations/" + q + "/abandon"), admin));
+
+        long pi = ok(createPi(quotationItemIds(q))).path("id").asLong();
+        String piNo = jdbc.queryForObject("select pi_no from proforma_invoice where id = ?", String.class, pi);
+        JsonNode detail = ok(call(get("/api/v1/quotations/" + q), admin));
+        assertEquals(piNo, detail.path("activePiNo").asText());
+        assertEquals("已开 PI " + piNo + "，请在 PI 上修改",
+                fail(call(post("/api/v1/quotations/" + q + "/revise"), admin)).path("message").asText());
+
+        ok(call(post(PI + "/" + pi + "/void"), admin));
+        assertEquals(3, ok(call(post("/api/v1/quotations/" + q + "/revise"), admin)).path("versionNo").asInt(), "PI 作废后可以出新版本");
+    }
+
+    @Test
     void buyerAndConsigneeFromCustomerParties() throws Exception {
         long c = customer("ACROBOT", "India");
         jdbc.update("insert into customer_party (tenant_id, customer_id, party_type, company_name, country, address, is_default) values "

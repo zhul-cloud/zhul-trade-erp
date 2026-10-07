@@ -27,7 +27,7 @@ public abstract class SalesContractSupport extends InquiryContractSupport {
     protected static final String TODAY = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
     private static final String[] SALES_TABLES = {"sales_order_fee", "sales_order_item", "sales_order", "payment_receipt",
             "proforma_invoice_send_log", "proforma_invoice_fee", "proforma_invoice_item", "proforma_invoice_version", "proforma_invoice",
-            "quotation_send_log", "quotation_fee", "quotation_item", "quotation", "tenant_bank_account", "document_sequence",
+            "quotation_send_log", "quotation_version", "quotation_fee", "quotation_item", "quotation", "tenant_bank_account", "document_sequence",
             "customer_party", "exchange_rate", "exchange_rate_log"};
 
     protected String admin;
@@ -97,7 +97,7 @@ public abstract class SalesContractSupport extends InquiryContractSupport {
     }
 
     protected List<Long> quotationItemIds(long quotationId) {
-        return jdbc.queryForList("select id from quotation_item where quotation_id = ? order by line_no", Long.class, quotationId);
+        return jdbc.queryForList("select id from quotation_item where quotation_id = ? and is_current = 1 and deleted_at is null order by line_no", Long.class, quotationId);
     }
 
     protected long inquiryOf(long quotationId) {

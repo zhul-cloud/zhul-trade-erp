@@ -75,7 +75,7 @@ public abstract class AbstractCustomerRequest {
     @Size(max = 100, message = "其他联系方式不能超过100个字符")
     private String otherIm;
 
-    @Pattern(regexp = "^$|^(USD|EUR|GBP|JPY|CNY)$", message = "默认币种不正确")
+    @Pattern(regexp = "^$|^(USD|EUR|GBP|JPY|RUB|CNY)$", message = "默认币种不正确")
     private String currency;
     @Pattern(regexp = "^$|^(EXW|FCA|FOB|CFR|CIF|CPT|CIP|DAP|DPU|DDP)$", message = "贸易术语不正确")
     private String incoterm;
@@ -93,7 +93,7 @@ public abstract class AbstractCustomerRequest {
     @DecimalMin(value = "0", message = "信用额度不能为负数")
     @Digits(integer = 16, fraction = 2, message = "信用额度最多保留两位小数")
     private BigDecimal creditLimit;
-    @Pattern(regexp = "^$|^(USD|EUR|GBP|JPY|CNY)$", message = "信用额度币种不正确")
+    @Pattern(regexp = "^$|^(USD|EUR|GBP|JPY|RUB|CNY)$", message = "信用额度币种不正确")
     private String creditCurrency;
     @Min(value = 0, message = "运输方式不正确")
     @Max(value = 6, message = "运输方式不正确")

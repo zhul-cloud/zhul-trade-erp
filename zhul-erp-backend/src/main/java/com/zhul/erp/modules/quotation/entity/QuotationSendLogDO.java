@@ -17,6 +17,7 @@ public class QuotationSendLogDO {
     private Long id;
     private Integer tenantId;
     private Long quotationId;
+    private Integer versionNo;
     /** 发送方式，见 QuotationConstants.CHANNEL_* */
     private Integer channel;
     private Long sentBy;

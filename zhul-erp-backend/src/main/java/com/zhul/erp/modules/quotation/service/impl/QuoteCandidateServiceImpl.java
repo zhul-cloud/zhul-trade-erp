@@ -235,7 +235,7 @@ public class QuoteCandidateServiceImpl implements QuoteCandidateService {
             return List.of();
         }
         Map<Long, CustomerDO> customers = lookups.customers(rows.stream().map(CustomerInquiryDO::getCustomerId).toList());
-        Map<Long, String> drafts = draftNos(rows.stream().map(CustomerInquiryDO::getId).toList());
+        Map<Long, QuotationDO> drafts = drafts(rows.stream().map(CustomerInquiryDO::getId).toList());
         List<QuoteInquiryVO> list = new ArrayList<>(rows.size());
         for (CustomerInquiryDO i : rows) {
             QuoteInquiryVO vo = new QuoteInquiryVO();
@@ -251,22 +251,24 @@ public class QuoteCandidateServiceImpl implements QuoteCandidateService {
             vo.setStatus(i.getStatus());
             vo.setItemCount(i.getTotalItemCount());
             vo.setPricedCount(i.getPricedItemCount());
-            vo.setDraftQuotationNo(drafts.get(i.getId()));
+            QuotationDO draft = drafts.get(i.getId());
+            vo.setDraftQuotationNo(draft == null ? null : draft.getQuotationNo());
+            vo.setDraftQuotationId(draft == null ? null : draft.getId());
             list.add(vo);
         }
         return list;
     }
 
-    /** 询盘 → 包含其型号的草稿报价单编号 */
-    private Map<Long, String> draftNos(List<Long> inquiryIds) {
+    /** 询盘 → 包含其型号的草稿报价单 */
+    private Map<Long, QuotationDO> drafts(List<Long> inquiryIds) {
         List<InquiryItemDO> items = candidates.itemsOf(inquiryIds);
         Map<Long, List<QuotationDO>> byItem = locks.quotationsByItem(items.stream().map(InquiryItemDO::getId).toList(),
                 List.of(QuotationConstants.STATUS_DRAFT));
-        Map<Long, String> result = new HashMap<>();
+        Map<Long, QuotationDO> result = new HashMap<>();
         for (InquiryItemDO item : items) {
             List<QuotationDO> qs = byItem.get(item.getId());
             if (qs != null && !qs.isEmpty()) {
-                result.putIfAbsent(item.getCustomerInquiryId(), qs.get(0).getQuotationNo());
+                result.putIfAbsent(item.getCustomerInquiryId(), qs.get(0));
             }
         }
         return result;
@@ -304,6 +306,7 @@ public class QuoteCandidateServiceImpl implements QuoteCandidateService {
         to.setItemCount(from.getItemCount());
         to.setPricedCount(from.getPricedCount());
         to.setDraftQuotationNo(from.getDraftQuotationNo());
+        to.setDraftQuotationId(from.getDraftQuotationId());
     }
 
     private static int pageSize(Integer size, int fallback) {

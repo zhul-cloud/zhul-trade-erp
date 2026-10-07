@@ -11,7 +11,7 @@ import java.util.List;
 public interface ExchangeRateService {
 
     /** 可维护的外币 */
-    List<String> CURRENCIES = List.of("USD", "EUR", "GBP", "JPY");
+    List<String> CURRENCIES = List.of("USD", "EUR", "GBP", "JPY", "RUB");
 
     String BASE_CURRENCY = "CNY";
 

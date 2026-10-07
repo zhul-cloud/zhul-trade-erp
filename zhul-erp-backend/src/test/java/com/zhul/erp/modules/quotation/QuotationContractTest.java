@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -59,7 +60,7 @@ class QuotationContractTest extends InquiryContractSupport {
     }
 
     private void cleanupQuotation() {
-        for (String t : new String[] {"quotation_send_log", "quotation_fee", "quotation_item", "quotation", "exchange_rate", "exchange_rate_log"}) {
+        for (String t : new String[] {"quotation_send_log", "quotation_version", "quotation_fee", "quotation_item", "quotation", "exchange_rate", "exchange_rate_log"}) {
             jdbc.update("delete from " + t + " where tenant_id = 0");
         }
     }
@@ -217,6 +218,18 @@ class QuotationContractTest extends InquiryContractSupport {
         money("7.15", q.path("exchangeRate"));
         assertEquals(inquiryCode(a), q.path("items").get(0).path("inquiryCode").asText());
 
+        // 已有草稿的询盘：候选里带出草稿报价单，点击直接打开
+        JsonNode cands = ok(call(json(post(QT + "/candidates/inquiries"), "{}"), admin));
+        JsonNode card = null;
+        for (JsonNode n : cands.path("records")) {
+            if (n.path("inquiryId").asLong() == a) {
+                card = n;
+            }
+        }
+        assertNotNull(card, "草稿不改变询盘状态，仍在候选中：" + cands);
+        assertEquals(q.path("id").asLong(), card.path("draftQuotationId").asLong());
+        assertEquals(q.path("quotationNo").asText(), card.path("draftQuotationNo").asText());
+
         long other = seedInquiry(customer("Akij Group", "Bangladesh"), 6, "2026-10-03", m("1756-L83E", "6000"));
         assertEquals("不同客户需要分开报价", fail(create(write(Map.of("inquiryIds", List.of(a, other))))).path("message").asText());
     }
@@ -296,6 +309,15 @@ class QuotationContractTest extends InquiryContractSupport {
         long gInq = seedInquiry(gbp, 6, "2026-10-03", m("1756-L83E", "6000"));
         assertEquals("还没有设置 GBP 汇率，请联系管理员在系统管理中设置",
                 fail(create(write(Map.of("inquiryIds", List.of(gInq))))).path("message").asText());
+        // 卢布：录入汇率后可以用卢布报价，表头取 RUB 汇率
+        long rub = customer("Moscow Automation", "Russia");
+        jdbc.update("update customer set currency = 'RUB' where id = ?", rub);
+        long rInq = seedInquiry(rub, 6, "2026-10-03", m("1756-L85E", "9000"));
+        assertTrue(fail(create(write(Map.of("inquiryIds", List.of(rInq))))).path("message").asText().contains("RUB"));
+        jdbc.update("insert into exchange_rate (tenant_id, currency_code, rate) values (0, 'RUB', 0.082500)");
+        JsonNode rq = byInquiries(rInq);
+        assertEquals("RUB", rq.path("currencyCode").asText());
+        money("0.0825", rq.path("exchangeRate"));
     }
 
     // ---------------------------------------------------------------- 挑选型号报价
@@ -414,7 +436,7 @@ class QuotationContractTest extends InquiryContractSupport {
         assertEquals("PDF", sent.path("sendLogs").get(0).path("channelName").asText());
         assertEquals(7, inquiryStatus(a), "发送报价单推进询盘");
         assertEquals(7, inquiryStatus(b));
-        assertTrue(fail(save(id, saveBody(q))).path("message").asText().contains("复制为新报价单"), "已发送只读");
+        assertTrue(fail(save(id, saveBody(q))).path("message").asText().contains("修改（出新版本）"), "已发送只读");
         ok(call(json(post(QT + "/" + id + "/send"), "{\"channel\":1}"), admin));
         assertEquals(2, ok(call(get(QT + "/" + id), admin)).path("sendLogs").size(), "发送记录可追加");
 
@@ -468,6 +490,74 @@ class QuotationContractTest extends InquiryContractSupport {
         assertEquals(1, ok(call(get(QT + "/by-inquiry/" + a), admin)).size());
         assertEquals(1, jdbc.queryForObject("select count(*) from quotation where id = ? and deleted_at is not null", Integer.class,
                 copy.path("id").asLong()));
+    }
+
+    @Test
+    void reviseSendAbandon_versionsKept_editingDoesNotAffectInquiry() throws Exception {
+        long c = customer("Pacific Controls", "Australia");
+        long a = seedInquiry(c, 6, "2026-10-03", m("6ES7214-1AG40-0XB0", "2640"), m("6ES7231-4HD32-0XB0", "1680"),
+                m("6ES7972-0BA42-0XA0", "200"));
+        JsonNode q = byInquiries(a);
+        long id = q.path("id").asLong();
+        assertEquals("草稿报价单可以直接修改", fail(call(post(QT + "/" + id + "/revise"), admin)).path("message").asText());
+        JsonNode rev1 = ok(call(json(post(QT + "/" + id + "/send"), "{\"channel\":3}"), admin));
+        assertEquals(1, rev1.path("versions").size(), "发送时保存 Rev.1");
+
+        // 出新版本：编号不变、内容复制、可编辑；第 1 行数量改为 3，删掉第 3 行
+        JsonNode rev = ok(call(post(QT + "/" + id + "/revise"), admin));
+        assertEquals(2, rev.path("versionNo").asInt());
+        assertEquals(2, rev.path("editingVersionNo").asInt());
+        assertEquals(q.path("quotationNo").asText(), rev.path("quotationNo").asText());
+        assertTrue(rev.path("editable").asBoolean());
+        assertEquals(3, rev.path("items").size());
+        assertTrue(fail(call(post(QT + "/" + id + "/revise"), admin)).path("message").asText().contains("已有修改中的 Rev.2"));
+        Map<String, Object> body = saveBody(rev);
+        line(body, 0).put("quantity", 3);
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> lines = (List<Map<String, Object>>) body.get("items");
+        lines.remove(2);
+        Map<String, Object> eur = new LinkedHashMap<>(body);
+        eur.put("currencyCode", "EUR");
+        assertTrue(fail(save(id, eur)).path("message").asText().contains("新版本不能改币种"));
+        JsonNode saved = ok(save(id, body));
+        assertEquals(2, saved.path("items").size());
+
+        // 编辑中：当前版本、询盘状态与列表都还按 Rev.1
+        JsonNode current = ok(call(get(QT + "/" + id).param("version", "1"), admin));
+        assertEquals(3, current.path("items").size());
+        assertFalse(current.path("editable").asBoolean());
+        assertEquals(7, inquiryStatus(a));
+        JsonNode row = ok(call(json(post(QT + "/page"), "{}"), admin)).path("records").get(0);
+        assertEquals(3, row.path("itemCount").asInt());
+        assertEquals(2, row.path("editingVersionNo").asInt());
+        money(rev1.path("totalAmount").asText(), row.path("totalAmount"));
+
+        // 发送 Rev.2：成为当前版本
+        JsonNode sent = ok(call(json(post(QT + "/" + id + "/send"), "{\"channel\":3}"), admin));
+        assertEquals(2, sent.path("currentVersionNo").asInt());
+        assertTrue(sent.path("editingVersionNo").isNull() || sent.path("editingVersionNo").isMissingNode());
+        assertEquals(2, sent.path("items").size());
+        assertEquals(2, sent.path("versions").size());
+        assertEquals(2, sent.path("sendLogs").get(1).path("versionNo").asInt());
+        money(saved.path("totalAmount").asText(), sent.path("totalAmount"));
+        assertEquals(2, ok(call(json(post(QT + "/page"), "{}"), admin)).path("records").get(0).path("itemCount").asInt());
+        assertEquals(3, ok(call(get(QT + "/" + id).param("version", "1"), admin)).path("items").size(), "Rev.1 只读可查");
+        assertEquals(7, inquiryStatus(a));
+
+        // 放弃：回到 Rev.2；再出新版本时版本号不重复
+        ok(call(post(QT + "/" + id + "/revise"), admin));
+        JsonNode abandoned = ok(call(post(QT + "/" + id + "/abandon"), admin));
+        assertEquals(2, abandoned.path("versionNo").asInt());
+        assertEquals(2, abandoned.path("versions").size());
+        assertEquals(4, ok(call(post(QT + "/" + id + "/revise"), admin)).path("versionNo").asInt());
+
+        // 修改中的报价单标为未成交时一并放弃新版本
+        String reason = jdbc.queryForObject("select item_code from dict_item where dict_type = 'quotation_lost_reason' and item_code <> 'OTHER' "
+                + "order by sort_order limit 1", String.class);
+        JsonNode lost = ok(call(json(post(QT + "/" + id + "/lost"), "{\"reason\":\"" + reason + "\"}"), admin));
+        assertEquals(4, lost.path("status").asInt());
+        assertTrue(lost.path("editingVersionNo").isNull() || lost.path("editingVersionNo").isMissingNode());
+        assertEquals(2, lost.path("items").size());
     }
 
     @Test
