@@ -20,8 +20,6 @@ public final class InquiryConstants {
     public static final int STATUS_WON = 8;
     public static final int STATUS_LOST = 9;
     public static final int STATUS_CANCELLED = 10;
-    /** 客户询盘到了这些状态，采购回价与成本价不能再改 */
-    public static final java.util.Set<Integer> QUOTE_LOCKED_STATUSES = java.util.Set.of(STATUS_QUOTED, STATUS_WON, STATUS_LOST, STATUS_CANCELLED);
 
     /** 询盘等级：码值见字典 inquiry_level（1-S、2-A、3-B、4-C），越小越优先 */
     public static final int LEVEL_DEFAULT = 3;

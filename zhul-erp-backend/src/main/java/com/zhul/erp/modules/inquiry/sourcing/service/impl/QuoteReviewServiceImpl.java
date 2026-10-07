@@ -2,6 +2,7 @@ package com.zhul.erp.modules.inquiry.sourcing.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.zhul.erp.modules.quotation.support.QuotationLocks;
 import com.zhul.erp.common.exception.BizException;
 import com.zhul.erp.framework.tenant.TenantContext;
 import com.zhul.erp.modules.inquiry.constants.InquiryConstants;
@@ -58,6 +59,7 @@ public class QuoteReviewServiceImpl implements QuoteReviewService {
     private final InquiryLookups lookups;
     private final CurrentUserResolver currentUser;
     private final LogService logService;
+    private final QuotationLocks quotationLocks;
 
     @Override
     public ReviewDetailVO detail(Long taskId) {
@@ -234,23 +236,26 @@ public class QuoteReviewServiceImpl implements QuoteReviewService {
         return t;
     }
 
-    /** 锁客户询盘后再校验：报价后、取消后回价只读，不能再审核 */
+    /** 锁客户询盘后再校验：取消后回价只读，不能再审核 */
     private SourcingTaskDO lockedTask(Long taskId) {
         SourcingTaskDO task = task(taskId);
         progress.lock(task.getCustomerInquiryId());
         task = task(taskId);
         CustomerInquiryDO inquiry = inquiryMapper.selectById(task.getCustomerInquiryId());
-        if (inquiry != null && InquiryConstants.QUOTE_LOCKED_STATUSES.contains(inquiry.getStatus())) {
-            throw new BizException(inquiry.getStatus() == InquiryConstants.STATUS_CANCELLED
-                    ? "客户询盘已取消，不能再审核" : "业务员已经报价，不能再审核");
+        if (inquiry != null && inquiry.getStatus() == InquiryConstants.STATUS_CANCELLED) {
+            throw new BizException("客户询盘已取消，不能再审核");
         }
         return task;
     }
 
+    /** 型号须属于该任务，且还没有报给客户 */
     private InquiryItemDO item(SourcingTaskDO task, Long itemId) {
         InquiryItemDO item = itemMapper.selectById(itemId);
         if (item == null || item.getDeletedAt() != null || !Objects.equals(item.getSourcingTaskId(), task.getId())) {
             throw new BizException("型号不属于这个询价任务，请刷新后再试");
+        }
+        if (quotationLocks.isLocked(itemId)) {
+            throw new BizException(item.getConfirmedModel() + " 已报给客户，不能再审核");
         }
         return item;
     }

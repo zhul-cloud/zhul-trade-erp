@@ -335,14 +335,22 @@ class SourcingContractTest extends InquiryContractSupport {
                 jdbc.queryForObject("select task_code from sourcing_task where id = ?", String.class, task)), "已回价的任务出现在已回价页签");
         assertTrue(doneBoard.path("stats").path("done").asInt() >= 1);
 
-        // 业务员报价后只读
+        // 业务员报价后：已回价页签不再列出；型号出现在已发送的报价单中后回价与采购成本价只读
         jdbc.update("update customer_inquiry set status = 7 where id = ?", inq);
         assertFalse(ok(call(get(BOARD).param("status", "3"), admin)).path("tasks").findValuesAsText("id").contains(String.valueOf(task)),
                 "业务员报价后不再出现在已回价页签");
-        assertEquals("业务员已经报价，回价不能再修改", call(json(put(MY + "/" + task + "/quotes"), quotes(true, item, false, null,
+        jdbc.update("insert into quotation (tenant_id, quotation_no, customer_id, status) values (0, 'QTIT00000001', 0, 2)");
+        long sentQuotation = jdbc.queryForObject("select id from quotation where quotation_no = 'QTIT00000001'", Long.class);
+        jdbc.update("insert into quotation_item (tenant_id, quotation_id, customer_inquiry_id, inquiry_item_id, model) values (0, ?, ?, ?, 'x')",
+                sentQuotation, inq, item);
+        String model = jdbc.queryForObject("select confirmed_model from inquiry_item where id = ?", String.class, item);
+        assertEquals(model + " 已报给客户，回价不能再修改", call(json(put(MY + "/" + task + "/quotes"), quotes(true, item, false, null,
                 List.of(rec(entry(2, "b", "1", 1, 1))))), lin).path("message").asText());
-        assertEquals("业务员已经报价，采购成本价不能再修改", call(json(put(BOARD + "/items/" + item + "/cost-quote"),
+        assertEquals("型号已报给客户，采购成本价不能再修改", call(json(put(BOARD + "/items/" + item + "/cost-quote"),
                 "{\"quoteId\":" + linQuote + "}"), admin).path("message").asText());
+        assertTrue(ok(call(get(MY + "/" + task), lin)).path("items").get(0).path("locked").asBoolean(), "已报出的型号标为只读");
+        jdbc.update("delete from quotation_item where quotation_id = ?", sentQuotation);
+        jdbc.update("delete from quotation where id = ?", sentQuotation);
         jdbc.update("delete from supplier where supplier_code = 'ITSUP001'");
     }
 

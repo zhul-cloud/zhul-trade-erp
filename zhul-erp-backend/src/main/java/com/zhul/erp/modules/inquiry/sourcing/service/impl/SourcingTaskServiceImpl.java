@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.zhul.erp.modules.quotation.support.QuotationLocks;
 import com.zhul.erp.common.exception.BizException;
 import com.zhul.erp.framework.tenant.TenantContext;
 import com.zhul.erp.modules.inquiry.constants.InquiryConstants;
@@ -83,6 +84,7 @@ public class SourcingTaskServiceImpl implements SourcingTaskService {
     private final com.zhul.erp.modules.inquiry.sourcing.service.PriceHistoryService priceHistoryService;
     private final com.zhul.erp.modules.system.service.LogService logService;
     private final com.zhul.erp.modules.system.repository.SysLogMapper sysLogMapper;
+    private final QuotationLocks quotationLocks;
 
     // ---------------------------------------------------------------- 生成与取消
 
@@ -819,8 +821,11 @@ public class SourcingTaskServiceImpl implements SourcingTaskService {
         }
         progress.lock(item.getCustomerInquiryId());
         CustomerInquiryDO inquiry = inquiryMapper.selectById(item.getCustomerInquiryId());
-        if (inquiry != null && InquiryConstants.QUOTE_LOCKED_STATUSES.contains(inquiry.getStatus())) {
-            throw new BizException("业务员已经报价，采购成本价不能再修改");
+        if (inquiry != null && inquiry.getStatus() == InquiryConstants.STATUS_CANCELLED) {
+            throw new BizException("客户询盘已取消，采购成本价不能再修改");
+        }
+        if (quotationLocks.isLocked(itemId)) {
+            throw new BizException("型号已报给客户，采购成本价不能再修改");
         }
         item = itemMapper.selectById(itemId);
         Long before = item.getSelectedQuoteId();

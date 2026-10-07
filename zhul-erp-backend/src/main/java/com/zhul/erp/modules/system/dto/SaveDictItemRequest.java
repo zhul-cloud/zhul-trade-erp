@@ -14,6 +14,8 @@ public class SaveDictItemRequest {
     private String itemCode;
     @NotBlank(message = "字典项名称不能为空")
     private String itemName;
+    @jakarta.validation.constraints.Size(max = 64, message = "英文名称不能超过 64 个字符")
+    private String itemNameEn;
     @NotBlank(message = "字典值不能为空")
     private String itemValue;
     private String cssClass;

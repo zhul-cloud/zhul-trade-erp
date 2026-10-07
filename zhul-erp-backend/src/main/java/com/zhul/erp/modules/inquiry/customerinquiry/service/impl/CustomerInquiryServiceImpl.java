@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.zhul.erp.modules.quotation.support.QuotationLocks;
 import com.zhul.erp.common.constants.DictTypes;
 import com.zhul.erp.common.exception.BizException;
 import com.zhul.erp.common.result.PageResult;
@@ -123,6 +124,7 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
     private final DictItemService dictItemService;
     private final QuoteDicts quoteDicts;
     private final LogService logService;
+    private final QuotationLocks quotationLocks;
 
     // ---------------------------------------------------------------- 附件
 
@@ -391,10 +393,12 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
                             .orderByDesc(SourcingQuoteDO::getQuotedAt))
                     .forEach(q -> noStockNotes.putIfAbsent(q.getInquiryItemId(), q.getNote()));
         }
+        Set<Long> quoted = quotationLocks.lockedItemIds(items.stream().map(InquiryItemDO::getId).toList());
         List<InquiryItemVO> list = new ArrayList<>(items.size());
         for (InquiryItemDO i : items) {
             InquiryItemVO vo = new InquiryItemVO();
             vo.setId(i.getId());
+            vo.setQuoted(quoted.contains(i.getId()));
             vo.setLineNo(i.getLineNo());
             vo.setBrand(i.getBrand());
             vo.setBrandKey(i.getBrandKey());

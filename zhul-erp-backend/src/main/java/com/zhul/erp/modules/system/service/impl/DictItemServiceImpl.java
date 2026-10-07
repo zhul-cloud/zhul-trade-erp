@@ -54,6 +54,7 @@ public class DictItemServiceImpl implements DictItemService {
         item.setDictType(dictType.getDictType());
         item.setItemCode(req.getItemCode());
         item.setItemName(req.getItemName());
+        item.setItemNameEn(req.getItemNameEn() == null ? "" : req.getItemNameEn().trim());
         item.setItemValue(req.getItemValue());
         item.setCssClass(req.getCssClass());
         item.setListClass("");
@@ -97,6 +98,7 @@ public class DictItemServiceImpl implements DictItemService {
         }
         // 字典项编码创建后不可修改
         item.setItemName(req.getItemName());
+        item.setItemNameEn(req.getItemNameEn() == null ? "" : req.getItemNameEn().trim());
         item.setItemValue(req.getItemValue());
         item.setCssClass(req.getCssClass());
         item.setSortOrder(req.getSortOrder());
@@ -134,6 +136,19 @@ public class DictItemServiceImpl implements DictItemService {
             Integer code = parseInt(item.getItemValue());
             if (code != null) {
                 labels.putIfAbsent(code, item.getItemName());
+            }
+        }
+        return labels;
+    }
+
+    @Override
+    public Map<Integer, String> intEnLabels(String dictType) {
+        List<DictItemDO> list = selectByDictType(dictType, false);
+        Map<Integer, String> labels = new HashMap<>(list.size() * 2);
+        for (DictItemDO item : list) {
+            Integer code = parseInt(item.getItemValue());
+            if (code != null && item.getItemNameEn() != null && !item.getItemNameEn().isBlank()) {
+                labels.putIfAbsent(code, item.getItemNameEn());
             }
         }
         return labels;
@@ -183,6 +198,7 @@ public class DictItemServiceImpl implements DictItemService {
             vo.setDictType(item.getDictType());
             vo.setItemCode(item.getItemCode());
             vo.setItemName(item.getItemName());
+            vo.setItemNameEn(item.getItemNameEn());
             vo.setItemValue(item.getItemValue());
             vo.setCssClass(item.getCssClass());
             vo.setSortOrder(item.getSortOrder());

@@ -28,4 +28,6 @@ public class InquiryItemVO {
     private PriceRecordVO selectedQuote;
     /** 无货时的说明 */
     private String noStockNote;
+    /** 已报给客户：出现在已发送（及之后成交 / 未成交）的报价单中 */
+    private Boolean quoted;
 }

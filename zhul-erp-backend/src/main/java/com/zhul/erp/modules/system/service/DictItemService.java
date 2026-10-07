@@ -18,6 +18,9 @@ public interface DictItemService {
     /** 字典值为整数的字典：码值 → 名称，含已停用项，用于展示历史数据 */
     Map<Integer, String> intLabels(String dictType);
 
+    /** 整数码值 → 英文名称（没有英文名称的项不在结果里），对外单据与文字报价使用 */
+    Map<Integer, String> intEnLabels(String dictType);
+
     /** 校验整数码值是该字典的启用项，不是则抛出业务异常 */
     void requireEnabledValue(String dictType, Integer value, String message);
 }

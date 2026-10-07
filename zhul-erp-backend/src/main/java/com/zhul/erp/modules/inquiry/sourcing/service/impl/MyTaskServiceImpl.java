@@ -35,6 +35,7 @@ import com.zhul.erp.modules.inquiry.support.TaskTimeout;
 import com.zhul.erp.modules.inquiry.support.QuoteDictSnapshot;
 import com.zhul.erp.modules.inquiry.support.QuoteDicts;
 import com.zhul.erp.modules.inquiry.support.InquiryLookups;
+import com.zhul.erp.modules.quotation.support.QuotationLocks;
 import com.zhul.erp.modules.masterdata.entity.SupplierDO;
 import com.zhul.erp.modules.masterdata.repository.SupplierMapper;
 import com.zhul.erp.modules.system.service.LogService;
@@ -77,6 +78,7 @@ public class MyTaskServiceImpl implements MyTaskService {
     private final InquiryLookups lookups;
     private final SupplierMapper supplierMapper;
     private final LogService logService;
+    private final QuotationLocks quotationLocks;
 
     /** 兼职工作台按提交统计工作量：已提交、待审核、审核时作废的都算，与是否审核通过无关 */
     private static final List<Integer> WORK_STATUSES = List.of(InquiryConstants.QUOTE_SUBMITTED,
@@ -227,9 +229,11 @@ public class MyTaskServiceImpl implements MyTaskService {
         boolean review = needsReview(me);
         Map<Long, String> reviewers = review ? lookups.userNames(quotes.values().stream().flatMap(List::stream)
                 .map(SourcingQuoteDO::getReviewedBy).filter(Objects::nonNull).distinct().toList()) : Map.of();
+        Set<Long> locked = quotationLocks.lockedItemIds(items.stream().map(InquiryItemDO::getId).toList());
         List<MyTaskItemVO> rows = new ArrayList<>(items.size());
         for (InquiryItemDO i : items) {
             MyTaskItemVO vo = new MyTaskItemVO();
+            vo.setLocked(locked.contains(i.getId()));
             vo.setId(i.getId());
             vo.setModel(i.getConfirmedModel());
             vo.setOriginalModel(i.getOriginalModel());
@@ -251,6 +255,9 @@ public class MyTaskServiceImpl implements MyTaskService {
         MyTaskDetailVO vo = new MyTaskDetailVO();
         vo.setTask(toVo(task, mine, me, TaskTimeout.of(settings, tenantId()), LocalDateTime.now()));
         applyBrief(vo.getTask(), lookups.briefs(List.of(task.getCustomerInquiryId()), lookups.isPartTime(me)).get(task.getCustomerInquiryId()));
+        if (!items.isEmpty() && locked.size() == items.size()) {
+            vo.getTask().setEditable(false);
+        }
         vo.setItems(rows);
         vo.setReviewRequired(review);
         return vo;
@@ -335,7 +342,7 @@ public class MyTaskServiceImpl implements MyTaskService {
         SourcingTaskDO task = myTask(taskId);
         // 先锁客户询盘行再写任何数据：多人比价同时提交时按同一顺序加锁，避免死锁
         progress.lock(task.getCustomerInquiryId());
-        requireEditable(task);
+        requireEditable(task, req.getItems().stream().map(ItemQuotesRequest::getItemId).toList());
         boolean submit = Boolean.TRUE.equals(req.getSubmit());
         List<QuoteDraft> drafts = new ArrayList<>();
         for (ItemQuotesRequest item : req.getItems()) {
@@ -397,12 +404,16 @@ public class MyTaskServiceImpl implements MyTaskService {
         return taxedPrice.divide(divisor, 10, RoundingMode.HALF_UP).setScale(2, RoundingMode.HALF_UP);
     }
 
-    /** 客户询盘已报价、已成交 / 未成交或已取消后，回价只读 */
-    private void requireEditable(SourcingTaskDO task) {
+    /** 客户询盘已取消后整单只读；型号已报给客户（出现在已发送及之后的报价单中）后该型号只读 */
+    private void requireEditable(SourcingTaskDO task, List<Long> itemIds) {
         CustomerInquiryDO inquiry = inquiryMapper.selectById(task.getCustomerInquiryId());
-        if (inquiry != null && InquiryConstants.QUOTE_LOCKED_STATUSES.contains(inquiry.getStatus())) {
-            throw new BizException(inquiry.getStatus() == InquiryConstants.STATUS_CANCELLED
-                    ? "客户询盘已取消，回价不能再修改" : "业务员已经报价，回价不能再修改");
+        if (inquiry != null && inquiry.getStatus() == InquiryConstants.STATUS_CANCELLED) {
+            throw new BizException("客户询盘已取消，回价不能再修改");
+        }
+        Set<Long> locked = quotationLocks.lockedItemIds(itemIds);
+        if (!locked.isEmpty()) {
+            String models = itemMapper.selectBatchIds(locked).stream().map(InquiryItemDO::getConfirmedModel).collect(Collectors.joining("、"));
+            throw new BizException(models + " 已报给客户，回价不能再修改");
         }
     }
 
@@ -682,6 +693,6 @@ public class MyTaskServiceImpl implements MyTaskService {
         vo.setCustomerType(b.customerType());
         vo.setCustomerName(b.customerName());
         vo.setQuoteDeadline(b.quoteDeadline());
-        vo.setEditable(!InquiryConstants.QUOTE_LOCKED_STATUSES.contains(b.inquiryStatus()));
+        vo.setEditable(b.inquiryStatus() == null || b.inquiryStatus() != InquiryConstants.STATUS_CANCELLED);
     }
 }

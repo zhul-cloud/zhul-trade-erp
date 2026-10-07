@@ -125,6 +125,13 @@
             <version>5.2.5</version>
         </dependency>
 
+        <!-- PDFBox，报价单 PDF 渲染为图片（预览与图片导出） -->
+        <dependency>
+            <groupId>org.apache.pdfbox</groupId>
+            <artifactId>pdfbox</artifactId>
+            <version>3.0.3</version>
+        </dependency>
+
         <!-- MapStruct 对象转换 -->
         <dependency>
             <groupId>org.mapstruct</groupId>
