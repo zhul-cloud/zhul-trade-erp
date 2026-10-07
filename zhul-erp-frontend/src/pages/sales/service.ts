@@ -133,6 +133,7 @@ export interface Pi {
   piNo: string;
   customerId: number;
   customerName: string;
+  customerCountry?: string;
   ownerId: number;
   ownerName?: string;
   currencyCode: string;
@@ -177,6 +178,12 @@ export interface PiListItem {
   piNo: string;
   customerId: number;
   customerName: string;
+  /** 客户国家 */
+  customerCountry?: string;
+  /** 1-新客户、2-老客户 */
+  customerType?: number;
+  /** 全部型号数量之和 */
+  totalQuantity?: number;
   itemCount: number;
   currencyCode: string;
   totalAmount: number;
@@ -317,6 +324,12 @@ export interface OrderListItem {
   soNo: string;
   customerId: number;
   customerName: string;
+  /** 客户国家 */
+  customerCountry?: string;
+  /** 1-新客户、2-老客户 */
+  customerType?: number;
+  /** 全部型号数量之和 */
+  totalQuantity?: number;
   itemCount: number;
   currencyCode: string;
   totalAmount: number;
@@ -411,6 +424,8 @@ export interface PartyOption extends Party {
   /** 1-收货人、3-发票抬头 */
   partyType: number;
   isDefault: boolean;
+  /** 取自客户注册信息（不是单证主体） */
+  registration?: boolean;
 }
 
 export interface BankOption {
@@ -494,7 +509,9 @@ export const piApi = {
     get<CandidateQuotation>(`${PI}/candidates/quotations/${quotationId}`),
   create: (items: { quotationItemId: number; quantity?: number }[]) =>
     send<Pi>('POST', PI, { items }),
-  parties: (id: number) => get<PartyOption[]>(`${PI}/${id}/parties`),
+  /** customerId 不传时为 PI 的客户；传入时为数据范围内的其他客户（如母公司付款） */
+  parties: (id: number, customerId?: number) =>
+    get<PartyOption[]>(`${PI}/${id}/parties`, customerId ? { customerId } : {}),
   detail: (id: number, version?: number) =>
     get<Pi>(`${PI}/${id}`, version ? { version } : undefined),
   save: (id: number, body: SavePi) => send<Pi>('PUT', `${PI}/${id}`, body),

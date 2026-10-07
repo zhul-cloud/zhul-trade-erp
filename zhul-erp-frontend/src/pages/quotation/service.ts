@@ -110,6 +110,7 @@ export interface Quotation {
   quotationNo: string;
   customerId: number;
   customerName: string;
+  customerCountry?: string;
   customerType?: number;
   ownerId: number;
   ownerName?: string;
@@ -153,6 +154,12 @@ export interface QuotationListItem {
   quotationNo: string;
   customerId: number;
   customerName: string;
+  /** 客户国家 */
+  customerCountry?: string;
+  /** 1-新客户、2-老客户 */
+  customerType?: number;
+  /** 全部型号数量之和 */
+  totalQuantity?: number;
   itemCount: number;
   currencyCode: string;
   totalAmount: number;

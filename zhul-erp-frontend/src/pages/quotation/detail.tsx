@@ -28,7 +28,6 @@ import {
   Segmented,
   Select,
   Skeleton,
-  Space,
   Table,
   Tooltip,
 } from 'antd';
@@ -40,7 +39,11 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { INCOTERMS } from '@/pages/customer/constants';
+import {
+  DictTextInput,
+  IncotermInput,
+  PreviewPages,
+} from '@/components/DocFields';
 import {
   ConditionPill,
   useQuoteDicts,
@@ -51,6 +54,7 @@ import { ChainCard, PATHS as SALES_PATHS } from '@/pages/sales/components';
 import NewPiModal from '@/pages/sales/pi/NewPiModal';
 import { type PiListItem, piApi } from '@/pages/sales/service';
 import { useAppTheme } from '@/theme/AppTheme';
+import { DICT_WARRANTY } from '@/utils/dict';
 import { formatAmount, formatDateTime } from '@/utils/format';
 import {
   calcLine,
@@ -212,41 +216,7 @@ const PreviewPanel: React.FC<{
       ) : !state.pages ? (
         <Skeleton.Node active style={{ width: '100%', height: 420 }} />
       ) : (
-        <div
-          style={{
-            display: 'grid',
-            gap: 12,
-            maxHeight: 'calc(100vh - 240px)',
-            overflow: 'auto',
-          }}
-        >
-          {state.pages.map((src, i) => (
-            <figure key={src.slice(-32) + String(i)} style={{ margin: 0 }}>
-              <img
-                src={src}
-                alt={`第 ${i + 1} 页`}
-                style={{
-                  width: '100%',
-                  borderRadius: 8,
-                  border: `1px solid ${palette.hairline}`,
-                  background: '#fff',
-                }}
-              />
-              {state.pages && state.pages.length > 1 && (
-                <figcaption
-                  style={{
-                    textAlign: 'center',
-                    fontSize: 12,
-                    color: palette.mute,
-                    marginTop: 4,
-                  }}
-                >
-                  第 {i + 1} / {state.pages.length} 页
-                </figcaption>
-              )}
-            </figure>
-          ))}
-        </div>
+        <PreviewPages pages={state.pages} title="报价单预览" />
       )}
     </Card>
   );
@@ -664,11 +634,12 @@ const QuotationDetail: React.FC = () => {
             key: 'warranty',
             width: 100,
             render: (_: unknown, d: SaveQuotationItem) => (
-              <Input
+              <DictTextInput
                 size="small"
+                dictType={DICT_WARRANTY}
                 value={d.warranty}
-                onChange={(e) => updateItem(d.id, { warranty: e.target.value })}
-                aria-label="质保"
+                onChange={(v) => updateItem(d.id, { warranty: v })}
+                ariaLabel="质保"
               />
             ),
           },
@@ -1084,25 +1055,14 @@ const QuotationDetail: React.FC = () => {
           <div style={{ fontSize: 13, color: palette.sub, marginBottom: 6 }}>
             贸易术语
           </div>
-          <Space.Compact style={{ width: '100%' }}>
-            <Select
-              style={{ width: 96 }}
-              value={draft.incoterm || undefined}
-              placeholder="术语"
-              allowClear
-              options={INCOTERMS.map((c) => ({ value: c, label: c }))}
-              onChange={(v) => setDraft({ ...draft, incoterm: v ?? '' })}
-              aria-label="贸易术语"
-            />
-            <Input
-              value={draft.incotermPlace}
-              placeholder="地点，如 Shanghai"
-              onChange={(e) =>
-                setDraft({ ...draft, incotermPlace: e.target.value })
-              }
-              aria-label="术语地点"
-            />
-          </Space.Compact>
+          <IncotermInput
+            incoterm={draft.incoterm}
+            place={draft.incotermPlace}
+            customerCountry={q.customerCountry}
+            onChange={(incoterm, incotermPlace) =>
+              setDraft({ ...draft, incoterm, incotermPlace })
+            }
+          />
         </div>
         <div>
           <div style={{ fontSize: 13, color: palette.sub, marginBottom: 6 }}>
@@ -1317,12 +1277,11 @@ const QuotationDetail: React.FC = () => {
                       >
                         质保
                       </div>
-                      <Input
+                      <DictTextInput
+                        dictType={DICT_WARRANTY}
                         value={d.warranty}
-                        onChange={(e) =>
-                          updateItem(d.id, { warranty: e.target.value })
-                        }
-                        aria-label="质保"
+                        onChange={(v) => updateItem(d.id, { warranty: v })}
+                        ariaLabel="质保"
                       />
                     </div>
                   </>
@@ -1474,7 +1433,7 @@ const QuotationDetail: React.FC = () => {
 
   const totalsCard = (
     <Card style={{ padding: 20, width: compact ? '100%' : 400 }}>
-      <Row label="型号小计" value={formatAmount(t.itemAmount, currency)} />
+      <Row label="小计" value={formatAmount(t.itemAmount, currency)} />
       <Row label="费用" value={formatAmount(t.feeAmount, currency)} />
       <div
         style={{

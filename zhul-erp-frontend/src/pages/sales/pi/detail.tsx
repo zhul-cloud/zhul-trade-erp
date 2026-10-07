@@ -30,7 +30,6 @@ import {
   Segmented,
   Select,
   Skeleton,
-  Space,
   Table,
   Tooltip,
 } from 'antd';
@@ -42,12 +41,22 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { INCOTERMS } from '@/pages/customer/constants';
+import {
+  DictTextInput,
+  IncotermInput,
+  PreviewPages,
+} from '@/components/DocFields';
 import { useQuoteDicts, useWide } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import type { LineResult } from '@/pages/quotation/calc';
 import { formatMargin } from '@/pages/quotation/calc';
 import { useAppTheme } from '@/theme/AppTheme';
+import {
+  DICT_PI_DELIVERY_TIME,
+  DICT_PI_PAYMENT_TERM,
+  DICT_PORT_OF_SHIPMENT,
+  DICT_WARRANTY,
+} from '@/utils/dict';
 import { formatAmount, formatDateTime } from '@/utils/format';
 import {
   Card,
@@ -741,9 +750,17 @@ const PiDetail: React.FC = () => {
 
   // ---------------------------------------------------------------- 买方 / 收货人与表头
 
+  /** 收货人与买方的名称、地址都相同即视为「同买方」 */
+  const samePartyAs = (a: Party, b?: Party | null) =>
+    !!b &&
+    a.name === b.name &&
+    (a.address ?? '') === (b.address ?? '') &&
+    (a.country ?? '') === (b.country ?? '');
+
   const partyCard = (type: 1 | 3) => {
     const p = type === 3 ? draft.buyer : draft.consignee;
-    const isNew = p && !p.partyId;
+    const sameAsBuyer = type === 1 && !!p && samePartyAs(p, draft.buyer);
+    const isNew = p && !p.partyId && !sameAsBuyer;
     const saveFlag =
       type === 3 ? draft.saveBuyerToCustomer : draft.saveConsigneeToCustomer;
     return (
@@ -768,6 +785,7 @@ const PiDetail: React.FC = () => {
             {type === 3 ? '买方（发票抬头 Bill To）' : '收货人（Consignee）'}
           </span>
           {isNew && <Pill tone="orange">本次新填</Pill>}
+          {sameAsBuyer && <Pill tone="gray">同买方</Pill>}
           {editable && (
             <a
               style={{ marginLeft: 'auto', fontSize: 13 }}
@@ -870,60 +888,43 @@ const PiDetail: React.FC = () => {
       >
         {field(
           '交期',
-          <Input
+          <DictTextInput
+            dictType={DICT_PI_DELIVERY_TIME}
             value={draft.deliveryTime}
-            maxLength={100}
             placeholder="3-5 days after payment"
-            onChange={(e) =>
-              setDraft({ ...draft, deliveryTime: e.target.value })
-            }
-            aria-label="交期"
+            onChange={(v) => setDraft({ ...draft, deliveryTime: v })}
+            ariaLabel="交期"
           />,
+          '新建时按型号中最长的货期带出',
         )}
         {field(
           '付款条件',
-          <Input
+          <DictTextInput
+            dictType={DICT_PI_PAYMENT_TERM}
             value={draft.paymentTerm}
-            maxLength={200}
-            onChange={(e) =>
-              setDraft({ ...draft, paymentTerm: e.target.value })
-            }
-            aria-label="付款条件"
+            onChange={(v) => setDraft({ ...draft, paymentTerm: v })}
+            ariaLabel="付款条件"
           />,
-          '按客户档案的付款方式生成，可改',
         )}
         {field(
           '贸易术语',
-          <Space.Compact style={{ width: '100%' }}>
-            <Select
-              style={{ width: 96 }}
-              value={draft.incoterm || undefined}
-              placeholder="术语"
-              allowClear
-              options={INCOTERMS.map((c) => ({ value: c, label: c }))}
-              onChange={(x) => setDraft({ ...draft, incoterm: x ?? '' })}
-              aria-label="贸易术语"
-            />
-            <Input
-              value={draft.incotermPlace}
-              placeholder="地点"
-              onChange={(e) =>
-                setDraft({ ...draft, incotermPlace: e.target.value })
-              }
-              aria-label="术语地点"
-            />
-          </Space.Compact>,
+          <IncotermInput
+            incoterm={draft.incoterm}
+            place={draft.incotermPlace}
+            customerCountry={pi.customerCountry}
+            onChange={(incoterm, incotermPlace) =>
+              setDraft({ ...draft, incoterm, incotermPlace })
+            }
+          />,
         )}
         {field(
           '起运港',
-          <Input
+          <DictTextInput
+            dictType={DICT_PORT_OF_SHIPMENT}
             value={draft.portOfShipment}
-            maxLength={64}
             placeholder="Hong Kong"
-            onChange={(e) =>
-              setDraft({ ...draft, portOfShipment: e.target.value })
-            }
-            aria-label="起运港"
+            onChange={(v) => setDraft({ ...draft, portOfShipment: v })}
+            ariaLabel="起运港"
           />,
         )}
       </div>
@@ -1352,13 +1353,11 @@ const PiDetail: React.FC = () => {
                 )}
                 {field(
                   '质保',
-                  <Input
+                  <DictTextInput
+                    dictType={DICT_WARRANTY}
                     value={d.warranty}
-                    maxLength={32}
-                    onChange={(e) =>
-                      updateItem(d.id, { warranty: e.target.value })
-                    }
-                    aria-label="质保"
+                    onChange={(v) => updateItem(d.id, { warranty: v })}
+                    ariaLabel="质保"
                   />,
                 )}
                 {field(
@@ -1435,7 +1434,7 @@ const PiDetail: React.FC = () => {
       >
         <b style={{ color: palette.ink }}>费用与折扣</b>
         <span style={{ fontSize: 12, color: palette.mute }}>
-          运费、手续费不计入毛利率；折扣按型号小计计算
+          运费、手续费不计入毛利率；折扣按小计计算
         </span>
         <a
           style={{ marginLeft: 'auto' }}
@@ -1591,7 +1590,7 @@ const PiDetail: React.FC = () => {
 
   const totalsCard = (
     <Card style={{ padding: 20, width: compact ? '100%' : 400 }}>
-      <Row label="型号小计" value={formatAmount(t.itemAmount, cur)} />
+      <Row label="小计" value={formatAmount(t.itemAmount, cur)} />
       <Row label="费用" value={formatAmount(t.feeAmount, cur)} />
       {t.discountAmount > 0 && (
         <Row
@@ -2140,28 +2139,7 @@ const PiDetail: React.FC = () => {
       ) : !preview.pages ? (
         <Skeleton.Node active style={{ width: '100%', height: 420 }} />
       ) : (
-        <div
-          style={{
-            display: 'grid',
-            gap: 12,
-            maxHeight: 'calc(100vh - 240px)',
-            overflow: 'auto',
-          }}
-        >
-          {preview.pages.map((src, i) => (
-            <img
-              key={src.slice(-32) + String(i)}
-              src={src}
-              alt={`第 ${i + 1} 页`}
-              style={{
-                width: '100%',
-                borderRadius: 8,
-                border: `1px solid ${palette.hairline}`,
-                background: '#fff',
-              }}
-            />
-          ))}
-        </div>
+        <PreviewPages pages={preview.pages} title="PI 预览" />
       )}
     </Card>
   );
@@ -2297,6 +2275,8 @@ const PiDetail: React.FC = () => {
           type={partyType}
           open
           value={partyType === 3 ? draft.buyer : draft.consignee}
+          customer={{ id: pi.customerId, name: pi.customerName }}
+          buyer={draft.buyer}
           onClose={() => setPartyType(undefined)}
           onOk={(p, saveToCustomer) => {
             setDraft(

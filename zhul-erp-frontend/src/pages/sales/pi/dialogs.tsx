@@ -28,6 +28,7 @@ import {
 } from 'antd';
 import dayjs from 'dayjs';
 import React, { useEffect, useMemo, useState } from 'react';
+import { searchCustomers } from '@/services/zhul/masterdata';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
 import { CHANNEL, KIND, Pill, partyAddress } from '../components';
@@ -285,43 +286,77 @@ export const PartyModal: React.FC<{
   type: 1 | 3;
   open: boolean;
   value?: Party | null;
+  /** PI 的客户：买方默认从这个客户的档案里选 */
+  customer: { id: number; name: string };
+  /** 当前买方：收货人可一键设为「同买方」 */
+  buyer?: Party | null;
   onClose: () => void;
   onOk: (party: Party | null, saveToCustomer: boolean) => void;
-}> = ({ piId, type, open, value, onClose, onOk }) => {
+}> = ({ piId, type, open, value, customer, buyer, onClose, onOk }) => {
   const { palette } = useAppTheme();
   const [options, setOptions] = useState<PartyOption[]>();
   const [mode, setMode] = useState<'pick' | 'edit'>('pick');
+  /** 选中项在 options 中的下标（客户注册信息没有 partyId） */
   const [selected, setSelected] = useState<number | null>();
   const [form, setForm] = useState<Party>({ name: '' });
   const [save, setSave] = useState(false);
+  const [customerId, setCustomerId] = useState(customer.id);
+  const [customerOptions, setCustomerOptions] = useState<
+    { value: number; label: string }[]
+  >([{ value: customer.id, label: customer.name }]);
   const title = type === 3 ? '买方（发票抬头 Bill To）' : '收货人（Consignee）';
+
+  useEffect(() => {
+    if (open) setCustomerId(customer.id);
+  }, [open, customer.id]);
 
   useEffect(() => {
     if (!open) return;
     setSave(false);
     setOptions(undefined);
     setForm(value ? { ...value } : { name: '' });
-    setSelected(value?.partyId ?? null);
+    const otherCustomer = customerId !== customer.id;
     piApi
-      .parties(piId)
+      .parties(piId, otherCustomer ? customerId : undefined)
       .then((list) => {
         const own = list.filter((p) => p.partyType === type);
         setOptions(own);
+        const hit = value?.partyId
+          ? own.findIndex((o) => o.partyId === value.partyId)
+          : -1;
+        setSelected(hit >= 0 ? hit : otherCustomer && own.length ? 0 : null);
         setMode(
-          own.length === 0 || (value && !value.partyId) ? 'edit' : 'pick',
+          own.length === 0 || (!otherCustomer && value && !value.partyId)
+            ? 'edit'
+            : 'pick',
         );
       })
       .catch(() => {
         setOptions([]);
         setMode('edit');
       });
-  }, [open, piId, type, value]);
+  }, [open, piId, type, value, customerId, customer.id]);
+
+  const findCustomers = (keyword: string) =>
+    searchCustomers(keyword)
+      .then((list) =>
+        setCustomerOptions(
+          list.map((c) => ({
+            value: c.id,
+            label: [c.displayName || c.name, c.country]
+              .filter(Boolean)
+              .join(' · '),
+          })),
+        ),
+      )
+      .catch(() => undefined);
 
   const submit = () => {
     if (mode === 'pick') {
-      const p = options?.find((o) => o.partyId === selected);
+      const p = selected == null ? undefined : options?.[selected];
       if (!p) return;
-      onOk({ ...p }, false);
+      // 客户注册信息不是单证主体，按「本次新填」处理，可勾选存到客户档案
+      onOk({ ...p, partyId: p.registration ? null : p.partyId }, false);
     } else {
       onOk({ ...form, partyId: null }, save);
     }
@@ -360,6 +395,15 @@ export const PartyModal: React.FC<{
             不显示收货人
           </Button>
         ),
+        type === 1 && buyer && (
+          <Button
+            key="same"
+            style={{ float: 'left' }}
+            onClick={() => onOk({ ...buyer, partyId: null }, false)}
+          >
+            同买方
+          </Button>
+        ),
         <Button key="cancel" onClick={onClose}>
           取消
         </Button>,
@@ -373,6 +417,22 @@ export const PartyModal: React.FC<{
         </Button>,
       ]}
     >
+      {type === 3 && (
+        <div style={{ marginBottom: 12 }}>
+          <div style={{ ...label, color: palette.sub }}>
+            客户（可选自己负责的其他客户，如母公司付款）
+          </div>
+          <Select
+            showSearch={{ filterOption: false, onSearch: findCustomers }}
+            style={{ width: '100%' }}
+            value={customerId}
+            options={customerOptions}
+            onFocus={() => customerOptions.length <= 1 && findCustomers('')}
+            onChange={(v) => setCustomerId(v)}
+            aria-label="买方客户"
+          />
+        </div>
+      )}
       <Radio.Group
         value={mode}
         onChange={(e) => setMode(e.target.value)}
@@ -393,13 +453,13 @@ export const PartyModal: React.FC<{
         <div
           style={{ display: 'grid', gap: 8, maxHeight: 420, overflow: 'auto' }}
         >
-          {options.map((o) => {
-            const active = selected === o.partyId;
+          {options.map((o, idx) => {
+            const active = selected === idx;
             return (
               <button
                 type="button"
-                key={o.partyId}
-                onClick={() => setSelected(o.partyId)}
+                key={o.partyId ?? `reg-${idx}`}
+                onClick={() => setSelected(idx)}
                 style={{
                   all: 'unset',
                   cursor: 'pointer',
@@ -420,6 +480,7 @@ export const PartyModal: React.FC<{
                 >
                   {o.name}
                   {o.isDefault && <Pill tone="accent">默认</Pill>}
+                  {o.registration && <Pill tone="gray">客户注册信息</Pill>}
                 </div>
                 <div style={{ fontSize: 12, color: palette.sub, marginTop: 2 }}>
                   {partyAddress(o)}
@@ -594,7 +655,7 @@ export const SlipModal: React.FC<{
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: '1fr 1fr',
+          gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
           gap: 12,
           marginTop: 16,
         }}
@@ -784,7 +845,13 @@ export const ConfirmReceiptModal: React.FC<{
           style={{ marginBottom: 12 }}
         />
       )}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+          gap: 12,
+        }}
+      >
         <div>
           <div style={{ ...label, color: palette.sub }}>
             到账金额（银行实收）

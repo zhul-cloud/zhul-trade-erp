@@ -382,7 +382,7 @@ const OrderDetail: React.FC = () => {
           )}
         </Card>
         <Card style={{ padding: 20, width: wide ? 400 : '100%' }}>
-          {row('型号小计', formatAmount(o.itemAmount, cur))}
+          {row('小计', formatAmount(o.itemAmount, cur))}
           {row('费用', formatAmount(o.feeAmount, cur))}
           {o.discountAmount > 0 &&
             row('折扣', formatAmount(-o.discountAmount, cur), palette.orange)}

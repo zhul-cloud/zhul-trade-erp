@@ -4,6 +4,7 @@ import type { TableColumnsType } from 'antd';
 import { Button, DatePicker, Form, Input, Select, Table } from 'antd';
 import type { Dayjs } from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
+import { CustomerCell } from '@/components/DocFields';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
 import { getUserList } from '@/pages/system/user/service';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -99,8 +100,26 @@ const OrderList: React.FC = () => {
         <a onClick={() => history.push(PATHS.order(r.id))}>{v}</a>
       ),
     },
-    { title: '客户', dataIndex: 'customerName', width: 220, ellipsis: true },
+    {
+      title: '客户',
+      dataIndex: 'customerName',
+      width: 260,
+      render: (v: string, r) => (
+        <CustomerCell
+          name={v}
+          country={r.customerCountry}
+          type={r.customerType}
+        />
+      ),
+    },
     { title: '型号数', dataIndex: 'itemCount', width: 80, align: 'right' },
+    {
+      title: '总数量',
+      dataIndex: 'totalQuantity',
+      width: 90,
+      align: 'right',
+      render: (v?: number) => v ?? '—',
+    },
     {
       title: '币种 · 合计',
       dataIndex: 'totalAmount',
@@ -298,7 +317,7 @@ const OrderList: React.FC = () => {
           columns={columns}
           dataSource={rows}
           loading={loading}
-          scroll={{ x: 1400 }}
+          scroll={{ x: 1530 }}
           locale={{ emptyText: '没有符合条件的订单，换个筛选条件试试' }}
           pagination={{
             current: page,

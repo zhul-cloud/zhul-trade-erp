@@ -71,3 +71,67 @@ export const useDictOptions = (dictType: string, fallback = '—') => {
     all.find((o) => o.value === v)?.label ?? fallback;
   return { options, labelOf };
 };
+
+// ---------------------------------------------------------------- 文字字典（单据上显示英文的下拉）
+
+/** 报价单、PI 的下拉字典：字典带英文名，单据上显示英文；都可以直接填写字典以外的内容 */
+export const DICT_TRADE_TERM_PLACE = 'trade_term_place';
+export const DICT_WARRANTY = 'warranty';
+export const DICT_PI_DELIVERY_TIME = 'pi_delivery_time';
+export const DICT_PI_PAYMENT_TERM = 'pi_payment_term';
+export const DICT_PORT_OF_SHIPMENT = 'port_of_shipment';
+
+export interface DictText {
+  code: string;
+  /** 保存与显示在单据上的文字：英文名，没有英文名时用中文名 */
+  text: string;
+  /** 中文名，作为下拉里的说明 */
+  name: string;
+  isDefault: boolean;
+}
+
+interface DictTextItem {
+  itemCode: string;
+  itemName: string;
+  itemNameEn?: string;
+  isDefault?: number;
+  status: number;
+}
+
+const textCache = new Map<string, Promise<DictText[]>>();
+
+const loadTexts = (dictType: string) => {
+  let p = textCache.get(dictType);
+  if (!p) {
+    p = request<{ data: DictTextItem[] }>('/api/v1/system/dict-items', {
+      params: { dictType },
+    }).then((res) =>
+      (res.data ?? [])
+        .filter((d) => d.status === 1)
+        .map((d) => ({
+          code: d.itemCode,
+          text: d.itemNameEn || d.itemName,
+          name: d.itemName,
+          isDefault: d.isDefault === 1,
+        })),
+    );
+    p.catch(() => textCache.delete(dictType));
+    textCache.set(dictType, p);
+  }
+  return p;
+};
+
+/** 启用的文字字典项（按字典排序） */
+export const useDictTexts = (dictType: string) => {
+  const [items, setItems] = useState<DictText[]>([]);
+  useEffect(() => {
+    let alive = true;
+    loadTexts(dictType)
+      .then((o) => alive && setItems(o))
+      .catch(() => alive && setItems([]));
+    return () => {
+      alive = false;
+    };
+  }, [dictType]);
+  return items;
+};

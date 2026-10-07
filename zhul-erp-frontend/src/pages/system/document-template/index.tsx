@@ -91,6 +91,7 @@ const PLACEHOLDERS: { group: string; rows: [string, string][] }[] = [
   {
     group: '费用行（可选，整行写在一行里）',
     rows: [
+      ['${fee.no}', '序号（接着型号行编号，数字）'],
       ['${fee.name}', '费用名称'],
       ['${fee.amount}', '金额（数字）'],
     ],
@@ -157,8 +158,8 @@ const PI_PLACEHOLDERS: { group: string; rows: [string, string][] }[] = [
     group: 'PI 费用行（运费、手续费；整单折扣作为一行负数「Discount」输出）',
     rows: [
       [
-        '${fee.name} / ${fee.amount} / ${fee.remark}',
-        '费用名称 / 金额（数字）/ 备注',
+        '${fee.no} / ${fee.name} / ${fee.amount} / ${fee.remark}',
+        '序号（接着型号行编号）/ 费用名称 / 金额（数字）/ 备注',
       ],
     ],
   },
