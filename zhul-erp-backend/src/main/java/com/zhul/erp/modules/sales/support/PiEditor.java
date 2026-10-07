@@ -104,6 +104,12 @@ public class PiEditor {
         v.setBuyerPartyId(buyer.getPartyId());
         v.setConsigneeJson(store.toJson(consignee));
         v.setConsigneePartyId(consignee == null ? null : consignee.getPartyId());
+        if (req.getValidUntil() != null) {
+            if (pi.getCreateTime() != null && req.getValidUntil().isBefore(pi.getCreateTime().toLocalDate())) {
+                throw new BizException("有效期不能早于 PI 日期");
+            }
+            v.setValidUntil(req.getValidUntil());
+        }
         v.setDeliveryTime(trim(req.getDeliveryTime()));
         v.setPaymentTerm(trim(req.getPaymentTerm()));
         String incoterm = trim(req.getIncoterm()).toUpperCase(Locale.ROOT);

@@ -34,4 +34,12 @@ public class PiListVO {
     private String ownerName;
     private LocalDateTime createTime;
     private LocalDateTime sentAt;
+    /** 有效期至（当前有效版本） */
+    private java.time.LocalDate validUntil;
+    /** 已发送、未付款且过了有效期 */
+    private Boolean expired;
+    /** 已过期天数，没过期时为空 */
+    private Long expiredDays;
+    /** 已关闭时的原因 */
+    private String closeReasonName;
 }

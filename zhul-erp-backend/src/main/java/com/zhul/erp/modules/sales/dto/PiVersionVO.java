@@ -19,6 +19,7 @@ public class PiVersionVO {
     private String incotermPlace;
     private String portOfShipment;
     private String remark;
+    private java.time.LocalDate validUntil;
     private BankSnapshotDTO bankAccount;
     private Integer discountType;
     private BigDecimal discountValue;

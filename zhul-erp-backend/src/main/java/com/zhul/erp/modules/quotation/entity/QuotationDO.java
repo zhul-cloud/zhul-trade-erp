@@ -35,6 +35,9 @@ public class QuotationDO {
     private String lostReason;
     private String lostReasonName;
     private String lostNote;
+    /** 因关闭哪张 PI 而标为未成交；重新打开该 PI 时据此恢复 */
+    @TableField(updateStrategy = FieldStrategy.ALWAYS)
+    private Long lostByPiId;
     private Long copiedFromId;
     /** 当前版本号：已发送报价单为当前有效版本，草稿为 1 */
     private Integer currentVersionNo;

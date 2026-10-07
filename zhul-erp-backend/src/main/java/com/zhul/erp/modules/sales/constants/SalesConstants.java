@@ -11,7 +11,13 @@ public final class SalesConstants {
     public static final int PI_SENT = 2;
     public static final int PI_CONVERTED = 3;
     public static final int PI_VOID = 4;
-    public static final Map<Integer, String> PI_STATUS_NAMES = Map.of(PI_DRAFT, "草稿", PI_SENT, "已发送", PI_CONVERTED, "已转订单", PI_VOID, "已作废");
+    /** 客户最终没有付款，业务员关闭 */
+    public static final int PI_CLOSED = 5;
+    public static final Map<Integer, String> PI_STATUS_NAMES = Map.of(PI_DRAFT, "草稿", PI_SENT, "已发送", PI_CONVERTED, "已转订单", PI_VOID, "已作废",
+            PI_CLOSED, "已关闭");
+    /** 有效期默认天数：开 PI 当天 + 60 天 */
+    public static final int PI_VALID_DAYS = 60;
+    public static final String CLOSED_MESSAGE = "PI 已关闭，需要继续请先重新打开";
 
     /** PI 版本状态 */
     public static final int VERSION_EDITING = 1;

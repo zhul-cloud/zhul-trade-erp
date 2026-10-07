@@ -2,6 +2,9 @@ package com.zhul.erp.modules.sales.controller;
 
 import com.zhul.erp.common.result.PageResult;
 import com.zhul.erp.common.result.Result;
+import com.zhul.erp.modules.sales.dto.ClosePiRequest;
+import com.zhul.erp.modules.sales.dto.OverduePiVO;
+import com.zhul.erp.modules.sales.dto.ReopenPiRequest;
 import com.zhul.erp.modules.sales.dto.AddPiItemsRequest;
 import com.zhul.erp.modules.sales.dto.CreatePiRequest;
 import com.zhul.erp.modules.sales.dto.MarkPiSentRequest;
@@ -134,6 +137,24 @@ public class PiController {
     @PreAuthorize("@perm.canAccessMenu('/sales/pi')")
     public Result<PiVO> voidPi(@PathVariable Long id) {
         return Result.ok(service.voidPi(id));
+    }
+
+    @PostMapping("/{id}/close")
+    @PreAuthorize("@perm.canAccessMenu('/sales/pi')")
+    public Result<PiVO> close(@PathVariable Long id, @Valid @RequestBody ClosePiRequest req) {
+        return Result.ok(service.close(id, req));
+    }
+
+    @PostMapping("/{id}/reopen")
+    @PreAuthorize("@perm.canAccessMenu('/sales/pi')")
+    public Result<PiVO> reopen(@PathVariable Long id, @RequestBody(required = false) ReopenPiRequest req) {
+        return Result.ok(service.reopen(id, req == null ? new ReopenPiRequest() : req));
+    }
+
+    @GetMapping("/overdue")
+    @PreAuthorize("@perm.canAccessMenu('/sales/pi')")
+    public Result<OverduePiVO> overdue() {
+        return Result.ok(service.overdue());
     }
 
     @GetMapping("/{id}/export")

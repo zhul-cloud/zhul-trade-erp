@@ -101,7 +101,8 @@ public class SalesOrderServiceImpl implements SalesOrderService {
             throw new BizException("PI 已转成订单 " + existing.getSoNo());
         }
         if (pi.getStatus() != SalesConstants.PI_SENT) {
-            throw new BizException(pi.getStatus() == SalesConstants.PI_VOID ? "PI 已作废，不能转成订单" : "PI 还没有发送，不能转成订单");
+            throw new BizException(pi.getStatus() == SalesConstants.PI_VOID ? "PI 已作废，不能转成订单"
+                    : pi.getStatus() == SalesConstants.PI_CLOSED ? SalesConstants.CLOSED_MESSAGE : "PI 还没有发送，不能转成订单");
         }
         if (pi.getEditingVersionNo() != null) {
             throw new BizException("PI 有未发送的新版本 Rev." + pi.getEditingVersionNo() + "，请先发送或放弃后再转成订单");

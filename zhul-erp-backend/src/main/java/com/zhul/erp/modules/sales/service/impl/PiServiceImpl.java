@@ -21,6 +21,9 @@ import com.zhul.erp.modules.quotation.support.QuotationPricing;
 import com.zhul.erp.modules.quotation.support.QuotationRenderModels;
 import com.zhul.erp.modules.quotation.support.QuotationStore;
 import com.zhul.erp.modules.sales.constants.SalesConstants;
+import com.zhul.erp.modules.sales.dto.ClosePiRequest;
+import com.zhul.erp.modules.sales.dto.OverduePiVO;
+import com.zhul.erp.modules.sales.dto.ReopenPiRequest;
 import com.zhul.erp.modules.sales.dto.AddPiItemsRequest;
 import com.zhul.erp.modules.sales.dto.BankSnapshotDTO;
 import com.zhul.erp.modules.sales.dto.CreatePiRequest;
@@ -54,6 +57,7 @@ import com.zhul.erp.modules.sales.repository.ProformaInvoiceMapper;
 import com.zhul.erp.modules.sales.repository.SalesOrderMapper;
 import com.zhul.erp.modules.sales.service.PiService;
 import com.zhul.erp.modules.sales.support.PiCalculator;
+import com.zhul.erp.modules.sales.support.PiClosing;
 import com.zhul.erp.modules.sales.support.PiDefaults;
 import com.zhul.erp.modules.sales.support.PiEditor;
 import com.zhul.erp.modules.sales.support.PiStore;
@@ -71,6 +75,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
+import java.time.temporal.ChronoUnit;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -93,6 +98,7 @@ public class PiServiceImpl implements PiService {
 
     private static final Set<Integer> PI_SOURCE_STATUSES = Set.of(QuotationConstants.STATUS_SENT, QuotationConstants.STATUS_PARTIAL);
     private static final int KEYWORD_LIMIT = 500;
+    private static final int OVERDUE_TOP = 5;
 
     private final ProformaInvoiceMapper piMapper;
     private final PiVersionMapper versionMapper;
@@ -110,6 +116,7 @@ public class PiServiceImpl implements PiService {
     private final PiSummary summary;
     private final PiDefaults defaults;
     private final PiEditor editor;
+    private final PiClosing closing;
     private final BankAccountService bankAccountService;
     private final DocumentNumberService documentNumberService;
     private final ExchangeRateService exchangeRateService;
@@ -230,7 +237,8 @@ public class PiServiceImpl implements PiService {
             return Map.of();
         }
         Map<Long, ProformaInvoiceDO> pis = piMapper.selectBatchIds(rows.stream().map(PiItemDO::getPiId).collect(Collectors.toSet()))
-                .stream().filter(p -> p.getDeletedAt() == null && p.getStatus() != SalesConstants.PI_VOID && !p.getId().equals(excludePiId))
+                .stream().filter(p -> p.getDeletedAt() == null && p.getStatus() != SalesConstants.PI_VOID
+                        && p.getStatus() != SalesConstants.PI_CLOSED && !p.getId().equals(excludePiId))
                 .collect(Collectors.toMap(ProformaInvoiceDO::getId, p -> p));
         if (pis.isEmpty()) {
             return Map.of();
@@ -307,6 +315,7 @@ public class PiServiceImpl implements PiService {
         v.setIncotermPlace(quotedTerms ? nz(first.getIncotermPlace()) : nz(customer.getCountry()));
         v.setPortOfShipment(defaults.defaultText(PiDefaults.DICT_PORT, PiDefaults.FALLBACK_PORT));
         v.setRemark("");
+        v.setValidUntil(LocalDate.now().plusDays(SalesConstants.PI_VALID_DAYS));
         BankAccountDO bank = bankAccountService.defaultFor(picked.currency());
         v.setBankAccountId(bank == null ? null : bank.getId());
         v.setBankAccountJson(bank == null ? null : store.toJson(PiDefaults.bankSnapshot(bank)));
@@ -534,6 +543,9 @@ public class PiServiceImpl implements PiService {
         if (pi.getStatus() == SalesConstants.PI_VOID) {
             throw new BizException("PI 已作废，不能发送");
         }
+        if (pi.getStatus() == SalesConstants.PI_CLOSED) {
+            throw new BizException(SalesConstants.CLOSED_MESSAGE);
+        }
         PiVersionDO editing = pi.getStatus() == SalesConstants.PI_CONVERTED ? null : store.version(id, pi.getEditingVersionNo());
         int versionNo;
         if (editing != null) {
@@ -585,6 +597,9 @@ public class PiServiceImpl implements PiService {
         if (pi.getStatus() == SalesConstants.PI_VOID) {
             throw new BizException("PI 已作废，不能修改");
         }
+        if (pi.getStatus() == SalesConstants.PI_CLOSED) {
+            throw new BizException(SalesConstants.CLOSED_MESSAGE);
+        }
         if (pi.getEditingVersionNo() != null) {
             return detail(id, null);
         }
@@ -634,6 +649,7 @@ public class PiServiceImpl implements PiService {
         t.setIncotermPlace(s.getIncotermPlace());
         t.setPortOfShipment(s.getPortOfShipment());
         t.setRemark(s.getRemark());
+        t.setValidUntil(s.getValidUntil());
         t.setBankAccountId(s.getBankAccountId());
         t.setBankAccountJson(s.getBankAccountJson());
         t.setDiscountType(s.getDiscountType());
@@ -679,6 +695,9 @@ public class PiServiceImpl implements PiService {
         if (pi.getStatus() == SalesConstants.PI_VOID) {
             throw new BizException("PI 已作废");
         }
+        if (pi.getStatus() == SalesConstants.PI_CLOSED) {
+            throw new BizException(SalesConstants.CLOSED_MESSAGE);
+        }
         boolean hasReceipt = receiptMapper.selectCount(new LambdaQueryWrapper<PaymentReceiptDO>()
                 .eq(PaymentReceiptDO::getPiId, id)
                 .eq(PaymentReceiptDO::getKind, SalesConstants.KIND_RECEIPT)
@@ -699,6 +718,58 @@ public class PiServiceImpl implements PiService {
         logService.recordOperateLog(SalesConstants.MENU_PI, "作废 PI", Map.of("piNo", pi.getPiNo(), "status", before),
                 Map.of("piNo", pi.getPiNo(), "status", "已作废"));
         return detail(id, null);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public PiVO close(Long id, ClosePiRequest req) {
+        ProformaInvoiceDO pi = store.lockVisible(id);
+        List<String> notices = closing.close(pi, req);
+        PiVO vo = detail(id, null);
+        vo.setNotices(notices);
+        return vo;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public PiVO reopen(Long id, ReopenPiRequest req) {
+        ProformaInvoiceDO pi = store.lockVisible(id);
+        closing.reopen(pi, req.getValidUntil());
+        return detail(id, null);
+    }
+
+    @Override
+    public OverduePiVO overdue() {
+        List<ProformaInvoiceDO> rows = piMapper.selectList(expiredUnpaid(scoped())
+                .orderByAsc(ProformaInvoiceDO::getValidUntil).orderByAsc(ProformaInvoiceDO::getId));
+        OverduePiVO vo = new OverduePiVO();
+        vo.setCount((long) rows.size());
+        Map<String, BigDecimal> totals = new LinkedHashMap<>();
+        rows.forEach(p -> totals.merge(p.getCurrencyCode(), nz(p.getTotalAmount()), BigDecimal::add));
+        vo.setTotals(totals.entrySet().stream().map(e -> {
+            OverduePiVO.CurrencyTotal t = new OverduePiVO.CurrencyTotal();
+            t.setCurrencyCode(e.getKey());
+            t.setAmount(e.getValue());
+            return t;
+        }).toList());
+        vo.setTop(toListVos(rows.stream().limit(OVERDUE_TOP).toList()));
+        return vo;
+    }
+
+    /** 已过期未收款：已发送、未付款（没有水单也没有到账）且有效期早于今天；列表筛选与工作台卡片共用 */
+    private static LambdaQueryWrapper<ProformaInvoiceDO> expiredUnpaid(LambdaQueryWrapper<ProformaInvoiceDO> w) {
+        return w.eq(ProformaInvoiceDO::getStatus, SalesConstants.PI_SENT)
+                .eq(ProformaInvoiceDO::getReceiptStatus, SalesConstants.RECEIPT_NONE)
+                .lt(ProformaInvoiceDO::getValidUntil, LocalDate.now());
+    }
+
+    /** 已过期天数：已发送、未付款且过了有效期时有值 */
+    private static Long expiredDays(ProformaInvoiceDO p) {
+        if (p.getStatus() != SalesConstants.PI_SENT || p.getReceiptStatus() != SalesConstants.RECEIPT_NONE
+                || p.getValidUntil() == null || !p.getValidUntil().isBefore(LocalDate.now())) {
+            return null;
+        }
+        return ChronoUnit.DAYS.between(p.getValidUntil(), LocalDate.now());
     }
 
     @Override
@@ -753,7 +824,19 @@ public class PiServiceImpl implements PiService {
         vo.setCurrentVersionNo(pi.getCurrentVersionNo());
         vo.setEditingVersionNo(pi.getEditingVersionNo());
         vo.setEditable(Objects.equals(v.getVersionNo(), pi.getEditingVersionNo())
-                && pi.getStatus() != SalesConstants.PI_CONVERTED && pi.getStatus() != SalesConstants.PI_VOID);
+                && pi.getStatus() != SalesConstants.PI_CONVERTED && pi.getStatus() != SalesConstants.PI_VOID
+                && pi.getStatus() != SalesConstants.PI_CLOSED);
+        vo.setValidUntil(pi.getValidUntil());
+        Long days = expiredDays(pi);
+        vo.setExpired(days != null);
+        vo.setExpiredDays(days);
+        if (pi.getStatus() == SalesConstants.PI_CLOSED) {
+            vo.setCloseReason(pi.getCloseReason());
+            vo.setCloseReasonName(pi.getCloseReasonName());
+            vo.setCloseNote(pi.getCloseNote());
+            vo.setClosedAt(pi.getClosedAt());
+            vo.setClosedByName(pi.getClosedBy() == null ? null : lookups.userNames(List.of(pi.getClosedBy())).get(pi.getClosedBy()));
+        }
         List<PiItemDO> items = store.items(v.getId());
         vo.setVersion(toVersionVo(v, items, store.fees(v.getId())));
         vo.setVersions(store.versions(id).stream().map(x -> {
@@ -804,6 +887,7 @@ public class PiServiceImpl implements PiService {
         vo.setIncotermPlace(v.getIncotermPlace());
         vo.setPortOfShipment(v.getPortOfShipment());
         vo.setRemark(v.getRemark());
+        vo.setValidUntil(v.getValidUntil());
         vo.setBankAccount(store.fromJson(v.getBankAccountJson(), BankSnapshotDTO.class));
         vo.setDiscountType(v.getDiscountType());
         vo.setDiscountValue(v.getDiscountValue());
@@ -949,6 +1033,9 @@ public class PiServiceImpl implements PiService {
         }
         if (q.getReceiptStatus() != null) {
             w.eq(ProformaInvoiceDO::getReceiptStatus, q.getReceiptStatus());
+        }
+        if (Boolean.TRUE.equals(q.getExpiredUnpaid())) {
+            expiredUnpaid(w);
         }
         if (q.getOwnerId() != null) {
             w.eq(ProformaInvoiceDO::getOwnerId, q.getOwnerId());
@@ -1127,6 +1214,11 @@ public class PiServiceImpl implements PiService {
             vo.setOwnerName(users.get(p.getOwnerId()));
             vo.setCreateTime(p.getCreateTime());
             vo.setSentAt(p.getSentAt());
+            vo.setValidUntil(p.getValidUntil());
+            Long days = expiredDays(p);
+            vo.setExpired(days != null);
+            vo.setExpiredDays(days);
+            vo.setCloseReasonName(p.getStatus() == SalesConstants.PI_CLOSED ? p.getCloseReasonName() : null);
             list.add(vo);
         }
         return list;

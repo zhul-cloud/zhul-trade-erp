@@ -35,6 +35,16 @@ public class ProformaInvoiceDO {
     private BigDecimal receivedAmount;
     private BigDecimal feeDiffAmount;
     private LocalDateTime sentAt;
+    /** 有效期至：取当前有效版本，没有时取编辑中的版本 */
+    @TableField(updateStrategy = FieldStrategy.ALWAYS)
+    private java.time.LocalDate validUntil;
+    private String closeReason;
+    private String closeReasonName;
+    private String closeNote;
+    @TableField(updateStrategy = FieldStrategy.ALWAYS)
+    private LocalDateTime closedAt;
+    @TableField(updateStrategy = FieldStrategy.ALWAYS)
+    private Long closedBy;
     private LocalDateTime deletedAt;
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createTime;

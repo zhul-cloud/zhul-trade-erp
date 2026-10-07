@@ -23,7 +23,7 @@ public class QuotationPis {
     public record Brief(Long id, String piNo) {
     }
 
-    /** 引用该报价单、未作废的 PI（取编号最早的一张），没有时为空 */
+    /** 引用该报价单、未作废也未关闭的 PI（取编号最早的一张），没有时为空 */
     public Brief activeOf(Long quotationId) {
         Set<Long> piIds = piItemMapper.selectList(new LambdaQueryWrapper<PiItemDO>()
                         .select(PiItemDO::getPiId)
@@ -36,7 +36,7 @@ public class QuotationPis {
         ProformaInvoiceDO pi = piMapper.selectOne(new LambdaQueryWrapper<ProformaInvoiceDO>()
                 .select(ProformaInvoiceDO::getId, ProformaInvoiceDO::getPiNo)
                 .in(ProformaInvoiceDO::getId, piIds)
-                .ne(ProformaInvoiceDO::getStatus, SalesConstants.PI_VOID)
+                .notIn(ProformaInvoiceDO::getStatus, SalesConstants.PI_VOID, SalesConstants.PI_CLOSED)
                 .isNull(ProformaInvoiceDO::getDeletedAt)
                 .orderByAsc(ProformaInvoiceDO::getId)
                 .last("LIMIT 1"));

@@ -10,6 +10,8 @@ public class PiPageQuery {
     private String keyword;
     private Integer status;
     private Integer receiptStatus;
+    /** 只看已过期未收款：已发送、未付款且过了有效期 */
+    private Boolean expiredUnpaid;
     private Long ownerId;
     private LocalDate createdFrom;
     private LocalDate createdTo;

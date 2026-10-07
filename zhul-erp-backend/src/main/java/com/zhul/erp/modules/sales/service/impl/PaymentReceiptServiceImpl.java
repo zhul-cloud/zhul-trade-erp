@@ -387,7 +387,8 @@ public class PaymentReceiptServiceImpl implements PaymentReceiptService {
     private ProformaInvoiceDO requireReceivable(Long piId) {
         ProformaInvoiceDO pi = store.lockVisible(piId);
         if (!RECEIVABLE.contains(pi.getStatus())) {
-            throw new BizException(pi.getStatus() == SalesConstants.PI_VOID ? "PI 已作废，不能登记收款" : "PI 还没有发送，不能登记收款");
+            throw new BizException(pi.getStatus() == SalesConstants.PI_VOID ? "PI 已作废，不能登记收款"
+                    : pi.getStatus() == SalesConstants.PI_CLOSED ? SalesConstants.CLOSED_MESSAGE : "PI 还没有发送，不能登记收款");
         }
         return pi;
     }

@@ -33,6 +33,8 @@ public class SavePiRequest {
     private String portOfShipment;
     @Size(max = 500, message = "备注不能超过 500 字")
     private String remark;
+    /** 有效期至；为空时不改 */
+    private java.time.LocalDate validUntil;
     private Integer bankAccountId;
     /** 整单折扣方式（0-无、1-按百分比、2-按金额） */
     private Integer discountType;

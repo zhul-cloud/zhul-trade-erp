@@ -37,6 +37,7 @@ public class PiSummary {
                     .isNull(PiItemDO::getDeletedAt))));
             pi.setTotalAmount(v.getTotalAmount());
             pi.setTotalAmountCny(v.getTotalAmountCny());
+            pi.setValidUntil(v.getValidUntil());
         }
         List<PaymentReceiptDO> valid = receiptMapper.selectList(new LambdaQueryWrapper<PaymentReceiptDO>()
                 .eq(PaymentReceiptDO::getPiId, pi.getId())

@@ -1,6 +1,9 @@
 package com.zhul.erp.modules.sales.service;
 
 import com.zhul.erp.common.result.PageResult;
+import com.zhul.erp.modules.sales.dto.ClosePiRequest;
+import com.zhul.erp.modules.sales.dto.OverduePiVO;
+import com.zhul.erp.modules.sales.dto.ReopenPiRequest;
 import com.zhul.erp.modules.sales.dto.AddPiItemsRequest;
 import com.zhul.erp.modules.sales.dto.CreatePiRequest;
 import com.zhul.erp.modules.sales.dto.PiCandidateCustomerVO;
@@ -41,6 +44,15 @@ public interface PiService {
     PiVO abandon(Long id);
 
     PiVO voidPi(Long id);
+
+    /** 关闭（客户最终没有付款），可同时把来源报价单标为未成交 */
+    PiVO close(Long id, ClosePiRequest req);
+
+    /** 重新打开已关闭的 PI */
+    PiVO reopen(Long id, ReopenPiRequest req);
+
+    /** 工作台：过期未收款的 PI */
+    OverduePiVO overdue();
 
     void delete(Long id);
 

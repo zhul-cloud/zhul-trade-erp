@@ -71,6 +71,9 @@ public class PiStore {
         if (pi.getStatus() == SalesConstants.PI_VOID) {
             throw new BizException("PI 已作废，不能修改");
         }
+        if (pi.getStatus() == SalesConstants.PI_CLOSED) {
+            throw new BizException(SalesConstants.CLOSED_MESSAGE);
+        }
         PiVersionDO v = version(pi.getId(), pi.getEditingVersionNo());
         if (v == null) {
             throw new BizException("PI 已发送，需要修改请先点「修改」生成新版本");

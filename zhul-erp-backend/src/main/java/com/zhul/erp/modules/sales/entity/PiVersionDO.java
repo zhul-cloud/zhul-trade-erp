@@ -36,6 +36,8 @@ public class PiVersionDO {
     private String portOfShipment;
     private String remark;
     @TableField(updateStrategy = FieldStrategy.ALWAYS)
+    private java.time.LocalDate validUntil;
+    @TableField(updateStrategy = FieldStrategy.ALWAYS)
     private Integer bankAccountId;
     @TableField(updateStrategy = FieldStrategy.ALWAYS)
     private String bankAccountJson;

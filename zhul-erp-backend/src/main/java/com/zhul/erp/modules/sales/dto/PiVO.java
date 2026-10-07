@@ -31,6 +31,18 @@ public class PiVO {
     private Integer editingVersionNo;
     /** 正在查看的是编辑中的版本 */
     private Boolean editable;
+    /** 有效期至（当前有效版本）与是否已过期（已发送、未付款且过了有效期） */
+    private java.time.LocalDate validUntil;
+    private Boolean expired;
+    private Long expiredDays;
+    /** 已关闭时的原因、说明、关闭人与时间 */
+    private String closeReason;
+    private String closeReasonName;
+    private String closeNote;
+    private LocalDateTime closedAt;
+    private String closedByName;
+    /** 关闭 PI 时给业务员的提示（只在关闭接口的返回里有） */
+    private List<String> notices;
     /** 正在查看的版本内容 */
     private PiVersionVO version;
     private List<VersionBrief> versions;
