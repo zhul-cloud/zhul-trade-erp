@@ -76,6 +76,7 @@ export const CURRENCY_OPTIONS = [
   { value: 'EUR', label: 'EUR 欧元' },
   { value: 'GBP', label: 'GBP 英镑' },
   { value: 'JPY', label: 'JPY 日元' },
+  { value: 'RUB', label: 'RUB 俄罗斯卢布' },
   { value: 'CNY', label: 'CNY 人民币' },
 ];
 

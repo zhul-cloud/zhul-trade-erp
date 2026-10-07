@@ -4,6 +4,7 @@ import {
   DeleteOutlined,
   DownloadOutlined,
   DownOutlined,
+  EditOutlined,
   EyeInvisibleOutlined,
   EyeOutlined,
   FileDoneOutlined,
@@ -11,11 +12,12 @@ import {
   LockOutlined,
   MessageOutlined,
   PlusOutlined,
+  RollbackOutlined,
   SendOutlined,
   StopOutlined,
   WarningOutlined,
 } from '@ant-design/icons';
-import { history, useAccess, useParams } from '@umijs/max';
+import { history, useAccess, useParams, useSearchParams } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import {
   Alert,
@@ -44,6 +46,7 @@ import {
   IncotermInput,
   PreviewPages,
 } from '@/components/DocFields';
+import { type DiffRow, VersionPanel } from '@/components/VersionPanel';
 import {
   ConditionPill,
   useQuoteDicts,
@@ -222,11 +225,102 @@ const PreviewPanel: React.FC<{
   );
 };
 
+// ---------------------------------------------------------------- 版本对比
+
+/** 两个版本按询盘型号明细配对：新增、删除，以及单价、数量、小计、货况货期、质保的变化 */
+const diffQuotations = (base: Quotation, next: Quotation): DiffRow[] => {
+  const cur = next.currencyCode;
+  const rows: DiffRow[] = [];
+  const baseItems = new Map(base.items.map((i) => [i.inquiryItemId, i]));
+  const nextIds = new Set(next.items.map((i) => i.inquiryItemId));
+  next.items.forEach((i, idx) => {
+    const b = baseItems.get(i.inquiryItemId);
+    const tag = `第 ${idx + 1} 行 ${i.model}`;
+    if (!b) {
+      rows.push({
+        kind: '新增',
+        label: tag,
+        before: '—',
+        after: `${i.quantity} × ${formatAmount(i.unitPrice, cur)}`,
+      });
+      return;
+    }
+    const change = (label: string, before: string, after: string) => {
+      if (before !== after)
+        rows.push({ kind: '修改', label: `${tag} ${label}`, before, after });
+    };
+    change(
+      '单价',
+      formatAmount(b.unitPrice, cur),
+      formatAmount(i.unitPrice, cur),
+    );
+    change('数量', String(b.quantity), String(i.quantity));
+    change('小计', formatAmount(b.amount, cur), formatAmount(i.amount, cur));
+    change(
+      '货况货期',
+      [b.conditionName, b.leadTimeName].filter(Boolean).join(' · ') || '—',
+      [i.conditionName, i.leadTimeName].filter(Boolean).join(' · ') || '—',
+    );
+    change('质保', b.warranty || '—', i.warranty || '—');
+  });
+  base.items.forEach((b, idx) => {
+    if (!nextIds.has(b.inquiryItemId))
+      rows.push({
+        kind: '删除',
+        label: `第 ${idx + 1} 行 ${b.model}`,
+        before: `${b.quantity} × ${formatAmount(b.unitPrice, cur)}`,
+        after: '—',
+      });
+  });
+  const baseFees = new Map(base.fees.map((f) => [f.feeName, f.amount]));
+  const nextFees = new Map(next.fees.map((f) => [f.feeName, f.amount]));
+  for (const [name, amount] of nextFees) {
+    const b = baseFees.get(name);
+    if (b === undefined)
+      rows.push({
+        kind: '新增',
+        label: name,
+        before: '—',
+        after: formatAmount(amount, cur),
+      });
+    else if (b !== amount)
+      rows.push({
+        kind: '修改',
+        label: name,
+        before: formatAmount(b, cur),
+        after: formatAmount(amount, cur),
+      });
+  }
+  for (const [name, amount] of baseFees) {
+    if (!nextFees.has(name))
+      rows.push({
+        kind: '删除',
+        label: name,
+        before: formatAmount(amount, cur),
+        after: '—',
+      });
+  }
+  const term = (x: Quotation) =>
+    [x.incoterm, x.incotermPlace].filter(Boolean).join(' ') || '—';
+  for (const [label, before, after] of [
+    ['贸易术语', term(base), term(next)],
+    ['有效期至', base.validUntil || '—', next.validUntil || '—'],
+    ['备注', base.remark || '—', next.remark || '—'],
+  ]) {
+    if (before !== after) rows.push({ kind: '修改', label, before, after });
+  }
+  return rows;
+};
+
 // ---------------------------------------------------------------- 页面
 
 const QuotationDetail: React.FC = () => {
   const { id: idParam } = useParams<{ id: string }>();
   const id = Number(idParam);
+  const [search, setSearch] = useSearchParams();
+  const viewVersion = search.get('version')
+    ? Number(search.get('version'))
+    : undefined;
   const { message, modal } = App.useApp();
   const { palette } = useAppTheme();
   const wide = useWide();
@@ -247,6 +341,7 @@ const QuotationDetail: React.FC = () => {
   const [addOpen, setAddOpen] = useState(false);
   const [piOpen, setPiOpen] = useState(false);
   const [pis, setPis] = useState<PiListItem[]>([]);
+  const [base, setBase] = useState<Quotation>();
   const access = useAccess();
   const previewAbort = useRef<AbortController | undefined>(undefined);
 
@@ -260,15 +355,35 @@ const QuotationDetail: React.FC = () => {
   const load = useCallback(async () => {
     setError(undefined);
     try {
-      apply(await quotationApi.detail(id));
+      apply(await quotationApi.detail(id, viewVersion));
     } catch (e) {
       setError(readBizError(e).message);
     }
-  }, [id, apply]);
+  }, [id, viewVersion, apply]);
 
   useEffect(() => {
     load();
   }, [load]);
+
+  // 对比的基准：查看的版本之前最近的已发送版本
+  const baseNo = useMemo(() => {
+    if (!q) return undefined;
+    const sent = q.versions
+      .filter((x) => x.status === 2 && x.versionNo < q.versionNo)
+      .map((x) => x.versionNo);
+    return sent.length ? Math.max(...sent) : undefined;
+  }, [q]);
+
+  useEffect(() => {
+    if (!q || !baseNo) {
+      setBase(undefined);
+      return;
+    }
+    quotationApi
+      .detail(q.id, baseNo)
+      .then(setBase)
+      .catch(() => setBase(undefined));
+  }, [q, baseNo]);
 
   // 已发送之后的报价单列出由它开出的 PI 与订单
   useEffect(() => {
@@ -431,7 +546,9 @@ const QuotationDetail: React.FC = () => {
       message.success(
         current.status === STATUS.DRAFT
           ? '已标为已发送，客户询盘变为「已报价」'
-          : '已记一次发送',
+          : current.editingVersionNo
+            ? `Rev.${current.editingVersionNo} 已发送，成为当前版本`
+            : '已记一次发送',
       );
     } catch (e) {
       message.error(readBizError(e).message);
@@ -464,9 +581,45 @@ const QuotationDetail: React.FC = () => {
     act(() => quotationApi.recalcRate(current.id), '已按新汇率重算');
   };
 
+  /** 切换查看的版本；不传时回到默认版本（修改中的，没有时为当前版本） */
+  const showVersion = (v?: number) => {
+    const next = new URLSearchParams(search);
+    if (v) next.set('version', String(v));
+    else next.delete('version');
+    setSearch(next);
+  };
+
+  const revise = async () => {
+    if (!q) return;
+    if (q.activePiNo) {
+      modal.confirm({
+        title: '不能出新版本',
+        content: `这张报价单已开出 PI ${q.activePiNo}，客户已经按 PI 在走付款。需要改价或改数量，请在 PI 上点「修改」出 PI 新版本；要另起一张报价单可以「复制为新报价单」。`,
+        okText: '打开 PI',
+        cancelText: '复制为新报价单',
+        onOk: () => q.activePiId && history.push(SALES_PATHS.pi(q.activePiId)),
+        onCancel: (close) => {
+          if (typeof close === 'function') close();
+          copyAsNew();
+        },
+      });
+      return;
+    }
+    try {
+      const res = await quotationApi.revise(q.id);
+      showVersion();
+      apply(res);
+      message.success(`已生成 Rev.${res.versionNo}，改好后标为已发送`);
+    } catch (e) {
+      message.error(readBizError(e).message);
+    }
+  };
+
   if (error) return <ErrorHint message={error} onRetry={load} />;
   if (!q || !draft) return <Skeleton active paragraph={{ rows: 12 }} />;
 
+  const revising = editable && q.status === STATUS.SENT;
+  const historical = q.versionNo !== (q.editingVersionNo ?? q.currentVersionNo);
   const compact = editable && previewOpen && wide;
   const removeItem = (itemId: number) => {
     if (draft.items.length <= 1) {
@@ -902,6 +1055,23 @@ const QuotationDetail: React.FC = () => {
           {previewOpen ? '收起预览' : '显示预览'}
         </Button>
       )}
+      {revising && (
+        <Button
+          icon={<RollbackOutlined />}
+          onClick={() =>
+            modal.confirm({
+              title: `放弃 Rev.${q.editingVersionNo}？`,
+              content: `放弃后回到 Rev.${q.currentVersionNo}，这次的修改不保留。`,
+              okText: '放弃',
+              okButtonProps: { danger: true },
+              onOk: () =>
+                act(() => quotationApi.abandon(q.id), '已放弃这个版本'),
+            })
+          }
+        >
+          放弃这个版本
+        </Button>
+      )}
       <Button
         icon={<MessageOutlined />}
         onClick={async () => (await ensureSaved()) && setTextOpen(true)}
@@ -923,7 +1093,8 @@ const QuotationDetail: React.FC = () => {
       </Button>
       <Dropdown menu={sentMenu} trigger={['click']}>
         <Button type="primary" icon={<SendOutlined />}>
-          标为已发送 <DownOutlined />
+          {revising ? `发送 Rev.${q.editingVersionNo}` : '标为已发送'}{' '}
+          <DownOutlined />
         </Button>
       </Dropdown>
     </>
@@ -938,7 +1109,17 @@ const QuotationDetail: React.FC = () => {
       <Button icon={<CopyOutlined />} onClick={copyAsNew}>
         复制为新报价单
       </Button>
-      {q.status === STATUS.SENT && (
+      {historical && (
+        <Button onClick={() => showVersion()}>
+          回到 Rev.{q.editingVersionNo ?? q.currentVersionNo}
+        </Button>
+      )}
+      {q.status === STATUS.SENT && !historical && (
+        <Button icon={<EditOutlined />} onClick={revise}>
+          修改（出新版本）
+        </Button>
+      )}
+      {q.status === STATUS.SENT && !historical && (
         <>
           <Button
             icon={<StopOutlined />}
@@ -962,6 +1143,7 @@ const QuotationDetail: React.FC = () => {
         </>
       )}
       {(q.status === STATUS.SENT || q.status === STATUS.PARTIAL) &&
+        !historical &&
         access.salesPi && (
           <Button
             type="primary"
@@ -1015,6 +1197,7 @@ const QuotationDetail: React.FC = () => {
           <Select
             style={{ width: '100%' }}
             value={draft.currencyCode}
+            disabled={revising}
             options={CURRENCIES.map((c) => ({ value: c, label: c }))}
             onChange={(v) => {
               // 换币种要取该币种的系统汇率：立即保存，由后端带回新汇率
@@ -1026,7 +1209,9 @@ const QuotationDetail: React.FC = () => {
             aria-label="报价币种"
           />
           <div style={{ fontSize: 12, color: palette.mute, marginTop: 4 }}>
-            默认取客户币种
+            {revising
+              ? '新版本不能改币种，要换币种请复制为新报价单'
+              : '默认取客户币种'}
           </div>
         </div>
         <div>
@@ -1100,6 +1285,39 @@ const QuotationDetail: React.FC = () => {
 
   const banners = (
     <div style={{ display: 'grid', gap: 12, marginBottom: 16 }}>
+      {historical && (
+        <Alert
+          type="info"
+          showIcon
+          title={`正在查看 Rev.${q.versionNo}（只读）${
+            q.versions.find((x) => x.versionNo === q.versionNo)?.sentAt
+              ? `，${formatDateTime(q.versions.find((x) => x.versionNo === q.versionNo)?.sentAt).slice(0, 16)} 发送`
+              : ''
+          }`}
+        />
+      )}
+      {revising && (
+        <Alert
+          type="warning"
+          showIcon
+          title={`你正在修改已发送的报价单：发送前客户看到的仍是 Rev.${q.currentVersionNo}，询盘状态与开 PI 也按 Rev.${q.currentVersionNo}；标为已发送后 Rev.${q.editingVersionNo} 成为当前版本，编号不变，导出的报价单上不显示版本号`}
+        />
+      )}
+      {q.versions.length > 1 && (
+        <VersionPanel
+          versions={q.versions}
+          currentVersionNo={q.currentVersionNo}
+          editingVersionNo={q.editingVersionNo}
+          viewingVersionNo={q.versionNo}
+          totalAmount={q.totalAmount}
+          currency={q.currencyCode}
+          base={base}
+          diffs={base ? diffQuotations(base, q) : []}
+          dirty={dirty}
+          wide={wide}
+          onSelect={showVersion}
+        />
+      )}
       {editable && q.systemRate != null && (
         <Alert
           type="warning"
@@ -1140,14 +1358,18 @@ const QuotationDetail: React.FC = () => {
           }}
         >
           <LockOutlined />
-          <b style={{ color: palette.ink }}>{q.statusName} · 内容已锁定</b>
+          <b style={{ color: palette.ink }}>
+            {historical
+              ? `Rev.${q.versionNo} · 历史版本`
+              : `${q.statusName} · 内容已锁定`}
+          </b>
           {q.sendLogs.length > 0 && (
             <span>
               发送记录：
               {q.sendLogs
                 .map(
                   (s) =>
-                    `${dayjs(s.sentAt).format('MM-DD HH:mm')} ${s.channelName}`,
+                    `${dayjs(s.sentAt).format('MM-DD HH:mm')} ${s.channelName}${q.versions.length > 1 && s.versionNo ? `（Rev.${s.versionNo}）` : ''}`,
                 )
                 .join(' · ')}
             </span>
@@ -1159,9 +1381,11 @@ const QuotationDetail: React.FC = () => {
             </span>
           )}
           <span style={{ marginLeft: 'auto', color: palette.mute }}>
-            {q.status === STATUS.SENT || q.status === STATUS.PARTIAL
-              ? '客户付款后由 PI 转成订单，报价单会自动变为成交'
-              : '需要改价？点「复制为新报价单」生成新草稿'}
+            {q.status === STATUS.SENT && !q.activePiNo
+              ? '需要改价？点「修改（出新版本）」，编号不变'
+              : q.status === STATUS.SENT || q.status === STATUS.PARTIAL
+                ? '客户付款后由 PI 转成订单，报价单会自动变为成交'
+                : '需要改价？点「复制为新报价单」生成新草稿'}
           </span>
         </div>
       )}
@@ -1596,6 +1820,11 @@ const QuotationDetail: React.FC = () => {
           <>
             {q.quotationNo}
             <QuotationStatusPill status={q.status} />
+            {q.editingVersionNo ? (
+              <Pill tone="orange">正在修改 Rev.{q.editingVersionNo}</Pill>
+            ) : q.currentVersionNo > 1 ? (
+              <Pill tone="accent">Rev.{q.currentVersionNo}</Pill>
+            ) : null}
             {dirty && (
               <span
                 style={{ fontSize: 12, fontWeight: 400, color: palette.orange }}

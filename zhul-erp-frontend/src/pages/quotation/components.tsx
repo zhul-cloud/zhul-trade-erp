@@ -24,7 +24,7 @@ export const STATUS_META: Record<number, { label: string; tone: Tone }> = {
 
 export const CHANNEL = { TEXT: 1, EXCEL: 2, PDF: 3, IMAGE: 4 } as const;
 
-export const CURRENCIES = ['USD', 'EUR', 'GBP', 'JPY', 'CNY'];
+export const CURRENCIES = ['USD', 'EUR', 'GBP', 'JPY', 'RUB', 'CNY'];
 
 export const PATHS = {
   list: '/quotation/quotations',

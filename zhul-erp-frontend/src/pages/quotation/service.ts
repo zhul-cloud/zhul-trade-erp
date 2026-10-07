@@ -19,6 +19,8 @@ export interface QuoteInquiry {
   itemCount: number;
   pricedCount: number;
   draftQuotationNo?: string;
+  /** 已有草稿时点击直接打开这张草稿 */
+  draftQuotationId?: number;
 }
 
 export interface QuoteInquiryPage {
@@ -99,6 +101,8 @@ export interface QuotationFee {
 }
 
 export interface SendLog {
+  /** 发送的版本号 */
+  versionNo?: number;
   channel: number;
   channelName: string;
   sentByName?: string;
@@ -139,6 +143,17 @@ export interface Quotation {
   closedAt?: string;
   createTime: string;
   editable: boolean;
+  /** 正在查看的版本号 */
+  versionNo: number;
+  /** 当前版本号（已发送报价单为当前有效版本） */
+  currentVersionNo: number;
+  /** 修改中的新版本号 */
+  editingVersionNo?: number | null;
+  /** 各版本（1-编辑中、2-已发送） */
+  versions: QuotationVersionBrief[];
+  /** 引用当前版本、未作废的 PI：有时不能出新版本 */
+  activePiId?: number;
+  activePiNo?: string;
   items: QuotationItem[];
   fees: QuotationFee[];
   sendLogs: SendLog[];
@@ -147,6 +162,14 @@ export interface Quotation {
   returningCustomerMargins?: number[];
   systemRate?: number;
   pendingItemCount?: number;
+}
+
+export interface QuotationVersionBrief {
+  versionNo: number;
+  status: number;
+  totalAmount: number;
+  sentAt?: string;
+  createTime: string;
 }
 
 export interface QuotationListItem {
@@ -172,6 +195,9 @@ export interface QuotationListItem {
   ownerName?: string;
   createTime: string;
   sentAt?: string;
+  currentVersionNo?: number;
+  /** 修改中的新版本号 */
+  editingVersionNo?: number | null;
 }
 
 export interface QuotationStats {
@@ -292,7 +318,11 @@ export const quotationApi = {
   stats: () => get<QuotationStats>(`${QT}/stats`),
   byInquiry: (inquiryId: number) =>
     get<QuotationListItem[]>(`${QT}/by-inquiry/${inquiryId}`),
-  detail: (id: number) => get<Quotation>(`${QT}/${id}`),
+  /** version 不传时为修改中的版本，没有时为当前版本 */
+  detail: (id: number, version?: number) =>
+    get<Quotation>(`${QT}/${id}`, version ? { version } : {}),
+  revise: (id: number) => send<Quotation>('POST', `${QT}/${id}/revise`),
+  abandon: (id: number) => send<Quotation>('POST', `${QT}/${id}/abandon`),
   create: (body: { inquiryIds?: number[]; itemIds?: number[] }) =>
     send<Quotation>('POST', QT, body),
   save: (id: number, body: SaveQuotation) =>
@@ -308,10 +338,22 @@ export const quotationApi = {
   markLost: (id: number, reason: string, note?: string) =>
     send<Quotation>('POST', `${QT}/${id}/lost`, { reason, note }),
   voidQuotation: (id: number) => send<Quotation>('POST', `${QT}/${id}/void`),
-  text: (id: number) =>
-    get<{ text: string; templateVersionNo: number }>(`${QT}/${id}/text`),
-  exportFile: (id: number, format: 'xlsx' | 'pdf' | 'jpg', fallback: string) =>
-    download(`${QT}/${id}/export`, { format }, fallback),
+  text: (id: number, version?: number) =>
+    get<{ text: string; templateVersionNo: number }>(
+      `${QT}/${id}/text`,
+      version ? { version } : {},
+    ),
+  exportFile: (
+    id: number,
+    format: 'xlsx' | 'pdf' | 'jpg',
+    fallback: string,
+    version?: number,
+  ) =>
+    download(
+      `${QT}/${id}/export`,
+      version ? { format, version } : { format },
+      fallback,
+    ),
   preview: (
     quotationId: number,
     content: SaveQuotation,

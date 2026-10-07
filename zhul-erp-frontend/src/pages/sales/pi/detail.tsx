@@ -46,6 +46,7 @@ import {
   IncotermInput,
   PreviewPages,
 } from '@/components/DocFields';
+import { type DiffRow, VersionPanel } from '@/components/VersionPanel';
 import { useQuoteDicts, useWide } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import type { LineResult } from '@/pages/quotation/calc';
@@ -197,13 +198,6 @@ const savePref = (open: boolean) => {
 };
 
 // ---------------------------------------------------------------- 版本对比
-
-interface DiffRow {
-  kind: '新增' | '删除' | '修改';
-  label: string;
-  before: string;
-  after: string;
-}
 
 const diffVersions = (
   base: PiVersion,
@@ -1661,158 +1655,19 @@ const PiDetail: React.FC = () => {
       ? diffVersions(base, v, cur)
       : [];
   const versionsCard = pi.versions.length > 1 && (
-    <div
-      style={{
-        display: 'grid',
-        gridTemplateColumns: wide ? 'minmax(280px, 1fr) minmax(0, 2fr)' : '1fr',
-        gap: 16,
-        marginBottom: 16,
-      }}
-    >
-      <Card style={{ padding: 16 }}>
-        <div style={{ fontSize: 13, color: palette.sub, marginBottom: 8 }}>
-          版本
-        </div>
-        {[...pi.versions].reverse().map((x) => {
-          const active = x.versionNo === v.versionNo;
-          const tag =
-            x.status === 1 ? (
-              <Pill tone="orange">编辑中</Pill>
-            ) : x.versionNo === pi.currentVersionNo ? (
-              <Pill tone="green">当前有效</Pill>
-            ) : x.status === 3 ? (
-              <Pill tone="mute">已放弃</Pill>
-            ) : null;
-          return (
-            <button
-              type="button"
-              key={x.versionNo}
-              onClick={() =>
-                showVersion(
-                  x.versionNo === (pi.editingVersionNo ?? pi.currentVersionNo)
-                    ? undefined
-                    : x.versionNo,
-                )
-              }
-              style={{
-                all: 'unset',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                width: '100%',
-                boxSizing: 'border-box',
-                padding: '8px 10px',
-                borderRadius: 10,
-                background: active ? palette.accentSoft : 'transparent',
-              }}
-            >
-              <b style={{ color: palette.ink }}>Rev.{x.versionNo}</b>
-              {tag}
-              <span
-                style={{
-                  ...num,
-                  marginLeft: 'auto',
-                  fontSize: 12,
-                  color: palette.mute,
-                }}
-              >
-                {x.sentAt
-                  ? `${dayjs(x.sentAt).format('MM-DD HH:mm')} 发送 · `
-                  : x.status === 1
-                    ? '未发送 · '
-                    : ''}
-                {formatAmount(x.totalAmount, cur)}
-              </span>
-            </button>
-          );
-        })}
-      </Card>
-      <Card style={{ padding: 16 }}>
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            marginBottom: 10,
-          }}
-        >
-          <BranchesOutlined style={{ color: palette.link }} />
-          <b style={{ color: palette.ink }}>
-            {base
-              ? `Rev.${base.versionNo} → Rev.${v.versionNo} 改了什么`
-              : `Rev.${v.versionNo}`}
-          </b>
-          {editable && dirty && (
-            <span style={{ fontSize: 12, color: palette.orange }}>
-              按已保存的内容对比
-            </span>
-          )}
-        </div>
-        {!base ? (
-          <div style={{ color: palette.mute, fontSize: 13 }}>
-            第一个版本，没有可对比的上一版本
-          </div>
-        ) : diffs.length === 0 ? (
-          <div style={{ color: palette.mute, fontSize: 13 }}>
-            与 Rev.{base.versionNo} 内容相同
-          </div>
-        ) : (
-          <div style={{ display: 'grid', gap: 6 }}>
-            {diffs.map((d) => (
-              <div
-                key={`${d.kind}-${d.label}`}
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns:
-                    '48px minmax(0, 1.4fr) minmax(0, 1fr) 16px minmax(0, 1fr)',
-                  gap: 10,
-                  alignItems: 'center',
-                  padding: '8px 10px',
-                  borderRadius: 10,
-                  background: palette.inset,
-                  fontSize: 13,
-                }}
-              >
-                <Pill
-                  tone={
-                    d.kind === '新增'
-                      ? 'green'
-                      : d.kind === '删除'
-                        ? 'red'
-                        : 'orange'
-                  }
-                >
-                  {d.kind}
-                </Pill>
-                <span style={{ color: palette.ink, fontWeight: 600 }}>
-                  {d.label}
-                </span>
-                <span style={{ ...num, color: palette.mute }}>{d.before}</span>
-                <span style={{ color: palette.mute }}>→</span>
-                <span style={{ ...num, color: palette.orange }}>{d.after}</span>
-              </div>
-            ))}
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                padding: '8px 10px',
-                fontSize: 13,
-              }}
-            >
-              <b style={{ color: palette.ink }}>合计</b>
-              <span style={num}>
-                {formatAmount(base.totalAmount, cur)} →{' '}
-                <b style={{ color: palette.orange }}>
-                  {formatAmount(v.totalAmount, cur)}
-                </b>
-              </span>
-            </div>
-          </div>
-        )}
-      </Card>
-    </div>
+    <VersionPanel
+      versions={pi.versions}
+      currentVersionNo={pi.currentVersionNo}
+      editingVersionNo={pi.editingVersionNo}
+      viewingVersionNo={v.versionNo}
+      totalAmount={v.totalAmount}
+      currency={cur}
+      base={base}
+      diffs={diffs}
+      dirty={editable && dirty}
+      wide={wide}
+      onSelect={showVersion}
+    />
   );
 
   // ---------------------------------------------------------------- 收款

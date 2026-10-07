@@ -33,6 +33,7 @@ import {
   Card,
   CURRENCIES,
   PATHS,
+  Pill,
   QuotationPageTitle,
   QuotationStatusPill,
   STATUS,
@@ -140,10 +141,17 @@ const QuotationList: React.FC = () => {
     {
       title: '报价单编号',
       dataIndex: 'quotationNo',
-      width: 160,
+      width: 210,
       fixed: 'left',
       render: (v: string, r) => (
-        <a onClick={() => history.push(PATHS.detail(r.id))}>{v}</a>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          <a onClick={() => history.push(PATHS.detail(r.id))}>{v}</a>
+          {r.editingVersionNo ? (
+            <Pill tone="orange">Rev.{r.editingVersionNo} 编辑中</Pill>
+          ) : (r.currentVersionNo ?? 1) > 1 ? (
+            <Pill tone="accent">Rev.{r.currentVersionNo}</Pill>
+          ) : null}
+        </span>
       ),
     },
     {
@@ -463,7 +471,7 @@ const QuotationList: React.FC = () => {
           columns={columns}
           dataSource={rows}
           loading={loading}
-          scroll={{ x: 1780 }}
+          scroll={{ x: 1830 }}
           locale={{ emptyText: '没有符合条件的报价单，换个筛选条件试试' }}
           pagination={{
             current: page,

@@ -2,11 +2,13 @@ import {
   ArrowRightOutlined,
   CheckOutlined,
   DownOutlined,
+  FormOutlined,
   InboxOutlined,
   RightOutlined,
   SearchOutlined,
   UnorderedListOutlined,
 } from '@ant-design/icons';
+import { history } from '@umijs/max';
 import {
   App,
   Button,
@@ -144,7 +146,9 @@ const deadlineText = (date?: string) => {
 const ByInquiryPanel: React.FC<{
   selected: QuoteInquiry[];
   onChange: (v: QuoteInquiry[]) => void;
-}> = ({ selected, onChange }) => {
+  /** 已有草稿的询盘：点击直接打开那张草稿 */
+  onOpenDraft: (quotationId: number) => void;
+}> = ({ selected, onChange, onOpenDraft }) => {
   const { palette } = useAppTheme();
   const [keyword, setKeyword] = useState('');
   const [readyOnly, setReadyOnly] = useState(false);
@@ -273,27 +277,20 @@ const ByInquiryPanel: React.FC<{
               const noPrice = r.pricedCount === 0;
               const disabled = !checked && (otherCustomer || noPrice);
               const dl = deadlineText(r.quoteDeadline);
-              return (
-                // biome-ignore lint/a11y/noLabelWithoutControl: 内含 antd Checkbox（渲染为 input），点整行切换勾选
-                <label
-                  key={r.inquiryId}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 12,
-                    padding: '12px 16px',
-                    borderRadius: 12,
-                    background: checked ? palette.accentSoft : palette.inset,
-                    border: `1px solid ${checked ? palette.accentLine : palette.hairline}`,
-                    cursor: disabled ? 'not-allowed' : 'pointer',
-                    transition: 'background 150ms ease-out',
-                  }}
-                >
-                  <Checkbox
-                    checked={checked}
-                    disabled={disabled}
-                    onChange={() => toggle(r)}
-                  />
+              const draftId = checked ? undefined : r.draftQuotationId;
+              const rowStyle: React.CSSProperties = {
+                display: 'flex',
+                alignItems: 'center',
+                gap: 12,
+                padding: '12px 16px',
+                borderRadius: 12,
+                background: checked ? palette.accentSoft : palette.inset,
+                border: `1px solid ${checked ? palette.accentLine : palette.hairline}`,
+                cursor: disabled ? 'not-allowed' : 'pointer',
+                transition: 'background 150ms ease-out',
+              };
+              const body = (
+                <>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div
                       style={{
@@ -372,11 +369,60 @@ const ByInquiryPanel: React.FC<{
                     ) : noPrice ? (
                       <span style={{ color: palette.mute }}>还没有回价</span>
                     ) : r.draftQuotationNo ? (
-                      <span style={{ color: palette.orange }}>
-                        已有草稿 {r.draftQuotationNo}
+                      <span
+                        style={{
+                          display: 'inline-flex',
+                          flexDirection: 'column',
+                          alignItems: 'flex-end',
+                          gap: 2,
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        <span style={{ color: palette.orange }}>
+                          已有草稿 {r.draftQuotationNo}
+                        </span>
+                        {r.draftQuotationId != null && (
+                          <span style={{ color: palette.link }}>
+                            继续编辑 →
+                          </span>
+                        )}
                       </span>
                     ) : null}
                   </span>
+                </>
+              );
+              if (draftId != null) {
+                // 已有草稿：不参与勾选合并，点击直接打开那张草稿继续编辑
+                return (
+                  <button
+                    type="button"
+                    key={r.inquiryId}
+                    onClick={() => onOpenDraft(draftId)}
+                    style={{
+                      ...rowStyle,
+                      cursor: 'pointer',
+                      width: '100%',
+                      textAlign: 'left',
+                      font: 'inherit',
+                    }}
+                    aria-label={`打开草稿 ${r.draftQuotationNo}`}
+                  >
+                    <FormOutlined
+                      style={{ color: palette.orange, fontSize: 16 }}
+                    />
+                    {body}
+                  </button>
+                );
+              }
+              return (
+                // biome-ignore lint/a11y/noLabelWithoutControl: 内含 antd Checkbox（渲染为 input），点整行切换勾选
+                <label key={r.inquiryId} style={rowStyle}>
+                  <Checkbox
+                    checked={checked}
+                    disabled={disabled}
+                    onChange={() => toggle(r)}
+                  />
+                  {body}
                 </label>
               );
             })}
@@ -1109,7 +1155,14 @@ const NewQuotationModal: React.FC<{
           />
         </div>
       ) : mode === 'inquiry' ? (
-        <ByInquiryPanel selected={inquiries} onChange={setInquiries} />
+        <ByInquiryPanel
+          selected={inquiries}
+          onChange={setInquiries}
+          onOpenDraft={(qid) => {
+            onClose();
+            history.push(`/quotation/quotations/${qid}`);
+          }}
+        />
       ) : (
         <PickItemsPanel
           customer={customer}

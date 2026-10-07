@@ -35,6 +35,14 @@ const CHANNEL_OF = {
 
 // ---------------------------------------------------------------- 文字报价
 
+/** 正在查看默认版本（修改中的，没有时为当前版本），且报价单为草稿或已发送：可以标为已发送 / 记一次发送 */
+const markable = (q: Quotation) =>
+  (q.status === 1 || q.status === 2) &&
+  q.versionNo === (q.editingVersionNo ?? q.currentVersionNo);
+
+/** 这次标记会发送一个新内容（草稿第一次发送，或发送修改中的新版本） */
+const sendsVersion = (q: Quotation) => q.status === 1 || !!q.editingVersionNo;
+
 export const TextQuoteModal: React.FC<{
   quotation?: Quotation;
   open: boolean;
@@ -55,7 +63,7 @@ export const TextQuoteModal: React.FC<{
     setError(undefined);
     setCopied(false);
     quotationApi
-      .text(quotation.id)
+      .text(quotation.id, quotation.versionNo)
       .then((r) => {
         setText(r.text);
         setVersion(r.templateVersionNo);
@@ -74,8 +82,9 @@ export const TextQuoteModal: React.FC<{
       .catch(() => message.error('复制失败，请手动选择文字复制'));
   };
 
-  const canMarkSent =
-    quotation && (quotation.status === 1 || quotation.status === 2);
+  const canMarkSent = !!quotation && markable(quotation);
+  // 草稿或修改中的新版本：标为已发送；已发送的当前版本：记一次发送
+  const firstSend = !!quotation && sendsVersion(quotation);
 
   return (
     <Modal
@@ -149,10 +158,10 @@ export const TextQuoteModal: React.FC<{
         >
           <CheckCircleOutlined /> 已复制，可以粘贴给客户了
           <span style={{ marginLeft: 'auto', color: palette.sub }}>
-            {quotation?.status === 1 ? '已经发给客户了？' : '再发了一次？'}
+            {firstSend ? '已经发给客户了？' : '再发了一次？'}
           </span>
           <a onClick={() => onMarkSent(CHANNEL.TEXT)}>
-            {quotation?.status === 1 ? '标为已发送' : '记一次发送'}
+            {firstSend ? '标为已发送' : '记一次发送'}
           </a>
         </div>
       )}
@@ -225,6 +234,7 @@ export const ExportModal: React.FC<{
         quotation.id,
         format,
         `${quotation.quotationNo}.${format}`,
+        quotation.versionNo,
       );
       onExported(CHANNEL_OF[format]);
     } catch (e) {
@@ -341,14 +351,11 @@ export const SentPromptModal: React.FC<{
   onConfirm: (channel: number) => void;
 }> = ({ quotation, channel, onClose, onConfirm }) => {
   const { palette } = useAppTheme();
-  const draft = quotation?.status === 1;
+  const draft = !!quotation && sendsVersion(quotation);
+  const revision = !!quotation?.editingVersionNo;
   return (
     <Modal
-      open={
-        channel != null &&
-        !!quotation &&
-        (quotation.status === 1 || quotation.status === 2)
-      }
+      open={channel != null && !!quotation && markable(quotation)}
       onCancel={onClose}
       width={480}
       title={
@@ -376,12 +383,13 @@ export const SentPromptModal: React.FC<{
       {draft ? (
         <>
           <p style={{ color: palette.sub }}>
-            已经把报价单发给客户了吗？标为「已发送」后内容会锁定，客户询盘{' '}
-            {quotation?.inquiryCodes.join('、')} 变为「已报价」。
+            {revision
+              ? `已经把 Rev.${quotation?.editingVersionNo} 发给客户了吗？标为「已发送」后它成为当前版本，Rev.${quotation?.currentVersionNo} 只读保留。`
+              : `已经把报价单发给客户了吗？标为「已发送」后内容会锁定，客户询盘 ${quotation?.inquiryCodes.join('、')} 变为「已报价」。`}
           </p>
           <div style={{ fontSize: 12, color: palette.mute }}>
             <InfoCircleOutlined />{' '}
-            之后要改价，用「复制为新报价单」，原报价单保持不变。
+            之后要改价，点「修改（出新版本）」，编号不变。
           </div>
         </>
       ) : (
