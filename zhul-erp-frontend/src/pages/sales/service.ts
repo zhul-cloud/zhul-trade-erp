@@ -85,6 +85,8 @@ export interface PiVersion {
   incotermPlace: string;
   portOfShipment: string;
   remark: string;
+  /** 有效期至 */
+  validUntil?: string;
   bankAccount?: BankSnapshot | null;
   /** 0-无、1-按百分比、2-按金额 */
   discountType: number;
@@ -139,12 +141,24 @@ export interface Pi {
   currencyCode: string;
   exchangeRate: number;
   rateTime?: string;
-  /** 1-草稿、2-已发送、3-已转订单、4-已作废 */
+  /** 1-草稿、2-已发送、3-已转订单、4-已作废、5-已关闭 */
   status: number;
   statusName: string;
   /** 1-未付款、2-待到账、3-部分到账、4-已到账 */
   receiptStatus: number;
   receiptStatusName: string;
+  /** 有效期至（当前有效版本）；已发送、未付款且过了有效期为已过期 */
+  validUntil?: string;
+  expired?: boolean;
+  expiredDays?: number | null;
+  /** 已关闭时的原因、说明、关闭人与时间 */
+  closeReason?: string;
+  closeReasonName?: string;
+  closeNote?: string;
+  closedAt?: string;
+  closedByName?: string;
+  /** 关闭接口返回的提示 */
+  notices?: string[];
   receivedAmount: number;
   feeDiffAmount: number;
   remainingAmount: number;
@@ -200,6 +214,16 @@ export interface PiListItem {
   ownerName?: string;
   createTime: string;
   sentAt?: string;
+  validUntil?: string;
+  expired?: boolean;
+  expiredDays?: number | null;
+  closeReasonName?: string | null;
+}
+
+export interface OverduePis {
+  count: number;
+  totals: { currencyCode: string; amount: number }[];
+  top: PiListItem[];
 }
 
 export interface PiStats {
@@ -215,6 +239,8 @@ export interface PiQuery {
   keyword?: string;
   status?: number;
   receiptStatus?: number;
+  /** 只看已过期未收款 */
+  expiredUnpaid?: boolean;
   ownerId?: number;
   createdFrom?: string;
   createdTo?: string;
@@ -294,6 +320,7 @@ export interface SavePi {
   incotermPlace: string;
   portOfShipment: string;
   remark: string;
+  validUntil?: string;
   bankAccountId?: number | null;
   discountType: number;
   discountValue: number | null;
@@ -524,6 +551,13 @@ export const piApi = {
   revise: (id: number) => send<Pi>('POST', `${PI}/${id}/revise`),
   abandon: (id: number) => send<Pi>('POST', `${PI}/${id}/abandon`),
   voidPi: (id: number) => send<Pi>('POST', `${PI}/${id}/void`),
+  close: (
+    id: number,
+    body: { reason: string; note?: string; markQuotationLost: boolean },
+  ) => send<Pi>('POST', `${PI}/${id}/close`, body),
+  reopen: (id: number, validUntil?: string) =>
+    send<Pi>('POST', `${PI}/${id}/reopen`, validUntil ? { validUntil } : {}),
+  overdue: () => get<OverduePis>(`${PI}/overdue`),
   remove: (id: number) => send<void>('DELETE', `${PI}/${id}`),
   exportFile: (
     id: number,

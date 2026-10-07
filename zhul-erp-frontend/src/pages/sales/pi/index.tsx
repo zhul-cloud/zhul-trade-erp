@@ -1,4 +1,5 @@
 import {
+  ClockCircleOutlined,
   FileDoneOutlined,
   FileTextOutlined,
   HourglassOutlined,
@@ -6,7 +7,7 @@ import {
   SearchOutlined,
   WalletOutlined,
 } from '@ant-design/icons';
-import { history } from '@umijs/max';
+import { history, useSearchParams } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import {
   App,
@@ -18,6 +19,7 @@ import {
   Select,
   Space,
   Table,
+  Tooltip,
 } from 'antd';
 import type { Dayjs } from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
@@ -32,6 +34,7 @@ import {
   PATHS,
   PI_STATUS,
   PI_STATUS_META,
+  Pill,
   PiStatusPill,
   RECEIPT_META,
   RECEIPT_STATUS,
@@ -53,6 +56,8 @@ interface Filters {
   receiptStatus?: number;
   ownerId?: number;
   range?: [Dayjs, Dayjs];
+  /** 只看已过期未收款（工作台「查看全部」带过来） */
+  expiredUnpaid?: boolean;
 }
 
 const PiList: React.FC = () => {
@@ -60,7 +65,11 @@ const PiList: React.FC = () => {
   const { palette } = useAppTheme();
   const wide = useWide();
   const [form] = Form.useForm<Filters>();
-  const [filters, setFilters] = useState<Filters>({});
+  const [search] = useSearchParams();
+  const [filters, setFilters] = useState<Filters>(() =>
+    search.get('expired') === '1' ? { expiredUnpaid: true } : {},
+  );
+  const [overdueCount, setOverdueCount] = useState<number>();
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [rows, setRows] = useState<PiListItem[]>([]);
@@ -78,6 +87,7 @@ const PiList: React.FC = () => {
       keyword: filters.keyword?.trim() || undefined,
       status: filters.status,
       receiptStatus: filters.receiptStatus,
+      expiredUnpaid: filters.expiredUnpaid || undefined,
       ownerId: filters.ownerId,
       createdFrom: filters.range?.[0]?.format('YYYY-MM-DD'),
       createdTo: filters.range?.[1]?.format('YYYY-MM-DD'),
@@ -104,6 +114,10 @@ const PiList: React.FC = () => {
       .stats()
       .then(setStats)
       .catch(() => setStats(undefined));
+    piApi
+      .overdue()
+      .then((r) => setOverdueCount(r.count))
+      .catch(() => setOverdueCount(undefined));
     getUserList({ current: 1, pageSize: 200 })
       .then((res) =>
         setOwners(
@@ -133,6 +147,7 @@ const PiList: React.FC = () => {
     !filters.keyword &&
     !filters.status &&
     !filters.receiptStatus &&
+    !filters.expiredUnpaid &&
     !filters.ownerId &&
     !filters.range;
 
@@ -187,10 +202,24 @@ const PiList: React.FC = () => {
     {
       title: 'PI 状态',
       dataIndex: 'status',
-      width: 150,
+      width: 190,
       render: (v: number, r) => (
-        <Space size={6}>
+        <Space size={6} wrap>
           <PiStatusPill status={v} />
+          {r.expired && (
+            <Tooltip
+              title={`已过期 ${r.expiredDays} 天 · 有效期至 ${r.validUntil} · 未收到水单或到账`}
+            >
+              <span>
+                <Pill tone="red">已过期</Pill>
+              </span>
+            </Tooltip>
+          )}
+          {r.closeReasonName && (
+            <span style={{ fontSize: 12, color: palette.mute }}>
+              {r.closeReasonName.replace(/^【[^】]+】/, '')}
+            </span>
+          )}
           {r.currentVersionNo > 1 && (
             <span style={{ fontSize: 12, color: palette.link }}>
               Rev.{r.currentVersionNo}
@@ -200,6 +229,26 @@ const PiList: React.FC = () => {
             <span style={{ fontSize: 12, color: palette.orange }}>修改中</span>
           )}
         </Space>
+      ),
+    },
+    {
+      title: '有效期至',
+      dataIndex: 'validUntil',
+      width: 116,
+      render: (v: string | undefined, r) => (
+        <span
+          style={{
+            fontVariantNumeric: 'tabular-nums',
+            whiteSpace: 'nowrap',
+            color: r.expired
+              ? palette.red
+              : r.status === PI_STATUS.SENT
+                ? palette.sub
+                : palette.mute,
+          }}
+        >
+          {v ?? '—'}
+        </span>
       ),
     },
     {
@@ -371,7 +420,7 @@ const PiList: React.FC = () => {
           form={form}
           layout="vertical"
           onFinish={(v) => {
-            setFilters(v);
+            setFilters({ ...v, expiredUnpaid: filters.expiredUnpaid });
             setPage(1);
           }}
         >
@@ -456,6 +505,29 @@ const PiList: React.FC = () => {
               </Button>
             </div>
           </div>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              marginTop: 12,
+            }}
+          >
+            <span style={{ fontSize: 12, color: palette.mute }}>快捷筛选</span>
+            <Button
+              size="small"
+              danger={!!filters.expiredUnpaid}
+              type={filters.expiredUnpaid ? 'primary' : 'default'}
+              icon={<ClockCircleOutlined />}
+              onClick={() => {
+                setFilters((f) => ({ ...f, expiredUnpaid: !f.expiredUnpaid }));
+                setPage(1);
+              }}
+              aria-pressed={!!filters.expiredUnpaid}
+            >
+              已过期未收款{overdueCount != null ? ` ${overdueCount}` : ''}
+            </Button>
+          </div>
         </Form>
       </Card>
 
@@ -476,7 +548,7 @@ const PiList: React.FC = () => {
           columns={columns}
           dataSource={rows}
           loading={loading}
-          scroll={{ x: 1830 }}
+          scroll={{ x: 1970 }}
           locale={{ emptyText: '没有符合条件的 PI，换个筛选条件试试' }}
           pagination={{
             current: page,

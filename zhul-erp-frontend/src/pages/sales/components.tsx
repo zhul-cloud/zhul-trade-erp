@@ -13,6 +13,7 @@ export const PI_STATUS = {
   SENT: 2,
   CONVERTED: 3,
   VOID: 4,
+  CLOSED: 5,
 } as const;
 
 export const PI_STATUS_META: Record<number, { label: string; tone: Tone }> = {
@@ -20,6 +21,7 @@ export const PI_STATUS_META: Record<number, { label: string; tone: Tone }> = {
   2: { label: '已发送', tone: 'accent' },
   3: { label: '已转订单', tone: 'green' },
   4: { label: '已作废', tone: 'mute' },
+  5: { label: '已关闭', tone: 'mute' },
 };
 
 export const RECEIPT_STATUS = {

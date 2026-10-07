@@ -409,11 +409,30 @@ interface LostReason {
   status: number;
 }
 
+/** 选未成交原因（报价单标为未成交、关闭 PI 共用）：原因按【】内分类分组，选「其他」时说明必填 */
 export const LostReasonModal: React.FC<{
   open: boolean;
   onClose: () => void;
   onSubmit: (reason: string, note: string) => Promise<void>;
-}> = ({ open, onClose, onSubmit }) => {
+  title?: string;
+  reasonLabel?: string;
+  okText?: string;
+  okDanger?: boolean;
+  /** 原因上方的说明 */
+  intro?: React.ReactNode;
+  /** 说明下方的附加内容 */
+  extra?: React.ReactNode;
+}> = ({
+  open,
+  onClose,
+  onSubmit,
+  title = '标为未成交',
+  reasonLabel = '未成交原因',
+  okText = '确定',
+  okDanger,
+  intro,
+  extra,
+}) => {
   const { palette } = useAppTheme();
   const [reasons, setReasons] = useState<LostReason[]>([]);
   const [reason, setReason] = useState<string>();
@@ -450,7 +469,7 @@ export const LostReasonModal: React.FC<{
   const other = reason === 'OTHER';
   const submit = async () => {
     if (!reason) {
-      setError('请选择未成交原因');
+      setError(`请选择${reasonLabel}`);
       return;
     }
     if (other && !note.trim()) {
@@ -472,13 +491,19 @@ export const LostReasonModal: React.FC<{
       open={open}
       onCancel={onClose}
       width={520}
-      title="标为未成交"
-      okText="确定"
+      title={title}
+      okText={okText}
+      okButtonProps={{ danger: okDanger }}
       onOk={submit}
       confirmLoading={busy}
     >
+      {intro && (
+        <div style={{ marginBottom: 16, color: palette.sub, fontSize: 13 }}>
+          {intro}
+        </div>
+      )}
       <div style={{ marginBottom: 6, color: palette.sub }}>
-        未成交原因 <span style={{ color: palette.red }}>*</span>
+        {reasonLabel} <span style={{ color: palette.red }}>*</span>
       </div>
       <Select
         style={{ width: '100%' }}
@@ -507,6 +532,7 @@ export const LostReasonModal: React.FC<{
         placeholder={other ? '请说明具体原因' : '补充说明，方便以后复盘'}
         status={error && other && !note.trim() ? 'error' : undefined}
       />
+      {extra}
       {error && (
         <div style={{ color: palette.red, marginTop: 8, fontSize: 13 }}>
           {error}

@@ -1,6 +1,7 @@
 import {
   BankOutlined,
   BranchesOutlined,
+  CloseCircleOutlined,
   DeleteOutlined,
   DownloadOutlined,
   DownOutlined,
@@ -12,6 +13,7 @@ import {
   LockOutlined,
   PaperClipOutlined,
   PlusOutlined,
+  RedoOutlined,
   RollbackOutlined,
   SendOutlined,
   StopOutlined,
@@ -24,9 +26,12 @@ import {
   Alert,
   App,
   Button,
+  Checkbox,
+  DatePicker,
   Dropdown,
   Input,
   InputNumber,
+  Modal,
   Segmented,
   Select,
   Skeleton,
@@ -51,6 +56,7 @@ import { useQuoteDicts, useWide } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import type { LineResult } from '@/pages/quotation/calc';
 import { formatMargin } from '@/pages/quotation/calc';
+import { LostReasonModal } from '@/pages/quotation/dialogs';
 import { useAppTheme } from '@/theme/AppTheme';
 import {
   DICT_PI_DELIVERY_TIME,
@@ -109,6 +115,7 @@ interface Draft {
   incoterm: string;
   incotermPlace: string;
   portOfShipment: string;
+  validUntil?: string;
   remark: string;
   bankAccountId: number | null;
   discountType: number;
@@ -134,6 +141,7 @@ const toDraft = (v: PiVersion): Draft => ({
   incoterm: v.incoterm ?? '',
   incotermPlace: v.incotermPlace ?? '',
   portOfShipment: v.portOfShipment ?? '',
+  validUntil: v.validUntil,
   remark: v.remark ?? '',
   bankAccountId: v.bankAccount?.id ?? null,
   discountType: v.discountType ?? DISCOUNT.NONE,
@@ -167,6 +175,7 @@ const toSave = (d: Draft): SavePi => ({
   incoterm: d.incoterm,
   incotermPlace: d.incotermPlace,
   portOfShipment: d.portOfShipment,
+  validUntil: d.validUntil,
   remark: d.remark,
   bankAccountId: d.bankAccountId,
   discountType: d.discountType,
@@ -299,6 +308,7 @@ const diffVersions = (
     ['deliveryTime', '交期'],
     ['paymentTerm', '付款条件'],
     ['portOfShipment', '起运港'],
+    ['validUntil', '有效期至'],
     ['remark', '备注'],
   ] as const) {
     if ((base[key] ?? '') !== (next[key] ?? ''))
@@ -343,6 +353,10 @@ const PiDetail: React.FC = () => {
   const [receiptOpen, setReceiptOpen] = useState(false);
   const [voidReceipt, setVoidReceipt] = useState<number>();
   const [addOpen, setAddOpen] = useState(false);
+  const [closeOpen, setCloseOpen] = useState(false);
+  const [markLost, setMarkLost] = useState(true);
+  const [reopenOpen, setReopenOpen] = useState(false);
+  const [reopenUntil, setReopenUntil] = useState<string>();
   const previewAbort = useRef<AbortController | undefined>(undefined);
 
   const apply = useCallback((res: Pi) => {
@@ -718,6 +732,17 @@ const PiDetail: React.FC = () => {
           <Button icon={<StopOutlined />} onClick={voidPi}>
             作废
           </Button>
+          {pi.receiptStatus === RECEIPT_STATUS.NONE && (
+            <Button
+              icon={<CloseCircleOutlined />}
+              onClick={() => {
+                setMarkLost(true);
+                setCloseOpen(true);
+              }}
+            >
+              关闭
+            </Button>
+          )}
           <Tooltip title={canConvert ? '' : '有水单或到账后才能转成订单'}>
             <Button
               type="primary"
@@ -729,6 +754,23 @@ const PiDetail: React.FC = () => {
             </Button>
           </Tooltip>
         </>
+      )}
+      {pi.status === PI_STATUS.CLOSED && (
+        <Button
+          type="primary"
+          icon={<RedoOutlined />}
+          onClick={() => {
+            setReopenUntil(
+              pi.expired ||
+                (pi.validUntil && dayjs(pi.validUntil).isBefore(dayjs(), 'day'))
+                ? dayjs().add(30, 'day').format('YYYY-MM-DD')
+                : undefined,
+            );
+            setReopenOpen(true);
+          }}
+        >
+          重新打开
+        </Button>
       )}
       {pi.status === PI_STATUS.CONVERTED && pi.order && (
         <Button
@@ -925,11 +967,28 @@ const PiDetail: React.FC = () => {
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: compact ? '1fr' : '2fr 1fr',
+          gridTemplateColumns: compact ? '1fr 1fr' : '2fr 1fr 1fr',
           gap: 16,
           marginTop: 16,
         }}
       >
+        {field(
+          '有效期至',
+          <DatePicker
+            style={{ width: '100%' }}
+            value={draft.validUntil ? dayjs(draft.validUntil) : null}
+            allowClear={false}
+            disabledDate={(d) => d.isBefore(dayjs(pi.createTime), 'day')}
+            onChange={(d) =>
+              setDraft({
+                ...draft,
+                validUntil: d ? d.format('YYYY-MM-DD') : draft.validUntil,
+              })
+            }
+            aria-label="有效期至"
+          />,
+          '默认开 PI 当天 + 60 天；过期未收款会在工作台提醒',
+        )}
         {field(
           '收款账户',
           <Select
@@ -1010,6 +1069,14 @@ const PiDetail: React.FC = () => {
           {[v.incoterm, v.incotermPlace].filter(Boolean).join(' ') || '—'}
         </span>
         <span>起运港：{v.portOfShipment || '—'}</span>
+        <span>
+          有效期至：{v.validUntil || '—'}
+          {pi.expired && v.versionNo === pi.currentVersionNo && (
+            <span style={{ marginLeft: 6 }}>
+              <Pill tone="red">已过期 {pi.expiredDays} 天</Pill>
+            </span>
+          )}
+        </span>
         <span>
           收款账户：
           {v.bankAccount
@@ -1909,7 +1976,18 @@ const PiDetail: React.FC = () => {
       }}
     >
       <LockOutlined />
-      <b style={{ color: palette.ink }}>{pi.statusName} · 内容已锁定</b>
+      <b style={{ color: palette.ink }}>
+        {pi.status === PI_STATUS.CLOSED
+          ? `已关闭 · ${pi.closeReasonName ?? ''}`
+          : `${pi.statusName} · 内容已锁定`}
+      </b>
+      {pi.status === PI_STATUS.CLOSED && (
+        <span>
+          {pi.closeNote ? `说明：${pi.closeNote} · ` : ''}
+          {pi.closedByName ?? '—'}{' '}
+          {pi.closedAt ? formatDateTime(pi.closedAt).slice(0, 16) : ''} 关闭
+        </span>
+      )}
       {pi.sendLogs.length > 0 && (
         <span>
           发送记录：
@@ -1922,11 +2000,13 @@ const PiDetail: React.FC = () => {
         </span>
       )}
       <span style={{ marginLeft: 'auto', color: palette.mute }}>
-        {pi.status === PI_STATUS.CONVERTED
-          ? '已转成订单；需要修改请先取消订单'
-          : pi.status === PI_STATUS.SENT
-            ? '有水单或到账即可转成订单'
-            : ''}
+        {pi.status === PI_STATUS.CLOSED
+          ? '客户回头付款时点「重新打开」'
+          : pi.status === PI_STATUS.CONVERTED
+            ? '已转成订单；需要修改请先取消订单'
+            : pi.status === PI_STATUS.SENT
+              ? '有水单或到账即可转成订单'
+              : ''}
       </span>
     </div>
   ) : (
@@ -2118,6 +2198,76 @@ const PiDetail: React.FC = () => {
           if (!historical) setSentPrompt(channel);
         }}
       />
+      <LostReasonModal
+        open={closeOpen}
+        title={`关闭 PI ${pi.piNo}`}
+        reasonLabel="关闭原因"
+        okText="关闭 PI"
+        okDanger
+        intro="客户最终没有付款时关闭。关闭后 PI 只读，不能再上传水单、登记到账或转订单；客户回头时可以重新打开。"
+        extra={
+          <Checkbox
+            checked={markLost}
+            onChange={(e) => setMarkLost(e.target.checked)}
+            style={{ marginTop: 16 }}
+          >
+            同时把来源报价单标为未成交（同一原因）
+            <div style={{ fontSize: 12, color: palette.mute }}>
+              {pi.quotations.map((x) => x.quotationNo).join('、') || '—'}
+              ；还有其他有效 PI 的报价单保持不变，客户询盘随之更新
+            </div>
+          </Checkbox>
+        }
+        onClose={() => setCloseOpen(false)}
+        onSubmit={async (reason, note) => {
+          const res = await piApi.close(pi.id, {
+            reason,
+            note,
+            markQuotationLost: markLost,
+          });
+          apply(res);
+          setCloseOpen(false);
+          message.success('PI 已关闭');
+          for (const n of res.notices ?? []) message.info(n);
+        }}
+      />
+      <Modal
+        open={reopenOpen}
+        title="重新打开 PI"
+        okText="重新打开"
+        onCancel={() => setReopenOpen(false)}
+        onOk={async () => {
+          try {
+            apply(await piApi.reopen(pi.id, reopenUntil));
+            setReopenOpen(false);
+            message.success('PI 已重新打开');
+          } catch (e) {
+            message.error(readBizError(e).message);
+          }
+        }}
+      >
+        <p style={{ color: palette.sub }}>
+          PI
+          回到「已发送」，可以继续上传水单和登记到账；这次关闭时标为未成交的报价单回到「已发送」，客户询盘随之回到「已报价」。
+        </p>
+        {reopenUntil && (
+          <>
+            <div
+              style={{ fontSize: 13, color: palette.orange, marginBottom: 6 }}
+            >
+              有效期已过，顺手改一下：
+            </div>
+            <DatePicker
+              style={{ width: '100%' }}
+              value={dayjs(reopenUntil)}
+              allowClear={false}
+              disabledDate={(d) => d.isBefore(dayjs(), 'day')}
+              onChange={(d) => d && setReopenUntil(d.format('YYYY-MM-DD'))}
+              aria-label="新的有效期"
+            />
+          </>
+        )}
+      </Modal>
       <SentPromptModal
         pi={pi}
         channel={sentPrompt}

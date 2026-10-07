@@ -1769,7 +1769,7 @@ const QuotationDetail: React.FC = () => {
                   tone={
                     p.status === 3
                       ? 'green'
-                      : p.status === 4
+                      : p.status === 4 || p.status === 5
                         ? 'mute'
                         : 'accent'
                   }

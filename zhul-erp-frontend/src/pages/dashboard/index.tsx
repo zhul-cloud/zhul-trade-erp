@@ -10,6 +10,7 @@ import React from 'react';
 import { Card, PageTitle } from '@/pages/inquiry/shared/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import OpportunityCard from './OpportunityCard';
+import OverduePiCard from './OverduePiCard';
 
 /**
  * 工作台卡片：每张卡片声明需要的菜单权限，没有权限不显示；卡片自己加载数据、失败只影响自己。
@@ -21,6 +22,11 @@ const CARDS: { key: string; access: string; render: () => React.ReactNode }[] =
       key: 'opportunity',
       access: 'crmOpportunityStats',
       render: () => <OpportunityCard />,
+    },
+    {
+      key: 'overdue-pi',
+      access: 'salesPi',
+      render: () => <OverduePiCard />,
     },
   ];
 
