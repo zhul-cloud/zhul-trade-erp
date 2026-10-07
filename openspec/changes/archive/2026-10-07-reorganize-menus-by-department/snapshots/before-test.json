@@ -1,0 +1,49 @@
+{
+ "role:0:ROLE_ADMIN:租户管理员": {
+  "reachable": [
+   "/quotation/pricing",
+   "/quotation/quotations",
+   "/sales/orders",
+   "/sales/pi",
+   "/system/bank-account",
+   "/system/document-template",
+   "/system/exchange-rate",
+   "inquiry:quote:review",
+   "inquiry:supplier:view",
+   "quotation:pricing:edit",
+   "sales:pi:receipt-confirm",
+   "sales:pi:receipt-slip",
+   "system:bank-account:edit",
+   "system:document-template:edit",
+   "system:exchange-rate:edit"
+  ],
+  "visible": [
+   "/quotation/pricing",
+   "/quotation/quotations",
+   "/sales/orders",
+   "/sales/pi",
+   "/system/bank-account",
+   "/system/document-template",
+   "/system/exchange-rate"
+  ]
+ },
+ "role:0:ROLE_PTBUYER:兼职采购": {
+  "reachable": [
+   "/inquiry/my-tasks",
+   "/inquiry/part-time-board",
+   "inquiry:supplier:view"
+  ],
+  "visible": [
+   "/inquiry/my-tasks",
+   "/inquiry/part-time-board"
+  ]
+ },
+ "role:0:ROLE_STAFF:普通员工": {
+  "reachable": [],
+  "visible": []
+ },
+ "role:0:ROLE_SYSADM:系统管理员": {
+  "reachable": [],
+  "visible": []
+ }
+}
