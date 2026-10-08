@@ -104,7 +104,7 @@ public class PiEditor {
         v.setBuyerPartyId(buyer.getPartyId());
         v.setConsigneeJson(store.toJson(consignee));
         v.setConsigneePartyId(consignee == null ? null : consignee.getPartyId());
-        if (req.getValidUntil() != null) {
+        if (req.getValidUntil() != null && !req.getValidUntil().equals(v.getValidUntil())) {
             if (pi.getCreateTime() != null && req.getValidUntil().isBefore(pi.getCreateTime().toLocalDate())) {
                 throw new BizException("有效期不能早于 PI 日期");
             }

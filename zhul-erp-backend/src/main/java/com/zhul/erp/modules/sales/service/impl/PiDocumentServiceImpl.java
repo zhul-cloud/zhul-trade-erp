@@ -10,6 +10,7 @@ import com.zhul.erp.modules.document.support.DocumentConverter;
 import com.zhul.erp.modules.document.support.RenderModel;
 import com.zhul.erp.modules.document.support.XlsxRenderer;
 import com.zhul.erp.modules.inquiry.support.CurrentUserResolver;
+import com.zhul.erp.modules.inquiry.support.InquiryLookups;
 import com.zhul.erp.modules.masterdata.entity.CustomerDO;
 import com.zhul.erp.modules.masterdata.repository.CustomerMapper;
 import com.zhul.erp.modules.quotation.dto.PreviewVO;
@@ -37,6 +38,9 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Base64;
+import com.zhul.erp.modules.sales.support.PiBargainSheet;
+import com.zhul.erp.modules.sales.support.PiCalculator;
+import java.math.BigDecimal;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Locale;
@@ -91,6 +95,30 @@ public class PiDocumentServiceImpl implements PiDocumentService {
             case "jpg" -> new TemplateFile(base + ".jpg", "image/jpeg", converter.toJpeg(converter.toPdf(xlsx), IMAGE_MAX_WIDTH));
             default -> new TemplateFile(base + ".xlsx", XLSX, xlsx);
         };
+    }
+
+    @Override
+    public TemplateFile bargainExport(Long id, Integer versionNo, BigDecimal rate, Integer discountType, BigDecimal discountValue) {
+        ProformaInvoiceDO pi = store.visible(id);
+        Integer target = versionNo != null ? versionNo
+                : pi.getEditingVersionNo() != null ? pi.getEditingVersionNo() : pi.getCurrentVersionNo();
+        PiVersionDO v = store.version(id, target);
+        if (v == null) {
+            throw new BizException("PI 版本不存在");
+        }
+        BigDecimal r = rate == null ? pi.getExchangeRate() : rate;
+        if (r == null || r.signum() <= 0) {
+            throw new BizException("测算汇率需要大于 0");
+        }
+        List<PiItemDO> items = store.items(v.getId());
+        BigDecimal itemAmount = items.stream().map(PiItemDO::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal discount = discountType == null ? v.getDiscountAmount() : PiCalculator.discount(discountType, discountValue, itemAmount);
+        byte[] xlsx = PiBargainSheet.build(items, pi.getCurrencyCode(), r, discount == null ? BigDecimal.ZERO : discount);
+        CustomerDO c = customerMapper.selectById(pi.getCustomerId());
+        String display = InquiryLookups.customerName(c);
+        String name = display == null ? "" : display.replaceAll("[\\\\/:*?\"<>|\\r\\n]+", " ").trim();
+        String base = (name.isEmpty() ? "" : name + "_") + pi.getPiNo() + "_" + LocalDate.now();
+        return new TemplateFile(base + ".xlsx", XLSX, xlsx);
     }
 
     @Override

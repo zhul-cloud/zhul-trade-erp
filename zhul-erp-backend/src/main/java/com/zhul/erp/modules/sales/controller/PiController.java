@@ -170,6 +170,23 @@ public class PiController {
         response.getOutputStream().write(file.content());
     }
 
+    /** 议价测算表：只在系统内使用，含采购成本 */
+    @GetMapping("/{id}/bargain-export")
+    @PreAuthorize("@perm.canAccessMenu('/sales/pi')")
+    public void bargainExport(@PathVariable Long id, @RequestParam(required = false) Integer version,
+                              @RequestParam(required = false) java.math.BigDecimal rate,
+                              @RequestParam(required = false) Integer discountType,
+                              @RequestParam(required = false) java.math.BigDecimal discountValue,
+                              HttpServletResponse response) throws IOException {
+        TemplateFile file = documentService.bargainExport(id, version, rate, discountType, discountValue);
+        response.setContentType(file.contentType());
+        response.setContentLength(file.content().length);
+        response.setHeader(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename*=UTF-8''"
+                + URLEncoder.encode(file.fileName(), StandardCharsets.UTF_8).replace("+", "%20"));
+        response.setHeader("X-Content-Type-Options", "nosniff");
+        response.getOutputStream().write(file.content());
+    }
+
     /** 实时预览：内容同保存请求，不做字段校验（编辑中可能还没填完） */
     @PostMapping("/{id}/preview")
     @PreAuthorize("@perm.canAccessMenu('/sales/pi')")
