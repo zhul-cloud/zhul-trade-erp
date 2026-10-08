@@ -122,6 +122,7 @@ public class PiServiceImpl implements PiService {
     private final ExchangeRateService exchangeRateService;
     private final DataScopeResolver dataScopeResolver;
     private final CurrentUserResolver currentUser;
+    private final com.zhul.erp.framework.security.PermissionChecker perm;
     private final InquiryLookups lookups;
     private final LogService logService;
     private final ObjectMapper objectMapper;
@@ -850,6 +851,12 @@ public class PiServiceImpl implements PiService {
         }).toList());
         vo.setSendLogs(sendLogs(id));
         vo.setReceipts(receipts(id));
+        vo.setPlatformFeeAmount(vo.getReceipts().stream()
+                .filter(r -> r.getKind() == SalesConstants.KIND_RECEIPT && r.getStatus() == SalesConstants.RECORD_VALID)
+                .map(r -> r.getPlatformFee() == null ? BigDecimal.ZERO : r.getPlatformFee()).reduce(BigDecimal.ZERO, BigDecimal::add));
+        vo.setNetAmountCny(vo.getReceipts().stream()
+                .filter(r -> r.getKind() == SalesConstants.KIND_RECEIPT && r.getStatus() == SalesConstants.RECORD_VALID)
+                .map(r -> r.getNetAmountCny() == null ? BigDecimal.ZERO : r.getNetAmountCny()).reduce(BigDecimal.ZERO, BigDecimal::add));
         SalesOrderDO order = store.activeOrder(id);
         if (order != null) {
             PiVO.OrderBrief o = new PiVO.OrderBrief();
@@ -984,7 +991,10 @@ public class PiServiceImpl implements PiService {
         if (rows.isEmpty()) {
             return List.of();
         }
-        Map<Long, String> names = lookups.userNames(rows.stream().map(PaymentReceiptDO::getOperatorId).toList());
+        Map<Long, String> names = lookups.userNames(rows.stream().flatMap(r -> java.util.stream.Stream.of(r.getOperatorId(), r.getClaimedBy()))
+                .filter(Objects::nonNull).distinct().toList());
+        boolean canConfirm = perm.has(SalesConstants.PERM_RECEIPT_CONFIRM);
+        Long me = currentUser.resolve();
         Set<Integer> bankIds = rows.stream().map(PaymentReceiptDO::getBankAccountId).filter(Objects::nonNull).collect(Collectors.toSet());
         Map<Integer, BankAccountDO> banks = bankIds.isEmpty() ? Map.of()
                 : bankAccountMapper.selectBatchIds(bankIds).stream().collect(Collectors.toMap(BankAccountDO::getId, b -> b));
@@ -997,6 +1007,20 @@ public class PiServiceImpl implements PiService {
             vo.setAmount(r.getAmount());
             vo.setAmountCny(r.getAmountCny());
             vo.setFeeDiff(r.getFeeDiff());
+            vo.setPaymentMethod(r.getPaymentMethod());
+            vo.setPaymentMethodName(r.getPaymentMethodName());
+            vo.setChannel(r.getChannel());
+            vo.setPlatformOrderNo(r.getPlatformOrderNo());
+            vo.setPlatformFee(r.getPlatformFee());
+            vo.setNetAmount(r.getNetAmount());
+            vo.setNetAmountCny(r.getNetAmountCny());
+            vo.setExchangeRate(r.getExchangeRate());
+            vo.setRateSource(r.getRateSource());
+            vo.setPayer(r.getPayer());
+            vo.setClaimedByName(r.getClaimedBy() == null ? null : names.get(r.getClaimedBy()));
+            vo.setClaimedAt(r.getClaimedAt());
+            vo.setVoidable(r.getKind() == SalesConstants.KIND_RECEIPT && r.getStatus() == SalesConstants.RECORD_VALID
+                    && (canConfirm || (StringUtils.hasText(r.getPlatformOrderNo()) && Objects.equals(r.getOperatorId(), me))));
             vo.setReceiptDate(r.getReceiptDate());
             vo.setBankAccountId(r.getBankAccountId());
             BankAccountDO b = r.getBankAccountId() == null ? null : banks.get(r.getBankAccountId());

@@ -72,7 +72,7 @@ class NavigationContractTest extends InquiryContractSupport {
                 new ArrayList<>(all.keySet()));
         assertEquals(List.of("商机", "客户", "客户询盘", "报价单", "PI", "销售订单"), all.get("业务管理"), "商机统计从侧边栏隐藏");
         assertEquals(List.of("兼职看板", "询价分配", "我的询价", "历史询价", "供应商"), all.get("采购管理"));
-        assertEquals(List.of("到账登记"), all.get("财务管理"));
+        assertEquals(List.of("收款管理"), all.get("财务管理"));
         assertEquals(List.of("定价策略", "汇率", "收款账户", "单据模版", "单据编号"), all.get("业务设置"));
         assertEquals(List.of("用户", "角色", "部门", "岗位", "菜单", "字典", "系统设置", "操作日志", "登录日志"), all.get("系统管理"));
     }

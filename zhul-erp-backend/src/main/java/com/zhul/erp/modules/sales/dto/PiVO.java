@@ -27,6 +27,9 @@ public class PiVO {
     private BigDecimal feeDiffAmount;
     /** 当前有效版本合计 − 已到账 − 手续费差额 */
     private BigDecimal remainingAmount;
+    /** 有效到账的平台手续费合计（原币）与实收人民币合计 */
+    private BigDecimal platformFeeAmount;
+    private BigDecimal netAmountCny;
     private Integer currentVersionNo;
     private Integer editingVersionNo;
     /** 正在查看的是编辑中的版本 */

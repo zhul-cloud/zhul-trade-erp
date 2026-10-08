@@ -15,7 +15,7 @@ import java.util.List;
 /** 收款登记：业务员上传水单（不计入到账），财务登记与作废到账；收款记在 PI 上 */
 public interface PaymentReceiptService {
 
-    PiVO uploadSlip(Long piId, List<MultipartFile> files, BigDecimal amount, LocalDate paidDate, String note);
+    PiVO uploadSlip(Long piId, List<MultipartFile> files, BigDecimal amount, LocalDate paidDate, String paymentMethod, String note);
 
     PiVO deleteSlip(Long piId, Long slipId);
 
@@ -27,6 +27,15 @@ public interface PaymentReceiptService {
     PiVO confirm(Long piId, ConfirmReceiptRequest req);
 
     PiVO voidReceipt(Long piId, Long receiptId, String reason);
+
+    /** 业务员登记平台收款（线上付款方式），登记即计入到账 */
+    PiVO platformReceipt(Long piId, com.zhul.erp.modules.sales.dto.PlatformReceiptRequest req);
+
+    /** 可认领到这张 PI 的未认领到账（同币种） */
+    List<com.zhul.erp.modules.sales.dto.ReceiptRowVO> claimable(Long piId);
+
+    /** 把一笔未认领到账认领到 PI */
+    PiVO claim(Long piId, com.zhul.erp.modules.sales.dto.ClaimReceiptRequest req);
 
     /** 到账登记工作列表：默认只列有待确认水单、或已有到账但未收齐的 PI */
     PageResult<ReceiptDeskRowVO> desk(ReceiptDeskQuery query);

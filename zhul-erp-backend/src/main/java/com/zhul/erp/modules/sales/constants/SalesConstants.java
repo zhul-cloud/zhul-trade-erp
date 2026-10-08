@@ -35,6 +35,17 @@ public final class SalesConstants {
     /** 收款记录类型与状态 */
     public static final int KIND_SLIP = 1;
     public static final int KIND_RECEIPT = 2;
+
+    /** 付款方式：字典与线上 / 线下（字典项的值 ONLINE / OFFLINE） */
+    public static final String DICT_PAYMENT_METHOD = "payment_method";
+    public static final String METHOD_ONLINE = "ONLINE";
+    public static final String PERM_RECEIPT_CONFIRM = "sales:pi:receipt-confirm";
+    public static final int CHANNEL_OFFLINE = 1;
+    public static final int CHANNEL_ONLINE = 2;
+    public static final Map<Integer, String> RECEIPT_CHANNEL_NAMES = Map.of(CHANNEL_OFFLINE, "线下", CHANNEL_ONLINE, "线上");
+    /** 实收人民币的汇率来源 */
+    public static final int RATE_SYSTEM = 1;
+    public static final int RATE_ACTUAL = 2;
     public static final int RECORD_VALID = 1;
     public static final int RECORD_VOID = 2;
 
@@ -66,6 +77,7 @@ public final class SalesConstants {
     public static final String PERM_SLIP = "sales:pi:receipt-slip";
     public static final String PERM_CONFIRM = "sales:pi:receipt-confirm";
     public static final String MENU_PI = "PI";
+    public static final String MENU_RECEIPTS = "收款管理";
     public static final String MENU_SO = "销售订单";
 
     private SalesConstants() {

@@ -7,23 +7,19 @@ import lombok.Data;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
-/** 财务登记到账 */
+/** 登记平台收款：线上付款方式、平台订单号、客户付款金额与平台手续费，登记即计入到账 */
 @Data
-public class ConfirmReceiptRequest {
-    @NotNull(message = "请填写到账金额")
+public class PlatformReceiptRequest {
+    private String paymentMethod;
+    @Size(max = 64, message = "平台订单号不能超过 64 个字符")
+    private String platformOrderNo;
+    @NotNull(message = "请填写客户付款金额")
     private BigDecimal amount;
+    private BigDecimal platformFee;
     @NotNull(message = "请选择到账日期")
     private LocalDate receiptDate;
-    @NotNull(message = "请选择收款账户")
-    private Integer bankAccountId;
-    /** 对应的水单，可不选 */
-    private Long slipId;
-    /** 付款方式（线下）；不传时取水单的付款方式，没有水单时取默认项 */
-    private String paymentMethod;
     /** 已结汇时的实际入账人民币 */
     private BigDecimal actualAmountCny;
-    /** 本次到账后的剩余差额记为银行中转手续费 */
-    private Boolean feeDiff;
     @Size(max = 300, message = "说明不能超过 300 字")
     private String note;
 }

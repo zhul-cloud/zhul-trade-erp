@@ -3,7 +3,10 @@ package com.zhul.erp.modules.sales.controller;
 import com.zhul.erp.common.result.PageResult;
 import com.zhul.erp.common.result.Result;
 import com.zhul.erp.framework.storage.PrivateFileStorage;
+import com.zhul.erp.modules.sales.dto.ClaimReceiptRequest;
 import com.zhul.erp.modules.sales.dto.ConfirmReceiptRequest;
+import com.zhul.erp.modules.sales.dto.PlatformReceiptRequest;
+import com.zhul.erp.modules.sales.dto.ReceiptRowVO;
 import com.zhul.erp.modules.sales.dto.PiVO;
 import com.zhul.erp.modules.sales.dto.ReceiptDeskQuery;
 import com.zhul.erp.modules.sales.dto.ReceiptDeskRowVO;
@@ -48,8 +51,9 @@ public class PaymentReceiptController {
     public Result<PiVO> uploadSlip(@PathVariable Long id, @RequestPart(value = "files", required = false) List<MultipartFile> files,
                                    @RequestParam(required = false) BigDecimal amount,
                                    @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate paidDate,
+                                   @RequestParam(required = false) String paymentMethod,
                                    @RequestParam(required = false) String note) {
-        return Result.ok(service.uploadSlip(id, files, amount, paidDate, note));
+        return Result.ok(service.uploadSlip(id, files, amount, paidDate, paymentMethod, note));
     }
 
     @DeleteMapping("/{id}/slips/{slipId}")
@@ -76,13 +80,32 @@ public class PaymentReceiptController {
         return Result.ok(service.confirm(id, req));
     }
 
+    /** 作废到账：有「登记到账」权限，或作废自己登记的平台收款（服务里校验） */
     @PostMapping("/{id}/receipts/{receiptId}/void")
-    @PreAuthorize("@perm.has('sales:pi:receipt-confirm')")
+    @PreAuthorize("@perm.has('sales:pi:receipt-confirm') or (@perm.canAccessMenu('/sales/pi') and @perm.has('sales:pi:platform-receipt'))")
     public Result<PiVO> voidReceipt(@PathVariable Long id, @PathVariable Long receiptId, @Valid @RequestBody VoidReceiptRequest req) {
         return Result.ok(service.voidReceipt(id, receiptId, req.getReason()));
     }
 
-    /** 财务管理 → 到账登记 */
+    @PostMapping("/{id}/platform-receipts")
+    @PreAuthorize("@perm.canAccessMenu('/sales/pi') and @perm.has('sales:pi:platform-receipt')")
+    public Result<PiVO> platformReceipt(@PathVariable Long id, @Valid @RequestBody PlatformReceiptRequest req) {
+        return Result.ok(service.platformReceipt(id, req));
+    }
+
+    @GetMapping("/{id}/claimable-receipts")
+    @PreAuthorize("@perm.canAccessMenu('/sales/pi') and @perm.has('sales:pi:claim-receipt')")
+    public Result<List<ReceiptRowVO>> claimable(@PathVariable Long id) {
+        return Result.ok(service.claimable(id));
+    }
+
+    @PostMapping("/{id}/claim")
+    @PreAuthorize("@perm.canAccessMenu('/sales/pi') and @perm.has('sales:pi:claim-receipt')")
+    public Result<PiVO> claim(@PathVariable Long id, @Valid @RequestBody ClaimReceiptRequest req) {
+        return Result.ok(service.claim(id, req));
+    }
+
+    /** 财务管理 → 收款管理（待确认） */
     @PostMapping("/receipt-desk")
     @PreAuthorize("@perm.canAccessMenu('/finance/receipts') and @perm.has('sales:pi:receipt-confirm')")
     public Result<PageResult<ReceiptDeskRowVO>> desk(@RequestBody ReceiptDeskQuery query) {

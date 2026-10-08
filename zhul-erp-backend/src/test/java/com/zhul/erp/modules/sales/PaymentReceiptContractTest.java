@@ -83,7 +83,7 @@ class PaymentReceiptContractTest extends SalesContractSupport {
         assertEquals(List.of(1), ok(call(get(PI + "/" + id), rep)).path("receipts").findValues("kind").stream().map(JsonNode::asInt).toList());
     }
 
-    // ---------------------------------------------------------------- 到账登记工作列表
+    // ---------------------------------------------------------------- 收款管理 · 待确认
 
     private static final String DESK = PI + "/receipt-desk";
     private static final int MENU_RECEIPT_DESK = 100085;
@@ -94,7 +94,7 @@ class PaymentReceiptContractTest extends SalesContractSupport {
         String piNo = ok(call(get(PI + "/" + id), admin)).path("piNo").asText();
         long slipId = ok(uploadSlip(id, "667.00", "2026-10-07", admin)).path("receipts").get(0).path("id").asLong();
 
-        // 总经理兼财务：只有到账登记菜单与登记到账按钮，没有 PI 菜单
+        // 总经理兼财务：只有收款管理菜单与登记到账按钮，没有 PI 菜单
         loginWithResources("it_finance", MENU_RECEIPT_DESK, BTN_CONFIRM);
         String fin = token("it_finance");
         JsonNode page = ok(call(json(post(DESK), write(java.util.Map.of("keyword", piNo.substring(2)))), fin));

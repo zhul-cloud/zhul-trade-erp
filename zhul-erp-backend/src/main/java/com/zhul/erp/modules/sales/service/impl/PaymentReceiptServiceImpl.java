@@ -7,13 +7,17 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhul.erp.common.exception.BizException;
 import com.zhul.erp.common.result.PageResult;
 import com.zhul.erp.framework.security.DataScopeResolver;
+import com.zhul.erp.framework.security.PermissionChecker;
 import com.zhul.erp.framework.storage.PrivateFileStorage;
 import com.zhul.erp.modules.inquiry.support.CurrentUserResolver;
 import com.zhul.erp.modules.inquiry.support.InquiryLookups;
 import com.zhul.erp.modules.masterdata.entity.CustomerDO;
 import com.zhul.erp.modules.masterdata.repository.CustomerMapper;
 import com.zhul.erp.modules.sales.constants.SalesConstants;
+import com.zhul.erp.modules.sales.dto.ClaimReceiptRequest;
 import com.zhul.erp.modules.sales.dto.ConfirmReceiptRequest;
+import com.zhul.erp.modules.sales.dto.PlatformReceiptRequest;
+import com.zhul.erp.modules.sales.dto.ReceiptRowVO;
 import com.zhul.erp.modules.sales.dto.PiVO;
 import com.zhul.erp.modules.sales.dto.ReceiptDeskQuery;
 import com.zhul.erp.modules.sales.dto.ReceiptDeskRowVO;
@@ -26,7 +30,10 @@ import com.zhul.erp.modules.sales.repository.ProformaInvoiceMapper;
 import com.zhul.erp.modules.sales.repository.SalesOrderMapper;
 import com.zhul.erp.modules.sales.service.PaymentReceiptService;
 import com.zhul.erp.modules.sales.service.PiService;
+import com.zhul.erp.modules.sales.support.PaymentMethods;
 import com.zhul.erp.modules.sales.support.PiStore;
+import com.zhul.erp.modules.sales.support.ReceiptMoney;
+import com.zhul.erp.modules.sales.support.ReceiptRows;
 import com.zhul.erp.modules.sales.support.PiSummary;
 import com.zhul.erp.modules.system.entity.BankAccountDO;
 import com.zhul.erp.modules.system.entity.SysConfigDO;
@@ -79,13 +86,17 @@ public class PaymentReceiptServiceImpl implements PaymentReceiptService {
     private final CustomerMapper customerMapper;
     private final DataScopeResolver dataScopeResolver;
     private final InquiryLookups lookups;
+    private final PaymentMethods paymentMethods;
+    private final ReceiptRows receiptRows;
+    private final PermissionChecker perm;
 
     // ---------------------------------------------------------------- 水单
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public PiVO uploadSlip(Long piId, List<MultipartFile> files, BigDecimal amount, LocalDate paidDate, String note) {
+    public PiVO uploadSlip(Long piId, List<MultipartFile> files, BigDecimal amount, LocalDate paidDate, String paymentMethod, String note) {
         ProformaInvoiceDO pi = requireReceivable(piId);
+        PaymentMethods.Method method = paymentMethods.offline(paymentMethod);
         if (amount == null || amount.signum() <= 0) {
             throw new BizException("付款金额需要大于 0");
         }
@@ -113,6 +124,12 @@ public class PaymentReceiptServiceImpl implements PaymentReceiptService {
         r.setPiId(piId);
         r.setKind(SalesConstants.KIND_SLIP);
         r.setCurrencyCode(pi.getCurrencyCode());
+        setMethod(r, method);
+        r.setPlatformFee(BigDecimal.ZERO);
+        r.setNetAmount(BigDecimal.ZERO);
+        r.setNetAmountCny(BigDecimal.ZERO);
+        r.setRateSource(SalesConstants.RATE_SYSTEM);
+        r.setPayer("");
         r.setAmount(amount.setScale(2, RoundingMode.HALF_UP));
         r.setExchangeRate(pi.getExchangeRate());
         r.setAmountCny(r.getAmount().multiply(pi.getExchangeRate()).setScale(2, RoundingMode.HALF_UP));
@@ -176,16 +193,9 @@ public class PaymentReceiptServiceImpl implements PaymentReceiptService {
         if (!bank.getCurrencyCode().equals(pi.getCurrencyCode())) {
             throw new BizException("收款账户币种（" + bank.getCurrencyCode() + "）与 PI 币种（" + pi.getCurrencyCode() + "）不同");
         }
-        if (req.getSlipId() != null) {
-            record(piId, req.getSlipId(), SalesConstants.KIND_SLIP);
-            boolean used = receiptMapper.selectCount(new LambdaQueryWrapper<PaymentReceiptDO>()
-                    .eq(PaymentReceiptDO::getSlipId, req.getSlipId())
-                    .eq(PaymentReceiptDO::getStatus, SalesConstants.RECORD_VALID)
-                    .isNull(PaymentReceiptDO::getDeletedAt)) > 0;
-            if (used) {
-                throw new BizException("这张水单已登记过到账");
-            }
-        }
+        PaymentReceiptDO slip = req.getSlipId() == null ? null : requireFreeSlip(piId, req.getSlipId());
+        PaymentMethods.Method method = paymentMethods.offline(StringUtils.hasText(req.getPaymentMethod()) ? req.getPaymentMethod()
+                : slip != null ? slip.getPaymentMethod() : null);
         BigDecimal remaining = pi.getTotalAmount().subtract(pi.getReceivedAmount()).subtract(pi.getFeeDiffAmount());
         BigDecimal after = remaining.subtract(amount);
         BigDecimal feeDiff = BigDecimal.ZERO;
@@ -206,9 +216,9 @@ public class PaymentReceiptServiceImpl implements PaymentReceiptService {
         r.setPiId(piId);
         r.setKind(SalesConstants.KIND_RECEIPT);
         r.setCurrencyCode(pi.getCurrencyCode());
-        r.setAmount(amount);
-        r.setExchangeRate(rate.rate());
-        r.setAmountCny(amount.multiply(rate.rate()).setScale(2, RoundingMode.HALF_UP));
+        setMethod(r, method);
+        ReceiptMoney.apply(r, amount, BigDecimal.ZERO, rate.rate(), req.getActualAmountCny());
+        r.setPayer("");
         r.setFeeDiff(feeDiff);
         r.setReceiptDate(req.getReceiptDate());
         r.setBankAccountId(bank.getId());
@@ -224,7 +234,9 @@ public class PaymentReceiptServiceImpl implements PaymentReceiptService {
         after2.put("piNo", pi.getPiNo());
         after2.put("amount", pi.getCurrencyCode() + " " + amount);
         after2.put("amountCny", r.getAmountCny());
-        after2.put("rate", rate.rate());
+        after2.put("rate", r.getExchangeRate());
+        after2.put("netAmountCny", r.getNetAmountCny());
+        after2.put("paymentMethod", method.name());
         after2.put("feeDiff", feeDiff);
         after2.put("bank", bank.getBankName() + " " + BankAccountService.mask(bank.getAccountNo()));
         after2.put("receiptStatus", SalesConstants.RECEIPT_STATUS_NAMES.get(pi.getReceiptStatus()));
@@ -240,6 +252,11 @@ public class PaymentReceiptServiceImpl implements PaymentReceiptService {
         if (r.getStatus() == SalesConstants.RECORD_VOID) {
             throw new BizException("这笔到账已作废");
         }
+        // 没有「登记到账」权限时只能作废自己登记的平台收款
+        if (!perm.has(SalesConstants.PERM_RECEIPT_CONFIRM)
+                && !(StringUtils.hasText(r.getPlatformOrderNo()) && Objects.equals(r.getOperatorId(), currentUserId()))) {
+            throw new BizException("只能作废自己登记的平台收款");
+        }
         String why = reason == null ? "" : reason.trim();
         if (why.isEmpty()) {
             throw new BizException("请填写作废原因");
@@ -252,6 +269,129 @@ public class PaymentReceiptServiceImpl implements PaymentReceiptService {
                 Map.of("piNo", pi.getPiNo(), "amount", pi.getCurrencyCode() + " " + r.getAmount(), "status", "有效"),
                 Map.of("piNo", pi.getPiNo(), "status", "已作废", "reason", r.getVoidReason()));
         return piService.detail(piId, null);
+    }
+
+    // ---------------------------------------------------------------- 平台收款与认领
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public PiVO platformReceipt(Long piId, PlatformReceiptRequest req) {
+        ProformaInvoiceDO pi = requireReceivable(piId);
+        PaymentMethods.Method method = paymentMethods.online(req.getPaymentMethod());
+        String orderNo = req.getPlatformOrderNo() == null ? "" : req.getPlatformOrderNo().trim();
+        if (orderNo.isEmpty()) {
+            throw new BizException("请填写平台订单号");
+        }
+        if (req.getAmount().signum() <= 0) {
+            throw new BizException("客户付款金额需要大于 0");
+        }
+        PaymentReceiptDO dup = receiptMapper.selectOne(new LambdaQueryWrapper<PaymentReceiptDO>()
+                .eq(PaymentReceiptDO::getTenantId, pi.getTenantId())
+                .eq(PaymentReceiptDO::getPaymentMethod, method.code())
+                .eq(PaymentReceiptDO::getPlatformOrderNo, orderNo)
+                .eq(PaymentReceiptDO::getStatus, SalesConstants.RECORD_VALID)
+                .isNull(PaymentReceiptDO::getDeletedAt)
+                .last("LIMIT 1"));
+        if (dup != null) {
+            ProformaInvoiceDO other = dup.getPiId() == null ? null : piMapper.selectById(dup.getPiId());
+            throw new BizException("平台订单号 " + orderNo + " 已登记过" + (other == null ? "" : "（" + other.getPiNo() + "）"));
+        }
+        BigDecimal amount = req.getAmount().setScale(2, RoundingMode.HALF_UP);
+        ExchangeRateService.Snapshot rate = exchangeRateService.require(pi.getCurrencyCode());
+        PaymentReceiptDO r = new PaymentReceiptDO();
+        r.setTenantId(pi.getTenantId());
+        r.setPiId(piId);
+        r.setKind(SalesConstants.KIND_RECEIPT);
+        r.setCurrencyCode(pi.getCurrencyCode());
+        setMethod(r, method);
+        r.setPlatformOrderNo(orderNo);
+        ReceiptMoney.apply(r, amount, req.getPlatformFee(), rate.rate(), req.getActualAmountCny());
+        r.setFeeDiff(BigDecimal.ZERO);
+        r.setPayer("");
+        r.setReceiptDate(req.getReceiptDate());
+        r.setFileKeys("[]");
+        r.setNote(trim(req.getNote(), 300));
+        r.setStatus(SalesConstants.RECORD_VALID);
+        r.setVoidReason("");
+        r.setOperatorId(currentUserId());
+        receiptMapper.insert(r);
+        summary.refresh(pi);
+        Map<String, Object> after = new LinkedHashMap<>();
+        after.put("piNo", pi.getPiNo());
+        after.put("paymentMethod", method.name());
+        after.put("platformOrderNo", orderNo);
+        after.put("amount", pi.getCurrencyCode() + " " + amount);
+        after.put("platformFee", r.getPlatformFee());
+        after.put("netAmountCny", r.getNetAmountCny());
+        logService.recordOperateLog(SalesConstants.MENU_PI, "登记平台收款", null, after);
+        return piService.detail(piId, null);
+    }
+
+    @Override
+    public List<ReceiptRowVO> claimable(Long piId) {
+        ProformaInvoiceDO pi = store.visible(piId);
+        return receiptRows.of(receiptMapper.selectList(new LambdaQueryWrapper<PaymentReceiptDO>()
+                .eq(PaymentReceiptDO::getTenantId, pi.getTenantId())
+                .isNull(PaymentReceiptDO::getPiId)
+                .eq(PaymentReceiptDO::getKind, SalesConstants.KIND_RECEIPT)
+                .eq(PaymentReceiptDO::getCurrencyCode, pi.getCurrencyCode())
+                .eq(PaymentReceiptDO::getStatus, SalesConstants.RECORD_VALID)
+                .isNull(PaymentReceiptDO::getDeletedAt)
+                .orderByDesc(PaymentReceiptDO::getReceiptDate)
+                .orderByDesc(PaymentReceiptDO::getId)));
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public PiVO claim(Long piId, ClaimReceiptRequest req) {
+        ProformaInvoiceDO pi = requireReceivable(piId);
+        PaymentReceiptDO r = receiptMapper.selectOne(new LambdaQueryWrapper<PaymentReceiptDO>()
+                .eq(PaymentReceiptDO::getId, req.getReceiptId())
+                .last("FOR UPDATE"));
+        if (r == null || r.getDeletedAt() != null || !Objects.equals(r.getTenantId(), pi.getTenantId())
+                || r.getKind() != SalesConstants.KIND_RECEIPT || r.getStatus() != SalesConstants.RECORD_VALID) {
+            throw new BizException("到账记录不存在");
+        }
+        if (r.getPiId() != null) {
+            ProformaInvoiceDO other = piMapper.selectById(r.getPiId());
+            throw new BizException("这笔到账已被 " + (other == null ? "其他 PI" : other.getPiNo()) + " 认领");
+        }
+        if (!r.getCurrencyCode().equals(pi.getCurrencyCode())) {
+            throw new BizException("币种不同（到账 " + r.getCurrencyCode() + "，PI " + pi.getCurrencyCode() + "），不能认领");
+        }
+        if (req.getSlipId() != null) {
+            requireFreeSlip(piId, req.getSlipId());
+        }
+        r.setPiId(piId);
+        r.setSlipId(req.getSlipId());
+        r.setClaimedBy(currentUserId());
+        r.setClaimedAt(LocalDateTime.now());
+        receiptMapper.updateById(r);
+        summary.refresh(pi);
+        logService.recordOperateLog(SalesConstants.MENU_PI, "认领到账", null, Map.of("piNo", pi.getPiNo(),
+                "amount", r.getCurrencyCode() + " " + r.getAmount(), "payer", r.getPayer(), "receiptId", r.getId()));
+        return piService.detail(piId, null);
+    }
+
+    private PaymentReceiptDO requireFreeSlip(Long piId, Long slipId) {
+        PaymentReceiptDO slip = record(piId, slipId, SalesConstants.KIND_SLIP);
+        boolean used = receiptMapper.selectCount(new LambdaQueryWrapper<PaymentReceiptDO>()
+                .eq(PaymentReceiptDO::getSlipId, slipId)
+                .eq(PaymentReceiptDO::getStatus, SalesConstants.RECORD_VALID)
+                .isNull(PaymentReceiptDO::getDeletedAt)) > 0;
+        if (used) {
+            throw new BizException("这张水单已登记过到账");
+        }
+        return slip;
+    }
+
+    static void setMethod(PaymentReceiptDO r, PaymentMethods.Method m) {
+        r.setPaymentMethod(m.code());
+        r.setPaymentMethodName(m.name());
+        r.setChannel(m.channel());
+        if (r.getPlatformOrderNo() == null) {
+            r.setPlatformOrderNo("");
+        }
     }
 
     // ---------------------------------------------------------------- 到账登记工作列表
