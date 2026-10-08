@@ -78,6 +78,7 @@ OUTPUT_SCHEMA = {
                                 "confidence": {"type": "integer"},
                                 "correctionNote": {"type": "string"},
                                 "description": {"type": "string"},
+                                "descriptionEn": {"type": "string"},
                                 "quantity": {"type": "integer"},
                                 "unit": {"type": "string"},
                                 "remark": {"type": "string"},
@@ -126,6 +127,8 @@ def build_system_prompt() -> str:
 - 不要输出 master、sub_inquiry_id、item_count、delivery 这些字段
 
 【每个型号额外输出的字段——联网搜索验证时一并判断】
+- description：中文描述（给内部采购询价看），沿用 skill 原有写法
+- descriptionEn：英文描述（给海外客户看，会出现在报价单、PI 上）：英文品名 + 关键规格，品牌用英文名（如西门子写 Siemens），型号、规格参数和单位原样保留，不要出现中文，不超过 300 个字符；例如「Siemens 3VA2 MCCB, 400A 4P, 55kA/415V, ETU560 LSIG trip unit」；型号未识别时留空字符串
 - lifecycle 生命周期（整数）：官网或代理商在售=1（在产）；官网确认停产或已无库存=2（停产）；查不到或不确定=3（待查）
 - replacementModel：停产且官方给出替代型号时填写替代型号，否则留空字符串；替代型号需确认规格兼容，不能随意等同
 - difficulty 采购难度（整数）：常见在产型号、国内平台容易买到=1（简单）；冷门、停产有替代或货源少=2（中等）；停产无替代、稀缺或需海外渠道=3（困难）
@@ -183,6 +186,75 @@ def call_claude(raw_content: str, file_paths=None) -> dict:
     cost = envelope.get("total_cost_usd")
     print(f"[ai-orchestrator] claude 调用完成，费用约 ${cost}，耗时 {envelope.get('duration_ms')}ms")
     return structured
+
+
+TRANSLATE_SKILL = "translate-item-descriptions"
+
+TRANSLATE_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "items": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {"key": {"type": "string"}, "text": {"type": "string"}},
+                "required": ["key", "text"],
+            },
+        }
+    },
+    "required": ["items"],
+}
+
+TRANSLATE_PROMPT = """你是工控自动化产品的外贸翻译。把下面每一条中文型号描述翻译成给海外客户看的英文描述：
+- 英文品名 + 关键规格，品牌用英文名（如西门子写 Siemens，三菱写 Mitsubishi，欧姆龙写 Omron）
+- 型号、规格参数、单位原样保留，不要改写或补全
+- 不要出现中文，每条不超过 300 个字符
+- key 原样返回，每条输入都要有对应输出
+只输出 JSON。"""
+
+
+def call_claude_translate(items: list) -> dict:
+    """翻译型号描述：不联网，不放行任何工具"""
+    cmd = [
+        CLAUDE_BIN,
+        "-p",
+        json.dumps({"items": items}, ensure_ascii=False),
+        "--append-system-prompt",
+        TRANSLATE_PROMPT,
+        "--output-format",
+        "json",
+        "--json-schema",
+        json.dumps(TRANSLATE_SCHEMA),
+        "--permission-prompts",
+        "none",
+        "--max-budget-usd",
+        MAX_BUDGET_USD,
+    ]
+    result = subprocess.run(cmd, capture_output=True, text=True, timeout=CLAUDE_TIMEOUT_SECONDS)
+    if result.returncode != 0:
+        raise RuntimeError(f"claude 进程退出码 {result.returncode}: {result.stderr[-2000:]}")
+    envelope = json.loads(result.stdout)
+    if envelope.get("is_error"):
+        raise RuntimeError(f"claude 返回错误: {envelope.get('result')}")
+    structured = envelope.get("structured_output")
+    if not structured or "items" not in structured:
+        raise RuntimeError("claude 未返回符合 schema 的翻译结果")
+    print(f"[ai-orchestrator] 翻译完成 {len(items)} 条，费用约 ${envelope.get('total_cost_usd')}")
+    return structured
+
+
+def process_translate(payload: dict, callback_url: str):
+    try:
+        items = (payload.get("input") or {}).get("items") or []
+        if not items:
+            send_callback(callback_url, "failed", error="没有需要翻译的描述")
+            return
+        send_callback(callback_url, "success", output=call_claude_translate(items))
+    except subprocess.TimeoutExpired:
+        send_callback(callback_url, "failed", error=f"claude 处理超过 {CLAUDE_TIMEOUT_SECONDS} 秒未完成")
+    except Exception as e:
+        print(f"[ai-orchestrator] translate failed: {e}")
+        send_callback(callback_url, "failed", error=str(e)[:500])
 
 
 def send_callback(callback_url: str, status: str, output=None, error=None):
@@ -250,6 +322,11 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Type", "application/json")
         self.end_headers()
         self.wfile.write(json.dumps({"job_id": job_id}).encode("utf-8"))
+
+        if skill_id == TRANSLATE_SKILL:
+            if callback_url:
+                threading.Thread(target=process_translate, args=(payload, callback_url), daemon=True).start()
+            return
 
         if skill_id != "inquiry-parse-and-split":
             if callback_url:
