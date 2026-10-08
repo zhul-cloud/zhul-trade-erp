@@ -60,6 +60,8 @@ export default function access(initialState: {
     'sales:pi:platform-receipt': can('sales:pi:platform-receipt'),
     'sales:pi:claim-receipt': can('sales:pi:claim-receipt'),
     'sales:pi:receipt-confirm': can('sales:pi:receipt-confirm'),
+    'sales:order:create': can('sales:order:create'),
+    'sales:order:progress': can('sales:order:progress'),
     systemGroup: any(
       '/system/user',
       '/system/role',

@@ -17,9 +17,13 @@ import {
 } from '@/pages/sales/components';
 import { ConfirmReceiptModal } from '@/pages/sales/pi/dialogs';
 import {
-  type Pi,
+  orderApi,
+  orderReceiptOwner,
   piApi,
+  piReceiptOwner,
   type ReceiptDeskRow,
+  type ReceiptOwner,
+  type ReceiptResult,
   readBizError,
 } from '@/pages/sales/service';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -45,8 +49,8 @@ const DeskTab: React.FC<{ onTotal?: (n: number) => void }> = ({ onTotal }) => {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>();
-  const [opening, setOpening] = useState<number>();
-  const [pi, setPi] = useState<Pi>();
+  const [opening, setOpening] = useState<string>();
+  const [owner, setOwner] = useState<ReceiptOwner<ReceiptResult>>();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -73,11 +77,18 @@ const DeskTab: React.FC<{ onTotal?: (n: number) => void }> = ({ onTotal }) => {
     load();
   }, [load]);
 
-  /** 登记到账要用 PI 的剩余金额、水单与收款账户，先取 PI 详情再打开弹窗 */
-  const openConfirm = async (piId: number) => {
-    setOpening(piId);
+  const rowKey = (r: ReceiptDeskRow) =>
+    r.piId ? `P${r.piId}` : `S${r.orderId}`;
+
+  /** 登记到账要用剩余金额、水单与收款账户：先取 PI（手动订单取订单）详情再打开弹窗 */
+  const openConfirm = async (r: ReceiptDeskRow) => {
+    setOpening(rowKey(r));
     try {
-      setPi(await piApi.detail(piId));
+      setOwner(
+        r.piId
+          ? piReceiptOwner(await piApi.detail(r.piId))
+          : orderReceiptOwner(await orderApi.detail(r.orderId as number)),
+      );
     } catch (e) {
       message.error(readBizError(e).message);
     } finally {
@@ -87,13 +98,21 @@ const DeskTab: React.FC<{ onTotal?: (n: number) => void }> = ({ onTotal }) => {
 
   const columns: TableColumnsType<ReceiptDeskRow> = [
     {
-      title: 'PI 编号',
+      title: 'PI / 订单编号',
       dataIndex: 'piNo',
       width: 170,
       fixed: 'left',
-      render: (v: string, r) => (
-        <a onClick={() => history.push(PATHS.pi(r.piId))}>{v}</a>
-      ),
+      render: (v: string | undefined, r) =>
+        r.piId ? (
+          <a onClick={() => history.push(PATHS.pi(r.piId as number))}>{v}</a>
+        ) : (
+          <div>
+            <a onClick={() => history.push(PATHS.order(r.orderId as number))}>
+              {r.soNo}
+            </a>
+            <div style={{ fontSize: 12, color: palette.mute }}>手动订单</div>
+          </div>
+        ),
     },
     {
       title: '客户 · 业务员',
@@ -171,9 +190,10 @@ const DeskTab: React.FC<{ onTotal?: (n: number) => void }> = ({ onTotal }) => {
                     key={f.fileKey}
                     style={{ fontSize: 12, marginRight: 8 }}
                     onClick={() =>
-                      piApi
-                        .openSlipFile(r.piId, s.id, i)
-                        .catch((e) => message.error((e as Error).message))
+                      (r.piId
+                        ? piApi.openSlipFile(r.piId, s.id, i)
+                        : orderApi.openSlipFile(r.orderId as number, s.id, i)
+                      ).catch((e) => message.error((e as Error).message))
                     }
                   >
                     <PaperClipOutlined /> {f.fileName}
@@ -206,8 +226,8 @@ const DeskTab: React.FC<{ onTotal?: (n: number) => void }> = ({ onTotal }) => {
           size="small"
           type={r.pendingSlips.length > 0 ? 'primary' : 'default'}
           icon={<BankOutlined />}
-          loading={opening === r.piId}
-          onClick={() => openConfirm(r.piId)}
+          loading={opening === rowKey(r)}
+          onClick={() => openConfirm(r)}
         >
           登记到账
         </Button>
@@ -280,7 +300,7 @@ const DeskTab: React.FC<{ onTotal?: (n: number) => void }> = ({ onTotal }) => {
         <ErrorHint message={error} onRetry={load} />
       ) : (
         <Table<ReceiptDeskRow>
-          rowKey="piId"
+          rowKey={rowKey}
           columns={columns}
           dataSource={rows}
           loading={loading}
@@ -308,11 +328,11 @@ const DeskTab: React.FC<{ onTotal?: (n: number) => void }> = ({ onTotal }) => {
         PI；收齐后切到「全部」仍可查到。登记规则与 PI 页的登记到账相同。
       </div>
       <ConfirmReceiptModal
-        pi={pi}
-        open={!!pi}
-        onClose={() => setPi(undefined)}
+        owner={owner}
+        open={!!owner}
+        onClose={() => setOwner(undefined)}
         onDone={() => {
-          setPi(undefined);
+          setOwner(undefined);
           load();
         }}
       />

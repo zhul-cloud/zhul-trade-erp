@@ -1,60 +1,75 @@
-import { SearchOutlined } from '@ant-design/icons';
-import { history } from '@umijs/max';
+import {
+  ClockCircleOutlined,
+  FileDoneOutlined,
+  PlusOutlined,
+  SearchOutlined,
+  WalletOutlined,
+  WarningOutlined,
+} from '@ant-design/icons';
+import { history, useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { Button, DatePicker, Form, Input, Select, Table } from 'antd';
-import type { Dayjs } from 'dayjs';
+import dayjs, { type Dayjs } from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
 import { CustomerCell } from '@/components/DocFields';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
-import { getUserList } from '@/pages/system/user/service';
+import { CURRENCIES } from '@/pages/quotation/components';
 import { useAppTheme } from '@/theme/AppTheme';
-import { formatAmount, formatDateTime } from '@/utils/format';
-import {
-  Card,
-  ORDER_META,
-  OrderStatusPill,
-  PATHS,
-  RECEIPT_META,
-  ReceiptStatusPill,
-  SalesPageTitle,
-} from '../components';
+import { formatAmount } from '@/utils/format';
+import { Card, PATHS, RECEIPT_META, SalesPageTitle } from '../components';
 import {
   type OrderListItem,
   type OrderQuery,
+  type OrderStats,
   orderApi,
   readBizError,
 } from '../service';
+import { CreateOrderDrawer, STOCK, StockPill, useUserOptions } from './dialogs';
+import { ProgressPill, ReceiptProgress } from './parts';
 
 interface Filters {
   keyword?: string;
-  status?: number;
+  range?: [Dayjs, Dayjs] | null;
+  progressCode?: string;
+  stockType?: number;
+  customerType?: number;
+  currencyCode?: string;
+  purchaserId?: number;
   receiptStatus?: number;
-  ownerId?: number;
-  range?: [Dayjs, Dayjs];
 }
+
+const initial = (): Filters => ({
+  range: [dayjs().startOf('month'), dayjs().endOf('month')],
+});
 
 const OrderList: React.FC = () => {
   const { palette } = useAppTheme();
+  const access = useAccess();
   const [form] = Form.useForm<Filters>();
-  const [filters, setFilters] = useState<Filters>({});
+  const [filters, setFilters] = useState<Filters>(initial);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [rows, setRows] = useState<OrderListItem[]>([]);
   const [total, setTotal] = useState(0);
+  const [stats, setStats] = useState<OrderStats>();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>();
-  const [owners, setOwners] = useState<{ value: number; label: string }[]>([]);
+  const [createOpen, setCreateOpen] = useState(false);
+  const users = useUserOptions();
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(undefined);
     const q: OrderQuery = {
       keyword: filters.keyword?.trim() || undefined,
-      status: filters.status,
+      salesFrom: filters.range?.[0]?.format('YYYY-MM-DD'),
+      salesTo: filters.range?.[1]?.format('YYYY-MM-DD'),
+      progressCode: filters.progressCode,
+      stockType: filters.stockType,
+      customerType: filters.customerType,
+      currencyCode: filters.currencyCode,
+      purchaserId: filters.purchaserId,
       receiptStatus: filters.receiptStatus,
-      ownerId: filters.ownerId,
-      createdFrom: filters.range?.[0]?.format('YYYY-MM-DD'),
-      createdTo: filters.range?.[1]?.format('YYYY-MM-DD'),
       page,
       pageSize,
     };
@@ -74,36 +89,43 @@ const OrderList: React.FC = () => {
   }, [load]);
 
   useEffect(() => {
-    getUserList({ current: 1, pageSize: 200 })
-      .then((res) =>
-        setOwners(
-          res.data.records.map((u) => ({ value: u.id, label: u.name })),
-        ),
-      )
-      .catch(() => setOwners([]));
+    orderApi
+      .stats()
+      .then(setStats)
+      .catch(() => setStats(undefined));
   }, []);
 
   const noFilter =
     !filters.keyword &&
-    !filters.status &&
+    !filters.progressCode &&
+    !filters.stockType &&
+    !filters.customerType &&
+    !filters.currencyCode &&
+    !filters.purchaserId &&
     !filters.receiptStatus &&
-    !filters.ownerId &&
     !filters.range;
+
+  const sub = (text: React.ReactNode) => (
+    <div style={{ fontSize: 12, color: palette.mute }}>{text}</div>
+  );
 
   const columns: TableColumnsType<OrderListItem> = [
     {
-      title: '订单编号',
+      title: '订单编号 · 销售日期',
       dataIndex: 'soNo',
-      width: 160,
+      width: 170,
       fixed: 'left',
       render: (v: string, r) => (
-        <a onClick={() => history.push(PATHS.order(r.id))}>{v}</a>
+        <div>
+          <a onClick={() => history.push(PATHS.order(r.id))}>{v}</a>
+          {sub(r.salesDate ?? '—')}
+        </div>
       ),
     },
     {
       title: '客户',
       dataIndex: 'customerName',
-      width: 260,
+      width: 240,
       render: (v: string, r) => (
         <CustomerCell
           name={v}
@@ -112,16 +134,25 @@ const OrderList: React.FC = () => {
         />
       ),
     },
-    { title: '型号数', dataIndex: 'itemCount', width: 80, align: 'right' },
     {
-      title: '总数量',
-      dataIndex: 'totalQuantity',
-      width: 90,
-      align: 'right',
-      render: (v?: number) => v ?? '—',
+      title: '现货/期货',
+      dataIndex: 'stockType',
+      width: 100,
+      render: (v: number) => <StockPill type={v} />,
     },
     {
-      title: '币种 · 合计',
+      title: '型号 · 数量',
+      key: 'qty',
+      width: 110,
+      render: (_, r) => (
+        <div>
+          <div>{r.itemCount} 个型号</div>
+          {sub(`共 ${r.totalQuantity ?? 0} 件`)}
+        </div>
+      ),
+    },
+    {
+      title: '合计',
       dataIndex: 'totalAmount',
       width: 150,
       align: 'right',
@@ -132,66 +163,67 @@ const OrderList: React.FC = () => {
       ),
     },
     {
-      title: '收款状态',
-      dataIndex: 'receiptStatus',
-      width: 160,
-      render: (v: number | undefined, r) => (
-        <div>
-          <ReceiptStatusPill status={v} />
-          {r.receivedAmount != null && r.receivedAmount > 0 && (
-            <div
-              style={{
-                fontSize: 12,
-                color: palette.mute,
-                fontVariantNumeric: 'tabular-nums',
-              }}
-            >
-              已到账 {formatAmount(r.receivedAmount, r.currencyCode)}
-            </div>
-          )}
-        </div>
+      title: '收款进度',
+      key: 'receipt',
+      width: 180,
+      render: (_, r) => (
+        <ReceiptProgress
+          received={r.receivedAmount ?? 0}
+          total={r.totalAmount}
+          status={r.receiptStatus}
+        />
       ),
     },
     {
       title: '订单状态',
-      dataIndex: 'status',
-      width: 180,
-      render: (v: number, r) => (
+      dataIndex: 'progressCode',
+      width: 130,
+      render: (v: string, r) => (
         <div>
-          <OrderStatusPill status={v} />
-          {r.cancelReason && (
-            <div style={{ fontSize: 12, color: palette.mute }}>
-              {r.cancelReason}
+          <ProgressPill code={v} name={r.progressName} />
+          {r.cancelReason && sub(r.cancelReason)}
+        </div>
+      ),
+    },
+    {
+      title: '采购员',
+      key: 'purchasers',
+      width: 140,
+      render: (_, r) => (
+        <div>
+          {r.purchaserNames.length > 0 ? r.purchaserNames.join('、') : null}
+          {r.unassignedCount > 0 && (
+            <div style={{ fontSize: 12, color: palette.orange }}>
+              {r.purchaserNames.length > 0
+                ? `${r.unassignedCount} 个型号未指定`
+                : '未指定'}
             </div>
           )}
         </div>
       ),
     },
     {
-      title: '来源 PI',
+      title: '来源',
       dataIndex: 'piNo',
-      width: 190,
+      width: 200,
       render: (v: string | undefined, r) =>
-        v ? (
-          <a onClick={() => history.push(PATHS.pi(r.piId))}>
+        r.piId ? (
+          <a
+            style={{ whiteSpace: 'nowrap' }}
+            onClick={() => history.push(PATHS.pi(r.piId as number))}
+          >
             {v}
-            {r.piVersionNo > 1 ? ` · Rev.${r.piVersionNo}` : ''}
+            {(r.piVersionNo ?? 1) > 1 ? ` · Rev.${r.piVersionNo}` : ''}
           </a>
         ) : (
-          '—'
+          <span style={{ color: palette.sub }}>手动创建</span>
         ),
     },
-    { title: '业务员', dataIndex: 'ownerName', width: 100 },
-    {
-      title: '创建时间',
-      dataIndex: 'createTime',
-      width: 170,
-      render: (v: string) => formatDateTime(v),
-    },
+    { title: '业务员', dataIndex: 'ownerName', width: 90 },
     {
       title: '操作',
       key: 'actions',
-      width: 80,
+      width: 70,
       fixed: 'right',
       render: (_, r) => (
         <a onClick={() => history.push(PATHS.order(r.id))}>查看</a>
@@ -199,27 +231,115 @@ const OrderList: React.FC = () => {
     },
   ];
 
+  const stat = (
+    icon: React.ReactNode,
+    color: string,
+    label: string,
+    value: React.ReactNode,
+    hint: React.ReactNode,
+  ) => (
+    <Card style={{ padding: 18 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span style={{ color, fontSize: 16 }}>{icon}</span>
+        <span style={{ color: palette.sub, fontSize: 13 }}>{label}</span>
+      </div>
+      <div
+        style={{
+          fontSize: 24,
+          fontWeight: 700,
+          color: palette.ink,
+          margin: '6px 0 2px',
+          fontVariantNumeric: 'tabular-nums',
+        }}
+      >
+        {value}
+      </div>
+      <div style={{ fontSize: 12, color: palette.mute }}>{hint}</div>
+    </Card>
+  );
+
+  const applyFilters = (f: Filters) => {
+    form.setFieldsValue({ ...f });
+    setFilters(f);
+    setPage(1);
+  };
+
   return (
     <div>
       <SalesPageTitle
         crumbs={['销售订单']}
         title="销售订单"
-        description="客户付款后由 PI 转成；订单创建后不能修改，需要变更时取消订单、在 PI 上出新版本后重新转。"
+        description="客户付款后的订单：由 PI 转成或手动创建；按型号跟进采购与发货进度。"
+        actions={
+          access['sales:order:create'] && (
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={() => setCreateOpen(true)}
+            >
+              手动创建订单
+            </Button>
+          )
+        }
       />
+
+      {stats && (
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+            gap: 16,
+            marginBottom: 16,
+          }}
+        >
+          {stat(
+            <FileDoneOutlined />,
+            palette.link,
+            '本月订单',
+            stats.monthCount,
+            `按销售日期 · ${dayjs().month() + 1} 月`,
+          )}
+          {stat(
+            <ClockCircleOutlined />,
+            palette.orange,
+            '进行中',
+            stats.inProgressCount,
+            stats.progressCounts.length
+              ? stats.progressCounts
+                  .map((c) => `${c.name} ${c.count}`)
+                  .join(' · ')
+              : '没有进行中的订单',
+          )}
+          {stat(
+            <WalletOutlined />,
+            palette.green,
+            '本月实收人民币',
+            formatAmount(stats.monthNetCny, 'CNY'),
+            `线上 ${formatAmount(stats.monthOnlineCny, 'CNY')} · 线下 ${formatAmount(stats.monthOfflineCny, 'CNY')}`,
+          )}
+          {stat(
+            <WarningOutlined />,
+            stats.unassignedCount > 0 ? palette.red : palette.mute,
+            '未指定采购员',
+            stats.unassignedCount,
+            stats.unassignedCount > 0
+              ? '有型号没有采购员，点开订单指定'
+              : '所有进行中的型号都有采购员',
+          )}
+        </div>
+      )}
 
       <Card style={{ marginBottom: 16, padding: 20 }}>
         <Form
           form={form}
           layout="vertical"
-          onFinish={(v) => {
-            setFilters(v);
-            setPage(1);
-          }}
+          initialValues={initial()}
+          onFinish={applyFilters}
         >
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: '2fr 1fr 1fr 1fr 1.6fr auto',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))',
               gap: 12,
               alignItems: 'end',
             }}
@@ -227,7 +347,7 @@ const OrderList: React.FC = () => {
             <Form.Item
               name="keyword"
               label="关键词"
-              style={{ marginBottom: 0 }}
+              style={{ marginBottom: 0, gridColumn: 'span 2' }}
             >
               <Input
                 allowClear
@@ -236,17 +356,28 @@ const OrderList: React.FC = () => {
               />
             </Form.Item>
             <Form.Item
-              name="status"
+              name="range"
+              label="销售日期"
+              style={{ marginBottom: 0, gridColumn: 'span 2' }}
+            >
+              <DatePicker.RangePicker style={{ width: '100%' }} />
+            </Form.Item>
+            <Form.Item
+              name="progressCode"
               label="订单状态"
               style={{ marginBottom: 0 }}
             >
               <Select
                 allowClear
                 placeholder="全部"
-                options={Object.entries(ORDER_META).map(([k, v]) => ({
-                  value: Number(k),
-                  label: v.label,
-                }))}
+                options={[
+                  ...(stats?.progressCounts ?? []).map((c) => ({
+                    value: c.code,
+                    label: c.name,
+                  })),
+                  { value: 'COMPLETED', label: '已完成' },
+                  { value: 'CANCELLED', label: '已取消' },
+                ]}
               />
             </Form.Item>
             <Form.Item
@@ -264,30 +395,63 @@ const OrderList: React.FC = () => {
               />
             </Form.Item>
             <Form.Item
-              name="ownerId"
-              label="业务员"
+              name="stockType"
+              label="现货 / 期货"
               style={{ marginBottom: 0 }}
             >
               <Select
                 allowClear
                 placeholder="全部"
-                options={owners}
-                showSearch={{ optionFilterProp: 'label' }}
+                options={[
+                  { value: STOCK.SPOT, label: '现货' },
+                  { value: STOCK.FUTURES, label: '期货' },
+                ]}
               />
             </Form.Item>
             <Form.Item
-              name="range"
-              label="创建日期"
+              name="customerType"
+              label="新 / 老客户"
               style={{ marginBottom: 0 }}
             >
-              <DatePicker.RangePicker style={{ width: '100%' }} />
+              <Select
+                allowClear
+                placeholder="全部"
+                options={[
+                  { value: 1, label: '新客户' },
+                  { value: 2, label: '老客户' },
+                ]}
+              />
             </Form.Item>
-            <div style={{ display: 'flex', gap: 8 }}>
+            <Form.Item
+              name="currencyCode"
+              label="币种"
+              style={{ marginBottom: 0 }}
+            >
+              <Select
+                allowClear
+                placeholder="全部"
+                options={CURRENCIES.map((c) => ({ value: c, label: c }))}
+              />
+            </Form.Item>
+            <Form.Item
+              name="purchaserId"
+              label="采购员"
+              style={{ marginBottom: 0 }}
+            >
+              <Select
+                allowClear
+                placeholder="全部"
+                options={users}
+                showSearch={{ optionFilterProp: 'label' }}
+              />
+            </Form.Item>
+            <div
+              style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}
+            >
               <Button
                 onClick={() => {
                   form.resetFields();
-                  setFilters({});
-                  setPage(1);
+                  applyFilters(initial());
                 }}
               >
                 重置
@@ -306,7 +470,7 @@ const OrderList: React.FC = () => {
         <Card>
           <EmptyHint
             title="还没有销售订单"
-            description="客户付款后，在 PI 上点「转成订单」生成；有水单或已到账即可转"
+            description="客户付款后在 PI 上点「转成订单」，或手动创建订单"
             actionText="去 PI 列表"
             onAction={() => history.push(PATHS.piList)}
           />
@@ -317,7 +481,7 @@ const OrderList: React.FC = () => {
           columns={columns}
           dataSource={rows}
           loading={loading}
-          scroll={{ x: 1530 }}
+          scroll={{ x: 1620 }}
           locale={{ emptyText: '没有符合条件的订单，换个筛选条件试试' }}
           pagination={{
             current: page,
@@ -332,6 +496,18 @@ const OrderList: React.FC = () => {
           }}
         />
       )}
+      <div style={{ marginTop: 12, fontSize: 12, color: palette.mute }}>
+        默认列出本月销售的订单，按销售日期倒序；收款进度 = 已到账（毛额）÷
+        合计；订单状态取所有型号中最靠前的进度。
+      </div>
+      <CreateOrderDrawer
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        onDone={(order) => {
+          setCreateOpen(false);
+          history.push(PATHS.order(order.id));
+        }}
+      />
     </div>
   );
 };

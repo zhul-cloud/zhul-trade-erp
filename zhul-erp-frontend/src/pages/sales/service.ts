@@ -151,6 +151,9 @@ export interface ReceiptRow {
   id: number;
   piId?: number | null;
   piNo?: string;
+  /** 手动创建的订单的收款 */
+  soId?: number;
+  soNo?: string;
   customerName?: string;
   currencyCode: string;
   amount: number;
@@ -298,9 +301,10 @@ export interface PiQuery {
 }
 
 export interface ReceiptDeskRow {
-  piId: number;
-  piNo: string;
-  piStatus: number;
+  /** 手动创建的订单没有 PI，收款记在订单上（orderId） */
+  piId?: number;
+  piNo?: string;
+  piStatus?: number;
   customerId: number;
   customerName: string;
   ownerId: number;
@@ -398,6 +402,16 @@ export interface PreviewResult {
 export interface OrderListItem {
   id: number;
   soNo: string;
+  /** 1-PI 转成、2-手动创建 */
+  source: number;
+  salesDate?: string;
+  /** 1-现货、2-期货 */
+  stockType: number;
+  /** 订单状态：进度码（含 COMPLETED），已取消为 CANCELLED */
+  progressCode: string;
+  progressName: string;
+  purchaserNames: string[];
+  unassignedCount: number;
   customerId: number;
   customerName: string;
   /** 客户国家 */
@@ -415,21 +429,71 @@ export interface OrderListItem {
   /** 1-有效、2-已取消 */
   status: number;
   statusName: string;
-  piId: number;
+  piId?: number;
   piNo?: string;
-  piVersionNo: number;
+  piVersionNo?: number;
   ownerId: number;
   ownerName?: string;
   cancelReason?: string;
   createTime: string;
 }
 
+export interface OrderItem extends PiItem {
+  /** 1-现货、2-期货 */
+  stockType: number;
+  progressCode: string;
+  progressName: string;
+  purchaserId?: number | null;
+  purchaserName?: string | null;
+}
+
+export interface OrderStep {
+  code: string;
+  name: string;
+  enabled: boolean;
+}
+
 export interface Order {
   id: number;
   soNo: string;
-  piId: number;
+  /** 1-PI 转成、2-手动创建 */
+  source: number;
+  salesDate?: string;
+  /** 1-新客户、2-老客户 */
+  customerType?: number;
+  /** 1-现货、2-期货 */
+  stockType: number;
+  progressCode: string;
+  progressName: string;
+  completedAt?: string;
+  /** 有效且未完成：可以改跟单信息 */
+  trackable: boolean;
+  /** 所有型号到达最后一步：可以确认客户收货 */
+  completable: boolean;
+  steps: OrderStep[];
+  purchasers: {
+    userId?: number | null;
+    name?: string | null;
+    itemCount: number;
+  }[];
+  methodTotals: {
+    paymentMethod: string;
+    paymentMethodName: string;
+    channel: number;
+    currencyCode: string;
+    amount: number;
+  }[];
+  margin: {
+    salesAmountCny: number;
+    receivedCny: number;
+    costCny: number;
+    profitCny: number;
+    estimated: boolean;
+    missingCostCount: number;
+  };
+  piId?: number;
   piNo?: string;
-  piVersionNo: number;
+  piVersionNo?: number;
   piStatus?: number;
   customerId: number;
   customerName: string;
@@ -463,10 +527,20 @@ export interface Order {
   receivedAmount?: number;
   feeDiffAmount?: number;
   remainingAmount?: number;
-  items: PiItem[];
+  items: OrderItem[];
   fees: PiFee[];
   receipts: Receipt[];
   createTime: string;
+}
+
+export interface OrderStats {
+  monthCount: number;
+  inProgressCount: number;
+  progressCounts: { code: string; name: string; count: number }[];
+  monthNetCny: number;
+  monthOnlineCny: number;
+  monthOfflineCny: number;
+  unassignedCount: number;
 }
 
 export interface OrderQuery {
@@ -476,6 +550,13 @@ export interface OrderQuery {
   ownerId?: number;
   createdFrom?: string;
   createdTo?: string;
+  salesFrom?: string;
+  salesTo?: string;
+  progressCode?: string;
+  stockType?: number;
+  customerType?: number;
+  currencyCode?: string;
+  purchaserId?: number;
   page: number;
   pageSize: number;
 }
@@ -525,6 +606,27 @@ const get = <T>(url: string, params?: object) =>
   );
 const send = <T>(method: string, url: string, data?: unknown) =>
   request<{ data: T }>(url, { method, data, ...quiet }).then((r) => r.data);
+
+export interface ConfirmReceiptBody {
+  amount: number;
+  receiptDate: string;
+  bankAccountId: number;
+  slipId?: number;
+  feeDiff?: boolean;
+  paymentMethod?: string;
+  actualAmountCny?: number;
+  note?: string;
+}
+
+export interface PlatformReceiptBody {
+  paymentMethod: string;
+  platformOrderNo: string;
+  amount: number;
+  platformFee?: number;
+  receiptDate: string;
+  actualAmountCny?: number;
+  note?: string;
+}
 
 const PI = '/api/v1/sales/pis';
 const SO = '/api/v1/sales/orders';
@@ -660,31 +762,10 @@ export const piApi = {
     send<Pi>('DELETE', `${PI}/${id}/slips/${slipId}`),
   openSlipFile: (id: number, slipId: number, index: number) =>
     openFile(`${PI}/${id}/slips/${slipId}/files/${index}`),
-  confirmReceipt: (
-    id: number,
-    body: {
-      amount: number;
-      receiptDate: string;
-      bankAccountId: number;
-      slipId?: number;
-      feeDiff?: boolean;
-      paymentMethod?: string;
-      actualAmountCny?: number;
-      note?: string;
-    },
-  ) => send<Pi>('POST', `${PI}/${id}/receipts`, body),
-  platformReceipt: (
-    id: number,
-    body: {
-      paymentMethod: string;
-      platformOrderNo: string;
-      amount: number;
-      platformFee?: number;
-      receiptDate: string;
-      actualAmountCny?: number;
-      note?: string;
-    },
-  ) => send<Pi>('POST', `${PI}/${id}/platform-receipts`, body),
+  confirmReceipt: (id: number, body: ConfirmReceiptBody) =>
+    send<Pi>('POST', `${PI}/${id}/receipts`, body),
+  platformReceipt: (id: number, body: PlatformReceiptBody) =>
+    send<Pi>('POST', `${PI}/${id}/platform-receipts`, body),
   claimable: (id: number) =>
     get<ReceiptRow[]>(`${PI}/${id}/claimable-receipts`),
   claim: (id: number, receiptId: number, slipId?: number) =>
@@ -693,7 +774,8 @@ export const piApi = {
     send<Pi>('POST', `${PI}/${id}/receipts/${receiptId}/void`, { reason }),
   receiptSettings: () =>
     get<{ feeTolerance: number }>(`${PI}/receipt-settings`),
-  convert: (id: number) => send<Order>('POST', `${PI}/${id}/convert`),
+  convert: (id: number, salesDate?: string) =>
+    send<Order>('POST', `${PI}/${id}/convert`, { salesDate }),
   /** 财务管理 → 收款管理（待确认） */
   receiptDesk: (q: ReceiptDeskQuery) =>
     send<{ total: number; records: ReceiptDeskRow[] }>(
@@ -703,13 +785,139 @@ export const piApi = {
     ),
 };
 
+export interface CreateOrderLine {
+  model: string;
+  brand?: string;
+  quantity: number;
+  unitPrice: number;
+  costPrice?: number | null;
+  purchaserId?: number | null;
+  stockType?: number;
+}
+
 export const orderApi = {
   page: (q: OrderQuery) =>
     send<{ total: number; records: OrderListItem[] }>('POST', `${SO}/page`, q),
+  stats: () => get<OrderStats>(`${SO}/stats`),
   detail: (id: number) => get<Order>(`${SO}/${id}`),
   cancel: (id: number, reason: string) =>
     send<Order>('POST', `${SO}/${id}/cancel`, { reason }),
+  create: (body: {
+    customerId: number;
+    currencyCode: string;
+    salesDate: string;
+    items: CreateOrderLine[];
+  }) => send<Order>('POST', SO, body),
+  salesDate: (id: number, salesDate: string) =>
+    send<Order>('POST', `${SO}/${id}/sales-date`, { salesDate }),
+  progress: (
+    id: number,
+    itemIds: number[],
+    progressCode: string,
+    note?: string,
+  ) =>
+    send<Order>('POST', `${SO}/${id}/progress`, {
+      itemIds,
+      progressCode,
+      note,
+    }),
+  purchaser: (id: number, itemIds: number[], purchaserId: number | null) =>
+    send<Order>('POST', `${SO}/${id}/purchaser`, { itemIds, purchaserId }),
+  stockType: (id: number, itemIds: number[], stockType: number) =>
+    send<Order>('POST', `${SO}/${id}/stock-type`, { itemIds, stockType }),
+  complete: (id: number) => send<Order>('POST', `${SO}/${id}/complete`),
+  // 手动创建的订单：收款直接登记在订单上
+  uploadSlip: (
+    id: number,
+    files: File[],
+    amount: number,
+    paidDate: string,
+    note?: string,
+    paymentMethod?: string,
+  ) => {
+    const form = new FormData();
+    for (const f of files) form.append('files', f);
+    form.append('amount', String(amount));
+    form.append('paidDate', paidDate);
+    if (paymentMethod) form.append('paymentMethod', paymentMethod);
+    if (note) form.append('note', note);
+    return request<{ data: Order }>(`${SO}/${id}/slips`, {
+      method: 'POST',
+      data: form,
+      requestType: 'form',
+      ...quiet,
+    }).then((r) => r.data);
+  },
+  deleteSlip: (id: number, slipId: number) =>
+    send<Order>('DELETE', `${SO}/${id}/slips/${slipId}`),
+  openSlipFile: (id: number, slipId: number, index: number) =>
+    openFile(`${SO}/${id}/slips/${slipId}/files/${index}`),
+  confirmReceipt: (id: number, body: ConfirmReceiptBody) =>
+    send<Order>('POST', `${SO}/${id}/receipts`, body),
+  platformReceipt: (id: number, body: PlatformReceiptBody) =>
+    send<Order>('POST', `${SO}/${id}/platform-receipts`, body),
+  claimable: (id: number) =>
+    get<ReceiptRow[]>(`${SO}/${id}/claimable-receipts`),
+  claim: (id: number, receiptId: number, slipId?: number) =>
+    send<Order>('POST', `${SO}/${id}/claim`, { receiptId, slipId }),
+  voidReceipt: (id: number, receiptId: number, reason: string) =>
+    send<Order>('POST', `${SO}/${id}/receipts/${receiptId}/void`, { reason }),
 };
+
+/** 收款操作返回的详情（PI 或订单）都带收款状态 */
+export type ReceiptResult = { receiptStatusName?: string };
+
+/** 收款弹窗的操作对象：PI，或手动创建的订单（同一组接口，返回各自的详情） */
+export interface ReceiptOwner<T> {
+  no: string;
+  currencyCode: string;
+  exchangeRate: number;
+  totalAmount: number;
+  receivedAmount?: number;
+  remainingAmount?: number;
+  receipts: Receipt[];
+  uploadSlip: (
+    files: File[],
+    amount: number,
+    paidDate: string,
+    note?: string,
+    paymentMethod?: string,
+  ) => Promise<T>;
+  confirmReceipt: (body: ConfirmReceiptBody) => Promise<T>;
+  platformReceipt: (body: PlatformReceiptBody) => Promise<T>;
+  claimable: () => Promise<ReceiptRow[]>;
+  claim: (receiptId: number, slipId?: number) => Promise<T>;
+}
+
+export const piReceiptOwner = (pi: Pi): ReceiptOwner<Pi> => ({
+  no: pi.piNo,
+  currencyCode: pi.currencyCode,
+  exchangeRate: pi.exchangeRate,
+  totalAmount: pi.version.totalAmount,
+  receivedAmount: pi.receivedAmount,
+  remainingAmount: pi.remainingAmount,
+  receipts: pi.receipts,
+  uploadSlip: (...a) => piApi.uploadSlip(pi.id, ...a),
+  confirmReceipt: (body) => piApi.confirmReceipt(pi.id, body),
+  platformReceipt: (body) => piApi.platformReceipt(pi.id, body),
+  claimable: () => piApi.claimable(pi.id),
+  claim: (receiptId, slipId) => piApi.claim(pi.id, receiptId, slipId),
+});
+
+export const orderReceiptOwner = (o: Order): ReceiptOwner<Order> => ({
+  no: o.soNo,
+  currencyCode: o.currencyCode,
+  exchangeRate: o.exchangeRate,
+  totalAmount: o.totalAmount,
+  receivedAmount: o.receivedAmount,
+  remainingAmount: o.remainingAmount,
+  receipts: o.receipts,
+  uploadSlip: (...a) => orderApi.uploadSlip(o.id, ...a),
+  confirmReceipt: (body) => orderApi.confirmReceipt(o.id, body),
+  platformReceipt: (body) => orderApi.platformReceipt(o.id, body),
+  claimable: () => orderApi.claimable(o.id),
+  claim: (receiptId, slipId) => orderApi.claim(o.id, receiptId, slipId),
+});
 
 export const chainApi = {
   get: (type: 'inquiry' | 'quotation' | 'pi' | 'order', id: number) =>

@@ -341,10 +341,16 @@ const UnclaimedTab: React.FC<{
       key: 'pi',
       width: 220,
       render: (_, r) =>
-        r.piId ? (
+        r.piId || r.soId ? (
           <span>
-            <a onClick={() => history.push(PATHS.pi(r.piId as number))}>
-              {r.piNo}
+            <a
+              onClick={() =>
+                history.push(
+                  r.piId ? PATHS.pi(r.piId) : PATHS.order(r.soId as number),
+                )
+              }
+            >
+              {r.piNo ?? r.soNo}
             </a>
             <span style={{ marginLeft: 6, fontSize: 12, color: palette.mute }}>
               {r.customerName}

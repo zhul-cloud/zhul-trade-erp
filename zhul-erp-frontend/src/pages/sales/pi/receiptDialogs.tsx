@@ -19,7 +19,12 @@ import { useAppTheme } from '@/theme/AppTheme';
 import { usePaymentMethods } from '@/utils/dict';
 import { formatAmount } from '@/utils/format';
 import { KIND } from '../components';
-import { type Pi, piApi, type ReceiptRow, readBizError } from '../service';
+import {
+  type ReceiptOwner,
+  type ReceiptResult,
+  type ReceiptRow,
+  readBizError,
+} from '../service';
 
 const label: React.CSSProperties = { fontSize: 13, marginBottom: 6 };
 const num: React.CSSProperties = { fontVariantNumeric: 'tabular-nums' };
@@ -117,12 +122,18 @@ export const ActualCnyInput: React.FC<{
 
 // ---------------------------------------------------------------- 登记平台收款
 
-export const PlatformReceiptModal: React.FC<{
-  pi?: Pi;
+export const PlatformReceiptModal = <T extends ReceiptResult>({
+  owner: pi,
+  open,
+  onClose,
+  onDone,
+}: {
+  /** 收款归属：PI 或手动创建的订单 */
+  owner?: ReceiptOwner<T>;
   open: boolean;
   onClose: () => void;
-  onDone: (pi: Pi) => void;
-}> = ({ pi, open, onClose, onDone }) => {
+  onDone: (res: T) => void;
+}) => {
   const { message, modal } = App.useApp();
   const { palette } = useAppTheme();
   const [method, setMethod] = useState<string>();
@@ -138,7 +149,7 @@ export const PlatformReceiptModal: React.FC<{
   useEffect(() => {
     if (!open) return;
     setOrderNo('');
-    setAmount(pi ? pi.remainingAmount : null);
+    setAmount(pi?.remainingAmount ?? null);
     setFee(null);
     setDate(dayjs());
     setActual(null);
@@ -154,7 +165,7 @@ export const PlatformReceiptModal: React.FC<{
     if (!pi || !method || !amount || !date) return;
     setBusy(true);
     try {
-      const res = await piApi.platformReceipt(pi.id, {
+      const res = await pi.platformReceipt({
         paymentMethod: method,
         platformOrderNo: orderNo.trim(),
         amount,
@@ -311,12 +322,18 @@ export const PlatformReceiptModal: React.FC<{
 
 // ---------------------------------------------------------------- 认领到账
 
-export const ClaimReceiptModal: React.FC<{
-  pi?: Pi;
+export const ClaimReceiptModal = <T extends ReceiptResult>({
+  owner: pi,
+  open,
+  onClose,
+  onDone,
+}: {
+  /** 收款归属：PI 或手动创建的订单 */
+  owner?: ReceiptOwner<T>;
   open: boolean;
   onClose: () => void;
-  onDone: (pi: Pi) => void;
-}> = ({ pi, open, onClose, onDone }) => {
+  onDone: (res: T) => void;
+}) => {
   const { message, modal } = App.useApp();
   const { palette } = useAppTheme();
   const [rows, setRows] = useState<ReceiptRow[]>();
@@ -338,8 +355,7 @@ export const ClaimReceiptModal: React.FC<{
     setRows(undefined);
     setSelected(undefined);
     setSlipId(undefined);
-    piApi
-      .claimable(pi.id)
+    pi.claimable()
       .then((list) => {
         setRows(list);
         setSelected(list[0]?.id);
@@ -359,7 +375,7 @@ export const ClaimReceiptModal: React.FC<{
     if (!pi || !selected) return;
     setBusy(true);
     try {
-      const res = await piApi.claim(pi.id, selected, slipId);
+      const res = await pi.claim(selected, slipId);
       message.success(`已认领，收款状态：${res.receiptStatusName}`);
       onDone(res);
     } catch (e) {
@@ -374,7 +390,7 @@ export const ClaimReceiptModal: React.FC<{
       open={open}
       onCancel={onClose}
       width={620}
-      title={`认领到账 · ${pi?.piNo ?? ''}`}
+      title={`认领到账 · ${pi?.no ?? ''}`}
       footer={[
         <Button key="cancel" onClick={onClose}>
           取消

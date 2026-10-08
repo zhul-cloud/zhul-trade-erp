@@ -117,16 +117,20 @@ const RecordsTab: React.FC = () => {
   const columns: TableColumnsType<ReceiptRow> = [
     { title: '到账日期', dataIndex: 'receiptDate', width: 110 },
     {
-      title: 'PI 编号',
+      title: 'PI / 订单编号',
       key: 'pi',
       width: 180,
       render: (_, r) =>
-        r.piId ? (
+        r.piId || r.soId ? (
           <a
             style={{ whiteSpace: 'nowrap' }}
-            onClick={() => history.push(PATHS.pi(r.piId as number))}
+            onClick={() =>
+              history.push(
+                r.piId ? PATHS.pi(r.piId) : PATHS.order(r.soId as number),
+              )
+            }
           >
-            {r.piNo}
+            {r.piNo ?? r.soNo}
           </a>
         ) : (
           '—'
@@ -229,7 +233,7 @@ const RecordsTab: React.FC = () => {
             allowClear
             style={{ width: 280 }}
             prefix={<SearchOutlined />}
-            placeholder="PI 编号、客户、平台订单号、付款人"
+            placeholder="PI / 订单编号、客户、平台订单号、付款人"
             value={draft.keyword}
             onChange={(e) => setDraft({ ...draft, keyword: e.target.value })}
           />

@@ -40,6 +40,8 @@ import {
   type PartyOption,
   type Pi,
   piApi,
+  type ReceiptOwner,
+  type ReceiptResult,
   readBizError,
 } from '../service';
 import { ActualCnyInput, PaymentMethodSelect } from './receiptDialogs';
@@ -561,12 +563,18 @@ export const useBankOptions = (currency?: string) => {
 
 const SLIP_TYPES = ['image/jpeg', 'image/png', 'application/pdf'];
 
-export const SlipModal: React.FC<{
-  pi?: Pi;
+export const SlipModal = <T extends ReceiptResult>({
+  owner: pi,
+  open,
+  onClose,
+  onDone,
+}: {
+  /** 收款归属：PI 或手动创建的订单 */
+  owner?: ReceiptOwner<T>;
   open: boolean;
   onClose: () => void;
-  onDone: (pi: Pi) => void;
-}> = ({ pi, open, onClose, onDone }) => {
+  onDone: (res: T) => void;
+}) => {
   const { message } = App.useApp();
   const { palette } = useAppTheme();
   const [files, setFiles] = useState<UploadFile[]>([]);
@@ -590,8 +598,7 @@ export const SlipModal: React.FC<{
     if (!pi || !amount || !date) return;
     setBusy(true);
     try {
-      const res = await piApi.uploadSlip(
-        pi.id,
+      const res = await pi.uploadSlip(
         files.map((f) => f.originFileObj as File),
         amount,
         date.format('YYYY-MM-DD'),
@@ -677,7 +684,7 @@ export const SlipModal: React.FC<{
           />
           {pi && (
             <div style={{ fontSize: 12, color: palette.mute, marginTop: 4 }}>
-              PI 合计 {formatAmount(pi.version.totalAmount, pi.currencyCode)}
+              合计 {formatAmount(pi.totalAmount, pi.currencyCode)}
             </div>
           )}
         </div>
@@ -714,12 +721,18 @@ export const SlipModal: React.FC<{
 
 // ---------------------------------------------------------------- 登记到账
 
-export const ConfirmReceiptModal: React.FC<{
-  pi?: Pi;
+export const ConfirmReceiptModal = <T extends ReceiptResult>({
+  owner: pi,
+  open,
+  onClose,
+  onDone,
+}: {
+  /** 收款归属：PI 或手动创建的订单 */
+  owner?: ReceiptOwner<T>;
   open: boolean;
   onClose: () => void;
-  onDone: (pi: Pi) => void;
-}> = ({ pi, open, onClose, onDone }) => {
+  onDone: (res: T) => void;
+}) => {
   const { message, modal } = App.useApp();
   const { palette } = useAppTheme();
   const banks = useBankOptions(pi?.currencyCode);
@@ -773,7 +786,7 @@ export const ConfirmReceiptModal: React.FC<{
     if (!pi || !amount || !date || !bankId) return;
     setBusy(true);
     try {
-      const res = await piApi.confirmReceipt(pi.id, {
+      const res = await pi.confirmReceipt({
         amount,
         receiptDate: date.format('YYYY-MM-DD'),
         bankAccountId: bankId,
@@ -796,7 +809,7 @@ export const ConfirmReceiptModal: React.FC<{
     if (after < 0) {
       modal.confirm({
         title: `多收 ${formatAmount(-after, cur)}，将记为预收`,
-        content: '到账金额超过 PI 剩余金额，确认继续登记吗？',
+        content: '到账金额超过剩余金额，确认继续登记吗？',
         okText: '继续登记',
         onOk: save,
       });
@@ -838,7 +851,7 @@ export const ConfirmReceiptModal: React.FC<{
         }}
       >
         {[
-          ['PI 合计', pi?.version.totalAmount],
+          ['合计', pi?.totalAmount],
           ['已到账', pi?.receivedAmount],
           ['剩余', remaining],
         ].map(([k, v]) => (

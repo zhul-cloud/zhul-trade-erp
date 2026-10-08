@@ -83,6 +83,7 @@ import {
   ReceiptStatusPill,
   SalesPageTitle,
 } from '../components';
+import { ConvertOrderModal } from '../orders/dialogs';
 import {
   type Party,
   type Pi,
@@ -90,6 +91,7 @@ import {
   type PiVersion,
   type PreviewResult,
   piApi,
+  piReceiptOwner,
   readBizError,
   type SavePi,
 } from '../service';
@@ -346,6 +348,7 @@ const PiDetail: React.FC = () => {
   const wide = useWide();
   const { leadTimeOptions } = useQuoteDicts();
   const [pi, setPi] = useState<Pi>();
+  const [convertOpen, setConvertOpen] = useState(false);
   const [draft, setDraft] = useState<Draft>();
   const [saved, setSaved] = useState('');
   const [error, setError] = useState<string>();
@@ -392,6 +395,11 @@ const PiDetail: React.FC = () => {
   }, [load]);
 
   // 对比的基准：修改中的版本对比当前有效版本；查看历史版本时对比它之前最近的已发送版本
+  /** 收款弹窗的操作对象（保持引用稳定，弹窗按它重置表单） */
+  const receiptOwner = useMemo(
+    () => (pi ? piReceiptOwner(pi) : undefined),
+    [pi],
+  );
   const baseNo = useMemo(() => {
     if (!pi) return undefined;
     const v = pi.version.versionNo;
@@ -654,28 +662,7 @@ const PiDetail: React.FC = () => {
     onClick: ({ key }: { key: string }) => markSent(Number(key)),
   };
 
-  const convert = () =>
-    modal.confirm({
-      title: '转成销售订单？',
-      content: (
-        <div style={{ color: palette.sub }}>
-          按当前有效版本 Rev.{pi.currentVersionNo}（
-          {formatAmount(v.totalAmount, cur)}）生成订单，收款状态「
-          {pi.receiptStatusName}」。 转成后 PI
-          锁定；来源报价单按成交的型号变为「已成交」或「部分成交」，客户询盘变为「已成交」。订单创建后不能修改，只能取消。
-        </div>
-      ),
-      okText: '转成订单',
-      onOk: async () => {
-        try {
-          const order = await piApi.convert(pi.id);
-          message.success(`已生成销售订单 ${order.soNo}`);
-          history.push(PATHS.order(order.id));
-        } catch (e) {
-          message.error(readBizError(e).message);
-        }
-      },
-    });
+  const convert = () => setConvertOpen(true);
 
   const voidPi = () =>
     modal.confirm({
@@ -2451,8 +2438,18 @@ const PiDetail: React.FC = () => {
           }}
         />
       )}
-      <SlipModal
+      <ConvertOrderModal
         pi={pi}
+        open={convertOpen}
+        onClose={() => setConvertOpen(false)}
+        onDone={(order) => {
+          setConvertOpen(false);
+          message.success(`已生成销售订单 ${order.soNo}`);
+          history.push(PATHS.order(order.id));
+        }}
+      />
+      <SlipModal
+        owner={receiptOwner}
         open={slipOpen}
         onClose={() => setSlipOpen(false)}
         onDone={(res) => {
@@ -2461,7 +2458,7 @@ const PiDetail: React.FC = () => {
         }}
       />
       <PlatformReceiptModal
-        pi={pi}
+        owner={receiptOwner}
         open={platformOpen}
         onClose={() => setPlatformOpen(false)}
         onDone={(res) => {
@@ -2470,7 +2467,7 @@ const PiDetail: React.FC = () => {
         }}
       />
       <ClaimReceiptModal
-        pi={pi}
+        owner={receiptOwner}
         open={claimOpen}
         onClose={() => setClaimOpen(false)}
         onDone={(res) => {
@@ -2479,7 +2476,7 @@ const PiDetail: React.FC = () => {
         }}
       />
       <ConfirmReceiptModal
-        pi={pi}
+        owner={receiptOwner}
         open={receiptOpen}
         onClose={() => setReceiptOpen(false)}
         onDone={(res) => {
