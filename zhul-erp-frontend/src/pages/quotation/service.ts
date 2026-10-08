@@ -227,6 +227,9 @@ export interface QuotationQuery {
   ownerId?: number;
   createdFrom?: string;
   createdTo?: string;
+  /** itemCount-型号数、totalQuantity-总数量、totalAmount-合计（按折合人民币） */
+  sortField?: string;
+  sortOrder?: 'ascend' | 'descend';
   page: number;
   pageSize: number;
 }

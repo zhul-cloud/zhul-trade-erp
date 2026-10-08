@@ -298,6 +298,9 @@ export interface PiQuery {
   ownerId?: number;
   createdFrom?: string;
   createdTo?: string;
+  /** itemCount-型号数、totalQuantity-总数量、totalAmount-合计（按折合人民币） */
+  sortField?: string;
+  sortOrder?: 'ascend' | 'descend';
   page: number;
   pageSize: number;
 }
@@ -788,6 +791,25 @@ export const piApi = {
     ),
 };
 
+export interface OrderCandidatePi {
+  id: number;
+  piNo: string;
+  versionNo?: number;
+  customerName: string;
+  customerCountry?: string;
+  currencyCode: string;
+  totalAmount: number;
+  receiptStatus: number;
+  receiptStatusName?: string;
+  /** 最近一笔有效收款：1-水单、2-到账 */
+  lastKind?: number;
+  lastAmount?: number;
+  lastDate?: string;
+  lastMethodName?: string;
+  lastPlatform?: boolean;
+  ownerName?: string;
+}
+
 export interface CreateOrderLine {
   model: string;
   brand?: string;
@@ -802,6 +824,8 @@ export const orderApi = {
   page: (q: OrderQuery) =>
     send<{ total: number; records: OrderListItem[] }>('POST', `${SO}/page`, q),
   stats: () => get<OrderStats>(`${SO}/stats`),
+  candidatePis: (keyword?: string) =>
+    get<OrderCandidatePi[]>(`${SO}/candidates/pis`, { keyword }),
   detail: (id: number) => get<Order>(`${SO}/${id}`),
   cancel: (id: number, reason: string) =>
     send<Order>('POST', `${SO}/${id}/cancel`, { reason }),

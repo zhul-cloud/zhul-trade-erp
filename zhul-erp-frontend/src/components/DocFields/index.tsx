@@ -24,6 +24,21 @@ const matchText = (input: string, o?: { value?: unknown }) =>
     .toLowerCase()
     .includes(input.toLowerCase());
 
+/**
+ * 可选可填的下拉：打开时列出全部选项，开始打字后才按输入过滤。
+ * AutoComplete 默认拿输入框里已有的值过滤，已有内容时只剩完全匹配的一项，看起来像下拉不出来。
+ */
+const useOpenFilter = <T extends { value?: unknown }>(options: T[]) => {
+  const [typed, setTyped] = useState<string | null>(null);
+  return {
+    options: typed ? options.filter((o) => matchText(typed, o)) : options,
+    showSearch: { filterOption: false, onSearch: (v: string) => setTyped(v) },
+    onOpenChange: (open: boolean) => {
+      if (open) setTyped(null);
+    },
+  };
+};
+
 /** 下拉选项：英文（单据上显示的文字）+ 中文说明；可直接填写字典以外的内容 */
 const textOptions = (items: { text: string; name: string }[]) =>
   items.map((d) => ({
@@ -48,10 +63,12 @@ export const IncotermInput: React.FC<{
   onChange: (incoterm: string, place: string) => void;
 }> = ({ incoterm, place, customerCountry, onChange }) => {
   const places = useDictTexts(DICT_TRADE_TERM_PLACE);
-  const options = textOptions(
-    customerCountry && !places.some((p) => p.text === customerCountry)
-      ? [{ text: customerCountry, name: '客户国家' }, ...places]
-      : places,
+  const placeFilter = useOpenFilter(
+    textOptions(
+      customerCountry && !places.some((p) => p.text === customerCountry)
+        ? [{ text: customerCountry, name: '客户国家' }, ...places]
+        : places,
+    ),
   );
   return (
     <Space.Compact style={{ width: '100%' }}>
@@ -70,10 +87,11 @@ export const IncotermInput: React.FC<{
       <AutoComplete
         style={{ flex: 1 }}
         value={place}
-        options={options}
+        options={placeFilter.options}
         placeholder="地点"
         onChange={(v) => onChange(incoterm, v ?? '')}
-        showSearch={{ filterOption: matchText }}
+        showSearch={placeFilter.showSearch}
+        onOpenChange={placeFilter.onOpenChange}
         aria-label="术语地点"
       />
     </Space.Compact>
@@ -91,15 +109,17 @@ export const DictTextInput: React.FC<{
   style?: React.CSSProperties;
 }> = ({ dictType, value, onChange, placeholder, size, ariaLabel, style }) => {
   const items = useDictTexts(dictType);
+  const filter = useOpenFilter(textOptions(items));
   return (
     <AutoComplete
       size={size}
       style={{ width: '100%', ...style }}
       value={value}
-      options={textOptions(items)}
+      options={filter.options}
       placeholder={placeholder}
       onChange={(v) => onChange(v ?? '')}
-      showSearch={{ filterOption: matchText }}
+      showSearch={filter.showSearch}
+      onOpenChange={filter.onOpenChange}
       aria-label={ariaLabel}
     />
   );

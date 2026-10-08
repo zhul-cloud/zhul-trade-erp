@@ -10,6 +10,7 @@ import {
   Modal,
   Radio,
   Select,
+  Skeleton,
 } from 'antd';
 import dayjs from 'dayjs';
 import React, { useEffect, useMemo, useState } from 'react';
@@ -18,10 +19,11 @@ import { getUserList } from '@/pages/system/user/service';
 import { searchCustomers } from '@/services/zhul/masterdata';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
-import { KIND, Pill } from '../components';
+import { KIND, Pill, ReceiptStatusPill } from '../components';
 import {
   type CreateOrderLine,
   type Order,
+  type OrderCandidatePi,
   orderApi,
   type Pi,
   piApi,
@@ -683,5 +685,339 @@ export const SalesDateModal: React.FC<{
         aria-label="销售日期"
       />
     </Modal>
+  );
+};
+
+// ---------------------------------------------------------------- 新建销售订单：按 PI 创建 / 手动创建
+
+type NewMode = 'pi' | 'manual';
+
+/**
+ * 新建销售订单（参照新建报价单）：先选创建方式；按 PI 创建时从可以转订单的 PI 里选一张，
+ * 再走与 PI 页「转成订单」相同的确认（填销售日期）；手动创建交给手动建单抽屉。
+ */
+export const NewOrderDrawer: React.FC<{
+  open: boolean;
+  /** 有 PI 菜单：可以按 PI 创建 */
+  canFromPi: boolean;
+  /** 有「手动创建订单」按钮权限 */
+  canManual: boolean;
+  onClose: () => void;
+  onManual: () => void;
+  onDone: (order: Order) => void;
+}> = ({ open, canFromPi, canManual, onClose, onManual, onDone }) => {
+  const { message } = App.useApp();
+  const { palette } = useAppTheme();
+  const [step, setStep] = useState<1 | 2>(1);
+  const [mode, setMode] = useState<NewMode>('pi');
+  const [keyword, setKeyword] = useState('');
+  const [list, setList] = useState<OrderCandidatePi[]>();
+  const [count, setCount] = useState<number>();
+  const [picked, setPicked] = useState<number>();
+  const [loadingPi, setLoadingPi] = useState(false);
+  const [pi, setPi] = useState<Pi>();
+
+  useEffect(() => {
+    if (!open) return;
+    setStep(1);
+    setMode(canFromPi ? 'pi' : 'manual');
+    setKeyword('');
+    setPicked(undefined);
+    setPi(undefined);
+    setCount(undefined);
+    if (canFromPi) {
+      orderApi
+        .candidatePis()
+        .then((l) => setCount(l.length))
+        .catch(() => setCount(undefined));
+    }
+  }, [open, canFromPi]);
+
+  useEffect(() => {
+    if (!open || step !== 2) return undefined;
+    const t = window.setTimeout(() => {
+      orderApi
+        .candidatePis(keyword.trim() || undefined)
+        .then(setList)
+        .catch((e) => {
+          setList([]);
+          message.error(readBizError(e).message);
+        });
+    }, 300);
+    return () => window.clearTimeout(t);
+  }, [open, step, keyword, message]);
+
+  const next = async () => {
+    if (step === 1) {
+      if (mode === 'manual') {
+        onManual();
+        return;
+      }
+      setList(undefined);
+      setStep(2);
+      return;
+    }
+    if (!picked) return;
+    setLoadingPi(true);
+    try {
+      setPi(await piApi.detail(picked));
+    } catch (e) {
+      message.error(readBizError(e).message);
+    } finally {
+      setLoadingPi(false);
+    }
+  };
+
+  const steps = ['选择创建方式', '选择 PI 或填写型号', '确认销售日期并创建'];
+  const option = (
+    key: NewMode,
+    title: string,
+    desc: string,
+    bullets: string[],
+    disabled: boolean,
+  ) => {
+    const on = mode === key;
+    return (
+      // biome-ignore lint/a11y/noLabelWithoutControl: 内含 antd Radio（渲染为 input），点整块切换选中
+      <label
+        style={{
+          padding: '16px 18px',
+          borderRadius: 14,
+          cursor: disabled ? 'not-allowed' : 'pointer',
+          opacity: disabled ? 0.5 : 1,
+          background: on ? palette.accentSoft : palette.inset,
+          border: `1.5px solid ${on ? palette.link : palette.hairline}`,
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <b style={{ fontSize: 16, color: palette.ink }}>{title}</b>
+          {disabled && <Pill tone="mute">没有权限</Pill>}
+          <Radio
+            checked={on}
+            disabled={disabled}
+            style={{ marginLeft: 'auto' }}
+          />
+        </div>
+        <div style={{ fontSize: 12, color: palette.sub, margin: '4px 0 8px' }}>
+          {desc}
+        </div>
+        {bullets.map((b) => (
+          <div
+            key={b}
+            style={{ fontSize: 12, color: palette.sub, lineHeight: '22px' }}
+          >
+            <span
+              style={{
+                color: on ? palette.green : palette.mute,
+                marginRight: 6,
+              }}
+            >
+              ✓
+            </span>
+            {b}
+          </div>
+        ))}
+      </label>
+    );
+  };
+
+  const lastText = (p: OrderCandidatePi) => {
+    if (!p.lastKind || p.lastAmount == null) return '';
+    const what =
+      p.lastKind === KIND.SLIP
+        ? '水单'
+        : p.lastPlatform
+          ? (p.lastMethodName ?? '平台收款')
+          : '到账';
+    return `${what} ${formatAmount(p.lastAmount, p.currencyCode)} · ${(p.lastDate ?? '').slice(5)}`;
+  };
+
+  return (
+    <>
+      <Drawer
+        open={open && !pi}
+        onClose={onClose}
+        size="min(880px, 96vw)"
+        title="新建销售订单"
+        footer={
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {step === 2 && <Button onClick={() => setStep(1)}>上一步</Button>}
+            <span style={{ marginLeft: 'auto' }} />
+            <Button onClick={onClose}>取消</Button>
+            <Button
+              type="primary"
+              loading={loadingPi}
+              disabled={step === 2 && !picked}
+              onClick={next}
+            >
+              {step === 2 ? '下一步：确认销售日期' : '下一步'}
+            </Button>
+          </div>
+        }
+      >
+        <div
+          style={{
+            display: 'flex',
+            gap: 8,
+            alignItems: 'center',
+            marginBottom: 16,
+          }}
+        >
+          {steps.map((s, n) => (
+            <React.Fragment key={s}>
+              {n > 0 && <span style={{ color: palette.mute }}>›</span>}
+              <Pill tone={n + 1 === step ? 'accent' : 'gray'}>
+                {n + 1} {s}
+              </Pill>
+            </React.Fragment>
+          ))}
+        </div>
+        {step === 1 ? (
+          <div style={{ display: 'grid', gap: 12 }}>
+            {canFromPi && count != null && (
+              <b style={{ color: palette.ink }}>
+                {count > 0
+                  ? `你有 ${count} 张 PI 已收到水单或到账、还没有转成订单`
+                  : '现在没有可以转订单的 PI（需要已发送、有水单或到账）'}
+              </b>
+            )}
+            {option(
+              'pi',
+              '按 PI 创建',
+              '从已发送、已有水单或到账的 PI 里选一张，带入买方、型号、费用、币种与汇率。客户走过报价单和 PI 的订单用这个。',
+              [
+                '只列可以转订单的 PI（已发送、有水单或到账、没有未发送的新版本）',
+                '型号带出现货 / 期货与采购员',
+                '与在 PI 上点「转成订单」完全相同',
+              ],
+              !canFromPi,
+            )}
+            {option(
+              'manual',
+              '手动创建',
+              '没有走报价单和 PI 的订单：只填客户、币种、销售日期与型号 / 数量 / 单价，收款直接在订单上登记。',
+              [
+                '默认美元、默认今天',
+                '采购成本价、采购员选填',
+                '建好后成交内容不能改，可取消重建',
+              ],
+              !canManual,
+            )}
+            <div style={{ fontSize: 12, color: palette.mute }}>
+              也可以在 PI 详情页直接点「转成订单」
+            </div>
+          </div>
+        ) : (
+          <div style={{ display: 'grid', gap: 10 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <Input
+                allowClear
+                style={{ width: 320 }}
+                placeholder="PI 编号、客户"
+                value={keyword}
+                onChange={(e) => setKeyword(e.target.value)}
+                aria-label="搜索 PI"
+              />
+              <span
+                style={{
+                  marginLeft: 'auto',
+                  fontSize: 12,
+                  color: palette.mute,
+                }}
+              >
+                {list ? `共 ${list.length} 张可以转订单的 PI` : ''}
+              </span>
+            </div>
+            {list === undefined ? (
+              <Skeleton active paragraph={{ rows: 4 }} />
+            ) : list.length === 0 ? (
+              <Alert
+                type="info"
+                showIcon
+                title={
+                  keyword.trim()
+                    ? '没有符合条件的 PI'
+                    : '现在没有可以转订单的 PI：PI 需要已发送、有水单或到账，且没有未发送的新版本'
+                }
+              />
+            ) : (
+              list.map((p) => {
+                const on = picked === p.id;
+                return (
+                  // biome-ignore lint/a11y/noLabelWithoutControl: 内含 antd Radio（渲染为 input），点整块切换选中
+                  <label
+                    key={p.id}
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns:
+                        '24px minmax(0, 1.4fr) 140px minmax(0, 1.2fr) 80px',
+                      gap: 12,
+                      alignItems: 'center',
+                      padding: '12px 14px',
+                      borderRadius: 12,
+                      cursor: 'pointer',
+                      background: on ? palette.accentSoft : palette.inset,
+                      border: `1.5px solid ${on ? palette.link : palette.hairline}`,
+                    }}
+                  >
+                    <Radio
+                      checked={on}
+                      onChange={() => setPicked(p.id)}
+                      aria-label={p.piNo}
+                    />
+                    <div style={{ minWidth: 0 }}>
+                      <b style={{ color: palette.ink }}>{p.piNo}</b>
+                      <div style={{ fontSize: 12, color: palette.sub }}>
+                        {[p.customerName, p.customerCountry]
+                          .filter(Boolean)
+                          .join(' · ')}
+                      </div>
+                    </div>
+                    <div>
+                      <b
+                        style={{
+                          color: palette.ink,
+                          fontVariantNumeric: 'tabular-nums',
+                        }}
+                      >
+                        {formatAmount(p.totalAmount, p.currencyCode)}
+                      </b>
+                      <div style={{ fontSize: 11, color: palette.mute }}>
+                        合计
+                      </div>
+                    </div>
+                    <div style={{ minWidth: 0 }}>
+                      <ReceiptStatusPill status={p.receiptStatus} />
+                      <div style={{ fontSize: 12, color: palette.mute }}>
+                        {lastText(p)}
+                      </div>
+                    </div>
+                    <span
+                      style={{
+                        fontSize: 12,
+                        color: palette.sub,
+                        textAlign: 'right',
+                      }}
+                    >
+                      {p.ownerName ?? '—'}
+                    </span>
+                  </label>
+                );
+              })
+            )}
+            <div style={{ fontSize: 12, color: palette.mute }}>
+              有未发送新版本、还没有水单或到账、已经转过订单的 PI
+              不在这里；需要时到 PI 详情处理。
+            </div>
+          </div>
+        )}
+      </Drawer>
+      <ConvertOrderModal
+        pi={pi}
+        open={!!pi}
+        onClose={() => setPi(undefined)}
+        onDone={onDone}
+      />
+    </>
   );
 };

@@ -8,7 +8,7 @@ import {
 } from '@ant-design/icons';
 import { history, useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
-import { Button, DatePicker, Form, Input, Select, Table } from 'antd';
+import { App, Button, DatePicker, Form, Input, Select, Table } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
 import { CustomerCell } from '@/components/DocFields';
@@ -24,7 +24,13 @@ import {
   orderApi,
   readBizError,
 } from '../service';
-import { CreateOrderDrawer, STOCK, StockPill, useUserOptions } from './dialogs';
+import {
+  CreateOrderDrawer,
+  NewOrderDrawer,
+  STOCK,
+  StockPill,
+  useUserOptions,
+} from './dialogs';
 import { ProgressPill, ReceiptProgress } from './parts';
 
 interface Filters {
@@ -44,6 +50,7 @@ const initial = (): Filters => ({
 
 const OrderList: React.FC = () => {
   const { palette } = useAppTheme();
+  const { message } = App.useApp();
   const access = useAccess();
   const [form] = Form.useForm<Filters>();
   const [filters, setFilters] = useState<Filters>(initial);
@@ -55,6 +62,9 @@ const OrderList: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>();
   const [createOpen, setCreateOpen] = useState(false);
+  const [newOpen, setNewOpen] = useState(false);
+  const canFromPi = !!access.salesPi;
+  const canManual = !!access['sales:order:create'];
   const users = useUserOptions();
 
   const load = useCallback(async () => {
@@ -271,13 +281,13 @@ const OrderList: React.FC = () => {
         title="销售订单"
         description="客户付款后的订单：由 PI 转成或手动创建；按型号跟进采购与发货进度。"
         actions={
-          access['sales:order:create'] && (
+          (canFromPi || canManual) && (
             <Button
               type="primary"
               icon={<PlusOutlined />}
-              onClick={() => setCreateOpen(true)}
+              onClick={() => setNewOpen(true)}
             >
-              手动创建订单
+              新建销售订单
             </Button>
           )
         }
@@ -470,9 +480,9 @@ const OrderList: React.FC = () => {
         <Card>
           <EmptyHint
             title="还没有销售订单"
-            description="客户付款后在 PI 上点「转成订单」，或手动创建订单"
-            actionText="去 PI 列表"
-            onAction={() => history.push(PATHS.piList)}
+            description="客户付款后按 PI 创建订单（也可以在 PI 上点「转成订单」），或手动创建订单"
+            actionText={canFromPi || canManual ? '新建销售订单' : undefined}
+            onAction={() => setNewOpen(true)}
           />
         </Card>
       ) : (
@@ -500,6 +510,21 @@ const OrderList: React.FC = () => {
         默认列出本月销售的订单，按销售日期倒序；收款进度 = 已到账（毛额）÷
         合计；订单状态取所有型号中最靠前的进度。
       </div>
+      <NewOrderDrawer
+        open={newOpen}
+        canFromPi={canFromPi}
+        canManual={canManual}
+        onClose={() => setNewOpen(false)}
+        onManual={() => {
+          setNewOpen(false);
+          setCreateOpen(true);
+        }}
+        onDone={(order) => {
+          setNewOpen(false);
+          message.success(`已生成销售订单 ${order.soNo}`);
+          history.push(PATHS.order(order.id));
+        }}
+      />
       <CreateOrderDrawer
         open={createOpen}
         onClose={() => setCreateOpen(false)}

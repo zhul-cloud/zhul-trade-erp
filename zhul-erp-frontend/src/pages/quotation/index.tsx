@@ -72,6 +72,13 @@ const QuotationList: React.FC = () => {
   const [owners, setOwners] = useState<{ value: number; label: string }[]>([]);
   const [newOpen, setNewOpen] = useState(false);
 
+  /** 型号数、总数量、合计的排序（后端排序，翻页后保持） */
+  const [sort, setSort] = useState<{
+    field?: string;
+    order?: 'ascend' | 'descend';
+  }>({});
+  const sortOf = (field: string) => (sort.field === field ? sort.order : null);
+
   const load = useCallback(async () => {
     setLoading(true);
     setError(undefined);
@@ -82,6 +89,8 @@ const QuotationList: React.FC = () => {
       ownerId: filters.ownerId,
       createdFrom: filters.range?.[0]?.format('YYYY-MM-DD'),
       createdTo: filters.range?.[1]?.format('YYYY-MM-DD'),
+      sortField: sort.order ? sort.field : undefined,
+      sortOrder: sort.order,
       page,
       pageSize,
     };
@@ -94,7 +103,7 @@ const QuotationList: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [filters, page, pageSize]);
+  }, [filters, page, pageSize, sort]);
 
   useEffect(() => {
     load();
@@ -169,12 +178,16 @@ const QuotationList: React.FC = () => {
     {
       title: '型号数',
       dataIndex: 'itemCount',
-      width: 80,
+      sorter: true,
+      sortOrder: sortOf('itemCount'),
+      width: 100,
       align: 'right',
     },
     {
       title: '总数量',
       dataIndex: 'totalQuantity',
+      sorter: true,
+      sortOrder: sortOf('totalQuantity'),
       width: 90,
       align: 'right',
       render: (v?: number) => v ?? '—',
@@ -182,6 +195,8 @@ const QuotationList: React.FC = () => {
     {
       title: '币种 · 合计',
       dataIndex: 'totalAmount',
+      sorter: true,
+      sortOrder: sortOf('totalAmount'),
       width: 150,
       align: 'right',
       render: (v: number, r) => (
@@ -468,6 +483,15 @@ const QuotationList: React.FC = () => {
       ) : (
         <Table<QuotationListItem>
           rowKey="id"
+          onChange={(_p, _f, sorter, extra) => {
+            if (extra.action !== 'sort') return;
+            const one = Array.isArray(sorter) ? sorter[0] : sorter;
+            setSort({
+              field: one?.order ? String(one.field) : undefined,
+              order: one?.order ?? undefined,
+            });
+            setPage(1);
+          }}
           columns={columns}
           dataSource={rows}
           loading={loading}
