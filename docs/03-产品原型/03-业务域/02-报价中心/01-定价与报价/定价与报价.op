@@ -79264,6 +79264,4525 @@
           ]
         }
       ]
+    },
+    {
+      "type": "frame",
+      "id": "n13081",
+      "name": "Q10-报价单编辑-中英文描述与缺英文提示",
+      "x": 0.0,
+      "y": 11800.0,
+      "width": 1760.0,
+      "height": "fit_content",
+      "layout": "horizontal",
+      "alignItems": "stretch",
+      "clipContent": true,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "#0B1220"
+        }
+      ],
+      "children": [
+        {
+          "type": "frame",
+          "id": "n13082",
+          "width": 240.0,
+          "height": "fill_container",
+          "layout": "vertical",
+          "fill": [
+            {
+              "type": "solid",
+              "color": "#0A101D"
+            }
+          ],
+          "stroke": {
+            "thickness": 1.0,
+            "fill": [
+              {
+                "type": "solid",
+                "color": "#1E293B"
+              }
+            ]
+          },
+          "children": [
+            {
+              "type": "frame",
+              "id": "n13083",
+              "width": "fill_container",
+              "height": 68.0,
+              "layout": "horizontal",
+              "gap": 10.0,
+              "padding": [
+                0.0,
+                20.0
+              ],
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "n13084",
+                  "width": 34.0,
+                  "height": 34.0,
+                  "layout": "horizontal",
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "cornerRadius": 10.0,
+                  "fill": [
+                    {
+                      "type": "linear_gradient",
+                      "angle": 135.0,
+                      "stops": [
+                        {
+                          "offset": 0.0,
+                          "color": "#2563EB"
+                        },
+                        {
+                          "offset": 1.0,
+                          "color": "#4F46E5"
+                        }
+                      ]
+                    }
+                  ],
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "n13085",
+                      "width": "fit_content",
+                      "height": "fit_content",
+                      "content": "烛",
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 16.0,
+                      "fontWeight": 700,
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "#FFFFFF"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "n13086",
+                  "width": "fit_content",
+                  "height": "fit_content",
+                  "content": "烛龙ERP",
+                  "fontFamily": "Noto Sans SC",
+                  "fontSize": 16.0,
+                  "fontWeight": 700,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "#F8FAFC"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "n13087",
+              "width": "fill_container",
+              "height": "fit_content",
+              "layout": "vertical",
+              "gap": 4.0,
+              "padding": [
+                8.0,
+                12.0
+              ],
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "n13088",
+                  "width": "fill_container",
+                  "height": 38.0,
+                  "layout": "horizontal",
+                  "gap": 10.0,
+                  "padding": [
+                    0.0,
+                    12.0,
+                    0.0,
+                    12.0
+                  ],
+                  "alignItems": "center",
+                  "cornerRadius": 10.0,
+                  "children": [
+                    {
+                      "type": "icon_font",
+                      "id": "n13089",
+                      "iconFontName": "layout-grid",
+                      "width": 16.0,
+                      "height": 16.0,
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "#CBD5E1"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "n13090",
+                      "width": "fit_content",
+                      "height": "fit_content",
+                      "content": "工作台",
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 13.0,
+                      "fontWeight": 400,
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "#CBD5E1"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "n13091",
+                  "width": "fill_container",
+                  "height": 38.0,
+                  "layout": "horizontal",
+                  "gap": 10.0,
+                  "padding": [
+                    0.0,
+                    12.0,
+                    0.0,
+                    12.0
+                  ],
+                  "alignItems": "center",
+                  "cornerRadius": 10.0,
+                  "children": [
+                    {
+                      "type": "icon_font",
+                      "id": "n13092",
+                      "iconFontName": "briefcase",
+                      "width": 16.0,
+                      "height": 16.0,
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "#60A5FA"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "n13093",
+                      "width": "fit_content",
+                      "height": "fit_content",
+                      "content": "业务管理",
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 13.0,
+                      "fontWeight": 400,
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "#60A5FA"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "n13094",
+                      "width": "fill_container",
+                      "height": 1.0,
+                      "children": []
+                    },
+                    {
+                      "type": "icon_font",
+                      "id": "n13095",
+                      "iconFontName": "chevron-up",
+                      "width": 14.0,
+                      "height": 14.0,
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "#94A3B8"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "n13096",
+                  "width": "fill_container",
+                  "height": 38.0,
+                  "layout": "horizontal",
+                  "gap": 10.0,
+                  "padding": [
+                    0.0,
+                    12.0,
+                    0.0,
+                    40.0
+                  ],
+                  "alignItems": "center",
+                  "cornerRadius": 10.0,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "n13097",
+                      "width": "fit_content",
+                      "height": "fit_content",
+                      "content": "商机",
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 13.0,
+                      "fontWeight": 400,
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "#CBD5E1"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "n13098",
+                  "width": "fill_container",
+                  "height": 38.0,
+                  "layout": "horizontal",
+                  "gap": 10.0,
+                  "padding": [
+                    0.0,
+                    12.0,
+                    0.0,
+                    40.0
+                  ],
+                  "alignItems": "center",
+                  "cornerRadius": 10.0,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "n13099",
+                      "width": "fit_content",
+                      "height": "fit_content",
+                      "content": "客户",
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 13.0,
+                      "fontWeight": 400,
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "#CBD5E1"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "n13100",
+                  "width": "fill_container",
+                  "height": 38.0,
+                  "layout": "horizontal",
+                  "gap": 10.0,
+                  "padding": [
+                    0.0,
+                    12.0,
+                    0.0,
+                    40.0
+                  ],
+                  "alignItems": "center",
+                  "cornerRadius": 10.0,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "n13101",
+                      "width": "fit_content",
+                      "height": "fit_content",
+                      "content": "客户询盘",
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 13.0,
+                      "fontWeight": 400,
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "#CBD5E1"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "n13102",
+                  "width": "fill_container",
+                  "height": 38.0,
+                  "layout": "horizontal",
+                  "gap": 10.0,
+                  "padding": [
+                    0.0,
+                    12.0,
+                    0.0,
+                    40.0
+                  ],
+                  "alignItems": "center",
+                  "cornerRadius": 10.0,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "#182B4C"
+                    }
+                  ],
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "n13103",
+                      "width": "fit_content",
+                      "height": "fit_content",
+                      "content": "报价单",
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 13.0,
+                      "fontWeight": 600,
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "#60A5FA"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "n13104",
+                  "width": "fill_container",
+                  "height": 38.0,
+                  "layout": "horizontal",
+                  "gap": 10.0,
+                  "padding": [
+                    0.0,
+                    12.0,
+                    0.0,
+                    40.0
+                  ],
+                  "alignItems": "center",
+                  "cornerRadius": 10.0,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "n13105",
+                      "width": "fit_content",
+                      "height": "fit_content",
+                      "content": "PI",
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 13.0,
+                      "fontWeight": 400,
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "#CBD5E1"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "n13106",
+                  "width": "fill_container",
+                  "height": 38.0,
+                  "layout": "horizontal",
+                  "gap": 10.0,
+                  "padding": [
+                    0.0,
+                    12.0,
+                    0.0,
+                    40.0
+                  ],
+                  "alignItems": "center",
+                  "cornerRadius": 10.0,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "n13107",
+                      "width": "fit_content",
+                      "height": "fit_content",
+                      "content": "销售订单",
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 13.0,
+                      "fontWeight": 400,
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "#CBD5E1"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "n13108",
+                  "width": "fill_container",
+                  "height": 38.0,
+                  "layout": "horizontal",
+                  "gap": 10.0,
+                  "padding": [
+                    0.0,
+                    12.0,
+                    0.0,
+                    12.0
+                  ],
+                  "alignItems": "center",
+                  "cornerRadius": 10.0,
+                  "children": [
+                    {
+                      "type": "icon_font",
+                      "id": "n13109",
+                      "iconFontName": "shopping-cart",
+                      "width": 16.0,
+                      "height": 16.0,
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "#CBD5E1"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "n13110",
+                      "width": "fit_content",
+                      "height": "fit_content",
+                      "content": "采购管理",
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 13.0,
+                      "fontWeight": 400,
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "#CBD5E1"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "n13111",
+                      "width": "fill_container",
+                      "height": 1.0,
+                      "children": []
+                    },
+                    {
+                      "type": "icon_font",
+                      "id": "n13112",
+                      "iconFontName": "chevron-down",
+                      "width": 14.0,
+                      "height": 14.0,
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "#94A3B8"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "n13113",
+              "width": "fill_container",
+              "height": "fill_container",
+              "children": []
+            },
+            {
+              "type": "frame",
+              "id": "n13114",
+              "width": "fill_container",
+              "height": "fit_content",
+              "layout": "vertical",
+              "gap": 12.0,
+              "padding": 12.0,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "n13115",
+                  "width": "fill_container",
+                  "height": "fit_content",
+                  "layout": "horizontal",
+                  "gap": 10.0,
+                  "padding": 12.0,
+                  "alignItems": "center",
+                  "cornerRadius": 12.0,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "#111A2C"
+                    }
+                  ],
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "n13116",
+                      "width": 32.0,
+                      "height": 32.0,
+                      "layout": "horizontal",
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "cornerRadius": 16.0,
+                      "fill": [
+                        {
+                          "type": "linear_gradient",
+                          "angle": 135.0,
+                          "stops": [
+                            {
+                              "offset": 0.0,
+                              "color": "#2563EB"
+                            },
+                            {
+                              "offset": 1.0,
+                              "color": "#4F46E5"
+                            }
+                          ]
+                        }
+                      ],
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "n13117",
+                          "width": "fit_content",
+                          "height": "fit_content",
+                          "content": "张",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 13.0,
+                          "fontWeight": 700,
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#FFFFFF"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "n13118",
+                      "width": "fill_container",
+                      "height": "fit_content",
+                      "layout": "vertical",
+                      "gap": 2.0,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "n13119",
+                          "width": "fit_content",
+                          "height": "fit_content",
+                          "content": "张伟",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 13.0,
+                          "fontWeight": 600,
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#F8FAFC"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "n13120",
+                          "width": "fit_content",
+                          "height": "fit_content",
+                          "content": "业务员",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 12.0,
+                          "fontWeight": 400,
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#94A3B8"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "n13121",
+          "width": "fill_container",
+          "height": "fit_content",
+          "layout": "vertical",
+          "gap": 0.0,
+          "children": [
+            {
+              "type": "frame",
+              "id": "n13122",
+              "width": "fill_container",
+              "height": 60.0,
+              "layout": "horizontal",
+              "gap": 16.0,
+              "padding": [
+                0.0,
+                28.0
+              ],
+              "justifyContent": "end",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "n13123",
+                  "width": 220.0,
+                  "height": 36.0,
+                  "layout": "horizontal",
+                  "gap": 8.0,
+                  "padding": [
+                    0.0,
+                    12.0
+                  ],
+                  "alignItems": "center",
+                  "cornerRadius": 10.0,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "#0D1524"
+                    }
+                  ],
+                  "stroke": {
+                    "thickness": 1.0,
+                    "fill": [
+                      {
+                        "type": "solid",
+                        "color": "#1E293B"
+                      }
+                    ]
+                  },
+                  "children": [
+                    {
+                      "type": "icon_font",
+                      "id": "n13124",
+                      "iconFontName": "search",
+                      "width": 15.0,
+                      "height": 15.0,
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "#94A3B8"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "n13125",
+                      "width": "fit_content",
+                      "height": "fit_content",
+                      "content": "搜索",
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 13.0,
+                      "fontWeight": 400,
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "#94A3B8"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "n13126",
+                      "width": "fill_container",
+                      "height": 1.0,
+                      "children": []
+                    },
+                    {
+                      "type": "text",
+                      "id": "n13127",
+                      "width": "fit_content",
+                      "height": "fit_content",
+                      "content": "⌘K",
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 12.0,
+                      "fontWeight": 400,
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "#94A3B8"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "icon_font",
+                  "id": "n13128",
+                  "iconFontName": "sun",
+                  "width": 18.0,
+                  "height": 18.0,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "#CBD5E1"
+                    }
+                  ]
+                },
+                {
+                  "type": "icon_font",
+                  "id": "n13129",
+                  "iconFontName": "bell",
+                  "width": 18.0,
+                  "height": 18.0,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "#CBD5E1"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "n13130",
+              "width": "fill_container",
+              "height": "fit_content",
+              "layout": "vertical",
+              "gap": 20.0,
+              "padding": [
+                4.0,
+                28.0,
+                32.0,
+                28.0
+              ],
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "n13131",
+                  "width": "fill_container",
+                  "height": "fit_content",
+                  "layout": "horizontal",
+                  "gap": 24.0,
+                  "alignItems": "end",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "n13132",
+                      "width": "fill_container",
+                      "height": "fit_content",
+                      "layout": "vertical",
+                      "gap": 6.0,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "n13133",
+                          "width": "fit_content",
+                          "height": "fit_content",
+                          "layout": "horizontal",
+                          "gap": 6.0,
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "n13134",
+                              "width": "fit_content",
+                              "height": "fit_content",
+                              "content": "业务管理",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 12.0,
+                              "fontWeight": 400,
+                              "fill": [
+                                {
+                                  "type": "solid",
+                                  "color": "#94A3B8"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "icon_font",
+                              "id": "n13135",
+                              "iconFontName": "chevron-right",
+                              "width": 12.0,
+                              "height": 12.0,
+                              "fill": [
+                                {
+                                  "type": "solid",
+                                  "color": "#94A3B8"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "text",
+                              "id": "n13136",
+                              "width": "fit_content",
+                              "height": "fit_content",
+                              "content": "报价单",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 12.0,
+                              "fontWeight": 400,
+                              "fill": [
+                                {
+                                  "type": "solid",
+                                  "color": "#94A3B8"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "icon_font",
+                              "id": "n13137",
+                              "iconFontName": "chevron-right",
+                              "width": 12.0,
+                              "height": 12.0,
+                              "fill": [
+                                {
+                                  "type": "solid",
+                                  "color": "#94A3B8"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "text",
+                              "id": "n13138",
+                              "width": "fit_content",
+                              "height": "fit_content",
+                              "content": "FWQT20261008006",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 12.0,
+                              "fontWeight": 600,
+                              "fill": [
+                                {
+                                  "type": "solid",
+                                  "color": "#F8FAFC"
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "n13139",
+                          "width": "fit_content",
+                          "height": "fit_content",
+                          "layout": "horizontal",
+                          "gap": 10.0,
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "n13140",
+                              "width": "fit_content",
+                              "height": "fit_content",
+                              "content": "FWQT20261008006",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 26.0,
+                              "fontWeight": 700,
+                              "fill": [
+                                {
+                                  "type": "solid",
+                                  "color": "#F8FAFC"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "n13141",
+                              "width": "fit_content",
+                              "height": 22.0,
+                              "layout": "horizontal",
+                              "gap": 4.0,
+                              "padding": [
+                                0.0,
+                                9.0
+                              ],
+                              "alignItems": "center",
+                              "cornerRadius": 12.0,
+                              "fill": [
+                                {
+                                  "type": "solid",
+                                  "color": "#16233A"
+                                }
+                              ],
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "n13142",
+                                  "width": "fit_content",
+                                  "height": "fit_content",
+                                  "content": "草稿",
+                                  "fontFamily": "Noto Sans SC",
+                                  "fontSize": 12.0,
+                                  "fontWeight": 600,
+                                  "fill": [
+                                    {
+                                      "type": "solid",
+                                      "color": "#CBD5E1"
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "n13143",
+                          "width": "fit_content",
+                          "height": "fit_content",
+                          "content": "PT. Satya Kharis Perkasa · 来源询盘：IQ20261007001",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 13.0,
+                          "fontWeight": 400,
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#94A3B8"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "n13144",
+                      "width": "fit_content",
+                      "height": "fit_content",
+                      "layout": "horizontal",
+                      "gap": 10.0,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "n13145",
+                          "width": "fit_content",
+                          "height": 34.0,
+                          "layout": "horizontal",
+                          "gap": 6.0,
+                          "padding": [
+                            0.0,
+                            14.0
+                          ],
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "cornerRadius": 10.0,
+                          "stroke": {
+                            "thickness": 1.0,
+                            "fill": [
+                              {
+                                "type": "solid",
+                                "color": "#1E293B"
+                              }
+                            ]
+                          },
+                          "children": [
+                            {
+                              "type": "icon_font",
+                              "id": "n13146",
+                              "iconFontName": "zap",
+                              "width": 14.0,
+                              "height": 14.0,
+                              "fill": [
+                                {
+                                  "type": "solid",
+                                  "color": "#CBD5E1"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "text",
+                              "id": "n13147",
+                              "width": "fit_content",
+                              "height": "fit_content",
+                              "content": "报价策略",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 13.0,
+                              "fontWeight": 600,
+                              "fill": [
+                                {
+                                  "type": "solid",
+                                  "color": "#CBD5E1"
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "n13148",
+                          "width": "fit_content",
+                          "height": 34.0,
+                          "layout": "horizontal",
+                          "gap": 6.0,
+                          "padding": [
+                            0.0,
+                            14.0
+                          ],
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "cornerRadius": 10.0,
+                          "stroke": {
+                            "thickness": 1.0,
+                            "fill": [
+                              {
+                                "type": "solid",
+                                "color": "#1E293B"
+                              }
+                            ]
+                          },
+                          "children": [
+                            {
+                              "type": "icon_font",
+                              "id": "n13149",
+                              "iconFontName": "message-square",
+                              "width": 14.0,
+                              "height": 14.0,
+                              "fill": [
+                                {
+                                  "type": "solid",
+                                  "color": "#CBD5E1"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "text",
+                              "id": "n13150",
+                              "width": "fit_content",
+                              "height": "fit_content",
+                              "content": "文字报价",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 13.0,
+                              "fontWeight": 600,
+                              "fill": [
+                                {
+                                  "type": "solid",
+                                  "color": "#CBD5E1"
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "n13151",
+                          "width": "fit_content",
+                          "height": 34.0,
+                          "layout": "horizontal",
+                          "gap": 6.0,
+                          "padding": [
+                            0.0,
+                            14.0
+                          ],
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "cornerRadius": 10.0,
+                          "stroke": {
+                            "thickness": 1.0,
+                            "fill": [
+                              {
+                                "type": "solid",
+                                "color": "#1E293B"
+                              }
+                            ]
+                          },
+                          "children": [
+                            {
+                              "type": "icon_font",
+                              "id": "n13152",
+                              "iconFontName": "download",
+                              "width": 14.0,
+                              "height": 14.0,
+                              "fill": [
+                                {
+                                  "type": "solid",
+                                  "color": "#CBD5E1"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "text",
+                              "id": "n13153",
+                              "width": "fit_content",
+                              "height": "fit_content",
+                              "content": "导出",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 13.0,
+                              "fontWeight": 600,
+                              "fill": [
+                                {
+                                  "type": "solid",
+                                  "color": "#CBD5E1"
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "n13154",
+                          "width": "fit_content",
+                          "height": 34.0,
+                          "layout": "horizontal",
+                          "gap": 6.0,
+                          "padding": [
+                            0.0,
+                            14.0
+                          ],
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "cornerRadius": 10.0,
+                          "stroke": {
+                            "thickness": 1.0,
+                            "fill": [
+                              {
+                                "type": "solid",
+                                "color": "#1E293B"
+                              }
+                            ]
+                          },
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "n13155",
+                              "width": "fit_content",
+                              "height": "fit_content",
+                              "content": "保存",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 13.0,
+                              "fontWeight": 600,
+                              "fill": [
+                                {
+                                  "type": "solid",
+                                  "color": "#CBD5E1"
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "n13156",
+                          "width": "fit_content",
+                          "height": 34.0,
+                          "layout": "horizontal",
+                          "gap": 6.0,
+                          "padding": [
+                            0.0,
+                            14.0
+                          ],
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "cornerRadius": 10.0,
+                          "fill": [
+                            {
+                              "type": "linear_gradient",
+                              "angle": 135.0,
+                              "stops": [
+                                {
+                                  "offset": 0.0,
+                                  "color": "#2563EB"
+                                },
+                                {
+                                  "offset": 1.0,
+                                  "color": "#4F46E5"
+                                }
+                              ]
+                            }
+                          ],
+                          "children": [
+                            {
+                              "type": "icon_font",
+                              "id": "n13157",
+                              "iconFontName": "send",
+                              "width": 14.0,
+                              "height": 14.0,
+                              "fill": [
+                                {
+                                  "type": "solid",
+                                  "color": "#FFFFFF"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "text",
+                              "id": "n13158",
+                              "width": "fit_content",
+                              "height": "fit_content",
+                              "content": "标为已发送",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 13.0,
+                              "fontWeight": 600,
+                              "fill": [
+                                {
+                                  "type": "solid",
+                                  "color": "#FFFFFF"
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "n13159",
+                  "width": "fill_container",
+                  "height": "fit_content",
+                  "layout": "horizontal",
+                  "gap": 10.0,
+                  "padding": [
+                    12.0,
+                    16.0
+                  ],
+                  "alignItems": "center",
+                  "cornerRadius": 12.0,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "#2D282E"
+                    }
+                  ],
+                  "children": [
+                    {
+                      "type": "icon_font",
+                      "id": "n13160",
+                      "iconFontName": "languages",
+                      "width": 16.0,
+                      "height": 16.0,
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "#FB923C"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "n13161",
+                      "width": "fit_content",
+                      "height": "fit_content",
+                      "content": "3 个型号还没有英文描述，导出会显示中文。",
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 13.0,
+                      "fontWeight": 600,
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "#FB923C"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "n13162",
+                      "width": "fit_content",
+                      "height": "fit_content",
+                      "content": "这些询盘在中英文描述上线前解析，可以让 AI 把中文描述翻译成英文，翻译后可再改。",
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 12.0,
+                      "fontWeight": 400,
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "#CBD5E1"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "n13163",
+                      "width": "fill_container",
+                      "height": 1.0,
+                      "children": []
+                    },
+                    {
+                      "type": "frame",
+                      "id": "n13164",
+                      "width": "fit_content",
+                      "height": 34.0,
+                      "layout": "horizontal",
+                      "gap": 6.0,
+                      "padding": [
+                        0.0,
+                        14.0
+                      ],
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "cornerRadius": 10.0,
+                      "fill": [
+                        {
+                          "type": "linear_gradient",
+                          "angle": 135.0,
+                          "stops": [
+                            {
+                              "offset": 0.0,
+                              "color": "#2563EB"
+                            },
+                            {
+                              "offset": 1.0,
+                              "color": "#4F46E5"
+                            }
+                          ]
+                        }
+                      ],
+                      "children": [
+                        {
+                          "type": "icon_font",
+                          "id": "n13165",
+                          "iconFontName": "sparkles",
+                          "width": 14.0,
+                          "height": 14.0,
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#FFFFFF"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "n13166",
+                          "width": "fit_content",
+                          "height": "fit_content",
+                          "content": "生成英文描述",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 13.0,
+                          "fontWeight": 600,
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#FFFFFF"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "n13167",
+                  "width": "fill_container",
+                  "height": "fit_content",
+                  "layout": "vertical",
+                  "clipContent": true,
+                  "cornerRadius": 16.0,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "#111A2C"
+                    }
+                  ],
+                  "stroke": {
+                    "thickness": 1.0,
+                    "fill": [
+                      {
+                        "type": "solid",
+                        "color": "#1E293B"
+                      }
+                    ]
+                  },
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "n13168",
+                      "width": "fill_container",
+                      "height": "fit_content",
+                      "layout": "horizontal",
+                      "gap": 12.0,
+                      "padding": [
+                        12.0,
+                        20.0
+                      ],
+                      "alignItems": "center",
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "#0D1524"
+                        }
+                      ],
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "n13169",
+                          "width": 16.0,
+                          "height": "fit_content",
+                          "layout": "horizontal",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "n13170",
+                              "width": "fit_content",
+                              "height": "fit_content",
+                              "content": "#",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 12.0,
+                              "fontWeight": 500,
+                              "fill": [
+                                {
+                                  "type": "solid",
+                                  "color": "#94A3B8"
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "n13171",
+                          "width": 200.0,
+                          "height": "fit_content",
+                          "layout": "horizontal",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "n13172",
+                              "width": "fit_content",
+                              "height": "fit_content",
+                              "content": "型号 / 品牌",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 12.0,
+                              "fontWeight": 500,
+                              "fill": [
+                                {
+                                  "type": "solid",
+                                  "color": "#94A3B8"
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "n13173",
+                          "width": "fill_container",
+                          "height": "fit_content",
+                          "layout": "horizontal",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "n13174",
+                              "width": "fit_content",
+                              "height": "fit_content",
+                              "content": "描述",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 12.0,
+                              "fontWeight": 500,
+                              "fill": [
+                                {
+                                  "type": "solid",
+                                  "color": "#94A3B8"
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "n13175",
+                          "width": 40.0,
+                          "height": "fit_content",
+                          "layout": "horizontal",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "n13176",
+                              "width": "fit_content",
+                              "height": "fit_content",
+                              "content": "数量",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 12.0,
+                              "fontWeight": 500,
+                              "fill": [
+                                {
+                                  "type": "solid",
+                                  "color": "#94A3B8"
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "n13177",
+                          "width": 110.0,
+                          "height": "fit_content",
+                          "layout": "horizontal",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "n13178",
+                              "width": "fit_content",
+                              "height": "fit_content",
+                              "content": "售价",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 12.0,
+                              "fontWeight": 500,
+                              "fill": [
+                                {
+                                  "type": "solid",
+                                  "color": "#94A3B8"
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "n13179",
+                      "width": "fill_container",
+                      "height": 1.0,
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "#1E293B"
+                        }
+                      ],
+                      "children": []
+                    },
+                    {
+                      "type": "frame",
+                      "id": "n13180",
+                      "width": "fill_container",
+                      "height": "fit_content",
+                      "layout": "horizontal",
+                      "gap": 12.0,
+                      "padding": [
+                        14.0,
+                        20.0
+                      ],
+                      "alignItems": "center",
+                      "fill": [],
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "n13181",
+                          "width": 16.0,
+                          "height": "fit_content",
+                          "layout": "horizontal",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "n13182",
+                              "width": "fit_content",
+                              "height": "fit_content",
+                              "content": "1",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 13.0,
+                              "fontWeight": 400,
+                              "fill": [
+                                {
+                                  "type": "solid",
+                                  "color": "#94A3B8"
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "n13183",
+                          "width": 200.0,
+                          "height": "fit_content",
+                          "layout": "horizontal",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "n13184",
+                              "width": "fill_container",
+                              "height": "fit_content",
+                              "layout": "vertical",
+                              "gap": 2.0,
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "n13185",
+                                  "width": "fit_content",
+                                  "height": "fit_content",
+                                  "content": "3VA2340-5JQ42-0AA0",
+                                  "fontFamily": "Noto Sans SC",
+                                  "fontSize": 13.0,
+                                  "fontWeight": 700,
+                                  "fill": [
+                                    {
+                                      "type": "solid",
+                                      "color": "#F8FAFC"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "n13186",
+                                  "width": "fit_content",
+                                  "height": "fit_content",
+                                  "content": "西门子（导出为 Siemens）",
+                                  "fontFamily": "Noto Sans SC",
+                                  "fontSize": 12.0,
+                                  "fontWeight": 400,
+                                  "fill": [
+                                    {
+                                      "type": "solid",
+                                      "color": "#94A3B8"
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "n13187",
+                          "width": "fill_container",
+                          "height": "fit_content",
+                          "layout": "horizontal",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "n13188",
+                              "width": "fill_container",
+                              "height": "fit_content",
+                              "layout": "vertical",
+                              "gap": 6.0,
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "n13189",
+                                  "width": "fill_container",
+                                  "height": "fit_content",
+                                  "layout": "horizontal",
+                                  "gap": 6.0,
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "n13190",
+                                      "width": "fit_content",
+                                      "height": 22.0,
+                                      "layout": "horizontal",
+                                      "gap": 4.0,
+                                      "padding": [
+                                        0.0,
+                                        9.0
+                                      ],
+                                      "alignItems": "center",
+                                      "cornerRadius": 12.0,
+                                      "fill": [
+                                        {
+                                          "type": "solid",
+                                          "color": "#16233A"
+                                        }
+                                      ],
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "n13191",
+                                          "width": "fit_content",
+                                          "height": "fit_content",
+                                          "content": "中",
+                                          "fontFamily": "Noto Sans SC",
+                                          "fontSize": 12.0,
+                                          "fontWeight": 600,
+                                          "fill": [
+                                            {
+                                              "type": "solid",
+                                              "color": "#CBD5E1"
+                                            }
+                                          ]
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "n13192",
+                                      "width": "fit_content",
+                                      "height": "fit_content",
+                                      "content": "系统内显示",
+                                      "fontFamily": "Noto Sans SC",
+                                      "fontSize": 11.0,
+                                      "fontWeight": 400,
+                                      "fill": [
+                                        {
+                                          "type": "solid",
+                                          "color": "#94A3B8"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "n13193",
+                                  "width": "fill_container",
+                                  "height": "fit_content",
+                                  "layout": "horizontal",
+                                  "padding": [
+                                    8.0,
+                                    10.0
+                                  ],
+                                  "cornerRadius": 8.0,
+                                  "fill": [
+                                    {
+                                      "type": "solid",
+                                      "color": "#0D1524"
+                                    }
+                                  ],
+                                  "stroke": {
+                                    "thickness": 1.0,
+                                    "fill": [
+                                      {
+                                        "type": "solid",
+                                        "color": "#1E293B"
+                                      }
+                                    ]
+                                  },
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "n13194",
+                                      "width": "fill_container",
+                                      "height": "fit_content",
+                                      "content": "西门子 3VA2 塑壳断路器，400A 4P，55kA/415V，ETU560 LSIG 电子脱扣器",
+                                      "fontFamily": "Noto Sans SC",
+                                      "fontSize": 13.0,
+                                      "fontWeight": 400,
+                                      "lineHeight": 1.6,
+                                      "textGrowth": "fixed-width",
+                                      "fill": [
+                                        {
+                                          "type": "solid",
+                                          "color": "#F8FAFC"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "n13195",
+                                  "width": "fill_container",
+                                  "height": "fit_content",
+                                  "layout": "horizontal",
+                                  "gap": 6.0,
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "n13196",
+                                      "width": "fit_content",
+                                      "height": 22.0,
+                                      "layout": "horizontal",
+                                      "gap": 4.0,
+                                      "padding": [
+                                        0.0,
+                                        9.0
+                                      ],
+                                      "alignItems": "center",
+                                      "cornerRadius": 12.0,
+                                      "fill": [
+                                        {
+                                          "type": "solid",
+                                          "color": "#182B4C"
+                                        }
+                                      ],
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "n13197",
+                                          "width": "fit_content",
+                                          "height": "fit_content",
+                                          "content": "EN",
+                                          "fontFamily": "Noto Sans SC",
+                                          "fontSize": 12.0,
+                                          "fontWeight": 600,
+                                          "fill": [
+                                            {
+                                              "type": "solid",
+                                              "color": "#60A5FA"
+                                            }
+                                          ]
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "n13198",
+                                      "width": "fit_content",
+                                      "height": "fit_content",
+                                      "content": "给客户看，导出为 Inquiry Info",
+                                      "fontFamily": "Noto Sans SC",
+                                      "fontSize": 11.0,
+                                      "fontWeight": 400,
+                                      "fill": [
+                                        {
+                                          "type": "solid",
+                                          "color": "#94A3B8"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "n13199",
+                                  "width": "fill_container",
+                                  "height": "fit_content",
+                                  "layout": "horizontal",
+                                  "padding": [
+                                    8.0,
+                                    10.0
+                                  ],
+                                  "cornerRadius": 8.0,
+                                  "fill": [
+                                    {
+                                      "type": "solid",
+                                      "color": "#0D1524"
+                                    }
+                                  ],
+                                  "stroke": {
+                                    "thickness": 1.0,
+                                    "fill": [
+                                      {
+                                        "type": "solid",
+                                        "color": "#1E293B"
+                                      }
+                                    ]
+                                  },
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "n13200",
+                                      "width": "fill_container",
+                                      "height": "fit_content",
+                                      "content": "还没有英文描述，导出会显示中文",
+                                      "fontFamily": "Noto Sans SC",
+                                      "fontSize": 13.0,
+                                      "fontWeight": 400,
+                                      "lineHeight": 1.6,
+                                      "textGrowth": "fixed-width",
+                                      "fill": [
+                                        {
+                                          "type": "solid",
+                                          "color": "#94A3B8"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "n13201",
+                          "width": 40.0,
+                          "height": "fit_content",
+                          "layout": "horizontal",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "n13202",
+                              "width": "fit_content",
+                              "height": "fit_content",
+                              "content": "3",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 13.0,
+                              "fontWeight": 500,
+                              "fill": [
+                                {
+                                  "type": "solid",
+                                  "color": "#CBD5E1"
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "n13203",
+                          "width": 110.0,
+                          "height": "fit_content",
+                          "layout": "horizontal",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "n13204",
+                              "width": "fit_content",
+                              "height": "fit_content",
+                              "content": "USD 848.79",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 13.0,
+                              "fontWeight": 600,
+                              "fill": [
+                                {
+                                  "type": "solid",
+                                  "color": "#F8FAFC"
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "n13205",
+                      "width": "fill_container",
+                      "height": 1.0,
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "#1E293B"
+                        }
+                      ],
+                      "children": []
+                    },
+                    {
+                      "type": "frame",
+                      "id": "n13206",
+                      "width": "fill_container",
+                      "height": "fit_content",
+                      "layout": "horizontal",
+                      "gap": 12.0,
+                      "padding": [
+                        14.0,
+                        20.0
+                      ],
+                      "alignItems": "center",
+                      "fill": [],
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "n13207",
+                          "width": 16.0,
+                          "height": "fit_content",
+                          "layout": "horizontal",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "n13208",
+                              "width": "fit_content",
+                              "height": "fit_content",
+                              "content": "2",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 13.0,
+                              "fontWeight": 400,
+                              "fill": [
+                                {
+                                  "type": "solid",
+                                  "color": "#94A3B8"
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "n13209",
+                          "width": 200.0,
+                          "height": "fit_content",
+                          "layout": "horizontal",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "n13210",
+                              "width": "fill_container",
+                              "height": "fit_content",
+                              "layout": "vertical",
+                              "gap": 2.0,
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "n13211",
+                                  "width": "fit_content",
+                                  "height": "fit_content",
+                                  "content": "3VA9988-0AA12",
+                                  "fontFamily": "Noto Sans SC",
+                                  "fontSize": 13.0,
+                                  "fontWeight": 700,
+                                  "fill": [
+                                    {
+                                      "type": "solid",
+                                      "color": "#F8FAFC"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "n13212",
+                                  "width": "fit_content",
+                                  "height": "fit_content",
+                                  "content": "西门子（导出为 Siemens）",
+                                  "fontFamily": "Noto Sans SC",
+                                  "fontSize": 12.0,
+                                  "fontWeight": 400,
+                                  "fill": [
+                                    {
+                                      "type": "solid",
+                                      "color": "#94A3B8"
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "n13213",
+                          "width": "fill_container",
+                          "height": "fit_content",
+                          "layout": "horizontal",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "n13214",
+                              "width": "fill_container",
+                              "height": "fit_content",
+                              "layout": "vertical",
+                              "gap": 6.0,
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "n13215",
+                                  "width": "fill_container",
+                                  "height": "fit_content",
+                                  "layout": "horizontal",
+                                  "gap": 6.0,
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "n13216",
+                                      "width": "fit_content",
+                                      "height": 22.0,
+                                      "layout": "horizontal",
+                                      "gap": 4.0,
+                                      "padding": [
+                                        0.0,
+                                        9.0
+                                      ],
+                                      "alignItems": "center",
+                                      "cornerRadius": 12.0,
+                                      "fill": [
+                                        {
+                                          "type": "solid",
+                                          "color": "#16233A"
+                                        }
+                                      ],
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "n13217",
+                                          "width": "fit_content",
+                                          "height": "fit_content",
+                                          "content": "中",
+                                          "fontFamily": "Noto Sans SC",
+                                          "fontSize": 12.0,
+                                          "fontWeight": 600,
+                                          "fill": [
+                                            {
+                                              "type": "solid",
+                                              "color": "#CBD5E1"
+                                            }
+                                          ]
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "n13218",
+                                      "width": "fit_content",
+                                      "height": "fit_content",
+                                      "content": "系统内显示",
+                                      "fontFamily": "Noto Sans SC",
+                                      "fontSize": 11.0,
+                                      "fontWeight": 400,
+                                      "fill": [
+                                        {
+                                          "type": "solid",
+                                          "color": "#94A3B8"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "n13219",
+                                  "width": "fill_container",
+                                  "height": "fit_content",
+                                  "layout": "horizontal",
+                                  "padding": [
+                                    8.0,
+                                    10.0
+                                  ],
+                                  "cornerRadius": 8.0,
+                                  "fill": [
+                                    {
+                                      "type": "solid",
+                                      "color": "#0D1524"
+                                    }
+                                  ],
+                                  "stroke": {
+                                    "thickness": 1.0,
+                                    "fill": [
+                                      {
+                                        "type": "solid",
+                                        "color": "#1E293B"
+                                      }
+                                    ]
+                                  },
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "n13220",
+                                      "width": "fill_container",
+                                      "height": "fit_content",
+                                      "content": "西门子 3VA 辅助开关，转换触点 HQ 型 7mm，适用 3VA1/3VA2",
+                                      "fontFamily": "Noto Sans SC",
+                                      "fontSize": 13.0,
+                                      "fontWeight": 400,
+                                      "lineHeight": 1.6,
+                                      "textGrowth": "fixed-width",
+                                      "fill": [
+                                        {
+                                          "type": "solid",
+                                          "color": "#F8FAFC"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "n13221",
+                                  "width": "fill_container",
+                                  "height": "fit_content",
+                                  "layout": "horizontal",
+                                  "gap": 6.0,
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "n13222",
+                                      "width": "fit_content",
+                                      "height": 22.0,
+                                      "layout": "horizontal",
+                                      "gap": 4.0,
+                                      "padding": [
+                                        0.0,
+                                        9.0
+                                      ],
+                                      "alignItems": "center",
+                                      "cornerRadius": 12.0,
+                                      "fill": [
+                                        {
+                                          "type": "solid",
+                                          "color": "#182B4C"
+                                        }
+                                      ],
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "n13223",
+                                          "width": "fit_content",
+                                          "height": "fit_content",
+                                          "content": "EN",
+                                          "fontFamily": "Noto Sans SC",
+                                          "fontSize": 12.0,
+                                          "fontWeight": 600,
+                                          "fill": [
+                                            {
+                                              "type": "solid",
+                                              "color": "#60A5FA"
+                                            }
+                                          ]
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "n13224",
+                                      "width": "fit_content",
+                                      "height": "fit_content",
+                                      "content": "给客户看，导出为 Inquiry Info",
+                                      "fontFamily": "Noto Sans SC",
+                                      "fontSize": 11.0,
+                                      "fontWeight": 400,
+                                      "fill": [
+                                        {
+                                          "type": "solid",
+                                          "color": "#94A3B8"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "n13225",
+                                  "width": "fill_container",
+                                  "height": "fit_content",
+                                  "layout": "horizontal",
+                                  "padding": [
+                                    8.0,
+                                    10.0
+                                  ],
+                                  "cornerRadius": 8.0,
+                                  "fill": [
+                                    {
+                                      "type": "solid",
+                                      "color": "#0D1524"
+                                    }
+                                  ],
+                                  "stroke": {
+                                    "thickness": 1.0,
+                                    "fill": [
+                                      {
+                                        "type": "solid",
+                                        "color": "#1E293B"
+                                      }
+                                    ]
+                                  },
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "n13226",
+                                      "width": "fill_container",
+                                      "height": "fit_content",
+                                      "content": "还没有英文描述，导出会显示中文",
+                                      "fontFamily": "Noto Sans SC",
+                                      "fontSize": 13.0,
+                                      "fontWeight": 400,
+                                      "lineHeight": 1.6,
+                                      "textGrowth": "fixed-width",
+                                      "fill": [
+                                        {
+                                          "type": "solid",
+                                          "color": "#94A3B8"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "n13227",
+                          "width": 40.0,
+                          "height": "fit_content",
+                          "layout": "horizontal",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "n13228",
+                              "width": "fit_content",
+                              "height": "fit_content",
+                              "content": "3",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 13.0,
+                              "fontWeight": 500,
+                              "fill": [
+                                {
+                                  "type": "solid",
+                                  "color": "#CBD5E1"
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "n13229",
+                          "width": 110.0,
+                          "height": "fit_content",
+                          "layout": "horizontal",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "n13230",
+                              "width": "fit_content",
+                              "height": "fit_content",
+                              "content": "USD 848.79",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 13.0,
+                              "fontWeight": 600,
+                              "fill": [
+                                {
+                                  "type": "solid",
+                                  "color": "#F8FAFC"
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "n13231",
+                      "width": "fill_container",
+                      "height": 1.0,
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "#1E293B"
+                        }
+                      ],
+                      "children": []
+                    },
+                    {
+                      "type": "frame",
+                      "id": "n13232",
+                      "width": "fill_container",
+                      "height": "fit_content",
+                      "layout": "horizontal",
+                      "gap": 12.0,
+                      "padding": [
+                        14.0,
+                        20.0
+                      ],
+                      "alignItems": "center",
+                      "fill": [],
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "n13233",
+                          "width": 16.0,
+                          "height": "fit_content",
+                          "layout": "horizontal",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "n13234",
+                              "width": "fit_content",
+                              "height": "fit_content",
+                              "content": "3",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 13.0,
+                              "fontWeight": 400,
+                              "fill": [
+                                {
+                                  "type": "solid",
+                                  "color": "#94A3B8"
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "n13235",
+                          "width": 200.0,
+                          "height": "fit_content",
+                          "layout": "horizontal",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "n13236",
+                              "width": "fill_container",
+                              "height": "fit_content",
+                              "layout": "vertical",
+                              "gap": 2.0,
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "n13237",
+                                  "width": "fit_content",
+                                  "height": "fit_content",
+                                  "content": "3VA9988-0AB12",
+                                  "fontFamily": "Noto Sans SC",
+                                  "fontSize": 13.0,
+                                  "fontWeight": 700,
+                                  "fill": [
+                                    {
+                                      "type": "solid",
+                                      "color": "#F8FAFC"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "n13238",
+                                  "width": "fit_content",
+                                  "height": "fit_content",
+                                  "content": "西门子（导出为 Siemens）",
+                                  "fontFamily": "Noto Sans SC",
+                                  "fontSize": 12.0,
+                                  "fontWeight": 400,
+                                  "fill": [
+                                    {
+                                      "type": "solid",
+                                      "color": "#94A3B8"
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "n13239",
+                          "width": "fill_container",
+                          "height": "fit_content",
+                          "layout": "horizontal",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "n13240",
+                              "width": "fill_container",
+                              "height": "fit_content",
+                              "layout": "vertical",
+                              "gap": 6.0,
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "n13241",
+                                  "width": "fill_container",
+                                  "height": "fit_content",
+                                  "layout": "horizontal",
+                                  "gap": 6.0,
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "n13242",
+                                      "width": "fit_content",
+                                      "height": 22.0,
+                                      "layout": "horizontal",
+                                      "gap": 4.0,
+                                      "padding": [
+                                        0.0,
+                                        9.0
+                                      ],
+                                      "alignItems": "center",
+                                      "cornerRadius": 12.0,
+                                      "fill": [
+                                        {
+                                          "type": "solid",
+                                          "color": "#16233A"
+                                        }
+                                      ],
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "n13243",
+                                          "width": "fit_content",
+                                          "height": "fit_content",
+                                          "content": "中",
+                                          "fontFamily": "Noto Sans SC",
+                                          "fontSize": 12.0,
+                                          "fontWeight": 600,
+                                          "fill": [
+                                            {
+                                              "type": "solid",
+                                              "color": "#CBD5E1"
+                                            }
+                                          ]
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "n13244",
+                                      "width": "fit_content",
+                                      "height": "fit_content",
+                                      "content": "系统内显示",
+                                      "fontFamily": "Noto Sans SC",
+                                      "fontSize": 11.0,
+                                      "fontWeight": 400,
+                                      "fill": [
+                                        {
+                                          "type": "solid",
+                                          "color": "#94A3B8"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "n13245",
+                                  "width": "fill_container",
+                                  "height": "fit_content",
+                                  "layout": "horizontal",
+                                  "padding": [
+                                    8.0,
+                                    10.0
+                                  ],
+                                  "cornerRadius": 8.0,
+                                  "fill": [
+                                    {
+                                      "type": "solid",
+                                      "color": "#0D1524"
+                                    }
+                                  ],
+                                  "stroke": {
+                                    "thickness": 1.0,
+                                    "fill": [
+                                      {
+                                        "type": "solid",
+                                        "color": "#1E293B"
+                                      }
+                                    ]
+                                  },
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "n13246",
+                                      "width": "fill_container",
+                                      "height": "fit_content",
+                                      "content": "西门子 3VA 跳闸报警开关，转换触点 HQ 型 7mm，适用 3VA1/3VA2",
+                                      "fontFamily": "Noto Sans SC",
+                                      "fontSize": 13.0,
+                                      "fontWeight": 400,
+                                      "lineHeight": 1.6,
+                                      "textGrowth": "fixed-width",
+                                      "fill": [
+                                        {
+                                          "type": "solid",
+                                          "color": "#F8FAFC"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "n13247",
+                                  "width": "fill_container",
+                                  "height": "fit_content",
+                                  "layout": "horizontal",
+                                  "gap": 6.0,
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "n13248",
+                                      "width": "fit_content",
+                                      "height": 22.0,
+                                      "layout": "horizontal",
+                                      "gap": 4.0,
+                                      "padding": [
+                                        0.0,
+                                        9.0
+                                      ],
+                                      "alignItems": "center",
+                                      "cornerRadius": 12.0,
+                                      "fill": [
+                                        {
+                                          "type": "solid",
+                                          "color": "#182B4C"
+                                        }
+                                      ],
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "n13249",
+                                          "width": "fit_content",
+                                          "height": "fit_content",
+                                          "content": "EN",
+                                          "fontFamily": "Noto Sans SC",
+                                          "fontSize": 12.0,
+                                          "fontWeight": 600,
+                                          "fill": [
+                                            {
+                                              "type": "solid",
+                                              "color": "#60A5FA"
+                                            }
+                                          ]
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "n13250",
+                                      "width": "fit_content",
+                                      "height": "fit_content",
+                                      "content": "给客户看，导出为 Inquiry Info",
+                                      "fontFamily": "Noto Sans SC",
+                                      "fontSize": 11.0,
+                                      "fontWeight": 400,
+                                      "fill": [
+                                        {
+                                          "type": "solid",
+                                          "color": "#94A3B8"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "n13251",
+                                  "width": "fill_container",
+                                  "height": "fit_content",
+                                  "layout": "horizontal",
+                                  "padding": [
+                                    8.0,
+                                    10.0
+                                  ],
+                                  "cornerRadius": 8.0,
+                                  "fill": [
+                                    {
+                                      "type": "solid",
+                                      "color": "#0D1524"
+                                    }
+                                  ],
+                                  "stroke": {
+                                    "thickness": 1.0,
+                                    "fill": [
+                                      {
+                                        "type": "solid",
+                                        "color": "#1E293B"
+                                      }
+                                    ]
+                                  },
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "n13252",
+                                      "width": "fill_container",
+                                      "height": "fit_content",
+                                      "content": "还没有英文描述，导出会显示中文",
+                                      "fontFamily": "Noto Sans SC",
+                                      "fontSize": 13.0,
+                                      "fontWeight": 400,
+                                      "lineHeight": 1.6,
+                                      "textGrowth": "fixed-width",
+                                      "fill": [
+                                        {
+                                          "type": "solid",
+                                          "color": "#94A3B8"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "n13253",
+                          "width": 40.0,
+                          "height": "fit_content",
+                          "layout": "horizontal",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "n13254",
+                              "width": "fit_content",
+                              "height": "fit_content",
+                              "content": "3",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 13.0,
+                              "fontWeight": 500,
+                              "fill": [
+                                {
+                                  "type": "solid",
+                                  "color": "#CBD5E1"
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "n13255",
+                          "width": 110.0,
+                          "height": "fit_content",
+                          "layout": "horizontal",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "n13256",
+                              "width": "fit_content",
+                              "height": "fit_content",
+                              "content": "USD 848.79",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 13.0,
+                              "fontWeight": 600,
+                              "fill": [
+                                {
+                                  "type": "solid",
+                                  "color": "#F8FAFC"
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "n13257",
+                  "width": "fit_content",
+                  "height": "fit_content",
+                  "layout": "horizontal",
+                  "gap": 8.0,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon_font",
+                      "id": "n13258",
+                      "iconFontName": "info",
+                      "width": 13.0,
+                      "height": 13.0,
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "#64748B"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "n13259",
+                      "width": "fit_content",
+                      "height": "fit_content",
+                      "content": "系统内看中文、给客户的看英文：文字报价、报价单与 PI 导出都用英文描述；只给还没有英文描述的行生成",
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 12.0,
+                      "fontWeight": 400,
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "#64748B"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "n13260",
+      "name": "Q10b-生成英文描述-生成中与完成",
+      "x": 1900.0,
+      "y": 11800.0,
+      "width": 1760.0,
+      "height": 980.0,
+      "layout": "horizontal",
+      "gap": 0.0,
+      "justifyContent": "center",
+      "alignItems": "center",
+      "fill": [
+        {
+          "type": "solid",
+          "color": "#0B1220"
+        }
+      ],
+      "children": [
+        {
+          "type": "frame",
+          "id": "n13261",
+          "width": 1500.0,
+          "height": "fit_content",
+          "layout": "vertical",
+          "gap": 12.0,
+          "children": [
+            {
+              "type": "text",
+              "id": "n13262",
+              "width": "fit_content",
+              "height": "fit_content",
+              "content": "生成中",
+              "fontFamily": "Noto Sans SC",
+              "fontSize": 13.0,
+              "fontWeight": 700,
+              "fill": [
+                {
+                  "type": "solid",
+                  "color": "#CBD5E1"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "n13263",
+              "width": "fill_container",
+              "height": "fit_content",
+              "layout": "horizontal",
+              "gap": 10.0,
+              "padding": [
+                12.0,
+                16.0
+              ],
+              "alignItems": "center",
+              "cornerRadius": 12.0,
+              "fill": [
+                {
+                  "type": "solid",
+                  "color": "#182B4C"
+                }
+              ],
+              "children": [
+                {
+                  "type": "icon_font",
+                  "id": "n13264",
+                  "iconFontName": "loader",
+                  "width": 16.0,
+                  "height": 16.0,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "#60A5FA"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "n13265",
+                  "width": "fit_content",
+                  "height": "fit_content",
+                  "content": "正在生成 3 个型号的英文描述，大约需要半分钟，可以继续编辑其他内容",
+                  "fontFamily": "Noto Sans SC",
+                  "fontSize": 13.0,
+                  "fontWeight": 500,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "#CBD5E1"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "n13266",
+                  "width": "fill_container",
+                  "height": 1.0,
+                  "children": []
+                },
+                {
+                  "type": "frame",
+                  "id": "n13267",
+                  "opacity": 0.4,
+                  "width": "fit_content",
+                  "height": 34.0,
+                  "layout": "horizontal",
+                  "gap": 6.0,
+                  "padding": [
+                    0.0,
+                    14.0
+                  ],
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "cornerRadius": 10.0,
+                  "fill": [
+                    {
+                      "type": "linear_gradient",
+                      "angle": 135.0,
+                      "stops": [
+                        {
+                          "offset": 0.0,
+                          "color": "#2563EB"
+                        },
+                        {
+                          "offset": 1.0,
+                          "color": "#4F46E5"
+                        }
+                      ]
+                    }
+                  ],
+                  "children": [
+                    {
+                      "type": "icon_font",
+                      "id": "n13268",
+                      "iconFontName": "loader",
+                      "width": 14.0,
+                      "height": 14.0,
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "#FFFFFF"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "n13269",
+                      "width": "fit_content",
+                      "height": "fit_content",
+                      "content": "生成中…",
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 13.0,
+                      "fontWeight": 600,
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "#FFFFFF"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "text",
+              "id": "n13270",
+              "width": "fit_content",
+              "height": "fit_content",
+              "content": "完成后",
+              "fontFamily": "Noto Sans SC",
+              "fontSize": 13.0,
+              "fontWeight": 700,
+              "fill": [
+                {
+                  "type": "solid",
+                  "color": "#CBD5E1"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "n13271",
+              "width": "fill_container",
+              "height": "fit_content",
+              "layout": "horizontal",
+              "gap": 8.0,
+              "padding": [
+                10.0,
+                12.0
+              ],
+              "alignItems": "center",
+              "cornerRadius": 10.0,
+              "fill": [
+                {
+                  "type": "solid",
+                  "color": "#0F1828"
+                }
+              ],
+              "children": [
+                {
+                  "type": "icon_font",
+                  "id": "n13272",
+                  "iconFontName": "info",
+                  "width": 14.0,
+                  "height": 14.0,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "#60A5FA"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "n13273",
+                  "width": "fill_container",
+                  "height": "fit_content",
+                  "content": "已生成 3 个型号的英文描述，请检查后保存；中文描述不变，对应的询盘型号也补上了英文描述，以后再报价直接用。",
+                  "fontFamily": "Noto Sans SC",
+                  "fontSize": 12.0,
+                  "fontWeight": 400,
+                  "lineHeight": 1.6,
+                  "textGrowth": "fixed-width",
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "#CBD5E1"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "n13274",
+              "width": "fill_container",
+              "height": "fit_content",
+              "layout": "vertical",
+              "clipContent": true,
+              "cornerRadius": 16.0,
+              "fill": [
+                {
+                  "type": "solid",
+                  "color": "#111A2C"
+                }
+              ],
+              "stroke": {
+                "thickness": 1.0,
+                "fill": [
+                  {
+                    "type": "solid",
+                    "color": "#1E293B"
+                  }
+                ]
+              },
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "n13275",
+                  "width": "fill_container",
+                  "height": "fit_content",
+                  "layout": "horizontal",
+                  "gap": 12.0,
+                  "padding": [
+                    12.0,
+                    20.0
+                  ],
+                  "alignItems": "center",
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "#0D1524"
+                    }
+                  ],
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "n13276",
+                      "width": 16.0,
+                      "height": "fit_content",
+                      "layout": "horizontal",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "n13277",
+                          "width": "fit_content",
+                          "height": "fit_content",
+                          "content": "#",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 12.0,
+                          "fontWeight": 500,
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#94A3B8"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "n13278",
+                      "width": 200.0,
+                      "height": "fit_content",
+                      "layout": "horizontal",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "n13279",
+                          "width": "fit_content",
+                          "height": "fit_content",
+                          "content": "型号 / 品牌",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 12.0,
+                          "fontWeight": 500,
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#94A3B8"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "n13280",
+                      "width": "fill_container",
+                      "height": "fit_content",
+                      "layout": "horizontal",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "n13281",
+                          "width": "fit_content",
+                          "height": "fit_content",
+                          "content": "描述",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 12.0,
+                          "fontWeight": 500,
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#94A3B8"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "n13282",
+                      "width": 40.0,
+                      "height": "fit_content",
+                      "layout": "horizontal",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "n13283",
+                          "width": "fit_content",
+                          "height": "fit_content",
+                          "content": "数量",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 12.0,
+                          "fontWeight": 500,
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#94A3B8"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "n13284",
+                      "width": 110.0,
+                      "height": "fit_content",
+                      "layout": "horizontal",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "n13285",
+                          "width": "fit_content",
+                          "height": "fit_content",
+                          "content": "售价",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 12.0,
+                          "fontWeight": 500,
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#94A3B8"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "n13286",
+                  "width": "fill_container",
+                  "height": 1.0,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "#1E293B"
+                    }
+                  ],
+                  "children": []
+                },
+                {
+                  "type": "frame",
+                  "id": "n13287",
+                  "width": "fill_container",
+                  "height": "fit_content",
+                  "layout": "horizontal",
+                  "gap": 12.0,
+                  "padding": [
+                    14.0,
+                    20.0
+                  ],
+                  "alignItems": "center",
+                  "fill": [],
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "n13288",
+                      "width": 16.0,
+                      "height": "fit_content",
+                      "layout": "horizontal",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "n13289",
+                          "width": "fit_content",
+                          "height": "fit_content",
+                          "content": "1",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 13.0,
+                          "fontWeight": 400,
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#94A3B8"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "n13290",
+                      "width": 200.0,
+                      "height": "fit_content",
+                      "layout": "horizontal",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "n13291",
+                          "width": "fill_container",
+                          "height": "fit_content",
+                          "layout": "vertical",
+                          "gap": 2.0,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "n13292",
+                              "width": "fit_content",
+                              "height": "fit_content",
+                              "content": "3VA2340-5JQ42-0AA0",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 13.0,
+                              "fontWeight": 700,
+                              "fill": [
+                                {
+                                  "type": "solid",
+                                  "color": "#F8FAFC"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "text",
+                              "id": "n13293",
+                              "width": "fit_content",
+                              "height": "fit_content",
+                              "content": "西门子（导出为 Siemens）",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 12.0,
+                              "fontWeight": 400,
+                              "fill": [
+                                {
+                                  "type": "solid",
+                                  "color": "#94A3B8"
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "n13294",
+                      "width": "fill_container",
+                      "height": "fit_content",
+                      "layout": "horizontal",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "n13295",
+                          "width": "fill_container",
+                          "height": "fit_content",
+                          "layout": "vertical",
+                          "gap": 6.0,
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "n13296",
+                              "width": "fill_container",
+                              "height": "fit_content",
+                              "layout": "horizontal",
+                              "gap": 6.0,
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "n13297",
+                                  "width": "fit_content",
+                                  "height": 22.0,
+                                  "layout": "horizontal",
+                                  "gap": 4.0,
+                                  "padding": [
+                                    0.0,
+                                    9.0
+                                  ],
+                                  "alignItems": "center",
+                                  "cornerRadius": 12.0,
+                                  "fill": [
+                                    {
+                                      "type": "solid",
+                                      "color": "#16233A"
+                                    }
+                                  ],
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "n13298",
+                                      "width": "fit_content",
+                                      "height": "fit_content",
+                                      "content": "中",
+                                      "fontFamily": "Noto Sans SC",
+                                      "fontSize": 12.0,
+                                      "fontWeight": 600,
+                                      "fill": [
+                                        {
+                                          "type": "solid",
+                                          "color": "#CBD5E1"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "n13299",
+                                  "width": "fit_content",
+                                  "height": "fit_content",
+                                  "content": "系统内显示",
+                                  "fontFamily": "Noto Sans SC",
+                                  "fontSize": 11.0,
+                                  "fontWeight": 400,
+                                  "fill": [
+                                    {
+                                      "type": "solid",
+                                      "color": "#94A3B8"
+                                    }
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "n13300",
+                              "width": "fill_container",
+                              "height": "fit_content",
+                              "layout": "horizontal",
+                              "padding": [
+                                8.0,
+                                10.0
+                              ],
+                              "cornerRadius": 8.0,
+                              "fill": [
+                                {
+                                  "type": "solid",
+                                  "color": "#0D1524"
+                                }
+                              ],
+                              "stroke": {
+                                "thickness": 1.0,
+                                "fill": [
+                                  {
+                                    "type": "solid",
+                                    "color": "#1E293B"
+                                  }
+                                ]
+                              },
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "n13301",
+                                  "width": "fill_container",
+                                  "height": "fit_content",
+                                  "content": "西门子 3VA2 塑壳断路器，400A 4P，55kA/415V，ETU560 LSIG 电子脱扣器",
+                                  "fontFamily": "Noto Sans SC",
+                                  "fontSize": 13.0,
+                                  "fontWeight": 400,
+                                  "lineHeight": 1.6,
+                                  "textGrowth": "fixed-width",
+                                  "fill": [
+                                    {
+                                      "type": "solid",
+                                      "color": "#F8FAFC"
+                                    }
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "n13302",
+                              "width": "fill_container",
+                              "height": "fit_content",
+                              "layout": "horizontal",
+                              "gap": 6.0,
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "n13303",
+                                  "width": "fit_content",
+                                  "height": 22.0,
+                                  "layout": "horizontal",
+                                  "gap": 4.0,
+                                  "padding": [
+                                    0.0,
+                                    9.0
+                                  ],
+                                  "alignItems": "center",
+                                  "cornerRadius": 12.0,
+                                  "fill": [
+                                    {
+                                      "type": "solid",
+                                      "color": "#182B4C"
+                                    }
+                                  ],
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "n13304",
+                                      "width": "fit_content",
+                                      "height": "fit_content",
+                                      "content": "EN",
+                                      "fontFamily": "Noto Sans SC",
+                                      "fontSize": 12.0,
+                                      "fontWeight": 600,
+                                      "fill": [
+                                        {
+                                          "type": "solid",
+                                          "color": "#60A5FA"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "n13305",
+                                  "width": "fit_content",
+                                  "height": "fit_content",
+                                  "content": "给客户看，导出为 Inquiry Info",
+                                  "fontFamily": "Noto Sans SC",
+                                  "fontSize": 11.0,
+                                  "fontWeight": 400,
+                                  "fill": [
+                                    {
+                                      "type": "solid",
+                                      "color": "#94A3B8"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "n13306",
+                                  "width": "fill_container",
+                                  "height": 1.0,
+                                  "children": []
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "n13307",
+                                  "width": "fit_content",
+                                  "height": "fit_content",
+                                  "content": "刚生成，请检查",
+                                  "fontFamily": "Noto Sans SC",
+                                  "fontSize": 11.0,
+                                  "fontWeight": 500,
+                                  "fill": [
+                                    {
+                                      "type": "solid",
+                                      "color": "#4ADE80"
+                                    }
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "n13308",
+                              "width": "fill_container",
+                              "height": "fit_content",
+                              "layout": "horizontal",
+                              "padding": [
+                                8.0,
+                                10.0
+                              ],
+                              "cornerRadius": 8.0,
+                              "fill": [
+                                {
+                                  "type": "solid",
+                                  "color": "#0D1524"
+                                }
+                              ],
+                              "stroke": {
+                                "thickness": 1.5,
+                                "fill": [
+                                  {
+                                    "type": "solid",
+                                    "color": "#4ADE80"
+                                  }
+                                ]
+                              },
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "n13309",
+                                  "width": "fill_container",
+                                  "height": "fit_content",
+                                  "content": "Siemens 3VA2 MCCB, 400A 4P, 55kA/415V, ETU560 LSIG trip unit",
+                                  "fontFamily": "Noto Sans SC",
+                                  "fontSize": 13.0,
+                                  "fontWeight": 400,
+                                  "lineHeight": 1.6,
+                                  "textGrowth": "fixed-width",
+                                  "fill": [
+                                    {
+                                      "type": "solid",
+                                      "color": "#F8FAFC"
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "n13310",
+                      "width": 40.0,
+                      "height": "fit_content",
+                      "layout": "horizontal",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "n13311",
+                          "width": "fit_content",
+                          "height": "fit_content",
+                          "content": "3",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 13.0,
+                          "fontWeight": 500,
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#CBD5E1"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "n13312",
+                      "width": 110.0,
+                      "height": "fit_content",
+                      "layout": "horizontal",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "n13313",
+                          "width": "fit_content",
+                          "height": "fit_content",
+                          "content": "USD 848.79",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 13.0,
+                          "fontWeight": 600,
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#F8FAFC"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "n13314",
+                  "width": "fill_container",
+                  "height": 1.0,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "#1E293B"
+                    }
+                  ],
+                  "children": []
+                },
+                {
+                  "type": "frame",
+                  "id": "n13315",
+                  "width": "fill_container",
+                  "height": "fit_content",
+                  "layout": "horizontal",
+                  "gap": 12.0,
+                  "padding": [
+                    14.0,
+                    20.0
+                  ],
+                  "alignItems": "center",
+                  "fill": [],
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "n13316",
+                      "width": 16.0,
+                      "height": "fit_content",
+                      "layout": "horizontal",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "n13317",
+                          "width": "fit_content",
+                          "height": "fit_content",
+                          "content": "2",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 13.0,
+                          "fontWeight": 400,
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#94A3B8"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "n13318",
+                      "width": 200.0,
+                      "height": "fit_content",
+                      "layout": "horizontal",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "n13319",
+                          "width": "fill_container",
+                          "height": "fit_content",
+                          "layout": "vertical",
+                          "gap": 2.0,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "n13320",
+                              "width": "fit_content",
+                              "height": "fit_content",
+                              "content": "3VA9988-0AA12",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 13.0,
+                              "fontWeight": 700,
+                              "fill": [
+                                {
+                                  "type": "solid",
+                                  "color": "#F8FAFC"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "text",
+                              "id": "n13321",
+                              "width": "fit_content",
+                              "height": "fit_content",
+                              "content": "西门子（导出为 Siemens）",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 12.0,
+                              "fontWeight": 400,
+                              "fill": [
+                                {
+                                  "type": "solid",
+                                  "color": "#94A3B8"
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "n13322",
+                      "width": "fill_container",
+                      "height": "fit_content",
+                      "layout": "horizontal",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "n13323",
+                          "width": "fill_container",
+                          "height": "fit_content",
+                          "layout": "vertical",
+                          "gap": 6.0,
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "n13324",
+                              "width": "fill_container",
+                              "height": "fit_content",
+                              "layout": "horizontal",
+                              "gap": 6.0,
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "n13325",
+                                  "width": "fit_content",
+                                  "height": 22.0,
+                                  "layout": "horizontal",
+                                  "gap": 4.0,
+                                  "padding": [
+                                    0.0,
+                                    9.0
+                                  ],
+                                  "alignItems": "center",
+                                  "cornerRadius": 12.0,
+                                  "fill": [
+                                    {
+                                      "type": "solid",
+                                      "color": "#16233A"
+                                    }
+                                  ],
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "n13326",
+                                      "width": "fit_content",
+                                      "height": "fit_content",
+                                      "content": "中",
+                                      "fontFamily": "Noto Sans SC",
+                                      "fontSize": 12.0,
+                                      "fontWeight": 600,
+                                      "fill": [
+                                        {
+                                          "type": "solid",
+                                          "color": "#CBD5E1"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "n13327",
+                                  "width": "fit_content",
+                                  "height": "fit_content",
+                                  "content": "系统内显示",
+                                  "fontFamily": "Noto Sans SC",
+                                  "fontSize": 11.0,
+                                  "fontWeight": 400,
+                                  "fill": [
+                                    {
+                                      "type": "solid",
+                                      "color": "#94A3B8"
+                                    }
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "n13328",
+                              "width": "fill_container",
+                              "height": "fit_content",
+                              "layout": "horizontal",
+                              "padding": [
+                                8.0,
+                                10.0
+                              ],
+                              "cornerRadius": 8.0,
+                              "fill": [
+                                {
+                                  "type": "solid",
+                                  "color": "#0D1524"
+                                }
+                              ],
+                              "stroke": {
+                                "thickness": 1.0,
+                                "fill": [
+                                  {
+                                    "type": "solid",
+                                    "color": "#1E293B"
+                                  }
+                                ]
+                              },
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "n13329",
+                                  "width": "fill_container",
+                                  "height": "fit_content",
+                                  "content": "西门子 3VA 辅助开关，转换触点 HQ 型 7mm，适用 3VA1/3VA2",
+                                  "fontFamily": "Noto Sans SC",
+                                  "fontSize": 13.0,
+                                  "fontWeight": 400,
+                                  "lineHeight": 1.6,
+                                  "textGrowth": "fixed-width",
+                                  "fill": [
+                                    {
+                                      "type": "solid",
+                                      "color": "#F8FAFC"
+                                    }
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "n13330",
+                              "width": "fill_container",
+                              "height": "fit_content",
+                              "layout": "horizontal",
+                              "gap": 6.0,
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "n13331",
+                                  "width": "fit_content",
+                                  "height": 22.0,
+                                  "layout": "horizontal",
+                                  "gap": 4.0,
+                                  "padding": [
+                                    0.0,
+                                    9.0
+                                  ],
+                                  "alignItems": "center",
+                                  "cornerRadius": 12.0,
+                                  "fill": [
+                                    {
+                                      "type": "solid",
+                                      "color": "#182B4C"
+                                    }
+                                  ],
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "n13332",
+                                      "width": "fit_content",
+                                      "height": "fit_content",
+                                      "content": "EN",
+                                      "fontFamily": "Noto Sans SC",
+                                      "fontSize": 12.0,
+                                      "fontWeight": 600,
+                                      "fill": [
+                                        {
+                                          "type": "solid",
+                                          "color": "#60A5FA"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "n13333",
+                                  "width": "fit_content",
+                                  "height": "fit_content",
+                                  "content": "给客户看，导出为 Inquiry Info",
+                                  "fontFamily": "Noto Sans SC",
+                                  "fontSize": 11.0,
+                                  "fontWeight": 400,
+                                  "fill": [
+                                    {
+                                      "type": "solid",
+                                      "color": "#94A3B8"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "n13334",
+                                  "width": "fill_container",
+                                  "height": 1.0,
+                                  "children": []
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "n13335",
+                                  "width": "fit_content",
+                                  "height": "fit_content",
+                                  "content": "刚生成，请检查",
+                                  "fontFamily": "Noto Sans SC",
+                                  "fontSize": 11.0,
+                                  "fontWeight": 500,
+                                  "fill": [
+                                    {
+                                      "type": "solid",
+                                      "color": "#4ADE80"
+                                    }
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "n13336",
+                              "width": "fill_container",
+                              "height": "fit_content",
+                              "layout": "horizontal",
+                              "padding": [
+                                8.0,
+                                10.0
+                              ],
+                              "cornerRadius": 8.0,
+                              "fill": [
+                                {
+                                  "type": "solid",
+                                  "color": "#0D1524"
+                                }
+                              ],
+                              "stroke": {
+                                "thickness": 1.5,
+                                "fill": [
+                                  {
+                                    "type": "solid",
+                                    "color": "#4ADE80"
+                                  }
+                                ]
+                              },
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "n13337",
+                                  "width": "fill_container",
+                                  "height": "fit_content",
+                                  "content": "Siemens 3VA auxiliary switch, changeover contact HQ 7mm, for 3VA1/3VA2",
+                                  "fontFamily": "Noto Sans SC",
+                                  "fontSize": 13.0,
+                                  "fontWeight": 400,
+                                  "lineHeight": 1.6,
+                                  "textGrowth": "fixed-width",
+                                  "fill": [
+                                    {
+                                      "type": "solid",
+                                      "color": "#F8FAFC"
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "n13338",
+                      "width": 40.0,
+                      "height": "fit_content",
+                      "layout": "horizontal",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "n13339",
+                          "width": "fit_content",
+                          "height": "fit_content",
+                          "content": "3",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 13.0,
+                          "fontWeight": 500,
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#CBD5E1"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "n13340",
+                      "width": 110.0,
+                      "height": "fit_content",
+                      "layout": "horizontal",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "n13341",
+                          "width": "fit_content",
+                          "height": "fit_content",
+                          "content": "USD 848.79",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 13.0,
+                          "fontWeight": 600,
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#F8FAFC"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "n13342",
+                  "width": "fill_container",
+                  "height": 1.0,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "#1E293B"
+                    }
+                  ],
+                  "children": []
+                },
+                {
+                  "type": "frame",
+                  "id": "n13343",
+                  "width": "fill_container",
+                  "height": "fit_content",
+                  "layout": "horizontal",
+                  "gap": 12.0,
+                  "padding": [
+                    14.0,
+                    20.0
+                  ],
+                  "alignItems": "center",
+                  "fill": [],
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "n13344",
+                      "width": 16.0,
+                      "height": "fit_content",
+                      "layout": "horizontal",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "n13345",
+                          "width": "fit_content",
+                          "height": "fit_content",
+                          "content": "3",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 13.0,
+                          "fontWeight": 400,
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#94A3B8"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "n13346",
+                      "width": 200.0,
+                      "height": "fit_content",
+                      "layout": "horizontal",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "n13347",
+                          "width": "fill_container",
+                          "height": "fit_content",
+                          "layout": "vertical",
+                          "gap": 2.0,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "n13348",
+                              "width": "fit_content",
+                              "height": "fit_content",
+                              "content": "3VA9988-0AB12",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 13.0,
+                              "fontWeight": 700,
+                              "fill": [
+                                {
+                                  "type": "solid",
+                                  "color": "#F8FAFC"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "text",
+                              "id": "n13349",
+                              "width": "fit_content",
+                              "height": "fit_content",
+                              "content": "西门子（导出为 Siemens）",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 12.0,
+                              "fontWeight": 400,
+                              "fill": [
+                                {
+                                  "type": "solid",
+                                  "color": "#94A3B8"
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "n13350",
+                      "width": "fill_container",
+                      "height": "fit_content",
+                      "layout": "horizontal",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "n13351",
+                          "width": "fill_container",
+                          "height": "fit_content",
+                          "layout": "vertical",
+                          "gap": 6.0,
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "n13352",
+                              "width": "fill_container",
+                              "height": "fit_content",
+                              "layout": "horizontal",
+                              "gap": 6.0,
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "n13353",
+                                  "width": "fit_content",
+                                  "height": 22.0,
+                                  "layout": "horizontal",
+                                  "gap": 4.0,
+                                  "padding": [
+                                    0.0,
+                                    9.0
+                                  ],
+                                  "alignItems": "center",
+                                  "cornerRadius": 12.0,
+                                  "fill": [
+                                    {
+                                      "type": "solid",
+                                      "color": "#16233A"
+                                    }
+                                  ],
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "n13354",
+                                      "width": "fit_content",
+                                      "height": "fit_content",
+                                      "content": "中",
+                                      "fontFamily": "Noto Sans SC",
+                                      "fontSize": 12.0,
+                                      "fontWeight": 600,
+                                      "fill": [
+                                        {
+                                          "type": "solid",
+                                          "color": "#CBD5E1"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "n13355",
+                                  "width": "fit_content",
+                                  "height": "fit_content",
+                                  "content": "系统内显示",
+                                  "fontFamily": "Noto Sans SC",
+                                  "fontSize": 11.0,
+                                  "fontWeight": 400,
+                                  "fill": [
+                                    {
+                                      "type": "solid",
+                                      "color": "#94A3B8"
+                                    }
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "n13356",
+                              "width": "fill_container",
+                              "height": "fit_content",
+                              "layout": "horizontal",
+                              "padding": [
+                                8.0,
+                                10.0
+                              ],
+                              "cornerRadius": 8.0,
+                              "fill": [
+                                {
+                                  "type": "solid",
+                                  "color": "#0D1524"
+                                }
+                              ],
+                              "stroke": {
+                                "thickness": 1.0,
+                                "fill": [
+                                  {
+                                    "type": "solid",
+                                    "color": "#1E293B"
+                                  }
+                                ]
+                              },
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "n13357",
+                                  "width": "fill_container",
+                                  "height": "fit_content",
+                                  "content": "西门子 3VA 跳闸报警开关，转换触点 HQ 型 7mm，适用 3VA1/3VA2",
+                                  "fontFamily": "Noto Sans SC",
+                                  "fontSize": 13.0,
+                                  "fontWeight": 400,
+                                  "lineHeight": 1.6,
+                                  "textGrowth": "fixed-width",
+                                  "fill": [
+                                    {
+                                      "type": "solid",
+                                      "color": "#F8FAFC"
+                                    }
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "n13358",
+                              "width": "fill_container",
+                              "height": "fit_content",
+                              "layout": "horizontal",
+                              "gap": 6.0,
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "n13359",
+                                  "width": "fit_content",
+                                  "height": 22.0,
+                                  "layout": "horizontal",
+                                  "gap": 4.0,
+                                  "padding": [
+                                    0.0,
+                                    9.0
+                                  ],
+                                  "alignItems": "center",
+                                  "cornerRadius": 12.0,
+                                  "fill": [
+                                    {
+                                      "type": "solid",
+                                      "color": "#182B4C"
+                                    }
+                                  ],
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "n13360",
+                                      "width": "fit_content",
+                                      "height": "fit_content",
+                                      "content": "EN",
+                                      "fontFamily": "Noto Sans SC",
+                                      "fontSize": 12.0,
+                                      "fontWeight": 600,
+                                      "fill": [
+                                        {
+                                          "type": "solid",
+                                          "color": "#60A5FA"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "n13361",
+                                  "width": "fit_content",
+                                  "height": "fit_content",
+                                  "content": "给客户看，导出为 Inquiry Info",
+                                  "fontFamily": "Noto Sans SC",
+                                  "fontSize": 11.0,
+                                  "fontWeight": 400,
+                                  "fill": [
+                                    {
+                                      "type": "solid",
+                                      "color": "#94A3B8"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "n13362",
+                                  "width": "fill_container",
+                                  "height": 1.0,
+                                  "children": []
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "n13363",
+                                  "width": "fit_content",
+                                  "height": "fit_content",
+                                  "content": "刚生成，请检查",
+                                  "fontFamily": "Noto Sans SC",
+                                  "fontSize": 11.0,
+                                  "fontWeight": 500,
+                                  "fill": [
+                                    {
+                                      "type": "solid",
+                                      "color": "#4ADE80"
+                                    }
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "n13364",
+                              "width": "fill_container",
+                              "height": "fit_content",
+                              "layout": "horizontal",
+                              "padding": [
+                                8.0,
+                                10.0
+                              ],
+                              "cornerRadius": 8.0,
+                              "fill": [
+                                {
+                                  "type": "solid",
+                                  "color": "#0D1524"
+                                }
+                              ],
+                              "stroke": {
+                                "thickness": 1.5,
+                                "fill": [
+                                  {
+                                    "type": "solid",
+                                    "color": "#4ADE80"
+                                  }
+                                ]
+                              },
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "n13365",
+                                  "width": "fill_container",
+                                  "height": "fit_content",
+                                  "content": "Siemens 3VA alarm switch, changeover contact HQ 7mm, for 3VA1/3VA2",
+                                  "fontFamily": "Noto Sans SC",
+                                  "fontSize": 13.0,
+                                  "fontWeight": 400,
+                                  "lineHeight": 1.6,
+                                  "textGrowth": "fixed-width",
+                                  "fill": [
+                                    {
+                                      "type": "solid",
+                                      "color": "#F8FAFC"
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "n13366",
+                      "width": 40.0,
+                      "height": "fit_content",
+                      "layout": "horizontal",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "n13367",
+                          "width": "fit_content",
+                          "height": "fit_content",
+                          "content": "3",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 13.0,
+                          "fontWeight": 500,
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#CBD5E1"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "n13368",
+                      "width": 110.0,
+                      "height": "fit_content",
+                      "layout": "horizontal",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "n13369",
+                          "width": "fit_content",
+                          "height": "fit_content",
+                          "content": "USD 848.79",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 13.0,
+                          "fontWeight": 600,
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#F8FAFC"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
     }
   ],
   "editorMeta": {
