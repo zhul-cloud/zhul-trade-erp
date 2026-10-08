@@ -14,6 +14,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * 报价单 → 模版渲染数据。只放对客户可见的字段：不含采购成本价、毛利率、净利润、采购渠道与店铺。
@@ -71,6 +72,19 @@ public final class QuotationRenderModels {
             m.put("item.unitPrice", i.getUnitPrice());
             m.put("item.unitPriceShort", shortPrice(i.getUnitPrice()));
             m.put("item.amount", i.getAmount());
+            if (isNoStockLine(i)) {
+                // 无货行：单价写 No stock、小计留空；有替代型号时描述后追加
+                String replacement = nz(i.getReplacementModel()).trim();
+                m.put(RenderModel.NO_STOCK, true);
+                m.put(RenderModel.NO_STOCK_TEXT, "no stock" + (replacement.isEmpty() ? "" : ", discontinued, replacement: " + replacement));
+                m.put("item.unitPrice", NO_STOCK_LABEL);
+                m.put("item.unitPriceShort", NO_STOCK_LABEL);
+                m.put("item.amount", null);
+                if (!replacement.isEmpty()) {
+                    String desc = nz(i.getDescription()).trim();
+                    m.put("item.description", (desc.isEmpty() ? "" : desc + " · ") + "Discontinued, replacement: " + replacement);
+                }
+            }
             rows.add(m);
         }
         List<Map<String, Object>> feeRows = new ArrayList<>(fees.size());
@@ -81,6 +95,13 @@ public final class QuotationRenderModels {
             feeRows.add(m);
         }
         return new RenderModel(h, rows, feeRows);
+    }
+
+    private static final String NO_STOCK_LABEL = "No stock";
+
+    /** 无货行：询价结果无货且没有填售价（填了售价就按正常报价） */
+    public static boolean isNoStockLine(QuotationItemDO i) {
+        return Objects.equals(i.getNoStock(), 1) && (i.getUnitPrice() == null || i.getUnitPrice().signum() == 0);
     }
 
     public static String symbol(String currency) {

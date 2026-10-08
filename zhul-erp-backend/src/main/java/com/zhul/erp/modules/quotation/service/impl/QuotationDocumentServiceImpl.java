@@ -57,6 +57,7 @@ public class QuotationDocumentServiceImpl implements QuotationDocumentService {
     private final DocumentConverter converter;
     private final CurrentUserResolver currentUser;
     private final ObjectMapper objectMapper;
+    private final com.zhul.erp.modules.product.support.BrandResolver brandResolver;
 
     /** 每个用户最新一次预览请求的序号：排队中的旧请求在拿到转换机会时直接放弃 */
     private final Map<Long, AtomicLong> previewSeq = new ConcurrentHashMap<>();
@@ -146,7 +147,8 @@ public class QuotationDocumentServiceImpl implements QuotationDocumentService {
         CustomerDO customer = customerMapper.selectById(q.getCustomerId());
         UserBasicDO owner = q.getOwnerId() == null || q.getOwnerId() == 0 ? null : userBasicMapper.selectById(q.getOwnerId().intValue());
         return QuotationRenderModels.build(q, items, fees, customer, owner, store.labels(),
-                q.getCreateTime() == null ? null : q.getCreateTime().toLocalDate());
+                q.getCreateTime() == null ? null : q.getCreateTime().toLocalDate())
+                .withBrands(brandResolver::displayNames);
     }
 
     /** 文件名：报价单编号_客户简称或名称 */

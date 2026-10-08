@@ -280,6 +280,9 @@ public class QuotationStore {
             item.setLeadTime(lead);
             item.setWarranty(r.getWarranty() == null || r.getWarranty().isBlank() ? QuotationConstants.DEFAULT_WARRANTY : r.getWarranty().trim());
             item.setQuantity(r.getQuantity());
+            if (r.getReplacementModel() != null) {
+                item.setReplacementModel(r.getReplacementModel().trim());
+            }
             int mode = item.getCostPrice() == null ? QuotationPricing.MODE_PRICE : r.getPricingMode();
             item.setPricingMode(mode);
             item.setMarginRate(r.getMarginRate());

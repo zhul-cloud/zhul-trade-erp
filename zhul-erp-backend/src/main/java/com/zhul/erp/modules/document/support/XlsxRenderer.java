@@ -123,7 +123,13 @@ public final class XlsxRenderer {
         }
         for (int k = 0; k < n; k++) {
             Row row = sheet.getRow(rowIdx + k);
+            boolean noStock = Boolean.TRUE.equals(rows.get(k).get(RenderModel.NO_STOCK));
             for (Cell cell : row) {
+                // 无货行没有单价：行内公式（如 数量 × 单价）清空，避免 #VALUE!，合计求和时按空单元格处理
+                if (noStock && cell.getCellType() == CellType.FORMULA) {
+                    cell.setBlank();
+                    continue;
+                }
                 fillCell(cell, rows.get(k), header);
             }
         }

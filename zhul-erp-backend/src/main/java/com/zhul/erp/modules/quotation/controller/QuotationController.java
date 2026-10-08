@@ -54,6 +54,28 @@ public class QuotationController {
     private final QuotationService service;
     private final QuoteCandidateService candidateService;
     private final QuotationDocumentService documentService;
+    private final com.zhul.erp.modules.quotation.service.QuotationStrategyService strategyService;
+
+    /** 报价策略「沿用历史价」：同一客户同型号最近的成交价（优先）或报价 */
+    @GetMapping("/{id}/price-history")
+    @PreAuthorize("@perm.canAccessMenu('/quotation/quotations')")
+    public Result<List<com.zhul.erp.modules.quotation.dto.PriceHistoryVO>> priceHistory(@PathVariable Long id,
+                                                                                      @RequestParam(required = false) Integer version) {
+        return Result.ok(strategyService.priceHistory(id, version));
+    }
+
+    @GetMapping("/strategy-tiers")
+    @PreAuthorize("@perm.canAccessMenu('/quotation/quotations')")
+    public Result<List<com.zhul.erp.modules.quotation.dto.StrategyTierDTO>> strategyTiers() {
+        return Result.ok(strategyService.tiers());
+    }
+
+    @PutMapping("/strategy-tiers")
+    @PreAuthorize("@perm.canAccessMenu('/quotation/quotations') and @perm.has('quotation:pricing:edit')")
+    public Result<List<com.zhul.erp.modules.quotation.dto.StrategyTierDTO>> saveStrategyTiers(
+            @Valid @RequestBody com.zhul.erp.modules.quotation.dto.SaveStrategyTiersRequest req) {
+        return Result.ok(strategyService.saveTiers(req.getTiers()));
+    }
 
     // ---------------------------------------------------------------- 新建时的候选
 

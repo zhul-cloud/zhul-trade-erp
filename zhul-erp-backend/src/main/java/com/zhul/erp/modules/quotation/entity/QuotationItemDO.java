@@ -36,6 +36,8 @@ public class QuotationItemDO {
     private String warranty;
     private Integer quantity;
     private Integer noStock;
+    /** 替代型号（无货行：询价时标停产记录的替代型号） */
+    private String replacementModel;
     private BigDecimal costPrice;
     /** 定价方式，见 QuotationPricing.MODE_* */
     private Integer pricingMode;

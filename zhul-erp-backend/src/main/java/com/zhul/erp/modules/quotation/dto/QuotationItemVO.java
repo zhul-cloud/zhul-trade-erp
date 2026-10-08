@@ -24,6 +24,12 @@ public class QuotationItemVO {
     private String warranty;
     private Integer quantity;
     private Boolean noStock;
+    /** 无货行：无货且没有填售价，不报价、不计入合计 */
+    private Boolean noStockLine;
+    /** 替代型号（无货行） */
+    private String replacementModel;
+    /** 发给客户的单据上的品牌（英文名；品牌资料里匹配不到时与原文相同） */
+    private String brandEn;
     private BigDecimal costPrice;
     private BigDecimal costPriceForeign;
     private Integer pricingMode;

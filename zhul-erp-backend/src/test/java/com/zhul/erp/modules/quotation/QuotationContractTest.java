@@ -561,17 +561,126 @@ class QuotationContractTest extends InquiryContractSupport {
     }
 
     @Test
-    void noStockLineNeedsPriceBeforeSending() throws Exception {
+    void noStockLine_byInquiry_replacement_textExport_sendable_notInPi() throws Exception {
         long c = customer("Pacific Controls", "Australia");
-        long inq = seedInquiry(c, 6, "2026-10-03", m("6ES7214-1AG40-0XB0", "2640"), m("6ES7-NOSTOCK", "NOSTOCK"));
-        JsonNode byInquiry = byInquiries(inq);
-        assertEquals(1, byInquiry.path("items").size(), "按询盘报价时无货型号默认不带入");
-        JsonNode q = ok(create(write(Map.of("itemIds", itemIds(inq)))));
+        long inq = seedInquiry(c, 6, "2026-10-03", m("6ES7214-1AG40-0XB0", "2640"), m("6ES7313-6CE01-0AB0", "NOSTOCK"));
+        jdbc.update("update inquiry_item set lifecycle = 2, replacement_model = '6ES7313-6CG04-0AB0' where customer_inquiry_id = ? and line_no = 2", inq);
+        JsonNode q = byInquiries(inq);
+        assertEquals(2, q.path("items").size(), "按询盘报价时无货型号一起带入");
         JsonNode noStock = q.path("items").get(1);
-        assertTrue(noStock.path("noStock").asBoolean());
-        assertTrue(noStock.path("marginRate").isMissingNode() || noStock.path("marginRate").isNull(), "无货型号毛利率显示「—」");
-        assertTrue(fail(call(json(post(QT + "/" + q.path("id").asLong() + "/send"), "{\"channel\":1}"), admin)).path("message").asText()
-                .contains("还没有售价"));
+        assertTrue(noStock.path("noStockLine").asBoolean());
+        assertEquals("6ES7313-6CG04-0AB0", noStock.path("replacementModel").asText());
+        money(q.path("items").get(0).path("amount").asText(), q.path("itemAmount"));
+        long id = q.path("id").asLong();
+        Map<String, Object> body = saveBody(q);
+        line(body, 0).put("pricingMode", 3);
+        line(body, 0).put("unitPrice", new BigDecimal("463.20"));
+        ok(save(id, body));
+        String text = ok(call(get(QT + "/" + id + "/text"), admin)).path("text").asText();
+        assertTrue(text.endsWith("6ES7313-6CE01-0AB0 Siemens 1 no stock, discontinued, replacement: 6ES7313-6CG04-0AB0"), text);
+
+        MockHttpServletResponse xlsx = perform(get(QT + "/" + id + "/export").param("format", "xlsx"), admin);
+        StringBuilder all = new StringBuilder();
+        try (XSSFWorkbook wb = new XSSFWorkbook(new ByteArrayInputStream(xlsx.getContentAsByteArray()))) {
+            wb.getCreationHelper().createFormulaEvaluator().evaluateAll();
+            DataFormatter fmt = new DataFormatter();
+            for (Row row : wb.getSheetAt(0)) {
+                row.forEach(cell -> all.append(fmt.formatCellValue(cell, wb.getCreationHelper().createFormulaEvaluator())).append('|'));
+            }
+        }
+        assertTrue(all.toString().contains("No stock"), all.toString());
+        assertTrue(all.toString().contains("Discontinued, replacement: 6ES7313-6CG04-0AB0"));
+        assertFalse(all.toString().contains("#VALUE"), "无货行的行内公式已清空");
+
+        ok(call(json(post(QT + "/" + id + "/send"), "{\"channel\":1}"), admin));
+        JsonNode candidate = ok(call(get("/api/v1/sales/pis/candidates/quotations/" + id), admin));
+        assertEquals(1, candidate.path("items").size(), "无货行不能开 PI");
+
+        // 填了售价就按正常报价
+        long inq2 = seedInquiry(c, 6, "2026-10-04", m("6ES7-ALL-NOSTOCK", "NOSTOCK"));
+        JsonNode allNoStock = byInquiries(inq2);
+        assertEquals("报价单的型号都是无货，至少要有一个报价的型号才能发送",
+                fail(call(json(post(QT + "/" + allNoStock.path("id").asLong() + "/send"), "{\"channel\":1}"), admin)).path("message").asText());
+        Map<String, Object> priced = saveBody(allNoStock);
+        line(priced, 0).put("unitPrice", new BigDecimal("120.00"));
+        JsonNode after = ok(save(allNoStock.path("id").asLong(), priced));
+        assertFalse(after.path("items").get(0).path("noStockLine").asBoolean());
+        money("120.00", after.path("itemAmount"));
+    }
+
+    @Test
+    void brandsInCustomerDocumentsUseEnglishName() throws Exception {
+        jdbc.update("delete from product_brand_alias where alias_key = '烛龙测试品牌'");
+        jdbc.update("delete from product_brand where tenant_id = 0 and brand_name = 'Zhul Test Brand'");
+        jdbc.update("insert into product_brand (tenant_id, brand_name) values (0, 'Zhul Test Brand')");
+        long brand = jdbc.queryForObject("select id from product_brand where tenant_id = 0 and brand_name = 'Zhul Test Brand'", Long.class);
+        jdbc.update("insert into product_brand_alias (tenant_id, brand_id, alias, alias_key) values (0, ?, '烛龙测试品牌', '烛龙测试品牌')", brand);
+        try {
+            long c = customer("Pacific Controls", "Australia");
+            long inq = seedInquiry(c, 6, "2026-10-03", new M("ZT-001", "烛龙测试品牌", "PLC", 2, "1000", 1, 1),
+                    new M("UN-001", "没收录的牌子", "PLC", 1, "500", 1, 1));
+            JsonNode q = byInquiries(inq);
+            assertEquals("烛龙测试品牌", q.path("items").get(0).path("brand").asText(), "系统内仍显示原文");
+            String text = ok(call(get(QT + "/" + q.path("id").asLong() + "/text"), admin)).path("text").asText();
+            assertTrue(text.contains("ZT-001 Zhul Test Brand 2 "), text);
+            assertTrue(text.contains("UN-001 没收录的牌子 1 "), "匹配不到品牌主数据时保留原文");
+        } finally {
+            jdbc.update("delete from product_brand_alias where brand_id = ?", brand);
+            jdbc.update("delete from product_brand where id = ?", brand);
+        }
+    }
+
+    @Test
+    void priceHistory_orderFirst_sameCustomer_andStrategyTiers() throws Exception {
+        long c = customer("ACROBOT", "India");
+        long old = seedInquiry(c, 6, "2026-09-01", m("6ES7214-1AG40-0XB0", "2640"), m("6ES7231-4HD32-0XB0", "1680"));
+        JsonNode first = byInquiries(old);
+        Map<String, Object> body = saveBody(first);
+        line(body, 0).put("pricingMode", 3);
+        line(body, 0).put("unitPrice", new BigDecimal("463.20"));
+        line(body, 1).put("pricingMode", 3);
+        line(body, 1).put("unitPrice", new BigDecimal("267.00"));
+        ok(save(first.path("id").asLong(), body));
+        ok(call(json(post(QT + "/" + first.path("id").asLong() + "/send"), "{\"channel\":1}"), admin));
+        jdbc.update("delete from sales_order_item where tenant_id = 0");
+        jdbc.update("delete from sales_order where tenant_id = 0");
+        jdbc.update("insert into sales_order (tenant_id, so_no, source, sales_date, customer_id, owner_id, currency_code, status) "
+                + "values (0, 'SO20260912001', 2, '2026-09-12', ?, ?, 'USD', 1)", c, ADMIN_USER);
+        long so = jdbc.queryForObject("select id from sales_order where so_no = 'SO20260912001'", Long.class);
+        jdbc.update("insert into sales_order_item (tenant_id, so_id, line_no, model, quantity, unit_price) values (0, ?, 1, '6ES7214-1AG40-0XB0', 1, 440.00)", so);
+        try {
+            long now = seedInquiry(c, 6, "2026-10-08", m("6ES7214-1AG40-0XB0", "2640"), m("6es7231 4hd32 0xb0", "1680"), m("1756-PB72", "3100"));
+            long id = byInquiries(now).path("id").asLong();
+            JsonNode history = ok(call(get(QT + "/" + id + "/price-history"), admin));
+            assertEquals(2, history.size(), "没有历史价的型号不返回");
+            assertEquals("ORDER", history.get(0).path("kind").asText(), "成交价优先");
+            assertEquals("SO20260912001", history.get(0).path("docNo").asText());
+            money("440.00", history.get(0).path("unitPrice"));
+            assertEquals("QUOTATION", history.get(1).path("kind").asText(), "型号写法不同也能按归一化型号匹配");
+            assertEquals(first.path("quotationNo").asText(), history.get(1).path("docNo").asText());
+        } finally {
+            jdbc.update("delete from sales_order_item where tenant_id = 0");
+            jdbc.update("delete from sales_order where tenant_id = 0");
+        }
+
+        JsonNode tiers = ok(call(get(QT + "/strategy-tiers"), admin));
+        assertEquals(3, tiers.size());
+        money("35", tiers.get(0).path("marginRate"));
+        assertTrue(tiers.get(2).path("maxCost").isNull() || tiers.get(2).path("maxCost").isMissingNode());
+        assertEquals("最后一档不设上限", fail(call(json(put(QT + "/strategy-tiers"),
+                "{\"tiers\":[{\"maxCost\":500,\"marginRate\":30}]}"), admin)).path("message").asText());
+        assertEquals("各档的采购成本价上限需要大于 0 且逐档递增", fail(call(json(put(QT + "/strategy-tiers"),
+                "{\"tiers\":[{\"maxCost\":500,\"marginRate\":30},{\"maxCost\":200,\"marginRate\":20},{\"marginRate\":10}]}"), admin))
+                .path("message").asText());
+        try {
+            JsonNode saved = ok(call(json(put(QT + "/strategy-tiers"), "{\"tiers\":[{\"maxCost\":500,\"marginRate\":30},{\"marginRate\":15}]}"), admin));
+            assertEquals(2, saved.size());
+            assertEquals(2, ok(call(get(QT + "/strategy-tiers"), admin)).size());
+        } finally {
+            jdbc.update("delete from sys_config where tenant_id <> 0 and config_key = 'quotation.strategy.cost-tiers'");
+            jdbc.update("update sys_config set config_value = '[{\"maxCost\":300,\"marginRate\":35},{\"maxCost\":3000,\"marginRate\":20},{\"maxCost\":null,\"marginRate\":12}]' "
+                    + "where tenant_id = 0 and config_key = 'quotation.strategy.cost-tiers'");
+        }
     }
 
     // ---------------------------------------------------------------- 型号级锁定（真实询价录入）

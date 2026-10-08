@@ -65,6 +65,7 @@ public class PiDocumentServiceImpl implements PiDocumentService {
     private final DocumentConverter converter;
     private final CurrentUserResolver currentUser;
     private final ObjectMapper objectMapper;
+    private final com.zhul.erp.modules.product.support.BrandResolver brandResolver;
 
     /** 每个用户最新一次预览请求的序号：排队中的旧请求在拿到转换机会时直接放弃 */
     private final Map<Long, AtomicLong> previewSeq = new ConcurrentHashMap<>();
@@ -169,7 +170,8 @@ public class PiDocumentServiceImpl implements PiDocumentService {
         LocalDate date = v.getSentAt() != null ? v.getSentAt().toLocalDate() : LocalDate.now();
         return PiRenderModels.build(pi, v, items, fees, store.fromJson(v.getBuyerJson(), PartyDTO.class),
                 store.fromJson(v.getConsigneeJson(), PartyDTO.class), store.fromJson(v.getBankAccountJson(), BankSnapshotDTO.class),
-                customer, owner, quotationStore.labels(), date);
+                customer, owner, quotationStore.labels(), date)
+                .withBrands(brandResolver::displayNames);
     }
 
     /** 文件名：PI 编号_客户简称或名称 */

@@ -112,6 +112,7 @@ public class QuotationServiceImpl implements QuotationService {
     private final InquiryLookups lookups;
     private final LogService logService;
     private final DocumentNumberService documentNumberService;
+    private final com.zhul.erp.modules.product.support.BrandResolver brandResolver;
 
     // ---------------------------------------------------------------- 新建
 
@@ -131,10 +132,11 @@ public class QuotationServiceImpl implements QuotationService {
             Long customerId = sameCustomer(inquiries.values());
             Map<Long, QuoteCandidates.Candidate> evaluated = candidates.evaluate(candidates.itemsOf(inquiries.keySet()), customerId, null);
             picked = new ArrayList<>();
+            // 无货型号也带入（作为无货行），让客户知道是没货还是停产有替代
             for (QuoteCandidates.Candidate c : evaluated.values()) {
-                if (c.costQuote() != null) {
+                if (c.pickable()) {
                     picked.add(c);
-                } else if (!c.noStock()) {
+                } else {
                     pending++;
                 }
             }
@@ -274,6 +276,8 @@ public class QuotationServiceImpl implements QuotationService {
             line.setWarranty(QuotationConstants.DEFAULT_WARRANTY);
             line.setQuantity(src.getQuantity() == null || src.getQuantity() < 1 ? 1 : src.getQuantity());
             line.setNoStock(c.noStock() ? 1 : 0);
+            line.setReplacementModel(c.noStock() && Objects.equals(src.getLifecycle(), InquiryConstants.LIFECYCLE_DISCONTINUED)
+                    ? nz(src.getReplacementModel()).trim() : "");
             line.setCostPrice(c.costPrice());
             QuotationPricing.Suggestion s = QuotationPricing.suggest(line.getItemCondition(), line.getCostPrice(), strategy, conditionNames);
             if (line.getCostPrice() == null) {
@@ -435,7 +439,14 @@ public class QuotationServiceImpl implements QuotationService {
         if (items.isEmpty()) {
             throw new BizException("报价单没有型号，不能发送");
         }
+        if (items.stream().allMatch(QuotationRenderModels::isNoStockLine)) {
+            throw new BizException("报价单的型号都是无货，至少要有一个报价的型号才能发送");
+        }
         for (QuotationItemDO i : items) {
+            // 无货行不报价，发送时不要求售价
+            if (QuotationRenderModels.isNoStockLine(i)) {
+                continue;
+            }
             if (i.getUnitPrice() == null || i.getUnitPrice().signum() <= 0) {
                 throw new BizException("第 " + i.getLineNo() + " 行（" + i.getModel() + "）还没有售价");
             }
@@ -661,6 +672,7 @@ public class QuotationServiceImpl implements QuotationService {
         l.setWarranty(s.getWarranty());
         l.setQuantity(s.getQuantity());
         l.setNoStock(s.getNoStock());
+        l.setReplacementModel(s.getReplacementModel());
         l.setCostPrice(s.getCostPrice());
         l.setPricingMode(s.getPricingMode());
         l.setMarginRate(s.getMarginRate());
@@ -808,7 +820,12 @@ public class QuotationServiceImpl implements QuotationService {
                 vo.setActivePiNo(pi.piNo());
             }
         }
-        vo.setItems(items.stream().map(i -> toItemVo(i, labels, inquiryCodes)).toList());
+        Map<String, String> brandsEn = brandResolver.displayNames(items.stream().map(QuotationItemDO::getBrand).toList());
+        vo.setItems(items.stream().map(i -> {
+            QuotationItemVO x = toItemVo(i, labels, inquiryCodes);
+            x.setBrandEn(brandsEn.getOrDefault(i.getBrand(), i.getBrand()));
+            return x;
+        }).toList());
         vo.setFees(fees.stream().map(f -> {
             QuotationFeeVO fv = new QuotationFeeVO();
             fv.setFeeName(f.getFeeName());
@@ -892,6 +909,8 @@ public class QuotationServiceImpl implements QuotationService {
         vo.setWarranty(i.getWarranty());
         vo.setQuantity(i.getQuantity());
         vo.setNoStock(Objects.equals(i.getNoStock(), 1));
+        vo.setNoStockLine(QuotationRenderModels.isNoStockLine(i));
+        vo.setReplacementModel(i.getReplacementModel());
         vo.setCostPrice(i.getCostPrice());
         vo.setPricingMode(i.getPricingMode());
         vo.setMarginRate(i.getMarginRate());

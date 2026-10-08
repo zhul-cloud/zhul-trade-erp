@@ -21,6 +21,8 @@ public final class QuotationConstants {
     public static final String CONFIG_HINT_RETURNING_CUSTOMER = "quotation.hint.returning-customer";
     public static final String CONFIG_HINT_TO_CONFIRM = "quotation.hint.to-confirm";
     public static final String CONFIG_PREMIUM_BRANDS = "quotation.premium-brands";
+    /** 报价策略「按金额分层毛利」的默认档位（JSON） */
+    public static final String CONFIG_STRATEGY_TIERS = "quotation.strategy.cost-tiers";
 
     public static final String PERM_PRICING_EDIT = "quotation:pricing:edit";
 

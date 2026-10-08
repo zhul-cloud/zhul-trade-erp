@@ -71,7 +71,10 @@ public final class TextTemplateEngine {
             }
             List<Map<String, Object>> rows = "items".equals(m.group(1)) ? model.items() : model.fees();
             for (Map<String, Object> row : rows) {
-                out.append(fill(fill(body, row), model.header()));
+                // 无货行不套模版的行格式（避免「$」后面跟空单价），固定输出一行说明
+                String line = Boolean.TRUE.equals(row.get(RenderModel.NO_STOCK))
+                        ? RenderModel.NO_STOCK_LINE + (body.endsWith("\n") ? "\n" : "") : body;
+                out.append(fill(fill(line, row), model.header()));
             }
             last = m.end();
             if (last < template.length() && template.charAt(last) == '\n' && out.length() > 0 && out.charAt(out.length() - 1) == '\n') {

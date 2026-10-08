@@ -50,6 +50,9 @@ public class SaveQuotationRequest {
         private BigDecimal marginRate;
         private BigDecimal markupAmount;
         private BigDecimal unitPrice;
+        /** 替代型号（无货行可改、可清空） */
+        @Size(max = 128, message = "替代型号不能超过 128 个字符")
+        private String replacementModel;
     }
 
     @Data

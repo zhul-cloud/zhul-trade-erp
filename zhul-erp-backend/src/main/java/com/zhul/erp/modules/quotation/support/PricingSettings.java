@@ -123,7 +123,8 @@ public class PricingSettings {
         return "true".equalsIgnoreCase(value(tenantId, key));
     }
 
-    private String value(int tenantId, String key) {
+    /** 配置值：租户有自己的一份就用租户的，否则用平台默认 */
+    public String value(int tenantId, String key) {
         SysConfigDO own = tenantId == PLATFORM ? null : configRow(tenantId, key);
         SysConfigDO row = own != null ? own : configRow(PLATFORM, key);
         return row == null ? null : row.getConfigValue();

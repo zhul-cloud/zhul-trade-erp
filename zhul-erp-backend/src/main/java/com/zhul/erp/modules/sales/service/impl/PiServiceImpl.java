@@ -189,6 +189,8 @@ public class PiServiceImpl implements PiService {
         Map<Long, List<QuotationItemDO>> itemsByQuotation = quotationItemMapper.selectList(new LambdaQueryWrapper<QuotationItemDO>()
                         .in(QuotationItemDO::getQuotationId, ids)
                         .eq(QuotationItemDO::getIsCurrent, 1)
+                        // 无货行（无货且没有售价）不能开 PI
+                        .and(x -> x.ne(QuotationItemDO::getNoStock, 1).or().gt(QuotationItemDO::getUnitPrice, 0))
                 .isNull(QuotationItemDO::getDeletedAt)
                         .orderByAsc(QuotationItemDO::getLineNo))
                 .stream().collect(Collectors.groupingBy(QuotationItemDO::getQuotationId));
