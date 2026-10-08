@@ -44,6 +44,8 @@ export interface PiItem {
   brand: string;
   category?: string;
   description?: string;
+  /** 英文描述（PI 导出用；为空时退回中文） */
+  descriptionEn?: string;
   itemCondition: number;
   conditionName?: string;
   leadTime: number;
@@ -380,6 +382,7 @@ export interface SavePi {
   items: {
     id: number;
     description?: string;
+    descriptionEn?: string;
     leadTime?: number;
     warranty?: string;
     quantity: number;

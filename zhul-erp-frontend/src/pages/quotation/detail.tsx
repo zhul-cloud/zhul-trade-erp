@@ -43,6 +43,12 @@ import React, {
   useState,
 } from 'react';
 import {
+  DescriptionInputs,
+  MissingEnglishBanner,
+  needsEnglish,
+  useDescriptionTranslation,
+} from '@/components/BilingualDescription';
+import {
   DictTextInput,
   IncotermInput,
   PreviewPages,
@@ -121,6 +127,7 @@ const toDraft = (q: Quotation): Draft => ({
   items: q.items.map((i) => ({
     id: i.id,
     description: i.description ?? '',
+    descriptionEn: i.descriptionEn ?? '',
     leadTime: i.leadTime,
     warranty: i.warranty,
     quantity: i.quantity,
@@ -355,6 +362,9 @@ const QuotationDetail: React.FC = () => {
   const [strategyOpen, setStrategyOpen] = useState(false);
   /** 勾选的型号行：报价策略只作用于勾选的行（不勾选时作用于全部有价型号） */
   const [selected, setSelected] = useState<number[]>([]);
+  /** 刚由「生成英文描述」填入英文的行 */
+  const [generated, setGenerated] = useState<Set<number>>(new Set());
+  const translation = useDescriptionTranslation();
   const access = useAccess();
   const previewAbort = useRef<AbortController | undefined>(undefined);
 
@@ -686,6 +696,46 @@ const QuotationDetail: React.FC = () => {
     setStrategyOpen(false);
     message.success(`已按报价策略更新 ${prices.size} 个型号的售价，保存后生效`);
   };
+  // 缺英文描述：导出会退回中文，可一键生成
+  const missingEnglish = draft.items.filter(
+    (d) => (d.description ?? '').trim() && needsEnglish(d.descriptionEn),
+  );
+  const generateEnglish = () => {
+    const before = new Map(
+      missingEnglish.map((d) => [d.id, d.descriptionEn ?? '']),
+    );
+    translation.run(
+      missingEnglish.map((d) => ({
+        key: String(d.id),
+        text: (d.description ?? '').trim(),
+        inquiryItemId: itemById.get(d.id)?.inquiryItemId,
+      })),
+      (texts) => {
+        const filled = new Set<number>();
+        setDraft((cur) =>
+          cur
+            ? {
+                ...cur,
+                items: cur.items.map((i) => {
+                  const text = texts.get(String(i.id));
+                  // 生成期间业务员改过英文描述的行不覆盖
+                  if (
+                    !text ||
+                    !before.has(i.id) ||
+                    (i.descriptionEn ?? '') !== before.get(i.id)
+                  )
+                    return i;
+                  filled.add(i.id);
+                  return { ...i, descriptionEn: text };
+                }),
+              }
+            : cur,
+        );
+        setGenerated(filled);
+        message.success(`已生成 ${texts.size} 个型号的英文描述，请检查后保存`);
+      },
+    );
+  };
   const untranslated = [
     ...new Set(
       q.items
@@ -854,6 +904,11 @@ const QuotationDetail: React.FC = () => {
           <Pill tone="orange">{h}</Pill>
         </span>
       ))}
+      {d && (d.description ?? '').trim() && needsEnglish(d.descriptionEn) && (
+        <span style={{ display: 'inline-block', marginTop: 4 }}>
+          <Pill tone="orange">缺英文描述</Pill>
+        </span>
+      )}
     </div>
   );
 
@@ -1554,6 +1609,13 @@ const QuotationDetail: React.FC = () => {
           </Button>
         )}
       </div>
+      {editable && (
+        <MissingEnglishBanner
+          count={missingEnglish.length}
+          running={translation.running}
+          onGenerate={generateEnglish}
+        />
+      )}
       {untranslated.length > 0 && (
         <Alert
           type="warning"
@@ -1622,26 +1684,20 @@ const QuotationDetail: React.FC = () => {
                   padding: '4px 0',
                 }}
               >
-                <div>
-                  <div
-                    style={{
-                      fontSize: 12,
-                      color: palette.mute,
-                      marginBottom: 4,
-                    }}
-                  >
-                    描述（英文，显示在报价单上）
-                  </div>
-                  <Input
-                    value={d.description}
-                    maxLength={300}
-                    onChange={(e) =>
-                      updateItem(d.id, { description: e.target.value })
-                    }
-                    placeholder="如 INTERFACE MODULE ET200S"
-                    aria-label="描述"
-                  />
-                </div>
+                <DescriptionInputs
+                  zh={d.description}
+                  en={d.descriptionEn}
+                  generated={generated.has(d.id)}
+                  onZh={(v) => updateItem(d.id, { description: v })}
+                  onEn={(v) => {
+                    updateItem(d.id, { descriptionEn: v });
+                    setGenerated((g) => {
+                      const next = new Set(g);
+                      next.delete(d.id);
+                      return next;
+                    });
+                  }}
+                />
                 {compact && (
                   <>
                     <div>

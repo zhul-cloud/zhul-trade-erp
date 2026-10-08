@@ -89,6 +89,8 @@ export interface InquiryItem {
   quantity: number;
   unit: string;
   description: string;
+  /** 英文描述（给客户看的单据用） */
+  descriptionEn?: string;
   lifecycle: number;
   replacementModel: string;
   difficulty: number;
@@ -147,6 +149,8 @@ export interface DraftRow {
   quantity: number;
   unit?: string;
   description?: string;
+  /** 英文描述（给客户看的单据用） */
+  descriptionEn?: string;
   lifecycle: number;
   replacementModel?: string;
   difficulty: number;
@@ -346,6 +350,8 @@ export interface MyTaskItem {
   quantity: number;
   unit: string;
   description: string;
+  /** 英文描述（给客户看的单据用） */
+  descriptionEn?: string;
   lifecycle: number;
   replacementModel: string;
   difficulty: number;
@@ -611,6 +617,8 @@ export interface BoardTaskItem {
   quantity: number;
   unit: string;
   description: string;
+  /** 英文描述（给客户看的单据用） */
+  descriptionEn?: string;
   lifecycle: number;
   replacementModel: string;
   difficulty: number;
@@ -650,6 +658,8 @@ export interface ReviewItem {
   quantity: number;
   unit: string;
   description: string;
+  /** 英文描述（给客户看的单据用） */
+  descriptionEn?: string;
   quotedBy: number;
   quotedByName?: string;
   submittedAt?: string;

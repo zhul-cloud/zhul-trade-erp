@@ -67,6 +67,8 @@ export interface QuotationItem {
   brand: string;
   category?: string;
   description?: string;
+  /** 英文描述（文字报价与导出用；为空时退回中文） */
+  descriptionEn?: string;
   itemCondition: number;
   conditionName?: string;
   leadTime: number;
@@ -232,6 +234,8 @@ export interface QuotationQuery {
 export interface SaveQuotationItem {
   id: number;
   description?: string;
+  /** 英文描述（文字报价与导出用；为空时退回中文） */
+  descriptionEn?: string;
   leadTime?: number;
   warranty?: string;
   quantity: number;

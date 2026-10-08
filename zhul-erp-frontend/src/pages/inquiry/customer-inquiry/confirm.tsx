@@ -295,17 +295,29 @@ const ConfirmPage: React.FC = () => {
       ),
     },
     {
-      title: '描述',
-      width: 340,
+      title: '描述（中 / EN）',
+      width: 360,
       render: (_, r) => (
-        <Input.TextArea
-          size="small"
-          placeholder="规格、用途等，可不填"
-          autoSize={{ minRows: 1, maxRows: 6 }}
-          maxLength={300}
-          value={r.description}
-          onChange={(e) => patch(r.key, { description: e.target.value })}
-        />
+        <div style={{ display: 'grid', gap: 6, width: 336 }}>
+          <Input.TextArea
+            size="small"
+            placeholder="中文：规格、用途，采购询价用，可不填"
+            autoSize={{ minRows: 1, maxRows: 6 }}
+            maxLength={300}
+            value={r.description}
+            onChange={(e) => patch(r.key, { description: e.target.value })}
+            aria-label="中文描述"
+          />
+          <Input.TextArea
+            size="small"
+            placeholder="EN：给客户看（报价单、PI），可不填"
+            autoSize={{ minRows: 1, maxRows: 6 }}
+            maxLength={300}
+            value={r.descriptionEn}
+            onChange={(e) => patch(r.key, { descriptionEn: e.target.value })}
+            aria-label="英文描述"
+          />
+        </div>
       ),
     },
     {

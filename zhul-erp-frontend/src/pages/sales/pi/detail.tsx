@@ -50,6 +50,12 @@ import React, {
   useState,
 } from 'react';
 import {
+  DescriptionInputs,
+  MissingEnglishBanner,
+  needsEnglish,
+  useDescriptionTranslation,
+} from '@/components/BilingualDescription';
+import {
   DictTextInput,
   IncotermInput,
   PreviewPages,
@@ -156,6 +162,7 @@ const toDraft = (v: PiVersion): Draft => ({
   items: v.items.map((i) => ({
     id: i.id,
     description: i.description ?? '',
+    descriptionEn: i.descriptionEn ?? '',
     leadTime: i.leadTime,
     warranty: i.warranty,
     quantity: i.quantity,
@@ -349,6 +356,9 @@ const PiDetail: React.FC = () => {
   const { leadTimeOptions } = useQuoteDicts();
   const [pi, setPi] = useState<Pi>();
   const [convertOpen, setConvertOpen] = useState(false);
+  /** 刚由「生成英文描述」填入英文的行 */
+  const [generated, setGenerated] = useState<Set<number>>(new Set());
+  const translation = useDescriptionTranslation();
   const [draft, setDraft] = useState<Draft>();
   const [saved, setSaved] = useState('');
   const [error, setError] = useState<string>();
@@ -1161,14 +1171,62 @@ const PiDetail: React.FC = () => {
 
   // ---------------------------------------------------------------- 型号
 
-  const modelCell = (src: PiItem) => (
+  const modelCell = (src: PiItem, d?: SavePi['items'][number]) => (
     <div style={{ minWidth: 0 }}>
       <div style={{ fontWeight: 600, color: palette.ink }}>{src.model}</div>
       <div style={{ fontSize: 12, color: palette.mute }}>
         {[src.brand, src.category, src.quotationNo].filter(Boolean).join(' · ')}
       </div>
+      {d && (d.description ?? '').trim() && needsEnglish(d.descriptionEn) && (
+        <span style={{ display: 'inline-block', marginTop: 4 }}>
+          <Pill tone="orange">缺英文描述</Pill>
+        </span>
+      )}
     </div>
   );
+
+  // 缺英文描述：导出会退回中文，可一键生成
+  const missingEnglish = editable
+    ? draft.items.filter(
+        (d) => (d.description ?? '').trim() && needsEnglish(d.descriptionEn),
+      )
+    : [];
+  const generateEnglish = () => {
+    const before = new Map(
+      missingEnglish.map((d) => [d.id, d.descriptionEn ?? '']),
+    );
+    translation.run(
+      missingEnglish.map((d) => ({
+        key: String(d.id),
+        text: (d.description ?? '').trim(),
+        inquiryItemId: itemById.get(d.id)?.inquiryItemId,
+      })),
+      (texts) => {
+        const filled = new Set<number>();
+        setDraft((cur) =>
+          cur
+            ? {
+                ...cur,
+                items: cur.items.map((i) => {
+                  const text = texts.get(String(i.id));
+                  // 生成期间业务员改过英文描述的行不覆盖
+                  if (
+                    !text ||
+                    !before.has(i.id) ||
+                    (i.descriptionEn ?? '') !== before.get(i.id)
+                  )
+                    return i;
+                  filled.add(i.id);
+                  return { ...i, descriptionEn: text };
+                }),
+              }
+            : cur,
+        );
+        setGenerated(filled);
+        message.success(`已生成 ${texts.size} 个型号的英文描述，请检查后保存`);
+      },
+    );
+  };
 
   const belowFloor = (src?: PiItem, r?: LineResult) =>
     src?.floorMargin != null &&
@@ -1181,7 +1239,7 @@ const PiDetail: React.FC = () => {
       title: '型号 / 品牌 · 来源报价单',
       key: 'model',
       width: compact ? 180 : 250,
-      render: (_, d) => modelCell(itemById.get(d.id) as PiItem),
+      render: (_, d) => modelCell(itemById.get(d.id) as PiItem, d),
     },
     {
       title: '数量',
@@ -1436,6 +1494,13 @@ const PiDetail: React.FC = () => {
           </Button>
         )}
       </div>
+      {editable && (
+        <MissingEnglishBanner
+          count={missingEnglish.length}
+          running={translation.running}
+          onGenerate={generateEnglish}
+        />
+      )}
       {editable ? (
         <Table<SavePi['items'][number]>
           rowKey="id"
@@ -1458,17 +1523,20 @@ const PiDetail: React.FC = () => {
                   gap: 12,
                 }}
               >
-                {field(
-                  '描述（英文）',
-                  <Input
-                    value={d.description}
-                    maxLength={300}
-                    onChange={(e) =>
-                      updateItem(d.id, { description: e.target.value })
-                    }
-                    aria-label="描述"
-                  />,
-                )}
+                <DescriptionInputs
+                  zh={d.description}
+                  en={d.descriptionEn}
+                  generated={generated.has(d.id)}
+                  onZh={(x) => updateItem(d.id, { description: x })}
+                  onEn={(x) => {
+                    updateItem(d.id, { descriptionEn: x });
+                    setGenerated((g) => {
+                      const next = new Set(g);
+                      next.delete(d.id);
+                      return next;
+                    });
+                  }}
+                />
                 {field(
                   '货期',
                   <Select
