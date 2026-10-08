@@ -18,6 +18,8 @@ public class PiItemVO {
     private String brand;
     private String category;
     private String description;
+    /** 英文描述（给客户看的单据用；系统内显示中文 description） */
+    private String descriptionEn;
     private Integer itemCondition;
     private String conditionName;
     private Integer leadTime;

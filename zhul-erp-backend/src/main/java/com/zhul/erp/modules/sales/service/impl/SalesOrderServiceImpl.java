@@ -350,6 +350,7 @@ public class SalesOrderServiceImpl implements SalesOrderService {
             x.setBrand(l.getBrand() == null ? "" : l.getBrand().trim());
             x.setCategory("");
             x.setDescription("");
+            x.setDescriptionEn("");
             x.setItemCondition(0);
             x.setLeadTime(0);
             x.setWarranty("");
@@ -413,6 +414,7 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         x.setBrand(i.getBrand());
         x.setCategory(i.getCategory());
         x.setDescription(i.getDescription());
+        x.setDescriptionEn(i.getDescriptionEn());
         x.setItemCondition(i.getItemCondition());
         x.setLeadTime(i.getLeadTime());
         x.setWarranty(i.getWarranty());
@@ -729,6 +731,7 @@ public class SalesOrderServiceImpl implements SalesOrderService {
             x.setBrand(i.getBrand());
             x.setCategory(i.getCategory());
             x.setDescription(i.getDescription());
+            x.setDescriptionEn(i.getDescriptionEn());
             x.setItemCondition(i.getItemCondition());
             x.setConditionName(labels.conditions().get(i.getItemCondition()));
             x.setLeadTime(i.getLeadTime());

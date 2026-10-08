@@ -31,6 +31,9 @@ public class ConfirmRowRequest {
     private String unit;
     @Size(max = 300, message = "描述不能超过 300 字")
     private String description;
+    @Size(max = 300, message = "英文描述不能超过 300 字")
+    /** 英文描述（给客户看的单据用；系统内显示中文 description） */
+    private String descriptionEn;
     private Integer lifecycle;
     @Size(max = 128, message = "替代型号不能超过 128 字")
     private String replacementModel;

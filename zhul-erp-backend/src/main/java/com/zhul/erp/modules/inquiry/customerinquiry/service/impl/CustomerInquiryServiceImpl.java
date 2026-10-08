@@ -410,6 +410,7 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
             vo.setQuantity(i.getQuantity());
             vo.setUnit(i.getUnit());
             vo.setDescription(i.getDescription());
+            vo.setDescriptionEn(i.getDescriptionEn());
             vo.setLifecycle(i.getLifecycle());
             vo.setReplacementModel(i.getReplacementModel());
             vo.setDifficulty(i.getDifficulty());
@@ -664,6 +665,7 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
         row.setQuantity(it.getQuantity() == null || it.getQuantity() < 1 ? 1 : it.getQuantity());
         row.setUnit(it.getUnit());
         row.setDescription(it.getDescription());
+        row.setDescriptionEn(it.getDescriptionEn());
         row.setLifecycle(it.getLifecycle() == null ? InquiryConstants.LIFECYCLE_UNKNOWN : it.getLifecycle());
         row.setReplacementModel(it.getReplacementModel());
         row.setDifficulty(it.getDifficulty() == null ? 0 : it.getDifficulty());
@@ -720,6 +722,7 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
             item.setQuantity(row.getQuantity());
             item.setUnit(text(row.getUnit()));
             item.setDescription(text(row.getDescription()));
+            item.setDescriptionEn(text(row.getDescriptionEn()));
             item.setLifecycle(lifecycle);
             item.setReplacementModel(text(row.getReplacementModel()));
             item.setDifficulty(range(row.getDifficulty(), 0, 3, 0));

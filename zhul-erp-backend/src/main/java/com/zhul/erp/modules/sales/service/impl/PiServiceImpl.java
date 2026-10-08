@@ -461,6 +461,7 @@ public class PiServiceImpl implements PiService {
             i.setBrand(nz(s.getBrand()));
             i.setCategory(nz(s.getCategory()));
             i.setDescription(nz(s.getDescription()));
+            i.setDescriptionEn(nz(s.getDescriptionEn()));
             i.setItemCondition(nz(s.getItemCondition()));
             i.setLeadTime(nz(s.getLeadTime()));
             i.setWarranty(StringUtils.hasText(s.getWarranty()) ? s.getWarranty() : SalesConstants.DEFAULT_WARRANTY);
@@ -924,6 +925,7 @@ public class PiServiceImpl implements PiService {
             x.setBrand(i.getBrand());
             x.setCategory(i.getCategory());
             x.setDescription(i.getDescription());
+            x.setDescriptionEn(i.getDescriptionEn());
             x.setItemCondition(i.getItemCondition());
             x.setConditionName(labels.conditions().get(i.getItemCondition()));
             x.setLeadTime(i.getLeadTime());

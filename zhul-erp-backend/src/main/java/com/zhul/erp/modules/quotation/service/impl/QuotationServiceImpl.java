@@ -271,6 +271,7 @@ public class QuotationServiceImpl implements QuotationService {
             line.setBrandKey(nz(src.getBrandKey()));
             line.setCategory(nz(src.getCategory()));
             line.setDescription(nz(src.getDescription()));
+            line.setDescriptionEn(nz(src.getDescriptionEn()));
             line.setItemCondition(c.costQuote() == null ? 0 : nz(c.costQuote().getItemCondition()));
             line.setLeadTime(c.costQuote() == null ? 0 : nz(c.costQuote().getLeadTime()));
             line.setWarranty(QuotationConstants.DEFAULT_WARRANTY);
@@ -667,6 +668,7 @@ public class QuotationServiceImpl implements QuotationService {
         l.setBrandKey(s.getBrandKey());
         l.setCategory(s.getCategory());
         l.setDescription(s.getDescription());
+        l.setDescriptionEn(s.getDescriptionEn());
         l.setItemCondition(s.getItemCondition());
         l.setLeadTime(s.getLeadTime());
         l.setWarranty(s.getWarranty());
@@ -902,6 +904,7 @@ public class QuotationServiceImpl implements QuotationService {
         vo.setBrand(i.getBrand());
         vo.setCategory(i.getCategory());
         vo.setDescription(i.getDescription());
+        vo.setDescriptionEn(i.getDescriptionEn());
         vo.setItemCondition(i.getItemCondition());
         vo.setConditionName(labels.conditions().get(i.getItemCondition()));
         vo.setLeadTime(i.getLeadTime());

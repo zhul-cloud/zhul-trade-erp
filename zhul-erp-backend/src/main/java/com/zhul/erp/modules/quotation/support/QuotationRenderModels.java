@@ -62,7 +62,7 @@ public final class QuotationRenderModels {
             m.put("item.model", nz(i.getModel()));
             m.put("item.brand", nz(i.getBrand()));
             m.put("item.category", nz(i.getCategory()));
-            m.put("item.description", nz(i.getDescription()));
+            m.put("item.description", customerDescription(i.getDescriptionEn(), i.getDescription()));
             m.put("item.condition", labels.conditions().getOrDefault(i.getItemCondition(), ""));
             m.put("item.conditionEn", en(labels.conditionsEn(), labels.conditions(), i.getItemCondition()));
             m.put("item.leadTime", labels.leadTimes().getOrDefault(i.getLeadTime(), ""));
@@ -81,7 +81,7 @@ public final class QuotationRenderModels {
                 m.put("item.unitPriceShort", NO_STOCK_LABEL);
                 m.put("item.amount", null);
                 if (!replacement.isEmpty()) {
-                    String desc = nz(i.getDescription()).trim();
+                    String desc = customerDescription(i.getDescriptionEn(), i.getDescription()).trim();
                     m.put("item.description", (desc.isEmpty() ? "" : desc + " · ") + "Discontinued, replacement: " + replacement);
                 }
             }
@@ -102,6 +102,11 @@ public final class QuotationRenderModels {
     /** 无货行：询价结果无货且没有填售价（填了售价就按正常报价） */
     public static boolean isNoStockLine(QuotationItemDO i) {
         return Objects.equals(i.getNoStock(), 1) && (i.getUnitPrice() == null || i.getUnitPrice().signum() == 0);
+    }
+
+    /** 发给客户的描述：英文描述，没有时退回中文描述 */
+    public static String customerDescription(String en, String zh) {
+        return en != null && !en.isBlank() ? en.trim() : nz(zh);
     }
 
     public static String symbol(String currency) {

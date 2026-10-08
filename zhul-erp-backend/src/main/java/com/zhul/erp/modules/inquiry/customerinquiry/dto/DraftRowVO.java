@@ -16,6 +16,8 @@ public class DraftRowVO {
     private Integer quantity;
     private String unit;
     private String description;
+    /** 英文描述（给客户看的单据用；系统内显示中文 description） */
+    private String descriptionEn;
     private Integer lifecycle;
     private String replacementModel;
     private Integer difficulty;

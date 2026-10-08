@@ -12,6 +12,8 @@ public class AiParseItemDTO {
     private Integer confidence;
     private String correctionNote;
     private String description;
+    /** 英文描述（给客户看的单据用；系统内显示中文 description） */
+    private String descriptionEn;
     private Integer quantity;
     private String unit;
     private String remark;

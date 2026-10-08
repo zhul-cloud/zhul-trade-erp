@@ -58,6 +58,7 @@ public class PiEditor {
             }
             i.setLineNo(line++);
             i.setDescription(trim(r.getDescription()));
+            i.setDescriptionEn(trim(r.getDescriptionEn()));
             if (r.getLeadTime() != null) {
                 i.setLeadTime(r.getLeadTime());
             }

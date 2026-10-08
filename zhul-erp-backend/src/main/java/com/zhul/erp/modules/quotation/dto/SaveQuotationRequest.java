@@ -38,6 +38,9 @@ public class SaveQuotationRequest {
         private Long id;
         @Size(max = 300, message = "描述不能超过 300 字")
         private String description;
+        @Size(max = 300, message = "英文描述不能超过 300 字")
+        /** 英文描述（给客户看的单据用；系统内显示中文 description） */
+        private String descriptionEn;
         private Integer leadTime;
         @Size(max = 32, message = "质保不能超过 32 个字符")
         private String warranty;

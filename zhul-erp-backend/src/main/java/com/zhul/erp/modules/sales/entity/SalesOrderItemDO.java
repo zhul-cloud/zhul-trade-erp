@@ -28,6 +28,8 @@ public class SalesOrderItemDO {
     private String brand;
     private String category;
     private String description;
+    /** 英文描述（给客户看的单据用；系统内显示中文 description） */
+    private String descriptionEn;
     private Integer itemCondition;
     private Integer leadTime;
     /** 1-现货、2-期货 */

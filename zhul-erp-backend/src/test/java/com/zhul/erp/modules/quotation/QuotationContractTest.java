@@ -42,6 +42,7 @@ class QuotationContractTest extends InquiryContractSupport {
     private static final int MENU_QUOTATION = 100073;
 
     @Autowired private DocumentConverter converter;
+    @Autowired private com.zhul.erp.modules.aitask.service.AiTaskService aiTaskService;
 
     private String admin;
     private int codeSeq;
@@ -681,6 +682,80 @@ class QuotationContractTest extends InquiryContractSupport {
             jdbc.update("update sys_config set config_value = '[{\"maxCost\":300,\"marginRate\":35},{\"maxCost\":3000,\"marginRate\":20},{\"maxCost\":null,\"marginRate\":12}]' "
                     + "where tenant_id = 0 and config_key = 'quotation.strategy.cost-tiers'");
         }
+    }
+
+    @Test
+    void bilingualDescriptions_confirmQuotationPiExport_andTranslation() throws Exception {
+        // 解析确认：中英文两份描述都保存
+        long c = customer("Pacific Controls", "Australia");
+        long manual = ok(call(json(post(INQ), "{\"customerId\":" + c + ",\"source\":1,\"urgent\":false,\"rawContent\":\"rfq\"}"), admin))
+                .path("id").asLong();
+        Map<String, Object> row = new LinkedHashMap<>();
+        row.put("brand", "Siemens");
+        row.put("category", "断路器");
+        row.put("confirmedModel", "3VA2340-5JQ42-0AA0");
+        row.put("quantity", 3);
+        row.put("description", "西门子 3VA2 塑壳断路器，400A 4P");
+        row.put("descriptionEn", "Siemens 3VA2 MCCB, 400A 4P");
+        ok(call(json(post(INQ + "/" + manual + "/confirm"), write(Map.of("rows", List.of(row)))), admin));
+        assertEquals("Siemens 3VA2 MCCB, 400A 4P", jdbc.queryForObject(
+                "select description_en from inquiry_item where customer_inquiry_id = ?", String.class, manual));
+        JsonNode inquiryItem = ok(call(get(INQ + "/" + manual), admin)).path("items").get(0);
+        assertEquals("西门子 3VA2 塑壳断路器，400A 4P", inquiryItem.path("description").asText(), "系统内显示中文");
+
+        // 报价单：两份都带入，页面中文，导出与文字报价英文
+        long inq = seedInquiry(c, 6, "2026-10-03", m("6ES7214-1AG40-0XB0", "2640"), m("6ES7231-4HD32-0XB0", "1680"));
+        jdbc.update("update inquiry_item set description = 'CPU 1214C 紧凑型', description_en = 'CPU 1214C compact' where customer_inquiry_id = ? and line_no = 1", inq);
+        jdbc.update("update inquiry_item set description = '模拟量输入模块', description_en = '' where customer_inquiry_id = ? and line_no = 2", inq);
+        JsonNode q = byInquiries(inq);
+        assertEquals("CPU 1214C 紧凑型", q.path("items").get(0).path("description").asText());
+        assertEquals("CPU 1214C compact", q.path("items").get(0).path("descriptionEn").asText());
+        long id = q.path("id").asLong();
+        Map<String, Object> body = saveBody(q);
+        line(body, 0).put("descriptionEn", "S7-1200 CPU 1214C, 24VDC");
+        line(body, 1).put("descriptionEn", "");
+        for (int n = 0; n < 2; n++) {
+            line(body, n).put("pricingMode", 3);
+            line(body, n).put("unitPrice", new BigDecimal("100.00"));
+        }
+        JsonNode saved = ok(save(id, body));
+        assertEquals("S7-1200 CPU 1214C, 24VDC", saved.path("items").get(0).path("descriptionEn").asText());
+        assertEquals("CPU 1214C 紧凑型", saved.path("items").get(0).path("description").asText(), "中文描述不变");
+
+        MockHttpServletResponse xlsx = perform(get(QT + "/" + id + "/export").param("format", "xlsx"), admin);
+        StringBuilder all = new StringBuilder();
+        try (XSSFWorkbook wb = new XSSFWorkbook(new ByteArrayInputStream(xlsx.getContentAsByteArray()))) {
+            DataFormatter fmt = new DataFormatter();
+            for (Row r : wb.getSheetAt(0)) {
+                r.forEach(cell -> all.append(fmt.formatCellValue(cell)).append('|'));
+            }
+        }
+        assertTrue(all.toString().contains("S7-1200 CPU 1214C, 24VDC"), "导出用英文描述");
+        assertFalse(all.toString().contains("CPU 1214C 紧凑型"));
+        assertTrue(all.toString().contains("模拟量输入模块"), "没有英文描述时退回中文");
+
+        // 生成英文描述：提交任务 → 回调 → 询盘型号补英文（只补空的），结果按调用方的 key 返回
+        long inquiryItem2 = jdbc.queryForObject("select id from inquiry_item where customer_inquiry_id = ? and line_no = 2", Long.class, inq);
+        long lineId = q.path("items").get(1).path("id").asLong();
+        Map<String, Object> item = new LinkedHashMap<>();
+        item.put("key", String.valueOf(lineId));
+        item.put("text", "模拟量输入模块");
+        item.put("inquiryItemId", inquiryItem2);
+        long task = ok(call(json(post("/api/v1/translations/item-descriptions"), write(Map.of("items", List.of(item)))), admin))
+                .path("taskId").asLong();
+        for (int i = 0; i < 30 && jdbc.queryForObject("select status from ai_task where id = ?", Integer.class, task) <= 2; i++) {
+            Thread.sleep(100);
+        }
+        com.zhul.erp.modules.aitask.dto.AiTaskCallbackRequest cb = new com.zhul.erp.modules.aitask.dto.AiTaskCallbackRequest();
+        cb.setStatus("success");
+        cb.setOutput(Map.of("items", List.of(Map.of("key", inquiryItem2 + "#" + lineId, "text", "Analog input module"))));
+        aiTaskService.handleCallback(task, cb);
+        JsonNode result = ok(call(get("/api/v1/translations/item-descriptions/" + task), admin));
+        assertEquals(3, result.path("status").asInt());
+        assertEquals(String.valueOf(lineId), result.path("results").get(0).path("key").asText());
+        assertEquals("Analog input module", result.path("results").get(0).path("text").asText());
+        assertEquals("Analog input module", jdbc.queryForObject("select description_en from inquiry_item where id = ?", String.class, inquiryItem2));
+        fail(call(get("/api/v1/translations/item-descriptions/" + task), token("it_lin")));
     }
 
     // ---------------------------------------------------------------- 型号级锁定（真实询价录入）

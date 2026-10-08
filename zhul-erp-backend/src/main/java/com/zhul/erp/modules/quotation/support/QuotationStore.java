@@ -273,6 +273,7 @@ public class QuotationStore {
             String label = "第 " + lineNo + " 行（" + item.getModel() + "）";
             item.setLineNo(lineNo++);
             item.setDescription(trim(r.getDescription()));
+            item.setDescriptionEn(trim(r.getDescriptionEn()));
             int lead = r.getLeadTime() == null ? 0 : r.getLeadTime();
             if (lead != 0 && !leadTimes.contains(lead)) {
                 throw new BizException(label + "：货期不存在");

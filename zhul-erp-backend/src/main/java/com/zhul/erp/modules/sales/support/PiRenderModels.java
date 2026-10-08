@@ -69,7 +69,7 @@ public final class PiRenderModels {
             m.put("item.model", nz(i.getModel()));
             m.put("item.brand", nz(i.getBrand()));
             m.put("item.category", nz(i.getCategory()));
-            m.put("item.description", nz(i.getDescription()));
+            m.put("item.description", QuotationRenderModels.customerDescription(i.getDescriptionEn(), i.getDescription()));
             m.put("item.condition", labels.conditions().getOrDefault(i.getItemCondition(), ""));
             m.put("item.conditionEn", en(labels.conditionsEn(), labels.conditions(), i.getItemCondition()));
             m.put("item.leadTime", labels.leadTimes().getOrDefault(i.getLeadTime(), ""));
