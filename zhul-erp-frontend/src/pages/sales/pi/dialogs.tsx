@@ -42,6 +42,7 @@ import {
   piApi,
   readBizError,
 } from '../service';
+import { ActualCnyInput, PaymentMethodSelect } from './receiptDialogs';
 
 const num: React.CSSProperties = { fontVariantNumeric: 'tabular-nums' };
 const label: React.CSSProperties = { fontSize: 13, marginBottom: 6 };
@@ -572,6 +573,7 @@ export const SlipModal: React.FC<{
   const [amount, setAmount] = useState<number | null>(null);
   const [date, setDate] = useState<dayjs.Dayjs | null>(dayjs());
   const [note, setNote] = useState('');
+  const [method, setMethod] = useState<string>();
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -580,6 +582,7 @@ export const SlipModal: React.FC<{
       setAmount(null);
       setDate(dayjs());
       setNote('');
+      setMethod(undefined);
     }
   }, [open]);
 
@@ -593,6 +596,7 @@ export const SlipModal: React.FC<{
         amount,
         date.format('YYYY-MM-DD'),
         note.trim() || undefined,
+        method,
       );
       message.success('水单已上传，等财务确认到账');
       onDone(res);
@@ -688,6 +692,14 @@ export const SlipModal: React.FC<{
         </div>
       </div>
       <div style={{ marginTop: 12 }}>
+        <div style={{ ...label, color: palette.sub }}>付款方式</div>
+        <PaymentMethodSelect
+          online={false}
+          value={method}
+          onChange={setMethod}
+        />
+      </div>
+      <div style={{ marginTop: 12 }}>
         <div style={{ ...label, color: palette.sub }}>说明（选填）</div>
         <Input
           value={note}
@@ -718,6 +730,8 @@ export const ConfirmReceiptModal: React.FC<{
   const [slipId, setSlipId] = useState<number>();
   const [feeDiff, setFeeDiff] = useState(false);
   const [note, setNote] = useState('');
+  const [method, setMethod] = useState<string>();
+  const [actual, setActual] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
 
   const slips = useMemo(
@@ -740,6 +754,8 @@ export const ConfirmReceiptModal: React.FC<{
     setDate(dayjs());
     setFeeDiff(false);
     setNote('');
+    setMethod(slip?.paymentMethod);
+    setActual(null);
   }, [open, slips]);
 
   useEffect(() => {
@@ -763,6 +779,8 @@ export const ConfirmReceiptModal: React.FC<{
         bankAccountId: bankId,
         slipId,
         feeDiff: canFee && feeDiff,
+        paymentMethod: method,
+        actualAmountCny: actual ?? undefined,
         note: note.trim() || undefined,
       });
       message.success(`已登记到账，收款状态：${res.receiptStatusName}`);
@@ -894,7 +912,11 @@ export const ConfirmReceiptModal: React.FC<{
             style={{ width: '100%' }}
             allowClear
             value={slipId}
-            onChange={setSlipId}
+            onChange={(v) => {
+              setSlipId(v);
+              const s = slips.find((x) => x.id === v);
+              if (s?.paymentMethod) setMethod(s.paymentMethod);
+            }}
             placeholder={slips.length === 0 ? '没有待确认的水单' : '选择水单'}
             options={slips.map((s) => ({
               value: s.id,
@@ -938,6 +960,20 @@ export const ConfirmReceiptModal: React.FC<{
         </div>
       )}
       <div style={{ marginTop: 12 }}>
+        <div style={{ ...label, color: palette.sub }}>付款方式</div>
+        <PaymentMethodSelect
+          online={false}
+          value={method}
+          onChange={setMethod}
+        />
+      </div>
+      <ActualCnyInput
+        net={amount ?? 0}
+        currency={cur}
+        value={actual}
+        onChange={setActual}
+      />
+      <div style={{ marginTop: 12 }}>
         <div style={{ ...label, color: palette.sub }}>说明（选填）</div>
         <Input
           value={note}
@@ -946,7 +982,7 @@ export const ConfirmReceiptModal: React.FC<{
         />
       </div>
       <div style={{ marginTop: 12, fontSize: 12, color: palette.mute }}>
-        本位币按登记时的系统汇率折算；到账记录保存后不能修改，登记错误时作废后重新登记。
+        没有填实际入账人民币时按登记时的系统汇率折算；到账记录保存后不能修改，登记错误时作废后重新登记。
       </div>
     </Modal>
   );

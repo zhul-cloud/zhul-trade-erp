@@ -75,7 +75,7 @@ export default {
   'menu.quotation.pricing': '定价策略',
   'menu.sales': '销售',
   'menu.finance': '财务管理',
-  'menu.finance.receipts': '到账登记',
+  'menu.finance.receipts': '收款管理',
   'menu.sales.pi': 'PI',
   'menu.sales.orders': '销售订单',
   'menu.inquiry': '询盘',

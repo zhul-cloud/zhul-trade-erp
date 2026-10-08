@@ -116,6 +116,22 @@ export interface Receipt {
   amount: number;
   amountCny: number;
   feeDiff: number;
+  paymentMethod?: string;
+  paymentMethodName?: string;
+  /** 1-线下、2-线上 */
+  channel?: number;
+  platformOrderNo?: string;
+  platformFee?: number;
+  /** 实收（原币）、实收人民币与汇率（来源 1-系统汇率、2-实际入账），仅到账 */
+  netAmount?: number;
+  netAmountCny?: number;
+  exchangeRate?: number;
+  rateSource?: number;
+  payer?: string;
+  claimedByName?: string;
+  claimedAt?: string;
+  /** 当前用户能否作废 */
+  voidable?: boolean;
   receiptDate?: string;
   bankAccountId?: number;
   bankAccountName?: string;
@@ -127,6 +143,36 @@ export interface Receipt {
   voidReason?: string;
   operatorName?: string;
   matched: boolean;
+  createTime: string;
+}
+
+/** 收款管理里的一笔到账（未认领到账、可认领列表、收款记录） */
+export interface ReceiptRow {
+  id: number;
+  piId?: number | null;
+  piNo?: string;
+  customerName?: string;
+  currencyCode: string;
+  amount: number;
+  platformFee: number;
+  feeDiff: number;
+  netAmount: number;
+  exchangeRate: number;
+  rateSource: number;
+  netAmountCny: number;
+  paymentMethod: string;
+  paymentMethodName: string;
+  channel: number;
+  platformOrderNo?: string;
+  payer?: string;
+  receiptDate?: string;
+  bankAccountName?: string;
+  note?: string;
+  status: number;
+  voidReason?: string;
+  operatorName?: string;
+  claimedByName?: string;
+  claimedAt?: string;
   createTime: string;
 }
 
@@ -162,6 +208,9 @@ export interface Pi {
   receivedAmount: number;
   feeDiffAmount: number;
   remainingAmount: number;
+  /** 有效到账的平台手续费合计与实收人民币合计 */
+  platformFeeAmount?: number;
+  netAmountCny?: number;
   currentVersionNo: number;
   editingVersionNo?: number | null;
   editable: boolean;
@@ -565,6 +614,17 @@ export const piApi = {
     fallback: string,
     version?: number,
   ) => download(`${PI}/${id}/export`, { format, version }, fallback),
+  /** 议价测算表：测算汇率、试算的整单折扣（1-百分比、2-金额）；不传折扣时用版本当前折扣 */
+  bargainExport: (
+    id: number,
+    params: {
+      version?: number;
+      rate: number;
+      discountType?: number;
+      discountValue?: number;
+    },
+    fallback: string,
+  ) => download(`${PI}/${id}/bargain-export`, params, fallback),
   preview: (id: number, content: SavePi, signal?: AbortSignal) =>
     request<{ data: PreviewResult }>(`${PI}/${id}/preview`, {
       method: 'POST',
@@ -581,11 +641,13 @@ export const piApi = {
     amount: number,
     paidDate: string,
     note?: string,
+    paymentMethod?: string,
   ) => {
     const form = new FormData();
     for (const f of files) form.append('files', f);
     form.append('amount', String(amount));
     form.append('paidDate', paidDate);
+    if (paymentMethod) form.append('paymentMethod', paymentMethod);
     if (note) form.append('note', note);
     return request<{ data: Pi }>(`${PI}/${id}/slips`, {
       method: 'POST',
@@ -606,15 +668,33 @@ export const piApi = {
       bankAccountId: number;
       slipId?: number;
       feeDiff?: boolean;
+      paymentMethod?: string;
+      actualAmountCny?: number;
       note?: string;
     },
   ) => send<Pi>('POST', `${PI}/${id}/receipts`, body),
+  platformReceipt: (
+    id: number,
+    body: {
+      paymentMethod: string;
+      platformOrderNo: string;
+      amount: number;
+      platformFee?: number;
+      receiptDate: string;
+      actualAmountCny?: number;
+      note?: string;
+    },
+  ) => send<Pi>('POST', `${PI}/${id}/platform-receipts`, body),
+  claimable: (id: number) =>
+    get<ReceiptRow[]>(`${PI}/${id}/claimable-receipts`),
+  claim: (id: number, receiptId: number, slipId?: number) =>
+    send<Pi>('POST', `${PI}/${id}/claim`, { receiptId, slipId }),
   voidReceipt: (id: number, receiptId: number, reason: string) =>
     send<Pi>('POST', `${PI}/${id}/receipts/${receiptId}/void`, { reason }),
   receiptSettings: () =>
     get<{ feeTolerance: number }>(`${PI}/receipt-settings`),
   convert: (id: number) => send<Order>('POST', `${PI}/${id}/convert`),
-  /** 财务管理 → 到账登记 */
+  /** 财务管理 → 收款管理（待确认） */
   receiptDesk: (q: ReceiptDeskQuery) =>
     send<{ total: number; records: ReceiptDeskRow[] }>(
       'POST',

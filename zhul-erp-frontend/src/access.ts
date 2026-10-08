@@ -57,6 +57,8 @@ export default function access(initialState: {
     salesPi: can('/sales/pi'),
     salesOrders: can('/sales/orders'),
     'sales:pi:receipt-slip': can('sales:pi:receipt-slip'),
+    'sales:pi:platform-receipt': can('sales:pi:platform-receipt'),
+    'sales:pi:claim-receipt': can('sales:pi:claim-receipt'),
     'sales:pi:receipt-confirm': can('sales:pi:receipt-confirm'),
     systemGroup: any(
       '/system/user',

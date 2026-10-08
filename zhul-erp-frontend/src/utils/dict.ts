@@ -135,3 +135,49 @@ export const useDictTexts = (dictType: string) => {
   }, [dictType]);
   return items;
 };
+
+// ---------------------------------------------------------------- 付款方式（线上 / 线下）
+
+export interface PaymentMethod {
+  code: string;
+  name: string;
+  /** 字典项的值为 ONLINE 时是线上付款方式 */
+  online: boolean;
+  isDefault: boolean;
+}
+
+let paymentMethodsCache: Promise<PaymentMethod[]> | undefined;
+
+/** 启用的付款方式；online 传 true / false 时只返回线上 / 线下项 */
+export const usePaymentMethods = (online?: boolean) => {
+  const [items, setItems] = useState<PaymentMethod[]>([]);
+  useEffect(() => {
+    let alive = true;
+    if (!paymentMethodsCache) {
+      paymentMethodsCache = request<{
+        data: (DictTextItem & { itemValue?: string })[];
+      }>('/api/v1/system/dict-items', {
+        params: { dictType: 'payment_method' },
+      }).then((res) =>
+        (res.data ?? [])
+          .filter((d) => d.status === 1)
+          .map((d) => ({
+            code: d.itemCode,
+            name: d.itemName,
+            online: (d.itemValue ?? '').toUpperCase() === 'ONLINE',
+            isDefault: d.isDefault === 1,
+          })),
+      );
+      paymentMethodsCache.catch(() => {
+        paymentMethodsCache = undefined;
+      });
+    }
+    paymentMethodsCache
+      .then((list) => alive && setItems(list))
+      .catch(() => alive && setItems([]));
+    return () => {
+      alive = false;
+    };
+  }, []);
+  return online == null ? items : items.filter((m) => m.online === online);
+};

@@ -1,6 +1,7 @@
 import {
   BankOutlined,
   BranchesOutlined,
+  CalculatorOutlined,
   CloseCircleOutlined,
   DeleteOutlined,
   DownloadOutlined,
@@ -10,12 +11,14 @@ import {
   EyeOutlined,
   FileDoneOutlined,
   FileTextOutlined,
+  InboxOutlined,
   LockOutlined,
   PaperClipOutlined,
   PlusOutlined,
   RedoOutlined,
   RollbackOutlined,
   SendOutlined,
+  ShopOutlined,
   StopOutlined,
   UploadOutlined,
   WarningOutlined,
@@ -90,6 +93,7 @@ import {
   readBizError,
   type SavePi,
 } from '../service';
+import BargainDrawer from './BargainDrawer';
 import { calcPiLine, calcPiTotals } from './calc';
 import {
   AddItemsModal,
@@ -101,6 +105,7 @@ import {
   SlipModal,
   useBankOptions,
 } from './dialogs';
+import { ClaimReceiptModal, PlatformReceiptModal } from './receiptDialogs';
 
 const PREVIEW_KEY = 'zhul_pi_preview';
 const num: React.CSSProperties = { fontVariantNumeric: 'tabular-nums' };
@@ -286,8 +291,12 @@ const diffVersions = (
     rows.push({
       kind: '修改',
       label: '整单折扣',
-      before: formatAmount(-base.discountAmount, cur),
-      after: formatAmount(-next.discountAmount, cur),
+      before: base.discountAmount
+        ? formatAmount(-base.discountAmount, cur)
+        : '—',
+      after: next.discountAmount
+        ? formatAmount(-next.discountAmount, cur)
+        : '—',
     });
   }
   for (const [key, text] of [
@@ -351,9 +360,12 @@ const PiDetail: React.FC = () => {
   const [partyType, setPartyType] = useState<1 | 3>();
   const [slipOpen, setSlipOpen] = useState(false);
   const [receiptOpen, setReceiptOpen] = useState(false);
+  const [platformOpen, setPlatformOpen] = useState(false);
+  const [claimOpen, setClaimOpen] = useState(false);
   const [voidReceipt, setVoidReceipt] = useState<number>();
   const [addOpen, setAddOpen] = useState(false);
   const [closeOpen, setCloseOpen] = useState(false);
+  const [bargainOpen, setBargainOpen] = useState(false);
   const [markLost, setMarkLost] = useState(true);
   const [reopenOpen, setReopenOpen] = useState(false);
   const [reopenUntil, setReopenUntil] = useState<string>();
@@ -576,6 +588,51 @@ const PiDetail: React.FC = () => {
 
   const v = pi.version;
   const revising = editable && pi.currentVersionNo > 0;
+  /** 收款操作返回的是默认版本；查看历史版本时按当前查看的版本重新加载，避免页面内容与「正在查看 Rev.n」不一致 */
+  const applyReceipt = (res: Pi) => (viewVersion ? load() : apply(res));
+  const hasCost = v.items.some((i) => i.costPrice != null);
+
+  /** 议价测算确认：编辑中直接带入折扣；已发送则出新版本（已有修改中版本时改它）并保存折扣，都不自动发送 */
+  const applyBargain = async (
+    disc: { discountType: number; discountValue: number },
+    rateDiffers: boolean,
+  ) => {
+    const run = async () => {
+      try {
+        if (editable) {
+          setDraft((d) => (d ? { ...d, ...disc } : d));
+          setBargainOpen(false);
+          message.success('已带入整单折扣，保存后生效');
+          return;
+        }
+        const base = pi.editingVersionNo
+          ? await piApi.detail(pi.id)
+          : await piApi.revise(pi.id);
+        const res = await piApi.save(pi.id, {
+          ...toSave(toDraft(base.version)),
+          ...disc,
+        });
+        showVersion();
+        apply(res);
+        setBargainOpen(false);
+        message.success(
+          `已生成 Rev.${res.version.versionNo}，检查后点「发送」`,
+        );
+      } catch (e) {
+        message.error(readBizError(e).message);
+      }
+    };
+    if (rateDiffers) {
+      modal.confirm({
+        title: '测算汇率与 PI 不同',
+        content: `PI 仍按 ${Number(pi.exchangeRate).toFixed(6)} 计算，生成后毛利以 PI 为准。`,
+        okText: '继续生成',
+        onOk: run,
+      });
+    } else {
+      await run();
+    }
+  };
   const historical =
     !!viewVersion &&
     viewVersion !== (pi.editingVersionNo ?? pi.currentVersionNo);
@@ -660,6 +717,14 @@ const PiDetail: React.FC = () => {
 
   const actions = historical ? (
     <>
+      {hasCost && (
+        <Button
+          icon={<CalculatorOutlined />}
+          onClick={() => setBargainOpen(true)}
+        >
+          议价测算
+        </Button>
+      )}
       <Button icon={<DownloadOutlined />} onClick={() => setExportOpen(true)}>
         导出 Rev.{v.versionNo}
       </Button>
@@ -690,6 +755,14 @@ const PiDetail: React.FC = () => {
           删除
         </Button>
       )}
+      {hasCost && (
+        <Button
+          icon={<CalculatorOutlined />}
+          onClick={() => setBargainOpen(true)}
+        >
+          议价测算
+        </Button>
+      )}
       <Button
         icon={<DownloadOutlined />}
         onClick={async () => (await ensureSaved()) && setExportOpen(true)}
@@ -712,6 +785,14 @@ const PiDetail: React.FC = () => {
     </>
   ) : (
     <>
+      {hasCost && (
+        <Button
+          icon={<CalculatorOutlined />}
+          onClick={() => setBargainOpen(true)}
+        >
+          议价测算
+        </Button>
+      )}
       <Button icon={<DownloadOutlined />} onClick={() => setExportOpen(true)}>
         导出
       </Button>
@@ -1741,6 +1822,8 @@ const PiDetail: React.FC = () => {
 
   const canSlip = access['sales:pi:receipt-slip'];
   const canConfirm = access['sales:pi:receipt-confirm'];
+  const canPlatform = access['sales:pi:platform-receipt'];
+  const canClaim = access['sales:pi:claim-receipt'];
   const receivable =
     pi.status === PI_STATUS.SENT || pi.status === PI_STATUS.CONVERTED;
 
@@ -1780,18 +1863,57 @@ const PiDetail: React.FC = () => {
           value={formatAmount(pi.receivedAmount, cur)}
           color={palette.green}
         />
-        <Row label="手续费差额" value={formatAmount(pi.feeDiffAmount, cur)} />
+        {(pi.platformFeeAmount ?? 0) > 0 && (
+          <Row
+            label="平台手续费"
+            value={formatAmount(pi.platformFeeAmount ?? 0, cur)}
+            color={palette.orange}
+          />
+        )}
+        <Row label="银行中转差额" value={formatAmount(pi.feeDiffAmount, cur)} />
         <Row
           label="剩余"
           value={formatAmount(pi.remainingAmount, cur)}
           color={pi.remainingAmount > 0 ? palette.orange : palette.green}
         />
+        {pi.receivedAmount > 0 && (
+          <div
+            style={{
+              borderTop: `1px solid ${palette.hairline}`,
+              marginTop: 8,
+              paddingTop: 8,
+            }}
+          >
+            <Row
+              label="实收人民币"
+              value={formatAmount(pi.netAmountCny ?? 0, 'CNY')}
+            />
+            <div style={{ fontSize: 12, color: palette.mute }}>
+              按每笔到账的汇率折算（已结汇的按实际入账）
+            </div>
+          </div>
+        )}
       </div>
-      {receivable && (canSlip || canConfirm) && (
-        <div style={{ display: 'flex', gap: 8, marginBottom: 6 }}>
+      {receivable && (canSlip || canConfirm || canPlatform || canClaim) && (
+        <div
+          style={{ display: 'flex', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}
+        >
           {canSlip && (
             <Button icon={<UploadOutlined />} onClick={() => setSlipOpen(true)}>
               上传水单
+            </Button>
+          )}
+          {canClaim && (
+            <Button icon={<InboxOutlined />} onClick={() => setClaimOpen(true)}>
+              认领到账
+            </Button>
+          )}
+          {canPlatform && (
+            <Button
+              icon={<ShopOutlined />}
+              onClick={() => setPlatformOpen(true)}
+            >
+              登记平台收款
             </Button>
           )}
           {canConfirm && (
@@ -1806,7 +1928,7 @@ const PiDetail: React.FC = () => {
         </div>
       )}
       <div style={{ fontSize: 12, color: palette.mute, marginBottom: 12 }}>
-        业务员上传水单；登记到账需要财务权限
+        线下付款上传水单、由财务确认；钱先到账的由财务登记后认领；平台付款直接登记
       </div>
       {pi.receipts.length === 0 ? (
         <div style={{ color: palette.mute, fontSize: 13 }}>
@@ -1833,7 +1955,16 @@ const PiDetail: React.FC = () => {
                   ) : (
                     <BankOutlined style={{ color: palette.green }} />
                   )}
-                  <b style={{ color: palette.ink }}>{slip ? '水单' : '到账'}</b>
+                  <b style={{ color: palette.ink }}>
+                    {slip
+                      ? '水单'
+                      : r.platformOrderNo
+                        ? '平台收款'
+                        : r.claimedAt
+                          ? '到账（认领）'
+                          : '到账'}
+                  </b>
+
                   <b
                     style={{
                       ...num,
@@ -1861,16 +1992,29 @@ const PiDetail: React.FC = () => {
                   </span>
                 </div>
                 <div style={{ fontSize: 12, color: palette.sub, marginTop: 4 }}>
+                  {r.channel === 2 && (
+                    <span style={{ marginRight: 6 }}>
+                      <Pill tone="violet">线上</Pill>
+                    </span>
+                  )}
                   {[
-                    `${r.operatorName ?? ''}${slip ? '上传' : '登记'}`,
+                    r.paymentMethodName,
+                    r.claimedAt
+                      ? `${r.claimedByName ?? ''} ${dayjs(r.claimedAt).format('MM-DD')} 认领`
+                      : `${r.operatorName ?? ''}${slip ? '上传' : '登记'}`,
+                    r.platformOrderNo ? `订单号 ${r.platformOrderNo}` : '',
+                    r.payer ? `付款人 ${r.payer}` : '',
                     !slip && r.bankAccountName
                       ? `收款账户 ${r.bankAccountName}`
                       : '',
-                    !slip && r.feeDiff > 0
-                      ? `手续费差额 ${formatAmount(r.feeDiff, cur)}`
+                    !slip && (r.platformFee ?? 0) > 0
+                      ? `平台手续费 ${formatAmount(r.platformFee ?? 0, cur)}`
                       : '',
-                    !slip && cur !== 'CNY'
-                      ? `折合 ${formatAmount(r.amountCny, 'CNY')}`
+                    !slip && r.feeDiff > 0
+                      ? `中转差额 ${formatAmount(r.feeDiff, cur)}`
+                      : '',
+                    !slip
+                      ? `实收 ${formatAmount(r.netAmountCny ?? r.amountCny, 'CNY')}${r.rateSource === 2 ? '（实际入账）' : ''}`
                       : '',
                     r.note,
                     voided && r.voidReason ? `作废原因：${r.voidReason}` : '',
@@ -1904,7 +2048,7 @@ const PiDetail: React.FC = () => {
                 )}
                 {!voided &&
                   ((slip && canSlip && !r.matched) ||
-                    (!slip && canConfirm)) && (
+                    (!slip && (r.voidable ?? canConfirm))) && (
                     <div style={{ marginTop: 6 }}>
                       {slip ? (
                         <a
@@ -2198,6 +2342,16 @@ const PiDetail: React.FC = () => {
           if (!historical) setSentPrompt(channel);
         }}
       />
+      <BargainDrawer
+        pi={pi}
+        open={bargainOpen}
+        onClose={() => setBargainOpen(false)}
+        canApply={
+          !historical &&
+          (pi.status === PI_STATUS.DRAFT || pi.status === PI_STATUS.SENT)
+        }
+        onApply={applyBargain}
+      />
       <LostReasonModal
         open={closeOpen}
         title={`关闭 PI ${pi.piNo}`}
@@ -2302,8 +2456,26 @@ const PiDetail: React.FC = () => {
         open={slipOpen}
         onClose={() => setSlipOpen(false)}
         onDone={(res) => {
-          apply(res);
+          applyReceipt(res);
           setSlipOpen(false);
+        }}
+      />
+      <PlatformReceiptModal
+        pi={pi}
+        open={platformOpen}
+        onClose={() => setPlatformOpen(false)}
+        onDone={(res) => {
+          applyReceipt(res);
+          setPlatformOpen(false);
+        }}
+      />
+      <ClaimReceiptModal
+        pi={pi}
+        open={claimOpen}
+        onClose={() => setClaimOpen(false)}
+        onDone={(res) => {
+          applyReceipt(res);
+          setClaimOpen(false);
         }}
       />
       <ConfirmReceiptModal
@@ -2311,7 +2483,7 @@ const PiDetail: React.FC = () => {
         open={receiptOpen}
         onClose={() => setReceiptOpen(false)}
         onDone={(res) => {
-          apply(res);
+          applyReceipt(res);
           setReceiptOpen(false);
         }}
       />
@@ -2324,7 +2496,7 @@ const PiDetail: React.FC = () => {
         onClose={() => setVoidReceipt(undefined)}
         onSubmit={async (reason) => {
           try {
-            apply(
+            applyReceipt(
               await piApi.voidReceipt(pi.id, voidReceipt as number, reason),
             );
             setVoidReceipt(undefined);
