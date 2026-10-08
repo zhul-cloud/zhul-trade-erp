@@ -511,7 +511,7 @@ const ItemRow: React.FC<{
         ) : item.quoted ? (
           <span style={{ color: palette.violet }}>已报过价</span>
         ) : item.noStock ? (
-          <span style={{ color: palette.orange }}>无货，选入后需填售价</span>
+          <span style={{ color: palette.orange }}>无货，报价单上标明无货</span>
         ) : null}
       </span>
     </label>
@@ -613,7 +613,8 @@ export const PickItemsPanel: React.FC<{
   };
   const selectAll = (inq: PickInquiry) => {
     const next = new Map(selected);
-    const pickable = inq.items.filter((i) => i.pickable && !i.noStock);
+    // 无货型号也一起选：报价单上标明无货或替代型号，客户不用再问
+    const pickable = inq.items.filter((i) => i.pickable);
     const allOn = pickable.every((i) => next.has(i.itemId));
     for (const i of pickable) {
       if (allOn) next.delete(i.itemId);
@@ -711,9 +712,7 @@ export const PickItemsPanel: React.FC<{
               const picked = inq.items.filter((i) =>
                 selected.has(i.itemId),
               ).length;
-              const pickable = inq.items.filter(
-                (i) => i.pickable && !i.noStock,
-              );
+              const pickable = inq.items.filter((i) => i.pickable);
               const visible = showAll.has(inq.inquiryId)
                 ? inq.items
                 : inq.items.slice(0, 5);

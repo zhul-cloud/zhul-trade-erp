@@ -15,6 +15,7 @@ import {
   RollbackOutlined,
   SendOutlined,
   StopOutlined,
+  ThunderboltOutlined,
   WarningOutlined,
 } from '@ant-design/icons';
 import { history, useAccess, useParams, useSearchParams } from '@umijs/max';
@@ -86,6 +87,7 @@ import {
   SentPromptModal,
   TextQuoteModal,
 } from './dialogs';
+import StrategyDrawer, { type StrategyRow } from './StrategyDrawer';
 import {
   type PreviewResult,
   type Quotation,
@@ -126,6 +128,7 @@ const toDraft = (q: Quotation): Draft => ({
     marginRate: i.marginRate ?? null,
     markupAmount: i.markupAmount ?? null,
     unitPrice: i.unitPrice,
+    replacementModel: i.replacementModel ?? '',
   })),
   fees: q.fees.map((f) => ({
     key: ++feeSeq,
@@ -145,6 +148,13 @@ const toSave = (d: Draft): SaveQuotation => ({
     .filter((f) => f.feeName.trim())
     .map((f) => ({ feeName: f.feeName.trim(), amount: f.amount ?? 0 })),
 });
+
+/** 无货行：询价结果无货且还没有填售价（填了售价就按正常报价） */
+const isNoStockLine = (src: QuotationItem, d: SaveQuotationItem) =>
+  src.noStock && !((d.unitPrice ?? 0) > 0);
+
+/** 品牌原文含中日韩文字且品牌资料里没有英文名：导出时会保留原文 */
+const CJK = /[\u2e80-\u9fff]/;
 
 const readPreviewPref = () => {
   try {
@@ -342,6 +352,9 @@ const QuotationDetail: React.FC = () => {
   const [piOpen, setPiOpen] = useState(false);
   const [pis, setPis] = useState<PiListItem[]>([]);
   const [base, setBase] = useState<Quotation>();
+  const [strategyOpen, setStrategyOpen] = useState(false);
+  /** 勾选的型号行：报价策略只作用于勾选的行（不勾选时作用于全部有价型号） */
+  const [selected, setSelected] = useState<number[]>([]);
   const access = useAccess();
   const previewAbort = useRef<AbortController | undefined>(undefined);
 
@@ -629,6 +642,60 @@ const QuotationDetail: React.FC = () => {
     setDraft({ ...draft, items: draft.items.filter((i) => i.id !== itemId) });
   };
 
+  // ---------------------------------------------------------------- 报价策略
+
+  const pricedIds = new Set(
+    draft.items
+      .filter((d) => {
+        const src = itemById.get(d.id);
+        return src?.costPrice != null && !isNoStockLine(src, d);
+      })
+      .map((d) => d.id),
+  );
+  const chosen = selected.filter((x) => pricedIds.has(x));
+  const strategyRows: StrategyRow[] = draft.items
+    .filter((d) =>
+      chosen.length ? chosen.includes(d.id) : pricedIds.has(d.id),
+    )
+    .map((d) => {
+      const src = itemById.get(d.id) as QuotationItem;
+      return {
+        id: d.id,
+        model: src.model,
+        costPrice: src.costPrice as number,
+        quantity: d.quantity,
+        floorMargin: src.floorMargin,
+        unitPrice: results.get(d.id)?.unitPrice ?? 0,
+      };
+    });
+  const applyStrategy = (prices: Map<number, number>) => {
+    setDraft({
+      ...draft,
+      items: draft.items.map((i) =>
+        prices.has(i.id)
+          ? {
+              ...i,
+              pricingMode: MODE_PRICE,
+              unitPrice: prices.get(i.id),
+              marginRate: null,
+              markupAmount: null,
+            }
+          : i,
+      ),
+    });
+    setStrategyOpen(false);
+    message.success(`已按报价策略更新 ${prices.size} 个型号的售价，保存后生效`);
+  };
+  const untranslated = [
+    ...new Set(
+      q.items
+        .filter(
+          (i) => CJK.test(i.brand ?? '') && (i.brandEn ?? i.brand) === i.brand,
+        )
+        .map((i) => i.brand),
+    ),
+  ];
+
   // ---------------------------------------------------------------- 型号表格
 
   const pricingCell = (
@@ -639,7 +706,11 @@ const QuotationDetail: React.FC = () => {
     if (src.costPrice == null) {
       return (
         <span style={{ color: palette.mute, fontSize: 12 }}>
-          {src.noStock ? '无货，直接填售价' : '没有采购成本价，直接填售价'}
+          {src.noStock
+            ? isNoStockLine(src, d)
+              ? '无货 · 不报价，填售价可改为报价'
+              : '无货后找到货源，按填的售价报价'
+            : '没有采购成本价，直接填售价'}
         </span>
       );
     }
@@ -738,12 +809,46 @@ const QuotationDetail: React.FC = () => {
     );
   };
 
-  const modelCell = (src: QuotationItem) => (
+  const modelCell = (src: QuotationItem, d?: SaveQuotationItem) => (
     <div style={{ minWidth: 0 }}>
       <div style={{ fontWeight: 600, color: palette.ink }}>{src.model}</div>
       <div style={{ fontSize: 12, color: palette.mute }}>
-        {[src.brand, src.category, src.inquiryCode].filter(Boolean).join(' · ')}
+        {[
+          src.brandEn && src.brandEn !== src.brand
+            ? `${src.brand}（导出为 ${src.brandEn}）`
+            : src.brand,
+          src.category,
+          src.inquiryCode,
+        ]
+          .filter(Boolean)
+          .join(' · ')}
       </div>
+      {src.noStock &&
+        (d
+          ? isNoStockLine(src, d) && (
+              <Input
+                size="small"
+                style={{ marginTop: 4 }}
+                prefix={
+                  <span style={{ color: palette.orange, fontSize: 12 }}>
+                    替代型号
+                  </span>
+                }
+                placeholder="停产时填写，没有可留空"
+                value={d.replacementModel}
+                maxLength={128}
+                onChange={(e) =>
+                  updateItem(d.id, { replacementModel: e.target.value })
+                }
+                aria-label="替代型号"
+              />
+            )
+          : src.noStockLine &&
+            src.replacementModel && (
+              <div style={{ fontSize: 12, color: palette.orange }}>
+                停产，替代型号：{src.replacementModel}
+              </div>
+            ))}
       {src.hints.map((h) => (
         <span key={h} style={{ display: 'inline-block', marginTop: 4 }}>
           <Pill tone="orange">{h}</Pill>
@@ -758,7 +863,7 @@ const QuotationDetail: React.FC = () => {
       title: '型号 / 品牌 · 品类 · 来源',
       key: 'model',
       width: compact ? 170 : 240,
-      render: (_, d) => modelCell(itemById.get(d.id) as QuotationItem),
+      render: (_, d) => modelCell(itemById.get(d.id) as QuotationItem, d),
     },
     ...(compact
       ? []
@@ -866,9 +971,16 @@ const QuotationDetail: React.FC = () => {
               prefix={currency}
               min={0}
               precision={2}
-              value={d.pricingMode === MODE_PRICE ? d.unitPrice : r.unitPrice}
+              value={
+                isNoStockLine(src, d)
+                  ? null
+                  : d.pricingMode === MODE_PRICE
+                    ? d.unitPrice
+                    : r.unitPrice
+              }
+              placeholder={isNoStockLine(src, d) ? '不报价' : undefined}
               status={
-                below || (src.costPrice == null && !r.unitPrice)
+                below || (src.costPrice == null && !r.unitPrice && !src.noStock)
                   ? 'error'
                   : undefined
               }
@@ -894,6 +1006,14 @@ const QuotationDetail: React.FC = () => {
       align: 'right',
       render: (_, d) => {
         const r = results.get(d.id) as LineResult;
+        const src = itemById.get(d.id) as QuotationItem;
+        if (isNoStockLine(src, d)) {
+          return (
+            <span style={{ fontSize: 12, color: palette.mute }}>
+              不计入合计
+            </span>
+          );
+        }
         return (
           <div style={num}>
             <b>{formatAmount(r.amount, currency)}</b>
@@ -975,18 +1095,24 @@ const QuotationDetail: React.FC = () => {
       key: 'price',
       width: 120,
       align: 'right',
-      render: (_, r) => (
-        <span style={num}>{formatAmount(r.unitPrice, q.currencyCode)}</span>
-      ),
+      render: (_, r) =>
+        r.noStockLine ? (
+          <Pill tone="gray">无货</Pill>
+        ) : (
+          <span style={num}>{formatAmount(r.unitPrice, q.currencyCode)}</span>
+        ),
     },
     {
       title: '小计',
       key: 'amount',
       width: 130,
       align: 'right',
-      render: (_, r) => (
-        <b style={num}>{formatAmount(r.amount, q.currencyCode)}</b>
-      ),
+      render: (_, r) =>
+        r.noStockLine ? (
+          <span style={{ fontSize: 12, color: palette.mute }}>不计入合计</span>
+        ) : (
+          <b style={num}>{formatAmount(r.amount, q.currencyCode)}</b>
+        ),
     },
     ...((q.status === STATUS.WON || q.status === STATUS.PARTIAL
       ? [
@@ -1072,6 +1198,12 @@ const QuotationDetail: React.FC = () => {
           放弃这个版本
         </Button>
       )}
+      <Button
+        icon={<ThunderboltOutlined />}
+        onClick={() => setStrategyOpen(true)}
+      >
+        报价策略
+      </Button>
       <Button
         icon={<MessageOutlined />}
         onClick={async () => (await ensureSaved()) && setTextOpen(true)}
@@ -1422,10 +1554,50 @@ const QuotationDetail: React.FC = () => {
           </Button>
         )}
       </div>
+      {untranslated.length > 0 && (
+        <Alert
+          type="warning"
+          showIcon
+          style={{ marginBottom: 10 }}
+          title={`品牌 ${untranslated.join('、')} 在品牌资料里没有英文名，文字报价和导出会保留原文；请在「商品资料 → 品牌」里补充别名`}
+        />
+      )}
+      {editable && chosen.length > 0 && (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+            padding: '10px 16px',
+            borderRadius: 12,
+            background: palette.accentSoft,
+            marginBottom: 10,
+          }}
+        >
+          <b style={{ color: palette.ink }}>已选 {chosen.length} 个型号</b>
+          <span style={{ fontSize: 12, color: palette.mute }}>
+            无货行不参与报价策略
+          </span>
+          <span style={{ marginLeft: 'auto' }} />
+          <Button
+            type="primary"
+            icon={<ThunderboltOutlined />}
+            onClick={() => setStrategyOpen(true)}
+          >
+            报价策略
+          </Button>
+          <Button onClick={() => setSelected([])}>取消选择</Button>
+        </div>
+      )}
       {editable ? (
         <Table<SaveQuotationItem>
           rowKey="id"
           size="middle"
+          rowSelection={{
+            selectedRowKeys: chosen,
+            onChange: (keys) => setSelected(keys as number[]),
+            getCheckboxProps: (d) => ({ disabled: !pricedIds.has(d.id) }),
+          }}
           columns={editColumns}
           dataSource={draft.items}
           pagination={false}
@@ -1910,6 +2082,20 @@ const QuotationDetail: React.FC = () => {
           message.success('已标为未成交');
         }}
       />
+      {editable && (
+        <StrategyDrawer
+          open={strategyOpen}
+          onClose={() => setStrategyOpen(false)}
+          rows={strategyRows}
+          selectedOnly={chosen.length > 0}
+          currency={currency}
+          rate={rate}
+          quotationId={q.id}
+          versionNo={q.versionNo}
+          canSaveTiers={!!access['quotation:pricing:edit']}
+          onApply={applyStrategy}
+        />
+      )}
       <NewPiModal
         open={piOpen}
         quotationId={q.id}

@@ -1,4 +1,5 @@
 import { request } from '@umijs/max';
+import type { Tier } from './strategy';
 
 export { readBizError } from '@/pages/crm/opportunity/service';
 
@@ -73,6 +74,12 @@ export interface QuotationItem {
   warranty: string;
   quantity: number;
   noStock: boolean;
+  /** 无货行：无货且没有填售价，不报价、不计入合计 */
+  noStockLine?: boolean;
+  /** 替代型号（无货行） */
+  replacementModel?: string;
+  /** 发给客户的单据上的品牌（英文名；品牌资料里没有时与原文相同） */
+  brandEn?: string;
   costPrice?: number | null;
   costPriceForeign?: number | null;
   /** 1-按毛利率、2-按加价、3-直接填外币售价 */
@@ -232,6 +239,18 @@ export interface SaveQuotationItem {
   marginRate?: number | null;
   markupAmount?: number | null;
   unitPrice?: number | null;
+  replacementModel?: string;
+}
+
+export interface PriceHistory {
+  itemId: number;
+  /** ORDER-成交、QUOTATION-报价 */
+  kind: 'ORDER' | 'QUOTATION';
+  docNo: string;
+  docId: number;
+  date: string;
+  currencyCode: string;
+  unitPrice: number;
 }
 
 export interface SaveQuotation {
@@ -309,6 +328,11 @@ const download = async (url: string, params: object, fallback: string) => {
 };
 
 export const quotationApi = {
+  priceHistory: (id: number, version?: number) =>
+    get<PriceHistory[]>(`${QT}/${id}/price-history`, { version }),
+  strategyTiers: () => get<Tier[]>(`${QT}/strategy-tiers`),
+  saveStrategyTiers: (tiers: Tier[]) =>
+    send<Tier[]>('PUT', `${QT}/strategy-tiers`, { tiers }),
   page: (q: QuotationQuery) =>
     send<{ total: number; records: QuotationListItem[] }>(
       'POST',
