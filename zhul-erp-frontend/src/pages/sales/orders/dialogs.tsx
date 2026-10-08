@@ -692,6 +692,26 @@ export const SalesDateModal: React.FC<{
 
 type NewMode = 'pi' | 'manual';
 
+/** 单选圆点（只做显示，点击由外层按钮处理） */
+const RadioDot: React.FC<{ on: boolean }> = ({ on }) => {
+  const { palette } = useAppTheme();
+  return (
+    <span
+      aria-hidden
+      style={{
+        marginLeft: 'auto',
+        width: 16,
+        height: 16,
+        borderRadius: 8,
+        flex: 'none',
+        boxSizing: 'border-box',
+        border: `${on ? 5 : 1.5}px solid ${on ? palette.link : palette.mute}`,
+        background: palette.card,
+      }}
+    />
+  );
+};
+
 /**
  * 新建销售订单（参照新建报价单）：先选创建方式；按 PI 创建时从可以转订单的 PI 里选一张，
  * 再走与 PI 页「转成订单」相同的确认（填销售日期）；手动创建交给手动建单抽屉。
@@ -778,9 +798,14 @@ export const NewOrderDrawer: React.FC<{
   ) => {
     const on = mode === key;
     return (
-      // biome-ignore lint/a11y/noLabelWithoutControl: 内含 antd Radio（渲染为 input），点整块切换选中
-      <label
+      <button
+        type="button"
+        disabled={disabled}
+        aria-pressed={on}
+        onClick={() => setMode(key)}
         style={{
+          all: 'unset',
+          display: 'block',
           padding: '16px 18px',
           borderRadius: 14,
           cursor: disabled ? 'not-allowed' : 'pointer',
@@ -792,11 +817,7 @@ export const NewOrderDrawer: React.FC<{
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <b style={{ fontSize: 16, color: palette.ink }}>{title}</b>
           {disabled && <Pill tone="mute">没有权限</Pill>}
-          <Radio
-            checked={on}
-            disabled={disabled}
-            style={{ marginLeft: 'auto' }}
-          />
+          <RadioDot on={on} />
         </div>
         <div style={{ fontSize: 12, color: palette.sub, margin: '4px 0 8px' }}>
           {desc}
@@ -817,7 +838,7 @@ export const NewOrderDrawer: React.FC<{
             {b}
           </div>
         ))}
-      </label>
+      </button>
     );
   };
 
@@ -944,10 +965,15 @@ export const NewOrderDrawer: React.FC<{
               list.map((p) => {
                 const on = picked === p.id;
                 return (
-                  // biome-ignore lint/a11y/noLabelWithoutControl: 内含 antd Radio（渲染为 input），点整块切换选中
-                  <label
+                  <button
+                    type="button"
                     key={p.id}
+                    aria-pressed={on}
+                    onClick={() => setPicked(p.id)}
                     style={{
+                      all: 'unset',
+                      boxSizing: 'border-box',
+                      width: '100%',
                       display: 'grid',
                       gridTemplateColumns:
                         '24px minmax(0, 1.4fr) 140px minmax(0, 1.2fr) 80px',
@@ -960,11 +986,7 @@ export const NewOrderDrawer: React.FC<{
                       border: `1.5px solid ${on ? palette.link : palette.hairline}`,
                     }}
                   >
-                    <Radio
-                      checked={on}
-                      onChange={() => setPicked(p.id)}
-                      aria-label={p.piNo}
-                    />
+                    <RadioDot on={on} />
                     <div style={{ minWidth: 0 }}>
                       <b style={{ color: palette.ink }}>{p.piNo}</b>
                       <div style={{ fontSize: 12, color: palette.sub }}>
@@ -1001,7 +1023,7 @@ export const NewOrderDrawer: React.FC<{
                     >
                       {p.ownerName ?? '—'}
                     </span>
-                  </label>
+                  </button>
                 );
               })
             )}

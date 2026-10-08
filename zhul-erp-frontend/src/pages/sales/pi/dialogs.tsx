@@ -587,12 +587,13 @@ export const SlipModal = <T extends ReceiptResult>({
   useEffect(() => {
     if (open) {
       setFiles([]);
-      setAmount(null);
+      // 默认按合计付款，部分付款时由业务员改
+      setAmount(pi?.totalAmount ?? null);
       setDate(dayjs());
       setNote('');
       setMethod(undefined);
     }
-  }, [open]);
+  }, [open, pi?.totalAmount]);
 
   const submit = async () => {
     if (!pi || !amount || !date) return;
