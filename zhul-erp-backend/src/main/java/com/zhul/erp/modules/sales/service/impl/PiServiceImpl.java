@@ -61,6 +61,7 @@ import com.zhul.erp.modules.sales.support.PiClosing;
 import com.zhul.erp.modules.sales.support.PiDefaults;
 import com.zhul.erp.modules.sales.support.PiEditor;
 import com.zhul.erp.modules.sales.support.PiStore;
+import com.zhul.erp.modules.sales.support.ReceiptViews;
 import com.zhul.erp.modules.sales.support.PiSummary;
 import com.zhul.erp.modules.system.constants.DocumentType;
 import com.zhul.erp.modules.system.entity.BankAccountDO;
@@ -110,7 +111,7 @@ public class PiServiceImpl implements PiService {
     private final QuotationMapper quotationMapper;
     private final QuotationItemMapper quotationItemMapper;
     private final CustomerMapper customerMapper;
-    private final BankAccountMapper bankAccountMapper;
+    private final ReceiptViews receiptViews;
     private final QuotationStore quotationStore;
     private final PiStore store;
     private final PiSummary summary;
@@ -984,68 +985,7 @@ public class PiServiceImpl implements PiService {
     /** PI 的收款记录（含已作废，水单删除后不再显示） */
     @Override
     public List<ReceiptVO> receipts(Long piId) {
-        List<PaymentReceiptDO> rows = receiptMapper.selectList(new LambdaQueryWrapper<PaymentReceiptDO>()
-                .eq(PaymentReceiptDO::getPiId, piId)
-                .isNull(PaymentReceiptDO::getDeletedAt)
-                .orderByAsc(PaymentReceiptDO::getId));
-        if (rows.isEmpty()) {
-            return List.of();
-        }
-        Map<Long, String> names = lookups.userNames(rows.stream().flatMap(r -> java.util.stream.Stream.of(r.getOperatorId(), r.getClaimedBy()))
-                .filter(Objects::nonNull).distinct().toList());
-        boolean canConfirm = perm.has(SalesConstants.PERM_RECEIPT_CONFIRM);
-        Long me = currentUser.resolve();
-        Set<Integer> bankIds = rows.stream().map(PaymentReceiptDO::getBankAccountId).filter(Objects::nonNull).collect(Collectors.toSet());
-        Map<Integer, BankAccountDO> banks = bankIds.isEmpty() ? Map.of()
-                : bankAccountMapper.selectBatchIds(bankIds).stream().collect(Collectors.toMap(BankAccountDO::getId, b -> b));
-        Set<Long> matchedSlips = rows.stream().filter(r -> r.getKind() == SalesConstants.KIND_RECEIPT && r.getStatus() == SalesConstants.RECORD_VALID
-                && r.getSlipId() != null).map(PaymentReceiptDO::getSlipId).collect(Collectors.toSet());
-        return rows.stream().map(r -> {
-            ReceiptVO vo = new ReceiptVO();
-            vo.setId(r.getId());
-            vo.setKind(r.getKind());
-            vo.setAmount(r.getAmount());
-            vo.setAmountCny(r.getAmountCny());
-            vo.setFeeDiff(r.getFeeDiff());
-            vo.setPaymentMethod(r.getPaymentMethod());
-            vo.setPaymentMethodName(r.getPaymentMethodName());
-            vo.setChannel(r.getChannel());
-            vo.setPlatformOrderNo(r.getPlatformOrderNo());
-            vo.setPlatformFee(r.getPlatformFee());
-            vo.setNetAmount(r.getNetAmount());
-            vo.setNetAmountCny(r.getNetAmountCny());
-            vo.setExchangeRate(r.getExchangeRate());
-            vo.setRateSource(r.getRateSource());
-            vo.setPayer(r.getPayer());
-            vo.setClaimedByName(r.getClaimedBy() == null ? null : names.get(r.getClaimedBy()));
-            vo.setClaimedAt(r.getClaimedAt());
-            vo.setVoidable(r.getKind() == SalesConstants.KIND_RECEIPT && r.getStatus() == SalesConstants.RECORD_VALID
-                    && (canConfirm || (StringUtils.hasText(r.getPlatformOrderNo()) && Objects.equals(r.getOperatorId(), me))));
-            vo.setReceiptDate(r.getReceiptDate());
-            vo.setBankAccountId(r.getBankAccountId());
-            BankAccountDO b = r.getBankAccountId() == null ? null : banks.get(r.getBankAccountId());
-            vo.setBankAccountName(b == null ? null : b.getBankName() + " " + BankAccountService.mask(b.getAccountNo()));
-            vo.setSlipId(r.getSlipId());
-            vo.setFiles(slipFiles(r.getFileKeys()));
-            vo.setNote(r.getNote());
-            vo.setStatus(r.getStatus());
-            vo.setVoidReason(r.getVoidReason());
-            vo.setOperatorName(names.get(r.getOperatorId()));
-            vo.setMatched(r.getKind() == SalesConstants.KIND_SLIP && matchedSlips.contains(r.getId()));
-            vo.setCreateTime(r.getCreateTime());
-            return vo;
-        }).toList();
-    }
-
-    private List<ReceiptVO.SlipFile> slipFiles(String json) {
-        if (!StringUtils.hasText(json)) {
-            return List.of();
-        }
-        try {
-            return objectMapper.readValue(json, new TypeReference<List<ReceiptVO.SlipFile>>() { });
-        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
-            throw new IllegalStateException("水单附件解析失败", e);
-        }
+        return receiptViews.list(new LambdaQueryWrapper<PaymentReceiptDO>().eq(PaymentReceiptDO::getPiId, piId));
     }
 
     @Override

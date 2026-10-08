@@ -30,6 +30,13 @@ public class SalesOrderItemDO {
     private String description;
     private Integer itemCondition;
     private Integer leadTime;
+    /** 1-现货、2-期货 */
+    private Integer stockType;
+    /** 字典 sales_order_status 的 item_code */
+    private String progressCode;
+    /** 为空表示未指定 */
+    @com.baomidou.mybatisplus.annotation.TableField(updateStrategy = com.baomidou.mybatisplus.annotation.FieldStrategy.ALWAYS)
+    private Long purchaserId;
     private String warranty;
     private Integer quantity;
     private BigDecimal unitPrice;

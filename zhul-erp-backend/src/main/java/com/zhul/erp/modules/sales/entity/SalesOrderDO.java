@@ -18,9 +18,13 @@ public class SalesOrderDO {
     private Long id;
     private Integer tenantId;
     private String soNo;
+    private Integer source;
+    private java.time.LocalDate salesDate;
     private Long piId;
     private Integer piVersionNo;
     private Long customerId;
+    private Integer customerType;
+    private Integer stockType;
     private Long ownerId;
     private String currencyCode;
     private BigDecimal exchangeRate;
@@ -42,6 +46,11 @@ public class SalesOrderDO {
     private BigDecimal netProfitCny;
     private BigDecimal marginRate;
     private Integer status;
+    private String progressCode;
+    private LocalDateTime completedAt;
+    private Integer receiptStatus;
+    private BigDecimal receivedAmount;
+    private BigDecimal feeDiffAmount;
     private String cancelReason;
     private Long cancelledBy;
     private LocalDateTime cancelledAt;

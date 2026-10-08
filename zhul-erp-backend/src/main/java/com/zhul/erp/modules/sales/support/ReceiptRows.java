@@ -5,6 +5,7 @@ import com.zhul.erp.modules.masterdata.entity.CustomerDO;
 import com.zhul.erp.modules.sales.dto.ReceiptRowVO;
 import com.zhul.erp.modules.sales.entity.PaymentReceiptDO;
 import com.zhul.erp.modules.sales.entity.ProformaInvoiceDO;
+import com.zhul.erp.modules.sales.entity.SalesOrderDO;
 import com.zhul.erp.modules.sales.repository.ProformaInvoiceMapper;
 import com.zhul.erp.modules.system.entity.BankAccountDO;
 import com.zhul.erp.modules.system.repository.BankAccountMapper;
@@ -26,6 +27,7 @@ import java.util.stream.Stream;
 public class ReceiptRows {
 
     private final ProformaInvoiceMapper piMapper;
+    private final com.zhul.erp.modules.sales.repository.SalesOrderMapper orderMapper;
     private final BankAccountMapper bankAccountMapper;
     private final InquiryLookups lookups;
 
@@ -36,7 +38,11 @@ public class ReceiptRows {
         Set<Long> piIds = rows.stream().map(PaymentReceiptDO::getPiId).filter(Objects::nonNull).collect(Collectors.toSet());
         Map<Long, ProformaInvoiceDO> pis = piIds.isEmpty() ? Map.of()
                 : piMapper.selectBatchIds(piIds).stream().collect(Collectors.toMap(ProformaInvoiceDO::getId, p -> p));
-        Map<Long, CustomerDO> customers = lookups.customers(pis.values().stream().map(ProformaInvoiceDO::getCustomerId).toList());
+        Set<Long> soIds = rows.stream().map(PaymentReceiptDO::getSoId).filter(Objects::nonNull).collect(Collectors.toSet());
+        Map<Long, SalesOrderDO> orders = soIds.isEmpty() ? Map.of()
+                : orderMapper.selectBatchIds(soIds).stream().collect(Collectors.toMap(SalesOrderDO::getId, o -> o));
+        Map<Long, CustomerDO> customers = lookups.customers(Stream.concat(pis.values().stream().map(ProformaInvoiceDO::getCustomerId),
+                orders.values().stream().map(SalesOrderDO::getCustomerId)).toList());
         Set<Integer> bankIds = rows.stream().map(PaymentReceiptDO::getBankAccountId).filter(Objects::nonNull).collect(Collectors.toSet());
         Map<Integer, BankAccountDO> banks = bankIds.isEmpty() ? Map.of()
                 : bankAccountMapper.selectBatchIds(bankIds).stream().collect(Collectors.toMap(BankAccountDO::getId, b -> b));
@@ -49,7 +55,11 @@ public class ReceiptRows {
             vo.setPiId(r.getPiId());
             ProformaInvoiceDO pi = r.getPiId() == null ? null : pis.get(r.getPiId());
             vo.setPiNo(pi == null ? null : pi.getPiNo());
-            vo.setCustomerName(pi == null ? null : InquiryLookups.customerName(customers.get(pi.getCustomerId())));
+            SalesOrderDO so = r.getSoId() == null ? null : orders.get(r.getSoId());
+            vo.setSoId(r.getSoId());
+            vo.setSoNo(so == null ? null : so.getSoNo());
+            Long customerId = pi != null ? pi.getCustomerId() : so != null ? so.getCustomerId() : null;
+            vo.setCustomerName(customerId == null ? null : InquiryLookups.customerName(customers.get(customerId)));
             vo.setCurrencyCode(r.getCurrencyCode());
             vo.setAmount(r.getAmount());
             vo.setPlatformFee(r.getPlatformFee());

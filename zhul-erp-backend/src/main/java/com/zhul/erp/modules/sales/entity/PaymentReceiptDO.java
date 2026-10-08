@@ -22,6 +22,9 @@ public class PaymentReceiptDO {
     /** 为空表示未认领到账 */
     @TableField(updateStrategy = FieldStrategy.ALWAYS)
     private Long piId;
+    /** 手动创建的订单的收款；PI 与订单都为空表示未认领到账 */
+    @TableField(updateStrategy = FieldStrategy.ALWAYS)
+    private Long soId;
     private Integer kind;
     private String currencyCode;
     private String paymentMethod;

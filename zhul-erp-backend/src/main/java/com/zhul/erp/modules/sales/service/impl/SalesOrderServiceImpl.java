@@ -41,6 +41,16 @@ import com.zhul.erp.modules.sales.repository.SalesOrderMapper;
 import com.zhul.erp.modules.sales.service.PiService;
 import com.zhul.erp.modules.sales.service.SalesOrderService;
 import com.zhul.erp.modules.sales.support.PiStore;
+import com.zhul.erp.modules.sales.support.OrderProgress;
+import com.zhul.erp.modules.sales.dto.ConvertOrderRequest;
+import com.zhul.erp.modules.sales.dto.CreateOrderRequest;
+import com.zhul.erp.modules.sales.dto.OrderItemsRequest;
+import com.zhul.erp.modules.sales.dto.ReceiptVO;
+import com.zhul.erp.modules.sales.dto.SalesOrderItemVO;
+import com.zhul.erp.modules.sales.dto.SalesOrderStatsVO;
+import com.zhul.erp.modules.sales.entity.PaymentReceiptDO;
+import com.zhul.erp.modules.system.entity.UserBasicDO;
+import com.zhul.erp.modules.inquiry.constants.InquiryConstants;
 import com.zhul.erp.modules.system.constants.DocumentType;
 import com.zhul.erp.modules.system.service.DocumentNumberService;
 import com.zhul.erp.modules.system.service.LogService;
@@ -49,7 +59,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Comparator;
+import java.util.Locale;
+import java.util.stream.Stream;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -89,12 +105,19 @@ public class SalesOrderServiceImpl implements SalesOrderService {
     private final CurrentUserResolver currentUser;
     private final InquiryLookups lookups;
     private final LogService logService;
+    private final com.zhul.erp.modules.sales.repository.PaymentReceiptMapper receiptMapper;
+    private final com.zhul.erp.modules.inquiry.sourcing.repository.SourcingQuoteMapper sourcingQuoteMapper;
+    private final com.zhul.erp.modules.system.repository.UserBasicMapper userBasicMapper;
+    private final com.zhul.erp.modules.system.service.ExchangeRateService exchangeRateService;
+    private final com.zhul.erp.modules.sales.support.PiDefaults piDefaults;
+    private final com.zhul.erp.modules.sales.support.ReceiptViews receiptViews;
+    private final OrderProgress progress;
 
     // ---------------------------------------------------------------- 转订单与取消
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public SalesOrderVO convert(Long piId) {
+    public SalesOrderVO convert(Long piId, ConvertOrderRequest req) {
         ProformaInvoiceDO pi = piStore.lockVisible(piId);
         SalesOrderDO existing = piStore.activeOrder(piId);
         if (existing != null) {
@@ -113,10 +136,23 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         PiVersionDO v = piStore.version(piId, pi.getCurrentVersionNo());
         List<PiItemDO> items = piStore.items(v.getId());
         List<PiFeeDO> fees = piStore.fees(v.getId());
+        LocalDate salesDate = req == null || req.getSalesDate() == null ? defaultSalesDate(piId) : req.getSalesDate();
+        requirePastOrToday(salesDate);
+        Map<Long, Long> purchasers = purchasersOf(items.stream().map(PiItemDO::getQuotationItemId).toList());
+        Integer customerType = lookups.customerTypes(Map.of(0L, items.stream().map(PiItemDO::getCustomerInquiryId).toList())).get(0L);
 
         SalesOrderDO o = new SalesOrderDO();
         o.setTenantId(pi.getTenantId());
         o.setSoNo(documentNumberService.next(DocumentType.SO));
+        o.setSource(SalesConstants.SO_FROM_PI);
+        o.setSalesDate(salesDate);
+        o.setCustomerType(customerType == null ? InquiryConstants.CUSTOMER_NEW : customerType);
+        o.setStockType(items.stream().anyMatch(i -> stockOf(i.getLeadTime()) == SalesConstants.STOCK_FUTURES)
+                ? SalesConstants.STOCK_FUTURES : SalesConstants.STOCK_SPOT);
+        o.setProgressCode(SalesConstants.PROGRESS_PENDING);
+        o.setReceiptStatus(SalesConstants.RECEIPT_NONE);
+        o.setReceivedAmount(BigDecimal.ZERO);
+        o.setFeeDiffAmount(BigDecimal.ZERO);
         o.setPiId(piId);
         o.setPiVersionNo(v.getVersionNo());
         o.setCustomerId(pi.getCustomerId());
@@ -144,7 +180,11 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         o.setCancelReason("");
         orderMapper.insert(o);
         for (PiItemDO i : items) {
-            orderItemMapper.insert(toOrderItem(o, i));
+            SalesOrderItemDO x = toOrderItem(o, i);
+            x.setStockType(stockOf(i.getLeadTime()));
+            x.setProgressCode(SalesConstants.PROGRESS_PENDING);
+            x.setPurchaserId(purchasers.get(i.getQuotationItemId()));
+            orderItemMapper.insert(x);
         }
         int sort = 1;
         for (PiFeeDO f : fees) {
@@ -167,10 +207,196 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         after.put("soNo", o.getSoNo());
         after.put("piNo", pi.getPiNo());
         after.put("version", "Rev." + v.getVersionNo());
+        after.put("salesDate", salesDate.toString());
         after.put("total", o.getCurrencyCode() + " " + o.getTotalAmount());
         after.put("receiptStatus", SalesConstants.RECEIPT_STATUS_NAMES.get(pi.getReceiptStatus()));
         logService.recordOperateLog(SalesConstants.MENU_SO, "PI 转成销售订单", null, after);
         return detail(o.getId());
+    }
+
+    /** 销售日期默认值：这张 PI 最早一笔有效水单的付款日期或有效到账的到账日期，都没有时取当天 */
+    private LocalDate defaultSalesDate(Long piId) {
+        return receiptMapper.selectList(new LambdaQueryWrapper<PaymentReceiptDO>()
+                        .select(PaymentReceiptDO::getReceiptDate)
+                        .eq(PaymentReceiptDO::getPiId, piId)
+                        .eq(PaymentReceiptDO::getStatus, SalesConstants.RECORD_VALID)
+                        .isNull(PaymentReceiptDO::getDeletedAt))
+                .stream().map(PaymentReceiptDO::getReceiptDate).filter(Objects::nonNull).min(Comparator.naturalOrder())
+                .orElse(LocalDate.now());
+    }
+
+    private static void requirePastOrToday(LocalDate date) {
+        if (date.isAfter(LocalDate.now())) {
+            throw new BizException("销售日期不能晚于今天");
+        }
+    }
+
+    /** 货期为「现货」的为现货，其余为期货 */
+    private static int stockOf(Integer leadTime) {
+        return Objects.equals(leadTime, SalesConstants.LEAD_TIME_SPOT) ? SalesConstants.STOCK_SPOT : SalesConstants.STOCK_FUTURES;
+    }
+
+    /** 报价行 → 采购员：被选为采购成本价的那条回价的询价人；手填成本价的没有 */
+    private Map<Long, Long> purchasersOf(Collection<Long> quotationItemIds) {
+        List<Long> ids = quotationItemIds.stream().filter(Objects::nonNull).distinct().toList();
+        if (ids.isEmpty()) {
+            return Map.of();
+        }
+        Map<Long, Long> quoteOf = new HashMap<>(ids.size() * 2);
+        quotationItemMapper.selectList(new LambdaQueryWrapper<QuotationItemDO>()
+                        .select(QuotationItemDO::getId, QuotationItemDO::getCostQuoteId)
+                        .in(QuotationItemDO::getId, ids)
+                        .isNotNull(QuotationItemDO::getCostQuoteId))
+                .forEach(q -> quoteOf.put(q.getId(), q.getCostQuoteId()));
+        if (quoteOf.isEmpty()) {
+            return Map.of();
+        }
+        Map<Long, Long> quotedBy = new HashMap<>(quoteOf.size() * 2);
+        sourcingQuoteMapper.selectBatchIds(new HashSet<>(quoteOf.values()))
+                .forEach(q -> quotedBy.put(q.getId(), q.getQuotedBy()));
+        Map<Long, Long> result = new HashMap<>(quoteOf.size() * 2);
+        quoteOf.forEach((item, quote) -> {
+            Long user = quotedBy.get(quote);
+            if (user != null && user > 0) {
+                result.put(item, user);
+            }
+        });
+        return result;
+    }
+
+    // ---------------------------------------------------------------- 手动创建
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public SalesOrderVO create(CreateOrderRequest req) {
+        int tenant = PiStore.tenantId();
+        CustomerDO customer = customerMapper.selectById(req.getCustomerId());
+        if (customer == null || customer.getDeletedAt() != null || !Objects.equals(customer.getTenantId(), tenant)) {
+            throw new BizException("客户不存在");
+        }
+        List<CreateOrderRequest.Line> lines = req.getItems() == null ? List.of()
+                : req.getItems().stream().filter(l -> l != null && StringUtils.hasText(l.getModel())).toList();
+        if (lines.isEmpty()) {
+            throw new BizException("请至少添加一个型号");
+        }
+        String currency = StringUtils.hasText(req.getCurrencyCode()) ? req.getCurrencyCode().trim().toUpperCase(Locale.ROOT) : "USD";
+        BigDecimal rate = exchangeRateService.require(currency).rate();
+        LocalDate salesDate = req.getSalesDate() == null ? LocalDate.now() : req.getSalesDate();
+        requirePastOrToday(salesDate);
+        Set<Long> purchaserIds = lines.stream().map(CreateOrderRequest.Line::getPurchaserId).filter(Objects::nonNull).collect(Collectors.toSet());
+        requireUsers(purchaserIds);
+        for (int n = 0; n < lines.size(); n++) {
+            CreateOrderRequest.Line l = lines.get(n);
+            if (l.getQuantity() == null || l.getQuantity() <= 0) {
+                throw new BizException("第 " + (n + 1) + " 个型号的数量需要大于 0");
+            }
+            if (l.getUnitPrice() == null || l.getUnitPrice().signum() < 0) {
+                throw new BizException("请填写第 " + (n + 1) + " 个型号的单价");
+            }
+            if (l.getCostPrice() != null && l.getCostPrice().signum() < 0) {
+                throw new BizException("第 " + (n + 1) + " 个型号的采购成本价不能为负数");
+            }
+            if (l.getStockType() != null && !SalesConstants.STOCK_NAMES.containsKey(l.getStockType())) {
+                throw new BizException("现货 / 期货不正确");
+            }
+        }
+        boolean returning = orderMapper.selectCount(new LambdaQueryWrapper<SalesOrderDO>()
+                .eq(SalesOrderDO::getTenantId, tenant)
+                .eq(SalesOrderDO::getCustomerId, customer.getId())
+                .eq(SalesOrderDO::getStatus, SalesConstants.SO_ACTIVE)
+                .isNull(SalesOrderDO::getDeletedAt)) > 0;
+
+        SalesOrderDO o = new SalesOrderDO();
+        o.setTenantId(tenant);
+        o.setSoNo(documentNumberService.next(DocumentType.SO));
+        o.setSource(SalesConstants.SO_MANUAL);
+        o.setSalesDate(salesDate);
+        o.setPiId(0L);
+        o.setPiVersionNo(0);
+        o.setCustomerId(customer.getId());
+        o.setCustomerType(returning ? InquiryConstants.CUSTOMER_RETURNING : InquiryConstants.CUSTOMER_NEW);
+        o.setOwnerId(currentUserId());
+        o.setCurrencyCode(currency);
+        o.setExchangeRate(rate);
+        o.setBuyerJson(piStore.toJson(piDefaults.buyer(customer)));
+        o.setDeliveryTime("");
+        o.setPaymentTerm("");
+        o.setIncoterm("");
+        o.setIncotermPlace("");
+        o.setPortOfShipment("");
+        o.setRemark(req.getRemark() == null ? "" : req.getRemark().trim());
+        o.setDiscountAmount(BigDecimal.ZERO);
+        o.setDiscountAmountCny(BigDecimal.ZERO);
+        o.setFeeAmount(BigDecimal.ZERO);
+        o.setStatus(SalesConstants.SO_ACTIVE);
+        o.setProgressCode(SalesConstants.PROGRESS_PENDING);
+        o.setReceiptStatus(SalesConstants.RECEIPT_NONE);
+        o.setReceivedAmount(BigDecimal.ZERO);
+        o.setFeeDiffAmount(BigDecimal.ZERO);
+        o.setCancelReason("");
+        BigDecimal total = BigDecimal.ZERO;
+        List<SalesOrderItemDO> rows = new ArrayList<>(lines.size());
+        int lineNo = 1;
+        for (CreateOrderRequest.Line l : lines) {
+            SalesOrderItemDO x = new SalesOrderItemDO();
+            x.setTenantId(tenant);
+            x.setLineNo(lineNo++);
+            x.setPiItemId(0L);
+            x.setQuotationId(0L);
+            x.setQuotationItemId(0L);
+            x.setCustomerInquiryId(0L);
+            x.setInquiryItemId(0L);
+            x.setModel(l.getModel().trim());
+            x.setBrand(l.getBrand() == null ? "" : l.getBrand().trim());
+            x.setCategory("");
+            x.setDescription("");
+            x.setItemCondition(0);
+            x.setLeadTime(0);
+            x.setWarranty("");
+            x.setQuantity(l.getQuantity());
+            x.setUnitPrice(l.getUnitPrice().setScale(2, RoundingMode.HALF_UP));
+            x.setAmount(x.getUnitPrice().multiply(BigDecimal.valueOf(l.getQuantity())).setScale(2, RoundingMode.HALF_UP));
+            x.setAmountCny(x.getAmount().multiply(rate).setScale(2, RoundingMode.HALF_UP));
+            x.setCostPrice(l.getCostPrice() == null ? null : l.getCostPrice().setScale(2, RoundingMode.HALF_UP));
+            x.setHsCode("");
+            x.setOriginCountry("");
+            x.setRemark("");
+            x.setStockType(l.getStockType() == null ? SalesConstants.STOCK_SPOT : l.getStockType());
+            x.setProgressCode(SalesConstants.PROGRESS_PENDING);
+            x.setPurchaserId(l.getPurchaserId());
+            total = total.add(x.getAmount());
+            rows.add(x);
+        }
+        o.setItemAmount(total);
+        o.setTotalAmount(total);
+        o.setTotalAmountCny(total.multiply(rate).setScale(2, RoundingMode.HALF_UP));
+        o.setStockType(rows.stream().anyMatch(x -> x.getStockType() == SalesConstants.STOCK_FUTURES)
+                ? SalesConstants.STOCK_FUTURES : SalesConstants.STOCK_SPOT);
+        orderMapper.insert(o);
+        for (SalesOrderItemDO x : rows) {
+            x.setSoId(o.getId());
+            orderItemMapper.insert(x);
+        }
+        Map<String, Object> after = new LinkedHashMap<>();
+        after.put("soNo", o.getSoNo());
+        after.put("customer", InquiryLookups.customerName(customer));
+        after.put("salesDate", salesDate.toString());
+        after.put("total", currency + " " + total);
+        after.put("items", rows.size());
+        logService.recordOperateLog(SalesConstants.MENU_SO, "手动创建销售订单", null, after);
+        return detail(o.getId());
+    }
+
+    private void requireUsers(Set<Long> ids) {
+        if (ids.isEmpty()) {
+            return;
+        }
+        long found = userBasicMapper.selectCount(new LambdaQueryWrapper<UserBasicDO>()
+                .in(UserBasicDO::getId, ids.stream().map(Long::intValue).toList())
+                .eq(UserBasicDO::getTenantId, PiStore.tenantId()));
+        if (found < ids.size()) {
+            throw new BizException("采购员不存在");
+        }
     }
 
     private static SalesOrderItemDO toOrderItem(SalesOrderDO o, PiItemDO i) {
@@ -212,16 +438,26 @@ public class SalesOrderServiceImpl implements SalesOrderService {
             throw new BizException("请填写取消原因");
         }
         SalesOrderDO o = visible(id);
-        ProformaInvoiceDO pi = piStore.lockVisible(o.getPiId());
-        o = orderMapper.selectById(id);
+        boolean manual = Objects.equals(o.getSource(), SalesConstants.SO_MANUAL);
+        ProformaInvoiceDO pi = manual ? null : piStore.lockVisible(o.getPiId());
+        o = lockOrder(id);
         if (o.getStatus() != SalesConstants.SO_ACTIVE) {
             throw new BizException("订单已取消");
+        }
+        if (SalesConstants.PROGRESS_COMPLETED.equals(o.getProgressCode())) {
+            throw new BizException("订单已完成，不能取消");
         }
         o.setStatus(SalesConstants.SO_CANCELLED);
         o.setCancelReason(why.length() > 200 ? why.substring(0, 200) : why);
         o.setCancelledBy(currentUserId());
         o.setCancelledAt(LocalDateTime.now());
         orderMapper.updateById(o);
+        if (manual) {
+            logService.recordOperateLog(SalesConstants.MENU_SO, "取消销售订单", Map.of("soNo", o.getSoNo(), "status", "有效"),
+                    Map.of("soNo", o.getSoNo(), "status", "已取消", "reason", o.getCancelReason(),
+                            "received", o.getCurrencyCode() + " " + o.getReceivedAmount()));
+            return detail(id);
+        }
         pi.setStatus(SalesConstants.PI_SENT);
         piMapper.updateById(pi);
 
@@ -259,6 +495,158 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         return rows.stream().filter(r -> active.contains(r.getSoId())).map(SalesOrderItemDO::getQuotationItemId).collect(Collectors.toSet());
     }
 
+    // ---------------------------------------------------------------- 跟单信息（成交内容不可改）
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public SalesOrderVO updateSalesDate(Long id, LocalDate salesDate) {
+        visible(id);
+        SalesOrderDO o = lockOrder(id);
+        if (o.getStatus() != SalesConstants.SO_ACTIVE) {
+            throw new BizException("订单已取消，不能修改");
+        }
+        requirePastOrToday(salesDate);
+        LocalDate before = o.getSalesDate();
+        o.setSalesDate(salesDate);
+        orderMapper.updateById(o);
+        logService.recordOperateLog(SalesConstants.MENU_SO, "修改销售日期",
+                Map.of("soNo", o.getSoNo(), "salesDate", before == null ? "" : before.toString()),
+                Map.of("soNo", o.getSoNo(), "salesDate", salesDate.toString()));
+        return detail(id);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public SalesOrderVO updateProgress(Long id, OrderItemsRequest req) {
+        List<OrderProgress.Step> ordered = progress.ordered();
+        OrderProgress.Step step = OrderProgress.require(ordered, req.getProgressCode() == null ? "" : req.getProgressCode().trim());
+        Tracking t = trackable(id, req.getItemIds());
+        Map<String, String> names = progress.names();
+        List<String> changes = new ArrayList<>();
+        for (SalesOrderItemDO i : t.selected()) {
+            if (!step.code().equals(i.getProgressCode())) {
+                changes.add(i.getModel() + " " + names.getOrDefault(i.getProgressCode(), i.getProgressCode()) + " → " + step.name());
+                i.setProgressCode(step.code());
+                orderItemMapper.updateById(i);
+            }
+        }
+        String before = names.getOrDefault(t.order().getProgressCode(), t.order().getProgressCode());
+        recompute(t.order(), t.all(), ordered);
+        Map<String, Object> after = new LinkedHashMap<>();
+        after.put("soNo", t.order().getSoNo());
+        after.put("items", changes);
+        after.put("orderStatus", before + " → " + names.getOrDefault(t.order().getProgressCode(), t.order().getProgressCode()));
+        if (StringUtils.hasText(req.getNote())) {
+            after.put("note", req.getNote().trim());
+        }
+        logService.recordOperateLog(SalesConstants.MENU_SO, "更新订单进度", null, after);
+        return detail(id);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public SalesOrderVO updatePurchaser(Long id, OrderItemsRequest req) {
+        Long purchaser = req.getPurchaserId();
+        if (purchaser != null) {
+            requireUsers(Set.of(purchaser));
+        }
+        Tracking t = trackable(id, req.getItemIds());
+        Map<Long, String> names = lookups.userNames(Stream.concat(t.selected().stream().map(SalesOrderItemDO::getPurchaserId),
+                Stream.of(purchaser)).filter(Objects::nonNull).toList());
+        List<String> changes = new ArrayList<>();
+        for (SalesOrderItemDO i : t.selected()) {
+            if (!Objects.equals(i.getPurchaserId(), purchaser)) {
+                changes.add(i.getModel() + " 采购员 " + names.getOrDefault(i.getPurchaserId(), "未指定") + " → "
+                        + names.getOrDefault(purchaser, "未指定"));
+                i.setPurchaserId(purchaser);
+                orderItemMapper.updateById(i);
+            }
+        }
+        logService.recordOperateLog(SalesConstants.MENU_SO, "指定采购员", null, Map.of("soNo", t.order().getSoNo(), "items", changes));
+        return detail(id);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public SalesOrderVO updateStockType(Long id, OrderItemsRequest req) {
+        Integer type = req.getStockType();
+        if (type == null || !SalesConstants.STOCK_NAMES.containsKey(type)) {
+            throw new BizException("请选择现货或期货");
+        }
+        Tracking t = trackable(id, req.getItemIds());
+        List<String> changes = new ArrayList<>();
+        for (SalesOrderItemDO i : t.selected()) {
+            if (!Objects.equals(i.getStockType(), type)) {
+                changes.add(i.getModel() + " " + SalesConstants.STOCK_NAMES.get(i.getStockType()) + " → " + SalesConstants.STOCK_NAMES.get(type));
+                i.setStockType(type);
+                orderItemMapper.updateById(i);
+            }
+        }
+        recompute(t.order(), t.all(), progress.ordered());
+        logService.recordOperateLog(SalesConstants.MENU_SO, "修改现货 / 期货", null, Map.of("soNo", t.order().getSoNo(), "items", changes));
+        return detail(id);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public SalesOrderVO complete(Long id) {
+        visible(id);
+        SalesOrderDO o = lockOrder(id);
+        requireTrackable(o);
+        List<OrderProgress.Step> ordered = progress.ordered();
+        OrderProgress.Step last = OrderProgress.last(ordered);
+        int lastRank = OrderProgress.rank(ordered, last.code());
+        long behind = orderItems(id).stream().filter(i -> OrderProgress.rank(ordered, i.getProgressCode()) < lastRank).count();
+        if (behind > 0) {
+            throw new BizException("还有 " + behind + " 个型号还没到「" + last.name() + "」，不能确认收货");
+        }
+        o.setProgressCode(SalesConstants.PROGRESS_COMPLETED);
+        o.setCompletedAt(LocalDateTime.now());
+        orderMapper.updateById(o);
+        logService.recordOperateLog(SalesConstants.MENU_SO, "客户已收货", Map.of("soNo", o.getSoNo(), "status", last.name()),
+                Map.of("soNo", o.getSoNo(), "status", progress.names().get(SalesConstants.PROGRESS_COMPLETED)));
+        return detail(id);
+    }
+
+    private record Tracking(SalesOrderDO order, List<SalesOrderItemDO> all, List<SalesOrderItemDO> selected) {
+    }
+
+    /** 加锁取订单与选中的型号：有效且未完成的订单才能改跟单信息 */
+    private Tracking trackable(Long id, List<Long> itemIds) {
+        visible(id);
+        SalesOrderDO o = lockOrder(id);
+        requireTrackable(o);
+        List<SalesOrderItemDO> all = orderItems(id);
+        Set<Long> wanted = new HashSet<>(itemIds);
+        List<SalesOrderItemDO> selected = all.stream().filter(i -> wanted.contains(i.getId())).toList();
+        if (selected.size() != wanted.size()) {
+            throw new BizException("型号不属于这张订单");
+        }
+        return new Tracking(o, all, selected);
+    }
+
+    private static void requireTrackable(SalesOrderDO o) {
+        if (o.getStatus() != SalesConstants.SO_ACTIVE) {
+            throw new BizException("订单已取消，不能修改");
+        }
+        if (SalesConstants.PROGRESS_COMPLETED.equals(o.getProgressCode())) {
+            throw new BizException("订单已完成，不能修改");
+        }
+    }
+
+    /** 订单级冗余：进度取最靠前的型号，任一型号期货即期货 */
+    private void recompute(SalesOrderDO o, List<SalesOrderItemDO> items, List<OrderProgress.Step> ordered) {
+        o.setProgressCode(items.stream().min(Comparator.comparingInt(i -> OrderProgress.rank(ordered, i.getProgressCode())))
+                .map(SalesOrderItemDO::getProgressCode).orElse(SalesConstants.PROGRESS_PENDING));
+        o.setStockType(items.stream().anyMatch(i -> Objects.equals(i.getStockType(), SalesConstants.STOCK_FUTURES))
+                ? SalesConstants.STOCK_FUTURES : SalesConstants.STOCK_SPOT);
+        orderMapper.updateById(o);
+    }
+
+    private SalesOrderDO lockOrder(Long id) {
+        return orderMapper.selectOne(new LambdaQueryWrapper<SalesOrderDO>().eq(SalesOrderDO::getId, id).last("FOR UPDATE"));
+    }
+
     // ---------------------------------------------------------------- 查看
 
     @Override
@@ -270,7 +658,12 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         SalesOrderVO vo = new SalesOrderVO();
         vo.setId(o.getId());
         vo.setSoNo(o.getSoNo());
-        vo.setPiId(o.getPiId());
+        vo.setSource(o.getSource());
+        vo.setSalesDate(o.getSalesDate());
+        vo.setCustomerType(o.getCustomerType());
+        vo.setStockType(o.getStockType());
+        vo.setCompletedAt(o.getCompletedAt());
+        vo.setPiId(pi == null ? null : o.getPiId());
         vo.setPiNo(pi == null ? null : pi.getPiNo());
         vo.setPiVersionNo(o.getPiVersionNo());
         vo.setPiStatus(pi == null ? null : pi.getStatus());
@@ -301,20 +694,29 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         vo.setCancelReason(StringUtils.hasText(o.getCancelReason()) ? o.getCancelReason() : null);
         vo.setCancelledByName(o.getCancelledBy() == null ? null : users.get(o.getCancelledBy()));
         vo.setCancelledAt(o.getCancelledAt());
-        if (pi != null) {
-            vo.setReceiptStatus(pi.getReceiptStatus());
-            vo.setReceiptStatusName(SalesConstants.RECEIPT_STATUS_NAMES.get(pi.getReceiptStatus()));
-            vo.setReceivedAmount(pi.getReceivedAmount());
-            vo.setFeeDiffAmount(pi.getFeeDiffAmount());
-            vo.setRemainingAmount(o.getTotalAmount().subtract(pi.getReceivedAmount()).subtract(pi.getFeeDiffAmount()));
-            vo.setReceipts(piService.receipts(pi.getId()));
-        }
+        Receipts rc = receiptsOf(o, pi);
+        vo.setReceiptStatus(rc.status());
+        vo.setReceiptStatusName(SalesConstants.RECEIPT_STATUS_NAMES.get(rc.status()));
+        vo.setReceivedAmount(rc.received());
+        vo.setFeeDiffAmount(rc.feeDiff());
+        vo.setRemainingAmount(o.getTotalAmount().subtract(rc.received()).subtract(rc.feeDiff()));
+        vo.setReceipts(pi != null ? piService.receipts(pi.getId())
+                : receiptViews.list(new LambdaQueryWrapper<PaymentReceiptDO>().eq(PaymentReceiptDO::getSoId, o.getId())));
+        vo.setMethodTotals(methodTotals(vo.getReceipts(), o.getCurrencyCode()));
         QuotationRenderModels.Labels labels = quotationStore.labels();
         List<SalesOrderItemDO> items = orderItems(id);
         Map<Long, String> quotationNos = quotationNos(items.stream().map(SalesOrderItemDO::getQuotationId).toList());
         Map<Long, String> inquiryCodes = lookups.inquiryCodes(items.stream().map(SalesOrderItemDO::getCustomerInquiryId).toList());
+        List<OrderProgress.Step> ordered = progress.ordered();
+        Map<String, String> progressNames = progress.names();
+        Map<Long, String> purchaserNames = lookups.userNames(items.stream().map(SalesOrderItemDO::getPurchaserId).toList());
         vo.setItems(items.stream().map(i -> {
-            PiItemVO x = new PiItemVO();
+            SalesOrderItemVO x = new SalesOrderItemVO();
+            x.setStockType(i.getStockType());
+            x.setProgressCode(i.getProgressCode());
+            x.setProgressName(progressNames.getOrDefault(i.getProgressCode(), i.getProgressCode()));
+            x.setPurchaserId(i.getPurchaserId());
+            x.setPurchaserName(i.getPurchaserId() == null ? null : purchaserNames.get(i.getPurchaserId()));
             x.setId(i.getId());
             x.setLineNo(i.getLineNo());
             x.setQuotationId(i.getQuotationId());
@@ -360,7 +762,103 @@ public class SalesOrderServiceImpl implements SalesOrderService {
                 }).toList());
         vo.setCreateTime(o.getCreateTime());
         vo.setCreateByName(o.getCreateBy());
+
+        boolean active = o.getStatus() == SalesConstants.SO_ACTIVE;
+        boolean completed = SalesConstants.PROGRESS_COMPLETED.equals(o.getProgressCode());
+        vo.setProgressCode(active ? o.getProgressCode() : SalesConstants.PROGRESS_CANCELLED);
+        vo.setProgressName(progressNames.getOrDefault(vo.getProgressCode(), vo.getProgressCode()));
+        vo.setTrackable(active && !completed);
+        int lastRank = OrderProgress.rank(ordered, OrderProgress.last(ordered).code());
+        vo.setCompletable(active && !completed && items.stream().allMatch(i -> OrderProgress.rank(ordered, i.getProgressCode()) >= lastRank));
+        vo.setSteps(ordered.stream().map(st -> {
+            SalesOrderVO.Step x = new SalesOrderVO.Step();
+            x.setCode(st.code());
+            x.setName(st.name());
+            x.setEnabled(st.enabled());
+            return x;
+        }).toList());
+        Map<Long, Integer> byPurchaser = new LinkedHashMap<>();
+        items.forEach(i -> byPurchaser.merge(i.getPurchaserId() == null ? 0L : i.getPurchaserId(), 1, Integer::sum));
+        vo.setPurchasers(byPurchaser.entrySet().stream().map(e -> {
+            SalesOrderVO.Purchaser x = new SalesOrderVO.Purchaser();
+            x.setUserId(e.getKey() == 0L ? null : e.getKey());
+            x.setName(e.getKey() == 0L ? null : purchaserNames.get(e.getKey()));
+            x.setItemCount(e.getValue());
+            return x;
+        }).toList());
+        vo.setMargin(margin(o, items, rc));
         return vo;
+    }
+
+    /** 收款汇总：PI 转成的订单取 PI，手动创建的订单取订单自己的 */
+    private record Receipts(int status, BigDecimal received, BigDecimal feeDiff, BigDecimal netCny) {
+    }
+
+    private Receipts receiptsOf(SalesOrderDO o, ProformaInvoiceDO pi) {
+        LambdaQueryWrapper<PaymentReceiptDO> w = new LambdaQueryWrapper<PaymentReceiptDO>()
+                .select(PaymentReceiptDO::getNetAmountCny)
+                .eq(PaymentReceiptDO::getKind, SalesConstants.KIND_RECEIPT)
+                .eq(PaymentReceiptDO::getStatus, SalesConstants.RECORD_VALID)
+                .isNull(PaymentReceiptDO::getDeletedAt);
+        if (pi != null) {
+            w.eq(PaymentReceiptDO::getPiId, pi.getId());
+        } else {
+            w.eq(PaymentReceiptDO::getSoId, o.getId());
+        }
+        BigDecimal netCny = receiptMapper.selectList(w).stream().map(PaymentReceiptDO::getNetAmountCny).filter(Objects::nonNull)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        return pi != null ? new Receipts(pi.getReceiptStatus(), pi.getReceivedAmount(), pi.getFeeDiffAmount(), netCny)
+                : new Receipts(o.getReceiptStatus(), o.getReceivedAmount(), o.getFeeDiffAmount(), netCny);
+    }
+
+    /** 收款按付款方式汇总（有效到账，线上在前、金额从大到小） */
+    private static List<SalesOrderVO.MethodTotal> methodTotals(List<ReceiptVO> receipts, String currency) {
+        Map<String, SalesOrderVO.MethodTotal> map = new LinkedHashMap<>();
+        for (ReceiptVO r : receipts) {
+            if (r.getKind() != SalesConstants.KIND_RECEIPT || r.getStatus() != SalesConstants.RECORD_VALID) {
+                continue;
+            }
+            SalesOrderVO.MethodTotal m = map.computeIfAbsent(r.getPaymentMethod(), k -> {
+                SalesOrderVO.MethodTotal x = new SalesOrderVO.MethodTotal();
+                x.setPaymentMethod(r.getPaymentMethod());
+                x.setPaymentMethodName(r.getPaymentMethodName());
+                x.setChannel(r.getChannel());
+                x.setCurrencyCode(currency);
+                x.setAmount(BigDecimal.ZERO);
+                return x;
+            });
+            m.setAmount(m.getAmount().add(r.getAmount()));
+        }
+        return map.values().stream()
+                .sorted(Comparator.comparing((SalesOrderVO.MethodTotal m) -> m.getChannel() == null ? 0 : -m.getChannel())
+                        .thenComparing(SalesOrderVO.MethodTotal::getAmount, Comparator.reverseOrder()))
+                .toList();
+    }
+
+    /**
+     * 订单毛利（CNY，HALF_UP 保留 2 位）：采购成本 = Σ 成本价 × 数量；
+     * 已到账时毛利 = 实收人民币 − 采购成本，否则预计毛利 = 销售额折合人民币 − 采购成本
+     */
+    private static SalesOrderVO.Margin margin(SalesOrderDO o, List<SalesOrderItemDO> items, Receipts rc) {
+        BigDecimal cost = BigDecimal.ZERO;
+        int missing = 0;
+        for (SalesOrderItemDO i : items) {
+            if (i.getCostPrice() == null) {
+                missing++;
+            } else {
+                cost = cost.add(i.getCostPrice().multiply(BigDecimal.valueOf(i.getQuantity() == null ? 0 : i.getQuantity())));
+            }
+        }
+        boolean paid = rc.status() == SalesConstants.RECEIPT_PAID;
+        BigDecimal base = paid ? rc.netCny() : o.getTotalAmountCny();
+        SalesOrderVO.Margin m = new SalesOrderVO.Margin();
+        m.setSalesAmountCny(o.getTotalAmountCny());
+        m.setReceivedCny(rc.netCny().setScale(2, RoundingMode.HALF_UP));
+        m.setCostCny(cost.setScale(2, RoundingMode.HALF_UP));
+        m.setProfitCny(base.subtract(cost).setScale(2, RoundingMode.HALF_UP));
+        m.setEstimated(!paid);
+        m.setMissingCostCount(missing);
+        return m;
     }
 
     @Override
@@ -385,10 +883,47 @@ public class SalesOrderServiceImpl implements SalesOrderService {
                             .eq(ProformaInvoiceDO::getTenantId, tenant)
                             .eq(ProformaInvoiceDO::getReceiptStatus, q.getReceiptStatus()))
                     .stream().map(ProformaInvoiceDO::getId).toList();
-            if (piIds.isEmpty()) {
+            // PI 转成的订单按 PI 的收款状态，手动创建的订单按订单自己的
+            w.and(x -> {
+                x.and(m -> m.eq(SalesOrderDO::getSource, SalesConstants.SO_MANUAL).eq(SalesOrderDO::getReceiptStatus, q.getReceiptStatus()));
+                if (!piIds.isEmpty()) {
+                    x.or().in(SalesOrderDO::getPiId, piIds);
+                }
+            });
+        }
+        if (q.getSalesFrom() != null) {
+            w.ge(SalesOrderDO::getSalesDate, q.getSalesFrom());
+        }
+        if (q.getSalesTo() != null) {
+            w.le(SalesOrderDO::getSalesDate, q.getSalesTo());
+        }
+        if (StringUtils.hasText(q.getProgressCode())) {
+            if (SalesConstants.PROGRESS_CANCELLED.equals(q.getProgressCode().trim())) {
+                w.eq(SalesOrderDO::getStatus, SalesConstants.SO_CANCELLED);
+            } else {
+                w.eq(SalesOrderDO::getStatus, SalesConstants.SO_ACTIVE).eq(SalesOrderDO::getProgressCode, q.getProgressCode().trim());
+            }
+        }
+        if (q.getStockType() != null) {
+            w.eq(SalesOrderDO::getStockType, q.getStockType());
+        }
+        if (q.getCustomerType() != null) {
+            w.eq(SalesOrderDO::getCustomerType, q.getCustomerType());
+        }
+        if (StringUtils.hasText(q.getCurrencyCode())) {
+            w.eq(SalesOrderDO::getCurrencyCode, q.getCurrencyCode().trim().toUpperCase(Locale.ROOT));
+        }
+        if (q.getPurchaserId() != null) {
+            List<Long> byPurchaser = orderItemMapper.selectList(new LambdaQueryWrapper<SalesOrderItemDO>()
+                            .select(SalesOrderItemDO::getSoId)
+                            .eq(SalesOrderItemDO::getTenantId, tenant)
+                            .eq(SalesOrderItemDO::getPurchaserId, q.getPurchaserId())
+                            .isNull(SalesOrderItemDO::getDeletedAt))
+                    .stream().map(SalesOrderItemDO::getSoId).distinct().toList();
+            if (byPurchaser.isEmpty()) {
                 return PageResult.of(0L, List.of());
             }
-            w.in(SalesOrderDO::getPiId, piIds);
+            w.in(SalesOrderDO::getId, byPurchaser);
         }
         if (StringUtils.hasText(q.getKeyword())) {
             String kw = q.getKeyword().trim();
@@ -431,25 +966,93 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         if (total == 0) {
             return PageResult.of(0L, List.of());
         }
-        w.orderByDesc(SalesOrderDO::getCreateTime).orderByDesc(SalesOrderDO::getId)
+        w.orderByDesc(SalesOrderDO::getSalesDate).orderByDesc(SalesOrderDO::getId)
                 .last("LIMIT " + (long) (page - 1) * size + ", " + size);
         return PageResult.of(total, toListVos(orderMapper.selectList(w)));
+    }
+
+    @Override
+    public SalesOrderStatsVO stats() {
+        LocalDate first = LocalDate.now().withDayOfMonth(1);
+        LocalDate last = first.plusMonths(1).minusDays(1);
+        List<SalesOrderDO> active = orderMapper.selectList(scoped()
+                .select(SalesOrderDO::getId, SalesOrderDO::getPiId, SalesOrderDO::getSource, SalesOrderDO::getSalesDate, SalesOrderDO::getProgressCode)
+                .eq(SalesOrderDO::getStatus, SalesConstants.SO_ACTIVE));
+        SalesOrderStatsVO vo = new SalesOrderStatsVO();
+        vo.setMonthCount(active.stream().filter(o -> o.getSalesDate() != null && !o.getSalesDate().isBefore(first)
+                && !o.getSalesDate().isAfter(last)).count());
+        List<SalesOrderDO> running = active.stream().filter(o -> !SalesConstants.PROGRESS_COMPLETED.equals(o.getProgressCode())).toList();
+        vo.setInProgressCount((long) running.size());
+        Map<String, Long> byCode = running.stream().collect(Collectors.groupingBy(SalesOrderDO::getProgressCode, Collectors.counting()));
+        Map<String, String> names = progress.names();
+        vo.setProgressCounts(progress.ordered().stream().filter(st -> byCode.containsKey(st.code())).map(st -> {
+            SalesOrderStatsVO.ProgressCount c = new SalesOrderStatsVO.ProgressCount();
+            c.setCode(st.code());
+            c.setName(names.getOrDefault(st.code(), st.name()));
+            c.setCount(byCode.get(st.code()));
+            return c;
+        }).toList());
+        Set<Long> runningIds = running.stream().map(SalesOrderDO::getId).collect(Collectors.toSet());
+        vo.setUnassignedCount(runningIds.isEmpty() ? 0L : orderItemMapper.selectList(new LambdaQueryWrapper<SalesOrderItemDO>()
+                        .select(SalesOrderItemDO::getSoId)
+                        .in(SalesOrderItemDO::getSoId, runningIds)
+                        .isNull(SalesOrderItemDO::getPurchaserId)
+                        .isNull(SalesOrderItemDO::getDeletedAt))
+                .stream().map(SalesOrderItemDO::getSoId).distinct().count());
+        List<Long> piIds = active.stream().filter(o -> o.getPiId() != null && o.getPiId() > 0).map(SalesOrderDO::getPiId).toList();
+        List<Long> soIds = active.stream().filter(o -> Objects.equals(o.getSource(), SalesConstants.SO_MANUAL)).map(SalesOrderDO::getId).toList();
+        BigDecimal online = BigDecimal.ZERO;
+        BigDecimal offline = BigDecimal.ZERO;
+        if (!piIds.isEmpty() || !soIds.isEmpty()) {
+            for (PaymentReceiptDO r : receiptMapper.selectList(new LambdaQueryWrapper<PaymentReceiptDO>()
+                    .select(PaymentReceiptDO::getChannel, PaymentReceiptDO::getNetAmountCny)
+                    .and(x -> {
+                        if (!piIds.isEmpty()) {
+                            x.in(PaymentReceiptDO::getPiId, piIds);
+                        }
+                        if (!soIds.isEmpty()) {
+                            x.or().in(PaymentReceiptDO::getSoId, soIds);
+                        }
+                    })
+                    .eq(PaymentReceiptDO::getKind, SalesConstants.KIND_RECEIPT)
+                    .eq(PaymentReceiptDO::getStatus, SalesConstants.RECORD_VALID)
+                    .between(PaymentReceiptDO::getReceiptDate, first, last)
+                    .isNull(PaymentReceiptDO::getDeletedAt))) {
+                BigDecimal v = r.getNetAmountCny() == null ? BigDecimal.ZERO : r.getNetAmountCny();
+                if (Objects.equals(r.getChannel(), SalesConstants.CHANNEL_ONLINE)) {
+                    online = online.add(v);
+                } else {
+                    offline = offline.add(v);
+                }
+            }
+        }
+        vo.setMonthOnlineCny(online);
+        vo.setMonthOfflineCny(offline);
+        vo.setMonthNetCny(online.add(offline));
+        return vo;
     }
 
     private List<SalesOrderListVO> toListVos(List<SalesOrderDO> rows) {
         List<Long> ids = rows.stream().map(SalesOrderDO::getId).toList();
         Map<Long, Integer> counts = new HashMap<>();
         Map<Long, Integer> quantities = new HashMap<>();
-        Map<Long, Set<Long>> inquiriesByOrder = new HashMap<>();
+        Map<Long, Set<Long>> purchasersByOrder = new HashMap<>();
+        Map<Long, Integer> unassigned = new HashMap<>();
         for (SalesOrderItemDO i : orderItemMapper.selectList(new LambdaQueryWrapper<SalesOrderItemDO>()
-                .select(SalesOrderItemDO::getSoId, SalesOrderItemDO::getQuantity, SalesOrderItemDO::getCustomerInquiryId)
+                .select(SalesOrderItemDO::getSoId, SalesOrderItemDO::getQuantity, SalesOrderItemDO::getPurchaserId)
                 .in(SalesOrderItemDO::getSoId, ids)
-                .isNull(SalesOrderItemDO::getDeletedAt))) {
+                .isNull(SalesOrderItemDO::getDeletedAt)
+                .orderByAsc(SalesOrderItemDO::getLineNo))) {
             counts.merge(i.getSoId(), 1, Integer::sum);
             quantities.merge(i.getSoId(), i.getQuantity() == null ? 0 : i.getQuantity(), Integer::sum);
-            inquiriesByOrder.computeIfAbsent(i.getSoId(), k -> new TreeSet<>()).add(i.getCustomerInquiryId());
+            if (i.getPurchaserId() == null) {
+                unassigned.merge(i.getSoId(), 1, Integer::sum);
+            } else {
+                purchasersByOrder.computeIfAbsent(i.getSoId(), k -> new java.util.LinkedHashSet<>()).add(i.getPurchaserId());
+            }
         }
-        Map<Long, Integer> customerTypes = lookups.customerTypes(inquiriesByOrder);
+        Map<Long, String> purchaserNames = lookups.userNames(purchasersByOrder.values().stream().flatMap(Set::stream).toList());
+        Map<String, String> progressNames = progress.names();
         Map<Long, ProformaInvoiceDO> pis = piMapper.selectBatchIds(rows.stream().map(SalesOrderDO::getPiId).collect(Collectors.toSet()))
                 .stream().collect(Collectors.toMap(ProformaInvoiceDO::getId, p -> p));
         Map<Long, CustomerDO> customers = lookups.customers(rows.stream().map(SalesOrderDO::getCustomerId).toList());
@@ -463,7 +1066,16 @@ public class SalesOrderServiceImpl implements SalesOrderService {
             vo.setCustomerId(o.getCustomerId());
             vo.setCustomerName(InquiryLookups.customerName(customers.get(o.getCustomerId())));
             vo.setCustomerCountry(customers.get(o.getCustomerId()) == null ? null : customers.get(o.getCustomerId()).getCountry());
-            vo.setCustomerType(customerTypes.get(o.getId()));
+            vo.setCustomerType(o.getCustomerType());
+            vo.setSource(o.getSource());
+            vo.setSalesDate(o.getSalesDate());
+            vo.setStockType(o.getStockType());
+            String code = o.getStatus() == SalesConstants.SO_ACTIVE ? o.getProgressCode() : SalesConstants.PROGRESS_CANCELLED;
+            vo.setProgressCode(code);
+            vo.setProgressName(progressNames.getOrDefault(code, code));
+            vo.setPurchaserNames(purchasersByOrder.getOrDefault(o.getId(), Set.of()).stream().map(purchaserNames::get)
+                    .filter(Objects::nonNull).toList());
+            vo.setUnassignedCount(unassigned.getOrDefault(o.getId(), 0));
             vo.setTotalQuantity(quantities.getOrDefault(o.getId(), 0));
             vo.setItemCount(counts.getOrDefault(o.getId(), 0));
             vo.setCurrencyCode(o.getCurrencyCode());
@@ -473,11 +1085,15 @@ public class SalesOrderServiceImpl implements SalesOrderService {
                 vo.setReceiptStatusName(SalesConstants.RECEIPT_STATUS_NAMES.get(pi.getReceiptStatus()));
                 vo.setReceivedAmount(pi.getReceivedAmount());
                 vo.setPiNo(pi.getPiNo());
+            } else {
+                vo.setReceiptStatus(o.getReceiptStatus());
+                vo.setReceiptStatusName(SalesConstants.RECEIPT_STATUS_NAMES.get(o.getReceiptStatus()));
+                vo.setReceivedAmount(o.getReceivedAmount());
             }
             vo.setStatus(o.getStatus());
             vo.setStatusName(SO_STATUS_NAMES.get(o.getStatus()));
-            vo.setPiId(o.getPiId());
-            vo.setPiVersionNo(o.getPiVersionNo());
+            vo.setPiId(pi == null ? null : o.getPiId());
+            vo.setPiVersionNo(pi == null ? null : o.getPiVersionNo());
             vo.setOwnerId(o.getOwnerId());
             vo.setOwnerName(users.get(o.getOwnerId()));
             vo.setCancelReason(StringUtils.hasText(o.getCancelReason()) ? o.getCancelReason() : null);
@@ -546,6 +1162,7 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         }
         inquiryIds.remove(0L);
         quotationIds.remove(0L);
+        piIds.remove(0L);
         ChainVO vo = new ChainVO();
         vo.setInquiries(inquiryIds.isEmpty() ? List.of() : inquiryMapper.selectBatchIds(inquiryIds).stream()
                 .filter(i -> i.getDeletedAt() == null)

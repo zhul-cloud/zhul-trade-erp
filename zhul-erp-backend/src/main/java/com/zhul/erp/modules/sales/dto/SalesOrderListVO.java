@@ -10,6 +10,15 @@ import java.time.LocalDateTime;
 public class SalesOrderListVO {
     private Long id;
     private String soNo;
+    private Integer source;
+    private java.time.LocalDate salesDate;
+    private Integer stockType;
+    private String progressCode;
+    private String progressName;
+    /** 采购员姓名（去重，按型号顺序） */
+    private java.util.List<String> purchaserNames;
+    /** 未指定采购员的型号数 */
+    private Integer unassignedCount;
     private Long customerId;
     private String customerName;
     /** 客户国家 */

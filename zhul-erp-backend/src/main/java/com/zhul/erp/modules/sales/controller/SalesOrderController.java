@@ -4,6 +4,10 @@ import com.zhul.erp.common.result.PageResult;
 import com.zhul.erp.common.result.Result;
 import com.zhul.erp.modules.sales.dto.CancelOrderRequest;
 import com.zhul.erp.modules.sales.dto.ChainVO;
+import com.zhul.erp.modules.sales.dto.ConvertOrderRequest;
+import com.zhul.erp.modules.sales.dto.CreateOrderRequest;
+import com.zhul.erp.modules.sales.dto.OrderItemsRequest;
+import com.zhul.erp.modules.sales.dto.SalesDateRequest;
 import com.zhul.erp.modules.sales.dto.SalesOrderListVO;
 import com.zhul.erp.modules.sales.dto.SalesOrderPageQuery;
 import com.zhul.erp.modules.sales.dto.SalesOrderVO;
@@ -29,14 +33,56 @@ public class SalesOrderController {
 
     @PostMapping("/pis/{piId}/convert")
     @PreAuthorize("@perm.canAccessMenu('/sales/pi')")
-    public Result<SalesOrderVO> convert(@PathVariable Long piId) {
-        return Result.ok(service.convert(piId));
+    public Result<SalesOrderVO> convert(@PathVariable Long piId, @RequestBody(required = false) ConvertOrderRequest req) {
+        return Result.ok(service.convert(piId, req));
+    }
+
+    @PostMapping("/orders")
+    @PreAuthorize("@perm.canAccessMenu('/sales/orders') and @perm.has('sales:order:create')")
+    public Result<SalesOrderVO> create(@Valid @RequestBody CreateOrderRequest req) {
+        return Result.ok(service.create(req));
+    }
+
+    @PostMapping("/orders/{id}/sales-date")
+    @PreAuthorize("@perm.canAccessMenu('/sales/orders')")
+    public Result<SalesOrderVO> salesDate(@PathVariable Long id, @Valid @RequestBody SalesDateRequest req) {
+        return Result.ok(service.updateSalesDate(id, req.getSalesDate()));
+    }
+
+    @PostMapping("/orders/{id}/progress")
+    @PreAuthorize("@perm.canAccessMenu('/sales/orders') and @perm.has('sales:order:progress')")
+    public Result<SalesOrderVO> progress(@PathVariable Long id, @Valid @RequestBody OrderItemsRequest req) {
+        return Result.ok(service.updateProgress(id, req));
+    }
+
+    @PostMapping("/orders/{id}/purchaser")
+    @PreAuthorize("@perm.canAccessMenu('/sales/orders')")
+    public Result<SalesOrderVO> purchaser(@PathVariable Long id, @Valid @RequestBody OrderItemsRequest req) {
+        return Result.ok(service.updatePurchaser(id, req));
+    }
+
+    @PostMapping("/orders/{id}/stock-type")
+    @PreAuthorize("@perm.canAccessMenu('/sales/orders')")
+    public Result<SalesOrderVO> stockType(@PathVariable Long id, @Valid @RequestBody OrderItemsRequest req) {
+        return Result.ok(service.updateStockType(id, req));
+    }
+
+    @PostMapping("/orders/{id}/complete")
+    @PreAuthorize("@perm.canAccessMenu('/sales/orders')")
+    public Result<SalesOrderVO> complete(@PathVariable Long id) {
+        return Result.ok(service.complete(id));
     }
 
     @PostMapping("/orders/page")
     @PreAuthorize("@perm.canAccessMenu('/sales/orders')")
     public Result<PageResult<SalesOrderListVO>> page(@RequestBody SalesOrderPageQuery query) {
         return Result.ok(service.page(query));
+    }
+
+    @GetMapping("/orders/stats")
+    @PreAuthorize("@perm.canAccessMenu('/sales/orders')")
+    public Result<com.zhul.erp.modules.sales.dto.SalesOrderStatsVO> stats() {
+        return Result.ok(service.stats());
     }
 
     @GetMapping("/orders/{id}")

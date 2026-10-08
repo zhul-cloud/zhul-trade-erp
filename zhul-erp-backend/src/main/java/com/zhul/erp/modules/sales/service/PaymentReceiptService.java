@@ -42,4 +42,23 @@ public interface PaymentReceiptService {
 
     /** 可记为手续费的差额上限（PI 币种金额） */
     BigDecimal feeTolerance();
+
+    // ---------------------------------------------------------------- 手动创建的订单：收款直接登记在订单上
+
+    com.zhul.erp.modules.sales.dto.SalesOrderVO uploadOrderSlip(Long soId, List<MultipartFile> files, BigDecimal amount, LocalDate paidDate,
+                                                               String paymentMethod, String note);
+
+    com.zhul.erp.modules.sales.dto.SalesOrderVO deleteOrderSlip(Long soId, Long slipId);
+
+    SlipFile orderSlipFile(Long soId, Long slipId, int index);
+
+    com.zhul.erp.modules.sales.dto.SalesOrderVO confirmOrder(Long soId, ConfirmReceiptRequest req);
+
+    com.zhul.erp.modules.sales.dto.SalesOrderVO voidOrderReceipt(Long soId, Long receiptId, String reason);
+
+    com.zhul.erp.modules.sales.dto.SalesOrderVO orderPlatformReceipt(Long soId, com.zhul.erp.modules.sales.dto.PlatformReceiptRequest req);
+
+    List<com.zhul.erp.modules.sales.dto.ReceiptRowVO> orderClaimable(Long soId);
+
+    com.zhul.erp.modules.sales.dto.SalesOrderVO claimToOrder(Long soId, com.zhul.erp.modules.sales.dto.ClaimReceiptRequest req);
 }

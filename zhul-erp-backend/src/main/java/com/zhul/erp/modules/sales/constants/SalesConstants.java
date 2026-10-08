@@ -52,6 +52,22 @@ public final class SalesConstants {
     /** 销售订单状态 */
     public static final int SO_ACTIVE = 1;
     public static final int SO_CANCELLED = 2;
+    /** 订单来源：PI 转成 / 手动创建 */
+    public static final int SO_FROM_PI = 1;
+    public static final int SO_MANUAL = 2;
+    /** 现货 / 期货 */
+    public static final int STOCK_SPOT = 1;
+    public static final int STOCK_FUTURES = 2;
+    public static final Map<Integer, String> STOCK_NAMES = Map.of(STOCK_SPOT, "现货", STOCK_FUTURES, "期货");
+    /** 货期字典里「现货」的码值 */
+    public static final int LEAD_TIME_SPOT = 1;
+    /** 字典「销售订单状态」与内置码 */
+    public static final String DICT_SO_STATUS = "sales_order_status";
+    public static final String PROGRESS_PENDING = "PENDING_PURCHASE";
+    public static final String PROGRESS_COMPLETED = "COMPLETED";
+    public static final String PROGRESS_CANCELLED = "CANCELLED";
+    public static final String PERM_ORDER_CREATE = "sales:order:create";
+    public static final String PERM_ORDER_PROGRESS = "sales:order:progress";
 
     /** 整单折扣方式 */
     public static final int DISCOUNT_NONE = 0;

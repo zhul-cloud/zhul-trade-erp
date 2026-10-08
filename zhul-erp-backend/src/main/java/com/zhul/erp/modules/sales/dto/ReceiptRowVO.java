@@ -12,6 +12,9 @@ public class ReceiptRowVO {
     private Long id;
     private Long piId;
     private String piNo;
+    /** 手动创建的订单的收款 */
+    private Long soId;
+    private String soNo;
     private String customerName;
     private String currencyCode;
     private BigDecimal amount;

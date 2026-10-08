@@ -13,6 +13,7 @@ import com.zhul.erp.modules.sales.dto.UnclaimedListVO;
 import com.zhul.erp.modules.sales.dto.UnclaimedReceiptRequest;
 import com.zhul.erp.modules.sales.entity.PaymentReceiptDO;
 import com.zhul.erp.modules.sales.entity.ProformaInvoiceDO;
+import com.zhul.erp.modules.sales.entity.SalesOrderDO;
 import com.zhul.erp.modules.sales.repository.PaymentReceiptMapper;
 import com.zhul.erp.modules.sales.repository.ProformaInvoiceMapper;
 import com.zhul.erp.modules.sales.service.ReceiptLedgerService;
@@ -58,6 +59,7 @@ public class ReceiptLedgerServiceImpl implements ReceiptLedgerService {
     private final BankAccountService bankAccountService;
     private final ExchangeRateService exchangeRateService;
     private final CurrentUserResolver currentUser;
+    private final com.zhul.erp.modules.sales.repository.SalesOrderMapper orderMapper;
     private final LogService logService;
 
     // ---------------------------------------------------------------- 未认领到账
@@ -67,6 +69,7 @@ public class ReceiptLedgerServiceImpl implements ReceiptLedgerService {
         int tenant = PiStore.tenantId();
         LambdaQueryWrapper<PaymentReceiptDO> w = base(tenant)
                 .isNull(PaymentReceiptDO::getPiId)
+                .isNull(PaymentReceiptDO::getSoId)
                 .eq(PaymentReceiptDO::getStatus, SalesConstants.RECORD_VALID);
         if (StringUtils.hasText(currencyCode)) {
             w.eq(PaymentReceiptDO::getCurrencyCode, currencyCode.trim().toUpperCase(Locale.ROOT));
@@ -81,7 +84,7 @@ public class ReceiptLedgerServiceImpl implements ReceiptLedgerService {
         vo.setUnclaimed(receiptRows.of(receiptMapper.selectList(w)));
         vo.setRecentClaimed(receiptRows.of(receiptMapper.selectList(base(tenant)
                 .isNotNull(PaymentReceiptDO::getClaimedBy)
-                .isNotNull(PaymentReceiptDO::getPiId)
+                .and(x -> x.isNotNull(PaymentReceiptDO::getPiId).or().isNotNull(PaymentReceiptDO::getSoId))
                 .eq(PaymentReceiptDO::getStatus, SalesConstants.RECORD_VALID)
                 .orderByDesc(PaymentReceiptDO::getClaimedAt)
                 .last("LIMIT " + RECENT_CLAIMED))));
@@ -131,23 +134,39 @@ public class ReceiptLedgerServiceImpl implements ReceiptLedgerService {
     public void unclaim(Long id, String reason) {
         String why = requireReason(reason);
         PaymentReceiptDO found = require(id);
-        if (found.getPiId() == null || found.getClaimedBy() == null) {
+        if ((found.getPiId() == null && found.getSoId() == null) || found.getClaimedBy() == null) {
             throw new BizException("这笔到账不是认领来的，不能取消认领");
         }
-        // 先锁 PI 再锁收款记录（与认领的加锁顺序一致）
-        ProformaInvoiceDO pi = store.lockVisible(found.getPiId());
+        // 先锁 PI / 订单再锁收款记录（与认领的加锁顺序一致）
+        ProformaInvoiceDO pi = found.getPiId() == null ? null : store.lockVisible(found.getPiId());
+        SalesOrderDO so = found.getSoId() == null ? null : lockOrder(found.getSoId());
         PaymentReceiptDO r = lockRow(id);
-        if (!Objects.equals(r.getPiId(), pi.getId()) || r.getStatus() != SalesConstants.RECORD_VALID) {
+        if (!Objects.equals(r.getPiId(), pi == null ? null : pi.getId()) || !Objects.equals(r.getSoId(), so == null ? null : so.getId())
+                || r.getStatus() != SalesConstants.RECORD_VALID) {
             throw new BizException("这笔到账状态已变化，请刷新后再试");
         }
         r.setPiId(null);
+        r.setSoId(null);
         r.setSlipId(null);
         r.setClaimedBy(null);
         r.setClaimedAt(null);
         receiptMapper.updateById(r);
-        summary.refresh(pi);
+        if (pi != null) {
+            summary.refresh(pi);
+        } else {
+            summary.refreshOrder(so);
+        }
         logService.recordOperateLog(SalesConstants.MENU_RECEIPTS, "取消认领",
-                Map.of("piNo", pi.getPiNo(), "amount", r.getCurrencyCode() + " " + r.getAmount()), Map.of("reason", why));
+                Map.of(pi != null ? "piNo" : "soNo", pi != null ? pi.getPiNo() : so.getSoNo(), "amount", r.getCurrencyCode() + " " + r.getAmount()),
+                Map.of("reason", why));
+    }
+
+    private SalesOrderDO lockOrder(Long soId) {
+        SalesOrderDO so = orderMapper.selectOne(new LambdaQueryWrapper<SalesOrderDO>().eq(SalesOrderDO::getId, soId).last("FOR UPDATE"));
+        if (so == null || so.getDeletedAt() != null || !Objects.equals(so.getTenantId(), PiStore.tenantId())) {
+            throw new BizException("销售订单不存在");
+        }
+        return so;
     }
 
     @Override
@@ -156,8 +175,8 @@ public class ReceiptLedgerServiceImpl implements ReceiptLedgerService {
         String why = requireReason(reason);
         require(id);
         PaymentReceiptDO r = lockRow(id);
-        if (r.getPiId() != null) {
-            throw new BizException("这笔到账已被认领，请在 PI 上作废或先取消认领");
+        if (r.getPiId() != null || r.getSoId() != null) {
+            throw new BizException("这笔到账已被认领，请在 PI 或订单上作废，或先取消认领");
         }
         if (r.getStatus() == SalesConstants.RECORD_VOID) {
             throw new BizException("这笔到账已作废");
@@ -174,7 +193,8 @@ public class ReceiptLedgerServiceImpl implements ReceiptLedgerService {
     @Override
     public ReceiptRecordPageVO records(ReceiptRecordQuery q) {
         int tenant = PiStore.tenantId();
-        LambdaQueryWrapper<PaymentReceiptDO> w = base(tenant).isNotNull(PaymentReceiptDO::getPiId);
+        LambdaQueryWrapper<PaymentReceiptDO> w = base(tenant)
+                .and(x -> x.isNotNull(PaymentReceiptDO::getPiId).or().isNotNull(PaymentReceiptDO::getSoId));
         if (!Boolean.TRUE.equals(q.getIncludeVoid())) {
             w.eq(PaymentReceiptDO::getStatus, SalesConstants.RECORD_VALID);
         }
@@ -213,10 +233,25 @@ public class ReceiptLedgerServiceImpl implements ReceiptLedgerService {
                     })
                     .last("LIMIT " + KEYWORD_LIMIT);
             List<Long> piIds = piMapper.selectList(pw).stream().map(ProformaInvoiceDO::getId).toList();
+            List<Long> soIds = orderMapper.selectList(new LambdaQueryWrapper<SalesOrderDO>()
+                            .select(SalesOrderDO::getId)
+                            .eq(SalesOrderDO::getTenantId, tenant)
+                            .eq(SalesOrderDO::getSource, SalesConstants.SO_MANUAL)
+                            .and(x -> {
+                                x.like(SalesOrderDO::getSoNo, kw);
+                                if (!customerIds.isEmpty()) {
+                                    x.or().in(SalesOrderDO::getCustomerId, customerIds);
+                                }
+                            })
+                            .last("LIMIT " + KEYWORD_LIMIT))
+                    .stream().map(SalesOrderDO::getId).toList();
             w.and(x -> {
                 x.like(PaymentReceiptDO::getPlatformOrderNo, kw).or().like(PaymentReceiptDO::getPayer, kw);
                 if (!piIds.isEmpty()) {
                     x.or().in(PaymentReceiptDO::getPiId, piIds);
+                }
+                if (!soIds.isEmpty()) {
+                    x.or().in(PaymentReceiptDO::getSoId, soIds);
                 }
             });
         }
