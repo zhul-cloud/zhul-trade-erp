@@ -45,6 +45,7 @@ import {
   readBizError,
 } from '../service';
 import { ActualCnyInput, PaymentMethodSelect } from './receiptDialogs';
+import { defaultSlipAmount } from './slipAmount';
 
 const num: React.CSSProperties = { fontVariantNumeric: 'tabular-nums' };
 const label: React.CSSProperties = { fontSize: 13, marginBottom: 6 };
@@ -587,13 +588,12 @@ export const SlipModal = <T extends ReceiptResult>({
   useEffect(() => {
     if (open) {
       setFiles([]);
-      // 默认按合计付款，部分付款时由业务员改
-      setAmount(pi?.totalAmount ?? null);
+      setAmount(defaultSlipAmount(pi));
       setDate(dayjs());
       setNote('');
       setMethod(undefined);
     }
-  }, [open, pi?.totalAmount]);
+  }, [open, pi]);
 
   const submit = async () => {
     if (!pi || !amount || !date) return;
