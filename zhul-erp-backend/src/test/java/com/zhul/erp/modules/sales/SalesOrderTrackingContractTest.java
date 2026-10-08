@@ -263,4 +263,24 @@ class SalesOrderTrackingContractTest extends SalesContractSupport {
         assertEquals("这张订单由 PI 转成，收款请在 PI 上登记", fail(call(json(post(SO + "/" + id + "/platform-receipts"), write(platform)), admin))
                 .path("message").asText());
     }
+
+    @Test
+    void candidatePis_onlyConvertible() throws Exception {
+        long c = customer("ACROBOT", "India");
+        long paid = sentPi(quotationItemIds(quotation(c, 2, "USD", null, l("A-1", 1, "100", "200"))), null);
+        ok(uploadSlip(paid, "200", "2026-10-07", admin));
+        long unpaid = sentPi(quotationItemIds(quotation(c, 2, "USD", null, l("B-1", 1, "100", "200"))), null);
+        long converted = sentPi(quotationItemIds(quotation(c, 2, "USD", null, l("C-1", 1, "100", "200"))), null);
+        ok(uploadSlip(converted, "200", "2026-10-07", admin));
+        ok(convert(converted, null));
+
+        JsonNode list = ok(call(get(SO + "/candidates/pis"), admin));
+        assertEquals(1, list.size(), "没有水单的、已转订单的不列出：" + list);
+        assertEquals(paid, list.get(0).path("id").asLong());
+        assertEquals(1, list.get(0).path("lastKind").asInt(), "最近一笔是水单");
+        money("200", list.get(0).path("lastAmount"));
+        assertEquals(1, ok(call(get(SO + "/candidates/pis").param("keyword", "ACRO"), admin)).size());
+        assertEquals(0, ok(call(get(SO + "/candidates/pis").param("keyword", "nobody"), admin)).size());
+        assertTrue(unpaid > 0);
+    }
 }

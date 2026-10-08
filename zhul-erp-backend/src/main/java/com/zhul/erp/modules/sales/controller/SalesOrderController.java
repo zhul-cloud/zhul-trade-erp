@@ -79,6 +79,13 @@ public class SalesOrderController {
         return Result.ok(service.page(query));
     }
 
+    /** 新建销售订单「按 PI 创建」：与在 PI 上转订单同样需要 PI 菜单 */
+    @GetMapping("/orders/candidates/pis")
+    @PreAuthorize("@perm.canAccessMenu('/sales/pi')")
+    public Result<java.util.List<com.zhul.erp.modules.sales.dto.OrderCandidatePiVO>> candidatePis(@RequestParam(required = false) String keyword) {
+        return Result.ok(service.candidatePis(keyword));
+    }
+
     @GetMapping("/orders/stats")
     @PreAuthorize("@perm.canAccessMenu('/sales/orders')")
     public Result<com.zhul.erp.modules.sales.dto.SalesOrderStatsVO> stats() {

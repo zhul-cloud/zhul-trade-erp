@@ -15,6 +15,10 @@ public class PiPageQuery {
     private Long ownerId;
     private LocalDate createdFrom;
     private LocalDate createdTo;
+    /** 排序字段：itemCount-型号数、totalQuantity-总数量、totalAmount-合计（按折合人民币比较）；不传按创建时间倒序 */
+    private String sortField;
+    /** ascend / descend */
+    private String sortOrder;
     private Integer page = 1;
     private Integer pageSize = 20;
 }

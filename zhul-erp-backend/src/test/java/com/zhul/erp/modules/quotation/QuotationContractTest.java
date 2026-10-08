@@ -758,6 +758,26 @@ class QuotationContractTest extends InquiryContractSupport {
         fail(call(get("/api/v1/translations/item-descriptions/" + task), token("it_lin")));
     }
 
+    @Test
+    void listSortsByItemCountQuantityAndTotal_unknownFieldFallsBack() throws Exception {
+        long c = customer("Pacific Controls", "Australia");
+        long small = byInquiries(seedInquiry(c, 6, "2026-10-03", new M("A-1", "Siemens", "PLC", 9, "100", 1, 1))).path("id").asLong();
+        long big = byInquiries(seedInquiry(c, 6, "2026-10-04", m("B-1", "5000"), m("B-2", "5000"))).path("id").asLong();
+        java.util.function.Function<String, List<Long>> ids = body -> {
+            try {
+                List<Long> list = new ArrayList<>();
+                ok(call(json(post(QT + "/page"), body), admin)).path("records").forEach(r -> list.add(r.path("id").asLong()));
+                return list;
+            } catch (Exception e) {
+                throw new IllegalStateException(e);
+            }
+        };
+        assertEquals(List.of(small, big), ids.apply("{\"sortField\":\"itemCount\",\"sortOrder\":\"ascend\"}"));
+        assertEquals(List.of(small, big), ids.apply("{\"sortField\":\"totalQuantity\",\"sortOrder\":\"descend\"}"), "9 件多于 2 件");
+        assertEquals(List.of(big, small), ids.apply("{\"sortField\":\"totalAmount\",\"sortOrder\":\"descend\"}"));
+        assertEquals(List.of(big, small), ids.apply("{\"sortField\":\"id; drop table quotation\",\"sortOrder\":\"ascend\"}"), "不认识的字段按创建时间倒序");
+    }
+
     // ---------------------------------------------------------------- 型号级锁定（真实询价录入）
 
     @Test

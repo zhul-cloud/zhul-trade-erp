@@ -1046,8 +1046,15 @@ public class PiServiceImpl implements PiService {
         if (total == 0) {
             return PageResult.of(0L, List.of());
         }
-        w.orderByDesc(ProformaInvoiceDO::getCreateTime).orderByDesc(ProformaInvoiceDO::getId)
-                .last("LIMIT " + (long) (page - 1) * size + ", " + size);
+        // 列表显示的版本：有当前有效版本时取它，否则取编辑中的版本（与 toListVos 一致）
+        w.last(com.zhul.erp.modules.quotation.support.ListSort.orderBy(q.getSortField(), q.getSortOrder(), Map.of(
+                "itemCount", "item_count",
+                "totalQuantity", "(SELECT COALESCE(SUM(pii.quantity), 0) FROM proforma_invoice_item pii "
+                        + "JOIN proforma_invoice_version piv ON piv.id = pii.version_id "
+                        + "WHERE piv.pi_id = proforma_invoice.id AND pii.deleted_at IS NULL "
+                        + "AND piv.version_no = IF(proforma_invoice.current_version_no > 0, proforma_invoice.current_version_no, proforma_invoice.editing_version_no))",
+                "totalAmount", "total_amount_cny"))
+                + " LIMIT " + (long) (page - 1) * size + ", " + size);
         return PageResult.of(total, toListVos(piMapper.selectList(w)));
     }
 

@@ -47,6 +47,7 @@ import com.zhul.erp.modules.quotation.support.QuotationPis;
 import com.zhul.erp.modules.quotation.support.QuotationPricing;
 import com.zhul.erp.modules.quotation.support.QuotationRenderModels;
 import com.zhul.erp.modules.quotation.support.QuotationStore;
+import com.zhul.erp.modules.quotation.support.ListSort;
 import com.zhul.erp.modules.quotation.support.QuoteCandidates;
 import com.zhul.erp.modules.system.dto.DictItemVO;
 import com.zhul.erp.modules.system.service.DictItemService;
@@ -1002,8 +1003,11 @@ public class QuotationServiceImpl implements QuotationService {
         if (total == 0) {
             return PageResult.of(0L, List.of());
         }
-        w.orderByDesc(QuotationDO::getCreateTime).orderByDesc(QuotationDO::getId)
-                .last("LIMIT " + (long) (page - 1) * size + ", " + size);
+        w.last(ListSort.orderBy(q.getSortField(), q.getSortOrder(), Map.of(
+                "itemCount", "(SELECT COUNT(*) FROM quotation_item qi WHERE qi.quotation_id = quotation.id AND qi.is_current = 1 AND qi.deleted_at IS NULL)",
+                "totalQuantity", "(SELECT COALESCE(SUM(qi.quantity), 0) FROM quotation_item qi WHERE qi.quotation_id = quotation.id AND qi.is_current = 1 AND qi.deleted_at IS NULL)",
+                "totalAmount", "total_amount_cny"))
+                + " LIMIT " + (long) (page - 1) * size + ", " + size);
         return PageResult.of(total, toListVos(quotationMapper.selectList(w)));
     }
 

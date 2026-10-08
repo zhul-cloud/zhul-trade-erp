@@ -6,6 +6,8 @@ import com.zhul.erp.modules.sales.dto.SalesOrderListVO;
 import com.zhul.erp.modules.sales.dto.SalesOrderPageQuery;
 import com.zhul.erp.modules.sales.dto.SalesOrderVO;
 
+import java.util.List;
+
 /** 销售订单（最小闭环）：由 PI 转成、不可修改只能取消；与报价单、询盘的成交联动在同一事务内 */
 public interface SalesOrderService {
 
@@ -25,6 +27,9 @@ public interface SalesOrderService {
     SalesOrderVO complete(Long id);
 
     com.zhul.erp.modules.sales.dto.SalesOrderStatsVO stats();
+
+    /** 新建销售订单「按 PI 创建」的候选 PI */
+    List<com.zhul.erp.modules.sales.dto.OrderCandidatePiVO> candidatePis(String keyword);
 
     SalesOrderVO cancel(Long id, String reason);
 

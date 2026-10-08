@@ -48,6 +48,7 @@ import com.zhul.erp.modules.sales.dto.OrderItemsRequest;
 import com.zhul.erp.modules.sales.dto.ReceiptVO;
 import com.zhul.erp.modules.sales.dto.SalesOrderItemVO;
 import com.zhul.erp.modules.sales.dto.SalesOrderStatsVO;
+import com.zhul.erp.modules.sales.dto.OrderCandidatePiVO;
 import com.zhul.erp.modules.sales.entity.PaymentReceiptDO;
 import com.zhul.erp.modules.system.entity.UserBasicDO;
 import com.zhul.erp.modules.inquiry.constants.InquiryConstants;
@@ -1033,6 +1034,74 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         vo.setMonthOfflineCny(offline);
         vo.setMonthNetCny(online.add(offline));
         return vo;
+    }
+
+    @Override
+    public List<OrderCandidatePiVO> candidatePis(String keyword) {
+        int tenant = PiStore.tenantId();
+        LambdaQueryWrapper<ProformaInvoiceDO> w = new LambdaQueryWrapper<ProformaInvoiceDO>()
+                .eq(ProformaInvoiceDO::getTenantId, tenant)
+                .eq(ProformaInvoiceDO::getStatus, SalesConstants.PI_SENT)
+                .ne(ProformaInvoiceDO::getReceiptStatus, SalesConstants.RECEIPT_NONE)
+                .isNull(ProformaInvoiceDO::getEditingVersionNo)
+                .isNull(ProformaInvoiceDO::getDeletedAt)
+                .notExists("SELECT 1 FROM sales_order so WHERE so.pi_id = proforma_invoice.id AND so.status = "
+                        + SalesConstants.SO_ACTIVE + " AND so.deleted_at IS NULL");
+        dataScopeResolver.current().apply(w, ProformaInvoiceDO::getOwnerId);
+        if (StringUtils.hasText(keyword)) {
+            String kw = keyword.trim();
+            List<Long> customerIds = customerMapper.selectList(new LambdaQueryWrapper<CustomerDO>()
+                            .select(CustomerDO::getId)
+                            .eq(CustomerDO::getTenantId, tenant)
+                            .and(x -> x.like(CustomerDO::getName, kw).or().like(CustomerDO::getShortName, kw)
+                                    .or().like(CustomerDO::getContactName, kw))
+                            .last("LIMIT " + KEYWORD_LIMIT))
+                    .stream().map(CustomerDO::getId).toList();
+            w.and(x -> {
+                x.like(ProformaInvoiceDO::getPiNo, kw);
+                if (!customerIds.isEmpty()) {
+                    x.or().in(ProformaInvoiceDO::getCustomerId, customerIds);
+                }
+            });
+        }
+        w.orderByDesc(ProformaInvoiceDO::getSentAt).orderByDesc(ProformaInvoiceDO::getId).last("LIMIT 200");
+        List<ProformaInvoiceDO> pis = piMapper.selectList(w);
+        if (pis.isEmpty()) {
+            return List.of();
+        }
+        Map<Long, PaymentReceiptDO> latest = new HashMap<>();
+        receiptMapper.selectList(new LambdaQueryWrapper<PaymentReceiptDO>()
+                        .in(PaymentReceiptDO::getPiId, pis.stream().map(ProformaInvoiceDO::getId).toList())
+                        .eq(PaymentReceiptDO::getStatus, SalesConstants.RECORD_VALID)
+                        .isNull(PaymentReceiptDO::getDeletedAt)
+                        .orderByAsc(PaymentReceiptDO::getReceiptDate)
+                        .orderByAsc(PaymentReceiptDO::getId))
+                .forEach(r -> latest.put(r.getPiId(), r));
+        Map<Long, CustomerDO> customers = lookups.customers(pis.stream().map(ProformaInvoiceDO::getCustomerId).toList());
+        Map<Long, String> users = lookups.userNames(pis.stream().map(ProformaInvoiceDO::getOwnerId).toList());
+        return pis.stream().map(p -> {
+            OrderCandidatePiVO vo = new OrderCandidatePiVO();
+            vo.setId(p.getId());
+            vo.setPiNo(p.getPiNo());
+            vo.setVersionNo(p.getCurrentVersionNo());
+            CustomerDO c = customers.get(p.getCustomerId());
+            vo.setCustomerName(InquiryLookups.customerName(c));
+            vo.setCustomerCountry(c == null ? null : c.getCountry());
+            vo.setCurrencyCode(p.getCurrencyCode());
+            vo.setTotalAmount(p.getTotalAmount());
+            vo.setReceiptStatus(p.getReceiptStatus());
+            vo.setReceiptStatusName(SalesConstants.RECEIPT_STATUS_NAMES.get(p.getReceiptStatus()));
+            PaymentReceiptDO r = latest.get(p.getId());
+            if (r != null) {
+                vo.setLastKind(r.getKind());
+                vo.setLastAmount(r.getAmount());
+                vo.setLastDate(r.getReceiptDate());
+                vo.setLastMethodName(r.getPaymentMethodName());
+                vo.setLastPlatform(StringUtils.hasText(r.getPlatformOrderNo()));
+            }
+            vo.setOwnerName(users.get(p.getOwnerId()));
+            return vo;
+        }).toList();
     }
 
     private List<SalesOrderListVO> toListVos(List<SalesOrderDO> rows) {

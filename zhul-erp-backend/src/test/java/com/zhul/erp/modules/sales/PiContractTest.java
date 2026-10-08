@@ -31,6 +31,21 @@ class PiContractTest extends SalesContractSupport {
     // ---------------------------------------------------------------- 开 PI
 
     @Test
+    void listSortsByQuantityAndTotal() throws Exception {
+        long c = customer("ACROBOT", "India");
+        long few = ok(createPi(quotationItemIds(quotation(c, 2, "USD", null, l("A-1", 1, "100", "500"))))).path("id").asLong();
+        long many = ok(createPi(quotationItemIds(quotation(c, 2, "USD", null, l("B-1", 8, "10", "20"))))).path("id").asLong();
+        java.util.List<Long> byQty = new java.util.ArrayList<>();
+        ok(call(json(post(PI + "/page"), "{\"sortField\":\"totalQuantity\",\"sortOrder\":\"descend\"}"), admin))
+                .path("records").forEach(r -> byQty.add(r.path("id").asLong()));
+        assertEquals(java.util.List.of(many, few), byQty, "8 件多于 1 件");
+        java.util.List<Long> byTotal = new java.util.ArrayList<>();
+        ok(call(json(post(PI + "/page"), "{\"sortField\":\"totalAmount\",\"sortOrder\":\"descend\"}"), admin))
+                .path("records").forEach(r -> byTotal.add(r.path("id").asLong()));
+        assertEquals(java.util.List.of(few, many), byTotal, "USD 500 大于 USD 160");
+    }
+
+    @Test
     void byQuotation_uncheckOneLine_feesCarried_quotationListsPi() throws Exception {
         long c = customer("ACROBOT TECHNOLOGIES", "India");
         long q = quotation(c, 2, "USD", "60", FOUR);
