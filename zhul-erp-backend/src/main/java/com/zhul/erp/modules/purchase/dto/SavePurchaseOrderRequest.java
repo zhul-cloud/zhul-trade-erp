@@ -16,8 +16,6 @@ import java.util.List;
 /** 保存采购单（草稿或已下单）：单头、各行数量与单价、其他费用、付款条件、合同 */
 @Data
 public class SavePurchaseOrderRequest {
-    /** 仅草稿可改 */
-    private Long supplierId;
     @NotBlank(message = "请选择币种")
     private String currencyCode;
     @NotNull(message = "请选择是否含税")

@@ -81,7 +81,7 @@ public class PurchaseDrafts {
                 x.setModel(r.getModel());
                 x.setBrand(r.getBrand());
                 x.setQuantity(p.quantity());
-                x.setUnitPrice(p.unitPrice());
+                x.setUnitPrice(p.unitPrice() != null ? p.unitPrice() : defaultPrice(po, r.getTargetPrice()));
                 x.setTargetPrice(r.getTargetPrice());
                 x.setAmount(BigDecimal.ZERO);
                 x.setSortOrder(sort++);
@@ -95,6 +95,19 @@ public class PurchaseDrafts {
             touched.add(po);
         }
         return touched;
+    }
+
+    /**
+     * 默认单价：目标价（CNY 不含税）折算为草稿口径 = 目标价 ×（1 + 税率）÷ 汇率，HALF_UP 保留两位；没有目标价时为空。
+     * 这样不改价时不含税单价等于目标价，砍价为 0。
+     */
+    public static BigDecimal defaultPrice(PurchaseOrderDO po, BigDecimal target) {
+        if (target == null) {
+            return null;
+        }
+        BigDecimal gross = Objects.equals(po.getTaxIncluded(), 1) && po.getTaxRate() != null
+                ? target.multiply(BigDecimal.ONE.add(po.getTaxRate().movePointLeft(2))) : target;
+        return gross.divide(po.getExchangeRate(), 2, java.math.RoundingMode.HALF_UP);
     }
 
     /** 该采购员对该采购对象最近的 CNY 草稿（加锁） */

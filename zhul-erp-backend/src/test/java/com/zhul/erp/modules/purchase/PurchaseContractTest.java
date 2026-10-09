@@ -83,7 +83,8 @@ class PurchaseContractTest extends SalesContractSupport {
         JsonNode po = po(d.get(0), admin);
         assertEquals(2, po.path("items").size());
         assertTrue(absent(po.path("poNo")), "草稿没有编号");
-        assertTrue(absent(po.path("items").get(0).path("unitPrice")), "单价留空，不预填目标价");
+        money("1000.00", po.path("items").get(0).path("unitPrice"));
+        money("0.00", po.path("items").get(0).path("bargainAmount"));
         money("1000.00", po.path("items").get(0).path("targetPrice"));
         assertEquals("全额预付", po.path("paymentTermsText").asText(), "付款条件取供应商默认");
         assertEquals("林熙", po.path("purchaserName").asText());
@@ -93,7 +94,8 @@ class PurchaseContractTest extends SalesContractSupport {
         long other = supplier("驰拓电气", null);
         long tmp = moveFirstLine(other, so2);
         ok(call(delete(PO + "/" + tmp), admin));
-        // C-1 被改走的草稿删掉后回到需求池，原草稿只剩 A-1
+        // C-1 被改走的草稿删掉后回到需求池，原草稿只剩 A-1；没有目标价的行仍须填单价
+        jdbc.update("update purchase_order_item set unit_price = null where po_id = ?", d.get(0));
         assertEquals("还有 1 行没填单价", fail(confirmPo(d.get(0), admin)).path("message").asText());
         JsonNode confirmed = priceAndConfirm(d.get(0), "800", admin);
         assertEquals("FWPO" + TODAY + "001", confirmed.path("poNo").asText());
@@ -130,6 +132,25 @@ class PurchaseContractTest extends SalesContractSupport {
     private List<Long> shopDrafts(String shop) {
         return jdbc.queryForList("select id from purchase_order where tenant_id = 0 and channel = 1 and shop_name = ? and status = 1 "
                 + "and deleted_at is null order by id", Long.class, shop);
+    }
+
+    @Test
+    void defaultPrice_followsDraftTaxAndRate_categoryShown() throws Exception {
+        long sup = supplier("华控自动化", null);
+        orderFrom(sup, l("A-1", 2, "1000", "200"));
+        long id = drafts(sup).get(0);
+        Map<String, Object> body = poBody(po(id, admin), null);
+        body.put("taxIncluded", true);
+        body.put("taxRate", 13);
+        ok(savePo(id, body, admin));
+        orderFrom(sup, l("C-1", 1, "500", "100"));
+        JsonNode po = po(id, admin);
+        money("565.00", po.path("items").get(1).path("unitPrice"));
+        money("500.00", po.path("items").get(1).path("netPriceCny"));
+        money("0.00", po.path("items").get(1).path("bargainAmount"));
+        long reqId = po.path("items").get(0).path("requirementId").asLong();
+        jdbc.update("update purchase_requirement set category = 'PLC' where id = ?", reqId);
+        assertEquals("PLC", po(id, admin).path("items").get(0).path("category").asText(), "详情行显示品类");
     }
 
     @Test
@@ -332,6 +353,8 @@ class PurchaseContractTest extends SalesContractSupport {
         long moved = ok(call(json(post(PO + "/" + draftJia + "/move"),
                 write(Map.of("itemIds", List.of(po(draftJia, admin).path("items").get(0).path("id").asLong()), "supplierId", yi))), admin)).asLong();
         assertEquals(draftYi, moved, "追加到林熙对乙已有的草稿");
+        assertEquals(yi, jdbc.queryForObject("select suggested_supplier_id from purchase_requirement where id = ?", Long.class, reqs.get(0)),
+                "改到其他供应商后，需求的「向谁买」随之改为乙");
         assertEquals(2, po(draftYi, admin).path("items").size());
         assertTrue(jdbc.queryForObject("select deleted_at is not null from purchase_order where id = ?", Boolean.class, draftJia),
                 "原草稿没有行时删除");

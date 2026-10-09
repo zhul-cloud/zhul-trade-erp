@@ -64,6 +64,7 @@ public class PurchaseOrderVO {
         private String customerCountry;
         private String model;
         private String brand;
+        private String category;
         private Integer quantity;
         /** 本行最多能改到的数量 = 需求可下单数量 + 本行数量 */
         private Integer maxQuantity;

@@ -353,6 +353,7 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
             x.setBrand(i.getBrand());
             x.setQuantity(i.getQuantity());
             PurchaseRequirementDO r = reqById.get(i.getRequirementId());
+            x.setCategory(r == null ? null : r.getCategory());
             int available = r == null || r.getStatus() != PurchaseConstants.REQ_ACTIVE ? 0
                     : RequirementQty.available(r, q.getOrDefault(r.getId(), RequirementQty.Qty.ZERO));
             x.setMaxQuantity(available + i.getQuantity());
@@ -404,20 +405,10 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
         }
         boolean ordered = p.getStatus() == PurchaseConstants.PO_ORDERED;
         Long operator = currentUser.resolve();
-        String supplierBefore = titleOf(p);
         Snapshot before = snapshot(p);
         List<String> changes = new ArrayList<>();
 
-        if (req.getSupplierId() != null && !req.getSupplierId().equals(p.getSupplierId())) {
-            if (ordered) {
-                throw new BizException("已下单的采购单不能改供应商，可以取消后重新下单");
-            }
-            SupplierDO s = drafts.requireSupplier(req.getSupplierId());
-            changes.add("采购对象 " + supplierBefore + " → " + s.getName());
-            p.setSupplierId(s.getId());
-            p.setChannel(PurchaseConstants.CHANNEL_SUPPLIER);
-            p.setShopName("");
-        }
+        // 换采购对象统一走「改到其他供应商」（同步需求的渠道、合并到已有草稿），保存不改采购对象
         String currency = req.getCurrencyCode().trim().toUpperCase(Locale.ROOT);
         if (!currency.equals(p.getCurrencyCode()) || !PurchaseConstants.CNY.equals(currency)) {
             BigDecimal rate = PurchaseConstants.CNY.equals(currency) ? BigDecimal.ONE : exchangeRateService.require(currency).rate();
@@ -600,6 +591,13 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
             itemMapper.updateById(i);
             moves.add(new PurchaseDrafts.Placement(reqs.get(i.getRequirementId()), p.getPurchaserId(), target, i.getQuantity(),
                     i.getUnitPrice()));
+        }
+        // 需求的「向谁买」跟着改，采购需求页与草稿保持一致
+        for (PurchaseRequirementDO r : reqs.values()) {
+            if (r.getStatus() == PurchaseConstants.REQ_ACTIVE) {
+                target.applyTo(r);
+                requirementMapper.updateById(r);
+            }
         }
         String models = picked.stream().map(i -> i.getModel() + " × " + i.getQuantity()).collect(Collectors.joining("、"));
         logs.add(id, "改到其他供应商", models + " 改到 " + targetName, operator);
