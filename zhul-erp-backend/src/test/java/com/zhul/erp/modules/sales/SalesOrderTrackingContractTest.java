@@ -132,9 +132,24 @@ class SalesOrderTrackingContractTest extends SalesContractSupport {
         List<Long> ids = itemIds(so);
         assertEquals("订单进度不存在或已停用", fail(items(id, "progress", body(ids, "progressCode", "NOPE"))).path("message").asText());
 
+        // 「待采购」「已下单」由采购单推进：不能手动选，没下单的不能跳到后面
+        assertEquals("「待采购」「已下单」由采购单自动推进，不能手动选择",
+                fail(items(id, "progress", body(ids, "progressCode", "ORDERED"))).path("message").asText());
+        assertEquals("A-1 还有 1 个没有下单", fail(items(id, "progress", body(List.of(ids.get(0)), "progressCode", "RECEIVED")))
+                .path("message").asText());
+        long sup = supplier("华控自动化", null);
+        List<Long> reqs = requirementIds(id);
+        long draft = generate(sup, List.of(reqs.get(0)), admin);
+        assertEquals("待采购", order(id).path("items").get(0).path("progressName").asText(), "草稿不推进进度");
+        priceAndConfirm(draft, "90", admin);
+        so = order(id);
+        assertEquals("已下单", so.path("items").get(0).path("progressName").asText(), "确认下单后自动变为已下单");
+        assertEquals(1, so.path("items").get(0).path("purchaseOrderedQty").asInt());
+
         so = ok(items(id, "progress", body(List.of(ids.get(0)), "progressCode", "RECEIVED")));
         assertEquals("待采购", so.path("progressName").asText(), "取最靠前的型号");
-        so = ok(items(id, "progress", body(List.of(ids.get(1)), "progressCode", "ORDERED")));
+        priceAndConfirm(generate(sup, List.of(reqs.get(1)), admin), "95", admin);
+        so = order(id);
         assertEquals("已下单", so.path("progressName").asText());
         assertEquals("已入库", so.path("items").get(0).path("progressName").asText());
         assertFalse(so.path("completable").asBoolean());
@@ -146,7 +161,7 @@ class SalesOrderTrackingContractTest extends SalesContractSupport {
         so = ok(call(post(SO + "/" + id + "/complete"), admin));
         assertEquals("已完成", so.path("progressName").asText());
         assertFalse(so.path("trackable").asBoolean());
-        assertEquals("订单已完成，不能修改", fail(items(id, "progress", body(ids, "progressCode", "ORDERED"))).path("message").asText());
+        assertEquals("订单已完成，不能修改", fail(items(id, "progress", body(ids, "progressCode", "SHIPPED"))).path("message").asText());
         assertEquals("订单已完成，不能取消", fail(call(json(post(SO + "/" + id + "/cancel"), "{\"reason\":\"x\"}"), admin))
                 .path("message").asText());
         assertEquals(1, ok(call(json(post(SO + "/page"), write(Map.of("progressCode", "COMPLETED"))), admin)).path("total").asInt());

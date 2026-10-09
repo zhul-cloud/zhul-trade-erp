@@ -113,6 +113,8 @@ public class SalesOrderServiceImpl implements SalesOrderService {
     private final com.zhul.erp.modules.sales.support.PiDefaults piDefaults;
     private final com.zhul.erp.modules.sales.support.ReceiptViews receiptViews;
     private final OrderProgress progress;
+    private final com.zhul.erp.modules.purchase.support.RequirementLifecycle requirementLifecycle;
+    private final com.zhul.erp.modules.purchase.support.PurchaseLinks purchaseLinks;
 
     // ---------------------------------------------------------------- 转订单与取消
 
@@ -180,12 +182,14 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         o.setStatus(SalesConstants.SO_ACTIVE);
         o.setCancelReason("");
         orderMapper.insert(o);
+        List<SalesOrderItemDO> created = new ArrayList<>(items.size());
         for (PiItemDO i : items) {
             SalesOrderItemDO x = toOrderItem(o, i);
             x.setStockType(stockOf(i.getLeadTime()));
             x.setProgressCode(SalesConstants.PROGRESS_PENDING);
             x.setPurchaserId(purchasers.get(i.getQuotationItemId()));
             orderItemMapper.insert(x);
+            created.add(x);
         }
         int sort = 1;
         for (PiFeeDO f : fees) {
@@ -203,6 +207,8 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         piMapper.updateById(pi);
         // 同一事务：报价行成交 → 报价单状态 → 客户询盘（锁顺序：PI → 报价单 → 询盘）
         deals.apply(items.stream().map(PiItemDO::getQuotationItemId).collect(Collectors.toSet()), Set.of());
+        // 同一事务：生成采购需求（重转时接回已下单数量）并自动排入草稿采购单
+        requirementLifecycle.onOrderCreated(o, created);
 
         Map<String, Object> after = new LinkedHashMap<>();
         after.put("soNo", o.getSoNo());
@@ -379,6 +385,7 @@ public class SalesOrderServiceImpl implements SalesOrderService {
             x.setSoId(o.getId());
             orderItemMapper.insert(x);
         }
+        requirementLifecycle.onOrderCreated(o, rows);
         Map<String, Object> after = new LinkedHashMap<>();
         after.put("soNo", o.getSoNo());
         after.put("customer", InquiryLookups.customerName(customer));
@@ -455,6 +462,8 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         o.setCancelledBy(currentUserId());
         o.setCancelledAt(LocalDateTime.now());
         orderMapper.updateById(o);
+        // 没下单的采购需求关闭，已下单的标「订单已取消」交给采购员
+        requirementLifecycle.onOrderCancelled(o, currentUserId());
         if (manual) {
             logService.recordOperateLog(SalesConstants.MENU_SO, "取消销售订单", Map.of("soNo", o.getSoNo(), "status", "有效"),
                     Map.of("soNo", o.getSoNo(), "status", "已取消", "reason", o.getCancelReason(),
@@ -523,7 +532,21 @@ public class SalesOrderServiceImpl implements SalesOrderService {
     public SalesOrderVO updateProgress(Long id, OrderItemsRequest req) {
         List<OrderProgress.Step> ordered = progress.ordered();
         OrderProgress.Step step = OrderProgress.require(ordered, req.getProgressCode() == null ? "" : req.getProgressCode().trim());
+        if (SalesConstants.PROGRESS_PENDING.equals(step.code()) || SalesConstants.PROGRESS_ORDERED.equals(step.code())) {
+            throw new BizException("「待采购」「已下单」由采购单自动推进，不能手动选择");
+        }
         Tracking t = trackable(id, req.getItemIds());
+        int orderedRank = OrderProgress.rank(ordered, SalesConstants.PROGRESS_ORDERED);
+        if (OrderProgress.rank(ordered, step.code()) > orderedRank) {
+            Map<Long, com.zhul.erp.modules.purchase.support.PurchaseLinks.ItemPurchase> links =
+                    purchaseLinks.forSoItems(t.selected().stream().map(SalesOrderItemDO::getId).toList());
+            for (SalesOrderItemDO i : t.selected()) {
+                var lp = links.get(i.getId());
+                if (lp != null && lp.tracked() && lp.ordered() < i.getQuantity()) {
+                    throw new BizException(i.getModel() + " 还有 " + (i.getQuantity() - lp.ordered()) + " 个没有下单");
+                }
+            }
+        }
         Map<String, String> names = progress.names();
         List<String> changes = new ArrayList<>();
         for (SalesOrderItemDO i : t.selected()) {
@@ -565,6 +588,8 @@ public class SalesOrderServiceImpl implements SalesOrderService {
                 orderItemMapper.updateById(i);
             }
         }
+        // 采购员以采购需求为准：改这些型号还没全部下单的需求，草稿行跟着移到新采购员名下
+        requirementLifecycle.reassignSoItems(t.selected().stream().map(SalesOrderItemDO::getId).toList(), purchaser, currentUserId());
         logService.recordOperateLog(SalesConstants.MENU_SO, "指定采购员", null, Map.of("soNo", t.order().getSoNo(), "items", changes));
         return detail(id);
     }
@@ -712,14 +737,36 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         Map<Long, String> inquiryCodes = lookups.inquiryCodes(items.stream().map(SalesOrderItemDO::getCustomerInquiryId).toList());
         List<OrderProgress.Step> ordered = progress.ordered();
         Map<String, String> progressNames = progress.names();
-        Map<Long, String> purchaserNames = lookups.userNames(items.stream().map(SalesOrderItemDO::getPurchaserId).toList());
+        Map<Long, com.zhul.erp.modules.purchase.support.PurchaseLinks.ItemPurchase> links =
+                purchaseLinks.forSoItems(items.stream().map(SalesOrderItemDO::getId).toList());
+        // 型号的采购员：有采购需求的取需求的采购员（可能多位），存量没有需求的取型号行上的
+        Map<Long, List<Long>> itemPurchasers = new HashMap<>();
+        for (SalesOrderItemDO i : items) {
+            var lp = links.get(i.getId());
+            itemPurchasers.put(i.getId(), lp != null && lp.tracked() ? new ArrayList<>(lp.purchaserIds())
+                    : i.getPurchaserId() == null ? List.of() : List.of(i.getPurchaserId()));
+        }
+        Map<Long, String> purchaserNames = lookups.userNames(itemPurchasers.values().stream().flatMap(List::stream).toList());
         vo.setItems(items.stream().map(i -> {
             SalesOrderItemVO x = new SalesOrderItemVO();
             x.setStockType(i.getStockType());
             x.setProgressCode(i.getProgressCode());
             x.setProgressName(progressNames.getOrDefault(i.getProgressCode(), i.getProgressCode()));
-            x.setPurchaserId(i.getPurchaserId());
-            x.setPurchaserName(i.getPurchaserId() == null ? null : purchaserNames.get(i.getPurchaserId()));
+            List<Long> who = itemPurchasers.get(i.getId());
+            x.setPurchaserId(who.isEmpty() ? null : who.get(0));
+            x.setPurchaserName(who.isEmpty() ? null : purchaserNames.get(who.get(0)));
+            x.setPurchaserNames(who.stream().map(purchaserNames::get).filter(Objects::nonNull).toList());
+            var lp = links.get(i.getId());
+            x.setPurchaseTracked(lp != null && lp.tracked());
+            x.setPurchaseOrderedQty(lp == null ? 0 : lp.ordered());
+            x.setPurchaseDraftQty(lp == null ? 0 : lp.draft());
+            x.setPurchaseOrders(lp == null ? List.of() : lp.orders().stream().map(r -> {
+                SalesOrderItemVO.PurchaseRef ref = new SalesOrderItemVO.PurchaseRef();
+                ref.setId(r.id());
+                ref.setPoNo(r.poNo());
+                ref.setStatus(r.status());
+                return ref;
+            }).toList());
             x.setId(i.getId());
             x.setLineNo(i.getLineNo());
             x.setQuotationId(i.getQuotationId());
@@ -782,7 +829,14 @@ public class SalesOrderServiceImpl implements SalesOrderService {
             return x;
         }).toList());
         Map<Long, Integer> byPurchaser = new LinkedHashMap<>();
-        items.forEach(i -> byPurchaser.merge(i.getPurchaserId() == null ? 0L : i.getPurchaserId(), 1, Integer::sum));
+        items.forEach(i -> {
+            List<Long> who = itemPurchasers.get(i.getId());
+            if (who.isEmpty()) {
+                byPurchaser.merge(0L, 1, Integer::sum);
+            } else {
+                who.forEach(u -> byPurchaser.merge(u, 1, Integer::sum));
+            }
+        });
         vo.setPurchasers(byPurchaser.entrySet().stream().map(e -> {
             SalesOrderVO.Purchaser x = new SalesOrderVO.Purchaser();
             x.setUserId(e.getKey() == 0L ? null : e.getKey());
@@ -918,12 +972,13 @@ public class SalesOrderServiceImpl implements SalesOrderService {
             w.eq(SalesOrderDO::getCurrencyCode, q.getCurrencyCode().trim().toUpperCase(Locale.ROOT));
         }
         if (q.getPurchaserId() != null) {
-            List<Long> byPurchaser = orderItemMapper.selectList(new LambdaQueryWrapper<SalesOrderItemDO>()
+            List<Long> byPurchaser = Stream.concat(orderItemMapper.selectList(new LambdaQueryWrapper<SalesOrderItemDO>()
                             .select(SalesOrderItemDO::getSoId)
                             .eq(SalesOrderItemDO::getTenantId, tenant)
                             .eq(SalesOrderItemDO::getPurchaserId, q.getPurchaserId())
                             .isNull(SalesOrderItemDO::getDeletedAt))
-                    .stream().map(SalesOrderItemDO::getSoId).distinct().toList();
+                    .stream().map(SalesOrderItemDO::getSoId), purchaseLinks.orderIdsByPurchaser(q.getPurchaserId()).stream())
+                    .distinct().toList();
             if (byPurchaser.isEmpty()) {
                 return PageResult.of(0L, List.of());
             }
@@ -1123,6 +1178,9 @@ public class SalesOrderServiceImpl implements SalesOrderService {
                 purchasersByOrder.computeIfAbsent(i.getSoId(), k -> new java.util.LinkedHashSet<>()).add(i.getPurchaserId());
             }
         }
+        // 拆分给多位采购员的型号：需求上的采购员也列出
+        purchaseLinks.purchasersByOrder(ids).forEach((so, who) ->
+                purchasersByOrder.computeIfAbsent(so, k -> new java.util.LinkedHashSet<>()).addAll(who));
         Map<Long, String> purchaserNames = lookups.userNames(purchasersByOrder.values().stream().flatMap(Set::stream).toList());
         Map<String, String> progressNames = progress.names();
         Map<Long, ProformaInvoiceDO> pis = piMapper.selectBatchIds(rows.stream().map(SalesOrderDO::getPiId).collect(Collectors.toSet()))

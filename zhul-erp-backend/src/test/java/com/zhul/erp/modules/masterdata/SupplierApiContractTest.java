@@ -132,6 +132,25 @@ class SupplierApiContractTest extends IntegrationTestBase {
         assertTrue(dupCredit.path("message").asText().contains("上海电子科技有限公司"));
     }
 
+    /** spec master-data/supplier「供应商默认付款条件」 */
+    @Test
+    void defaultPaymentTerms_validatedAndShown() throws Exception {
+        loginAsAdmin("supplier_admin");
+        String admin = token("supplier_admin");
+        JsonNode bad = call(json(post(BASE), "{\"name\":\"付款条件A\",\"supplierType\":1,\"force\":true,"
+                + "\"paymentTerms\":[{\"percent\":30,\"trigger\":1},{\"percent\":60,\"trigger\":3}]}"), admin);
+        assertEquals("各期比例合计须为 100%", bad.path("message").asText());
+        JsonNode created = call(json(post(BASE), "{\"name\":\"付款条件A\",\"supplierType\":1,\"force\":true,"
+                + "\"paymentTerms\":[{\"percent\":100,\"trigger\":3,\"days\":30}]}"), admin);
+        long id = created.path("data").path("createdSupplier").path("id").asLong();
+        JsonNode detail = call(get(BASE + "/" + id), admin).path("data");
+        assertEquals("入库后 30 天", detail.path("paymentTermsText").asText());
+        assertEquals(30, detail.path("paymentTerms").get(0).path("days").asInt());
+        JsonNode plain = call(json(post(BASE), "{\"name\":\"付款条件B\",\"supplierType\":1,\"force\":true}"), admin);
+        long other = plain.path("data").path("createdSupplier").path("id").asLong();
+        assertEquals(0, call(get(BASE + "/" + other), admin).path("data").path("paymentTerms").size(), "未设置时为空");
+    }
+
     @Test
     void inlineCreateWithoutCode_getsGeneratedCode() throws Exception {
         loginAsAdmin("supplier_admin");

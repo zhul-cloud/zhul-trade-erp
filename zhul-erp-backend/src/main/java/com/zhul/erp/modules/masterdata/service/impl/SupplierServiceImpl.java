@@ -24,6 +24,7 @@ import com.zhul.erp.modules.masterdata.entity.SupplierAttachmentDO;
 import com.zhul.erp.modules.masterdata.entity.SupplierDO;
 import com.zhul.erp.modules.masterdata.repository.SupplierMapper;
 import com.zhul.erp.modules.masterdata.service.SupplierService;
+import com.zhul.erp.modules.masterdata.support.PaymentTerms;
 import com.zhul.erp.modules.masterdata.support.SupplierAttachmentStorage;
 import lombok.RequiredArgsConstructor;
 import org.apache.poi.ss.usermodel.Row;
@@ -331,6 +332,11 @@ public class SupplierServiceImpl implements SupplierService {
      * main_brands 已由主营产品取代、bank_name / bank_account 已由收款账户取代，均不再写入
      */
     private void applyFields(SupplierDO supplier, AbstractSupplierRequest req) {
+        if (req.getPaymentTerms() != null) {
+            supplier.setPaymentTerms(PaymentTerms.toJson(PaymentTerms.normalize(req.getPaymentTerms())));
+        } else if (supplier.getPaymentTerms() == null) {
+            supplier.setPaymentTerms("");
+        }
         supplier.setName(req.getName().trim());
         supplier.setShortName(normalize(req.getShortName()));
         supplier.setIndustry(req.getIndustry() != null ? req.getIndustry() : SupplierConstants.UNSET);
@@ -468,6 +474,8 @@ public class SupplierServiceImpl implements SupplierService {
         vo.setContactEmail(supplier.getContactEmail());
         vo.setWechat(supplier.getWechat());
         vo.setRegion(supplier.getRegion());
+        vo.setPaymentTerms(PaymentTerms.fromJson(supplier.getPaymentTerms()));
+        vo.setPaymentTermsText(PaymentTerms.text(vo.getPaymentTerms()));
         vo.setAddress(supplier.getAddress());
         vo.setAccounts(List.of());
         vo.setAttachments(List.of());

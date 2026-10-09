@@ -15,6 +15,7 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 
@@ -25,7 +26,8 @@ public abstract class SalesContractSupport extends InquiryContractSupport {
     protected static final String SO = "/api/v1/sales/orders";
     protected static final long ADMIN_USER = 99000002L;
     protected static final String TODAY = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
-    private static final String[] SALES_TABLES = {"sales_order_fee", "sales_order_item", "sales_order", "payment_receipt",
+    private static final String[] SALES_TABLES = {"purchase_order_log", "purchase_order_attachment", "purchase_order_fee",
+            "purchase_order_item", "purchase_order", "purchase_requirement", "sales_order_fee", "sales_order_item", "sales_order", "payment_receipt",
             "proforma_invoice_send_log", "proforma_invoice_fee", "proforma_invoice_item", "proforma_invoice_version", "proforma_invoice",
             "quotation_send_log", "quotation_version", "quotation_fee", "quotation_item", "quotation", "tenant_bank_account", "document_sequence",
             "customer_party", "exchange_rate", "exchange_rate_log"};
@@ -52,6 +54,74 @@ public abstract class SalesContractSupport extends InquiryContractSupport {
         for (String t : SALES_TABLES) {
             jdbc.update("delete from " + t + " where tenant_id = 0");
         }
+        jdbc.update("delete from supplier where tenant_id = 0 and supplier_code like 'ITSUP%'");
+    }
+
+    // ---------------------------------------------------------------- 采购（spec purchase/*）
+
+    protected static final String REQ = "/api/v1/purchase/requirements";
+    protected static final String PO = "/api/v1/purchase/orders";
+    private int supplierSeq;
+
+    /** 启用的供应商；paymentTerms 为供应商默认付款条件 JSON（可空） */
+    protected long supplier(String name, String paymentTerms) {
+        supplierSeq++;
+        jdbc.update("insert into supplier (tenant_id, supplier_code, name, status, payment_terms) values (0, ?, ?, 1, ?)",
+                "ITSUP" + supplierSeq, name, paymentTerms == null ? "" : paymentTerms);
+        return jdbc.queryForObject("select max(id) from supplier where tenant_id = 0 and name = ?", Long.class, name);
+    }
+
+    protected List<Long> requirementIds(long soId) {
+        return jdbc.queryForList("select id from purchase_requirement where so_id = ? order by id", Long.class, soId);
+    }
+
+    /** 需求池生成采购单：这些需求都放到一家供应商，返回草稿采购单 ID */
+    protected long generate(long supplierId, List<Long> requirementIds, String token) throws Exception {
+        JsonNode ids = ok(call(json(post(REQ + "/generate"),
+                write(Map.of("groups", List.of(Map.of("supplierId", supplierId, "requirementIds", requirementIds))))), token));
+        return ids.get(0).asLong();
+    }
+
+    protected JsonNode po(long id, String token) throws Exception {
+        return ok(call(get(PO + "/" + id), token));
+    }
+
+    /** 采购单保存请求：沿用当前内容，各行单价统一为 price（为空则不改），付款条件默认全额预付 */
+    protected Map<String, Object> poBody(JsonNode po, String price) {
+        Map<String, Object> b = new LinkedHashMap<>();
+        b.put("currencyCode", po.path("currencyCode").asText());
+        b.put("taxIncluded", po.path("taxIncluded").asBoolean());
+        b.put("taxRate", po.path("taxRate").decimalValue());
+        b.put("paymentTerms", po.path("paymentTerms").isMissingNode() || po.path("paymentTerms").isEmpty() ? List.of(Map.of("percent", 100, "trigger", 1)) : po.path("paymentTerms"));
+        b.put("contractNo", po.path("contractNo").asText(""));
+        b.put("contractAmount", po.path("contractAmount").isMissingNode() || po.path("contractAmount").isNull() ? null : po.path("contractAmount").decimalValue());
+        List<Map<String, Object>> items = new ArrayList<>();
+        po.path("items").forEach(i -> {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("id", i.path("id").asLong());
+            m.put("quantity", i.path("quantity").asInt());
+            m.put("unitPrice", price != null ? new BigDecimal(price) : i.path("unitPrice").isMissingNode() || i.path("unitPrice").isNull() ? null : i.path("unitPrice").decimalValue());
+            items.add(m);
+        });
+        b.put("items", items);
+        List<Map<String, Object>> fees = new ArrayList<>();
+        po.path("fees").forEach(f -> fees.add(Map.of("feeName", f.path("feeName").asText(), "amount", f.path("amount").decimalValue())));
+        b.put("fees", fees);
+        return b;
+    }
+
+    protected JsonNode savePo(long id, Map<String, Object> body, String token) throws Exception {
+        return call(json(put(PO + "/" + id), write(body)), token);
+    }
+
+    protected JsonNode confirmPo(long id, String token) throws Exception {
+        return call(json(post(PO + "/" + id + "/confirm"), write(Map.of("orderDate", LocalDate.now().toString()))), token);
+    }
+
+    /** 填单价并确认下单 */
+    protected JsonNode priceAndConfirm(long id, String price, String token) throws Exception {
+        ok(savePo(id, poBody(po(id, token), price), token));
+        return ok(confirmPo(id, token));
     }
 
     /** 型号行：型号、数量、采购成本价（CNY）、售价（外币） */

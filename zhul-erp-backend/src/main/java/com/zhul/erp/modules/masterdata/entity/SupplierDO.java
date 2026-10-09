@@ -54,6 +54,8 @@ public class SupplierDO {
     private String bankAccount;
     /** 主营品牌（逗号分隔，仅辅助展示，不做强校验） */
     private String mainBrands;
+    /** 默认付款条件 JSON，见 PaymentTerms */
+    private String paymentTerms;
     private String remark;
     /** 状态（0-禁用、1-启用） */
     private Integer status;

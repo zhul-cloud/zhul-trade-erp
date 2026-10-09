@@ -15,4 +15,20 @@ public class SalesOrderItemVO extends PiItemVO {
     private String progressName;
     private Long purchaserId;
     private String purchaserName;
+    /** 负责采购的人（来自采购需求，拆分给多人时都在） */
+    private java.util.List<String> purchaserNames;
+    /** 有采购需求：采购进度来自采购单 */
+    private Boolean purchaseTracked;
+    private Integer purchaseOrderedQty;
+    private Integer purchaseDraftQty;
+    private java.util.List<PurchaseRef> purchaseOrders;
+
+    @lombok.Data
+    public static class PurchaseRef {
+        private Long id;
+        /** 草稿为空 */
+        private String poNo;
+        /** 1-草稿、2-已下单 */
+        private Integer status;
+    }
 }

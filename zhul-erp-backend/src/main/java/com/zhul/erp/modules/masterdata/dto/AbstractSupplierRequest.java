@@ -70,4 +70,6 @@ public abstract class AbstractSupplierRequest {
     private List<SupplierProductScopeRequest> productScopes;
     @Size(max = 500, message = "备注不能超过500个字符")
     private String remark;
+    /** 默认付款条件；null 表示不修改，空列表表示清空 */
+    private List<PaymentTermDTO> paymentTerms;
 }
