@@ -7,8 +7,10 @@ import {
   FileProtectOutlined,
   HistoryOutlined,
   PlusOutlined,
+  ShoppingOutlined,
   StopOutlined,
   UploadOutlined,
+  UserAddOutlined,
   WalletOutlined,
 } from '@ant-design/icons';
 import { history, useAccess, useParams } from '@umijs/max';
@@ -37,6 +39,8 @@ import { bargainOf, netPrice, rateOf, round2, termsTotal } from '../calc';
 import {
   BargainText,
   Card,
+  CounterpartyPicker,
+  counterpartyReady,
   PATHS,
   PaymentTermsEditor,
   Pill,
@@ -48,6 +52,7 @@ import {
   sub,
 } from '../components';
 import {
+  type CounterpartyValue,
   type PaymentTerm,
   type PoItem,
   type PurchaseOrder,
@@ -94,7 +99,8 @@ const toDraft = (po: PurchaseOrder): Draft => ({
 });
 
 const toBody = (po: PurchaseOrder, d: Draft): SavePoBody => ({
-  supplierId: po.status === PO_STATUS.DRAFT ? d.supplierId : undefined,
+  supplierId:
+    po.status === PO_STATUS.DRAFT && !po.shop ? d.supplierId : undefined,
   currencyCode: d.currencyCode,
   taxIncluded: d.taxIncluded,
   taxRate: d.taxIncluded ? d.taxRate : 0,
@@ -441,6 +447,7 @@ const PurchaseOrderDetail: React.FC = () => {
             style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}
           >
             {title}
+            {po.shop && <Pill tone="orange">线上店铺</Pill>}
             <PoStatusPill status={po.status} />
           </span>
         }
@@ -456,6 +463,29 @@ const PurchaseOrderDetail: React.FC = () => {
         }
         actions={
           <Space>
+            {po.shop && canEdit && po.status !== PO_STATUS.CANCELLED && (
+              <Button
+                icon={<UserAddOutlined />}
+                onClick={() =>
+                  modal.confirm({
+                    title: `把「${po.shopName}」转为供应商？`,
+                    content:
+                      '将新建供应商（已有同名供应商时直接使用），并把这家店的草稿、已下单采购单和建议这家店的需求都改为指向它。',
+                    okText: '转为供应商',
+                    onOk: async () => {
+                      try {
+                        apply(await poApi.convertShop(poId));
+                        message.success('已转为供应商');
+                      } catch (e) {
+                        message.error(readBizError(e).message);
+                      }
+                    },
+                  })
+                }
+              >
+                转为供应商
+              </Button>
+            )}
             {isDraft && canCancel && (
               <Button danger icon={<DeleteOutlined />} onClick={deleteDraft}>
                 删除草稿
@@ -555,22 +585,34 @@ const PurchaseOrderDetail: React.FC = () => {
           }
           hint={po.paymentTermsText || '确认下单前须填写'}
         />
-        <StatCard
-          icon={<FileProtectOutlined />}
-          color={palette.orange}
-          label="供应商合同"
-          value={
-            po.attachments.length ? `${po.attachments.length} 个文件` : '未上传'
-          }
-          hint={
-            contractDiff
-              ? `合同金额与采购单合计相差 ${formatAmount(Math.abs(contractDiff), draft.currencyCode)}`
-              : po.contractNo
-                ? `合同编号 ${po.contractNo}`
-                : '选填，货值低的可以不传'
-          }
-          hintColor={contractDiff ? palette.orange : undefined}
-        />
+        {po.shop ? (
+          <StatCard
+            icon={<ShoppingOutlined />}
+            color={palette.orange}
+            label="采购对象"
+            value="线上店铺"
+            hint="不需要供应商档案；买得多了可以转为供应商"
+          />
+        ) : (
+          <StatCard
+            icon={<FileProtectOutlined />}
+            color={palette.orange}
+            label="供应商合同"
+            value={
+              po.attachments.length
+                ? `${po.attachments.length} 个文件`
+                : '未上传'
+            }
+            hint={
+              contractDiff
+                ? `合同金额与采购单合计相差 ${formatAmount(Math.abs(contractDiff), draft.currencyCode)}`
+                : po.contractNo
+                  ? `合同编号 ${po.contractNo}`
+                  : '选填，货值低的可以不传'
+            }
+            hintColor={contractDiff ? palette.orange : undefined}
+          />
+        )}
       </div>
 
       {editable && (
@@ -588,19 +630,30 @@ const PurchaseOrderDetail: React.FC = () => {
               <div
                 style={{ fontSize: 12, color: palette.sub, marginBottom: 6 }}
               >
-                供应商
+                采购对象
               </div>
-              <SupplierPicker
-                style={{ width: '100%' }}
-                value={draft.supplierId}
-                label={draft.supplierName}
-                onChange={(v, name) =>
-                  setDraft((d) =>
-                    d ? { ...d, supplierId: v, supplierName: name } : d,
-                  )
-                }
-              />
+              {po.shop ? (
+                <div style={{ color: palette.ink, lineHeight: '32px' }}>
+                  {po.supplierName}
+                  {sub(
+                    palette.mute,
+                    '线上店铺；要换成老供应商用「转为供应商」，或把型号「改到其他供应商」',
+                  )}
+                </div>
+              ) : (
+                <SupplierPicker
+                  style={{ width: '100%' }}
+                  value={draft.supplierId}
+                  label={draft.supplierName}
+                  onChange={(v, name) =>
+                    setDraft((d) =>
+                      d ? { ...d, supplierId: v, supplierName: name } : d,
+                    )
+                  }
+                />
+              )}
               {!isDraft &&
+                !po.shop &&
                 sub(palette.mute, '已下单的不能改供应商，可以取消后重新下单')}
             </div>
             <div>
@@ -852,17 +905,21 @@ const PurchaseOrderDetail: React.FC = () => {
             默认取供应商的默认付款条件；本期只记录，应付与付款提醒在后续上线。
           </div>
         </Card>
-        <ContractCard
-          po={po}
-          draft={draft}
-          editable={editable || (canEdit && po.status !== PO_STATUS.CANCELLED)}
-          fieldsEditable={editable}
-          contractDiff={contractDiff}
-          onDraft={(patch) => setDraft((d) => (d ? { ...d, ...patch } : d))}
-          onChanged={(p) => {
-            setPo(p);
-          }}
-        />
+        {!po.shop && (
+          <ContractCard
+            po={po}
+            draft={draft}
+            editable={
+              editable || (canEdit && po.status !== PO_STATUS.CANCELLED)
+            }
+            fieldsEditable={editable}
+            contractDiff={contractDiff}
+            onDraft={(patch) => setDraft((d) => (d ? { ...d, ...patch } : d))}
+            onChanged={(p) => {
+              setPo(p);
+            }}
+          />
+        )}
         <Card style={{ padding: 20 }}>
           <b style={{ color: palette.ink, display: 'block', marginBottom: 12 }}>
             <HistoryOutlined /> 操作日志
@@ -936,11 +993,10 @@ const PurchaseOrderDetail: React.FC = () => {
       <MoveModal
         open={moveOpen}
         count={picked.length}
-        current={po.supplierId}
         onClose={() => setMoveOpen(false)}
-        onConfirm={async (supplierId) => {
+        onConfirm={async (cp) => {
           try {
-            const target = await poApi.move(poId, picked, supplierId);
+            const target = await poApi.move(poId, picked, cp);
             setMoveOpen(false);
             message.success('已改到其他供应商的草稿');
             if (po.items.length === picked.length) {
@@ -1240,55 +1296,41 @@ const CancelModal: React.FC<{
 const MoveModal: React.FC<{
   open: boolean;
   count: number;
-  current: number;
   onClose: () => void;
-  onConfirm: (supplierId: number) => Promise<void>;
-}> = ({ open, count, current, onClose, onConfirm }) => {
+  onConfirm: (cp: CounterpartyValue) => Promise<void>;
+}> = ({ open, count, onClose, onConfirm }) => {
   const { palette } = useAppTheme();
-  const [supplierId, setSupplierId] = useState<number>();
-  const [name, setName] = useState('');
+  const [value, setValue] = useState<CounterpartyValue>({});
   const [busy, setBusy] = useState(false);
   useEffect(() => {
-    if (open) {
-      setSupplierId(undefined);
-      setName('');
-    }
+    if (open) setValue({});
   }, [open]);
   return (
     <Modal
       open={open}
       title="改到其他供应商"
-      width={520}
+      width={560}
       onCancel={onClose}
-      okText="改到这家"
-      okButtonProps={{
-        disabled: !supplierId || supplierId === current,
-        loading: busy,
-      }}
+      okText="改过去"
+      okButtonProps={{ disabled: !counterpartyReady(value), loading: busy }}
       onOk={async () => {
-        if (!supplierId) return;
         setBusy(true);
         try {
-          await onConfirm(supplierId);
+          await onConfirm(
+            value.supplierId
+              ? { supplierId: value.supplierId }
+              : { channel: value.channel, shopName: value.shopName?.trim() },
+          );
         } finally {
           setBusy(false);
         }
       }}
     >
-      <div style={{ display: 'grid', gap: 10 }}>
+      <div style={{ display: 'grid', gap: 12 }}>
         <div style={{ color: palette.sub }}>已选 {count} 个型号</div>
-        <SupplierPicker
-          style={{ width: '100%' }}
-          placeholder="选择新供应商"
-          value={supplierId}
-          label={name}
-          onChange={(v, n) => {
-            setSupplierId(v);
-            setName(n);
-          }}
-        />
+        <CounterpartyPicker value={value} onChange={setValue} />
         <div style={{ fontSize: 12, color: palette.mute }}>
-          这些型号会移出当前草稿，追加到你对新供应商的草稿采购单（没有时新建），已填的单价保留；当前草稿没有型号时自动删除。
+          这些型号会移出当前草稿，追加到你对新采购对象的草稿采购单（没有时新建），已填的单价保留；当前草稿没有型号时自动删除。
         </div>
       </div>
     </Modal>

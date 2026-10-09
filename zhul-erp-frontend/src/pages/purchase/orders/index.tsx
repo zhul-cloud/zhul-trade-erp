@@ -16,6 +16,7 @@ import { useUserOptions } from '@/pages/sales/orders/dialogs';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
 import {
+  auditColumns,
   BargainText,
   Card,
   PATHS,
@@ -23,6 +24,7 @@ import {
   PO_STATUS,
   PoStatusPill,
   PurchasePageTitle,
+  SourceCell,
   StatCard,
   SupplierPicker,
   sub,
@@ -123,10 +125,15 @@ const PurchaseOrderList: React.FC = () => {
       ),
     },
     {
-      title: '供应商',
+      title: '采购对象',
       dataIndex: 'supplierName',
-      width: 190,
-      render: (v?: string) => <b>{v}</b>,
+      width: 200,
+      render: (v: string | undefined, r) =>
+        r.shop ? (
+          <SourceCell shopName={r.shopName} channelName={v?.split(' · ')[0]} />
+        ) : (
+          <SourceCell supplierName={v} />
+        ),
     },
     {
       title: '型号数',
@@ -224,6 +231,7 @@ const PurchaseOrderList: React.FC = () => {
         </div>
       ),
     },
+    ...auditColumns<PoListItem>(),
     {
       title: '操作',
       key: 'actions',
@@ -339,7 +347,7 @@ const PurchaseOrderList: React.FC = () => {
               <Input
                 allowClear
                 prefix={<SearchOutlined />}
-                placeholder="采购单编号、供应商、型号、订单编号"
+                placeholder="采购单编号、供应商或店铺、型号、订单编号"
               />
             </Form.Item>
             <Form.Item name="status" label="状态" style={{ marginBottom: 0 }}>
@@ -418,7 +426,7 @@ const PurchaseOrderList: React.FC = () => {
           columns={columns}
           dataSource={rows}
           loading={loading}
-          scroll={{ x: 1660 }}
+          scroll={{ x: 2180 }}
           onChange={onTableChange}
           locale={{ emptyText: '没有符合条件的采购单，换个筛选条件试试' }}
           pagination={{

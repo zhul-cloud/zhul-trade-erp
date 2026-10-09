@@ -1,13 +1,24 @@
-import { DeleteOutlined, PlusOutlined } from '@ant-design/icons';
-import { Button, InputNumber, Select, Space } from 'antd';
+import {
+  DeleteOutlined,
+  ExclamationCircleOutlined,
+  PlusOutlined,
+  ShopOutlined,
+  ShoppingOutlined,
+} from '@ant-design/icons';
+import type { TableColumnsType } from 'antd';
+import { Button, Input, InputNumber, Segmented, Select, Space } from 'antd';
 import React, { useEffect, useRef, useState } from 'react';
 import { Card, PageTitle, Pill } from '@/pages/inquiry/shared/components';
 import type { Tone } from '@/pages/inquiry/shared/constants';
 import { searchSuppliers } from '@/services/zhul/masterdata';
 import { useAppTheme } from '@/theme/AppTheme';
-import { formatAmount } from '@/utils/format';
+import { formatAmount, formatDateTime } from '@/utils/format';
 import { TRIGGERS, termsText, termsTotal } from './calc';
-import type { PaymentTerm, RequirementStatus } from './service';
+import type {
+  CounterpartyValue,
+  PaymentTerm,
+  RequirementStatus,
+} from './service';
 
 export { Card, Pill };
 
@@ -337,3 +348,157 @@ export const StatCard: React.FC<{
     </Card>
   );
 };
+
+// ---------------------------------------------------------------- 采购对象
+
+export const SHOP_CHANNELS = [
+  { value: 1, label: '淘宝' },
+  { value: 2, label: '1688' },
+  { value: 3, label: '闲鱼' },
+  { value: 5, label: '其他' },
+];
+
+/** 选采购对象：老供应商，或线上店铺（平台 + 店铺名） */
+export const CounterpartyPicker: React.FC<{
+  value: CounterpartyValue;
+  onChange: (v: CounterpartyValue) => void;
+}> = ({ value, onChange }) => {
+  const { palette } = useAppTheme();
+  const [kind, setKind] = useState<'supplier' | 'shop'>(
+    value.channel != null && value.channel !== 4 ? 'shop' : 'supplier',
+  );
+  return (
+    <div style={{ display: 'grid', gap: 12 }}>
+      <Segmented
+        value={kind}
+        onChange={(k) => {
+          setKind(k as 'supplier' | 'shop');
+          onChange(k === 'shop' ? { channel: 1, shopName: '' } : {});
+        }}
+        options={[
+          { value: 'supplier', label: '老供应商' },
+          { value: 'shop', label: '线上店铺' },
+        ]}
+      />
+      {kind === 'supplier' ? (
+        <SupplierPicker
+          style={{ width: '100%' }}
+          placeholder="搜索供应商"
+          value={value.supplierId}
+          label={value.supplierName}
+          onChange={(id, name) =>
+            onChange({ supplierId: id, supplierName: name })
+          }
+        />
+      ) : (
+        <div
+          style={{ display: 'grid', gridTemplateColumns: '140px 1fr', gap: 10 }}
+        >
+          <Select
+            value={value.channel ?? 1}
+            options={SHOP_CHANNELS}
+            onChange={(v) =>
+              onChange({ ...value, supplierId: undefined, channel: v })
+            }
+            aria-label="平台"
+          />
+          <Input
+            value={value.shopName}
+            maxLength={100}
+            placeholder="店铺名称"
+            onChange={(e) =>
+              onChange({
+                ...value,
+                supplierId: undefined,
+                shopName: e.target.value,
+              })
+            }
+            aria-label="店铺名称"
+          />
+          <span
+            style={{ gridColumn: '1 / -1', fontSize: 12, color: palette.mute }}
+          >
+            临时合作的店铺不用建供应商；同一平台下店铺名相同视为同一家店，买得多了可以在采购单上「转为供应商」。
+          </span>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export const counterpartyReady = (v: CounterpartyValue) =>
+  v.supplierId != null || (v.channel != null && !!v.shopName?.trim());
+
+export const counterpartyTitle = (v: CounterpartyValue) =>
+  v.supplierId != null
+    ? (v.supplierName ?? '')
+    : `${SHOP_CHANNELS.find((c) => c.value === v.channel)?.label ?? ''} · ${v.shopName?.trim() ?? ''}`;
+
+/** 「向谁买」：老供应商 / 线上店铺 / 还没定 */
+export const SourceCell: React.FC<{
+  supplierName?: string;
+  channelName?: string;
+  shopName?: string;
+  hint?: string;
+}> = ({ supplierName, channelName, shopName, hint }) => {
+  const { palette } = useAppTheme();
+  if (supplierName) {
+    return (
+      <div>
+        <div style={{ color: palette.ink }}>
+          <ShopOutlined style={{ color: palette.link, marginRight: 6 }} />
+          {supplierName}
+        </div>
+        <div style={{ fontSize: 12, color: palette.mute }}>老供应商</div>
+      </div>
+    );
+  }
+  if (shopName) {
+    return (
+      <div>
+        <div style={{ color: palette.ink }}>
+          <ShoppingOutlined style={{ color: palette.orange, marginRight: 6 }} />
+          {channelName ? `${channelName} · ` : ''}
+          {shopName}
+        </div>
+        <div style={{ fontSize: 12, color: palette.mute }}>线上店铺</div>
+      </div>
+    );
+  }
+  return (
+    <div>
+      <div style={{ color: palette.orange }}>
+        <ExclamationCircleOutlined style={{ marginRight: 6 }} />
+        还没定
+      </div>
+      <div style={{ fontSize: 12, color: palette.mute }}>
+        {hint ?? '没有回价'}
+      </div>
+    </div>
+  );
+};
+
+/** 列表页统一规范：创建时间 → 创建人 → 更新时间 → 更新人 */
+export const auditColumns = <
+  T extends {
+    createTime?: string;
+    createBy?: string;
+    updateTime?: string;
+    updateBy?: string;
+  },
+>(): TableColumnsType<T> => [
+  {
+    title: '创建时间',
+    dataIndex: 'createTime',
+    width: 170,
+    render: (v?: string) => formatDateTime(v),
+  },
+  { title: '创建人', dataIndex: 'createBy', width: 90 },
+  {
+    title: '更新时间',
+    dataIndex: 'updateTime',
+    width: 170,
+    render: (v?: string) => formatDateTime(v),
+  },
+  { title: '更新人', dataIndex: 'updateBy', width: 90 },
+];

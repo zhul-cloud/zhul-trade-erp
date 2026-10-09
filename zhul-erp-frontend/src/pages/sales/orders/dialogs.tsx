@@ -1,4 +1,5 @@
 import { DeleteOutlined, PlusOutlined } from '@ant-design/icons';
+import { request } from '@umijs/max';
 import {
   Alert,
   App,
@@ -15,7 +16,6 @@ import {
 import dayjs from 'dayjs';
 import React, { useEffect, useMemo, useState } from 'react';
 import { CURRENCIES } from '@/pages/quotation/components';
-import { getUserList } from '@/pages/system/user/service';
 import { searchCustomers } from '@/services/zhul/masterdata';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
@@ -40,12 +40,16 @@ export const StockPill: React.FC<{ type?: number }> = ({ type }) =>
   );
 
 /** 本租户用户（采购员候选） */
+/** 采购员候选：本租户启用的用户，有采购或销售订单菜单即可取，不要求「用户」菜单权限 */
 export const useUserOptions = () => {
   const [users, setUsers] = useState<{ value: number; label: string }[]>([]);
   useEffect(() => {
-    getUserList({ current: 1, pageSize: 200 })
+    request<{ data: { id: number; name: string }[] }>(
+      '/api/v1/purchase/purchasers',
+      { method: 'GET', skipErrorHandler: true },
+    )
       .then((res) =>
-        setUsers(res.data.records.map((u) => ({ value: u.id, label: u.name }))),
+        setUsers(res.data.map((u) => ({ value: u.id, label: u.name }))),
       )
       .catch(() => setUsers([]));
   }, []);

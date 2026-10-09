@@ -11,11 +11,21 @@ export interface PaymentTerm {
   days?: number;
 }
 
+/** 采购对象：老供应商（supplierId），或线上店铺（channel + shopName） */
+export interface CounterpartyValue {
+  supplierId?: number;
+  supplierName?: string;
+  channel?: number;
+  shopName?: string;
+}
+
 export interface PoRef {
   id: number;
   poNo?: string;
   status: number;
+  /** 老供应商名称，或「淘宝 · 店铺名」 */
   supplierName?: string;
+  shop?: boolean;
   purchaserName?: string;
   quantity: number;
 }
@@ -37,6 +47,7 @@ export interface Requirement {
   customerCountry?: string;
   model: string;
   brand?: string;
+  category?: string;
   quantity: number;
   draftQty: number;
   orderedQty: number;
@@ -53,6 +64,29 @@ export interface Requirement {
   status: RequirementStatus;
   statusName: string;
   purchaseOrders: PoRef[];
+  createTime: string;
+  createBy?: string;
+  updateTime: string;
+  updateBy?: string;
+}
+
+export interface RequirementOrder {
+  soId: number;
+  soNo?: string;
+  salesDate?: string;
+  customerName?: string;
+  customerCountry?: string;
+  customerType?: number;
+  stockType?: number;
+  /** 1-PI 转成、2-手动创建 */
+  source?: number;
+  ownerName?: string;
+  orderedCount: number;
+  partialCount: number;
+  draftCount: number;
+  pendingCount: number;
+  updateTime: string;
+  lines: Requirement[];
 }
 
 export interface RequirementQuery {
@@ -60,6 +94,10 @@ export interface RequirementQuery {
   pageSize: number;
   keyword?: string;
   purchaserId?: number;
+  /** 只看我负责的 */
+  mine?: boolean;
+  /** 向谁买：supplier-老供应商、shop-线上店铺、none-还没定 */
+  sourceType?: 'supplier' | 'shop' | 'none';
   supplierId?: number;
   /** open-还没全部下单、need-需要生成采购单、all-全部 */
   view?: 'open' | 'need' | 'all';
@@ -70,6 +108,7 @@ export interface RequirementStats {
   open: number;
   inDraft: number;
   need: number;
+  unplanned: number;
   unassigned: number;
   drafts: number;
 }
@@ -101,7 +140,11 @@ export interface PoListItem {
   createTime: string;
   staleDays?: number | null;
   supplierId: number;
+  /** 老供应商名称，或「淘宝 · 店铺名」 */
   supplierName?: string;
+  shop?: boolean;
+  channel?: number;
+  shopName?: string;
   itemCount: number;
   totalQuantity: number;
   missingPriceCount: number;
@@ -117,6 +160,9 @@ export interface PoListItem {
   purchaserId: number;
   purchaserName?: string;
   cancelReason?: string;
+  createBy?: string;
+  updateTime: string;
+  updateBy?: string;
 }
 
 export interface PoQuery {
@@ -168,7 +214,12 @@ export interface PurchaseOrder {
   status: number;
   statusName: string;
   supplierId: number;
+  /** 老供应商名称，或「淘宝 · 店铺名」 */
   supplierName?: string;
+  /** 采购对象为线上店铺：不显示合同，可以转为供应商 */
+  shop?: boolean;
+  channel?: number;
+  shopName?: string;
   purchaserId: number;
   purchaserName?: string;
   orderDate?: string;
@@ -247,18 +298,26 @@ const PO = '/api/v1/purchase/orders';
 export const requirementApi = {
   page: (q: RequirementQuery) =>
     send<{ total: number; records: Requirement[] }>('POST', `${REQ}/page`, q),
-  stats: () => get<RequirementStats>(`${REQ}/stats`),
+  orders: (q: RequirementQuery) =>
+    send<{ total: number; records: RequirementOrder[] }>(
+      'POST',
+      `${REQ}/orders/page`,
+      q,
+    ),
+  stats: (mine: boolean) => get<RequirementStats>(`${REQ}/stats`, { mine }),
   split: (
     id: number,
-    body: { quantity: number; purchaserId?: number; supplierId?: number },
+    body: { quantity: number; purchaserId?: number } & CounterpartyValue,
   ) => send<void>('POST', `${REQ}/${id}/split`, body),
+  source: (ids: number[], cp: CounterpartyValue) =>
+    send<void>('POST', `${REQ}/source`, { ids, ...cp }),
   assign: (ids: number[], purchaserId?: number | null) =>
     send<void>('POST', `${REQ}/assign`, { ids, purchaserId }),
   preview: (ids: number[]) =>
     get<{ groups: GenerateGroup[] }>(`${REQ}/generate-preview`, {
       ids: ids.join(','),
     }),
-  generate: (groups: { supplierId: number; requirementIds: number[] }[]) =>
+  generate: (groups: (CounterpartyValue & { requirementIds: number[] })[]) =>
     send<number[]>('POST', `${REQ}/generate`, { groups }),
 };
 
@@ -273,8 +332,10 @@ export const poApi = {
     send<PurchaseOrder | null>('DELETE', `${PO}/${id}/items`, undefined, {
       ids: ids.join(','),
     }),
-  move: (id: number, itemIds: number[], supplierId: number) =>
-    send<number>('POST', `${PO}/${id}/move`, { itemIds, supplierId }),
+  move: (id: number, itemIds: number[], cp: CounterpartyValue) =>
+    send<number>('POST', `${PO}/${id}/move`, { itemIds, ...cp }),
+  convertShop: (id: number) =>
+    send<PurchaseOrder>('POST', `${PO}/${id}/convert-shop`),
   confirm: (id: number, orderDate: string) =>
     send<PurchaseOrder>('POST', `${PO}/${id}/confirm`, { orderDate }),
   cancel: (id: number, reason: string) =>
