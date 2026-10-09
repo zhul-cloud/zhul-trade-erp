@@ -266,7 +266,7 @@ public class ReceiptService {
         }
         List<Qty> lines = new ArrayList<>();
         for (AcceptRequest.Line l : req.getItems()) {
-            lines.add(new Qty(l.getShipmentItemId(), l.getReceivedQty(), l.getQualifiedQty(), l.getDefectiveQty(), l.getNote()));
+            lines.add(new Qty(l.getShipmentItemId(), l.getReceivedQty(), l.getQualifiedQty(), l.getNote()));
         }
         PurchaseReceiptDO r = receive(p, s, req.getReceivedDate(), req.getNote(), lines, req.getAttachmentIds());
         return detail(r.getId());
@@ -287,7 +287,7 @@ public class ReceiptService {
             if (wanted.put(l.getPoItemId(), l) != null) {
                 throw new BizException("同一个型号不能重复填写");
             }
-            validate(poItems.get(l.getPoItemId()).getModel(), l.getReceivedQty(), l.getQualifiedQty(), l.getDefectiveQty());
+            validate(poItems.get(l.getPoItemId()).getModel(), l.getReceivedQty(), l.getQualifiedQty());
         }
         wanted.values().removeIf(l -> l.getReceivedQty() == 0);
         if (wanted.isEmpty()) {
@@ -304,6 +304,7 @@ public class ReceiptService {
         s.setCarrier("");
         s.setTrackingNo("");
         s.setShipDate(req.getReceivedDate());
+        s.setExpectedArrivalDate(req.getReceivedDate());
         s.setStatus(WarehouseConstants.SHIP_IN_TRANSIT);
         s.setVoidReason("");
         s.setNote("仓库直接收货");
@@ -325,14 +326,18 @@ public class ReceiptService {
             x.setQuantity(Math.min(l.getReceivedQty(), unshipped));
             shipmentItemMapper.insert(x);
             text.add(i.getModel() + " × " + x.getQuantity());
-            lines.add(new Qty(x.getId(), l.getReceivedQty(), l.getQualifiedQty(), l.getDefectiveQty(), l.getNote()));
+            lines.add(new Qty(x.getId(), l.getReceivedQty(), l.getQualifiedQty(), l.getNote()));
         }
         logs.add(p.getId(), "仓库补登发货", s.getSdNo() + "：" + String.join("、", text) + "（仓库直接收货）", currentUser.resolve());
         PurchaseReceiptDO r = receive(p, s, req.getReceivedDate(), req.getNote(), lines, req.getAttachmentIds());
         return detail(r.getId());
     }
 
-    private record Qty(Long shipmentItemId, Integer received, Integer qualified, Integer defective, String note) {
+    /** 一行验收数量：不良 = 实收 − 合格 */
+    private record Qty(Long shipmentItemId, Integer received, Integer qualified, String note) {
+        int defective() {
+            return received - qualified;
+        }
     }
 
     /** 验收一张在途发货单（发货单与采购单已锁） */
@@ -351,7 +356,7 @@ public class ReceiptService {
         }
         for (SupplierShipmentItemDO i : shipItems) {
             Qty q = byItem.get(i.getId());
-            validate(i.getModel(), q.received(), q.qualified(), q.defective());
+            validate(i.getModel(), q.received(), q.qualified());
         }
         Long operator = currentUser.resolve();
         PurchaseReceiptDO r = new PurchaseReceiptDO();
@@ -448,12 +453,12 @@ public class ReceiptService {
         }
     }
 
-    private static void validate(String model, Integer received, Integer qualified, Integer defective) {
-        if (received < 0 || qualified < 0 || defective < 0) {
+    private static void validate(String model, int received, int qualified) {
+        if (received < 0 || qualified < 0) {
             throw new BizException(model + " 的数量不能为负数");
         }
-        if (received != qualified + defective) {
-            throw new BizException(model + "：实收须等于合格加不良");
+        if (qualified > received) {
+            throw new BizException(model + "：合格数量不能多于实收");
         }
     }
 

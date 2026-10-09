@@ -22,6 +22,7 @@ import com.zhul.erp.modules.purchase.dto.PurchaseOrderPageQuery;
 import com.zhul.erp.modules.purchase.dto.PurchaseOrderStatsVO;
 import com.zhul.erp.modules.purchase.dto.PurchaseOrderVO;
 import com.zhul.erp.modules.purchase.dto.SavePurchaseOrderRequest;
+import com.zhul.erp.modules.purchase.dto.ShipFields;
 import com.zhul.erp.modules.purchase.entity.PurchaseOrderAttachmentDO;
 import com.zhul.erp.modules.purchase.entity.PurchaseOrderDO;
 import com.zhul.erp.modules.purchase.entity.PurchaseOrderFeeDO;
@@ -53,6 +54,7 @@ import com.zhul.erp.modules.system.service.DocumentNumberService;
 import com.zhul.erp.modules.system.service.ExchangeRateService;
 import com.zhul.erp.modules.system.service.LogService;
 import com.zhul.erp.modules.warehouse.constants.WarehouseConstants;
+import com.zhul.erp.modules.warehouse.support.ShipProgress;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -111,6 +113,7 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
     private final com.zhul.erp.modules.masterdata.service.SupplierService supplierService;
     private final com.zhul.erp.modules.warehouse.support.ReceivingQty receivingQty;
     private final com.zhul.erp.modules.warehouse.support.PurchaseReceivingLinks receivingLinks;
+    private final ShipProgress shipProgress;
 
     // ---------------------------------------------------------------- 列表与统计
 
@@ -123,6 +126,10 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
         }
         if (q.getSupplierId() != null) {
             w.eq(PurchaseOrderDO::getSupplierId, q.getSupplierId());
+        }
+        String shipCondition = ShipProgress.condition(q.getShipProgress());
+        if (shipCondition != null) {
+            w.apply(shipCondition);
         }
         if (q.getPurchaserId() != null) {
             w.eq(PurchaseOrderDO::getPurchaserId, q.getPurchaserId());
@@ -200,6 +207,10 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
         Map<Long, String> soNos = soNos(items.values().stream().flatMap(List::stream).map(PurchaseOrderItemDO::getSoId).toList());
         Map<Long, String> suppliers = supplierNames(rows.stream().map(PurchaseOrderDO::getSupplierId).toList());
         Map<Long, String> users = lookups.userNames(rows.stream().map(PurchaseOrderDO::getPurchaserId).toList());
+        Map<Long, List<PurchaseOrderItemDO>> orderedLines = new HashMap<>();
+        rows.stream().filter(p -> p.getStatus() == PurchaseConstants.PO_ORDERED)
+                .forEach(p -> orderedLines.put(p.getId(), items.getOrDefault(p.getId(), List.of())));
+        Map<Long, ShipProgress.Result> progressByPo = shipProgress.of(orderedLines);
         LocalDateTime now = LocalDateTime.now();
         List<PurchaseOrderListVO> out = new ArrayList<>(rows.size());
         for (PurchaseOrderDO p : rows) {
@@ -210,6 +221,7 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
             vo.setStatus(p.getStatus());
             vo.setStatusName(PurchaseConstants.PO_STATUS_NAMES.get(p.getStatus()));
             vo.setOrderDate(p.getOrderDate());
+            fillShip(vo, p, progressByPo.get(p.getId()));
             vo.setCreateTime(p.getCreateTime());
             if (p.getStatus() == PurchaseConstants.PO_DRAFT && p.getCreateTime() != null) {
                 long days = ChronoUnit.DAYS.between(p.getCreateTime().toLocalDate(), now.toLocalDate());
@@ -251,6 +263,22 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
         return out;
     }
 
+    /** 预计发货日期与发货进度（列表与详情共用）；r 为空表示不是已下单 */
+    private static void fillShip(ShipFields vo, PurchaseOrderDO p, ShipProgress.Result r) {
+        vo.setExpectedShipDate(p.getExpectedShipDate());
+        if (r == null) {
+            return;
+        }
+        vo.setShipProgress(r.code());
+        vo.setShipProgressName(r.name());
+        vo.setShippedQty(r.shipped());
+        vo.setTotalQty(r.total());
+        vo.setEarliestArrival(r.earliestArrival());
+        if (r.shipped() < r.total() && p.getExpectedShipDate() != null && p.getExpectedShipDate().isBefore(LocalDate.now())) {
+            vo.setOverdueDays((int) ChronoUnit.DAYS.between(p.getExpectedShipDate(), LocalDate.now()));
+        }
+    }
+
     @Override
     public PurchaseOrderStatsVO stats() {
         LocalDate first = LocalDate.now().withDayOfMonth(1);
@@ -267,6 +295,8 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
         vo.setMonthBargainRate(PurchaseCalc.rate(bargain, month.stream().map(PurchaseOrderDO::getTargetAmount)
                 .reduce(BigDecimal.ZERO, BigDecimal::add)));
         vo.setDrafts(orderMapper.selectCount(scoped().eq(PurchaseOrderDO::getStatus, PurchaseConstants.PO_DRAFT)));
+        vo.setPendingShip(orderMapper.selectCount(scoped().apply(ShipProgress.pendingCondition())));
+        vo.setOverdueShip(orderMapper.selectCount(scoped().apply(ShipProgress.condition(ShipProgress.OVERDUE))));
         vo.setStaleDrafts(orderMapper.selectCount(scoped().eq(PurchaseOrderDO::getStatus, PurchaseConstants.PO_DRAFT)
                 .lt(PurchaseOrderDO::getCreateTime, LocalDate.now().minusDays(PurchaseConstants.STALE_DRAFT_DAYS).atStartOfDay())));
         vo.setOrderCancelled(orderMapper.selectCount(scoped().eq(PurchaseOrderDO::getStatus, PurchaseConstants.PO_ORDERED)
@@ -322,6 +352,7 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
         vo.setPurchaserName(users.get(p.getPurchaserId()));
         vo.setOrderDate(p.getOrderDate());
         vo.setOrderedAt(p.getOrderedAt());
+        fillShip(vo, p, p.getStatus() == PurchaseConstants.PO_ORDERED ? shipProgress.of(Map.of(id, lines)).get(id) : null);
         vo.setCreateTime(p.getCreateTime());
         vo.setCurrencyCode(p.getCurrencyCode());
         vo.setExchangeRate(p.getExchangeRate());
@@ -434,6 +465,15 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
         p.setPaymentTerms(PaymentTerms.toJson(terms));
         p.setContractNo(req.getContractNo() == null ? "" : req.getContractNo().trim());
         p.setContractAmount(req.getContractAmount() == null ? null : PurchaseCalc.money(req.getContractAmount()));
+        LocalDate wantShip = ordered && req.getExpectedShipDate() == null ? p.getExpectedShipDate() : req.getExpectedShipDate();
+        if (ordered && wantShip != null && p.getOrderDate() != null && wantShip.isBefore(p.getOrderDate())) {
+            throw new BizException("预计发货日期不能早于下单日期");
+        }
+        if (!Objects.equals(wantShip, p.getExpectedShipDate())) {
+            changes.add("预计发货日期 " + (p.getExpectedShipDate() == null ? "未填" : p.getExpectedShipDate()) + " → "
+                    + (wantShip == null ? "未填" : wantShip));
+            p.setExpectedShipDate(wantShip);
+        }
 
         // 行：只能改本单已有的行；数量不超过需求可下单数量 + 本行原数量
         List<PurchaseOrderItemDO> lines = drafts.items(id);
@@ -698,6 +738,9 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
         if (req.getOrderDate().isAfter(LocalDate.now())) {
             throw new BizException("下单日期不能晚于今天");
         }
+        if (req.getExpectedShipDate().isBefore(req.getOrderDate())) {
+            throw new BizException("预计发货日期不能早于下单日期");
+        }
         List<PurchaseOrderItemDO> lines = drafts.items(id);
         if (lines.isEmpty()) {
             throw new BizException("采购单没有型号");
@@ -717,11 +760,12 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
         p.setPoNo(documentNumberService.next(DocumentType.PO));
         p.setStatus(PurchaseConstants.PO_ORDERED);
         p.setOrderDate(req.getOrderDate());
+        p.setExpectedShipDate(req.getExpectedShipDate());
         p.setOrderedAt(LocalDateTime.now());
         orderMapper.updateById(p);
         Long operator = currentUser.resolve();
         touch.touch(lines.stream().map(PurchaseOrderItemDO::getRequirementId).toList());
-        logs.add(id, "确认下单", "下单日期 " + req.getOrderDate() + "，编号 " + p.getPoNo(), operator);
+        logs.add(id, "确认下单", "下单日期 " + req.getOrderDate() + "，预计 " + req.getExpectedShipDate() + " 发货，编号 " + p.getPoNo(), operator);
         progress.sync(lines.stream().map(PurchaseOrderItemDO::getSoItemId).toList());
         Map<String, Object> after = new LinkedHashMap<>();
         after.put("poNo", p.getPoNo());

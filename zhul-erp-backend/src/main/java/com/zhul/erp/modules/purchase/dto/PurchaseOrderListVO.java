@@ -9,13 +9,25 @@ import java.util.List;
 
 /** 采购单列表行 */
 @Data
-public class PurchaseOrderListVO {
+public class PurchaseOrderListVO implements ShipFields {
     private Long id;
     /** 草稿为空 */
     private String poNo;
     private Integer status;
     private String statusName;
     private LocalDate orderDate;
+    /** 预计发货日期 */
+    private LocalDate expectedShipDate;
+    /** 发货进度（已下单才有）：UNSHIPPED、PARTIAL、SHIPPED、RECEIVED */
+    private String shipProgress;
+    private String shipProgressName;
+    /** 已发件数（每行不超过订购数）与总件数 */
+    private Integer shippedQty;
+    private Integer totalQty;
+    /** 还有未发且已过预计发货日期的天数 */
+    private Integer overdueDays;
+    /** 在途发货单最早的预计到货日期 */
+    private LocalDate earliestArrival;
     private LocalDateTime createTime;
     /** 草稿已放天数（超过 3 天时有值） */
     private Integer staleDays;

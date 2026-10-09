@@ -1,36 +1,26 @@
 package com.zhul.erp.modules.warehouse.entity;
 
 import com.baomidou.mybatisplus.annotation.FieldFill;
-import com.baomidou.mybatisplus.annotation.FieldStrategy;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 
-/** 供应商发货单 */
+/** 快递时效：快递公司 + 发货省份 → 到福州仓库的运输天数 */
 @Data
-@TableName("supplier_shipment")
-public class SupplierShipmentDO {
+@TableName("transit_time")
+public class TransitTimeDO {
     @TableId(type = IdType.AUTO)
     private Long id;
     private Integer tenantId;
-    private String sdNo;
-    private Long poId;
-    /** 1-采购员登记、2-仓库补登 */
-    private Integer source;
     private String carrier;
-    private String trackingNo;
-    private LocalDate shipDate;
-    @TableField(updateStrategy = FieldStrategy.ALWAYS)
-    private LocalDate expectedArrivalDate;
-    /** 1-在途、2-已入库、3-已作废 */
-    private Integer status;
-    private String voidReason;
-    private String note;
+    /** 空表示该快递公司的默认天数 */
+    private String originProvince;
+    private Integer days;
+    private String remark;
     private LocalDateTime deletedAt;
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createTime;

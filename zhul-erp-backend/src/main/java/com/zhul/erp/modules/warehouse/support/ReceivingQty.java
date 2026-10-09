@@ -31,6 +31,20 @@ public class ReceivingQty {
         return query(ids, mapper::qualifiedBySoItem);
     }
 
+    public Map<Long, Integer> shippedBySoItem(Collection<Long> ids) {
+        return query(ids, mapper::shippedBySoItem);
+    }
+
+    /** 订单型号行 → 它所在的在途发货单（按预计到货日期从早到晚） */
+    public Map<Long, List<com.zhul.erp.modules.warehouse.dto.TransitRow>> inTransitBySoItem(Collection<Long> ids) {
+        List<Long> keys = ids == null ? List.of() : ids.stream().filter(Objects::nonNull).distinct().toList();
+        Map<Long, List<com.zhul.erp.modules.warehouse.dto.TransitRow>> out = new HashMap<>();
+        if (!keys.isEmpty()) {
+            mapper.inTransitBySoItem(keys).forEach(r -> out.computeIfAbsent(r.getSoItemId(), k -> new java.util.ArrayList<>()).add(r));
+        }
+        return out;
+    }
+
     private static Map<Long, Integer> query(Collection<Long> ids, Function<List<Long>, List<IdQty>> fn) {
         List<Long> keys = ids == null ? List.of() : ids.stream().filter(Objects::nonNull).distinct().toList();
         Map<Long, Integer> out = new HashMap<>(keys.size() * 2 + 1);

@@ -41,5 +41,21 @@ public class SalesOrderListVO {
     private Long ownerId;
     private String ownerName;
     private String cancelReason;
+    /** 货物状态（件数，不含系统外采购的型号）；已取消的订单为空 */
+    private Goods goods;
     private LocalDateTime createTime;
+    private String createBy;
+    private LocalDateTime updateTime;
+    private String updateBy;
+
+    @Data
+    public static class Goods {
+        private Integer received;
+        private Integer inTransit;
+        private Integer pendingShip;
+        private Integer pendingPurchase;
+        private Integer total;
+        /** 在途最早的预计到货日期 */
+        private java.time.LocalDate earliestArrival;
+    }
 }

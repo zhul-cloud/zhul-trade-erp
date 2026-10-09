@@ -2,6 +2,7 @@ package com.zhul.erp.modules.warehouse.controller;
 
 import com.zhul.erp.common.result.PageResult;
 import com.zhul.erp.common.result.Result;
+import com.zhul.erp.modules.warehouse.dto.ArrivalEstimateVO;
 import com.zhul.erp.modules.warehouse.dto.ReasonRequest;
 import com.zhul.erp.modules.warehouse.dto.SaveShipmentRequest;
 import com.zhul.erp.modules.warehouse.dto.ShipmentFormVO;
@@ -11,6 +12,7 @@ import com.zhul.erp.modules.warehouse.dto.ShipmentVO;
 import com.zhul.erp.modules.warehouse.service.ShipmentService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -20,6 +22,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.time.LocalDate;
 
 /** 供应商发货单（采购员侧，按数据权限） */
 @RestController
@@ -49,6 +53,14 @@ public class ShipmentController {
     @PreAuthorize(EDIT)
     public Result<ShipmentFormVO> form(@RequestParam(required = false) Long poId, @RequestParam(required = false) Long shipmentId) {
         return Result.ok(service.form(poId, shipmentId));
+    }
+
+    /** 按快递时效估算预计到货日期 */
+    @GetMapping("/estimate")
+    @PreAuthorize(EDIT)
+    public Result<ArrivalEstimateVO> estimate(@RequestParam Long poId, @RequestParam(required = false) String carrier,
+                                              @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate shipDate) {
+        return Result.ok(service.estimate(poId, carrier, shipDate));
     }
 
     @PostMapping

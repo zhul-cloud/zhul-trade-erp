@@ -9,4 +9,6 @@ import java.time.LocalDate;
 public class ConfirmPurchaseOrderRequest {
     @NotNull(message = "请填写下单日期")
     private LocalDate orderDate;
+    @NotNull(message = "请填写预计发货日期")
+    private LocalDate expectedShipDate;
 }

@@ -55,6 +55,7 @@ public class PurchaseReceivingLinks {
             x.setId(s.getId());
             x.setSdNo(s.getSdNo());
             x.setShipDate(s.getShipDate());
+            x.setExpectedArrivalDate(s.getExpectedArrivalDate());
             x.setCarrier(s.getCarrier());
             x.setTrackingNo(s.getTrackingNo());
             x.setTotalQuantity(qty.getOrDefault(s.getId(), 0));

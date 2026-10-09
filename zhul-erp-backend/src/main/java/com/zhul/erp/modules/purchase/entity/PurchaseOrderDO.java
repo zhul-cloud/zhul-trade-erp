@@ -31,6 +31,9 @@ public class PurchaseOrderDO {
     private Integer status;
     private LocalDate orderDate;
     private LocalDateTime orderedAt;
+    /** 预计发货日期：确认下单时必填 */
+    @TableField(updateStrategy = FieldStrategy.ALWAYS)
+    private LocalDate expectedShipDate;
     private String currencyCode;
     private BigDecimal exchangeRate;
     /** 0-不含税、1-含税 */

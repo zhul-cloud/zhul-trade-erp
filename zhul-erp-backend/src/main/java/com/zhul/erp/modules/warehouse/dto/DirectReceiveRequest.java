@@ -30,7 +30,7 @@ public class DirectReceiveRequest {
         private Integer receivedQty;
         @NotNull(message = "请填写合格数量")
         private Integer qualifiedQty;
-        @NotNull(message = "请填写不良数量")
+        /** 不再使用：不良 = 实收 − 合格，由系统计算 */
         private Integer defectiveQty;
         @Size(max = 300, message = "说明不能超过300个字")
         private String note;

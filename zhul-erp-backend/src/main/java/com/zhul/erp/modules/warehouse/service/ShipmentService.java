@@ -65,6 +65,7 @@ public class ShipmentService {
     private final CurrentUserResolver currentUser;
     private final InquiryLookups lookups;
     private final LogService logService;
+    private final TransitTimeService transitTimes;
 
     // ---------------------------------------------------------------- 列表
 
@@ -146,6 +147,9 @@ public class ShipmentService {
             vo.setCarrier(s.getCarrier());
             vo.setTrackingNo(s.getTrackingNo());
             vo.setShipDate(s.getShipDate());
+            vo.setExpectedArrivalDate(s.getExpectedArrivalDate());
+            vo.setArrivalOverdue(s.getStatus() == WarehouseConstants.SHIP_IN_TRANSIT && s.getExpectedArrivalDate() != null
+                    && s.getExpectedArrivalDate().isBefore(LocalDate.now()));
             vo.setItemCount(lines.size());
             vo.setTotalQuantity(lines.stream().mapToInt(SupplierShipmentItemDO::getQuantity).sum());
             vo.setItems(lines.stream().map(ShipmentService::itemVo).toList());
@@ -221,6 +225,7 @@ public class ShipmentService {
             vo.setCarrier(s.getCarrier());
             vo.setTrackingNo(s.getTrackingNo());
             vo.setShipDate(s.getShipDate());
+            vo.setExpectedArrivalDate(s.getExpectedArrivalDate());
             vo.setNote(s.getNote());
             vo.setAttachments(attachments.listOf(AttachmentService.SHIPMENT, s.getId()));
         } else {
@@ -264,6 +269,7 @@ public class ShipmentService {
         s.setStatus(WarehouseConstants.SHIP_IN_TRANSIT);
         s.setVoidReason("");
         fill(s, req);
+        arrival(s, p, req);
         shipmentMapper.insert(s);
         String text = writeItems(s, p, req.getItems(), Map.of());
         attachments.attach(AttachmentService.SHIPMENT, s.getId(), req.getAttachmentIds());
@@ -285,6 +291,7 @@ public class ShipmentService {
                 .collect(Collectors.toMap(SupplierShipmentItemDO::getPoItemId, SupplierShipmentItemDO::getQuantity, Integer::sum));
         String before = old.stream().map(i -> i.getModel() + " × " + i.getQuantity()).collect(Collectors.joining("、")) + trackingText(s);
         fill(s, req);
+        arrival(s, p, req);
         shipmentMapper.updateById(s);
         old.forEach(i -> {
             i.setDeletedAt(LocalDateTime.now());
@@ -315,6 +322,23 @@ public class ShipmentService {
         logService.recordOperateLog(WarehouseConstants.MENU_SHIPMENT, "作废发货", Map.of("sdNo", s.getSdNo(), "status", "在途"),
                 Map.of("sdNo", s.getSdNo(), "status", "已作废", "reason", why));
         return detail(id, true);
+    }
+
+    /** 预计到货日期：采购员填了用填的（不能早于发货日期），没填按快递时效估算 */
+    private void arrival(SupplierShipmentDO s, PurchaseOrderDO p, SaveShipmentRequest req) {
+        if (req.getExpectedArrivalDate() != null) {
+            if (req.getExpectedArrivalDate().isBefore(s.getShipDate())) {
+                throw new BizException("预计到货日期不能早于发货日期");
+            }
+            s.setExpectedArrivalDate(req.getExpectedArrivalDate());
+        } else {
+            s.setExpectedArrivalDate(transitTimes.estimate(p, s.getCarrier(), s.getShipDate()).getDate());
+        }
+    }
+
+    /** 登记发货时估算预计到货日期 */
+    public com.zhul.erp.modules.warehouse.dto.ArrivalEstimateVO estimate(Long poId, String carrier, LocalDate shipDate) {
+        return transitTimes.estimate(support.po(poId, true), carrier, shipDate == null ? LocalDate.now() : shipDate);
     }
 
     private static void fill(SupplierShipmentDO s, SaveShipmentRequest req) {

@@ -771,8 +771,25 @@ public class SalesOrderServiceImpl implements SalesOrderService {
                 ref.setId(r.id());
                 ref.setPoNo(r.poNo());
                 ref.setStatus(r.status());
+                ref.setExpectedShipDate(r.expectedShipDate());
                 return ref;
             }).toList());
+            if (lp != null && lp.tracked()) {
+                var g = lp.goods(i.getQuantity());
+                x.setGoodsReceived(g.received());
+                x.setGoodsInTransit(g.inTransit());
+                x.setGoodsPendingShip(g.pendingShip());
+                x.setGoodsPendingPurchase(g.pendingPurchase());
+                x.setTransits(lp.transits().stream().map(t -> {
+                    SalesOrderItemVO.Transit tr = new SalesOrderItemVO.Transit();
+                    tr.setShipmentId(t.shipmentId());
+                    tr.setSdNo(t.sdNo());
+                    tr.setCarrier(t.carrier());
+                    tr.setQuantity(t.quantity());
+                    tr.setExpectedArrivalDate(t.expectedArrival());
+                    return tr;
+                }).toList());
+            }
             x.setId(i.getId());
             x.setLineNo(i.getLineNo());
             x.setQuotationId(i.getQuotationId());
@@ -1031,7 +1048,8 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         if (total == 0) {
             return PageResult.of(0L, List.of());
         }
-        w.orderByDesc(SalesOrderDO::getSalesDate).orderByDesc(SalesOrderDO::getId)
+        // 列表页统一规范：默认按更新时间倒序
+        w.orderByDesc(SalesOrderDO::getUpdateTime).orderByDesc(SalesOrderDO::getId)
                 .last("LIMIT " + (long) (page - 1) * size + ", " + size);
         return PageResult.of(total, toListVos(orderMapper.selectList(w)));
     }
@@ -1171,11 +1189,13 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         Map<Long, Integer> quantities = new HashMap<>();
         Map<Long, Set<Long>> purchasersByOrder = new HashMap<>();
         Map<Long, Integer> unassigned = new HashMap<>();
+        List<SalesOrderItemDO> allItems = new ArrayList<>();
         for (SalesOrderItemDO i : orderItemMapper.selectList(new LambdaQueryWrapper<SalesOrderItemDO>()
-                .select(SalesOrderItemDO::getSoId, SalesOrderItemDO::getQuantity, SalesOrderItemDO::getPurchaserId)
+                .select(SalesOrderItemDO::getId, SalesOrderItemDO::getSoId, SalesOrderItemDO::getQuantity, SalesOrderItemDO::getPurchaserId)
                 .in(SalesOrderItemDO::getSoId, ids)
                 .isNull(SalesOrderItemDO::getDeletedAt)
                 .orderByAsc(SalesOrderItemDO::getLineNo))) {
+            allItems.add(i);
             counts.merge(i.getSoId(), 1, Integer::sum);
             quantities.merge(i.getSoId(), i.getQuantity() == null ? 0 : i.getQuantity(), Integer::sum);
             if (i.getPurchaserId() == null) {
@@ -1193,6 +1213,7 @@ public class SalesOrderServiceImpl implements SalesOrderService {
                 .stream().collect(Collectors.toMap(ProformaInvoiceDO::getId, p -> p));
         Map<Long, CustomerDO> customers = lookups.customers(rows.stream().map(SalesOrderDO::getCustomerId).toList());
         Map<Long, String> users = lookups.userNames(rows.stream().map(SalesOrderDO::getOwnerId).toList());
+        Map<Long, SalesOrderListVO.Goods> goods = goodsByOrder(rows, allItems);
         List<SalesOrderListVO> list = new ArrayList<>(rows.size());
         for (SalesOrderDO o : rows) {
             ProformaInvoiceDO pi = pis.get(o.getPiId());
@@ -1233,10 +1254,50 @@ public class SalesOrderServiceImpl implements SalesOrderService {
             vo.setOwnerId(o.getOwnerId());
             vo.setOwnerName(users.get(o.getOwnerId()));
             vo.setCancelReason(StringUtils.hasText(o.getCancelReason()) ? o.getCancelReason() : null);
+            vo.setGoods(goods.get(o.getId()));
             vo.setCreateTime(o.getCreateTime());
+            vo.setCreateBy(o.getCreateBy());
+            vo.setUpdateTime(o.getUpdateTime());
+            vo.setUpdateBy(o.getUpdateBy());
             list.add(vo);
         }
         return list;
+    }
+
+    /** 进行中的订单：有采购需求的型号按件数汇总货物状态 */
+    private Map<Long, SalesOrderListVO.Goods> goodsByOrder(List<SalesOrderDO> rows, List<SalesOrderItemDO> items) {
+        Set<Long> active = rows.stream().filter(o -> o.getStatus() == SalesConstants.SO_ACTIVE).map(SalesOrderDO::getId)
+                .collect(Collectors.toSet());
+        List<SalesOrderItemDO> live = items.stream().filter(i -> active.contains(i.getSoId())).toList();
+        Map<Long, com.zhul.erp.modules.purchase.support.PurchaseLinks.ItemPurchase> links =
+                purchaseLinks.forSoItems(live.stream().map(SalesOrderItemDO::getId).toList());
+        Map<Long, SalesOrderListVO.Goods> out = new HashMap<>();
+        for (SalesOrderItemDO i : live) {
+            var lp = links.get(i.getId());
+            if (lp == null || !lp.tracked()) {
+                continue;
+            }
+            var g = lp.goods(i.getQuantity());
+            SalesOrderListVO.Goods sum = out.computeIfAbsent(i.getSoId(), k -> {
+                SalesOrderListVO.Goods x = new SalesOrderListVO.Goods();
+                x.setReceived(0);
+                x.setInTransit(0);
+                x.setPendingShip(0);
+                x.setPendingPurchase(0);
+                x.setTotal(0);
+                return x;
+            });
+            sum.setReceived(sum.getReceived() + g.received());
+            sum.setInTransit(sum.getInTransit() + g.inTransit());
+            sum.setPendingShip(sum.getPendingShip() + g.pendingShip());
+            sum.setPendingPurchase(sum.getPendingPurchase() + g.pendingPurchase());
+            sum.setTotal(sum.getTotal() + i.getQuantity());
+            lp.transits().stream().map(com.zhul.erp.modules.purchase.support.PurchaseLinks.Transit::expectedArrival)
+                    .filter(Objects::nonNull)
+                    .filter(d -> sum.getEarliestArrival() == null || d.isBefore(sum.getEarliestArrival()))
+                    .forEach(sum::setEarliestArrival);
+        }
+        return out;
     }
 
     // ---------------------------------------------------------------- 来源 / 去向链路

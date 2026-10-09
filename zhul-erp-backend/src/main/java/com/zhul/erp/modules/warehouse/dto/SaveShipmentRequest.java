@@ -19,6 +19,8 @@ public class SaveShipmentRequest {
     private String trackingNo;
     @NotNull(message = "请填写发货日期")
     private LocalDate shipDate;
+    /** 预计到货日期：为空时按快递时效估算 */
+    private LocalDate expectedArrivalDate;
     @Size(max = 300, message = "备注不能超过300个字")
     private String note;
     @NotEmpty(message = "请选择发货的型号")

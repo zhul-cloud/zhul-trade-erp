@@ -17,6 +17,9 @@ public class ShipmentListVO {
     private String carrier;
     private String trackingNo;
     private LocalDate shipDate;
+    private LocalDate expectedArrivalDate;
+    /** 在途且已过预计到货日期 */
+    private Boolean arrivalOverdue;
     private Integer itemCount;
     private Integer totalQuantity;
     private List<ShipmentItemVO> items;

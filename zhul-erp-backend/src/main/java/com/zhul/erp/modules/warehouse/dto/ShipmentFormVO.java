@@ -15,6 +15,7 @@ public class ShipmentFormVO {
     private String carrier;
     private String trackingNo;
     private LocalDate shipDate;
+    private LocalDate expectedArrivalDate;
     private String note;
     private List<AttachmentVO> attachments;
     private List<Line> lines;

@@ -68,6 +68,11 @@ class ReceivingContractTest extends SalesContractSupport {
 
     /** 一张订单：每行的采购回价来自林熙对 supplier 的报价；采购单确认下单后返回采购单详情 */
     private JsonNode orderedPo(long supplierId, L... lines) throws Exception {
+        return priceAndConfirm(draftPo(supplierId, lines), "800", admin);
+    }
+
+    /** 同上，但停在草稿，返回草稿 ID */
+    private long draftPo(long supplierId, L... lines) throws Exception {
         long c = customer("ACROBOT", "India");
         List<Long> items = quotationItemIds(quotation(c, 2, "USD", null, lines));
         for (Long i : items) {
@@ -80,9 +85,8 @@ class ReceivingContractTest extends SalesContractSupport {
         long pi = sentPi(items, null);
         ok(uploadSlip(pi, "1.00", "2026-10-07", admin));
         ok(call(json(post(PI + "/" + pi + "/convert"), "{}"), admin));
-        long draft = jdbc.queryForObject("select max(id) from purchase_order where tenant_id = 0 and supplier_id = ? and status = 1 and deleted_at is null",
+        return jdbc.queryForObject("select max(id) from purchase_order where tenant_id = 0 and supplier_id = ? and status = 1 and deleted_at is null",
                 Long.class, supplierId);
-        return priceAndConfirm(draft, "800", admin);
     }
 
     private static long item(JsonNode po, int index) {
@@ -235,7 +239,7 @@ class ReceivingContractTest extends SalesContractSupport {
         long sid = ok(ship(poId, Map.of(item(po, 0), 2), lin)).path("shipment").path("id").asLong();
 
         assertEquals(403, perform(get(GR + "/orders"), lin).getStatus(), "采购员没有验收入库权限");
-        assertEquals("A-1：实收须等于合格加不良", fail(accept(sid, List.of(new int[] {2, 1, 0}), keeper)).path("message").asText());
+        assertEquals("A-1：合格数量不能多于实收", fail(accept(sid, List.of(new int[] {2, 3, 0}), keeper)).path("message").asText());
         JsonNode gr = ok(accept(sid, List.of(new int[] {2, 2, 0}), keeper));
         assertEquals("GR" + TODAY + "001", gr.path("receipt").path("grNo").asText());
         assertEquals(0, gr.path("discrepancies").size(), "全部合格没有差异");
@@ -557,5 +561,152 @@ class ReceivingContractTest extends SalesContractSupport {
         JsonNode skipped = ok(call(json(post(SHOOT + "/" + task + "/skip"), "{\"reason\":\"客户不需要\"}"), keeper));
         assertEquals("已跳过", skipped.path("task").path("statusName").asText());
         assertEquals("客户不需要", skipped.path("task").path("skipReason").asText());
+    }
+
+    // ---------------------------------------------------------------- 发货跟踪：预计发货日期、发货进度、预计到货、货物状态
+
+    private static final String TRANSIT = "/api/v1/system/transit-times";
+
+    @Test
+    void expectedShipDate_requiredOnConfirm_editableAndLogged() throws Exception {
+        long sup = supplier("华控自动化", null);
+        long draft = draftPo(sup, l("A-1", 2, "1000", "200"));
+        ok(savePo(draft, poBody(po(draft, admin), "800"), admin));
+        String today = LocalDate.now().toString();
+        assertEquals("请填写预计发货日期", fail(call(json(post(PO + "/" + draft + "/confirm"), write(Map.of("orderDate", today))), admin))
+                .path("message").asText());
+        assertEquals("预计发货日期不能早于下单日期", fail(call(json(post(PO + "/" + draft + "/confirm"),
+                write(Map.of("orderDate", today, "expectedShipDate", LocalDate.now().minusDays(1).toString()))), admin)).path("message").asText());
+        String d1 = LocalDate.now().plusDays(2).toString();
+        JsonNode p = ok(call(json(post(PO + "/" + draft + "/confirm"), write(Map.of("orderDate", today, "expectedShipDate", d1))), admin));
+        assertEquals(d1, p.path("expectedShipDate").asText());
+        assertEquals("未发货", p.path("shipProgressName").asText());
+
+        String d2 = LocalDate.now().plusDays(5).toString();
+        Map<String, Object> body = poBody(p, null);
+        body.put("expectedShipDate", d2);
+        assertEquals(d2, ok(savePo(draft, body, admin)).path("expectedShipDate").asText());
+        assertTrue(jdbc.queryForObject("select count(*) from purchase_order_log where po_id = ? and content like ?", Integer.class,
+                draft, "%预计发货日期 " + d1 + " → " + d2 + "%") > 0, "供应商改期写日志");
+        body.remove("expectedShipDate");
+        assertEquals(d2, ok(savePo(draft, body, admin)).path("expectedShipDate").asText(), "已下单的不传表示不改");
+    }
+
+    @Test
+    void shipProgress_filterStatsAndOverdue() throws Exception {
+        long sup = supplier("华控自动化", null);
+        JsonNode po = orderedPo(sup, l("A-1", 5, "1000", "200"));
+        long poId = po.path("id").asLong();
+        jdbc.update("update purchase_order set expected_ship_date = ? where id = ?", LocalDate.now().minusDays(2), poId);
+        JsonNode list = ok(call(json(post(PO + "/page"), write(Map.of("shipProgress", "OVERDUE"))), lin));
+        assertEquals(1, list.path("total").asInt(), "逾期未发");
+        assertEquals(2, list.path("records").get(0).path("overdueDays").asInt());
+        assertEquals("未发货", list.path("records").get(0).path("shipProgressName").asText());
+        JsonNode stats = ok(call(get(PO + "/stats"), lin));
+        assertEquals(1, stats.path("pendingShip").asInt());
+        assertEquals(1, stats.path("overdueShip").asInt());
+        assertEquals(1, ok(call(json(post(PO + "/page"), write(Map.of("shipProgress", "UNSHIPPED"))), lin)).path("total").asInt());
+
+        ok(ship(poId, Map.of(item(po, 0), 2), lin));
+        assertEquals(1, ok(call(json(post(PO + "/page"), write(Map.of("shipProgress", "PARTIAL"))), lin)).path("total").asInt());
+        assertEquals(0, ok(call(json(post(PO + "/page"), write(Map.of("shipProgress", "UNSHIPPED"))), lin)).path("total").asInt());
+        JsonNode partial = ok(call(json(post(PO + "/page"), "{}"), lin)).path("records").get(0);
+        assertEquals("部分发货", partial.path("shipProgressName").asText());
+        assertEquals(2, partial.path("shippedQty").asInt());
+        assertEquals(5, partial.path("totalQty").asInt());
+
+        long s2 = ok(ship(poId, Map.of(item(po, 0), 3), lin)).path("shipment").path("id").asLong();
+        assertEquals(0, ok(call(json(post(PO + "/page"), write(Map.of("shipProgress", "OVERDUE"))), lin)).path("total").asInt(), "全部发出就不算逾期");
+        assertEquals(0, ok(call(get(PO + "/stats"), lin)).path("pendingShip").asInt());
+        JsonNode shipped = ok(call(json(post(PO + "/page"), write(Map.of("shipProgress", "SHIPPED"))), lin));
+        assertEquals(1, shipped.path("total").asInt());
+        assertTrue(shipped.path("records").get(0).hasNonNull("earliestArrival"), "在途最早预计到货");
+
+        long s1 = jdbc.queryForObject("select min(id) from supplier_shipment where po_id = ?", Long.class, poId);
+        ok(accept(s1, List.of(new int[] {2, 2, 0}), keeper));
+        ok(accept(s2, List.of(new int[] {3, 3, 0}), keeper));
+        assertEquals("已入库", po(poId, lin).path("shipProgressName").asText());
+        assertEquals(1, ok(call(json(post(PO + "/page"), write(Map.of("shipProgress", "RECEIVED"))), lin)).path("total").asInt());
+    }
+
+    @Test
+    void arrivalEstimate_rulesDefaultsAndOverdue() throws Exception {
+        long sup = supplier("华控自动化", null);
+        jdbc.update("update supplier set region = '上海市/上海市/松江区' where id = ?", sup);
+        JsonNode po = orderedPo(sup, l("A-1", 4, "1000", "200"));
+        long poId = po.path("id").asLong();
+        String d = "2026-10-10";
+        JsonNode e = ok(call(get(SHIP + "/estimate").param("poId", String.valueOf(poId)).param("carrier", "顺丰").param("shipDate", d), lin));
+        assertEquals("2026-10-12", e.path("date").asText());
+        assertEquals("顺丰默认 2 天（上海没有单独规则）", e.path("basis").asText(), "初始规则只有顺丰默认、福建与偏远省份");
+
+        String admin2 = admin;
+        ok(call(json(post(TRANSIT), write(Map.of("carrier", "顺丰", "originProvince", "上海市", "days", 1))), admin2));
+        assertEquals("顺丰 · 上海 已有规则", fail(call(json(post(TRANSIT), write(Map.of("carrier", "顺丰", "originProvince", "上海", "days", 2))), admin2))
+                .path("message").asText());
+        e = ok(call(get(SHIP + "/estimate").param("poId", String.valueOf(poId)).param("carrier", "顺丰").param("shipDate", d), lin));
+        assertEquals("2026-10-11", e.path("date").asText());
+        assertEquals("顺丰 · 上海 → 福州 1 天", e.path("basis").asText());
+        e = ok(call(get(SHIP + "/estimate").param("poId", String.valueOf(poId)).param("carrier", "某某快运").param("shipDate", d), lin));
+        assertEquals("某某快运没有时效规则，按默认 3 天", e.path("basis").asText());
+        assertEquals(403, perform(get(TRANSIT), lin).getStatus(), "采购员不能维护快递时效");
+
+        // 不填预计到货时按规则补上；填了不能早于发货日期
+        Map<String, Object> body = new HashMap<>();
+        body.put("poId", poId);
+        body.put("carrier", "顺丰");
+        body.put("shipDate", LocalDate.now().toString());
+        body.put("items", List.of(Map.of("poItemId", item(po, 0), "quantity", 1)));
+        JsonNode s = ok(call(json(post(SHIP), write(body)), lin));
+        assertEquals(LocalDate.now().plusDays(1).toString(), s.path("shipment").path("expectedArrivalDate").asText());
+        body.put("expectedArrivalDate", LocalDate.now().minusDays(1).toString());
+        assertEquals("预计到货日期不能早于发货日期", fail(call(json(post(SHIP), write(body)), lin)).path("message").asText());
+
+        // 在途且过了预计到货：超时未到
+        jdbc.update("update supplier_shipment set expected_arrival_date = ? where id = ?", LocalDate.now().minusDays(1),
+                s.path("shipment").path("id").asLong());
+        assertTrue(ok(call(json(post(SHIP + "/page"), "{}"), lin)).path("records").get(0).path("arrivalOverdue").asBoolean());
+        assertTrue(ok(call(json(post(GR + "/pending"), "{}"), keeper)).path("records").get(0).path("arrivalOverdue").asBoolean());
+
+        // 默认运输天数（平台模板，测试后恢复）
+        try {
+            ok(call(json(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put(TRANSIT + "/default-days"), "{\"days\":5}"), admin2));
+            e = ok(call(get(SHIP + "/estimate").param("poId", String.valueOf(poId)).param("shipDate", d), lin));
+            assertEquals("没填快递公司，按默认 5 天", e.path("basis").asText());
+            assertEquals("2026-10-15", e.path("date").asText());
+        } finally {
+            jdbc.update("update sys_config set config_value = '3' where tenant_id = 0 and config_key = 'transit.default-days'");
+        }
+    }
+
+    @Test
+    void salesOrderGoods_listAndDetail() throws Exception {
+        long sup = supplier("华控自动化", null);
+        JsonNode po = orderedPo(sup, l("A-1", 10, "1000", "200"));
+        long soId = soOf(po);
+        long sid = ok(ship(po.path("id").asLong(), Map.of(item(po, 0), 3), lin)).path("shipment").path("id").asLong();
+        JsonNode it = order(soId).path("items").get(0);
+        assertEquals(3, it.path("goodsInTransit").asInt());
+        assertEquals(7, it.path("goodsPendingShip").asInt());
+        assertEquals(0, it.path("goodsReceived").asInt());
+        assertEquals(0, it.path("goodsPendingPurchase").asInt());
+        assertEquals(1, it.path("transits").size());
+        assertTrue(it.path("transits").get(0).hasNonNull("expectedArrivalDate"));
+        assertTrue(it.path("purchaseOrders").get(0).hasNonNull("expectedShipDate"));
+
+        ok(accept(sid, List.of(new int[] {3, 2, 1}), keeper));
+        JsonNode row = null;
+        for (JsonNode r : ok(call(json(post(SO + "/page"), "{}"), admin)).path("records")) {
+            if (r.path("id").asLong() == soId) {
+                row = r;
+            }
+        }
+        JsonNode g = row.path("goods");
+        assertEquals(2, g.path("received").asInt(), "不良的 1 个不算入库");
+        assertEquals(0, g.path("inTransit").asInt());
+        assertEquals(7, g.path("pendingShip").asInt());
+        assertEquals(10, g.path("total").asInt());
+        assertEquals("已下单", row.path("progressName").asText(), "订单状态口径不变");
+        assertTrue(row.has("updateBy"), "列表审计列");
     }
 }

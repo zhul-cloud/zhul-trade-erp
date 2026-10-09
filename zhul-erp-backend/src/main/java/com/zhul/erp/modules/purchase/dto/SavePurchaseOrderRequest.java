@@ -31,6 +31,8 @@ public class SavePurchaseOrderRequest {
     @Valid
     @NotNull(message = "缺少型号")
     private List<Line> items;
+    /** 预计发货日期：草稿可以不填；已下单的不填表示不改 */
+    private java.time.LocalDate expectedShipDate;
     @Valid
     @Size(max = 20, message = "其他费用最多 20 项")
     private List<Fee> fees;

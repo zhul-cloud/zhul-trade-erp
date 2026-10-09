@@ -13,6 +13,8 @@ public class PurchaseOrderPageQuery {
     private String keyword;
     /** 1-草稿、2-已下单、3-已取消 */
     private Integer status;
+    /** 发货进度：UNSHIPPED、PARTIAL、SHIPPED、RECEIVED、OVERDUE（逾期未发） */
+    private String shipProgress;
     private Long supplierId;
     private Long purchaserId;
     /** 下单日期范围（草稿没有下单日期，有范围时不列出） */

@@ -22,6 +22,13 @@ public class SalesOrderItemVO extends PiItemVO {
     private Integer purchaseOrderedQty;
     /** 合格入库数量（含折价接收） */
     private Integer purchaseReceivedQty;
+    /** 货物状态（件数）：已入库、在途、待发货、待采购；系统外采购的型号为空 */
+    private Integer goodsReceived;
+    private Integer goodsInTransit;
+    private Integer goodsPendingShip;
+    private Integer goodsPendingPurchase;
+    /** 在途发货单（按预计到货从早到晚） */
+    private java.util.List<Transit> transits;
     private Integer purchaseDraftQty;
     private java.util.List<PurchaseRef> purchaseOrders;
 
@@ -32,5 +39,15 @@ public class SalesOrderItemVO extends PiItemVO {
         private String poNo;
         /** 1-草稿、2-已下单 */
         private Integer status;
+        private java.time.LocalDate expectedShipDate;
+    }
+
+    @Data
+    public static class Transit {
+        private Long shipmentId;
+        private String sdNo;
+        private String carrier;
+        private Integer quantity;
+        private java.time.LocalDate expectedArrivalDate;
     }
 }

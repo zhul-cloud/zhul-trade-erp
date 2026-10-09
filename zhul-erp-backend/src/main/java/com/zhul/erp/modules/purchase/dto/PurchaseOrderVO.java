@@ -10,7 +10,7 @@ import java.util.List;
 
 /** 采购单详情 */
 @Data
-public class PurchaseOrderVO {
+public class PurchaseOrderVO implements ShipFields {
     private Long id;
     private String poNo;
     private Integer status;
@@ -26,6 +26,18 @@ public class PurchaseOrderVO {
     private String purchaserName;
     private LocalDate orderDate;
     private LocalDateTime orderedAt;
+    /** 预计发货日期 */
+    private LocalDate expectedShipDate;
+    /** 发货进度（已下单才有）：UNSHIPPED、PARTIAL、SHIPPED、RECEIVED */
+    private String shipProgress;
+    private String shipProgressName;
+    /** 已发件数（每行不超过订购数）与总件数 */
+    private Integer shippedQty;
+    private Integer totalQty;
+    /** 还有未发且已过预计发货日期的天数 */
+    private Integer overdueDays;
+    /** 在途发货单最早的预计到货日期 */
+    private LocalDate earliestArrival;
     private LocalDateTime createTime;
     private String currencyCode;
     private BigDecimal exchangeRate;
@@ -120,6 +132,7 @@ public class PurchaseOrderVO {
         private Long id;
         private String sdNo;
         private LocalDate shipDate;
+        private LocalDate expectedArrivalDate;
         private String carrier;
         private String trackingNo;
         private Integer totalQuantity;

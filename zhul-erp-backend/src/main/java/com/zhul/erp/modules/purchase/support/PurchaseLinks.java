@@ -33,11 +33,25 @@ public class PurchaseLinks {
     private final RequirementQty qty;
     private final com.zhul.erp.modules.warehouse.support.ReceivingQty receivingQty;
 
-    public record PoRef(Long id, String poNo, Integer status) {
+    public record PoRef(Long id, String poNo, Integer status, java.time.LocalDate expectedShipDate) {
     }
 
-    /** tracked：有采购需求（存量中进度已过「待采购」的型号没有）；received：合格入库数量（含折价接收） */
-    public record ItemPurchase(boolean tracked, Set<Long> purchaserIds, int ordered, int draft, int received, List<PoRef> orders) {
+    /** 在途发货单上的数量 */
+    public record Transit(Long shipmentId, String sdNo, String carrier, int quantity, java.time.LocalDate expectedArrival) {
+    }
+
+    /**
+     * tracked：有采购需求（存量中进度已过「待采购」的型号没有）；received：合格入库数量（含折价接收）；
+     * shipped：已发数量；transits：在途发货单
+     */
+    public record ItemPurchase(boolean tracked, Set<Long> purchaserIds, int ordered, int draft, int received, List<PoRef> orders,
+                               int shipped, List<Transit> transits) {
+
+        /** 货物状态：已入库、在途、待发货、待采购（件数，quantity 为型号数量） */
+        public Goods goods(int quantity) {
+            int inTransit = transits.stream().mapToInt(Transit::quantity).sum();
+            return new Goods(Math.min(received, quantity), inTransit, Math.max(0, ordered - shipped), Math.max(0, quantity - ordered));
+        }
     }
 
     public Map<Long, ItemPurchase> forSoItems(Collection<Long> soItemIds) {
@@ -72,18 +86,25 @@ public class PurchaseLinks {
             if (p != null) {
                 List<PoRef> refs = orders.computeIfAbsent(i.getSoItemId(), k -> new ArrayList<>());
                 if (refs.stream().noneMatch(x -> x.id().equals(p.getId()))) {
-                    refs.add(new PoRef(p.getId(), p.getPoNo(), p.getStatus()));
+                    refs.add(new PoRef(p.getId(), p.getPoNo(), p.getStatus(), p.getExpectedShipDate()));
                 }
             }
         }
         Map<Long, RequirementQty.Qty> q = qty.bySoItem(ids);
         Map<Long, Integer> received = receivingQty.qualifiedBySoItem(ids);
+        Map<Long, Integer> shipped = receivingQty.shippedBySoItem(ids);
+        Map<Long, List<com.zhul.erp.modules.warehouse.dto.TransitRow>> transits = receivingQty.inTransitBySoItem(ids);
         for (Long id : ids) {
             RequirementQty.Qty x = q.getOrDefault(id, RequirementQty.Qty.ZERO);
             out.put(id, new ItemPurchase(tracked.contains(id), purchasers.getOrDefault(id, Set.of()), x.ordered(), x.draft(), received.getOrDefault(id, 0),
-                    orders.getOrDefault(id, List.of())));
+                    orders.getOrDefault(id, List.of()), shipped.getOrDefault(id, 0), transits.getOrDefault(id, List.of()).stream()
+                    .map(t -> new Transit(t.getShipmentId(), t.getSdNo(), t.getCarrier(), t.getQuantity(), t.getExpectedArrivalDate())).toList()));
         }
         return out;
+    }
+
+    /** 订单型号行的货物件数分布 */
+    public record Goods(int received, int inTransit, int pendingShip, int pendingPurchase) {
     }
 
     /** 订单 → 有效需求的采购员（拆分给多人时都在） */
