@@ -62,6 +62,7 @@ export default {
   'menu.system.documentTemplate': '单据模版',
   'menu.system.bankAccount': '收款账户',
   'menu.system.documentNumbering': '单据编号',
+  'menu.system.transitTimes': '快递时效',
   'menu.system.operateLog': '操作日志',
   'menu.system.loginLog': '登录日志',
   'menu.tenant': '租户管理',

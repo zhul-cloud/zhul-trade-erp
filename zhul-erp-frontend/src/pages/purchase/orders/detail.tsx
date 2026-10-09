@@ -62,6 +62,7 @@ import {
   PO_STATUS,
   PoStatusPill,
   PurchasePageTitle,
+  ShipProgressPill,
   StatCard,
   sub,
 } from '../components';
@@ -85,6 +86,7 @@ interface Draft {
   paymentTerms: PaymentTerm[];
   contractNo: string;
   contractAmount: number | null;
+  expectedShipDate: string | null;
   items: Record<number, { quantity: number; unitPrice: number | null }>;
   /** 单价仍是目标价带出的默认值、还没改过的行：切换含税、税率时按新口径重新折算 */
   auto: number[];
@@ -118,6 +120,7 @@ const toDraft = (po: PurchaseOrder): Draft => {
     paymentTerms: po.paymentTerms,
     contractNo: po.contractNo ?? '',
     contractAmount: po.contractAmount ?? null,
+    expectedShipDate: po.expectedShipDate ?? null,
     items: Object.fromEntries(
       priced.map(({ i, price }) => [
         i.id,
@@ -140,6 +143,7 @@ const toBody = (po: PurchaseOrder, d: Draft): SavePoBody => ({
   paymentTerms: d.paymentTerms,
   contractNo: d.contractNo.trim() || undefined,
   contractAmount: d.contractAmount,
+  expectedShipDate: d.expectedShipDate,
   items: po.items.map((i) => ({
     id: i.id,
     quantity: d.items[i.id]?.quantity ?? i.quantity,
@@ -554,13 +558,17 @@ const PurchaseOrderDetail: React.FC = () => {
             {title}
             {po.shop && <Pill tone="orange">线上店铺</Pill>}
             <PoStatusPill status={po.status} />
+            <ShipProgressPill
+              code={po.shipProgress}
+              name={po.shipProgressName}
+            />
           </span>
         }
         description={
           <>
             {po.supplierName} · {po.purchaserName}
             {po.orderDate
-              ? ` · ${po.orderDate} 下单`
+              ? ` · ${po.orderDate} 下单${po.expectedShipDate ? ` · 预计 ${po.expectedShipDate} 发货` : ''}`
               : ` · ${dayjs(po.createTime).format('YYYY-MM-DD')} 创建 · 确认下单时分配编号`}
             {po.status === PO_STATUS.CANCELLED &&
               ` · ${po.cancelledByName ?? ''} 取消：${po.cancelReason ?? ''}`}
@@ -709,7 +717,16 @@ const PurchaseOrderDetail: React.FC = () => {
           }
           hint={po.paymentTermsText || '确认下单前须填写'}
         />
-        {po.shop ? (
+        {po.shipProgress ? (
+          <StatCard
+            icon={<CarOutlined />}
+            color={po.overdueDays ? palette.orange : palette.link}
+            label="发货进度"
+            value={`已发 ${po.shippedQty ?? 0} / ${po.totalQty ?? 0}`}
+            hint={shipHint(po)}
+            hintColor={po.overdueDays ? palette.orange : undefined}
+          />
+        ) : po.shop ? (
           <StatCard
             icon={<ShoppingOutlined />}
             color={palette.orange}
@@ -745,7 +762,7 @@ const PurchaseOrderDetail: React.FC = () => {
             style={{
               display: 'grid',
               gridTemplateColumns:
-                'minmax(260px, 2fr) 140px minmax(260px, 1.4fr)',
+                'minmax(260px, 2fr) 140px minmax(260px, 1.4fr) 180px',
               gap: 16,
               alignItems: 'end',
             }}
@@ -824,6 +841,35 @@ const PurchaseOrderDetail: React.FC = () => {
                   />
                 )}
               </Space>
+            </div>
+            <div>
+              <div
+                style={{ fontSize: 12, color: palette.sub, marginBottom: 6 }}
+              >
+                预计发货日期
+              </div>
+              <DatePicker
+                style={{ width: '100%' }}
+                value={
+                  draft.expectedShipDate ? dayjs(draft.expectedShipDate) : null
+                }
+                allowClear={isDraft}
+                disabledDate={(d) =>
+                  !!po.orderDate && d.isBefore(dayjs(po.orderDate), 'day')
+                }
+                onChange={(d) =>
+                  setDraft((x) =>
+                    x
+                      ? {
+                          ...x,
+                          expectedShipDate: d ? d.format('YYYY-MM-DD') : null,
+                        }
+                      : x,
+                  )
+                }
+                placeholder={isDraft ? '下单时必填' : undefined}
+                aria-label="预计发货日期"
+              />
             </div>
           </div>
           {preview.rateUnknown && (
@@ -1078,11 +1124,15 @@ const PurchaseOrderDetail: React.FC = () => {
         total={formatAmount(preview.total, draft.currencyCode)}
         missing={preview.missing}
         onClose={() => setConfirmOpen(false)}
-        onConfirm={async (date) => {
+        onConfirm={async (date, shipDate) => {
           const saved = await save(true);
           if (!saved) return;
           try {
-            const p = await poApi.confirm(poId, date.format('YYYY-MM-DD'));
+            const p = await poApi.confirm(
+              poId,
+              date.format('YYYY-MM-DD'),
+              shipDate.format('YYYY-MM-DD'),
+            );
             apply(p);
             setEditing(false);
             setConfirmOpen(false);
@@ -1161,6 +1211,21 @@ const PurchaseOrderDetail: React.FC = () => {
 
 // ---------------------------------------------------------------- 发货与入库
 
+const shipHint = (po: PurchaseOrder) => {
+  const left = (po.totalQty ?? 0) - (po.shippedQty ?? 0);
+  if (po.shipProgress === 'RECEIVED') return '全部合格入库';
+  if (left <= 0)
+    return po.earliestArrival
+      ? `全部发出，最早 ${po.earliestArrival} 到`
+      : '全部发出，等仓库验收';
+  const when = po.expectedShipDate
+    ? `预计 ${po.expectedShipDate} 发货`
+    : '没填预计发货日期';
+  return po.overdueDays
+    ? `${when}，已过 ${po.overdueDays} 天 · 还有 ${left} 件没发`
+    : `${when} · 还有 ${left} 件没发`;
+};
+
 type FlowRow =
   | { kind: 'ship'; key: string; ref: PoShipmentRef }
   | { kind: 'receipt'; key: string; ref: PoReceiptRef };
@@ -1225,6 +1290,25 @@ const ShipmentsCard: React.FC<{
       width: 120,
       render: (_, r) =>
         (r.kind === 'ship' ? r.ref.shipDate : r.ref.receivedDate) ?? '—',
+    },
+    {
+      title: '预计到货',
+      key: 'eta',
+      width: 130,
+      render: (_, r) =>
+        r.kind === 'ship' && r.ref.expectedArrivalDate ? (
+          <div>
+            {r.ref.expectedArrivalDate}
+            {r.ref.status === 1 &&
+              dayjs(r.ref.expectedArrivalDate).isBefore(dayjs(), 'day') && (
+                <div>
+                  <Pill tone="orange">超时未到</Pill>
+                </div>
+              )}
+          </div>
+        ) : (
+          '—'
+        ),
     },
     {
       title: '数量',
@@ -1478,14 +1562,19 @@ const ConfirmModal: React.FC<{
   total: string;
   missing: number;
   onClose: () => void;
-  onConfirm: (date: Dayjs) => Promise<void>;
+  onConfirm: (date: Dayjs, shipDate: Dayjs) => Promise<void>;
 }> = ({ open, po, total, missing, onClose, onConfirm }) => {
   const { palette } = useAppTheme();
   const [date, setDate] = useState<Dayjs | null>(dayjs());
+  const [shipDate, setShipDate] = useState<Dayjs | null>(null);
   const [busy, setBusy] = useState(false);
   useEffect(() => {
-    if (open) setDate(dayjs());
-  }, [open]);
+    if (open) {
+      setDate(dayjs());
+      setShipDate(po.expectedShipDate ? dayjs(po.expectedShipDate) : null);
+    }
+  }, [open, po.expectedShipDate]);
+  const shipBad = !!date && !!shipDate && shipDate.isBefore(date, 'day');
   return (
     <Modal
       open={open}
@@ -1493,12 +1582,15 @@ const ConfirmModal: React.FC<{
       width={520}
       onCancel={onClose}
       okText="确认下单"
-      okButtonProps={{ disabled: !date || missing > 0, loading: busy }}
+      okButtonProps={{
+        disabled: !date || !shipDate || shipBad || missing > 0,
+        loading: busy,
+      }}
       onOk={async () => {
-        if (!date) return;
+        if (!date || !shipDate) return;
         setBusy(true);
         try {
-          await onConfirm(date);
+          await onConfirm(date, shipDate);
         } finally {
           setBusy(false);
         }
@@ -1512,20 +1604,38 @@ const ConfirmModal: React.FC<{
           {po.items.length} 个型号，合计{' '}
           <b style={{ color: palette.ink }}>{total}</b>
         </div>
-        <div>
-          <div style={{ fontSize: 12, color: palette.sub, marginBottom: 6 }}>
-            下单日期
+        <div
+          style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}
+        >
+          <div>
+            <div style={{ fontSize: 12, color: palette.sub, marginBottom: 6 }}>
+              下单日期 <span style={{ color: palette.red }}>*</span>
+            </div>
+            <DatePicker
+              value={date}
+              onChange={setDate}
+              disabledDate={(d) => d.isAfter(dayjs(), 'day')}
+              style={{ width: '100%' }}
+              aria-label="下单日期"
+            />
           </div>
-          <DatePicker
-            value={date}
-            onChange={setDate}
-            disabledDate={(d) => d.isAfter(dayjs(), 'day')}
-            style={{ width: '100%' }}
-            aria-label="下单日期"
-          />
+          <div>
+            <div style={{ fontSize: 12, color: palette.sub, marginBottom: 6 }}>
+              预计发货日期 <span style={{ color: palette.red }}>*</span>
+            </div>
+            <DatePicker
+              value={shipDate}
+              onChange={setShipDate}
+              status={shipBad ? 'error' : undefined}
+              disabledDate={(d) => !!date && d.isBefore(date, 'day')}
+              placeholder="向供应商确认后填写"
+              style={{ width: '100%' }}
+              aria-label="预计发货日期"
+            />
+          </div>
         </div>
         <div style={{ fontSize: 12, color: palette.mute }}>
-          确认后分配采购单编号；全部数量都在已下单采购单上的订单型号会自动变为「已下单」。下单后仍可改价格、数量与合同，修改会记录在操作日志里。
+          确认后分配采购单编号；全部数量都在已下单采购单上的订单型号会自动变为「已下单」。下单后仍可改价格、数量、合同与预计发货日期，修改会记录在操作日志里；已过预计发货日期还没发完的会在列表里标出来。
         </div>
       </div>
     </Modal>

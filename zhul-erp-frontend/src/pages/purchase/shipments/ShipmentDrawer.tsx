@@ -60,6 +60,10 @@ const ShipmentDrawer: React.FC<{
   const [carrier, setCarrier] = useState('');
   const [trackingNo, setTrackingNo] = useState('');
   const [shipDate, setShipDate] = useState<Dayjs>(dayjs());
+  const [arrival, setArrival] = useState<Dayjs | null>(null);
+  /** 采购员手动改过预计到货：改快递公司、发货日期时不再覆盖 */
+  const [arrivalTouched, setArrivalTouched] = useState(false);
+  const [basis, setBasis] = useState<string>();
   const [note, setNote] = useState('');
   const [files, setFiles] = useState<Attachment[]>([]);
   const [lines, setLines] = useState<Record<number, Line>>({});
@@ -75,6 +79,9 @@ const ShipmentDrawer: React.FC<{
         setCarrier(f.carrier ?? '');
         setTrackingNo(f.trackingNo ?? '');
         setShipDate(f.shipDate ? dayjs(f.shipDate) : dayjs());
+        setArrival(f.expectedArrivalDate ? dayjs(f.expectedArrivalDate) : null);
+        setArrivalTouched(!!f.expectedArrivalDate);
+        setBasis(undefined);
         setNote(f.note ?? '');
         setFiles(f.attachments);
         setLines(
@@ -95,6 +102,23 @@ const ShipmentDrawer: React.FC<{
       });
   }, [open, poId, shipmentId, message, onClose]);
 
+  // 按快递时效估算预计到货：快递公司或发货日期变了就重新算（手动改过的不覆盖）
+  const formPoId = form?.poId;
+  useEffect(() => {
+    if (!formPoId || arrivalTouched) return undefined;
+    const t = setTimeout(() => {
+      shipmentApi
+        .estimate(formPoId, carrier.trim(), shipDate.format('YYYY-MM-DD'))
+        .then((e) => {
+          setArrival(e.date ? dayjs(e.date) : null);
+          setBasis(e.basis);
+        })
+        .catch(() => setBasis(undefined));
+    }, 300);
+    return () => clearTimeout(t);
+  }, [formPoId, carrier, shipDate, arrivalTouched]);
+
+  const arrivalBad = !!arrival && arrival.isBefore(shipDate, 'day');
   const picked = form?.lines.filter((l) => lines[l.poItemId]?.checked) ?? [];
   const bad = picked.find((l) => {
     const q = lines[l.poItemId]?.quantity;
@@ -110,6 +134,7 @@ const ShipmentDrawer: React.FC<{
         carrier: carrier.trim(),
         trackingNo: trackingNo.trim(),
         shipDate: shipDate.format('YYYY-MM-DD'),
+        expectedArrivalDate: arrival ? arrival.format('YYYY-MM-DD') : null,
         note: note.trim(),
         items: picked.map((l) => ({
           poItemId: l.poItemId,
@@ -181,7 +206,7 @@ const ShipmentDrawer: React.FC<{
             type="primary"
             icon={<CheckOutlined />}
             loading={saving}
-            disabled={!form || picked.length === 0 || !!bad}
+            disabled={!form || picked.length === 0 || !!bad || arrivalBad}
             onClick={submit}
           >
             {shipmentId ? '保存' : '登记'}
@@ -237,6 +262,50 @@ const ShipmentDrawer: React.FC<{
                 style={{ width: '100%' }}
                 aria-label="发货日期"
               />
+            </div>
+          </div>
+
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'flex-end',
+              gap: 12,
+              marginTop: 12,
+              flexWrap: 'wrap',
+            }}
+          >
+            <div style={{ width: 240 }}>
+              <div style={{ color: palette.sub, marginBottom: 6 }}>
+                预计到货日期
+              </div>
+              <DatePicker
+                value={arrival}
+                status={arrivalBad ? 'error' : undefined}
+                disabledDate={(d) => d.isBefore(shipDate, 'day')}
+                onChange={(d) => {
+                  setArrival(d);
+                  setArrivalTouched(!!d);
+                }}
+                placeholder="按快递时效估算"
+                style={{ width: '100%' }}
+                aria-label="预计到货日期"
+              />
+            </div>
+            <div style={{ paddingBottom: 6, fontSize: 13 }}>
+              {arrivalTouched ? (
+                <span style={{ color: palette.mute }}>
+                  已手动填写；
+                  <a onClick={() => setArrivalTouched(false)}>重新估算</a>
+                </span>
+              ) : basis ? (
+                <span>
+                  <span style={{ color: palette.sub }}>{basis}</span>
+                  <span style={{ color: palette.mute }}>
+                    {' '}
+                    · 按快递时效估算，可以改
+                  </span>
+                </span>
+              ) : null}
             </div>
           </div>
 

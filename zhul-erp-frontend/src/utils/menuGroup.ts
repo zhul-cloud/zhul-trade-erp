@@ -9,6 +9,7 @@ const GROUPS: [string, string][] = [
   ['/system/bank-account', '业务设置'],
   ['/system/document-template', '业务设置'],
   ['/system/document-numbering', '业务设置'],
+  ['/system/transit-times', '业务设置'],
   ['/inquiry/sourcing-board', '采购管理'],
   ['/inquiry/my-tasks', '采购管理'],
   ['/inquiry/part-time-board', '采购管理'],

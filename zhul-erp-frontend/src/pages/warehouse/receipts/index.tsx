@@ -7,6 +7,7 @@ import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { auditColumns } from '@/pages/purchase/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import {
+  ArrivalCell,
   Card,
   ReceiptStatusPill,
   sub,
@@ -117,6 +118,14 @@ const Receipts: React.FC = () => {
       ),
     },
     { title: '发货日期', dataIndex: 'shipDate', width: 120 },
+    {
+      title: '预计到货',
+      dataIndex: 'expectedArrivalDate',
+      width: 120,
+      render: (v: string | undefined, r) => (
+        <ArrivalCell date={v} overdue={r.arrivalOverdue} />
+      ),
+    },
     {
       title: '型号 · 数量',
       key: 'items',

@@ -441,7 +441,22 @@ export interface OrderListItem {
   ownerId: number;
   ownerName?: string;
   cancelReason?: string;
+  /** 货物状态（件数，不含系统外采购的型号）；已取消的订单为空 */
+  goods?: GoodsSummary;
   createTime: string;
+  createBy?: string;
+  updateTime?: string;
+  updateBy?: string;
+}
+
+export interface GoodsSummary {
+  received: number;
+  inTransit: number;
+  pendingShip: number;
+  pendingPurchase: number;
+  total: number;
+  /** 在途最早的预计到货日期 */
+  earliestArrival?: string;
 }
 
 export interface OrderItem extends PiItem {
@@ -458,8 +473,26 @@ export interface OrderItem extends PiItem {
   purchaseOrderedQty?: number;
   /** 合格入库数量（含折价接收） */
   purchaseReceivedQty?: number;
+  /** 货物状态（件数）；系统外采购的型号为空 */
+  goodsReceived?: number;
+  goodsInTransit?: number;
+  goodsPendingShip?: number;
+  goodsPendingPurchase?: number;
+  /** 在途发货单（按预计到货从早到晚） */
+  transits?: {
+    shipmentId: number;
+    sdNo: string;
+    carrier?: string;
+    quantity: number;
+    expectedArrivalDate?: string;
+  }[];
   purchaseDraftQty?: number;
-  purchaseOrders?: { id: number; poNo?: string; status: number }[];
+  purchaseOrders?: {
+    id: number;
+    poNo?: string;
+    status: number;
+    expectedShipDate?: string;
+  }[];
 }
 
 export interface OrderStep {

@@ -62,6 +62,27 @@ export const sub = (color: string, text: React.ReactNode) => (
   <div style={{ fontSize: 12, color }}>{text}</div>
 );
 
+/** 预计到货：在途且已过日期时标「超时未到」 */
+export const ArrivalCell: React.FC<{ date?: string; overdue?: boolean }> = ({
+  date,
+  overdue,
+}) => {
+  const { palette } = useAppTheme();
+  if (!date) return <span style={{ color: palette.mute }}>—</span>;
+  return (
+    <div>
+      <span style={{ color: overdue ? palette.orange : undefined }}>
+        {date}
+      </span>
+      {overdue && (
+        <div>
+          <Pill tone="orange">超时未到</Pill>
+        </div>
+      )}
+    </div>
+  );
+};
+
 export const trackingText = (carrier?: string, trackingNo?: string) =>
   [carrier, trackingNo].filter(Boolean).join(' ') || '—';
 

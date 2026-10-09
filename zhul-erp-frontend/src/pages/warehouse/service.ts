@@ -49,6 +49,9 @@ export interface Shipment extends Audit {
   carrier?: string;
   trackingNo?: string;
   shipDate?: string;
+  expectedArrivalDate?: string;
+  /** 在途且已过预计到货日期 */
+  arrivalOverdue?: boolean;
   itemCount: number;
   totalQuantity: number;
   items: ShipmentItem[];
@@ -81,6 +84,7 @@ export interface ShipmentForm {
   carrier?: string;
   trackingNo?: string;
   shipDate?: string;
+  expectedArrivalDate?: string;
   note?: string;
   attachments: Attachment[];
   lines: {
@@ -100,6 +104,8 @@ export interface SaveShipmentBody {
   carrier?: string;
   trackingNo?: string;
   shipDate: string;
+  /** 为空时后端按快递时效估算 */
+  expectedArrivalDate?: string | null;
   note?: string;
   items: { poItemId: number; quantity: number }[];
   attachmentIds: number[];
@@ -326,7 +332,40 @@ export const attachmentApi = {
   },
 };
 
+export interface ArrivalEstimate {
+  date?: string;
+  days: number;
+  /** 估算依据，如「顺丰 · 上海 → 福州 2 天」 */
+  basis: string;
+}
+
+export interface TransitTime extends Audit {
+  id: number;
+  carrier: string;
+  /** 空表示该快递公司的默认天数 */
+  originProvince: string;
+  days: number;
+  remark?: string;
+}
+
+const TRANSIT = '/api/v1/system/transit-times';
+
+export const transitApi = {
+  list: (q: { carrier?: string; province?: string }) =>
+    get<TransitTime[]>(TRANSIT, q),
+  create: (body: Omit<TransitTime, 'id'>) =>
+    send<TransitTime>('POST', TRANSIT, body),
+  update: (id: number, body: Omit<TransitTime, 'id'>) =>
+    send<TransitTime>('PUT', `${TRANSIT}/${id}`, body),
+  remove: (id: number) => send<void>('DELETE', `${TRANSIT}/${id}`),
+  defaultDays: () => get<number>(`${TRANSIT}/default-days`),
+  setDefaultDays: (days: number) =>
+    send<number>('PUT', `${TRANSIT}/default-days`, { days }),
+};
+
 export const shipmentApi = {
+  estimate: (poId: number, carrier: string, shipDate: string) =>
+    get<ArrivalEstimate>(`${SHIP}/estimate`, { poId, carrier, shipDate }),
   page: (q: ShipmentQuery) =>
     send<PageResult<Shipment>>('POST', `${SHIP}/page`, q),
   detail: (id: number) => get<ShipmentDetail>(`${SHIP}/${id}`),

@@ -60,8 +60,13 @@ const diffText = (shipped: number, q: QtyLine) => {
   return parts.join('、');
 };
 
-const lineBad = (q: QtyLine) =>
-  q.receivedQty !== q.qualifiedQty + q.defectiveQty;
+/** 合格不能多于实收（不良 = 实收 − 合格，自动算） */
+const lineBad = (q: QtyLine) => q.qualifiedQty > q.receivedQty;
+
+const withDefective = (q: QtyLine): QtyLine => ({
+  ...q,
+  defectiveQty: Math.max(0, q.receivedQty - q.qualifiedQty),
+});
 
 const QtyRows: React.FC<{
   rows: Row[];
@@ -127,33 +132,50 @@ const QtyRows: React.FC<{
                 {shippedLabel} {r.shipped}
               </span>
               {num('实收', q.receivedQty, (n) =>
-                onChange(r.key, {
-                  ...q,
-                  receivedQty: n,
-                  qualifiedQty: Math.max(0, n - q.defectiveQty),
-                }),
+                // 不良数保持不变，合格跟着实收走（默认全部合格）
+                onChange(
+                  r.key,
+                  withDefective({
+                    ...q,
+                    receivedQty: n,
+                    qualifiedQty: Math.max(0, n - q.defectiveQty),
+                  }),
+                ),
               )}
               {num(
                 '合格',
                 q.qualifiedQty,
-                (n) => onChange(r.key, { ...q, qualifiedQty: n }),
-                bad,
-              )}
-              {num(
-                '不良',
-                q.defectiveQty,
                 (n) =>
-                  onChange(r.key, {
-                    ...q,
-                    defectiveQty: n,
-                    qualifiedQty: Math.max(0, q.receivedQty - n),
-                  }),
+                  onChange(r.key, withDefective({ ...q, qualifiedQty: n })),
                 bad,
               )}
+              <div>
+                <div
+                  style={{ fontSize: 12, color: palette.mute, marginBottom: 4 }}
+                >
+                  不良（自动）
+                </div>
+                <output
+                  aria-label="不良"
+                  style={{
+                    display: 'block',
+                    width: 84,
+                    height: 32,
+                    lineHeight: '32px',
+                    padding: '0 11px',
+                    borderRadius: 8,
+                    background: palette.hover,
+                    color: q.defectiveQty > 0 ? palette.red : palette.mute,
+                    fontWeight: 600,
+                  }}
+                >
+                  {bad ? '—' : q.defectiveQty}
+                </output>
+              </div>
             </div>
             {bad ? (
               <div style={{ marginTop: 8, fontSize: 12, color: palette.red }}>
-                <WarningOutlined /> 实收须等于合格加不良
+                <WarningOutlined /> 合格数量不能多于实收
               </div>
             ) : (
               diff && (
@@ -352,7 +374,7 @@ export const AcceptDrawer: React.FC<{
             style={{ width: 220 }}
             aria-label="收货日期"
           />
-          <Label extra="实收 = 合格 + 不良，可以为 0，可以多于发货数">
+          <Label extra="只填实收和合格，不良 = 实收 − 合格 自动算；实收可以多于发货数">
             逐个型号核对
           </Label>
           <QtyRows

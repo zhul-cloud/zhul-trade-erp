@@ -16,6 +16,7 @@ import {
 import { history, useAccess, useParams } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { Alert, App, Button, Dropdown, Skeleton, Table } from 'antd';
+import dayjs from 'dayjs';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useWide } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
@@ -49,7 +50,13 @@ import {
   STOCK,
   StockPill,
 } from './dialogs';
-import { ProgressPill, ReceiptProgress } from './parts';
+import {
+  GOODS_LABELS,
+  GoodsBar,
+  ProgressPill,
+  ReceiptProgress,
+  useGoodsColors,
+} from './parts';
 
 const num: React.CSSProperties = { fontVariantNumeric: 'tabular-nums' };
 
@@ -67,6 +74,7 @@ const OrderDetail: React.FC = () => {
   const id = Number(idParam);
   const { message, modal } = App.useApp();
   const { palette } = useAppTheme();
+  const goodsColors = useGoodsColors();
   const access = useAccess();
   const wide = useWide();
   const [o, setO] = useState<Order>();
@@ -231,6 +239,32 @@ const OrderDetail: React.FC = () => {
 
   // ---------------------------------------------------------------- 订单进度
 
+  const tracked = o.items.filter((i) => i.purchaseTracked);
+  const goods = {
+    received: tracked.reduce((n, i) => n + (i.goodsReceived ?? 0), 0),
+    inTransit: tracked.reduce((n, i) => n + (i.goodsInTransit ?? 0), 0),
+    pendingShip: tracked.reduce((n, i) => n + (i.goodsPendingShip ?? 0), 0),
+    pendingPurchase: tracked.reduce(
+      (n, i) => n + (i.goodsPendingPurchase ?? 0),
+      0,
+    ),
+    total: tracked.reduce((n, i) => n + i.quantity, 0),
+    earliestArrival: tracked
+      .flatMap((i) => i.transits ?? [])
+      .map((t) => t.expectedArrivalDate)
+      .filter((d): d is string => !!d)
+      .sort()[0],
+  };
+  const today = dayjs().format('YYYY-MM-DD');
+  const overdueShip = tracked.some(
+    (i) =>
+      (i.goodsPendingShip ?? 0) > 0 &&
+      (i.purchaseOrders ?? []).some(
+        (p) =>
+          p.status === 2 && !!p.expectedShipDate && p.expectedShipDate < today,
+      ),
+  );
+
   const counts = new Map<string, number>();
   for (const i of o.items) {
     counts.set(i.progressCode, (counts.get(i.progressCode) ?? 0) + 1);
@@ -319,6 +353,82 @@ const OrderDetail: React.FC = () => {
           );
         })}
       </div>
+      {goods.total > 0 && (
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+            gap: 12,
+            marginTop: 18,
+            paddingTop: 16,
+            borderTop: `1px solid ${palette.hairline}`,
+          }}
+        >
+          {(
+            [
+              [
+                'received',
+                goods.received >= goods.total ? '货已到齐' : '合格入库',
+              ],
+              [
+                'inTransit',
+                goods.earliestArrival
+                  ? `最早 ${dayjs(goods.earliestArrival).format('MM-DD')} 到`
+                  : '供应商已发出',
+              ],
+              [
+                'pendingShip',
+                overdueShip
+                  ? `有采购单已过预计发货日期`
+                  : '已下单，供应商还没发',
+              ],
+              [
+                'pendingPurchase',
+                goods.pendingPurchase ? '还没下采购单' : '型号都已下采购单',
+              ],
+            ] as const
+          ).map(([k, hint]) => (
+            <div
+              key={k}
+              style={{
+                padding: '10px 14px',
+                borderRadius: 10,
+                background: palette.inset,
+              }}
+            >
+              <div style={{ fontSize: 12, color: palette.sub }}>
+                <span
+                  style={{
+                    display: 'inline-block',
+                    width: 8,
+                    height: 8,
+                    borderRadius: 4,
+                    background: goodsColors[k],
+                    marginRight: 6,
+                  }}
+                />
+                {GOODS_LABELS[k]}
+              </div>
+              <div
+                style={{ fontSize: 20, fontWeight: 700, color: palette.ink }}
+              >
+                {goods[k]} 件
+              </div>
+              <div
+                style={{
+                  fontSize: 12,
+                  color:
+                    k === 'pendingShip' && overdueShip
+                      ? palette.orange
+                      : palette.mute,
+                }}
+              >
+                {hint}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </Card>
   );
 
@@ -372,57 +482,107 @@ const OrderDetail: React.FC = () => {
           : (v ?? <span style={{ color: palette.orange }}>未指定</span>),
     },
     {
-      title: '采购进度',
-      key: 'purchase',
-      width: 200,
+      title: '货物',
+      key: 'goods',
+      width: 320,
+      render: (_, r) => {
+        if (!r.purchaseTracked)
+          return (
+            <span style={{ fontSize: 12, color: palette.mute }}>
+              系统外采购
+            </span>
+          );
+        const parts = {
+          received: r.goodsReceived ?? 0,
+          inTransit: r.goodsInTransit ?? 0,
+          pendingShip: r.goodsPendingShip ?? 0,
+          pendingPurchase: r.goodsPendingPurchase ?? 0,
+        };
+        const ordered = (r.purchaseOrders ?? []).filter((p) => p.status === 2);
+        const shipDate = ordered
+          .map((p) => p.expectedShipDate)
+          .filter((d): d is string => !!d)
+          .sort()[0];
+        const dot = (
+          k: keyof typeof parts,
+          text: React.ReactNode,
+          color?: string,
+        ) =>
+          parts[k] > 0 && (
+            <div style={{ fontSize: 12, color: color ?? palette.sub }}>
+              <span
+                style={{
+                  display: 'inline-block',
+                  width: 7,
+                  height: 7,
+                  borderRadius: 4,
+                  background: goodsColors[k],
+                  marginRight: 6,
+                }}
+              />
+              {text}
+            </div>
+          );
+        const lateDays = shipDate ? dayjs().diff(dayjs(shipDate), 'day') : 0;
+        return (
+          <div style={{ display: 'grid', gap: 3 }}>
+            <GoodsBar parts={parts} total={r.quantity} width={180} />
+            {dot('received', `已入库 ${parts.received}`)}
+            {dot(
+              'inTransit',
+              `在途 ${parts.inTransit}${
+                r.transits?.[0]?.expectedArrivalDate
+                  ? ` · 预计 ${dayjs(r.transits[0].expectedArrivalDate).format('MM-DD')} 到${
+                      r.transits[0].carrier
+                        ? `（${r.transits[0].carrier}）`
+                        : ''
+                    }`
+                  : ''
+              }`,
+            )}
+            {dot(
+              'pendingShip',
+              `待发货 ${parts.pendingShip}${
+                shipDate
+                  ? ` · 预计 ${dayjs(shipDate).format('MM-DD')} 发货${lateDays > 0 ? `，已过 ${lateDays} 天` : ''}`
+                  : ''
+              }`,
+              lateDays > 0 ? palette.orange : undefined,
+            )}
+            {dot(
+              'pendingPurchase',
+              `待采购 ${parts.pendingPurchase}`,
+              palette.orange,
+            )}
+          </div>
+        );
+      },
+    },
+    {
+      title: '采购单 · 发货单',
+      key: 'docs',
+      width: 190,
       render: (_, r) =>
         !r.purchaseTracked ? (
-          <span style={{ fontSize: 12, color: palette.mute }}>系统外采购</span>
+          '—'
         ) : (
-          <div>
-            <div style={{ color: palette.ink }}>
-              已下单 {r.purchaseOrderedQty ?? 0}
-              {(r.purchaseReceivedQty ?? 0) > 0 && (
-                <span
-                  style={{
-                    color:
-                      (r.purchaseReceivedQty ?? 0) >= r.quantity
-                        ? palette.green
-                        : palette.ink,
-                  }}
-                >
-                  {' '}
-                  · 已入库 {r.purchaseReceivedQty}
-                </span>
-              )}{' '}
-              / {r.quantity}
-            </div>
-            <div
-              style={{
-                fontSize: 12,
-                display: 'flex',
-                gap: 6,
-                flexWrap: 'wrap',
-              }}
-            >
-              {(r.purchaseOrders ?? []).map((p) => (
-                <a
-                  key={p.id}
-                  onClick={() => history.push(`/purchase/orders/${p.id}`)}
-                >
-                  {p.poNo ?? '草稿采购单'}
-                </a>
-              ))}
-              {(r.purchaseOrders ?? []).length === 0 && (
-                <span style={{ color: palette.mute }}>还没有下采购单</span>
-              )}
-              {(r.purchaseOrderedQty ?? 0) < r.quantity &&
-                (r.purchaseOrderedQty ?? 0) > 0 && (
-                  <span style={{ color: palette.orange }}>
-                    · {r.quantity - (r.purchaseOrderedQty ?? 0)} 个待下单
-                  </span>
-                )}
-            </div>
+          <div style={{ fontSize: 12, display: 'grid', gap: 2 }}>
+            {(r.purchaseOrders ?? []).map((p) => (
+              <a
+                key={p.id}
+                onClick={() => history.push(`/purchase/orders/${p.id}`)}
+              >
+                {p.poNo ?? '草稿采购单'}
+              </a>
+            ))}
+            {(r.transits ?? []).map((t) => (
+              <span key={t.shipmentId} style={{ color: palette.mute }}>
+                {t.sdNo} 在途 {t.quantity}
+              </span>
+            ))}
+            {(r.purchaseOrders ?? []).length === 0 && (
+              <span style={{ color: palette.mute }}>还没有下采购单</span>
+            )}
           </div>
         ),
     },

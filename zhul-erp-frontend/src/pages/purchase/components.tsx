@@ -50,6 +50,26 @@ export const PoStatusPill: React.FC<{ status: number }> = ({ status }) => {
   );
 };
 
+/** 发货进度（与后端 ShipProgress 一致） */
+export const SHIP_PROGRESS = [
+  { value: 'UNSHIPPED', label: '未发货' },
+  { value: 'PARTIAL', label: '部分发货' },
+  { value: 'SHIPPED', label: '已发货（在途）' },
+  { value: 'RECEIVED', label: '已入库' },
+  { value: 'OVERDUE', label: '逾期未发' },
+];
+const SHIP_TONE: Record<string, Tone> = {
+  UNSHIPPED: 'gray',
+  PARTIAL: 'accent',
+  SHIPPED: 'violet',
+  RECEIVED: 'green',
+};
+
+export const ShipProgressPill: React.FC<{ code?: string; name?: string }> = ({
+  code,
+  name,
+}) => (code ? <Pill tone={SHIP_TONE[code] ?? 'gray'}>{name}</Pill> : null);
+
 const REQ_TONE: Record<RequirementStatus, Tone> = {
   pending: 'gray',
   draft: 'orange',

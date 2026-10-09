@@ -483,6 +483,13 @@ export default [
         component: './system/document-numbering',
       },
       {
+        path: '/system/transit-times',
+        name: 'transitTimes',
+        icon: 'clockCircle',
+        access: 'systemTransitTimes',
+        component: './system/transit-times',
+      },
+      {
         path: '/system/config',
         name: 'config',
         icon: 'tool',

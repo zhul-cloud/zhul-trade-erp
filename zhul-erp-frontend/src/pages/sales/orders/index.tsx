@@ -13,6 +13,7 @@ import dayjs, { type Dayjs } from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
 import { CustomerCell } from '@/components/DocFields';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
+import { auditColumns } from '@/pages/purchase/components';
 import { CURRENCIES } from '@/pages/quotation/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
@@ -31,7 +32,7 @@ import {
   StockPill,
   useUserOptions,
 } from './dialogs';
-import { ProgressPill, ReceiptProgress } from './parts';
+import { GoodsBar, goodsText, ProgressPill, ReceiptProgress } from './parts';
 
 interface Filters {
   keyword?: string;
@@ -115,8 +116,8 @@ const OrderList: React.FC = () => {
     !filters.receiptStatus &&
     !filters.range;
 
-  const sub = (text: React.ReactNode) => (
-    <div style={{ fontSize: 12, color: palette.mute }}>{text}</div>
+  const sub = (text: React.ReactNode, color: string = palette.mute) => (
+    <div style={{ fontSize: 12, color }}>{text}</div>
   );
 
   const columns: TableColumnsType<OrderListItem> = [
@@ -196,6 +197,40 @@ const OrderList: React.FC = () => {
       ),
     },
     {
+      title: '货物',
+      key: 'goods',
+      width: 230,
+      render: (_, r) => {
+        const g = r.goods;
+        if (!g || g.total === 0)
+          return (
+            <span style={{ fontSize: 12, color: palette.mute }}>
+              {r.status === 2 ? '—' : '系统外采购'}
+            </span>
+          );
+        const hint =
+          g.received >= g.total
+            ? { text: '货已到齐，可以安排交货代', color: palette.green }
+            : g.inTransit > 0 && g.earliestArrival
+              ? {
+                  text: `在途最早 ${dayjs(g.earliestArrival).format('MM-DD')} 到`,
+                  color: palette.link,
+                }
+              : g.pendingPurchase > 0
+                ? { text: '还有型号没下采购单', color: palette.orange }
+                : undefined;
+        return (
+          <div style={{ display: 'grid', gap: 4 }}>
+            <GoodsBar parts={g} total={g.total} />
+            <span style={{ fontSize: 12, color: palette.sub }}>
+              {goodsText(g)} / {g.total} 件
+            </span>
+            {hint && sub(hint.text, hint.color)}
+          </div>
+        );
+      },
+    },
+    {
       title: '采购员',
       key: 'purchasers',
       width: 140,
@@ -230,6 +265,7 @@ const OrderList: React.FC = () => {
         ),
     },
     { title: '业务员', dataIndex: 'ownerName', width: 90 },
+    ...auditColumns<OrderListItem>(),
     {
       title: '操作',
       key: 'actions',
@@ -491,7 +527,7 @@ const OrderList: React.FC = () => {
           columns={columns}
           dataSource={rows}
           loading={loading}
-          scroll={{ x: 1620 }}
+          scroll={{ x: 2400 }}
           locale={{ emptyText: '没有符合条件的订单，换个筛选条件试试' }}
           pagination={{
             current: page,

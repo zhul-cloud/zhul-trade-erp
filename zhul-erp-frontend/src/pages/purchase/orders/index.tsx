@@ -1,7 +1,7 @@
 import {
+  CarOutlined,
   FallOutlined,
   FileTextOutlined,
-  PaperClipOutlined,
   SearchOutlined,
   ShoppingCartOutlined,
   WarningOutlined,
@@ -24,6 +24,8 @@ import {
   PO_STATUS,
   PoStatusPill,
   PurchasePageTitle,
+  SHIP_PROGRESS,
+  ShipProgressPill,
   SourceCell,
   StatCard,
   SupplierPicker,
@@ -40,6 +42,7 @@ import {
 interface Filters {
   keyword?: string;
   status?: number;
+  shipProgress?: string;
   supplierId?: number;
   purchaserId?: number;
   range?: [Dayjs, Dayjs] | null;
@@ -67,6 +70,7 @@ const PurchaseOrderList: React.FC = () => {
     const q: PoQuery = {
       keyword: filters.keyword?.trim() || undefined,
       status: filters.status,
+      shipProgress: filters.shipProgress,
       supplierId: filters.supplierId,
       purchaserId: filters.purchaserId,
       orderFrom: filters.range?.[0]?.format('YYYY-MM-DD'),
@@ -102,6 +106,7 @@ const PurchaseOrderList: React.FC = () => {
   const noFilter =
     !filters.keyword &&
     !filters.status &&
+    !filters.shipProgress &&
     !filters.supplierId &&
     !filters.purchaserId &&
     !filters.range;
@@ -190,14 +195,21 @@ const PurchaseOrderList: React.FC = () => {
         v || <span style={{ color: palette.mute }}>未填</span>,
     },
     {
-      title: '合同',
-      dataIndex: 'attachmentCount',
-      width: 70,
-      render: (v: number) =>
-        v > 0 ? (
-          <span style={{ color: palette.link }}>
-            <PaperClipOutlined /> {v}
-          </span>
+      title: '预计发货日期',
+      dataIndex: 'expectedShipDate',
+      width: 130,
+      render: (v: string | null | undefined, r) =>
+        v ? (
+          <div>
+            <span style={{ color: r.overdueDays ? palette.orange : undefined }}>
+              {v}
+            </span>
+            {r.overdueDays ? (
+              <div>
+                <Pill tone="orange">已过 {r.overdueDays} 天</Pill>
+              </div>
+            ) : null}
+          </div>
         ) : (
           <span style={{ color: palette.mute }}>—</span>
         ),
@@ -221,13 +233,28 @@ const PurchaseOrderList: React.FC = () => {
     },
     { title: '采购员', dataIndex: 'purchaserName', width: 90 },
     {
-      title: '状态',
+      title: '状态 · 发货进度',
       dataIndex: 'status',
-      width: 120,
+      width: 190,
       render: (v: number, r) => (
         <div>
-          <PoStatusPill status={v} />
+          <span style={{ display: 'inline-flex', gap: 6 }}>
+            <PoStatusPill status={v} />
+            <ShipProgressPill code={r.shipProgress} name={r.shipProgressName} />
+          </span>
           {r.cancelReason && sub(palette.mute, r.cancelReason)}
+          {r.shipProgress === 'SHIPPED' &&
+            sub(
+              palette.mute,
+              r.earliestArrival
+                ? `在途，预计 ${dayjs(r.earliestArrival).format('MM-DD')} 到`
+                : '在途',
+            )}
+          {(r.shipProgress === 'UNSHIPPED' || r.shipProgress === 'PARTIAL') &&
+            sub(
+              palette.mute,
+              `已发 ${r.shippedQty ?? 0} / ${r.totalQty ?? 0} 件`,
+            )}
         </div>
       ),
     },
@@ -302,6 +329,34 @@ const PurchaseOrderList: React.FC = () => {
             }
             hintColor={palette.green}
           />
+          <button
+            type="button"
+            onClick={() =>
+              applyFilters({
+                status: undefined,
+                shipProgress: stats.overdueShip > 0 ? 'OVERDUE' : 'UNSHIPPED',
+              })
+            }
+            aria-label="筛出要催发货的采购单"
+            style={{
+              all: 'unset',
+              cursor: 'pointer',
+              display: 'block',
+            }}
+          >
+            <StatCard
+              icon={<CarOutlined />}
+              color={stats.overdueShip > 0 ? palette.orange : palette.link}
+              label="待发货"
+              value={`${stats.pendingShip} 张`}
+              hint={
+                stats.overdueShip > 0
+                  ? `其中 ${stats.overdueShip} 张已过预计发货日期，点击筛出来催货`
+                  : '已下单、供应商还有没发的'
+              }
+              hintColor={stats.overdueShip > 0 ? palette.orange : undefined}
+            />
+          </button>
           <StatCard
             icon={<FileTextOutlined />}
             color={palette.violet}
@@ -360,6 +415,13 @@ const PurchaseOrderList: React.FC = () => {
                   { value: PO_STATUS.CANCELLED, label: '已取消' },
                 ]}
               />
+            </Form.Item>
+            <Form.Item
+              name="shipProgress"
+              label="发货进度"
+              style={{ marginBottom: 0 }}
+            >
+              <Select allowClear placeholder="全部" options={SHIP_PROGRESS} />
             </Form.Item>
             <Form.Item
               name="supplierId"

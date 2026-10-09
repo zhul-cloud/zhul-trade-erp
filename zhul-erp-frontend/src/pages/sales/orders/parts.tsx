@@ -75,3 +75,70 @@ export const ReceiptProgress: React.FC<{
     </div>
   );
 };
+
+// ---------------------------------------------------------------- 货物状态
+
+/** 已入库 / 在途 / 待发货 / 待采购 的颜色 */
+export const useGoodsColors = () => {
+  const { palette } = useAppTheme();
+  return {
+    received: palette.green,
+    inTransit: palette.link,
+    pendingShip: palette.orange,
+    pendingPurchase: palette.faint,
+  };
+};
+
+export const GOODS_LABELS = {
+  received: '已入库',
+  inTransit: '在途',
+  pendingShip: '待发货',
+  pendingPurchase: '待采购',
+} as const;
+
+type GoodsKey = keyof typeof GOODS_LABELS;
+
+/** 分段进度条：按件数显示货走到了哪一步 */
+export const GoodsBar: React.FC<{
+  parts: Record<GoodsKey, number>;
+  total: number;
+  width?: number;
+}> = ({ parts, total, width = 160 }) => {
+  const { palette } = useAppTheme();
+  const colors = useGoodsColors();
+  const keys = Object.keys(GOODS_LABELS) as GoodsKey[];
+  return (
+    <div
+      role="img"
+      aria-label={keys.map((k) => `${GOODS_LABELS[k]} ${parts[k]}`).join('、')}
+      style={{
+        display: 'flex',
+        width,
+        height: 6,
+        borderRadius: 3,
+        overflow: 'hidden',
+        background: palette.hairline,
+      }}
+    >
+      {total > 0 &&
+        keys.map((k) =>
+          parts[k] > 0 ? (
+            <div
+              key={k}
+              style={{
+                width: `${(parts[k] / total) * 100}%`,
+                background: colors[k],
+              }}
+            />
+          ) : null,
+        )}
+    </div>
+  );
+};
+
+/** 「已入库 10 · 在途 3 · 待发货 5」（为 0 的段不显示） */
+export const goodsText = (parts: Record<GoodsKey, number>) =>
+  (Object.keys(GOODS_LABELS) as GoodsKey[])
+    .filter((k) => parts[k] > 0)
+    .map((k) => `${GOODS_LABELS[k]} ${parts[k]}`)
+    .join(' · ');

@@ -16,6 +16,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { auditColumns } from '@/pages/purchase/components';
 import {
+  ArrivalCell,
   AttachmentWall,
   Card,
   DiffStatusPill,
@@ -155,6 +156,14 @@ const ShipmentsTab: React.FC = () => {
           <b style={{ color: palette.ink }}>{r.carrier || '—'}</b>
           {r.trackingNo && sub(palette.mute, r.trackingNo)}
         </div>
+      ),
+    },
+    {
+      title: '预计到货',
+      dataIndex: 'expectedArrivalDate',
+      width: 120,
+      render: (v: string | undefined, r) => (
+        <ArrivalCell date={v} overdue={r.arrivalOverdue} />
       ),
     },
     {
@@ -388,6 +397,7 @@ export const ShipmentView: React.FC<{
           <div style={{ color: palette.sub }}>
             {trackingText(s.carrier, s.trackingNo)} · 发货日期{' '}
             {s.shipDate ?? '—'}
+            {s.expectedArrivalDate && ` · 预计 ${s.expectedArrivalDate} 到`}
             {s.note && (
               <div style={{ color: palette.mute }}>备注：{s.note}</div>
             )}

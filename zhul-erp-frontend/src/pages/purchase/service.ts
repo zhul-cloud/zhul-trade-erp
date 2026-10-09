@@ -132,6 +132,17 @@ export interface GenerateGroup {
 }
 
 export interface PoListItem {
+  /** 预计发货日期 */
+  expectedShipDate?: string | null;
+  /** 发货进度（已下单才有）：UNSHIPPED、PARTIAL、SHIPPED、RECEIVED */
+  shipProgress?: string;
+  shipProgressName?: string;
+  shippedQty?: number;
+  totalQty?: number;
+  /** 还有未发且已过预计发货日期的天数 */
+  overdueDays?: number;
+  /** 在途最早的预计到货日期 */
+  earliestArrival?: string;
   id: number;
   poNo?: string;
   status: number;
@@ -170,6 +181,8 @@ export interface PoQuery {
   pageSize: number;
   keyword?: string;
   status?: number;
+  /** 发货进度：UNSHIPPED、PARTIAL、SHIPPED、RECEIVED、OVERDUE（逾期未发） */
+  shipProgress?: string;
   supplierId?: number;
   purchaserId?: number;
   orderFrom?: string;
@@ -185,6 +198,10 @@ export interface PoStats {
   monthBargainRate?: number | null;
   drafts: number;
   staleDrafts: number;
+  /** 已下单且还有未发数量 */
+  pendingShip: number;
+  /** 其中已过预计发货日期 */
+  overdueShip: number;
   orderCancelled: number;
 }
 
@@ -218,6 +235,7 @@ export interface PoShipmentRef {
   id: number;
   sdNo: string;
   shipDate?: string;
+  expectedArrivalDate?: string;
   carrier?: string;
   trackingNo?: string;
   totalQuantity: number;
@@ -239,6 +257,17 @@ export interface PoReceiptRef {
 }
 
 export interface PurchaseOrder {
+  /** 预计发货日期 */
+  expectedShipDate?: string | null;
+  /** 发货进度（已下单才有）：UNSHIPPED、PARTIAL、SHIPPED、RECEIVED */
+  shipProgress?: string;
+  shipProgressName?: string;
+  shippedQty?: number;
+  totalQty?: number;
+  /** 还有未发且已过预计发货日期的天数 */
+  overdueDays?: number;
+  /** 在途最早的预计到货日期 */
+  earliestArrival?: string;
   id: number;
   poNo?: string;
   status: number;
@@ -306,6 +335,7 @@ export interface SavePoBody {
   contractAmount?: number | null;
   items: { id: number; quantity: number; unitPrice?: number | null }[];
   fees: { feeName: string; amount: number }[];
+  expectedShipDate?: string | null;
 }
 
 // ---------------------------------------------------------------- 请求
@@ -369,8 +399,11 @@ export const poApi = {
     send<number>('POST', `${PO}/${id}/move`, { itemIds, ...cp }),
   convertShop: (id: number) =>
     send<PurchaseOrder>('POST', `${PO}/${id}/convert-shop`),
-  confirm: (id: number, orderDate: string) =>
-    send<PurchaseOrder>('POST', `${PO}/${id}/confirm`, { orderDate }),
+  confirm: (id: number, orderDate: string, expectedShipDate: string) =>
+    send<PurchaseOrder>('POST', `${PO}/${id}/confirm`, {
+      orderDate,
+      expectedShipDate,
+    }),
   cancel: (id: number, reason: string) =>
     send<PurchaseOrder>('POST', `${PO}/${id}/cancel`, { reason }),
   remove: (id: number) => send<void>('DELETE', `${PO}/${id}`),
