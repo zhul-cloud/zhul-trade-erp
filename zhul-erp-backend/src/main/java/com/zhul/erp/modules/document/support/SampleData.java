@@ -3,6 +3,7 @@ package com.zhul.erp.modules.document.support;
 import java.math.BigDecimal;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.ArrayList;
 import java.util.Map;
 
 /** 模版预览用的示例数据：3 个型号 + 1 项费用 */
@@ -130,6 +131,109 @@ public final class SampleData {
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("fee.name", name);
         m.put("fee.amount", new BigDecimal(amount));
+        return m;
+    }
+
+    /** CI 示例：2 个型号 + 运费 */
+    public static RenderModel ci() {
+        Map<String, Object> h = parties();
+        h.put("ci.no", "CI20261014001");
+        h.put("ci.date", "2026-10-14");
+        h.put("ci.currency", "USD");
+        h.put("ci.currencySymbol", "$");
+        h.put("ci.paymentRef", "TT No.000126150063 dated 10.10.2026");
+        h.put("pi.no", "PI20261006001");
+        h.put("so.no", "SO20261008001");
+        h.put("shipment.no", "SH20261014001");
+        h.put("shipment.waybill", "DHL 1234567890");
+        List<Map<String, Object>> items = new ArrayList<>();
+        items.add(ciItem(1, "6ES7214-1AG40-0XB0", "PLC CPU 1214C", "8537.1090", 10, new BigDecimal("280.00")));
+        items.add(ciItem(2, "E3Z-D61", "Photoelectric Sensor", "8536.5000", 5, new BigDecimal("21.23")));
+        List<Map<String, Object>> fees = new ArrayList<>();
+        Map<String, Object> f = new LinkedHashMap<>();
+        f.put("fee.name", "Shipping Cost");
+        f.put("fee.amount", new BigDecimal("300.00"));
+        fees.add(f);
+        BigDecimal itemTotal = new BigDecimal("2906.15");
+        h.put("ci.itemTotal", itemTotal);
+        h.put("ci.feeTotal", new BigDecimal("300.00"));
+        h.put("ci.total", itemTotal.add(new BigDecimal("300.00")));
+        return new RenderModel(h, items, fees);
+    }
+
+    /** PL 示例：2 箱，第 1 箱 2 个型号 */
+    public static RenderModel pl() {
+        Map<String, Object> h = parties();
+        h.put("pl.no", "PL20261014001");
+        h.put("pl.date", "2026-10-14");
+        h.put("pl.priceTerm", "DAP Dhaka");
+        h.put("pl.totalBoxes", 2);
+        h.put("pl.totalQty", 25);
+        h.put("pl.totalNetWeight", new BigDecimal("34.32"));
+        h.put("pl.totalGrossWeight", new BigDecimal("36.00"));
+        h.put("pl.totalVolume", new BigDecimal("0.102"));
+        h.put("ci.no", "CI20261014001");
+        h.put("pi.no", "PI20261006001");
+        h.put("so.no", "SO20261008001");
+        h.put("shipment.no", "SH20261014001");
+        h.put("shipment.waybill", "DHL 1234567890");
+        List<Map<String, Object>> items = new ArrayList<>();
+        items.add(plItem(1, 1, "6ES7214-1AG40-0XB0", 10, new BigDecimal("28.52"), new BigDecimal("30.00"), "55x40x30", new BigDecimal("0.066")));
+        items.add(plItem(2, 1, "6ES7215-1AG40-0XB0", 10, null, null, null, null));
+        items.add(plItem(3, 2, "E3Z-D61", 5, new BigDecimal("5.80"), new BigDecimal("6.00"), "40x30x30", new BigDecimal("0.036")));
+        return new RenderModel(h, items, List.of());
+    }
+
+    private static Map<String, Object> parties() {
+        Map<String, Object> h = new LinkedHashMap<>();
+        h.put("customer.name", "Sample Trading LLC");
+        h.put("buyer.name", "Sample Trading LLC");
+        h.put("buyer.address", "100 Main Street, Houston, TX 77002, United States");
+        h.put("buyer.country", "United States");
+        h.put("buyer.taxId", "US-12-3456789");
+        h.put("buyer.contact", "John Smith");
+        h.put("buyer.phone", "+1 713 000 0000");
+        h.put("buyer.email", "john@example.com");
+        h.put("consignee.name", "Sample Trading LLC Warehouse");
+        h.put("consignee.address", "200 Port Road, Houston, TX 77029, United States");
+        h.put("consignee.country", "United States");
+        h.put("consignee.taxId", "");
+        h.put("consignee.contact", "Mike Lee");
+        h.put("consignee.phone", "+1 713 111 1111");
+        h.put("consignee.email", "");
+        h.put("seller.name", "Sales Rep");
+        h.put("seller.email", "sales@example.com");
+        h.put("seller.phone", "+86 591 0000 0000");
+        return h;
+    }
+
+    private static Map<String, Object> ciItem(int no, String model, String desc, String hs, int qty, BigDecimal price) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("item.no", no);
+        m.put("item.model", model);
+        m.put("item.brand", "");
+        m.put("item.description", desc);
+        m.put("item.hsCode", hs);
+        m.put("item.origin", "China");
+        m.put("item.qty", qty);
+        m.put("item.unitPrice", price);
+        m.put("item.amount", price.multiply(BigDecimal.valueOf(qty)));
+        return m;
+    }
+
+    private static Map<String, Object> plItem(int no, int box, String model, int qty, BigDecimal nw, BigDecimal gw, String dims, BigDecimal vol) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put(RenderModel.BOX_GROUP, box);
+        m.put("item.no", no);
+        m.put("item.model", model);
+        m.put("item.brand", "");
+        m.put("item.description", "");
+        m.put("item.qty", qty);
+        m.put("box.no", gw == null ? "" : box);
+        m.put("box.netWeight", nw == null ? "" : nw);
+        m.put("box.grossWeight", gw == null ? "" : gw);
+        m.put("box.dimensions", dims == null ? "" : dims);
+        m.put("box.volume", vol == null ? "" : vol);
         return m;
     }
 }

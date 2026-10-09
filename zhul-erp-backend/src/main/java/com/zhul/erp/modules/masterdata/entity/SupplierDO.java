@@ -28,6 +28,8 @@ public class SupplierDO {
     private String shortName;
     /** 供应商类型（0-未设置、1-生产商、2-经销商、3-服务商、4-代理商、5-其他） */
     private Integer supplierType;
+    /** 体积系数（服务商按计费重分摊运费用），默认 5000 */
+    private Integer volumeDivisor;
     /** 所属行业（0-未设置、1-制造业、2-原材料、3-信息技术、4-物流运输、5-金融服务、6-其他） */
     private Integer industry;
     /** 统一社会信用代码（18位大写字母数字） */

@@ -86,6 +86,7 @@ public class SupplierServiceImpl implements SupplierService {
         supplier.setTenantId(tenantId);
         applyFields(supplier, req);
         supplier.setSupplierType(req.getSupplierType() != null ? req.getSupplierType() : SupplierConstants.UNSET);
+        supplier.setVolumeDivisor(req.getVolumeDivisor() != null ? req.getVolumeDivisor() : 5000);
         supplier.setStatus(req.getStatus() != null ? req.getStatus() : 1);
         // 编码一律自动生成：先插入拿到主键，再按 SUP + 5 位补零主键回填
         supplierMapper.insert(supplier);
@@ -259,6 +260,9 @@ public class SupplierServiceImpl implements SupplierService {
         List<SupplierProductScopeSync.Scope> scopes =
                 req.getProductScopes() == null ? null : scopeSync.normalize(req.getProductScopes());
         applyFields(supplier, req);
+        if (req.getVolumeDivisor() != null) {
+            supplier.setVolumeDivisor(req.getVolumeDivisor());
+        }
         if (req.getSupplierType() != null) {
             supplier.setSupplierType(req.getSupplierType());
         }
@@ -463,6 +467,7 @@ public class SupplierServiceImpl implements SupplierService {
         vo.setName(supplier.getName());
         vo.setShortName(supplier.getShortName());
         vo.setSupplierType(supplier.getSupplierType());
+        vo.setVolumeDivisor(supplier.getVolumeDivisor());
         vo.setIndustry(supplier.getIndustry());
         vo.setCreditCode(supplier.getCreditCode());
         vo.setLegalRepresentative(supplier.getLegalRepresentative());

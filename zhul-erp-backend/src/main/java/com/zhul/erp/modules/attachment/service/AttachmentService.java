@@ -38,12 +38,16 @@ public class AttachmentService {
     public static final String SHIPMENT = "SHIPMENT";
     public static final String RECEIPT = "RECEIPT";
     public static final String SHOOT = "SHOOT";
-    public static final Map<String, Integer> MAX_PER_OWNER = Map.of(SHIPMENT, 20, RECEIPT, 20, SHOOT, 30);
+    /** 出运单的面单（PDF 或图片） */
+    public static final String LOGISTICS = "LOGISTICS";
+    public static final Map<String, Integer> MAX_PER_OWNER = Map.of(SHIPMENT, 20, RECEIPT, 20, SHOOT, 30, LOGISTICS, 10);
     public static final int IMAGE = 1;
     public static final int VIDEO = 2;
+    public static final int FILE = 3;
 
     private static final Set<String> IMAGE_EXTS = Set.of("jpg", "png", "webp");
     private static final Set<String> VIDEO_EXTS = Set.of("mp4", "mov");
+    private static final Set<String> FACE_SHEET_EXTS = Set.of("pdf", "jpg", "png", "webp");
     private static final long IMAGE_MAX = 10L * 1024 * 1024;
     private static final long VIDEO_MAX = 200L * 1024 * 1024;
 
@@ -62,14 +66,23 @@ public class AttachmentService {
         boolean video = name.endsWith(".mp4") || name.endsWith(".mov")
                 || (file != null && file.getContentType() != null && file.getContentType().startsWith("video/"));
         AttachmentStore store = store(currentStorage);
-        AttachmentStore.Stored s = video
-                ? store.put(PiStore.tenantId(), file, VIDEO_EXTS, VIDEO_MAX, "只支持 MP4、MOV 视频")
-                : store.put(PiStore.tenantId(), file, IMAGE_EXTS, IMAGE_MAX, "只支持 JPG、PNG、WEBP 图片");
+        AttachmentStore.Stored s;
+        int kind;
+        if (LOGISTICS.equals(ownerType)) {
+            s = store.put(PiStore.tenantId(), file, FACE_SHEET_EXTS, IMAGE_MAX, "面单只支持 PDF、JPG、PNG、WEBP");
+            kind = s.contentType().startsWith("image/") ? IMAGE : FILE;
+        } else if (video) {
+            s = store.put(PiStore.tenantId(), file, VIDEO_EXTS, VIDEO_MAX, "只支持 MP4、MOV 视频");
+            kind = VIDEO;
+        } else {
+            s = store.put(PiStore.tenantId(), file, IMAGE_EXTS, IMAGE_MAX, "只支持 JPG、PNG、WEBP 图片");
+            kind = IMAGE;
+        }
         BizAttachmentDO a = new BizAttachmentDO();
         a.setTenantId(PiStore.tenantId());
         a.setOwnerType(ownerType);
         a.setOwnerId(0L);
-        a.setKind(video ? VIDEO : IMAGE);
+        a.setKind(kind);
         a.setStorage(store.storage());
         a.setFileKey(s.fileKey());
         a.setUrl(s.url());

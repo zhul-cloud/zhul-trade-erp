@@ -13,6 +13,8 @@ import java.util.List;
 public class SaveShipmentRequest {
     /** 登记时必填；修改时忽略 */
     private Long poId;
+    /** 直发货代：货代（服务商）ID，为空表示发到福州仓库 */
+    private Long directForwarderId;
     @Size(max = 32, message = "快递公司不能超过32个字")
     private String carrier;
     @Size(max = 64, message = "快递单号不能超过64个字")

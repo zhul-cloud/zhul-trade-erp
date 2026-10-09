@@ -71,7 +71,7 @@ class NavigationContractTest extends InquiryContractSupport {
         try {
             Map<String, List<String>> wh = sidebar(token("it_nav_wh"));
             assertEquals(List.of("工作台", "仓库管理"), new ArrayList<>(wh.keySet()));
-            assertEquals(List.of("入库验收", "暂存货", "拍摄任务"), wh.get("仓库管理"));
+            assertEquals(List.of("入库验收", "出库打包", "暂存货", "拍摄任务"), wh.get("仓库管理"));
         } finally {
             jdbc.update("delete from account where id = 99000042");
             jdbc.update("delete from user_basic where id = 99000042");
@@ -82,11 +82,12 @@ class NavigationContractTest extends InquiryContractSupport {
     void adminSeesDepartmentGroupsWithoutPlaceholders() throws Exception {
         loginAsAdmin("it_nav_admin");
         Map<String, List<String>> all = sidebar(token("it_nav_admin"));
-        assertEquals(List.of("工作台", "业务管理", "采购管理", "仓库管理", "财务管理", "商品资料", "业务设置", "系统管理", "租户管理"),
+        assertEquals(List.of("工作台", "业务管理", "采购管理", "仓库管理", "单证物流", "财务管理", "商品资料", "业务设置", "系统管理", "租户管理"),
                 new ArrayList<>(all.keySet()));
         assertEquals(List.of("商机", "客户", "客户询盘", "报价单", "PI", "销售订单"), all.get("业务管理"), "商机统计从侧边栏隐藏");
         assertEquals(List.of("兼职看板", "询价分配", "我的询价", "历史询价", "采购需求", "采购单", "供应商发货", "供应商"), all.get("采购管理"));
-        assertEquals(List.of("入库验收", "暂存货", "拍摄任务"), all.get("仓库管理"));
+        assertEquals(List.of("入库验收", "出库打包", "暂存货", "拍摄任务"), all.get("仓库管理"));
+        assertEquals(List.of("出运单", "货代对账"), all.get("单证物流"));
         assertEquals(List.of("收款管理"), all.get("财务管理"));
         assertEquals(List.of("定价策略", "汇率", "收款账户", "单据模版", "单据编号", "快递时效"), all.get("业务设置"));
         assertEquals(List.of("用户", "角色", "部门", "岗位", "菜单", "字典", "系统设置", "操作日志", "登录日志"), all.get("系统管理"));

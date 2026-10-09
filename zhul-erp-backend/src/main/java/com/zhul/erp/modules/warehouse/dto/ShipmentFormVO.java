@@ -12,6 +12,7 @@ public class ShipmentFormVO {
     private String poNo;
     private String supplierName;
     private Long shipmentId;
+    private Long directForwarderId;
     private String carrier;
     private String trackingNo;
     private LocalDate shipDate;

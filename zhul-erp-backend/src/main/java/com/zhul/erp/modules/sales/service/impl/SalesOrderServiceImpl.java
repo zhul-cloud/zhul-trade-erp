@@ -533,7 +533,7 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         List<OrderProgress.Step> ordered = progress.ordered();
         OrderProgress.Step step = OrderProgress.require(ordered, req.getProgressCode() == null ? "" : req.getProgressCode().trim());
         if (com.zhul.erp.modules.purchase.support.OrderPurchaseProgress.AUTO.contains(step.code())) {
-            throw new BizException("「待采购」「已下单」「已入库」由采购与入库自动推进，不能手动选择");
+            throw new BizException("「待采购」「已下单」「已入库」「已交货代」「已出运」由采购、入库、出库与出运自动推进，不能手动选择");
         }
         Tracking t = trackable(id, req.getItemIds());
         int orderedRank = OrderProgress.rank(ordered, SalesConstants.PROGRESS_ORDERED);
@@ -780,6 +780,9 @@ public class SalesOrderServiceImpl implements SalesOrderService {
                 x.setGoodsInTransit(g.inTransit());
                 x.setGoodsPendingShip(g.pendingShip());
                 x.setGoodsPendingPurchase(g.pendingPurchase());
+                x.setGoodsShipped(g.shippedOut());
+                x.setGoodsHanded(g.handedOut());
+                x.setGoodsInWarehouse(g.inWarehouse());
                 x.setTransits(lp.transits().stream().map(t -> {
                     SalesOrderItemVO.Transit tr = new SalesOrderItemVO.Transit();
                     tr.setShipmentId(t.shipmentId());
@@ -1284,6 +1287,9 @@ public class SalesOrderServiceImpl implements SalesOrderService {
                 x.setInTransit(0);
                 x.setPendingShip(0);
                 x.setPendingPurchase(0);
+                x.setShipped(0);
+                x.setHanded(0);
+                x.setInWarehouse(0);
                 x.setTotal(0);
                 return x;
             });
@@ -1291,6 +1297,9 @@ public class SalesOrderServiceImpl implements SalesOrderService {
             sum.setInTransit(sum.getInTransit() + g.inTransit());
             sum.setPendingShip(sum.getPendingShip() + g.pendingShip());
             sum.setPendingPurchase(sum.getPendingPurchase() + g.pendingPurchase());
+            sum.setShipped(sum.getShipped() + g.shippedOut());
+            sum.setHanded(sum.getHanded() + g.handedOut());
+            sum.setInWarehouse(sum.getInWarehouse() + g.inWarehouse());
             sum.setTotal(sum.getTotal() + i.getQuantity());
             lp.transits().stream().map(com.zhul.erp.modules.purchase.support.PurchaseLinks.Transit::expectedArrival)
                     .filter(Objects::nonNull)

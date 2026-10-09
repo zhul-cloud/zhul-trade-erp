@@ -261,12 +261,12 @@ class ReceivingContractTest extends SalesContractSupport {
         assertEquals("A-1", shoots.path("records").get(0).path("model").asText());
         assertEquals(o.path("soNo").asText(), shoots.path("records").get(0).path("soNo").asText());
 
-        // 手动推进：不能选「已入库」；入库到齐后可以推进到后面
+        // 手动推进：「已入库」及之后到「已出运」都由系统推进
         long itemId = o.path("items").get(0).path("id").asLong();
-        assertEquals("「待采购」「已下单」「已入库」由采购与入库自动推进，不能手动选择",
+        assertEquals("「待采购」「已下单」「已入库」「已交货代」「已出运」由采购、入库、出库与出运自动推进，不能手动选择",
                 fail(call(json(post(SO + "/" + soId + "/progress"), write(Map.of("itemIds", List.of(itemId), "progressCode", "RECEIVED"))), admin))
                         .path("message").asText());
-        ok(call(json(post(SO + "/" + soId + "/progress"), write(Map.of("itemIds", List.of(itemId), "progressCode", "TO_FORWARDER"))), admin));
+        assertEquals("已入库", order(soId).path("items").get(0).path("progressName").asText());
 
         // 已入库的列表：四个审计列与合格数
         JsonNode list = ok(call(json(post(GR + "/page"), "{}"), keeper));
@@ -287,9 +287,9 @@ class ReceivingContractTest extends SalesContractSupport {
         assertEquals("已下单", o.path("items").get(0).path("progressName").asText(), "部分入库进度不变");
         assertEquals(3, o.path("items").get(0).path("purchaseReceivedQty").asInt());
         long itemId = o.path("items").get(0).path("id").asLong();
-        assertEquals("A-1 还有 2 个没有入库",
+        assertEquals("「待采购」「已下单」「已入库」「已交货代」「已出运」由采购、入库、出库与出运自动推进，不能手动选择",
                 fail(call(json(post(SO + "/" + soId + "/progress"), write(Map.of("itemIds", List.of(itemId), "progressCode", "TO_FORWARDER"))), admin))
-                        .path("message").asText());
+                        .path("message").asText(), "交货代由出库推进，不能手动跳过");
     }
 
     @Test

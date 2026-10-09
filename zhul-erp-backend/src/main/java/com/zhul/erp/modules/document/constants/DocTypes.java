@@ -18,8 +18,8 @@ public final class DocTypes {
     public static final Map<Integer, String> NAMES = Map.of(
             QUOTATION, "报价单 Quotation", PI, "形式发票 PI", CI, "商业发票 CI", PL, "装箱单 PL", TEXT_QUOTE, "文字报价");
 
-    /** 已实现生成的类型；CI / PL 只做模版管理，生成随发货模块 */
-    public static final Set<Integer> GENERATABLE = Set.of(QUOTATION, TEXT_QUOTE, PI);
+    /** 已实现生成的类型（CI、PL 在出运单上生成） */
+    public static final Set<Integer> GENERATABLE = Set.of(QUOTATION, TEXT_QUOTE, PI, CI, PL);
 
     /** 平台内置模版所在租户 */
     public static final int PLATFORM_TENANT = 0;

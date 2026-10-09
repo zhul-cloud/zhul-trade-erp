@@ -20,6 +20,12 @@ public class SupplierShipmentDO {
     private Integer tenantId;
     private String sdNo;
     private Long poId;
+    /** 直发货代：供应商直接发到这家货代，为空表示发到福州仓库 */
+    @TableField(updateStrategy = FieldStrategy.ALWAYS)
+    private Long directForwarderId;
+    /** 直发货放进的出运单 */
+    @TableField(updateStrategy = FieldStrategy.ALWAYS)
+    private Long logisticsId;
     /** 1-采购员登记、2-仓库补登 */
     private Integer source;
     private String carrier;

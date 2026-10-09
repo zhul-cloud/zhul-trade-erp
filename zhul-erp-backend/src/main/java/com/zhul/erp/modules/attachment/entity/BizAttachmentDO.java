@@ -16,11 +16,11 @@ public class BizAttachmentDO {
     @TableId(type = IdType.AUTO)
     private Long id;
     private Integer tenantId;
-    /** SHIPMENT / RECEIPT / SHOOT */
+    /** SHIPMENT / RECEIPT / SHOOT / LOGISTICS */
     private String ownerType;
     /** 0 表示已上传、还没挂到单据上 */
     private Long ownerId;
-    /** 1-图片、2-视频 */
+    /** 1-图片、2-视频、3-文件（PDF 面单） */
     private Integer kind;
     /** LOCAL / OSS */
     private String storage;

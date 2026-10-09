@@ -27,6 +27,10 @@ public class SalesOrderItemVO extends PiItemVO {
     private Integer goodsInTransit;
     private Integer goodsPendingShip;
     private Integer goodsPendingPurchase;
+    /** 已出运、已交货代（未出运）、在仓（合格入库 − 交货代 − 出运） */
+    private Integer goodsShipped;
+    private Integer goodsHanded;
+    private Integer goodsInWarehouse;
     /** 在途发货单（按预计到货从早到晚） */
     private java.util.List<Transit> transits;
     private Integer purchaseDraftQty;

@@ -161,13 +161,18 @@ class DocumentTemplateContractTest extends TenantContractSupport {
         assertTrue(fail(upload(a, 1, "q.xlsx", builtinQuotation(), " ")).path("message").asText().contains("版本说明"));
         assertEquals(1, versions(a, 1).size(), "失败的上传不产生版本");
 
-        // PI 与报价单一样校验占位符与明细行；CI 只校验能否打开
+        // PI、CI、PL 与报价单一样校验占位符与明细行
         assertTrue(fail(upload(a, 2, "pi.xlsx", xlsxWith("anything"), "PI 草稿")).path("data").path("detail").toString()
                 .contains("没有找到明细行"));
         assertTrue(fail(upload(a, 2, "pi.xlsx", xlsxWith("${quotation.no} ${item.model}"), "PI 用了报价单字段")).path("data")
                 .path("detail").toString().contains("${quotation.no}"));
         ok(upload(a, 2, "pi.xlsx", xlsxWith("${pi.no} ${buyer.name} ${bank.accountNo} ${item.hsCode}"), "PI 占位符"));
-        ok(upload(a, 3, "ci.xlsx", xlsxWith("anything"), "CI 草稿"));
+        assertTrue(fail(upload(a, 3, "ci.xlsx", xlsxWith("anything"), "CI 草稿")).path("data").path("detail").toString()
+                .contains("没有找到明细行"));
+        assertTrue(fail(upload(a, 3, "ci.xlsx", xlsxWith("${ci.no} ${box.netWeight} ${item.model}"), "CI 用了箱字段")).path("data")
+                .path("detail").toString().contains("${box.netWeight}"));
+        ok(upload(a, 3, "ci.xlsx", xlsxWith("${ci.no} ${consignee.name} ${item.model} ${item.hsCode}"), "CI 占位符"));
+        ok(upload(a, 4, "pl.xlsx", xlsxWith("${pl.no} ${item.model} ${box.grossWeight}"), "PL 占位符"));
     }
 
     @Test

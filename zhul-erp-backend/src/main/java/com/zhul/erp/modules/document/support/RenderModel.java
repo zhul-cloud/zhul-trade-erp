@@ -12,6 +12,8 @@ public record RenderModel(Map<String, Object> header, List<Map<String, Object>> 
 
     /** 明细行标记：无货行（不报价）。Excel 中该行公式清空；文字报价固定输出 型号 品牌 数量 + ${item.noStockText} */
     public static final String NO_STOCK = "item.noStock";
+    /** PL 明细行所属的箱（同一箱的行连续）；箱字段 ${box.*} 只在箱内第一行有值，渲染后按箱合并单元格 */
+    public static final String BOX_GROUP = "box.group";
     public static final String NO_STOCK_TEXT = "item.noStockText";
     static final String NO_STOCK_LINE = "${item.model} ${item.brand} ${item.qty} ${" + NO_STOCK_TEXT + "}";
 

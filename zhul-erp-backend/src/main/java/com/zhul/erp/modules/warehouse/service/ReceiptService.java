@@ -261,6 +261,9 @@ public class ReceiptService {
         if (s.getStatus() == WarehouseConstants.SHIP_RECEIVED) {
             throw new BizException("这张发货单已经验收入库了");
         }
+        if (s.getDirectForwarderId() != null) {
+            throw new BizException("直发货代的货在出运单上确认实收");
+        }
         if (s.getStatus() != WarehouseConstants.SHIP_IN_TRANSIT) {
             throw new BizException("发货单已作废");
         }
@@ -268,8 +271,33 @@ public class ReceiptService {
         for (AcceptRequest.Line l : req.getItems()) {
             lines.add(new Qty(l.getShipmentItemId(), l.getReceivedQty(), l.getQualifiedQty(), l.getNote()));
         }
-        PurchaseReceiptDO r = receive(p, s, req.getReceivedDate(), req.getNote(), lines, req.getAttachmentIds());
+        PurchaseReceiptDO r = receive(p, s, req.getReceivedDate(), req.getNote(), lines, req.getAttachmentIds(), true);
         return detail(r.getId());
+    }
+
+    /**
+     * 直发货代的确认（出运单服务在自己的事务内调用）：按货代实收生成入库单，实收 = 合格，少发生成差异，不生成拍摄任务。
+     * 返回发货单行 ID → 入库单行。
+     */
+    public Map<Long, PurchaseReceiptItemDO> receiveDirect(Long shipmentId, LocalDate date, Map<Long, Integer> received) {
+        SupplierShipmentDO s = shipments.visible(shipmentId, false);
+        PurchaseOrderDO p = support.lockPo(s.getPoId(), false);
+        s = shipments.lockShipment(s.getId());
+        if (s.getStatus() != WarehouseConstants.SHIP_IN_TRANSIT) {
+            throw new BizException(s.getStatus() == WarehouseConstants.SHIP_RECEIVED ? "这批直发货已经确认过了" : "发货单已作废");
+        }
+        List<SupplierShipmentItemDO> lines = shipments.itemsOf(List.of(s.getId())).getOrDefault(s.getId(), List.of());
+        List<Qty> qty = new ArrayList<>();
+        for (SupplierShipmentItemDO i : lines) {
+            int n = received.getOrDefault(i.getId(), 0);
+            if (n > i.getQuantity()) {
+                throw new BizException(i.getModel() + " 实收不能多于发货数量 " + i.getQuantity());
+            }
+            qty.add(new Qty(i.getId(), n, n, ""));
+        }
+        PurchaseReceiptDO r = receive(p, s, date, "直发货代，按货代实收确认", qty, List.of(), false);
+        return itemsOf(List.of(r.getId())).getOrDefault(r.getId(), List.of()).stream()
+                .collect(Collectors.toMap(PurchaseReceiptItemDO::getShipmentItemId, x -> x));
     }
 
     @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
@@ -329,7 +357,7 @@ public class ReceiptService {
             lines.add(new Qty(x.getId(), l.getReceivedQty(), l.getQualifiedQty(), l.getNote()));
         }
         logs.add(p.getId(), "仓库补登发货", s.getSdNo() + "：" + String.join("、", text) + "（仓库直接收货）", currentUser.resolve());
-        PurchaseReceiptDO r = receive(p, s, req.getReceivedDate(), req.getNote(), lines, req.getAttachmentIds());
+        PurchaseReceiptDO r = receive(p, s, req.getReceivedDate(), req.getNote(), lines, req.getAttachmentIds(), true);
         return detail(r.getId());
     }
 
@@ -342,7 +370,7 @@ public class ReceiptService {
 
     /** 验收一张在途发货单（发货单与采购单已锁） */
     private PurchaseReceiptDO receive(PurchaseOrderDO p, SupplierShipmentDO s, LocalDate date, String note, List<Qty> lines,
-                                      List<Long> attachmentIds) {
+                                      List<Long> attachmentIds, boolean shoot) {
         requireDate(date);
         List<SupplierShipmentItemDO> shipItems = shipments.itemsOf(List.of(s.getId())).getOrDefault(s.getId(), List.of());
         Map<Long, Qty> byItem = new HashMap<>();
@@ -399,7 +427,9 @@ public class ReceiptService {
         int diffCount = discrepancies.createForReceipt(r, items, p);
         Map<Long, Long> soIds = new HashMap<>();
         poItems.forEach((k, v) -> soIds.put(k, v.getSoId()));
-        shoots.createForReceipt(r, items, soIds);
+        if (shoot) {
+            shoots.createForReceipt(r, items, soIds);
+        }
         attachments.attach(AttachmentService.RECEIPT, r.getId(), attachmentIds);
         touch.touch(items.stream().map(PurchaseReceiptItemDO::getRequirementId).toList());
         progress.sync(items.stream().map(PurchaseReceiptItemDO::getSoItemId).toList());

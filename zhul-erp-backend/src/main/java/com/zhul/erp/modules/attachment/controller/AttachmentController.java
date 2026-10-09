@@ -39,7 +39,8 @@ public class AttachmentController {
     private static final Map<String, List<String>> MENUS = Map.of(
             AttachmentService.SHIPMENT, List.of("/purchase/shipments", "/warehouse/receipts"),
             AttachmentService.RECEIPT, List.of("/warehouse/receipts", "/purchase/shipments"),
-            AttachmentService.SHOOT, List.of("/warehouse/shoots"));
+            AttachmentService.SHOOT, List.of("/warehouse/shoots"),
+            AttachmentService.LOGISTICS, List.of("/logistics/shipments"));
 
     private final AttachmentService service;
     private final PermissionChecker perm;

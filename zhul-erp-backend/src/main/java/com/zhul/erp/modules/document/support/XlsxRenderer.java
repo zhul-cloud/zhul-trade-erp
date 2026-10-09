@@ -57,6 +57,7 @@ public final class XlsxRenderer {
             int itemRow = layout.itemRow();
             int feeRow = layout.feeRow();
             List<Map<String, Object>> fees = numberFees(model);
+            List<Integer> boxColumns = docType == DocTypes.PL && itemRow >= 0 ? boxColumns(sheet.getRow(itemRow)) : List.of();
             if (sheet.getRepeatingRows() == null && itemRow > 0) {
                 sheet.setRepeatingRows(new CellRangeAddress(itemRow - 1, itemRow - 1, -1, -1));
             }
@@ -70,6 +71,9 @@ public final class XlsxRenderer {
                     expand(sheet, feeRow, fees, model.header());
                 }
             }
+            if (!boxColumns.isEmpty() && (feeRow < 0 || feeRow > itemRow)) {
+                mergeBoxes(sheet, itemRow, model.items(), boxColumns);
+            }
             fillHeader(sheet, model.header());
             wb.setForceFormulaRecalculation(true);
             try {
@@ -82,6 +86,41 @@ public final class XlsxRenderer {
             return out.toByteArray();
         } catch (IOException e) {
             throw new BizException(typeName + "模版无法打开，请检查是否为有效的 Excel 文件", e);
+        }
+    }
+
+    /** 明细行中写了 ${box.*} 的列 */
+    private static List<Integer> boxColumns(Row row) {
+        List<Integer> cols = new ArrayList<>();
+        if (row == null) {
+            return cols;
+        }
+        for (Cell cell : row) {
+            if (cell.getCellType() == CellType.STRING && cell.getStringCellValue().contains("${" + Placeholders.BOX_PREFIX)) {
+                cols.add(cell.getColumnIndex());
+            }
+        }
+        return cols;
+    }
+
+    /** PL：同一箱的连续明细行，箱字段所在列纵向合并（箱内只有一行的不合并；与模版已有合并区重叠的列跳过） */
+    private static void mergeBoxes(XSSFSheet sheet, int firstRow, List<Map<String, Object>> items, List<Integer> cols) {
+        int start = 0;
+        for (int k = 1; k <= items.size(); k++) {
+            boolean end = k == items.size() || !java.util.Objects.equals(items.get(k).get(RenderModel.BOX_GROUP), items.get(start).get(RenderModel.BOX_GROUP));
+            if (!end) {
+                continue;
+            }
+            if (k - 1 > start) {
+                for (int c : cols) {
+                    CellRangeAddress range = new CellRangeAddress(firstRow + start, firstRow + k - 1, c, c);
+                    boolean overlaps = sheet.getMergedRegions().stream().anyMatch(m -> m.intersects(range));
+                    if (!overlaps) {
+                        sheet.addMergedRegion(range);
+                    }
+                }
+            }
+            start = k;
         }
     }
 

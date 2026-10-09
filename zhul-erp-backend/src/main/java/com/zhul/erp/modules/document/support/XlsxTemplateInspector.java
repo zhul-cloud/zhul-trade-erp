@@ -50,7 +50,7 @@ public final class XlsxTemplateInspector {
                     String at = new CellReference(cell).formatAsString(false);
                     if (!Placeholders.known(docType, name)) {
                         problems.add(new TemplateProblem(at, "不认识的占位符 ${" + name + "}"));
-                    } else if (name.startsWith(Placeholders.ITEM_PREFIX)) {
+                    } else if (name.startsWith(Placeholders.ITEM_PREFIX) || name.startsWith(Placeholders.BOX_PREFIX)) {
                         hasItem = true;
                     } else if (name.startsWith(Placeholders.FEE_PREFIX)) {
                         hasFee = true;
@@ -65,7 +65,8 @@ public final class XlsxTemplateInspector {
             }
         }
         if (requireItems && itemRows.isEmpty()) {
-            problems.add(new TemplateProblem("", "没有找到明细行：请在型号行写上 ${item.model} 等占位符"));
+            problems.add(new TemplateProblem("", docType == DocTypes.PL ? "PL 模版缺少明细行占位符：请在明细行写上 ${item.model} 等占位符"
+                    : "没有找到明细行：请在型号行写上 ${item.model} 等占位符"));
         }
         if (itemRows.size() > 1) {
             problems.add(new TemplateProblem("第 " + rows(itemRows) + " 行", "明细占位符只能放在同一行"));

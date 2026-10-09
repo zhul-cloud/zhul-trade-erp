@@ -54,6 +54,9 @@ public class SalesOrderListVO {
         private Integer inTransit;
         private Integer pendingShip;
         private Integer pendingPurchase;
+        private Integer shipped;
+        private Integer handed;
+        private Integer inWarehouse;
         private Integer total;
         /** 在途最早的预计到货日期 */
         private java.time.LocalDate earliestArrival;

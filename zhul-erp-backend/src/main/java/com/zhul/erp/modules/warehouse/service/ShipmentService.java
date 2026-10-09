@@ -57,6 +57,7 @@ public class ShipmentService {
     private final SupplierShipmentMapper shipmentMapper;
     private final SupplierShipmentItemMapper shipmentItemMapper;
     private final PurchaseReceiptMapper receiptMapper;
+    private final com.zhul.erp.modules.sales.repository.SalesOrderItemMapper soItemMapper;
     private final ReceivingSupport support;
     private final ReceivingQty receivingQty;
     private final AttachmentService attachments;
@@ -66,6 +67,7 @@ public class ShipmentService {
     private final InquiryLookups lookups;
     private final LogService logService;
     private final TransitTimeService transitTimes;
+    private final com.zhul.erp.modules.logistics.support.LogisticsSupport logisticsSupport;
 
     // ---------------------------------------------------------------- 列表
 
@@ -79,7 +81,8 @@ public class ShipmentService {
             w.inSql(SupplierShipmentDO::getPoId, scopeSql);
         }
         if (pendingOnly) {
-            w.eq(SupplierShipmentDO::getStatus, WarehouseConstants.SHIP_IN_TRANSIT);
+            // 仓库待收货不含直发货代的（在出运单上确认）
+            w.eq(SupplierShipmentDO::getStatus, WarehouseConstants.SHIP_IN_TRANSIT).isNull(SupplierShipmentDO::getDirectForwarderId);
         } else if (q.getStatus() != null) {
             w.eq(SupplierShipmentDO::getStatus, q.getStatus());
         }
@@ -115,6 +118,7 @@ public class ShipmentService {
         return shipmentMapper.selectCount(new LambdaQueryWrapper<SupplierShipmentDO>()
                 .eq(SupplierShipmentDO::getTenantId, PiStore.tenantId())
                 .eq(SupplierShipmentDO::getStatus, WarehouseConstants.SHIP_IN_TRANSIT)
+                .isNull(SupplierShipmentDO::getDirectForwarderId)
                 .isNull(SupplierShipmentDO::getDeletedAt));
     }
 
@@ -125,6 +129,7 @@ public class ShipmentService {
         Map<Long, String> names = support.counterparties(pos.values());
         Map<Long, String> users = lookups.userNames(pos.values().stream().map(PurchaseOrderDO::getPurchaserId).toList());
         Map<Long, Long> files = attachments.counts(AttachmentService.SHIPMENT, ids);
+        Map<Long, String> forwarders = logisticsSupport.supplierNames(rows.stream().map(SupplierShipmentDO::getDirectForwarderId).toList());
         Map<Long, PurchaseReceiptDO> receipts = new HashMap<>();
         if (!ids.isEmpty()) {
             receiptMapper.selectList(new LambdaQueryWrapper<PurchaseReceiptDO>()
@@ -140,6 +145,9 @@ public class ShipmentService {
             ShipmentListVO vo = new ShipmentListVO();
             vo.setId(s.getId());
             vo.setSdNo(s.getSdNo());
+            vo.setDirectForwarderId(s.getDirectForwarderId());
+            vo.setDirectForwarderName(s.getDirectForwarderId() == null ? null : forwarders.get(s.getDirectForwarderId()));
+            vo.setLogisticsId(s.getLogisticsId());
             vo.setPoId(s.getPoId());
             vo.setPoNo(p == null ? null : p.getPoNo());
             vo.setSupplierName(names.get(s.getPoId()));
@@ -185,7 +193,7 @@ public class ShipmentService {
         return x;
     }
 
-    Map<Long, List<SupplierShipmentItemDO>> itemsOf(List<Long> shipmentIds) {
+    public Map<Long, List<SupplierShipmentItemDO>> itemsOf(List<Long> shipmentIds) {
         if (shipmentIds.isEmpty()) {
             return Map.of();
         }
@@ -222,6 +230,7 @@ public class ShipmentService {
         vo.setSupplierName(support.counterparties(List.of(p)).get(p.getId()));
         if (s != null) {
             vo.setShipmentId(s.getId());
+            vo.setDirectForwarderId(s.getDirectForwarderId());
             vo.setCarrier(s.getCarrier());
             vo.setTrackingNo(s.getTrackingNo());
             vo.setShipDate(s.getShipDate());
@@ -269,9 +278,11 @@ public class ShipmentService {
         s.setStatus(WarehouseConstants.SHIP_IN_TRANSIT);
         s.setVoidReason("");
         fill(s, req);
+        direct(s, req);
         arrival(s, p, req);
         shipmentMapper.insert(s);
         String text = writeItems(s, p, req.getItems(), Map.of());
+        requireOneCustomer(s);
         attachments.attach(AttachmentService.SHIPMENT, s.getId(), req.getAttachmentIds());
         logs.add(p.getId(), "登记发货", s.getSdNo() + "：" + text + trackingText(s), currentUser.resolve());
         logService.recordOperateLog(WarehouseConstants.MENU_SHIPMENT, "登记发货", null,
@@ -290,7 +301,11 @@ public class ShipmentService {
         Map<Long, Integer> own = old.stream()
                 .collect(Collectors.toMap(SupplierShipmentItemDO::getPoItemId, SupplierShipmentItemDO::getQuantity, Integer::sum));
         String before = old.stream().map(i -> i.getModel() + " × " + i.getQuantity()).collect(Collectors.joining("、")) + trackingText(s);
+        if (s.getLogisticsId() != null && !java.util.Objects.equals(s.getDirectForwarderId(), req.getDirectForwarderId())) {
+            throw new BizException("直发货已放进出运单，不能改收货方");
+        }
         fill(s, req);
+        direct(s, req);
         arrival(s, p, req);
         shipmentMapper.updateById(s);
         old.forEach(i -> {
@@ -298,6 +313,7 @@ public class ShipmentService {
             shipmentItemMapper.updateById(i);
         });
         String after = writeItems(s, p, req.getItems(), own) + trackingText(s);
+        requireOneCustomer(s);
         attachments.sync(AttachmentService.SHIPMENT, id, req.getAttachmentIds());
         logs.add(p.getId(), "修改发货", s.getSdNo() + "：" + before + " → " + after, currentUser.resolve());
         logService.recordOperateLog(WarehouseConstants.MENU_SHIPMENT, "修改发货", Map.of("sdNo", s.getSdNo(), "items", before),
@@ -314,6 +330,9 @@ public class ShipmentService {
             throw new BizException("已入库的发货单不能作废，有问题请在到货差异里处理");
         }
         requireInTransit(s, "作废");
+        if (s.getLogisticsId() != null) {
+            throw new BizException("直发货已放进出运单，请先从出运单里移出");
+        }
         String why = reason.trim();
         s.setStatus(WarehouseConstants.SHIP_VOID);
         s.setVoidReason(why);
@@ -334,6 +353,33 @@ public class ShipmentService {
         } else {
             s.setExpectedArrivalDate(transitTimes.estimate(p, s.getCarrier(), s.getShipDate()).getDate());
         }
+    }
+
+    /** 直发货代：货代须是启用的服务商 */
+    private void direct(SupplierShipmentDO s, SaveShipmentRequest req) {
+        if (req.getDirectForwarderId() != null) {
+            logisticsSupport.requireForwarder(req.getDirectForwarderId());
+        }
+        s.setDirectForwarderId(req.getDirectForwarderId());
+    }
+
+    /** 直发货代的发货单只能是同一个客户的型号（出运单按客户组单） */
+    private void requireOneCustomer(SupplierShipmentDO s) {
+        if (s.getDirectForwarderId() == null) {
+            return;
+        }
+        List<Long> soItemIds = itemsOf(List.of(s.getId())).getOrDefault(s.getId(), List.of()).stream()
+                .map(SupplierShipmentItemDO::getSoItemId).distinct().toList();
+        if (directCustomers(soItemIds).size() > 1) {
+            throw new BizException("直发货代时只能选同一个客户的型号");
+        }
+    }
+
+    /** 订单型号行所属的客户 */
+    public java.util.Set<Long> directCustomers(List<Long> soItemIds) {
+        return logisticsSupport.orders(soItemIds.isEmpty() ? List.of() : soItemMapper.selectBatchIds(soItemIds).stream()
+                        .map(com.zhul.erp.modules.sales.entity.SalesOrderItemDO::getSoId).toList())
+                .values().stream().map(com.zhul.erp.modules.sales.entity.SalesOrderDO::getCustomerId).collect(java.util.stream.Collectors.toSet());
     }
 
     /** 登记发货时估算预计到货日期 */

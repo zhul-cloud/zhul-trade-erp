@@ -10,6 +10,11 @@ import java.util.List;
 public class ShipmentListVO {
     private Long id;
     private String sdNo;
+    /** 直发货代 */
+    private Long directForwarderId;
+    private String directForwarderName;
+    /** 直发货放进的出运单 */
+    private Long logisticsId;
     private Long poId;
     private String poNo;
     private String supplierName;

@@ -194,15 +194,19 @@ public class DocumentTemplateServiceImpl implements DocumentTemplateService {
     public TemplateFile previewExport(Long versionId, String format) {
         DocumentTemplateVersionDO v = visibleVersion(versionId);
         if (!DocTypes.GENERATABLE.contains(v.getDocType())) {
-            throw new BizException(DocTypes.NAMES.get(v.getDocType()) + " 的生成功能随发货模块上线，暂时只能下载模版查看");
+            throw new BizException(DocTypes.NAMES.get(v.getDocType()) + " 暂时不能生成预览，可以下载模版查看");
         }
         if (DocTypes.isText(v.getDocType())) {
             String text = TextTemplateEngine.render(v.getContent(), SampleData.quotation());
             return new TemplateFile("文字报价预览-V" + v.getVersionNo() + ".txt", "text/plain;charset=UTF-8",
                     text.getBytes(java.nio.charset.StandardCharsets.UTF_8));
         }
-        byte[] xlsx = v.getDocType() == DocTypes.PI ? XlsxRenderer.render(fileOf(v), DocTypes.PI, SampleData.pi())
-                : XlsxRenderer.render(fileOf(v), SampleData.quotation());
+        byte[] xlsx = switch (v.getDocType()) {
+            case DocTypes.PI -> XlsxRenderer.render(fileOf(v), DocTypes.PI, SampleData.pi());
+            case DocTypes.CI -> XlsxRenderer.render(fileOf(v), DocTypes.CI, SampleData.ci());
+            case DocTypes.PL -> XlsxRenderer.render(fileOf(v), DocTypes.PL, SampleData.pl());
+            default -> XlsxRenderer.render(fileOf(v), SampleData.quotation());
+        };
         if ("pdf".equalsIgnoreCase(format)) {
             return new TemplateFile(downloadName(v, "pdf").replace("模版", "预览"), "application/pdf", converter.toPdf(xlsx));
         }
@@ -225,10 +229,6 @@ public class DocumentTemplateServiceImpl implements DocumentTemplateService {
 
     private List<TemplateProblem> inspect(int docType, byte[] bytes) {
         try (XSSFWorkbook wb = new XSSFWorkbook(new ByteArrayInputStream(bytes))) {
-            if (docType != DocTypes.QUOTATION && docType != DocTypes.PI) {
-                // CI / PL 只做管理，占位符随发货模块定，这里只确认文件能打开
-                return List.of();
-            }
             return XlsxTemplateInspector.inspect(wb, docType, true).problems();
         } catch (IOException | RuntimeException e) {
             return List.of(new TemplateProblem("", "文件无法打开，请确认是有效的 Excel（xlsx）文件"));
@@ -236,9 +236,6 @@ public class DocumentTemplateServiceImpl implements DocumentTemplateService {
     }
 
     private static List<String> warnings(int docType, byte[] bytes) {
-        if (docType != DocTypes.QUOTATION && docType != DocTypes.PI) {
-            return List.of();
-        }
         try (XSSFWorkbook wb = new XSSFWorkbook(new ByteArrayInputStream(bytes))) {
             return XlsxTemplateInspector.hasPageNumber(wb) ? List.of()
                     : List.of("页眉页脚里没有页码，多页单据无法显示「第几页 / 共几页」，可在 Excel 页面设置里加上");

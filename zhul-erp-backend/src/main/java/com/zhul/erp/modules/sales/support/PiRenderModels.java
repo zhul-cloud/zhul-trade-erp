@@ -96,7 +96,7 @@ public final class PiRenderModels {
         return new RenderModel(h, rows, feeRows);
     }
 
-    private static void party(Map<String, Object> h, String prefix, PartyDTO p) {
+    public static void party(Map<String, Object> h, String prefix, PartyDTO p) {
         h.put(prefix + ".name", p == null ? "" : nz(p.getName()));
         h.put(prefix + ".address", p == null ? "" : address(p));
         h.put(prefix + ".country", p == null ? "" : nz(p.getCountry()));

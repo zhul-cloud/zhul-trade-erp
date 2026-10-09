@@ -15,6 +15,8 @@ public class SupplierVO {
     private String name;
     private String shortName;
     private Integer supplierType;
+    /** 体积系数（服务商） */
+    private Integer volumeDivisor;
     private Integer industry;
     private String creditCode;
     private String legalRepresentative;

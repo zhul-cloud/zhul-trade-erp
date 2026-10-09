@@ -8,7 +8,7 @@ import java.time.LocalDateTime;
 @Data
 public class AttachmentVO {
     private Long id;
-    /** 1-图片、2-视频 */
+    /** 1-图片、2-视频、3-文件（PDF 面单） */
     private Integer kind;
     private String fileName;
     private Long fileSize;
