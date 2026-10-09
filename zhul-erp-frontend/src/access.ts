@@ -52,9 +52,28 @@ export default function access(initialState: {
     // 销售管理
     salesMenu: any('/sales/pi', '/sales/orders'),
     // 采购单
-    purchaseMenu: any('/purchase/requirements', '/purchase/orders'),
+    purchaseMenu: any(
+      '/purchase/requirements',
+      '/purchase/orders',
+      '/purchase/shipments',
+    ),
     purchaseRequirements: can('/purchase/requirements'),
     purchaseOrders: can('/purchase/orders'),
+    purchaseShipments: can('/purchase/shipments'),
+    'purchase:shipment:create': can('purchase:shipment:create'),
+    'purchase:discrepancy:handle': can('purchase:discrepancy:handle'),
+    // 仓库管理
+    warehouseMenu: any(
+      '/warehouse/receipts',
+      '/warehouse/holds',
+      '/warehouse/shoots',
+    ),
+    warehouseReceipts: can('/warehouse/receipts'),
+    warehouseHolds: can('/warehouse/holds'),
+    warehouseShoots: can('/warehouse/shoots'),
+    'warehouse:receipt:create': can('warehouse:receipt:create'),
+    'warehouse:hold:handle': can('warehouse:hold:handle'),
+    'warehouse:shoot:edit': can('warehouse:shoot:edit'),
     'purchase:requirement:split': can('purchase:requirement:split'),
     'purchase:requirement:assign': can('purchase:requirement:assign'),
     'purchase:order:create': can('purchase:order:create'),

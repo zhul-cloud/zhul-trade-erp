@@ -207,6 +207,35 @@ export interface PoItem {
   bargainAmount?: number | null;
   bargainRate?: number | null;
   orderCancelled: boolean;
+  /** 已发数量（少发、退回的不算） */
+  shippedQty: number;
+  /** 合格入库数量（含折价接收） */
+  receivedQty: number;
+  unshippedQty: number;
+}
+
+export interface PoShipmentRef {
+  id: number;
+  sdNo: string;
+  shipDate?: string;
+  carrier?: string;
+  trackingNo?: string;
+  totalQuantity: number;
+  source: number;
+  sourceName: string;
+  status: number;
+  statusName: string;
+}
+
+export interface PoReceiptRef {
+  id: number;
+  grNo: string;
+  receivedDate?: string;
+  sdNo?: string;
+  qualifiedQty: number;
+  defectiveQty: number;
+  status: number;
+  statusName: string;
 }
 
 export interface PurchaseOrder {
@@ -262,6 +291,10 @@ export interface PurchaseOrder {
     operatorName?: string;
     createTime: string;
   }[];
+  shipments: PoShipmentRef[];
+  receipts: PoReceiptRef[];
+  /** 有在途或已入库的发货单：不能取消 */
+  hasShipments: boolean;
 }
 
 export interface SavePoBody {

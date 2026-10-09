@@ -381,7 +381,21 @@ const OrderDetail: React.FC = () => {
         ) : (
           <div>
             <div style={{ color: palette.ink }}>
-              已下单 {r.purchaseOrderedQty ?? 0} / {r.quantity}
+              已下单 {r.purchaseOrderedQty ?? 0}
+              {(r.purchaseReceivedQty ?? 0) > 0 && (
+                <span
+                  style={{
+                    color:
+                      (r.purchaseReceivedQty ?? 0) >= r.quantity
+                        ? palette.green
+                        : palette.ink,
+                  }}
+                >
+                  {' '}
+                  · 已入库 {r.purchaseReceivedQty}
+                </span>
+              )}{' '}
+              / {r.quantity}
             </div>
             <div
               style={{

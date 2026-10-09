@@ -1,5 +1,6 @@
 import {
   CalendarOutlined,
+  CarOutlined,
   CheckOutlined,
   DeleteOutlined,
   FallOutlined,
@@ -33,6 +34,13 @@ import dayjs, { type Dayjs } from 'dayjs';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { CURRENCIES } from '@/pages/quotation/components';
+import {
+  ReasonModal,
+  ReceiptStatusPill,
+  ShipStatusPill,
+  trackingText,
+} from '@/pages/warehouse/components';
+import { shipmentApi } from '@/pages/warehouse/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
 import {
@@ -61,11 +69,14 @@ import {
   type CounterpartyValue,
   type PaymentTerm,
   type PoItem,
+  type PoReceiptRef,
+  type PoShipmentRef,
   type PurchaseOrder,
   poApi,
   readBizError,
   type SavePoBody,
 } from '../service';
+import ShipmentDrawer from '../shipments/ShipmentDrawer';
 
 interface Draft {
   currencyCode: string;
@@ -147,6 +158,7 @@ const PurchaseOrderDetail: React.FC = () => {
   const access = useAccess();
   const canEdit = !!access['purchase:order:create'];
   const canCancel = !!access['purchase:order:cancel'];
+  const canShip = !!access['purchase:shipment:create'];
   const [po, setPo] = useState<PurchaseOrder>();
   const [error, setError] = useState<string>();
   const [draft, setDraft] = useState<Draft>();
@@ -156,6 +168,9 @@ const PurchaseOrderDetail: React.FC = () => {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [moveOpen, setMoveOpen] = useState(false);
+  /** 登记发货：0；修改发货单：发货单 ID */
+  const [shipping, setShipping] = useState<number>();
+  const [voiding, setVoiding] = useState<PoShipmentRef>();
 
   const apply = useCallback((p: PurchaseOrder) => {
     setPo(p);
@@ -177,6 +192,8 @@ const PurchaseOrderDetail: React.FC = () => {
   useEffect(() => {
     load();
   }, [load]);
+
+  const closeShipping = useCallback(() => setShipping(undefined), []);
 
   const isDraft = po?.status === PO_STATUS.DRAFT;
   const editable =
@@ -368,7 +385,7 @@ const PurchaseOrderDetail: React.FC = () => {
         editable ? (
           <div>
             <InputNumber
-              min={1}
+              min={Math.max(1, r.shippedQty)}
               max={r.maxQuantity}
               precision={0}
               value={draft.items[r.id]?.quantity}
@@ -376,12 +393,47 @@ const PurchaseOrderDetail: React.FC = () => {
               style={{ width: 80 }}
               aria-label={`${r.model} 数量`}
             />
-            {sub(palette.mute, `最多 ${r.maxQuantity}`)}
+            {sub(
+              palette.mute,
+              r.shippedQty > 0
+                ? `${r.shippedQty} – ${r.maxQuantity}`
+                : `最多 ${r.maxQuantity}`,
+            )}
           </div>
         ) : (
           v
         ),
     },
+    ...(isDraft
+      ? []
+      : [
+          {
+            title: '已发',
+            dataIndex: 'shippedQty',
+            width: 80,
+            render: (v: number, r: PoItem) => (
+              <span
+                style={{ color: v >= r.quantity ? palette.ink : palette.sub }}
+              >
+                {v}
+              </span>
+            ),
+          },
+          {
+            title: '已入库（合格）',
+            dataIndex: 'receivedQty',
+            width: 120,
+            render: (v: number, r: PoItem) => (
+              <span
+                style={{
+                  color: v >= r.quantity && v > 0 ? palette.green : palette.sub,
+                }}
+              >
+                {v}
+              </span>
+            ),
+          },
+        ]),
     {
       title: '目标价',
       dataIndex: 'targetPrice',
@@ -547,13 +599,32 @@ const PurchaseOrderDetail: React.FC = () => {
             {po.status === PO_STATUS.ORDERED && canCancel && !editing && (
               <Button
                 icon={<StopOutlined />}
-                onClick={() => setCancelOpen(true)}
+                onClick={() =>
+                  po.hasShipments
+                    ? message.warning('已有发货，请在到货差异里处理少发或退货')
+                    : setCancelOpen(true)
+                }
               >
                 取消采购单
               </Button>
             )}
             {po.status === PO_STATUS.ORDERED && canEdit && !editing && (
               <Button onClick={() => setEditing(true)}>修改</Button>
+            )}
+            {po.status === PO_STATUS.ORDERED && canShip && !editing && (
+              <Button
+                type="primary"
+                icon={<CarOutlined />}
+                disabled={po.items.every((i) => i.unshippedQty <= 0)}
+                title={
+                  po.items.every((i) => i.unshippedQty <= 0)
+                    ? '所有型号都已发完'
+                    : undefined
+                }
+                onClick={() => setShipping(0)}
+              >
+                登记发货
+              </Button>
             )}
             {po.status === PO_STATUS.ORDERED && editing && (
               <Button
@@ -919,6 +990,15 @@ const PurchaseOrderDetail: React.FC = () => {
         </div>
       </Card>
 
+      {!isDraft && (
+        <ShipmentsCard
+          po={po}
+          canShip={canShip}
+          onEdit={(id) => setShipping(id)}
+          onVoid={setVoiding}
+        />
+      )}
+
       <div
         style={{
           display: 'grid',
@@ -1026,6 +1106,36 @@ const PurchaseOrderDetail: React.FC = () => {
           }
         }}
       />
+      <ShipmentDrawer
+        open={shipping !== undefined}
+        poId={poId}
+        shipmentId={shipping || undefined}
+        onClose={closeShipping}
+        onSaved={() => {
+          setShipping(undefined);
+          load();
+        }}
+      />
+      <ReasonModal
+        open={!!voiding}
+        title={`作废发货单 ${voiding?.sdNo ?? ''}`}
+        description="作废后这批数量回到未发；已入库的发货单不能作废。"
+        placeholder="如：供应商发错单号、重复登记"
+        okText="作废"
+        danger
+        onCancel={() => setVoiding(undefined)}
+        onOk={async (reason) => {
+          if (!voiding) return;
+          try {
+            await shipmentApi.void(voiding.id, reason);
+            setVoiding(undefined);
+            message.success('发货单已作废');
+            load();
+          } catch (e) {
+            message.error(readBizError(e).message);
+          }
+        }}
+      />
       <MoveModal
         open={moveOpen}
         count={picked.length}
@@ -1046,6 +1156,144 @@ const PurchaseOrderDetail: React.FC = () => {
         }}
       />
     </div>
+  );
+};
+
+// ---------------------------------------------------------------- 发货与入库
+
+type FlowRow =
+  | { kind: 'ship'; key: string; ref: PoShipmentRef }
+  | { kind: 'receipt'; key: string; ref: PoReceiptRef };
+
+const ShipmentsCard: React.FC<{
+  po: PurchaseOrder;
+  canShip: boolean;
+  onEdit: (shipmentId: number) => void;
+  onVoid: (s: PoShipmentRef) => void;
+}> = ({ po, canShip, onEdit, onVoid }) => {
+  const { palette } = useAppTheme();
+  const rows: FlowRow[] = [
+    ...po.shipments.map((ref) => ({
+      kind: 'ship' as const,
+      key: `s${ref.id}`,
+      ref,
+    })),
+    ...po.receipts.map((ref) => ({
+      kind: 'receipt' as const,
+      key: `r${ref.id}`,
+      ref,
+    })),
+  ].sort((a, b) => {
+    const da = a.kind === 'ship' ? a.ref.shipDate : a.ref.receivedDate;
+    const db = b.kind === 'ship' ? b.ref.shipDate : b.ref.receivedDate;
+    return (db ?? '').localeCompare(da ?? '') || b.key.localeCompare(a.key);
+  });
+  const columns: TableColumnsType<FlowRow> = [
+    {
+      title: '单据',
+      key: 'no',
+      width: 170,
+      render: (_, r) => (
+        <b style={{ color: palette.ink }}>
+          {r.kind === 'ship' ? r.ref.sdNo : r.ref.grNo}
+        </b>
+      ),
+    },
+    {
+      title: '类型',
+      key: 'kind',
+      width: 120,
+      render: (_, r) =>
+        r.kind === 'ship' ? (
+          <Pill tone="accent">{r.ref.sourceName}</Pill>
+        ) : (
+          <Pill tone="violet">采购入库</Pill>
+        ),
+    },
+    {
+      title: '快递 · 单号',
+      key: 'tracking',
+      width: 220,
+      render: (_, r) =>
+        r.kind === 'ship'
+          ? trackingText(r.ref.carrier, r.ref.trackingNo)
+          : sub(palette.mute, `对应 ${r.ref.sdNo ?? ''}`),
+    },
+    {
+      title: '日期',
+      key: 'date',
+      width: 120,
+      render: (_, r) =>
+        (r.kind === 'ship' ? r.ref.shipDate : r.ref.receivedDate) ?? '—',
+    },
+    {
+      title: '数量',
+      key: 'qty',
+      width: 180,
+      render: (_, r) =>
+        r.kind === 'ship'
+          ? `发货 ${r.ref.totalQuantity}`
+          : `合格 ${r.ref.qualifiedQty}${r.ref.defectiveQty ? ` · 不良 ${r.ref.defectiveQty}` : ''}`,
+    },
+    {
+      title: '状态',
+      key: 'status',
+      width: 100,
+      render: (_, r) =>
+        r.kind === 'ship' ? (
+          <ShipStatusPill value={r.ref.status}>
+            {r.ref.statusName}
+          </ShipStatusPill>
+        ) : (
+          <ReceiptStatusPill value={r.ref.status}>
+            {r.ref.statusName}
+          </ReceiptStatusPill>
+        ),
+    },
+    {
+      title: '操作',
+      key: 'actions',
+      width: 120,
+      render: (_, r) =>
+        r.kind === 'ship' && r.ref.status === 1 && canShip ? (
+          <Space size={12}>
+            <a onClick={() => onEdit(r.ref.id)}>修改</a>
+            <a style={{ color: palette.red }} onClick={() => onVoid(r.ref)}>
+              作废
+            </a>
+          </Space>
+        ) : null,
+    },
+  ];
+  return (
+    <Card style={{ marginBottom: 16, padding: 20 }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10,
+          marginBottom: 12,
+          flexWrap: 'wrap',
+        }}
+      >
+        <b style={{ color: palette.ink, fontSize: 15 }}>
+          <CarOutlined /> 发货与入库
+        </b>
+        <span style={{ flex: 1 }} />
+        <span style={{ fontSize: 12, color: palette.mute }}>
+          有发货后不能直接取消采购单，少发、退货在到货差异里处理
+        </span>
+      </div>
+      <Table<FlowRow>
+        rowKey="key"
+        size="middle"
+        columns={columns}
+        dataSource={rows}
+        pagination={false}
+        scroll={{ x: 1000 }}
+        locale={{ emptyText: '供应商还没发货；发货后点右上角「登记发货」' }}
+      />
+    </Card>
   );
 };
 

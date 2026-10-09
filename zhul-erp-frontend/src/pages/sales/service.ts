@@ -453,9 +453,11 @@ export interface OrderItem extends PiItem {
   purchaserName?: string | null;
   /** 负责采购的人（来自采购需求，拆分给多人时都在） */
   purchaserNames?: string[];
-  /** 有采购需求：「待采购 / 已下单」由采购单推进 */
+  /** 有采购需求：「待采购 / 已下单 / 已入库」由采购与入库推进 */
   purchaseTracked?: boolean;
   purchaseOrderedQty?: number;
+  /** 合格入库数量（含折价接收） */
+  purchaseReceivedQty?: number;
   purchaseDraftQty?: number;
   purchaseOrders?: { id: number; poNo?: string; status: number }[];
 }

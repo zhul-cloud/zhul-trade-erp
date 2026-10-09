@@ -349,6 +349,43 @@ export default [
         access: 'purchaseOrders',
         component: './purchase/orders/detail',
       },
+      {
+        path: '/purchase/shipments',
+        name: 'shipments',
+        icon: 'carryOut',
+        access: 'purchaseShipments',
+        component: './purchase/shipments',
+      },
+    ],
+  },
+  {
+    path: '/warehouse',
+    name: 'warehouse',
+    icon: 'inbox',
+    access: 'warehouseMenu',
+    routes: [
+      { path: '/warehouse', redirect: '/warehouse/receipts' },
+      {
+        path: '/warehouse/receipts',
+        name: 'receipts',
+        icon: 'import',
+        access: 'warehouseReceipts',
+        component: './warehouse/receipts',
+      },
+      {
+        path: '/warehouse/holds',
+        name: 'holds',
+        icon: 'database',
+        access: 'warehouseHolds',
+        component: './warehouse/holds',
+      },
+      {
+        path: '/warehouse/shoots',
+        name: 'shoots',
+        icon: 'camera',
+        access: 'warehouseShoots',
+        component: './warehouse/shoots',
+      },
     ],
   },
   {
