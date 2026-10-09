@@ -102,6 +102,9 @@ const OrderDetail: React.FC = () => {
   const active = o.status === 1;
   const manual = o.source === 2;
   const completed = o.progressCode === 'COMPLETED';
+  const orderedModels = o.items.filter(
+    (i) => (i.purchaseOrderedQty ?? 0) > 0,
+  ).length;
   const canProgress = access['sales:order:progress'];
 
   const done = (next: Order) => {
@@ -363,8 +366,51 @@ const OrderDetail: React.FC = () => {
       title: '采购员',
       dataIndex: 'purchaserName',
       width: 110,
-      render: (v?: string | null) =>
-        v ?? <span style={{ color: palette.orange }}>未指定</span>,
+      render: (v: string | null | undefined, r) =>
+        r.purchaserNames?.length
+          ? r.purchaserNames.join('、')
+          : (v ?? <span style={{ color: palette.orange }}>未指定</span>),
+    },
+    {
+      title: '采购进度',
+      key: 'purchase',
+      width: 200,
+      render: (_, r) =>
+        !r.purchaseTracked ? (
+          <span style={{ fontSize: 12, color: palette.mute }}>系统外采购</span>
+        ) : (
+          <div>
+            <div style={{ color: palette.ink }}>
+              已下单 {r.purchaseOrderedQty ?? 0} / {r.quantity}
+            </div>
+            <div
+              style={{
+                fontSize: 12,
+                display: 'flex',
+                gap: 6,
+                flexWrap: 'wrap',
+              }}
+            >
+              {(r.purchaseOrders ?? []).map((p) => (
+                <a
+                  key={p.id}
+                  onClick={() => history.push(`/purchase/orders/${p.id}`)}
+                >
+                  {p.poNo ?? '草稿采购单'}
+                </a>
+              ))}
+              {(r.purchaseOrders ?? []).length === 0 && (
+                <span style={{ color: palette.mute }}>还没有下采购单</span>
+              )}
+              {(r.purchaseOrderedQty ?? 0) < r.quantity &&
+                (r.purchaseOrderedQty ?? 0) > 0 && (
+                  <span style={{ color: palette.orange }}>
+                    · {r.quantity - (r.purchaseOrderedQty ?? 0)} 个待下单
+                  </span>
+                )}
+            </div>
+          </div>
+        ),
     },
     {
       title: '进度',
@@ -1044,28 +1090,37 @@ const OrderDetail: React.FC = () => {
         open={cancelOpen}
         title={`取消订单 ${o.soNo}？`}
         description={
-          manual ? (
-            <>
-              取消后订单不能再登记收款。
-              {(o.receivedAmount ?? 0) > 0 && (
-                <div style={{ marginTop: 8, color: palette.orange }}>
-                  已到账 {formatAmount(o.receivedAmount ?? 0, cur)}{' '}
-                  会保留在已取消的订单上。
-                </div>
-              )}
-            </>
-          ) : (
-            <>
-              取消后 PI {o.piNo}{' '}
-              回到「已发送」并解锁，可以出新版本后重新转成订单；来源报价单与客户询盘的成交状态按剩余有效订单重新计算。
-              {(o.receivedAmount ?? 0) > 0 && (
-                <div style={{ marginTop: 8, color: palette.orange }}>
-                  已到账 {formatAmount(o.receivedAmount ?? 0, cur)} 会保留在 PI
-                  上，重新转出的订单继续显示。
-                </div>
-              )}
-            </>
-          )
+          <>
+            {orderedModels > 0 && (
+              <div style={{ marginBottom: 8, color: palette.orange }}>
+                {orderedModels}{' '}
+                个型号已向供应商下单，取消后请采购员处理对应采购单；同一张 PI
+                重新转出的订单会自动接回这些已下单的数量。
+              </div>
+            )}
+            {manual ? (
+              <>
+                取消后订单不能再登记收款。
+                {(o.receivedAmount ?? 0) > 0 && (
+                  <div style={{ marginTop: 8, color: palette.orange }}>
+                    已到账 {formatAmount(o.receivedAmount ?? 0, cur)}{' '}
+                    会保留在已取消的订单上。
+                  </div>
+                )}
+              </>
+            ) : (
+              <>
+                取消后 PI {o.piNo}{' '}
+                回到「已发送」并解锁，可以出新版本后重新转成订单；来源报价单与客户询盘的成交状态按剩余有效订单重新计算。
+                {(o.receivedAmount ?? 0) > 0 && (
+                  <div style={{ marginTop: 8, color: palette.orange }}>
+                    已到账 {formatAmount(o.receivedAmount ?? 0, cur)} 会保留在
+                    PI 上，重新转出的订单继续显示。
+                  </div>
+                )}
+              </>
+            )}
+          </>
         }
         placeholder="如 客户追加型号"
         okText="取消订单"

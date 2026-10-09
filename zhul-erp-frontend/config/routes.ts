@@ -322,6 +322,36 @@ export default [
     ],
   },
   {
+    path: '/purchase',
+    name: 'purchase',
+    icon: 'shoppingCart',
+    // 父路由也要挂 access，理由同 /inquiry
+    access: 'purchaseMenu',
+    routes: [
+      { path: '/purchase', redirect: '/purchase/requirements' },
+      {
+        path: '/purchase/requirements',
+        name: 'requirements',
+        icon: 'unorderedList',
+        access: 'purchaseRequirements',
+        component: './purchase/requirements',
+      },
+      {
+        path: '/purchase/orders',
+        name: 'orders',
+        icon: 'shopping',
+        access: 'purchaseOrders',
+        component: './purchase/orders',
+      },
+      {
+        path: '/purchase/orders/:id',
+        hideInMenu: true,
+        access: 'purchaseOrders',
+        component: './purchase/orders/detail',
+      },
+    ],
+  },
+  {
     path: '/finance',
     name: 'finance',
     icon: 'wallet',

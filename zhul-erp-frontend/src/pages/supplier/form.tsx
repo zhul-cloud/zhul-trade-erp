@@ -24,6 +24,9 @@ import {
 import dayjs, { type Dayjs } from 'dayjs';
 import React, { useEffect, useState } from 'react';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
+import { termsTotal } from '@/pages/purchase/calc';
+import { PaymentTermsEditor } from '@/pages/purchase/components';
+import type { PaymentTerm } from '@/pages/purchase/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatDateTime } from '@/utils/format';
 import {
@@ -92,6 +95,7 @@ const FIELD_LABELS: Record<string, string> = {
   address: '详细地址',
   wechat: '微信',
   remark: '备注',
+  paymentTerms: '默认付款条件',
 };
 
 const toFormState = (s: SupplierItem): FormState => ({
@@ -115,6 +119,7 @@ const toFormState = (s: SupplierItem): FormState => ({
   region: s.region ? s.region.split('/') : undefined,
   address: s.address,
   remark: s.remark,
+  paymentTerms: s.paymentTerms ?? [],
   productScopes: toScopeRows(s.productScopes),
   accounts: toAccountRows(s.accounts),
   attachments: toAttachmentRows(s.attachments),
@@ -142,6 +147,7 @@ const toPayload = (v: FormState): SupplierFormValues => ({
   region: v.region?.length ? v.region.join('/') : '',
   address: text(v.address),
   remark: text(v.remark),
+  paymentTerms: v.paymentTerms ?? [],
   productScopes: toScopePayload(v.productScopes),
   accounts: toAccountPayload(v.accounts),
   attachments: toAttachmentPayload(v.attachments),
@@ -537,6 +543,22 @@ const SupplierFormPage: React.FC = () => {
           <SectionCard icon={<WalletOutlined />} title="结算信息">
             <Form.Item name="accounts" noStyle>
               <AccountListEditor supplierName={supplierName ?? ''} />
+            </Form.Item>
+            <Form.Item
+              name="paymentTerms"
+              label="默认付款条件"
+              style={{ marginTop: 20, marginBottom: 0 }}
+              extra="选填；新建采购单时带出，修改不影响已有采购单"
+              rules={[
+                {
+                  validator: (_, v?: PaymentTerm[]) =>
+                    !v || v.length < 2 || termsTotal(v) === 100
+                      ? Promise.resolve()
+                      : Promise.reject(new Error('各期比例合计须为 100%')),
+                },
+              ]}
+            >
+              <PaymentTermsEditor />
             </Form.Item>
             <div style={{ ...grid, marginTop: 20 }}>
               <Form.Item

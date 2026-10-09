@@ -1,4 +1,5 @@
 import { request } from '@umijs/max';
+import type { PaymentTerm } from '@/pages/purchase/service';
 
 /** 一个主营品牌：正式品牌或待确认品牌；categories 为空表示该品牌全部品类 */
 export interface SupplierProductScope {
@@ -67,6 +68,9 @@ export interface SupplierItem {
   /** 列表里为空，详情与编辑取数才有 */
   attachments: SupplierAttachment[];
   productScopes: SupplierProductScope[];
+  /** 默认付款条件，新建采购单时带出；未设置为空 */
+  paymentTerms?: PaymentTerm[];
+  paymentTermsText?: string;
   remark: string;
   status: number;
   createTime: string;
@@ -103,6 +107,7 @@ export interface SupplierFormValues {
   region?: string;
   address?: string;
   remark?: string;
+  paymentTerms: PaymentTerm[];
   /** 带 id 为更新已有账户；payeeIdNo 不传表示沿用原值、空串表示清空 */
   accounts: {
     id?: number;

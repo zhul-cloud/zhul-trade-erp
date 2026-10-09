@@ -195,6 +195,12 @@ const SupplierDetailPage: React.FC = () => {
           ) : (
             <span style={{ color: palette.mute }}>未添加收款账户</span>
           )}
+          <div style={{ marginTop: 14, color: palette.sub }}>
+            默认付款条件：
+            {record.paymentTermsText || (
+              <span style={{ color: palette.mute }}>未设置</span>
+            )}
+          </div>
         </SectionCard>
 
         <SectionCard icon={<AppstoreOutlined />} title="主营产品">

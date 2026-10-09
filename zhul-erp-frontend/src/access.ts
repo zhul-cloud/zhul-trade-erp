@@ -51,6 +51,14 @@ export default function access(initialState: {
     'quotation:pricing:edit': can('quotation:pricing:edit'),
     // 销售管理
     salesMenu: any('/sales/pi', '/sales/orders'),
+    // 采购单
+    purchaseMenu: any('/purchase/requirements', '/purchase/orders'),
+    purchaseRequirements: can('/purchase/requirements'),
+    purchaseOrders: can('/purchase/orders'),
+    'purchase:requirement:split': can('purchase:requirement:split'),
+    'purchase:requirement:assign': can('purchase:requirement:assign'),
+    'purchase:order:create': can('purchase:order:create'),
+    'purchase:order:cancel': can('purchase:order:cancel'),
     // 财务管理
     financeMenu: any('/finance/receipts'),
     financeReceipts: can('/finance/receipts'),

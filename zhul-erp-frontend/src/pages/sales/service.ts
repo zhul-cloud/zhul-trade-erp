@@ -451,6 +451,13 @@ export interface OrderItem extends PiItem {
   progressName: string;
   purchaserId?: number | null;
   purchaserName?: string | null;
+  /** 负责采购的人（来自采购需求，拆分给多人时都在） */
+  purchaserNames?: string[];
+  /** 有采购需求：「待采购 / 已下单」由采购单推进 */
+  purchaseTracked?: boolean;
+  purchaseOrderedQty?: number;
+  purchaseDraftQty?: number;
+  purchaseOrders?: { id: number; poNo?: string; status: number }[];
 }
 
 export interface OrderStep {
