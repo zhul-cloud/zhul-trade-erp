@@ -60,18 +60,33 @@ class NavigationContractTest extends InquiryContractSupport {
         assertEquals(List.of("历史询价"), sales.get("采购管理"));
         assertEquals(200, perform(json(post("/api/v1/inquiry/customer-inquiries/page"), "{}"), token("it_nav_sales")).getStatus(), "调整后仍能访问");
 
-        loginWithResources("it_nav_buyer", 100055, 100056, 100087, 100088, 100062);
-        assertEquals(Map.of("采购管理", List.of("我的询价", "历史询价", "采购需求", "采购单", "供应商")), sidebar(token("it_nav_buyer")));
+        loginWithResources("it_nav_buyer", 100055, 100056, 100087, 100088, 100089, 100062);
+        assertEquals(Map.of("采购管理", List.of("我的询价", "历史询价", "采购需求", "采购单", "供应商发货", "供应商")), sidebar(token("it_nav_buyer")));
+    }
+
+    @Test
+    void builtInWarehouseRoleSeesOnlyWorkbenchAndWarehouse() throws Exception {
+        jdbc.update("insert into user_basic (id, tenant_id, name, username, role_code, status) values (99000042, 0, '仓库', 'it_nav_wh', 'ROLE_WH', 1)");
+        jdbc.update("insert into account (id, tenant_id, user_id, username, admin_flag) values (99000042, 0, 99000042, 'it_nav_wh', 0)");
+        try {
+            Map<String, List<String>> wh = sidebar(token("it_nav_wh"));
+            assertEquals(List.of("工作台", "仓库管理"), new ArrayList<>(wh.keySet()));
+            assertEquals(List.of("入库验收", "暂存货", "拍摄任务"), wh.get("仓库管理"));
+        } finally {
+            jdbc.update("delete from account where id = 99000042");
+            jdbc.update("delete from user_basic where id = 99000042");
+        }
     }
 
     @Test
     void adminSeesDepartmentGroupsWithoutPlaceholders() throws Exception {
         loginAsAdmin("it_nav_admin");
         Map<String, List<String>> all = sidebar(token("it_nav_admin"));
-        assertEquals(List.of("工作台", "业务管理", "采购管理", "财务管理", "商品资料", "业务设置", "系统管理", "租户管理"),
+        assertEquals(List.of("工作台", "业务管理", "采购管理", "仓库管理", "财务管理", "商品资料", "业务设置", "系统管理", "租户管理"),
                 new ArrayList<>(all.keySet()));
         assertEquals(List.of("商机", "客户", "客户询盘", "报价单", "PI", "销售订单"), all.get("业务管理"), "商机统计从侧边栏隐藏");
-        assertEquals(List.of("兼职看板", "询价分配", "我的询价", "历史询价", "采购需求", "采购单", "供应商"), all.get("采购管理"));
+        assertEquals(List.of("兼职看板", "询价分配", "我的询价", "历史询价", "采购需求", "采购单", "供应商发货", "供应商"), all.get("采购管理"));
+        assertEquals(List.of("入库验收", "暂存货", "拍摄任务"), all.get("仓库管理"));
         assertEquals(List.of("收款管理"), all.get("财务管理"));
         assertEquals(List.of("定价策略", "汇率", "收款账户", "单据模版", "单据编号"), all.get("业务设置"));
         assertEquals(List.of("用户", "角色", "部门", "岗位", "菜单", "字典", "系统设置", "操作日志", "登录日志"), all.get("系统管理"));

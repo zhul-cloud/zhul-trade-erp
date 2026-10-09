@@ -52,6 +52,7 @@ import com.zhul.erp.modules.system.constants.DocumentType;
 import com.zhul.erp.modules.system.service.DocumentNumberService;
 import com.zhul.erp.modules.system.service.ExchangeRateService;
 import com.zhul.erp.modules.system.service.LogService;
+import com.zhul.erp.modules.warehouse.constants.WarehouseConstants;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -108,6 +109,8 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
     private final LogService logService;
     private final com.zhul.erp.modules.purchase.support.RequirementTouch touch;
     private final com.zhul.erp.modules.masterdata.service.SupplierService supplierService;
+    private final com.zhul.erp.modules.warehouse.support.ReceivingQty receivingQty;
+    private final com.zhul.erp.modules.warehouse.support.PurchaseReceivingLinks receivingLinks;
 
     // ---------------------------------------------------------------- 列表与统计
 
@@ -288,6 +291,9 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
             soMapper.selectBatchIds(soIds).forEach(o -> orders.put(o.getId(), o));
         }
         Map<Long, CustomerDO> customers = lookups.customers(orders.values().stream().map(SalesOrderDO::getCustomerId).toList());
+        List<Long> lineIds = lines.stream().map(PurchaseOrderItemDO::getId).toList();
+        Map<Long, Integer> shipped = receivingQty.shippedByPoItem(lineIds);
+        Map<Long, Integer> received = receivingQty.qualifiedByPoItem(lineIds);
         List<PurchaseOrderAttachmentDO> files = attachmentMapper.selectList(new LambdaQueryWrapper<PurchaseOrderAttachmentDO>()
                 .eq(PurchaseOrderAttachmentDO::getPoId, id)
                 .isNull(PurchaseOrderAttachmentDO::getDeletedAt)
@@ -364,6 +370,9 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
             x.setBargainAmount(i.getBargainAmount());
             x.setBargainRate(PurchaseCalc.rate(i.getBargainAmount(), PurchaseCalc.targetAmount(i.getTargetPrice(), i.getQuantity())));
             x.setOrderCancelled(r != null && r.getStatus() == PurchaseConstants.REQ_ORDER_CANCELLED);
+            x.setShippedQty(shipped.getOrDefault(i.getId(), 0));
+            x.setReceivedQty(received.getOrDefault(i.getId(), 0));
+            x.setUnshippedQty(Math.max(0, i.getQuantity() - x.getShippedQty()));
             return x;
         }).toList());
         vo.setFees(drafts.fees(id).stream().map(f -> {
@@ -391,6 +400,9 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
             x.setCreateTime(l.getCreateTime());
             return x;
         }).toList());
+        vo.setShipments(receivingLinks.shipments(id));
+        vo.setReceipts(receivingLinks.receipts(id));
+        vo.setHasShipments(vo.getShipments().stream().anyMatch(s -> s.getStatus() != WarehouseConstants.SHIP_VOID));
         return vo;
     }
 
@@ -443,6 +455,7 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
         Map<Long, PurchaseRequirementDO> reqs = reqIds.isEmpty() ? Map.of()
                 : requirementMapper.selectBatchIds(reqIds).stream().collect(Collectors.toMap(PurchaseRequirementDO::getId, r -> r));
         Map<Long, RequirementQty.Qty> q = qty.byRequirement(reqIds);
+        Map<Long, Integer> shipped = receivingQty.shippedByPoItem(lines.stream().map(PurchaseOrderItemDO::getId).toList());
         List<Long> qtyChanged = new ArrayList<>();
         for (PurchaseOrderItemDO i : lines) {
             SavePurchaseOrderRequest.Line l = wanted.get(i.getId());
@@ -455,6 +468,10 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
                 int max = available + i.getQuantity();
                 if (newQty > max) {
                     throw new BizException(i.getModel() + " 最多 " + max + " 个");
+                }
+                int sent = shipped.getOrDefault(i.getId(), 0);
+                if (newQty < sent) {
+                    throw new BizException(i.getModel() + " 已发 " + sent + " 个，数量不能小于 " + sent);
                 }
                 changes.add(i.getModel() + " 数量 " + i.getQuantity() + " → " + newQty);
                 i.setQuantity(newQty);
@@ -721,6 +738,9 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
         PurchaseOrderDO p = lockVisible(id);
         if (p.getStatus() != PurchaseConstants.PO_ORDERED) {
             throw new BizException(p.getStatus() == PurchaseConstants.PO_DRAFT ? "草稿不用取消，可以直接删除" : "采购单已取消");
+        }
+        if (receivingLinks.hasShipments(id)) {
+            throw new BizException("已有发货，请在到货差异里处理少发或退货");
         }
         String why = req.getReason().trim();
         p.setStatus(PurchaseConstants.PO_CANCELLED);

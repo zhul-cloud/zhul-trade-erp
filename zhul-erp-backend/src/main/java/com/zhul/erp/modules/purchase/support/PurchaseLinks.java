@@ -31,12 +31,13 @@ public class PurchaseLinks {
     private final PurchaseOrderItemMapper itemMapper;
     private final PurchaseOrderMapper orderMapper;
     private final RequirementQty qty;
+    private final com.zhul.erp.modules.warehouse.support.ReceivingQty receivingQty;
 
     public record PoRef(Long id, String poNo, Integer status) {
     }
 
-    /** tracked：有采购需求（存量中进度已过「待采购」的型号没有） */
-    public record ItemPurchase(boolean tracked, Set<Long> purchaserIds, int ordered, int draft, List<PoRef> orders) {
+    /** tracked：有采购需求（存量中进度已过「待采购」的型号没有）；received：合格入库数量（含折价接收） */
+    public record ItemPurchase(boolean tracked, Set<Long> purchaserIds, int ordered, int draft, int received, List<PoRef> orders) {
     }
 
     public Map<Long, ItemPurchase> forSoItems(Collection<Long> soItemIds) {
@@ -76,9 +77,10 @@ public class PurchaseLinks {
             }
         }
         Map<Long, RequirementQty.Qty> q = qty.bySoItem(ids);
+        Map<Long, Integer> received = receivingQty.qualifiedBySoItem(ids);
         for (Long id : ids) {
             RequirementQty.Qty x = q.getOrDefault(id, RequirementQty.Qty.ZERO);
-            out.put(id, new ItemPurchase(tracked.contains(id), purchasers.getOrDefault(id, Set.of()), x.ordered(), x.draft(),
+            out.put(id, new ItemPurchase(tracked.contains(id), purchasers.getOrDefault(id, Set.of()), x.ordered(), x.draft(), received.getOrDefault(id, 0),
                     orders.getOrDefault(id, List.of())));
         }
         return out;

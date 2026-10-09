@@ -133,9 +133,9 @@ class SalesOrderTrackingContractTest extends SalesContractSupport {
         assertEquals("订单进度不存在或已停用", fail(items(id, "progress", body(ids, "progressCode", "NOPE"))).path("message").asText());
 
         // 「待采购」「已下单」由采购单推进：不能手动选，没下单的不能跳到后面
-        assertEquals("「待采购」「已下单」由采购单自动推进，不能手动选择",
+        assertEquals("「待采购」「已下单」「已入库」由采购与入库自动推进，不能手动选择",
                 fail(items(id, "progress", body(ids, "progressCode", "ORDERED"))).path("message").asText());
-        assertEquals("A-1 还有 1 个没有下单", fail(items(id, "progress", body(List.of(ids.get(0)), "progressCode", "RECEIVED")))
+        assertEquals("A-1 还有 1 个没有下单", fail(items(id, "progress", body(List.of(ids.get(0)), "progressCode", "TO_FORWARDER")))
                 .path("message").asText());
         long sup = supplier("华控自动化", null);
         List<Long> reqs = requirementIds(id);
@@ -146,14 +146,18 @@ class SalesOrderTrackingContractTest extends SalesContractSupport {
         assertEquals("已下单", so.path("items").get(0).path("progressName").asText(), "确认下单后自动变为已下单");
         assertEquals(1, so.path("items").get(0).path("purchaseOrderedQty").asInt());
 
-        so = ok(items(id, "progress", body(List.of(ids.get(0)), "progressCode", "RECEIVED")));
+        assertEquals("A-1 还有 1 个没有入库", fail(items(id, "progress", body(List.of(ids.get(0)), "progressCode", "TO_FORWARDER")))
+                .path("message").asText());
+        received(ids.get(0));
+        so = ok(items(id, "progress", body(List.of(ids.get(0)), "progressCode", "TO_FORWARDER")));
         assertEquals("待采购", so.path("progressName").asText(), "取最靠前的型号");
         priceAndConfirm(generate(sup, List.of(reqs.get(1)), admin), "95", admin);
         so = order(id);
         assertEquals("已下单", so.path("progressName").asText());
-        assertEquals("已入库", so.path("items").get(0).path("progressName").asText());
+        assertEquals("已交货代", so.path("items").get(0).path("progressName").asText());
         assertFalse(so.path("completable").asBoolean());
 
+        received(ids.get(1));
         ok(items(id, "progress", body(ids, "progressCode", "TO_FORWARDER")));
         assertEquals("还有 2 个型号还没到「已出运」，不能确认收货", fail(call(post(SO + "/" + id + "/complete"), admin)).path("message").asText());
         so = ok(items(id, "progress", body(ids, "progressCode", "SHIPPED")));
@@ -165,6 +169,14 @@ class SalesOrderTrackingContractTest extends SalesContractSupport {
         assertEquals("订单已完成，不能取消", fail(call(json(post(SO + "/" + id + "/cancel"), "{\"reason\":\"x\"}"), admin))
                 .path("message").asText());
         assertEquals(1, ok(call(json(post(SO + "/page"), write(Map.of("progressCode", "COMPLETED"))), admin)).path("total").asInt());
+    }
+
+    /** 订单型号行合格入库 1 个（直接写入库单，进度推进另由入库联动测试覆盖） */
+    private void received(long soItemId) {
+        jdbc.update("insert into purchase_receipt (tenant_id, gr_no, status) values (0, ?, 1)", "GRIT" + soItemId);
+        long gr = jdbc.queryForObject("select max(id) from purchase_receipt where tenant_id = 0", Long.class);
+        jdbc.update("insert into purchase_receipt_item (tenant_id, receipt_id, so_item_id, shipped_qty, received_qty, qualified_qty) "
+                + "values (0, ?, ?, 1, 1, 1)", gr, soItemId);
     }
 
     @Test

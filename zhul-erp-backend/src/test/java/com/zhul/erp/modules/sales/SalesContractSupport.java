@@ -26,7 +26,8 @@ public abstract class SalesContractSupport extends InquiryContractSupport {
     protected static final String SO = "/api/v1/sales/orders";
     protected static final long ADMIN_USER = 99000002L;
     protected static final String TODAY = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
-    private static final String[] SALES_TABLES = {"purchase_order_log", "purchase_order_attachment", "purchase_order_fee",
+    private static final String[] SALES_TABLES = {"biz_attachment", "media_asset", "shoot_task", "stock_hold", "receiving_discrepancy",
+            "purchase_receipt_item", "purchase_receipt", "supplier_shipment_item", "supplier_shipment", "purchase_order_log", "purchase_order_attachment", "purchase_order_fee",
             "purchase_order_item", "purchase_order", "purchase_requirement", "sales_order_fee", "sales_order_item", "sales_order", "payment_receipt",
             "proforma_invoice_send_log", "proforma_invoice_fee", "proforma_invoice_item", "proforma_invoice_version", "proforma_invoice",
             "quotation_send_log", "quotation_version", "quotation_fee", "quotation_item", "quotation", "tenant_bank_account", "document_sequence",

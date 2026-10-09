@@ -32,7 +32,7 @@ import java.util.regex.Pattern;
 public class PrivateFileStorage {
 
     private static final Pattern KEY_PATTERN =
-            Pattern.compile("^([a-z][a-z-]*)/(\\d+)/\\d{6}/[0-9a-f]{32}\\.(pdf|jpg|png|xlsx|xls|csv)$");
+            Pattern.compile("^([a-z][a-z-]*)/(\\d+)/\\d{6}/[0-9a-f]{32}\\.(pdf|jpg|png|webp|mp4|mov|xlsx|xls|csv)$");
     private static final DateTimeFormatter MONTH = DateTimeFormatter.ofPattern("yyyyMM");
     private static final int HEADER_BYTES = 512;
     private static final int NAME_MAX = 200;
@@ -116,6 +116,9 @@ public class PrivateFileStorage {
             case "pdf" -> "application/pdf";
             case "png" -> "image/png";
             case "jpg" -> "image/jpeg";
+            case "webp" -> "image/webp";
+            case "mp4" -> "video/mp4";
+            case "mov" -> "video/quicktime";
             case "xlsx" -> "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
             case "xls" -> "application/vnd.ms-excel";
             case "csv" -> "text/csv";
@@ -141,6 +144,14 @@ public class PrivateFileStorage {
         }
         if (startsWith(head, 0xFF, 0xD8, 0xFF)) {
             return "jpg";
+        }
+        // WEBP：「RIFF」+ 4 字节长度 +「WEBP」
+        if (startsWith(head, 'R', 'I', 'F', 'F') && head.length >= 12 && head[8] == 'W' && head[9] == 'E' && head[10] == 'B' && head[11] == 'P') {
+            return "webp";
+        }
+        // MP4 / MOV：偏移 4 处为「ftyp」，主品牌「qt  」为 MOV，其余按 MP4
+        if (head.length >= 12 && head[4] == 'f' && head[5] == 't' && head[6] == 'y' && head[7] == 'p') {
+            return head[8] == 'q' && head[9] == 't' ? "mov" : "mp4";
         }
         if (startsWith(head, 0xD0, 0xCF, 0x11, 0xE0) && name.endsWith(".xls")) {
             return "xls";

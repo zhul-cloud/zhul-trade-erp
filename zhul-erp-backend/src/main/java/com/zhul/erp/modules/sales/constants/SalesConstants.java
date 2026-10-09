@@ -66,6 +66,7 @@ public final class SalesConstants {
     public static final String PROGRESS_PENDING = "PENDING_PURCHASE";
     /** 已下单：由采购单自动推进，手动推进不能选 */
     public static final String PROGRESS_ORDERED = "ORDERED";
+    public static final String PROGRESS_RECEIVED = "RECEIVED";
     public static final String PROGRESS_COMPLETED = "COMPLETED";
     public static final String PROGRESS_CANCELLED = "CANCELLED";
     public static final String PERM_ORDER_CREATE = "sales:order:create";

@@ -22,8 +22,9 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * 订单型号进度的「待采购 ↔ 已下单」由采购单驱动：全部数量都在已下单的采购单上为已下单，否则待采购。
- * 只处理有采购需求、当前进度为这两步之一的型号；已手动推进到后面的不回退。在调用方事务内执行。
+ * 订单型号进度的「待采购 / 已下单 / 已入库」由采购与入库驱动：合格入库数量（含折价接收）达到型号数量为已入库，
+ * 否则全部数量都在已下单的采购单上为已下单，否则待采购；字典里停用的步骤跳过。
+ * 只处理有采购需求、当前进度为这三步之一的型号；已手动推进到后面的不回退。在调用方事务内执行。
  */
 @Component
 @RequiredArgsConstructor
@@ -34,6 +35,15 @@ public class OrderPurchaseProgress {
     private final PurchaseRequirementMapper requirementMapper;
     private final RequirementQty qty;
     private final OrderProgress progress;
+    private final com.zhul.erp.modules.warehouse.support.ReceivingQty receivingQty;
+
+    /** 由采购与入库自动推进的步骤 */
+    public static final Set<String> AUTO = Set.of(SalesConstants.PROGRESS_PENDING, SalesConstants.PROGRESS_ORDERED,
+            SalesConstants.PROGRESS_RECEIVED);
+
+    private static boolean enabled(List<OrderProgress.Step> ordered, String code) {
+        return ordered.stream().anyMatch(s -> s.enabled() && code.equals(s.code()));
+    }
 
     public void sync(Collection<Long> soItemIds) {
         List<Long> ids = soItemIds.stream().filter(Objects::nonNull).distinct().toList();
@@ -41,8 +51,9 @@ public class OrderPurchaseProgress {
             return;
         }
         List<OrderProgress.Step> ordered = progress.ordered();
-        boolean orderedEnabled = ordered.stream().anyMatch(s -> s.enabled() && SalesConstants.PROGRESS_ORDERED.equals(s.code()));
-        if (!orderedEnabled) {
+        boolean orderedEnabled = enabled(ordered, SalesConstants.PROGRESS_ORDERED);
+        boolean receivedEnabled = enabled(ordered, SalesConstants.PROGRESS_RECEIVED);
+        if (!orderedEnabled && !receivedEnabled) {
             return;
         }
         Set<Long> tracked = requirementMapper.selectList(new LambdaQueryWrapper<PurchaseRequirementDO>()
@@ -51,15 +62,25 @@ public class OrderPurchaseProgress {
                         .isNull(PurchaseRequirementDO::getDeletedAt))
                 .stream().map(PurchaseRequirementDO::getSoItemId).collect(Collectors.toSet());
         Map<Long, RequirementQty.Qty> placed = qty.bySoItem(ids);
+        Map<Long, Integer> received = receivingQty.qualifiedBySoItem(ids);
         Set<Long> orders = new HashSet<>();
         for (SalesOrderItemDO i : soItemMapper.selectBatchIds(ids)) {
             String code = i.getProgressCode();
             if (i.getDeletedAt() != null || !tracked.contains(i.getId())
-                    || !(SalesConstants.PROGRESS_PENDING.equals(code) || SalesConstants.PROGRESS_ORDERED.equals(code))) {
+                    || !AUTO.contains(code)) {
                 continue;
             }
-            int done = placed.getOrDefault(i.getId(), RequirementQty.Qty.ZERO).ordered();
-            String want = done >= i.getQuantity() ? SalesConstants.PROGRESS_ORDERED : SalesConstants.PROGRESS_PENDING;
+            boolean allOrdered = placed.getOrDefault(i.getId(), RequirementQty.Qty.ZERO).ordered() >= i.getQuantity();
+            boolean allReceived = received.getOrDefault(i.getId(), 0) >= i.getQuantity();
+            String want;
+            if (allReceived && receivedEnabled) {
+                want = SalesConstants.PROGRESS_RECEIVED;
+            } else if (allOrdered || allReceived) {
+                // 「已下单」停用时保持原样（与第①期一致）
+                want = orderedEnabled ? SalesConstants.PROGRESS_ORDERED : code;
+            } else {
+                want = SalesConstants.PROGRESS_PENDING;
+            }
             if (!want.equals(code)) {
                 i.setProgressCode(want);
                 soItemMapper.updateById(i);

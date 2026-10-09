@@ -20,6 +20,8 @@ public class SalesOrderItemVO extends PiItemVO {
     /** 有采购需求：采购进度来自采购单 */
     private Boolean purchaseTracked;
     private Integer purchaseOrderedQty;
+    /** 合格入库数量（含折价接收） */
+    private Integer purchaseReceivedQty;
     private Integer purchaseDraftQty;
     private java.util.List<PurchaseRef> purchaseOrders;
 

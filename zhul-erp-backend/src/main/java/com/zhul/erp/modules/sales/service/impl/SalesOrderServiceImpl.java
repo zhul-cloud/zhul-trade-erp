@@ -532,18 +532,23 @@ public class SalesOrderServiceImpl implements SalesOrderService {
     public SalesOrderVO updateProgress(Long id, OrderItemsRequest req) {
         List<OrderProgress.Step> ordered = progress.ordered();
         OrderProgress.Step step = OrderProgress.require(ordered, req.getProgressCode() == null ? "" : req.getProgressCode().trim());
-        if (SalesConstants.PROGRESS_PENDING.equals(step.code()) || SalesConstants.PROGRESS_ORDERED.equals(step.code())) {
-            throw new BizException("「待采购」「已下单」由采购单自动推进，不能手动选择");
+        if (com.zhul.erp.modules.purchase.support.OrderPurchaseProgress.AUTO.contains(step.code())) {
+            throw new BizException("「待采购」「已下单」「已入库」由采购与入库自动推进，不能手动选择");
         }
         Tracking t = trackable(id, req.getItemIds());
         int orderedRank = OrderProgress.rank(ordered, SalesConstants.PROGRESS_ORDERED);
-        if (OrderProgress.rank(ordered, step.code()) > orderedRank) {
+        int receivedRank = OrderProgress.rank(ordered, SalesConstants.PROGRESS_RECEIVED);
+        if (OrderProgress.rank(ordered, step.code()) > Math.min(orderedRank, receivedRank)) {
             Map<Long, com.zhul.erp.modules.purchase.support.PurchaseLinks.ItemPurchase> links =
                     purchaseLinks.forSoItems(t.selected().stream().map(SalesOrderItemDO::getId).toList());
             for (SalesOrderItemDO i : t.selected()) {
                 var lp = links.get(i.getId());
                 if (lp != null && lp.tracked() && lp.ordered() < i.getQuantity()) {
                     throw new BizException(i.getModel() + " 还有 " + (i.getQuantity() - lp.ordered()) + " 个没有下单");
+                }
+                boolean afterReceived = OrderProgress.rank(ordered, step.code()) > receivedRank;
+                if (lp != null && lp.tracked() && afterReceived && lp.received() < i.getQuantity()) {
+                    throw new BizException(i.getModel() + " 还有 " + (i.getQuantity() - lp.received()) + " 个没有入库");
                 }
             }
         }
@@ -760,6 +765,7 @@ public class SalesOrderServiceImpl implements SalesOrderService {
             x.setPurchaseTracked(lp != null && lp.tracked());
             x.setPurchaseOrderedQty(lp == null ? 0 : lp.ordered());
             x.setPurchaseDraftQty(lp == null ? 0 : lp.draft());
+            x.setPurchaseReceivedQty(lp == null ? 0 : lp.received());
             x.setPurchaseOrders(lp == null ? List.of() : lp.orders().stream().map(r -> {
                 SalesOrderItemVO.PurchaseRef ref = new SalesOrderItemVO.PurchaseRef();
                 ref.setId(r.id());

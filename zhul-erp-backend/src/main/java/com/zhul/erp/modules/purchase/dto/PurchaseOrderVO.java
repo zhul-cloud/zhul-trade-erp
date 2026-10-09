@@ -53,6 +53,12 @@ public class PurchaseOrderVO {
     private List<Fee> fees;
     private List<Attachment> attachments;
     private List<Log> logs;
+    /** 发货单（含作废的） */
+    private List<ShipmentRef> shipments;
+    /** 入库单（含冲销的） */
+    private List<ReceiptRef> receipts;
+    /** 有在途或已入库的发货单（不能取消） */
+    private Boolean hasShipments;
 
     @Data
     public static class Item {
@@ -76,6 +82,12 @@ public class PurchaseOrderVO {
         private BigDecimal bargainRate;
         /** 来源订单已取消 */
         private Boolean orderCancelled;
+        /** 已发数量（少发、退回的不算） */
+        private Integer shippedQty;
+        /** 合格入库数量（含折价接收） */
+        private Integer receivedQty;
+        /** 未发数量 = 订购 − 已发 */
+        private Integer unshippedQty;
     }
 
     @Data
@@ -101,5 +113,31 @@ public class PurchaseOrderVO {
         private String content;
         private String operatorName;
         private LocalDateTime createTime;
+    }
+
+    @Data
+    public static class ShipmentRef {
+        private Long id;
+        private String sdNo;
+        private LocalDate shipDate;
+        private String carrier;
+        private String trackingNo;
+        private Integer totalQuantity;
+        private Integer source;
+        private String sourceName;
+        private Integer status;
+        private String statusName;
+    }
+
+    @Data
+    public static class ReceiptRef {
+        private Long id;
+        private String grNo;
+        private LocalDate receivedDate;
+        private String sdNo;
+        private Integer qualifiedQty;
+        private Integer defectiveQty;
+        private Integer status;
+        private String statusName;
     }
 }
