@@ -28,7 +28,7 @@ export interface Attachment {
   createTime?: string;
 }
 
-export type OwnerType = 'SHIPMENT' | 'RECEIPT' | 'SHOOT';
+export type OwnerType = 'SHIPMENT' | 'RECEIPT' | 'SHOOT' | 'LOGISTICS';
 
 export interface ShipmentItem {
   id: number;
@@ -68,6 +68,11 @@ export interface Shipment extends Audit {
   purchaserName?: string;
   receiptId?: number;
   grNo?: string;
+  /** 直发货代：供应商直接发到这家货代，不进仓库 */
+  directForwarderId?: number | null;
+  directForwarderName?: string;
+  /** 已放进的出运单 */
+  logisticsId?: number | null;
 }
 
 export interface ShipmentDetail {
@@ -86,6 +91,7 @@ export interface ShipmentForm {
   shipDate?: string;
   expectedArrivalDate?: string;
   note?: string;
+  directForwarderId?: number | null;
   attachments: Attachment[];
   lines: {
     poItemId: number;
@@ -107,6 +113,8 @@ export interface SaveShipmentBody {
   /** 为空时后端按快递时效估算 */
   expectedArrivalDate?: string | null;
   note?: string;
+  /** 直发货代时的货代 */
+  directForwarderId?: number | null;
   items: { poItemId: number; quantity: number }[];
   attachmentIds: number[];
 }

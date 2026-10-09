@@ -467,8 +467,14 @@ export const CreateOrderDrawer: React.FC<{
 
 // ---------------------------------------------------------------- 更新进度 / 指定采购员 / 现货期货 / 销售日期
 
-/** 「待采购」「已下单」「已入库」由采购与入库自动推进，手动推进不能选 */
-const AUTO_STEPS = ['PENDING_PURCHASE', 'ORDERED', 'RECEIVED'];
+/** 「待采购」到「已出运」由采购、入库、出库与出运自动推进，手动推进不能选 */
+const AUTO_STEPS = [
+  'PENDING_PURCHASE',
+  'ORDERED',
+  'RECEIVED',
+  'TO_FORWARDER',
+  'SHIPPED',
+];
 
 export const ProgressModal: React.FC<{
   order?: Order;
@@ -569,7 +575,7 @@ export const ProgressModal: React.FC<{
           ))}
       </Radio.Group>
       <div style={{ marginTop: 10, fontSize: 12, color: palette.mute }}>
-        「待采购」「已下单」「已入库」由采购与入库自动推进，这里不能选；还没全部入库的型号不能推进到后面的步骤。
+        「待采购」「已下单」「已入库」「已交货代」「已出运」由采购、入库、出库与出运自动推进，这里不能选；还没全部入库的型号不能推进到后面的步骤。
       </div>
       <div style={{ margin: '14px 0 6px', fontSize: 13, color: palette.sub }}>
         说明（可选）

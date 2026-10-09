@@ -209,16 +209,20 @@ const OrderList: React.FC = () => {
             </span>
           );
         const hint =
-          g.received >= g.total
-            ? { text: '货已到齐，可以安排交货代', color: palette.green }
-            : g.inTransit > 0 && g.earliestArrival
-              ? {
-                  text: `在途最早 ${dayjs(g.earliestArrival).format('MM-DD')} 到`,
-                  color: palette.link,
-                }
-              : g.pendingPurchase > 0
-                ? { text: '还有型号没下采购单', color: palette.orange }
-                : undefined;
+          g.shipped >= g.total
+            ? { text: '全部出运', color: palette.green }
+            : g.shipped + g.handed >= g.total
+              ? { text: '全部交货代，等出运', color: palette.cyan }
+              : g.received >= g.total
+                ? { text: '货已到齐，可以发货通知', color: palette.green }
+                : g.inTransit > 0 && g.earliestArrival
+                  ? {
+                      text: `在途最早 ${dayjs(g.earliestArrival).format('MM-DD')} 到`,
+                      color: palette.link,
+                    }
+                  : g.pendingPurchase > 0
+                    ? { text: '还有型号没下采购单', color: palette.orange }
+                    : undefined;
         return (
           <div style={{ display: 'grid', gap: 4 }}>
             <GoodsBar parts={g} total={g.total} />

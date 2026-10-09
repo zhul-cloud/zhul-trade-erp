@@ -119,6 +119,7 @@ const toFormState = (s: SupplierItem): FormState => ({
   region: s.region ? s.region.split('/') : undefined,
   address: s.address,
   remark: s.remark,
+  volumeDivisor: s.volumeDivisor ?? 5000,
   paymentTerms: s.paymentTerms ?? [],
   productScopes: toScopeRows(s.productScopes),
   accounts: toAccountRows(s.accounts),
@@ -147,6 +148,7 @@ const toPayload = (v: FormState): SupplierFormValues => ({
   region: v.region?.length ? v.region.join('/') : '',
   address: text(v.address),
   remark: text(v.remark),
+  volumeDivisor: v.volumeDivisor,
   paymentTerms: v.paymentTerms ?? [],
   productScopes: toScopePayload(v.productScopes),
   accounts: toAccountPayload(v.accounts),
@@ -326,6 +328,7 @@ const SupplierFormPage: React.FC = () => {
           validateTrigger="onBlur"
           initialValues={{
             status: 1,
+            volumeDivisor: 5000,
             productScopes: [],
             accounts: [],
             attachments: [],
@@ -412,6 +415,25 @@ const SupplierFormPage: React.FC = () => {
                   placeholder="请选择供应商类型"
                   options={SUPPLIER_TYPE_OPTIONS}
                 />
+              </Form.Item>
+              <Form.Item noStyle dependencies={['supplierType']}>
+                {({ getFieldValue }) =>
+                  getFieldValue('supplierType') === 3 && (
+                    <Form.Item
+                      name="volumeDivisor"
+                      label="体积系数"
+                      tooltip="货代按 长 × 宽 × 高（cm）÷ 系数 算体积重，常见 5000 或 6000；用于分摊国际运费"
+                      rules={[{ required: true, message: '请填写体积系数' }]}
+                    >
+                      <InputNumber
+                        min={1000}
+                        max={10000}
+                        precision={0}
+                        style={{ width: '100%' }}
+                      />
+                    </Form.Item>
+                  )
+                }
               </Form.Item>
               <Form.Item name="industry" label="所属行业">
                 <Select

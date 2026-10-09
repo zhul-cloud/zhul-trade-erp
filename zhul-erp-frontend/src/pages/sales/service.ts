@@ -450,7 +450,12 @@ export interface OrderListItem {
 }
 
 export interface GoodsSummary {
+  /** 合格入库（含已出库的） */
   received: number;
+  shipped: number;
+  handed: number;
+  /** 在仓 = 合格入库 − 已交货代 − 已出运 */
+  inWarehouse: number;
   inTransit: number;
   pendingShip: number;
   pendingPurchase: number;
@@ -475,6 +480,9 @@ export interface OrderItem extends PiItem {
   purchaseReceivedQty?: number;
   /** 货物状态（件数）；系统外采购的型号为空 */
   goodsReceived?: number;
+  goodsShipped?: number;
+  goodsHanded?: number;
+  goodsInWarehouse?: number;
   goodsInTransit?: number;
   goodsPendingShip?: number;
   goodsPendingPurchase?: number;

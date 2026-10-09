@@ -17,6 +17,7 @@ const GROUPS: [string, string][] = [
   ['/supplier/', '采购管理'],
   ['/purchase/', '采购管理'],
   ['/warehouse/', '仓库管理'],
+  ['/logistics/', '单证物流'],
   ['/crm/', '业务管理'],
   ['/customer/', '业务管理'],
   ['/inquiry/', '业务管理'],

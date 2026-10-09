@@ -17,6 +17,7 @@ describe('menuGroupOf：页面路径对应的侧边栏分组', () => {
     ['/product/brands', '商品资料'],
     ['/purchase/shipments', '采购管理'],
     ['/warehouse/shoots', '仓库管理'],
+    ['/logistics/shipments', '单证物流'],
     ['/system/transit-times', '业务设置'],
   ])('%s → %s', (path, group) => {
     expect(menuGroupOf(path)).toBe(group);

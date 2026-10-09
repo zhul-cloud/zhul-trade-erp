@@ -201,9 +201,15 @@ const ShipmentsTab: React.FC = () => {
       dataIndex: 'sourceName',
       width: 100,
       render: (v: string, r) => (
-        <span style={{ color: r.source === 2 ? palette.orange : palette.sub }}>
-          {v}
-        </span>
+        <div>
+          <span
+            style={{ color: r.source === 2 ? palette.orange : palette.sub }}
+          >
+            {v}
+          </span>
+          {r.directForwarderName &&
+            sub(palette.violet, `直发 ${r.directForwarderName}`)}
+        </div>
       ),
     },
     {
@@ -392,6 +398,7 @@ export const ShipmentView: React.FC<{
             <ShipStatusPill value={s.status}>{s.statusName}</ShipStatusPill>
             <span style={{ color: palette.sub }}>
               {s.poNo} · {s.supplierName} · {s.sourceName}
+              {s.directForwarderName && ` · 直发货代 ${s.directForwarderName}`}
             </span>
           </div>
           <div style={{ color: palette.sub }}>

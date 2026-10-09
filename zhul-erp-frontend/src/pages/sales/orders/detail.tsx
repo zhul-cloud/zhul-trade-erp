@@ -7,6 +7,7 @@ import {
   InboxOutlined,
   NodeIndexOutlined,
   PaperClipOutlined,
+  SendOutlined,
   ShopOutlined,
   StopOutlined,
   SwapOutlined,
@@ -57,6 +58,7 @@ import {
   ReceiptProgress,
   useGoodsColors,
 } from './parts';
+import { OrderOutbounds, ShipNoticeModal } from './shipNotice';
 
 const num: React.CSSProperties = { fontVariantNumeric: 'tabular-nums' };
 
@@ -67,7 +69,8 @@ type Dialog =
   | 'slip'
   | 'confirm'
   | 'platform'
-  | 'claim';
+  | 'claim'
+  | 'notice';
 
 const OrderDetail: React.FC = () => {
   const { id: idParam } = useParams<{ id: string }>();
@@ -83,11 +86,14 @@ const OrderDetail: React.FC = () => {
   const [dialog, setDialog] = useState<Dialog>();
   const [cancelOpen, setCancelOpen] = useState(false);
   const [voidId, setVoidId] = useState<number>();
+  /** 订单刷新次数：出库单列表随之重新取 */
+  const [version, setVersion] = useState(0);
 
   const load = useCallback(async () => {
     setError(undefined);
     try {
       setO(await orderApi.detail(id));
+      setVersion((v) => v + 1);
     } catch (e) {
       setError(readBizError(e).message);
     }
@@ -241,7 +247,9 @@ const OrderDetail: React.FC = () => {
 
   const tracked = o.items.filter((i) => i.purchaseTracked);
   const goods = {
-    received: tracked.reduce((n, i) => n + (i.goodsReceived ?? 0), 0),
+    shipped: tracked.reduce((n, i) => n + (i.goodsShipped ?? 0), 0),
+    handed: tracked.reduce((n, i) => n + (i.goodsHanded ?? 0), 0),
+    inWarehouse: tracked.reduce((n, i) => n + (i.goodsInWarehouse ?? 0), 0),
     inTransit: tracked.reduce((n, i) => n + (i.goodsInTransit ?? 0), 0),
     pendingShip: tracked.reduce((n, i) => n + (i.goodsPendingShip ?? 0), 0),
     pendingPurchase: tracked.reduce(
@@ -367,8 +375,13 @@ const OrderDetail: React.FC = () => {
           {(
             [
               [
-                'received',
-                goods.received >= goods.total ? '货已到齐' : '合格入库',
+                'shipped',
+                goods.shipped >= goods.total ? '全部出运' : '货代已发出',
+              ],
+              ['handed', '在货代，等出运'],
+              [
+                'inWarehouse',
+                goods.inWarehouse ? '福州仓库，可以发通知' : '福州仓库',
               ],
               [
                 'inTransit',
@@ -493,7 +506,9 @@ const OrderDetail: React.FC = () => {
             </span>
           );
         const parts = {
-          received: r.goodsReceived ?? 0,
+          shipped: r.goodsShipped ?? 0,
+          handed: r.goodsHanded ?? 0,
+          inWarehouse: r.goodsInWarehouse ?? 0,
           inTransit: r.goodsInTransit ?? 0,
           pendingShip: r.goodsPendingShip ?? 0,
           pendingPurchase: r.goodsPendingPurchase ?? 0,
@@ -527,7 +542,9 @@ const OrderDetail: React.FC = () => {
         return (
           <div style={{ display: 'grid', gap: 3 }}>
             <GoodsBar parts={parts} total={r.quantity} width={180} />
-            {dot('received', `已入库 ${parts.received}`)}
+            {dot('shipped', `已出运 ${parts.shipped}`)}
+            {dot('handed', `已交货代 ${parts.handed}`)}
+            {dot('inWarehouse', `在仓 ${parts.inWarehouse}`)}
             {dot(
               'inTransit',
               `在途 ${parts.inTransit}${
@@ -1164,6 +1181,15 @@ const OrderDetail: React.FC = () => {
         actions={
           o.trackable && (
             <>
+              {access['sales:order:ship-notice'] && (
+                <Button
+                  type="primary"
+                  icon={<SendOutlined />}
+                  onClick={() => setDialog('notice')}
+                >
+                  发货通知
+                </Button>
+              )}
               <Button
                 icon={<CheckOutlined />}
                 disabled={!o.completable}
@@ -1193,13 +1219,25 @@ const OrderDetail: React.FC = () => {
           alignItems: 'start',
         }}
       >
-        {main}
+        <div style={{ minWidth: 0 }}>
+          {main}
+          <OrderOutbounds soId={o.id} version={version} onChanged={load} />
+        </div>
         <div style={{ minWidth: 0 }}>
           {receipts}
           {marginCard}
         </div>
       </div>
 
+      <ShipNoticeModal
+        open={dialog === 'notice'}
+        soId={o.id}
+        onClose={() => setDialog(undefined)}
+        onDone={() => {
+          setDialog(undefined);
+          load();
+        }}
+      />
       <ProgressModal
         order={o}
         itemIds={selected}

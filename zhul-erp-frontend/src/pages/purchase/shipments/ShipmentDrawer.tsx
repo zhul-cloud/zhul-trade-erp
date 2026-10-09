@@ -3,6 +3,7 @@ import {
   InfoCircleOutlined,
   PictureOutlined,
   UnorderedListOutlined,
+  WarningOutlined,
 } from '@ant-design/icons';
 import {
   App,
@@ -13,10 +14,13 @@ import {
   Drawer,
   Input,
   InputNumber,
+  Segmented,
+  Select,
   Skeleton,
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import React, { useEffect, useState } from 'react';
+import { type Forwarder, forwarderApi } from '@/pages/logistics/service';
 import { AttachmentWall, sub } from '@/pages/warehouse/components';
 import {
   type Attachment,
@@ -68,6 +72,18 @@ const ShipmentDrawer: React.FC<{
   const [files, setFiles] = useState<Attachment[]>([]);
   const [lines, setLines] = useState<Record<number, Line>>({});
   const [saving, setSaving] = useState(false);
+  /** 发到哪里：福州仓库，或直发某家货代 */
+  const [direct, setDirect] = useState(false);
+  const [forwarderId, setForwarderId] = useState<number>();
+  const [forwarders, setForwarders] = useState<Forwarder[]>([]);
+
+  useEffect(() => {
+    if (!open) return;
+    forwarderApi
+      .list()
+      .then(setForwarders)
+      .catch(() => setForwarders([]));
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -83,6 +99,8 @@ const ShipmentDrawer: React.FC<{
         setArrivalTouched(!!f.expectedArrivalDate);
         setBasis(undefined);
         setNote(f.note ?? '');
+        setDirect(!!f.directForwarderId);
+        setForwarderId(f.directForwarderId ?? undefined);
         setFiles(f.attachments);
         setLines(
           Object.fromEntries(
@@ -136,6 +154,7 @@ const ShipmentDrawer: React.FC<{
         shipDate: shipDate.format('YYYY-MM-DD'),
         expectedArrivalDate: arrival ? arrival.format('YYYY-MM-DD') : null,
         note: note.trim(),
+        directForwarderId: direct ? (forwarderId ?? null) : null,
         items: picked.map((l) => ({
           poItemId: l.poItemId,
           quantity: lines[l.poItemId]?.quantity ?? 0,
@@ -206,7 +225,13 @@ const ShipmentDrawer: React.FC<{
             type="primary"
             icon={<CheckOutlined />}
             loading={saving}
-            disabled={!form || picked.length === 0 || !!bad || arrivalBad}
+            disabled={
+              !form ||
+              picked.length === 0 ||
+              !!bad ||
+              arrivalBad ||
+              (direct && !forwarderId)
+            }
             onClick={submit}
           >
             {shipmentId ? '保存' : '登记'}
@@ -218,6 +243,35 @@ const ShipmentDrawer: React.FC<{
         <Skeleton active />
       ) : (
         <>
+          <div style={{ marginBottom: 12 }}>
+            <div style={{ color: palette.sub, marginBottom: 6 }}>发到哪里</div>
+            <Segmented<'warehouse' | 'direct'>
+              value={direct ? 'direct' : 'warehouse'}
+              onChange={(v) => setDirect(v === 'direct')}
+              options={[
+                { value: 'warehouse', label: '福州仓库' },
+                { value: 'direct', label: '直发货代' },
+              ]}
+            />
+          </div>
+          {direct && (
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ color: palette.sub, marginBottom: 6 }}>
+                货代 <span style={{ color: palette.red }}>*</span>
+              </div>
+              <Select
+                value={forwarderId}
+                onChange={setForwarderId}
+                placeholder="选择货代"
+                options={forwarders.map((f) => ({
+                  value: f.id,
+                  label: f.name,
+                }))}
+                style={{ width: '100%' }}
+                aria-label="货代"
+              />
+            </div>
+          )}
           <div
             style={{
               display: 'grid',
@@ -380,6 +434,22 @@ const ShipmentDrawer: React.FC<{
                   </div>
                 );
               })}
+            </div>
+          )}
+
+          {direct && (
+            <div
+              style={{
+                marginTop: 12,
+                padding: '10px 14px',
+                borderRadius: 10,
+                background: palette.orangeSoft,
+                color: palette.orange,
+                fontSize: 13,
+              }}
+            >
+              <WarningOutlined />{' '}
+              直发货代的货不进福州仓库、不拍摄；货代收到后，业务员在出运单上按实收确认数量并填箱规，系统自动补入库和出库。
             </div>
           )}
 

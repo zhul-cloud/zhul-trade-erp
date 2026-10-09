@@ -71,6 +71,8 @@ export interface SupplierItem {
   /** 默认付款条件，新建采购单时带出；未设置为空 */
   paymentTerms?: PaymentTerm[];
   paymentTermsText?: string;
+  /** 服务商（货代）的体积系数：体积重 = 长 × 宽 × 高 ÷ 系数 */
+  volumeDivisor?: number;
   remark: string;
   status: number;
   createTime: string;
@@ -107,6 +109,7 @@ export interface SupplierFormValues {
   region?: string;
   address?: string;
   remark?: string;
+  volumeDivisor?: number;
   paymentTerms: PaymentTerm[];
   /** 带 id 为更新已有账户；payeeIdNo 不传表示沿用原值、空串表示清空 */
   accounts: {

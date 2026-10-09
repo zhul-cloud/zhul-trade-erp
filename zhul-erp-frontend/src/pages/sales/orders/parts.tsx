@@ -78,11 +78,13 @@ export const ReceiptProgress: React.FC<{
 
 // ---------------------------------------------------------------- 货物状态
 
-/** 已入库 / 在途 / 待发货 / 待采购 的颜色 */
+/** 已出运 / 已交货代 / 在仓 / 在途 / 待发货 / 待采购 的颜色 */
 export const useGoodsColors = () => {
   const { palette } = useAppTheme();
   return {
-    received: palette.green,
+    shipped: palette.green,
+    handed: palette.cyan,
+    inWarehouse: palette.violet,
     inTransit: palette.link,
     pendingShip: palette.orange,
     pendingPurchase: palette.faint,
@@ -90,7 +92,9 @@ export const useGoodsColors = () => {
 };
 
 export const GOODS_LABELS = {
-  received: '已入库',
+  shipped: '已出运',
+  handed: '已交货代',
+  inWarehouse: '在仓',
   inTransit: '在途',
   pendingShip: '待发货',
   pendingPurchase: '待采购',
@@ -136,7 +140,7 @@ export const GoodsBar: React.FC<{
   );
 };
 
-/** 「已入库 10 · 在途 3 · 待发货 5」（为 0 的段不显示） */
+/** 「已出运 10 · 在仓 2 · 在途 3」（为 0 的段不显示） */
 export const goodsText = (parts: Record<GoodsKey, number>) =>
   (Object.keys(GOODS_LABELS) as GoodsKey[])
     .filter((k) => parts[k] > 0)
