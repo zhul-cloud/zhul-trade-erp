@@ -197,6 +197,7 @@ export interface PoItem {
   customerCountry?: string;
   model: string;
   brand?: string;
+  category?: string;
   quantity: number;
   maxQuantity: number;
   unitPrice?: number | null;
@@ -264,7 +265,6 @@ export interface PurchaseOrder {
 }
 
 export interface SavePoBody {
-  supplierId?: number;
   currencyCode: string;
   taxIncluded: boolean;
   taxRate?: number;

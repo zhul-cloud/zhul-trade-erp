@@ -4,8 +4,9 @@
  */
 import type { PaymentTerm } from './service';
 
+/** 两位小数；-0 归为 0，避免显示「-0.00」 */
 export const round2 = (v: number) =>
-  Math.round((v + Number.EPSILON) * 100) / 100;
+  Math.round((v + Number.EPSILON) * 100) / 100 || 0;
 
 export const netPrice = (
   unitPrice: number | null | undefined,
@@ -30,6 +31,17 @@ export const bargainOf = (
   if (target == null || net == null) return null;
   return round2((target - net) * quantity);
 };
+
+/** 默认单价：目标价（CNY 不含税）折算为采购单口径 = 目标价 ×（1 + 税率）÷ 汇率，与后端 PurchaseDrafts.defaultPrice 一致 */
+export const defaultPrice = (
+  target: number | null | undefined,
+  rate: number,
+  taxIncluded: boolean,
+  taxRate: number,
+) =>
+  target == null
+    ? null
+    : round2((target * (taxIncluded ? 1 + taxRate / 100 : 1)) / rate);
 
 export const rateOf = (
   bargain: number | null | undefined,

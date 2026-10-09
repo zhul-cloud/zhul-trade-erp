@@ -507,6 +507,19 @@ const RequirementList: React.FC = () => {
             aria-label="现货 / 期货"
           />
           <span style={{ flex: 1 }} />
+          {view === 'order' && (
+            <>
+              <Button type="link" onClick={() => setCollapsed(new Set())}>
+                展开全部
+              </Button>
+              <Button
+                type="link"
+                onClick={() => setCollapsed(new Set(orders.map((o) => o.soId)))}
+              >
+                折叠全部
+              </Button>
+            </>
+          )}
           <Button
             onClick={() =>
               reset(() => {

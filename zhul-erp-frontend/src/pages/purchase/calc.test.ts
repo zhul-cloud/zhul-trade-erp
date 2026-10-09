@@ -1,4 +1,11 @@
-import { bargainOf, netPrice, rateOf, termsText, termsTotal } from './calc';
+import {
+  bargainOf,
+  defaultPrice,
+  netPrice,
+  rateOf,
+  termsText,
+  termsTotal,
+} from './calc';
 
 describe('purchase calc', () => {
   it('含税单价按不含税与目标价比较', () => {
@@ -44,5 +51,15 @@ describe('purchase calc', () => {
         { percent: 60, trigger: 3 },
       ]),
     ).toBe(90);
+  });
+
+  it('默认单价按含税与汇率折算目标价', () => {
+    expect(defaultPrice(1000, 1, false, 0)).toBe(1000);
+    expect(defaultPrice(500, 1, true, 13)).toBe(565);
+    expect(defaultPrice(700, 7.1, false, 0)).toBe(98.59);
+    expect(defaultPrice(null, 1, true, 13)).toBeNull();
+    expect(bargainOf(500, defaultPrice(500, 1, true, 13), 3, 1, true, 13)).toBe(
+      0,
+    );
   });
 });

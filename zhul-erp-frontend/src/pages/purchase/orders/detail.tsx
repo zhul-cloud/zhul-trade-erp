@@ -35,7 +35,14 @@ import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { CURRENCIES } from '@/pages/quotation/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
-import { bargainOf, netPrice, rateOf, round2, termsTotal } from '../calc';
+import {
+  bargainOf,
+  defaultPrice,
+  netPrice,
+  rateOf,
+  round2,
+  termsTotal,
+} from '../calc';
 import {
   BargainText,
   Card,
@@ -48,7 +55,6 @@ import {
   PoStatusPill,
   PurchasePageTitle,
   StatCard,
-  SupplierPicker,
   sub,
 } from '../components';
 import {
@@ -62,8 +68,6 @@ import {
 } from '../service';
 
 interface Draft {
-  supplierId?: number;
-  supplierName?: string;
   currencyCode: string;
   taxIncluded: boolean;
   taxRate: number;
@@ -71,36 +75,54 @@ interface Draft {
   contractNo: string;
   contractAmount: number | null;
   items: Record<number, { quantity: number; unitPrice: number | null }>;
+  /** 单价仍是目标价带出的默认值、还没改过的行：切换含税、税率时按新口径重新折算 */
+  auto: number[];
   fees: { key: number; feeName: string; amount: number | null }[];
 }
 
 let feeKey = 0;
 
-const toDraft = (po: PurchaseOrder): Draft => ({
-  supplierId: po.supplierId,
-  supplierName: po.supplierName,
-  currencyCode: po.currencyCode,
-  taxIncluded: po.taxIncluded,
-  taxRate: po.taxIncluded ? Number(po.taxRate) : 13,
-  paymentTerms: po.paymentTerms,
-  contractNo: po.contractNo ?? '',
-  contractAmount: po.contractAmount ?? null,
-  items: Object.fromEntries(
-    po.items.map((i) => [
-      i.id,
-      { quantity: i.quantity, unitPrice: i.unitPrice ?? null },
-    ]),
-  ),
-  fees: po.fees.map((f) => ({
-    key: ++feeKey,
-    feeName: f.feeName,
-    amount: Number(f.amount),
-  })),
-});
+const toDraft = (po: PurchaseOrder): Draft => {
+  const rate = Number(po.exchangeRate);
+  const tax = Number(po.taxRate);
+  const draftPo = po.status === PO_STATUS.DRAFT;
+  // 草稿里没填单价的行带出目标价；等于默认值的行记为「还没改过」
+  const priced = po.items.map((i) => {
+    const def = defaultPrice(i.targetPrice, rate, po.taxIncluded, tax);
+    const price = i.unitPrice ?? (draftPo ? def : null);
+    return {
+      i,
+      price,
+      auto:
+        draftPo &&
+        def != null &&
+        price != null &&
+        Math.abs(price - def) < 0.005,
+    };
+  });
+  return {
+    currencyCode: po.currencyCode,
+    taxIncluded: po.taxIncluded,
+    taxRate: po.taxIncluded ? Number(po.taxRate) : 13,
+    paymentTerms: po.paymentTerms,
+    contractNo: po.contractNo ?? '',
+    contractAmount: po.contractAmount ?? null,
+    items: Object.fromEntries(
+      priced.map(({ i, price }) => [
+        i.id,
+        { quantity: i.quantity, unitPrice: price },
+      ]),
+    ),
+    auto: priced.filter((x) => x.auto).map((x) => x.i.id),
+    fees: po.fees.map((f) => ({
+      key: ++feeKey,
+      feeName: f.feeName,
+      amount: Number(f.amount),
+    })),
+  };
+};
 
 const toBody = (po: PurchaseOrder, d: Draft): SavePoBody => ({
-  supplierId:
-    po.status === PO_STATUS.DRAFT && !po.shop ? d.supplierId : undefined,
   currencyCode: d.currencyCode,
   taxIncluded: d.taxIncluded,
   taxRate: d.taxIncluded ? d.taxRate : 0,
@@ -220,9 +242,37 @@ const PurchaseOrderDetail: React.FC = () => {
         ? {
             ...d,
             items: { ...d.items, [itemId]: { ...d.items[itemId], ...patch } },
+            // 手动改过单价的行不再跟着含税切换重算
+            auto:
+              'unitPrice' in patch
+                ? d.auto.filter((x) => x !== itemId)
+                : d.auto,
           }
         : d,
     );
+
+  /** 切换含税、税率：还没改过的行按新口径重新折算目标价 */
+  const setTax = (patch: Partial<Pick<Draft, 'taxIncluded' | 'taxRate'>>) =>
+    setDraft((d) => {
+      if (!d) return d;
+      const next = { ...d, ...patch };
+      const items = { ...next.items };
+      for (const id of next.auto) {
+        const it = po.items.find((x) => x.id === id);
+        if (it) {
+          items[id] = {
+            ...items[id],
+            unitPrice: defaultPrice(
+              it.targetPrice,
+              preview.rate,
+              next.taxIncluded,
+              next.taxRate,
+            ),
+          };
+        }
+      }
+      return { ...next, items };
+    });
 
   const save = async (quiet = false) => {
     setSaving(true);
@@ -288,7 +338,10 @@ const PurchaseOrderDetail: React.FC = () => {
       render: (v: string, r) => (
         <div>
           <b>{v}</b>
-          {r.brand && sub(palette.mute, r.brand)}
+          {sub(
+            palette.mute,
+            [r.brand, r.category].filter(Boolean).join(' · ') || '—',
+          )}
           {r.orderCancelled && <Pill tone="red">来源订单已取消</Pill>}
         </div>
       ),
@@ -632,29 +685,18 @@ const PurchaseOrderDetail: React.FC = () => {
               >
                 采购对象
               </div>
-              {po.shop ? (
-                <div style={{ color: palette.ink, lineHeight: '32px' }}>
-                  {po.supplierName}
-                  {sub(
-                    palette.mute,
-                    '线上店铺；要换成老供应商用「转为供应商」，或把型号「改到其他供应商」',
-                  )}
-                </div>
-              ) : (
-                <SupplierPicker
-                  style={{ width: '100%' }}
-                  value={draft.supplierId}
-                  label={draft.supplierName}
-                  onChange={(v, name) =>
-                    setDraft((d) =>
-                      d ? { ...d, supplierId: v, supplierName: name } : d,
-                    )
-                  }
-                />
+              <div style={{ color: palette.ink, lineHeight: '32px' }}>
+                {po.supplierName}
+                {po.shop && (
+                  <span style={{ color: palette.mute }}> · 线上店铺</span>
+                )}
+              </div>
+              {sub(
+                palette.mute,
+                isDraft
+                  ? '要换采购对象：在下面勾选型号点「改到其他供应商」，全选就是整单换'
+                  : '已下单的不能换采购对象，可以取消后重新下单',
               )}
-              {!isDraft &&
-                !po.shop &&
-                sub(palette.mute, '已下单的不能改供应商，可以取消后重新下单')}
             </div>
             <div>
               <div
@@ -687,18 +729,14 @@ const PurchaseOrderDetail: React.FC = () => {
                 <Button
                   type={draft.taxIncluded ? 'primary' : 'default'}
                   ghost={draft.taxIncluded}
-                  onClick={() =>
-                    setDraft((d) => (d ? { ...d, taxIncluded: true } : d))
-                  }
+                  onClick={() => setTax({ taxIncluded: true })}
                 >
                   含税
                 </Button>
                 <Button
                   type={!draft.taxIncluded ? 'primary' : 'default'}
                   ghost={!draft.taxIncluded}
-                  onClick={() =>
-                    setDraft((d) => (d ? { ...d, taxIncluded: false } : d))
-                  }
+                  onClick={() => setTax({ taxIncluded: false })}
                 >
                   不含税
                 </Button>
@@ -710,9 +748,7 @@ const PurchaseOrderDetail: React.FC = () => {
                     value={draft.taxRate}
                     suffix="%"
                     style={{ width: 100 }}
-                    onChange={(v) =>
-                      setDraft((d) => (d ? { ...d, taxRate: v ?? 0 } : d))
-                    }
+                    onChange={(v) => setTax({ taxRate: v ?? 0 })}
                     aria-label="税率"
                   />
                 )}
@@ -767,7 +803,7 @@ const PurchaseOrderDetail: React.FC = () => {
             style={{ marginBottom: 12 }}
             type="info"
             showIcon
-            title="单价要谈好后填写，不会预填目标价；某个型号要换供应商时点「改到其他供应商」。"
+            title="单价默认按目标价带出（按含税与汇率折算），谈下来降价了改成实际单价；没有目标价的行要手填。某个型号要换供应商时点「改到其他供应商」。"
           />
         )}
         <Table<PoItem>
