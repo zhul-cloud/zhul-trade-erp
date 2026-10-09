@@ -36,6 +36,9 @@ public interface PurchaseOrderService {
 
     void deleteDraft(Long id);
 
+    /** 线上店铺转为供应商：该店铺的草稿、已下单采购单与建议这家店的需求都改为指向新供应商 */
+    PurchaseOrderVO convertShop(Long id);
+
     PurchaseOrderVO uploadAttachment(Long id, MultipartFile file);
 
     PurchaseOrderVO deleteAttachment(Long id, Long attachmentId);

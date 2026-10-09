@@ -23,6 +23,7 @@ public class PurchaseRequirementDO {
     private Long quotationItemId;
     private String model;
     private String brand;
+    private String category;
     private Integer quantity;
     /** 目标价（CNY，不含税），为空表示没有 */
     private BigDecimal targetPrice;

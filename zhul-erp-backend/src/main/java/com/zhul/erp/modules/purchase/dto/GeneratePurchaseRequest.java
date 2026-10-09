@@ -2,7 +2,6 @@ package com.zhul.erp.modules.purchase.dto;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotEmpty;
-import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
 import java.util.List;
@@ -16,8 +15,10 @@ public class GeneratePurchaseRequest {
 
     @Data
     public static class Group {
-        @NotNull(message = "请为每组选定供应商")
+        /** 老供应商；为空时用 channel + shopName 表示线上店铺 */
         private Long supplierId;
+        private Integer channel;
+        private String shopName;
         @NotEmpty(message = "请选择需求")
         private List<Long> requirementIds;
     }

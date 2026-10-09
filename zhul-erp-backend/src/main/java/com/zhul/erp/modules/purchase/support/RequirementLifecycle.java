@@ -49,6 +49,7 @@ public class RequirementLifecycle {
     private final PurchaseDrafts drafts;
     private final PurchaseLogs logs;
     private final OrderPurchaseProgress progress;
+    private final RequirementTouch touch;
 
     // ---------------------------------------------------------------- 订单生成
 
@@ -64,6 +65,7 @@ public class RequirementLifecycle {
             r.setQuotationItemId(Objects.requireNonNullElse(i.getQuotationItemId(), 0L));
             r.setModel(i.getModel());
             r.setBrand(i.getBrand());
+            r.setCategory(Objects.requireNonNullElse(i.getCategory(), ""));
             r.setQuantity(i.getQuantity());
             r.setTargetPrice(i.getCostPrice());
             r.setPurchaserId(i.getPurchaserId());
@@ -111,10 +113,12 @@ public class RequirementLifecycle {
         if (q == null) {
             return;
         }
-        r.setSuggestedChannel(Objects.requireNonNullElse(q.getChannel(), 0));
         if (q.getSupplierId() != null && q.getSupplierId() > 0) {
             r.setSuggestedSupplierId(q.getSupplierId());
-        } else if (q.getShopName() != null) {
+            r.setSuggestedChannel(PurchaseConstants.CHANNEL_SUPPLIER);
+        } else if (q.getShopName() != null && !q.getShopName().isBlank() && q.getChannel() != null
+                && q.getChannel() != PurchaseConstants.CHANNEL_SUPPLIER && PurchaseConstants.CHANNEL_NAMES.containsKey(q.getChannel())) {
+            r.setSuggestedChannel(q.getChannel());
             r.setSuggestedShopName(q.getShopName().trim());
         }
     }
@@ -163,6 +167,7 @@ public class RequirementLifecycle {
                     }
                     PurchaseOrderDO po = orderMapper.selectById(i.getPoId());
                     drafts.recalc(po);
+                    touch.touch(List.of(r.getId(), old.getId()));
                     logs.add(po.getId(), "接回订单", i.getModel() + " × " + take + " 接回重新转出的订单 " + o.getSoNo(), null);
                     need -= take;
                     moved += take;
@@ -207,22 +212,55 @@ public class RequirementLifecycle {
         return x;
     }
 
-    /** 有采购员、建议供应商已关联且启用的需求，把可下单数量排入草稿 */
+    /** 有采购员、渠道已定（建议供应商已关联且启用，或建议了线上店铺）的需求，把可下单数量排入草稿 */
     public void placeAvailable(List<PurchaseRequirementDO> reqs, String note, Long operatorId) {
         Map<Long, SupplierDO> suppliers = activeSuppliers(reqs.stream().map(PurchaseRequirementDO::getSuggestedSupplierId).toList());
         Map<Long, RequirementQty.Qty> q = qty.byRequirement(reqs.stream().map(PurchaseRequirementDO::getId).toList());
         List<PurchaseDrafts.Placement> list = new ArrayList<>();
         for (PurchaseRequirementDO r : reqs) {
-            if (r.getStatus() != PurchaseConstants.REQ_ACTIVE || r.getPurchaserId() == null
-                    || r.getSuggestedSupplierId() == null || !suppliers.containsKey(r.getSuggestedSupplierId())) {
+            Counterparty cp = Counterparty.suggestedBy(r);
+            if (r.getStatus() != PurchaseConstants.REQ_ACTIVE || r.getPurchaserId() == null || cp == null
+                    || (!cp.isShop() && !suppliers.containsKey(cp.supplierId()))) {
                 continue;
             }
             int available = RequirementQty.available(r, q.getOrDefault(r.getId(), RequirementQty.Qty.ZERO));
             if (available > 0) {
-                list.add(new PurchaseDrafts.Placement(r, r.getPurchaserId(), r.getSuggestedSupplierId(), available));
+                list.add(new PurchaseDrafts.Placement(r, r.getPurchaserId(), cp, available));
             }
         }
         drafts.place(list, null, note, operatorId);
+    }
+
+    /**
+     * 选定采购渠道：写到需求的建议渠道上（没有采购员的归到 operator），草稿里的数量改到新采购对象（保留单价），
+     * 还没排入的按新渠道排入草稿。调用方已锁住需求、校验过可见与状态。
+     */
+    public void changeSource(List<PurchaseRequirementDO> reqs, Counterparty cp, Long operatorId, String note) {
+        if (!cp.isShop()) {
+            drafts.requireSupplier(cp.supplierId());
+        }
+        Set<Long> touched = new LinkedHashSet<>();
+        List<PurchaseDrafts.Placement> moves = new ArrayList<>();
+        for (PurchaseRequirementDO r : reqs) {
+            cp.applyTo(r);
+            if (r.getPurchaserId() == null) {
+                r.setPurchaserId(operatorId);
+            }
+            requirementMapper.updateById(r);
+            for (PurchaseOrderItemDO i : draftItems(r.getId())) {
+                PurchaseOrderDO po = orderMapper.selectById(i.getPoId());
+                if (Counterparty.of(po).key().equals(cp.key()) && Objects.equals(po.getPurchaserId(), r.getPurchaserId())) {
+                    continue;
+                }
+                i.setDeletedAt(LocalDateTime.now());
+                itemMapper.updateById(i);
+                touched.add(i.getPoId());
+                moves.add(new PurchaseDrafts.Placement(r, r.getPurchaserId(), cp, i.getQuantity(), i.getUnitPrice()));
+            }
+        }
+        drafts.settle(touched, operatorId);
+        drafts.place(moves, null, note, operatorId);
+        placeAvailable(reqs, note, operatorId);
     }
 
     private Map<Long, SupplierDO> activeSuppliers(Collection<Long> ids) {
@@ -288,7 +326,7 @@ public class RequirementLifecycle {
                 touched.add(i.getPoId());
                 if (purchaserId != null) {
                     PurchaseOrderDO po = orderMapper.selectById(i.getPoId());
-                    moves.add(new PurchaseDrafts.Placement(r, purchaserId, po.getSupplierId(), i.getQuantity(), i.getUnitPrice()));
+                    moves.add(new PurchaseDrafts.Placement(r, purchaserId, Counterparty.of(po), i.getQuantity(), i.getUnitPrice()));
                 }
             }
             r.setPurchaserId(purchaserId);

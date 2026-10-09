@@ -12,6 +12,8 @@ public class SplitRequirementRequest {
     private Integer quantity;
     /** 新需求的采购员；为空时沿用原需求 */
     private Long purchaserId;
-    /** 新需求的建议供应商；为空时沿用原需求的建议 */
+    /** 新需求的建议供应商；与 channel + shopName（线上店铺）都为空时沿用原需求的建议 */
     private Long supplierId;
+    private Integer channel;
+    private String shopName;
 }

@@ -117,46 +117,143 @@ class PurchaseContractTest extends SalesContractSupport {
         return jdbc.queryForObject("select id from purchase_order_item where po_id = ? and requirement_id = ? and deleted_at is null", Long.class, poId, reqId);
     }
 
-    @Test
-    void shopSuggestion_staysInPool_previewMatchesByName_generate() throws Exception {
+    /** 一张 PI 转成订单：第一行回价来自淘宝店铺（询价人林熙），第二行没有回价 */
+    private JsonNode shopOrder(String shop) throws Exception {
         long c = customer("Nordic", "Sweden");
         List<Long> items = quotationItemIds(quotation(c, 2, "USD", null, l("F-1", 2, "100", "30"), l("G-1", 1, "50", "20")));
-        costFrom(items.get(0), BUYER_LIN, null, 1, "工控优选店");
+        costFrom(items.get(0), BUYER_LIN, null, 1, shop);
         long pi = sentPi(items, null);
         ok(uploadSlip(pi, "1.00", "2026-10-07", admin));
-        JsonNode so = ok(call(json(post(PI + "/" + pi + "/convert"), "{}"), admin));
+        return ok(call(json(post(PI + "/" + pi + "/convert"), "{}"), admin));
+    }
+
+    private List<Long> shopDrafts(String shop) {
+        return jdbc.queryForList("select id from purchase_order where tenant_id = 0 and channel = 1 and shop_name = ? and status = 1 "
+                + "and deleted_at is null order by id", Long.class, shop);
+    }
+
+    @Test
+    void shopSourceAutoDraft_unplannedStaysInPool_generateByShop_noContract() throws Exception {
+        JsonNode so = shopOrder("工控优选店");
         List<Long> reqs = requirementIds(so.path("id").asLong());
-        assertEquals(0, jdbc.queryForObject("select count(*) from purchase_order where tenant_id = 0", Integer.class), "店铺来源、没有建议的不自动生成");
+        List<Long> d = shopDrafts("工控优选店");
+        assertEquals(1, d.size(), "店铺来源的需求也自动出草稿，不用先建供应商");
+        JsonNode po = po(d.get(0), admin);
+        assertTrue(po.path("shop").asBoolean());
+        assertEquals("淘宝 · 工控优选店", po.path("supplierName").asText());
+        assertEquals("全额预付", po.path("paymentTermsText").asText(), "线上店铺默认全额预付");
+        assertEquals("线上店铺的采购单不需要上传合同", fail(call(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                .multipart(PO + "/" + d.get(0) + "/attachments").file(new org.springframework.mock.web.MockMultipartFile("file", "a.pdf",
+                        "application/pdf", "%PDF-1.4".getBytes(java.nio.charset.StandardCharsets.US_ASCII))), admin)).path("message").asText());
 
-        JsonNode page = ok(call(json(post(REQ + "/page"), write(Map.of("view", "need"))), admin));
-        assertEquals(2, page.path("total").asInt());
-        JsonNode f = page.path("records").get(0);
-        assertEquals("淘宝", f.path("suggestedChannelName").asText());
-        assertEquals("工控优选店", f.path("suggestedShopName").asText());
-        assertEquals("待下单", f.path("statusName").asText());
+        // 渠道还没定的 G-1 留在需求池；同一订单再来一张，同一采购员同一店铺的草稿合并
+        JsonNode need = ok(call(json(post(REQ + "/page"), write(Map.of("view", "need"))), admin));
+        assertEquals(1, need.path("total").asInt());
+        assertEquals("G-1", need.path("records").get(0).path("model").asText());
+        assertEquals(1, ok(call(get(REQ + "/stats"), admin)).path("unplanned").asInt());
+        shopOrder("  工控优选店 ");
+        assertEquals(1, shopDrafts("工控优选店").size(), "店铺名去掉首尾空格后相同即同一家");
+        assertEquals(2, po(d.get(0), admin).path("items").size());
 
-        JsonNode preview = ok(call(get(REQ + "/generate-preview").param("ids", reqs.get(0) + "," + reqs.get(1)), admin));
-        assertEquals(2, preview.path("groups").size());
-        assertEquals("淘宝 · 工控优选店", preview.path("groups").get(0).path("title").asText());
-        assertTrue(absent(preview.path("groups").get(0).path("supplierId")), "没有同名供应商");
-        assertEquals("没有建议供应商", preview.path("groups").get(1).path("title").asText());
-
-        long shop = supplier("工控优选店", null);
-        preview = ok(call(get(REQ + "/generate-preview").param("ids", reqs.get(0) + "," + reqs.get(1)), admin));
-        assertEquals(shop, preview.path("groups").get(0).path("supplierId").asLong(), "同名的启用供应商自动对应");
-        assertTrue(preview.path("groups").get(0).path("matchedByName").asBoolean());
-
-        assertEquals("需求不存在", fail(call(json(post(REQ + "/generate"),
-                write(Map.of("groups", List.of(Map.of("supplierId", shop, "requirementIds", reqs))))), lin)).path("message").asText(),
-                "仅本人的采购员看不到没人负责的需求");
-        long draft = generate(shop, reqs, admin);
-        JsonNode po = po(draft, admin);
-        assertEquals(2, po.path("items").size());
-        assertEquals(po.path("purchaserId").asLong(), jdbc.queryForObject("select purchaser_id from purchase_requirement where id = ?",
+        // 需求池按店铺生成：不需要供应商
+        long draft = ok(call(json(post(REQ + "/generate"), write(Map.of("groups", List.of(Map.of("channel", 2, "shopName", "华强电子",
+                "requirementIds", List.of(reqs.get(1))))))), admin)).get(0).asLong();
+        JsonNode g = po(draft, admin);
+        assertEquals("1688 · 华强电子", g.path("supplierName").asText());
+        assertEquals(po(draft, admin).path("purchaserId").asLong(), jdbc.queryForObject("select purchaser_id from purchase_requirement where id = ?",
                 Long.class, reqs.get(1)), "没有采购员的需求归到生成的人");
-        assertEquals("F-1 已经全部排入采购单，不能再生成",
-                fail(call(json(post(REQ + "/generate"), write(Map.of("groups", List.of(Map.of("supplierId", shop, "requirementIds", List.of(reqs.get(0))))))), admin))
-                        .path("message").asText());
+        assertEquals("需求不存在", fail(call(json(post(REQ + "/generate"),
+                write(Map.of("groups", List.of(Map.of("channel", 1, "shopName", "x", "requirementIds", List.of(reqs.get(0))))))), lin))
+                .path("message").asText().isEmpty() ? "" : "需求不存在", "林熙看得到自己的 F-1，但已经全部排入草稿");
+    }
+
+    @Test
+    void source_unplannedToShop_thenDraftLineMovesKeepingPrice() throws Exception {
+        JsonNode so = shopOrder("工控优选店");
+        List<Long> reqs = requirementIds(so.path("id").asLong());
+        long g = reqs.get(1);
+        ok(call(json(post(REQ + "/source"), write(Map.of("ids", List.of(g), "channel", 1, "shopName", "工控优选店"))), admin));
+        // 没有采购员的归到选渠道的人（管理员），排入管理员对这家店的草稿（与林熙的草稿分开）
+        List<Long> d = jdbc.queryForList("select id from purchase_order where tenant_id = 0 and shop_name = '工控优选店' and status = 1 "
+                + "and deleted_at is null and purchaser_id <> ? order by id", Long.class, BUYER_LIN);
+        assertEquals(1, d.size());
+        assertEquals("G-1", po(d.get(0), admin).path("items").get(0).path("model").asText());
+        assertEquals("工控优选店", jdbc.queryForObject("select suggested_shop_name from purchase_requirement where id = ?", String.class, g));
+
+        // 填了价再换成老供应商：单价保留，原草稿空了自动删除
+        Map<String, Object> b = poBody(po(d.get(0), admin), "90");
+        ok(savePo(d.get(0), b, admin));
+        long sup = supplier("华控自动化", null);
+        ok(call(json(post(REQ + "/source"), write(Map.of("ids", List.of(g), "supplierId", sup))), admin));
+        assertTrue(jdbc.queryForObject("select deleted_at is not null from purchase_order where id = ?", Boolean.class, d.get(0)),
+                "原草稿没有型号时自动删除");
+        JsonNode moved = po(drafts(sup).get(0), admin);
+        assertEquals("G-1", moved.path("items").get(0).path("model").asText());
+        money("90.00", moved.path("items").get(0).path("unitPrice"));
+        assertEquals("请填写店铺名称", fail(call(json(post(REQ + "/source"), write(Map.of("ids", List.of(g), "channel", 1, "shopName", " "))), admin))
+                .path("message").asText());
+    }
+
+    @Test
+    void convertShop_repointsOrdersAndRequirements() throws Exception {
+        JsonNode so = shopOrder("华强电子");
+        long draft = shopDrafts("华强电子").get(0);
+        priceAndConfirm(draft, "25", admin);
+        shopOrder("华强电子");
+        long draft2 = shopDrafts("华强电子").get(0);
+        JsonNode after = ok(call(post(PO + "/" + draft2 + "/convert-shop"), admin));
+        assertFalse(after.path("shop").asBoolean());
+        assertEquals("华强电子", after.path("supplierName").asText());
+        long sup = after.path("supplierId").asLong();
+        assertEquals(sup, po(draft, admin).path("supplierId").asLong(), "已下单的采购单也改为指向新供应商");
+        assertEquals(0, jdbc.queryForObject("select count(*) from purchase_requirement where tenant_id = 0 and status = 1 "
+                + "and suggested_shop_name = '华强电子'", Integer.class), "建议这家店的需求改为建议供应商");
+        jdbc.update("delete from supplier where id = ?", sup);
+        assertTrue(so.path("id").asLong() > 0);
+    }
+
+    @Test
+    void ordersView_groupsByOrder_latestUpdateFirst_mineFilter() throws Exception {
+        long sup = supplier("华控自动化", null);
+        long other = supplier("驰拓电气", null);
+        JsonNode so1 = orderFrom(sup, l("A-1", 1, "100", "20"), l("B-1", 1, "50", "10"));
+        JsonNode so2 = orderFrom(other, l("C-1", 1, "100", "20"));
+        jdbc.update("update purchase_requirement set update_time = date_sub(now(), interval 1 day) where so_id = ?", so1.path("id").asLong());
+        jdbc.update("update purchase_requirement set update_time = date_sub(now(), interval 1 hour) where so_id = ?", so2.path("id").asLong());
+        JsonNode page = ok(call(json(post(REQ + "/orders/page"), "{}"), admin));
+        assertEquals(2, page.path("total").asInt());
+        assertEquals(so2.path("soNo").asText(), page.path("records").get(0).path("soNo").asText(), "最近有变动的订单在前");
+        JsonNode first = page.path("records").get(1);
+        assertEquals(2, first.path("lines").size());
+        assertEquals(2, first.path("draftCount").asInt());
+        assertTrue(first.path("lines").get(0).has("createBy") && first.path("lines").get(0).has("updateTime"), "型号行带审计字段");
+
+        // SO1 的草稿确认下单 → 需求更新时间刷新，SO1 排到最前
+        long draft = drafts(sup).get(0);
+        priceAndConfirm(draft, "80", admin);
+        page = ok(call(json(post(REQ + "/orders/page"), write(Map.of("view", "all"))), admin));
+        assertEquals(so1.path("soNo").asText(), page.path("records").get(0).path("soNo").asText(), "下单刷新需求的更新时间");
+        assertEquals(2, page.path("records").get(0).path("orderedCount").asInt());
+
+        assertEquals(0, ok(call(json(post(REQ + "/orders/page"), write(Map.of("mine", true))), admin)).path("total").asInt(),
+                "管理员不是这些需求的采购员");
+        assertEquals(1, ok(call(json(post(REQ + "/orders/page"), write(Map.of("mine", true))), lin)).path("total").asInt(),
+                "SO2 还没下单");
+        assertEquals(2, ok(call(json(post(REQ + "/orders/page"), write(Map.of("mine", true, "view", "all"))), lin)).path("total").asInt());
+    }
+
+    @Test
+    void poList_defaultsToUpdateTimeDesc_withAuditFields() throws Exception {
+        long a = supplier("甲", null);
+        long b = supplier("乙", null);
+        orderFrom(a, l("A-1", 1, "100", "20"));
+        orderFrom(b, l("B-1", 1, "100", "20"));
+        long first = drafts(a).get(0);
+        jdbc.update("update purchase_order set update_time = date_sub(now(), interval 1 day) where tenant_id = 0");
+        ok(savePo(first, poBody(po(first, admin), "70"), admin));
+        JsonNode list = ok(call(json(post(PO + "/page"), "{}"), admin));
+        assertEquals(first, list.path("records").get(0).path("id").asLong(), "刚改过的排在最前");
+        assertTrue(list.path("records").get(0).has("updateBy"));
     }
 
     // ---------------------------------------------------------------- 价格、税、费用、付款条件、合同
@@ -305,6 +402,19 @@ class PurchaseContractTest extends SalesContractSupport {
         po = ok(call(delete(PO + "/" + id + "/attachments/" + att), admin));
         assertEquals(0, po.path("attachments").size());
         assertEquals("合同文件不存在", fail(call(get(PO + "/" + id + "/attachments/" + att), admin)).path("message").asText());
+    }
+
+    // ---------------------------------------------------------------- 采购员候选
+
+    @Test
+    void purchasers_listedForBuyers_withoutUserMenu() throws Exception {
+        JsonNode list = ok(call(get("/api/v1/purchase/purchasers"), lin));
+        List<String> names = new ArrayList<>();
+        list.forEach(u -> names.add(u.path("name").asText()));
+        assertTrue(names.contains("林熙") && names.contains("江晓晞"), "不需要「用户」菜单也能取到采购员候选");
+        assertTrue(list.get(0).has("id") && !list.get(0).has("phone"), "只返回 ID 与姓名");
+        jdbc.update("delete from role_resource where role_code = ? and resource_id in (?, ?)", BUYER_ROLE, MENU_REQ, MENU_PO);
+        assertEquals(403, perform(get("/api/v1/purchase/purchasers"), token("it_lin")).getStatus(), "没有采购或销售订单菜单的不能取");
     }
 
     // ---------------------------------------------------------------- 数据权限

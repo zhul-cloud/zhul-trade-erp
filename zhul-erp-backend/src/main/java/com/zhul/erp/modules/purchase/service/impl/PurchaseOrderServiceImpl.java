@@ -35,6 +35,9 @@ import com.zhul.erp.modules.purchase.repository.PurchaseOrderLogMapper;
 import com.zhul.erp.modules.purchase.repository.PurchaseOrderMapper;
 import com.zhul.erp.modules.purchase.repository.PurchaseRequirementMapper;
 import com.zhul.erp.modules.purchase.service.PurchaseOrderService;
+import com.zhul.erp.modules.masterdata.dto.CreateSupplierFromChannelRequest;
+import com.zhul.erp.modules.masterdata.dto.SupplierCreateResultVO;
+import com.zhul.erp.modules.purchase.support.Counterparty;
 import com.zhul.erp.modules.purchase.support.OrderPurchaseProgress;
 import com.zhul.erp.modules.purchase.support.PurchaseAttachmentStorage;
 import com.zhul.erp.modules.purchase.support.PurchaseCalc;
@@ -103,6 +106,8 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
     private final CurrentUserResolver currentUser;
     private final InquiryLookups lookups;
     private final LogService logService;
+    private final com.zhul.erp.modules.purchase.support.RequirementTouch touch;
+    private final com.zhul.erp.modules.masterdata.service.SupplierService supplierService;
 
     // ---------------------------------------------------------------- 列表与统计
 
@@ -152,7 +157,7 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
                             .last("LIMIT " + KEYWORD_LIMIT))
                     .stream().map(PurchaseOrderItemDO::getPoId).distinct().toList();
             w.and(x -> {
-                x.like(PurchaseOrderDO::getPoNo, kw);
+                x.like(PurchaseOrderDO::getPoNo, kw).or().like(PurchaseOrderDO::getShopName, kw);
                 if (!supplierIds.isEmpty()) {
                     x.or().in(PurchaseOrderDO::getSupplierId, supplierIds);
                 }
@@ -167,7 +172,10 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
         if (total == 0) {
             return PageResult.of(0L, List.of());
         }
-        w.last(ListSort.orderBy(q.getSortField(), q.getSortOrder(), SORTS) + " LIMIT " + (long) (page - 1) * size + ", " + size);
+        // 列表页统一规范：默认按更新时间倒序；表头排序时按所选列
+        String order = q.getSortField() != null && SORTS.containsKey(q.getSortField())
+                ? ListSort.orderBy(q.getSortField(), q.getSortOrder(), SORTS) : "ORDER BY update_time DESC, id DESC";
+        w.last(order + " LIMIT " + (long) (page - 1) * size + ", " + size);
         return PageResult.of(total, toListVos(orderMapper.selectList(w)));
     }
 
@@ -205,7 +213,11 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
                 vo.setStaleDays(days > PurchaseConstants.STALE_DRAFT_DAYS ? (int) days : null);
             }
             vo.setSupplierId(p.getSupplierId());
-            vo.setSupplierName(suppliers.get(p.getSupplierId()));
+            Counterparty cp = Counterparty.of(p);
+            vo.setShop(cp.isShop());
+            vo.setChannel(cp.channel());
+            vo.setShopName(cp.isShop() ? cp.shopName() : null);
+            vo.setSupplierName(cp.isShop() ? cp.shopTitle() : suppliers.get(p.getSupplierId()));
             vo.setItemCount(lines.size());
             vo.setTotalQuantity(lines.stream().mapToInt(PurchaseOrderItemDO::getQuantity).sum());
             vo.setMissingPriceCount((int) lines.stream().filter(i -> i.getUnitPrice() == null).count());
@@ -228,6 +240,9 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
             vo.setPurchaserId(p.getPurchaserId());
             vo.setPurchaserName(users.get(p.getPurchaserId()));
             vo.setCancelReason(p.getCancelReason());
+            vo.setCreateBy(p.getCreateBy());
+            vo.setUpdateTime(p.getUpdateTime());
+            vo.setUpdateBy(p.getUpdateBy());
             out.add(vo);
         }
         return out;
@@ -292,7 +307,11 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
         vo.setStatus(p.getStatus());
         vo.setStatusName(PurchaseConstants.PO_STATUS_NAMES.get(p.getStatus()));
         vo.setSupplierId(p.getSupplierId());
-        vo.setSupplierName(supplierNames(List.of(p.getSupplierId())).get(p.getSupplierId()));
+        Counterparty cp = Counterparty.of(p);
+        vo.setShop(cp.isShop());
+        vo.setChannel(cp.channel());
+        vo.setShopName(cp.isShop() ? cp.shopName() : null);
+        vo.setSupplierName(cp.isShop() ? cp.shopTitle() : supplierNames(List.of(p.getSupplierId())).get(p.getSupplierId()));
         vo.setPurchaserId(p.getPurchaserId());
         vo.setPurchaserName(users.get(p.getPurchaserId()));
         vo.setOrderDate(p.getOrderDate());
@@ -385,7 +404,7 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
         }
         boolean ordered = p.getStatus() == PurchaseConstants.PO_ORDERED;
         Long operator = currentUser.resolve();
-        String supplierBefore = supplierNames(List.of(p.getSupplierId())).get(p.getSupplierId());
+        String supplierBefore = titleOf(p);
         Snapshot before = snapshot(p);
         List<String> changes = new ArrayList<>();
 
@@ -394,8 +413,10 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
                 throw new BizException("已下单的采购单不能改供应商，可以取消后重新下单");
             }
             SupplierDO s = drafts.requireSupplier(req.getSupplierId());
-            changes.add("供应商 " + supplierBefore + " → " + s.getName());
+            changes.add("采购对象 " + supplierBefore + " → " + s.getName());
             p.setSupplierId(s.getId());
+            p.setChannel(PurchaseConstants.CHANNEL_SUPPLIER);
+            p.setShopName("");
         }
         String currency = req.getCurrencyCode().trim().toUpperCase(Locale.ROOT);
         if (!currency.equals(p.getCurrencyCode()) || !PurchaseConstants.CNY.equals(currency)) {
@@ -431,10 +452,12 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
         Map<Long, PurchaseRequirementDO> reqs = reqIds.isEmpty() ? Map.of()
                 : requirementMapper.selectBatchIds(reqIds).stream().collect(Collectors.toMap(PurchaseRequirementDO::getId, r -> r));
         Map<Long, RequirementQty.Qty> q = qty.byRequirement(reqIds);
+        List<Long> qtyChanged = new ArrayList<>();
         for (PurchaseOrderItemDO i : lines) {
             SavePurchaseOrderRequest.Line l = wanted.get(i.getId());
             int newQty = l.getQuantity();
             if (newQty != i.getQuantity()) {
+                qtyChanged.add(i.getRequirementId());
                 PurchaseRequirementDO r = reqs.get(i.getRequirementId());
                 int available = r == null || r.getStatus() != PurchaseConstants.REQ_ACTIVE ? 0
                         : RequirementQty.available(r, q.getOrDefault(r.getId(), RequirementQty.Qty.ZERO));
@@ -477,6 +500,7 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
             changes.add("其他费用 " + feesBefore + " → " + feesAfter);
         }
         drafts.recalc(p);
+        touch.touch(qtyChanged);
         Snapshot after = snapshot(p);
         changes.addAll(before.diff(after));
         if (!changes.isEmpty()) {
@@ -546,6 +570,7 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
             i.setDeletedAt(LocalDateTime.now());
             itemMapper.updateById(i);
         }
+        touch.touch(picked.stream().map(PurchaseOrderItemDO::getRequirementId).toList());
         logs.add(id, "移除型号", picked.stream().map(i -> i.getModel() + " × " + i.getQuantity()).collect(Collectors.joining("、"))
                 + "（数量回到需求池）", operator);
         if (drafts.deleteIfEmpty(p, operator)) {
@@ -560,10 +585,11 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
     public Long moveItems(Long id, MoveItemsRequest req) {
         PurchaseOrderDO p = lockVisible(id);
         requireDraft(p);
-        if (req.getSupplierId().equals(p.getSupplierId())) {
-            throw new BizException("已经是这家供应商");
+        Counterparty target = Counterparty.of(req.getSupplierId(), req.getChannel(), req.getShopName());
+        if (target.key().equals(Counterparty.of(p).key())) {
+            throw new BizException("已经是这个采购对象");
         }
-        SupplierDO target = drafts.requireSupplier(req.getSupplierId());
+        String targetName = target.isShop() ? target.shopTitle() : drafts.requireSupplier(target.supplierId()).getName();
         List<PurchaseOrderItemDO> picked = pickItems(id, req.getItemIds());
         Long operator = currentUser.resolve();
         Map<Long, PurchaseRequirementDO> reqs = requirementMapper.selectBatchIds(picked.stream().map(PurchaseOrderItemDO::getRequirementId).distinct().toList())
@@ -572,17 +598,70 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
         for (PurchaseOrderItemDO i : picked) {
             i.setDeletedAt(LocalDateTime.now());
             itemMapper.updateById(i);
-            moves.add(new PurchaseDrafts.Placement(reqs.get(i.getRequirementId()), p.getPurchaserId(), target.getId(), i.getQuantity(),
+            moves.add(new PurchaseDrafts.Placement(reqs.get(i.getRequirementId()), p.getPurchaserId(), target, i.getQuantity(),
                     i.getUnitPrice()));
         }
         String models = picked.stream().map(i -> i.getModel() + " × " + i.getQuantity()).collect(Collectors.joining("、"));
-        logs.add(id, "改到其他供应商", models + " 改到 " + target.getName(), operator);
+        logs.add(id, "改到其他供应商", models + " 改到 " + targetName, operator);
+        String sourceName = titleOf(p);
         if (!drafts.deleteIfEmpty(p, operator)) {
             drafts.recalc(p);
         }
-        String sourceName = supplierNames(List.of(p.getSupplierId())).get(p.getSupplierId());
         List<PurchaseOrderDO> placed = drafts.place(moves, "从 " + sourceName + " 的草稿改过来", null, operator);
         return placed.get(0).getId();
+    }
+
+    /** 采购对象的显示名：老供应商名称，或「淘宝 · 店铺名」 */
+    private String titleOf(PurchaseOrderDO p) {
+        Counterparty cp = Counterparty.of(p);
+        return cp.isShop() ? cp.shopTitle() : supplierNames(List.of(p.getSupplierId())).get(p.getSupplierId());
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public PurchaseOrderVO convertShop(Long id) {
+        PurchaseOrderDO p = lockVisible(id);
+        Counterparty cp = Counterparty.of(p);
+        if (!cp.isShop()) {
+            throw new BizException("采购对象已经是供应商");
+        }
+        if (p.getStatus() == PurchaseConstants.PO_CANCELLED) {
+            throw new BizException("采购单已取消");
+        }
+        CreateSupplierFromChannelRequest create = new CreateSupplierFromChannelRequest();
+        create.setChannelName(cp.shopName());
+        SupplierCreateResultVO res = supplierService.createFromChannel(create);
+        Long supplierId = res.isDuplicate() && res.getExistingSupplier() != null ? res.getExistingSupplier().getId()
+                : res.getCreatedSupplier().getId();
+        Long operator = currentUser.resolve();
+        List<PurchaseOrderDO> pos = orderMapper.selectList(new LambdaQueryWrapper<PurchaseOrderDO>()
+                .eq(PurchaseOrderDO::getTenantId, PiStore.tenantId())
+                .eq(PurchaseOrderDO::getChannel, cp.channel())
+                .eq(PurchaseOrderDO::getShopName, cp.shopName())
+                .in(PurchaseOrderDO::getStatus, PurchaseConstants.PO_DRAFT, PurchaseConstants.PO_ORDERED)
+                .isNull(PurchaseOrderDO::getDeletedAt));
+        for (PurchaseOrderDO x : pos) {
+            orderMapper.lockById(x.getId());
+            x.setSupplierId(supplierId);
+            x.setChannel(PurchaseConstants.CHANNEL_SUPPLIER);
+            x.setShopName("");
+            orderMapper.updateById(x);
+            logs.add(x.getId(), "转为供应商", cp.shopTitle() + " 转为供应商「" + cp.shopName() + "」", operator);
+        }
+        List<PurchaseRequirementDO> reqs = requirementMapper.selectList(new LambdaQueryWrapper<PurchaseRequirementDO>()
+                .eq(PurchaseRequirementDO::getTenantId, PiStore.tenantId())
+                .eq(PurchaseRequirementDO::getStatus, PurchaseConstants.REQ_ACTIVE)
+                .isNull(PurchaseRequirementDO::getSuggestedSupplierId)
+                .eq(PurchaseRequirementDO::getSuggestedChannel, cp.channel())
+                .eq(PurchaseRequirementDO::getSuggestedShopName, cp.shopName())
+                .isNull(PurchaseRequirementDO::getDeletedAt));
+        for (PurchaseRequirementDO r : reqs) {
+            Counterparty.supplier(supplierId).applyTo(r);
+            requirementMapper.updateById(r);
+        }
+        logService.recordOperateLog(PurchaseConstants.MENU_ORDER, "店铺转为供应商", null,
+                Map.of("shop", cp.shopTitle(), "supplierId", supplierId, "orders", pos.size(), "requirements", reqs.size()));
+        return detail(id);
     }
 
     private List<PurchaseOrderItemDO> pickItems(Long poId, List<Long> itemIds) {
@@ -615,7 +694,9 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
         if (PaymentTerms.fromJson(p.getPaymentTerms()).isEmpty()) {
             throw new BizException("请填写付款条件");
         }
-        drafts.requireSupplier(p.getSupplierId());
+        if (!Counterparty.of(p).isShop()) {
+            drafts.requireSupplier(p.getSupplierId());
+        }
         requirementMapper.lockByIds(lines.stream().map(PurchaseOrderItemDO::getRequirementId).distinct().toList());
         drafts.recalc(p);
         p.setPoNo(documentNumberService.next(DocumentType.PO));
@@ -624,11 +705,12 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
         p.setOrderedAt(LocalDateTime.now());
         orderMapper.updateById(p);
         Long operator = currentUser.resolve();
+        touch.touch(lines.stream().map(PurchaseOrderItemDO::getRequirementId).toList());
         logs.add(id, "确认下单", "下单日期 " + req.getOrderDate() + "，编号 " + p.getPoNo(), operator);
         progress.sync(lines.stream().map(PurchaseOrderItemDO::getSoItemId).toList());
         Map<String, Object> after = new LinkedHashMap<>();
         after.put("poNo", p.getPoNo());
-        after.put("supplier", supplierNames(List.of(p.getSupplierId())).get(p.getSupplierId()));
+        after.put("supplier", titleOf(p));
         after.put("total", p.getCurrencyCode() + " " + p.getTotalAmount());
         after.put("bargain", "CNY " + p.getBargainAmount());
         logService.recordOperateLog(PurchaseConstants.MENU_ORDER, "确认下单", null, after);
@@ -650,6 +732,7 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
         orderMapper.updateById(p);
         List<PurchaseOrderItemDO> lines = drafts.items(id);
         closeEmptyCancelledRequirements(lines);
+        touch.touch(lines.stream().map(PurchaseOrderItemDO::getRequirementId).toList());
         logs.add(id, "取消", "原因：" + why + "；各型号数量回到需求池", p.getCancelledBy());
         progress.sync(lines.stream().map(PurchaseOrderItemDO::getSoItemId).toList());
         logService.recordOperateLog(PurchaseConstants.MENU_ORDER, "取消采购单", Map.of("poNo", p.getPoNo(), "status", "已下单"),
@@ -679,10 +762,12 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
         requireDraft(p);
         Long operator = currentUser.resolve();
         LocalDateTime now = LocalDateTime.now();
-        for (PurchaseOrderItemDO i : drafts.items(id)) {
+        List<PurchaseOrderItemDO> removed = drafts.items(id);
+        for (PurchaseOrderItemDO i : removed) {
             i.setDeletedAt(now);
             itemMapper.updateById(i);
         }
+        touch.touch(removed.stream().map(PurchaseOrderItemDO::getRequirementId).toList());
         p.setDeletedAt(now);
         orderMapper.updateById(p);
         logs.add(id, "删除草稿", "各型号数量回到需求池", operator);
@@ -703,6 +788,9 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
         PurchaseOrderDO p = lockVisible(id);
         if (p.getStatus() == PurchaseConstants.PO_CANCELLED) {
             throw new BizException("采购单已取消，不能上传合同");
+        }
+        if (Counterparty.of(p).isShop()) {
+            throw new BizException("线上店铺的采购单不需要上传合同");
         }
         long count = attachmentMapper.selectCount(new LambdaQueryWrapper<PurchaseOrderAttachmentDO>()
                 .eq(PurchaseOrderAttachmentDO::getPoId, id)

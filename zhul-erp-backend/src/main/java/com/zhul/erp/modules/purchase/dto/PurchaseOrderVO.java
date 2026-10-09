@@ -16,7 +16,12 @@ public class PurchaseOrderVO {
     private Integer status;
     private String statusName;
     private Long supplierId;
+    /** 老供应商名称，或「淘宝 · 店铺名」 */
     private String supplierName;
+    /** 采购对象为线上店铺：不显示合同，可以转为供应商 */
+    private Boolean shop;
+    private Integer channel;
+    private String shopName;
     private Long purchaserId;
     private String purchaserName;
     private LocalDate orderDate;

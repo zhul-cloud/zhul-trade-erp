@@ -37,10 +37,23 @@ public class PurchaseRequirementController {
         return Result.ok(service.page(query));
     }
 
+    @PostMapping("/orders/page")
+    @PreAuthorize("@perm.canAccessMenu('/purchase/requirements')")
+    public Result<PageResult<com.zhul.erp.modules.purchase.dto.RequirementOrderVO>> orders(@RequestBody RequirementPageQuery query) {
+        return Result.ok(service.orders(query));
+    }
+
     @GetMapping("/stats")
     @PreAuthorize("@perm.canAccessMenu('/purchase/requirements')")
-    public Result<RequirementStatsVO> stats() {
-        return Result.ok(service.stats());
+    public Result<RequirementStatsVO> stats(@RequestParam(defaultValue = "false") boolean mine) {
+        return Result.ok(service.stats(mine));
+    }
+
+    @PostMapping("/source")
+    @PreAuthorize("@perm.canAccessMenu('/purchase/requirements') and @perm.has('purchase:order:create')")
+    public Result<Void> source(@jakarta.validation.Valid @RequestBody com.zhul.erp.modules.purchase.dto.SourceRequest req) {
+        service.source(req);
+        return Result.ok();
     }
 
     @PostMapping("/{id}/split")

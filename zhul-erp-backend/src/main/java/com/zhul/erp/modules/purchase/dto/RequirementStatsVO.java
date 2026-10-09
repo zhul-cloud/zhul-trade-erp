@@ -11,6 +11,8 @@ public class RequirementStatsVO {
     private Long inDraft;
     /** 需要生成采购单（还有可下单数量） */
     private Long need;
+    /** 还没定渠道（没有建议供应商也没有建议店铺） */
+    private Long unplanned;
     /** 未指定采购员（只有数据权限为全部时有值） */
     private Long unassigned;
     /** 草稿采购单 */

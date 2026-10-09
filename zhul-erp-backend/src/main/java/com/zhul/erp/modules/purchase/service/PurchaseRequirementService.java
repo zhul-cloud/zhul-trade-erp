@@ -15,7 +15,13 @@ public interface PurchaseRequirementService {
 
     PageResult<RequirementVO> page(RequirementPageQuery q);
 
-    RequirementStatsVO stats();
+    /** 按订单分组：订单按其需求最近的更新时间倒序 */
+    PageResult<com.zhul.erp.modules.purchase.dto.RequirementOrderVO> orders(RequirementPageQuery q);
+
+    RequirementStatsVO stats(boolean mine);
+
+    /** 选定采购渠道：老供应商或线上店铺 */
+    void source(com.zhul.erp.modules.purchase.dto.SourceRequest req);
 
     void split(Long id, SplitRequirementRequest req);
 

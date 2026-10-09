@@ -39,11 +39,15 @@ public class PurchaseDrafts {
     private final PurchaseOrderFeeMapper feeMapper;
     private final SupplierMapper supplierMapper;
     private final PurchaseLogs logs;
+    private final RequirementTouch touch;
 
-    /** 一条需求的多少数量放到哪位采购员对哪家供应商的草稿；单价可带（改到其他供应商时保留已填的价） */
-    public record Placement(PurchaseRequirementDO requirement, Long purchaserId, Long supplierId, int quantity, BigDecimal unitPrice) {
-        public Placement(PurchaseRequirementDO requirement, Long purchaserId, Long supplierId, int quantity) {
-            this(requirement, purchaserId, supplierId, quantity, null);
+    /** 线上店铺采购单的默认付款条件：100% 下单后 */
+    public static final String SHOP_TERMS = "[{\"percent\":100.00,\"trigger\":1,\"days\":0}]";
+
+    /** 一条需求的多少数量放到哪位采购员对哪个采购对象的草稿；单价可带（改到其他供应商时保留已填的价） */
+    public record Placement(PurchaseRequirementDO requirement, Long purchaserId, Counterparty counterparty, int quantity, BigDecimal unitPrice) {
+        public Placement(PurchaseRequirementDO requirement, Long purchaserId, Counterparty counterparty, int quantity) {
+            this(requirement, purchaserId, counterparty, quantity, null);
         }
     }
 
@@ -54,15 +58,15 @@ public class PurchaseDrafts {
             if (p.quantity() <= 0) {
                 continue;
             }
-            groups.computeIfAbsent(p.purchaserId() + ":" + p.supplierId(), k -> new ArrayList<>()).add(p);
+            groups.computeIfAbsent(p.purchaserId() + ":" + p.counterparty().key(), k -> new ArrayList<>()).add(p);
         }
         List<PurchaseOrderDO> touched = new ArrayList<>(groups.size());
         for (List<Placement> group : groups.values()) {
             Placement first = group.get(0);
-            PurchaseOrderDO po = lockLatestDraft(first.purchaserId(), first.supplierId());
+            PurchaseOrderDO po = lockLatestDraft(first.purchaserId(), first.counterparty());
             boolean created = po == null;
             if (created) {
-                po = newDraft(first.purchaserId(), first.supplierId());
+                po = newDraft(first.purchaserId(), first.counterparty());
             }
             int sort = nextSort(po.getId());
             List<String> models = new ArrayList<>(group.size());
@@ -85,6 +89,7 @@ public class PurchaseDrafts {
                 models.add(r.getModel() + " × " + p.quantity());
             }
             recalc(po);
+            touch.touch(group.stream().map(x -> x.requirement().getId()).toList());
             logs.add(po.getId(), created ? "新建草稿" : "追加型号",
                     (note == null ? "" : note + "：") + String.join("、", models) + (action == null ? "" : "（" + action + "）"), operatorId);
             touched.add(po);
@@ -92,12 +97,14 @@ public class PurchaseDrafts {
         return touched;
     }
 
-    /** 该采购员对该供应商最近的 CNY 草稿（加锁） */
-    public PurchaseOrderDO lockLatestDraft(Long purchaserId, Long supplierId) {
+    /** 该采购员对该采购对象最近的 CNY 草稿（加锁） */
+    public PurchaseOrderDO lockLatestDraft(Long purchaserId, Counterparty cp) {
         return orderMapper.selectOne(new LambdaQueryWrapper<PurchaseOrderDO>()
                 .eq(PurchaseOrderDO::getTenantId, PiStore.tenantId())
                 .eq(PurchaseOrderDO::getPurchaserId, purchaserId)
-                .eq(PurchaseOrderDO::getSupplierId, supplierId)
+                .eq(PurchaseOrderDO::getChannel, cp.channel())
+                .eq(PurchaseOrderDO::getSupplierId, cp.isShop() ? 0L : cp.supplierId())
+                .eq(PurchaseOrderDO::getShopName, cp.isShop() ? cp.shopName() : "")
                 .eq(PurchaseOrderDO::getCurrencyCode, PurchaseConstants.CNY)
                 .eq(PurchaseOrderDO::getStatus, PurchaseConstants.PO_DRAFT)
                 .isNull(PurchaseOrderDO::getDeletedAt)
@@ -105,11 +112,13 @@ public class PurchaseDrafts {
                 .last("LIMIT 1 FOR UPDATE"));
     }
 
-    private PurchaseOrderDO newDraft(Long purchaserId, Long supplierId) {
-        SupplierDO s = requireSupplier(supplierId);
+    private PurchaseOrderDO newDraft(Long purchaserId, Counterparty cp) {
+        SupplierDO s = cp.isShop() ? null : requireSupplier(cp.supplierId());
         PurchaseOrderDO po = new PurchaseOrderDO();
         po.setTenantId(PiStore.tenantId());
-        po.setSupplierId(supplierId);
+        po.setSupplierId(cp.isShop() ? 0L : cp.supplierId());
+        po.setChannel(cp.channel());
+        po.setShopName(cp.isShop() ? cp.shopName() : "");
         po.setPurchaserId(purchaserId);
         po.setStatus(PurchaseConstants.PO_DRAFT);
         po.setCurrencyCode(PurchaseConstants.CNY);
@@ -122,7 +131,8 @@ public class PurchaseDrafts {
         po.setTotalAmountCny(BigDecimal.ZERO);
         po.setTargetAmount(BigDecimal.ZERO);
         po.setBargainAmount(BigDecimal.ZERO);
-        po.setPaymentTerms(Objects.requireNonNullElse(s.getPaymentTerms(), ""));
+        // 线上店铺默认全额预付（平台下单即付款）
+        po.setPaymentTerms(s == null ? SHOP_TERMS : Objects.requireNonNullElse(s.getPaymentTerms(), ""));
         po.setContractNo("");
         po.setCancelReason("");
         orderMapper.insert(po);
@@ -232,6 +242,7 @@ public class PurchaseDrafts {
             left -= take;
             touched.add(po.getId());
         }
+        touch.touch(List.of(requirementId));
         return quantity - left;
     }
 

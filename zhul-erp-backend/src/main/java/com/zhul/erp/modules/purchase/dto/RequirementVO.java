@@ -17,6 +17,7 @@ public class RequirementVO {
     private String customerCountry;
     private String model;
     private String brand;
+    private String category;
     private Integer quantity;
     private Integer draftQty;
     private Integer orderedQty;
@@ -37,13 +38,19 @@ public class RequirementVO {
     private String statusName;
     /** 所在采购单（草稿与已下单） */
     private List<PoRef> purchaseOrders;
+    private java.time.LocalDateTime createTime;
+    private String createBy;
+    private java.time.LocalDateTime updateTime;
+    private String updateBy;
 
     @Data
     public static class PoRef {
         private Long id;
         private String poNo;
         private Integer status;
+        /** 老供应商名称，或「淘宝 · 店铺名」 */
         private String supplierName;
+        private Boolean shop;
         private String purchaserName;
         private Integer quantity;
     }

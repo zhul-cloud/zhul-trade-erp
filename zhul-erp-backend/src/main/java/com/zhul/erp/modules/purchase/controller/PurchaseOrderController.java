@@ -95,6 +95,12 @@ public class PurchaseOrderController {
         return Result.ok(service.cancel(id, req));
     }
 
+    @PostMapping("/{id}/convert-shop")
+    @PreAuthorize(EDIT)
+    public Result<PurchaseOrderVO> convertShop(@PathVariable Long id) {
+        return Result.ok(service.convertShop(id));
+    }
+
     @DeleteMapping("/{id}")
     @PreAuthorize(CANCEL)
     public Result<Void> delete(@PathVariable Long id) {

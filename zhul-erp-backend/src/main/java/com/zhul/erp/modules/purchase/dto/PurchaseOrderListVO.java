@@ -20,7 +20,12 @@ public class PurchaseOrderListVO {
     /** 草稿已放天数（超过 3 天时有值） */
     private Integer staleDays;
     private Long supplierId;
+    /** 老供应商名称，或「淘宝 · 店铺名」 */
     private String supplierName;
+    /** 采购对象为线上店铺 */
+    private Boolean shop;
+    private Integer channel;
+    private String shopName;
     private Integer itemCount;
     private Integer totalQuantity;
     /** 还没填单价的行数 */
@@ -39,6 +44,9 @@ public class PurchaseOrderListVO {
     private Long purchaserId;
     private String purchaserName;
     private String cancelReason;
+    private String createBy;
+    private LocalDateTime updateTime;
+    private String updateBy;
 
     @Data
     public static class SoRef {

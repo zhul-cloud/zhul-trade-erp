@@ -15,7 +15,9 @@ import com.zhul.erp.modules.purchase.constants.PurchaseConstants;
 import com.zhul.erp.modules.purchase.dto.AssignRequirementsRequest;
 import com.zhul.erp.modules.purchase.dto.GeneratePreviewVO;
 import com.zhul.erp.modules.purchase.dto.GeneratePurchaseRequest;
+import com.zhul.erp.modules.purchase.dto.RequirementOrderVO;
 import com.zhul.erp.modules.purchase.dto.RequirementPageQuery;
+import com.zhul.erp.modules.purchase.dto.SourceRequest;
 import com.zhul.erp.modules.purchase.dto.RequirementStatsVO;
 import com.zhul.erp.modules.purchase.dto.RequirementVO;
 import com.zhul.erp.modules.purchase.dto.SplitRequirementRequest;
@@ -26,6 +28,7 @@ import com.zhul.erp.modules.purchase.repository.PurchaseOrderItemMapper;
 import com.zhul.erp.modules.purchase.repository.PurchaseOrderMapper;
 import com.zhul.erp.modules.purchase.repository.PurchaseRequirementMapper;
 import com.zhul.erp.modules.purchase.service.PurchaseRequirementService;
+import com.zhul.erp.modules.purchase.support.Counterparty;
 import com.zhul.erp.modules.purchase.support.PurchaseDrafts;
 import com.zhul.erp.modules.purchase.support.RequirementLifecycle;
 import com.zhul.erp.modules.purchase.support.RequirementQty;
@@ -80,8 +83,8 @@ public class PurchaseRequirementServiceImpl implements PurchaseRequirementServic
 
     // ---------------------------------------------------------------- 列表与统计
 
-    @Override
-    public PageResult<RequirementVO> page(RequirementPageQuery q) {
+    /** 两个视图共用的筛选条件 */
+    private LambdaQueryWrapper<PurchaseRequirementDO> filtered(RequirementPageQuery q) {
         int tenant = PiStore.tenantId();
         LambdaQueryWrapper<PurchaseRequirementDO> w = scoped();
         String view = StringUtils.hasText(q.getView()) ? q.getView().trim() : "open";
@@ -92,11 +95,22 @@ public class PurchaseRequirementServiceImpl implements PurchaseRequirementServic
             w.eq(PurchaseRequirementDO::getStatus, PurchaseConstants.REQ_ACTIVE)
                     .apply("purchase_requirement.quantity > " + PLACED_SQL.formatted("1, 2"));
         }
+        if (Boolean.TRUE.equals(q.getMine())) {
+            Long me = currentUser.resolve();
+            w.eq(PurchaseRequirementDO::getPurchaserId, me == null ? -1L : me);
+        }
         if (q.getPurchaserId() != null) {
             w.eq(PurchaseRequirementDO::getPurchaserId, q.getPurchaserId());
         }
         if (q.getSupplierId() != null) {
             w.eq(PurchaseRequirementDO::getSuggestedSupplierId, q.getSupplierId());
+        }
+        if ("supplier".equals(q.getSourceType())) {
+            w.isNotNull(PurchaseRequirementDO::getSuggestedSupplierId);
+        } else if ("shop".equals(q.getSourceType())) {
+            w.isNull(PurchaseRequirementDO::getSuggestedSupplierId).ne(PurchaseRequirementDO::getSuggestedShopName, "");
+        } else if ("none".equals(q.getSourceType())) {
+            w.isNull(PurchaseRequirementDO::getSuggestedSupplierId).eq(PurchaseRequirementDO::getSuggestedShopName, "");
         }
         if (q.getStockType() != null) {
             w.apply("EXISTS (SELECT 1 FROM sales_order_item si WHERE si.id = purchase_requirement.so_item_id AND si.stock_type = {0})",
@@ -128,37 +142,132 @@ public class PurchaseRequirementServiceImpl implements PurchaseRequirementServic
                 }
             });
         }
-        int size = q.getPageSize() == null || q.getPageSize() <= 0 ? 20 : Math.min(q.getPageSize(), 100);
+        return w;
+    }
+
+    private static int pageSize(Integer v) {
+        return v == null || v <= 0 ? 20 : Math.min(v, 100);
+    }
+
+    @Override
+    public PageResult<RequirementVO> page(RequirementPageQuery q) {
+        LambdaQueryWrapper<PurchaseRequirementDO> w = filtered(q);
+        int size = pageSize(q.getPageSize());
         int page = Math.max(1, q.getPage() == null ? 1 : q.getPage());
         long total = requirementMapper.selectCount(w);
         if (total == 0) {
             return PageResult.of(0L, List.of());
         }
-        w.last("ORDER BY (SELECT so.sales_date FROM sales_order so WHERE so.id = purchase_requirement.so_id) ASC, id ASC LIMIT "
-                + (long) (page - 1) * size + ", " + size);
+        w.orderByDesc(PurchaseRequirementDO::getUpdateTime).orderByDesc(PurchaseRequirementDO::getId)
+                .last("LIMIT " + (long) (page - 1) * size + ", " + size);
         return PageResult.of(total, toVos(requirementMapper.selectList(w)));
     }
 
+    /** 按订单：先按订单分组（订单按其需求最近的更新时间倒序）分页，再取这一页订单的需求 */
     @Override
-    public RequirementStatsVO stats() {
+    public PageResult<RequirementOrderVO> orders(RequirementPageQuery q) {
+        Map<Long, java.time.LocalDateTime> latest = new HashMap<>();
+        requirementMapper.selectList(filtered(q).select(PurchaseRequirementDO::getSoId, PurchaseRequirementDO::getUpdateTime))
+                .forEach(r -> latest.merge(r.getSoId(), r.getUpdateTime(), (a, b) -> a.isAfter(b) ? a : b));
+        if (latest.isEmpty()) {
+            return PageResult.of(0L, List.of());
+        }
+        List<Long> sorted = latest.entrySet().stream()
+                .sorted((x, y) -> {
+                    int c = y.getValue().compareTo(x.getValue());
+                    return c != 0 ? c : Long.compare(y.getKey(), x.getKey());
+                })
+                .map(Map.Entry::getKey).toList();
+        int size = pageSize(q.getPageSize());
+        int page = Math.max(1, q.getPage() == null ? 1 : q.getPage());
+        List<Long> pageIds = sorted.stream().skip((long) (page - 1) * size).limit(size).toList();
+        if (pageIds.isEmpty()) {
+            return PageResult.of((long) sorted.size(), List.of());
+        }
+        List<RequirementVO> lines = toVos(requirementMapper.selectList(filtered(q).in(PurchaseRequirementDO::getSoId, pageIds)
+                .orderByDesc(PurchaseRequirementDO::getUpdateTime).orderByDesc(PurchaseRequirementDO::getId)));
+        Map<Long, List<RequirementVO>> bySo = lines.stream().collect(Collectors.groupingBy(RequirementVO::getSoId, LinkedHashMap::new, Collectors.toList()));
+        Map<Long, SalesOrderDO> orders = new HashMap<>();
+        soMapper.selectBatchIds(pageIds).forEach(o -> orders.put(o.getId(), o));
+        Map<Long, CustomerDO> customers = lookups.customers(orders.values().stream().map(SalesOrderDO::getCustomerId).toList());
+        Map<Long, String> owners = lookups.userNames(orders.values().stream().map(SalesOrderDO::getOwnerId).toList());
+        List<RequirementOrderVO> out = new ArrayList<>(pageIds.size());
+        for (Long soId : pageIds) {
+            SalesOrderDO o = orders.get(soId);
+            List<RequirementVO> ls = bySo.getOrDefault(soId, List.of());
+            RequirementOrderVO vo = new RequirementOrderVO();
+            vo.setSoId(soId);
+            if (o != null) {
+                vo.setSoNo(o.getSoNo());
+                vo.setSalesDate(o.getSalesDate());
+                CustomerDO c = customers.get(o.getCustomerId());
+                vo.setCustomerName(InquiryLookups.customerName(c));
+                vo.setCustomerCountry(c == null ? null : c.getCountry());
+                vo.setCustomerType(o.getCustomerType());
+                vo.setStockType(o.getStockType());
+                vo.setSource(o.getSource());
+                vo.setOwnerName(owners.get(o.getOwnerId()));
+            }
+            vo.setOrderedCount((int) ls.stream().filter(x -> "ordered".equals(x.getStatus())).count());
+            vo.setPartialCount((int) ls.stream().filter(x -> "partial".equals(x.getStatus())).count());
+            vo.setDraftCount((int) ls.stream().filter(x -> "draft".equals(x.getStatus())).count());
+            vo.setPendingCount((int) ls.stream().filter(x -> "pending".equals(x.getStatus())).count());
+            vo.setUpdateTime(latest.get(soId));
+            vo.setLines(ls);
+            out.add(vo);
+        }
+        return PageResult.of((long) sorted.size(), out);
+    }
+
+    @Override
+    public RequirementStatsVO stats(boolean mine) {
+        RequirementQuery base = new RequirementQuery(mine);
         RequirementStatsVO vo = new RequirementStatsVO();
-        vo.setOpen(requirementMapper.selectCount(scoped().eq(PurchaseRequirementDO::getStatus, PurchaseConstants.REQ_ACTIVE)
-                .apply("purchase_requirement.quantity > " + PLACED_SQL.formatted("2"))));
-        vo.setNeed(requirementMapper.selectCount(scoped().eq(PurchaseRequirementDO::getStatus, PurchaseConstants.REQ_ACTIVE)
-                .apply("purchase_requirement.quantity > " + PLACED_SQL.formatted("1, 2"))));
+        vo.setOpen(requirementMapper.selectCount(base.open()));
+        vo.setNeed(requirementMapper.selectCount(base.need()));
+        vo.setUnplanned(requirementMapper.selectCount(base.open().isNull(PurchaseRequirementDO::getSuggestedSupplierId)
+                .eq(PurchaseRequirementDO::getSuggestedShopName, "")));
         vo.setInDraft(vo.getOpen() - vo.getNeed());
         DataScope scope = dataScopeResolver.current();
-        vo.setUnassigned(scope.isAll() ? requirementMapper.selectCount(scoped()
-                .eq(PurchaseRequirementDO::getStatus, PurchaseConstants.REQ_ACTIVE)
-                .isNull(PurchaseRequirementDO::getPurchaserId)
-                .apply("purchase_requirement.quantity > " + PLACED_SQL.formatted("1, 2"))) : 0L);
+        vo.setUnassigned(scope.isAll() && !mine ? requirementMapper.selectCount(base.need()
+                .isNull(PurchaseRequirementDO::getPurchaserId)) : 0L);
         LambdaQueryWrapper<PurchaseOrderDO> d = new LambdaQueryWrapper<PurchaseOrderDO>()
                 .eq(PurchaseOrderDO::getTenantId, PiStore.tenantId())
                 .eq(PurchaseOrderDO::getStatus, PurchaseConstants.PO_DRAFT)
                 .isNull(PurchaseOrderDO::getDeletedAt);
         scope.apply(d, PurchaseOrderDO::getPurchaserId);
+        if (mine) {
+            Long me = currentUser.resolve();
+            d.eq(PurchaseOrderDO::getPurchaserId, me == null ? -1L : me);
+        }
         vo.setDrafts(orderMapper.selectCount(d));
         return vo;
+    }
+
+    /** 统计用的基础条件：数据范围、有效、（可选）只看我负责的 */
+    private final class RequirementQuery {
+        private final boolean mine;
+
+        RequirementQuery(boolean mine) {
+            this.mine = mine;
+        }
+
+        private LambdaQueryWrapper<PurchaseRequirementDO> base() {
+            LambdaQueryWrapper<PurchaseRequirementDO> w = scoped().eq(PurchaseRequirementDO::getStatus, PurchaseConstants.REQ_ACTIVE);
+            if (mine) {
+                Long me = currentUser.resolve();
+                w.eq(PurchaseRequirementDO::getPurchaserId, me == null ? -1L : me);
+            }
+            return w;
+        }
+
+        LambdaQueryWrapper<PurchaseRequirementDO> open() {
+            return base().apply("purchase_requirement.quantity > " + PLACED_SQL.formatted("2"));
+        }
+
+        LambdaQueryWrapper<PurchaseRequirementDO> need() {
+            return base().apply("purchase_requirement.quantity > " + PLACED_SQL.formatted("1, 2"));
+        }
     }
 
     private List<RequirementVO> toVos(List<PurchaseRequirementDO> rows) {
@@ -202,6 +311,7 @@ public class PurchaseRequirementServiceImpl implements PurchaseRequirementServic
             }
             vo.setModel(r.getModel());
             vo.setBrand(r.getBrand());
+            vo.setCategory(r.getCategory());
             vo.setQuantity(r.getQuantity());
             vo.setDraftQty(x.draft());
             vo.setOrderedQty(x.ordered());
@@ -228,12 +338,18 @@ public class PurchaseRequirementServiceImpl implements PurchaseRequirementServic
                 ref.setId(p.getId());
                 ref.setPoNo(p.getPoNo());
                 ref.setStatus(p.getStatus());
-                ref.setSupplierName(suppliers.get(p.getSupplierId()));
+                Counterparty cp = Counterparty.of(p);
+                ref.setShop(cp.isShop());
+                ref.setSupplierName(cp.isShop() ? cp.shopTitle() : suppliers.get(p.getSupplierId()));
                 ref.setPurchaserName(users.get(p.getPurchaserId()));
                 ref.setQuantity(i.getQuantity());
                 refs.add(ref);
             }
             vo.setPurchaseOrders(refs);
+            vo.setCreateTime(r.getCreateTime());
+            vo.setCreateBy(r.getCreateBy());
+            vo.setUpdateTime(r.getUpdateTime());
+            vo.setUpdateBy(r.getUpdateBy());
             out.add(vo);
         }
         return out;
@@ -280,8 +396,10 @@ public class PurchaseRequirementServiceImpl implements PurchaseRequirementServic
         if (req.getPurchaserId() != null) {
             requireUser(req.getPurchaserId());
         }
-        if (req.getSupplierId() != null) {
-            drafts.requireSupplier(req.getSupplierId());
+        Counterparty target = req.getSupplierId() != null || StringUtils.hasText(req.getShopName())
+                ? Counterparty.of(req.getSupplierId(), req.getChannel(), req.getShopName()) : null;
+        if (target != null && !target.isShop()) {
+            drafts.requireSupplier(target.supplierId());
         }
         RequirementQty.Qty x = qty.of(id);
         int notOrdered = r.getQuantity() - x.ordered();
@@ -311,10 +429,9 @@ public class PurchaseRequirementServiceImpl implements PurchaseRequirementServic
         y.setQuantity(n);
         y.setTargetPrice(r.getTargetPrice());
         y.setPurchaserId(req.getPurchaserId() != null ? req.getPurchaserId() : r.getPurchaserId());
-        if (req.getSupplierId() != null) {
-            y.setSuggestedSupplierId(req.getSupplierId());
-            y.setSuggestedChannel(PurchaseConstants.CHANNEL_SUPPLIER);
-            y.setSuggestedShopName("");
+        y.setCategory(r.getCategory());
+        if (target != null) {
+            target.applyTo(y);
         } else {
             y.setSuggestedSupplierId(r.getSuggestedSupplierId());
             y.setSuggestedChannel(r.getSuggestedChannel());
@@ -369,6 +486,29 @@ public class PurchaseRequirementServiceImpl implements PurchaseRequirementServic
                 soItemMapper.updateById(i);
             }
         }
+    }
+
+    // ---------------------------------------------------------------- 选定采购渠道
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void source(SourceRequest req) {
+        Counterparty cp = Counterparty.of(req.getSupplierId(), req.getChannel(), req.getShopName());
+        Long me = currentUser.resolve();
+        List<PurchaseRequirementDO> rows = lockVisible(req.getIds());
+        Map<Long, RequirementQty.Qty> q = qty.byRequirement(req.getIds());
+        List<PurchaseRequirementDO> open = rows.stream()
+                .filter(r -> r.getStatus() == PurchaseConstants.REQ_ACTIVE
+                        && q.getOrDefault(r.getId(), RequirementQty.Qty.ZERO).ordered() < r.getQuantity())
+                .toList();
+        if (open.isEmpty()) {
+            throw new BizException("选中的型号都已下单或已关闭");
+        }
+        String title = cp.isShop() ? cp.shopTitle() : supplierNames(List.of(cp.supplierId())).get(cp.supplierId());
+        lifecycle.changeSource(open, cp, me, "选定渠道「" + title + "」");
+        syncOrderPurchasers(open);
+        logService.recordOperateLog(PurchaseConstants.MENU_REQUIREMENT, "选定采购渠道", null,
+                Map.of("source", String.valueOf(title), "items", open.stream().map(PurchaseRequirementDO::getModel).toList()));
     }
 
     // ---------------------------------------------------------------- 需求池生成采购单
@@ -456,14 +596,17 @@ public class PurchaseRequirementServiceImpl implements PurchaseRequirementServic
         Map<Long, RequirementQty.Qty> q = qty.byRequirement(all);
         List<PurchaseDrafts.Placement> list = new ArrayList<>(all.size());
         for (GeneratePurchaseRequest.Group g : req.getGroups()) {
-            drafts.requireSupplier(g.getSupplierId());
+            Counterparty cp = Counterparty.of(g.getSupplierId(), g.getChannel(), g.getShopName());
+            if (!cp.isShop()) {
+                drafts.requireSupplier(cp.supplierId());
+            }
             for (Long id : g.getRequirementIds()) {
                 PurchaseRequirementDO r = byId.get(id);
                 if (r.getPurchaserId() == null) {
                     r.setPurchaserId(me);
                     requirementMapper.updateById(r);
                 }
-                list.add(new PurchaseDrafts.Placement(r, me, g.getSupplierId(),
+                list.add(new PurchaseDrafts.Placement(r, me, cp,
                         RequirementQty.available(r, q.getOrDefault(id, RequirementQty.Qty.ZERO))));
             }
         }

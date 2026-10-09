@@ -21,7 +21,11 @@ public class PurchaseOrderDO {
     private Integer tenantId;
     /** 确认下单时生成，草稿为空 */
     private String poNo;
+    /** 线上店铺时为 0 */
     private Long supplierId;
+    /** 4-供应商；1-淘宝、2-1688、3-闲鱼、5-其他为线上店铺 */
+    private Integer channel;
+    private String shopName;
     private Long purchaserId;
     /** 1-草稿、2-已下单、3-已取消 */
     private Integer status;
