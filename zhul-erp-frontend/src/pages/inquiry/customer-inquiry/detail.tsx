@@ -282,6 +282,18 @@ const CustomerInquiryDetailPage: React.FC = () => {
             <span style={{ color: palette.ink, fontWeight: 600 }}>
               <PriceSummary value={q} />
             </span>
+            {q.note && (
+              <span
+                style={{
+                  color: palette.sub,
+                  fontSize: 12,
+                  whiteSpace: 'pre-wrap',
+                  wordBreak: 'break-word',
+                }}
+              >
+                备注：{q.note}
+              </span>
+            )}
             <span style={{ color: palette.mute, fontSize: 12 }}>
               {q.daysAgo != null
                 ? q.daysAgo === 0
