@@ -33,6 +33,8 @@ public class MyTaskVO {
     /** 距超时还剩的分钟数，已超时为负 */
     private Long remainingMinutes;
     private LocalDateTime assignedAt;
+    /** 任务更新时间与本人在该任务最近一次保存回价时间的较晚者 */
+    private LocalDateTime updateTime;
     /** 是否多人比价 */
     private Boolean shared;
 }

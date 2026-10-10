@@ -532,7 +532,7 @@ public class SourcingExcelServiceImpl implements SourcingExcelService {
     }
 
     /** 依次匹配：「含税3%」「含3%税」「含税」；更具体的写法放前面，避免税率被漏掉 */
-    private static final Pattern TAXED = Pattern.compile("含税\\s*(\\d{1,2})\\s*%|含\\s*(\\d{1,2})\\s*%?\\s*税|含税");
+    static final Pattern TAXED = Pattern.compile("含税\\s*(\\d{1,2})\\s*%|含\\s*(\\d{1,2})\\s*%?\\s*税|含税");
 
     /**
      * 单价单元格可以写含税价：「113含税」「含税113」「113 含税3%」「113（含3%税）」。

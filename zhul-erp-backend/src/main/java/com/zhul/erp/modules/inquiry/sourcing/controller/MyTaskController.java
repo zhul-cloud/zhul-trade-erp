@@ -5,6 +5,8 @@ import com.zhul.erp.modules.inquiry.sourcing.dto.ImportConfirmRequest;
 import com.zhul.erp.modules.inquiry.sourcing.dto.ImportFileVO;
 import com.zhul.erp.modules.inquiry.sourcing.dto.MyTaskDetailVO;
 import com.zhul.erp.modules.inquiry.sourcing.dto.MyTaskVO;
+import com.zhul.erp.modules.inquiry.sourcing.dto.PastePreviewRequest;
+import com.zhul.erp.modules.inquiry.sourcing.dto.PastePreviewVO;
 import com.zhul.erp.modules.inquiry.sourcing.dto.ReturnTaskRequest;
 import com.zhul.erp.modules.inquiry.sourcing.dto.SaveQuotesRequest;
 import com.zhul.erp.modules.inquiry.sourcing.service.MyTaskService;
@@ -51,6 +53,11 @@ public class MyTaskController {
     public Result<Void> saveQuotes(@PathVariable Long id, @Valid @RequestBody SaveQuotesRequest req) {
         myTaskService.saveQuotes(id, req);
         return Result.ok();
+    }
+
+    @PostMapping("/{id}/paste-preview")
+    public Result<PastePreviewVO> pastePreview(@PathVariable Long id, @Valid @RequestBody PastePreviewRequest req) {
+        return Result.ok(myTaskService.pastePreview(id, req.getText()));
     }
 
     @PostMapping("/{id}/return")

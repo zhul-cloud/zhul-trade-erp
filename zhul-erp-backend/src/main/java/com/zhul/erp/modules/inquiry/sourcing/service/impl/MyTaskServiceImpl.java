@@ -19,6 +19,7 @@ import com.zhul.erp.modules.inquiry.sourcing.dto.MyTaskDetailVO;
 import com.zhul.erp.modules.inquiry.sourcing.dto.MyTaskItemVO;
 import com.zhul.erp.modules.inquiry.sourcing.dto.MyTaskVO;
 import com.zhul.erp.modules.inquiry.sourcing.dto.PartTimeBoardVO;
+import com.zhul.erp.modules.inquiry.sourcing.dto.PastePreviewVO;
 import com.zhul.erp.modules.inquiry.sourcing.dto.QuoteEntryRequest;
 import com.zhul.erp.modules.inquiry.sourcing.dto.ReturnTaskRequest;
 import com.zhul.erp.modules.inquiry.sourcing.dto.SaveQuotesRequest;
@@ -107,11 +108,11 @@ public class MyTaskServiceImpl implements MyTaskService {
             applyBrief(vo, briefs.get(t.getCustomerInquiryId()));
             list.add(vo);
         }
-        // 超时 → 紧急 → 询盘等级（S 最先）→ 分配早的在前
-        list.sort(Comparator.comparing((MyTaskVO v) -> !Boolean.TRUE.equals(v.getTimeout()))
+        // 待处理：超时 → 紧急 → 更新时间倒序；已回价：更新时间倒序
+        Comparator<MyTaskVO> latest = Comparator.comparing(MyTaskVO::getUpdateTime, Comparator.nullsLast(Comparator.reverseOrder()));
+        list.sort(done ? latest : Comparator.comparing((MyTaskVO v) -> !Boolean.TRUE.equals(v.getTimeout()))
                 .thenComparing(v -> !Boolean.TRUE.equals(v.getUrgent()))
-                .thenComparing(MyTaskVO::getLevel, Comparator.nullsLast(Comparator.naturalOrder()))
-                .thenComparing(MyTaskVO::getAssignedAt, Comparator.nullsLast(Comparator.naturalOrder())));
+                .thenComparing(latest));
         return list;
     }
 
@@ -197,6 +198,15 @@ public class MyTaskServiceImpl implements MyTaskService {
         vo.setBrand(t.getBrand());
         vo.setCategory(t.getCategory());
         vo.setItemCount(t.getItemCount());
+        // 保存回价会软删旧记录再写新记录，所以连已删除的一起取最大更新时间
+        SourcingQuoteDO last = quoteMapper.selectOne(new LambdaQueryWrapper<SourcingQuoteDO>()
+                .select(SourcingQuoteDO::getUpdateTime)
+                .eq(SourcingQuoteDO::getTaskId, t.getId())
+                .eq(SourcingQuoteDO::getQuotedBy, me)
+                .orderByDesc(SourcingQuoteDO::getUpdateTime)
+                .last("LIMIT 1"));
+        LocalDateTime quoted = last == null ? null : last.getUpdateTime();
+        vo.setUpdateTime(quoted != null && (t.getUpdateTime() == null || quoted.isAfter(t.getUpdateTime())) ? quoted : t.getUpdateTime());
         vo.setFilledCount((int) quoteMapper.selectList(new LambdaQueryWrapper<SourcingQuoteDO>()
                         .select(SourcingQuoteDO::getInquiryItemId)
                         .eq(SourcingQuoteDO::getTaskId, t.getId())
@@ -415,6 +425,33 @@ public class MyTaskServiceImpl implements MyTaskService {
             String models = itemMapper.selectBatchIds(locked).stream().map(InquiryItemDO::getConfirmedModel).collect(Collectors.joining("、"));
             throw new BizException(models + " 已报给客户，回价不能再修改");
         }
+    }
+
+    @Override
+    public PastePreviewVO pastePreview(Long taskId, String text) {
+        myTask(taskId);
+        List<InquiryItemDO> items = taskItems(taskId);
+        Set<Long> locked = quotationLocks.lockedItemIds(items.stream().map(InquiryItemDO::getId).toList());
+        QuoteTextParser.Result r = QuoteTextParser.parse(text, items.stream()
+                .map(i -> new QuoteTextParser.Model(i.getId(), i.getConfirmedModel())).toList(), quoteDicts.snapshot());
+        PastePreviewVO vo = new PastePreviewVO();
+        vo.setCommon(r.common());
+        vo.setRows(r.lines().stream().map(l -> {
+            PastePreviewVO.Row row = new PastePreviewVO.Row();
+            row.setRaw(l.raw());
+            row.setItemId(l.itemId());
+            row.setModel(l.model());
+            row.setUnitPrice(l.unitPrice());
+            row.setTaxIncluded(l.taxIncluded());
+            row.setTaxRate(l.taxRate());
+            row.setItemCondition(l.condition());
+            row.setLeadTime(l.leadTime());
+            row.setNote(l.note());
+            row.setStatus(l.status().name());
+            row.setLocked(l.itemId() != null && locked.contains(l.itemId()));
+            return row;
+        }).toList());
+        return vo;
     }
 
     /** 留痕用的简要内容：型号、渠道、店铺、单价、货况、货期、是否推荐 / 无货 */

@@ -3,6 +3,7 @@ package com.zhul.erp.modules.inquiry.sourcing.service;
 import com.zhul.erp.modules.inquiry.sourcing.dto.MyTaskDetailVO;
 import com.zhul.erp.modules.inquiry.sourcing.dto.MyTaskVO;
 import com.zhul.erp.modules.inquiry.sourcing.dto.PartTimeBoardVO;
+import com.zhul.erp.modules.inquiry.sourcing.dto.PastePreviewVO;
 import com.zhul.erp.modules.inquiry.sourcing.dto.ReturnTaskRequest;
 import com.zhul.erp.modules.inquiry.sourcing.dto.SaveQuotesRequest;
 import com.zhul.erp.modules.inquiry.sourcing.entity.SourcingTaskDO;
@@ -21,6 +22,9 @@ public interface MyTaskService {
     PartTimeBoardVO partTimeBoard();
 
     void saveQuotes(Long taskId, SaveQuotesRequest req);
+
+    /** 粘贴报价：按本任务的型号识别店家回复的文字，只返回预览，不落库 */
+    PastePreviewVO pastePreview(Long taskId, String text);
 
     void returnTask(Long taskId, ReturnTaskRequest req);
 
