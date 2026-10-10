@@ -44,8 +44,26 @@ class ArchiveRulesTest {
         assertEquals(1L, ArchiveSuggest.of("PLC", cats), "精确匹配英文名");
         assertEquals(5L, ArchiveSuggest.of("伺服驱动器", cats), "命中二级品类取一级");
         assertEquals(9L, ArchiveSuggest.of("交流接触器", cats), "包含匹配");
-        assertNull(ArchiveSuggest.of("编码器", cats), "匹配不到");
+        assertNull(ArchiveSuggest.of("编码器", cats), "没有兜底品类时匹配不到就不建议");
         assertNull(ArchiveSuggest.of("", cats));
+
+        List<ProductCategoryDO> withOther = new java.util.ArrayList<>(cats);
+        withOther.add(cat(17, "其他", "Others", "other", null));
+        assertEquals(17L, ArchiveSuggest.of("编码器", withOther), "匹配不到归入其他");
+        assertEquals(17L, ArchiveSuggest.of("", withOther), "没写品类归入其他");
+        assertEquals(17L, ArchiveSuggest.of(null, withOther));
+        assertEquals(9L, ArchiveSuggest.of("交流接触器", withOther), "命中的不受影响");
+        assertNull(ArchiveSuggest.of("伺服变频器", withOther), "同时命中多个一级品类仍留空");
+
+        // 一级品类名包含优先于二级品类名：「继电器」不因多个上级下都有「xx继电器」而留空
+        List<ProductCategoryDO> relays = List.of(cat(11, "继电器与信号接口", "Relays & Signal Interfaces", "relays", null),
+                cat(111, "安全继电器", "Safety Relays", "safety_relay", 11L), cat(10, "低压电器", "Low Voltage Switchgear", "switchgear", null),
+                cat(101, "热过载继电器", "Thermal Overload Relays", "thermal_overload", 10L),
+                cat(102, "附件", "Switchgear Accessories", "switchgear_accessory", 10L), cat(17, "其他", "Others", "other", null));
+        assertEquals(11L, ArchiveSuggest.of("继电器", relays), "一级品类名包含");
+        assertEquals(10L, ArchiveSuggest.of("热过载继电器", relays), "精确命中二级");
+        assertEquals(17L, ArchiveSuggest.of("仪表附件", relays), "短名「附件」不做反向包含，归入其他");
+        assertEquals(10L, ArchiveSuggest.of("附件", relays), "短名仍可精确匹配");
     }
 
     /** 包内访问 ProductArchiver 的静态方法 */

@@ -60,5 +60,13 @@ public class CandidateBackfill implements ApplicationRunner {
         if (done > 0) {
             log.info("商品候选历史补齐完成，询盘型号 {} 个", done);
         }
+        try {
+            int suggested = archiver.resuggestCategories();
+            if (suggested > 0) {
+                log.info("待审核候选补齐建议品类 {} 个", suggested);
+            }
+        } catch (RuntimeException e) {
+            log.warn("待审核候选补齐建议品类失败，下次启动重试", e);
+        }
     }
 }

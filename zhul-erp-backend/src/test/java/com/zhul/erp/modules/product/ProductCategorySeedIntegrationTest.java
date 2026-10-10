@@ -16,10 +16,11 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
-/** spec product/category「初始品类」：16 个一级、140 个二级，中英文；旧编码保留 ID；旧品类引用迁移；可重复执行 */
+/** spec product/category「初始品类」：16 个一级 + 兜底「其他」、140 个二级，中英文；旧编码保留 ID；旧品类引用迁移；可重复执行 */
 class ProductCategorySeedIntegrationTest extends IntegrationTestBase {
 
-    private static final String SCRIPT = "db/migration/V1.2.45__seed_product_categories.sql";
+    private static final List<String> SCRIPTS = List.of("db/migration/V1.2.45__seed_product_categories.sql",
+            "db/migration/V1.2.46__other_category.sql");
 
     @Autowired
     private DataSource dataSource;
@@ -34,7 +35,9 @@ class ProductCategorySeedIntegrationTest extends IntegrationTestBase {
 
     private void runScript() throws Exception {
         try (Connection c = dataSource.getConnection()) {
-            ScriptUtils.executeSqlScript(c, new ClassPathResource(SCRIPT));
+            for (String script : SCRIPTS) {
+                ScriptUtils.executeSqlScript(c, new ClassPathResource(script));
+            }
         }
     }
 
@@ -47,7 +50,7 @@ class ProductCategorySeedIntegrationTest extends IntegrationTestBase {
     }
 
     private void assertSeeded() {
-        assertEquals(16, jdbc.queryForObject("select count(*) from product_category where tenant_id = 0 and parent_id is null "
+        assertEquals(17, jdbc.queryForObject("select count(*) from product_category where tenant_id = 0 and parent_id is null "
                 + "and deleted_at is null and status = 1", Integer.class));
         assertEquals(140, jdbc.queryForObject("select count(*) from product_category c join product_category p on p.id = c.parent_id "
                 + "where c.tenant_id = 0 and c.deleted_at is null and c.status = 1 and p.deleted_at is null and p.status = 1", Integer.class));
@@ -67,6 +70,9 @@ class ProductCategorySeedIntegrationTest extends IntegrationTestBase {
                 + "and deleted_at is null and status = 1 order by sort_order", String.class);
         assertEquals("plc", order.get(0));
         assertEquals("electronic_components", order.get(15));
+        assertEquals("other", order.get(16), "兜底品类「其他」排在最后");
+        assertEquals("其他", category("other").get("category_name_zh"));
+        assertEquals("Others", category("other").get("category_name"));
     }
 
     @Test

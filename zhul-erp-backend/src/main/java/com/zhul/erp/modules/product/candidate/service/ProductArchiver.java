@@ -320,28 +320,42 @@ public class ProductArchiver {
                 .set(InquiryItemDO::getArchiveStatus, status));
     }
 
+    /** 二级品类名短于这个长度时，只做精确匹配或「品类名包含询盘文字」，不做「询盘文字包含品类名」，避免「附件」「光电」误命中 */
+    private static final int MIN_CONTAINED_NAME = 3;
+
     /**
-     * 品类建议：询盘的品类文字与品类中文名、英文名、编码比较，先精确再包含；命中二级品类时取其一级品类（商品只能挂一级品类）。
-     * 只有唯一结果时才建议。
+     * 品类建议：询盘的品类文字与品类中文名、英文名、编码比较，依次按精确匹配、一级品类名包含、二级品类名包含三轮，
+     * 哪一轮有结果就用哪一轮；命中二级品类时取其一级品类（商品只能挂一级品类）。
+     * 一轮里只命中一个一级品类时建议它；同时命中多个时不建议，由审核人选择；文字为空或三轮都没命中时建议兜底品类「其他」。
      */
     static Long suggestCategory(String text, List<ProductCategoryDO> categories) {
+        Long other = categories.stream()
+                .filter(c -> c.getParentId() == null && CandidateConstants.CATEGORY_OTHER.equals(c.getCategoryCode()))
+                .map(ProductCategoryDO::getId).findFirst().orElse(null);
         String t = text == null ? "" : text.trim().toLowerCase(Locale.ROOT);
         if (t.isEmpty()) {
-            return null;
+            return other;
         }
         Map<Long, ProductCategoryDO> byId = categories.stream().collect(Collectors.toMap(ProductCategoryDO::getId, c -> c, (a, b) -> a));
-        for (boolean exact : new boolean[] {true, false}) {
+        // 0-精确，1-一级品类名包含，2-二级品类名包含
+        for (int round = 0; round < 3; round++) {
             Set<Long> hits = new LinkedHashSet<>();
             for (ProductCategoryDO c : categories) {
+                boolean top = c.getParentId() == null;
+                if (round == 1 && !top || round == 2 && top) {
+                    continue;
+                }
                 for (String name : new String[] {c.getCategoryNameZh(), c.getCategoryName(), c.getCategoryCode()}) {
                     String n = name == null ? "" : name.trim().toLowerCase(Locale.ROOT);
                     if (n.isEmpty()) {
                         continue;
                     }
-                    if (exact ? n.equals(t) : (n.contains(t) || t.contains(n))) {
-                        ProductCategoryDO top = c.getParentId() == null ? c : byId.get(c.getParentId());
-                        if (top != null && top.getParentId() == null) {
-                            hits.add(top.getId());
+                    boolean hit = round == 0 ? n.equals(t)
+                            : n.contains(t) || (top || n.length() >= MIN_CONTAINED_NAME) && t.contains(n);
+                    if (hit) {
+                        ProductCategoryDO root = top ? c : byId.get(c.getParentId());
+                        if (root != null && root.getParentId() == null) {
+                            hits.add(root.getId());
                         }
                     }
                 }
@@ -353,7 +367,38 @@ public class ProductArchiver {
                 return null;
             }
         }
-        return null;
+        return other;
+    }
+
+    /** 待审核且没有建议品类的候选按当前规则重新建议一次（启动时补齐；同时命中多个品类的仍留空） */
+    public int resuggestCategories() {
+        List<ProductCandidateDO> rows = candidateMapper.selectList(new LambdaQueryWrapper<ProductCandidateDO>()
+                .select(ProductCandidateDO::getId, ProductCandidateDO::getCategoryText)
+                .eq(ProductCandidateDO::getStatus, CandidateConstants.STATUS_PENDING)
+                .isNull(ProductCandidateDO::getCategoryId)
+                .isNull(ProductCandidateDO::getDeletedAt));
+        if (rows.isEmpty()) {
+            return 0;
+        }
+        List<ProductCategoryDO> categories = categoryMapper.selectList(new LambdaQueryWrapper<ProductCategoryDO>()
+                .eq(ProductCategoryDO::getTenantId, ProductConstants.PLATFORM_TENANT_ID)
+                .eq(ProductCategoryDO::getStatus, ProductConstants.STATUS_ENABLED)
+                .isNull(ProductCategoryDO::getDeletedAt));
+        int updated = 0;
+        for (ProductCandidateDO c : rows) {
+            Long categoryId = suggestCategory(c.getCategoryText(), categories);
+            if (categoryId != null) {
+                // 只改仍待审核且仍没有品类的，避免覆盖审核人刚选的
+                updated += candidateMapper.update(null, new LambdaUpdateWrapper<ProductCandidateDO>()
+                        .eq(ProductCandidateDO::getId, c.getId())
+                        .eq(ProductCandidateDO::getStatus, CandidateConstants.STATUS_PENDING)
+                        .isNull(ProductCandidateDO::getCategoryId)
+                        .set(ProductCandidateDO::getCategoryId, categoryId)
+                        .set(ProductCandidateDO::getUpdateTime, LocalDateTime.now())
+                        .set(ProductCandidateDO::getUpdateBy, "sys"));
+            }
+        }
+        return updated;
     }
 
     private static String nz(String s) {
