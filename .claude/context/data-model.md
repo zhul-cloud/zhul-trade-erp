@@ -95,7 +95,7 @@ resource ──< role_resource >── role
 SQL 文件：`zhul-erp-backend/src/main/resources/db/migration/V1.1__master_data_and_inquiry.sql`（Flyway 迁移，不修改 v1.0.0 任何已有表）
 
 来源：`openspec/changes/add-inquiry-management/`（proposal.md / design.md / specs），PRD 见
-`docs/02-产品PRD/03-业务域/00-询盘中心/00-询盘单/询盘单-PRD-V1.0.md`。
+`docs/02-产品PRD/03-业务域/01-询盘中心/00-询盘单/询盘单-PRD-V1.0.md`。
 
 ### 表清单（新增 8 张）
 

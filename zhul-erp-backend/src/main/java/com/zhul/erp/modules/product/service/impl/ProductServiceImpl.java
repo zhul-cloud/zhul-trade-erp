@@ -56,6 +56,7 @@ public class ProductServiceImpl implements ProductService {
     private static final String WARN_OBSOLETE_WITH_REPLACEMENT =
             "该商品存在替代型号记录，请确认生命周期是否应为「已停产」而不是「停产无替代」";
 
+    private final com.zhul.erp.modules.product.candidate.repository.ProductHeatMapper heatMapper;
     private final ProductMapper productMapper;
     private final ProductBrandMapper brandMapper;
     private final ProductCategoryMapper categoryMapper;
@@ -72,7 +73,9 @@ public class ProductServiceImpl implements ProductService {
                               ProductRelationshipMapper relationshipMapper, ProductFinder productFinder,
                               ProductNames productNames, ProductCompletenessService completenessService,
                               PlatformScopeGuard platformScopeGuard,
-                              ObjectProvider<ProductUsageChecker> usageCheckers) {
+                              ObjectProvider<ProductUsageChecker> usageCheckers,
+                              com.zhul.erp.modules.product.candidate.repository.ProductHeatMapper heatMapper) {
+        this.heatMapper = heatMapper;
         this.productMapper = productMapper;
         this.brandMapper = brandMapper;
         this.categoryMapper = categoryMapper;
@@ -98,8 +101,12 @@ public class ProductServiceImpl implements ProductService {
                 .eq(query.getCategoryId() != null, ProductDO::getCategoryId, query.getCategoryId())
                 .eq(query.getSeriesId() != null, ProductDO::getSeriesId, query.getSeriesId())
                 .eq(query.getLifecycleStatus() != null, ProductDO::getLifecycleStatus, query.getLifecycleStatus())
-                .eq(query.getStatus() != null, ProductDO::getStatus, query.getStatus())
-                .orderByDesc(ProductDO::getId);
+                .eq(query.getStatus() != null, ProductDO::getStatus, query.getStatus());
+        Integer heatTenant = platformScopeGuard.isPlatform() ? null : com.zhul.erp.framework.tenant.TenantContext.getTenantId();
+        String heatOrder = heatOrder(query.getSort(), heatTenant);
+        if (heatOrder == null) {
+            wrapper.orderByDesc(ProductDO::getId);
+        }
         // 缺项筛选只对平台账号生效，租户账号传了也当没传
         if (platformScopeGuard.isPlatform() && StringUtils.hasText(query.getMissing())) {
             wrapper.notExists(missingSql(query.getMissing().trim()));
@@ -114,8 +121,18 @@ public class ProductServiceImpl implements ProductService {
                 }
             });
         }
+        if (heatOrder != null) {
+            wrapper.last(heatOrder);
+        }
         Page<ProductDO> page = productMapper.selectPage(
                 new Page<>(query.pageOrDefault(), query.pageSizeOrDefault()), wrapper);
+        Map<Long, Long> inquiryCounts = new java.util.HashMap<>();
+        Map<Long, Long> dealCounts = new java.util.HashMap<>();
+        if (!page.getRecords().isEmpty()) {
+            List<Long> ids = page.getRecords().stream().map(ProductDO::getId).toList();
+            heatMapper.inquiryCounts(ids, heatTenant).forEach(r -> inquiryCounts.put(r.getId(), r.getCnt()));
+            heatMapper.dealCounts(ids, heatTenant).forEach(r -> dealCounts.put(r.getId(), r.getCnt()));
+        }
 
         ProductNames.Lookup lookup = productNames.load(page.getRecords());
         // 完整度只对平台账号返回；一页商品的完整度只发固定的一条查询
@@ -125,9 +142,26 @@ public class ProductServiceImpl implements ProductService {
         for (ProductDO product : page.getRecords()) {
             ProductVO vo = toVO(product, lookup);
             vo.setCompleteness(completeness.get(product.getId()));
+            vo.setInquiryCount(inquiryCounts.getOrDefault(product.getId(), 0L));
+            vo.setDealCount(dealCounts.getOrDefault(product.getId(), 0L));
             records.add(vo);
         }
         return PageResult.of(page.getTotal(), records);
+    }
+
+    /** 热度排序的 ORDER BY；租户 ID 来自登录上下文（整数），不是用户输入 */
+    private static String heatOrder(String sort, Integer tenantId) {
+        String tenant = tenantId == null ? "" : " AND x.tenant_id = " + tenantId.intValue();
+        if ("inquiryCount".equals(sort)) {
+            return "ORDER BY (SELECT COUNT(*) FROM inquiry_item x WHERE x.product_id = product.id AND x.deleted_at IS NULL" + tenant
+                    + ") DESC, id DESC";
+        }
+        if ("dealCount".equals(sort)) {
+            return "ORDER BY (SELECT COUNT(DISTINCT soi.so_id) FROM sales_order_item soi JOIN inquiry_item ii ON ii.id = soi.inquiry_item_id "
+                    + "JOIN sales_order x ON x.id = soi.so_id WHERE ii.product_id = product.id AND soi.deleted_at IS NULL "
+                    + "AND x.deleted_at IS NULL AND x.status = 1" + tenant + ") DESC, id DESC";
+        }
+        return null;
     }
 
     @Override

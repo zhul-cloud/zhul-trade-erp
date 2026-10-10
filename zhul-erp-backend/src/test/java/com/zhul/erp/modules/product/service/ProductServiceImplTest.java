@@ -52,6 +52,8 @@ import static org.mockito.Mockito.when;
 class ProductServiceImplTest {
 
     @Mock
+    private com.zhul.erp.modules.product.candidate.repository.ProductHeatMapper heatMapper;
+    @Mock
     private ProductMapper productMapper;
     @Mock
     private ProductBrandMapper brandMapper;
@@ -86,7 +88,7 @@ class ProductServiceImplTest {
         when(productNames.load(any())).thenReturn(new ProductNames.Lookup(Map.of(), Map.of(), Map.of()));
         service = new ProductServiceImpl(productMapper, brandMapper, categoryMapper, seriesMapper,
                 relationshipMapper, productFinder, productNames, completenessService, new PlatformScopeGuard(),
-                usageCheckers);
+                usageCheckers, heatMapper);
         when(brandMapper.selectOne(any())).thenReturn(brand(1L, 1));
         when(categoryMapper.selectOne(any())).thenReturn(category(2L, 1));
     }

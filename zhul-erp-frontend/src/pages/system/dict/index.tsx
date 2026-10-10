@@ -212,6 +212,7 @@ const DictPage: React.FC = () => {
           ? editingItem.itemCode
           : values.itemCode,
       itemName: values.itemName,
+      itemNameEn: values.itemNameEn,
       itemValue: values.itemValue,
       cssClass: values.cssClass,
       sortOrder: values.sortOrder ?? 0,
@@ -317,6 +318,12 @@ const DictPage: React.FC = () => {
   const itemColumns = [
     { title: '字典项编码', dataIndex: 'itemCode', width: 140 },
     { title: '字典项名称', dataIndex: 'itemName', width: 140 },
+    {
+      title: '英文名称',
+      dataIndex: 'itemNameEn',
+      width: 140,
+      render: (v?: string) => v || '—',
+    },
     { title: '字典值', dataIndex: 'itemValue', width: 100 },
     {
       title: '样式标签',
@@ -581,6 +588,7 @@ const DictPage: React.FC = () => {
           itemDrawerMode === 'edit' && editingItem
             ? {
                 itemName: editingItem.itemName,
+                itemNameEn: editingItem.itemNameEn,
                 itemValue: editingItem.itemValue,
                 cssClass: editingItem.cssClass || undefined,
                 isDefault: editingItem.isDefault === 1,
@@ -630,6 +638,12 @@ const DictPage: React.FC = () => {
               message: '请输入1~128字符的名称',
             },
           ]}
+        />
+        <ProFormText
+          name="itemNameEn"
+          label="英文名称"
+          placeholder="对外单据与文字报价使用，如 original new；可不填"
+          fieldProps={{ maxLength: 64 }}
         />
         <ProFormText
           name="itemValue"

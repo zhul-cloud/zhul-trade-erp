@@ -17,7 +17,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -52,6 +54,7 @@ public class DictItemServiceImpl implements DictItemService {
         item.setDictType(dictType.getDictType());
         item.setItemCode(req.getItemCode());
         item.setItemName(req.getItemName());
+        item.setItemNameEn(req.getItemNameEn() == null ? "" : req.getItemNameEn().trim());
         item.setItemValue(req.getItemValue());
         item.setCssClass(req.getCssClass());
         item.setListClass("");
@@ -95,6 +98,7 @@ public class DictItemServiceImpl implements DictItemService {
         }
         // 字典项编码创建后不可修改
         item.setItemName(req.getItemName());
+        item.setItemNameEn(req.getItemNameEn() == null ? "" : req.getItemNameEn().trim());
         item.setItemValue(req.getItemValue());
         item.setCssClass(req.getCssClass());
         item.setSortOrder(req.getSortOrder());
@@ -119,6 +123,72 @@ public class DictItemServiceImpl implements DictItemService {
         dictItemMapper.updateById(item);
     }
 
+    @Override
+    public List<DictItemVO> listByDictType(String dictType) {
+        return toVoList(selectByDictType(dictType, false));
+    }
+
+    @Override
+    public Map<Integer, String> intLabels(String dictType) {
+        List<DictItemDO> list = selectByDictType(dictType, false);
+        Map<Integer, String> labels = new HashMap<>(list.size() * 2);
+        for (DictItemDO item : list) {
+            Integer code = parseInt(item.getItemValue());
+            if (code != null) {
+                labels.putIfAbsent(code, item.getItemName());
+            }
+        }
+        return labels;
+    }
+
+    @Override
+    public Map<Integer, String> intEnLabels(String dictType) {
+        List<DictItemDO> list = selectByDictType(dictType, false);
+        Map<Integer, String> labels = new HashMap<>(list.size() * 2);
+        for (DictItemDO item : list) {
+            Integer code = parseInt(item.getItemValue());
+            if (code != null && item.getItemNameEn() != null && !item.getItemNameEn().isBlank()) {
+                labels.putIfAbsent(code, item.getItemNameEn());
+            }
+        }
+        return labels;
+    }
+
+    @Override
+    public void requireEnabledValue(String dictType, Integer value, String message) {
+        if (value == null) {
+            throw new BizException(message);
+        }
+        for (DictItemDO item : selectByDictType(dictType, true)) {
+            if (value.equals(parseInt(item.getItemValue()))) {
+                return;
+            }
+        }
+        throw new BizException(message);
+    }
+
+    private List<DictItemDO> selectByDictType(String dictType, boolean enabledOnly) {
+        Integer tenantId = TenantContext.getTenantId();
+        LambdaQueryWrapper<DictItemDO> w = new LambdaQueryWrapper<DictItemDO>()
+                .eq(DictItemDO::getDictType, dictType)
+                .eq(enabledOnly, DictItemDO::getStatus, 1)
+                .isNull(DictItemDO::getDeletedAt)
+                .orderByAsc(DictItemDO::getSortOrder)
+                .orderByAsc(DictItemDO::getId);
+        if (tenantId != null) {
+            // 内置字典 tenant_id=0 为平台级共享，所有租户可见
+            w.and(x -> x.eq(DictItemDO::getTenantId, tenantId).or().eq(DictItemDO::getTenantId, 0));
+        }
+        return dictItemMapper.selectList(w);
+    }
+
+    private static Integer parseInt(String value) {
+        if (value == null || !value.trim().matches("-?\\d{1,9}")) {
+            return null;
+        }
+        return Integer.valueOf(value.trim());
+    }
+
     private List<DictItemVO> toVoList(List<DictItemDO> list) {
         List<DictItemVO> result = new ArrayList<>(list.size());
         for (DictItemDO item : list) {
@@ -128,6 +198,7 @@ public class DictItemServiceImpl implements DictItemService {
             vo.setDictType(item.getDictType());
             vo.setItemCode(item.getItemCode());
             vo.setItemName(item.getItemName());
+            vo.setItemNameEn(item.getItemNameEn());
             vo.setItemValue(item.getItemValue());
             vo.setCssClass(item.getCssClass());
             vo.setSortOrder(item.getSortOrder());

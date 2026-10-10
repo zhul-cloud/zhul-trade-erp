@@ -1,0 +1,46 @@
+-- 回滚 V1.2.28（菜单按部门分组）：恢复调整前的上级、名称、排序、状态与隐藏，删除新增的分组、菜单与按钮
+UPDATE `resource` SET `pid` = 0, `name` = '工作台', `sort` = 1, `status` = 1, `is_hidden` = 0, `light_icon` = 'dashboard' WHERE `id` = 100001;
+UPDATE `resource` SET `pid` = 0, `name` = '系统管理', `sort` = 98, `status` = 1, `is_hidden` = 0, `light_icon` = 'setting' WHERE `id` = 100002;
+UPDATE `resource` SET `pid` = 0, `name` = '租户管理', `sort` = 99, `status` = 1, `is_hidden` = 0, `light_icon` = 'cluster' WHERE `id` = 100003;
+UPDATE `resource` SET `pid` = 0, `name` = '商品管理', `sort` = 97, `status` = 1, `is_hidden` = 0, `light_icon` = 'shopping' WHERE `id` = 100004;
+UPDATE `resource` SET `pid` = 0, `name` = '询盘管理', `sort` = 3, `status` = 1, `is_hidden` = 0, `light_icon` = 'mail' WHERE `id` = 100005;
+UPDATE `resource` SET `pid` = 0, `name` = '客户管理', `sort` = 6, `status` = 1, `is_hidden` = 0, `light_icon` = 'solution' WHERE `id` = 100006;
+UPDATE `resource` SET `pid` = 0, `name` = '商机管理', `sort` = 2, `status` = 1, `is_hidden` = 0, `light_icon` = 'userAdd' WHERE `id` = 100007;
+UPDATE `resource` SET `pid` = 0, `name` = '供应商管理', `sort` = 7, `status` = 1, `is_hidden` = 0, `light_icon` = 'shop' WHERE `id` = 100008;
+UPDATE `resource` SET `pid` = 100002, `name` = '用户管理', `sort` = 1, `status` = 1, `is_hidden` = 0, `light_icon` = 'user' WHERE `id` = 100011;
+UPDATE `resource` SET `pid` = 100002, `name` = '角色管理', `sort` = 2, `status` = 1, `is_hidden` = 0, `light_icon` = 'team' WHERE `id` = 100012;
+UPDATE `resource` SET `pid` = 100002, `name` = '菜单管理', `sort` = 3, `status` = 1, `is_hidden` = 0, `light_icon` = 'menu' WHERE `id` = 100013;
+UPDATE `resource` SET `pid` = 100002, `name` = '部门管理', `sort` = 4, `status` = 1, `is_hidden` = 0, `light_icon` = 'apartment' WHERE `id` = 100014;
+UPDATE `resource` SET `pid` = 100002, `name` = '岗位管理', `sort` = 5, `status` = 1, `is_hidden` = 0, `light_icon` = 'idcard' WHERE `id` = 100015;
+UPDATE `resource` SET `pid` = 100002, `name` = '字典管理', `sort` = 6, `status` = 1, `is_hidden` = 0, `light_icon` = 'book' WHERE `id` = 100016;
+UPDATE `resource` SET `pid` = 100002, `name` = '系统设置', `sort` = 10, `status` = 1, `is_hidden` = 0, `light_icon` = 'tool' WHERE `id` = 100017;
+UPDATE `resource` SET `pid` = 100002, `name` = '操作日志', `sort` = 11, `status` = 1, `is_hidden` = 0, `light_icon` = 'fileText' WHERE `id` = 100018;
+UPDATE `resource` SET `pid` = 100002, `name` = '登录日志', `sort` = 12, `status` = 1, `is_hidden` = 0, `light_icon` = 'login' WHERE `id` = 100019;
+UPDATE `resource` SET `pid` = 100003, `name` = '租户列表', `sort` = 1, `status` = 1, `is_hidden` = 0, `light_icon` = 'cluster' WHERE `id` = 100021;
+UPDATE `resource` SET `pid` = 100003, `name` = '套餐管理', `sort` = 2, `status` = 1, `is_hidden` = 0, `light_icon` = 'appstore' WHERE `id` = 100022;
+UPDATE `resource` SET `pid` = 100004, `name` = '品牌管理', `sort` = 2, `status` = 1, `is_hidden` = 0, `light_icon` = 'tag' WHERE `id` = 100031;
+UPDATE `resource` SET `pid` = 100004, `name` = '品类管理', `sort` = 3, `status` = 1, `is_hidden` = 0, `light_icon` = 'appstore' WHERE `id` = 100032;
+UPDATE `resource` SET `pid` = 100004, `name` = '系列管理', `sort` = 4, `status` = 1, `is_hidden` = 0, `light_icon` = 'cluster' WHERE `id` = 100033;
+UPDATE `resource` SET `pid` = 100004, `name` = '商品列表', `sort` = 1, `status` = 1, `is_hidden` = 0, `light_icon` = 'database' WHERE `id` = 100034;
+UPDATE `resource` SET `pid` = 100005, `name` = '客户询盘', `sort` = 1, `status` = 1, `is_hidden` = 0, `light_icon` = 'inbox' WHERE `id` = 100051;
+UPDATE `resource` SET `pid` = 100007, `name` = '商机列表', `sort` = 1, `status` = 1, `is_hidden` = 0, `light_icon` = 'unorderedList' WHERE `id` = 100053;
+UPDATE `resource` SET `pid` = 100005, `name` = '分配工作台', `sort` = 2, `status` = 1, `is_hidden` = 0, `light_icon` = 'apartment' WHERE `id` = 100054;
+UPDATE `resource` SET `pid` = 100005, `name` = '我的询价任务', `sort` = 3, `status` = 1, `is_hidden` = 0, `light_icon` = 'solution' WHERE `id` = 100055;
+UPDATE `resource` SET `pid` = 100005, `name` = '历史询价', `sort` = 4, `status` = 1, `is_hidden` = 0, `light_icon` = 'history' WHERE `id` = 100056;
+UPDATE `resource` SET `pid` = 100005, `name` = '兼职工作台', `sort` = 0, `status` = 1, `is_hidden` = 0, `light_icon` = 'dashboard' WHERE `id` = 100057;
+UPDATE `resource` SET `pid` = 100006, `name` = '客户列表', `sort` = 1, `status` = 1, `is_hidden` = 0, `light_icon` = 'unorderedList' WHERE `id` = 100061;
+UPDATE `resource` SET `pid` = 100008, `name` = '供应商列表', `sort` = 1, `status` = 1, `is_hidden` = 0, `light_icon` = 'unorderedList' WHERE `id` = 100062;
+UPDATE `resource` SET `pid` = 100007, `name` = '商机统计', `sort` = 2, `status` = 1, `is_hidden` = 0, `light_icon` = 'barChart' WHERE `id` = 100071;
+UPDATE `resource` SET `pid` = 0, `name` = '报价中心', `sort` = 4, `status` = 1, `is_hidden` = 0, `light_icon` = 'fileText' WHERE `id` = 100072;
+UPDATE `resource` SET `pid` = 100072, `name` = '报价单', `sort` = 1, `status` = 1, `is_hidden` = 0, `light_icon` = 'fileText' WHERE `id` = 100073;
+UPDATE `resource` SET `pid` = 100072, `name` = '定价策略', `sort` = 2, `status` = 1, `is_hidden` = 0, `light_icon` = 'percentage' WHERE `id` = 100074;
+UPDATE `resource` SET `pid` = 100002, `name` = '汇率设置', `sort` = 7, `status` = 1, `is_hidden` = 0, `light_icon` = 'transaction' WHERE `id` = 100075;
+UPDATE `resource` SET `pid` = 100002, `name` = '单据模版', `sort` = 8, `status` = 1, `is_hidden` = 0, `light_icon` = 'fileExcel' WHERE `id` = 100076;
+UPDATE `resource` SET `pid` = 0, `name` = '销售管理', `sort` = 5, `status` = 1, `is_hidden` = 0, `light_icon` = 'accountBook' WHERE `id` = 100077;
+UPDATE `resource` SET `pid` = 100077, `name` = 'PI', `sort` = 1, `status` = 1, `is_hidden` = 0, `light_icon` = 'fileDone' WHERE `id` = 100078;
+UPDATE `resource` SET `pid` = 100077, `name` = '销售订单', `sort` = 2, `status` = 1, `is_hidden` = 0, `light_icon` = 'container' WHERE `id` = 100079;
+UPDATE `resource` SET `pid` = 100002, `name` = '收款账户', `sort` = 9, `status` = 1, `is_hidden` = 0, `light_icon` = 'bank' WHERE `id` = 100080;
+DELETE FROM `role_resource` WHERE `resource_id` IN (100081, 100082, 100083, 100084, 100085, 100086, 110182);
+DELETE FROM `resource` WHERE `id` IN (100081, 100082, 100083, 100084, 100085, 100086, 110182);
+
+-- 租户套餐里新增的 100085、100086、110182 在资源删除后不再生效，可保留

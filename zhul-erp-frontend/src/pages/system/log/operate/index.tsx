@@ -59,7 +59,7 @@ function renderJsonPanel(value: unknown, emptyText: string) {
 
 const OperateLogPage: React.FC = () => {
   const { palette: p } = useAppTheme();
-  const actionRef = useRef<ActionType>();
+  const actionRef = useRef<ActionType>(undefined);
   const { message } = App.useApp();
 
   const [rangeWarning, setRangeWarning] = useState(false);

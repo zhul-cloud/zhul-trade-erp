@@ -44,6 +44,7 @@ SAMPLE_OUTPUT = {
                     "confidence": 1,
                     "correctionNote": "",
                     "description": "S7-1200 CPU 1214C，24VDC，14DI/10DO",
+                    "descriptionEn": "Siemens S7-1200 CPU 1214C, 24VDC, 14DI/10DO",
                     "quantity": 20,
                     "unit": "台",
                 },
@@ -53,6 +54,7 @@ SAMPLE_OUTPUT = {
                     "confidence": 2,
                     "correctionNote": "同上型号，客户原文缺少连字符",
                     "description": "S7-1200 CPU 1214C，24VDC，14DI/10DO",
+                    "descriptionEn": "Siemens S7-1200 CPU 1214C, 24VDC, 14DI/10DO",
                     "quantity": 5,
                     "unit": "台",
                 },
@@ -62,6 +64,7 @@ SAMPLE_OUTPUT = {
                     "confidence": 1,
                     "correctionNote": "",
                     "description": "LOGO! 12/24RCE 逻辑控制模块",
+                    "descriptionEn": "Siemens LOGO! 12/24RCE logic module",
                     "quantity": 8,
                     "unit": "台",
                 },
@@ -80,6 +83,7 @@ SAMPLE_OUTPUT = {
                     "confidence": 1,
                     "correctionNote": "",
                     "description": "Altivar 320，1.5kW，三相380-480V",
+                    "descriptionEn": "Schneider Altivar 320 drive, 1.5kW, 3-phase 380-480V",
                     "quantity": 10,
                     "unit": "台",
                 },
@@ -89,6 +93,7 @@ SAMPLE_OUTPUT = {
                     "confidence": 4,
                     "correctionNote": "",
                     "description": "联网搜索无匹配结果，需人工核实型号",
+                    "descriptionEn": "",
                     "quantity": 3,
                     "unit": "台",
                 },
@@ -107,6 +112,7 @@ SAMPLE_OUTPUT = {
                     "confidence": 3,
                     "correctionNote": "",
                     "description": "疑似 Autonics 光电传感器，型号后缀待核实",
+                    "descriptionEn": "Autonics photoelectric sensor",
                     "quantity": 15,
                     "unit": "个",
                 },
@@ -116,9 +122,15 @@ SAMPLE_OUTPUT = {
 }
 
 
-def send_callback(callback_url: str):
+def translate_output(payload: dict) -> dict:
+    """translate-item-descriptions 的假结果：原文前加「EN: 」，只用于联调"""
+    items = (payload.get("input") or {}).get("items") or []
+    return {"items": [{"key": i.get("key"), "text": "EN: " + (i.get("text") or "")} for i in items]}
+
+
+def send_callback(callback_url: str, output=None):
     time.sleep(CALLBACK_DELAY_SECONDS)
-    body = json.dumps({"status": "success", "output": SAMPLE_OUTPUT, "error": None}).encode("utf-8")
+    body = json.dumps({"status": "success", "output": output or SAMPLE_OUTPUT, "error": None}).encode("utf-8")
     req = urllib.request.Request(
         callback_url,
         data=body,
@@ -159,7 +171,8 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(json.dumps({"job_id": job_id}).encode("utf-8"))
 
         if callback_url:
-            threading.Thread(target=send_callback, args=(callback_url,), daemon=True).start()
+            output = translate_output(payload) if self.path == "/skills/translate-item-descriptions/run" else None
+            threading.Thread(target=send_callback, args=(callback_url, output), daemon=True).start()
 
     def log_message(self, format, *args):
         print(f"[ai-orchestrator-stub] {self.address_string()} - {format % args}")

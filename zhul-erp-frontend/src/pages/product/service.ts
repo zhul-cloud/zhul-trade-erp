@@ -281,6 +281,9 @@ export interface Product {
   usageCount?: number;
   warnings?: string[];
   completeness?: Completeness;
+  /** 需求热度：关联的询盘型号数、有效订单数（租户只统计本公司） */
+  inquiryCount?: number;
+  dealCount?: number;
   createTime: string;
   updateTime: string;
 }
@@ -307,6 +310,8 @@ export interface ProductQuery extends PageParams {
   status?: number;
   includeDeleted?: boolean;
   missing?: string;
+  /** 按热度倒序：inquiryCount / dealCount */
+  sort?: string;
 }
 
 export interface ProductOption {

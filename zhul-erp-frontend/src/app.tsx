@@ -20,7 +20,7 @@ import { getMenuTree, type MenuItem } from '@/pages/system/menu/service';
 import { AppThemeSync, useAppTheme } from '@/theme/AppTheme';
 import { buildShellSettings } from '@/theme/shell';
 import { getThemeMode } from '@/theme/store';
-import { toProLayoutMenu } from '@/utils/menuOrder';
+import { firstMenuPath, toProLayoutMenu } from '@/utils/menuOrder';
 import defaultSettings from '../config/defaultSettings';
 import { errorConfig } from './requestErrorConfig';
 
@@ -186,6 +186,19 @@ export const layout: RunTimeLayoutConfig = ({ initialState }) => {
         history.replace(
           `${loginPath}?redirect=${encodeURIComponent(location.pathname + location.search + location.hash)}`,
         );
+        return;
+      }
+      // 首页默认是工作台；没有工作台权限的账号（如兼职采购）改去菜单里第一个能访问的页面，避免 404
+      const allowed = new Set(initialState?.currentUser?.permissions ?? []);
+      if (
+        initialState?.currentUser &&
+        (location.pathname === '/' || location.pathname === '/dashboard') &&
+        !allowed.has('/dashboard')
+      ) {
+        const home = firstMenuPath(
+          toProLayoutMenu(initialState?.menuTree ?? [], allowed),
+        );
+        if (home) history.replace(home);
       }
     },
     bgLayoutImgList: [],

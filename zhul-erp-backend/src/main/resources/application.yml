@@ -22,6 +22,8 @@ spring:
     enabled: true
     locations: classpath:db/migration
     baseline-on-migrate: true
+    # 单据模版种子数据里有 ${item.model} 这类模版占位符，关闭 Flyway 自己的占位符替换，原样写入
+    placeholder-replacement: false
 
   data:
     redis:
@@ -40,8 +42,8 @@ spring:
   servlet:
     multipart:
       # 商品视频最大 100MB；各上传接口自己再按业务限制校验大小（图片、询盘附件仍是 5MB）
-      max-file-size: 100MB
-      max-request-size: 100MB
+      max-file-size: 210MB
+      max-request-size: 210MB
 
 mybatis-plus:
   mapper-locations: classpath:mapper/**/*.xml

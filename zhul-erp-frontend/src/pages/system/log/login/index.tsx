@@ -17,7 +17,7 @@ const DEFAULT_RANGE: [dayjs.Dayjs, dayjs.Dayjs] = [
 
 const LoginLogPage: React.FC = () => {
   const { palette: p } = useAppTheme();
-  const actionRef = useRef<ActionType>();
+  const actionRef = useRef<ActionType>(undefined);
   const { message, modal } = App.useApp();
   const access = useAccess();
 

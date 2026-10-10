@@ -5,13 +5,12 @@ import lombok.Data;
 import java.util.ArrayList;
 import java.util.List;
 
-/** ai_task.output 里按品牌+品类拆分出的一个分组。 */
+/** AI 解析输出中的一个品牌 + 品类分组 */
 @Data
 public class AiParseGroupDTO {
     private String brand;
     private String category;
+    /** 分组级询价话术，型号没有单独话术时使用 */
     private String inquiryTemplate;
-    private String emailTemplateCn;
-    private String emailTemplateEn;
     private List<AiParseItemDTO> items = new ArrayList<>();
 }

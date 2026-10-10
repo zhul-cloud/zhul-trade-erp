@@ -31,6 +31,11 @@ public abstract class AbstractSupplierRequest {
     @Min(value = 1, message = "供应商类型不正确")
     @Max(value = 5, message = "供应商类型不正确")
     private Integer supplierType;
+
+    /** 体积系数（服务商用，默认 5000） */
+    @jakarta.validation.constraints.Min(value = 1000, message = "体积系数为 1000 – 10000")
+    @jakarta.validation.constraints.Max(value = 10000, message = "体积系数为 1000 – 10000")
+    private Integer volumeDivisor;
     @Min(value = 1, message = "所属行业不正确")
     @Max(value = 6, message = "所属行业不正确")
     private Integer industry;
@@ -70,4 +75,6 @@ public abstract class AbstractSupplierRequest {
     private List<SupplierProductScopeRequest> productScopes;
     @Size(max = 500, message = "备注不能超过500个字符")
     private String remark;
+    /** 默认付款条件；null 表示不修改，空列表表示清空 */
+    private List<PaymentTermDTO> paymentTerms;
 }

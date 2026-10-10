@@ -1,47 +1,59 @@
 package com.zhul.erp.modules.inquiry.customerinquiry.service;
 
 import com.zhul.erp.common.result.PageResult;
-import com.zhul.erp.modules.inquiry.customerinquiry.dto.AdvanceCustomerInquiryStatusRequest;
-import com.zhul.erp.modules.inquiry.customerinquiry.dto.ConfirmSplitRequest;
+import com.zhul.erp.modules.inquiry.customerinquiry.dto.ConfirmRequest;
+import com.zhul.erp.modules.inquiry.customerinquiry.dto.CustomerInquiryDetailVO;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.CustomerInquiryPageQuery;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.CustomerInquiryVO;
-import com.zhul.erp.modules.inquiry.customerinquiry.dto.InquiryPreviewVO;
+import com.zhul.erp.modules.inquiry.customerinquiry.dto.CustomerTypeVO;
+import com.zhul.erp.modules.inquiry.customerinquiry.dto.DraftVO;
+import com.zhul.erp.modules.inquiry.customerinquiry.dto.PriceRecordVO;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.SubmitCustomerInquiryRequest;
+import com.zhul.erp.modules.inquiry.customerinquiry.dto.UploadedFileVO;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.nio.file.Path;
+import java.util.List;
+
+/** 客户询盘：录入、AI 解析或手动录入、确认生成型号明细与询价任务、改选价格、取消 */
 public interface CustomerInquiryService {
 
-    /** 提交客户询盘：仅创建记录（status=待解析），不自动触发AI解析 */
+    UploadedFileVO uploadAttachment(MultipartFile file);
+
+    /** 把来源商机的一个附件复制为询盘附件 */
+    UploadedFileVO copyOpportunityAttachment(Long opportunityId, Long attachmentId);
+
+    /** 新老客户判断：该客户此前有已成交询盘即为老客户 */
+    CustomerTypeVO customerType(Long customerId);
+
     CustomerInquiryVO submit(SubmitCustomerInquiryRequest req);
 
     PageResult<CustomerInquiryVO> page(CustomerInquiryPageQuery query);
 
-    CustomerInquiryVO getById(Long id);
+    CustomerInquiryDetailVO detail(Long id);
 
-    /** 仅"待解析"状态可调用：创建AI任务并提交，状态转为"解析中" */
-    CustomerInquiryVO startAiParse(Long id);
+    AttachmentFile attachmentFile(Long id, Long attachmentId);
 
-    /** 仅"解析失败"状态可调用：复用原始内容重新发起一次AI解析，状态转为"解析中" */
+    CustomerInquiryVO startParse(Long id);
+
     CustomerInquiryVO retryParse(Long id);
 
-    /** 拆单预览：直接渲染 ai_task.output，不落地 inquiry_order（仅"待确认"状态可查看） */
-    InquiryPreviewVO getPreview(Long id);
+    DraftVO draft(Long id);
 
-    /** 确认拆单：创建 inquiry_order + inquiry_order_item，状态转为"已确认" */
-    void confirmSplit(Long id, ConfirmSplitRequest req);
+    void confirm(Long id, ConfirmRequest req);
 
-    /** 取消询盘（拆单预览页"取消询盘"） */
     void cancel(Long id);
 
-    /** 已确认之后的人工状态流转：待报价→报价中→已报价→已成交/已取消 */
-    void advanceStatus(Long id, AdvanceCustomerInquiryStatusRequest req);
+    /** 调整询盘等级，记操作日志 */
+    void updateLevel(Long id, Integer level);
 
-    /**
-     * 供 InquiryParseResultHandler（任务4.4）使用：按 ai_task_id 反查客户询盘，
-     * 写入解析结果统计并将状态置为"待确认"。找不到对应客户询盘时静默忽略并记录警告日志
-     * （不应该发生，除非数据被误删），不抛异常导致回调整体失败。
-     */
+    /** 业务员核实完被退回的存疑型号后清除提醒 */
+    void markReviewed(Long id);
+
     void applyParseSuccess(Long aiTaskId, String outputJson);
 
-    /** 同上，解析失败分支：状态置为"解析失败"并记录失败原因 */
     void applyParseFailure(Long aiTaskId, String errorMessage);
+
+    record AttachmentFile(Path path, String fileName, String contentType) {
+    }
 }

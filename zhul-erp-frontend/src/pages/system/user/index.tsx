@@ -14,6 +14,7 @@ import {
   ProFormRadio,
   ProFormSelect,
   ProFormText,
+  ProFormTreeSelect,
   ProTable,
 } from '@ant-design/pro-components';
 import { useAccess } from '@umijs/max';
@@ -35,7 +36,7 @@ import type { UserItem, UserStats } from './service';
 import {
   createUser,
   deleteUser,
-  getDeptOptions,
+  getDeptTreeOptions,
   getPositionOptions,
   getRoleOptions,
   getUserList,
@@ -54,9 +55,15 @@ const AVATAR_COLORS = [
   '#0EA5E9',
 ];
 
+const DEPT_TREE_PROPS = {
+  treeDefaultExpandAll: true,
+  allowClear: true,
+  showSearch: { treeNodeFilterProp: 'title' },
+};
+
 const UserPage: React.FC = () => {
   const { palette: p } = useAppTheme();
-  const actionRef = useRef<ActionType>();
+  const actionRef = useRef<ActionType>(undefined);
   const { message } = App.useApp();
   const access = useAccess();
   const [editingUser, setEditingUser] = useState<UserItem | null>(null);
@@ -212,12 +219,13 @@ const UserPage: React.FC = () => {
         />
       </ProForm.Group>
       <ProForm.Group title={groupTitle(<ApartmentOutlined />, '组织信息')}>
-        <ProFormSelect
+        <ProFormTreeSelect
           name="deptId"
           label="所属部门"
           placeholder="请选择部门"
           colProps={{ span: 12 }}
-          request={getDeptOptions}
+          request={getDeptTreeOptions}
+          fieldProps={DEPT_TREE_PROPS}
         />
         <ProFormSelect
           name="positionId"
@@ -292,8 +300,9 @@ const UserPage: React.FC = () => {
       title: '部门',
       dataIndex: 'deptId',
       width: 140,
-      valueType: 'select',
-      request: getDeptOptions,
+      valueType: 'treeSelect',
+      request: getDeptTreeOptions,
+      fieldProps: DEPT_TREE_PROPS,
       render: (_, record) => record.deptName,
     },
     { title: '岗位', dataIndex: 'positionName', width: 120, search: false },

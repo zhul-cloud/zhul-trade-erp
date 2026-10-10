@@ -11,6 +11,7 @@ public class DictItemVO {
     private String dictType;
     private String itemCode;
     private String itemName;
+    private String itemNameEn;
     private String itemValue;
     private String cssClass;
     private Integer sortOrder;

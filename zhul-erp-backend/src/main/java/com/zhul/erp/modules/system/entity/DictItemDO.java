@@ -16,6 +16,8 @@ public class DictItemDO extends BaseEntity {
     private String dictType;
     private String itemCode;
     private String itemName;
+    /** 英文名称：对外单据与文字报价使用 */
+    private String itemNameEn;
     private String itemValue;
     private String cssClass;
     private String listClass;

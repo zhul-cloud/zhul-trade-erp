@@ -20,12 +20,12 @@ interface CustomerQuickCreateModalProps {
   onCreated: (customer: CustomerItem) => void;
 }
 
-/** 单据字段不允许中日韩文字（允许欧洲语言变音字母），与客户管理一致 */
+/** 单据字段不允许中日韩文字（允许欧洲语言变音字母），与客户档案一致 */
 const CJK_PATTERN = /[぀-ヿ㐀-鿿가-힯豈-﫿]/;
 
 /**
  * 客户快速创建弹窗（M03）。英文名称与国家必填，其余选填；角色、负责人（创建人）、币种等取默认值，
- * 之后可在客户管理补全。名称 + 国家与已有客户重复时不新建：已有客户在自己数据范围内可直接选用，
+ * 之后可在「业务管理 → 客户」补全。名称 + 国家与已有客户重复时不新建：已有客户在自己数据范围内可直接选用，
  * 否则只提示负责业务员（撞单）。见 openspec/changes/enrich-customer-trade-profile/。
  */
 const CustomerQuickCreateModal: React.FC<CustomerQuickCreateModalProps> = ({
@@ -96,7 +96,7 @@ const CustomerQuickCreateModal: React.FC<CustomerQuickCreateModalProps> = ({
         name="name"
         label="客户名称（英文）"
         placeholder="如 ABC Automation GmbH"
-        extra="单据上使用的英文法定全称；角色、交易条件等可以之后在客户管理补全"
+        extra="单据上使用的英文法定全称；角色、交易条件等可以之后在「业务管理 → 客户」补全"
         rules={[
           { required: true, whitespace: true, message: '请输入客户名称' },
           { max: 200, message: '客户名称不能超过200个字符' },

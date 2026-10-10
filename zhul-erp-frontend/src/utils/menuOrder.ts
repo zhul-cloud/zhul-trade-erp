@@ -72,11 +72,31 @@ export function toProLayoutMenu(
     .slice()
     .sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0))
     .map((n) => ({
-      path: n.path as string,
+      path: n.type === 1 ? groupKey(n.path as string) : (n.path as string),
       name: n.name ?? '',
       icon: resolveMenuIcon(n.lightIcon),
       children: n.children?.length
         ? toProLayoutMenu(n.children, allowedPaths)
         : undefined,
     }));
+}
+
+/**
+ * 分组（type=1）在 ProLayout 里用的 key。ProLayout 按「当前地址以菜单 path 开头」决定展开哪些分组，
+ * 而菜单按部门分组后页面地址沿用原前缀（如汇率 /system/exchange-rate 在「业务设置」下），
+ * 分组若用 /system 当 key，会把「系统管理」也一起展开；分组本身不是页面，换成不会和任何页面地址重叠的 key。
+ */
+export const groupKey = (path: string) => `/__group${path}`;
+
+/** 菜单里排在最前的可访问页面（深度优先取第一个叶子），用作没有工作台权限时的首页 */
+export function firstMenuPath(menu: ProLayoutMenuItem[]): string | undefined {
+  for (const m of menu) {
+    if (m.children?.length) {
+      const p = firstMenuPath(m.children);
+      if (p) return p;
+    } else {
+      return m.path;
+    }
+  }
+  return undefined;
 }

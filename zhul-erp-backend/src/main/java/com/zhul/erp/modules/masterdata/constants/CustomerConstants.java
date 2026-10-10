@@ -27,10 +27,6 @@ public final class CustomerConstants {
 
     public static final Map<Integer, String> GRADE_LABELS = Map.of(1, "A", 2, "B", 3, "C");
 
-    public static final Map<Integer, String> SOURCE_LABELS = Map.of(
-            1, "阿里巴巴国际站", 2, "中国制造网", 3, "独立站", 4, "展会", 5, "社交媒体", 6, "老客户转介绍", 7, "主动开发",
-            8, "其他");
-
     public static final Map<Integer, String> PAYMENT_LABELS = Map.of(
             1, "T/T 全额预付", 2, "T/T 定金 + 发货前付尾款", 3, "T/T 定金 + 见提单副本付尾款", 4, "L/C 即期",
             5, "L/C 远期", 6, "D/P", 7, "D/A", 8, "O/A 赊销", 9, "其他");
@@ -44,7 +40,7 @@ public final class CustomerConstants {
 
     /** Incoterms 2020 */
     public static final List<String> INCOTERMS = List.of("EXW", "FCA", "FOB", "CFR", "CIF", "CPT", "CIP", "DAP", "DPU", "DDP");
-    public static final List<String> CURRENCIES = List.of("USD", "EUR", "GBP", "JPY", "CNY");
+    public static final List<String> CURRENCIES = List.of("USD", "EUR", "GBP", "JPY", "RUB", "CNY");
 
     public static final int PARTY_CONSIGNEE = 1;
     public static final int PARTY_NOTIFY = 2;

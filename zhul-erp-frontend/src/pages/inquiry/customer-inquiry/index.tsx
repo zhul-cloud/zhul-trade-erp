@@ -1,535 +1,884 @@
 import {
+  AlertOutlined,
   CheckCircleOutlined,
-  DollarOutlined,
+  FileSearchOutlined,
+  FireOutlined,
   InboxOutlined,
   PlusOutlined,
-  SmileOutlined,
+  QuestionCircleOutlined,
+  SearchOutlined,
+  SyncOutlined,
 } from '@ant-design/icons';
-import type { ActionType, ProColumns } from '@ant-design/pro-components';
+import { history, useSearchParams } from '@umijs/max';
+import type { TableColumnsType } from 'antd';
 import {
-  ModalForm,
-  ProFormDatePicker,
-  ProFormSelect,
-  ProFormTextArea,
-  ProFormUploadDragger,
-  ProTable,
-} from '@ant-design/pro-components';
-import { history } from '@umijs/max';
-import { Button, Card, message, Space, Tabs, Tag } from 'antd';
-import React, { useEffect, useRef, useState } from 'react';
-import CustomerQuickCreateModal from '@/components/CustomerQuickCreateModal';
+  App,
+  Button,
+  DatePicker,
+  Form,
+  Input,
+  InputNumber,
+  Select,
+  Skeleton,
+  Space,
+  Table,
+  Tag,
+  Tooltip,
+} from 'antd';
+import type { Dayjs } from 'dayjs';
+import dayjs from 'dayjs';
+import React, { useCallback, useEffect, useState } from 'react';
+import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
 import { getUserList } from '@/pages/system/user/service';
-import type { CustomerItem } from '@/services/zhul/masterdata';
-import { getCustomer, searchCustomers } from '@/services/zhul/masterdata';
 import { useAppTheme } from '@/theme/AppTheme';
+import { DICT_SOURCE_CHANNEL, useDictOptions } from '@/utils/dict';
 import { formatDateTime } from '@/utils/format';
 import {
-  CUSTOMER_INQUIRY_SOURCE_META,
-  CUSTOMER_INQUIRY_STATUS,
-  CUSTOMER_INQUIRY_STATUS_META,
-} from '../constants';
-import type { CustomerInquiryItem } from './service';
+  Card,
+  CustomerTypePill,
+  DeadlineText,
+  LevelPill,
+  PageTitle,
+  Pill,
+  Progress,
+  StatusPill,
+  useLevels,
+} from '../shared/components';
+import { PATHS, STATUS, STATUS_META } from '../shared/constants';
 import {
-  pageCustomerInquiries,
-  submitCustomerInquiry,
-  uploadInquiryExcel,
-  uploadInquiryImage,
-} from './service';
+  type CustomerInquiry,
+  type InquiryQuery,
+  inquiryApi,
+  readBizError,
+} from '../shared/service';
+import NewInquiryModal from './NewInquiryModal';
 
-const startOfMonth = (): string => {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+interface Filters {
+  keyword?: string;
+  status?: number;
+  source?: number;
+  ownerId?: number;
+  customerType?: number;
+  level?: number;
+  range?: [Dayjs, Dayjs];
+  /** 型号数、总数量范围：[最少, 最多]，留空表示不限 */
+  itemCount?: NumberRange;
+  totalQuantity?: NumberRange;
+}
+
+type NumberRange = [number | null | undefined, number | null | undefined];
+
+interface Sort {
+  field?: 'level' | 'totalItemCount' | 'totalQuantity';
+  order?: 'asc' | 'desc';
+}
+
+/** 数字范围输入：最少 ~ 最多，任一端可留空 */
+const RangeInput: React.FC<{
+  value?: NumberRange;
+  onChange?: (v: NumberRange) => void;
+}> = ({ value, onChange }) => (
+  <Space.Compact style={{ width: '100%' }}>
+    <InputNumber
+      min={0}
+      precision={0}
+      placeholder="最少"
+      style={{ width: '50%' }}
+      value={value?.[0] ?? null}
+      onChange={(v) => onChange?.([v, value?.[1]])}
+    />
+    <InputNumber
+      min={0}
+      precision={0}
+      placeholder="最多"
+      style={{ width: '50%' }}
+      value={value?.[1] ?? null}
+      onChange={(v) => onChange?.([value?.[0], v])}
+    />
+  </Space.Compact>
+);
+
+const toQuery = (
+  f: Filters,
+  urgentOnly: boolean,
+  timeoutOnly: boolean,
+  sort: Sort = {},
+): InquiryQuery => ({
+  keyword: f.keyword?.trim() || undefined,
+  statusList: f.status ? [f.status] : undefined,
+  source: f.source,
+  ownerId: f.ownerId,
+  customerType: f.customerType,
+  level: f.level,
+  inquiryDateFrom: f.range?.[0]?.format('YYYY-MM-DD'),
+  inquiryDateTo: f.range?.[1]?.format('YYYY-MM-DD'),
+  urgentOnly: urgentOnly || undefined,
+  timeoutOnly: timeoutOnly || undefined,
+  minItemCount: f.itemCount?.[0] ?? undefined,
+  maxItemCount: f.itemCount?.[1] ?? undefined,
+  minTotalQuantity: f.totalQuantity?.[0] ?? undefined,
+  maxTotalQuantity: f.totalQuantity?.[1] ?? undefined,
+  sortField: sort.field,
+  sortOrder: sort.field ? sort.order : undefined,
+});
+
+interface Stats {
+  sourcing: number;
+  sourcingTimeout: number;
+  ready: number;
+  pendingConfirm: number;
+  today: number;
+}
+
+const StatCard: React.FC<{
+  icon: React.ReactNode;
+  color: string;
+  soft: string;
+  label: string;
+  value?: number;
+  hint?: React.ReactNode;
+  onClick?: () => void;
+}> = ({ icon, color, soft, label, value, hint, onClick }) => {
+  const { palette } = useAppTheme();
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        textAlign: 'left',
+        background: palette.card,
+        border: `1px solid ${palette.hairline}`,
+        borderRadius: 16,
+        padding: 20,
+        cursor: onClick ? 'pointer' : 'default',
+        transition: 'border-color 150ms ease-out',
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.borderColor = palette.accentLine;
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.borderColor = palette.hairline;
+      }}
+    >
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10,
+          color: palette.sub,
+        }}
+      >
+        <span
+          style={{
+            width: 32,
+            height: 32,
+            borderRadius: 10,
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: soft,
+            color,
+          }}
+        >
+          {icon}
+        </span>
+        {label}
+      </div>
+      <div
+        style={{
+          fontSize: 28,
+          fontWeight: 700,
+          color: palette.ink,
+          margin: '12px 0 4px',
+        }}
+      >
+        {value ?? <Skeleton.Button active size="small" />}
+      </div>
+      <div style={{ fontSize: 12, minHeight: 18 }}>{hint}</div>
+    </button>
+  );
 };
 
-const today = (): string => new Date().toISOString().slice(0, 10);
+const CustomerInquiryPage: React.FC = () => {
+  const { options: sourceOptions, labelOf: sourceLabel } =
+    useDictOptions(DICT_SOURCE_CHANNEL);
+  const { palette } = useAppTheme();
+  const { message } = App.useApp();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [form] = Form.useForm<Filters>();
+  const [filters, setFilters] = useState<Filters>({});
+  const [urgentOnly, setUrgentOnly] = useState(false);
+  const [timeoutOnly, setTimeoutOnly] = useState(false);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [sort, setSort] = useState<Sort>({});
+  const { levelOptions } = useLevels();
+  const [rows, setRows] = useState<CustomerInquiry[]>([]);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [stats, setStats] = useState<Stats | null>(null);
+  const [owners, setOwners] = useState<{ value: number; label: string }[]>([]);
+  const [newOpen, setNewOpen] = useState(false);
+  const [presetCustomer, setPresetCustomer] = useState<number>();
+  const [busyId, setBusyId] = useState<number>();
 
-const CustomerInquiryList: React.FC = () => {
-  const { palette: p } = useAppTheme();
-  const actionRef = useRef<ActionType>(null);
-  const [customerNameMap, setCustomerNameMap] = useState<
-    Record<number, string>
-  >({});
-  const [ownerNameMap, setOwnerNameMap] = useState<Record<number, string>>({});
-  const [ownerOptions, setOwnerOptions] = useState<
-    { label: string; value: number }[]
-  >([]);
-  const [createOpen, setCreateOpen] = useState(false);
-  const [quickCreateOpen, setQuickCreateOpen] = useState(false);
-  const [selectedCustomer, setSelectedCustomer] = useState<
-    CustomerItem | undefined
-  >();
-  const [customerOptions, setCustomerOptions] = useState<
-    { label: string; value: number }[]
-  >([]);
-  const [sourceTab, setSourceTab] = useState<'text' | 'excel' | 'image'>(
-    'text',
-  );
-  const [stats, setStats] = useState<{
-    newThisMonth?: number;
-    pendingConfirm?: number;
-    pendingQuote?: number;
-    dealCount?: number;
-  }>({});
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const res = await inquiryApi.page({
+        ...toQuery(filters, urgentOnly, timeoutOnly, sort),
+        page,
+        pageSize,
+      });
+      setRows(res.records);
+      setTotal(res.total);
+    } catch (e) {
+      setError(readBizError(e).message);
+    } finally {
+      setLoading(false);
+    }
+  }, [filters, urgentOnly, timeoutOnly, sort, page, pageSize]);
 
-  // 后端本轮未提供专门的统计接口（不在任务组7范围内新增），这里用带筛选条件、
-  // pageSize=1 的分页查询只取 total 字段做轻量统计；"本月已成交"因为数据模型
-  // 没有单独的"成交时间"字段，退化为全量已成交数（不做月份范围过滤），这是已知的近似值。
-  useEffect(() => {
-    const load = async () => {
-      const [newThisMonth, pendingConfirm, pendingQuote, dealCount] =
+  const loadStats = useCallback(async () => {
+    const count = (q: InquiryQuery) =>
+      inquiryApi.page({ ...q, page: 1, pageSize: 1 }).then((r) => r.total);
+    const today = dayjs().format('YYYY-MM-DD');
+    try {
+      const [sourcing, sourcingTimeout, ready, pendingConfirm, todayCount] =
         await Promise.all([
-          pageCustomerInquiries({
-            page: 1,
-            pageSize: 1,
-            inquiryDateFrom: startOfMonth(),
-            inquiryDateTo: today(),
-          }),
-          pageCustomerInquiries({
-            page: 1,
-            pageSize: 1,
-            statusList: [CUSTOMER_INQUIRY_STATUS.PENDING_CONFIRM],
-          }),
-          pageCustomerInquiries({
-            page: 1,
-            pageSize: 1,
-            statusList: [CUSTOMER_INQUIRY_STATUS.PENDING_QUOTE],
-          }),
-          pageCustomerInquiries({
-            page: 1,
-            pageSize: 1,
-            statusList: [CUSTOMER_INQUIRY_STATUS.DEAL],
-          }),
+          count({ statusList: [STATUS.SOURCING] }),
+          count({ statusList: [STATUS.SOURCING], timeoutOnly: true }),
+          count({ statusList: [STATUS.READY] }),
+          count({ statusList: [STATUS.PENDING_CONFIRM] }),
+          count({ inquiryDateFrom: today, inquiryDateTo: today }),
         ]);
       setStats({
-        newThisMonth: newThisMonth.total,
-        pendingConfirm: pendingConfirm.total,
-        pendingQuote: pendingQuote.total,
-        dealCount: dealCount.total,
+        sourcing,
+        sourcingTimeout,
+        ready,
+        pendingConfirm,
+        today: todayCount,
       });
-    };
-    load();
+    } catch {
+      setStats(null);
+    }
   }, []);
 
-  // 负责人下拉/展示：用户数量在本项目规模下预期有限，一次性拉一页（200条）建立 id→姓名 映射，
-  // 而不是逐个 id 反查（后端没有按 id 批量查询用户的接口）。
   useEffect(() => {
-    getUserList({ current: 1, pageSize: 200 }).then((res) => {
-      const map: Record<number, string> = {};
-      const options: { label: string; value: number }[] = [];
-      res.data.records.forEach((u) => {
-        map[u.id] = u.name;
-        options.push({ label: u.name, value: u.id });
-      });
-      setOwnerNameMap(map);
-      setOwnerOptions(options);
-    });
+    load();
+  }, [load]);
+
+  useEffect(() => {
+    loadStats();
+    getUserList({ current: 1, pageSize: 200 })
+      .then((res) =>
+        setOwners(
+          res.data.records.map((u) => ({ value: u.id, label: u.name })),
+        ),
+      )
+      .catch(() => setOwners([]));
+    // 从商机查重提示跳过来（?newForCustomer=客户ID）：直接打开新建弹窗并选好客户
+    const preset = Number(searchParams.get('newForCustomer'));
+    if (preset) {
+      setPresetCustomer(preset);
+      setNewOpen(true);
+      searchParams.delete('newForCustomer');
+      setSearchParams(searchParams, { replace: true });
+    }
   }, []);
 
-  const resolveCustomerNames = async (records: CustomerInquiryItem[]) => {
-    const missingIds = Array.from(
-      new Set(
-        records
-          .map((r) => r.customerId)
-          .filter((id) => id && !customerNameMap[id]),
-      ),
-    );
-    if (missingIds.length === 0) return;
-    const fetched: (CustomerItem | null)[] = await Promise.all(
-      missingIds.map((id) => getCustomer(id).catch(() => null)),
-    );
-    setCustomerNameMap((prev) => {
-      const next = { ...prev };
-      fetched.forEach((c) => {
-        if (c) next[c.id] = c.name;
-      });
-      return next;
-    });
+  const applyFilters = () => {
+    setPage(1);
+    setFilters(form.getFieldsValue());
   };
 
-  const statCards = [
-    {
-      icon: <InboxOutlined />,
-      color: p.link,
-      bg: p.accentSoft,
-      label: '本月新增询盘',
-      value: stats.newThisMonth,
-    },
-    {
-      icon: <SmileOutlined />,
-      color: p.orange,
-      bg: p.orangeSoft,
-      label: '待确认',
-      value: stats.pendingConfirm,
-    },
-    {
-      icon: <DollarOutlined />,
-      color: p.violet,
-      bg: p.violetSoft,
-      label: '待报价',
-      value: stats.pendingQuote,
-    },
-    {
-      icon: <CheckCircleOutlined />,
-      color: p.green,
-      bg: p.greenSoft,
-      label: '本月已成交',
-      value: stats.dealCount,
-    },
-  ];
+  const quickStatus = (status?: number, timeout = false) => {
+    form.setFieldsValue({ status });
+    setTimeoutOnly(timeout);
+    setPage(1);
+    setFilters({ ...form.getFieldsValue(), status });
+  };
 
-  const columns: ProColumns<CustomerInquiryItem>[] = [
-    { title: '询盘编号', dataIndex: 'inquiryCode', width: 160 },
+  const run = async (
+    id: number,
+    fn: () => Promise<unknown>,
+    ok: string,
+    then?: () => void,
+  ) => {
+    setBusyId(id);
+    try {
+      await fn();
+      message.success(ok);
+      if (then) then();
+      else {
+        load();
+        loadStats();
+      }
+    } catch (e) {
+      message.error(readBizError(e).message);
+    } finally {
+      setBusyId(undefined);
+    }
+  };
+
+  const sortOrderOf = (field: Sort['field']) =>
+    sort.field === field
+      ? sort.order === 'asc'
+        ? ('ascend' as const)
+        : ('descend' as const)
+      : null;
+
+  const columns: TableColumnsType<CustomerInquiry> = [
+    {
+      title: '询盘编号',
+      dataIndex: 'inquiryCode',
+      width: 190,
+      render: (v, r) => (
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          <a onClick={() => history.push(`${PATHS.inquiries}/${r.id}`)}>{v}</a>
+          {r.urgent && <Pill tone="red">紧急</Pill>}
+        </span>
+      ),
+    },
+    {
+      title: '等级',
+      dataIndex: 'level',
+      width: 90,
+      render: (v) => <LevelPill value={v} />,
+      sorter: true,
+      sortDirections: ['descend', 'ascend'],
+      sortOrder: sortOrderOf('level'),
+    },
     {
       title: '客户',
       dataIndex: 'customerName',
-      width: 160,
-      render: (_, record) =>
-        customerNameMap[record.customerId] ?? record.customerId,
+      width: 260,
+      render: (v, r) => (
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ display: 'inline-flex', flexDirection: 'column' }}>
+            <span style={{ color: palette.ink, fontWeight: 600 }}>{v}</span>
+            <span style={{ color: palette.mute, fontSize: 12 }}>
+              {r.customerCountry || '—'}
+            </span>
+          </span>
+          <CustomerTypePill type={r.customerType} />
+        </span>
+      ),
     },
     {
-      title: '询盘来源',
+      title: '来源',
       dataIndex: 'source',
-      width: 100,
-      search: false,
-      render: (_, record) => CUSTOMER_INQUIRY_SOURCE_META[record.source] ?? '-',
+      width: 150,
+      render: (v) => (
+        <span style={{ whiteSpace: 'nowrap' }}>{sourceLabel(v)}</span>
+      ),
     },
-    { title: '询盘日期', dataIndex: 'inquiryDate', width: 120, search: false },
     {
-      title: '询盘日期',
-      dataIndex: 'inquiryDateRange',
-      valueType: 'dateRange',
-      hideInTable: true,
-      search: {
-        transform: (value) => ({
-          inquiryDateFrom: value[0],
-          inquiryDateTo: value[1],
-        }),
+      title: (
+        <Tooltip title="询盘里有几个不同的型号，不是件数，也不是询价任务数（一个询价任务可能包含多个型号）">
+          <span style={{ whiteSpace: 'nowrap' }}>
+            型号数 <QuestionCircleOutlined style={{ color: palette.mute }} />
+          </span>
+        </Tooltip>
+      ),
+      dataIndex: 'totalItemCount',
+      width: 110,
+      render: (v, r) => {
+        // 未解析、解析失败，或没录型号就取消的询盘没有型号数
+        if (r.status <= STATUS.PARSE_FAILED || !v) return '—';
+        if (r.status === STATUS.PENDING_CONFIRM)
+          return (
+            <span style={{ display: 'inline-flex', flexDirection: 'column' }}>
+              <span>{v} 个</span>
+              <span style={{ color: palette.mute, fontSize: 12 }}>
+                AI 识别，待确认
+              </span>
+            </span>
+          );
+        return `${v} 个`;
+      },
+      sorter: true,
+      sortDirections: ['descend', 'ascend'],
+      sortOrder: sortOrderOf('totalItemCount'),
+    },
+    {
+      title: (
+        <Tooltip title="所有型号的数量直接相加（不区分单位），和型号数一起判断询盘价值：多型号、多数量的询盘通常更值得优先跟进">
+          <span style={{ whiteSpace: 'nowrap' }}>
+            总数量 <QuestionCircleOutlined style={{ color: palette.mute }} />
+          </span>
+        </Tooltip>
+      ),
+      dataIndex: 'totalQuantity',
+      width: 120,
+      render: (v, r) => {
+        if (r.status <= STATUS.PARSE_FAILED || !r.totalItemCount) return '—';
+        if (r.status === STATUS.PENDING_CONFIRM)
+          return (
+            <span style={{ display: 'inline-flex', flexDirection: 'column' }}>
+              <span>{v}</span>
+              <span style={{ color: palette.mute, fontSize: 12 }}>
+                AI 识别，待确认
+              </span>
+            </span>
+          );
+        return v;
+      },
+      sorter: true,
+      sortDirections: ['descend', 'ascend'],
+      sortOrder: sortOrderOf('totalQuantity'),
+    },
+    {
+      title: '回价进度',
+      width: 190,
+      render: (_, r) => {
+        if (r.status === STATUS.PARSE_FAILED)
+          return (
+            <span style={{ color: palette.red, fontSize: 12 }}>
+              AI 没有返回结果
+            </span>
+          );
+        if (r.status === STATUS.PENDING_PARSE)
+          return (
+            <span style={{ color: palette.mute, fontSize: 12 }}>
+              等待解析或手动录入
+            </span>
+          );
+        if (r.status === STATUS.PARSING)
+          return (
+            <span style={{ color: palette.mute, fontSize: 12 }}>
+              解析完成后显示
+            </span>
+          );
+        if (r.status === STATUS.PENDING_CONFIRM)
+          return (
+            <span style={{ color: palette.mute, fontSize: 12 }}>
+              确认型号后开始询价
+            </span>
+          );
+        if (!r.totalItemCount)
+          return <span style={{ color: palette.mute }}>—</span>;
+        return (
+          <span
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+          >
+            <Progress
+              done={r.pricedItemCount}
+              total={r.totalItemCount}
+              width={80}
+            />
+            {r.timeoutTaskCount > 0 && (
+              <Pill tone="red">超时 {r.timeoutTaskCount}</Pill>
+            )}
+          </span>
+        );
       },
     },
     {
       title: '状态',
       dataIndex: 'status',
-      width: 110,
-      valueType: 'select',
-      fieldProps: { mode: 'multiple' },
-      valueEnum: Object.fromEntries(
-        Object.entries(CUSTOMER_INQUIRY_STATUS_META).map(([k, v]) => [
-          k,
-          { text: v.text },
-        ]),
+      width: 120,
+      render: (v, r) => (
+        <span
+          style={{
+            display: 'inline-flex',
+            flexDirection: 'column',
+            gap: 4,
+            alignItems: 'flex-start',
+          }}
+        >
+          <StatusPill status={v} />
+          {r.needsReview && <Pill tone="orange">型号待核实</Pill>}
+        </span>
       ),
-      search: { transform: (value) => ({ statusList: value }) },
-      render: (_, record) => {
-        const meta = CUSTOMER_INQUIRY_STATUS_META[record.status];
-        return <Tag color={meta?.color}>{meta?.text ?? record.status}</Tag>;
-      },
     },
     {
-      title: '总询盘单数',
-      dataIndex: 'totalOrderCount',
-      width: 100,
-      search: false,
-    },
-    {
-      title: '待核实数',
-      dataIndex: 'pendingVerifyCount',
-      width: 90,
-      search: false,
-      render: (_, record) =>
-        record.pendingVerifyCount > 0 ? (
-          <span style={{ color: p.orange }}>{record.pendingVerifyCount}</span>
-        ) : (
-          record.pendingVerifyCount
-        ),
+      title: '报价截止',
+      dataIndex: 'quoteDeadline',
+      width: 110,
+      render: (v, r) => <DeadlineText date={v} status={r.status} />,
     },
     {
       title: '负责人',
-      dataIndex: 'ownerId',
-      width: 110,
-      valueType: 'select',
-      fieldProps: {
-        options: ownerOptions,
-        showSearch: true,
-        filterOption: (input: string, opt: any) =>
-          (opt?.label ?? '').toLowerCase().includes(input.toLowerCase()),
-      },
-      render: (_, record) =>
-        record.ownerId ? (ownerNameMap[record.ownerId] ?? record.ownerId) : '-',
+      dataIndex: 'ownerName',
+      width: 90,
+      render: (v) => v || '—',
     },
     {
       title: '创建时间',
       dataIndex: 'createTime',
-      width: 160,
-      search: false,
-      render: (_, r) => formatDateTime(r.createTime),
+      width: 170,
+      render: (v) => (
+        <span style={{ fontVariantNumeric: 'tabular-nums' }}>
+          {formatDateTime(v)}
+        </span>
+      ),
     },
-    { title: '创建人', dataIndex: 'createBy', width: 90, search: false },
-    {
-      title: '更新时间',
-      dataIndex: 'updateTime',
-      width: 160,
-      search: false,
-      render: (_, r) => formatDateTime(r.updateTime),
-    },
-    { title: '更新人', dataIndex: 'updateBy', width: 90, search: false },
     {
       title: '操作',
-      dataIndex: 'option',
-      width: 80,
-      search: false,
-      render: (_, record) => (
-        <a
-          onClick={() =>
-            history.push(`/inquiry/customer-inquiries/${record.id}`)
-          }
-        >
-          查看
-        </a>
-      ),
+      width: 160,
+      fixed: 'right',
+      render: (_, r) => {
+        if (
+          r.status === STATUS.PENDING_PARSE ||
+          r.status === STATUS.PARSE_FAILED
+        ) {
+          return (
+            <span style={{ display: 'inline-flex', gap: 12 }}>
+              <a
+                aria-disabled={busyId === r.id}
+                onClick={() =>
+                  run(
+                    r.id,
+                    () =>
+                      r.status === STATUS.PENDING_PARSE
+                        ? inquiryApi.startParse(r.id)
+                        : inquiryApi.retryParse(r.id),
+                    '已开始 AI 解析，完成后状态会变为待确认',
+                  )
+                }
+              >
+                {r.status === STATUS.PENDING_PARSE ? 'AI 解析' : '重新解析'}
+              </a>
+              {/* 手动录入只打开确认页，不改状态；确认时才离开待解析 / 解析失败 */}
+              <a
+                aria-disabled={busyId === r.id}
+                onClick={() =>
+                  history.push(`${PATHS.inquiries}/${r.id}/confirm`)
+                }
+              >
+                手动录入
+              </a>
+            </span>
+          );
+        }
+        return (
+          <span style={{ display: 'inline-flex', gap: 12 }}>
+            <a onClick={() => history.push(`${PATHS.inquiries}/${r.id}`)}>
+              查看
+            </a>
+            {r.status === STATUS.PENDING_CONFIRM && (
+              <a
+                style={{ fontWeight: 600 }}
+                onClick={() =>
+                  history.push(`${PATHS.inquiries}/${r.id}/confirm`)
+                }
+              >
+                去确认
+              </a>
+            )}
+          </span>
+        );
+      },
     },
   ];
 
-  const handleCustomerSearch = async (keyword: string) => {
-    const list = await searchCustomers(keyword);
-    setCustomerOptions(list.map((c) => ({ label: c.name, value: c.id })));
-  };
+  const noFilter =
+    !filters.keyword &&
+    !filters.status &&
+    !filters.source &&
+    !filters.ownerId &&
+    !filters.customerType &&
+    !filters.range &&
+    !urgentOnly &&
+    !timeoutOnly;
 
   return (
-    <>
+    <div>
+      <PageTitle
+        crumbs={['客户询盘']}
+        title="客户询盘"
+        description="一个客户的一次需求。确认型号后按品牌拆给采购询价，有回价的型号就可以去报价。"
+        actions={
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={() => {
+              setPresetCustomer(undefined);
+              setNewOpen(true);
+            }}
+          >
+            新建客户询盘
+          </Button>
+        }
+      />
+
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(4, 1fr)',
+          gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
           gap: 16,
           marginBottom: 16,
         }}
       >
-        {statCards.map((s) => (
-          <Card key={s.label} styles={{ body: { padding: 20 } }}>
-            <Space align="center">
-              <div
-                style={{
-                  width: 36,
-                  height: 36,
-                  borderRadius: 10,
-                  background: s.bg,
-                  color: s.color,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: 18,
-                }}
-              >
-                {s.icon}
-              </div>
-              <span style={{ color: p.mute }}>{s.label}</span>
-            </Space>
-            <div style={{ fontSize: 28, fontWeight: 700, marginTop: 12 }}>
-              {s.value ?? '-'}
-            </div>
-          </Card>
-        ))}
+        <StatCard
+          icon={<SyncOutlined />}
+          color={palette.link}
+          soft={palette.accentSoft}
+          label="询价中"
+          value={stats?.sourcing}
+          hint={
+            stats && stats.sourcingTimeout > 0 ? (
+              <span style={{ color: palette.red }}>
+                其中 {stats.sourcingTimeout} 个有超时任务
+              </span>
+            ) : (
+              <span style={{ color: palette.mute }}>采购正在问价</span>
+            )
+          }
+          onClick={() => quickStatus(STATUS.SOURCING)}
+        />
+        <StatCard
+          icon={<CheckCircleOutlined />}
+          color={palette.green}
+          soft={palette.greenSoft}
+          label="可报价"
+          value={stats?.ready}
+          hint={
+            <span style={{ color: palette.green }}>价格已回齐，可以去报价</span>
+          }
+          onClick={() => quickStatus(STATUS.READY)}
+        />
+        <StatCard
+          icon={<FileSearchOutlined />}
+          color={palette.orange}
+          soft={palette.orangeSoft}
+          label="待确认"
+          value={stats?.pendingConfirm}
+          hint={
+            <span style={{ color: palette.mute }}>型号已识别，等你确认</span>
+          }
+          onClick={() => quickStatus(STATUS.PENDING_CONFIRM)}
+        />
+        <StatCard
+          icon={<InboxOutlined />}
+          color={palette.cyan}
+          soft={palette.inset}
+          label="今日新增"
+          value={stats?.today}
+          hint={<span style={{ color: palette.mute }}>按询盘日期统计</span>}
+        />
       </div>
 
-      <ProTable<CustomerInquiryItem>
-        headerTitle="客户询盘"
-        actionRef={actionRef}
-        rowKey="id"
-        columns={columns}
-        request={async (params) => {
-          const {
-            current,
-            pageSize,
-            inquiryCode,
-            customerName,
-            status,
-            ownerId,
-            inquiryDateFrom,
-            inquiryDateTo,
-          } = params as typeof params & {
-            status?: number[];
-            inquiryDateFrom?: string;
-            inquiryDateTo?: string;
-          };
-          const res = await pageCustomerInquiries({
-            page: current,
-            pageSize,
-            inquiryCode,
-            customerName,
-            statusList: status,
-            ownerId,
-            inquiryDateFrom,
-            inquiryDateTo,
-          });
-          await resolveCustomerNames(res.records);
-          return { data: res.records, total: res.total, success: true };
-        }}
-        pagination={{ pageSize: 10 }}
-        search={{ labelWidth: 'auto' }}
-        toolBarRender={() => [
-          <Button
-            key="add"
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={() => setCreateOpen(true)}
+      <Card style={{ marginBottom: 16, padding: 20 }}>
+        <Form form={form} layout="vertical" onFinish={applyFilters}>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(5, minmax(0, 1fr))',
+              gap: 12,
+              alignItems: 'end',
+            }}
           >
-            新建客户询盘
-          </Button>,
-        ]}
-      />
+            <Form.Item
+              name="keyword"
+              label="关键词"
+              style={{ marginBottom: 0 }}
+            >
+              <Input
+                allowClear
+                prefix={<SearchOutlined />}
+                placeholder="询盘编号、客户名称、型号"
+              />
+            </Form.Item>
+            <Form.Item
+              name="level"
+              label="询盘等级"
+              style={{ marginBottom: 0 }}
+            >
+              <Select allowClear placeholder="全部" options={levelOptions} />
+            </Form.Item>
+            <Form.Item name="status" label="状态" style={{ marginBottom: 0 }}>
+              <Select
+                allowClear
+                placeholder="全部"
+                options={Object.entries(STATUS_META).map(([k, v]) => ({
+                  value: Number(k),
+                  label: v.label,
+                }))}
+              />
+            </Form.Item>
+            <Form.Item name="source" label="来源" style={{ marginBottom: 0 }}>
+              <Select allowClear placeholder="全部" options={sourceOptions} />
+            </Form.Item>
+            <Form.Item
+              name="ownerId"
+              label="负责人"
+              style={{ marginBottom: 0 }}
+            >
+              <Select
+                allowClear
+                placeholder="全部"
+                options={owners}
+                showSearch={{ optionFilterProp: 'label' }}
+              />
+            </Form.Item>
+            <Form.Item
+              name="customerType"
+              label="新老客户"
+              style={{ marginBottom: 0 }}
+            >
+              <Select
+                allowClear
+                placeholder="全部"
+                options={[
+                  { value: 1, label: '新客户' },
+                  { value: 2, label: '老客户' },
+                ]}
+              />
+            </Form.Item>
+            <Form.Item
+              name="range"
+              label="询盘日期"
+              style={{ marginBottom: 0 }}
+            >
+              <DatePicker.RangePicker style={{ width: '100%' }} />
+            </Form.Item>
+            <Form.Item
+              name="itemCount"
+              label="型号数"
+              style={{ marginBottom: 0 }}
+            >
+              <RangeInput />
+            </Form.Item>
+            <Form.Item
+              name="totalQuantity"
+              label="总数量"
+              style={{ marginBottom: 0 }}
+            >
+              <RangeInput />
+            </Form.Item>
+            <div
+              style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}
+            >
+              <Button
+                onClick={() => {
+                  form.resetFields();
+                  setUrgentOnly(false);
+                  setTimeoutOnly(false);
+                  setPage(1);
+                  setSort({});
+                  setFilters({});
+                }}
+              >
+                重置
+              </Button>
+              <Button type="primary" htmlType="submit">
+                查询
+              </Button>
+            </div>
+          </div>
+        </Form>
+      </Card>
 
-      <ModalForm
-        title="新建客户询盘"
-        width={640}
-        open={createOpen}
-        onOpenChange={(open) => {
-          setCreateOpen(open);
-          if (!open) setSelectedCustomer(undefined);
-        }}
-        modalProps={{ destroyOnClose: true, maskClosable: false }}
-        layout="vertical"
-        submitter={{ searchConfig: { submitText: '创建询盘' } }}
-        onFinish={async (values: any) => {
-          if (!selectedCustomer) {
-            message.error('请选择客户');
-            return false;
-          }
-          const sourceMap: Record<string, number> = {
-            text: 1,
-            excel: 2,
-            image: 3,
-          };
-          if (sourceTab !== 'text' && !values.attachment?.[0]?.response?.url) {
-            message.error('请先等待文件上传完成');
-            return false;
-          }
-          const created = await submitCustomerInquiry({
-            customerId: selectedCustomer.id,
-            source: sourceMap[sourceTab],
-            rawContent: values.rawContent,
-            rawAttachmentUrl: values.attachment?.[0]?.response?.url,
-            inquiryDate: today(),
-            expectedReplyDate: values.expectedReplyDate,
-            remark: values.remark,
-          });
-          message.success('创建成功');
-          history.push(`/inquiry/customer-inquiries/${created.id}`);
-          return true;
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          marginBottom: 12,
         }}
       >
-        <ProFormSelect
-          label="客户"
-          name="customerId"
-          placeholder="输入客户名称搜索"
-          rules={[{ required: true, message: '请选择客户' }]}
-          fieldProps={{
-            showSearch: true,
-            filterOption: false,
-            options: customerOptions,
-            onSearch: handleCustomerSearch,
-            value: selectedCustomer?.id,
-            onChange: (value: number) => {
-              const opt = customerOptions.find((o) => o.value === value);
-              if (opt) setSelectedCustomer({ id: value, name: opt.label });
+        <span style={{ fontWeight: 600, color: palette.ink }}>
+          共 {total} 条
+        </span>
+        <span style={{ color: palette.mute, fontSize: 12 }}>
+          {sort.field
+            ? sort.field === 'level'
+              ? `按询盘等级${sort.order === 'asc' ? '从低到高' : '从高到低'}，相同再按创建时间倒序`
+              : `按${sort.field === 'totalQuantity' ? '总数量' : '型号数'}${sort.order === 'asc' ? '从少到多' : '从多到少'}，相同再按创建时间倒序`
+            : '按创建时间倒序'}
+        </span>
+        <span style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
+          <Tag.CheckableTag
+            checked={urgentOnly}
+            onChange={(v) => {
+              setUrgentOnly(v);
+              setPage(1);
+            }}
+          >
+            <FireOutlined /> 只看紧急
+          </Tag.CheckableTag>
+          <Tag.CheckableTag
+            checked={timeoutOnly}
+            onChange={(v) => {
+              setTimeoutOnly(v);
+              setPage(1);
+            }}
+          >
+            <AlertOutlined /> 只看有超时任务
+          </Tag.CheckableTag>
+        </span>
+      </div>
+
+      {error ? (
+        <ErrorHint message={error} onRetry={load} />
+      ) : !loading && rows.length === 0 && noFilter ? (
+        <Card>
+          <EmptyHint
+            title="还没有客户询盘"
+            description="把客户发来的文字、截图或 Excel 交给 AI 解析，几十秒就能拆好给采购。"
+            actionText="新建客户询盘"
+            onAction={() => setNewOpen(true)}
+          />
+        </Card>
+      ) : (
+        <Table<CustomerInquiry>
+          rowKey="id"
+          columns={columns}
+          dataSource={rows}
+          loading={loading}
+          scroll={{ x: 1610 }}
+          onChange={(_, __, sorter) => {
+            const s = Array.isArray(sorter) ? sorter[0] : sorter;
+            const field = s?.order ? (s.field as Sort['field']) : undefined;
+            setSort(
+              field
+                ? { field, order: s.order === 'ascend' ? 'asc' : 'desc' }
+                : {},
+            );
+            setPage(1);
+          }}
+          locale={{ emptyText: '没有符合条件的询盘，换个筛选条件试试' }}
+          pagination={{
+            current: page,
+            pageSize,
+            total,
+            showSizeChanger: true,
+            showTotal: (t) => `共 ${t} 条`,
+            onChange: (p, s) => {
+              setPage(p);
+              setPageSize(s);
             },
-            dropdownRender: (menu: React.ReactNode) => (
-              <>
-                {menu}
-                <div
-                  style={{ padding: 8, borderTop: `1px solid ${p.hairline}` }}
-                >
-                  <a onClick={() => setQuickCreateOpen(true)}>+ 新建客户</a>
-                </div>
-              </>
-            ),
           }}
         />
+      )}
 
-        <Tabs
-          activeKey={sourceTab}
-          onChange={(k) => setSourceTab(k as typeof sourceTab)}
-          items={[
-            {
-              key: 'text',
-              label: '文本输入',
-              children: (
-                <ProFormTextArea
-                  name="rawContent"
-                  placeholder="粘贴客户原始询盘内容"
-                  fieldProps={{ rows: 6 }}
-                />
-              ),
-            },
-            {
-              key: 'excel',
-              label: 'Excel上传',
-              children: (
-                <ProFormUploadDragger
-                  name="attachment"
-                  title="点击或拖拽 Excel 文件到此处"
-                  fieldProps={{
-                    accept: '.xlsx,.xls,.csv',
-                    maxCount: 1,
-                    customRequest: async ({ file, onSuccess, onError }) => {
-                      try {
-                        const result = await uploadInquiryExcel(file as File);
-                        onSuccess?.(result);
-                      } catch (e) {
-                        onError?.(e as Error);
-                      }
-                    },
-                  }}
-                  extra="仅支持 .xlsx/.xls/.csv，最大 5MB"
-                />
-              ),
-            },
-            {
-              key: 'image',
-              label: '图片上传',
-              children: (
-                <ProFormUploadDragger
-                  name="attachment"
-                  title="点击或拖拽图片到此处（暂仅使用第一张图片解析）"
-                  fieldProps={{
-                    accept: '.jpg,.jpeg,.png',
-                    multiple: true,
-                    customRequest: async ({ file, onSuccess, onError }) => {
-                      try {
-                        const result = await uploadInquiryImage(file as File);
-                        onSuccess?.(result);
-                      } catch (e) {
-                        onError?.(e as Error);
-                      }
-                    },
-                  }}
-                  extra="仅支持 .jpg/.png，最大 5MB"
-                />
-              ),
-            },
-          ]}
-        />
-
-        <ProFormDatePicker
-          name="expectedReplyDate"
-          label="期望回复日期"
-          width="md"
-        />
-      </ModalForm>
-
-      <CustomerQuickCreateModal
-        open={quickCreateOpen}
-        onOpenChange={setQuickCreateOpen}
-        onCreated={(customer) => {
-          setSelectedCustomer(customer);
-          setCustomerOptions((prev) => [
-            { label: customer.name, value: customer.id },
-            ...prev,
-          ]);
-          setQuickCreateOpen(false);
+      <NewInquiryModal
+        open={newOpen}
+        presetCustomerId={presetCustomer}
+        onClose={() => setNewOpen(false)}
+        onCreated={async (created, startParse) => {
+          setNewOpen(false);
+          if (startParse) {
+            await run(
+              created.id,
+              () => inquiryApi.startParse(created.id),
+              `${created.inquiryCode} 已提交，AI 正在解析`,
+            );
+          } else {
+            message.success(
+              `${created.inquiryCode} 已保存，可以 AI 解析或手动录入`,
+            );
+            load();
+            loadStats();
+          }
         }}
       />
-    </>
+    </div>
   );
 };
 
-export default CustomerInquiryList;
+export default CustomerInquiryPage;

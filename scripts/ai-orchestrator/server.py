@@ -78,9 +78,15 @@ OUTPUT_SCHEMA = {
                                 "confidence": {"type": "integer"},
                                 "correctionNote": {"type": "string"},
                                 "description": {"type": "string"},
+                                "descriptionEn": {"type": "string"},
                                 "quantity": {"type": "integer"},
                                 "unit": {"type": "string"},
                                 "remark": {"type": "string"},
+                                "lifecycle": {"type": "integer"},
+                                "replacementModel": {"type": "string"},
+                                "difficulty": {"type": "integer"},
+                                "inquiryScript": {"type": "string"},
+                                "searchKeywords": {"type": "array", "items": {"type": "string"}},
                             },
                             "required": ["originalModel", "confirmedModel", "confidence", "quantity", "unit"],
                         },
@@ -119,21 +125,32 @@ def build_system_prompt() -> str:
 - confidence 原来是中文字符串，现在必须转换成整数：确认=1，已纠正=2，待核实=3，未识别=4
 - email_cn -> emailTemplateCn，email_en -> emailTemplateEn，inquiry_template -> inquiryTemplate（字段名不变）
 - 不要输出 master、sub_inquiry_id、item_count、delivery 这些字段
+
+【每个型号额外输出的字段——联网搜索验证时一并判断】
+- description：中文描述（给内部采购询价看），沿用 skill 原有写法
+- descriptionEn：英文描述（给海外客户看，会出现在报价单、PI 上）：英文品名 + 关键规格，品牌用英文名（如西门子写 Siemens），型号、规格参数和单位原样保留，不要出现中文，不超过 300 个字符；例如「Siemens 3VA2 MCCB, 400A 4P, 55kA/415V, ETU560 LSIG trip unit」；型号未识别时留空字符串
+- lifecycle 生命周期（整数）：官网或代理商在售=1（在产）；官网确认停产或已无库存=2（停产）；查不到或不确定=3（待查）
+- replacementModel：停产且官方给出替代型号时填写替代型号，否则留空字符串；替代型号需确认规格兼容，不能随意等同
+- difficulty 采购难度（整数）：常见在产型号、国内平台容易买到=1（简单）；冷门、停产有替代或货源少=2（中等）；停产无替代、稀缺或需海外渠道=3（困难）
+- inquiryScript：发给国内供应商的询价话术，格式固定为「帮我查一下 {{品牌中文名或英文名}} 的 {{确认型号}}，要 {{数量}} {{单位}}，报不含税价，有货的话货期也说一下，谢谢。」；停产且有替代型号时写成「{{型号}}（已停产）或替代型号 {{替代型号}}，各 {{数量}} {{单位}}，优先按替代型号询价；若原型号有现货亦可，报不含税价和货期，谢谢。」
+- searchKeywords：货源搜索关键词，2 到 5 个，按使用顺序：① 精确型号；② 品牌英文 + 型号；③ 品牌中文 + 中文品名（如「欧姆龙 光电传感器」）；④ 纯规格中文品名；停产有替代时最后加「替代型号」。只给关键词，不要给链接
 """
 
 
-def call_claude(raw_content: str, image_path: str = None) -> dict:
+def call_claude(raw_content: str, file_paths=None) -> dict:
+    """raw_content 为正文（Excel/CSV 附件已由后端抽成文本拼在里面）；file_paths 为图片、PDF 的本地绝对路径。"""
     system_prompt = build_system_prompt()
-    if image_path:
-        # 图片输入没有机械抽取文本的办法（不像 Excel 能用 POI 读表格），
-        # 改成把本地绝对路径喂给 Claude，让它自己用 Read 工具看图识字——
-        # `Read(<path>)` 精确只放行这一个文件，不是任意路径都能读。
+    file_paths = file_paths or []
+    if file_paths:
+        # 图片和 PDF 没法机械抽文本，把本地绝对路径交给 Claude 用 Read 工具自己看；
+        # `Read(<path>)` 只放行这几个文件，不是任意路径都能读。
+        listing = "\n".join(f"- {p}" for p in file_paths)
         prompt_text = (
-            f"这条询盘没有文本内容，原始信息是一张图片，本地路径是：{image_path}\n"
-            f"请先用 Read 工具读取这张图片，识别图片里的文字、型号、数量等询盘信息，"
-            f"识别出来的内容当成询盘原文，再按下面的 skill 流程继续处理。"
+            (f"询盘正文：\n{raw_content}\n\n" if raw_content else "这条询盘没有正文。\n")
+            + f"另有以下附件（图片或 PDF），本地路径：\n{listing}\n"
+            + "请先用 Read 工具逐个读取附件，识别其中的型号、数量等询盘信息，与正文合并当成询盘原文，再按下面的 skill 流程继续处理。"
         )
-        allowed_tools = f"WebSearch Read({image_path})"
+        allowed_tools = " ".join(["WebSearch"] + [f"Read({p})" for p in file_paths])
     else:
         prompt_text = raw_content
         allowed_tools = "WebSearch"
@@ -171,6 +188,75 @@ def call_claude(raw_content: str, image_path: str = None) -> dict:
     return structured
 
 
+TRANSLATE_SKILL = "translate-item-descriptions"
+
+TRANSLATE_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "items": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {"key": {"type": "string"}, "text": {"type": "string"}},
+                "required": ["key", "text"],
+            },
+        }
+    },
+    "required": ["items"],
+}
+
+TRANSLATE_PROMPT = """你是工控自动化产品的外贸翻译。把下面每一条中文型号描述翻译成给海外客户看的英文描述：
+- 英文品名 + 关键规格，品牌用英文名（如西门子写 Siemens，三菱写 Mitsubishi，欧姆龙写 Omron）
+- 型号、规格参数、单位原样保留，不要改写或补全
+- 不要出现中文，每条不超过 300 个字符
+- key 原样返回，每条输入都要有对应输出
+只输出 JSON。"""
+
+
+def call_claude_translate(items: list) -> dict:
+    """翻译型号描述：不联网，不放行任何工具"""
+    cmd = [
+        CLAUDE_BIN,
+        "-p",
+        json.dumps({"items": items}, ensure_ascii=False),
+        "--append-system-prompt",
+        TRANSLATE_PROMPT,
+        "--output-format",
+        "json",
+        "--json-schema",
+        json.dumps(TRANSLATE_SCHEMA),
+        "--permission-prompts",
+        "none",
+        "--max-budget-usd",
+        MAX_BUDGET_USD,
+    ]
+    result = subprocess.run(cmd, capture_output=True, text=True, timeout=CLAUDE_TIMEOUT_SECONDS)
+    if result.returncode != 0:
+        raise RuntimeError(f"claude 进程退出码 {result.returncode}: {result.stderr[-2000:]}")
+    envelope = json.loads(result.stdout)
+    if envelope.get("is_error"):
+        raise RuntimeError(f"claude 返回错误: {envelope.get('result')}")
+    structured = envelope.get("structured_output")
+    if not structured or "items" not in structured:
+        raise RuntimeError("claude 未返回符合 schema 的翻译结果")
+    print(f"[ai-orchestrator] 翻译完成 {len(items)} 条，费用约 ${envelope.get('total_cost_usd')}")
+    return structured
+
+
+def process_translate(payload: dict, callback_url: str):
+    try:
+        items = (payload.get("input") or {}).get("items") or []
+        if not items:
+            send_callback(callback_url, "failed", error="没有需要翻译的描述")
+            return
+        send_callback(callback_url, "success", output=call_claude_translate(items))
+    except subprocess.TimeoutExpired:
+        send_callback(callback_url, "failed", error=f"claude 处理超过 {CLAUDE_TIMEOUT_SECONDS} 秒未完成")
+    except Exception as e:
+        print(f"[ai-orchestrator] translate failed: {e}")
+        send_callback(callback_url, "failed", error=str(e)[:500])
+
+
 def send_callback(callback_url: str, status: str, output=None, error=None):
     body = json.dumps({"status": status, "output": output, "error": error}).encode("utf-8")
     req = urllib.request.Request(
@@ -190,19 +276,20 @@ def process_job(payload: dict, callback_url: str):
     try:
         input_data = payload.get("input") or {}
         raw_content = (input_data.get("rawContent") or "").strip()
-        attachment_path = (input_data.get("rawAttachmentPath") or "").strip()
-        # Excel 附件在后端已经用 POI 抽取成文本塞进了 rawContent，走的还是这里的
-        # 文本分支；只有图片附件才会走 rawAttachmentPath 这条单独的看图分支。
-        if not raw_content and not attachment_path:
-            send_callback(callback_url, "failed", error="rawContent 和 rawAttachmentPath 均为空，无法解析")
+        # Excel/CSV 附件已由后端抽成文本拼进 rawContent；图片、PDF 通过 attachmentPaths 传本地路径。
+        # 旧版后端只传单个 rawAttachmentPath，这里一并兼容。
+        paths = [p.strip() for p in (input_data.get("attachmentPaths") or []) if p and p.strip()]
+        legacy = (input_data.get("rawAttachmentPath") or "").strip()
+        if legacy and legacy not in paths:
+            paths.append(legacy)
+        if not raw_content and not paths:
+            send_callback(callback_url, "failed", error="询盘既没有正文也没有可读的附件，无法解析")
             return
-        if raw_content:
-            output = call_claude(raw_content)
-        else:
-            if not os.path.isfile(attachment_path):
-                send_callback(callback_url, "failed", error=f"图片文件不存在: {attachment_path}")
-                return
-            output = call_claude("", image_path=attachment_path)
+        missing = [p for p in paths if not os.path.isfile(p)]
+        if missing:
+            send_callback(callback_url, "failed", error=f"附件文件不存在: {missing[0]}")
+            return
+        output = call_claude(raw_content, paths)
         send_callback(callback_url, "success", output=output)
     except subprocess.TimeoutExpired:
         send_callback(callback_url, "failed", error=f"claude 处理超过 {CLAUDE_TIMEOUT_SECONDS} 秒未完成")
@@ -235,6 +322,11 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Type", "application/json")
         self.end_headers()
         self.wfile.write(json.dumps({"job_id": job_id}).encode("utf-8"))
+
+        if skill_id == TRANSLATE_SKILL:
+            if callback_url:
+                threading.Thread(target=process_translate, args=(payload, callback_url), daemon=True).start()
+            return
 
         if skill_id != "inquiry-parse-and-split":
             if callback_url:

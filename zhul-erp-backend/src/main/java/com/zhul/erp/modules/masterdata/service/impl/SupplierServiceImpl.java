@@ -24,6 +24,7 @@ import com.zhul.erp.modules.masterdata.entity.SupplierAttachmentDO;
 import com.zhul.erp.modules.masterdata.entity.SupplierDO;
 import com.zhul.erp.modules.masterdata.repository.SupplierMapper;
 import com.zhul.erp.modules.masterdata.service.SupplierService;
+import com.zhul.erp.modules.masterdata.support.PaymentTerms;
 import com.zhul.erp.modules.masterdata.support.SupplierAttachmentStorage;
 import lombok.RequiredArgsConstructor;
 import org.apache.poi.ss.usermodel.Row;
@@ -85,6 +86,7 @@ public class SupplierServiceImpl implements SupplierService {
         supplier.setTenantId(tenantId);
         applyFields(supplier, req);
         supplier.setSupplierType(req.getSupplierType() != null ? req.getSupplierType() : SupplierConstants.UNSET);
+        supplier.setVolumeDivisor(req.getVolumeDivisor() != null ? req.getVolumeDivisor() : 5000);
         supplier.setStatus(req.getStatus() != null ? req.getStatus() : 1);
         // 编码一律自动生成：先插入拿到主键，再按 SUP + 5 位补零主键回填
         supplierMapper.insert(supplier);
@@ -258,6 +260,9 @@ public class SupplierServiceImpl implements SupplierService {
         List<SupplierProductScopeSync.Scope> scopes =
                 req.getProductScopes() == null ? null : scopeSync.normalize(req.getProductScopes());
         applyFields(supplier, req);
+        if (req.getVolumeDivisor() != null) {
+            supplier.setVolumeDivisor(req.getVolumeDivisor());
+        }
         if (req.getSupplierType() != null) {
             supplier.setSupplierType(req.getSupplierType());
         }
@@ -331,6 +336,11 @@ public class SupplierServiceImpl implements SupplierService {
      * main_brands 已由主营产品取代、bank_name / bank_account 已由收款账户取代，均不再写入
      */
     private void applyFields(SupplierDO supplier, AbstractSupplierRequest req) {
+        if (req.getPaymentTerms() != null) {
+            supplier.setPaymentTerms(PaymentTerms.toJson(PaymentTerms.normalize(req.getPaymentTerms())));
+        } else if (supplier.getPaymentTerms() == null) {
+            supplier.setPaymentTerms("");
+        }
         supplier.setName(req.getName().trim());
         supplier.setShortName(normalize(req.getShortName()));
         supplier.setIndustry(req.getIndustry() != null ? req.getIndustry() : SupplierConstants.UNSET);
@@ -457,6 +467,7 @@ public class SupplierServiceImpl implements SupplierService {
         vo.setName(supplier.getName());
         vo.setShortName(supplier.getShortName());
         vo.setSupplierType(supplier.getSupplierType());
+        vo.setVolumeDivisor(supplier.getVolumeDivisor());
         vo.setIndustry(supplier.getIndustry());
         vo.setCreditCode(supplier.getCreditCode());
         vo.setLegalRepresentative(supplier.getLegalRepresentative());
@@ -468,6 +479,8 @@ public class SupplierServiceImpl implements SupplierService {
         vo.setContactEmail(supplier.getContactEmail());
         vo.setWechat(supplier.getWechat());
         vo.setRegion(supplier.getRegion());
+        vo.setPaymentTerms(PaymentTerms.fromJson(supplier.getPaymentTerms()));
+        vo.setPaymentTermsText(PaymentTerms.text(vo.getPaymentTerms()));
         vo.setAddress(supplier.getAddress());
         vo.setAccounts(List.of());
         vo.setAttachments(List.of());

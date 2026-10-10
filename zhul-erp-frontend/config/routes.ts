@@ -30,7 +30,8 @@ export default [
     ],
   },
   // 以下顶层业务菜单的先后顺序跟数据库「菜单管理」（resource 表）的 sort 值保持一致：
-  // 工作台(1) → 商品管理(2) → 询盘管理(3) → 系统管理(98) → 租户管理(99)
+  // 侧边栏的分组、名称与顺序来自后端 resource 表（按部门：业务管理、采购管理、财务管理、商品资料、业务设置、系统管理），
+  // 这里只负责路由与 access；页面路径沿用原来的前缀，与侧边栏分组无关（见 src/utils/menuGroup.ts）
   {
     path: '/dashboard',
     name: 'dashboard',
@@ -50,7 +51,7 @@ export default [
     name: 'product',
     icon: 'shopping',
     // 父路由也要挂 access，理由同 /tenant、/inquiry
-    access: 'productList',
+    access: 'productMenu',
     routes: [
       { path: '/product', redirect: '/product/products' },
       {
@@ -65,6 +66,13 @@ export default [
         hideInMenu: true,
         access: 'productList',
         component: './product/products/detail',
+      },
+      {
+        path: '/product/candidates',
+        name: 'candidates',
+        icon: 'audit',
+        access: 'productCandidates',
+        component: './product/candidates',
       },
       {
         path: '/product/brands',
@@ -89,65 +97,104 @@ export default [
       },
     ],
   },
+  // 客户（业务管理）、供应商（采购管理）的页面路由，后续评分页面挂在各自目录下
   {
-    path: '/partner',
-    name: 'partner',
-    icon: 'contacts',
-    // 父路由也要挂 access，理由同 /tenant、/inquiry、/product；用 partnerMenu（两个子权限
-    // 任一为真）而不是直接复用 partnerCustomer，避免只有供应商权限、没有客户权限的角色被
-    // 父路由的 access 连带挡住，进不了 /partner/suppliers
-    access: 'partnerMenu',
+    path: '/customer',
+    name: 'customer',
+    icon: 'solution',
+    // 父路由也要挂 access，理由同 /tenant、/inquiry、/product
+    access: 'customerMenu',
     routes: [
-      { path: '/partner', redirect: '/partner/customers' },
+      { path: '/customer', redirect: '/customer/list' },
       {
-        path: '/partner/customers',
-        name: 'customers',
-        icon: 'solution',
-        access: 'partnerCustomer',
-        component: './partner/customer',
+        path: '/customer/list',
+        name: 'list',
+        icon: 'unorderedList',
+        access: 'customerList',
+        component: './customer',
       },
       {
-        path: '/partner/customers/new',
+        path: '/customer/list/new',
         hideInMenu: true,
-        access: 'partnerCustomer',
-        component: './partner/customer/form',
+        access: 'customerList',
+        component: './customer/form',
       },
       {
-        path: '/partner/customers/:id/edit',
+        path: '/customer/list/:id/edit',
         hideInMenu: true,
-        access: 'partnerCustomer',
-        component: './partner/customer/form',
+        access: 'customerList',
+        component: './customer/form',
       },
       {
-        path: '/partner/customers/:id',
+        path: '/customer/list/:id',
         hideInMenu: true,
-        access: 'partnerCustomer',
-        component: './partner/customer/detail',
+        access: 'customerList',
+        component: './customer/detail',
+      },
+    ],
+  },
+  {
+    path: '/supplier',
+    name: 'supplier',
+    icon: 'shop',
+    // 父路由也要挂 access，理由同 /tenant、/inquiry、/product
+    access: 'supplierMenu',
+    routes: [
+      { path: '/supplier', redirect: '/supplier/list' },
+      {
+        path: '/supplier/list',
+        name: 'list',
+        icon: 'unorderedList',
+        access: 'supplierList',
+        component: './supplier',
       },
       {
-        path: '/partner/suppliers',
-        name: 'suppliers',
-        icon: 'shop',
-        access: 'partnerSupplier',
-        component: './partner/supplier',
-      },
-      {
-        path: '/partner/suppliers/new',
+        path: '/supplier/list/new',
         hideInMenu: true,
-        access: 'partnerSupplier',
-        component: './partner/supplier/form',
+        access: 'supplierList',
+        component: './supplier/form',
       },
       {
-        path: '/partner/suppliers/:id/edit',
+        path: '/supplier/list/:id/edit',
         hideInMenu: true,
-        access: 'partnerSupplier',
-        component: './partner/supplier/form',
+        access: 'supplierList',
+        component: './supplier/form',
       },
       {
-        path: '/partner/suppliers/:id',
+        path: '/supplier/list/:id',
         hideInMenu: true,
-        access: 'partnerSupplier',
-        component: './partner/supplier/detail',
+        access: 'supplierList',
+        component: './supplier/detail',
+      },
+    ],
+  },
+  {
+    path: '/crm',
+    name: 'crm',
+    icon: 'userAdd',
+    // 父路由也要挂 access，理由同 /inquiry
+    access: 'crmMenu',
+    routes: [
+      { path: '/crm', redirect: '/crm/opportunities' },
+      {
+        path: '/crm/opportunities',
+        name: 'opportunity',
+        icon: 'unorderedList',
+        access: 'crmOpportunity',
+        component: './crm/opportunity',
+      },
+      {
+        path: '/crm/opportunities/:id',
+        hideInMenu: true,
+        access: 'crmOpportunity',
+        component: './crm/opportunity/detail',
+      },
+      {
+        path: '/crm/opportunity-stats',
+        name: 'opportunityStats',
+        icon: 'barChart',
+        access: 'crmOpportunityStats',
+        component: './crm/opportunity/stats',
       },
     ],
   },
@@ -160,6 +207,13 @@ export default [
     access: 'inquiryMenu',
     routes: [
       { path: '/inquiry', redirect: '/inquiry/customer-inquiries' },
+      {
+        path: '/inquiry/part-time-board',
+        name: 'partTimeBoard',
+        icon: 'dashboard',
+        access: 'inquiryPartTimeBoard',
+        component: './inquiry/part-time-board',
+      },
       {
         path: '/inquiry/customer-inquiries',
         name: 'customerInquiry',
@@ -174,17 +228,222 @@ export default [
         component: './inquiry/customer-inquiry/detail',
       },
       {
-        path: '/inquiry/orders',
-        name: 'order',
-        icon: 'shoppingCart',
-        access: 'inquiryOrder',
-        component: './inquiry/order',
+        path: '/inquiry/customer-inquiries/:id/confirm',
+        hideInMenu: true,
+        access: 'inquiryCustomerInquiry',
+        component: './inquiry/customer-inquiry/confirm',
       },
       {
-        path: '/inquiry/orders/:id',
+        path: '/inquiry/sourcing-board',
+        name: 'sourcingBoard',
+        icon: 'apartment',
+        access: 'inquirySourcingBoard',
+        component: './inquiry/sourcing-board',
+      },
+      {
+        path: '/inquiry/sourcing-board/rules',
         hideInMenu: true,
-        access: 'inquiryOrder',
-        component: './inquiry/order/detail',
+        access: 'inquirySourcingBoard',
+        component: './inquiry/sourcing-board/rules',
+      },
+      {
+        path: '/inquiry/my-tasks',
+        name: 'myTasks',
+        icon: 'solution',
+        access: 'inquiryMyTasks',
+        component: './inquiry/my-tasks',
+      },
+      {
+        path: '/inquiry/price-history',
+        name: 'priceHistory',
+        icon: 'history',
+        access: 'inquiryPriceHistory',
+        component: './inquiry/price-history',
+      },
+    ],
+  },
+  {
+    path: '/quotation',
+    name: 'quotation',
+    icon: 'fileText',
+    // 父路由也要挂 access，理由同 /inquiry
+    access: 'quotationMenu',
+    routes: [
+      { path: '/quotation', redirect: '/quotation/quotations' },
+      {
+        path: '/quotation/quotations',
+        name: 'quotations',
+        icon: 'fileText',
+        access: 'quotationList',
+        component: './quotation',
+      },
+      {
+        path: '/quotation/quotations/:id',
+        hideInMenu: true,
+        access: 'quotationList',
+        component: './quotation/detail',
+      },
+      {
+        path: '/quotation/pricing',
+        name: 'pricing',
+        icon: 'percentage',
+        access: 'quotationPricing',
+        component: './quotation/pricing',
+      },
+    ],
+  },
+  {
+    path: '/sales',
+    name: 'sales',
+    icon: 'accountBook',
+    // 父路由也要挂 access，理由同 /inquiry
+    access: 'salesMenu',
+    routes: [
+      { path: '/sales', redirect: '/sales/pi' },
+      {
+        path: '/sales/pi',
+        name: 'pi',
+        icon: 'fileDone',
+        access: 'salesPi',
+        component: './sales/pi',
+      },
+      {
+        path: '/sales/pi/:id',
+        hideInMenu: true,
+        access: 'salesPi',
+        component: './sales/pi/detail',
+      },
+      {
+        path: '/sales/orders',
+        name: 'orders',
+        icon: 'container',
+        access: 'salesOrders',
+        component: './sales/orders',
+      },
+      {
+        path: '/sales/orders/:id',
+        hideInMenu: true,
+        access: 'salesOrders',
+        component: './sales/orders/detail',
+      },
+    ],
+  },
+  {
+    path: '/purchase',
+    name: 'purchase',
+    icon: 'shoppingCart',
+    // 父路由也要挂 access，理由同 /inquiry
+    access: 'purchaseMenu',
+    routes: [
+      { path: '/purchase', redirect: '/purchase/requirements' },
+      {
+        path: '/purchase/requirements',
+        name: 'requirements',
+        icon: 'unorderedList',
+        access: 'purchaseRequirements',
+        component: './purchase/requirements',
+      },
+      {
+        path: '/purchase/orders',
+        name: 'orders',
+        icon: 'shopping',
+        access: 'purchaseOrders',
+        component: './purchase/orders',
+      },
+      {
+        path: '/purchase/orders/:id',
+        hideInMenu: true,
+        access: 'purchaseOrders',
+        component: './purchase/orders/detail',
+      },
+      {
+        path: '/purchase/shipments',
+        name: 'shipments',
+        icon: 'carryOut',
+        access: 'purchaseShipments',
+        component: './purchase/shipments',
+      },
+    ],
+  },
+  {
+    path: '/warehouse',
+    name: 'warehouse',
+    icon: 'inbox',
+    access: 'warehouseMenu',
+    routes: [
+      { path: '/warehouse', redirect: '/warehouse/receipts' },
+      {
+        path: '/warehouse/receipts',
+        name: 'receipts',
+        icon: 'import',
+        access: 'warehouseReceipts',
+        component: './warehouse/receipts',
+      },
+      {
+        path: '/warehouse/outbounds',
+        name: 'outbounds',
+        icon: 'export',
+        access: 'warehouseOutbounds',
+        component: './warehouse/outbounds',
+      },
+      {
+        path: '/warehouse/holds',
+        name: 'holds',
+        icon: 'database',
+        access: 'warehouseHolds',
+        component: './warehouse/holds',
+      },
+      {
+        path: '/warehouse/shoots',
+        name: 'shoots',
+        icon: 'camera',
+        access: 'warehouseShoots',
+        component: './warehouse/shoots',
+      },
+    ],
+  },
+  {
+    path: '/logistics',
+    name: 'logistics',
+    icon: 'send',
+    access: 'logisticsMenu',
+    routes: [
+      { path: '/logistics', redirect: '/logistics/shipments' },
+      {
+        path: '/logistics/shipments',
+        name: 'shipments',
+        icon: 'rocket',
+        access: 'logisticsShipments',
+        component: './logistics/shipments',
+      },
+      {
+        path: '/logistics/shipments/:id',
+        hideInMenu: true,
+        access: 'logisticsShipments',
+        component: './logistics/shipments/detail',
+      },
+      {
+        path: '/logistics/statements',
+        name: 'statements',
+        icon: 'audit',
+        access: 'logisticsStatements',
+        component: './logistics/statements',
+      },
+    ],
+  },
+  {
+    path: '/finance',
+    name: 'finance',
+    icon: 'wallet',
+    access: 'financeMenu',
+    routes: [
+      { path: '/finance', redirect: '/finance/receipts' },
+      {
+        path: '/finance/receipts',
+        name: 'receipts',
+        icon: 'audit',
+        access: 'financeReceipts',
+        component: './finance/receipts',
       },
     ],
   },
@@ -193,7 +452,7 @@ export default [
     name: 'system',
     icon: 'setting',
     // 父路由也要挂 access，理由同 /tenant、/inquiry
-    access: 'systemUser',
+    access: 'systemGroup',
     routes: [
       { path: '/system', redirect: '/system/user' },
       {
@@ -239,6 +498,41 @@ export default [
         component: './system/dict',
       },
       {
+        path: '/system/exchange-rate',
+        name: 'exchangeRate',
+        icon: 'transaction',
+        access: 'systemExchangeRate',
+        component: './system/exchange-rate',
+      },
+      {
+        path: '/system/document-template',
+        name: 'documentTemplate',
+        icon: 'fileExcel',
+        access: 'systemDocumentTemplate',
+        component: './system/document-template',
+      },
+      {
+        path: '/system/bank-account',
+        name: 'bankAccount',
+        icon: 'bank',
+        access: 'systemBankAccount',
+        component: './system/bank-account',
+      },
+      {
+        path: '/system/document-numbering',
+        name: 'documentNumbering',
+        icon: 'number',
+        access: 'systemDocumentNumbering',
+        component: './system/document-numbering',
+      },
+      {
+        path: '/system/transit-times',
+        name: 'transitTimes',
+        icon: 'clockCircle',
+        access: 'systemTransitTimes',
+        component: './system/transit-times',
+      },
+      {
         path: '/system/config',
         name: 'config',
         icon: 'tool',
@@ -267,7 +561,7 @@ export default [
     icon: 'cluster',
     // 父路由也要挂 access：子路由各自的 access 只挡得住子页面本身，挡不住这个父分组
     // 在侧边栏里露出来（umi 的菜单渲染不会因为子路由全部无权限就自动隐藏父分组）
-    access: 'tenantList',
+    access: 'tenantMenu',
     routes: [
       { path: '/tenant', redirect: '/tenant/list' },
       {

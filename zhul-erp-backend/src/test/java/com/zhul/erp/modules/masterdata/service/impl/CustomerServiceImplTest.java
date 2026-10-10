@@ -7,6 +7,7 @@ import com.zhul.erp.framework.tenant.TenantContext;
 import com.zhul.erp.modules.masterdata.constants.CustomerConstants;
 import com.zhul.erp.modules.masterdata.dto.AssignableOwnersVO;
 import com.zhul.erp.modules.masterdata.dto.CustomerBatchDeleteResultVO;
+import com.zhul.erp.modules.masterdata.dto.CustomerLeadCommand;
 import com.zhul.erp.modules.masterdata.dto.CustomerPageQuery;
 import com.zhul.erp.modules.masterdata.dto.CustomerPartyRequest;
 import com.zhul.erp.modules.masterdata.dto.CustomerTransferRequest;
@@ -21,6 +22,7 @@ import com.zhul.erp.modules.product.support.CountryCatalog;
 import com.zhul.erp.modules.system.entity.UserBasicDO;
 import com.zhul.erp.modules.system.repository.DepartmentMapper;
 import com.zhul.erp.modules.system.repository.UserBasicMapper;
+import com.zhul.erp.modules.system.service.DictItemService;
 import com.zhul.erp.modules.system.service.LogService;
 import com.zhul.erp.support.MybatisPlusTestSupport;
 import org.apache.poi.ss.usermodel.Sheet;
@@ -72,6 +74,7 @@ class CustomerServiceImplTest {
     @Mock private UserBasicMapper userBasicMapper;
     @Mock private DepartmentMapper departmentMapper;
     @Mock private LogService logService;
+    @Mock private DictItemService dictItemService;
 
     private CustomerServiceImpl service;
     private final List<CustomerPartyDO> insertedParties = new ArrayList<>();
@@ -85,7 +88,7 @@ class CustomerServiceImplTest {
     @BeforeEach
     void setUp() {
         service = new CustomerServiceImpl(customerMapper, new CustomerPartySync(partyMapper), dataScopeResolver,
-                countryCatalog, userBasicMapper, departmentMapper, logService);
+                countryCatalog, userBasicMapper, departmentMapper, logService, dictItemService);
         TenantContext.setTenantId(1);
         when(dataScopeResolver.current()).thenReturn(new DataScope(DataScope.Type.SELF, SELF, Set.of(SELF)));
         when(countryCatalog.canonicalName(anyString())).thenAnswer(inv -> {
@@ -480,6 +483,84 @@ class CustomerServiceImplTest {
     }
 
     // ---------------------------------------------------------------- helpers
+
+    // ---------------------------------------------------------------- 商机登记建客户（add-opportunity-management）
+
+    private static CustomerLeadCommand lead(String name, String email, String whatsapp, String phone) {
+        return new CustomerLeadCommand(name, "John", "germany", 5, email, whatsapp, phone, "");
+    }
+
+    @Test
+    void createLead_withoutName_createsNamelessCustomerWithKeysAndSelfOwner() {
+        when(customerMapper.selectOne(any())).thenReturn(null);
+        stubInsertCustomerId(30L);
+
+        Long id = service.createLead(lead(" ", " John@Example.COM ", "+49 151 2345-6789", "123"));
+
+        assertThat(id).isEqualTo(30L);
+        ArgumentCaptor<CustomerDO> captor = ArgumentCaptor.forClass(CustomerDO.class);
+        verify(customerMapper).insert(captor.capture());
+        CustomerDO saved = captor.getValue();
+        assertThat(saved.getName()).isEmpty();
+        assertThat(saved.getContactName()).isEqualTo("John");
+        assertThat(saved.getCountry()).isEqualTo("Germany");
+        assertThat(saved.getSourceChannel()).isEqualTo(5);
+        assertThat(saved.getOwnerId()).isEqualTo(SELF);
+        assertThat(saved.getEmailKey()).isEqualTo("john@example.com");
+        assertThat(saved.getWhatsappKey()).isEqualTo("4915123456789");
+        assertThat(saved.getPhoneKey()).as("少于 6 位不参与比较").isEmpty();
+        // 没有名称：查重只查邮箱、WhatsApp 两项，再加生成编码时的一次
+        verify(customerMapper, times(3)).selectOne(any());
+    }
+
+    @Test
+    void createLead_whatsappMatchesExisting_throwsDuplicateWithOwner() {
+        CustomerDO existing = customer(8L, "", OTHER);
+        existing.setContactName("John");
+        when(customerMapper.selectOne(any())).thenReturn(existing);
+
+        BizException e = assertThrows(BizException.class,
+                () -> service.createLead(lead("", null, "0049 151 23456789", null)));
+
+        assertThat(e.getErrorCode()).isEqualTo(CustomerConstants.ERROR_DUPLICATE);
+        assertThat(e.getMessage()).isEqualTo("该客户已存在（John，负责人 李娜），老客户的新需求请新建询盘");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> detail = (Map<String, Object>) e.getDetail();
+        assertThat(detail).containsEntry("existingId", 8L).containsEntry("matchedBy", "whatsapp")
+                .containsEntry("selectable", false);
+        verify(customerMapper, never()).insert(any(CustomerDO.class));
+    }
+
+    @Test
+    void createLead_withChineseCompanyName_rejected() {
+        assertThrows(BizException.class, () -> service.createLead(lead("上海电子", null, null, null)));
+    }
+
+    @Test
+    void create_maintainsContactKeys() {
+        stubInsertCustomerId(31L);
+        SaveCustomerRequest req = quick("Pacific Controls Pty Ltd");
+        req.setWhatsapp("+49 151 2345 6789");
+
+        service.create(req);
+
+        ArgumentCaptor<CustomerDO> captor = ArgumentCaptor.forClass(CustomerDO.class);
+        verify(customerMapper).insert(captor.capture());
+        assertThat(captor.getValue().getWhatsappKey()).isEqualTo("4915123456789");
+    }
+
+    @Test
+    void vo_namelessCustomer_showsContactNameAndFlag() {
+        CustomerDO c = customer(9L, "", SELF);
+        c.setContactName("Ahmed Hassan");
+        when(customerMapper.selectById(9L)).thenReturn(c);
+
+        CustomerVO vo = service.getById(9L);
+
+        assertThat(vo.getDisplayName()).isEqualTo("Ahmed Hassan");
+        assertThat(vo.isNameMissing()).isTrue();
+        assertThat(service.getRef(9L).getDisplayName()).isEqualTo("Ahmed Hassan");
+    }
 
     private void stubInsertCustomerId(Long id) {
         doAnswer(inv -> {

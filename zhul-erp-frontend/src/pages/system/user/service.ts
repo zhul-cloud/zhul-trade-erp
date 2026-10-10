@@ -103,14 +103,25 @@ export async function resetPassword(
   });
 }
 
-export async function getDeptOptions(): Promise<
-  { label: string; value: number }[]
-> {
-  const res = await request('/api/v1/system/depts', { method: 'GET' });
-  return (res.data || []).map((d: { name: string; id: number }) => ({
-    label: d.name,
+export type DeptTreeOption = {
+  title: string;
+  value: number;
+  children?: DeptTreeOption[];
+};
+
+type DeptNode = { id: number; name: string; children?: DeptNode[] };
+
+const toDeptTreeOptions = (list: DeptNode[]): DeptTreeOption[] =>
+  list.map((d) => ({
+    title: d.name,
     value: d.id,
+    children: d.children?.length ? toDeptTreeOptions(d.children) : undefined,
   }));
+
+/** 部门树形选项，用于「所属部门」「自定义部门」等树形选择 */
+export async function getDeptTreeOptions(): Promise<DeptTreeOption[]> {
+  const res = await request('/api/v1/system/depts/tree', { method: 'GET' });
+  return toDeptTreeOptions(res.data || []);
 }
 
 export async function getRoleOptions(): Promise<

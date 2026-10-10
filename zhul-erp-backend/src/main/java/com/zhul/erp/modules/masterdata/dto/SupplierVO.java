@@ -15,6 +15,8 @@ public class SupplierVO {
     private String name;
     private String shortName;
     private Integer supplierType;
+    /** 体积系数（服务商） */
+    private Integer volumeDivisor;
     private Integer industry;
     private String creditCode;
     private String legalRepresentative;
@@ -32,6 +34,9 @@ public class SupplierVO {
     private List<SupplierBankAccountVO> accounts;
     /** 附件（列表为空列表，详情与编辑取数才加载） */
     private List<SupplierAttachmentVO> attachments;
+    /** 默认付款条件，未设置时为空列表 */
+    private List<PaymentTermDTO> paymentTerms;
+    private String paymentTermsText;
     /** 主营产品：按品牌分组 */
     private List<SupplierProductScopeVO> productScopes;
     private String remark;

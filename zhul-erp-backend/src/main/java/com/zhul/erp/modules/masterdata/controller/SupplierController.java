@@ -97,7 +97,7 @@ public class SupplierController {
 
     /** 预览（inline=true）或下载附件；只能访问本租户的附件，需要能访问供应商管理菜单 */
     @GetMapping("/{id}/attachments/{attachmentId}")
-    @PreAuthorize("@perm.canAccessMenu('/partner/suppliers')")
+    @PreAuthorize("@perm.canAccessMenu('/supplier/list')")
     public void downloadAttachment(@PathVariable Long id, @PathVariable Long attachmentId,
                                    @RequestParam(defaultValue = "false") boolean inline,
                                    HttpServletResponse response) throws IOException {

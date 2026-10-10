@@ -13,15 +13,108 @@ export default function access(initialState: {
   const can = (key: string) => perms.has(key);
   // 商品主数据是平台共享数据：写按钮除了权限码，还要求平台账号（服务端同样会校验）
   const platform = isPlatformAccount();
+  // 父级路由（/inquiry、/system 等）只是把页面路径归在一起，侧边栏分组由后端菜单决定、和路径前缀无关；
+  // 父级路由的 access 取「任一子页面可访问」，否则只有某个子页面权限的人会被父级路由拦掉
+  const any = (...keys: string[]) => keys.some(can);
   const canWrite = (key: string) => platform && can(key);
 
   return {
     canAdmin: isAdmin,
     // 菜单级
     dashboard: can('/dashboard'),
-    inquiryMenu: can('/inquiry'),
+    inquiryMenu: any(
+      '/inquiry/customer-inquiries',
+      '/inquiry/sourcing-board',
+      '/inquiry/my-tasks',
+      '/inquiry/price-history',
+      '/inquiry/part-time-board',
+    ),
+    // 商机管理：crmMenu 是两个子菜单任一为真，供 /crm 父路由的 access 用
+    crmOpportunity: can('/crm/opportunities'),
+    crmOpportunityStats: can('/crm/opportunity-stats'),
+    crmMenu: can('/crm/opportunities') || can('/crm/opportunity-stats'),
     inquiryCustomerInquiry: can('/inquiry/customer-inquiries'),
-    inquiryOrder: can('/inquiry/orders'),
+    inquirySourcingBoard: can('/inquiry/sourcing-board'),
+    inquiryMyTasks: can('/inquiry/my-tasks'),
+    inquiryPriceHistory: can('/inquiry/price-history'),
+    inquiryPartTimeBoard: can('/inquiry/part-time-board'),
+    // 按钮级 - 询价协作
+    'inquiry:task:assign': can('inquiry:task:assign'),
+    'inquiry:rule:edit': can('inquiry:rule:edit'),
+    'inquiry:import:proxy': can('inquiry:import:proxy'),
+    'inquiry:supplier:view': can('inquiry:supplier:view'),
+    'inquiry:quote:review': can('inquiry:quote:review'),
+    // 报价中心
+    quotationMenu: any('/quotation/quotations', '/quotation/pricing'),
+    quotationList: can('/quotation/quotations'),
+    quotationPricing: can('/quotation/pricing'),
+    'quotation:pricing:edit': can('quotation:pricing:edit'),
+    // 销售管理
+    salesMenu: any('/sales/pi', '/sales/orders'),
+    // 采购单
+    purchaseMenu: any(
+      '/purchase/requirements',
+      '/purchase/orders',
+      '/purchase/shipments',
+    ),
+    purchaseRequirements: can('/purchase/requirements'),
+    purchaseOrders: can('/purchase/orders'),
+    purchaseShipments: can('/purchase/shipments'),
+    'purchase:shipment:create': can('purchase:shipment:create'),
+    'purchase:discrepancy:handle': can('purchase:discrepancy:handle'),
+    // 仓库管理
+    warehouseMenu: any(
+      '/warehouse/receipts',
+      '/warehouse/outbounds',
+      '/warehouse/holds',
+      '/warehouse/shoots',
+    ),
+    warehouseReceipts: can('/warehouse/receipts'),
+    warehouseOutbounds: can('/warehouse/outbounds'),
+    'warehouse:outbound:pack': can('warehouse:outbound:pack'),
+    warehouseHolds: can('/warehouse/holds'),
+    warehouseShoots: can('/warehouse/shoots'),
+    'warehouse:receipt:create': can('warehouse:receipt:create'),
+    'warehouse:hold:handle': can('warehouse:hold:handle'),
+    'warehouse:shoot:edit': can('warehouse:shoot:edit'),
+    // 单证物流
+    logisticsMenu: any('/logistics/shipments', '/logistics/statements'),
+    logisticsShipments: can('/logistics/shipments'),
+    logisticsStatements: can('/logistics/statements'),
+    'logistics:shipment:edit': can('logistics:shipment:edit'),
+    'logistics:statement:edit': can('logistics:statement:edit'),
+    'sales:order:ship-notice': can('sales:order:ship-notice'),
+    'purchase:requirement:split': can('purchase:requirement:split'),
+    'purchase:requirement:assign': can('purchase:requirement:assign'),
+    'purchase:order:create': can('purchase:order:create'),
+    'purchase:order:cancel': can('purchase:order:cancel'),
+    // 财务管理
+    financeMenu: any('/finance/receipts'),
+    financeReceipts: can('/finance/receipts'),
+    salesPi: can('/sales/pi'),
+    salesOrders: can('/sales/orders'),
+    'sales:pi:receipt-slip': can('sales:pi:receipt-slip'),
+    'sales:pi:platform-receipt': can('sales:pi:platform-receipt'),
+    'sales:pi:claim-receipt': can('sales:pi:claim-receipt'),
+    'sales:pi:receipt-confirm': can('sales:pi:receipt-confirm'),
+    'sales:order:create': can('sales:order:create'),
+    'sales:order:progress': can('sales:order:progress'),
+    systemGroup: any(
+      '/system/user',
+      '/system/role',
+      '/system/menu',
+      '/system/dept',
+      '/system/position',
+      '/system/dict',
+      '/system/config',
+      '/system/exchange-rate',
+      '/system/document-template',
+      '/system/bank-account',
+      '/system/document-numbering',
+      '/system/transit-times',
+      '/system/log/operate',
+      '/system/log/login',
+    ),
     systemUser: can('/system/user'),
     systemRole: can('/system/role'),
     systemMenu: can('/system/menu'),
@@ -29,22 +122,46 @@ export default function access(initialState: {
     systemPosition: can('/system/position'),
     systemDict: can('/system/dict'),
     systemConfig: can('/system/config'),
+    systemExchangeRate: can('/system/exchange-rate'),
+    systemDocumentTemplate: can('/system/document-template'),
+    systemBankAccount: can('/system/bank-account'),
+    systemDocumentNumbering: can('/system/document-numbering'),
+    systemTransitTimes: can('/system/transit-times'),
+    'system:transit-time:edit': can('system:transit-time:edit'),
+    'system:document-numbering:edit': can('system:document-numbering:edit'),
+    'system:bank-account:edit': can('system:bank-account:edit'),
+    'system:exchange-rate:edit': can('system:exchange-rate:edit'),
+    'system:document-template:edit': can('system:document-template:edit'),
     systemLogOperate: can('/system/log/operate'),
     systemLogLogin: can('/system/log/login'),
     // 租户/套餐管理入口本身也要求平台账号：admin_flag=1 对任何租户管理员都成立，
     // 光靠 can() 区分不出"平台超管"和"租户内超管"，得再叠加 isPlatformAccount()
     tenantList: canWrite('/tenant/list'),
+    tenantMenu: canWrite('/tenant/list') || canWrite('/tenant/package'),
     tenantPackage: canWrite('/tenant/package'),
     productBrand: can('/product/brands'),
     productCategory: can('/product/categories'),
     productSeries: can('/product/series'),
     productList: can('/product/products'),
-    // 客商管理：partnerMenu 是两个子权限任一为真，供 /partner 父路由的 access 用
-    partnerCustomer: can('/partner/customers'),
-    partnerSupplier: can('/partner/suppliers'),
-    partnerMenu: can('/partner/customers') || can('/partner/suppliers'),
+    productCandidates: can('/product/candidates'),
+    'product:candidate:review': can('product:candidate:review'),
+    productMenu: any(
+      '/product/products',
+      '/product/candidates',
+      '/product/brands',
+      '/product/categories',
+      '/product/series',
+    ),
+    // 客户管理、供应商管理：目录 access 目前等于列表页，以后加评分页时改成任一子页为真
+    customerList: can('/customer/list'),
+    customerMenu: can('/customer/list'),
+    supplierList: can('/supplier/list'),
+    supplierMenu: can('/supplier/list'),
     // 平台账号才有档案完整度、缺项筛选等平台视角
     productPlatform: platform,
+    // 按钮级 - 商机
+    'crm:opportunity:add': can('crm:opportunity:add'),
+    'crm:opportunity:edit': can('crm:opportunity:edit'),
     // 按钮级 - 用户管理
     'system:user:add': can('system:user:add'),
     'system:user:edit': can('system:user:edit'),

@@ -10,6 +10,7 @@ import {
 } from 'antd';
 import dayjs from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
+import { formatAmount } from '@/utils/format';
 import { EmptyHint } from '../../components/EmptyHint';
 import { CURRENCY_OPTIONS } from '../../constants';
 import { priceApi, type ReferencePrice, readBizError } from '../../service';
@@ -22,14 +23,6 @@ import {
   useEditFocus,
   useUnsaved,
 } from './CardShell';
-
-const money = (v?: number | null) =>
-  v === null || v === undefined
-    ? ''
-    : v.toLocaleString('en-US', {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      });
 
 /** 平台参考价：平台层面的参考信息，不是任何租户的报价或售价 */
 export const PriceCard: React.FC<{
@@ -249,7 +242,8 @@ export const PriceCard: React.FC<{
           <Field label="币种">{price?.currencyCode}</Field>
           <Field label="参考价（原币）">
             <span className="num" style={{ textAlign: 'right' }}>
-              {money(price?.priceOriginal)}
+              {price?.priceOriginal != null &&
+                formatAmount(price.priceOriginal, price.currencyCode)}
             </span>
           </Field>
           <Field label="汇率">
@@ -257,7 +251,7 @@ export const PriceCard: React.FC<{
           </Field>
           <Field label="本位币金额（CNY）">
             {price?.priceCny != null ? (
-              <span className="num">{money(price.priceCny)}</span>
+              <span className="num">{formatAmount(price.priceCny, 'CNY')}</span>
             ) : (
               <span style={{ color: palette.orange }}>
                 未计算（汇率未维护）

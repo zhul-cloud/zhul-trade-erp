@@ -282,7 +282,7 @@ const TenantPackagePage: React.FC = () => {
   return (
     <>
       <ProTable<TenantPackageItem>
-        headerTitle="套餐管理"
+        headerTitle="套餐"
         rowKey="id"
         actionRef={actionRef}
         columns={columns}
