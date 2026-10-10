@@ -9,6 +9,7 @@ import com.zhul.erp.modules.product.dto.SaveApplicationRequest;
 import com.zhul.erp.modules.product.entity.ProductApplicationDO;
 import com.zhul.erp.modules.product.repository.ProductApplicationMapper;
 import com.zhul.erp.modules.product.service.ProductApplicationService;
+import com.zhul.erp.modules.product.support.LangRules;
 import com.zhul.erp.modules.product.support.PlatformScopeGuard;
 import com.zhul.erp.modules.product.support.ProductFinder;
 import com.zhul.erp.modules.product.support.TextRules;
@@ -32,10 +33,10 @@ public class ProductApplicationServiceImpl implements ProductApplicationService 
     private final PlatformScopeGuard platformScopeGuard;
 
     @Override
-    public List<ApplicationVO> list(Long productId) {
+    public List<ApplicationVO> list(Long productId, String lang) {
         productFinder.active(productId);
         List<ApplicationVO> result = new ArrayList<>();
-        for (ProductApplicationDO row : activeRows(productId)) {
+        for (ProductApplicationDO row : activeRows(productId, LangRules.of(lang))) {
             result.add(toVO(row));
         }
         return result;
@@ -47,11 +48,13 @@ public class ProductApplicationServiceImpl implements ProductApplicationService 
         platformScopeGuard.requirePlatform();
         productFinder.lockActive(productId);
         String title = TextRules.required(req.getTitle(), "应用场景标题", 64);
-        assertTitleFree(productId, title, null);
+        String lang = LangRules.of(req.getLang());
+        assertTitleFree(productId, lang, title, null);
 
         ProductApplicationDO row = new ProductApplicationDO();
         row.setTenantId(ProductConstants.PLATFORM_TENANT_ID);
         row.setProductId(productId);
+        row.setLang(lang);
         row.setTitle(title);
         row.setDescription(TextRules.optional(req.getDescription(), "场景说明", 500));
         row.setIcon(TextRules.optional(req.getIcon(), "图标", 16));
@@ -68,7 +71,7 @@ public class ProductApplicationServiceImpl implements ProductApplicationService 
         productFinder.lockActive(productId);
         ProductApplicationDO current = owned(productId, itemId);
         String title = TextRules.required(req.getTitle(), "应用场景标题", 64);
-        assertTitleFree(productId, title, itemId);
+        assertTitleFree(productId, current.getLang(), title, itemId);
 
         ProductApplicationDO change = new ProductApplicationDO();
         change.setId(itemId);
@@ -101,10 +104,10 @@ public class ProductApplicationServiceImpl implements ProductApplicationService 
         return v;
     }
 
-    /** 同一商品下标题忽略大小写和首尾空格不可重复（标题已在入口去过首尾空格） */
-    private void assertTitleFree(Long productId, String title, Long excludeId) {
+    /** 同一商品同一语言下标题忽略大小写和首尾空格不可重复（标题已在入口去过首尾空格） */
+    private void assertTitleFree(Long productId, String lang, String title, Long excludeId) {
         String normalized = title.toLowerCase(Locale.ROOT);
-        for (ProductApplicationDO row : activeRows(productId)) {
+        for (ProductApplicationDO row : activeRows(productId, lang)) {
             if (!Objects.equals(row.getId(), excludeId)
                     && row.getTitle().trim().toLowerCase(Locale.ROOT).equals(normalized)) {
                 throw BizException.of(ProductErrorCodes.CONTENT_DUPLICATE, "该应用场景已存在",
@@ -113,10 +116,11 @@ public class ProductApplicationServiceImpl implements ProductApplicationService 
         }
     }
 
-    private List<ProductApplicationDO> activeRows(Long productId) {
+    private List<ProductApplicationDO> activeRows(Long productId, String lang) {
         return applicationMapper.selectList(new LambdaQueryWrapper<ProductApplicationDO>()
                 .eq(ProductApplicationDO::getTenantId, ProductConstants.PLATFORM_TENANT_ID)
                 .eq(ProductApplicationDO::getProductId, productId)
+                .eq(ProductApplicationDO::getLang, lang)
                 .isNull(ProductApplicationDO::getDeletedAt)
                 .orderByAsc(ProductApplicationDO::getSortOrder)
                 .orderByAsc(ProductApplicationDO::getId));

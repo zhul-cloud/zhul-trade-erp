@@ -20,6 +20,8 @@ public class ProductSpecificationDO {
     private Integer tenantId;
     /** 商品ID，关联product.id */
     private Long productId;
+    /** 语言（zh-中文、en-英文、ru-俄文） */
+    private String lang;
     /** 规格编码，小写蛇形，如rated_voltage；同一商品内唯一 */
     private String specKey;
     /** 规格显示名称，如Rated Voltage */

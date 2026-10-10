@@ -7,6 +7,8 @@ import java.util.List;
 /** 规格整体替换：提交后商品的规格集合与 items 完全一致。 */
 @Data
 public class SaveSpecificationsRequest {
+    /** 语言（zh、en、ru），不传为英文 */
+    private String lang;
     private List<SpecificationItem> items;
 
     @Data

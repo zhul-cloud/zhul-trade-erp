@@ -144,10 +144,13 @@ export default function access(initialState: {
     productSeries: can('/product/series'),
     productList: can('/product/products'),
     productCandidates: can('/product/candidates'),
+    productContentTasks: can('/product/content-tasks'),
+    'product:content:edit': can('product:content:edit'),
     'product:candidate:review': can('product:candidate:review'),
     productMenu: any(
       '/product/products',
       '/product/candidates',
+      '/product/content-tasks',
       '/product/brands',
       '/product/categories',
       '/product/series',

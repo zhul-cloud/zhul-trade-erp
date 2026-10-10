@@ -140,8 +140,9 @@ public class ProductController {
     }
 
     @GetMapping("/{id}/specifications")
-    public Result<List<SpecificationVO>> specifications(@PathVariable Long id) {
-        return Result.ok(specificationService.list(id));
+    public Result<List<SpecificationVO>> specifications(@PathVariable Long id,
+                                                        @RequestParam(required = false) String lang) {
+        return Result.ok(specificationService.list(id, lang));
     }
 
     @PutMapping("/{id}/specifications")
@@ -152,8 +153,9 @@ public class ProductController {
     }
 
     @GetMapping("/{id}/relationships")
-    public Result<List<RelationshipVO>> relationships(@PathVariable Long id) {
-        return Result.ok(relationshipService.list(id));
+    public Result<List<RelationshipVO>> relationships(@PathVariable Long id,
+                                                      @RequestParam(required = false) String lang) {
+        return Result.ok(relationshipService.list(id, lang));
     }
 
     @PostMapping("/{id}/relationships")
@@ -207,8 +209,9 @@ public class ProductController {
     // ---------- 应用场景 ----------
 
     @GetMapping("/{id}/applications")
-    public Result<List<ApplicationVO>> applications(@PathVariable Long id) {
-        return Result.ok(applicationService.list(id));
+    public Result<List<ApplicationVO>> applications(@PathVariable Long id,
+                                                    @RequestParam(required = false) String lang) {
+        return Result.ok(applicationService.list(id, lang));
     }
 
     @PostMapping("/{id}/applications")

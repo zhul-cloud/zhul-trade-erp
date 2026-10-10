@@ -50,7 +50,7 @@ class ProductPermissionSeedIntegrationTest extends IntegrationTestBase {
     void seedContainsAllProductButtons() {
         Integer buttons = jdbc.queryForObject(
                 "select count(*) from resource where type = 3 and permission like 'product:%'", Integer.class);
-        assertEquals(13, buttons, "品牌、品类、系列、商品各 3 个，加商品候选审核");
+        assertEquals(14, buttons, "品牌、品类、系列、商品各 3 个，加商品候选审核、商品内容维护");
     }
 
     @Test

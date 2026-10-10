@@ -948,7 +948,7 @@ class ProductContentIntegrationTest extends IntegrationTestBase {
         TenantContext.setTenantId(1001);
 
         assertEquals(1, productController.documents(productId).getData().size());
-        assertEquals(1, productController.applications(productId).getData().size());
+        assertEquals(1, productController.applications(productId, null).getData().size());
         assertEquals(1, productController.faqs(productId).getData().size());
         assertEquals(1, productController.media(productId).getData().size());
         assertNotNull(productController.logistics(productId).getData());

@@ -17,6 +17,9 @@ import com.zhul.erp.modules.product.repository.ProductMapper;
 import com.zhul.erp.modules.product.repository.ProductRelationshipMapper;
 import com.zhul.erp.modules.product.service.ProductRelationshipService;
 import com.zhul.erp.modules.product.support.MpnNormalizer;
+import com.zhul.erp.modules.product.content.entity.ProductRelationshipNoteDO;
+import com.zhul.erp.modules.product.content.repository.ProductRelationshipNoteMapper;
+import com.zhul.erp.modules.product.support.LangRules;
 import com.zhul.erp.modules.product.support.PlatformScopeGuard;
 import com.zhul.erp.modules.product.support.ProductFinder;
 import com.zhul.erp.modules.product.support.TextRules;
@@ -45,6 +48,7 @@ public class ProductRelationshipServiceImpl implements ProductRelationshipServic
     private final ProductBrandMapper brandMapper;
     private final ProductFinder productFinder;
     private final PlatformScopeGuard platformScopeGuard;
+    private final ProductRelationshipNoteMapper noteMapper;
 
     /** 校验并解析后的入参 */
     private record Resolved(String relatedMpn, Long relatedProductId, int type, int confidence, String note,
@@ -52,10 +56,21 @@ public class ProductRelationshipServiceImpl implements ProductRelationshipServic
     }
 
     @Override
-    public List<RelationshipVO> list(Long productId) {
+    public List<RelationshipVO> list(Long productId, String lang) {
         productFinder.active(productId);
+        String l = LangRules.of(lang);
         List<ProductRelationshipDO> rows = activeRows(productId);
-        return toVOs(rows);
+        List<RelationshipVO> vos = toVOs(rows);
+        if (!LangRules.DEFAULT.equals(l) && !vos.isEmpty()) {
+            Map<Long, String> notes = new HashMap<>();
+            for (ProductRelationshipNoteDO n : noteMapper.selectList(new LambdaQueryWrapper<ProductRelationshipNoteDO>()
+                    .in(ProductRelationshipNoteDO::getRelationshipId, rows.stream().map(ProductRelationshipDO::getId).toList())
+                    .eq(ProductRelationshipNoteDO::getLang, l))) {
+                notes.put(n.getRelationshipId(), n.getNote());
+            }
+            vos.forEach(v -> v.setNote(notes.getOrDefault(v.getId(), "")));
+        }
+        return vos;
     }
 
     @Override

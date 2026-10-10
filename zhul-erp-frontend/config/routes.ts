@@ -75,6 +75,13 @@ export default [
         component: './product/candidates',
       },
       {
+        path: '/product/content-tasks',
+        name: 'contentTasks',
+        icon: 'fileText',
+        access: 'productContentTasks',
+        component: './product/content-tasks',
+      },
+      {
         path: '/product/brands',
         name: 'brands',
         icon: 'tag',

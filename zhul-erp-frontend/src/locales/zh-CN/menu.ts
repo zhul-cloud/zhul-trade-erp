@@ -105,6 +105,7 @@ export default {
   'menu.product': '商品资料',
   'menu.product.products': '商品',
   'menu.product.candidates': '商品候选',
+  'menu.product.contentTasks': '内容任务',
   'menu.product.brands': '品牌',
   'menu.product.categories': '品类',
   'menu.product.series': '系列',

@@ -20,6 +20,8 @@ public class ProductApplicationDO {
     private Integer tenantId;
     /** 商品ID，关联product.id */
     private Long productId;
+    /** 语言（zh-中文、en-英文、ru-俄文） */
+    private String lang;
     /** 应用场景标题，如Water & pump stations */
     private String title;
     /** 场景说明，必须基于真实产品用途，不得为SEO编造 */

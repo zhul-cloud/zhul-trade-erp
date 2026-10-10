@@ -404,19 +404,26 @@ export interface SaveRelationship {
   createReverse?: boolean;
 }
 
+/** 商品内容语言：中文对内，英文、俄文对外；不传为英文 */
+export type ContentLang = 'zh' | 'en' | 'ru';
+
 export const specApi = {
-  list: (id: number) =>
-    call<SpecItem[]>(`${BASE}/products/${id}/specifications`),
-  replace: (id: number, items: SpecItem[]) =>
+  list: (id: number, lang?: ContentLang) =>
+    call<SpecItem[]>(`${BASE}/products/${id}/specifications`, {
+      params: { lang },
+    }),
+  replace: (id: number, items: SpecItem[], lang?: ContentLang) =>
     call<SpecItem[]>(`${BASE}/products/${id}/specifications`, {
       method: 'PUT',
-      data: { items },
+      data: { lang, items },
     }),
 };
 
 export const relationshipApi = {
-  list: (id: number) =>
-    call<Relationship[]>(`${BASE}/products/${id}/relationships`),
+  list: (id: number, lang?: ContentLang) =>
+    call<Relationship[]>(`${BASE}/products/${id}/relationships`, {
+      params: { lang },
+    }),
   create: (id: number, data: SaveRelationship) =>
     call<Relationship>(`${BASE}/products/${id}/relationships`, {
       method: 'POST',
@@ -466,6 +473,8 @@ export interface ApplicationItem {
 }
 
 export interface SaveApplication {
+  /** 新增时的语言，不传为英文；修改时不可改 */
+  lang?: ContentLang;
   title: string;
   description?: string;
   icon?: string;
@@ -502,8 +511,10 @@ export const documentApi = {
 };
 
 export const applicationApi = {
-  list: (id: number) =>
-    call<ApplicationItem[]>(`${BASE}/products/${id}/applications`),
+  list: (id: number, lang?: ContentLang) =>
+    call<ApplicationItem[]>(`${BASE}/products/${id}/applications`, {
+      params: { lang },
+    }),
   create: (id: number, data: SaveApplication) =>
     call<ApplicationItem>(`${BASE}/products/${id}/applications`, {
       method: 'POST',
@@ -685,4 +696,165 @@ export const priceApi = {
     }),
   clear: (id: number) =>
     call<void>(`${BASE}/products/${id}/reference-price`, { method: 'DELETE' }),
+};
+
+// ---------- 内容任务（SEO & GEO 内容方案） ----------
+
+export interface ContentTask {
+  productId: number;
+  taskId?: number;
+  brandName?: string;
+  categoryName?: string;
+  mpn: string;
+  productName?: string;
+  /** 1-待生成、2-进行中、3-已完成 */
+  status: number;
+  zhAt?: string;
+  zhBy?: string;
+  enAt?: string;
+  enBy?: string;
+  ruAt?: string;
+  ruBy?: string;
+  downloadedAt?: string;
+  createTime?: string;
+  createBy?: string;
+  updateTime?: string;
+  updateBy?: string;
+}
+
+export interface ContentTaskQuery {
+  page?: number;
+  pageSize?: number;
+  status?: number;
+  brandId?: number;
+  categoryId?: number;
+  keyword?: string;
+}
+
+export interface ContentFile {
+  fileName: string;
+  content: string;
+  /** 跳过的章节 */
+  skip?: string[];
+  /** 修改过的章节：章节 → 新正文 */
+  edits?: Record<string, string>;
+}
+
+export interface ContentBlock {
+  section: string;
+  label: string;
+  /** shared-共享商品库、company-本公司 */
+  target: 'shared' | 'company';
+  raw: string;
+  text?: string;
+  count: number;
+  columns: string[];
+  rows: string[][];
+  errors: string[];
+  hints: string[];
+  skipped: boolean;
+  edited: boolean;
+}
+
+export interface ContentPreview {
+  fileName: string;
+  brand?: string;
+  model?: string;
+  lang?: ContentLang;
+  productId?: number;
+  productLabel?: string;
+  errors: string[];
+  notes: string[];
+  confirmable: boolean;
+  blocks: ContentBlock[];
+}
+
+export interface ContentConfirmResult {
+  succeeded: number;
+  failed: number;
+  items: {
+    fileName: string;
+    productId?: number;
+    productLabel?: string;
+    lang?: ContentLang;
+    success: boolean;
+    message: string;
+  }[];
+}
+
+export interface ProductContent {
+  status: number;
+  zhAt?: string;
+  enAt?: string;
+  ruAt?: string;
+  langs: Record<
+    ContentLang,
+    {
+      specSummary?: string;
+      seoTitle?: string;
+      metaDescription?: string;
+      longDescription?: string;
+      geoAnswer?: string;
+      faqs: { question: string; answer: string }[];
+      fileName?: string;
+      confirmedBy?: string;
+      confirmedAt?: string;
+    }
+  >;
+}
+
+const CONTENT = `${BASE}/content-tasks`;
+
+export const contentApi = {
+  page: (q: ContentTaskQuery) =>
+    call<{ total: number; records: ContentTask[] }>(`${CONTENT}/page`, {
+      method: 'POST',
+      data: q,
+    }),
+  counts: (q: ContentTaskQuery) =>
+    call<Record<string, number>>(`${CONTENT}/counts`, {
+      method: 'POST',
+      data: q,
+    }),
+  preview: (files: ContentFile[]) =>
+    call<ContentPreview[]>(`${CONTENT}/preview`, {
+      method: 'POST',
+      data: { files },
+    }),
+  confirm: (files: ContentFile[]) =>
+    call<ContentConfirmResult>(`${CONTENT}/confirm`, {
+      method: 'POST',
+      data: { files },
+    }),
+  productContent: (productId: number) =>
+    call<ProductContent>(`${CONTENT}/products/${productId}`),
+  /** 下载任务包：单个是 Markdown，多个是 zip；从响应头取文件名触发浏览器下载 */
+  download: async (productIds: number[]) => {
+    const res = await request<Blob>(`${CONTENT}/package`, {
+      method: 'GET',
+      params: { productIds: productIds.join(',') },
+      responseType: 'blob',
+      getResponse: true,
+      skipErrorHandler: true,
+    });
+    const data = res.data as Blob;
+    if (data.type.includes('json')) {
+      const body = JSON.parse(await data.text()) as { message?: string };
+      throw new Error(body.message || '下载失败，请稍后重试');
+    }
+    const disposition =
+      (res.headers as Record<string, string | undefined>)?.[
+        'content-disposition'
+      ] ?? '';
+    const match = /filename\*=UTF-8''([^;]+)/.exec(disposition);
+    const name = match ? decodeURIComponent(match[1]) : 'content-task.md';
+    const url = window.URL.createObjectURL(data);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.setTimeout(() => window.URL.revokeObjectURL(url), 1000);
+  },
 };

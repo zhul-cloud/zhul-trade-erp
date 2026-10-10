@@ -34,6 +34,7 @@ import { LogisticsCustomsCard } from './cards/LogisticsCustomsCard';
 import { MediaCard } from './cards/MediaCard';
 import { PriceCard } from './cards/PriceCard';
 import { RelationCard } from './cards/RelationCard';
+import { SeoCard } from './cards/SeoCard';
 import { SpecCard } from './cards/SpecCard';
 
 const scrollToCard = (anchor: string) => {
@@ -552,6 +553,7 @@ const DetailInner: React.FC = () => {
             done={doneOf('basic')}
             onChanged={load}
           />
+          <SeoCard productId={product.id} mpn={product.mpnRaw} />
           <MediaCard {...common} done={doneOf('media')} />
           <SpecCard {...common} done={doneOf('specifications')} />
           <LogisticsCustomsCard
