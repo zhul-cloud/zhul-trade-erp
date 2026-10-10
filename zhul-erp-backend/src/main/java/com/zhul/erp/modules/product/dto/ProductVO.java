@@ -36,4 +36,7 @@ public class ProductVO {
     private CompletenessVO completeness;
     private LocalDateTime createTime;
     private LocalDateTime updateTime;
+    /** 需求热度：关联的询盘型号数、有效销售订单数；租户只统计本公司 */
+    private Long inquiryCount;
+    private Long dealCount;
 }

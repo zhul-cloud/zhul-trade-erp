@@ -22,6 +22,13 @@ public class InquiryItemVO {
     private String descriptionEn;
     private Integer lifecycle;
     private String replacementModel;
+    /** 采购回填的真实型号 */
+    private String actualModel;
+    /** 建档状态：0-未处理、1-已建档、2-候选中、3-待回填真实型号 */
+    private Integer archiveStatus;
+    private String archiveStatusName;
+    /** 已建档时关联的商品 */
+    private Long productId;
     private Integer difficulty;
     private Integer priceSource;
     private Integer quoteStatus;

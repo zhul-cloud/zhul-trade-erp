@@ -125,6 +125,7 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
     private final QuoteDicts quoteDicts;
     private final LogService logService;
     private final QuotationLocks quotationLocks;
+    private final com.zhul.erp.modules.product.candidate.service.ProductArchiver productArchiver;
 
     // ---------------------------------------------------------------- 附件
 
@@ -413,6 +414,10 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
             vo.setDescriptionEn(i.getDescriptionEn());
             vo.setLifecycle(i.getLifecycle());
             vo.setReplacementModel(i.getReplacementModel());
+            vo.setActualModel(i.getActualModel());
+            vo.setArchiveStatus(i.getArchiveStatus());
+            vo.setArchiveStatusName(com.zhul.erp.modules.product.candidate.constants.CandidateConstants.ARCHIVE_NAMES.get(i.getArchiveStatus()));
+            vo.setProductId(i.getProductId());
             vo.setDifficulty(i.getDifficulty());
             vo.setPriceSource(i.getPriceSource());
             vo.setQuoteStatus(i.getQuoteStatus());
@@ -690,6 +695,7 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
             inquiry.setParseError("");
         }
         List<InquiryItemDO> pending = new ArrayList<>();
+        List<Long> confirmedIds = new ArrayList<>();
         QuoteDictSnapshot.Dict lifecycles = quoteDicts.snapshot().lifecycles();
         int line = 0;
         int priced = 0;
@@ -747,6 +753,7 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
                 item.setQuoteStatus(InquiryConstants.ITEM_PENDING);
             }
             itemMapper.insert(item);
+            confirmedIds.add(item.getId());
             if (item.getSelectedQuoteId() == null) {
                 pending.add(item);
             }
@@ -759,6 +766,8 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
         inquiry.setTotalOrderCount(taskCount);
         inquiry.setStatus(pending.isEmpty() ? InquiryConstants.STATUS_READY_TO_QUOTE : InquiryConstants.STATUS_SOURCING);
         inquiryMapper.updateById(inquiry);
+        // 询价任务生成后自动建档：商品库已有的关联，没有的进商品候选，不像型号的待回填真实型号
+        productArchiver.sync(confirmedIds);
     }
 
     private Long matchProduct(String brand, String model) {

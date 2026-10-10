@@ -28,6 +28,9 @@ public interface MyTaskService {
 
     void returnTask(Long taskId, ReturnTaskRequest req);
 
+    /** 采购回填真实型号：只影响建档，不受「已报给客户」的锁定限制；返回最新建档状态 */
+    com.zhul.erp.modules.inquiry.sourcing.dto.MyTaskItemVO saveActualModel(Long taskId, Long itemId, String actualModel);
+
     /** 本人当前有效分配的任务，否则抛「询价任务不存在」 */
     SourcingTaskDO myTask(Long taskId);
 

@@ -22,4 +22,7 @@ public class ItemQuotesRequest {
     private Integer lifecycle;
     @Size(max = 128, message = "替代型号不能超过 128 字")
     private String replacementModel;
+    /** 采购回填的真实型号（询盘原文不是型号或写错时）；不传表示不改，空串表示清空 */
+    @jakarta.validation.constraints.Size(max = 128, message = "真实型号不能超过 128 字")
+    private String actualModel;
 }

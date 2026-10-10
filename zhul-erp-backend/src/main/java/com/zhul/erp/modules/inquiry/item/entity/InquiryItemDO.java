@@ -28,6 +28,11 @@ public class InquiryItemDO {
     /** 归一化型号，与商品主数据同规则 */
     private String modelKey;
     private Long productId;
+    /** 采购回填的真实型号（询盘原文不是型号或写错时） */
+    private String actualModel;
+    private String actualModelKey;
+    /** 建档状态：0-未处理、1-已建档、2-候选中、3-待回填真实型号 */
+    private Integer archiveStatus;
     private Integer confidence;
     private String correctionNote;
     private Integer quantity;

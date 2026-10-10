@@ -1,9 +1,11 @@
 package com.zhul.erp.modules.inquiry.sourcing.controller;
 
 import com.zhul.erp.common.result.Result;
+import com.zhul.erp.modules.inquiry.sourcing.dto.ActualModelRequest;
 import com.zhul.erp.modules.inquiry.sourcing.dto.ImportConfirmRequest;
 import com.zhul.erp.modules.inquiry.sourcing.dto.ImportFileVO;
 import com.zhul.erp.modules.inquiry.sourcing.dto.MyTaskDetailVO;
+import com.zhul.erp.modules.inquiry.sourcing.dto.MyTaskItemVO;
 import com.zhul.erp.modules.inquiry.sourcing.dto.MyTaskVO;
 import com.zhul.erp.modules.inquiry.sourcing.dto.PastePreviewRequest;
 import com.zhul.erp.modules.inquiry.sourcing.dto.PastePreviewVO;
@@ -58,6 +60,13 @@ public class MyTaskController {
     @PostMapping("/{id}/paste-preview")
     public Result<PastePreviewVO> pastePreview(@PathVariable Long id, @Valid @RequestBody PastePreviewRequest req) {
         return Result.ok(myTaskService.pastePreview(id, req.getText()));
+    }
+
+    /** 采购回填真实型号（离开输入框即保存，不受报价锁定限制） */
+    @PutMapping("/{id}/items/{itemId}/actual-model")
+    public Result<MyTaskItemVO> saveActualModel(@PathVariable Long id, @PathVariable Long itemId,
+                                               @Valid @RequestBody ActualModelRequest req) {
+        return Result.ok(myTaskService.saveActualModel(id, itemId, req.getActualModel()));
     }
 
     @PostMapping("/{id}/return")

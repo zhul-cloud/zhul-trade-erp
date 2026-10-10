@@ -88,6 +88,7 @@ public class SalesOrderServiceImpl implements SalesOrderService {
     private static final Map<Integer, String> INQUIRY_STATUS_NAMES = Map.of(1, "待解析", 2, "解析中", 3, "待确认", 4, "解析失败",
             5, "询价中", 6, "可报价", 7, "已报价", 8, "已成交", 9, "未成交", 10, "已取消");
 
+    private final com.zhul.erp.modules.product.candidate.service.ProductArchiver productArchiver;
     private final SalesOrderMapper orderMapper;
     private final SalesOrderItemMapper orderItemMapper;
     private final SalesOrderFeeMapper orderFeeMapper;
@@ -209,6 +210,8 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         deals.apply(items.stream().map(PiItemDO::getQuotationItemId).collect(Collectors.toSet()), Set.of());
         // 同一事务：生成采购需求（重转时接回已下单数量）并自动排入草稿采购单
         requirementLifecycle.onOrderCreated(o, created);
+        // 成交提升商品候选的可信度
+        productArchiver.sync(created.stream().map(SalesOrderItemDO::getInquiryItemId).filter(Objects::nonNull).toList());
 
         Map<String, Object> after = new LinkedHashMap<>();
         after.put("soNo", o.getSoNo());
@@ -462,6 +465,8 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         o.setCancelledBy(currentUserId());
         o.setCancelledAt(LocalDateTime.now());
         orderMapper.updateById(o);
+        // 订单取消：商品候选去掉这张订单的成交来源
+        productArchiver.sync(orderItems(id).stream().map(SalesOrderItemDO::getInquiryItemId).filter(Objects::nonNull).toList());
         // 没下单的采购需求关闭，已下单的标「订单已取消」交给采购员
         requirementLifecycle.onOrderCancelled(o, currentUserId());
         if (manual) {
