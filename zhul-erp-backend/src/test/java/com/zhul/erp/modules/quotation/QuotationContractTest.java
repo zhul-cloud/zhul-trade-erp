@@ -461,7 +461,7 @@ class QuotationContractTest extends InquiryContractSupport {
         assertEquals(2, ok(call(get(QT + "/" + id), admin)).path("status").asInt());
         assertEquals(2, ok(call(get(QT + "/by-inquiry/" + a), admin)).size(), "询盘详情看到两张报价单");
 
-        // 唯一一张已发送的报价单未成交 → 询盘未成交；作废同理
+        // 唯一一张已发送的报价单未成交 → 询盘未成交，不能再报价
         long lostInq = seedInquiry(c, 6, "2026-10-01", m("1756-L83E", "6000"));
         long lostId = byInquiries(lostInq).path("id").asLong();
         ok(call(json(post(QT + "/" + lostId + "/send"), "{\"channel\":2}"), admin));
@@ -477,7 +477,31 @@ class QuotationContractTest extends InquiryContractSupport {
         assertTrue(fail(call(post(QT + "/" + voidId + "/void"), admin)).path("message").asText().contains("先标为已发送"));
         ok(call(json(post(QT + "/" + voidId + "/send"), "{\"channel\":4}"), admin));
         ok(call(post(QT + "/" + voidId + "/void"), admin));
-        assertEquals(9, inquiryStatus(voidInq));
+        assertEquals(6, inquiryStatus(voidInq), "作废视为没报过：型号都有价格，回到可报价");
+        long again = byInquiries(voidInq).path("id").asLong();
+        assertTrue(again != voidId, "作废后可以再报一张");
+        ok(call(json(post(QT + "/" + again + "/send"), "{\"channel\":4}"), admin));
+        assertEquals(7, inquiryStatus(voidInq));
+
+        // 作废时还有型号在询价 → 回到询价中
+        long pendingInq = seedInquiry(c, 5, "2026-09-29", m("1756-IB16", "800"), m("1756-OB16", null));
+        long pendingId = byInquiries(pendingInq).path("id").asLong();
+        ok(call(json(post(QT + "/" + pendingId + "/send"), "{\"channel\":4}"), admin));
+        assertEquals(7, inquiryStatus(pendingInq));
+        ok(call(post(QT + "/" + pendingId + "/void"), admin));
+        assertEquals(5, inquiryStatus(pendingInq));
+
+        // 一张作废、一张未成交 → 未成交优先
+        long mixInq = seedInquiry(c, 6, "2026-09-28", m("1756-IF8", "1500"));
+        long mixA = byInquiries(mixInq).path("id").asLong();
+        long mixB = byInquiries(mixInq).path("id").asLong();
+        ok(call(json(post(QT + "/" + mixA + "/send"), "{\"channel\":4}"), admin));
+        ok(call(post(QT + "/" + mixA + "/void"), admin));
+        assertEquals(6, inquiryStatus(mixInq), "作废加草稿：回到可报价");
+        ok(call(json(post(QT + "/" + mixB + "/send"), "{\"channel\":4}"), admin));
+        ok(call(json(post(QT + "/" + mixB + "/lost"), "{\"reason\":\"" + reason + "\"}"), admin));
+        assertEquals(9, inquiryStatus(mixInq));
+        assertTrue(fail(create(write(Map.of("inquiryIds", List.of(mixInq))))).path("message").asText().contains("当前状态不能报价"));
 
         // 成交由销售订单推进；这里直接置为部分成交，验证本月成交统计把部分成交算在内
         jdbc.update("update quotation set status = 6, closed_at = NOW() where id = ?", id);
