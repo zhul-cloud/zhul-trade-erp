@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.zhul.erp.common.exception.BizException;
 import com.zhul.erp.common.result.PageResult;
 import com.zhul.erp.framework.tenant.TenantContext;
+import com.zhul.erp.modules.inquiry.constants.InquiryConstants;
 import com.zhul.erp.modules.inquiry.customerinquiry.entity.CustomerInquiryDO;
 import com.zhul.erp.modules.inquiry.customerinquiry.repository.CustomerInquiryMapper;
 import com.zhul.erp.modules.inquiry.item.entity.InquiryItemDO;
@@ -20,6 +21,7 @@ import com.zhul.erp.modules.product.candidate.entity.ProductCandidateDO;
 import com.zhul.erp.modules.product.candidate.entity.ProductCandidateSourceDO;
 import com.zhul.erp.modules.product.candidate.repository.ProductCandidateMapper;
 import com.zhul.erp.modules.product.candidate.repository.ProductCandidateSourceMapper;
+import com.zhul.erp.modules.product.constants.LifecycleStatus;
 import com.zhul.erp.modules.product.constants.ProductConstants;
 import com.zhul.erp.modules.product.dto.CreateSeriesRequest;
 import com.zhul.erp.modules.product.dto.SaveBrandRequest;
@@ -47,6 +49,7 @@ import org.springframework.util.StringUtils;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -108,11 +111,8 @@ public class ProductCandidateService {
         if (total == 0) {
             return PageResult.of(0L, List.of());
         }
-        // 待审核是待办队列：可信度高、出现多的先审；其余按更新时间倒序
-        String order = status == CandidateConstants.STATUS_PENDING
-                ? "ORDER BY level DESC, source_count DESC, last_seen_at DESC, id DESC"
-                : "ORDER BY update_time DESC, id DESC";
-        w.last(order + " LIMIT " + (long) (page - 1) * size + ", " + size);
+        // 各页签都按可信度从高到低、再按更新时间倒序
+        w.last("ORDER BY level DESC, update_time DESC, id DESC LIMIT " + (long) (page - 1) * size + ", " + size);
         return PageResult.of(total, toVos(candidateMapper.selectList(w), false));
     }
 
@@ -268,14 +268,46 @@ public class ProductCandidateService {
         p.setSeriesId(seriesId);
         p.setMpnRaw(mpn);
         p.setMpnDisplay(StringUtils.hasText(req.getMpnDisplay()) ? req.getMpnDisplay().trim() : mpn);
-        p.setProductName(req.getProductName() != null ? req.getProductName().trim() : c.getProductName());
+        // 商品名称、简短描述默认用中文描述（系统内中文）
+        p.setProductName(req.getProductName() != null ? req.getProductName().trim()
+                : (StringUtils.hasText(c.getDescription()) ? c.getDescription() : c.getProductName()));
         p.setShortDescription(req.getShortDescription() != null ? req.getShortDescription().trim()
-                : (StringUtils.hasText(c.getDescriptionEn()) ? c.getDescriptionEn() : c.getDescription()));
+                : (StringUtils.hasText(c.getDescription()) ? c.getDescription() : c.getDescriptionEn()));
+        Lifecycle suggested = suggestLifecycle(c.getId());
+        p.setLifecycleStatus(req.getLifecycleStatus() != null ? req.getLifecycleStatus() : suggested.status());
+        p.setLifecycleSource(req.getLifecycleSource() != null ? req.getLifecycleSource().trim()
+                : (Objects.equals(p.getLifecycleStatus(), suggested.status()) ? suggested.source() : ""));
         Long productId = platformScopeGuard.asCandidateReview(() -> productService.create(p)).getId();
         c.setBrandId(brandId);
         c.setCategoryId(req.getCategoryId());
         resolve(c, CandidateConstants.STATUS_ARCHIVED, productId);
         return productId;
+    }
+
+    record Lifecycle(int status, String source) {
+    }
+
+    /**
+     * 建议的生命周期：来源询盘型号里采购最近核实的生产状态（在产 → 在产；停产 → 已停产，依据写「采购询价核实停产」及替代型号；
+     * 都是待查 → 未知）。
+     */
+    Lifecycle suggestLifecycle(Long candidateId) {
+        List<Long> ids = sourceItemIds(candidateId);
+        if (ids.isEmpty()) {
+            return new Lifecycle(LifecycleStatus.UNKNOWN, "");
+        }
+        InquiryItemDO verified = itemMapper.selectBatchIds(ids).stream()
+                .filter(i -> i.getLifecycle() != null && i.getLifecycle() != InquiryConstants.LIFECYCLE_UNKNOWN)
+                .max(Comparator.comparing(InquiryItemDO::getUpdateTime, Comparator.nullsFirst(Comparator.naturalOrder())))
+                .orElse(null);
+        if (verified == null) {
+            return new Lifecycle(LifecycleStatus.UNKNOWN, "");
+        }
+        if (verified.getLifecycle() == InquiryConstants.LIFECYCLE_DISCONTINUED) {
+            String replacement = verified.getReplacementModel() == null ? "" : verified.getReplacementModel().trim();
+            return new Lifecycle(LifecycleStatus.DISCONTINUED, "采购询价核实停产" + (replacement.isEmpty() ? "" : "，替代型号 " + replacement));
+        }
+        return new Lifecycle(LifecycleStatus.ACTIVE, "");
     }
 
     private Long resolveBrand(ProductCandidateDO c, ApproveCandidateRequest req) {
@@ -399,7 +431,8 @@ public class ProductCandidateService {
         Map<Long, List<ProductCandidateSourceDO>> sources = sourceMapper.selectList(new LambdaQueryWrapper<ProductCandidateSourceDO>()
                         .in(ProductCandidateSourceDO::getCandidateId, ids)
                         .isNull(ProductCandidateSourceDO::getDeletedAt)
-                        .orderByDesc(ProductCandidateSourceDO::getCreateTime))
+                        .orderByDesc(ProductCandidateSourceDO::getCreateTime)
+                        .orderByDesc(ProductCandidateSourceDO::getId))
                 .stream().collect(Collectors.groupingBy(ProductCandidateSourceDO::getCandidateId));
         Map<Long, String> brands = names(rows.stream().map(ProductCandidateDO::getBrandId).filter(Objects::nonNull).toList(), true);
         Map<Long, String> categories = names(rows.stream().map(ProductCandidateDO::getCategoryId).filter(Objects::nonNull).toList(), false);
@@ -415,6 +448,11 @@ public class ProductCandidateService {
                 .filter(Objects::nonNull).collect(Collectors.toSet());
         Map<Long, InquiryItemDO> items = itemIds.isEmpty() ? Map.of()
                 : itemMapper.selectBatchIds(itemIds).stream().collect(Collectors.toMap(InquiryItemDO::getId, i -> i));
+        // 来源单据号：一页候选的可见来源一次查完
+        List<ProductCandidateSourceDO> visibleSources = sources.values().stream().flatMap(List::stream)
+                .filter(s -> platform || s.getTenantId() == me).toList();
+        Map<Long, String> codes = codesOf(visibleSources);
+        Map<Long, String> soNos = soNosOf(visibleSources);
         List<CandidateVO> out = new ArrayList<>(rows.size());
         for (ProductCandidateDO c : rows) {
             List<ProductCandidateSourceDO> all = sources.getOrDefault(c.getId(), List.of());
@@ -449,10 +487,14 @@ public class ProductCandidateService {
             vo.setOriginalModel(mine.stream().filter(s -> s.getSourceType() == CandidateConstants.SOURCE_ACTUAL_MODEL)
                     .map(s -> at(items, s.getInquiryItemId())).filter(Objects::nonNull)
                     .map(InquiryItemDO::getConfirmedModel).findFirst().orElse(null));
+            vo.setSources(sourceVos(full ? mine : mine.stream().limit(3).toList(), items, codes, soNos));
             if (full) {
-                vo.setSources(sourceVos(mine, items));
-                vo.setOtherSourceCount(all.size() - mine.size());
+                Lifecycle lc = suggestLifecycle(c.getId());
+                vo.setSuggestedLifecycle(lc.status());
+                vo.setSuggestedLifecycleSource(lc.source());
             }
+            vo.setMineSourceCount(mine.size());
+            vo.setOtherSourceCount(all.size() - mine.size());
             vo.setCreateTime(c.getCreateTime());
             vo.setCreateBy(c.getCreateBy());
             vo.setUpdateTime(c.getUpdateTime());
@@ -462,13 +504,20 @@ public class ProductCandidateService {
         return out;
     }
 
-    private List<CandidateVO.Source> sourceVos(List<ProductCandidateSourceDO> rows, Map<Long, InquiryItemDO> items) {
-        Set<Long> inquiryIds = rows.stream().map(ProductCandidateSourceDO::getCustomerInquiryId).filter(Objects::nonNull).collect(Collectors.toSet());
-        Set<Long> soIds = rows.stream().map(ProductCandidateSourceDO::getSoId).filter(Objects::nonNull).collect(Collectors.toSet());
-        Map<Long, String> codes = inquiryIds.isEmpty() ? Map.of() : inquiryMapper.selectBatchIds(inquiryIds).stream()
+    private Map<Long, String> codesOf(List<ProductCandidateSourceDO> rows) {
+        Set<Long> ids = rows.stream().map(ProductCandidateSourceDO::getCustomerInquiryId).filter(Objects::nonNull).collect(Collectors.toSet());
+        return ids.isEmpty() ? Map.of() : inquiryMapper.selectBatchIds(ids).stream()
                 .collect(Collectors.toMap(CustomerInquiryDO::getId, CustomerInquiryDO::getInquiryCode));
-        Map<Long, String> soNos = soIds.isEmpty() ? Map.of() : soMapper.selectBatchIds(soIds).stream()
+    }
+
+    private Map<Long, String> soNosOf(List<ProductCandidateSourceDO> rows) {
+        Set<Long> ids = rows.stream().map(ProductCandidateSourceDO::getSoId).filter(Objects::nonNull).collect(Collectors.toSet());
+        return ids.isEmpty() ? Map.of() : soMapper.selectBatchIds(ids).stream()
                 .collect(Collectors.toMap(SalesOrderDO::getId, SalesOrderDO::getSoNo));
+    }
+
+    private List<CandidateVO.Source> sourceVos(List<ProductCandidateSourceDO> rows, Map<Long, InquiryItemDO> items,
+                                               Map<Long, String> codes, Map<Long, String> soNos) {
         return rows.stream().map(s -> {
             CandidateVO.Source x = new CandidateVO.Source();
             x.setSourceType(s.getSourceType());

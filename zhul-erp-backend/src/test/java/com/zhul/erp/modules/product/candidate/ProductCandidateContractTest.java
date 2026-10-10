@@ -77,6 +77,7 @@ class ProductCandidateContractTest extends InquiryContractSupport {
         r.put("confirmedModel", model);
         r.put("quantity", 1);
         r.put("unit", "个");
+        r.put("description", model + " 中文描述");
         r.put("descriptionEn", model + " description");
         return r;
     }
@@ -162,16 +163,32 @@ class ProductCandidateContractTest extends InquiryContractSupport {
         ok(save(lxmItem, true, Map.of("quotes", List.of(Map.of("channel", 1, "shopName", "工控店", "unitPrice", 100, "itemCondition", 1)))));
         assertEquals(2, jdbc.queryForObject("select level from product_candidate where id = ?", Integer.class, lxm), "采购问到有货");
 
-        // 列表：待审核按可信度排序
+        // 列表：按更新时间倒序，每行带来源
         JsonNode page = ok(call(json(post(CAND + "/page"), "{}"), admin));
         assertEquals(3, page.path("total").asInt());
-        assertEquals("LXM32AD30N4", page.path("records").get(0).path("mpnRaw").asText());
+        for (int i = 1; i < page.path("records").size(); i++) {
+            JsonNode a = page.path("records").get(i - 1);
+            JsonNode b = page.path("records").get(i);
+            assertTrue(a.path("level").asInt() > b.path("level").asInt() || a.path("level").asInt() == b.path("level").asInt()
+                    && a.path("updateTime").asText().compareTo(b.path("updateTime").asText()) >= 0, "可信度从高到低，再按更新时间倒序");
+        }
+        assertEquals("LXM32AD30N4", page.path("records").get(0).path("mpnRaw").asText(), "可信度最高的在前");
+        for (JsonNode r : page.path("records")) {
+            if (r.path("mpnRaw").asText().equals("LXM32AD30N4")) {
+                assertEquals(2, r.path("mineSourceCount").asInt());
+                assertEquals("采购回价有货", r.path("sources").get(0).path("sourceTypeName").asText(), "最近的来源在前");
+                assertFalse(r.path("sources").get(1).path("inquiryCode").asText().isEmpty(), "来源带询盘号");
+            }
+        }
         assertEquals("Contactor, 32A", ok(call(get(CAND + "/" + ax), admin)).path("originalModel").asText(), "回填自询盘原文");
 
         // 通过建档 → 回填关联、热度
         JsonNode approved = ok(call(json(post(CAND + "/" + lxm + "/approve"), write(Map.of("categoryId", servo))), admin));
         assertEquals("已建档", approved.path("statusName").asText());
         long lxmProduct = approved.path("productId").asLong();
+        assertEquals("LXM32AD30N4 中文描述", jdbc.queryForObject("select product_name from product where id = ?", String.class, lxmProduct),
+                "商品名称默认用中文描述");
+        assertEquals(6, jdbc.queryForObject("select lifecycle_status from product where id = ?", Integer.class, lxmProduct), "待查 → 未知");
         assertEquals(lxmProduct, jdbc.queryForObject("select product_id from inquiry_item where id = ?", Long.class, lxmItem));
         assertEquals(1, archive(lxmItem));
         JsonNode hot = ok(call(get(PRODUCTS).param("sort", "inquiryCount").param("keyword", "LXM32"), admin));
@@ -179,11 +196,18 @@ class ProductCandidateContractTest extends InquiryContractSupport {
         assertEquals("候选已审核（已建档）", fail(call(json(post(CAND + "/" + lxm + "/approve"), write(Map.of("categoryId", servo))), admin))
                 .path("message").asText());
 
+        // 生命周期：采购核实停产 → 已停产，依据自动填写
+        jdbc.update("update inquiry_item set lifecycle = 2, replacement_model = 'RI58-O/2048ER' where customer_inquiry_id = ? and confirmed_model = ?",
+                inq, "RI58-O/1024ER");
+        JsonNode hd = ok(call(get(CAND + "/" + hengstler), admin));
+        assertEquals(4, hd.path("suggestedLifecycle").asInt());
+        assertEquals("采购询价核实停产，替代型号 RI58-O/2048ER", hd.path("suggestedLifecycleSource").asText());
         // 品牌没识别：审核时新建品牌
         JsonNode newBrand = ok(call(json(post(CAND + "/" + hengstler + "/approve"), write(Map.of("brandMode", "NEW", "brandName", "Hengstler",
                 "categoryId", servo, "newSeriesName", "RI58"))), admin));
         assertEquals("已建档", newBrand.path("statusName").asText());
         assertEquals(1, jdbc.queryForObject("select count(*) from product_series where series_name = 'RI58'", Integer.class), "审核时新建系列");
+        assertEquals(4, jdbc.queryForObject("select lifecycle_status from product where id = ?", Integer.class, newBrand.path("productId").asLong()));
 
         // 驳回 → 待回填；重新打开 → 候选中；批量通过
         assertEquals("选择「其他」时请填写说明", fail(call(json(post(CAND + "/" + ax + "/reject"), "{\"reason\":3}"), admin)).path("message").asText());

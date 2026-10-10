@@ -24,6 +24,7 @@ import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { auditColumns } from '@/pages/purchase/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatDateTime } from '@/utils/format';
+import { LIFECYCLE_OPTIONS } from '../constants';
 import {
   type BrandOption,
   brandApi,
@@ -88,6 +89,60 @@ const Heat: React.FC<{ c: Candidate }> = ({ c }) => {
   );
 };
 
+const SOURCE_TONE: Record<number, 'green' | 'accent' | 'violet' | 'gray'> = {
+  1: 'gray',
+  2: 'violet',
+  3: 'accent',
+  4: 'green',
+};
+
+/** 列表里的来源：类型 + 询盘号 / 订单号，最近 3 条 */
+const SourceCell: React.FC<{ c: Candidate }> = ({ c }) => {
+  const { palette } = useAppTheme();
+  const list = c.sources ?? [];
+  if (!list.length && !c.otherSourceCount) {
+    return <span style={{ color: palette.mute }}>—</span>;
+  }
+  const more = (c.mineSourceCount ?? list.length) - list.length;
+  return (
+    <div style={{ display: 'grid', gap: 3, fontSize: 12 }}>
+      {list.map((s, i) => (
+        <span
+          // biome-ignore lint/suspicious/noArrayIndexKey: 来源没有对外的 id
+          key={i}
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+        >
+          <Pill tone={SOURCE_TONE[s.sourceType] ?? 'gray'}>
+            {s.sourceTypeName}
+          </Pill>
+          {s.soId ? (
+            <Link
+              to={`/sales/orders/${s.soId}`}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {s.soNo}
+            </Link>
+          ) : s.customerInquiryId ? (
+            <Link
+              to={`/inquiry/customer-inquiries/${s.customerInquiryId}`}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {s.inquiryCode}
+            </Link>
+          ) : null}
+        </span>
+      ))}
+      {(more > 0 || !!c.otherSourceCount) && (
+        <span style={{ color: palette.mute }}>
+          {more > 0 ? `还有 ${more} 条` : ''}
+          {more > 0 && c.otherSourceCount ? ' · ' : ''}
+          {c.otherSourceCount ? `其他公司 ${c.otherSourceCount} 次` : ''}
+        </span>
+      )}
+    </div>
+  );
+};
+
 // ---------------------------------------------------------------- 审核抽屉
 
 const Label: React.FC<{ children: React.ReactNode; required?: boolean }> = ({
@@ -142,8 +197,11 @@ const ReviewDrawer: React.FC<{
           categoryId: d.categoryId ?? undefined,
           mpnRaw: d.mpnRaw,
           mpnDisplay: d.mpnRaw,
-          productName: d.productName ?? '',
-          shortDescription: d.descriptionEn || d.description || '',
+          // 商品名称、简短描述默认用中文描述（系统内中文）
+          productName: d.description || d.productName || '',
+          shortDescription: d.description || d.descriptionEn || '',
+          lifecycleStatus: d.suggestedLifecycle ?? 6,
+          lifecycleSource: d.suggestedLifecycleSource ?? '',
         });
       })
       .catch((e) => setError(readBizError(e).message));
@@ -173,7 +231,12 @@ const ReviewDrawer: React.FC<{
         ? '请选择品牌'
         : !form.categoryId
           ? '请选择品类'
-          : undefined;
+          : !form.lifecycleStatus
+            ? '请选择生命周期'
+            : (form.lifecycleStatus === 4 || form.lifecycleStatus === 5) &&
+                !form.lifecycleSource?.trim()
+              ? '已停产、停产无替代要写依据'
+              : undefined;
 
   const run = async (fn: () => Promise<unknown>, ok: string) => {
     setBusy(true);
@@ -491,6 +554,42 @@ const ReviewDrawer: React.FC<{
                   )}
                 </div>
               </div>
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: '1fr 1fr',
+                  gap: 12,
+                }}
+              >
+                <div>
+                  <Label required>生命周期</Label>
+                  <Select
+                    value={form.lifecycleStatus}
+                    options={LIFECYCLE_OPTIONS}
+                    onChange={(v) => patch({ lifecycleStatus: v })}
+                    style={{ width: '100%' }}
+                    aria-label="生命周期"
+                  />
+                  <div
+                    style={{ fontSize: 12, color: palette.mute, marginTop: 4 }}
+                  >
+                    按采购询价时核实的生产状态自动填写
+                  </div>
+                </div>
+                {(form.lifecycleStatus === 4 || form.lifecycleStatus === 5) && (
+                  <div>
+                    <Label required>生命周期依据</Label>
+                    <Input
+                      value={form.lifecycleSource}
+                      maxLength={255}
+                      onChange={(e) =>
+                        patch({ lifecycleSource: e.target.value })
+                      }
+                      aria-label="生命周期依据"
+                    />
+                  </div>
+                )}
+              </div>
               <div>
                 <Label>商品名称</Label>
                 <Input
@@ -512,7 +611,7 @@ const ReviewDrawer: React.FC<{
                 <div
                   style={{ fontSize: 12, color: palette.mute, marginTop: 4 }}
                 >
-                  取询盘里 AI 生成的描述，可改
+                  取询盘里 AI 生成的中文描述，可改
                 </div>
               </div>
             </>
@@ -862,6 +961,12 @@ const Candidates: React.FC = () => {
       render: (_, c) => <LevelDots level={c.level} name={c.levelName} />,
     },
     {
+      title: '来源',
+      key: 'sources',
+      width: 230,
+      render: (_, c) => <SourceCell c={c} />,
+    },
+    {
       title: '热度',
       key: 'heat',
       width: 100,
@@ -1027,8 +1132,8 @@ const Candidates: React.FC = () => {
       )}
       <div style={{ fontSize: 12, color: palette.mute, marginTop: 8 }}>
         {tab === 1
-          ? '按可信度从高到低、再按出现次数排序；批量通过只处理品牌与品类都已确定的候选，其余跳过并提示'
-          : '按更新时间倒序'}
+          ? '按可信度从高到低、再按更新时间倒序；批量通过只处理品牌与品类都已确定的候选（生命周期按采购核实自动填写），其余跳过并提示'
+          : '按可信度从高到低、再按更新时间倒序'}
       </div>
       <ReviewDrawer
         id={viewing}

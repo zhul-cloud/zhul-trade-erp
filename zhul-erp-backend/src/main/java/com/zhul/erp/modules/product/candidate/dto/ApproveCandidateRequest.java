@@ -28,4 +28,8 @@ public class ApproveCandidateRequest {
     private String productName;
     @Size(max = 500, message = "简短描述不能超过 500 字")
     private String shortDescription;
+    /** 生命周期（商品口径 1-6）；不传按来源询盘型号建议 */
+    private Integer lifecycleStatus;
+    @Size(max = 255, message = "生命周期依据不能超过 255 字")
+    private String lifecycleSource;
 }

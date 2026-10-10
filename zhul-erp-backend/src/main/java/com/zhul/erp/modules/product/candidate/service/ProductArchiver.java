@@ -152,7 +152,9 @@ public class ProductArchiver {
         c.setCategoryText(cut(nz(item.getCategory()).trim(), 64));
         c.setCategoryId(suggestCategory(item.getCategory(), categories));
         String en = nz(item.getDescriptionEn()).trim();
-        c.setProductName(cut(en.isEmpty() ? nz(item.getDescription()).trim() : en, NAME_MAX));
+        String zh = nz(item.getDescription()).trim();
+        // 商品名称默认用中文描述（系统内中文），没有时才用英文
+        c.setProductName(cut(zh.isEmpty() ? en : zh, NAME_MAX));
         c.setDescription(cut(nz(item.getDescription()).trim(), TEXT_MAX));
         c.setDescriptionEn(cut(en, TEXT_MAX));
         c.setStatus(CandidateConstants.STATUS_PENDING);

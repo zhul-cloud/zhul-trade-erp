@@ -5,7 +5,7 @@ import lombok.Data;
 import java.time.LocalDateTime;
 import java.util.List;
 
-/** 商品候选；sources 只在详情返回，且只含本公司的来源（平台账号看全部） */
+/** 商品候选；sources 只含本公司的来源（平台账号看全部），列表只返回最近 3 条，详情返回全部 */
 @Data
 public class CandidateVO {
     private Long id;
@@ -37,9 +37,14 @@ public class CandidateVO {
     private String rejectNote;
     private String reviewedByName;
     private LocalDateTime reviewedAt;
+    /** 建议的生命周期（商品口径）与依据：取来源询盘型号里采购最近核实的生产状态 */
+    private Integer suggestedLifecycle;
+    private String suggestedLifecycleSource;
     /** 回填自哪个询盘原文（真实型号来源时），列表展示用 */
     private String originalModel;
     private List<Source> sources;
+    /** 本公司来源条数（平台账号为全部） */
+    private Integer mineSourceCount;
     /** 其他公司的来源条数（租户账号看到的） */
     private Integer otherSourceCount;
     private LocalDateTime createTime;

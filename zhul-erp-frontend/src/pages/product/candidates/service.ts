@@ -43,9 +43,15 @@ export interface Candidate {
   rejectNote?: string;
   reviewedByName?: string;
   reviewedAt?: string;
+  /** 建议的生命周期（商品口径 1-6）与依据：取来源询盘型号里采购最近核实的生产状态 */
+  suggestedLifecycle?: number;
+  suggestedLifecycleSource?: string;
   /** 回填自哪个询盘原文 */
   originalModel?: string;
+  /** 列表为最近 3 条，详情为全部；只含本公司（平台账号为全部） */
   sources?: CandidateSource[];
+  /** 本公司来源条数 */
+  mineSourceCount?: number;
   otherSourceCount?: number;
   createTime: string;
   createBy?: string;
@@ -64,6 +70,8 @@ export interface ApproveBody {
   mpnDisplay?: string;
   productName?: string;
   shortDescription?: string;
+  lifecycleStatus?: number;
+  lifecycleSource?: string;
 }
 
 const quiet = { skipErrorHandler: true } as const;
