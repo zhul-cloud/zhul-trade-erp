@@ -188,6 +188,11 @@ const CustomerInquiryDetailPage: React.FC = () => {
               {lifecycleLabel(r.lifecycle)}
             </span>
           )}
+          {r.actualModel && (
+            <span style={{ color: palette.violet, fontSize: 12 }}>
+              真实型号：{r.actualModel}
+            </span>
+          )}
         </span>
       ),
     },
@@ -304,6 +309,32 @@ const CustomerInquiryDetailPage: React.FC = () => {
           </span>
         );
       },
+    },
+    {
+      title: (
+        <Tooltip title="确认询盘时自动建档：商品库已有的直接关联；没有的进商品候选；写的不是型号的等采购回填真实型号">
+          <span>建档</span>
+        </Tooltip>
+      ),
+      key: 'archive',
+      width: 150,
+      render: (_, r) =>
+        r.archiveStatus === 1 ? (
+          <span
+            style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}
+          >
+            <Pill tone="green">已建档</Pill>
+            {r.productId && (
+              <Link to={`/product/products/${r.productId}`}>查看商品</Link>
+            )}
+          </span>
+        ) : r.archiveStatus === 2 ? (
+          <Pill tone="orange">候选中</Pill>
+        ) : r.archiveStatus === 3 ? (
+          <Pill tone="gray">待回填真实型号</Pill>
+        ) : (
+          <span style={{ color: palette.mute }}>—</span>
+        ),
     },
   ];
 

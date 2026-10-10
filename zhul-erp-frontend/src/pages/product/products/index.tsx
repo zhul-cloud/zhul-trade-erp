@@ -157,6 +157,9 @@ const ProductListInner: React.FC = () => {
 
   useEffect(loadSummary, [loadSummary]);
 
+  /** 需求热度排序在服务端做（跨页有效）：询盘次数或成交次数倒序 */
+  const [heatSort, setHeatSort] = useState<'inquiryCount' | 'dealCount'>();
+
   const query = useMemo<ProductQuery>(
     () => ({
       page,
@@ -164,8 +167,9 @@ const ProductListInner: React.FC = () => {
       keyword: debounced || undefined,
       ...filters,
       includeDeleted: filters.includeDeleted || undefined,
+      sort: heatSort,
     }),
-    [page, pageSize, debounced, filters],
+    [page, pageSize, debounced, filters, heatSort],
   );
 
   const load = useCallback(async () => {
@@ -386,6 +390,32 @@ const ProductListInner: React.FC = () => {
       width: 120,
       render: (v) => <LifecyclePill value={v} />,
     },
+    ...(['inquiryCount', 'dealCount'] as const).map((key) => ({
+      title: key === 'inquiryCount' ? '询盘次数' : '成交次数',
+      key,
+      width: 100,
+      sorter: true,
+      sortDirections: ['descend' as const],
+      sortOrder: heatSort === key ? ('descend' as const) : null,
+      render: (_: unknown, r: Product) => {
+        const n = r[key] ?? 0;
+        return (
+          <span
+            className="num"
+            style={{
+              fontWeight: 600,
+              color: !n
+                ? palette.mute
+                : key === 'dealCount'
+                  ? palette.green
+                  : palette.ink,
+            }}
+          >
+            {n}
+          </span>
+        );
+      },
+    })),
     ...(platform
       ? ([
           {
@@ -734,6 +764,17 @@ const ProductListInner: React.FC = () => {
                   }
                 : undefined
             }
+            onChange={(_p, _f, sorter, extra) => {
+              const s = Array.isArray(sorter) ? sorter[0] : sorter;
+              if (
+                extra.action === 'sort' &&
+                (s?.columnKey === 'inquiryCount' ||
+                  s?.columnKey === 'dealCount')
+              ) {
+                setHeatSort(s.order ? s.columnKey : undefined);
+                setPage(1);
+              }
+            }}
             onRow={(r) => ({
               onClick: () => history.push(`/product/products/${r.id}`),
               style: { cursor: 'pointer' },

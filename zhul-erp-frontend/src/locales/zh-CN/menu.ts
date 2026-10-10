@@ -104,6 +104,7 @@ export default {
   'menu.inquiry.order': '询盘单',
   'menu.product': '商品资料',
   'menu.product.products': '商品',
+  'menu.product.candidates': '商品候选',
   'menu.product.brands': '品牌',
   'menu.product.categories': '品类',
   'menu.product.series': '系列',

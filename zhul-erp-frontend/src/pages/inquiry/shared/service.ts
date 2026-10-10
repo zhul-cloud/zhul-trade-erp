@@ -102,6 +102,13 @@ export interface InquiryItem {
   noStockNote?: string;
   /** 已报给客户（出现在已发送及之后的报价单中） */
   quoted?: boolean;
+  /** 采购回填的真实型号 */
+  actualModel?: string;
+  /** 建档状态：0-未处理、1-已建档、2-候选中、3-待回填真实型号 */
+  archiveStatus?: number;
+  archiveStatusName?: string;
+  /** 已建档时关联的商品 */
+  productId?: number | null;
 }
 
 export interface TaskBrief {
@@ -367,6 +374,13 @@ export interface MyTaskItem {
   reviewNote?: string;
   reviewedByName?: string;
   reviewedAt?: string;
+  /** 采购回填的真实型号 */
+  actualModel?: string;
+  /** 建档状态：0-未处理、1-已建档、2-候选中、3-待回填真实型号 */
+  archiveStatus?: number;
+  archiveStatusName?: string;
+  /** 已建档时关联的商品 */
+  productId?: number | null;
 }
 
 export interface QuoteEntry {
@@ -714,6 +728,13 @@ export const myTaskApi = {
       `${MY}/${id}/paste-preview`,
       { text },
     ),
+  /** 采购回填真实型号：离开输入框即保存，不受「已报给客户」限制 */
+  saveActualModel: (id: number, itemId: number, actualModel: string) =>
+    send<{
+      actualModel: string;
+      archiveStatus: number;
+      archiveStatusName?: string;
+    }>('PUT', `${MY}/${id}/items/${itemId}/actual-model`, { actualModel }),
   returnTask: (id: number, reason: number, note?: string) =>
     send<void>('POST', `${MY}/${id}/return`, { reason, note }),
   downloadPackage: (taskIds: number[]) =>

@@ -84,6 +84,8 @@ interface ItemState {
   /** 生产状态（字典 inquiry_lifecycle 码值），采购询价时核实后可改 */
   lifecycle: number;
   replacementModel: string;
+  /** 采购回填的真实型号（询盘原文不是型号或写错时） */
+  actualModel: string;
   /** 编辑器里的内容来自已提交的回价（修改回价）；没改动时不随提交重新提交 */
   submittedBase: boolean;
   dirty: boolean;
@@ -212,6 +214,7 @@ const MyTasksPage: React.FC = () => {
           noStockNote: base.find((q) => q.noStock)?.note ?? '',
           lifecycle: it.lifecycle || LIFECYCLE_UNKNOWN,
           replacementModel: it.replacementModel ?? '',
+          actualModel: it.actualModel ?? '',
           submittedBase: !hasDraft && base.length > 0,
           dirty: false,
         };
@@ -389,6 +392,37 @@ const MyTasksPage: React.FC = () => {
       buildTaskScript(detail.task.brand, list),
       `已复制 ${list.length} 个型号的话术${onlyPending ? '（只含未回价的）' : ''}`,
     );
+  };
+
+  /** 真实型号离开输入框即保存（只影响建档，不随回价提交） */
+  const saveActualModel = async (itemId: number) => {
+    if (!detail) return;
+    const item = detail.items.find((i) => i.id === itemId);
+    const value = (state[itemId]?.actualModel ?? '').trim();
+    if (!item || value === (item.actualModel ?? '')) return;
+    try {
+      const r = await myTaskApi.saveActualModel(detail.task.id, itemId, value);
+      setDetail((d) =>
+        d
+          ? {
+              ...d,
+              items: d.items.map((i) =>
+                i.id === itemId
+                  ? {
+                      ...i,
+                      actualModel: r.actualModel,
+                      archiveStatus: r.archiveStatus,
+                      archiveStatusName: r.archiveStatusName,
+                    }
+                  : i,
+              ),
+            }
+          : d,
+      );
+      message.success(value ? `真实型号已保存：${value}` : '已清空真实型号');
+    } catch (e) {
+      message.error(readBizError(e).message);
+    }
   };
 
   const copy = (text: string, ok = '话术已复制') => {
@@ -717,6 +751,9 @@ const MyTasksPage: React.FC = () => {
                     {it.locked && (
                       <Pill tone="violet">已报给客户，回价只读</Pill>
                     )}
+                    {it.archiveStatus === 3 && !s.actualModel.trim() && (
+                      <Pill tone="orange">待回填真实型号</Pill>
+                    )}
                     <span
                       style={{
                         display: 'inline-flex',
@@ -750,6 +787,45 @@ const MyTasksPage: React.FC = () => {
                           }
                         />
                       )}
+                      <span
+                        style={{
+                          marginLeft: 6,
+                          color:
+                            it.archiveStatus === 3 ? palette.orange : undefined,
+                          fontWeight: it.archiveStatus === 3 ? 600 : undefined,
+                        }}
+                      >
+                        真实型号
+                      </span>
+                      <Input
+                        size="small"
+                        style={{ width: 180 }}
+                        placeholder={
+                          it.archiveStatus === 3
+                            ? '询盘写的不是型号，填问到的型号'
+                            : '不同时填写，如型号写错'
+                        }
+                        maxLength={128}
+                        disabled={!editable}
+                        status={
+                          it.archiveStatus === 3 && !s.actualModel.trim()
+                            ? 'warning'
+                            : undefined
+                        }
+                        value={s.actualModel}
+                        onChange={(e) =>
+                          setState((prev) => ({
+                            ...prev,
+                            [it.id]: {
+                              ...prev[it.id],
+                              actualModel: e.target.value,
+                            },
+                          }))
+                        }
+                        onBlur={() => saveActualModel(it.id)}
+                        onPressEnter={() => saveActualModel(it.id)}
+                        aria-label={`${it.model} 真实型号`}
+                      />
                     </span>
                     {it.difficulty > 0 && (
                       <span style={{ color: palette.mute, fontSize: 12 }}>

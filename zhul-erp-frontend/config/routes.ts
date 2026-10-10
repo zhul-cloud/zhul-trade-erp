@@ -68,6 +68,13 @@ export default [
         component: './product/products/detail',
       },
       {
+        path: '/product/candidates',
+        name: 'candidates',
+        icon: 'audit',
+        access: 'productCandidates',
+        component: './product/candidates',
+      },
+      {
         path: '/product/brands',
         name: 'brands',
         icon: 'tag',
