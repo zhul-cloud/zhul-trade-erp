@@ -2,6 +2,7 @@ import {
   CopyOutlined,
   DeleteOutlined,
   DownloadOutlined,
+  DownOutlined,
   ExportOutlined,
   FireOutlined,
   PlusOutlined,
@@ -15,6 +16,7 @@ import {
   App,
   Button,
   Checkbox,
+  Dropdown,
   Input,
   InputNumber,
   Modal,
@@ -22,6 +24,7 @@ import {
   Segmented,
   Select,
   Skeleton,
+  Space,
   Tooltip,
 } from 'antd';
 import dayjs from 'dayjs';
@@ -68,6 +71,7 @@ import {
 } from '../shared/service';
 import PasteQuoteModal, { type PasteFill } from './PasteQuoteModal';
 import SupplierSelect from './SupplierSelect';
+import { buildTaskScript, pendingItems } from './taskScript';
 
 interface DraftEntry extends QuoteEntry {
   key: string;
@@ -377,10 +381,20 @@ const MyTasksPage: React.FC = () => {
     );
   };
 
-  const copy = (text: string) => {
+  /** 合并话术：本任务的全部型号，或只含本人还没回价的型号 */
+  const copyTaskScript = (onlyPending: boolean) => {
+    if (!detail) return;
+    const list = onlyPending ? pendingItems(detail.items) : detail.items;
+    copy(
+      buildTaskScript(detail.task.brand, list),
+      `已复制 ${list.length} 个型号的话术${onlyPending ? '（只含未回价的）' : ''}`,
+    );
+  };
+
+  const copy = (text: string, ok = '话术已复制') => {
     navigator.clipboard
       .writeText(text)
-      .then(() => message.success('话术已复制'))
+      .then(() => message.success(ok))
       .catch(() => message.error('复制失败，请手动选择复制'));
   };
 
@@ -574,6 +588,40 @@ const MyTasksPage: React.FC = () => {
                     >
                       粘贴报价
                     </Button>
+                  )}
+                  {detail.items.length > 0 && (
+                    <Space.Compact size="small">
+                      <Button
+                        icon={<CopyOutlined />}
+                        onClick={() => copyTaskScript(false)}
+                      >
+                        复制全部话术
+                      </Button>
+                      <Dropdown
+                        trigger={['click']}
+                        placement="bottomRight"
+                        menu={{
+                          items: [
+                            {
+                              key: 'all',
+                              label: `复制全部话术（${detail.items.length} 个型号）`,
+                            },
+                            {
+                              key: 'pending',
+                              label: `只复制未回价的型号（${pendingItems(detail.items).length} 个）`,
+                              disabled: pendingItems(detail.items).length === 0,
+                            },
+                          ],
+                          onClick: ({ key }) =>
+                            copyTaskScript(key === 'pending'),
+                        }}
+                      >
+                        <Button
+                          icon={<DownOutlined />}
+                          aria-label="复制话术的更多选项"
+                        />
+                      </Dropdown>
+                    </Space.Compact>
                   )}
                   {!done && (
                     <Button
