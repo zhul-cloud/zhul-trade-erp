@@ -104,8 +104,9 @@ public class ProductServiceImpl implements ProductService {
                 .eq(query.getStatus() != null, ProductDO::getStatus, query.getStatus());
         Integer heatTenant = platformScopeGuard.isPlatform() ? null : com.zhul.erp.framework.tenant.TenantContext.getTenantId();
         String heatOrder = heatOrder(query.getSort(), heatTenant);
+        // 默认按更新时间倒序（列表页统一规范）
         if (heatOrder == null) {
-            wrapper.orderByDesc(ProductDO::getId);
+            wrapper.orderByDesc(ProductDO::getUpdateTime).orderByDesc(ProductDO::getId);
         }
         // 缺项筛选只对平台账号生效，租户账号传了也当没传
         if (platformScopeGuard.isPlatform() && StringUtils.hasText(query.getMissing())) {
@@ -154,12 +155,12 @@ public class ProductServiceImpl implements ProductService {
         String tenant = tenantId == null ? "" : " AND x.tenant_id = " + tenantId.intValue();
         if ("inquiryCount".equals(sort)) {
             return "ORDER BY (SELECT COUNT(*) FROM inquiry_item x WHERE x.product_id = product.id AND x.deleted_at IS NULL" + tenant
-                    + ") DESC, id DESC";
+                    + ") DESC, update_time DESC, id DESC";
         }
         if ("dealCount".equals(sort)) {
             return "ORDER BY (SELECT COUNT(DISTINCT soi.so_id) FROM sales_order_item soi JOIN inquiry_item ii ON ii.id = soi.inquiry_item_id "
                     + "JOIN sales_order x ON x.id = soi.so_id WHERE ii.product_id = product.id AND soi.deleted_at IS NULL "
-                    + "AND x.deleted_at IS NULL AND x.status = 1" + tenant + ") DESC, id DESC";
+                    + "AND x.deleted_at IS NULL AND x.status = 1" + tenant + ") DESC, update_time DESC, id DESC";
         }
         return null;
     }
@@ -502,6 +503,7 @@ public class ProductServiceImpl implements ProductService {
         if (category != null) {
             vo.setCategoryCode(category.getCategoryCode());
             vo.setCategoryName(category.getCategoryName());
+            vo.setCategoryNameZh(category.getCategoryNameZh());
         }
         vo.setSeriesId(product.getSeriesId());
         if (product.getSeriesId() != null) {
@@ -519,7 +521,9 @@ public class ProductServiceImpl implements ProductService {
         vo.setStatus(product.getStatus());
         vo.setDeleted(product.getDeletedAt() != null);
         vo.setCreateTime(product.getCreateTime());
+        vo.setCreateBy(product.getCreateBy());
         vo.setUpdateTime(product.getUpdateTime());
+        vo.setUpdateBy(product.getUpdateBy());
         return vo;
     }
 }

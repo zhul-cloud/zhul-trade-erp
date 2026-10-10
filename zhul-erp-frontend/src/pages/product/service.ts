@@ -266,6 +266,8 @@ export interface Product {
   categoryId: number;
   categoryCode?: string;
   categoryName?: string;
+  /** 品类中文名 */
+  categoryNameZh?: string;
   seriesId?: number;
   seriesName?: string;
   mpnRaw: string;
@@ -285,7 +287,9 @@ export interface Product {
   inquiryCount?: number;
   dealCount?: number;
   createTime: string;
+  createBy?: string;
   updateTime: string;
+  updateBy?: string;
 }
 
 export interface SaveProduct {

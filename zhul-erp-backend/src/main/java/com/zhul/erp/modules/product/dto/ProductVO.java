@@ -15,6 +15,8 @@ public class ProductVO {
     private Long categoryId;
     private String categoryCode;
     private String categoryName;
+    /** 品类中文名（系统内展示用） */
+    private String categoryNameZh;
     private Long seriesId;
     private String seriesName;
     private String mpnRaw;
@@ -35,7 +37,9 @@ public class ProductVO {
     /** 档案完整度，仅平台账号返回，租户账号为 null */
     private CompletenessVO completeness;
     private LocalDateTime createTime;
+    private String createBy;
     private LocalDateTime updateTime;
+    private String updateBy;
     /** 需求热度：关联的询盘型号数、有效销售订单数；租户只统计本公司 */
     private Long inquiryCount;
     private Long dealCount;

@@ -23,6 +23,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
+import { auditColumns } from '@/pages/purchase/components';
 import { CompletenessBar } from '../components/CompletenessBar';
 import { EmptyHint, ErrorHint } from '../components/EmptyHint';
 import { BrandMark, LifecyclePill, Pill } from '../components/Pills';
@@ -379,10 +380,14 @@ const ProductListInner: React.FC = () => {
       ),
     },
     {
-      title: '系列',
-      dataIndex: 'seriesName',
-      width: 120,
-      render: (v) => <span style={{ whiteSpace: 'nowrap' }}>{v || '—'}</span>,
+      title: '品类',
+      dataIndex: 'categoryName',
+      width: 130,
+      render: (v, r) => (
+        <span style={{ whiteSpace: 'nowrap' }}>
+          {r.categoryNameZh || v || '—'}
+        </span>
+      ),
     },
     {
       title: '生命周期',
@@ -452,17 +457,7 @@ const ProductListInner: React.FC = () => {
           <Pill tone="gray">已停用</Pill>
         ),
     },
-    {
-      title: '更新时间',
-      dataIndex: 'updateTime',
-      width: 150,
-      defaultSortOrder: 'descend',
-      sorter: (a, b) =>
-        dayjs(a.updateTime).valueOf() - dayjs(b.updateTime).valueOf(),
-      render: (v) => (
-        <span className="num">{dayjs(v).format('YYYY-MM-DD HH:mm')}</span>
-      ),
-    },
+    ...auditColumns<Product>(),
     ...(canEdit
       ? ([
           {
@@ -750,7 +745,7 @@ const ProductListInner: React.FC = () => {
             dataSource={rows}
             loading={loading}
             sticky
-            scroll={{ x: 900 }}
+            scroll={{ x: 1600 }}
             rowSelection={
               platform
                 ? {
