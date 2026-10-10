@@ -108,7 +108,10 @@ export interface Category {
   parentId?: number | null;
   /** 细分品类（树形接口返回） */
   children?: Category[];
+  /** 英文简介（独立站等对外场景） */
   description: string;
+  /** 中文简介（系统内显示） */
+  descriptionZh: string;
   sortOrder: number;
   status: number;
   productCount: number;
@@ -125,6 +128,7 @@ export interface CategoryOption {
   categoryNameZh?: string;
   parentId?: number | null;
   description: string;
+  descriptionZh?: string;
 }
 
 export interface SaveCategory {
@@ -134,6 +138,7 @@ export interface SaveCategory {
   /** 为空建一级品类，否则建该一级品类下的细分品类 */
   parentId?: number | null;
   description?: string;
+  descriptionZh?: string;
   sortOrder?: number;
 }
 

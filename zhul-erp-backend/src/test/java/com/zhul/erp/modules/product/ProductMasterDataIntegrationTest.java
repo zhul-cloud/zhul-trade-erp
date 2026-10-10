@@ -245,6 +245,21 @@ class ProductMasterDataIntegrationTest extends IntegrationTestBase {
     }
 
     @Test
+    void categoryKeepsChineseAndEnglishDescriptions() {
+        SaveCategoryRequest req = categoryRequest("drives", "Drives");
+        req.setDescriptionZh("变频器与驱动");
+        req.setDescription("Inverters and drives");
+        CategoryVO created = categoryService.create(req);
+        assertEquals("变频器与驱动", created.getDescriptionZh());
+        assertEquals("Inverters and drives", created.getDescription());
+        assertEquals("变频器与驱动", categoryService.options(1).stream()
+                .filter(c -> c.getId().equals(created.getId())).findFirst().orElseThrow().getDescriptionZh());
+
+        req.setDescriptionZh("长".repeat(501));
+        assertThrows(BizException.class, () -> categoryService.update(created.getId(), req), "中文简介超长");
+    }
+
+    @Test
     void seriesWithProductsCannotBeDeleted() {
         long brandId = brandService.create(brandRequest("Siemens")).getId();
         long seriesId = seriesService.create(seriesRequest(brandId, "S7-1200")).getId();

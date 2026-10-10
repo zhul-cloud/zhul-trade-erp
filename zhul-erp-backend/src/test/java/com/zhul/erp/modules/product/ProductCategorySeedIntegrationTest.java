@@ -20,7 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 class ProductCategorySeedIntegrationTest extends IntegrationTestBase {
 
     private static final List<String> SCRIPTS = List.of("db/migration/V1.2.45__seed_product_categories.sql",
-            "db/migration/V1.2.46__other_category.sql");
+            "db/migration/V1.2.46__other_category.sql", "db/migration/V1.2.50__seed_category_descriptions.sql");
 
     @Autowired
     private DataSource dataSource;
@@ -73,6 +73,11 @@ class ProductCategorySeedIntegrationTest extends IntegrationTestBase {
         assertEquals("other", order.get(16), "兜底品类「其他」排在最后");
         assertEquals("其他", category("other").get("category_name_zh"));
         assertEquals("Others", category("other").get("category_name"));
+        assertEquals("可编程控制器 CPU、I/O 与通讯模块、分布式 I/O、安全控制器与运动控制器，以及电源、机架等配件。",
+                category("plc").get("description_zh"));
+        assertEquals(0, jdbc.queryForObject("select count(*) from product_category where tenant_id = 0 and parent_id is null "
+                + "and deleted_at is null and status = 1 and (description = '' or description_zh = '')", Integer.class),
+                "17 个一级品类都有中英文简介");
     }
 
     @Test
@@ -122,8 +127,11 @@ class ProductCategorySeedIntegrationTest extends IntegrationTestBase {
         assertEquals(0, ((Number) root.get("status")).intValue());
         assertEquals(2, jdbc.queryForObject("select count(*) from supplier_product_scope where supplier_id = 99000777", Integer.class));
 
+        // 已有简介不覆盖
+        jdbc.update("update product_category set description_zh = '人工写的' where category_code = 'servo'");
         runScript();
         assertSeeded();
         assertEquals(plcId, id("plc"), "再次执行结果一致");
+        assertEquals("人工写的", category("servo").get("description_zh"));
     }
 }

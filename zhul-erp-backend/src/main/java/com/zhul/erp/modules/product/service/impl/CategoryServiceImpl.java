@@ -110,6 +110,7 @@ public class CategoryServiceImpl implements CategoryService {
             vo.setCategoryNameZh(category.getCategoryNameZh());
             vo.setParentId(category.getParentId());
             vo.setDescription(category.getDescription());
+            vo.setDescriptionZh(category.getDescriptionZh());
             options.add(vo);
         }
         optionsCache.put(ProductConstants.CACHE_KEY_CATEGORY_OPTIONS, options);
@@ -132,7 +133,8 @@ public class CategoryServiceImpl implements CategoryService {
         category.setTenantId(ProductConstants.PLATFORM_TENANT_ID);
         category.setCategoryCode(code);
         category.setCategoryName(name);
-        category.setDescription(TextRules.optional(req.getDescription(), "品类简介", ProductConstants.DESCRIPTION_MAX));
+        category.setDescription(TextRules.optional(req.getDescription(), "英文简介", ProductConstants.DESCRIPTION_MAX));
+        category.setDescriptionZh(TextRules.optional(req.getDescriptionZh(), "中文简介", ProductConstants.DESCRIPTION_MAX));
         category.setSortOrder(req.getSortOrder() == null ? 0 : req.getSortOrder());
         category.setStatus(ProductConstants.STATUS_ENABLED);
         try {
@@ -170,7 +172,8 @@ public class CategoryServiceImpl implements CategoryService {
         change.setCategoryCode(code);
         change.setCategoryName(name);
         change.setCategoryNameZh(nameZh);
-        change.setDescription(TextRules.optional(req.getDescription(), "品类简介", ProductConstants.DESCRIPTION_MAX));
+        change.setDescription(TextRules.optional(req.getDescription(), "英文简介", ProductConstants.DESCRIPTION_MAX));
+        change.setDescriptionZh(TextRules.optional(req.getDescriptionZh(), "中文简介", ProductConstants.DESCRIPTION_MAX));
         change.setSortOrder(req.getSortOrder() == null ? current.getSortOrder() : req.getSortOrder());
         try {
             categoryMapper.updateById(change);
@@ -350,6 +353,7 @@ public class CategoryServiceImpl implements CategoryService {
         vo.setCategoryNameZh(category.getCategoryNameZh());
         vo.setParentId(category.getParentId());
         vo.setDescription(category.getDescription());
+        vo.setDescriptionZh(category.getDescriptionZh());
         vo.setSortOrder(category.getSortOrder());
         vo.setStatus(category.getStatus());
         vo.setProductCount(productCount);
