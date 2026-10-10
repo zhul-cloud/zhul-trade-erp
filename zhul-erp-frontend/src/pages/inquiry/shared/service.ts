@@ -319,6 +319,8 @@ export interface MyTask {
   timeout: boolean;
   remainingMinutes?: number;
   assignedAt?: string;
+  /** 任务更新时间与本人最近一次保存回价时间的较晚者 */
+  updateTime?: string;
   shared: boolean;
 }
 
@@ -381,6 +383,22 @@ export interface QuoteEntry {
   note?: string;
   /** 推荐报价，同一型号最多一条；都不标时按全新原装最低价自动推荐 */
   recommended?: boolean;
+}
+
+/** 粘贴报价识别出的一行（不落库，预览修改后填进草稿） */
+export interface PasteRow {
+  raw: string;
+  itemId?: number | null;
+  model?: string | null;
+  unitPrice?: number | null;
+  taxIncluded: boolean;
+  taxRate?: number | null;
+  itemCondition: number;
+  leadTime: number;
+  note: string;
+  status: 'MATCHED' | 'UNMATCHED' | 'NO_PRICE';
+  /** 型号已报给客户，回价不能再修改 */
+  locked: boolean;
 }
 
 export interface ItemQuotes {
@@ -690,6 +708,12 @@ export const myTaskApi = {
     ),
   save: (id: number, items: ItemQuotes[], submit: boolean) =>
     send<void>('PUT', `${MY}/${id}/quotes`, { items, submit }),
+  pastePreview: (id: number, text: string) =>
+    send<{ rows: PasteRow[]; common: string }>(
+      'POST',
+      `${MY}/${id}/paste-preview`,
+      { text },
+    ),
   returnTask: (id: number, reason: number, note?: string) =>
     send<void>('POST', `${MY}/${id}/return`, { reason, note }),
   downloadPackage: (taskIds: number[]) =>

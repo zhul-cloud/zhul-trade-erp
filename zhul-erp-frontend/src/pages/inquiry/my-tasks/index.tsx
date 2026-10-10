@@ -7,6 +7,7 @@ import {
   PlusOutlined,
   RollbackOutlined,
   SendOutlined,
+  SnippetsOutlined,
   UploadOutlined,
 } from '@ant-design/icons';
 import {
@@ -65,6 +66,7 @@ import {
   type QuoteEntry,
   readBizError,
 } from '../shared/service';
+import PasteQuoteModal, { type PasteFill } from './PasteQuoteModal';
 import SupplierSelect from './SupplierSelect';
 
 interface DraftEntry extends QuoteEntry {
@@ -146,6 +148,7 @@ const MyTasksPage: React.FC = () => {
   const [returnReason, setReturnReason] = useState(1);
   const [returnNote, setReturnNote] = useState('');
   const [importOpen, setImportOpen] = useState(false);
+  const [pasteOpen, setPasteOpen] = useState(false);
   const [counts, setCounts] = useState<{ pending: number; done: number }>({
     pending: 0,
     done: 0,
@@ -337,6 +340,43 @@ const MyTasksPage: React.FC = () => {
     }
   };
 
+  /**
+   * 粘贴报价填入草稿：同一渠道 + 店铺（供应商按 ID）已有的草稿覆盖，否则追加；同一批里同一型号的后几行追加，不互相覆盖。
+   * 只改编辑区，不保存。
+   */
+  const fillPasted = (fills: PasteFill[], source: string) => {
+    setState((prev) => {
+      const next = { ...prev };
+      const replaced = new Set<number>();
+      for (const { itemId, entry } of fills) {
+        const s = next[itemId];
+        if (!s) continue;
+        const same = (d: DraftEntry) =>
+          d.channel === entry.channel &&
+          (entry.channel === CHANNEL_SUPPLIER
+            ? d.supplierId === entry.supplierId
+            : (d.shopName ?? '').trim() === (entry.shopName ?? '').trim());
+        // 去掉还没填的空白行
+        let drafts = s.drafts.filter((d) => d.unitPrice != null || d.shopName);
+        const at = replaced.has(itemId) ? -1 : drafts.findIndex(same);
+        const fresh = { ...entry, key: `q${++seq}` };
+        drafts =
+          at >= 0
+            ? drafts.map((d, i) =>
+                i === at ? { ...fresh, recommended: d.recommended } : d,
+              )
+            : [...drafts, fresh];
+        replaced.add(itemId);
+        next[itemId] = { ...s, drafts, noStock: false, dirty: true };
+      }
+      return next;
+    });
+    setPasteOpen(false);
+    message.success(
+      `已填入 ${fills.length} 条报价（${source}），还没有保存：核对后点「保存草稿」或「${done ? '保存修改' : '提交回价'}」`,
+    );
+  };
+
   const copy = (text: string) => {
     navigator.clipboard
       .writeText(text)
@@ -476,6 +516,11 @@ const MyTasksPage: React.FC = () => {
                         : `还剩 ${formatMinutes(t.remainingMinutes)}`}
                   </span>
                 </span>
+                {t.updateTime && (
+                  <span style={{ fontSize: 12, color: palette.faint }}>
+                    更新 {dayjs(t.updateTime).format('MM-DD HH:mm')}
+                  </span>
+                )}
               </button>
             ))
           )}
@@ -521,6 +566,15 @@ const MyTasksPage: React.FC = () => {
                   customerName={detail.task.customerName}
                 />
                 <span style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
+                  {editable && (
+                    <Button
+                      size="small"
+                      icon={<SnippetsOutlined />}
+                      onClick={() => setPasteOpen(true)}
+                    >
+                      粘贴报价
+                    </Button>
+                  )}
                   {!done && (
                     <Button
                       size="small"
@@ -1186,6 +1240,21 @@ const MyTasksPage: React.FC = () => {
           选「型号存疑」会提醒业务员核实。
         </div>
       </Modal>
+
+      {detail && (
+        <PasteQuoteModal
+          open={pasteOpen}
+          taskId={detail.task.id}
+          taskCode={detail.task.taskCode}
+          items={detail.items.map((i) => ({
+            id: i.id,
+            model: i.model,
+            locked: i.locked,
+          }))}
+          onClose={() => setPasteOpen(false)}
+          onFill={fillPasted}
+        />
+      )}
 
       <ImportModal
         open={importOpen}
