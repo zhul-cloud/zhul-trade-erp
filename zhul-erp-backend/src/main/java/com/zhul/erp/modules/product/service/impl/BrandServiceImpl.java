@@ -62,6 +62,9 @@ public class BrandServiceImpl implements BrandService {
                 .eq(ProductBrandDO::getTenantId, ProductConstants.PLATFORM_TENANT_ID)
                 .isNull(ProductBrandDO::getDeletedAt)
                 .eq(query.getStatus() != null, ProductBrandDO::getStatus, query.getStatus())
+                .eq(query.getBrandLevel() != null, ProductBrandDO::getBrandLevel, query.getBrandLevel())
+                .eq(StringUtils.hasText(query.getCountry()), ProductBrandDO::getCountry, query.getCountry())
+                .orderByDesc(ProductBrandDO::getBrandLevel)
                 .orderByAsc(ProductBrandDO::getBrandName)
                 .orderByAsc(ProductBrandDO::getId);
         if (StringUtils.hasText(query.getKeyword())) {
@@ -98,6 +101,7 @@ public class BrandServiceImpl implements BrandService {
                 .eq(ProductBrandDO::getTenantId, ProductConstants.PLATFORM_TENANT_ID)
                 .isNull(ProductBrandDO::getDeletedAt)
                 .eq(ProductBrandDO::getStatus, ProductConstants.STATUS_ENABLED)
+                .orderByDesc(ProductBrandDO::getBrandLevel)
                 .orderByAsc(ProductBrandDO::getBrandName)
                 .orderByAsc(ProductBrandDO::getId));
         Map<Long, List<String>> aliases = aliasesOf(brands.stream().map(ProductBrandDO::getId).toList());
@@ -108,6 +112,8 @@ public class BrandServiceImpl implements BrandService {
             vo.setBrandName(brand.getBrandName());
             vo.setLogoUrl(brand.getLogoUrl());
             vo.setDescription(brand.getDescription());
+            vo.setDescriptionZh(brand.getDescriptionZh());
+            vo.setBrandLevel(brand.getBrandLevel());
             vo.setIsGenuine(brand.getIsGenuine());
             vo.setAliases(aliases.getOrDefault(brand.getId(), List.of()));
             options.add(vo);
@@ -130,7 +136,9 @@ public class BrandServiceImpl implements BrandService {
         brand.setCountry(validCountry(req.getCountry()));
         brand.setLogoUrl(TextRules.optional(req.getLogoUrl(), "Logo 地址", 256));
         brand.setBrandColor(validColor(req.getBrandColor()));
-        brand.setDescription(TextRules.optional(req.getDescription(), "品牌简介", ProductConstants.DESCRIPTION_MAX));
+        brand.setDescription(TextRules.optional(req.getDescription(), "英文简介", ProductConstants.DESCRIPTION_MAX));
+        brand.setDescriptionZh(TextRules.optional(req.getDescriptionZh(), "中文简介", ProductConstants.DESCRIPTION_MAX));
+        brand.setBrandLevel(level(req.getBrandLevel(), ProductConstants.BRAND_LEVEL_NORMAL));
         brand.setIsGenuine(genuine(req.getIsGenuine(), 1));
         brand.setStatus(ProductConstants.STATUS_ENABLED);
         try {
@@ -161,7 +169,9 @@ public class BrandServiceImpl implements BrandService {
         change.setCountry(validCountry(req.getCountry()));
         change.setLogoUrl(TextRules.optional(req.getLogoUrl(), "Logo 地址", 256));
         change.setBrandColor(validColor(req.getBrandColor()));
-        change.setDescription(TextRules.optional(req.getDescription(), "品牌简介", ProductConstants.DESCRIPTION_MAX));
+        change.setDescription(TextRules.optional(req.getDescription(), "英文简介", ProductConstants.DESCRIPTION_MAX));
+        change.setDescriptionZh(TextRules.optional(req.getDescriptionZh(), "中文简介", ProductConstants.DESCRIPTION_MAX));
+        change.setBrandLevel(level(req.getBrandLevel(), current.getBrandLevel()));
         change.setIsGenuine(genuine(req.getIsGenuine(), current.getIsGenuine()));
         try {
             brandMapper.updateById(change);
@@ -404,6 +414,35 @@ public class BrandServiceImpl implements BrandService {
         return map;
     }
 
+    @Override
+    public Map<String, Long> levelCounts(BrandQuery query) {
+        Map<String, Long> result = new LinkedHashMap<>();
+        result.put("all", 0L);
+        for (int lv = ProductConstants.BRAND_LEVEL_CORE; lv >= ProductConstants.BRAND_LEVEL_NORMAL; lv--) {
+            result.put(String.valueOf(lv), 0L);
+        }
+        for (ProductBrandDO b : brandMapper.selectList(new LambdaQueryWrapper<ProductBrandDO>()
+                .select(ProductBrandDO::getBrandLevel)
+                .eq(ProductBrandDO::getTenantId, ProductConstants.PLATFORM_TENANT_ID)
+                .isNull(ProductBrandDO::getDeletedAt)
+                .eq(query.getStatus() != null, ProductBrandDO::getStatus, query.getStatus()))) {
+            result.merge(String.valueOf(b.getBrandLevel()), 1L, Long::sum);
+            result.merge("all", 1L, Long::sum);
+        }
+        return result;
+    }
+
+    /** 品牌等级：只能是 0-普通、1-常做、2-核心；不传时用默认值 */
+    private static int level(Integer value, Integer fallback) {
+        if (value == null) {
+            return fallback == null ? ProductConstants.BRAND_LEVEL_NORMAL : fallback;
+        }
+        if (value < ProductConstants.BRAND_LEVEL_NORMAL || value > ProductConstants.BRAND_LEVEL_CORE) {
+            throw BizException.of(ProductErrorCodes.PARAM_INVALID, "品牌等级只能是核心、常做或普通");
+        }
+        return value;
+    }
+
     private static BrandVO toVO(ProductBrandDO brand, long productCount) {
         BrandVO vo = new BrandVO();
         vo.setId(brand.getId());
@@ -412,6 +451,8 @@ public class BrandServiceImpl implements BrandService {
         vo.setLogoUrl(brand.getLogoUrl());
         vo.setBrandColor(brand.getBrandColor());
         vo.setDescription(brand.getDescription());
+        vo.setDescriptionZh(brand.getDescriptionZh());
+        vo.setBrandLevel(brand.getBrandLevel());
         vo.setIsGenuine(brand.getIsGenuine());
         vo.setStatus(brand.getStatus());
         vo.setProductCount(productCount);

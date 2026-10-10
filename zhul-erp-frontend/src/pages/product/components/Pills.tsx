@@ -2,9 +2,9 @@ import React from 'react';
 import { LIFECYCLE_META } from '../constants';
 import { useProductTheme } from '../theme';
 
-type Tone = 'green' | 'orange' | 'red' | 'gray' | 'accent';
+type Tone = 'green' | 'orange' | 'red' | 'gray' | 'accent' | 'violet';
 
-/** 胶囊标签：颜色只用来表达状态（绿=正常、橙=注意、红=停产/风险、灰=未知/无、蓝=强调） */
+/** 胶囊标签：颜色只用来表达状态（绿=正常、橙=注意、红=停产/风险、灰=未知/无、蓝=强调、紫=核心） */
 export const Pill: React.FC<{
   tone: Tone;
   children: React.ReactNode;
@@ -17,6 +17,7 @@ export const Pill: React.FC<{
     red: { fg: palette.red, bg: palette.redSoft },
     gray: { fg: palette.sub, bg: palette.inset },
     accent: { fg: palette.link, bg: palette.accentSoft },
+    violet: { fg: palette.violet, bg: palette.violetSoft },
   };
   const c = map[tone];
   return (

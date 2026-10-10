@@ -16,6 +16,11 @@ public final class ProductConstants {
     /** 品牌、品类简介的长度上限 */
     public static final int DESCRIPTION_MAX = 500;
 
+    /** 品牌等级：0-普通、1-常做、2-核心 */
+    public static final int BRAND_LEVEL_NORMAL = 0;
+    public static final int BRAND_LEVEL_FREQUENT = 1;
+    public static final int BRAND_LEVEL_CORE = 2;
+
     public static final String CACHE_KEY_BRAND_OPTIONS = "zhul:erp:list:0:product_brand";
     /** 品类选项缓存，规则同上 */
     public static final String CACHE_KEY_CATEGORY_OPTIONS = "zhul:erp:list:0:product_category";

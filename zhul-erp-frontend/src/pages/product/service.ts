@@ -56,7 +56,12 @@ export interface Brand {
   country: string;
   logoUrl: string;
   brandColor: string;
+  /** 英文简介（独立站等对外场景） */
   description: string;
+  /** 中文简介（系统内显示） */
+  descriptionZh: string;
+  /** 0-普通、1-常做、2-核心 */
+  brandLevel: number;
   isGenuine: number;
   status: number;
   productCount: number;
@@ -73,6 +78,9 @@ export interface BrandOption {
   brandName: string;
   logoUrl: string;
   description: string;
+  descriptionZh?: string;
+  /** 0-普通、1-常做、2-核心；后端已按等级、名称排序 */
+  brandLevel?: number;
   isGenuine: number;
   aliases?: string[];
 }
@@ -83,6 +91,8 @@ export interface SaveBrand {
   logoUrl?: string;
   brandColor?: string;
   description?: string;
+  descriptionZh?: string;
+  brandLevel?: number;
   isGenuine?: number;
   /** 为空不修改，空数组清空 */
   aliases?: string[];
@@ -159,8 +169,18 @@ export const countryApi = {
 };
 
 export const brandApi = {
-  page: (params: PageParams & { keyword?: string; status?: number }) =>
-    call<PageResult<Brand>>(`${BASE}/brands`, { params }),
+  page: (
+    params: PageParams & {
+      keyword?: string;
+      status?: number;
+      brandLevel?: number;
+      /** 原产地（国家清单英文名） */
+      country?: string;
+    },
+  ) => call<PageResult<Brand>>(`${BASE}/brands`, { params }),
+  /** 各等级品牌数：all / 2 / 1 / 0 */
+  levelCounts: (params: { status?: number }) =>
+    call<Record<string, number>>(`${BASE}/brands/level-counts`, { params }),
   options: () => call<BrandOption[]>(`${BASE}/brands/options`),
   create: (data: SaveBrand) =>
     call<Brand>(`${BASE}/brands`, { method: 'POST', data }),

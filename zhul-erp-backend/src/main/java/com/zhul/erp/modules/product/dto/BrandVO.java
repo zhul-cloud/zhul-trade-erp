@@ -13,6 +13,9 @@ public class BrandVO {
     private String logoUrl;
     private String brandColor;
     private String description;
+    private String descriptionZh;
+    /** 0-普通、1-常做、2-核心 */
+    private Integer brandLevel;
     private Integer isGenuine;
     private Integer status;
     /** 下面未删除的商品数量 */
