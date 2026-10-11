@@ -18,6 +18,10 @@ public class ContentDraft {
     private String type;
     /** 营销包的平台编码（alibaba、mic、site、social），资料包为空 */
     private String platform;
+    /** 规范版本：2 为商品内容规范 v2，空为旧格式 */
+    private Integer schema;
+    /** v2 营销文件拆出的部分：keywords（关键词库）或平台编码；资料包与旧格式为空 */
+    private String part;
     /** 文件级错误：有则整个文件不能确认 */
     private List<String> errors = new ArrayList<>();
     /** 提示：跳过的空章节、不认识的章节、第三期章节等 */
@@ -39,8 +43,20 @@ public class ContentDraft {
         private List<KeywordRow> keywords = new ArrayList<>();
         /** 卖点，每条一行 */
         private List<String> points = new ArrayList<>();
-        /** 物流、海关字段：字段键（见 FactFields）→ 规范化后的值 */
+        /** 物流、海关、产品识别、SEO 字段：字段键 → 规范化后的值 */
         private Map<String, String> fields = new LinkedHashMap<>();
+        /** 备选标题 */
+        private List<TitleRow> titles = new ArrayList<>();
+        /** 产品属性、图片说明文字：两列 */
+        private List<PairRow> pairs = new ArrayList<>();
+        /** 关键未知字段、冲突与待确认 */
+        private List<NoteRow> notesRows = new ArrayList<>();
+        /** 来源索引 */
+        private List<SourceRow> sources = new ArrayList<>();
+        /** 选用关键词 */
+        private List<String> picks = new ArrayList<>();
+        /** 社媒帖子、视频方案 */
+        private List<PostRow> posts = new ArrayList<>();
         /** 块级错误：有则该块必须修改或跳过才能确认 */
         private List<String> errors = new ArrayList<>();
         /** 块级提示：去重、截断等（不影响确认） */
@@ -51,11 +67,20 @@ public class ContentDraft {
                 return text == null || text.isEmpty() ? 0 : 1;
             }
             return specs.size() + apps.size() + compat.size() + faqs.size() + docs.size() + keywords.size()
-                    + points.size() + fields.size();
+                    + points.size() + fields.size() + titles.size() + pairs.size() + notesRows.size() + sources.size()
+                    + picks.size() + posts.size();
         }
     }
 
-    public record SpecRow(String label, String value, String unit) {
+    /** 规格：v2 另有条件、证据状态、来源说明 */
+    public record SpecRow(String label, String value, String unit, String condition, String evidence, String sourceNote) {
+        public SpecRow(String label, String value, String unit) {
+            this(label, value, unit, "", "", "");
+        }
+
+        public SpecRow withSourceNote(String note) {
+            return new SpecRow(label, value, unit, condition, evidence, note);
+        }
     }
 
     public record AppRow(String icon, String title, String description) {
@@ -70,7 +95,28 @@ public class ContentDraft {
     public record DocRow(String title, String url) {
     }
 
-    /** tier：1-核心、2-主要、3-长尾 */
-    public record KeywordRow(String keyword, int tier) {
+    /** tier：1-核心、2-主要、3-长尾；v2 另有分类、搜索意图、事实依据 */
+    public record KeywordRow(String keyword, int tier, String category, String intent, String basis) {
+        public KeywordRow(String keyword, int tier) {
+            this(keyword, tier, "", "", "");
+        }
+    }
+
+    /** 标题：第一条为推荐 */
+    public record TitleRow(String title, String angle) {
+    }
+
+    public record PairRow(String name, String value) {
+    }
+
+    /** kind：1-关键未知字段、2-冲突与待确认 */
+    public record NoteRow(int kind, String item, String status, String impact) {
+    }
+
+    public record SourceRow(String code, String name, String link) {
+    }
+
+    /** 社媒帖子（channel 为 LinkedIn、Facebook）或视频方案（channel 为 YouTube）；text 为原文 */
+    public record PostRow(String channel, String label, String text) {
     }
 }

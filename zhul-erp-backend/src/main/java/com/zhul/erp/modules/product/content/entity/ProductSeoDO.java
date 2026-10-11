@@ -20,8 +20,13 @@ public class ProductSeoDO {
     private String lang;
     private String seoTitle;
     private String metaDescription;
+    private String h1;
+    /** URL 别名（建议） */
+    private String urlSlug;
     private String longDescription;
     private String geoAnswer;
+    /** 图片说明文字 JSON：[{image, alt}] */
+    private String altTexts;
     private Long importId;
     private LocalDateTime deletedAt;
     @TableField(fill = FieldFill.INSERT)

@@ -3,9 +3,21 @@ import {
   DownloadOutlined,
   DownOutlined,
   StopOutlined,
+  UpOutlined,
 } from '@ant-design/icons';
+import XMarkdown from '@ant-design/x-markdown';
 import { history, useAccess } from '@umijs/max';
-import { App, Button, Dropdown, Space, Switch, Typography } from 'antd';
+import '@ant-design/x-markdown/es/XMarkdown/index.css';
+import {
+  App,
+  Button,
+  Collapse,
+  Dropdown,
+  Space,
+  Switch,
+  Table,
+  Typography,
+} from 'antd';
 import dayjs from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
 import { LangSwitch } from '../../components/LangSwitch';
@@ -13,6 +25,7 @@ import { Pill } from '../../components/Pills';
 import {
   type ContentLang,
   contentApi,
+  type FactNote,
   type MarketingPlatform,
   type MarketingPlatformOption,
   type MarketingSkip,
@@ -56,7 +69,7 @@ export const PLATFORM_META: Record<
   site: {
     label: '独立站',
     short: '独立站',
-    file: '型号.site.md · 英文，俄文改 lang',
+    file: '型号.site.md · 英文',
   },
   social: { label: '社媒', short: '社媒', file: '型号.social.md · 英文' },
 };
@@ -251,7 +264,10 @@ export const factsSummary = (v: {
   return '还没有导入资料包';
 };
 
-/** 下载任务包；营销包要选平台，资料没补全或没核对时提醒一句，但不拦着 */
+/** 营销包下载范围：全部启用平台、某个平台、独立站俄文 */
+export type MarketingPick = MarketingPlatform | 'all' | 'site-ru';
+
+/** 下载任务包；营销包默认全部启用平台，资料没补全或没核对时提醒一句，但不拦着 */
 export const useDownloadPackage = () => {
   const { message } = App.useApp();
   /** 正在下载的包：facts 或营销平台 */
@@ -260,7 +276,7 @@ export const useDownloadPackage = () => {
     productIds: number[],
     type: PackageType,
     stages: number[] = [],
-    platform?: MarketingPlatform,
+    platform?: MarketingPick,
   ) => {
     if (type === 'marketing') {
       if (stages.some((s) => s === 1))
@@ -270,7 +286,11 @@ export const useDownloadPackage = () => {
     }
     setDownloading(platform ?? type);
     try {
-      await contentApi.download(productIds, type, platform);
+      await contentApi.download(
+        productIds,
+        type,
+        platform === 'all' ? undefined : platform,
+      );
     } catch (e) {
       message.error((e as Error).message);
     } finally {
@@ -347,53 +367,128 @@ export const FactsStatusBar: React.FC<{
   const { palette } = useProductTheme();
   const access = useAccess() as Record<string, boolean>;
   const { download, downloading } = useDownloadPackage();
+  const [showNotes, setShowNotes] = useState(false);
   if (!data) return null;
   const verified = factsVerified(data.status);
+  const notes = data.factNotes ?? [];
   return (
-    <div
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 12,
-        flexWrap: 'wrap',
-        padding: '12px 16px',
-        borderRadius: 12,
-        background: palette.inset,
-        marginBottom: 20,
-      }}
-    >
-      <Pill tone={verified ? 'green' : data.status === 2 ? 'orange' : 'gray'}>
-        {verified ? '资料已核对' : STAGES[data.status]?.text}
-      </Pill>
-      <span style={{ fontSize: 13, color: palette.sub }}>
-        {factsSummary(data)}
-      </span>
-      <span style={{ flex: 1 }} />
-      {access.productFactTasks && (
-        <Space size={8}>
-          {!verified && access['product:content:edit'] && (
-            <VerifyFactsButton
-              productId={productId}
-              label={mpn}
-              size="small"
-              onDone={onChanged}
-            />
-          )}
+    <div style={{ marginBottom: 20 }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 12,
+          flexWrap: 'wrap',
+          padding: '12px 16px',
+          borderRadius: 12,
+          background: palette.inset,
+        }}
+      >
+        <Pill tone={verified ? 'green' : data.status === 2 ? 'orange' : 'gray'}>
+          {verified ? '资料已核对' : STAGES[data.status]?.text}
+        </Pill>
+        <span style={{ fontSize: 13, color: palette.sub }}>
+          {factsSummary(data)}
+        </span>
+        {notes.length > 0 && (
           <Button
             size="small"
-            icon={<DownloadOutlined />}
-            loading={downloading === 'facts'}
-            onClick={() => download([productId], 'facts')}
+            type="text"
+            aria-expanded={showNotes}
+            onClick={() => setShowNotes((v) => !v)}
+            style={{ padding: 0, height: 'auto' }}
           >
-            下载资料包
+            <Pill tone="orange">
+              待确认 {notes.length} 项{' '}
+              {showNotes ? (
+                <UpOutlined style={{ fontSize: 10 }} />
+              ) : (
+                <DownOutlined style={{ fontSize: 10 }} />
+              )}
+            </Pill>
           </Button>
-        </Space>
-      )}
+        )}
+        <span style={{ flex: 1 }} />
+        {access.productFactTasks && (
+          <Space size={8}>
+            {!verified && access['product:content:edit'] && (
+              <VerifyFactsButton
+                productId={productId}
+                label={mpn}
+                size="small"
+                onDone={onChanged}
+              />
+            )}
+            <Button
+              size="small"
+              icon={<DownloadOutlined />}
+              loading={downloading === 'facts'}
+              onClick={() => download([productId], 'facts')}
+            >
+              下载资料包
+            </Button>
+          </Space>
+        )}
+      </div>
+      {showNotes && notes.length > 0 && <FactNotes notes={notes} />}
     </div>
   );
 };
 
-/** 下载营销包：选平台的下拉按钮 */
+/** 资料待确认项：来自资料包的「关键未知字段」「冲突与待确认」，所有公司共用，每次导入替换 */
+const FactNotes: React.FC<{ notes: FactNote[] }> = ({ notes }) => {
+  const { palette } = useProductTheme();
+  return (
+    <div
+      style={{
+        marginTop: 10,
+        padding: '14px 16px',
+        borderRadius: 12,
+        border: `1px solid ${palette.hairline}`,
+      }}
+    >
+      <div style={{ fontSize: 12, color: palette.sub, marginBottom: 10 }}>
+        来自资料包「关键未知字段」「冲突与待确认」，每次导入资料包整份替换；只是提示，不影响资料核对
+      </div>
+      <Table<FactNote>
+        size="small"
+        pagination={false}
+        rowKey={(n) => `${n.kind}-${n.item}`}
+        dataSource={notes}
+        scroll={{ x: 760 }}
+        columns={[
+          {
+            title: '类型',
+            dataIndex: 'kind',
+            width: 100,
+            render: (k: number) =>
+              k === 1 ? (
+                <Pill tone="gray">未知字段</Pill>
+              ) : (
+                <Pill tone="orange">冲突</Pill>
+              ),
+          },
+          { title: '项目', dataIndex: 'item', width: 260 },
+          {
+            title: '当前状态',
+            dataIndex: 'statusText',
+            width: 180,
+            render: (v?: string) => v || '—',
+          },
+          {
+            title: '影响 / 说明',
+            dataIndex: 'impact',
+            render: (v?: string) => (
+              <span style={{ color: palette.sub }}>{v || '—'}</span>
+            ),
+          },
+        ]}
+      />
+    </div>
+  );
+};
+
+/** 下载营销包：第一项为全部启用平台（一个文件），其次是单个平台和独立站俄文 */
 export const MarketingDownload: React.FC<{
   platforms: MarketingPlatform[];
   downloading?: string;
@@ -401,28 +496,36 @@ export const MarketingDownload: React.FC<{
   size?: 'small' | 'middle';
   link?: boolean;
   label?: string;
-  onPick: (platform: MarketingPlatform) => void;
+  onPick: (pick: MarketingPick) => void;
 }> = ({ platforms, downloading, disabled, size, link, label, onPick }) => {
+  const option = (key: MarketingPick, name: string, file: string) => ({
+    key,
+    label: (
+      <span
+        style={{
+          display: 'inline-flex',
+          gap: 12,
+          justifyContent: 'space-between',
+          minWidth: 260,
+        }}
+      >
+        <span>{name}</span>
+        <span style={{ opacity: 0.6, fontSize: 12 }}>{file}</span>
+      </span>
+    ),
+  });
   const menu = {
-    items: platforms.map((p) => ({
-      key: p,
-      label: (
-        <span
-          style={{
-            display: 'inline-flex',
-            gap: 12,
-            justifyContent: 'space-between',
-            minWidth: 220,
-          }}
-        >
-          <span>{PLATFORM_META[p].label}</span>
-          <span style={{ opacity: 0.6, fontSize: 12 }}>
-            {PLATFORM_META[p].file}
-          </span>
-        </span>
+    items: [
+      option('all', '全部启用平台（推荐）', '型号.marketing.md · 一个文件'),
+      { type: 'divider' as const },
+      ...platforms.map((p) =>
+        option(p, PLATFORM_META[p].label, PLATFORM_META[p].file),
       ),
-    })),
-    onClick: ({ key }: { key: string }) => onPick(key as MarketingPlatform),
+      ...(platforms.includes('site')
+        ? [option('site-ru', '独立站俄文', '型号.site.ru.md · 俄文')]
+        : []),
+    ],
+    onClick: ({ key }: { key: string }) => onPick(key as MarketingPick),
   };
   const loading = !!downloading && downloading !== 'facts';
   if (link) {
@@ -551,6 +654,68 @@ const SourceLine: React.FC<{
   );
 };
 
+/** 问答列表：平台 FAQ、独立站营销问答 */
+const FaqList: React.FC<{ faqs?: { question: string; answer: string }[] }> = ({
+  faqs,
+}) => {
+  const { palette } = useProductTheme();
+  if (!faqs || faqs.length === 0) return muted(palette);
+  return (
+    <ol style={{ margin: 0, paddingLeft: 18 }}>
+      {faqs.map((f) => (
+        <li key={f.question} style={{ marginBottom: 8 }}>
+          <div style={{ fontWeight: 600 }}>{f.question}</div>
+          <div style={{ color: palette.sub }}>{f.answer}</div>
+        </li>
+      ))}
+    </ol>
+  );
+};
+
+/** 两列表：产品属性、图片说明文字 */
+const PairTable: React.FC<{
+  head: [string, string];
+  rows?: [string, string][];
+}> = ({ head, rows }) => {
+  const { palette } = useProductTheme();
+  if (!rows || rows.length === 0) return muted(palette);
+  return (
+    <Table
+      size="small"
+      pagination={false}
+      rowKey={(r) => r[0]}
+      dataSource={rows}
+      columns={[
+        {
+          title: head[0],
+          key: 'k',
+          width: 220,
+          render: (_: unknown, r: [string, string]) => <b>{r[0]}</b>,
+        },
+        { title: head[1], key: 'v', render: (_: unknown, r) => r[1] },
+      ]}
+    />
+  );
+};
+
+/** 社媒帖子、视频方案：按原文的 Markdown 排版，默认折叠 */
+const MarkdownList: React.FC<{
+  items: { key: string; title: string; markdown: string }[];
+}> = ({ items }) => {
+  const { palette } = useProductTheme();
+  if (items.length === 0) return muted(palette);
+  return (
+    <Collapse
+      size="small"
+      items={items.map((it) => ({
+        key: it.key,
+        label: it.title,
+        children: <XMarkdown>{it.markdown}</XMarkdown>,
+      }))}
+    />
+  );
+};
+
 /** 阿里国际站、中国制造网、社媒的内容 */
 const PlatformBody: React.FC<{
   platform: MarketingPlatform;
@@ -561,57 +726,118 @@ const PlatformBody: React.FC<{
     return (
       <div style={{ color: palette.sub, padding: '8px 0' }}>
         还没有{PLATFORM_META[platform].label}的营销内容。下载营销包交给 AI
-        生成，生成的 Markdown 在「内容任务」上传即可。
+        生成，生成的 Markdown 在这里上传即可。
       </div>
     );
   }
+  if (platform === 'social') {
+    const posts = c.posts ?? [];
+    const videos = c.videos ?? [];
+    return (
+      <>
+        {posts.length > 0 || videos.length > 0 ? (
+          <>
+            <Field label={`帖子（${posts.length} 篇）`}>
+              <MarkdownList
+                items={posts.map((p, i) => ({
+                  key: `p${i}`,
+                  title: `${p.channel} · ${p.label}`,
+                  markdown: p.text,
+                }))}
+              />
+            </Field>
+            <Field label={`视频方案（${videos.length} 个）`}>
+              <MarkdownList
+                items={videos.map((v, i) => ({
+                  key: `v${i}`,
+                  title: `YouTube · ${v.label}`,
+                  markdown: v.markdown,
+                }))}
+              />
+            </Field>
+          </>
+        ) : (
+          <>
+            <Field label="LinkedIn 帖子">
+              <LongText text={c.linkedinPost} />
+            </Field>
+            <Field label="Facebook 帖子">
+              <LongText text={c.facebookPost} />
+            </Field>
+            <Field label="YouTube 视频描述">
+              <LongText text={c.youtubeDescription} />
+            </Field>
+          </>
+        )}
+        <SourceLine {...c} />
+      </>
+    );
+  }
+  const alternates = c.titleAlternates ?? [];
   return (
     <>
-      {platform === 'social' ? (
-        <>
-          <Field label="LinkedIn 帖子">
-            <LongText text={c.linkedinPost} />
-          </Field>
-          <Field label="Facebook 帖子">
-            <LongText text={c.facebookPost} />
-          </Field>
-          <Field label="YouTube 视频描述">
-            <LongText text={c.youtubeDescription} />
-          </Field>
-        </>
-      ) : (
-        <>
-          <Field label="标题">{muted(palette, c.title)}</Field>
-          <Field
-            label={`关键词库（${c.keywords.length} 个，核心 → 主要 → 长尾）`}
-          >
-            <KeywordLibrary keywords={c.keywords} />
-          </Field>
-          {platform === 'alibaba' ? (
-            <Field label={`卖点（${c.sellingPoints.length} 条）`}>
-              {c.sellingPoints.length > 0 ? (
-                <ol style={{ margin: 0, paddingLeft: 18 }}>
-                  {c.sellingPoints.map((p) => (
-                    <li key={p}>{p}</li>
-                  ))}
-                </ol>
-              ) : (
-                muted(palette)
+      <Field label="标题（推荐）">
+        {c.title ? (
+          <span>
+            {c.title}
+            <span style={{ fontSize: 12, color: palette.mute }}>
+              {' · '}
+              {c.title.length} 字符
+            </span>
+          </span>
+        ) : (
+          muted(palette)
+        )}
+      </Field>
+      {alternates.length > 0 && (
+        <Field label={`备选标题（${alternates.length} 个）`}>
+          {alternates.map((t) => (
+            <div key={t.title}>
+              {t.title}
+              {t.angle && (
+                <span style={{ fontSize: 12, color: palette.mute }}>
+                  （{t.angle}）
+                </span>
               )}
-            </Field>
-          ) : (
-            <Field label="商品详情">
-              <LongText text={c.detail} rows={6} />
-            </Field>
-          )}
-        </>
+            </div>
+          ))}
+        </Field>
       )}
+      <Field
+        label={`选用关键词（${c.keywords.length} 个，核心 → 主要 → 长尾）`}
+      >
+        <KeywordLibrary keywords={c.keywords} />
+      </Field>
+      <Field label={`产品属性（${c.attributes?.length ?? 0} 项）`}>
+        <PairTable
+          head={['属性', '值']}
+          rows={c.attributes?.map((a) => [a.name, a.value])}
+        />
+      </Field>
+      <Field label={`卖点（${c.sellingPoints.length} 条）`}>
+        {c.sellingPoints.length > 0 ? (
+          <ol style={{ margin: 0, paddingLeft: 18 }}>
+            {c.sellingPoints.map((p) => (
+              <li key={p}>{p}</li>
+            ))}
+          </ol>
+        ) : (
+          muted(palette)
+        )}
+      </Field>
+      <Field label="产品详情">
+        <LongText text={c.detail} rows={6} />
+      </Field>
+      <Field label={`FAQ（${c.faqs?.length ?? 0} 条）`}>
+        <FaqList faqs={c.faqs} />
+      </Field>
+      <Field label="询盘引导语">{muted(palette, c.cta)}</Field>
       <SourceLine {...c} />
     </>
   );
 };
 
-/** 独立站：英文、俄文的 SEO、GEO、长描述、营销问答 */
+/** 独立站：英文、俄文的 SEO、H1、URL 别名、GEO、长描述、营销问答、图片说明文字 */
 const SiteBody: React.FC<{ data: ProductContent }> = ({ data }) => {
   const { palette } = useProductTheme();
   const [lang, setLang] = useState<ContentLang>('en');
@@ -622,6 +848,7 @@ const SiteBody: React.FC<{ data: ProductContent }> = ({ data }) => {
       !c.metaDescription &&
       !c.geoAnswer &&
       !c.longDescription &&
+      !c.h1 &&
       c.faqs.length === 0);
   return (
     <>
@@ -638,13 +865,17 @@ const SiteBody: React.FC<{ data: ProductContent }> = ({ data }) => {
       </div>
       {empty ? (
         <div style={{ color: palette.sub, padding: '8px 0' }}>
-          这种语言还没有营销内容。下载独立站营销包交给 AI 生成（俄文把 lang 改成
-          ru），生成的 Markdown 在「内容任务」上传即可。
+          这种语言还没有营销内容。下载营销包交给 AI
+          生成（俄文选「独立站俄文」），生成的 Markdown 在这里上传即可。
         </div>
       ) : (
         <>
           <Field label="SEO 标题">{muted(palette, c?.seoTitle)}</Field>
           <Field label="SEO 描述">{muted(palette, c?.metaDescription)}</Field>
+          <Field label="H1">{muted(palette, c?.h1)}</Field>
+          <Field label="URL 别名">
+            {c?.urlSlug ? <code>{c.urlSlug}</code> : muted(palette)}
+          </Field>
           <Field label="首屏定义块（GEO）">
             {muted(palette, c?.geoAnswer)}
           </Field>
@@ -652,18 +883,13 @@ const SiteBody: React.FC<{ data: ProductContent }> = ({ data }) => {
             <LongText text={c?.longDescription} rows={3} />
           </Field>
           <Field label={`营销问答（${c?.faqs.length ?? 0} 条）`}>
-            {c && c.faqs.length > 0 ? (
-              <ol style={{ margin: 0, paddingLeft: 18 }}>
-                {c.faqs.map((f) => (
-                  <li key={f.question} style={{ marginBottom: 8 }}>
-                    <div style={{ fontWeight: 600 }}>{f.question}</div>
-                    <div style={{ color: palette.sub }}>{f.answer}</div>
-                  </li>
-                ))}
-              </ol>
-            ) : (
-              muted(palette)
-            )}
+            <FaqList faqs={c?.faqs} />
+          </Field>
+          <Field label={`图片说明文字（${c?.altTexts?.length ?? 0} 张）`}>
+            <PairTable
+              head={['图片', 'Alt Text']}
+              rows={c?.altTexts?.map((a) => [a.image, a.alt])}
+            />
           </Field>
           <SourceLine {...c} />
         </>

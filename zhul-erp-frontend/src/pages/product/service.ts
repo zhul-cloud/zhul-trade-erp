@@ -400,6 +400,10 @@ export interface SpecItem {
   specLabel: string;
   specValue: string;
   specUnit?: string;
+  /** 条件/范围、证据状态、证据来源说明（v2 资料包导入；保存时原样带回） */
+  conditionText?: string;
+  evidence?: string;
+  sourceNote?: string;
   source?: string;
   verified?: number;
   sortOrder?: number;
@@ -811,6 +815,8 @@ export interface ContentBlock {
 
 export interface ContentPreview {
   fileName: string;
+  /** 第几个上传的文件：v2 营销文件拆成多项时，同一文件的项相同 */
+  fileIndex: number;
   brand?: string;
   model?: string;
   /** zh（资料包）、en、ru（营销包） */
@@ -818,6 +824,10 @@ export interface ContentPreview {
   type?: PackageType;
   /** 营销包平台 */
   platform?: MarketingPlatform;
+  /** 2 为商品内容规范 v2，空为旧格式 */
+  schema?: number;
+  /** v2 营销文件拆出的部分：keywords（关键词库）或平台编码；资料包与旧格式为空 */
+  part?: string;
   productId?: number;
   productLabel?: string;
   errors: string[];
@@ -835,6 +845,7 @@ export interface ContentConfirmResult {
     productLabel?: string;
     lang?: string;
     platform?: MarketingPlatform;
+    part?: string;
     success: boolean;
     message: string;
   }[];
@@ -858,10 +869,15 @@ export interface ProductContent {
   skips?: Partial<Record<MarketingPlatform, MarketingSkip>>;
   /** 阿里国际站、中国制造网、社媒的内容（只含启用且写过的平台） */
   platformContents?: Partial<Record<MarketingPlatform, PlatformContent>>;
-  /** 关键词库：各启用平台合并，同词一行、档位取最高，标出选用平台 */
+  /** 资料待确认项（所有公司共享）：1-关键未知字段、2-冲突与待确认 */
+  factNotes?: FactNote[];
+  /** 关键词总库：按档位、库内顺序，标出被哪些启用平台选用 */
   keywordLibrary?: {
     keyword: string;
     tier: 1 | 2 | 3;
+    category?: string;
+    intent?: string;
+    basis?: string;
     platforms: MarketingPlatform[];
   }[];
   /** 独立站：英文、俄文 */
@@ -872,6 +888,9 @@ export interface ProductContent {
       metaDescription?: string;
       longDescription?: string;
       geoAnswer?: string;
+      h1?: string;
+      urlSlug?: string;
+      altTexts?: { image: string; alt: string }[];
       faqs: { question: string; answer: string }[];
       fileName?: string;
       confirmedBy?: string;
@@ -880,12 +899,26 @@ export interface ProductContent {
   >;
 }
 
+export interface FactNote {
+  kind: 1 | 2;
+  item: string;
+  statusText?: string;
+  impact?: string;
+}
+
 export interface PlatformContent {
   title?: string;
-  /** 按档位（1-核心、2-主要、3-长尾）、档内顺序排好 */
+  titleAlternates?: { title: string; angle?: string }[];
+  /** 该平台选用的关键词，按选用顺序 */
   keywords: { keyword: string; tier: 1 | 2 | 3 }[];
+  attributes?: { name: string; value: string }[];
   sellingPoints: string[];
   detail?: string;
+  faqs?: { question: string; answer: string }[];
+  cta?: string;
+  /** 社媒帖子（v2）；为空时看旧的三列 */
+  posts?: { channel: string; label: string; text: string }[];
+  videos?: { label: string; markdown: string }[];
   linkedinPost?: string;
   facebookPost?: string;
   youtubeDescription?: string;
@@ -972,11 +1005,14 @@ export const contentApi = {
     call<void>(`${CONTENT}/products/${productId}/skips/${platform}`, {
       method: 'DELETE',
     }),
-  /** 下载任务包：单个是 Markdown，多个是 zip；营销包要带平台；从响应头取文件名触发浏览器下载 */
+  /**
+   * 下载任务包：单个是 Markdown，多个是 zip；从响应头取文件名触发浏览器下载。
+   * 营销包不带平台时包含本公司启用的全部平台；site-ru 为独立站俄文
+   */
   download: async (
     productIds: number[],
     type: PackageType,
-    platform?: MarketingPlatform,
+    platform?: MarketingPlatform | 'site-ru',
   ) => {
     const res = await request<Blob>(`${CONTENT}/${type}/package`, {
       method: 'GET',

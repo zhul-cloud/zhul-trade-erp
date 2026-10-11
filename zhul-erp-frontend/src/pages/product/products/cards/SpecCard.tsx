@@ -75,6 +75,9 @@ export const SpecCard: React.FC<{
       specLabel: r.specLabel.trim(),
       specValue: r.specValue.trim(),
       specUnit: r.specUnit?.trim() ?? '',
+      conditionText: r.conditionText ?? '',
+      evidence: r.evidence ?? '',
+      sourceNote: r.sourceNote ?? '',
       source: r.source?.trim() ?? '',
       verified: r.verified ? 1 : 0,
       sortOrder: i,
@@ -92,6 +95,7 @@ export const SpecCard: React.FC<{
   };
 
   useUnsaved('specs', editing && dirty ? { save, discard } : null);
+  const withEvidence = items.some((i) => i.conditionText || i.evidence);
   useEditFocus('card-specs', editing);
 
   return (
@@ -224,6 +228,14 @@ export const SpecCard: React.FC<{
                     >
                       <Input aria-label="来源" placeholder="如 Datasheet" />
                     </Form.Item>
+                    {/* 条件、证据、证据来源由资料包导入，编辑时原样带回 */}
+                    {(['conditionText', 'evidence', 'sourceNote'] as const).map(
+                      (k) => (
+                        <Form.Item key={k} name={[f.name, k]} hidden>
+                          <Input />
+                        </Form.Item>
+                      ),
+                    )}
                     <Form.Item
                       name={[f.name, 'verified']}
                       valuePropName="checked"
@@ -292,15 +304,62 @@ export const SpecCard: React.FC<{
           size="small"
           pagination={false}
           dataSource={items}
+          scroll={withEvidence ? { x: 960 } : undefined}
           columns={[
-            { title: '规格名称', dataIndex: 'specLabel' },
+            { title: '规格名称', dataIndex: 'specLabel', width: 160 },
             {
               title: '规格值',
               dataIndex: 'specValue',
-              render: (v) => <span className="num">{v}</span>,
+              render: (v, r) => (
+                <span className="num">
+                  {v}
+                  {r.specUnit ? ` ${r.specUnit}` : ''}
+                </span>
+              ),
             },
-            { title: '单位', dataIndex: 'specUnit', render: (v) => v || '—' },
-            { title: '来源', dataIndex: 'source', render: (v) => v || '—' },
+            ...(withEvidence
+              ? [
+                  {
+                    title: '条件/范围',
+                    dataIndex: 'conditionText',
+                    render: (v?: string) => (
+                      <span style={{ color: palette.sub, fontSize: 12 }}>
+                        {v || '—'}
+                      </span>
+                    ),
+                  },
+                  {
+                    title: '证据',
+                    dataIndex: 'evidence',
+                    width: 150,
+                    render: (v?: string) =>
+                      v ? (
+                        <Pill
+                          tone={/官方|实物|铭牌/.test(v) ? 'green' : 'gray'}
+                        >
+                          {v}
+                        </Pill>
+                      ) : (
+                        '—'
+                      ),
+                  },
+                ]
+              : []),
+            {
+              title: '来源',
+              dataIndex: 'source',
+              render: (v: string | undefined, r: SpecItem) => (
+                <span
+                  style={
+                    r.sourceNote
+                      ? { color: palette.sub, fontSize: 12 }
+                      : undefined
+                  }
+                >
+                  {r.sourceNote || v || '—'}
+                </span>
+              ),
+            },
             {
               title: '已核实',
               dataIndex: 'verified',

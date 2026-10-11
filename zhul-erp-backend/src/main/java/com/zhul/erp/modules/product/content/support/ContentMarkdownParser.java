@@ -180,7 +180,7 @@ public final class ContentMarkdownParser {
         return block;
     }
 
-    private static int readFrontmatter(String[] lines, ContentDraft draft) {
+    static int readFrontmatter(String[] lines, ContentDraft draft) {
         int i = 0;
         while (i < lines.length && lines[i].isBlank()) {
             i++;
@@ -210,6 +210,7 @@ public final class ContentMarkdownParser {
                 case "lang" -> draft.setLang(value.toLowerCase(Locale.ROOT));
                 case "type" -> draft.setType(value.toLowerCase(Locale.ROOT));
                 case "platform" -> draft.setPlatform(value.toLowerCase(Locale.ROOT));
+                case "schema" -> draft.setSchema(value.matches("\\d{1,3}") ? Integer.valueOf(value) : null);
                 default -> {
                     // 其他键（series、category、status 等）不使用
                 }
@@ -257,7 +258,7 @@ public final class ContentMarkdownParser {
     }
 
     /** 去掉 HTML 注释与空行；全部是占位说明时返回空 */
-    private static List<String> contentLines(String raw) {
+    static List<String> contentLines(String raw) {
         String cleaned = HTML_COMMENT.matcher(raw).replaceAll("");
         List<String> result = new ArrayList<>();
         boolean allPlaceholder = true;
@@ -274,7 +275,7 @@ public final class ContentMarkdownParser {
         return allPlaceholder ? List.of() : result;
     }
 
-    private static void parseText(List<String> content, String raw, ContentDraft.Block block) {
+    static void parseText(List<String> content, String raw, ContentDraft.Block block) {
         String text = switch (block.getSection().kind()) {
             // 长描述保留换行（空行去掉）
             case LINES -> String.join("\n", content.stream().map(String::strip).toList());
@@ -305,7 +306,7 @@ public final class ContentMarkdownParser {
         }
     }
 
-    private static void parseCompat(List<String> content, ContentDraft.Block block) {
+    static void parseCompat(List<String> content, ContentDraft.Block block) {
         for (TableRow row : table(content, block)) {
             if (row.cells.isEmpty() || row.cells.get(0).isEmpty()) {
                 block.getErrors().add("第 " + row.lineNo + " 行须为「原型号 | 兼容说明」");
@@ -353,7 +354,7 @@ public final class ContentMarkdownParser {
         }
     }
 
-    private static void parseFaq(List<String> content, ContentDraft.Block block) {
+    static void parseFaq(List<String> content, ContentDraft.Block block) {
         String question = null;
         StringBuilder answer = null;
         int qLine = 0;
@@ -398,7 +399,7 @@ public final class ContentMarkdownParser {
         block.getFaqs().add(new ContentDraft.FaqRow(question, answer.toString()));
     }
 
-    private static void parseDocs(List<String> content, ContentDraft.Block block) {
+    static void parseDocs(List<String> content, ContentDraft.Block block) {
         int lineNo = 0;
         for (String line : content) {
             lineNo++;
@@ -461,7 +462,7 @@ public final class ContentMarkdownParser {
     }
 
     /** 档位：核心 1、主要 2、长尾 3，也认英文与数字；无效为 0 */
-    private static int tier(String raw) {
+    static int tier(String raw) {
         String t = normalize(raw).replace("-", "").replace("_", "");
         return switch (t) {
             case "核心", "核心词", "core", "1" -> ContentConstants.TIER_CORE;
@@ -472,7 +473,7 @@ public final class ContentMarkdownParser {
     }
 
     /** 物流、海关：「字段 | 内容」表格，字段名兼容 llm-wiki 写法，值按 FactFields 规范化 */
-    private static void parseFields(List<String> content, ContentDraft.Block block) {
+    static void parseFields(List<String> content, ContentDraft.Block block) {
         for (TableRow row : table(content, block)) {
             if (row.cells.isEmpty() || row.cells.get(0).isEmpty() || "字段".equals(row.cells.get(0))) {
                 continue;
@@ -482,7 +483,7 @@ public final class ContentMarkdownParser {
     }
 
     /** 卖点：每行一条，去掉列表符号和序号；超过上限的截断 */
-    private static void parsePoints(List<String> content, ContentDraft.Block block) {
+    static void parsePoints(List<String> content, ContentDraft.Block block) {
         int lineNo = 0;
         List<String> points = new ArrayList<>();
         for (String line : content) {
@@ -502,11 +503,11 @@ public final class ContentMarkdownParser {
         block.getPoints().addAll(points);
     }
 
-    private record TableRow(int lineNo, List<String> cells) {
+    record TableRow(int lineNo, List<String> cells) {
     }
 
     /** 解析 Markdown 表格：有分隔行时分隔行之前是表头；非表格行报错 */
-    private static List<TableRow> table(List<String> content, ContentDraft.Block block) {
+    static List<TableRow> table(List<String> content, ContentDraft.Block block) {
         List<TableRow> rows = new ArrayList<>();
         int separatorAt = -1;
         int lineNo = 0;
@@ -552,13 +553,13 @@ public final class ContentMarkdownParser {
         return sb.toString().strip();
     }
 
-    private static void check(ContentDraft.Block block, int lineNo, String field, String value, int max) {
+    static void check(ContentDraft.Block block, int lineNo, String field, String value, int max) {
         if (value.length() > max) {
             block.getErrors().add("第 " + lineNo + " 行" + field + "超过 " + max + " 字");
         }
     }
 
-    private static String normalize(String heading) {
+    static String normalize(String heading) {
         return heading.replaceAll("\\s+", "").replaceFirst("^\\d+[.、]", "").toLowerCase(Locale.ROOT);
     }
 

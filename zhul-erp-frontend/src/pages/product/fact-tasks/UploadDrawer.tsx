@@ -6,6 +6,7 @@ import {
   InboxOutlined,
   UploadOutlined,
 } from '@ant-design/icons';
+import XMarkdown from '@ant-design/x-markdown';
 import { useAccess } from '@umijs/max';
 import {
   Alert,
@@ -21,6 +22,7 @@ import {
   Tooltip,
   Upload,
 } from 'antd';
+import '@ant-design/x-markdown/es/XMarkdown/index.css';
 import React, { useState } from 'react';
 import { Pill } from '@/pages/inquiry/shared/components';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -31,6 +33,7 @@ import {
   type ContentFile,
   type ContentPreview,
   contentApi,
+  type MarketingPlatform,
   type PackageType,
   readBizError,
 } from '../service';
@@ -44,16 +47,37 @@ const TYPE_NAME: Record<string, string> = {
   facts: '资料包',
   marketing: '营销包',
 };
-/** 文件说明：资料包 · 中文 / 阿里国际站营销包 · EN */
-const packageLabel = (f: ContentPreview) =>
+/** 文件说明：资料包 · 中文 / 阿里国际站营销包 · EN / 关键词库 · EN；旧格式另外标出 */
+const packageLabel = (f: {
+  type?: string;
+  platform?: string;
+  part?: string;
+  lang?: string;
+  schema?: number;
+}) =>
   [
-    f.platform && PLATFORM_META[f.platform]
-      ? `${PLATFORM_META[f.platform].label}${TYPE_NAME.marketing}`
-      : TYPE_NAME[f.type ?? ''],
+    f.part === 'keywords'
+      ? '关键词库'
+      : f.platform && PLATFORM_META[f.platform as MarketingPlatform]
+        ? `${PLATFORM_META[f.platform as MarketingPlatform].label}${TYPE_NAME.marketing}`
+        : TYPE_NAME[f.type ?? ''],
     LANG_NAME[f.lang ?? ''] ?? f.lang,
+    f.type && f.schema !== 2 ? '旧格式' : undefined,
   ]
     .filter(Boolean)
     .join(' · ') || '—';
+
+/** 块键「部分:章节名」里的章节名 */
+const sectionName = (b: ContentBlock) => b.section.split(':').pop() ?? '';
+/** 列表块摘要取哪一列：应用场景、关键词库、帖子取第二列 */
+const SUMMARY_COLUMN: Record<string, number> = {
+  APPS: 1,
+  KEYWORD_LIBRARY: 1,
+  POSTS: 1,
+  VIDEOS: 1,
+};
+/** 帖子、视频方案的原文按 Markdown 排版显示 */
+const MARKDOWN_SECTIONS = new Set(['POSTS', 'VIDEOS']);
 const MAX_FILES = 50;
 const MAX_BYTES = 1024 * 1024;
 
@@ -90,7 +114,7 @@ const BlockSummary: React.FC<{ b: ContentBlock }> = ({ b }) => {
           {' · '}
           {b.rows
             .slice(0, 3)
-            .map((r) => r[b.section === 'APPS' ? 1 : 0])
+            .map((r) => r[SUMMARY_COLUMN[sectionName(b)] ?? 0])
             .join('、')}
           {b.rows.length > 3 ? ' …' : ''}
         </span>
@@ -168,9 +192,13 @@ export const UploadDrawer: React.FC<{
   const update = (index: number, change: Partial<ContentFile>) =>
     runPreview(files.map((f, i) => (i === index ? { ...f, ...change } : f)));
 
+  /** 当前项对应的上传文件（v2 营销文件拆成多项时，多项对应同一个文件） */
+  const fileOf = (i: number) => previews[i]?.fileIndex ?? i;
+
   const toggleSkip = (b: ContentBlock, skip: boolean) => {
-    const current = files[active].skip ?? [];
-    update(active, {
+    const index = fileOf(active);
+    const current = files[index].skip ?? [];
+    update(index, {
       skip: skip
         ? [...current, b.section]
         : current.filter((s) => s !== b.section),
@@ -179,8 +207,9 @@ export const UploadDrawer: React.FC<{
 
   const saveEdit = async () => {
     if (!editing) return;
-    await update(active, {
-      edits: { ...(files[active].edits ?? {}), [editing.section]: draft },
+    const index = fileOf(active);
+    await update(index, {
+      edits: { ...(files[index].edits ?? {}), [editing.section]: draft },
     });
     setEditing(undefined);
   };
@@ -188,9 +217,11 @@ export const UploadDrawer: React.FC<{
   const confirm = async () => {
     setLoading(true);
     try {
-      const ok = previews
-        .map((p, i) => (p.confirmable ? files[i] : null))
-        .filter((f): f is ContentFile => f !== null);
+      // 有可确认项的文件整份提交；服务端重新解析，只写可确认的项
+      const indexes = new Set(
+        previews.filter((p) => p.confirmable).map((p) => p.fileIndex),
+      );
+      const ok = files.filter((_, i) => indexes.has(i));
       setResult(await contentApi.confirm(entry, ok, product?.id));
     } catch (e) {
       message.error(readBizError(e).message);
@@ -331,7 +362,8 @@ export const UploadDrawer: React.FC<{
                 disabled={!canWrite || confirmable === 0}
                 onClick={confirm}
               >
-                确认写入 {confirmable} 个文件
+                确认写入 {confirmable}{' '}
+                {previews.length > files.length ? '项' : '个文件'}
               </Button>
             </Tooltip>
           </div>
@@ -345,9 +377,9 @@ export const UploadDrawer: React.FC<{
             title={`写入成功 ${result.succeeded} 个${result.failed ? `，失败 ${result.failed} 个` : ''}`}
           />
           <div style={{ display: 'grid', gap: 8 }}>
-            {result.items.map((it) => (
+            {result.items.map((it, i) => (
               <div
-                key={it.fileName}
+                key={it.fileName + String(i)}
                 style={{
                   display: 'flex',
                   gap: 10,
@@ -367,9 +399,11 @@ export const UploadDrawer: React.FC<{
                     <span style={{ color: palette.mute }}>
                       {' '}
                       · {it.productLabel} ·{' '}
-                      {it.platform
-                        ? `${PLATFORM_META[it.platform]?.label} · `
-                        : ''}
+                      {it.part === 'keywords'
+                        ? '关键词库 · '
+                        : it.platform
+                          ? `${PLATFORM_META[it.platform]?.label} · `
+                          : ''}
                       {LANG_NAME[it.lang ?? ''] ?? ''}
                     </span>
                   )}
@@ -402,8 +436,8 @@ export const UploadDrawer: React.FC<{
             </p>
             <p className="ant-upload-hint">
               {entry === 'facts'
-                ? '资料包 type: facts、lang: zh；也可以直接上传 llm-wiki 商品文件，按中文资料包导入规格、物流、海关。营销包请到运营管理 → 商品运营上传。'
-                : '营销包 type: marketing，platform 为 alibaba、mic、site 或 social（独立站 lang 可以是 en 或 ru，其他平台只有 en）。资料包请到商品资料 → 资料任务上传。'}
+                ? '按《商品内容规范 v2》的资料包（schema: 2、type: facts、lang: zh）；旧格式资料包和 llm-wiki 商品文件也能上传。营销包请到运营管理 → 商品运营上传。'
+                : '按《商品内容规范 v2》的营销包（schema: 2、type: marketing）：一个文件可以包含关键词库和多个平台，按平台分项预览、分项写入；俄文文件只写独立站。旧格式营销包也能上传。资料包请到商品资料 → 资料任务上传。'}
               一次最多 50 个，每个不超过 1MB
             </p>
           </Upload.Dragger>
@@ -412,7 +446,7 @@ export const UploadDrawer: React.FC<{
             type="info"
             showIcon
             title="上传后先解析预览，确认后才写入"
-            description="资料包（中文）写入共享商品库：规格、应用场景只替换未核实的，兼容型号、技术资料只增不删，技术问答待平台审核。营销包（英文、俄文）只属于本公司：SEO 标题 / 描述 / 长描述、首屏定义块、营销问答。"
+            description="资料包（中文）写入共享商品库：规格、应用场景只替换未核实的，兼容型号、技术资料只增不删，技术问答待平台审核，资料待确认项整份替换。营销包只属于本公司：关键词库整份替换，各平台的标题、属性、卖点、详情、FAQ、帖子等按块替换。"
           />
         </div>
       ) : (
@@ -433,8 +467,9 @@ export const UploadDrawer: React.FC<{
                 marginBottom: 8,
               }}
             >
-              {previews.length} 个文件
-              {blocked > 0 ? ` · ${blocked} 个不能确认` : ''}
+              {files.length} 个文件
+              {previews.length > files.length ? `，${previews.length} 项` : ''}
+              {blocked > 0 ? ` · ${blocked} 项不能确认` : ''}
             </div>
             <div style={{ display: 'grid', gap: 8 }}>
               {previews.map((f, i) => {
@@ -443,7 +478,7 @@ export const UploadDrawer: React.FC<{
                 return (
                   <button
                     type="button"
-                    key={f.fileName + String(i)}
+                    key={`${f.fileIndex}-${f.part ?? ''}`}
                     onClick={() => setActive(i)}
                     style={{
                       display: 'flex',
@@ -473,6 +508,15 @@ export const UploadDrawer: React.FC<{
                         }}
                       >
                         {f.fileName}
+                        {f.part && (
+                          <span style={{ color: palette.link }}>
+                            {' · '}
+                            {f.part === 'keywords'
+                              ? '关键词库'
+                              : PLATFORM_META[f.part as MarketingPlatform]
+                                  ?.label}
+                          </span>
+                        )}
                       </span>
                       <span style={{ fontSize: 12, color: palette.mute }}>
                         {f.productLabel ?? f.model ?? '—'} · {packageLabel(f)}
@@ -522,19 +566,44 @@ export const UploadDrawer: React.FC<{
                 locale={{ emptyText: '没有解析到内容' }}
                 expandable={{
                   rowExpandable: (b) => b.rows.length > 0,
-                  expandedRowRender: (b) => (
-                    <Table
-                      size="small"
-                      rowKey={(_, i) => String(i)}
-                      pagination={false}
-                      dataSource={b.rows}
-                      columns={b.columns.map((title, ci) => ({
-                        title,
-                        key: String(ci),
-                        render: (_: unknown, r: string[]) => r[ci] || '—',
-                      }))}
-                    />
-                  ),
+                  expandedRowRender: (b) =>
+                    MARKDOWN_SECTIONS.has(sectionName(b)) ? (
+                      <div style={{ display: 'grid', gap: 12 }}>
+                        {b.rows.map((r, i) => (
+                          <div
+                            key={`${r[0]}-${r[1]}-${String(i)}`}
+                            style={{
+                              padding: '10px 14px',
+                              borderRadius: 10,
+                              background: palette.inset,
+                            }}
+                          >
+                            <div
+                              style={{
+                                fontSize: 12,
+                                color: palette.sub,
+                                marginBottom: 6,
+                              }}
+                            >
+                              {r[0]} · {r[1]}
+                            </div>
+                            <XMarkdown>{r[2]}</XMarkdown>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <Table
+                        size="small"
+                        rowKey={(_, i) => String(i)}
+                        pagination={false}
+                        dataSource={b.rows}
+                        columns={b.columns.map((title, ci) => ({
+                          title,
+                          key: String(ci),
+                          render: (_: unknown, r: string[]) => r[ci] || '—',
+                        }))}
+                      />
+                    ),
                 }}
               />
               {p.notes.length > 0 && (

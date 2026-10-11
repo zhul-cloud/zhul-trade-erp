@@ -16,7 +16,7 @@ public enum ContentSection {
     SPECS("规格参数表", Kind.LIST, 0, List.of("facts"), List.of("规格参数表", "规格参数", "specifications", "specs")),
     APPS("应用场景", Kind.LIST, 0, List.of("facts"), List.of("应用场景", "applications")),
     COMPAT("兼容替代型号", Kind.LIST, 0, List.of("facts"), List.of("兼容替代型号", "兼容型号", "compatible", "compatibility")),
-    FAQ("FAQ", Kind.LIST, 0, List.of("site"), List.of("faq", "营销问答")),
+    FAQ("FAQ", Kind.LIST, 0, List.of("site", "alibaba", "mic"), List.of("faq", "营销问答")),
     DOCS("技术资料", Kind.LIST, 0, List.of("facts"), List.of("技术资料", "documents", "datasheet", "downloads")),
     TECH_FAQ("技术问答", Kind.LIST, 0, List.of("facts"), List.of("技术问答", "技术faq", "technicalfaq")),
     SERIES("系列", Kind.TEXT, 64, List.of("facts"), List.of("系列", "series")),
@@ -24,11 +24,26 @@ public enum ContentSection {
     CUSTOMS("海关信息", Kind.LIST, 0, List.of("facts"), List.of("海关信息", "海关", "customs")),
     TITLE("标题", Kind.TEXT, 128, List.of("alibaba", "mic"), List.of("标题", "producttitle", "title")),
     KEYWORDS("关键词库", Kind.LIST, 0, List.of("alibaba", "mic"), List.of("关键词", "keywords", "keyword")),
-    SELLING_POINTS("卖点", Kind.LIST, 0, List.of("alibaba"), List.of("卖点", "商品卖点", "sellingpoints", "highlights")),
-    DETAIL("商品详情", Kind.RAW, 20000, List.of("mic"), List.of("商品详情", "产品详情", "详情", "productdetail", "detail")),
+    SELLING_POINTS("卖点", Kind.LIST, 0, List.of("alibaba", "mic"),
+            List.of("卖点", "商品卖点", "sellingpoints", "highlights", "buyerbenefits")),
+    DETAIL("商品详情", Kind.RAW, 20000, List.of("mic", "alibaba"),
+            List.of("商品详情", "产品详情", "详情", "productdetail", "detail")),
     LINKEDIN("LinkedIn", Kind.RAW, 3000, List.of("social"), List.of("linkedin")),
     FACEBOOK("Facebook", Kind.RAW, 5000, List.of("social"), List.of("facebook")),
-    YOUTUBE("YouTube 视频描述", Kind.RAW, 5000, List.of("social"), List.of("youtube"));
+    YOUTUBE("YouTube 视频描述", Kind.RAW, 5000, List.of("social"), List.of("youtube")),
+    // ---------------- 以下为商品内容规范 v2 的章节（由 ContentV2Parser 按标题路由，不参与 v1 的标题匹配）
+    IDENTITY("产品识别", Kind.LIST, 0, List.of("facts"), List.of()),
+    UNKNOWNS("关键未知字段", Kind.LIST, 0, List.of("facts"), List.of()),
+    SOURCES("来源索引", Kind.LIST, 0, List.of("facts"), List.of()),
+    CONFLICTS("冲突与待确认", Kind.LIST, 0, List.of("facts"), List.of()),
+    KEYWORD_LIBRARY("关键词库", Kind.LIST, 0, List.of("keywords"), List.of()),
+    KEYWORD_PICKS("选用关键词", Kind.LIST, 0, List.of("alibaba", "mic"), List.of()),
+    ATTRIBUTES("产品属性", Kind.LIST, 0, List.of("alibaba", "mic"), List.of()),
+    CTA("询盘引导语", Kind.TEXT, 500, List.of("alibaba", "mic"), List.of()),
+    SEO_FIELDS("SEO 字段", Kind.LIST, 0, List.of("site"), List.of()),
+    ALT_TEXTS("图片说明文字", Kind.LIST, 0, List.of("site"), List.of()),
+    POSTS("社媒帖子", Kind.LIST, 0, List.of("social"), List.of()),
+    VIDEOS("视频方案", Kind.LIST, 0, List.of("social"), List.of());
 
     /** 章节归属：资料包，或营销平台编码（见 MarketingPlatform） */
     public static final String FACTS = "facts";

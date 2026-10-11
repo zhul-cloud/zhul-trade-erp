@@ -19,6 +19,7 @@ import { ImportRecordsDrawer } from '../products/cards/ImportRecords';
 import {
   factsVerified,
   MarketingDownload,
+  type MarketingPick,
   PlatformChips,
   useDownloadPackage,
   usePlatforms,
@@ -32,7 +33,6 @@ import {
   type ContentTaskQuery,
   categoryApi,
   contentApi,
-  type MarketingPlatform,
   type PackageType,
   readBizError,
 } from '../service';
@@ -201,7 +201,7 @@ export const TaskList: React.FC<{ entry: PackageType }> = ({ entry }) => {
     setPage(1);
   };
 
-  const download = async (ids: number[], platform?: MarketingPlatform) => {
+  const download = async (ids: number[], platform?: MarketingPick) => {
     const stages = rows
       .filter((r) => ids.includes(r.productId))
       .map((r) => r.status);

@@ -18,6 +18,10 @@ public class SaveSpecificationsRequest {
         private String specLabel;
         private String specValue;
         private String specUnit;
+        /** 条件/范围、证据状态、证据来源说明：可选，不传为空 */
+        private String conditionText;
+        private String evidence;
+        private String sourceNote;
         private String source;
         private Integer verified;
         private Integer sortOrder;

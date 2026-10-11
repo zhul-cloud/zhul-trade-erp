@@ -1,10 +1,13 @@
 package com.zhul.erp.modules.product.content.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.zhul.erp.common.result.PageResult;
 import com.zhul.erp.framework.security.SecurityUtils;
 import com.zhul.erp.framework.tenant.TenantContext;
+import com.zhul.erp.modules.product.constants.ProductConstants;
 import com.zhul.erp.modules.product.content.constants.ContentConstants;
 import com.zhul.erp.modules.product.content.dto.ContentTaskQuery;
 import com.zhul.erp.modules.product.content.dto.ContentTaskVO;
@@ -15,7 +18,9 @@ import com.zhul.erp.modules.product.content.entity.ProductContentTaskDO;
 import com.zhul.erp.modules.product.content.entity.ProductFactTaskDO;
 import com.zhul.erp.modules.product.content.entity.ProductMarketingSkipDO;
 import com.zhul.erp.modules.product.content.entity.ProductPlatformContentDO;
-import com.zhul.erp.modules.product.content.entity.ProductPlatformKeywordDO;
+import com.zhul.erp.modules.product.content.entity.ProductFactNoteDO;
+import com.zhul.erp.modules.product.content.entity.ProductKeywordDO;
+import com.zhul.erp.modules.product.content.entity.ProductKeywordUseDO;
 import com.zhul.erp.modules.product.content.entity.ProductSeoDO;
 import com.zhul.erp.modules.product.content.entity.ProductSeoFaqDO;
 import com.zhul.erp.modules.product.content.repository.ContentTaskRow;
@@ -23,7 +28,9 @@ import com.zhul.erp.modules.product.content.repository.PlatformFlags;
 import com.zhul.erp.modules.product.content.repository.ProductContentImportMapper;
 import com.zhul.erp.modules.product.content.repository.ProductContentTaskMapper;
 import com.zhul.erp.modules.product.content.repository.ProductPlatformContentMapper;
-import com.zhul.erp.modules.product.content.repository.ProductPlatformKeywordMapper;
+import com.zhul.erp.modules.product.content.repository.ProductFactNoteMapper;
+import com.zhul.erp.modules.product.content.repository.ProductKeywordMapper;
+import com.zhul.erp.modules.product.content.repository.ProductKeywordUseMapper;
 import com.zhul.erp.modules.product.content.repository.ProductSeoFaqMapper;
 import com.zhul.erp.modules.product.content.repository.ProductSeoMapper;
 import com.zhul.erp.modules.product.content.support.MarketingPlatform;
@@ -35,6 +42,7 @@ import com.zhul.erp.modules.product.support.LikeUtils;
 import com.zhul.erp.modules.product.support.MpnNormalizer;
 import com.zhul.erp.modules.product.support.ProductFinder;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -48,13 +56,13 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /** 内容任务：列表（阶段按资料任务与本公司启用平台的营销写入、不发布标记计算）、本公司任务行的按需创建与营销写入状态、商品详情里的内容 */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ContentTaskService {
@@ -70,7 +78,10 @@ public class ContentTaskService {
     private final PlatformSettingService platformSettings;
     private final MarketingSkipService skipService;
     private final ProductPlatformContentMapper platformContentMapper;
-    private final ProductPlatformKeywordMapper keywordMapper;
+    private final ProductKeywordMapper keywordMapper;
+    private final ProductKeywordUseMapper keywordUseMapper;
+    private final ProductFactNoteMapper factNoteMapper;
+    private final ObjectMapper objectMapper;
 
     /** 入口：资料任务看资料阶段，商品运营看营销阶段（spec product/product-content「内容任务」） */
     public enum View { FACTS, MARKETING }
@@ -323,6 +334,9 @@ public class ContentTaskService {
                 c.setMetaDescription(s.getMetaDescription());
                 c.setLongDescription(s.getLongDescription());
                 c.setGeoAnswer(s.getGeoAnswer());
+                c.setH1(s.getH1());
+                c.setUrlSlug(s.getUrlSlug());
+                c.setAltTexts(readList(s.getAltTexts(), ProductContentVO.AltText.class));
                 ProductContentImportDO imp = s.getImportId() == null ? null : imports.get(s.getImportId());
                 if (imp != null) {
                     c.setFileName(imp.getFileName());
@@ -341,20 +355,40 @@ public class ContentTaskService {
             vo.getLangs().put(lang, c);
         }
         fillPlatformContents(vo, productId, tenantId, enabled, platformRows, imports);
+        for (ProductFactNoteDO n : factNoteMapper.selectList(new LambdaQueryWrapper<ProductFactNoteDO>()
+                .eq(ProductFactNoteDO::getTenantId, ProductConstants.PLATFORM_TENANT_ID)
+                .eq(ProductFactNoteDO::getProductId, productId)
+                .isNull(ProductFactNoteDO::getDeletedAt)
+                .orderByAsc(ProductFactNoteDO::getKind)
+                .orderByAsc(ProductFactNoteDO::getSortOrder))) {
+            ProductContentVO.FactNote note = new ProductContentVO.FactNote();
+            note.setKind(n.getKind());
+            note.setItem(n.getItem());
+            note.setStatusText(n.getStatusText());
+            note.setImpact(n.getImpact());
+            vo.getFactNotes().add(note);
+        }
         return vo;
     }
 
-    /** 阿里国际站、中国制造网、社媒的内容与关键词库（只取启用的平台） */
+    /** 阿里国际站、中国制造网、社媒的内容，与关键词总库（选用只算启用的平台） */
     private void fillPlatformContents(ProductContentVO vo, Long productId, Integer tenantId,
                                       Set<MarketingPlatform> enabled, List<ProductPlatformContentDO> rows,
                                       Map<Long, ProductContentImportDO> imports) {
-        List<ProductPlatformKeywordDO> keywords = keywordMapper.selectList(new LambdaQueryWrapper<ProductPlatformKeywordDO>()
-                .eq(ProductPlatformKeywordDO::getTenantId, tenantId)
-                .eq(ProductPlatformKeywordDO::getProductId, productId)
-                .isNull(ProductPlatformKeywordDO::getDeletedAt)
-                .orderByAsc(ProductPlatformKeywordDO::getTier)
-                .orderByAsc(ProductPlatformKeywordDO::getSortOrder)
-                .orderByAsc(ProductPlatformKeywordDO::getId));
+        List<ProductKeywordDO> keywords = keywordMapper.selectList(new LambdaQueryWrapper<ProductKeywordDO>()
+                .eq(ProductKeywordDO::getTenantId, tenantId)
+                .eq(ProductKeywordDO::getProductId, productId)
+                .isNull(ProductKeywordDO::getDeletedAt)
+                .orderByAsc(ProductKeywordDO::getSortOrder)
+                .orderByAsc(ProductKeywordDO::getId));
+        List<ProductKeywordUseDO> uses = keywordUseMapper.selectList(new LambdaQueryWrapper<ProductKeywordUseDO>()
+                .eq(ProductKeywordUseDO::getTenantId, tenantId)
+                .eq(ProductKeywordUseDO::getProductId, productId)
+                .isNull(ProductKeywordUseDO::getDeletedAt)
+                .orderByAsc(ProductKeywordUseDO::getSortOrder)
+                .orderByAsc(ProductKeywordUseDO::getId));
+        Map<Long, ProductKeywordDO> byId = keywords.stream()
+                .collect(Collectors.toMap(ProductKeywordDO::getId, Function.identity()));
         for (ProductPlatformContentDO r : rows) {
             MarketingPlatform platform = MarketingPlatform.of(r.getPlatform());
             if (platform == null || !enabled.contains(platform)) {
@@ -362,15 +396,22 @@ public class ContentTaskService {
             }
             ProductContentVO.PlatformContent c = new ProductContentVO.PlatformContent();
             c.setTitle(r.getTitle());
+            c.setTitleAlternates(readList(r.getTitleAlternates(), ProductContentVO.TitleAlternate.class));
+            c.setAttributes(readList(r.getAttributes(), ProductContentVO.Attribute.class));
             if (StringUtils.hasText(r.getSellingPoints())) {
                 c.getSellingPoints().addAll(List.of(r.getSellingPoints().split("\n")));
             }
             c.setDetail(r.getDetail());
+            c.setFaqs(readList(r.getFaqs(), ProductContentVO.Faq.class));
+            c.setCta(r.getCta());
+            c.setPosts(readList(r.getPosts(), ProductContentVO.Post.class));
+            c.setVideos(readList(r.getVideos(), ProductContentVO.Video.class));
             c.setLinkedinPost(r.getLinkedinPost());
             c.setFacebookPost(r.getFacebookPost());
             c.setYoutubeDescription(r.getYoutubeDescription());
-            for (ProductPlatformKeywordDO k : keywords) {
-                if (platform.code().equals(k.getPlatform())) {
+            for (ProductKeywordUseDO u : uses) {
+                ProductKeywordDO k = byId.get(u.getKeywordId());
+                if (k != null && platform.code().equals(u.getPlatform())) {
                     ProductContentVO.Keyword kw = new ProductContentVO.Keyword();
                     kw.setKeyword(k.getKeyword());
                     kw.setTier(k.getTier());
@@ -385,39 +426,50 @@ public class ContentTaskService {
             }
             vo.getPlatformContents().put(platform.code(), c);
         }
-        vo.setKeywordLibrary(keywordLibrary(keywords, enabled));
+        vo.setKeywordLibrary(keywordLibrary(keywords, uses, enabled));
     }
 
     /**
-     * 关键词库：只合并启用平台的关键词，同词不分大小写合成一行，档位取最高（数字最小），记录选用平台；
-     * 按档位、首次出现顺序排序。content-schema-v2 改成总库存储后接口形状不变。
+     * 关键词总库：全部词按档位、库内顺序排序；每个词标出被哪些启用平台选用（按平台固定顺序），
+     * 没启用的平台的选用不算。
      */
-    static List<ProductContentVO.LibraryKeyword> keywordLibrary(List<ProductPlatformKeywordDO> keywords,
+    static List<ProductContentVO.LibraryKeyword> keywordLibrary(List<ProductKeywordDO> keywords,
+                                                                 List<ProductKeywordUseDO> uses,
                                                                  Set<MarketingPlatform> enabled) {
-        Map<String, ProductContentVO.LibraryKeyword> merged = new LinkedHashMap<>();
-        Map<String, Set<MarketingPlatform>> used = new HashMap<>();
-        for (ProductPlatformKeywordDO k : keywords) {
-            MarketingPlatform platform = MarketingPlatform.of(k.getPlatform());
-            if (platform == null || !enabled.contains(platform)) {
-                continue;
+        Map<Long, Set<MarketingPlatform>> used = new HashMap<>();
+        for (ProductKeywordUseDO u : uses) {
+            MarketingPlatform platform = MarketingPlatform.of(u.getPlatform());
+            if (platform != null && enabled.contains(platform)) {
+                used.computeIfAbsent(u.getKeywordId(), x -> EnumSet.noneOf(MarketingPlatform.class)).add(platform);
             }
-            String key = k.getKeyword().trim().toLowerCase(Locale.ROOT);
-            ProductContentVO.LibraryKeyword row = merged.computeIfAbsent(key, x -> {
-                ProductContentVO.LibraryKeyword n = new ProductContentVO.LibraryKeyword();
-                n.setKeyword(k.getKeyword());
-                n.setTier(k.getTier());
-                return n;
-            });
-            if (k.getTier() < row.getTier()) {
-                row.setTier(k.getTier());
-            }
-            used.computeIfAbsent(key, x -> EnumSet.noneOf(MarketingPlatform.class)).add(platform);
         }
-        List<ProductContentVO.LibraryKeyword> result = new ArrayList<>(merged.values());
-        merged.forEach((key, row) -> used.get(key).forEach(p -> row.getPlatforms().add(p.code())));
-        // 稳定排序：档位优先，同档保持首次出现顺序
+        List<ProductContentVO.LibraryKeyword> result = new ArrayList<>(keywords.size());
+        for (ProductKeywordDO k : keywords) {
+            ProductContentVO.LibraryKeyword row = new ProductContentVO.LibraryKeyword();
+            row.setKeyword(k.getKeyword());
+            row.setTier(k.getTier());
+            row.setCategory(k.getCategory());
+            row.setIntent(k.getIntent());
+            row.setBasis(k.getBasis());
+            used.getOrDefault(k.getId(), Set.of()).stream().sorted().forEach(p -> row.getPlatforms().add(p.code()));
+            result.add(row);
+        }
+        // 稳定排序：档位优先，同档保持库内顺序
         result.sort(Comparator.comparingInt(ProductContentVO.LibraryKeyword::getTier));
         return result;
+    }
+
+    /** JSON 文本列 → 列表；空或格式不对时为空列表（只影响显示） */
+    private <T> List<T> readList(String json, Class<T> type) {
+        if (!StringUtils.hasText(json)) {
+            return new ArrayList<>();
+        }
+        try {
+            return objectMapper.readValue(json, objectMapper.getTypeFactory().constructCollectionType(List.class, type));
+        } catch (JsonProcessingException e) {
+            log.warn("内容 JSON 解析失败，按空处理，type={}", type.getSimpleName(), e);
+            return new ArrayList<>();
+        }
     }
 
     Map<Long, String> brandNames(Set<Long> ids) {

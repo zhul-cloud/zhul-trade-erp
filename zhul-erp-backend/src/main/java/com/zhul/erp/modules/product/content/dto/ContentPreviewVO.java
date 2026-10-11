@@ -9,6 +9,8 @@ import java.util.List;
 @Data
 public class ContentPreviewVO {
     private String fileName;
+    /** 第几个上传的文件（从 0 开始）：v2 营销文件拆成多项时，同一文件的项相同 */
+    private int fileIndex;
     private String brand;
     private String model;
     private String lang;
@@ -16,6 +18,10 @@ public class ContentPreviewVO {
     private String type;
     /** 营销包平台：alibaba、mic、site、social；资料包为空 */
     private String platform;
+    /** 规范版本：2 为 v2，空为旧格式 */
+    private Integer schema;
+    /** v2 营销文件拆出的部分：keywords（关键词库）或平台编码；资料包与旧格式为空 */
+    private String part;
     private Long productId;
     /** 匹配到的商品：品牌 · 型号 */
     private String productLabel;
@@ -28,6 +34,7 @@ public class ContentPreviewVO {
 
     @Data
     public static class BlockVO {
+        /** 块键：旧格式与资料包为章节名，v2 营销文件拆出的项为「部分:章节名」，预览修改、跳过都用它 */
         private String section;
         private String label;
         /** shared-共享商品库、company-本公司 */

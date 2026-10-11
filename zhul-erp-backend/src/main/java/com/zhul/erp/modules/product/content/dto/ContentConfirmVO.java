@@ -20,6 +20,8 @@ public class ContentConfirmVO {
         private String lang;
         /** 营销包平台：alibaba、mic、site、social；资料包为空 */
         private String platform;
+        /** v2 营销文件拆出的部分：keywords（关键词库）或平台编码 */
+        private String part;
         private boolean success;
         /** 成功时为写入摘要，失败时为原因 */
         private String message;

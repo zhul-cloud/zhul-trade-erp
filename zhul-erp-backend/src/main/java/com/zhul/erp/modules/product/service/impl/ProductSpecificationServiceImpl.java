@@ -94,6 +94,9 @@ public class ProductSpecificationServiceImpl implements ProductSpecificationServ
             row.setSpecLabel(TextRules.required(item.getSpecLabel(), "规格名称", 64));
             row.setSpecValue(TextRules.required(item.getSpecValue(), "规格值", 256));
             row.setSpecUnit(TextRules.optional(item.getSpecUnit(), "规格单位", 32));
+            row.setConditionText(TextRules.optional(item.getConditionText(), "条件/范围", 256));
+            row.setEvidence(TextRules.optional(item.getEvidence(), "证据状态", 64));
+            row.setSourceNote(TextRules.optional(item.getSourceNote(), "证据来源", 256));
             row.setSource(TextRules.optional(item.getSource(), "规格来源", 128));
             row.setVerified(verified);
             row.setSortOrder(item.getSortOrder() == null ? index : item.getSortOrder());
@@ -119,6 +122,9 @@ public class ProductSpecificationServiceImpl implements ProductSpecificationServ
             vo.setSpecLabel(row.getSpecLabel());
             vo.setSpecValue(row.getSpecValue());
             vo.setSpecUnit(row.getSpecUnit());
+            vo.setConditionText(row.getConditionText());
+            vo.setEvidence(row.getEvidence());
+            vo.setSourceNote(row.getSourceNote());
             vo.setSource(row.getSource());
             vo.setVerified(row.getVerified());
             vo.setSortOrder(row.getSortOrder());

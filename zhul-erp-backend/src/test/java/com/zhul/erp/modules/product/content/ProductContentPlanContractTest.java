@@ -60,7 +60,8 @@ class ProductContentPlanContractTest extends InquiryContractSupport {
     @AfterEach
     void cleanup() {
         for (String t : new String[] {"product_content_import", "product_content_task", "product_fact_task", "product_seo",
-                "product_seo_faq", "product_faq", "product_platform_content", "product_platform_keyword", "product_marketing_skip"}) {
+                "product_seo_faq", "product_faq", "product_platform_content", "product_platform_keyword", "product_marketing_skip",
+                "product_keyword", "product_keyword_use", "product_fact_note"}) {
             jdbc.update("delete from " + t + " where product_id in (select id from product where brand_id in "
                     + "(select id from product_brand where brand_name like 'ITC%'))");
         }
@@ -203,15 +204,16 @@ class ProductContentPlanContractTest extends InquiryContractSupport {
         MockHttpServletResponse one = perform(get(TASKS + "/facts/package").param("productIds", String.valueOf(p1)), admin);
         assertEquals(200, one.getStatus());
         String pkg = one.getContentAsString(StandardCharsets.UTF_8);
-        assertTrue(pkg.contains("type: facts") && pkg.contains("lang: zh") && pkg.contains("model: 6ES7214-1AG40-0XB0")
-                && pkg.contains("## 技术问答") && !pkg.contains("## SEO 标题"), pkg);
+        assertTrue(pkg.contains("schema: 2") && pkg.contains("type: facts") && pkg.contains("lang: zh")
+                && pkg.contains("model: 6ES7214-1AG40-0XB0") && pkg.contains("## 规格参数") && pkg.contains("## 关键未知字段")
+                && pkg.contains("## 技术问答") && !pkg.contains("## 独立站"), pkg);
         assertTrue(pkg.contains("品类：可编程控制器"));
         String mkt = perform(get(TASKS + "/marketing/package").param("productIds", String.valueOf(p1))
                         .param("platform", "site"), admin)
                 .getContentAsString(StandardCharsets.UTF_8);
-        assertTrue(mkt.contains("type: marketing") && mkt.contains("platform: site") && mkt.contains("lang: en")
-                && mkt.contains("## SEO 标题")
-                && !mkt.contains("## 规格参数表"), mkt);
+        assertTrue(mkt.contains("schema: 2") && mkt.contains("type: marketing") && mkt.contains("lang: en")
+                && mkt.contains("## 独立站") && mkt.contains("### SEO 字段") && !mkt.contains("## 关键词库")
+                && !mkt.contains("## 规格参数"), mkt);
         MockHttpServletResponse zip = perform(get(TASKS + "/facts/package").param("productIds", p1 + "," + p2), admin);
         List<String> names = new ArrayList<>();
         try (ZipInputStream in = new ZipInputStream(new ByteArrayInputStream(zip.getContentAsByteArray()))) {
@@ -414,16 +416,28 @@ class ProductContentPlanContractTest extends InquiryContractSupport {
         // 按平台下载营销包：模版只含该平台章节；没启用的平台拒绝；批量打 zip
         String ali = perform(get(TASKS + "/marketing/package").param("productIds", String.valueOf(p1))
                 .param("platform", "alibaba"), a).getContentAsString(StandardCharsets.UTF_8);
-        assertTrue(ali.contains("platform: alibaba") && ali.contains("## 关键词库") && ali.contains("## 卖点")
-                && !ali.contains("## SEO 标题") && !ali.contains("## 规格参数表"), ali);
+        assertTrue(ali.contains("schema: 2") && ali.contains("## 关键词库") && ali.contains("## 阿里国际站")
+                && ali.contains("### 选用关键词") && ali.contains("### 卖点")
+                && !ali.contains("## 独立站") && !ali.contains("## 规格参数"), ali);
         MockHttpServletResponse aliResp = perform(get(TASKS + "/marketing/package").param("productIds", String.valueOf(p1))
                 .param("platform", "alibaba"), a);
         assertTrue(aliResp.getHeader("Content-Disposition").contains("6ES7214-1AG40-0XB0.alibaba.md"));
         JsonNode micDenied = call(get(TASKS + "/marketing/package").param("productIds", String.valueOf(p1))
                 .param("platform", "mic"), a);
         assertEquals("PLATFORM_NOT_ENABLED", micDenied.path("data").path("errorCode").asText(), micDenied.toString());
-        assertFalse(call(get(TASKS + "/marketing/package").param("productIds", String.valueOf(p1)), a)
-                .path("code").asInt() == 0, "营销包要选平台");
+        // 不选平台：一个文件包含本公司启用的全部平台（公司 A 只启用了独立站、阿里国际站）
+        MockHttpServletResponse all = perform(get(TASKS + "/marketing/package").param("productIds", String.valueOf(p1)), a);
+        String allText = all.getContentAsString(StandardCharsets.UTF_8);
+        assertTrue(all.getHeader("Content-Disposition").contains("6ES7214-1AG40-0XB0.marketing.md"));
+        assertTrue(allText.contains("## 关键词库") && allText.contains("## 阿里国际站") && allText.contains("## 独立站")
+                && !allText.contains("## 社媒") && !allText.contains("## 中国制造网") && allText.contains("## 内部附录"), allText);
+        // 独立站俄文：只含独立站，lang: ru
+        MockHttpServletResponse ru = perform(get(TASKS + "/marketing/package").param("productIds", String.valueOf(p1))
+                .param("platform", "site-ru"), a);
+        String ruText = ru.getContentAsString(StandardCharsets.UTF_8);
+        assertTrue(ru.getHeader("Content-Disposition").contains("6ES7214-1AG40-0XB0.site.ru.md"));
+        assertTrue(ruText.contains("lang: ru") && ruText.contains("## 独立站") && !ruText.contains("## 关键词库")
+                && !ruText.contains("## 阿里国际站"), ruText);
         MockHttpServletResponse socialZip = perform(get(TASKS + "/marketing/package").param("productIds", p1 + "," + p2)
                 .param("platform", "social"), b);
         List<String> names = new ArrayList<>();

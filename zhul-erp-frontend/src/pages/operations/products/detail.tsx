@@ -38,7 +38,7 @@ const TIERS: Record<
   3: { label: '长尾', tone: 'gray' },
 };
 
-/** 关键词库：本公司这个型号的全部关键词，按档位排序，标出选用平台 */
+/** 关键词库：本公司这个型号的关键词总库，按档位、库内顺序，标出选用平台与没被选用的词 */
 const KeywordLibrary: React.FC<{ data: ProductContent }> = ({ data }) => {
   const { palette } = useAppTheme();
   const rows = data.keywordLibrary ?? [];
@@ -54,12 +54,35 @@ const KeywordLibrary: React.FC<{ data: ProductContent }> = ({ data }) => {
     {
       title: '关键词',
       dataIndex: 'keyword',
-      render: (v: string) => <b>{v}</b>,
+      render: (v: string, k) => (
+        <span>
+          <b>{v}</b>
+          {k.basis && (
+            <div style={{ fontSize: 12, color: palette.mute }}>
+              依据：{k.basis}
+            </div>
+          )}
+        </span>
+      ),
+    },
+    {
+      title: '分类',
+      dataIndex: 'category',
+      width: 140,
+      render: (v?: string) => v || '—',
+    },
+    {
+      title: '搜索意图',
+      dataIndex: 'intent',
+      width: 180,
+      render: (v?: string) => (
+        <span style={{ color: palette.sub }}>{v || '—'}</span>
+      ),
     },
     {
       title: '选用平台',
       key: 'platforms',
-      width: 340,
+      width: 220,
       render: (_, k) =>
         k.platforms.length ? (
           <span style={{ display: 'inline-flex', gap: 6, flexWrap: 'wrap' }}>
@@ -78,7 +101,7 @@ const KeywordLibrary: React.FC<{ data: ProductContent }> = ({ data }) => {
     return (
       <EmptyHint
         title="还没有关键词"
-        description="上传阿里国际站或中国制造网的营销包后，关键词会合并到这里。"
+        description="上传含「关键词库」的营销包后，这里列出本公司这个型号的全部关键词；各平台从中选用。"
       />
     );
   }
@@ -108,10 +131,10 @@ const KeywordLibrary: React.FC<{ data: ProductContent }> = ({ data }) => {
         columns={columns}
         dataSource={rows}
         pagination={rows.length > 50 ? { pageSize: 50 } : false}
-        scroll={{ x: 700 }}
+        scroll={{ x: 900 }}
       />
       <div style={{ marginTop: 8, fontSize: 12, color: palette.mute }}>
-        同一个词在多个平台出现时合并成一行，档位取最高；只算本公司启用的平台。
+        总库按公司、按型号一份，导入含关键词库的营销包时整份替换；选用平台只算本公司启用的平台。搜索量未实测，档位是语义建议。
       </div>
     </>
   );

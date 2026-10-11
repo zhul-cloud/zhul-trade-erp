@@ -2,6 +2,8 @@ package com.zhul.erp.modules.product.content.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhul.erp.framework.security.SecurityUtils;
 import com.zhul.erp.framework.tenant.TenantContext;
 import com.zhul.erp.modules.product.constants.ProductConstants;
@@ -11,19 +13,24 @@ import com.zhul.erp.modules.product.content.entity.ProductContentTaskDO;
 import com.zhul.erp.modules.product.content.entity.ProductFactTaskDO;
 import com.zhul.erp.modules.product.content.entity.ProductLocaleDO;
 import com.zhul.erp.modules.product.content.entity.ProductPlatformContentDO;
-import com.zhul.erp.modules.product.content.entity.ProductPlatformKeywordDO;
+import com.zhul.erp.modules.product.content.entity.ProductFactNoteDO;
+import com.zhul.erp.modules.product.content.entity.ProductKeywordDO;
+import com.zhul.erp.modules.product.content.entity.ProductKeywordUseDO;
 import com.zhul.erp.modules.product.content.entity.ProductRelationshipNoteDO;
 import com.zhul.erp.modules.product.content.entity.ProductSeoDO;
 import com.zhul.erp.modules.product.content.entity.ProductSeoFaqDO;
 import com.zhul.erp.modules.product.content.repository.ProductContentImportMapper;
 import com.zhul.erp.modules.product.content.repository.ProductLocaleMapper;
 import com.zhul.erp.modules.product.content.repository.ProductPlatformContentMapper;
-import com.zhul.erp.modules.product.content.repository.ProductPlatformKeywordMapper;
+import com.zhul.erp.modules.product.content.repository.ProductFactNoteMapper;
+import com.zhul.erp.modules.product.content.repository.ProductKeywordMapper;
+import com.zhul.erp.modules.product.content.repository.ProductKeywordUseMapper;
 import com.zhul.erp.modules.product.content.repository.ProductRelationshipNoteMapper;
 import com.zhul.erp.modules.product.content.repository.ProductSeoFaqMapper;
 import com.zhul.erp.modules.product.content.repository.ProductSeoMapper;
 import com.zhul.erp.modules.product.content.support.ContentDraft;
 import com.zhul.erp.modules.product.content.support.ContentSection;
+import com.zhul.erp.modules.product.content.support.ContentV2Parser;
 import com.zhul.erp.modules.product.content.support.FactFields;
 import com.zhul.erp.modules.product.content.support.MarketingPlatform;
 import com.zhul.erp.modules.product.entity.ProductApplicationDO;
@@ -54,6 +61,8 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -65,7 +74,11 @@ import java.util.Set;
  * 技术资料按地址合并只增不删；兼容型号按归一化型号合并，只更新中文说明或新增「兼容」关系；
  * 技术问答写入共享 FAQ（待审核），按问题去重；写完记录资料导入。
  * 营销包（写本公司该平台）：独立站的 SEO/GEO 与 FAQ 按语言写 product_seo；阿里国际站、中国制造网、社媒按块写
- * product_platform_content，跳过的块保留原值，关键词库整份替换；写完标记本公司该平台（独立站按语言）已写入。
+ * product_platform_content，跳过的块保留原值；写完标记本公司该平台（独立站按语言）已写入。
+ * 关键词（商品内容规范 v2）：本公司每个商品一份总库 product_keyword，各平台的选用 product_keyword_use 引用总库；
+ * v2 文件的关键词库项整份替换总库（同词保留原 ID，去掉的词连同选用一起去掉），平台项的选用整份替换，不在总库的补为主要档；
+ * 旧格式平台包的关键词库合并进总库（同词档位取最高）并整份替换该平台的选用。
+ * v2 资料包另写规格证据、产品识别（只补空）、来源链接（并入技术资料），并整份替换资料待确认项。
  */
 @Component
 @RequiredArgsConstructor
@@ -93,12 +106,20 @@ public class ContentWriter {
     private final ProductLogisticsMapper logisticsMapper;
     private final ProductCustomsMapper customsMapper;
     private final ProductPlatformContentMapper platformContentMapper;
-    private final ProductPlatformKeywordMapper keywordMapper;
+    private final ProductKeywordMapper keywordMapper;
+    private final ProductKeywordUseMapper keywordUseMapper;
+    private final ProductFactNoteMapper factNoteMapper;
+    private final ObjectMapper objectMapper;
 
-    /** 返回写入摘要；platform 为空时是资料包，否则是该平台的营销包 */
-    public String write(Long productId, MarketingPlatform platform, String lang,
+    /**
+     * 返回写入摘要。draft 给出包类型、语言、规范版本与拆出的部分；blocks 为要写入的块（跳过与有错的块已去掉）。
+     * 资料包 platform 为空；营销包为该平台，v2 营销文件的关键词库项 platform 为空。
+     */
+    public String write(Long productId, MarketingPlatform platform, ContentDraft draft,
                         Map<ContentSection, ContentDraft.Block> blocks, String fileName, String rawText) {
-        boolean facts = platform == null;
+        boolean facts = ContentConstants.TYPE_FACTS.equals(draft.getType());
+        boolean keywordPart = ContentV2Parser.PART_KEYWORDS.equals(draft.getPart());
+        String lang = draft.getLang();
         ProductDO product = productFinder.lockActive(productId);
         ProductFactTaskDO fact = facts ? factTaskService.lockOrCreate(productId) : null;
         ProductContentTaskDO task = taskService.lockOrCreate(productId);
@@ -108,7 +129,7 @@ public class ContentWriter {
         imp.setTaskId(task.getId());
         imp.setProductId(productId);
         imp.setPackageType(facts ? ContentConstants.TYPE_FACTS : ContentConstants.TYPE_MARKETING);
-        imp.setPlatform(facts ? "" : platform.code());
+        imp.setPlatform(platform == null ? "" : platform.code());
         imp.setLang(lang);
         imp.setFileName(fileName.length() > 255 ? fileName.substring(0, 255) : fileName);
         imp.setRawText(rawText);
@@ -124,7 +145,14 @@ public class ContentWriter {
                 case APPS -> summary.add(writeApps(productId, lang, b.getApps()));
                 case DOCS -> summary.add(writeDocs(productId, b.getDocs()));
                 case COMPAT -> summary.add(writeCompat(product, lang, b.getCompat()));
-                case FAQ -> summary.add(writeFaqs(productId, lang, b.getFaqs(), imp.getId()));
+                case FAQ -> {
+                    if (platform == MarketingPlatform.SITE) {
+                        summary.add(writeFaqs(productId, lang, b.getFaqs(), imp.getId()));
+                    }
+                }
+                case IDENTITY -> summary.add(writeIdentity(product, b.getFields()));
+                case SOURCES -> summary.add(writeSourceLinks(productId, b.getSources()));
+                case KEYWORD_LIBRARY -> summary.add(writeLibrary(productId, lang, b.getKeywords(), imp.getId()));
                 case TECH_FAQ -> summary.add(writeTechFaqs(productId, b.getFaqs()));
                 case SERIES -> summary.add(writeSeries(product, b.getText()));
                 case LOGISTICS -> summary.add(writeLogistics(productId, b.getFields()));
@@ -133,6 +161,9 @@ public class ContentWriter {
                     // SEO/GEO 文本块统一在下面写
                 }
             }
+        }
+        if (facts && Integer.valueOf(2).equals(draft.getSchema())) {
+            summary.add(writeFactNotes(productId, draft, blocks, imp.getId()));
         }
         if (platform == MarketingPlatform.SITE) {
             String seo = writeSeo(productId, lang, blocks, imp.getId());
@@ -149,7 +180,7 @@ public class ContentWriter {
                 .set(ProductContentImportDO::getSummary, text.length() > 1000 ? text.substring(0, 1000) : text));
         if (facts) {
             factTaskService.markImported(fact);
-        } else {
+        } else if (!keywordPart) {
             taskService.markWritten(task, platform, lang);
         }
         return text;
@@ -219,6 +250,9 @@ public class ContentWriter {
             row.setSpecLabel(r.label());
             row.setSpecValue(r.value());
             row.setSpecUnit(r.unit());
+            row.setConditionText(cut(r.condition(), 256));
+            row.setEvidence(cut(r.evidence(), 64));
+            row.setSourceNote(cut(r.sourceNote(), 256));
             row.setSource(SOURCE);
             row.setVerified(0);
             row.setSortOrder(sort++);
@@ -437,7 +471,9 @@ public class ContentWriter {
         ContentDraft.Block desc = blocks.get(ContentSection.SEO_DESC);
         ContentDraft.Block longDesc = blocks.get(ContentSection.LONG_DESC);
         ContentDraft.Block geo = blocks.get(ContentSection.GEO);
-        if (title == null && desc == null && longDesc == null && geo == null) {
+        ContentDraft.Block fields = blocks.get(ContentSection.SEO_FIELDS);
+        ContentDraft.Block alts = blocks.get(ContentSection.ALT_TEXTS);
+        if (title == null && desc == null && longDesc == null && geo == null && fields == null && alts == null) {
             return null;
         }
         Integer tenantId = TenantContext.getTenantId();
@@ -468,6 +504,27 @@ public class ContentWriter {
         if (geo != null) {
             row.setGeoAnswer(geo.getText());
             parts.add("首屏定义块");
+        }
+        if (fields != null) {
+            Map<String, String> f = fields.getFields();
+            if (f.containsKey(ContentV2Parser.SEO_TITLE)) {
+                row.setSeoTitle(f.get(ContentV2Parser.SEO_TITLE));
+            }
+            if (f.containsKey(ContentV2Parser.META_DESCRIPTION)) {
+                row.setMetaDescription(f.get(ContentV2Parser.META_DESCRIPTION));
+            }
+            if (f.containsKey(ContentV2Parser.H1)) {
+                row.setH1(f.get(ContentV2Parser.H1));
+            }
+            if (f.containsKey(ContentV2Parser.URL_SLUG)) {
+                row.setUrlSlug(f.get(ContentV2Parser.URL_SLUG));
+            }
+            parts.add("SEO 字段 " + f.size());
+        }
+        if (alts != null) {
+            row.setAltTexts(json(alts.getPairs().stream()
+                    .map(a -> Map.of("image", a.name(), "alt", a.value())).toList()));
+            parts.add("图片说明文字 " + alts.getPairs().size());
         }
         row.setImportId(importId);
         if (create) {
@@ -625,19 +682,60 @@ public class ContentWriter {
         for (Map.Entry<ContentSection, ContentDraft.Block> e : blocks.entrySet()) {
             ContentDraft.Block b = e.getValue();
             switch (e.getKey()) {
-                case TITLE -> row.setTitle(b.getText());
-                case SELLING_POINTS -> row.setSellingPoints(String.join("\n", b.getPoints()));
-                case DETAIL -> row.setDetail(b.getText());
-                case LINKEDIN -> row.setLinkedinPost(b.getText());
-                case FACEBOOK -> row.setFacebookPost(b.getText());
-                case YOUTUBE -> row.setYoutubeDescription(b.getText());
-                case KEYWORDS -> replaceKeywords(productId, platform, lang, b.getKeywords(), importId);
+                case TITLE -> {
+                    row.setTitle(b.getText());
+                    if (!b.getTitles().isEmpty()) {
+                        row.setTitleAlternates(json(b.getTitles().subList(1, b.getTitles().size())));
+                    }
+                    parts.add(b.getTitles().size() > 1 ? "标题（备选 " + (b.getTitles().size() - 1) + "）" : "标题");
+                }
+                case SELLING_POINTS -> {
+                    row.setSellingPoints(String.join("\n", b.getPoints()));
+                    parts.add("卖点 " + b.getPoints().size());
+                }
+                case DETAIL -> {
+                    row.setDetail(b.getText());
+                    parts.add("详情");
+                }
+                case ATTRIBUTES -> {
+                    row.setAttributes(json(b.getPairs()));
+                    parts.add("属性 " + b.getPairs().size());
+                }
+                case FAQ -> {
+                    row.setFaqs(json(b.getFaqs()));
+                    parts.add("FAQ " + b.getFaqs().size());
+                }
+                case CTA -> {
+                    row.setCta(cut(b.getText(), 500));
+                    parts.add("引导语");
+                }
+                case LINKEDIN -> {
+                    row.setLinkedinPost(b.getText());
+                    parts.add("LinkedIn");
+                }
+                case FACEBOOK -> {
+                    row.setFacebookPost(b.getText());
+                    parts.add("Facebook");
+                }
+                case YOUTUBE -> {
+                    row.setYoutubeDescription(b.getText());
+                    parts.add("YouTube");
+                }
+                case POSTS -> {
+                    row.setPosts(json(b.getPosts()));
+                    parts.add("帖子 " + b.getPosts().size());
+                }
+                case VIDEOS -> {
+                    row.setVideos(json(b.getPosts().stream()
+                            .map(v -> Map.of("label", v.label(), "markdown", v.text())).toList()));
+                    parts.add("视频方案 " + b.getPosts().size());
+                }
+                case KEYWORD_PICKS -> parts.add(writePicks(productId, platform, lang, b.getPicks(), importId));
+                case KEYWORDS -> parts.add(mergeLegacyKeywords(productId, platform, lang, b.getKeywords(), importId));
                 default -> {
-                    continue;
+                    // 其他块不属于平台内容
                 }
             }
-            parts.add(e.getKey() == ContentSection.KEYWORDS ? "关键词 " + b.getKeywords().size()
-                    : e.getKey() == ContentSection.SELLING_POINTS ? "卖点 " + b.getPoints().size() : e.getKey().label());
         }
         row.setImportId(importId);
         if (create) {
@@ -648,35 +746,247 @@ public class ContentWriter {
         return platform.label() + "：" + String.join("、", parts);
     }
 
-    private void replaceKeywords(Long productId, MarketingPlatform platform, String lang,
-                                 List<ContentDraft.KeywordRow> rows, Long importId) {
+    private List<ProductKeywordDO> library(Long productId, String lang) {
+        return keywordMapper.selectList(new LambdaQueryWrapper<ProductKeywordDO>()
+                .eq(ProductKeywordDO::getTenantId, TenantContext.getTenantId())
+                .eq(ProductKeywordDO::getProductId, productId)
+                .eq(ProductKeywordDO::getLang, lang)
+                .isNull(ProductKeywordDO::getDeletedAt)
+                .orderByAsc(ProductKeywordDO::getSortOrder));
+    }
+
+    private ProductKeywordDO newKeyword(Long productId, String lang, ContentDraft.KeywordRow r, int sort, Long importId) {
+        ProductKeywordDO k = new ProductKeywordDO();
+        k.setTenantId(TenantContext.getTenantId());
+        k.setProductId(productId);
+        k.setLang(lang);
+        k.setKeyword(r.keyword().strip());
+        k.setKeywordKey(key(r.keyword()));
+        k.setTier(r.tier());
+        k.setCategory(cut(r.category(), 64));
+        k.setIntent(cut(r.intent(), 128));
+        k.setBasis(cut(r.basis(), 128));
+        k.setSortOrder(sort);
+        k.setImportId(importId);
+        keywordMapper.insert(k);
+        return k;
+    }
+
+    /** v2 关键词库：整份替换总库。同词保留原 ID（选用不受影响），不在新库里的词连同各平台对它的选用一起去掉 */
+    private String writeLibrary(Long productId, String lang, List<ContentDraft.KeywordRow> rows, Long importId) {
+        Map<String, ProductKeywordDO> existing = new LinkedHashMap<>();
+        library(productId, lang).forEach(k -> existing.putIfAbsent(k.getKeywordKey(), k));
+        Set<String> keep = new HashSet<>();
+        int sort = 0;
+        int added = 0;
+        for (ContentDraft.KeywordRow r : rows) {
+            String k = key(r.keyword());
+            if (!keep.add(k)) {
+                continue;
+            }
+            sort++;
+            ProductKeywordDO row = existing.get(k);
+            if (row == null) {
+                newKeyword(productId, lang, r, sort, importId);
+                added++;
+                continue;
+            }
+            row.setKeyword(r.keyword().strip());
+            row.setTier(r.tier());
+            row.setCategory(cut(r.category(), 64));
+            row.setIntent(cut(r.intent(), 128));
+            row.setBasis(cut(r.basis(), 128));
+            row.setSortOrder(sort);
+            row.setImportId(importId);
+            keywordMapper.updateById(row);
+        }
+        List<Long> removed = existing.values().stream().filter(k -> !keep.contains(k.getKeywordKey()))
+                .map(ProductKeywordDO::getId).toList();
+        if (!removed.isEmpty()) {
+            LocalDateTime now = LocalDateTime.now();
+            String user = SecurityUtils.getCurrentUsername();
+            keywordMapper.update(null, new LambdaUpdateWrapper<ProductKeywordDO>()
+                    .in(ProductKeywordDO::getId, removed)
+                    .set(ProductKeywordDO::getDeletedAt, now)
+                    .set(ProductKeywordDO::getUpdateTime, now)
+                    .set(ProductKeywordDO::getUpdateBy, user));
+            keywordUseMapper.update(null, new LambdaUpdateWrapper<ProductKeywordUseDO>()
+                    .eq(ProductKeywordUseDO::getTenantId, TenantContext.getTenantId())
+                    .in(ProductKeywordUseDO::getKeywordId, removed)
+                    .isNull(ProductKeywordUseDO::getDeletedAt)
+                    .set(ProductKeywordUseDO::getDeletedAt, now)
+                    .set(ProductKeywordUseDO::getUpdateTime, now)
+                    .set(ProductKeywordUseDO::getUpdateBy, user));
+        }
+        return "关键词库 " + keep.size() + "（新增 " + added + (removed.isEmpty() ? "" : "、去掉 " + removed.size()) + "）";
+    }
+
+    /** v2 平台选用：整份替换该平台的选用；不在总库里的词按主要档补进总库 */
+    private String writePicks(Long productId, MarketingPlatform platform, String lang, List<String> picks, Long importId) {
+        List<ProductKeywordDO> lib = library(productId, lang);
+        Map<String, ProductKeywordDO> byKey = new HashMap<>();
+        lib.forEach(k -> byKey.putIfAbsent(k.getKeywordKey(), k));
+        int sort = lib.stream().mapToInt(ProductKeywordDO::getSortOrder).max().orElse(0);
+        int added = 0;
+        Set<Long> ids = new LinkedHashSet<>();
+        for (String p : picks) {
+            ProductKeywordDO k = byKey.get(key(p));
+            if (k == null) {
+                k = newKeyword(productId, lang, new ContentDraft.KeywordRow(p, ContentConstants.TIER_MAIN), ++sort, importId);
+                byKey.put(k.getKeywordKey(), k);
+                added++;
+            }
+            ids.add(k.getId());
+        }
+        replaceUses(productId, platform, ids);
+        return "选用关键词 " + ids.size() + (added > 0 ? "（补进总库 " + added + "）" : "");
+    }
+
+    /** 旧格式平台包的关键词库：合并进总库（同词档位取最高，新词追加），并整份替换该平台的选用 */
+    private String mergeLegacyKeywords(Long productId, MarketingPlatform platform, String lang,
+                                       List<ContentDraft.KeywordRow> rows, Long importId) {
+        List<ProductKeywordDO> lib = library(productId, lang);
+        Map<String, ProductKeywordDO> byKey = new HashMap<>();
+        lib.forEach(k -> byKey.putIfAbsent(k.getKeywordKey(), k));
+        int sort = lib.stream().mapToInt(ProductKeywordDO::getSortOrder).max().orElse(0);
+        int added = 0;
+        Set<Long> ids = new LinkedHashSet<>();
+        for (ContentDraft.KeywordRow r : rows) {
+            ProductKeywordDO k = byKey.get(key(r.keyword()));
+            if (k == null) {
+                k = newKeyword(productId, lang, r, ++sort, importId);
+                byKey.put(k.getKeywordKey(), k);
+                added++;
+            } else if (r.tier() < k.getTier()) {
+                k.setTier(r.tier());
+                keywordMapper.updateById(k);
+            }
+            ids.add(k.getId());
+        }
+        replaceUses(productId, platform, ids);
+        return "关键词 " + ids.size() + "（合并进总库，新增 " + added + "）";
+    }
+
+    private void replaceUses(Long productId, MarketingPlatform platform, Set<Long> keywordIds) {
         Integer tenantId = TenantContext.getTenantId();
         LocalDateTime now = LocalDateTime.now();
-        keywordMapper.update(null, new LambdaUpdateWrapper<ProductPlatformKeywordDO>()
-                .eq(ProductPlatformKeywordDO::getTenantId, tenantId)
-                .eq(ProductPlatformKeywordDO::getProductId, productId)
-                .eq(ProductPlatformKeywordDO::getPlatform, platform.code())
-                .eq(ProductPlatformKeywordDO::getLang, lang)
-                .isNull(ProductPlatformKeywordDO::getDeletedAt)
-                .set(ProductPlatformKeywordDO::getDeletedAt, now)
-                .set(ProductPlatformKeywordDO::getUpdateTime, now)
-                .set(ProductPlatformKeywordDO::getUpdateBy, SecurityUtils.getCurrentUsername()));
+        keywordUseMapper.update(null, new LambdaUpdateWrapper<ProductKeywordUseDO>()
+                .eq(ProductKeywordUseDO::getTenantId, tenantId)
+                .eq(ProductKeywordUseDO::getProductId, productId)
+                .eq(ProductKeywordUseDO::getPlatform, platform.code())
+                .isNull(ProductKeywordUseDO::getDeletedAt)
+                .set(ProductKeywordUseDO::getDeletedAt, now)
+                .set(ProductKeywordUseDO::getUpdateTime, now)
+                .set(ProductKeywordUseDO::getUpdateBy, SecurityUtils.getCurrentUsername()));
         int order = 0;
-        int lastTier = 0;
-        for (ContentDraft.KeywordRow r : rows) {
-            order = r.tier() == lastTier ? order + 1 : 1;
-            lastTier = r.tier();
-            ProductPlatformKeywordDO k = new ProductPlatformKeywordDO();
-            k.setTenantId(tenantId);
-            k.setProductId(productId);
-            k.setPlatform(platform.code());
-            k.setLang(lang);
-            k.setKeyword(r.keyword());
-            k.setTier(r.tier());
-            k.setSortOrder(order);
-            k.setImportId(importId);
-            keywordMapper.insert(k);
+        for (Long id : keywordIds) {
+            ProductKeywordUseDO u = new ProductKeywordUseDO();
+            u.setTenantId(tenantId);
+            u.setProductId(productId);
+            u.setKeywordId(id);
+            u.setPlatform(platform.code());
+            u.setSortOrder(++order);
+            keywordUseMapper.insert(u);
         }
+    }
+
+    /** 产品识别：商品名称为空时补中文名称（没有中文时用英文）；系列按系列库匹配，商品没有系列时写入 */
+    private String writeIdentity(ProductDO product, Map<String, String> fields) {
+        List<String> parts = new ArrayList<>();
+        String name = fields.getOrDefault(ContentV2Parser.NAME_ZH, fields.get(ContentV2Parser.NAME_EN));
+        if (name != null) {
+            if (product.getProductName() == null || product.getProductName().isBlank()) {
+                productMapper.update(null, new LambdaUpdateWrapper<ProductDO>()
+                        .eq(ProductDO::getId, product.getId())
+                        .set(ProductDO::getProductName, cut(name, 255))
+                        .set(ProductDO::getUpdateTime, LocalDateTime.now())
+                        .set(ProductDO::getUpdateBy, SecurityUtils.getCurrentUsername()));
+                product.setProductName(name);
+                parts.add("名称");
+            } else {
+                parts.add("名称已有，保留");
+            }
+        }
+        String series = fields.get(ContentV2Parser.SERIES);
+        if (series != null) {
+            parts.add(writeSeries(product, series));
+        }
+        return "产品识别：" + (parts.isEmpty() ? "无可写字段" : String.join("、", parts));
+    }
+
+    /** 来源索引：http(s) 链接按地址并入技术资料（标题为发布者及范围）；本地路径不导入 */
+    private String writeSourceLinks(Long productId, List<ContentDraft.SourceRow> sources) {
+        List<ContentDraft.DocRow> docs = sources.stream()
+                .filter(s -> isWebLink(s.link()))
+                .map(s -> new ContentDraft.DocRow(cut(s.name(), 128), s.link().trim())).toList();
+        return writeDocs(productId, docs).replace("技术资料", "来源链接")
+                + (docs.size() < sources.size() ? "（本地路径 " + (sources.size() - docs.size()) + " 条不导入）" : "");
+    }
+
+    static boolean isWebLink(String link) {
+        String l = link == null ? "" : link.trim().toLowerCase(Locale.ROOT);
+        return (l.startsWith("http://") || l.startsWith("https://")) && l.length() <= 512;
+    }
+
+    /**
+     * 资料待确认项：两类分别整份替换。文件里有该章节的，按新内容替换；文件里没有的，清空；
+     * 有但被跳过的，保留原有。
+     */
+    private String writeFactNotes(Long productId, ContentDraft draft, Map<ContentSection, ContentDraft.Block> blocks,
+                                  Long importId) {
+        int total = 0;
+        List<String> kept = new ArrayList<>();
+        int[] kinds = {1, 2};
+        ContentSection[] sections = {ContentSection.UNKNOWNS, ContentSection.CONFLICTS};
+        for (int i = 0; i < kinds.length; i++) {
+            ContentDraft.Block b = blocks.get(sections[i]);
+            if (b == null && draft.getBlocks().containsKey(sections[i])) {
+                kept.add(sections[i].label());
+                continue;
+            }
+            LocalDateTime now = LocalDateTime.now();
+            factNoteMapper.update(null, new LambdaUpdateWrapper<ProductFactNoteDO>()
+                    .eq(ProductFactNoteDO::getTenantId, ProductConstants.PLATFORM_TENANT_ID)
+                    .eq(ProductFactNoteDO::getProductId, productId)
+                    .eq(ProductFactNoteDO::getKind, kinds[i])
+                    .isNull(ProductFactNoteDO::getDeletedAt)
+                    .set(ProductFactNoteDO::getDeletedAt, now)
+                    .set(ProductFactNoteDO::getUpdateTime, now)
+                    .set(ProductFactNoteDO::getUpdateBy, SecurityUtils.getCurrentUsername()));
+            if (b == null) {
+                continue;
+            }
+            int sort = 0;
+            for (ContentDraft.NoteRow r : b.getNotesRows()) {
+                ProductFactNoteDO n = new ProductFactNoteDO();
+                n.setTenantId(ProductConstants.PLATFORM_TENANT_ID);
+                n.setProductId(productId);
+                n.setKind(kinds[i]);
+                n.setItem(cut(r.item(), 256));
+                n.setStatusText(cut(r.status(), 500));
+                n.setImpact(cut(r.impact(), 500));
+                n.setSortOrder(++sort);
+                n.setImportId(importId);
+                factNoteMapper.insert(n);
+                total++;
+            }
+        }
+        return "待确认项 " + total + (kept.isEmpty() ? "" : "（跳过的保留：" + String.join("、", kept) + "）");
+    }
+
+    private String json(Object value) {
+        try {
+            return objectMapper.writeValueAsString(value);
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException("内容序列化失败", e);
+        }
+    }
+
+    private static String cut(String s, int max) {
+        if (s == null) {
+            return "";
+        }
+        return s.length() > max ? s.substring(0, max) : s;
     }
 
     static String key(String s) {
