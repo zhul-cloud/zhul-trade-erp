@@ -17,11 +17,13 @@ import com.zhul.erp.modules.product.entity.ProductApplicationDO;
 import com.zhul.erp.modules.product.entity.ProductBrandDO;
 import com.zhul.erp.modules.product.entity.ProductDO;
 import com.zhul.erp.modules.product.entity.ProductDocumentDO;
+import com.zhul.erp.modules.product.entity.ProductFaqDO;
 import com.zhul.erp.modules.product.entity.ProductRelationshipDO;
 import com.zhul.erp.modules.product.entity.ProductSpecificationDO;
 import com.zhul.erp.modules.product.repository.ProductApplicationMapper;
 import com.zhul.erp.modules.product.repository.ProductBrandMapper;
 import com.zhul.erp.modules.product.repository.ProductDocumentMapper;
+import com.zhul.erp.modules.product.repository.ProductFaqMapper;
 import com.zhul.erp.modules.product.repository.ProductMapper;
 import com.zhul.erp.modules.product.repository.ProductRelationshipMapper;
 import com.zhul.erp.modules.product.repository.ProductSpecificationMapper;
@@ -59,6 +61,7 @@ public class ContentImportService {
     private final ProductDocumentMapper documentMapper;
     private final ProductRelationshipMapper relationshipMapper;
     private final ProductSeoFaqMapper faqMapper;
+    private final ProductFaqMapper productFaqMapper;
     private final ContentWriter writer;
     private final PlatformTransactionManager transactionManager;
 
@@ -89,7 +92,8 @@ public class ContentImportService {
             } else {
                 String content = files.get(i).getContent();
                 try {
-                    item.setMessage(tx.execute(s -> writer.write(vo.getProductId(), vo.getLang(), a.writable(),
+                    boolean facts = ContentConstants.TYPE_FACTS.equals(vo.getType());
+                    item.setMessage(tx.execute(s -> writer.write(vo.getProductId(), facts, vo.getLang(), a.writable(),
                             vo.getFileName(), content)));
                     item.setSuccess(true);
                 } catch (BizException e) {
@@ -141,6 +145,7 @@ public class ContentImportService {
         vo.setBrand(draft.getBrand());
         vo.setModel(draft.getModel());
         vo.setLang(draft.getLang());
+        vo.setType(draft.getType());
         vo.getErrors().addAll(draft.getErrors());
         vo.getNotes().addAll(draft.getNotes());
 
@@ -238,7 +243,7 @@ public class ContentImportService {
                 bv.setColumns(List.of("原型号", "兼容说明"));
                 b.getCompat().forEach(r -> bv.getRows().add(List.of(r.model(), r.note())));
             }
-            case FAQ -> {
+            case FAQ, TECH_FAQ -> {
                 bv.setColumns(List.of("问题", "答案"));
                 b.getFaqs().forEach(r -> bv.getRows().add(List.of(r.question(), r.answer())));
             }
@@ -268,7 +273,7 @@ public class ContentImportService {
                                 .eq(ProductSpecificationDO::getVerified, 1)
                                 .isNull(ProductSpecificationDO::getDeletedAt))
                         .forEach(s -> verified.add(ContentWriter.key(s.getSpecLabel())));
-                hints.add("替换该语言未核实的规格");
+                hints.add("替换未核实的中文规格");
                 b.getSpecs().stream().filter(r -> verified.contains(ContentWriter.key(r.label())))
                         .forEach(r -> hints.add("「" + r.label() + "」已核实，保留原值"));
             }
@@ -282,7 +287,7 @@ public class ContentImportService {
                                 .eq(ProductApplicationDO::getVerified, 1)
                                 .isNull(ProductApplicationDO::getDeletedAt))
                         .forEach(s -> verified.add(ContentWriter.key(s.getTitle())));
-                hints.add("替换该语言未核实的应用场景");
+                hints.add("替换未核实的中文应用场景");
                 b.getApps().stream().filter(r -> verified.contains(ContentWriter.key(r.title())))
                         .forEach(r -> hints.add("「" + r.title() + "」已核实，保留原值"));
             }
@@ -316,6 +321,17 @@ public class ContentImportService {
                         .eq(ProductSeoFaqDO::getLang, lang)
                         .isNull(ProductSeoFaqDO::getDeletedAt));
                 hints.add(existing > 0 ? "替换本公司该语言现有 " + existing + " 条 FAQ" : "写入本公司 FAQ");
+            }
+            case TECH_FAQ -> {
+                Set<String> questions = new HashSet<>();
+                productFaqMapper.selectList(new LambdaQueryWrapper<ProductFaqDO>()
+                                .select(ProductFaqDO::getQuestion)
+                                .eq(ProductFaqDO::getTenantId, ProductConstants.PLATFORM_TENANT_ID)
+                                .eq(ProductFaqDO::getProductId, productId)
+                                .isNull(ProductFaqDO::getDeletedAt))
+                        .forEach(f -> questions.add(ContentWriter.key(f.getQuestion())));
+                long dup = b.getFaqs().stream().filter(f -> questions.contains(ContentWriter.key(f.question()))).count();
+                hints.add("写入共享商品库，待平台审核后所有公司可见" + (dup > 0 ? "；" + dup + " 条问题已有，不重复写入" : ""));
             }
             default -> hints.add("替换");
         }

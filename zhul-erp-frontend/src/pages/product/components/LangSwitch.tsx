@@ -3,12 +3,11 @@ import React from 'react';
 import type { ContentLang } from '../service';
 
 export const LANG_OPTIONS: { label: string; value: ContentLang }[] = [
-  { label: '中文', value: 'zh' },
   { label: 'English', value: 'en' },
   { label: 'Русский', value: 'ru' },
 ];
 
-/** 内容语言切换：中文对内，英文、俄文对外 */
+/** 营销内容语言切换：英文、俄文（商品资料只存中文） */
 export const LangSwitch: React.FC<{
   value: ContentLang;
   onChange: (v: ContentLang) => void;

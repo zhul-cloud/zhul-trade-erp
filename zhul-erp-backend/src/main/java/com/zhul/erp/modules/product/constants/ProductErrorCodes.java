@@ -41,6 +41,8 @@ public final class ProductErrorCodes {
     public static final String CONTENT_DUPLICATE = "CONTENT_DUPLICATE";
     public static final String DOCUMENT_URL_INVALID = "DOCUMENT_URL_INVALID";
     public static final String FAQ_NOT_PENDING = "FAQ_NOT_PENDING";
+    /** 资料已核对，且之后没有再导入资料包 */
+    public static final String FACTS_ALREADY_VERIFIED = "FACTS_ALREADY_VERIFIED";
 
     public static final String MEDIA_URL_INVALID = "MEDIA_URL_INVALID";
     public static final String MEDIA_FILE_INVALID = "MEDIA_FILE_INVALID";

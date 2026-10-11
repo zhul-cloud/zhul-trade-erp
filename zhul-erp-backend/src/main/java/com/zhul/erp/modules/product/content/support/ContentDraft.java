@@ -13,6 +13,8 @@ public class ContentDraft {
     private String brand;
     private String model;
     private String lang;
+    /** 包类型：facts-资料包、marketing-营销包 */
+    private String type;
     /** 文件级错误：有则整个文件不能确认 */
     private List<String> errors = new ArrayList<>();
     /** 提示：跳过的空章节、不认识的章节、第三期章节等 */

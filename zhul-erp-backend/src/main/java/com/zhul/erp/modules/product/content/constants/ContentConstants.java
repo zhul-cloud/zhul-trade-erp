@@ -8,11 +8,18 @@ public final class ContentConstants {
     private ContentConstants() {
     }
 
-    public static final int STATUS_PENDING = 1;
-    public static final int STATUS_PARTIAL = 2;
-    public static final int STATUS_DONE = 3;
+    /** 任务阶段：资料待补、资料待核、营销待生成、已完成 */
+    public static final int STAGE_FACTS_PENDING = 1;
+    public static final int STAGE_FACTS_REVIEW = 2;
+    public static final int STAGE_MARKETING = 3;
+    public static final int STAGE_DONE = 4;
 
-    public static final List<String> LANGS = List.of("zh", "en", "ru");
+    /** 包类型：资料包（中文，写共享商品库）、营销包（英文、俄文，写本公司） */
+    public static final String TYPE_FACTS = "facts";
+    public static final String TYPE_MARKETING = "marketing";
+
+    public static final String FACTS_LANG = "zh";
+    public static final List<String> MARKETING_LANGS = List.of("en", "ru");
 
     public static final int MAX_FILE_BYTES = 1024 * 1024;
     public static final int MAX_PACKAGE_PRODUCTS = 200;

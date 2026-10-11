@@ -8,6 +8,7 @@ import com.zhul.erp.modules.product.constants.ProductConstants;
 import com.zhul.erp.modules.product.content.constants.ContentConstants;
 import com.zhul.erp.modules.product.content.entity.ProductContentImportDO;
 import com.zhul.erp.modules.product.content.entity.ProductContentTaskDO;
+import com.zhul.erp.modules.product.content.entity.ProductFactTaskDO;
 import com.zhul.erp.modules.product.content.entity.ProductLocaleDO;
 import com.zhul.erp.modules.product.content.entity.ProductRelationshipNoteDO;
 import com.zhul.erp.modules.product.content.entity.ProductSeoDO;
@@ -22,10 +23,12 @@ import com.zhul.erp.modules.product.content.support.ContentSection;
 import com.zhul.erp.modules.product.entity.ProductApplicationDO;
 import com.zhul.erp.modules.product.entity.ProductDO;
 import com.zhul.erp.modules.product.entity.ProductDocumentDO;
+import com.zhul.erp.modules.product.entity.ProductFaqDO;
 import com.zhul.erp.modules.product.entity.ProductRelationshipDO;
 import com.zhul.erp.modules.product.entity.ProductSpecificationDO;
 import com.zhul.erp.modules.product.repository.ProductApplicationMapper;
 import com.zhul.erp.modules.product.repository.ProductDocumentMapper;
+import com.zhul.erp.modules.product.repository.ProductFaqMapper;
 import com.zhul.erp.modules.product.repository.ProductMapper;
 import com.zhul.erp.modules.product.repository.ProductRelationshipMapper;
 import com.zhul.erp.modules.product.repository.ProductSpecificationMapper;
@@ -44,16 +47,19 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * 确认写入一个文件（一个商品的一种语言），调用方负责事务（design.md 决策 4、5）。
- * 共享商品库：规格摘要替换；规格、应用场景替换该语言未核实的，已核实的保留且同名不重复；
- * 技术资料按地址合并只增不删；兼容型号按归一化型号合并，只更新该语言说明或新增「兼容」关系。
- * 本公司：SEO/GEO 与 FAQ 该语言整体替换。
+ * 确认写入一个文件（一个商品的一个包），调用方负责事务（spec product/product-content「确认写入」）。
+ * 资料包（中文，写共享商品库）：规格摘要替换；规格、应用场景替换未核实的，已核实的保留且同名不重复；
+ * 技术资料按地址合并只增不删；兼容型号按归一化型号合并，只更新中文说明或新增「兼容」关系；
+ * 技术问答写入共享 FAQ（待审核），按问题去重；写完记录资料导入。
+ * 营销包（英文、俄文，写本公司）：SEO/GEO 与 FAQ 该语言整体替换；写完标记本公司该语言已写入。
  */
 @Component
 @RequiredArgsConstructor
 public class ContentWriter {
 
     static final String SOURCE = "内容包";
+    /** 共享 FAQ 来源：AI 辅助生成待审核 */
+    static final int FAQ_SOURCE_PENDING = 3;
 
     private final ProductFinder productFinder;
     private final ProductMapper productMapper;
@@ -65,13 +71,16 @@ public class ContentWriter {
     private final ProductLocaleMapper localeMapper;
     private final ProductSeoMapper seoMapper;
     private final ProductSeoFaqMapper faqMapper;
+    private final ProductFaqMapper productFaqMapper;
     private final ProductContentImportMapper importMapper;
     private final ContentTaskService taskService;
+    private final FactTaskService factTaskService;
 
-    /** 返回写入摘要 */
-    public String write(Long productId, String lang, Map<ContentSection, ContentDraft.Block> blocks,
+    /** 返回写入摘要；facts 为 true 时是资料包 */
+    public String write(Long productId, boolean facts, String lang, Map<ContentSection, ContentDraft.Block> blocks,
                         String fileName, String rawText) {
         ProductDO product = productFinder.lockActive(productId);
+        ProductFactTaskDO fact = facts ? factTaskService.lockOrCreate(productId) : null;
         ProductContentTaskDO task = taskService.lockOrCreate(productId);
 
         ProductContentImportDO imp = new ProductContentImportDO();
@@ -94,6 +103,7 @@ public class ContentWriter {
                 case DOCS -> summary.add(writeDocs(productId, b.getDocs()));
                 case COMPAT -> summary.add(writeCompat(product, lang, b.getCompat()));
                 case FAQ -> summary.add(writeFaqs(productId, lang, b.getFaqs(), imp.getId()));
+                case TECH_FAQ -> summary.add(writeTechFaqs(productId, b.getFaqs()));
                 default -> {
                     // SEO/GEO 文本块统一在下面写
                 }
@@ -108,7 +118,11 @@ public class ContentWriter {
         importMapper.update(null, new LambdaUpdateWrapper<ProductContentImportDO>()
                 .eq(ProductContentImportDO::getId, imp.getId())
                 .set(ProductContentImportDO::getSummary, text.length() > 1000 ? text.substring(0, 1000) : text));
-        taskService.markWritten(task, lang);
+        if (facts) {
+            factTaskService.markImported(fact);
+        } else {
+            taskService.markWritten(task, lang);
+        }
         return text;
     }
 
@@ -127,8 +141,8 @@ public class ContentWriter {
             row.setSpecSummary(text);
             localeMapper.updateById(row);
         }
-        if ("en".equals(lang)) {
-            // 英文同步写回 product.spec_summary，现有页面与独立站不受影响
+        if (ContentConstants.FACTS_LANG.equals(lang)) {
+            // 商品资料只存中文：中文摘要同步写回 product.spec_summary（商品列表展示）
             productMapper.update(null, new LambdaUpdateWrapper<ProductDO>()
                     .eq(ProductDO::getId, product.getId())
                     .set(ProductDO::getSpecSummary, text)
@@ -279,13 +293,13 @@ public class ContentWriter {
                 rel.setRelatedProductId(relatedProduct(product, r.model()));
                 rel.setRelationshipType(ContentConstants.RELATIONSHIP_COMPATIBLE);
                 rel.setConfidence(ContentConstants.CONFIDENCE_UNKNOWN);
-                rel.setNote("en".equals(lang) ? r.note() : "");
+                rel.setNote(ContentConstants.FACTS_LANG.equals(lang) ? r.note() : "");
                 rel.setSortOrder(sort++);
                 relationshipMapper.insert(rel);
                 existing.put(k, rel);
                 added++;
             } else {
-                if ("en".equals(lang)) {
+                if (ContentConstants.FACTS_LANG.equals(lang)) {
                     relationshipMapper.update(null, new LambdaUpdateWrapper<ProductRelationshipDO>()
                             .eq(ProductRelationshipDO::getId, rel.getId())
                             .set(ProductRelationshipDO::getNote, r.note())
@@ -357,6 +371,35 @@ public class ContentWriter {
             faqMapper.insert(row);
         }
         return "FAQ " + rows.size();
+    }
+
+    /** 技术问答写入共享 FAQ：来源为待审核，问题已存在（含待审核、已确认）的不重复写入 */
+    private String writeTechFaqs(Long productId, List<ContentDraft.FaqRow> rows) {
+        List<ProductFaqDO> existing = productFaqMapper.selectList(new LambdaQueryWrapper<ProductFaqDO>()
+                .select(ProductFaqDO::getQuestion)
+                .eq(ProductFaqDO::getTenantId, ProductConstants.PLATFORM_TENANT_ID)
+                .eq(ProductFaqDO::getProductId, productId)
+                .isNull(ProductFaqDO::getDeletedAt));
+        Set<String> questions = new HashSet<>();
+        existing.forEach(f -> questions.add(key(f.getQuestion())));
+        int written = 0;
+        int sort = existing.size();
+        for (ContentDraft.FaqRow r : rows) {
+            if (!questions.add(key(r.question()))) {
+                continue;
+            }
+            ProductFaqDO row = new ProductFaqDO();
+            row.setTenantId(ProductConstants.PLATFORM_TENANT_ID);
+            row.setProductId(productId);
+            row.setQuestion(r.question().trim());
+            row.setAnswer(r.answer());
+            row.setSource(FAQ_SOURCE_PENDING);
+            row.setSortOrder(sort++);
+            productFaqMapper.insert(row);
+            written++;
+        }
+        int skipped = rows.size() - written;
+        return "技术问答 " + written + "（待平台审核）" + (skipped > 0 ? "，已有 " + skipped + " 条不重复写入" : "");
     }
 
     /** SEO 标题、描述、长描述、首屏定义块：有哪块写哪块，没上传或跳过的保留原值 */

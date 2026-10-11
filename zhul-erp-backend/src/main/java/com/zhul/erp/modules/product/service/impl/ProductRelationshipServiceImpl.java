@@ -61,14 +61,15 @@ public class ProductRelationshipServiceImpl implements ProductRelationshipServic
         String l = LangRules.of(lang);
         List<ProductRelationshipDO> rows = activeRows(productId);
         List<RelationshipVO> vos = toVOs(rows);
-        if (!LangRules.DEFAULT.equals(l) && !vos.isEmpty()) {
+        if (!vos.isEmpty()) {
+            // 兼容说明以主表为准；内容包写入过中文说明的以说明表为准（早期内容包主表存的是英文）
             Map<Long, String> notes = new HashMap<>();
             for (ProductRelationshipNoteDO n : noteMapper.selectList(new LambdaQueryWrapper<ProductRelationshipNoteDO>()
                     .in(ProductRelationshipNoteDO::getRelationshipId, rows.stream().map(ProductRelationshipDO::getId).toList())
                     .eq(ProductRelationshipNoteDO::getLang, l))) {
                 notes.put(n.getRelationshipId(), n.getNote());
             }
-            vos.forEach(v -> v.setNote(notes.getOrDefault(v.getId(), "")));
+            vos.forEach(v -> v.setNote(notes.getOrDefault(v.getId(), v.getNote())));
         }
         return vos;
     }

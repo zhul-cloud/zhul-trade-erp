@@ -34,7 +34,7 @@ import { LogisticsCustomsCard } from './cards/LogisticsCustomsCard';
 import { MediaCard } from './cards/MediaCard';
 import { PriceCard } from './cards/PriceCard';
 import { RelationCard } from './cards/RelationCard';
-import { SeoCard } from './cards/SeoCard';
+import { FactsStatusBar, SeoCard, useProductContent } from './cards/SeoCard';
 import { SpecCard } from './cards/SpecCard';
 
 const scrollToCard = (anchor: string) => {
@@ -55,6 +55,30 @@ const panel = (palette: {
   padding: 24,
   marginBottom: 20,
 });
+
+/** 详情页分组标题：商品资料（共享）、运营内容（本公司） */
+const GroupTitle: React.FC<{
+  title: string;
+  tag: React.ReactNode;
+  desc: string;
+}> = ({ title, tag, desc }) => {
+  const { palette } = useProductTheme();
+  return (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 10,
+        flexWrap: 'wrap',
+        margin: '8px 0 14px',
+      }}
+    >
+      <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>{title}</h2>
+      {tag}
+      <span style={{ fontSize: 13, color: palette.sub }}>{desc}</span>
+    </div>
+  );
+};
 
 /** 侧栏：状态、生命周期、被引用、信息 */
 const Sidebar: React.FC<{
@@ -246,6 +270,7 @@ const DetailInner: React.FC = () => {
   const [unsavedCount, setUnsavedCount] = useState(0);
   const unsaved = useRef(new Map<string, UnsavedEntry>());
   const [saving, setSaving] = useState(false);
+  const content = useProductContent(id);
 
   const load = useCallback(async () => {
     setError(undefined);
@@ -483,7 +508,7 @@ const DetailInner: React.FC = () => {
                 }}
               >
                 <h2 id="completeness-title" style={{ margin: 0, fontSize: 16 }}>
-                  档案完整度
+                  资料完整度
                 </h2>
                 <span
                   className="num"
@@ -500,7 +525,7 @@ const DetailInner: React.FC = () => {
                 </span>
                 <span style={{ color: palette.sub }}>
                   {c.done === c.total
-                    ? '档案很完整了'
+                    ? '资料很完整了'
                     : `还差 ${c.total - c.done} 项就完整了`}
                 </span>
               </div>
@@ -547,13 +572,26 @@ const DetailInner: React.FC = () => {
             </section>
           )}
 
+          <GroupTitle
+            title="商品资料"
+            tag={<Pill tone="accent">共享</Pill>}
+            desc="中文 · 所有公司共用一份 · AI 先补，采购、业务、仓库持续回填"
+          />
+          <FactsStatusBar
+            productId={product.id}
+            mpn={product.mpnDisplay}
+            data={content.data}
+            onChanged={() => {
+              content.load();
+              load();
+            }}
+          />
           <BasicCard
             product={product}
             readOnly={readOnly}
             done={doneOf('basic')}
             onChanged={load}
           />
-          <SeoCard productId={product.id} mpn={product.mpnRaw} />
           <MediaCard {...common} done={doneOf('media')} />
           <SpecCard {...common} done={doneOf('specifications')} />
           <LogisticsCustomsCard
@@ -568,6 +606,19 @@ const DetailInner: React.FC = () => {
           <DocumentCard {...common} done={doneOf('documents')} />
           <ApplicationCard {...common} done={doneOf('applications')} />
           <FaqCard {...common} done={doneOf('faq')} platform={platform} />
+
+          <GroupTitle
+            title="运营内容"
+            tag={<Pill tone="violet">本公司</Pill>}
+            desc="英文、俄文 · 只有本公司看得到 · 按平台发布用"
+          />
+          <SeoCard
+            productId={product.id}
+            mpn={product.mpnRaw}
+            data={content.data}
+            error={content.error}
+            onRetry={content.load}
+          />
         </div>
         <div style={{ flex: '0 0 340px', maxWidth: '100%' }}>
           <Sidebar

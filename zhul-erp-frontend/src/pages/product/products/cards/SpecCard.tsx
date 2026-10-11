@@ -7,14 +7,8 @@ import {
 import { App, Button, Form, Input, Space, Switch, Table } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
 import { EmptyHint } from '../../components/EmptyHint';
-import { LangSwitch } from '../../components/LangSwitch';
 import { Pill } from '../../components/Pills';
-import {
-  type ContentLang,
-  readBizError,
-  type SpecItem,
-  specApi,
-} from '../../service';
+import { readBizError, type SpecItem, specApi } from '../../service';
 import { useProductTheme } from '../../theme';
 import { CardEmpty, CardShell, useEditFocus, useUnsaved } from './CardShell';
 
@@ -42,19 +36,18 @@ export const SpecCard: React.FC<{
   const [editing, setEditing] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [lang, setLang] = useState<ContentLang>('en');
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(undefined);
     try {
-      setItems(await specApi.list(productId, lang));
+      setItems(await specApi.list(productId));
     } catch (e) {
       setError(readBizError(e).message);
     } finally {
       setLoading(false);
     }
-  }, [productId, lang]);
+  }, [productId]);
 
   useEffect(() => {
     load();
@@ -88,7 +81,7 @@ export const SpecCard: React.FC<{
     }));
     setSaving(true);
     try {
-      setItems(await specApi.replace(productId, cleaned, lang));
+      setItems(await specApi.replace(productId, cleaned));
       message.success('规格参数已保存');
       setEditing(false);
       setDirty(false);
@@ -108,7 +101,6 @@ export const SpecCard: React.FC<{
       done={done}
       actions={
         <Space size={8}>
-          <LangSwitch value={lang} onChange={setLang} disabled={editing} />
           {!readOnly && !editing && items.length > 0 && (
             <Button onClick={startEdit}>编辑</Button>
           )}

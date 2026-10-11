@@ -11,16 +11,14 @@ import com.zhul.erp.modules.product.content.dto.ContentTaskVO;
 import com.zhul.erp.modules.product.content.dto.ProductContentVO;
 import com.zhul.erp.modules.product.content.entity.ProductContentImportDO;
 import com.zhul.erp.modules.product.content.entity.ProductContentTaskDO;
-import com.zhul.erp.modules.product.content.entity.ProductLocaleDO;
+import com.zhul.erp.modules.product.content.entity.ProductFactTaskDO;
 import com.zhul.erp.modules.product.content.entity.ProductSeoDO;
 import com.zhul.erp.modules.product.content.entity.ProductSeoFaqDO;
 import com.zhul.erp.modules.product.content.repository.ContentTaskRow;
 import com.zhul.erp.modules.product.content.repository.ProductContentImportMapper;
 import com.zhul.erp.modules.product.content.repository.ProductContentTaskMapper;
-import com.zhul.erp.modules.product.content.repository.ProductLocaleMapper;
 import com.zhul.erp.modules.product.content.repository.ProductSeoFaqMapper;
 import com.zhul.erp.modules.product.content.repository.ProductSeoMapper;
-import com.zhul.erp.modules.product.constants.ProductConstants;
 import com.zhul.erp.modules.product.entity.ProductBrandDO;
 import com.zhul.erp.modules.product.entity.ProductCategoryDO;
 import com.zhul.erp.modules.product.repository.ProductBrandMapper;
@@ -45,7 +43,7 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-/** 内容任务：列表、任务行的按需创建与语言状态、商品详情里的本公司内容 */
+/** 内容任务：列表（阶段按资料任务与本公司营销写入计算）、本公司任务行的按需创建与营销写入状态、商品详情里的内容 */
 @Service
 @RequiredArgsConstructor
 public class ContentTaskService {
@@ -54,10 +52,10 @@ public class ContentTaskService {
     private final ProductContentImportMapper importMapper;
     private final ProductSeoMapper seoMapper;
     private final ProductSeoFaqMapper faqMapper;
-    private final ProductLocaleMapper localeMapper;
     private final ProductBrandMapper brandMapper;
     private final ProductCategoryMapper categoryMapper;
     private final ProductFinder productFinder;
+    private final FactTaskService factTaskService;
 
     public PageResult<ContentTaskVO> page(ContentTaskQuery q) {
         int page = q.getPage() == null || q.getPage() < 1 ? 1 : q.getPage();
@@ -81,13 +79,16 @@ public class ContentTaskService {
             vo.setMpn(StringUtils.hasText(r.getMpnDisplay()) ? r.getMpnDisplay() : r.getMpnRaw());
             vo.setProductName(r.getProductName());
             vo.setStatus(r.getStatus());
-            vo.setZhAt(r.getZhAt());
-            vo.setZhBy(r.getZhBy());
             vo.setEnAt(r.getEnAt());
             vo.setEnBy(r.getEnBy());
             vo.setRuAt(r.getRuAt());
             vo.setRuBy(r.getRuBy());
             vo.setDownloadedAt(r.getDownloadedAt());
+            vo.setFactImportedAt(r.getFactImportedAt());
+            vo.setFactImportedBy(r.getFactImportedBy());
+            vo.setFactVerifiedAt(r.getFactVerifiedAt());
+            vo.setFactVerifiedBy(r.getFactVerifiedBy());
+            vo.setFactDownloadedAt(r.getFactDownloadedAt());
             vo.setCreateTime(r.getCreateTime());
             vo.setCreateBy(r.getCreateBy());
             vo.setUpdateTime(r.getUpdateTime());
@@ -97,11 +98,11 @@ public class ContentTaskService {
         return PageResult.of(total, records);
     }
 
-    /** 各状态数量：all / 1 / 2 / 3 */
+    /** 各阶段数量：all / 1 / 2 / 3 / 4 */
     public Map<String, Long> counts(ContentTaskQuery q) {
         Map<String, Long> result = new LinkedHashMap<>();
         result.put("all", 0L);
-        for (int s = ContentConstants.STATUS_PENDING; s <= ContentConstants.STATUS_DONE; s++) {
+        for (int s = ContentConstants.STAGE_FACTS_PENDING; s <= ContentConstants.STAGE_DONE; s++) {
             result.put(String.valueOf(s), 0L);
         }
         for (Map<String, Object> row : taskMapper.countByStatus(TenantContext.getTenantId(), q.getBrandId(),
@@ -121,7 +122,6 @@ public class ContentTaskService {
             ProductContentTaskDO row = new ProductContentTaskDO();
             row.setTenantId(tenantId);
             row.setProductId(productId);
-            row.setStatus(ContentConstants.STATUS_PENDING);
             try {
                 taskMapper.insert(row);
             } catch (DuplicateKeyException e) {
@@ -132,7 +132,7 @@ public class ContentTaskService {
         return taskMapper.selectById(id);
     }
 
-    /** 记录下载任务包时间（逐个商品独立，不锁商品） */
+    /** 记录本公司下载营销包时间（逐个商品独立，不锁商品） */
     public void markDownloaded(Collection<Long> productIds) {
         Integer tenantId = TenantContext.getTenantId();
         LocalDateTime now = LocalDateTime.now();
@@ -147,7 +147,6 @@ public class ContentTaskService {
                 ProductContentTaskDO row = new ProductContentTaskDO();
                 row.setTenantId(tenantId);
                 row.setProductId(productId);
-                row.setStatus(ContentConstants.STATUS_PENDING);
                 row.setDownloadedAt(now);
                 try {
                     taskMapper.insert(row);
@@ -158,31 +157,21 @@ public class ContentTaskService {
         }
     }
 
-    /** 标记某语言已写入并重算状态（调用方已锁住任务行） */
+    /** 标记本公司某语言营销内容已写入（调用方已锁住任务行） */
     public void markWritten(ProductContentTaskDO task, String lang) {
         LocalDateTime now = LocalDateTime.now();
         String user = SecurityUtils.getCurrentUsername();
-        switch (lang) {
-            case "zh" -> {
-                task.setZhAt(now);
-                task.setZhBy(user);
-            }
-            case "en" -> {
-                task.setEnAt(now);
-                task.setEnBy(user);
-            }
-            default -> {
-                task.setRuAt(now);
-                task.setRuBy(user);
-            }
+        if ("en".equals(lang)) {
+            task.setEnAt(now);
+            task.setEnBy(user);
+        } else {
+            task.setRuAt(now);
+            task.setRuBy(user);
         }
-        int written = (task.getZhAt() != null ? 1 : 0) + (task.getEnAt() != null ? 1 : 0) + (task.getRuAt() != null ? 1 : 0);
-        task.setStatus(written == 0 ? ContentConstants.STATUS_PENDING
-                : written == ContentConstants.LANGS.size() ? ContentConstants.STATUS_DONE : ContentConstants.STATUS_PARTIAL);
         taskMapper.updateById(task);
     }
 
-    /** 商品详情：本公司 SEO/GEO、FAQ、各语言规格摘要与最近一次上传 */
+    /** 商品详情：任务阶段、资料状态（共享）、本公司英文与俄文营销内容和最近一次上传 */
     public ProductContentVO productContent(Long productId) {
         productFinder.active(productId);
         Integer tenantId = TenantContext.getTenantId();
@@ -191,9 +180,15 @@ public class ContentTaskService {
                 .eq(ProductContentTaskDO::getTenantId, tenantId)
                 .eq(ProductContentTaskDO::getProductId, productId)
                 .isNull(ProductContentTaskDO::getDeletedAt));
-        vo.setStatus(task == null ? ContentConstants.STATUS_PENDING : task.getStatus());
+        ProductFactTaskDO fact = factTaskService.find(productId);
+        vo.setStatus(FactTaskService.stage(fact, task));
+        if (fact != null) {
+            vo.setFactImportedAt(fact.getImportedAt());
+            vo.setFactImportedBy(fact.getImportedBy());
+            vo.setFactVerifiedAt(fact.getVerifiedAt());
+            vo.setFactVerifiedBy(fact.getVerifiedBy());
+        }
         if (task != null) {
-            vo.setZhAt(task.getZhAt());
             vo.setEnAt(task.getEnAt());
             vo.setRuAt(task.getRuAt());
         }
@@ -202,10 +197,6 @@ public class ContentTaskService {
                         .eq(ProductSeoDO::getProductId, productId)
                         .isNull(ProductSeoDO::getDeletedAt))
                 .stream().collect(Collectors.toMap(ProductSeoDO::getLang, Function.identity(), (a, b) -> a));
-        Map<String, String> summaries = localeMapper.selectList(new LambdaQueryWrapper<ProductLocaleDO>()
-                        .eq(ProductLocaleDO::getTenantId, ProductConstants.PLATFORM_TENANT_ID)
-                        .eq(ProductLocaleDO::getProductId, productId))
-                .stream().collect(Collectors.toMap(ProductLocaleDO::getLang, ProductLocaleDO::getSpecSummary, (a, b) -> a));
         List<ProductSeoFaqDO> faqs = faqMapper.selectList(new LambdaQueryWrapper<ProductSeoFaqDO>()
                 .eq(ProductSeoFaqDO::getTenantId, tenantId)
                 .eq(ProductSeoFaqDO::getProductId, productId)
@@ -221,9 +212,8 @@ public class ContentTaskService {
                                 ProductContentImportDO::getConfirmedBy, ProductContentImportDO::getCreateTime)
                         .in(ProductContentImportDO::getId, importIds))
                 .stream().collect(Collectors.toMap(ProductContentImportDO::getId, Function.identity()));
-        for (String lang : ContentConstants.LANGS) {
+        for (String lang : ContentConstants.MARKETING_LANGS) {
             ProductContentVO.LangContent c = new ProductContentVO.LangContent();
-            c.setSpecSummary(summaries.get(lang));
             ProductSeoDO s = seo.get(lang);
             if (s != null) {
                 c.setSeoTitle(s.getSeoTitle());

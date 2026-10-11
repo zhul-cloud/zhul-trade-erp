@@ -8,19 +8,24 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/** 商品详情里的内容：本公司 SEO/GEO 与 FAQ、各语言规格摘要、本公司内容任务进度 */
+/** 商品详情里的内容：任务阶段、资料状态（共享）、本公司英文与俄文营销内容 */
 @Data
 public class ProductContentVO {
+    /** 任务阶段：1-资料待补、2-资料待核、3-营销待生成、4-已完成 */
     private Integer status;
-    private LocalDateTime zhAt;
+    /** 资料（所有公司共享）：最近导入、核对 */
+    private LocalDateTime factImportedAt;
+    private String factImportedBy;
+    private LocalDateTime factVerifiedAt;
+    private String factVerifiedBy;
+    /** 本公司营销内容写入时间 */
     private LocalDateTime enAt;
     private LocalDateTime ruAt;
-    /** zh / en / ru → 该语言内容 */
+    /** en / ru → 本公司该语言营销内容 */
     private Map<String, LangContent> langs = new LinkedHashMap<>();
 
     @Data
     public static class LangContent {
-        private String specSummary;
         private String seoTitle;
         private String metaDescription;
         private String longDescription;

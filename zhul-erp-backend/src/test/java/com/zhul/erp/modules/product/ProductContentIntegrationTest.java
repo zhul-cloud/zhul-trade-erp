@@ -781,6 +781,17 @@ class ProductContentIntegrationTest extends IntegrationTestBase {
     }
 
     @Test
+    void onlyLegacyEnglishSpecsAndApplicationsDoNotCount() {
+        jdbc.update("insert into product_specification (tenant_id, product_id, lang, spec_key, spec_label, spec_value) "
+                + "values (0, ?, 'en', 'rated_voltage', 'Rated Voltage', '24')", productId);
+        jdbc.update("insert into product_application (tenant_id, product_id, lang, title) values (0, ?, 'en', 'HVAC')", productId);
+
+        List<String> missing = listed(productId).getCompleteness().getMissing();
+        assertTrue(missing.contains("specifications"), "商品资料只算中文规格");
+        assertTrue(missing.contains("applications"), "商品资料只算中文应用场景");
+    }
+
+    @Test
     void tenantAccountsNeverSeeCompleteness() {
         TenantContext.setTenantId(1001);
 

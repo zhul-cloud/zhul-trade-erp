@@ -14,7 +14,6 @@ import {
 } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
 import { EmptyHint } from '../../components/EmptyHint';
-import { LangSwitch } from '../../components/LangSwitch';
 import { Pill } from '../../components/Pills';
 import { ProductSelect } from '../../components/ProductSelect';
 import {
@@ -24,7 +23,6 @@ import {
   RELATIONSHIP_TYPES,
 } from '../../constants';
 import {
-  type ContentLang,
   type Relationship,
   readBizError,
   relationshipApi,
@@ -162,16 +160,15 @@ export const RelationCard: React.FC<{
   const [items, setItems] = useState<Relationship[]>([]);
   const [error, setError] = useState<string>();
   const [open, setOpen] = useState(false);
-  const [lang, setLang] = useState<ContentLang>('en');
 
   const load = useCallback(async () => {
     setError(undefined);
     try {
-      setItems(await relationshipApi.list(productId, lang));
+      setItems(await relationshipApi.list(productId));
     } catch (e) {
       setError(readBizError(e).message);
     }
-  }, [productId, lang]);
+  }, [productId]);
 
   useEffect(() => {
     load();
@@ -203,7 +200,6 @@ export const RelationCard: React.FC<{
       done={done}
       actions={
         <Space size={8}>
-          <LangSwitch value={lang} onChange={setLang} />
           {!readOnly && (
             <Button icon={<PlusOutlined />} onClick={() => setOpen(true)}>
               添加关系

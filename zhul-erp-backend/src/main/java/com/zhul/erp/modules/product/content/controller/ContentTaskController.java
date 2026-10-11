@@ -11,6 +11,7 @@ import com.zhul.erp.modules.product.content.dto.ProductContentVO;
 import com.zhul.erp.modules.product.content.service.ContentImportService;
 import com.zhul.erp.modules.product.content.service.ContentPackageService;
 import com.zhul.erp.modules.product.content.service.ContentTaskService;
+import com.zhul.erp.modules.product.content.service.FactTaskService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ContentDisposition;
@@ -30,7 +31,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 
-/** 内容任务：查看、下载任务包、上传预览需要菜单权限，确认写入还需要「商品内容维护」按钮权限 */
+/** 内容任务：查看、下载任务包、上传预览需要菜单权限，确认写入与资料已核还需要「商品内容维护」按钮权限 */
 @RestController
 @RequestMapping("/api/v1/product/content-tasks")
 @RequiredArgsConstructor
@@ -41,6 +42,7 @@ public class ContentTaskController {
     private final ContentTaskService taskService;
     private final ContentPackageService packageService;
     private final ContentImportService importService;
+    private final FactTaskService factTaskService;
 
     @PostMapping("/page")
     @PreAuthorize(MENU)
@@ -56,8 +58,8 @@ public class ContentTaskController {
 
     @GetMapping("/package")
     @PreAuthorize(MENU)
-    public ResponseEntity<byte[]> download(@RequestParam List<Long> productIds) {
-        ContentPackageService.Package pkg = packageService.build(productIds);
+    public ResponseEntity<byte[]> download(@RequestParam List<Long> productIds, @RequestParam String type) {
+        ContentPackageService.Package pkg = packageService.build(productIds, type);
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment()
                         .filename(pkg.fileName(), StandardCharsets.UTF_8).build().toString())
@@ -75,6 +77,14 @@ public class ContentTaskController {
     @PreAuthorize(MENU + " and @perm.has('product:content:edit')")
     public Result<ContentConfirmVO> confirm(@Valid @RequestBody ContentFileRequest req) {
         return Result.ok(importService.confirm(req));
+    }
+
+    /** 资料已核：写入共享商品库，与确认写入一样需要「商品内容维护」权限，公司账号也可以操作 */
+    @PostMapping("/products/{productId}/verify-facts")
+    @PreAuthorize(MENU + " and @perm.has('product:content:edit')")
+    public Result<Void> verifyFacts(@PathVariable Long productId) {
+        factTaskService.verify(productId);
+        return Result.ok();
     }
 
     /** 商品详情里的本公司内容：与商品读取一样对所有登录用户开放 */

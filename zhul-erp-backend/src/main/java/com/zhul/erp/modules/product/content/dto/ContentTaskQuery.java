@@ -7,7 +7,7 @@ import lombok.Data;
 public class ContentTaskQuery {
     private Integer page = 1;
     private Integer pageSize = 20;
-    /** 1-待生成、2-进行中、3-已完成；不传为全部 */
+    /** 1-资料待补、2-资料待核、3-营销待生成、4-已完成；不传为全部 */
     private Integer status;
     private Long brandId;
     private Long categoryId;

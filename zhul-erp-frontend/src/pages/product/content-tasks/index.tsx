@@ -1,52 +1,60 @@
 import {
+  ArrowRightOutlined,
   DownloadOutlined,
   SearchOutlined,
   UploadOutlined,
 } from '@ant-design/icons';
-import { Link, useSearchParams } from '@umijs/max';
+import { Link, useAccess, useSearchParams } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
-import { App, Button, Input, Segmented, Select, Table } from 'antd';
+import { Button, Input, Segmented, Select, Table } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
 import { Card, PageTitle } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { auditColumns } from '@/pages/purchase/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatDateTime } from '@/utils/format';
-import { ContentStatusPill, LangChips } from '../products/cards/SeoCard';
+import {
+  ContentStatusPill,
+  factsVerified,
+  LangChips,
+  STAGES,
+  useDownloadPackage,
+  VerifyFactsButton,
+} from '../products/cards/SeoCard';
 import {
   type BrandOption,
   brandApi,
   type CategoryOption,
   type ContentTask,
   type ContentTaskQuery,
+  type PackageType,
   categoryApi,
   contentApi,
   readBizError,
 } from '../service';
 import { UploadDrawer } from './UploadDrawer';
 
-type Tab = 0 | 1 | 2 | 3;
+type Tab = 0 | 1 | 2 | 3 | 4;
 
 const TABS: { value: Tab; label: string; key: string }[] = [
   { value: 0, label: '全部', key: 'all' },
-  { value: 1, label: '待生成', key: '1' },
-  { value: 2, label: '进行中', key: '2' },
-  { value: 3, label: '已完成', key: '3' },
+  { value: 1, label: STAGES[1].text, key: '1' },
+  { value: 2, label: STAGES[2].text, key: '2' },
+  { value: 3, label: STAGES[3].text, key: '3' },
+  { value: 4, label: STAGES[4].text, key: '4' },
 ];
 
-/** 最近写入：取三种语言里最晚的一次 */
-const lastWrite = (t: ContentTask) => {
-  const list: { at: string; by?: string; lang: string }[] = [];
-  if (t.zhAt) list.push({ at: t.zhAt, by: t.zhBy, lang: '中文' });
-  if (t.enAt) list.push({ at: t.enAt, by: t.enBy, lang: 'EN' });
-  if (t.ruAt) list.push({ at: t.ruAt, by: t.ruBy, lang: 'RU' });
-  list.sort((a, b) => (a.at < b.at ? 1 : -1));
-  return list[0];
+const EMPTY_TEXT: Record<Tab, string> = {
+  0: '没有记录',
+  1: '没有待补资料的商品',
+  2: '没有待核对资料的商品',
+  3: '没有待生成营销内容的商品',
+  4: '还没有资料已核、英文俄文营销内容都写入的商品',
 };
 
 const ContentTasks: React.FC = () => {
   const { palette } = useAppTheme();
-  const { message } = App.useApp();
+  const access = useAccess() as Record<string, boolean>;
   const [search] = useSearchParams();
   const initialKeyword = search.get('keyword') ?? '';
   const [tab, setTab] = useState<Tab>(initialKeyword ? 0 : 1);
@@ -64,7 +72,7 @@ const ContentTasks: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>();
   const [selected, setSelected] = useState<number[]>([]);
-  const [downloading, setDownloading] = useState(false);
+  const { download: downloadPackage, downloading } = useDownloadPackage();
   const [uploadOpen, setUploadOpen] = useState(false);
   const [brands, setBrands] = useState<BrandOption[]>([]);
   const [categories, setCategories] = useState<CategoryOption[]>([]);
@@ -112,17 +120,15 @@ const ContentTasks: React.FC = () => {
     setPage(1);
   };
 
-  const download = async (ids: number[]) => {
-    setDownloading(true);
-    try {
-      await contentApi.download(ids);
-      load();
-    } catch (e) {
-      message.error((e as Error).message);
-    } finally {
-      setDownloading(false);
-    }
+  const download = async (ids: number[], type: PackageType) => {
+    const stages = rows
+      .filter((r) => ids.includes(r.productId))
+      .map((r) => r.status);
+    await downloadPackage(ids, type, stages);
+    load();
   };
+
+  const muted = <span style={{ color: palette.mute }}>—</span>;
 
   const columns: TableColumnsType<ContentTask> = [
     {
@@ -151,52 +157,81 @@ const ContentTasks: React.FC = () => {
       render: (v?: string) => v || '—',
     },
     {
-      title: '语言',
-      key: 'langs',
-      width: 170,
-      render: (_, t) => <LangChips zhAt={t.zhAt} enAt={t.enAt} ruAt={t.ruAt} />,
-    },
-    {
       title: '状态',
       dataIndex: 'status',
-      width: 90,
+      width: 110,
       render: (v: number) => <ContentStatusPill status={v} />,
     },
     {
-      title: '最近写入',
-      key: 'lastWrite',
-      width: 150,
+      title: '资料（共享）',
+      key: 'facts',
+      width: 170,
       render: (_, t) => {
-        const w = lastWrite(t);
-        return w ? (
+        const verified = factsVerified(t.status) && t.factVerifiedAt;
+        const at = verified ? t.factVerifiedAt : t.factImportedAt;
+        if (!at) return muted;
+        return (
           <div>
-            <div style={{ color: palette.ink }}>
-              {formatDateTime(w.at)} · {w.lang}
+            <div style={{ color: verified ? palette.green : palette.ink }}>
+              {verified ? '已核对' : '已导入，待核对'}
             </div>
-            <div style={{ fontSize: 12, color: palette.mute }}>{w.by}</div>
+            <div style={{ fontSize: 12, color: palette.mute }}>
+              {formatDateTime(at)} ·{' '}
+              {verified ? t.factVerifiedBy : t.factImportedBy}
+            </div>
           </div>
-        ) : (
-          <span style={{ color: palette.mute }}>—</span>
         );
       },
     },
     {
+      title: '营销（本公司）',
+      key: 'marketing',
+      width: 130,
+      render: (_, t) => <LangChips enAt={t.enAt} ruAt={t.ruAt} />,
+    },
+    {
       title: '最近下载',
-      dataIndex: 'downloadedAt',
-      width: 160,
-      render: (v?: string) =>
-        v ? formatDateTime(v) : <span style={{ color: palette.mute }}>—</span>,
+      key: 'downloaded',
+      width: 170,
+      render: (_, t) =>
+        t.factDownloadedAt || t.downloadedAt ? (
+          <div style={{ fontSize: 12, lineHeight: 1.7 }}>
+            {t.factDownloadedAt && (
+              <div>资料 {formatDateTime(t.factDownloadedAt)}</div>
+            )}
+            {t.downloadedAt && <div>营销 {formatDateTime(t.downloadedAt)}</div>}
+          </div>
+        ) : (
+          muted
+        ),
     },
     ...auditColumns<ContentTask>(),
     {
       title: '操作',
       key: 'actions',
-      width: 150,
+      width: 250,
       fixed: 'right',
       render: (_, t) => (
-        <span style={{ display: 'inline-flex', gap: 12 }}>
-          <a onClick={() => download([t.productId])}>下载任务包</a>
-          <a onClick={() => setUploadOpen(true)}>上传</a>
+        <span
+          style={{
+            display: 'inline-flex',
+            gap: 12,
+            alignItems: 'center',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {!factsVerified(t.status) && (
+            <a onClick={() => download([t.productId], 'facts')}>下载资料包</a>
+          )}
+          {!factsVerified(t.status) && access['product:content:edit'] && (
+            <VerifyFactsButton
+              productId={t.productId}
+              label={`${t.brandName ?? ''} · ${t.mpn}`}
+              link
+              onDone={load}
+            />
+          )}
+          <a onClick={() => download([t.productId], 'marketing')}>下载营销包</a>
         </span>
       ),
     },
@@ -207,27 +242,60 @@ const ContentTasks: React.FC = () => {
       <PageTitle
         crumbs={['内容任务']}
         title="内容任务"
-        description="每个商品都要有中文、英文、俄文三套内容：下载任务包交给 AI 生成，生成好的 Markdown 传回来，系统解析后填进商品档案。"
+        description="先补商品资料（中文，所有公司共用），再生成营销内容（英文、俄文，本公司）：下载任务包交给 AI，生成好的 Markdown 传回来。"
         actions={
           <>
             <Button
               icon={<DownloadOutlined />}
               disabled={selected.length === 0}
-              loading={downloading}
-              onClick={() => download(selected)}
+              loading={downloading === 'facts'}
+              onClick={() => download(selected, 'facts')}
             >
-              下载任务包{selected.length ? ` · ${selected.length}` : ''}
+              下载资料包{selected.length ? ` · ${selected.length}` : ''}
+            </Button>
+            <Button
+              icon={<DownloadOutlined />}
+              disabled={selected.length === 0}
+              loading={downloading === 'marketing'}
+              onClick={() => download(selected, 'marketing')}
+            >
+              下载营销包{selected.length ? ` · ${selected.length}` : ''}
             </Button>
             <Button
               type="primary"
               icon={<UploadOutlined />}
               onClick={() => setUploadOpen(true)}
             >
-              上传内容包
+              上传
             </Button>
           </>
         }
       />
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          flexWrap: 'wrap',
+          padding: '10px 14px',
+          borderRadius: 10,
+          background: palette.inset,
+          marginBottom: 16,
+          fontSize: 12,
+          color: palette.mute,
+        }}
+      >
+        <span style={{ fontWeight: 600 }}>流程</span>
+        {[1, 2, 3, 4].map((s) => (
+          <React.Fragment key={s}>
+            {s > 1 && <ArrowRightOutlined style={{ fontSize: 10 }} />}
+            <ContentStatusPill status={s} />
+          </React.Fragment>
+        ))}
+        <span style={{ marginLeft: 8 }}>
+          资料阶段所有公司共用一份，谁导入、谁核对都看得到；营销阶段各公司各做各的。资料待核时也能先做营销，只会提醒一句。
+        </span>
+      </div>
       <div
         style={{
           display: 'flex',
@@ -299,20 +367,13 @@ const ContentTasks: React.FC = () => {
             columns={columns}
             dataSource={rows}
             loading={loading}
-            scroll={{ x: 1900 }}
+            scroll={{ x: 2000 }}
             rowSelection={{
               selectedRowKeys: selected,
               onChange: (keys) => setSelected(keys as number[]),
               preserveSelectedRowKeys: true,
             }}
-            locale={{
-              emptyText:
-                tab === 1
-                  ? '没有待生成的商品'
-                  : tab === 3
-                    ? '还没有三种语言都写入的商品'
-                    : '没有记录',
-            }}
+            locale={{ emptyText: EMPTY_TEXT[tab] }}
             pagination={{
               current: page,
               pageSize,
@@ -328,7 +389,7 @@ const ContentTasks: React.FC = () => {
         </Card>
       )}
       <div style={{ fontSize: 12, color: palette.mute, marginTop: 8 }}>
-        中文、英文、俄文三种都写入才算完成，可以分批上传；按更新时间倒序
+        资料已核、英文和俄文营销内容都写入才算完成，可以分批上传；「资料已核」会把未核实的中文规格和应用场景标为已核实，以后导入资料包不再覆盖；按更新时间倒序
       </div>
       <UploadDrawer
         open={uploadOpen}

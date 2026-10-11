@@ -12,6 +12,8 @@ public class ContentPreviewVO {
     private String brand;
     private String model;
     private String lang;
+    /** 包类型：facts-资料包、marketing-营销包 */
+    private String type;
     private Long productId;
     /** 匹配到的商品：品牌 · 型号 */
     private String productLabel;

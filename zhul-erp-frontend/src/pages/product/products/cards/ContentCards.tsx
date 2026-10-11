@@ -13,7 +13,6 @@ import {
 } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
 import { EmptyHint } from '../../components/EmptyHint';
-import { LangSwitch } from '../../components/LangSwitch';
 import { Pill } from '../../components/Pills';
 import {
   DOCUMENT_TYPE_OPTIONS,
@@ -25,7 +24,6 @@ import {
 import {
   type ApplicationItem,
   applicationApi,
-  type ContentLang,
   type DocumentItem,
   documentApi,
   type FaqItem,
@@ -280,10 +278,9 @@ export const ApplicationCard: React.FC<Common> = ({
 }) => {
   const { message } = App.useApp();
   const { palette } = useProductTheme();
-  const [lang, setLang] = useState<ContentLang>('en');
   const fetcher = useCallback(
-    () => applicationApi.list(productId, lang),
-    [productId, lang],
+    () => applicationApi.list(productId),
+    [productId],
   );
   const { items, error, loading, load } = useList<ApplicationItem>(fetcher);
   const [editing, setEditing] = useState<ApplicationItem | 'new' | null>(null);
@@ -303,7 +300,6 @@ export const ApplicationCard: React.FC<Common> = ({
       done={done}
       actions={
         <Space size={8}>
-          <LangSwitch value={lang} onChange={setLang} />
           {!readOnly && (
             <Button icon={<PlusOutlined />} onClick={() => open('new')}>
               添加
@@ -398,8 +394,7 @@ export const ApplicationCard: React.FC<Common> = ({
         onOk={async () => {
           const v = await form.validateFields();
           const data = { ...v, verified: v.verified ? 1 : 0 };
-          if (editing === 'new')
-            await applicationApi.create(productId, { ...data, lang });
+          if (editing === 'new') await applicationApi.create(productId, data);
           else if (editing)
             await applicationApi.update(productId, editing.id, data);
           message.success('已保存');
@@ -469,7 +464,7 @@ export const FaqCard: React.FC<Common & { platform: boolean }> = ({
   return (
     <CardShell
       id="card-faq"
-      title="常见问题"
+      title="技术问答"
       done={done}
       actions={
         !readOnly && (

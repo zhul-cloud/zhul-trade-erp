@@ -38,6 +38,15 @@ const LANG_NAME: Record<string, string> = {
   en: 'EN',
   ru: 'RU',
 };
+const TYPE_NAME: Record<string, string> = {
+  facts: '资料包',
+  marketing: '营销包',
+};
+/** 文件说明：资料包 · 中文 / 营销包 · EN */
+const packageLabel = (f: ContentPreview) =>
+  [TYPE_NAME[f.type ?? ''], LANG_NAME[f.lang ?? ''] ?? f.lang]
+    .filter(Boolean)
+    .join(' · ') || '—';
 const MAX_FILES = 50;
 const MAX_BYTES = 1024 * 1024;
 
@@ -362,8 +371,8 @@ export const UploadDrawer: React.FC<{
               {loading ? '正在解析…' : '点击或拖入 Markdown 文件'}
             </p>
             <p className="ant-upload-hint">
-              一种语言一个文件，frontmatter 写 brand、model、lang（zh / en /
-              ru）；一次最多 50 个，每个不超过 1MB
+              资料包 type: facts、lang: zh；营销包 type: marketing、lang: en 或
+              ru，一种语言一个文件；一次最多 50 个，每个不超过 1MB
             </p>
           </Upload.Dragger>
           <Alert
@@ -371,7 +380,7 @@ export const UploadDrawer: React.FC<{
             type="info"
             showIcon
             title="上传后先解析预览，确认后才写入"
-            description="规格、应用场景、兼容型号、技术资料进共享商品库（只替换该语言未核实的内容）；SEO 标题 / 描述 / 长描述、首屏定义块、FAQ 只属于本公司。"
+            description="资料包（中文）写入共享商品库：规格、应用场景只替换未核实的，兼容型号、技术资料只增不删，技术问答待平台审核。营销包（英文、俄文）只属于本公司：SEO 标题 / 描述 / 长描述、首屏定义块、营销问答。"
           />
         </div>
       ) : (
@@ -434,8 +443,7 @@ export const UploadDrawer: React.FC<{
                         {f.fileName}
                       </span>
                       <span style={{ fontSize: 12, color: palette.mute }}>
-                        {f.productLabel ?? f.model ?? '—'} ·{' '}
-                        {LANG_NAME[f.lang ?? ''] ?? f.lang ?? '—'}
+                        {f.productLabel ?? f.model ?? '—'} · {packageLabel(f)}
                       </span>
                     </span>
                     <Pill tone={s.tone}>{s.text}</Pill>
@@ -457,8 +465,10 @@ export const UploadDrawer: React.FC<{
                 <b style={{ fontSize: 15, color: palette.ink }}>
                   {p.productLabel ?? `${p.brand ?? '—'} · ${p.model ?? '—'}`}
                 </b>
-                {p.lang && (
-                  <Pill tone="accent">{LANG_NAME[p.lang] ?? p.lang}</Pill>
+                {(p.type || p.lang) && (
+                  <Pill tone={p.type === 'marketing' ? 'violet' : 'accent'}>
+                    {packageLabel(p)}
+                  </Pill>
                 )}
               </div>
               {p.errors.length > 0 && (

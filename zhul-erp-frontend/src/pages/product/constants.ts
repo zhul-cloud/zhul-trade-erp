@@ -192,10 +192,10 @@ export const COMPLETENESS_MODULES: {
   },
   {
     key: 'faq',
-    label: '常见问题',
+    label: '技术问答',
     minutes: 3,
     anchor: 'card-faq',
-    benefit: '提前回答客户最常问的问题',
+    benefit: '回答兼容、接线、选型这类技术问题',
   },
 ];
 

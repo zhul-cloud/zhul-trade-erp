@@ -429,26 +429,23 @@ export interface SaveRelationship {
   createReverse?: boolean;
 }
 
-/** 商品内容语言：中文对内，英文、俄文对外；不传为英文 */
-export type ContentLang = 'zh' | 'en' | 'ru';
+/** 营销内容语言：英文、俄文（商品资料只存中文） */
+export type ContentLang = 'en' | 'ru';
 
+/** 规格、应用场景、兼容说明都是商品资料，只维护中文 */
 export const specApi = {
-  list: (id: number, lang?: ContentLang) =>
-    call<SpecItem[]>(`${BASE}/products/${id}/specifications`, {
-      params: { lang },
-    }),
-  replace: (id: number, items: SpecItem[], lang?: ContentLang) =>
+  list: (id: number) =>
+    call<SpecItem[]>(`${BASE}/products/${id}/specifications`),
+  replace: (id: number, items: SpecItem[]) =>
     call<SpecItem[]>(`${BASE}/products/${id}/specifications`, {
       method: 'PUT',
-      data: { lang, items },
+      data: { items },
     }),
 };
 
 export const relationshipApi = {
-  list: (id: number, lang?: ContentLang) =>
-    call<Relationship[]>(`${BASE}/products/${id}/relationships`, {
-      params: { lang },
-    }),
+  list: (id: number) =>
+    call<Relationship[]>(`${BASE}/products/${id}/relationships`),
   create: (id: number, data: SaveRelationship) =>
     call<Relationship>(`${BASE}/products/${id}/relationships`, {
       method: 'POST',
@@ -498,8 +495,6 @@ export interface ApplicationItem {
 }
 
 export interface SaveApplication {
-  /** 新增时的语言，不传为英文；修改时不可改 */
-  lang?: ContentLang;
   title: string;
   description?: string;
   icon?: string;
@@ -536,10 +531,8 @@ export const documentApi = {
 };
 
 export const applicationApi = {
-  list: (id: number, lang?: ContentLang) =>
-    call<ApplicationItem[]>(`${BASE}/products/${id}/applications`, {
-      params: { lang },
-    }),
+  list: (id: number) =>
+    call<ApplicationItem[]>(`${BASE}/products/${id}/applications`),
   create: (id: number, data: SaveApplication) =>
     call<ApplicationItem>(`${BASE}/products/${id}/applications`, {
       method: 'POST',
@@ -723,7 +716,10 @@ export const priceApi = {
     call<void>(`${BASE}/products/${id}/reference-price`, { method: 'DELETE' }),
 };
 
-// ---------- 内容任务（SEO & GEO 内容方案） ----------
+// ---------- 内容任务：资料（中文，共享）→ 营销（英文、俄文，本公司） ----------
+
+/** 任务包类型：资料包、营销包 */
+export type PackageType = 'facts' | 'marketing';
 
 export interface ContentTask {
   productId: number;
@@ -732,15 +728,20 @@ export interface ContentTask {
   categoryName?: string;
   mpn: string;
   productName?: string;
-  /** 1-待生成、2-进行中、3-已完成 */
+  /** 1-资料待补、2-资料待核、3-营销待生成、4-已完成 */
   status: number;
-  zhAt?: string;
-  zhBy?: string;
   enAt?: string;
   enBy?: string;
   ruAt?: string;
   ruBy?: string;
+  /** 本公司最近下载营销包 */
   downloadedAt?: string;
+  /** 资料（所有公司共享）：最近导入、核对、下载资料包 */
+  factImportedAt?: string;
+  factImportedBy?: string;
+  factVerifiedAt?: string;
+  factVerifiedBy?: string;
+  factDownloadedAt?: string;
   createTime?: string;
   createBy?: string;
   updateTime?: string;
@@ -785,7 +786,9 @@ export interface ContentPreview {
   fileName: string;
   brand?: string;
   model?: string;
-  lang?: ContentLang;
+  /** zh（资料包）、en、ru（营销包） */
+  lang?: string;
+  type?: PackageType;
   productId?: number;
   productLabel?: string;
   errors: string[];
@@ -801,21 +804,24 @@ export interface ContentConfirmResult {
     fileName: string;
     productId?: number;
     productLabel?: string;
-    lang?: ContentLang;
+    lang?: string;
     success: boolean;
     message: string;
   }[];
 }
 
 export interface ProductContent {
+  /** 1-资料待补、2-资料待核、3-营销待生成、4-已完成 */
   status: number;
-  zhAt?: string;
+  factImportedAt?: string;
+  factImportedBy?: string;
+  factVerifiedAt?: string;
+  factVerifiedBy?: string;
   enAt?: string;
   ruAt?: string;
   langs: Record<
     ContentLang,
     {
-      specSummary?: string;
       seoTitle?: string;
       metaDescription?: string;
       longDescription?: string;
@@ -853,11 +859,16 @@ export const contentApi = {
     }),
   productContent: (productId: number) =>
     call<ProductContent>(`${CONTENT}/products/${productId}`),
+  /** 资料已核：所有公司共享，记录核对人 */
+  verifyFacts: (productId: number) =>
+    call<void>(`${CONTENT}/products/${productId}/verify-facts`, {
+      method: 'POST',
+    }),
   /** 下载任务包：单个是 Markdown，多个是 zip；从响应头取文件名触发浏览器下载 */
-  download: async (productIds: number[]) => {
+  download: async (productIds: number[], type: PackageType) => {
     const res = await request<Blob>(`${CONTENT}/package`, {
       method: 'GET',
-      params: { productIds: productIds.join(',') },
+      params: { productIds: productIds.join(','), type },
       responseType: 'blob',
       getResponse: true,
       skipErrorHandler: true,

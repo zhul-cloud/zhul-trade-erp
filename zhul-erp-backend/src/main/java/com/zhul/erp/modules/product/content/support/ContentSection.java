@@ -2,7 +2,7 @@ package com.zhul.erp.modules.product.content.support;
 
 import java.util.List;
 
-/** 内容包章节：标题按开头匹配（去空白、忽略大小写），写入位置分共享商品库与本公司 */
+/** 内容包章节：标题按开头匹配（去空白、忽略大小写）；共享的属于资料包（写共享商品库），其余属于营销包（写本公司） */
 public enum ContentSection {
     SUMMARY("一句话规格摘要", true, 300, List.of("一句话规格摘要", "规格摘要", "specsummary", "summary")),
     GEO("首屏定义块", false, 1000, List.of("首屏定义块", "geo", "definition")),
@@ -12,8 +12,9 @@ public enum ContentSection {
     SPECS("规格参数表", true, 0, List.of("规格参数表", "规格参数", "specifications", "specs")),
     APPS("应用场景", true, 0, List.of("应用场景", "applications")),
     COMPAT("兼容替代型号", true, 0, List.of("兼容替代型号", "兼容型号", "compatible", "compatibility")),
-    FAQ("FAQ", false, 0, List.of("faq")),
-    DOCS("技术资料", true, 0, List.of("技术资料", "documents", "datasheet", "downloads"));
+    FAQ("FAQ", false, 0, List.of("faq", "营销问答")),
+    DOCS("技术资料", true, 0, List.of("技术资料", "documents", "datasheet", "downloads")),
+    TECH_FAQ("技术问答", true, 0, List.of("技术问答", "技术faq", "technicalfaq"));
 
     /** 第三期才处理的章节，解析时忽略 */
     public static final List<String> LATER = List.of("价格", "price", "社媒", "social", "销售话术", "图片", "视频", "media");
@@ -34,7 +35,7 @@ public enum ContentSection {
         return label;
     }
 
-    /** true 写入共享商品库，false 写入本公司 */
+    /** true 属于资料包、写入共享商品库，false 属于营销包、写入本公司 */
     public boolean shared() {
         return shared;
     }

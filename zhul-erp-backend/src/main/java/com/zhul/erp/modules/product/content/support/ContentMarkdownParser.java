@@ -1,21 +1,20 @@
 package com.zhul.erp.modules.product.content.support;
 
+import com.zhul.erp.modules.product.content.constants.ContentConstants;
 import com.zhul.erp.modules.product.support.UrlRules;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
-import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * 内容包 Markdown 解析（纯函数，design.md 决策 3）：frontmatter 取品牌、型号、语言，按二级标题分节。
+ * 内容包 Markdown 解析（纯函数）：frontmatter 取包类型、品牌、型号、语言，按二级标题分节。
+ * 资料包只能是中文，营销包只能是英文或俄文；不属于该包类型的章节跳过并提示。
  * 章节标题按开头匹配，兼容「首屏定义块（40-60词…）」这类带括号说明的标题；正文只有占位说明的视为空。
  */
 public final class ContentMarkdownParser {
-
-    public static final Set<String> LANGS = Set.of("zh", "en", "ru");
 
     private static final Pattern HTML_COMMENT = Pattern.compile("<!--.*?-->", Pattern.DOTALL);
     private static final Pattern PLACEHOLDER = Pattern.compile("^[（(].*[）)]$");
@@ -59,6 +58,10 @@ public final class ContentMarkdownParser {
                     draft.getNotes().add(isLater(currentHeading)
                             ? "「" + currentHeading + "」是第三期内容，已忽略"
                             : "不认识的章节「" + currentHeading + "」，已跳过");
+                } else if (!belongs(current, draft.getType())) {
+                    skipping = true;
+                    draft.getNotes().add("「" + currentHeading + "」不属于"
+                            + (ContentConstants.TYPE_FACTS.equals(draft.getType()) ? "资料包" : "营销包") + "，已跳过");
                 }
                 continue;
             }
@@ -73,15 +76,43 @@ public final class ContentMarkdownParser {
         if (draft.getModel() == null || draft.getModel().isEmpty()) {
             draft.getErrors().add("frontmatter 缺少 model（型号）");
         }
-        if (draft.getLang() == null || draft.getLang().isEmpty()) {
-            draft.getErrors().add("frontmatter 缺少 lang（语言），须为 zh、en、ru 之一");
-        } else if (!LANGS.contains(draft.getLang())) {
-            draft.getErrors().add("语言「" + draft.getLang() + "」无效，须为 zh、en、ru 之一");
-        }
+        checkTypeAndLang(draft);
         if (draft.getBlocks().isEmpty() && draft.getErrors().isEmpty()) {
             draft.getErrors().add("没有解析到任何内容");
         }
         return draft;
+    }
+
+    private static void checkTypeAndLang(ContentDraft draft) {
+        String type = draft.getType();
+        String lang = draft.getLang();
+        if (type == null || type.isEmpty()) {
+            draft.getErrors().add("缺少包类型（frontmatter 的 type 须为 facts 或 marketing）");
+            return;
+        }
+        boolean facts = ContentConstants.TYPE_FACTS.equals(type);
+        if (!facts && !ContentConstants.TYPE_MARKETING.equals(type)) {
+            draft.getErrors().add("包类型「" + type + "」无效，须为 facts（资料包）或 marketing（营销包）");
+            return;
+        }
+        if (lang == null || lang.isEmpty()) {
+            draft.getErrors().add(facts ? "frontmatter 缺少 lang，资料包须为 zh" : "frontmatter 缺少 lang，营销包须为 en 或 ru");
+        } else if (facts && !ContentConstants.FACTS_LANG.equals(lang)) {
+            draft.getErrors().add("资料包只能是中文（lang: zh）");
+        } else if (!facts && !ContentConstants.MARKETING_LANGS.contains(lang)) {
+            draft.getErrors().add("营销包只能是英文或俄文（lang: en 或 ru）");
+        }
+    }
+
+    /** 包类型无效时不按类型过滤章节（文件本身已不能确认） */
+    private static boolean belongs(ContentSection section, String type) {
+        if (ContentConstants.TYPE_FACTS.equals(type)) {
+            return section.shared();
+        }
+        if (ContentConstants.TYPE_MARKETING.equals(type)) {
+            return !section.shared();
+        }
+        return true;
     }
 
     /** 只解析一个章节的正文（预览里修改某块后重新解析用） */
@@ -103,7 +134,7 @@ public final class ContentMarkdownParser {
             i++;
         }
         if (i >= lines.length || !"---".equals(lines[i].trim())) {
-            draft.getErrors().add("缺少 frontmatter（文件开头用 --- 包住 brand、model、lang）");
+            draft.getErrors().add("缺少 frontmatter（文件开头用 --- 包住 type、brand、model、lang）");
             return i;
         }
         for (int j = i + 1; j < lines.length; j++) {
@@ -125,6 +156,7 @@ public final class ContentMarkdownParser {
                 case "brand" -> draft.setBrand(value);
                 case "model" -> draft.setModel(value);
                 case "lang" -> draft.setLang(value.toLowerCase(Locale.ROOT));
+                case "type" -> draft.setType(value.toLowerCase(Locale.ROOT));
                 default -> {
                     // 其他键（series、category、status 等）不使用
                 }
@@ -155,7 +187,7 @@ public final class ContentMarkdownParser {
             case SPECS -> parseSpecs(content, block);
             case APPS -> parseApps(content, block);
             case COMPAT -> parseCompat(content, block);
-            case FAQ -> parseFaq(content, block);
+            case FAQ, TECH_FAQ -> parseFaq(content, block);
             case DOCS -> parseDocs(content, block);
             default -> parseText(content, block);
         }

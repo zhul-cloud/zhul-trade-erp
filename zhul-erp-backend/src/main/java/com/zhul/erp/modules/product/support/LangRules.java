@@ -4,13 +4,14 @@ import com.zhul.erp.common.exception.BizException;
 import com.zhul.erp.modules.product.constants.ProductErrorCodes;
 
 import java.util.Locale;
-import java.util.Set;
 
-/** 商品内容语言：zh-中文（对内）、en-英文、ru-俄文（对外）；不传为英文，兼容现有调用方 */
+/**
+ * 商品资料语言（spec product/product「商品规格参数」「商品应用场景」）：商品资料只存中文，英文、俄文属于营销内容。
+ * 规格、应用场景、兼容说明的维护接口只接受 zh，不传为中文；以前写入的英文、俄文不再读写。
+ */
 public final class LangRules {
 
-    public static final String DEFAULT = "en";
-    private static final Set<String> LANGS = Set.of("zh", "en", "ru");
+    public static final String DEFAULT = "zh";
 
     private LangRules() {
     }
@@ -20,8 +21,8 @@ public final class LangRules {
             return DEFAULT;
         }
         String lang = raw.trim().toLowerCase(Locale.ROOT);
-        if (!LANGS.contains(lang)) {
-            throw BizException.of(ProductErrorCodes.PARAM_INVALID, "语言只能是 zh、en、ru");
+        if (!DEFAULT.equals(lang)) {
+            throw BizException.of(ProductErrorCodes.PARAM_INVALID, "商品资料只维护中文（lang 只能是 zh）");
         }
         return lang;
     }
