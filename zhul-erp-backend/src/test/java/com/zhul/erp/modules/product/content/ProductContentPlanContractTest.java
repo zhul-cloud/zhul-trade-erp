@@ -430,13 +430,15 @@ class ProductContentPlanContractTest extends InquiryContractSupport {
         String allText = all.getContentAsString(StandardCharsets.UTF_8);
         assertTrue(all.getHeader("Content-Disposition").contains("6ES7214-1AG40-0XB0.marketing.md"));
         assertTrue(allText.contains("## 关键词库") && allText.contains("## 阿里国际站") && allText.contains("## 独立站")
-                && !allText.contains("## 社媒") && !allText.contains("## 中国制造网") && allText.contains("## 内部附录"), allText);
+                && allText.contains("## 独立站俄文") && !allText.contains("## 社媒") && !allText.contains("## 中国制造网")
+                && allText.contains("## 内部附录"), allText);
         // 独立站俄文：只含独立站，lang: ru
         MockHttpServletResponse ru = perform(get(TASKS + "/marketing/package").param("productIds", String.valueOf(p1))
                 .param("platform", "site-ru"), a);
         String ruText = ru.getContentAsString(StandardCharsets.UTF_8);
         assertTrue(ru.getHeader("Content-Disposition").contains("6ES7214-1AG40-0XB0.site.ru.md"));
-        assertTrue(ruText.contains("lang: ru") && ruText.contains("## 独立站") && !ruText.contains("## 关键词库")
+        assertTrue(ruText.contains("lang: ru") && ruText.contains("## 独立站") && !ruText.contains("## 独立站俄文")
+                && !ruText.contains("## 关键词库")
                 && !ruText.contains("## 阿里国际站"), ruText);
         MockHttpServletResponse socialZip = perform(get(TASKS + "/marketing/package").param("productIds", p1 + "," + p2)
                 .param("platform", "social"), b);
