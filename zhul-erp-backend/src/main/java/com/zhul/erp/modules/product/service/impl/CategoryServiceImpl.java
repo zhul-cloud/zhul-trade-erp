@@ -31,9 +31,11 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.regex.Pattern;
 
 @Service
@@ -69,8 +71,7 @@ public class CategoryServiceImpl implements CategoryService {
         Page<ProductCategoryDO> page = categoryMapper.selectPage(
                 new Page<>(query.pageOrDefault(), query.pageSizeOrDefault()), wrapper);
 
-        Map<Long, Long> counts = toCountMap(page.getRecords().isEmpty() ? List.of()
-                : productMapper.countByCategoryIds(page.getRecords().stream().map(ProductCategoryDO::getId).toList()));
+        Map<Long, Long> counts = productCounts(page.getRecords());
         List<CategoryVO> records = new ArrayList<>(page.getRecords().size());
         for (ProductCategoryDO category : page.getRecords()) {
             records.add(toVO(category, counts.getOrDefault(category.getId(), 0L)));
@@ -155,9 +156,6 @@ public class CategoryServiceImpl implements CategoryService {
         String name = TextRules.required(req.getCategoryName(), "品类名称", NAME_MAX);
         long usage = countProducts(id);
         Long parentId = validParent(req.getParentId(), current);
-        if (parentId != null && usage > 0) {
-            throw BizException.of(ProductErrorCodes.CATEGORY_LEVEL_INVALID, "该品类下已有商品，商品只能挂一级品类，不能改为细分品类");
-        }
         String nameZh = validNameZh(req.getCategoryNameZh(), parentId);
         if (!code.equals(current.getCategoryCode())) {
             if (usage > 0) {
@@ -235,8 +233,7 @@ public class CategoryServiceImpl implements CategoryService {
                 .isNull(ProductCategoryDO::getDeletedAt)
                 .orderByAsc(ProductCategoryDO::getSortOrder)
                 .orderByAsc(ProductCategoryDO::getId));
-        Map<Long, Long> counts = toCountMap(all.isEmpty() ? List.of()
-                : productMapper.countByCategoryIds(all.stream().map(ProductCategoryDO::getId).toList()));
+        Map<Long, Long> counts = productCounts(all);
         Map<Long, List<CategoryVO>> children = new HashMap<>(all.size() * 2);
         List<CategoryVO> roots = new ArrayList<>();
         for (ProductCategoryDO c : all) {
@@ -335,6 +332,29 @@ public class CategoryServiceImpl implements CategoryService {
                 .eq(ProductDO::getTenantId, ProductConstants.PLATFORM_TENANT_ID)
                 .eq(ProductDO::getCategoryId, categoryId)
                 .isNull(ProductDO::getDeletedAt));
+    }
+
+    /** 各品类的商品数：一级品类包含其下细分品类的商品 */
+    private Map<Long, Long> productCounts(List<ProductCategoryDO> categories) {
+        if (categories.isEmpty()) {
+            return Map.of();
+        }
+        List<Long> topIds = categories.stream().filter(c -> c.getParentId() == null).map(ProductCategoryDO::getId).toList();
+        List<ProductCategoryDO> children = topIds.isEmpty() ? List.of() : categoryMapper.selectList(
+                new LambdaQueryWrapper<ProductCategoryDO>()
+                        .select(ProductCategoryDO::getId, ProductCategoryDO::getParentId)
+                        .in(ProductCategoryDO::getParentId, topIds)
+                        .isNull(ProductCategoryDO::getDeletedAt));
+        Set<Long> ids = new HashSet<>(categories.size() + children.size());
+        categories.forEach(c -> ids.add(c.getId()));
+        children.forEach(c -> ids.add(c.getId()));
+        Map<Long, Long> own = toCountMap(productMapper.countByCategoryIds(new ArrayList<>(ids)));
+        Map<Long, Long> counts = new HashMap<>(categories.size() * 2);
+        categories.forEach(c -> counts.put(c.getId(), own.getOrDefault(c.getId(), 0L)));
+        for (ProductCategoryDO child : children) {
+            counts.computeIfPresent(child.getParentId(), (k, v) -> v + own.getOrDefault(child.getId(), 0L));
+        }
+        return counts;
     }
 
     private static Map<Long, Long> toCountMap(Collection<IdCount> rows) {

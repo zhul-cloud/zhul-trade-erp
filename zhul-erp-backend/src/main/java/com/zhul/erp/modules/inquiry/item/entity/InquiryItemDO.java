@@ -23,6 +23,8 @@ public class InquiryItemDO {
     /** 品牌匹配键，见 PriceKeys */
     private String brandKey;
     private String category;
+    /** 品类ID：细分或一级品类；关联不上时为空，只保留品类文字 */
+    private Long categoryId;
     private String originalModel;
     private String confirmedModel;
     /** 归一化型号，与商品主数据同规则 */

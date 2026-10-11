@@ -16,6 +16,8 @@ public class ConfirmRowRequest {
     private String brand;
     @Size(max = 32, message = "品类不能超过 32 字")
     private String category;
+    /** 从品类下拉选中的品类；为空时按品类文字匹配 */
+    private Long categoryId;
     @Size(max = 128, message = "原始型号不能超过 128 字")
     private String originalModel;
     @NotBlank(message = "请填写型号")

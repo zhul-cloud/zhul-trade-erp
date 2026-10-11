@@ -25,6 +25,7 @@ import {
   type BrandOption,
   brandApi,
   type Category,
+  type CategoryOption,
   categoryApi,
   type MediaItem,
   mediaApi,
@@ -133,6 +134,7 @@ const WizardInner: React.FC = () => {
   const [product, setProduct] = useState<Product>();
   const [brands, setBrands] = useState<BrandOption[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [subCategories, setSubCategories] = useState<CategoryOption[]>([]);
   const [seriesList, setSeriesList] = useState<SeriesOption[]>([]);
   const [match, setMatch] = useState<ProductMatch>();
   const [similar, setSimilar] = useState<ProductOption[]>([]);
@@ -179,6 +181,10 @@ const WizardInner: React.FC = () => {
     categoryApi
       .page({ page: 1, pageSize: 100, status: 1 })
       .then((r) => setCategories(r.records))
+      .catch(() => {});
+    categoryApi
+      .options(2)
+      .then(setSubCategories)
       .catch(() => {});
   }, []);
 
@@ -346,7 +352,22 @@ const WizardInner: React.FC = () => {
 
   const nextDisabled =
     step === 1 ? !step1Ready : step === 2 ? !step2Ready || creating : false;
-  const category = categories.find((c) => c.id === draft.categoryId);
+  // 选中的可能是细分品类：卡片按它的一级高亮，下方再选细分
+  const selectedSub = subCategories.find((c) => c.id === draft.categoryId);
+  const topId = selectedSub?.parentId ?? draft.categoryId;
+  const subsOfTop = subCategories.filter((c) => c.parentId === topId);
+  const categoryLabel = selectedSub
+    ? selectedSub.categoryNameZh || selectedSub.categoryName
+    : categories.find((c) => c.id === draft.categoryId)?.categoryName;
+  const subChoice = (active: boolean): React.CSSProperties => ({
+    height: 36,
+    padding: '0 16px',
+    borderRadius: 18,
+    border: `1px solid ${palette.control}`,
+    background: active ? '#2563EB' : 'transparent',
+    color: active ? '#FFFFFF' : palette.ink,
+    cursor: 'pointer',
+  });
   const previewSeries = seriesList.find((s) => s.id === draft.seriesId);
   const shownBrands = useMemo(() => {
     const top = brands.slice(0, COMMON_BRANDS);
@@ -732,9 +753,9 @@ const WizardInner: React.FC = () => {
                     type="button"
                     role="radio"
                     onKeyDown={onRadioKey}
-                    aria-checked={draft.categoryId === c.id}
+                    aria-checked={topId === c.id}
                     key={c.id}
-                    style={bigChoice(draft.categoryId === c.id)}
+                    style={bigChoice(topId === c.id)}
                     onClick={() => patch({ categoryId: c.id })}
                   >
                     <span style={{ flex: 1 }}>{c.categoryName}</span>
@@ -747,6 +768,44 @@ const WizardInner: React.FC = () => {
                   </button>
                 ))}
               </div>
+              {topId && subsOfTop.length > 0 && (
+                <div style={{ marginBottom: 24 }}>
+                  <div style={{ fontWeight: 600, marginBottom: 8 }}>
+                    细分品类（可选）
+                  </div>
+                  <div
+                    role="radiogroup"
+                    aria-label="细分品类"
+                    style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}
+                  >
+                    {/* biome-ignore lint/a11y/useSemanticElements: 自绘的卡片式单选，按 ARIA radio 模式实现（role、aria-checked、组内单选） */}
+                    <button
+                      type="button"
+                      role="radio"
+                      onKeyDown={onRadioKey}
+                      aria-checked={!selectedSub}
+                      onClick={() => patch({ categoryId: topId })}
+                      style={subChoice(!selectedSub)}
+                    >
+                      不细分
+                    </button>
+                    {subsOfTop.map((c) => (
+                      // biome-ignore lint/a11y/useSemanticElements: 自绘的卡片式单选，按 ARIA radio 模式实现（role、aria-checked、组内单选）
+                      <button
+                        type="button"
+                        role="radio"
+                        onKeyDown={onRadioKey}
+                        aria-checked={draft.categoryId === c.id}
+                        key={c.id}
+                        onClick={() => patch({ categoryId: c.id })}
+                        style={subChoice(draft.categoryId === c.id)}
+                      >
+                        {c.categoryNameZh || c.categoryName}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
               <div style={{ marginBottom: 24 }}>
                 <div style={{ fontWeight: 600, marginBottom: 8 }}>
                   系列（可选）
@@ -1157,11 +1216,7 @@ const WizardInner: React.FC = () => {
                     {draft.mpn.trim() || '型号'}
                   </div>
                   <div style={{ color: palette.sub, fontSize: 13 }}>
-                    {[
-                      draft.brandName,
-                      category?.categoryName,
-                      previewSeries?.seriesName,
-                    ]
+                    {[draft.brandName, categoryLabel, previewSeries?.seriesName]
                       .filter(Boolean)
                       .join(' · ') || '品牌 · 品类'}
                   </div>

@@ -9,6 +9,8 @@ import java.util.List;
 public class DraftRowVO {
     private String brand;
     private String category;
+    /** 关联的品类（细分或一级），关联不上时为空 */
+    private Long categoryId;
     private String originalModel;
     private String confirmedModel;
     private Integer confidence;

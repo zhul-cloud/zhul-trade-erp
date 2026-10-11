@@ -82,6 +82,10 @@ export interface InquiryItem {
   brand: string;
   brandKey: string;
   category: string;
+  /** 关联的品类（细分或一级），关联不上时为空 */
+  categoryId?: number | null;
+  /** 分组键：品牌 + 一级品类（没关联品类时按品类文字），与询价任务拆分一致 */
+  groupKey: string;
   originalModel: string;
   confirmedModel: string;
   confidence: number;
@@ -149,6 +153,8 @@ export interface PriceMatch {
 export interface DraftRow {
   brand: string;
   category: string;
+  /** 关联的品类：AI 解析或从下拉选中时有值；手填文字时为空，确认时由后端按文字匹配 */
+  categoryId?: number | null;
   originalModel?: string;
   confirmedModel: string;
   confidence: number;

@@ -16,7 +16,7 @@ public interface ProductContentTaskMapper extends BaseMapper<ProductContentTaskD
             + "AND t.deleted_at IS NULL WHERE p.tenant_id = 0 AND p.deleted_at IS NULL AND p.status = 1 ";
 
     String FILTER = "<if test='brandId != null'> AND p.brand_id = #{brandId}</if>"
-            + "<if test='categoryId != null'> AND p.category_id = #{categoryId}</if>"
+            + "<if test='categoryId != null'> AND (p.category_id = #{categoryId} OR p.category_id IN (SELECT c.id FROM product_category c WHERE c.parent_id = #{categoryId} AND c.deleted_at IS NULL))</if>"
             + "<if test='keyword != null'> AND (p.product_name LIKE CONCAT('%', #{keyword}, '%') "
             + "OR p.mpn_raw LIKE CONCAT('%', #{keyword}, '%')"
             + "<if test='mpn != null'> OR p.mpn_normalized LIKE CONCAT('%', #{mpn}, '%')</if>)</if>";

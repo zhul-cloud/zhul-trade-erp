@@ -10,13 +10,19 @@ import com.zhul.erp.modules.product.controller.BrandController;
 import com.zhul.erp.modules.product.dto.BrandOptionVO;
 import com.zhul.erp.modules.product.dto.BrandQuery;
 import com.zhul.erp.modules.product.dto.BrandVO;
+import com.zhul.erp.modules.product.content.dto.ContentTaskQuery;
+import com.zhul.erp.modules.product.content.service.ContentTaskService;
+import com.zhul.erp.modules.product.dto.CategoryQuery;
 import com.zhul.erp.modules.product.dto.CategoryVO;
 import com.zhul.erp.modules.product.dto.CreateSeriesRequest;
+import com.zhul.erp.modules.product.dto.ProductQuery;
+import com.zhul.erp.modules.product.dto.ProductVO;
 import com.zhul.erp.modules.product.dto.SaveBrandRequest;
 import com.zhul.erp.modules.product.dto.SaveCategoryRequest;
 import com.zhul.erp.modules.product.dto.SeriesOptionVO;
 import com.zhul.erp.modules.product.service.BrandService;
 import com.zhul.erp.modules.product.service.CategoryService;
+import com.zhul.erp.modules.product.service.ProductService;
 import com.zhul.erp.modules.product.service.SeriesService;
 import com.zhul.erp.modules.product.support.OptionsCache;
 import com.zhul.erp.support.IntegrationTestBase;
@@ -32,6 +38,8 @@ import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -50,6 +58,10 @@ class ProductMasterDataIntegrationTest extends IntegrationTestBase {
     private CategoryService categoryService;
     @Autowired
     private SeriesService seriesService;
+    @Autowired
+    private ProductService productService;
+    @Autowired
+    private ContentTaskService contentTaskService;
     @Autowired
     private BrandController brandController;
     @Autowired
@@ -257,6 +269,40 @@ class ProductMasterDataIntegrationTest extends IntegrationTestBase {
 
         req.setDescriptionZh("长".repeat(501));
         assertThrows(BizException.class, () -> categoryService.update(created.getId(), req), "中文简介超长");
+    }
+
+    @Test
+    void topCategoryFilterAndCountIncludeSubCategories() {
+        long brandId = brandService.create(brandRequest("Mitsubishi")).getId();
+        long servo = categoryService.create(categoryRequest("servo", "Servo & Motion")).getId();
+        SaveCategoryRequest subReq = categoryRequest("servo_drive", "Servo Drives");
+        subReq.setParentId(servo);
+        subReq.setCategoryNameZh("伺服驱动器");
+        long drive = categoryService.create(subReq).getId();
+        long other = categoryService.create(categoryRequest("hmi", "HMI")).getId();
+        long onTop = insertProduct(brandId, servo, null, "MR-J4-TOP");
+        long onSub = insertProduct(brandId, drive, null, "MR-J4-70A");
+        insertProduct(brandId, other, null, "GT2510");
+
+        ProductQuery byTop = new ProductQuery();
+        byTop.setCategoryId(servo);
+        assertEquals(Set.of(onTop, onSub), productService.page(byTop).getRecords().stream()
+                .map(ProductVO::getId).collect(Collectors.toSet()), "按一级筛选包含细分品类的商品");
+        ProductQuery bySub = new ProductQuery();
+        bySub.setCategoryId(drive);
+        assertEquals(List.of(onSub), productService.page(bySub).getRecords().stream().map(ProductVO::getId).toList());
+
+        ContentTaskQuery content = new ContentTaskQuery();
+        content.setCategoryId(servo);
+        assertEquals(2, contentTaskService.page(content).getTotal(), "内容任务按一级筛选同样包含细分");
+
+        Map<Long, Long> counts = categoryService.page(new CategoryQuery()).getRecords().stream()
+                .collect(Collectors.toMap(CategoryVO::getId, CategoryVO::getProductCount));
+        assertEquals(2L, counts.get(servo), "一级品类商品数含细分");
+        assertEquals(1L, counts.get(other));
+        CategoryVO servoNode = categoryService.tree().stream().filter(c -> c.getId().equals(servo)).findFirst().orElseThrow();
+        assertEquals(2L, servoNode.getProductCount());
+        assertEquals(1L, servoNode.getChildren().get(0).getProductCount(), "细分品类只算自己的");
     }
 
     @Test

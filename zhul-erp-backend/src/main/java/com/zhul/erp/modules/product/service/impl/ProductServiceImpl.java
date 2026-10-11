@@ -98,7 +98,7 @@ public class ProductServiceImpl implements ProductService {
                 .eq(ProductDO::getTenantId, ProductConstants.PLATFORM_TENANT_ID)
                 .isNull(!includeDeleted, ProductDO::getDeletedAt)
                 .eq(query.getBrandId() != null, ProductDO::getBrandId, query.getBrandId())
-                .eq(query.getCategoryId() != null, ProductDO::getCategoryId, query.getCategoryId())
+                .in(query.getCategoryId() != null, ProductDO::getCategoryId, categoryWithChildren(query.getCategoryId()))
                 .eq(query.getSeriesId() != null, ProductDO::getSeriesId, query.getSeriesId())
                 .eq(query.getLifecycleStatus() != null, ProductDO::getLifecycleStatus, query.getLifecycleStatus())
                 .eq(query.getStatus() != null, ProductDO::getStatus, query.getStatus());
@@ -352,9 +352,6 @@ public class ProductServiceImpl implements ProductService {
         }
         Long categoryId = req.getCategoryId();
         ProductCategoryDO category = activeCategory(categoryId);
-        if (category.getParentId() != null) {
-            throw BizException.of(ProductErrorCodes.CATEGORY_LEVEL_INVALID, "商品只能选择一级品类");
-        }
         if ((current == null || !Objects.equals(categoryId, current.getCategoryId()))
                 && !Objects.equals(category.getStatus(), ProductConstants.STATUS_ENABLED)) {
             throw BizException.of(ProductErrorCodes.PARAM_INVALID, "品类已停用，不能用于新商品");
@@ -416,6 +413,21 @@ public class ProductServiceImpl implements ProductService {
             throw BizException.of(ProductErrorCodes.BRAND_NOT_FOUND, "品牌不存在");
         }
         return brand;
+    }
+
+    /** 按品类筛选：一级品类包含其下细分品类的商品 */
+    private List<Long> categoryWithChildren(Long categoryId) {
+        if (categoryId == null) {
+            return List.of();
+        }
+        List<Long> ids = new ArrayList<>(16);
+        ids.add(categoryId);
+        categoryMapper.selectList(new LambdaQueryWrapper<ProductCategoryDO>()
+                        .select(ProductCategoryDO::getId)
+                        .eq(ProductCategoryDO::getParentId, categoryId)
+                        .isNull(ProductCategoryDO::getDeletedAt))
+                .forEach(c -> ids.add(c.getId()));
+        return ids;
     }
 
     private ProductCategoryDO activeCategory(Long categoryId) {

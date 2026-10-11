@@ -11,6 +11,9 @@ public class InquiryItemVO {
     /** 品牌匹配键（按品牌及别名识别），同品牌的不同写法相同 */
     private String brandKey;
     private String category;
+    private Long categoryId;
+    /** 分组键：品牌 + 一级品类（没关联品类时按品类文字），与询价任务拆分一致 */
+    private String groupKey;
     private String originalModel;
     private String confirmedModel;
     private Integer confidence;

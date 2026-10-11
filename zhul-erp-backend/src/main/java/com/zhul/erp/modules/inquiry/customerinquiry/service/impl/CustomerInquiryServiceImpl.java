@@ -54,6 +54,7 @@ import com.zhul.erp.modules.inquiry.sourcing.service.impl.SourcingProgress;
 import com.zhul.erp.modules.inquiry.support.CurrentUserResolver;
 import com.zhul.erp.modules.inquiry.support.GeneratedInquiryCode;
 import com.zhul.erp.modules.inquiry.support.InquiryCodeGenerator;
+import com.zhul.erp.modules.inquiry.support.InquiryCategories;
 import com.zhul.erp.modules.inquiry.support.InquiryLookups;
 import com.zhul.erp.modules.inquiry.support.PriceKeys;
 import com.zhul.erp.modules.inquiry.support.SourcingSettings;
@@ -62,6 +63,7 @@ import com.zhul.erp.modules.inquiry.support.TaskTimeout;
 import com.zhul.erp.modules.masterdata.entity.CustomerDO;
 import com.zhul.erp.modules.masterdata.repository.CustomerMapper;
 import com.zhul.erp.modules.product.dto.ProductMatchVO;
+import com.zhul.erp.modules.product.entity.ProductCategoryDO;
 import com.zhul.erp.modules.product.service.ProductLookupService;
 import com.zhul.erp.modules.system.service.DictItemService;
 import com.zhul.erp.modules.system.service.LogService;
@@ -80,6 +82,7 @@ import java.nio.file.Path;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -126,6 +129,7 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
     private final LogService logService;
     private final QuotationLocks quotationLocks;
     private final com.zhul.erp.modules.product.candidate.service.ProductArchiver productArchiver;
+    private final InquiryCategories inquiryCategories;
 
     // ---------------------------------------------------------------- 附件
 
@@ -395,6 +399,7 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
                     .forEach(q -> noStockNotes.putIfAbsent(q.getInquiryItemId(), q.getNote()));
         }
         Set<Long> quoted = quotationLocks.lockedItemIds(items.stream().map(InquiryItemDO::getId).toList());
+        List<ProductCategoryDO> categories = inquiryCategories.categories();
         List<InquiryItemVO> list = new ArrayList<>(items.size());
         for (InquiryItemDO i : items) {
             InquiryItemVO vo = new InquiryItemVO();
@@ -404,6 +409,8 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
             vo.setBrand(i.getBrand());
             vo.setBrandKey(i.getBrandKey());
             vo.setCategory(i.getCategory());
+            vo.setCategoryId(i.getCategoryId());
+            vo.setGroupKey(InquiryCategories.groupKey(i.getBrandKey(), i.getCategoryId(), i.getCategory(), categories));
             vo.setOriginalModel(i.getOriginalModel());
             vo.setConfirmedModel(i.getConfirmedModel());
             vo.setConfidence(i.getConfidence());
@@ -427,9 +434,9 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
             vo.setNoStockNote(noStockNotes.get(i.getId()));
             list.add(vo);
         }
-        // 同品牌、同品类的型号排在一起；组之间按首次出现的顺序
+        // 同品牌、同一级品类的型号排在一起；组之间按首次出现的顺序
         Map<String, List<InquiryItemVO>> grouped = new LinkedHashMap<>();
-        list.forEach(v -> grouped.computeIfAbsent(v.getBrandKey() + "|" + v.getCategory(), k -> new ArrayList<>()).add(v));
+        list.forEach(v -> grouped.computeIfAbsent(v.getGroupKey(), k -> new ArrayList<>()).add(v));
         return grouped.values().stream().flatMap(List::stream).toList();
     }
 
@@ -579,6 +586,7 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
         input.put("customerInquiryId", inquiry.getId());
         input.put("rawContent", text.toString());
         input.put("attachmentPaths", paths);
+        input.put("categories", parseCategories());
         if (!paths.isEmpty()) {
             input.put("rawAttachmentPath", paths.get(0));
         }
@@ -587,6 +595,29 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
         inquiry.setStatus(InquiryConstants.STATUS_PARSING);
         inquiryMapper.updateById(inquiry);
         return toVos(List.of(inquiry)).get(0);
+    }
+
+    /** 发给 AI 的品类清单：启用的一级品类按排序，每个一级后面跟着它的细分品类 */
+    private List<Map<String, Object>> parseCategories() {
+        Comparator<ProductCategoryDO> order = Comparator.comparing((ProductCategoryDO c) -> c.getSortOrder() == null ? 0 : c.getSortOrder())
+                .thenComparing(ProductCategoryDO::getId);
+        List<ProductCategoryDO> all = inquiryCategories.categories();
+        List<Map<String, Object>> result = new ArrayList<>(all.size());
+        for (ProductCategoryDO top : all.stream().filter(c -> c.getParentId() == null).sorted(order).toList()) {
+            result.add(categoryEntry(top, null));
+            all.stream().filter(c -> top.getId().equals(c.getParentId())).sorted(order)
+                    .forEach(c -> result.add(categoryEntry(c, top.getCategoryCode())));
+        }
+        return result;
+    }
+
+    private static Map<String, Object> categoryEntry(ProductCategoryDO c, String parentCode) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("code", c.getCategoryCode());
+        m.put("nameZh", c.getCategoryNameZh() == null ? "" : c.getCategoryNameZh());
+        m.put("name", c.getCategoryName());
+        m.put("parentCode", parentCode);
+        return m;
     }
 
     @Override
@@ -645,9 +676,10 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
         if (inquiry.getStatus() == InquiryConstants.STATUS_PENDING_CONFIRM
                 && inquiry.getParseMode() == InquiryConstants.PARSE_MODE_AI && inquiry.getAiTaskId() != null) {
             AiParseOutputDTO output = parseOutput(aiTaskService.getById(inquiry.getAiTaskId()).getOutput());
+            List<ProductCategoryDO> categories = inquiryCategories.categories();
             for (AiParseGroupDTO g : output.getGroups()) {
                 for (AiParseItemDTO it : g.getItems()) {
-                    rows.add(toDraftRow(g, it));
+                    rows.add(toDraftRow(g, it, categories));
                 }
             }
         }
@@ -659,10 +691,13 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
         return vo;
     }
 
-    private DraftRowVO toDraftRow(AiParseGroupDTO g, AiParseItemDTO it) {
+    private DraftRowVO toDraftRow(AiParseGroupDTO g, AiParseItemDTO it, List<ProductCategoryDO> categories) {
         DraftRowVO row = new DraftRowVO();
         row.setBrand(g.getBrand());
-        row.setCategory(g.getCategory());
+        // AI 给的品类编码优先，无效时按分组的品类文字匹配
+        InquiryCategories.Linked category = InquiryCategories.link(null, it.getCategoryCode(), g.getCategory(), categories);
+        row.setCategory(category.text());
+        row.setCategoryId(category.categoryId());
         row.setOriginalModel(it.getOriginalModel());
         row.setConfirmedModel(StringUtils.hasText(it.getConfirmedModel()) ? it.getConfirmedModel() : it.getOriginalModel());
         row.setConfidence(it.getConfidence() == null ? InquiryConstants.CONFIDENCE_CONFIRMED : it.getConfidence());
@@ -697,6 +732,7 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
         List<InquiryItemDO> pending = new ArrayList<>();
         List<Long> confirmedIds = new ArrayList<>();
         QuoteDictSnapshot.Dict lifecycles = quoteDicts.snapshot().lifecycles();
+        List<ProductCategoryDO> categories = inquiryCategories.categories();
         int line = 0;
         int priced = 0;
         int verify = 0;
@@ -718,7 +754,9 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
             item.setBrand(row.getBrand().trim());
             item.setBrandId(brand.brandId());
             item.setBrandKey(brand.brandKey());
-            item.setCategory(text(row.getCategory()));
+            InquiryCategories.Linked category = InquiryCategories.link(row.getCategoryId(), null, row.getCategory(), categories);
+            item.setCategory(text(category.text()));
+            item.setCategoryId(category.categoryId());
             item.setOriginalModel(StringUtils.hasText(row.getOriginalModel()) ? row.getOriginalModel().trim() : row.getConfirmedModel().trim());
             item.setConfirmedModel(row.getConfirmedModel().trim());
             item.setModelKey(modelKey);

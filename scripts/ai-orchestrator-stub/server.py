@@ -27,18 +27,20 @@ CALLBACK_TOKEN = os.environ.get("AI_TASK_CALLBACK_TOKEN", "zhul-erp-ai-callback-
 CALLBACK_DELAY_SECONDS = float(os.environ.get("AI_STUB_DELAY_SECONDS", "3"))
 
 # 示例拆单结果，对应本次 UI 原型"客户询盘详情-待确认拆单预览"页展示的数据结构：
-# 按品牌+品类分组，每组含若干型号明细，置信度枚举与 inquiry-parser skill 原定义一致
+# 按品牌+一级品类分组，每组含若干型号明细，每个型号带细分品类编码 categoryCode（取自品类表）；
+# 置信度枚举与 inquiry-parser skill 原定义一致
 # （1=确认 2=已纠正 3=待核实 4=未识别）。
 SAMPLE_OUTPUT = {
     "groups": [
         {
             "brand": "Siemens",
-            "category": "PLC",
+            "category": "PLC 与控制器",
             "inquiryTemplate": "您好，我们有一批 Siemens PLC 型号需要询价：\n1) 6ES7214-1AG40-0XB0 x25pcs\n2) 6ED1052-1MD00-0BA6 x8pcs\n麻烦协助报价，注明含税单价、货期及付款方式，谢谢！",
             "emailTemplateCn": "尊敬的供应商，\n\n您好！我司现就以下 Siemens PLC 型号进行询价：\n1) 6ES7214-1AG40-0XB0，数量 25pcs\n2) 6ED1052-1MD00-0BA6，数量 8pcs\n\n烦请提供最优报价、交货周期及付款条件（FOB上海），谢谢配合！\n\n此致\n敬礼",
             "emailTemplateEn": "Dear Sir/Madam,\n\nRe: Inquiry for Siemens PLC — 6ES7214-1AG40-0XB0 x25pcs, 6ED1052-1MD00-0BA6 x8pcs.\nPlease kindly quote your best price, lead time and payment terms (FOB Shanghai).\n\nBest regards",
             "items": [
                 {
+                    "categoryCode": "plc_cpu",
                     "originalModel": "6ES7214-1AG40-0XB0",
                     "confirmedModel": "6ES7214-1AG40-0XB0",
                     "confidence": 1,
@@ -49,6 +51,7 @@ SAMPLE_OUTPUT = {
                     "unit": "台",
                 },
                 {
+                    "categoryCode": "plc_cpu",
                     "originalModel": "6ES7214-1AG400XB0",
                     "confirmedModel": "6ES7214-1AG40-0XB0",
                     "confidence": 2,
@@ -59,6 +62,7 @@ SAMPLE_OUTPUT = {
                     "unit": "台",
                 },
                 {
+                    "categoryCode": "plc_cpu",
                     "originalModel": "6ED1052-1MD00-0BA6",
                     "confirmedModel": "6ED1052-1MD00-0BA6",
                     "confidence": 1,
@@ -72,12 +76,13 @@ SAMPLE_OUTPUT = {
         },
         {
             "brand": "Schneider",
-            "category": "变频器",
+            "category": "变频器与驱动",
             "inquiryTemplate": "您好，我们有一批 Schneider 变频器型号需要询价：\n1) ATV320U15N4C x10pcs\n麻烦协助报价，注明含税单价、货期及付款方式，谢谢！",
             "emailTemplateCn": "尊敬的供应商，\n\n您好！我司现就以下 Schneider 变频器型号进行询价：\n1) ATV320U15N4C，数量 10pcs\n\n烦请提供最优报价、交货周期及付款条件（FOB上海），谢谢配合！\n\n此致\n敬礼",
             "emailTemplateEn": "Dear Sir/Madam,\n\nRe: Inquiry for Schneider ATV320U15N4C x10pcs.\nPlease kindly quote your best price and lead time.\n\nBest regards",
             "items": [
                 {
+                    "categoryCode": "vfd",
                     "originalModel": "ATV320U15N4C",
                     "confirmedModel": "ATV320U15N4C",
                     "confidence": 1,
@@ -88,6 +93,7 @@ SAMPLE_OUTPUT = {
                     "unit": "台",
                 },
                 {
+                    "categoryCode": "vfd",
                     "originalModel": "ATV310HU75N4E",
                     "confirmedModel": "",
                     "confidence": 4,
@@ -107,6 +113,7 @@ SAMPLE_OUTPUT = {
             "emailTemplateEn": "",
             "items": [
                 {
+                    "categoryCode": "photoelectric_sensor",
                     "originalModel": "光电传感器 E3F-DS30",
                     "confirmedModel": "E3F-DS30C4",
                     "confidence": 3,

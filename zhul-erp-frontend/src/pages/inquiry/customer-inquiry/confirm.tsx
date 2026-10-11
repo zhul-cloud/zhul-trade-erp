@@ -24,6 +24,7 @@ import {
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import BrandCategoryPicker from '@/components/BrandCategoryPicker';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
+import { type CategoryOption, categoryApi } from '@/pages/product/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import { DICT_SOURCE_CHANNEL, useDictOptions } from '@/utils/dict';
 import { formatAmount } from '@/utils/format';
@@ -116,6 +117,7 @@ const ConfirmPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+  const [categories, setCategories] = useState<CategoryOption[]>([]);
   const lastLookup = useRef<Record<string, string>>({});
 
   const load = async () => {
@@ -145,6 +147,25 @@ const ConfirmPage: React.FC = () => {
   useEffect(() => {
     load();
   }, [inquiryId]);
+
+  useEffect(() => {
+    categoryApi
+      .options(0)
+      .then(setCategories)
+      .catch(() => {});
+  }, []);
+
+  const categoryName = (c: CategoryOption) =>
+    c.categoryNameZh || c.categoryName;
+  /** 下拉里的品类名对应的品类；手填的文字对应不上时为空，确认时由后端按文字匹配 */
+  const categoryIdOf = (text: string) =>
+    categories.find((c) => categoryName(c) === text.trim())?.id ?? null;
+  /** 一级品类：细分取上级；不在清单里时为空 */
+  const rootOf = (categoryId?: number | null) => {
+    const c = categories.find((x) => x.id === categoryId);
+    if (!c) return undefined;
+    return c.parentId ? categories.find((x) => x.id === c.parentId) : c;
+  };
 
   useEffect(() => {
     if (draft && rows.some((r) => r.brand || r.confirmedModel))
@@ -198,19 +219,21 @@ const ConfirmPage: React.FC = () => {
     >();
     for (const r of pending) {
       if (!r.brand.trim()) continue;
-      // 与后端拆任务同口径：品牌按别名识别后的匹配键分组（如「三菱」与「Mitsubishi」是同一组）
-      const k = `${r.match?.brandKey ?? r.brand.trim().toLowerCase()}|${r.category.trim()}`;
+      // 与后端拆任务同口径：品牌按别名识别后的匹配键 + 一级品类分组（如「三菱」与「Mitsubishi」是同一组，
+      // 「伺服驱动器」「伺服电机」同属「伺服与运动」）；没关联品类的按品类文字
+      const root = rootOf(r.categoryId);
+      const k = `${r.match?.brandKey ?? r.brand.trim().toLowerCase()}|${root ? `c:${root.id}` : `t:${r.category.trim()}`}`;
       const g = map.get(k);
       if (g) g.count += 1;
       else
         map.set(k, {
           brand: r.brand.trim(),
-          category: r.category.trim(),
+          category: root ? categoryName(root) : r.category.trim(),
           count: 1,
         });
     }
     return [...map.values()];
-  }, [pending]);
+  }, [pending, categories]);
 
   const confirm = async () => {
     const bad = rows.findIndex(
@@ -263,7 +286,9 @@ const ConfirmPage: React.FC = () => {
             kind="category"
             size="small"
             value={r.category}
-            onChange={(v) => patch(r.key, { category: v })}
+            onChange={(v) =>
+              patch(r.key, { category: v, categoryId: categoryIdOf(v) })
+            }
           />
         </div>
       ),

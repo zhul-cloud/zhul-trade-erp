@@ -73,6 +73,7 @@ OUTPUT_SCHEMA = {
                         "items": {
                             "type": "object",
                             "properties": {
+                                "categoryCode": {"type": "string"},
                                 "originalModel": {"type": "string"},
                                 "confirmedModel": {"type": "string"},
                                 "confidence": {"type": "integer"},
@@ -105,7 +106,16 @@ def _read_skill(name: str) -> str:
         return f.read()
 
 
-def build_system_prompt() -> str:
+def _category_listing(categories: list) -> str:
+    """后端带来的品类清单：一级在前、其细分缩进列在下面，每行「编码｜中文名｜英文名」"""
+    lines = []
+    for c in categories:
+        indent = "  - " if c.get("parentCode") else ""
+        lines.append(f"{indent}{c.get('code', '')}｜{c.get('nameZh') or ''}｜{c.get('name') or ''}")
+    return "\n".join(lines)
+
+
+def build_system_prompt(categories=None) -> str:
     parser = _read_skill("inquiry-parser")
     splitter = _read_skill("order-splitter")
     return f"""你要依次严格执行下面两个 skill 的完整流程处理这条询盘内容：先执行 inquiry-parser 做型号提取和联网搜索验证，再把结果交给 order-splitter 按品牌+品类分组并生成话术模版。
@@ -134,12 +144,27 @@ def build_system_prompt() -> str:
 - difficulty 采购难度（整数）：常见在产型号、国内平台容易买到=1（简单）；冷门、停产有替代或货源少=2（中等）；停产无替代、稀缺或需海外渠道=3（困难）
 - inquiryScript：发给国内供应商的询价话术，格式固定为「帮我查一下 {{品牌中文名或英文名}} 的 {{确认型号}}，要 {{数量}} {{单位}}，报不含税价，有货的话货期也说一下，谢谢。」；停产且有替代型号时写成「{{型号}}（已停产）或替代型号 {{替代型号}}，各 {{数量}} {{单位}}，优先按替代型号询价；若原型号有现货亦可，报不含税价和货期，谢谢。」
 - searchKeywords：货源搜索关键词，2 到 5 个，按使用顺序：① 精确型号；② 品牌英文 + 型号；③ 品牌中文 + 中文品名（如「欧姆龙 光电传感器」）；④ 纯规格中文品名；停产有替代时最后加「替代型号」。只给关键词，不要给链接
+""" + _category_rules(categories or [])
+
+
+def _category_rules(categories: list) -> str:
+    if not categories:
+        return ""
+    return f"""
+【品类——覆盖 inquiry-parser 里的「category 合法枚举值」，以下面的品类清单为准】
+- categoryCode：每个型号必填，只能填下面清单里的编码。优先选细分品类（缩进的行）；联网搜索后仍判断不了细分品类时选它的一级品类（不缩进的行）；都不符合时选 other
+- 分组的 category 填该组型号所属一级品类的中文名；按「品牌 + 一级品类」分组，同一品牌同一一级品类下不同细分品类的型号放在同一组
+- 话术模版里提到品类时用一级品类中文名
+
+品类清单（编码｜中文名｜英文名）：
+{_category_listing(categories)}
 """
 
 
-def call_claude(raw_content: str, file_paths=None) -> dict:
-    """raw_content 为正文（Excel/CSV 附件已由后端抽成文本拼在里面）；file_paths 为图片、PDF 的本地绝对路径。"""
-    system_prompt = build_system_prompt()
+def call_claude(raw_content: str, file_paths=None, categories=None) -> dict:
+    """raw_content 为正文（Excel/CSV 附件已由后端抽成文本拼在里面）；file_paths 为图片、PDF 的本地绝对路径；
+    categories 为后端带来的品类清单（没有时沿用 skill 里的品类枚举）。"""
+    system_prompt = build_system_prompt(categories)
     file_paths = file_paths or []
     if file_paths:
         # 图片和 PDF 没法机械抽文本，把本地绝对路径交给 Claude 用 Read 工具自己看；
@@ -289,7 +314,7 @@ def process_job(payload: dict, callback_url: str):
         if missing:
             send_callback(callback_url, "failed", error=f"附件文件不存在: {missing[0]}")
             return
-        output = call_claude(raw_content, paths)
+        output = call_claude(raw_content, paths, input_data.get("categories") or [])
         send_callback(callback_url, "success", output=output)
     except subprocess.TimeoutExpired:
         send_callback(callback_url, "failed", error=f"claude 处理超过 {CLAUDE_TIMEOUT_SECONDS} 秒未完成")

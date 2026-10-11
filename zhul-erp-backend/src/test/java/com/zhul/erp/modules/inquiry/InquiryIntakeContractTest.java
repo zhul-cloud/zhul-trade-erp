@@ -16,6 +16,7 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
@@ -235,6 +236,72 @@ class InquiryIntakeContractTest extends InquiryContractSupport {
         JsonNode detail = ok(call(get(INQ + "/" + id), admin));
         assertEquals(6, detail.path("inquiry").path("status").asInt());
         assertEquals(0, detail.path("tasks").size());
+    }
+
+    /** 测试专用品类（编码前缀 itq_），不依赖种子数据 */
+    private long itqCategory(String code, String zh, Long parentId) {
+        jdbc.update("insert into product_category (tenant_id, category_code, category_name, category_name_zh, parent_id, status, create_by) "
+                + "values (0, ?, ?, ?, ?, 1, 'itq')", code, code, zh, parentId);
+        return jdbc.queryForObject("select id from product_category where tenant_id = 0 and category_code = ?", Long.class, code);
+    }
+
+    private void cleanupItqCategories() {
+        jdbc.update("delete from product_category where category_code like 'itq\\_%' and parent_id is not null");
+        jdbc.update("delete from product_category where category_code like 'itq\\_%'");
+    }
+
+    @Test
+    void aiParse_linksCategoryByCodeOrText_confirmLinksByIdOrText() throws Exception {
+        cleanupItqCategories();
+        try {
+            long ctrl = itqCategory("itq_ctrl", "仝丁控制器", null);
+            long io = itqCategory("itq_io", "仝丁输入模块", ctrl);
+            itqCategory("itq_cpu", "仝丁处理单元", ctrl);
+            long motion = itqCategory("itq_motion", "仝戊运动", null);
+            long motor = itqCategory("itq_motor", "仝戊电机", motion);
+            itqCategory("itq_drive", "仝戊驱动器", motion);
+            linkCategories(ctrl, io, motor);
+        } finally {
+            cleanupItqCategories();
+        }
+    }
+
+    private void linkCategories(long ctrl, long io, long motor) throws Exception {
+        loginAsAdmin("it_inq_admin");
+        String admin = token("it_inq_admin");
+        long id = submit(admin, customer("Delta Automation", "Chile"), "");
+        String output = "{\"groups\":[{\"brand\":\"Siemens\",\"category\":\"仝丁控制器\",\"items\":["
+                + "{\"categoryCode\":\"itq_io\",\"originalModel\":\"6ES7321-1BL00-0AA0\",\"confidence\":1,\"quantity\":2},"
+                + "{\"categoryCode\":\"no_such_code\",\"originalModel\":\"6ES7214-1AG40-0XB0\",\"confidence\":1,\"quantity\":1}]},"
+                + "{\"brand\":\"Mitsubishi\",\"category\":\"仝戊电机\",\"items\":["
+                + "{\"originalModel\":\"HG-SN302BJ\",\"confidence\":1,\"quantity\":1}]},"
+                + "{\"brand\":\"NSK\",\"category\":\"仝无此类\",\"items\":["
+                + "{\"originalModel\":\"6205ZZ\",\"confidence\":1,\"quantity\":4}]}]}";
+        jdbc.update("insert into ai_task (tenant_id, skill_id, status, output, requested_by) values (0, 'inquiry-parse-and-split', 3, ?, ?)", output, ADMIN_ID);
+        long task = jdbc.queryForObject("select max(id) from ai_task", Long.class);
+        jdbc.update("update customer_inquiry set status = 2, ai_task_id = ? where id = ?", task, id);
+        inquiryService.applyParseSuccess(task, output);
+
+        JsonNode rows = ok(call(get(INQ + "/" + id + "/draft"), admin)).path("rows");
+        assertEquals(io, rows.get(0).path("categoryId").asLong(), "按 AI 给的编码关联细分品类");
+        assertEquals("仝丁输入模块", rows.get(0).path("category").asText(), "品类文字为所关联品类的中文名");
+        assertEquals(ctrl, rows.get(1).path("categoryId").asLong(), "编码无效时按分组品类文字匹配到一级");
+        assertEquals(motor, rows.get(2).path("categoryId").asLong(), "没给编码时按文字匹配到细分");
+        assertFalse(rows.get(3).hasNonNull("categoryId"), "关联不上时为空：" + rows.get(3));
+        assertEquals("仝无此类", rows.get(3).path("category").asText(), "关联不上时保留原文");
+
+        long manual = submit(admin, customer("Rocha Engenharia", "Brazil"), "");
+        Map<String, Object> picked = new LinkedHashMap<>(row("Siemens", "随便写的", "6ES7321-1BL00-0AA0", 1, null));
+        picked.put("categoryId", io);
+        ok(call(json(post(INQ + "/" + manual + "/confirm"), write(Map.of("rows", List.of(picked,
+                row("Mitsubishi", "仝戊电机", "HG-SN202BJ", 1, null), row("NSK", "仝无此类", "6206ZZ", 1, null))))), admin));
+        List<Map<String, Object>> saved = jdbc.queryForList(
+                "select category, category_id from inquiry_item where customer_inquiry_id = ? order by line_no", manual);
+        assertEquals(io, ((Number) saved.get(0).get("category_id")).longValue(), "下拉选中的品类优先");
+        assertEquals("仝丁输入模块", saved.get(0).get("category"));
+        assertEquals(motor, ((Number) saved.get(1).get("category_id")).longValue(), "手填文字按规则关联");
+        assertNull(saved.get(2).get("category_id"), "关联不上只留文字");
+        assertEquals("仝无此类", saved.get(2).get("category"));
     }
 
     @Test

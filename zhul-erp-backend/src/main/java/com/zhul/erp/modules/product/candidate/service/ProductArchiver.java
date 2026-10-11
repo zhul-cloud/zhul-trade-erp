@@ -18,6 +18,7 @@ import com.zhul.erp.modules.product.entity.ProductDO;
 import com.zhul.erp.modules.product.repository.ProductCategoryMapper;
 import com.zhul.erp.modules.product.repository.ProductMapper;
 import com.zhul.erp.modules.product.candidate.support.ModelRules;
+import com.zhul.erp.modules.product.support.CategoryMatcher;
 import com.zhul.erp.modules.product.support.MpnNormalizer;
 import com.zhul.erp.modules.sales.constants.SalesConstants;
 import com.zhul.erp.modules.sales.entity.SalesOrderDO;
@@ -37,7 +38,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -150,7 +150,7 @@ public class ProductArchiver {
         c.setMpnRaw(cut(model, 128));
         c.setMpnNormalized(key);
         c.setCategoryText(cut(nz(item.getCategory()).trim(), 64));
-        c.setCategoryId(suggestCategory(item.getCategory(), categories));
+        c.setCategoryId(categoryFor(item, categories));
         String en = nz(item.getDescriptionEn()).trim();
         String zh = nz(item.getDescription()).trim();
         // 商品名称默认用中文描述（系统内中文），没有时才用英文
@@ -320,82 +320,65 @@ public class ProductArchiver {
                 .set(InquiryItemDO::getArchiveStatus, status));
     }
 
-    /** 二级品类名短于这个长度时，只做精确匹配或「品类名包含询盘文字」，不做「询盘文字包含品类名」，避免「附件」「光电」误命中 */
-    private static final int MIN_CONTAINED_NAME = 3;
-
     /**
-     * 品类建议：询盘的品类文字与品类中文名、英文名、编码比较，依次按精确匹配、一级品类名包含、二级品类名包含三轮，
-     * 哪一轮有结果就用哪一轮；命中二级品类时取其一级品类（商品只能挂一级品类）。
-     * 一轮里只命中一个一级品类时建议它；同时命中多个时不建议，由审核人选择；文字为空或三轮都没命中时建议兜底品类「其他」。
+     * 品类建议：按 {@link CategoryMatcher} 的规则匹配询盘的品类文字；同时命中多个一级品类时不建议，由审核人选择；
+     * 文字为空或都没命中时建议兜底品类「其他」。
      */
-    static Long suggestCategory(String text, List<ProductCategoryDO> categories) {
-        Long other = categories.stream()
-                .filter(c -> c.getParentId() == null && CandidateConstants.CATEGORY_OTHER.equals(c.getCategoryCode()))
-                .map(ProductCategoryDO::getId).findFirst().orElse(null);
-        String t = text == null ? "" : text.trim().toLowerCase(Locale.ROOT);
-        if (t.isEmpty()) {
-            return other;
+    /** 候选的建议品类：询盘型号已关联启用的品类时直接用它，否则按品类文字匹配 */
+    static Long categoryFor(InquiryItemDO item, List<ProductCategoryDO> categories) {
+        Long linked = item.getCategoryId();
+        if (linked != null && categories.stream().anyMatch(c -> linked.equals(c.getId()))) {
+            return linked;
         }
-        Map<Long, ProductCategoryDO> byId = categories.stream().collect(Collectors.toMap(ProductCategoryDO::getId, c -> c, (a, b) -> a));
-        // 0-精确，1-一级品类名包含，2-二级品类名包含
-        for (int round = 0; round < 3; round++) {
-            Set<Long> hits = new LinkedHashSet<>();
-            for (ProductCategoryDO c : categories) {
-                boolean top = c.getParentId() == null;
-                if (round == 1 && !top || round == 2 && top) {
-                    continue;
-                }
-                for (String name : new String[] {c.getCategoryNameZh(), c.getCategoryName(), c.getCategoryCode()}) {
-                    String n = name == null ? "" : name.trim().toLowerCase(Locale.ROOT);
-                    if (n.isEmpty()) {
-                        continue;
-                    }
-                    boolean hit = round == 0 ? n.equals(t)
-                            : n.contains(t) || (top || n.length() >= MIN_CONTAINED_NAME) && t.contains(n);
-                    if (hit) {
-                        ProductCategoryDO root = top ? c : byId.get(c.getParentId());
-                        if (root != null && root.getParentId() == null) {
-                            hits.add(root.getId());
-                        }
-                    }
-                }
-            }
-            if (hits.size() == 1) {
-                return hits.iterator().next();
-            }
-            if (hits.size() > 1) {
-                return null;
-            }
-        }
-        return other;
+        return suggestCategory(item.getCategory(), categories);
     }
 
-    /** 待审核且没有建议品类的候选按当前规则重新建议一次（启动时补齐；同时命中多个品类的仍留空） */
-    public int resuggestCategories() {
-        List<ProductCandidateDO> rows = candidateMapper.selectList(new LambdaQueryWrapper<ProductCandidateDO>()
-                .select(ProductCandidateDO::getId, ProductCandidateDO::getCategoryText)
-                .eq(ProductCandidateDO::getStatus, CandidateConstants.STATUS_PENDING)
-                .isNull(ProductCandidateDO::getCategoryId)
-                .isNull(ProductCandidateDO::getDeletedAt));
-        if (rows.isEmpty()) {
-            return 0;
+    static Long suggestCategory(String text, List<ProductCategoryDO> categories) {
+        CategoryMatcher.Result r = CategoryMatcher.match(text, categories);
+        if (r.ambiguous()) {
+            return null;
         }
+        return r.categoryId() != null ? r.categoryId() : CategoryMatcher.otherId(categories, CandidateConstants.CATEGORY_OTHER);
+    }
+
+    /**
+     * 启动补算：待审核候选按当前规则重新建议一次。没有建议品类的补上（同时命中多个品类的仍留空）；
+     * 建议为一级品类、按当前规则能细化到它的某个细分品类的，更新为细分品类。
+     */
+    public int resuggestCategories() {
         List<ProductCategoryDO> categories = categoryMapper.selectList(new LambdaQueryWrapper<ProductCategoryDO>()
                 .eq(ProductCategoryDO::getTenantId, ProductConstants.PLATFORM_TENANT_ID)
                 .eq(ProductCategoryDO::getStatus, ProductConstants.STATUS_ENABLED)
                 .isNull(ProductCategoryDO::getDeletedAt));
+        Set<Long> topIds = categories.stream().filter(c -> c.getParentId() == null)
+                .map(ProductCategoryDO::getId).collect(Collectors.toSet());
+        List<ProductCandidateDO> rows = candidateMapper.selectList(new LambdaQueryWrapper<ProductCandidateDO>()
+                .select(ProductCandidateDO::getId, ProductCandidateDO::getCategoryId, ProductCandidateDO::getCategoryText)
+                .eq(ProductCandidateDO::getStatus, CandidateConstants.STATUS_PENDING)
+                .and(w -> w.isNull(ProductCandidateDO::getCategoryId)
+                        .or(!topIds.isEmpty()).in(!topIds.isEmpty(), ProductCandidateDO::getCategoryId, topIds))
+                .isNull(ProductCandidateDO::getDeletedAt));
         int updated = 0;
         for (ProductCandidateDO c : rows) {
             Long categoryId = suggestCategory(c.getCategoryText(), categories);
-            if (categoryId != null) {
-                // 只改仍待审核且仍没有品类的，避免覆盖审核人刚选的
-                updated += candidateMapper.update(null, new LambdaUpdateWrapper<ProductCandidateDO>()
+            Long current = c.getCategoryId();
+            boolean fill = current == null && categoryId != null;
+            boolean refine = current != null && categoryId != null && !categoryId.equals(current)
+                    && current.equals(CategoryMatcher.rootOf(categoryId, categories));
+            if (fill || refine) {
+                // 条件更新：只改仍待审核、品类仍是读到时那个的，避免并发覆盖
+                LambdaUpdateWrapper<ProductCandidateDO> w = new LambdaUpdateWrapper<ProductCandidateDO>()
                         .eq(ProductCandidateDO::getId, c.getId())
                         .eq(ProductCandidateDO::getStatus, CandidateConstants.STATUS_PENDING)
-                        .isNull(ProductCandidateDO::getCategoryId)
                         .set(ProductCandidateDO::getCategoryId, categoryId)
                         .set(ProductCandidateDO::getUpdateTime, LocalDateTime.now())
-                        .set(ProductCandidateDO::getUpdateBy, "sys"));
+                        .set(ProductCandidateDO::getUpdateBy, "sys");
+                if (fill) {
+                    w.isNull(ProductCandidateDO::getCategoryId);
+                } else {
+                    w.eq(ProductCandidateDO::getCategoryId, current);
+                }
+                updated += candidateMapper.update(null, w);
             }
         }
         return updated;

@@ -20,6 +20,7 @@ import {
 } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
 import { Card, PageTitle, Pill } from '@/pages/inquiry/shared/components';
+import { groupedCategoryOptions } from '@/pages/product/components/categoryOptions';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { auditColumns } from '@/pages/purchase/components';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -184,7 +185,7 @@ const ReviewDrawer: React.FC<{
     Promise.all([
       candidateApi.detail(id),
       brandApi.options(),
-      categoryApi.options(1),
+      categoryApi.options(0),
     ])
       .then(([d, b, cats]) => {
         setC(d);
@@ -496,12 +497,7 @@ const ReviewDrawer: React.FC<{
                     value={form.categoryId}
                     showSearch={{ optionFilterProp: 'label' }}
                     placeholder="只能从品类里选"
-                    options={categories.map((x) => ({
-                      value: x.id,
-                      label: x.categoryNameZh
-                        ? `${x.categoryNameZh}（${x.categoryName}）`
-                        : x.categoryName,
-                    }))}
+                    options={groupedCategoryOptions(categories)}
                     onChange={(v) => patch({ categoryId: v })}
                     style={{ width: '100%' }}
                     aria-label="品类"
