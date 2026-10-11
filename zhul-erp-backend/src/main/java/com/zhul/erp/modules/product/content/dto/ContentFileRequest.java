@@ -18,6 +18,9 @@ public class ContentFileRequest {
     @Valid
     private List<ContentFile> files;
 
+    /** 行内上传时限定的商品：文件对应的不是它时不能确认；批量上传不传 */
+    private Long productId;
+
     @Data
     public static class ContentFile {
         @NotBlank(message = "文件名不能为空")

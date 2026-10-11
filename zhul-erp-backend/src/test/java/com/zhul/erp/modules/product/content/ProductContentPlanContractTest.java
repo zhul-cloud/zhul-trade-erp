@@ -582,6 +582,59 @@ class ProductContentPlanContractTest extends InquiryContractSupport {
         assertEquals(2, stage(dop, admin), "资料待核");
     }
 
+    @Test
+    void rowUpload_onlyThisProduct_andImportRecords() throws Exception {
+        String other = tenantToken("it_content_admin", 1001);
+        Map<String, Object> f1 = file("p1.facts.md", facts("ITCSiemens", "6ES7214-1AG40-0XB0", "## 一句话规格摘要\nCPU 1214C\n"));
+        Map<String, Object> f2 = file("p2.facts.md", facts("ITCSiemens", "6ES7321-1FH00-0AA0", "## 一句话规格摘要\nSM321\n"));
+
+        // 行内上传限定 p1：p2 的文件不能确认；批量上传两个都能确认
+        Map<String, Object> rowReq = new LinkedHashMap<>();
+        rowReq.put("productId", p1);
+        rowReq.put("files", List.of(f1, f2));
+        JsonNode row = ok(call(json(post(TASKS + "/preview"), write(rowReq)), admin));
+        assertTrue(row.get(0).path("confirmable").asBoolean(), row.toString());
+        assertFalse(row.get(1).path("confirmable").asBoolean());
+        assertTrue(row.get(1).path("errors").toString().contains("不是本商品的文件（文件是 ITCSiemens · 6ES7321-1FH00-0AA0）"),
+                row.get(1).toString());
+        JsonNode rowConfirm = ok(call(json(post(TASKS + "/confirm"), write(rowReq)), admin));
+        assertEquals(1, rowConfirm.path("succeeded").asInt());
+        assertEquals(1, rowConfirm.path("failed").asInt());
+        JsonNode batch = ok(call(json(post(TASKS + "/preview"), write(Map.of("files", List.of(f1, f2)))), admin));
+        assertTrue(batch.get(0).path("confirmable").asBoolean() && batch.get(1).path("confirmable").asBoolean());
+        int before = jdbc.queryForObject("select count(*) from product_content_import", Integer.class);
+        assertEquals(before, jdbc.queryForObject("select count(*) from product_content_import", Integer.class), "只预览不留记录");
+
+        // 本公司再确认一个独立站营销包；另一家公司确认一个资料包
+        confirm(admin, file("p1.site.md", marketing("ITCSiemens", "6ES7214-1AG40-0XB0", "en", "## SEO 标题\nCPU 1214C\n")));
+        confirm(other, file("other.facts.md", facts("ITCSiemens", "6ES7214-1AG40-0XB0", "## 一句话规格摘要\nCPU 1214C AC/DC/RLY\n")));
+
+        JsonNode mine = ok(call(get(TASKS + "/products/" + p1 + "/imports"), admin));
+        assertEquals(3, mine.size(), mine.toString());
+        assertEquals("other.facts.md", mine.get(0).path("fileName").asText(), "按确认时间倒序");
+        assertFalse(mine.get(0).path("mine").asBoolean());
+        assertTrue(mine.get(0).path("confirmedBy").isMissingNode() || mine.get(0).path("confirmedBy").isNull(), "其他公司不显示确认人");
+        assertEquals("p1.site.md", mine.get(1).path("fileName").asText());
+        assertEquals("marketing", mine.get(1).path("packageType").asText());
+        assertEquals("site", mine.get(1).path("platform").asText());
+        assertEquals("p1.facts.md", mine.get(2).path("fileName").asText());
+        assertEquals("facts", mine.get(2).path("packageType").asText());
+        assertEquals("it_content_admin", mine.get(2).path("confirmedBy").asText());
+        assertTrue(mine.get(2).path("rawText").isMissingNode() || mine.get(2).path("rawText").isNull(), "列表不带原文");
+
+        JsonNode detail = ok(call(get(TASKS + "/imports/" + mine.get(2).path("id").asLong()), admin));
+        assertTrue(detail.path("rawText").asText().contains("CPU 1214C"));
+
+        // 另一家公司：看得到两条资料包记录，看不到本公司的营销包
+        JsonNode theirs = ok(call(get(TASKS + "/products/" + p1 + "/imports"), other));
+        assertEquals(2, theirs.size(), theirs.toString());
+        assertTrue(theirs.toString().contains("other.facts.md") && !theirs.toString().contains("p1.site.md"));
+        JsonNode denied = call(get(TASKS + "/imports/" + mine.get(1).path("id").asLong()), other);
+        assertEquals("CONTENT_NOT_FOUND", denied.path("data").path("errorCode").asText(), denied.toString());
+        assertTrue(ok(call(get(TASKS + "/imports/" + mine.get(2).path("id").asLong()), other)).path("rawText").asText()
+                .contains("CPU 1214C"), "其他公司的资料包原文可以看");
+    }
+
     private static JsonNode block(JsonNode preview, String section) {
         for (JsonNode b : preview.path("blocks")) {
             if (section.equals(b.path("section").asText())) {

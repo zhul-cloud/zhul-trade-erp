@@ -102,7 +102,9 @@ export const UploadDrawer: React.FC<{
   open: boolean;
   onClose: () => void;
   onDone: () => void;
-}> = ({ open, onClose, onDone }) => {
+  /** 行内上传：只接收这个商品的文件 */
+  product?: { id: number; label: string };
+}> = ({ open, onClose, onDone, product }) => {
   const { palette } = useAppTheme();
   const { message } = App.useApp();
   const access = useAccess() as Record<string, boolean>;
@@ -131,7 +133,7 @@ export const UploadDrawer: React.FC<{
   const runPreview = async (next: ContentFile[]) => {
     setLoading(true);
     try {
-      setPreviews(await contentApi.preview(next));
+      setPreviews(await contentApi.preview(next, product?.id));
       setFiles(next);
     } catch (e) {
       message.error(readBizError(e).message);
@@ -183,7 +185,7 @@ export const UploadDrawer: React.FC<{
       const ok = previews
         .map((p, i) => (p.confirmable ? files[i] : null))
         .filter((f): f is ContentFile => f !== null);
-      setResult(await contentApi.confirm(ok));
+      setResult(await contentApi.confirm(ok, product?.id));
     } catch (e) {
       message.error(readBizError(e).message);
     } finally {
@@ -289,7 +291,13 @@ export const UploadDrawer: React.FC<{
       onClose={close}
       size="min(1240px, 96vw)"
       destroyOnHidden
-      title={result ? '写入结果' : '上传内容包 · 解析预览'}
+      title={
+        result
+          ? '写入结果'
+          : product
+            ? `上传 · ${product.label}（只接收这个商品的文件）`
+            : '上传内容包 · 解析预览'
+      }
       footer={
         result ? (
           <div style={{ display: 'flex', justifyContent: 'flex-end' }}>

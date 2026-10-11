@@ -14,6 +14,7 @@ import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { auditColumns } from '@/pages/purchase/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatDateTime } from '@/utils/format';
+import { ImportRecordsDrawer } from '../products/cards/ImportRecords';
 import {
   ContentStatusPill,
   factsVerified,
@@ -80,6 +81,9 @@ const ContentTasks: React.FC = () => {
   const { download: downloadPackage, downloading } = useDownloadPackage();
   const [uploadOpen, setUploadOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  /** 行内上传、上传记录对应的商品 */
+  const [rowUpload, setRowUpload] = useState<{ id: number; label: string }>();
+  const [rowRecords, setRowRecords] = useState<{ id: number; label: string }>();
   const platformState = usePlatforms();
   const platforms = platformState.enabled;
   const [brands, setBrands] = useState<BrandOption[]>([]);
@@ -221,7 +225,7 @@ const ContentTasks: React.FC = () => {
     {
       title: '操作',
       key: 'actions',
-      width: 250,
+      width: 380,
       fixed: 'right',
       render: (_, t) => (
         <span
@@ -248,6 +252,26 @@ const ContentTasks: React.FC = () => {
             platforms={platforms}
             onPick={(p) => download([t.productId], 'marketing', p)}
           />
+          <a
+            onClick={() =>
+              setRowUpload({
+                id: t.productId,
+                label: `${t.brandName ?? ''} · ${t.mpn}`,
+              })
+            }
+          >
+            上传
+          </a>
+          <a
+            onClick={() =>
+              setRowRecords({
+                id: t.productId,
+                label: `${t.brandName ?? ''} · ${t.mpn}`,
+              })
+            }
+          >
+            上传记录
+          </a>
         </span>
       ),
     },
@@ -388,7 +412,7 @@ const ContentTasks: React.FC = () => {
             columns={columns}
             dataSource={rows}
             loading={loading}
-            scroll={{ x: 2150 }}
+            scroll={{ x: 2280 }}
             rowSelection={{
               selectedRowKeys: selected,
               onChange: (keys) => setSelected(keys as number[]),
@@ -420,6 +444,16 @@ const ContentTasks: React.FC = () => {
           platformState.setOptions(options);
           load();
         }}
+      />
+      <UploadDrawer
+        open={!!rowUpload}
+        product={rowUpload}
+        onClose={() => setRowUpload(undefined)}
+        onDone={load}
+      />
+      <ImportRecordsDrawer
+        product={rowRecords}
+        onClose={() => setRowRecords(undefined)}
       />
       <UploadDrawer
         open={uploadOpen}

@@ -134,7 +134,7 @@ public class ContentImportService {
         List<Analyzed> result = new ArrayList<>();
         Map<String, String> seen = new HashMap<>();
         for (ContentFileRequest.ContentFile file : req.getFiles()) {
-            Analyzed a = analyzeFile(file);
+            Analyzed a = analyzeFile(file, req.getProductId());
             ContentPreviewVO vo = a.vo();
             if (vo.getProductId() != null && vo.getLang() != null) {
                 String key = vo.getProductId() + ":" + vo.getType() + ":" + vo.getPlatform() + ":" + vo.getLang();
@@ -149,7 +149,7 @@ public class ContentImportService {
         return result;
     }
 
-    private Analyzed analyzeFile(ContentFileRequest.ContentFile file) {
+    private Analyzed analyzeFile(ContentFileRequest.ContentFile file, Long onlyProductId) {
         ContentPreviewVO vo = new ContentPreviewVO();
         vo.setFileName(file.getFileName());
         String content = file.getContent() == null ? "" : file.getContent();
@@ -173,6 +173,10 @@ public class ContentImportService {
         vo.getNotes().addAll(draft.getNotes());
 
         ProductDO product = draft.getErrors().isEmpty() ? match(draft, vo) : null;
+        if (product != null && onlyProductId != null && !onlyProductId.equals(product.getId())) {
+            vo.getErrors().add("不是本商品的文件（文件是 " + vo.getProductLabel() + "）");
+            product = null;
+        }
         Set<ContentSection> skip = skipSet(file.getSkip());
         Map<ContentSection, ContentDraft.Block> writable = new EnumMap<>(ContentSection.class);
         boolean blockErrors = false;

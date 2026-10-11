@@ -30,6 +30,7 @@ import { ProductThemeProvider, useProductTheme } from '../theme';
 import { BasicCard } from './cards/BasicCard';
 import { UnsavedContext, type UnsavedEntry } from './cards/CardShell';
 import { ApplicationCard, DocumentCard, FaqCard } from './cards/ContentCards';
+import { ImportRecordCard } from './cards/ImportRecords';
 import { LogisticsCustomsCard } from './cards/LogisticsCustomsCard';
 import { MediaCard } from './cards/MediaCard';
 import { PriceCard } from './cards/PriceCard';
@@ -623,6 +624,7 @@ const DetailInner: React.FC = () => {
             error={content.error}
             onRetry={content.load}
           />
+          <ImportRecordCard productId={product.id} />
         </div>
         <div style={{ flex: '0 0 340px', maxWidth: '100%' }}>
           <Sidebar

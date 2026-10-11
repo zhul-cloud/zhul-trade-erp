@@ -887,6 +887,22 @@ export interface PlatformContent {
   confirmedAt?: string;
 }
 
+/** 上传记录：确认写入的文件；其他公司的资料包记录不显示确认人 */
+export interface ContentImportRecord {
+  id: number;
+  fileName: string;
+  packageType?: PackageType;
+  platform?: MarketingPlatform | '';
+  lang?: string;
+  summary?: string;
+  confirmedBy?: string;
+  confirmedAt?: string;
+  /** 是否本公司上传 */
+  mine: boolean;
+  /** 原文，只在详情里有 */
+  rawText?: string;
+}
+
 const CONTENT = `${BASE}/content-tasks`;
 
 export const contentApi = {
@@ -900,16 +916,23 @@ export const contentApi = {
       method: 'POST',
       data: q,
     }),
-  preview: (files: ContentFile[]) =>
+  /** productId：行内上传限定的商品，文件对应的不是它时不能确认 */
+  preview: (files: ContentFile[], productId?: number) =>
     call<ContentPreview[]>(`${CONTENT}/preview`, {
       method: 'POST',
-      data: { files },
+      data: { files, productId },
     }),
-  confirm: (files: ContentFile[]) =>
+  confirm: (files: ContentFile[], productId?: number) =>
     call<ContentConfirmResult>(`${CONTENT}/confirm`, {
       method: 'POST',
-      data: { files },
+      data: { files, productId },
     }),
+  /** 商品的上传记录（本公司全部 + 其他公司的资料包），不含原文 */
+  imports: (productId: number) =>
+    call<ContentImportRecord[]>(`${CONTENT}/products/${productId}/imports`),
+  /** 上传记录详情，含原文 */
+  importDetail: (id: number) =>
+    call<ContentImportRecord>(`${CONTENT}/imports/${id}`),
   productContent: (productId: number) =>
     call<ProductContent>(`${CONTENT}/products/${productId}`),
   /** 资料已核：所有公司共享，记录核对人 */

@@ -4,12 +4,14 @@ import com.zhul.erp.common.result.PageResult;
 import com.zhul.erp.common.result.Result;
 import com.zhul.erp.modules.product.content.dto.ContentConfirmVO;
 import com.zhul.erp.modules.product.content.dto.ContentFileRequest;
+import com.zhul.erp.modules.product.content.dto.ContentImportRecordVO;
 import com.zhul.erp.modules.product.content.dto.ContentPreviewVO;
 import com.zhul.erp.modules.product.content.dto.ContentTaskQuery;
 import com.zhul.erp.modules.product.content.dto.ContentTaskVO;
 import com.zhul.erp.modules.product.content.dto.MarketingPlatformVO;
 import com.zhul.erp.modules.product.content.dto.SavePlatformsRequest;
 import com.zhul.erp.modules.product.content.dto.ProductContentVO;
+import com.zhul.erp.modules.product.content.service.ContentImportRecordService;
 import com.zhul.erp.modules.product.content.service.ContentImportService;
 import com.zhul.erp.modules.product.content.service.ContentPackageService;
 import com.zhul.erp.modules.product.content.service.ContentTaskService;
@@ -54,6 +56,7 @@ public class ContentTaskController {
     private final FactTaskService factTaskService;
     private final PlatformSettingService platformSettings;
     private final MarketingSkipService skipService;
+    private final ContentImportRecordService recordService;
 
     @PostMapping("/page")
     @PreAuthorize(MENU)
@@ -125,6 +128,18 @@ public class ContentTaskController {
     public Result<Void> unskip(@PathVariable Long productId, @PathVariable String platform) {
         skipService.unmark(productId, platform);
         return Result.ok();
+    }
+
+    /** 商品的上传记录：本公司全部，加其他公司的资料包；与商品详情一样对所有登录用户开放 */
+    @GetMapping("/products/{productId}/imports")
+    public Result<List<ContentImportRecordVO>> imports(@PathVariable Long productId) {
+        return Result.ok(recordService.list(productId));
+    }
+
+    /** 上传记录详情（含原文） */
+    @GetMapping("/imports/{id}")
+    public Result<ContentImportRecordVO> importDetail(@PathVariable Long id) {
+        return Result.ok(recordService.detail(id));
     }
 
     /** 商品详情里的本公司内容：与商品读取一样对所有登录用户开放 */

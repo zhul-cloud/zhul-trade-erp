@@ -107,6 +107,8 @@ public class ContentWriter {
         imp.setTenantId(TenantContext.getTenantId());
         imp.setTaskId(task.getId());
         imp.setProductId(productId);
+        imp.setPackageType(facts ? ContentConstants.TYPE_FACTS : ContentConstants.TYPE_MARKETING);
+        imp.setPlatform(facts ? "" : platform.code());
         imp.setLang(lang);
         imp.setFileName(fileName.length() > 255 ? fileName.substring(0, 255) : fileName);
         imp.setRawText(rawText);

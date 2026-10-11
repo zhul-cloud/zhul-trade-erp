@@ -18,6 +18,10 @@ public class ProductContentImportDO {
     private Integer tenantId;
     private Long taskId;
     private Long productId;
+    /** facts-资料包、marketing-营销包 */
+    private String packageType;
+    /** 营销平台（alibaba、mic、site、social），资料包为空 */
+    private String platform;
     private String lang;
     private String fileName;
     private String rawText;
