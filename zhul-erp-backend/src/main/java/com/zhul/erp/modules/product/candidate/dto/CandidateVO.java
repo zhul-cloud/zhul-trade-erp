@@ -62,6 +62,9 @@ public class CandidateVO {
         private String originalModel;
         private Long soId;
         private String soNo;
+        /** 导入来源：文件名与导入人 */
+        private String fileName;
+        private String createBy;
         private LocalDateTime createTime;
     }
 }

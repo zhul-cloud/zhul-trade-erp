@@ -2,6 +2,8 @@ package com.zhul.erp.modules.product.candidate.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.zhul.erp.common.exception.BizException;
+import com.zhul.erp.framework.tenant.TenantContext;
 import com.zhul.erp.modules.inquiry.constants.InquiryConstants;
 import com.zhul.erp.modules.inquiry.item.entity.InquiryItemDO;
 import com.zhul.erp.modules.inquiry.item.repository.InquiryItemMapper;
@@ -169,6 +171,90 @@ public class ProductArchiver {
             c = byKey(brandKey, key);
         }
         return c;
+    }
+
+    /** 一个导入文件要写进候选池的内容（spec product/product-candidate「从商品文件导入候选」） */
+    public record ImportItem(Long brandId, String brandKey, String brandText, String model, String mpnKey,
+                             Long categoryId, String categoryText, String productName, String description,
+                             String descriptionEn, String fileName) {
+    }
+
+    /**
+     * 导入来源：与询盘同一把锁、同一个候选键。没有候选（或曾因没有来源被软删除）时新建或恢复为待审核；
+     * 已有待审核候选只补空字段；写一条「导入」来源（本公司、文件名）后重算。返回 true 表示新建了候选。
+     * 候选已建档、并入或驳回时报错（预览后状态变了）。须在调用方事务内执行。
+     */
+    public boolean importSource(ImportItem in) {
+        candidateMapper.lockByKey(in.brandKey(), in.mpnKey());
+        ProductCandidateDO c = byKey(in.brandKey(), in.mpnKey());
+        boolean created = c == null || c.getDeletedAt() != null;
+        if (c == null) {
+            c = new ProductCandidateDO();
+            c.setTenantId(ProductConstants.PLATFORM_TENANT_ID);
+            c.setBrandId(in.brandId());
+            c.setBrandText(cut(nz(in.brandText()).trim(), 64));
+            c.setBrandKey(in.brandKey());
+            c.setMpnRaw(cut(in.model().trim(), 128));
+            c.setMpnNormalized(in.mpnKey());
+            c.setCategoryText(cut(nz(in.categoryText()).trim(), 64));
+            c.setCategoryId(in.categoryId());
+            c.setProductName(cut(nz(in.productName()), NAME_MAX));
+            c.setDescription(cut(nz(in.description()), TEXT_MAX));
+            c.setDescriptionEn(cut(nz(in.descriptionEn()), TEXT_MAX));
+            c.setStatus(CandidateConstants.STATUS_PENDING);
+            c.setLevel(CandidateConstants.LEVEL_INQUIRY);
+            c.setSourceCount(0);
+            c.setRejectReason(0);
+            c.setRejectNote("");
+            try {
+                candidateMapper.insert(c);
+            } catch (DuplicateKeyException e) {
+                c = byKey(in.brandKey(), in.mpnKey());
+                created = false;
+            }
+        } else if (c.getDeletedAt() != null) {
+            candidateMapper.update(null, new LambdaUpdateWrapper<ProductCandidateDO>()
+                    .eq(ProductCandidateDO::getId, c.getId())
+                    .set(ProductCandidateDO::getDeletedAt, null)
+                    .set(ProductCandidateDO::getStatus, CandidateConstants.STATUS_PENDING));
+            c.setDeletedAt(null);
+            c.setStatus(CandidateConstants.STATUS_PENDING);
+        } else if (c.getStatus() != CandidateConstants.STATUS_PENDING) {
+            throw new BizException("该型号的候选已" + CandidateConstants.STATUS_NAMES.get(c.getStatus()) + "，没有导入");
+        }
+        // 已有候选只补空字段，不覆盖审核人或询盘已填的内容
+        boolean fill = false;
+        if (c.getBrandId() == null && in.brandId() != null) {
+            c.setBrandId(in.brandId());
+            fill = true;
+        }
+        if (c.getCategoryId() == null && in.categoryId() != null) {
+            c.setCategoryId(in.categoryId());
+            fill = true;
+        }
+        if (!StringUtils.hasText(c.getProductName()) && StringUtils.hasText(in.productName())) {
+            c.setProductName(cut(in.productName(), NAME_MAX));
+            fill = true;
+        }
+        if (!StringUtils.hasText(c.getDescription()) && StringUtils.hasText(in.description())) {
+            c.setDescription(cut(in.description(), TEXT_MAX));
+            fill = true;
+        }
+        if (!StringUtils.hasText(c.getDescriptionEn()) && StringUtils.hasText(in.descriptionEn())) {
+            c.setDescriptionEn(cut(in.descriptionEn(), TEXT_MAX));
+            fill = true;
+        }
+        if (fill) {
+            candidateMapper.updateById(c);
+        }
+        ProductCandidateSourceDO s = new ProductCandidateSourceDO();
+        s.setTenantId(TenantContext.getTenantId());
+        s.setCandidateId(c.getId());
+        s.setSourceType(CandidateConstants.SOURCE_IMPORT);
+        s.setFileName(cut(nz(in.fileName()), 255));
+        sourceMapper.insert(s);
+        refresh(c.getId());
+        return created;
     }
 
     private ProductCandidateDO byKey(String brandKey, String key) {

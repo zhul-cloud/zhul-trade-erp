@@ -11,6 +11,9 @@ export interface CandidateSource {
   originalModel?: string;
   soId?: number;
   soNo?: string;
+  /** 导入来源：文件名与导入人 */
+  fileName?: string;
+  createBy?: string;
   createTime?: string;
 }
 
@@ -101,4 +104,55 @@ export const candidateApi = {
   reject: (id: number, reason: number, note?: string) =>
     send<Candidate>('POST', `${C}/${id}/reject`, { reason, note }),
   reopen: (id: number) => send<Candidate>('POST', `${C}/${id}/reopen`),
+  /** 上传商品文件导入候选：预览不落库，确认时服务端重新解析 */
+  importPreview: (files: ImportFile[]) =>
+    send<ImportPreview[]>('POST', `${C}/import/preview`, { files }),
+  importConfirm: (files: ImportFile[]) =>
+    send<ImportResult>('POST', `${C}/import/confirm`, { files }),
 };
+
+export interface ImportFile {
+  fileName: string;
+  content: string;
+}
+
+/** NEW-新候选、IN_POOL-已在候选池、IN_PRODUCT-已在商品库、REJECTED-曾被驳回、DUPLICATE-重复、INVALID-不能导入 */
+export type ImportResultCode =
+  | 'NEW'
+  | 'IN_POOL'
+  | 'IN_PRODUCT'
+  | 'REJECTED'
+  | 'DUPLICATE'
+  | 'INVALID';
+
+export interface ImportPreview {
+  fileName: string;
+  brand?: string;
+  /** 为空表示品牌未识别 */
+  brandId?: number;
+  brandName?: string;
+  model?: string;
+  categoryId?: number;
+  categoryName?: string;
+  productName?: string;
+  description?: string;
+  descriptionEn?: string;
+  result: ImportResultCode;
+  resultName: string;
+  note?: string;
+  candidateId?: number;
+  productId?: number;
+}
+
+export interface ImportResult {
+  created: number;
+  appended: number;
+  skipped: number;
+  failed: number;
+  items: {
+    fileName: string;
+    model?: string;
+    outcome: 'CREATED' | 'APPENDED' | 'SKIPPED' | 'FAILED';
+    message: string;
+  }[];
+}

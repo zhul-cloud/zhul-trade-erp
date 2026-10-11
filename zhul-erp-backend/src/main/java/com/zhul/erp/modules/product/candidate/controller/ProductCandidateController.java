@@ -5,10 +5,14 @@ import com.zhul.erp.common.result.Result;
 import com.zhul.erp.modules.product.candidate.dto.ApproveCandidateRequest;
 import com.zhul.erp.modules.product.candidate.dto.BatchApproveRequest;
 import com.zhul.erp.modules.product.candidate.dto.BatchApproveVO;
+import com.zhul.erp.modules.product.candidate.dto.CandidateImportPreviewVO;
+import com.zhul.erp.modules.product.candidate.dto.CandidateImportRequest;
+import com.zhul.erp.modules.product.candidate.dto.CandidateImportResultVO;
 import com.zhul.erp.modules.product.candidate.dto.CandidatePageQuery;
 import com.zhul.erp.modules.product.candidate.dto.CandidateVO;
 import com.zhul.erp.modules.product.candidate.dto.MergeCandidateRequest;
 import com.zhul.erp.modules.product.candidate.dto.RejectCandidateRequest;
+import com.zhul.erp.modules.product.candidate.service.CandidateImportService;
 import com.zhul.erp.modules.product.candidate.service.ProductCandidateService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -20,6 +24,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
 import java.util.Map;
 
 /** 商品候选：查看需要菜单权限，审核还需要「商品候选审核」按钮权限 */
@@ -32,6 +37,18 @@ public class ProductCandidateController {
     private static final String REVIEW = "@perm.canAccessMenu('/product/candidates') and @perm.has('product:candidate:review')";
 
     private final ProductCandidateService service;
+    private final CandidateImportService importService;
+
+    /** 上传商品文件导入候选：有商品候选菜单即可，建档仍需审核权限 */
+    @PostMapping("/import/preview")
+    public Result<List<CandidateImportPreviewVO>> importPreview(@Valid @RequestBody CandidateImportRequest req) {
+        return Result.ok(importService.preview(req));
+    }
+
+    @PostMapping("/import/confirm")
+    public Result<CandidateImportResultVO> importConfirm(@Valid @RequestBody CandidateImportRequest req) {
+        return Result.ok(importService.confirm(req));
+    }
 
     @PostMapping("/page")
     public Result<PageResult<CandidateVO>> page(@RequestBody CandidatePageQuery query) {
