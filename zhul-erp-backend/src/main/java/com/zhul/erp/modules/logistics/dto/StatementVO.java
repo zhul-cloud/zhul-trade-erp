@@ -24,6 +24,11 @@ public class StatementVO {
     private Integer diffCount;
     private String confirmedByName;
     private LocalDateTime confirmedAt;
+    /** 付款（openspec add-accounts-payable）：应付单 ID、状态（1-未付、2-部分付款、3-已付清）、应付、已付；草稿为空 */
+    private Long payableId;
+    private Integer payStatus;
+    private BigDecimal payableAmount;
+    private BigDecimal paidAmount;
     /** 详情才有 */
     private List<Line> lines;
     private LocalDateTime createTime;

@@ -20,6 +20,12 @@ public class PurchaseOrderListVO implements ShipFields {
     private LocalDate expectedShipDate;
     /** 发货进度（已下单才有）：UNSHIPPED、PARTIAL、SHIPPED、RECEIVED */
     private String shipProgress;
+    /** 付款（openspec add-accounts-payable）：1-未付、2-部分付款、3-已付清、4-已关闭；草稿与没有应付单的为空 */
+    private Integer payStatus;
+    private java.math.BigDecimal payableAmount;
+    private java.math.BigDecimal paidAmount;
+    /** 供应商欠款（原币） */
+    private java.math.BigDecimal creditAmount;
     private String shipProgressName;
     /** 已发件数（每行不超过订购数）与总件数 */
     private Integer shippedQty;

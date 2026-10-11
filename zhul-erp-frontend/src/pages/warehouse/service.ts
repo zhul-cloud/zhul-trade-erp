@@ -28,7 +28,12 @@ export interface Attachment {
   createTime?: string;
 }
 
-export type OwnerType = 'SHIPMENT' | 'RECEIPT' | 'SHOOT' | 'LOGISTICS';
+export type OwnerType =
+  | 'SHIPMENT'
+  | 'RECEIPT'
+  | 'SHOOT'
+  | 'LOGISTICS'
+  | 'PAYMENT';
 
 export interface ShipmentItem {
   id: number;

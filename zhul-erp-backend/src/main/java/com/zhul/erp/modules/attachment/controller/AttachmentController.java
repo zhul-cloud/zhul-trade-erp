@@ -40,7 +40,8 @@ public class AttachmentController {
             AttachmentService.SHIPMENT, List.of("/purchase/shipments", "/warehouse/receipts"),
             AttachmentService.RECEIPT, List.of("/warehouse/receipts", "/purchase/shipments"),
             AttachmentService.SHOOT, List.of("/warehouse/shoots"),
-            AttachmentService.LOGISTICS, List.of("/logistics/shipments"));
+            AttachmentService.LOGISTICS, List.of("/logistics/shipments"),
+            AttachmentService.PAYMENT, List.of("/finance/payables", "/finance/payments", "/purchase/orders", "/logistics/statements"));
 
     private final AttachmentService service;
     private final PermissionChecker perm;

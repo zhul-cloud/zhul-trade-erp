@@ -1,5 +1,6 @@
 import {
   CloseOutlined,
+  FilePdfOutlined,
   LoadingOutlined,
   PictureOutlined,
   PlayCircleOutlined,
@@ -113,6 +114,8 @@ export const usePreview = () => {
   const [state, setState] = useState<{
     name: string;
     video: boolean;
+    /** PDF 等文件（kind 3）在弹窗里内嵌显示 */
+    file?: boolean;
     url?: string;
   }>();
   useEffect(
@@ -122,10 +125,11 @@ export const usePreview = () => {
     [state?.url],
   );
   const open = async (a: { id: number; fileName: string; kind: number }) => {
-    setState({ name: a.fileName, video: a.kind === 2 });
+    const kind = { video: a.kind === 2, file: a.kind === 3 };
+    setState({ name: a.fileName, ...kind });
     try {
       const url = await attachmentApi.blobUrl(a.id);
-      setState({ name: a.fileName, video: a.kind === 2, url });
+      setState({ name: a.fileName, ...kind, url });
     } catch (e) {
       setState(undefined);
       message.error(readBizError(e).message);
@@ -144,6 +148,12 @@ export const usePreview = () => {
         <div style={{ padding: 60, textAlign: 'center' }}>
           <Spin />
         </div>
+      ) : state.file ? (
+        <iframe
+          src={state.url}
+          title={state.name}
+          style={{ width: '100%', height: '70vh', border: 0, borderRadius: 8 }}
+        />
       ) : state.video ? (
         // biome-ignore lint/a11y/useMediaCaption: 验货视频没有字幕
         <video
@@ -175,8 +185,9 @@ export const MediaTile: React.FC<{
   const { palette } = useAppTheme();
   const [thumb, setThumb] = useState<string>();
   const video = attachment.kind === 2;
+  const file = attachment.kind === 3;
   useEffect(() => {
-    if (video) return undefined;
+    if (video || file) return undefined;
     let url: string | undefined;
     let alive = true;
     attachmentApi
@@ -191,7 +202,7 @@ export const MediaTile: React.FC<{
       alive = false;
       if (url) URL.revokeObjectURL(url);
     };
-  }, [attachment.id, video]);
+  }, [attachment.id, video, file]);
   return (
     <div style={{ position: 'relative', width: size, height: size }}>
       <button
@@ -219,6 +230,8 @@ export const MediaTile: React.FC<{
           <span style={{ display: 'grid', placeItems: 'center', gap: 2 }}>
             {video ? (
               <PlayCircleOutlined style={{ fontSize: 22 }} />
+            ) : file ? (
+              <FilePdfOutlined style={{ fontSize: 22 }} />
             ) : (
               <PictureOutlined style={{ fontSize: 20 }} />
             )}
@@ -321,7 +334,9 @@ export const AttachmentWall: React.FC<{
   onChange?: (list: Attachment[]) => void;
   max?: number;
   empty?: string;
-}> = ({ ownerType, value, onChange, max = 20, empty = '没有附件' }) => {
+  /** 可选文件类型，默认图片与视频 */
+  accept?: string;
+}> = ({ ownerType, value, onChange, max = 20, empty = '没有附件', accept }) => {
   const { palette } = useAppTheme();
   const preview = usePreview();
   return (
@@ -341,6 +356,7 @@ export const AttachmentWall: React.FC<{
       {onChange && value.length < max && (
         <UploadTile
           ownerType={ownerType}
+          accept={accept}
           onUploaded={(a) => onChange([...value, a])}
         />
       )}

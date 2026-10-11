@@ -18,6 +18,8 @@ public class PurchaseOrderPageQuery {
     private Long supplierId;
     private Long purchaserId;
     /** 下单日期范围（草稿没有下单日期，有范围时不列出） */
+    /** 付款状态筛选：UNPAID 未付、PARTIAL 部分付款、PAID 已付清、CREDIT 有欠款 */
+    private String payStatus;
     private LocalDate orderFrom;
     private LocalDate orderTo;
     /** itemCount / totalQuantity / totalAmount / bargainAmount */

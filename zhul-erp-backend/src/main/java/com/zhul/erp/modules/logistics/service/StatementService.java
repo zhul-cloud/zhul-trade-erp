@@ -17,6 +17,10 @@ import com.zhul.erp.modules.logistics.repository.LogisticsShipmentMapper;
 import com.zhul.erp.modules.logistics.support.LogisticsSupport;
 import com.zhul.erp.modules.sales.support.PiStore;
 import com.zhul.erp.modules.system.service.LogService;
+import com.zhul.erp.modules.finance.constants.FinanceConstants;
+import com.zhul.erp.modules.finance.dto.PayableVO;
+import com.zhul.erp.modules.finance.service.PayableQueryService;
+import com.zhul.erp.modules.finance.service.PayableSyncService;
 import lombok.RequiredArgsConstructor;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
@@ -49,6 +53,8 @@ import java.util.stream.Collectors;
 public class StatementService {
 
     private final ForwarderStatementMapper statementMapper;
+    private final PayableSyncService payables;
+    private final PayableQueryService payableQuery;
     private final ForwarderStatementLineMapper lineMapper;
     private final LogisticsShipmentMapper shipmentMapper;
     private final LogisticsShipmentService shipments;
@@ -167,6 +173,7 @@ public class StatementService {
         st.setConfirmedBy(currentUser.resolve());
         st.setConfirmedAt(LocalDateTime.now());
         totals(st);
+        payables.createForStatement(id);
         logService.recordOperateLog(LogisticsConstants.MENU_STATEMENT, "确认对账", null, Map.of("period", st.getPeriod(),
                 "our", "CNY " + st.getOurTotal(), "statement", "CNY " + st.getStatementTotal()));
         return detail(id);
@@ -233,6 +240,8 @@ public class StatementService {
     private List<StatementVO> toVos(List<ForwarderStatementDO> rows, boolean full) {
         Map<Long, String> forwarders = support.supplierNames(rows.stream().map(ForwarderStatementDO::getForwarderId).toList());
         Map<Long, String> users = support.userNames(rows.stream().map(ForwarderStatementDO::getConfirmedBy).toList());
+        Map<Long, PayableVO> pays = payableQuery.statusBySources(FinanceConstants.SOURCE_STATEMENT,
+                rows.stream().map(ForwarderStatementDO::getId).toList());
         List<StatementVO> out = new ArrayList<>(rows.size());
         for (ForwarderStatementDO st : rows) {
             List<ForwarderStatementLineDO> lines = linesOf(st.getId());
@@ -244,6 +253,13 @@ public class StatementService {
             vo.setStatus(st.getStatus());
             vo.setStatusName(LogisticsConstants.STATEMENT_STATUS_NAMES.get(st.getStatus()));
             vo.setShipmentCount(lines.size());
+            PayableVO pay = pays.get(st.getId());
+            if (pay != null) {
+                vo.setPayableId(pay.getId());
+                vo.setPayStatus(pay.getStatus());
+                vo.setPayableAmount(pay.getAmount());
+                vo.setPaidAmount(pay.getPaidAmount());
+            }
             vo.setOurTotal(st.getOurTotal());
             vo.setStatementTotal(st.getStatementTotal());
             vo.setDiffTotal(st.getStatementTotal().subtract(st.getOurTotal()));

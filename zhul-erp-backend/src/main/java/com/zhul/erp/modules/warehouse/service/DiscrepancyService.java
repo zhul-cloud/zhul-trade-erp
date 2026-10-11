@@ -34,6 +34,7 @@ import com.zhul.erp.modules.warehouse.repository.ReceivingDiscrepancyMapper;
 import com.zhul.erp.modules.warehouse.repository.StockHoldMapper;
 import com.zhul.erp.modules.warehouse.support.ReceivingQty;
 import com.zhul.erp.modules.warehouse.support.ReceivingSupport;
+import com.zhul.erp.modules.finance.service.PayableSyncService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
@@ -63,6 +64,7 @@ public class DiscrepancyService {
     private static final Set<Integer> REDUCE_ORDER = Set.of(WarehouseConstants.RES_NO_RESEND, WarehouseConstants.RES_RETURN_NO_RESEND);
 
     private final ReceivingDiscrepancyMapper discrepancyMapper;
+    private final PayableSyncService payables;
     private final PurchaseReceiptMapper receiptMapper;
     private final StockHoldMapper holdMapper;
     private final PurchaseOrderItemMapper poItemMapper;
@@ -356,6 +358,7 @@ public class DiscrepancyService {
                 + (d.getNote().isEmpty() ? "" : "；" + d.getNote());
         logs.add(p.getId(), "处理到货差异", text, operator);
         logService.recordOperateLog(WarehouseConstants.MENU_SHIPMENT, "处理到货差异", null, Map.of("poNo", p.getPoNo(), "content", text));
+        payables.syncPurchaseOrder(p.getId());
         return toVos(List.of(d)).get(0);
     }
 
@@ -422,6 +425,7 @@ public class DiscrepancyService {
         String text = d.getModel() + " " + WarehouseConstants.DIFF_TYPE_NAMES.get(d.getType()) + " " + d.getQuantity() + "：撤销「" + was + "」";
         logs.add(p.getId(), "重新打开差异", text, currentUser.resolve());
         logService.recordOperateLog(WarehouseConstants.MENU_SHIPMENT, "重新打开到货差异", null, Map.of("poNo", p.getPoNo(), "content", text));
+        payables.syncPurchaseOrder(p.getId());
         return toVos(List.of(d)).get(0);
     }
 

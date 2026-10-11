@@ -477,6 +477,20 @@ export default [
         access: 'financeReceipts',
         component: './finance/receipts',
       },
+      {
+        path: '/finance/payables',
+        name: 'payables',
+        icon: 'accountBook',
+        access: 'financePayables',
+        component: './finance/payables',
+      },
+      {
+        path: '/finance/payments',
+        name: 'payments',
+        icon: 'transaction',
+        access: 'financePayments',
+        component: './finance/payments',
+      },
     ],
   },
   {

@@ -20,6 +20,11 @@ import {
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
+import {
+  PayablePanel,
+  PayStatusPill,
+} from '@/pages/finance/payables/components';
+import { SOURCE } from '@/pages/finance/payables/service';
 import { Card, PageTitle } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { auditColumns } from '@/pages/purchase/components';
@@ -422,8 +427,15 @@ const StatementDrawer: React.FC<{
             <InfoCircleOutlined />{' '}
             {st.status === 2
               ? `${st.confirmedByName ?? ''} 于 ${formatDateTime(st.confirmedAt)} 确认；这些出运单已对账，运费不能再改。`
-              : '确认后这些出运单标记「已对账」，有差额的按对账金额更新运费并重新分摊，运费不能再改；有差额的必须写说明。'}
+              : '确认后这些出运单标记「已对账」，有差额的按对账金额更新运费并重新分摊，运费不能再改；有差额的必须写说明。确认时生成货代应付，月结付款在「财务管理 → 应付管理」登记。'}
           </div>
+          {st.status === 2 && (
+            <PayablePanel
+              key={`${st.id}-${st.updateTime ?? ''}`}
+              sourceType={SOURCE.STATEMENT}
+              sourceId={st.id}
+            />
+          )}
           {draft && (
             <div>
               <Button
@@ -550,6 +562,25 @@ const Statements: React.FC = () => {
       render: (v: number, r) => (
         <StatementStatusPill value={v}>{r.statusName}</StatementStatusPill>
       ),
+    },
+    {
+      title: '付款',
+      key: 'pay',
+      width: 150,
+      render: (_, r) =>
+        r.payStatus ? (
+          <div>
+            <PayStatusPill status={r.payStatus} />
+            {r.payStatus === 2 && (
+              <div style={{ fontSize: 12, color: palette.sub }}>
+                {formatAmount(r.paidAmount, 'CNY')} /{' '}
+                {formatAmount(r.payableAmount, 'CNY')}
+              </div>
+            )}
+          </div>
+        ) : (
+          <span style={{ color: palette.mute }}>—</span>
+        ),
     },
     {
       title: '确认',

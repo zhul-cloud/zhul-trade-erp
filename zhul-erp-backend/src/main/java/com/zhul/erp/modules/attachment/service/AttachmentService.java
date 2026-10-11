@@ -40,7 +40,10 @@ public class AttachmentService {
     public static final String SHOOT = "SHOOT";
     /** 出运单的面单（PDF 或图片） */
     public static final String LOGISTICS = "LOGISTICS";
-    public static final Map<String, Integer> MAX_PER_OWNER = Map.of(SHIPMENT, 20, RECEIPT, 20, SHOOT, 30, LOGISTICS, 10);
+    /** 付款记录、供应商退款的截图（图片或 PDF） */
+    public static final String PAYMENT = "PAYMENT";
+    public static final Map<String, Integer> MAX_PER_OWNER = Map.of(SHIPMENT, 20, RECEIPT, 20, SHOOT, 30, LOGISTICS, 10,
+            PAYMENT, 10);
     public static final int IMAGE = 1;
     public static final int VIDEO = 2;
     public static final int FILE = 3;
@@ -68,8 +71,9 @@ public class AttachmentService {
         AttachmentStore store = store(currentStorage);
         AttachmentStore.Stored s;
         int kind;
-        if (LOGISTICS.equals(ownerType)) {
-            s = store.put(PiStore.tenantId(), file, FACE_SHEET_EXTS, IMAGE_MAX, "面单只支持 PDF、JPG、PNG、WEBP");
+        if (LOGISTICS.equals(ownerType) || PAYMENT.equals(ownerType)) {
+            s = store.put(PiStore.tenantId(), file, FACE_SHEET_EXTS, IMAGE_MAX,
+                    PAYMENT.equals(ownerType) ? "付款截图只支持 PDF、JPG、PNG、WEBP" : "面单只支持 PDF、JPG、PNG、WEBP");
             kind = s.contentType().startsWith("image/") ? IMAGE : FILE;
         } else if (video) {
             s = store.put(PiStore.tenantId(), file, VIDEO_EXTS, VIDEO_MAX, "只支持 MP4、MOV 视频");

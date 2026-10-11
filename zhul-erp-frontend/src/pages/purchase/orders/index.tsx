@@ -11,6 +11,8 @@ import type { TableColumnsType, TableProps } from 'antd';
 import { Button, DatePicker, Form, Input, Select, Table } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
+import { PayStatusPill } from '@/pages/finance/payables/components';
+import { PAY_STATUS } from '@/pages/finance/payables/service';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useUserOptions } from '@/pages/sales/orders/dialogs';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -43,6 +45,7 @@ interface Filters {
   keyword?: string;
   status?: number;
   shipProgress?: string;
+  payStatus?: string;
   supplierId?: number;
   purchaserId?: number;
   range?: [Dayjs, Dayjs] | null;
@@ -71,6 +74,7 @@ const PurchaseOrderList: React.FC = () => {
       keyword: filters.keyword?.trim() || undefined,
       status: filters.status,
       shipProgress: filters.shipProgress,
+      payStatus: filters.payStatus,
       supplierId: filters.supplierId,
       purchaserId: filters.purchaserId,
       orderFrom: filters.range?.[0]?.format('YYYY-MM-DD'),
@@ -107,6 +111,7 @@ const PurchaseOrderList: React.FC = () => {
     !filters.keyword &&
     !filters.status &&
     !filters.shipProgress &&
+    !filters.payStatus &&
     !filters.supplierId &&
     !filters.purchaserId &&
     !filters.range;
@@ -193,6 +198,30 @@ const PurchaseOrderList: React.FC = () => {
       width: 170,
       render: (v?: string) =>
         v || <span style={{ color: palette.mute }}>未填</span>,
+    },
+    {
+      title: '付款',
+      key: 'pay',
+      width: 170,
+      render: (_, r) =>
+        r.payStatus === undefined ? (
+          <span style={{ color: palette.mute }}>—</span>
+        ) : (
+          <div>
+            <PayStatusPill status={r.payStatus} />
+            {r.payStatus === PAY_STATUS.PARTIAL && (
+              <div style={{ fontSize: 12, color: palette.sub }}>
+                {formatAmount(r.paidAmount, r.currencyCode)} /{' '}
+                {formatAmount(r.payableAmount, r.currencyCode)}
+              </div>
+            )}
+            {!!r.creditAmount && r.creditAmount > 0 && (
+              <div style={{ fontSize: 12, color: palette.orange }}>
+                欠款 {formatAmount(r.creditAmount, r.currencyCode)}
+              </div>
+            )}
+          </div>
+        ),
     },
     {
       title: '预计发货日期',
@@ -422,6 +451,23 @@ const PurchaseOrderList: React.FC = () => {
               style={{ marginBottom: 0 }}
             >
               <Select allowClear placeholder="全部" options={SHIP_PROGRESS} />
+            </Form.Item>
+            <Form.Item
+              name="payStatus"
+              label="付款"
+              style={{ marginBottom: 0 }}
+            >
+              <Select
+                allowClear
+                placeholder="全部"
+                style={{ minWidth: 120 }}
+                options={[
+                  { value: 'UNPAID', label: '未付' },
+                  { value: 'PARTIAL', label: '部分付款' },
+                  { value: 'PAID', label: '已付清' },
+                  { value: 'CREDIT', label: '有欠款' },
+                ]}
+              />
             </Form.Item>
             <Form.Item
               name="supplierId"

@@ -89,8 +89,16 @@ export default function access(initialState: {
     'purchase:order:create': can('purchase:order:create'),
     'purchase:order:cancel': can('purchase:order:cancel'),
     // 财务管理
-    financeMenu: any('/finance/receipts'),
+    financeMenu: any(
+      '/finance/receipts',
+      '/finance/payables',
+      '/finance/payments',
+    ),
     financeReceipts: can('/finance/receipts'),
+    financePayables: can('/finance/payables'),
+    financePayments: can('/finance/payments'),
+    'finance:payment:register': can('finance:payment:register'),
+    'finance:payment:advance': can('finance:payment:advance'),
     salesPi: can('/sales/pi'),
     salesOrders: can('/sales/orders'),
     'sales:pi:receipt-slip': can('sales:pi:receipt-slip'),

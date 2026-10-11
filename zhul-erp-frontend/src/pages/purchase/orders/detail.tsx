@@ -32,6 +32,8 @@ import {
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { PayablePanel } from '@/pages/finance/payables/components';
+import { SOURCE } from '@/pages/finance/payables/service';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { CURRENCIES } from '@/pages/quotation/components';
 import {
@@ -1045,6 +1047,15 @@ const PurchaseOrderDetail: React.FC = () => {
         />
       )}
 
+      {po.status !== PO_STATUS.DRAFT && (
+        <PayablePanel
+          key={`${po.id}-${po.status}-${po.totalAmount}-${po.expectedShipDate ?? ''}-${JSON.stringify(po.paymentTerms ?? [])}`}
+          sourceType={SOURCE.PO}
+          sourceId={po.id}
+          allowAdvance
+        />
+      )}
+
       <div
         style={{
           display: 'grid',
@@ -1064,7 +1075,7 @@ const PurchaseOrderDetail: React.FC = () => {
             }
           />
           <div style={{ fontSize: 12, color: palette.mute, marginTop: 8 }}>
-            默认取供应商的默认付款条件；本期只记录，应付与付款提醒在后续上线。
+            默认取供应商的默认付款条件；确认下单后按它生成应付的付款计划，下单后修改会重新分期。
           </div>
         </Card>
         {!po.shop && (

@@ -36,6 +36,7 @@ import com.zhul.erp.modules.warehouse.repository.SupplierShipmentItemMapper;
 import com.zhul.erp.modules.warehouse.repository.SupplierShipmentMapper;
 import com.zhul.erp.modules.warehouse.support.ReceivingQty;
 import com.zhul.erp.modules.warehouse.support.ReceivingSupport;
+import com.zhul.erp.modules.finance.service.PayableSyncService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
@@ -63,6 +64,7 @@ import java.util.stream.Collectors;
 public class ReceiptService {
 
     private final PurchaseReceiptMapper receiptMapper;
+    private final PayableSyncService payables;
     private final PurchaseReceiptItemMapper receiptItemMapper;
     private final SupplierShipmentMapper shipmentMapper;
     private final SupplierShipmentItemMapper shipmentItemMapper;
@@ -437,6 +439,7 @@ public class ReceiptService {
                 + (diffCount > 0 ? "；产生 " + diffCount + " 条到货差异" : ""), operator);
         logService.recordOperateLog(WarehouseConstants.MENU_RECEIPT, "验收入库", null,
                 Map.of("grNo", r.getGrNo(), "sdNo", s.getSdNo(), "poNo", p.getPoNo(), "items", text));
+        payables.syncPurchaseOrder(p.getId());
         return r;
     }
 
@@ -470,6 +473,7 @@ public class ReceiptService {
         logs.add(p.getId(), "冲销入库", r.getGrNo() + "，原因：" + why + "；发货单 " + s.getSdNo() + " 回到在途", currentUser.resolve());
         logService.recordOperateLog(WarehouseConstants.MENU_RECEIPT, "冲销入库", Map.of("grNo", r.getGrNo(), "status", "有效"),
                 Map.of("grNo", r.getGrNo(), "status", "已冲销", "reason", why));
+        payables.syncPurchaseOrder(p.getId());
         return detail(id);
     }
 

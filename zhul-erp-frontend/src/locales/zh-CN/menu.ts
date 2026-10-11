@@ -77,6 +77,8 @@ export default {
   'menu.sales': '销售',
   'menu.finance': '财务管理',
   'menu.finance.receipts': '收款管理',
+  'menu.finance.payables': '应付管理',
+  'menu.finance.payments': '付款记录',
   'menu.sales.pi': 'PI',
   'menu.sales.orders': '销售订单',
   'menu.purchase': '采购管理',

@@ -174,6 +174,11 @@ export interface PoListItem {
   createBy?: string;
   updateTime: string;
   updateBy?: string;
+  /** 付款：1-未付、2-部分付款、3-已付清、4-已关闭；草稿为空 */
+  payStatus?: number;
+  payableAmount?: number;
+  paidAmount?: number;
+  creditAmount?: number;
 }
 
 export interface PoQuery {
@@ -183,6 +188,8 @@ export interface PoQuery {
   status?: number;
   /** 发货进度：UNSHIPPED、PARTIAL、SHIPPED、RECEIVED、OVERDUE（逾期未发） */
   shipProgress?: string;
+  /** 付款状态：UNPAID、PARTIAL、PAID、CREDIT（有欠款） */
+  payStatus?: string;
   supplierId?: number;
   purchaserId?: number;
   orderFrom?: string;

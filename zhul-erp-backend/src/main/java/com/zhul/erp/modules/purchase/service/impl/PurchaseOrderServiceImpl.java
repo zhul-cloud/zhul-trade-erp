@@ -55,6 +55,10 @@ import com.zhul.erp.modules.system.service.ExchangeRateService;
 import com.zhul.erp.modules.system.service.LogService;
 import com.zhul.erp.modules.warehouse.constants.WarehouseConstants;
 import com.zhul.erp.modules.warehouse.support.ShipProgress;
+import com.zhul.erp.modules.finance.constants.FinanceConstants;
+import com.zhul.erp.modules.finance.dto.PayableVO;
+import com.zhul.erp.modules.finance.service.PayableQueryService;
+import com.zhul.erp.modules.finance.service.PayableSyncService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -114,6 +118,20 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
     private final com.zhul.erp.modules.warehouse.support.ReceivingQty receivingQty;
     private final com.zhul.erp.modules.warehouse.support.PurchaseReceivingLinks receivingLinks;
     private final ShipProgress shipProgress;
+    private final PayableSyncService payables;
+    private final PayableQueryService payableQuery;
+
+    /** 付款状态筛选（固定 SQL，拼在 purchase_order 的查询上） */
+    private static final Map<String, String> PAY_CONDITIONS = Map.of(
+            "UNPAID", payExists("f.status = 1"),
+            "PARTIAL", payExists("f.status = 2"),
+            "PAID", payExists("f.status = 3"),
+            "CREDIT", payExists("f.credit_amount > 0"));
+
+    private static String payExists(String cond) {
+        return "EXISTS (SELECT 1 FROM fin_payable f WHERE f.source_type = 1 AND f.source_id = purchase_order.id "
+                + "AND f.tenant_id = purchase_order.tenant_id AND f.deleted_at IS NULL AND " + cond + ")";
+    }
 
     // ---------------------------------------------------------------- 列表与统计
 
@@ -133,6 +151,10 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
         }
         if (q.getPurchaserId() != null) {
             w.eq(PurchaseOrderDO::getPurchaserId, q.getPurchaserId());
+        }
+        String payCondition = PAY_CONDITIONS.get(q.getPayStatus() == null ? "" : q.getPayStatus());
+        if (payCondition != null) {
+            w.apply(payCondition);
         }
         if (q.getOrderFrom() != null) {
             w.ge(PurchaseOrderDO::getOrderDate, q.getOrderFrom());
@@ -211,6 +233,7 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
         rows.stream().filter(p -> p.getStatus() == PurchaseConstants.PO_ORDERED)
                 .forEach(p -> orderedLines.put(p.getId(), items.getOrDefault(p.getId(), List.of())));
         Map<Long, ShipProgress.Result> progressByPo = shipProgress.of(orderedLines);
+        Map<Long, PayableVO> pays = payableQuery.statusBySources(FinanceConstants.SOURCE_PURCHASE_ORDER, ids);
         LocalDateTime now = LocalDateTime.now();
         List<PurchaseOrderListVO> out = new ArrayList<>(rows.size());
         for (PurchaseOrderDO p : rows) {
@@ -222,6 +245,13 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
             vo.setStatusName(PurchaseConstants.PO_STATUS_NAMES.get(p.getStatus()));
             vo.setOrderDate(p.getOrderDate());
             fillShip(vo, p, progressByPo.get(p.getId()));
+            PayableVO pay = pays.get(p.getId());
+            if (pay != null) {
+                vo.setPayStatus(pay.getStatus());
+                vo.setPayableAmount(pay.getAmount());
+                vo.setPaidAmount(pay.getPaidAmount());
+                vo.setCreditAmount(pay.getCreditAmount());
+            }
             vo.setCreateTime(p.getCreateTime());
             if (p.getStatus() == PurchaseConstants.PO_DRAFT && p.getCreateTime() != null) {
                 long days = ChronoUnit.DAYS.between(p.getCreateTime().toLocalDate(), now.toLocalDate());
@@ -560,6 +590,7 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
                 logService.recordOperateLog(PurchaseConstants.MENU_ORDER, "修改采购单", null, Map.of("poNo", p.getPoNo(), "changes", changes));
             }
         }
+        payables.syncPurchaseOrder(id);
         return detail(id);
     }
 
@@ -716,6 +747,7 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
         }
         logService.recordOperateLog(PurchaseConstants.MENU_ORDER, "店铺转为供应商", null,
                 Map.of("shop", cp.shopTitle(), "supplierId", supplierId, "orders", pos.size(), "requirements", reqs.size()));
+        pos.forEach(x -> payables.syncPurchaseOrder(x.getId()));
         return detail(id);
     }
 
@@ -773,6 +805,7 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
         after.put("total", p.getCurrencyCode() + " " + p.getTotalAmount());
         after.put("bargain", "CNY " + p.getBargainAmount());
         logService.recordOperateLog(PurchaseConstants.MENU_ORDER, "确认下单", null, after);
+        payables.syncPurchaseOrder(id);
         return detail(id);
     }
 
@@ -799,6 +832,7 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
         progress.sync(lines.stream().map(PurchaseOrderItemDO::getSoItemId).toList());
         logService.recordOperateLog(PurchaseConstants.MENU_ORDER, "取消采购单", Map.of("poNo", p.getPoNo(), "status", "已下单"),
                 Map.of("poNo", p.getPoNo(), "status", "已取消", "reason", why));
+        payables.syncPurchaseOrder(id);
         return detail(id);
     }
 
