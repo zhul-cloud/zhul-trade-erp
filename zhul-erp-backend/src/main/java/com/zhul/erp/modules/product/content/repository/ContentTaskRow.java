@@ -20,6 +20,12 @@ public class ContentTaskRow {
     private String enBy;
     private LocalDateTime ruAt;
     private String ruBy;
+    private LocalDateTime alibabaAt;
+    private String alibabaBy;
+    private LocalDateTime micAt;
+    private String micBy;
+    private LocalDateTime socialAt;
+    private String socialBy;
     private LocalDateTime downloadedAt;
     private LocalDateTime factImportedAt;
     private String factImportedBy;

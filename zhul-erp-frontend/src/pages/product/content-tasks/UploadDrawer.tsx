@@ -24,6 +24,7 @@ import {
 import React, { useState } from 'react';
 import { Pill } from '@/pages/inquiry/shared/components';
 import { useAppTheme } from '@/theme/AppTheme';
+import { PLATFORM_META } from '../products/cards/SeoCard';
 import {
   type ContentBlock,
   type ContentConfirmResult,
@@ -42,9 +43,14 @@ const TYPE_NAME: Record<string, string> = {
   facts: '资料包',
   marketing: '营销包',
 };
-/** 文件说明：资料包 · 中文 / 营销包 · EN */
+/** 文件说明：资料包 · 中文 / 阿里国际站营销包 · EN */
 const packageLabel = (f: ContentPreview) =>
-  [TYPE_NAME[f.type ?? ''], LANG_NAME[f.lang ?? ''] ?? f.lang]
+  [
+    f.platform && PLATFORM_META[f.platform]
+      ? `${PLATFORM_META[f.platform].label}${TYPE_NAME.marketing}`
+      : TYPE_NAME[f.type ?? ''],
+    LANG_NAME[f.lang ?? ''] ?? f.lang,
+  ]
     .filter(Boolean)
     .join(' · ') || '—';
 const MAX_FILES = 50;
@@ -340,7 +346,11 @@ export const UploadDrawer: React.FC<{
                   {it.productLabel && (
                     <span style={{ color: palette.mute }}>
                       {' '}
-                      · {it.productLabel} · {LANG_NAME[it.lang ?? ''] ?? ''}
+                      · {it.productLabel} ·{' '}
+                      {it.platform
+                        ? `${PLATFORM_META[it.platform]?.label} · `
+                        : ''}
+                      {LANG_NAME[it.lang ?? ''] ?? ''}
                     </span>
                   )}
                   <div style={{ fontSize: 12, color: palette.sub }}>
@@ -371,8 +381,9 @@ export const UploadDrawer: React.FC<{
               {loading ? '正在解析…' : '点击或拖入 Markdown 文件'}
             </p>
             <p className="ant-upload-hint">
-              资料包 type: facts、lang: zh；营销包 type: marketing、lang: en 或
-              ru，一种语言一个文件；一次最多 50 个，每个不超过 1MB
+              资料包 type: facts、lang: zh；营销包 type: marketing，platform 为
+              alibaba、mic、site 或 social（独立站 lang 可以是 en 或
+              ru，其他平台只有 en）；一次最多 50 个，每个不超过 1MB
             </p>
           </Upload.Dragger>
           <Alert

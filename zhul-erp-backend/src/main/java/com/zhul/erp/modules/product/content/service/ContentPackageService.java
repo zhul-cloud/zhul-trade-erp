@@ -9,6 +9,7 @@ import com.zhul.erp.modules.product.constants.ProductErrorCodes;
 import com.zhul.erp.modules.product.content.constants.ContentConstants;
 import com.zhul.erp.modules.product.content.entity.ProductRelationshipNoteDO;
 import com.zhul.erp.modules.product.content.repository.ProductRelationshipNoteMapper;
+import com.zhul.erp.modules.product.content.support.MarketingPlatform;
 import com.zhul.erp.modules.product.entity.ProductApplicationDO;
 import com.zhul.erp.modules.product.entity.ProductDO;
 import com.zhul.erp.modules.product.entity.ProductDocumentDO;
@@ -44,7 +45,7 @@ import java.util.zip.ZipOutputStream;
 
 /**
  * 任务包（spec product/product-content「任务包下载」）：商品已有信息（生成输入）+ 上传模版，一个商品一个 Markdown，多个打成 zip。
- * 资料包用中文模版、生成写共享商品库的资料；营销包以中文资料为输入、生成本公司英文或俄文营销内容。
+ * 资料包用中文模版、生成写共享商品库的资料；营销包一个平台一个，以中文资料为输入、用该平台的模版生成本公司营销内容。
  */
 @Service
 @RequiredArgsConstructor
@@ -67,15 +68,18 @@ public class ContentPackageService {
     private final ProductRelationshipNoteMapper relationshipNoteMapper;
     private final ProductFaqMapper faqMapper;
     private final ProductDocumentMapper documentMapper;
+    private final PlatformSettingService platformSettings;
 
     public record Package(String fileName, String contentType, byte[] body) {
     }
 
-    public Package build(List<Long> productIds, String type) {
+    /** platform 只对营销包有效，必须是本公司启用的平台 */
+    public Package build(List<Long> productIds, String type, String platformCode) {
         boolean facts = ContentConstants.TYPE_FACTS.equals(type);
         if (!facts && !ContentConstants.TYPE_MARKETING.equals(type)) {
             throw BizException.of(ProductErrorCodes.PARAM_INVALID, "包类型须为 facts 或 marketing");
         }
+        MarketingPlatform platform = facts ? null : platformSettings.requireEnabled(platformCode);
         Set<Long> ids = new LinkedHashSet<>(productIds == null ? List.of() : productIds);
         ids.remove(null);
         if (ids.isEmpty()) {
@@ -93,7 +97,7 @@ public class ContentPackageService {
         if (products.size() != ids.size()) {
             throw BizException.of(ProductErrorCodes.PRODUCT_NOT_FOUND, "商品不存在");
         }
-        String template = template(facts);
+        String template = template(platform);
         Map<Long, String> brands = taskService.brandNames(new HashSet<>(products.stream().map(ProductDO::getBrandId).toList()));
         Map<Long, String> categories = taskService.categoryNames(new HashSet<>(products.stream().map(ProductDO::getCategoryId).toList()));
 
@@ -104,38 +108,43 @@ public class ContentPackageService {
         }
         if (products.size() == 1) {
             ProductDO p = products.get(0);
-            return new Package(fileName(p, facts), "text/markdown; charset=UTF-8",
-                    markdown(p, facts, brands, categories, template).getBytes(StandardCharsets.UTF_8));
+            return new Package(fileName(p, platform), "text/markdown; charset=UTF-8",
+                    markdown(p, platform, brands, categories, template).getBytes(StandardCharsets.UTF_8));
         }
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         try (ZipOutputStream zip = new ZipOutputStream(out, StandardCharsets.UTF_8)) {
             Set<String> names = new HashSet<>();
             for (ProductDO p : products) {
-                String name = fileName(p, facts);
+                String name = fileName(p, platform);
                 if (!names.add(name)) {
                     name = name.replace(".md", "-" + p.getId() + ".md");
                 }
                 zip.putNextEntry(new ZipEntry(name));
-                zip.write(markdown(p, facts, brands, categories, template).getBytes(StandardCharsets.UTF_8));
+                zip.write(markdown(p, platform, brands, categories, template).getBytes(StandardCharsets.UTF_8));
                 zip.closeEntry();
             }
         } catch (IOException e) {
             throw new UncheckedIOException("任务包打包失败", e);
         }
-        return new Package((facts ? "facts-" : "marketing-") + products.size() + ".zip", "application/zip",
+        return new Package((facts ? "facts-" : "marketing-" + platform.code() + "-") + products.size() + ".zip", "application/zip",
                 out.toByteArray());
     }
 
-    String markdown(ProductDO p, boolean facts, Map<Long, String> brands, Map<Long, String> categories,
+    String markdown(ProductDO p, MarketingPlatform platform, Map<Long, String> brands, Map<Long, String> categories,
                     String template) {
+        boolean facts = platform == null;
         String brand = brands.getOrDefault(p.getBrandId(), "");
         StringBuilder sb = new StringBuilder();
         sb.append("---\n")
-                .append("type: ").append(facts ? ContentConstants.TYPE_FACTS : ContentConstants.TYPE_MARKETING).append('\n')
-                .append("brand: ").append(brand).append('\n')
+                .append("type: ").append(facts ? ContentConstants.TYPE_FACTS : ContentConstants.TYPE_MARKETING).append('\n');
+        if (!facts) {
+            sb.append("platform: ").append(platform.code()).append("   # ").append(platform.label()).append('\n');
+        }
+        sb.append("brand: ").append(brand).append('\n')
                 .append("model: ").append(p.getMpnRaw()).append('\n')
                 .append(facts ? "lang: zh          # 资料包只能是中文\n"
-                        : "lang: en          # 生成俄文时改为 ru，一种语言一个文件\n")
+                        : platform.langs().size() > 1 ? "lang: en          # 生成俄文时改为 ru，一种语言一个文件\n"
+                        : "lang: en          # " + platform.label() + "只用英文\n")
                 .append("---\n\n");
         sb.append(facts ? "<!-- 商品信息（生成资料的输入，上传时可以保留或删除）\n"
                 : "<!-- 商品资料（生成营销内容的依据，规格以此为准，上传时可以保留或删除）\n");
@@ -263,12 +272,15 @@ public class ContentPackageService {
         }
     }
 
-    private static String fileName(ProductDO p, boolean facts) {
-        return p.getMpnRaw().replaceAll("[\\\\/:*?\"<>|\\s]+", "_") + (facts ? ".facts.md" : ".marketing.md");
+    /** 资料包「型号.facts.md」，营销包「型号.平台编码.md」 */
+    private static String fileName(ProductDO p, MarketingPlatform platform) {
+        return p.getMpnRaw().replaceAll("[\\\\/:*?\"<>|\\s]+", "_")
+                + (platform == null ? ".facts.md" : "." + platform.code() + ".md");
     }
 
-    private static String template(boolean facts) {
-        String path = facts ? "product-content/facts-template.md" : "product-content/marketing-template.md";
+    private static String template(MarketingPlatform platform) {
+        String path = platform == null ? "product-content/facts-template.md"
+                : "product-content/marketing-" + platform.code() + ".md";
         try (InputStream in = new ClassPathResource(path).getInputStream()) {
             return new String(in.readAllBytes(), StandardCharsets.UTF_8);
         } catch (IOException e) {

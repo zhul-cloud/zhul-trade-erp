@@ -10,6 +10,7 @@ import com.zhul.erp.modules.product.content.constants.ContentConstants;
 import com.zhul.erp.modules.product.content.entity.ProductContentTaskDO;
 import com.zhul.erp.modules.product.content.entity.ProductFactTaskDO;
 import com.zhul.erp.modules.product.content.repository.ProductFactTaskMapper;
+import com.zhul.erp.modules.product.content.support.MarketingPlatform;
 import com.zhul.erp.modules.product.entity.ProductApplicationDO;
 import com.zhul.erp.modules.product.entity.ProductSpecificationDO;
 import com.zhul.erp.modules.product.repository.ProductApplicationMapper;
@@ -22,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.Collection;
+import java.util.Set;
 
 /**
  * 资料任务（spec product/product-content「内容任务」「资料核对」）：平台级，每个商品一行，所有公司共用。
@@ -137,16 +139,19 @@ public class FactTaskService {
                 && (fact.getImportedAt() == null || !fact.getVerifiedAt().isBefore(fact.getImportedAt()));
     }
 
-    /** 任务阶段，与 ProductContentTaskMapper.STAGE 同一口径 */
-    public static int stage(ProductFactTaskDO fact, ProductContentTaskDO task) {
+    /** 任务阶段，与 ProductContentTaskMapper.STAGE 同一口径：本公司启用且没标不发布的平台都写完才算完成 */
+    public static int stage(ProductFactTaskDO fact, ProductContentTaskDO task, Set<MarketingPlatform> enabled,
+                            Set<String> skipped) {
         if (fact == null || fact.getImportedAt() == null && fact.getVerifiedAt() == null) {
             return ContentConstants.STAGE_FACTS_PENDING;
         }
         if (!verified(fact)) {
             return ContentConstants.STAGE_FACTS_REVIEW;
         }
-        if (task == null || task.getEnAt() == null || task.getRuAt() == null) {
-            return ContentConstants.STAGE_MARKETING;
+        for (MarketingPlatform p : enabled) {
+            if (!skipped.contains(p.code()) && !p.written(task)) {
+                return ContentConstants.STAGE_MARKETING;
+            }
         }
         return ContentConstants.STAGE_DONE;
     }

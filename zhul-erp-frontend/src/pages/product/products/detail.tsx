@@ -34,7 +34,11 @@ import { LogisticsCustomsCard } from './cards/LogisticsCustomsCard';
 import { MediaCard } from './cards/MediaCard';
 import { PriceCard } from './cards/PriceCard';
 import { RelationCard } from './cards/RelationCard';
-import { FactsStatusBar, SeoCard, useProductContent } from './cards/SeoCard';
+import {
+  FactsStatusBar,
+  MarketingCard,
+  useProductContent,
+} from './cards/SeoCard';
 import { SpecCard } from './cards/SpecCard';
 
 const scrollToCard = (anchor: string) => {
@@ -610,9 +614,9 @@ const DetailInner: React.FC = () => {
           <GroupTitle
             title="运营内容"
             tag={<Pill tone="violet">本公司</Pill>}
-            desc="英文、俄文 · 只有本公司看得到 · 按平台发布用"
+            desc="按平台 · 只有本公司看得到 · 只列本公司启用的平台"
           />
-          <SeoCard
+          <MarketingCard
             productId={product.id}
             mpn={product.mpnRaw}
             data={content.data}

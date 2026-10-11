@@ -716,10 +716,27 @@ export const priceApi = {
     call<void>(`${BASE}/products/${id}/reference-price`, { method: 'DELETE' }),
 };
 
-// ---------- 内容任务：资料（中文，共享）→ 营销（英文、俄文，本公司） ----------
+// ---------- 内容任务：资料（中文，共享）→ 营销（按平台，本公司） ----------
 
 /** 任务包类型：资料包、营销包 */
 export type PackageType = 'facts' | 'marketing';
+
+/** 营销平台：阿里国际站、中国制造网、独立站、社媒（以后端 MarketingPlatform 为准） */
+export type MarketingPlatform = 'alibaba' | 'mic' | 'site' | 'social';
+
+export interface MarketingPlatformOption {
+  code: MarketingPlatform;
+  label: string;
+  langs: string[];
+  /** 本公司是否启用 */
+  enabled: boolean;
+}
+
+/** 某平台的不发布标记（本公司） */
+export interface MarketingSkip {
+  markedBy?: string;
+  markedAt?: string;
+}
 
 export interface ContentTask {
   productId: number;
@@ -730,10 +747,19 @@ export interface ContentTask {
   productName?: string;
   /** 1-资料待补、2-资料待核、3-营销待生成、4-已完成 */
   status: number;
+  /** 独立站英文、俄文 */
   enAt?: string;
   enBy?: string;
   ruAt?: string;
   ruBy?: string;
+  alibabaAt?: string;
+  alibabaBy?: string;
+  micAt?: string;
+  micBy?: string;
+  socialAt?: string;
+  socialBy?: string;
+  /** 本公司标了不发布的平台 */
+  skips?: Partial<Record<MarketingPlatform, MarketingSkip>>;
   /** 本公司最近下载营销包 */
   downloadedAt?: string;
   /** 资料（所有公司共享）：最近导入、核对、下载资料包 */
@@ -789,6 +815,8 @@ export interface ContentPreview {
   /** zh（资料包）、en、ru（营销包） */
   lang?: string;
   type?: PackageType;
+  /** 营销包平台 */
+  platform?: MarketingPlatform;
   productId?: number;
   productLabel?: string;
   errors: string[];
@@ -805,6 +833,7 @@ export interface ContentConfirmResult {
     productId?: number;
     productLabel?: string;
     lang?: string;
+    platform?: MarketingPlatform;
     success: boolean;
     message: string;
   }[];
@@ -817,8 +846,18 @@ export interface ProductContent {
   factImportedBy?: string;
   factVerifiedAt?: string;
   factVerifiedBy?: string;
+  /** 本公司启用的平台，按固定顺序 */
+  platforms: MarketingPlatform[];
+  /** 本公司各平台写入时间：独立站英文、俄文，阿里国际站、中国制造网、社媒 */
   enAt?: string;
   ruAt?: string;
+  alibabaAt?: string;
+  micAt?: string;
+  socialAt?: string;
+  skips?: Partial<Record<MarketingPlatform, MarketingSkip>>;
+  /** 阿里国际站、中国制造网、社媒的内容（只含启用且写过的平台） */
+  platformContents?: Partial<Record<MarketingPlatform, PlatformContent>>;
+  /** 独立站：英文、俄文 */
   langs: Record<
     ContentLang,
     {
@@ -832,6 +871,20 @@ export interface ProductContent {
       confirmedAt?: string;
     }
   >;
+}
+
+export interface PlatformContent {
+  title?: string;
+  /** 按档位（1-核心、2-主要、3-长尾）、档内顺序排好 */
+  keywords: { keyword: string; tier: 1 | 2 | 3 }[];
+  sellingPoints: string[];
+  detail?: string;
+  linkedinPost?: string;
+  facebookPost?: string;
+  youtubeDescription?: string;
+  fileName?: string;
+  confirmedBy?: string;
+  confirmedAt?: string;
 }
 
 const CONTENT = `${BASE}/content-tasks`;
@@ -864,11 +917,31 @@ export const contentApi = {
     call<void>(`${CONTENT}/products/${productId}/verify-facts`, {
       method: 'POST',
     }),
-  /** 下载任务包：单个是 Markdown，多个是 zip；从响应头取文件名触发浏览器下载 */
-  download: async (productIds: number[], type: PackageType) => {
+  /** 营销平台与本公司是否启用 */
+  platforms: () => call<MarketingPlatformOption[]>(`${CONTENT}/platforms`),
+  savePlatforms: (platforms: MarketingPlatform[]) =>
+    call<MarketingPlatformOption[]>(`${CONTENT}/platforms`, {
+      method: 'PUT',
+      data: { platforms },
+    }),
+  /** 本公司某商品在某平台不发布 / 撤销 */
+  skip: (productId: number, platform: MarketingPlatform) =>
+    call<void>(`${CONTENT}/products/${productId}/skips/${platform}`, {
+      method: 'PUT',
+    }),
+  unskip: (productId: number, platform: MarketingPlatform) =>
+    call<void>(`${CONTENT}/products/${productId}/skips/${platform}`, {
+      method: 'DELETE',
+    }),
+  /** 下载任务包：单个是 Markdown，多个是 zip；营销包要带平台；从响应头取文件名触发浏览器下载 */
+  download: async (
+    productIds: number[],
+    type: PackageType,
+    platform?: MarketingPlatform,
+  ) => {
     const res = await request<Blob>(`${CONTENT}/package`, {
       method: 'GET',
-      params: { productIds: productIds.join(','), type },
+      params: { productIds: productIds.join(','), type, platform },
       responseType: 'blob',
       getResponse: true,
       skipErrorHandler: true,

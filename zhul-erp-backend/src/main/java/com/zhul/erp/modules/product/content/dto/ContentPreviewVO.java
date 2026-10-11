@@ -14,6 +14,8 @@ public class ContentPreviewVO {
     private String lang;
     /** 包类型：facts-资料包、marketing-营销包 */
     private String type;
+    /** 营销包平台：alibaba、mic、site、social；资料包为空 */
+    private String platform;
     private Long productId;
     /** 匹配到的商品：品牌 · 型号 */
     private String productLabel;

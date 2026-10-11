@@ -18,6 +18,8 @@ public class ContentConfirmVO {
         private Long productId;
         private String productLabel;
         private String lang;
+        /** 营销包平台：alibaba、mic、site、social；资料包为空 */
+        private String platform;
         private boolean success;
         /** 成功时为写入摘要，失败时为原因 */
         private String message;

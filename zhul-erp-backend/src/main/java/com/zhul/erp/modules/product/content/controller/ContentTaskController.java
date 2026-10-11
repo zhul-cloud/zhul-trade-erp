@@ -7,11 +7,15 @@ import com.zhul.erp.modules.product.content.dto.ContentFileRequest;
 import com.zhul.erp.modules.product.content.dto.ContentPreviewVO;
 import com.zhul.erp.modules.product.content.dto.ContentTaskQuery;
 import com.zhul.erp.modules.product.content.dto.ContentTaskVO;
+import com.zhul.erp.modules.product.content.dto.MarketingPlatformVO;
+import com.zhul.erp.modules.product.content.dto.SavePlatformsRequest;
 import com.zhul.erp.modules.product.content.dto.ProductContentVO;
 import com.zhul.erp.modules.product.content.service.ContentImportService;
 import com.zhul.erp.modules.product.content.service.ContentPackageService;
 import com.zhul.erp.modules.product.content.service.ContentTaskService;
 import com.zhul.erp.modules.product.content.service.FactTaskService;
+import com.zhul.erp.modules.product.content.service.MarketingSkipService;
+import com.zhul.erp.modules.product.content.service.PlatformSettingService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ContentDisposition;
@@ -19,9 +23,11 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -31,7 +37,10 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 
-/** 内容任务：查看、下载任务包、上传预览需要菜单权限，确认写入与资料已核还需要「商品内容维护」按钮权限 */
+/**
+ * 内容任务：查看、下载任务包、上传预览、查看平台设置需要菜单权限；
+ * 确认写入、资料已核、修改平台设置、标记或撤销不发布还需要「商品内容维护」按钮权限
+ */
 @RestController
 @RequestMapping("/api/v1/product/content-tasks")
 @RequiredArgsConstructor
@@ -43,6 +52,8 @@ public class ContentTaskController {
     private final ContentPackageService packageService;
     private final ContentImportService importService;
     private final FactTaskService factTaskService;
+    private final PlatformSettingService platformSettings;
+    private final MarketingSkipService skipService;
 
     @PostMapping("/page")
     @PreAuthorize(MENU)
@@ -58,8 +69,9 @@ public class ContentTaskController {
 
     @GetMapping("/package")
     @PreAuthorize(MENU)
-    public ResponseEntity<byte[]> download(@RequestParam List<Long> productIds, @RequestParam String type) {
-        ContentPackageService.Package pkg = packageService.build(productIds, type);
+    public ResponseEntity<byte[]> download(@RequestParam List<Long> productIds, @RequestParam String type,
+                                           @RequestParam(required = false) String platform) {
+        ContentPackageService.Package pkg = packageService.build(productIds, type, platform);
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment()
                         .filename(pkg.fileName(), StandardCharsets.UTF_8).build().toString())
@@ -84,6 +96,34 @@ public class ContentTaskController {
     @PreAuthorize(MENU + " and @perm.has('product:content:edit')")
     public Result<Void> verifyFacts(@PathVariable Long productId) {
         factTaskService.verify(productId);
+        return Result.ok();
+    }
+
+    /** 本公司启用的营销平台 */
+    @GetMapping("/platforms")
+    @PreAuthorize(MENU)
+    public Result<List<MarketingPlatformVO>> platforms() {
+        return Result.ok(platformSettings.list());
+    }
+
+    @PutMapping("/platforms")
+    @PreAuthorize(MENU + " and @perm.has('product:content:edit')")
+    public Result<List<MarketingPlatformVO>> savePlatforms(@Valid @RequestBody SavePlatformsRequest req) {
+        return Result.ok(platformSettings.save(req.getPlatforms()));
+    }
+
+    /** 本公司某商品在某平台不发布 */
+    @PutMapping("/products/{productId}/skips/{platform}")
+    @PreAuthorize(MENU + " and @perm.has('product:content:edit')")
+    public Result<Void> skip(@PathVariable Long productId, @PathVariable String platform) {
+        skipService.mark(productId, platform);
+        return Result.ok();
+    }
+
+    @DeleteMapping("/products/{productId}/skips/{platform}")
+    @PreAuthorize(MENU + " and @perm.has('product:content:edit')")
+    public Result<Void> unskip(@PathVariable Long productId, @PathVariable String platform) {
+        skipService.unmark(productId, platform);
         return Result.ok();
     }
 

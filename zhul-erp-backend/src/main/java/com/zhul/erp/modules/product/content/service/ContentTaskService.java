@@ -8,17 +8,25 @@ import com.zhul.erp.framework.tenant.TenantContext;
 import com.zhul.erp.modules.product.content.constants.ContentConstants;
 import com.zhul.erp.modules.product.content.dto.ContentTaskQuery;
 import com.zhul.erp.modules.product.content.dto.ContentTaskVO;
+import com.zhul.erp.modules.product.content.dto.MarketingSkipVO;
 import com.zhul.erp.modules.product.content.dto.ProductContentVO;
 import com.zhul.erp.modules.product.content.entity.ProductContentImportDO;
 import com.zhul.erp.modules.product.content.entity.ProductContentTaskDO;
 import com.zhul.erp.modules.product.content.entity.ProductFactTaskDO;
+import com.zhul.erp.modules.product.content.entity.ProductMarketingSkipDO;
+import com.zhul.erp.modules.product.content.entity.ProductPlatformContentDO;
+import com.zhul.erp.modules.product.content.entity.ProductPlatformKeywordDO;
 import com.zhul.erp.modules.product.content.entity.ProductSeoDO;
 import com.zhul.erp.modules.product.content.entity.ProductSeoFaqDO;
 import com.zhul.erp.modules.product.content.repository.ContentTaskRow;
+import com.zhul.erp.modules.product.content.repository.PlatformFlags;
 import com.zhul.erp.modules.product.content.repository.ProductContentImportMapper;
 import com.zhul.erp.modules.product.content.repository.ProductContentTaskMapper;
+import com.zhul.erp.modules.product.content.repository.ProductPlatformContentMapper;
+import com.zhul.erp.modules.product.content.repository.ProductPlatformKeywordMapper;
 import com.zhul.erp.modules.product.content.repository.ProductSeoFaqMapper;
 import com.zhul.erp.modules.product.content.repository.ProductSeoMapper;
+import com.zhul.erp.modules.product.content.support.MarketingPlatform;
 import com.zhul.erp.modules.product.entity.ProductBrandDO;
 import com.zhul.erp.modules.product.entity.ProductCategoryDO;
 import com.zhul.erp.modules.product.repository.ProductBrandMapper;
@@ -43,7 +51,7 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-/** 内容任务：列表（阶段按资料任务与本公司营销写入计算）、本公司任务行的按需创建与营销写入状态、商品详情里的内容 */
+/** 内容任务：列表（阶段按资料任务与本公司启用平台的营销写入、不发布标记计算）、本公司任务行的按需创建与营销写入状态、商品详情里的内容 */
 @Service
 @RequiredArgsConstructor
 public class ContentTaskService {
@@ -56,6 +64,10 @@ public class ContentTaskService {
     private final ProductCategoryMapper categoryMapper;
     private final ProductFinder productFinder;
     private final FactTaskService factTaskService;
+    private final PlatformSettingService platformSettings;
+    private final MarketingSkipService skipService;
+    private final ProductPlatformContentMapper platformContentMapper;
+    private final ProductPlatformKeywordMapper keywordMapper;
 
     public PageResult<ContentTaskVO> page(ContentTaskQuery q) {
         int page = q.getPage() == null || q.getPage() < 1 ? 1 : q.getPage();
@@ -63,12 +75,15 @@ public class ContentTaskService {
         String keyword = keyword(q.getKeyword());
         String mpn = mpn(q.getKeyword());
         Integer tenantId = TenantContext.getTenantId();
-        long total = taskMapper.count(tenantId, q.getStatus(), q.getBrandId(), q.getCategoryId(), keyword, mpn);
+        PlatformFlags flags = PlatformFlags.of(platformSettings.enabled());
+        long total = taskMapper.count(tenantId, flags, q.getStatus(), q.getBrandId(), q.getCategoryId(), keyword, mpn);
         List<ContentTaskRow> rows = total == 0 ? List.of()
-                : taskMapper.page(tenantId, q.getStatus(), q.getBrandId(), q.getCategoryId(), keyword, mpn,
+                : taskMapper.page(tenantId, flags, q.getStatus(), q.getBrandId(), q.getCategoryId(), keyword, mpn,
                 (long) (page - 1) * size, size);
         Map<Long, String> brands = brandNames(rows.stream().map(ContentTaskRow::getBrandId).collect(Collectors.toSet()));
         Map<Long, String> categories = categoryNames(rows.stream().map(ContentTaskRow::getCategoryId).collect(Collectors.toSet()));
+        Map<Long, Map<String, ProductMarketingSkipDO>> skips = skipService.skips(
+                rows.stream().map(ContentTaskRow::getProductId).toList());
         List<ContentTaskVO> records = new ArrayList<>(rows.size());
         for (ContentTaskRow r : rows) {
             ContentTaskVO vo = new ContentTaskVO();
@@ -83,6 +98,13 @@ public class ContentTaskService {
             vo.setEnBy(r.getEnBy());
             vo.setRuAt(r.getRuAt());
             vo.setRuBy(r.getRuBy());
+            vo.setAlibabaAt(r.getAlibabaAt());
+            vo.setAlibabaBy(r.getAlibabaBy());
+            vo.setMicAt(r.getMicAt());
+            vo.setMicBy(r.getMicBy());
+            vo.setSocialAt(r.getSocialAt());
+            vo.setSocialBy(r.getSocialBy());
+            vo.setSkips(skipVOs(skips.get(r.getProductId())));
             vo.setDownloadedAt(r.getDownloadedAt());
             vo.setFactImportedAt(r.getFactImportedAt());
             vo.setFactImportedBy(r.getFactImportedBy());
@@ -105,7 +127,8 @@ public class ContentTaskService {
         for (int s = ContentConstants.STAGE_FACTS_PENDING; s <= ContentConstants.STAGE_DONE; s++) {
             result.put(String.valueOf(s), 0L);
         }
-        for (Map<String, Object> row : taskMapper.countByStatus(TenantContext.getTenantId(), q.getBrandId(),
+        for (Map<String, Object> row : taskMapper.countByStatus(TenantContext.getTenantId(),
+                PlatformFlags.of(platformSettings.enabled()), q.getBrandId(),
                 q.getCategoryId(), keyword(q.getKeyword()), mpn(q.getKeyword()))) {
             long cnt = ((Number) row.get("cnt")).longValue();
             result.put(String.valueOf(row.get("status")), cnt);
@@ -157,21 +180,50 @@ public class ContentTaskService {
         }
     }
 
-    /** 标记本公司某语言营销内容已写入（调用方已锁住任务行） */
-    public void markWritten(ProductContentTaskDO task, String lang) {
+    /** 标记本公司某平台（独立站按语言）营销内容已写入（调用方已锁住任务行） */
+    public void markWritten(ProductContentTaskDO task, MarketingPlatform platform, String lang) {
         LocalDateTime now = LocalDateTime.now();
         String user = SecurityUtils.getCurrentUsername();
-        if ("en".equals(lang)) {
-            task.setEnAt(now);
-            task.setEnBy(user);
-        } else {
-            task.setRuAt(now);
-            task.setRuBy(user);
+        switch (platform) {
+            case ALIBABA -> {
+                task.setAlibabaAt(now);
+                task.setAlibabaBy(user);
+            }
+            case MIC -> {
+                task.setMicAt(now);
+                task.setMicBy(user);
+            }
+            case SOCIAL -> {
+                task.setSocialAt(now);
+                task.setSocialBy(user);
+            }
+            case SITE -> {
+                if ("en".equals(lang)) {
+                    task.setEnAt(now);
+                    task.setEnBy(user);
+                } else {
+                    task.setRuAt(now);
+                    task.setRuBy(user);
+                }
+            }
         }
         taskMapper.updateById(task);
     }
 
-    /** 商品详情：任务阶段、资料状态（共享）、本公司英文与俄文营销内容和最近一次上传 */
+    private static Map<String, MarketingSkipVO> skipVOs(Map<String, ProductMarketingSkipDO> rows) {
+        Map<String, MarketingSkipVO> result = new HashMap<>();
+        if (rows != null) {
+            rows.forEach((platform, r) -> {
+                MarketingSkipVO v = new MarketingSkipVO();
+                v.setMarkedBy(r.getMarkedBy());
+                v.setMarkedAt(r.getMarkedAt());
+                result.put(platform, v);
+            });
+        }
+        return result;
+    }
+
+    /** 商品详情：任务阶段、资料状态（共享）、本公司启用平台的营销内容、不发布标记和最近一次上传 */
     public ProductContentVO productContent(Long productId) {
         productFinder.active(productId);
         Integer tenantId = TenantContext.getTenantId();
@@ -181,7 +233,12 @@ public class ContentTaskService {
                 .eq(ProductContentTaskDO::getProductId, productId)
                 .isNull(ProductContentTaskDO::getDeletedAt));
         ProductFactTaskDO fact = factTaskService.find(productId);
-        vo.setStatus(FactTaskService.stage(fact, task));
+        Set<MarketingPlatform> enabled = platformSettings.enabled();
+        Map<String, ProductMarketingSkipDO> skips = skipService.skips(List.of(productId))
+                .getOrDefault(productId, Map.of());
+        vo.setStatus(FactTaskService.stage(fact, task, enabled, skips.keySet()));
+        enabled.forEach(p -> vo.getPlatforms().add(p.code()));
+        vo.setSkips(skipVOs(skips));
         if (fact != null) {
             vo.setFactImportedAt(fact.getImportedAt());
             vo.setFactImportedBy(fact.getImportedBy());
@@ -191,6 +248,9 @@ public class ContentTaskService {
         if (task != null) {
             vo.setEnAt(task.getEnAt());
             vo.setRuAt(task.getRuAt());
+            vo.setAlibabaAt(task.getAlibabaAt());
+            vo.setMicAt(task.getMicAt());
+            vo.setSocialAt(task.getSocialAt());
         }
         Map<String, ProductSeoDO> seo = seoMapper.selectList(new LambdaQueryWrapper<ProductSeoDO>()
                         .eq(ProductSeoDO::getTenantId, tenantId)
@@ -203,8 +263,14 @@ public class ContentTaskService {
                 .isNull(ProductSeoFaqDO::getDeletedAt)
                 .orderByAsc(ProductSeoFaqDO::getSortOrder)
                 .orderByAsc(ProductSeoFaqDO::getId));
+        List<ProductPlatformContentDO> platformRows = platformContentMapper.selectList(
+                new LambdaQueryWrapper<ProductPlatformContentDO>()
+                        .eq(ProductPlatformContentDO::getTenantId, tenantId)
+                        .eq(ProductPlatformContentDO::getProductId, productId)
+                        .isNull(ProductPlatformContentDO::getDeletedAt));
         Set<Long> importIds = new HashSet<>();
         seo.values().forEach(s -> importIds.add(s.getImportId()));
+        platformRows.forEach(r -> importIds.add(r.getImportId()));
         importIds.remove(null);
         Map<Long, ProductContentImportDO> imports = importIds.isEmpty() ? Map.of()
                 : importMapper.selectList(new LambdaQueryWrapper<ProductContentImportDO>()
@@ -237,7 +303,51 @@ public class ContentTaskService {
             }
             vo.getLangs().put(lang, c);
         }
+        fillPlatformContents(vo, productId, tenantId, enabled, platformRows, imports);
         return vo;
+    }
+
+    /** 阿里国际站、中国制造网、社媒的内容与关键词库（只取启用的平台） */
+    private void fillPlatformContents(ProductContentVO vo, Long productId, Integer tenantId,
+                                      Set<MarketingPlatform> enabled, List<ProductPlatformContentDO> rows,
+                                      Map<Long, ProductContentImportDO> imports) {
+        List<ProductPlatformKeywordDO> keywords = keywordMapper.selectList(new LambdaQueryWrapper<ProductPlatformKeywordDO>()
+                .eq(ProductPlatformKeywordDO::getTenantId, tenantId)
+                .eq(ProductPlatformKeywordDO::getProductId, productId)
+                .isNull(ProductPlatformKeywordDO::getDeletedAt)
+                .orderByAsc(ProductPlatformKeywordDO::getTier)
+                .orderByAsc(ProductPlatformKeywordDO::getSortOrder)
+                .orderByAsc(ProductPlatformKeywordDO::getId));
+        for (ProductPlatformContentDO r : rows) {
+            MarketingPlatform platform = MarketingPlatform.of(r.getPlatform());
+            if (platform == null || !enabled.contains(platform)) {
+                continue;
+            }
+            ProductContentVO.PlatformContent c = new ProductContentVO.PlatformContent();
+            c.setTitle(r.getTitle());
+            if (StringUtils.hasText(r.getSellingPoints())) {
+                c.getSellingPoints().addAll(List.of(r.getSellingPoints().split("\n")));
+            }
+            c.setDetail(r.getDetail());
+            c.setLinkedinPost(r.getLinkedinPost());
+            c.setFacebookPost(r.getFacebookPost());
+            c.setYoutubeDescription(r.getYoutubeDescription());
+            for (ProductPlatformKeywordDO k : keywords) {
+                if (platform.code().equals(k.getPlatform())) {
+                    ProductContentVO.Keyword kw = new ProductContentVO.Keyword();
+                    kw.setKeyword(k.getKeyword());
+                    kw.setTier(k.getTier());
+                    c.getKeywords().add(kw);
+                }
+            }
+            ProductContentImportDO imp = r.getImportId() == null ? null : imports.get(r.getImportId());
+            if (imp != null) {
+                c.setFileName(imp.getFileName());
+                c.setConfirmedBy(imp.getConfirmedBy());
+                c.setConfirmedAt(imp.getCreateTime());
+            }
+            vo.getPlatformContents().put(platform.code(), c);
+        }
     }
 
     Map<Long, String> brandNames(Set<Long> ids) {

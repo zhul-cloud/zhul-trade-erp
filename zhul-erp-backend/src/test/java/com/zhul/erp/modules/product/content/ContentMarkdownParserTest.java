@@ -47,7 +47,7 @@ class ContentMarkdownParserTest {
                 .anyMatch(n -> n.startsWith("「FAQ") && n.contains("不属于资料包"))
                 .anyMatch(n -> n.contains("价格") && n.contains("第三期"));
 
-        ContentDraft m = ContentMarkdownParser.parse(raw.replace("model: 68561906A", "model: 68561906A\ntype: marketing\nlang: en"));
+        ContentDraft m = ContentMarkdownParser.parse(raw.replace("model: 68561906A", "model: 68561906A\ntype: marketing\nplatform: site\nlang: en"));
         assertThat(m.getErrors()).isEmpty();
         assertThat(m.getBlocks()).containsOnlyKeys(ContentSection.FAQ);
         ContentDraft.Block faq = m.getBlocks().get(ContentSection.FAQ);
@@ -55,7 +55,7 @@ class ContentMarkdownParserTest {
         assertThat(faq.getFaqs()).hasSize(7);
         assertThat(faq.getFaqs().get(0).question()).isEqualTo("What is the ABB 68561906A / AGDR-71C board used for?");
         assertThat(faq.getFaqs().get(0).answer()).startsWith("It's an IGBT gate driver board");
-        assertThat(m.getNotes()).anyMatch(n -> n.contains("规格参数表") && n.contains("不属于营销包"))
+        assertThat(m.getNotes()).anyMatch(n -> n.contains("规格参数表") && n.contains("不属于独立站营销包"))
                 .anyMatch(n -> n.contains("首屏定义块") && n.contains("没有内容"));
     }
 
@@ -113,6 +113,7 @@ class ContentMarkdownParserTest {
         String md = """
                 ---
                 type: marketing
+                platform: site
                 brand: Siemens
                 model: 6ES7214-1AG40-0XB0
                 lang: ru
@@ -145,10 +146,19 @@ class ContentMarkdownParserTest {
                 .anyMatch(e -> e.contains("包类型「seo」无效"));
         assertThat(ContentMarkdownParser.parse("---\ntype: facts\nbrand: A\nmodel: B\nlang: en" + body).getErrors())
                 .anyMatch(e -> e.contains("资料包只能是中文"));
-        assertThat(ContentMarkdownParser.parse("---\ntype: marketing\nbrand: A\nmodel: B\nlang: zh" + body).getErrors())
-                .anyMatch(e -> e.contains("营销包只能是英文或俄文"));
-        assertThat(ContentMarkdownParser.parse("---\ntype: marketing\nbrand: A\nmodel: B" + body).getErrors())
+        assertThat(ContentMarkdownParser.parse("---\ntype: marketing\nplatform: site\nbrand: A\nmodel: B\nlang: zh" + body).getErrors())
+                .anyMatch(e -> e.contains("独立站营销包只能是英文或俄文"));
+        assertThat(ContentMarkdownParser.parse("---\ntype: marketing\nplatform: site\nbrand: A\nmodel: B" + body).getErrors())
                 .anyMatch(e -> e.contains("缺少 lang"));
+        // 营销包按平台：缺平台、无效平台、平台语言不符
+        assertThat(ContentMarkdownParser.parse("---\ntype: marketing\nbrand: A\nmodel: B\nlang: en" + body).getErrors())
+                .anyMatch(e -> e.contains("缺少平台"));
+        assertThat(ContentMarkdownParser.parse("---\ntype: marketing\nplatform: amazon\nbrand: A\nmodel: B\nlang: en" + body)
+                .getErrors()).anyMatch(e -> e.contains("平台「amazon」无效"));
+        assertThat(ContentMarkdownParser.parse("---\ntype: marketing\nplatform: alibaba\nbrand: A\nmodel: B\nlang: ru" + body)
+                .getErrors()).anyMatch(e -> e.contains("阿里国际站营销包只能是英文"));
+        assertThat(ContentMarkdownParser.parse("---\ntype: marketing\nplatform: Social\nbrand: A\nmodel: B\nlang: en"
+                + "\n---\n## LinkedIn\nhi\n").getErrors()).isEmpty();
     }
 
     @Test
@@ -156,6 +166,7 @@ class ContentMarkdownParserTest {
         String marketing = """
                 ---
                 type: marketing
+                platform: site
                 brand: ABB
                 lang: de
                 ---
@@ -169,10 +180,10 @@ class ContentMarkdownParserTest {
                 abc
                 """.formatted("T".repeat(121));
         ContentDraft d = ContentMarkdownParser.parse(marketing);
-        assertThat(d.getErrors()).anyMatch(e -> e.contains("model")).anyMatch(e -> e.contains("营销包只能是英文或俄文"));
+        assertThat(d.getErrors()).anyMatch(e -> e.contains("model")).anyMatch(e -> e.contains("独立站营销包只能是英文或俄文"));
         assertThat(d.getBlocks().get(ContentSection.SEO_TITLE).getErrors()).anyMatch(e -> e.contains("120"));
         assertThat(d.getBlocks().get(ContentSection.FAQ).getErrors()).anyMatch(e -> e.contains("A:"));
-        assertThat(d.getNotes()).anyMatch(n -> n.contains("社媒文案") && n.contains("第三期"))
+        assertThat(d.getNotes()).anyMatch(n -> n.contains("社媒文案") && n.contains("不认识"))
                 .anyMatch(n -> n.contains("随便写的") && n.contains("不认识"));
 
         String facts = """
@@ -192,6 +203,134 @@ class ContentMarkdownParserTest {
         assertThat(f.getErrors()).isEmpty();
         assertThat(f.getBlocks().get(ContentSection.SPECS).getErrors()).hasSize(2);
         assertThat(f.getBlocks().get(ContentSection.DOCS).getErrors()).hasSize(1);
+    }
+
+    private static String mkt(String platform, String body) {
+        return "---\ntype: marketing\nplatform: " + platform + "\nbrand: Schneider\nmodel: LXM32AD30N4\nlang: en\n---\n" + body;
+    }
+
+    @Test
+    void alibabaKeywordsAndSellingPoints() {
+        ContentDraft d = ContentMarkdownParser.parse(mkt("alibaba", """
+                ## 标题
+                Schneider LXM32AD30N4 Lexium 32 Servo Drive 3kW
+
+                ## SEO 标题
+                不属于阿里
+
+                ## 关键词库（核心词在前）
+                | 关键词 | 档位 |
+                |---|---|
+                | servo drive in stock | 长尾 |
+                | LXM32AD30N4 | 核心 |
+                | 3kW servo drive | main |
+                | Lexium 32 servo drive | Core |
+                | lxm32ad30n4 | 长尾 |
+                | LXM32 spare part | long-tail |
+                | Schneider servo | 2 |
+
+                ## 卖点
+                - Genuine Schneider, factory sealed
+                1. 3kW, 400V three-phase
+                2) Safe Torque Off built in
+                * Ships in 1-3 days
+                • 12-month warranty
+                6、Datasheet support
+                """));
+        assertThat(d.getErrors()).isEmpty();
+        assertThat(d.getPlatform()).isEqualTo("alibaba");
+        assertThat(d.getBlocks().get(ContentSection.TITLE).getText()).isEqualTo("Schneider LXM32AD30N4 Lexium 32 Servo Drive 3kW");
+        assertThat(d.getBlocks()).doesNotContainKey(ContentSection.SEO_TITLE);
+        assertThat(d.getNotes()).anyMatch(n -> n.contains("SEO 标题") && n.contains("不属于阿里国际站营销包"));
+        ContentDraft.Block kw = d.getBlocks().get(ContentSection.KEYWORDS);
+        assertThat(kw.getErrors()).isEmpty();
+        // 档位优先、同档按表格顺序；重复（不分大小写）只留第一次
+        assertThat(kw.getKeywords()).containsExactly(
+                new ContentDraft.KeywordRow("LXM32AD30N4", 1),
+                new ContentDraft.KeywordRow("Lexium 32 servo drive", 1),
+                new ContentDraft.KeywordRow("3kW servo drive", 2),
+                new ContentDraft.KeywordRow("Schneider servo", 2),
+                new ContentDraft.KeywordRow("servo drive in stock", 3),
+                new ContentDraft.KeywordRow("LXM32 spare part", 3));
+        assertThat(kw.getNotes()).anyMatch(n -> n.contains("重复的 1 个") && n.contains("lxm32ad30n4"));
+        ContentDraft.Block points = d.getBlocks().get(ContentSection.SELLING_POINTS);
+        assertThat(points.getPoints()).containsExactly("Genuine Schneider, factory sealed", "3kW, 400V three-phase",
+                "Safe Torque Off built in", "Ships in 1-3 days", "12-month warranty");
+        assertThat(points.getNotes()).anyMatch(n -> n.contains("超过 5 条") && n.contains("忽略 1 条"));
+    }
+
+    @Test
+    void keywordErrorsAndLimit() {
+        ContentDraft.Block bad = ContentMarkdownParser.parseBlock(ContentSection.KEYWORDS, "| a | 重要 |\n| | 核心 |\n| b |");
+        assertThat(bad.getErrors()).hasSize(3).anyMatch(e -> e.contains("档位须为核心、主要或长尾"))
+                .anyMatch(e -> e.contains("缺少关键词"));
+        StringBuilder many = new StringBuilder();
+        for (int i = 0; i < 205; i++) {
+            many.append("| kw").append(i).append(" | ").append(i < 5 ? "长尾" : "核心").append(" |\n");
+        }
+        ContentDraft.Block big = ContentMarkdownParser.parseBlock(ContentSection.KEYWORDS, many.toString());
+        assertThat(big.getKeywords()).hasSize(200).allMatch(k -> k.tier() == 1);
+        assertThat(big.getNotes()).anyMatch(n -> n.contains("只保留前 200 个") && n.contains("忽略 5 个"));
+        assertThat(ContentMarkdownParser.parseBlock(ContentSection.KEYWORDS, "| " + "k".repeat(129) + " | 核心 |")
+                .getErrors()).anyMatch(e -> e.contains("128"));
+    }
+
+    @Test
+    void micAndSocialKeepRawText() {
+        ContentDraft mic = ContentMarkdownParser.parse(mkt("mic", """
+                ## 标题
+                LXM32AD30N4 Servo Drive
+
+                ## 关键词
+                | LXM32AD30N4 | 核心 |
+
+                ## 商品详情
+                ### Overview
+                <!-- 说明 -->
+                The **Lexium 32** drive.
+
+                | Spec | Value |
+                |---|---|
+                | Power | 3kW |
+
+                ## 产品长描述
+                不属于中国制造网
+                """));
+        assertThat(mic.getErrors()).isEmpty();
+        assertThat(mic.getBlocks()).containsOnlyKeys(ContentSection.TITLE, ContentSection.KEYWORDS, ContentSection.DETAIL);
+        assertThat(mic.getBlocks().get(ContentSection.DETAIL).getText())
+                .isEqualTo("### Overview\n\nThe **Lexium 32** drive.\n\n| Spec | Value |\n|---|---|\n| Power | 3kW |");
+        assertThat(mic.getNotes()).anyMatch(n -> n.contains("产品长描述") && n.contains("不属于中国制造网营销包"));
+
+        ContentDraft social = ContentMarkdownParser.parse(mkt("social", """
+                ## LinkedIn 帖子
+                Direct-on-line starting slams a motor to full speed.
+
+                ⚙️ 51.0A (Delta) / 30.0A (3-wire)
+                ✅ UL Listed
+
+                #AllenBradley #SoftStarter
+
+                ## Facebook
+                **150-C30NBD | In Stock**
+                👉 DM us
+
+                ## YouTube 视频描述
+                📌 Timestamps:
+                00:00 Front panel
+
+                ## 小红书
+                中文帖子
+                """));
+        assertThat(social.getErrors()).isEmpty();
+        assertThat(social.getBlocks().get(ContentSection.LINKEDIN).getText()).isEqualTo(
+                "Direct-on-line starting slams a motor to full speed.\n\n⚙️ 51.0A (Delta) / 30.0A (3-wire)\n✅ UL Listed\n\n"
+                        + "#AllenBradley #SoftStarter");
+        assertThat(social.getBlocks().get(ContentSection.FACEBOOK).getText()).isEqualTo("**150-C30NBD | In Stock**\n👉 DM us");
+        assertThat(social.getBlocks().get(ContentSection.YOUTUBE).getText()).isEqualTo("📌 Timestamps:\n00:00 Front panel");
+        assertThat(social.getNotes()).anyMatch(n -> n.contains("小红书") && n.contains("不认识"));
+        assertThat(ContentMarkdownParser.parseBlock(ContentSection.LINKEDIN, "x".repeat(3001)).getErrors())
+                .anyMatch(e -> e.contains("3000"));
     }
 
     @Test

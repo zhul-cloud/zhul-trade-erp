@@ -2,6 +2,7 @@ import {
   ArrowRightOutlined,
   DownloadOutlined,
   SearchOutlined,
+  SettingOutlined,
   UploadOutlined,
 } from '@ant-design/icons';
 import { Link, useAccess, useSearchParams } from '@umijs/max';
@@ -16,9 +17,11 @@ import { formatDateTime } from '@/utils/format';
 import {
   ContentStatusPill,
   factsVerified,
-  LangChips,
+  MarketingDownload,
+  PlatformChips,
   STAGES,
   useDownloadPackage,
+  usePlatforms,
   VerifyFactsButton,
 } from '../products/cards/SeoCard';
 import {
@@ -27,11 +30,13 @@ import {
   type CategoryOption,
   type ContentTask,
   type ContentTaskQuery,
-  type PackageType,
   categoryApi,
   contentApi,
+  type MarketingPlatform,
+  type PackageType,
   readBizError,
 } from '../service';
+import { PlatformSettings } from './PlatformSettings';
 import { UploadDrawer } from './UploadDrawer';
 
 type Tab = 0 | 1 | 2 | 3 | 4;
@@ -49,7 +54,7 @@ const EMPTY_TEXT: Record<Tab, string> = {
   1: '没有待补资料的商品',
   2: '没有待核对资料的商品',
   3: '没有待生成营销内容的商品',
-  4: '还没有资料已核、英文俄文营销内容都写入的商品',
+  4: '还没有资料已核、启用的平台都写完（或标了不发布）的商品',
 };
 
 const ContentTasks: React.FC = () => {
@@ -74,6 +79,9 @@ const ContentTasks: React.FC = () => {
   const [selected, setSelected] = useState<number[]>([]);
   const { download: downloadPackage, downloading } = useDownloadPackage();
   const [uploadOpen, setUploadOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const platformState = usePlatforms();
+  const platforms = platformState.enabled;
   const [brands, setBrands] = useState<BrandOption[]>([]);
   const [categories, setCategories] = useState<CategoryOption[]>([]);
 
@@ -120,11 +128,15 @@ const ContentTasks: React.FC = () => {
     setPage(1);
   };
 
-  const download = async (ids: number[], type: PackageType) => {
+  const download = async (
+    ids: number[],
+    type: PackageType,
+    platform?: MarketingPlatform,
+  ) => {
     const stages = rows
       .filter((r) => ids.includes(r.productId))
       .map((r) => r.status);
-    await downloadPackage(ids, type, stages);
+    await downloadPackage(ids, type, stages, platform);
     load();
   };
 
@@ -186,8 +198,8 @@ const ContentTasks: React.FC = () => {
     {
       title: '营销（本公司）',
       key: 'marketing',
-      width: 130,
-      render: (_, t) => <LangChips enAt={t.enAt} ruAt={t.ruAt} />,
+      width: 270,
+      render: (_, t) => <PlatformChips progress={t} platforms={platforms} />,
     },
     {
       title: '最近下载',
@@ -231,7 +243,11 @@ const ContentTasks: React.FC = () => {
               onDone={load}
             />
           )}
-          <a onClick={() => download([t.productId], 'marketing')}>下载营销包</a>
+          <MarketingDownload
+            link
+            platforms={platforms}
+            onPick={(p) => download([t.productId], 'marketing', p)}
+          />
         </span>
       ),
     },
@@ -242,9 +258,15 @@ const ContentTasks: React.FC = () => {
       <PageTitle
         crumbs={['内容任务']}
         title="内容任务"
-        description="先补商品资料（中文，所有公司共用），再生成营销内容（英文、俄文，本公司）：下载任务包交给 AI，生成好的 Markdown 传回来。"
+        description="先补商品资料（中文，所有公司共用），再按平台生成营销内容（本公司）：下载任务包交给 AI，生成好的 Markdown 传回来。"
         actions={
           <>
+            <Button
+              icon={<SettingOutlined />}
+              onClick={() => setSettingsOpen(true)}
+            >
+              平台设置
+            </Button>
             <Button
               icon={<DownloadOutlined />}
               disabled={selected.length === 0}
@@ -253,14 +275,13 @@ const ContentTasks: React.FC = () => {
             >
               下载资料包{selected.length ? ` · ${selected.length}` : ''}
             </Button>
-            <Button
-              icon={<DownloadOutlined />}
+            <MarketingDownload
+              platforms={platforms}
               disabled={selected.length === 0}
-              loading={downloading === 'marketing'}
-              onClick={() => download(selected, 'marketing')}
-            >
-              下载营销包{selected.length ? ` · ${selected.length}` : ''}
-            </Button>
+              downloading={downloading}
+              label={`下载营销包${selected.length ? ` · ${selected.length}` : ''}`}
+              onPick={(p) => download(selected, 'marketing', p)}
+            />
             <Button
               type="primary"
               icon={<UploadOutlined />}
@@ -293,7 +314,7 @@ const ContentTasks: React.FC = () => {
           </React.Fragment>
         ))}
         <span style={{ marginLeft: 8 }}>
-          资料阶段所有公司共用一份，谁导入、谁核对都看得到；营销阶段各公司各做各的。资料待核时也能先做营销，只会提醒一句。
+          资料阶段所有公司共用一份，谁导入、谁核对都看得到；营销阶段各公司各做各的，按本公司启用的平台计进度，独立站要英文、俄文都写入，标了不发布的平台不计。资料待核时也能先做营销，只会提醒一句。
         </span>
       </div>
       <div
@@ -367,7 +388,7 @@ const ContentTasks: React.FC = () => {
             columns={columns}
             dataSource={rows}
             loading={loading}
-            scroll={{ x: 2000 }}
+            scroll={{ x: 2150 }}
             rowSelection={{
               selectedRowKeys: selected,
               onChange: (keys) => setSelected(keys as number[]),
@@ -389,8 +410,17 @@ const ContentTasks: React.FC = () => {
         </Card>
       )}
       <div style={{ fontSize: 12, color: palette.mute, marginTop: 8 }}>
-        资料已核、英文和俄文营销内容都写入才算完成，可以分批上传；「资料已核」会把未核实的中文规格和应用场景标为已核实，以后导入资料包不再覆盖；按更新时间倒序
+        资料已核、启用的平台都写完（或标了不发布）才算完成，可以分批上传；「资料已核」会把未核实的中文规格和应用场景标为已核实，以后导入资料包不再覆盖；按更新时间倒序
       </div>
+      <PlatformSettings
+        open={settingsOpen}
+        options={platformState.options}
+        onClose={() => setSettingsOpen(false)}
+        onSaved={(options) => {
+          platformState.setOptions(options);
+          load();
+        }}
+      />
       <UploadDrawer
         open={uploadOpen}
         onClose={() => setUploadOpen(false)}

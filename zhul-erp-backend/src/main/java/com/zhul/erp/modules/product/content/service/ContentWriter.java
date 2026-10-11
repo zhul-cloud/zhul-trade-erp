@@ -10,16 +10,21 @@ import com.zhul.erp.modules.product.content.entity.ProductContentImportDO;
 import com.zhul.erp.modules.product.content.entity.ProductContentTaskDO;
 import com.zhul.erp.modules.product.content.entity.ProductFactTaskDO;
 import com.zhul.erp.modules.product.content.entity.ProductLocaleDO;
+import com.zhul.erp.modules.product.content.entity.ProductPlatformContentDO;
+import com.zhul.erp.modules.product.content.entity.ProductPlatformKeywordDO;
 import com.zhul.erp.modules.product.content.entity.ProductRelationshipNoteDO;
 import com.zhul.erp.modules.product.content.entity.ProductSeoDO;
 import com.zhul.erp.modules.product.content.entity.ProductSeoFaqDO;
 import com.zhul.erp.modules.product.content.repository.ProductContentImportMapper;
 import com.zhul.erp.modules.product.content.repository.ProductLocaleMapper;
+import com.zhul.erp.modules.product.content.repository.ProductPlatformContentMapper;
+import com.zhul.erp.modules.product.content.repository.ProductPlatformKeywordMapper;
 import com.zhul.erp.modules.product.content.repository.ProductRelationshipNoteMapper;
 import com.zhul.erp.modules.product.content.repository.ProductSeoFaqMapper;
 import com.zhul.erp.modules.product.content.repository.ProductSeoMapper;
 import com.zhul.erp.modules.product.content.support.ContentDraft;
 import com.zhul.erp.modules.product.content.support.ContentSection;
+import com.zhul.erp.modules.product.content.support.MarketingPlatform;
 import com.zhul.erp.modules.product.entity.ProductApplicationDO;
 import com.zhul.erp.modules.product.entity.ProductDO;
 import com.zhul.erp.modules.product.entity.ProductDocumentDO;
@@ -51,7 +56,8 @@ import java.util.Set;
  * 资料包（中文，写共享商品库）：规格摘要替换；规格、应用场景替换未核实的，已核实的保留且同名不重复；
  * 技术资料按地址合并只增不删；兼容型号按归一化型号合并，只更新中文说明或新增「兼容」关系；
  * 技术问答写入共享 FAQ（待审核），按问题去重；写完记录资料导入。
- * 营销包（英文、俄文，写本公司）：SEO/GEO 与 FAQ 该语言整体替换；写完标记本公司该语言已写入。
+ * 营销包（写本公司该平台）：独立站的 SEO/GEO 与 FAQ 按语言写 product_seo；阿里国际站、中国制造网、社媒按块写
+ * product_platform_content，跳过的块保留原值，关键词库整份替换；写完标记本公司该平台（独立站按语言）已写入。
  */
 @Component
 @RequiredArgsConstructor
@@ -75,10 +81,13 @@ public class ContentWriter {
     private final ProductContentImportMapper importMapper;
     private final ContentTaskService taskService;
     private final FactTaskService factTaskService;
+    private final ProductPlatformContentMapper platformContentMapper;
+    private final ProductPlatformKeywordMapper keywordMapper;
 
-    /** 返回写入摘要；facts 为 true 时是资料包 */
-    public String write(Long productId, boolean facts, String lang, Map<ContentSection, ContentDraft.Block> blocks,
-                        String fileName, String rawText) {
+    /** 返回写入摘要；platform 为空时是资料包，否则是该平台的营销包 */
+    public String write(Long productId, MarketingPlatform platform, String lang,
+                        Map<ContentSection, ContentDraft.Block> blocks, String fileName, String rawText) {
+        boolean facts = platform == null;
         ProductDO product = productFinder.lockActive(productId);
         ProductFactTaskDO fact = facts ? factTaskService.lockOrCreate(productId) : null;
         ProductContentTaskDO task = taskService.lockOrCreate(productId);
@@ -109,9 +118,13 @@ public class ContentWriter {
                 }
             }
         }
-        String seo = writeSeo(productId, lang, blocks, imp.getId());
-        if (seo != null) {
-            summary.add(seo);
+        if (platform == MarketingPlatform.SITE) {
+            String seo = writeSeo(productId, lang, blocks, imp.getId());
+            if (seo != null) {
+                summary.add(seo);
+            }
+        } else if (platform != null) {
+            summary.add(writePlatform(productId, platform, lang, blocks, imp.getId()));
         }
 
         String text = String.join(" · ", summary);
@@ -121,7 +134,7 @@ public class ContentWriter {
         if (facts) {
             factTaskService.markImported(fact);
         } else {
-            taskService.markWritten(task, lang);
+            taskService.markWritten(task, platform, lang);
         }
         return text;
     }
@@ -447,6 +460,81 @@ public class ContentWriter {
             seoMapper.updateById(row);
         }
         return String.join("、", parts);
+    }
+
+    /** 阿里国际站、中国制造网、社媒：有哪块写哪块，跳过的保留原值；关键词库整份替换 */
+    private String writePlatform(Long productId, MarketingPlatform platform, String lang,
+                                 Map<ContentSection, ContentDraft.Block> blocks, Long importId) {
+        Integer tenantId = TenantContext.getTenantId();
+        ProductPlatformContentDO row = platformContentMapper.selectOne(new LambdaQueryWrapper<ProductPlatformContentDO>()
+                .eq(ProductPlatformContentDO::getTenantId, tenantId)
+                .eq(ProductPlatformContentDO::getProductId, productId)
+                .eq(ProductPlatformContentDO::getPlatform, platform.code())
+                .eq(ProductPlatformContentDO::getLang, lang));
+        boolean create = row == null;
+        if (create) {
+            row = new ProductPlatformContentDO();
+            row.setTenantId(tenantId);
+            row.setProductId(productId);
+            row.setPlatform(platform.code());
+            row.setLang(lang);
+        }
+        List<String> parts = new ArrayList<>();
+        for (Map.Entry<ContentSection, ContentDraft.Block> e : blocks.entrySet()) {
+            ContentDraft.Block b = e.getValue();
+            switch (e.getKey()) {
+                case TITLE -> row.setTitle(b.getText());
+                case SELLING_POINTS -> row.setSellingPoints(String.join("\n", b.getPoints()));
+                case DETAIL -> row.setDetail(b.getText());
+                case LINKEDIN -> row.setLinkedinPost(b.getText());
+                case FACEBOOK -> row.setFacebookPost(b.getText());
+                case YOUTUBE -> row.setYoutubeDescription(b.getText());
+                case KEYWORDS -> replaceKeywords(productId, platform, lang, b.getKeywords(), importId);
+                default -> {
+                    continue;
+                }
+            }
+            parts.add(e.getKey() == ContentSection.KEYWORDS ? "关键词 " + b.getKeywords().size()
+                    : e.getKey() == ContentSection.SELLING_POINTS ? "卖点 " + b.getPoints().size() : e.getKey().label());
+        }
+        row.setImportId(importId);
+        if (create) {
+            platformContentMapper.insert(row);
+        } else {
+            platformContentMapper.updateById(row);
+        }
+        return platform.label() + "：" + String.join("、", parts);
+    }
+
+    private void replaceKeywords(Long productId, MarketingPlatform platform, String lang,
+                                 List<ContentDraft.KeywordRow> rows, Long importId) {
+        Integer tenantId = TenantContext.getTenantId();
+        LocalDateTime now = LocalDateTime.now();
+        keywordMapper.update(null, new LambdaUpdateWrapper<ProductPlatformKeywordDO>()
+                .eq(ProductPlatformKeywordDO::getTenantId, tenantId)
+                .eq(ProductPlatformKeywordDO::getProductId, productId)
+                .eq(ProductPlatformKeywordDO::getPlatform, platform.code())
+                .eq(ProductPlatformKeywordDO::getLang, lang)
+                .isNull(ProductPlatformKeywordDO::getDeletedAt)
+                .set(ProductPlatformKeywordDO::getDeletedAt, now)
+                .set(ProductPlatformKeywordDO::getUpdateTime, now)
+                .set(ProductPlatformKeywordDO::getUpdateBy, SecurityUtils.getCurrentUsername()));
+        int order = 0;
+        int lastTier = 0;
+        for (ContentDraft.KeywordRow r : rows) {
+            order = r.tier() == lastTier ? order + 1 : 1;
+            lastTier = r.tier();
+            ProductPlatformKeywordDO k = new ProductPlatformKeywordDO();
+            k.setTenantId(tenantId);
+            k.setProductId(productId);
+            k.setPlatform(platform.code());
+            k.setLang(lang);
+            k.setKeyword(r.keyword());
+            k.setTier(r.tier());
+            k.setSortOrder(order);
+            k.setImportId(importId);
+            keywordMapper.insert(k);
+        }
     }
 
     static String key(String s) {

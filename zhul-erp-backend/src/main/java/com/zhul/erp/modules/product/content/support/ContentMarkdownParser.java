@@ -4,14 +4,18 @@ import com.zhul.erp.modules.product.content.constants.ContentConstants;
 import com.zhul.erp.modules.product.support.UrlRules;
 
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * 内容包 Markdown 解析（纯函数）：frontmatter 取包类型、品牌、型号、语言，按二级标题分节。
- * 资料包只能是中文，营销包只能是英文或俄文；不属于该包类型的章节跳过并提示。
+ * 内容包 Markdown 解析（纯函数）：frontmatter 取包类型、平台、品牌、型号、语言，按二级标题分节。
+ * 资料包只能是中文；营销包按平台区分，独立站可以是英文或俄文，其他平台只能是英文；
+ * 不属于该包类型或该平台的章节跳过并提示。
  * 章节标题按开头匹配，兼容「首屏定义块（40-60词…）」这类带括号说明的标题；正文只有占位说明的视为空。
  */
 public final class ContentMarkdownParser {
@@ -22,6 +26,7 @@ public final class ContentMarkdownParser {
     private static final Pattern QUESTION = Pattern.compile("^(?:\\d+[.、)]\\s*)?(?:Q|问|Вопрос)\\s*[:：]\\s*(.*)$");
     private static final Pattern ANSWER = Pattern.compile("^(?:A|答|Ответ)\\s*[:：]\\s*(.*)$");
     private static final Pattern LINK = Pattern.compile("\\[([^\\]]+)]\\(([^)\\s]+)\\)");
+    private static final Pattern LIST_MARK = Pattern.compile("^(?:[-*•]\\s*|\\d+[.、)）]\\s*)");
 
     private ContentMarkdownParser() {
     }
@@ -34,6 +39,7 @@ public final class ContentMarkdownParser {
         }
         String[] lines = text.split("\n", -1);
         int i = readFrontmatter(lines, draft);
+        String scope = scope(draft);
 
         ContentSection current = null;
         String currentHeading = null;
@@ -50,18 +56,22 @@ public final class ContentMarkdownParser {
                     break;
                 }
                 currentHeading = line.substring(3).trim();
-                current = ContentSection.match(normalize(currentHeading));
+                String normalized = normalize(currentHeading);
+                current = ContentSection.match(normalized, scope);
                 body.setLength(0);
                 skipping = false;
                 if (current == null) {
                     skipping = true;
-                    draft.getNotes().add(isLater(currentHeading)
-                            ? "「" + currentHeading + "」是第三期内容，已忽略"
-                            : "不认识的章节「" + currentHeading + "」，已跳过");
-                } else if (!belongs(current, draft.getType())) {
+                    if (ContentSection.match(normalized, null) != null) {
+                        draft.getNotes().add("「" + currentHeading + "」不属于" + packageName(draft) + "，已跳过");
+                    } else {
+                        draft.getNotes().add(isLater(currentHeading)
+                                ? "「" + currentHeading + "」是第三期内容，已忽略"
+                                : "不认识的章节「" + currentHeading + "」，已跳过");
+                    }
+                } else if (scope == null && !belongs(current, draft.getType())) {
                     skipping = true;
-                    draft.getNotes().add("「" + currentHeading + "」不属于"
-                            + (ContentConstants.TYPE_FACTS.equals(draft.getType()) ? "资料包" : "营销包") + "，已跳过");
+                    draft.getNotes().add("「" + currentHeading + "」不属于" + packageName(draft) + "，已跳过");
                 }
                 continue;
             }
@@ -95,20 +105,53 @@ public final class ContentMarkdownParser {
             draft.getErrors().add("包类型「" + type + "」无效，须为 facts（资料包）或 marketing（营销包）");
             return;
         }
+        if (facts) {
+            if (lang == null || lang.isEmpty()) {
+                draft.getErrors().add("frontmatter 缺少 lang，资料包须为 zh");
+            } else if (!ContentConstants.FACTS_LANG.equals(lang)) {
+                draft.getErrors().add("资料包只能是中文（lang: zh）");
+            }
+            return;
+        }
+        String code = draft.getPlatform();
+        if (code == null || code.isEmpty()) {
+            draft.getErrors().add("缺少平台（frontmatter 的 platform 须为 alibaba、mic、site 或 social）");
+            return;
+        }
+        MarketingPlatform platform = MarketingPlatform.of(code);
+        if (platform == null) {
+            draft.getErrors().add("平台「" + code + "」无效，须为 alibaba（阿里国际站）、mic（中国制造网）、site（独立站）或 social（社媒）");
+            return;
+        }
+        String allowed = platform.langs().size() > 1 ? "英文或俄文（lang: en 或 ru）" : "英文（lang: en）";
         if (lang == null || lang.isEmpty()) {
-            draft.getErrors().add(facts ? "frontmatter 缺少 lang，资料包须为 zh" : "frontmatter 缺少 lang，营销包须为 en 或 ru");
-        } else if (facts && !ContentConstants.FACTS_LANG.equals(lang)) {
-            draft.getErrors().add("资料包只能是中文（lang: zh）");
-        } else if (!facts && !ContentConstants.MARKETING_LANGS.contains(lang)) {
-            draft.getErrors().add("营销包只能是英文或俄文（lang: en 或 ru）");
+            draft.getErrors().add("frontmatter 缺少 lang，" + platform.label() + "营销包须为" + allowed);
+        } else if (!platform.langs().contains(lang)) {
+            draft.getErrors().add(platform.label() + "营销包只能是" + allowed);
         }
     }
 
-    /** 包类型无效时不按类型过滤章节（文件本身已不能确认） */
-    private static boolean belongs(ContentSection section, String type) {
-        if (ContentConstants.TYPE_FACTS.equals(type)) {
-            return section.shared();
+    /** 章节过滤范围：资料包为 facts，平台有效的营销包为平台编码；类型或平台无效时为空（文件本身已不能确认） */
+    private static String scope(ContentDraft draft) {
+        if (ContentConstants.TYPE_FACTS.equals(draft.getType())) {
+            return ContentSection.FACTS;
         }
+        if (ContentConstants.TYPE_MARKETING.equals(draft.getType()) && MarketingPlatform.of(draft.getPlatform()) != null) {
+            return draft.getPlatform();
+        }
+        return null;
+    }
+
+    private static String packageName(ContentDraft draft) {
+        if (ContentConstants.TYPE_FACTS.equals(draft.getType())) {
+            return "资料包";
+        }
+        MarketingPlatform p = MarketingPlatform.of(draft.getPlatform());
+        return p == null ? "营销包" : p.label() + "营销包";
+    }
+
+    /** 平台无效的营销包只排除资料章节；包类型无效时不过滤 */
+    private static boolean belongs(ContentSection section, String type) {
         if (ContentConstants.TYPE_MARKETING.equals(type)) {
             return !section.shared();
         }
@@ -134,7 +177,7 @@ public final class ContentMarkdownParser {
             i++;
         }
         if (i >= lines.length || !"---".equals(lines[i].trim())) {
-            draft.getErrors().add("缺少 frontmatter（文件开头用 --- 包住 type、brand、model、lang）");
+            draft.getErrors().add("缺少 frontmatter（文件开头用 --- 包住 type、platform、brand、model、lang）");
             return i;
         }
         for (int j = i + 1; j < lines.length; j++) {
@@ -157,6 +200,7 @@ public final class ContentMarkdownParser {
                 case "model" -> draft.setModel(value);
                 case "lang" -> draft.setLang(value.toLowerCase(Locale.ROOT));
                 case "type" -> draft.setType(value.toLowerCase(Locale.ROOT));
+                case "platform" -> draft.setPlatform(value.toLowerCase(Locale.ROOT));
                 default -> {
                     // 其他键（series、category、status 等）不使用
                 }
@@ -189,7 +233,9 @@ public final class ContentMarkdownParser {
             case COMPAT -> parseCompat(content, block);
             case FAQ, TECH_FAQ -> parseFaq(content, block);
             case DOCS -> parseDocs(content, block);
-            default -> parseText(content, block);
+            case KEYWORDS -> parseKeywords(content, block);
+            case SELLING_POINTS -> parsePoints(content, block);
+            default -> parseText(content, raw, block);
         }
         if (block.count() == 0 && block.getErrors().isEmpty()) {
             // 只有表头（模版原样留着）也算没有内容
@@ -217,14 +263,14 @@ public final class ContentMarkdownParser {
         return allPlaceholder ? List.of() : result;
     }
 
-    private static void parseText(List<String> content, ContentDraft.Block block) {
-        String text;
-        if (block.getSection() == ContentSection.LONG_DESC) {
+    private static void parseText(List<String> content, String raw, ContentDraft.Block block) {
+        String text = switch (block.getSection().kind()) {
             // 长描述保留换行（空行去掉）
-            text = String.join("\n", content.stream().map(String::strip).toList());
-        } else {
-            text = String.join(" ", content.stream().map(String::strip).toList()).replaceAll("\\s+", " ");
-        }
+            case LINES -> String.join("\n", content.stream().map(String::strip).toList());
+            // 社媒帖子、商品详情保留原文：换行、空行、表情符号与话题标签都不动，只去掉注释和首尾空白
+            case RAW -> HTML_COMMENT.matcher(raw).replaceAll("").strip();
+            default -> String.join(" ", content.stream().map(String::strip).toList()).replaceAll("\\s+", " ");
+        };
         block.setText(text);
         if (text.length() > block.getSection().maxLength()) {
             block.getErrors().add(block.getSection().label() + "超过 " + block.getSection().maxLength()
@@ -360,6 +406,79 @@ public final class ContentMarkdownParser {
             check(block, lineNo, "地址", url, 512);
             block.getDocs().add(new ContentDraft.DocRow(title, url));
         }
+    }
+
+    /** 关键词库：「关键词 | 档位」表格，按档位、表格顺序排序；重复的只留第一次；超过上限的截断 */
+    private static void parseKeywords(List<String> content, ContentDraft.Block block) {
+        List<TableRow> rows = table(content, block);
+        if (!rows.isEmpty() && rows.get(0).cells.size() > 1 && tier(rows.get(0).cells.get(1)) == 0
+                && normalize(rows.get(0).cells.get(1)).matches("档位|tier|权重|weight")) {
+            rows = rows.subList(1, rows.size());
+        }
+        List<ContentDraft.KeywordRow> parsed = new ArrayList<>();
+        Set<String> seen = new HashSet<>();
+        List<String> duplicates = new ArrayList<>();
+        for (TableRow row : rows) {
+            String keyword = row.cells.isEmpty() ? "" : row.cells.get(0);
+            if (keyword.isEmpty()) {
+                block.getErrors().add("第 " + row.lineNo + " 行缺少关键词");
+                continue;
+            }
+            int tier = row.cells.size() > 1 ? tier(row.cells.get(1)) : 0;
+            if (tier == 0) {
+                block.getErrors().add("第 " + row.lineNo + " 行档位须为核心、主要或长尾");
+                continue;
+            }
+            check(block, row.lineNo, "关键词", keyword, 128);
+            if (!seen.add(keyword.toLowerCase(Locale.ROOT))) {
+                duplicates.add(keyword);
+                continue;
+            }
+            parsed.add(new ContentDraft.KeywordRow(keyword, tier));
+        }
+        // 稳定排序：档位优先，同档保持表格顺序
+        parsed.sort(Comparator.comparingInt(ContentDraft.KeywordRow::tier));
+        if (!duplicates.isEmpty()) {
+            block.getNotes().add("重复的 " + duplicates.size() + " 个关键词已忽略：" + String.join("、", duplicates));
+        }
+        if (parsed.size() > ContentConstants.MAX_KEYWORDS) {
+            block.getNotes().add("关键词超过 " + ContentConstants.MAX_KEYWORDS + " 个，按档位排序后只保留前 "
+                    + ContentConstants.MAX_KEYWORDS + " 个，忽略 " + (parsed.size() - ContentConstants.MAX_KEYWORDS) + " 个");
+            parsed = new ArrayList<>(parsed.subList(0, ContentConstants.MAX_KEYWORDS));
+        }
+        block.getKeywords().addAll(parsed);
+    }
+
+    /** 档位：核心 1、主要 2、长尾 3，也认英文与数字；无效为 0 */
+    private static int tier(String raw) {
+        String t = normalize(raw).replace("-", "").replace("_", "");
+        return switch (t) {
+            case "核心", "核心词", "core", "1" -> ContentConstants.TIER_CORE;
+            case "主要", "主要词", "main", "primary", "2" -> ContentConstants.TIER_MAIN;
+            case "长尾", "长尾词", "longtail", "3" -> ContentConstants.TIER_LONG_TAIL;
+            default -> 0;
+        };
+    }
+
+    /** 卖点：每行一条，去掉列表符号和序号；超过上限的截断 */
+    private static void parsePoints(List<String> content, ContentDraft.Block block) {
+        int lineNo = 0;
+        List<String> points = new ArrayList<>();
+        for (String line : content) {
+            lineNo++;
+            String t = LIST_MARK.matcher(line.strip()).replaceFirst("").strip();
+            if (t.isEmpty()) {
+                continue;
+            }
+            check(block, lineNo, "卖点", t, 128);
+            points.add(t);
+        }
+        if (points.size() > ContentConstants.MAX_SELLING_POINTS) {
+            block.getNotes().add("卖点超过 " + ContentConstants.MAX_SELLING_POINTS + " 条，只保留前 "
+                    + ContentConstants.MAX_SELLING_POINTS + " 条，忽略 " + (points.size() - ContentConstants.MAX_SELLING_POINTS) + " 条");
+            points = points.subList(0, ContentConstants.MAX_SELLING_POINTS);
+        }
+        block.getPoints().addAll(points);
     }
 
     private record TableRow(int lineNo, List<String> cells) {

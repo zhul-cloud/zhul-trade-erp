@@ -8,11 +8,14 @@ import com.zhul.erp.modules.product.content.constants.ContentConstants;
 import com.zhul.erp.modules.product.content.dto.ContentConfirmVO;
 import com.zhul.erp.modules.product.content.dto.ContentFileRequest;
 import com.zhul.erp.modules.product.content.dto.ContentPreviewVO;
+import com.zhul.erp.modules.product.content.entity.ProductPlatformKeywordDO;
 import com.zhul.erp.modules.product.content.entity.ProductSeoFaqDO;
+import com.zhul.erp.modules.product.content.repository.ProductPlatformKeywordMapper;
 import com.zhul.erp.modules.product.content.repository.ProductSeoFaqMapper;
 import com.zhul.erp.modules.product.content.support.ContentDraft;
 import com.zhul.erp.modules.product.content.support.ContentMarkdownParser;
 import com.zhul.erp.modules.product.content.support.ContentSection;
+import com.zhul.erp.modules.product.content.support.MarketingPlatform;
 import com.zhul.erp.modules.product.entity.ProductApplicationDO;
 import com.zhul.erp.modules.product.entity.ProductBrandDO;
 import com.zhul.erp.modules.product.entity.ProductDO;
@@ -64,6 +67,11 @@ public class ContentImportService {
     private final ProductFaqMapper productFaqMapper;
     private final ContentWriter writer;
     private final PlatformTransactionManager transactionManager;
+    private final PlatformSettingService platformSettings;
+    private final ProductPlatformKeywordMapper keywordMapper;
+
+    private static final Map<Integer, String> TIER_LABELS = Map.of(ContentConstants.TIER_CORE, "核心",
+            ContentConstants.TIER_MAIN, "主要", ContentConstants.TIER_LONG_TAIL, "长尾");
 
     /** 预览结果 + 写入需要的解析块（只在服务端内部使用） */
     private record Analyzed(ContentPreviewVO vo, Map<ContentSection, ContentDraft.Block> writable) {
@@ -87,14 +95,16 @@ public class ContentImportService {
             item.setProductId(vo.getProductId());
             item.setProductLabel(vo.getProductLabel());
             item.setLang(vo.getLang());
+            item.setPlatform(vo.getPlatform());
             if (!vo.isConfirmable()) {
                 item.setMessage(firstProblem(vo));
             } else {
                 String content = files.get(i).getContent();
                 try {
                     boolean facts = ContentConstants.TYPE_FACTS.equals(vo.getType());
-                    item.setMessage(tx.execute(s -> writer.write(vo.getProductId(), facts, vo.getLang(), a.writable(),
-                            vo.getFileName(), content)));
+                    MarketingPlatform platform = facts ? null : MarketingPlatform.of(vo.getPlatform());
+                    item.setMessage(tx.execute(s -> writer.write(vo.getProductId(), platform, vo.getLang(),
+                            a.writable(), vo.getFileName(), content)));
                     item.setSuccess(true);
                 } catch (BizException e) {
                     item.setMessage(e.getMessage());
@@ -120,10 +130,10 @@ public class ContentImportService {
             Analyzed a = analyzeFile(file);
             ContentPreviewVO vo = a.vo();
             if (vo.getProductId() != null && vo.getLang() != null) {
-                String key = vo.getProductId() + ":" + vo.getLang();
+                String key = vo.getProductId() + ":" + vo.getType() + ":" + vo.getPlatform() + ":" + vo.getLang();
                 String first = seen.putIfAbsent(key, vo.getFileName());
                 if (first != null) {
-                    vo.getErrors().add("与「" + first + "」是同一商品同一语言，只能保留一个");
+                    vo.getErrors().add("与「" + first + "」是同一商品的同一个包（同平台、同语言），只能保留一个");
                     vo.setConfirmable(false);
                 }
             }
@@ -146,7 +156,13 @@ public class ContentImportService {
         vo.setModel(draft.getModel());
         vo.setLang(draft.getLang());
         vo.setType(draft.getType());
+        vo.setPlatform(draft.getPlatform());
         vo.getErrors().addAll(draft.getErrors());
+        MarketingPlatform platform = ContentConstants.TYPE_MARKETING.equals(draft.getType())
+                ? MarketingPlatform.of(draft.getPlatform()) : null;
+        if (platform != null && !platformSettings.enabled().contains(platform)) {
+            vo.getErrors().add("本公司没有启用" + platform.label() + "，不能确认（可在平台设置里启用）");
+        }
         vo.getNotes().addAll(draft.getNotes());
 
         ProductDO product = draft.getErrors().isEmpty() ? match(draft, vo) : null;
@@ -158,8 +174,10 @@ public class ContentImportService {
             bv.setSkipped(skip.contains(b.getSection()));
             bv.setEdited(file.getEdits() != null && file.getEdits().containsKey(b.getSection().name()));
             if (product != null) {
-                bv.getHints().addAll(hints(b, product, draft.getLang()));
+                bv.getHints().addAll(hints(b, product, draft.getLang(), platform));
             }
+            // 去重、截断等提示排在写入方式说明之后（第一条是写入方式）
+            bv.getHints().addAll(b.getNotes());
             if (!bv.isSkipped()) {
                 if (b.getErrors().isEmpty()) {
                     writable.put(b.getSection(), b);
@@ -251,6 +269,14 @@ public class ContentImportService {
                 bv.setColumns(List.of("标题", "地址"));
                 b.getDocs().forEach(r -> bv.getRows().add(List.of(r.title(), r.url())));
             }
+            case KEYWORDS -> {
+                bv.setColumns(List.of("关键词", "档位"));
+                b.getKeywords().forEach(r -> bv.getRows().add(List.of(r.keyword(), TIER_LABELS.get(r.tier()))));
+            }
+            case SELLING_POINTS -> {
+                bv.setColumns(List.of("卖点"));
+                b.getPoints().forEach(r -> bv.getRows().add(List.of(r)));
+            }
             default -> {
                 // 文本块用 text 展示
             }
@@ -259,7 +285,7 @@ public class ContentImportService {
     }
 
     /** 写入方式说明：对照商品现有数据，告诉运营哪些会保留、哪些会替换 */
-    private List<String> hints(ContentDraft.Block b, ProductDO product, String lang) {
+    private List<String> hints(ContentDraft.Block b, ProductDO product, String lang, MarketingPlatform platform) {
         List<String> hints = new ArrayList<>();
         Long productId = product.getId();
         switch (b.getSection()) {
@@ -332,6 +358,15 @@ public class ContentImportService {
                         .forEach(f -> questions.add(ContentWriter.key(f.getQuestion())));
                 long dup = b.getFaqs().stream().filter(f -> questions.contains(ContentWriter.key(f.question()))).count();
                 hints.add("写入共享商品库，待平台审核后所有公司可见" + (dup > 0 ? "；" + dup + " 条问题已有，不重复写入" : ""));
+            }
+            case KEYWORDS -> {
+                Long existing = keywordMapper.selectCount(new LambdaQueryWrapper<ProductPlatformKeywordDO>()
+                        .eq(ProductPlatformKeywordDO::getTenantId, TenantContext.getTenantId())
+                        .eq(ProductPlatformKeywordDO::getProductId, productId)
+                        .eq(ProductPlatformKeywordDO::getPlatform, platform == null ? "" : platform.code())
+                        .eq(ProductPlatformKeywordDO::getLang, lang)
+                        .isNull(ProductPlatformKeywordDO::getDeletedAt));
+                hints.add(existing > 0 ? "整份替换本公司该平台现有 " + existing + " 个关键词" : "写入本公司该平台关键词库");
             }
             default -> hints.add("替换");
         }
