@@ -192,7 +192,7 @@ const ReviewDrawer: React.FC<{
       .then(([d, b, cats]) => {
         setC(d);
         setBrands(b);
-        setCategories(cats.filter((x) => !x.parentId));
+        setCategories(cats);
         setForm({
           brandMode: d.brandId ? 'EXISTING' : 'NEW',
           brandId: d.brandId ?? undefined,
@@ -509,7 +509,7 @@ const ReviewDrawer: React.FC<{
                   >
                     {c.categoryText
                       ? `来源里写的是「${c.categoryText}」`
-                      : '询盘没有写品类'}
+                      : '来源里没有写品类'}
                   </div>
                 </div>
                 <div>
