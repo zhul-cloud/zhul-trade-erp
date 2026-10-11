@@ -39,6 +39,38 @@ public final class FinanceConstants {
     public static final int REIMBURSE_PENDING = 1;
     public static final int REIMBURSE_CLAIMED = 2;
 
+    /** ③b：收款方类型「其他」（只有名称）与「员工」（报销付款） */
+    public static final int PAYEE_OTHER = 4;
+    public static final int PAYEE_EMPLOYEE = 5;
+    /** ③b：来源类型「费用单」 */
+    public static final int SOURCE_EXPENSE = 3;
+    /** ③b：付款记录类型「报销付款」 */
+    public static final int KIND_REIMBURSE = 3;
+
+    public static final String MENU_REIMBURSE = "/finance/reimbursements";
+    public static final String MENU_EXPENSE = "/finance/expenses";
+    public static final String PERM_REIMBURSE_PAY = "finance:reimburse:pay";
+    public static final String PERM_EXPENSE_EDIT = "finance:expense:edit";
+
+    /** 待报销项来源 */
+    public static final int ITEM_PAYMENT = 1;
+    public static final int ITEM_COURIER = 2;
+    public static final int ITEM_RETURN_FREIGHT = 3;
+    public static final int ITEM_EXPENSE = 4;
+    public static final int ITEM_REFUND = 5;
+
+    /** 报销单状态 */
+    public static final int BX_PENDING = 1;
+    public static final int BX_PAID = 2;
+    public static final int BX_WITHDRAWN = 3;
+
+    /** 费用单状态 */
+    public static final int FE_VALID = 1;
+    public static final int FE_VOID = 2;
+
+    /** 员工垫付的欠款超过 N 天没退回时提醒本人 */
+    public static final int REFUND_REMIND_DAYS = 7;
+
     /** 7 天内到期算「即将到期」 */
     public static final int DUE_SOON_DAYS = 7;
 

@@ -7,8 +7,10 @@ import {
   InputNumber,
   Modal,
   Radio,
+  Select,
 } from 'antd';
 import React, { useEffect, useState } from 'react';
+import { useUserOptions } from '@/pages/sales/orders/dialogs';
 import { AttachmentWall } from '@/pages/warehouse/components';
 import {
   type Attachment,
@@ -75,6 +77,7 @@ const HandleDiscrepancyModal: React.FC<{
   onDone: () => void;
 }> = ({ target, onClose, onDone }) => {
   const { palette } = useAppTheme();
+  const users = useUserOptions();
   const { message } = App.useApp();
   const [body, setBody] = useState<HandleDiscrepancyBody>({ resolution: 0 });
   const [evidence, setEvidence] = useState<{
@@ -242,6 +245,28 @@ const HandleDiscrepancyModal: React.FC<{
                 aria-label="退货运费"
               />
             </div>
+            {!!body.returnFreight && body.returnFreight > 0 && (
+              <div>
+                <div style={{ color: palette.sub, marginBottom: 6 }}>
+                  运费垫付人
+                </div>
+                <Select
+                  allowClear
+                  showSearch={{ optionFilterProp: 'label' }}
+                  placeholder="默认自己"
+                  value={body.returnPayerId}
+                  onChange={(v) => set({ returnPayerId: v })}
+                  options={users}
+                  style={{ width: '100%' }}
+                  aria-label="运费垫付人"
+                />
+                <div
+                  style={{ fontSize: 12, color: palette.mute, marginTop: 4 }}
+                >
+                  进入垫付人的待报销，报销时补传付款截图
+                </div>
+              </div>
+            )}
           </>
         )}
         {r === 7 && (

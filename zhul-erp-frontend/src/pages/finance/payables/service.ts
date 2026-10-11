@@ -22,9 +22,15 @@ export const PAY_STATUS = {
   CLOSED: 4,
 } as const;
 /** 收款方类型 */
-export const PAYEE = { SUPPLIER: 1, SHOP: 2, FORWARDER: 3 } as const;
+export const PAYEE = {
+  SUPPLIER: 1,
+  SHOP: 2,
+  FORWARDER: 3,
+  OTHER: 4,
+  EMPLOYEE: 5,
+} as const;
 /** 来源类型 */
-export const SOURCE = { PO: 1, STATEMENT: 2 } as const;
+export const SOURCE = { PO: 1, STATEMENT: 2, EXPENSE: 3 } as const;
 /** 付款方式 */
 export const METHOD = { COMPANY: 1, ADVANCE: 2 } as const;
 
@@ -196,6 +202,8 @@ export interface PaymentStats {
   total: number;
   company: number;
   advance: number;
+  /** 报销付款：公司付给员工，不计入合计 */
+  reimburse: number;
   count: number;
 }
 

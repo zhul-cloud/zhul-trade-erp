@@ -33,7 +33,11 @@ export type OwnerType =
   | 'RECEIPT'
   | 'SHOOT'
   | 'LOGISTICS'
-  | 'PAYMENT';
+  | 'PAYMENT'
+  | 'COURIER_PROOF'
+  | 'RETURN_PROOF'
+  | 'EXPENSE'
+  | 'REIMBURSE';
 
 export interface ShipmentItem {
   id: number;
@@ -172,6 +176,8 @@ export interface HandleDiscrepancyBody {
   returnCarrier?: string;
   returnTrackingNo?: string;
   returnFreight?: number | null;
+  /** 退货运费垫付人，默认当前处理人；进入垫付人的待报销 */
+  returnPayerId?: number;
   freeOfCharge?: boolean;
   locationNote?: string;
 }

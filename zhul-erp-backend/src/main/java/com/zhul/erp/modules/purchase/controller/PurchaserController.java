@@ -25,7 +25,7 @@ public class PurchaserController {
 
     @GetMapping("/api/v1/purchase/purchasers")
     @PreAuthorize("@perm.canAccessMenu('/purchase/requirements') or @perm.canAccessMenu('/purchase/orders') "
-            + "or @perm.canAccessMenu('/sales/orders')")
+            + "or @perm.canAccessMenu('/sales/orders') or @perm.canAccessMenu('/finance/expenses')")
     public Result<List<UserOptionVO>> list() {
         return Result.ok(userBasicMapper.selectList(new LambdaQueryWrapper<UserBasicDO>()
                         .select(UserBasicDO::getId, UserBasicDO::getName)

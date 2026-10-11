@@ -42,8 +42,15 @@ public class AttachmentService {
     public static final String LOGISTICS = "LOGISTICS";
     /** 付款记录、供应商退款的截图（图片或 PDF） */
     public static final String PAYMENT = "PAYMENT";
+    /** 报销用的付款截图：国内快递运费、退货运费（补传在来源上）、费用单凭证、报销付款的转账截图 */
+    public static final String COURIER_PROOF = "COURIER_PROOF";
+    public static final String RETURN_PROOF = "RETURN_PROOF";
+    public static final String EXPENSE = "EXPENSE";
+    public static final String REIMBURSE = "REIMBURSE";
+    /** 只收图片或 PDF 的归属类型 */
+    private static final Set<String> PROOF_TYPES = Set.of(PAYMENT, COURIER_PROOF, RETURN_PROOF, EXPENSE, REIMBURSE);
     public static final Map<String, Integer> MAX_PER_OWNER = Map.of(SHIPMENT, 20, RECEIPT, 20, SHOOT, 30, LOGISTICS, 10,
-            PAYMENT, 10);
+            PAYMENT, 10, COURIER_PROOF, 10, RETURN_PROOF, 10, EXPENSE, 10, REIMBURSE, 10);
     public static final int IMAGE = 1;
     public static final int VIDEO = 2;
     public static final int FILE = 3;
@@ -71,9 +78,9 @@ public class AttachmentService {
         AttachmentStore store = store(currentStorage);
         AttachmentStore.Stored s;
         int kind;
-        if (LOGISTICS.equals(ownerType) || PAYMENT.equals(ownerType)) {
+        if (LOGISTICS.equals(ownerType) || PROOF_TYPES.contains(ownerType)) {
             s = store.put(PiStore.tenantId(), file, FACE_SHEET_EXTS, IMAGE_MAX,
-                    PAYMENT.equals(ownerType) ? "付款截图只支持 PDF、JPG、PNG、WEBP" : "面单只支持 PDF、JPG、PNG、WEBP");
+                    PROOF_TYPES.contains(ownerType) ? "截图只支持 PDF、JPG、PNG、WEBP" : "面单只支持 PDF、JPG、PNG、WEBP");
             kind = s.contentType().startsWith("image/") ? IMAGE : FILE;
         } else if (video) {
             s = store.put(PiStore.tenantId(), file, VIDEO_EXTS, VIDEO_MAX, "只支持 MP4、MOV 视频");

@@ -35,6 +35,8 @@ import com.zhul.erp.modules.sales.support.PiStore;
 import com.zhul.erp.modules.system.constants.DocumentType;
 import com.zhul.erp.modules.system.service.DocumentNumberService;
 import com.zhul.erp.modules.system.service.LogService;
+import com.zhul.erp.modules.finance.constants.FinanceConstants;
+import com.zhul.erp.modules.finance.service.ReimburseGuard;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
@@ -67,6 +69,7 @@ import java.util.stream.Collectors;
 public class OutboundService {
 
     private final OutboundOrderMapper outboundMapper;
+    private final ReimburseGuard reimburseGuard;
     private final OutboundOrderItemMapper itemMapper;
     private final OutboundBoxMapper boxMapper;
     private final OutboundBoxItemMapper boxItemMapper;
@@ -379,6 +382,9 @@ public class OutboundService {
             throw new BizException("出库单已放进出运单，请先从出运单里移出");
         }
         Long waybillId = ob.getCourierWaybillId();
+        if (waybillId != null) {
+            reimburseGuard.requireNotClaimed(FinanceConstants.ITEM_COURIER, waybillId, "这票快递的运费");
+        }
         ob.setStatus(LogisticsConstants.OB_PACKED);
         ob.setCourierWaybillId(null);
         outboundMapper.updateById(ob);

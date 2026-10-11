@@ -61,6 +61,8 @@ const PAYEE_META: Record<number, { label: string; tone: Tone }> = {
   [PAYEE.SUPPLIER]: { label: '供应商', tone: 'accent' },
   [PAYEE.SHOP]: { label: '线上店铺', tone: 'violet' },
   [PAYEE.FORWARDER]: { label: '货代', tone: 'orange' },
+  [PAYEE.OTHER]: { label: '其他', tone: 'gray' },
+  [PAYEE.EMPLOYEE]: { label: '员工', tone: 'cyan' },
 };
 
 export const PayeeTypePill: React.FC<{ type: number }> = ({ type }) => {

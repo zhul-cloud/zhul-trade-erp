@@ -192,7 +192,8 @@ public class PayableQueryService {
         }
         Map<String, PayeeOptionVO> out = new LinkedHashMap<>();
         for (PayableDO p : payableMapper.selectList(w.orderByAsc(PayableDO::getPayeeName))) {
-            String key = payeeKey(p.getPayeeType(), p.getSupplierId(), p.getShopPlatform(), p.getShopName()) + "|" + p.getCurrencyCode();
+            String key = payeeKey(p.getPayeeType(), p.getSupplierId(), p.getShopPlatform(), p.getShopName(), p.getPayeeName())
+                    + "|" + p.getCurrencyCode();
             PayeeOptionVO o = out.computeIfAbsent(key, k -> {
                 PayeeOptionVO n = new PayeeOptionVO();
                 n.setKey(k);
@@ -238,14 +239,19 @@ public class PayableQueryService {
                 .eq(PayableDO::getCurrencyCode, anchor.getCurrencyCode());
         if (anchor.getPayeeType() == FinanceConstants.PAYEE_SHOP) {
             w.eq(PayableDO::getShopPlatform, anchor.getShopPlatform()).eq(PayableDO::getShopName, anchor.getShopName());
+        } else if (anchor.getPayeeType() == FinanceConstants.PAYEE_OTHER) {
+            w.eq(PayableDO::getPayeeName, anchor.getPayeeName());
         } else {
             w.eq(PayableDO::getSupplierId, anchor.getSupplierId());
         }
         return payableMapper.selectList(w);
     }
 
-    static String payeeKey(Integer type, Long supplierId, String platform, String shop) {
-        return type == FinanceConstants.PAYEE_SHOP ? type + ":" + platform + ":" + shop : type + ":" + supplierId;
+    static String payeeKey(Integer type, Long supplierId, String platform, String shop, String name) {
+        if (type == FinanceConstants.PAYEE_SHOP) {
+            return type + ":" + platform + ":" + shop;
+        }
+        return type == FinanceConstants.PAYEE_OTHER ? type + ":" + name : type + ":" + supplierId;
     }
 
     private LambdaQueryWrapper<PayableDO> base() {

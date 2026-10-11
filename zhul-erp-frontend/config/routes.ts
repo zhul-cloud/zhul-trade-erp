@@ -491,6 +491,20 @@ export default [
         access: 'financePayments',
         component: './finance/payments',
       },
+      {
+        path: '/finance/reimbursements',
+        name: 'reimbursements',
+        icon: 'fileDone',
+        access: 'financeReimbursements',
+        component: './finance/reimbursements',
+      },
+      {
+        path: '/finance/expenses',
+        name: 'expenses',
+        icon: 'profile',
+        access: 'financeExpenses',
+        component: './finance/expenses',
+      },
     ],
   },
   {

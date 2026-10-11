@@ -79,6 +79,8 @@ export default {
   'menu.finance.receipts': '收款管理',
   'menu.finance.payables': '应付管理',
   'menu.finance.payments': '付款记录',
+  'menu.finance.reimbursements': '报销单',
+  'menu.finance.expenses': '费用单',
   'menu.sales.pi': 'PI',
   'menu.sales.orders': '销售订单',
   'menu.purchase': '采购管理',

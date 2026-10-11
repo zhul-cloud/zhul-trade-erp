@@ -13,6 +13,7 @@ import com.zhul.erp.modules.finance.constants.FinanceConstants;
 import com.zhul.erp.modules.finance.dto.PaymentQuery;
 import com.zhul.erp.modules.finance.dto.PaymentStatsVO;
 import com.zhul.erp.modules.finance.dto.PaymentVO;
+import com.zhul.erp.modules.finance.dto.ReceivedRefundRequest;
 import com.zhul.erp.modules.finance.dto.RefundRequest;
 import com.zhul.erp.modules.finance.dto.RegisterPaymentRequest;
 import com.zhul.erp.modules.finance.entity.PayableDO;
@@ -258,11 +259,67 @@ public class PaymentService {
         return toVo(paymentMapper.selectById(pay.getId()));
     }
 
+    /**
+     * 员工登记已收到供应商退款（③b）：只能对本人垫付过、有欠款的应付单登记；冲减欠款，成为本人待报销的负数项。
+     */
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
+    public PaymentVO refundReceived(ReceivedRefundRequest req, boolean advancedByMe) {
+        PaymentDO dup = byKey(req.getIdempotencyKey());
+        if (dup != null) {
+            return toVo(dup);
+        }
+        if (!advancedByMe) {
+            throw new BizException("只能对你垫付过的应付单登记已收到退款");
+        }
+        if (req.getReceivedDate().isAfter(LocalDate.now())) {
+            throw new BizException("收到日期不能晚于今天");
+        }
+        PayableDO p = lock(new TreeSet<>(List.of(req.getPayableId()))).get(req.getPayableId());
+        BigDecimal amount = scale(req.getAmount());
+        if (amount.compareTo(p.getCreditAmount()) > 0) {
+            throw new BizException("退款不能超过欠款 " + p.getCreditAmount());
+        }
+        BigDecimal amountCny = cnyOf(p.getCurrencyCode(), amount, req.getAmountCny());
+        PaymentDO pay = new PaymentDO();
+        pay.setTenantId(PiStore.tenantId());
+        pay.setPaymentNo(documentNumberService.next(DocumentType.PY));
+        pay.setKind(FinanceConstants.KIND_REFUND);
+        copyPayee(p, pay);
+        pay.setMethod(FinanceConstants.METHOD_ADVANCE);
+        pay.setAdvanceUser(SecurityUtils.getCurrentUsername());
+        pay.setPayDate(req.getReceivedDate());
+        pay.setCurrencyCode(p.getCurrencyCode());
+        pay.setAmount(amount);
+        pay.setAmountCny(amountCny);
+        pay.setActualRate(rateOf(amount, amountCny));
+        pay.setCreditUsed(BigDecimal.ZERO);
+        pay.setRemark(req.getRemark() == null ? "" : req.getRemark().trim());
+        pay.setReimburseStatus(FinanceConstants.REIMBURSE_PENDING);
+        pay.setIdempotencyKey(req.getIdempotencyKey());
+        paymentMapper.insert(pay);
+        PaymentAllocationDO a = new PaymentAllocationDO();
+        a.setTenantId(pay.getTenantId());
+        a.setPaymentId(pay.getId());
+        a.setPayableId(p.getId());
+        a.setAmount(amount);
+        a.setAmountCny(amountCny);
+        a.setFromCredit(2);
+        allocationMapper.insert(a);
+        attachments.attach(OWNER_TYPE, pay.getId(), req.getAttachmentIds());
+        sync.refresh(p.getId());
+        logService.recordOperateLog(MENU, "登记已收到退款", null, Map.of("paymentNo", pay.getPaymentNo(), "payable", p.getPayableNo(),
+                "amount", pay.getCurrencyCode() + " " + amount));
+        return toVo(paymentMapper.selectById(pay.getId()));
+    }
+
     @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public PaymentVO voidPayment(Long id, String reason) {
         PaymentDO pay = visible(id);
         if (pay.getVoidAt() != null) {
             throw new BizException("付款记录已作废");
+        }
+        if (Objects.equals(pay.getKind(), FinanceConstants.KIND_REIMBURSE)) {
+            throw new BizException("报销付款请在报销单上撤销已付");
         }
         if (!hasVoidRight(pay)) {
             throw new BizException("只有登记人或有「付款登记」权限的人可以作废");
@@ -320,10 +377,16 @@ public class PaymentService {
             scope.setDateFrom(today.withDayOfMonth(1));
             scope.setDateTo(today.withDayOfMonth(today.lengthOfMonth()));
         }
-        LambdaQueryWrapper<PaymentDO> w = filter(scope).isNull(PaymentDO::getVoidAt).eq(PaymentDO::getKind, FinanceConstants.KIND_PAYMENT)
-                .select(PaymentDO::getMethod, PaymentDO::getAmountCny);
+        LambdaQueryWrapper<PaymentDO> w = filter(scope).isNull(PaymentDO::getVoidAt)
+                .in(PaymentDO::getKind, FinanceConstants.KIND_PAYMENT, FinanceConstants.KIND_REIMBURSE)
+                .select(PaymentDO::getKind, PaymentDO::getMethod, PaymentDO::getAmountCny);
         PaymentStatsVO vo = new PaymentStatsVO();
         for (PaymentDO p : paymentMapper.selectList(w)) {
+            // 报销付款单独统计，不计入付款合计（垫付时已经算过一次）
+            if (p.getKind() == FinanceConstants.KIND_REIMBURSE) {
+                vo.setReimburse(vo.getReimburse().add(p.getAmountCny()));
+                continue;
+            }
             vo.setTotal(vo.getTotal().add(p.getAmountCny()));
             if (p.getMethod() == FinanceConstants.METHOD_ADVANCE) {
                 vo.setAdvance(vo.getAdvance().add(p.getAmountCny()));
@@ -376,7 +439,8 @@ public class PaymentService {
     }
 
     private boolean canVoid(PaymentDO p) {
-        return p.getVoidAt() == null && !Objects.equals(p.getReimburseStatus(), FinanceConstants.REIMBURSE_CLAIMED) && hasVoidRight(p);
+        return p.getVoidAt() == null && !Objects.equals(p.getReimburseStatus(), FinanceConstants.REIMBURSE_CLAIMED)
+                && !Objects.equals(p.getKind(), FinanceConstants.KIND_REIMBURSE) && hasVoidRight(p);
     }
 
     /** 登记人本人或有付款登记权限的人 */
@@ -418,10 +482,14 @@ public class PaymentService {
     }
 
     private static boolean samePayee(PayableDO a, PayableDO b) {
-        return Objects.equals(a.getPayeeType(), b.getPayeeType()) && Objects.equals(a.getCurrencyCode(), b.getCurrencyCode())
-                && (a.getPayeeType() == FinanceConstants.PAYEE_SHOP
-                ? Objects.equals(a.getShopPlatform(), b.getShopPlatform()) && Objects.equals(a.getShopName(), b.getShopName())
-                : Objects.equals(a.getSupplierId(), b.getSupplierId()));
+        if (!Objects.equals(a.getPayeeType(), b.getPayeeType()) || !Objects.equals(a.getCurrencyCode(), b.getCurrencyCode())) {
+            return false;
+        }
+        if (a.getPayeeType() == FinanceConstants.PAYEE_SHOP) {
+            return Objects.equals(a.getShopPlatform(), b.getShopPlatform()) && Objects.equals(a.getShopName(), b.getShopName());
+        }
+        return a.getPayeeType() == FinanceConstants.PAYEE_OTHER ? Objects.equals(a.getPayeeName(), b.getPayeeName())
+                : Objects.equals(a.getSupplierId(), b.getSupplierId());
     }
 
     private static void copyPayee(PayableDO from, PaymentDO to) {

@@ -59,7 +59,9 @@ const initial = (): Filters => ({
 const sourcePath = (p: Payable) =>
   p.sourceType === SOURCE.PO
     ? `/purchase/orders/${p.sourceId}`
-    : '/logistics/statements';
+    : p.sourceType === SOURCE.EXPENSE
+      ? '/finance/expenses'
+      : '/logistics/statements';
 
 /** 财务管理 → 应付管理：采购单、货代对账确认后自动生成；付款按到期先后核销 */
 const PayableManagement: React.FC = () => {

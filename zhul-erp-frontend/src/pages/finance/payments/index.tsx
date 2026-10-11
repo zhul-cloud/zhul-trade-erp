@@ -134,6 +134,8 @@ const PaymentRecords: React.FC = () => {
       render: (v: number) =>
         v === 2 ? (
           <Pill tone="orange">退款</Pill>
+        ) : v === 3 ? (
+          <Pill tone="cyan">报销付款</Pill>
         ) : (
           <Pill tone="gray">付款</Pill>
         ),
@@ -266,6 +268,7 @@ const PaymentRecords: React.FC = () => {
         {card('付款合计（人民币）', stats?.total ?? 0, palette.ink)}
         {card('公司对公', stats?.company ?? 0, palette.link)}
         {card('员工垫付', stats?.advance ?? 0, palette.orange)}
+        {card('报销付款（不计入合计）', stats?.reimburse ?? 0, palette.sub)}
       </div>
       <Card>
         <div
@@ -322,6 +325,7 @@ const PaymentRecords: React.FC = () => {
             options={[
               { value: 1, label: '付款' },
               { value: 2, label: '退款' },
+              { value: 3, label: '报销付款' },
             ]}
           />
           <Select

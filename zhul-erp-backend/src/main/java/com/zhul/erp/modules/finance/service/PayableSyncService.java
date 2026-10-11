@@ -2,9 +2,11 @@ package com.zhul.erp.modules.finance.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.zhul.erp.modules.finance.constants.FinanceConstants;
+import com.zhul.erp.modules.finance.entity.ExpenseDO;
 import com.zhul.erp.modules.finance.entity.PayableDO;
 import com.zhul.erp.modules.finance.entity.PayableInstallmentDO;
 import com.zhul.erp.modules.finance.entity.PaymentAllocationDO;
+import com.zhul.erp.modules.finance.repository.ExpenseMapper;
 import com.zhul.erp.modules.finance.repository.PayableInstallmentMapper;
 import com.zhul.erp.modules.finance.repository.PayableMapper;
 import com.zhul.erp.modules.finance.repository.PaymentAllocationMapper;
@@ -58,6 +60,7 @@ public class PayableSyncService {
     private final ShipProgress shipProgress;
     private final SupplierMapper supplierMapper;
     private final ForwarderStatementMapper statementMapper;
+    private final ExpenseMapper expenseMapper;
     private final DocumentNumberService documentNumberService;
 
     /** 采购单：已下单的生成或重算；取消的关闭（已付转为欠款）；草稿不处理 */
@@ -107,6 +110,35 @@ public class PayableSyncService {
         BigDecimal amount = nz(st.getStatementTotal());
         LocalDate due = st.getConfirmedAt() == null ? LocalDate.now() : st.getConfirmedAt().toLocalDate();
         apply(p, amount, InstallmentPlanner.single(amount, due), false);
+    }
+
+    /**
+     * 费用单（③b）：公司对公且有效的生成或重算一期应付，到期日为发生日期；作废或改为员工垫付的关闭已有应付。
+     */
+    public void syncExpense(Long expenseId) {
+        ExpenseDO e = expenseMapper.selectById(expenseId);
+        if (e == null || e.getDeletedAt() != null) {
+            return;
+        }
+        boolean active = Objects.equals(e.getStatus(), FinanceConstants.FE_VALID)
+                && Objects.equals(e.getMethod(), FinanceConstants.METHOD_COMPANY);
+        PayableDO p = lockBySource(FinanceConstants.SOURCE_EXPENSE, expenseId);
+        if (p == null) {
+            if (!active) {
+                return;
+            }
+            p = newPayable(FinanceConstants.SOURCE_EXPENSE, expenseId, e.getExpenseNo(), e.getCurrencyCode(), e.getExchangeRate());
+            payableMapper.insert(p);
+        }
+        p.setPayeeType(e.getPayeeType());
+        p.setSupplierId(e.getSupplierId());
+        p.setShopPlatform(e.getShopPlatform() == null ? "" : e.getShopPlatform());
+        p.setShopName(e.getShopName() == null ? "" : e.getShopName());
+        p.setPayeeName(e.getPayeeName());
+        p.setCurrencyCode(e.getCurrencyCode());
+        p.setExchangeRate(e.getExchangeRate());
+        BigDecimal amount = active ? e.getAmount() : BigDecimal.ZERO;
+        apply(p, amount, InstallmentPlanner.single(amount, e.getOccurDate()), !active);
     }
 
     /** 付款登记、作废、退款后：锁住应付单，按现有付款计划重算已付、欠款与状态 */
