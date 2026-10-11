@@ -9,6 +9,7 @@ import {
   Modal,
   Radio,
   Select,
+  Space,
   Table,
 } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
@@ -198,11 +199,13 @@ export const RelationCard: React.FC<{
       title="型号关系"
       done={done}
       actions={
-        !readOnly && (
-          <Button icon={<PlusOutlined />} onClick={() => setOpen(true)}>
-            添加关系
-          </Button>
-        )
+        <Space size={8}>
+          {!readOnly && (
+            <Button icon={<PlusOutlined />} onClick={() => setOpen(true)}>
+              添加关系
+            </Button>
+          )}
+        </Space>
       }
     >
       {error ? (

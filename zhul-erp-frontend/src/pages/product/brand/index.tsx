@@ -1,4 +1,8 @@
-import { PlusOutlined } from '@ant-design/icons';
+import {
+  EllipsisOutlined,
+  PlusOutlined,
+  SearchOutlined,
+} from '@ant-design/icons';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import {
   ModalForm,
@@ -10,7 +14,18 @@ import {
   ProTable,
 } from '@ant-design/pro-components';
 import { useAccess } from '@umijs/max';
-import { App, Button, Select, Space, Table, Tabs, Tooltip } from 'antd';
+import {
+  App,
+  Button,
+  Dropdown,
+  Input,
+  Segmented,
+  Select,
+  Space,
+  Table,
+  Tabs,
+  Tooltip,
+} from 'antd';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { formatDateTime } from '@/utils/format';
 import BrandColorInput from '../components/BrandColorInput';
@@ -31,6 +46,40 @@ import {
 } from '../service';
 import { PageHeader, ProductThemeProvider } from '../theme';
 
+const LEVEL_TABS: { value: number | 'all'; label: string; key: string }[] = [
+  { value: 'all', label: '全部', key: 'all' },
+  { value: 2, label: '核心', key: '2' },
+  { value: 1, label: '常做', key: '1' },
+  { value: 0, label: '普通', key: '0' },
+];
+
+const ONE_LINE: React.CSSProperties = {
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
+  whiteSpace: 'nowrap',
+  minWidth: 0,
+};
+
+const TWO_LINES: React.CSSProperties = {
+  display: '-webkit-box',
+  WebkitLineClamp: 2,
+  WebkitBoxOrient: 'vertical',
+  overflow: 'hidden',
+  lineHeight: 1.5,
+};
+
+/** 别名里的第一个中文写法，作为品牌的中文名显示 */
+const chineseName = (aliases?: string[]) =>
+  aliases?.find((a) => /[\u4e00-\u9fff]/.test(a));
+
+/** 品牌等级标签：核心、常做显示，普通不显示 */
+const LevelPill: React.FC<{ level?: number }> = ({ level }) =>
+  level === 2 ? (
+    <Pill tone="violet">核心</Pill>
+  ) : level === 1 ? (
+    <Pill tone="accent">常做</Pill>
+  ) : null;
+
 const BrandPage: React.FC = () => {
   const { message, modal } = App.useApp();
   const access = useAccess();
@@ -49,6 +98,13 @@ const BrandPage: React.FC = () => {
   const [linkTarget, setLinkTarget] = useState<number>();
   const [brandOptions, setBrandOptions] = useState<BrandOption[]>([]);
   const canConfirm = !!access['product:brand:edit'];
+  const [level, setLevel] = useState<number | 'all'>('all');
+  const [levelCounts, setLevelCounts] = useState<Record<string, number>>({});
+  const [keywordInput, setKeywordInput] = useState('');
+  const [keyword, setKeyword] = useState<string>();
+  const [country, setCountry] = useState<string>();
+  const [status, setStatus] = useState<number>();
+  const [total, setTotal] = useState(0);
 
   const loadPending = useCallback(async () => {
     setPendingLoading(true);
@@ -131,159 +187,164 @@ const BrandPage: React.FC = () => {
     });
   };
 
+  const muted = <span style={{ opacity: 0.55 }}>—</span>;
   const columns: ProColumns<Brand>[] = [
-    {
-      title: '品牌名称',
-      dataIndex: 'keyword',
-      hideInTable: true,
-      fieldProps: { placeholder: '输入品牌名称或别名' },
-    },
-    {
-      title: '状态',
-      dataIndex: 'statusFilter',
-      hideInTable: true,
-      valueType: 'select',
-      valueEnum: { 1: { text: '启用' }, 0: { text: '停用' } },
-    },
     {
       title: '品牌',
       dataIndex: 'brandName',
-      search: false,
-      render: (_, row) => (
-        <Space>
-          <BrandMark name={row.brandName} color={row.brandColor} />
-          <span style={{ fontWeight: 600 }}>{row.brandName}</span>
-        </Space>
-      ),
+      fixed: 'left',
+      width: 250,
+      render: (_, row) => {
+        const zh = chineseName(row.aliases);
+        const place = countryZh(row.country);
+        return (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <BrandMark name={row.brandName} color={row.brandColor} size={32} />
+            <div style={{ minWidth: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontWeight: 600, whiteSpace: 'nowrap' }}>
+                  {row.brandName}
+                </span>
+                <LevelPill level={row.brandLevel} />
+              </div>
+              <div
+                style={{ fontSize: 12, opacity: 0.65, whiteSpace: 'nowrap' }}
+              >
+                {[zh, place].filter(Boolean).join(' · ') || '—'}
+              </div>
+            </div>
+          </div>
+        );
+      },
     },
     {
       title: '别名',
       dataIndex: 'aliases',
-      search: false,
-      width: 200,
+      width: 190,
+      render: (_, r) => {
+        const list = r.aliases ?? [];
+        if (!list.length) return muted;
+        const shown = list.slice(0, 3).join('、');
+        return (
+          <Tooltip title={list.join('、')}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={ONE_LINE}>{shown}</span>
+              {list.length > 3 && <Pill tone="gray">+{list.length - 3}</Pill>}
+            </div>
+          </Tooltip>
+        );
+      },
+    },
+    {
+      title: '中文简介',
+      dataIndex: 'descriptionZh',
+      width: 280,
       render: (_, r) =>
-        r.aliases?.length ? (
-          <Space size={4} wrap>
-            {r.aliases.map((a) => (
-              <Pill key={a} tone="gray">
-                {a}
-              </Pill>
-            ))}
-          </Space>
+        r.descriptionZh ? (
+          <span title={r.descriptionZh} style={TWO_LINES}>
+            {r.descriptionZh}
+          </span>
         ) : (
-          <span style={{ opacity: 0.6 }}>—</span>
-        ),
-    },
-    {
-      title: '原产地',
-      dataIndex: 'country',
-      search: false,
-      width: 110,
-      render: (_, r) => countryZh(r.country) || '—',
-    },
-    {
-      title: '简介',
-      dataIndex: 'description',
-      search: false,
-      ellipsis: true,
-      width: 200,
-      render: (_, r) =>
-        r.description || <span style={{ opacity: 0.6 }}>未填写</span>,
-    },
-    {
-      title: '类型',
-      dataIndex: 'isGenuine',
-      search: false,
-      width: 120,
-      render: (_, r) =>
-        r.isGenuine === 1 ? (
-          <Pill tone="green">原厂正品</Pill>
-        ) : (
-          <Pill tone="orange">兼容 / 非原厂</Pill>
+          <span style={{ opacity: 0.55 }}>未填写</span>
         ),
     },
     {
       title: '商品数',
       dataIndex: 'productCount',
-      search: false,
       align: 'right',
+      width: 80,
       render: (_, r) => <span className="num">{r.productCount}</span>,
     },
     {
       title: '状态',
       dataIndex: 'status',
-      search: false,
-      render: (_, r) =>
-        r.status === 1 ? (
-          <Pill tone="green">启用</Pill>
-        ) : (
-          <Pill tone="gray">已停用</Pill>
-        ),
+      width: 150,
+      render: (_, r) => (
+        <Space size={4}>
+          {r.status === 1 ? (
+            <Pill tone="green">启用</Pill>
+          ) : (
+            <Pill tone="gray">已停用</Pill>
+          )}
+          {r.isGenuine === 0 && (
+            <Tooltip title="兼容 / 非原厂：不能对这个品牌的商品使用「正品」类表述">
+              <span>
+                <Pill tone="orange">非原厂</Pill>
+              </span>
+            </Tooltip>
+          )}
+        </Space>
+      ),
     },
     {
       title: '创建时间',
       dataIndex: 'createTime',
-      search: false,
       width: 160,
       render: (_, r) => (
         <span className="num">{formatDateTime(r.createTime)}</span>
       ),
     },
-    {
-      title: '创建人',
-      dataIndex: 'createBy',
-      search: false,
-      width: 90,
-    },
+    { title: '创建人', dataIndex: 'createBy', width: 90 },
     {
       title: '更新时间',
       dataIndex: 'updateTime',
-      search: false,
       width: 160,
       render: (_, r) => (
         <span className="num">{formatDateTime(r.updateTime)}</span>
       ),
     },
-    {
-      title: '更新人',
-      dataIndex: 'updateBy',
-      search: false,
-      width: 90,
-    },
+    { title: '更新人', dataIndex: 'updateBy', width: 90 },
     {
       title: '操作',
       valueType: 'option',
-      width: 150,
-      render: (_, row) => [
-        access['product:brand:edit'] && (
-          <a key="edit" onClick={() => openForm(row)}>
-            编辑
-          </a>
-        ),
-        access['product:brand:edit'] && (
-          <a key="status" onClick={() => toggleStatus(row)}>
-            {row.status === 1 ? '停用' : '启用'}
-          </a>
-        ),
-        access['product:brand:delete'] &&
-          (row.productCount > 0 ? (
-            <Tooltip
-              key="delete"
-              title={`已有 ${row.productCount} 个商品使用，请先停用`}
-            >
-              <span
-                aria-disabled="true"
-                style={{ opacity: 0.6, cursor: 'not-allowed' }}
+      fixed: 'right',
+      width: 140,
+      render: (_, row) => {
+        const canEdit = !!access['product:brand:edit'];
+        const canDelete = !!access['product:brand:delete'];
+        return (
+          <Space size={12} style={{ whiteSpace: 'nowrap' }}>
+            {canEdit && <a onClick={() => openForm(row)}>编辑</a>}
+            {canEdit && (
+              <a onClick={() => toggleStatus(row)}>
+                {row.status === 1 ? '停用' : '启用'}
+              </a>
+            )}
+            {canDelete && (
+              <Dropdown
+                trigger={['click']}
+                menu={{
+                  items: [
+                    {
+                      key: 'delete',
+                      danger: true,
+                      disabled: row.productCount > 0,
+                      label:
+                        row.productCount > 0 ? (
+                          <Tooltip
+                            title={`已有 ${row.productCount} 个商品使用，请先停用`}
+                          >
+                            删除
+                          </Tooltip>
+                        ) : (
+                          '删除'
+                        ),
+                      onClick: () => remove(row),
+                    },
+                  ],
+                }}
               >
-                删除
-              </span>
-            </Tooltip>
-          ) : (
-            <a key="delete" onClick={() => remove(row)}>
-              删除
-            </a>
-          )),
-      ],
+                <Button
+                  type="text"
+                  size="small"
+                  icon={<EllipsisOutlined />}
+                  aria-label={`${row.brandName} 更多操作`}
+                />
+              </Dropdown>
+            )}
+          </Space>
+        );
+      },
     },
   ];
 
@@ -292,7 +353,7 @@ const BrandPage: React.FC = () => {
       <PageHeader
         eyebrow="PRODUCT MASTER"
         title="品牌"
-        description="商品归属的品牌，所有租户共用同一份。同一个品牌只保留一条记录。"
+        description="商品归属的品牌，所有租户共用同一份；核心品牌覆盖 PLC、HMI、驱动、伺服四个主营方向，在各处品牌下拉里排在最前。"
         actions={
           access['product:brand:add'] && (
             <Button
@@ -368,29 +429,98 @@ const BrandPage: React.FC = () => {
           ]}
         />
       ) : (
-        <ProTable<Brand>
-          rowKey="id"
-          actionRef={actionRef}
-          columns={columns}
-          search={{ labelWidth: 'auto', defaultCollapsed: false }}
-          options={false}
-          request={async (params) => {
-            const res = await brandApi.page({
-              page: params.current,
-              pageSize: params.pageSize,
-              keyword: params.keyword,
-              status:
-                params.statusFilter === undefined
-                  ? undefined
-                  : Number(params.statusFilter),
-            });
-            return { data: res.records, total: res.total, success: true };
-          }}
-          pagination={{ pageSize: 20, showTotal: (t) => `共 ${t} 条记录` }}
-          locale={{
-            emptyText: '还没有品牌。先新增一个，新建商品时才能选择品牌。',
-          }}
-        />
+        <>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 12,
+              flexWrap: 'wrap',
+              marginBottom: 16,
+            }}
+          >
+            <Segmented<number | 'all'>
+              value={level}
+              onChange={setLevel}
+              options={LEVEL_TABS.map((t) => ({
+                value: t.value,
+                label:
+                  levelCounts[t.key] !== undefined
+                    ? `${t.label} · ${levelCounts[t.key]}`
+                    : t.label,
+              }))}
+            />
+            <Input
+              allowClear
+              prefix={<SearchOutlined />}
+              placeholder="品牌名称或别名"
+              value={keywordInput}
+              onChange={(e) => {
+                setKeywordInput(e.target.value);
+                if (!e.target.value) setKeyword(undefined);
+              }}
+              onPressEnter={() => setKeyword(keywordInput.trim() || undefined)}
+              style={{ width: 240 }}
+              aria-label="关键词"
+            />
+            <Select
+              allowClear
+              showSearch={{ optionFilterProp: 'label' }}
+              placeholder="原产地：全部"
+              value={country}
+              onChange={setCountry}
+              options={countryOptions}
+              style={{ width: 170 }}
+              aria-label="原产地"
+            />
+            <Select
+              allowClear
+              placeholder="状态：全部"
+              value={status}
+              onChange={setStatus}
+              options={[
+                { value: 1, label: '启用' },
+                { value: 0, label: '已停用' },
+              ]}
+              style={{ width: 130 }}
+              aria-label="状态"
+            />
+            <span style={{ flex: 1 }} />
+            <span style={{ fontSize: 12, opacity: 0.65 }}>
+              共 {total} 个品牌
+            </span>
+          </div>
+          <ProTable<Brand>
+            rowKey="id"
+            actionRef={actionRef}
+            columns={columns}
+            params={{ level, keyword, country, status }}
+            search={false}
+            options={false}
+            toolBarRender={false}
+            scroll={{ x: 1590 }}
+            request={async (params) => {
+              const [res, counts] = await Promise.all([
+                brandApi.page({
+                  page: params.current,
+                  pageSize: params.pageSize,
+                  keyword,
+                  country,
+                  status,
+                  brandLevel: level === 'all' ? undefined : level,
+                }),
+                brandApi.levelCounts({ status }),
+              ]);
+              setLevelCounts(counts);
+              setTotal(res.total);
+              return { data: res.records, total: res.total, success: true };
+            }}
+            pagination={{ pageSize: 20, showTotal: (t) => `共 ${t} 条记录` }}
+            locale={{
+              emptyText: '没有符合条件的品牌',
+            }}
+          />
+        </>
       )}
       <ModalForm<{
         brandName: string;
@@ -398,6 +528,8 @@ const BrandPage: React.FC = () => {
         logoUrl?: string;
         brandColor?: string;
         description?: string;
+        descriptionZh?: string;
+        brandLevel: number;
         isGenuine: number;
         aliases?: string[];
       }>
@@ -411,6 +543,7 @@ const BrandPage: React.FC = () => {
             ? { ...editing }
             : {
                 isGenuine: 1,
+                brandLevel: 0,
                 brandColor: defaultColor,
                 brandName: creatingFrom?.name,
               }
@@ -486,16 +619,39 @@ const BrandPage: React.FC = () => {
             <BrandColorInput />
           </ProForm.Item>
         </ProForm.Group>
+        <ProFormRadio.Group
+          name="brandLevel"
+          label="品牌等级"
+          radioType="button"
+          options={[
+            { value: 2, label: '核心' },
+            { value: 1, label: '常做' },
+            { value: 0, label: '普通' },
+          ]}
+          extra="核心品牌是主营品牌；各处品牌下拉按核心 → 常做 → 普通排序"
+        />
         <ProFormTextArea
-          name="description"
-          label="品牌简介"
-          placeholder="一两句话介绍这个品牌，独立站品牌页会用到"
+          name="descriptionZh"
+          label="中文简介"
+          placeholder="一两句话介绍这个品牌，系统内显示"
           fieldProps={{
             maxLength: DESCRIPTION_MAX,
             showCount: true,
-            autoSize: { minRows: 3, maxRows: 6 },
+            autoSize: { minRows: 2, maxRows: 5 },
           }}
           rules={[{ max: DESCRIPTION_MAX, message: '简介不能超过 500 个字符' }]}
+        />
+        <ProFormTextArea
+          name="description"
+          label="英文简介"
+          placeholder="English description for the website brand page"
+          fieldProps={{
+            maxLength: DESCRIPTION_MAX,
+            showCount: true,
+            autoSize: { minRows: 2, maxRows: 5 },
+          }}
+          rules={[{ max: DESCRIPTION_MAX, message: '简介不能超过 500 个字符' }]}
+          extra="独立站品牌页等对外场景使用"
         />
         <ProFormText
           name="logoUrl"

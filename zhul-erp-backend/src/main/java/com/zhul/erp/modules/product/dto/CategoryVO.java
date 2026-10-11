@@ -14,6 +14,8 @@ public class CategoryVO {
     /** 上级品类ID，一级品类为空 */
     private Long parentId;
     private String description;
+    /** 中文简介 */
+    private String descriptionZh;
     private Integer sortOrder;
     private Integer status;
     /** 下面未删除的商品数量 */

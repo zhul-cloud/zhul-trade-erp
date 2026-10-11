@@ -528,6 +528,8 @@ public class ProductCandidateService {
             x.setOriginalModel(item == null ? null : item.getConfirmedModel());
             x.setSoId(s.getSoId());
             x.setSoNo(at(soNos, s.getSoId()));
+            x.setFileName(s.getFileName());
+            x.setCreateBy(s.getCreateBy());
             x.setCreateTime(s.getCreateTime());
             return x;
         }).toList();

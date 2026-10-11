@@ -22,6 +22,8 @@ public class ProductCandidateSourceDO {
     private Long customerInquiryId;
     private Long inquiryItemId;
     private Long soId;
+    /** 导入来源的文件名 */
+    private String fileName;
     private LocalDateTime deletedAt;
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createTime;

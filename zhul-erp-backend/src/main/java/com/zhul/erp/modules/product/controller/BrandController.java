@@ -22,6 +22,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * 品牌主数据：读取对所有登录用户开放；写入需要权限码，且由 Service 再要求平台账号（design.md 决策 2）。
@@ -39,6 +40,11 @@ public class BrandController {
     }
 
     /** 全部启用品牌（走缓存） */
+    @GetMapping("/level-counts")
+    public Result<Map<String, Long>> levelCounts(BrandQuery query) {
+        return Result.ok(brandService.levelCounts(query));
+    }
+
     @GetMapping("/options")
     public Result<List<BrandOptionVO>> options() {
         return Result.ok(brandService.options());

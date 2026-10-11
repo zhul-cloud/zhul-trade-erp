@@ -10,6 +10,7 @@ import com.zhul.erp.modules.product.dto.SpecificationVO;
 import com.zhul.erp.modules.product.entity.ProductSpecificationDO;
 import com.zhul.erp.modules.product.repository.ProductSpecificationMapper;
 import com.zhul.erp.modules.product.service.ProductSpecificationService;
+import com.zhul.erp.modules.product.support.LangRules;
 import com.zhul.erp.modules.product.support.PlatformScopeGuard;
 import com.zhul.erp.modules.product.support.ProductFinder;
 import com.zhul.erp.modules.product.support.TextRules;
@@ -36,9 +37,9 @@ public class ProductSpecificationServiceImpl implements ProductSpecificationServ
     private final PlatformScopeGuard platformScopeGuard;
 
     @Override
-    public List<SpecificationVO> list(Long productId) {
+    public List<SpecificationVO> list(Long productId, String lang) {
         productFinder.active(productId);
-        return loadAll(productId);
+        return loadAll(productId, LangRules.of(lang));
     }
 
     @Override
@@ -48,21 +49,23 @@ public class ProductSpecificationServiceImpl implements ProductSpecificationServ
         // 锁商品行，让同一商品的并发整体替换串行执行
         productFinder.lockActive(productId);
 
-        List<ProductSpecificationDO> rows = validate(productId, req == null ? null : req.getItems());
+        String lang = LangRules.of(req == null ? null : req.getLang());
+        List<ProductSpecificationDO> rows = validate(productId, lang, req == null ? null : req.getItems());
 
         // 先软删除现有规格再插入新集合；提交的任何一条不合法都在这之前就已拒绝，原规格保持不变
         specificationMapper.update(new ProductSpecificationDO(), new LambdaUpdateWrapper<ProductSpecificationDO>()
                 .eq(ProductSpecificationDO::getTenantId, ProductConstants.PLATFORM_TENANT_ID)
                 .eq(ProductSpecificationDO::getProductId, productId)
+                .eq(ProductSpecificationDO::getLang, lang)
                 .isNull(ProductSpecificationDO::getDeletedAt)
                 .set(ProductSpecificationDO::getDeletedAt, LocalDateTime.now()));
         for (ProductSpecificationDO row : rows) {
             specificationMapper.insert(row);
         }
-        return loadAll(productId);
+        return loadAll(productId, lang);
     }
 
-    private List<ProductSpecificationDO> validate(Long productId, List<SaveSpecificationsRequest.SpecificationItem> items) {
+    private List<ProductSpecificationDO> validate(Long productId, String lang, List<SaveSpecificationsRequest.SpecificationItem> items) {
         List<SaveSpecificationsRequest.SpecificationItem> source = items == null ? List.of() : items;
         if (source.size() > MAX_ITEMS) {
             throw BizException.of(ProductErrorCodes.PARAM_INVALID, "规格最多 " + MAX_ITEMS + " 条");
@@ -86,10 +89,14 @@ public class ProductSpecificationServiceImpl implements ProductSpecificationServ
             ProductSpecificationDO row = new ProductSpecificationDO();
             row.setTenantId(ProductConstants.PLATFORM_TENANT_ID);
             row.setProductId(productId);
+            row.setLang(lang);
             row.setSpecKey(key);
             row.setSpecLabel(TextRules.required(item.getSpecLabel(), "规格名称", 64));
             row.setSpecValue(TextRules.required(item.getSpecValue(), "规格值", 256));
             row.setSpecUnit(TextRules.optional(item.getSpecUnit(), "规格单位", 32));
+            row.setConditionText(TextRules.optional(item.getConditionText(), "条件/范围", 256));
+            row.setEvidence(TextRules.optional(item.getEvidence(), "证据状态", 64));
+            row.setSourceNote(TextRules.optional(item.getSourceNote(), "证据来源", 256));
             row.setSource(TextRules.optional(item.getSource(), "规格来源", 128));
             row.setVerified(verified);
             row.setSortOrder(item.getSortOrder() == null ? index : item.getSortOrder());
@@ -99,10 +106,11 @@ public class ProductSpecificationServiceImpl implements ProductSpecificationServ
         return rows;
     }
 
-    private List<SpecificationVO> loadAll(Long productId) {
+    private List<SpecificationVO> loadAll(Long productId, String lang) {
         List<ProductSpecificationDO> rows = specificationMapper.selectList(new LambdaQueryWrapper<ProductSpecificationDO>()
                 .eq(ProductSpecificationDO::getTenantId, ProductConstants.PLATFORM_TENANT_ID)
                 .eq(ProductSpecificationDO::getProductId, productId)
+                .eq(ProductSpecificationDO::getLang, lang)
                 .isNull(ProductSpecificationDO::getDeletedAt)
                 .orderByAsc(ProductSpecificationDO::getSortOrder)
                 .orderByAsc(ProductSpecificationDO::getId));
@@ -114,6 +122,9 @@ public class ProductSpecificationServiceImpl implements ProductSpecificationServ
             vo.setSpecLabel(row.getSpecLabel());
             vo.setSpecValue(row.getSpecValue());
             vo.setSpecUnit(row.getSpecUnit());
+            vo.setConditionText(row.getConditionText());
+            vo.setEvidence(row.getEvidence());
+            vo.setSourceNote(row.getSourceNote());
             vo.setSource(row.getSource());
             vo.setVerified(row.getVerified());
             vo.setSortOrder(row.getSortOrder());

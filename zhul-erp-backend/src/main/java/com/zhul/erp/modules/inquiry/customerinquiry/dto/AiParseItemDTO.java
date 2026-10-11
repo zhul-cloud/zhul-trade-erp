@@ -7,6 +7,8 @@ import java.util.List;
 /** AI 解析输出中的一个型号；新增字段缺失时按默认值处理 */
 @Data
 public class AiParseItemDTO {
+    /** 品类编码，取自请求里的品类清单；可能为空或不在清单里，由后端核对 */
+    private String categoryCode;
     private String originalModel;
     private String confirmedModel;
     private Integer confidence;

@@ -442,6 +442,48 @@ class SourcingContractTest extends InquiryContractSupport {
         assertEquals(BUYER_JIANG, jdbc.queryForObject("select assignee_id from sourcing_task_assignee where task_id = ?", Long.class, auto));
     }
 
+    /** 测试专用品类（编码前缀 its_），不依赖种子数据 */
+    private long itsCategory(String code, String zh, Long parentId) {
+        jdbc.update("insert into product_category (tenant_id, category_code, category_name, category_name_zh, parent_id, status, create_by) "
+                + "values (0, ?, ?, ?, ?, 1, 'its')", code, code, zh, parentId);
+        return jdbc.queryForObject("select id from product_category where tenant_id = 0 and category_code = ?", Long.class, code);
+    }
+
+    private void cleanupItsCategories() {
+        jdbc.update("delete from product_category where category_code like 'its\\_%' and parent_id is not null");
+        jdbc.update("delete from product_category where category_code like 'its\\_%'");
+    }
+
+    @Test
+    void subCategoriesShareTopCategoryTask_andCategoryRuleHitsByTopCategory() throws Exception {
+        cleanupItsCategories();
+        try {
+            long motion = itsCategory("its_motion", "仝己运动", null);
+            itsCategory("its_drive", "仝己驱动器", motion);
+            itsCategory("its_motor", "仝己电机", motion);
+            login();
+            ok(call(json(post(BOARD + "/rules"), "{\"matchType\":2,\"matchValues\":[\"仝己驱动器\"],\"assigneeId\":" + BUYER_JIANG + "}"), admin));
+
+            long inq = inquiry(false, row("Mitsubishi", "仝己驱动器", "MR-J4-70A", 2), row("Mitsubishi", "仝己电机", "HG-SN302BJ", 1),
+                    row("Mitsubishi", "仝己驱动器", "MR-J4-100A", 1));
+            assertEquals(1, jdbc.queryForObject("select count(*) from sourcing_task where customer_inquiry_id = ?", Integer.class, inq),
+                    "同一一级品类下的细分品类合并为一个任务");
+            long task = taskId(inq, "Mitsubishi");
+            Map<String, Object> t = jdbc.queryForMap("select category, category_id, item_count from sourcing_task where id = ?", task);
+            assertEquals("仝己运动", t.get("category"), "任务品类名为一级品类中文名");
+            assertEquals(motion, ((Number) t.get("category_id")).longValue());
+            assertEquals(3, ((Number) t.get("item_count")).intValue());
+            assertEquals(List.of("仝己驱动器", "仝己电机", "仝己驱动器"), jdbc.queryForList(
+                    "select category from inquiry_item where sourcing_task_id = ? order by line_no", String.class, task), "任务内各型号保留细分品类");
+
+            JsonNode preview = ok(call(json(post(BOARD + "/rule-preview"), "{\"taskIds\":[" + task + "]}"), admin));
+            assertEquals(BUYER_JIANG, preview.get(0).path("assigneeId").asLong(), "规则「仝己驱动器」对应到一级「仝己运动」，命中");
+            assertEquals("规则 1", preview.get(0).path("basis").asText());
+        } finally {
+            cleanupItsCategories();
+        }
+    }
+
     @Test
     void concurrentSubmitsKeepProgressConsistent() throws Exception {
         login();

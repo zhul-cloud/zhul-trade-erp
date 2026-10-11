@@ -148,12 +148,14 @@ const CustomerInquiryDetailPage: React.FC = () => {
   const cancellable =
     inq.status <= STATUS.READY && inq.status !== STATUS.CANCELLED;
 
-  // 同品牌同品类的第一行才显示品牌与品类
+  // 同品牌、同一级品类（与询价任务同口径）的第一行才显示品牌；品类在组内变化时也显示（各行是自己的细分品类）
   const firstOfGroup = new Set<number>();
+  const showCategory = new Set<number>();
   detail.items.forEach((it, i) => {
     const prev = detail.items[i - 1];
-    if (!prev || prev.brandKey !== it.brandKey || prev.category !== it.category)
-      firstOfGroup.add(it.id);
+    const first = !prev || prev.groupKey !== it.groupKey;
+    if (first) firstOfGroup.add(it.id);
+    if (first || prev.category !== it.category) showCategory.add(it.id);
   });
 
   const columns: TableColumnsType<InquiryItem> = [
@@ -170,7 +172,7 @@ const CustomerInquiryDetailPage: React.FC = () => {
       title: '品类',
       dataIndex: 'category',
       width: 100,
-      render: (v, r) => (firstOfGroup.has(r.id) ? v || '—' : null),
+      render: (v, r) => (showCategory.has(r.id) ? v || '—' : null),
     },
     {
       title: '型号',

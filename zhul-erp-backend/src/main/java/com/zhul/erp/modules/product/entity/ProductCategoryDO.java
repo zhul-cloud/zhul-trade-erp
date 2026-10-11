@@ -24,8 +24,10 @@ public class ProductCategoryDO {
     private String categoryName;
     /** 中文名称：细分品类必填，一级品类选填；业务界面优先显示 */
     private String categoryNameZh;
-    /** 品类简介，选填，独立站品类页使用；属于品类本身，所有品牌下的商品共用 */
+    /** 英文简介，选填，独立站品类页等对外场景使用；属于品类本身，所有品牌下的商品共用 */
     private String description;
+    /** 中文简介（系统内显示） */
+    private String descriptionZh;
     /** 上级品类ID：NULL 为一级品类（独立站品类），非空为细分品类（最多两级，只用于供应商主营产品与询盘匹配） */
     private Long parentId;
     /** 排序 */

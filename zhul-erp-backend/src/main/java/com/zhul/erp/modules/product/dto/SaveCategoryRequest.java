@@ -13,5 +13,7 @@ public class SaveCategoryRequest {
     private Long parentId;
     /** 品类简介，≤500 字；可空 */
     private String description;
+    /** 中文简介 */
+    private String descriptionZh;
     private Integer sortOrder;
 }

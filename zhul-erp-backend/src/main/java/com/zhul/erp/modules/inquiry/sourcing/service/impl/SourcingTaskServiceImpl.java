@@ -32,11 +32,14 @@ import com.zhul.erp.modules.inquiry.sourcing.repository.SourcingTaskAssigneeMapp
 import com.zhul.erp.modules.inquiry.sourcing.repository.SourcingTaskMapper;
 import com.zhul.erp.modules.inquiry.sourcing.service.SourcingTaskService;
 import com.zhul.erp.modules.inquiry.support.CurrentUserResolver;
+import com.zhul.erp.modules.inquiry.support.InquiryCategories;
 import com.zhul.erp.modules.inquiry.support.InquiryCodeGenerator;
 import com.zhul.erp.modules.inquiry.support.InquiryLookups;
 import com.zhul.erp.modules.inquiry.support.PriceKeys;
 import com.zhul.erp.modules.inquiry.support.SourcingSettings;
 import com.zhul.erp.modules.inquiry.support.TaskTimeout;
+import com.zhul.erp.modules.product.entity.ProductCategoryDO;
+import com.zhul.erp.modules.product.support.CategoryMatcher;
 import com.zhul.erp.modules.system.entity.RoleResourceDO;
 import com.zhul.erp.modules.system.entity.SysLogDO;
 import com.zhul.erp.modules.system.entity.UserBasicDO;
@@ -70,6 +73,7 @@ public class SourcingTaskServiceImpl implements SourcingTaskService {
     private final SourcingTaskMapper taskMapper;
     private final SourcingTaskAssigneeMapper assigneeMapper;
     private final SourcingAssignRuleMapper ruleMapper;
+    private final InquiryCategories inquiryCategories;
     private final InquiryItemMapper itemMapper;
     private final UserBasicMapper userBasicMapper;
     private final RoleResourceMapper roleResourceMapper;
@@ -90,9 +94,12 @@ public class SourcingTaskServiceImpl implements SourcingTaskService {
 
     @Override
     public List<SourcingTaskDO> createTasks(CustomerInquiryDO inquiry, List<InquiryItemDO> pendingItems) {
+        // 按品牌 + 一级品类分组；没关联品类的型号按品类文字分组
+        List<ProductCategoryDO> categories = inquiryCategories.categories();
         Map<String, List<InquiryItemDO>> groups = new LinkedHashMap<>();
         for (InquiryItemDO item : pendingItems) {
-            groups.computeIfAbsent(item.getBrandKey() + "|" + item.getCategory(), k -> new ArrayList<>()).add(item);
+            groups.computeIfAbsent(InquiryCategories.groupKey(item.getBrandKey(), item.getCategoryId(), item.getCategory(), categories),
+                    k -> new ArrayList<>()).add(item);
         }
         List<SourcingTaskDO> tasks = new ArrayList<>(groups.size());
         int index = 0;
@@ -104,7 +111,9 @@ public class SourcingTaskServiceImpl implements SourcingTaskService {
             task.setCustomerInquiryId(inquiry.getId());
             task.setBrand(first.getBrand());
             task.setBrandKey(first.getBrandKey());
-            task.setCategory(first.getCategory());
+            ProductCategoryDO root = InquiryCategories.root(first.getCategoryId(), categories);
+            task.setCategoryId(root == null ? null : root.getId());
+            task.setCategory(root == null ? first.getCategory() : InquiryCategories.name(root));
             task.setItemCount(items.size());
             task.setUrgent(inquiry.getUrgent());
             task.setStatus(InquiryConstants.TASK_UNASSIGNED);
@@ -603,10 +612,11 @@ public class SourcingTaskServiceImpl implements SourcingTaskService {
         List<PurchaserVO> purchasers = new ArrayList<>(purchasers());
         Set<Long> purchaserIds = purchasers.stream().map(PurchaserVO::getId).collect(Collectors.toSet());
         Map<String, Map<Long, Long>> familiarity = familiarity(tasks.get(0).getTenantId());
+        List<ProductCategoryDO> categories = inquiryCategories.categories();
         Map<Long, Long> plan = new LinkedHashMap<>();
         for (SourcingTaskDO t : tasks) {
             SourcingAssignRuleDO hit = rules.stream()
-                    .filter(r -> purchaserIds.contains(r.getAssigneeId()) && matches(r, t))
+                    .filter(r -> purchaserIds.contains(r.getAssigneeId()) && matches(r, t, categories))
                     .findFirst().orElse(null);
             if (hit != null) {
                 plan.put(t.getId(), hit.getAssigneeId());
@@ -627,13 +637,15 @@ public class SourcingTaskServiceImpl implements SourcingTaskService {
         return plan;
     }
 
-    private boolean matches(SourcingAssignRuleDO rule, SourcingTaskDO task) {
+    /** 按品类的规则：匹配值与任务品类名相同，或按品类匹配规则对应到的一级品类与任务的一级品类相同 */
+    private boolean matches(SourcingAssignRuleDO rule, SourcingTaskDO task, List<ProductCategoryDO> categories) {
         List<String> values = readValues(rule.getMatchValues());
         if (rule.getMatchType() == InquiryConstants.RULE_BY_BRAND) {
             return values.stream().anyMatch(v -> priceKeys.brand(v).brandKey().equals(task.getBrandKey()));
         }
         String category = task.getCategory() == null ? "" : task.getCategory().trim();
-        return values.stream().anyMatch(v -> v.trim().equalsIgnoreCase(category));
+        return values.stream().anyMatch(v -> v.trim().equalsIgnoreCase(category) || task.getCategoryId() != null
+                && task.getCategoryId().equals(CategoryMatcher.rootOf(CategoryMatcher.match(v, categories).categoryId(), categories)));
     }
 
     @Override
@@ -651,6 +663,7 @@ public class SourcingTaskServiceImpl implements SourcingTaskService {
                 .ge(SourcingTaskAssigneeDO::getAssignedAt, since));
         List<SourcingTaskDO> ruleTasks = byRule.isEmpty() ? List.of()
                 : taskMapper.selectBatchIds(byRule.stream().map(SourcingTaskAssigneeDO::getTaskId).distinct().toList());
+        List<ProductCategoryDO> categories = inquiryCategories.categories();
         List<AssignRuleVO> list = new ArrayList<>(rules.size());
         for (SourcingAssignRuleDO r : rules) {
             AssignRuleVO vo = new AssignRuleVO();
@@ -662,7 +675,7 @@ public class SourcingTaskServiceImpl implements SourcingTaskService {
             vo.setAssigneeName(names.get(r.getAssigneeId()));
             vo.setStatus(r.getStatus());
             vo.setHits((int) byRule.stream().filter(a -> Objects.equals(a.getAssigneeId(), r.getAssigneeId())
-                    && ruleTasks.stream().anyMatch(t -> t.getId().equals(a.getTaskId()) && matches(r, t))).count());
+                    && ruleTasks.stream().anyMatch(t -> t.getId().equals(a.getTaskId()) && matches(r, t, categories))).count());
             list.add(vo);
         }
         AssignRulesVO vo = new AssignRulesVO();

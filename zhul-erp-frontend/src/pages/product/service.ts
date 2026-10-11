@@ -56,7 +56,12 @@ export interface Brand {
   country: string;
   logoUrl: string;
   brandColor: string;
+  /** 英文简介（独立站等对外场景） */
   description: string;
+  /** 中文简介（系统内显示） */
+  descriptionZh: string;
+  /** 0-普通、1-常做、2-核心 */
+  brandLevel: number;
   isGenuine: number;
   status: number;
   productCount: number;
@@ -73,6 +78,9 @@ export interface BrandOption {
   brandName: string;
   logoUrl: string;
   description: string;
+  descriptionZh?: string;
+  /** 0-普通、1-常做、2-核心；后端已按等级、名称排序 */
+  brandLevel?: number;
   isGenuine: number;
   aliases?: string[];
 }
@@ -83,6 +91,8 @@ export interface SaveBrand {
   logoUrl?: string;
   brandColor?: string;
   description?: string;
+  descriptionZh?: string;
+  brandLevel?: number;
   isGenuine?: number;
   /** 为空不修改，空数组清空 */
   aliases?: string[];
@@ -98,7 +108,10 @@ export interface Category {
   parentId?: number | null;
   /** 细分品类（树形接口返回） */
   children?: Category[];
+  /** 英文简介（独立站等对外场景） */
   description: string;
+  /** 中文简介（系统内显示） */
+  descriptionZh: string;
   sortOrder: number;
   status: number;
   productCount: number;
@@ -115,6 +128,7 @@ export interface CategoryOption {
   categoryNameZh?: string;
   parentId?: number | null;
   description: string;
+  descriptionZh?: string;
 }
 
 export interface SaveCategory {
@@ -124,6 +138,7 @@ export interface SaveCategory {
   /** 为空建一级品类，否则建该一级品类下的细分品类 */
   parentId?: number | null;
   description?: string;
+  descriptionZh?: string;
   sortOrder?: number;
 }
 
@@ -159,8 +174,18 @@ export const countryApi = {
 };
 
 export const brandApi = {
-  page: (params: PageParams & { keyword?: string; status?: number }) =>
-    call<PageResult<Brand>>(`${BASE}/brands`, { params }),
+  page: (
+    params: PageParams & {
+      keyword?: string;
+      status?: number;
+      brandLevel?: number;
+      /** 原产地（国家清单英文名） */
+      country?: string;
+    },
+  ) => call<PageResult<Brand>>(`${BASE}/brands`, { params }),
+  /** 各等级品牌数：all / 2 / 1 / 0 */
+  levelCounts: (params: { status?: number }) =>
+    call<Record<string, number>>(`${BASE}/brands/level-counts`, { params }),
   options: () => call<BrandOption[]>(`${BASE}/brands/options`),
   create: (data: SaveBrand) =>
     call<Brand>(`${BASE}/brands`, { method: 'POST', data }),
@@ -266,6 +291,8 @@ export interface Product {
   categoryId: number;
   categoryCode?: string;
   categoryName?: string;
+  /** 品类中文名 */
+  categoryNameZh?: string;
   seriesId?: number;
   seriesName?: string;
   mpnRaw: string;
@@ -285,7 +312,9 @@ export interface Product {
   inquiryCount?: number;
   dealCount?: number;
   createTime: string;
+  createBy?: string;
   updateTime: string;
+  updateBy?: string;
 }
 
 export interface SaveProduct {
@@ -371,6 +400,10 @@ export interface SpecItem {
   specLabel: string;
   specValue: string;
   specUnit?: string;
+  /** 条件/范围、证据状态、证据来源说明（v2 资料包导入；保存时原样带回） */
+  conditionText?: string;
+  evidence?: string;
+  sourceNote?: string;
   source?: string;
   verified?: number;
   sortOrder?: number;
@@ -400,6 +433,10 @@ export interface SaveRelationship {
   createReverse?: boolean;
 }
 
+/** 营销内容语言：英文、俄文（商品资料只存中文） */
+export type ContentLang = 'en' | 'ru';
+
+/** 规格、应用场景、兼容说明都是商品资料，只维护中文 */
 export const specApi = {
   list: (id: number) =>
     call<SpecItem[]>(`${BASE}/products/${id}/specifications`),
@@ -681,4 +718,327 @@ export const priceApi = {
     }),
   clear: (id: number) =>
     call<void>(`${BASE}/products/${id}/reference-price`, { method: 'DELETE' }),
+};
+
+// ---------- 内容任务：资料（中文，共享）→ 营销（按平台，本公司） ----------
+
+/** 任务包类型：资料包、营销包 */
+export type PackageType = 'facts' | 'marketing';
+
+/** 营销平台：阿里国际站、中国制造网、独立站、社媒（以后端 MarketingPlatform 为准） */
+export type MarketingPlatform = 'alibaba' | 'mic' | 'site' | 'social';
+
+export interface MarketingPlatformOption {
+  code: MarketingPlatform;
+  label: string;
+  langs: string[];
+  /** 本公司是否启用 */
+  enabled: boolean;
+}
+
+/** 某平台的不发布标记（本公司） */
+export interface MarketingSkip {
+  markedBy?: string;
+  markedAt?: string;
+}
+
+export interface ContentTask {
+  productId: number;
+  taskId?: number;
+  brandName?: string;
+  categoryName?: string;
+  mpn: string;
+  productName?: string;
+  /** 1-资料待补、2-资料待核、3-营销待生成、4-已完成 */
+  status: number;
+  /** 独立站英文、俄文 */
+  enAt?: string;
+  enBy?: string;
+  ruAt?: string;
+  ruBy?: string;
+  alibabaAt?: string;
+  alibabaBy?: string;
+  micAt?: string;
+  micBy?: string;
+  socialAt?: string;
+  socialBy?: string;
+  /** 本公司标了不发布的平台 */
+  skips?: Partial<Record<MarketingPlatform, MarketingSkip>>;
+  /** 本公司最近下载营销包 */
+  downloadedAt?: string;
+  /** 资料（所有公司共享）：最近导入、核对、下载资料包 */
+  factImportedAt?: string;
+  factImportedBy?: string;
+  factVerifiedAt?: string;
+  factVerifiedBy?: string;
+  factDownloadedAt?: string;
+  createTime?: string;
+  createBy?: string;
+  updateTime?: string;
+  updateBy?: string;
+}
+
+export interface ContentTaskQuery {
+  page?: number;
+  pageSize?: number;
+  /** 页签，不传为全部。资料任务：1、2、verified；商品运营：unverified、3、4 */
+  tab?: string;
+  brandId?: number;
+  categoryId?: number;
+  keyword?: string;
+}
+
+export interface ContentFile {
+  fileName: string;
+  content: string;
+  /** 跳过的章节 */
+  skip?: string[];
+  /** 修改过的章节：章节 → 新正文 */
+  edits?: Record<string, string>;
+}
+
+export interface ContentBlock {
+  section: string;
+  label: string;
+  /** shared-共享商品库、company-本公司 */
+  target: 'shared' | 'company';
+  raw: string;
+  text?: string;
+  count: number;
+  columns: string[];
+  rows: string[][];
+  errors: string[];
+  hints: string[];
+  skipped: boolean;
+  edited: boolean;
+}
+
+export interface ContentPreview {
+  fileName: string;
+  /** 第几个上传的文件：v2 营销文件拆成多项时，同一文件的项相同 */
+  fileIndex: number;
+  brand?: string;
+  model?: string;
+  /** zh（资料包）、en、ru（营销包） */
+  lang?: string;
+  type?: PackageType;
+  /** 营销包平台 */
+  platform?: MarketingPlatform;
+  /** 2 为商品内容规范 v2，空为旧格式 */
+  schema?: number;
+  /** v2 营销文件拆出的部分：keywords（关键词库）或平台编码；资料包与旧格式为空 */
+  part?: string;
+  productId?: number;
+  productLabel?: string;
+  errors: string[];
+  notes: string[];
+  confirmable: boolean;
+  blocks: ContentBlock[];
+}
+
+export interface ContentConfirmResult {
+  succeeded: number;
+  failed: number;
+  items: {
+    fileName: string;
+    productId?: number;
+    productLabel?: string;
+    lang?: string;
+    platform?: MarketingPlatform;
+    part?: string;
+    success: boolean;
+    message: string;
+  }[];
+}
+
+export interface ProductContent {
+  /** 1-资料待补、2-资料待核、3-营销待生成、4-已完成 */
+  status: number;
+  factImportedAt?: string;
+  factImportedBy?: string;
+  factVerifiedAt?: string;
+  factVerifiedBy?: string;
+  /** 本公司启用的平台，按固定顺序 */
+  platforms: MarketingPlatform[];
+  /** 本公司各平台写入时间：独立站英文、俄文，阿里国际站、中国制造网、社媒 */
+  enAt?: string;
+  ruAt?: string;
+  alibabaAt?: string;
+  micAt?: string;
+  socialAt?: string;
+  skips?: Partial<Record<MarketingPlatform, MarketingSkip>>;
+  /** 阿里国际站、中国制造网、社媒的内容（只含启用且写过的平台） */
+  platformContents?: Partial<Record<MarketingPlatform, PlatformContent>>;
+  /** 资料待确认项（所有公司共享）：1-关键未知字段、2-冲突与待确认 */
+  factNotes?: FactNote[];
+  /** 关键词总库：按档位、库内顺序，标出被哪些启用平台选用 */
+  keywordLibrary?: {
+    keyword: string;
+    tier: 1 | 2 | 3;
+    category?: string;
+    intent?: string;
+    basis?: string;
+    platforms: MarketingPlatform[];
+  }[];
+  /** 独立站：英文、俄文 */
+  langs: Record<
+    ContentLang,
+    {
+      seoTitle?: string;
+      metaDescription?: string;
+      longDescription?: string;
+      geoAnswer?: string;
+      h1?: string;
+      urlSlug?: string;
+      altTexts?: { image: string; alt: string }[];
+      faqs: { question: string; answer: string }[];
+      fileName?: string;
+      confirmedBy?: string;
+      confirmedAt?: string;
+    }
+  >;
+}
+
+export interface FactNote {
+  kind: 1 | 2;
+  item: string;
+  statusText?: string;
+  impact?: string;
+}
+
+export interface PlatformContent {
+  title?: string;
+  titleAlternates?: { title: string; angle?: string }[];
+  /** 该平台选用的关键词，按选用顺序 */
+  keywords: { keyword: string; tier: 1 | 2 | 3 }[];
+  attributes?: { name: string; value: string }[];
+  sellingPoints: string[];
+  detail?: string;
+  faqs?: { question: string; answer: string }[];
+  cta?: string;
+  /** 社媒帖子（v2）；为空时看旧的三列 */
+  posts?: { channel: string; label: string; text: string }[];
+  videos?: { label: string; markdown: string }[];
+  linkedinPost?: string;
+  facebookPost?: string;
+  youtubeDescription?: string;
+  fileName?: string;
+  confirmedBy?: string;
+  confirmedAt?: string;
+}
+
+/** 上传记录：确认写入的文件；其他公司的资料包记录不显示确认人 */
+export interface ContentImportRecord {
+  id: number;
+  fileName: string;
+  packageType?: PackageType;
+  platform?: MarketingPlatform | '';
+  lang?: string;
+  summary?: string;
+  confirmedBy?: string;
+  confirmedAt?: string;
+  /** 是否本公司上传 */
+  mine: boolean;
+  /** 原文，只在详情里有 */
+  rawText?: string;
+}
+
+const CONTENT = `${BASE}/content-tasks`;
+
+/**
+ * 内容任务按入口分组：facts 为「商品资料 → 资料任务」，marketing 为「运营管理 → 商品运营」；
+ * 各入口只接收自己的包类型，权限分别挂在两个菜单上
+ */
+export const contentApi = {
+  page: (entry: PackageType, q: ContentTaskQuery) =>
+    call<{ total: number; records: ContentTask[] }>(
+      `${CONTENT}/${entry}/page`,
+      {
+        method: 'POST',
+        data: q,
+      },
+    ),
+  counts: (entry: PackageType, q: ContentTaskQuery) =>
+    call<Record<string, number>>(`${CONTENT}/${entry}/counts`, {
+      method: 'POST',
+      data: q,
+    }),
+  /** productId：行内上传限定的商品，文件对应的不是它时不能确认 */
+  preview: (entry: PackageType, files: ContentFile[], productId?: number) =>
+    call<ContentPreview[]>(`${CONTENT}/${entry}/preview`, {
+      method: 'POST',
+      data: { files, productId },
+    }),
+  confirm: (entry: PackageType, files: ContentFile[], productId?: number) =>
+    call<ContentConfirmResult>(`${CONTENT}/${entry}/confirm`, {
+      method: 'POST',
+      data: { files, productId },
+    }),
+  /** 商品的上传记录（本公司全部 + 其他公司的资料包），不含原文；type 只看该包类型 */
+  imports: (productId: number, type?: PackageType) =>
+    call<ContentImportRecord[]>(`${CONTENT}/products/${productId}/imports`, {
+      params: { type },
+    }),
+  /** 上传记录详情，含原文 */
+  importDetail: (id: number) =>
+    call<ContentImportRecord>(`${CONTENT}/imports/${id}`),
+  productContent: (productId: number) =>
+    call<ProductContent>(`${CONTENT}/products/${productId}`),
+  /** 资料已核：所有公司共享，记录核对人 */
+  verifyFacts: (productId: number) =>
+    call<void>(`${CONTENT}/products/${productId}/verify-facts`, {
+      method: 'POST',
+    }),
+  /** 营销平台与本公司是否启用 */
+  platforms: () => call<MarketingPlatformOption[]>(`${CONTENT}/platforms`),
+  savePlatforms: (platforms: MarketingPlatform[]) =>
+    call<MarketingPlatformOption[]>(`${CONTENT}/platforms`, {
+      method: 'PUT',
+      data: { platforms },
+    }),
+  /** 本公司某商品在某平台不发布 / 撤销 */
+  skip: (productId: number, platform: MarketingPlatform) =>
+    call<void>(`${CONTENT}/products/${productId}/skips/${platform}`, {
+      method: 'PUT',
+    }),
+  unskip: (productId: number, platform: MarketingPlatform) =>
+    call<void>(`${CONTENT}/products/${productId}/skips/${platform}`, {
+      method: 'DELETE',
+    }),
+  /**
+   * 下载任务包：单个是 Markdown，多个是 zip；从响应头取文件名触发浏览器下载。
+   * 营销包不带平台时包含本公司启用的全部平台；site-ru 为独立站俄文
+   */
+  download: async (
+    productIds: number[],
+    type: PackageType,
+    platform?: MarketingPlatform | 'site-ru',
+  ) => {
+    const res = await request<Blob>(`${CONTENT}/${type}/package`, {
+      method: 'GET',
+      params: { productIds: productIds.join(','), platform },
+      responseType: 'blob',
+      getResponse: true,
+      skipErrorHandler: true,
+    });
+    const data = res.data as Blob;
+    if (data.type.includes('json')) {
+      const body = JSON.parse(await data.text()) as { message?: string };
+      throw new Error(body.message || '下载失败，请稍后重试');
+    }
+    const disposition =
+      (res.headers as Record<string, string | undefined>)?.[
+        'content-disposition'
+      ] ?? '';
+    const match = /filename\*=UTF-8''([^;]+)/.exec(disposition);
+    const name = match ? decodeURIComponent(match[1]) : 'content-task.md';
+    const url = window.URL.createObjectURL(data);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.setTimeout(() => window.URL.revokeObjectURL(url), 1000);
+  },
 };

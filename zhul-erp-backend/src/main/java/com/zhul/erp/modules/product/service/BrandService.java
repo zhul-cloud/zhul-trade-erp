@@ -7,6 +7,7 @@ import com.zhul.erp.modules.product.dto.BrandVO;
 import com.zhul.erp.modules.product.dto.SaveBrandRequest;
 
 import java.util.List;
+import java.util.Map;
 
 public interface BrandService {
 
@@ -26,4 +27,7 @@ public interface BrandService {
 
     /** 软删除；下面仍有未删除商品时拒绝 */
     void delete(Long id);
+
+    /** 各等级品牌数（品牌列表页签用）：all / 2 / 1 / 0 */
+    Map<String, Long> levelCounts(BrandQuery query);
 }

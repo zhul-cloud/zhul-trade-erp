@@ -82,8 +82,10 @@ class NavigationContractTest extends InquiryContractSupport {
     void adminSeesDepartmentGroupsWithoutPlaceholders() throws Exception {
         loginAsAdmin("it_nav_admin");
         Map<String, List<String>> all = sidebar(token("it_nav_admin"));
-        assertEquals(List.of("工作台", "业务管理", "采购管理", "仓库管理", "单证物流", "财务管理", "商品资料", "业务设置", "系统管理", "租户管理"),
-                new ArrayList<>(all.keySet()));
+        assertEquals(List.of("工作台", "业务管理", "采购管理", "仓库管理", "单证物流", "财务管理", "商品资料", "运营管理", "业务设置", "系统管理",
+                "租户管理"), new ArrayList<>(all.keySet()));
+        assertEquals(List.of("商品", "商品候选", "资料任务", "品牌", "品类", "系列"), all.get("商品资料"));
+        assertEquals(List.of("商品运营"), all.get("运营管理"), "运营管理：商品运营");
         assertEquals(List.of("商机", "客户", "客户询盘", "报价单", "PI", "销售订单"), all.get("业务管理"), "商机统计从侧边栏隐藏");
         assertEquals(List.of("兼职看板", "询价分配", "我的询价", "历史询价", "采购需求", "采购单", "供应商发货", "供应商"), all.get("采购管理"));
         assertEquals(List.of("入库验收", "出库打包", "暂存货", "拍摄任务"), all.get("仓库管理"));

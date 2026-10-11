@@ -17,6 +17,14 @@ import { DESCRIPTION_MAX } from '../constants';
 import { type Category, categoryApi, readBizError } from '../service';
 import { PageHeader, ProductThemeProvider } from '../theme';
 
+const TWO_LINES: React.CSSProperties = {
+  display: '-webkit-box',
+  WebkitLineClamp: 2,
+  WebkitBoxOrient: 'vertical',
+  overflow: 'hidden',
+  lineHeight: 1.5,
+};
+
 const CategoryPage: React.FC = () => {
   const { message, modal } = App.useApp();
   const access = useAccess();
@@ -128,13 +136,18 @@ const CategoryPage: React.FC = () => {
         ),
     },
     {
-      title: '简介',
-      dataIndex: 'description',
+      title: '中文简介',
+      dataIndex: 'descriptionZh',
       search: false,
-      ellipsis: true,
-      width: 260,
+      width: 280,
       render: (_, r) =>
-        r.description || <span style={{ opacity: 0.6 }}>未填写</span>,
+        r.descriptionZh ? (
+          <span title={r.descriptionZh} style={TWO_LINES}>
+            {r.descriptionZh}
+          </span>
+        ) : (
+          <span style={{ opacity: 0.6 }}>未填写</span>
+        ),
     },
     {
       title: '排序',
@@ -306,6 +319,7 @@ const CategoryPage: React.FC = () => {
         categoryNameZh?: string;
         parentId?: number | null;
         description?: string;
+        descriptionZh?: string;
         sortOrder?: number;
       }>
         title={
@@ -395,16 +409,27 @@ const CategoryPage: React.FC = () => {
           ]}
         />
         <ProFormTextArea
-          name="description"
-          label="品类简介"
-          placeholder="一两句话介绍这个品类，独立站品类页会用到"
+          name="descriptionZh"
+          label="中文简介"
+          placeholder="一两句话介绍这个品类，系统内显示"
           fieldProps={{
             maxLength: DESCRIPTION_MAX,
             showCount: true,
-            autoSize: { minRows: 3, maxRows: 6 },
+            autoSize: { minRows: 2, maxRows: 5 },
           }}
           rules={[{ max: DESCRIPTION_MAX, message: '简介不能超过 500 个字符' }]}
-          extra="属于品类本身，所有品牌下的商品共用；有商品后也可以修改"
+        />
+        <ProFormTextArea
+          name="description"
+          label="英文简介"
+          placeholder="English description for the website category page"
+          fieldProps={{
+            maxLength: DESCRIPTION_MAX,
+            showCount: true,
+            autoSize: { minRows: 2, maxRows: 5 },
+          }}
+          rules={[{ max: DESCRIPTION_MAX, message: '简介不能超过 500 个字符' }]}
+          extra="独立站品类页等对外场景使用"
         />
         <ProFormDigit
           name="sortOrder"

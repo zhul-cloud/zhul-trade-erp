@@ -75,6 +75,15 @@ export default [
         component: './product/candidates',
       },
       {
+        path: '/product/fact-tasks',
+        name: 'factTasks',
+        icon: 'fileText',
+        access: 'productFactTasks',
+        component: './product/fact-tasks',
+      },
+      // 原「内容任务」改名「资料任务」，旧地址保留跳转
+      { path: '/product/content-tasks', redirect: '/product/fact-tasks' },
+      {
         path: '/product/brands',
         name: 'brands',
         icon: 'tag',
@@ -94,6 +103,29 @@ export default [
         icon: 'cluster',
         access: 'productSeries',
         component: './product/series',
+      },
+    ],
+  },
+  {
+    // 运营管理：本公司各平台的营销内容（商品资料管共享主数据，这里管运营）
+    path: '/operations',
+    name: 'operations',
+    icon: 'fund',
+    access: 'operationsMenu',
+    routes: [
+      { path: '/operations', redirect: '/operations/products' },
+      {
+        path: '/operations/products',
+        name: 'products',
+        icon: 'shop',
+        access: 'operationsProducts',
+        component: './operations/products',
+      },
+      {
+        path: '/operations/products/:id',
+        hideInMenu: true,
+        access: 'operationsProducts',
+        component: './operations/products/detail',
       },
     ],
   },

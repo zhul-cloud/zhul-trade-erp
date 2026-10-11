@@ -232,7 +232,7 @@ class SupplierProductScopeContractTest extends IntegrationTestBase {
     }
 
     @Test
-    void categoryUsedBySupplierCannotBeDeletedAndProductsCannotUseSubCategory() throws Exception {
+    void categoryUsedBySupplierCannotBeDeletedAndProductsCanUseSubCategory() throws Exception {
         loginAsAdmin("scope_admin");
         String admin = token("scope_admin");
         long siemens = brand(admin, "ScopeIT Siemens");
@@ -255,6 +255,7 @@ class SupplierProductScopeContractTest extends IntegrationTestBase {
 
         JsonNode product = call(json(post("/api/v1/product/products"), "{\"brandId\":" + siemens + ",\"categoryId\":" + plc
                 + ",\"mpnRaw\":\"SCOPE-IT-1\"}"), admin);
-        assertEquals("商品只能选择一级品类", product.path("message").asText());
+        assertEquals(0, product.path("code").asInt(), "商品可以挂细分品类：" + product);
+        assertEquals(plc, product.path("data").path("categoryId").asLong());
     }
 }

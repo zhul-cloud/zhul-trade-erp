@@ -7,7 +7,13 @@ import java.util.List;
 
 public interface ProductRelationshipService {
 
-    List<RelationshipVO> list(Long productId);
+    /** 英文说明（兼容现有调用方） */
+    default List<RelationshipVO> list(Long productId) {
+        return list(productId, null);
+    }
+
+    /** 说明按语言返回：英文取关系本身的说明，中文、俄文取多语言说明，没有时为空 */
+    List<RelationshipVO> list(Long productId, String lang);
 
     /** 创建关系；对称类型且 createReverse=true 时同一事务再创建反向关系 */
     RelationshipVO create(Long productId, SaveRelationshipRequest req);

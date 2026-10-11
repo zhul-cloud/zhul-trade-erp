@@ -2,6 +2,7 @@ import {
   CheckOutlined,
   CloseOutlined,
   MergeCellsOutlined,
+  PlusOutlined,
   SearchOutlined,
 } from '@ant-design/icons';
 import { Link, useAccess } from '@umijs/max';
@@ -20,6 +21,7 @@ import {
 } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
 import { Card, PageTitle, Pill } from '@/pages/inquiry/shared/components';
+import { groupedCategoryOptions } from '@/pages/product/components/categoryOptions';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { auditColumns } from '@/pages/purchase/components';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -35,6 +37,7 @@ import {
   type SeriesOption,
   seriesApi,
 } from '../service';
+import { ImportDrawer } from './ImportDrawer';
 import {
   type ApproveBody,
   type Candidate,
@@ -184,12 +187,12 @@ const ReviewDrawer: React.FC<{
     Promise.all([
       candidateApi.detail(id),
       brandApi.options(),
-      categoryApi.options(1),
+      categoryApi.options(0),
     ])
       .then(([d, b, cats]) => {
         setC(d);
         setBrands(b);
-        setCategories(cats.filter((x) => !x.parentId));
+        setCategories(cats);
         setForm({
           brandMode: d.brandId ? 'EXISTING' : 'NEW',
           brandId: d.brandId ?? undefined,
@@ -496,12 +499,7 @@ const ReviewDrawer: React.FC<{
                     value={form.categoryId}
                     showSearch={{ optionFilterProp: 'label' }}
                     placeholder="只能从品类里选"
-                    options={categories.map((x) => ({
-                      value: x.id,
-                      label: x.categoryNameZh
-                        ? `${x.categoryNameZh}（${x.categoryName}）`
-                        : x.categoryName,
-                    }))}
+                    options={groupedCategoryOptions(categories)}
                     onChange={(v) => patch({ categoryId: v })}
                     style={{ width: '100%' }}
                     aria-label="品类"
@@ -510,8 +508,8 @@ const ReviewDrawer: React.FC<{
                     style={{ fontSize: 12, color: palette.mute, marginTop: 4 }}
                   >
                     {c.categoryText
-                      ? `询盘里写的是「${c.categoryText}」`
-                      : '询盘没有写品类'}
+                      ? `来源里写的是「${c.categoryText}」`
+                      : '来源里没有写品类'}
                   </div>
                 </div>
                 <div>
@@ -611,7 +609,7 @@ const ReviewDrawer: React.FC<{
                 <div
                   style={{ fontSize: 12, color: palette.mute, marginTop: 4 }}
                 >
-                  取询盘里 AI 生成的中文描述，可改
+                  取询盘或导入文件里的中文描述，可改
                 </div>
               </div>
             </>
@@ -677,6 +675,12 @@ const ReviewDrawer: React.FC<{
                   )}
                   {s.soId && (
                     <Link to={`/sales/orders/${s.soId}`}>{s.soNo}</Link>
+                  )}
+                  {s.fileName && (
+                    <span style={{ color: palette.sub }}>
+                      {s.fileName}
+                      {s.createBy ? ` · ${s.createBy}` : ''}
+                    </span>
                   )}
                   <span style={{ flex: 1 }} />
                   <span style={{ fontSize: 12, color: palette.mute }}>
@@ -833,6 +837,7 @@ const Candidates: React.FC = () => {
   const canReview = !!access['product:candidate:review'];
   const [tab, setTab] = useState<Tab>(1);
   const [pendingCount, setPendingCount] = useState<number>();
+  const [importOpen, setImportOpen] = useState(false);
   const [keyword, setKeyword] = useState('');
   const [level, setLevel] = useState<number>();
   const [query, setQuery] = useState<{ keyword?: string; level?: number }>({});
@@ -1022,20 +1027,24 @@ const Candidates: React.FC = () => {
       <PageTitle
         crumbs={['商品候选']}
         title="商品候选"
-        description="询盘、成交带进来的新型号先在这里审核，通过后才进入商品库；被问得多、成交过的优先审核。"
+        description="询盘、成交带进来的新型号，以及上传商品文件添加的型号，先在这里审核，通过后才进入商品库；被问得多、成交过的优先审核。"
         actions={
-          tab === 1 &&
-          canReview && (
-            <Button
-              type="primary"
-              icon={<CheckOutlined />}
-              disabled={selected.length === 0}
-              loading={busy}
-              onClick={batch}
-            >
-              批量通过{selected.length ? ` · ${selected.length}` : ''}
+          <>
+            <Button icon={<PlusOutlined />} onClick={() => setImportOpen(true)}>
+              添加候选
             </Button>
-          )
+            {tab === 1 && canReview && (
+              <Button
+                type="primary"
+                icon={<CheckOutlined />}
+                disabled={selected.length === 0}
+                loading={busy}
+                onClick={batch}
+              >
+                批量通过{selected.length ? ` · ${selected.length}` : ''}
+              </Button>
+            )}
+          </>
         }
       />
       <div
@@ -1139,6 +1148,11 @@ const Candidates: React.FC = () => {
         id={viewing}
         canReview={canReview}
         onClose={() => setViewing(undefined)}
+        onDone={changed}
+      />
+      <ImportDrawer
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
         onDone={changed}
       />
     </div>

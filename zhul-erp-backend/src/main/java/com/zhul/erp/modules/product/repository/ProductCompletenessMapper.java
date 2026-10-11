@@ -17,7 +17,7 @@ public interface ProductCompletenessMapper {
     @Select("<script>"
             + "SELECT product_id, 'media' AS module_key FROM product_media WHERE deleted_at IS NULL AND "
             + CompletenessSql.MEDIA_DONE + " AND product_id IN <foreach collection='ids' item='id' open='(' separator=',' close=')'>#{id}</foreach> GROUP BY product_id "
-            + "UNION ALL SELECT product_id, 'specifications' FROM product_specification WHERE deleted_at IS NULL AND product_id IN <foreach collection='ids' item='id' open='(' separator=',' close=')'>#{id}</foreach> GROUP BY product_id "
+            + "UNION ALL SELECT product_id, 'specifications' FROM product_specification WHERE deleted_at IS NULL AND lang = 'zh' AND product_id IN <foreach collection='ids' item='id' open='(' separator=',' close=')'>#{id}</foreach> GROUP BY product_id "
             + "UNION ALL SELECT product_id, 'logistics' FROM product_logistics WHERE deleted_at IS NULL AND "
             + CompletenessSql.LOGISTICS_FILLED + " AND product_id IN <foreach collection='ids' item='id' open='(' separator=',' close=')'>#{id}</foreach> GROUP BY product_id "
             + "UNION ALL SELECT product_id, 'customs' FROM product_customs WHERE deleted_at IS NULL AND "
@@ -25,7 +25,7 @@ public interface ProductCompletenessMapper {
             + "UNION ALL SELECT product_id, 'referencePrice' FROM product_reference_price WHERE deleted_at IS NULL AND product_id IN <foreach collection='ids' item='id' open='(' separator=',' close=')'>#{id}</foreach> GROUP BY product_id "
             + "UNION ALL SELECT product_id, 'relationships' FROM product_relationship WHERE deleted_at IS NULL AND product_id IN <foreach collection='ids' item='id' open='(' separator=',' close=')'>#{id}</foreach> GROUP BY product_id "
             + "UNION ALL SELECT product_id, 'documents' FROM product_document WHERE deleted_at IS NULL AND product_id IN <foreach collection='ids' item='id' open='(' separator=',' close=')'>#{id}</foreach> GROUP BY product_id "
-            + "UNION ALL SELECT product_id, 'applications' FROM product_application WHERE deleted_at IS NULL AND product_id IN <foreach collection='ids' item='id' open='(' separator=',' close=')'>#{id}</foreach> GROUP BY product_id "
+            + "UNION ALL SELECT product_id, 'applications' FROM product_application WHERE deleted_at IS NULL AND lang = 'zh' AND product_id IN <foreach collection='ids' item='id' open='(' separator=',' close=')'>#{id}</foreach> GROUP BY product_id "
             + "UNION ALL SELECT product_id, 'faq' FROM product_faq WHERE deleted_at IS NULL AND "
             + CompletenessSql.FAQ_DONE + " AND product_id IN <foreach collection='ids' item='id' open='(' separator=',' close=')'>#{id}</foreach> GROUP BY product_id"
             + "</script>")

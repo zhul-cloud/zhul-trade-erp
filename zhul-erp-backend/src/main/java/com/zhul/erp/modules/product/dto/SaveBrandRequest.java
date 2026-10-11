@@ -14,6 +14,10 @@ public class SaveBrandRequest {
     private String brandColor;
     /** 品牌简介，≤500 字；可空 */
     private String description;
+    /** 中文简介 */
+    private String descriptionZh;
+    /** 品牌等级（0-普通、1-常做、2-核心），不传时新建为普通、修改时不变 */
+    private Integer brandLevel;
     /** 是否原厂正品（0-兼容/非原厂、1-原厂正品）；创建时缺省为 1，修改时缺省为不变 */
     private Integer isGenuine;
     /** 别名（每个 ≤64）；为 null 表示不修改，空列表表示清空 */

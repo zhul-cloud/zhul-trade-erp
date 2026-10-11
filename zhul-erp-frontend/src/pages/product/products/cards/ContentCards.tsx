@@ -299,11 +299,13 @@ export const ApplicationCard: React.FC<Common> = ({
       title="应用场景"
       done={done}
       actions={
-        !readOnly && (
-          <Button icon={<PlusOutlined />} onClick={() => open('new')}>
-            添加
-          </Button>
-        )
+        <Space size={8}>
+          {!readOnly && (
+            <Button icon={<PlusOutlined />} onClick={() => open('new')}>
+              添加
+            </Button>
+          )}
+        </Space>
       }
     >
       {error ? (
@@ -462,7 +464,7 @@ export const FaqCard: React.FC<Common & { platform: boolean }> = ({
   return (
     <CardShell
       id="card-faq"
-      title="常见问题"
+      title="技术问答"
       done={done}
       actions={
         !readOnly && (

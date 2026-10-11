@@ -8,6 +8,9 @@ public final class CandidateConstants {
     private CandidateConstants() {
     }
 
+    /** 兜底一级品类「其他」的编码：匹配不到品类时建议它 */
+    public static final String CATEGORY_OTHER = "other";
+
     public static final int STATUS_PENDING = 1;
     public static final int STATUS_ARCHIVED = 2;
     public static final int STATUS_MERGED = 3;

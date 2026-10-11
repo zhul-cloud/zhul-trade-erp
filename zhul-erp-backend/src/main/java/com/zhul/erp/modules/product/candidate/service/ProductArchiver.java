@@ -2,6 +2,8 @@ package com.zhul.erp.modules.product.candidate.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.zhul.erp.common.exception.BizException;
+import com.zhul.erp.framework.tenant.TenantContext;
 import com.zhul.erp.modules.inquiry.constants.InquiryConstants;
 import com.zhul.erp.modules.inquiry.item.entity.InquiryItemDO;
 import com.zhul.erp.modules.inquiry.item.repository.InquiryItemMapper;
@@ -18,6 +20,7 @@ import com.zhul.erp.modules.product.entity.ProductDO;
 import com.zhul.erp.modules.product.repository.ProductCategoryMapper;
 import com.zhul.erp.modules.product.repository.ProductMapper;
 import com.zhul.erp.modules.product.candidate.support.ModelRules;
+import com.zhul.erp.modules.product.support.CategoryMatcher;
 import com.zhul.erp.modules.product.support.MpnNormalizer;
 import com.zhul.erp.modules.sales.constants.SalesConstants;
 import com.zhul.erp.modules.sales.entity.SalesOrderDO;
@@ -37,7 +40,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -150,7 +152,7 @@ public class ProductArchiver {
         c.setMpnRaw(cut(model, 128));
         c.setMpnNormalized(key);
         c.setCategoryText(cut(nz(item.getCategory()).trim(), 64));
-        c.setCategoryId(suggestCategory(item.getCategory(), categories));
+        c.setCategoryId(categoryFor(item, categories));
         String en = nz(item.getDescriptionEn()).trim();
         String zh = nz(item.getDescription()).trim();
         // 商品名称默认用中文描述（系统内中文），没有时才用英文
@@ -169,6 +171,90 @@ public class ProductArchiver {
             c = byKey(brandKey, key);
         }
         return c;
+    }
+
+    /** 一个导入文件要写进候选池的内容（spec product/product-candidate「从商品文件导入候选」） */
+    public record ImportItem(Long brandId, String brandKey, String brandText, String model, String mpnKey,
+                             Long categoryId, String categoryText, String productName, String description,
+                             String descriptionEn, String fileName) {
+    }
+
+    /**
+     * 导入来源：与询盘同一把锁、同一个候选键。没有候选（或曾因没有来源被软删除）时新建或恢复为待审核；
+     * 已有待审核候选只补空字段；写一条「导入」来源（本公司、文件名）后重算。返回 true 表示新建了候选。
+     * 候选已建档、并入或驳回时报错（预览后状态变了）。须在调用方事务内执行。
+     */
+    public boolean importSource(ImportItem in) {
+        candidateMapper.lockByKey(in.brandKey(), in.mpnKey());
+        ProductCandidateDO c = byKey(in.brandKey(), in.mpnKey());
+        boolean created = c == null || c.getDeletedAt() != null;
+        if (c == null) {
+            c = new ProductCandidateDO();
+            c.setTenantId(ProductConstants.PLATFORM_TENANT_ID);
+            c.setBrandId(in.brandId());
+            c.setBrandText(cut(nz(in.brandText()).trim(), 64));
+            c.setBrandKey(in.brandKey());
+            c.setMpnRaw(cut(in.model().trim(), 128));
+            c.setMpnNormalized(in.mpnKey());
+            c.setCategoryText(cut(nz(in.categoryText()).trim(), 64));
+            c.setCategoryId(in.categoryId());
+            c.setProductName(cut(nz(in.productName()), NAME_MAX));
+            c.setDescription(cut(nz(in.description()), TEXT_MAX));
+            c.setDescriptionEn(cut(nz(in.descriptionEn()), TEXT_MAX));
+            c.setStatus(CandidateConstants.STATUS_PENDING);
+            c.setLevel(CandidateConstants.LEVEL_INQUIRY);
+            c.setSourceCount(0);
+            c.setRejectReason(0);
+            c.setRejectNote("");
+            try {
+                candidateMapper.insert(c);
+            } catch (DuplicateKeyException e) {
+                c = byKey(in.brandKey(), in.mpnKey());
+                created = false;
+            }
+        } else if (c.getDeletedAt() != null) {
+            candidateMapper.update(null, new LambdaUpdateWrapper<ProductCandidateDO>()
+                    .eq(ProductCandidateDO::getId, c.getId())
+                    .set(ProductCandidateDO::getDeletedAt, null)
+                    .set(ProductCandidateDO::getStatus, CandidateConstants.STATUS_PENDING));
+            c.setDeletedAt(null);
+            c.setStatus(CandidateConstants.STATUS_PENDING);
+        } else if (c.getStatus() != CandidateConstants.STATUS_PENDING) {
+            throw new BizException("该型号的候选已" + CandidateConstants.STATUS_NAMES.get(c.getStatus()) + "，没有导入");
+        }
+        // 已有候选只补空字段，不覆盖审核人或询盘已填的内容
+        boolean fill = false;
+        if (c.getBrandId() == null && in.brandId() != null) {
+            c.setBrandId(in.brandId());
+            fill = true;
+        }
+        if (c.getCategoryId() == null && in.categoryId() != null) {
+            c.setCategoryId(in.categoryId());
+            fill = true;
+        }
+        if (!StringUtils.hasText(c.getProductName()) && StringUtils.hasText(in.productName())) {
+            c.setProductName(cut(in.productName(), NAME_MAX));
+            fill = true;
+        }
+        if (!StringUtils.hasText(c.getDescription()) && StringUtils.hasText(in.description())) {
+            c.setDescription(cut(in.description(), TEXT_MAX));
+            fill = true;
+        }
+        if (!StringUtils.hasText(c.getDescriptionEn()) && StringUtils.hasText(in.descriptionEn())) {
+            c.setDescriptionEn(cut(in.descriptionEn(), TEXT_MAX));
+            fill = true;
+        }
+        if (fill) {
+            candidateMapper.updateById(c);
+        }
+        ProductCandidateSourceDO s = new ProductCandidateSourceDO();
+        s.setTenantId(TenantContext.getTenantId());
+        s.setCandidateId(c.getId());
+        s.setSourceType(CandidateConstants.SOURCE_IMPORT);
+        s.setFileName(cut(nz(in.fileName()), 255));
+        sourceMapper.insert(s);
+        refresh(c.getId());
+        return created;
     }
 
     private ProductCandidateDO byKey(String brandKey, String key) {
@@ -321,39 +407,67 @@ public class ProductArchiver {
     }
 
     /**
-     * 品类建议：询盘的品类文字与品类中文名、英文名、编码比较，先精确再包含；命中二级品类时取其一级品类（商品只能挂一级品类）。
-     * 只有唯一结果时才建议。
+     * 品类建议：按 {@link CategoryMatcher} 的规则匹配询盘的品类文字；同时命中多个一级品类时不建议，由审核人选择；
+     * 文字为空或都没命中时建议兜底品类「其他」。
      */
+    /** 候选的建议品类：询盘型号已关联启用的品类时直接用它，否则按品类文字匹配 */
+    static Long categoryFor(InquiryItemDO item, List<ProductCategoryDO> categories) {
+        Long linked = item.getCategoryId();
+        if (linked != null && categories.stream().anyMatch(c -> linked.equals(c.getId()))) {
+            return linked;
+        }
+        return suggestCategory(item.getCategory(), categories);
+    }
+
     static Long suggestCategory(String text, List<ProductCategoryDO> categories) {
-        String t = text == null ? "" : text.trim().toLowerCase(Locale.ROOT);
-        if (t.isEmpty()) {
+        CategoryMatcher.Result r = CategoryMatcher.match(text, categories);
+        if (r.ambiguous()) {
             return null;
         }
-        Map<Long, ProductCategoryDO> byId = categories.stream().collect(Collectors.toMap(ProductCategoryDO::getId, c -> c, (a, b) -> a));
-        for (boolean exact : new boolean[] {true, false}) {
-            Set<Long> hits = new LinkedHashSet<>();
-            for (ProductCategoryDO c : categories) {
-                for (String name : new String[] {c.getCategoryNameZh(), c.getCategoryName(), c.getCategoryCode()}) {
-                    String n = name == null ? "" : name.trim().toLowerCase(Locale.ROOT);
-                    if (n.isEmpty()) {
-                        continue;
-                    }
-                    if (exact ? n.equals(t) : (n.contains(t) || t.contains(n))) {
-                        ProductCategoryDO top = c.getParentId() == null ? c : byId.get(c.getParentId());
-                        if (top != null && top.getParentId() == null) {
-                            hits.add(top.getId());
-                        }
-                    }
+        return r.categoryId() != null ? r.categoryId() : CategoryMatcher.otherId(categories, CandidateConstants.CATEGORY_OTHER);
+    }
+
+    /**
+     * 启动补算：待审核候选按当前规则重新建议一次。没有建议品类的补上（同时命中多个品类的仍留空）；
+     * 建议为一级品类、按当前规则能细化到它的某个细分品类的，更新为细分品类。
+     */
+    public int resuggestCategories() {
+        List<ProductCategoryDO> categories = categoryMapper.selectList(new LambdaQueryWrapper<ProductCategoryDO>()
+                .eq(ProductCategoryDO::getTenantId, ProductConstants.PLATFORM_TENANT_ID)
+                .eq(ProductCategoryDO::getStatus, ProductConstants.STATUS_ENABLED)
+                .isNull(ProductCategoryDO::getDeletedAt));
+        Set<Long> topIds = categories.stream().filter(c -> c.getParentId() == null)
+                .map(ProductCategoryDO::getId).collect(Collectors.toSet());
+        List<ProductCandidateDO> rows = candidateMapper.selectList(new LambdaQueryWrapper<ProductCandidateDO>()
+                .select(ProductCandidateDO::getId, ProductCandidateDO::getCategoryId, ProductCandidateDO::getCategoryText)
+                .eq(ProductCandidateDO::getStatus, CandidateConstants.STATUS_PENDING)
+                .and(w -> w.isNull(ProductCandidateDO::getCategoryId)
+                        .or(!topIds.isEmpty()).in(!topIds.isEmpty(), ProductCandidateDO::getCategoryId, topIds))
+                .isNull(ProductCandidateDO::getDeletedAt));
+        int updated = 0;
+        for (ProductCandidateDO c : rows) {
+            Long categoryId = suggestCategory(c.getCategoryText(), categories);
+            Long current = c.getCategoryId();
+            boolean fill = current == null && categoryId != null;
+            boolean refine = current != null && categoryId != null && !categoryId.equals(current)
+                    && current.equals(CategoryMatcher.rootOf(categoryId, categories));
+            if (fill || refine) {
+                // 条件更新：只改仍待审核、品类仍是读到时那个的，避免并发覆盖
+                LambdaUpdateWrapper<ProductCandidateDO> w = new LambdaUpdateWrapper<ProductCandidateDO>()
+                        .eq(ProductCandidateDO::getId, c.getId())
+                        .eq(ProductCandidateDO::getStatus, CandidateConstants.STATUS_PENDING)
+                        .set(ProductCandidateDO::getCategoryId, categoryId)
+                        .set(ProductCandidateDO::getUpdateTime, LocalDateTime.now())
+                        .set(ProductCandidateDO::getUpdateBy, "sys");
+                if (fill) {
+                    w.isNull(ProductCandidateDO::getCategoryId);
+                } else {
+                    w.eq(ProductCandidateDO::getCategoryId, current);
                 }
-            }
-            if (hits.size() == 1) {
-                return hits.iterator().next();
-            }
-            if (hits.size() > 1) {
-                return null;
+                updated += candidateMapper.update(null, w);
             }
         }
-        return null;
+        return updated;
     }
 
     private static String nz(String s) {

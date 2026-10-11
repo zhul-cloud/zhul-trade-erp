@@ -24,6 +24,7 @@ const GROUPS: [string, string][] = [
   ['/quotation/', '业务管理'],
   ['/sales/', '业务管理'],
   ['/product/', '商品资料'],
+  ['/operations/', '运营管理'],
   ['/system/', '系统管理'],
   ['/tenant/', '租户管理'],
 ];

@@ -21,6 +21,8 @@ public class SourcingTaskDO {
     private String brand;
     private String brandKey;
     private String category;
+    /** 一级品类ID；型号没关联品类时为空 */
+    private Long categoryId;
     private Integer itemCount;
     private Integer urgent;
     /** 见 InquiryConstants.TASK_* */

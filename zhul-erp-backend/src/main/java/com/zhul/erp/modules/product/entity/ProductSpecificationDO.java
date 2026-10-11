@@ -20,6 +20,8 @@ public class ProductSpecificationDO {
     private Integer tenantId;
     /** 商品ID，关联product.id */
     private Long productId;
+    /** 语言（zh-中文、en-英文、ru-俄文） */
+    private String lang;
     /** 规格编码，小写蛇形，如rated_voltage；同一商品内唯一 */
     private String specKey;
     /** 规格显示名称，如Rated Voltage */
@@ -29,6 +31,12 @@ public class ProductSpecificationDO {
     /** 单位，如V DC；与规格值分开存储 */
     private String specUnit;
     /** 数据来源，如Manufacturer Datasheet/询盘单 */
+    /** 条件/范围（v2 资料包） */
+    private String conditionText;
+    /** 证据状态原文：官方确认、用户提供、第三方信息、应用推断、待确认等 */
+    private String evidence;
+    /** 证据来源说明（来源编号与名称） */
+    private String sourceNote;
     private String source;
     /** 是否已核实（0-未核实、1-已核实） */
     private Integer verified;

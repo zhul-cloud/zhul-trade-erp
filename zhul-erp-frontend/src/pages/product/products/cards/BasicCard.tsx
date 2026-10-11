@@ -1,6 +1,7 @@
 import { LockOutlined } from '@ant-design/icons';
 import { App, Button, Form, Input, Select, Space } from 'antd';
 import React, { useEffect, useState } from 'react';
+import { groupedCategoryOptions } from '../../components/categoryOptions';
 import {
   type BrandOption,
   brandApi,
@@ -55,7 +56,7 @@ export const BasicCard: React.FC<{
       .then(setBrands)
       .catch(() => {});
     categoryApi
-      .options()
+      .options(0)
       .then(setCategories)
       .catch(() => {});
   }, [editing]);
@@ -188,10 +189,8 @@ export const BasicCard: React.FC<{
               rules={[{ required: true, message: '请选择品类' }]}
             >
               <Select
-                options={categories.map((c) => ({
-                  value: c.id,
-                  label: c.categoryName,
-                }))}
+                showSearch={{ optionFilterProp: 'label' }}
+                options={groupedCategoryOptions(categories)}
               />
             </Form.Item>
             <Form.Item name="seriesId" label="系列（可选）">
