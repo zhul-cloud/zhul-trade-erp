@@ -383,7 +383,9 @@ export const UploadDrawer: React.FC<{
             <p className="ant-upload-hint">
               资料包 type: facts、lang: zh；营销包 type: marketing，platform 为
               alibaba、mic、site 或 social（独立站 lang 可以是 en 或
-              ru，其他平台只有 en）；一次最多 50 个，每个不超过 1MB
+              ru，其他平台只有 en）；也可以直接上传 llm-wiki
+              商品文件，按中文资料包导入规格、物流、海关；一次最多 50
+              个，每个不超过 1MB
             </p>
           </Upload.Dragger>
           <Alert

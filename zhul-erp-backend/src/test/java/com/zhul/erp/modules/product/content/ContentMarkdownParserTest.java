@@ -3,6 +3,7 @@ package com.zhul.erp.modules.product.content;
 import com.zhul.erp.modules.product.content.support.ContentDraft;
 import com.zhul.erp.modules.product.content.support.ContentMarkdownParser;
 import com.zhul.erp.modules.product.content.support.ContentSection;
+import com.zhul.erp.modules.product.content.support.FactFields;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -331,6 +332,74 @@ class ContentMarkdownParserTest {
         assertThat(social.getNotes()).anyMatch(n -> n.contains("小红书") && n.contains("不认识"));
         assertThat(ContentMarkdownParser.parseBlock(ContentSection.LINKEDIN, "x".repeat(3001)).getErrors())
                 .anyMatch(e -> e.contains("3000"));
+    }
+
+    @Test
+    void wikiProductFileAsFactsPackage() throws IOException {
+        ContentDraft d = ContentMarkdownParser.parse(resource("wiki-DOP-107EG.md"));
+        assertThat(d.getErrors()).isEmpty();
+        assertThat(d.getType()).isEqualTo("facts");
+        assertThat(d.getLang()).isEqualTo("zh");
+        assertThat(d.getBrand()).isEqualTo("Delta");
+        assertThat(d.getModel()).isEqualTo("DOP-107EG");
+        assertThat(d.getNotes().get(0)).contains("llm-wiki");
+        assertThat(d.getBlocks().get(ContentSection.SUMMARY).getText()).isEqualTo("DOP-100系列7英寸人机界面触摸屏，现货多台");
+        assertThat(d.getBlocks().get(ContentSection.SERIES).getText()).isEqualTo("DOP-100");
+        ContentDraft.Block specs = d.getBlocks().get(ContentSection.SPECS);
+        assertThat(specs.getErrors()).isEmpty();
+        assertThat(specs.getSpecs()).hasSize(12).first().isEqualTo(new ContentDraft.SpecRow("屏幕尺寸", "7英寸", ""));
+        ContentDraft.Block logistics = d.getBlocks().get(ContentSection.LOGISTICS);
+        assertThat(logistics.getFields()).containsEntry(FactFields.LENGTH, "184").containsEntry(FactFields.WIDTH, "144")
+                .containsEntry(FactFields.HEIGHT, "51.5").containsEntry(FactFields.PACKAGE_TYPE, "原厂Delta印刷纸盒")
+                .containsEntry(FactFields.PACKAGE_QUANTITY, "1").doesNotContainKey(FactFields.NET_WEIGHT)
+                .doesNotContainKey(FactFields.SHIPPING_NOTE);
+        ContentDraft.Block customs = d.getBlocks().get(ContentSection.CUSTOMS);
+        assertThat(customs.getFields()).containsEntry(FactFields.ORIGIN, "CN")
+                .containsEntry(FactFields.NAME_CN, "人机界面触摸屏").containsEntry(FactFields.NAME_EN, "Human Machine Interface")
+                .doesNotContainKey(FactFields.HS_CODE);
+        assertThat(d.getBlocks()).doesNotContainKey(ContentSection.SEO_TITLE);
+
+        ContentDraft psu = ContentMarkdownParser.parse(resource("wiki-6EP3437-8SB00-0AY0.md"));
+        assertThat(psu.getErrors()).isEmpty();
+        assertThat(psu.getBlocks().get(ContentSection.CUSTOMS).getFields()).containsEntry(FactFields.HS_CODE, "85044000")
+                .containsEntry(FactFields.ORIGIN, "RO");
+        assertThat(psu.getBlocks().get(ContentSection.SPECS).getSpecs()).extracting(ContentDraft.SpecRow::label)
+                .contains("输入", "原产地").doesNotContain("序列号", "生产日期");
+    }
+
+    @Test
+    void factFieldValues() {
+        ContentDraft.Block lb = ContentMarkdownParser.parseBlock(ContentSection.LOGISTICS, """
+                | 字段 | 内容 |
+                |---|---|
+                | 重量（净重）| 约 4.5 kg（估） |
+                | 重量（毛重）| 850 g |
+                | 尺寸（长×宽×高）| 23.6 x 17.7 x 5.2 cm |
+                | 特殊运输要求 | 防震，含精密电子元件 |
+                | 颜色 | 灰色 |
+                """);
+        assertThat(lb.getFields()).doesNotContainKey(FactFields.NET_WEIGHT).containsEntry(FactFields.GROSS_WEIGHT, "0.85")
+                .containsEntry(FactFields.LENGTH, "236").containsEntry(FactFields.HEIGHT, "52")
+                .containsEntry(FactFields.SHIPPING_NOTE, "防震，含精密电子元件");
+        assertThat(lb.getNotes()).anyMatch(n -> n.contains("估计值")).anyMatch(n -> n.contains("颜色"));
+        ContentDraft.Block cb = ContentMarkdownParser.parseBlock(ContentSection.CUSTOMS, """
+                | HS 编码（中国）| 8536.50.90（其他开关） |
+                | 原产地 | 日本（Japan） |
+                | 报关品名（英文）| Germany Made |
+                """);
+        assertThat(cb.getFields()).containsEntry(FactFields.HS_CODE, "85365090").containsEntry(FactFields.ORIGIN, "JP");
+        assertThat(ContentMarkdownParser.parseBlock(ContentSection.CUSTOMS, "| 原产地 | Germany |").getFields())
+                .containsEntry(FactFields.ORIGIN, "DE");
+        assertThat(ContentMarkdownParser.parseBlock(ContentSection.CUSTOMS, "| HS 编码 | 85 |").getNotes())
+                .anyMatch(n -> n.contains("6 到 10 位"));
+    }
+
+    @Test
+    void nonWikiFileWithoutTypeStillRejected() {
+        assertThat(ContentMarkdownParser.parse("---\nbrand: A\nmodel: B\nlang: zh\n---\n## 一句话规格摘要\nx\n").getErrors())
+                .anyMatch(e -> e.contains("缺少包类型"));
+        assertThat(ContentMarkdownParser.parse("---\ntitle: 索引\n---\n## 基本信息\n").getErrors())
+                .anyMatch(e -> e.contains("缺少包类型"));
     }
 
     @Test

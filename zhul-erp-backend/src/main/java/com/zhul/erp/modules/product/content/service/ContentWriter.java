@@ -24,14 +24,21 @@ import com.zhul.erp.modules.product.content.repository.ProductSeoFaqMapper;
 import com.zhul.erp.modules.product.content.repository.ProductSeoMapper;
 import com.zhul.erp.modules.product.content.support.ContentDraft;
 import com.zhul.erp.modules.product.content.support.ContentSection;
+import com.zhul.erp.modules.product.content.support.FactFields;
 import com.zhul.erp.modules.product.content.support.MarketingPlatform;
 import com.zhul.erp.modules.product.entity.ProductApplicationDO;
+import com.zhul.erp.modules.product.entity.ProductCustomsDO;
+import com.zhul.erp.modules.product.entity.ProductLogisticsDO;
+import com.zhul.erp.modules.product.entity.ProductSeriesDO;
 import com.zhul.erp.modules.product.entity.ProductDO;
 import com.zhul.erp.modules.product.entity.ProductDocumentDO;
 import com.zhul.erp.modules.product.entity.ProductFaqDO;
 import com.zhul.erp.modules.product.entity.ProductRelationshipDO;
 import com.zhul.erp.modules.product.entity.ProductSpecificationDO;
 import com.zhul.erp.modules.product.repository.ProductApplicationMapper;
+import com.zhul.erp.modules.product.repository.ProductCustomsMapper;
+import com.zhul.erp.modules.product.repository.ProductLogisticsMapper;
+import com.zhul.erp.modules.product.repository.ProductSeriesMapper;
 import com.zhul.erp.modules.product.repository.ProductDocumentMapper;
 import com.zhul.erp.modules.product.repository.ProductFaqMapper;
 import com.zhul.erp.modules.product.repository.ProductMapper;
@@ -42,6 +49,7 @@ import com.zhul.erp.modules.product.support.ProductFinder;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -81,6 +89,9 @@ public class ContentWriter {
     private final ProductContentImportMapper importMapper;
     private final ContentTaskService taskService;
     private final FactTaskService factTaskService;
+    private final ProductSeriesMapper seriesMapper;
+    private final ProductLogisticsMapper logisticsMapper;
+    private final ProductCustomsMapper customsMapper;
     private final ProductPlatformContentMapper platformContentMapper;
     private final ProductPlatformKeywordMapper keywordMapper;
 
@@ -113,6 +124,9 @@ public class ContentWriter {
                 case COMPAT -> summary.add(writeCompat(product, lang, b.getCompat()));
                 case FAQ -> summary.add(writeFaqs(productId, lang, b.getFaqs(), imp.getId()));
                 case TECH_FAQ -> summary.add(writeTechFaqs(productId, b.getFaqs()));
+                case SERIES -> summary.add(writeSeries(product, b.getText()));
+                case LOGISTICS -> summary.add(writeLogistics(productId, b.getFields()));
+                case CUSTOMS -> summary.add(writeCustoms(productId, b.getFields()));
                 default -> {
                     // SEO/GEO 文本块统一在下面写
                 }
@@ -460,6 +474,132 @@ public class ContentWriter {
             seoMapper.updateById(row);
         }
         return String.join("、", parts);
+    }
+
+    /** 系列：商品还没有系列、且系列库里有同名系列（同品牌，见 seriesKey）时写入 */
+    private String writeSeries(ProductDO product, String name) {
+        if (product.getSeriesId() != null) {
+            return "系列已有，保留";
+        }
+        ProductSeriesDO series = findSeries(product.getBrandId(), name);
+        if (series == null) {
+            return "系列库里没有「" + name + "」，未写入";
+        }
+        productMapper.update(null, new LambdaUpdateWrapper<ProductDO>()
+                .eq(ProductDO::getId, product.getId())
+                .set(ProductDO::getSeriesId, series.getId())
+                .set(ProductDO::getUpdateTime, LocalDateTime.now())
+                .set(ProductDO::getUpdateBy, SecurityUtils.getCurrentUsername()));
+        return "系列 " + series.getSeriesName();
+    }
+
+    ProductSeriesDO findSeries(Long brandId, String name) {
+        return seriesMapper.selectList(new LambdaQueryWrapper<ProductSeriesDO>()
+                        .eq(ProductSeriesDO::getTenantId, ProductConstants.PLATFORM_TENANT_ID)
+                        .eq(ProductSeriesDO::getBrandId, brandId)
+                        .isNull(ProductSeriesDO::getDeletedAt))
+                .stream().filter(x -> seriesKey(x.getSeriesName()).equals(seriesKey(name))).findFirst().orElse(null);
+    }
+
+    /** 系列名比较：不分大小写、去空格，忽略末尾的「Series」「系列」（DOP-100 与 DOP-100 Series 视为同一系列） */
+    static String seriesKey(String name) {
+        return key(name).replaceAll("\\s+", "").replaceAll("(series|系列)$", "");
+    }
+
+    /** 物流：只补为空的字段，已有值保留 */
+    private String writeLogistics(Long productId, Map<String, String> fields) {
+        ProductLogisticsDO row = logisticsMapper.selectOne(new LambdaQueryWrapper<ProductLogisticsDO>()
+                .eq(ProductLogisticsDO::getTenantId, ProductConstants.PLATFORM_TENANT_ID)
+                .eq(ProductLogisticsDO::getProductId, productId));
+        boolean create = row == null;
+        boolean revive = row != null && row.getDeletedAt() != null;
+        if (create || revive) {
+            ProductLogisticsDO fresh = new ProductLogisticsDO();
+            fresh.setId(create ? null : row.getId());
+            fresh.setTenantId(ProductConstants.PLATFORM_TENANT_ID);
+            fresh.setProductId(productId);
+            fresh.setIsDangerous(0);
+            row = fresh;
+        }
+        final ProductLogisticsDO target = row;
+        List<String> written = new ArrayList<>();
+        List<String> kept = new ArrayList<>();
+        for (Map.Entry<String, String> e : fields.entrySet()) {
+            String v = e.getValue();
+            boolean empty = switch (e.getKey()) {
+                case FactFields.NET_WEIGHT -> fill(target.getNetWeightKg(), () -> target.setNetWeightKg(new BigDecimal(v)));
+                case FactFields.GROSS_WEIGHT -> fill(target.getGrossWeightKg(), () -> target.setGrossWeightKg(new BigDecimal(v)));
+                case FactFields.LENGTH -> fill(target.getLengthMm(), () -> target.setLengthMm(new BigDecimal(v)));
+                case FactFields.WIDTH -> fill(target.getWidthMm(), () -> target.setWidthMm(new BigDecimal(v)));
+                case FactFields.HEIGHT -> fill(target.getHeightMm(), () -> target.setHeightMm(new BigDecimal(v)));
+                case FactFields.PACKAGE_TYPE -> fill(target.getPackageType(), () -> target.setPackageType(v));
+                case FactFields.PACKAGE_QUANTITY -> fill(target.getPackageQuantity(), () -> target.setPackageQuantity(Integer.valueOf(v)));
+                case FactFields.SHIPPING_NOTE -> fill(target.getShippingNote(), () -> target.setShippingNote(v));
+                default -> false;
+            };
+            (empty ? written : kept).add(FactFields.LABELS.get(e.getKey()));
+        }
+        if (create) {
+            logisticsMapper.insert(row);
+        } else {
+            if (revive) {
+                logisticsMapper.update(null, new LambdaUpdateWrapper<ProductLogisticsDO>()
+                        .eq(ProductLogisticsDO::getId, row.getId())
+                        .set(ProductLogisticsDO::getDeletedAt, null));
+            }
+            logisticsMapper.updateById(row);
+        }
+        return "物流 " + written.size() + (kept.isEmpty() ? "" : "（已有值保留 " + kept.size() + "）");
+    }
+
+    /** 海关：只补为空的字段，已有值保留 */
+    private String writeCustoms(Long productId, Map<String, String> fields) {
+        ProductCustomsDO row = customsMapper.selectOne(new LambdaQueryWrapper<ProductCustomsDO>()
+                .eq(ProductCustomsDO::getTenantId, ProductConstants.PLATFORM_TENANT_ID)
+                .eq(ProductCustomsDO::getProductId, productId));
+        boolean create = row == null;
+        boolean revive = row != null && row.getDeletedAt() != null;
+        if (create || revive) {
+            ProductCustomsDO fresh = new ProductCustomsDO();
+            fresh.setId(create ? null : row.getId());
+            fresh.setTenantId(ProductConstants.PLATFORM_TENANT_ID);
+            fresh.setProductId(productId);
+            row = fresh;
+        }
+        final ProductCustomsDO target = row;
+        List<String> written = new ArrayList<>();
+        List<String> kept = new ArrayList<>();
+        for (Map.Entry<String, String> e : fields.entrySet()) {
+            String v = e.getValue();
+            boolean empty = switch (e.getKey()) {
+                case FactFields.HS_CODE -> fill(target.getHsCode(), () -> target.setHsCode(v));
+                case FactFields.ORIGIN -> fill(target.getOriginCountry(), () -> target.setOriginCountry(v));
+                case FactFields.NAME_CN -> fill(target.getCustomsNameCn(), () -> target.setCustomsNameCn(v));
+                case FactFields.NAME_EN -> fill(target.getCustomsNameEn(), () -> target.setCustomsNameEn(v));
+                default -> false;
+            };
+            (empty ? written : kept).add(FactFields.LABELS.get(e.getKey()));
+        }
+        if (create) {
+            customsMapper.insert(row);
+        } else {
+            if (revive) {
+                customsMapper.update(null, new LambdaUpdateWrapper<ProductCustomsDO>()
+                        .eq(ProductCustomsDO::getId, row.getId())
+                        .set(ProductCustomsDO::getDeletedAt, null));
+            }
+            customsMapper.updateById(row);
+        }
+        return "海关 " + written.size() + (kept.isEmpty() ? "" : "（已有值保留 " + kept.size() + "）");
+    }
+
+    /** 当前值为空时执行写入并返回 true，否则返回 false（保留已有值） */
+    private static boolean fill(Object current, Runnable setter) {
+        if (current == null || current instanceof String str && str.isBlank()) {
+            setter.run();
+            return true;
+        }
+        return false;
     }
 
     /** 阿里国际站、中国制造网、社媒：有哪块写哪块，跳过的保留原值；关键词库整份替换 */

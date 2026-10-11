@@ -37,6 +37,11 @@ public final class ContentMarkdownParser {
         if (text.startsWith("﻿")) {
             text = text.substring(1);
         }
+        // llm-wiki 商品文件（没有 type）先转换成中文资料包，后面按资料包解析
+        String wiki = WikiFactsConverter.convert(text);
+        if (wiki != null) {
+            text = wiki;
+        }
         String[] lines = text.split("\n", -1);
         int i = readFrontmatter(lines, draft);
         String scope = scope(draft);
@@ -87,6 +92,9 @@ public final class ContentMarkdownParser {
             draft.getErrors().add("frontmatter 缺少 model（型号）");
         }
         checkTypeAndLang(draft);
+        if (wiki != null) {
+            draft.getNotes().add(0, "按 llm-wiki 商品文件识别为中文资料包");
+        }
         if (draft.getBlocks().isEmpty() && draft.getErrors().isEmpty()) {
             draft.getErrors().add("没有解析到任何内容");
         }
@@ -167,6 +175,7 @@ public final class ContentMarkdownParser {
             block = new ContentDraft.Block();
             block.setSection(section);
             block.setRaw(raw == null ? "" : raw);
+            draft.getNotes().stream().skip(1).forEach(block.getNotes()::add);
         }
         return block;
     }
@@ -234,12 +243,14 @@ public final class ContentMarkdownParser {
             case FAQ, TECH_FAQ -> parseFaq(content, block);
             case DOCS -> parseDocs(content, block);
             case KEYWORDS -> parseKeywords(content, block);
+            case LOGISTICS, CUSTOMS -> parseFields(content, block);
             case SELLING_POINTS -> parsePoints(content, block);
             default -> parseText(content, raw, block);
         }
         if (block.count() == 0 && block.getErrors().isEmpty()) {
-            // 只有表头（模版原样留着）也算没有内容
-            draft.getNotes().add("「" + heading + "」没有内容，已跳过");
+            // 只有表头（模版原样留着）也算没有内容；块里的提示（如无法识别、估计值）挪到文件提示，不丢
+            draft.getNotes().add("「" + heading + "」没有可写入的内容，已跳过");
+            draft.getNotes().addAll(block.getNotes());
             return;
         }
         draft.getBlocks().put(section, block);
@@ -458,6 +469,16 @@ public final class ContentMarkdownParser {
             case "长尾", "长尾词", "longtail", "3" -> ContentConstants.TIER_LONG_TAIL;
             default -> 0;
         };
+    }
+
+    /** 物流、海关：「字段 | 内容」表格，字段名兼容 llm-wiki 写法，值按 FactFields 规范化 */
+    private static void parseFields(List<String> content, ContentDraft.Block block) {
+        for (TableRow row : table(content, block)) {
+            if (row.cells.isEmpty() || row.cells.get(0).isEmpty() || "字段".equals(row.cells.get(0))) {
+                continue;
+            }
+            FactFields.put(block, row.cells.get(0), row.cells.size() > 1 ? row.cells.get(1) : "");
+        }
     }
 
     /** 卖点：每行一条，去掉列表符号和序号；超过上限的截断 */

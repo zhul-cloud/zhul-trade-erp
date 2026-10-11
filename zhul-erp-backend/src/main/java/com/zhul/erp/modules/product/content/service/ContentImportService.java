@@ -15,9 +15,12 @@ import com.zhul.erp.modules.product.content.repository.ProductSeoFaqMapper;
 import com.zhul.erp.modules.product.content.support.ContentDraft;
 import com.zhul.erp.modules.product.content.support.ContentMarkdownParser;
 import com.zhul.erp.modules.product.content.support.ContentSection;
+import com.zhul.erp.modules.product.content.support.FactFields;
 import com.zhul.erp.modules.product.content.support.MarketingPlatform;
 import com.zhul.erp.modules.product.entity.ProductApplicationDO;
 import com.zhul.erp.modules.product.entity.ProductBrandDO;
+import com.zhul.erp.modules.product.entity.ProductCustomsDO;
+import com.zhul.erp.modules.product.entity.ProductLogisticsDO;
 import com.zhul.erp.modules.product.entity.ProductDO;
 import com.zhul.erp.modules.product.entity.ProductDocumentDO;
 import com.zhul.erp.modules.product.entity.ProductFaqDO;
@@ -25,6 +28,8 @@ import com.zhul.erp.modules.product.entity.ProductRelationshipDO;
 import com.zhul.erp.modules.product.entity.ProductSpecificationDO;
 import com.zhul.erp.modules.product.repository.ProductApplicationMapper;
 import com.zhul.erp.modules.product.repository.ProductBrandMapper;
+import com.zhul.erp.modules.product.repository.ProductCustomsMapper;
+import com.zhul.erp.modules.product.repository.ProductLogisticsMapper;
 import com.zhul.erp.modules.product.repository.ProductDocumentMapper;
 import com.zhul.erp.modules.product.repository.ProductFaqMapper;
 import com.zhul.erp.modules.product.repository.ProductMapper;
@@ -69,6 +74,8 @@ public class ContentImportService {
     private final PlatformTransactionManager transactionManager;
     private final PlatformSettingService platformSettings;
     private final ProductPlatformKeywordMapper keywordMapper;
+    private final ProductLogisticsMapper logisticsMapper;
+    private final ProductCustomsMapper customsMapper;
 
     private static final Map<Integer, String> TIER_LABELS = Map.of(ContentConstants.TIER_CORE, "核心",
             ContentConstants.TIER_MAIN, "主要", ContentConstants.TIER_LONG_TAIL, "长尾");
@@ -269,6 +276,10 @@ public class ContentImportService {
                 bv.setColumns(List.of("标题", "地址"));
                 b.getDocs().forEach(r -> bv.getRows().add(List.of(r.title(), r.url())));
             }
+            case LOGISTICS, CUSTOMS -> {
+                bv.setColumns(List.of("字段", "内容"));
+                b.getFields().forEach((k, v) -> bv.getRows().add(List.of(FactFields.LABELS.get(k), v)));
+            }
             case KEYWORDS -> {
                 bv.setColumns(List.of("关键词", "档位"));
                 b.getKeywords().forEach(r -> bv.getRows().add(List.of(r.keyword(), TIER_LABELS.get(r.tier()))));
@@ -359,6 +370,29 @@ public class ContentImportService {
                 long dup = b.getFaqs().stream().filter(f -> questions.contains(ContentWriter.key(f.question()))).count();
                 hints.add("写入共享商品库，待平台审核后所有公司可见" + (dup > 0 ? "；" + dup + " 条问题已有，不重复写入" : ""));
             }
+            case SERIES -> {
+                if (product.getSeriesId() != null) {
+                    hints.add("商品已有系列，保留");
+                } else if (writer.findSeries(product.getBrandId(), b.getText()) == null) {
+                    hints.add("系列库里没有「" + b.getText() + "」，不会写入");
+                } else {
+                    hints.add("写入系列");
+                }
+            }
+            case LOGISTICS -> {
+                ProductLogisticsDO row = logisticsMapper.selectOne(new LambdaQueryWrapper<ProductLogisticsDO>()
+                        .eq(ProductLogisticsDO::getTenantId, ProductConstants.PLATFORM_TENANT_ID)
+                        .eq(ProductLogisticsDO::getProductId, productId)
+                        .isNull(ProductLogisticsDO::getDeletedAt));
+                hints.add(fillHint(b, row == null ? Map.of() : logisticsValues(row)));
+            }
+            case CUSTOMS -> {
+                ProductCustomsDO row = customsMapper.selectOne(new LambdaQueryWrapper<ProductCustomsDO>()
+                        .eq(ProductCustomsDO::getTenantId, ProductConstants.PLATFORM_TENANT_ID)
+                        .eq(ProductCustomsDO::getProductId, productId)
+                        .isNull(ProductCustomsDO::getDeletedAt));
+                hints.add(fillHint(b, row == null ? Map.of() : customsValues(row)));
+            }
             case KEYWORDS -> {
                 Long existing = keywordMapper.selectCount(new LambdaQueryWrapper<ProductPlatformKeywordDO>()
                         .eq(ProductPlatformKeywordDO::getTenantId, TenantContext.getTenantId())
@@ -371,6 +405,36 @@ public class ContentImportService {
             default -> hints.add("替换");
         }
         return hints;
+    }
+
+    /** 只补空字段：列出商品上已有值、会保留的字段 */
+    private static String fillHint(ContentDraft.Block b, Map<String, Object> current) {
+        List<String> kept = b.getFields().keySet().stream()
+                .filter(k -> current.get(k) != null && !"".equals(current.get(k)))
+                .map(FactFields.LABELS::get).toList();
+        return "只补空字段" + (kept.isEmpty() ? "" : "；已有值保留：" + String.join("、", kept));
+    }
+
+    private static Map<String, Object> logisticsValues(ProductLogisticsDO r) {
+        Map<String, Object> m = new HashMap<>();
+        m.put(FactFields.NET_WEIGHT, r.getNetWeightKg());
+        m.put(FactFields.GROSS_WEIGHT, r.getGrossWeightKg());
+        m.put(FactFields.LENGTH, r.getLengthMm());
+        m.put(FactFields.WIDTH, r.getWidthMm());
+        m.put(FactFields.HEIGHT, r.getHeightMm());
+        m.put(FactFields.PACKAGE_TYPE, r.getPackageType());
+        m.put(FactFields.PACKAGE_QUANTITY, r.getPackageQuantity());
+        m.put(FactFields.SHIPPING_NOTE, r.getShippingNote());
+        return m;
+    }
+
+    private static Map<String, Object> customsValues(ProductCustomsDO r) {
+        Map<String, Object> m = new HashMap<>();
+        m.put(FactFields.HS_CODE, r.getHsCode());
+        m.put(FactFields.ORIGIN, r.getOriginCountry());
+        m.put(FactFields.NAME_CN, r.getCustomsNameCn());
+        m.put(FactFields.NAME_EN, r.getCustomsNameEn());
+        return m;
     }
 
     private static Set<ContentSection> skipSet(List<String> names) {

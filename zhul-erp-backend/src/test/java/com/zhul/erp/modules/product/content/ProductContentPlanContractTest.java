@@ -19,6 +19,7 @@ import java.util.zip.ZipInputStream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -65,10 +66,12 @@ class ProductContentPlanContractTest extends InquiryContractSupport {
         }
         String products = "(select id from product where brand_id in (select id from product_brand where brand_name like 'ITC%'))";
         jdbc.update("delete from product_relationship_note where relationship_id in (select id from product_relationship where product_id in " + products + ")");
-        for (String t : new String[] {"product_specification", "product_application", "product_document", "product_relationship", "product_locale"}) {
+        for (String t : new String[] {"product_specification", "product_application", "product_document", "product_relationship", "product_locale",
+                "product_logistics", "product_customs"}) {
             jdbc.update("delete from " + t + " where product_id in " + products);
         }
         jdbc.update("delete from product where brand_id in (select id from product_brand where brand_name like 'ITC%')");
+        jdbc.update("delete from product_series where brand_id in (select id from product_brand where brand_name like 'ITC%')");
         jdbc.update("delete from product_brand_alias where brand_id in (select id from product_brand where brand_name like 'ITC%')");
         jdbc.update("delete from product_brand where brand_name like 'ITC%'");
         jdbc.update("delete from product_category where category_code like 'itc-%'");
@@ -534,6 +537,49 @@ class ProductContentPlanContractTest extends InquiryContractSupport {
         ok(call(get(TASKS + "/platforms"), viewer));
         assertEquals(403, perform(json(put(TASKS + "/platforms"), write(Map.of("platforms", List.of("site")))), viewer).getStatus());
         assertEquals(403, perform(put(TASKS + "/products/" + p1 + "/skips/site"), viewer).getStatus());
+    }
+
+    @Test
+    void wikiProductFile_factsSeriesLogisticsCustoms() throws Exception {
+        long dop = ok(call(json(post(PRODUCTS), write(Map.of("brandId", siemens, "categoryId", plc, "mpnRaw", "DOP-107EG"))), admin))
+                .path("id").asLong();
+        jdbc.update("insert into product_series (tenant_id, brand_id, series_name, status) values (0, ?, 'dop-100 Series', 1)", siemens);
+        long series = jdbc.queryForObject("select id from product_series where brand_id = ? and series_name = 'dop-100 Series'", Long.class, siemens);
+        // 海关已有原产国 DE：只补空字段，不覆盖
+        jdbc.update("insert into product_customs (tenant_id, product_id, origin_country) values (0, ?, 'DE')", dop);
+        String wiki;
+        try (java.io.InputStream in = getClass().getResourceAsStream("/product-content/wiki-DOP-107EG.md")) {
+            wiki = new String(in.readAllBytes(), StandardCharsets.UTF_8).replace("brand: Delta", "brand: ITCSiemens");
+        }
+
+        JsonNode preview = ok(call(json(post(TASKS + "/preview"), write(Map.of("files", List.of(file("DOP-107EG.md", wiki))))), admin)).get(0);
+        assertTrue(preview.path("confirmable").asBoolean(), preview.toString());
+        assertEquals("facts", preview.path("type").asText());
+        assertTrue(preview.path("notes").get(0).asText().contains("llm-wiki"));
+        assertEquals(12, block(preview, "SPECS").path("count").asInt());
+        assertTrue(block(preview, "CUSTOMS").path("hints").toString().contains("已有值保留：原产国"), block(preview, "CUSTOMS").toString());
+        assertEquals("shared", block(preview, "LOGISTICS").path("target").asText());
+
+        JsonNode res = confirm(admin, file("DOP-107EG.md", wiki));
+        assertEquals(1, res.path("succeeded").asInt(), res.toString());
+        assertEquals(12, ok(call(get(PRODUCTS + "/" + dop + "/specifications"), admin)).size());
+        Map<String, Object> product = jdbc.queryForMap("select spec_summary, series_id from product where id = ?", dop);
+        assertEquals("DOP-100系列7英寸人机界面触摸屏，现货多台", product.get("spec_summary"));
+        assertEquals(series, ((Number) product.get("series_id")).longValue(), "系列按名称匹配：不分大小写、忽略末尾 Series");
+        Map<String, Object> logistics = jdbc.queryForMap("select length_mm, width_mm, height_mm, package_type, package_quantity, "
+                + "net_weight_kg from product_logistics where product_id = ?", dop);
+        assertEquals(0, new java.math.BigDecimal("184").compareTo((java.math.BigDecimal) logistics.get("length_mm")));
+        assertEquals(0, new java.math.BigDecimal("51.5").compareTo((java.math.BigDecimal) logistics.get("height_mm")));
+        assertEquals("原厂Delta印刷纸盒", logistics.get("package_type"));
+        assertEquals(1, ((Number) logistics.get("package_quantity")).intValue());
+        assertNull(logistics.get("net_weight_kg"), "待确认的重量不写");
+        Map<String, Object> customs = jdbc.queryForMap("select hs_code, origin_country, customs_name_cn, customs_name_en "
+                + "from product_customs where product_id = ?", dop);
+        assertEquals("DE", customs.get("origin_country"), "已有原产国不覆盖");
+        assertEquals("人机界面触摸屏", customs.get("customs_name_cn"));
+        assertEquals("Human Machine Interface", customs.get("customs_name_en"));
+        assertTrue(customs.get("hs_code") == null || "".equals(customs.get("hs_code")), "待确认的 HS 编码不写");
+        assertEquals(2, stage(dop, admin), "资料待核");
     }
 
     private static JsonNode block(JsonNode preview, String section) {

@@ -4,6 +4,7 @@ import lombok.Data;
 
 import java.util.ArrayList;
 import java.util.EnumMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -38,6 +39,8 @@ public class ContentDraft {
         private List<KeywordRow> keywords = new ArrayList<>();
         /** 卖点，每条一行 */
         private List<String> points = new ArrayList<>();
+        /** 物流、海关字段：字段键（见 FactFields）→ 规范化后的值 */
+        private Map<String, String> fields = new LinkedHashMap<>();
         /** 块级错误：有则该块必须修改或跳过才能确认 */
         private List<String> errors = new ArrayList<>();
         /** 块级提示：去重、截断等（不影响确认） */
@@ -48,7 +51,7 @@ public class ContentDraft {
                 return text == null || text.isEmpty() ? 0 : 1;
             }
             return specs.size() + apps.size() + compat.size() + faqs.size() + docs.size() + keywords.size()
-                    + points.size();
+                    + points.size() + fields.size();
         }
     }
 
