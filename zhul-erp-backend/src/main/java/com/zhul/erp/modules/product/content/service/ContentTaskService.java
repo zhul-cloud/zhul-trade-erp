@@ -42,10 +42,13 @@ import org.springframework.util.StringUtils;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Comparator;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
@@ -69,16 +72,41 @@ public class ContentTaskService {
     private final ProductPlatformContentMapper platformContentMapper;
     private final ProductPlatformKeywordMapper keywordMapper;
 
-    public PageResult<ContentTaskVO> page(ContentTaskQuery q) {
+    /** 入口：资料任务看资料阶段，商品运营看营销阶段（spec product/product-content「内容任务」） */
+    public enum View { FACTS, MARKETING }
+
+    /** 页签 → 阶段列表；不认识的页签按全部处理 */
+    static List<Integer> stagesOf(View view, String tab) {
+        if (tab == null || tab.isBlank() || "all".equals(tab)) {
+            return null;
+        }
+        return switch (view) {
+            case FACTS -> switch (tab) {
+                case "1" -> List.of(ContentConstants.STAGE_FACTS_PENDING);
+                case "2" -> List.of(ContentConstants.STAGE_FACTS_REVIEW);
+                case "verified" -> List.of(ContentConstants.STAGE_MARKETING, ContentConstants.STAGE_DONE);
+                default -> null;
+            };
+            case MARKETING -> switch (tab) {
+                case "unverified" -> List.of(ContentConstants.STAGE_FACTS_PENDING, ContentConstants.STAGE_FACTS_REVIEW);
+                case "3" -> List.of(ContentConstants.STAGE_MARKETING);
+                case "4" -> List.of(ContentConstants.STAGE_DONE);
+                default -> null;
+            };
+        };
+    }
+
+    public PageResult<ContentTaskVO> page(ContentTaskQuery q, View view) {
         int page = q.getPage() == null || q.getPage() < 1 ? 1 : q.getPage();
         int size = q.getPageSize() == null || q.getPageSize() < 1 ? 20 : Math.min(q.getPageSize(), 200);
         String keyword = keyword(q.getKeyword());
         String mpn = mpn(q.getKeyword());
         Integer tenantId = TenantContext.getTenantId();
         PlatformFlags flags = PlatformFlags.of(platformSettings.enabled());
-        long total = taskMapper.count(tenantId, flags, q.getStatus(), q.getBrandId(), q.getCategoryId(), keyword, mpn);
+        List<Integer> stages = stagesOf(view, q.getTab());
+        long total = taskMapper.count(tenantId, flags, stages, q.getBrandId(), q.getCategoryId(), keyword, mpn);
         List<ContentTaskRow> rows = total == 0 ? List.of()
-                : taskMapper.page(tenantId, flags, q.getStatus(), q.getBrandId(), q.getCategoryId(), keyword, mpn,
+                : taskMapper.page(tenantId, flags, stages, q.getBrandId(), q.getCategoryId(), keyword, mpn,
                 (long) (page - 1) * size, size);
         Map<Long, String> brands = brandNames(rows.stream().map(ContentTaskRow::getBrandId).collect(Collectors.toSet()));
         Map<Long, String> categories = categoryNames(rows.stream().map(ContentTaskRow::getCategoryId).collect(Collectors.toSet()));
@@ -120,19 +148,28 @@ public class ContentTaskService {
         return PageResult.of(total, records);
     }
 
-    /** 各阶段数量：all / 1 / 2 / 3 / 4 */
-    public Map<String, Long> counts(ContentTaskQuery q) {
-        Map<String, Long> result = new LinkedHashMap<>();
-        result.put("all", 0L);
-        for (int s = ContentConstants.STAGE_FACTS_PENDING; s <= ContentConstants.STAGE_DONE; s++) {
-            result.put(String.valueOf(s), 0L);
-        }
+    /** 各页签数量：资料任务 all / 1 / 2 / verified，商品运营 all / unverified / 3 / 4 */
+    public Map<String, Long> counts(ContentTaskQuery q, View view) {
+        Map<String, Long> byStage = new LinkedHashMap<>();
         for (Map<String, Object> row : taskMapper.countByStatus(TenantContext.getTenantId(),
                 PlatformFlags.of(platformSettings.enabled()), q.getBrandId(),
                 q.getCategoryId(), keyword(q.getKeyword()), mpn(q.getKeyword()))) {
-            long cnt = ((Number) row.get("cnt")).longValue();
-            result.put(String.valueOf(row.get("status")), cnt);
-            result.merge("all", cnt, Long::sum);
+            byStage.merge(String.valueOf(row.get("status")), ((Number) row.get("cnt")).longValue(), Long::sum);
+        }
+        long s1 = byStage.getOrDefault("1", 0L);
+        long s2 = byStage.getOrDefault("2", 0L);
+        long s3 = byStage.getOrDefault("3", 0L);
+        long s4 = byStage.getOrDefault("4", 0L);
+        Map<String, Long> result = new LinkedHashMap<>();
+        result.put("all", s1 + s2 + s3 + s4);
+        if (view == View.FACTS) {
+            result.put("1", s1);
+            result.put("2", s2);
+            result.put("verified", s3 + s4);
+        } else {
+            result.put("unverified", s1 + s2);
+            result.put("3", s3);
+            result.put("4", s4);
         }
         return result;
     }
@@ -348,6 +385,39 @@ public class ContentTaskService {
             }
             vo.getPlatformContents().put(platform.code(), c);
         }
+        vo.setKeywordLibrary(keywordLibrary(keywords, enabled));
+    }
+
+    /**
+     * 关键词库：只合并启用平台的关键词，同词不分大小写合成一行，档位取最高（数字最小），记录选用平台；
+     * 按档位、首次出现顺序排序。content-schema-v2 改成总库存储后接口形状不变。
+     */
+    static List<ProductContentVO.LibraryKeyword> keywordLibrary(List<ProductPlatformKeywordDO> keywords,
+                                                                 Set<MarketingPlatform> enabled) {
+        Map<String, ProductContentVO.LibraryKeyword> merged = new LinkedHashMap<>();
+        Map<String, Set<MarketingPlatform>> used = new HashMap<>();
+        for (ProductPlatformKeywordDO k : keywords) {
+            MarketingPlatform platform = MarketingPlatform.of(k.getPlatform());
+            if (platform == null || !enabled.contains(platform)) {
+                continue;
+            }
+            String key = k.getKeyword().trim().toLowerCase(Locale.ROOT);
+            ProductContentVO.LibraryKeyword row = merged.computeIfAbsent(key, x -> {
+                ProductContentVO.LibraryKeyword n = new ProductContentVO.LibraryKeyword();
+                n.setKeyword(k.getKeyword());
+                n.setTier(k.getTier());
+                return n;
+            });
+            if (k.getTier() < row.getTier()) {
+                row.setTier(k.getTier());
+            }
+            used.computeIfAbsent(key, x -> EnumSet.noneOf(MarketingPlatform.class)).add(platform);
+        }
+        List<ProductContentVO.LibraryKeyword> result = new ArrayList<>(merged.values());
+        merged.forEach((key, row) -> used.get(key).forEach(p -> row.getPlatforms().add(p.code())));
+        // 稳定排序：档位优先，同档保持首次出现顺序
+        result.sort(Comparator.comparingInt(ProductContentVO.LibraryKeyword::getTier));
+        return result;
     }
 
     Map<Long, String> brandNames(Set<Long> ids) {

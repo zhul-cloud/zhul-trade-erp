@@ -11,6 +11,7 @@ import {
   type ContentImportRecord,
   contentApi,
   type MarketingPlatform,
+  type PackageType,
   readBizError,
 } from '../../service';
 import { useProductTheme } from '../../theme';
@@ -171,9 +172,11 @@ export const ImportPreviewDrawer: React.FC<{
 };
 
 /** 某商品的上传记录列表：本公司全部 + 其他公司的资料包，点一条预览原文 */
-export const ImportRecordList: React.FC<{ productId: number }> = ({
-  productId,
-}) => {
+export const ImportRecordList: React.FC<{
+  productId: number;
+  /** 只看资料包或营销包 */
+  type?: PackageType;
+}> = ({ productId, type }) => {
   const { palette } = useProductTheme();
   const [rows, setRows] = useState<ContentImportRecord[]>();
   const [error, setError] = useState<string>();
@@ -182,11 +185,11 @@ export const ImportRecordList: React.FC<{ productId: number }> = ({
   const load = useCallback(async () => {
     setError(undefined);
     try {
-      setRows(await contentApi.imports(productId));
+      setRows(await contentApi.imports(productId, type));
     } catch (e) {
       setError(readBizError(e).message);
     }
-  }, [productId]);
+  }, [productId, type]);
 
   useEffect(() => {
     load();
@@ -271,27 +274,32 @@ export const ImportRecordList: React.FC<{ productId: number }> = ({
         locale={{ emptyText: '还没有上传记录' }}
       />
       <div style={{ marginTop: 8, fontSize: 12, color: palette.sub }}>
-        只记录确认写入的文件；其他公司只显示资料包（写的是共享商品库），营销包看不到。
+        {type === 'facts'
+          ? '只显示资料包，营销包在「运营管理 → 商品运营」查看；只记录确认写入的文件，其他公司的资料包也能看到。'
+          : type === 'marketing'
+            ? '只显示本公司的营销包；资料包在商品详情查看。只记录确认写入的文件。'
+            : '只记录确认写入的文件；其他公司只显示资料包（写的是共享商品库），营销包看不到。'}
       </div>
       <ImportPreviewDrawer id={viewing} onClose={() => setViewing(undefined)} />
     </>
   );
 };
 
-/** 商品详情的「上传记录」卡片 */
+/** 商品详情的「上传记录」卡片：只看资料包 */
 export const ImportRecordCard: React.FC<{ productId: number }> = ({
   productId,
 }) => (
   <CardShell id="card-imports" title="上传记录">
-    <ImportRecordList productId={productId} />
+    <ImportRecordList productId={productId} type="facts" />
   </CardShell>
 );
 
-/** 内容任务行内打开的上传记录 */
+/** 资料任务、商品运营行内打开的上传记录，按入口只看对应包类型 */
 export const ImportRecordsDrawer: React.FC<{
   product?: { id: number; label: string };
+  type: PackageType;
   onClose: () => void;
-}> = ({ product, onClose }) => (
+}> = ({ product, type, onClose }) => (
   <Drawer
     open={!!product}
     onClose={onClose}
@@ -299,6 +307,6 @@ export const ImportRecordsDrawer: React.FC<{
     destroyOnHidden
     title={product ? `上传记录 · ${product.label}` : '上传记录'}
   >
-    {product && <ImportRecordList productId={product.id} />}
+    {product && <ImportRecordList productId={product.id} type={type} />}
   </Drawer>
 );

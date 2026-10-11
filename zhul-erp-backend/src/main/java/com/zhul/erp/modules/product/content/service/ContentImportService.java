@@ -84,16 +84,17 @@ public class ContentImportService {
     private record Analyzed(ContentPreviewVO vo, Map<ContentSection, ContentDraft.Block> writable) {
     }
 
-    public List<ContentPreviewVO> preview(ContentFileRequest req) {
-        return analyze(req).stream().map(Analyzed::vo).toList();
+    /** expectedType：本入口只接收的包类型（facts 资料任务、marketing 商品运营），走错入口的文件不能确认 */
+    public List<ContentPreviewVO> preview(ContentFileRequest req, String expectedType) {
+        return analyze(req, expectedType).stream().map(Analyzed::vo).toList();
     }
 
-    public ContentConfirmVO confirm(ContentFileRequest req) {
+    public ContentConfirmVO confirm(ContentFileRequest req, String expectedType) {
         TransactionTemplate tx = new TransactionTemplate(transactionManager);
         tx.setIsolationLevel(TransactionDefinition.ISOLATION_READ_COMMITTED);
         ContentConfirmVO result = new ContentConfirmVO();
         List<ContentFileRequest.ContentFile> files = req.getFiles();
-        List<Analyzed> analyzed = analyze(req);
+        List<Analyzed> analyzed = analyze(req, expectedType);
         for (int i = 0; i < analyzed.size(); i++) {
             Analyzed a = analyzed.get(i);
             ContentPreviewVO vo = a.vo();
@@ -130,11 +131,11 @@ public class ContentImportService {
         return result;
     }
 
-    private List<Analyzed> analyze(ContentFileRequest req) {
+    private List<Analyzed> analyze(ContentFileRequest req, String expectedType) {
         List<Analyzed> result = new ArrayList<>();
         Map<String, String> seen = new HashMap<>();
         for (ContentFileRequest.ContentFile file : req.getFiles()) {
-            Analyzed a = analyzeFile(file, req.getProductId());
+            Analyzed a = analyzeFile(file, req.getProductId(), expectedType);
             ContentPreviewVO vo = a.vo();
             if (vo.getProductId() != null && vo.getLang() != null) {
                 String key = vo.getProductId() + ":" + vo.getType() + ":" + vo.getPlatform() + ":" + vo.getLang();
@@ -149,7 +150,7 @@ public class ContentImportService {
         return result;
     }
 
-    private Analyzed analyzeFile(ContentFileRequest.ContentFile file, Long onlyProductId) {
+    private Analyzed analyzeFile(ContentFileRequest.ContentFile file, Long onlyProductId, String expectedType) {
         ContentPreviewVO vo = new ContentPreviewVO();
         vo.setFileName(file.getFileName());
         String content = file.getContent() == null ? "" : file.getContent();
@@ -165,6 +166,10 @@ public class ContentImportService {
         vo.setType(draft.getType());
         vo.setPlatform(draft.getPlatform());
         vo.getErrors().addAll(draft.getErrors());
+        if (draft.getErrors().isEmpty() && expectedType != null && !expectedType.equals(draft.getType())) {
+            vo.getErrors().add(ContentConstants.TYPE_FACTS.equals(expectedType)
+                    ? "营销包请到运营管理 → 商品运营上传" : "资料包请到商品资料 → 资料任务上传");
+        }
         MarketingPlatform platform = ContentConstants.TYPE_MARKETING.equals(draft.getType())
                 ? MarketingPlatform.of(draft.getPlatform()) : null;
         if (platform != null && !platformSettings.enabled().contains(platform)) {

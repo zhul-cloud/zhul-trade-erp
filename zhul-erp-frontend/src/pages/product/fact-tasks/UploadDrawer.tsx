@@ -31,6 +31,7 @@ import {
   type ContentFile,
   type ContentPreview,
   contentApi,
+  type PackageType,
   readBizError,
 } from '../service';
 
@@ -104,11 +105,16 @@ export const UploadDrawer: React.FC<{
   onDone: () => void;
   /** 行内上传：只接收这个商品的文件 */
   product?: { id: number; label: string };
-}> = ({ open, onClose, onDone, product }) => {
+  /** 入口：facts 资料任务只收资料包，marketing 商品运营只收营销包 */
+  entry: PackageType;
+}> = ({ open, onClose, onDone, product, entry }) => {
   const { palette } = useAppTheme();
   const { message } = App.useApp();
   const access = useAccess() as Record<string, boolean>;
-  const canWrite = !!access['product:content:edit'];
+  const canWrite =
+    !!access[
+      entry === 'facts' ? 'product:content:edit' : 'operations:marketing:edit'
+    ];
   const [files, setFiles] = useState<ContentFile[]>([]);
   const [previews, setPreviews] = useState<ContentPreview[]>([]);
   const [active, setActive] = useState(0);
@@ -133,7 +139,7 @@ export const UploadDrawer: React.FC<{
   const runPreview = async (next: ContentFile[]) => {
     setLoading(true);
     try {
-      setPreviews(await contentApi.preview(next, product?.id));
+      setPreviews(await contentApi.preview(entry, next, product?.id));
       setFiles(next);
     } catch (e) {
       message.error(readBizError(e).message);
@@ -185,7 +191,7 @@ export const UploadDrawer: React.FC<{
       const ok = previews
         .map((p, i) => (p.confirmable ? files[i] : null))
         .filter((f): f is ContentFile => f !== null);
-      setResult(await contentApi.confirm(ok, product?.id));
+      setResult(await contentApi.confirm(entry, ok, product?.id));
     } catch (e) {
       message.error(readBizError(e).message);
     } finally {
@@ -312,7 +318,13 @@ export const UploadDrawer: React.FC<{
             </Button>
             <span style={{ flex: 1 }} />
             <Button onClick={close}>取消</Button>
-            <Tooltip title={canWrite ? undefined : '没有「商品内容维护」权限'}>
+            <Tooltip
+              title={
+                canWrite
+                  ? undefined
+                  : `没有「${entry === 'facts' ? '商品内容维护' : '营销内容维护'}」权限`
+              }
+            >
               <Button
                 type="primary"
                 loading={loading}
@@ -389,11 +401,10 @@ export const UploadDrawer: React.FC<{
               {loading ? '正在解析…' : '点击或拖入 Markdown 文件'}
             </p>
             <p className="ant-upload-hint">
-              资料包 type: facts、lang: zh；营销包 type: marketing，platform 为
-              alibaba、mic、site 或 social（独立站 lang 可以是 en 或
-              ru，其他平台只有 en）；也可以直接上传 llm-wiki
-              商品文件，按中文资料包导入规格、物流、海关；一次最多 50
-              个，每个不超过 1MB
+              {entry === 'facts'
+                ? '资料包 type: facts、lang: zh；也可以直接上传 llm-wiki 商品文件，按中文资料包导入规格、物流、海关。营销包请到运营管理 → 商品运营上传。'
+                : '营销包 type: marketing，platform 为 alibaba、mic、site 或 social（独立站 lang 可以是 en 或 ru，其他平台只有 en）。资料包请到商品资料 → 资料任务上传。'}
+              一次最多 50 个，每个不超过 1MB
             </p>
           </Upload.Dragger>
           <Alert

@@ -5,18 +5,9 @@ import {
   StopOutlined,
 } from '@ant-design/icons';
 import { history, useAccess } from '@umijs/max';
-import {
-  App,
-  Button,
-  Dropdown,
-  Segmented,
-  Space,
-  Switch,
-  Typography,
-} from 'antd';
+import { App, Button, Dropdown, Space, Switch, Typography } from 'antd';
 import dayjs from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
-import { EmptyHint } from '../../components/EmptyHint';
 import { LangSwitch } from '../../components/LangSwitch';
 import { Pill } from '../../components/Pills';
 import {
@@ -31,7 +22,6 @@ import {
   readBizError,
 } from '../../service';
 import { useProductTheme } from '../../theme';
-import { CardShell } from './CardShell';
 
 const LANG_CHIPS: { lang: ContentLang; label: string }[] = [
   { lang: 'en', label: 'EN' },
@@ -179,16 +169,17 @@ export const PlatformChips: React.FC<{
   );
 };
 
-/** 本公司启用的营销平台 */
-export const usePlatforms = () => {
+/** 本公司启用的营销平台；active 为 false 时不请求（没有商品运营菜单的页面） */
+export const usePlatforms = (active = true) => {
   const [options, setOptions] = useState<MarketingPlatformOption[]>([]);
   const load = useCallback(async () => {
+    if (!active) return;
     try {
       setOptions(await contentApi.platforms());
     } catch {
       setOptions([]);
     }
-  }, []);
+  }, [active]);
   useEffect(() => {
     load();
   }, [load]);
@@ -378,7 +369,7 @@ export const FactsStatusBar: React.FC<{
         {factsSummary(data)}
       </span>
       <span style={{ flex: 1 }} />
-      {access.productContentTasks && (
+      {access.productFactTasks && (
         <Space size={8}>
           {!verified && access['product:content:edit'] && (
             <VerifyFactsButton
@@ -725,37 +716,74 @@ const SkipSwitch: React.FC<{
   );
 };
 
-/** 本公司的营销内容：按启用的平台分页签，每个页签有写入状态、下载营销包、不发布开关；其他公司看不到 */
-export const MarketingCard: React.FC<{
-  mpn: string;
+/** 商品详情的运营概况（本公司，只读）：各平台写入状态 +「去商品运营」；营销内容在运营管理 → 商品运营维护 */
+export const OperationsSummary: React.FC<{
   productId: number;
   data?: ProductContent;
-  error?: string;
-  onRetry: () => void;
-}> = ({ mpn, productId, data, error, onRetry }) => {
+}> = ({ productId, data }) => {
   const { palette } = useProductTheme();
   const access = useAccess() as Record<string, boolean>;
-  const [active, setActive] = useState<MarketingPlatform>();
-  const { download, downloading } = useDownloadPackage();
-  const platforms = data?.platforms ?? [];
-  const platform = active && platforms.includes(active) ? active : platforms[0];
+  if (!data) return null;
+  return (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 12,
+        flexWrap: 'wrap',
+        padding: '14px 18px',
+        borderRadius: 16,
+        border: `1px solid ${palette.hairline}`,
+        background: palette.card,
+        marginBottom: 20,
+      }}
+    >
+      <b style={{ color: palette.ink }}>运营概况</b>
+      <Pill tone="violet">本公司</Pill>
+      <PlatformChips progress={data} platforms={data.platforms} />
+      <span style={{ fontSize: 12, color: palette.sub }}>
+        营销内容在「运营管理 → 商品运营」维护
+      </span>
+      <span style={{ flex: 1 }} />
+      {access.operationsProducts && (
+        <Button
+          size="small"
+          onClick={() => history.push(`/operations/products/${productId}`)}
+        >
+          去商品运营
+        </Button>
+      )}
+    </div>
+  );
+};
 
-  const statusBar = (p: MarketingPlatform, d: ProductContent) => {
-    const skip = d.skips?.[p];
-    const at = writtenAt(d, p);
-    const pc = d.platformContents?.[p];
-    const text = skip
-      ? `${dayjs(skip.markedAt).format('YYYY-MM-DD HH:mm')} ${skip.markedBy ?? ''} 标为不发布，不计进度；已写入的内容保留`
-      : p === 'site'
-        ? at
-          ? '英文、俄文都已写入'
-          : d.enAt
-            ? '英文已写入，俄文还没写入'
-            : '还没写入'
-        : at
-          ? `${dayjs(at).format('YYYY-MM-DD HH:mm')}${pc?.confirmedBy ? ` · ${pc.confirmedBy}` : ''} 写入`
-          : '还没写入';
-    return (
+/** 单个平台的营销内容：写入状态条（下载营销包、上传、不发布开关）+ 内容；商品运营详情的平台页签用 */
+export const PlatformPanel: React.FC<{
+  productId: number;
+  platform: MarketingPlatform;
+  data: ProductContent;
+  onChanged: () => void;
+  onUpload?: () => void;
+}> = ({ productId, platform: p, data: d, onChanged, onUpload }) => {
+  const { palette } = useProductTheme();
+  const access = useAccess() as Record<string, boolean>;
+  const { download, downloading } = useDownloadPackage();
+  const skip = d.skips?.[p];
+  const at = writtenAt(d, p);
+  const pc = d.platformContents?.[p];
+  const text = skip
+    ? `${dayjs(skip.markedAt).format('YYYY-MM-DD HH:mm')} ${skip.markedBy ?? ''} 标为不发布，不计进度；已写入的内容保留`
+    : p === 'site'
+      ? at
+        ? '英文、俄文都已写入'
+        : d.enAt
+          ? '英文已写入，俄文还没写入'
+          : '还没写入'
+      : at
+        ? `${dayjs(at).format('YYYY-MM-DD HH:mm')}${pc?.confirmedBy ? ` · ${pc.confirmedBy}` : ''} 写入`
+        : '还没写入';
+  return (
+    <>
       <div
         style={{
           display: 'flex',
@@ -774,85 +802,35 @@ export const MarketingCard: React.FC<{
           <Pill tone={at ? 'green' : 'gray'}>{at ? '已写入' : '未写入'}</Pill>
         )}
         <span style={{ fontSize: 12, color: palette.sub }}>{text}</span>
-        {!factsVerified(d.status) && (
-          <span style={{ fontSize: 12, color: palette.orange }}>
-            商品资料{d.status === 1 ? '尚未补全' : '尚未核对'}
-          </span>
-        )}
         <span style={{ flex: 1 }} />
-        {access.productContentTasks && (
-          <Space size={10}>
-            <Button
-              size="small"
-              icon={<DownloadOutlined />}
-              loading={downloading === p}
-              onClick={() => download([productId], 'marketing', [d.status], p)}
-            >
-              下载营销包
-            </Button>
-            <Button
-              size="small"
-              onClick={() =>
-                history.push(
-                  `/product/content-tasks?keyword=${encodeURIComponent(mpn)}`,
-                )
-              }
-            >
-              去上传
-            </Button>
-            <SkipSwitch
-              productId={productId}
-              platform={p}
-              skip={skip}
-              disabled={!access['product:content:edit']}
-              onDone={onRetry}
-            />
-          </Space>
-        )}
-      </div>
-    );
-  };
-
-  return (
-    <CardShell
-      id="card-seo"
-      title="营销内容"
-      actions={
-        platforms.length > 0 && platform ? (
-          <Segmented<MarketingPlatform>
+        <Space size={10}>
+          <Button
             size="small"
-            value={platform}
-            onChange={setActive}
-            options={platforms.map((p) => ({
-              value: p,
-              label: PLATFORM_META[p].label,
-            }))}
-          />
-        ) : undefined
-      }
-    >
-      {error ? (
-        <EmptyHint
-          title="加载失败"
-          description={error}
-          actionText="重试"
-          onAction={onRetry}
-        />
-      ) : !data || !platform ? (
-        <div style={{ color: palette.sub }}>正在加载…</div>
-      ) : (
-        <>
-          {statusBar(platform, data)}
-          {platform === 'site' ? (
-            <SiteBody data={data} />
-          ) : (
-            <PlatformBody
-              platform={platform}
-              content={data.platformContents?.[platform]}
-            />
+            icon={<DownloadOutlined />}
+            loading={downloading === p}
+            onClick={() => download([productId], 'marketing', [d.status], p)}
+          >
+            下载营销包
+          </Button>
+          {onUpload && (
+            <Button size="small" onClick={onUpload}>
+              上传营销包
+            </Button>
           )}
-        </>
+          <SkipSwitch
+            productId={productId}
+            platform={p}
+            skip={skip}
+            disabled={!access['operations:marketing:edit']}
+            onDone={onChanged}
+          />
+        </Space>
+      </div>
+      {p === 'site' ? (
+        <SiteBody data={d} />
+      ) : (
+        <PlatformBody platform={p} content={pc} />
       )}
-    </CardShell>
+    </>
   );
 };

@@ -31,6 +31,8 @@ public class ProductContentVO {
     private Map<String, MarketingSkipVO> skips = new HashMap<>();
     /** 独立站：en / ru → 本公司该语言营销内容 */
     private Map<String, LangContent> langs = new LinkedHashMap<>();
+    /** 本公司这个型号的关键词库：各启用平台的关键词合并，同词（不分大小写）一行，档位取最高，标出选用平台 */
+    private List<LibraryKeyword> keywordLibrary = new ArrayList<>();
     /** 阿里国际站、中国制造网、社媒：平台编码 → 本公司营销内容（只含启用且写过的平台） */
     private Map<String, PlatformContent> platformContents = new LinkedHashMap<>();
 
@@ -59,6 +61,15 @@ public class ProductContentVO {
         private String fileName;
         private String confirmedBy;
         private LocalDateTime confirmedAt;
+    }
+
+    @Data
+    public static class LibraryKeyword {
+        private String keyword;
+        /** 1-核心、2-主要、3-长尾 */
+        private Integer tier;
+        /** 选用这个词的平台编码，按平台固定顺序 */
+        private List<String> platforms = new ArrayList<>();
     }
 
     @Data

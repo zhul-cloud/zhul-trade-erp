@@ -777,7 +777,8 @@ export interface ContentTask {
 export interface ContentTaskQuery {
   page?: number;
   pageSize?: number;
-  status?: number;
+  /** 页签，不传为全部。资料任务：1、2、verified；商品运营：unverified、3、4 */
+  tab?: string;
   brandId?: number;
   categoryId?: number;
   keyword?: string;
@@ -857,6 +858,12 @@ export interface ProductContent {
   skips?: Partial<Record<MarketingPlatform, MarketingSkip>>;
   /** 阿里国际站、中国制造网、社媒的内容（只含启用且写过的平台） */
   platformContents?: Partial<Record<MarketingPlatform, PlatformContent>>;
+  /** 关键词库：各启用平台合并，同词一行、档位取最高，标出选用平台 */
+  keywordLibrary?: {
+    keyword: string;
+    tier: 1 | 2 | 3;
+    platforms: MarketingPlatform[];
+  }[];
   /** 独立站：英文、俄文 */
   langs: Record<
     ContentLang,
@@ -905,31 +912,40 @@ export interface ContentImportRecord {
 
 const CONTENT = `${BASE}/content-tasks`;
 
+/**
+ * 内容任务按入口分组：facts 为「商品资料 → 资料任务」，marketing 为「运营管理 → 商品运营」；
+ * 各入口只接收自己的包类型，权限分别挂在两个菜单上
+ */
 export const contentApi = {
-  page: (q: ContentTaskQuery) =>
-    call<{ total: number; records: ContentTask[] }>(`${CONTENT}/page`, {
-      method: 'POST',
-      data: q,
-    }),
-  counts: (q: ContentTaskQuery) =>
-    call<Record<string, number>>(`${CONTENT}/counts`, {
+  page: (entry: PackageType, q: ContentTaskQuery) =>
+    call<{ total: number; records: ContentTask[] }>(
+      `${CONTENT}/${entry}/page`,
+      {
+        method: 'POST',
+        data: q,
+      },
+    ),
+  counts: (entry: PackageType, q: ContentTaskQuery) =>
+    call<Record<string, number>>(`${CONTENT}/${entry}/counts`, {
       method: 'POST',
       data: q,
     }),
   /** productId：行内上传限定的商品，文件对应的不是它时不能确认 */
-  preview: (files: ContentFile[], productId?: number) =>
-    call<ContentPreview[]>(`${CONTENT}/preview`, {
+  preview: (entry: PackageType, files: ContentFile[], productId?: number) =>
+    call<ContentPreview[]>(`${CONTENT}/${entry}/preview`, {
       method: 'POST',
       data: { files, productId },
     }),
-  confirm: (files: ContentFile[], productId?: number) =>
-    call<ContentConfirmResult>(`${CONTENT}/confirm`, {
+  confirm: (entry: PackageType, files: ContentFile[], productId?: number) =>
+    call<ContentConfirmResult>(`${CONTENT}/${entry}/confirm`, {
       method: 'POST',
       data: { files, productId },
     }),
-  /** 商品的上传记录（本公司全部 + 其他公司的资料包），不含原文 */
-  imports: (productId: number) =>
-    call<ContentImportRecord[]>(`${CONTENT}/products/${productId}/imports`),
+  /** 商品的上传记录（本公司全部 + 其他公司的资料包），不含原文；type 只看该包类型 */
+  imports: (productId: number, type?: PackageType) =>
+    call<ContentImportRecord[]>(`${CONTENT}/products/${productId}/imports`, {
+      params: { type },
+    }),
   /** 上传记录详情，含原文 */
   importDetail: (id: number) =>
     call<ContentImportRecord>(`${CONTENT}/imports/${id}`),
@@ -962,9 +978,9 @@ export const contentApi = {
     type: PackageType,
     platform?: MarketingPlatform,
   ) => {
-    const res = await request<Blob>(`${CONTENT}/package`, {
+    const res = await request<Blob>(`${CONTENT}/${type}/package`, {
       method: 'GET',
-      params: { productIds: productIds.join(','), type, platform },
+      params: { productIds: productIds.join(','), platform },
       responseType: 'blob',
       getResponse: true,
       skipErrorHandler: true,

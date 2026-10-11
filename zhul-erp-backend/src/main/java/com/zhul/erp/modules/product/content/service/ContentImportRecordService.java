@@ -26,8 +26,8 @@ public class ContentImportRecordService {
     private final ProductContentImportMapper importMapper;
     private final ProductFinder productFinder;
 
-    /** 某商品的上传记录，按确认时间倒序（不含原文） */
-    public List<ContentImportRecordVO> list(Long productId) {
+    /** 某商品的上传记录，按确认时间倒序（不含原文）；type 为 facts 或 marketing 时只看该包类型 */
+    public List<ContentImportRecordVO> list(Long productId, String type) {
         productFinder.active(productId);
         Integer tenantId = TenantContext.getTenantId();
         return importMapper.selectList(new LambdaQueryWrapper<ProductContentImportDO>()
@@ -37,6 +37,7 @@ public class ContentImportRecordService {
                                 ProductContentImportDO::getSummary, ProductContentImportDO::getConfirmedBy,
                                 ProductContentImportDO::getCreateTime)
                         .eq(ProductContentImportDO::getProductId, productId)
+                        .eq(type != null && !type.isBlank(), ProductContentImportDO::getPackageType, type)
                         .isNull(ProductContentImportDO::getDeletedAt)
                         .and(w -> w.eq(ProductContentImportDO::getTenantId, tenantId)
                                 .or().eq(ProductContentImportDO::getPackageType, ContentConstants.TYPE_FACTS))

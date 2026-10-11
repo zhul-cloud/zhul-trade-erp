@@ -37,7 +37,7 @@ import { PriceCard } from './cards/PriceCard';
 import { RelationCard } from './cards/RelationCard';
 import {
   FactsStatusBar,
-  MarketingCard,
+  OperationsSummary,
   useProductContent,
 } from './cards/SeoCard';
 import { SpecCard } from './cards/SpecCard';
@@ -612,19 +612,8 @@ const DetailInner: React.FC = () => {
           <ApplicationCard {...common} done={doneOf('applications')} />
           <FaqCard {...common} done={doneOf('faq')} platform={platform} />
 
-          <GroupTitle
-            title="运营内容"
-            tag={<Pill tone="violet">本公司</Pill>}
-            desc="按平台 · 只有本公司看得到 · 只列本公司启用的平台"
-          />
-          <MarketingCard
-            productId={product.id}
-            mpn={product.mpnRaw}
-            data={content.data}
-            error={content.error}
-            onRetry={content.load}
-          />
           <ImportRecordCard productId={product.id} />
+          <OperationsSummary productId={product.id} data={content.data} />
         </div>
         <div style={{ flex: '0 0 340px', maxWidth: '100%' }}>
           <Sidebar

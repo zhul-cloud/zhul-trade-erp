@@ -173,7 +173,7 @@ class ProductContentPlanContractTest extends InquiryContractSupport {
             """;
 
     private JsonNode task(long productId, String token) throws Exception {
-        JsonNode records = ok(call(json(post(TASKS + "/page"), write(Map.of("brandId", siemens))), token)).path("records");
+        JsonNode records = ok(call(json(post(TASKS + "/marketing/page"), write(Map.of("brandId", siemens))), token)).path("records");
         return find(records, "productId", String.valueOf(productId));
     }
 
@@ -181,8 +181,10 @@ class ProductContentPlanContractTest extends InquiryContractSupport {
         return task(productId, token).path("status").asInt();
     }
 
+    /** 按文件里的包类型走对应入口：营销包走商品运营，其他走资料任务 */
     private JsonNode confirm(String token, Map<String, Object> file) throws Exception {
-        return ok(call(json(post(TASKS + "/confirm"), write(Map.of("files", List.of(file)))), token));
+        String entry = String.valueOf(file.get("content")).contains("type: marketing") ? "/marketing" : "/facts";
+        return ok(call(json(post(TASKS + entry + "/confirm"), write(Map.of("files", List.of(file)))), token));
     }
 
     @Test
@@ -191,28 +193,26 @@ class ProductContentPlanContractTest extends InquiryContractSupport {
         // 平台模板只启用独立站：独立站英文、俄文写完即营销完成
         ok(call(json(put(TASKS + "/platforms"), write(Map.of("platforms", List.of("site")))), admin));
         // 所有商品自动进入「资料待补」
-        JsonNode page = ok(call(json(post(TASKS + "/page"), write(Map.of("status", 1, "brandId", siemens))), admin));
+        JsonNode page = ok(call(json(post(TASKS + "/facts/page"), write(Map.of("tab", "1", "brandId", siemens))), admin));
         assertEquals(2, page.path("total").asInt());
         assertEquals(p2, page.path("records").get(0).path("productId").asLong(), "按更新时间倒序");
         assertEquals("可编程控制器", page.path("records").get(0).path("categoryName").asText());
-        assertEquals(2, ok(call(json(post(TASKS + "/counts"), write(Map.of("brandId", siemens))), admin)).path("1").asInt());
+        assertEquals(2, ok(call(json(post(TASKS + "/facts/counts"), write(Map.of("brandId", siemens))), admin)).path("1").asInt());
 
         // 资料包：中文模版、只有资料章节；营销包：营销章节；多个打 zip；分别记录下载时间
-        MockHttpServletResponse one = perform(get(TASKS + "/package").param("productIds", String.valueOf(p1))
-                .param("type", "facts"), admin);
+        MockHttpServletResponse one = perform(get(TASKS + "/facts/package").param("productIds", String.valueOf(p1)), admin);
         assertEquals(200, one.getStatus());
         String pkg = one.getContentAsString(StandardCharsets.UTF_8);
         assertTrue(pkg.contains("type: facts") && pkg.contains("lang: zh") && pkg.contains("model: 6ES7214-1AG40-0XB0")
                 && pkg.contains("## 技术问答") && !pkg.contains("## SEO 标题"), pkg);
         assertTrue(pkg.contains("品类：可编程控制器"));
-        String mkt = perform(get(TASKS + "/package").param("productIds", String.valueOf(p1)).param("type", "marketing")
+        String mkt = perform(get(TASKS + "/marketing/package").param("productIds", String.valueOf(p1))
                         .param("platform", "site"), admin)
                 .getContentAsString(StandardCharsets.UTF_8);
         assertTrue(mkt.contains("type: marketing") && mkt.contains("platform: site") && mkt.contains("lang: en")
                 && mkt.contains("## SEO 标题")
                 && !mkt.contains("## 规格参数表"), mkt);
-        MockHttpServletResponse zip = perform(get(TASKS + "/package").param("productIds", p1 + "," + p2)
-                .param("type", "facts"), admin);
+        MockHttpServletResponse zip = perform(get(TASKS + "/facts/package").param("productIds", p1 + "," + p2), admin);
         List<String> names = new ArrayList<>();
         try (ZipInputStream in = new ZipInputStream(new ByteArrayInputStream(zip.getContentAsByteArray()))) {
             for (ZipEntry e = in.getNextEntry(); e != null; e = in.getNextEntry()) {
@@ -223,10 +223,10 @@ class ProductContentPlanContractTest extends InquiryContractSupport {
         assertTrue(task(p1, other).hasNonNull("factDownloadedAt"), "资料包下载时间所有公司共享");
         assertTrue(task(p1, admin).hasNonNull("downloadedAt"), "本公司下载过营销包");
         assertFalse(task(p1, other).hasNonNull("downloadedAt"), "营销包下载时间按公司");
-        assertFalse(call(get(TASKS + "/package").param("productIds", String.valueOf(p1)).param("type", "seo"), admin)
+        assertFalse(call(get(TASKS + "/marketing/package").param("productIds", String.valueOf(p1)).param("platform", "seo"), admin)
                 .path("code").asInt() == 0);
         // 任务包原样上传：只有表头和说明，没有可写入的内容
-        JsonNode raw = ok(call(json(post(TASKS + "/preview"), write(Map.of("files", List.of(file("raw.md", pkg))))), admin)).get(0);
+        JsonNode raw = ok(call(json(post(TASKS + "/facts/preview"), write(Map.of("files", List.of(file("raw.md", pkg))))), admin)).get(0);
         assertFalse(raw.path("confirmable").asBoolean());
 
         // 平台已核实的中文规格「额定电压」；以前写入的英文规格不显示也不受影响
@@ -245,7 +245,7 @@ class ProductContentPlanContractTest extends InquiryContractSupport {
                 file("c.facts.md", facts("ITCSiemens", "6ES7214-1AG40-0XB0", "## 一句话规格摘要\ndup\n")),
                 file("d.md", md("facts", "ITCSiemens", "6ES7214-1AG40-0XB0", "en", FACTS_BODY)),
                 file("e.md", "---\nbrand: ITCSiemens\nmodel: 6ES7214-1AG40-0XB0\nlang: en\n---\n" + EN_BODY));
-        JsonNode preview = ok(call(json(post(TASKS + "/preview"), write(Map.of("files", files))), admin));
+        JsonNode preview = ok(call(json(post(TASKS + "/facts/preview"), write(Map.of("files", files))), admin));
         JsonNode a = preview.get(0);
         assertTrue(a.path("confirmable").asBoolean(), a.toString());
         assertEquals(p1, a.path("productId").asLong());
@@ -266,7 +266,7 @@ class ProductContentPlanContractTest extends InquiryContractSupport {
                 "预览不落库");
 
         // 确认资料包（另一家公司操作）：逐个文件独立；只写中文；技术问答待审核
-        JsonNode res = ok(call(json(post(TASKS + "/confirm"), write(Map.of("files", List.of(files.get(0), files.get(1))))), other));
+        JsonNode res = ok(call(json(post(TASKS + "/facts/confirm"), write(Map.of("files", List.of(files.get(0), files.get(1))))), other));
         assertEquals(1, res.path("succeeded").asInt(), res.toString());
         assertEquals(1, res.path("failed").asInt());
         JsonNode zhSpecs = ok(call(get(PRODUCTS + "/" + p1 + "/specifications"), admin));
@@ -346,10 +346,13 @@ class ProductContentPlanContractTest extends InquiryContractSupport {
         assertEquals(1, stage(p2, admin));
         ok(call(json(post(TASKS + "/products/" + p2 + "/verify-facts"), "{}"), admin));
         assertEquals(3, stage(p2, admin));
-        JsonNode counts = ok(call(json(post(TASKS + "/counts"), write(Map.of("brandId", siemens))), admin));
-        assertEquals(1, counts.path("2").asInt());
+        JsonNode counts = ok(call(json(post(TASKS + "/marketing/counts"), write(Map.of("brandId", siemens))), admin));
+        assertEquals(1, counts.path("unverified").asInt(), "商品运营：资料未核对合并待补、待核");
         assertEquals(1, counts.path("3").asInt());
         assertEquals(2, counts.path("all").asInt());
+        JsonNode factCounts = ok(call(json(post(TASKS + "/facts/counts"), write(Map.of("brandId", siemens))), admin));
+        assertEquals(1, factCounts.path("2").asInt());
+        assertEquals(1, factCounts.path("verified").asInt(), "资料任务：资料已核合并营销待生成与已完成");
 
         // 公司账号直接改共享规格仍被拒绝
         assertFalse(call(json(put(PRODUCTS + "/" + p2 + "/specifications"), write(Map.of("items", List.of()))), other).path("code").asInt() == 0);
@@ -357,9 +360,9 @@ class ProductContentPlanContractTest extends InquiryContractSupport {
         // 只有菜单没有维护权限：能预览，确认与资料已核被拒
         loginWithResources("it_content_viewer", 100100);
         String viewer = token("it_content_viewer");
-        JsonNode vp = ok(call(json(post(TASKS + "/preview"), write(Map.of("files", List.of(files.get(0))))), viewer)).get(0);
+        JsonNode vp = ok(call(json(post(TASKS + "/facts/preview"), write(Map.of("files", List.of(files.get(0))))), viewer)).get(0);
         assertTrue(vp.path("confirmable").asBoolean(), vp.toString());
-        assertEquals(403, perform(json(post(TASKS + "/confirm"), write(Map.of("files", List.of(files.get(0))))), viewer).getStatus());
+        assertEquals(403, perform(json(post(TASKS + "/facts/confirm"), write(Map.of("files", List.of(files.get(0))))), viewer).getStatus());
         assertEquals(403, perform(json(post(TASKS + "/products/" + p2 + "/verify-facts"), "{}"), viewer).getStatus());
     }
 
@@ -409,20 +412,20 @@ class ProductContentPlanContractTest extends InquiryContractSupport {
         assertEquals(3, stage(p1, a));
 
         // 按平台下载营销包：模版只含该平台章节；没启用的平台拒绝；批量打 zip
-        String ali = perform(get(TASKS + "/package").param("productIds", String.valueOf(p1)).param("type", "marketing")
+        String ali = perform(get(TASKS + "/marketing/package").param("productIds", String.valueOf(p1))
                 .param("platform", "alibaba"), a).getContentAsString(StandardCharsets.UTF_8);
         assertTrue(ali.contains("platform: alibaba") && ali.contains("## 关键词库") && ali.contains("## 卖点")
                 && !ali.contains("## SEO 标题") && !ali.contains("## 规格参数表"), ali);
-        MockHttpServletResponse aliResp = perform(get(TASKS + "/package").param("productIds", String.valueOf(p1))
-                .param("type", "marketing").param("platform", "alibaba"), a);
+        MockHttpServletResponse aliResp = perform(get(TASKS + "/marketing/package").param("productIds", String.valueOf(p1))
+                .param("platform", "alibaba"), a);
         assertTrue(aliResp.getHeader("Content-Disposition").contains("6ES7214-1AG40-0XB0.alibaba.md"));
-        JsonNode micDenied = call(get(TASKS + "/package").param("productIds", String.valueOf(p1)).param("type", "marketing")
+        JsonNode micDenied = call(get(TASKS + "/marketing/package").param("productIds", String.valueOf(p1))
                 .param("platform", "mic"), a);
         assertEquals("PLATFORM_NOT_ENABLED", micDenied.path("data").path("errorCode").asText(), micDenied.toString());
-        assertFalse(call(get(TASKS + "/package").param("productIds", String.valueOf(p1)).param("type", "marketing"), a)
+        assertFalse(call(get(TASKS + "/marketing/package").param("productIds", String.valueOf(p1)), a)
                 .path("code").asInt() == 0, "营销包要选平台");
-        MockHttpServletResponse socialZip = perform(get(TASKS + "/package").param("productIds", p1 + "," + p2)
-                .param("type", "marketing").param("platform", "social"), b);
+        MockHttpServletResponse socialZip = perform(get(TASKS + "/marketing/package").param("productIds", p1 + "," + p2)
+                .param("platform", "social"), b);
         List<String> names = new ArrayList<>();
         try (ZipInputStream in = new ZipInputStream(new ByteArrayInputStream(socialZip.getContentAsByteArray()))) {
             for (ZipEntry e = in.getNextEntry(); e != null; e = in.getNextEntry()) {
@@ -432,11 +435,11 @@ class ProductContentPlanContractTest extends InquiryContractSupport {
         assertEquals(List.of("6ES7214-1AG40-0XB0.social.md", "6ES7321-1FH00-0AA0.social.md"), names);
 
         // 预览：没启用的平台不能确认；关键词库按档位排序、去重提示；卖点超量提示
-        JsonNode micPreview = ok(call(json(post(TASKS + "/preview"), write(Map.of("files", List.of(
+        JsonNode micPreview = ok(call(json(post(TASKS + "/marketing/preview"), write(Map.of("files", List.of(
                 file("x.mic.md", platformMd("mic", "6ES7214-1AG40-0XB0", "en", "## 标题\nMIC title\n")))))), a)).get(0);
         assertFalse(micPreview.path("confirmable").asBoolean());
         assertTrue(micPreview.path("errors").toString().contains("本公司没有启用中国制造网"), micPreview.toString());
-        JsonNode aliPreview = ok(call(json(post(TASKS + "/preview"), write(Map.of("files", List.of(
+        JsonNode aliPreview = ok(call(json(post(TASKS + "/marketing/preview"), write(Map.of("files", List.of(
                 file("a.alibaba.md", platformMd("alibaba", "6ES7214-1AG40-0XB0", "en", ALIBABA_BODY)))))), a)).get(0);
         assertTrue(aliPreview.path("confirmable").asBoolean(), aliPreview.toString());
         assertEquals("alibaba", aliPreview.path("platform").asText());
@@ -472,7 +475,7 @@ class ProductContentPlanContractTest extends InquiryContractSupport {
         assertFalse(task(p1, a).path("skips").has("site"));
         ok(call(put(TASKS + "/products/" + p1 + "/skips/site"), a));
         assertEquals(4, stage(p1, a), "撤销后可以再标记");
-        JsonNode counts = ok(call(json(post(TASKS + "/counts"), write(Map.of("brandId", siemens))), a));
+        JsonNode counts = ok(call(json(post(TASKS + "/marketing/counts"), write(Map.of("brandId", siemens))), a));
         assertEquals(1, counts.path("4").asInt());
         // 标了不发布照样能写入，标记保留
         confirm(a, file("s.ru.md", marketing("ITCSiemens", "6ES7214-1AG40-0XB0", "ru", "## SEO 标题\nКупить\n")));
@@ -532,7 +535,8 @@ class ProductContentPlanContractTest extends InquiryContractSupport {
                 Integer.class, p1));
 
         // 没有维护权限：能看平台设置，不能改、不能标不发布
-        loginWithResources("it_content_viewer", 100100);
+        // 有资料任务和商品运营菜单、没有维护按钮
+        loginWithResources("it_content_viewer", 100100, 100102);
         String viewer = token("it_content_viewer");
         ok(call(get(TASKS + "/platforms"), viewer));
         assertEquals(403, perform(json(put(TASKS + "/platforms"), write(Map.of("platforms", List.of("site")))), viewer).getStatus());
@@ -552,7 +556,7 @@ class ProductContentPlanContractTest extends InquiryContractSupport {
             wiki = new String(in.readAllBytes(), StandardCharsets.UTF_8).replace("brand: Delta", "brand: ITCSiemens");
         }
 
-        JsonNode preview = ok(call(json(post(TASKS + "/preview"), write(Map.of("files", List.of(file("DOP-107EG.md", wiki))))), admin)).get(0);
+        JsonNode preview = ok(call(json(post(TASKS + "/facts/preview"), write(Map.of("files", List.of(file("DOP-107EG.md", wiki))))), admin)).get(0);
         assertTrue(preview.path("confirmable").asBoolean(), preview.toString());
         assertEquals("facts", preview.path("type").asText());
         assertTrue(preview.path("notes").get(0).asText().contains("llm-wiki"));
@@ -592,15 +596,15 @@ class ProductContentPlanContractTest extends InquiryContractSupport {
         Map<String, Object> rowReq = new LinkedHashMap<>();
         rowReq.put("productId", p1);
         rowReq.put("files", List.of(f1, f2));
-        JsonNode row = ok(call(json(post(TASKS + "/preview"), write(rowReq)), admin));
+        JsonNode row = ok(call(json(post(TASKS + "/facts/preview"), write(rowReq)), admin));
         assertTrue(row.get(0).path("confirmable").asBoolean(), row.toString());
         assertFalse(row.get(1).path("confirmable").asBoolean());
         assertTrue(row.get(1).path("errors").toString().contains("不是本商品的文件（文件是 ITCSiemens · 6ES7321-1FH00-0AA0）"),
                 row.get(1).toString());
-        JsonNode rowConfirm = ok(call(json(post(TASKS + "/confirm"), write(rowReq)), admin));
+        JsonNode rowConfirm = ok(call(json(post(TASKS + "/facts/confirm"), write(rowReq)), admin));
         assertEquals(1, rowConfirm.path("succeeded").asInt());
         assertEquals(1, rowConfirm.path("failed").asInt());
-        JsonNode batch = ok(call(json(post(TASKS + "/preview"), write(Map.of("files", List.of(f1, f2)))), admin));
+        JsonNode batch = ok(call(json(post(TASKS + "/facts/preview"), write(Map.of("files", List.of(f1, f2)))), admin));
         assertTrue(batch.get(0).path("confirmable").asBoolean() && batch.get(1).path("confirmable").asBoolean());
         int before = jdbc.queryForObject("select count(*) from product_content_import", Integer.class);
         assertEquals(before, jdbc.queryForObject("select count(*) from product_content_import", Integer.class), "只预览不留记录");
@@ -633,6 +637,86 @@ class ProductContentPlanContractTest extends InquiryContractSupport {
         assertEquals("CONTENT_NOT_FOUND", denied.path("data").path("errorCode").asText(), denied.toString());
         assertTrue(ok(call(get(TASKS + "/imports/" + mine.get(2).path("id").asLong()), other)).path("rawText").asText()
                 .contains("CPU 1214C"), "其他公司的资料包原文可以看");
+    }
+
+    @Test
+    void entries_permissions_typeRestriction_records_keywordLibrary() throws Exception {
+        Map<String, Object> factsFile = file("p1.facts.md", facts("ITCSiemens", "6ES7214-1AG40-0XB0", "## 一句话规格摘要\nCPU 1214C\n"));
+        Map<String, Object> siteFile = file("p1.site.md", marketing("ITCSiemens", "6ES7214-1AG40-0XB0", "en", "## SEO 标题\nCPU\n"));
+        String wiki;
+        try (java.io.InputStream in = getClass().getResourceAsStream("/product-content/wiki-DOP-107EG.md")) {
+            wiki = new String(in.readAllBytes(), StandardCharsets.UTF_8).replace("brand: Delta", "brand: ITCSiemens")
+                    .replace("model: DOP-107EG", "model: 6ES7214-1AG40-0XB0");
+        }
+
+        // 走错入口：资料任务拒营销包，商品运营拒资料包和 wiki 文件；确认时同样拒绝
+        JsonNode wrongFacts = ok(call(json(post(TASKS + "/facts/preview"), write(Map.of("files", List.of(siteFile)))), admin)).get(0);
+        assertFalse(wrongFacts.path("confirmable").asBoolean());
+        assertTrue(wrongFacts.path("errors").toString().contains("营销包请到运营管理 → 商品运营上传"), wrongFacts.toString());
+        JsonNode wrongOps = ok(call(json(post(TASKS + "/marketing/preview"), write(Map.of("files", List.of(factsFile,
+                file("DOP.md", wiki))))), admin));
+        assertTrue(wrongOps.get(0).path("errors").toString().contains("资料包请到商品资料 → 资料任务上传"));
+        assertTrue(wrongOps.get(1).path("errors").toString().contains("资料包请到商品资料 → 资料任务上传"), "wiki 文件也是资料包");
+        assertEquals(0, ok(call(json(post(TASKS + "/marketing/confirm"), write(Map.of("files", List.of(factsFile)))), admin))
+                .path("succeeded").asInt());
+
+        // 上传记录按包类型分开
+        confirm(admin, factsFile);
+        confirm(admin, siteFile);
+        JsonNode factRecords = ok(call(get(TASKS + "/products/" + p1 + "/imports").param("type", "facts"), admin));
+        assertEquals(1, factRecords.size());
+        assertEquals("p1.facts.md", factRecords.get(0).path("fileName").asText());
+        JsonNode mktRecords = ok(call(get(TASKS + "/products/" + p1 + "/imports").param("type", "marketing"), admin));
+        assertEquals(1, mktRecords.size());
+        assertEquals("p1.site.md", mktRecords.get(0).path("fileName").asText());
+
+        // 关键词库：阿里与中制合并，同词（不分大小写）一行、档位取最高、标出选用平台
+        confirm(admin, file("p1.alibaba.md", platformMd("alibaba", "6ES7214-1AG40-0XB0", "en", """
+                ## 关键词库
+                | 关键词 | 档位 |
+                |---|---|
+                | Siemens 6ES7214-1AG40-0XB0 | 核心 |
+                | CPU 1214C | 主要 |
+                """)));
+        confirm(admin, file("p1.mic.md", platformMd("mic", "6ES7214-1AG40-0XB0", "en", """
+                ## 关键词库
+                | 关键词 | 档位 |
+                |---|---|
+                | siemens 6es7214-1ag40-0xb0 | 主要 |
+                | S7-1200 CPU price | 长尾 |
+                """)));
+        JsonNode library = ok(call(get(TASKS + "/products/" + p1), admin)).path("keywordLibrary");
+        assertEquals(3, library.size(), library.toString());
+        assertEquals("Siemens 6ES7214-1AG40-0XB0", library.get(0).path("keyword").asText());
+        assertEquals(1, library.get(0).path("tier").asInt());
+        assertEquals("[\"alibaba\",\"mic\"]", library.get(0).path("platforms").toString());
+        assertEquals("CPU 1214C", library.get(1).path("keyword").asText());
+        assertEquals(3, library.get(2).path("tier").asInt());
+
+        // 只有资料任务菜单：进不了商品运营；只有商品运营菜单：进不了资料任务
+        loginWithResources("it_facts_only", 100100, 110202);
+        String factsOnly = token("it_facts_only");
+        assertEquals(200, perform(json(post(TASKS + "/facts/page"), "{}"), factsOnly).getStatus());
+        assertEquals(403, perform(json(post(TASKS + "/marketing/page"), "{}"), factsOnly).getStatus());
+        assertEquals(403, perform(json(post(TASKS + "/marketing/confirm"), write(Map.of("files", List.of(siteFile)))), factsOnly)
+                .getStatus(), "商品内容维护不能确认营销包");
+        loginWithResources("it_ops_only", 100102);
+        String opsOnly = token("it_ops_only");
+        assertEquals(200, perform(json(post(TASKS + "/marketing/page"), "{}"), opsOnly).getStatus());
+        assertEquals(403, perform(json(post(TASKS + "/facts/page"), "{}"), opsOnly).getStatus());
+        assertEquals(403, perform(json(post(TASKS + "/marketing/confirm"), write(Map.of("files", List.of(siteFile)))), opsOnly)
+                .getStatus(), "没有营销内容维护不能确认");
+        loginWithResources("it_ops_editor", 100102, 110203);
+        assertEquals(1, ok(call(json(post(TASKS + "/marketing/confirm"), write(Map.of("files", List.of(siteFile)))),
+                token("it_ops_editor"))).path("succeeded").asInt());
+
+        // 迁移授权：内置管理员有运营管理全部；有资料任务菜单的角色都有商品运营
+        assertEquals(3, jdbc.queryForObject("select count(*) from role_resource where role_code = 'ROLE_ADMIN' "
+                + "and resource_id in (100101, 100102, 110203)", Integer.class));
+        assertEquals(0, jdbc.queryForObject("select count(*) from role_resource x where x.resource_id = 100100 and x.role_code <> ? "
+                + "and not exists (select 1 from role_resource y where y.role_code = x.role_code and y.resource_id = 100102)",
+                Integer.class, "IT_ROLE"));
+        assertEquals("/product/fact-tasks", jdbc.queryForObject("select path from resource where id = 100100", String.class));
     }
 
     private static JsonNode block(JsonNode preview, String section) {

@@ -43,7 +43,8 @@ public interface ProductContentTaskMapper extends BaseMapper<ProductContentTaskD
             + "OR p.mpn_raw LIKE CONCAT('%', #{keyword}, '%')"
             + "<if test='mpn != null'> OR p.mpn_normalized LIKE CONCAT('%', #{mpn}, '%')</if>)</if>";
 
-    String STATUS = "<if test='status != null'> AND " + STAGE + " = #{status}</if>";
+    String STATUS = "<if test='stages != null'> AND " + STAGE
+            + " IN <foreach collection='stages' item='s' open='(' separator=',' close=')'>#{s}</foreach></if>";
 
     @Select("<script>SELECT p.id AS product_id, p.brand_id, p.category_id, p.mpn_raw, p.mpn_display, p.product_name, "
             + "t.id AS task_id, " + STAGE + " AS status, t.en_at, t.en_by, t.ru_at, t.ru_by, t.alibaba_at, t.alibaba_by, t.mic_at, t.mic_by, "
@@ -56,13 +57,13 @@ public interface ProductContentTaskMapper extends BaseMapper<ProductContentTaskD
             + "THEN f.update_by ELSE COALESCE(t.update_by, p.create_by) END AS update_by "
             + FROM + FILTER + STATUS
             + " ORDER BY update_time DESC, p.id DESC LIMIT #{offset}, #{size}</script>")
-    List<ContentTaskRow> page(@Param("tenantId") Integer tenantId, @Param("p") PlatformFlags p, @Param("status") Integer status,
+    List<ContentTaskRow> page(@Param("tenantId") Integer tenantId, @Param("p") PlatformFlags p, @Param("stages") List<Integer> stages,
                               @Param("brandId") Long brandId, @Param("categoryId") Long categoryId,
                               @Param("keyword") String keyword, @Param("mpn") String mpn,
                               @Param("offset") long offset, @Param("size") long size);
 
     @Select("<script>SELECT COUNT(*) " + FROM + FILTER + STATUS + "</script>")
-    long count(@Param("tenantId") Integer tenantId, @Param("p") PlatformFlags p, @Param("status") Integer status,
+    long count(@Param("tenantId") Integer tenantId, @Param("p") PlatformFlags p, @Param("stages") List<Integer> stages,
                @Param("brandId") Long brandId, @Param("categoryId") Long categoryId,
                @Param("keyword") String keyword, @Param("mpn") String mpn);
 

@@ -294,7 +294,7 @@ class ProductMasterDataIntegrationTest extends IntegrationTestBase {
 
         ContentTaskQuery content = new ContentTaskQuery();
         content.setCategoryId(servo);
-        assertEquals(2, contentTaskService.page(content).getTotal(), "内容任务按一级筛选同样包含细分");
+        assertEquals(2, contentTaskService.page(content, ContentTaskService.View.FACTS).getTotal(), "内容任务按一级筛选同样包含细分");
 
         Map<Long, Long> counts = categoryService.page(new CategoryQuery()).getRecords().stream()
                 .collect(Collectors.toMap(CategoryVO::getId, CategoryVO::getProductCount));
