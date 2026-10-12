@@ -65,6 +65,9 @@ cd zhul-trade-erp
 
 ### 2. 一键启动依赖环境（MySQL + Redis）
 
+> Docker 完整部署、前后端分服务器、云 MySQL/Redis 和持久化配置，见 [Docker 部署指南](docs/deployment/docker.md)。
+> **默认不持久化**：数据库与上传目录使用 tmpfs，停止/重启对应容器即清空。需要保留数据时，先按指南启用项目根目录 `storage/` 下的挂载。
+
 ```bash
 docker compose up -d
 ```
@@ -106,17 +109,18 @@ npm run dev
 
 | 用户名 | 密码 | 说明 |
 |--------|------|------|
-| `admin` | `admin123` | 租户账号（`tenant_id=1000`），日常业务操作 |
 | `platform` | `admin123` | 平台账号（`tenant_id=0`），可维护商品主数据（品牌/品类/系列等全租户共享数据） |
 
-> 这两个账号仅用于本地快速体验，生产环境部署前请务必修改密码或删除示例数据
-> （不要在生产环境的 `spring.flyway.locations` 里加 `classpath:db/dev-data`）。
+> 当前开发迁移只保留 `platform`，早期 `admin` 示例租户已被后续迁移移除。登录平台后配置套餐并创建租户。
+> 演示账号仅用于本地体验；生产不要在 `spring.flyway.locations` 中加入 `classpath:db/dev-data`。首次生产账号初始化见部署指南。
 
 ## 项目结构
 
 ```
 .
-├── docker-compose.yml          # 一键启动本地 MySQL（空库）/ Redis
+├── docker-compose.yaml         # 唯一 Docker 入口，默认仅 MySQL / Redis，app profile 启动全部
+├── .env.example                # Docker 配置模板（复制为 .env）
+├── storage/                    # 可选持久化数据目录，默认不启用
 ├── zhul-erp-backend/           # Spring Boot 后端
 │   └── src/main/
 │       ├── java/com/zhul/erp/
@@ -178,6 +182,7 @@ npm test                     # 单元测试
 
 ## 开发文档
 
+- [Docker 部署指南](docs/deployment/docker.md)：单机、分服务器、云数据库、可选持久化与排障
 - `.claude/CLAUDE.md`：项目专属编码规则（金额精度、软删除、多租户等强约束）
 - `.claude/context/`：外贸业务术语、财务科目、数据模型、技术选型说明
 - `docs/02-产品PRD/`：各模块产品需求文档

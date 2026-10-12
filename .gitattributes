@@ -1,0 +1,3 @@
+# Container entrypoints must retain LF after a Windows Git checkout.
+zhul-erp-backend/docker-entrypoint.sh text eol=lf
+zhul-erp-frontend/docker/*.sh text eol=lf
