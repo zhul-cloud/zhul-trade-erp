@@ -45,6 +45,7 @@ import {
   readBizError,
 } from '../service';
 import {
+  manualSteps,
   ProgressModal,
   PurchaserModal,
   SalesDateModal,
@@ -119,7 +120,8 @@ const OrderDetail: React.FC = () => {
   const orderedModels = o.items.filter(
     (i) => (i.purchaseOrderedQty ?? 0) > 0,
   ).length;
-  const canProgress = access['sales:order:progress'];
+  const canProgress =
+    access['sales:order:progress'] && manualSteps(o).length > 0;
 
   const done = (next: Order) => {
     setO(next);
