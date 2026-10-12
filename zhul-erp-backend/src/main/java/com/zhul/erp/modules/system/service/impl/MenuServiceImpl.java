@@ -265,7 +265,7 @@ public class MenuServiceImpl implements MenuService {
     public List<String> getEffectiveMenuKeys(String username) {
         // 角色只勾了部分子菜单时，上级目录不一定存进了 role_resource，这里统一补上，
         // 否则侧边栏会因为目录本身不在权限里而把整组菜单隐藏。
-        // 只从目录与页面往上补：只有某页面下的按钮（如「查看货源信息」挂在历史询价下）时，
+        // 只从目录与页面往上补：只有某页面下的按钮（如「查看货源信息」挂在询价记录下）时，
         // 不能因此让这个页面出现在侧边栏，否则点进去也是无权限
         List<ResourceDO> all = resourceMapper.selectList(null);
         Set<Integer> visible = visibleIds(username, all, true);

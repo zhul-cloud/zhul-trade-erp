@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-/** 历史询价：业务员、采购、采购负责人可查，兼职采购不可见（没有该菜单） */
+/** 询价记录：业务员、采购、采购负责人可查，兼职采购不可见（没有该菜单） */
 @RestController
 @RequestMapping("/api/v1/inquiry/price-history")
 @RequiredArgsConstructor

@@ -6,7 +6,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 /**
- * 历史询价的匹配键，与商品主数据同一套规则（design.md 决策 3）：
+ * 询价记录的匹配键，与商品主数据同一套规则（design.md 决策 3）：
  * 型号用 {@link MpnNormalizer} 归一化；品牌用 {@link BrandResolver} 按品牌及别名识别，
  * 识别到时键为「#品牌ID」，识别不到时为去首尾空格、转小写的品牌名。
  */

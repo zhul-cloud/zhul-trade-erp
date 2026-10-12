@@ -24,7 +24,7 @@ const amountFormatter = new Intl.NumberFormat('en-US', {
 
 /**
  * 金额统一显示为「币种代码 金额」：两位小数、千分位，如 CNY 4,120.00、USD -85.56；空值显示「—」。
- * 全系统（询盘、报价、以后的销售单 / 采购单 / PI）都用它，不再写 ¥ / $ 符号。
+ * 全系统（询盘、报价、以后的销售单 / 采购订单 / PI）都用它，不再写 ¥ / $ 符号。
  */
 export const formatAmount = (
   value: number | string | null | undefined,

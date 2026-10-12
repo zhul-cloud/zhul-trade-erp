@@ -64,7 +64,7 @@ public final class SalesConstants {
     /** 字典「销售订单状态」与内置码 */
     public static final String DICT_SO_STATUS = "sales_order_status";
     public static final String PROGRESS_PENDING = "PENDING_PURCHASE";
-    /** 已下单：由采购单自动推进，手动推进不能选 */
+    /** 已下单：由采购订单自动推进，手动推进不能选 */
     public static final String PROGRESS_ORDERED = "ORDERED";
     public static final String PROGRESS_RECEIVED = "RECEIVED";
     public static final String PROGRESS_TO_FORWARDER = "TO_FORWARDER";
@@ -98,7 +98,7 @@ public final class SalesConstants {
     public static final String PERM_SLIP = "sales:pi:receipt-slip";
     public static final String PERM_CONFIRM = "sales:pi:receipt-confirm";
     public static final String MENU_PI = "PI";
-    public static final String MENU_RECEIPTS = "收款管理";
+    public static final String MENU_RECEIPTS = "收款单";
     public static final String MENU_SO = "销售订单";
 
     private SalesConstants() {

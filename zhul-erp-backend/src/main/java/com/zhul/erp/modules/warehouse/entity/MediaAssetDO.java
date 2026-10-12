@@ -9,7 +9,7 @@ import lombok.Data;
 
 import java.time.LocalDateTime;
 
-/** 型号素材：拍摄任务上传，归到品牌 + 型号名下 */
+/** 型号素材：实拍任务上传，归到品牌 + 型号名下 */
 @Data
 @TableName("media_asset")
 public class MediaAssetDO {

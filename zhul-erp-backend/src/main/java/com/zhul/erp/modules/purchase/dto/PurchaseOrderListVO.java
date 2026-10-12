@@ -7,7 +7,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
-/** 采购单列表行 */
+/** 采购订单列表行 */
 @Data
 public class PurchaseOrderListVO implements ShipFields {
     private Long id;

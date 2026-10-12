@@ -946,7 +946,7 @@ export interface ContentImportRecord {
 const CONTENT = `${BASE}/content-tasks`;
 
 /**
- * 内容任务按入口分组：facts 为「商品资料 → 资料任务」，marketing 为「运营管理 → 商品运营」；
+ * 内容任务按入口分组：facts 为「商品管理 → 资料任务」，marketing 为「运营管理 → 商品运营」；
  * 各入口只接收自己的包类型，权限分别挂在两个菜单上
  */
 export const contentApi = {

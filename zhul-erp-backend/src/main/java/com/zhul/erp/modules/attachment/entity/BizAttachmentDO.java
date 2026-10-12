@@ -9,7 +9,7 @@ import lombok.Data;
 
 import java.time.LocalDateTime;
 
-/** 业务附件：发货单、入库单、拍摄任务的图片与视频 */
+/** 业务附件：发货单、采购入库单、实拍任务的图片与视频 */
 @Data
 @TableName("biz_attachment")
 public class BizAttachmentDO {

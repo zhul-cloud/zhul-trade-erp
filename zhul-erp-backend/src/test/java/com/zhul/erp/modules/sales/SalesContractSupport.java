@@ -77,7 +77,7 @@ public abstract class SalesContractSupport extends InquiryContractSupport {
         return jdbc.queryForList("select id from purchase_requirement where so_id = ? order by id", Long.class, soId);
     }
 
-    /** 需求池生成采购单：这些需求都放到一家供应商，返回草稿采购单 ID */
+    /** 需求池生成采购订单：这些需求都放到一家供应商，返回草稿采购订单 ID */
     protected long generate(long supplierId, List<Long> requirementIds, String token) throws Exception {
         JsonNode ids = ok(call(json(post(REQ + "/generate"),
                 write(Map.of("groups", List.of(Map.of("supplierId", supplierId, "requirementIds", requirementIds))))), token));
@@ -88,7 +88,7 @@ public abstract class SalesContractSupport extends InquiryContractSupport {
         return ok(call(get(PO + "/" + id), token));
     }
 
-    /** 采购单保存请求：沿用当前内容，各行单价统一为 price（为空则不改），付款条件默认全额预付 */
+    /** 采购订单保存请求：沿用当前内容，各行单价统一为 price（为空则不改），付款条件默认全额预付 */
     protected Map<String, Object> poBody(JsonNode po, String price) {
         Map<String, Object> b = new LinkedHashMap<>();
         b.put("currencyCode", po.path("currencyCode").asText());

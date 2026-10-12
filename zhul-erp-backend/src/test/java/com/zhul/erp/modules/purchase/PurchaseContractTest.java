@@ -163,7 +163,7 @@ class PurchaseContractTest extends SalesContractSupport {
         assertTrue(po.path("shop").asBoolean());
         assertEquals("淘宝 · 工控优选店", po.path("supplierName").asText());
         assertEquals("全额预付", po.path("paymentTermsText").asText(), "线上店铺默认全额预付");
-        assertEquals("线上店铺的采购单不需要上传合同", fail(call(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+        assertEquals("线上店铺的采购订单不需要上传合同", fail(call(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
                 .multipart(PO + "/" + d.get(0) + "/attachments").file(new org.springframework.mock.web.MockMultipartFile("file", "a.pdf",
                         "application/pdf", "%PDF-1.4".getBytes(java.nio.charset.StandardCharsets.US_ASCII))), admin)).path("message").asText());
 
@@ -226,7 +226,7 @@ class PurchaseContractTest extends SalesContractSupport {
         assertFalse(after.path("shop").asBoolean());
         assertEquals("华强电子", after.path("supplierName").asText());
         long sup = after.path("supplierId").asLong();
-        assertEquals(sup, po(draft, admin).path("supplierId").asLong(), "已下单的采购单也改为指向新供应商");
+        assertEquals(sup, po(draft, admin).path("supplierId").asLong(), "已下单的采购订单也改为指向新供应商");
         assertEquals(0, jdbc.queryForObject("select count(*) from purchase_requirement where tenant_id = 0 and status = 1 "
                 + "and suggested_shop_name = '华强电子'", Integer.class), "建议这家店的需求改为建议供应商");
         jdbc.update("delete from supplier where id = ?", sup);
@@ -366,7 +366,7 @@ class PurchaseContractTest extends SalesContractSupport {
         return out;
     }
 
-    // ---------------------------------------------------------------- 取消采购单、取消订单与重转
+    // ---------------------------------------------------------------- 取消采购订单、取消订单与重转
 
     @Test
     void cancelPo_returnsToPool_cancelOrder_flagsAndReconvertReattaches() throws Exception {
@@ -391,7 +391,7 @@ class PurchaseContractTest extends SalesContractSupport {
         ok(call(json(post(SO + "/" + soId + "/cancel"), "{\"reason\":\"客户追加型号\"}"), admin));
         assertEquals(List.of(3, 2), jdbc.queryForList("select status from purchase_requirement where so_id = ? order by id", Integer.class, soId));
         JsonNode p = po(again, admin);
-        assertTrue(p.path("items").get(0).path("orderCancelled").asBoolean(), "采购单行标「来源订单已取消」");
+        assertTrue(p.path("items").get(0).path("orderCancelled").asBoolean(), "采购订单行标「来源订单已取消」");
         assertEquals(1, ok(call(get(PO + "/stats"), admin)).path("orderCancelled").asInt());
 
         // 同一张 PI 重新转订单：接回已下单的 2 个
@@ -459,7 +459,7 @@ class PurchaseContractTest extends SalesContractSupport {
         assertEquals(1, ok(call(json(post(PO + "/page"), "{}"), lin)).path("total").asInt());
         long jiangDraft = jdbc.queryForObject("select id from purchase_order where tenant_id = 0 and purchaser_id = ? and deleted_at is null",
                 Long.class, BUYER_JIANG);
-        assertEquals("采购单不存在", fail(call(get(PO + "/" + jiangDraft), lin)).path("message").asText());
+        assertEquals("采购订单不存在", fail(call(get(PO + "/" + jiangDraft), lin)).path("message").asText());
         assertEquals(2, ok(call(json(post(REQ + "/page"), "{}"), admin)).path("total").asInt(), "数据权限为全部可见全部");
     }
 }

@@ -12,7 +12,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
 
-/** 需求的数量或状态在采购单行上变化时（排入、移出草稿、下单、取消），刷新需求的更新时间与更新人 */
+/** 需求的数量或状态在采购订单行上变化时（排入、移出草稿、下单、取消），刷新需求的更新时间与更新人 */
 @Component
 @RequiredArgsConstructor
 public class RequirementTouch {

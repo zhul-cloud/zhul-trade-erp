@@ -22,7 +22,7 @@ public class DirectRef {
     private LocalDate expectedArrivalDate;
     /** 已按货代实收确认 */
     private Boolean confirmed;
-    /** 确认后生成的出库单 */
+    /** 确认后生成的销售出库单 */
     private Long outboundId;
     private List<Line> items;
 

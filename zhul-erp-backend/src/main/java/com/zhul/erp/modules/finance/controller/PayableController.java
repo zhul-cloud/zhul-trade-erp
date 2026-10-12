@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
-/** 应付管理（spec finance/accounts-payable） */
+/** 应付单（spec finance/accounts-payable） */
 @RestController
 @RequestMapping("/api/v1/finance/payables")
 @RequiredArgsConstructor
@@ -26,7 +26,7 @@ public class PayableController {
     private static final String MENU = "@perm.canAccessMenu('/finance/payables')";
     /** 能登记付款的人（财务的付款登记、采购员的垫付登记）都要能选收款方和应付单 */
     private static final String PAYER = "@perm.has('finance:payment:register') or @perm.has('finance:payment:advance')";
-    /** 采购单、对账单的付款面板：有应付管理，或有对应来源的菜单 */
+    /** 采购订单、运费账单的付款面板：有应付单，或有对应来源的菜单 */
     private static final String SOURCE = MENU + " or (#sourceType == 1 and @perm.canAccessMenu('/purchase/orders'))"
             + " or (#sourceType == 2 and @perm.canAccessMenu('/logistics/statements'))";
 

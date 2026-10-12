@@ -8,7 +8,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
-/** 采购单详情 */
+/** 采购订单详情 */
 @Data
 public class PurchaseOrderVO implements ShipFields {
     private Long id;
@@ -67,7 +67,7 @@ public class PurchaseOrderVO implements ShipFields {
     private List<Log> logs;
     /** 发货单（含作废的） */
     private List<ShipmentRef> shipments;
-    /** 入库单（含冲销的） */
+    /** 采购入库单（含冲销的） */
     private List<ReceiptRef> receipts;
     /** 有在途或已入库的发货单（不能取消） */
     private Boolean hasShipments;

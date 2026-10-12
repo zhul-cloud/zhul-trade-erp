@@ -10,7 +10,7 @@ import lombok.Data;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-/** 询价记录：一条询价结果，已提交的即为历史询价的一行 */
+/** 询价记录：一条询价结果，已提交的即为询价记录的一行 */
 @Data
 @TableName("sourcing_quote")
 public class SourcingQuoteDO {

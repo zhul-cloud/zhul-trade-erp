@@ -32,7 +32,7 @@ export interface ReceiptRecordQuery {
   pageSize: number;
 }
 
-/** 财务管理 → 收款管理：未认领到账与收款记录 */
+/** 财务管理 → 收款单：未认领到账与收款记录 */
 export const ledgerApi = {
   unclaimed: (keyword?: string, currencyCode?: string) =>
     unwrap(

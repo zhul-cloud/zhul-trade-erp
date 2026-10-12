@@ -12,7 +12,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
-/** 采购单 */
+/** 采购订单 */
 @Data
 @TableName("purchase_order")
 public class PurchaseOrderDO {

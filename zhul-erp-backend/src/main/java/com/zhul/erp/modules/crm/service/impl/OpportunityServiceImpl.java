@@ -454,7 +454,7 @@ public class OpportunityServiceImpl implements OpportunityService {
         OpportunityDO o = getInScope(opportunityId);
         OpportunityStageRules.Stages stages = stageRules.load();
         if (!stages.isActive(o.getStageCode())) {
-            throw new BizException("商机已结束，不能再创建询盘；老客户的新需求请在客户询盘列表新建");
+            throw new BizException("商机已结束，不能再创建询盘；老客户的新需求请在询盘单列表新建");
         }
         if (stages.countsAsValid(o.getStageCode())) {
             return;
@@ -463,7 +463,7 @@ public class OpportunityServiceImpl implements OpportunityService {
         String to = stages.firstValid().getCode();
         moveTo(o, to, stages);
         opportunityMapper.updateById(o);
-        log(o, from, to, OpportunityConstants.ACTION_CHANGE, 0, "创建客户询盘 " + inquiryCode + "，自动推进");
+        log(o, from, to, OpportunityConstants.ACTION_CHANGE, 0, "创建询盘单 " + inquiryCode + "，自动推进");
     }
 
     @Override

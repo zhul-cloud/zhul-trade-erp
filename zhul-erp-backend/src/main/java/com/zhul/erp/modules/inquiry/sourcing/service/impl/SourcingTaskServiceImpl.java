@@ -227,7 +227,7 @@ public class SourcingTaskServiceImpl implements SourcingTaskService {
                 .eq(SourcingTaskDO::getTenantId, tenantId)
                 .in(SourcingTaskDO::getStatus, InquiryConstants.TASK_UNASSIGNED, InquiryConstants.TASK_SOURCING)
                 .isNull(SourcingTaskDO::getDeletedAt));
-        // 已回价页签：任务已回齐、客户询盘还在「询价中 / 可报价」（业务员没报价），回价与成本价仍可调整
+        // 已回价页签：任务已回齐、询盘单还在「询价中 / 可报价」（业务员没报价），回价与成本价仍可调整
         LambdaQueryWrapper<SourcingTaskDO> doneQuery = new LambdaQueryWrapper<SourcingTaskDO>()
                 .eq(SourcingTaskDO::getTenantId, tenantId)
                 .eq(SourcingTaskDO::getStatus, InquiryConstants.TASK_DONE)
@@ -779,7 +779,7 @@ public class SourcingTaskServiceImpl implements SourcingTaskService {
     }
 
     /**
-     * 有兼职回价待审核的任务 → 待审核记录（任务询价中或已回价、客户询盘还没报价也没取消）。
+     * 有兼职回价待审核的任务 → 待审核记录（任务询价中或已回价、询盘单还没报价也没取消）。
      * 报价后回价只读，留在待审核里也审不了，所以不列出。
      */
     private Map<Long, List<SourcingQuoteDO>> pendingReviewByTask(int tenantId) {
@@ -835,7 +835,7 @@ public class SourcingTaskServiceImpl implements SourcingTaskService {
         progress.lock(item.getCustomerInquiryId());
         CustomerInquiryDO inquiry = inquiryMapper.selectById(item.getCustomerInquiryId());
         if (inquiry != null && inquiry.getStatus() == InquiryConstants.STATUS_CANCELLED) {
-            throw new BizException("客户询盘已取消，采购成本价不能再修改");
+            throw new BizException("询盘单已取消，采购成本价不能再修改");
         }
         if (quotationLocks.isLocked(itemId)) {
             throw new BizException("型号已报给客户，采购成本价不能再修改");

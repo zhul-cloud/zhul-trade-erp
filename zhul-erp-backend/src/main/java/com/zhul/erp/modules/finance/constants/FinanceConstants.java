@@ -26,7 +26,7 @@ public final class FinanceConstants {
     /** 期次到期时点：1-下单后、2-发货前、3-入库后（offset_days 天）同付款条件；5-对账确认 */
     public static final int TRIGGER_STATEMENT = 5;
 
-    /** 付款记录类型 */
+    /** 付款单类型 */
     public static final int KIND_PAYMENT = 1;
     public static final int KIND_REFUND = 2;
 
@@ -44,7 +44,7 @@ public final class FinanceConstants {
     public static final int PAYEE_EMPLOYEE = 5;
     /** ③b：来源类型「费用单」 */
     public static final int SOURCE_EXPENSE = 3;
-    /** ③b：付款记录类型「报销付款」 */
+    /** ③b：付款单类型「报销付款」 */
     public static final int KIND_REIMBURSE = 3;
 
     public static final String MENU_REIMBURSE = "/finance/reimbursements";

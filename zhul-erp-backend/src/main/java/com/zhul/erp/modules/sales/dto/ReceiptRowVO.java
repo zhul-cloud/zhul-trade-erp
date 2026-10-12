@@ -6,7 +6,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
-/** 收款管理里的一笔到账（未认领到账、可认领列表、收款记录共用） */
+/** 收款单里的一笔到账（未认领到账、可认领列表、收款记录共用） */
 @Data
 public class ReceiptRowVO {
     private Long id;

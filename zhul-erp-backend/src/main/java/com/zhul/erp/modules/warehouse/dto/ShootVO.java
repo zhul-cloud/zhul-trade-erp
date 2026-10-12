@@ -4,7 +4,7 @@ import lombok.Data;
 import java.time.LocalDateTime;
 import java.util.List;
 
-/** 拍摄任务详情 */
+/** 实拍任务详情 */
 @Data
 public class ShootVO {
     private ShootListVO task;

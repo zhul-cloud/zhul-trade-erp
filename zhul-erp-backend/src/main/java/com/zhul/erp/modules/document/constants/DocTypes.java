@@ -4,7 +4,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-/** 单据模版类型（document_template.doc_type） */
+/** 单据模板类型（document_template.doc_type） */
 public final class DocTypes {
 
     public static final int QUOTATION = 1;

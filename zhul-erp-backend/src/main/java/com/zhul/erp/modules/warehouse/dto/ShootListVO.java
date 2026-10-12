@@ -3,7 +3,7 @@ package com.zhul.erp.modules.warehouse.dto;
 import lombok.Data;
 import java.time.LocalDateTime;
 
-/** 拍摄任务列表行 */
+/** 实拍任务列表行 */
 @Data
 public class ShootListVO {
     private Long id;

@@ -19,7 +19,7 @@ import java.util.TreeSet;
 
 /**
  * 报价单成交由销售订单推进：订单创建 / 取消时标记报价行是否成交（won），再按行重算报价单状态
- * （全部成交 → 已成交，部分 → 部分成交，没有 → 已发送），最后推进客户询盘。
+ * （全部成交 → 已成交，部分 → 部分成交，没有 → 已发送），最后推进询盘单。
  * 调用方须已锁住 PI；本类按「报价单 ID 升序 → 询盘 ID 升序」加锁，与 design.md 的加锁顺序一致。
  */
 @Slf4j
@@ -34,7 +34,7 @@ public class QuotationDeals {
     private final QuotationItemMapper itemMapper;
     private final InquiryStatusSync statusSync;
 
-    /** 设置报价行成交标记，并重算涉及的报价单与客户询盘 */
+    /** 设置报价行成交标记，并重算涉及的报价单与询盘单 */
     public void apply(Collection<Long> wonItemIds, Collection<Long> lostItemIds) {
         Set<Long> itemIds = new TreeSet<>(wonItemIds);
         itemIds.addAll(lostItemIds);

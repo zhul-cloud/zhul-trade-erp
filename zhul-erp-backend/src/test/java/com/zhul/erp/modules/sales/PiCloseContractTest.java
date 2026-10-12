@@ -96,7 +96,7 @@ class PiCloseContractTest extends SalesContractSupport {
         assertFalse(closed.path("closeReasonName").asText().isEmpty());
         assertEquals(4, quotationStatus(q), "来源报价单标为未成交");
         assertEquals(id, jdbc.queryForObject("select lost_by_pi_id from quotation where id = ?", Long.class, q));
-        assertEquals(9, inquiryStatus(inquiry), "客户询盘随之未成交");
+        assertEquals(9, inquiryStatus(inquiry), "询盘单随之未成交");
 
         String msg = "PI 已关闭，需要继续请先重新打开";
         assertEquals(msg, fail(uploadSlip(id, "100", LocalDate.now().toString(), admin)).path("message").asText());
@@ -109,7 +109,7 @@ class PiCloseContractTest extends SalesContractSupport {
         assertEquals(LocalDate.now().plusDays(30).toString(), reopened.path("validUntil").asText());
         assertEquals(2, quotationStatus(q), "报价单回到已发送");
         assertTrue(jdbc.queryForObject("select lost_by_pi_id is null from quotation where id = ?", Boolean.class, q));
-        assertEquals(7, inquiryStatus(inquiry), "客户询盘回到已报价");
+        assertEquals(7, inquiryStatus(inquiry), "询盘单回到已报价");
         ok(uploadSlip(id, "100", LocalDate.now().toString(), admin));
     }
 

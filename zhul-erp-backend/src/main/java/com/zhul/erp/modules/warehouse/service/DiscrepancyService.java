@@ -53,8 +53,8 @@ import java.util.Objects;
 import java.util.Set;
 
 /**
- * 到货差异：验收时按入库行生成（少发 / 不良 / 多发），负责人为采购单的采购员，由采购员选择处理方式。
- * 事务边界：处理 / 重新打开 = 差异状态、采购单行数量与合计（不补）、暂存货（暂存）、订单进度、需求更新时间、采购单日志。
+ * 到货差异：验收时按入库行生成（少发 / 不良 / 多发），负责人为采购订单的采购员，由采购员选择处理方式。
+ * 事务边界：处理 / 重新打开 = 差异状态、采购订单行数量与合计（不补）、闲置库存（暂存）、订单进度、需求更新时间、采购订单日志。
  * 金额精度：折价金额、退货运费按两位小数 HALF_UP 存储（PurchaseCalc.money）。
  */
 @Service
@@ -85,7 +85,7 @@ public class DiscrepancyService {
     private final AttachmentService attachments;
     private final com.zhul.erp.modules.warehouse.repository.PurchaseReceiptItemMapper receiptItemMapper;
 
-    // ---------------------------------------------------------------- 生成与作废（入库单事务内）
+    // ---------------------------------------------------------------- 生成与作废（采购入库单事务内）
 
     /** 按入库行生成差异，返回条数 */
     int createForReceipt(PurchaseReceiptDO r, List<PurchaseReceiptItemDO> items, PurchaseOrderDO p) {
@@ -349,7 +349,7 @@ public class DiscrepancyService {
             h.setReturnTrackingNo("");
             h.setHandleNote("");
             holdMapper.insert(h);
-            detail.add("进入暂存货" + (free ? "（供应商白送）" : "") + (h.getLocationNote().isEmpty() ? "" : "，位置 " + h.getLocationNote()));
+            detail.add("进入闲置库存" + (free ? "（供应商白送）" : "") + (h.getLocationNote().isEmpty() ? "" : "，位置 " + h.getLocationNote()));
         }
         Long operator = currentUser.resolve();
         d.setResolution(res);
@@ -385,7 +385,7 @@ public class DiscrepancyService {
                     .isNull(StockHoldDO::getDeletedAt)
                     .last("LIMIT 1"));
             if (h != null && h.getStatus() != WarehouseConstants.HOLD_ACTIVE) {
-                throw new BizException("暂存货已" + WarehouseConstants.HOLD_STATUS_NAMES.get(h.getStatus()).substring(1) + "，不能重新打开");
+                throw new BizException("闲置库存已" + WarehouseConstants.HOLD_STATUS_NAMES.get(h.getStatus()).substring(1) + "，不能重新打开");
             }
             if (h != null) {
                 holdMapper.lockById(h.getId());
@@ -395,14 +395,14 @@ public class DiscrepancyService {
         }
         if (REDUCE_ORDER.contains(res)) {
             if (p.getStatus() != PurchaseConstants.PO_ORDERED) {
-                throw new BizException("采购单已取消，不能重新打开");
+                throw new BizException("采购订单已取消，不能重新打开");
             }
             requirementMapper.lockByIds(List.of(item.getRequirementId()));
             PurchaseRequirementDO r = requirementMapper.selectById(item.getRequirementId());
             int available = r == null || r.getStatus() != PurchaseConstants.REQ_ACTIVE ? 0
                     : RequirementQty.available(r, requirementQty.of(r.getId()));
             if (available < d.getQuantity()) {
-                throw new BizException("这部分数量已经排到其他采购单，不能重新打开");
+                throw new BizException("这部分数量已经排到其他采购订单，不能重新打开");
             }
             item.setQuantity(item.getQuantity() + d.getQuantity());
             poItemMapper.updateById(item);

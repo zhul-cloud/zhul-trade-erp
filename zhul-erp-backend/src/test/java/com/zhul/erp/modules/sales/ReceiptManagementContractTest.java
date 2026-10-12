@@ -139,7 +139,7 @@ class ReceiptManagementContractTest extends SalesContractSupport {
         assertEquals(1, claimable.size(), "只列同币种");
         assertEquals(usd, claimable.get(0).path("id").asLong());
         assertEquals("ACROBOT TECHNOLOGIES PVT LTD", claimable.get(0).path("payer").asText());
-        assertEquals(403, perform(get(FIN + "/unclaimed"), rep).getStatus(), "业务员不能进收款管理");
+        assertEquals(403, perform(get(FIN + "/unclaimed"), rep).getStatus(), "业务员不能进收款单");
 
         JsonNode claimed = ok(call(json(post(PI + "/" + id + "/claim"), "{\"receiptId\":" + usd + "}"), rep));
         money("667", claimed.path("receivedAmount"));

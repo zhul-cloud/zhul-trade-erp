@@ -27,7 +27,7 @@ import java.util.Objects;
 import java.util.Set;
 
 /**
- * 草稿采购单的放置与重算。自动生成、需求池生成、拆分、改采购员、改到其他供应商都走 {@link #place}：
+ * 草稿采购订单的放置与重算。自动生成、需求池生成、拆分、改采购员、改到其他供应商都走 {@link #place}：
  * 按「采购员 + 供应商」追加到该采购员对该供应商最近的 CNY 草稿，没有时新建；调用方负责已锁住相关需求。
  */
 @Component
@@ -41,7 +41,7 @@ public class PurchaseDrafts {
     private final PurchaseLogs logs;
     private final RequirementTouch touch;
 
-    /** 线上店铺采购单的默认付款条件：100% 下单后 */
+    /** 线上店铺采购订单的默认付款条件：100% 下单后 */
     public static final String SHOP_TERMS = "[{\"percent\":100.00,\"trigger\":1,\"days\":0}]";
 
     /** 一条需求的多少数量放到哪位采购员对哪个采购对象的草稿；单价可带（改到其他供应商时保留已填的价） */
@@ -51,7 +51,7 @@ public class PurchaseDrafts {
         }
     }
 
-    /** 放入草稿，返回涉及的草稿采购单（按放置顺序）；action 写在每张草稿的日志上 */
+    /** 放入草稿，返回涉及的草稿采购订单（按放置顺序）；action 写在每张草稿的日志上 */
     public List<PurchaseOrderDO> place(List<Placement> placements, String action, String note, Long operatorId) {
         Map<String, List<Placement>> groups = new LinkedHashMap<>();
         for (Placement p : placements) {

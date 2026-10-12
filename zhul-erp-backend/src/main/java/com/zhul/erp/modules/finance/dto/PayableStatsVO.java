@@ -4,7 +4,7 @@ import lombok.Data;
 
 import java.math.BigDecimal;
 
-/** 应付管理顶部统计（人民币，按应付汇率折算未付与欠款） */
+/** 应付单顶部统计（人民币，按应付汇率折算未付与欠款） */
 @Data
 public class PayableStatsVO {
     private BigDecimal monthDue = BigDecimal.ZERO;

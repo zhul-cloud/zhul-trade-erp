@@ -27,7 +27,7 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 
-/** 单据模版：能访问「单据模版」菜单即可查看、下载、预览；上传 / 设默认 / 启停需要管理权限 */
+/** 单据模板：能访问「单据模板」菜单即可查看、下载、预览；上传 / 设默认 / 启停需要管理权限 */
 @RestController
 @RequestMapping("/api/v1/system/document-templates")
 @RequiredArgsConstructor

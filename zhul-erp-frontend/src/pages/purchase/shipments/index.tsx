@@ -137,7 +137,7 @@ const ShipmentsTab: React.FC = () => {
       ),
     },
     {
-      title: '采购单 · 采购对象',
+      title: '采购订单 · 采购对象',
       dataIndex: 'poNo',
       width: 210,
       render: (v: string, r) => (
@@ -267,7 +267,7 @@ const ShipmentsTab: React.FC = () => {
               setQuery({ keyword: keyword.trim() || undefined, status });
               setPage(1);
             }}
-            placeholder="发货单号、采购单号、快递单号、型号、采购对象"
+            placeholder="发货单号、采购订单号、快递单号、型号、采购对象"
             style={{ width: 360 }}
             aria-label="关键词"
           />
@@ -306,7 +306,7 @@ const ShipmentsTab: React.FC = () => {
           loading={loading}
           scroll={{ x: 2000 }}
           locale={{
-            emptyText: '还没有发货记录；在采购单详情点「登记发货」',
+            emptyText: '还没有发货记录；在采购订单详情点「登记发货」',
           }}
           pagination={{
             current: page,
@@ -515,7 +515,7 @@ const DiffsTab: React.FC<{ onChanged: () => void }> = ({ onChanged }) => {
 
   const columns: TableColumnsType<Discrepancy> = [
     {
-      title: '入库单 · 日期',
+      title: '采购入库单 · 日期',
       dataIndex: 'grNo',
       width: 160,
       fixed: 'left',
@@ -527,7 +527,7 @@ const DiffsTab: React.FC<{ onChanged: () => void }> = ({ onChanged }) => {
       ),
     },
     {
-      title: '采购单 · 采购对象',
+      title: '采购订单 · 采购对象',
       dataIndex: 'poNo',
       width: 200,
       render: (v: string, r) => (
@@ -598,7 +598,7 @@ const DiffsTab: React.FC<{ onChanged: () => void }> = ({ onChanged }) => {
             onClick={() =>
               modal.confirm({
                 title: `重新打开「${r.model} ${r.typeName} ${r.quantity}」？`,
-                content: `撤销「${r.resolutionName}」：采购单数量、暂存货与订单进度恢复到处理前，差异回到待处理。`,
+                content: `撤销「${r.resolutionName}」：采购订单数量、闲置库存与订单进度恢复到处理前，差异回到待处理。`,
                 okText: '重新打开',
                 onOk: async () => {
                   try {
@@ -661,7 +661,7 @@ const DiffsTab: React.FC<{ onChanged: () => void }> = ({ onChanged }) => {
             value={keyword}
             onChange={(e) => setKeyword(e.target.value)}
             onPressEnter={apply}
-            placeholder="入库单、采购单、型号、采购对象"
+            placeholder="采购入库单、采购订单、型号、采购对象"
             style={{ width: 300 }}
             aria-label="关键词"
           />

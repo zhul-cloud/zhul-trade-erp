@@ -19,7 +19,7 @@ import java.util.List;
 import java.util.function.Consumer;
 
 /**
- * 存量补齐（openspec add-accounts-payable）：已下单、还没有应付单的采购单，已确认、还没有应付单的货代对账单，启动时补生成应付。
+ * 存量补齐（openspec add-accounts-payable）：已下单、还没有应付单的采购订单，已确认、还没有应付单的运费账单，启动时补生成应付。
  * 有应付单的不再处理，所以重复启动不会重复生成；每张单据一个事务，失败只记日志，下次启动再补。
  */
 @Slf4j
@@ -50,7 +50,7 @@ public class PayableBackfill implements ApplicationRunner {
                 .notExists(String.format(NO_PAYABLE, 2, "forwarder_statement")));
         int st = each(statements.stream().map(s -> new Item(s.getId(), s.getTenantId())).toList(), sync::createForStatement);
         if (po + st > 0) {
-            log.info("应付存量补齐完成：采购单 {} 张，货代对账单 {} 张", po, st);
+            log.info("应付存量补齐完成：采购订单 {} 张，运费账单 {} 张", po, st);
         }
     }
 

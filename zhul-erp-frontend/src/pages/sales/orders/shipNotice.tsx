@@ -261,7 +261,7 @@ export const ShipNoticeModal: React.FC<{
           </div>
           <div style={{ fontSize: 12, color: palette.mute }}>
             <InfoCircleOutlined />{' '}
-            确认后生成出库单（待打包），仓库在「出库打包」里看到；可以分批发，没到的型号以后再发。
+            确认后生成销售出库单（待打包），仓库在「销售出库」里看到；可以分批发，没到的型号以后再发。
           </div>
         </div>
       )}
@@ -269,7 +269,7 @@ export const ShipNoticeModal: React.FC<{
   );
 };
 
-/** 订单上的出库单：待打包的可以修改、撤回 */
+/** 订单上的销售出库单：待打包的可以修改、撤回 */
 export const OrderOutbounds: React.FC<{
   soId: number;
   version: number;
@@ -295,7 +295,7 @@ export const OrderOutbounds: React.FC<{
   if (rows.length === 0) return null;
   return (
     <Card style={{ padding: 20, marginBottom: 16 }}>
-      <b style={{ color: palette.ink }}>出库单</b>
+      <b style={{ color: palette.ink }}>销售出库单</b>
       <div style={{ display: 'grid', gap: 10, marginTop: 12 }}>
         {rows.map((r) => (
           <div
@@ -356,7 +356,7 @@ export const OrderOutbounds: React.FC<{
       <ReasonModal
         open={!!withdrawing}
         title={`撤回发货通知 · ${withdrawing?.obNo ?? ''}`}
-        description="撤回后仓库不再打包这张出库单，数量回到可出库。"
+        description="撤回后仓库不再打包这张销售出库单，数量回到可出库。"
         okText="撤回"
         danger
         onCancel={() => setWithdrawing(undefined)}
@@ -375,7 +375,7 @@ export const OrderOutbounds: React.FC<{
       />
       <Modal
         open={!!viewing}
-        title={viewing ? `出库单 ${viewing.obNo}` : ''}
+        title={viewing ? `销售出库单 ${viewing.obNo}` : ''}
         footer={null}
         width={760}
         onCancel={() => setViewing(undefined)}

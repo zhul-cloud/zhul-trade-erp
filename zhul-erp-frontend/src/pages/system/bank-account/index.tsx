@@ -364,7 +364,7 @@ const BankAccountPage: React.FC = () => {
           <InfoCircleOutlined style={{ color: palette.link }} />
           账号在列表与日志中只显示后 4 位，PI
           上显示完整账号。停用默认账户前要先把同币种的另一个账户设为默认。单据前缀在「业务设置
-          → 单据编号」设置。
+          → 编号规则」设置。
           {missing.length > 0 &&
             `${missing.join('、')} 还没有启用的账户：这些币种的 PI 可以存草稿，发送时提示添加。`}
         </div>

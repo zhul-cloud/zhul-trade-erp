@@ -44,7 +44,7 @@ import java.util.Objects;
 
 /**
  * 应付同步（spec finance/accounts-payable）：按来源单据的当前状态重算应付金额与付款计划，再按核销重算已付、欠款与状态。
- * 都在调用方事务内执行，先锁应付单行；采购单确认、修改、取消，到货差异处理与重新打开，入库与冲销，货代对账确认时调用。
+ * 都在调用方事务内执行，先锁应付单行；采购订单确认、修改、取消，到货差异处理与重新打开，入库与冲销，运费账单确认时调用。
  */
 @Service
 @RequiredArgsConstructor
@@ -63,7 +63,7 @@ public class PayableSyncService {
     private final ExpenseMapper expenseMapper;
     private final DocumentNumberService documentNumberService;
 
-    /** 采购单：已下单的生成或重算；取消的关闭（已付转为欠款）；草稿不处理 */
+    /** 采购订单：已下单的生成或重算；取消的关闭（已付转为欠款）；草稿不处理 */
     public void syncPurchaseOrder(Long poId) {
         PurchaseOrderDO po = orderMapper.selectById(poId);
         if (po == null || po.getDeletedAt() != null || Objects.equals(po.getStatus(), PurchaseConstants.PO_DRAFT)) {
@@ -92,7 +92,7 @@ public class PayableSyncService {
         apply(p, amount, InstallmentPlanner.plan(amount, terms, dates), cancelled);
     }
 
-    /** 货代对账单确认：生成一期应付，确认当天到期；已有的不再生成 */
+    /** 运费账单确认：生成一期应付，确认当天到期；已有的不再生成 */
     public void createForStatement(Long statementId) {
         ForwarderStatementDO st = statementMapper.selectById(statementId);
         if (st == null || st.getDeletedAt() != null) {
@@ -102,7 +102,7 @@ public class PayableSyncService {
         if (p != null) {
             return;
         }
-        p = newPayable(FinanceConstants.SOURCE_STATEMENT, statementId, "货代对账 " + st.getPeriod(), "CNY", BigDecimal.ONE);
+        p = newPayable(FinanceConstants.SOURCE_STATEMENT, statementId, "运费账单 " + st.getPeriod(), "CNY", BigDecimal.ONE);
         p.setPayeeType(FinanceConstants.PAYEE_FORWARDER);
         p.setSupplierId(st.getForwarderId());
         p.setPayeeName(supplierName(st.getForwarderId()));
@@ -306,7 +306,7 @@ public class PayableSyncService {
                 .stream().map(d -> nz(d.getDiscountAmount())).reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
-    /** 全部入库（发货进度为已入库）时取有效入库单最晚的入库日期，否则为空 */
+    /** 全部入库（发货进度为已入库）时取有效采购入库单最晚的入库日期，否则为空 */
     private LocalDate receivedDate(PurchaseOrderDO po) {
         if (!Objects.equals(po.getStatus(), PurchaseConstants.PO_ORDERED)) {
             return null;

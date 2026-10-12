@@ -318,7 +318,7 @@ const PurchaseOrderDetail: React.FC = () => {
   const removeItems = (ids: number[]) =>
     modal.confirm({
       title: `移除 ${ids.length} 个型号？`,
-      content: '移除后这些数量回到需求池，可以再生成到别的采购单。',
+      content: '移除后这些数量回到需求池，可以再生成到别的采购订单。',
       okText: '移除',
       onOk: async () => {
         try {
@@ -538,7 +538,7 @@ const PurchaseOrderDetail: React.FC = () => {
       : []),
   ];
 
-  const title = po.poNo ?? `草稿采购单 · ${po.supplierName ?? ''}`;
+  const title = po.poNo ?? `草稿采购订单 · ${po.supplierName ?? ''}`;
   const contractDiff =
     draft.contractAmount == null
       ? null
@@ -549,7 +549,7 @@ const PurchaseOrderDetail: React.FC = () => {
       <PurchasePageTitle
         crumbs={[
           <a key="list" onClick={() => history.push(PATHS.orders)}>
-            采购单
+            采购订单
           </a>,
           po.poNo ?? '草稿',
         ]}
@@ -585,7 +585,7 @@ const PurchaseOrderDetail: React.FC = () => {
                   modal.confirm({
                     title: `把「${po.shopName}」转为供应商？`,
                     content:
-                      '将新建供应商（已有同名供应商时直接使用），并把这家店的草稿、已下单采购单和建议这家店的需求都改为指向它。',
+                      '将新建供应商（已有同名供应商时直接使用），并把这家店的草稿、已下单采购订单和建议这家店的需求都改为指向它。',
                     okText: '转为供应商',
                     onOk: async () => {
                       try {
@@ -615,7 +615,7 @@ const PurchaseOrderDetail: React.FC = () => {
                     : setCancelOpen(true)
                 }
               >
-                取消采购单
+                取消采购订单
               </Button>
             )}
             {po.status === PO_STATUS.ORDERED && canEdit && !editing && (
@@ -748,7 +748,7 @@ const PurchaseOrderDetail: React.FC = () => {
             }
             hint={
               contractDiff
-                ? `合同金额与采购单合计相差 ${formatAmount(Math.abs(contractDiff), draft.currencyCode)}`
+                ? `合同金额与采购订单合计相差 ${formatAmount(Math.abs(contractDiff), draft.currencyCode)}`
                 : po.contractNo
                   ? `合同编号 ${po.contractNo}`
                   : '选填，货值低的可以不传'
@@ -1161,7 +1161,7 @@ const PurchaseOrderDetail: React.FC = () => {
             const p = await poApi.cancel(poId, reason);
             apply(p);
             setCancelOpen(false);
-            message.success('采购单已取消，各型号数量回到需求池');
+            message.success('采购订单已取消，各型号数量回到需求池');
           } catch (e) {
             message.error(readBizError(e).message);
           }
@@ -1376,7 +1376,7 @@ const ShipmentsCard: React.FC<{
         </b>
         <span style={{ flex: 1 }} />
         <span style={{ fontSize: 12, color: palette.mute }}>
-          有发货后不能直接取消采购单，少发、退货在到货差异里处理
+          有发货后不能直接取消采购订单，少发、退货在到货差异里处理
         </span>
       </div>
       <Table<FlowRow>
@@ -1550,7 +1550,7 @@ const ContractCard: React.FC<{
           <Alert
             type="warning"
             showIcon
-            title={`合同金额与采购单合计相差 ${formatAmount(Math.abs(contractDiff), draft.currencyCode)}`}
+            title={`合同金额与采购订单合计相差 ${formatAmount(Math.abs(contractDiff), draft.currencyCode)}`}
           />
         ) : null}
         {!editable &&
@@ -1646,7 +1646,7 @@ const ConfirmModal: React.FC<{
           </div>
         </div>
         <div style={{ fontSize: 12, color: palette.mute }}>
-          确认后分配采购单编号；全部数量都在已下单采购单上的订单型号会自动变为「已下单」。下单后仍可改价格、数量、合同与预计发货日期，修改会记录在操作日志里；已过预计发货日期还没发完的会在列表里标出来。
+          确认后分配采购订单编号；全部数量都在已下单采购订单上的订单型号会自动变为「已下单」。下单后仍可改价格、数量、合同与预计发货日期，修改会记录在操作日志里；已过预计发货日期还没发完的会在列表里标出来。
         </div>
       </div>
     </Modal>
@@ -1667,10 +1667,10 @@ const CancelModal: React.FC<{
   return (
     <Modal
       open={open}
-      title="取消采购单"
+      title="取消采购订单"
       width={480}
       onCancel={onClose}
-      okText="取消采购单"
+      okText="取消采购订单"
       okButtonProps={{ danger: true, disabled: !reason.trim(), loading: busy }}
       cancelText="不取消"
       onOk={async () => {
@@ -1735,7 +1735,7 @@ const MoveModal: React.FC<{
         <div style={{ color: palette.sub }}>已选 {count} 个型号</div>
         <CounterpartyPicker value={value} onChange={setValue} />
         <div style={{ fontSize: 12, color: palette.mute }}>
-          这些型号会移出当前草稿，追加到你对新采购对象的草稿采购单（没有时新建），已填的单价保留；当前草稿没有型号时自动删除。
+          这些型号会移出当前草稿，追加到你对新采购对象的草稿采购订单（没有时新建），已填的单价保留；当前草稿没有型号时自动删除。
         </div>
       </div>
     </Modal>

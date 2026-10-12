@@ -24,7 +24,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 
 /**
- * spec finance/accounts-payable、finance/supplier-payment，与 purchase/purchase-order「付款条件」「采购单的付款」、
+ * spec finance/accounts-payable、finance/supplier-payment，与 purchase/purchase-order「付款条件」「采购订单的付款」、
  * purchase/receiving-discrepancy（折价冲减应付）、logistics/forwarder-statement（对账确认生成应付）。
  */
 class PayableContractTest extends SalesContractSupport {
@@ -61,7 +61,7 @@ class PayableContractTest extends SalesContractSupport {
 
     // ---------------------------------------------------------------- 准备数据
 
-    /** 确认下单的采购单：一行，单价 price；付款条件 terms（JSON 数组的 Java 形式） */
+    /** 确认下单的采购订单：一行，单价 price；付款条件 terms（JSON 数组的 Java 形式） */
     private JsonNode orderedPo(long supplierId, String model, int qty, String price, List<Map<String, Object>> terms) throws Exception {
         long c = customer("ACROBOT", "India");
         List<Long> items = quotationItemIds(quotation(c, 2, "USD", null, l(model, qty, "100", "200")));
@@ -151,7 +151,7 @@ class PayableContractTest extends SalesContractSupport {
         assertEquals(3, ap.path("installments").get(0).path("status").asInt());
         money("7000.00", ap.path("unpaidAmount"));
         assertEquals(1, ap.path("payments").size());
-        // 采购单列表：付款列与付款状态筛选
+        // 采购订单列表：付款列与付款状态筛选
         JsonNode list = ok(call(json(post(PO + "/page"), write(Map.of("payStatus", "PARTIAL"))), admin));
         assertEquals(1, list.path("total").asInt());
         assertEquals(2, list.path("records").get(0).path("payStatus").asInt());
@@ -177,7 +177,7 @@ class PayableContractTest extends SalesContractSupport {
         JsonNode stats = ok(call(get(AP + "/stats"), admin));
         money("7000.00", stats.path("monthDue"));
         assertEquals(0, ok(call(get(AP).param("due", "OVERDUE"), admin)).path("total").asInt());
-        // 采购员没有应付管理菜单
+        // 采购员没有应付单菜单
         assertFalse(call(get(AP), lin).path("code").asInt() == 0);
     }
 
@@ -206,7 +206,7 @@ class PayableContractTest extends SalesContractSupport {
         money("100.00", ap.path("creditAmount"));
         assertEquals(3, ap.path("status").asInt());
 
-        // 退款 ¥40，剩余欠款 ¥60 抵扣另一张采购单
+        // 退款 ¥40，剩余欠款 ¥60 抵扣另一张采购订单
         Map<String, Object> refund = new HashMap<>();
         refund.put("payableId", apId);
         refund.put("amount", 40);
@@ -292,7 +292,7 @@ class PayableContractTest extends SalesContractSupport {
         assertEquals(1, jdbc.queryForObject("select count(*) from fin_payment where tenant_id = 0", Integer.class));
         assertEquals(3, bySource(poId, lin).path("status").asInt());
 
-        // 付款记录：按垫付人筛选、统计
+        // 付款单：按垫付人筛选、统计
         JsonNode list = ok(call(get(PY).param("method", "2").param("advanceUser", "it_lin"), admin));
         assertEquals(1, list.path("total").asInt());
         JsonNode stats = ok(call(get(PY + "/stats"), admin));
@@ -302,7 +302,7 @@ class PayableContractTest extends SalesContractSupport {
         // 登记人本人可以作废
         ok(call(json(post(PY + "/" + first.path("id").asLong() + "/void"), write(Map.of("reason", "重复"))), lin));
         assertEquals(1, bySource(poId, lin).path("status").asInt());
-        assertEquals("付款记录已作废",
+        assertEquals("付款单已作废",
                 fail(call(json(post(PY + "/" + first.path("id").asLong() + "/void"), write(Map.of("reason", "x"))), admin)).path("message").asText());
     }
 
@@ -311,7 +311,7 @@ class PayableContractTest extends SalesContractSupport {
         long sup = supplier("Omron HK", null);
         JsonNode po = orderedPo(sup, "E-1", 1, "1000", List.of(term(100, 1, 0)));
         long poId = po.path("id").asLong();
-        // 改为美元采购单：直接改库模拟外币下单（汇率 7.1）
+        // 改为美元采购订单：直接改库模拟外币下单（汇率 7.1）
         jdbc.update("update purchase_order set currency_code = 'USD', exchange_rate = 7.100000 where id = ?", poId);
         jdbc.update("update fin_payable set currency_code = 'USD', exchange_rate = 7.100000 where source_id = ? and source_type = 1", poId);
         long apId = bySource(poId, admin).path("id").asLong();
@@ -346,7 +346,7 @@ class PayableContractTest extends SalesContractSupport {
         assertEquals(3, fwd.path("payeeType").asInt());
         assertEquals("深圳捷运", fwd.path("payeeName").asText());
         money("3250.00", fwd.path("amount"));
-        assertEquals("货代对账 2026-10", fwd.path("sourceNo").asText());
+        assertEquals("运费账单 2026-10", fwd.path("sourceNo").asText());
         assertEquals(LocalDate.now().toString(), fwd.path("nextDueDate").asText());
     }
 

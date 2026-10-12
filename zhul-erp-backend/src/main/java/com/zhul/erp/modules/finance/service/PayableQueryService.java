@@ -45,7 +45,7 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-/** 应付查询（spec finance/accounts-payable「应付管理页」）：列表、统计、详情、按来源查、登记付款的可选项 */
+/** 应付查询（spec finance/accounts-payable「应付单页」）：列表、统计、详情、按来源查、登记付款的可选项 */
 @Service
 @RequiredArgsConstructor
 public class PayableQueryService {
@@ -168,7 +168,7 @@ public class PayableQueryService {
         return fullVo(p);
     }
 
-    /** 采购单、对账单的付款面板；还没有应付单时返回空 */
+    /** 采购订单、运费账单的付款面板；还没有应付单时返回空 */
     public PayableVO bySource(int sourceType, Long sourceId) {
         PayableDO p = payableMapper.selectOne(base().eq(PayableDO::getSourceType, sourceType).eq(PayableDO::getSourceId, sourceId));
         return p == null ? null : fullVo(p);
@@ -267,7 +267,7 @@ public class PayableQueryService {
         return vo;
     }
 
-    /** 采购单的付款条件文字（列表、详情显示） */
+    /** 采购订单的付款条件文字（列表、详情显示） */
     private void fillTerms(List<PayableVO> rows) {
         List<Long> poIds = rows.stream().filter(r -> r.getSourceType() == FinanceConstants.SOURCE_PURCHASE_ORDER)
                 .map(PayableVO::getSourceId).toList();
@@ -383,7 +383,7 @@ public class PayableQueryService {
                 .stream().collect(Collectors.groupingBy(PayableInstallmentDO::getPayableId));
     }
 
-    /** 与本单有关的付款记录（含作废的，前端可以隐藏） */
+    /** 与本单有关的付款单（含作废的，前端可以隐藏） */
     private List<PayableVO.PaymentLine> paymentLines(Long payableId) {
         List<PaymentAllocationDO> allocs = allocationMapper.selectList(new LambdaQueryWrapper<PaymentAllocationDO>()
                 .and(w -> w.eq(PaymentAllocationDO::getPayableId, payableId).or().eq(PaymentAllocationDO::getCreditPayableId, payableId))

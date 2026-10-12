@@ -23,7 +23,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 
-/** 客户询盘（spec inquiry/inquiry-intake）：录入、新老客户、手动录入、AI 解析回调、确认与历史价复用、取消、数据权限 */
+/** 询盘单（spec inquiry/inquiry-intake）：录入、新老客户、手动录入、AI 解析回调、确认与历史价复用、取消、数据权限 */
 class InquiryIntakeContractTest extends InquiryContractSupport {
 
     private static final long ADMIN_ID = 99000002L;
@@ -46,7 +46,7 @@ class InquiryIntakeContractTest extends InquiryContractSupport {
         return m;
     }
 
-    /** 插一条已提交的询价记录（历史询价） */
+    /** 插一条已提交的询价记录（询价记录） */
     private long quote(String brand, String model, String price, int condition, String quotedAt) {
         jdbc.update("insert into sourcing_quote (tenant_id, brand, brand_key, model, model_key, channel, shop_name, currency_code, unit_price, "
                         + "exchange_rate, unit_price_cny, item_condition, quoted_by, quoted_at, status) values (0, ?, ?, ?, ?, 2, '明和电气', 'CNY', ?, 1, ?, ?, ?, ?, 2)",
@@ -369,12 +369,12 @@ class InquiryIntakeContractTest extends InquiryContractSupport {
 
         loginWithResources("it_inq_staff", MENU_INQUIRY);
         String staff = token("it_inq_staff");
-        assertEquals("客户询盘不存在", call(get(INQ + "/" + others), staff).path("message").asText());
+        assertEquals("询盘单不存在", call(get(INQ + "/" + others), staff).path("message").asText());
         JsonNode page = ok(call(json(post(INQ + "/page"), "{}"), staff));
         assertEquals(1, page.path("total").asInt());
         assertEquals(mine, page.path("records").get(0).path("id").asLong());
 
-        assertEquals(403, perform(json(post(INQ + "/page"), "{}"), token("it_wang")).getStatus(), "兼职采购不能访问客户询盘");
+        assertEquals(403, perform(json(post(INQ + "/page"), "{}"), token("it_wang")).getStatus(), "兼职采购不能访问询盘单");
         assertFalse(page.path("records").get(0).path("createTime").isMissingNode());
     }
 }

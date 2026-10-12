@@ -671,8 +671,8 @@ class ProductContentPlanContractTest extends InquiryContractSupport {
         assertTrue(wrongFacts.path("errors").toString().contains("营销包请到运营管理 → 商品运营上传"), wrongFacts.toString());
         JsonNode wrongOps = ok(call(json(post(TASKS + "/marketing/preview"), write(Map.of("files", List.of(factsFile,
                 file("DOP.md", wiki))))), admin));
-        assertTrue(wrongOps.get(0).path("errors").toString().contains("资料包请到商品资料 → 资料任务上传"));
-        assertTrue(wrongOps.get(1).path("errors").toString().contains("资料包请到商品资料 → 资料任务上传"), "wiki 文件也是资料包");
+        assertTrue(wrongOps.get(0).path("errors").toString().contains("资料包请到商品管理 → 资料任务上传"));
+        assertTrue(wrongOps.get(1).path("errors").toString().contains("资料包请到商品管理 → 资料任务上传"), "wiki 文件也是资料包");
         assertEquals(0, ok(call(json(post(TASKS + "/marketing/confirm"), write(Map.of("files", List.of(factsFile)))), admin))
                 .path("succeeded").asInt());
 

@@ -32,7 +32,7 @@ interface Filters {
   range?: [Dayjs, Dayjs];
 }
 
-/** 历史询价：同一型号以前问到的价格，询价和报价前先查一查 */
+/** 询价记录：同一型号以前问到的价格，询价和报价前先查一查 */
 const PriceHistoryPage: React.FC = () => {
   const { palette } = useAppTheme();
   const access = useAccess() as Record<string, boolean>;
@@ -168,8 +168,8 @@ const PriceHistoryPage: React.FC = () => {
   return (
     <div>
       <PageTitle
-        crumbs={['历史询价']}
-        title="历史询价"
+        crumbs={['询价记录']}
+        title="询价记录"
         description="同一型号以前问到的价格都在这里，询价和报价前先查一查。同品牌、型号写法不同（大小写、空格、连字符）也会归到一起。"
       />
       <Card style={{ marginBottom: 16, padding: 20 }}>
@@ -262,7 +262,7 @@ const PriceHistoryPage: React.FC = () => {
             emptyText:
               filters.model || filters.brand
                 ? '没有找到这个型号的历史价格，需要询价'
-                : '还没有历史询价，采购提交回价后会出现在这里',
+                : '还没有询价记录，采购提交回价后会出现在这里',
           }}
           pagination={{
             current: page,

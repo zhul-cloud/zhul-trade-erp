@@ -2,11 +2,11 @@ package com.zhul.erp.modules.purchase.constants;
 
 import java.util.Map;
 
-/** 采购需求与采购单 */
+/** 采购需求与采购订单 */
 public final class PurchaseConstants {
 
     public static final String MENU_REQUIREMENT = "采购需求";
-    public static final String MENU_ORDER = "采购单";
+    public static final String MENU_ORDER = "采购订单";
     public static final String PATH_REQUIREMENT = "/purchase/requirements";
     public static final String PATH_ORDER = "/purchase/orders";
 
@@ -28,7 +28,7 @@ public final class PurchaseConstants {
     public static final String REQ_VIEW_CLOSED = "已关闭";
     public static final String REQ_VIEW_ORDER_CANCELLED = "订单已取消";
 
-    /** 采购单状态 */
+    /** 采购订单状态 */
     public static final int PO_DRAFT = 1;
     public static final int PO_ORDERED = 2;
     public static final int PO_CANCELLED = 3;

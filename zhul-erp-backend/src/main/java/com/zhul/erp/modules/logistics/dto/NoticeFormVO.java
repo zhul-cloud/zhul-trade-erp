@@ -22,7 +22,7 @@ public class NoticeFormVO {
         /** 有采购需求（系统外采购为 false） */
         private Boolean tracked;
         private Integer received;
-        /** 已在其他出库单上（未撤回） */
+        /** 已在其他销售出库单上（未撤回） */
         private Integer occupied;
         /** 可出库数量（修改时含本单原数量） */
         private Integer available;

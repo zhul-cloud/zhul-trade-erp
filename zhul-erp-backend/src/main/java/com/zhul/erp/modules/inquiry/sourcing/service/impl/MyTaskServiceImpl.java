@@ -356,7 +356,7 @@ public class MyTaskServiceImpl implements MyTaskService {
     public void saveQuotes(Long taskId, SaveQuotesRequest req) {
         Long me = me();
         SourcingTaskDO task = myTask(taskId);
-        // 先锁客户询盘行再写任何数据：多人比价同时提交时按同一顺序加锁，避免死锁
+        // 先锁询盘单行再写任何数据：多人比价同时提交时按同一顺序加锁，避免死锁
         progress.lock(task.getCustomerInquiryId());
         requireEditable(task, req.getItems().stream().map(ItemQuotesRequest::getItemId).toList());
         boolean submit = Boolean.TRUE.equals(req.getSubmit());
@@ -421,11 +421,11 @@ public class MyTaskServiceImpl implements MyTaskService {
         return taxedPrice.divide(divisor, 10, RoundingMode.HALF_UP).setScale(2, RoundingMode.HALF_UP);
     }
 
-    /** 客户询盘已取消后整单只读；型号已报给客户（出现在已发送及之后的报价单中）后该型号只读 */
+    /** 询盘单已取消后整单只读；型号已报给客户（出现在已发送及之后的报价单中）后该型号只读 */
     private void requireEditable(SourcingTaskDO task, List<Long> itemIds) {
         CustomerInquiryDO inquiry = inquiryMapper.selectById(task.getCustomerInquiryId());
         if (inquiry != null && inquiry.getStatus() == InquiryConstants.STATUS_CANCELLED) {
-            throw new BizException("客户询盘已取消，回价不能再修改");
+            throw new BizException("询盘单已取消，回价不能再修改");
         }
         Set<Long> locked = quotationLocks.lockedItemIds(itemIds);
         if (!locked.isEmpty()) {
@@ -531,7 +531,7 @@ public class MyTaskServiceImpl implements MyTaskService {
                 BigDecimal price = d.unitPrice().setScale(2, RoundingMode.HALF_UP);
                 q.setUnitPrice(price);
                 q.setExchangeRate(BigDecimal.ONE.setScale(6, RoundingMode.HALF_UP));
-                // 本位币单价一律存不含税价：比价、采购成本价、历史询价最低价都按它
+                // 本位币单价一律存不含税价：比价、采购成本价、询价记录最低价都按它
                 q.setUnitPriceCny(d.taxIncluded() ? excludeTax(price, taxRateOf(d)) : price);
             }
             boolean taxed = !d.noStock() && d.taxIncluded();
@@ -613,7 +613,7 @@ public class MyTaskServiceImpl implements MyTaskService {
         progress.lock(task.getCustomerInquiryId());
         CustomerInquiryDO inquiry = inquiryMapper.selectById(task.getCustomerInquiryId());
         if (inquiry != null && inquiry.getStatus() == InquiryConstants.STATUS_CANCELLED) {
-            throw new BizException("客户询盘已取消，不能修改");
+            throw new BizException("询盘单已取消，不能修改");
         }
         if (taskItems(taskId).stream().noneMatch(i -> i.getId().equals(itemId))) {
             throw new BizException("型号不在这个询价任务里");
@@ -656,7 +656,7 @@ public class MyTaskServiceImpl implements MyTaskService {
         return changed;
     }
 
-    /** 调用方须已在同一事务内 {@code progress.lock} 客户询盘 */
+    /** 调用方须已在同一事务内 {@code progress.lock} 询盘单 */
     @Override
     public void afterSubmit(SourcingTaskDO task, Long quotedBy, List<Long> itemIds) {
         // 本人在这些型号上的草稿随提交一并转为已提交
@@ -683,7 +683,7 @@ public class MyTaskServiceImpl implements MyTaskService {
 
     /**
      * 退回：只有自己在询价时，任务回到待分配池；多人比价时只退出自己，任务仍由其他人继续。
-     * 原因为「型号存疑」时给客户询盘打上待核实标记。
+     * 原因为「型号存疑」时给询盘单打上待核实标记。
      */
     @Override
     @Transactional(rollbackFor = Exception.class)

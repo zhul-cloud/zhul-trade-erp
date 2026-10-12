@@ -48,7 +48,7 @@ import java.util.stream.Collectors;
 
 /**
  * 供应商发货单：采购员登记、修改、作废（按数据权限），仓库在「待收货」里查看在途的（不按采购员过滤）。
- * 事务边界：登记 / 修改 / 作废各自一个事务，含发货单、行、附件挂载与采购单日志。
+ * 事务边界：登记 / 修改 / 作废各自一个事务，含发货单、行、附件挂载与采购订单日志。
  */
 @Service
 @RequiredArgsConstructor
@@ -407,7 +407,7 @@ public class ShipmentService {
         Map<Long, Integer> wanted = new LinkedHashMap<>();
         for (SaveShipmentRequest.Line l : lines) {
             if (!poItems.containsKey(l.getPoItemId())) {
-                throw new BizException("型号不属于这张采购单");
+                throw new BizException("型号不属于这张采购订单");
             }
             if (wanted.containsKey(l.getPoItemId())) {
                 throw new BizException("同一个型号不能重复填写");
@@ -452,7 +452,7 @@ public class ShipmentService {
             throw new BizException(draftMessage);
         }
         if (p.getStatus() != PurchaseConstants.PO_ORDERED) {
-            throw new BizException("采购单已取消");
+            throw new BizException("采购订单已取消");
         }
     }
 
@@ -465,7 +465,7 @@ public class ShipmentService {
         }
     }
 
-    /** scoped 为 true 时按采购单的采购员校验数据权限 */
+    /** scoped 为 true 时按采购订单的采购员校验数据权限 */
     SupplierShipmentDO visible(Long id, boolean scoped) {
         SupplierShipmentDO s = id == null ? null : shipmentMapper.selectById(id);
         if (s == null || s.getDeletedAt() != null || !Objects.equals(s.getTenantId(), PiStore.tenantId())) {

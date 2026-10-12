@@ -8,7 +8,7 @@ import lombok.Data;
 import java.time.LocalDate;
 import java.util.List;
 
-/** 新建客户询盘 */
+/** 新建询盘单 */
 @Data
 public class SubmitCustomerInquiryRequest {
     @NotNull(message = "请选择客户")

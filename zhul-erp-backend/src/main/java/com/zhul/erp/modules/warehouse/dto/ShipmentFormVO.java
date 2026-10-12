@@ -5,7 +5,7 @@ import lombok.Data;
 import java.time.LocalDate;
 import java.util.List;
 
-/** 登记 / 修改发货单的表单：采购单各行与可发数量 */
+/** 登记 / 修改发货单的表单：采购订单各行与可发数量 */
 @Data
 public class ShipmentFormVO {
     private Long poId;

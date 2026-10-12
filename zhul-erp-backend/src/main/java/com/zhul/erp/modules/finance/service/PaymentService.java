@@ -50,7 +50,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
- * 付款记录（spec finance/supplier-payment）：登记付款（公司对公、员工垫付）、欠款抵扣、供应商退款、作废。
+ * 付款单（spec finance/supplier-payment）：登记付款（公司对公、员工垫付）、欠款抵扣、供应商退款、作废。
  * 登记前按 ID 升序锁住涉及的应付单再校验；幂等键保证重复提交只生成一笔。
  */
 @Service
@@ -59,7 +59,7 @@ public class PaymentService {
 
     /** 付款截图的附件归属类型 */
     public static final String OWNER_TYPE = AttachmentService.PAYMENT;
-    private static final String MENU = "付款记录";
+    private static final String MENU = "付款单";
     private static final int MAX_PAGE_SIZE = 100;
 
     private final PaymentMapper paymentMapper;
@@ -316,7 +316,7 @@ public class PaymentService {
     public PaymentVO voidPayment(Long id, String reason) {
         PaymentDO pay = visible(id);
         if (pay.getVoidAt() != null) {
-            throw new BizException("付款记录已作废");
+            throw new BizException("付款单已作废");
         }
         if (Objects.equals(pay.getKind(), FinanceConstants.KIND_REIMBURSE)) {
             throw new BizException("报销付款请在报销单上撤销已付");
@@ -335,7 +335,7 @@ public class PaymentService {
         lock(ids);
         pay = paymentMapper.selectOne(new LambdaQueryWrapper<PaymentDO>().eq(PaymentDO::getId, id).last("FOR UPDATE"));
         if (pay.getVoidAt() != null) {
-            throw new BizException("付款记录已作废");
+            throw new BizException("付款单已作废");
         }
         if (Objects.equals(pay.getReimburseStatus(), FinanceConstants.REIMBURSE_CLAIMED)) {
             throw new BizException("这笔垫付已进入报销单，不能作废");
@@ -433,7 +433,7 @@ public class PaymentService {
                 .eq(PaymentDO::getTenantId, PiStore.tenantId())
                 .isNull(PaymentDO::getDeletedAt));
         if (p == null) {
-            throw new BizException("付款记录不存在");
+            throw new BizException("付款单不存在");
         }
         return p;
     }

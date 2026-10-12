@@ -370,7 +370,7 @@ const RequirementList: React.FC = () => {
       <PurchasePageTitle
         crumbs={['采购需求']}
         title="采购需求"
-        description="先看哪些订单要采购，再看每单的型号向谁买、谁负责；渠道已定的型号已自动排进草稿采购单。"
+        description="先看哪些订单要采购，再看每单的型号向谁买、谁负责；渠道已定的型号已自动排进草稿采购订单。"
       />
 
       {stats && (
@@ -411,7 +411,7 @@ const RequirementList: React.FC = () => {
           <StatCard
             icon={<FileTextOutlined />}
             color={palette.violet}
-            label="草稿采购单"
+            label="草稿采购订单"
             value={
               <a onClick={() => history.push(PATHS.orders)}>{stats.drafts}</a>
             }
@@ -577,7 +577,7 @@ const RequirementList: React.FC = () => {
               title={canGenerate ? undefined : '已排入草稿的型号不用再生成'}
               onClick={() => setGenerating(selectedList)}
             >
-              生成采购单
+              生成采购订单
             </Button>
           )}
         </div>
@@ -694,7 +694,7 @@ const RequirementList: React.FC = () => {
       )}
       <div style={{ marginTop: 12, fontSize: 12, color: palette.mute }}>
         {view === 'order'
-          ? '订单按其型号最近的更新时间倒序；「去下单」打开对应的草稿采购单填价、确认下单。'
+          ? '订单按其型号最近的更新时间倒序；「去下单」打开对应的草稿采购订单填价、确认下单。'
           : '按更新时间倒序；跨订单找同一个型号时用。'}
       </div>
 
@@ -703,7 +703,7 @@ const RequirementList: React.FC = () => {
         onClose={() => setSourcing(undefined)}
         onDone={() => {
           setSourcing(undefined);
-          message.success('已选定渠道，排入草稿采购单');
+          message.success('已选定渠道，排入草稿采购订单');
           refresh();
         }}
       />
@@ -732,7 +732,7 @@ const RequirementList: React.FC = () => {
         onClose={() => setGenerating(undefined)}
         onDone={(ids) => {
           setGenerating(undefined);
-          message.success(`已生成或追加到 ${ids.length} 张草稿采购单`);
+          message.success(`已生成或追加到 ${ids.length} 张草稿采购订单`);
           if (ids.length === 1) {
             history.push(PATHS.order(ids[0]));
           } else {
@@ -802,7 +802,7 @@ const SourceModal: React.FC<{
             {counterpartyReady(value)
               ? counterpartyTitle(value)
               : '所选采购对象'}
-            」的草稿采购单（没有时新建）；已在草稿里的型号会改过去，已填的单价保留。没有采购员的型号会归到你名下。
+            」的草稿采购订单（没有时新建）；已在草稿里的型号会改过去，已填的单价保留。没有采购员的型号会归到你名下。
           </div>
         </div>
       )}
@@ -973,7 +973,7 @@ const SplitModal: React.FC<{
                 )}
               </div>
               <div style={{ fontSize: 12, color: palette.mute }}>
-                一个型号要向两家买、或交给两位采购员时拆分；拆出的数量会从草稿采购单里扣出，新需求渠道已定时自动排入对应草稿。已下单的数量不能拆。
+                一个型号要向两家买、或交给两位采购员时拆分；拆出的数量会从草稿采购订单里扣出，新需求渠道已定时自动排入对应草稿。已下单的数量不能拆。
               </div>
             </>
           )}
@@ -1039,7 +1039,7 @@ const AssignModal: React.FC<{
             aria-label="采购员"
           />
           <div style={{ fontSize: 12, color: palette.mute }}>
-            只影响还没全部下单的部分：草稿采购单上的型号会移到新采购员对同一采购对象的草稿；已下单的仍归原采购单。
+            只影响还没全部下单的部分：草稿采购订单上的型号会移到新采购员对同一采购对象的草稿；已下单的仍归原采购订单。
           </div>
         </div>
       )}
@@ -1047,7 +1047,7 @@ const AssignModal: React.FC<{
   );
 };
 
-// ---------------------------------------------------------------- 生成采购单
+// ---------------------------------------------------------------- 生成采购订单
 
 interface GroupState extends GenerateGroup {
   chosen: CounterpartyValue;
@@ -1130,7 +1130,7 @@ const GenerateModal: React.FC<{
   return (
     <Modal
       open={!!targets}
-      title="生成采购单"
+      title="生成采购订单"
       width={780}
       onCancel={onClose}
       okText="生成草稿"
@@ -1143,7 +1143,7 @@ const GenerateModal: React.FC<{
         <div style={{ display: 'grid', gap: 12 }}>
           <div style={{ color: palette.sub }}>
             已选 {targets?.length} 个型号，按建议渠道分成 {groups.length}{' '}
-            组；确认后每组生成或追加到你对该采购对象的草稿采购单。
+            组；确认后每组生成或追加到你对该采购对象的草稿采购订单。
           </div>
           {groups.map((g) => (
             <div
@@ -1198,7 +1198,7 @@ const GenerateModal: React.FC<{
           {ready && (
             <div style={{ color: palette.ink }}>
               将生成或追加 <b>{drafts}</b>{' '}
-              张草稿采购单；没有采购员的型号会归到你名下。
+              张草稿采购订单；没有采购员的型号会归到你名下。
             </div>
           )}
         </div>

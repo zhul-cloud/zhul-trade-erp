@@ -11,7 +11,7 @@ import lombok.Data;
 import java.math.BigDecimal;
 import java.util.List;
 
-/** 新建对账单（货代 + 月份）或保存核对结果（逐票对账金额与说明） */
+/** 新建运费账单（货代 + 月份）或保存核对结果（逐票对账金额与说明） */
 @Data
 public class SaveStatementRequest {
     /** 新建时必填 */

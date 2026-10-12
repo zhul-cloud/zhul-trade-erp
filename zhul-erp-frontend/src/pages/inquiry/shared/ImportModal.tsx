@@ -165,7 +165,7 @@ const ImportModal: React.FC<{
             >
               {blocking
                 ? `还有 ${blocking} 行需要修正或忽略`
-                : '确认后这些价格进入历史询价，并计入对应客户询盘的回价进度'}
+                : '确认后这些价格进入询价记录，并计入对应询盘单的回价进度'}
             </span>
             <Button onClick={() => setFiles(null)}>重新选择文件</Button>
             <Button

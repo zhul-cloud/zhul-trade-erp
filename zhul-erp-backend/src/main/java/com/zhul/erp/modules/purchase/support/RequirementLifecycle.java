@@ -123,7 +123,7 @@ public class RequirementLifecycle {
         }
     }
 
-    /** 同一 PI 重新转订单：按报价行接回「订单已取消」需求在已下单采购单上的数量 */
+    /** 同一 PI 重新转订单：按报价行接回「订单已取消」需求在已下单采购订单上的数量 */
     private void reattach(SalesOrderDO o, List<PurchaseRequirementDO> reqs) {
         for (PurchaseRequirementDO r : reqs) {
             if (r.getQuotationItemId() == null || r.getQuotationItemId() <= 0) {
@@ -182,7 +182,7 @@ public class RequirementLifecycle {
         }
     }
 
-    /** 需求在已下单采购单上的行（先下单的先接回） */
+    /** 需求在已下单采购订单上的行（先下单的先接回） */
     private List<PurchaseOrderItemDO> orderedItems(Long requirementId) {
         List<PurchaseOrderItemDO> rows = itemMapper.selectList(new LambdaQueryWrapper<PurchaseOrderItemDO>()
                 .eq(PurchaseOrderItemDO::getRequirementId, requirementId)
@@ -306,7 +306,7 @@ public class RequirementLifecycle {
         }
         drafts.settle(touched, operatorId);
         for (Long poId : flagged) {
-            logs.add(poId, "来源订单已取消", "订单 " + o.getSoNo() + " 已取消，请决定取消采购单或保留货物", operatorId);
+            logs.add(poId, "来源订单已取消", "订单 " + o.getSoNo() + " 已取消，请决定取消采购订单或保留货物", operatorId);
         }
     }
 
@@ -358,7 +358,7 @@ public class RequirementLifecycle {
         }
     }
 
-    /** 需求在草稿采购单上的行（加锁草稿） */
+    /** 需求在草稿采购订单上的行（加锁草稿） */
     public List<PurchaseOrderItemDO> draftItems(Long requirementId) {
         List<PurchaseOrderItemDO> rows = itemMapper.selectList(new LambdaQueryWrapper<PurchaseOrderItemDO>()
                 .eq(PurchaseOrderItemDO::getRequirementId, requirementId)

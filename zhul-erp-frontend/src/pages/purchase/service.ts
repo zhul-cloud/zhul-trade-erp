@@ -99,7 +99,7 @@ export interface RequirementQuery {
   /** 向谁买：supplier-老供应商、shop-线上店铺、none-还没定 */
   sourceType?: 'supplier' | 'shop' | 'none';
   supplierId?: number;
-  /** open-还没全部下单、need-需要生成采购单、all-全部 */
+  /** open-还没全部下单、need-需要生成采购订单、all-全部 */
   view?: 'open' | 'need' | 'all';
   stockType?: number;
 }

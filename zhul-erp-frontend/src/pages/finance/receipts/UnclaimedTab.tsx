@@ -226,7 +226,7 @@ const RegisterModal: React.FC<{
   );
 };
 
-/** 收款管理 → 未认领到账：财务先登记、业务员在 PI 上认领；最近认领的可以取消认领 */
+/** 收款单 → 未认领到账：财务先登记、业务员在 PI 上认领；最近认领的可以取消认领 */
 const UnclaimedTab: React.FC<{
   registerSignal: number;
   onCount?: (n: number) => void;

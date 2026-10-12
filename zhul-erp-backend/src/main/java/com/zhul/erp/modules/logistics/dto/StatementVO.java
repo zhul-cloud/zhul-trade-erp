@@ -7,7 +7,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
-/** 货代月结对账单 */
+/** 货代月结运费账单 */
 @Data
 public class StatementVO {
     private Long id;

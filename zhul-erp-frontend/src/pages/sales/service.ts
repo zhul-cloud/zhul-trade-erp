@@ -148,7 +148,7 @@ export interface Receipt {
   createTime: string;
 }
 
-/** 收款管理里的一笔到账（未认领到账、可认领列表、收款记录） */
+/** 收款单里的一笔到账（未认领到账、可认领列表、收款记录） */
 export interface ReceiptRow {
   id: number;
   piId?: number | null;
@@ -832,7 +832,7 @@ export const piApi = {
     get<{ feeTolerance: number }>(`${PI}/receipt-settings`),
   convert: (id: number, salesDate?: string) =>
     send<Order>('POST', `${PI}/${id}/convert`, { salesDate }),
-  /** 财务管理 → 收款管理（待确认） */
+  /** 财务管理 → 收款单（待确认） */
   receiptDesk: (q: ReceiptDeskQuery) =>
     send<{ total: number; records: ReceiptDeskRow[] }>(
       'POST',

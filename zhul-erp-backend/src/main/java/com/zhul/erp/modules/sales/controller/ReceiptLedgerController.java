@@ -20,7 +20,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-/** 财务管理 → 收款管理：未认领到账与收款记录（需要「收款管理」菜单与「登记到账」权限） */
+/** 财务管理 → 收款单：未认领到账与收款记录（需要「收款单」菜单与「登记到账」权限） */
 @RestController
 @RequestMapping("/api/v1/finance/receipts")
 @RequiredArgsConstructor

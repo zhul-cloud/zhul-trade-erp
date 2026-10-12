@@ -6,7 +6,7 @@ import com.zhul.erp.modules.sales.dto.ReceiptRowVO;
 import com.zhul.erp.modules.sales.dto.UnclaimedListVO;
 import com.zhul.erp.modules.sales.dto.UnclaimedReceiptRequest;
 
-/** 收款管理：未认领到账（登记、取消认领、作废）与收款记录统计 */
+/** 收款单：未认领到账（登记、取消认领、作废）与收款记录统计 */
 public interface ReceiptLedgerService {
 
     UnclaimedListVO unclaimed(String keyword, String currencyCode);

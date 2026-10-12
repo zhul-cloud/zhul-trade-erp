@@ -8,10 +8,10 @@ import lombok.Data;
 import java.time.LocalDate;
 import java.util.List;
 
-/** 直接收货：采购员还没登记发货，仓库选采购单直接验收 */
+/** 直接收货：采购员还没登记发货，仓库选采购订单直接验收 */
 @Data
 public class DirectReceiveRequest {
-    @NotNull(message = "请选择采购单")
+    @NotNull(message = "请选择采购订单")
     private Long poId;
     @NotNull(message = "请填写收货日期")
     private LocalDate receivedDate;

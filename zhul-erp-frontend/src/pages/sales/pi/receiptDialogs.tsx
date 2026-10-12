@@ -491,7 +491,7 @@ export const ClaimReceiptModal = <T extends ReceiptResult>({
       )}
       <div style={{ marginTop: 12, fontSize: 12, color: palette.mute }}>
         <InfoCircleOutlined /> 认领后按正常到账计入
-        PI；认领错了请总经理在「收款管理」取消认领。
+        PI；认领错了请总经理在「收款单」取消认领。
       </div>
     </Modal>
   );

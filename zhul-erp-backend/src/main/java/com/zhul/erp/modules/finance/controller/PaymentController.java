@@ -19,7 +19,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-/** 付款记录（spec finance/supplier-payment）：公司对公由财务登记，员工垫付由本人登记，权限细分在服务里校验 */
+/** 付款单（spec finance/supplier-payment）：公司对公由财务登记，员工垫付由本人登记，权限细分在服务里校验 */
 @RestController
 @RequestMapping("/api/v1/finance/payments")
 @RequiredArgsConstructor

@@ -158,7 +158,7 @@ public class TransitTimeService {
 
     // ---------------------------------------------------------------- 估算
 
-    /** 采购单的发货省份：老供应商资料「地区」的省份，线上店铺与没填地区的为空 */
+    /** 采购订单的发货省份：老供应商资料「地区」的省份，线上店铺与没填地区的为空 */
     public String originOf(PurchaseOrderDO po) {
         if (po == null || Counterparty.of(po).isShop() || po.getSupplierId() == null || po.getSupplierId() <= 0) {
             return "";

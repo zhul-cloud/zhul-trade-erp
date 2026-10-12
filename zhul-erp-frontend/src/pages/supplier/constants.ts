@@ -57,4 +57,4 @@ export const ATTACHMENT_ACCEPT =
   '.pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png';
 
 export const DISABLE_CONFIRM_TEXT =
-  '禁用后该供应商将无法在新的询价、采购单中被选择，已有单据不受影响。';
+  '禁用后该供应商将无法在新的询价、采购订单中被选择，已有单据不受影响。';

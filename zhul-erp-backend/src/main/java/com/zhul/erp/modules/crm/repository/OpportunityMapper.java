@@ -36,7 +36,7 @@ public interface OpportunityMapper extends BaseMapper<OpportunityDO> {
             + "${ew.customSqlSegment} GROUP BY first_contact_date")
     List<OpportunityStatRow> statsByDate(@Param(Constants.WRAPPER) Wrapper<OpportunityDO> ew);
 
-    /** 关联该商机的客户询盘（跨模块只读，避免 crm 依赖询盘服务） */
+    /** 关联该商机的询盘单（跨模块只读，避免 crm 依赖询盘服务） */
     @Select("SELECT id, inquiry_code AS inquiryCode, status, inquiry_date AS inquiryDate, "
             + "total_order_count AS totalOrderCount FROM customer_inquiry "
             + "WHERE tenant_id = #{tenantId} AND opportunity_id = #{opportunityId} AND deleted_at IS NULL "

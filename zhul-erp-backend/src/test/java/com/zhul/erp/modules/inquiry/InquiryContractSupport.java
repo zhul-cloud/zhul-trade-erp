@@ -22,7 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
  * 询价协作契约测试的公共部分：走完整的 HTTP + JWT + 权限 + 数据权限链路，连测试库执行真实 SQL。
- * 测试数据都在平台租户（tenant 0）；采购人员用角色 IT_BUYER（带「我的询价任务」「历史询价」菜单）与内置角色兼职采购。
+ * 测试数据都在平台租户（tenant 0）；采购人员用角色 IT_BUYER（带「我的询价任务」「询价记录」菜单）与内置角色兼职采购。
  */
 @AutoConfigureMockMvc
 public abstract class InquiryContractSupport extends IntegrationTestBase {

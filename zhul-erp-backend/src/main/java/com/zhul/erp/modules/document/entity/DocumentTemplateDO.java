@@ -10,7 +10,7 @@ import lombok.Data;
 
 import java.time.LocalDateTime;
 
-/** 单据模版：每租户每类一条，记默认版本；租户没有自己的行时沿用平台（tenant_id=0）的内置版本 */
+/** 单据模板：每租户每类一条，记默认版本；租户没有自己的行时沿用平台（tenant_id=0）的内置版本 */
 @Data
 @TableName("document_template")
 public class DocumentTemplateDO {

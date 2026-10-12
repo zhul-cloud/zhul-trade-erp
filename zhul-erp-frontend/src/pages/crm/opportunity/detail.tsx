@@ -281,7 +281,7 @@ const OpportunityDetailPage: React.FC = () => {
                 icon={<FileAddOutlined />}
                 onClick={() => setCreatingInquiry(true)}
               >
-                创建客户询盘
+                创建询盘单
               </Button>
             )}
           </>
@@ -478,15 +478,15 @@ const OpportunityDetailPage: React.FC = () => {
             title="关联询盘"
             extra={
               isActive && (
-                <a onClick={() => setCreatingInquiry(true)}>创建客户询盘</a>
+                <a onClick={() => setCreatingInquiry(true)}>创建询盘单</a>
               )
             }
           >
             {d.inquiries.length === 0 ? (
               <div style={{ color: palette.mute }}>
                 {isActive
-                  ? '还没有询盘。客户需求明确后，可以从这里创建客户询盘交给 AI 解析。'
-                  : '还没有询盘。商机已结束，老客户的新需求请在客户询盘列表新建。'}
+                  ? '还没有询盘。客户需求明确后，可以从这里创建询盘单交给 AI 解析。'
+                  : '还没有询盘。商机已结束，老客户的新需求请在询盘单列表新建。'}
               </div>
             ) : (
               <div style={{ display: 'grid', gap: 8 }}>

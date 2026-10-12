@@ -12,7 +12,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
-/** 付款记录（含供应商退款），作废后保留 */
+/** 付款单（含供应商退款），作废后保留 */
 @Data
 @TableName("fin_payment")
 public class PaymentDO {

@@ -66,7 +66,7 @@ class OutboundShippingContractTest extends SalesContractSupport {
         return id;
     }
 
-    /** 订单型号 A × qty：采购单确认下单；received 为已验收合格的数量（0 表示还没发货） */
+    /** 订单型号 A × qty：采购订单确认下单；received 为已验收合格的数量（0 表示还没发货） */
     private JsonNode orderedPo(long supplierId, int qty) throws Exception {
         long c = customer("Hoorain HTF", "Bangladesh");
         List<Long> items = quotationItemIds(quotation(c, 2, "USD", null, l("A-1", qty, "100", "20")));
@@ -170,7 +170,7 @@ class OutboundShippingContractTest extends SalesContractSupport {
                 .path("message").asText());
         ok(call(json(post(OB + "/" + ob2.path("id").asLong() + "/undo-hand-over"), "{\"reason\":\"快递单号录错\"}"), keeper));
         assertEquals("已入库", order(soId).path("items").get(0).path("progressName").asText(), "撤销后回到按入库算出的进度");
-        assertEquals(new BigDecimal("80.00"), allocated(1, waybill), "剩下的出库单分到全部运费");
+        assertEquals(new BigDecimal("80.00"), allocated(1, waybill), "剩下的销售出库单分到全部运费");
 
         assertEquals("仓库已经打包，不能撤回", fail(call(json(post(OB + "/" + ob1.path("id").asLong() + "/withdraw"), "{\"reason\":\"x\"}"), admin))
                 .path("message").asText());
@@ -187,7 +187,7 @@ class OutboundShippingContractTest extends SalesContractSupport {
                 "items", List.of(Map.of("soItemId", soItem(soId), "quantity", 2))))), admin));
         ok(pack(ob1, new int[] {10, 10, 10, 100, 2}));
         ok(pack(ob2, new int[] {10, 10, 10, 100, 2}));
-        assertEquals("只能把同一家货代的出库单合成一票", fail(handOver(List.of(ob1.path("id").asLong(), ob2.path("id").asLong()), "10"))
+        assertEquals("只能把同一家货代的销售出库单合成一票", fail(handOver(List.of(ob1.path("id").asLong(), ob2.path("id").asLong()), "10"))
                 .path("message").asText());
         JsonNode ob3 = notice(soId, 1);
         assertEquals("A-1 还没有可以出库的数量", fail(ob3).path("message").asText());
@@ -214,7 +214,7 @@ class OutboundShippingContractTest extends SalesContractSupport {
         assertEquals("待出运", sh.path("statusName").asText());
         assertEquals(0, ok(call(get(SH + "/pending"), admin)).size(), "放进出运单后不在待出运里");
         long shId = sh.path("id").asLong();
-        assertEquals("出库单已放进出运单，请先从出运单里移出",
+        assertEquals("销售出库单已放进出运单，请先从出运单里移出",
                 fail(call(json(post(OB + "/" + ob.path("id").asLong() + "/undo-hand-over"), "{\"reason\":\"x\"}"), keeper)).path("message").asText());
 
         // CI / PL：合成一组，编号共用主体
@@ -253,7 +253,7 @@ class OutboundShippingContractTest extends SalesContractSupport {
         assertEquals(1, st.path("lines").size());
         long line = st.path("lines").get(0).path("id").asLong();
         assertEquals("这个月没有要对账的出运单", fail(call(json(post(ST), write(Map.of("forwarderId", forwarder, "period", period))), admin))
-                .path("message").asText(), "已在对账单上的不再列出");
+                .path("message").asText(), "已在运费账单上的不再列出");
         assertTrue(fail(call(json(post(ST + "/" + st.path("id").asLong() + "/confirm"),
                 write(Map.of("lines", List.of(Map.of("id", line, "statementAmount", "150"))))), admin)).path("message").asText().endsWith("有差额，请填写说明"));
         JsonNode done = ok(call(json(post(ST + "/" + st.path("id").asLong() + "/confirm"),

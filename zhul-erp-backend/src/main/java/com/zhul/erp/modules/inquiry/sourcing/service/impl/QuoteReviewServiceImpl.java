@@ -119,7 +119,7 @@ public class QuoteReviewServiceImpl implements QuoteReviewService {
         return vo;
     }
 
-    /** 同品牌同型号历史询价中最低的一条有价记录（待审核的不在历史询价里） */
+    /** 同品牌同型号询价记录中最低的一条有价记录（待审核的不在询价记录里） */
     private PriceRecordVO historyLowest(InquiryItemDO item) {
         return priceHistoryService.match(item.getBrand(), item.getConfirmedModel()).getSameBrand().stream()
                 .filter(r -> r.getUnitPriceCny() != null)
@@ -129,7 +129,7 @@ public class QuoteReviewServiceImpl implements QuoteReviewService {
 
     /**
      * 审核通过：未作废的记录转为已提交、写入审核人选的推荐；该兼职此型号上次通过的版本此时才软删除。
-     * 与提交回价同一事务边界：先锁客户询盘，再改回价、重算型号 / 任务 / 客户询盘的回价进度。
+     * 与提交回价同一事务边界：先锁询盘单，再改回价、重算型号 / 任务 / 询盘单的回价进度。
      */
     @Override
     @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
@@ -236,14 +236,14 @@ public class QuoteReviewServiceImpl implements QuoteReviewService {
         return t;
     }
 
-    /** 锁客户询盘后再校验：取消后回价只读，不能再审核 */
+    /** 锁询盘单后再校验：取消后回价只读，不能再审核 */
     private SourcingTaskDO lockedTask(Long taskId) {
         SourcingTaskDO task = task(taskId);
         progress.lock(task.getCustomerInquiryId());
         task = task(taskId);
         CustomerInquiryDO inquiry = inquiryMapper.selectById(task.getCustomerInquiryId());
         if (inquiry != null && inquiry.getStatus() == InquiryConstants.STATUS_CANCELLED) {
-            throw new BizException("客户询盘已取消，不能再审核");
+            throw new BizException("询盘单已取消，不能再审核");
         }
         return task;
     }

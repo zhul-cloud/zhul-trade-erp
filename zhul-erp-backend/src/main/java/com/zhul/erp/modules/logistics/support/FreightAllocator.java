@@ -79,7 +79,7 @@ public final class FreightAllocator {
         return out;
     }
 
-    /** 国内快递：先按出库单的计费重之和分到出库单，再在出库单内按箱、按货值分 */
+    /** 国内快递：先按销售出库单的计费重之和分到销售出库单，再在销售出库单内按箱、按货值分 */
     public static List<Share> byOutbound(BigDecimal total, List<Box> boxes) {
         Map<Long, List<Box>> groups = new LinkedHashMap<>();
         boxes.stream().sorted(Comparator.comparing(Box::outboundId))

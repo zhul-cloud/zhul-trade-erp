@@ -51,7 +51,7 @@ export default function access(initialState: {
     'quotation:pricing:edit': can('quotation:pricing:edit'),
     // 销售管理
     salesMenu: any('/sales/pi', '/sales/orders'),
-    // 采购单
+    // 采购订单
     purchaseMenu: any(
       '/purchase/requirements',
       '/purchase/orders',
@@ -77,7 +77,7 @@ export default function access(initialState: {
     'warehouse:receipt:create': can('warehouse:receipt:create'),
     'warehouse:hold:handle': can('warehouse:hold:handle'),
     'warehouse:shoot:edit': can('warehouse:shoot:edit'),
-    // 单证物流
+    // 物流管理
     logisticsMenu: any('/logistics/shipments', '/logistics/statements'),
     logisticsShipments: can('/logistics/shipments'),
     logisticsStatements: can('/logistics/statements'),

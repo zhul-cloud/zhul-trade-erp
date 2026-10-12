@@ -36,7 +36,7 @@ const OPTIONS: Record<
     {
       value: 2,
       label: '不补了',
-      desc: (n) => `采购单数量减 ${n}，回到采购需求另找渠道`,
+      desc: (n) => `采购订单数量减 ${n}，回到采购需求另找渠道`,
     },
   ],
   2: [
@@ -48,7 +48,7 @@ const OPTIONS: Record<
     {
       value: 4,
       label: '退货不补',
-      desc: (n) => `退回后不再补发，采购单数量减 ${n}，回到采购需求另找渠道`,
+      desc: (n) => `退回后不再补发，采购订单数量减 ${n}，回到采购需求另找渠道`,
     },
     {
       value: 5,
@@ -65,7 +65,7 @@ const OPTIONS: Record<
     {
       value: 7,
       label: '暂存',
-      desc: (n) => `多发的 ${n} 个留在仓库，进入暂存货`,
+      desc: (n) => `多发的 ${n} 个留在仓库，进入闲置库存`,
     },
   ],
 };
@@ -321,7 +321,7 @@ const HandleDiscrepancyModal: React.FC<{
         }}
       >
         <InfoCircleOutlined />{' '}
-        处理后采购单与订单进度随之更新；处理后不能直接改，需要更正时点「重新打开」。
+        处理后采购订单与订单进度随之更新；处理后不能直接改，需要更正时点「重新打开」。
       </div>
     </Modal>
   );

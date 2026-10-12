@@ -4,7 +4,7 @@ import lombok.Data;
 import java.time.LocalDate;
 import java.util.List;
 
-/** 直接收货可选的采购单 */
+/** 直接收货可选的采购订单 */
 @Data
 public class ReceivableOrderVO {
     private Long poId;

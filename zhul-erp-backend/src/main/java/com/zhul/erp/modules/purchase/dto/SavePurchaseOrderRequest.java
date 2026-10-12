@@ -13,7 +13,7 @@ import lombok.Data;
 import java.math.BigDecimal;
 import java.util.List;
 
-/** 保存采购单（草稿或已下单）：单头、各行数量与单价、其他费用、付款条件、合同 */
+/** 保存采购订单（草稿或已下单）：单头、各行数量与单价、其他费用、付款条件、合同 */
 @Data
 public class SavePurchaseOrderRequest {
     @NotBlank(message = "请选择币种")

@@ -2423,7 +2423,7 @@ const PiDetail: React.FC = () => {
             同时把来源报价单标为未成交（同一原因）
             <div style={{ fontSize: 12, color: palette.mute }}>
               {pi.quotations.map((x) => x.quotationNo).join('、') || '—'}
-              ；还有其他有效 PI 的报价单保持不变，客户询盘随之更新
+              ；还有其他有效 PI 的报价单保持不变，询盘单随之更新
             </div>
           </Checkbox>
         }
@@ -2457,7 +2457,7 @@ const PiDetail: React.FC = () => {
       >
         <p style={{ color: palette.sub }}>
           PI
-          回到「已发送」，可以继续上传水单和登记到账；这次关闭时标为未成交的报价单回到「已发送」，客户询盘随之回到「已报价」。
+          回到「已发送」，可以继续上传水单和登记到账；这次关闭时标为未成交的报价单回到「已发送」，询盘单随之回到「已报价」。
         </p>
         {reopenUntil && (
           <>

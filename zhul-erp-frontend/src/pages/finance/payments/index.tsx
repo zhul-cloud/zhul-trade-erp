@@ -38,7 +38,7 @@ const initial = (): Filters => ({
   showVoid: false,
 });
 
-/** 财务管理 → 付款记录：公司对公与员工垫付的付款、供应商退款；登记人或财务可以作废 */
+/** 财务管理 → 付款单：公司对公与员工垫付的付款、供应商退款；登记人或财务可以作废 */
 const PaymentRecords: React.FC = () => {
   const { message } = App.useApp();
   const { palette } = useAppTheme();
@@ -258,8 +258,8 @@ const PaymentRecords: React.FC = () => {
   return (
     <div>
       <PageTitle
-        crumbs={['付款记录']}
-        title="付款记录"
+        crumbs={['付款单']}
+        title="付款单"
         description="公司对公由财务登记，员工垫付由付款的员工本人登记（进入待报销）；供应商退款也在这里。登记错了由登记人或财务作废，应付随之恢复。"
       />
       <div

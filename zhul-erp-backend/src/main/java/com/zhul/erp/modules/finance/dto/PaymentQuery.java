@@ -4,7 +4,7 @@ import lombok.Data;
 
 import java.time.LocalDate;
 
-/** 付款记录筛选 */
+/** 付款单筛选 */
 @Data
 public class PaymentQuery {
     private Integer page;

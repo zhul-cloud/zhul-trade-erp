@@ -32,7 +32,7 @@ export const bargainOf = (
   return round2((target - net) * quantity);
 };
 
-/** 默认单价：目标价（CNY 不含税）折算为采购单口径 = 目标价 ×（1 + 税率）÷ 汇率，与后端 PurchaseDrafts.defaultPrice 一致 */
+/** 默认单价：目标价（CNY 不含税）折算为采购订单口径 = 目标价 ×（1 + 税率）÷ 汇率，与后端 PurchaseDrafts.defaultPrice 一致 */
 export const defaultPrice = (
   target: number | null | undefined,
   rate: number,

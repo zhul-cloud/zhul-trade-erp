@@ -18,7 +18,7 @@ public interface SourcingTaskService {
     /** 确认解析时调用：把待询价明细按品牌 + 品类分组生成任务；自动分配开启时按规则分配 */
     List<SourcingTaskDO> createTasks(CustomerInquiryDO inquiry, List<InquiryItemDO> pendingItems);
 
-    /** 取消客户询盘时调用：未回价的任务一并取消 */
+    /** 取消询盘单时调用：未回价的任务一并取消 */
     void cancelByInquiry(Long inquiryId);
 
     /** status 为空时返回待分配池，否则返回该状态的任务 */

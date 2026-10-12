@@ -8,7 +8,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
-/** 应付单（列表与详情共用；详情才有付款计划与付款记录） */
+/** 应付单（列表与详情共用；详情才有付款计划与付款单） */
 @Data
 public class PayableVO {
     private Long id;
@@ -19,7 +19,7 @@ public class PayableVO {
     private String shopPlatform;
     private String shopName;
     private String payeeName;
-    /** 1-采购单、2-货代对账单 */
+    /** 1-采购订单、2-运费账单 */
     private Integer sourceType;
     private Long sourceId;
     private String sourceNo;

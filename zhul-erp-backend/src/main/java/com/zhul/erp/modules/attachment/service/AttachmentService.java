@@ -40,7 +40,7 @@ public class AttachmentService {
     public static final String SHOOT = "SHOOT";
     /** 出运单的面单（PDF 或图片） */
     public static final String LOGISTICS = "LOGISTICS";
-    /** 付款记录、供应商退款的截图（图片或 PDF） */
+    /** 付款单、供应商退款的截图（图片或 PDF） */
     public static final String PAYMENT = "PAYMENT";
     /** 报销用的付款截图：国内快递运费、退货运费（补传在来源上）、费用单凭证、报销付款的转账截图 */
     public static final String COURIER_PROOF = "COURIER_PROOF";

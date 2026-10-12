@@ -88,7 +88,7 @@ class ReimbursementContractTest extends SalesContractSupport {
         return jdbc.queryForObject("select id from fin_payable where source_type = 1 and source_id = ?", Long.class, poId);
     }
 
-    /** 林熙垫付这张采购单的全款 */
+    /** 林熙垫付这张采购订单的全款 */
     private JsonNode advance(long apId, String amount) throws Exception {
         Map<String, Object> b = new HashMap<>();
         b.put("method", 2);

@@ -123,7 +123,7 @@ const autoFill = (rows: Payable[], total: number) => {
  */
 export const RegisterPaymentDrawer: React.FC<{
   open: boolean;
-  /** 从应付单、采购单、对账单打开时带出 */
+  /** 从应付单、采购订单、运费账单打开时带出 */
   anchorId?: number;
   /** 默认付款方式 */
   defaultMethod?: number;
@@ -767,7 +767,7 @@ export const ProofLinks: React.FC<{
   );
 };
 
-/** 应付单详情内容：金额汇总、付款计划、付款记录（应付管理详情与采购单、对账单付款面板共用） */
+/** 应付单详情内容：金额汇总、付款计划、付款单（应付单详情与采购订单、运费账单付款面板共用） */
 export const PayableBody: React.FC<{
   payable: Payable;
   showVoided?: boolean;
@@ -862,7 +862,7 @@ export const PayableBody: React.FC<{
       </div>
       <div>
         <div style={{ fontWeight: 600, color: palette.ink, marginBottom: 8 }}>
-          付款记录
+          付款单
         </div>
         {lines.length === 0 ? (
           <Empty
@@ -949,11 +949,11 @@ export const PayableBody: React.FC<{
   );
 };
 
-/** 采购单、货代对账单详情里的「付款」面板 */
+/** 采购订单、运费账单详情里的「付款」面板 */
 export const PayablePanel: React.FC<{
   sourceType: number;
   sourceId: number;
-  /** 采购单可以登记员工垫付 */
+  /** 采购订单可以登记员工垫付 */
   allowAdvance?: boolean;
 }> = ({ sourceType, sourceId, allowAdvance }) => {
   const { palette } = useAppTheme();

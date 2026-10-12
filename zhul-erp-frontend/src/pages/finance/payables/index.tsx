@@ -55,7 +55,7 @@ const initial = (): Filters => ({
   showClosed: false,
 });
 
-/** 来源单据链接：采购单、货代对账单 */
+/** 来源单据链接：采购订单、运费账单 */
 const sourcePath = (p: Payable) =>
   p.sourceType === SOURCE.PO
     ? `/purchase/orders/${p.sourceId}`
@@ -63,7 +63,7 @@ const sourcePath = (p: Payable) =>
       ? '/finance/expenses'
       : '/logistics/statements';
 
-/** 财务管理 → 应付管理：采购单、货代对账确认后自动生成；付款按到期先后核销 */
+/** 财务管理 → 应付单：采购订单、运费账单确认后自动生成；付款按到期先后核销 */
 const PayableManagement: React.FC = () => {
   const { message } = App.useApp();
   const { palette } = useAppTheme();
@@ -282,9 +282,9 @@ const PayableManagement: React.FC = () => {
   return (
     <div>
       <PageTitle
-        crumbs={['应付管理']}
-        title="应付管理"
-        description="采购单确认下单、货代对账确认后自动生成应付；付款按到期先后核销，多付的部分记为供应商欠款，可以抵扣下一笔或登记退款。"
+        crumbs={['应付单']}
+        title="应付单"
+        description="采购订单确认下单、运费账单确认后自动生成应付；付款按到期先后核销，多付的部分记为供应商欠款，可以抵扣下一笔或登记退款。"
         actions={
           canRegister && (
             <Button

@@ -67,7 +67,7 @@ const CreateModal: React.FC<{
     <Modal
       open={open}
       onCancel={onClose}
-      title="新建对账单"
+      title="新建运费账单"
       destroyOnHidden
       okText="新建"
       okButtonProps={{ disabled: !forwarderId, loading: busy }}
@@ -337,7 +337,7 @@ const StatementDrawer: React.FC<{
       title={
         st
           ? `${st.forwarderName} · ${st.period.replace('-', ' 年 ')} 月`
-          : '对账单'
+          : '运费账单'
       }
       extra={
         st && (
@@ -427,7 +427,7 @@ const StatementDrawer: React.FC<{
             <InfoCircleOutlined />{' '}
             {st.status === 2
               ? `${st.confirmedByName ?? ''} 于 ${formatDateTime(st.confirmedAt)} 确认；这些出运单已对账，运费不能再改。`
-              : '确认后这些出运单标记「已对账」，有差额的按对账金额更新运费并重新分摊，运费不能再改；有差额的必须写说明。确认时生成货代应付，月结付款在「财务管理 → 应付管理」登记。'}
+              : '确认后这些出运单标记「已对账」，有差额的按对账金额更新运费并重新分摊，运费不能再改；有差额的必须写说明。确认时生成货代应付，月结付款在「财务管理 → 应付单」登记。'}
           </div>
           {st.status === 2 && (
             <PayablePanel
@@ -444,7 +444,7 @@ const StatementDrawer: React.FC<{
                 onClick={() =>
                   modal.confirm({
                     title: '删除这张草稿？',
-                    content: '出运单回到「未对账」，可以重新建对账单。',
+                    content: '出运单回到「未对账」，可以重新建运费账单。',
                     okText: '删除',
                     okButtonProps: { danger: true },
                     onOk: async () => {
@@ -615,8 +615,8 @@ const Statements: React.FC = () => {
   return (
     <div>
       <PageTitle
-        crumbs={['货代对账']}
-        title="货代对账"
+        crumbs={['运费账单']}
+        title="运费账单"
         description="按货代的月结账单逐票核对运费；有差额的确认后更新运费并重新分摊。"
         actions={
           canEdit && (
@@ -625,7 +625,7 @@ const Statements: React.FC = () => {
               icon={<PlusOutlined />}
               onClick={() => setCreating(true)}
             >
-              新建对账单
+              新建运费账单
             </Button>
           )
         }
@@ -655,7 +655,7 @@ const Statements: React.FC = () => {
             loading={loading}
             scroll={{ x: 1600 }}
             locale={{
-              emptyText: '还没有对账单；月底收到货代账单后点「新建对账单」',
+              emptyText: '还没有运费账单；月底收到货代账单后点「新建运费账单」',
             }}
             pagination={{
               current: page,

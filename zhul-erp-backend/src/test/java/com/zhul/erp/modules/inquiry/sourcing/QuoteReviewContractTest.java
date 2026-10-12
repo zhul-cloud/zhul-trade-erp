@@ -111,7 +111,7 @@ class QuoteReviewContractTest extends InquiryContractSupport {
         assertEquals(0, jdbc.queryForObject("select count(*) from sourcing_quote where inquiry_item_id = ? and recommended = 1", Integer.class, a));
         assertEquals(1, jdbc.queryForObject("select quote_status from inquiry_item where id = ?", Integer.class, a), "仍为待询价");
         assertNull(jdbc.queryForObject("select selected_quote_id from inquiry_item where id = ?", Long.class, a));
-        assertEquals(0, historyOf("HG-SN202BJ").path("total").asInt(), "待审核的价格不进历史询价");
+        assertEquals(0, historyOf("HG-SN202BJ").path("total").asInt(), "待审核的价格不进询价记录");
         assertEquals(0, ok(call(get(INQ + "/price-match").param("brand", "Mitsubishi").param("model", "HG-SN202BJ"), admin))
                 .path("sameBrand").size(), "解析确认的历史价复用也看不到");
 
@@ -147,7 +147,7 @@ class QuoteReviewContractTest extends InquiryContractSupport {
         assertEquals(4, jdbc.queryForObject("select status from sourcing_quote where id = ?", Integer.class, bad));
         assertEquals(good, jdbc.queryForObject("select selected_quote_id from inquiry_item where id = ?", Long.class, a), "推荐即采购成本价");
         JsonNode h = historyOf("HG-SN202BJ").path("records").get(0);
-        assertEquals(1, h.path("recordCount").asInt(), "作废的不进历史询价");
+        assertEquals(1, h.path("recordCount").asInt(), "作废的不进询价记录");
         assertTrue(approve(task, approveItem(a, good)).path("message").asText().contains("已经审核过"), "重复审核提示刷新");
 
         JsonNode log = ok(call(get(BOARD + "/items/" + a + "/history"), admin));

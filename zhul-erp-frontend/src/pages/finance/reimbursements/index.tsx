@@ -774,7 +774,7 @@ const ListTab: React.FC<{ refreshSignal: number }> = ({ refreshSignal }) => {
                 <b>已付</b>
                 <div style={{ color: palette.sub, marginTop: 6 }}>
                   {detail.payDate} · {detail.payAccountName} · {detail.paidBy}{' '}
-                  登记 · 付款记录 {detail.paymentNo}
+                  登记 · 付款单 {detail.paymentNo}
                 </div>
                 <div style={{ marginTop: 6 }}>
                   转账截图 <ProofLinks files={detail.payProofs} />
@@ -798,7 +798,7 @@ const ListTab: React.FC<{ refreshSignal: number }> = ({ refreshSignal }) => {
         }
         description={
           reason?.kind === 'unpay'
-            ? '报销单回到「待付款」，对应的报销付款记录作废。'
+            ? '报销单回到「待付款」，对应的报销付款单作废。'
             : '撤回后各项回到待报销，补传的截图保留。'
         }
         okText={reason?.kind === 'unpay' ? '撤销已付' : '撤回'}

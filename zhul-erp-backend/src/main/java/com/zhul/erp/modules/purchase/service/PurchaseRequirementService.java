@@ -29,6 +29,6 @@ public interface PurchaseRequirementService {
 
     GeneratePreviewVO preview(List<Long> ids);
 
-    /** 返回生成或追加到的草稿采购单 ID */
+    /** 返回生成或追加到的草稿采购订单 ID */
     List<Long> generate(GeneratePurchaseRequest req);
 }

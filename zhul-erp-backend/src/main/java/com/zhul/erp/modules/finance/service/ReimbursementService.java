@@ -71,7 +71,7 @@ import java.util.stream.Collectors;
 
 /**
  * 报销（spec finance/reimbursement）：待报销项按五种来源实时汇总（垫付人是本人、有效、还没进有效报销单），
- * 员工勾选提交报销单，提交后、付款前可以撤回；财务登记已付（同时记一条报销付款记录），可以撤销已付。
+ * 员工勾选提交报销单，提交后、付款前可以撤回；财务登记已付（同时记一条报销付款单），可以撤销已付。
  */
 @Service
 @RequiredArgsConstructor
@@ -196,7 +196,7 @@ public class ReimbursementService {
         return out;
     }
 
-    /** 付款核销到的来源单号（采购单号），用于说明 */
+    /** 付款核销到的来源单号（采购订单号），用于说明 */
     private Map<Long, String> paymentSources(List<Long> paymentIds) {
         if (paymentIds.isEmpty()) {
             return Map.of();
@@ -363,7 +363,7 @@ public class ReimbursementService {
         return detail(id);
     }
 
-    /** 采购货款、收到退款两种来源的付款记录：进报销单为 2，撤回为 1 */
+    /** 采购货款、收到退款两种来源的付款单：进报销单为 2，撤回为 1 */
     private void markPayments(List<AdvanceItemVO> items, int status) {
         List<Long> ids = items.stream()
                 .filter(i -> i.getSourceType() == FinanceConstants.ITEM_PAYMENT || i.getSourceType() == FinanceConstants.ITEM_REFUND)

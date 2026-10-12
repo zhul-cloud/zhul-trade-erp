@@ -47,16 +47,16 @@ export const ShipStatusPill = tone({ 1: 'accent', 2: 'green', 3: 'mute' });
 export const DiffTypePill = tone({ 1: 'orange', 2: 'red', 3: 'cyan' });
 /** 差异状态：待处理 / 已处理 */
 export const DiffStatusPill = tone({ 1: 'orange', 2: 'green' });
-/** 入库单：有效 / 已冲销 */
+/** 采购入库单：有效 / 已冲销 */
 export const ReceiptStatusPill = tone({ 1: 'green', 2: 'mute' });
-/** 暂存货：暂存中 / 已退回 / 已报废 / 已转样品 */
+/** 闲置库存：暂存中 / 已退回 / 已报废 / 已转样品 */
 export const HoldStatusPill = tone({
   1: 'accent',
   2: 'gray',
   3: 'mute',
   4: 'violet',
 });
-/** 拍摄任务：待拍摄 / 已完成 / 已跳过 */
+/** 实拍任务：待拍摄 / 已完成 / 已跳过 */
 export const ShootStatusPill = tone({ 1: 'gray', 2: 'green', 3: 'mute' });
 
 export const sub = (color: string, text: React.ReactNode) => (

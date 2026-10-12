@@ -19,7 +19,7 @@ const tone =
     <Pill tone={meta[value] ?? 'gray'}>{children}</Pill>
   );
 
-/** 出库单：待打包 / 已打包 / 已交货代 / 已撤回 */
+/** 销售出库单：待打包 / 已打包 / 已交货代 / 已撤回 */
 export const ObStatusPill = tone({
   1: 'orange',
   2: 'accent',
@@ -28,7 +28,7 @@ export const ObStatusPill = tone({
 });
 /** 出运单：待出运 / 已出运 / 已作废 */
 export const ShStatusPill = tone({ 1: 'orange', 2: 'green', 3: 'mute' });
-/** 对账单：草稿 / 已确认 */
+/** 运费账单：草稿 / 已确认 */
 export const StatementStatusPill = tone({ 1: 'orange', 2: 'green' });
 
 export const kg = (v?: number | null) =>

@@ -6,7 +6,7 @@ import lombok.Data;
 
 import java.util.List;
 
-/** 需求池生成采购单：每组一家供应商 */
+/** 需求池生成采购订单：每组一家供应商 */
 @Data
 public class GeneratePurchaseRequest {
     @Valid

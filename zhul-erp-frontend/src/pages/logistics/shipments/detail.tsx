@@ -213,7 +213,7 @@ const ShipmentDetail: React.FC = () => {
           {head(
             <InfoCircleOutlined />,
             '直发货代 · 待确认实收',
-            '按货代实收确认数量并填箱规，系统自动补入库单和出库单',
+            '按货代实收确认数量并填箱规，系统自动补采购入库单和销售出库单',
           )}
           <div style={{ display: 'grid', gap: 10 }}>
             {waiting.map((d) => (
@@ -462,7 +462,7 @@ const ShipmentDetail: React.FC = () => {
       <ReasonModal
         open={dialog === 'void'}
         title={`作废出运单 · ${sh.shNo}`}
-        description="作废后出库单与直发货回到「待出运的货」，CI / PL 一并作废。"
+        description="作废后销售出库单与直发货回到「待出运的货」，CI / PL 一并作废。"
         okText="作废"
         danger
         onCancel={() => setDialog(undefined)}

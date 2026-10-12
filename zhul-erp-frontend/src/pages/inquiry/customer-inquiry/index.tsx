@@ -588,8 +588,8 @@ const CustomerInquiryPage: React.FC = () => {
   return (
     <div>
       <PageTitle
-        crumbs={['客户询盘']}
-        title="客户询盘"
+        crumbs={['询盘单']}
+        title="询盘单"
         description="一个客户的一次需求。确认型号后按品牌拆给采购询价，有回价的型号就可以去报价。"
         actions={
           <Button
@@ -600,7 +600,7 @@ const CustomerInquiryPage: React.FC = () => {
               setNewOpen(true);
             }}
           >
-            新建客户询盘
+            新建询盘单
           </Button>
         }
       />
@@ -818,9 +818,9 @@ const CustomerInquiryPage: React.FC = () => {
       ) : !loading && rows.length === 0 && noFilter ? (
         <Card>
           <EmptyHint
-            title="还没有客户询盘"
+            title="还没有询盘单"
             description="把客户发来的文字、截图或 Excel 交给 AI 解析，几十秒就能拆好给采购。"
-            actionText="新建客户询盘"
+            actionText="新建询盘单"
             onAction={() => setNewOpen(true)}
           />
         </Card>

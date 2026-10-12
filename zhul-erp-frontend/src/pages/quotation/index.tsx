@@ -285,7 +285,7 @@ const QuotationList: React.FC = () => {
       <QuotationPageTitle
         crumbs={['报价单']}
         title="报价单"
-        description="把可报价的型号定好售价发给客户；报价单标为已发送后，客户询盘自动变为「已报价」。"
+        description="把可报价的型号定好售价发给客户；报价单标为已发送后，询盘单自动变为「已报价」。"
         actions={
           <>
             <Button
@@ -475,7 +475,7 @@ const QuotationList: React.FC = () => {
         <Card>
           <EmptyHint
             title="还没有报价单"
-            description="从客户询盘点「去报价」，或在这里新建报价单，挑选要报的型号"
+            description="从询盘单点「去报价」，或在这里新建报价单，挑选要报的型号"
             actionText="新建报价单"
             onAction={() => setNewOpen(true)}
           />

@@ -29,7 +29,7 @@ class MenuPermissionIntegrationTest extends IntegrationTestBase {
     private static final int TENANT_ADMIN_ID = 99000031;
     private static final String TENANT_ADMIN = "it_menu_tenant_admin";
     private static final int DIR_TENANT = 100003;
-    /** 菜单按部门分组后，客户在「业务管理」下，供应商在「采购管理」下 */
+    /** 菜单按部门分组后，客户在「销售管理」下，供应商在「采购管理」下 */
     private static final int DIR_BUSINESS = 100081;
     private static final int DIR_PURCHASE = 100082;
     private static final int MENU_CUSTOMER = 100061;
@@ -91,7 +91,7 @@ class MenuPermissionIntegrationTest extends IntegrationTestBase {
     void roleWithOnlyChildMenu_stillGetsParentDirectory() {
         loginWithResources("it_menu_staff", MENU_CUSTOMER);
         List<String> keys = menuService.getEffectiveMenuKeys("it_menu_staff");
-        assertTrue(keys.contains("/business"), "只授权客户时，所在的业务管理分组也要返回：" + keys);
+        assertTrue(keys.contains("/business"), "只授权客户时，所在的销售管理分组也要返回：" + keys);
         assertTrue(keys.contains("/customer/list"));
         assertFalse(keys.contains("/purchase"), "没授权供应商时，采购管理分组不能出现");
         assertFalse(keys.contains("/supplier/list"));

@@ -22,7 +22,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
-/** 销售订单读取采购信息：型号行的采购员、已下单数量与采购单（只读） */
+/** 销售订单读取采购信息：型号行的采购员、已下单数量与采购订单（只读） */
 @Component
 @RequiredArgsConstructor
 public class PurchaseLinks {

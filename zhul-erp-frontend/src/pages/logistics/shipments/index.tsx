@@ -282,12 +282,12 @@ const Shipments: React.FC = () => {
     { title: '客户', dataIndex: 'customerName', width: 200 },
     { title: '货代', dataIndex: 'forwarderName', width: 120 },
     {
-      title: '出库单 · 订单',
+      title: '销售出库单 · 订单',
       key: 'orders',
       width: 230,
       render: (_, r) => (
         <div>
-          {r.outboundCount} 张出库单
+          {r.outboundCount} 张销售出库单
           <div style={{ fontSize: 12 }}>
             {r.orders.map((o, i) => (
               <React.Fragment key={o.id}>

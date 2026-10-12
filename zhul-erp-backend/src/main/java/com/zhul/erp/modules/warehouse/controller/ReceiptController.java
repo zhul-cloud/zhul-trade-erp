@@ -28,7 +28,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
-/** 入库验收（仓库侧，只按租户，不按采购员过滤） */
+/** 采购入库（仓库侧，只按租户，不按采购员过滤） */
 @RestController
 @RequestMapping("/api/v1/warehouse/receipts")
 @RequiredArgsConstructor
@@ -79,7 +79,7 @@ public class ReceiptController {
         return Result.ok(service.accept(req));
     }
 
-    /** 直接收货可选的采购单 */
+    /** 直接收货可选的采购订单 */
     @GetMapping("/orders")
     @PreAuthorize(EDIT)
     public Result<List<ReceivableOrderVO>> orders(@RequestParam(required = false) String keyword) {

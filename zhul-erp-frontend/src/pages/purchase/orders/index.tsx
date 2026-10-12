@@ -118,7 +118,7 @@ const PurchaseOrderList: React.FC = () => {
 
   const columns: TableColumnsType<PoListItem> = [
     {
-      title: '采购单 · 下单日期',
+      title: '采购订单 · 下单日期',
       dataIndex: 'poNo',
       width: 190,
       fixed: 'left',
@@ -325,8 +325,8 @@ const PurchaseOrderList: React.FC = () => {
   return (
     <div>
       <PurchasePageTitle
-        crumbs={['采购单']}
-        title="采购单"
+        crumbs={['采购订单']}
+        title="采购订单"
         description="向供应商下的单：记录实际采购价、付款条件与供应商合同；砍价 = 目标价 − 不含税采购价。"
       />
 
@@ -344,7 +344,7 @@ const PurchaseOrderList: React.FC = () => {
             color={palette.link}
             label="本月已下单"
             value={formatAmount(stats.monthOrderedCny, 'CNY')}
-            hint={`共 ${stats.monthOrderedCount} 张采购单`}
+            hint={`共 ${stats.monthOrderedCount} 张采购订单`}
           />
           <StatCard
             icon={<FallOutlined />}
@@ -353,7 +353,7 @@ const PurchaseOrderList: React.FC = () => {
             value={formatAmount(stats.monthBargain, 'CNY')}
             hint={
               stats.monthBargainRate == null
-                ? '本月还没有可比较的采购单'
+                ? '本月还没有可比较的采购订单'
                 : `整体砍价率 ${stats.monthBargainRate.toFixed(2)}%（按目标金额加权）`
             }
             hintColor={palette.green}
@@ -366,7 +366,7 @@ const PurchaseOrderList: React.FC = () => {
                 shipProgress: stats.overdueShip > 0 ? 'OVERDUE' : 'UNSHIPPED',
               })
             }
-            aria-label="筛出要催发货的采购单"
+            aria-label="筛出要催发货的采购订单"
             style={{
               all: 'unset',
               cursor: 'pointer',
@@ -405,8 +405,8 @@ const PurchaseOrderList: React.FC = () => {
             value={stats.orderCancelled}
             hint={
               stats.orderCancelled > 0
-                ? '请决定取消采购单或保留货物'
-                : '没有需要处理的采购单'
+                ? '请决定取消采购订单或保留货物'
+                : '没有需要处理的采购订单'
             }
             hintColor={stats.orderCancelled > 0 ? palette.red : undefined}
           />
@@ -431,7 +431,7 @@ const PurchaseOrderList: React.FC = () => {
               <Input
                 allowClear
                 prefix={<SearchOutlined />}
-                placeholder="采购单编号、供应商或店铺、型号、订单编号"
+                placeholder="采购订单编号、供应商或店铺、型号、订单编号"
               />
             </Form.Item>
             <Form.Item name="status" label="状态" style={{ marginBottom: 0 }}>
@@ -522,8 +522,8 @@ const PurchaseOrderList: React.FC = () => {
       ) : !loading && rows.length === 0 && noFilter ? (
         <Card>
           <EmptyHint
-            title="还没有采购单"
-            description="销售订单生成后会自动排入草稿采购单，也可以在采购需求里勾选生成"
+            title="还没有采购订单"
+            description="销售订单生成后会自动排入草稿采购订单，也可以在采购需求里勾选生成"
             actionText="去采购需求"
             onAction={() => history.push(PATHS.requirements)}
           />
@@ -536,7 +536,7 @@ const PurchaseOrderList: React.FC = () => {
           loading={loading}
           scroll={{ x: 2180 }}
           onChange={onTableChange}
-          locale={{ emptyText: '没有符合条件的采购单，换个筛选条件试试' }}
+          locale={{ emptyText: '没有符合条件的采购订单，换个筛选条件试试' }}
           pagination={{
             current: page,
             pageSize,

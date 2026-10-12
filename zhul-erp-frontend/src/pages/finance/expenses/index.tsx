@@ -314,7 +314,7 @@ const ExpenseDrawer: React.FC<{
             ]}
           />
           <div style={{ fontSize: 12, color: palette.mute, marginTop: 6 }}>
-            公司对公：保存后生成应付，在应付管理付款；员工垫付：进入垫付人的待报销，凭证必传
+            公司对公：保存后生成应付，在应付单付款；员工垫付：进入垫付人的待报销，凭证必传
           </div>
           {method === METHOD.ADVANCE && (
             <Select
@@ -655,7 +655,7 @@ const ExpensePage: React.FC = () => {
       <PageTitle
         crumbs={['费用单']}
         title="费用单"
-        description="补发运费这类不挂在采购单、出库单、出运单上的偶发成本；公司对公生成应付，员工垫付进入垫付人的待报销；可以分摊到订单型号，供订单实际成本使用。"
+        description="补发运费这类不挂在采购订单、销售出库单、出运单上的偶发成本；公司对公生成应付，员工垫付进入垫付人的待报销；可以分摊到订单型号，供订单实际成本使用。"
         actions={
           canEdit && (
             <Button

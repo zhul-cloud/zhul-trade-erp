@@ -45,7 +45,7 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class DocumentTemplateServiceImpl implements DocumentTemplateService {
 
-    private static final String MENU = "单据模版";
+    private static final String MENU = "单据模板";
     private static final String XLSX_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
     private final DocumentTemplateMapper templateMapper;

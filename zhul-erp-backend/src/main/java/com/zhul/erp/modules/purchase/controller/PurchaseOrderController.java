@@ -35,7 +35,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.List;
 
-/** 采购单：查看需要「采购单」菜单；编辑、确认下单、上传合同需要「新建采购单」，取消与删除需要「取消采购单」 */
+/** 采购订单：查看需要「采购订单」菜单；编辑、确认下单、上传合同需要「新建采购订单」，取消与删除需要「取消采购订单」 */
 @RestController
 @RequestMapping("/api/v1/purchase/orders")
 @RequiredArgsConstructor
@@ -120,7 +120,7 @@ public class PurchaseOrderController {
         return Result.ok(service.deleteAttachment(id, attachmentId));
     }
 
-    /** 预览（inline=true）或下载合同；只能访问本租户、自己数据范围内采购单的附件 */
+    /** 预览（inline=true）或下载合同；只能访问本租户、自己数据范围内采购订单的附件 */
     @GetMapping("/{id}/attachments/{attachmentId}")
     @PreAuthorize(MENU)
     public void download(@PathVariable Long id, @PathVariable Long attachmentId, @RequestParam(defaultValue = "false") boolean inline,

@@ -4,12 +4,12 @@ import lombok.Data;
 
 import java.time.LocalDate;
 
-/** 采购单列表查询 */
+/** 采购订单列表查询 */
 @Data
 public class PurchaseOrderPageQuery {
     private Integer page;
     private Integer pageSize;
-    /** 采购单编号、供应商、型号、订单编号 */
+    /** 采购订单编号、供应商、型号、订单编号 */
     private String keyword;
     /** 1-草稿、2-已下单、3-已取消 */
     private Integer status;

@@ -474,7 +474,7 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
     public PurchaseOrderVO save(Long id, SavePurchaseOrderRequest req) {
         PurchaseOrderDO p = lockVisible(id);
         if (p.getStatus() == PurchaseConstants.PO_CANCELLED) {
-            throw new BizException("采购单已取消，不能修改");
+            throw new BizException("采购订单已取消，不能修改");
         }
         boolean ordered = p.getStatus() == PurchaseConstants.PO_ORDERED;
         Long operator = currentUser.resolve();
@@ -511,12 +511,12 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
         Map<Long, SavePurchaseOrderRequest.Line> wanted = new LinkedHashMap<>();
         for (SavePurchaseOrderRequest.Line l : req.getItems()) {
             if (!byId.containsKey(l.getId())) {
-                throw new BizException("型号不属于这张采购单");
+                throw new BizException("型号不属于这张采购订单");
             }
             wanted.put(l.getId(), l);
         }
         if (wanted.size() != lines.size()) {
-            throw new BizException("采购单的型号已变化，请刷新后再保存");
+            throw new BizException("采购订单的型号已变化，请刷新后再保存");
         }
         List<Long> reqIds = lines.stream().map(PurchaseOrderItemDO::getRequirementId).distinct().toList();
         if (!reqIds.isEmpty()) {
@@ -587,7 +587,7 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
         if (ordered) {
             progress.sync(lines.stream().map(PurchaseOrderItemDO::getSoItemId).toList());
             if (!changes.isEmpty()) {
-                logService.recordOperateLog(PurchaseConstants.MENU_ORDER, "修改采购单", null, Map.of("poNo", p.getPoNo(), "changes", changes));
+                logService.recordOperateLog(PurchaseConstants.MENU_ORDER, "修改采购订单", null, Map.of("poNo", p.getPoNo(), "changes", changes));
             }
         }
         payables.syncPurchaseOrder(id);
@@ -712,7 +712,7 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
             throw new BizException("采购对象已经是供应商");
         }
         if (p.getStatus() == PurchaseConstants.PO_CANCELLED) {
-            throw new BizException("采购单已取消");
+            throw new BizException("采购订单已取消");
         }
         CreateSupplierFromChannelRequest create = new CreateSupplierFromChannelRequest();
         create.setChannelName(cp.shopName());
@@ -755,7 +755,7 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
         Set<Long> wanted = new LinkedHashSet<>(itemIds == null ? List.of() : itemIds);
         List<PurchaseOrderItemDO> picked = drafts.items(poId).stream().filter(i -> wanted.contains(i.getId())).toList();
         if (picked.isEmpty() || picked.size() != wanted.size()) {
-            throw new BizException("型号不属于这张采购单");
+            throw new BizException("型号不属于这张采购订单");
         }
         return picked;
     }
@@ -775,7 +775,7 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
         }
         List<PurchaseOrderItemDO> lines = drafts.items(id);
         if (lines.isEmpty()) {
-            throw new BizException("采购单没有型号");
+            throw new BizException("采购订单没有型号");
         }
         long missing = lines.stream().filter(i -> i.getUnitPrice() == null || i.getUnitPrice().signum() <= 0).count();
         if (missing > 0) {
@@ -814,7 +814,7 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
     public PurchaseOrderVO cancel(Long id, CancelPurchaseOrderRequest req) {
         PurchaseOrderDO p = lockVisible(id);
         if (p.getStatus() != PurchaseConstants.PO_ORDERED) {
-            throw new BizException(p.getStatus() == PurchaseConstants.PO_DRAFT ? "草稿不用取消，可以直接删除" : "采购单已取消");
+            throw new BizException(p.getStatus() == PurchaseConstants.PO_DRAFT ? "草稿不用取消，可以直接删除" : "采购订单已取消");
         }
         if (receivingLinks.hasShipments(id)) {
             throw new BizException("已有发货，请在到货差异里处理少发或退货");
@@ -830,13 +830,13 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
         touch.touch(lines.stream().map(PurchaseOrderItemDO::getRequirementId).toList());
         logs.add(id, "取消", "原因：" + why + "；各型号数量回到需求池", p.getCancelledBy());
         progress.sync(lines.stream().map(PurchaseOrderItemDO::getSoItemId).toList());
-        logService.recordOperateLog(PurchaseConstants.MENU_ORDER, "取消采购单", Map.of("poNo", p.getPoNo(), "status", "已下单"),
+        logService.recordOperateLog(PurchaseConstants.MENU_ORDER, "取消采购订单", Map.of("poNo", p.getPoNo(), "status", "已下单"),
                 Map.of("poNo", p.getPoNo(), "status", "已取消", "reason", why));
         payables.syncPurchaseOrder(id);
         return detail(id);
     }
 
-    /** 来源订单已取消的需求：采购单取消后已下单数量归零的，需求关闭 */
+    /** 来源订单已取消的需求：采购订单取消后已下单数量归零的，需求关闭 */
     private void closeEmptyCancelledRequirements(List<PurchaseOrderItemDO> lines) {
         List<Long> ids = lines.stream().map(PurchaseOrderItemDO::getRequirementId).distinct().toList();
         if (ids.isEmpty()) {
@@ -867,7 +867,7 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
         p.setDeletedAt(now);
         orderMapper.updateById(p);
         logs.add(id, "删除草稿", "各型号数量回到需求池", operator);
-        logService.recordOperateLog(PurchaseConstants.MENU_ORDER, "删除草稿采购单", Map.of("id", id), null);
+        logService.recordOperateLog(PurchaseConstants.MENU_ORDER, "删除草稿采购订单", Map.of("id", id), null);
     }
 
     private static void requireDraft(PurchaseOrderDO p) {
@@ -883,16 +883,16 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
     public PurchaseOrderVO uploadAttachment(Long id, MultipartFile file) {
         PurchaseOrderDO p = lockVisible(id);
         if (p.getStatus() == PurchaseConstants.PO_CANCELLED) {
-            throw new BizException("采购单已取消，不能上传合同");
+            throw new BizException("采购订单已取消，不能上传合同");
         }
         if (Counterparty.of(p).isShop()) {
-            throw new BizException("线上店铺的采购单不需要上传合同");
+            throw new BizException("线上店铺的采购订单不需要上传合同");
         }
         long count = attachmentMapper.selectCount(new LambdaQueryWrapper<PurchaseOrderAttachmentDO>()
                 .eq(PurchaseOrderAttachmentDO::getPoId, id)
                 .isNull(PurchaseOrderAttachmentDO::getDeletedAt));
         if (count >= PurchaseConstants.MAX_ATTACHMENTS) {
-            throw new BizException("每张采购单最多 " + PurchaseConstants.MAX_ATTACHMENTS + " 个合同文件");
+            throw new BizException("每张采购订单最多 " + PurchaseConstants.MAX_ATTACHMENTS + " 个合同文件");
         }
         PrivateFileStorage.StoredFile stored = storage.store(p.getTenantId(), file);
         PurchaseOrderAttachmentDO x = new PurchaseOrderAttachmentDO();
@@ -948,7 +948,7 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
         PurchaseOrderDO p = id == null ? null : orderMapper.selectById(id);
         if (p == null || p.getDeletedAt() != null || !Objects.equals(p.getTenantId(), PiStore.tenantId())
                 || !dataScopeResolver.current().canSee(p.getPurchaserId())) {
-            throw new BizException("采购单不存在");
+            throw new BizException("采购订单不存在");
         }
         return p;
     }

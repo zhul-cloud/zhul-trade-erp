@@ -8,7 +8,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
-/** 付款记录（含供应商退款） */
+/** 付款单（含供应商退款） */
 @Data
 public class PaymentVO {
     private Long id;

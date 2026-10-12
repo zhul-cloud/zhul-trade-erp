@@ -12,7 +12,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
-/** 应付单：一张来源单据（采购单、货代对账单）一张，不删除，取消时为已关闭 */
+/** 应付单：一张来源单据（采购订单、运费账单）一张，不删除，取消时为已关闭 */
 @Data
 @TableName("fin_payable")
 public class PayableDO {
@@ -26,7 +26,7 @@ public class PayableDO {
     private String shopPlatform;
     private String shopName;
     private String payeeName;
-    /** 1-采购单、2-货代对账单 */
+    /** 1-采购订单、2-运费账单 */
     private Integer sourceType;
     private Long sourceId;
     private String sourceNo;

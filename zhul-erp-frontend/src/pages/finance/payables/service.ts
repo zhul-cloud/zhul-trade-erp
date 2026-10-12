@@ -231,12 +231,12 @@ export interface RefundBody {
   idempotencyKey: string;
 }
 
-/** 财务管理 → 应付管理、付款记录 */
+/** 财务管理 → 应付单、付款单 */
 export const payableApi = {
   page: (q: PayableQuery) => get<{ total: number; records: Payable[] }>(AP, q),
   stats: () => get<PayableStats>(`${AP}/stats`),
   detail: (id: number) => get<Payable>(`${AP}/${id}`),
-  /** 采购单、对账单的付款面板；还没有应付单时为空 */
+  /** 采购订单、运费账单的付款面板；还没有应付单时为空 */
   bySource: (sourceType: number, sourceId: number) =>
     get<Payable | null>(`${AP}/by-source`, { sourceType, sourceId }),
   payees: (keyword?: string) => get<PayeeOption[]>(`${AP}/payees`, { keyword }),

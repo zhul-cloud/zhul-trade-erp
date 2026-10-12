@@ -10,7 +10,7 @@ import lombok.Data;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-/** 采购单其他费用 */
+/** 采购订单其他费用 */
 @Data
 @TableName("purchase_order_fee")
 public class PurchaseOrderFeeDO {

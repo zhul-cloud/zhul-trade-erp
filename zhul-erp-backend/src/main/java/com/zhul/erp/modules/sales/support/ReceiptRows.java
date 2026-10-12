@@ -21,7 +21,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-/** 把收款记录转成收款管理的行：补上 PI 编号、客户、收款账户与登记人、认领人名称 */
+/** 把收款记录转成收款单的行：补上 PI 编号、客户、收款账户与登记人、认领人名称 */
 @Component
 @RequiredArgsConstructor
 public class ReceiptRows {

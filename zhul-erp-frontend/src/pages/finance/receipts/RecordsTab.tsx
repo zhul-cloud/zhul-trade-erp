@@ -34,7 +34,7 @@ const initial = (): Filters => ({
   includeVoid: false,
 });
 
-/** 收款管理 → 收款记录：全部到账流水，按筛选结果汇总线上 / 线下（报税统计用） */
+/** 收款单 → 收款记录：全部到账流水，按筛选结果汇总线上 / 线下（报税统计用） */
 const RecordsTab: React.FC = () => {
   const { message } = App.useApp();
   const { palette } = useAppTheme();

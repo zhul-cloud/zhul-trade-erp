@@ -37,7 +37,7 @@ import java.nio.file.Files;
 import java.util.List;
 import java.util.Map;
 
-/** 客户询盘：要求能访问「客户询盘」菜单，数据范围按负责人 */
+/** 询盘单：要求能访问「询盘单」菜单，数据范围按负责人 */
 @RestController
 @RequestMapping("/api/v1/inquiry/customer-inquiries")
 @RequiredArgsConstructor
@@ -62,7 +62,7 @@ public class CustomerInquiryController {
         return Result.ok(service.customerType(customerId));
     }
 
-    /** 确认页逐行查询历史询价（手动录入时填完型号即调用） */
+    /** 确认页逐行查询询价记录（手动录入时填完型号即调用） */
     @GetMapping("/price-match")
     public Result<PriceMatchVO> priceMatch(@RequestParam String brand, @RequestParam String model) {
         return Result.ok(priceHistoryService.match(brand, model));
