@@ -454,6 +454,10 @@ export interface OrderListItem {
   createBy?: string;
   updateTime?: string;
   updateBy?: string;
+  /** 毛利（CNY）、毛利率（%）与是否已结算；已取消的订单为空 */
+  profit?: number | null;
+  profitRate?: number | null;
+  profitSettled?: boolean | null;
 }
 
 export interface GoodsSummary {
@@ -546,6 +550,8 @@ export interface Order {
     currencyCode: string;
     amount: number;
   }[];
+  /** 实际成本明细；已取消的订单为空 */
+  cost?: import('@/pages/finance/profit-stats/service').OrderCost | null;
   margin: {
     salesAmountCny: number;
     receivedCny: number;
@@ -620,6 +626,9 @@ export interface OrderQuery {
   customerType?: number;
   currencyCode?: string;
   purchaserId?: number;
+  /** 表头排序：profit 按毛利 */
+  sortField?: string;
+  sortOrder?: 'ascend' | 'descend';
   page: number;
   pageSize: number;
 }

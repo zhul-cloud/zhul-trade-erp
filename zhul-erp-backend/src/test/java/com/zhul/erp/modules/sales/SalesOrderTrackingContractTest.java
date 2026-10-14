@@ -244,8 +244,8 @@ class SalesOrderTrackingContractTest extends SalesContractSupport {
         so = ok(call(json(post(SO + "/" + id + "/platform-receipts"), write(platform)), admin));
         assertEquals("部分到账", so.path("receiptStatusName").asText());
         assertTrue(so.path("margin").path("estimated").asBoolean());
-        // 预计毛利 = 7150.00 − 6500.00
-        money("650.00", so.path("margin").path("profitCny"));
+        // 未收齐：收入按销售额折合 7150.00；成本 = 采购成本价 6500.00 + 平台手续费 (2145.00 − 2091.38) = 6553.62
+        money("596.38", so.path("margin").path("profitCny"));
 
         Map<String, Object> unclaimed = new LinkedHashMap<>();
         unclaimed.put("currencyCode", "USD");
@@ -258,8 +258,10 @@ class SalesOrderTrackingContractTest extends SalesContractSupport {
         so = ok(call(json(post(SO + "/" + id + "/claim"), write(Map.of("receiptId", rid))), admin));
         assertEquals("已到账", so.path("receiptStatusName").asText());
         assertEquals(0, ok(call(get(FIN + "/unclaimed"), admin)).path("unclaimed").size(), "认领到订单后不再是未认领");
-        assertFalse(so.path("margin").path("estimated").asBoolean());
-        // 实收人民币 = (300 − 7.50) × 7.15 + 700 × 7.15 = 2091.38 + 5005.00；毛利 = 7096.38 − 6500.00
+        assertTrue(so.path("margin").path("estimated").asBoolean(), "收齐了但还没结汇、没下采购订单，仍未结算");
+        assertTrue(so.path("cost").path("pending").toString().contains("收款还没结汇"));
+        // 收入按毛额 = 300 × 7.15 + 700 × 7.15 = 7150.00；成本 = 6500.00 + 手续费 53.62
+        money("7150.00", so.path("margin").path("receivedCny"));
         money("596.38", so.path("margin").path("profitCny"));
         assertEquals("阿里巴巴信用保障", so.path("methodTotals").get(0).path("paymentMethodName").asText(), "线上在前");
         money("700.00", so.path("methodTotals").get(1).path("amount"));

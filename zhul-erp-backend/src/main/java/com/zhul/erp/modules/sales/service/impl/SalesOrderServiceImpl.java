@@ -18,6 +18,7 @@ import com.zhul.erp.modules.quotation.repository.QuotationMapper;
 import com.zhul.erp.modules.quotation.support.QuotationDeals;
 import com.zhul.erp.modules.quotation.support.QuotationRenderModels;
 import com.zhul.erp.modules.quotation.support.QuotationStore;
+import com.zhul.erp.modules.finance.dto.OrderCostVO;
 import com.zhul.erp.modules.sales.constants.SalesConstants;
 import com.zhul.erp.modules.sales.dto.ChainVO;
 import com.zhul.erp.modules.sales.dto.PartyDTO;
@@ -82,6 +83,8 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class SalesOrderServiceImpl implements SalesOrderService {
+
+    private final com.zhul.erp.modules.finance.service.OrderCostService orderCostService;
 
     private static final int KEYWORD_LIMIT = 500;
     private static final Map<Integer, String> SO_STATUS_NAMES = Map.of(SalesConstants.SO_ACTIVE, "有效", SalesConstants.SO_CANCELLED, "已取消");
@@ -875,7 +878,9 @@ public class SalesOrderServiceImpl implements SalesOrderService {
             x.setItemCount(e.getValue());
             return x;
         }).toList());
-        vo.setMargin(margin(o, items, rc));
+        OrderCostVO cost = orderCostService.of(o);
+        vo.setCost(cost);
+        vo.setMargin(cost == null ? margin(o, items, rc) : marginOf(cost));
         return vo;
     }
 
@@ -928,6 +933,19 @@ public class SalesOrderServiceImpl implements SalesOrderService {
      * 订单毛利（CNY，HALF_UP 保留 2 位）：采购成本 = Σ 成本价 × 数量；
      * 已到账时毛利 = 实收人民币 − 采购成本，否则预计毛利 = 销售额折合人民币 − 采购成本
      */
+    /** 订单毛利（spec finance/order-cost）：收入、实际成本与毛利，未结算时标「预计」 */
+    private static SalesOrderVO.Margin marginOf(OrderCostVO c) {
+        SalesOrderVO.Margin m = new SalesOrderVO.Margin();
+        m.setSalesAmountCny(c.getSalesAmountCny());
+        m.setReceivedCny(c.getRevenue());
+        m.setCostCny(c.getCost());
+        m.setProfitCny(c.getProfit());
+        m.setEstimated(!Boolean.TRUE.equals(c.getSettled()));
+        m.setMissingCostCount(c.getMissingCostCount());
+        return m;
+    }
+
+    /** 已取消订单的毛利：按报价时的采购成本价（不计算实际成本） */
     private static SalesOrderVO.Margin margin(SalesOrderDO o, List<SalesOrderItemDO> items, Receipts rc) {
         BigDecimal cost = BigDecimal.ZERO;
         int missing = 0;
@@ -1057,8 +1075,17 @@ public class SalesOrderServiceImpl implements SalesOrderService {
             return PageResult.of(0L, List.of());
         }
         // 列表页统一规范：默认按更新时间倒序
-        w.orderByDesc(SalesOrderDO::getUpdateTime).orderByDesc(SalesOrderDO::getId)
-                .last("LIMIT " + (long) (page - 1) * size + ", " + size);
+        w.orderByDesc(SalesOrderDO::getUpdateTime).orderByDesc(SalesOrderDO::getId);
+        if ("profit".equals(q.getSortField()) && q.getSortOrder() != null) {
+            // 毛利是读时计算的：取筛选范围内全部订单算完成本后在内存里排序、分页；已取消的排在最后
+            List<SalesOrderListVO> all = toListVos(orderMapper.selectList(w));
+            Comparator<SalesOrderListVO> byProfit = Comparator.comparing(SalesOrderListVO::getProfit,
+                    Comparator.nullsLast("ascend".equals(q.getSortOrder()) ? Comparator.<BigDecimal>naturalOrder() : Comparator.<BigDecimal>reverseOrder()));
+            List<SalesOrderListVO> sorted = all.stream().sorted(byProfit).toList();
+            int from = Math.min(sorted.size(), (page - 1) * size);
+            return PageResult.of(total, sorted.subList(from, Math.min(sorted.size(), from + size)));
+        }
+        w.last("LIMIT " + (long) (page - 1) * size + ", " + size);
         return PageResult.of(total, toListVos(orderMapper.selectList(w)));
     }
 
@@ -1193,6 +1220,7 @@ public class SalesOrderServiceImpl implements SalesOrderService {
 
     private List<SalesOrderListVO> toListVos(List<SalesOrderDO> rows) {
         List<Long> ids = rows.stream().map(SalesOrderDO::getId).toList();
+        Map<Long, OrderCostVO> costs = orderCostService.of(rows);
         Map<Long, Integer> counts = new HashMap<>();
         Map<Long, Integer> quantities = new HashMap<>();
         Map<Long, Set<Long>> purchasersByOrder = new HashMap<>();
@@ -1226,6 +1254,12 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         for (SalesOrderDO o : rows) {
             ProformaInvoiceDO pi = pis.get(o.getPiId());
             SalesOrderListVO vo = new SalesOrderListVO();
+            OrderCostVO cost = costs.get(o.getId());
+            if (cost != null) {
+                vo.setProfit(cost.getProfit());
+                vo.setProfitRate(cost.getProfitRate());
+                vo.setProfitSettled(cost.getSettled());
+            }
             vo.setId(o.getId());
             vo.setSoNo(o.getSoNo());
             vo.setCustomerId(o.getCustomerId());

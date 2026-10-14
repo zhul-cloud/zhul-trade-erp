@@ -61,4 +61,8 @@ public class SalesOrderListVO {
         /** 在途最早的预计到货日期 */
         private java.time.LocalDate earliestArrival;
     }
+    /** 毛利（CNY）、毛利率（%）与是否已结算；已取消的订单为空 */
+    private java.math.BigDecimal profit;
+    private java.math.BigDecimal profitRate;
+    private Boolean profitSettled;
 }

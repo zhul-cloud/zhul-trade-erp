@@ -395,6 +395,13 @@ export default [
         access: 'purchaseShipments',
         component: './purchase/shipments',
       },
+      {
+        path: '/purchase/bargain-stats',
+        name: 'bargainStats',
+        icon: 'fall',
+        access: 'purchaseBargainStats',
+        component: './purchase/bargain-stats',
+      },
     ],
   },
   {
@@ -511,6 +518,13 @@ export default [
         icon: 'profile',
         access: 'financeExpenses',
         component: './finance/expenses',
+      },
+      {
+        path: '/finance/profit-stats',
+        name: 'profitStats',
+        icon: 'lineChart',
+        access: 'financeProfitStats',
+        component: './finance/profit-stats',
       },
     ],
   },

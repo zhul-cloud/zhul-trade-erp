@@ -44,6 +44,7 @@ import {
   piApi,
   readBizError,
 } from '../service';
+import OrderCostCard from './CostCard';
 import {
   manualSteps,
   ProgressModal,
@@ -1040,7 +1041,15 @@ const OrderDetail: React.FC = () => {
         }}
       >
         <b style={{ fontSize: 16, color: palette.ink }}>订单毛利</b>
-        {m.estimated && <Pill tone="orange">预计</Pill>}
+        {o.cost ? (
+          o.cost.settled ? (
+            <Pill tone="green">已结算</Pill>
+          ) : (
+            <Pill tone="orange">未结算</Pill>
+          )
+        ) : (
+          m.estimated && <Pill tone="orange">预计</Pill>
+        )}
       </div>
       <div style={{ padding: 14, borderRadius: 12, background: palette.inset }}>
         {line(
@@ -1049,8 +1058,11 @@ const OrderDetail: React.FC = () => {
             ? formatAmount(o.totalAmount, cur)
             : `${formatAmount(o.totalAmount, cur)} ≈ ${formatAmount(m.salesAmountCny, 'CNY')}`,
         )}
-        {line('实收人民币', formatAmount(m.receivedCny, 'CNY'))}
-        {line('采购成本', formatAmount(m.costCny, 'CNY'))}
+        {line(
+          o.cost ? '收入' : '实收人民币',
+          formatAmount(m.receivedCny, 'CNY'),
+        )}
+        {line(o.cost ? '实际成本' : '采购成本', formatAmount(m.costCny, 'CNY'))}
         <div
           style={{
             display: 'flex',
@@ -1063,6 +1075,7 @@ const OrderDetail: React.FC = () => {
         >
           <span style={{ color: palette.sub, fontWeight: 600 }}>
             {m.estimated ? '预计毛利' : '毛利'}
+            {o.cost?.profitRate != null ? ` · ${o.cost.profitRate}%` : ''}
           </span>
           <b
             style={{
@@ -1075,9 +1088,11 @@ const OrderDetail: React.FC = () => {
           </b>
         </div>
         <div style={{ fontSize: 12, color: palette.mute, marginTop: 6 }}>
-          {m.estimated
-            ? '还没收齐：按销售额折合人民币 − 采购成本估算；收齐后改为 实收人民币 − 采购成本'
-            : '实收人民币 − 采购成本'}
+          {o.cost
+            ? o.cost.settled
+              ? '收入（毛额 × 结汇汇率）− 实际成本（含开票成本与收款手续费）'
+              : `还差：${o.cost.pending.join(' · ')}；还没确定的部分按采购订单单价或采购成本价估算`
+            : '已取消的订单按报价时的采购成本价计算'}
         </div>
       </div>
       {m.missingCostCount > 0 && (
@@ -1223,6 +1238,7 @@ const OrderDetail: React.FC = () => {
       >
         <div style={{ minWidth: 0 }}>
           {main}
+          {o.cost && <OrderCostCard cost={o.cost} />}
           <OrderOutbounds soId={o.id} version={version} onChanged={load} />
         </div>
         <div style={{ minWidth: 0 }}>
