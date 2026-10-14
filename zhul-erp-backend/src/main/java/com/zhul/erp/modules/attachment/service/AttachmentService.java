@@ -49,10 +49,15 @@ public class AttachmentService {
     public static final String REIMBURSE = "REIMBURSE";
     /** 采购订单的电子发票 */
     public static final String PO_INVOICE = "PO_INVOICE";
+    /** 退款单与其他收入的凭证 */
+    public static final String REFUND = "REFUND";
+    public static final String OTHER_INCOME = "OTHER_INCOME";
     /** 只收图片或 PDF 的归属类型 */
-    private static final Set<String> PROOF_TYPES = Set.of(PAYMENT, COURIER_PROOF, RETURN_PROOF, EXPENSE, REIMBURSE, PO_INVOICE);
-    public static final Map<String, Integer> MAX_PER_OWNER = Map.of(SHIPMENT, 20, RECEIPT, 20, SHOOT, 30, LOGISTICS, 10,
-            PAYMENT, 10, COURIER_PROOF, 10, RETURN_PROOF, 10, EXPENSE, 10, REIMBURSE, 10, PO_INVOICE, 10);
+    private static final Set<String> PROOF_TYPES = Set.of(PAYMENT, COURIER_PROOF, RETURN_PROOF, EXPENSE, REIMBURSE, PO_INVOICE, REFUND, OTHER_INCOME);
+    public static final Map<String, Integer> MAX_PER_OWNER = Map.ofEntries(Map.entry(SHIPMENT, 20), Map.entry(RECEIPT, 20),
+            Map.entry(SHOOT, 30), Map.entry(LOGISTICS, 10), Map.entry(PAYMENT, 10), Map.entry(COURIER_PROOF, 10),
+            Map.entry(RETURN_PROOF, 10), Map.entry(EXPENSE, 10), Map.entry(REIMBURSE, 10), Map.entry(PO_INVOICE, 10),
+            Map.entry(REFUND, 10), Map.entry(OTHER_INCOME, 10));
     public static final int IMAGE = 1;
     public static final int VIDEO = 2;
     public static final int FILE = 3;

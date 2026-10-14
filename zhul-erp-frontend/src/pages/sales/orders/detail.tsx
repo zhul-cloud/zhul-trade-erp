@@ -7,6 +7,7 @@ import {
   InboxOutlined,
   NodeIndexOutlined,
   PaperClipOutlined,
+  RollbackOutlined,
   SendOutlined,
   ShopOutlined,
   StopOutlined,
@@ -19,6 +20,7 @@ import type { TableColumnsType } from 'antd';
 import { Alert, App, Button, Dropdown, Skeleton, Table } from 'antd';
 import dayjs from 'dayjs';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import RefundModal from '@/pages/finance/refunds/RefundModal';
 import { useWide } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -87,6 +89,7 @@ const OrderDetail: React.FC = () => {
   const [selected, setSelected] = useState<number[]>([]);
   const [dialog, setDialog] = useState<Dialog>();
   const [cancelOpen, setCancelOpen] = useState(false);
+  const [refundOpen, setRefundOpen] = useState(false);
   const [voidId, setVoidId] = useState<number>();
   /** 订单刷新次数：销售出库单列表随之重新取 */
   const [version, setVersion] = useState(0);
@@ -1215,6 +1218,16 @@ const OrderDetail: React.FC = () => {
               >
                 客户已收货
               </Button>
+              {access['finance:refund:edit'] &&
+                active &&
+                (o.receivedAmount ?? 0) > 0 && (
+                  <Button
+                    icon={<RollbackOutlined />}
+                    onClick={() => setRefundOpen(true)}
+                  >
+                    登记退款
+                  </Button>
+                )}
               <Button
                 danger
                 icon={<StopOutlined />}
@@ -1239,6 +1252,12 @@ const OrderDetail: React.FC = () => {
         <div style={{ minWidth: 0 }}>
           {main}
           {o.cost && <OrderCostCard cost={o.cost} />}
+          <RefundModal
+            open={refundOpen}
+            soId={o.id}
+            onClose={() => setRefundOpen(false)}
+            onDone={load}
+          />
           <OrderOutbounds soId={o.id} version={version} onChanged={load} />
         </div>
         <div style={{ minWidth: 0 }}>

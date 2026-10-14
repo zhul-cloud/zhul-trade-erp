@@ -26,7 +26,7 @@ public abstract class SalesContractSupport extends InquiryContractSupport {
     protected static final String SO = "/api/v1/sales/orders";
     protected static final long ADMIN_USER = 99000002L;
     protected static final String TODAY = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
-    private static final String[] SALES_TABLES = {"fin_fx_settlement_allocation", "fin_fx_settlement", "fin_reimbursement_line", "fin_reimbursement", "fin_expense_allocation", "fin_expense", "fin_payment_allocation", "fin_payment", "fin_payable_installment", "fin_payable", "forwarder_statement_line", "forwarder_statement", "freight_allocation", "shipment_doc_group",
+    private static final String[] SALES_TABLES = {"fin_customer_refund", "fin_other_income", "fin_fx_settlement_allocation", "fin_fx_settlement", "fin_reimbursement_line", "fin_reimbursement", "fin_expense_allocation", "fin_expense", "fin_payment_allocation", "fin_payment", "fin_payable_installment", "fin_payable", "forwarder_statement_line", "forwarder_statement", "freight_allocation", "shipment_doc_group",
             "logistics_shipment", "courier_waybill", "outbound_box_item", "outbound_box", "outbound_order_item", "outbound_order", "transit_time", "biz_attachment", "media_asset", "shoot_task", "stock_hold", "receiving_discrepancy",
             "purchase_receipt_item", "purchase_receipt", "supplier_shipment_item", "supplier_shipment", "purchase_order_log", "purchase_order_attachment", "purchase_order_fee",
             "purchase_order_item", "purchase_order", "purchase_requirement", "sales_order_fee", "sales_order_item", "sales_order", "payment_receipt",

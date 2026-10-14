@@ -36,18 +36,20 @@ import java.util.Map;
 public class AttachmentController {
 
     /** 所属单据类型 → 能看这类附件的菜单（任一即可） */
-    private static final Map<String, List<String>> MENUS = Map.of(
-            AttachmentService.SHIPMENT, List.of("/purchase/shipments", "/warehouse/receipts"),
-            AttachmentService.RECEIPT, List.of("/warehouse/receipts", "/purchase/shipments"),
-            AttachmentService.SHOOT, List.of("/warehouse/shoots"),
-            AttachmentService.LOGISTICS, List.of("/logistics/shipments"),
-            AttachmentService.PAYMENT, List.of("/finance/payables", "/finance/payments", "/purchase/orders", "/logistics/statements",
-                    "/finance/reimbursements"),
-            AttachmentService.COURIER_PROOF, List.of("/finance/reimbursements"),
-            AttachmentService.RETURN_PROOF, List.of("/finance/reimbursements"),
-            AttachmentService.EXPENSE, List.of("/finance/expenses", "/finance/reimbursements"),
-            AttachmentService.REIMBURSE, List.of("/finance/reimbursements", "/finance/payments"),
-            AttachmentService.PO_INVOICE, List.of("/purchase/orders", "/finance/payables"));
+    private static final Map<String, List<String>> MENUS = Map.ofEntries(
+            Map.entry(AttachmentService.SHIPMENT, List.of("/purchase/shipments", "/warehouse/receipts")),
+            Map.entry(AttachmentService.RECEIPT, List.of("/warehouse/receipts", "/purchase/shipments")),
+            Map.entry(AttachmentService.SHOOT, List.of("/warehouse/shoots")),
+            Map.entry(AttachmentService.LOGISTICS, List.of("/logistics/shipments")),
+            Map.entry(AttachmentService.PAYMENT, List.of("/finance/payables", "/finance/payments", "/purchase/orders",
+                    "/logistics/statements", "/finance/reimbursements")),
+            Map.entry(AttachmentService.COURIER_PROOF, List.of("/finance/reimbursements")),
+            Map.entry(AttachmentService.RETURN_PROOF, List.of("/finance/reimbursements")),
+            Map.entry(AttachmentService.EXPENSE, List.of("/finance/expenses", "/finance/reimbursements")),
+            Map.entry(AttachmentService.REIMBURSE, List.of("/finance/reimbursements", "/finance/payments")),
+            Map.entry(AttachmentService.PO_INVOICE, List.of("/purchase/orders", "/finance/payables")),
+            Map.entry(AttachmentService.REFUND, List.of("/finance/refunds", "/sales/orders")),
+            Map.entry(AttachmentService.OTHER_INCOME, List.of("/finance/other-incomes")));
 
     private final AttachmentService service;
     private final PermissionChecker perm;

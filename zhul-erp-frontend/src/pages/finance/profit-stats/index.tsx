@@ -25,10 +25,15 @@ const ProfitStatsPage: React.FC = () => {
   const { message } = App.useApp();
   const { palette } = useAppTheme();
   const users = useUserOptions();
-  const [range, setRange] = useState<[Dayjs, Dayjs]>([
-    dayjs().startOf('year'),
-    dayjs(),
-  ]);
+  const [range, setRange] = useState<[Dayjs, Dayjs]>(() => {
+    // 经营统计跳转时 URL 带日期范围
+    const p = new URLSearchParams(window.location.search);
+    const from = p.get('dateFrom');
+    const to = p.get('dateTo');
+    return from && to
+      ? [dayjs(from), dayjs(to)]
+      : [dayjs().startOf('year'), dayjs()];
+  });
   const [ownerId, setOwnerId] = useState<number>();
   const [customerType, setCustomerType] = useState<number>();
   const [settledOnly, setSettledOnly] = useState(false);

@@ -33,6 +33,7 @@ export interface CostLine {
   receiptFee: number;
   cost: number;
   revenue: number;
+  refund: number;
   profit: number;
   profitRate?: number | null;
   unreceivedQty: number;
@@ -48,6 +49,18 @@ export interface OrderCost {
   revenue: number;
   cost: number;
   receiptFee: number;
+  /** 有效退款单的人民币合计，从收入中扣减 */
+  refund: number;
+  refunds: {
+    id: number;
+    refundNo: string;
+    refundDate: string;
+    reasonName?: string;
+    currencyCode: string;
+    amount: number;
+    amountCny: number;
+  }[];
+  /** 毛利 = 收入 − 退款 − 实际成本 */
   profit: number;
   profitRate?: number | null;
   settled: boolean;

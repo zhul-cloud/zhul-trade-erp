@@ -125,7 +125,8 @@ public class ProfitStatsService {
                 continue;
             }
             sales = sales.add(nz(o.getTotalAmountCny()));
-            revenue = revenue.add(c.getRevenue());
+            BigDecimal net = c.getRevenue().subtract(c.getRefund());
+            revenue = revenue.add(net);
             cost = cost.add(c.getCost());
             if (!Boolean.TRUE.equals(c.getSettled())) {
                 unsettled++;
@@ -133,7 +134,7 @@ public class ProfitStatsService {
             boolean isNew = !Objects.equals(o.getCustomerType(), InquiryConstants.CUSTOMER_RETURNING);
             int base = isNew ? 0 : 3;
             newCount += isNew ? 1 : 0;
-            byType[base] = byType[base].add(c.getRevenue());
+            byType[base] = byType[base].add(net);
             byType[base + 1] = byType[base + 1].add(c.getCost());
             byType[base + 2] = byType[base + 2].add(c.getProfit());
             BigDecimal[] ch = channels.get(o.getId());
@@ -141,9 +142,9 @@ public class ProfitStatsService {
                 // 收入按到账毛额的线上 / 线下比例拆分
                 BigDecimal sum = ch[0].add(ch[1]);
                 if (sum.signum() > 0) {
-                    BigDecimal on = OrderCostCalc.money(c.getRevenue().multiply(ch[0], MC).divide(sum, MC));
+                    BigDecimal on = OrderCostCalc.money(net.multiply(ch[0], MC).divide(sum, MC));
                     online = online.add(on);
-                    offline = offline.add(c.getRevenue().subtract(on));
+                    offline = offline.add(net.subtract(on));
                 }
             }
         }
@@ -214,7 +215,7 @@ public class ProfitStatsService {
         r.setSalesDate(o.getSalesDate());
         r.setOwnerName(owners.get(o.getOwnerId()));
         if (c != null) {
-            r.setRevenue(c.getRevenue());
+            r.setRevenue(c.getRevenue().subtract(c.getRefund()));
             r.setCost(c.getCost());
             r.setProfit(c.getProfit());
             r.setProfitRate(c.getProfitRate());

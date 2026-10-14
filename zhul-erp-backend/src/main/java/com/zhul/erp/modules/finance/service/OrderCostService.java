@@ -3,9 +3,11 @@ package com.zhul.erp.modules.finance.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.zhul.erp.modules.finance.constants.FinanceConstants;
 import com.zhul.erp.modules.finance.dto.OrderCostVO;
+import com.zhul.erp.modules.finance.entity.CustomerRefundDO;
 import com.zhul.erp.modules.finance.entity.ExpenseAllocationDO;
 import com.zhul.erp.modules.finance.entity.ExpenseDO;
 import com.zhul.erp.modules.finance.entity.PayableDO;
+import com.zhul.erp.modules.finance.repository.CustomerRefundMapper;
 import com.zhul.erp.modules.finance.repository.ExpenseAllocationMapper;
 import com.zhul.erp.modules.finance.repository.ExpenseMapper;
 import com.zhul.erp.modules.finance.repository.PayableMapper;
@@ -30,6 +32,7 @@ import com.zhul.erp.modules.sales.entity.SalesOrderItemDO;
 import com.zhul.erp.modules.sales.repository.PaymentReceiptMapper;
 import com.zhul.erp.modules.sales.repository.ProformaInvoiceMapper;
 import com.zhul.erp.modules.sales.repository.SalesOrderItemMapper;
+import com.zhul.erp.modules.system.service.DictItemService;
 import com.zhul.erp.modules.warehouse.constants.WarehouseConstants;
 import com.zhul.erp.modules.warehouse.entity.ReceivingDiscrepancyDO;
 import com.zhul.erp.modules.warehouse.repository.ReceivingDiscrepancyMapper;
@@ -70,6 +73,8 @@ public class OrderCostService {
     private final CourierWaybillMapper waybillMapper;
     private final ExpenseAllocationMapper expenseAllocationMapper;
     private final ExpenseMapper expenseMapper;
+    private final CustomerRefundMapper refundMapper;
+    private final DictItemService dictItemService;
 
     public OrderCostVO of(SalesOrderDO order) {
         return of(List.of(order)).get(order.getId());
@@ -159,6 +164,17 @@ public class OrderCostService {
                     }
                 });
         List<PaymentReceiptDO> receipts = receiptMapper.selectList(rw);
+        Map<Long, List<CustomerRefundDO>> refundsBySo = refundMapper.selectList(
+                        new LambdaQueryWrapper<CustomerRefundDO>()
+                                .in(CustomerRefundDO::getSoId, soIds)
+                                .eq(CustomerRefundDO::getStatus, FinanceConstants.RECORD_VALID)
+                                .isNull(CustomerRefundDO::getDeletedAt)
+                                .orderByAsc(CustomerRefundDO::getRefundDate))
+                .stream().collect(Collectors.groupingBy(CustomerRefundDO::getSoId));
+        Map<String, String> reasonNames = new HashMap<>();
+        if (!refundsBySo.isEmpty()) {
+            dictItemService.listByDictType(FinanceConstants.DICT_REFUND_REASON).forEach(d -> reasonNames.put(d.getItemCode(), d.getItemName()));
+        }
 
         // 按订单组装输入
         Map<Long, List<PurchaseOrderItemDO>> poLinesByItem = poLines.stream().collect(Collectors.groupingBy(PurchaseOrderItemDO::getSoItemId));
@@ -194,9 +210,24 @@ public class OrderCostService {
             }
             List<OrderCostCalc.Receipt> calcReceipts = myReceipts.stream().map(r -> new OrderCostCalc.Receipt(r.getAmountCny(),
                     r.getNetAmountCny(), r.getFeeDiff(), r.getExchangeRate(), Objects.requireNonNullElse(r.getSettleStatus(), 0))).toList();
+            List<CustomerRefundDO> refunds = refundsBySo.getOrDefault(o.getId(), List.of());
+            BigDecimal refund = sum(refunds.stream().map(CustomerRefundDO::getAmountCny));
             OrderCostCalc.Result res = OrderCostCalc.compute(new OrderCostCalc.Input(receiptStatus == SalesConstants.RECEIPT_PAID,
-                    o.getTotalAmountCny(), calcItems, calcLines, calcPos, calcReceipts));
-            out.put(o.getId(), toVo(o, mine, res, poLinesByItem, pos, qualified, freightByItem, shipments, waybills, expenseByItem, expenses));
+                    o.getTotalAmountCny(), calcItems, calcLines, calcPos, calcReceipts, refund));
+            OrderCostVO vo = toVo(o, mine, res, poLinesByItem, pos, qualified, freightByItem, shipments, waybills, expenseByItem, expenses);
+            vo.setRefund(res.refund());
+            vo.setRefunds(refunds.stream().map(f -> {
+                OrderCostVO.RefundBrief b = new OrderCostVO.RefundBrief();
+                b.setId(f.getId());
+                b.setRefundNo(f.getRefundNo());
+                b.setRefundDate(f.getRefundDate());
+                b.setReasonName(reasonNames.getOrDefault(f.getReason(), f.getReason()));
+                b.setCurrencyCode(f.getCurrencyCode());
+                b.setAmount(f.getAmount());
+                b.setAmountCny(f.getAmountCny());
+                return b;
+            }).toList());
+            out.put(o.getId(), vo);
         }
         return out;
     }
@@ -246,6 +277,7 @@ public class OrderCostService {
             x.setReceiptFee(l.receiptFee());
             x.setCost(l.cost());
             x.setRevenue(l.revenue());
+            x.setRefund(l.refund());
             x.setProfit(l.profit());
             x.setProfitRate(l.profitRate());
             x.setUnreceivedQty(l.unreceivedQty());

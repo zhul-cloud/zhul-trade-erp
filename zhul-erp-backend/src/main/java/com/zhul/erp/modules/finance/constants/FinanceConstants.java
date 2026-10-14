@@ -82,4 +82,16 @@ public final class FinanceConstants {
     public static final String PERM_FX_SETTLE = "finance:fx:settle";
     public static final int FX_VALID = 1;
     public static final int FX_VOID = 2;
+
+    /** 退款单与其他收入（spec finance/customer-refund、finance/other-income） */
+    public static final String MENU_REFUND = "/finance/refunds";
+    public static final String MENU_OTHER_INCOME = "/finance/other-incomes";
+    public static final String PERM_REFUND_EDIT = "finance:refund:edit";
+    public static final String PERM_INCOME_EDIT = "finance:income:edit";
+    public static final String DICT_REFUND_REASON = "refund_reason";
+    public static final String DICT_INCOME_CATEGORY = "other_income_category";
+    public static final int RECORD_VALID = 1;
+    public static final int RECORD_VOID = 2;
+    public static final int REFUND_PLATFORM = 1;
+    public static final int REFUND_BANK = 2;
 }

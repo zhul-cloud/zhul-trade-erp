@@ -16,8 +16,12 @@ public class OrderCostVO {
     private BigDecimal revenue;
     private BigDecimal cost;
     private BigDecimal receiptFee;
+    /** 有效退款单的人民币合计（从收入中扣减） */
+    private BigDecimal refund;
+    private List<RefundBrief> refunds;
+    /** 毛利 = 收入 − 退款 − 实际成本 */
     private BigDecimal profit;
-    /** 毛利率（%）；收入为 0 时为空 */
+    /** 毛利率（%）= 毛利 ÷（收入 − 退款）；为 0 时为空 */
     private BigDecimal profitRate;
     /** 已结算：已收齐并结汇、全部入库、外币货款付清、国际运费已对账 */
     private Boolean settled;
@@ -48,6 +52,7 @@ public class OrderCostVO {
         private BigDecimal receiptFee;
         private BigDecimal cost;
         private BigDecimal revenue;
+        private BigDecimal refund;
         private BigDecimal profit;
         private BigDecimal profitRate;
         private Integer unreceivedQty;
@@ -65,5 +70,16 @@ public class OrderCostVO {
         private String no;
         private BigDecimal amount;
         private String note;
+    }
+
+    @Data
+    public static class RefundBrief {
+        private Long id;
+        private String refundNo;
+        private java.time.LocalDate refundDate;
+        private String reasonName;
+        private String currencyCode;
+        private BigDecimal amount;
+        private BigDecimal amountCny;
     }
 }

@@ -193,6 +193,20 @@ const OrderCostCard: React.FC<{ cost: OrderCost }> = ({ cost }) => {
       ),
     },
     {
+      title: '退款',
+      dataIndex: 'refund',
+      width: 100,
+      align: 'right',
+      render: (v: number) =>
+        v ? (
+          <span style={{ ...num, color: palette.orange }}>
+            −{formatAmount(v, 'CNY')}
+          </span>
+        ) : (
+          <span style={{ color: palette.mute }}>—</span>
+        ),
+    },
+    {
       title: '行收入',
       dataIndex: 'revenue',
       width: 110,
@@ -252,7 +266,7 @@ const OrderCostCard: React.FC<{ cost: OrderCost }> = ({ cost }) => {
         columns={columns}
         dataSource={cost.lines}
         pagination={false}
-        scroll={{ x: 1500 }}
+        scroll={{ x: 1600 }}
         summary={() => (
           <Table.Summary.Row>
             <Table.Summary.Cell index={0} colSpan={10}>
@@ -262,9 +276,18 @@ const OrderCostCard: React.FC<{ cost: OrderCost }> = ({ cost }) => {
               <b style={num}>{formatAmount(cost.cost, 'CNY')}</b>
             </Table.Summary.Cell>
             <Table.Summary.Cell index={11} align="right">
-              <span style={num}>{formatAmount(cost.revenue, 'CNY')}</span>
+              {cost.refund ? (
+                <span style={{ ...num, color: palette.orange }}>
+                  −{formatAmount(cost.refund, 'CNY')}
+                </span>
+              ) : (
+                <span style={{ color: palette.mute }}>—</span>
+              )}
             </Table.Summary.Cell>
             <Table.Summary.Cell index={12} align="right">
+              <span style={num}>{formatAmount(cost.revenue, 'CNY')}</span>
+            </Table.Summary.Cell>
+            <Table.Summary.Cell index={13} align="right">
               <b
                 style={{
                   ...num,
@@ -278,6 +301,35 @@ const OrderCostCard: React.FC<{ cost: OrderCost }> = ({ cost }) => {
           </Table.Summary.Row>
         )}
       />
+      {cost.refunds.length > 0 && (
+        <div style={{ marginTop: 12, display: 'grid', gap: 6 }}>
+          {cost.refunds.map((r) => (
+            <div
+              key={r.id}
+              style={{
+                display: 'flex',
+                gap: 10,
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                fontSize: 13,
+              }}
+            >
+              <b style={{ color: palette.ink }}>退款</b>
+              <a onClick={() => history.push('/finance/refunds')}>
+                {r.refundNo}
+              </a>
+              <span style={{ color: palette.sub }}>
+                {r.refundDate} · {r.reasonName}
+              </span>
+              <span style={{ flex: 1 }} />
+              <span style={{ ...num, color: palette.orange }}>
+                {formatAmount(r.amount, r.currencyCode)} →{' '}
+                {formatAmount(r.amountCny, 'CNY')}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
     </Card>
   );
 };

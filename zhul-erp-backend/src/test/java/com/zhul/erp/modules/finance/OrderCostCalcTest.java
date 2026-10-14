@@ -174,4 +174,18 @@ class OrderCostCalcTest {
                 List.of(settled("700", "700", "7"))));
         assertTrue(r.pending().contains("国际运费还没对账"));
     }
+
+    @Test
+    void refundCutsProfitAndRateBase() {
+        // 收入 2,048.48、成本 1,456.48，退款 334.50 → 毛利 257.50，毛利率 257.50 ÷ 1,713.98 = 15.02%
+        Input in = new Input(true, d("2066.85"), List.of(item(6, 1, "306.20", null, "0", "395", "0")),
+                List.of(new PoLine(61, 600, 6, 1, 1, d("1000"), null, null)), Map.of(600L, cnyPo(600, "1000", "0", "0")),
+                List.of(settled("2048.48", "1987.00", "6.69")), d("334.50"));
+        Result r = OrderCostCalc.compute(in);
+        eq("334.50", r.refund());
+        eq("257.50", r.profit());
+        eq("15.02", r.profitRate());
+        eq("334.50", r.lines().get(0).refund());
+        eq("257.50", r.lines().get(0).profit());
+    }
 }

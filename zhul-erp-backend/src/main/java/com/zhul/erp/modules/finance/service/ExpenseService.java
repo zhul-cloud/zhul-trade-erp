@@ -81,6 +81,19 @@ public class ExpenseService {
     private final CurrentUserResolver currentUser;
     private final InquiryLookups lookups;
     private final LogService logService;
+    private final com.zhul.erp.modules.system.service.DictItemService dictItemService;
+
+    public static final String DICT_CATEGORY = "expense_category";
+    public static final String CATEGORY_ORDER = "ORDER";
+    public static final String CATEGORY_OTHER = "OTHER";
+
+    /** 费用类别：编码 → 名称（启用的） */
+    public Map<String, String> categoryNames() {
+        Map<String, String> m = new java.util.LinkedHashMap<>();
+        dictItemService.listByDictType(DICT_CATEGORY).stream().filter(d -> Objects.equals(d.getStatus(), 1))
+                .forEach(d -> m.put(d.getItemCode(), d.getItemName()));
+        return m;
+    }
 
     @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public ExpenseVO create(SaveExpenseRequest req) {
@@ -243,6 +256,13 @@ public class ExpenseService {
         }
         e.setName(req.getName().trim());
         e.setRemark(req.getRemark() == null ? "" : req.getRemark().trim());
+        boolean linked = req.getAllocations() != null && !req.getAllocations().isEmpty();
+        String category = StringUtils.hasText(req.getCategory()) ? req.getCategory().trim() : linked ? CATEGORY_ORDER : CATEGORY_OTHER;
+        if (categoryNames().get(category) == null) {
+            throw new BizException("费用类别不存在");
+        }
+        e.setCategory(category);
+        e.setAmortizeMonths(req.getAmortizeMonths() == null ? 1 : req.getAmortizeMonths());
         if (locked) {
             BigDecimal amount = req.getAmount().setScale(2, RoundingMode.HALF_UP);
             boolean changed = amount.compareTo(e.getAmount()) != 0 || !Objects.equals(req.getMethod(), e.getMethod())
@@ -401,6 +421,13 @@ public class ExpenseService {
         if (q.getMethod() != null) {
             w.eq(ExpenseDO::getMethod, q.getMethod());
         }
+        if (StringUtils.hasText(q.getCategory())) {
+            w.eq(ExpenseDO::getCategory, q.getCategory().trim());
+        }
+        if (q.getLinked() != null) {
+            w.apply((q.getLinked() ? "" : "NOT ") + "EXISTS (SELECT 1 FROM fin_expense_allocation a WHERE a.expense_id = fin_expense.id "
+                    + "AND a.deleted_at IS NULL)");
+        }
         if (StringUtils.hasText(q.getSoNo())) {
             w.apply("id IN (SELECT a.expense_id FROM fin_expense_allocation a JOIN sales_order s ON s.id = a.so_id "
                     + "WHERE a.deleted_at IS NULL AND s.so_no LIKE CONCAT('%', {0}, '%'))", q.getSoNo().trim());
@@ -409,6 +436,7 @@ public class ExpenseService {
     }
 
     private List<ExpenseVO> toVos(List<ExpenseDO> rows) {
+        Map<String, String> categories = categoryNames();
         if (rows.isEmpty()) {
             return List.of();
         }
@@ -447,6 +475,9 @@ public class ExpenseService {
             vo.setId(e.getId());
             vo.setExpenseNo(e.getExpenseNo());
             vo.setName(e.getName());
+            vo.setCategory(e.getCategory());
+            vo.setCategoryName(categories.getOrDefault(e.getCategory(), e.getCategory()));
+            vo.setAmortizeMonths(e.getAmortizeMonths());
             vo.setOccurDate(e.getOccurDate());
             vo.setPayeeType(e.getPayeeType());
             vo.setSupplierId(e.getSupplierId());
@@ -489,6 +520,7 @@ public class ExpenseService {
                 av.setAmountCny(a.getAmountCny());
                 vo.getAllocations().add(av);
             }
+            vo.setLinked(!vo.getAllocations().isEmpty());
             vo.setAttachments(PayableQueryService.refs(files.getOrDefault(e.getId(), List.of())));
             vo.setCreateTime(e.getCreateTime());
             vo.setCreateBy(e.getCreateBy());

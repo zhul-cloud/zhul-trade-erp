@@ -14,6 +14,11 @@ public class ExpenseVO {
     private Long id;
     private String expenseNo;
     private String name;
+    private String category;
+    private String categoryName;
+    private Integer amortizeMonths;
+    /** 是否关联了订单型号（不关联的为运营成本） */
+    private Boolean linked;
     private LocalDate occurDate;
     private Integer payeeType;
     private Long supplierId;

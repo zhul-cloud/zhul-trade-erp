@@ -50,18 +50,25 @@ public final class OrderCostCalc {
     public record Receipt(BigDecimal amountCny, BigDecimal netAmountCny, BigDecimal feeDiff, BigDecimal rate, int settleStatus) {
     }
 
+    /** refund：有效退款单的人民币合计，从收入中扣减（spec finance/customer-refund） */
     public record Input(boolean paid, BigDecimal salesAmountCny, List<Item> items, List<PoLine> lines, Map<Long, Po> pos,
-                        List<Receipt> receipts) {
+                        List<Receipt> receipts, BigDecimal refund) {
+        public Input(boolean paid, BigDecimal salesAmountCny, List<Item> items, List<PoLine> lines, Map<Long, Po> pos,
+                     List<Receipt> receipts) {
+            this(paid, salesAmountCny, items, lines, pos, receipts, BigDecimal.ZERO);
+        }
     }
 
     public record Line(long soItemId, BigDecimal purchase, boolean purchaseSettled, BigDecimal invoice, BigDecimal poFee,
                        BigDecimal claim, BigDecimal returnFreight, BigDecimal domestic, BigDecimal international,
-                       BigDecimal expense, BigDecimal receiptFee, BigDecimal cost, BigDecimal revenue, BigDecimal profit,
+                       BigDecimal expense, BigDecimal receiptFee, BigDecimal cost, BigDecimal revenue, BigDecimal refund,
+                       BigDecimal profit,
                        BigDecimal profitRate, int unreceivedQty, int unorderedQty, boolean missingCostPrice,
                        Set<Long> unpaidForeignPos) {
     }
 
-    public record Result(BigDecimal revenue, BigDecimal cost, BigDecimal receiptFee, BigDecimal profit, BigDecimal profitRate,
+    public record Result(BigDecimal revenue, BigDecimal refund, BigDecimal cost, BigDecimal receiptFee, BigDecimal profit,
+                         BigDecimal profitRate,
                          boolean settled, List<String> pending, int missingCostCount, List<Line> lines) {
     }
 
@@ -134,6 +141,8 @@ public final class OrderCostCalc {
         in.items().forEach(i -> weights.put(i.id(), nz(i.amount())));
         Map<Long, BigDecimal> revenueByItem = split(revenue, weights);
         Map<Long, BigDecimal> feeByItem = split(receiptFee, weights);
+        BigDecimal refund = money(nz(in.refund()));
+        Map<Long, BigDecimal> refundByItem = split(refund, weights);
 
         // 采购订单行按型号行分组；采购订单级的开票成本与费用按行货款比例分
         Map<Long, List<PoLine>> linesByItem = new HashMap<>();
@@ -207,12 +216,13 @@ public final class OrderCostCalc {
             BigDecimal intl = money(nz(item.internationalFreight()));
             BigDecimal ex = money(nz(item.expense()));
             BigDecimal cost = p.add(inv).add(f).subtract(c).add(rt).add(dom).add(intl).add(ex).add(rf);
-            BigDecimal profit = rev.subtract(cost);
+            BigDecimal rf2 = refundByItem.getOrDefault(item.id(), BigDecimal.ZERO.setScale(2));
+            BigDecimal profit = rev.subtract(rf2).subtract(cost);
             out.add(new Line(item.id(), p, unordered == 0 && unreceived == 0 && unpaidPos.isEmpty(), inv, f, c, rt, dom, intl, ex, rf,
-                    cost, rev, profit, rate(profit, rev), unreceived, unordered, missingCost, unpaidPos));
+                    cost, rev, rf2, profit, rate(profit, rev.subtract(rf2)), unreceived, unordered, missingCost, unpaidPos));
         }
         BigDecimal cost = out.stream().map(Line::cost).reduce(BigDecimal.ZERO, BigDecimal::add);
-        BigDecimal profit = revenue.subtract(cost);
+        BigDecimal profit = revenue.subtract(refund).subtract(cost);
 
         List<String> pending = new ArrayList<>();
         if (!in.paid()) {
@@ -232,7 +242,8 @@ public final class OrderCostCalc {
         if (freightPending) {
             pending.add("国际运费还没对账");
         }
-        return new Result(revenue, cost, receiptFee, profit, rate(profit, revenue), pending.isEmpty(), pending, missing, out);
+        return new Result(revenue, refund, cost, receiptFee, profit, rate(profit, revenue.subtract(refund)), pending.isEmpty(), pending,
+                missing, out);
     }
 
     /** 毛利率（%，两位）；收入为 0 时为空 */

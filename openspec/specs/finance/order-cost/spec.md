@@ -51,7 +51,9 @@ TBD - created by archiving change add-order-actual-cost. Update Purpose after ar
 - 收款状态为「已到账」时，收入 = 各笔到账的毛额折人民币 + 银行中转手续费差额折人民币，都按到账汇率折算（外币到账的到账汇率由结汇确定，未结汇的部分按估算汇率，见 `finance/fx-settlement`）；
 - 否则收入 = 销售额折合人民币，标「未结算」。
 
-**毛利** = 收入 − 实际成本合计，毛利率 = 毛利 ÷ 收入。
+**退款**：订单所有有效退款单的人民币合计（见 `finance/customer-refund`），从收入中扣减。
+
+**毛利** = 收入 − 退款 − 实际成本合计，毛利率 = 毛利 ÷（收入 − 退款）。
 
 **型号行**：行收入 = 订单收入 × 行金额 ÷ 订单型号行金额合计，尾差放到金额最大的行；行毛利 = 行收入 − 行实际成本。
 
@@ -72,6 +74,10 @@ TBD - created by archiving change add-order-actual-cost. Update Purpose after ar
 #### Scenario: 运费还没对账
 - **WHEN** 订单的出运单还没在确认的运费账单上
 - **THEN** 毛利照常按已登记的运费计算，为「未结算」，提示「国际运费还没对账」
+
+#### Scenario: 有退款的订单
+- **WHEN** 订单收入 ¥2,048.48、实际成本 ¥1,456.48，有一张有效退款单 ¥334.50
+- **THEN** 毛利 ¥257.50，毛利率 = 257.50 ÷ 1,713.98 = 15.02%
 
 ### Requirement: 订单成本明细
 订单详情 SHALL 显示成本明细：
