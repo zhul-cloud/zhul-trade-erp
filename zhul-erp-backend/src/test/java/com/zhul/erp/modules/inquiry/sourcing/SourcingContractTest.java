@@ -24,7 +24,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 
-/** 询价任务与询价记录（spec inquiry/sourcing-task、sourcing-quote、price-ledger）：分配、推荐、改派、比价、录入、退回、超时、规则、历史询价 */
+/** 询价任务与询价记录（spec inquiry/sourcing-task、sourcing-quote、price-ledger）：分配、推荐、改派、比价、录入、退回、超时、规则、询价记录 */
 class SourcingContractTest extends InquiryContractSupport {
 
     @Autowired private PriceKeys priceKeys;
@@ -40,7 +40,7 @@ class SourcingContractTest extends InquiryContractSupport {
         return m;
     }
 
-    /** 业务员录入并确认一条询盘，返回客户询盘 ID */
+    /** 业务员录入并确认一条询盘，返回询盘单 ID */
     private long inquiry(boolean urgent, Map<String, Object>... rows) throws Exception {
         long c = customer("Wingrid Rocha", "Brazil");
         long id = ok(call(json(post(INQ), "{\"customerId\":" + c + ",\"source\":1,\"urgent\":" + urgent + ",\"rawContent\":\"rfq\"}"), admin)).path("id").asLong();
@@ -243,7 +243,7 @@ class SourcingContractTest extends InquiryContractSupport {
         assertEquals(2, masked.size());
         assertTrue(masked.findValues("channel").isEmpty(), "没有「查看货源信息」看不到平台：" + masked);
         assertTrue(masked.findValues("shopName").isEmpty(), "没有「查看货源信息」看不到店铺：" + masked);
-        assertEquals(403, perform(json(post(HISTORY + "/page"), "{}"), token("it_wang")).getStatus(), "兼职采购看不到历史询价");
+        assertEquals(403, perform(json(post(HISTORY + "/page"), "{}"), token("it_wang")).getStatus(), "兼职采购看不到询价记录");
     }
 
     private long recommendedCost(long inq) throws Exception {
@@ -276,7 +276,7 @@ class SourcingContractTest extends InquiryContractSupport {
         assertTrue(ok(call(get(MY + "/" + task), lin)).path("items").get(0).path("quotes").findValues("recommended").stream()
                 .anyMatch(JsonNode::asBoolean));
 
-        // 修改已回价：旧版本软删除并留痕，历史询价只留最新
+        // 修改已回价：旧版本软删除并留痕，询价记录只留最新
         String logSql = "select count(*) from sys_log where operation = '修改回价'";
         int logs = jdbc.queryForObject(logSql, Integer.class);
         ok(call(json(put(MY + "/" + task + "/quotes"), quotes(true, item, false, null, List.of(rec(entry(2, "b", "950", 1, 1))))), lin));

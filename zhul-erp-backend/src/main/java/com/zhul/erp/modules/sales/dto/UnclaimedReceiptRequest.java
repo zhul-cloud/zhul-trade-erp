@@ -22,7 +22,6 @@ public class UnclaimedReceiptRequest {
     private String paymentMethod;
     @Size(max = 128, message = "付款人不能超过 128 个字符")
     private String payer;
-    private BigDecimal actualAmountCny;
     @Size(max = 300, message = "说明不能超过 300 字")
     private String note;
 }

@@ -2,13 +2,13 @@ package com.zhul.erp.modules.warehouse.constants;
 
 import java.util.Map;
 
-/** 到货与入库：发货单、入库单、到货差异、暂存货、拍摄任务 */
+/** 到货与入库：发货单、采购入库单、到货差异、闲置库存、实拍任务 */
 public final class WarehouseConstants {
 
     public static final String MENU_SHIPMENT = "供应商发货";
-    public static final String MENU_RECEIPT = "入库验收";
-    public static final String MENU_HOLD = "暂存货";
-    public static final String MENU_SHOOT = "拍摄任务";
+    public static final String MENU_RECEIPT = "采购入库";
+    public static final String MENU_HOLD = "闲置库存";
+    public static final String MENU_SHOOT = "实拍任务";
 
     public static final int SHIP_BY_BUYER = 1;
     public static final int SHIP_BY_WAREHOUSE = 2;

@@ -39,7 +39,7 @@ const SHORTCUTS: {
 }[] = [
   {
     access: 'inquiryCustomerInquiry',
-    label: '客户询盘',
+    label: '询盘单',
     path: '/inquiry/customer-inquiries',
     icon: <MailOutlined />,
   },

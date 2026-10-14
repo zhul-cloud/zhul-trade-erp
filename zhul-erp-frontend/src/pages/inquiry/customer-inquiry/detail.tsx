@@ -345,7 +345,7 @@ const CustomerInquiryDetailPage: React.FC = () => {
       <PageTitle
         crumbs={[
           <Link key="l" to={PATHS.inquiries}>
-            客户询盘
+            询盘单
           </Link>,
           inq.inquiryCode,
         ]}
@@ -359,7 +359,7 @@ const CustomerInquiryDetailPage: React.FC = () => {
                   modal.confirm({
                     title: '取消这条询盘？',
                     content:
-                      '还没回价的询价任务会一并取消，从采购的待办里消失；已问到的价格仍保留在历史询价里。',
+                      '还没回价的询价任务会一并取消，从采购的待办里消失；已问到的价格仍保留在询价记录里。',
                     okText: '取消询盘',
                     okButtonProps: { danger: true },
                     cancelText: '再想想',

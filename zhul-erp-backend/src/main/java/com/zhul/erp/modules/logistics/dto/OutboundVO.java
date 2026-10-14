@@ -78,9 +78,9 @@ public class OutboundVO {
         private LocalDate sentDate;
         private BigDecimal freight;
         private String payerName;
-        /** 本出库单分到的国内运费 */
+        /** 本销售出库单分到的国内运费 */
         private BigDecimal share;
-        /** 共用这票快递的出库单数 */
+        /** 共用这票快递的销售出库单数 */
         private Integer outboundCount;
     }
 }

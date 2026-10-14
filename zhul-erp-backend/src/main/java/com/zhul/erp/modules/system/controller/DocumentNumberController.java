@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Map;
 
-/** 单据编号前缀：「业务设置 → 单据编号」页面查看，修改需要「编辑单据编号」 */
+/** 单据编号前缀：「业务设置 → 编号规则」页面查看，修改需要「编辑编号规则」 */
 @RestController
 @RequestMapping("/api/v1/system/document-numbering")
 @RequiredArgsConstructor

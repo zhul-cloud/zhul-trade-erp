@@ -29,7 +29,7 @@ import java.util.stream.Collectors;
 
 /**
  * 运费分摊落库（调用方事务内）：作废这笔运费原来的分摊行，按 {@link FreightAllocator} 重新写入。
- * 国内快递按出库单的计费重之和先分到出库单（体积系数 5000）；国际运费直接按箱（体积系数取货代主数据）。
+ * 国内快递按销售出库单的计费重之和先分到销售出库单（体积系数 5000）；国际运费直接按箱（体积系数取货代主数据）。
  */
 @Service
 @RequiredArgsConstructor
@@ -65,7 +65,7 @@ public class FreightService {
                 .isNull(FreightAllocationDO::getDeletedAt));
     }
 
-    /** 某笔运费分到各出库单的金额 */
+    /** 某笔运费分到各销售出库单的金额 */
     public Map<Long, BigDecimal> byOutbound(int sourceType, Long sourceId) {
         return allocationMapper.selectList(live(sourceType, List.of(sourceId)))
                 .stream().collect(Collectors.groupingBy(FreightAllocationDO::getOutboundId,
@@ -79,7 +79,7 @@ public class FreightService {
                         Collectors.reducing(BigDecimal.ZERO, FreightAllocationDO::getAmount, BigDecimal::add)));
     }
 
-    /** 出库单各箱的计费重（两位小数，展示用） */
+    /** 销售出库单各箱的计费重（两位小数，展示用） */
     public static BigDecimal chargeable(OutboundBoxDO b, BigDecimal divisor) {
         return FreightAllocator.chargeable(b.getLength(), b.getWidth(), b.getHeight(), b.getGrossWeight(), divisor)
                 .setScale(2, RoundingMode.HALF_UP);

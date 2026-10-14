@@ -103,7 +103,7 @@ SQL 文件：`zhul-erp-backend/src/main/resources/db/migration/V1.1__master_data
 |---|------|------|-----------|
 | 1 | `customer` | 客户主数据（最小可用） | ✅ |
 | 2 | `supplier` | 供应商主数据（最小可用） | ✅ |
-| 3 | `customer_inquiry` | 客户询盘（原始诉求全貌） | ✅ |
+| 3 | `customer_inquiry` | 询盘单（原始诉求全貌） | ✅ |
 | 4 | `inquiry_order` | 询盘单（按品牌+品类拆分的可分配单元） | ✅ |
 | 5 | `inquiry_order_item` | 询盘单明细 | ✅ |
 | 6 | `inquiry_order_supplier` | 询盘单-报价来源关联（正式供应商/电商询价渠道） | ✅ |

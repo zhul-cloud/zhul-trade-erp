@@ -3,7 +3,7 @@ package com.zhul.erp.modules.warehouse.dto;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
-/** 拍摄任务添加素材（先上传附件拿到 ID） */
+/** 实拍任务添加素材（先上传附件拿到 ID） */
 @Data
 public class AddMediaRequest {
     @NotNull

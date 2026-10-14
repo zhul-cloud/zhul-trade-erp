@@ -8,7 +8,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
-/** 单据模版：按租户维护，平台内置 V1 兜底；每类只有一个默认版本 */
+/** 单据模板：按租户维护，平台内置 V1 兜底；每类只有一个默认版本 */
 public interface DocumentTemplateService {
 
     List<TemplateTypeVO> types();

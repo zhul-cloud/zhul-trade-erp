@@ -19,7 +19,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-/** 采购单读取发货与入库：详情里的发货单、入库单，修改与取消时的限制（只读） */
+/** 采购订单读取发货与入库：详情里的发货单、采购入库单，修改与取消时的限制（只读） */
 @Component
 @RequiredArgsConstructor
 public class PurchaseReceivingLinks {
@@ -37,7 +37,7 @@ public class PurchaseReceivingLinks {
                 .isNull(SupplierShipmentDO::getDeletedAt)) > 0;
     }
 
-    /** 采购单的发货单（含作废的），新的在前 */
+    /** 采购订单的发货单（含作废的），新的在前 */
     public List<PurchaseOrderVO.ShipmentRef> shipments(Long poId) {
         List<SupplierShipmentDO> rows = shipmentMapper.selectList(new LambdaQueryWrapper<SupplierShipmentDO>()
                 .eq(SupplierShipmentDO::getPoId, poId)
@@ -67,7 +67,7 @@ public class PurchaseReceivingLinks {
         }).toList();
     }
 
-    /** 采购单的入库单（含冲销的），新的在前 */
+    /** 采购订单的采购入库单（含冲销的），新的在前 */
     public List<PurchaseOrderVO.ReceiptRef> receipts(Long poId) {
         List<PurchaseReceiptDO> rows = receiptMapper.selectList(new LambdaQueryWrapper<PurchaseReceiptDO>()
                 .eq(PurchaseReceiptDO::getPoId, poId)

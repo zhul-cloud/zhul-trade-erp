@@ -249,7 +249,7 @@ const Footer: React.FC<{
 };
 
 const HINT =
-  '确认后生成入库单；合格的型号会生成拍摄任务，订单型号的合格数量到齐后自动变「已入库」';
+  '确认后生成采购入库单；合格的型号会生成实拍任务，订单型号的合格数量到齐后自动变「已入库」';
 
 // ---------------------------------------------------------------- 验收入库
 
@@ -506,20 +506,20 @@ export const DirectReceiveDrawer: React.FC<{
         />
       }
     >
-      <Label>采购单</Label>
+      <Label>采购订单</Label>
       <Select
         showSearch={{ onSearch: search, filterOption: false }}
         loading={searching}
         value={po?.poId}
         onChange={pick}
-        placeholder="按采购单号、采购对象、型号搜索已下单的采购单"
+        placeholder="按采购订单号、采购对象、型号搜索已下单的采购订单"
         style={{ width: '100%' }}
-        notFoundContent={searching ? '搜索中…' : '没有找到已下单的采购单'}
+        notFoundContent={searching ? '搜索中…' : '没有找到已下单的采购订单'}
         options={options.map((o) => ({
           value: o.poId,
           label: `${o.poNo} · ${o.supplierName ?? ''} · ${o.purchaserName ?? ''}`,
         }))}
-        aria-label="采购单"
+        aria-label="采购订单"
       />
       {po && (
         <>
@@ -568,7 +568,7 @@ export const DirectReceiveDrawer: React.FC<{
   );
 };
 
-// ---------------------------------------------------------------- 入库单详情
+// ---------------------------------------------------------------- 采购入库单详情
 
 export const ReceiptView: React.FC<{
   id?: number;
@@ -600,7 +600,7 @@ export const ReceiptView: React.FC<{
       onClose={onClose}
       size="min(760px, 96vw)"
       destroyOnHidden
-      title={r ? `入库单 ${r.grNo}` : '入库单'}
+      title={r ? `采购入库单 ${r.grNo}` : '采购入库单'}
       extra={
         d?.reversible && canEdit ? (
           <Button danger onClick={() => setReversing(true)}>
@@ -719,8 +719,8 @@ export const ReceiptView: React.FC<{
       )}
       <ReasonModal
         open={reversing}
-        title={`冲销入库单 ${r?.grNo ?? ''}`}
-        description="录错时整张冲销：入库单作废，发货单回到「在途」，它的差异与拍摄任务一起作废，之后可以重新验收。"
+        title={`冲销采购入库单 ${r?.grNo ?? ''}`}
+        description="录错时整张冲销：采购入库单作废，发货单回到「在途」，它的差异与实拍任务一起作废，之后可以重新验收。"
         placeholder="如：数量录错"
         okText="冲销"
         danger

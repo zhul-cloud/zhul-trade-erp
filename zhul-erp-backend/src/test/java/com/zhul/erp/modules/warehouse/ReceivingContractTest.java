@@ -66,7 +66,7 @@ class ReceivingContractTest extends SalesContractSupport {
 
     // ---------------------------------------------------------------- 准备数据
 
-    /** 一张订单：每行的采购回价来自林熙对 supplier 的报价；采购单确认下单后返回采购单详情 */
+    /** 一张订单：每行的采购回价来自林熙对 supplier 的报价；采购订单确认下单后返回采购订单详情 */
     private JsonNode orderedPo(long supplierId, L... lines) throws Exception {
         return priceAndConfirm(draftPo(supplierId, lines), "800", admin);
     }
@@ -175,7 +175,7 @@ class ReceivingContractTest extends SalesContractSupport {
                 "items", List.of(Map.of("poItemId", cc, "quantity", 1))))), lin);
         assertEquals("发货日期不能晚于今天", fail(future).path("message").asText());
 
-        // 采购单：数量不能改到小于已发，有发货不能取消
+        // 采购订单：数量不能改到小于已发，有发货不能取消
         JsonNode p = po(draft, lin);
         assertEquals(40, p.path("items").get(0).path("shippedQty").asInt());
         assertEquals(20, p.path("items").get(0).path("unshippedQty").asInt());
@@ -220,11 +220,11 @@ class ReceivingContractTest extends SalesContractSupport {
         JsonNode po = orderedPo(sup, l("A-1", 2, "1000", "200"));
         long sid = ok(ship(po.path("id").asLong(), Map.of(item(po, 0), 2), lin)).path("shipment").path("id").asLong();
         jdbc.update("update purchase_order set purchaser_id = ? where id = ?", BUYER_JIANG, po.path("id").asLong());
-        assertEquals(0, ok(call(json(post(SHIP + "/page"), "{}"), lin)).path("total").asInt(), "负责人为采购单的采购员");
+        assertEquals(0, ok(call(json(post(SHIP + "/page"), "{}"), lin)).path("total").asInt(), "负责人为采购订单的采购员");
         assertEquals("发货单不存在", fail(call(get(SHIP + "/" + sid), lin)).path("message").asText());
         assertEquals(403, perform(json(post(SHIP + "/page"), "{}"), keeper).getStatus(), "仓库不能打开供应商发货");
         assertEquals(1, ok(call(json(post(GR + "/pending"), "{}"), keeper)).path("total").asInt(), "仓库看全部在途发货单");
-        assertEquals(403, perform(json(post(GR + "/pending"), "{}"), lin).getStatus(), "采购员不能打开入库验收");
+        assertEquals(403, perform(json(post(GR + "/pending"), "{}"), lin).getStatus(), "采购员不能打开采购入库");
     }
 
     // ---------------------------------------------------------------- 验收入库
@@ -257,7 +257,7 @@ class ReceivingContractTest extends SalesContractSupport {
         assertEquals(1, p.path("receipts").size());
 
         JsonNode shoots = ok(call(json(post(SHOOT + "/page"), write(Map.of("status", 1))), keeper));
-        assertEquals(1, shoots.path("total").asInt(), "合格入库的型号生成拍摄任务");
+        assertEquals(1, shoots.path("total").asInt(), "合格入库的型号生成实拍任务");
         assertEquals("A-1", shoots.path("records").get(0).path("model").asText());
         assertEquals(o.path("soNo").asText(), shoots.path("records").get(0).path("soNo").asText());
 
@@ -357,13 +357,13 @@ class ReceivingContractTest extends SalesContractSupport {
         money("100.00", bad.path("discountAmount"));
         assertEquals(58, po(poId, lin).path("items").get(0).path("receivedQty").asInt());
 
-        // 入库单差异已处理，不能冲销
+        // 采购入库单差异已处理，不能冲销
         long grId = gr.path("receipt").path("id").asLong();
         assertFalse(ok(call(get(GR + "/" + grId), keeper)).path("reversible").asBoolean());
         assertEquals("到货差异已经处理，不能冲销；请先让采购员重新打开差异",
                 fail(call(json(post(GR + "/" + grId + "/reverse"), "{\"reason\":\"录错\"}"), keeper)).path("message").asText());
 
-        // 重新打开「不补了」：数量回到 60；需求的 2 个还没被别的采购单用掉
+        // 重新打开「不补了」：数量回到 60；需求的 2 个还没被别的采购订单用掉
         JsonNode reopened = ok(call(post(DIFF + "/" + shortId + "/reopen"), lin));
         assertEquals("待处理", reopened.path("statusName").asText());
         assertEquals(60, po(poId, lin).path("items").get(0).path("quantity").asInt());
@@ -388,7 +388,7 @@ class ReceivingContractTest extends SalesContractSupport {
         assertEquals("补发已经登记，不能重新打开", fail(call(post(DIFF + "/" + badId + "/reopen"), lin)).path("message").asText());
     }
 
-    // ---------------------------------------------------------------- 暂存货
+    // ---------------------------------------------------------------- 闲置库存
 
     @Test
     void over_hold_freeOfCharge_handleOnce_reopenBlocked() throws Exception {
@@ -412,9 +412,9 @@ class ReceivingContractTest extends SalesContractSupport {
         JsonNode done = ok(call(json(post(HOLD + "/" + holdId + "/handle"), write(Map.of("status", 4, "note", "给业务员做展示"))), keeper));
         assertEquals("已转样品", done.path("statusName").asText());
         assertEquals(0, ok(call(json(post(HOLD + "/page"), write(Map.of("status", 1))), keeper)).path("total").asInt());
-        assertEquals("暂存货已处置，不能再处置",
+        assertEquals("闲置库存已处置，不能再处置",
                 fail(call(json(post(HOLD + "/" + holdId + "/handle"), write(Map.of("status", 3, "note", "x"))), keeper)).path("message").asText());
-        assertEquals("暂存货已转样品，不能重新打开", fail(call(post(DIFF + "/" + overId + "/reopen"), lin)).path("message").asText());
+        assertEquals("闲置库存已转样品，不能重新打开", fail(call(post(DIFF + "/" + overId + "/reopen"), lin)).path("message").asText());
     }
 
     @Test
@@ -440,14 +440,14 @@ class ReceivingContractTest extends SalesContractSupport {
         assertEquals("已冲销", r.path("receipt").path("statusName").asText());
         assertEquals("在途", po(po.path("id").asLong(), lin).path("shipments").get(0).path("statusName").asText());
         assertEquals(0, diffs(lin, Map.of()).path("total").asInt(), "差异作废");
-        assertEquals(0, ok(call(json(post(SHOOT + "/page"), "{}"), keeper)).path("total").asInt(), "拍摄任务作废");
+        assertEquals(0, ok(call(json(post(SHOOT + "/page"), "{}"), keeper)).path("total").asInt(), "实拍任务作废");
         assertEquals("已下单", order(soOf(po)).path("items").get(0).path("progressName").asText());
         // 回到在途后可以重新验收
         ok(accept(sid, List.of(new int[] {2, 2, 0}), keeper));
         assertEquals("已入库", order(soOf(po)).path("items").get(0).path("progressName").asText());
     }
 
-    // ---------------------------------------------------------------- 拍摄任务与附件
+    // ---------------------------------------------------------------- 实拍任务与附件
 
     @Test
     void shoot_uploadComplete_deleteBack_reuse_skip_attachmentAccess() throws Exception {
@@ -483,11 +483,11 @@ class ReceivingContractTest extends SalesContractSupport {
         long img = upload("SHOOT", "p6.png", PNG, keeper);
         ok(call(json(post(SHOOT + "/" + task + "/media"), write(Map.of("attachmentId", img, "mediaType", 3))), keeper));
 
-        // 附件访问：本人能预览视频（Range），没有拍摄任务菜单的不行
+        // 附件访问：本人能预览视频（Range），没有实拍任务菜单的不行
         MockHttpServletResponse res = perform(get(FILE + "/" + unbox).header("Range", "bytes=0-3"), keeper);
         assertEquals(206, res.getStatus(), "视频支持分段读取");
         assertEquals(4, res.getContentAsByteArray().length);
-        assertEquals(403, perform(get(FILE + "/" + unbox), lin).getStatus(), "没有拍摄任务菜单的人不能看");
+        assertEquals(403, perform(get(FILE + "/" + unbox), lin).getStatus(), "没有实拍任务菜单的人不能看");
 
         // 同型号再入库：可以复用；另一个跳过
         long s2 = ok(ship(poId, Map.of(item(po, 0), 2), lin)).path("shipment").path("id").asLong();
@@ -505,9 +505,9 @@ class ReceivingContractTest extends SalesContractSupport {
                 fail(call(json(post(SHOOT + "/" + task + "/skip"), "{\"reason\":\"重复入库\"}"), keeper)).path("message").asText());
         assertEquals(0, ok(call(get(SHOOT + "/counts"), keeper)).path("pending").asInt());
 
-        // 拍摄任务开始后入库单不能冲销
+        // 实拍任务开始后采购入库单不能冲销
         long gr1 = jdbc.queryForObject("select receipt_id from shoot_task where id = ?", Long.class, task);
-        assertEquals("拍摄任务已经开始，不能冲销",
+        assertEquals("实拍任务已经开始，不能冲销",
                 fail(call(json(post(GR + "/" + gr1 + "/reverse"), "{\"reason\":\"x\"}"), keeper)).path("message").asText());
     }
 

@@ -218,6 +218,41 @@ class ContentV2ParserTest {
     }
 
     @Test
+    void siteRussianSectionSplitsIntoOwnItem() {
+        List<ContentDraft> drafts = ContentV2Parser.parseAll(marketing("""
+                ## 独立站
+
+                ### 首屏定义块
+
+                Delta X1 is a drive.
+
+                ## 独立站俄文
+
+                ### SEO 字段
+
+                | Field | English copy |
+                | --- | --- |
+                | SEO Title | Delta X1 преобразователь частоты |
+
+                ### 首屏定义块
+
+                Delta X1 — преобразователь частоты.
+                """));
+        assertThat(drafts).extracting(ContentDraft::getPart).containsExactly("site", "site-ru");
+        assertThat(drafts).extracting(ContentDraft::getLang).containsExactly("en", "ru");
+        ContentDraft ru = drafts.get(1);
+        assertThat(ru.getErrors()).isEmpty();
+        assertThat(ru.getPlatform()).isEqualTo("site");
+        assertThat(ru.getBlocks().get(ContentSection.GEO).getText()).isEqualTo("Delta X1 — преобразователь частоты.");
+        assertThat(ru.getBlocks().get(ContentSection.SEO_FIELDS).getFields())
+                .containsEntry(ContentV2Parser.SEO_TITLE, "Delta X1 преобразователь частоты");
+        // 俄文文件里不能再写「## 独立站俄文」
+        List<ContentDraft> inRu = ContentV2Parser.parseAll(marketing("## 独立站俄文\n\n### 首屏定义块\n\nПривет.\n")
+                .replace("lang: en", "lang: ru"));
+        assertThat(inRu.get(0).getErrors()).anyMatch(e -> e.contains("英文营销文件"));
+    }
+
+    @Test
     void pendingValuesNotImportedAndMissingColumnsReported() {
         List<ContentDraft> drafts = ContentV2Parser.parseAll("""
                 ---

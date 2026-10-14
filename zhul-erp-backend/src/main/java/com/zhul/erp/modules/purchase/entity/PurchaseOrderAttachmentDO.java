@@ -9,7 +9,7 @@ import lombok.Data;
 
 import java.time.LocalDateTime;
 
-/** 采购单供应商合同附件 */
+/** 采购订单供应商合同附件 */
 @Data
 @TableName("purchase_order_attachment")
 public class PurchaseOrderAttachmentDO {

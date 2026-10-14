@@ -20,7 +20,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-/** 拍摄任务（素材先走 POST /api/v1/attachments?ownerType=SHOOT 上传，再挂到任务上） */
+/** 实拍任务（素材先走 POST /api/v1/attachments?ownerType=SHOOT 上传，再挂到任务上） */
 @RestController
 @RequestMapping("/api/v1/warehouse/shoots")
 @RequiredArgsConstructor

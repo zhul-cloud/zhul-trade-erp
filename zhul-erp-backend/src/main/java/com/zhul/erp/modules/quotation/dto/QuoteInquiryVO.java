@@ -4,7 +4,7 @@ import lombok.Data;
 
 import java.time.LocalDate;
 
-/** 可报价 / 询价中的客户询盘卡片 */
+/** 可报价 / 询价中的询盘单卡片 */
 @Data
 public class QuoteInquiryVO {
     private Long inquiryId;

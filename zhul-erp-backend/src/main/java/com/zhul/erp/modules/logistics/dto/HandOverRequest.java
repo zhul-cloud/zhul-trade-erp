@@ -12,10 +12,10 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 
-/** 交国内快递（一张或多张同一货代的出库单） */
+/** 交国内快递（一张或多张同一货代的销售出库单） */
 @Data
 public class HandOverRequest {
-    @NotEmpty(message = "请选择出库单")
+    @NotEmpty(message = "请选择销售出库单")
     private List<Long> outboundIds;
     @NotBlank(message = "请填写快递公司")
     @Size(max = 32, message = "快递公司不能超过32个字")

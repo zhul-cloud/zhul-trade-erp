@@ -344,4 +344,46 @@ class ContentSchemaV2ContractTest extends InquiryContractSupport {
         assertEquals(List.of("Delta VFD015M21A", "VFD015M21A price"),
                 texts(c.path("platformContents").path("alibaba").path("keywords"), "keyword"));
     }
+
+    @Test
+    void combinedFileWithSiteRussian_completesTask() throws Exception {
+        ok(call(json(put(TASKS + "/platforms"), write(Map.of("platforms", List.of("site")))), admin));
+        confirm("/facts", file("facts.md", sample("facts-VFD015M21A.md")));
+        ok(call(json(post(TASKS + "/products/" + product + "/verify-facts"), "{}"), admin));
+        assertEquals(3, content().path("status").asInt());
+
+        String all = marketingV2("""
+                ## 独立站
+
+                ### 首屏定义块
+
+                Delta VFD015M21A is a VFD-M drive.
+
+                ## 独立站俄文
+
+                ### SEO 字段
+
+                | Field | English copy |
+                | --- | --- |
+                | SEO Title | Delta VFD015M21A преобразователь частоты |
+
+                ### 首屏定义块
+
+                Delta VFD015M21A — преобразователь частоты серии VFD-M.
+                """);
+        JsonNode items = preview("/marketing", file("all.md", all));
+        assertEquals(List.of("site", "site-ru"), texts(items, "part"));
+        assertEquals("ru", part(items, "site-ru").path("lang").asText());
+        assertEquals(2, confirm("/marketing", file("all.md", all)).path("succeeded").asInt());
+
+        JsonNode c = content();
+        assertTrue(c.hasNonNull("enAt") && c.hasNonNull("ruAt"), c.toString());
+        assertEquals("Delta VFD015M21A преобразователь частоты", c.path("langs").path("ru").path("seoTitle").asText());
+        assertEquals(4, c.path("status").asInt(), "独立站英文、俄文都写入后任务已完成");
+
+        // 默认营销包含独立站俄文章节
+        String pkg = perform(get(TASKS + "/marketing/package").param("productIds", String.valueOf(product)), admin)
+                .getContentAsString(StandardCharsets.UTF_8);
+        assertTrue(pkg.contains("## 独立站\n") && pkg.contains("## 独立站俄文"), pkg);
+    }
 }

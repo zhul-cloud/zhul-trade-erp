@@ -36,7 +36,7 @@ public class RequirementVO {
     /** pending / draft / partial / ordered / closed / orderCancelled */
     private String status;
     private String statusName;
-    /** 所在采购单（草稿与已下单） */
+    /** 所在采购订单（草稿与已下单） */
     private List<PoRef> purchaseOrders;
     private java.time.LocalDateTime createTime;
     private String createBy;

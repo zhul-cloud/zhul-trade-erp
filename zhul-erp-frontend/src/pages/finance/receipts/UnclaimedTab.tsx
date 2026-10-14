@@ -17,7 +17,7 @@ import { CURRENCIES } from '@/pages/quotation/components';
 import { Card, PATHS, Pill } from '@/pages/sales/components';
 import { ReasonModal, useBankOptions } from '@/pages/sales/pi/dialogs';
 import {
-  ActualCnyInput,
+  FxEstimateHint,
   PaymentMethodSelect,
 } from '@/pages/sales/pi/receiptDialogs';
 import { type ReceiptRow, readBizError } from '@/pages/sales/service';
@@ -38,23 +38,44 @@ export const MethodCell: React.FC<{ r: ReceiptRow }> = ({ r }) => (
   </span>
 );
 
-/** 实收人民币与汇率来源 */
+export const SETTLE_NAMES: Record<number, string> = {
+  1: '未结汇 · 估算',
+  2: '部分结汇',
+  3: '已结汇',
+};
+
+/** 实收人民币、到账汇率与结汇状态 */
 export const NetCnyCell: React.FC<{ r: ReceiptRow }> = ({ r }) => {
   const { palette } = useAppTheme();
+  const settled = r.settleStatus === 3;
   return (
     <div>
-      <b style={{ ...num, color: palette.ink }}>
+      <b
+        style={{
+          ...num,
+          color: settled || !r.settleStatus ? palette.ink : palette.sub,
+        }}
+      >
         {formatAmount(r.netAmountCny, 'CNY')}
       </b>
       <div
         style={{
           fontSize: 12,
-          color: r.rateSource === 2 ? palette.green : palette.mute,
+          color: settled
+            ? palette.green
+            : r.settleStatus
+              ? palette.orange
+              : palette.mute,
         }}
       >
-        {r.rateSource === 2 ? '实际入账' : '系统汇率'}{' '}
+        {r.settleStatus ? SETTLE_NAMES[r.settleStatus] : '人民币'}{' '}
         {Number(r.exchangeRate).toFixed(6)}
       </div>
+      {!!r.settleNos?.length && (
+        <div style={{ fontSize: 12, color: palette.mute }}>
+          {r.settleNos.join('、')}
+        </div>
+      )}
     </div>
   );
 };
@@ -72,7 +93,6 @@ const RegisterModal: React.FC<{
   const [bankId, setBankId] = useState<number>();
   const [method, setMethod] = useState<string>();
   const [payer, setPayer] = useState('');
-  const [actual, setActual] = useState<number | null>(null);
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const banks = useBankOptions(currency);
@@ -83,7 +103,6 @@ const RegisterModal: React.FC<{
     setDate(dayjs());
     setMethod(undefined);
     setPayer('');
-    setActual(null);
     setNote('');
   }, [open]);
 
@@ -104,7 +123,6 @@ const RegisterModal: React.FC<{
         bankAccountId: bankId,
         paymentMethod: method,
         payer: payer.trim() || undefined,
-        actualAmountCny: actual ?? undefined,
         note: note.trim() || undefined,
       });
       message.success('已登记，业务员可以在自己的 PI 上认领');
@@ -207,12 +225,7 @@ const RegisterModal: React.FC<{
           />
         </div>
       </div>
-      <ActualCnyInput
-        net={amount ?? 0}
-        currency={currency}
-        value={actual}
-        onChange={setActual}
-      />
+      <FxEstimateHint currency={currency} />
       <div style={{ marginTop: 12 }}>
         <div style={{ ...label, color: palette.sub }}>说明（选填）</div>
         <Input
@@ -226,7 +239,7 @@ const RegisterModal: React.FC<{
   );
 };
 
-/** 收款管理 → 未认领到账：财务先登记、业务员在 PI 上认领；最近认领的可以取消认领 */
+/** 收款单 → 未认领到账：财务先登记、业务员在 PI 上认领；最近认领的可以取消认领 */
 const UnclaimedTab: React.FC<{
   registerSignal: number;
   onCount?: (n: number) => void;

@@ -4,7 +4,7 @@ import lombok.Data;
 
 import java.util.List;
 
-/** 来源 / 去向链路：客户询盘 → 报价单 → PI → 销售订单 */
+/** 来源 / 去向链路：询盘单 → 报价单 → PI → 销售订单 */
 @Data
 public class ChainVO {
     private List<Node> inquiries;

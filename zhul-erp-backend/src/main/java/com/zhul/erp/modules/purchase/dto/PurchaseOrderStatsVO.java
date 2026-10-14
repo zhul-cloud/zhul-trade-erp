@@ -4,7 +4,7 @@ import lombok.Data;
 
 import java.math.BigDecimal;
 
-/** 采购单统计（当前用户的数据范围） */
+/** 采购订单统计（当前用户的数据范围） */
 @Data
 public class PurchaseOrderStatsVO {
     /** 本月已下单（按下单日期，不含已取消）金额（CNY）与张数 */
@@ -20,6 +20,6 @@ public class PurchaseOrderStatsVO {
     private Long overdueShip;
     /** 放置超过 3 天的草稿 */
     private Long staleDrafts;
-    /** 含「来源订单已取消」行的已下单采购单 */
+    /** 含「来源订单已取消」行的已下单采购订单 */
     private Long orderCancelled;
 }

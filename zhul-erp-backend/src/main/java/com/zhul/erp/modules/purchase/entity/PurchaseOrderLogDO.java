@@ -9,7 +9,7 @@ import lombok.Data;
 
 import java.time.LocalDateTime;
 
-/** 采购单操作日志 */
+/** 采购订单操作日志 */
 @Data
 @TableName("purchase_order_log")
 public class PurchaseOrderLogDO {

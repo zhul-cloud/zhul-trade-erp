@@ -96,7 +96,7 @@ public class DocGroupService {
         }
         List<OutboundOrderDO> obs = shipments.outboundsOf(logisticsId);
         if (obs.isEmpty()) {
-            throw new BizException("出运单里还没有出库单；直发货请先确认实收");
+            throw new BizException("出运单里还没有销售出库单；直发货请先确认实收");
         }
         List<Long> soIds = obs.stream().map(OutboundOrderDO::getSoId).distinct().sorted().toList();
         Map<Long, SalesOrderDO> orders = support.orders(soIds);

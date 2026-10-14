@@ -17,6 +17,10 @@ import com.zhul.erp.modules.logistics.repository.LogisticsShipmentMapper;
 import com.zhul.erp.modules.logistics.support.LogisticsSupport;
 import com.zhul.erp.modules.sales.support.PiStore;
 import com.zhul.erp.modules.system.service.LogService;
+import com.zhul.erp.modules.finance.constants.FinanceConstants;
+import com.zhul.erp.modules.finance.dto.PayableVO;
+import com.zhul.erp.modules.finance.service.PayableQueryService;
+import com.zhul.erp.modules.finance.service.PayableSyncService;
 import lombok.RequiredArgsConstructor;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
@@ -42,13 +46,15 @@ import java.util.stream.Collectors;
 
 /**
  * 货代月结对账：按货代、月份列出已出运、还没对账的出运单，逐票填对账金额；确认后差额更新出运单运费并重新分摊，
- * 出运单标记已对账。事务边界：确认 = 对账单、出运单运费与对账标记、国际运费重新分摊。金额两位小数 HALF_UP。
+ * 出运单标记已对账。事务边界：确认 = 运费账单、出运单运费与对账标记、国际运费重新分摊。金额两位小数 HALF_UP。
  */
 @Service
 @RequiredArgsConstructor
 public class StatementService {
 
     private final ForwarderStatementMapper statementMapper;
+    private final PayableSyncService payables;
+    private final PayableQueryService payableQuery;
     private final ForwarderStatementLineMapper lineMapper;
     private final LogisticsShipmentMapper shipmentMapper;
     private final LogisticsShipmentService shipments;
@@ -125,7 +131,7 @@ public class StatementService {
             lineMapper.insert(l);
         }
         totals(st);
-        logService.recordOperateLog(LogisticsConstants.MENU_STATEMENT, "新建对账单", null,
+        logService.recordOperateLog(LogisticsConstants.MENU_STATEMENT, "新建运费账单", null,
                 Map.of("forwarder", req.getForwarderId(), "period", req.getPeriod(), "count", candidates.size()));
         return detail(st.getId());
     }
@@ -137,7 +143,7 @@ public class StatementService {
         for (SaveStatementRequest.Line l : req.getLines() == null ? List.<SaveStatementRequest.Line>of() : req.getLines()) {
             ForwarderStatementLineDO x = lines.get(l.getId());
             if (x == null) {
-                throw new BizException("出运单不在这张对账单上");
+                throw new BizException("出运单不在这张运费账单上");
             }
             x.setStatementAmount(l.getStatementAmount().setScale(2, RoundingMode.HALF_UP));
             x.setNote(l.getNote() == null ? "" : l.getNote().trim());
@@ -167,6 +173,7 @@ public class StatementService {
         st.setConfirmedBy(currentUser.resolve());
         st.setConfirmedAt(LocalDateTime.now());
         totals(st);
+        payables.createForStatement(id);
         logService.recordOperateLog(LogisticsConstants.MENU_STATEMENT, "确认对账", null, Map.of("period", st.getPeriod(),
                 "our", "CNY " + st.getOurTotal(), "statement", "CNY " + st.getStatementTotal()));
         return detail(id);
@@ -216,7 +223,7 @@ public class StatementService {
                 sheet.setColumnWidth(i, 18 * 256);
             }
             wb.write(out);
-            return new TemplateFile("货代对账_" + vo.getForwarderName() + "_" + vo.getPeriod() + ".xlsx",
+            return new TemplateFile("运费账单_" + vo.getForwarderName() + "_" + vo.getPeriod() + ".xlsx",
                     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", out.toByteArray());
         } catch (IOException e) {
             throw new UncheckedIOException("对账明细导出失败", e);
@@ -233,6 +240,8 @@ public class StatementService {
     private List<StatementVO> toVos(List<ForwarderStatementDO> rows, boolean full) {
         Map<Long, String> forwarders = support.supplierNames(rows.stream().map(ForwarderStatementDO::getForwarderId).toList());
         Map<Long, String> users = support.userNames(rows.stream().map(ForwarderStatementDO::getConfirmedBy).toList());
+        Map<Long, PayableVO> pays = payableQuery.statusBySources(FinanceConstants.SOURCE_STATEMENT,
+                rows.stream().map(ForwarderStatementDO::getId).toList());
         List<StatementVO> out = new ArrayList<>(rows.size());
         for (ForwarderStatementDO st : rows) {
             List<ForwarderStatementLineDO> lines = linesOf(st.getId());
@@ -244,6 +253,13 @@ public class StatementService {
             vo.setStatus(st.getStatus());
             vo.setStatusName(LogisticsConstants.STATEMENT_STATUS_NAMES.get(st.getStatus()));
             vo.setShipmentCount(lines.size());
+            PayableVO pay = pays.get(st.getId());
+            if (pay != null) {
+                vo.setPayableId(pay.getId());
+                vo.setPayStatus(pay.getStatus());
+                vo.setPayableAmount(pay.getAmount());
+                vo.setPaidAmount(pay.getPaidAmount());
+            }
             vo.setOurTotal(st.getOurTotal());
             vo.setStatementTotal(st.getStatementTotal());
             vo.setDiffTotal(st.getStatementTotal().subtract(st.getOurTotal()));
@@ -293,7 +309,7 @@ public class StatementService {
     private ForwarderStatementDO visible(Long id) {
         ForwarderStatementDO st = id == null ? null : statementMapper.selectById(id);
         if (st == null || st.getDeletedAt() != null || !Objects.equals(st.getTenantId(), PiStore.tenantId())) {
-            throw new BizException("对账单不存在");
+            throw new BizException("运费账单不存在");
         }
         return st;
     }
@@ -303,7 +319,7 @@ public class StatementService {
         statementMapper.lockById(id);
         ForwarderStatementDO st = visible(id);
         if (st.getStatus() != LogisticsConstants.STATEMENT_DRAFT) {
-            throw new BizException("对账单已确认，不能修改");
+            throw new BizException("运费账单已确认，不能修改");
         }
         return st;
     }

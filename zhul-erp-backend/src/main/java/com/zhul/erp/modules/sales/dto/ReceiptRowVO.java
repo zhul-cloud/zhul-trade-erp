@@ -6,7 +6,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
-/** 收款管理里的一笔到账（未认领到账、可认领列表、收款记录共用） */
+/** 收款单里的一笔到账（未认领到账、可认领列表、收款记录共用） */
 @Data
 public class ReceiptRowVO {
     private Long id;
@@ -25,6 +25,10 @@ public class ReceiptRowVO {
     /** 1-系统汇率、2-实际入账 */
     private Integer rateSource;
     private BigDecimal netAmountCny;
+    /** 结汇：已结汇金额（原币）、结汇状态（0-不适用、1-未结汇、2-部分结汇、3-已结汇）与结汇单编号 */
+    private BigDecimal settledAmount;
+    private Integer settleStatus;
+    private java.util.List<String> settleNos;
     private String paymentMethod;
     private String paymentMethodName;
     /** 1-线下、2-线上 */

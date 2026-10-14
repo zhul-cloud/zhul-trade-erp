@@ -11,7 +11,7 @@ import lombok.Data;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-/** 出库单的箱子 */
+/** 销售出库单的箱子 */
 @Data
 @TableName("outbound_box")
 public class OutboundBoxDO {

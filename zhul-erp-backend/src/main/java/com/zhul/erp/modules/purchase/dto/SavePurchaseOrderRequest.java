@@ -13,16 +13,20 @@ import lombok.Data;
 import java.math.BigDecimal;
 import java.util.List;
 
-/** 保存采购单（草稿或已下单）：单头、各行数量与单价、其他费用、付款条件、合同 */
+/** 保存采购订单（草稿或已下单）：单头、各行数量与单价、其他费用、付款条件、合同 */
 @Data
 public class SavePurchaseOrderRequest {
     @NotBlank(message = "请选择币种")
     private String currencyCode;
-    @NotNull(message = "请选择是否含税")
-    private Boolean taxIncluded;
-    @DecimalMin(value = "0", message = "税率不能为负")
-    @DecimalMax(value = "100", message = "税率不能超过 100%")
-    private BigDecimal taxRate;
+    @NotNull(message = "请选择是否开票")
+    private Boolean invoiceRequired;
+    @DecimalMin(value = "0", message = "税点不能为负")
+    @DecimalMax(value = "100", message = "税点不能超过 100%")
+    private BigDecimal taxPoint;
+    /** 开票金额；为空时按货款合计 */
+    @DecimalMin(value = "0", message = "开票金额不能为负")
+    private BigDecimal invoiceAmount;
+    private java.time.LocalDate expectedInvoiceDate;
     private List<PaymentTermDTO> paymentTerms;
     @Size(max = 64, message = "合同编号不能超过 64 个字符")
     private String contractNo;

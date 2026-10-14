@@ -4,7 +4,7 @@ import lombok.Data;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
-/** 入库单列表行 */
+/** 采购入库单列表行 */
 @Data
 public class ReceiptListVO {
     private Long id;

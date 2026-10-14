@@ -568,7 +568,7 @@ const QuotationDetail: React.FC = () => {
       setTextOpen(false);
       message.success(
         current.status === STATUS.DRAFT
-          ? '已标为已发送，客户询盘变为「已报价」'
+          ? '已标为已发送，询盘单变为「已报价」'
           : current.editingVersionNo
             ? `Rev.${current.editingVersionNo} 已发送，成为当前版本`
             : '已记一次发送',
@@ -1621,7 +1621,7 @@ const QuotationDetail: React.FC = () => {
           type="warning"
           showIcon
           style={{ marginBottom: 10 }}
-          title={`品牌 ${untranslated.join('、')} 在品牌资料里没有英文名，文字报价和导出会保留原文；请在「商品资料 → 品牌」里补充别名`}
+          title={`品牌 ${untranslated.join('、')} 在品牌资料里没有英文名，文字报价和导出会保留原文；请在「商品管理 → 品牌」里补充别名`}
         />
       )}
       {editable && chosen.length > 0 && (

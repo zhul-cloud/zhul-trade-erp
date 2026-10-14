@@ -3,12 +3,12 @@ package com.zhul.erp.modules.logistics.constants;
 import java.math.BigDecimal;
 import java.util.Map;
 
-/** 出库与出运：出库单、国内快递、出运单、单证组、运费分摊、货代对账 */
+/** 出库与出运：销售出库单、国内快递、出运单、单证组、运费分摊、运费账单 */
 public final class LogisticsConstants {
 
-    public static final String MENU_OUTBOUND = "出库打包";
+    public static final String MENU_OUTBOUND = "销售出库";
     public static final String MENU_SHIPMENT = "出运单";
-    public static final String MENU_STATEMENT = "货代对账";
+    public static final String MENU_STATEMENT = "运费账单";
 
     public static final int OB_NOTICE = 1;
     public static final int OB_DIRECT = 2;

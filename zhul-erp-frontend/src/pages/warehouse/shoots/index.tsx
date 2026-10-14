@@ -219,8 +219,8 @@ const Shoots: React.FC = () => {
   return (
     <div>
       <WarehousePageTitle
-        crumbs={['拍摄任务']}
-        title="拍摄任务"
+        crumbs={['实拍任务']}
+        title="实拍任务"
         description="验收入库后拍拆箱视频、验货视频和 6 张实物图，素材齐了就完成；素材归到型号名下，下次同型号可以复用。"
       />
       <div
@@ -251,7 +251,7 @@ const Shoots: React.FC = () => {
           value={keyword}
           onChange={(e) => setKeyword(e.target.value)}
           onPressEnter={apply}
-          placeholder="型号、品牌、入库单号、订单号"
+          placeholder="型号、品牌、采购入库单号、订单号"
           style={{ width: 300 }}
           aria-label="关键词"
         />
@@ -273,7 +273,7 @@ const Shoots: React.FC = () => {
             emptyText:
               status === 1
                 ? '没有待拍摄的任务；验收入库后合格的型号会出现在这里'
-                : '没有符合条件的拍摄任务',
+                : '没有符合条件的实拍任务',
           }}
           pagination={{
             current: page,
@@ -387,11 +387,11 @@ const ShootDrawer: React.FC<{
           <span
             style={{ display: 'inline-flex', gap: 10, alignItems: 'center' }}
           >
-            拍摄任务 · {t.model}
+            实拍任务 · {t.model}
             <ShootStatusPill value={t.status}>{t.statusName}</ShootStatusPill>
           </span>
         ) : (
-          '拍摄任务'
+          '实拍任务'
         )
       }
       footer={

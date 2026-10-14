@@ -174,7 +174,7 @@ class SalesOrderTrackingContractTest extends SalesContractSupport {
         jdbc.update("update sales_order_item set progress_code = ? where id = ?", code, soItemId);
     }
 
-    /** 订单型号行合格入库 1 个（直接写入库单，进度推进另由入库联动测试覆盖） */
+    /** 订单型号行合格入库 1 个（直接写采购入库单，进度推进另由入库联动测试覆盖） */
     private void received(long soItemId) {
         jdbc.update("insert into purchase_receipt (tenant_id, gr_no, status) values (0, ?, 1)", "GRIT" + soItemId);
         long gr = jdbc.queryForObject("select max(id) from purchase_receipt where tenant_id = 0", Long.class);

@@ -10,7 +10,7 @@ import lombok.Data;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-/** 暂存货 */
+/** 闲置库存 */
 @Data
 @TableName("stock_hold")
 public class StockHoldDO {

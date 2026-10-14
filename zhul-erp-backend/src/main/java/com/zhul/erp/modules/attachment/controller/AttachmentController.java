@@ -40,7 +40,14 @@ public class AttachmentController {
             AttachmentService.SHIPMENT, List.of("/purchase/shipments", "/warehouse/receipts"),
             AttachmentService.RECEIPT, List.of("/warehouse/receipts", "/purchase/shipments"),
             AttachmentService.SHOOT, List.of("/warehouse/shoots"),
-            AttachmentService.LOGISTICS, List.of("/logistics/shipments"));
+            AttachmentService.LOGISTICS, List.of("/logistics/shipments"),
+            AttachmentService.PAYMENT, List.of("/finance/payables", "/finance/payments", "/purchase/orders", "/logistics/statements",
+                    "/finance/reimbursements"),
+            AttachmentService.COURIER_PROOF, List.of("/finance/reimbursements"),
+            AttachmentService.RETURN_PROOF, List.of("/finance/reimbursements"),
+            AttachmentService.EXPENSE, List.of("/finance/expenses", "/finance/reimbursements"),
+            AttachmentService.REIMBURSE, List.of("/finance/reimbursements", "/finance/payments"),
+            AttachmentService.PO_INVOICE, List.of("/purchase/orders", "/finance/payables"));
 
     private final AttachmentService service;
     private final PermissionChecker perm;

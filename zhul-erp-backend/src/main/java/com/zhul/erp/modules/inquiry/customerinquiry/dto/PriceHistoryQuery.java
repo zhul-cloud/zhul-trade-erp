@@ -4,7 +4,7 @@ import lombok.Data;
 
 import java.time.LocalDate;
 
-/** 历史询价查询 */
+/** 询价记录查询 */
 @Data
 public class PriceHistoryQuery {
     private String model;

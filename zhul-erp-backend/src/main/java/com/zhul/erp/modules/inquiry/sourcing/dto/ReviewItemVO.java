@@ -20,6 +20,6 @@ public class ReviewItemVO {
     private LocalDateTime submittedAt;
     /** 本批待审核的记录（渠道、店铺按「查看货源信息」权限返回） */
     private List<PriceRecordVO> quotes;
-    /** 同品牌同型号历史询价中的最低价，供参考；没有时为空 */
+    /** 同品牌同型号询价记录中的最低价，供参考；没有时为空 */
     private PriceRecordVO historyLowest;
 }

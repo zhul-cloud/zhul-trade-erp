@@ -41,7 +41,7 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 
 /**
- * 拍摄任务：入库验收时为合格入库的型号生成；拆箱视频、验货视频各 1 个以上、实物图 6 张以上时自动完成。
+ * 实拍任务：采购入库时为合格入库的型号生成；拆箱视频、验货视频各 1 个以上、实物图 6 张以上时自动完成。
  * 素材归到「品牌 + 型号」名下（media_asset），同型号已有完成的素材时可以直接复用。不管发布。
  * 写操作用读已提交：同一任务并发上传多张图时，拿到行锁后要看到别人已提交的素材，才能判定是否齐全。
  */
@@ -58,7 +58,7 @@ public class ShootService {
     private final InquiryLookups lookups;
     private final LogService logService;
 
-    /** 入库验收确认时调用（调用方事务内）：每个合格数量大于 0 的入库行一条任务 */
+    /** 采购入库确认时调用（调用方事务内）：每个合格数量大于 0 的入库行一条任务 */
     void createForReceipt(PurchaseReceiptDO receipt, List<PurchaseReceiptItemDO> items, Map<Long, Long> soIdByPoItem) {
         for (PurchaseReceiptItemDO i : items) {
             if (i.getQualifiedQty() <= 0) {
@@ -79,7 +79,7 @@ public class ShootService {
         }
     }
 
-    /** 入库单的任务都还没开始（待拍摄、没有素材）时返回 true */
+    /** 采购入库单的任务都还没开始（待拍摄、没有素材）时返回 true */
     boolean notStarted(Long receiptId) {
         List<ShootTaskDO> tasks = tasksOfReceipt(receiptId);
         if (tasks.stream().anyMatch(t -> t.getStatus() != WarehouseConstants.SHOOT_PENDING)) {
@@ -90,7 +90,7 @@ public class ShootService {
                 .isNull(MediaAssetDO::getDeletedAt)) == 0;
     }
 
-    /** 冲销入库时作废它的拍摄任务（调用方事务内） */
+    /** 冲销入库时作废它的实拍任务（调用方事务内） */
     void voidForReceipt(Long receiptId) {
         for (ShootTaskDO t : tasksOfReceipt(receiptId)) {
             t.setDeletedAt(LocalDateTime.now());
@@ -390,7 +390,7 @@ public class ShootService {
     private ShootTaskDO visible(Long id) {
         ShootTaskDO t = id == null ? null : taskMapper.selectById(id);
         if (t == null || t.getDeletedAt() != null || !Objects.equals(t.getTenantId(), PiStore.tenantId())) {
-            throw new BizException("拍摄任务不存在");
+            throw new BizException("实拍任务不存在");
         }
         return t;
     }

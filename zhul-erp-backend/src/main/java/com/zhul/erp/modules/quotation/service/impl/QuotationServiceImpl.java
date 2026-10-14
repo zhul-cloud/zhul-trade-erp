@@ -467,7 +467,7 @@ public class QuotationServiceImpl implements QuotationService {
         versionMapper.insert(v);
     }
 
-    /** 发送修改中的新版本：新版本成为当前版本，表头写回报价单，客户询盘按新版本重新判断 */
+    /** 发送修改中的新版本：新版本成为当前版本，表头写回报价单，询盘单按新版本重新判断 */
     private QuotationDO sendRevision(QuotationDO q, int channel) {
         int from = q.getCurrentVersionNo();
         int to = q.getEditingVersionNo();
@@ -1060,7 +1060,7 @@ public class QuotationServiceImpl implements QuotationService {
         DataScope scope = dataScopeResolver.current();
         if (inquiry == null || inquiry.getDeletedAt() != null || !Objects.equals(inquiry.getTenantId(), tenantId())
                 || !scope.canSee(inquiry.getOwnerId())) {
-            throw new BizException("客户询盘不存在");
+            throw new BizException("询盘单不存在");
         }
         Set<Long> ids = itemMapper.selectList(new LambdaQueryWrapper<QuotationItemDO>()
                         .select(QuotationItemDO::getQuotationId)
@@ -1132,17 +1132,17 @@ public class QuotationServiceImpl implements QuotationService {
 
     // ---------------------------------------------------------------- 内部
 
-    /** 数据范围内、可报价状态的客户询盘 */
+    /** 数据范围内、可报价状态的询盘单 */
     private Map<Long, CustomerInquiryDO> visibleInquiries(Collection<Long> ids) {
         DataScope scope = dataScopeResolver.current();
         Map<Long, CustomerInquiryDO> map = new LinkedHashMap<>();
         for (Long id : new LinkedHashSet<>(ids)) {
             CustomerInquiryDO i = id == null ? null : inquiryMapper.selectById(id);
             if (i == null || i.getDeletedAt() != null || !Objects.equals(i.getTenantId(), tenantId()) || !scope.canSee(i.getOwnerId())) {
-                throw new BizException("客户询盘不存在");
+                throw new BizException("询盘单不存在");
             }
             if (!CREATABLE_INQUIRY_STATUSES.contains(i.getStatus())) {
-                throw new BizException("客户询盘 " + i.getInquiryCode() + " 当前状态不能报价");
+                throw new BizException("询盘单 " + i.getInquiryCode() + " 当前状态不能报价");
             }
             map.put(id, i);
         }

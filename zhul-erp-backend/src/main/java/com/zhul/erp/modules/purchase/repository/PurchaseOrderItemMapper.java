@@ -13,7 +13,7 @@ import java.util.List;
 @Mapper
 public interface PurchaseOrderItemMapper extends BaseMapper<PurchaseOrderItemDO> {
 
-    /** 每条需求在草稿、已下单采购单上的数量（已取消、已删除的不算） */
+    /** 每条需求在草稿、已下单采购订单上的数量（已取消、已删除的不算） */
     @Select("<script>SELECT i.requirement_id AS id, "
             + "SUM(CASE WHEN o.status = 1 THEN i.quantity ELSE 0 END) AS draft_qty, "
             + "SUM(CASE WHEN o.status = 2 THEN i.quantity ELSE 0 END) AS ordered_qty "
@@ -23,7 +23,7 @@ public interface PurchaseOrderItemMapper extends BaseMapper<PurchaseOrderItemDO>
             + "GROUP BY i.requirement_id</script>")
     List<QtyRow> qtyByRequirement(@Param("ids") Collection<Long> ids);
 
-    /** 每个订单型号行在草稿、已下单采购单上的数量 */
+    /** 每个订单型号行在草稿、已下单采购订单上的数量 */
     @Select("<script>SELECT i.so_item_id AS id, "
             + "SUM(CASE WHEN o.status = 1 THEN i.quantity ELSE 0 END) AS draft_qty, "
             + "SUM(CASE WHEN o.status = 2 THEN i.quantity ELSE 0 END) AS ordered_qty "

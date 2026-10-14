@@ -11,7 +11,7 @@ import lombok.Data;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-/** 采购单行：一条采购需求在这张采购单上的数量与价格 */
+/** 采购订单行：一条采购需求在这张采购订单上的数量与价格 */
 @Data
 @TableName("purchase_order_item")
 public class PurchaseOrderItemDO {

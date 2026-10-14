@@ -23,7 +23,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
-/** 采购需求：需要「采购需求」菜单；拆分、指派、生成采购单另需按钮权限 */
+/** 采购需求：需要「采购需求」菜单；拆分、指派、生成采购订单另需按钮权限 */
 @RestController
 @RequestMapping("/api/v1/purchase/requirements")
 @RequiredArgsConstructor

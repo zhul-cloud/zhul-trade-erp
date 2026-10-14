@@ -26,7 +26,7 @@ public abstract class SalesContractSupport extends InquiryContractSupport {
     protected static final String SO = "/api/v1/sales/orders";
     protected static final long ADMIN_USER = 99000002L;
     protected static final String TODAY = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
-    private static final String[] SALES_TABLES = {"forwarder_statement_line", "forwarder_statement", "freight_allocation", "shipment_doc_group",
+    private static final String[] SALES_TABLES = {"fin_fx_settlement_allocation", "fin_fx_settlement", "fin_reimbursement_line", "fin_reimbursement", "fin_expense_allocation", "fin_expense", "fin_payment_allocation", "fin_payment", "fin_payable_installment", "fin_payable", "forwarder_statement_line", "forwarder_statement", "freight_allocation", "shipment_doc_group",
             "logistics_shipment", "courier_waybill", "outbound_box_item", "outbound_box", "outbound_order_item", "outbound_order", "transit_time", "biz_attachment", "media_asset", "shoot_task", "stock_hold", "receiving_discrepancy",
             "purchase_receipt_item", "purchase_receipt", "supplier_shipment_item", "supplier_shipment", "purchase_order_log", "purchase_order_attachment", "purchase_order_fee",
             "purchase_order_item", "purchase_order", "purchase_requirement", "sales_order_fee", "sales_order_item", "sales_order", "payment_receipt",
@@ -77,7 +77,7 @@ public abstract class SalesContractSupport extends InquiryContractSupport {
         return jdbc.queryForList("select id from purchase_requirement where so_id = ? order by id", Long.class, soId);
     }
 
-    /** 需求池生成采购单：这些需求都放到一家供应商，返回草稿采购单 ID */
+    /** 需求池生成采购订单：这些需求都放到一家供应商，返回草稿采购订单 ID */
     protected long generate(long supplierId, List<Long> requirementIds, String token) throws Exception {
         JsonNode ids = ok(call(json(post(REQ + "/generate"),
                 write(Map.of("groups", List.of(Map.of("supplierId", supplierId, "requirementIds", requirementIds))))), token));
@@ -88,12 +88,14 @@ public abstract class SalesContractSupport extends InquiryContractSupport {
         return ok(call(get(PO + "/" + id), token));
     }
 
-    /** 采购单保存请求：沿用当前内容，各行单价统一为 price（为空则不改），付款条件默认全额预付 */
+    /** 采购订单保存请求：沿用当前内容，各行单价统一为 price（为空则不改），付款条件默认全额预付 */
     protected Map<String, Object> poBody(JsonNode po, String price) {
         Map<String, Object> b = new LinkedHashMap<>();
         b.put("currencyCode", po.path("currencyCode").asText());
-        b.put("taxIncluded", po.path("taxIncluded").asBoolean());
-        b.put("taxRate", po.path("taxRate").decimalValue());
+        b.put("invoiceRequired", po.path("invoiceRequired").asBoolean());
+        b.put("taxPoint", po.path("taxPoint").isMissingNode() ? null : po.path("taxPoint").decimalValue());
+        b.put("invoiceAmount", po.path("invoiceAmount").isMissingNode() || po.path("invoiceAmount").isNull() ? null : po.path("invoiceAmount").decimalValue());
+        b.put("expectedInvoiceDate", po.path("expectedInvoiceDate").isMissingNode() ? null : po.path("expectedInvoiceDate").asText());
         b.put("paymentTerms", po.path("paymentTerms").isMissingNode() || po.path("paymentTerms").isEmpty() ? List.of(Map.of("percent", 100, "trigger", 1)) : po.path("paymentTerms"));
         b.put("contractNo", po.path("contractNo").asText(""));
         b.put("contractAmount", po.path("contractAmount").isMissingNode() || po.path("contractAmount").isNull() ? null : po.path("contractAmount").decimalValue());

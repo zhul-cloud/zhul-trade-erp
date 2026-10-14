@@ -43,6 +43,10 @@ public class PaymentReceiptDO {
     private BigDecimal netAmountCny;
     /** 1-系统汇率、2-实际入账反算 */
     private Integer rateSource;
+    /** 已结汇金额（原币，实收口径） */
+    private BigDecimal settledAmount;
+    /** 结汇状态：0-不适用（人民币或水单）、1-未结汇、2-部分结汇、3-已结汇 */
+    private Integer settleStatus;
     private String payer;
     private LocalDate receiptDate;
     private Integer bankAccountId;

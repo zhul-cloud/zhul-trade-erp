@@ -20,6 +20,8 @@ public class ReceiptRecordPageVO {
         private List<Money> amounts;
         private List<Money> fees;
         private BigDecimal netAmountCny;
+        /** 其中还没结完汇的到账的实收人民币（含估算部分） */
+        private BigDecimal openNetAmountCny;
     }
 
     @Data

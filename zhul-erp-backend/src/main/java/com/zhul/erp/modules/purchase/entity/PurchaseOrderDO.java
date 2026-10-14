@@ -12,7 +12,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
-/** 采购单 */
+/** 采购订单 */
 @Data
 @TableName("purchase_order")
 public class PurchaseOrderDO {
@@ -36,9 +36,24 @@ public class PurchaseOrderDO {
     private LocalDate expectedShipDate;
     private String currencyCode;
     private BigDecimal exchangeRate;
-    /** 0-不含税、1-含税 */
+    /** 旧字段：含税与税率，已由开票取代，不再读写 */
     private Integer taxIncluded;
     private BigDecimal taxRate;
+    /** 开票（0-不开票、1-开票） */
+    private Integer invoiceRequired;
+    /** 开票税点（百分点） */
+    private BigDecimal taxPoint;
+    /** 开票金额（原币）；为空时按货款合计 */
+    @TableField(updateStrategy = FieldStrategy.ALWAYS)
+    private BigDecimal invoiceAmount;
+    /** 开票成本 = 开票金额 × 税点（原币，计入合计） */
+    private BigDecimal invoiceCost;
+    @TableField(updateStrategy = FieldStrategy.ALWAYS)
+    private LocalDate expectedInvoiceDate;
+    @TableField(updateStrategy = FieldStrategy.ALWAYS)
+    private LocalDate invoicedDate;
+    /** 0-不开票、1-待开票、2-已开票 */
+    private Integer invoiceStatus;
     private BigDecimal itemAmount;
     private BigDecimal feeAmount;
     private BigDecimal totalAmount;

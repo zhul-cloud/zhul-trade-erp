@@ -570,7 +570,7 @@ const SupplierFormPage: React.FC = () => {
               name="paymentTerms"
               label="默认付款条件"
               style={{ marginTop: 20, marginBottom: 0 }}
-              extra="选填；新建采购单时带出，修改不影响已有采购单"
+              extra="选填；新建采购订单时带出，修改不影响已有采购订单"
               rules={[
                 {
                   validator: (_, v?: PaymentTerm[]) =>

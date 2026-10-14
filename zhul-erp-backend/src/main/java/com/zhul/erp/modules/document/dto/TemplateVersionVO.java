@@ -5,7 +5,7 @@ import lombok.Data;
 import java.time.LocalDateTime;
 import java.util.List;
 
-/** 单据模版版本 */
+/** 单据模板版本 */
 @Data
 public class TemplateVersionVO {
     private Long id;

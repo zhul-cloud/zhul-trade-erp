@@ -160,7 +160,7 @@ export const ConfirmDirectDrawer: React.FC<{
           >
             <InfoCircleOutlined />{' '}
             {problem ||
-              `按货代实收补入库单与出库单；体积重按货代系数 ${sh.volumeDivisor} 算`}
+              `按货代实收补采购入库单与销售出库单；体积重按货代系数 ${sh.volumeDivisor} 算`}
           </span>
           <span style={{ flex: 1 }} />
           <Button onClick={onClose}>取消</Button>
@@ -356,7 +356,7 @@ export const DocsModal: React.FC<{
         aria-label="付款参考"
       />
       <div style={{ fontSize: 12, color: palette.mute, marginTop: 14 }}>
-        <InfoCircleOutlined /> 用「业务设置 → 单据模版」里的默认 CI、PL 模版。CI
+        <InfoCircleOutlined /> 用「业务设置 → 单据模板」里的默认 CI、PL 模版。CI
         取订单的型号、英文描述、HS 编码、单价与费用行；PL
         取装箱记录，箱的尺寸重量写在箱内第一行并合并单元格。重新生成时同一组订单编号不变。
       </div>

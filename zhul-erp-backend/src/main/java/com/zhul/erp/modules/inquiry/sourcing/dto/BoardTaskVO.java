@@ -11,7 +11,7 @@ public class BoardTaskVO {
     private Long id;
     private String taskCode;
     private Long customerInquiryId;
-    /** 所属业务员（客户询盘负责人） */
+    /** 所属业务员（询盘单负责人） */
     private Long salesId;
     private String salesName;
     /** 询盘等级（字典 inquiry_level 码值，越小越优先） */
@@ -20,7 +20,7 @@ public class BoardTaskVO {
     private Integer customerType;
     /** 客户名称；兼职采购看不到，为空 */
     private String customerName;
-    /** 客户询盘的报价截止日期 */
+    /** 询盘单的报价截止日期 */
     private java.time.LocalDate quoteDeadline;
     private String brand;
     private String category;

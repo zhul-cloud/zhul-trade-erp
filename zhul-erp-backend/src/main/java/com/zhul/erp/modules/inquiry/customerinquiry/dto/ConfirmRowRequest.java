@@ -43,6 +43,6 @@ public class ConfirmRowRequest {
     @Size(max = 500, message = "询价话术不能超过 500 字")
     private String inquiryScript;
     private List<String> searchKeywords;
-    /** 复用的历史询价记录；为空表示需要询价 */
+    /** 复用的询价记录；为空表示需要询价 */
     private Long reuseQuoteId;
 }

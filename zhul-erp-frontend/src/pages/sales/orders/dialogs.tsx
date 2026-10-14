@@ -476,6 +476,10 @@ const AUTO_STEPS = [
   'SHIPPED',
 ];
 
+/** 可以手动推进的步骤：字典里另加并启用的步骤（如清关中）；没有时不显示「更新进度」 */
+export const manualSteps = (order: Order) =>
+  order.steps.filter((s) => s.enabled && !AUTO_STEPS.includes(s.code));
+
 export const ProgressModal: React.FC<{
   order?: Order;
   itemIds: number[];
@@ -504,7 +508,7 @@ export const ProgressModal: React.FC<{
     );
     const next = order.steps
       .slice(idx + 1)
-      .find((s) => s.enabled && !AUTO_STEPS.includes(s.code));
+      .find((s) => manualSteps(order).includes(s));
     setCode(next?.code);
     setNote('');
   }, [open, order, selected]);
@@ -557,22 +561,18 @@ export const ProgressModal: React.FC<{
         onChange={(e) => setCode(e.target.value)}
         style={{ display: 'grid', gap: 8, width: '100%' }}
       >
-        {order.steps
-          .filter((s) => s.enabled && !AUTO_STEPS.includes(s.code))
-          .map((s) => (
-            <Radio key={s.code} value={s.code}>
-              {s.name}
-              {currents.length === 1 && currents[0] === s.code && (
-                <span style={{ color: palette.mute, marginLeft: 8 }}>当前</span>
+        {manualSteps(order).map((s) => (
+          <Radio key={s.code} value={s.code}>
+            {s.name}
+            {currents.length === 1 && currents[0] === s.code && (
+              <span style={{ color: palette.mute, marginLeft: 8 }}>当前</span>
+            )}
+            {currents.length > 0 &&
+              rank(s.code) < Math.min(...currents.map(rank)) && (
+                <span style={{ color: palette.mute, marginLeft: 8 }}>退回</span>
               )}
-              {currents.length > 0 &&
-                rank(s.code) < Math.min(...currents.map(rank)) && (
-                  <span style={{ color: palette.mute, marginLeft: 8 }}>
-                    退回
-                  </span>
-                )}
-            </Radio>
-          ))}
+          </Radio>
+        ))}
       </Radio.Group>
       <div style={{ marginTop: 10, fontSize: 12, color: palette.mute }}>
         「待采购」「已下单」「已入库」「已交货代」「已出运」由采购、入库、出库与出运自动推进，这里不能选；还没全部入库的型号不能推进到后面的步骤。

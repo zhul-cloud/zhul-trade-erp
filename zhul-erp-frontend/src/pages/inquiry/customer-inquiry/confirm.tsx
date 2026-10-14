@@ -58,7 +58,7 @@ import {
 
 interface Row extends DraftRow {
   key: string;
-  /** 复用的历史询价记录；null 表示重新询价 */
+  /** 复用的询价记录；null 表示重新询价 */
   reuseQuoteId: number | null;
   matching?: boolean;
 }
@@ -102,7 +102,7 @@ const emptyRow = (): Row => ({
   reuseQuoteId: null,
 });
 
-/** 解析确认：逐行核对型号，按品牌 + 归一化型号复用历史询价，确认后生成询价任务 */
+/** 解析确认：逐行核对型号，按品牌 + 归一化型号复用询价记录，确认后生成询价任务 */
 const ConfirmPage: React.FC = () => {
   const { labelOf: sourceLabel } = useDictOptions(DICT_SOURCE_CHANNEL);
   const { lifecycleOptions } = useLifecycles();
@@ -175,7 +175,7 @@ const ConfirmPage: React.FC = () => {
   const patch = (key: string, p: Partial<Row>) =>
     setRows((prev) => prev.map((r) => (r.key === key ? { ...r, ...p } : r)));
 
-  /** 品牌、型号改完后查历史询价；同品牌有价格时默认复用最低的全新原装 */
+  /** 品牌、型号改完后查询价记录；同品牌有价格时默认复用最低的全新原装 */
   const lookup = async (row: Row) => {
     const sig = `${row.brand.trim()}|${row.confirmedModel.trim()}`;
     if (
@@ -399,7 +399,7 @@ const ConfirmPage: React.FC = () => {
         if (r.matching)
           return (
             <span style={{ color: palette.mute }}>
-              <SyncOutlined spin /> 正在查历史询价…
+              <SyncOutlined spin /> 正在查询价记录…
             </span>
           );
         const same = r.match?.sameBrand ?? [];
@@ -429,7 +429,7 @@ const ConfirmPage: React.FC = () => {
             </span>
             {same.length > 0 && (
               <span style={{ fontSize: 12, color: palette.mute }}>
-                历史询价有 {same.length} 条，已选重新询价
+                询价记录有 {same.length} 条，已选重新询价
               </span>
             )}
             {same.length === 0 && (r.match?.otherBrands.length ?? 0) > 0 && (
@@ -464,7 +464,7 @@ const ConfirmPage: React.FC = () => {
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <DatabaseOutlined style={{ color: palette.cyan }} />
           <span style={{ fontWeight: 600, color: palette.ink }}>
-            历史询价里 {r.brand} {r.confirmedModel}{' '}
+            询价记录里 {r.brand} {r.confirmedModel}{' '}
             的价格（同品牌、型号写法不同也会归到一起）
           </span>
           <span
@@ -599,7 +599,7 @@ const ConfirmPage: React.FC = () => {
   return (
     <div>
       <PageTitle
-        crumbs={['客户询盘', inq.inquiryCode]}
+        crumbs={['询盘单', inq.inquiryCode]}
         title={manual ? '手动录入型号' : '确认解析结果'}
         description={`${inq.customerName} · ${sourceLabel(inq.source)} · ${inq.inquiryDate}${inq.urgent ? ' · 紧急' : ''}`}
         actions={

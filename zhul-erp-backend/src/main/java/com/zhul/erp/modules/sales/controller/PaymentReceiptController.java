@@ -105,7 +105,7 @@ public class PaymentReceiptController {
         return Result.ok(service.claim(id, req));
     }
 
-    /** 财务管理 → 收款管理（待确认） */
+    /** 财务管理 → 收款单（待确认） */
     @PostMapping("/receipt-desk")
     @PreAuthorize("@perm.canAccessMenu('/finance/receipts') and @perm.has('sales:pi:receipt-confirm')")
     public Result<PageResult<ReceiptDeskRowVO>> desk(@RequestBody ReceiptDeskQuery query) {

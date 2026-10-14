@@ -4,7 +4,7 @@ import lombok.Data;
 
 import java.util.List;
 
-/** 客户询盘详情 */
+/** 询盘单详情 */
 @Data
 public class CustomerInquiryDetailVO {
     private CustomerInquiryVO inquiry;

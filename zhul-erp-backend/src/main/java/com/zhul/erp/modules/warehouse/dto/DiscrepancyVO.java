@@ -30,6 +30,8 @@ public class DiscrepancyVO {
     private String returnCarrier;
     private String returnTrackingNo;
     private BigDecimal returnFreight;
+    /** 退货运费垫付人 */
+    private Long returnPayerId;
     private Boolean freeOfCharge;
     private String note;
     private Long purchaserId;

@@ -24,7 +24,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 
-/** 单据模版（spec document/document-template）：两个测试租户共用平台内置 V1，各自上传的版本互不可见 */
+/** 单据模板（spec document/document-template）：两个测试租户共用平台内置 V1，各自上传的版本互不可见 */
 class DocumentTemplateContractTest extends TenantContractSupport {
 
     private static final String API = "/api/v1/system/document-templates";

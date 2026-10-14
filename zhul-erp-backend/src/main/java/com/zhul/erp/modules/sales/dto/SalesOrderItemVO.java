@@ -17,7 +17,7 @@ public class SalesOrderItemVO extends PiItemVO {
     private String purchaserName;
     /** 负责采购的人（来自采购需求，拆分给多人时都在） */
     private java.util.List<String> purchaserNames;
-    /** 有采购需求：采购进度来自采购单 */
+    /** 有采购需求：采购进度来自采购订单 */
     private Boolean purchaseTracked;
     private Integer purchaseOrderedQty;
     /** 合格入库数量（含折价接收） */

@@ -202,7 +202,7 @@ public class ContentImportService {
         vo.getErrors().addAll(draft.getErrors());
         if (draft.getErrors().isEmpty() && expectedType != null && !expectedType.equals(draft.getType())) {
             vo.getErrors().add(ContentConstants.TYPE_FACTS.equals(expectedType)
-                    ? "营销包请到运营管理 → 商品运营上传" : "资料包请到商品资料 → 资料任务上传");
+                    ? "营销包请到运营管理 → 商品运营上传" : "资料包请到商品管理 → 资料任务上传");
         }
         MarketingPlatform platform = ContentConstants.TYPE_MARKETING.equals(draft.getType())
                 ? MarketingPlatform.of(draft.getPlatform()) : null;

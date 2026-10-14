@@ -12,7 +12,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.function.Function;
 
-/** 采购单行的已发、合格入库数量，订单型号行的合格入库数量（按发货、入库、差异实时汇总） */
+/** 采购订单行的已发、合格入库数量，订单型号行的合格入库数量（按发货、入库、差异实时汇总） */
 @Component
 @RequiredArgsConstructor
 public class ReceivingQty {

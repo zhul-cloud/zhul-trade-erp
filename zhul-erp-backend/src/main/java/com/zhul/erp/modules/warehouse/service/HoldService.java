@@ -32,7 +32,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
-/** 暂存货：多发选择「暂存」时生成；仓库可以退回供应商、报废、转样品，处置不能撤回。 */
+/** 闲置库存：多发选择「暂存」时生成；仓库可以退回供应商、报废、转样品，处置不能撤回。 */
 @Service
 @RequiredArgsConstructor
 public class HoldService {
@@ -88,7 +88,7 @@ public class HoldService {
         holdMapper.lockById(id);
         StockHoldDO h = visible(id);
         if (h.getStatus() != WarehouseConstants.HOLD_ACTIVE) {
-            throw new BizException("暂存货已处置，不能再处置");
+            throw new BizException("闲置库存已处置，不能再处置");
         }
         int target = req.getStatus();
         if (!TARGETS.contains(target)) {
@@ -106,9 +106,9 @@ public class HoldService {
         }
         holdMapper.updateById(h);
         String name = WarehouseConstants.HOLD_STATUS_NAMES.get(target);
-        String text = "暂存货 " + h.getModel() + " × " + h.getQuantity() + "：" + name + "；" + h.getHandleNote();
-        logs.add(h.getPoId(), "处置暂存货", text, operator);
-        logService.recordOperateLog(WarehouseConstants.MENU_HOLD, "处置暂存货", Map.of("model", h.getModel(), "status", "暂存中"),
+        String text = "闲置库存 " + h.getModel() + " × " + h.getQuantity() + "：" + name + "；" + h.getHandleNote();
+        logs.add(h.getPoId(), "处置闲置库存", text, operator);
+        logService.recordOperateLog(WarehouseConstants.MENU_HOLD, "处置闲置库存", Map.of("model", h.getModel(), "status", "暂存中"),
                 Map.of("model", h.getModel(), "status", name, "note", h.getHandleNote()));
         return toVos(List.of(h)).get(0);
     }
@@ -156,7 +156,7 @@ public class HoldService {
     private StockHoldDO visible(Long id) {
         StockHoldDO h = id == null ? null : holdMapper.selectById(id);
         if (h == null || h.getDeletedAt() != null || !Objects.equals(h.getTenantId(), PiStore.tenantId())) {
-            throw new BizException("暂存货不存在");
+            throw new BizException("闲置库存不存在");
         }
         return h;
     }

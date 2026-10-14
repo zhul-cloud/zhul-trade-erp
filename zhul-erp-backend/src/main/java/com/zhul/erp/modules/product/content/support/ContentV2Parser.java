@@ -22,6 +22,8 @@ public final class ContentV2Parser {
 
     /** 营销包拆出的关键词库项 */
     public static final String PART_KEYWORDS = "keywords";
+    /** 英文营销文件里的「## 独立站俄文」拆出的项：平台为独立站，语言为俄文 */
+    public static final String PART_SITE_RU = "site-ru";
 
     /** 产品识别字段键 */
     public static final String NAME_ZH = "name_zh";
@@ -224,18 +226,26 @@ public final class ContentV2Parser {
                 drafts.add(d);
                 continue;
             }
-            MarketingPlatform platform = platformOf(n);
+            boolean siteRu = isSiteRu(n);
+            MarketingPlatform platform = siteRu ? MarketingPlatform.SITE : platformOf(n);
             if (platform == null) {
                 fileNotes.add("不认识的章节「" + s.heading + "」，已跳过");
                 continue;
             }
-            if (!seen.add(platform.code())) {
+            String part = siteRu ? PART_SITE_RU : platform.code();
+            if (!seen.add(part)) {
                 fileNotes.add("「" + s.heading + "」出现了多次，只用第一次");
                 continue;
             }
-            ContentDraft d = copyHead(head, platform.code(), platform.code());
-            checkLang(d, platform.langs().contains(d.getLang()),
-                    ru ? "俄文只用于独立站，" + platform.label() + "须写在英文文件里" : platform.label() + "只能是英文（lang: en）");
+            ContentDraft d = copyHead(head, platform.code(), part);
+            if (siteRu) {
+                // 英文营销文件里的俄文独立站：这一项按俄文写入
+                checkLang(d, "en".equals(d.getLang()), "「## 独立站俄文」写在英文营销文件里；俄文文件只写「## 独立站」");
+                d.setLang("ru");
+            } else {
+                checkLang(d, platform.langs().contains(d.getLang()),
+                        ru ? "俄文只用于独立站，" + platform.label() + "须写在英文文件里" : platform.label() + "只能是英文（lang: en）");
+            }
             if (platform == MarketingPlatform.SOCIAL) {
                 parseSocial(d, s);
             } else {
@@ -250,6 +260,13 @@ public final class ContentV2Parser {
             }
             drafts.add(d);
         }
+    }
+
+    /** 「独立站俄文」「独立站（俄文）」「Website RU」等写法 */
+    private static boolean isSiteRu(String n) {
+        boolean site = n.startsWith("独立站") || n.startsWith("website") || n.startsWith("site");
+        return site && (n.contains("俄") || n.contains("russian") || n.endsWith("ru") || n.contains("(ru)")
+                || n.contains("（ru）"));
     }
 
     private static MarketingPlatform platformOf(String n) {

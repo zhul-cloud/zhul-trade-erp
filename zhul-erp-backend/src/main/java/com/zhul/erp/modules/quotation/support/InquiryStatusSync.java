@@ -21,7 +21,7 @@ import java.util.TreeSet;
 import java.util.stream.Collectors;
 
 /**
- * 报价单状态 → 客户询盘状态（spec inquiry/inquiry-intake「客户询盘状态」）：
+ * 报价单状态 → 询盘单状态（spec inquiry/inquiry-intake「询盘单状态」）：
  * 包含其型号的报价单有已成交 → 已成交；否则有已发送 → 已报价；否则有未成交 → 未成交；
  * 否则只剩已作废（或已作废加草稿）→ 作废视为没报过，回到报价前的状态（全部型号有价格或无货为可报价，否则询价中）；否则不变。
  * 只推进询价中 / 可报价 / 已报价 / 已成交 / 未成交的询盘，已取消的不动。
@@ -42,7 +42,7 @@ public class InquiryStatusSync {
     private final QuotationItemMapper itemMapper;
     private final QuotationMapper quotationMapper;
 
-    /** 报价单涉及的客户询盘 ID */
+    /** 报价单涉及的询盘单 ID */
     public Set<Long> inquiryIdsOf(Long quotationId) {
         return itemMapper.selectList(new LambdaQueryWrapper<QuotationItemDO>()
                         .select(QuotationItemDO::getCustomerInquiryId)
@@ -70,7 +70,7 @@ public class InquiryStatusSync {
                 target = beforeQuote(inquiry);
             }
             if (target != null && !target.equals(inquiry.getStatus())) {
-                log.info("报价单推进客户询盘状态，inquiryId={}, {} -> {}", id, inquiry.getStatus(), target);
+                log.info("报价单推进询盘单状态，inquiryId={}, {} -> {}", id, inquiry.getStatus(), target);
                 inquiry.setStatus(target);
                 inquiryMapper.updateById(inquiry);
             }

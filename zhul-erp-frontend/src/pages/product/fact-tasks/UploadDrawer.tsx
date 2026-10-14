@@ -437,7 +437,7 @@ export const UploadDrawer: React.FC<{
             <p className="ant-upload-hint">
               {entry === 'facts'
                 ? '按《商品内容规范 v2》的资料包（schema: 2、type: facts、lang: zh）；旧格式资料包和 llm-wiki 商品文件也能上传。营销包请到运营管理 → 商品运营上传。'
-                : '按《商品内容规范 v2》的营销包（schema: 2、type: marketing）：一个文件可以包含关键词库和多个平台，按平台分项预览、分项写入；俄文文件只写独立站。旧格式营销包也能上传。资料包请到商品资料 → 资料任务上传。'}
+                : '按《商品内容规范 v2》的营销包（schema: 2、type: marketing）：一个文件可以包含关键词库、多个平台和「独立站俄文」，按项预览、按项写入；单独的俄文文件只写独立站。旧格式营销包也能上传。资料包请到商品管理 → 资料任务上传。'}
               一次最多 50 个，每个不超过 1MB
             </p>
           </Upload.Dragger>
@@ -513,8 +513,10 @@ export const UploadDrawer: React.FC<{
                             {' · '}
                             {f.part === 'keywords'
                               ? '关键词库'
-                              : PLATFORM_META[f.part as MarketingPlatform]
-                                  ?.label}
+                              : f.part === 'site-ru'
+                                ? '独立站俄文'
+                                : PLATFORM_META[f.part as MarketingPlatform]
+                                    ?.label}
                           </span>
                         )}
                       </span>

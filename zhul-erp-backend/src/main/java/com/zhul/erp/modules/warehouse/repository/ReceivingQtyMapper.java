@@ -16,7 +16,7 @@ public interface ReceivingQtyMapper {
     String IDS = "<foreach collection='ids' item='x' open='(' separator=',' close=')'>#{x}</foreach>";
 
     /**
-     * 采购单行的已发数量：在途发货单的发货数量 + 已入库发货单的实收（不超过发货数量，少发的回到未发）
+     * 采购订单行的已发数量：在途发货单的发货数量 + 已入库发货单的实收（不超过发货数量，少发的回到未发）
      * − 已处理为「退货换货」「退货不补」的不良数量（退回去的不算已发）
      */
     @Select("<script>SELECT x.id, SUM(x.q) AS qty FROM ("
@@ -30,7 +30,7 @@ public interface ReceivingQtyMapper {
             + ") x GROUP BY x.id</script>")
     List<IdQty> shippedByPoItem(@Param("ids") Collection<Long> ids);
 
-    /** 采购单行的合格入库数量：有效入库单的合格数（多发部分不算）+ 已处理为「折价接收」的不良数量 */
+    /** 采购订单行的合格入库数量：有效采购入库单的合格数（多发部分不算）+ 已处理为「折价接收」的不良数量 */
     @Select("<script>SELECT x.id, SUM(x.q) AS qty FROM ("
             + "SELECT ri.po_item_id AS id, LEAST(ri.qualified_qty, ri.shipped_qty) AS q FROM purchase_receipt_item ri "
             + "JOIN purchase_receipt r ON r.id = ri.receipt_id "

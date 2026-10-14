@@ -264,7 +264,7 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
                 return;
             } catch (DuplicateKeyException e) {
                 if (attempt == MAX_CODE_INSERT_ATTEMPTS) {
-                    throw new BizException("客户询盘编号生成冲突，请重试");
+                    throw new BizException("询盘单编号生成冲突，请重试");
                 }
             }
         }
@@ -842,7 +842,7 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
         patch.setId(id);
         patch.setLevel(level);
         inquiryMapper.updateById(patch);
-        logService.recordOperateLog("客户询盘", "调整询盘等级", before,
+        logService.recordOperateLog("询盘单", "调整询盘等级", before,
                 Map.of("inquiryCode", inquiry.getInquiryCode(), "level", labels.getOrDefault(level, "")));
     }
 
@@ -881,7 +881,7 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
         DataScope scope = dataScopeResolver.current();
         if (inquiry == null || inquiry.getDeletedAt() != null || !Objects.equals(inquiry.getTenantId(), tenantId())
                 || !scope.canSee(inquiry.getOwnerId())) {
-            throw new BizException("客户询盘不存在");
+            throw new BizException("询盘单不存在");
         }
         return inquiry;
     }

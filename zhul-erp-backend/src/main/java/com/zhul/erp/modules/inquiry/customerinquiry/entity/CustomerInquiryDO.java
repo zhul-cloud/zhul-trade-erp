@@ -10,7 +10,7 @@ import lombok.Data;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
-/** 客户询盘：一个客户的一次采购需求 */
+/** 询盘单：一个客户的一次采购需求 */
 @Data
 @TableName("customer_inquiry")
 public class CustomerInquiryDO {

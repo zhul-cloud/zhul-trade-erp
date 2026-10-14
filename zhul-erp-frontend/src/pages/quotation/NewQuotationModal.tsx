@@ -1076,7 +1076,7 @@ const NewQuotationModal: React.FC<{
         step === 'choose' ? (
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <span style={{ fontSize: 12, color: palette.mute }}>
-              从客户询盘详情点「去报价」时不经过这一步，直接按询盘报价
+              从询盘单详情点「去报价」时不经过这一步，直接按询盘报价
             </span>
             <span style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
               <Button onClick={onClose}>取消</Button>

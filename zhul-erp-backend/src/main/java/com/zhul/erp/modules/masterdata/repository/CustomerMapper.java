@@ -13,7 +13,7 @@ import java.util.List;
 public interface CustomerMapper extends BaseMapper<CustomerDO> {
 
     /**
-     * 已被未删除的客户询盘或询盘单引用的客户 ID（删除限制用）。直接查询盘两张表，
+     * 已被未删除的询盘单或旧版询盘引用的客户 ID（删除限制用）。直接查询盘两张表，
      * 避免客户模块依赖询盘模块；报价、订单模块上线后在这里补充。
      */
     @Select("<script>"

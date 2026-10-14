@@ -3,13 +3,13 @@ package com.zhul.erp.common.constants;
 /** 业务代码引用的内置字典类型编码 */
 public final class DictTypes {
 
-    /** 来源渠道：客户、商机、客户询盘共用 */
+    /** 来源渠道：客户、商机、询盘单共用 */
     public static final String SOURCE_CHANNEL = "crm_source_channel";
 
-    /** 货况：采购回价、历史询价共用 */
+    /** 货况：采购回价、询价记录共用 */
     public static final String ITEM_CONDITION = "inquiry_item_condition";
 
-    /** 货期：采购回价、历史询价共用 */
+    /** 货期：采购回价、询价记录共用 */
     public static final String LEAD_TIME = "inquiry_lead_time";
 
     /** 型号生命周期（在产、停产、待查）：解析确认、采购核实、询价包共用 */

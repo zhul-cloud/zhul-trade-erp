@@ -6,7 +6,7 @@ import com.zhul.erp.modules.sales.support.PiStore;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
-/** 采购单详情里的操作日志 */
+/** 采购订单详情里的操作日志 */
 @Component
 @RequiredArgsConstructor
 public class PurchaseLogs {

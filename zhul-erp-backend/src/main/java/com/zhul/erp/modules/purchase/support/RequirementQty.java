@@ -12,7 +12,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-/** 需求、订单型号行在采购单上的数量：草稿中、已下单（不落库，按采购单行实时汇总） */
+/** 需求、订单型号行在采购订单上的数量：草稿中、已下单（不落库，按采购订单行实时汇总） */
 @Component
 @RequiredArgsConstructor
 public class RequirementQty {

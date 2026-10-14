@@ -221,7 +221,7 @@ const OrderList: React.FC = () => {
                       color: palette.link,
                     }
                   : g.pendingPurchase > 0
-                    ? { text: '还有型号没下采购单', color: palette.orange }
+                    ? { text: '还有型号没下采购订单', color: palette.orange }
                     : undefined;
         return (
           <div style={{ display: 'grid', gap: 4 }}>

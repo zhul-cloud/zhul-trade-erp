@@ -41,7 +41,6 @@ import com.zhul.erp.modules.system.entity.BankAccountDO;
 import com.zhul.erp.modules.system.entity.SysConfigDO;
 import com.zhul.erp.modules.system.repository.SysConfigMapper;
 import com.zhul.erp.modules.system.service.BankAccountService;
-import com.zhul.erp.modules.system.service.ExchangeRateService;
 import com.zhul.erp.modules.system.service.LogService;
 
 import lombok.RequiredArgsConstructor;
@@ -69,6 +68,8 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class PaymentReceiptServiceImpl implements PaymentReceiptService {
 
+    private final com.zhul.erp.modules.finance.support.FxRates fxRates;
+
     private static final Set<String> SLIP_TYPES = Set.of("jpg", "png", "pdf");
     private static final Set<Integer> RECEIVABLE = Set.of(SalesConstants.PI_SENT, SalesConstants.PI_CONVERTED);
 
@@ -78,7 +79,6 @@ public class PaymentReceiptServiceImpl implements PaymentReceiptService {
     private final PiSummary summary;
     private final PiService piService;
     private final BankAccountService bankAccountService;
-    private final ExchangeRateService exchangeRateService;
     private final PrivateFileStorage fileStorage;
     private final CurrentUserResolver currentUser;
     private final LogService logService;
@@ -251,14 +251,13 @@ public class PaymentReceiptServiceImpl implements PaymentReceiptService {
             }
             feeDiff = after;
         }
-        ExchangeRateService.Snapshot rate = exchangeRateService.require(o.currency());
         PaymentReceiptDO r = new PaymentReceiptDO();
         r.setTenantId(o.tenantId());
         o.bind(r);
         r.setKind(SalesConstants.KIND_RECEIPT);
         r.setCurrencyCode(o.currency());
         setMethod(r, method);
-        ReceiptMoney.apply(r, amount, BigDecimal.ZERO, rate.rate(), req.getActualAmountCny());
+        ReceiptMoney.apply(r, amount, BigDecimal.ZERO, fxRates.estimate(o.currency()));
         r.setPayer("");
         r.setFeeDiff(feeDiff);
         r.setReceiptDate(req.getReceiptDate());
@@ -312,6 +311,9 @@ public class PaymentReceiptServiceImpl implements PaymentReceiptService {
         if (why.isEmpty()) {
             throw new BizException("请填写作废原因");
         }
+        // 与结汇分摊互斥：重新加锁读取已结汇金额
+        r = receiptMapper.selectOne(new LambdaQueryWrapper<PaymentReceiptDO>().eq(PaymentReceiptDO::getId, r.getId()).last("FOR UPDATE"));
+        fxRates.requireNotSettled(r);
         r.setStatus(SalesConstants.RECORD_VOID);
         r.setVoidReason(trim(why, 200));
         receiptMapper.updateById(r);
@@ -358,7 +360,6 @@ public class PaymentReceiptServiceImpl implements PaymentReceiptService {
             throw new BizException("平台订单号 " + orderNo + " 已登记过" + (other == null ? "" : "（" + other + "）"));
         }
         BigDecimal amount = req.getAmount().setScale(2, RoundingMode.HALF_UP);
-        ExchangeRateService.Snapshot rate = exchangeRateService.require(o.currency());
         PaymentReceiptDO r = new PaymentReceiptDO();
         r.setTenantId(o.tenantId());
         o.bind(r);
@@ -366,7 +367,7 @@ public class PaymentReceiptServiceImpl implements PaymentReceiptService {
         r.setCurrencyCode(o.currency());
         setMethod(r, method);
         r.setPlatformOrderNo(orderNo);
-        ReceiptMoney.apply(r, amount, req.getPlatformFee(), rate.rate(), req.getActualAmountCny());
+        ReceiptMoney.apply(r, amount, req.getPlatformFee(), fxRates.estimate(o.currency()));
         r.setFeeDiff(BigDecimal.ZERO);
         r.setPayer("");
         r.setReceiptDate(req.getReceiptDate());

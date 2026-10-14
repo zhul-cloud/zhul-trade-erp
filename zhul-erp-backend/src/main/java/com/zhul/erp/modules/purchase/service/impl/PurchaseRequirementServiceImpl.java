@@ -61,7 +61,7 @@ import java.util.stream.Stream;
 public class PurchaseRequirementServiceImpl implements PurchaseRequirementService {
 
     private static final int KEYWORD_LIMIT = 500;
-    /** 需求在已下单（2）或草稿 + 已下单（1, 2）采购单上的数量 */
+    /** 需求在已下单（2）或草稿 + 已下单（1, 2）采购订单上的数量 */
     private static final String PLACED_SQL = "(SELECT COALESCE(SUM(pi.quantity), 0) FROM purchase_order_item pi "
             + "JOIN purchase_order po ON po.id = pi.po_id WHERE pi.requirement_id = purchase_requirement.id "
             + "AND pi.deleted_at IS NULL AND po.deleted_at IS NULL AND po.status IN (%s))";
@@ -511,7 +511,7 @@ public class PurchaseRequirementServiceImpl implements PurchaseRequirementServic
                 Map.of("source", String.valueOf(title), "items", open.stream().map(PurchaseRequirementDO::getModel).toList()));
     }
 
-    // ---------------------------------------------------------------- 需求池生成采购单
+    // ---------------------------------------------------------------- 需求池生成采购订单
 
     @Override
     public GeneratePreviewVO preview(List<Long> ids) {
@@ -612,7 +612,7 @@ public class PurchaseRequirementServiceImpl implements PurchaseRequirementServic
         }
         syncOrderPurchasers(rows);
         List<PurchaseOrderDO> pos = drafts.place(list, null, "由需求池生成", me);
-        logService.recordOperateLog(PurchaseConstants.MENU_REQUIREMENT, "生成采购单", null,
+        logService.recordOperateLog(PurchaseConstants.MENU_REQUIREMENT, "生成采购订单", null,
                 Map.of("requirements", all.size(), "drafts", pos.size()));
         return pos.stream().map(PurchaseOrderDO::getId).distinct().toList();
     }
@@ -653,7 +653,7 @@ public class PurchaseRequirementServiceImpl implements PurchaseRequirementServic
         for (PurchaseRequirementDO r : rows) {
             if (r.getStatus() != PurchaseConstants.REQ_ACTIVE
                     || RequirementQty.available(r, q.getOrDefault(r.getId(), RequirementQty.Qty.ZERO)) <= 0) {
-                throw new BizException(r.getModel() + " 已经全部排入采购单，不能再生成");
+                throw new BizException(r.getModel() + " 已经全部排入采购订单，不能再生成");
             }
         }
         return rows;

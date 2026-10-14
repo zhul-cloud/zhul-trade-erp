@@ -5,7 +5,7 @@ import lombok.Data;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
-/** 客户询盘列表行 */
+/** 询盘单列表行 */
 @Data
 public class CustomerInquiryVO {
     private Long id;

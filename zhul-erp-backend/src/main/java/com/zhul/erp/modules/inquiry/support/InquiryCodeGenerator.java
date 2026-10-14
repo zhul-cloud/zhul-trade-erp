@@ -11,7 +11,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
- * 询盘编号：客户询盘 IQ{YYYYMMDD}{NNN}；询价任务为 {客户询盘编号}{字母}，字母按确认时的分组顺序 A、B、C…
+ * 询盘编号：询盘单 IQ{YYYYMMDD}{NNN}；询价任务为 {询盘单编号}{字母}，字母按确认时的分组顺序 A、B、C…
  */
 @Slf4j
 @Component
@@ -22,14 +22,14 @@ public class InquiryCodeGenerator {
 
     private final CustomerInquiryMapper customerInquiryMapper;
 
-    /** 客户询盘编号：IQ{YYYYMMDD}{NNN}；查询失败时用随机流水号兜底，由调用方在唯一键冲突时重试 */
+    /** 询盘单编号：IQ{YYYYMMDD}{NNN}；查询失败时用随机流水号兜底，由调用方在唯一键冲突时重试 */
     public GeneratedInquiryCode nextCustomerInquiryCode(int tenantId) {
         String prefix = "IQ" + LocalDate.now().format(DATE_FORMAT);
         try {
             Integer max = customerInquiryMapper.selectMaxSequenceByPrefix(tenantId, prefix);
             return new GeneratedInquiryCode(prefix + String.format("%03d", (max == null ? 0 : max) + 1), false);
         } catch (DataAccessException e) {
-            log.warn("查询客户询盘当日最大流水号失败，使用随机数兜底，tenantId={}", tenantId, e);
+            log.warn("查询询盘单当日最大流水号失败，使用随机数兜底，tenantId={}", tenantId, e);
             return new GeneratedInquiryCode(prefix + String.format("%03d", ThreadLocalRandom.current().nextInt(1, 1000)), true);
         }
     }

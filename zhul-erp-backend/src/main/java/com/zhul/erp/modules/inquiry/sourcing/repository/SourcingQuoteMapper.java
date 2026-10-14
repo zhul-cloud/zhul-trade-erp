@@ -10,11 +10,11 @@ import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 
-/** 询价记录（历史询价） */
+/** 询价记录（询价记录） */
 @Mapper
 public interface SourcingQuoteMapper extends BaseMapper<SourcingQuoteDO> {
 
-    /** 历史询价按品牌 + 归一化型号分组；无货记录计入记录数，不参与最低 / 最高价 */
+    /** 询价记录按品牌 + 归一化型号分组；无货记录计入记录数，不参与最低 / 最高价 */
     @Select("SELECT brand_key AS brandKey, model_key AS modelKey, MAX(brand) AS brand, MAX(model) AS model, "
             + "MIN(unit_price_cny) AS minPriceCny, MAX(unit_price_cny) AS maxPriceCny, COUNT(*) AS recordCount, "
             + "MAX(quoted_at) AS lastQuotedAt FROM sourcing_quote ${ew.customSqlSegment} "

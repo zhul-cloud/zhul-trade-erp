@@ -809,7 +809,7 @@ const SourcingBoardPage: React.FC = () => {
                 <div
                   style={{ color: palette.mute, fontSize: 12, lineHeight: 1.6 }}
                 >
-                  在「询价中」对任务点「追加比价」，可以再分给一人同时询价，两人的价格都进历史询价，报价时取最优。
+                  在「询价中」对任务点「追加比价」，可以再分给一人同时询价，两人的价格都进询价记录，报价时取最优。
                 </div>
               </Card>
             </div>
