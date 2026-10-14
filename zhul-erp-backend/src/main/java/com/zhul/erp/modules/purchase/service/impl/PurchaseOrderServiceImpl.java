@@ -16,6 +16,9 @@ import com.zhul.erp.modules.purchase.constants.PurchaseConstants;
 import com.zhul.erp.modules.purchase.dto.CancelPurchaseOrderRequest;
 import com.zhul.erp.modules.purchase.dto.ConfirmPurchaseOrderRequest;
 import com.zhul.erp.modules.purchase.dto.MoveItemsRequest;
+import com.zhul.erp.modules.attachment.service.AttachmentService;
+import com.zhul.erp.modules.purchase.dto.RegisterInvoiceRequest;
+import java.math.RoundingMode;
 import com.zhul.erp.modules.purchase.dto.PurchaseAttachmentFile;
 import com.zhul.erp.modules.purchase.dto.PurchaseOrderListVO;
 import com.zhul.erp.modules.purchase.dto.PurchaseOrderPageQuery;
@@ -120,6 +123,7 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
     private final ShipProgress shipProgress;
     private final PayableSyncService payables;
     private final PayableQueryService payableQuery;
+    private final AttachmentService attachmentService;
 
     /** 付款状态筛选（固定 SQL，拼在 purchase_order 的查询上） */
     private static final Map<String, String> PAY_CONDITIONS = Map.of(
@@ -155,6 +159,17 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
         String payCondition = PAY_CONDITIONS.get(q.getPayStatus() == null ? "" : q.getPayStatus());
         if (payCondition != null) {
             w.apply(payCondition);
+        }
+        String invoice = q.getInvoiceStatus() == null ? "" : q.getInvoiceStatus();
+        switch (invoice) {
+            case "NONE" -> w.eq(PurchaseOrderDO::getInvoiceStatus, PurchaseConstants.INVOICE_NONE);
+            case "PENDING" -> w.eq(PurchaseOrderDO::getInvoiceStatus, PurchaseConstants.INVOICE_PENDING);
+            case "DONE" -> w.eq(PurchaseOrderDO::getInvoiceStatus, PurchaseConstants.INVOICE_DONE);
+            case "OVERDUE" -> w.eq(PurchaseOrderDO::getInvoiceStatus, PurchaseConstants.INVOICE_PENDING)
+                    .ne(PurchaseOrderDO::getStatus, PurchaseConstants.PO_CANCELLED)
+                    .lt(PurchaseOrderDO::getExpectedInvoiceDate, LocalDate.now());
+            default -> {
+            }
         }
         if (q.getOrderFrom() != null) {
             w.ge(PurchaseOrderDO::getOrderDate, q.getOrderFrom());
@@ -272,6 +287,12 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
             vo.setBargainAmount(p.getTargetAmount().signum() == 0 ? null : p.getBargainAmount());
             vo.setBargainRate(PurchaseCalc.rate(p.getBargainAmount(), p.getTargetAmount()));
             vo.setPaymentTermsText(PaymentTerms.text(PaymentTerms.fromJson(p.getPaymentTerms())));
+            vo.setInvoiceStatus(p.getInvoiceStatus());
+            if (Objects.equals(p.getInvoiceRequired(), 1)) {
+                vo.setInvoiceAmount(Objects.requireNonNullElse(p.getInvoiceAmount(), p.getItemAmount()));
+                vo.setTaxPoint(p.getTaxPoint());
+            }
+            vo.setInvoiceOverdueDays(invoiceOverdueDays(p));
             vo.setAttachmentCount(attachments.getOrDefault(p.getId(), 0L).intValue());
             Map<Long, String> refs = new LinkedHashMap<>();
             lines.forEach(i -> refs.putIfAbsent(i.getSoId(), soNos.get(i.getSoId())));
@@ -386,8 +407,17 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
         vo.setCreateTime(p.getCreateTime());
         vo.setCurrencyCode(p.getCurrencyCode());
         vo.setExchangeRate(p.getExchangeRate());
-        vo.setTaxIncluded(Objects.equals(p.getTaxIncluded(), 1));
-        vo.setTaxRate(p.getTaxRate());
+        vo.setInvoiceRequired(Objects.equals(p.getInvoiceRequired(), 1));
+        vo.setTaxPoint(p.getTaxPoint());
+        vo.setInvoiceAmount(p.getInvoiceAmount());
+        vo.setInvoiceAmountEffective(Objects.equals(p.getInvoiceRequired(), 1)
+                ? Objects.requireNonNullElse(p.getInvoiceAmount(), p.getItemAmount()) : null);
+        vo.setInvoiceCost(p.getInvoiceCost());
+        vo.setExpectedInvoiceDate(p.getExpectedInvoiceDate());
+        vo.setInvoicedDate(p.getInvoicedDate());
+        vo.setInvoiceStatus(p.getInvoiceStatus());
+        vo.setInvoiceOverdueDays(invoiceOverdueDays(p));
+        vo.setInvoiceFiles(attachmentService.listOf(AttachmentService.PO_INVOICE, id));
         vo.setItemAmount(p.getItemAmount());
         vo.setFeeAmount(p.getFeeAmount());
         vo.setTotalAmount(p.getTotalAmount());
@@ -488,9 +518,7 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
             p.setCurrencyCode(currency);
             p.setExchangeRate(rate);
         }
-        boolean tax = Boolean.TRUE.equals(req.getTaxIncluded());
-        p.setTaxIncluded(tax ? 1 : 0);
-        p.setTaxRate(tax ? (req.getTaxRate() == null ? new BigDecimal(PurchaseConstants.DEFAULT_TAX_RATE) : req.getTaxRate()) : BigDecimal.ZERO);
+        applyInvoice(p, req);
         List<PaymentTermDTO> terms = PaymentTerms.normalize(req.getPaymentTerms());
         p.setPaymentTerms(PaymentTerms.toJson(terms));
         p.setContractNo(req.getContractNo() == null ? "" : req.getContractNo().trim());
@@ -594,6 +622,89 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
         return detail(id);
     }
 
+    /** 开票：不开票时清空税点与金额；已开票的不能改为不开票；开票时预计开票日期必填 */
+    private static void applyInvoice(PurchaseOrderDO p, SavePurchaseOrderRequest req) {
+        boolean invoice = Boolean.TRUE.equals(req.getInvoiceRequired());
+        boolean done = Objects.equals(p.getInvoiceStatus(), PurchaseConstants.INVOICE_DONE);
+        if (!invoice) {
+            if (done) {
+                throw new BizException("已开票，请先撤销已开票");
+            }
+            p.setInvoiceRequired(0);
+            p.setTaxPoint(BigDecimal.ZERO);
+            p.setInvoiceAmount(null);
+            p.setExpectedInvoiceDate(null);
+            p.setInvoiceStatus(PurchaseConstants.INVOICE_NONE);
+            return;
+        }
+        if (req.getExpectedInvoiceDate() == null) {
+            throw new BizException("请填写预计开票日期");
+        }
+        p.setInvoiceRequired(1);
+        p.setTaxPoint(req.getTaxPoint() == null ? BigDecimal.ZERO : req.getTaxPoint().setScale(2, RoundingMode.HALF_UP));
+        p.setInvoiceAmount(req.getInvoiceAmount() == null ? null : PurchaseCalc.money(req.getInvoiceAmount()));
+        p.setExpectedInvoiceDate(req.getExpectedInvoiceDate());
+        p.setInvoiceStatus(done ? PurchaseConstants.INVOICE_DONE : PurchaseConstants.INVOICE_PENDING);
+    }
+
+    /** 待开票、未取消且过了预计开票日期的天数；否则为空 */
+    private static Integer invoiceOverdueDays(PurchaseOrderDO p) {
+        if (!Objects.equals(p.getInvoiceStatus(), PurchaseConstants.INVOICE_PENDING) || p.getStatus() == PurchaseConstants.PO_CANCELLED
+                || p.getExpectedInvoiceDate() == null) {
+            return null;
+        }
+        long days = java.time.temporal.ChronoUnit.DAYS.between(p.getExpectedInvoiceDate(), LocalDate.now());
+        return days > 0 ? (int) days : null;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public PurchaseOrderVO registerInvoice(Long id, RegisterInvoiceRequest req) {
+        PurchaseOrderDO p = lockVisible(id);
+        if (p.getStatus() == PurchaseConstants.PO_CANCELLED) {
+            throw new BizException("采购订单已取消，不能登记开票");
+        }
+        if (!Objects.equals(p.getInvoiceRequired(), 1)) {
+            throw new BizException("这张采购订单不开票");
+        }
+        if (Objects.equals(p.getInvoiceStatus(), PurchaseConstants.INVOICE_DONE)) {
+            throw new BizException("已登记过开票");
+        }
+        if (req.getInvoicedDate().isAfter(LocalDate.now())) {
+            throw new BizException("实际开票日期不能晚于今天");
+        }
+        Snapshot before = snapshot(p);
+        p.setInvoiceAmount(PurchaseCalc.money(req.getInvoiceAmount()));
+        p.setTaxPoint(req.getTaxPoint().setScale(2, RoundingMode.HALF_UP));
+        p.setInvoicedDate(req.getInvoicedDate());
+        p.setInvoiceStatus(PurchaseConstants.INVOICE_DONE);
+        drafts.recalc(p);
+        attachmentService.sync(AttachmentService.PO_INVOICE, id, req.getAttachmentIds());
+        List<String> changes = new ArrayList<>(before.diff(snapshot(p)));
+        changes.add(0, "实际开票日期 " + req.getInvoicedDate());
+        logs.add(id, "登记已开票", String.join("；", changes), currentUser.resolve());
+        payables.syncPurchaseOrder(id);
+        return detail(id);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public PurchaseOrderVO revokeInvoice(Long id, String reason) {
+        PurchaseOrderDO p = lockVisible(id);
+        if (!Objects.equals(p.getInvoiceStatus(), PurchaseConstants.INVOICE_DONE)) {
+            throw new BizException("还没有登记已开票");
+        }
+        String why = reason == null ? "" : reason.trim();
+        if (why.isEmpty()) {
+            throw new BizException("请填写撤销原因");
+        }
+        p.setInvoicedDate(null);
+        p.setInvoiceStatus(PurchaseConstants.INVOICE_PENDING);
+        orderMapper.updateById(p);
+        logs.add(id, "撤销已开票", why, currentUser.resolve());
+        return detail(id);
+    }
+
     /** 单头中需要记日志的字段 */
     private record Snapshot(String currency, String tax, String terms, String contractNo, String contractAmount) {
         List<String> diff(Snapshot o) {
@@ -618,7 +729,10 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
     }
 
     private static Snapshot snapshot(PurchaseOrderDO p) {
-        String tax = Objects.equals(p.getTaxIncluded(), 1) ? "含税 " + p.getTaxRate().stripTrailingZeros().toPlainString() + "%" : "不含税";
+        String tax = Objects.equals(p.getInvoiceRequired(), 1)
+                ? "开票 " + p.getTaxPoint().stripTrailingZeros().toPlainString() + "%（开票金额 "
+                + (p.getInvoiceAmount() == null ? "按货款" : p.getInvoiceAmount().toPlainString()) + "）"
+                : "不开票";
         return new Snapshot(p.getCurrencyCode(), tax, PaymentTerms.text(PaymentTerms.fromJson(p.getPaymentTerms())),
                 Objects.requireNonNullElse(p.getContractNo(), ""),
                 p.getContractAmount() == null ? "无" : p.getContractAmount().toPlainString());

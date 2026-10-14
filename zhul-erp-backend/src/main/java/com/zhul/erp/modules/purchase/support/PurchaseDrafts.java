@@ -98,16 +98,13 @@ public class PurchaseDrafts {
     }
 
     /**
-     * 默认单价：目标价（CNY 不含税）折算为草稿口径 = 目标价 ×（1 + 税率）÷ 汇率，HALF_UP 保留两位；没有目标价时为空。
-     * 这样不改价时不含税单价等于目标价，砍价为 0。
+     * 默认单价：目标价（CNY）÷ 汇率，HALF_UP 保留两位；没有目标价时为空。不改价时人民币单价等于目标价，砍价为 0。
      */
     public static BigDecimal defaultPrice(PurchaseOrderDO po, BigDecimal target) {
         if (target == null) {
             return null;
         }
-        BigDecimal gross = Objects.equals(po.getTaxIncluded(), 1) && po.getTaxRate() != null
-                ? target.multiply(BigDecimal.ONE.add(po.getTaxRate().movePointLeft(2))) : target;
-        return gross.divide(po.getExchangeRate(), 2, java.math.RoundingMode.HALF_UP);
+        return target.divide(po.getExchangeRate(), 2, java.math.RoundingMode.HALF_UP);
     }
 
     /** 该采购员对该采购对象最近的 CNY 草稿（加锁） */
@@ -138,6 +135,10 @@ public class PurchaseDrafts {
         po.setExchangeRate(BigDecimal.ONE);
         po.setTaxIncluded(0);
         po.setTaxRate(BigDecimal.ZERO);
+        po.setInvoiceRequired(0);
+        po.setTaxPoint(BigDecimal.ZERO);
+        po.setInvoiceCost(BigDecimal.ZERO);
+        po.setInvoiceStatus(PurchaseConstants.INVOICE_NONE);
         po.setItemAmount(BigDecimal.ZERO);
         po.setFeeAmount(BigDecimal.ZERO);
         po.setTotalAmount(BigDecimal.ZERO);
@@ -184,17 +185,16 @@ public class PurchaseDrafts {
                 .orderByAsc(PurchaseOrderFeeDO::getId));
     }
 
-    /** 按单头的汇率与税重算各行不含税单价、小计、砍价，以及单头合计、目标金额与砍价合计 */
+    /** 按单头的汇率重算各行人民币单价、小计、砍价，以及开票成本、单头合计、目标金额与砍价合计 */
     public void recalc(PurchaseOrderDO po) {
-        boolean tax = Objects.equals(po.getTaxIncluded(), 1);
         BigDecimal items = BigDecimal.ZERO;
         BigDecimal target = BigDecimal.ZERO;
         BigDecimal bargain = BigDecimal.ZERO;
         for (PurchaseOrderItemDO i : items(po.getId())) {
-            BigDecimal net = PurchaseCalc.netPrice(i.getUnitPrice(), po.getExchangeRate(), tax, po.getTaxRate());
+            BigDecimal net = PurchaseCalc.netPrice(i.getUnitPrice(), po.getExchangeRate());
             BigDecimal amount = i.getUnitPrice() == null ? BigDecimal.ZERO
                     : PurchaseCalc.money(i.getUnitPrice().multiply(BigDecimal.valueOf(i.getQuantity())));
-            BigDecimal b = PurchaseCalc.bargain(i.getTargetPrice(), i.getUnitPrice(), i.getQuantity(), po.getExchangeRate(), tax, po.getTaxRate());
+            BigDecimal b = PurchaseCalc.bargain(i.getTargetPrice(), i.getUnitPrice(), i.getQuantity(), po.getExchangeRate());
             i.setNetPriceCny(net);
             i.setAmount(amount);
             i.setBargainAmount(b);
@@ -208,7 +208,12 @@ public class PurchaseDrafts {
         BigDecimal fees = fees(po.getId()).stream().map(PurchaseOrderFeeDO::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
         po.setItemAmount(items);
         po.setFeeAmount(fees);
-        po.setTotalAmount(items.add(fees));
+        boolean invoice = Objects.equals(po.getInvoiceRequired(), 1);
+        BigDecimal invoiceCost = invoice
+                ? PurchaseCalc.invoiceCost(po.getInvoiceAmount() == null ? items : po.getInvoiceAmount(), po.getTaxPoint())
+                : BigDecimal.ZERO;
+        po.setInvoiceCost(invoiceCost);
+        po.setTotalAmount(items.add(fees).add(invoiceCost));
         po.setTotalAmountCny(PurchaseCalc.money(po.getTotalAmount().multiply(po.getExchangeRate())));
         po.setTargetAmount(target);
         po.setBargainAmount(bargain);

@@ -24,6 +24,7 @@ import {
   Input,
   InputNumber,
   Modal,
+  Segmented,
   Select,
   Skeleton,
   Space,
@@ -32,22 +33,28 @@ import {
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { PayablePanel } from '@/pages/finance/payables/components';
+import {
+  ACCEPT_PROOF,
+  PayablePanel,
+  ProofLinks,
+} from '@/pages/finance/payables/components';
 import { SOURCE } from '@/pages/finance/payables/service';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { CURRENCIES } from '@/pages/quotation/components';
 import {
+  AttachmentWall,
   ReasonModal,
   ReceiptStatusPill,
   ShipStatusPill,
   trackingText,
 } from '@/pages/warehouse/components';
-import { shipmentApi } from '@/pages/warehouse/service';
+import { type Attachment, shipmentApi } from '@/pages/warehouse/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
 import {
   bargainOf,
   defaultPrice,
+  invoiceCostOf,
   netPrice,
   rateOf,
   round2,
@@ -83,15 +90,16 @@ import ShipmentDrawer from '../shipments/ShipmentDrawer';
 
 interface Draft {
   currencyCode: string;
-  taxIncluded: boolean;
-  taxRate: number;
+  invoiceRequired: boolean;
+  taxPoint: number;
+  /** 填写的开票金额；为空按货款合计 */
+  invoiceAmount: number | null;
+  expectedInvoiceDate: string | null;
   paymentTerms: PaymentTerm[];
   contractNo: string;
   contractAmount: number | null;
   expectedShipDate: string | null;
   items: Record<number, { quantity: number; unitPrice: number | null }>;
-  /** 单价仍是目标价带出的默认值、还没改过的行：切换含税、税率时按新口径重新折算 */
-  auto: number[];
   fees: { key: number; feeName: string; amount: number | null }[];
 }
 
@@ -99,26 +107,18 @@ let feeKey = 0;
 
 const toDraft = (po: PurchaseOrder): Draft => {
   const rate = Number(po.exchangeRate);
-  const tax = Number(po.taxRate);
   const draftPo = po.status === PO_STATUS.DRAFT;
-  // 草稿里没填单价的行带出目标价；等于默认值的行记为「还没改过」
-  const priced = po.items.map((i) => {
-    const def = defaultPrice(i.targetPrice, rate, po.taxIncluded, tax);
-    const price = i.unitPrice ?? (draftPo ? def : null);
-    return {
-      i,
-      price,
-      auto:
-        draftPo &&
-        def != null &&
-        price != null &&
-        Math.abs(price - def) < 0.005,
-    };
-  });
+  // 草稿里没填单价的行带出目标价
+  const priced = po.items.map((i) => ({
+    i,
+    price: i.unitPrice ?? (draftPo ? defaultPrice(i.targetPrice, rate) : null),
+  }));
   return {
     currencyCode: po.currencyCode,
-    taxIncluded: po.taxIncluded,
-    taxRate: po.taxIncluded ? Number(po.taxRate) : 13,
+    invoiceRequired: po.invoiceRequired,
+    taxPoint: Number(po.taxPoint ?? 0),
+    invoiceAmount: po.invoiceAmount == null ? null : Number(po.invoiceAmount),
+    expectedInvoiceDate: po.expectedInvoiceDate ?? null,
     paymentTerms: po.paymentTerms,
     contractNo: po.contractNo ?? '',
     contractAmount: po.contractAmount ?? null,
@@ -129,7 +129,6 @@ const toDraft = (po: PurchaseOrder): Draft => {
         { quantity: i.quantity, unitPrice: price },
       ]),
     ),
-    auto: priced.filter((x) => x.auto).map((x) => x.i.id),
     fees: po.fees.map((f) => ({
       key: ++feeKey,
       feeName: f.feeName,
@@ -140,8 +139,10 @@ const toDraft = (po: PurchaseOrder): Draft => {
 
 const toBody = (po: PurchaseOrder, d: Draft): SavePoBody => ({
   currencyCode: d.currencyCode,
-  taxIncluded: d.taxIncluded,
-  taxRate: d.taxIncluded ? d.taxRate : 0,
+  invoiceRequired: d.invoiceRequired,
+  taxPoint: d.invoiceRequired ? d.taxPoint : 0,
+  invoiceAmount: d.invoiceRequired ? d.invoiceAmount : null,
+  expectedInvoiceDate: d.invoiceRequired ? d.expectedInvoiceDate : null,
   paymentTerms: d.paymentTerms,
   contractNo: d.contractNo.trim() || undefined,
   contractAmount: d.contractAmount,
@@ -210,7 +211,6 @@ const PurchaseOrderDetail: React.FC = () => {
     if (!po || !draft) return undefined;
     const rate =
       draft.currencyCode === po.currencyCode ? Number(po.exchangeRate) : 1;
-    const tax = draft.taxIncluded ? draft.taxRate : 0;
     let goods = 0;
     let bargain = 0;
     let target = 0;
@@ -225,15 +225,8 @@ const PurchaseOrderDetail: React.FC = () => {
       const qty = d?.quantity ?? i.quantity;
       if (price == null) missing++;
       goods += (price ?? 0) * qty;
-      const net = netPrice(price, rate, draft.taxIncluded, tax);
-      const b = bargainOf(
-        i.targetPrice,
-        price,
-        qty,
-        rate,
-        draft.taxIncluded,
-        tax,
-      );
+      const net = netPrice(price, rate);
+      const b = bargainOf(i.targetPrice, price, qty, rate);
       if (b != null && i.targetPrice != null) {
         bargain += b;
         target += i.targetPrice * qty;
@@ -241,11 +234,15 @@ const PurchaseOrderDetail: React.FC = () => {
       lines.set(i.id, { net: net == null ? null : round2(net), bargain: b });
     }
     const fees = draft.fees.reduce((s, f) => s + (f.amount ?? 0), 0);
+    const invoiceCost = draft.invoiceRequired
+      ? invoiceCostOf(draft.invoiceAmount ?? round2(goods), draft.taxPoint)
+      : 0;
     return {
       rate,
       goods: round2(goods),
       fees: round2(fees),
-      total: round2(goods + fees),
+      invoiceCost,
+      total: round2(goods + fees + invoiceCost),
       bargain: round2(bargain),
       target: round2(target),
       bargainRate: rateOf(round2(bargain), round2(target)),
@@ -265,37 +262,18 @@ const PurchaseOrderDetail: React.FC = () => {
         ? {
             ...d,
             items: { ...d.items, [itemId]: { ...d.items[itemId], ...patch } },
-            // 手动改过单价的行不再跟着含税切换重算
-            auto:
-              'unitPrice' in patch
-                ? d.auto.filter((x) => x !== itemId)
-                : d.auto,
           }
         : d,
     );
 
-  /** 切换含税、税率：还没改过的行按新口径重新折算目标价 */
-  const setTax = (patch: Partial<Pick<Draft, 'taxIncluded' | 'taxRate'>>) =>
-    setDraft((d) => {
-      if (!d) return d;
-      const next = { ...d, ...patch };
-      const items = { ...next.items };
-      for (const id of next.auto) {
-        const it = po.items.find((x) => x.id === id);
-        if (it) {
-          items[id] = {
-            ...items[id],
-            unitPrice: defaultPrice(
-              it.targetPrice,
-              preview.rate,
-              next.taxIncluded,
-              next.taxRate,
-            ),
-          };
-        }
-      }
-      return { ...next, items };
-    });
+  const setInvoice = (
+    patch: Partial<
+      Pick<
+        Draft,
+        'invoiceRequired' | 'taxPoint' | 'invoiceAmount' | 'expectedInvoiceDate'
+      >
+    >,
+  ) => setDraft((d) => (d ? { ...d, ...patch } : d));
 
   const save = async (quiet = false) => {
     setSaving(true);
@@ -453,7 +431,7 @@ const PurchaseOrderDetail: React.FC = () => {
         ),
     },
     {
-      title: `单价（${draft.currencyCode} · ${draft.taxIncluded ? `含税 ${draft.taxRate}%` : '不含税'}）`,
+      title: `单价（${draft.currencyCode}）`,
       dataIndex: 'unitPrice',
       width: 160,
       render: (v: number | null | undefined, r) =>
@@ -477,7 +455,7 @@ const PurchaseOrderDetail: React.FC = () => {
         ),
     },
     {
-      title: '不含税单价',
+      title: '人民币单价',
       key: 'net',
       width: 120,
       align: 'right',
@@ -688,7 +666,7 @@ const PurchaseOrderDetail: React.FC = () => {
           hint={
             preview.missing > 0
               ? `${preview.missing} 行未填单价`
-              : `货款 ${formatAmount(preview.goods, draft.currencyCode)} + 费用 ${formatAmount(preview.fees, draft.currencyCode)}`
+              : `货款 ${formatAmount(preview.goods, draft.currencyCode)} + 费用 ${formatAmount(preview.fees, draft.currencyCode)}${preview.invoiceCost ? ` + 开票成本 ${formatAmount(preview.invoiceCost, draft.currencyCode)}` : ''}`
           }
           hintColor={preview.missing > 0 ? palette.orange : undefined}
         />
@@ -763,8 +741,7 @@ const PurchaseOrderDetail: React.FC = () => {
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns:
-                'minmax(260px, 2fr) 140px minmax(260px, 1.4fr) 180px',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))',
               gap: 16,
               alignItems: 'end',
             }}
@@ -813,37 +790,89 @@ const PurchaseOrderDetail: React.FC = () => {
               <div
                 style={{ fontSize: 12, color: palette.sub, marginBottom: 6 }}
               >
-                含税
+                开票
               </div>
-              <Space>
-                <Button
-                  type={draft.taxIncluded ? 'primary' : 'default'}
-                  ghost={draft.taxIncluded}
-                  onClick={() => setTax({ taxIncluded: true })}
-                >
-                  含税
-                </Button>
-                <Button
-                  type={!draft.taxIncluded ? 'primary' : 'default'}
-                  ghost={!draft.taxIncluded}
-                  onClick={() => setTax({ taxIncluded: false })}
-                >
-                  不含税
-                </Button>
-                {draft.taxIncluded && (
+              <Segmented<string>
+                value={draft.invoiceRequired ? 'yes' : 'no'}
+                disabled={po.invoiceStatus === 2}
+                options={[
+                  { label: '不开票', value: 'no' },
+                  { label: '开票', value: 'yes' },
+                ]}
+                onChange={(v) => setInvoice({ invoiceRequired: v === 'yes' })}
+              />
+            </div>
+            {draft.invoiceRequired && (
+              <>
+                <div>
+                  <div
+                    style={{
+                      fontSize: 12,
+                      color: palette.sub,
+                      marginBottom: 6,
+                    }}
+                  >
+                    税点
+                  </div>
                   <InputNumber
                     min={0}
                     max={100}
                     precision={2}
-                    value={draft.taxRate}
+                    value={draft.taxPoint}
                     suffix="%"
-                    style={{ width: 100 }}
-                    onChange={(v) => setTax({ taxRate: v ?? 0 })}
-                    aria-label="税率"
+                    style={{ width: '100%' }}
+                    onChange={(v) => setInvoice({ taxPoint: v ?? 0 })}
+                    aria-label="税点"
                   />
-                )}
-              </Space>
-            </div>
+                </div>
+                <div>
+                  <div
+                    style={{
+                      fontSize: 12,
+                      color: palette.sub,
+                      marginBottom: 6,
+                    }}
+                  >
+                    开票金额
+                  </div>
+                  <InputNumber
+                    min={0}
+                    precision={2}
+                    value={draft.invoiceAmount}
+                    placeholder={`按货款 ${preview.goods.toFixed(2)}`}
+                    prefix={draft.currencyCode}
+                    style={{ width: '100%' }}
+                    onChange={(v) => setInvoice({ invoiceAmount: v })}
+                    aria-label="开票金额"
+                  />
+                </div>
+                <div>
+                  <div
+                    style={{
+                      fontSize: 12,
+                      color: palette.sub,
+                      marginBottom: 6,
+                    }}
+                  >
+                    预计开票日期
+                  </div>
+                  <DatePicker
+                    style={{ width: '100%' }}
+                    value={
+                      draft.expectedInvoiceDate
+                        ? dayjs(draft.expectedInvoiceDate)
+                        : null
+                    }
+                    onChange={(d) =>
+                      setInvoice({
+                        expectedInvoiceDate: d ? d.format('YYYY-MM-DD') : null,
+                      })
+                    }
+                    aria-label="预计开票日期"
+                  />
+                </div>
+              </>
+            )}
             <div>
               <div
                 style={{ fontSize: 12, color: palette.sub, marginBottom: 6 }}
@@ -899,8 +928,8 @@ const PurchaseOrderDetail: React.FC = () => {
             型号（{po.items.length}）
           </b>
           <span style={{ fontSize: 12, color: palette.mute }}>
-            不含税单价 = 单价 × 汇率 ÷ (1 + 税率)；砍价 = (目标价 − 不含税单价)
-            × 数量；目标价为转订单时锁定的采购成本价（不含税）
+            人民币单价 = 单价 × 汇率；砍价 = (目标价 − 人民币单价) ×
+            数量；目标价为转订单时锁定的采购成本价；开票成本不参与砍价
           </span>
           <span style={{ flex: 1 }} />
           {isDraft && editable && picked.length > 0 && (
@@ -922,7 +951,7 @@ const PurchaseOrderDetail: React.FC = () => {
             style={{ marginBottom: 12 }}
             type="info"
             showIcon
-            title="单价默认按目标价带出（按含税与汇率折算），谈下来降价了改成实际单价；没有目标价的行要手填。某个型号要换供应商时点「改到其他供应商」。"
+            title="单价默认按目标价带出（按汇率折算），谈下来降价了改成实际单价；没有目标价的行要手填。某个型号要换供应商时点「改到其他供应商」。"
           />
         )}
         <Table<PoItem>
@@ -1044,6 +1073,15 @@ const PurchaseOrderDetail: React.FC = () => {
           canShip={canShip}
           onEdit={(id) => setShipping(id)}
           onVoid={setVoiding}
+        />
+      )}
+
+      {po.status !== PO_STATUS.DRAFT && po.invoiceRequired && (
+        <InvoicePanel
+          key={`${po.id}-${po.invoiceStatus}`}
+          po={po}
+          canEdit={canEdit}
+          onChanged={apply}
         />
       )}
 
@@ -1240,6 +1278,166 @@ const shipHint = (po: PurchaseOrder) => {
 type FlowRow =
   | { kind: 'ship'; key: string; ref: PoShipmentRef }
   | { kind: 'receipt'; key: string; ref: PoReceiptRef };
+
+/** 开票面板：登记已开票（实际开票日期、电子发票，可按实际发票调整金额与税点）与撤销 */
+const InvoicePanel: React.FC<{
+  po: PurchaseOrder;
+  canEdit: boolean;
+  onChanged: (po: PurchaseOrder) => void;
+}> = ({ po, canEdit, onChanged }) => {
+  const { palette } = useAppTheme();
+  const { message, modal } = App.useApp();
+  const [date, setDate] = useState<Dayjs>(dayjs());
+  const [amount, setAmount] = useState<number | null>(
+    po.invoiceAmountEffective ?? null,
+  );
+  const [point, setPoint] = useState<number>(Number(po.taxPoint ?? 0));
+  const [files, setFiles] = useState<Attachment[]>([]);
+  const [busy, setBusy] = useState(false);
+  const done = po.invoiceStatus === 2;
+  const cur = po.currencyCode;
+
+  const register = async () => {
+    if (!amount || files.length === 0) {
+      message.error('请填写开票金额并上传电子发票');
+      return;
+    }
+    setBusy(true);
+    try {
+      onChanged(
+        await poApi.registerInvoice(po.id, {
+          invoicedDate: date.format('YYYY-MM-DD'),
+          invoiceAmount: amount,
+          taxPoint: point,
+          attachmentIds: files.map((f) => f.id),
+        }),
+      );
+      message.success('已登记开票');
+    } catch (e) {
+      message.error(readBizError(e).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const revoke = () => {
+    let reason = '';
+    modal.confirm({
+      title: '撤销已开票',
+      content: (
+        <Input.TextArea
+          autoFocus
+          maxLength={200}
+          placeholder="撤销原因，如发票抬头错"
+          onChange={(e) => {
+            reason = e.target.value;
+          }}
+        />
+      ),
+      okText: '撤销',
+      okButtonProps: { danger: true },
+      onOk: async () => {
+        if (!reason.trim()) {
+          message.error('请填写撤销原因');
+          throw new Error('reason');
+        }
+        try {
+          onChanged(await poApi.revokeInvoice(po.id, reason.trim()));
+          message.success('已撤销，回到待开票');
+        } catch (e) {
+          message.error(readBizError(e).message);
+          throw e;
+        }
+      },
+    });
+  };
+
+  return (
+    <Card style={{ marginBottom: 16, padding: 20 }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          flexWrap: 'wrap',
+          marginBottom: 12,
+        }}
+      >
+        <b style={{ color: palette.ink, fontSize: 15 }}>开票</b>
+        {done ? (
+          <Pill tone="green">已开票 · {po.invoicedDate}</Pill>
+        ) : (
+          <Pill tone="orange">待开票</Pill>
+        )}
+        {po.invoiceOverdueDays ? (
+          <Pill tone="red">开票逾期 {po.invoiceOverdueDays} 天</Pill>
+        ) : null}
+        <span style={{ color: palette.sub, fontSize: 13 }}>
+          开票金额 {formatAmount(po.invoiceAmountEffective ?? 0, cur)} · 税点{' '}
+          {Number(po.taxPoint)}% · 开票成本{' '}
+          {formatAmount(po.invoiceCost ?? 0, cur)}
+          {po.expectedInvoiceDate ? ` · 预计 ${po.expectedInvoiceDate}` : ''}
+        </span>
+        <span style={{ flex: 1 }} />
+        {done && canEdit && po.status !== PO_STATUS.CANCELLED && (
+          <Button size="small" danger onClick={revoke}>
+            撤销已开票
+          </Button>
+        )}
+      </div>
+      {done ? (
+        <ProofLinks files={po.invoiceFiles ?? []} />
+      ) : canEdit && po.status !== PO_STATUS.CANCELLED ? (
+        <div style={{ display: 'grid', gap: 12 }}>
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+            <DatePicker
+              value={date}
+              allowClear={false}
+              disabledDate={(d) => d.isAfter(dayjs(), 'day')}
+              onChange={(d) => d && setDate(d)}
+              aria-label="实际开票日期"
+            />
+            <InputNumber<number>
+              min={0.01}
+              precision={2}
+              value={amount}
+              prefix={cur}
+              style={{ width: 200 }}
+              onChange={setAmount}
+              aria-label="开票金额"
+            />
+            <InputNumber<number>
+              min={0}
+              max={100}
+              precision={2}
+              value={point}
+              suffix="%"
+              style={{ width: 120 }}
+              onChange={(v) => setPoint(v ?? 0)}
+              aria-label="税点"
+            />
+          </div>
+          <AttachmentWall
+            ownerType="PO_INVOICE"
+            value={files}
+            onChange={setFiles}
+            max={10}
+            accept={ACCEPT_PROOF}
+          />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <span style={{ fontSize: 12, color: palette.mute }}>
+              按实际发票调整金额或税点时，合计与应付随之重算
+            </span>
+            <span style={{ flex: 1 }} />
+            <Button type="primary" loading={busy} onClick={register}>
+              登记已开票
+            </Button>
+          </div>
+        </div>
+      ) : null}
+    </Card>
+  );
+};
 
 const ShipmentsCard: React.FC<{
   po: PurchaseOrder;

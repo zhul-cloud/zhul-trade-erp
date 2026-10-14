@@ -68,6 +68,8 @@ public class ReceiptViews {
             vo.setNetAmountCny(r.getNetAmountCny());
             vo.setExchangeRate(r.getExchangeRate());
             vo.setRateSource(r.getRateSource());
+            vo.setSettledAmount(r.getSettledAmount());
+            vo.setSettleStatus(r.getSettleStatus());
             vo.setPayer(r.getPayer());
             vo.setClaimedByName(r.getClaimedBy() == null ? null : names.get(r.getClaimedBy()));
             vo.setClaimedAt(r.getClaimedAt());

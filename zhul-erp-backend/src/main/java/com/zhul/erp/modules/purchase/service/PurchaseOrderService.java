@@ -44,4 +44,10 @@ public interface PurchaseOrderService {
     PurchaseOrderVO deleteAttachment(Long id, Long attachmentId);
 
     PurchaseAttachmentFile attachmentFile(Long id, Long attachmentId);
+
+    /** 登记已开票：实际开票日期、电子发票，可按实际发票调整开票金额与税点 */
+    PurchaseOrderVO registerInvoice(Long id, com.zhul.erp.modules.purchase.dto.RegisterInvoiceRequest req);
+
+    /** 撤销已开票，回到待开票 */
+    PurchaseOrderVO revokeInvoice(Long id, String reason);
 }

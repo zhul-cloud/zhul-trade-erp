@@ -47,10 +47,12 @@ public class AttachmentService {
     public static final String RETURN_PROOF = "RETURN_PROOF";
     public static final String EXPENSE = "EXPENSE";
     public static final String REIMBURSE = "REIMBURSE";
+    /** 采购订单的电子发票 */
+    public static final String PO_INVOICE = "PO_INVOICE";
     /** 只收图片或 PDF 的归属类型 */
-    private static final Set<String> PROOF_TYPES = Set.of(PAYMENT, COURIER_PROOF, RETURN_PROOF, EXPENSE, REIMBURSE);
+    private static final Set<String> PROOF_TYPES = Set.of(PAYMENT, COURIER_PROOF, RETURN_PROOF, EXPENSE, REIMBURSE, PO_INVOICE);
     public static final Map<String, Integer> MAX_PER_OWNER = Map.of(SHIPMENT, 20, RECEIPT, 20, SHOOT, 30, LOGISTICS, 10,
-            PAYMENT, 10, COURIER_PROOF, 10, RETURN_PROOF, 10, EXPENSE, 10, REIMBURSE, 10);
+            PAYMENT, 10, COURIER_PROOF, 10, RETURN_PROOF, 10, EXPENSE, 10, REIMBURSE, 10, PO_INVOICE, 10);
     public static final int IMAGE = 1;
     public static final int VIDEO = 2;
     public static final int FILE = 3;

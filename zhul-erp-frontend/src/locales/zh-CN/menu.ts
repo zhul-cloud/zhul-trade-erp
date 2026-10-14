@@ -77,6 +77,7 @@ export default {
   'menu.sales': '销售',
   'menu.finance': '财务管理',
   'menu.finance.receipts': '收款单',
+  'menu.finance.fxSettlements': '结汇单',
   'menu.finance.payables': '应付单',
   'menu.finance.payments': '付款单',
   'menu.finance.reimbursements': '报销单',

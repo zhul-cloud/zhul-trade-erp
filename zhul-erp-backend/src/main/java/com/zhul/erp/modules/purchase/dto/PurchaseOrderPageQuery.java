@@ -20,6 +20,8 @@ public class PurchaseOrderPageQuery {
     /** 下单日期范围（草稿没有下单日期，有范围时不列出） */
     /** 付款状态筛选：UNPAID 未付、PARTIAL 部分付款、PAID 已付清、CREDIT 有欠款 */
     private String payStatus;
+    /** 开票状态：NONE 不开票、PENDING 待开票、DONE 已开票、OVERDUE 开票逾期 */
+    private String invoiceStatus;
     private LocalDate orderFrom;
     private LocalDate orderTo;
     /** itemCount / totalQuantity / totalAmount / bargainAmount */

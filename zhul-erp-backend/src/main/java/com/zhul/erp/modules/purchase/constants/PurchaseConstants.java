@@ -36,7 +36,10 @@ public final class PurchaseConstants {
 
     public static final String CNY = "CNY";
     /** 含税时的默认税率（%） */
-    public static final String DEFAULT_TAX_RATE = "13";
+    /** 开票状态 */
+    public static final int INVOICE_NONE = 0;
+    public static final int INVOICE_PENDING = 1;
+    public static final int INVOICE_DONE = 2;
     /** 回价渠道：4-供应商，其余为电商店铺 */
     public static final int CHANNEL_SUPPLIER = 4;
     public static final Map<Integer, String> CHANNEL_NAMES = Map.of(1, "淘宝", 2, "1688", 3, "闲鱼", 4, "供应商", 5, "其他");

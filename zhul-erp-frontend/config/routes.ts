@@ -478,6 +478,13 @@ export default [
         component: './finance/receipts',
       },
       {
+        path: '/finance/fx-settlements',
+        name: 'fxSettlements',
+        icon: 'swap',
+        access: 'financeFxSettlements',
+        component: './finance/fx-settlements',
+      },
+      {
         path: '/finance/payables',
         name: 'payables',
         icon: 'accountBook',

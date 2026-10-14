@@ -124,11 +124,14 @@ export interface Receipt {
   channel?: number;
   platformOrderNo?: string;
   platformFee?: number;
-  /** 实收（原币）、实收人民币与汇率（来源 1-系统汇率、2-实际入账），仅到账 */
+  /** 实收（原币）、实收人民币与到账汇率（外币按结汇确定，未结汇的部分按估算），仅到账 */
   netAmount?: number;
   netAmountCny?: number;
   exchangeRate?: number;
   rateSource?: number;
+  /** 结汇：0-不适用（人民币）、1-未结汇、2-部分结汇、3-已结汇 */
+  settleStatus?: number;
+  settledAmount?: number;
   payer?: string;
   claimedByName?: string;
   claimedAt?: string;
@@ -164,6 +167,10 @@ export interface ReceiptRow {
   netAmount: number;
   exchangeRate: number;
   rateSource: number;
+  /** 结汇：0-不适用（人民币）、1-未结汇、2-部分结汇、3-已结汇 */
+  settleStatus?: number;
+  settledAmount?: number;
+  settleNos?: string[];
   netAmountCny: number;
   paymentMethod: string;
   paymentMethodName: string;
@@ -670,7 +677,6 @@ export interface ConfirmReceiptBody {
   slipId?: number;
   feeDiff?: boolean;
   paymentMethod?: string;
-  actualAmountCny?: number;
   note?: string;
 }
 
@@ -680,7 +686,6 @@ export interface PlatformReceiptBody {
   amount: number;
   platformFee?: number;
   receiptDate: string;
-  actualAmountCny?: number;
   note?: string;
 }
 

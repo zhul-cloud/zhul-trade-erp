@@ -176,6 +176,11 @@ export interface PoListItem {
   updateBy?: string;
   /** 付款：1-未付、2-部分付款、3-已付清、4-已关闭；草稿为空 */
   payStatus?: number;
+  /** 开票：0-不开票、1-待开票、2-已开票 */
+  invoiceStatus?: number;
+  invoiceAmount?: number;
+  taxPoint?: number;
+  invoiceOverdueDays?: number | null;
   payableAmount?: number;
   paidAmount?: number;
   creditAmount?: number;
@@ -190,6 +195,8 @@ export interface PoQuery {
   shipProgress?: string;
   /** 付款状态：UNPAID、PARTIAL、PAID、CREDIT（有欠款） */
   payStatus?: string;
+  /** 开票状态：NONE、PENDING、DONE、OVERDUE */
+  invoiceStatus?: string;
   supplierId?: number;
   purchaserId?: number;
   orderFrom?: string;
@@ -293,8 +300,18 @@ export interface PurchaseOrder {
   createTime: string;
   currencyCode: string;
   exchangeRate: number;
-  taxIncluded: boolean;
-  taxRate: number;
+  /** 开票：税点（百分点）、填写的开票金额（为空按货款）、实际计算用的开票金额、开票成本 */
+  invoiceRequired: boolean;
+  taxPoint: number;
+  invoiceAmount?: number | null;
+  invoiceAmountEffective?: number | null;
+  invoiceCost: number;
+  expectedInvoiceDate?: string | null;
+  invoicedDate?: string | null;
+  /** 0-不开票、1-待开票、2-已开票 */
+  invoiceStatus: number;
+  invoiceOverdueDays?: number | null;
+  invoiceFiles?: { id: number; fileName: string; kind: number }[];
   itemAmount: number;
   feeAmount: number;
   totalAmount: number;
@@ -335,8 +352,10 @@ export interface PurchaseOrder {
 
 export interface SavePoBody {
   currencyCode: string;
-  taxIncluded: boolean;
-  taxRate?: number;
+  invoiceRequired: boolean;
+  taxPoint?: number;
+  invoiceAmount?: number | null;
+  expectedInvoiceDate?: string | null;
   paymentTerms: PaymentTerm[];
   contractNo?: string;
   contractAmount?: number | null;
@@ -413,6 +432,17 @@ export const poApi = {
     }),
   cancel: (id: number, reason: string) =>
     send<PurchaseOrder>('POST', `${PO}/${id}/cancel`, { reason }),
+  registerInvoice: (
+    id: number,
+    body: {
+      invoicedDate: string;
+      invoiceAmount: number;
+      taxPoint: number;
+      attachmentIds: number[];
+    },
+  ) => send<PurchaseOrder>('POST', `${PO}/${id}/invoice`, body),
+  revokeInvoice: (id: number, reason: string) =>
+    send<PurchaseOrder>('POST', `${PO}/${id}/invoice/revoke`, { reason }),
   remove: (id: number) => send<void>('DELETE', `${PO}/${id}`),
   upload: (id: number, file: File) => {
     const data = new FormData();

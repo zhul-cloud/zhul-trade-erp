@@ -46,7 +46,8 @@ public class AttachmentController {
             AttachmentService.COURIER_PROOF, List.of("/finance/reimbursements"),
             AttachmentService.RETURN_PROOF, List.of("/finance/reimbursements"),
             AttachmentService.EXPENSE, List.of("/finance/expenses", "/finance/reimbursements"),
-            AttachmentService.REIMBURSE, List.of("/finance/reimbursements", "/finance/payments"));
+            AttachmentService.REIMBURSE, List.of("/finance/reimbursements", "/finance/payments"),
+            AttachmentService.PO_INVOICE, List.of("/purchase/orders", "/finance/payables"));
 
     private final AttachmentService service;
     private final PermissionChecker perm;

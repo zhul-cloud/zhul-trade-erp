@@ -77,14 +77,14 @@ class ReceiptManagementContractTest extends SalesContractSupport {
         body.put("receiptDate", LocalDate.now().toString());
         body.put("bankAccountId", bank());
         body.put("slipId", slip.path("id").asLong());
-        body.put("actualAmountCny", "7123.45");
         JsonNode paid = ok(call(json(post(PI + "/" + id + "/receipts"), write(body)), admin));
         JsonNode r = paid.path("receipts").get(1);
         assertEquals("微信", r.path("paymentMethodName").asText(), "带出水单的付款方式");
-        assertEquals(2, r.path("rateSource").asInt());
-        money("7.123450", r.path("exchangeRate"));
-        money("7123.45", r.path("netAmountCny"));
-        money("7123.45", paid.path("netAmountCny"));
+        assertEquals(3, r.path("rateSource").asInt(), "外币到账未结汇，按估算汇率");
+        assertEquals(1, r.path("settleStatus").asInt());
+        money("7.150000", r.path("exchangeRate"));
+        money("7150.00", r.path("netAmountCny"));
+        money("7150.00", paid.path("netAmountCny"));
         money("1000", paid.path("receivedAmount"));
 
         // 改名后历史记录仍显示原名称

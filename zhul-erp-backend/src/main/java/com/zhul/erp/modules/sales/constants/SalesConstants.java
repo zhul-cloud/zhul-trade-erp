@@ -45,7 +45,17 @@ public final class SalesConstants {
     public static final Map<Integer, String> RECEIPT_CHANNEL_NAMES = Map.of(CHANNEL_OFFLINE, "线下", CHANNEL_ONLINE, "线上");
     /** 实收人民币的汇率来源 */
     public static final int RATE_SYSTEM = 1;
+    /** 旧数据：登记时填的实际入账人民币（迁移后视为已结汇） */
     public static final int RATE_ACTUAL = 2;
+    /** 外币到账还没结完：未结汇部分按估算汇率 */
+    public static final int RATE_ESTIMATE = 3;
+    /** 外币到账已全部结汇 */
+    public static final int RATE_SETTLED = 4;
+    /** 结汇状态 */
+    public static final int SETTLE_NA = 0;
+    public static final int SETTLE_NONE = 1;
+    public static final int SETTLE_PARTIAL = 2;
+    public static final int SETTLE_DONE = 3;
     public static final int RECORD_VALID = 1;
     public static final int RECORD_VOID = 2;
 

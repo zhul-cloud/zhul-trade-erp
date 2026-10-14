@@ -10,6 +10,8 @@ import com.zhul.erp.modules.purchase.dto.PurchaseOrderListVO;
 import com.zhul.erp.modules.purchase.dto.PurchaseOrderPageQuery;
 import com.zhul.erp.modules.purchase.dto.PurchaseOrderStatsVO;
 import com.zhul.erp.modules.purchase.dto.PurchaseOrderVO;
+import com.zhul.erp.modules.purchase.dto.RegisterInvoiceRequest;
+import com.zhul.erp.modules.purchase.dto.RevokeInvoiceRequest;
 import com.zhul.erp.modules.purchase.dto.SavePurchaseOrderRequest;
 import com.zhul.erp.modules.purchase.service.PurchaseOrderService;
 import jakarta.servlet.http.HttpServletResponse;
@@ -93,6 +95,18 @@ public class PurchaseOrderController {
     @PreAuthorize(CANCEL)
     public Result<PurchaseOrderVO> cancel(@PathVariable Long id, @Valid @RequestBody CancelPurchaseOrderRequest req) {
         return Result.ok(service.cancel(id, req));
+    }
+
+    @PostMapping("/{id}/invoice")
+    @PreAuthorize(EDIT)
+    public Result<PurchaseOrderVO> registerInvoice(@PathVariable Long id, @Valid @RequestBody RegisterInvoiceRequest req) {
+        return Result.ok(service.registerInvoice(id, req));
+    }
+
+    @PostMapping("/{id}/invoice/revoke")
+    @PreAuthorize(EDIT)
+    public Result<PurchaseOrderVO> revokeInvoice(@PathVariable Long id, @Valid @RequestBody RevokeInvoiceRequest req) {
+        return Result.ok(service.revokeInvoice(id, req.getReason()));
     }
 
     @PostMapping("/{id}/convert-shop")

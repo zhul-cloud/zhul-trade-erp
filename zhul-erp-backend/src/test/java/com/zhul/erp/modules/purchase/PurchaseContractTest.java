@@ -5,6 +5,9 @@ import com.zhul.erp.modules.sales.SalesContractSupport;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import org.springframework.mock.web.MockMultipartFile;
+
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -14,6 +17,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 
 /** spec purchase/purchase-requirement、purchase/purchase-order 与 sales/sales-order 的采购联动 */
@@ -135,17 +139,19 @@ class PurchaseContractTest extends SalesContractSupport {
     }
 
     @Test
-    void defaultPrice_followsDraftTaxAndRate_categoryShown() throws Exception {
+    void defaultPrice_equalsTargetEvenWithInvoice_categoryShown() throws Exception {
         long sup = supplier("华控自动化", null);
         orderFrom(sup, l("A-1", 2, "1000", "200"));
         long id = drafts(sup).get(0);
         Map<String, Object> body = poBody(po(id, admin), null);
-        body.put("taxIncluded", true);
-        body.put("taxRate", 13);
+        body.put("invoiceRequired", true);
+        body.put("taxPoint", 3);
+        assertEquals("请填写预计开票日期", fail(savePo(id, body, admin)).path("message").asText());
+        body.put("expectedInvoiceDate", LocalDate.now().plusDays(7).toString());
         ok(savePo(id, body, admin));
         orderFrom(sup, l("C-1", 1, "500", "100"));
         JsonNode po = po(id, admin);
-        money("565.00", po.path("items").get(1).path("unitPrice"));
+        money("500.00", po.path("items").get(1).path("unitPrice"));
         money("500.00", po.path("items").get(1).path("netPriceCny"));
         money("0.00", po.path("items").get(1).path("bargainAmount"));
         long reqId = po.path("items").get(0).path("requirementId").asLong();
@@ -280,21 +286,22 @@ class PurchaseContractTest extends SalesContractSupport {
     // ---------------------------------------------------------------- 价格、税、费用、付款条件、合同
 
     @Test
-    void taxIncludedBargain_feesTotal_termsValidation_contractDiff_editLogged() throws Exception {
+    void invoiceBargain_feesTotal_termsValidation_contractDiff_editLogged() throws Exception {
         long sup = supplier("华控自动化", null);
         orderFrom(sup, l("A-1", 60, "1000", "200"), l("C-1", 10, "500", "100"));
         long id = drafts(sup).get(0);
         JsonNode po = po(id, admin);
         Map<String, Object> b = poBody(po, null);
-        b.put("taxIncluded", true);
-        b.put("taxRate", 13);
-        item(b, 0).put("unitPrice", "904.00");
-        item(b, 1).put("unitPrice", "587.60");
+        b.put("invoiceRequired", true);
+        b.put("taxPoint", 3);
+        b.put("expectedInvoiceDate", LocalDate.now().plusDays(7).toString());
+        item(b, 0).put("unitPrice", "800.00");
+        item(b, 1).put("unitPrice", "520.00");
         b.put("fees", List.of(Map.of("feeName", "运费", "amount", "30")));
         b.put("paymentTerms", List.of(Map.of("percent", 30, "trigger", 1), Map.of("percent", 60, "trigger", 3)));
         assertEquals("各期比例合计须为 100%", fail(savePo(id, b, admin)).path("message").asText());
         b.put("paymentTerms", List.of(Map.of("percent", 30, "trigger", 1), Map.of("percent", 70, "trigger", 3)));
-        b.put("contractAmount", "60116.00");
+        b.put("contractAmount", "54796.00");
         po = ok(savePo(id, b, admin));
         money("800.00", po.path("items").get(0).path("netPriceCny"));
         money("12000.00", po.path("items").get(0).path("bargainAmount"));
@@ -303,22 +310,80 @@ class PurchaseContractTest extends SalesContractSupport {
         money("-4.00", po.path("items").get(1).path("bargainRate"));
         money("11800.00", po.path("bargainAmount"));
         money("18.15", po.path("bargainRate"));
-        money("60146.00", po.path("totalAmount"));
+        // 货款 53,200 + 运费 30 + 开票成本 53,200 × 3% = 1,596，开票成本不计入砍价
+        money("1596.00", po.path("invoiceCost"));
+        money("54826.00", po.path("totalAmount"));
         money("-30.00", po.path("contractDiff"));
         assertEquals("30% 下单后 · 70% 入库后", po.path("paymentTermsText").asText());
 
         ok(confirmPo(id, admin));
         b = poBody(po(id, admin), null);
-        item(b, 0).put("unitPrice", "880.00");
+        item(b, 0).put("unitPrice", "780.00");
         po = ok(savePo(id, b, admin));
-        assertTrue(po.path("logs").get(0).path("content").asText().contains("A-1 单价 CNY 904.00 → CNY 880.00"), "下单后改价留痕");
-        // 880 ÷ 1.13 = 778.7610…；(1000 − 778.7610…) × 60 = 13274.34
-        money("13274.34", po.path("items").get(0).path("bargainAmount"));
+        assertTrue(po.path("logs").get(0).path("content").asText().contains("A-1 单价 CNY 800.00 → CNY 780.00"), "下单后改价留痕");
+        money("13200.00", po.path("items").get(0).path("bargainAmount"));
+        money("1560.00", po.path("invoiceCost")); // 开票金额没填，跟着货款变
 
         JsonNode list = ok(call(json(post(PO + "/page"), write(Map.of("supplierId", sup))), admin));
         assertEquals(1, list.path("total").asInt());
         assertEquals(2, list.path("records").get(0).path("itemCount").asInt());
         assertEquals(70, list.path("records").get(0).path("totalQuantity").asInt());
+    }
+
+    @Test
+    void invoice_costInTotalAndPayable_register_adjust_revoke_overdueFilter() throws Exception {
+        long sup = supplier("智能工业产品服务", null);
+        orderFrom(sup, l("A-1", 16, "1000", "200"));
+        long id = drafts(sup).get(0);
+        Map<String, Object> b = poBody(po(id, admin), "1000");
+        b.put("invoiceRequired", true);
+        b.put("taxPoint", 3);
+        b.put("expectedInvoiceDate", LocalDate.now().minusDays(3).toString());
+        JsonNode po = ok(savePo(id, b, admin));
+        money("16000.00", po.path("invoiceAmountEffective"));
+        money("480.00", po.path("invoiceCost"));
+        money("16480.00", po.path("totalAmount"));
+        money("0.00", po.path("bargainAmount"));
+        assertEquals(1, po.path("invoiceStatus").asInt());
+        assertEquals(3, po.path("invoiceOverdueDays").asInt());
+        ok(confirmPo(id, admin));
+        money("16480.00", ok(call(get("/api/v1/finance/payables/by-source").param("sourceType", "1").param("sourceId", String.valueOf(id)), admin))
+                .path("amount"));
+        assertEquals(1, ok(call(json(post(PO + "/page"), write(Map.of("invoiceStatus", "OVERDUE"))), admin)).path("total").asInt());
+
+        Map<String, Object> inv = new java.util.HashMap<>();
+        inv.put("invoicedDate", LocalDate.now().toString());
+        inv.put("invoiceAmount", 15000);
+        inv.put("taxPoint", 3);
+        inv.put("attachmentIds", List.of());
+        assertEquals("请上传电子发票", fail(call(json(post(PO + "/" + id + "/invoice"), write(inv)), admin)).path("message").asText());
+        long file = ok(call(multipart("/api/v1/attachments").file(new MockMultipartFile("file", "dzfp.png", "image/png", PNG))
+                .param("ownerType", "PO_INVOICE"), admin)).path("id").asLong();
+        inv.put("attachmentIds", List.of(file));
+        inv.put("invoicedDate", LocalDate.now().plusDays(1).toString());
+        assertEquals("实际开票日期不能晚于今天", fail(call(json(post(PO + "/" + id + "/invoice"), write(inv)), admin)).path("message").asText());
+        inv.put("invoicedDate", LocalDate.now().toString());
+        po = ok(call(json(post(PO + "/" + id + "/invoice"), write(inv)), admin));
+        assertEquals(2, po.path("invoiceStatus").asInt());
+        money("450.00", po.path("invoiceCost"));
+        money("16450.00", po.path("totalAmount"));
+        assertEquals(1, po.path("invoiceFiles").size());
+        assertTrue(po.path("invoiceOverdueDays").isMissingNode() || po.path("invoiceOverdueDays").isNull());
+        money("16450.00", ok(call(get("/api/v1/finance/payables/by-source").param("sourceType", "1").param("sourceId", String.valueOf(id)), admin))
+                .path("amount"));
+        assertEquals("已登记过开票", fail(call(json(post(PO + "/" + id + "/invoice"), write(inv)), admin)).path("message").asText());
+        Map<String, Object> off = poBody(po(id, admin), null);
+        off.put("invoiceRequired", false);
+        assertEquals("已开票，请先撤销已开票", fail(savePo(id, off, admin)).path("message").asText());
+        assertEquals(1, ok(call(json(post(PO + "/page"), write(Map.of("invoiceStatus", "DONE"))), admin)).path("total").asInt());
+
+        po = ok(call(json(post(PO + "/" + id + "/invoice/revoke"), write(Map.of("reason", "发票抬头错"))), admin));
+        assertEquals(1, po.path("invoiceStatus").asInt());
+        assertTrue(po.path("logs").get(0).path("content").asText().contains("发票抬头错"));
+        assertEquals(1, ok(call(json(post(PO + "/page"), write(Map.of("invoiceStatus", "OVERDUE"))), admin)).path("total").asInt());
+        ok(call(json(post(PO + "/" + id + "/cancel"), "{\"reason\":\"缺货\"}"), admin));
+        assertEquals(0, ok(call(json(post(PO + "/page"), write(Map.of("invoiceStatus", "OVERDUE"))), admin)).path("total").asInt(),
+                "已取消的不再提醒开票");
     }
 
     // ---------------------------------------------------------------- 拆分、指派、换供应商

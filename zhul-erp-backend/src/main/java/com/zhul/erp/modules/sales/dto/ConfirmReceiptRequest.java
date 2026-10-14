@@ -20,8 +20,6 @@ public class ConfirmReceiptRequest {
     private Long slipId;
     /** 付款方式（线下）；不传时取水单的付款方式，没有水单时取默认项 */
     private String paymentMethod;
-    /** 已结汇时的实际入账人民币 */
-    private BigDecimal actualAmountCny;
     /** 本次到账后的剩余差额记为银行中转手续费 */
     private Boolean feeDiff;
     @Size(max = 300, message = "说明不能超过 300 字")

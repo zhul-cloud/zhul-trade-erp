@@ -44,7 +44,7 @@ import {
   type ReceiptResult,
   readBizError,
 } from '../service';
-import { ActualCnyInput, PaymentMethodSelect } from './receiptDialogs';
+import { FxEstimateHint, PaymentMethodSelect } from './receiptDialogs';
 import { defaultSlipAmount } from './slipAmount';
 
 const num: React.CSSProperties = { fontVariantNumeric: 'tabular-nums' };
@@ -745,7 +745,6 @@ export const ConfirmReceiptModal = <T extends ReceiptResult>({
   const [feeDiff, setFeeDiff] = useState(false);
   const [note, setNote] = useState('');
   const [method, setMethod] = useState<string>();
-  const [actual, setActual] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
 
   const slips = useMemo(
@@ -769,7 +768,6 @@ export const ConfirmReceiptModal = <T extends ReceiptResult>({
     setFeeDiff(false);
     setNote('');
     setMethod(slip?.paymentMethod);
-    setActual(null);
   }, [open, slips]);
 
   useEffect(() => {
@@ -794,7 +792,6 @@ export const ConfirmReceiptModal = <T extends ReceiptResult>({
         slipId,
         feeDiff: canFee && feeDiff,
         paymentMethod: method,
-        actualAmountCny: actual ?? undefined,
         note: note.trim() || undefined,
       });
       message.success(`已登记到账，收款状态：${res.receiptStatusName}`);
@@ -981,12 +978,7 @@ export const ConfirmReceiptModal = <T extends ReceiptResult>({
           onChange={setMethod}
         />
       </div>
-      <ActualCnyInput
-        net={amount ?? 0}
-        currency={cur}
-        value={actual}
-        onChange={setActual}
-      />
+      <FxEstimateHint currency={cur} />
       <div style={{ marginTop: 12 }}>
         <div style={{ ...label, color: palette.sub }}>说明（选填）</div>
         <Input
@@ -996,7 +988,7 @@ export const ConfirmReceiptModal = <T extends ReceiptResult>({
         />
       </div>
       <div style={{ marginTop: 12, fontSize: 12, color: palette.mute }}>
-        没有填实际入账人民币时按登记时的系统汇率折算；到账记录保存后不能修改，登记错误时作废后重新登记。
+        到账记录保存后不能修改，登记错误时作废后重新登记。
       </div>
     </Modal>
   );

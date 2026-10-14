@@ -46,6 +46,7 @@ interface Filters {
   status?: number;
   shipProgress?: string;
   payStatus?: string;
+  invoiceStatus?: string;
   supplierId?: number;
   purchaserId?: number;
   range?: [Dayjs, Dayjs] | null;
@@ -75,6 +76,7 @@ const PurchaseOrderList: React.FC = () => {
       status: filters.status,
       shipProgress: filters.shipProgress,
       payStatus: filters.payStatus,
+      invoiceStatus: filters.invoiceStatus,
       supplierId: filters.supplierId,
       purchaserId: filters.purchaserId,
       orderFrom: filters.range?.[0]?.format('YYYY-MM-DD'),
@@ -112,6 +114,7 @@ const PurchaseOrderList: React.FC = () => {
     !filters.status &&
     !filters.shipProgress &&
     !filters.payStatus &&
+    !filters.invoiceStatus &&
     !filters.supplierId &&
     !filters.purchaserId &&
     !filters.range;
@@ -224,6 +227,29 @@ const PurchaseOrderList: React.FC = () => {
         ),
     },
     {
+      title: '开票',
+      key: 'invoice',
+      width: 150,
+      render: (_, r) =>
+        !r.invoiceStatus ? (
+          <span style={{ color: palette.mute }}>不开票</span>
+        ) : (
+          <div>
+            {r.invoiceOverdueDays ? (
+              <Pill tone="red">开票逾期 {r.invoiceOverdueDays} 天</Pill>
+            ) : r.invoiceStatus === 2 ? (
+              <Pill tone="green">已开票</Pill>
+            ) : (
+              <Pill tone="orange">待开票</Pill>
+            )}
+            <div style={{ fontSize: 12, color: palette.sub }}>
+              {formatAmount(r.invoiceAmount, r.currencyCode)} ·{' '}
+              {Number(r.taxPoint ?? 0)}%
+            </div>
+          </div>
+        ),
+    },
+    {
       title: '预计发货日期',
       dataIndex: 'expectedShipDate',
       width: 130,
@@ -327,7 +353,7 @@ const PurchaseOrderList: React.FC = () => {
       <PurchasePageTitle
         crumbs={['采购订单']}
         title="采购订单"
-        description="向供应商下的单：记录实际采购价、付款条件与供应商合同；砍价 = 目标价 − 不含税采购价。"
+        description="向供应商下的单：记录实际采购价、开票、付款条件与供应商合同；砍价 = 目标价 − 人民币采购价，开票成本不计入砍价。"
       />
 
       {stats && (
@@ -470,6 +496,23 @@ const PurchaseOrderList: React.FC = () => {
               />
             </Form.Item>
             <Form.Item
+              name="invoiceStatus"
+              label="开票"
+              style={{ marginBottom: 0 }}
+            >
+              <Select
+                allowClear
+                placeholder="全部"
+                style={{ minWidth: 120 }}
+                options={[
+                  { value: 'NONE', label: '不开票' },
+                  { value: 'PENDING', label: '待开票' },
+                  { value: 'DONE', label: '已开票' },
+                  { value: 'OVERDUE', label: '开票逾期' },
+                ]}
+              />
+            </Form.Item>
+            <Form.Item
               name="supplierId"
               label="供应商"
               style={{ marginBottom: 0 }}
@@ -534,7 +577,7 @@ const PurchaseOrderList: React.FC = () => {
           columns={columns}
           dataSource={rows}
           loading={loading}
-          scroll={{ x: 2180 }}
+          scroll={{ x: 2330 }}
           onChange={onTableChange}
           locale={{ emptyText: '没有符合条件的采购订单，换个筛选条件试试' }}
           pagination={{

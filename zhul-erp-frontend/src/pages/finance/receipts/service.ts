@@ -18,6 +18,8 @@ export interface ReceiptSummary {
   amounts: ReceiptMoney[];
   fees: ReceiptMoney[];
   netAmountCny: number;
+  /** 其中还没结完汇的到账（含估算部分） */
+  openNetAmountCny?: number;
 }
 
 export interface ReceiptRecordQuery {
@@ -27,6 +29,8 @@ export interface ReceiptRecordQuery {
   paymentMethod?: string;
   channel?: number;
   currencyCode?: string;
+  /** 结汇状态：1-未结汇、2-部分结汇、3-已结汇 */
+  settleStatus?: number;
   includeVoid?: boolean;
   page: number;
   pageSize: number;
@@ -47,7 +51,6 @@ export const ledgerApi = {
     bankAccountId: number;
     paymentMethod?: string;
     payer?: string;
-    actualAmountCny?: number;
     note?: string;
   }) =>
     unwrap(

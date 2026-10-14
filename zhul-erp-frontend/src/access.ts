@@ -91,6 +91,7 @@ export default function access(initialState: {
     // 财务管理
     financeMenu: any(
       '/finance/receipts',
+      '/finance/fx-settlements',
       '/finance/payables',
       '/finance/payments',
       '/finance/reimbursements',
@@ -101,6 +102,8 @@ export default function access(initialState: {
     'finance:reimburse:pay': can('finance:reimburse:pay'),
     'finance:expense:edit': can('finance:expense:edit'),
     financeReceipts: can('/finance/receipts'),
+    financeFxSettlements: can('/finance/fx-settlements'),
+    'finance:fx:settle': can('finance:fx:settle'),
     financePayables: can('/finance/payables'),
     financePayments: can('/finance/payments'),
     'finance:payment:register': can('finance:payment:register'),

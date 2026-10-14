@@ -76,4 +76,10 @@ public final class FinanceConstants {
 
     private FinanceConstants() {
     }
+
+    /** 结汇单（spec finance/fx-settlement） */
+    public static final String MENU_FX = "/finance/fx-settlements";
+    public static final String PERM_FX_SETTLE = "finance:fx:settle";
+    public static final int FX_VALID = 1;
+    public static final int FX_VOID = 2;
 }

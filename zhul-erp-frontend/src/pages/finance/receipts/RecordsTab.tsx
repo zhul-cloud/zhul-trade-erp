@@ -25,6 +25,7 @@ interface Filters {
   paymentMethod?: string;
   channel?: number;
   currencyCode?: string;
+  settleStatus?: number;
   includeVoid: boolean;
 }
 
@@ -58,6 +59,7 @@ const RecordsTab: React.FC = () => {
         paymentMethod: filters.paymentMethod,
         channel: filters.channel,
         currencyCode: filters.currencyCode,
+        settleStatus: filters.settleStatus,
         includeVoid: filters.includeVoid || undefined,
         page,
         pageSize,
@@ -105,7 +107,12 @@ const RecordsTab: React.FC = () => {
         >
           {formatAmount(s.netAmountCny, 'CNY')}
         </div>
-        <div style={{ fontSize: 12, color: palette.mute }}>实收人民币</div>
+        <div style={{ fontSize: 12, color: palette.mute }}>
+          实收人民币
+          {s.openNetAmountCny
+            ? ` · 其中未结完 ${formatAmount(s.openNetAmountCny, 'CNY')}（含估算）`
+            : ''}
+        </div>
         <div style={{ fontSize: 12, color: palette.sub, marginTop: 4 }}>
           毛额 {moneyText(s.amounts)}
           {s.fees.length ? ` · 手续费 ${moneyText(s.fees)}` : ''}
@@ -270,6 +277,18 @@ const RecordsTab: React.FC = () => {
             value={draft.currencyCode}
             onChange={(v) => setDraft({ ...draft, currencyCode: v })}
             options={CURRENCIES.map((c) => ({ value: c, label: c }))}
+          />
+          <Select
+            allowClear
+            style={{ width: 130 }}
+            placeholder="结汇状态"
+            value={draft.settleStatus}
+            onChange={(v) => setDraft({ ...draft, settleStatus: v })}
+            options={[
+              { value: 1, label: '未结汇' },
+              { value: 2, label: '部分结汇' },
+              { value: 3, label: '已结汇' },
+            ]}
           />
           <Checkbox
             checked={draft.includeVoid}
