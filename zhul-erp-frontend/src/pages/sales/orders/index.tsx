@@ -45,9 +45,18 @@ interface Filters {
   receiptStatus?: number;
 }
 
-const initial = (): Filters => ({
-  range: [dayjs().startOf('month'), dayjs().endOf('month')],
-});
+/** 默认本月；从销售统计跳转时用 URL 带的销售日期 */
+const initial = (): Filters => {
+  const p = new URLSearchParams(window.location.search);
+  const from = p.get('dateFrom');
+  const to = p.get('dateTo');
+  return {
+    range:
+      from && to
+        ? [dayjs(from), dayjs(to)]
+        : [dayjs().startOf('month'), dayjs().endOf('month')],
+  };
+};
 
 const OrderList: React.FC = () => {
   const { palette } = useAppTheme();

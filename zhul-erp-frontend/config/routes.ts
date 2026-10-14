@@ -292,6 +292,13 @@ export default [
         access: 'inquiryPriceHistory',
         component: './inquiry/price-history',
       },
+      {
+        path: '/inquiry/sourcing-stats',
+        name: 'sourcingStats',
+        icon: 'pieChart',
+        access: 'inquirySourcingStats',
+        component: './inquiry/sourcing-stats',
+      },
     ],
   },
   {
@@ -357,6 +364,13 @@ export default [
         hideInMenu: true,
         access: 'salesOrders',
         component: './sales/orders/detail',
+      },
+      {
+        path: '/sales/stats',
+        name: 'stats',
+        icon: 'barChart',
+        access: 'salesStats',
+        component: './sales/stats',
       },
     ],
   },

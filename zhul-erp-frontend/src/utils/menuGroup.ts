@@ -14,6 +14,7 @@ const GROUPS: [string, string][] = [
   ['/inquiry/my-tasks', '采购管理'],
   ['/inquiry/part-time-board', '采购管理'],
   ['/inquiry/price-history', '采购管理'],
+  ['/inquiry/sourcing-stats', '采购管理'],
   ['/supplier/', '采购管理'],
   ['/purchase/', '采购管理'],
   ['/warehouse/', '仓库管理'],
