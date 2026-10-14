@@ -12,10 +12,11 @@ import { Button, DatePicker, Form, Input, Select, Skeleton, Table } from 'antd';
 import type { Dayjs } from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
+import { auditColumns } from '@/pages/purchase/components';
 import { getUserList } from '@/pages/system/user/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import { DICT_SOURCE_CHANNEL, useDictOptions } from '@/utils/dict';
-import { formatDateTime } from '@/utils/format';
+import { usePageSize } from '@/utils/pageSize';
 import { Card, PageTitle, Pill, StagePill } from './components';
 import { CATEGORY_ACTIVE, LIST_PATH } from './constants';
 import RegisterDrawer from './RegisterDrawer';
@@ -57,9 +58,9 @@ const OpportunityPage: React.FC = () => {
   const canAdd = !!access['crm:opportunity:add'];
 
   const [form] = Form.useForm<FilterState>();
-  const [query, setQuery] = useState<OpportunityQuery>({ stage: 'ACTIVE' });
+  const [query, setQuery] = useState<OpportunityQuery>({});
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [pageSize, setPageSize] = usePageSize(10);
   const [rows, setRows] = useState<OpportunityItem[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -124,9 +125,8 @@ const OpportunityPage: React.FC = () => {
   };
   const reset = () => {
     form.resetFields();
-    form.setFieldsValue({ stage: 'ACTIVE' });
     setPage(1);
-    setQuery({ stage: 'ACTIVE' });
+    setQuery({});
   };
 
   const columns: TableColumnsType<OpportunityItem> = [
@@ -157,8 +157,9 @@ const OpportunityPage: React.FC = () => {
     {
       title: '来源渠道',
       dataIndex: 'sourceChannel',
-      width: 140,
-      render: (v: number) => sourceLabel(v),
+      width: 160,
+      render: (v: number, r) =>
+        r.aliLevel ? `${sourceLabel(v)} · ${r.aliLevel}` : sourceLabel(v),
     },
     {
       title: '首次接触',
@@ -192,12 +193,7 @@ const OpportunityPage: React.FC = () => {
       width: 100,
       render: (v?: string) => v || '未分配',
     },
-    {
-      title: '更新时间',
-      dataIndex: 'updateTime',
-      width: 170,
-      render: (v: string) => <span className="num">{formatDateTime(v)}</span>,
-    },
+    ...auditColumns<OpportunityItem>(),
     {
       title: '操作',
       key: 'op',
@@ -254,14 +250,10 @@ const OpportunityPage: React.FC = () => {
   let body: React.ReactNode;
   if (error) {
     body = <ErrorHint message={error} onRetry={load} />;
-  } else if (
-    !loading &&
-    total === 0 &&
-    JSON.stringify(query) === JSON.stringify({ stage: 'ACTIVE' })
-  ) {
+  } else if (!loading && total === 0 && JSON.stringify(query) === '{}') {
     body = (
       <EmptyHint
-        title="还没有进行中的商机"
+        title="还没有商机"
         description="接到新客户时登记一条商机，每天各渠道的新增和有效情况会自动统计。"
         actionText={canAdd ? '登记商机' : undefined}
         onAction={canAdd ? () => setDrawerOpen(true) : undefined}
@@ -274,7 +266,7 @@ const OpportunityPage: React.FC = () => {
         loading={loading}
         columns={columns}
         dataSource={rows}
-        scroll={{ x: 1300 }}
+        scroll={{ x: 1750 }}
         locale={{ emptyText: '没有符合条件的商机，换个筛选条件试试' }}
         onRow={(r) => ({
           style: { cursor: 'pointer' },
@@ -371,12 +363,7 @@ const OpportunityPage: React.FC = () => {
         </div>
 
         <Card>
-          <Form<FilterState>
-            form={form}
-            layout="vertical"
-            initialValues={{ stage: 'ACTIVE' }}
-            onFinish={search}
-          >
+          <Form<FilterState> form={form} layout="vertical" onFinish={search}>
             <div
               style={{
                 display: 'flex',

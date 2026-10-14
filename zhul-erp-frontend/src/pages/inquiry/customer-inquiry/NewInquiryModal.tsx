@@ -48,6 +48,7 @@ interface Values {
   urgent: boolean;
   level: number;
   rawContent?: string;
+  remark?: string;
 }
 
 const fileIcon = (name: string) =>
@@ -99,6 +100,8 @@ const NewInquiryModal: React.FC<{
     setTypeHint(null);
     if (!id) return;
     const t = await inquiryApi.customerType(id).catch(() => null);
+    // 来源默认取客户档案的来源渠道，可以再改
+    if (t?.sourceChannel) form.setFieldValue('source', t.sourceChannel);
     if (t)
       setTypeHint({
         type: t.customerType,
@@ -163,6 +166,7 @@ const NewInquiryModal: React.FC<{
         urgent: v.urgent,
         level: v.level,
         rawContent: v.rawContent?.trim() || undefined,
+        remark: v.remark?.trim() || undefined,
         attachments: files.map((f) => ({
           fileKey: f.fileKey,
           fileName: f.fileName,
@@ -346,6 +350,18 @@ const NewInquiryModal: React.FC<{
               rows={6}
               maxLength={20000}
               placeholder="把客户发来的文字粘贴到这里"
+            />
+          </Form.Item>
+          <Form.Item
+            name="remark"
+            label="备注"
+            rules={[{ max: 500, message: '备注不能超过 500 字' }]}
+          >
+            <Input.TextArea
+              rows={2}
+              maxLength={500}
+              showCount
+              placeholder="选填，如 客户要求原装进口"
             />
           </Form.Item>
           <Upload.Dragger

@@ -35,6 +35,7 @@ import type { Attachment } from '@/pages/warehouse/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import { useDictTexts } from '@/utils/dict';
 import { formatAmount } from '@/utils/format';
+import { usePageSize } from '@/utils/pageSize';
 import {
   ACCEPT_PROOF,
   PayStatusPill,
@@ -538,7 +539,7 @@ const ExpensePage: React.FC = () => {
   const [draft, setDraft] = useState<Filters>(initial);
   const [filters, setFilters] = useState<Filters>(initial);
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
+  const [pageSize, setPageSize] = usePageSize(20);
   const [rows, setRows] = useState<Expense[]>([]);
   const [total, setTotal] = useState(0);
   const [monthTotal, setMonthTotal] = useState(0);

@@ -19,6 +19,7 @@ import { CURRENCIES } from '@/pages/quotation/components';
 import { readBizError } from '@/pages/sales/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
+import { usePageSize } from '@/utils/pageSize';
 import {
   DueTag,
   PayableBody,
@@ -72,7 +73,7 @@ const PayableManagement: React.FC = () => {
   const [draft, setDraft] = useState<Filters>(initial);
   const [filters, setFilters] = useState<Filters>(initial);
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
+  const [pageSize, setPageSize] = usePageSize(20);
   const [rows, setRows] = useState<Payable[]>([]);
   const [total, setTotal] = useState(0);
   const [stats, setStats] = useState<PayableStats>();

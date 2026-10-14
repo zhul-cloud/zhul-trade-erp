@@ -27,6 +27,7 @@ import {
 } from 'antd';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useAppTheme } from '@/theme/AppTheme';
+import { usePagination } from '@/utils/pageSize';
 import type { DictItemRow, DictTypeItem } from './service';
 import {
   createDictItem,
@@ -60,6 +61,7 @@ type TypeDrawerMode = 'create' | 'edit';
 type ItemDrawerMode = 'create' | 'edit';
 
 const DictPage: React.FC = () => {
+  const pager = usePagination(20);
   const { palette: p } = useAppTheme();
   const { message, modal } = App.useApp();
   const access = useAccess();
@@ -492,7 +494,7 @@ const DictPage: React.FC = () => {
                 columns={itemColumns}
                 dataSource={itemList}
                 loading={itemLoading}
-                pagination={{ pageSize: 20 }}
+                pagination={pager}
                 locale={{
                   emptyText: '该字典类型下暂无字典项，点击「新增字典项」添加',
                 }}

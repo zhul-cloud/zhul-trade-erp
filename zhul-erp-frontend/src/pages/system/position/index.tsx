@@ -11,6 +11,7 @@ import { useAccess } from '@umijs/max';
 import { App, Badge, Button, Input, Popconfirm } from 'antd';
 import React, { useRef, useState } from 'react';
 import { useAppTheme } from '@/theme/AppTheme';
+import { usePagination } from '@/utils/pageSize';
 import type { PositionItem } from './service';
 import {
   createPosition,
@@ -25,6 +26,7 @@ import {
 const CODE_PATTERN = /^[A-Za-z0-9_]{2,32}$/;
 
 const PositionPage: React.FC = () => {
+  const pager = usePagination(10);
   const { palette: p } = useAppTheme();
   const actionRef = useRef<ActionType>(undefined);
   const { message, modal } = App.useApp();
@@ -222,7 +224,7 @@ const PositionPage: React.FC = () => {
         rowKey="id"
         columns={columns}
         request={getPositionList}
-        pagination={{ pageSize: 10 }}
+        pagination={pager}
         search={{ labelWidth: 'auto' }}
         toolBarRender={() => [
           !!(access as Record<string, unknown>)['system:position:add'] && (

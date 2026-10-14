@@ -180,6 +180,10 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
         vo.setCustomerType(won.isEmpty() ? InquiryConstants.CUSTOMER_NEW : InquiryConstants.CUSTOMER_RETURNING);
         vo.setWonCount(won.size());
         vo.setLastWonDate(won.stream().map(i -> i.getUpdateTime().toLocalDate()).max(LocalDate::compareTo).orElse(null));
+        CustomerDO customer = customerMapper.selectById(customerId);
+        if (customer != null && Objects.equals(customer.getTenantId(), tenantId()) && customer.getDeletedAt() == null) {
+            vo.setSourceChannel(customer.getSourceChannel());
+        }
         return vo;
     }
 

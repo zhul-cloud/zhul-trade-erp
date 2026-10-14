@@ -31,6 +31,7 @@ import {
 import React, { useEffect, useRef, useState } from 'react';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatDateTime } from '@/utils/format';
+import { usePagination } from '@/utils/pageSize';
 import type { ConfigGroupCount, ConfigItem, ConfigType } from './service';
 import {
   createConfig,
@@ -144,6 +145,7 @@ const TYPE_COLOR: Record<ConfigType, string> = {
 };
 
 const ConfigPage: React.FC = () => {
+  const pager = usePagination(20);
   const { palette: p } = useAppTheme();
   const actionRef = useRef<ActionType>(undefined);
   const { message, modal } = App.useApp();
@@ -455,7 +457,7 @@ const ConfigPage: React.FC = () => {
         rowKey="id"
         columns={columns}
         search={false}
-        pagination={{ pageSize: 20 }}
+        pagination={pager}
         request={(params) =>
           getConfigList({
             current: params.current,

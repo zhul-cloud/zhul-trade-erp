@@ -28,10 +28,12 @@ import {
   transitApi,
 } from '@/pages/warehouse/service';
 import { useAppTheme } from '@/theme/AppTheme';
+import { usePagination } from '@/utils/pageSize';
 
 type Editing = Partial<TransitTime> & { open: true };
 
 const TransitTimes: React.FC = () => {
+  const pager = usePagination(50);
   const { palette } = useAppTheme();
   const { message, modal } = App.useApp();
   const access = useAccess();
@@ -261,7 +263,7 @@ const TransitTimes: React.FC = () => {
           dataSource={rows}
           loading={loading}
           scroll={{ x: 1300 }}
-          pagination={{ pageSize: 50, showTotal: (t) => `共 ${t} 条` }}
+          pagination={{ ...pager, showTotal: (t) => `共 ${t} 条` }}
           locale={{ emptyText: '没有规则；估算时按默认运输天数' }}
         />
       )}

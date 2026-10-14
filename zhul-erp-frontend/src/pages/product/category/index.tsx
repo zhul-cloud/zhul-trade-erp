@@ -12,6 +12,7 @@ import { useAccess } from '@umijs/max';
 import { App, Button, Tooltip } from 'antd';
 import React, { useRef, useState } from 'react';
 import { formatDateTime } from '@/utils/format';
+import { usePagination } from '@/utils/pageSize';
 import { Pill } from '../components/Pills';
 import { DESCRIPTION_MAX } from '../constants';
 import { type Category, categoryApi, readBizError } from '../service';
@@ -26,6 +27,7 @@ const TWO_LINES: React.CSSProperties = {
 };
 
 const CategoryPage: React.FC = () => {
+  const pager = usePagination(20);
   const { message, modal } = App.useApp();
   const access = useAccess();
   const actionRef = useRef<ActionType>(undefined);
@@ -308,7 +310,7 @@ const CategoryPage: React.FC = () => {
         }}
         expandable={{ defaultExpandAllRows: false }}
         scroll={{ x: 'max-content' }}
-        pagination={{ pageSize: 20, showTotal: (t) => `共 ${t} 条记录` }}
+        pagination={{ ...pager, showTotal: (t) => `共 ${t} 条记录` }}
         locale={{
           emptyText: '还没有品类。先新增一个，新建商品时才能选择品类。',
         }}

@@ -543,10 +543,13 @@ export const inquiryApi = {
       attachmentId,
     }),
   customerType: (customerId: number) =>
-    get<{ customerType: number; wonCount: number; lastWonDate?: string }>(
-      `${INQ}/customer-type`,
-      { customerId },
-    ),
+    get<{
+      customerType: number;
+      wonCount: number;
+      lastWonDate?: string;
+      /** 客户档案的来源渠道 */
+      sourceChannel?: number;
+    }>(`${INQ}/customer-type`, { customerId }),
   priceMatch: (brand: string, model: string) =>
     get<PriceMatch>(`${INQ}/price-match`, { brand, model }),
   submit: (data: SubmitPayload) => send<CustomerInquiry>('POST', INQ, data),

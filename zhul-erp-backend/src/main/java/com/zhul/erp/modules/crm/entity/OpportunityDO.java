@@ -22,6 +22,8 @@ public class OpportunityDO {
     private Long customerId;
     /** 来源渠道，同客户来源渠道枚举 */
     private Integer sourceChannel;
+    /** 阿里等级（L0、L1、L1+、L2、L3、L4，空表示未填） */
+    private String aliLevel;
     /** 首次接触日期：统计归属日 */
     private LocalDate firstContactDate;
     private Long ownerId;

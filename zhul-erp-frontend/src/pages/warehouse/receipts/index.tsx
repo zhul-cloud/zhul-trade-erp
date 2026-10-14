@@ -6,6 +6,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { auditColumns } from '@/pages/purchase/components';
 import { useAppTheme } from '@/theme/AppTheme';
+import { usePageSize } from '@/utils/pageSize';
 import {
   ArrivalCell,
   Card,
@@ -32,7 +33,7 @@ const Receipts: React.FC = () => {
   const [keyword, setKeyword] = useState('');
   const [query, setQuery] = useState<string>();
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
+  const [pageSize, setPageSize] = usePageSize(20);
   const [ships, setShips] = useState<Shipment[]>([]);
   const [receipts, setReceipts] = useState<Receipt[]>([]);
   const [total, setTotal] = useState(0);

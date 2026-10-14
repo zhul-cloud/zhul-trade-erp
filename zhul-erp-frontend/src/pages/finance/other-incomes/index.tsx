@@ -23,6 +23,7 @@ import type { Attachment } from '@/pages/warehouse/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import { useDictTexts } from '@/utils/dict';
 import { formatAmount } from '@/utils/format';
+import { usePageSize } from '@/utils/pageSize';
 import { ACCEPT_PROOF, ProofLinks } from '../payables/components';
 import { DICT_INCOME_CATEGORY, incomeApi, type OtherIncome } from './service';
 
@@ -173,7 +174,7 @@ const OtherIncomePage: React.FC = () => {
   const [range, setRange] = useState<[Dayjs, Dayjs] | null>(rangeFromUrl);
   const [showVoid, setShowVoid] = useState(false);
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
+  const [pageSize, setPageSize] = usePageSize(20);
   const [rows, setRows] = useState<OtherIncome[]>([]);
   const [total, setTotal] = useState(0);
   const [sum, setSum] = useState(0);

@@ -6,6 +6,7 @@ import { Alert, App, Button, Tag, Tooltip } from 'antd';
 import dayjs from 'dayjs';
 import React, { useRef, useState } from 'react';
 import { useAppTheme } from '@/theme/AppTheme';
+import { usePagination } from '@/utils/pageSize';
 import type { LoginLogItem } from './service';
 import { exportLoginLogs, forceLogout, getLoginLogList } from './service';
 
@@ -16,6 +17,7 @@ const DEFAULT_RANGE: [dayjs.Dayjs, dayjs.Dayjs] = [
 ];
 
 const LoginLogPage: React.FC = () => {
+  const pager = usePagination(20);
   const { palette: p } = useAppTheme();
   const actionRef = useRef<ActionType>(undefined);
   const { message, modal } = App.useApp();
@@ -192,11 +194,7 @@ const LoginLogPage: React.FC = () => {
         rowKey="id"
         columns={columns}
         search={{ labelWidth: 'auto' }}
-        pagination={{
-          pageSize: 20,
-          pageSizeOptions: [20, 50, 100],
-          showSizeChanger: true,
-        }}
+        pagination={{ ...pager, pageSizeOptions: [20, 50, 100] }}
         locale={{ emptyText: '暂无登录日志数据' }}
         options={false}
         rowSelection={

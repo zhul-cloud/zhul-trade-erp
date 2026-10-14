@@ -11,11 +11,13 @@ import { useAccess } from '@umijs/max';
 import { App, Button, Tooltip } from 'antd';
 import React, { useRef, useState } from 'react';
 import { formatDateTime } from '@/utils/format';
+import { usePagination } from '@/utils/pageSize';
 import { Pill } from '../components/Pills';
 import { brandApi, type Series, seriesApi } from '../service';
 import { PageHeader, ProductThemeProvider } from '../theme';
 
 const SeriesPage: React.FC = () => {
+  const pager = usePagination(20);
   const { message, modal } = App.useApp();
   const access = useAccess();
   const actionRef = useRef<ActionType>(undefined);
@@ -225,7 +227,7 @@ const SeriesPage: React.FC = () => {
           });
           return { data: res.records, total: res.total, success: true };
         }}
-        pagination={{ pageSize: 20, showTotal: (t) => `共 ${t} 条记录` }}
+        pagination={{ ...pager, showTotal: (t) => `共 ${t} 条记录` }}
         locale={{
           emptyText: '还没有系列。系列是可选的，商品可以不属于任何系列。',
         }}

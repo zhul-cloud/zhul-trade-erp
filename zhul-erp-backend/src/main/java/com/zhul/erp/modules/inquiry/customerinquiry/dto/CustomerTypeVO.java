@@ -11,4 +11,6 @@ public class CustomerTypeVO {
     private Integer customerType;
     private Integer wonCount;
     private LocalDate lastWonDate;
+    /** 客户档案的来源渠道，新建询盘单时默认填入来源 */
+    private Integer sourceChannel;
 }

@@ -18,6 +18,8 @@ export interface OpportunityItem {
   customerNameMissing: boolean;
   country: string;
   sourceChannel: number;
+  /** 阿里等级（仅阿里巴巴国际站），空串为未填 */
+  aliLevel?: string;
   firstContactDate: string;
   ownerId: number;
   ownerName?: string;
@@ -134,6 +136,7 @@ export interface RegisterPayload {
   contactName: string;
   country: string;
   sourceChannel: number;
+  aliLevel?: string;
   firstContactDate: string;
   customerName?: string;
   email?: string;
@@ -146,6 +149,7 @@ export interface RegisterPayload {
 
 export interface UpdatePayload {
   sourceChannel: number;
+  aliLevel?: string;
   firstContactDate: string;
   demandSummary?: string;
   attachments?: AttachmentPayload[];

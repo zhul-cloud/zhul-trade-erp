@@ -15,6 +15,7 @@ import { Pill } from '@/pages/product/components/Pills';
 import { auditColumns } from '@/pages/purchase/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatDateTime } from '@/utils/format';
+import { usePageSize } from '@/utils/pageSize';
 import { ImportRecordsDrawer } from '../products/cards/ImportRecords';
 import {
   factsVerified,
@@ -140,7 +141,7 @@ export const TaskList: React.FC<{ entry: PackageType }> = ({ entry }) => {
     keyword: initialKeyword || undefined,
   });
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
+  const [pageSize, setPageSize] = usePageSize(20);
   const [rows, setRows] = useState<ContentTask[]>([]);
   const [total, setTotal] = useState(0);
   const [counts, setCounts] = useState<Record<string, number>>({});

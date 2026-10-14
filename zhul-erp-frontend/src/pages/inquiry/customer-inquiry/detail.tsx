@@ -501,6 +501,7 @@ const CustomerInquiryDetailPage: React.FC = () => {
             <DeadlineText date={inq.quoteDeadline} status={inq.status} />
           </Meta>
           <Meta label="创建时间">{formatDateTime(inq.createTime)}</Meta>
+          {detail.remark && <Meta label="备注">{detail.remark}</Meta>}
           {detail.opportunityCode && (
             <Meta label={`来源商机 · ${detail.opportunityStageName ?? ''}`}>
               <Link to={`/crm/opportunities/${inq.opportunityId}`}>

@@ -35,6 +35,7 @@ import {
 import type { Attachment } from '@/pages/warehouse/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount, formatDateTime } from '@/utils/format';
+import { usePageSize } from '@/utils/pageSize';
 import { ACCEPT_PROOF, ProofLinks } from '../payables/components';
 import {
   type AdvanceItem,
@@ -481,7 +482,7 @@ const ListTab: React.FC<{ refreshSignal: number }> = ({ refreshSignal }) => {
   const [keyword, setKeyword] = useState('');
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
+  const [pageSize, setPageSize] = usePageSize(20);
   const [rows, setRows] = useState<Reimbursement[]>([]);
   const [total, setTotal] = useState(0);
   const [pendingTotal, setPendingTotal] = useState(0);

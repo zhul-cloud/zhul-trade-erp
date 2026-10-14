@@ -26,6 +26,7 @@ import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { auditColumns } from '@/pages/purchase/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatDateTime } from '@/utils/format';
+import { usePageSize } from '@/utils/pageSize';
 import { LIFECYCLE_OPTIONS } from '../constants';
 import {
   type BrandOption,
@@ -842,7 +843,7 @@ const Candidates: React.FC = () => {
   const [level, setLevel] = useState<number>();
   const [query, setQuery] = useState<{ keyword?: string; level?: number }>({});
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
+  const [pageSize, setPageSize] = usePageSize(20);
   const [rows, setRows] = useState<Candidate[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);

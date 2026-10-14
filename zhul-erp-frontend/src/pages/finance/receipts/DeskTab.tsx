@@ -28,6 +28,7 @@ import {
 } from '@/pages/sales/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
+import { usePageSize } from '@/utils/pageSize';
 
 interface Filters {
   keyword?: string;
@@ -44,7 +45,7 @@ const DeskTab: React.FC<{ onTotal?: (n: number) => void }> = ({ onTotal }) => {
   const [filters, setFilters] = useState<Filters>({});
   const [all, setAll] = useState(false);
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
+  const [pageSize, setPageSize] = usePageSize(20);
   const [rows, setRows] = useState<ReceiptDeskRow[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);

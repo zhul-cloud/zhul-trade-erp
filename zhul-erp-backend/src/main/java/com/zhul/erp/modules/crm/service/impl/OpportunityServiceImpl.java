@@ -9,6 +9,7 @@ import com.zhul.erp.framework.security.DataScope;
 import com.zhul.erp.framework.security.DataScopeResolver;
 import com.zhul.erp.framework.storage.PrivateFileStorage;
 import com.zhul.erp.framework.tenant.TenantContext;
+import com.zhul.erp.modules.aitask.translation.ContactNameTranslations;
 import com.zhul.erp.modules.crm.constants.OpportunityConstants;
 import com.zhul.erp.modules.crm.dto.ChangeStageRequest;
 import com.zhul.erp.modules.crm.dto.CloseOpportunityRequest;
@@ -86,6 +87,7 @@ public class OpportunityServiceImpl implements OpportunityService {
     private final DataScopeResolver dataScopeResolver;
     private final PrivateFileStorage fileStorage;
     private final DictItemService dictItemService;
+    private final ContactNameTranslations contactNameTranslations;
 
     // ---------------------------------------------------------------- 阶段配置
 
@@ -120,6 +122,7 @@ public class OpportunityServiceImpl implements OpportunityService {
         o.setOpportunityCode(nextCode(tenantId));
         o.setCustomerId(customerId);
         o.setSourceChannel(req.getSourceChannel());
+        o.setAliLevel(aliLevel(req.getSourceChannel(), req.getAliLevel()));
         o.setFirstContactDate(req.getFirstContactDate());
         o.setOwnerId(scope.selfId() != null ? scope.selfId() : 0L);
         o.setStageCode(stages.first());
@@ -134,6 +137,7 @@ public class OpportunityServiceImpl implements OpportunityService {
         if (req.getAttachments() != null) {
             mergeAttachments(o, req.getAttachments());
         }
+        contactNameTranslations.submit(customerId, req.getContactName(), scope.selfId());
         return o.getId();
     }
 
@@ -145,12 +149,24 @@ public class OpportunityServiceImpl implements OpportunityService {
             dictItemService.requireEnabledValue(DictTypes.SOURCE_CHANNEL, req.getSourceChannel(), "来源渠道不正确");
         }
         o.setSourceChannel(req.getSourceChannel());
+        o.setAliLevel(aliLevel(req.getSourceChannel(), req.getAliLevel()));
         o.setFirstContactDate(req.getFirstContactDate());
         o.setDemandSummary(text(req.getDemandSummary()));
         opportunityMapper.updateById(o);
         if (req.getAttachments() != null) {
             mergeAttachments(o, req.getAttachments());
         }
+    }
+
+    /** 阿里等级：只有阿里巴巴国际站渠道保存，其余渠道清空 */
+    private static String aliLevel(Integer channel, String level) {
+        if (!Objects.equals(channel, OpportunityConstants.CHANNEL_ALIBABA) || !StringUtils.hasText(level)) {
+            return "";
+        }
+        if (!OpportunityConstants.ALI_LEVELS.contains(level.trim())) {
+            throw new BizException("阿里等级不正确");
+        }
+        return level.trim();
     }
 
     // ---------------------------------------------------------------- 阶段流转
@@ -253,7 +269,7 @@ public class OpportunityServiceImpl implements OpportunityService {
                 default -> w.eq(OpportunityDO::getStageCode, q.getStage());
             }
         }
-        w.orderByDesc(OpportunityDO::getFirstContactDate).orderByDesc(OpportunityDO::getId);
+        w.orderByDesc(OpportunityDO::getUpdateTime).orderByDesc(OpportunityDO::getId);
         Page<OpportunityDO> page = opportunityMapper.selectPage(new Page<>(q.getPage(), q.getPageSize()), w);
         return PageResult.of(page.getTotal(), toVos(page.getRecords(), stages));
     }
@@ -547,6 +563,7 @@ public class OpportunityServiceImpl implements OpportunityService {
             vo.setCountry(c.getCountry());
         }
         vo.setSourceChannel(o.getSourceChannel());
+        vo.setAliLevel(o.getAliLevel());
         vo.setFirstContactDate(o.getFirstContactDate());
         vo.setOwnerId(o.getOwnerId());
         vo.setOwnerName(owners.get(o.getOwnerId()));

@@ -17,6 +17,7 @@ import { auditColumns } from '@/pages/purchase/components';
 import { CURRENCIES } from '@/pages/quotation/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
+import { usePageSize } from '@/utils/pageSize';
 import { Card, PATHS, RECEIPT_META, SalesPageTitle } from '../components';
 import {
   type OrderListItem,
@@ -65,7 +66,7 @@ const OrderList: React.FC = () => {
   const [form] = Form.useForm<Filters>();
   const [filters, setFilters] = useState<Filters>(initial);
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
+  const [pageSize, setPageSize] = usePageSize(20);
   const [sort, setSort] = useState<{
     field?: string;
     order?: 'ascend' | 'descend';

@@ -29,6 +29,7 @@ import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
 import { getUserList } from '@/pages/system/user/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount, formatDateTime } from '@/utils/format';
+import { usePageSize } from '@/utils/pageSize';
 import {
   Card,
   PATHS,
@@ -71,7 +72,7 @@ const PiList: React.FC = () => {
   );
   const [overdueCount, setOverdueCount] = useState<number>();
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
+  const [pageSize, setPageSize] = usePageSize(20);
   const [rows, setRows] = useState<PiListItem[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);

@@ -33,6 +33,7 @@ import { getUserList } from '@/pages/system/user/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import { DICT_SOURCE_CHANNEL, useDictOptions } from '@/utils/dict';
 import { formatDateTime } from '@/utils/format';
+import { usePageSize } from '@/utils/pageSize';
 import {
   Card,
   CustomerTypePill,
@@ -218,7 +219,7 @@ const CustomerInquiryPage: React.FC = () => {
   const [urgentOnly, setUrgentOnly] = useState(false);
   const [timeoutOnly, setTimeoutOnly] = useState(false);
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [pageSize, setPageSize] = usePageSize(10);
   const [sort, setSort] = useState<Sort>({});
   const { levelOptions } = useLevels();
   const [rows, setRows] = useState<CustomerInquiry[]>([]);

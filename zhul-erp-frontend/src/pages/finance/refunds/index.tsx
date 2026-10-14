@@ -20,6 +20,7 @@ import { ReasonModal } from '@/pages/warehouse/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { useDictTexts } from '@/utils/dict';
 import { formatAmount } from '@/utils/format';
+import { usePageSize } from '@/utils/pageSize';
 import { ProofLinks } from '../payables/components';
 import RefundModal from './RefundModal';
 import {
@@ -105,7 +106,7 @@ const RefundPage: React.FC = () => {
   const [range, setRange] = useState<[Dayjs, Dayjs] | null>(rangeFromUrl);
   const [showVoid, setShowVoid] = useState(false);
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
+  const [pageSize, setPageSize] = usePageSize(20);
   const [rows, setRows] = useState<Refund[]>([]);
   const [total, setTotal] = useState(0);
   const [sum, setSum] = useState(0);

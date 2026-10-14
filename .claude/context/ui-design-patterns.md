@@ -111,7 +111,12 @@
    `formatDateTime()` 渲染（ProTable 用 `valueType: 'dateTime'` 时默认格式已符合，
    可直接用，不必再包 `formatDateTime`）；后端 VO 直接暴露 `LocalDateTime`，不在
    后端做字符串格式化。
-4. **例外页面**：审计日志类页面（登录日志、操作日志）不适用——日志不可编辑，
+4. **记住每页条数**（2026-10-15 追加）：分页列表的每页条数用 `src/utils/pageSize.ts`
+   的 `usePageSize(默认值)`（自管分页状态的页面）或 `usePagination(默认值)`（直接传给
+   Table / ProTable 的 `pagination`），按页面路径存在浏览器本地，进详情再返回、刷新后
+   保持；不要再用 `useState(20)` 或写死 `pagination={{ pageSize: 20 }}`。同一页面有多个
+   分页表格时传第二个参数区分。
+5. **例外页面**：审计日志类页面（登录日志、操作日志）不适用——日志不可编辑，
    只有 `operateTime` + 操作人，没有"更新"语义，保持现状（`operateTime` 倒序 +
    操作人列）。纯占位 / 无真实后端的页面、脚手架模板页同样不适用。
 

@@ -30,6 +30,7 @@ import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { auditColumns } from '@/pages/purchase/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount, formatDateTime } from '@/utils/format';
+import { usePageSize } from '@/utils/pageSize';
 import { LOGISTICS_PATHS, StatementStatusPill } from '../components';
 import {
   type Forwarder,
@@ -479,7 +480,7 @@ const Statements: React.FC = () => {
   const [forwarders, setForwarders] = useState<Forwarder[]>([]);
   const [forwarderId, setForwarderId] = useState<number>();
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
+  const [pageSize, setPageSize] = usePageSize(20);
   const [rows, setRows] = useState<Statement[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);

@@ -23,8 +23,10 @@ import { useAppTheme } from '@/theme/AppTheme';
 import { DICT_SOURCE_CHANNEL, useDictOptions } from '@/utils/dict';
 import { FileChip, fileMeta, iconButton } from './components';
 import {
+  ALI_LEVEL_OPTIONS,
   ATTACHMENT_ACCEPT,
   ATTACHMENT_MAX_BYTES,
+  CHANNEL_ALIBABA,
   MAX_ATTACHMENTS,
 } from './constants';
 import { opportunityApi, readBizError, type UploadedFile } from './service';
@@ -33,6 +35,7 @@ interface FormState {
   contactName: string;
   country: string;
   sourceChannel: number;
+  aliLevel?: string;
   firstContactDate: Dayjs;
   customerName?: string;
   email?: string;
@@ -151,6 +154,7 @@ const RegisterDrawer: React.FC<{
         contactName: v.contactName.trim(),
         country: v.country,
         sourceChannel: v.sourceChannel,
+        aliLevel: v.aliLevel,
         firstContactDate: v.firstContactDate.format('YYYY-MM-DD'),
         customerName: v.customerName?.trim(),
         email: v.email?.trim(),
@@ -325,6 +329,19 @@ const RegisterDrawer: React.FC<{
             rules={[{ required: true, message: '请选择来源渠道' }]}
           >
             <Select placeholder="请选择" options={sourceOptions} />
+          </Form.Item>
+          <Form.Item noStyle dependencies={['sourceChannel']}>
+            {({ getFieldValue }) =>
+              getFieldValue('sourceChannel') === CHANNEL_ALIBABA ? (
+                <Form.Item name="aliLevel" label="阿里等级">
+                  <Select
+                    allowClear
+                    placeholder="选填"
+                    options={ALI_LEVEL_OPTIONS}
+                  />
+                </Form.Item>
+              ) : null
+            }
           </Form.Item>
           <Form.Item
             name="firstContactDate"

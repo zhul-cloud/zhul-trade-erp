@@ -135,6 +135,12 @@ def translate_output(payload: dict) -> dict:
     return {"items": [{"key": i.get("key"), "text": "EN: " + (i.get("text") or "")} for i in items]}
 
 
+def name_output(payload: dict) -> dict:
+    """translate-contact-names 的假结果：原文前加「中文：」，只用于联调"""
+    items = (payload.get("input") or {}).get("items") or []
+    return {"items": [{"key": i.get("key"), "text": "中文：" + (i.get("text") or "")} for i in items]}
+
+
 def send_callback(callback_url: str, output=None):
     time.sleep(CALLBACK_DELAY_SECONDS)
     body = json.dumps({"status": "success", "output": output or SAMPLE_OUTPUT, "error": None}).encode("utf-8")
@@ -178,7 +184,11 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(json.dumps({"job_id": job_id}).encode("utf-8"))
 
         if callback_url:
-            output = translate_output(payload) if self.path == "/skills/translate-item-descriptions/run" else None
+            output = None
+            if self.path == "/skills/translate-item-descriptions/run":
+                output = translate_output(payload)
+            elif self.path == "/skills/translate-contact-names/run":
+                output = name_output(payload)
             threading.Thread(target=send_callback, args=(callback_url, output), daemon=True).start()
 
     def log_message(self, format, *args):

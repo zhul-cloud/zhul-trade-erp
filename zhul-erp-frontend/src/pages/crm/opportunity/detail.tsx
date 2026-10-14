@@ -261,7 +261,10 @@ const OpportunityDetailPage: React.FC = () => {
               category={d.stageCategory}
               index={idx}
             />
-            <Pill tone="gray">{sourceLabel(d.sourceChannel)}</Pill>
+            <Pill tone="gray">
+              {sourceLabel(d.sourceChannel)}
+              {d.aliLevel ? ` · ${d.aliLevel}` : ''}
+            </Pill>
             {d.customerNameMissing && <Pill tone="orange">未填客户名称</Pill>}
             <span style={{ color: palette.mute }}>
               首次接触 {d.firstContactDate} · 负责人 {d.ownerName || '未分配'} ·{' '}
