@@ -94,6 +94,11 @@ public class SourcingTaskServiceImpl implements SourcingTaskService {
 
     @Override
     public List<SourcingTaskDO> createTasks(CustomerInquiryDO inquiry, List<InquiryItemDO> pendingItems) {
+        return createTasks(inquiry, pendingItems, 0);
+    }
+
+    @Override
+    public List<SourcingTaskDO> createTasks(CustomerInquiryDO inquiry, List<InquiryItemDO> pendingItems, int startIndex) {
         // 按品牌 + 一级品类分组；没关联品类的型号按品类文字分组
         List<ProductCategoryDO> categories = inquiryCategories.categories();
         Map<String, List<InquiryItemDO>> groups = new LinkedHashMap<>();
@@ -102,7 +107,7 @@ public class SourcingTaskServiceImpl implements SourcingTaskService {
                     k -> new ArrayList<>()).add(item);
         }
         List<SourcingTaskDO> tasks = new ArrayList<>(groups.size());
-        int index = 0;
+        int index = startIndex;
         for (List<InquiryItemDO> items : groups.values()) {
             InquiryItemDO first = items.get(0);
             SourcingTaskDO task = new SourcingTaskDO();

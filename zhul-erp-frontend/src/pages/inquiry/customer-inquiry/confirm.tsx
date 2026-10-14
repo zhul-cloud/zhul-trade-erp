@@ -66,9 +66,9 @@ interface Row extends DraftRow {
 
 let seq = 0;
 
-const savedKey = (id: number) => `inquiry-confirm-draft-${id}`;
+const savedKey = (id: number | string) => `inquiry-confirm-draft-${id}`;
 
-const readSaved = (id: number): Row[] | null => {
+const readSaved = (id: number | string): Row[] | null => {
   try {
     const raw = sessionStorage.getItem(savedKey(id));
     const rows = raw ? (JSON.parse(raw) as Row[]) : null;
@@ -80,7 +80,7 @@ const readSaved = (id: number): Row[] | null => {
   }
 };
 
-const writeSaved = (id: number, rows: Row[] | null) => {
+const writeSaved = (id: number | string, rows: Row[] | null) => {
   try {
     if (rows) sessionStorage.setItem(savedKey(id), JSON.stringify(rows));
     else sessionStorage.removeItem(savedKey(id));
@@ -110,6 +110,11 @@ const ConfirmPage: React.FC = () => {
   const wide = useWide();
   const { id } = useParams<{ id: string }>();
   const inquiryId = Number(id);
+  // 追加型号：?append=批次ID，只确认这次追加的内容
+  const appendId =
+    Number(new URLSearchParams(window.location.search).get('append')) ||
+    undefined;
+  const store = appendId ? `${inquiryId}-a${appendId}` : inquiryId;
   const { palette } = useAppTheme();
   const { message, modal } = App.useApp();
   const [draft, setDraft] = useState<Draft | null>(null);
@@ -125,7 +130,9 @@ const ConfirmPage: React.FC = () => {
     setLoading(true);
     setError('');
     try {
-      const d = await inquiryApi.draft(inquiryId);
+      const d = appendId
+        ? await inquiryApi.appendDraft(inquiryId, appendId)
+        : await inquiryApi.draft(inquiryId);
       setDraft(d);
       const init = d.rows.map((r) => ({
         ...r,
@@ -133,7 +140,7 @@ const ConfirmPage: React.FC = () => {
         reuseQuoteId: r.match?.defaultQuoteId ?? null,
       }));
       // 离开页面前填过的内容（存在本次浏览器会话里）优先恢复
-      const saved = readSaved(inquiryId);
+      const saved = readSaved(store);
       const start = saved?.length ? saved : init.length ? init : [emptyRow()];
       setRows(start);
       for (const r of start)
@@ -170,7 +177,7 @@ const ConfirmPage: React.FC = () => {
 
   useEffect(() => {
     if (draft && rows.some((r) => r.brand || r.confirmedModel))
-      writeSaved(inquiryId, rows);
+      writeSaved(store, rows);
   }, [rows]);
 
   const patch = (key: string, p: Partial<Row>) =>
@@ -253,13 +260,15 @@ const ConfirmPage: React.FC = () => {
       const payload: ConfirmRow[] = rows.map(
         ({ key: _k, match: _m, matching: _x, ...r }) => r,
       );
-      await inquiryApi.confirm(inquiryId, payload);
+      if (appendId)
+        await inquiryApi.confirmAppend(inquiryId, appendId, payload);
+      else await inquiryApi.confirm(inquiryId, payload);
       message.success(
         pending.length
           ? `已确认，生成 ${groups.length} 个询价任务，等待采购负责人分配`
           : '已确认，全部复用历史价，可以去报价了',
       );
-      writeSaved(inquiryId, null);
+      writeSaved(store, null);
       history.replace(`${PATHS.inquiries}/${inquiryId}`);
     } catch (e) {
       message.error(readBizError(e).message);
@@ -571,13 +580,15 @@ const ConfirmPage: React.FC = () => {
     STATUS.PARSE_FAILED,
     STATUS.PENDING_CONFIRM,
   ] as number[];
-  if (!editable.includes(draft.inquiry.status)) {
+  if (!appendId && !editable.includes(draft.inquiry.status)) {
     history.replace(`${PATHS.inquiries}/${inquiryId}`);
     return null;
   }
 
   const inq = draft.inquiry;
-  const manual = inq.status !== STATUS.PENDING_CONFIRM || inq.parseMode === 2;
+  const manual = appendId
+    ? draft.rows.length === 0
+    : inq.status !== STATUS.PENDING_CONFIRM || inq.parseMode === 2;
   const reparse = () =>
     modal.confirm({
       title: manual ? '改用 AI 解析？' : '重新解析这条询盘？',
@@ -587,10 +598,12 @@ const ConfirmPage: React.FC = () => {
       cancelText: '取消',
       onOk: async () => {
         try {
-          await (inq.status === STATUS.PENDING_PARSE
-            ? inquiryApi.startParse(inquiryId)
-            : inquiryApi.retryParse(inquiryId));
-          writeSaved(inquiryId, null);
+          await (appendId
+            ? inquiryApi.retryAppend(inquiryId, appendId)
+            : inq.status === STATUS.PENDING_PARSE
+              ? inquiryApi.startParse(inquiryId)
+              : inquiryApi.retryParse(inquiryId));
+          writeSaved(store, null);
           message.success('已提交 AI 解析，完成后可重新确认');
           history.push(`${PATHS.inquiries}/${inquiryId}`);
         } catch (e) {
@@ -602,7 +615,15 @@ const ConfirmPage: React.FC = () => {
     <div>
       <PageTitle
         crumbs={['询盘单', inq.inquiryCode]}
-        title={manual ? '手动录入型号' : '确认解析结果'}
+        title={
+          appendId
+            ? manual
+              ? '追加型号：手动录入'
+              : '追加型号：确认解析结果'
+            : manual
+              ? '手动录入型号'
+              : '确认解析结果'
+        }
         description={`${inq.customerName} · ${sourceLabel(inq.source)} · ${inq.inquiryDate}${inq.urgent ? ' · 紧急' : ''}`}
         actions={
           <>

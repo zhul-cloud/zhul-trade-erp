@@ -1,6 +1,8 @@
 package com.zhul.erp.modules.inquiry.customerinquiry.service;
 
 import com.zhul.erp.common.result.PageResult;
+import com.zhul.erp.modules.inquiry.customerinquiry.dto.AppendRequest;
+import com.zhul.erp.modules.inquiry.customerinquiry.dto.AppendVO;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.ConfirmRequest;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.CustomerInquiryDetailVO;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.CustomerInquiryPageQuery;
@@ -41,6 +43,17 @@ public interface CustomerInquiryService {
     DraftVO draft(Long id);
 
     void confirm(Long id, ConfirmRequest req);
+
+    /** 追加型号：询价中、可报价、已报价的询盘单，AI 解析或手动录入（spec inquiry/inquiry-intake「追加型号」） */
+    AppendVO startAppend(Long id, AppendRequest req);
+
+    AppendVO retryAppend(Long id, Long appendId);
+
+    DraftVO appendDraft(Long id, Long appendId);
+
+    void confirmAppend(Long id, Long appendId, ConfirmRequest req);
+
+    void discardAppend(Long id, Long appendId);
 
     void cancel(Long id);
 

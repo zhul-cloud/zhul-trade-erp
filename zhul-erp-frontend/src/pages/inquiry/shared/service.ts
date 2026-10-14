@@ -142,6 +142,8 @@ export interface InquiryDetail {
   attachments: InquiryAttachment[];
   items: InquiryItem[];
   tasks: TaskBrief[];
+  /** 未完成的追加型号 */
+  openAppend?: InquiryAppend | null;
   opportunityCode?: string;
   opportunityStageName?: string;
 }
@@ -176,8 +178,21 @@ export interface DraftRow {
   match?: PriceMatch;
 }
 
+/** 未完成的追加型号：1-解析中、2-待确认、3-解析失败 */
+export interface InquiryAppend {
+  id: number;
+  status: number;
+  /** 1-AI、2-手动 */
+  parseMode: number;
+  parseError?: string;
+  rawContent?: string;
+  createTime?: string;
+}
+
 export interface Draft {
   inquiry: CustomerInquiry;
+  /** 追加型号的批次 ID；首次确认时为空 */
+  appendId?: number;
   rawContent: string;
   attachments: InquiryAttachment[];
   rows: DraftRow[];
@@ -612,6 +627,22 @@ export const inquiryApi = {
   draft: (id: number) => get<Draft>(`${INQ}/${id}/draft`),
   confirm: (id: number, rows: ConfirmRow[]) =>
     send<void>('POST', `${INQ}/${id}/confirm`, { rows }),
+  startAppend: (
+    id: number,
+    body: {
+      rawContent?: string;
+      attachments?: { fileKey: string; fileName: string }[];
+      manual?: boolean;
+    },
+  ) => send<InquiryAppend>('POST', `${INQ}/${id}/appends`, body),
+  retryAppend: (id: number, appendId: number) =>
+    send<InquiryAppend>('POST', `${INQ}/${id}/appends/${appendId}/retry`),
+  appendDraft: (id: number, appendId: number) =>
+    get<Draft>(`${INQ}/${id}/appends/${appendId}/draft`),
+  confirmAppend: (id: number, appendId: number, rows: ConfirmRow[]) =>
+    send<void>('POST', `${INQ}/${id}/appends/${appendId}/confirm`, { rows }),
+  discardAppend: (id: number, appendId: number) =>
+    send<void>('POST', `${INQ}/${id}/appends/${appendId}/discard`),
   cancel: (id: number) => send<void>('PUT', `${INQ}/${id}/cancel`),
   updateLevel: (id: number, level: number) =>
     send<void>('PUT', `${INQ}/${id}/level`, { level }),
