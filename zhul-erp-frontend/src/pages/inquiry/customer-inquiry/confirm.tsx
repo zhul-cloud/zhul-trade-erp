@@ -47,6 +47,7 @@ import {
   PATHS,
   STATUS,
 } from '../shared/constants';
+import QuoteExtras from '../shared/QuoteExtras';
 import {
   type ConfirmRow,
   type Draft,
@@ -513,6 +514,7 @@ const ConfirmPage: React.FC = () => {
                   taxRate={q.taxRate}
                   unitPrice={q.unitPrice}
                 />
+                <QuoteExtras quote={q} />
                 <ConditionPill value={q.itemCondition} />
                 <SupplierText channel={q.channel} shopName={q.shopName} />
                 <span style={{ color: palette.sub }}>

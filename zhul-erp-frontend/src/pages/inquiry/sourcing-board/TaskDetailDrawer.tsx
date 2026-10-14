@@ -20,6 +20,7 @@ import {
   useWide,
 } from '../shared/components';
 import { LIFECYCLE_DISCONTINUED } from '../shared/constants';
+import QuoteExtras from '../shared/QuoteExtras';
 import {
   type BoardTaskDetail,
   boardApi,
@@ -294,6 +295,7 @@ const TaskDetailDrawer: React.FC<{
                               taxRate={q.taxRate}
                               unitPrice={q.unitPrice}
                             />
+                            <QuoteExtras quote={q} />
                             <ConditionPill value={q.itemCondition} />
                             <span style={{ color: palette.sub }}>
                               <LeadTimeText value={q.leadTime} />

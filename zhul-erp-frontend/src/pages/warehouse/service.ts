@@ -40,7 +40,8 @@ export type OwnerType =
   | 'REIMBURSE'
   | 'PO_INVOICE'
   | 'REFUND'
-  | 'OTHER_INCOME';
+  | 'OTHER_INCOME'
+  | 'SOURCING_QUOTE';
 
 export interface ShipmentItem {
   id: number;

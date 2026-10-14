@@ -19,6 +19,7 @@ import {
   useQuoteDicts,
 } from '../shared/components';
 import { CHANNEL_OPTIONS, PATHS } from '../shared/constants';
+import QuoteExtras from '../shared/QuoteExtras';
 import {
   type PriceHistoryGroup,
   priceHistoryApi,
@@ -141,6 +142,7 @@ const PriceHistoryPage: React.FC = () => {
                   taxRate={q.taxRate}
                   unitPrice={q.unitPrice}
                 />
+                <QuoteExtras quote={q} />
               </span>
             )}
           </span>

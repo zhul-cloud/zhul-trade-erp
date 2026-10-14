@@ -33,6 +33,7 @@ import {
   useWide,
 } from '../shared/components';
 import { formatMinutes } from '../shared/constants';
+import QuoteExtras from '../shared/QuoteExtras';
 import {
   boardApi,
   type ReviewDetail,
@@ -472,6 +473,7 @@ const ReviewDrawer: React.FC<{
                           taxRate={q.taxRate}
                           unitPrice={q.unitPrice}
                         />
+                        <QuoteExtras quote={q} />
                         <ConditionPill value={q.itemCondition} />
                         <span style={{ color: palette.sub }}>
                           <LeadTimeText value={q.leadTime} />

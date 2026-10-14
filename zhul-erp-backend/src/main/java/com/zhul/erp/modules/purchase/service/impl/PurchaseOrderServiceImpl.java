@@ -49,6 +49,8 @@ import com.zhul.erp.modules.purchase.support.PurchaseDrafts;
 import com.zhul.erp.modules.purchase.support.PurchaseLogs;
 import com.zhul.erp.modules.purchase.support.RequirementQty;
 import com.zhul.erp.modules.quotation.support.ListSort;
+import com.zhul.erp.modules.sales.repository.SalesOrderItemMapper;
+import com.zhul.erp.modules.sales.entity.SalesOrderItemDO;
 import com.zhul.erp.modules.sales.entity.SalesOrderDO;
 import com.zhul.erp.modules.sales.repository.SalesOrderMapper;
 import com.zhul.erp.modules.sales.support.PiStore;
@@ -124,6 +126,7 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
     private final PayableSyncService payables;
     private final PayableQueryService payableQuery;
     private final AttachmentService attachmentService;
+    private final SalesOrderItemMapper soItemMapper;
 
     /** 付款状态筛选（固定 SQL，拼在 purchase_order 的查询上） */
     private static final Map<String, String> PAY_CONDITIONS = Map.of(
@@ -372,6 +375,10 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
             soMapper.selectBatchIds(soIds).forEach(o -> orders.put(o.getId(), o));
         }
         Map<Long, CustomerDO> customers = lookups.customers(orders.values().stream().map(SalesOrderDO::getCustomerId).toList());
+        List<Long> soItemIds = lines.stream().map(PurchaseOrderItemDO::getSoItemId).filter(Objects::nonNull).distinct().toList();
+        Map<Long, Integer> stockTypes = soItemIds.isEmpty() ? Map.of() : soItemMapper.selectBatchIds(soItemIds).stream()
+                .filter(s -> s.getStockType() != null)
+                .collect(Collectors.toMap(SalesOrderItemDO::getId, SalesOrderItemDO::getStockType));
         List<Long> lineIds = lines.stream().map(PurchaseOrderItemDO::getId).toList();
         Map<Long, Integer> shipped = receivingQty.shippedByPoItem(lineIds);
         Map<Long, Integer> received = receivingQty.qualifiedByPoItem(lineIds);
@@ -446,6 +453,7 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
                 x.setCustomerName(InquiryLookups.customerName(c));
                 x.setCustomerCountry(c == null ? null : c.getCountry());
             }
+            x.setStockType(i.getSoItemId() == null ? null : stockTypes.get(i.getSoItemId()));
             x.setModel(i.getModel());
             x.setBrand(i.getBrand());
             x.setQuantity(i.getQuantity());

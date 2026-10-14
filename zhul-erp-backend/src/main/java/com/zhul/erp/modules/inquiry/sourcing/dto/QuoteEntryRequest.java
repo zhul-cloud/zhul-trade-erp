@@ -34,6 +34,11 @@ public class QuoteEntryRequest {
     private Integer leadTime;
     @Size(max = 300, message = "备注不能超过 300 字")
     private String note;
+    /** 是否包邮，不传按包邮 */
+    private Boolean freeShipping;
+    /** 附件（图片或 PDF）ID：新上传的，或这条回价上一版本已有的 */
+    @Size(max = 5, message = "每条报价最多 5 个附件")
+    private java.util.List<Long> attachmentIds;
     /** 是否为推荐报价；同一型号最多一条，都不标时按全新原装最低价自动推荐 */
     private Boolean recommended;
 }

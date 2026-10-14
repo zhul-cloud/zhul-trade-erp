@@ -16,7 +16,13 @@ public interface MyTaskService {
     /** done=false 为待处理（询价中），true 为已回价 */
     List<MyTaskVO> myTasks(boolean done);
 
+    /** 按关键词（任务编号、询盘单编号、品牌、品类、型号）搜索本人的任务 */
+    List<MyTaskVO> myTasks(boolean done, String keyword);
+
     MyTaskDetailVO detail(Long taskId);
+
+    /** 型号的历史询价明细：最近 5 次成交与最近 5 条询价记录（不含本任务） */
+    com.zhul.erp.modules.inquiry.sourcing.service.impl.ItemPriceHistory.Detail itemHistory(Long taskId, Long itemId);
 
     /** 兼职工作台：本人待办与回价统计 */
     PartTimeBoardVO partTimeBoard();
@@ -42,6 +48,14 @@ public interface MyTaskService {
 
     /** 一条待写入的询价结果；noStock 为真时只记无货说明 */
     record QuoteDraft(Long itemId, boolean noStock, Integer channel, String shopName, Long supplierId, java.math.BigDecimal unitPrice,
-                      boolean taxIncluded, Integer taxRate, Integer itemCondition, Integer leadTime, String note, boolean recommended) {
+                      boolean taxIncluded, Integer taxRate, Integer itemCondition, Integer leadTime, String note, boolean recommended,
+                      boolean freeShipping, List<Long> attachmentIds) {
+
+        /** Excel 导入等没有包邮与附件的来源：按包邮、无附件 */
+        public QuoteDraft(Long itemId, boolean noStock, Integer channel, String shopName, Long supplierId, java.math.BigDecimal unitPrice,
+                          boolean taxIncluded, Integer taxRate, Integer itemCondition, Integer leadTime, String note, boolean recommended) {
+            this(itemId, noStock, channel, shopName, supplierId, unitPrice, taxIncluded, taxRate, itemCondition, leadTime, note, recommended,
+                    true, List.of());
+        }
     }
 }

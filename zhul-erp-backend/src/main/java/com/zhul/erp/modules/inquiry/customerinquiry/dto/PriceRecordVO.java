@@ -14,6 +14,10 @@ public class PriceRecordVO {
     private Integer channel;
     private String shopName;
     private Boolean noStock;
+    /** 是否包邮 */
+    private Boolean freeShipping;
+    /** 回价附件（截图、报价单），与渠道店铺一样只对有「查看货源信息」权限的人返回 */
+    private java.util.List<com.zhul.erp.modules.attachment.dto.AttachmentVO> attachments;
     private String currencyCode;
     private BigDecimal unitPrice;
     private BigDecimal unitPriceCny;

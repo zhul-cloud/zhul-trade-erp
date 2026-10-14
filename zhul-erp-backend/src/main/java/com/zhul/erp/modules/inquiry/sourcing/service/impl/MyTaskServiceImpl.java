@@ -8,6 +8,8 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhul.erp.common.exception.BizException;
 import com.zhul.erp.framework.tenant.TenantContext;
+import com.zhul.erp.modules.attachment.service.AttachmentService;
+import com.zhul.erp.modules.attachment.dto.AttachmentVO;
 import com.zhul.erp.modules.inquiry.constants.InquiryConstants;
 import com.zhul.erp.modules.inquiry.customerinquiry.entity.CustomerInquiryDO;
 import com.zhul.erp.modules.inquiry.customerinquiry.repository.CustomerInquiryMapper;
@@ -52,6 +54,7 @@ import java.math.RoundingMode;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Locale;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
@@ -82,6 +85,8 @@ public class MyTaskServiceImpl implements MyTaskService {
     private final LogService logService;
     private final QuotationLocks quotationLocks;
     private final com.zhul.erp.modules.product.candidate.service.ProductArchiver productArchiver;
+    private final AttachmentService attachmentService;
+    private final ItemPriceHistory priceHistory;
 
     /** 兼职工作台按提交统计工作量：已提交、待审核、审核时作废的都算，与是否审核通过无关 */
     private static final List<Integer> WORK_STATUSES = List.of(InquiryConstants.QUOTE_SUBMITTED,
@@ -89,6 +94,11 @@ public class MyTaskServiceImpl implements MyTaskService {
 
     @Override
     public List<MyTaskVO> myTasks(boolean done) {
+        return myTasks(done, null);
+    }
+
+    @Override
+    public List<MyTaskVO> myTasks(boolean done, String keyword) {
         Long me = me();
         List<SourcingTaskAssigneeDO> mine = activeOf(me);
         if (mine.isEmpty()) {
@@ -100,6 +110,9 @@ public class MyTaskServiceImpl implements MyTaskService {
                 .in(SourcingTaskDO::getId, byTask.keySet())
                 .eq(SourcingTaskDO::getStatus, done ? InquiryConstants.TASK_DONE : InquiryConstants.TASK_SOURCING)
                 .isNull(SourcingTaskDO::getDeletedAt));
+        if (StringUtils.hasText(keyword)) {
+            tasks = matching(tasks, keyword.trim());
+        }
         TaskTimeout limits = TaskTimeout.of(settings, tenantId());
         LocalDateTime now = LocalDateTime.now();
         Map<Long, InquiryLookups.InquiryBrief> briefs = lookups.briefs(tasks.stream().map(SourcingTaskDO::getCustomerInquiryId).toList(),
@@ -116,6 +129,42 @@ public class MyTaskServiceImpl implements MyTaskService {
                 .thenComparing(v -> !Boolean.TRUE.equals(v.getUrgent()))
                 .thenComparing(latest));
         return list;
+    }
+
+    /** 关键词匹配任务编号、品牌、品类、询盘单编号，或任务下型号（确认型号、原始型号，忽略大小写与分隔符） */
+    private List<SourcingTaskDO> matching(List<SourcingTaskDO> tasks, String keyword) {
+        if (tasks.isEmpty()) {
+            return tasks;
+        }
+        String lower = keyword.toLowerCase(Locale.ROOT);
+        String key = PriceKeys.model(keyword);
+        Set<Long> inquiryHits = inquiryMapper.selectList(new LambdaQueryWrapper<CustomerInquiryDO>()
+                        .select(CustomerInquiryDO::getId)
+                        .in(CustomerInquiryDO::getId, tasks.stream().map(SourcingTaskDO::getCustomerInquiryId).distinct().toList())
+                        .like(CustomerInquiryDO::getInquiryCode, keyword))
+                .stream().map(CustomerInquiryDO::getId).collect(Collectors.toSet());
+        Set<Long> itemHits = itemMapper.selectList(new LambdaQueryWrapper<InquiryItemDO>()
+                        .select(InquiryItemDO::getSourcingTaskId, InquiryItemDO::getConfirmedModel, InquiryItemDO::getOriginalModel,
+                                InquiryItemDO::getModelKey)
+                        .in(InquiryItemDO::getSourcingTaskId, tasks.stream().map(SourcingTaskDO::getId).toList())
+                        .isNull(InquiryItemDO::getDeletedAt))
+                .stream().filter(i -> contains(i.getConfirmedModel(), lower) || contains(i.getOriginalModel(), lower)
+                        || (StringUtils.hasText(key) && i.getModelKey() != null && i.getModelKey().contains(key)))
+                .map(InquiryItemDO::getSourcingTaskId).collect(Collectors.toSet());
+        return tasks.stream().filter(t -> contains(t.getTaskCode(), lower) || contains(t.getBrand(), lower) || contains(t.getCategory(), lower)
+                || inquiryHits.contains(t.getCustomerInquiryId()) || itemHits.contains(t.getId())).toList();
+    }
+
+    private static boolean contains(String text, String lowerKeyword) {
+        return text != null && text.toLowerCase(Locale.ROOT).contains(lowerKeyword);
+    }
+
+    @Override
+    public ItemPriceHistory.Detail itemHistory(Long taskId, Long itemId) {
+        myTask(taskId);
+        InquiryItemDO item = taskItems(taskId).stream().filter(i -> i.getId().equals(itemId)).findFirst()
+                .orElseThrow(() -> new BizException("型号不属于这个询价任务，请刷新后再试"));
+        return priceHistory.detail(item, taskId, !lookups.isPartTime(me()));
     }
 
     @Override
@@ -242,6 +291,8 @@ public class MyTaskServiceImpl implements MyTaskService {
         Map<Long, String> reviewers = review ? lookups.userNames(quotes.values().stream().flatMap(List::stream)
                 .map(SourcingQuoteDO::getReviewedBy).filter(Objects::nonNull).distinct().toList()) : Map.of();
         Set<Long> locked = quotationLocks.lockedItemIds(items.stream().map(InquiryItemDO::getId).toList());
+        Map<Long, List<AttachmentVO>> files = attachmentService.list(AttachmentService.SOURCING_QUOTE,
+                quotes.values().stream().flatMap(List::stream).map(SourcingQuoteDO::getId).toList());
         List<MyTaskItemVO> rows = new ArrayList<>(items.size());
         for (InquiryItemDO i : items) {
             MyTaskItemVO vo = new MyTaskItemVO();
@@ -265,7 +316,17 @@ public class MyTaskServiceImpl implements MyTaskService {
             if (review) {
                 own = applyReviewState(vo, own, reviewers);
             }
-            vo.setQuotes(own.stream().map(MyTaskServiceImpl::toQuoteVo).toList());
+            vo.setQuotes(own.stream().map(q -> {
+                MyQuoteVO qv = toQuoteVo(q);
+                qv.setAttachments(files.getOrDefault(q.getId(), List.of()));
+                return qv;
+            }).toList());
+            ItemPriceHistory.Summary history = priceHistory.summary(i, taskId);
+            if (history != null) {
+                vo.setHistoryKind(history.kind());
+                vo.setHistoryPrice(history.price());
+                vo.setHistoryDate(history.date());
+            }
             rows.add(vo);
         }
         MyTaskDetailVO vo = new MyTaskDetailVO();
@@ -344,6 +405,7 @@ public class MyTaskServiceImpl implements MyTaskService {
         vo.setLeadTime(q.getLeadTime());
         vo.setNote(q.getNote());
         vo.setNoStock(Objects.equals(q.getNoStock(), 1));
+        vo.setFreeShipping(!Objects.equals(q.getFreeShipping(), 0));
         vo.setRecommended(Objects.equals(q.getRecommended(), 1));
         vo.setStatus(q.getStatus());
         vo.setReviewNote(q.getReviewNote());
@@ -370,7 +432,8 @@ public class MyTaskServiceImpl implements MyTaskService {
             for (QuoteEntryRequest q : item.getQuotes() == null ? List.<QuoteEntryRequest>of() : item.getQuotes()) {
                 drafts.add(new QuoteDraft(item.getItemId(), false, q.getChannel(), q.getShopName(), q.getSupplierId(), q.getUnitPrice(),
                         Boolean.TRUE.equals(q.getTaxIncluded()), q.getTaxRate(), q.getItemCondition(), q.getLeadTime(), q.getNote(),
-                        Boolean.TRUE.equals(q.getRecommended())));
+                        Boolean.TRUE.equals(q.getRecommended()), !Boolean.FALSE.equals(q.getFreeShipping()),
+                        q.getAttachmentIds() == null ? List.of() : q.getAttachmentIds()));
             }
         }
         List<Long> itemIds = req.getItems().stream().map(ItemQuotesRequest::getItemId).distinct().toList();
@@ -480,6 +543,13 @@ public class MyTaskServiceImpl implements MyTaskService {
         boolean review = needsReview(quotedBy);
         java.util.Set<QuoteDraft> recommended = review ? java.util.Set.of() : recommendedDrafts(drafts, items);
         String batch = java.util.UUID.randomUUID().toString();
+        // 附件只能是新上传的，或本人在本任务的回价（含刚被新版本替换掉的）上原有的
+        List<Long> ownQuoteIds = drafts.stream().anyMatch(d -> !d.attachmentIds().isEmpty())
+                ? quoteMapper.selectList(new LambdaQueryWrapper<SourcingQuoteDO>()
+                        .select(SourcingQuoteDO::getId)
+                        .eq(SourcingQuoteDO::getTaskId, task.getId())
+                        .eq(SourcingQuoteDO::getQuotedBy, quotedBy)).stream().map(SourcingQuoteDO::getId).toList()
+                : List.of();
         for (QuoteDraft d : drafts) {
             InquiryItemDO item = items.get(d.itemId());
             if (item == null) {
@@ -539,6 +609,7 @@ public class MyTaskServiceImpl implements MyTaskService {
             q.setTaxRate(taxed ? BigDecimal.valueOf(taxRateOf(d)).setScale(2, RoundingMode.HALF_UP) : BigDecimal.ZERO.setScale(2));
             q.setItemCondition(d.noStock() || d.itemCondition() == null ? 0 : d.itemCondition());
             q.setLeadTime(d.noStock() || d.leadTime() == null ? 0 : d.leadTime());
+            q.setFreeShipping(d.noStock() || d.freeShipping() ? 1 : 0);
             q.setNote(text(d.note(), 300));
             q.setRecommended(recommended.contains(d) ? 1 : 0);
             q.setQuotedBy(quotedBy);
@@ -548,6 +619,9 @@ public class MyTaskServiceImpl implements MyTaskService {
             q.setImportId(importId);
             q.setSubmitBatch(batch);
             quoteMapper.insert(q);
+            if (!d.noStock() && !d.attachmentIds().isEmpty()) {
+                attachmentService.reassign(AttachmentService.SOURCING_QUOTE, d.attachmentIds(), ownQuoteIds, q.getId());
+            }
         }
     }
 

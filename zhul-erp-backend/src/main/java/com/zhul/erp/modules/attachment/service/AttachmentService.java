@@ -52,12 +52,15 @@ public class AttachmentService {
     /** 退款单与其他收入的凭证 */
     public static final String REFUND = "REFUND";
     public static final String OTHER_INCOME = "OTHER_INCOME";
+    /** 询价回价的截图、报价单（图片或 PDF），挂在回价上，修改回价时搬到新版本 */
+    public static final String SOURCING_QUOTE = "SOURCING_QUOTE";
     /** 只收图片或 PDF 的归属类型 */
-    private static final Set<String> PROOF_TYPES = Set.of(PAYMENT, COURIER_PROOF, RETURN_PROOF, EXPENSE, REIMBURSE, PO_INVOICE, REFUND, OTHER_INCOME);
+    private static final Set<String> PROOF_TYPES = Set.of(PAYMENT, COURIER_PROOF, RETURN_PROOF, EXPENSE, REIMBURSE, PO_INVOICE, REFUND, OTHER_INCOME,
+            SOURCING_QUOTE);
     public static final Map<String, Integer> MAX_PER_OWNER = Map.ofEntries(Map.entry(SHIPMENT, 20), Map.entry(RECEIPT, 20),
             Map.entry(SHOOT, 30), Map.entry(LOGISTICS, 10), Map.entry(PAYMENT, 10), Map.entry(COURIER_PROOF, 10),
             Map.entry(RETURN_PROOF, 10), Map.entry(EXPENSE, 10), Map.entry(REIMBURSE, 10), Map.entry(PO_INVOICE, 10),
-            Map.entry(REFUND, 10), Map.entry(OTHER_INCOME, 10));
+            Map.entry(REFUND, 10), Map.entry(OTHER_INCOME, 10), Map.entry(SOURCING_QUOTE, 5));
     public static final int IMAGE = 1;
     public static final int VIDEO = 2;
     public static final int FILE = 3;
@@ -138,6 +141,33 @@ public class AttachmentService {
         if (count > max) {
             throw new BizException("每张单据最多 " + max + " 个附件");
         }
+    }
+
+    /**
+     * 把附件挂到新的归属上：还没挂的，或原来挂在 fromOwners 之一上的（如被新版本替换掉的旧回价），其余拒绝；校验数量上限
+     */
+    public void reassign(String ownerType, Collection<Long> ids, Collection<Long> fromOwners, Long toOwner) {
+        List<Long> keys = ids == null ? List.of() : ids.stream().filter(Objects::nonNull).distinct().toList();
+        if (keys.isEmpty()) {
+            return;
+        }
+        List<BizAttachmentDO> rows = mapper.selectBatchIds(keys);
+        for (BizAttachmentDO a : rows) {
+            if (a.getDeletedAt() != null || !Objects.equals(a.getTenantId(), PiStore.tenantId()) || !ownerType.equals(a.getOwnerType())
+                    || (a.getOwnerId() != 0 && !fromOwners.contains(a.getOwnerId()))) {
+                throw new BizException("附件不存在，请重新上传");
+            }
+        }
+        if (rows.size() != keys.size()) {
+            throw new BizException("附件不存在，请重新上传");
+        }
+        int max = MAX_PER_OWNER.getOrDefault(ownerType, 20);
+        if (keys.size() > max) {
+            throw new BizException("每条最多 " + max + " 个附件");
+        }
+        mapper.update(null, new LambdaUpdateWrapper<BizAttachmentDO>()
+                .set(BizAttachmentDO::getOwnerId, toOwner)
+                .in(BizAttachmentDO::getId, keys));
     }
 
     /** 修改单据时：附件以 ids 为准，不在其中的软删除，新的挂上 */

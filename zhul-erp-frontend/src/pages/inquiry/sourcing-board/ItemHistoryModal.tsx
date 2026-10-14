@@ -12,6 +12,7 @@ import {
   SupplierText,
   TaxHint,
 } from '../shared/components';
+import QuoteExtras from '../shared/QuoteExtras';
 import {
   boardApi,
   type ItemHistoryEntry,
@@ -136,6 +137,7 @@ const ItemHistoryModal: React.FC<{
                             taxRate={q.taxRate}
                             unitPrice={q.unitPrice}
                           />
+                          <QuoteExtras quote={q} />
                           <ConditionPill value={q.itemCondition} />
                           <LeadTimeText value={q.leadTime} />
                           <SupplierText

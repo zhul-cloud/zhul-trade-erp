@@ -43,6 +43,7 @@ import {
   PRICE_SOURCE_HISTORY,
   STATUS,
 } from '../shared/constants';
+import QuoteExtras from '../shared/QuoteExtras';
 import {
   type InquiryDetail,
   type InquiryItem,
@@ -289,6 +290,7 @@ const CustomerInquiryDetailPage: React.FC = () => {
             <span style={{ color: palette.ink, fontWeight: 600 }}>
               <PriceSummary value={q} />
             </span>
+            <QuoteExtras quote={q} />
             {q.note && (
               <span
                 style={{

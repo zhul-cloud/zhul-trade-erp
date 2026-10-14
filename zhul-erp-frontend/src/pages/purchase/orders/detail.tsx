@@ -41,6 +41,7 @@ import {
 import { SOURCE } from '@/pages/finance/payables/service';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { CURRENCIES } from '@/pages/quotation/components';
+import { StockPill } from '@/pages/sales/orders/dialogs';
 import {
   AttachmentWall,
   ReasonModal,
@@ -338,7 +339,7 @@ const PurchaseOrderDetail: React.FC = () => {
       width: 200,
       render: (v: string, r) => (
         <div>
-          <b>{v}</b>
+          <b>{v}</b> {r.stockType != null && <StockPill type={r.stockType} />}
           {sub(
             palette.mute,
             [r.brand, r.category].filter(Boolean).join(' · ') || '—',

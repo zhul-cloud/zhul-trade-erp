@@ -68,6 +68,10 @@ export interface PriceRecord {
   note: string;
   /** 该采购对该型号的推荐报价 */
   recommended?: boolean;
+  /** 是否包邮 */
+  freeShipping?: boolean;
+  /** 回价附件，有「查看货源信息」权限时才有 */
+  attachments?: QuoteFile[];
   quotedBy: number;
   quotedByName?: string;
   quotedAt?: string;
@@ -351,6 +355,10 @@ export interface MyQuote {
   note: string;
   recommended?: boolean;
   noStock: boolean;
+  /** 是否包邮，默认包邮 */
+  freeShipping?: boolean;
+  /** 回价附件（截图、报价单） */
+  attachments?: QuoteFile[];
   /** 1-草稿、2-已提交、3-待审核、4-已作废 */
   status: number;
   /** 作废原因（status=4）或退回原因（被退回的草稿） */
@@ -373,6 +381,10 @@ export interface MyTaskItem {
   inquiryScript: string;
   searchKeywords: string[];
   quotes: MyQuote[];
+  /** 历史询价摘要：DEAL 最近成交、QUOTE 最近询价，没有时为空 */
+  historyKind?: 'DEAL' | 'QUOTE';
+  historyPrice?: number;
+  historyDate?: string;
   /** 兼职回价的审核状态：1-待审核、2-已通过、3-被退回 */
   /** 已报给客户（出现在已发送及之后的报价单中），回价只读 */
   locked?: boolean;
@@ -403,6 +415,33 @@ export interface QuoteEntry {
   note?: string;
   /** 推荐报价，同一型号最多一条；都不标时按全新原装最低价自动推荐 */
   recommended?: boolean;
+  /** 是否包邮，不传按包邮 */
+  freeShipping?: boolean;
+  /** 附件 ID：新上传的或这条回价原有的 */
+  attachmentIds?: number[];
+}
+
+/** 回价附件（图片或 PDF） */
+export interface QuoteFile {
+  id: number;
+  kind: number;
+  fileName: string;
+  fileSize: number;
+  contentType: string;
+}
+
+/** 型号历史询价明细 */
+export interface ItemHistoryDetail {
+  deals: { price: number; date: string; poNo: string; supplierName?: string }[];
+  quotes: {
+    price: number;
+    date: string;
+    channelName?: string;
+    shopName?: string;
+    conditionName?: string;
+    leadTimeName?: string;
+    freeShipping: boolean;
+  }[];
 }
 
 /** 粘贴报价识别出的一行（不落库，预览修改后填进草稿） */
@@ -724,7 +763,10 @@ export interface ReviewApproveItem {
 }
 
 export const myTaskApi = {
-  list: (done: boolean) => get<MyTask[]>(MY, { done }),
+  list: (done: boolean, keyword?: string) =>
+    get<MyTask[]>(MY, { done, keyword: keyword || undefined }),
+  history: (id: number, itemId: number) =>
+    get<ItemHistoryDetail>(`${MY}/${id}/items/${itemId}/history`),
   detail: (id: number) =>
     get<{ task: MyTask; items: MyTaskItem[]; reviewRequired?: boolean }>(
       `${MY}/${id}`,
