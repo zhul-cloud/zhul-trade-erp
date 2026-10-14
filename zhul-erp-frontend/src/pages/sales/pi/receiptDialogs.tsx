@@ -3,7 +3,6 @@ import {
   Alert,
   App,
   Button,
-  Checkbox,
   DatePicker,
   Empty,
   Input,
@@ -52,70 +51,15 @@ export const PaymentMethodSelect: React.FC<{
   );
 };
 
-/** 实收人民币：默认按系统汇率折算；勾选「已结汇」后填实际入账人民币，显示反算的实际汇率 */
-export const ActualCnyInput: React.FC<{
-  net: number;
-  currency: string;
-  systemRate?: number;
-  value: number | null;
-  onChange: (v: number | null) => void;
-}> = ({ net, currency, systemRate, value, onChange }) => {
+/** 外币到账的人民币说明：登记时按最近一次结汇的汇率估算，结汇后由财务的结汇单确定 */
+export const FxEstimateHint: React.FC<{ currency: string }> = ({
+  currency,
+}) => {
   const { palette } = useAppTheme();
-  const [on, setOn] = useState(value != null);
-  const rate = value != null && net > 0 ? value / net : undefined;
+  if (currency === 'CNY') return null;
   return (
-    <div style={{ marginTop: 12 }}>
-      <Checkbox
-        checked={on}
-        onChange={(e) => {
-          setOn(e.target.checked);
-          if (!e.target.checked) onChange(null);
-        }}
-      >
-        已结汇，填实际入账人民币
-      </Checkbox>
-      {on ? (
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
-            gap: 12,
-            marginTop: 8,
-          }}
-        >
-          <InputNumber
-            style={{ width: '100%' }}
-            prefix="CNY"
-            min={0.01}
-            precision={2}
-            value={value}
-            onChange={onChange}
-            aria-label="实际入账人民币"
-          />
-          <div
-            style={{ fontSize: 13, color: palette.sub, alignSelf: 'center' }}
-          >
-            实际汇率{' '}
-            <b style={{ ...num, color: palette.ink }}>
-              {rate ? rate.toFixed(6) : '—'}
-            </b>
-            {systemRate ? (
-              <span style={{ color: palette.mute, marginLeft: 8 }}>
-                系统汇率 {Number(systemRate).toFixed(6)}
-              </span>
-            ) : null}
-          </div>
-        </div>
-      ) : (
-        net > 0 &&
-        systemRate && (
-          <div style={{ fontSize: 12, color: palette.mute, marginTop: 4 }}>
-            实收 {formatAmount(net, currency)} ≈{' '}
-            {formatAmount(Math.round(net * systemRate * 100) / 100, 'CNY')}
-            （系统汇率 {Number(systemRate).toFixed(6)}）
-          </div>
-        )
-      )}
+    <div style={{ marginTop: 12, fontSize: 12, color: palette.mute }}>
+      人民币先按最近一次结汇的汇率估算，标「未结汇」；结汇后由财务在「结汇单」登记，系统按先进先出确定实际人民币。
     </div>
   );
 };
@@ -141,7 +85,6 @@ export const PlatformReceiptModal = <T extends ReceiptResult>({
   const [amount, setAmount] = useState<number | null>(null);
   const [fee, setFee] = useState<number | null>(null);
   const [date, setDate] = useState<dayjs.Dayjs | null>(dayjs());
-  const [actual, setActual] = useState<number | null>(null);
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const cur = pi?.currencyCode ?? 'USD';
@@ -152,7 +95,6 @@ export const PlatformReceiptModal = <T extends ReceiptResult>({
     setAmount(pi?.remainingAmount ?? null);
     setFee(null);
     setDate(dayjs());
-    setActual(null);
     setNote('');
   }, [open, pi]);
 
@@ -171,7 +113,6 @@ export const PlatformReceiptModal = <T extends ReceiptResult>({
         amount,
         platformFee: fee ?? 0,
         receiptDate: date.format('YYYY-MM-DD'),
-        actualAmountCny: actual ?? undefined,
         note: note.trim() || undefined,
       });
       message.success(`已登记平台收款，收款状态：${res.receiptStatusName}`);
@@ -296,13 +237,7 @@ export const PlatformReceiptModal = <T extends ReceiptResult>({
           </b>
         </div>
       </div>
-      <ActualCnyInput
-        net={net}
-        currency={cur}
-        systemRate={pi?.exchangeRate}
-        value={actual}
-        onChange={setActual}
-      />
+      <FxEstimateHint currency={cur} />
       {after < 0 && amount != null && (
         <div style={{ marginTop: 12, fontSize: 13, color: palette.orange }}>
           <WarningOutlined /> 多收 {formatAmount(-after, cur)}，将记为预收
@@ -491,7 +426,7 @@ export const ClaimReceiptModal = <T extends ReceiptResult>({
       )}
       <div style={{ marginTop: 12, fontSize: 12, color: palette.mute }}>
         <InfoCircleOutlined /> 认领后按正常到账计入
-        PI；认领错了请总经理在「收款管理」取消认领。
+        PI；认领错了请总经理在「收款单」取消认领。
       </div>
     </Modal>
   );

@@ -36,7 +36,7 @@ import java.util.TreeSet;
 import java.util.stream.Collectors;
 
 /**
- * 关闭与重新打开 PI（客户最终没有付款）。调用方在事务内；加锁顺序：PI → 报价单（ID 升序）→ 客户询盘（ID 升序），
+ * 关闭与重新打开 PI（客户最终没有付款）。调用方在事务内；加锁顺序：PI → 报价单（ID 升序）→ 询盘单（ID 升序），
  * 与销售订单推进报价单（QuotationDeals）一致。
  */
 @Slf4j

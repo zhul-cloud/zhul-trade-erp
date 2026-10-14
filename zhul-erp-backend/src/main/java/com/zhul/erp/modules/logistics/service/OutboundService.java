@@ -35,6 +35,8 @@ import com.zhul.erp.modules.sales.support.PiStore;
 import com.zhul.erp.modules.system.constants.DocumentType;
 import com.zhul.erp.modules.system.service.DocumentNumberService;
 import com.zhul.erp.modules.system.service.LogService;
+import com.zhul.erp.modules.finance.constants.FinanceConstants;
+import com.zhul.erp.modules.finance.service.ReimburseGuard;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
@@ -58,15 +60,16 @@ import java.util.stream.Collectors;
 
 /**
  * 销售出库单：业务员发货通知（按订单所属业务员的数据权限），仓库打包、交国内快递（仓库看全部）。
- * 事务边界：发货通知 = 出库单与行；交国内快递 = 快递单、出库单状态、国内运费分摊、订单进度；
- * 撤销交货代 = 出库单状态、快递单（全部撤销时作废）、分摊重算、订单进度。
- * 写操作用读已提交并先锁订单或出库单：拿到锁后读到别的事务已提交的出库数量。
+ * 事务边界：发货通知 = 销售出库单与行；交国内快递 = 快递单、销售出库单状态、国内运费分摊、订单进度；
+ * 撤销交货代 = 销售出库单状态、快递单（全部撤销时作废）、分摊重算、订单进度。
+ * 写操作用读已提交并先锁订单或销售出库单：拿到锁后读到别的事务已提交的出库数量。
  */
 @Service
 @RequiredArgsConstructor
 public class OutboundService {
 
     private final OutboundOrderMapper outboundMapper;
+    private final ReimburseGuard reimburseGuard;
     private final OutboundOrderItemMapper itemMapper;
     private final OutboundBoxMapper boxMapper;
     private final OutboundBoxItemMapper boxItemMapper;
@@ -199,7 +202,7 @@ public class OutboundService {
         return String.join("、", text);
     }
 
-    /** 出库单行（未落库）：有采购需求的不超过 合格入库 − 已出库；系统外采购的不超过 型号数量 − 已出库（own 为本单原数量） */
+    /** 销售出库单行（未落库）：有采购需求的不超过 合格入库 − 已出库；系统外采购的不超过 型号数量 − 已出库（own 为本单原数量） */
     private List<OutboundOrderItemDO> buildItems(SalesOrderDO o, List<SaveNoticeRequest.Line> lines, Map<Long, Integer> own) {
         Map<Long, SalesOrderItemDO> soItems = soItems(o.getId()).stream().collect(Collectors.toMap(SalesOrderItemDO::getId, i -> i));
         Map<Long, Integer> wanted = new LinkedHashMap<>();
@@ -248,7 +251,7 @@ public class OutboundService {
         visible(id, false);
         OutboundOrderDO ob = lock(id);
         if (ob.getStatus() != LogisticsConstants.OB_PENDING && ob.getStatus() != LogisticsConstants.OB_PACKED) {
-            throw new BizException(ob.getStatus() == LogisticsConstants.OB_HANDED ? "已交货代的出库单不能重新打包，请先撤销交货代" : "发货通知已撤回");
+            throw new BizException(ob.getStatus() == LogisticsConstants.OB_HANDED ? "已交货代的销售出库单不能重新打包，请先撤销交货代" : "发货通知已撤回");
         }
         List<OutboundOrderItemDO> items = itemsOf(List.of(id)).getOrDefault(id, List.of());
         writeBoxes(ob, items, req.getBoxes());
@@ -260,14 +263,14 @@ public class OutboundService {
         return detail(id, false);
     }
 
-    /** 替换出库单的箱子：每个型号在各箱的数量之和须等于出库单上的数量 */
+    /** 替换销售出库单的箱子：每个型号在各箱的数量之和须等于销售出库单上的数量 */
     void writeBoxes(OutboundOrderDO ob, List<OutboundOrderItemDO> items, List<PackRequest.BoxLine> boxes) {
         Map<Long, OutboundOrderItemDO> byId = items.stream().collect(Collectors.toMap(OutboundOrderItemDO::getId, i -> i));
         Map<Long, Integer> packed = new HashMap<>();
         for (PackRequest.BoxLine b : boxes) {
             for (PackRequest.BoxItemLine bi : b.getItems()) {
                 if (!byId.containsKey(bi.getOutboundItemId())) {
-                    throw new BizException("箱内型号不属于这张出库单");
+                    throw new BizException("箱内型号不属于这张销售出库单");
                 }
                 packed.merge(bi.getOutboundItemId(), bi.getQuantity(), Integer::sum);
             }
@@ -333,7 +336,7 @@ public class OutboundService {
         }
         Set<Long> forwarders = obs.stream().map(OutboundOrderDO::getForwarderId).collect(Collectors.toSet());
         if (forwarders.size() > 1) {
-            throw new BizException("只能把同一家货代的出库单合成一票");
+            throw new BizException("只能把同一家货代的销售出库单合成一票");
         }
         for (OutboundOrderDO ob : obs) {
             if (ob.getStatus() != LogisticsConstants.OB_PACKED) {
@@ -373,12 +376,15 @@ public class OutboundService {
         visible(id, false);
         OutboundOrderDO ob = lock(id);
         if (ob.getStatus() != LogisticsConstants.OB_HANDED || ob.getSource() != LogisticsConstants.OB_NOTICE) {
-            throw new BizException("只有已交货代的出库单可以撤销");
+            throw new BizException("只有已交货代的销售出库单可以撤销");
         }
         if (ob.getLogisticsId() != null) {
-            throw new BizException("出库单已放进出运单，请先从出运单里移出");
+            throw new BizException("销售出库单已放进出运单，请先从出运单里移出");
         }
         Long waybillId = ob.getCourierWaybillId();
+        if (waybillId != null) {
+            reimburseGuard.requireNotClaimed(FinanceConstants.ITEM_COURIER, waybillId, "这票快递的运费");
+        }
         ob.setStatus(LogisticsConstants.OB_PACKED);
         ob.setCourierWaybillId(null);
         outboundMapper.updateById(ob);
@@ -450,7 +456,7 @@ public class OutboundService {
         return vo;
     }
 
-    /** 订单上的出库单（含撤回的），新的在前 */
+    /** 订单上的销售出库单（含撤回的），新的在前 */
     public List<OutboundVO> byOrder(Long soId) {
         support.order(soId, true);
         return toVos(outboundMapper.selectList(new LambdaQueryWrapper<OutboundOrderDO>()
@@ -674,7 +680,7 @@ public class OutboundService {
         OutboundOrderDO ob = id == null ? null : outboundMapper.selectById(id);
         if (ob == null || ob.getDeletedAt() != null || !Objects.equals(ob.getTenantId(), PiStore.tenantId())
                 || (scoped && !support.scope().canSee(ob.getOwnerId()))) {
-            throw new BizException("出库单不存在");
+            throw new BizException("销售出库单不存在");
         }
         return ob;
     }

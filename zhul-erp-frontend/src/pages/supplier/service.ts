@@ -68,7 +68,7 @@ export interface SupplierItem {
   /** 列表里为空，详情与编辑取数才有 */
   attachments: SupplierAttachment[];
   productScopes: SupplierProductScope[];
-  /** 默认付款条件，新建采购单时带出；未设置为空 */
+  /** 默认付款条件，新建采购订单时带出；未设置为空 */
   paymentTerms?: PaymentTerm[];
   paymentTermsText?: string;
   /** 服务商（货代）的体积系数：体积重 = 长 × 宽 × 高 ÷ 系数 */

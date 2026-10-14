@@ -9,7 +9,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.nio.file.Path;
 import java.util.Set;
 
-/** 采购单合同附件：私有目录下的 purchase 模块，只收 PDF、JPG、PNG（按文件内容校验） */
+/** 采购订单合同附件：私有目录下的 purchase 模块，只收 PDF、JPG、PNG（按文件内容校验） */
 @Component
 @RequiredArgsConstructor
 public class PurchaseAttachmentStorage {

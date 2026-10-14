@@ -438,7 +438,7 @@ export const CounterpartyPicker: React.FC<{
           <span
             style={{ gridColumn: '1 / -1', fontSize: 12, color: palette.mute }}
           >
-            临时合作的店铺不用建供应商；同一平台下店铺名相同视为同一家店，买得多了可以在采购单上「转为供应商」。
+            临时合作的店铺不用建供应商；同一平台下店铺名相同视为同一家店，买得多了可以在采购订单上「转为供应商」。
           </span>
         </div>
       )}

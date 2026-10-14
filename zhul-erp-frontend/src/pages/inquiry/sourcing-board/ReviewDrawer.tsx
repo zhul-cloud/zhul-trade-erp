@@ -396,8 +396,8 @@ const ReviewDrawer: React.FC<{
                 >
                   <HistoryOutlined />
                   {it.historyLowest
-                    ? `历史询价最低：${formatAmount(it.historyLowest.unitPriceCny)}${it.historyLowest.quotedAt ? ` · ${dayjs(it.historyLowest.quotedAt).format('MM-DD')}` : ''}${it.historyLowest.quotedByName ? `（${it.historyLowest.quotedByName}）` : ''}`
-                    : '历史询价：没有这个型号的记录'}
+                    ? `询价记录最低：${formatAmount(it.historyLowest.unitPriceCny)}${it.historyLowest.quotedAt ? ` · ${dayjs(it.historyLowest.quotedAt).format('MM-DD')}` : ''}${it.historyLowest.quotedByName ? `（${it.historyLowest.quotedByName}）` : ''}`
+                    : '询价记录：没有这个型号的记录'}
                 </span>
                 {noStockOnly && (
                   <span style={{ color: palette.mute, fontSize: 12 }}>

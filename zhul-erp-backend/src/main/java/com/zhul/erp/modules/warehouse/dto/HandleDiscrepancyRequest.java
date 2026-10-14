@@ -15,7 +15,7 @@ public class HandleDiscrepancyRequest {
     private Integer resolution;
     @Size(max = 300, message = "说明不能超过300个字")
     private String note;
-    /** 折价接收：折价金额（采购单币种） */
+    /** 折价接收：折价金额（采购订单币种） */
     @DecimalMin(value = "0", message = "折价金额不能为负数")
     @Digits(integer = 16, fraction = 2, message = "折价金额最多两位小数")
     private BigDecimal discountAmount;
@@ -26,6 +26,8 @@ public class HandleDiscrepancyRequest {
     @DecimalMin(value = "0", message = "运费不能为负数")
     @Digits(integer = 16, fraction = 2, message = "运费最多两位小数")
     private BigDecimal returnFreight;
+    /** 退货运费垫付人（用户 ID），默认当前处理人；进入垫付人的待报销 */
+    private Long returnPayerId;
     /** 暂存：供应商白送（成本为 0） */
     private Boolean freeOfCharge;
     /** 暂存：位置备注 */

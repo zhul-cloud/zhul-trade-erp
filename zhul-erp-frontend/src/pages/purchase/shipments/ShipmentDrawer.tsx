@@ -217,7 +217,7 @@ const ShipmentDrawer: React.FC<{
       footer={
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={{ fontSize: 12, color: palette.mute }}>
-            <InfoCircleOutlined /> 一张采购单可以分几批发；线上店铺同样登记
+            <InfoCircleOutlined /> 一张采购订单可以分几批发；线上店铺同样登记
           </span>
           <span style={{ flex: 1 }} />
           <Button onClick={onClose}>取消</Button>

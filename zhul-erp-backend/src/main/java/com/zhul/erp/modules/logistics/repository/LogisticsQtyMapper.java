@@ -13,7 +13,7 @@ import java.util.List;
 public interface LogisticsQtyMapper {
 
     /**
-     * 订单型号行：occupied = 未撤回出库单上的数量；handed = 已交货代、所在出运单还没出运的数量；
+     * 订单型号行：occupied = 未撤回销售出库单上的数量；handed = 已交货代、所在出运单还没出运的数量；
      * shipped = 已交货代且所在出运单已出运的数量
      */
     @Select("<script>SELECT oi.so_item_id AS id, "

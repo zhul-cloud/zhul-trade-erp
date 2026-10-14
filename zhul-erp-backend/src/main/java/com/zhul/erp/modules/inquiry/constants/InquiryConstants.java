@@ -9,7 +9,7 @@ public final class InquiryConstants {
     private InquiryConstants() {
     }
 
-    /** 客户询盘状态 */
+    /** 询盘单状态 */
     public static final int STATUS_PENDING_PARSE = 1;
     public static final int STATUS_PARSING = 2;
     public static final int STATUS_PENDING_CONFIRM = 3;

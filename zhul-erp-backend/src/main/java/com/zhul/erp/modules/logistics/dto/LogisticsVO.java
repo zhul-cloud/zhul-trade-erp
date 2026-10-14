@@ -33,7 +33,7 @@ public class LogisticsVO {
     private Integer boxCount;
     /** 按货代体积系数的计费重合计 */
     private BigDecimal chargeableWeight;
-    /** 详情才有：出库单（箱上带国际运费分摊） */
+    /** 详情才有：销售出库单（箱上带国际运费分摊） */
     private List<OutboundVO> outbounds;
     /** 详情才有：箱号 → 分到的国际运费 */
     private java.util.Map<Long, BigDecimal> boxFreight;

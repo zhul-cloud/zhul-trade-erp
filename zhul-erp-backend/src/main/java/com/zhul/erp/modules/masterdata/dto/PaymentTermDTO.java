@@ -4,7 +4,7 @@ import lombok.Data;
 
 import java.math.BigDecimal;
 
-/** 付款条件的一期：比例与到期时点（供应商默认付款条件与采购单共用） */
+/** 付款条件的一期：比例与到期时点（供应商默认付款条件与采购订单共用） */
 @Data
 public class PaymentTermDTO {
     /** 比例（%），两位小数 */

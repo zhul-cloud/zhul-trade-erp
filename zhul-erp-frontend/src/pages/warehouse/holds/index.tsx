@@ -159,8 +159,8 @@ const Holds: React.FC = () => {
   return (
     <div>
       <WarehousePageTitle
-        crumbs={['暂存货']}
-        title="暂存货"
+        crumbs={['闲置库存']}
+        title="闲置库存"
         description="多发且没有退回的货：记下在哪、值多少；可以退回供应商、报废或转样品。"
       />
       <div
@@ -192,7 +192,7 @@ const Holds: React.FC = () => {
           value={keyword}
           onChange={(e) => setKeyword(e.target.value)}
           onPressEnter={apply}
-          placeholder="型号、来源采购单"
+          placeholder="型号、来源采购订单"
           style={{ width: 280 }}
           aria-label="关键词"
         />
@@ -214,7 +214,7 @@ const Holds: React.FC = () => {
             emptyText:
               status === 1
                 ? '没有暂存中的货；采购员处理多发时选「暂存」会出现在这里'
-                : '没有符合条件的暂存货',
+                : '没有符合条件的闲置库存',
           }}
           pagination={{
             current: page,

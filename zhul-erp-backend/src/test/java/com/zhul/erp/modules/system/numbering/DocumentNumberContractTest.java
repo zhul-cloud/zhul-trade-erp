@@ -9,7 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 
-/** spec system/document-numbering「租户单据前缀」：在「业务设置 → 单据编号」查看，修改需要「编辑单据编号」 */
+/** spec system/document-numbering「租户单据前缀」：在「业务设置 → 编号规则」查看，修改需要「编辑编号规则」 */
 class DocumentNumberContractTest extends TenantContractSupport {
 
     private static final String API = "/api/v1/system/document-numbering/prefix";
@@ -28,7 +28,7 @@ class DocumentNumberContractTest extends TenantContractSupport {
         loginWithResources("it_num_viewer", MENU_NUMBERING);
         String viewer = token("it_num_viewer", TENANT);
         assertEquals("", ok(call(get(API), viewer)).path("prefix").asText());
-        assertEquals(403, perform(json(put(API), "{\"prefix\":\"FW\"}"), viewer).getStatus(), "只读：没有编辑单据编号");
+        assertEquals(403, perform(json(put(API), "{\"prefix\":\"FW\"}"), viewer).getStatus(), "只读：没有编辑编号规则");
 
         loginWithResources("it_num_editor", MENU_NUMBERING, BTN_EDIT);
         String editor = token("it_num_editor", TENANT);

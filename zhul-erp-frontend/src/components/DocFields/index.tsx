@@ -125,7 +125,7 @@ export const DictTextInput: React.FC<{
   );
 };
 
-/** 列表的客户列：名称、国家与新 / 老客户（与客户询盘列表一致） */
+/** 列表的客户列：名称、国家与新 / 老客户（与询盘单列表一致） */
 export const CustomerCell: React.FC<{
   name?: string;
   country?: string;

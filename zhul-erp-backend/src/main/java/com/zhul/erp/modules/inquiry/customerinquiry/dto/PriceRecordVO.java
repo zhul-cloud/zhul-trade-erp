@@ -5,7 +5,7 @@ import lombok.Data;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-/** 一条历史询价（询价记录） */
+/** 一条询价记录（询价记录） */
 @Data
 public class PriceRecordVO {
     private Long id;

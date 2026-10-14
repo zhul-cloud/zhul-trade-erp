@@ -12,6 +12,6 @@ public interface AiTaskResultHandler {
     /** 该处理器是否负责处理这个 skillId 的任务结果 */
     boolean supports(String skillId);
 
-    /** 任务状态与结果已经落库之后调用，处理该 skill 的业务后续动作（如更新客户询盘状态） */
+    /** 任务状态与结果已经落库之后调用，处理该 skill 的业务后续动作（如更新询盘单状态） */
     void handle(AiTaskDO task);
 }

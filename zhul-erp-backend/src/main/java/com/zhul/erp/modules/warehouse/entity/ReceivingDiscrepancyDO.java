@@ -39,6 +39,9 @@ public class ReceivingDiscrepancyDO {
     private String returnTrackingNo;
     @TableField(updateStrategy = FieldStrategy.ALWAYS)
     private BigDecimal returnFreight;
+    /** 退货运费垫付人（进入待报销） */
+    @com.baomidou.mybatisplus.annotation.TableField(updateStrategy = com.baomidou.mybatisplus.annotation.FieldStrategy.ALWAYS)
+    private Long returnPayerId;
     private Integer freeOfCharge;
     @TableField(updateStrategy = FieldStrategy.ALWAYS)
     private Long handledBy;

@@ -59,7 +59,7 @@ const fileIcon = (name: string) =>
     <FileImageOutlined />
   );
 
-/** 新建客户询盘：粘贴原文或拖入附件，提交后可以马上开始 AI 解析或手动录入 */
+/** 新建询盘单：粘贴原文或拖入附件，提交后可以马上开始 AI 解析或手动录入 */
 const NewInquiryModal: React.FC<{
   open: boolean;
   /** 预选的客户（如从商机跳转来） */
@@ -180,7 +180,7 @@ const NewInquiryModal: React.FC<{
     <>
       <Modal
         open={open}
-        title="新建客户询盘"
+        title="新建询盘单"
         width={720}
         destroyOnHidden
         onCancel={onClose}

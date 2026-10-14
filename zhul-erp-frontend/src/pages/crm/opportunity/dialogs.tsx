@@ -127,7 +127,7 @@ type EditFile = {
   localUrl?: string;
 };
 
-/** 编辑商机：渠道、首次接触日期、需求摘要与附件；客户信息在「业务管理 → 客户」维护 */
+/** 编辑商机：渠道、首次接触日期、需求摘要与附件；客户信息在「销售管理 → 客户」维护 */
 export const EditModal: React.FC<{
   detail: OpportunityDetail | null;
   onClose: () => void;
@@ -323,7 +323,7 @@ export const EditModal: React.FC<{
 };
 
 /**
- * 从商机创建客户询盘：客户固定为商机客户，原始内容带入需求摘要；
+ * 从商机创建询盘单：客户固定为商机客户，原始内容带入需求摘要；
  * 可选一个商机附件作为解析来源（图片按图片解析、Excel 按表格解析），后端复制为询盘附件。
  */
 export const CreateInquiryModal: React.FC<{
@@ -344,7 +344,7 @@ export const CreateInquiryModal: React.FC<{
   return (
     <Modal
       open={open}
-      title="创建客户询盘"
+      title="创建询盘单"
       okText="创建询盘"
       cancelText="取消"
       width={600}
@@ -392,7 +392,7 @@ export const CreateInquiryModal: React.FC<{
             inquiryDate: dayjs().format('YYYY-MM-DD'),
             level,
           });
-          message.success('客户询盘已创建，可以 AI 解析或手动录入型号');
+          message.success('询盘单已创建，可以 AI 解析或手动录入型号');
           history.push(`/inquiry/customer-inquiries/${created.id}`);
         } catch (e) {
           message.error(readBizError(e).message);

@@ -44,7 +44,7 @@ public class LogisticsShipmentController {
     private final LogisticsShipmentService service;
     private final DocGroupService docs;
 
-    /** 待出运的货：已交货代、还没放进出运单的出库单与直发货 */
+    /** 待出运的货：已交货代、还没放进出运单的销售出库单与直发货 */
     @GetMapping("/pending")
     @PreAuthorize(MENU)
     public Result<List<PendingGroupVO>> pending() {

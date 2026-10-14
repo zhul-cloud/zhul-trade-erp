@@ -1,5 +1,10 @@
 package com.zhul.erp.modules.sales.support;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.zhul.erp.modules.finance.entity.FxSettlementAllocationDO;
+import com.zhul.erp.modules.finance.entity.FxSettlementDO;
+import com.zhul.erp.modules.finance.repository.FxSettlementAllocationMapper;
+import com.zhul.erp.modules.finance.repository.FxSettlementMapper;
 import com.zhul.erp.modules.inquiry.support.InquiryLookups;
 import com.zhul.erp.modules.masterdata.entity.CustomerDO;
 import com.zhul.erp.modules.sales.dto.ReceiptRowVO;
@@ -21,7 +26,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-/** 把收款记录转成收款管理的行：补上 PI 编号、客户、收款账户与登记人、认领人名称 */
+/** 把收款记录转成收款单的行：补上 PI 编号、客户、收款账户与登记人、认领人名称 */
 @Component
 @RequiredArgsConstructor
 public class ReceiptRows {
@@ -30,6 +35,8 @@ public class ReceiptRows {
     private final com.zhul.erp.modules.sales.repository.SalesOrderMapper orderMapper;
     private final BankAccountMapper bankAccountMapper;
     private final InquiryLookups lookups;
+    private final FxSettlementAllocationMapper allocationMapper;
+    private final FxSettlementMapper settlementMapper;
 
     public List<ReceiptRowVO> of(List<PaymentReceiptDO> rows) {
         if (rows.isEmpty()) {
@@ -48,6 +55,7 @@ public class ReceiptRows {
                 : bankAccountMapper.selectBatchIds(bankIds).stream().collect(Collectors.toMap(BankAccountDO::getId, b -> b));
         Map<Long, String> users = lookups.userNames(rows.stream()
                 .flatMap(r -> Stream.of(r.getOperatorId(), r.getClaimedBy())).filter(Objects::nonNull).distinct().toList());
+        Map<Long, List<String>> settleNos = settleNos(rows.stream().map(PaymentReceiptDO::getId).toList());
         List<ReceiptRowVO> list = new ArrayList<>(rows.size());
         for (PaymentReceiptDO r : rows) {
             ReceiptRowVO vo = new ReceiptRowVO();
@@ -68,6 +76,9 @@ public class ReceiptRows {
             vo.setExchangeRate(r.getExchangeRate());
             vo.setRateSource(r.getRateSource());
             vo.setNetAmountCny(r.getNetAmountCny());
+            vo.setSettledAmount(r.getSettledAmount());
+            vo.setSettleStatus(r.getSettleStatus());
+            vo.setSettleNos(settleNos.getOrDefault(r.getId(), List.of()));
             vo.setPaymentMethod(r.getPaymentMethod());
             vo.setPaymentMethodName(r.getPaymentMethodName());
             vo.setChannel(r.getChannel());
@@ -86,5 +97,23 @@ public class ReceiptRows {
             list.add(vo);
         }
         return list;
+    }
+
+    /** 到账 → 有效结汇单编号（按结汇先后） */
+    private Map<Long, List<String>> settleNos(List<Long> receiptIds) {
+        List<FxSettlementAllocationDO> allocs = allocationMapper.selectList(new LambdaQueryWrapper<FxSettlementAllocationDO>()
+                .in(FxSettlementAllocationDO::getReceiptId, receiptIds)
+                .isNull(FxSettlementAllocationDO::getDeletedAt)
+                .orderByAsc(FxSettlementAllocationDO::getId));
+        if (allocs.isEmpty()) {
+            return Map.of();
+        }
+        Map<Long, String> nos = settlementMapper.selectBatchIds(allocs.stream().map(FxSettlementAllocationDO::getSettlementId).distinct().toList())
+                .stream().collect(Collectors.toMap(FxSettlementDO::getId, FxSettlementDO::getSettleNo));
+        Map<Long, List<String>> out = new java.util.HashMap<>();
+        for (FxSettlementAllocationDO a : allocs) {
+            out.computeIfAbsent(a.getReceiptId(), k -> new ArrayList<>()).add(nos.get(a.getSettlementId()));
+        }
+        return out;
     }
 }

@@ -15,7 +15,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.nio.file.Path;
 import java.util.List;
 
-/** 客户询盘：录入、AI 解析或手动录入、确认生成型号明细与询价任务、改选价格、取消 */
+/** 询盘单：录入、AI 解析或手动录入、确认生成型号明细与询价任务、改选价格、取消 */
 public interface CustomerInquiryService {
 
     UploadedFileVO uploadAttachment(MultipartFile file);

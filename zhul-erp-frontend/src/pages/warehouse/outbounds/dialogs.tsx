@@ -275,8 +275,8 @@ export const HandOverModal: React.FC<{
     >
       <div style={{ color: palette.sub, marginBottom: 16 }}>
         {outbounds.length > 1
-          ? `同一家货代的 ${outbounds.length} 张出库单合成一票寄出，运费按计费重分摊`
-          : '一张出库单单独寄出'}
+          ? `同一家货代的 ${outbounds.length} 张销售出库单合成一票寄出，运费按计费重分摊`
+          : '一张销售出库单单独寄出'}
       </div>
       <div
         style={{
@@ -354,7 +354,7 @@ export const HandOverModal: React.FC<{
         pagination={false}
         dataSource={outbounds}
         columns={[
-          { title: '出库单', dataIndex: 'obNo' },
+          { title: '销售出库单', dataIndex: 'obNo' },
           { title: '订单', dataIndex: 'soNo' },
           { title: '箱数', dataIndex: 'boxCount', width: 70 },
           {
@@ -372,7 +372,7 @@ export const HandOverModal: React.FC<{
       />
       <div style={{ fontSize: 12, color: palette.mute, marginTop: 12 }}>
         <InfoCircleOutlined />{' '}
-        登记后出库单为「已交货代」，订单型号自动推进；运费由垫付人以后走报销。
+        登记后销售出库单为「已交货代」，订单型号自动推进；运费由垫付人以后走报销。
       </div>
     </Modal>
   );
@@ -402,7 +402,7 @@ export const OutboundView: React.FC<{ id?: number; onClose: () => void }> = ({
       onClose={onClose}
       size="min(760px, 96vw)"
       destroyOnHidden
-      title={ob ? `出库单 ${ob.obNo}` : '出库单'}
+      title={ob ? `销售出库单 ${ob.obNo}` : '销售出库单'}
     >
       {error ? (
         <ErrorHint message={error} onRetry={onClose} />

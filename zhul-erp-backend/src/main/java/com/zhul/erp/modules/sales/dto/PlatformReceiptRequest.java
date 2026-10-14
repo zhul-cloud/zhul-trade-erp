@@ -18,8 +18,6 @@ public class PlatformReceiptRequest {
     private BigDecimal platformFee;
     @NotNull(message = "请选择到账日期")
     private LocalDate receiptDate;
-    /** 已结汇时的实际入账人民币 */
-    private BigDecimal actualAmountCny;
     @Size(max = 300, message = "说明不能超过 300 字")
     private String note;
 }

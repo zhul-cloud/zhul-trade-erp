@@ -11,6 +11,8 @@ import type { TableColumnsType, TableProps } from 'antd';
 import { Button, DatePicker, Form, Input, Select, Table } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
+import { PayStatusPill } from '@/pages/finance/payables/components';
+import { PAY_STATUS } from '@/pages/finance/payables/service';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useUserOptions } from '@/pages/sales/orders/dialogs';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -43,6 +45,8 @@ interface Filters {
   keyword?: string;
   status?: number;
   shipProgress?: string;
+  payStatus?: string;
+  invoiceStatus?: string;
   supplierId?: number;
   purchaserId?: number;
   range?: [Dayjs, Dayjs] | null;
@@ -71,6 +75,8 @@ const PurchaseOrderList: React.FC = () => {
       keyword: filters.keyword?.trim() || undefined,
       status: filters.status,
       shipProgress: filters.shipProgress,
+      payStatus: filters.payStatus,
+      invoiceStatus: filters.invoiceStatus,
       supplierId: filters.supplierId,
       purchaserId: filters.purchaserId,
       orderFrom: filters.range?.[0]?.format('YYYY-MM-DD'),
@@ -107,13 +113,15 @@ const PurchaseOrderList: React.FC = () => {
     !filters.keyword &&
     !filters.status &&
     !filters.shipProgress &&
+    !filters.payStatus &&
+    !filters.invoiceStatus &&
     !filters.supplierId &&
     !filters.purchaserId &&
     !filters.range;
 
   const columns: TableColumnsType<PoListItem> = [
     {
-      title: '采购单 · 下单日期',
+      title: '采购订单 · 下单日期',
       dataIndex: 'poNo',
       width: 190,
       fixed: 'left',
@@ -193,6 +201,53 @@ const PurchaseOrderList: React.FC = () => {
       width: 170,
       render: (v?: string) =>
         v || <span style={{ color: palette.mute }}>未填</span>,
+    },
+    {
+      title: '付款',
+      key: 'pay',
+      width: 170,
+      render: (_, r) =>
+        r.payStatus === undefined ? (
+          <span style={{ color: palette.mute }}>—</span>
+        ) : (
+          <div>
+            <PayStatusPill status={r.payStatus} />
+            {r.payStatus === PAY_STATUS.PARTIAL && (
+              <div style={{ fontSize: 12, color: palette.sub }}>
+                {formatAmount(r.paidAmount, r.currencyCode)} /{' '}
+                {formatAmount(r.payableAmount, r.currencyCode)}
+              </div>
+            )}
+            {!!r.creditAmount && r.creditAmount > 0 && (
+              <div style={{ fontSize: 12, color: palette.orange }}>
+                欠款 {formatAmount(r.creditAmount, r.currencyCode)}
+              </div>
+            )}
+          </div>
+        ),
+    },
+    {
+      title: '开票',
+      key: 'invoice',
+      width: 150,
+      render: (_, r) =>
+        !r.invoiceStatus ? (
+          <span style={{ color: palette.mute }}>不开票</span>
+        ) : (
+          <div>
+            {r.invoiceOverdueDays ? (
+              <Pill tone="red">开票逾期 {r.invoiceOverdueDays} 天</Pill>
+            ) : r.invoiceStatus === 2 ? (
+              <Pill tone="green">已开票</Pill>
+            ) : (
+              <Pill tone="orange">待开票</Pill>
+            )}
+            <div style={{ fontSize: 12, color: palette.sub }}>
+              {formatAmount(r.invoiceAmount, r.currencyCode)} ·{' '}
+              {Number(r.taxPoint ?? 0)}%
+            </div>
+          </div>
+        ),
     },
     {
       title: '预计发货日期',
@@ -296,9 +351,9 @@ const PurchaseOrderList: React.FC = () => {
   return (
     <div>
       <PurchasePageTitle
-        crumbs={['采购单']}
-        title="采购单"
-        description="向供应商下的单：记录实际采购价、付款条件与供应商合同；砍价 = 目标价 − 不含税采购价。"
+        crumbs={['采购订单']}
+        title="采购订单"
+        description="向供应商下的单：记录实际采购价、开票、付款条件与供应商合同；砍价 = 目标价 − 人民币采购价，开票成本不计入砍价。"
       />
 
       {stats && (
@@ -315,7 +370,7 @@ const PurchaseOrderList: React.FC = () => {
             color={palette.link}
             label="本月已下单"
             value={formatAmount(stats.monthOrderedCny, 'CNY')}
-            hint={`共 ${stats.monthOrderedCount} 张采购单`}
+            hint={`共 ${stats.monthOrderedCount} 张采购订单`}
           />
           <StatCard
             icon={<FallOutlined />}
@@ -324,7 +379,7 @@ const PurchaseOrderList: React.FC = () => {
             value={formatAmount(stats.monthBargain, 'CNY')}
             hint={
               stats.monthBargainRate == null
-                ? '本月还没有可比较的采购单'
+                ? '本月还没有可比较的采购订单'
                 : `整体砍价率 ${stats.monthBargainRate.toFixed(2)}%（按目标金额加权）`
             }
             hintColor={palette.green}
@@ -337,7 +392,7 @@ const PurchaseOrderList: React.FC = () => {
                 shipProgress: stats.overdueShip > 0 ? 'OVERDUE' : 'UNSHIPPED',
               })
             }
-            aria-label="筛出要催发货的采购单"
+            aria-label="筛出要催发货的采购订单"
             style={{
               all: 'unset',
               cursor: 'pointer',
@@ -376,8 +431,8 @@ const PurchaseOrderList: React.FC = () => {
             value={stats.orderCancelled}
             hint={
               stats.orderCancelled > 0
-                ? '请决定取消采购单或保留货物'
-                : '没有需要处理的采购单'
+                ? '请决定取消采购订单或保留货物'
+                : '没有需要处理的采购订单'
             }
             hintColor={stats.orderCancelled > 0 ? palette.red : undefined}
           />
@@ -402,7 +457,7 @@ const PurchaseOrderList: React.FC = () => {
               <Input
                 allowClear
                 prefix={<SearchOutlined />}
-                placeholder="采购单编号、供应商或店铺、型号、订单编号"
+                placeholder="采购订单编号、供应商或店铺、型号、订单编号"
               />
             </Form.Item>
             <Form.Item name="status" label="状态" style={{ marginBottom: 0 }}>
@@ -422,6 +477,40 @@ const PurchaseOrderList: React.FC = () => {
               style={{ marginBottom: 0 }}
             >
               <Select allowClear placeholder="全部" options={SHIP_PROGRESS} />
+            </Form.Item>
+            <Form.Item
+              name="payStatus"
+              label="付款"
+              style={{ marginBottom: 0 }}
+            >
+              <Select
+                allowClear
+                placeholder="全部"
+                style={{ minWidth: 120 }}
+                options={[
+                  { value: 'UNPAID', label: '未付' },
+                  { value: 'PARTIAL', label: '部分付款' },
+                  { value: 'PAID', label: '已付清' },
+                  { value: 'CREDIT', label: '有欠款' },
+                ]}
+              />
+            </Form.Item>
+            <Form.Item
+              name="invoiceStatus"
+              label="开票"
+              style={{ marginBottom: 0 }}
+            >
+              <Select
+                allowClear
+                placeholder="全部"
+                style={{ minWidth: 120 }}
+                options={[
+                  { value: 'NONE', label: '不开票' },
+                  { value: 'PENDING', label: '待开票' },
+                  { value: 'DONE', label: '已开票' },
+                  { value: 'OVERDUE', label: '开票逾期' },
+                ]}
+              />
             </Form.Item>
             <Form.Item
               name="supplierId"
@@ -476,8 +565,8 @@ const PurchaseOrderList: React.FC = () => {
       ) : !loading && rows.length === 0 && noFilter ? (
         <Card>
           <EmptyHint
-            title="还没有采购单"
-            description="销售订单生成后会自动排入草稿采购单，也可以在采购需求里勾选生成"
+            title="还没有采购订单"
+            description="销售订单生成后会自动排入草稿采购订单，也可以在采购需求里勾选生成"
             actionText="去采购需求"
             onAction={() => history.push(PATHS.requirements)}
           />
@@ -488,9 +577,9 @@ const PurchaseOrderList: React.FC = () => {
           columns={columns}
           dataSource={rows}
           loading={loading}
-          scroll={{ x: 2180 }}
+          scroll={{ x: 2330 }}
           onChange={onTableChange}
-          locale={{ emptyText: '没有符合条件的采购单，换个筛选条件试试' }}
+          locale={{ emptyText: '没有符合条件的采购订单，换个筛选条件试试' }}
           pagination={{
             current: page,
             pageSize,

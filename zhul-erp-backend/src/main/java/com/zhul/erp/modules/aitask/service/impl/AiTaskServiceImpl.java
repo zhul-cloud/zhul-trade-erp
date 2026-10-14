@@ -77,7 +77,7 @@ public class AiTaskServiceImpl implements AiTaskService {
      * 会因为看不到未提交的行而报"AI任务不存在"，这条回调就白白丢了，任务只能等
      * AiTaskTimeoutWatchdog 在几十分钟后兜底、报出一个跟真实失败原因无关的超时提示。
      * 用 Claude Code 联网搜索走真实流程时几十秒到几分钟起步，不会撞见这个时间窗口；
-     * 但客户询盘走图片/Excel录入时 rawContent 为空、编排服务会立刻同步拒绝，稳定复现。
+     * 但询盘单走图片/Excel录入时 rawContent 为空、编排服务会立刻同步拒绝，稳定复现。
      * 所以提交动作必须等当前事务真正提交之后才发起，不能指望"响应总是比事务提交慢"。
      */
     private void submit(AiTaskDO task, String inputJson) {

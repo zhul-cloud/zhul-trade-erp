@@ -65,8 +65,8 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * 出运单：同一客户、同一货代已交货代的出库单与直发货合成一票；直发货按货代实收确认；登记运单与国际运费。
- * 按业务员数据权限（出运单的业务员）。事务边界：直发确认 = 入库单与差异、直发出库单与箱、订单进度；
+ * 出运单：同一客户、同一货代已交货代的销售出库单与直发货合成一票；直发货按货代实收确认；登记运单与国际运费。
+ * 按业务员数据权限（出运单的业务员）。事务边界：直发确认 = 采购入库单与差异、直发销售出库单与箱、订单进度；
  * 登记出运 = 出运单、国际运费分摊、订单进度。写操作读已提交并先锁出运单。
  */
 @Service
@@ -95,7 +95,7 @@ public class LogisticsShipmentService {
 
     // ---------------------------------------------------------------- 待出运的货
 
-    /** 已交货代、还没放进出运单的出库单与直发货，按客户与货代分组（按业务员数据权限） */
+    /** 已交货代、还没放进出运单的销售出库单与直发货，按客户与货代分组（按业务员数据权限） */
     public List<PendingGroupVO> pending() {
         LambdaQueryWrapper<OutboundOrderDO> w = new LambdaQueryWrapper<OutboundOrderDO>()
                 .eq(OutboundOrderDO::getTenantId, PiStore.tenantId())
@@ -168,7 +168,7 @@ public class LogisticsShipmentService {
         return detail(sh.getId());
     }
 
-    /** 修改出运单里的货（待出运时）：以传入的出库单与直发货为准 */
+    /** 修改出运单里的货（待出运时）：以传入的销售出库单与直发货为准 */
     @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public LogisticsVO updateItems(Long id, SaveLogisticsRequest req) {
         LogisticsShipmentDO sh = lockPending(id);
@@ -203,12 +203,12 @@ public class LogisticsShipmentService {
         }
         attach(sh, keepOb, keepDirect);
         if (outboundsOf(id).isEmpty() && directsOf(id).isEmpty()) {
-            throw new BizException("出运单里至少要有一张出库单或直发货；不要了请作废");
+            throw new BizException("出运单里至少要有一张销售出库单或直发货；不要了请作废");
         }
         return detail(id);
     }
 
-    /** 把出库单与直发货放进出运单：同一客户、同一货代、已交货代（直发货在途）、还没放进别的出运单 */
+    /** 把销售出库单与直发货放进出运单：同一客户、同一货代、已交货代（直发货在途）、还没放进别的出运单 */
     private void attach(LogisticsShipmentDO sh, Collection<Long> outboundIds, Collection<Long> directIds) {
         List<Long> obIds = nn(outboundIds).stream().distinct().sorted().toList();
         List<Long> dIds = nn(directIds).stream().distinct().sorted().toList();
@@ -307,7 +307,7 @@ public class LogisticsShipmentService {
         }
         Map<Long, com.zhul.erp.modules.warehouse.entity.PurchaseReceiptItemDO> receiptItems =
                 receipts.receiveDirect(shipmentId, LocalDate.now(), received);
-        // 直发出库单：已交货代，没有国内快递，箱规按货代量的尺寸重量
+        // 直发销售出库单：已交货代，没有国内快递，箱规按货代量的尺寸重量
         OutboundOrderDO ob = new OutboundOrderDO();
         ob.setTenantId(sh.getTenantId());
         ob.setObNo(documentNumberService.next(DocumentType.OB));

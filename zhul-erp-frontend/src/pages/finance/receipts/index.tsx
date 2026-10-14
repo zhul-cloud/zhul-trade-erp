@@ -6,7 +6,7 @@ import DeskTab from './DeskTab';
 import RecordsTab from './RecordsTab';
 import UnclaimedTab from './UnclaimedTab';
 
-/** 财务管理 → 收款管理：待确认（水单）、未认领到账、收款记录（现阶段由总经理兼任财务） */
+/** 财务管理 → 收款单：待确认（水单）、未认领到账、收款记录（现阶段由总经理兼任财务） */
 const ReceiptManagement: React.FC = () => {
   const [tab, setTab] = useState('desk');
   const [deskCount, setDeskCount] = useState<number>();
@@ -25,8 +25,8 @@ const ReceiptManagement: React.FC = () => {
   return (
     <div>
       <PageTitle
-        crumbs={['收款管理']}
-        title="收款管理"
+        crumbs={['收款单']}
+        title="收款单"
         description="客户付款的三条路：业务员上传水单后在「待确认」确认到账；钱先到账的在「未认领到账」登记、由业务员认领；平台收款由业务员直接登记。"
         actions={
           <Button

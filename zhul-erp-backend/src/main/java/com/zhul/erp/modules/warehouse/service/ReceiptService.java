@@ -36,6 +36,7 @@ import com.zhul.erp.modules.warehouse.repository.SupplierShipmentItemMapper;
 import com.zhul.erp.modules.warehouse.repository.SupplierShipmentMapper;
 import com.zhul.erp.modules.warehouse.support.ReceivingQty;
 import com.zhul.erp.modules.warehouse.support.ReceivingSupport;
+import com.zhul.erp.modules.finance.service.PayableSyncService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
@@ -54,15 +55,16 @@ import java.util.stream.Collectors;
 
 /**
  * 采购入库单：仓库验收在途的发货单、直接收货（补一张「仓库补登」的发货单）、冲销。仓库侧不按采购员过滤。
- * 事务边界：验收 = 入库单、行、发货单状态、到货差异、拍摄任务、订单进度、需求更新时间；
- * 直接收货再加补登的发货单；冲销 = 入库单状态、发货单回在途、差异与拍摄任务作废、订单进度。
- * 写操作用读已提交并先锁采购单：同一采购单的发货、入库、差异处理串行，拿到锁后读到的是最新的已发、合格数量。
+ * 事务边界：验收 = 采购入库单、行、发货单状态、到货差异、实拍任务、订单进度、需求更新时间；
+ * 直接收货再加补登的发货单；冲销 = 采购入库单状态、发货单回在途、差异与实拍任务作废、订单进度。
+ * 写操作用读已提交并先锁采购订单：同一采购订单的发货、入库、差异处理串行，拿到锁后读到的是最新的已发、合格数量。
  */
 @Service
 @RequiredArgsConstructor
 public class ReceiptService {
 
     private final PurchaseReceiptMapper receiptMapper;
+    private final PayableSyncService payables;
     private final PurchaseReceiptItemMapper receiptItemMapper;
     private final SupplierShipmentMapper shipmentMapper;
     private final SupplierShipmentItemMapper shipmentItemMapper;
@@ -208,7 +210,7 @@ public class ReceiptService {
         return vo;
     }
 
-    /** 直接收货可选的采购单：已下单，按采购单号、采购对象、型号搜索，最多 20 张 */
+    /** 直接收货可选的采购订单：已下单，按采购订单号、采购对象、型号搜索，最多 20 张 */
     public List<ReceivableOrderVO> receivableOrders(String keyword) {
         LambdaQueryWrapper<PurchaseOrderDO> w = new LambdaQueryWrapper<PurchaseOrderDO>()
                 .eq(PurchaseOrderDO::getTenantId, PiStore.tenantId())
@@ -276,8 +278,8 @@ public class ReceiptService {
     }
 
     /**
-     * 直发货代的确认（出运单服务在自己的事务内调用）：按货代实收生成入库单，实收 = 合格，少发生成差异，不生成拍摄任务。
-     * 返回发货单行 ID → 入库单行。
+     * 直发货代的确认（出运单服务在自己的事务内调用）：按货代实收生成采购入库单，实收 = 合格，少发生成差异，不生成实拍任务。
+     * 返回发货单行 ID → 采购入库单行。
      */
     public Map<Long, PurchaseReceiptItemDO> receiveDirect(Long shipmentId, LocalDate date, Map<Long, Integer> received) {
         SupplierShipmentDO s = shipments.visible(shipmentId, false);
@@ -310,7 +312,7 @@ public class ReceiptService {
         Map<Long, DirectReceiveRequest.Line> wanted = new LinkedHashMap<>();
         for (DirectReceiveRequest.Line l : req.getItems()) {
             if (!poItems.containsKey(l.getPoItemId())) {
-                throw new BizException("型号不属于这张采购单");
+                throw new BizException("型号不属于这张采购订单");
             }
             if (wanted.put(l.getPoItemId(), l) != null) {
                 throw new BizException("同一个型号不能重复填写");
@@ -368,7 +370,7 @@ public class ReceiptService {
         }
     }
 
-    /** 验收一张在途发货单（发货单与采购单已锁） */
+    /** 验收一张在途发货单（发货单与采购订单已锁） */
     private PurchaseReceiptDO receive(PurchaseOrderDO p, SupplierShipmentDO s, LocalDate date, String note, List<Qty> lines,
                                       List<Long> attachmentIds, boolean shoot) {
         requireDate(date);
@@ -437,6 +439,7 @@ public class ReceiptService {
                 + (diffCount > 0 ? "；产生 " + diffCount + " 条到货差异" : ""), operator);
         logService.recordOperateLog(WarehouseConstants.MENU_RECEIPT, "验收入库", null,
                 Map.of("grNo", r.getGrNo(), "sdNo", s.getSdNo(), "poNo", p.getPoNo(), "items", text));
+        payables.syncPurchaseOrder(p.getId());
         return r;
     }
 
@@ -447,13 +450,13 @@ public class ReceiptService {
         receiptMapper.lockById(id);
         r = visible(id);
         if (r.getStatus() != WarehouseConstants.GR_VALID) {
-            throw new BizException("入库单已冲销");
+            throw new BizException("采购入库单已冲销");
         }
         if (!discrepancies.allPending(id)) {
             throw new BizException("到货差异已经处理，不能冲销；请先让采购员重新打开差异");
         }
         if (!shoots.notStarted(id)) {
-            throw new BizException("拍摄任务已经开始，不能冲销");
+            throw new BizException("实拍任务已经开始，不能冲销");
         }
         String why = reason.trim();
         r.setStatus(WarehouseConstants.GR_REVERSED);
@@ -470,6 +473,7 @@ public class ReceiptService {
         logs.add(p.getId(), "冲销入库", r.getGrNo() + "，原因：" + why + "；发货单 " + s.getSdNo() + " 回到在途", currentUser.resolve());
         logService.recordOperateLog(WarehouseConstants.MENU_RECEIPT, "冲销入库", Map.of("grNo", r.getGrNo(), "status", "有效"),
                 Map.of("grNo", r.getGrNo(), "status", "已冲销", "reason", why));
+        payables.syncPurchaseOrder(p.getId());
         return detail(id);
     }
 
@@ -495,7 +499,7 @@ public class ReceiptService {
     private PurchaseReceiptDO visible(Long id) {
         PurchaseReceiptDO r = id == null ? null : receiptMapper.selectById(id);
         if (r == null || r.getDeletedAt() != null || !Objects.equals(r.getTenantId(), PiStore.tenantId())) {
-            throw new BizException("入库单不存在");
+            throw new BizException("采购入库单不存在");
         }
         return r;
     }

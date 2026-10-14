@@ -8,7 +8,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
-/** 采购单详情 */
+/** 采购订单详情 */
 @Data
 public class PurchaseOrderVO implements ShipFields {
     private Long id;
@@ -41,8 +41,21 @@ public class PurchaseOrderVO implements ShipFields {
     private LocalDateTime createTime;
     private String currencyCode;
     private BigDecimal exchangeRate;
-    private Boolean taxIncluded;
-    private BigDecimal taxRate;
+    /** 开票：税点（百分点）、开票金额、开票成本（原币，计入合计） */
+    private Boolean invoiceRequired;
+    private BigDecimal taxPoint;
+    /** 填写的开票金额；为空表示按货款合计 */
+    private BigDecimal invoiceAmount;
+    /** 实际用于计算的开票金额 */
+    private BigDecimal invoiceAmountEffective;
+    private BigDecimal invoiceCost;
+    private LocalDate expectedInvoiceDate;
+    private LocalDate invoicedDate;
+    /** 0-不开票、1-待开票、2-已开票 */
+    private Integer invoiceStatus;
+    /** 待开票且过了预计开票日期的天数 */
+    private Integer invoiceOverdueDays;
+    private List<com.zhul.erp.modules.attachment.dto.AttachmentVO> invoiceFiles;
     private BigDecimal itemAmount;
     private BigDecimal feeAmount;
     private BigDecimal totalAmount;
@@ -67,7 +80,7 @@ public class PurchaseOrderVO implements ShipFields {
     private List<Log> logs;
     /** 发货单（含作废的） */
     private List<ShipmentRef> shipments;
-    /** 入库单（含冲销的） */
+    /** 采购入库单（含冲销的） */
     private List<ReceiptRef> receipts;
     /** 有在途或已入库的发货单（不能取消） */
     private Boolean hasShipments;

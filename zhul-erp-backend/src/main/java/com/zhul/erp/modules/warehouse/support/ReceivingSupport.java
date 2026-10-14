@@ -28,7 +28,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
- * 到货与入库共用的采购单读取：采购员侧按数据权限（负责人为采购单的采购员），仓库侧只看本租户。
+ * 到货与入库共用的采购订单读取：采购员侧按数据权限（负责人为采购订单的采购员），仓库侧只看本租户。
  */
 @Component
 @RequiredArgsConstructor
@@ -51,12 +51,12 @@ public class ReceivingSupport {
         PurchaseOrderDO p = poId == null ? null : orderMapper.selectById(poId);
         if (p == null || p.getDeletedAt() != null || !Objects.equals(p.getTenantId(), PiStore.tenantId())
                 || (scoped && !scope().canSee(p.getPurchaserId()))) {
-            throw new BizException("采购单不存在");
+            throw new BizException("采购订单不存在");
         }
         return p;
     }
 
-    /** 锁住采购单再读（同一采购单的发货、入库、差异处理串行） */
+    /** 锁住采购订单再读（同一采购订单的发货、入库、差异处理串行） */
     public PurchaseOrderDO lockPo(Long poId, boolean scoped) {
         po(poId, scoped);
         orderMapper.lockById(poId);
@@ -86,7 +86,7 @@ public class ReceivingSupport {
         return out;
     }
 
-    /** 采购单 ID → 采购对象（老供应商名称，或「平台 · 店铺名」） */
+    /** 采购订单 ID → 采购对象（老供应商名称，或「平台 · 店铺名」） */
     public Map<Long, String> counterparties(Collection<PurchaseOrderDO> pos) {
         Map<Long, String> suppliers = new HashMap<>();
         List<Long> supplierIds = pos.stream().map(PurchaseOrderDO::getSupplierId).filter(x -> x != null && x > 0).distinct().toList();
@@ -101,7 +101,7 @@ public class ReceivingSupport {
         return out;
     }
 
-    /** 采购单号、店铺名、供应商名、型号匹配关键字的采购单 */
+    /** 采购订单号、店铺名、供应商名、型号匹配关键字的采购订单 */
     public Set<Long> poIdsByKeyword(String kw) {
         int tenant = PiStore.tenantId();
         Set<Long> ids = new LinkedHashSet<>();
@@ -133,7 +133,7 @@ public class ReceivingSupport {
         return ids;
     }
 
-    /** 数据权限内的采购单子查询（只含数字 ID，可直接拼进 SQL）；全部权限返回 null */
+    /** 数据权限内的采购订单子查询（只含数字 ID，可直接拼进 SQL）；全部权限返回 null */
     public String scopedPoSql() {
         DataScope s = scope();
         if (s.isAll()) {

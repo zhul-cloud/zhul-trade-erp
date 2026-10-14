@@ -51,7 +51,8 @@ import java.util.zip.ZipOutputStream;
 /**
  * 任务包（spec product/product-content「任务包下载」）：商品已有信息（生成输入）+ 上传模版，一个商品一个 Markdown，多个打成 zip。
  * 模版按《商品内容规范 v2》生成（frontmatter 带 schema: 2）。资料包用中文模版；营销包以中文资料为输入，
- * 默认包含本公司启用的全部平台（关键词库 + 各平台章节 + 内部附录），也可以只下载一个平台，或只含独立站的俄文文件。
+ * 默认包含本公司启用的全部平台（关键词库 + 各平台章节，独立站后接「独立站俄文」+ 内部附录），也可以只下载一个平台，
+ * 或只含独立站的俄文文件。
  */
 @Service
 @RequiredArgsConstructor
@@ -84,8 +85,8 @@ public class ContentPackageService {
     /** 独立站俄文：营销包的 platform 参数取这个值时只含独立站章节，lang: ru */
     public static final String SITE_RU = "site-ru";
 
-    /** 营销包的内容范围：包含哪些平台、语言、文件名后缀；资料包为空 */
-    record Variant(List<MarketingPlatform> platforms, String lang, String suffix, boolean keywords) {
+    /** 营销包的内容范围：包含哪些平台、语言、文件名后缀、是否含关键词库与独立站俄文章节；资料包为空 */
+    record Variant(List<MarketingPlatform> platforms, String lang, String suffix, boolean keywords, boolean siteRu) {
     }
 
     /** platform 为空：本公司启用的全部平台；site-ru：独立站俄文；其他：该平台（须已启用） */
@@ -95,15 +96,15 @@ public class ContentPackageService {
             if (all.isEmpty()) {
                 throw BizException.of(ProductErrorCodes.PARAM_INVALID, "本公司还没有启用任何平台，请先在平台设置里启用");
             }
-            return new Variant(all, "en", "marketing", true);
+            return new Variant(all, "en", "marketing", true, all.contains(MarketingPlatform.SITE));
         }
         if (SITE_RU.equals(platformCode)) {
             platformSettings.requireEnabled(MarketingPlatform.SITE.code());
-            return new Variant(List.of(MarketingPlatform.SITE), "ru", "site.ru", false);
+            return new Variant(List.of(MarketingPlatform.SITE), "ru", "site.ru", false, false);
         }
         MarketingPlatform platform = platformSettings.requireEnabled(platformCode);
         boolean keywords = platform == MarketingPlatform.ALIBABA || platform == MarketingPlatform.MIC;
-        return new Variant(List.of(platform), "en", platform.code(), keywords);
+        return new Variant(List.of(platform), "en", platform.code(), keywords, false);
     }
 
     /** platform 只对营销包有效，必须是本公司启用的平台 */
@@ -159,7 +160,7 @@ public class ContentPackageService {
         } catch (IOException e) {
             throw new UncheckedIOException("任务包打包失败", e);
         }
-        return new Package((facts ? "facts-" : variant.platforms().size() > 1 ? "marketing-"
+        return new Package((facts ? "facts-" : "marketing".equals(variant.suffix()) ? "marketing-"
                 : "marketing-" + variant.suffix().replace('.', '-') + "-") + products.size() + ".zip", "application/zip",
                 out.toByteArray());
     }
@@ -367,6 +368,10 @@ public class ContentPackageService {
         }
         for (MarketingPlatform platform : variant.platforms()) {
             sb.append(resource("product-content/marketing-" + platform.code() + ".md"));
+            // 全部平台的文件：独立站后面接独立站俄文，一次生成写齐英文、俄文
+            if (platform == MarketingPlatform.SITE && variant.siteRu()) {
+                sb.append(resource("product-content/marketing-site-ru.md"));
+            }
         }
         sb.append(resource("product-content/marketing-appendix.md"));
         return sb.toString();

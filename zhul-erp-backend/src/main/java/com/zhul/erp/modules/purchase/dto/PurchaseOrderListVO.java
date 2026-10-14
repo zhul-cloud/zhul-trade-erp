@@ -7,7 +7,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
-/** 采购单列表行 */
+/** 采购订单列表行 */
 @Data
 public class PurchaseOrderListVO implements ShipFields {
     private Long id;
@@ -20,6 +20,17 @@ public class PurchaseOrderListVO implements ShipFields {
     private LocalDate expectedShipDate;
     /** 发货进度（已下单才有）：UNSHIPPED、PARTIAL、SHIPPED、RECEIVED */
     private String shipProgress;
+    /** 付款（openspec add-accounts-payable）：1-未付、2-部分付款、3-已付清、4-已关闭；草稿与没有应付单的为空 */
+    private Integer payStatus;
+    /** 开票：0-不开票、1-待开票、2-已开票；开票金额、税点与逾期天数 */
+    private Integer invoiceStatus;
+    private java.math.BigDecimal invoiceAmount;
+    private java.math.BigDecimal taxPoint;
+    private Integer invoiceOverdueDays;
+    private java.math.BigDecimal payableAmount;
+    private java.math.BigDecimal paidAmount;
+    /** 供应商欠款（原币） */
+    private java.math.BigDecimal creditAmount;
     private String shipProgressName;
     /** 已发件数（每行不超过订购数）与总件数 */
     private Integer shippedQty;

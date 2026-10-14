@@ -98,7 +98,12 @@ const Outbounds: React.FC = () => {
   const columns: TableColumnsType<Outbound> =
     tab === 'pending'
       ? [
-          { title: '出库单', dataIndex: 'obNo', width: 160, render: obCell },
+          {
+            title: '销售出库单',
+            dataIndex: 'obNo',
+            width: 160,
+            render: obCell,
+          },
           { title: '订单 · 客户', key: 'so', width: 220, render: orderCell },
           { title: '货代', dataIndex: 'forwarderName', width: 120 },
           { title: '型号 · 数量', key: 'items', width: 260, render: itemsCell },
@@ -122,7 +127,12 @@ const Outbounds: React.FC = () => {
         ]
       : tab === 'packed'
         ? [
-            { title: '出库单', dataIndex: 'obNo', width: 160, render: obCell },
+            {
+              title: '销售出库单',
+              dataIndex: 'obNo',
+              width: 160,
+              render: obCell,
+            },
             { title: '订单 · 客户', key: 'so', width: 220, render: orderCell },
             { title: '货代', dataIndex: 'forwarderName', width: 120 },
             {
@@ -162,7 +172,12 @@ const Outbounds: React.FC = () => {
             },
           ]
         : [
-            { title: '出库单', dataIndex: 'obNo', width: 160, render: obCell },
+            {
+              title: '销售出库单',
+              dataIndex: 'obNo',
+              width: 160,
+              render: obCell,
+            },
             { title: '订单 · 客户', key: 'so', width: 220, render: orderCell },
             { title: '货代', dataIndex: 'forwarderName', width: 120 },
             { title: '箱数', dataIndex: 'boxCount', width: 70 },
@@ -222,8 +237,8 @@ const Outbounds: React.FC = () => {
   return (
     <div>
       <WarehousePageTitle
-        crumbs={['出库打包']}
-        title="出库打包"
+        crumbs={['销售出库']}
+        title="销售出库"
         description="按业务员的发货通知打包：逐箱登记尺寸、重量和箱内型号，交国内快递发往深圳货代。"
       />
       <div
@@ -262,7 +277,7 @@ const Outbounds: React.FC = () => {
           value={keyword}
           onChange={(e) => setKeyword(e.target.value)}
           onPressEnter={apply}
-          placeholder="出库单号、订单号、客户、型号"
+          placeholder="销售出库单号、订单号、客户、型号"
           style={{ width: 320 }}
           aria-label="关键词"
         />
@@ -306,10 +321,10 @@ const Outbounds: React.FC = () => {
             locale={{
               emptyText:
                 tab === 'pending'
-                  ? '没有待打包的出库单'
+                  ? '没有待打包的销售出库单'
                   : tab === 'packed'
-                    ? '没有待交快递的出库单'
-                    : '还没有交货代的出库单',
+                    ? '没有待交快递的销售出库单'
+                    : '还没有交货代的销售出库单',
             }}
             pagination={{
               current: page,
@@ -327,9 +342,9 @@ const Outbounds: React.FC = () => {
       )}
       <div style={{ fontSize: 12, color: palette.mute, marginTop: 8 }}>
         {tab === 'pending'
-          ? '按通知时间从早到晚；一个箱子只装一张出库单的货'
+          ? '按通知时间从早到晚；一个箱子只装一张销售出库单的货'
           : tab === 'packed'
-            ? '勾选同一家货代的出库单合成一票快递，运费按计费重分摊'
+            ? '勾选同一家货代的销售出库单合成一票快递，运费按计费重分摊'
             : '还没放进出运单的可以撤销交货代，回到待交快递'}
       </div>
       <PackDrawer
@@ -354,7 +369,7 @@ const Outbounds: React.FC = () => {
       <ReasonModal
         open={!!undoing}
         title={`撤销交货代 · ${undoing?.obNo ?? ''}`}
-        description="撤销后出库单回到「待交快递」，订单型号进度随之回退；共用快递的其他出库单重新分摊运费。"
+        description="撤销后销售出库单回到「待交快递」，订单型号进度随之回退；共用快递的其他销售出库单重新分摊运费。"
         okText="撤销"
         danger
         onCancel={() => setUndoing(undefined)}

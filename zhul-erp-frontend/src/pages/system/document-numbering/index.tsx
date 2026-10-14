@@ -27,15 +27,15 @@ const RULES = (prefix: string, today: string): RuleRow[] => [
   },
   { name: 'PI', code: 'PI', external: true, example: `${prefix}PI${today}001` },
   { name: '销售订单', code: 'SO', external: false, example: `SO${today}001` },
-  { name: '客户询盘', code: 'IQ', external: false, example: `IQ${today}001` },
+  { name: '询盘单', code: 'IQ', external: false, example: `IQ${today}001` },
   {
-    name: '采购单、CI / PL、借贷项通知单、对账单',
+    name: '采购订单、CI / PL、借贷项通知单、运费账单',
     code: 'PO · CI · PL · DN · CN · ST',
     external: true,
   },
 ];
 
-/** 业务设置 → 单据编号：对外单据的编号前缀与编号规则；修改需要「编辑单据编号」 */
+/** 业务设置 → 编号规则：对外单据的编号前缀与编号规则；修改需要「编辑编号规则」 */
 const DocumentNumberingPage: React.FC = () => {
   const { message } = App.useApp();
   const { palette } = useAppTheme();
@@ -111,8 +111,8 @@ const DocumentNumberingPage: React.FC = () => {
   return (
     <div>
       <PageTitle
-        crumbs={['单据编号']}
-        title="单据编号"
+        crumbs={['编号规则']}
+        title="编号规则"
         description="对外单据的编号前缀与编号规则。"
       />
       {error ? (
@@ -207,16 +207,16 @@ const DocumentNumberingPage: React.FC = () => {
             )}
             <div style={{ fontSize: 12, color: palette.mute, marginTop: 14 }}>
               2–4
-              位大写字母，可以留空，不含连字符等符号（有些客户系统不支持）。只加在对外单据：报价单、PI、CI、PL、采购单、借项
+              位大写字母，可以留空，不含连字符等符号（有些客户系统不支持）。只加在对外单据：报价单、PI、CI、PL、采购订单、借项
               /
-              贷项通知单、对账单；询盘、销售订单、发货批次等内部单据不加。修改前缀只影响之后新建的单据。
+              贷项通知单、运费账单；询盘、销售订单、发货批次等内部单据不加。修改前缀只影响之后新建的单据。
             </div>
             {!editable && (
               <Alert
                 type="info"
                 showIcon
                 style={{ marginTop: 12 }}
-                title="你没有「编辑单据编号」权限，只能查看。"
+                title="你没有「编辑编号规则」权限，只能查看。"
               />
             )}
           </Card>

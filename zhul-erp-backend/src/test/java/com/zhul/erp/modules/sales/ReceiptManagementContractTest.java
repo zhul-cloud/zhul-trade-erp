@@ -77,14 +77,14 @@ class ReceiptManagementContractTest extends SalesContractSupport {
         body.put("receiptDate", LocalDate.now().toString());
         body.put("bankAccountId", bank());
         body.put("slipId", slip.path("id").asLong());
-        body.put("actualAmountCny", "7123.45");
         JsonNode paid = ok(call(json(post(PI + "/" + id + "/receipts"), write(body)), admin));
         JsonNode r = paid.path("receipts").get(1);
         assertEquals("微信", r.path("paymentMethodName").asText(), "带出水单的付款方式");
-        assertEquals(2, r.path("rateSource").asInt());
-        money("7.123450", r.path("exchangeRate"));
-        money("7123.45", r.path("netAmountCny"));
-        money("7123.45", paid.path("netAmountCny"));
+        assertEquals(3, r.path("rateSource").asInt(), "外币到账未结汇，按估算汇率");
+        assertEquals(1, r.path("settleStatus").asInt());
+        money("7.150000", r.path("exchangeRate"));
+        money("7150.00", r.path("netAmountCny"));
+        money("7150.00", paid.path("netAmountCny"));
         money("1000", paid.path("receivedAmount"));
 
         // 改名后历史记录仍显示原名称
@@ -139,7 +139,7 @@ class ReceiptManagementContractTest extends SalesContractSupport {
         assertEquals(1, claimable.size(), "只列同币种");
         assertEquals(usd, claimable.get(0).path("id").asLong());
         assertEquals("ACROBOT TECHNOLOGIES PVT LTD", claimable.get(0).path("payer").asText());
-        assertEquals(403, perform(get(FIN + "/unclaimed"), rep).getStatus(), "业务员不能进收款管理");
+        assertEquals(403, perform(get(FIN + "/unclaimed"), rep).getStatus(), "业务员不能进收款单");
 
         JsonNode claimed = ok(call(json(post(PI + "/" + id + "/claim"), "{\"receiptId\":" + usd + "}"), rep));
         money("667", claimed.path("receivedAmount"));

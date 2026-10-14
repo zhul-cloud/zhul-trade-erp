@@ -9,7 +9,7 @@ import lombok.Data;
 
 import java.time.LocalDateTime;
 
-/** 单据模版版本：保存后内容不可修改，需要调整时上传新版本 */
+/** 单据模板版本：保存后内容不可修改，需要调整时上传新版本 */
 @Data
 @TableName("document_template_version")
 public class DocumentTemplateVersionDO {

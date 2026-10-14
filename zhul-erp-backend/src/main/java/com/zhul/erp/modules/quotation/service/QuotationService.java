@@ -12,7 +12,7 @@ import com.zhul.erp.modules.quotation.dto.SaveQuotationRequest;
 
 import java.util.List;
 
-/** 报价单：新建、编辑、状态流转（推进客户询盘状态）、列表 */
+/** 报价单：新建、编辑、状态流转（推进询盘单状态）、列表 */
 public interface QuotationService {
 
     QuotationVO create(CreateQuotationRequest req);
@@ -49,6 +49,6 @@ public interface QuotationService {
 
     QuotationStatsVO stats();
 
-    /** 客户询盘详情中的「报价单」区域：包含该询盘型号的报价单 */
+    /** 询盘单详情中的「报价单」区域：包含该询盘型号的报价单 */
     List<QuotationListVO> byInquiry(Long inquiryId);
 }

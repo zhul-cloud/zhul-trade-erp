@@ -183,6 +183,11 @@ export interface Statement extends Audit {
   diffCount: number;
   confirmedByName?: string;
   confirmedAt?: string;
+  /** 付款：确认后生成货代应付；1-未付、2-部分付款、3-已付清 */
+  payableId?: number;
+  payStatus?: number;
+  payableAmount?: number;
+  paidAmount?: number;
   lines?: {
     id: number;
     logisticsId: number;

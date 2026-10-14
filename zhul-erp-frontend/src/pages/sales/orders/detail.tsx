@@ -45,6 +45,7 @@ import {
   readBizError,
 } from '../service';
 import {
+  manualSteps,
   ProgressModal,
   PurchaserModal,
   SalesDateModal,
@@ -86,7 +87,7 @@ const OrderDetail: React.FC = () => {
   const [dialog, setDialog] = useState<Dialog>();
   const [cancelOpen, setCancelOpen] = useState(false);
   const [voidId, setVoidId] = useState<number>();
-  /** 订单刷新次数：出库单列表随之重新取 */
+  /** 订单刷新次数：销售出库单列表随之重新取 */
   const [version, setVersion] = useState(0);
 
   const load = useCallback(async () => {
@@ -119,7 +120,8 @@ const OrderDetail: React.FC = () => {
   const orderedModels = o.items.filter(
     (i) => (i.purchaseOrderedQty ?? 0) > 0,
   ).length;
-  const canProgress = access['sales:order:progress'];
+  const canProgress =
+    access['sales:order:progress'] && manualSteps(o).length > 0;
 
   const done = (next: Order) => {
     setO(next);
@@ -392,12 +394,12 @@ const OrderDetail: React.FC = () => {
               [
                 'pendingShip',
                 overdueShip
-                  ? `有采购单已过预计发货日期`
+                  ? `有采购订单已过预计发货日期`
                   : '已下单，供应商还没发',
               ],
               [
                 'pendingPurchase',
-                goods.pendingPurchase ? '还没下采购单' : '型号都已下采购单',
+                goods.pendingPurchase ? '还没下采购订单' : '型号都已下采购订单',
               ],
             ] as const
           ).map(([k, hint]) => (
@@ -576,7 +578,7 @@ const OrderDetail: React.FC = () => {
       },
     },
     {
-      title: '采购单 · 发货单',
+      title: '采购订单 · 发货单',
       key: 'docs',
       width: 190,
       render: (_, r) =>
@@ -589,7 +591,7 @@ const OrderDetail: React.FC = () => {
                 key={p.id}
                 onClick={() => history.push(`/purchase/orders/${p.id}`)}
               >
-                {p.poNo ?? '草稿采购单'}
+                {p.poNo ?? '草稿采购订单'}
               </a>
             ))}
             {(r.transits ?? []).map((t) => (
@@ -598,7 +600,7 @@ const OrderDetail: React.FC = () => {
               </span>
             ))}
             {(r.purchaseOrders ?? []).length === 0 && (
-              <span style={{ color: palette.mute }}>还没有下采购单</span>
+              <span style={{ color: palette.mute }}>还没有下采购订单</span>
             )}
           </div>
         ),
@@ -1306,7 +1308,7 @@ const OrderDetail: React.FC = () => {
             {orderedModels > 0 && (
               <div style={{ marginBottom: 8, color: palette.orange }}>
                 {orderedModels}{' '}
-                个型号已向供应商下单，取消后请采购员处理对应采购单；同一张 PI
+                个型号已向供应商下单，取消后请采购员处理对应采购订单；同一张 PI
                 重新转出的订单会自动接回这些已下单的数量。
               </div>
             )}
@@ -1323,7 +1325,7 @@ const OrderDetail: React.FC = () => {
             ) : (
               <>
                 取消后 PI {o.piNo}{' '}
-                回到「已发送」并解锁，可以出新版本后重新转成订单；来源报价单与客户询盘的成交状态按剩余有效订单重新计算。
+                回到「已发送」并解锁，可以出新版本后重新转成订单；来源报价单与询盘单的成交状态按剩余有效订单重新计算。
                 {(o.receivedAmount ?? 0) > 0 && (
                   <div style={{ marginTop: 8, color: palette.orange }}>
                     已到账 {formatAmount(o.receivedAmount ?? 0, cur)} 会保留在

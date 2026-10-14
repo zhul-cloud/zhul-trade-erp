@@ -36,7 +36,7 @@ interface Filters {
 
 const num: React.CSSProperties = { fontVariantNumeric: 'tabular-nums' };
 
-/** 收款管理 → 待确认：业务员上传水单后，财务在这里确认到账（现阶段由总经理兼任） */
+/** 收款单 → 待确认：业务员上传水单后，财务在这里确认到账（现阶段由总经理兼任） */
 const DeskTab: React.FC<{ onTotal?: (n: number) => void }> = ({ onTotal }) => {
   const { message } = App.useApp();
   const { palette } = useAppTheme();

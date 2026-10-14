@@ -10,7 +10,7 @@ import lombok.Data;
 
 import java.time.LocalDateTime;
 
-/** 拍摄任务 */
+/** 实拍任务 */
 @Data
 @TableName("shoot_task")
 public class ShootTaskDO {

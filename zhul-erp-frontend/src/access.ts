@@ -51,7 +51,7 @@ export default function access(initialState: {
     'quotation:pricing:edit': can('quotation:pricing:edit'),
     // 销售管理
     salesMenu: any('/sales/pi', '/sales/orders'),
-    // 采购单
+    // 采购订单
     purchaseMenu: any(
       '/purchase/requirements',
       '/purchase/orders',
@@ -77,7 +77,7 @@ export default function access(initialState: {
     'warehouse:receipt:create': can('warehouse:receipt:create'),
     'warehouse:hold:handle': can('warehouse:hold:handle'),
     'warehouse:shoot:edit': can('warehouse:shoot:edit'),
-    // 单证物流
+    // 物流管理
     logisticsMenu: any('/logistics/shipments', '/logistics/statements'),
     logisticsShipments: can('/logistics/shipments'),
     logisticsStatements: can('/logistics/statements'),
@@ -89,8 +89,25 @@ export default function access(initialState: {
     'purchase:order:create': can('purchase:order:create'),
     'purchase:order:cancel': can('purchase:order:cancel'),
     // 财务管理
-    financeMenu: any('/finance/receipts'),
+    financeMenu: any(
+      '/finance/receipts',
+      '/finance/fx-settlements',
+      '/finance/payables',
+      '/finance/payments',
+      '/finance/reimbursements',
+      '/finance/expenses',
+    ),
+    financeReimbursements: can('/finance/reimbursements'),
+    financeExpenses: can('/finance/expenses'),
+    'finance:reimburse:pay': can('finance:reimburse:pay'),
+    'finance:expense:edit': can('finance:expense:edit'),
     financeReceipts: can('/finance/receipts'),
+    financeFxSettlements: can('/finance/fx-settlements'),
+    'finance:fx:settle': can('finance:fx:settle'),
+    financePayables: can('/finance/payables'),
+    financePayments: can('/finance/payments'),
+    'finance:payment:register': can('finance:payment:register'),
+    'finance:payment:advance': can('finance:payment:advance'),
     salesPi: can('/sales/pi'),
     salesOrders: can('/sales/orders'),
     'sales:pi:receipt-slip': can('sales:pi:receipt-slip'),

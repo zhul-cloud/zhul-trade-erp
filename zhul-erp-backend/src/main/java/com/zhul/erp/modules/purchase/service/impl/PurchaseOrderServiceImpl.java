@@ -16,6 +16,9 @@ import com.zhul.erp.modules.purchase.constants.PurchaseConstants;
 import com.zhul.erp.modules.purchase.dto.CancelPurchaseOrderRequest;
 import com.zhul.erp.modules.purchase.dto.ConfirmPurchaseOrderRequest;
 import com.zhul.erp.modules.purchase.dto.MoveItemsRequest;
+import com.zhul.erp.modules.attachment.service.AttachmentService;
+import com.zhul.erp.modules.purchase.dto.RegisterInvoiceRequest;
+import java.math.RoundingMode;
 import com.zhul.erp.modules.purchase.dto.PurchaseAttachmentFile;
 import com.zhul.erp.modules.purchase.dto.PurchaseOrderListVO;
 import com.zhul.erp.modules.purchase.dto.PurchaseOrderPageQuery;
@@ -55,6 +58,10 @@ import com.zhul.erp.modules.system.service.ExchangeRateService;
 import com.zhul.erp.modules.system.service.LogService;
 import com.zhul.erp.modules.warehouse.constants.WarehouseConstants;
 import com.zhul.erp.modules.warehouse.support.ShipProgress;
+import com.zhul.erp.modules.finance.constants.FinanceConstants;
+import com.zhul.erp.modules.finance.dto.PayableVO;
+import com.zhul.erp.modules.finance.service.PayableQueryService;
+import com.zhul.erp.modules.finance.service.PayableSyncService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -114,6 +121,21 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
     private final com.zhul.erp.modules.warehouse.support.ReceivingQty receivingQty;
     private final com.zhul.erp.modules.warehouse.support.PurchaseReceivingLinks receivingLinks;
     private final ShipProgress shipProgress;
+    private final PayableSyncService payables;
+    private final PayableQueryService payableQuery;
+    private final AttachmentService attachmentService;
+
+    /** 付款状态筛选（固定 SQL，拼在 purchase_order 的查询上） */
+    private static final Map<String, String> PAY_CONDITIONS = Map.of(
+            "UNPAID", payExists("f.status = 1"),
+            "PARTIAL", payExists("f.status = 2"),
+            "PAID", payExists("f.status = 3"),
+            "CREDIT", payExists("f.credit_amount > 0"));
+
+    private static String payExists(String cond) {
+        return "EXISTS (SELECT 1 FROM fin_payable f WHERE f.source_type = 1 AND f.source_id = purchase_order.id "
+                + "AND f.tenant_id = purchase_order.tenant_id AND f.deleted_at IS NULL AND " + cond + ")";
+    }
 
     // ---------------------------------------------------------------- 列表与统计
 
@@ -133,6 +155,21 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
         }
         if (q.getPurchaserId() != null) {
             w.eq(PurchaseOrderDO::getPurchaserId, q.getPurchaserId());
+        }
+        String payCondition = PAY_CONDITIONS.get(q.getPayStatus() == null ? "" : q.getPayStatus());
+        if (payCondition != null) {
+            w.apply(payCondition);
+        }
+        String invoice = q.getInvoiceStatus() == null ? "" : q.getInvoiceStatus();
+        switch (invoice) {
+            case "NONE" -> w.eq(PurchaseOrderDO::getInvoiceStatus, PurchaseConstants.INVOICE_NONE);
+            case "PENDING" -> w.eq(PurchaseOrderDO::getInvoiceStatus, PurchaseConstants.INVOICE_PENDING);
+            case "DONE" -> w.eq(PurchaseOrderDO::getInvoiceStatus, PurchaseConstants.INVOICE_DONE);
+            case "OVERDUE" -> w.eq(PurchaseOrderDO::getInvoiceStatus, PurchaseConstants.INVOICE_PENDING)
+                    .ne(PurchaseOrderDO::getStatus, PurchaseConstants.PO_CANCELLED)
+                    .lt(PurchaseOrderDO::getExpectedInvoiceDate, LocalDate.now());
+            default -> {
+            }
         }
         if (q.getOrderFrom() != null) {
             w.ge(PurchaseOrderDO::getOrderDate, q.getOrderFrom());
@@ -211,6 +248,7 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
         rows.stream().filter(p -> p.getStatus() == PurchaseConstants.PO_ORDERED)
                 .forEach(p -> orderedLines.put(p.getId(), items.getOrDefault(p.getId(), List.of())));
         Map<Long, ShipProgress.Result> progressByPo = shipProgress.of(orderedLines);
+        Map<Long, PayableVO> pays = payableQuery.statusBySources(FinanceConstants.SOURCE_PURCHASE_ORDER, ids);
         LocalDateTime now = LocalDateTime.now();
         List<PurchaseOrderListVO> out = new ArrayList<>(rows.size());
         for (PurchaseOrderDO p : rows) {
@@ -222,6 +260,13 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
             vo.setStatusName(PurchaseConstants.PO_STATUS_NAMES.get(p.getStatus()));
             vo.setOrderDate(p.getOrderDate());
             fillShip(vo, p, progressByPo.get(p.getId()));
+            PayableVO pay = pays.get(p.getId());
+            if (pay != null) {
+                vo.setPayStatus(pay.getStatus());
+                vo.setPayableAmount(pay.getAmount());
+                vo.setPaidAmount(pay.getPaidAmount());
+                vo.setCreditAmount(pay.getCreditAmount());
+            }
             vo.setCreateTime(p.getCreateTime());
             if (p.getStatus() == PurchaseConstants.PO_DRAFT && p.getCreateTime() != null) {
                 long days = ChronoUnit.DAYS.between(p.getCreateTime().toLocalDate(), now.toLocalDate());
@@ -242,6 +287,12 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
             vo.setBargainAmount(p.getTargetAmount().signum() == 0 ? null : p.getBargainAmount());
             vo.setBargainRate(PurchaseCalc.rate(p.getBargainAmount(), p.getTargetAmount()));
             vo.setPaymentTermsText(PaymentTerms.text(PaymentTerms.fromJson(p.getPaymentTerms())));
+            vo.setInvoiceStatus(p.getInvoiceStatus());
+            if (Objects.equals(p.getInvoiceRequired(), 1)) {
+                vo.setInvoiceAmount(Objects.requireNonNullElse(p.getInvoiceAmount(), p.getItemAmount()));
+                vo.setTaxPoint(p.getTaxPoint());
+            }
+            vo.setInvoiceOverdueDays(invoiceOverdueDays(p));
             vo.setAttachmentCount(attachments.getOrDefault(p.getId(), 0L).intValue());
             Map<Long, String> refs = new LinkedHashMap<>();
             lines.forEach(i -> refs.putIfAbsent(i.getSoId(), soNos.get(i.getSoId())));
@@ -356,8 +407,17 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
         vo.setCreateTime(p.getCreateTime());
         vo.setCurrencyCode(p.getCurrencyCode());
         vo.setExchangeRate(p.getExchangeRate());
-        vo.setTaxIncluded(Objects.equals(p.getTaxIncluded(), 1));
-        vo.setTaxRate(p.getTaxRate());
+        vo.setInvoiceRequired(Objects.equals(p.getInvoiceRequired(), 1));
+        vo.setTaxPoint(p.getTaxPoint());
+        vo.setInvoiceAmount(p.getInvoiceAmount());
+        vo.setInvoiceAmountEffective(Objects.equals(p.getInvoiceRequired(), 1)
+                ? Objects.requireNonNullElse(p.getInvoiceAmount(), p.getItemAmount()) : null);
+        vo.setInvoiceCost(p.getInvoiceCost());
+        vo.setExpectedInvoiceDate(p.getExpectedInvoiceDate());
+        vo.setInvoicedDate(p.getInvoicedDate());
+        vo.setInvoiceStatus(p.getInvoiceStatus());
+        vo.setInvoiceOverdueDays(invoiceOverdueDays(p));
+        vo.setInvoiceFiles(attachmentService.listOf(AttachmentService.PO_INVOICE, id));
         vo.setItemAmount(p.getItemAmount());
         vo.setFeeAmount(p.getFeeAmount());
         vo.setTotalAmount(p.getTotalAmount());
@@ -444,7 +504,7 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
     public PurchaseOrderVO save(Long id, SavePurchaseOrderRequest req) {
         PurchaseOrderDO p = lockVisible(id);
         if (p.getStatus() == PurchaseConstants.PO_CANCELLED) {
-            throw new BizException("采购单已取消，不能修改");
+            throw new BizException("采购订单已取消，不能修改");
         }
         boolean ordered = p.getStatus() == PurchaseConstants.PO_ORDERED;
         Long operator = currentUser.resolve();
@@ -458,9 +518,7 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
             p.setCurrencyCode(currency);
             p.setExchangeRate(rate);
         }
-        boolean tax = Boolean.TRUE.equals(req.getTaxIncluded());
-        p.setTaxIncluded(tax ? 1 : 0);
-        p.setTaxRate(tax ? (req.getTaxRate() == null ? new BigDecimal(PurchaseConstants.DEFAULT_TAX_RATE) : req.getTaxRate()) : BigDecimal.ZERO);
+        applyInvoice(p, req);
         List<PaymentTermDTO> terms = PaymentTerms.normalize(req.getPaymentTerms());
         p.setPaymentTerms(PaymentTerms.toJson(terms));
         p.setContractNo(req.getContractNo() == null ? "" : req.getContractNo().trim());
@@ -481,12 +539,12 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
         Map<Long, SavePurchaseOrderRequest.Line> wanted = new LinkedHashMap<>();
         for (SavePurchaseOrderRequest.Line l : req.getItems()) {
             if (!byId.containsKey(l.getId())) {
-                throw new BizException("型号不属于这张采购单");
+                throw new BizException("型号不属于这张采购订单");
             }
             wanted.put(l.getId(), l);
         }
         if (wanted.size() != lines.size()) {
-            throw new BizException("采购单的型号已变化，请刷新后再保存");
+            throw new BizException("采购订单的型号已变化，请刷新后再保存");
         }
         List<Long> reqIds = lines.stream().map(PurchaseOrderItemDO::getRequirementId).distinct().toList();
         if (!reqIds.isEmpty()) {
@@ -557,9 +615,93 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
         if (ordered) {
             progress.sync(lines.stream().map(PurchaseOrderItemDO::getSoItemId).toList());
             if (!changes.isEmpty()) {
-                logService.recordOperateLog(PurchaseConstants.MENU_ORDER, "修改采购单", null, Map.of("poNo", p.getPoNo(), "changes", changes));
+                logService.recordOperateLog(PurchaseConstants.MENU_ORDER, "修改采购订单", null, Map.of("poNo", p.getPoNo(), "changes", changes));
             }
         }
+        payables.syncPurchaseOrder(id);
+        return detail(id);
+    }
+
+    /** 开票：不开票时清空税点与金额；已开票的不能改为不开票；开票时预计开票日期必填 */
+    private static void applyInvoice(PurchaseOrderDO p, SavePurchaseOrderRequest req) {
+        boolean invoice = Boolean.TRUE.equals(req.getInvoiceRequired());
+        boolean done = Objects.equals(p.getInvoiceStatus(), PurchaseConstants.INVOICE_DONE);
+        if (!invoice) {
+            if (done) {
+                throw new BizException("已开票，请先撤销已开票");
+            }
+            p.setInvoiceRequired(0);
+            p.setTaxPoint(BigDecimal.ZERO);
+            p.setInvoiceAmount(null);
+            p.setExpectedInvoiceDate(null);
+            p.setInvoiceStatus(PurchaseConstants.INVOICE_NONE);
+            return;
+        }
+        if (req.getExpectedInvoiceDate() == null) {
+            throw new BizException("请填写预计开票日期");
+        }
+        p.setInvoiceRequired(1);
+        p.setTaxPoint(req.getTaxPoint() == null ? BigDecimal.ZERO : req.getTaxPoint().setScale(2, RoundingMode.HALF_UP));
+        p.setInvoiceAmount(req.getInvoiceAmount() == null ? null : PurchaseCalc.money(req.getInvoiceAmount()));
+        p.setExpectedInvoiceDate(req.getExpectedInvoiceDate());
+        p.setInvoiceStatus(done ? PurchaseConstants.INVOICE_DONE : PurchaseConstants.INVOICE_PENDING);
+    }
+
+    /** 待开票、未取消且过了预计开票日期的天数；否则为空 */
+    private static Integer invoiceOverdueDays(PurchaseOrderDO p) {
+        if (!Objects.equals(p.getInvoiceStatus(), PurchaseConstants.INVOICE_PENDING) || p.getStatus() == PurchaseConstants.PO_CANCELLED
+                || p.getExpectedInvoiceDate() == null) {
+            return null;
+        }
+        long days = java.time.temporal.ChronoUnit.DAYS.between(p.getExpectedInvoiceDate(), LocalDate.now());
+        return days > 0 ? (int) days : null;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public PurchaseOrderVO registerInvoice(Long id, RegisterInvoiceRequest req) {
+        PurchaseOrderDO p = lockVisible(id);
+        if (p.getStatus() == PurchaseConstants.PO_CANCELLED) {
+            throw new BizException("采购订单已取消，不能登记开票");
+        }
+        if (!Objects.equals(p.getInvoiceRequired(), 1)) {
+            throw new BizException("这张采购订单不开票");
+        }
+        if (Objects.equals(p.getInvoiceStatus(), PurchaseConstants.INVOICE_DONE)) {
+            throw new BizException("已登记过开票");
+        }
+        if (req.getInvoicedDate().isAfter(LocalDate.now())) {
+            throw new BizException("实际开票日期不能晚于今天");
+        }
+        Snapshot before = snapshot(p);
+        p.setInvoiceAmount(PurchaseCalc.money(req.getInvoiceAmount()));
+        p.setTaxPoint(req.getTaxPoint().setScale(2, RoundingMode.HALF_UP));
+        p.setInvoicedDate(req.getInvoicedDate());
+        p.setInvoiceStatus(PurchaseConstants.INVOICE_DONE);
+        drafts.recalc(p);
+        attachmentService.sync(AttachmentService.PO_INVOICE, id, req.getAttachmentIds());
+        List<String> changes = new ArrayList<>(before.diff(snapshot(p)));
+        changes.add(0, "实际开票日期 " + req.getInvoicedDate());
+        logs.add(id, "登记已开票", String.join("；", changes), currentUser.resolve());
+        payables.syncPurchaseOrder(id);
+        return detail(id);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public PurchaseOrderVO revokeInvoice(Long id, String reason) {
+        PurchaseOrderDO p = lockVisible(id);
+        if (!Objects.equals(p.getInvoiceStatus(), PurchaseConstants.INVOICE_DONE)) {
+            throw new BizException("还没有登记已开票");
+        }
+        String why = reason == null ? "" : reason.trim();
+        if (why.isEmpty()) {
+            throw new BizException("请填写撤销原因");
+        }
+        p.setInvoicedDate(null);
+        p.setInvoiceStatus(PurchaseConstants.INVOICE_PENDING);
+        orderMapper.updateById(p);
+        logs.add(id, "撤销已开票", why, currentUser.resolve());
         return detail(id);
     }
 
@@ -587,7 +729,10 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
     }
 
     private static Snapshot snapshot(PurchaseOrderDO p) {
-        String tax = Objects.equals(p.getTaxIncluded(), 1) ? "含税 " + p.getTaxRate().stripTrailingZeros().toPlainString() + "%" : "不含税";
+        String tax = Objects.equals(p.getInvoiceRequired(), 1)
+                ? "开票 " + p.getTaxPoint().stripTrailingZeros().toPlainString() + "%（开票金额 "
+                + (p.getInvoiceAmount() == null ? "按货款" : p.getInvoiceAmount().toPlainString()) + "）"
+                : "不开票";
         return new Snapshot(p.getCurrencyCode(), tax, PaymentTerms.text(PaymentTerms.fromJson(p.getPaymentTerms())),
                 Objects.requireNonNullElse(p.getContractNo(), ""),
                 p.getContractAmount() == null ? "无" : p.getContractAmount().toPlainString());
@@ -681,7 +826,7 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
             throw new BizException("采购对象已经是供应商");
         }
         if (p.getStatus() == PurchaseConstants.PO_CANCELLED) {
-            throw new BizException("采购单已取消");
+            throw new BizException("采购订单已取消");
         }
         CreateSupplierFromChannelRequest create = new CreateSupplierFromChannelRequest();
         create.setChannelName(cp.shopName());
@@ -716,6 +861,7 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
         }
         logService.recordOperateLog(PurchaseConstants.MENU_ORDER, "店铺转为供应商", null,
                 Map.of("shop", cp.shopTitle(), "supplierId", supplierId, "orders", pos.size(), "requirements", reqs.size()));
+        pos.forEach(x -> payables.syncPurchaseOrder(x.getId()));
         return detail(id);
     }
 
@@ -723,7 +869,7 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
         Set<Long> wanted = new LinkedHashSet<>(itemIds == null ? List.of() : itemIds);
         List<PurchaseOrderItemDO> picked = drafts.items(poId).stream().filter(i -> wanted.contains(i.getId())).toList();
         if (picked.isEmpty() || picked.size() != wanted.size()) {
-            throw new BizException("型号不属于这张采购单");
+            throw new BizException("型号不属于这张采购订单");
         }
         return picked;
     }
@@ -743,7 +889,7 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
         }
         List<PurchaseOrderItemDO> lines = drafts.items(id);
         if (lines.isEmpty()) {
-            throw new BizException("采购单没有型号");
+            throw new BizException("采购订单没有型号");
         }
         long missing = lines.stream().filter(i -> i.getUnitPrice() == null || i.getUnitPrice().signum() <= 0).count();
         if (missing > 0) {
@@ -773,6 +919,7 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
         after.put("total", p.getCurrencyCode() + " " + p.getTotalAmount());
         after.put("bargain", "CNY " + p.getBargainAmount());
         logService.recordOperateLog(PurchaseConstants.MENU_ORDER, "确认下单", null, after);
+        payables.syncPurchaseOrder(id);
         return detail(id);
     }
 
@@ -781,7 +928,7 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
     public PurchaseOrderVO cancel(Long id, CancelPurchaseOrderRequest req) {
         PurchaseOrderDO p = lockVisible(id);
         if (p.getStatus() != PurchaseConstants.PO_ORDERED) {
-            throw new BizException(p.getStatus() == PurchaseConstants.PO_DRAFT ? "草稿不用取消，可以直接删除" : "采购单已取消");
+            throw new BizException(p.getStatus() == PurchaseConstants.PO_DRAFT ? "草稿不用取消，可以直接删除" : "采购订单已取消");
         }
         if (receivingLinks.hasShipments(id)) {
             throw new BizException("已有发货，请在到货差异里处理少发或退货");
@@ -797,12 +944,13 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
         touch.touch(lines.stream().map(PurchaseOrderItemDO::getRequirementId).toList());
         logs.add(id, "取消", "原因：" + why + "；各型号数量回到需求池", p.getCancelledBy());
         progress.sync(lines.stream().map(PurchaseOrderItemDO::getSoItemId).toList());
-        logService.recordOperateLog(PurchaseConstants.MENU_ORDER, "取消采购单", Map.of("poNo", p.getPoNo(), "status", "已下单"),
+        logService.recordOperateLog(PurchaseConstants.MENU_ORDER, "取消采购订单", Map.of("poNo", p.getPoNo(), "status", "已下单"),
                 Map.of("poNo", p.getPoNo(), "status", "已取消", "reason", why));
+        payables.syncPurchaseOrder(id);
         return detail(id);
     }
 
-    /** 来源订单已取消的需求：采购单取消后已下单数量归零的，需求关闭 */
+    /** 来源订单已取消的需求：采购订单取消后已下单数量归零的，需求关闭 */
     private void closeEmptyCancelledRequirements(List<PurchaseOrderItemDO> lines) {
         List<Long> ids = lines.stream().map(PurchaseOrderItemDO::getRequirementId).distinct().toList();
         if (ids.isEmpty()) {
@@ -833,7 +981,7 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
         p.setDeletedAt(now);
         orderMapper.updateById(p);
         logs.add(id, "删除草稿", "各型号数量回到需求池", operator);
-        logService.recordOperateLog(PurchaseConstants.MENU_ORDER, "删除草稿采购单", Map.of("id", id), null);
+        logService.recordOperateLog(PurchaseConstants.MENU_ORDER, "删除草稿采购订单", Map.of("id", id), null);
     }
 
     private static void requireDraft(PurchaseOrderDO p) {
@@ -849,16 +997,16 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
     public PurchaseOrderVO uploadAttachment(Long id, MultipartFile file) {
         PurchaseOrderDO p = lockVisible(id);
         if (p.getStatus() == PurchaseConstants.PO_CANCELLED) {
-            throw new BizException("采购单已取消，不能上传合同");
+            throw new BizException("采购订单已取消，不能上传合同");
         }
         if (Counterparty.of(p).isShop()) {
-            throw new BizException("线上店铺的采购单不需要上传合同");
+            throw new BizException("线上店铺的采购订单不需要上传合同");
         }
         long count = attachmentMapper.selectCount(new LambdaQueryWrapper<PurchaseOrderAttachmentDO>()
                 .eq(PurchaseOrderAttachmentDO::getPoId, id)
                 .isNull(PurchaseOrderAttachmentDO::getDeletedAt));
         if (count >= PurchaseConstants.MAX_ATTACHMENTS) {
-            throw new BizException("每张采购单最多 " + PurchaseConstants.MAX_ATTACHMENTS + " 个合同文件");
+            throw new BizException("每张采购订单最多 " + PurchaseConstants.MAX_ATTACHMENTS + " 个合同文件");
         }
         PrivateFileStorage.StoredFile stored = storage.store(p.getTenantId(), file);
         PurchaseOrderAttachmentDO x = new PurchaseOrderAttachmentDO();
@@ -914,7 +1062,7 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
         PurchaseOrderDO p = id == null ? null : orderMapper.selectById(id);
         if (p == null || p.getDeletedAt() != null || !Objects.equals(p.getTenantId(), PiStore.tenantId())
                 || !dataScopeResolver.current().canSee(p.getPurchaserId())) {
-            throw new BizException("采购单不存在");
+            throw new BizException("采购订单不存在");
         }
         return p;
     }

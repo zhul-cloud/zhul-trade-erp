@@ -10,7 +10,7 @@ import lombok.Data;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-/** 对账单的出运单 */
+/** 运费账单的出运单 */
 @Data
 @TableName("forwarder_statement_line")
 public class ForwarderStatementLineDO {

@@ -119,7 +119,7 @@ const COPY: Record<
     description:
       '本公司各平台的营销内容：下载营销包交给 AI，生成好的 Markdown 传回来；启用的平台都写完（或标了不发布）、且资料已核才算完成。',
     footer:
-      '只收营销包；资料包和 wiki 商品文件请到「商品资料 → 资料任务」上传；只列本公司启用的平台；按更新时间倒序',
+      '只收营销包；资料包和 wiki 商品文件请到「商品管理 → 资料任务」上传；只列本公司启用的平台；按更新时间倒序',
   },
 };
 
@@ -426,7 +426,7 @@ export const TaskList: React.FC<{ entry: PackageType }> = ({ entry }) => {
             </React.Fragment>
           ))}
           <span style={{ marginLeft: 8 }}>
-            资料在「商品资料 →
+            资料在「商品管理 →
             资料任务」补和核对，所有公司共用；这里只管本公司的营销内容。资料未核对时也能先做营销，资料核对后才算完成。
           </span>
         </div>

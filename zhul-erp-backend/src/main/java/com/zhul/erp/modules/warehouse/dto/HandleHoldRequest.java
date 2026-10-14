@@ -8,7 +8,7 @@ import jakarta.validation.constraints.Size;
 import lombok.Data;
 import java.math.BigDecimal;
 
-/** 处置暂存货 */
+/** 处置闲置库存 */
 @Data
 public class HandleHoldRequest {
     /** 2-退回供应商、3-报废、4-转样品 */

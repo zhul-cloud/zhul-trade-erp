@@ -34,6 +34,9 @@ import com.zhul.erp.modules.warehouse.repository.ReceivingDiscrepancyMapper;
 import com.zhul.erp.modules.warehouse.repository.StockHoldMapper;
 import com.zhul.erp.modules.warehouse.support.ReceivingQty;
 import com.zhul.erp.modules.warehouse.support.ReceivingSupport;
+import com.zhul.erp.modules.finance.service.PayableSyncService;
+import com.zhul.erp.modules.finance.constants.FinanceConstants;
+import com.zhul.erp.modules.finance.service.ReimburseGuard;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
@@ -50,8 +53,8 @@ import java.util.Objects;
 import java.util.Set;
 
 /**
- * 到货差异：验收时按入库行生成（少发 / 不良 / 多发），负责人为采购单的采购员，由采购员选择处理方式。
- * 事务边界：处理 / 重新打开 = 差异状态、采购单行数量与合计（不补）、暂存货（暂存）、订单进度、需求更新时间、采购单日志。
+ * 到货差异：验收时按入库行生成（少发 / 不良 / 多发），负责人为采购订单的采购员，由采购员选择处理方式。
+ * 事务边界：处理 / 重新打开 = 差异状态、采购订单行数量与合计（不补）、闲置库存（暂存）、订单进度、需求更新时间、采购订单日志。
  * 金额精度：折价金额、退货运费按两位小数 HALF_UP 存储（PurchaseCalc.money）。
  */
 @Service
@@ -63,6 +66,8 @@ public class DiscrepancyService {
     private static final Set<Integer> REDUCE_ORDER = Set.of(WarehouseConstants.RES_NO_RESEND, WarehouseConstants.RES_RETURN_NO_RESEND);
 
     private final ReceivingDiscrepancyMapper discrepancyMapper;
+    private final ReimburseGuard reimburseGuard;
+    private final PayableSyncService payables;
     private final PurchaseReceiptMapper receiptMapper;
     private final StockHoldMapper holdMapper;
     private final PurchaseOrderItemMapper poItemMapper;
@@ -80,7 +85,7 @@ public class DiscrepancyService {
     private final AttachmentService attachments;
     private final com.zhul.erp.modules.warehouse.repository.PurchaseReceiptItemMapper receiptItemMapper;
 
-    // ---------------------------------------------------------------- 生成与作废（入库单事务内）
+    // ---------------------------------------------------------------- 生成与作废（采购入库单事务内）
 
     /** 按入库行生成差异，返回条数 */
     int createForReceipt(PurchaseReceiptDO r, List<PurchaseReceiptItemDO> items, PurchaseOrderDO p) {
@@ -241,6 +246,7 @@ public class DiscrepancyService {
             vo.setReturnCarrier(d.getReturnCarrier());
             vo.setReturnTrackingNo(d.getReturnTrackingNo());
             vo.setReturnFreight(d.getReturnFreight());
+            vo.setReturnPayerId(d.getReturnPayerId());
             vo.setFreeOfCharge(Objects.equals(d.getFreeOfCharge(), 1));
             vo.setNote(d.getNote());
             vo.setPurchaserId(d.getPurchaserId());
@@ -314,6 +320,8 @@ public class DiscrepancyService {
             d.setReturnCarrier(ReceivingSupport.trim(req.getReturnCarrier()));
             d.setReturnTrackingNo(ReceivingSupport.trim(req.getReturnTrackingNo()));
             d.setReturnFreight(req.getReturnFreight() == null ? null : PurchaseCalc.money(req.getReturnFreight()));
+            d.setReturnPayerId(d.getReturnFreight() != null && d.getReturnFreight().signum() > 0
+                    ? (req.getReturnPayerId() != null ? req.getReturnPayerId() : currentUser.resolve()) : null);
             String t = (d.getReturnCarrier() + " " + d.getReturnTrackingNo()).trim();
             if (!t.isEmpty()) {
                 detail.add("退货快递 " + t);
@@ -341,7 +349,7 @@ public class DiscrepancyService {
             h.setReturnTrackingNo("");
             h.setHandleNote("");
             holdMapper.insert(h);
-            detail.add("进入暂存货" + (free ? "（供应商白送）" : "") + (h.getLocationNote().isEmpty() ? "" : "，位置 " + h.getLocationNote()));
+            detail.add("进入闲置库存" + (free ? "（供应商白送）" : "") + (h.getLocationNote().isEmpty() ? "" : "，位置 " + h.getLocationNote()));
         }
         Long operator = currentUser.resolve();
         d.setResolution(res);
@@ -356,6 +364,7 @@ public class DiscrepancyService {
                 + (d.getNote().isEmpty() ? "" : "；" + d.getNote());
         logs.add(p.getId(), "处理到货差异", text, operator);
         logService.recordOperateLog(WarehouseConstants.MENU_SHIPMENT, "处理到货差异", null, Map.of("poNo", p.getPoNo(), "content", text));
+        payables.syncPurchaseOrder(p.getId());
         return toVos(List.of(d)).get(0);
     }
 
@@ -367,6 +376,7 @@ public class DiscrepancyService {
         if (d.getStatus() != WarehouseConstants.DIFF_HANDLED) {
             throw new BizException("差异还没处理");
         }
+        reimburseGuard.requireNotClaimed(FinanceConstants.ITEM_RETURN_FREIGHT, d.getId(), "这笔退货运费");
         int res = d.getResolution();
         PurchaseOrderItemDO item = poItemMapper.selectById(d.getPoItemId());
         if (res == WarehouseConstants.RES_HOLD) {
@@ -375,7 +385,7 @@ public class DiscrepancyService {
                     .isNull(StockHoldDO::getDeletedAt)
                     .last("LIMIT 1"));
             if (h != null && h.getStatus() != WarehouseConstants.HOLD_ACTIVE) {
-                throw new BizException("暂存货已" + WarehouseConstants.HOLD_STATUS_NAMES.get(h.getStatus()).substring(1) + "，不能重新打开");
+                throw new BizException("闲置库存已" + WarehouseConstants.HOLD_STATUS_NAMES.get(h.getStatus()).substring(1) + "，不能重新打开");
             }
             if (h != null) {
                 holdMapper.lockById(h.getId());
@@ -385,14 +395,14 @@ public class DiscrepancyService {
         }
         if (REDUCE_ORDER.contains(res)) {
             if (p.getStatus() != PurchaseConstants.PO_ORDERED) {
-                throw new BizException("采购单已取消，不能重新打开");
+                throw new BizException("采购订单已取消，不能重新打开");
             }
             requirementMapper.lockByIds(List.of(item.getRequirementId()));
             PurchaseRequirementDO r = requirementMapper.selectById(item.getRequirementId());
             int available = r == null || r.getStatus() != PurchaseConstants.REQ_ACTIVE ? 0
                     : RequirementQty.available(r, requirementQty.of(r.getId()));
             if (available < d.getQuantity()) {
-                throw new BizException("这部分数量已经排到其他采购单，不能重新打开");
+                throw new BizException("这部分数量已经排到其他采购订单，不能重新打开");
             }
             item.setQuantity(item.getQuantity() + d.getQuantity());
             poItemMapper.updateById(item);
@@ -413,6 +423,7 @@ public class DiscrepancyService {
         d.setReturnCarrier("");
         d.setReturnTrackingNo("");
         d.setReturnFreight(null);
+        d.setReturnPayerId(null);
         d.setFreeOfCharge(0);
         d.setHandledBy(null);
         d.setHandledAt(null);
@@ -422,6 +433,7 @@ public class DiscrepancyService {
         String text = d.getModel() + " " + WarehouseConstants.DIFF_TYPE_NAMES.get(d.getType()) + " " + d.getQuantity() + "：撤销「" + was + "」";
         logs.add(p.getId(), "重新打开差异", text, currentUser.resolve());
         logService.recordOperateLog(WarehouseConstants.MENU_SHIPMENT, "重新打开到货差异", null, Map.of("poNo", p.getPoNo(), "content", text));
+        payables.syncPurchaseOrder(p.getId());
         return toVos(List.of(d)).get(0);
     }
 

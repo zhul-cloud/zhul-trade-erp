@@ -96,7 +96,7 @@ const Receipts: React.FC = () => {
       ),
     },
     {
-      title: '采购单 · 采购对象',
+      title: '采购订单 · 采购对象',
       dataIndex: 'poNo',
       width: 210,
       render: (v: string, r) => (
@@ -164,7 +164,7 @@ const Receipts: React.FC = () => {
 
   const receiptColumns: TableColumnsType<Receipt> = [
     {
-      title: '入库单 · 收货日期',
+      title: '采购入库单 · 收货日期',
       dataIndex: 'grNo',
       width: 170,
       fixed: 'left',
@@ -177,7 +177,7 @@ const Receipts: React.FC = () => {
     },
     { title: '发货单', dataIndex: 'sdNo', width: 150 },
     {
-      title: '采购单 · 采购对象',
+      title: '采购订单 · 采购对象',
       dataIndex: 'poNo',
       width: 210,
       render: (v: string, r) => (
@@ -249,8 +249,8 @@ const Receipts: React.FC = () => {
   return (
     <div>
       <WarehousePageTitle
-        crumbs={['入库验收']}
-        title="入库验收"
+        crumbs={['采购入库']}
+        title="采购入库"
         description="按发货单验收：只记录实收、合格、不良，差异由采购员处理。"
         actions={
           canEdit && (
@@ -291,8 +291,8 @@ const Receipts: React.FC = () => {
           onPressEnter={apply}
           placeholder={
             tab === 'pending'
-              ? '快递单号、采购单号、型号、采购对象'
-              : '入库单号、发货单号、快递单号、采购单号、型号'
+              ? '快递单号、采购订单号、型号、采购对象'
+              : '采购入库单号、发货单号、快递单号、采购订单号、型号'
           }
           style={{ width: 340 }}
           aria-label="关键词"
@@ -327,7 +327,7 @@ const Receipts: React.FC = () => {
           dataSource={receipts}
           loading={loading}
           scroll={{ x: 1800 }}
-          locale={{ emptyText: '还没有入库单' }}
+          locale={{ emptyText: '还没有采购入库单' }}
           pagination={pagination}
         />
       )}

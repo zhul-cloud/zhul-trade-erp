@@ -5,7 +5,7 @@ import lombok.Data;
 import java.time.LocalDate;
 import java.util.List;
 
-/** 客户询盘列表查询 */
+/** 询盘单列表查询 */
 @Data
 public class CustomerInquiryPageQuery {
     /** 询盘编号、客户名称、型号 */

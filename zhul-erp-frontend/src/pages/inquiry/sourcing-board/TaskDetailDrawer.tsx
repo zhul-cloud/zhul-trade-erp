@@ -38,7 +38,7 @@ const QUOTE_STATUS: Record<
 
 /**
  * 询价分配的任务详情：分配前看清型号、询盘等级和客户概况。
- * 不跳转客户询盘（采购负责人看不到业务员的询盘），也不含联系方式与原始询盘内容。
+ * 不跳转询盘单（采购负责人看不到业务员的询盘），也不含联系方式与原始询盘内容。
  */
 const TaskDetailDrawer: React.FC<{
   taskId?: number;

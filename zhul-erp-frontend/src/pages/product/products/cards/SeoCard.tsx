@@ -516,13 +516,25 @@ export const MarketingDownload: React.FC<{
   });
   const menu = {
     items: [
-      option('all', '全部启用平台（推荐）', '型号.marketing.md · 一个文件'),
+      option(
+        'all',
+        '全部启用平台（推荐）',
+        platforms.includes('site')
+          ? '型号.marketing.md · 含独立站俄文'
+          : '型号.marketing.md · 一个文件',
+      ),
       { type: 'divider' as const },
       ...platforms.map((p) =>
         option(p, PLATFORM_META[p].label, PLATFORM_META[p].file),
       ),
       ...(platforms.includes('site')
-        ? [option('site-ru', '独立站俄文', '型号.site.ru.md · 俄文')]
+        ? [
+            option(
+              'site-ru',
+              '独立站俄文（单独重做）',
+              '型号.site.ru.md · 俄文',
+            ),
+          ]
         : []),
     ],
     onClick: ({ key }: { key: string }) => onPick(key as MarketingPick),
@@ -865,8 +877,8 @@ const SiteBody: React.FC<{ data: ProductContent }> = ({ data }) => {
       </div>
       {empty ? (
         <div style={{ color: palette.sub, padding: '8px 0' }}>
-          这种语言还没有营销内容。下载营销包交给 AI
-          生成（俄文选「独立站俄文」），生成的 Markdown 在这里上传即可。
+          这种语言还没有营销内容。下载营销包（全部平台的文件已含独立站俄文章节）交给
+          AI 生成，生成的 Markdown 在这里上传即可。
         </div>
       ) : (
         <>

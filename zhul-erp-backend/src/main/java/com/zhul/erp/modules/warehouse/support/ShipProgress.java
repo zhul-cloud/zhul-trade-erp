@@ -17,7 +17,7 @@ import java.util.Map;
 import java.util.Objects;
 
 /**
- * 采购单的发货进度（不落库）：未发货 / 部分发货 / 已发货 / 已入库，口径同 {@link ReceivingQty}。
+ * 采购订单的发货进度（不落库）：未发货 / 部分发货 / 已发货 / 已入库，口径同 {@link ReceivingQty}。
  * 列表展示在 Java 里算（{@link #of}），筛选用同样口径的 SQL 条件（{@link #condition}），两边须保持一致。
  */
 @Component
@@ -34,7 +34,7 @@ public class ShipProgress {
             OVERDUE, "逾期未发");
 
     private static final String ITEMS = "FROM purchase_order_item pi WHERE pi.po_id = purchase_order.id AND pi.deleted_at IS NULL";
-    /** 采购单行的已发数量，同 ReceivingQtyMapper.shippedByPoItem */
+    /** 采购订单行的已发数量，同 ReceivingQtyMapper.shippedByPoItem */
     private static final String SHIPPED_QTY = "(COALESCE((SELECT SUM(si.quantity) FROM supplier_shipment_item si "
             + "JOIN supplier_shipment s ON s.id = si.shipment_id WHERE si.po_item_id = pi.id AND si.deleted_at IS NULL "
             + "AND s.deleted_at IS NULL AND s.status = 1), 0) "
@@ -43,7 +43,7 @@ public class ShipProgress {
             + "AND r.deleted_at IS NULL AND r.status = 1), 0) "
             + "- COALESCE((SELECT SUM(d.quantity) FROM receiving_discrepancy d WHERE d.po_item_id = pi.id "
             + "AND d.deleted_at IS NULL AND d.status = 2 AND d.resolution IN (3, 4)), 0))";
-    /** 采购单行的合格入库数量，同 ReceivingQtyMapper.qualifiedByPoItem */
+    /** 采购订单行的合格入库数量，同 ReceivingQtyMapper.qualifiedByPoItem */
     private static final String RECEIVED_QTY = "(COALESCE((SELECT SUM(LEAST(ri.qualified_qty, ri.shipped_qty)) FROM purchase_receipt_item ri "
             + "JOIN purchase_receipt r ON r.id = ri.receipt_id WHERE ri.po_item_id = pi.id AND ri.deleted_at IS NULL "
             + "AND r.deleted_at IS NULL AND r.status = 1), 0) "
@@ -60,7 +60,7 @@ public class ShipProgress {
     public record Result(String code, String name, int shipped, int total, LocalDate earliestArrival) {
     }
 
-    /** 采购单 ID → 它的行（只传已下单的采购单） */
+    /** 采购订单 ID → 它的行（只传已下单的采购订单） */
     public Map<Long, Result> of(Map<Long, List<PurchaseOrderItemDO>> linesByPo) {
         List<Long> itemIds = linesByPo.values().stream().flatMap(List::stream).map(PurchaseOrderItemDO::getId).toList();
         Map<Long, Integer> shipped = receivingQty.shippedByPoItem(itemIds);

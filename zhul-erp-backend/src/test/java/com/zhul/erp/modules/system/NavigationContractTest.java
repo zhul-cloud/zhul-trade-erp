@@ -48,20 +48,20 @@ class NavigationContractTest extends InquiryContractSupport {
     void partTimerSeesOnlyPurchaseBoardAndMyQuotes() throws Exception {
         String pt = token("it_wang");
         assertEquals(Map.of("采购管理", List.of("兼职看板", "我的询价")), sidebar(pt));
-        assertEquals(403, perform(json(post("/api/v1/inquiry/customer-inquiries/page"), "{}"), pt).getStatus(), "兼职采购不能访问客户询盘");
+        assertEquals(403, perform(json(post("/api/v1/inquiry/customer-inquiries/page"), "{}"), pt).getStatus(), "兼职采购不能访问询盘单");
     }
 
     @Test
     void salesAndBuyerKeepTheirPagesUnderDepartmentGroups() throws Exception {
         loginWithResources("it_nav_sales", 100001, 100053, 100051, 100073, 100078, 100079, 100056);
         Map<String, List<String>> sales = sidebar(token("it_nav_sales"));
-        assertEquals(List.of("工作台", "业务管理", "采购管理"), new ArrayList<>(sales.keySet()));
-        assertEquals(List.of("商机", "客户询盘", "报价单", "PI", "销售订单"), sales.get("业务管理"));
-        assertEquals(List.of("历史询价"), sales.get("采购管理"));
+        assertEquals(List.of("工作台", "销售管理", "采购管理"), new ArrayList<>(sales.keySet()));
+        assertEquals(List.of("商机", "询盘单", "报价单", "PI", "销售订单"), sales.get("销售管理"));
+        assertEquals(List.of("询价记录"), sales.get("采购管理"));
         assertEquals(200, perform(json(post("/api/v1/inquiry/customer-inquiries/page"), "{}"), token("it_nav_sales")).getStatus(), "调整后仍能访问");
 
         loginWithResources("it_nav_buyer", 100055, 100056, 100087, 100088, 100089, 100062);
-        assertEquals(Map.of("采购管理", List.of("我的询价", "历史询价", "采购需求", "采购单", "供应商发货", "供应商")), sidebar(token("it_nav_buyer")));
+        assertEquals(Map.of("采购管理", List.of("我的询价", "询价记录", "采购需求", "采购订单", "供应商发货", "供应商")), sidebar(token("it_nav_buyer")));
     }
 
     @Test
@@ -70,8 +70,9 @@ class NavigationContractTest extends InquiryContractSupport {
         jdbc.update("insert into account (id, tenant_id, user_id, username, admin_flag) values (99000042, 0, 99000042, 'it_nav_wh', 0)");
         try {
             Map<String, List<String>> wh = sidebar(token("it_nav_wh"));
-            assertEquals(List.of("工作台", "仓库管理"), new ArrayList<>(wh.keySet()));
-            assertEquals(List.of("入库验收", "出库打包", "暂存货", "拍摄任务"), wh.get("仓库管理"));
+            assertEquals(List.of("工作台", "仓库管理", "财务管理"), new ArrayList<>(wh.keySet()));
+            assertEquals(List.of("报销单"), wh.get("财务管理"), "仓库垫付国内快递运费，要提交报销");
+            assertEquals(List.of("采购入库", "销售出库", "闲置库存", "实拍任务"), wh.get("仓库管理"));
         } finally {
             jdbc.update("delete from account where id = 99000042");
             jdbc.update("delete from user_basic where id = 99000042");
@@ -82,16 +83,16 @@ class NavigationContractTest extends InquiryContractSupport {
     void adminSeesDepartmentGroupsWithoutPlaceholders() throws Exception {
         loginAsAdmin("it_nav_admin");
         Map<String, List<String>> all = sidebar(token("it_nav_admin"));
-        assertEquals(List.of("工作台", "业务管理", "采购管理", "仓库管理", "单证物流", "财务管理", "商品资料", "运营管理", "业务设置", "系统管理",
+        assertEquals(List.of("工作台", "销售管理", "采购管理", "仓库管理", "物流管理", "财务管理", "商品管理", "运营管理", "业务设置", "系统管理",
                 "租户管理"), new ArrayList<>(all.keySet()));
-        assertEquals(List.of("商品", "商品候选", "资料任务", "品牌", "品类", "系列"), all.get("商品资料"));
+        assertEquals(List.of("商品", "商品候选", "资料任务", "品牌", "品类", "系列"), all.get("商品管理"));
         assertEquals(List.of("商品运营"), all.get("运营管理"), "运营管理：商品运营");
-        assertEquals(List.of("商机", "客户", "客户询盘", "报价单", "PI", "销售订单"), all.get("业务管理"), "商机统计从侧边栏隐藏");
-        assertEquals(List.of("兼职看板", "询价分配", "我的询价", "历史询价", "采购需求", "采购单", "供应商发货", "供应商"), all.get("采购管理"));
-        assertEquals(List.of("入库验收", "出库打包", "暂存货", "拍摄任务"), all.get("仓库管理"));
-        assertEquals(List.of("出运单", "货代对账"), all.get("单证物流"));
-        assertEquals(List.of("收款管理"), all.get("财务管理"));
-        assertEquals(List.of("定价策略", "汇率", "收款账户", "单据模版", "单据编号", "快递时效"), all.get("业务设置"));
+        assertEquals(List.of("商机", "客户", "询盘单", "报价单", "PI", "销售订单"), all.get("销售管理"), "商机统计从侧边栏隐藏");
+        assertEquals(List.of("兼职看板", "询价分配", "我的询价", "询价记录", "采购需求", "采购订单", "供应商发货", "供应商"), all.get("采购管理"));
+        assertEquals(List.of("采购入库", "销售出库", "闲置库存", "实拍任务"), all.get("仓库管理"));
+        assertEquals(List.of("出运单", "运费账单"), all.get("物流管理"));
+        assertEquals(List.of("收款单", "结汇单", "应付单", "付款单", "报销单", "费用单"), all.get("财务管理"));
+        assertEquals(List.of("定价策略", "汇率", "收款账户", "单据模板", "编号规则", "快递时效"), all.get("业务设置"));
         assertEquals(List.of("用户", "角色", "部门", "岗位", "菜单", "字典", "系统设置", "操作日志", "登录日志"), all.get("系统管理"));
     }
 }

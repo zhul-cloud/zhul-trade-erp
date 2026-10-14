@@ -48,7 +48,7 @@ const HINTS: {
   {
     key: 'discontinuedUrgent',
     title: '停产急件',
-    desc: '型号生命周期为停产，且客户询盘标记为紧急',
+    desc: '型号生命周期为停产，且询盘单标记为紧急',
   },
   {
     key: 'premiumBrand',

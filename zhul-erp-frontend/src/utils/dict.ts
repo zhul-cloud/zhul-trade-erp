@@ -1,10 +1,10 @@
 import { request } from '@umijs/max';
 import { useEffect, useState } from 'react';
 
-/** 来源渠道：客户、商机、客户询盘共用，在「系统管理 / 字典管理」维护 */
+/** 来源渠道：客户、商机、询盘单共用，在「系统管理 / 字典管理」维护 */
 export const DICT_SOURCE_CHANNEL = 'crm_source_channel';
 
-/** 货况、货期：采购回价、导入询价结果、历史询价共用 */
+/** 货况、货期：采购回价、导入询价结果、询价记录共用 */
 export const DICT_ITEM_CONDITION = 'inquiry_item_condition';
 export const DICT_LEAD_TIME = 'inquiry_lead_time';
 

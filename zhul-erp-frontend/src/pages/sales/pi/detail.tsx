@@ -1944,7 +1944,7 @@ const PiDetail: React.FC = () => {
               value={formatAmount(pi.netAmountCny ?? 0, 'CNY')}
             />
             <div style={{ fontSize: 12, color: palette.mute }}>
-              按每笔到账的汇率折算（已结汇的按实际入账）
+              按每笔到账的汇率折算（已结汇的按结汇汇率，未结汇的按最近一次结汇汇率估算）
             </div>
           </div>
         )}
@@ -2069,7 +2069,7 @@ const PiDetail: React.FC = () => {
                       ? `中转差额 ${formatAmount(r.feeDiff, cur)}`
                       : '',
                     !slip
-                      ? `实收 ${formatAmount(r.netAmountCny ?? r.amountCny, 'CNY')}${r.rateSource === 2 ? '（实际入账）' : ''}`
+                      ? `实收 ${formatAmount(r.netAmountCny ?? r.amountCny, 'CNY')}${r.settleStatus === 1 || r.settleStatus === 2 ? '（未结汇 · 估算）' : r.settleStatus === 3 ? '（已结汇）' : ''}`
                       : '',
                     r.note,
                     voided && r.voidReason ? `作废原因：${r.voidReason}` : '',
@@ -2423,7 +2423,7 @@ const PiDetail: React.FC = () => {
             同时把来源报价单标为未成交（同一原因）
             <div style={{ fontSize: 12, color: palette.mute }}>
               {pi.quotations.map((x) => x.quotationNo).join('、') || '—'}
-              ；还有其他有效 PI 的报价单保持不变，客户询盘随之更新
+              ；还有其他有效 PI 的报价单保持不变，询盘单随之更新
             </div>
           </Checkbox>
         }
@@ -2457,7 +2457,7 @@ const PiDetail: React.FC = () => {
       >
         <p style={{ color: palette.sub }}>
           PI
-          回到「已发送」，可以继续上传水单和登记到账；这次关闭时标为未成交的报价单回到「已发送」，客户询盘随之回到「已报价」。
+          回到「已发送」，可以继续上传水单和登记到账；这次关闭时标为未成交的报价单回到「已发送」，询盘单随之回到「已报价」。
         </p>
         {reopenUntil && (
           <>

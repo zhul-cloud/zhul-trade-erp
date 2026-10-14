@@ -24,7 +24,6 @@ import com.zhul.erp.modules.sales.support.ReceiptMoney;
 import com.zhul.erp.modules.sales.support.ReceiptRows;
 import com.zhul.erp.modules.system.entity.BankAccountDO;
 import com.zhul.erp.modules.system.service.BankAccountService;
-import com.zhul.erp.modules.system.service.ExchangeRateService;
 import com.zhul.erp.modules.system.service.LogService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -46,6 +45,8 @@ import java.util.TreeMap;
 @RequiredArgsConstructor
 public class ReceiptLedgerServiceImpl implements ReceiptLedgerService {
 
+    private final com.zhul.erp.modules.finance.support.FxRates fxRates;
+
     private static final int RECENT_CLAIMED = 20;
     private static final int KEYWORD_LIMIT = 500;
 
@@ -57,7 +58,6 @@ public class ReceiptLedgerServiceImpl implements ReceiptLedgerService {
     private final PaymentMethods paymentMethods;
     private final ReceiptRows receiptRows;
     private final BankAccountService bankAccountService;
-    private final ExchangeRateService exchangeRateService;
     private final CurrentUserResolver currentUser;
     private final com.zhul.erp.modules.sales.repository.SalesOrderMapper orderMapper;
     private final LogService logService;
@@ -103,14 +103,14 @@ public class ReceiptLedgerServiceImpl implements ReceiptLedgerService {
             throw new BizException("收款账户币种（" + bank.getCurrencyCode() + "）与到账币种（" + currency + "）不同");
         }
         PaymentMethods.Method method = paymentMethods.offline(req.getPaymentMethod());
-        BigDecimal rate = "CNY".equals(currency) ? BigDecimal.ONE.setScale(6) : exchangeRateService.require(currency).rate();
+        BigDecimal rate = fxRates.estimate(currency);
         PaymentReceiptDO r = new PaymentReceiptDO();
         r.setTenantId(PiStore.tenantId());
         r.setPiId(null);
         r.setKind(SalesConstants.KIND_RECEIPT);
         r.setCurrencyCode(currency);
         PaymentReceiptServiceImpl.setMethod(r, method);
-        ReceiptMoney.apply(r, req.getAmount().setScale(2, RoundingMode.HALF_UP), BigDecimal.ZERO, rate, req.getActualAmountCny());
+        ReceiptMoney.apply(r, req.getAmount().setScale(2, RoundingMode.HALF_UP), BigDecimal.ZERO, rate);
         r.setFeeDiff(BigDecimal.ZERO);
         r.setPayer(trim(req.getPayer(), 128));
         r.setReceiptDate(req.getReceiptDate());
@@ -181,6 +181,7 @@ public class ReceiptLedgerServiceImpl implements ReceiptLedgerService {
         if (r.getStatus() == SalesConstants.RECORD_VOID) {
             throw new BizException("这笔到账已作废");
         }
+        fxRates.requireNotSettled(r);
         r.setStatus(SalesConstants.RECORD_VOID);
         r.setVoidReason(trim(why, 200));
         receiptMapper.updateById(r);
@@ -209,6 +210,9 @@ public class ReceiptLedgerServiceImpl implements ReceiptLedgerService {
         }
         if (q.getChannel() != null) {
             w.eq(PaymentReceiptDO::getChannel, q.getChannel());
+        }
+        if (q.getSettleStatus() != null) {
+            w.eq(PaymentReceiptDO::getSettleStatus, q.getSettleStatus());
         }
         if (StringUtils.hasText(q.getCurrencyCode())) {
             w.eq(PaymentReceiptDO::getCurrencyCode, q.getCurrencyCode().trim().toUpperCase(Locale.ROOT));
@@ -274,6 +278,7 @@ public class ReceiptLedgerServiceImpl implements ReceiptLedgerService {
         Map<String, BigDecimal> amounts = new TreeMap<>();
         Map<String, BigDecimal> fees = new TreeMap<>();
         BigDecimal netCny = BigDecimal.ZERO;
+        BigDecimal openCny = BigDecimal.ZERO;
         long count = 0;
         for (PaymentReceiptDO r : rows) {
             if (channel != 0 && !Objects.equals(r.getChannel(), channel)) {
@@ -286,6 +291,9 @@ public class ReceiptLedgerServiceImpl implements ReceiptLedgerService {
                 fees.merge(r.getCurrencyCode(), fee, BigDecimal::add);
             }
             netCny = netCny.add(nz(r.getNetAmountCny()));
+            if (Objects.equals(r.getSettleStatus(), SalesConstants.SETTLE_NONE) || Objects.equals(r.getSettleStatus(), SalesConstants.SETTLE_PARTIAL)) {
+                openCny = openCny.add(nz(r.getNetAmountCny()));
+            }
         }
         ReceiptRecordPageVO.Summary s = new ReceiptRecordPageVO.Summary();
         s.setChannel(channel);
@@ -293,6 +301,7 @@ public class ReceiptLedgerServiceImpl implements ReceiptLedgerService {
         s.setAmounts(money(amounts));
         s.setFees(money(fees));
         s.setNetAmountCny(netCny);
+        s.setOpenNetAmountCny(openCny);
         return s;
     }
 

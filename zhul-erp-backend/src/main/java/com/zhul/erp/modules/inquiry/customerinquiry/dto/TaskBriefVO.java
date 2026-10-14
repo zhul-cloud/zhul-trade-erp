@@ -5,7 +5,7 @@ import lombok.Data;
 import java.time.LocalDateTime;
 import java.util.List;
 
-/** 客户询盘详情中的询价任务 */
+/** 询盘单详情中的询价任务 */
 @Data
 public class TaskBriefVO {
     private Long id;

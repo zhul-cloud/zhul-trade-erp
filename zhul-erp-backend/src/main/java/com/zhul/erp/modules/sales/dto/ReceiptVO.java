@@ -26,6 +26,9 @@ public class ReceiptVO {
     private BigDecimal netAmountCny;
     private BigDecimal exchangeRate;
     private Integer rateSource;
+    /** 结汇：已结汇金额（原币）与结汇状态（0-不适用、1-未结汇、2-部分结汇、3-已结汇） */
+    private java.math.BigDecimal settledAmount;
+    private Integer settleStatus;
     private String payer;
     /** 认领来的到账：认领人与时间 */
     private String claimedByName;

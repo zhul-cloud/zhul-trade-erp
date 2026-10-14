@@ -385,7 +385,7 @@ export const SentPromptModal: React.FC<{
           <p style={{ color: palette.sub }}>
             {revision
               ? `已经把 Rev.${quotation?.editingVersionNo} 发给客户了吗？标为「已发送」后它成为当前版本，Rev.${quotation?.currentVersionNo} 只读保留。`
-              : `已经把报价单发给客户了吗？标为「已发送」后内容会锁定，客户询盘 ${quotation?.inquiryCodes.join('、')} 变为「已报价」。`}
+              : `已经把报价单发给客户了吗？标为「已发送」后内容会锁定，询盘单 ${quotation?.inquiryCodes.join('、')} 变为「已报价」。`}
           </p>
           <div style={{ fontSize: 12, color: palette.mute }}>
             <InfoCircleOutlined />{' '}

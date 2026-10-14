@@ -6,7 +6,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
-/** 历史询价按品牌 + 归一化型号分组 */
+/** 询价记录按品牌 + 归一化型号分组 */
 @Data
 public class PriceHistoryGroupVO {
     private String brand;

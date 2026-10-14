@@ -2,7 +2,7 @@ package com.zhul.erp.modules.document.dto;
 
 import lombok.Data;
 
-/** 单据模版类型概况 */
+/** 单据模板类型概况 */
 @Data
 public class TemplateTypeVO {
     private Integer docType;

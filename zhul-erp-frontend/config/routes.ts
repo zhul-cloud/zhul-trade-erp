@@ -30,7 +30,7 @@ export default [
     ],
   },
   // 以下顶层业务菜单的先后顺序跟数据库「菜单管理」（resource 表）的 sort 值保持一致：
-  // 侧边栏的分组、名称与顺序来自后端 resource 表（按部门：业务管理、采购管理、财务管理、商品资料、业务设置、系统管理），
+  // 侧边栏的分组、名称与顺序来自后端 resource 表（按部门：销售管理、采购管理、财务管理、商品资料、业务设置、系统管理），
   // 这里只负责路由与 access；页面路径沿用原来的前缀，与侧边栏分组无关（见 src/utils/menuGroup.ts）
   {
     path: '/dashboard',
@@ -129,7 +129,7 @@ export default [
       },
     ],
   },
-  // 客户（业务管理）、供应商（采购管理）的页面路由，后续评分页面挂在各自目录下
+  // 客户（销售管理）、供应商（采购管理）的页面路由，后续评分页面挂在各自目录下
   {
     path: '/customer',
     name: 'customer',
@@ -476,6 +476,41 @@ export default [
         icon: 'audit',
         access: 'financeReceipts',
         component: './finance/receipts',
+      },
+      {
+        path: '/finance/fx-settlements',
+        name: 'fxSettlements',
+        icon: 'swap',
+        access: 'financeFxSettlements',
+        component: './finance/fx-settlements',
+      },
+      {
+        path: '/finance/payables',
+        name: 'payables',
+        icon: 'accountBook',
+        access: 'financePayables',
+        component: './finance/payables',
+      },
+      {
+        path: '/finance/payments',
+        name: 'payments',
+        icon: 'transaction',
+        access: 'financePayments',
+        component: './finance/payments',
+      },
+      {
+        path: '/finance/reimbursements',
+        name: 'reimbursements',
+        icon: 'fileDone',
+        access: 'financeReimbursements',
+        component: './finance/reimbursements',
+      },
+      {
+        path: '/finance/expenses',
+        name: 'expenses',
+        icon: 'profile',
+        access: 'financeExpenses',
+        component: './finance/expenses',
       },
     ],
   },

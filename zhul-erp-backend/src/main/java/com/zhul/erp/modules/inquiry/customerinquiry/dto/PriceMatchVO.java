@@ -4,7 +4,7 @@ import lombok.Data;
 
 import java.util.List;
 
-/** 按品牌 + 归一化型号匹配到的历史询价 */
+/** 按品牌 + 归一化型号匹配到的询价记录 */
 @Data
 public class PriceMatchVO {
     /** 品牌匹配键（按品牌及别名识别），前端拆分预览按它分组，与生成询价任务的口径一致 */

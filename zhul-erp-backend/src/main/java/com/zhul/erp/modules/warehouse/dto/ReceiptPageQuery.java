@@ -8,7 +8,7 @@ import java.time.LocalDate;
 public class ReceiptPageQuery {
     private Integer page;
     private Integer pageSize;
-    /** 入库单号、发货单号、采购单号、快递单号、型号、采购对象 */
+    /** 采购入库单号、发货单号、采购订单号、快递单号、型号、采购对象 */
     private String keyword;
     private Integer status;
     private LocalDate receivedFrom;

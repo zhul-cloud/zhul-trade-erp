@@ -85,7 +85,7 @@ export const quickActions: QuickActionData[] = [
   { icon: 'message', label: '新建询盘' },
   { icon: 'file-add', label: '新建报价' },
   { icon: 'shopping-cart', label: '新建订单' },
-  { icon: 'appstore-add', label: '新建采购单' },
+  { icon: 'appstore-add', label: '新建采购订单' },
   { icon: 'user-add', label: '新建客户' },
   { icon: 'send', label: '发起付款' },
 ];
@@ -178,7 +178,7 @@ export const activities: ActivityItemData[] = [
   },
   {
     who: '陈静',
-    action: '提交采购单 PO2026-0507 待审批',
+    action: '提交采购订单 PO2026-0507 待审批',
     time: '5小时前',
     color: '#DC2626',
   },

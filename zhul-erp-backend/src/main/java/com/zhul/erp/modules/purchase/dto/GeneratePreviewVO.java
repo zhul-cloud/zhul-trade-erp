@@ -4,7 +4,7 @@ import lombok.Data;
 
 import java.util.List;
 
-/** 需求池生成采购单的分组预览：按建议供应商（或店铺）分组 */
+/** 需求池生成采购订单的分组预览：按建议供应商（或店铺）分组 */
 @Data
 public class GeneratePreviewVO {
     private List<Group> groups;

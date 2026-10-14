@@ -228,7 +228,7 @@ export interface BoardTask {
   id: number;
   taskCode: string;
   customerInquiryId: number;
-  /** 所属业务员（客户询盘负责人） */
+  /** 所属业务员（询盘单负责人） */
   salesId?: number;
   salesName?: string;
   /** 询盘等级（字典 inquiry_level 码值） */
@@ -311,7 +311,7 @@ export interface AssignRule {
 export interface MyTask {
   id: number;
   taskCode: string;
-  /** 所属业务员（客户询盘负责人） */
+  /** 所属业务员（询盘单负责人） */
   salesId?: number;
   salesName?: string;
   /** 询盘等级（字典 inquiry_level 码值） */
@@ -702,7 +702,7 @@ export interface ReviewItem {
   quotedByName?: string;
   submittedAt?: string;
   quotes: PriceRecord[];
-  /** 同品牌同型号历史询价最低价 */
+  /** 同品牌同型号询价记录最低价 */
   historyLowest?: PriceRecord;
 }
 

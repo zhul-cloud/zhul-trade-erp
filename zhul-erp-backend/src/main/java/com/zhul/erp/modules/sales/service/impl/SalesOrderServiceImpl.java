@@ -206,9 +206,9 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         }
         pi.setStatus(SalesConstants.PI_CONVERTED);
         piMapper.updateById(pi);
-        // 同一事务：报价行成交 → 报价单状态 → 客户询盘（锁顺序：PI → 报价单 → 询盘）
+        // 同一事务：报价行成交 → 报价单状态 → 询盘单（锁顺序：PI → 报价单 → 询盘）
         deals.apply(items.stream().map(PiItemDO::getQuotationItemId).collect(Collectors.toSet()), Set.of());
-        // 同一事务：生成采购需求（重转时接回已下单数量）并自动排入草稿采购单
+        // 同一事务：生成采购需求（重转时接回已下单数量）并自动排入草稿采购订单
         requirementLifecycle.onOrderCreated(o, created);
         // 成交提升商品候选的可信度
         productArchiver.sync(created.stream().map(SalesOrderItemDO::getInquiryItemId).filter(Objects::nonNull).toList());
@@ -1328,7 +1328,7 @@ public class SalesOrderServiceImpl implements SalesOrderService {
                 CustomerInquiryDO i = inquiryMapper.selectById(id);
                 if (i == null || i.getDeletedAt() != null || !Objects.equals(i.getTenantId(), PiStore.tenantId())
                         || !dataScopeResolver.current().canSee(i.getOwnerId())) {
-                    throw new BizException("客户询盘不存在");
+                    throw new BizException("询盘单不存在");
                 }
                 inquiryIds.add(id);
                 quotationIds.addAll(quotationIdsByInquiry(inquiryIds));

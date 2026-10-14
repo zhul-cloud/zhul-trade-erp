@@ -37,7 +37,7 @@ public interface MyTaskService {
     /** 把一个型号本次的结果写入询价记录（在线录入与导入共用）；submit 时由调用方负责重算进度 */
     void writeQuotes(SourcingTaskDO task, Long quotedBy, List<QuoteDraft> drafts, boolean submit, int entryMode, Long importId);
 
-    /** 提交后重算明细、任务与客户询盘进度，并记录提交时间 */
+    /** 提交后重算明细、任务与询盘单进度，并记录提交时间 */
     void afterSubmit(SourcingTaskDO task, Long quotedBy, List<Long> itemIds);
 
     /** 一条待写入的询价结果；noStock 为真时只记无货说明 */

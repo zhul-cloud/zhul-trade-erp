@@ -27,7 +27,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
-/** 发货通知（业务员，订单数据权限）与出库打包（仓库，看全部） */
+/** 发货通知（业务员，订单数据权限）与销售出库（仓库，看全部） */
 @RestController
 @RequestMapping("/api/v1/logistics")
 @RequiredArgsConstructor
@@ -75,7 +75,7 @@ public class OutboundController {
         return Result.ok(service.withdraw(id, req.getReason()));
     }
 
-    /** 订单上的出库单 */
+    /** 订单上的销售出库单 */
     @GetMapping("/outbounds/by-order/{soId}")
     @PreAuthorize(SO_MENU)
     public Result<List<OutboundVO>> byOrder(@PathVariable Long soId) {

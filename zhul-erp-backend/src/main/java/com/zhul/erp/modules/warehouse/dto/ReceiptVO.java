@@ -4,7 +4,7 @@ import com.zhul.erp.modules.attachment.dto.AttachmentVO;
 import lombok.Data;
 import java.util.List;
 
-/** 入库单详情 */
+/** 采购入库单详情 */
 @Data
 public class ReceiptVO {
     private ReceiptListVO receipt;
@@ -12,7 +12,7 @@ public class ReceiptVO {
     private List<DiscrepancyVO> discrepancies;
     private List<AttachmentVO> attachments;
     private List<AttachmentVO> shipmentAttachments;
-    /** 差异都没处理、拍摄任务都没开始时可以冲销 */
+    /** 差异都没处理、实拍任务都没开始时可以冲销 */
     private Boolean reversible;
 
     @Data

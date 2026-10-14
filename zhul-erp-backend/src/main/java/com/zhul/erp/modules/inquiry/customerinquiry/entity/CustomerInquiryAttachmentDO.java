@@ -9,7 +9,7 @@ import lombok.Data;
 
 import java.time.LocalDateTime;
 
-/** 客户询盘附件（非公开存储） */
+/** 询盘单附件（非公开存储） */
 @Data
 @TableName("customer_inquiry_attachment")
 public class CustomerInquiryAttachmentDO {

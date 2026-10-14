@@ -9,7 +9,7 @@ import lombok.Data;
 
 import java.time.LocalDateTime;
 
-/** 客户询盘的型号明细：唯一的需求行，询价任务与询价记录都挂在它上面 */
+/** 询盘单的型号明细：唯一的需求行，询价任务与询价记录都挂在它上面 */
 @Data
 @TableName("inquiry_item")
 public class InquiryItemDO {

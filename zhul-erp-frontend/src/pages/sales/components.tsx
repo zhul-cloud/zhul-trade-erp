@@ -83,7 +83,7 @@ export const OrderStatusPill: React.FC<{ status: number }> = ({ status }) => (
   <StatusPill meta={ORDER_META} status={status} />
 );
 
-/** 面包屑「业务管理 / …」（按页面路径取分组） */
+/** 面包屑「销售管理 / …」（按页面路径取分组） */
 export const SalesPageTitle: React.FC<
   Omit<React.ComponentProps<typeof PageTitle>, 'root'>
 > = (props) => <PageTitle {...props} />;
@@ -113,13 +113,13 @@ const STAGES: {
   label: string;
   path: (id: number) => string;
 }[] = [
-  { key: 'inquiries', label: '客户询盘', path: PATHS.inquiry },
+  { key: 'inquiries', label: '询盘单', path: PATHS.inquiry },
   { key: 'quotations', label: '报价单', path: PATHS.quotation },
   { key: 'pis', label: 'PI', path: PATHS.pi },
   { key: 'orders', label: '销售订单', path: PATHS.order },
 ];
 
-/** 客户询盘 → 报价单 → PI → 销售订单：当前单据高亮，其余可点击跳转 */
+/** 询盘单 → 报价单 → PI → 销售订单：当前单据高亮，其余可点击跳转 */
 export const ChainCard: React.FC<{
   type: 'inquiry' | 'quotation' | 'pi' | 'order';
   id: number;
