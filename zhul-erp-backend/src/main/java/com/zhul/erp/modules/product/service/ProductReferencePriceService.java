@@ -1,7 +1,10 @@
 package com.zhul.erp.modules.product.service;
 
+import com.zhul.erp.modules.product.dto.ListingPriceVO;
 import com.zhul.erp.modules.product.dto.ReferencePriceVO;
 import com.zhul.erp.modules.product.dto.SaveReferencePriceRequest;
+
+import java.util.List;
 
 public interface ProductReferencePriceService {
 
@@ -13,4 +16,7 @@ public interface ProductReferencePriceService {
 
     /** 清除（软删除）；没有参考价时什么也不做 */
     void clear(Long productId);
+
+    /** 资料包导入的平台参考价（公开挂牌价），按文件里的顺序 */
+    List<ListingPriceVO> listings(Long productId);
 }

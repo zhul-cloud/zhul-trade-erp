@@ -2,6 +2,7 @@ package com.zhul.erp.modules.product.controller;
 
 import com.zhul.erp.common.result.PageResult;
 import com.zhul.erp.common.result.Result;
+import com.zhul.erp.modules.product.dto.ListingPriceVO;
 import com.zhul.erp.modules.product.dto.ApplicationVO;
 import com.zhul.erp.modules.product.dto.CompletenessSummaryVO;
 import com.zhul.erp.modules.product.dto.CustomsVO;
@@ -342,6 +343,12 @@ public class ProductController {
     @GetMapping("/{id}/reference-price")
     public Result<ReferencePriceVO> referencePrice(@PathVariable Long id) {
         return Result.ok(referencePriceService.get(id));
+    }
+
+    /** 资料包导入的平台参考价（公开挂牌价），只读 */
+    @GetMapping("/{id}/listing-prices")
+    public Result<List<ListingPriceVO>> listingPrices(@PathVariable Long id) {
+        return Result.ok(referencePriceService.listings(id));
     }
 
     @PutMapping("/{id}/reference-price")

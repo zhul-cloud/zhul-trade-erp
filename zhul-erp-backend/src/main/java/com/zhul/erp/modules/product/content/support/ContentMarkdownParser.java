@@ -211,6 +211,7 @@ public final class ContentMarkdownParser {
                 case "type" -> draft.setType(value.toLowerCase(Locale.ROOT));
                 case "platform" -> draft.setPlatform(value.toLowerCase(Locale.ROOT));
                 case "schema" -> draft.setSchema(value.matches("\\d{1,3}") ? Integer.valueOf(value) : null);
+                case "updated" -> draft.setUpdated(value);
                 default -> {
                     // 其他键（series、category、status 等）不使用
                 }
@@ -482,14 +483,48 @@ public final class ContentMarkdownParser {
         }
     }
 
-    /** 卖点：每行一条，去掉列表符号和序号；不限条数与每条长度（平台的字数要求由运营自己把握） */
+    /** 加粗的编号小标题，如 **1. Exact order-number identification** */
+    private static final Pattern BOLD_HEADING = Pattern.compile("^\\*\\*\\s*\\d+[.、)）]\\s*(.+?)\\s*\\*\\*$");
+
+    /**
+     * 卖点：每行一条，去掉列表符号和序号；不限条数与每条长度（平台的字数要求由运营自己把握）。
+     * 中国制造网的「Key Features and Benefits」写法：加粗编号小标题后跟一到两句说明，合成一条「小标题: 说明」。
+     */
     static void parsePoints(List<String> content, ContentDraft.Block block) {
+        boolean headed = content.stream().anyMatch(l -> BOLD_HEADING.matcher(l.strip()).matches());
+        if (headed) {
+            String heading = null;
+            StringBuilder text = new StringBuilder();
+            for (String line : content) {
+                String t = line.strip();
+                if (t.isEmpty()) {
+                    continue;
+                }
+                Matcher m = BOLD_HEADING.matcher(t);
+                if (m.matches()) {
+                    addPoint(block, heading, text);
+                    heading = m.group(1).strip();
+                    text.setLength(0);
+                } else {
+                    text.append(text.isEmpty() ? "" : " ").append(t);
+                }
+            }
+            addPoint(block, heading, text);
+            return;
+        }
         for (String line : content) {
             String t = LIST_MARK.matcher(line.strip()).replaceFirst("").strip();
             if (!t.isEmpty()) {
                 block.getPoints().add(t);
             }
         }
+    }
+
+    private static void addPoint(ContentDraft.Block block, String heading, StringBuilder text) {
+        if (heading == null) {
+            return;
+        }
+        block.getPoints().add(text.isEmpty() ? heading : heading + ": " + text);
     }
 
     record TableRow(int lineNo, List<String> cells) {

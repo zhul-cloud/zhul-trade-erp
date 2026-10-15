@@ -2,6 +2,8 @@ package com.zhul.erp.modules.product.content.support;
 
 import com.zhul.erp.modules.product.content.constants.ContentConstants;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -42,6 +44,16 @@ public final class ContentV2Parser {
     private static final Pattern HTML_COMMENT = Pattern.compile("<!--.*?-->", Pattern.DOTALL);
     private static final Pattern LINK = Pattern.compile("\\[([^\\]]*)]\\(([^)\\s]+)\\)");
     private static final Pattern BOLD_ITEM = Pattern.compile("^(?:\\d+[.、)）]|[-*•])\\s*\\*\\*(.+?)\\*\\*\\s*(.*)$");
+    /** 编号写在加粗里的问题：**1. What is …?**（答案在下一段） */
+    private static final Pattern BOLD_NUMBERED = Pattern.compile("^\\*\\*\\s*\\d+[.、)）]\\s*(.+?)\\*\\*\\s*(.*)$");
+    private static final Pattern MONEY = Pattern.compile("\\d[\\d,]*(?:\\.\\d+)?");
+    /**
+     * 中国制造网（工业产品页版式）用加粗二级标题写的四个区块，归回前面的平台章节：
+     * Technical Specifications → 产品属性、Key Features and Benefits → 卖点、Product Details → 产品详情、FAQ → FAQ
+     */
+    private static final Map<String, String> PAGE_BLOCKS = Map.of(
+            "technicalspecifications", "产品属性", "keyfeaturesandbenefits", "卖点", "keyfeatures", "卖点",
+            "productdetails", "产品详情", "faq", "FAQ");
     private static final Pattern NUMBERED = Pattern.compile("^\\d+[.、)）]\\s*(.*)$");
     private static final Pattern SOURCE_CODE = Pattern.compile("S\\d{1,3}");
     private static final Pattern PRIORITY = Pattern.compile("^p([123])$");
@@ -93,6 +105,7 @@ public final class ContentV2Parser {
         if (appendix >= 0) {
             sections = sections.subList(0, appendix);
         }
+        sections = foldPageBlocks(sections);
 
         List<ContentDraft> drafts = new ArrayList<>();
         String type = head.getType();
@@ -153,6 +166,25 @@ public final class ContentV2Parser {
 
     // ---------------------------------------------------------------- 资料包
 
+    /**
+     * 平台章节后面紧跟的工业产品页区块（## **Technical Specifications** 等）不是新章节，
+     * 改写成三级标题并入前面的阿里国际站或中国制造网章节；区块里的三级标题（如询盘引导语）随之留在该平台下
+     */
+    private static List<Section> foldPageBlocks(List<Section> sections) {
+        List<Section> result = new ArrayList<>(sections.size());
+        for (Section s : sections) {
+            String item = PAGE_BLOCKS.get(normalize(s.heading).replaceAll("[^a-z]", ""));
+            Section last = result.isEmpty() ? null : result.get(result.size() - 1);
+            MarketingPlatform owner = last == null ? null : platformOf(normalize(last.heading));
+            if (item != null && (owner == MarketingPlatform.MIC || owner == MarketingPlatform.ALIBABA)) {
+                result.set(result.size() - 1, new Section(last.heading, last.body + "\n### " + item + "\n" + s.body));
+                continue;
+            }
+            result.add(s);
+        }
+        return result;
+    }
+
     private static void parseFacts(ContentDraft d, List<Section> sections) {
         for (Section s : sections) {
             String n = normalize(s.heading);
@@ -203,6 +235,9 @@ public final class ContentV2Parser {
         }
         if (n.startsWith("冲突与待确认") || n.startsWith("冲突")) {
             return ContentSection.CONFLICTS;
+        }
+        if (n.startsWith("平台参考价") || n.startsWith("参考价")) {
+            return ContentSection.LISTING_PRICES;
         }
         return null;
     }
@@ -400,6 +435,7 @@ public final class ContentV2Parser {
             case LOGISTICS, CUSTOMS -> ContentMarkdownParser.parseFields(content, block);
             case SOURCES -> parseSources(content, block);
             case CONFLICTS -> parseConflicts(content, block);
+            case LISTING_PRICES -> parseListings(content, block);
             case KEYWORD_LIBRARY -> parseKeywordLibrary(content, block);
             case KEYWORD_PICKS -> parsePicks(content, block);
             case TITLE -> parseTitles(content, block);
@@ -707,12 +743,55 @@ public final class ContentV2Parser {
     }
 
     /** 技术问答、FAQ：支持「Q: / A:」成对，或「1. **问题** 答案」 */
+    /** 平台参考价：「价格类别 | 平台/网站 | 成色 | 参考价格（USD）| 来源原价 | 来源链接」 */
+    private static void parseListings(List<String> content, ContentDraft.Block block) {
+        for (ContentMarkdownParser.TableRow row : ContentMarkdownParser.table(content, block)) {
+            List<String> c = row.cells();
+            Matcher money = MONEY.matcher(cell(c, 3));
+            if (c.size() < 4 || !money.find()) {
+                block.getErrors().add("第 " + row.lineNo() + " 行须为「价格类别 | 平台/网站 | 成色 | 参考价格（USD）| 来源原价 | 来源链接」，参考价格要有数字");
+                continue;
+            }
+            BigDecimal usd = new BigDecimal(money.group().replace(",", "")).setScale(2, RoundingMode.HALF_UP);
+            if (usd.signum() <= 0) {
+                block.getErrors().add("第 " + row.lineNo() + " 行参考价格须大于 0");
+                continue;
+            }
+            String link = cell(c, 5);
+            String title = "";
+            String url = "";
+            Matcher m = LINK.matcher(link);
+            if (m.find()) {
+                title = m.group(1).strip();
+                url = m.group(2).strip();
+            } else if (link.matches("https?://\\S+")) {
+                url = link;
+            }
+            ContentMarkdownParser.check(block, row.lineNo(), "价格类别", cell(c, 0), 64);
+            ContentMarkdownParser.check(block, row.lineNo(), "平台/网站", cell(c, 1), 64);
+            ContentMarkdownParser.check(block, row.lineNo(), "成色", cell(c, 2), 32);
+            ContentMarkdownParser.check(block, row.lineNo(), "来源原价", cell(c, 4), 64);
+            ContentMarkdownParser.check(block, row.lineNo(), "链接", url, 500);
+            block.getListings().add(new ContentDraft.ListingRow(cell(c, 0), cell(c, 1), cell(c, 2), usd, cell(c, 4),
+                    title.length() > 255 ? title.substring(0, 255) : title, url));
+        }
+    }
+
     private static void parseFaq(List<String> content, ContentDraft.Block block) {
+        if (content.stream().anyMatch(l -> BOLD_NUMBERED.matcher(l.strip()).matches())) {
+            parseBoldFaq(content, block, BOLD_NUMBERED);
+            return;
+        }
         boolean bold = content.stream().anyMatch(l -> BOLD_ITEM.matcher(l.strip()).matches());
         if (!bold) {
             ContentMarkdownParser.parseFaq(content, block);
             return;
         }
+        parseBoldFaq(content, block, BOLD_ITEM);
+    }
+
+    /** 加粗问题后跟答案（同一行或下一段） */
+    private static void parseBoldFaq(List<String> content, ContentDraft.Block block, Pattern pattern) {
         String question = null;
         StringBuilder answer = null;
         int lineNo = 0;
@@ -720,7 +799,10 @@ public final class ContentV2Parser {
         for (String line : content) {
             lineNo++;
             String t = line.strip();
-            Matcher m = BOLD_ITEM.matcher(t);
+            if (t.isEmpty()) {
+                continue;
+            }
+            Matcher m = pattern.matcher(t);
             if (m.matches()) {
                 addFaq(block, question, answer, qLine);
                 question = m.group(1).strip();

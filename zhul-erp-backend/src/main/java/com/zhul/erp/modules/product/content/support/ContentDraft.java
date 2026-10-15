@@ -18,6 +18,8 @@ public class ContentDraft {
     private String type;
     /** 营销包的平台编码（alibaba、mic、site、social），资料包为空 */
     private String platform;
+    /** frontmatter 的 updated（资料日期），平台参考价用作取价日期 */
+    private String updated;
     /** 规范版本：2 为商品内容规范 v2，空为旧格式 */
     private Integer schema;
     /** v2 营销文件拆出的部分：keywords（关键词库）或平台编码；资料包与旧格式为空 */
@@ -57,6 +59,8 @@ public class ContentDraft {
         private List<String> picks = new ArrayList<>();
         /** 社媒帖子、视频方案 */
         private List<PostRow> posts = new ArrayList<>();
+        /** 平台参考价（公开挂牌价） */
+        private List<ListingRow> listings = new ArrayList<>();
         /** 块级错误：有则该块必须修改或跳过才能确认 */
         private List<String> errors = new ArrayList<>();
         /** 块级提示：去重、截断等（不影响确认） */
@@ -68,7 +72,7 @@ public class ContentDraft {
             }
             return specs.size() + apps.size() + compat.size() + faqs.size() + docs.size() + keywords.size()
                     + points.size() + fields.size() + titles.size() + pairs.size() + notesRows.size() + sources.size()
-                    + picks.size() + posts.size();
+                    + picks.size() + posts.size() + listings.size();
         }
     }
 
@@ -114,6 +118,11 @@ public class ContentDraft {
     }
 
     public record SourceRow(String code, String name, String link) {
+    }
+
+    /** 平台参考价：价格类别、平台/网站、成色、美元价、来源原价、来源链接 */
+    public record ListingRow(String category, String platform, String condition, java.math.BigDecimal priceUsd,
+                             String sourcePrice, String linkTitle, String linkUrl) {
     }
 
     /** 社媒帖子（channel 为 LinkedIn、Facebook）或视频方案（channel 为 YouTube）；text 为原文 */

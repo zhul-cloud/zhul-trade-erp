@@ -6,6 +6,7 @@ import com.zhul.erp.modules.product.constants.ProductErrorCodes;
 import com.zhul.erp.modules.product.dto.ReferencePriceVO;
 import com.zhul.erp.modules.product.dto.SaveReferencePriceRequest;
 import com.zhul.erp.modules.product.entity.ProductReferencePriceDO;
+import com.zhul.erp.modules.product.repository.ProductListingPriceMapper;
 import com.zhul.erp.modules.product.repository.ProductReferencePriceMapper;
 import com.zhul.erp.modules.product.service.impl.ProductReferencePriceServiceImpl;
 import com.zhul.erp.modules.product.support.PlatformScopeGuard;
@@ -43,6 +44,8 @@ class ProductReferencePriceServiceImplTest {
     @Mock
     private ProductReferencePriceMapper priceMapper;
     @Mock
+    private ProductListingPriceMapper listingMapper;
+    @Mock
     private ProductFinder productFinder;
 
     private ProductReferencePriceServiceImpl service;
@@ -55,7 +58,7 @@ class ProductReferencePriceServiceImplTest {
     @BeforeEach
     void setUp() {
         TenantContext.setTenantId(0);
-        service = new ProductReferencePriceServiceImpl(priceMapper, productFinder, new PlatformScopeGuard());
+        service = new ProductReferencePriceServiceImpl(priceMapper, listingMapper, productFinder, new PlatformScopeGuard());
     }
 
     @AfterEach

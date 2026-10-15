@@ -393,6 +393,11 @@ public class ContentImportService {
                 b.getKeywords().forEach(r -> bv.getRows().add(List.of(TIER_LABELS.get(r.tier()), r.keyword(),
                         r.category(), r.intent(), r.basis())));
             }
+            case LISTING_PRICES -> {
+                bv.setColumns(List.of("价格类别", "平台/网站", "成色", "参考价格（USD）", "来源原价", "来源链接"));
+                b.getListings().forEach(r -> bv.getRows().add(List.of(r.category(), r.platform(), r.condition(),
+                        r.priceUsd().toPlainString(), r.sourcePrice(), r.linkUrl())));
+            }
             case KEYWORD_PICKS -> {
                 bv.setColumns(List.of("选用关键词"));
                 b.getPicks().forEach(r -> bv.getRows().add(List.of(r)));
@@ -592,6 +597,7 @@ public class ContentImportService {
                         .isNull(ProductFactNoteDO::getDeletedAt));
                 hints.add("整份替换该商品的资料待确认项（" + b.getSection().label() + "，现有 " + existing + " 项），所有公司共用");
             }
+            case LISTING_PRICES -> hints.add("整份替换该商品的平台参考价（公开挂牌价，所有公司共用），不是成交价或报价");
             case SOURCES -> {
                 long local = b.getSources().stream().filter(x -> !ContentWriter.isWebLink(x.link())).count();
                 hints.add("网页链接按地址并入技术资料，不删除已有资料" + (local > 0 ? "；本地路径 " + local + " 条不导入" : ""));
