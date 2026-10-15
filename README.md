@@ -12,7 +12,7 @@
 [![Ant Design](https://img.shields.io/badge/Ant%20Design-6-1677FF?logo=antdesign&logoColor=white)](https://ant.design)
 [![MySQL](https://img.shields.io/badge/MySQL-8-4479A1?logo=mysql&logoColor=white)](https://www.mysql.com)
 [![Docker](https://img.shields.io/badge/Docker-一键启动-2496ED?logo=docker&logoColor=white)](#-快速开始)
-[![License](https://img.shields.io/badge/license-Proprietary-lightgrey)](#-许可证)
+[![License: AGPL v3](https://img.shields.io/badge/license-AGPL--3.0-blue)](LICENSE)
 
 [快速开始](#-快速开始) · [功能一览](#-功能一览) · [系统架构](#-系统架构) · [部署文档](docs/06-部署运维/README.md) · [路线图](#-路线图)
 
@@ -262,6 +262,16 @@ npm run build                         # 生产构建
 4. 提交信息遵循 [Conventional Commits](https://www.conventionalcommits.org/zh-hans/)，例如 `feat(sales): …`
 5. 向 `release/x.y.z` 发起 Pull Request
 
+> 提交 Pull Request 即表示你同意：你的贡献以 AGPL-3.0 授权，并授权烛龙科技将其纳入商业授权版本。
+
 ## 📄 许可证
 
-Copyright © 2026 烛龙科技. All rights reserved.
+本项目以 [GNU Affero 通用公共许可证 v3.0](LICENSE)（AGPL-3.0-only）开源。
+
+- **可以**：免费使用、修改、自行部署，包括企业内部使用。
+- **必须**：分发修改后的版本，或通过网络向他人提供服务（例如 SaaS）时，以 AGPL-3.0 公开修改后的完整源码。
+- **商业授权**：如果需要闭源二次开发、闭源集成，或以 SaaS 形式提供服务而不公开源码，请通过 [Issues](https://github.com/zhul-cloud/zhul-trade-erp/issues) 联系烛龙科技获取商业授权。
+
+前端基于 [Ant Design Pro](https://github.com/ant-design/ant-design-pro)（MIT），原版权声明保留在 [`zhul-erp-frontend/LICENSE`](zhul-erp-frontend/LICENSE)。
+
+Copyright © 2026 烛龙科技
