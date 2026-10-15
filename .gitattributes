@@ -1,0 +1,7 @@
+# Container entrypoints must retain LF after a Windows Git checkout.
+zhul-erp-backend/docker-entrypoint.sh text eol=lf
+zhul-erp-frontend/docker/*.sh text eol=lf
+scripts/ai-orchestrator/docker-entrypoint.sh text eol=lf
+scripts/docker-dev.sh text eol=lf
+# Windows PowerShell 5.1 needs CRLF and a UTF-8 BOM for Chinese text.
+scripts/docker-dev.ps1 text eol=crlf
