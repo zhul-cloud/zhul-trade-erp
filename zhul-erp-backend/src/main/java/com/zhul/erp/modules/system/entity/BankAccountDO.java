@@ -13,6 +13,8 @@ import lombok.ToString;
 @TableName("tenant_bank_account")
 public class BankAccountDO extends BaseEntity {
     private Integer tenantId;
+    /** 账户类型：1-对公、2-对私 */
+    private Integer accountType;
     private String currencyCode;
     private String bankName;
     private String accountName;

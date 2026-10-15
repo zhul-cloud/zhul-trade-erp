@@ -88,4 +88,25 @@ class BankAccountContractTest extends TenantContractSupport {
         assertFalse(cnyRow.path("enabled").asBoolean(), "币种里只有它一个时可以停用");
         assertTrue(fail(call(json(post(API), write(account("USD", "X", "12"))), a)).path("message").asText().contains("账号"));
     }
+
+    @Test
+    void privateAccountNeverDefault() throws Exception {
+        String a = token("it_bank_admin", TENANT_A);
+        Map<String, Object> personal = account("CNY", "招商银行", "6225888866881234");
+        personal.put("accountName", "张总");
+        personal.put("accountType", 2);
+        JsonNode p = ok(call(json(post(API), write(personal)), a));
+        assertEquals(2, p.path("accountType").asInt());
+        assertFalse(p.path("isDefault").asBoolean(), "对私账户不当默认，即使是该币种第一个");
+        assertEquals("对私账户不能设为默认", fail(call(put(API + "/" + p.path("id").asInt() + "/default"), a)).path("message").asText());
+        JsonNode pub = ok(call(json(post(API), write(account("CNY", "中国银行", "591912346621"))), a));
+        assertTrue(pub.path("isDefault").asBoolean(), "第一个对公账户成为默认");
+        assertEquals(1, pub.path("accountType").asInt(), "不传类型按对公");
+
+        // 默认的对公账户改成对私：默认交给同币种的其他对公账户（这里没有，就没有默认）
+        Map<String, Object> change = account("CNY", "中国银行", "591912346621");
+        change.put("accountType", 2);
+        JsonNode changed = ok(call(json(put(API + "/" + pub.path("id").asInt()), write(change)), a));
+        assertFalse(changed.path("isDefault").asBoolean());
+    }
 }

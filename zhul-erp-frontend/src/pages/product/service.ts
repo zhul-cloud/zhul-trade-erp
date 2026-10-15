@@ -724,7 +724,7 @@ export const priceApi = {
 
 /** 任务包类型：资料包、营销包 */
 export type PackageType = 'facts' | 'marketing';
-/** 上传入口：资料任务、商品运营，或资料与营销一起上传（自动审核） */
+/** 上传入口：资料任务、营销任务，或资料与营销一起上传（自动审核） */
 export type UploadEntry = PackageType | 'combined';
 
 /** 营销平台：阿里国际站、中国制造网、独立站、社媒（以后端 MarketingPlatform 为准） */
@@ -783,7 +783,7 @@ export interface ContentTask {
 export interface ContentTaskQuery {
   page?: number;
   pageSize?: number;
-  /** 页签，不传为全部。资料任务：1、2、verified；商品运营：unverified、3、4 */
+  /** 页签，不传为全部。资料任务：1、2、verified；营销任务：unverified、3、4 */
   tab?: string;
   brandId?: number;
   categoryId?: number;
@@ -951,7 +951,7 @@ export interface ContentImportRecord {
 const CONTENT = `${BASE}/content-tasks`;
 
 /**
- * 内容任务按入口分组：facts 为「商品管理 → 资料任务」，marketing 为「运营管理 → 商品运营」；
+ * 内容任务按入口分组：facts 为「运营管理 → 资料任务」，marketing 为「运营管理 → 营销任务」；
  * 各入口只接收自己的包类型，权限分别挂在两个菜单上
  */
 export const contentApi = {

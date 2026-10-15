@@ -100,7 +100,7 @@ public class ContentImportService {
                             String content) {
     }
 
-    /** expectedType：本入口只接收的包类型（facts 资料任务、marketing 商品运营），走错入口的文件不能确认 */
+    /** expectedType：本入口只接收的包类型（facts 资料任务、marketing 营销任务），走错入口的文件不能确认 */
     public List<ContentPreviewVO> preview(ContentFileRequest req, String expectedType) {
         return analyze(req, expectedType).stream().map(Analyzed::vo).toList();
     }
@@ -203,7 +203,7 @@ public class ContentImportService {
         vo.getErrors().addAll(draft.getErrors());
         if (draft.getErrors().isEmpty() && expectedType != null && !expectedType.equals(draft.getType())) {
             vo.getErrors().add(ContentConstants.TYPE_FACTS.equals(expectedType)
-                    ? "营销包请到运营管理 → 商品运营上传" : "资料包请到商品管理 → 资料任务上传");
+                    ? "营销包请到运营管理 → 营销任务上传" : "资料包请到运营管理 → 资料任务上传");
         }
         MarketingPlatform platform = ContentConstants.TYPE_MARKETING.equals(draft.getType())
                 ? MarketingPlatform.of(draft.getPlatform()) : null;

@@ -388,20 +388,19 @@ public class ReimbursementService {
             throw new BizException("付款日期不能晚于今天");
         }
         int method = req.getMethod() == null ? FinanceConstants.METHOD_COMPANY : req.getMethod();
-        if (method == FinanceConstants.METHOD_COMPANY) {
-            BankAccountDO account = req.getBankAccountId() == null ? null : bankAccountMapper.selectById(req.getBankAccountId());
-            if (account == null || !Objects.equals(account.getTenantId(), PiStore.tenantId())) {
-                throw new BizException(req.getBankAccountId() == null ? "请选择付款账户" : "付款账户不存在");
-            }
-        } else if (method == FinanceConstants.METHOD_PRIVATE) {
-            if (!StringUtils.hasText(req.getPayerAccount())) {
-                throw new BizException("私对私请填写付款个人账户");
-            }
-        } else {
+        if (method != FinanceConstants.METHOD_COMPANY && method != FinanceConstants.METHOD_PRIVATE) {
             throw new BizException("付款方式无效");
         }
-        String payer = method == FinanceConstants.METHOD_PRIVATE ? req.getPayerAccount().trim() : "";
-        Long accountId = method == FinanceConstants.METHOD_COMPANY ? req.getBankAccountId() : null;
+        BankAccountDO account = req.getBankAccountId() == null ? null : bankAccountMapper.selectById(req.getBankAccountId());
+        if (account == null || !Objects.equals(account.getTenantId(), PiStore.tenantId())) {
+            throw new BizException(req.getBankAccountId() == null ? "请选择付款账户" : "付款账户不存在");
+        }
+        boolean personal = method == FinanceConstants.METHOD_PRIVATE;
+        if (personal != FinanceConstants.isPrivateAccount(account)) {
+            throw new BizException(personal ? "私对私请选择对私账户" : "公司对公请选择对公账户");
+        }
+        String payer = personal ? PaymentService.accountLabel(account) : "";
+        Long accountId = req.getBankAccountId();
         attachments.attach(AttachmentService.REIMBURSE, bx.getId(), req.getAttachmentIds());
         PaymentDO p = new PaymentDO();
         p.setTenantId(bx.getTenantId());

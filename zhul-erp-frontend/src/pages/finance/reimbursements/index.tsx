@@ -390,7 +390,6 @@ const PayModal: React.FC<{
   const [accountId, setAccountId] = useState<number>();
   /** 1-公司对公、3-私对私（法人等个人账户付给员工） */
   const [method, setMethod] = useState(1);
-  const [payerAccount, setPayerAccount] = useState('');
   const [date, setDate] = useState<Dayjs>(dayjs());
   const [files, setFiles] = useState<Attachment[]>([]);
   const [remark, setRemark] = useState('');
@@ -398,7 +397,6 @@ const PayModal: React.FC<{
   useEffect(() => {
     if (!target) return;
     setMethod(1);
-    setPayerAccount('');
     setDate(dayjs());
     setFiles([]);
     setRemark('');
@@ -407,7 +405,8 @@ const PayModal: React.FC<{
       .then((list) => {
         const ok = list.filter((a) => a.enabled && a.currencyCode === 'CNY');
         setAccounts(ok);
-        setAccountId((ok.find((a) => a.isDefault) ?? ok[0])?.id);
+        const pub = ok.filter((a) => a.accountType !== 2);
+        setAccountId((pub.find((a) => a.isDefault) ?? pub[0])?.id);
       })
       .catch(() => setAccounts([]));
   }, [target]);
@@ -416,20 +415,15 @@ const PayModal: React.FC<{
       message.error('请上传转账截图');
       return;
     }
-    if (method === 1 && !accountId) {
+    if (!accountId) {
       message.error('请选择付款账户');
-      return;
-    }
-    if (method === 3 && !payerAccount.trim()) {
-      message.error('私对私请填写付款个人账户');
       return;
     }
     setSaving(true);
     try {
       await reimburseApi.pay(target.id, {
         method,
-        bankAccountId: method === 1 ? accountId : undefined,
-        payerAccount: method === 3 ? payerAccount.trim() : undefined,
+        bankAccountId: accountId,
         payDate: date.format('YYYY-MM-DD'),
         attachmentIds: files.map((f) => f.id),
         remark: remark.trim() || undefined,
@@ -456,32 +450,33 @@ const PayModal: React.FC<{
       <Space orientation="vertical" size={12} style={{ width: '100%' }}>
         <Segmented<number>
           value={method}
-          onChange={setMethod}
+          onChange={(m) => {
+            setMethod(m);
+            // 公司对公选对公账户，私对私选对私账户
+            const list = accounts.filter(
+              (a) => (a.accountType === 2) === (m === 3),
+            );
+            setAccountId((list.find((a) => a.isDefault) ?? list[0])?.id);
+          }}
           options={[
             { label: '公司对公', value: 1 },
             { label: '私对私', value: 3 },
           ]}
         />
-        {method === 1 ? (
-          <Select
-            aria-label="付款账户"
-            style={{ width: '100%' }}
-            value={accountId}
-            onChange={setAccountId}
-            options={accounts.map((a) => ({
+        <Select
+          aria-label="付款账户"
+          style={{ width: '100%' }}
+          value={accountId}
+          onChange={setAccountId}
+          placeholder={method === 3 ? '选择对私账户' : '选择对公账户'}
+          notFoundContent={`没有${method === 3 ? '对私' : '对公'}的人民币账户，请先在「收款账户」里添加`}
+          options={accounts
+            .filter((a) => (a.accountType === 2) === (method === 3))
+            .map((a) => ({
               value: a.id,
               label: `${a.bankName} · ${a.accountName} ${a.accountNoMasked}`,
             }))}
-          />
-        ) : (
-          <Input
-            aria-label="付款个人账户"
-            maxLength={100}
-            placeholder="付款个人账户，如 法人 张三 · 招行尾号 1234"
-            value={payerAccount}
-            onChange={(e) => setPayerAccount(e.target.value)}
-          />
-        )}
+        />
         <DatePicker
           value={date}
           onChange={(d) => d && setDate(d)}

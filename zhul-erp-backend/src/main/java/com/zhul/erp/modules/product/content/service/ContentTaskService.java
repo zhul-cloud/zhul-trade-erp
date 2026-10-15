@@ -83,7 +83,7 @@ public class ContentTaskService {
     private final ProductFactNoteMapper factNoteMapper;
     private final ObjectMapper objectMapper;
 
-    /** 入口：资料任务看资料阶段，商品运营看营销阶段（spec product/product-content「内容任务」） */
+    /** 入口：资料任务看资料阶段，营销任务看营销阶段（spec product/product-content「内容任务」） */
     public enum View { FACTS, MARKETING }
 
     /** 页签 → 阶段列表；不认识的页签按全部处理 */
@@ -159,7 +159,7 @@ public class ContentTaskService {
         return PageResult.of(total, records);
     }
 
-    /** 各页签数量：资料任务 all / 1 / 2 / verified，商品运营 all / unverified / 3 / 4 */
+    /** 各页签数量：资料任务 all / 1 / 2 / verified，营销任务 all / unverified / 3 / 4 */
     public Map<String, Long> counts(ContentTaskQuery q, View view) {
         Map<String, Long> byStage = new LinkedHashMap<>();
         for (Map<String, Object> row : taskMapper.countByStatus(TenantContext.getTenantId(),

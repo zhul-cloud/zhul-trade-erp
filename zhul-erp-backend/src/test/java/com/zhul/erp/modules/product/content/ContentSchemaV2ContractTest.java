@@ -23,7 +23,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 
 /**
- * spec product/product-content「商品内容规范 v2」「资料待确认项」「关键词总库」与确认写入、商品运营详情；
+ * spec product/product-content「商品内容规范 v2」「资料待确认项」「关键词总库」与确认写入、营销任务详情；
  * product/product「商品规格参数」的证据列。样例为技能对 Delta VFD015M21A 的实际输出按 v2 整理。
  */
 class ContentSchemaV2ContractTest extends InquiryContractSupport {

@@ -39,6 +39,7 @@ class ReimbursementContractTest extends SalesContractSupport {
     private String lin;
     private String jiang;
     private long account;
+    private long personalAccount;
 
     @BeforeEach
     void people() {
@@ -54,6 +55,9 @@ class ReimbursementContractTest extends SalesContractSupport {
         jdbc.update("insert into tenant_bank_account (tenant_id, currency_code, bank_name, account_name, account_no, is_default) "
                 + "values (0, 'CNY', '招商银行', '基本户', '6225888866886688', 0)");
         account = jdbc.queryForObject("select max(id) from tenant_bank_account where tenant_id = 0", Long.class);
+        jdbc.update("insert into tenant_bank_account (tenant_id, account_type, currency_code, bank_name, account_name, account_no, is_default) "
+                + "values (0, 2, 'CNY', '招商银行', '张总', '6225888866881234', 0)");
+        personalAccount = jdbc.queryForObject("select max(id) from tenant_bank_account where tenant_id = 0", Long.class);
     }
 
     // ---------------------------------------------------------------- 准备数据
@@ -223,18 +227,21 @@ class ReimbursementContractTest extends SalesContractSupport {
         assertEquals(1, back.path("status").asInt());
         money("0.00", ok(call(get(PY + "/stats"), admin)).path("reimburse"));
 
-        // 私对私：法人个人账户付给员工，填付款个人账户，不选公司账户
-        assertEquals("私对私请填写付款个人账户", fail(call(json(post(BX + "/" + id + "/pay"), write(Map.of("method", 3,
+        // 私对私：法人个人账户付给员工，只能选对私账户
+        assertEquals("私对私请选择对私账户", fail(call(json(post(BX + "/" + id + "/pay"), write(Map.of("method", 3, "bankAccountId", account,
                 "payDate", LocalDate.now().toString(), "attachmentIds", List.of(upload("REIMBURSE", admin))))), admin))
                 .path("message").asText());
-        JsonNode personal = ok(call(json(post(BX + "/" + id + "/pay"), write(Map.of("method", 3, "payerAccount", "法人 张总 · 招行尾号 1234",
+        assertEquals("公司对公请选择对公账户", fail(call(json(post(BX + "/" + id + "/pay"), write(Map.of("method", 1,
+                "bankAccountId", personalAccount, "payDate", LocalDate.now().toString(),
+                "attachmentIds", List.of(upload("REIMBURSE", admin))))), admin)).path("message").asText());
+        JsonNode personal = ok(call(json(post(BX + "/" + id + "/pay"), write(Map.of("method", 3, "bankAccountId", personalAccount,
                 "payDate", LocalDate.now().toString(), "attachmentIds", List.of(upload("REIMBURSE", admin))))), admin));
         assertEquals(2, personal.path("status").asInt());
         assertEquals(3, personal.path("payMethod").asInt());
-        assertEquals("法人 张总 · 招行尾号 1234", personal.path("payPayerAccount").asText());
+        assertEquals("招商银行 · 张总 ****1234", personal.path("payPayerAccount").asText());
         JsonNode py = ok(call(get(PY).param("kind", "3"), admin)).path("records").get(0);
         assertEquals(3, py.path("method").asInt());
-        assertEquals("法人 张总 · 招行尾号 1234", py.path("payerAccount").asText());
+        assertEquals("招商银行 · 张总 ****1234", py.path("payerAccount").asText());
     }
 
     @Test
@@ -331,8 +338,8 @@ class ReimbursementContractTest extends SalesContractSupport {
         pay.put("attachmentIds", List.of(upload("PAYMENT", admin)));
         pay.put("allocations", List.of(Map.of("payableId", ap.path("id").asLong(), "amount", 120)));
         pay.put("idempotencyKey", UUID.randomUUID().toString());
-        assertEquals("私对私请填写付款个人账户", fail(call(json(post(PY), write(pay)), admin)).path("message").asText());
-        pay.put("payerAccount", "法人 张总 · 招行尾号 1234");
+        assertEquals("请选择付款账户", fail(call(json(post(PY), write(pay)), admin)).path("message").asText());
+        pay.put("bankAccountId", personalAccount);
         pay.put("idempotencyKey", UUID.randomUUID().toString());
         JsonNode privatePay = ok(call(json(post(PY), write(pay)), admin));
         assertEquals(3, privatePay.path("method").asInt());

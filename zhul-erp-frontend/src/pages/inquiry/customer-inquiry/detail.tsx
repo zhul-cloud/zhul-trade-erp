@@ -447,11 +447,7 @@ const CustomerInquiryDetailPage: React.FC = () => {
             )}
             {!detail.openAppend &&
               (
-                [
-                  STATUS.SOURCING,
-                  STATUS.READY,
-                  STATUS.QUOTED,
-                ] as number[]
+                [STATUS.SOURCING, STATUS.READY, STATUS.QUOTED] as number[]
               ).includes(inq.status) && (
                 <Button disabled={busy} onClick={() => setAppendOpen(true)}>
                   追加型号

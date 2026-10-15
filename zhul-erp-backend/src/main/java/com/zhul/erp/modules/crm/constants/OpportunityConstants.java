@@ -48,8 +48,7 @@ public final class OpportunityConstants {
     public static final int STATS_MAX_DAYS = 366;
 
     /** 来源渠道「阿里巴巴国际站」与阿里等级 */
-    public static final int CHANNEL_ALIBABA = 1;
-    public static final java.util.List<String> ALI_LEVELS = java.util.List.of("L0", "L1", "L1+", "L2", "L3", "L4");
+    public static final int CHANNEL_ALIBABA = com.zhul.erp.modules.masterdata.constants.CustomerConstants.CHANNEL_ALIBABA;
 
     public static final String ERROR_EXISTS = "OPPORTUNITY_EXISTS";
 }

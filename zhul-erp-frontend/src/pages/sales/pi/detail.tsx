@@ -1079,7 +1079,7 @@ const PiDetail: React.FC = () => {
             status={!draft.bankAccountId ? 'warning' : undefined}
             options={banks.map((b) => ({
               value: b.id,
-              label: `${b.currencyCode} · ${b.bankName} · ${b.accountNoMasked}${b.isDefault ? '（默认）' : ''}`,
+              label: `${b.currencyCode} · ${b.bankName} · ${b.accountNoMasked}${b.isDefault ? '（默认）' : ''}${b.accountType === 2 ? '（对私）' : ''}`,
             }))}
             onChange={(x) => setDraft({ ...draft, bankAccountId: x ?? null })}
             aria-label="收款账户"

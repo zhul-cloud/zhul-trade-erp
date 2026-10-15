@@ -23,6 +23,10 @@ import {
   Space,
 } from 'antd';
 import React, { useEffect, useMemo, useState } from 'react';
+import {
+  ALI_LEVEL_OPTIONS,
+  CHANNEL_ALIBABA,
+} from '@/pages/crm/opportunity/constants';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useCountries } from '@/pages/product/components/useCountries';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -107,6 +111,7 @@ const toFormState = (d: CustomerDetail): FormState => ({
   website: d.website,
   customerGrade: d.customerGrade,
   sourceChannel: d.sourceChannel || undefined,
+  aliLevel: d.aliLevel || undefined,
   externalRef: d.externalRef,
   remark: d.remark,
   country: d.country,
@@ -156,6 +161,7 @@ const toPayload = (
   website: text(v.website),
   customerGrade: v.customerGrade ?? 0,
   sourceChannel: v.sourceChannel ?? 0,
+  aliLevel: v.aliLevel,
   externalRef: text(v.externalRef),
   remark: text(v.remark),
   country: v.country,
@@ -644,6 +650,19 @@ const CustomerFormPage: React.FC = () => {
                   options={sourceOptions}
                   allowClear
                 />
+              </Form.Item>
+              <Form.Item noStyle dependencies={['sourceChannel']}>
+                {({ getFieldValue }) =>
+                  getFieldValue('sourceChannel') === CHANNEL_ALIBABA ? (
+                    <Form.Item name="aliLevel" label="阿里等级">
+                      <Select
+                        allowClear
+                        placeholder="选填"
+                        options={ALI_LEVEL_OPTIONS}
+                      />
+                    </Form.Item>
+                  ) : null
+                }
               </Form.Item>
               {editing ? (
                 <Form.Item

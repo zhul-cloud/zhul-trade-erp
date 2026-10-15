@@ -20,6 +20,7 @@ public class CustomerVO {
     private Integer customerRole;
     private Integer customerGrade;
     private Integer sourceChannel;
+    private String aliLevel;
     private Long ownerId;
     private String ownerName;
     private String contactName;

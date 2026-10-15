@@ -2,8 +2,12 @@ import { request } from '@umijs/max';
 
 export { readBizError } from '@/pages/crm/opportunity/service';
 
+/** 账户类型：1-对公、2-对私 */
+export const ACCOUNT_TYPE = { PUBLIC: 1, PRIVATE: 2 } as const;
+
 export interface BankAccount {
   id: number;
+  accountType: number;
   currencyCode: string;
   bankName: string;
   accountName: string;
@@ -21,6 +25,7 @@ export interface BankAccount {
 }
 
 export interface SaveBankAccount {
+  accountType: number;
   currencyCode: string;
   bankName: string;
   accountName: string;

@@ -10,6 +10,8 @@ import lombok.Data;
 public class SaveBankAccountRequest {
     @NotBlank(message = "请选择币种")
     private String currencyCode;
+    /** 账户类型：1-对公、2-对私，不传按对公 */
+    private Integer accountType;
     @NotBlank(message = "请填写银行名称")
     @Size(max = 128, message = "银行名称不能超过 128 个字符")
     private String bankName;

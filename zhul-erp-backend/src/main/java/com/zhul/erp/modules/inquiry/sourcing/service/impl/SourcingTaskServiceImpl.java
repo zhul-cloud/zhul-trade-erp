@@ -69,6 +69,7 @@ public class SourcingTaskServiceImpl implements SourcingTaskService {
     /** 内置角色「兼职采购」 */
     /** 「我的询价任务」菜单：有它的账号才是采购人员 */
     static final int MY_TASKS_MENU_ID = 100055;
+    static final String MY_TASKS_PATH = "/inquiry/my-tasks";
 
     private final SourcingTaskMapper taskMapper;
     private final SourcingTaskAssigneeMapper assigneeMapper;
@@ -89,6 +90,7 @@ public class SourcingTaskServiceImpl implements SourcingTaskService {
     private final com.zhul.erp.modules.system.service.LogService logService;
     private final com.zhul.erp.modules.system.repository.SysLogMapper sysLogMapper;
     private final QuotationLocks quotationLocks;
+    private final com.zhul.erp.framework.security.PermissionChecker perm;
 
     // ---------------------------------------------------------------- 生成与取消
 
@@ -366,7 +368,7 @@ public class SourcingTaskServiceImpl implements SourcingTaskService {
         BoardVO vo = new BoardVO();
         vo.setStats(stats);
         vo.setTasks(rows);
-        vo.setPurchasers(purchasers);
+        vo.setPurchasers(withSelf(purchasers, assignees));
         return vo;
     }
 
@@ -376,7 +378,32 @@ public class SourcingTaskServiceImpl implements SourcingTaskService {
                 .eq(SourcingTaskDO::getTenantId, tenantId())
                 .eq(SourcingTaskDO::getStatus, InquiryConstants.TASK_SOURCING)
                 .isNull(SourcingTaskDO::getDeletedAt));
-        return purchasers(open, activeAssignees(open.stream().map(SourcingTaskDO::getId).toList()));
+        Map<Long, List<SourcingTaskAssigneeDO>> assignees = activeAssignees(open.stream().map(SourcingTaskDO::getId).toList());
+        return withSelf(purchasers(open, assignees), assignees);
+    }
+
+    /**
+     * 手动分配的候选人：采购人员之外，再加上正在分配的人自己（能打开「我的询价」即可，如租户管理员），
+     * 让采购负责人可以把任务分给自己。推荐与预设规则仍只在采购人员里选。
+     */
+    private List<PurchaserVO> withSelf(List<PurchaserVO> purchasers, Map<Long, List<SourcingTaskAssigneeDO>> assignees) {
+        Long me = currentUser.resolve();
+        if (me == null || purchasers.stream().anyMatch(p -> p.getId().equals(me)) || !perm.canAccessMenu(MY_TASKS_PATH)) {
+            return purchasers;
+        }
+        UserBasicDO u = userBasicMapper.selectById(me);
+        if (u == null || !Objects.equals(u.getTenantId(), tenantId())) {
+            return purchasers;
+        }
+        PurchaserVO self = new PurchaserVO();
+        self.setId(me);
+        self.setName(u.getName());
+        self.setPartTime(false);
+        self.setActiveTasks((int) assignees.values().stream().flatMap(List::stream).filter(a -> me.equals(a.getAssigneeId())).count());
+        self.setTimeoutTasks(0);
+        List<PurchaserVO> list = new ArrayList<>(purchasers);
+        list.add(0, self);
+        return list;
     }
 
     /** 采购人员：本租户启用的、角色带「我的询价任务」菜单的账号；负载按进行中的有效分配计算 */
@@ -455,7 +482,7 @@ public class SourcingTaskServiceImpl implements SourcingTaskService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void assign(List<Long> taskIds, Long assigneeId) {
-        requirePurchaser(assigneeId);
+        requireAssignable(assigneeId);
         Long me = currentUser.resolve();
         for (SourcingTaskDO task : unassignedTasks(taskIds)) {
             assignOne(task, assigneeId, InquiryConstants.ASSIGN_MANUAL, me);
@@ -482,7 +509,7 @@ public class SourcingTaskServiceImpl implements SourcingTaskService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void reassign(Long taskId, Long assigneeId) {
-        requirePurchaser(assigneeId);
+        requireAssignable(assigneeId);
         SourcingTaskDO task = sourcingTask(taskId);
         deactivateAssignees(taskId);
         insertAssignee(task, assigneeId, InquiryConstants.ASSIGN_REASSIGN, currentUser.resolve());
@@ -491,7 +518,7 @@ public class SourcingTaskServiceImpl implements SourcingTaskService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void addAssignee(Long taskId, Long assigneeId) {
-        requirePurchaser(assigneeId);
+        requireAssignable(assigneeId);
         SourcingTaskDO task = sourcingTask(taskId);
         boolean already = assigneeMapper.selectCount(new LambdaQueryWrapper<SourcingTaskAssigneeDO>()
                 .eq(SourcingTaskAssigneeDO::getTaskId, taskId)
@@ -532,6 +559,17 @@ public class SourcingTaskServiceImpl implements SourcingTaskService {
     }
 
     private void requirePurchaser(Long assigneeId) {
+        if (purchasers().stream().noneMatch(p -> p.getId().equals(assigneeId))) {
+            throw new BizException("该账号不是采购人员，不能分配询价任务");
+        }
+    }
+
+    /** 手动分配、改派、加人：采购人员，或分配人自己 */
+    private void requireAssignable(Long assigneeId) {
+        Long me = currentUser.resolve();
+        if (assigneeId != null && assigneeId.equals(me) && perm.canAccessMenu(MY_TASKS_PATH)) {
+            return;
+        }
         if (purchasers().stream().noneMatch(p -> p.getId().equals(assigneeId))) {
             throw new BizException("该账号不是采购人员，不能分配询价任务");
         }

@@ -40,6 +40,10 @@ public final class CustomerConstants {
 
     /** Incoterms 2020 */
     public static final List<String> INCOTERMS = List.of("EXW", "FCA", "FOB", "CFR", "CIF", "CPT", "CIP", "DAP", "DPU", "DDP");
+    /** 来源渠道「阿里巴巴国际站」与阿里等级（客户与商机共用） */
+    public static final int CHANNEL_ALIBABA = 1;
+    public static final List<String> ALI_LEVELS = List.of("L0", "L1", "L1+", "L2", "L3", "L4");
+
     public static final List<String> CURRENCIES = List.of("USD", "EUR", "GBP", "JPY", "RUB", "CNY");
 
     public static final int PARTY_CONSIGNEE = 1;

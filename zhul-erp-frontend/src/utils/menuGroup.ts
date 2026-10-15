@@ -3,6 +3,16 @@
  * 所以分组不能从路径前缀直接推出来，统一在这里对照；与后端 resource 表的分组保持一致。
  */
 const GROUPS: [string, string][] = [
+  // 只读统计统一归「统计分析」，要排在各业务路径前缀之前
+  ['/sales/stats', '统计分析'],
+  ['/inquiry/sourcing-stats', '统计分析'],
+  ['/purchase/bargain-stats', '统计分析'],
+  ['/finance/profit-stats', '统计分析'],
+  ['/finance/operating-report', '统计分析'],
+  ['/crm/opportunity-stats', '统计分析'],
+  // 商品候选、资料任务是运营人员处理的任务，归运营管理
+  ['/product/candidates', '运营管理'],
+  ['/product/fact-tasks', '运营管理'],
   ['/finance/', '财务管理'],
   ['/quotation/pricing', '业务设置'],
   ['/system/exchange-rate', '业务设置'],
@@ -14,7 +24,6 @@ const GROUPS: [string, string][] = [
   ['/inquiry/my-tasks', '采购管理'],
   ['/inquiry/part-time-board', '采购管理'],
   ['/inquiry/price-history', '采购管理'],
-  ['/inquiry/sourcing-stats', '采购管理'],
   ['/supplier/', '采购管理'],
   ['/purchase/', '采购管理'],
   ['/warehouse/', '仓库管理'],

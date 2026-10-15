@@ -39,6 +39,7 @@ import com.zhul.erp.modules.masterdata.dto.CustomerLeadCommand;
 import com.zhul.erp.modules.masterdata.entity.CustomerDO;
 import com.zhul.erp.modules.masterdata.repository.CustomerMapper;
 import com.zhul.erp.modules.masterdata.service.CustomerService;
+import com.zhul.erp.modules.masterdata.support.AliLevels;
 import com.zhul.erp.modules.system.entity.UserBasicDO;
 import com.zhul.erp.modules.system.repository.UserBasicMapper;
 import com.zhul.erp.modules.system.service.DictItemService;
@@ -114,7 +115,7 @@ public class OpportunityServiceImpl implements OpportunityService {
         OpportunityStageRules.Stages stages = stageRules.load();
         // 查重在客户服务里做（客户是查重对象）；命中时直接抛 CUSTOMER_DUPLICATE
         Long customerId = customerService.createLead(new CustomerLeadCommand(req.getCustomerName(),
-                req.getContactName().trim(), req.getCountry(), req.getSourceChannel(), req.getEmail(),
+                req.getContactName().trim(), req.getCountry(), req.getSourceChannel(), req.getAliLevel(), req.getEmail(),
                 req.getWhatsapp(), req.getPhone(), req.getWebsite()));
 
         OpportunityDO o = new OpportunityDO();
@@ -153,20 +154,27 @@ public class OpportunityServiceImpl implements OpportunityService {
         o.setFirstContactDate(req.getFirstContactDate());
         o.setDemandSummary(text(req.getDemandSummary()));
         opportunityMapper.updateById(o);
+        syncCustomerAliLevel(o);
         if (req.getAttachments() != null) {
             mergeAttachments(o, req.getAttachments());
         }
     }
 
-    /** 阿里等级：只有阿里巴巴国际站渠道保存，其余渠道清空 */
+    /** 阿里等级：只有阿里巴巴国际站渠道保存，其余渠道清空（与客户资料同一规则） */
     private static String aliLevel(Integer channel, String level) {
-        if (!Objects.equals(channel, OpportunityConstants.CHANNEL_ALIBABA) || !StringUtils.hasText(level)) {
-            return "";
+        return AliLevels.normalize(channel, level);
+    }
+
+    /** 修改商机的阿里等级时同步到客户资料（只在填了等级时同步，不清空客户上已有的等级） */
+    private void syncCustomerAliLevel(OpportunityDO o) {
+        if (!StringUtils.hasText(o.getAliLevel())) {
+            return;
         }
-        if (!OpportunityConstants.ALI_LEVELS.contains(level.trim())) {
-            throw new BizException("阿里等级不正确");
-        }
-        return level.trim();
+        customerMapper.update(null, new com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<CustomerDO>()
+                .set(CustomerDO::getAliLevel, o.getAliLevel())
+                .set(CustomerDO::getUpdateTime, LocalDateTime.now())
+                .eq(CustomerDO::getId, o.getCustomerId())
+                .eq(CustomerDO::getTenantId, o.getTenantId()));
     }
 
     // ---------------------------------------------------------------- 阶段流转

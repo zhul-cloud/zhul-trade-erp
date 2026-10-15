@@ -119,7 +119,7 @@ export default {
   'menu.product.candidates': '商品候选',
   'menu.product.factTasks': '资料任务',
   'menu.operations': '运营管理',
-  'menu.operations.products': '商品运营',
+  'menu.operations.products': '营销任务',
   'menu.product.brands': '品牌',
   'menu.product.categories': '品类',
   'menu.product.series': '系列',

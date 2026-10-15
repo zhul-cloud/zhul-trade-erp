@@ -35,6 +35,11 @@ public final class FinanceConstants {
     public static final int METHOD_ADVANCE = 2;
     /** 私对私：法人等个人账户付给对方个人账户，记录付款个人账户，不进报销 */
     public static final int METHOD_PRIVATE = 3;
+    /** 收款账户是不是对私账户（account_type=2） */
+    public static boolean isPrivateAccount(com.zhul.erp.modules.system.entity.BankAccountDO b) {
+        return b != null && Integer.valueOf(2).equals(b.getAccountType());
+    }
+
     public static final java.util.Map<Integer, String> METHOD_NAMES = java.util.Map.of(
             METHOD_COMPANY, "公司对公", METHOD_ADVANCE, "员工垫付", METHOD_PRIVATE, "私对私");
 
