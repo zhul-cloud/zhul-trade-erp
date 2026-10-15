@@ -26,6 +26,9 @@ public class RegisterOpportunityRequest {
     @NotNull(message = "请选择来源渠道")
     private Integer sourceChannel;
 
+    /** 阿里等级，仅阿里巴巴国际站渠道（L0、L1、L1+、L2、L3、L4） */
+    private String aliLevel;
+
     @NotNull(message = "请选择首次接触日期")
     @PastOrPresent(message = "首次接触日期不能晚于今天")
     private LocalDate firstContactDate;

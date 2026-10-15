@@ -38,6 +38,8 @@ public class SourcingQuoteDO {
     private BigDecimal taxRate;
     private Integer itemCondition;
     private Integer leadTime;
+    /** 是否包邮（0-不包邮、1-包邮） */
+    private Integer freeShipping;
     private String note;
     /** 该采购对该型号的推荐报价 */
     private Integer recommended;

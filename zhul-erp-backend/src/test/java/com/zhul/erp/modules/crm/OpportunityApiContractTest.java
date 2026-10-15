@@ -4,6 +4,9 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhul.erp.common.constants.RedisKeyConstants;
 import com.zhul.erp.common.utils.JwtUtils;
+import com.zhul.erp.modules.aitask.constants.AiTaskStatus;
+import com.zhul.erp.modules.aitask.entity.AiTaskDO;
+import com.zhul.erp.modules.aitask.translation.ContactNameTranslations;
 import com.zhul.erp.support.IntegrationTestBase;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -48,6 +51,7 @@ class OpportunityApiContractTest extends IntegrationTestBase {
     @Autowired private JwtUtils jwtUtils;
     @Autowired private StringRedisTemplate redis;
     @Autowired private ObjectMapper objectMapper;
+    @Autowired private ContactNameTranslations contactNameTranslations;
 
     @BeforeEach
     void setUp() {
@@ -68,6 +72,7 @@ class OpportunityApiContractTest extends IntegrationTestBase {
         jdbc.update("delete from opportunity_stage_log where tenant_id = 0");
         jdbc.update("delete from opportunity where tenant_id = 0");
         jdbc.update("delete from customer where tenant_id = 0");
+        jdbc.update("delete from ai_task where tenant_id = 0 and skill_id = ?", ContactNameTranslations.SKILL_ID);
         jdbc.update("delete from user_basic where id = ?", OTHER_OWNER);
     }
 
@@ -132,6 +137,42 @@ class OpportunityApiContractTest extends IntegrationTestBase {
         assertEquals(400, perform(json(post(BASE), lead("Anna", 5, tomorrow, "")), admin).getStatus());
         assertEquals(400, perform(json(post(BASE), "{\"country\":\"germany\",\"sourceChannel\":5,\"firstContactDate\":\""
                 + today + "\"}"), admin).getStatus(), "联系人名称必填");
+    }
+
+    @Test
+    void aliLevel_updateTimeOrder_contactNameTranslatedOnlyWhenEmpty() throws Exception {
+        loginAsAdmin("opp_admin");
+        String admin = token("opp_admin");
+        String today = LocalDate.now().toString();
+        long ali = register(admin, lead("John", 1, today, ",\"aliLevel\":\"L1+\",\"email\":\"john@a.com\""));
+        long social = register(admin, lead("Anna", 5, today, ",\"aliLevel\":\"L2\",\"email\":\"anna@b.com\""));
+        assertEquals("L1+", ok(call(get(BASE + "/" + ali), admin)).path("aliLevel").asText());
+        assertEquals("", ok(call(get(BASE + "/" + social), admin)).path("aliLevel").asText(), "非阿里渠道不保存等级");
+        JsonNode bad = call(json(post(BASE), lead("Max", 1, today, ",\"aliLevel\":\"L9\",\"email\":\"max@c.com\"")), admin);
+        assertEquals("阿里等级不正确", bad.path("message").asText());
+
+        // 列表按更新时间倒序：修改较早登记的那条后它排到最前
+        jdbc.update("update opportunity set update_time = NOW() - INTERVAL 1 HOUR where tenant_id = 0");
+        ok(call(json(put(BASE + "/" + ali), "{\"sourceChannel\":1,\"aliLevel\":\"L3\",\"firstContactDate\":\"" + today + "\"}"), admin));
+        JsonNode list = ok(call(get(BASE + "/page"), admin)).path("records");
+        assertEquals(ali, list.get(0).path("id").asLong());
+        assertEquals("L3", list.get(0).path("aliLevel").asText());
+
+        // 登记时提交了联系人名称翻译；回调只填仍为空的中文名称
+        assertEquals(2, jdbc.queryForObject("select count(*) from ai_task where tenant_id = 0 and skill_id = ?", Integer.class,
+                ContactNameTranslations.SKILL_ID));
+        long johnCustomer = jdbc.queryForObject("select customer_id from opportunity where id = ?", Long.class, ali);
+        long annaCustomer = jdbc.queryForObject("select customer_id from opportunity where id = ?", Long.class, social);
+        jdbc.update("update customer set name_cn = '安娜手填' where id = ?", annaCustomer);
+        AiTaskDO task = new AiTaskDO();
+        task.setTenantId(0);
+        task.setSkillId(ContactNameTranslations.SKILL_ID);
+        task.setStatus(AiTaskStatus.COMPLETED);
+        task.setOutput("{\"items\":[{\"key\":\"" + johnCustomer + "\",\"text\":\"约翰\"},{\"key\":\"" + annaCustomer
+                + "\",\"text\":\"安娜\"}]}");
+        contactNameTranslations.handle(task);
+        assertEquals("约翰", jdbc.queryForObject("select name_cn from customer where id = ?", String.class, johnCustomer));
+        assertEquals("安娜手填", jdbc.queryForObject("select name_cn from customer where id = ?", String.class, annaCustomer));
     }
 
     @Test

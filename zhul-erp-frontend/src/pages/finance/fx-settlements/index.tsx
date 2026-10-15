@@ -30,6 +30,7 @@ import {
 import { ReasonModal } from '@/pages/warehouse/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
+import { usePageSize } from '@/utils/pageSize';
 import { type FxPending, type FxSettlement, fxApi } from './service';
 
 const num: React.CSSProperties = { fontVariantNumeric: 'tabular-nums' };
@@ -329,7 +330,7 @@ const FxSettlementPage: React.FC = () => {
   const [rows, setRows] = useState<FxSettlement[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
+  const [pageSize, setPageSize] = usePageSize(20);
   const [currency, setCurrency] = useState<string>();
   const [range, setRange] = useState<[Dayjs, Dayjs] | null>(null);
   const [includeVoid, setIncludeVoid] = useState(false);

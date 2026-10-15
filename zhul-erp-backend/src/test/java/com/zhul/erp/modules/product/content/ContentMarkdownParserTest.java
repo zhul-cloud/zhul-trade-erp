@@ -255,9 +255,10 @@ class ContentMarkdownParserTest {
                 new ContentDraft.KeywordRow("LXM32 spare part", 3));
         assertThat(kw.getNotes()).anyMatch(n -> n.contains("重复的 1 个") && n.contains("lxm32ad30n4"));
         ContentDraft.Block points = d.getBlocks().get(ContentSection.SELLING_POINTS);
+        // 卖点不限条数与长度
         assertThat(points.getPoints()).containsExactly("Genuine Schneider, factory sealed", "3kW, 400V three-phase",
-                "Safe Torque Off built in", "Ships in 1-3 days", "12-month warranty");
-        assertThat(points.getNotes()).anyMatch(n -> n.contains("超过 5 条") && n.contains("忽略 1 条"));
+                "Safe Torque Off built in", "Ships in 1-3 days", "12-month warranty", "Datasheet support");
+        assertThat(points.getNotes()).isEmpty();
     }
 
     @Test

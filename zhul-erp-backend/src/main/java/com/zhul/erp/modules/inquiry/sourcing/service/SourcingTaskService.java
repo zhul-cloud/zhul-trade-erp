@@ -18,6 +18,9 @@ public interface SourcingTaskService {
     /** 确认解析时调用：把待询价明细按品牌 + 品类分组生成任务；自动分配开启时按规则分配 */
     List<SourcingTaskDO> createTasks(CustomerInquiryDO inquiry, List<InquiryItemDO> pendingItems);
 
+    /** 追加型号时：任务编号的字母后缀从 startIndex 开始，接着原有任务 */
+    List<SourcingTaskDO> createTasks(CustomerInquiryDO inquiry, List<InquiryItemDO> pendingItems, int startIndex);
+
     /** 取消询盘单时调用：未回价的任务一并取消 */
     void cancelByInquiry(Long inquiryId);
 

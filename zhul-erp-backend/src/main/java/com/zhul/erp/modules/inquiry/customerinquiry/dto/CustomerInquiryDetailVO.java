@@ -14,6 +14,8 @@ public class CustomerInquiryDetailVO {
     private List<AttachmentVO> attachments;
     private List<InquiryItemVO> items;
     private List<TaskBriefVO> tasks;
+    /** 未完成的追加型号（解析中、待确认、解析失败），没有时为空 */
+    private AppendVO openAppend;
     private String opportunityCode;
     private String opportunityStageName;
 }

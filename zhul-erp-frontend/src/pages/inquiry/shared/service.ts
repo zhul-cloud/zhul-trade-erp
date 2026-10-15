@@ -68,6 +68,10 @@ export interface PriceRecord {
   note: string;
   /** 该采购对该型号的推荐报价 */
   recommended?: boolean;
+  /** 是否包邮 */
+  freeShipping?: boolean;
+  /** 回价附件，有「查看货源信息」权限时才有 */
+  attachments?: QuoteFile[];
   quotedBy: number;
   quotedByName?: string;
   quotedAt?: string;
@@ -138,6 +142,8 @@ export interface InquiryDetail {
   attachments: InquiryAttachment[];
   items: InquiryItem[];
   tasks: TaskBrief[];
+  /** 未完成的追加型号 */
+  openAppend?: InquiryAppend | null;
   opportunityCode?: string;
   opportunityStageName?: string;
 }
@@ -172,8 +178,21 @@ export interface DraftRow {
   match?: PriceMatch;
 }
 
+/** 未完成的追加型号：1-解析中、2-待确认、3-解析失败 */
+export interface InquiryAppend {
+  id: number;
+  status: number;
+  /** 1-AI、2-手动 */
+  parseMode: number;
+  parseError?: string;
+  rawContent?: string;
+  createTime?: string;
+}
+
 export interface Draft {
   inquiry: CustomerInquiry;
+  /** 追加型号的批次 ID；首次确认时为空 */
+  appendId?: number;
   rawContent: string;
   attachments: InquiryAttachment[];
   rows: DraftRow[];
@@ -351,6 +370,10 @@ export interface MyQuote {
   note: string;
   recommended?: boolean;
   noStock: boolean;
+  /** 是否包邮，默认包邮 */
+  freeShipping?: boolean;
+  /** 回价附件（截图、报价单） */
+  attachments?: QuoteFile[];
   /** 1-草稿、2-已提交、3-待审核、4-已作废 */
   status: number;
   /** 作废原因（status=4）或退回原因（被退回的草稿） */
@@ -373,6 +396,10 @@ export interface MyTaskItem {
   inquiryScript: string;
   searchKeywords: string[];
   quotes: MyQuote[];
+  /** 历史询价摘要：DEAL 最近成交、QUOTE 最近询价，没有时为空 */
+  historyKind?: 'DEAL' | 'QUOTE';
+  historyPrice?: number;
+  historyDate?: string;
   /** 兼职回价的审核状态：1-待审核、2-已通过、3-被退回 */
   /** 已报给客户（出现在已发送及之后的报价单中），回价只读 */
   locked?: boolean;
@@ -403,6 +430,33 @@ export interface QuoteEntry {
   note?: string;
   /** 推荐报价，同一型号最多一条；都不标时按全新原装最低价自动推荐 */
   recommended?: boolean;
+  /** 是否包邮，不传按包邮 */
+  freeShipping?: boolean;
+  /** 附件 ID：新上传的或这条回价原有的 */
+  attachmentIds?: number[];
+}
+
+/** 回价附件（图片或 PDF） */
+export interface QuoteFile {
+  id: number;
+  kind: number;
+  fileName: string;
+  fileSize: number;
+  contentType: string;
+}
+
+/** 型号历史询价明细 */
+export interface ItemHistoryDetail {
+  deals: { price: number; date: string; poNo: string; supplierName?: string }[];
+  quotes: {
+    price: number;
+    date: string;
+    channelName?: string;
+    shopName?: string;
+    conditionName?: string;
+    leadTimeName?: string;
+    freeShipping: boolean;
+  }[];
 }
 
 /** 粘贴报价识别出的一行（不落库，预览修改后填进草稿） */
@@ -543,10 +597,13 @@ export const inquiryApi = {
       attachmentId,
     }),
   customerType: (customerId: number) =>
-    get<{ customerType: number; wonCount: number; lastWonDate?: string }>(
-      `${INQ}/customer-type`,
-      { customerId },
-    ),
+    get<{
+      customerType: number;
+      wonCount: number;
+      lastWonDate?: string;
+      /** 客户档案的来源渠道 */
+      sourceChannel?: number;
+    }>(`${INQ}/customer-type`, { customerId }),
   priceMatch: (brand: string, model: string) =>
     get<PriceMatch>(`${INQ}/price-match`, { brand, model }),
   submit: (data: SubmitPayload) => send<CustomerInquiry>('POST', INQ, data),
@@ -570,6 +627,22 @@ export const inquiryApi = {
   draft: (id: number) => get<Draft>(`${INQ}/${id}/draft`),
   confirm: (id: number, rows: ConfirmRow[]) =>
     send<void>('POST', `${INQ}/${id}/confirm`, { rows }),
+  startAppend: (
+    id: number,
+    body: {
+      rawContent?: string;
+      attachments?: { fileKey: string; fileName: string }[];
+      manual?: boolean;
+    },
+  ) => send<InquiryAppend>('POST', `${INQ}/${id}/appends`, body),
+  retryAppend: (id: number, appendId: number) =>
+    send<InquiryAppend>('POST', `${INQ}/${id}/appends/${appendId}/retry`),
+  appendDraft: (id: number, appendId: number) =>
+    get<Draft>(`${INQ}/${id}/appends/${appendId}/draft`),
+  confirmAppend: (id: number, appendId: number, rows: ConfirmRow[]) =>
+    send<void>('POST', `${INQ}/${id}/appends/${appendId}/confirm`, { rows }),
+  discardAppend: (id: number, appendId: number) =>
+    send<void>('POST', `${INQ}/${id}/appends/${appendId}/discard`),
   cancel: (id: number) => send<void>('PUT', `${INQ}/${id}/cancel`),
   updateLevel: (id: number, level: number) =>
     send<void>('PUT', `${INQ}/${id}/level`, { level }),
@@ -721,7 +794,10 @@ export interface ReviewApproveItem {
 }
 
 export const myTaskApi = {
-  list: (done: boolean) => get<MyTask[]>(MY, { done }),
+  list: (done: boolean, keyword?: string) =>
+    get<MyTask[]>(MY, { done, keyword: keyword || undefined }),
+  history: (id: number, itemId: number) =>
+    get<ItemHistoryDetail>(`${MY}/${id}/items/${itemId}/history`),
   detail: (id: number) =>
     get<{ task: MyTask; items: MyTaskItem[]; reviewRequired?: boolean }>(
       `${MY}/${id}`,

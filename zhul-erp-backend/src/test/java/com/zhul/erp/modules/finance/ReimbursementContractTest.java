@@ -222,6 +222,19 @@ class ReimbursementContractTest extends SalesContractSupport {
         JsonNode back = ok(call(json(post(BX + "/" + id + "/unpay"), write(Map.of("reason", "账户选错"))), admin));
         assertEquals(1, back.path("status").asInt());
         money("0.00", ok(call(get(PY + "/stats"), admin)).path("reimburse"));
+
+        // 私对私：法人个人账户付给员工，填付款个人账户，不选公司账户
+        assertEquals("私对私请填写付款个人账户", fail(call(json(post(BX + "/" + id + "/pay"), write(Map.of("method", 3,
+                "payDate", LocalDate.now().toString(), "attachmentIds", List.of(upload("REIMBURSE", admin))))), admin))
+                .path("message").asText());
+        JsonNode personal = ok(call(json(post(BX + "/" + id + "/pay"), write(Map.of("method", 3, "payerAccount", "法人 张总 · 招行尾号 1234",
+                "payDate", LocalDate.now().toString(), "attachmentIds", List.of(upload("REIMBURSE", admin))))), admin));
+        assertEquals(2, personal.path("status").asInt());
+        assertEquals(3, personal.path("payMethod").asInt());
+        assertEquals("法人 张总 · 招行尾号 1234", personal.path("payPayerAccount").asText());
+        JsonNode py = ok(call(get(PY).param("kind", "3"), admin)).path("records").get(0);
+        assertEquals(3, py.path("method").asInt());
+        assertEquals("法人 张总 · 招行尾号 1234", py.path("payerAccount").asText());
     }
 
     @Test
@@ -310,15 +323,20 @@ class ReimbursementContractTest extends SalesContractSupport {
                 fe2.path("id").asLong()));
 
         // 公司对公的应付付款后不能改金额、不能作废；没付款的可以作废，应付关闭
+        // 应付用私对私付款：要填付款个人账户，单独统计
         Map<String, Object> pay = new HashMap<>();
-        pay.put("method", 1);
-        pay.put("bankAccountId", account);
+        pay.put("method", 3);
         pay.put("payDate", LocalDate.now().toString());
         pay.put("amount", 120);
         pay.put("attachmentIds", List.of(upload("PAYMENT", admin)));
         pay.put("allocations", List.of(Map.of("payableId", ap.path("id").asLong(), "amount", 120)));
         pay.put("idempotencyKey", UUID.randomUUID().toString());
-        ok(call(json(post(PY), write(pay)), admin));
+        assertEquals("私对私请填写付款个人账户", fail(call(json(post(PY), write(pay)), admin)).path("message").asText());
+        pay.put("payerAccount", "法人 张总 · 招行尾号 1234");
+        pay.put("idempotencyKey", UUID.randomUUID().toString());
+        JsonNode privatePay = ok(call(json(post(PY), write(pay)), admin));
+        assertEquals(3, privatePay.path("method").asInt());
+        money("120.00", ok(call(get(PY + "/stats"), admin)).path("personal"));
         Map<String, Object> change = new HashMap<>(body);
         change.put("amount", 150);
         change.put("allocations", List.of());

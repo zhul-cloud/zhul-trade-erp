@@ -33,6 +33,7 @@ import { getUserList } from '@/pages/system/user/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import { DICT_SOURCE_CHANNEL, useDictOptions } from '@/utils/dict';
 import { formatDateTime } from '@/utils/format';
+import { usePageSize } from '@/utils/pageSize';
 import {
   Card,
   CustomerTypePill,
@@ -97,6 +98,14 @@ const RangeInput: React.FC<{
     />
   </Space.Compact>
 );
+
+/** 从询价统计跳转时 URL 带的询盘日期 */
+const urlFilters = (): Filters => {
+  const p = new URLSearchParams(window.location.search);
+  const from = p.get('dateFrom');
+  const to = p.get('dateTo');
+  return from && to ? { range: [dayjs(from), dayjs(to)] } : {};
+};
 
 const toQuery = (
   f: Filters,
@@ -206,11 +215,11 @@ const CustomerInquiryPage: React.FC = () => {
   const { message } = App.useApp();
   const [searchParams, setSearchParams] = useSearchParams();
   const [form] = Form.useForm<Filters>();
-  const [filters, setFilters] = useState<Filters>({});
+  const [filters, setFilters] = useState<Filters>(urlFilters);
   const [urgentOnly, setUrgentOnly] = useState(false);
   const [timeoutOnly, setTimeoutOnly] = useState(false);
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [pageSize, setPageSize] = usePageSize(10);
   const [sort, setSort] = useState<Sort>({});
   const { levelOptions } = useLevels();
   const [rows, setRows] = useState<CustomerInquiry[]>([]);
@@ -663,7 +672,12 @@ const CustomerInquiryPage: React.FC = () => {
       </div>
 
       <Card style={{ marginBottom: 16, padding: 20 }}>
-        <Form form={form} layout="vertical" onFinish={applyFilters}>
+        <Form
+          form={form}
+          layout="vertical"
+          onFinish={applyFilters}
+          initialValues={urlFilters()}
+        >
           <div
             style={{
               display: 'grid',

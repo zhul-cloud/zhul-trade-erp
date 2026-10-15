@@ -40,6 +40,7 @@ import type { DeptTreeOption } from '@/pages/system/user/service';
 import { getDeptTreeOptions } from '@/pages/system/user/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatDateTime } from '@/utils/format';
+import { usePagination } from '@/utils/pageSize';
 import type { RoleItem, RoleStats } from './service';
 import {
   createRole,
@@ -225,6 +226,7 @@ const toAntdTree = (list: MenuItem[]): any[] =>
   }));
 
 const RolePage: React.FC = () => {
+  const pager = usePagination(10);
   const { palette: p } = useAppTheme();
   const actionRef = useRef<ActionType>(undefined);
   const { message, modal } = App.useApp();
@@ -602,7 +604,7 @@ const RolePage: React.FC = () => {
         rowKey="id"
         columns={columns}
         request={getRoleList}
-        pagination={{ pageSize: 10 }}
+        pagination={pager}
         search={{ labelWidth: 'auto' }}
         toolBarRender={() => [
           canAdd && (

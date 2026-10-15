@@ -33,7 +33,9 @@ import { readBizError } from '@/pages/sales/service';
 import { AttachmentWall, ReasonModal } from '@/pages/warehouse/components';
 import type { Attachment } from '@/pages/warehouse/service';
 import { useAppTheme } from '@/theme/AppTheme';
+import { useDictTexts } from '@/utils/dict';
 import { formatAmount } from '@/utils/format';
+import { usePageSize } from '@/utils/pageSize';
 import {
   ACCEPT_PROOF,
   PayStatusPill,
@@ -69,6 +71,9 @@ const ExpenseDrawer: React.FC<{
   const { palette } = useAppTheme();
   const users = useUserOptions();
   const [name, setName] = useState('');
+  const [category, setCategory] = useState<string>();
+  const categories = useDictTexts('expense_category');
+  const [months, setMonths] = useState<number | null>(1);
   const [date, setDate] = useState<Dayjs>(dayjs());
   const [payeeType, setPayeeType] = useState<number>(PAYEE.OTHER);
   const [supplierId, setSupplierId] = useState<number>();
@@ -91,6 +96,8 @@ const ExpenseDrawer: React.FC<{
     if (!open) return;
     const e = editing;
     setName(e?.name ?? '');
+    setCategory(e?.category);
+    setMonths(e?.amortizeMonths ?? 1);
     setDate(e ? dayjs(e.occurDate) : dayjs());
     setPayeeType(e?.payeeType ?? PAYEE.OTHER);
     setSupplierId(e?.supplierId);
@@ -132,6 +139,8 @@ const ExpenseDrawer: React.FC<{
     }
     const body: SaveExpenseBody = {
       name: name.trim(),
+      category: category ?? (allocs.length ? 'ORDER' : 'OTHER'),
+      amortizeMonths: months ?? 1,
       occurDate: date.format('YYYY-MM-DD'),
       payeeType,
       supplierId:
@@ -208,6 +217,31 @@ const ExpenseDrawer: React.FC<{
               onChange={(e) => setName(e.target.value)}
               maxLength={64}
               placeholder="如 补发运费"
+            />
+          </div>
+          <div style={{ width: 160 }}>
+            {label('费用类别')}
+            <Select
+              style={{ width: '100%' }}
+              value={category ?? (allocs.length ? 'ORDER' : 'OTHER')}
+              onChange={setCategory}
+              options={categories.map((c) => ({
+                value: c.code,
+                label: c.name,
+              }))}
+            />
+          </div>
+          <div style={{ width: 120 }}>
+            {label('分摊月数', false)}
+            <InputNumber<number>
+              min={1}
+              max={36}
+              precision={0}
+              value={months}
+              onChange={setMonths}
+              suffix="个月"
+              style={{ width: '100%' }}
+              aria-label="分摊月数"
             />
           </div>
           <div style={{ width: 180 }}>
@@ -474,15 +508,26 @@ interface Filters {
   soNo: string;
   range: [Dayjs, Dayjs] | null;
   method?: number;
+  category?: string;
+  linked?: boolean;
   showVoid: boolean;
 }
 
-const initial = (): Filters => ({
-  keyword: '',
-  soNo: '',
-  range: null,
-  showVoid: false,
-});
+/** 初始筛选：经营统计跳转时带 dateFrom、dateTo、category、linked */
+const initial = (): Filters => {
+  const p = new URLSearchParams(window.location.search);
+  const from = p.get('dateFrom');
+  const to = p.get('dateTo');
+  const linked = p.get('linked');
+  return {
+    keyword: '',
+    soNo: '',
+    range: from && to ? [dayjs(from), dayjs(to)] : null,
+    category: p.get('category') ?? undefined,
+    linked: linked == null ? undefined : linked === 'true',
+    showVoid: false,
+  };
+};
 
 /** 财务管理 → 费用单：补发运费这类偶发成本，可以分摊到订单型号 */
 const ExpensePage: React.FC = () => {
@@ -490,10 +535,11 @@ const ExpensePage: React.FC = () => {
   const { palette } = useAppTheme();
   const access = useAccess() as Record<string, boolean>;
   const canEdit = !!access['finance:expense:edit'];
+  const categories = useDictTexts('expense_category');
   const [draft, setDraft] = useState<Filters>(initial);
   const [filters, setFilters] = useState<Filters>(initial);
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
+  const [pageSize, setPageSize] = usePageSize(20);
   const [rows, setRows] = useState<Expense[]>([]);
   const [total, setTotal] = useState(0);
   const [monthTotal, setMonthTotal] = useState(0);
@@ -509,6 +555,8 @@ const ExpensePage: React.FC = () => {
       dateFrom: filters.range?.[0].format('YYYY-MM-DD'),
       dateTo: filters.range?.[1].format('YYYY-MM-DD'),
       method: filters.method,
+      category: filters.category,
+      linked: filters.linked,
       showVoid: filters.showVoid || undefined,
     };
     try {
@@ -555,6 +603,21 @@ const ExpensePage: React.FC = () => {
     },
     { title: '发生日期', dataIndex: 'occurDate', width: 110 },
     { title: '名称', dataIndex: 'name', width: 160 },
+    {
+      title: '类别',
+      key: 'category',
+      width: 120,
+      render: (_, r) => (
+        <div>
+          {r.categoryName ?? r.category}
+          {r.amortizeMonths > 1 && (
+            <div style={{ fontSize: 12, color: palette.mute }}>
+              分摊 {r.amortizeMonths} 个月
+            </div>
+          )}
+        </div>
+      ),
+    },
     { title: '收款方', dataIndex: 'payeeName', width: 160, ellipsis: true },
     {
       title: '金额',
@@ -655,7 +718,7 @@ const ExpensePage: React.FC = () => {
       <PageTitle
         crumbs={['费用单']}
         title="费用单"
-        description="补发运费这类不挂在采购订单、销售出库单、出运单上的偶发成本；公司对公生成应付，员工垫付进入垫付人的待报销；可以分摊到订单型号，供订单实际成本使用。"
+        description="补发运费这类偶发成本，以及房租、工资、平台费等运营成本；公司对公生成应付，员工垫付进入垫付人的待报销。关联订单型号的计入订单成本，不关联的按类别与分摊月数计入经营统计。"
         actions={
           canEdit && (
             <Button
@@ -738,6 +801,27 @@ const ExpensePage: React.FC = () => {
               { value: METHOD.ADVANCE, label: '员工垫付' },
             ]}
           />
+          <Select
+            allowClear
+            placeholder="费用类别"
+            style={{ width: 130 }}
+            value={draft.category}
+            onChange={(v) => apply({ category: v })}
+            options={categories.map((c) => ({ value: c.code, label: c.name }))}
+          />
+          <Select
+            allowClear
+            placeholder="是否关联订单"
+            style={{ width: 150 }}
+            value={draft.linked == null ? undefined : String(draft.linked)}
+            onChange={(v) =>
+              apply({ linked: v == null ? undefined : v === 'true' })
+            }
+            options={[
+              { value: 'false', label: '运营成本（不关联订单）' },
+              { value: 'true', label: '关联订单' },
+            ]}
+          />
           <Checkbox
             checked={draft.showVoid}
             onChange={(e) => apply({ showVoid: e.target.checked })}
@@ -751,7 +835,7 @@ const ExpensePage: React.FC = () => {
           loading={loading}
           columns={columns}
           dataSource={rows}
-          scroll={{ x: 2100 }}
+          scroll={{ x: 2220 }}
           pagination={{
             current: page,
             pageSize,

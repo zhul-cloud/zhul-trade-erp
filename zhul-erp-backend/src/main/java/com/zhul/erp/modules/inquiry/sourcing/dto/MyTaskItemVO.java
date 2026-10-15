@@ -26,6 +26,10 @@ public class MyTaskItemVO {
     private String inquiryScript;
     private List<String> searchKeywords;
     private List<MyQuoteVO> quotes;
+    /** 历史询价摘要：最近一次成交（DEAL），没有时最近一次询价（QUOTE）；都没有时为空 */
+    private String historyKind;
+    private java.math.BigDecimal historyPrice;
+    private java.time.LocalDate historyDate;
     /** 已报给客户（出现在已发送及之后的报价单中），回价只读 */
     private Boolean locked;
     /** 兼职回价的审核状态：1-待审核、2-已通过、3-被退回；不需要审核或还没提交时为空 */

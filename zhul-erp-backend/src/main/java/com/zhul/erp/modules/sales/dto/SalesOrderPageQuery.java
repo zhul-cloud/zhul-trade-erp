@@ -24,4 +24,7 @@ public class SalesOrderPageQuery {
     private LocalDate createdTo;
     private Integer page = 1;
     private Integer pageSize = 20;
+    /** 表头排序：profit 按毛利；ascend / descend */
+    private String sortField;
+    private String sortOrder;
 }

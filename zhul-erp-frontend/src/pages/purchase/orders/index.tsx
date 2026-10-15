@@ -17,6 +17,7 @@ import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useUserOptions } from '@/pages/sales/orders/dialogs';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
+import { usePageSize } from '@/utils/pageSize';
 import {
   auditColumns,
   BargainText,
@@ -60,7 +61,7 @@ const PurchaseOrderList: React.FC = () => {
   const [form] = Form.useForm<Filters>();
   const [filters, setFilters] = useState<Filters>({});
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
+  const [pageSize, setPageSize] = usePageSize(20);
   const [sort, setSort] = useState<Sort>({});
   const [rows, setRows] = useState<PoListItem[]>([]);
   const [total, setTotal] = useState(0);

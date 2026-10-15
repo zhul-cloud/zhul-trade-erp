@@ -33,6 +33,10 @@ public final class FinanceConstants {
     /** 付款方式 */
     public static final int METHOD_COMPANY = 1;
     public static final int METHOD_ADVANCE = 2;
+    /** 私对私：法人等个人账户付给对方个人账户，记录付款个人账户，不进报销 */
+    public static final int METHOD_PRIVATE = 3;
+    public static final java.util.Map<Integer, String> METHOD_NAMES = java.util.Map.of(
+            METHOD_COMPANY, "公司对公", METHOD_ADVANCE, "员工垫付", METHOD_PRIVATE, "私对私");
 
     /** 报销状态 */
     public static final int REIMBURSE_NA = 0;
@@ -82,4 +86,16 @@ public final class FinanceConstants {
     public static final String PERM_FX_SETTLE = "finance:fx:settle";
     public static final int FX_VALID = 1;
     public static final int FX_VOID = 2;
+
+    /** 退款单与其他收入（spec finance/customer-refund、finance/other-income） */
+    public static final String MENU_REFUND = "/finance/refunds";
+    public static final String MENU_OTHER_INCOME = "/finance/other-incomes";
+    public static final String PERM_REFUND_EDIT = "finance:refund:edit";
+    public static final String PERM_INCOME_EDIT = "finance:income:edit";
+    public static final String DICT_REFUND_REASON = "refund_reason";
+    public static final String DICT_INCOME_CATEGORY = "other_income_category";
+    public static final int RECORD_VALID = 1;
+    public static final int RECORD_VOID = 2;
+    public static final int REFUND_PLATFORM = 1;
+    public static final int REFUND_BANK = 2;
 }

@@ -17,6 +17,7 @@ public class OpportunityVO {
     private boolean customerNameMissing;
     private String country;
     private Integer sourceChannel;
+    private String aliLevel;
     private LocalDate firstContactDate;
     private Long ownerId;
     private String ownerName;

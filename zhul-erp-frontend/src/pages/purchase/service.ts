@@ -224,6 +224,8 @@ export interface PoItem {
   requirementId: number;
   soId: number;
   soNo?: string;
+  /** 来源销售订单行的现货 / 期货（1-现货、2-期货） */
+  stockType?: number;
   customerName?: string;
   customerCountry?: string;
   model: string;

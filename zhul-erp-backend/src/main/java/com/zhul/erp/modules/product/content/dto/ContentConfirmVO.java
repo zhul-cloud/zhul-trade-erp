@@ -11,10 +11,15 @@ public class ContentConfirmVO {
     private int succeeded;
     private int failed;
     private List<Item> items = new ArrayList<>();
+    /** 一起上传并自动审核时：自动审核通过的技术问答条数、自动核对资料的商品数 */
+    private Integer approvedFaqs;
+    private Integer verifiedProducts;
 
     @Data
     public static class Item {
         private String fileName;
+        /** facts 资料包、marketing 营销包 */
+        private String type;
         private Long productId;
         private String productLabel;
         private String lang;

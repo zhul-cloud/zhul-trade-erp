@@ -263,7 +263,7 @@ public class ProductController {
 
     /** 审核确认待审核 FAQ：来源变为人工撰写，记录审核人与审核时间 */
     @PatchMapping("/{id}/faqs/{itemId}/approve")
-    @PreAuthorize("@perm.has('product:product:edit')")
+    @PreAuthorize("@perm.has('product:product:edit') or @perm.has('product:content:edit')")
     public Result<FaqVO> approveFaq(@PathVariable Long id, @PathVariable Long itemId) {
         return Result.ok(faqService.approve(id, itemId));
     }

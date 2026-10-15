@@ -18,6 +18,7 @@ import { auditColumns } from '@/pages/purchase/components';
 import { CARRIERS } from '@/pages/purchase/shipments/ShipmentDrawer';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
+import { usePageSize } from '@/utils/pageSize';
 import { HoldStatusPill, sub, WarehousePageTitle } from '../components';
 import { type Hold, holdApi, readBizError } from '../service';
 
@@ -35,7 +36,7 @@ const Holds: React.FC = () => {
   const [keyword, setKeyword] = useState('');
   const [query, setQuery] = useState<string>();
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
+  const [pageSize, setPageSize] = usePageSize(20);
   const [rows, setRows] = useState<Hold[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);

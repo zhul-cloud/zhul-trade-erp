@@ -142,6 +142,7 @@ export const RegisterPaymentDrawer: React.FC<{
   const [method, setMethod] = useState<number>(METHOD.COMPANY);
   const [accounts, setAccounts] = useState<BankOption[]>([]);
   const [accountId, setAccountId] = useState<number>();
+  const [payerAccount, setPayerAccount] = useState('');
   const [payDate, setPayDate] = useState<Dayjs>(dayjs());
   const [amount, setAmount] = useState<number | null>(null);
   const [amountCny, setAmountCny] = useState<number | null>(null);
@@ -251,11 +252,17 @@ export const RegisterPaymentDrawer: React.FC<{
       message.error('请选择付款账户');
       return;
     }
+    if (method === METHOD.PRIVATE && !payerAccount.trim()) {
+      message.error('私对私请填写付款个人账户');
+      return;
+    }
     setSaving(true);
     try {
       await paymentApi.register({
         method,
         bankAccountId: method === METHOD.COMPANY ? accountId : undefined,
+        payerAccount:
+          method === METHOD.PRIVATE ? payerAccount.trim() : undefined,
         payDate: payDate.format('YYYY-MM-DD'),
         amount: amount ?? 0,
         amountCny: foreign ? (amountCny ?? undefined) : undefined,
@@ -411,8 +418,18 @@ export const RegisterPaymentDrawer: React.FC<{
                 value: METHOD.ADVANCE,
                 disabled: !canAdvance,
               },
+              {
+                label: '私对私',
+                value: METHOD.PRIVATE,
+                disabled: !canCompany,
+              },
             ]}
           />
+          {method === METHOD.PRIVATE && (
+            <div style={{ fontSize: 12, color: palette.mute, marginTop: 6 }}>
+              法人等个人账户付给对方个人账户，不进报销
+            </div>
+          )}
           {method === METHOD.ADVANCE && (
             <div style={{ fontSize: 12, color: palette.mute, marginTop: 6 }}>
               记在你名下，进入你的待报销
@@ -432,6 +449,16 @@ export const RegisterPaymentDrawer: React.FC<{
                   label: `${a.bankName} · ${a.accountName} ${a.accountNoMasked}`,
                 }))}
                 notFoundContent={`没有 ${currency} 账户，请先在「收款账户」里添加`}
+              />
+            </Field>
+          )}
+          {method === METHOD.PRIVATE && (
+            <Field label="付款个人账户" required flex>
+              <Input
+                maxLength={100}
+                placeholder="如 法人 张三 · 招行尾号 1234"
+                value={payerAccount}
+                onChange={(e) => setPayerAccount(e.target.value)}
               />
             </Field>
           )}
@@ -906,6 +933,10 @@ export const PayableBody: React.FC<{
                   ) : l.method === METHOD.ADVANCE ? (
                     <span>
                       <Pill tone="violet">员工垫付</Pill> {l.advanceUser}
+                    </span>
+                  ) : l.method === METHOD.PRIVATE ? (
+                    <span>
+                      <Pill tone="orange">私对私</Pill> {l.payerAccount}
                     </span>
                   ) : (
                     <span>

@@ -29,7 +29,10 @@ import {
 } from 'antd';
 import dayjs from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
+import { ACCEPT_PROOF, ProofLinks } from '@/pages/finance/payables/components';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
+import { AttachmentWall } from '@/pages/warehouse/components';
+import type { Attachment } from '@/pages/warehouse/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
 import {
@@ -69,12 +72,15 @@ import {
   type QuoteEntry,
   readBizError,
 } from '../shared/service';
+import ItemHistory from './ItemHistory';
 import PasteQuoteModal, { type PasteFill } from './PasteQuoteModal';
 import SupplierSelect from './SupplierSelect';
 import { buildTaskScript, pendingItems } from './taskScript';
 
 interface DraftEntry extends QuoteEntry {
   key: string;
+  /** 已上传的附件（保存时转成 attachmentIds） */
+  files: Attachment[];
 }
 
 interface ItemState {
@@ -97,6 +103,8 @@ const newEntry = (): DraftEntry => ({
   channel: CHANNEL_TAOBAO,
   itemCondition: 1,
   unitPrice: null,
+  freeShipping: true,
+  files: [],
 });
 
 /** 含税报价没选税率时按 13%（字典 inquiry_tax_rate 的默认值） */
@@ -136,6 +144,8 @@ const MyTasksPage: React.FC = () => {
   const { taxRateOptions } = useTaxRates();
   const { lifecycleOptions } = useLifecycles();
   const [done, setDone] = useState(false);
+  const [keyword, setKeyword] = useState('');
+  const [search, setSearch] = useState('');
   const [tasks, setTasks] = useState<MyTask[] | null>(null);
   // 从兼职看板点进来时带 ?task=任务ID，直接打开该任务
   const [activeId, setActiveId] = useState<number | undefined>(() => {
@@ -164,8 +174,8 @@ const MyTasksPage: React.FC = () => {
     setError('');
     try {
       const [pending, finished] = await Promise.all([
-        myTaskApi.list(false),
-        myTaskApi.list(true),
+        myTaskApi.list(false, search),
+        myTaskApi.list(true, search),
       ]);
       setCounts({ pending: pending.length, done: finished.length });
       const list = done ? finished : pending;
@@ -176,7 +186,7 @@ const MyTasksPage: React.FC = () => {
     } catch (e) {
       setError(readBizError(e).message);
     }
-  }, [done]);
+  }, [done, search]);
 
   const loadDetail = useCallback(async (id?: number) => {
     if (!id) {
@@ -209,6 +219,8 @@ const MyTasksPage: React.FC = () => {
               leadTime: q.leadTime,
               note: q.note,
               recommended: q.recommended,
+              freeShipping: q.freeShipping !== false,
+              files: (q.attachments ?? []) as Attachment[],
             })),
           noStock: base.some((q) => q.noStock),
           noStockNote: base.find((q) => q.noStock)?.note ?? '',
@@ -296,7 +308,10 @@ const MyTasksPage: React.FC = () => {
       if (bad && !invalid) invalid = `${it.model}：${entryError(bad)}`;
       items.push({
         itemId: it.id,
-        quotes: filled.map(({ key: _k, ...q }) => q),
+        quotes: filled.map(({ key: _k, files, ...q }) => ({
+          ...q,
+          attachmentIds: files.map((f) => f.id),
+        })),
         ...lifecycle,
       });
     }
@@ -366,11 +381,23 @@ const MyTasksPage: React.FC = () => {
         // 去掉还没填的空白行
         let drafts = s.drafts.filter((d) => d.unitPrice != null || d.shopName);
         const at = replaced.has(itemId) ? -1 : drafts.findIndex(same);
-        const fresh = { ...entry, key: `q${++seq}` };
+        const fresh: DraftEntry = {
+          freeShipping: true,
+          ...entry,
+          key: `q${++seq}`,
+          files: [],
+        };
         drafts =
           at >= 0
             ? drafts.map((d, i) =>
-                i === at ? { ...fresh, recommended: d.recommended } : d,
+                i === at
+                  ? {
+                      ...fresh,
+                      recommended: d.recommended,
+                      freeShipping: d.freeShipping,
+                      files: d.files,
+                    }
+                  : d,
               )
             : [...drafts, fresh];
         replaced.add(itemId);
@@ -489,6 +516,16 @@ const MyTasksPage: React.FC = () => {
         }}
       >
         <div style={{ display: 'grid', gap: 10 }}>
+          <Input.Search
+            allowClear
+            placeholder="搜任务编号、询盘单号、品牌、型号"
+            value={keyword}
+            onChange={(e) => {
+              setKeyword(e.target.value);
+              if (!e.target.value) setSearch('');
+            }}
+            onSearch={(v) => setSearch(v.trim())}
+          />
           <Segmented
             value={done ? 'done' : 'pending'}
             onChange={(v) => setDone(v === 'done')}
@@ -502,7 +539,13 @@ const MyTasksPage: React.FC = () => {
           ) : tasks.length === 0 ? (
             <Card>
               <EmptyHint
-                title={done ? '还没有回价完成的任务' : '没有待处理的任务'}
+                title={
+                  search
+                    ? `没有找到「${search}」相关的任务`
+                    : done
+                      ? '还没有回价完成的任务'
+                      : '没有待处理的任务'
+                }
                 description={
                   done ? undefined : '采购负责人分配给你的任务会出现在这里。'
                 }
@@ -905,6 +948,7 @@ const MyTasksPage: React.FC = () => {
                       {it.description}
                     </div>
                   )}
+                  {activeId && <ItemHistory taskId={activeId} item={it} />}
                   <div
                     style={{
                       display: 'flex',
@@ -1014,6 +1058,12 @@ const MyTasksPage: React.FC = () => {
                                     {review ? '负责人选为推荐' : '推荐'}
                                   </Pill>
                                 )}
+                                {q.freeShipping === false && (
+                                  <Pill tone="orange">不包邮</Pill>
+                                )}
+                                {(q.attachments?.length ?? 0) > 0 && (
+                                  <ProofLinks files={q.attachments ?? []} />
+                                )}
                               </>
                             )}
                           </div>
@@ -1087,197 +1137,229 @@ const MyTasksPage: React.FC = () => {
                             ? entryError(d)
                             : '';
                         return (
-                          <div
-                            key={d.key}
-                            style={{
-                              display: 'grid',
-                              gridTemplateColumns: columns,
-                              gap: 8,
-                              alignItems: 'start',
-                            }}
-                          >
-                            {!review && (
-                              <Radio
-                                aria-label="设为推荐报价"
-                                checked={!!d.recommended}
-                                style={{ marginTop: 4 }}
-                                onClick={() =>
-                                  patchItem(it.id, {
-                                    drafts: s.drafts.map((x) => ({
-                                      ...x,
-                                      recommended:
-                                        x.key === d.key
-                                          ? !d.recommended
-                                          : false,
-                                    })),
-                                  })
-                                }
-                              />
-                            )}
-                            <Select
-                              size="small"
-                              value={d.channel}
-                              options={CHANNEL_OPTIONS}
-                              onChange={(v) =>
-                                patchEntry(it.id, d.key, {
-                                  channel: v,
-                                  // 换渠道时清掉供应商，避免把供应商名当店铺名带走
-                                  supplierId: undefined,
-                                  shopName:
-                                    v === CHANNEL_SUPPLIER ||
-                                    d.channel === CHANNEL_SUPPLIER
-                                      ? ''
-                                      : d.shopName,
-                                })
-                              }
-                            />
-                            {d.channel === CHANNEL_SUPPLIER ? (
-                              <SupplierSelect
-                                value={d.supplierId}
-                                label={d.shopName}
-                                status={
-                                  (d.unitPrice != null || d.shopName) &&
-                                  !d.supplierId
-                                    ? 'error'
-                                    : undefined
-                                }
-                                onChange={(supplierId, name) =>
-                                  patchEntry(it.id, d.key, {
-                                    supplierId,
-                                    shopName: name,
-                                  })
-                                }
-                              />
-                            ) : (
-                              <Input
-                                size="small"
-                                placeholder="店铺名称"
-                                value={d.shopName}
-                                maxLength={128}
-                                onChange={(e) =>
-                                  patchEntry(it.id, d.key, {
-                                    shopName: e.target.value,
-                                  })
-                                }
-                              />
-                            )}
-                            <span style={{ display: 'grid', gap: 2 }}>
-                              <InputNumber
-                                size="small"
-                                precision={2}
-                                placeholder="如 18.50"
-                                value={d.unitPrice}
-                                status={err ? 'error' : undefined}
-                                style={{ width: '100%' }}
-                                onChange={(v) =>
-                                  patchEntry(it.id, d.key, { unitPrice: v })
-                                }
-                              />
-                              <span
-                                style={{
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  gap: 6,
-                                  fontSize: 12,
-                                }}
-                              >
-                                <Checkbox
-                                  checked={!!d.taxIncluded}
-                                  onChange={(e) =>
-                                    patchEntry(it.id, d.key, {
-                                      taxIncluded: e.target.checked,
-                                      taxRate: e.target.checked
-                                        ? (d.taxRate ?? DEFAULT_TAX_RATE)
-                                        : undefined,
+                          <div key={d.key} style={{ display: 'grid', gap: 6 }}>
+                            <div
+                              style={{
+                                display: 'grid',
+                                gridTemplateColumns: columns,
+                                gap: 8,
+                                alignItems: 'start',
+                              }}
+                            >
+                              {!review && (
+                                <Radio
+                                  aria-label="设为推荐报价"
+                                  checked={!!d.recommended}
+                                  style={{ marginTop: 4 }}
+                                  onClick={() =>
+                                    patchItem(it.id, {
+                                      drafts: s.drafts.map((x) => ({
+                                        ...x,
+                                        recommended:
+                                          x.key === d.key
+                                            ? !d.recommended
+                                            : false,
+                                      })),
                                     })
                                   }
+                                />
+                              )}
+                              <Select
+                                size="small"
+                                value={d.channel}
+                                options={CHANNEL_OPTIONS}
+                                onChange={(v) =>
+                                  patchEntry(it.id, d.key, {
+                                    channel: v,
+                                    // 换渠道时清掉供应商，避免把供应商名当店铺名带走
+                                    supplierId: undefined,
+                                    shopName:
+                                      v === CHANNEL_SUPPLIER ||
+                                      d.channel === CHANNEL_SUPPLIER
+                                        ? ''
+                                        : d.shopName,
+                                  })
+                                }
+                              />
+                              {d.channel === CHANNEL_SUPPLIER ? (
+                                <SupplierSelect
+                                  value={d.supplierId}
+                                  label={d.shopName}
+                                  status={
+                                    (d.unitPrice != null || d.shopName) &&
+                                    !d.supplierId
+                                      ? 'error'
+                                      : undefined
+                                  }
+                                  onChange={(supplierId, name) =>
+                                    patchEntry(it.id, d.key, {
+                                      supplierId,
+                                      shopName: name,
+                                    })
+                                  }
+                                />
+                              ) : (
+                                <Input
+                                  size="small"
+                                  placeholder="店铺名称"
+                                  value={d.shopName}
+                                  maxLength={128}
+                                  onChange={(e) =>
+                                    patchEntry(it.id, d.key, {
+                                      shopName: e.target.value,
+                                    })
+                                  }
+                                />
+                              )}
+                              <span style={{ display: 'grid', gap: 2 }}>
+                                <InputNumber
+                                  size="small"
+                                  precision={2}
+                                  placeholder="如 18.50"
+                                  value={d.unitPrice}
+                                  status={err ? 'error' : undefined}
+                                  style={{ width: '100%' }}
+                                  onChange={(v) =>
+                                    patchEntry(it.id, d.key, { unitPrice: v })
+                                  }
+                                />
+                                <span
+                                  style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 6,
+                                    fontSize: 12,
+                                  }}
                                 >
+                                  <Checkbox
+                                    checked={!!d.taxIncluded}
+                                    onChange={(e) =>
+                                      patchEntry(it.id, d.key, {
+                                        taxIncluded: e.target.checked,
+                                        taxRate: e.target.checked
+                                          ? (d.taxRate ?? DEFAULT_TAX_RATE)
+                                          : undefined,
+                                      })
+                                    }
+                                  >
+                                    <span
+                                      style={{
+                                        fontSize: 12,
+                                        whiteSpace: 'nowrap',
+                                      }}
+                                    >
+                                      含税
+                                    </span>
+                                  </Checkbox>
+                                  {d.taxIncluded && (
+                                    <Select
+                                      size="small"
+                                      aria-label="税率"
+                                      style={{ width: 70 }}
+                                      value={d.taxRate ?? DEFAULT_TAX_RATE}
+                                      options={taxRateOptions}
+                                      onChange={(v) =>
+                                        patchEntry(it.id, d.key, { taxRate: v })
+                                      }
+                                    />
+                                  )}
+                                </span>
+                                {d.taxIncluded && d.unitPrice != null && (
                                   <span
                                     style={{
+                                      color: palette.mute,
                                       fontSize: 12,
-                                      whiteSpace: 'nowrap',
                                     }}
                                   >
-                                    含税
+                                    不含税{' '}
+                                    {formatAmount(
+                                      excludeTax(
+                                        d.unitPrice,
+                                        d.taxRate ?? DEFAULT_TAX_RATE,
+                                      ),
+                                    )}
+                                    ，按此价比价
                                   </span>
-                                </Checkbox>
-                                {d.taxIncluded && (
-                                  <Select
-                                    size="small"
-                                    aria-label="税率"
-                                    style={{ width: 70 }}
-                                    value={d.taxRate ?? DEFAULT_TAX_RATE}
-                                    options={taxRateOptions}
-                                    onChange={(v) =>
-                                      patchEntry(it.id, d.key, { taxRate: v })
-                                    }
-                                  />
+                                )}
+                                {err && (
+                                  <span
+                                    style={{ color: palette.red, fontSize: 11 }}
+                                  >
+                                    {err}
+                                  </span>
                                 )}
                               </span>
-                              {d.taxIncluded && d.unitPrice != null && (
-                                <span
-                                  style={{ color: palette.mute, fontSize: 12 }}
-                                >
-                                  不含税{' '}
-                                  {formatAmount(
-                                    excludeTax(
-                                      d.unitPrice,
-                                      d.taxRate ?? DEFAULT_TAX_RATE,
+                              <Select
+                                size="small"
+                                value={d.itemCondition}
+                                options={conditionOptions}
+                                onChange={(v) =>
+                                  patchEntry(it.id, d.key, { itemCondition: v })
+                                }
+                              />
+                              <Select
+                                size="small"
+                                allowClear
+                                placeholder="选择货期"
+                                value={d.leadTime || undefined}
+                                options={leadTimeOptions}
+                                onChange={(v) =>
+                                  patchEntry(it.id, d.key, { leadTime: v ?? 0 })
+                                }
+                              />
+                              <Input
+                                size="small"
+                                placeholder="可选"
+                                value={d.note}
+                                maxLength={300}
+                                onChange={(e) =>
+                                  patchEntry(it.id, d.key, {
+                                    note: e.target.value,
+                                  })
+                                }
+                              />
+                              <Button
+                                size="small"
+                                type="text"
+                                aria-label="删除这条报价"
+                                icon={<DeleteOutlined />}
+                                onClick={() =>
+                                  patchItem(it.id, {
+                                    drafts: s.drafts.filter(
+                                      (x) => x.key !== d.key,
                                     ),
-                                  )}
-                                  ，按此价比价
-                                </span>
-                              )}
-                              {err && (
-                                <span
-                                  style={{ color: palette.red, fontSize: 11 }}
-                                >
-                                  {err}
-                                </span>
-                              )}
-                            </span>
-                            <Select
-                              size="small"
-                              value={d.itemCondition}
-                              options={conditionOptions}
-                              onChange={(v) =>
-                                patchEntry(it.id, d.key, { itemCondition: v })
-                              }
-                            />
-                            <Select
-                              size="small"
-                              allowClear
-                              placeholder="选择货期"
-                              value={d.leadTime || undefined}
-                              options={leadTimeOptions}
-                              onChange={(v) =>
-                                patchEntry(it.id, d.key, { leadTime: v ?? 0 })
-                              }
-                            />
-                            <Input
-                              size="small"
-                              placeholder="可选"
-                              value={d.note}
-                              maxLength={300}
-                              onChange={(e) =>
-                                patchEntry(it.id, d.key, {
-                                  note: e.target.value,
-                                })
-                              }
-                            />
-                            <Button
-                              size="small"
-                              type="text"
-                              aria-label="删除这条报价"
-                              icon={<DeleteOutlined />}
-                              onClick={() =>
-                                patchItem(it.id, {
-                                  drafts: s.drafts.filter(
-                                    (x) => x.key !== d.key,
-                                  ),
-                                })
-                              }
-                            />
+                                  })
+                                }
+                              />
+                            </div>
+                            <div
+                              style={{
+                                display: 'flex',
+                                alignItems: 'flex-start',
+                                gap: 16,
+                                paddingLeft: review ? 0 : 44,
+                              }}
+                            >
+                              <Checkbox
+                                checked={d.freeShipping !== false}
+                                onChange={(e) =>
+                                  patchEntry(it.id, d.key, {
+                                    freeShipping: e.target.checked,
+                                  })
+                                }
+                              >
+                                <span style={{ fontSize: 12 }}>包邮</span>
+                              </Checkbox>
+                              <AttachmentWall
+                                ownerType="SOURCING_QUOTE"
+                                value={d.files}
+                                onChange={(files) =>
+                                  patchEntry(it.id, d.key, { files })
+                                }
+                                max={5}
+                                accept={ACCEPT_PROOF}
+                              />
+                            </div>
                           </div>
                         );
                       })}

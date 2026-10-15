@@ -28,3 +28,9 @@ export const ATTACHMENT_MAX_BYTES = 10 * 1024 * 1024;
 export const MAX_ATTACHMENTS = 10;
 
 export const LIST_PATH = '/crm/opportunities';
+
+/** 来源渠道「阿里巴巴国际站」才有阿里等级 */
+export const CHANNEL_ALIBABA = 1;
+export const ALI_LEVEL_OPTIONS = ['L0', 'L1', 'L1+', 'L2', 'L3', 'L4'].map(
+  (v) => ({ value: v, label: v }),
+);

@@ -10,6 +10,7 @@ import { readBizError } from '@/pages/sales/service';
 import { ReasonModal } from '@/pages/warehouse/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
+import { usePageSize } from '@/utils/pageSize';
 import { ProofLinks } from '../payables/components';
 import {
   METHOD,
@@ -45,7 +46,7 @@ const PaymentRecords: React.FC = () => {
   const [draft, setDraft] = useState<Filters>(initial);
   const [filters, setFilters] = useState<Filters>(initial);
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
+  const [pageSize, setPageSize] = usePageSize(20);
   const [rows, setRows] = useState<Payment[]>([]);
   const [total, setTotal] = useState(0);
   const [stats, setStats] = useState<PaymentStats>();
@@ -151,6 +152,8 @@ const PaymentRecords: React.FC = () => {
           '—'
         ) : r.method === METHOD.ADVANCE ? (
           <Pill tone="violet">员工垫付</Pill>
+        ) : r.method === METHOD.PRIVATE ? (
+          <Pill tone="orange">私对私</Pill>
         ) : (
           <Pill tone="accent">公司对公</Pill>
         ),
@@ -163,7 +166,9 @@ const PaymentRecords: React.FC = () => {
       render: (_, r) =>
         (r.method === METHOD.ADVANCE && r.kind === 1
           ? r.advanceUser
-          : r.accountName) || '—',
+          : r.method === METHOD.PRIVATE
+            ? r.payerAccount
+            : r.accountName) || '—',
     },
     {
       title: '金额',
@@ -260,7 +265,7 @@ const PaymentRecords: React.FC = () => {
       <PageTitle
         crumbs={['付款单']}
         title="付款单"
-        description="公司对公由财务登记，员工垫付由付款的员工本人登记（进入待报销）；供应商退款也在这里。登记错了由登记人或财务作废，应付随之恢复。"
+        description="公司对公、私对私由财务登记，员工垫付由付款的员工本人登记（进入待报销）；供应商退款也在这里。登记错了由登记人或财务作废，应付随之恢复。"
       />
       <div
         style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginBottom: 16 }}
@@ -268,6 +273,7 @@ const PaymentRecords: React.FC = () => {
         {card('付款合计（人民币）', stats?.total ?? 0, palette.ink)}
         {card('公司对公', stats?.company ?? 0, palette.link)}
         {card('员工垫付', stats?.advance ?? 0, palette.orange)}
+        {card('私对私', stats?.personal ?? 0, palette.violet)}
         {card('报销付款（不计入合计）', stats?.reimburse ?? 0, palette.sub)}
       </div>
       <Card>
@@ -304,6 +310,7 @@ const PaymentRecords: React.FC = () => {
             options={[
               { value: METHOD.COMPANY, label: '公司对公' },
               { value: METHOD.ADVANCE, label: '员工垫付' },
+              { value: METHOD.PRIVATE, label: '私对私' },
             ]}
           />
           <Input

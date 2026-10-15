@@ -32,6 +32,7 @@ import {
 } from 'antd';
 import React, { useEffect, useRef, useState } from 'react';
 import { useAppTheme } from '@/theme/AppTheme';
+import { usePagination } from '@/utils/pageSize';
 import type { UserItem, UserStats } from './service';
 import {
   createUser,
@@ -62,6 +63,7 @@ const DEPT_TREE_PROPS = {
 };
 
 const UserPage: React.FC = () => {
+  const pager = usePagination(10);
   const { palette: p } = useAppTheme();
   const actionRef = useRef<ActionType>(undefined);
   const { message } = App.useApp();
@@ -495,7 +497,7 @@ const UserPage: React.FC = () => {
             success: true,
           };
         }}
-        pagination={{ pageSize: 10 }}
+        pagination={pager}
         search={{ labelWidth: 'auto' }}
         toolBarRender={() => [
           !!(access as Record<string, unknown>)['system:user:add'] && (

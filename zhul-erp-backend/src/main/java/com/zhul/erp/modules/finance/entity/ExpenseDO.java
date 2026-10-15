@@ -21,6 +21,10 @@ public class ExpenseDO {
     private Integer tenantId;
     private String expenseNo;
     private String name;
+    /** 费用类别（字典 expense_category 编码） */
+    private String category;
+    /** 分摊月数（1–36） */
+    private Integer amortizeMonths;
     private LocalDate occurDate;
     /** 1-供应商、2-线上店铺、3-货代、4-其他 */
     private Integer payeeType;

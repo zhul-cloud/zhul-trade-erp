@@ -12,6 +12,7 @@ import com.zhul.erp.modules.product.content.dto.ContentTaskVO;
 import com.zhul.erp.modules.product.content.dto.MarketingPlatformVO;
 import com.zhul.erp.modules.product.content.dto.SavePlatformsRequest;
 import com.zhul.erp.modules.product.content.dto.ProductContentVO;
+import com.zhul.erp.modules.product.content.service.ContentQuickImport;
 import com.zhul.erp.modules.product.content.service.ContentImportRecordService;
 import com.zhul.erp.modules.product.content.service.ContentImportService;
 import com.zhul.erp.modules.product.content.service.ContentPackageService;
@@ -63,6 +64,7 @@ public class ContentTaskController {
     private final PlatformSettingService platformSettings;
     private final MarketingSkipService skipService;
     private final ContentImportRecordService recordService;
+    private final ContentQuickImport quickImport;
 
     // ---------------------------------------------------------------- 资料任务
 
@@ -135,6 +137,21 @@ public class ContentTaskController {
     @PreAuthorize(OPS_EDIT)
     public Result<ContentConfirmVO> marketingConfirm(@Valid @RequestBody ContentFileRequest req) {
         return Result.ok(importService.confirm(req, ContentConstants.TYPE_MARKETING));
+    }
+
+    // ---------------------------------------------------------------- 资料与营销一起上传
+
+    @PostMapping("/combined/preview")
+    @PreAuthorize(FACTS_MENU + " or " + OPS_MENU)
+    public Result<List<ContentPreviewVO>> combinedPreview(@Valid @RequestBody ContentFileRequest req) {
+        return Result.ok(quickImport.preview(req));
+    }
+
+    /** 写入资料与营销，并自动审核技术问答、核对资料：需要「商品内容维护」与「营销内容维护」两个权限 */
+    @PostMapping("/combined/confirm")
+    @PreAuthorize("(" + FACTS_EDIT + ") and (" + OPS_EDIT + ")")
+    public Result<ContentConfirmVO> combinedConfirm(@Valid @RequestBody ContentFileRequest req) {
+        return Result.ok(quickImport.confirm(req));
     }
 
     /** 本公司启用的营销平台 */

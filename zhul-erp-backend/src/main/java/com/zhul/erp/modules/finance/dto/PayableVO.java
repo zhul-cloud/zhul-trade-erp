@@ -76,6 +76,8 @@ public class PayableVO {
         private Integer method;
         private String accountName;
         private String advanceUser;
+        /** 私对私时的付款个人账户 */
+        private String payerAccount;
         private LocalDate payDate;
         private BigDecimal amount;
         private BigDecimal amountCny;

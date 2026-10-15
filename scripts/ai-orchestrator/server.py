@@ -274,25 +274,55 @@ TRANSLATE_PROMPT = """你是工控自动化产品的外贸翻译。把下面每�
 只输出 JSON。"""
 
 
-def call_claude_translate(items: list) -> dict:
-    """翻译型号描述：不联网，不使用任何工具"""
-    content = [{"type": "text", "text": json.dumps({"items": items}, ensure_ascii=False)}]
-    structured = call_api(TRANSLATE_PROMPT, content, TRANSLATE_SCHEMA)
-    if "items" not in structured:
-        raise RuntimeError("AI 未返回符合 schema 的翻译结果")
-    print(f"[ai-orchestrator] 翻译完成 {len(items)} 条")
+NAME_SKILL = "translate-contact-names"
+
+NAME_PROMPT = """你是外贸公司的翻译。把下面每一条客户联系人名称（多为英文、俄文等外文人名）音译成常用的中文译名：
+- 常见英文名用通行译法（如 John 写约翰，Michael 写迈克尔），姓和名之间用「·」分隔
+- 已经是中文的原样返回；看不出是人名的（如公司名、缩写）也按发音音译
+- 只输出中文译名，不加称谓和解释，每条不超过 30 个字符
+- key 原样返回，每条输入都要有对应输出
+只输出 JSON。"""
+
+
+def call_claude_translate(items: list, prompt: str = TRANSLATE_PROMPT) -> dict:
+    """翻译型号描述或联系人名称：不联网，不放行任何工具"""
+    cmd = [
+        CLAUDE_BIN,
+        "-p",
+        json.dumps({"items": items}, ensure_ascii=False),
+        "--append-system-prompt",
+        prompt,
+        "--output-format",
+        "json",
+        "--json-schema",
+        json.dumps(TRANSLATE_SCHEMA),
+        "--permission-prompts",
+        "none",
+        "--max-budget-usd",
+        MAX_BUDGET_USD,
+    ]
+    result = subprocess.run(cmd, capture_output=True, text=True, timeout=CLAUDE_TIMEOUT_SECONDS)
+    if result.returncode != 0:
+        raise RuntimeError(f"claude 进程退出码 {result.returncode}: {result.stderr[-2000:]}")
+    envelope = json.loads(result.stdout)
+    if envelope.get("is_error"):
+        raise RuntimeError(f"claude 返回错误: {envelope.get('result')}")
+    structured = envelope.get("structured_output")
+    if not structured or "items" not in structured:
+        raise RuntimeError("claude 未返回符合 schema 的翻译结果")
+    print(f"[ai-orchestrator] 翻译完成 {len(items)} 条，费用约 ${envelope.get('total_cost_usd')}")
     return structured
 
 
-def process_translate(payload: dict, callback_url: str):
+def process_translate(payload: dict, callback_url: str, prompt: str = TRANSLATE_PROMPT):
     try:
         items = (payload.get("input") or {}).get("items") or []
         if not items:
-            send_callback(callback_url, "failed", error="没有需要翻译的描述")
+            send_callback(callback_url, "failed", error="没有需要翻译的内容")
             return
-        send_callback(callback_url, "success", output=call_claude_translate(items))
-    except anthropic.APITimeoutError:
-        send_callback(callback_url, "failed", error=f"AI 处理超过 {TIMEOUT_SECONDS} 秒未完成")
+        send_callback(callback_url, "success", output=call_claude_translate(items, prompt))
+    except subprocess.TimeoutExpired:
+        send_callback(callback_url, "failed", error=f"claude 处理超过 {CLAUDE_TIMEOUT_SECONDS} 秒未完成")
     except Exception as e:
         print(f"[ai-orchestrator] translate failed: {e}")
         send_callback(callback_url, "failed", error=str(e)[:500])
@@ -364,9 +394,10 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(json.dumps({"job_id": job_id}).encode("utf-8"))
 
-        if skill_id == TRANSLATE_SKILL:
+        if skill_id in (TRANSLATE_SKILL, NAME_SKILL):
+            prompt = NAME_PROMPT if skill_id == NAME_SKILL else TRANSLATE_PROMPT
             if callback_url:
-                threading.Thread(target=process_translate, args=(payload, callback_url), daemon=True).start()
+                threading.Thread(target=process_translate, args=(payload, callback_url, prompt), daemon=True).start()
             return
 
         if skill_id != "inquiry-parse-and-split":

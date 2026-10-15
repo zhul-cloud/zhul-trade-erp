@@ -17,6 +17,7 @@ import { auditColumns } from '@/pages/purchase/components';
 import { CURRENCIES } from '@/pages/quotation/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
+import { usePageSize } from '@/utils/pageSize';
 import { Card, PATHS, RECEIPT_META, SalesPageTitle } from '../components';
 import {
   type OrderListItem,
@@ -45,9 +46,18 @@ interface Filters {
   receiptStatus?: number;
 }
 
-const initial = (): Filters => ({
-  range: [dayjs().startOf('month'), dayjs().endOf('month')],
-});
+/** 默认本月；从销售统计跳转时用 URL 带的销售日期 */
+const initial = (): Filters => {
+  const p = new URLSearchParams(window.location.search);
+  const from = p.get('dateFrom');
+  const to = p.get('dateTo');
+  return {
+    range:
+      from && to
+        ? [dayjs(from), dayjs(to)]
+        : [dayjs().startOf('month'), dayjs().endOf('month')],
+  };
+};
 
 const OrderList: React.FC = () => {
   const { palette } = useAppTheme();
@@ -56,7 +66,11 @@ const OrderList: React.FC = () => {
   const [form] = Form.useForm<Filters>();
   const [filters, setFilters] = useState<Filters>(initial);
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
+  const [pageSize, setPageSize] = usePageSize(20);
+  const [sort, setSort] = useState<{
+    field?: string;
+    order?: 'ascend' | 'descend';
+  }>({});
   const [rows, setRows] = useState<OrderListItem[]>([]);
   const [total, setTotal] = useState(0);
   const [stats, setStats] = useState<OrderStats>();
@@ -81,6 +95,8 @@ const OrderList: React.FC = () => {
       currencyCode: filters.currencyCode,
       purchaserId: filters.purchaserId,
       receiptStatus: filters.receiptStatus,
+      sortField: sort.order ? sort.field : undefined,
+      sortOrder: sort.order ?? undefined,
       page,
       pageSize,
     };
@@ -93,7 +109,7 @@ const OrderList: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [filters, page, pageSize]);
+  }, [filters, page, pageSize, sort]);
 
   useEffect(() => {
     load();
@@ -172,6 +188,32 @@ const OrderList: React.FC = () => {
           {formatAmount(v, r.currencyCode)}
         </b>
       ),
+    },
+    {
+      title: '毛利',
+      key: 'profit',
+      width: 150,
+      align: 'right',
+      sorter: true,
+      sortOrder: sort.field === 'profit' ? sort.order : null,
+      render: (_, r) =>
+        r.profit == null ? (
+          <span style={{ color: palette.mute }}>—</span>
+        ) : (
+          <div>
+            <b
+              style={{
+                fontVariantNumeric: 'tabular-nums',
+                color: r.profit >= 0 ? palette.green : palette.red,
+              }}
+            >
+              {formatAmount(r.profit, 'CNY')}
+            </b>
+            {sub(
+              `${r.profitRate != null ? `${r.profitRate}% · ` : ''}${r.profitSettled ? '已结算' : '未结算'}`,
+            )}
+          </div>
+        ),
     },
     {
       title: '收款进度',
@@ -531,8 +573,16 @@ const OrderList: React.FC = () => {
           columns={columns}
           dataSource={rows}
           loading={loading}
-          scroll={{ x: 2400 }}
+          scroll={{ x: 2550 }}
           locale={{ emptyText: '没有符合条件的订单，换个筛选条件试试' }}
+          onChange={(_, __, sorter) => {
+            const s = Array.isArray(sorter) ? sorter[0] : sorter;
+            setSort({
+              field: s?.columnKey as string | undefined,
+              order: s?.order ?? undefined,
+            });
+            setPage(1);
+          }}
           pagination={{
             current: page,
             pageSize,
@@ -547,7 +597,8 @@ const OrderList: React.FC = () => {
         />
       )}
       <div style={{ marginTop: 12, fontSize: 12, color: palette.mute }}>
-        默认列出本月销售的订单，按销售日期倒序；收款进度 = 已到账（毛额）÷
+        默认列出本月销售的订单，按销售日期倒序；毛利 = 收入（毛额 × 结汇汇率）−
+        实际成本，点表头可按毛利排序；收款进度 = 已到账（毛额）÷
         合计；订单状态取所有型号中最靠前的进度。
       </div>
       <NewOrderDrawer

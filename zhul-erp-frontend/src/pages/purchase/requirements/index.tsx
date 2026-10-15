@@ -34,6 +34,7 @@ import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useUserOptions } from '@/pages/sales/orders/dialogs';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
+import { usePageSize } from '@/utils/pageSize';
 import {
   auditColumns,
   Card,
@@ -88,7 +89,7 @@ const RequirementList: React.FC = () => {
   const [filters, setFilters] = useState<Filters>({ status: 'open' });
   const [draftFilters, setDraftFilters] = useState<Filters>({ status: 'open' });
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
+  const [pageSize, setPageSize] = usePageSize(20);
   const [orders, setOrders] = useState<RequirementOrder[]>([]);
   const [rows, setRows] = useState<Requirement[]>([]);
   const [total, setTotal] = useState(0);

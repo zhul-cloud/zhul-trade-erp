@@ -91,6 +91,8 @@ public class PurchaseOrderVO implements ShipFields {
         private Long requirementId;
         private Long soId;
         private String soNo;
+        /** 来源销售订单行的现货 / 期货（1-现货、2-期货） */
+        private Integer stockType;
         private String customerName;
         private String customerCountry;
         private String model;

@@ -19,6 +19,8 @@ public class PaymentVO {
     private Integer method;
     private Long bankAccountId;
     private String accountName;
+    /** 私对私时的付款个人账户 */
+    private String payerAccount;
     private String advanceUser;
     private Integer reimburseStatus;
     private LocalDate payDate;

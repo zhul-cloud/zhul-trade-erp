@@ -115,6 +115,7 @@ public class ContentImportService {
             ContentPreviewVO vo = a.vo();
             ContentConfirmVO.Item item = new ContentConfirmVO.Item();
             item.setFileName(vo.getFileName());
+            item.setType(vo.getType());
             item.setProductId(vo.getProductId());
             item.setProductLabel(vo.getProductLabel());
             item.setLang(vo.getLang());

@@ -5,7 +5,16 @@ import {
 } from '@ant-design/icons';
 import { history, Link, useAccess, useParams } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
-import { Alert, App, Button, Select, Skeleton, Table, Tooltip } from 'antd';
+import {
+  Alert,
+  App,
+  Button,
+  Select,
+  Skeleton,
+  Space,
+  Table,
+  Tooltip,
+} from 'antd';
 import React, { useEffect, useState } from 'react';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import {
@@ -43,12 +52,15 @@ import {
   PRICE_SOURCE_HISTORY,
   STATUS,
 } from '../shared/constants';
+import QuoteExtras from '../shared/QuoteExtras';
 import {
+  type InquiryAppend,
   type InquiryDetail,
   type InquiryItem,
   inquiryApi,
   readBizError,
 } from '../shared/service';
+import AppendModal from './AppendModal';
 
 const Meta: React.FC<{ label: string; children: React.ReactNode }> = ({
   label,
@@ -75,6 +87,7 @@ const CustomerInquiryDetailPage: React.FC = () => {
   const [detail, setDetail] = useState<InquiryDetail | null>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [appendOpen, setAppendOpen] = useState(false);
   const [quotations, setQuotations] = useState<QuotationListItem[]>();
   const access = useAccess() as Record<string, boolean>;
   const canQuote = !!access.quotationList;
@@ -114,12 +127,14 @@ const CustomerInquiryDetailPage: React.FC = () => {
     load();
   }, [inquiryId]);
 
-  // 解析中时每 5 秒刷新一次，解析完自动显示结果
+  // 解析中（含追加型号的解析）时每 5 秒刷新一次，解析完自动显示结果
+  const appendParsing = detail?.openAppend?.status === 1;
   useEffect(() => {
-    if (detail?.inquiry.status !== STATUS.PARSING) return undefined;
+    if (detail?.inquiry.status !== STATUS.PARSING && !appendParsing)
+      return undefined;
     const t = window.setInterval(load, 5000);
     return () => window.clearInterval(t);
-  }, [detail?.inquiry.status]);
+  }, [detail?.inquiry.status, appendParsing]);
 
   const run = async (
     fn: () => Promise<unknown>,
@@ -289,6 +304,7 @@ const CustomerInquiryDetailPage: React.FC = () => {
             <span style={{ color: palette.ink, fontWeight: 600 }}>
               <PriceSummary value={q} />
             </span>
+            <QuoteExtras quote={q} />
             {q.note && (
               <span
                 style={{
@@ -429,6 +445,18 @@ const CustomerInquiryDetailPage: React.FC = () => {
                 去确认型号
               </Button>
             )}
+            {!detail.openAppend &&
+              (
+                [
+                  STATUS.SOURCING,
+                  STATUS.READY,
+                  STATUS.QUOTED,
+                ] as number[]
+              ).includes(inq.status) && (
+                <Button disabled={busy} onClick={() => setAppendOpen(true)}>
+                  追加型号
+                </Button>
+              )}
             {canQuote &&
               inq.status >= STATUS.SOURCING &&
               inq.status !== STATUS.CANCELLED && (
@@ -501,6 +529,7 @@ const CustomerInquiryDetailPage: React.FC = () => {
             <DeadlineText date={inq.quoteDeadline} status={inq.status} />
           </Meta>
           <Meta label="创建时间">{formatDateTime(inq.createTime)}</Meta>
+          {detail.remark && <Meta label="备注">{detail.remark}</Meta>}
           {detail.opportunityCode && (
             <Meta label={`来源商机 · ${detail.opportunityStageName ?? ''}`}>
               <Link to={`/crm/opportunities/${inq.opportunityId}`}>
@@ -560,6 +589,20 @@ const CustomerInquiryDetailPage: React.FC = () => {
           description={`${detail.parseError || '原因未知'}。可以重新解析，或改为手动录入型号。`}
         />
       )}
+      {detail.openAppend && (
+        <AppendBanner
+          inquiryId={inquiryId}
+          append={detail.openAppend}
+          busy={busy}
+          run={run}
+        />
+      )}
+      <AppendModal
+        inquiryId={inquiryId}
+        open={appendOpen}
+        onClose={() => setAppendOpen(false)}
+        onStarted={load}
+      />
       {inq.status === STATUS.PARSING && (
         <Alert
           type="info"
@@ -774,6 +817,89 @@ const CustomerInquiryDetailPage: React.FC = () => {
         </div>
       </div>
     </div>
+  );
+};
+
+/** 未完成的追加型号：解析中、待确认、解析失败 */
+const AppendBanner: React.FC<{
+  inquiryId: number;
+  append: InquiryAppend;
+  busy: boolean;
+  run: (fn: () => Promise<unknown>, ok: string) => void;
+}> = ({ inquiryId, append: a, busy, run }) => {
+  const toConfirm = () =>
+    history.push(`${PATHS.inquiries}/${inquiryId}/confirm?append=${a.id}`);
+  const discard = (
+    <Button
+      size="small"
+      disabled={busy}
+      onClick={() =>
+        run(() => inquiryApi.discardAppend(inquiryId, a.id), '已放弃这次追加')
+      }
+    >
+      放弃追加
+    </Button>
+  );
+  if (a.status === 1)
+    return (
+      <Alert
+        type="info"
+        showIcon
+        style={{ marginBottom: 16 }}
+        title="追加的型号正在 AI 解析，完成后页面会自动刷新"
+        action={discard}
+      />
+    );
+  if (a.status === 3)
+    return (
+      <Alert
+        type="error"
+        showIcon
+        style={{ marginBottom: 16 }}
+        title="追加型号解析失败"
+        description={`${a.parseError || '原因未知'}。可以重新解析、改为手动录入，或放弃这次追加。`}
+        action={
+          <Space orientation="vertical">
+            <Button
+              size="small"
+              type="primary"
+              disabled={busy}
+              onClick={() =>
+                run(
+                  () => inquiryApi.retryAppend(inquiryId, a.id),
+                  '已重新发起 AI 解析',
+                )
+              }
+            >
+              重新解析
+            </Button>
+            <Button size="small" onClick={toConfirm}>
+              手动录入
+            </Button>
+            {discard}
+          </Space>
+        }
+      />
+    );
+  return (
+    <Alert
+      type="warning"
+      showIcon
+      style={{ marginBottom: 16 }}
+      title={
+        a.parseMode === 2
+          ? '有一次追加型号还没录入完'
+          : '追加的型号已解析完，确认后才会加到询盘单里'
+      }
+      action={
+        <Space>
+          <Button size="small" type="primary" onClick={toConfirm}>
+            去确认
+          </Button>
+          {discard}
+        </Space>
+      }
+    />
   );
 };
 

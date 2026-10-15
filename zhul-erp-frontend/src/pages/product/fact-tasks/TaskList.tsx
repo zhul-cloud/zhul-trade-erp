@@ -15,6 +15,7 @@ import { Pill } from '@/pages/product/components/Pills';
 import { auditColumns } from '@/pages/purchase/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatDateTime } from '@/utils/format';
+import { usePageSize } from '@/utils/pageSize';
 import { ImportRecordsDrawer } from '../products/cards/ImportRecords';
 import {
   factsVerified,
@@ -140,7 +141,7 @@ export const TaskList: React.FC<{ entry: PackageType }> = ({ entry }) => {
     keyword: initialKeyword || undefined,
   });
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
+  const [pageSize, setPageSize] = usePageSize(20);
   const [rows, setRows] = useState<ContentTask[]>([]);
   const [total, setTotal] = useState(0);
   const [counts, setCounts] = useState<Record<string, number>>({});
@@ -152,6 +153,10 @@ export const TaskList: React.FC<{ entry: PackageType }> = ({ entry }) => {
   const [settingsOpen, setSettingsOpen] = useState(false);
   /** 行内上传、上传记录对应的商品 */
   const [rowUpload, setRowUpload] = useState<{ id: number; label: string }>();
+  const [rowCombined, setRowCombined] = useState<{
+    id: number;
+    label: string;
+  }>();
   const [rowRecords, setRowRecords] = useState<{ id: number; label: string }>();
   const platformState = usePlatforms(!facts);
   const platforms = platformState.enabled;
@@ -350,6 +355,11 @@ export const TaskList: React.FC<{ entry: PackageType }> = ({ entry }) => {
             上传
           </a>
           <a
+            onClick={() => setRowCombined({ id: t.productId, label: label(t) })}
+          >
+            资料+营销
+          </a>
+          <a
             onClick={() => setRowRecords({ id: t.productId, label: label(t) })}
           >
             上传记录
@@ -544,6 +554,13 @@ export const TaskList: React.FC<{ entry: PackageType }> = ({ entry }) => {
         open={!!rowUpload}
         product={rowUpload}
         onClose={() => setRowUpload(undefined)}
+        onDone={load}
+      />
+      <UploadDrawer
+        entry="combined"
+        open={!!rowCombined}
+        product={rowCombined}
+        onClose={() => setRowCombined(undefined)}
         onDone={load}
       />
       <ImportRecordsDrawer

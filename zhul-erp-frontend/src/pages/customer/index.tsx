@@ -24,6 +24,7 @@ import { useCountries } from '@/pages/product/components/useCountries';
 import { useAppTheme } from '@/theme/AppTheme';
 import { DICT_SOURCE_CHANNEL, useDictOptions } from '@/utils/dict';
 import { formatDateTime } from '@/utils/format';
+import { usePageSize } from '@/utils/pageSize';
 import {
   GradePill,
   LIST_PATH,
@@ -69,7 +70,7 @@ const CustomerListPage: React.FC = () => {
 
   const [query, setQuery] = useState<CustomerQuery>({});
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [pageSize, setPageSize] = usePageSize(10);
   const [rows, setRows] = useState<CustomerListItem[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);

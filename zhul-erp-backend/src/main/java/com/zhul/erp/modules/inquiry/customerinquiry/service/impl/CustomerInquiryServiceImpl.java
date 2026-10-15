@@ -17,6 +17,10 @@ import com.zhul.erp.modules.aitask.service.AiTaskService;
 import com.zhul.erp.modules.crm.dto.OpportunityVO;
 import com.zhul.erp.modules.crm.service.OpportunityService;
 import com.zhul.erp.modules.inquiry.constants.InquiryConstants;
+import com.zhul.erp.modules.inquiry.customerinquiry.repository.CustomerInquiryAppendMapper;
+import com.zhul.erp.modules.inquiry.customerinquiry.entity.CustomerInquiryAppendDO;
+import com.zhul.erp.modules.inquiry.customerinquiry.dto.AppendVO;
+import com.zhul.erp.modules.inquiry.customerinquiry.dto.AppendRequest;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.AiParseGroupDTO;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.AiParseItemDTO;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.AiParseOutputDTO;
@@ -130,6 +134,7 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
     private final QuotationLocks quotationLocks;
     private final com.zhul.erp.modules.product.candidate.service.ProductArchiver productArchiver;
     private final InquiryCategories inquiryCategories;
+    private final CustomerInquiryAppendMapper appendMapper;
 
     // ---------------------------------------------------------------- 附件
 
@@ -180,6 +185,10 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
         vo.setCustomerType(won.isEmpty() ? InquiryConstants.CUSTOMER_NEW : InquiryConstants.CUSTOMER_RETURNING);
         vo.setWonCount(won.size());
         vo.setLastWonDate(won.stream().map(i -> i.getUpdateTime().toLocalDate()).max(LocalDate::compareTo).orElse(null));
+        CustomerDO customer = customerMapper.selectById(customerId);
+        if (customer != null && Objects.equals(customer.getTenantId(), tenantId()) && customer.getDeletedAt() == null) {
+            vo.setSourceChannel(customer.getSourceChannel());
+        }
         return vo;
     }
 
@@ -205,9 +214,8 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
             throw new BizException("报价截止不能早于询盘日期");
         }
         dictItemService.requireEnabledValue(DictTypes.SOURCE_CHANNEL, req.getSource(), "来源渠道不正确");
-        List<Path> files = new ArrayList<>(refs.size());
         for (AttachmentRef ref : refs) {
-            files.add(fileStorage.resolveOwned(InquiryConstants.ATTACHMENT_MODULE, ref.getFileKey(), tenantId));
+            fileStorage.resolveOwned(InquiryConstants.ATTACHMENT_MODULE, ref.getFileKey(), tenantId);
         }
 
         CustomerInquiryDO inquiry = new CustomerInquiryDO();
@@ -236,22 +244,30 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
         inquiry.setRemark(req.getRemark() == null ? "" : req.getRemark());
         insertWithRetry(inquiry);
 
-        for (int i = 0; i < refs.size(); i++) {
-            AttachmentRef ref = refs.get(i);
-            CustomerInquiryAttachmentDO a = new CustomerInquiryAttachmentDO();
-            a.setTenantId(tenantId);
-            a.setCustomerInquiryId(inquiry.getId());
-            a.setFileKey(ref.getFileKey());
-            a.setFileName(PrivateFileStorage.cleanFileName(ref.getFileName(), PrivateFileStorage.extOf(ref.getFileKey())));
-            a.setContentType(PrivateFileStorage.contentTypeOf(ref.getFileKey()));
-            a.setFileSize(files.get(i).toFile().length());
-            a.setSort(i);
-            attachmentMapper.insert(a);
-        }
+        saveAttachments(inquiry, refs, 0L);
         if (req.getOpportunityId() != null) {
             opportunityService.onInquiryCreated(req.getOpportunityId(), inquiry.getInquiryCode());
         }
         return toVos(List.of(inquiry)).get(0);
+    }
+
+    /** 保存询盘附件；appendId 为 0 时是录入询盘单时的附件，否则属于某次追加。排序接着已有附件 */
+    private void saveAttachments(CustomerInquiryDO inquiry, List<AttachmentRef> refs, long appendId) {
+        int sort = Math.toIntExact(attachmentMapper.selectCount(new LambdaQueryWrapper<CustomerInquiryAttachmentDO>()
+                .eq(CustomerInquiryAttachmentDO::getCustomerInquiryId, inquiry.getId())));
+        for (AttachmentRef ref : refs) {
+            Path path = fileStorage.resolveOwned(InquiryConstants.ATTACHMENT_MODULE, ref.getFileKey(), inquiry.getTenantId());
+            CustomerInquiryAttachmentDO a = new CustomerInquiryAttachmentDO();
+            a.setTenantId(inquiry.getTenantId());
+            a.setCustomerInquiryId(inquiry.getId());
+            a.setAppendId(appendId);
+            a.setFileKey(ref.getFileKey());
+            a.setFileName(PrivateFileStorage.cleanFileName(ref.getFileName(), PrivateFileStorage.extOf(ref.getFileKey())));
+            a.setContentType(PrivateFileStorage.contentTypeOf(ref.getFileKey()));
+            a.setFileSize(path.toFile().length());
+            a.setSort(sort++);
+            attachmentMapper.insert(a);
+        }
     }
 
     private void insertWithRetry(CustomerInquiryDO inquiry) {
@@ -364,6 +380,8 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
         vo.setInquiry(toVos(List.of(inquiry)).get(0));
         vo.setRawContent(inquiry.getRawContent());
         vo.setParseError(inquiry.getParseError());
+        CustomerInquiryAppendDO open = openAppend(inquiry.getId());
+        vo.setOpenAppend(open == null ? null : toAppendVo(open));
         vo.setRemark(inquiry.getRemark());
         vo.setAttachments(attachments(inquiry.getId()));
 
@@ -523,8 +541,14 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
     }
 
     private List<AttachmentVO> attachments(Long inquiryId) {
+        return attachments(inquiryId, null);
+    }
+
+    /** appendId 为空时全部附件，否则只取该次追加（0 为录入时）的附件 */
+    private List<AttachmentVO> attachments(Long inquiryId, Long appendId) {
         return attachmentMapper.selectList(new LambdaQueryWrapper<CustomerInquiryAttachmentDO>()
                         .eq(CustomerInquiryAttachmentDO::getCustomerInquiryId, inquiryId)
+                        .eq(appendId != null, CustomerInquiryAttachmentDO::getAppendId, appendId)
                         .isNull(CustomerInquiryAttachmentDO::getDeletedAt)
                         .orderByAsc(CustomerInquiryAttachmentDO::getSort))
                 .stream().map(a -> {
@@ -567,10 +591,20 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
      * {@code rawAttachmentPath} 保留第一个图片 / PDF，兼容只认单个附件的旧版编排服务。
      */
     private CustomerInquiryVO submitParseTask(CustomerInquiryDO inquiry) {
-        StringBuilder text = new StringBuilder(inquiry.getRawContent() == null ? "" : inquiry.getRawContent());
+        AiTaskVO task = aiTaskService.createAndSubmit(PARSE_SKILL_ID, parseInput(inquiry, inquiry.getRawContent(), 0L), currentUser.resolve());
+        inquiry.setAiTaskId(task.getId());
+        inquiry.setStatus(InquiryConstants.STATUS_PARSING);
+        inquiryMapper.updateById(inquiry);
+        return toVos(List.of(inquiry)).get(0);
+    }
+
+    /** 解析输入：只取这次的内容与附件（appendId 为 0 时是录入询盘单时的） */
+    private String parseInput(CustomerInquiryDO inquiry, String rawContent, long appendId) {
+        StringBuilder text = new StringBuilder(rawContent == null ? "" : rawContent);
         List<String> paths = new ArrayList<>();
         for (CustomerInquiryAttachmentDO a : attachmentMapper.selectList(new LambdaQueryWrapper<CustomerInquiryAttachmentDO>()
                 .eq(CustomerInquiryAttachmentDO::getCustomerInquiryId, inquiry.getId())
+                .eq(CustomerInquiryAttachmentDO::getAppendId, appendId)
                 .isNull(CustomerInquiryAttachmentDO::getDeletedAt)
                 .orderByAsc(CustomerInquiryAttachmentDO::getSort))) {
             Path path = fileStorage.resolveOwned(InquiryConstants.ATTACHMENT_MODULE, a.getFileKey(), inquiry.getTenantId());
@@ -590,11 +624,7 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
         if (!paths.isEmpty()) {
             input.put("rawAttachmentPath", paths.get(0));
         }
-        AiTaskVO task = aiTaskService.createAndSubmit(PARSE_SKILL_ID, writeJson(input), currentUser.resolve());
-        inquiry.setAiTaskId(task.getId());
-        inquiry.setStatus(InquiryConstants.STATUS_PARSING);
-        inquiryMapper.updateById(inquiry);
-        return toVos(List.of(inquiry)).get(0);
+        return writeJson(input);
     }
 
     /** 发给 AI 的品类清单：启用的一级品类按排序，每个一级后面跟着它的细分品类 */
@@ -624,7 +654,11 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
     @Transactional(rollbackFor = Exception.class)
     public void applyParseSuccess(Long aiTaskId, String outputJson) {
         CustomerInquiryDO inquiry = findByAiTask(aiTaskId);
-        if (inquiry == null || inquiry.getStatus() != InquiryConstants.STATUS_PARSING) {
+        if (inquiry == null) {
+            applyAppendParse(aiTaskId, true, null);
+            return;
+        }
+        if (inquiry.getStatus() != InquiryConstants.STATUS_PARSING) {
             log.warn("AI 解析成功回调已无对应的解析中询盘，忽略，aiTaskId={}", aiTaskId);
             return;
         }
@@ -653,7 +687,11 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
     @Transactional(rollbackFor = Exception.class)
     public void applyParseFailure(Long aiTaskId, String errorMessage) {
         CustomerInquiryDO inquiry = findByAiTask(aiTaskId);
-        if (inquiry == null || inquiry.getStatus() != InquiryConstants.STATUS_PARSING) {
+        if (inquiry == null) {
+            applyAppendParse(aiTaskId, false, errorMessage);
+            return;
+        }
+        if (inquiry.getStatus() != InquiryConstants.STATUS_PARSING) {
             log.warn("AI 解析失败回调已无对应的解析中询盘，忽略，aiTaskId={}", aiTaskId);
             return;
         }
@@ -729,6 +767,25 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
             inquiry.setParseMode(InquiryConstants.PARSE_MODE_MANUAL);
             inquiry.setParseError("");
         }
+        Batch b = insertRows(inquiry, req.getRows(), 0);
+        int taskCount = sourcingTaskService.createTasks(inquiry, b.pending()).size();
+        inquiry.setTotalItemCount(b.count());
+        inquiry.setTotalQuantity((int) Math.min(b.quantity(), Integer.MAX_VALUE));
+        inquiry.setPricedItemCount(b.priced());
+        inquiry.setPendingVerifyCount(b.verify());
+        inquiry.setTotalOrderCount(taskCount);
+        inquiry.setStatus(b.pending().isEmpty() ? InquiryConstants.STATUS_READY_TO_QUOTE : InquiryConstants.STATUS_SOURCING);
+        inquiryMapper.updateById(inquiry);
+        // 询价任务生成后自动建档：商品库已有的关联，没有的进商品候选，不像型号的待回填真实型号
+        productArchiver.sync(b.ids());
+    }
+
+    /** 一次确认写入的型号：行数、总数量、复用历史价数、待核实数、待询价的型号、全部型号 ID */
+    private record Batch(int count, long quantity, int priced, int verify, List<InquiryItemDO> pending, List<Long> ids) {
+    }
+
+    /** 逐行校验并写入型号明细；行号从 lineOffset + 1 开始，报错的「第 N 行」按确认页的行 */
+    private Batch insertRows(CustomerInquiryDO inquiry, List<ConfirmRowRequest> rows, int lineOffset) {
         List<InquiryItemDO> pending = new ArrayList<>();
         List<Long> confirmedIds = new ArrayList<>();
         QuoteDictSnapshot.Dict lifecycles = quoteDicts.snapshot().lifecycles();
@@ -736,7 +793,7 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
         int line = 0;
         int priced = 0;
         int verify = 0;
-        for (ConfirmRowRequest row : req.getRows()) {
+        for (ConfirmRowRequest row : rows) {
             line++;
             Integer lifecycle = row.getLifecycle() == null || row.getLifecycle() == 0 ? InquiryConstants.LIFECYCLE_UNKNOWN : row.getLifecycle();
             if (!lifecycles.enabled().contains(lifecycle)) {
@@ -750,7 +807,7 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
             InquiryItemDO item = new InquiryItemDO();
             item.setTenantId(inquiry.getTenantId());
             item.setCustomerInquiryId(inquiry.getId());
-            item.setLineNo(line);
+            item.setLineNo(lineOffset + line);
             item.setBrand(row.getBrand().trim());
             item.setBrandId(brand.brandId());
             item.setBrandKey(brand.brandKey());
@@ -796,16 +853,8 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
                 pending.add(item);
             }
         }
-        int taskCount = sourcingTaskService.createTasks(inquiry, pending).size();
-        inquiry.setTotalItemCount(line);
-        inquiry.setTotalQuantity((int) Math.min(req.getRows().stream().mapToLong(ConfirmRowRequest::getQuantity).sum(), Integer.MAX_VALUE));
-        inquiry.setPricedItemCount(priced);
-        inquiry.setPendingVerifyCount(verify);
-        inquiry.setTotalOrderCount(taskCount);
-        inquiry.setStatus(pending.isEmpty() ? InquiryConstants.STATUS_READY_TO_QUOTE : InquiryConstants.STATUS_SOURCING);
-        inquiryMapper.updateById(inquiry);
-        // 询价任务生成后自动建档：商品库已有的关联，没有的进商品候选，不像型号的待回填真实型号
-        productArchiver.sync(confirmedIds);
+        long quantity = rows.stream().mapToLong(ConfirmRowRequest::getQuantity).sum();
+        return new Batch(line, quantity, priced, verify, pending, confirmedIds);
     }
 
     private Long matchProduct(String brand, String model) {
@@ -821,6 +870,208 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
         return q != null && q.getDeletedAt() == null && Objects.equals(q.getTenantId(), tenantId)
                 && q.getStatus() == InquiryConstants.QUOTE_SUBMITTED && !Objects.equals(q.getNoStock(), 1) && q.getUnitPriceCny() != null
                 && brandKey.equals(q.getBrandKey()) && modelKey.equals(q.getModelKey());
+    }
+
+    // ---------------------------------------------------------------- 追加型号（spec inquiry/inquiry-intake「追加型号」）
+
+    private static final int APPEND_PARSING = 1;
+    private static final int APPEND_PENDING_CONFIRM = 2;
+    private static final int APPEND_PARSE_FAILED = 3;
+    private static final int APPEND_CONFIRMED = 4;
+    private static final int APPEND_DISCARDED = 5;
+    private static final Set<Integer> APPEND_OPEN = Set.of(APPEND_PARSING, APPEND_PENDING_CONFIRM, APPEND_PARSE_FAILED);
+    private static final Set<Integer> APPENDABLE = Set.of(InquiryConstants.STATUS_SOURCING, InquiryConstants.STATUS_READY_TO_QUOTE,
+            InquiryConstants.STATUS_QUOTED);
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public AppendVO startAppend(Long id, AppendRequest req) {
+        CustomerInquiryDO inquiry = getVisible(id);
+        progress.lock(inquiry.getId());
+        inquiry = inquiryMapper.selectById(id);
+        if (!APPENDABLE.contains(inquiry.getStatus())) {
+            throw new BizException("只有询价中、可报价、已报价的询盘单可以追加型号");
+        }
+        if (openAppend(inquiry.getId()) != null) {
+            throw new BizException("这张询盘单还有一次追加没有完成，请先确认或放弃");
+        }
+        List<AttachmentRef> refs = req.getAttachments() == null ? List.of() : req.getAttachments();
+        boolean manual = Boolean.TRUE.equals(req.getManual());
+        if (!manual && !StringUtils.hasText(req.getRawContent()) && refs.isEmpty()) {
+            throw new BizException("请粘贴追加的内容或上传附件");
+        }
+        CustomerInquiryAppendDO a = new CustomerInquiryAppendDO();
+        a.setTenantId(inquiry.getTenantId());
+        a.setCustomerInquiryId(inquiry.getId());
+        a.setRawContent(StringUtils.hasText(req.getRawContent()) ? req.getRawContent().trim() : "");
+        a.setParseMode(manual ? InquiryConstants.PARSE_MODE_MANUAL : InquiryConstants.PARSE_MODE_AI);
+        a.setStatus(manual ? APPEND_PENDING_CONFIRM : APPEND_PARSING);
+        a.setParseError("");
+        a.setItemCount(0);
+        appendMapper.insert(a);
+        saveAttachments(inquiry, refs, a.getId());
+        if (!manual) {
+            submitAppendParse(inquiry, a);
+        }
+        return toAppendVo(a);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public AppendVO retryAppend(Long id, Long appendId) {
+        CustomerInquiryDO inquiry = getVisible(id);
+        CustomerInquiryAppendDO a = requireAppend(inquiry, appendId);
+        if (a.getStatus() != APPEND_PARSE_FAILED && a.getStatus() != APPEND_PENDING_CONFIRM) {
+            throw new BizException("只有解析失败或待确认的追加可以重新解析");
+        }
+        if (!StringUtils.hasText(a.getRawContent()) && attachments(inquiry.getId(), a.getId()).isEmpty()) {
+            throw new BizException("这次追加没有内容可以解析，请手动录入");
+        }
+        a.setParseError("");
+        a.setParseMode(InquiryConstants.PARSE_MODE_AI);
+        submitAppendParse(inquiry, a);
+        return toAppendVo(a);
+    }
+
+    private void submitAppendParse(CustomerInquiryDO inquiry, CustomerInquiryAppendDO a) {
+        AiTaskVO task = aiTaskService.createAndSubmit(PARSE_SKILL_ID, parseInput(inquiry, a.getRawContent(), a.getId()),
+                currentUser.resolve());
+        a.setAiTaskId(task.getId());
+        a.setStatus(APPEND_PARSING);
+        appendMapper.updateById(a);
+    }
+
+    /** 解析回调：AI 任务不属于询盘单时，找追加批次 */
+    private void applyAppendParse(Long aiTaskId, boolean success, String errorMessage) {
+        CustomerInquiryAppendDO a = appendMapper.selectOne(new LambdaQueryWrapper<CustomerInquiryAppendDO>()
+                .eq(CustomerInquiryAppendDO::getAiTaskId, aiTaskId)
+                .isNull(CustomerInquiryAppendDO::getDeletedAt)
+                .last("LIMIT 1"));
+        if (a == null || a.getStatus() != APPEND_PARSING) {
+            log.warn("AI 解析回调已无对应的解析中询盘或追加，忽略，aiTaskId={}", aiTaskId);
+            return;
+        }
+        if (success) {
+            a.setStatus(APPEND_PENDING_CONFIRM);
+        } else {
+            String msg = StringUtils.hasText(errorMessage) ? errorMessage : "AI 解析失败";
+            a.setParseError(msg.length() > 300 ? msg.substring(0, 300) : msg);
+            a.setStatus(APPEND_PARSE_FAILED);
+        }
+        appendMapper.updateById(a);
+    }
+
+    @Override
+    public DraftVO appendDraft(Long id, Long appendId) {
+        CustomerInquiryDO inquiry = getVisible(id);
+        CustomerInquiryAppendDO a = requireAppend(inquiry, appendId);
+        if (a.getStatus() != APPEND_PENDING_CONFIRM && a.getStatus() != APPEND_PARSE_FAILED) {
+            throw new BizException(a.getStatus() == APPEND_PARSING ? "追加的内容还在解析，请稍后再试" : "这次追加已经结束");
+        }
+        List<DraftRowVO> rows = new ArrayList<>();
+        if (a.getStatus() == APPEND_PENDING_CONFIRM && a.getParseMode() == InquiryConstants.PARSE_MODE_AI && a.getAiTaskId() != null) {
+            AiParseOutputDTO output = parseOutput(aiTaskService.getById(a.getAiTaskId()).getOutput());
+            List<ProductCategoryDO> categories = inquiryCategories.categories();
+            for (AiParseGroupDTO g : output.getGroups()) {
+                for (AiParseItemDTO it : g.getItems()) {
+                    rows.add(toDraftRow(g, it, categories));
+                }
+            }
+        }
+        DraftVO vo = new DraftVO();
+        vo.setInquiry(toVos(List.of(inquiry)).get(0));
+        vo.setAppendId(a.getId());
+        vo.setRawContent(a.getRawContent());
+        vo.setAttachments(attachments(inquiry.getId(), a.getId()));
+        vo.setRows(rows);
+        return vo;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
+    public void confirmAppend(Long id, Long appendId, ConfirmRequest req) {
+        CustomerInquiryDO inquiry = getVisible(id);
+        progress.lock(inquiry.getId());
+        inquiry = inquiryMapper.selectById(id);
+        CustomerInquiryAppendDO a = requireAppend(inquiry, appendId);
+        if (a.getStatus() != APPEND_PENDING_CONFIRM && a.getStatus() != APPEND_PARSE_FAILED) {
+            throw new BizException("这次追加不能确认，请刷新后再试");
+        }
+        if (!APPENDABLE.contains(inquiry.getStatus())) {
+            throw new BizException("只有询价中、可报价、已报价的询盘单可以追加型号");
+        }
+        if (a.getStatus() == APPEND_PARSE_FAILED) {
+            a.setParseMode(InquiryConstants.PARSE_MODE_MANUAL);
+        }
+        InquiryItemDO last = itemMapper.selectOne(new LambdaQueryWrapper<InquiryItemDO>()
+                .select(InquiryItemDO::getLineNo)
+                .eq(InquiryItemDO::getCustomerInquiryId, inquiry.getId())
+                .orderByDesc(InquiryItemDO::getLineNo)
+                .last("LIMIT 1"));
+        int lineOffset = last == null || last.getLineNo() == null ? 0 : last.getLineNo();
+        Batch b = insertRows(inquiry, req.getRows(), lineOffset);
+        long taskIndex = taskMapper.selectCount(new LambdaQueryWrapper<SourcingTaskDO>()
+                .eq(SourcingTaskDO::getCustomerInquiryId, inquiry.getId()));
+        int taskCount = sourcingTaskService.createTasks(inquiry, b.pending(), (int) taskIndex).size();
+        inquiry.setTotalItemCount(nz(inquiry.getTotalItemCount()) + b.count());
+        inquiry.setTotalQuantity((int) Math.min(nz(inquiry.getTotalQuantity()) + b.quantity(), Integer.MAX_VALUE));
+        inquiry.setPricedItemCount(nz(inquiry.getPricedItemCount()) + b.priced());
+        inquiry.setPendingVerifyCount(nz(inquiry.getPendingVerifyCount()) + b.verify());
+        inquiry.setTotalOrderCount(nz(inquiry.getTotalOrderCount()) + taskCount);
+        if (!b.pending().isEmpty() || inquiry.getStatus() == InquiryConstants.STATUS_SOURCING) {
+            inquiry.setStatus(InquiryConstants.STATUS_SOURCING);
+        } else {
+            inquiry.setStatus(InquiryConstants.STATUS_READY_TO_QUOTE);
+        }
+        inquiryMapper.updateById(inquiry);
+        a.setStatus(APPEND_CONFIRMED);
+        a.setItemCount(b.count());
+        appendMapper.updateById(a);
+        productArchiver.sync(b.ids());
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void discardAppend(Long id, Long appendId) {
+        CustomerInquiryDO inquiry = getVisible(id);
+        CustomerInquiryAppendDO a = requireAppend(inquiry, appendId);
+        if (!APPEND_OPEN.contains(a.getStatus())) {
+            throw new BizException("这次追加已经结束");
+        }
+        a.setStatus(APPEND_DISCARDED);
+        appendMapper.updateById(a);
+    }
+
+    private CustomerInquiryAppendDO requireAppend(CustomerInquiryDO inquiry, Long appendId) {
+        CustomerInquiryAppendDO a = appendId == null ? null : appendMapper.selectById(appendId);
+        if (a == null || a.getDeletedAt() != null || !Objects.equals(a.getCustomerInquiryId(), inquiry.getId())) {
+            throw new BizException("追加记录不存在");
+        }
+        return a;
+    }
+
+    private CustomerInquiryAppendDO openAppend(Long inquiryId) {
+        return appendMapper.selectOne(new LambdaQueryWrapper<CustomerInquiryAppendDO>()
+                .eq(CustomerInquiryAppendDO::getCustomerInquiryId, inquiryId)
+                .in(CustomerInquiryAppendDO::getStatus, APPEND_OPEN)
+                .isNull(CustomerInquiryAppendDO::getDeletedAt)
+                .orderByDesc(CustomerInquiryAppendDO::getId)
+                .last("LIMIT 1"));
+    }
+
+    private static AppendVO toAppendVo(CustomerInquiryAppendDO a) {
+        AppendVO vo = new AppendVO();
+        vo.setId(a.getId());
+        vo.setStatus(a.getStatus());
+        vo.setParseMode(a.getParseMode());
+        vo.setParseError(a.getParseError());
+        vo.setRawContent(a.getRawContent());
+        vo.setCreateTime(a.getCreateTime());
+        return vo;
+    }
+
+    private static int nz(Integer v) {
+        return v == null ? 0 : v;
     }
 
     // ---------------------------------------------------------------- 取消、核实、改选价格、调整等级

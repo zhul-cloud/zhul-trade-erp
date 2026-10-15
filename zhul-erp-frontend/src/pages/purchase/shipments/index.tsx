@@ -38,6 +38,7 @@ import {
 } from '@/pages/warehouse/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
+import { usePageSize } from '@/utils/pageSize';
 import HandleDiscrepancyModal from './HandleDiscrepancyModal';
 import ShipmentDrawer from './ShipmentDrawer';
 
@@ -96,7 +97,7 @@ const ShipmentsTab: React.FC = () => {
   const [status, setStatus] = useState<number>();
   const [query, setQuery] = useState<{ keyword?: string; status?: number }>({});
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
+  const [pageSize, setPageSize] = usePageSize(20);
   const [rows, setRows] = useState<Shipment[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -468,7 +469,7 @@ const DiffsTab: React.FC<{ onChanged: () => void }> = ({ onChanged }) => {
     status: 1,
   });
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
+  const [pageSize, setPageSize] = usePageSize(20, 'pending');
   const [rows, setRows] = useState<Discrepancy[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);

@@ -33,6 +33,7 @@ import dayjs from 'dayjs';
 import React, { useEffect, useRef, useState } from 'react';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatDateTime } from '@/utils/format';
+import { usePagination } from '@/utils/pageSize';
 import type {
   PackageOption,
   RenewPayload,
@@ -58,6 +59,7 @@ const RENEW_MONTHS_OPTIONS = [
 ];
 
 const TenantListPage: React.FC = () => {
+  const pager = usePagination(20);
   const { message, modal } = App.useApp();
   const access = useAccess();
   const { palette } = useAppTheme();
@@ -361,6 +363,7 @@ const TenantListPage: React.FC = () => {
     <>
       <ProTable<TenantItem>
         headerTitle="租户管理"
+        pagination={pager}
         rowKey="id"
         actionRef={actionRef}
         columns={columns}

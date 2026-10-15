@@ -28,6 +28,7 @@ export default function access(initialState: {
       '/inquiry/my-tasks',
       '/inquiry/price-history',
       '/inquiry/part-time-board',
+      '/inquiry/sourcing-stats',
     ),
     // 商机管理：crmMenu 是两个子菜单任一为真，供 /crm 父路由的 access 用
     crmOpportunity: can('/crm/opportunities'),
@@ -38,6 +39,7 @@ export default function access(initialState: {
     inquiryMyTasks: can('/inquiry/my-tasks'),
     inquiryPriceHistory: can('/inquiry/price-history'),
     inquiryPartTimeBoard: can('/inquiry/part-time-board'),
+    inquirySourcingStats: can('/inquiry/sourcing-stats'),
     // 按钮级 - 询价协作
     'inquiry:task:assign': can('inquiry:task:assign'),
     'inquiry:rule:edit': can('inquiry:rule:edit'),
@@ -50,16 +52,18 @@ export default function access(initialState: {
     quotationPricing: can('/quotation/pricing'),
     'quotation:pricing:edit': can('quotation:pricing:edit'),
     // 销售管理
-    salesMenu: any('/sales/pi', '/sales/orders'),
+    salesMenu: any('/sales/pi', '/sales/orders', '/sales/stats'),
     // 采购订单
     purchaseMenu: any(
       '/purchase/requirements',
       '/purchase/orders',
       '/purchase/shipments',
+      '/purchase/bargain-stats',
     ),
     purchaseRequirements: can('/purchase/requirements'),
     purchaseOrders: can('/purchase/orders'),
     purchaseShipments: can('/purchase/shipments'),
+    purchaseBargainStats: can('/purchase/bargain-stats'),
     'purchase:shipment:create': can('purchase:shipment:create'),
     'purchase:discrepancy:handle': can('purchase:discrepancy:handle'),
     // 仓库管理
@@ -91,12 +95,22 @@ export default function access(initialState: {
     // 财务管理
     financeMenu: any(
       '/finance/receipts',
+      '/finance/refunds',
       '/finance/fx-settlements',
       '/finance/payables',
       '/finance/payments',
       '/finance/reimbursements',
       '/finance/expenses',
+      '/finance/other-incomes',
+      '/finance/profit-stats',
+      '/finance/operating-report',
     ),
+    financeRefunds: can('/finance/refunds'),
+    financeOtherIncomes: can('/finance/other-incomes'),
+    financeOperatingReport: can('/finance/operating-report'),
+    'finance:refund:edit': can('finance:refund:edit'),
+    'finance:income:edit': can('finance:income:edit'),
+    financeProfitStats: can('/finance/profit-stats'),
     financeReimbursements: can('/finance/reimbursements'),
     financeExpenses: can('/finance/expenses'),
     'finance:reimburse:pay': can('finance:reimburse:pay'),
@@ -110,6 +124,7 @@ export default function access(initialState: {
     'finance:payment:advance': can('finance:payment:advance'),
     salesPi: can('/sales/pi'),
     salesOrders: can('/sales/orders'),
+    salesStats: can('/sales/stats'),
     'sales:pi:receipt-slip': can('sales:pi:receipt-slip'),
     'sales:pi:platform-receipt': can('sales:pi:platform-receipt'),
     'sales:pi:claim-receipt': can('sales:pi:claim-receipt'),

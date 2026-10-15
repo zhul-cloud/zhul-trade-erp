@@ -7,6 +7,7 @@ import {
   InboxOutlined,
   NodeIndexOutlined,
   PaperClipOutlined,
+  RollbackOutlined,
   SendOutlined,
   ShopOutlined,
   StopOutlined,
@@ -19,6 +20,7 @@ import type { TableColumnsType } from 'antd';
 import { Alert, App, Button, Dropdown, Skeleton, Table } from 'antd';
 import dayjs from 'dayjs';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import RefundModal from '@/pages/finance/refunds/RefundModal';
 import { useWide } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -44,6 +46,7 @@ import {
   piApi,
   readBizError,
 } from '../service';
+import OrderCostCard from './CostCard';
 import {
   manualSteps,
   ProgressModal,
@@ -86,6 +89,7 @@ const OrderDetail: React.FC = () => {
   const [selected, setSelected] = useState<number[]>([]);
   const [dialog, setDialog] = useState<Dialog>();
   const [cancelOpen, setCancelOpen] = useState(false);
+  const [refundOpen, setRefundOpen] = useState(false);
   const [voidId, setVoidId] = useState<number>();
   /** 订单刷新次数：销售出库单列表随之重新取 */
   const [version, setVersion] = useState(0);
@@ -1040,7 +1044,15 @@ const OrderDetail: React.FC = () => {
         }}
       >
         <b style={{ fontSize: 16, color: palette.ink }}>订单毛利</b>
-        {m.estimated && <Pill tone="orange">预计</Pill>}
+        {o.cost ? (
+          o.cost.settled ? (
+            <Pill tone="green">已结算</Pill>
+          ) : (
+            <Pill tone="orange">未结算</Pill>
+          )
+        ) : (
+          m.estimated && <Pill tone="orange">预计</Pill>
+        )}
       </div>
       <div style={{ padding: 14, borderRadius: 12, background: palette.inset }}>
         {line(
@@ -1049,8 +1061,11 @@ const OrderDetail: React.FC = () => {
             ? formatAmount(o.totalAmount, cur)
             : `${formatAmount(o.totalAmount, cur)} ≈ ${formatAmount(m.salesAmountCny, 'CNY')}`,
         )}
-        {line('实收人民币', formatAmount(m.receivedCny, 'CNY'))}
-        {line('采购成本', formatAmount(m.costCny, 'CNY'))}
+        {line(
+          o.cost ? '收入' : '实收人民币',
+          formatAmount(m.receivedCny, 'CNY'),
+        )}
+        {line(o.cost ? '实际成本' : '采购成本', formatAmount(m.costCny, 'CNY'))}
         <div
           style={{
             display: 'flex',
@@ -1063,6 +1078,7 @@ const OrderDetail: React.FC = () => {
         >
           <span style={{ color: palette.sub, fontWeight: 600 }}>
             {m.estimated ? '预计毛利' : '毛利'}
+            {o.cost?.profitRate != null ? ` · ${o.cost.profitRate}%` : ''}
           </span>
           <b
             style={{
@@ -1075,9 +1091,11 @@ const OrderDetail: React.FC = () => {
           </b>
         </div>
         <div style={{ fontSize: 12, color: palette.mute, marginTop: 6 }}>
-          {m.estimated
-            ? '还没收齐：按销售额折合人民币 − 采购成本估算；收齐后改为 实收人民币 − 采购成本'
-            : '实收人民币 − 采购成本'}
+          {o.cost
+            ? o.cost.settled
+              ? '收入（毛额 × 结汇汇率）− 实际成本（含开票成本与收款手续费）'
+              : `还差：${o.cost.pending.join(' · ')}；还没确定的部分按采购订单单价或采购成本价估算`
+            : '已取消的订单按报价时的采购成本价计算'}
         </div>
       </div>
       {m.missingCostCount > 0 && (
@@ -1200,6 +1218,16 @@ const OrderDetail: React.FC = () => {
               >
                 客户已收货
               </Button>
+              {access['finance:refund:edit'] &&
+                active &&
+                (o.receivedAmount ?? 0) > 0 && (
+                  <Button
+                    icon={<RollbackOutlined />}
+                    onClick={() => setRefundOpen(true)}
+                  >
+                    登记退款
+                  </Button>
+                )}
               <Button
                 danger
                 icon={<StopOutlined />}
@@ -1223,6 +1251,13 @@ const OrderDetail: React.FC = () => {
       >
         <div style={{ minWidth: 0 }}>
           {main}
+          {o.cost && <OrderCostCard cost={o.cost} />}
+          <RefundModal
+            open={refundOpen}
+            soId={o.id}
+            onClose={() => setRefundOpen(false)}
+            onDone={load}
+          />
           <OrderOutbounds soId={o.id} version={version} onChanged={load} />
         </div>
         <div style={{ minWidth: 0 }}>

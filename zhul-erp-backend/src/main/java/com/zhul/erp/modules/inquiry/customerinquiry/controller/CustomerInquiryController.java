@@ -2,6 +2,8 @@ package com.zhul.erp.modules.inquiry.customerinquiry.controller;
 
 import com.zhul.erp.common.result.PageResult;
 import com.zhul.erp.common.result.Result;
+import com.zhul.erp.modules.inquiry.customerinquiry.dto.AppendRequest;
+import com.zhul.erp.modules.inquiry.customerinquiry.dto.AppendVO;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.ConfirmRequest;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.CustomerInquiryDetailVO;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.CustomerInquiryPageQuery;
@@ -113,6 +115,33 @@ public class CustomerInquiryController {
     @PostMapping("/{id}/confirm")
     public Result<Void> confirm(@PathVariable Long id, @Valid @RequestBody ConfirmRequest req) {
         service.confirm(id, req);
+        return Result.ok();
+    }
+
+    @PostMapping("/{id}/appends")
+    public Result<AppendVO> startAppend(@PathVariable Long id, @Valid @RequestBody AppendRequest req) {
+        return Result.ok(service.startAppend(id, req));
+    }
+
+    @PostMapping("/{id}/appends/{appendId}/retry")
+    public Result<AppendVO> retryAppend(@PathVariable Long id, @PathVariable Long appendId) {
+        return Result.ok(service.retryAppend(id, appendId));
+    }
+
+    @GetMapping("/{id}/appends/{appendId}/draft")
+    public Result<DraftVO> appendDraft(@PathVariable Long id, @PathVariable Long appendId) {
+        return Result.ok(service.appendDraft(id, appendId));
+    }
+
+    @PostMapping("/{id}/appends/{appendId}/confirm")
+    public Result<Void> confirmAppend(@PathVariable Long id, @PathVariable Long appendId, @Valid @RequestBody ConfirmRequest req) {
+        service.confirmAppend(id, appendId, req);
+        return Result.ok();
+    }
+
+    @PostMapping("/{id}/appends/{appendId}/discard")
+    public Result<Void> discardAppend(@PathVariable Long id, @PathVariable Long appendId) {
+        service.discardAppend(id, appendId);
         return Result.ok();
     }
 

@@ -7,6 +7,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
+import { usePageSize } from '@/utils/pageSize';
 import {
   AgeText,
   Card,
@@ -18,6 +19,7 @@ import {
   useQuoteDicts,
 } from '../shared/components';
 import { CHANNEL_OPTIONS, PATHS } from '../shared/constants';
+import QuoteExtras from '../shared/QuoteExtras';
 import {
   type PriceHistoryGroup,
   priceHistoryApi,
@@ -41,7 +43,7 @@ const PriceHistoryPage: React.FC = () => {
   const [form] = Form.useForm<Filters>();
   const [filters, setFilters] = useState<Filters>({});
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
+  const [pageSize, setPageSize] = usePageSize(20);
   const [rows, setRows] = useState<PriceHistoryGroup[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -140,6 +142,7 @@ const PriceHistoryPage: React.FC = () => {
                   taxRate={q.taxRate}
                   unitPrice={q.unitPrice}
                 />
+                <QuoteExtras quote={q} />
               </span>
             )}
           </span>

@@ -11,6 +11,7 @@ import com.zhul.erp.modules.inquiry.sourcing.dto.PastePreviewRequest;
 import com.zhul.erp.modules.inquiry.sourcing.dto.PastePreviewVO;
 import com.zhul.erp.modules.inquiry.sourcing.dto.ReturnTaskRequest;
 import com.zhul.erp.modules.inquiry.sourcing.dto.SaveQuotesRequest;
+import com.zhul.erp.modules.inquiry.sourcing.service.impl.ItemPriceHistory;
 import com.zhul.erp.modules.inquiry.sourcing.service.MyTaskService;
 import com.zhul.erp.modules.inquiry.sourcing.service.SourcingExcelService;
 import jakarta.servlet.http.HttpServletResponse;
@@ -42,8 +43,14 @@ public class MyTaskController {
     private final SourcingExcelService excelService;
 
     @GetMapping
-    public Result<List<MyTaskVO>> list(@RequestParam(defaultValue = "false") boolean done) {
-        return Result.ok(myTaskService.myTasks(done));
+    public Result<List<MyTaskVO>> list(@RequestParam(defaultValue = "false") boolean done,
+                                       @RequestParam(required = false) String keyword) {
+        return Result.ok(myTaskService.myTasks(done, keyword));
+    }
+
+    @GetMapping("/{id}/items/{itemId}/history")
+    public Result<ItemPriceHistory.Detail> itemHistory(@PathVariable Long id, @PathVariable Long itemId) {
+        return Result.ok(myTaskService.itemHistory(id, itemId));
     }
 
     @GetMapping("/{id}")

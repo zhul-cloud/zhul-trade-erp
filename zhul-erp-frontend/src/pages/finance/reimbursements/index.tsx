@@ -11,6 +11,7 @@ import {
   Input,
   InputNumber,
   Modal,
+  Segmented,
   Select,
   Space,
   Spin,
@@ -35,6 +36,7 @@ import {
 import type { Attachment } from '@/pages/warehouse/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount, formatDateTime } from '@/utils/format';
+import { usePageSize } from '@/utils/pageSize';
 import { ACCEPT_PROOF, ProofLinks } from '../payables/components';
 import {
   type AdvanceItem,
@@ -386,12 +388,17 @@ const PayModal: React.FC<{
   const { message } = App.useApp();
   const [accounts, setAccounts] = useState<BankOption[]>([]);
   const [accountId, setAccountId] = useState<number>();
+  /** 1-公司对公、3-私对私（法人等个人账户付给员工） */
+  const [method, setMethod] = useState(1);
+  const [payerAccount, setPayerAccount] = useState('');
   const [date, setDate] = useState<Dayjs>(dayjs());
   const [files, setFiles] = useState<Attachment[]>([]);
   const [remark, setRemark] = useState('');
   const [saving, setSaving] = useState(false);
   useEffect(() => {
     if (!target) return;
+    setMethod(1);
+    setPayerAccount('');
     setDate(dayjs());
     setFiles([]);
     setRemark('');
@@ -405,14 +412,24 @@ const PayModal: React.FC<{
       .catch(() => setAccounts([]));
   }, [target]);
   const submit = async () => {
-    if (!target || !accountId || files.length === 0) {
-      message.error('请选择付款账户并上传转账截图');
+    if (!target || files.length === 0) {
+      message.error('请上传转账截图');
+      return;
+    }
+    if (method === 1 && !accountId) {
+      message.error('请选择付款账户');
+      return;
+    }
+    if (method === 3 && !payerAccount.trim()) {
+      message.error('私对私请填写付款个人账户');
       return;
     }
     setSaving(true);
     try {
       await reimburseApi.pay(target.id, {
-        bankAccountId: accountId,
+        method,
+        bankAccountId: method === 1 ? accountId : undefined,
+        payerAccount: method === 3 ? payerAccount.trim() : undefined,
         payDate: date.format('YYYY-MM-DD'),
         attachmentIds: files.map((f) => f.id),
         remark: remark.trim() || undefined,
@@ -437,16 +454,34 @@ const PayModal: React.FC<{
       destroyOnHidden
     >
       <Space orientation="vertical" size={12} style={{ width: '100%' }}>
-        <Select
-          aria-label="付款账户"
-          style={{ width: '100%' }}
-          value={accountId}
-          onChange={setAccountId}
-          options={accounts.map((a) => ({
-            value: a.id,
-            label: `${a.bankName} · ${a.accountName} ${a.accountNoMasked}`,
-          }))}
+        <Segmented<number>
+          value={method}
+          onChange={setMethod}
+          options={[
+            { label: '公司对公', value: 1 },
+            { label: '私对私', value: 3 },
+          ]}
         />
+        {method === 1 ? (
+          <Select
+            aria-label="付款账户"
+            style={{ width: '100%' }}
+            value={accountId}
+            onChange={setAccountId}
+            options={accounts.map((a) => ({
+              value: a.id,
+              label: `${a.bankName} · ${a.accountName} ${a.accountNoMasked}`,
+            }))}
+          />
+        ) : (
+          <Input
+            aria-label="付款个人账户"
+            maxLength={100}
+            placeholder="付款个人账户，如 法人 张三 · 招行尾号 1234"
+            value={payerAccount}
+            onChange={(e) => setPayerAccount(e.target.value)}
+          />
+        )}
         <DatePicker
           value={date}
           onChange={(d) => d && setDate(d)}
@@ -481,7 +516,7 @@ const ListTab: React.FC<{ refreshSignal: number }> = ({ refreshSignal }) => {
   const [keyword, setKeyword] = useState('');
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
+  const [pageSize, setPageSize] = usePageSize(20);
   const [rows, setRows] = useState<Reimbursement[]>([]);
   const [total, setTotal] = useState(0);
   const [pendingTotal, setPendingTotal] = useState(0);
@@ -773,8 +808,11 @@ const ListTab: React.FC<{ refreshSignal: number }> = ({ refreshSignal }) => {
               <Card>
                 <b>已付</b>
                 <div style={{ color: palette.sub, marginTop: 6 }}>
-                  {detail.payDate} · {detail.payAccountName} · {detail.paidBy}{' '}
-                  登记 · 付款单 {detail.paymentNo}
+                  {detail.payDate} ·{' '}
+                  {detail.payMethod === 3
+                    ? `私对私 · ${detail.payPayerAccount}`
+                    : detail.payAccountName}{' '}
+                  · {detail.paidBy} 登记 · 付款单 {detail.paymentNo}
                 </div>
                 <div style={{ marginTop: 6 }}>
                   转账截图 <ProofLinks files={detail.payProofs} />

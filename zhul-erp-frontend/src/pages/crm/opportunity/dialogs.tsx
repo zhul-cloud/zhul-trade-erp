@@ -23,8 +23,10 @@ import { useAppTheme } from '@/theme/AppTheme';
 import { DICT_SOURCE_CHANNEL, useDictOptions } from '@/utils/dict';
 import { FileChip, fileMeta, iconButton } from './components';
 import {
+  ALI_LEVEL_OPTIONS,
   ATTACHMENT_ACCEPT,
   ATTACHMENT_MAX_BYTES,
+  CHANNEL_ALIBABA,
   INVALID_REASONS,
   LOST_REASONS,
   MAX_ATTACHMENTS,
@@ -114,6 +116,7 @@ export const CloseModal: React.FC<{
 
 interface EditState {
   sourceChannel: number;
+  aliLevel?: string;
   firstContactDate: Dayjs;
   demandSummary?: string;
 }
@@ -185,6 +188,7 @@ export const EditModal: React.FC<{
         if (open && detail) {
           form.setFieldsValue({
             sourceChannel: detail.sourceChannel,
+            aliLevel: detail.aliLevel || undefined,
             firstContactDate: dayjs(detail.firstContactDate),
             demandSummary: detail.demandSummary,
           });
@@ -205,6 +209,7 @@ export const EditModal: React.FC<{
         try {
           await opportunityApi.update(detail.id, {
             sourceChannel: v.sourceChannel,
+            aliLevel: v.aliLevel,
             firstContactDate: v.firstContactDate.format('YYYY-MM-DD'),
             demandSummary: v.demandSummary?.trim(),
             attachments: files.map((f) =>
@@ -236,6 +241,19 @@ export const EditModal: React.FC<{
             rules={[{ required: true, message: '请选择来源渠道' }]}
           >
             <Select options={sourceOptions} />
+          </Form.Item>
+          <Form.Item noStyle dependencies={['sourceChannel']}>
+            {({ getFieldValue }) =>
+              getFieldValue('sourceChannel') === CHANNEL_ALIBABA ? (
+                <Form.Item name="aliLevel" label="阿里等级">
+                  <Select
+                    allowClear
+                    placeholder="选填"
+                    options={ALI_LEVEL_OPTIONS}
+                  />
+                </Form.Item>
+              ) : null
+            }
           </Form.Item>
           <Form.Item
             name="firstContactDate"
@@ -338,6 +356,7 @@ export const CreateInquiryModal: React.FC<{
   const [content, setContent] = useState('');
   const [attachmentId, setAttachmentId] = useState<number>(0);
   const [level, setLevel] = useState<number>(LEVEL_DEFAULT);
+  const [remark, setRemark] = useState('');
   const [saving, setSaving] = useState(false);
   const { levelOptions } = useLevels();
 
@@ -355,6 +374,7 @@ export const CreateInquiryModal: React.FC<{
           setContent(detail.demandSummary ?? '');
           setAttachmentId(0);
           setLevel(LEVEL_DEFAULT);
+          setRemark('');
         }
       }}
       onCancel={onClose}
@@ -391,6 +411,7 @@ export const CreateInquiryModal: React.FC<{
             attachments,
             inquiryDate: dayjs().format('YYYY-MM-DD'),
             level,
+            remark: remark.trim() || undefined,
           });
           message.success('询盘单已创建，可以 AI 解析或手动录入型号');
           history.push(`/inquiry/customer-inquiries/${created.id}`);
@@ -431,6 +452,15 @@ export const CreateInquiryModal: React.FC<{
         value={content}
         onChange={(e) => setContent(e.target.value)}
         placeholder="客户的原始询盘内容，AI 会据此解析型号和数量"
+      />
+      <div style={{ margin: '16px 0 8px' }}>备注</div>
+      <Input.TextArea
+        rows={2}
+        maxLength={500}
+        showCount
+        value={remark}
+        onChange={(e) => setRemark(e.target.value)}
+        placeholder="选填，如 客户要求原装进口"
       />
       {detail.attachments.length > 0 && (
         <>

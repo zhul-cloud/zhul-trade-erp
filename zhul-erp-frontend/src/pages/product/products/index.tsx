@@ -24,6 +24,7 @@ import React, {
   useState,
 } from 'react';
 import { auditColumns } from '@/pages/purchase/components';
+import { usePageSize } from '@/utils/pageSize';
 import { CompletenessBar } from '../components/CompletenessBar';
 import { EmptyHint, ErrorHint } from '../components/EmptyHint';
 import { BrandMark, LifecyclePill, Pill } from '../components/Pills';
@@ -87,7 +88,7 @@ const ProductListInner: React.FC = () => {
   const [debounced, setDebounced] = useState('');
   const [filters, setFilters] = useState<Filters>(loadFilters);
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
+  const [pageSize, setPageSize] = usePageSize(20);
   const [rows, setRows] = useState<Product[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);

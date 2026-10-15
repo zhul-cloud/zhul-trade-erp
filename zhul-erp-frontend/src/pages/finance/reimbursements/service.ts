@@ -69,6 +69,10 @@ export interface Reimbursement {
   withdrawReason?: string;
   payAccountId?: number;
   payAccountName?: string;
+  /** 付款方式：1-公司对公、3-私对私 */
+  payMethod?: number;
+  /** 私对私时的付款个人账户 */
+  payPayerAccount?: string;
   payDate?: string;
   paidBy?: string;
   paidAt?: string;
@@ -121,7 +125,10 @@ export const reimburseApi = {
   pay: (
     id: number,
     body: {
-      bankAccountId: number;
+      /** 1-公司对公（默认）、3-私对私 */
+      method?: number;
+      bankAccountId?: number;
+      payerAccount?: string;
       payDate: string;
       attachmentIds: number[];
       remark?: string;
@@ -147,6 +154,11 @@ export interface Expense {
   id: number;
   expenseNo: string;
   name: string;
+  category: string;
+  categoryName?: string;
+  amortizeMonths: number;
+  /** 关联了订单型号；不关联的是运营成本 */
+  linked?: boolean;
   occurDate: string;
   /** 1-供应商、2-线上店铺、3-货代、4-其他 */
   payeeType: number;
@@ -192,6 +204,8 @@ export interface SoItemOption {
 
 export interface SaveExpenseBody {
   name: string;
+  category?: string;
+  amortizeMonths?: number;
   occurDate: string;
   payeeType: number;
   supplierId?: number;
@@ -215,6 +229,9 @@ export interface ExpenseQuery {
   dateFrom?: string;
   dateTo?: string;
   method?: number;
+  category?: string;
+  /** true 只看关联订单的；false 只看运营成本 */
+  linked?: boolean;
   showVoid?: boolean;
 }
 

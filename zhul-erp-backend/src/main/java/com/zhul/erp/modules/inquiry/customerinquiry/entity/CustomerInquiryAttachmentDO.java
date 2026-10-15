@@ -17,6 +17,8 @@ public class CustomerInquiryAttachmentDO {
     private Long id;
     private Integer tenantId;
     private Long customerInquiryId;
+    /** 追加批次ID，0 为录入询盘单时的附件 */
+    private Long appendId;
     private String fileName;
     private String fileKey;
     private String contentType;

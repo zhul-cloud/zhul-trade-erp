@@ -89,6 +89,13 @@ public class PaymentService {
             if (!perm.has(FinanceConstants.PERM_ADVANCE) && !perm.has(FinanceConstants.PERM_REGISTER)) {
                 throw new BizException("没有「垫付登记」权限");
             }
+        } else if (method == FinanceConstants.METHOD_PRIVATE) {
+            if (!perm.has(FinanceConstants.PERM_REGISTER)) {
+                throw new BizException("没有「付款登记」权限，私对私付款由财务登记");
+            }
+            if (!StringUtils.hasText(req.getPayerAccount())) {
+                throw new BizException("私对私请填写付款个人账户");
+            }
         } else {
             throw new BizException("付款方式无效");
         }
@@ -143,6 +150,7 @@ public class PaymentService {
         copyPayee(anchor, pay);
         pay.setMethod(method);
         pay.setBankAccountId(method == FinanceConstants.METHOD_COMPANY ? req.getBankAccountId() : null);
+        pay.setPayerAccount(method == FinanceConstants.METHOD_PRIVATE ? req.getPayerAccount().trim() : "");
         pay.setAdvanceUser(method == FinanceConstants.METHOD_ADVANCE ? SecurityUtils.getCurrentUsername() : "");
         pay.setPayDate(req.getPayDate());
         pay.setCurrencyCode(anchor.getCurrencyCode());
@@ -159,7 +167,7 @@ public class PaymentService {
         attachments.attach(OWNER_TYPE, pay.getId(), req.getAttachmentIds());
         ids.forEach(sync::refresh);
         logService.recordOperateLog(MENU, "登记付款", null, Map.of("paymentNo", pay.getPaymentNo(), "payee", pay.getPayeeName(),
-                "amount", pay.getCurrencyCode() + " " + amount, "method", method == FinanceConstants.METHOD_COMPANY ? "公司对公" : "员工垫付"));
+                "amount", pay.getCurrencyCode() + " " + amount, "method", FinanceConstants.METHOD_NAMES.get(method)));
         return toVo(paymentMapper.selectById(pay.getId()));
     }
 
@@ -390,6 +398,8 @@ public class PaymentService {
             vo.setTotal(vo.getTotal().add(p.getAmountCny()));
             if (p.getMethod() == FinanceConstants.METHOD_ADVANCE) {
                 vo.setAdvance(vo.getAdvance().add(p.getAmountCny()));
+            } else if (p.getMethod() == FinanceConstants.METHOD_PRIVATE) {
+                vo.setPersonal(vo.getPersonal().add(p.getAmountCny()));
             } else {
                 vo.setCompany(vo.getCompany().add(p.getAmountCny()));
             }
@@ -579,6 +589,7 @@ public class PaymentService {
             vo.setMethod(p.getMethod());
             vo.setBankAccountId(p.getBankAccountId());
             vo.setAccountName(accounts.get(p.getBankAccountId()));
+            vo.setPayerAccount(p.getPayerAccount());
             vo.setAdvanceUser(p.getAdvanceUser());
             vo.setReimburseStatus(p.getReimburseStatus());
             vo.setPayDate(p.getPayDate());

@@ -431,13 +431,13 @@ export const ApplicationCard: React.FC<Common> = ({
 
 // ---------------- FAQ ----------------
 
-export const FaqCard: React.FC<Common & { platform: boolean }> = ({
-  productId,
-  readOnly,
-  done,
-  onChanged,
-  platform,
-}) => {
+export const FaqCard: React.FC<
+  Common & {
+    platform: boolean;
+    /** 能看到并审核待审核问答：平台维护账号，或有「商品内容维护」权限的公司账号 */
+    canReview: boolean;
+  }
+> = ({ productId, readOnly, done, onChanged, platform, canReview }) => {
   const { message } = App.useApp();
   const { palette } = useProductTheme();
   const fetcher = useCallback(() => faqApi.list(productId), [productId]);
@@ -474,7 +474,7 @@ export const FaqCard: React.FC<Common & { platform: boolean }> = ({
         )
       }
     >
-      {platform && items.length > 0 && (
+      {(platform || canReview) && items.length > 0 && (
         <Segmented
           style={{ marginBottom: 16 }}
           value={filter}
@@ -531,7 +531,7 @@ export const FaqCard: React.FC<Common & { platform: boolean }> = ({
                 >
                   <b style={{ flex: 1 }}>{f.question}</b>
                   {isPending && <Pill tone="orange">待审核</Pill>}
-                  {!readOnly && isPending && (
+                  {canReview && isPending && (
                     <Popconfirm
                       title="确认发布这条 FAQ？"
                       description="确认后所有租户都能看到"

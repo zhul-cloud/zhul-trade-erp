@@ -10,6 +10,7 @@ import { type ReceiptRow, readBizError } from '@/pages/sales/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import { usePaymentMethods } from '@/utils/dict';
 import { formatAmount } from '@/utils/format';
+import { usePageSize } from '@/utils/pageSize';
 import { ledgerApi, type ReceiptMoney, type ReceiptSummary } from './service';
 import { MethodCell, NetCnyCell } from './UnclaimedTab';
 
@@ -43,7 +44,7 @@ const RecordsTab: React.FC = () => {
   const [draft, setDraft] = useState<Filters>(initial);
   const [filters, setFilters] = useState<Filters>(initial);
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
+  const [pageSize, setPageSize] = usePageSize(20, 'records');
   const [rows, setRows] = useState<ReceiptRow[]>([]);
   const [total, setTotal] = useState(0);
   const [summary, setSummary] = useState<ReceiptSummary[]>([]);

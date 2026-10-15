@@ -7,6 +7,8 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.zhul.erp.common.result.PageResult;
 import com.zhul.erp.framework.security.PermissionChecker;
 import com.zhul.erp.framework.tenant.TenantContext;
+import com.zhul.erp.modules.attachment.dto.AttachmentVO;
+import com.zhul.erp.modules.attachment.service.AttachmentService;
 import com.zhul.erp.modules.inquiry.constants.InquiryConstants;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.PriceHistoryGroupVO;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.PriceHistoryQuery;
@@ -45,6 +47,7 @@ public class PriceHistoryServiceImpl implements PriceHistoryService {
     private final PriceKeys priceKeys;
     private final InquiryLookups lookups;
     private final PermissionChecker perm;
+    private final AttachmentService attachmentService;
 
     @Override
     public PriceMatchVO match(String brand, String model) {
@@ -152,6 +155,9 @@ public class PriceHistoryServiceImpl implements PriceHistoryService {
         LocalDate today = LocalDate.now();
         // 询价平台、店铺属于供应链内部信息：没有「查看货源信息」权限时不返回
         boolean supplierVisible = !quotes.isEmpty() && perm.has(InquiryConstants.PERM_SUPPLIER_VIEW);
+        Map<Long, List<AttachmentVO>> files = supplierVisible
+                ? attachmentService.list(AttachmentService.SOURCING_QUOTE, quotes.stream().map(SourcingQuoteDO::getId).toList())
+                : Map.of();
         Map<Long, PriceRecordVO> map = new LinkedHashMap<>(quotes.size() * 2);
         for (SourcingQuoteDO q : quotes) {
             PriceRecordVO vo = new PriceRecordVO();
@@ -161,6 +167,8 @@ public class PriceHistoryServiceImpl implements PriceHistoryService {
             vo.setChannel(supplierVisible ? q.getChannel() : null);
             vo.setShopName(supplierVisible ? q.getShopName() : null);
             vo.setNoStock(Objects.equals(q.getNoStock(), 1));
+            vo.setFreeShipping(!Objects.equals(q.getFreeShipping(), 0));
+            vo.setAttachments(files.getOrDefault(q.getId(), List.of()));
             vo.setCurrencyCode(q.getCurrencyCode());
             vo.setUnitPrice(q.getUnitPrice());
             vo.setUnitPriceCny(q.getUnitPriceCny());

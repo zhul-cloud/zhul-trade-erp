@@ -20,6 +20,8 @@ public class MyQuoteVO {
     private String note;
     private Boolean recommended;
     private Boolean noStock;
+    private Boolean freeShipping;
+    private java.util.List<com.zhul.erp.modules.attachment.dto.AttachmentVO> attachments;
     /** 1-草稿、2-已提交、3-待审核、4-已作废 */
     private Integer status;
     /** 作废原因（status=4）或退回原因（被退回的草稿） */

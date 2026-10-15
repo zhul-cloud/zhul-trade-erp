@@ -28,6 +28,7 @@ import {
 } from 'antd';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { formatDateTime } from '@/utils/format';
+import { usePagination } from '@/utils/pageSize';
 import BrandColorInput from '../components/BrandColorInput';
 import { BrandMark, Pill } from '../components/Pills';
 import { useCountries } from '../components/useCountries';
@@ -81,6 +82,7 @@ const LevelPill: React.FC<{ level?: number }> = ({ level }) =>
   ) : null;
 
 const BrandPage: React.FC = () => {
+  const pager = usePagination(20);
   const { message, modal } = App.useApp();
   const access = useAccess();
   const actionRef = useRef<ActionType>(undefined);
@@ -515,7 +517,7 @@ const BrandPage: React.FC = () => {
               setTotal(res.total);
               return { data: res.records, total: res.total, success: true };
             }}
-            pagination={{ pageSize: 20, showTotal: (t) => `共 ${t} 条记录` }}
+            pagination={{ ...pager, showTotal: (t) => `共 ${t} 条记录` }}
             locale={{
               emptyText: '没有符合条件的品牌',
             }}

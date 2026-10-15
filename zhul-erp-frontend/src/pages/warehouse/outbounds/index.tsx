@@ -13,6 +13,7 @@ import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { auditColumns } from '@/pages/purchase/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount, formatDateTime } from '@/utils/format';
+import { usePageSize } from '@/utils/pageSize';
 import { Card, ReasonModal, sub, WarehousePageTitle } from '../components';
 import { HandOverModal, OutboundView, PackDrawer } from './dialogs';
 
@@ -29,7 +30,7 @@ const Outbounds: React.FC = () => {
   const [keyword, setKeyword] = useState('');
   const [query, setQuery] = useState<string>();
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
+  const [pageSize, setPageSize] = usePageSize(20);
   const [rows, setRows] = useState<Outbound[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);

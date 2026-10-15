@@ -2,6 +2,7 @@ package com.zhul.erp.modules.product.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.zhul.erp.common.exception.BizException;
+import com.zhul.erp.framework.security.PermissionChecker;
 import com.zhul.erp.framework.security.SecurityUtils;
 import com.zhul.erp.modules.product.constants.ProductConstants;
 import com.zhul.erp.modules.product.constants.ProductErrorCodes;
@@ -36,12 +37,21 @@ public class ProductFaqServiceImpl implements ProductFaqService {
     private final ProductFaqMapper faqMapper;
     private final ProductFinder productFinder;
     private final PlatformScopeGuard platformScopeGuard;
+    private final PermissionChecker perm;
+
+    /** 「商品内容维护」：资料包导入的技术问答由这些公司账号确认写入，也由他们直接审核 */
+    private static final String CONTENT_EDIT = "product:content:edit";
+
+    /** 能看到并审核待审核问答：平台账号，或有「商品内容维护」权限的公司账号 */
+    private boolean canReview() {
+        return platformScopeGuard.isPlatform() || perm.has(CONTENT_EDIT);
+    }
 
     @Override
     public List<FaqVO> list(Long productId) {
         productFinder.active(productId);
-        // 待审核的 FAQ 只有平台账号能看到，租户账号在这里就被过滤掉，不依赖前端
-        boolean platform = platformScopeGuard.isPlatform();
+        // 待审核的 FAQ 只有平台账号和有「商品内容维护」权限的公司账号能看到，其余在这里就被过滤掉，不依赖前端
+        boolean platform = canReview();
         List<FaqVO> result = new ArrayList<>();
         for (ProductFaqDO row : activeRows(productId)) {
             if (platform || !Objects.equals(row.getSource(), SOURCE_PENDING)) {
@@ -106,7 +116,9 @@ public class ProductFaqServiceImpl implements ProductFaqService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public FaqVO approve(Long productId, Long itemId) {
-        platformScopeGuard.requirePlatform();
+        if (!canReview()) {
+            platformScopeGuard.requirePlatform();
+        }
         productFinder.lockActive(productId);
         ProductFaqDO current = owned(productId, itemId);
         if (!Objects.equals(current.getSource(), SOURCE_PENDING)) {
@@ -119,6 +131,28 @@ public class ProductFaqServiceImpl implements ProductFaqService {
         change.setReviewedAt(LocalDateTime.now());
         faqMapper.updateById(change);
         return toVO(owned(productId, itemId));
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public int approveAllPending(Long productId) {
+        if (!canReview()) {
+            platformScopeGuard.requirePlatform();
+        }
+        productFinder.lockActive(productId);
+        int count = 0;
+        for (ProductFaqDO row : activeRows(productId)) {
+            if (Objects.equals(row.getSource(), SOURCE_PENDING)) {
+                ProductFaqDO change = new ProductFaqDO();
+                change.setId(row.getId());
+                change.setSource(SOURCE_MANUAL);
+                change.setReviewedBy(SecurityUtils.getCurrentUsername());
+                change.setReviewedAt(LocalDateTime.now());
+                faqMapper.updateById(change);
+                count++;
+            }
+        }
+        return count;
     }
 
     /** 同一商品下问题忽略大小写和首尾空格不可重复（含待审核的） */

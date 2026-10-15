@@ -100,6 +100,9 @@ public class SalesOrderVO {
     }
 
     /** 订单毛利（CNY）：收齐款后为 实收人民币 − 采购成本，否则为预计（销售额折合人民币 − 采购成本） */
+    /** 实际成本明细（spec finance/order-cost）；已取消的订单为空 */
+    private com.zhul.erp.modules.finance.dto.OrderCostVO cost;
+
     @Data
     public static class Margin {
         private BigDecimal salesAmountCny;

@@ -15,5 +15,9 @@ public class ExpenseQuery {
     private LocalDate dateFrom;
     private LocalDate dateTo;
     private Integer method;
+    /** 费用类别编码 */
+    private String category;
+    /** true 只看关联订单的；false 只看不关联订单的（运营成本） */
+    private Boolean linked;
     private Boolean showVoid;
 }

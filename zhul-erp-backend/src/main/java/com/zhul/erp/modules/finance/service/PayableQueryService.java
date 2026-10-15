@@ -420,6 +420,7 @@ public class PayableQueryService {
             l.setMethod(pay.getMethod());
             l.setAccountName(accounts.get(pay.getBankAccountId()));
             l.setAdvanceUser(pay.getAdvanceUser());
+            l.setPayerAccount(pay.getPayerAccount());
             l.setPayDate(pay.getPayDate());
             l.setAmount(a.getAmount());
             l.setAmountCny(a.getAmountCny());

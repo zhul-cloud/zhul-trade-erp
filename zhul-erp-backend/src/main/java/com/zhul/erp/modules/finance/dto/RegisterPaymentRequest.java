@@ -15,11 +15,14 @@ import java.util.List;
 /** 登记付款：核销同一收款方、同一币种的应付单；可以用欠款抵扣 */
 @Data
 public class RegisterPaymentRequest {
-    /** 1-公司对公、2-员工垫付 */
+    /** 1-公司对公、2-员工垫付、3-私对私 */
     @NotNull(message = "请选择付款方式")
     private Integer method;
     /** 公司对公必填 */
     private Long bankAccountId;
+    /** 私对私必填：付款的个人账户，如「法人 张三 · 招行尾号 1234」 */
+    @jakarta.validation.constraints.Size(max = 100, message = "付款个人账户不能超过 100 字")
+    private String payerAccount;
     @NotNull(message = "请填写付款日期")
     private LocalDate payDate;
     /** 付款金额（原币，可以为 0：全部用欠款抵扣时） */
