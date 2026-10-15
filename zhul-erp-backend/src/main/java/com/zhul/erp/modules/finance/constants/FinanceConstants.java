@@ -33,6 +33,10 @@ public final class FinanceConstants {
     /** 付款方式 */
     public static final int METHOD_COMPANY = 1;
     public static final int METHOD_ADVANCE = 2;
+    /** 私对私：法人等个人账户付给对方个人账户，记录付款个人账户，不进报销 */
+    public static final int METHOD_PRIVATE = 3;
+    public static final java.util.Map<Integer, String> METHOD_NAMES = java.util.Map.of(
+            METHOD_COMPANY, "公司对公", METHOD_ADVANCE, "员工垫付", METHOD_PRIVATE, "私对私");
 
     /** 报销状态 */
     public static final int REIMBURSE_NA = 0;

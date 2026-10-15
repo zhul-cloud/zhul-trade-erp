@@ -32,7 +32,7 @@ export const PAYEE = {
 /** 来源类型 */
 export const SOURCE = { PO: 1, STATEMENT: 2, EXPENSE: 3 } as const;
 /** 付款方式 */
-export const METHOD = { COMPANY: 1, ADVANCE: 2 } as const;
+export const METHOD = { COMPANY: 1, ADVANCE: 2, PRIVATE: 3 } as const;
 
 /** OVERDUE 已逾期、SOON 7 天内到期、NORMAL 未到期、WAITING 待入库 */
 export type DueState = 'OVERDUE' | 'SOON' | 'NORMAL' | 'WAITING';
@@ -67,6 +67,8 @@ export interface PaymentLine {
   method: number;
   accountName?: string;
   advanceUser?: string;
+  /** 私对私时的付款个人账户 */
+  payerAccount?: string;
   payDate: string;
   amount: number;
   amountCny: number;
@@ -157,6 +159,8 @@ export interface Payment {
   bankAccountId?: number;
   accountName?: string;
   advanceUser?: string;
+  /** 私对私时的付款个人账户 */
+  payerAccount?: string;
   reimburseStatus: number;
   payDate: string;
   currencyCode: string;
@@ -202,6 +206,8 @@ export interface PaymentStats {
   total: number;
   company: number;
   advance: number;
+  /** 私对私 */
+  personal: number;
   /** 报销付款：公司付给员工，不计入合计 */
   reimburse: number;
   count: number;
@@ -210,6 +216,8 @@ export interface PaymentStats {
 export interface RegisterPaymentBody {
   method: number;
   bankAccountId?: number;
+  /** 私对私必填 */
+  payerAccount?: string;
   payDate: string;
   amount: number;
   amountCny?: number;

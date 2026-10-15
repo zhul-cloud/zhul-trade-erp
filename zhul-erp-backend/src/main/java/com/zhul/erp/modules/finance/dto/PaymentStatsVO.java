@@ -10,6 +10,8 @@ public class PaymentStatsVO {
     private BigDecimal total = BigDecimal.ZERO;
     private BigDecimal company = BigDecimal.ZERO;
     private BigDecimal advance = BigDecimal.ZERO;
+    /** 私对私 */
+    private BigDecimal personal = BigDecimal.ZERO;
     /** 报销付款（公司付给员工，不计入上面的合计） */
     private BigDecimal reimburse = BigDecimal.ZERO;
     private long count;

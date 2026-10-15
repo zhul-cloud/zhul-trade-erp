@@ -30,6 +30,8 @@ public class PaymentDO {
     /** 1-公司对公、2-员工垫付 */
     private Integer method;
     private Long bankAccountId;
+    /** 私对私时的付款个人账户 */
+    private String payerAccount;
     private String advanceUser;
     private LocalDate payDate;
     private String currencyCode;

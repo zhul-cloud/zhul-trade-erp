@@ -30,6 +30,10 @@ public class ReimbursementDO {
     private String withdrawReason;
     @TableField(updateStrategy = FieldStrategy.ALWAYS)
     private Long payAccountId;
+    /** 付款方式：1-公司对公、3-私对私 */
+    private Integer payMethod;
+    /** 私对私时的付款个人账户 */
+    private String payPayerAccount;
     @TableField(updateStrategy = FieldStrategy.ALWAYS)
     private LocalDate payDate;
     private String paidBy;

@@ -387,10 +387,21 @@ public class ReimbursementService {
         if (req.getPayDate().isAfter(LocalDate.now())) {
             throw new BizException("付款日期不能晚于今天");
         }
-        BankAccountDO account = bankAccountMapper.selectById(req.getBankAccountId());
-        if (account == null || !Objects.equals(account.getTenantId(), PiStore.tenantId())) {
-            throw new BizException("付款账户不存在");
+        int method = req.getMethod() == null ? FinanceConstants.METHOD_COMPANY : req.getMethod();
+        if (method == FinanceConstants.METHOD_COMPANY) {
+            BankAccountDO account = req.getBankAccountId() == null ? null : bankAccountMapper.selectById(req.getBankAccountId());
+            if (account == null || !Objects.equals(account.getTenantId(), PiStore.tenantId())) {
+                throw new BizException(req.getBankAccountId() == null ? "请选择付款账户" : "付款账户不存在");
+            }
+        } else if (method == FinanceConstants.METHOD_PRIVATE) {
+            if (!StringUtils.hasText(req.getPayerAccount())) {
+                throw new BizException("私对私请填写付款个人账户");
+            }
+        } else {
+            throw new BizException("付款方式无效");
         }
+        String payer = method == FinanceConstants.METHOD_PRIVATE ? req.getPayerAccount().trim() : "";
+        Long accountId = method == FinanceConstants.METHOD_COMPANY ? req.getBankAccountId() : null;
         attachments.attach(AttachmentService.REIMBURSE, bx.getId(), req.getAttachmentIds());
         PaymentDO p = new PaymentDO();
         p.setTenantId(bx.getTenantId());
@@ -400,8 +411,9 @@ public class ReimbursementService {
         p.setShopPlatform("");
         p.setShopName("");
         p.setPayeeName(bx.getApplicantName());
-        p.setMethod(FinanceConstants.METHOD_COMPANY);
-        p.setBankAccountId(req.getBankAccountId());
+        p.setMethod(method);
+        p.setBankAccountId(accountId);
+        p.setPayerAccount(payer);
         p.setAdvanceUser("");
         p.setPayDate(req.getPayDate());
         p.setCurrencyCode("CNY");
@@ -414,7 +426,9 @@ public class ReimbursementService {
         p.setIdempotencyKey("BX-" + bx.getId() + "-" + System.nanoTime());
         paymentMapper.insert(p);
         bx.setStatus(FinanceConstants.BX_PAID);
-        bx.setPayAccountId(req.getBankAccountId());
+        bx.setPayMethod(method);
+        bx.setPayAccountId(accountId);
+        bx.setPayPayerAccount(payer);
         bx.setPayDate(req.getPayDate());
         bx.setPaidBy(SecurityUtils.getCurrentUsername());
         bx.setPaidAt(LocalDateTime.now());
@@ -608,6 +622,8 @@ public class ReimbursementService {
         vo.setStatus(bx.getStatus());
         vo.setWithdrawReason(bx.getWithdrawReason());
         vo.setPayAccountId(bx.getPayAccountId());
+        vo.setPayMethod(bx.getPayMethod());
+        vo.setPayPayerAccount(bx.getPayPayerAccount());
         vo.setPayDate(bx.getPayDate());
         vo.setPaidBy(bx.getPaidBy());
         vo.setPaidAt(bx.getPaidAt());

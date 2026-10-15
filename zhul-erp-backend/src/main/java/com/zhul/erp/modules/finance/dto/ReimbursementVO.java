@@ -22,6 +22,9 @@ public class ReimbursementVO {
     private Integer status;
     private String withdrawReason;
     private Long payAccountId;
+    /** 付款方式：1-公司对公、3-私对私 */
+    private Integer payMethod;
+    private String payPayerAccount;
     private String payAccountName;
     private LocalDate payDate;
     private String paidBy;

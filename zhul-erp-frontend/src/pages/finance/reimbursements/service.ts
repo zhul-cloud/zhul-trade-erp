@@ -69,6 +69,10 @@ export interface Reimbursement {
   withdrawReason?: string;
   payAccountId?: number;
   payAccountName?: string;
+  /** 付款方式：1-公司对公、3-私对私 */
+  payMethod?: number;
+  /** 私对私时的付款个人账户 */
+  payPayerAccount?: string;
   payDate?: string;
   paidBy?: string;
   paidAt?: string;
@@ -121,7 +125,10 @@ export const reimburseApi = {
   pay: (
     id: number,
     body: {
-      bankAccountId: number;
+      /** 1-公司对公（默认）、3-私对私 */
+      method?: number;
+      bankAccountId?: number;
+      payerAccount?: string;
       payDate: string;
       attachmentIds: number[];
       remark?: string;
