@@ -24,8 +24,6 @@ import { firstMenuPath, toProLayoutMenu } from '@/utils/menuOrder';
 import defaultSettings from '../config/defaultSettings';
 import { errorConfig } from './requestErrorConfig';
 
-const isDev = process.env.NODE_ENV === 'development';
-
 /** 主题切换时把外壳令牌（侧栏、顶栏、内容区）同步进 initialState.settings，ProLayout 从那里读 */
 const ShellThemeSync: React.FC = () => {
   const { mode } = useAppTheme();
@@ -230,7 +228,7 @@ export const layout: RunTimeLayoutConfig = ({ initialState }) => {
  * @doc https://umijs.org/docs/max/request#配置
  */
 export const request: RequestConfig = {
-  baseURL: isDev ? '' : 'https://pro-api.ant-design-demo.workers.dev',
+  baseURL: '',
   withCredentials: true,
   ...errorConfig,
 };
