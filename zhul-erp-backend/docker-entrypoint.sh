@@ -18,6 +18,12 @@ if [ "${1:-}" = "java" ]; then
         DB_URL="jdbc:mysql://${DB_HOST:-mysql}:${DB_PORT:-3306}/${DB_NAME:-zhul_erp}?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&connectTimeout=5000&socketTimeout=30000"
         export DB_URL
     fi
+    # Warn whenever an upload directory is temporary storage, in every mode.
+    for dir in "${UPLOAD_DIR:-/app/uploads}" "${UPLOAD_PRIVATE_DIR:-/app/private-uploads}"; do
+        if grep -qs " $dir tmpfs " /proc/mounts; then
+            echo "[警告] $dir 是临时存储（tmpfs），容器停止或重建后上传文件会清空；需要保留请按 docs/06-部署运维/03-数据持久化与备份.md 启用持久化" >&2
+        fi
+    done
 fi
 
 exec "$@"
