@@ -6,6 +6,10 @@ server {
 
     client_max_body_size 210m;
 
+    # Redirects such as /dashboard -> /dashboard/ must stay relative; the container
+    # listens on 80 but is published on another host port (8000 by default).
+    absolute_redirect off;
+
     # Resolve on requests, so an absent or recreated backend does not stop Nginx.
     resolver 127.0.0.11 valid=10s ipv6=off;
     resolver_timeout 5s;
