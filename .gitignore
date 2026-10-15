@@ -9,6 +9,12 @@ zhul-erp-backend/target/
 zhul-erp-backend/src/main/resources/application-dev.yml
 zhul-erp-backend/src/main/resources/application-prod.yml
 .env
+.env.*
+!.env.example
+
+# optional Docker bind mounts (all local runtime data stays under storage/)
+/storage/*
+!/storage/.gitkeep
 
 # frontend build output
 zhul-erp-frontend/dist
