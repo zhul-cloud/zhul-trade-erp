@@ -1,7 +1,0 @@
-*
-!ai-orchestrator/
-!ai-orchestrator/**
-!ai-orchestrator-stub/
-!ai-orchestrator-stub/**
-**/__pycache__
-**/.env*

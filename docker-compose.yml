@@ -1,0 +1,34 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: zhul-erp-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      # 只建空库，不再挂载 init 脚本：表结构和种子数据改由后端启动时 Flyway 自动执行
+      # （src/main/resources/db/migration + db/dev-data），docker-compose 这边只负责起数据库本身
+      MYSQL_DATABASE: zhul_erp
+    ports:
+      - "3306:3306"
+    volumes:
+      - zhul_erp_mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7
+    container_name: zhul-erp-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  zhul_erp_mysql_data:
