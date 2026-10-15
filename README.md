@@ -270,7 +270,7 @@ npm run build                         # 生产构建
 
 - **可以**：免费使用、修改、自行部署，包括企业内部使用。
 - **必须**：分发修改后的版本，或通过网络向他人提供服务（例如 SaaS）时，以 AGPL-3.0 公开修改后的完整源码。
-- **商业授权**：如果需要闭源二次开发、闭源集成，或以 SaaS 形式提供服务而不公开源码，请通过 [Issues](https://github.com/zhul-cloud/zhul-trade-erp/issues) 联系烛龙科技获取商业授权。
+- **商业授权**：如果需要闭源二次开发、闭源集成，或以 SaaS 形式提供服务而不公开源码，请发邮件至 [info@fouwell.com](mailto:info@fouwell.com) 联系烛龙科技获取商业授权。
 
 前端基于 [Ant Design Pro](https://github.com/ant-design/ant-design-pro)（MIT），原版权声明保留在 [`zhul-erp-frontend/LICENSE`](zhul-erp-frontend/LICENSE)。
 
