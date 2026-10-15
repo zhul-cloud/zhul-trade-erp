@@ -13,11 +13,8 @@ import java.util.List;
 public class PayReimbursementRequest {
     /** 付款方式：1-公司对公（默认，选付款账户）、3-私对私（填付款个人账户） */
     private Integer method;
-    /** 公司对公必填 */
+    /** 公司对公选对公账户，私对私选对私账户 */
     private Long bankAccountId;
-    /** 私对私必填 */
-    @Size(max = 100, message = "付款个人账户不能超过 100 字")
-    private String payerAccount;
     @NotNull(message = "请填写付款日期")
     private LocalDate payDate;
     @NotEmpty(message = "请上传转账截图")

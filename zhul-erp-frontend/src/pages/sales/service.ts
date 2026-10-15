@@ -659,6 +659,8 @@ export interface PartyOption extends Party {
 
 export interface BankOption {
   id: number;
+  /** 账户类型：1-对公、2-对私 */
+  accountType?: number;
   currencyCode: string;
   bankName: string;
   accountName: string;

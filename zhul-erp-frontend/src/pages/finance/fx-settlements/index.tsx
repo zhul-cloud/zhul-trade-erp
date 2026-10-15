@@ -232,7 +232,7 @@ const RegisterModal: React.FC<{
                 style={{ width: '100%' }}
                 options={accounts.map((a) => ({
                   value: a.id,
-                  label: `${a.bankName} · ${a.accountName} ${a.accountNoMasked}`,
+                  label: `${a.bankName} · ${a.accountName} ${a.accountNoMasked}${a.accountType === 2 ? '（对私）' : ''}`,
                 }))}
               />
             </div>

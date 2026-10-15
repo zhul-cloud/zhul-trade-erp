@@ -26,6 +26,7 @@ import com.zhul.erp.modules.sales.support.PiStore;
 import com.zhul.erp.modules.system.constants.DocumentType;
 import com.zhul.erp.modules.system.entity.BankAccountDO;
 import com.zhul.erp.modules.system.repository.BankAccountMapper;
+import com.zhul.erp.modules.system.service.BankAccountService;
 import com.zhul.erp.modules.system.service.DocumentNumberService;
 import com.zhul.erp.modules.system.service.LogService;
 import lombok.RequiredArgsConstructor;
@@ -84,7 +85,7 @@ public class PaymentService {
             if (!perm.has(FinanceConstants.PERM_REGISTER)) {
                 throw new BizException("没有「付款登记」权限，公司对公付款由财务登记");
             }
-            requireAccount(req.getBankAccountId());
+            requireAccount(req.getBankAccountId(), false);
         } else if (method == FinanceConstants.METHOD_ADVANCE) {
             if (!perm.has(FinanceConstants.PERM_ADVANCE) && !perm.has(FinanceConstants.PERM_REGISTER)) {
                 throw new BizException("没有「垫付登记」权限");
@@ -93,9 +94,7 @@ public class PaymentService {
             if (!perm.has(FinanceConstants.PERM_REGISTER)) {
                 throw new BizException("没有「付款登记」权限，私对私付款由财务登记");
             }
-            if (!StringUtils.hasText(req.getPayerAccount())) {
-                throw new BizException("私对私请填写付款个人账户");
-            }
+            requireAccount(req.getBankAccountId(), true);
         } else {
             throw new BizException("付款方式无效");
         }
@@ -149,8 +148,10 @@ public class PaymentService {
         pay.setKind(FinanceConstants.KIND_PAYMENT);
         copyPayee(anchor, pay);
         pay.setMethod(method);
-        pay.setBankAccountId(method == FinanceConstants.METHOD_COMPANY ? req.getBankAccountId() : null);
-        pay.setPayerAccount(method == FinanceConstants.METHOD_PRIVATE ? req.getPayerAccount().trim() : "");
+        boolean viaAccount = method == FinanceConstants.METHOD_COMPANY || method == FinanceConstants.METHOD_PRIVATE;
+        pay.setBankAccountId(viaAccount ? req.getBankAccountId() : null);
+        pay.setPayerAccount(method == FinanceConstants.METHOD_PRIVATE
+                ? accountLabel(bankAccountMapper.selectById(req.getBankAccountId())) : "");
         pay.setAdvanceUser(method == FinanceConstants.METHOD_ADVANCE ? SecurityUtils.getCurrentUsername() : "");
         pay.setPayDate(req.getPayDate());
         pay.setCurrencyCode(anchor.getCurrencyCode());
@@ -224,7 +225,7 @@ public class PaymentService {
         if (!perm.has(FinanceConstants.PERM_REGISTER)) {
             throw new BizException("没有「付款登记」权限");
         }
-        requireAccount(req.getBankAccountId());
+        requireAccount(req.getBankAccountId(), null);
         if (req.getRefundDate().isAfter(LocalDate.now())) {
             throw new BizException("退款日期不能晚于今天");
         }
@@ -481,7 +482,8 @@ public class PaymentService {
         return out;
     }
 
-    private void requireAccount(Long id) {
+    /** 付款账户：公司对公选对公账户，私对私选对私账户；personal 为空时（供应商退款收款）不限类型 */
+    private void requireAccount(Long id, Boolean personal) {
         if (id == null) {
             throw new BizException("请选择付款账户");
         }
@@ -489,6 +491,14 @@ public class PaymentService {
         if (b == null || !Objects.equals(b.getTenantId(), PiStore.tenantId())) {
             throw new BizException("付款账户不存在");
         }
+        if (personal != null && personal != FinanceConstants.isPrivateAccount(b)) {
+            throw new BizException(personal ? "私对私请选择对私账户" : "公司对公请选择对公账户");
+        }
+    }
+
+    /** 付款账户的文字快照：银行 · 户名 尾号 */
+    static String accountLabel(BankAccountDO b) {
+        return b == null ? "" : (b.getBankName() + " · " + b.getAccountName() + " " + BankAccountService.mask(b.getAccountNo())).trim();
     }
 
     private static boolean samePayee(PayableDO a, PayableDO b) {

@@ -7,6 +7,7 @@ import {
   Form,
   Input,
   Modal,
+  Radio,
   Select,
   Skeleton,
   Space,
@@ -18,6 +19,7 @@ import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { CURRENCIES } from '@/pages/quotation/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import {
+  ACCOUNT_TYPE,
   type BankAccount,
   bankAccountApi,
   readBizError,
@@ -41,7 +43,10 @@ const AccountModal: React.FC<{
     if (!open) return;
     form.resetFields();
     if (!editing) {
-      form.setFieldsValue({ currencyCode: 'USD' });
+      form.setFieldsValue({
+        currencyCode: 'USD',
+        accountType: ACCOUNT_TYPE.PUBLIC,
+      });
       return;
     }
     setLoading(true);
@@ -88,6 +93,22 @@ const AccountModal: React.FC<{
               columnGap: 16,
             }}
           >
+            <Form.Item
+              name="accountType"
+              label="账户类型"
+              rules={[{ required: true, message: '请选择账户类型' }]}
+              extra="对私账户（如法人个人账户）用于私对私付款，不能设为默认"
+              style={{ gridColumn: '1 / -1' }}
+            >
+              <Radio.Group
+                optionType="button"
+                buttonStyle="solid"
+                options={[
+                  { value: ACCOUNT_TYPE.PUBLIC, label: '对公账户' },
+                  { value: ACCOUNT_TYPE.PRIVATE, label: '对私账户' },
+                ]}
+              />
+            </Form.Item>
             <Form.Item
               name="currencyCode"
               label="币种"
@@ -197,6 +218,17 @@ const BankAccountPage: React.FC = () => {
   );
 
   const columns: TableColumnsType<BankAccount> = [
+    {
+      title: '类型',
+      dataIndex: 'accountType',
+      width: 90,
+      render: (v: number) =>
+        v === ACCOUNT_TYPE.PRIVATE ? (
+          <Pill tone="orange">对私</Pill>
+        ) : (
+          <Pill tone="gray">对公</Pill>
+        ),
+    },
     { title: '币种', dataIndex: 'currencyCode', width: 80 },
     {
       title: '银行 · 账户名称',
@@ -240,7 +272,7 @@ const BankAccountPage: React.FC = () => {
       render: (_, r) =>
         r.isDefault ? (
           <Pill tone="accent">默认</Pill>
-        ) : canEdit && r.enabled ? (
+        ) : canEdit && r.enabled && r.accountType !== ACCOUNT_TYPE.PRIVATE ? (
           <a
             onClick={() =>
               run(

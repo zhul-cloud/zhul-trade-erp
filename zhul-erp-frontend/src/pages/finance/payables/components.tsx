@@ -142,7 +142,6 @@ export const RegisterPaymentDrawer: React.FC<{
   const [method, setMethod] = useState<number>(METHOD.COMPANY);
   const [accounts, setAccounts] = useState<BankOption[]>([]);
   const [accountId, setAccountId] = useState<number>();
-  const [payerAccount, setPayerAccount] = useState('');
   const [payDate, setPayDate] = useState<Dayjs>(dayjs());
   const [amount, setAmount] = useState<number | null>(null);
   const [amountCny, setAmountCny] = useState<number | null>(null);
@@ -221,17 +220,23 @@ export const RegisterPaymentDrawer: React.FC<{
   );
   const target = round2((amount ?? 0) + creditTotal);
   const balanced = allocTotal === target && target > 0;
+  // 公司对公选对公账户，私对私选对私账户（收款账户里的账户类型）
   const currencyAccounts = useMemo(
-    () => accounts.filter((a) => a.currencyCode === currency),
-    [accounts, currency],
+    () =>
+      accounts.filter(
+        (a) =>
+          a.currencyCode === currency &&
+          (a.accountType === 2) === (method === METHOD.PRIVATE),
+      ),
+    [accounts, currency, method],
   );
 
   useEffect(() => {
-    if (method === METHOD.COMPANY && !accountId && currencyAccounts.length) {
-      setAccountId(
-        (currencyAccounts.find((a) => a.isDefault) ?? currencyAccounts[0]).id,
-      );
-    }
+    if (method === METHOD.ADVANCE) return;
+    if (accountId && currencyAccounts.some((a) => a.id === accountId)) return;
+    setAccountId(
+      (currencyAccounts.find((a) => a.isDefault) ?? currencyAccounts[0])?.id,
+    );
   }, [method, accountId, currencyAccounts]);
 
   const refill = (next: number, nextCredits = credits) => {
@@ -248,21 +253,15 @@ export const RegisterPaymentDrawer: React.FC<{
       message.error('请上传付款截图');
       return;
     }
-    if (method === METHOD.COMPANY && !accountId) {
+    if (method !== METHOD.ADVANCE && !accountId) {
       message.error('请选择付款账户');
-      return;
-    }
-    if (method === METHOD.PRIVATE && !payerAccount.trim()) {
-      message.error('私对私请填写付款个人账户');
       return;
     }
     setSaving(true);
     try {
       await paymentApi.register({
         method,
-        bankAccountId: method === METHOD.COMPANY ? accountId : undefined,
-        payerAccount:
-          method === METHOD.PRIVATE ? payerAccount.trim() : undefined,
+        bankAccountId: method !== METHOD.ADVANCE ? accountId : undefined,
         payDate: payDate.format('YYYY-MM-DD'),
         amount: amount ?? 0,
         amountCny: foreign ? (amountCny ?? undefined) : undefined,
@@ -437,8 +436,14 @@ export const RegisterPaymentDrawer: React.FC<{
           )}
         </Field>
         <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
-          {method === METHOD.COMPANY && (
-            <Field label="付款账户" required flex>
+          {method !== METHOD.ADVANCE && (
+            <Field
+              label={
+                method === METHOD.PRIVATE ? '付款账户（对私）' : '付款账户'
+              }
+              required
+              flex
+            >
               <Select
                 style={{ width: '100%' }}
                 value={accountId}
@@ -448,17 +453,7 @@ export const RegisterPaymentDrawer: React.FC<{
                   value: a.id,
                   label: `${a.bankName} · ${a.accountName} ${a.accountNoMasked}`,
                 }))}
-                notFoundContent={`没有 ${currency} 账户，请先在「收款账户」里添加`}
-              />
-            </Field>
-          )}
-          {method === METHOD.PRIVATE && (
-            <Field label="付款个人账户" required flex>
-              <Input
-                maxLength={100}
-                placeholder="如 法人 张三 · 招行尾号 1234"
-                value={payerAccount}
-                onChange={(e) => setPayerAccount(e.target.value)}
+                notFoundContent={`没有${method === METHOD.PRIVATE ? '对私' : '对公'}的 ${currency} 账户，请先在「收款账户」里添加`}
               />
             </Field>
           )}

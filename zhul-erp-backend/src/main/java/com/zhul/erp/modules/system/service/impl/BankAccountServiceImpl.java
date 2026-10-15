@@ -25,6 +25,8 @@ import java.util.Objects;
 public class BankAccountServiceImpl implements BankAccountService {
 
     private static final String MENU = "收款账户";
+    public static final int TYPE_PUBLIC = 1;
+    public static final int TYPE_PRIVATE = 2;
 
     private final BankAccountMapper mapper;
     private final LogService logService;
@@ -55,8 +57,8 @@ public class BankAccountServiceImpl implements BankAccountService {
         a.setTenantId(tenantId());
         apply(a, req);
         a.setStatus(1);
-        // 该币种的第一个启用账户自动成为默认
-        a.setIsDefault(defaultFor(a.getCurrencyCode()) == null ? 1 : 0);
+        // 该币种的第一个启用对公账户自动成为默认；对私账户不当默认
+        a.setIsDefault(isPublic(a) && defaultFor(a.getCurrencyCode()) == null ? 1 : 0);
         mapper.insert(a);
         logService.recordOperateLog(MENU, "新增收款账户", null, logView(a));
         return toVo(a, true);
@@ -69,13 +71,13 @@ public class BankAccountServiceImpl implements BankAccountService {
         Map<String, Object> before = logView(a);
         String oldCurrency = a.getCurrencyCode();
         apply(a, req);
-        if (!oldCurrency.equals(a.getCurrencyCode()) && Objects.equals(a.getIsDefault(), 1)) {
+        if ((!oldCurrency.equals(a.getCurrencyCode()) || !isPublic(a)) && Objects.equals(a.getIsDefault(), 1)) {
             // 换了币种：原币种的默认交给剩余的第一个启用账户，本账户在新币种里没有默认时才成为默认
             a.setIsDefault(0);
             mapper.updateById(a);
             promoteFirst(oldCurrency);
         }
-        if (Objects.equals(a.getStatus(), 1) && defaultFor(a.getCurrencyCode()) == null) {
+        if (Objects.equals(a.getStatus(), 1) && isPublic(a) && defaultFor(a.getCurrencyCode()) == null) {
             a.setIsDefault(1);
         }
         mapper.updateById(a);
@@ -89,6 +91,9 @@ public class BankAccountServiceImpl implements BankAccountService {
         BankAccountDO a = require(id);
         if (!Objects.equals(a.getStatus(), 1)) {
             throw new BizException("停用的账户不能设为默认，请先启用");
+        }
+        if (!isPublic(a)) {
+            throw new BizException("对私账户不能设为默认");
         }
         for (BankAccountDO other : rows()) {
             if (other.getCurrencyCode().equals(a.getCurrencyCode()) && Objects.equals(other.getIsDefault(), 1) && !other.getId().equals(id)) {
@@ -107,14 +112,14 @@ public class BankAccountServiceImpl implements BankAccountService {
         BankAccountDO a = require(id);
         if (!enabled && Objects.equals(a.getIsDefault(), 1)) {
             boolean othersEnabled = rows().stream().anyMatch(o -> !o.getId().equals(id) && o.getCurrencyCode().equals(a.getCurrencyCode())
-                    && Objects.equals(o.getStatus(), 1));
+                    && Objects.equals(o.getStatus(), 1) && isPublic(o));
             if (othersEnabled) {
                 throw new BizException("这是 " + a.getCurrencyCode() + " 的默认账户，请先把另一个账户设为默认");
             }
             a.setIsDefault(0);
         }
         a.setStatus(enabled ? 1 : 0);
-        if (enabled && defaultFor(a.getCurrencyCode()) == null) {
+        if (enabled && isPublic(a) && defaultFor(a.getCurrencyCode()) == null) {
             a.setIsDefault(1);
         }
         mapper.updateById(a);
@@ -137,7 +142,7 @@ public class BankAccountServiceImpl implements BankAccountService {
     }
 
     private void promoteFirst(String currency) {
-        rows().stream().filter(o -> o.getCurrencyCode().equals(currency) && Objects.equals(o.getStatus(), 1))
+        rows().stream().filter(o -> o.getCurrencyCode().equals(currency) && Objects.equals(o.getStatus(), 1) && isPublic(o))
                 .min(Comparator.comparing(BankAccountDO::getId))
                 .ifPresent(o -> {
                     o.setIsDefault(1);
@@ -151,6 +156,11 @@ public class BankAccountServiceImpl implements BankAccountService {
             throw new BizException("不支持的币种：" + r.getCurrencyCode());
         }
         a.setCurrencyCode(currency);
+        int type = r.getAccountType() == null ? TYPE_PUBLIC : r.getAccountType();
+        if (type != TYPE_PUBLIC && type != TYPE_PRIVATE) {
+            throw new BizException("账户类型不正确");
+        }
+        a.setAccountType(type);
         a.setBankName(r.getBankName().trim());
         a.setAccountName(r.getAccountName().trim());
         a.setAccountNo(r.getAccountNo().trim());
@@ -160,6 +170,10 @@ public class BankAccountServiceImpl implements BankAccountService {
         a.setBankCode(trim(r.getBankCode()));
         a.setBranchCode(trim(r.getBranchCode()));
         a.setRemark(trim(r.getRemark()));
+    }
+
+    private static boolean isPublic(BankAccountDO a) {
+        return !Objects.equals(a.getAccountType(), TYPE_PRIVATE);
     }
 
     private BankAccountDO require(Integer id) {
@@ -183,6 +197,7 @@ public class BankAccountServiceImpl implements BankAccountService {
     private static BankAccountVO toVo(BankAccountDO a, boolean full) {
         BankAccountVO vo = new BankAccountVO();
         vo.setId(a.getId());
+        vo.setAccountType(a.getAccountType() == null ? TYPE_PUBLIC : a.getAccountType());
         vo.setCurrencyCode(a.getCurrencyCode());
         vo.setBankName(a.getBankName());
         vo.setAccountName(a.getAccountName());

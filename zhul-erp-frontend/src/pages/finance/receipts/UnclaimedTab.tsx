@@ -200,7 +200,7 @@ const RegisterModal: React.FC<{
             }
             options={banks.map((b) => ({
               value: b.id,
-              label: `${b.bankName} ${b.accountNoMasked}`,
+              label: `${b.bankName} ${b.accountNoMasked}${b.accountType === 2 ? '（对私）' : ''}`,
             }))}
             aria-label="收款账户"
           />
