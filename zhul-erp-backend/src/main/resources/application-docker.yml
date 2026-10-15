@@ -1,0 +1,45 @@
+# Container-only settings. Local application-dev.yml is excluded from the image.
+# Development seeds require an explicit SPRING_FLYWAY_LOCATIONS override.
+# Production database/schema provisioning happens outside the app.
+server:
+  forward-headers-strategy: framework
+  shutdown: graceful
+
+spring:
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
+    hikari:
+      # Let Flyway perform bounded connection retries while MySQL initializes.
+      initialization-fail-timeout: -1
+      connection-timeout: 3000
+      validation-timeout: 2000
+  flyway:
+    locations: classpath:db/migration
+    connect-retries: ${DB_CONNECT_RETRIES:12}
+    connect-retries-interval: 5s
+  data:
+    redis:
+      host: ${REDIS_HOST:redis}
+      port: ${REDIS_PORT:6379}
+      username: ${REDIS_USERNAME:}
+      password: ${REDIS_PASSWORD:}
+      database: ${REDIS_DATABASE:0}
+      connect-timeout: 3000ms
+      timeout: 3000ms
+      ssl:
+        enabled: ${REDIS_SSL_ENABLED:false}
+
+jwt:
+  secret: ${JWT_SECRET}
+
+zhul:
+  crypto:
+    aes-key: ${AES_KEY}
+  ai-task:
+    callback-token: ${AI_TASK_CALLBACK_TOKEN}
+
+logging:
+  level:
+    com.zhul.erp: info

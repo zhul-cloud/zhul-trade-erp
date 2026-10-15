@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-真正调用 AI 的编排服务实现——用 Claude Code CLI（`claude -p`，非交互模式）执行
+真正调用 AI 的编排服务实现——通过 Anthropic API（官方 Python SDK）执行
 本目录 skills/ 下的 inquiry-parser + order-splitter 两个 skill，替代
 scripts/ai-orchestrator-stub 里那个返回固定假数据的占位脚本。
 
@@ -13,44 +13,48 @@ scripts/ai-orchestrator-stub 里那个返回固定假数据的占位脚本。
     header: X-AI-Callback-Token: <与 zhul-erp-backend 配置一致的共享密钥>
     body: {"status": "success"|"failed", "output": {...}|null, "error": null|string}
 
-只依赖 Python 标准库和本机已登录的 `claude` CLI（订阅版账号即可，不需要单独的
-ANTHROPIC_API_KEY——这是走 Claude Code 的 OAuth 登录态，不是 `--bare` 模式）。
+依赖：Python 3.10+ 与 `anthropic` SDK（见 requirements.txt）；鉴权用环境变量
+ANTHROPIC_API_KEY，不需要安装 Claude Code CLI。
 
 ## 真实调用会产生费用
 
-每次处理都会消耗你当前登录账号的真实用量，不是免费的。用
-`--max-budget-usd` 给单次调用设了上限（见 AI_ORCHESTRATOR_MAX_BUDGET_USD），
-超过就会失败而不是无限烧钱，但没有办法完全避免产生费用。
+每次处理都按 API 用量计费。API 没有「单次最多花多少钱」的开关，这里用
+联网搜索次数上限（AI_ORCHESTRATOR_MAX_WEB_SEARCHES）和输出长度上限间接控制，
+每次调用完成后在日志里打印 token 用量与搜索次数，便于核对费用。
 
-## 已验证过的技术细节（写这个脚本之前实测过，不是猜的）
+## 实现要点
 
-- `--json-schema` 配合 `--output-format json` 可以直接拿到符合我们后端字段约定
-  （驼峰命名、confidence 用整数）的 `structured_output`，不需要再写一层格式转换。
-- `--json-schema` 模式不会阻止真实调用 WebSearch——一开始看 `usage.server_tool_use`
-  以为没搜索，后来发现搜索请求数记在 `modelUsage.<model>.webSearchRequests`
-  里（Claude Code 内部会用一个更便宜的模型执行搜索这类子任务），不是顶层那个
-  字段，实测每个型号确实各触发了一次搜索。
-- `--allowedTools WebSearch` + `--permission-prompts none`：精确只放行联网搜索，
-  其余工具（改文件、跑命令等）一律自动拒绝而不是卡住等待交互确认，不需要用
-  `--dangerously-skip-permissions` 这种放开一切的模式。
+- 结构化输出：output_config.format 指定 JSON Schema，返回的 JSON 直接符合后端字段约定
+  （驼峰命名、confidence 用整数），不再需要一层格式转换。
+- 联网搜索：服务端工具 web_search，在 Anthropic 服务器上执行，本服务不实现搜索逻辑。
+- 附件：图片、PDF 由本服务读取本地文件后随请求发送，因此需要能读到后端的私有上传目录
+  （Docker 部署时两个容器挂载同一个目录）。
+- 长时间的搜索轮次可能以 pause_turn 暂停，原样续传即可继续。
+- 拒答兜底：启用服务端 fallbacks="default"，模型因安全策略拒答时由服务端改用推荐的备用模型重试。
 """
+import base64
 import json
 import os
 import re
-import subprocess
 import threading
 import urllib.request
 import uuid
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
+import anthropic
+
 PORT = int(os.environ.get("AI_STUB_PORT", "8899"))
 CALLBACK_TOKEN = os.environ.get("AI_TASK_CALLBACK_TOKEN", "zhul-erp-ai-callback-secret")
-CLAUDE_BIN = os.environ.get("CLAUDE_BIN", "claude")
-MAX_BUDGET_USD = os.environ.get("AI_ORCHESTRATOR_MAX_BUDGET_USD", "5.00")
-# claude 子进程超时（秒）——真实联网搜索验证一条含多个型号的询盘可能是分钟级，
+MODEL = os.environ.get("AI_ORCHESTRATOR_MODEL") or "claude-opus-5-5"
+MAX_WEB_SEARCHES = int(os.environ.get("AI_ORCHESTRATOR_MAX_WEB_SEARCHES") or "20")
+# 单次 API 调用超时（秒）——联网搜索验证一条含多个型号的询盘可能是分钟级，
 # 这里给足余量；对应地 zhul-erp-backend 的 AiTaskTimeoutWatchdog 超时阈值
 # 也已经调大，避免这边还没跑完就被那边判定超时。
-CLAUDE_TIMEOUT_SECONDS = int(os.environ.get("AI_ORCHESTRATOR_CLAUDE_TIMEOUT_SECONDS", "900"))
+TIMEOUT_SECONDS = int(os.environ.get("AI_ORCHESTRATOR_TIMEOUT_SECONDS") or "900")
+# pause_turn 最多续传几次，防止异常情况下无限循环
+MAX_CONTINUATIONS = 5
+FALLBACK_BETA = "server-side-fallback-2026-07-01"
+IMAGE_TYPES = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".gif": "image/gif", ".webp": "image/webp"}
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 SKILL_DIR = os.path.join(SCRIPT_DIR, "skills")
@@ -161,55 +165,87 @@ def _category_rules(categories: list) -> str:
 """
 
 
+def _strict(schema):
+    """结构化输出要求每个 object 都声明 additionalProperties: false"""
+    if isinstance(schema, dict):
+        if schema.get("type") == "object":
+            schema.setdefault("additionalProperties", False)
+        for value in schema.values():
+            _strict(value)
+    elif isinstance(schema, list):
+        for value in schema:
+            _strict(value)
+    return schema
+
+
+def _attachment_block(path: str) -> dict:
+    """图片、PDF 附件读成 base64 随请求发送"""
+    ext = os.path.splitext(path)[1].lower()
+    with open(path, "rb") as f:
+        data = base64.standard_b64encode(f.read()).decode("ascii")
+    if ext == ".pdf":
+        return {"type": "document", "source": {"type": "base64", "media_type": "application/pdf", "data": data}}
+    if ext in IMAGE_TYPES:
+        return {"type": "image", "source": {"type": "base64", "media_type": IMAGE_TYPES[ext], "data": data}}
+    raise RuntimeError(f"不支持的附件类型 {ext}，只支持图片和 PDF")
+
+
+def call_api(system_prompt: str, content: list, schema: dict, tools=None) -> dict:
+    """调用 Anthropic API，返回按 schema 校验过的 JSON；pause_turn 时原样续传"""
+    if not os.environ.get("ANTHROPIC_API_KEY"):
+        raise RuntimeError("未配置 ANTHROPIC_API_KEY，无法调用 AI")
+    client = anthropic.Anthropic(timeout=TIMEOUT_SECONDS)
+    messages = [{"role": "user", "content": content}]
+    params = {
+        "model": MODEL,
+        "max_tokens": 64000,
+        "system": system_prompt,
+        "output_config": {"effort": "medium", "format": {"type": "json_schema", "schema": _strict(schema)}},
+        "betas": [FALLBACK_BETA],
+        "fallbacks": "default",
+    }
+    if tools:
+        params["tools"] = tools
+    for _ in range(MAX_CONTINUATIONS + 1):
+        with client.beta.messages.stream(messages=messages, **params) as stream:
+            response = stream.get_final_message()
+        if response.stop_reason != "pause_turn":
+            break
+        messages = [messages[0], {"role": "assistant", "content": response.content}]
+    else:
+        raise RuntimeError(f"联网搜索续传超过 {MAX_CONTINUATIONS} 次仍未完成")
+
+    if response.stop_reason == "refusal":
+        raise RuntimeError("模型拒绝处理这条内容")
+    if response.stop_reason == "max_tokens":
+        raise RuntimeError("输出超过长度上限，内容可能过多，请拆分后重试")
+    texts = [b.text for b in response.content if b.type == "text"]
+    if not texts:
+        raise RuntimeError("AI 未返回结果")
+    usage = response.usage
+    searches = getattr(getattr(usage, "server_tool_use", None), "web_search_requests", 0) or 0
+    print(f"[ai-orchestrator] API 调用完成 model={response.model}，输入 {usage.input_tokens} tokens，"
+          f"输出 {usage.output_tokens} tokens，联网搜索 {searches} 次，request_id={response._request_id}")
+    return json.loads(texts[-1])
+
+
 def call_claude(raw_content: str, file_paths=None, categories=None) -> dict:
     """raw_content 为正文（Excel/CSV 附件已由后端抽成文本拼在里面）；file_paths 为图片、PDF 的本地绝对路径；
     categories 为后端带来的品类清单（没有时沿用 skill 里的品类枚举）。"""
-    system_prompt = build_system_prompt(categories)
     file_paths = file_paths or []
+    content = [_attachment_block(p) for p in file_paths]
     if file_paths:
-        # 图片和 PDF 没法机械抽文本，把本地绝对路径交给 Claude 用 Read 工具自己看；
-        # `Read(<path>)` 只放行这几个文件，不是任意路径都能读。
-        listing = "\n".join(f"- {p}" for p in file_paths)
-        prompt_text = (
+        text = (
             (f"询盘正文：\n{raw_content}\n\n" if raw_content else "这条询盘没有正文。\n")
-            + f"另有以下附件（图片或 PDF），本地路径：\n{listing}\n"
-            + "请先用 Read 工具逐个读取附件，识别其中的型号、数量等询盘信息，与正文合并当成询盘原文，再按下面的 skill 流程继续处理。"
+            + "上面附有询盘附件（图片或 PDF）。请先识别附件中的型号、数量等询盘信息，与正文合并当成询盘原文，再按 skill 流程继续处理。"
         )
-        allowed_tools = " ".join(["WebSearch"] + [f"Read({p})" for p in file_paths])
     else:
-        prompt_text = raw_content
-        allowed_tools = "WebSearch"
-    cmd = [
-        CLAUDE_BIN,
-        "-p",
-        prompt_text,
-        "--append-system-prompt",
-        system_prompt,
-        "--output-format",
-        "json",
-        "--json-schema",
-        json.dumps(OUTPUT_SCHEMA),
-        "--allowedTools",
-        allowed_tools,
-        "--permission-prompts",
-        "none",
-        "--max-budget-usd",
-        MAX_BUDGET_USD,
-    ]
-    result = subprocess.run(cmd, capture_output=True, text=True, timeout=CLAUDE_TIMEOUT_SECONDS)
-    if result.returncode != 0:
-        raise RuntimeError(f"claude 进程退出码 {result.returncode}: {result.stderr[-2000:]}")
-
-    envelope = json.loads(result.stdout)
-    if envelope.get("is_error"):
-        raise RuntimeError(f"claude 返回错误: {envelope.get('result')}")
-
-    structured = envelope.get("structured_output")
-    if not structured or "groups" not in structured:
-        raise RuntimeError("claude 未返回符合 schema 的结构化输出")
-
-    cost = envelope.get("total_cost_usd")
-    print(f"[ai-orchestrator] claude 调用完成，费用约 ${cost}，耗时 {envelope.get('duration_ms')}ms")
+        text = raw_content
+    content.append({"type": "text", "text": text})
+    tools = [{"type": "web_search_20260209", "name": "web_search", "max_uses": MAX_WEB_SEARCHES}]
+    structured = call_api(build_system_prompt(categories), content, OUTPUT_SCHEMA, tools)
+    if "groups" not in structured:
+        raise RuntimeError("AI 未返回符合 schema 的结构化输出")
     return structured
 
 
@@ -326,8 +362,8 @@ def process_job(payload: dict, callback_url: str):
             return
         output = call_claude(raw_content, paths, input_data.get("categories") or [])
         send_callback(callback_url, "success", output=output)
-    except subprocess.TimeoutExpired:
-        send_callback(callback_url, "failed", error=f"claude 处理超过 {CLAUDE_TIMEOUT_SECONDS} 秒未完成")
+    except anthropic.APITimeoutError:
+        send_callback(callback_url, "failed", error=f"AI 处理超过 {TIMEOUT_SECONDS} 秒未完成")
     except Exception as e:
         print(f"[ai-orchestrator] job failed: {e}")
         send_callback(callback_url, "failed", error=str(e)[:500])
@@ -384,5 +420,7 @@ if __name__ == "__main__":
     sys.stderr.reconfigure(line_buffering=True)
 
     server = HTTPServer(("0.0.0.0", PORT), Handler)
-    print(f"[ai-orchestrator] listening on :{PORT}（真实 Claude Code 后端，每次调用会产生真实费用）")
+    print(f"[ai-orchestrator] listening on :{PORT}（Anthropic API，model={MODEL}，每次调用按用量计费）")
+    if not os.environ.get("ANTHROPIC_API_KEY"):
+        print("[ai-orchestrator] 警告：未配置 ANTHROPIC_API_KEY，AI 解析与翻译任务会直接回调失败")
     server.serve_forever()
