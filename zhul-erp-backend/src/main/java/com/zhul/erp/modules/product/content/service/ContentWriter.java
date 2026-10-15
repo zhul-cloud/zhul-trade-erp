@@ -33,6 +33,7 @@ import com.zhul.erp.modules.product.content.support.ContentSection;
 import com.zhul.erp.modules.product.content.support.ContentV2Parser;
 import com.zhul.erp.modules.product.content.support.FactFields;
 import com.zhul.erp.modules.product.content.support.MarketingPlatform;
+import com.zhul.erp.modules.product.entity.ProductListingPriceDO;
 import com.zhul.erp.modules.product.entity.ProductApplicationDO;
 import com.zhul.erp.modules.product.entity.ProductCustomsDO;
 import com.zhul.erp.modules.product.entity.ProductLogisticsDO;
@@ -42,6 +43,7 @@ import com.zhul.erp.modules.product.entity.ProductDocumentDO;
 import com.zhul.erp.modules.product.entity.ProductFaqDO;
 import com.zhul.erp.modules.product.entity.ProductRelationshipDO;
 import com.zhul.erp.modules.product.entity.ProductSpecificationDO;
+import com.zhul.erp.modules.product.repository.ProductListingPriceMapper;
 import com.zhul.erp.modules.product.repository.ProductApplicationMapper;
 import com.zhul.erp.modules.product.repository.ProductCustomsMapper;
 import com.zhul.erp.modules.product.repository.ProductLogisticsMapper;
@@ -57,7 +59,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -110,6 +114,7 @@ public class ContentWriter {
     private final ProductKeywordUseMapper keywordUseMapper;
     private final ProductFactNoteMapper factNoteMapper;
     private final ObjectMapper objectMapper;
+    private final ProductListingPriceMapper listingPriceMapper;
 
     /**
      * 返回写入摘要。draft 给出包类型、语言、规范版本与拆出的部分；blocks 为要写入的块（跳过与有错的块已去掉）。
@@ -157,6 +162,7 @@ public class ContentWriter {
                 case SERIES -> summary.add(writeSeries(product, b.getText()));
                 case LOGISTICS -> summary.add(writeLogistics(productId, b.getFields()));
                 case CUSTOMS -> summary.add(writeCustoms(productId, b.getFields()));
+                case LISTING_PRICES -> summary.add(writeListings(productId, b.getListings(), draft.getUpdated(), imp.getId()));
                 default -> {
                     // SEO/GEO 文本块统一在下面写
                 }
@@ -932,6 +938,40 @@ public class ContentWriter {
      * 资料待确认项：两类分别整份替换。文件里有该章节的，按新内容替换；文件里没有的，清空；
      * 有但被跳过的，保留原有。
      */
+    /** 平台参考价：整份替换该商品的挂牌参考（共享商品库）；取价日期取文件的 updated，没有时为今天 */
+    private String writeListings(Long productId, List<ContentDraft.ListingRow> rows, String updated, Long importId) {
+        LocalDateTime now = LocalDateTime.now();
+        listingPriceMapper.update(null, new LambdaUpdateWrapper<ProductListingPriceDO>()
+                .eq(ProductListingPriceDO::getTenantId, ProductConstants.PLATFORM_TENANT_ID)
+                .eq(ProductListingPriceDO::getProductId, productId)
+                .isNull(ProductListingPriceDO::getDeletedAt)
+                .set(ProductListingPriceDO::getDeletedAt, now));
+        LocalDate date;
+        try {
+            date = updated == null || updated.isBlank() ? LocalDate.now() : LocalDate.parse(updated.strip());
+        } catch (DateTimeParseException e) {
+            date = LocalDate.now();
+        }
+        int sort = 0;
+        for (ContentDraft.ListingRow r : rows) {
+            ProductListingPriceDO row = new ProductListingPriceDO();
+            row.setTenantId(ProductConstants.PLATFORM_TENANT_ID);
+            row.setProductId(productId);
+            row.setCategory(r.category());
+            row.setPlatform(r.platform());
+            row.setItemCondition(r.condition());
+            row.setPriceUsd(r.priceUsd());
+            row.setSourcePrice(r.sourcePrice());
+            row.setLinkTitle(r.linkTitle());
+            row.setLinkUrl(r.linkUrl());
+            row.setPriceDate(date);
+            row.setSort(sort++);
+            row.setImportId(importId);
+            listingPriceMapper.insert(row);
+        }
+        return "平台参考价 " + rows.size() + " 条";
+    }
+
     private String writeFactNotes(Long productId, ContentDraft draft, Map<ContentSection, ContentDraft.Block> blocks,
                                   Long importId) {
         int total = 0;

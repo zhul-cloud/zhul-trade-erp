@@ -43,7 +43,8 @@ public enum ContentSection {
     SEO_FIELDS("SEO 字段", Kind.LIST, 0, List.of("site"), List.of()),
     ALT_TEXTS("图片说明文字", Kind.LIST, 0, List.of("site"), List.of()),
     POSTS("社媒帖子", Kind.LIST, 0, List.of("social"), List.of()),
-    VIDEOS("视频方案", Kind.LIST, 0, List.of("social"), List.of());
+    VIDEOS("视频方案", Kind.LIST, 0, List.of("social"), List.of()),
+    LISTING_PRICES("平台参考价", Kind.LIST, 0, List.of("facts"), List.of());
 
     /** 章节归属：资料包，或营销平台编码（见 MarketingPlatform） */
     public static final String FACTS = "facts";

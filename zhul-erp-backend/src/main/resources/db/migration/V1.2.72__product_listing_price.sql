@@ -1,0 +1,26 @@
+-- 平台参考价（openspec facts-listing-prices）：资料包「## 平台参考价」导入的公开挂牌价，共享商品库（tenant_id=0），每次导入整份替换
+CREATE TABLE IF NOT EXISTS `product_listing_price` (
+    `id`             bigint        NOT NULL AUTO_INCREMENT COMMENT '主键',
+    `tenant_id`      int(11)       NOT NULL DEFAULT 0 COMMENT '租户ID（0=平台级共享）',
+    `product_id`     bigint        NOT NULL DEFAULT 0 COMMENT '商品ID',
+    `category`       varchar(64)   NOT NULL DEFAULT '' COMMENT '价格类别，如 目标型号挂牌价、类目参考',
+    `platform`       varchar(64)   NOT NULL DEFAULT '' COMMENT '平台/网站，如 eBay',
+    `item_condition` varchar(32)   NOT NULL DEFAULT '' COMMENT '成色，如 New、Used',
+    `price_usd`      decimal(18,2) NOT NULL DEFAULT 0.00 COMMENT '参考价格（美元），挂牌价，不是成交价或报价',
+    `source_price`   varchar(64)   NOT NULL DEFAULT '' COMMENT '来源原价（原币与金额，如 EUR 490.00）',
+    `link_title`     varchar(255)  NOT NULL DEFAULT '' COMMENT '来源链接标题',
+    `link_url`       varchar(500)  NOT NULL DEFAULT '' COMMENT '来源链接',
+    `price_date`     date          NULL COMMENT '取价日期（文件的 updated，没有时为导入日期）',
+    `sort`           int(11)       NOT NULL DEFAULT 0 COMMENT '排序（按文件中的顺序）',
+    `import_id`      bigint        NOT NULL DEFAULT 0 COMMENT '来自哪次资料包导入',
+    `deleted_at`     datetime      NULL COMMENT '软删除时间，NULL表示未删除',
+    `create_time`    datetime      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `create_by`      varchar(32)   NOT NULL DEFAULT 'sys' COMMENT '创建人',
+    `update_time`    datetime      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
+    `update_by`      varchar(32)   NOT NULL DEFAULT 'sys' COMMENT '更新人',
+    PRIMARY KEY (`id`),
+    KEY `idx_tenant_id` (`tenant_id`),
+    KEY `idx_product_id` (`product_id`),
+    KEY `idx_create_time` (`create_time`),
+    KEY `idx_deleted_at` (`deleted_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='平台参考价（资料包导入的公开挂牌价）';

@@ -718,7 +718,23 @@ export const priceApi = {
     }),
   clear: (id: number) =>
     call<void>(`${BASE}/products/${id}/reference-price`, { method: 'DELETE' }),
+  /** 资料包导入的公开挂牌价（只读） */
+  listings: (id: number) =>
+    call<ListingPrice[]>(`${BASE}/products/${id}/listing-prices`),
 };
+
+/** 平台参考价：资料包「平台参考价」导入的公开挂牌价，不是成交价、采购成本或报价 */
+export interface ListingPrice {
+  id: number;
+  category: string;
+  platform: string;
+  itemCondition: string;
+  priceUsd: number;
+  sourcePrice: string;
+  linkTitle: string;
+  linkUrl: string;
+  priceDate?: string;
+}
 
 // ---------- 内容任务：资料（中文，共享）→ 营销（按平台，本公司） ----------
 

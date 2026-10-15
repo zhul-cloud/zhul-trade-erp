@@ -7,13 +7,19 @@ import {
   InputNumber,
   Select,
   Space,
+  Table,
 } from 'antd';
 import dayjs from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
 import { formatAmount } from '@/utils/format';
 import { EmptyHint } from '../../components/EmptyHint';
 import { CURRENCY_OPTIONS } from '../../constants';
-import { priceApi, type ReferencePrice, readBizError } from '../../service';
+import {
+  type ListingPrice,
+  priceApi,
+  type ReferencePrice,
+  readBizError,
+} from '../../service';
 import { useProductTheme } from '../../theme';
 import {
   CardEmpty,
@@ -35,6 +41,7 @@ export const PriceCard: React.FC<{
   const { palette } = useProductTheme();
   const [form] = Form.useForm<ReferencePrice & { date?: dayjs.Dayjs | null }>();
   const [price, setPrice] = useState<ReferencePrice>();
+  const [listings, setListings] = useState<ListingPrice[]>([]);
   const [error, setError] = useState<string>();
   const [editing, setEditing] = useState(false);
   const [dirty, setDirty] = useState(false);
@@ -44,7 +51,12 @@ export const PriceCard: React.FC<{
   const load = useCallback(async () => {
     setError(undefined);
     try {
-      setPrice(await priceApi.get(productId));
+      const [p, l] = await Promise.all([
+        priceApi.get(productId),
+        priceApi.listings(productId),
+      ]);
+      setPrice(p);
+      setListings(l);
     } catch (e) {
       setError(readBizError(e).message);
     }
@@ -261,6 +273,49 @@ export const PriceCard: React.FC<{
           <Field label="价格来源">{price?.priceSource}</Field>
           <Field label="取价日期">{price?.priceDate}</Field>
         </FieldGrid>
+      )}
+      {!editing && listings.length > 0 && (
+        <div style={{ marginTop: 16 }}>
+          <div style={{ fontWeight: 600, marginBottom: 4 }}>公开挂牌参考</div>
+          <div style={{ fontSize: 12, color: palette.mute, marginBottom: 8 }}>
+            资料包导入，取价日期 {listings[0].priceDate ?? '—'}
+            ；是公开挂牌价，不是成交价、采购成本或报价
+          </div>
+          <Table<ListingPrice>
+            size="small"
+            rowKey="id"
+            pagination={false}
+            dataSource={listings}
+            columns={[
+              { title: '价格类别', dataIndex: 'category', width: 160 },
+              { title: '平台/网站', dataIndex: 'platform', width: 100 },
+              { title: '成色', dataIndex: 'itemCondition', width: 80 },
+              {
+                title: '参考价格（USD）',
+                dataIndex: 'priceUsd',
+                width: 130,
+                align: 'right',
+                render: (v: number) => (
+                  <span className="num">{formatAmount(v, 'USD')}</span>
+                ),
+              },
+              { title: '来源原价', dataIndex: 'sourcePrice', width: 120 },
+              {
+                title: '来源链接',
+                dataIndex: 'linkUrl',
+                render: (v: string, r) =>
+                  v ? (
+                    <a href={v} target="_blank" rel="noopener noreferrer">
+                      {r.linkTitle || '打开'}
+                    </a>
+                  ) : (
+                    '—'
+                  ),
+              },
+            ]}
+            scroll={{ x: 720 }}
+          />
+        </div>
       )}
     </CardShell>
   );

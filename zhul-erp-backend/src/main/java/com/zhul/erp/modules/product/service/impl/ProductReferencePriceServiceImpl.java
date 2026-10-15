@@ -5,9 +5,12 @@ import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.zhul.erp.common.exception.BizException;
 import com.zhul.erp.modules.product.constants.ProductConstants;
 import com.zhul.erp.modules.product.constants.ProductErrorCodes;
+import com.zhul.erp.modules.product.dto.ListingPriceVO;
 import com.zhul.erp.modules.product.dto.ReferencePriceVO;
 import com.zhul.erp.modules.product.dto.SaveReferencePriceRequest;
+import com.zhul.erp.modules.product.entity.ProductListingPriceDO;
 import com.zhul.erp.modules.product.entity.ProductReferencePriceDO;
+import com.zhul.erp.modules.product.repository.ProductListingPriceMapper;
 import com.zhul.erp.modules.product.repository.ProductReferencePriceMapper;
 import com.zhul.erp.modules.product.service.ProductReferencePriceService;
 import com.zhul.erp.modules.product.support.PlatformScopeGuard;
@@ -21,6 +24,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Currency;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -44,6 +48,7 @@ public class ProductReferencePriceServiceImpl implements ProductReferencePriceSe
             .map(Currency::getCurrencyCode).collect(Collectors.toUnmodifiableSet());
 
     private final ProductReferencePriceMapper priceMapper;
+    private final ProductListingPriceMapper listingMapper;
     private final ProductFinder productFinder;
     private final PlatformScopeGuard platformScopeGuard;
 
@@ -187,5 +192,29 @@ public class ProductReferencePriceServiceImpl implements ProductReferencePriceSe
         vo.setPriceSource(row.getPriceSource());
         vo.setPriceDate(row.getPriceDate());
         return vo;
+    }
+
+    @Override
+    public List<ListingPriceVO> listings(Long productId) {
+        productFinder.active(productId);
+        return listingMapper.selectList(new LambdaQueryWrapper<ProductListingPriceDO>()
+                        .eq(ProductListingPriceDO::getTenantId, ProductConstants.PLATFORM_TENANT_ID)
+                        .eq(ProductListingPriceDO::getProductId, productId)
+                        .isNull(ProductListingPriceDO::getDeletedAt)
+                        .orderByAsc(ProductListingPriceDO::getSort)
+                        .orderByAsc(ProductListingPriceDO::getId))
+                .stream().map(r -> {
+                    ListingPriceVO vo = new ListingPriceVO();
+                    vo.setId(r.getId());
+                    vo.setCategory(r.getCategory());
+                    vo.setPlatform(r.getPlatform());
+                    vo.setItemCondition(r.getItemCondition());
+                    vo.setPriceUsd(r.getPriceUsd());
+                    vo.setSourcePrice(r.getSourcePrice());
+                    vo.setLinkTitle(r.getLinkTitle());
+                    vo.setLinkUrl(r.getLinkUrl());
+                    vo.setPriceDate(r.getPriceDate());
+                    return vo;
+                }).toList();
     }
 }

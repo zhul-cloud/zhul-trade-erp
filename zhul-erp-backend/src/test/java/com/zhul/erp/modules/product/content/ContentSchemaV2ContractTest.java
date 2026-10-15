@@ -57,7 +57,7 @@ class ContentSchemaV2ContractTest extends InquiryContractSupport {
         for (String t : new String[] {"product_content_import", "product_content_task", "product_fact_task", "product_seo",
                 "product_seo_faq", "product_faq", "product_platform_content", "product_platform_keyword", "product_marketing_skip",
                 "product_keyword", "product_keyword_use", "product_fact_note", "product_specification", "product_application",
-                "product_document", "product_locale", "product_logistics", "product_customs"}) {
+                "product_document", "product_locale", "product_logistics", "product_customs", "product_listing_price"}) {
             jdbc.update("delete from " + t + " where product_id in " + products);
         }
         jdbc.update("delete from product_relationship_note where relationship_id in (select id from product_relationship where product_id in "
@@ -204,6 +204,50 @@ class ContentSchemaV2ContractTest extends InquiryContractSupport {
         assertEquals(List.of("净重", "认证"), texts(content().path("factNotes"), "item"));
         // 已核实的规格保留
         assertEquals(1, ok(call(get(PRODUCTS + "/" + product + "/specifications"), admin)).get(3).path("verified").asInt());
+    }
+
+    /** 技能输出的新版式：资料包「平台参考价」导入；中国制造网工业产品页的四个加粗二级标题归回中国制造网 */
+    @Test
+    void listingPrices_andMicIndustrialPageBlocks() throws Exception {
+        long category = jdbc.queryForObject("select id from product_category where category_code = 'itc-v2-vfd'", Long.class);
+        long cp = ok(call(json(post(PRODUCTS), write(Map.of("brandId", brand, "categoryId", category,
+                "mpnRaw", "6GK7443-5DX04-0XE0"))), admin)).path("id").asLong();
+        String facts = sample("facts-6GK7443-5DX04.md").replace("brand: Siemens", "brand: " + BRAND);
+        JsonNode p = preview("/facts", file("facts.md", facts)).get(0);
+        assertTrue(p.path("confirmable").asBoolean(), p.toString());
+        JsonNode listing = block(p, "LISTING_PRICES");
+        assertEquals(2, listing.path("count").asInt());
+        assertEquals("548.56", listing.path("rows").get(1).get(3).asText());
+        assertTrue(listing.path("hints").toString().contains("整份替换"));
+        assertFalse(p.path("notes").toString().contains("平台参考价"), "不再提示跳过");
+        assertEquals(1, confirm("/facts", file("facts.md", facts)).path("succeeded").asInt());
+
+        JsonNode prices = ok(call(get(PRODUCTS + "/" + cp + "/listing-prices"), admin));
+        assertEquals(2, prices.size());
+        assertEquals("eBay", prices.get(0).path("platform").asText());
+        assertEquals("New", prices.get(0).path("itemCondition").asText());
+        assertEquals(0, new java.math.BigDecimal("308.00").compareTo(prices.get(0).path("priceUsd").decimalValue()));
+        assertEquals("EUR 490.00", prices.get(1).path("sourcePrice").asText());
+        assertEquals("https://www.ebay.com/itm/132327646861", prices.get(1).path("linkUrl").asText());
+        assertEquals("2026-10-15", prices.get(0).path("priceDate").asText());
+        // 再导入只剩一条：整份替换
+        String one = facts.replaceAll("\\| 目标型号挂牌价 \\| eBay \\| Used.*\\n", "");
+        assertEquals(1, confirm("/facts", file("facts.md", one)).path("succeeded").asInt());
+        assertEquals(1, ok(call(get(PRODUCTS + "/" + cp + "/listing-prices"), admin)).size());
+
+        // 营销包：中国制造网的 Technical Specifications、Key Features、Product Details、FAQ 与询盘引导语都解析到中国制造网
+        String marketing = sample("marketing-6GK7443-5DX04.md").replace("brand: Siemens", "brand: " + BRAND);
+        JsonNode items = preview("/marketing", file("marketing.md", marketing));
+        JsonNode mic = part(items, "mic");
+        assertTrue(mic.path("confirmable").asBoolean(), mic.toString());
+        assertFalse(items.toString().contains("不认识的章节"), items.toString());
+        assertEquals(19, block(mic, "mic:ATTRIBUTES").path("count").asInt());
+        assertEquals(5, block(mic, "mic:SELLING_POINTS").path("count").asInt());
+        assertEquals(6, block(mic, "mic:FAQ").path("count").asInt());
+        assertTrue(block(mic, "mic:DETAIL").path("text").asText("").contains("Product Overview")
+                || block(mic, "mic:DETAIL").path("raw").asText("").contains("Product Overview"));
+        assertTrue(block(mic, "mic:CTA").path("text").asText().startsWith("For an accurate inquiry"));
+        assertEquals(7, block(part(items, "alibaba"), "alibaba:SELLING_POINTS").path("count").asInt(), "阿里卖点不限 5 条");
     }
 
     @Test
