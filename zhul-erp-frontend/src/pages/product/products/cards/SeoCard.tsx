@@ -182,7 +182,7 @@ export const PlatformChips: React.FC<{
   );
 };
 
-/** 本公司启用的营销平台；active 为 false 时不请求（没有商品运营菜单的页面） */
+/** 本公司启用的营销平台；active 为 false 时不请求（没有营销任务菜单的页面） */
 export const usePlatforms = (active = true) => {
   const [options, setOptions] = useState<MarketingPlatformOption[]>([]);
   const load = useCallback(async () => {
@@ -954,7 +954,7 @@ const SkipSwitch: React.FC<{
   );
 };
 
-/** 商品详情的运营概况（本公司，只读）：各平台写入状态 +「去商品运营」；营销内容在运营管理 → 商品运营维护 */
+/** 商品详情的运营概况（本公司，只读）：各平台写入状态 +「去营销任务」；营销内容在运营管理 → 营销任务维护 */
 export const OperationsSummary: React.FC<{
   productId: number;
   data?: ProductContent;
@@ -980,7 +980,7 @@ export const OperationsSummary: React.FC<{
       <Pill tone="violet">本公司</Pill>
       <PlatformChips progress={data} platforms={data.platforms} />
       <span style={{ fontSize: 12, color: palette.sub }}>
-        营销内容在「运营管理 → 商品运营」维护
+        营销内容在「运营管理 → 营销任务」维护
       </span>
       <span style={{ flex: 1 }} />
       {access.operationsProducts && (
@@ -988,14 +988,14 @@ export const OperationsSummary: React.FC<{
           size="small"
           onClick={() => history.push(`/operations/products/${productId}`)}
         >
-          去商品运营
+          去营销任务
         </Button>
       )}
     </div>
   );
 };
 
-/** 单个平台的营销内容：写入状态条（下载营销包、上传、不发布开关）+ 内容；商品运营详情的平台页签用 */
+/** 单个平台的营销内容：写入状态条（下载营销包、上传、不发布开关）+ 内容；营销任务详情的平台页签用 */
 export const PlatformPanel: React.FC<{
   productId: number;
   platform: MarketingPlatform;

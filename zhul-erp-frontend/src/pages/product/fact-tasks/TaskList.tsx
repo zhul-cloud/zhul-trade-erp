@@ -86,7 +86,7 @@ const TABS: Record<
   ],
 };
 
-/** 行状态：资料任务看资料阶段，商品运营看营销阶段 */
+/** 行状态：资料任务看资料阶段，营销任务看营销阶段 */
 const rowStatus = (entry: PackageType, status: number) => {
   if (entry === 'facts') {
     return status === 1
@@ -110,21 +110,21 @@ const COPY: Record<
     crumbs: ['资料任务'],
     title: '资料任务',
     description:
-      '补商品资料（中文，所有公司共用一份）：下载资料包交给 AI，或直接上传 llm-wiki 商品文件；导入后有人核对。营销内容在「运营管理 → 商品运营」。',
+      '补商品资料（中文，所有公司共用一份）：下载资料包交给 AI，或直接上传 llm-wiki 商品文件；导入后有人核对。营销内容在「运营管理 → 营销任务」。',
     footer:
       '只收资料包和 llm-wiki 商品文件；「资料已核」会把未核实的中文规格和应用场景标为已核实，以后导入资料包不再覆盖；按更新时间倒序',
   },
   marketing: {
-    crumbs: ['商品运营'],
-    title: '商品运营',
+    crumbs: ['营销任务'],
+    title: '营销任务',
     description:
       '本公司各平台的营销内容：下载营销包交给 AI，生成好的 Markdown 传回来；启用的平台都写完（或标了不发布）、且资料已核才算完成。',
     footer:
-      '只收营销包；资料包和 wiki 商品文件请到「商品管理 → 资料任务」上传；只列本公司启用的平台；按更新时间倒序',
+      '只收营销包；资料包和 wiki 商品文件请到「运营管理 → 资料任务」上传；只列本公司启用的平台；按更新时间倒序',
   },
 };
 
-/** 资料任务与商品运营共用的任务列表，按入口切换页签、列和操作 */
+/** 资料任务与营销任务共用的任务列表，按入口切换页签、列和操作 */
 export const TaskList: React.FC<{ entry: PackageType }> = ({ entry }) => {
   const { palette } = useAppTheme();
   const access = useAccess() as Record<string, boolean>;

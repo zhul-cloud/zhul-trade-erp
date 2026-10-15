@@ -140,7 +140,7 @@ const KeywordLibrary: React.FC<{ data: ProductContent }> = ({ data }) => {
   );
 };
 
-/** 运营管理 → 商品运营 → 某商品：本公司的关键词库、各平台营销内容、营销包上传记录 */
+/** 运营管理 → 营销任务 → 某商品：本公司的关键词库、各平台营销内容、营销包上传记录 */
 const OperationsProductDetail: React.FC = () => {
   const { palette } = useAppTheme();
   const params = useParams<{ id: string }>();
@@ -182,8 +182,8 @@ const OperationsProductDetail: React.FC = () => {
   return (
     <div>
       <PageTitle
-        crumbs={['商品运营', product.mpnDisplay || product.mpnRaw]}
-        title={`商品运营 · ${label}`}
+        crumbs={['营销任务', product.mpnDisplay || product.mpnRaw]}
+        title={`营销任务 · ${label}`}
         description="本公司 · 只列本公司启用的平台"
       />
       <Card style={{ marginBottom: 16 }}>

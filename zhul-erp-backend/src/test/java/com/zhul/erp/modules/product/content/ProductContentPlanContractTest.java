@@ -183,7 +183,7 @@ class ProductContentPlanContractTest extends InquiryContractSupport {
         return task(productId, token).path("status").asInt();
     }
 
-    /** 按文件里的包类型走对应入口：营销包走商品运营，其他走资料任务 */
+    /** 按文件里的包类型走对应入口：营销包走营销任务，其他走资料任务 */
     private JsonNode confirm(String token, Map<String, Object> file) throws Exception {
         String entry = String.valueOf(file.get("content")).contains("type: marketing") ? "/marketing" : "/facts";
         return ok(call(json(post(TASKS + entry + "/confirm"), write(Map.of("files", List.of(file)))), token));
@@ -350,7 +350,7 @@ class ProductContentPlanContractTest extends InquiryContractSupport {
         ok(call(json(post(TASKS + "/products/" + p2 + "/verify-facts"), "{}"), admin));
         assertEquals(3, stage(p2, admin));
         JsonNode counts = ok(call(json(post(TASKS + "/marketing/counts"), write(Map.of("brandId", siemens))), admin));
-        assertEquals(1, counts.path("unverified").asInt(), "商品运营：资料未核对合并待补、待核");
+        assertEquals(1, counts.path("unverified").asInt(), "营销任务：资料未核对合并待补、待核");
         assertEquals(1, counts.path("3").asInt());
         assertEquals(2, counts.path("all").asInt());
         JsonNode factCounts = ok(call(json(post(TASKS + "/facts/counts"), write(Map.of("brandId", siemens))), admin));
@@ -593,7 +593,7 @@ class ProductContentPlanContractTest extends InquiryContractSupport {
                 Integer.class, p1));
 
         // 没有维护权限：能看平台设置，不能改、不能标不发布
-        // 有资料任务和商品运营菜单、没有维护按钮
+        // 有资料任务和营销任务菜单、没有维护按钮
         loginWithResources("it_content_viewer", 100100, 100102);
         String viewer = token("it_content_viewer");
         ok(call(get(TASKS + "/platforms"), viewer));
@@ -707,14 +707,14 @@ class ProductContentPlanContractTest extends InquiryContractSupport {
                     .replace("model: DOP-107EG", "model: 6ES7214-1AG40-0XB0");
         }
 
-        // 走错入口：资料任务拒营销包，商品运营拒资料包和 wiki 文件；确认时同样拒绝
+        // 走错入口：资料任务拒营销包，营销任务拒资料包和 wiki 文件；确认时同样拒绝
         JsonNode wrongFacts = ok(call(json(post(TASKS + "/facts/preview"), write(Map.of("files", List.of(siteFile)))), admin)).get(0);
         assertFalse(wrongFacts.path("confirmable").asBoolean());
-        assertTrue(wrongFacts.path("errors").toString().contains("营销包请到运营管理 → 商品运营上传"), wrongFacts.toString());
+        assertTrue(wrongFacts.path("errors").toString().contains("营销包请到运营管理 → 营销任务上传"), wrongFacts.toString());
         JsonNode wrongOps = ok(call(json(post(TASKS + "/marketing/preview"), write(Map.of("files", List.of(factsFile,
                 file("DOP.md", wiki))))), admin));
-        assertTrue(wrongOps.get(0).path("errors").toString().contains("资料包请到商品管理 → 资料任务上传"));
-        assertTrue(wrongOps.get(1).path("errors").toString().contains("资料包请到商品管理 → 资料任务上传"), "wiki 文件也是资料包");
+        assertTrue(wrongOps.get(0).path("errors").toString().contains("资料包请到运营管理 → 资料任务上传"));
+        assertTrue(wrongOps.get(1).path("errors").toString().contains("资料包请到运营管理 → 资料任务上传"), "wiki 文件也是资料包");
         assertEquals(0, ok(call(json(post(TASKS + "/marketing/confirm"), write(Map.of("files", List.of(factsFile)))), admin))
                 .path("succeeded").asInt());
 
@@ -751,7 +751,7 @@ class ProductContentPlanContractTest extends InquiryContractSupport {
         assertEquals("CPU 1214C", library.get(1).path("keyword").asText());
         assertEquals(3, library.get(2).path("tier").asInt());
 
-        // 只有资料任务菜单：进不了商品运营；只有商品运营菜单：进不了资料任务
+        // 只有资料任务菜单：进不了营销任务；只有营销任务菜单：进不了资料任务
         loginWithResources("it_facts_only", 100100, 110202);
         String factsOnly = token("it_facts_only");
         assertEquals(200, perform(json(post(TASKS + "/facts/page"), "{}"), factsOnly).getStatus());
@@ -768,7 +768,7 @@ class ProductContentPlanContractTest extends InquiryContractSupport {
         assertEquals(1, ok(call(json(post(TASKS + "/marketing/confirm"), write(Map.of("files", List.of(siteFile)))),
                 token("it_ops_editor"))).path("succeeded").asInt());
 
-        // 迁移授权：内置管理员有运营管理全部；有资料任务菜单的角色都有商品运营
+        // 迁移授权：内置管理员有运营管理全部；有资料任务菜单的角色都有营销任务
         assertEquals(3, jdbc.queryForObject("select count(*) from role_resource where role_code = 'ROLE_ADMIN' "
                 + "and resource_id in (100101, 100102, 110203)", Integer.class));
         assertEquals(0, jdbc.queryForObject("select count(*) from role_resource x where x.resource_id = 100100 and x.role_code <> ? "

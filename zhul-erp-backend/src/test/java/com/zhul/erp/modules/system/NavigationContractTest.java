@@ -83,15 +83,16 @@ class NavigationContractTest extends InquiryContractSupport {
     void adminSeesDepartmentGroupsWithoutPlaceholders() throws Exception {
         loginAsAdmin("it_nav_admin");
         Map<String, List<String>> all = sidebar(token("it_nav_admin"));
-        assertEquals(List.of("工作台", "销售管理", "采购管理", "仓库管理", "物流管理", "财务管理", "商品管理", "运营管理", "业务设置", "系统管理",
-                "租户管理"), new ArrayList<>(all.keySet()));
-        assertEquals(List.of("商品", "商品候选", "资料任务", "品牌", "品类", "系列"), all.get("商品管理"));
-        assertEquals(List.of("商品运营"), all.get("运营管理"), "运营管理：商品运营");
-        assertEquals(List.of("商机", "客户", "询盘单", "报价单", "PI", "销售订单", "销售统计"), all.get("销售管理"), "商机统计从侧边栏隐藏");
-        assertEquals(List.of("兼职看板", "询价分配", "我的询价", "询价记录", "采购需求", "采购订单", "供应商发货", "供应商", "询价统计", "砍价统计"), all.get("采购管理"));
+        assertEquals(List.of("工作台", "销售管理", "采购管理", "仓库管理", "物流管理", "财务管理", "商品管理", "运营管理", "统计分析", "业务设置",
+                "系统管理", "租户管理"), new ArrayList<>(all.keySet()));
+        assertEquals(List.of("商品", "品牌", "品类", "系列"), all.get("商品管理"), "商品管理只放基础资料");
+        assertEquals(List.of("商品候选", "资料任务", "营销任务"), all.get("运营管理"), "运营人员处理的任务");
+        assertEquals(List.of("销售统计", "询价统计", "砍价统计", "利润统计", "经营统计", "商机统计"), all.get("统计分析"), "只读统计统一在这里");
+        assertEquals(List.of("商机", "客户", "询盘单", "报价单", "PI", "销售订单"), all.get("销售管理"));
+        assertEquals(List.of("兼职看板", "询价分配", "我的询价", "询价记录", "采购需求", "采购订单", "供应商发货", "供应商"), all.get("采购管理"));
         assertEquals(List.of("采购入库", "销售出库", "闲置库存", "实拍任务"), all.get("仓库管理"));
         assertEquals(List.of("出运单", "运费账单"), all.get("物流管理"));
-        assertEquals(List.of("收款单", "退款单", "结汇单", "应付单", "付款单", "报销单", "费用单", "其他收入", "利润统计", "经营统计"), all.get("财务管理"));
+        assertEquals(List.of("收款单", "退款单", "结汇单", "应付单", "付款单", "报销单", "费用单", "其他收入"), all.get("财务管理"));
         assertEquals(List.of("定价策略", "汇率", "收款账户", "单据模板", "编号规则", "快递时效"), all.get("业务设置"));
         assertEquals(List.of("用户", "角色", "部门", "岗位", "菜单", "字典", "系统设置", "操作日志", "登录日志"), all.get("系统管理"));
     }

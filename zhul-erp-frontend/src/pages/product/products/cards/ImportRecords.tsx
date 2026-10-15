@@ -275,7 +275,7 @@ export const ImportRecordList: React.FC<{
       />
       <div style={{ marginTop: 8, fontSize: 12, color: palette.sub }}>
         {type === 'facts'
-          ? '只显示资料包，营销包在「运营管理 → 商品运营」查看；只记录确认写入的文件，其他公司的资料包也能看到。'
+          ? '只显示资料包，营销包在「运营管理 → 营销任务」查看；只记录确认写入的文件，其他公司的资料包也能看到。'
           : type === 'marketing'
             ? '只显示本公司的营销包；资料包在商品详情查看。只记录确认写入的文件。'
             : '只记录确认写入的文件；其他公司只显示资料包（写的是共享商品库），营销包看不到。'}
@@ -294,7 +294,7 @@ export const ImportRecordCard: React.FC<{ productId: number }> = ({
   </CardShell>
 );
 
-/** 资料任务、商品运营行内打开的上传记录，按入口只看对应包类型 */
+/** 资料任务、营销任务行内打开的上传记录，按入口只看对应包类型 */
 export const ImportRecordsDrawer: React.FC<{
   product?: { id: number; label: string };
   type: PackageType;

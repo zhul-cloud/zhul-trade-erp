@@ -129,7 +129,7 @@ export const UploadDrawer: React.FC<{
   onDone: () => void;
   /** 行内上传：只接收这个商品的文件 */
   product?: { id: number; label: string };
-  /** 入口：facts 资料任务只收资料包，marketing 商品运营只收营销包，combined 两种一起上传并自动审核 */
+  /** 入口：facts 资料任务只收资料包，marketing 营销任务只收营销包，combined 两种一起上传并自动审核 */
   entry: UploadEntry;
 }> = ({ open, onClose, onDone, product, entry }) => {
   const combined = entry === 'combined';
@@ -536,8 +536,8 @@ export const UploadDrawer: React.FC<{
             </p>
             <p className="ant-upload-hint">
               {entry === 'facts'
-                ? '按《商品内容规范 v2》的资料包（schema: 2、type: facts、lang: zh）；旧格式资料包和 llm-wiki 商品文件也能上传。营销包请到运营管理 → 商品运营上传。'
-                : '按《商品内容规范 v2》的营销包（schema: 2、type: marketing）：一个文件可以包含关键词库、多个平台和「独立站俄文」，按项预览、按项写入；单独的俄文文件只写独立站。旧格式营销包也能上传。资料包请到商品管理 → 资料任务上传。'}
+                ? '按《商品内容规范 v2》的资料包（schema: 2、type: facts、lang: zh）；旧格式资料包和 llm-wiki 商品文件也能上传。营销包请到运营管理 → 营销任务上传。'
+                : '按《商品内容规范 v2》的营销包（schema: 2、type: marketing）：一个文件可以包含关键词库、多个平台和「独立站俄文」，按项预览、按项写入；单独的俄文文件只写独立站。旧格式营销包也能上传。资料包请到运营管理 → 资料任务上传。'}
               一次最多 50 个，每个不超过 1MB
             </p>
           </Upload.Dragger>
