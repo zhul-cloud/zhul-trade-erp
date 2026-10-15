@@ -487,7 +487,7 @@ class CustomerServiceImplTest {
     // ---------------------------------------------------------------- 商机登记建客户（add-opportunity-management）
 
     private static CustomerLeadCommand lead(String name, String email, String whatsapp, String phone) {
-        return new CustomerLeadCommand(name, "John", "germany", 5, email, whatsapp, phone, "");
+        return new CustomerLeadCommand(name, "John", "germany", 5, null, email, whatsapp, phone, "");
     }
 
     @Test

@@ -158,6 +158,12 @@ class OpportunityApiContractTest extends IntegrationTestBase {
         assertEquals(ali, list.get(0).path("id").asLong());
         assertEquals("L3", list.get(0).path("aliLevel").asText());
 
+        // 阿里等级带入客户资料：登记时写入，修改商机等级时同步
+        long aliCustomer = jdbc.queryForObject("select customer_id from opportunity where id = ?", Long.class, ali);
+        assertEquals("L3", jdbc.queryForObject("select ali_level from customer where id = ?", String.class, aliCustomer));
+        long annaCustomer0 = jdbc.queryForObject("select customer_id from opportunity where id = ?", Long.class, social);
+        assertEquals("", jdbc.queryForObject("select ali_level from customer where id = ?", String.class, annaCustomer0), "非阿里渠道不写");
+
         // 登记时提交了联系人名称翻译；回调只填仍为空的中文名称
         assertEquals(2, jdbc.queryForObject("select count(*) from ai_task where tenant_id = 0 and skill_id = ?", Integer.class,
                 ContactNameTranslations.SKILL_ID));

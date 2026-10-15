@@ -34,6 +34,8 @@ public class CustomerDO {
     private String website;
     private Integer customerGrade;
     private Integer sourceChannel;
+    /** 阿里等级（L0、L1、L1+、L2、L3、L4，空表示未填） */
+    private String aliLevel;
     /** 负责业务员 user_basic.id，0 为未分配 */
     private Long ownerId;
     /** 小满客户编号 */

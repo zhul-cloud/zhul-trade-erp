@@ -41,6 +41,8 @@ public abstract class AbstractCustomerRequest {
     private Integer customerGrade;
     @Min(value = 0, message = "客户来源不正确")
     private Integer sourceChannel;
+    /** 阿里等级，客户来源为阿里巴巴国际站时（L0、L1、L1+、L2、L3、L4） */
+    private String aliLevel;
     @Size(max = 50, message = "小满客户编号不能超过50个字符")
     private String externalRef;
     @Size(max = 500, message = "备注不能超过500个字符")

@@ -25,6 +25,7 @@ import com.zhul.erp.modules.masterdata.dto.UpdateCustomerRequest;
 import com.zhul.erp.modules.masterdata.entity.CustomerDO;
 import com.zhul.erp.modules.masterdata.entity.CustomerPartyDO;
 import com.zhul.erp.modules.masterdata.repository.CustomerMapper;
+import com.zhul.erp.modules.masterdata.support.AliLevels;
 import com.zhul.erp.modules.masterdata.service.CustomerService;
 import com.zhul.erp.modules.masterdata.support.ContactKeys;
 import com.zhul.erp.modules.masterdata.support.CustomerNameNormalizer;
@@ -163,6 +164,7 @@ public class CustomerServiceImpl implements CustomerService {
         customer.setCountry(country);
         dictItemService.requireEnabledValue(DictTypes.SOURCE_CHANNEL, cmd.sourceChannel(), "来源渠道不正确");
         customer.setSourceChannel(cmd.sourceChannel());
+        customer.setAliLevel(AliLevels.normalize(cmd.sourceChannel(), cmd.aliLevel()));
         customer.setContactEmail(text(cmd.contactEmail()));
         customer.setWhatsapp(text(cmd.whatsapp()));
         customer.setContactPhone(text(cmd.contactPhone()));
@@ -350,6 +352,7 @@ public class CustomerServiceImpl implements CustomerService {
             dictItemService.requireEnabledValue(DictTypes.SOURCE_CHANNEL, source, "客户来源不正确");
         }
         c.setSourceChannel(source);
+        c.setAliLevel(AliLevels.normalize(source, req.getAliLevel()));
         c.setExternalRef(text(req.getExternalRef()));
         c.setRemark(text(req.getRemark()));
         c.setCountry(req.getCountry());
@@ -828,6 +831,7 @@ public class CustomerServiceImpl implements CustomerService {
         vo.setCustomerRole(c.getCustomerRole());
         vo.setCustomerGrade(c.getCustomerGrade());
         vo.setSourceChannel(c.getSourceChannel());
+        vo.setAliLevel(c.getAliLevel());
         vo.setOwnerId(c.getOwnerId());
         vo.setOwnerName(owners.get(c.getOwnerId()));
         vo.setContactName(c.getContactName());

@@ -9,6 +9,7 @@ public record CustomerLeadCommand(
         String contactName,
         String country,
         int sourceChannel,
+        String aliLevel,
         String contactEmail,
         String whatsapp,
         String contactPhone,

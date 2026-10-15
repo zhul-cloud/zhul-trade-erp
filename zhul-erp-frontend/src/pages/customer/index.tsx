@@ -299,8 +299,9 @@ const CustomerListPage: React.FC = () => {
     {
       title: '客户来源',
       dataIndex: 'sourceChannel',
-      width: 120,
-      render: (v: number) => sourceLabel(v),
+      width: 150,
+      render: (v: number, r) =>
+        r.aliLevel ? `${sourceLabel(v)} · ${r.aliLevel}` : sourceLabel(v),
     },
     ...(showOwner
       ? [

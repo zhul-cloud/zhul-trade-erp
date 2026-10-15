@@ -13,6 +13,8 @@ export interface CustomerListItem {
   customerRole: number;
   customerGrade: number;
   sourceChannel: number;
+  /** 阿里等级（来源为阿里巴巴国际站时），空串为未填 */
+  aliLevel?: string;
   ownerId: number;
   ownerName?: string;
   contactName: string;
@@ -84,6 +86,7 @@ export interface CustomerPayload {
   website?: string;
   customerGrade?: number;
   sourceChannel?: number;
+  aliLevel?: string;
   externalRef?: string;
   remark?: string;
   country: string;

@@ -448,7 +448,10 @@ const CustomerDetailPage: React.FC = () => {
                 </div>
               </div>
             </div>
-            <SideRow label="客户来源">{sourceLabel(r.sourceChannel)}</SideRow>
+            <SideRow label="客户来源">
+              {sourceLabel(r.sourceChannel)}
+              {r.aliLevel ? ` · ${r.aliLevel}` : ''}
+            </SideRow>
             <SideRow label="客户等级">
               <GradePill value={r.customerGrade} />
             </SideRow>
