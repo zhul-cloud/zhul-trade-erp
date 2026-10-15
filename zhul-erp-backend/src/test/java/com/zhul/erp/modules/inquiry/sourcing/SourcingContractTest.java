@@ -85,6 +85,22 @@ class SourcingContractTest extends InquiryContractSupport {
     }
 
     @Test
+    void assignerCanAssignToSelf_butOtherNonPurchasersRejected() throws Exception {
+        login();
+        long self = 99000002L;
+        // 租户管理员（管理员标记放行，角色里没有「我的询价」菜单）出现在分配候选里，能把任务分给自己
+        JsonNode candidates = ok(call(get(BOARD + "/purchasers"), admin));
+        assertEquals(self, candidates.get(0).path("id").asLong(), "分配人自己排在第一个");
+        long inq = inquiry(false, row("Omron", "传感器", "E3Z-D61", 10));
+        long task = taskId(inq, "Omron");
+        assign(task, self);
+        assertEquals(1, ok(call(get(MY), admin)).size(), "分给自己后在我的询价里看得到");
+        // 不是采购人员的其他账号仍不能分配
+        JsonNode other = call(json(post(BOARD + "/assign"), "{\"taskIds\":[" + task + "],\"assigneeId\":99000099}"), admin);
+        assertEquals("该账号不是采购人员，不能分配询价任务", other.path("message").asText());
+    }
+
+    @Test
     void board_recommendAssignReassignAndPermissions() throws Exception {
         login();
         String mitsubishi = priceKeys.brand("Mitsubishi").brandKey();
@@ -104,15 +120,16 @@ class SourcingContractTest extends InquiryContractSupport {
         assertEquals(BUYER_LIN, m.path("recommendedId").asLong(), "近 180 天三菱询得最多");
         assertEquals("Mitsubishi 询过 2 次 · 进行中 0", m.path("recommendReason").asText());
         JsonNode purchasers = board.path("purchasers");
-        assertEquals(3, purchasers.size(), "带「我的询价任务」菜单的账号才是采购");
-        assertTrue(purchasers.get(2).path("partTime").asBoolean());
+        assertEquals(4, purchasers.size(), "带「我的询价任务」菜单的 3 个采购，加上分配人自己");
+        assertEquals(99000002L, purchasers.get(0).path("id").asLong(), "分配人自己排第一");
+        assertTrue(purchasers.get(3).path("partTime").asBoolean());
 
         loginWithResources("it_src_viewer", MENU_BOARD);
         assertEquals(403, perform(json(post(BOARD + "/assign"), "{\"taskIds\":[" + mTask + "],\"assigneeId\":" + BUYER_LIN + "}"),
                 token("it_src_viewer")).getStatus(), "没有分配按钮权限");
         login();
         assertEquals("该账号不是采购人员，不能分配询价任务",
-                call(json(post(BOARD + "/assign"), "{\"taskIds\":[" + mTask + "],\"assigneeId\":99000002}"), admin).path("message").asText());
+                call(json(post(BOARD + "/assign"), "{\"taskIds\":[" + mTask + "],\"assigneeId\":99000099}"), admin).path("message").asText(), "不是采购也不是自己");
 
         ok(call(json(post(BOARD + "/assign-recommended"), "{\"taskIds\":[" + mTask + "]}"), admin));
         assign(dTask, PART_TIMER);
