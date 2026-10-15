@@ -724,6 +724,8 @@ export const priceApi = {
 
 /** 任务包类型：资料包、营销包 */
 export type PackageType = 'facts' | 'marketing';
+/** 上传入口：资料任务、商品运营，或资料与营销一起上传（自动审核） */
+export type UploadEntry = PackageType | 'combined';
 
 /** 营销平台：阿里国际站、中国制造网、独立站、社媒（以后端 MarketingPlatform 为准） */
 export type MarketingPlatform = 'alibaba' | 'mic' | 'site' | 'social';
@@ -839,6 +841,9 @@ export interface ContentPreview {
 export interface ContentConfirmResult {
   succeeded: number;
   failed: number;
+  /** 一起上传时：自动审核通过的技术问答条数、自动核对资料的商品数 */
+  approvedFaqs?: number;
+  verifiedProducts?: number;
   items: {
     fileName: string;
     productId?: number;
@@ -964,12 +969,12 @@ export const contentApi = {
       data: q,
     }),
   /** productId：行内上传限定的商品，文件对应的不是它时不能确认 */
-  preview: (entry: PackageType, files: ContentFile[], productId?: number) =>
+  preview: (entry: UploadEntry, files: ContentFile[], productId?: number) =>
     call<ContentPreview[]>(`${CONTENT}/${entry}/preview`, {
       method: 'POST',
       data: { files, productId },
     }),
-  confirm: (entry: PackageType, files: ContentFile[], productId?: number) =>
+  confirm: (entry: UploadEntry, files: ContentFile[], productId?: number) =>
     call<ContentConfirmResult>(`${CONTENT}/${entry}/confirm`, {
       method: 'POST',
       data: { files, productId },

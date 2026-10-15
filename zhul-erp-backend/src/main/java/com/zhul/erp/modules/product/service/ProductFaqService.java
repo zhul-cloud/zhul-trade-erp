@@ -20,4 +20,7 @@ public interface ProductFaqService {
 
     /** 审核确认待审核 FAQ：来源 3→2，记录审核人和审核时间；只适用于待审核的 FAQ */
     FaqVO approve(Long productId, Long itemId);
+
+    /** 把商品全部待审核的技术问答审核通过（资料与营销一起上传、自动审核时），返回条数 */
+    int approveAllPending(Long productId);
 }

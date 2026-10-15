@@ -153,6 +153,10 @@ export const TaskList: React.FC<{ entry: PackageType }> = ({ entry }) => {
   const [settingsOpen, setSettingsOpen] = useState(false);
   /** 行内上传、上传记录对应的商品 */
   const [rowUpload, setRowUpload] = useState<{ id: number; label: string }>();
+  const [rowCombined, setRowCombined] = useState<{
+    id: number;
+    label: string;
+  }>();
   const [rowRecords, setRowRecords] = useState<{ id: number; label: string }>();
   const platformState = usePlatforms(!facts);
   const platforms = platformState.enabled;
@@ -351,6 +355,11 @@ export const TaskList: React.FC<{ entry: PackageType }> = ({ entry }) => {
             上传
           </a>
           <a
+            onClick={() => setRowCombined({ id: t.productId, label: label(t) })}
+          >
+            资料+营销
+          </a>
+          <a
             onClick={() => setRowRecords({ id: t.productId, label: label(t) })}
           >
             上传记录
@@ -545,6 +554,13 @@ export const TaskList: React.FC<{ entry: PackageType }> = ({ entry }) => {
         open={!!rowUpload}
         product={rowUpload}
         onClose={() => setRowUpload(undefined)}
+        onDone={load}
+      />
+      <UploadDrawer
+        entry="combined"
+        open={!!rowCombined}
+        product={rowCombined}
+        onClose={() => setRowCombined(undefined)}
         onDone={load}
       />
       <ImportRecordsDrawer

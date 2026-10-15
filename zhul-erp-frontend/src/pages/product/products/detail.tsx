@@ -267,6 +267,7 @@ const DetailInner: React.FC = () => {
   const platform = !!access.productPlatform;
   const canEdit = platform && !!access['product:product:edit'];
   const readOnly = !canEdit;
+  const canReviewFaq = canEdit || !!access['product:content:edit'];
 
   const [product, setProduct] = useState<Product>();
   const [error, setError] = useState<string>();
@@ -610,7 +611,12 @@ const DetailInner: React.FC = () => {
           <RelationCard {...common} done={doneOf('relationships')} />
           <DocumentCard {...common} done={doneOf('documents')} />
           <ApplicationCard {...common} done={doneOf('applications')} />
-          <FaqCard {...common} done={doneOf('faq')} platform={platform} />
+          <FaqCard
+            {...common}
+            done={doneOf('faq')}
+            platform={platform}
+            canReview={canReviewFaq}
+          />
 
           <ImportRecordCard productId={product.id} />
           <OperationsSummary productId={product.id} data={content.data} />

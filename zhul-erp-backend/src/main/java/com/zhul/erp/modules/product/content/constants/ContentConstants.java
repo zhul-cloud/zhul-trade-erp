@@ -30,7 +30,6 @@ public final class ContentConstants {
     public static final int TIER_MAIN = 2;
     public static final int TIER_LONG_TAIL = 3;
     public static final int MAX_KEYWORDS = 200;
-    public static final int MAX_SELLING_POINTS = 5;
 
     public static final int MAX_FILE_BYTES = 1024 * 1024;
     public static final int MAX_PACKAGE_PRODUCTS = 200;

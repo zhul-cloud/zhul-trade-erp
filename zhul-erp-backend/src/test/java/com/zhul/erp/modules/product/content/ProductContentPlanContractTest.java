@@ -23,6 +23,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 
@@ -285,7 +286,7 @@ class ProductContentPlanContractTest extends InquiryContractSupport {
         assertEquals("同系列", sameFamily.path("note").asText());
         assertEquals(1, jdbc.queryForObject("select count(*) from product_document where product_id = ? and deleted_at is null", Integer.class, p1));
         assertEquals(2, ok(call(get(PRODUCTS + "/" + p1 + "/faqs"), admin)).size(), "平台账号看得到待审核的技术问答");
-        assertEquals(0, ok(call(get(PRODUCTS + "/" + p1 + "/faqs"), other)).size(), "公司账号看不到待审核的技术问答");
+        assertEquals(2, ok(call(get(PRODUCTS + "/" + p1 + "/faqs"), other)).size(), "有「商品内容维护」权限的公司管理员也看得到待审核的技术问答");
         assertEquals(0, jdbc.queryForObject("select count(*) from product_seo where product_id = ?", Integer.class, p1),
                 "资料包里的 SEO 标题不写入");
 
@@ -366,6 +367,47 @@ class ProductContentPlanContractTest extends InquiryContractSupport {
         assertTrue(vp.path("confirmable").asBoolean(), vp.toString());
         assertEquals(403, perform(json(post(TASKS + "/facts/confirm"), write(Map.of("files", List.of(files.get(0))))), viewer).getStatus());
         assertEquals(403, perform(json(post(TASKS + "/products/" + p2 + "/verify-facts"), "{}"), viewer).getStatus());
+    }
+
+    @Test
+    void combinedUpload_factsAndMarketing_autoReview_andFaqReviewPermission() throws Exception {
+        Map<String, Object> factsFile = file("p1.facts.md", facts("ITCSiemens", "6ES7214-1AG40-0XB0", FACTS_BODY));
+        Map<String, Object> siteFile = file("p1.site.md", marketing("ITCSiemens", "6ES7214-1AG40-0XB0", "en", EN_BODY));
+        String other = tenantToken("it_content_admin", 1001);
+
+        // 一起解析：资料包和营销包都可确认，不提示走错入口
+        JsonNode preview = ok(call(json(post(TASKS + "/combined/preview"), write(Map.of("files", List.of(factsFile, siteFile),
+                "productId", p1))), other));
+        assertEquals(2, preview.size());
+        assertTrue(preview.get(0).path("confirmable").asBoolean(), preview.get(0).toString());
+        assertTrue(preview.get(1).path("confirmable").asBoolean(), preview.get(1).toString());
+
+        // 确认：写入两个包，资料包的技术问答自动审核通过，资料自动核对
+        JsonNode res = ok(call(json(post(TASKS + "/combined/confirm"), write(Map.of("files", List.of(factsFile, siteFile),
+                "productId", p1))), other));
+        assertEquals(2, res.path("succeeded").asInt(), res.toString());
+        assertEquals(2, res.path("approvedFaqs").asInt());
+        assertEquals(1, res.path("verifiedProducts").asInt());
+        assertEquals(0, jdbc.queryForObject("select count(*) from product_faq where product_id = ? and source = 3 and deleted_at is null",
+                Integer.class, p1));
+        assertTrue(jdbc.queryForObject("select verified_at is not null from product_fact_task where product_id = ?", Boolean.class, p1));
+
+        // 公司账号用资料任务导入的待审核问答：有「商品内容维护」权限就能看到并审核
+        confirm(other, file("p2.facts.md", facts("ITCSiemens", "6ES7321-1FH00-0AA0", FACTS_BODY)));
+        JsonNode faqs = ok(call(get(PRODUCTS + "/" + p2 + "/faqs"), other));
+        assertEquals(2, faqs.size());
+        long faq = faqs.get(0).path("id").asLong();
+        ok(call(patch(PRODUCTS + "/" + p2 + "/faqs/" + faq + "/approve"), other));
+        assertEquals(2, jdbc.queryForObject("select source from product_faq where id = ?", Integer.class, faq));
+
+        // 没有维护权限的公司账号：看不到待审核问答，不能一起确认
+        loginWithResources("it_content_viewer", 100100, 100102, 100034);
+        String viewer = tenantToken("it_content_viewer", 1001);
+        assertEquals(1, ok(call(get(PRODUCTS + "/" + p2 + "/faqs"), viewer)).size(), "只看到已审核的那条");
+        assertEquals(403, perform(patch(PRODUCTS + "/" + p2 + "/faqs/" + faqs.get(1).path("id").asLong() + "/approve"), viewer)
+                .getStatus());
+        assertEquals(403, perform(json(post(TASKS + "/combined/confirm"), write(Map.of("files", List.of(siteFile)))), viewer)
+                .getStatus());
     }
 
     private static final String ALIBABA_BODY = """
@@ -450,7 +492,7 @@ class ProductContentPlanContractTest extends InquiryContractSupport {
         }
         assertEquals(List.of("6ES7214-1AG40-0XB0.social.md", "6ES7321-1FH00-0AA0.social.md"), names);
 
-        // 预览：没启用的平台不能确认；关键词库按档位排序、去重提示；卖点超量提示
+        // 预览：没启用的平台不能确认；关键词库按档位排序、去重提示；卖点不限条数
         JsonNode micPreview = ok(call(json(post(TASKS + "/marketing/preview"), write(Map.of("files", List.of(
                 file("x.mic.md", platformMd("mic", "6ES7214-1AG40-0XB0", "en", "## 标题\nMIC title\n")))))), a)).get(0);
         assertFalse(micPreview.path("confirmable").asBoolean());
@@ -465,7 +507,7 @@ class ProductContentPlanContractTest extends InquiryContractSupport {
         assertEquals("6ES7214-1AG40-0XB0", kwBlock.path("rows").get(0).get(0).asText());
         assertEquals("核心", kwBlock.path("rows").get(1).get(1).asText());
         assertTrue(kwBlock.path("hints").toString().contains("重复的 1 个"), kwBlock.toString());
-        assertTrue(block(aliPreview, "SELLING_POINTS").path("hints").toString().contains("超过 5 条"));
+        assertEquals(6, block(aliPreview, "SELLING_POINTS").path("count").asInt(), "卖点不限条数");
 
         // 确认阿里国际站：任务仍为营销待生成（独立站还没写）
         JsonNode aliRes = confirm(a, file("a.alibaba.md", platformMd("alibaba", "6ES7214-1AG40-0XB0", "en", ALIBABA_BODY)));
@@ -507,7 +549,7 @@ class ProductContentPlanContractTest extends InquiryContractSupport {
                 List.of(aliContent.path("keywords").get(0).path("keyword").asText(), aliContent.path("keywords").get(1).path("keyword").asText(),
                         aliContent.path("keywords").get(2).path("keyword").asText(), aliContent.path("keywords").get(3).path("keyword").asText()));
         assertEquals(1, aliContent.path("keywords").get(0).path("tier").asInt());
-        assertEquals(5, aliContent.path("sellingPoints").size());
+        assertEquals(6, aliContent.path("sellingPoints").size(), "卖点不限条数");
         assertEquals("a.alibaba.md", aliContent.path("fileName").asText());
         assertTrue(detail.path("skips").has("site"));
 
@@ -525,7 +567,7 @@ class ProductContentPlanContractTest extends InquiryContractSupport {
         assertEquals("Siemens 6ES7214-1AG40-0XB0 CPU 1214C PLC, Genuine New", aliAgain.path("title").asText(), "跳过的块保留");
         assertEquals(1, aliAgain.path("keywords").size());
         assertEquals(3, aliAgain.path("keywords").get(0).path("tier").asInt());
-        assertEquals(5, aliAgain.path("sellingPoints").size(), "没上传的卖点保留");
+        assertEquals(6, aliAgain.path("sellingPoints").size(), "没上传的卖点保留");
 
         // 按公司隔离：公司 B 看不到 A 的内容和标记，四个平台都还要写
         JsonNode bDetail = ok(call(get(TASKS + "/products/" + p1), b));

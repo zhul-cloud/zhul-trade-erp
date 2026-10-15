@@ -34,8 +34,8 @@ import {
   type ContentPreview,
   contentApi,
   type MarketingPlatform,
-  type PackageType,
   readBizError,
+  type UploadEntry,
 } from '../service';
 
 const LANG_NAME: Record<string, string> = {
@@ -129,16 +129,21 @@ export const UploadDrawer: React.FC<{
   onDone: () => void;
   /** 行内上传：只接收这个商品的文件 */
   product?: { id: number; label: string };
-  /** 入口：facts 资料任务只收资料包，marketing 商品运营只收营销包 */
-  entry: PackageType;
+  /** 入口：facts 资料任务只收资料包，marketing 商品运营只收营销包，combined 两种一起上传并自动审核 */
+  entry: UploadEntry;
 }> = ({ open, onClose, onDone, product, entry }) => {
+  const combined = entry === 'combined';
   const { palette } = useAppTheme();
   const { message } = App.useApp();
   const access = useAccess() as Record<string, boolean>;
-  const canWrite =
-    !!access[
-      entry === 'facts' ? 'product:content:edit' : 'operations:marketing:edit'
-    ];
+  const canWrite = combined
+    ? !!access['product:content:edit'] && !!access['operations:marketing:edit']
+    : !!access[
+        entry === 'facts' ? 'product:content:edit' : 'operations:marketing:edit'
+      ];
+  // 一起上传：先分别选资料包和营销包，点「下一步」再一起解析
+  const [factPicks, setFactPicks] = useState<ContentFile[]>([]);
+  const [marketingPicks, setMarketingPicks] = useState<ContentFile[]>([]);
   const [files, setFiles] = useState<ContentFile[]>([]);
   const [previews, setPreviews] = useState<ContentPreview[]>([]);
   const [active, setActive] = useState(0);
@@ -148,6 +153,8 @@ export const UploadDrawer: React.FC<{
   const [result, setResult] = useState<ContentConfirmResult>();
 
   const reset = () => {
+    setFactPicks([]);
+    setMarketingPicks([]);
     setFiles([]);
     setPreviews([]);
     setActive(0);
@@ -172,22 +179,35 @@ export const UploadDrawer: React.FC<{
     }
   };
 
-  const pick = async (list: File[]) => {
+  const readFiles = async (list: File[]) => {
     if (list.length > MAX_FILES) {
       message.error(`一次最多上传 ${MAX_FILES} 个文件`);
-      return;
+      return null;
     }
     const big = list.find((f) => f.size > MAX_BYTES);
     if (big) {
       message.error(`「${big.name}」超过 1MB`);
-      return;
+      return null;
     }
-    const read = await Promise.all(
+    return Promise.all(
       list.map(async (f) => ({ fileName: f.name, content: await f.text() })),
     );
+  };
+
+  const pick = async (list: File[]) => {
+    const read = await readFiles(list);
+    if (!read) return;
     setActive(0);
     await runPreview(read);
   };
+
+  /** 一起上传的第一步：两个区域分别选文件，不立即解析 */
+  const pickInto =
+    (set: React.Dispatch<React.SetStateAction<ContentFile[]>>) =>
+    async (list: File[]) => {
+      const read = await readFiles(list);
+      if (read) set((prev) => [...prev, ...read]);
+    };
 
   const update = (index: number, change: Partial<ContentFile>) =>
     runPreview(files.map((f, i) => (i === index ? { ...f, ...change } : f)));
@@ -331,15 +351,32 @@ export const UploadDrawer: React.FC<{
       title={
         result
           ? '写入结果'
-          : product
-            ? `上传 · ${product.label}（只接收这个商品的文件）`
-            : '上传内容包 · 解析预览'
+          : combined
+            ? `一起上传资料与营销${product ? ` · ${product.label}` : ''}`
+            : product
+              ? `上传 · ${product.label}（只接收这个商品的文件）`
+              : '上传内容包 · 解析预览'
       }
       footer={
         result ? (
           <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
             <Button type="primary" onClick={close}>
               完成
+            </Button>
+          </div>
+        ) : combined && previews.length === 0 ? (
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+            <Button onClick={close}>取消</Button>
+            <Button
+              type="primary"
+              loading={loading}
+              disabled={factPicks.length + marketingPicks.length === 0}
+              onClick={() => {
+                setActive(0);
+                runPreview([...factPicks, ...marketingPicks]);
+              }}
+            >
+              下一步：一起解析
             </Button>
           </div>
         ) : previews.length > 0 ? (
@@ -353,7 +390,9 @@ export const UploadDrawer: React.FC<{
               title={
                 canWrite
                   ? undefined
-                  : `没有「${entry === 'facts' ? '商品内容维护' : '营销内容维护'}」权限`
+                  : combined
+                    ? '需要「商品内容维护」和「营销内容维护」两个权限'
+                    : `没有「${entry === 'facts' ? '商品内容维护' : '营销内容维护'}」权限`
               }
             >
               <Button
@@ -362,7 +401,7 @@ export const UploadDrawer: React.FC<{
                 disabled={!canWrite || confirmable === 0}
                 onClick={confirm}
               >
-                确认写入 {confirmable}{' '}
+                {combined ? '确认写入并自动审核' : '确认写入'} {confirmable}{' '}
                 {previews.length > files.length ? '项' : '个文件'}
               </Button>
             </Tooltip>
@@ -375,6 +414,11 @@ export const UploadDrawer: React.FC<{
           <Result
             status={result.failed ? 'warning' : 'success'}
             title={`写入成功 ${result.succeeded} 个${result.failed ? `，失败 ${result.failed} 个` : ''}`}
+            subTitle={
+              result.approvedFaqs != null
+                ? `已自动审核技术问答 ${result.approvedFaqs} 条，自动核对资料 ${result.verifiedProducts ?? 0} 个商品`
+                : undefined
+            }
           />
           <div style={{ display: 'grid', gap: 8 }}>
             {result.items.map((it, i) => (
@@ -415,6 +459,62 @@ export const UploadDrawer: React.FC<{
             ))}
           </div>
         </div>
+      ) : combined && previews.length === 0 ? (
+        <div style={{ display: 'grid', gap: 16 }}>
+          {(
+            [
+              ['商品资料（资料包，中文）', factPicks, setFactPicks],
+              ['营销内容（营销包）', marketingPicks, setMarketingPicks],
+            ] as const
+          ).map(([title, picks, set]) => (
+            <div key={title} style={{ display: 'grid', gap: 8 }}>
+              <div style={{ fontWeight: 600 }}>{title}</div>
+              <div>
+                <Upload.Dragger
+                  multiple
+                  accept=".md,.markdown,.txt"
+                  showUploadList={false}
+                  beforeUpload={(f, list) => {
+                    if (f === list[list.length - 1]) pickInto(set)(list);
+                    return false;
+                  }}
+                >
+                  <p className="ant-upload-text">点击或拖入 Markdown 文件</p>
+                </Upload.Dragger>
+              </div>
+              {picks.map((f) => (
+                <div
+                  key={f.fileName}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    marginTop: 6,
+                    fontSize: 13,
+                  }}
+                >
+                  <FileTextOutlined /> {f.fileName}
+                  <a
+                    style={{ marginLeft: 'auto' }}
+                    onClick={() =>
+                      set((prev) =>
+                        prev.filter((x) => x.fileName !== f.fileName),
+                      )
+                    }
+                  >
+                    移除
+                  </a>
+                </div>
+              ))}
+            </div>
+          ))}
+          <Alert
+            type="info"
+            showIcon
+            title="一起解析，确认后自动审核"
+            description="确认后照常写入：资料包写入共享商品库，营销包写入本公司各平台；资料包写入成功的商品，待审核的技术问答自动审核通过，资料自动标为已核。"
+          />
+        </div>
       ) : previews.length === 0 ? (
         <div>
           <Upload.Dragger
@@ -446,7 +546,7 @@ export const UploadDrawer: React.FC<{
             type="info"
             showIcon
             title="上传后先解析预览，确认后才写入"
-            description="资料包（中文）写入共享商品库：规格、应用场景只替换未核实的，兼容型号、技术资料只增不删，技术问答待平台审核，资料待确认项整份替换。营销包只属于本公司：关键词库整份替换，各平台的标题、属性、卖点、详情、FAQ、帖子等按块替换。"
+            description="资料包（中文）写入共享商品库：规格、应用场景只替换未核实的，兼容型号、技术资料只增不删，技术问答待审核（平台或有「商品内容维护」权限的账号审核），资料待确认项整份替换。营销包只属于本公司：关键词库整份替换，各平台的标题、属性、卖点、详情、FAQ、帖子等按块替换。"
           />
         </div>
       ) : (

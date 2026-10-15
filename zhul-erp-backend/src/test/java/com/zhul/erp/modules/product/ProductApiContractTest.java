@@ -267,14 +267,19 @@ class ProductApiContractTest extends IntegrationTestBase {
         long productId = createBrandAndCategoryAndProduct(platform);
         call(json(post(BASE + "/products/" + productId + "/faqs"), "{\"question\":\"Manual one?\",\"answer\":\"A\"}"), platform);
         jdbc.update("insert into product_faq (tenant_id, product_id, question, answer, source) values (0, ?, 'Pending one?', 'AI', 3)", productId);
-        String tenant = token("contract_admin", 1002);
-
-        JsonNode tenantView = call(get(BASE + "/products/" + productId + "/faqs"), tenant);
+        String tenantAdmin = token("contract_admin", 1002);
         JsonNode platformView = call(get(BASE + "/products/" + productId + "/faqs"), platform);
-
-        assertEquals(1, tenantView.path("data").size());
         assertEquals(2, platformView.path("data").size());
+        assertEquals(2, call(get(BASE + "/products/" + productId + "/faqs"), tenantAdmin).path("data").size(),
+                "有「商品内容维护」权限的租户管理员看得到待审核问答");
+
+        // 只有商品菜单、没有「商品内容维护」权限的租户账号看不到
+        loginWithResources("contract_viewer", 100034);
+        String tenant = token("contract_viewer", 1002);
+        JsonNode tenantView = call(get(BASE + "/products/" + productId + "/faqs"), tenant);
+        assertEquals(1, tenantView.path("data").size());
         assertFalse(tenantView.toString().contains("Pending one?"));
+        loginAsAdmin("contract_admin");
         assertEquals(0, statusOfPatch(productId, platform));
     }
 

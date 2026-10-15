@@ -482,25 +482,14 @@ public final class ContentMarkdownParser {
         }
     }
 
-    /** 卖点：每行一条，去掉列表符号和序号；超过上限的截断 */
+    /** 卖点：每行一条，去掉列表符号和序号；不限条数与每条长度（平台的字数要求由运营自己把握） */
     static void parsePoints(List<String> content, ContentDraft.Block block) {
-        int lineNo = 0;
-        List<String> points = new ArrayList<>();
         for (String line : content) {
-            lineNo++;
             String t = LIST_MARK.matcher(line.strip()).replaceFirst("").strip();
-            if (t.isEmpty()) {
-                continue;
+            if (!t.isEmpty()) {
+                block.getPoints().add(t);
             }
-            check(block, lineNo, "卖点", t, 128);
-            points.add(t);
         }
-        if (points.size() > ContentConstants.MAX_SELLING_POINTS) {
-            block.getNotes().add("卖点超过 " + ContentConstants.MAX_SELLING_POINTS + " 条，只保留前 "
-                    + ContentConstants.MAX_SELLING_POINTS + " 条，忽略 " + (points.size() - ContentConstants.MAX_SELLING_POINTS) + " 条");
-            points = points.subList(0, ContentConstants.MAX_SELLING_POINTS);
-        }
-        block.getPoints().addAll(points);
     }
 
     record TableRow(int lineNo, List<String> cells) {
