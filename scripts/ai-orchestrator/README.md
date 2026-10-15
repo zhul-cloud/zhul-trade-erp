@@ -1,8 +1,8 @@
-# AI 编排服务（真实实现，基于 Anthropic API）
+# AI 编排服务（真实实现，基于 Claude Code）
 
 跟 `scripts/ai-orchestrator-stub/` 不是一回事——那个是免费的假数据占位脚本，
-这个是真的会调用 AI、产生真实费用的实现，通过官方 Python SDK 调用 Anthropic API，
-鉴权用 `ANTHROPIC_API_KEY`，不需要安装 Claude Code CLI。
+这个是真的会调用 AI、产生真实费用的实现，用的是本机已登录的 `claude` CLI
+（Claude Code 订阅账号即可，不需要单独申请 ANTHROPIC_API_KEY）。
 
 对应 `openspec/changes/add-inquiry-management/design.md` 决策3的通用契约，跟
 zhul-erp-backend 之间走同一套 webhook 接口，两边代码都不用改，直接把这个服务
@@ -10,21 +10,13 @@ zhul-erp-backend 之间走同一套 webhook 接口，两边代码都不用改，
 
 ## 前置条件
 
-1. Python 3.10+，`pip install -r requirements.txt`
-2. 环境变量 `ANTHROPIC_API_KEY`（在 Anthropic Console 创建）
-3. `skills/` 目录下的 `inquiry-parser/SKILL.md`、`order-splitter/SKILL.md`
+1. 本机装了 Claude Code 并且已登录（`claude` 命令能跑，随便跑个 `claude -p "hi"` 试一下）
+2. `skills/` 目录下的 `inquiry-parser/SKILL.md`、`order-splitter/SKILL.md`
    是从团队现有的"烛龙询盘助手"复制过来的，改动请求先跟维护这套 skill 的人对齐
 
 ## 运行
 
-Docker 部署时随 `docker compose --profile app up` 一起启动（服务名 `ai-orchestrator`），
-配置都在项目根目录 `.env`，见 `docs/06-部署运维/04-AI编排服务.md`。同一个镜像包含本服务和 stub，
-用 `AI_ORCHESTRATOR_MODE=api|stub` 切换。
-
-本机直接运行：
-
 ```bash
-pip install -r scripts/ai-orchestrator/requirements.txt
 python3 scripts/ai-orchestrator/server.py
 ```
 
@@ -33,11 +25,13 @@ python3 scripts/ai-orchestrator/server.py
 
 ## 会产生真实费用，务必知道这几件事
 
-- 每次"开始AI解析"/"重试"点击，都会真的调用一次 API，按用量计费，不是免费的
-- 一条含 10~20 个型号的询盘，每个型号都要联网搜索验证，费用和耗时会明显更高（分钟级），
+- 每次"开始AI解析"/"重试"点击，都会真的调用一次 `claude -p`，从你当前登录账号
+  的用量里扣钱，不是免费的
+- 实测费用：处理2个型号（含联网搜索验证）大约 $0.28～$0.34，耗时 45～70 秒；
+  一条含 10~20 个型号的询盘，费用和耗时会明显更高（分钟级、数美元级都有可能），
   这是 design.md 里早就提示过的已知风险，不是这个实现引入的新问题
-- API 没有「单次最多花多少钱」的开关，用 `AI_ORCHESTRATOR_MAX_WEB_SEARCHES`（默认 20）
-  限制联网搜索次数间接控制；每次调用完成后日志打印 token 用量与搜索次数
+- 用 `AI_ORCHESTRATOR_MAX_BUDGET_USD`（默认 `5.00`）给单次调用设费用上限，
+  超过就会失败并回调"失败"状态，不会无限烧钱，但没法完全避免产生费用
 - 想省钱先用 `scripts/ai-orchestrator-stub` 跑通页面交互和联调，需要看真实解析
   效果时再切到这个
 
@@ -45,20 +39,20 @@ python3 scripts/ai-orchestrator/server.py
 
 | 变量 | 默认值 | 说明 |
 |------|--------|------|
-| `ANTHROPIC_API_KEY` | 无 | 必填；为空时任务直接回调失败 |
-| `AI_STUB_PORT` | `8899` | 监听端口（沿用 stub 的变量名，两边共用同一份 `.env`） |
+| `AI_STUB_PORT` | `8899` | 监听端口（沿用 stub 的变量名，方便两边共用同一份 `.env`） |
 | `AI_TASK_CALLBACK_TOKEN` | `zhul-erp-ai-callback-secret` | 回调时携带的共享密钥，必须与 zhul-erp-backend 的 `zhul.ai-task.callback-token` 配置一致 |
-| `AI_ORCHESTRATOR_MODEL` | `claude-opus-5-5` | 使用的模型 |
-| `AI_ORCHESTRATOR_MAX_WEB_SEARCHES` | `20` | 单次解析最多联网搜索次数 |
-| `AI_ORCHESTRATOR_TIMEOUT_SECONDS` | `900` | 单次调用的最长等待时间（秒） |
+| `CLAUDE_BIN` | `claude` | `claude` 可执行文件路径，一般不用改 |
+| `AI_ORCHESTRATOR_MAX_BUDGET_USD` | `5.00` | 单次调用的费用上限 |
+| `AI_ORCHESTRATOR_CLAUDE_TIMEOUT_SECONDS` | `900` | 单次调用的最长等待时间（秒） |
 
-## 实现要点
+## 已验证过的技术选型（写代码前实测过）
 
-- 结构化输出（`output_config.format` + JSON Schema）直接拿到后端要的驼峰字段结构，
-  不用额外写一层格式转换（`confirmed_model`→`confirmedModel`、中文置信度→整数这些映射
-  写进了系统提示词，让模型一步到位输出目标格式）
-- 联网搜索用服务端工具 `web_search`，在 Anthropic 服务器上执行；搜索轮次较长时
-  返回 `pause_turn`，原样续传继续
-- 图片、PDF 附件由本服务读取后端私有上传目录里的文件，随请求发送；
-  Docker 部署时两个容器挂载同一个目录
-- 启用服务端 `fallbacks: "default"`：模型因安全策略拒答时由服务端改用推荐的备用模型重试
+- 用 `--json-schema` 让 Claude 直接按我们后端要的驼峰字段结构输出，不用额外
+  写一层格式转换（`confirmed_model`→`confirmedModel`、中文置信度→整数这些映射
+  直接写进了系统提示词里，让模型一步到位输出目标格式）
+- `--json-schema` 模式**不会**阻止真实的联网搜索——实测搜索请求数记在
+  `modelUsage.<model>.webSearchRequests` 里（Claude Code 内部搜索这类子任务
+  会路由到一个更便宜的模型执行），不在顶层 `usage.server_tool_use` 字段里，
+  一开始差点因为看错字段误以为没有真的搜索
+- `--allowedTools WebSearch` + `--permission-prompts none`：只精确放行联网
+  搜索，其余工具自动拒绝而不是卡住等交互确认，不需要 `--dangerously-skip-permissions`

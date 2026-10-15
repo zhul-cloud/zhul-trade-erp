@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # 一键启动本机开发所需的全部服务：MySQL、Redis、后端(8080)、前端(8000)、AI 编排服务(8899)。
 # 用法：scripts/dev-up.sh [--ai stub|real|none]
-#   --ai real  （默认）真实的 AI 编排服务，调用 Anthropic API（需要 ANTHROPIC_API_KEY 和 pip install -r scripts/ai-orchestrator/requirements.txt），产生真实费用
+#   --ai real  （默认）真实的 AI 编排服务，会调用本机 claude CLI，按询盘内容解析，产生真实费用
 #   --ai stub  免费的假数据占位服务：不管询盘写什么都返回固定的西门子、施耐德型号，只用于页面联调
 #   --ai none  不启动 AI 编排服务
 # 已经在运行的服务（端口已被占用）会跳过。日志和 PID 在 .dev-run/，停止用 scripts/dev-down.sh。
@@ -48,7 +48,7 @@ if [ "$AI" = none ]; then echo "  - 已跳过"
 elif listening 8899; then echo "  ✓ 8899 已被占用，视为已在运行"
 else
   script="$ROOT/scripts/ai-orchestrator-stub/server.py"; [ "$AI" = real ] && script="$ROOT/scripts/ai-orchestrator/server.py"
-  [ "$AI" = real ] && echo "  ⚠ 真实模式：每次解析都会调用 Anthropic API，产生费用，需要 ANTHROPIC_API_KEY（免费联调用 --ai stub）"
+  [ "$AI" = real ] && echo "  ⚠ 真实模式：每次解析都会真的调用 claude，产生费用（免费联调用 --ai stub）"
   [ "$AI" = stub ] && echo "  ⚠ 占位模式：解析结果是固定假数据，与询盘内容无关"
   start_bg ai "$ROOT" python3 "$script"
   wait_port 8899 "AI 编排服务($AI)" 15 ai

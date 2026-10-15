@@ -43,27 +43,7 @@
 
 ## 快速开始
 
-### 方式一：Docker 一键启动
-
-只需要安装 Docker，在项目根目录执行：
-
-```bash
-scripts/docker-dev.sh
-```
-
-Windows PowerShell：
-
-```powershell
-powershell -ExecutionPolicy Bypass -File scripts\docker-dev.ps1
-```
-
-脚本会生成 `.env`（随机密钥、导入演示账号），构建并启动 MySQL、Redis、后端、前端和 AI 编排服务，就绪后打开 `http://localhost:8000`，用下文的示例账号登录。默认不持久化，停止或重建容器后数据清空。
-
-生产部署、前后端分服务器、云数据库和数据持久化见 [部署文档](docs/06-部署运维/README.md)。
-
-### 方式二：本机开发
-
-#### 环境要求
+### 环境要求
 
 | 依赖 | 版本 |
 |------|------|
@@ -76,14 +56,14 @@ powershell -ExecutionPolicy Bypass -File scripts\docker-dev.ps1
 
 > **macOS + Homebrew 用户注意**：`brew install openjdk` 装的是最新版 JDK（如 26），如果机器上同时装过 `openjdk@17`，默认的 `mvn`/`java` 命令可能解析到新版 JDK，导致 Lombok 注解处理器静默失效（编译报一堆"找不到符号"，看起来像随机的类找不到 getter/setter）。执行 `mvn compile`/`mvn test` 前先 `export JAVA_HOME=$(brew --prefix openjdk@17)` 确认指向 JDK 17。
 
-#### 1. 克隆项目
+### 1. 克隆项目
 
 ```bash
 git clone https://github.com/zhul-cloud/zhul-trade-erp.git
 cd zhul-trade-erp
 ```
 
-#### 2. 一键启动依赖环境（MySQL + Redis）
+### 2. 一键启动依赖环境（MySQL + Redis）
 
 ```bash
 docker compose up -d
@@ -92,10 +72,9 @@ docker compose up -d
 首次启动只会创建一个空的 `zhul_erp` 数据库（`MYSQL_DATABASE` 环境变量），表结构和初始化数据不在这一步导入——
 交给后端启动时的 Flyway 自动完成，见下一步。
 
-> 数据库默认不持久化，停止或重建容器后清空，重启后端即可重新建表。需要保留数据见 [数据持久化](docs/06-部署运维/03-数据持久化与备份.md)。
 > 没有 Docker？也可以自行安装 MySQL 8 / Redis，不需要手动执行任何 SQL 文件。
 
-#### 3. 启动后端
+### 3. 启动后端
 
 ```bash
 cd zhul-erp-backend
@@ -111,7 +90,7 @@ mvn spring-boot:run
 
 后端默认监听 `http://localhost:8080`，接口文档：`http://localhost:8080/doc.html`。
 
-#### 4. 启动前端
+### 4. 启动前端
 
 ```bash
 cd zhul-erp-frontend
@@ -121,28 +100,23 @@ npm run dev
 
 前端默认监听 `http://localhost:8000`，已通过 `config/proxy.ts` 将 `/api` 代理到后端 `8080` 端口。
 
-> 询盘的 AI 解析需要另外启动 AI 编排服务，见 [部署场景 · 方式二](docs/06-部署运维/01-部署场景.md#方式二数据库用-docker前后端和-ai-编排在本机运行)。
-
-#### 5. 登录体验
+### 5. 登录体验
 
 浏览器打开 `http://localhost:8000`，使用初始化数据中的示例账号登录：
 
 | 用户名 | 密码 | 说明 |
 |--------|------|------|
+| `admin` | `admin123` | 租户账号（`tenant_id=1000`），日常业务操作 |
 | `platform` | `admin123` | 平台账号（`tenant_id=0`），可维护商品主数据（品牌/品类/系列等全租户共享数据） |
 
-> 登录平台账号后配置套餐、创建租户，再用租户管理员账号开展业务。
-> 示例账号仅用于本地快速体验，生产环境不要在 `spring.flyway.locations` 里加 `classpath:db/dev-data`，
-> 首次生产账号见 [生产环境首次账号](docs/06-部署运维/06-生产环境首次账号.md)。
+> 这两个账号仅用于本地快速体验，生产环境部署前请务必修改密码或删除示例数据
+> （不要在生产环境的 `spring.flyway.locations` 里加 `classpath:db/dev-data`）。
 
 ## 项目结构
 
 ```
 .
-├── docker-compose.yaml         # Docker 部署入口：默认仅 MySQL / Redis，--profile app 启动全部
-├── .env.example                # Docker 配置模板（复制为 .env，逐项有说明）
-├── storage/                    # 可选持久化数据目录，默认不启用
-├── scripts/                    # 开发脚本（docker-dev 一键启动）、AI 编排服务
+├── docker-compose.yml          # 一键启动本地 MySQL（空库）/ Redis
 ├── zhul-erp-backend/           # Spring Boot 后端
 │   └── src/main/
 │       ├── java/com/zhul/erp/
@@ -159,7 +133,6 @@ npm run dev
 │       ├── services/           # 接口请求封装
 │       └── locales/            # 国际化文案
 ├── docs/                       # 产品文档
-│   ├── 06-部署运维/           # Docker 部署与运维
 │   ├── 02-产品PRD/              # 需求文档
 │   ├── 03-产品原型/              # OpenPencil 原型（.op 源文件 + 效果图）
 │   └── 04-数据模型/              # 数据模型说明
@@ -168,8 +141,7 @@ npm run dev
 
 ## 环境变量
 
-后端所有配置均可通过环境变量覆盖 `application.yml` 中的默认值（本地开发推荐直接改 `application-dev.yml`，生产环境用环境变量注入）。
-Docker 部署统一使用项目根目录的 `.env`，全部变量及说明见 `.env.example`；下表为本机运行后端时的常用变量：
+后端所有配置均可通过环境变量覆盖 `application.yml` 中的默认值（本地开发推荐直接改 `application-dev.yml`，生产环境用环境变量注入）：
 
 | 变量名 | 说明 | 默认值 |
 |--------|------|--------|
@@ -206,7 +178,6 @@ npm test                     # 单元测试
 
 ## 开发文档
 
-- `docs/06-部署运维/`：Docker 部署与运维（快速开始、部署场景、配置、持久化、AI 编排服务、排障）
 - `.claude/CLAUDE.md`：项目专属编码规则（金额精度、软删除、多租户等强约束）
 - `.claude/context/`：外贸业务术语、财务科目、数据模型、技术选型说明
 - `docs/02-产品PRD/`：各模块产品需求文档
