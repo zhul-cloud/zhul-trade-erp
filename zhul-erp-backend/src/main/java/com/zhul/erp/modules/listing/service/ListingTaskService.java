@@ -8,6 +8,7 @@ import com.zhul.erp.framework.security.SecurityUtils;
 import com.zhul.erp.framework.storage.FileStorageService.FileLink;
 import com.zhul.erp.framework.tenant.TenantContext;
 import com.zhul.erp.modules.listing.constants.ListingConstants;
+import com.zhul.erp.modules.listing.dto.ListingProductVO;
 import com.zhul.erp.modules.listing.dto.ListingTaskDetailVO;
 import com.zhul.erp.modules.listing.dto.ListingTaskQuery;
 import com.zhul.erp.modules.listing.dto.ListingTaskVO;
@@ -45,6 +46,7 @@ import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -64,6 +66,8 @@ public class ListingTaskService {
 
     private static final List<String> TABS = List.of("pending", "updated", "replace", "published", "cancelled", "all");
     private static final String[] STATUS_NAMES = {"", "待发布", "已发布", "已取消"};
+    private static final Map<String, String> PRODUCT_STATUS_NAMES = Map.of("pending", "待发布", "updated", "内容有更新",
+            "replace", "待替换素材", "published", "已发布", "cancelled", "已取消");
     private static final Pattern URL = Pattern.compile("^https?://\\S+$", Pattern.CASE_INSENSITIVE);
 
     private final ListingTaskMapper taskMapper;
@@ -77,24 +81,27 @@ public class ListingTaskService {
 
     // ================================================================ 列表
 
-    public PageResult<ListingTaskVO> page(ListingTaskQuery q) {
+    /** 按商品分页（spec「发品任务列表」） */
+    public PageResult<ListingProductVO> page(ListingTaskQuery q) {
         String tab = tab(q.getTab());
         Filter f = filter(q);
         int size = q.getPageSize() == null ? 20 : Math.max(1, Math.min(100, q.getPageSize()));
         int page = q.getPage() == null ? 1 : Math.max(1, q.getPage());
         Integer tenantId = TenantContext.getTenantId();
-        long total = taskMapper.count(tenantId, tab, f.platform, f.brandId, f.categoryId, f.keyword, f.mpn);
+        long total = taskMapper.countProducts(tenantId, tab, f.brandId, f.categoryId, f.keyword, f.mpn);
         if (total == 0) {
             return PageResult.of(0L, List.of());
         }
-        List<ListingTaskRow> rows = taskMapper.page(tenantId, tab, f.platform, f.brandId, f.categoryId, f.keyword, f.mpn,
+        List<Long> ids = taskMapper.pageProducts(tenantId, tab, f.brandId, f.categoryId, f.keyword, f.mpn,
                 (long) (page - 1) * size, size);
-        return PageResult.of(total, toVos(rows));
+        Map<Long, ListingProductVO> byId = products(ids);
+        return PageResult.of(total, ids.stream().map(byId::get).filter(Objects::nonNull).toList());
     }
 
+    /** 各页签的商品数 */
     public Map<String, Long> counts(ListingTaskQuery q) {
         Filter f = filter(q);
-        Map<String, Object> row = taskMapper.counts(TenantContext.getTenantId(), f.platform, f.brandId, f.categoryId, f.keyword, f.mpn);
+        Map<String, Object> row = taskMapper.productCounts(TenantContext.getTenantId(), f.brandId, f.categoryId, f.keyword, f.mpn);
         Map<String, Long> out = new LinkedHashMap<>();
         for (String t : TABS) {
             Object v = row == null ? null : row.get(t);
@@ -103,17 +110,78 @@ public class ListingTaskService {
         return out;
     }
 
-    private record Filter(String platform, Long brandId, Long categoryId, String keyword, String mpn) {
+    /** 一个商品的各平台任务（商品发品详情页头） */
+    public ListingProductVO product(Long productId) {
+        ListingProductVO vo = products(List.of(productId)).get(productId);
+        if (vo == null) {
+            throw new BizException("这个商品没有发品任务");
+        }
+        return vo;
+    }
+
+    private Map<Long, ListingProductVO> products(List<Long> productIds) {
+        Map<Long, ListingProductVO> out = new LinkedHashMap<>();
+        if (productIds.isEmpty()) {
+            return out;
+        }
+        List<ListingTaskRow> rows = new ArrayList<>(taskMapper.rowsOfProducts(TenantContext.getTenantId(), productIds));
+        rows.sort(Comparator.comparing((ListingTaskRow r) -> platformOrder(r.getPlatform())));
+        for (ListingTaskVO t : toVos(rows)) {
+            ListingProductVO p = out.computeIfAbsent(t.getProductId(), id -> {
+                ListingProductVO v = new ListingProductVO();
+                v.setProductId(id);
+                v.setBrand(t.getBrand());
+                v.setModel(t.getModel());
+                v.setProductName(t.getProductName());
+                v.setCategory(t.getCategory());
+                return v;
+            });
+            p.getTasks().add(t);
+            if (p.getCreateTime() == null || t.getCreateTime() != null && t.getCreateTime().isBefore(p.getCreateTime())) {
+                p.setCreateTime(t.getCreateTime());
+                p.setCreateBy(t.getCreateBy());
+            }
+            if (p.getUpdateTime() == null || t.getUpdateTime() != null && t.getUpdateTime().isAfter(p.getUpdateTime())) {
+                p.setUpdateTime(t.getUpdateTime());
+                p.setUpdateBy(t.getUpdateBy());
+            }
+        }
+        out.values().forEach(ListingTaskService::summarize);
+        return out;
+    }
+
+    /** 商品状态：待发布 → 内容有更新 → 待替换素材 → 已发布 → 已取消，取第一个满足的 */
+    private static void summarize(ListingProductVO p) {
+        List<ListingTaskVO> ts = p.getTasks();
+        String status;
+        if (ts.stream().anyMatch(t -> t.getStatus() == ListingConstants.STATUS_PENDING)) {
+            status = "pending";
+        } else if (ts.stream().anyMatch(t -> Boolean.TRUE.equals(t.getContentUpdated()))) {
+            status = "updated";
+        } else if (ts.stream().anyMatch(t -> Boolean.TRUE.equals(t.getNeedReplace()))) {
+            status = "replace";
+        } else if (ts.stream().anyMatch(t -> t.getStatus() == ListingConstants.STATUS_PUBLISHED)) {
+            status = "published";
+        } else {
+            status = "cancelled";
+        }
+        p.setStatus(status);
+        p.setStatusName(PRODUCT_STATUS_NAMES.get(status));
+        p.setNeedMedia(ts.stream().anyMatch(t -> Boolean.TRUE.equals(t.getNeedMedia())));
+    }
+
+    private static int platformOrder(String code) {
+        MarketingPlatform p = MarketingPlatform.of(code);
+        return p == null ? Integer.MAX_VALUE : p.ordinal();
+    }
+
+    private record Filter(Long brandId, Long categoryId, String keyword, String mpn) {
     }
 
     private static Filter filter(ListingTaskQuery q) {
-        String platform = StringUtils.hasText(q.getPlatform()) ? q.getPlatform().trim() : null;
-        if (platform != null && MarketingPlatform.of(platform) == null) {
-            throw new BizException("平台须为 alibaba、mic、site 或 social");
-        }
         String keyword = StringUtils.hasText(q.getKeyword()) ? q.getKeyword().trim() : null;
         String mpn = keyword == null ? null : MpnNormalizer.normalize(keyword);
-        return new Filter(platform, q.getBrandId(), q.getCategoryId(), keyword, StringUtils.hasText(mpn) ? mpn : null);
+        return new Filter(q.getBrandId(), q.getCategoryId(), keyword, StringUtils.hasText(mpn) ? mpn : null);
     }
 
     private static String tab(String tab) {

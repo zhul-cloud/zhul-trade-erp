@@ -63,9 +63,27 @@ export interface ListingTask {
   updateBy?: string;
 }
 
+/** 按商品：一个商品一行，汇总各平台任务 */
+export interface ListingProduct {
+  productId: number;
+  brand?: string;
+  model?: string;
+  productName?: string;
+  category?: string;
+  status: Exclude<ListingTab, 'all'>;
+  statusName: string;
+  /** 有待发布的平台没有可用素材 */
+  needMedia: boolean;
+  /** 各平台任务，按平台固定顺序 */
+  tasks: ListingTask[];
+  createTime?: string;
+  createBy?: string;
+  updateTime?: string;
+  updateBy?: string;
+}
+
 export interface ListingQuery {
   tab?: ListingTab;
-  platform?: MarketingPlatform;
   brandId?: number;
   categoryId?: number;
   keyword?: string;
@@ -95,7 +113,14 @@ const send = <T>(method: string, url: string, data?: object) =>
 
 export const listingApi = {
   page: (q: ListingQuery) =>
-    send<{ records: ListingTask[]; total: number }>('POST', `${API}/page`, q),
+    send<{ records: ListingProduct[]; total: number }>(
+      'POST',
+      `${API}/page`,
+      q,
+    ),
+  /** 一个商品的各平台任务 */
+  product: (productId: number) =>
+    get<ListingProduct>(`${API}/products/${productId}`),
   counts: (q: ListingQuery) =>
     send<Record<ListingTab, number>>('POST', `${API}/counts`, q),
   detail: (id: number) => get<ListingDetail>(`${API}/${id}`),

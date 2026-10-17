@@ -136,6 +136,12 @@ export default [
         component: './operations/listings',
       },
       {
+        path: '/operations/listings/:productId',
+        hideInMenu: true,
+        access: 'operationsListings',
+        component: './operations/listings/detail',
+      },
+      {
         // 素材库：按型号汇总各环节的图片、视频与资料，全公司共用
         path: '/operations/media',
         name: 'media',

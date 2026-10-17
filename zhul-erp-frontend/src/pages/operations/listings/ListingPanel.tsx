@@ -11,7 +11,6 @@ import { Link, useAccess } from '@umijs/max';
 import {
   App,
   Button,
-  Drawer,
   Form,
   Input,
   Modal,
@@ -476,12 +475,11 @@ export const StatusPills: React.FC<{ task: ListingTask }> = ({ task }) => (
   </>
 );
 
-/** 发品任务详情：提醒、发布结果、发品素材、复制助手 */
-const ListingDrawer: React.FC<{
-  id?: number;
-  onClose: () => void;
+/** 一个平台的发品任务：提醒、发布结果、发品素材、复制助手与操作（商品发品详情页按平台切换） */
+const ListingPanel: React.FC<{
+  id: number;
   onChanged: () => void;
-}> = ({ id, onClose, onChanged }) => {
+}> = ({ id, onChanged }) => {
   const { palette } = useAppTheme();
   const { message, modal } = App.useApp();
   const { hasPerm } = usePermission();
@@ -495,7 +493,6 @@ const ListingDrawer: React.FC<{
   const [busy, setBusy] = useState<string>();
 
   const load = useCallback(async () => {
-    if (id === undefined) return;
     setError(undefined);
     try {
       setData(await listingApi.detail(id));
@@ -511,7 +508,7 @@ const ListingDrawer: React.FC<{
   }, [load]);
 
   const fetchUrls: FetchUrls = useMemo(
-    () => (refs, download) => listingApi.urls(id as number, refs, download),
+    () => (refs, download) => listingApi.urls(id, refs, download),
     [id],
   );
 
@@ -548,64 +545,59 @@ const ListingDrawer: React.FC<{
   };
 
   return (
-    <Drawer
-      open={id !== undefined}
-      onClose={onClose}
-      size="min(920px, 96vw)"
-      destroyOnHidden
-      title={
-        t ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span>
-              {brand} {model}
-            </span>
-            <Pill tone="gray">{t.platformLabel}</Pill>
-            <StatusPills task={t} />
-          </div>
-        ) : (
-          '发品任务'
-        )
-      }
-      extra={
-        t &&
-        canEdit &&
-        (pending ? (
-          <Tooltip
-            title={
-              t.needMedia ? '还没有发品素材，先补素材或选择参考素材' : undefined
-            }
-          >
-            <Button
-              type="primary"
-              icon={<CheckOutlined />}
-              disabled={t.needMedia}
-              onClick={() => setPublishMode('publish')}
-            >
-              标记已发布
-            </Button>
-          </Tooltip>
-        ) : (
-          t.status === 2 && (
-            <Button
-              icon={<EditOutlined />}
-              onClick={() => setPublishMode('record')}
-            >
-              修改发布记录
-            </Button>
-          )
-        ))
-      }
-    >
+    <div>
+      {t && (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            flexWrap: 'wrap',
+            marginBottom: 16,
+          }}
+        >
+          <span style={{ fontSize: 16, fontWeight: 600, color: palette.ink }}>
+            {t.platformLabel}
+          </span>
+          <StatusPills task={t} />
+          <span style={{ flex: 1 }} />
+          {t &&
+            canEdit &&
+            (pending ? (
+              <Tooltip
+                title={
+                  t.needMedia
+                    ? '还没有发品素材，先补素材或选择参考素材'
+                    : undefined
+                }
+              >
+                <Button
+                  type="primary"
+                  icon={<CheckOutlined />}
+                  disabled={t.needMedia}
+                  onClick={() => setPublishMode('publish')}
+                >
+                  标记已发布
+                </Button>
+              </Tooltip>
+            ) : (
+              t.status === 2 && (
+                <Button
+                  icon={<EditOutlined />}
+                  onClick={() => setPublishMode('record')}
+                >
+                  修改发布记录
+                </Button>
+              )
+            ))}
+        </div>
+      )}
       {error ? (
         <ErrorHint message={error} onRetry={load} />
       ) : !data || !t ? (
         <Skeleton active />
       ) : (
         <div style={{ display: 'grid', gap: 20 }}>
-          <div style={{ fontSize: 13, color: palette.mute }}>
-            {[t.productName, t.category].filter(Boolean).join(' · ')}
-          </div>
-
           {t.status === 3 && (
             <Banner tone="mute">
               已取消：{t.cancelReason || '—'}
@@ -822,8 +814,8 @@ const ListingDrawer: React.FC<{
           }
         }}
       />
-    </Drawer>
+    </div>
   );
 };
 
-export default ListingDrawer;
+export default ListingPanel;

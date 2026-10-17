@@ -8,6 +8,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -146,20 +147,32 @@ class ListingTaskContractTest extends TenantContractSupport {
         confirm(a, platformMd("alibaba", "L-1", "en", ALIBABA_BODY));
         long id = id(A, p1, "alibaba");
 
-        // 列表与页签：没有发品素材 → 素材待补
+        // 列表按商品：一个商品一行，状态待发布并标素材待补
         JsonNode page = ok(call(json(post(API + "/page"), "{}"), a));
         assertEquals(1, page.path("total").asInt());
         JsonNode row = page.path("records").get(0);
         assertEquals("L-1", row.path("model").asText());
         assertEquals(BRAND, row.path("brand").asText());
-        assertEquals("阿里国际站", row.path("platformLabel").asText());
+        assertEquals("pending", row.path("status").asText());
         assertEquals("待发布", row.path("statusName").asText());
         assertTrue(row.path("needMedia").asBoolean());
-        assertEquals(0, ok(call(json(post(API + "/page"), "{\"platform\":\"site\"}"), a)).path("total").asInt());
+        assertEquals(1, row.path("tasks").size());
+        assertEquals("阿里国际站", row.path("tasks").get(0).path("platformLabel").asText());
         assertEquals(1, ok(call(json(post(API + "/page"), "{\"keyword\":\"l-1\"}"), a)).path("total").asInt());
+        assertEquals(0, ok(call(json(post(API + "/page"), "{\"keyword\":\"l-9\"}"), a)).path("total").asInt());
         JsonNode counts = ok(call(json(post(API + "/counts"), "{}"), a));
         assertEquals(1, counts.path("pending").asInt());
         assertEquals(0, counts.path("published").asInt());
+
+        // 再写完独立站：同一个商品仍是一行，两个平台
+        confirm(a, platformMd("site", "L-1", "en", "## SEO 标题\nL-1 Servo Drive\n"));
+        confirm(a, platformMd("site", "L-1", "ru", "## SEO 标题\nСервопривод L-1\n"));
+        JsonNode two = ok(call(json(post(API + "/page"), "{\"tab\":\"all\"}"), a));
+        assertEquals(1, two.path("total").asInt());
+        assertEquals(List.of("alibaba", "site"), platforms(two.path("records").get(0).path("tasks")));
+        JsonNode header = ok(call(get(API + "/products/" + p1), a));
+        assertEquals(2, header.path("tasks").size());
+        assertEquals("这个商品没有发品任务", fail(call(get(API + "/products/" + p2), a)).path("message").asText());
 
         // 详情：复制助手的营销内容
         JsonNode detail = ok(call(get(API + "/" + id), a));
@@ -203,8 +216,12 @@ class ListingTaskContractTest extends TenantContractSupport {
         // 内容有更新：发布后营销内容又写入过
         assertEquals("没有需要同步的更新", fail(call(post(API + "/" + id + "/sync"), a)).path("message").asText());
         jdbc.update("update listing_task set content_at = date_sub(content_at, interval 1 minute) where id = ?", id);
-        assertEquals(1, ok(call(json(post(API + "/counts"), "{}"), a)).path("updated").asInt());
-        assertTrue(ok(call(json(post(API + "/page"), "{\"tab\":\"updated\"}"), a)).path("records").get(0).path("contentUpdated").asBoolean());
+        JsonNode updatedCounts = ok(call(json(post(API + "/counts"), "{}"), a));
+        assertEquals(1, updatedCounts.path("updated").asInt());
+        assertEquals(0, updatedCounts.path("published").asInt(), "独立站还待发布，不算全部发完");
+        JsonNode updatedRow = ok(call(json(post(API + "/page"), "{\"tab\":\"updated\"}"), a)).path("records").get(0);
+        assertEquals("pending", updatedRow.path("status").asText(), "有待发布的平台时商品状态取待发布");
+        assertTrue(updatedRow.path("tasks").get(0).path("contentUpdated").asBoolean());
         JsonNode synced = ok(call(post(API + "/" + id + "/sync"), a));
         assertFalse(synced.path("task").path("contentUpdated").asBoolean());
         assertEquals("it_listing_admin", synced.path("task").path("syncedBy").asText());
@@ -214,11 +231,18 @@ class ListingTaskContractTest extends TenantContractSupport {
         long own = listingMedia("L-1", 1);
         JsonNode replaceTab = ok(call(json(post(API + "/page"), "{\"tab\":\"replace\"}"), a));
         assertEquals(1, replaceTab.path("total").asInt());
-        assertEquals(1, replaceTab.path("records").get(0).path("imageCount").asInt());
+        assertEquals(1, replaceTab.path("records").get(0).path("tasks").get(0).path("imageCount").asInt());
         JsonNode replaced = ok(call(post(API + "/" + id + "/replace"), a));
         assertTrue(replaced.path("task").path("refModel").isNull() || replaced.path("task").path("refModel").isMissingNode());
         assertEquals(1, replaced.path("ownMedia").size());
         assertEquals(0, replaced.path("referenceMedia").size());
+
+        // 独立站也发布后：商品全部发完，进「已发布」，待发布页签里没有
+        ok(call(json(post(API + "/" + id(A, p1, "site") + "/publish"), write(Map.of("listingUrl", "https://shop.example/l-1"))), a));
+        JsonNode done = ok(call(json(post(API + "/counts"), "{}"), a));
+        assertEquals(1, done.path("published").asInt());
+        assertEquals(0, done.path("pending").asInt());
+        assertEquals("published", ok(call(get(API + "/products/" + p1), a)).path("status").asText());
 
         // 链接只能取这个任务的素材
         assertEquals(1, ok(call(json(post(API + "/" + id + "/urls"), write(Map.of("refs", List.of(Map.of("itemId", own)),
@@ -285,6 +309,12 @@ class ListingTaskContractTest extends TenantContractSupport {
     private long id(int tenantId, long productId, String platform) {
         return jdbc.queryForObject("select id from listing_task where tenant_id = ? and product_id = ? and platform = ?",
                 Long.class, tenantId, productId, platform);
+    }
+
+    private static List<String> platforms(JsonNode tasks) {
+        List<String> out = new ArrayList<>();
+        tasks.forEach(t -> out.add(t.path("platform").asText()));
+        return out;
     }
 
     private long listingMedia(String model, int kind) {

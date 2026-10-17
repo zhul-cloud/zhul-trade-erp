@@ -29,8 +29,7 @@ public interface ListingTaskMapper extends BaseMapper<ListingTaskDO> {
             + "AND t.product_id = l.product_id AND t.deleted_at IS NULL "
             + "WHERE l.tenant_id = #{tenantId} AND l.deleted_at IS NULL ";
 
-    String FILTER = "<if test='platform != null'> AND l.platform = #{platform}</if>"
-            + "<if test='brandId != null or categoryId != null or keyword != null'> AND l.product_id IN (SELECT p.id FROM product p "
+    String FILTER = "<if test='brandId != null or categoryId != null or keyword != null'> AND l.product_id IN (SELECT p.id FROM product p "
             + "WHERE p.tenant_id = 0 AND p.deleted_at IS NULL"
             + "<if test='brandId != null'> AND p.brand_id = #{brandId}</if>"
             + "<if test='categoryId != null'> AND (p.category_id = #{categoryId} OR p.category_id IN (SELECT c.id FROM product_category c "
@@ -38,37 +37,53 @@ public interface ListingTaskMapper extends BaseMapper<ListingTaskDO> {
             + "<if test='keyword != null'> AND (p.product_name LIKE CONCAT('%', #{keyword}, '%') OR p.mpn_raw LIKE CONCAT('%', #{keyword}, '%')"
             + "<if test='mpn != null'> OR p.mpn_normalized LIKE CONCAT('%', #{mpn}, '%')</if>)</if>)</if>";
 
+    /** 按商品汇总各平台任务：待发布、内容有更新、待替换素材、已发布、已取消的平台数 */
+    String BY_PRODUCT = "SELECT l.product_id, MAX(l.update_time) AS update_time, SUM(l.status = 1) AS pending, "
+            + "SUM(" + UPDATED + ") AS updated, SUM(" + NEED_REPLACE + ") AS need_replace, SUM(l.status = 2) AS published, "
+            + "SUM(l.status = 3) AS cancelled, COUNT(*) AS total " + FROM + FILTER + " GROUP BY l.product_id";
+
+    /** 商品页签（spec「发品任务列表」） */
     String TAB = "<choose>"
-            + "<when test=\"tab == 'pending'\"> AND l.status = 1</when>"
-            + "<when test=\"tab == 'updated'\"> AND " + UPDATED + "</when>"
-            + "<when test=\"tab == 'replace'\"> AND " + NEED_REPLACE + "</when>"
-            + "<when test=\"tab == 'published'\"> AND l.status = 2</when>"
-            + "<when test=\"tab == 'cancelled'\"> AND l.status = 3</when>"
+            + "<when test=\"tab == 'pending'\"> HAVING pending &gt; 0</when>"
+            + "<when test=\"tab == 'updated'\"> HAVING updated &gt; 0</when>"
+            + "<when test=\"tab == 'replace'\"> HAVING need_replace &gt; 0</when>"
+            + "<when test=\"tab == 'published'\"> HAVING pending = 0 AND published &gt; 0</when>"
+            + "<when test=\"tab == 'cancelled'\"> HAVING cancelled = total</when>"
             + "</choose>";
 
-    @Select("<script>SELECT l.id, l.tenant_id, l.product_id, l.platform, l.asset_key, l.status, l.cancel_reason, l.ref_brand, "
+    String ROW = "SELECT l.id, l.tenant_id, l.product_id, l.platform, l.asset_key, l.status, l.cancel_reason, l.ref_brand, "
             + "l.ref_model, l.ref_by, l.ref_time, l.listing_url, l.platform_item_id, l.note, l.published_by, l.published_at, "
             + "l.content_at, l.synced_by, l.synced_at, l.replaced_by, l.replaced_at, l.create_time, l.create_by, "
             + "l.update_time, l.update_by, " + NEED_MEDIA + " AS need_media, " + UPDATED + " AS content_updated, "
-            + NEED_REPLACE + " AS need_replace "
-            + FROM + FILTER + TAB + " ORDER BY l.update_time DESC, l.id DESC LIMIT #{offset}, #{size}</script>")
-    List<ListingTaskRow> page(@Param("tenantId") Integer tenantId, @Param("tab") String tab, @Param("platform") String platform,
-                              @Param("brandId") Long brandId, @Param("categoryId") Long categoryId,
-                              @Param("keyword") String keyword, @Param("mpn") String mpn,
-                              @Param("offset") long offset, @Param("size") long size);
+            + NEED_REPLACE + " AS need_replace ";
 
-    @Select("<script>SELECT COUNT(*) " + FROM + FILTER + TAB + "</script>")
-    long count(@Param("tenantId") Integer tenantId, @Param("tab") String tab, @Param("platform") String platform,
-               @Param("brandId") Long brandId, @Param("categoryId") Long categoryId,
-               @Param("keyword") String keyword, @Param("mpn") String mpn);
+    /** 一页商品（按最近更新倒序） */
+    @Select("<script>SELECT x.product_id FROM (" + BY_PRODUCT + TAB + ") x ORDER BY x.update_time DESC, x.product_id DESC "
+            + "LIMIT #{offset}, #{size}</script>")
+    List<Long> pageProducts(@Param("tenantId") Integer tenantId, @Param("tab") String tab,
+                            @Param("brandId") Long brandId, @Param("categoryId") Long categoryId,
+                            @Param("keyword") String keyword, @Param("mpn") String mpn,
+                            @Param("offset") long offset, @Param("size") long size);
 
-    /** 各页签数量：pending、updated、replace、published、cancelled、all */
-    @Select("<script>SELECT COALESCE(SUM(l.status = 1), 0) AS pending, COALESCE(SUM(" + UPDATED + "), 0) AS updated, "
-            + "COALESCE(SUM(" + NEED_REPLACE + "), 0) AS `replace`, COALESCE(SUM(l.status = 2), 0) AS published, "
-            + "COALESCE(SUM(l.status = 3), 0) AS cancelled, COUNT(*) AS `all` " + FROM + FILTER + "</script>")
-    Map<String, Object> counts(@Param("tenantId") Integer tenantId, @Param("platform") String platform,
-                               @Param("brandId") Long brandId, @Param("categoryId") Long categoryId,
-                               @Param("keyword") String keyword, @Param("mpn") String mpn);
+    @Select("<script>SELECT COUNT(*) FROM (" + BY_PRODUCT + TAB + ") x</script>")
+    long countProducts(@Param("tenantId") Integer tenantId, @Param("tab") String tab,
+                       @Param("brandId") Long brandId, @Param("categoryId") Long categoryId,
+                       @Param("keyword") String keyword, @Param("mpn") String mpn);
+
+    /** 各页签的商品数：pending、updated、replace、published、cancelled、all */
+    @Select("<script>SELECT COALESCE(SUM(x.pending &gt; 0), 0) AS pending, COALESCE(SUM(x.updated &gt; 0), 0) AS updated, "
+            + "COALESCE(SUM(x.need_replace &gt; 0), 0) AS `replace`, COALESCE(SUM(x.pending = 0 AND x.published &gt; 0), 0) AS published, "
+            + "COALESCE(SUM(x.cancelled = x.total), 0) AS cancelled, COUNT(*) AS `all` FROM (" + BY_PRODUCT + ") x</script>")
+    Map<String, Object> productCounts(@Param("tenantId") Integer tenantId,
+                                      @Param("brandId") Long brandId, @Param("categoryId") Long categoryId,
+                                      @Param("keyword") String keyword, @Param("mpn") String mpn);
+
+    /** 这些商品的全部平台任务连同提醒 */
+    @Select("<script>" + ROW + "FROM listing_task l LEFT JOIN product_content_task t ON t.tenant_id = l.tenant_id "
+            + "AND t.product_id = l.product_id AND t.deleted_at IS NULL "
+            + "WHERE l.tenant_id = #{tenantId} AND l.deleted_at IS NULL AND l.product_id IN "
+            + "<foreach collection='productIds' item='id' open='(' separator=',' close=')'>#{id}</foreach></script>")
+    List<ListingTaskRow> rowsOfProducts(@Param("tenantId") Integer tenantId, @Param("productIds") Collection<Long> productIds);
 
     /** 一个任务连同提醒（详情、操作前校验用） */
     @Select("<script>SELECT l.id, " + NEED_MEDIA + " AS need_media, " + UPDATED + " AS content_updated, "

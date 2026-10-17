@@ -4,9 +4,9 @@ import com.zhul.erp.common.result.PageResult;
 import com.zhul.erp.common.result.Result;
 import com.zhul.erp.framework.storage.FileStorageService.FileLink;
 import com.zhul.erp.modules.listing.constants.ListingConstants;
+import com.zhul.erp.modules.listing.dto.ListingProductVO;
 import com.zhul.erp.modules.listing.dto.ListingTaskDetailVO;
 import com.zhul.erp.modules.listing.dto.ListingTaskQuery;
-import com.zhul.erp.modules.listing.dto.ListingTaskVO;
 import com.zhul.erp.modules.listing.dto.PublishRequest;
 import com.zhul.erp.modules.listing.dto.ReferenceRequest;
 import com.zhul.erp.modules.listing.service.ListingTaskService;
@@ -39,15 +39,22 @@ public class ListingTaskController {
 
     @PostMapping("/page")
     @PreAuthorize(VIEW)
-    public Result<PageResult<ListingTaskVO>> page(@RequestBody ListingTaskQuery query) {
+    public Result<PageResult<ListingProductVO>> page(@RequestBody ListingTaskQuery query) {
         return Result.ok(service.page(query));
     }
 
-    /** 各页签数量（按同样的筛选条件） */
+    /** 各页签的商品数（按同样的筛选条件） */
     @PostMapping("/counts")
     @PreAuthorize(VIEW)
     public Result<Map<String, Long>> counts(@RequestBody ListingTaskQuery query) {
         return Result.ok(service.counts(query));
+    }
+
+    /** 一个商品的各平台任务（商品发品详情页） */
+    @GetMapping("/products/{productId}")
+    @PreAuthorize(VIEW)
+    public Result<ListingProductVO> product(@PathVariable Long productId) {
+        return Result.ok(service.product(productId));
     }
 
     @GetMapping("/{id}")
