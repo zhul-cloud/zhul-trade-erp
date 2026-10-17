@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.zhul.erp.common.exception.BizException;
 import com.zhul.erp.common.result.PageResult;
 import com.zhul.erp.modules.attachment.service.AttachmentService;
+import com.zhul.erp.modules.media.service.MediaIndexer;
 import com.zhul.erp.modules.inquiry.support.CurrentUserResolver;
 import com.zhul.erp.modules.inquiry.support.InquiryLookups;
 import com.zhul.erp.modules.purchase.constants.PurchaseConstants;
@@ -61,6 +62,7 @@ public class ShipmentService {
     private final ReceivingSupport support;
     private final ReceivingQty receivingQty;
     private final AttachmentService attachments;
+    private final MediaIndexer media;
     private final DocumentNumberService documentNumberService;
     private final PurchaseLogs logs;
     private final CurrentUserResolver currentUser;
@@ -284,6 +286,7 @@ public class ShipmentService {
         String text = writeItems(s, p, req.getItems(), Map.of());
         requireOneCustomer(s);
         attachments.attach(AttachmentService.SHIPMENT, s.getId(), req.getAttachmentIds());
+        indexMedia(s, req);
         logs.add(p.getId(), "登记发货", s.getSdNo() + "：" + text + trackingText(s), currentUser.resolve());
         logService.recordOperateLog(WarehouseConstants.MENU_SHIPMENT, "登记发货", null,
                 Map.of("sdNo", s.getSdNo(), "poNo", p.getPoNo(), "items", text));
@@ -315,10 +318,18 @@ public class ShipmentService {
         String after = writeItems(s, p, req.getItems(), own) + trackingText(s);
         requireOneCustomer(s);
         attachments.sync(AttachmentService.SHIPMENT, id, req.getAttachmentIds());
+        indexMedia(s, req);
         logs.add(p.getId(), "修改发货", s.getSdNo() + "：" + before + " → " + after, currentUser.resolve());
         logService.recordOperateLog(WarehouseConstants.MENU_SHIPMENT, "修改发货", Map.of("sdNo", s.getSdNo(), "items", before),
                 Map.of("sdNo", s.getSdNo(), "items", after));
         return detail(id, true);
+    }
+
+    /** 发货图片与视频进素材库「供方发货」：按标注（默认发货单的全部型号）建索引 */
+    private void indexMedia(SupplierShipmentDO s, SaveShipmentRequest req) {
+        List<MediaIndexer.ModelRef> models = itemsOf(List.of(s.getId())).getOrDefault(s.getId(), List.of()).stream()
+                .map(i -> new MediaIndexer.ModelRef(i.getBrand(), i.getModel())).toList();
+        media.indexDocument(AttachmentService.SHIPMENT, s.getId(), s.getTenantId(), models, req.getAttachmentModels());
     }
 
     @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
@@ -340,6 +351,7 @@ public class ShipmentService {
         logs.add(p.getId(), "作废发货", s.getSdNo() + "，原因：" + why + "；数量回到未发", currentUser.resolve());
         logService.recordOperateLog(WarehouseConstants.MENU_SHIPMENT, "作废发货", Map.of("sdNo", s.getSdNo(), "status", "在途"),
                 Map.of("sdNo", s.getSdNo(), "status", "已作废", "reason", why));
+        media.retireDocument(AttachmentService.SHIPMENT, id, s.getTenantId());
         return detail(id, true);
     }
 

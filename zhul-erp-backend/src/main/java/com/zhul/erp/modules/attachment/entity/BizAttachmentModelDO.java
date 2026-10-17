@@ -1,4 +1,4 @@
-package com.zhul.erp.modules.warehouse.entity;
+package com.zhul.erp.modules.attachment.entity;
 
 import com.baomidou.mybatisplus.annotation.FieldFill;
 import com.baomidou.mybatisplus.annotation.IdType;
@@ -9,20 +9,18 @@ import lombok.Data;
 
 import java.time.LocalDateTime;
 
-/** 型号素材：实拍任务上传，归到品牌 + 型号名下 */
+/** 业务附件的型号标注：供方发货、验收入库（含不良品）、打包发货的图片与视频涉及哪些型号 */
 @Data
-@TableName("media_asset")
-public class MediaAssetDO {
+@TableName("biz_attachment_model")
+public class BizAttachmentModelDO {
     @TableId(type = IdType.AUTO)
     private Long id;
     private Integer tenantId;
+    private Long attachmentId;
+    /** 型号归并键：小写（品牌 + 空格 + 型号） */
     private String assetKey;
     private String brand;
     private String model;
-    private Long attachmentId;
-    /** 1-拆箱视频、2-验货视频、3-实物图 */
-    private Integer mediaType;
-    private Long taskId;
     private LocalDateTime deletedAt;
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createTime;

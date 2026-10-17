@@ -1,5 +1,6 @@
 package com.zhul.erp.modules.warehouse.dto;
 
+import com.zhul.erp.modules.media.dto.AttachmentModelsRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
@@ -29,6 +30,9 @@ public class SaveShipmentRequest {
     @Valid
     private List<Line> items;
     private List<Long> attachmentIds;
+    /** 每个附件标注的型号；不提交时沿用已有标注，没有标注的默认为发货单的全部型号 */
+    @Valid
+    private List<AttachmentModelsRequest> attachmentModels;
 
     @Data
     public static class Line {

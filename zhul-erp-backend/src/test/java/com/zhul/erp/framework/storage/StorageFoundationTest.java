@@ -73,6 +73,7 @@ class StorageFoundationTest {
                 .matches("tenant/1005/finance/" + MONTH + "/[0-9a-f]{32}\\.png");
         assertThat(StorageKeys.newKey(StorageArea.INQUIRY, 1005, "pdf")).startsWith("tenant/1005/inquiry/" + MONTH + "/");
         assertThat(StorageKeys.newKey(StorageArea.SYSTEM, 0, "jpg")).matches("tenant/0/system/[0-9a-f]{32}\\.jpg");
+        assertThat(StorageKeys.newKey(StorageArea.PACKING, 1005, "jpg")).matches("tenant/1005/packing/" + MONTH + "/[0-9a-f]{32}\\.jpg");
         assertThat(StorageKeys.modelKey(StorageArea.MEDIA, 1005, "Siemens", "6ES7214-1AG40-0XB0", "jpg"))
                 .matches("tenant/1005/media/siemens/6es7214-1ag40-0xb0/[0-9a-f]{32}\\.jpg");
         assertThat(StorageKeys.modelKey(StorageArea.PRODUCT, 0, "Allen-Bradley", "1756-L71", "webp"))

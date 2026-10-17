@@ -99,6 +99,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
+import com.zhul.erp.modules.media.service.MediaIndexer;
 
 @Slf4j
 @Service
@@ -115,6 +116,7 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
     private final CustomerInquiryMapper inquiryMapper;
     private final CustomerInquiryAttachmentMapper attachmentMapper;
     private final InquiryItemMapper itemMapper;
+    private final MediaIndexer media;
     private final SourcingTaskMapper taskMapper;
     private final SourcingTaskAssigneeMapper assigneeMapper;
     private final SourcingQuoteMapper quoteMapper;
@@ -795,6 +797,7 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
         inquiryMapper.updateById(inquiry);
         // 询价任务生成后自动建档：商品库已有的关联，没有的进商品候选，不像型号的待回填真实型号
         productArchiver.sync(b.ids());
+        indexMedia(id);
     }
 
     /** 一次确认写入的型号：行数、总数量、复用历史价数、待核实数、待询价的型号、全部型号 ID */
@@ -1045,6 +1048,7 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
         a.setItemCount(b.count());
         appendMapper.updateById(a);
         productArchiver.sync(b.ids());
+        indexMedia(id);
     }
 
     @Override
@@ -1197,5 +1201,17 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
     private static int tenantId() {
         Integer t = TenantContext.getTenantId();
         return t == null ? 0 : t;
+    }
+
+    /** 询盘的图片附件进素材库「客户来图」，标注询盘单当前的全部型号 */
+    private void indexMedia(Long inquiryId) {
+        CustomerInquiryDO inquiry = inquiryMapper.selectById(inquiryId);
+        List<MediaIndexer.ModelRef> models = itemMapper.selectList(new LambdaQueryWrapper<InquiryItemDO>()
+                        .eq(InquiryItemDO::getCustomerInquiryId, inquiryId)
+                        .isNull(InquiryItemDO::getDeletedAt)).stream()
+                .map(i -> new MediaIndexer.ModelRef(i.getBrand(),
+                        StringUtils.hasText(i.getConfirmedModel()) ? i.getConfirmedModel() : i.getOriginalModel()))
+                .toList();
+        media.indexInquiry(inquiryId, inquiry.getTenantId(), models);
     }
 }

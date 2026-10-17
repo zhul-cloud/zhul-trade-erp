@@ -21,7 +21,13 @@ import {
 import dayjs, { type Dayjs } from 'dayjs';
 import React, { useEffect, useState } from 'react';
 import { type Forwarder, forwarderApi } from '@/pages/logistics/service';
-import { AttachmentWall, sub } from '@/pages/warehouse/components';
+import {
+  AttachmentWall,
+  attachmentModels,
+  type ModelTagMap,
+  ModelTags,
+  sub,
+} from '@/pages/warehouse/components';
 import {
   type Attachment,
   readBizError,
@@ -70,6 +76,7 @@ const ShipmentDrawer: React.FC<{
   const [basis, setBasis] = useState<string>();
   const [note, setNote] = useState('');
   const [files, setFiles] = useState<Attachment[]>([]);
+  const [tags, setTags] = useState<ModelTagMap>({});
   const [lines, setLines] = useState<Record<number, Line>>({});
   const [saving, setSaving] = useState(false);
   /** 发到哪里：福州仓库，或直发某家货代 */
@@ -102,6 +109,7 @@ const ShipmentDrawer: React.FC<{
         setDirect(!!f.directForwarderId);
         setForwarderId(f.directForwarderId ?? undefined);
         setFiles(f.attachments);
+        setTags({});
         setLines(
           Object.fromEntries(
             f.lines.map((l) => [
@@ -160,6 +168,7 @@ const ShipmentDrawer: React.FC<{
           quantity: lines[l.poItemId]?.quantity ?? 0,
         })),
         attachmentIds: files.map((f) => f.id),
+        attachmentModels: attachmentModels(files, tags),
       };
       const d = shipmentId
         ? await shipmentApi.update(shipmentId, body)
@@ -462,6 +471,12 @@ const ShipmentDrawer: React.FC<{
             ownerType="SHIPMENT"
             value={files}
             onChange={setFiles}
+          />
+          <ModelTags
+            files={files}
+            models={picked}
+            value={tags}
+            onChange={setTags}
           />
 
           <div style={{ color: palette.sub, margin: '20px 0 6px' }}>备注</div>

@@ -16,6 +16,7 @@ import {
   Tooltip,
 } from 'antd';
 import React, { useEffect, useState } from 'react';
+import ViewMediaLink from '@/pages/operations/media/ViewMediaLink';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import {
   PATHS as QUOTATION_PATHS,
@@ -210,6 +211,7 @@ const CustomerInquiryDetailPage: React.FC = () => {
               真实型号：{r.actualModel}
             </span>
           )}
+          <ViewMediaLink brand={r.brand} model={r.confirmedModel} />
         </span>
       ),
     },

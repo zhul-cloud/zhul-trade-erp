@@ -57,6 +57,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
+import com.zhul.erp.modules.media.service.MediaIndexer;
+import com.zhul.erp.modules.attachment.service.AttachmentService;
 
 /**
  * 销售出库单：业务员发货通知（按订单所属业务员的数据权限），仓库打包、交国内快递（仓库看全部）。
@@ -85,6 +87,8 @@ public class OutboundService {
     private final DocumentNumberService documentNumberService;
     private final CurrentUserResolver currentUser;
     private final LogService logService;
+    private final AttachmentService attachments;
+    private final MediaIndexer media;
 
     // ---------------------------------------------------------------- 发货通知
 
@@ -255,6 +259,8 @@ public class OutboundService {
         }
         List<OutboundOrderItemDO> items = itemsOf(List.of(id)).getOrDefault(id, List.of());
         writeBoxes(ob, items, req.getBoxes());
+        attachments.sync(AttachmentService.PACKING, id, req.getAttachmentIds());
+        media.indexDocument(AttachmentService.PACKING, id, ob.getTenantId(), modelsOf(items), req.getAttachmentModels());
         ob.setStatus(LogisticsConstants.OB_PACKED);
         ob.setPackedBy(currentUser.resolve());
         ob.setPackedAt(LocalDateTime.now());
@@ -466,7 +472,15 @@ public class OutboundService {
     }
 
     public OutboundVO detail(Long id, boolean scoped) {
-        return toVos(List.of(visible(id, scoped))).get(0);
+        OutboundOrderDO ob = visible(id, scoped);
+        OutboundVO vo = toVos(List.of(ob)).get(0);
+        vo.setPackingAttachments(attachments.listOf(AttachmentService.PACKING, id));
+        vo.setMissingMarketing(media.missingMarketing(ob.getTenantId(), modelsOf(itemsOf(List.of(id)).getOrDefault(id, List.of()))));
+        return vo;
+    }
+
+    private static List<MediaIndexer.ModelRef> modelsOf(List<OutboundOrderItemDO> items) {
+        return items.stream().map(i -> new MediaIndexer.ModelRef(i.getBrand(), i.getModel())).toList();
     }
 
     public List<OutboundVO> toVos(List<OutboundOrderDO> rows) {

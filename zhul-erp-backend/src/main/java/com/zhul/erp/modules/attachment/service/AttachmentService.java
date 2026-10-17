@@ -9,8 +9,11 @@ import com.zhul.erp.framework.storage.StorageArea;
 import com.zhul.erp.framework.storage.UploadRules;
 import com.zhul.erp.framework.storage.VideoTranscoder;
 import com.zhul.erp.modules.attachment.dto.AttachmentVO;
+import com.zhul.erp.modules.attachment.dto.ModelTagVO;
 import com.zhul.erp.modules.attachment.entity.BizAttachmentDO;
+import com.zhul.erp.modules.attachment.entity.BizAttachmentModelDO;
 import com.zhul.erp.modules.attachment.repository.BizAttachmentMapper;
+import com.zhul.erp.modules.attachment.repository.BizAttachmentModelMapper;
 import com.zhul.erp.modules.attachment.support.ModelFolderResolver;
 import com.zhul.erp.modules.inquiry.support.CurrentUserResolver;
 import com.zhul.erp.modules.inquiry.support.InquiryLookups;
@@ -62,13 +65,22 @@ public class AttachmentService {
     public static final String OTHER_INCOME = "OTHER_INCOME";
     /** 询价回价的截图、报价单（图片或 PDF），挂在回价上，修改回价时搬到新版本 */
     public static final String SOURCING_QUOTE = "SOURCING_QUOTE";
+    /** 验收入库的不良品照片（素材库「到货异常」） */
+    public static final String RECEIPT_DEFECT = "RECEIPT_DEFECT";
+    /** 打包出库的打包照片（素材库「打包发货」） */
+    public static final String PACKING = "PACKING";
+    /** 素材库里为某个型号上传的网络图片，挂在素材索引上 */
+    public static final String NETWORK = "NETWORK";
     /** 只收图片或 PDF 的归属类型 */
     private static final Set<String> PROOF_TYPES = Set.of(PAYMENT, COURIER_PROOF, RETURN_PROOF, EXPENSE, REIMBURSE, PO_INVOICE, REFUND, OTHER_INCOME,
             SOURCING_QUOTE);
     public static final Map<String, Integer> MAX_PER_OWNER = Map.ofEntries(Map.entry(SHIPMENT, 20), Map.entry(RECEIPT, 20),
             Map.entry(SHOOT, 30), Map.entry(LOGISTICS, 10), Map.entry(PAYMENT, 10), Map.entry(COURIER_PROOF, 10),
             Map.entry(RETURN_PROOF, 10), Map.entry(EXPENSE, 10), Map.entry(REIMBURSE, 10), Map.entry(PO_INVOICE, 10),
-            Map.entry(REFUND, 10), Map.entry(OTHER_INCOME, 10), Map.entry(SOURCING_QUOTE, 5));
+            Map.entry(REFUND, 10), Map.entry(OTHER_INCOME, 10), Map.entry(SOURCING_QUOTE, 5), Map.entry(RECEIPT_DEFECT, 20),
+            Map.entry(PACKING, 20), Map.entry(NETWORK, 1));
+    /** 只收图片的归属类型（不传视频） */
+    private static final Set<String> IMAGE_ONLY_TYPES = Set.of(RECEIPT_DEFECT, PACKING, NETWORK);
     public static final int IMAGE = 1;
     public static final int VIDEO = 2;
     public static final int FILE = 3;
@@ -86,9 +98,11 @@ public class AttachmentService {
             Map.entry(RETURN_PROOF, StorageArea.FINANCE), Map.entry(EXPENSE, StorageArea.FINANCE),
             Map.entry(REIMBURSE, StorageArea.FINANCE), Map.entry(REFUND, StorageArea.FINANCE),
             Map.entry(OTHER_INCOME, StorageArea.FINANCE), Map.entry(PO_INVOICE, StorageArea.PURCHASE),
-            Map.entry(SOURCING_QUOTE, StorageArea.SOURCING));
+            Map.entry(SOURCING_QUOTE, StorageArea.SOURCING), Map.entry(RECEIPT_DEFECT, StorageArea.RECEIPT),
+            Map.entry(PACKING, StorageArea.PACKING), Map.entry(NETWORK, StorageArea.MEDIA));
 
     private final BizAttachmentMapper mapper;
+    private final BizAttachmentModelMapper tagMapper;
     private final FileStorageService files;
     private final VideoTranscoder transcoder;
     private final List<ModelFolderResolver> folders;
@@ -111,7 +125,7 @@ public class AttachmentService {
             s = files.store(area, tenantId, file, FACE_SHEET_EXTS, IMAGE_MAX,
                     PROOF_TYPES.contains(ownerType) ? "截图只支持 PDF、JPG、PNG、WEBP" : "面单只支持 PDF、JPG、PNG、WEBP");
             kind = s.contentType().startsWith("image/") ? IMAGE : FILE;
-        } else if (video) {
+        } else if (video && !IMAGE_ONLY_TYPES.contains(ownerType)) {
             s = store(area, ownerType, ownerId, tenantId, file, VIDEO_EXTS, VIDEO_MAX, "只支持 MP4、MOV 视频");
             kind = VIDEO;
         } else {
@@ -157,6 +171,30 @@ public class AttachmentService {
             }
         }
         return files.store(area, tenantId, file, exts, max, message);
+    }
+
+    /** 上传一张图片，直接放到指定型号的素材目录（素材库的网络图片），之后由调用方挂到归属上 */
+    public AttachmentVO uploadForModel(String ownerType, String brand, String model, MultipartFile file) {
+        requireOwnerType(ownerType);
+        int tenantId = PiStore.tenantId();
+        String ext = UploadRules.check(file, IMAGE_EXTS, IMAGE_MAX, "只支持 JPG、PNG、WEBP 图片");
+        FileStorageService.StoredFile s = files.storeForModel(StorageArea.MEDIA, tenantId, brand, model, file, ext);
+        BizAttachmentDO a = new BizAttachmentDO();
+        a.setTenantId(tenantId);
+        a.setOwnerType(ownerType);
+        a.setOwnerId(0L);
+        a.setKind(IMAGE);
+        a.setStorage(s.storage());
+        a.setFileKey(s.fileKey());
+        a.setUrl("");
+        a.setFileName(s.fileName());
+        a.setFileSize(s.fileSize());
+        a.setContentType(s.contentType());
+        a.setProcessingStatus(VideoTranscoder.NONE);
+        Long me = currentUser.resolve();
+        a.setUploadedBy(me == null ? 0L : me);
+        mapper.insert(a);
+        return toVos(List.of(a)).get(0);
     }
 
     /** 视频后台转码：完成后换成转好的文件，失败时保留原视频 */
@@ -335,6 +373,12 @@ public class AttachmentService {
 
     private List<AttachmentVO> toVos(List<BizAttachmentDO> rows) {
         Map<Long, String> users = lookups.userNames(rows.stream().map(BizAttachmentDO::getUploadedBy).toList());
+        Map<Long, List<ModelTagVO>> tags = rows.isEmpty() ? Map.of() : tagMapper.selectList(new LambdaQueryWrapper<BizAttachmentModelDO>()
+                        .in(BizAttachmentModelDO::getAttachmentId, rows.stream().map(BizAttachmentDO::getId).toList())
+                        .isNull(BizAttachmentModelDO::getDeletedAt)
+                        .orderByAsc(BizAttachmentModelDO::getId)).stream()
+                .collect(Collectors.groupingBy(BizAttachmentModelDO::getAttachmentId,
+                        Collectors.mapping(t -> new ModelTagVO(t.getBrand(), t.getModel()), Collectors.toList())));
         return rows.stream().map(a -> {
             AttachmentVO vo = new AttachmentVO();
             vo.setId(a.getId());
@@ -343,6 +387,7 @@ public class AttachmentService {
             vo.setFileSize(a.getFileSize());
             vo.setContentType(a.getContentType());
             vo.setProcessingStatus(a.getProcessingStatus());
+            vo.setModels(tags.getOrDefault(a.getId(), List.of()));
             vo.setUploadedByName(users.get(a.getUploadedBy()));
             vo.setCreateTime(a.getCreateTime());
             return vo;

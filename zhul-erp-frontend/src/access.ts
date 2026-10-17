@@ -179,8 +179,11 @@ export default function access(initialState: {
     productFactTasks: can('/product/fact-tasks'),
     'product:content:edit': can('product:content:edit'),
     operationsProducts: can('/operations/products'),
-    operationsMenu: can('/operations/products'),
+    operationsMedia: can('/operations/media'),
+    operationsMenu: can('/operations/products') || can('/operations/media'),
     'operations:marketing:edit': can('operations:marketing:edit'),
+    'media:library:upload': can('media:library:upload'),
+    'media:library:edit': can('media:library:edit'),
     'product:candidate:review': can('product:candidate:review'),
     productMenu: any(
       '/product/products',

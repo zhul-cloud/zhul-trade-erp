@@ -27,14 +27,24 @@ export interface Attachment {
   contentType: string;
   /** 视频处理状态：0-无需处理、1-转码中、2-已完成、3-失败（失败时仍可查看原视频） */
   processingStatus?: number;
+  /** 标注的型号（供方发货、验收入库、不良品、打包发货的附件） */
+  models?: { brand?: string; model: string }[];
   uploadedByName?: string;
   createTime?: string;
+}
+
+/** 提交给后端的附件型号标注 */
+export interface AttachmentModels {
+  attachmentId: number;
+  models: { brand?: string; model: string }[];
 }
 
 export type OwnerType =
   | 'SHIPMENT'
   | 'RECEIPT'
   | 'SHOOT'
+  | 'RECEIPT_DEFECT'
+  | 'PACKING'
   | 'LOGISTICS'
   | 'PAYMENT'
   | 'COURIER_PROOF'
@@ -133,6 +143,8 @@ export interface SaveShipmentBody {
   directForwarderId?: number | null;
   items: { poItemId: number; quantity: number }[];
   attachmentIds: number[];
+  /** 每个附件标注的型号；不提交的沿用已有标注 */
+  attachmentModels?: AttachmentModels[];
 }
 
 export interface ShipmentQuery {
@@ -289,11 +301,10 @@ export interface ShootTask extends Audit {
   /** 1-待拍摄、2-已完成、3-已跳过 */
   status: number;
   statusName: string;
-  unboxingCount: number;
-  inspectionCount: number;
+  /** 已上传的营销图张数 / 完成需要的张数（6） */
   photoCount: number;
-  reusable: boolean;
-  reusableShotAt?: string;
+  needPhotos: number;
+  /** 拆分前复用了其他任务素材的历史任务 */
   reusedFromTaskId?: number;
   skipReason?: string;
   shooterName?: string;
@@ -303,7 +314,7 @@ export interface ShootTask extends Audit {
 export interface ShootMedia {
   id: number;
   attachmentId: number;
-  /** 1-拆箱视频、2-验货视频、3-实物图 */
+  /** 都是 3（营销图） */
   mediaType: number;
   kind: number;
   fileName: string;
@@ -315,7 +326,6 @@ export interface ShootMedia {
 export interface ShootDetail {
   task: ShootTask;
   media: ShootMedia[];
-  sameModel: ShootMedia[];
 }
 
 // ---------------------------------------------------------------- 请求
@@ -428,6 +438,8 @@ export const receiptApi = {
     note?: string;
     items: (QtyLine & { shipmentItemId: number })[];
     attachmentIds: number[];
+    defectAttachmentIds?: number[];
+    attachmentModels?: AttachmentModels[];
   }) => send<ReceiptDetail>('POST', GR, body),
   orders: (keyword?: string) =>
     get<ReceivableOrder[]>(`${GR}/orders`, { keyword }),
@@ -437,6 +449,8 @@ export const receiptApi = {
     note?: string;
     items: (QtyLine & { poItemId: number })[];
     attachmentIds: number[];
+    defectAttachmentIds?: number[];
+    attachmentModels?: AttachmentModels[];
   }) => send<ReceiptDetail>('POST', `${GR}/direct`, body),
   reverse: (id: number, reason: string) =>
     send<ReceiptDetail>('POST', `${GR}/${id}/reverse`, { reason }),
@@ -471,14 +485,10 @@ export const shootApi = {
   }) => send<PageResult<ShootTask>>('POST', `${SHOOT}/page`, q),
   counts: () => get<{ pending: number }>(`${SHOOT}/counts`),
   detail: (id: number) => get<ShootDetail>(`${SHOOT}/${id}`),
-  addMedia: (id: number, attachmentId: number, mediaType: number) =>
-    send<ShootDetail>('POST', `${SHOOT}/${id}/media`, {
-      attachmentId,
-      mediaType,
-    }),
-  removeMedia: (id: number, mediaId: number) =>
-    send<ShootDetail>('DELETE', `${SHOOT}/${id}/media/${mediaId}`),
-  reuse: (id: number) => send<ShootDetail>('POST', `${SHOOT}/${id}/reuse`),
+  addMedia: (id: number, attachmentId: number) =>
+    send<ShootDetail>('POST', `${SHOOT}/${id}/media`, { attachmentId }),
+  removeMedia: (id: number, attachmentId: number) =>
+    send<ShootDetail>('DELETE', `${SHOOT}/${id}/media/${attachmentId}`),
   skip: (id: number, reason: string) =>
     send<ShootDetail>('POST', `${SHOOT}/${id}/skip`, { reason }),
 };

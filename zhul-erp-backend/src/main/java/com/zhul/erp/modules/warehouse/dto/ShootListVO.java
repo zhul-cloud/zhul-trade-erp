@@ -16,13 +16,10 @@ public class ShootListVO {
     private String soNo;
     private Integer status;
     private String statusName;
-    private Integer unboxingCount;
-    private Integer inspectionCount;
+    /** 已上传的营销图张数 */
     private Integer photoCount;
-    /** 同型号已有完成的素材，可以复用 */
-    private Boolean reusable;
-    /** 可复用素材的拍摄时间 */
-    private LocalDateTime reusableShotAt;
+    /** 完成需要的营销图张数（6） */
+    private Integer needPhotos;
     private Long reusedFromTaskId;
     private String skipReason;
     private String shooterName;

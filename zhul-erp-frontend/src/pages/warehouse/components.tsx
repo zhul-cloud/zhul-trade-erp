@@ -6,7 +6,7 @@ import {
   PlayCircleOutlined,
   PlusOutlined,
 } from '@ant-design/icons';
-import { App, Input, Modal, Spin, Upload } from 'antd';
+import { App, Checkbox, Input, Modal, Spin, Upload } from 'antd';
 import React, { useEffect, useState } from 'react';
 import { Card, PageTitle, Pill } from '@/pages/inquiry/shared/components';
 import type { Tone } from '@/pages/inquiry/shared/constants';
@@ -503,5 +503,108 @@ export const ReasonModal: React.FC<{
         aria-label="原因"
       />
     </Modal>
+  );
+};
+
+// ---------------------------------------------------------------- 附件标注型号
+
+/** 单据里的一个型号 */
+export interface DocModel {
+  brand?: string;
+  model: string;
+}
+/** 附件 ID → 标注的型号键（品牌|型号）；没有的附件按已有标注，都没有时为单据的全部型号 */
+export type ModelTagMap = Record<number, string[]>;
+
+const modelKey = (m: DocModel) => `${(m.brand ?? '').trim()}|${m.model.trim()}`;
+
+const distinctModels = (models: DocModel[]) => {
+  const seen = new Map<string, DocModel>();
+  models.forEach((m) => {
+    if (m.model?.trim()) seen.set(modelKey(m), m);
+  });
+  return [...seen.entries()];
+};
+
+/** 提交给后端的标注：只提交改过的附件，其余由后端沿用已有标注或默认全部型号 */
+export const attachmentModels = (files: Attachment[], tags: ModelTagMap) =>
+  files
+    .filter((f) => tags[f.id])
+    .map((f) => ({
+      attachmentId: f.id,
+      models: tags[f.id].map((k) => {
+        const [brand, ...rest] = k.split('|');
+        return { brand, model: rest.join('|') };
+      }),
+    }));
+
+/**
+ * 每个附件标出涉及的型号（规格「素材相关的附件与型号标注」）：默认单据的全部型号，可以取消；
+ * 单据只有一个型号时自动标注，不显示。
+ */
+export const ModelTags: React.FC<{
+  files: Attachment[];
+  models: DocModel[];
+  value: ModelTagMap;
+  onChange: (v: ModelTagMap) => void;
+}> = ({ files, models, value, onChange }) => {
+  const { palette } = useAppTheme();
+  const options = distinctModels(models);
+  const media = files.filter((f) => f.kind === 1 || f.kind === 2);
+  if (options.length <= 1 || media.length === 0) return null;
+  const all = options.map(([k]) => k);
+  const current = (f: Attachment) =>
+    value[f.id] ??
+    (f.models?.length
+      ? f.models.map(modelKey).filter((k) => all.includes(k))
+      : all);
+  return (
+    <div
+      style={{
+        display: 'grid',
+        gap: 6,
+        marginTop: 10,
+        padding: '10px 12px',
+        borderRadius: 10,
+        background: palette.inset,
+        fontSize: 12,
+      }}
+    >
+      <span style={{ color: palette.sub }}>
+        图里有哪些型号（默认全部，取消后这个文件不会出现在该型号的素材里）
+      </span>
+      {media.map((f) => (
+        <div
+          key={f.id}
+          style={{
+            display: 'flex',
+            gap: 10,
+            alignItems: 'center',
+            flexWrap: 'wrap',
+          }}
+        >
+          <span
+            title={f.fileName}
+            style={{
+              width: 160,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+              color: palette.ink,
+            }}
+          >
+            {f.fileName}
+          </span>
+          <Checkbox.Group
+            value={current(f)}
+            options={options.map(([k, m]) => ({ label: m.model, value: k }))}
+            onChange={(v) => {
+              if (v.length === 0) return;
+              onChange({ ...value, [f.id]: v as string[] });
+            }}
+          />
+        </div>
+      ))}
+    </div>
   );
 };

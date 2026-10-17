@@ -70,7 +70,8 @@ class NavigationContractTest extends InquiryContractSupport {
         jdbc.update("insert into account (id, tenant_id, user_id, username, admin_flag) values (99000042, 0, 99000042, 'it_nav_wh', 0)");
         try {
             Map<String, List<String>> wh = sidebar(token("it_nav_wh"));
-            assertEquals(List.of("工作台", "仓库管理", "财务管理"), new ArrayList<>(wh.keySet()));
+            assertEquals(List.of("工作台", "仓库管理", "财务管理", "运营管理"), new ArrayList<>(wh.keySet()));
+            assertEquals(List.of("素材库"), wh.get("运营管理"), "验货和拍摄时参考素材库");
             assertEquals(List.of("报销单"), wh.get("财务管理"), "仓库垫付国内快递运费，要提交报销");
             assertEquals(List.of("采购入库", "销售出库", "闲置库存", "实拍任务"), wh.get("仓库管理"));
         } finally {
@@ -86,7 +87,7 @@ class NavigationContractTest extends InquiryContractSupport {
         assertEquals(List.of("工作台", "销售管理", "采购管理", "仓库管理", "物流管理", "财务管理", "商品管理", "运营管理", "统计分析", "业务设置",
                 "系统管理", "租户管理"), new ArrayList<>(all.keySet()));
         assertEquals(List.of("商品", "品牌", "品类", "系列"), all.get("商品管理"), "商品管理只放基础资料");
-        assertEquals(List.of("商品候选", "资料任务", "营销任务"), all.get("运营管理"), "运营人员处理的任务");
+        assertEquals(List.of("商品候选", "资料任务", "营销任务", "素材库"), all.get("运营管理"), "运营人员处理的任务");
         assertEquals(List.of("销售统计", "询价统计", "砍价统计", "利润统计", "经营统计", "商机统计"), all.get("统计分析"), "只读统计统一在这里");
         assertEquals(List.of("商机", "客户", "询盘单", "报价单", "PI", "销售订单"), all.get("销售管理"));
         assertEquals(List.of("兼职看板", "询价分配", "我的询价", "询价记录", "采购需求", "采购订单", "供应商发货", "供应商"), all.get("采购管理"));

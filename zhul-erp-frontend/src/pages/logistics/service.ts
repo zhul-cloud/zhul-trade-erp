@@ -1,5 +1,10 @@
 import { request } from '@umijs/max';
-import type { Attachment, Audit, PageResult } from '@/pages/warehouse/service';
+import type {
+  Attachment,
+  AttachmentModels,
+  Audit,
+  PageResult,
+} from '@/pages/warehouse/service';
 
 export { readBizError } from '@/pages/crm/opportunity/service';
 
@@ -72,6 +77,10 @@ export interface Outbound extends Audit {
     quantity: number;
   }[];
   boxes: OutboundBox[];
+  /** 打包发货的照片（详情返回） */
+  packingAttachments?: Attachment[];
+  /** 还没有营销实拍的型号（详情返回，只提醒） */
+  missingMarketing?: string[];
   boxCount: number;
   chargeableWeight: number;
   courier?: {
@@ -289,9 +298,14 @@ export const outboundApi = {
   counts: () =>
     get<{ pending: number; packed: number }>(`${L}/outbounds/counts`),
   detail: (id: number) => get<Outbound>(`${L}/outbounds/${id}`),
-  pack: (id: number, boxes: BoxInput[]) =>
+  pack: (
+    id: number,
+    boxes: BoxInput[],
+    photos?: { attachmentIds: number[]; attachmentModels: AttachmentModels[] },
+  ) =>
     send<Outbound>('PUT', `${L}/outbounds/${id}/pack`, {
       boxes: toBoxes(boxes, 'outboundItemId'),
+      ...photos,
     }),
   handOver: (body: {
     outboundIds: number[];

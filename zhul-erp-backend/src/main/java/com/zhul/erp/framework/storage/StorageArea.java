@@ -13,6 +13,8 @@ public enum StorageArea {
     PURCHASE("purchase", false, "purchase"),
     SHIPMENT("shipment", false, "attachment"),
     RECEIPT("receipt", false, "attachment"),
+    /** 打包出库时发给客户前的打包照片 */
+    PACKING("packing", false, null),
     /** 按「品牌 / 型号」归档的实拍素材 */
     MEDIA("media", false, "attachment"),
     LOGISTICS("logistics", false, "attachment"),

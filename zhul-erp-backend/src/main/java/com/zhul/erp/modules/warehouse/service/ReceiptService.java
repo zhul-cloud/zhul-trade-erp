@@ -4,6 +4,8 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.zhul.erp.common.exception.BizException;
 import com.zhul.erp.common.result.PageResult;
 import com.zhul.erp.modules.attachment.service.AttachmentService;
+import com.zhul.erp.modules.media.dto.AttachmentModelsRequest;
+import com.zhul.erp.modules.media.service.MediaIndexer;
 import com.zhul.erp.modules.inquiry.support.CurrentUserResolver;
 import com.zhul.erp.modules.inquiry.support.InquiryLookups;
 import com.zhul.erp.modules.purchase.constants.PurchaseConstants;
@@ -76,6 +78,7 @@ public class ReceiptService {
     private final ReceivingSupport support;
     private final ReceivingQty receivingQty;
     private final AttachmentService attachments;
+    private final MediaIndexer media;
     private final DocumentNumberService documentNumberService;
     private final OrderPurchaseProgress progress;
     private final RequirementTouch touch;
@@ -205,6 +208,7 @@ public class ReceiptService {
         }).toList());
         vo.setDiscrepancies(discrepancies.ofReceipt(id));
         vo.setAttachments(attachments.listOf(AttachmentService.RECEIPT, id));
+        vo.setDefectAttachments(attachments.listOf(AttachmentService.RECEIPT_DEFECT, id));
         vo.setShipmentAttachments(attachments.listOf(AttachmentService.SHIPMENT, r.getShipmentId()));
         vo.setReversible(r.getStatus() == WarehouseConstants.GR_VALID && reversible(id));
         return vo;
@@ -273,8 +277,14 @@ public class ReceiptService {
         for (AcceptRequest.Line l : req.getItems()) {
             lines.add(new Qty(l.getShipmentItemId(), l.getReceivedQty(), l.getQualifiedQty(), l.getNote()));
         }
-        PurchaseReceiptDO r = receive(p, s, req.getReceivedDate(), req.getNote(), lines, req.getAttachmentIds(), true);
+        PurchaseReceiptDO r = receive(p, s, req.getReceivedDate(), req.getNote(), lines,
+                new Files(req.getAttachmentIds(), req.getDefectAttachmentIds(), req.getAttachmentModels()), true);
         return detail(r.getId());
+    }
+
+    /** 验收的照片与视频（验货记录）、不良品照片（到货异常）及每个附件标注的型号 */
+    private record Files(List<Long> attachmentIds, List<Long> defectIds, List<AttachmentModelsRequest> tags) {
+        static final Files NONE = new Files(List.of(), List.of(), List.of());
     }
 
     /**
@@ -297,7 +307,7 @@ public class ReceiptService {
             }
             qty.add(new Qty(i.getId(), n, n, ""));
         }
-        PurchaseReceiptDO r = receive(p, s, date, "直发货代，按货代实收确认", qty, List.of(), false);
+        PurchaseReceiptDO r = receive(p, s, date, "直发货代，按货代实收确认", qty, Files.NONE, false);
         return itemsOf(List.of(r.getId())).getOrDefault(r.getId(), List.of()).stream()
                 .collect(Collectors.toMap(PurchaseReceiptItemDO::getShipmentItemId, x -> x));
     }
@@ -359,7 +369,8 @@ public class ReceiptService {
             lines.add(new Qty(x.getId(), l.getReceivedQty(), l.getQualifiedQty(), l.getNote()));
         }
         logs.add(p.getId(), "仓库补登发货", s.getSdNo() + "：" + String.join("、", text) + "（仓库直接收货）", currentUser.resolve());
-        PurchaseReceiptDO r = receive(p, s, req.getReceivedDate(), req.getNote(), lines, req.getAttachmentIds(), true);
+        PurchaseReceiptDO r = receive(p, s, req.getReceivedDate(), req.getNote(), lines,
+                new Files(req.getAttachmentIds(), req.getDefectAttachmentIds(), req.getAttachmentModels()), true);
         return detail(r.getId());
     }
 
@@ -372,7 +383,7 @@ public class ReceiptService {
 
     /** 验收一张在途发货单（发货单与采购订单已锁） */
     private PurchaseReceiptDO receive(PurchaseOrderDO p, SupplierShipmentDO s, LocalDate date, String note, List<Qty> lines,
-                                      List<Long> attachmentIds, boolean shoot) {
+                                      Files files, boolean shoot) {
         requireDate(date);
         List<SupplierShipmentItemDO> shipItems = shipments.itemsOf(List.of(s.getId())).getOrDefault(s.getId(), List.of());
         Map<Long, Qty> byItem = new HashMap<>();
@@ -432,7 +443,15 @@ public class ReceiptService {
         if (shoot) {
             shoots.createForReceipt(r, items, soIds);
         }
-        attachments.attach(AttachmentService.RECEIPT, r.getId(), attachmentIds);
+        attachments.attach(AttachmentService.RECEIPT, r.getId(), files.attachmentIds());
+        List<Long> defectIds = files.defectIds() == null ? List.of() : files.defectIds();
+        if (!defectIds.isEmpty() && items.stream().noneMatch(x -> x.getDefectiveQty() > 0)) {
+            throw new BizException("没有不良品，不能上传不良品照片");
+        }
+        attachments.attach(AttachmentService.RECEIPT_DEFECT, r.getId(), defectIds);
+        List<MediaIndexer.ModelRef> models = items.stream().map(x -> new MediaIndexer.ModelRef(x.getBrand(), x.getModel())).toList();
+        media.indexDocument(AttachmentService.RECEIPT, r.getId(), r.getTenantId(), models, files.tags());
+        media.indexDocument(AttachmentService.RECEIPT_DEFECT, r.getId(), r.getTenantId(), models, files.tags());
         touch.touch(items.stream().map(PurchaseReceiptItemDO::getRequirementId).toList());
         progress.sync(items.stream().map(PurchaseReceiptItemDO::getSoItemId).toList());
         logs.add(p.getId(), "验收入库", r.getGrNo() + "（发货单 " + s.getSdNo() + "）：" + String.join("；", text)
@@ -467,6 +486,8 @@ public class ReceiptService {
         shipmentMapper.updateById(s);
         discrepancies.voidForReceipt(id);
         shoots.voidForReceipt(id);
+        media.retireDocument(AttachmentService.RECEIPT, id, r.getTenantId());
+        media.retireDocument(AttachmentService.RECEIPT_DEFECT, id, r.getTenantId());
         List<PurchaseReceiptItemDO> items = itemsOf(List.of(id)).getOrDefault(id, List.of());
         touch.touch(items.stream().map(PurchaseReceiptItemDO::getRequirementId).toList());
         progress.sync(items.stream().map(PurchaseReceiptItemDO::getSoItemId).toList());

@@ -59,6 +59,7 @@ import {
   useQuoteDicts,
   useWide,
 } from '@/pages/inquiry/shared/components';
+import ViewMediaLink from '@/pages/operations/media/ViewMediaLink';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { ChainCard, PATHS as SALES_PATHS } from '@/pages/sales/components';
 import NewPiModal from '@/pages/sales/pi/NewPiModal';
@@ -861,7 +862,17 @@ const QuotationDetail: React.FC = () => {
 
   const modelCell = (src: QuotationItem, d?: SaveQuotationItem) => (
     <div style={{ minWidth: 0 }}>
-      <div style={{ fontWeight: 600, color: palette.ink }}>{src.model}</div>
+      <div
+        style={{
+          display: 'flex',
+          gap: 8,
+          alignItems: 'baseline',
+          flexWrap: 'wrap',
+        }}
+      >
+        <span style={{ fontWeight: 600, color: palette.ink }}>{src.model}</span>
+        <ViewMediaLink brand={src.brand} model={src.model} />
+      </div>
       <div style={{ fontSize: 12, color: palette.mute }}>
         {[
           src.brandEn && src.brandEn !== src.brand

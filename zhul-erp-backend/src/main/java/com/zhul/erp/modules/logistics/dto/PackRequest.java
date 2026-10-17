@@ -10,6 +10,7 @@ import lombok.Data;
 
 import java.math.BigDecimal;
 import java.util.List;
+import com.zhul.erp.modules.media.dto.AttachmentModelsRequest;
 
 /** 打包：逐箱登记 */
 @Data
@@ -17,6 +18,11 @@ public class PackRequest {
     @NotEmpty(message = "请至少登记一箱")
     @Valid
     private List<BoxLine> boxes;
+    /** 打包发货的照片（选填），素材库「打包发货」 */
+    private List<Long> attachmentIds;
+    /** 每张照片标注的型号；不提交时沿用已有标注，没有标注的默认为出库单的全部型号 */
+    @Valid
+    private List<AttachmentModelsRequest> attachmentModels;
 
     @Data
     public static class BoxLine {

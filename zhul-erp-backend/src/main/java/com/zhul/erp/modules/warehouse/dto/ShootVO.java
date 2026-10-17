@@ -10,8 +10,6 @@ public class ShootVO {
     private ShootListVO task;
     /** 本任务的素材（复用时为被复用任务的素材） */
     private List<Media> media;
-    /** 同型号已有的素材（其他任务拍的） */
-    private List<Media> sameModel;
 
     @Data
     public static class Media {

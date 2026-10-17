@@ -1,5 +1,6 @@
 package com.zhul.erp.modules.warehouse.dto;
 
+import com.zhul.erp.modules.media.dto.AttachmentModelsRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
@@ -21,6 +22,11 @@ public class DirectReceiveRequest {
     @Valid
     private List<Line> items;
     private List<Long> attachmentIds;
+    /** 不良品照片（有不良数量时才能上传），素材库「到货异常」 */
+    private List<Long> defectAttachmentIds;
+    /** 每个附件标注的型号；不提交时默认为这次入库的全部型号 */
+    @Valid
+    private List<AttachmentModelsRequest> attachmentModels;
 
     @Data
     public static class Line {

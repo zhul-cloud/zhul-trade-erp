@@ -6,6 +6,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import com.zhul.erp.modules.attachment.dto.AttachmentVO;
 
 /** 销售出库单 */
 @Data
@@ -36,6 +37,10 @@ public class OutboundVO {
     private String shNo;
     private String packedByName;
     private LocalDateTime packedAt;
+    /** 打包发货的照片（详情返回） */
+    private List<AttachmentVO> packingAttachments;
+    /** 还没有营销实拍的型号（详情返回，打包页提醒，不拦截） */
+    private List<String> missingMarketing;
     private LocalDateTime createTime;
     private String createBy;
     private LocalDateTime updateTime;

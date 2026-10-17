@@ -127,6 +127,14 @@ export default [
         access: 'operationsProducts',
         component: './operations/products/detail',
       },
+      {
+        // 素材库：按型号汇总各环节的图片、视频与资料，全公司共用
+        path: '/operations/media',
+        name: 'media',
+        icon: 'picture',
+        access: 'operationsMedia',
+        component: './operations/media',
+      },
     ],
   },
   // 客户（销售管理）、供应商（采购管理）的页面路由，后续评分页面挂在各自目录下
