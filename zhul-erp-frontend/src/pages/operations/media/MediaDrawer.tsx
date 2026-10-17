@@ -27,9 +27,11 @@ import { useAppTheme } from '@/theme/AppTheme';
 import { usePermission } from '@/utils/permission';
 import {
   downloadAll,
+  type FileLink,
   itemKey,
   type MediaDetail,
   type MediaItem,
+  type MediaRef,
   type MediaReference,
   mediaApi,
   PERM_EDIT,
@@ -41,11 +43,18 @@ import {
 const CHUNK = 50;
 const MAX_DOWNLOAD = 50;
 
+/** 签发链接的方式：默认走素材库接口，发品任务改走任务自己的接口 */
+export type FetchUrls = (
+  refs: MediaRef[],
+  download: boolean,
+) => Promise<FileLink[]>;
+
 /** 取预览链接：本公司素材分批签发，官方素材用公开地址 */
-const loadPreviews = async (
+export const loadPreviews = async (
   items: MediaItem[],
   brand: string,
   model: string,
+  fetchUrls: FetchUrls = mediaApi.urls,
 ) => {
   const out: Record<string, string> = {};
   items
@@ -56,7 +65,7 @@ const loadPreviews = async (
   const own = items.filter((i) => !i.publicUrl && i.kind === 1);
   for (let k = 0; k < own.length; k += CHUNK) {
     const part = own.slice(k, k + CHUNK);
-    const links = await mediaApi.urls(
+    const links = await fetchUrls(
       part.map((i) => refOf(i, brand, model)),
       false,
     );
@@ -68,7 +77,7 @@ const loadPreviews = async (
 };
 
 /** 一组素材的网格：缩略图、标记、选择 */
-const MediaGrid: React.FC<{
+export const MediaGrid: React.FC<{
   items: MediaItem[];
   previews: Record<string, string>;
   selected?: Set<string>;
@@ -248,7 +257,11 @@ const MediaGrid: React.FC<{
 };
 
 /** 预览弹窗：图片、视频直接用链接，文件新窗口打开 */
-const usePreviewer = (brand: string, model: string) => {
+export const usePreviewer = (
+  brand: string,
+  model: string,
+  fetchUrls: FetchUrls = mediaApi.urls,
+) => {
   const { message } = App.useApp();
   const [state, setState] = useState<{
     url: string;
@@ -260,7 +273,7 @@ const usePreviewer = (brand: string, model: string) => {
       const url =
         i.publicUrl ??
         previews[itemKey(i)] ??
-        (await mediaApi.urls([refOf(i, brand, model)], false))[0]?.url;
+        (await fetchUrls([refOf(i, brand, model)], false))[0]?.url;
       if (!url) return;
       if (i.kind === 3) {
         window.open(url, '_blank', 'noopener');

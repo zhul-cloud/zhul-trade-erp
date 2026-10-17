@@ -1,5 +1,8 @@
 package com.zhul.erp.modules.product.content.service;
 
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.context.ApplicationEventPublisher;
+import com.zhul.erp.modules.product.content.support.MarketingChangedEvent;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.zhul.erp.common.exception.BizException;
 import com.zhul.erp.framework.tenant.TenantContext;
@@ -27,6 +30,7 @@ import java.util.Set;
 public class PlatformSettingService {
 
     private final SysConfigMapper sysConfigMapper;
+    private final ApplicationEventPublisher events;
 
     /** 本公司启用的平台，按平台固定顺序 */
     public Set<MarketingPlatform> enabled() {
@@ -81,6 +85,7 @@ public class PlatformSettingService {
     }
 
     /** 保存本公司启用的平台：公司第一次保存时生成自己的设置，之后改自己的 */
+    @Transactional(rollbackFor = Exception.class)
     public List<MarketingPlatformVO> save(List<String> codes) {
         Set<MarketingPlatform> selected = EnumSet.noneOf(MarketingPlatform.class);
         for (String code : codes == null ? List.<String>of() : codes) {
@@ -116,6 +121,8 @@ public class PlatformSettingService {
             row.setRemark("本公司做哪些平台的营销内容（alibaba-阿里国际站、mic-中国制造网、site-独立站、social-社媒，逗号分隔）");
             sysConfigMapper.insert(row);
         }
+        // 只重算本公司；平台账号改的是默认值，没自己设置过的公司在下次相关变化时重算
+        events.publishEvent(new MarketingChangedEvent(tenantId, null));
         return list();
     }
 }

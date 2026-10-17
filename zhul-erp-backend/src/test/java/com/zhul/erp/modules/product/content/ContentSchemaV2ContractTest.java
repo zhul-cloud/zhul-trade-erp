@@ -54,7 +54,7 @@ class ContentSchemaV2ContractTest extends InquiryContractSupport {
     @AfterEach
     void cleanup() {
         String products = "(select id from product where brand_id in (select id from product_brand where brand_name = '" + BRAND + "'))";
-        for (String t : new String[] {"product_content_import", "product_content_task", "product_fact_task", "product_seo",
+        for (String t : new String[] {"listing_task", "product_content_import", "product_content_task", "product_fact_task", "product_seo",
                 "product_seo_faq", "product_faq", "product_platform_content", "product_platform_keyword", "product_marketing_skip",
                 "product_keyword", "product_keyword_use", "product_fact_note", "product_specification", "product_application",
                 "product_document", "product_locale", "product_logistics", "product_customs", "product_listing_price"}) {

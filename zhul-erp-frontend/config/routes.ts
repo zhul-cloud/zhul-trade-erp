@@ -128,6 +128,14 @@ export default [
         component: './operations/products/detail',
       },
       {
+        // 发品任务：商品 × 平台，复制营销内容与素材到平台发布后回填链接
+        path: '/operations/listings',
+        name: 'listings',
+        icon: 'upload',
+        access: 'operationsListings',
+        component: './operations/listings',
+      },
+      {
         // 素材库：按型号汇总各环节的图片、视频与资料，全公司共用
         path: '/operations/media',
         name: 'media',

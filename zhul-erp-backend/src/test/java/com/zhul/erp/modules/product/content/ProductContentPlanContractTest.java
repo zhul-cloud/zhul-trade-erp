@@ -60,7 +60,7 @@ class ProductContentPlanContractTest extends InquiryContractSupport {
 
     @AfterEach
     void cleanup() {
-        for (String t : new String[] {"product_content_import", "product_content_task", "product_fact_task", "product_seo",
+        for (String t : new String[] {"listing_task", "product_content_import", "product_content_task", "product_fact_task", "product_seo",
                 "product_seo_faq", "product_faq", "product_platform_content", "product_platform_keyword", "product_marketing_skip",
                 "product_keyword", "product_keyword_use", "product_fact_note"}) {
             jdbc.update("delete from " + t + " where product_id in (select id from product where brand_id in "

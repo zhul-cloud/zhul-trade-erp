@@ -1,4 +1,5 @@
 import { SearchOutlined } from '@ant-design/icons';
+import { useSearchParams } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { Button, Input, Segmented, Space, Table } from 'antd';
 import dayjs from 'dayjs';
@@ -29,8 +30,12 @@ const triValue = (v: Tri) => (v === 'all' ? undefined : v === 'yes');
  */
 const MediaLibraryPage: React.FC = () => {
   const { palette } = useAppTheme();
-  const [keyword, setKeyword] = useState('');
-  const [query, setQuery] = useState<string>();
+  const [search] = useSearchParams();
+  const initialKeyword = search.get('keyword') ?? '';
+  const [keyword, setKeyword] = useState(initialKeyword);
+  const [query, setQuery] = useState<string | undefined>(
+    initialKeyword || undefined,
+  );
   const [marketing, setMarketing] = useState<Tri>('all');
   const [listing, setListing] = useState<Tri>('all');
   const [page, setPage] = useState(1);
