@@ -63,6 +63,24 @@ zhul:
     dir: ${UPLOAD_DIR:./uploads}
     # 私有文件（供应商营业执照、合同等），不在 /uploads 静态资源映射内，只能经需要权限的接口下载
     private-dir: ${UPLOAD_PRIVATE_DIR:./private-uploads}
+  # 文件存储：local 存服务器目录（上面两个目录），oss 存阿里云 OSS；切换见 docs/06-部署运维/07-对象存储.md
+  storage:
+    type: ${STORAGE_TYPE:local}
+    # 私有文件签名链接的有效期（秒）
+    signed-url-ttl-seconds: ${STORAGE_SIGNED_URL_TTL_SECONDS:600}
+    # 视频转码：同时转码的数量与排队上限；ffmpeg 不在 PATH 时填绝对路径
+    transcode-threads: ${STORAGE_TRANSCODE_THREADS:1}
+    transcode-queue-capacity: ${STORAGE_TRANSCODE_QUEUE_CAPACITY:100}
+    ffmpeg-path: ${FFMPEG_PATH:ffmpeg}
+    oss:
+      endpoint: ${OSS_ENDPOINT:}
+      region: ${OSS_REGION:}
+      access-key-id: ${OSS_ACCESS_KEY_ID:}
+      access-key-secret: ${OSS_ACCESS_KEY_SECRET:}
+      private-bucket: ${OSS_PRIVATE_BUCKET:}
+      public-bucket: ${OSS_PUBLIC_BUCKET:}
+      public-domain: ${OSS_PUBLIC_DOMAIN:}
+      key-prefix: ${OSS_KEY_PREFIX:}
   ai-task:
     # AI 编排服务地址（本次不实现该服务本身，本地联调可指向 scripts/ai-orchestrator-stub）
     orchestrator-base-url: ${AI_ORCHESTRATOR_BASE_URL:http://localhost:8899}

@@ -24,7 +24,6 @@ public final class DocTypes {
     /** 平台内置模版所在租户 */
     public static final int PLATFORM_TENANT = 0;
 
-    public static final String MODULE = "document-template";
     public static final long MAX_BYTES = 5L * 1024 * 1024;
     public static final int TEXT_MAX_LENGTH = 2000;
     public static final String CLASSPATH_PREFIX = "classpath:";

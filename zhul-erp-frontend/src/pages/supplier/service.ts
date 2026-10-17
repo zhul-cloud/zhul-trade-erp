@@ -1,5 +1,6 @@
 import { request } from '@umijs/max';
 import type { PaymentTerm } from '@/pages/purchase/service';
+import { downloadFile, fileUrl } from '@/utils/fileLink';
 
 /** 一个主营品牌：正式品牌或待确认品牌；categories 为空表示该品牌全部品类 */
 export interface SupplierProductScope {
@@ -209,19 +210,12 @@ export const supplierApi = {
     }).then((r) => r.data);
   },
 
-  /** 取附件文件（接口需要登录与权限，不能直接用 <a href>），返回浏览器本地地址，用完需 revoke */
-  attachmentBlobUrl: async (supplierId: number, attachmentId: number) => {
-    const blob: Blob = await request(
-      `${BASE}/${supplierId}/attachments/${attachmentId}`,
-      {
-        method: 'GET',
-        params: { inline: true },
-        responseType: 'blob',
-        ...quiet,
-      },
-    );
-    return window.URL.createObjectURL(blob);
-  },
+  /** 附件的临时访问链接（10 分钟有效），可直接用于预览 */
+  attachmentBlobUrl: (supplierId: number, attachmentId: number) =>
+    fileUrl(`${BASE}/${supplierId}/attachments/${attachmentId}`),
+  /** 下载附件：链接带下载响应头，按原文件名保存 */
+  downloadAttachment: (supplierId: number, attachmentId: number) =>
+    downloadFile(`${BASE}/${supplierId}/attachments/${attachmentId}`),
 
   /** 导出当前筛选结果为 xlsx 并触发下载 */
   async export(

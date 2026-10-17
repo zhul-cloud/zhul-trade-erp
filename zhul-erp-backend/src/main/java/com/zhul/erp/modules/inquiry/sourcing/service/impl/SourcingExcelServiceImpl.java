@@ -2,7 +2,9 @@ package com.zhul.erp.modules.inquiry.sourcing.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.zhul.erp.common.exception.BizException;
-import com.zhul.erp.framework.storage.PrivateFileStorage;
+import com.zhul.erp.framework.storage.FileStorage;
+import com.zhul.erp.framework.storage.FileStorageService;
+import com.zhul.erp.framework.storage.StorageArea;
 import com.zhul.erp.framework.tenant.TenantContext;
 import com.zhul.erp.modules.inquiry.constants.InquiryConstants;
 import com.zhul.erp.modules.inquiry.item.entity.InquiryItemDO;
@@ -96,7 +98,7 @@ public class SourcingExcelServiceImpl implements SourcingExcelService {
     private final SourcingProgress progress;
     private final CurrentUserResolver currentUser;
     private final InquiryLookups lookups;
-    private final PrivateFileStorage fileStorage;
+    private final FileStorageService fileStorage;
     private final QuoteDicts quoteDicts;
 
     // ---------------------------------------------------------------- 下载
@@ -342,10 +344,15 @@ public class SourcingExcelServiceImpl implements SourcingExcelService {
             vo.setFileName(file.getOriginalFilename());
             vo.setRows(List.of());
             try {
-                PrivateFileStorage.StoredFile stored = fileStorage.store(InquiryConstants.IMPORT_MODULE, tenantId(), file,
+                FileStorageService.StoredFile stored = fileStorage.store(StorageArea.SOURCING, tenantId(), file,
                         InquiryConstants.IMPORT_EXTS, InquiryConstants.IMPORT_MAX_BYTES, "只能导入从系统下载的询价包（.xlsx）");
                 vo.setFileKey(stored.fileKey());
-                parseInto(fileStorage.resolveOwned(InquiryConstants.IMPORT_MODULE, stored.fileKey(), tenantId()), vo, proxy);
+                Path tmp = fileStorage.download(stored.storage(), stored.fileKey());
+                try {
+                    parseInto(tmp, vo, proxy);
+                } finally {
+                    FileStorageService.deleteTemp(tmp);
+                }
             } catch (BizException e) {
                 vo.setRejectReason(e.getMessage());
             }
@@ -588,9 +595,7 @@ public class SourcingExcelServiceImpl implements SourcingExcelService {
             record.setTaskId(task.getId());
             record.setFileName(file.getFileName() == null ? "" : file.getFileName());
             String key = file.getFileKey() == null ? "" : file.getFileKey();
-            if (StringUtils.hasText(key)) {
-                fileStorage.resolveOwned(InquiryConstants.IMPORT_MODULE, key, task.getTenantId());
-            }
+            record.setStorage(StringUtils.hasText(key) ? fileStorage.locate(StorageArea.SOURCING, key, task.getTenantId()) : FileStorage.LOCAL);
             record.setFileKey(key);
             record.setImportedBy(me == null ? 0L : me);
             record.setOnBehalfOf(assignee);

@@ -463,7 +463,11 @@ class ReceivingContractTest extends SalesContractSupport {
                 .param("ownerType", "SHOOT"), keeper);
         assertEquals("只支持 MP4、MOV 视频", fail(fake).path("message").asText());
 
-        long unbox = upload("SHOOT", "拆箱.mp4", MP4, keeper);
+        // 带上实拍任务上传：素材直接放到该型号的目录
+        long unbox = ok(call(multipart(FILE).file(new MockMultipartFile("file", "拆箱.mp4", "application/octet-stream", MP4))
+                .param("ownerType", "SHOOT").param("ownerId", String.valueOf(task)), keeper)).path("id").asLong();
+        assertTrue(jdbc.queryForObject("select file_key from biz_attachment where id = ?", String.class, unbox)
+                .matches("tenant/\\d+/media/[a-z0-9-]+/a-1/[0-9a-f]{32}\\.mp4"), "实拍素材按品牌与型号归档");
         long inspect = upload("SHOOT", "验货.mp4", MP4, keeper);
         assertEquals("实物图请上传图片", fail(call(json(post(SHOOT + "/" + task + "/media"),
                 write(Map.of("attachmentId", unbox, "mediaType", 3))), keeper)).path("message").asText());
@@ -483,11 +487,12 @@ class ReceivingContractTest extends SalesContractSupport {
         long img = upload("SHOOT", "p6.png", PNG, keeper);
         ok(call(json(post(SHOOT + "/" + task + "/media"), write(Map.of("attachmentId", img, "mediaType", 3))), keeper));
 
-        // 附件访问：本人能预览视频（Range），没有实拍任务菜单的不行
-        MockHttpServletResponse res = perform(get(FILE + "/" + unbox).header("Range", "bytes=0-3"), keeper);
+        // 附件访问：本人拿到临时链接、能分段读取视频；没有实拍任务菜单的拿不到链接
+        String url = ok(call(get(FILE + "/" + unbox + "/url"), keeper)).path("url").asText();
+        MockHttpServletResponse res = mvc.perform(get(java.net.URI.create(url)).header("Range", "bytes=0-3")).andReturn().getResponse();
         assertEquals(206, res.getStatus(), "视频支持分段读取");
         assertEquals(4, res.getContentAsByteArray().length);
-        assertEquals(403, perform(get(FILE + "/" + unbox), lin).getStatus(), "没有实拍任务菜单的人不能看");
+        assertEquals(403, perform(get(FILE + "/" + unbox + "/url"), lin).getStatus(), "没有实拍任务菜单的人不能看");
 
         // 同型号再入库：可以复用；另一个跳过
         long s2 = ok(ship(poId, Map.of(item(po, 0), 2), lin)).path("shipment").path("id").asLong();
@@ -545,6 +550,10 @@ class ReceivingContractTest extends SalesContractSupport {
         long sup = supplier("华控自动化", null);
         JsonNode po = orderedPo(sup, l("A-1", 1, "1000", "200"));
         long att = upload("SHIPMENT", "发货.png", PNG, lin);
+        assertTrue(jdbc.queryForObject("select file_key from biz_attachment where id = ?", String.class, att)
+                .startsWith("tenant/"), "供应商发货图片放在发货目录");
+        assertTrue(jdbc.queryForObject("select file_key from biz_attachment where id = ?", String.class, att)
+                .contains("/shipment/"), "供应商发货图片放在发货目录");
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("poId", po.path("id").asLong());
         body.put("shipDate", LocalDate.now().toString());
@@ -554,7 +563,7 @@ class ReceivingContractTest extends SalesContractSupport {
         assertEquals(1, s.path("attachments").size());
         assertEquals(1, s.path("shipment").path("attachmentCount").asInt());
         long sid = s.path("shipment").path("id").asLong();
-        assertEquals(200, perform(get(FILE + "/" + att), keeper).getStatus(), "仓库可以看发货单附件");
+        assertEquals(200, perform(get(FILE + "/" + att + "/url"), keeper).getStatus(), "仓库可以看发货单附件");
         ok(accept(sid, List.of(new int[] {1, 1, 0}), keeper));
         long task = ok(call(json(post(SHOOT + "/page"), "{}"), keeper)).path("records").get(0).path("id").asLong();
         assertEquals("这个型号还没有可复用的素材", fail(call(post(SHOOT + "/" + task + "/reuse"), keeper)).path("message").asText());

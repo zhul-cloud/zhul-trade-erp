@@ -480,7 +480,8 @@ class PurchaseContractTest extends SalesContractSupport {
         JsonNode po = ok(call(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart(PO + "/" + id + "/attachments").file(pdf), admin));
         assertEquals("合同.pdf", po.path("attachments").get(0).path("fileName").asText());
         long att = po.path("attachments").get(0).path("id").asLong();
-        org.springframework.mock.web.MockHttpServletResponse res = perform(get(PO + "/" + id + "/attachments/" + att).param("inline", "true"), admin);
+        String link = ok(call(get(PO + "/" + id + "/attachments/" + att + "/url"), admin)).path("url").asText();
+        org.springframework.mock.web.MockHttpServletResponse res = mvc.perform(get(java.net.URI.create(link))).andReturn().getResponse();
         assertEquals(200, res.getStatus());
         assertTrue(res.getHeader("Content-Disposition").startsWith("inline"));
         org.springframework.mock.web.MockMultipartFile txt = new org.springframework.mock.web.MockMultipartFile("file", "a.txt", "text/plain",
@@ -489,7 +490,7 @@ class PurchaseContractTest extends SalesContractSupport {
                 .multipart(PO + "/" + id + "/attachments").file(txt), admin)).path("message").asText());
         po = ok(call(delete(PO + "/" + id + "/attachments/" + att), admin));
         assertEquals(0, po.path("attachments").size());
-        assertEquals("合同文件不存在", fail(call(get(PO + "/" + id + "/attachments/" + att), admin)).path("message").asText());
+        assertEquals("合同文件不存在", fail(call(get(PO + "/" + id + "/attachments/" + att + "/url"), admin)).path("message").asText());
     }
 
     // ---------------------------------------------------------------- 采购员候选

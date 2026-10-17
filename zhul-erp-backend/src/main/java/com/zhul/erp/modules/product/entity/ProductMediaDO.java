@@ -32,6 +32,11 @@ public class ProductMediaDO {
     private String title;
     /** 文件大小（字节），仅上传时记录，外链为0 */
     private Long fileSize;
+    /** 存储方式（LOCAL、OSS）与文件键：平台上传时有值，外部链接为空 */
+    private String storage;
+    private String fileKey;
+    /** 处理状态（0-无需处理、1-转码中、2-已完成、3-失败） */
+    private Integer processingStatus;
     /** 是否主图（0-否、1-是）；仅图片可为1，同一商品未删除行内最多一张 */
     private Integer isMain;
     /** 来源，如 Manufacturer Website */

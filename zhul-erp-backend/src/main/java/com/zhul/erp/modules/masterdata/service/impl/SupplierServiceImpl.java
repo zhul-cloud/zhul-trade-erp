@@ -9,7 +9,6 @@ import com.zhul.erp.modules.masterdata.constants.SupplierConstants;
 import com.zhul.erp.modules.masterdata.dto.AbstractSupplierRequest;
 import com.zhul.erp.modules.masterdata.dto.CreateSupplierFromChannelRequest;
 import com.zhul.erp.modules.masterdata.dto.SaveSupplierRequest;
-import com.zhul.erp.modules.masterdata.dto.SupplierAttachmentFile;
 import com.zhul.erp.modules.masterdata.dto.SupplierAttachmentUploadVO;
 import com.zhul.erp.modules.masterdata.dto.SupplierBankAccountVO;
 import com.zhul.erp.modules.masterdata.dto.SupplierBatchDeleteResultVO;
@@ -25,7 +24,6 @@ import com.zhul.erp.modules.masterdata.entity.SupplierDO;
 import com.zhul.erp.modules.masterdata.repository.SupplierMapper;
 import com.zhul.erp.modules.masterdata.service.SupplierService;
 import com.zhul.erp.modules.masterdata.support.PaymentTerms;
-import com.zhul.erp.modules.masterdata.support.SupplierAttachmentStorage;
 import lombok.RequiredArgsConstructor;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
@@ -45,6 +43,9 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import com.zhul.erp.framework.storage.StorageArea;
+import com.zhul.erp.framework.storage.FileStorageService.FileLink;
+import com.zhul.erp.framework.storage.FileStorageService;
 
 @Service
 @RequiredArgsConstructor
@@ -63,7 +64,7 @@ public class SupplierServiceImpl implements SupplierService {
     private final SupplierProductScopeSync scopeSync;
     private final SupplierBankAccountSync accountSync;
     private final SupplierAttachmentSync attachmentSync;
-    private final SupplierAttachmentStorage attachmentStorage;
+    private final FileStorageService fileStorage;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -295,13 +296,20 @@ public class SupplierServiceImpl implements SupplierService {
 
     @Override
     public SupplierAttachmentUploadVO uploadAttachment(MultipartFile file) {
-        return attachmentStorage.store(currentTenantId(), file);
+        FileStorageService.StoredFile stored = fileStorage.store(StorageArea.SUPPLIER, currentTenantId(), file,
+                Set.of("pdf", "jpg", "png"), SupplierConstants.ATTACHMENT_MAX_BYTES, "只支持 PDF、JPG、PNG");
+        SupplierAttachmentUploadVO vo = new SupplierAttachmentUploadVO();
+        vo.setFileKey(stored.fileKey());
+        vo.setFileName(stored.fileName());
+        vo.setFileSize(stored.fileSize());
+        vo.setContentType(stored.contentType());
+        return vo;
     }
 
     @Override
-    public SupplierAttachmentFile getAttachmentFile(Long supplierId, Long attachmentId) {
+    public FileLink getAttachmentLink(Long supplierId, Long attachmentId, boolean download) {
         SupplierAttachmentDO row = attachmentSync.getForDownload(currentTenantId(), supplierId, attachmentId);
-        return new SupplierAttachmentFile(attachmentSync.fileOf(row), row.getFileName(), row.getContentType());
+        return fileStorage.link(row.getStorage(), row.getFileKey(), row.getFileName(), download);
     }
 
     @Override

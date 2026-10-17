@@ -2,7 +2,10 @@ package com.zhul.erp.modules.document.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.zhul.erp.common.exception.BizException;
-import com.zhul.erp.framework.storage.PrivateFileStorage;
+import com.zhul.erp.framework.storage.FileStorageService;
+import com.zhul.erp.framework.storage.StorageArea;
+import com.zhul.erp.framework.storage.StorageKeys;
+import com.zhul.erp.framework.storage.UploadRules;
 import com.zhul.erp.framework.tenant.TenantContext;
 import com.zhul.erp.modules.document.constants.DocTypes;
 import com.zhul.erp.modules.document.dto.SaveTextTemplateRequest;
@@ -33,7 +36,6 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -50,7 +52,7 @@ public class DocumentTemplateServiceImpl implements DocumentTemplateService {
 
     private final DocumentTemplateMapper templateMapper;
     private final DocumentTemplateVersionMapper versionMapper;
-    private final PrivateFileStorage fileStorage;
+    private final FileStorageService fileStorage;
     private final DocumentConverter converter;
     private final CurrentUserResolver currentUser;
     private final InquiryLookups lookups;
@@ -106,7 +108,7 @@ public class DocumentTemplateServiceImpl implements DocumentTemplateService {
         if (bytes.length > DocTypes.MAX_BYTES) {
             throw new BizException("模版文件不能超过 5MB");
         }
-        String ext = PrivateFileStorage.detect(java.util.Arrays.copyOf(bytes, Math.min(bytes.length, 64)), file.getOriginalFilename());
+        String ext = UploadRules.detect(java.util.Arrays.copyOf(bytes, Math.min(bytes.length, 64)), file.getOriginalFilename());
         if (!"xlsx".equals(ext)) {
             throw new BizException("模版文件需要是 Excel（xlsx）");
         }
@@ -115,10 +117,11 @@ public class DocumentTemplateServiceImpl implements DocumentTemplateService {
             throw BizException.of("TEMPLATE_INVALID", "模版有 " + problems.size() + " 处问题，修改后重新上传",
                     problems.stream().map(TemplateProblem::toString).toList());
         }
-        PrivateFileStorage.StoredFile stored = fileStorage.store(DocTypes.MODULE, tenantId(), file, Set.of("xlsx"),
+        FileStorageService.StoredFile stored = fileStorage.store(StorageArea.DOCUMENT, tenantId(), file, Set.of("xlsx"),
                 DocTypes.MAX_BYTES, "模版文件需要是 Excel（xlsx）");
         DocumentTemplateVersionDO v = newVersion(docType, cleanNote);
         v.setFileKey(stored.fileKey());
+        v.setStorage(stored.storage());
         v.setFileName(stored.fileName());
         versionMapper.insert(v);
         logService.recordOperateLog(MENU, "上传模版版本", null,
@@ -343,7 +346,10 @@ public class DocumentTemplateServiceImpl implements DocumentTemplateService {
                     return in.readAllBytes();
                 }
             }
-            return Files.readAllBytes(fileStorage.resolveOwned(DocTypes.MODULE, key, v.getTenantId()));
+            if (!StorageKeys.owned(StorageArea.DOCUMENT, key, v.getTenantId())) {
+                throw new BizException("模版文件不存在，请重新上传");
+            }
+            return fileStorage.readAll(v.getStorage(), key);
         } catch (IOException e) {
             throw new BizException("模版文件不存在，请重新上传", e);
         }

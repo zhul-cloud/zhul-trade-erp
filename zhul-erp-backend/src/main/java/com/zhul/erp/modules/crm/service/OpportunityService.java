@@ -1,5 +1,6 @@
 package com.zhul.erp.modules.crm.service;
 
+import com.zhul.erp.framework.storage.FileStorageService.FileLink;
 import com.zhul.erp.common.result.PageResult;
 import com.zhul.erp.modules.crm.dto.ChangeStageRequest;
 import com.zhul.erp.modules.crm.dto.CloseOpportunityRequest;
@@ -14,7 +15,6 @@ import com.zhul.erp.modules.crm.dto.RegisterOpportunityRequest;
 import com.zhul.erp.modules.crm.dto.UpdateOpportunityRequest;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.nio.file.Path;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -44,8 +44,11 @@ public interface OpportunityService {
 
     OpportunityUploadVO uploadAttachment(MultipartFile file);
 
-    /** 下载用：附件必须属于本租户、数据权限内的该商机 */
+    /** 附件所在的存储与文件键：附件必须属于本租户、数据权限内的该商机（转询盘时复制附件用） */
     AttachmentFile attachmentFile(Long id, Long attachmentId);
+
+    /** 附件的临时访问链接：download=true 时强制下载，否则预览 */
+    FileLink attachmentLink(Long id, Long attachmentId, boolean download);
 
     /**
      * 询盘单关联来源商机时调用：返回该商机的客户 ID；商机不存在、不属于本租户或不在数据权限内时抛业务异常
@@ -61,6 +64,6 @@ public interface OpportunityService {
     /** 询盘详情回显来源商机：本租户、未删除且在数据权限内时返回，否则返回 null */
     OpportunityVO findVisible(Long id);
 
-    record AttachmentFile(Path path, String fileName, String contentType) {
+    record AttachmentFile(String storage, String fileKey, String fileName, String contentType) {
     }
 }

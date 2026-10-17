@@ -4,7 +4,6 @@ import com.zhul.erp.common.result.PageResult;
 import com.zhul.erp.modules.masterdata.dto.CreateSupplierFromChannelRequest;
 import com.zhul.erp.modules.masterdata.dto.SaveSupplierRequest;
 import com.zhul.erp.modules.masterdata.dto.SupplierBatchDeleteResultVO;
-import com.zhul.erp.modules.masterdata.dto.SupplierAttachmentFile;
 import com.zhul.erp.modules.masterdata.dto.SupplierAttachmentUploadVO;
 import com.zhul.erp.modules.masterdata.dto.SupplierCreateResultVO;
 import com.zhul.erp.modules.masterdata.dto.SupplierFormVO;
@@ -15,6 +14,7 @@ import org.apache.poi.ss.usermodel.Workbook;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
+import com.zhul.erp.framework.storage.FileStorageService.FileLink;
 
 public interface SupplierService {
     SupplierCreateResultVO create(SaveSupplierRequest req);
@@ -37,6 +37,6 @@ public interface SupplierService {
     /** 上传附件到私有目录，返回的 fileKey 随供应商保存后才生效 */
     SupplierAttachmentUploadVO uploadAttachment(MultipartFile file);
 
-    /** 取本租户该供应商的附件文件；不存在或不属于该供应商时抛业务异常 */
-    SupplierAttachmentFile getAttachmentFile(Long supplierId, Long attachmentId);
+    /** 本租户该供应商附件的临时访问链接；不存在或不属于该供应商时抛业务异常 */
+    FileLink getAttachmentLink(Long supplierId, Long attachmentId, boolean download);
 }

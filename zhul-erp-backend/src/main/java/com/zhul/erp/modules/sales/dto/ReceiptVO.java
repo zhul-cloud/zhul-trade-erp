@@ -54,6 +54,8 @@ public class ReceiptVO {
     @Data
     public static class SlipFile {
         private String fileKey;
+        /** 存储方式（LOCAL、OSS）；迁 OSS 之前的旧记录没有，按 LOCAL 处理 */
+        private String storage;
         private String fileName;
     }
 }

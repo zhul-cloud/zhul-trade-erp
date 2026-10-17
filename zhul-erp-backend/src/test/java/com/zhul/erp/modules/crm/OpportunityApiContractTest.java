@@ -267,17 +267,18 @@ class OpportunityApiContractTest extends IntegrationTestBase {
         assertEquals("只支持图片（JPG、PNG）和 Excel", pdf.path("message").asText());
         JsonNode up = ok(call(multipart(BASE + "/attachments").file(new MockMultipartFile("file", "询价.png", "image/png", png)), admin));
         String key = up.path("fileKey").asText();
-        assertTrue(key.startsWith("opportunity/0/"), key);
+        assertTrue(key.startsWith("tenant/0/opportunity/"), key);
 
         long id = register(admin, lead("Pic", 5, LocalDate.now().toString(), ",\"email\":\"pic@x.com\",\"attachments\":[{\"fileName\":\"询价.png\",\"fileKey\":\""
                 + key + "\"}]"));
         JsonNode att = ok(call(get(BASE + "/" + id), admin)).path("attachments").get(0);
         assertEquals("询价.png", att.path("fileName").asText());
         assertFalse(att.has("fileKey"));
-        MockHttpServletResponse dl = perform(get(BASE + "/" + id + "/attachments/" + att.path("id").asLong()), admin);
+        String url = ok(call(get(BASE + "/" + id + "/attachments/" + att.path("id").asLong() + "/url"), admin)).path("url").asText();
+        MockHttpServletResponse dl = mvc.perform(get(java.net.URI.create(url))).andReturn().getResponse();
         assertEquals(200, dl.getStatus());
         assertEquals("image/png", dl.getContentType());
-        assertEquals(png.length, dl.getContentAsByteArray().length);
+        assertEquals(att.path("fileSize").asLong(), dl.getContentAsByteArray().length);
 
         JsonNode forged = call(json(put(BASE + "/" + id), "{\"sourceChannel\":5,\"firstContactDate\":\"" + LocalDate.now()
                 + "\",\"attachments\":[{\"fileKey\":\"supplier/0/202609/" + "a".repeat(32) + ".png\"}]}"), admin);
@@ -299,7 +300,7 @@ class OpportunityApiContractTest extends IntegrationTestBase {
         String inquiryBase = "/api/v1/inquiry/customer-inquiries";
         JsonNode copied = ok(call(json(post(inquiryBase + "/attachments/from-opportunity"),
                 "{\"opportunityId\":" + id + ",\"attachmentId\":" + attId + "}"), admin));
-        assertTrue(copied.path("fileKey").asText().startsWith("customer-inquiry/0/"), copied.toString());
+        assertTrue(copied.path("fileKey").asText().startsWith("tenant/0/inquiry/"), copied.toString());
 
         JsonNode wrong = call(json(post(inquiryBase), "{\"customerId\":" + (customerId + 999) + ",\"source\":2,\"opportunityId\":" + id + "}"), admin);
         assertFalse(wrong.path("code").asInt() == 0, "客户不存在或与商机不一致都应拒绝");

@@ -1,4 +1,5 @@
 import { request } from '@umijs/max';
+import { downloadFile, openFile } from '@/utils/fileLink';
 
 export { readBizError } from '@/pages/crm/opportunity/service';
 
@@ -458,31 +459,14 @@ export const poApi = {
   },
   removeAttachment: (id: number, attachmentId: number) =>
     send<PurchaseOrder>('DELETE', `${PO}/${id}/attachments/${attachmentId}`),
-  /** 预览或下载合同：带登录态取文件后在新窗口打开或保存 */
-  openAttachment: async (
+  /** 预览或下载合同：取临时链接后在新窗口打开，或按原文件名保存 */
+  openAttachment: (
     id: number,
     attachmentId: number,
-    fileName: string,
+    _fileName: string,
     inline: boolean,
-  ) => {
-    const blob: Blob = await request(
-      `${PO}/${id}/attachments/${attachmentId}`,
-      {
-        method: 'GET',
-        params: { inline },
-        responseType: 'blob',
-        ...quiet,
-      },
-    );
-    const url = URL.createObjectURL(blob);
-    if (inline) {
-      window.open(url, '_blank', 'noopener');
-    } else {
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = fileName;
-      a.click();
-    }
-    setTimeout(() => URL.revokeObjectURL(url), 60_000);
-  },
+  ) =>
+    inline
+      ? openFile(`${PO}/${id}/attachments/${attachmentId}`)
+      : downloadFile(`${PO}/${id}/attachments/${attachmentId}`),
 };

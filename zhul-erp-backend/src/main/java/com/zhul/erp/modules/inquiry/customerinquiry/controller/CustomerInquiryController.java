@@ -16,10 +16,8 @@ import com.zhul.erp.modules.inquiry.customerinquiry.dto.UpdateInquiryLevelReques
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.UploadedFileVO;
 import com.zhul.erp.modules.inquiry.customerinquiry.service.CustomerInquiryService;
 import com.zhul.erp.modules.inquiry.sourcing.service.PriceHistoryService;
-import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpHeaders;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -32,12 +30,8 @@ import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.IOException;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.util.List;
 import java.util.Map;
+import com.zhul.erp.framework.storage.FileStorageService.FileLink;
 
 /** 询盘单：要求能访问「询盘单」菜单，数据范围按负责人 */
 @RestController
@@ -85,16 +79,11 @@ public class CustomerInquiryController {
         return Result.ok(service.detail(id));
     }
 
-    @GetMapping("/{id}/attachments/{attachmentId}")
-    public void attachment(@PathVariable Long id, @PathVariable Long attachmentId,
-                           @RequestParam(defaultValue = "false") boolean inline, HttpServletResponse response) throws IOException {
-        CustomerInquiryService.AttachmentFile file = service.attachmentFile(id, attachmentId);
-        response.setContentType(file.contentType());
-        response.setContentLengthLong(Files.size(file.path()));
-        response.setHeader(HttpHeaders.CONTENT_DISPOSITION, (inline ? "inline" : "attachment")
-                + "; filename*=UTF-8''" + URLEncoder.encode(file.fileName(), StandardCharsets.UTF_8).replace("+", "%20"));
-        response.setHeader("X-Content-Type-Options", "nosniff");
-        Files.copy(file.path(), response.getOutputStream());
+    /** 附件的临时访问链接：download=true 时强制下载，否则预览 */
+    @GetMapping("/{id}/attachments/{attachmentId}/url")
+    public Result<FileLink> attachmentUrl(@PathVariable Long id, @PathVariable Long attachmentId,
+                                          @RequestParam(defaultValue = "false") boolean download) {
+        return Result.ok(service.attachmentLink(id, attachmentId, download));
     }
 
     @PostMapping("/{id}/start-parse")

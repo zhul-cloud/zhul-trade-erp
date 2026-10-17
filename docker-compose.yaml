@@ -82,6 +82,15 @@ services:
       JAVA_TOOL_OPTIONS: ${JAVA_TOOL_OPTIONS:-}
       UPLOAD_DIR: /app/uploads
       UPLOAD_PRIVATE_DIR: /app/private-uploads
+      STORAGE_TYPE: ${STORAGE_TYPE:-local}
+      OSS_ENDPOINT: ${OSS_ENDPOINT:-}
+      OSS_REGION: ${OSS_REGION:-}
+      OSS_ACCESS_KEY_ID: ${OSS_ACCESS_KEY_ID:-}
+      OSS_ACCESS_KEY_SECRET: ${OSS_ACCESS_KEY_SECRET:-}
+      OSS_PRIVATE_BUCKET: ${OSS_PRIVATE_BUCKET:-}
+      OSS_PUBLIC_BUCKET: ${OSS_PUBLIC_BUCKET:-}
+      OSS_PUBLIC_DOMAIN: ${OSS_PUBLIC_DOMAIN:-}
+      OSS_KEY_PREFIX: ${OSS_KEY_PREFIX:-}
     ports:
       - "${BACKEND_BIND_ADDRESS:-127.0.0.1}:${BACKEND_HOST_PORT:-8080}:8080"
     # 无 depends_on：独立部署后端不会自动启动本地数据库。

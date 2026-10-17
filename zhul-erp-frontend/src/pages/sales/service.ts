@@ -1,4 +1,5 @@
 import { request } from '@umijs/max';
+import { openFile } from '@/utils/fileLink';
 
 export { readBizError } from '@/pages/crm/opportunity/service';
 
@@ -727,22 +728,6 @@ const download = async (url: string, params: object, fallback: string) => {
   a.click();
   a.remove();
   window.setTimeout(() => window.URL.revokeObjectURL(href), 1000);
-};
-
-/** 在新窗口打开私有附件（水单） */
-const openFile = async (url: string) => {
-  const blob = await request<Blob>(url, {
-    method: 'GET',
-    responseType: 'blob',
-    ...quiet,
-  });
-  if (blob.type.includes('json')) {
-    const body = JSON.parse(await blob.text()) as { message?: string };
-    throw new Error(body.message || '附件打开失败');
-  }
-  const href = window.URL.createObjectURL(blob);
-  window.open(href, '_blank', 'noopener');
-  window.setTimeout(() => window.URL.revokeObjectURL(href), 60_000);
 };
 
 export const piApi = {

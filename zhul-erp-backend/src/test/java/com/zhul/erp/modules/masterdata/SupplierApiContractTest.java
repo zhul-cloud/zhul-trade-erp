@@ -218,7 +218,7 @@ class SupplierApiContractTest extends IntegrationTestBase {
         JsonNode up = call(multipart(BASE + "/attachments").file(new MockMultipartFile("file", "营业执照.pdf",
                 "application/pdf", PDF)), admin).path("data");
         String fileKey = up.path("fileKey").asText();
-        assertTrue(fileKey.startsWith("supplier/" + TENANT + "/"), up.toString());
+        assertTrue(fileKey.startsWith("tenant/" + TENANT + "/supplier/"), up.toString());
         assertEquals(0, jdbc.queryForObject("select count(*) from supplier_attachment where supplier_id = ?", Integer.class, id),
                 "上传后未保存不应出现在附件中");
 
@@ -233,10 +233,11 @@ class SupplierApiContractTest extends IntegrationTestBase {
         assertEquals("营业执照.pdf", att.path("fileName").asText());
         assertEquals(PDF.length, att.path("fileSize").asInt());
         assertFalse(att.has("fileKey"));
-        String url = BASE + "/" + id + "/attachments/" + att.path("id").asLong();
+        String url = BASE + "/" + id + "/attachments/" + att.path("id").asLong() + "/url?download=true";
 
         loginWithResources("supplier_viewer", MENU_SUPPLIER);
-        MockHttpServletResponse download = perform(get(url), token("supplier_viewer"));
+        String link = call(get(url), token("supplier_viewer")).path("data").path("url").asText();
+        MockHttpServletResponse download = mvc.perform(get(java.net.URI.create(link))).andReturn().getResponse();
         assertEquals(200, download.getStatus());
         assertEquals("application/pdf", download.getContentType());
         assertTrue(download.getHeader("Content-Disposition").startsWith("attachment; filename*=UTF-8''"));

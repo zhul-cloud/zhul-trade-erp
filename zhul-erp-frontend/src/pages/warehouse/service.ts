@@ -1,4 +1,5 @@
 import { request } from '@umijs/max';
+import { fileUrl } from '@/utils/fileLink';
 
 export { readBizError } from '@/pages/crm/opportunity/service';
 
@@ -24,6 +25,8 @@ export interface Attachment {
   fileName: string;
   fileSize: number;
   contentType: string;
+  /** 视频处理状态：0-无需处理、1-转码中、2-已完成、3-失败（失败时仍可查看原视频） */
+  processingStatus?: number;
   uploadedByName?: string;
   createTime?: string;
 }
@@ -333,26 +336,20 @@ const SHOOT = '/api/v1/warehouse/shoots';
 const FILE = '/api/v1/attachments';
 
 export const attachmentApi = {
-  upload: (ownerType: OwnerType, file: File) => {
+  /** ownerId 选填：实拍任务传入时素材直接按型号归档 */
+  upload: (ownerType: OwnerType, file: File, ownerId?: number) => {
     const data = new FormData();
     data.append('file', file);
     return request<{ data: Attachment }>(FILE, {
       method: 'POST',
-      params: { ownerType },
+      params: { ownerType, ownerId },
       data,
       requestType: 'form',
       ...quiet,
     }).then((r) => r.data);
   },
-  /** 带登录态取文件，返回本地地址（用完 revoke） */
-  blobUrl: async (id: number) => {
-    const blob: Blob = await request(`${FILE}/${id}`, {
-      method: 'GET',
-      responseType: 'blob',
-      ...quiet,
-    });
-    return URL.createObjectURL(blob);
-  },
+  /** 附件的临时访问链接（10 分钟有效），可直接给图片、视频、PDF 用 */
+  blobUrl: (id: number) => fileUrl(`${FILE}/${id}`),
 };
 
 export interface ArrivalEstimate {

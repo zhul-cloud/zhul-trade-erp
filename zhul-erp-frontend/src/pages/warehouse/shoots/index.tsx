@@ -462,6 +462,7 @@ const ShootDrawer: React.FC<{
                   {editable && (
                     <UploadTile
                       ownerType="SHOOT"
+                      ownerId={t.id}
                       accept={s.accept}
                       onUploaded={(a) => {
                         queue.current = queue.current.then(() =>

@@ -3,16 +3,22 @@ package com.zhul.erp.modules.attachment.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.zhul.erp.common.exception.BizException;
-import com.zhul.erp.modules.attachment.dto.AttachmentFile;
+import com.zhul.erp.framework.storage.FileStorageService;
+import com.zhul.erp.framework.storage.FileStorageService.FileLink;
+import com.zhul.erp.framework.storage.StorageArea;
+import com.zhul.erp.framework.storage.UploadRules;
+import com.zhul.erp.framework.storage.VideoTranscoder;
 import com.zhul.erp.modules.attachment.dto.AttachmentVO;
 import com.zhul.erp.modules.attachment.entity.BizAttachmentDO;
 import com.zhul.erp.modules.attachment.repository.BizAttachmentMapper;
-import com.zhul.erp.modules.attachment.support.AttachmentStore;
+import com.zhul.erp.modules.attachment.support.ModelFolderResolver;
 import com.zhul.erp.modules.inquiry.support.CurrentUserResolver;
 import com.zhul.erp.modules.inquiry.support.InquiryLookups;
 import com.zhul.erp.modules.sales.support.PiStore;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -30,7 +36,9 @@ import java.util.stream.Collectors;
 /**
  * 业务附件：先上传拿到 ID（owner_id = 0），保存单据时挂到单据上；24 小时内没挂上的清理掉。
  * 图片 JPG / PNG / WEBP 不超过 10MB，视频 MP4 / MOV 不超过 200MB，按文件内容识别。
+ * 文件按所属单据类型放到对应环节的目录（实拍任务按品牌与型号），图片上传时压缩，视频上传后在后台转码。
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AttachmentService {
@@ -71,49 +79,116 @@ public class AttachmentService {
     private static final long IMAGE_MAX = 10L * 1024 * 1024;
     private static final long VIDEO_MAX = 200L * 1024 * 1024;
 
+    /** 所属单据类型 → 存储目录对应的业务环节 */
+    private static final Map<String, StorageArea> AREAS = Map.ofEntries(Map.entry(SHIPMENT, StorageArea.SHIPMENT),
+            Map.entry(RECEIPT, StorageArea.RECEIPT), Map.entry(SHOOT, StorageArea.MEDIA), Map.entry(LOGISTICS, StorageArea.LOGISTICS),
+            Map.entry(PAYMENT, StorageArea.FINANCE), Map.entry(COURIER_PROOF, StorageArea.FINANCE),
+            Map.entry(RETURN_PROOF, StorageArea.FINANCE), Map.entry(EXPENSE, StorageArea.FINANCE),
+            Map.entry(REIMBURSE, StorageArea.FINANCE), Map.entry(REFUND, StorageArea.FINANCE),
+            Map.entry(OTHER_INCOME, StorageArea.FINANCE), Map.entry(PO_INVOICE, StorageArea.PURCHASE),
+            Map.entry(SOURCING_QUOTE, StorageArea.SOURCING));
+
     private final BizAttachmentMapper mapper;
-    private final List<AttachmentStore> stores;
+    private final FileStorageService files;
+    private final VideoTranscoder transcoder;
+    private final List<ModelFolderResolver> folders;
     private final CurrentUserResolver currentUser;
     private final InquiryLookups lookups;
 
-    /** 新上传文件用的存储方式（LOCAL / OSS） */
-    @Value("${zhul.attachment.storage:LOCAL}")
-    private String currentStorage;
-
-    public AttachmentVO upload(String ownerType, MultipartFile file) {
+    /**
+     * 上传附件。ownerId 选填：实拍任务等按型号归档的单据传入时，文件直接放到该型号的目录。
+     */
+    public AttachmentVO upload(String ownerType, Long ownerId, MultipartFile file) {
         requireOwnerType(ownerType);
         String name = file == null || file.getOriginalFilename() == null ? "" : file.getOriginalFilename().toLowerCase();
         boolean video = name.endsWith(".mp4") || name.endsWith(".mov")
                 || (file != null && file.getContentType() != null && file.getContentType().startsWith("video/"));
-        AttachmentStore store = store(currentStorage);
-        AttachmentStore.Stored s;
+        int tenantId = PiStore.tenantId();
+        StorageArea area = AREAS.get(ownerType);
+        FileStorageService.StoredFile s;
         int kind;
         if (LOGISTICS.equals(ownerType) || PROOF_TYPES.contains(ownerType)) {
-            s = store.put(PiStore.tenantId(), file, FACE_SHEET_EXTS, IMAGE_MAX,
+            s = files.store(area, tenantId, file, FACE_SHEET_EXTS, IMAGE_MAX,
                     PROOF_TYPES.contains(ownerType) ? "截图只支持 PDF、JPG、PNG、WEBP" : "面单只支持 PDF、JPG、PNG、WEBP");
             kind = s.contentType().startsWith("image/") ? IMAGE : FILE;
         } else if (video) {
-            s = store.put(PiStore.tenantId(), file, VIDEO_EXTS, VIDEO_MAX, "只支持 MP4、MOV 视频");
+            s = store(area, ownerType, ownerId, tenantId, file, VIDEO_EXTS, VIDEO_MAX, "只支持 MP4、MOV 视频");
             kind = VIDEO;
         } else {
-            s = store.put(PiStore.tenantId(), file, IMAGE_EXTS, IMAGE_MAX, "只支持 JPG、PNG、WEBP 图片");
+            s = store(area, ownerType, ownerId, tenantId, file, IMAGE_EXTS, IMAGE_MAX, "只支持 JPG、PNG、WEBP 图片");
             kind = IMAGE;
         }
         BizAttachmentDO a = new BizAttachmentDO();
-        a.setTenantId(PiStore.tenantId());
+        a.setTenantId(tenantId);
         a.setOwnerType(ownerType);
         a.setOwnerId(0L);
         a.setKind(kind);
-        a.setStorage(store.storage());
+        a.setStorage(s.storage());
         a.setFileKey(s.fileKey());
-        a.setUrl(s.url());
+        a.setUrl("");
         a.setFileName(s.fileName());
         a.setFileSize(s.fileSize());
         a.setContentType(s.contentType());
+        a.setProcessingStatus(kind == VIDEO ? VideoTranscoder.PROCESSING : VideoTranscoder.NONE);
         Long me = currentUser.resolve();
         a.setUploadedBy(me == null ? 0L : me);
         mapper.insert(a);
+        if (kind == VIDEO) {
+            transcode(a);
+        }
         return toVos(List.of(a)).get(0);
+    }
+
+    /** 所属单据类型对应的存储环节（历史文件迁移按它放目录） */
+    public static StorageArea areaOf(String ownerType) {
+        return AREAS.get(ownerType);
+    }
+
+    private FileStorageService.StoredFile store(StorageArea area, String ownerType, Long ownerId, int tenantId, MultipartFile file,
+                                                Set<String> exts, long max, String message) {
+        if (ownerId != null && ownerId > 0) {
+            for (ModelFolderResolver r : folders) {
+                if (r.ownerType().equals(ownerType)) {
+                    String ext = UploadRules.check(file, exts, max, message);
+                    return r.modelOf(ownerId, tenantId)
+                            .map(m -> files.storeForModel(area, tenantId, m.brand(), m.model(), file, ext))
+                            .orElseGet(() -> files.storeValidated(area, tenantId, file, ext));
+                }
+            }
+        }
+        return files.store(area, tenantId, file, exts, max, message);
+    }
+
+    /** 视频后台转码：完成后换成转好的文件，失败时保留原视频 */
+    private void transcode(BizAttachmentDO a) {
+        Long id = a.getId();
+        transcoder.submit(a.getStorage(), a.getFileKey(), false, done -> {
+            BizAttachmentDO upd = new BizAttachmentDO();
+            upd.setId(id);
+            upd.setFileKey(done.key());
+            upd.setFileSize(done.size());
+            upd.setContentType(done.contentType());
+            upd.setFileName(UploadRules.withExt(a.getFileName(), "mp4"));
+            upd.setProcessingStatus(VideoTranscoder.DONE);
+            mapper.updateById(upd);
+        }, () -> {
+            BizAttachmentDO upd = new BizAttachmentDO();
+            upd.setId(id);
+            upd.setProcessingStatus(VideoTranscoder.FAILED);
+            mapper.updateById(upd);
+        });
+    }
+
+    /** 服务重启时仍在转码中的视频重新排队 */
+    @EventListener(ApplicationReadyEvent.class)
+    public void resumeTranscoding() {
+        List<BizAttachmentDO> pending = mapper.selectList(new LambdaQueryWrapper<BizAttachmentDO>()
+                .eq(BizAttachmentDO::getProcessingStatus, VideoTranscoder.PROCESSING)
+                .isNull(BizAttachmentDO::getDeletedAt));
+        if (!pending.isEmpty()) {
+            log.info("重新排队转码的视频 {} 个", pending.size());
+            pending.forEach(this::transcode);
+        }
     }
 
     /** 把上传好的附件挂到单据上（还没挂的或已挂在这张单据上的），校验数量上限 */
@@ -229,8 +304,9 @@ public class AttachmentService {
         return a;
     }
 
-    public AttachmentFile file(BizAttachmentDO a) {
-        return new AttachmentFile(store(a.getStorage()).open(a), a.getFileName(), a.getContentType());
+    /** 附件的临时访问链接；调用方已按所属单据类型校验过菜单权限 */
+    public FileLink link(BizAttachmentDO a, boolean download) {
+        return files.link(a.getStorage(), a.getFileKey(), a.getFileName(), download);
     }
 
     /** 上传后 24 小时还没挂到单据上的附件软删除 */
@@ -251,11 +327,6 @@ public class AttachmentService {
                 .isNull(BizAttachmentDO::getDeletedAt);
     }
 
-    private AttachmentStore store(String storage) {
-        return stores.stream().filter(s -> s.storage().equalsIgnoreCase(storage)).findFirst()
-                .orElseThrow(() -> new IllegalStateException("没有配置附件存储方式：" + storage));
-    }
-
     private static void requireOwnerType(String ownerType) {
         if (!MAX_PER_OWNER.containsKey(ownerType)) {
             throw new BizException("附件类型不正确");
@@ -271,6 +342,7 @@ public class AttachmentService {
             vo.setFileName(a.getFileName());
             vo.setFileSize(a.getFileSize());
             vo.setContentType(a.getContentType());
+            vo.setProcessingStatus(a.getProcessingStatus());
             vo.setUploadedByName(users.get(a.getUploadedBy()));
             vo.setCreateTime(a.getCreateTime());
             return vo;

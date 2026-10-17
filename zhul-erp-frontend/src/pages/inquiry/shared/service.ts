@@ -1,4 +1,5 @@
 import { request } from '@umijs/max';
+import { fileUrl } from '@/utils/fileLink';
 
 export { readBizError } from '@/pages/crm/opportunity/service';
 
@@ -614,12 +615,9 @@ export const inquiryApi = {
       query,
     ),
   detail: (id: number) => get<InquiryDetail>(`${INQ}/${id}`),
-  attachmentBlobUrl: async (id: number, attachmentId: number) => {
-    const res = (await blob(`${INQ}/${id}/attachments/${attachmentId}`, {
-      inline: true,
-    })) as { data: Blob };
-    return window.URL.createObjectURL(res.data);
-  },
+  /** 附件的临时访问链接（10 分钟有效），可直接用于预览 */
+  attachmentBlobUrl: (id: number, attachmentId: number) =>
+    fileUrl(`${INQ}/${id}/attachments/${attachmentId}`),
   startParse: (id: number) =>
     send<CustomerInquiry>('POST', `${INQ}/${id}/start-parse`),
   retryParse: (id: number) =>

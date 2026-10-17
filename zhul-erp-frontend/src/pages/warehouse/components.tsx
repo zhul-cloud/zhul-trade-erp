@@ -176,7 +176,12 @@ export const usePreview = () => {
 
 /** 一张附件缩略图：图片取缩略图，视频显示播放图标；点击预览 */
 export const MediaTile: React.FC<{
-  attachment: { id: number; fileName: string; kind: number };
+  attachment: {
+    id: number;
+    fileName: string;
+    kind: number;
+    processingStatus?: number;
+  };
   label?: string;
   size?: number;
   onOpen: () => void;
@@ -216,7 +221,7 @@ export const MediaTile: React.FC<{
           borderRadius: 10,
           border: `1px solid ${palette.hairline}`,
           background: thumb
-            ? `center / cover no-repeat url(${thumb})`
+            ? `center / cover no-repeat url("${thumb}")`
             : palette.inset,
           color: palette.sub,
           cursor: 'pointer',
@@ -239,6 +244,33 @@ export const MediaTile: React.FC<{
           </span>
         )}
       </button>
+      {video &&
+        (attachment.processingStatus === 1 ||
+          attachment.processingStatus === 3) && (
+          <span
+            style={{
+              position: 'absolute',
+              left: 4,
+              bottom: 4,
+              padding: '0 4px',
+              borderRadius: 4,
+              fontSize: 10,
+              lineHeight: '16px',
+              color: '#fff',
+              background:
+                attachment.processingStatus === 1
+                  ? palette.link
+                  : palette.orange,
+            }}
+            title={
+              attachment.processingStatus === 1
+                ? '正在压缩，压缩完成前播放的是原视频'
+                : '压缩失败，保留原视频，可以正常查看'
+            }
+          >
+            {attachment.processingStatus === 1 ? '压缩中' : '未压缩'}
+          </span>
+        )}
       {onRemove && (
         <button
           type="button"
@@ -271,11 +303,20 @@ export const MediaTile: React.FC<{
 /** 上传按钮：选文件后逐个上传，成功一个回调一个 */
 export const UploadTile: React.FC<{
   ownerType: OwnerType;
+  /** 实拍任务的 ID：传入时素材直接按型号归档 */
+  ownerId?: number;
   accept?: string;
   size?: number;
   disabled?: boolean;
   onUploaded: (a: Attachment) => void | Promise<void>;
-}> = ({ ownerType, accept = ACCEPT_ALL, size = 76, disabled, onUploaded }) => {
+}> = ({
+  ownerType,
+  ownerId,
+  accept = ACCEPT_ALL,
+  size = 76,
+  disabled,
+  onUploaded,
+}) => {
   const { palette } = useAppTheme();
   const { message } = App.useApp();
   const [busy, setBusy] = useState(0);
@@ -293,7 +334,7 @@ export const UploadTile: React.FC<{
         }
         setBusy((n) => n + 1);
         attachmentApi
-          .upload(ownerType, file)
+          .upload(ownerType, file, ownerId)
           .then((a) => onUploaded(a))
           .catch((e) =>
             message.error(`${file.name}：${readBizError(e).message}`),

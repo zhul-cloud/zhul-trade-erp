@@ -23,7 +23,7 @@ import com.zhul.erp.modules.masterdata.service.impl.SupplierAttachmentSync;
 import com.zhul.erp.modules.masterdata.service.impl.SupplierBankAccountSync;
 import com.zhul.erp.modules.masterdata.service.impl.SupplierProductScopeSync;
 import com.zhul.erp.modules.masterdata.service.impl.SupplierServiceImpl;
-import com.zhul.erp.modules.masterdata.support.SupplierAttachmentStorage;
+import com.zhul.erp.framework.storage.FileStorageService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -74,13 +74,13 @@ class SupplierServiceImplTest {
     @Mock
     private SupplierAttachmentSync attachmentSync;
     @Mock
-    private SupplierAttachmentStorage attachmentStorage;
+    private FileStorageService fileStorage;
 
     private SupplierServiceImpl supplierService;
 
     @BeforeEach
     void setUp() {
-        supplierService = new SupplierServiceImpl(supplierMapper, scopeSync, accountSync, attachmentSync, attachmentStorage);
+        supplierService = new SupplierServiceImpl(supplierMapper, scopeSync, accountSync, attachmentSync, fileStorage);
         TenantContext.setTenantId(1);
     }
 

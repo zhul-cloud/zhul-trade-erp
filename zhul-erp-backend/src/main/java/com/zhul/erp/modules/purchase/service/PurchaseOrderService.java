@@ -4,7 +4,6 @@ import com.zhul.erp.common.result.PageResult;
 import com.zhul.erp.modules.purchase.dto.CancelPurchaseOrderRequest;
 import com.zhul.erp.modules.purchase.dto.ConfirmPurchaseOrderRequest;
 import com.zhul.erp.modules.purchase.dto.MoveItemsRequest;
-import com.zhul.erp.modules.purchase.dto.PurchaseAttachmentFile;
 import com.zhul.erp.modules.purchase.dto.PurchaseOrderListVO;
 import com.zhul.erp.modules.purchase.dto.PurchaseOrderPageQuery;
 import com.zhul.erp.modules.purchase.dto.PurchaseOrderStatsVO;
@@ -13,6 +12,7 @@ import com.zhul.erp.modules.purchase.dto.SavePurchaseOrderRequest;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
+import com.zhul.erp.framework.storage.FileStorageService.FileLink;
 
 public interface PurchaseOrderService {
 
@@ -43,7 +43,8 @@ public interface PurchaseOrderService {
 
     PurchaseOrderVO deleteAttachment(Long id, Long attachmentId);
 
-    PurchaseAttachmentFile attachmentFile(Long id, Long attachmentId);
+    /** 合同的临时访问链接：download=true 时强制下载，否则预览 */
+    FileLink attachmentLink(Long id, Long attachmentId, boolean download);
 
     /** 登记已开票：实际开票日期、电子发票，可按实际发票调整开票金额与税点 */
     PurchaseOrderVO registerInvoice(Long id, com.zhul.erp.modules.purchase.dto.RegisterInvoiceRequest req);

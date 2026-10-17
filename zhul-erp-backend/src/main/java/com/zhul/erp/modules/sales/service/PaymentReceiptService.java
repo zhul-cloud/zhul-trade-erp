@@ -8,9 +8,9 @@ import com.zhul.erp.modules.sales.dto.ReceiptDeskRowVO;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
-import java.nio.file.Path;
 import java.time.LocalDate;
 import java.util.List;
+import com.zhul.erp.framework.storage.FileStorageService.FileLink;
 
 /** 收款登记：业务员上传水单（不计入到账），财务登记与作废到账；收款记在 PI 上 */
 public interface PaymentReceiptService {
@@ -19,10 +19,8 @@ public interface PaymentReceiptService {
 
     PiVO deleteSlip(Long piId, Long slipId);
 
-    record SlipFile(Path path, String fileName) {
-    }
-
-    SlipFile slipFile(Long piId, Long slipId, int index);
+    /** 水单附件的临时访问链接（浏览器内预览） */
+    FileLink slipLink(Long piId, Long slipId, int index);
 
     PiVO confirm(Long piId, ConfirmReceiptRequest req);
 
@@ -50,7 +48,7 @@ public interface PaymentReceiptService {
 
     com.zhul.erp.modules.sales.dto.SalesOrderVO deleteOrderSlip(Long soId, Long slipId);
 
-    SlipFile orderSlipFile(Long soId, Long slipId, int index);
+    FileLink orderSlipLink(Long soId, Long slipId, int index);
 
     com.zhul.erp.modules.sales.dto.SalesOrderVO confirmOrder(Long soId, ConfirmReceiptRequest req);
 

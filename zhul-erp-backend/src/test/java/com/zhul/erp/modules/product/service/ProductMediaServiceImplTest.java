@@ -30,6 +30,9 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
+import com.zhul.erp.modules.product.repository.ProductBrandMapper;
+import com.zhul.erp.modules.product.entity.ProductDO;
+import com.zhul.erp.framework.storage.VideoTranscoder;
 
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
@@ -41,6 +44,10 @@ class ProductMediaServiceImplTest {
     private ProductMediaStorageService storage;
     @Mock
     private ProductFinder productFinder;
+    @Mock
+    private ProductBrandMapper brandMapper;
+    @Mock
+    private VideoTranscoder transcoder;
     @Mock
     private StringRedisTemplate redis;
     @Mock
@@ -54,8 +61,13 @@ class ProductMediaServiceImplTest {
         TenantContext.setTenantId(0);
         when(redis.opsForValue()).thenReturn(ops);
         when(ops.increment(any())).thenReturn(1L);
-        when(storage.store(any(), anyInt())).thenReturn(new ProductMediaStorageService.StoredMedia("/uploads/product/x.png", 1));
-        service = new ProductMediaServiceImpl(mediaMapper, storage, productFinder, new PlatformScopeGuard(), redis);
+        when(storage.store(any(), anyInt(), any(), any()))
+                .thenReturn(new ProductMediaStorageService.StoredMedia("/uploads/shared/product/x.png", 1, "LOCAL", "shared/product/b/m/x.png"));
+        ProductDO product = new ProductDO();
+        product.setBrandId(9L);
+        product.setMpnRaw("6ES7214-1AG40-0XB0");
+        when(productFinder.active(1L)).thenReturn(product);
+        service = new ProductMediaServiceImpl(mediaMapper, storage, productFinder, brandMapper, transcoder, new PlatformScopeGuard(), redis);
     }
 
     @AfterEach
@@ -95,7 +107,7 @@ class ProductMediaServiceImplTest {
 
         assertThrows(IllegalStateException.class, () -> service.upload(1L, file, 1, null, null));
 
-        verify(storage).deleteQuietly("/uploads/product/x.png");
+        verify(storage).deleteQuietly("LOCAL", "shared/product/b/m/x.png");
     }
 
     @Test
@@ -104,7 +116,7 @@ class ProductMediaServiceImplTest {
 
         assertThrows(BizException.class, () -> service.upload(1L, file, 1, null, null));
 
-        verify(storage).deleteQuietly("/uploads/product/x.png");
+        verify(storage).deleteQuietly("LOCAL", "shared/product/b/m/x.png");
         verify(mediaMapper, never()).insert(any(ProductMediaDO.class));
     }
 
@@ -122,6 +134,6 @@ class ProductMediaServiceImplTest {
         BizException e = assertThrows(BizException.class, () -> service.upload(1L, file, null, null, null));
 
         assertEquals(ProductErrorCodes.PARAM_INVALID, e.getErrorCode());
-        verify(storage, never()).store(any(), eq(1));
+        verify(storage, never()).store(any(), eq(1), any(), any());
     }
 }

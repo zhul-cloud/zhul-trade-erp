@@ -4,7 +4,6 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.zhul.erp.common.exception.BizException;
 import com.zhul.erp.common.result.PageResult;
 import com.zhul.erp.framework.security.DataScopeResolver;
-import com.zhul.erp.framework.storage.PrivateFileStorage;
 import com.zhul.erp.modules.inquiry.support.CurrentUserResolver;
 import com.zhul.erp.modules.inquiry.support.InquiryLookups;
 import com.zhul.erp.modules.masterdata.dto.PaymentTermDTO;
@@ -19,7 +18,6 @@ import com.zhul.erp.modules.purchase.dto.MoveItemsRequest;
 import com.zhul.erp.modules.attachment.service.AttachmentService;
 import com.zhul.erp.modules.purchase.dto.RegisterInvoiceRequest;
 import java.math.RoundingMode;
-import com.zhul.erp.modules.purchase.dto.PurchaseAttachmentFile;
 import com.zhul.erp.modules.purchase.dto.PurchaseOrderListVO;
 import com.zhul.erp.modules.purchase.dto.PurchaseOrderPageQuery;
 import com.zhul.erp.modules.purchase.dto.PurchaseOrderStatsVO;
@@ -43,7 +41,6 @@ import com.zhul.erp.modules.masterdata.dto.CreateSupplierFromChannelRequest;
 import com.zhul.erp.modules.masterdata.dto.SupplierCreateResultVO;
 import com.zhul.erp.modules.purchase.support.Counterparty;
 import com.zhul.erp.modules.purchase.support.OrderPurchaseProgress;
-import com.zhul.erp.modules.purchase.support.PurchaseAttachmentStorage;
 import com.zhul.erp.modules.purchase.support.PurchaseCalc;
 import com.zhul.erp.modules.purchase.support.PurchaseDrafts;
 import com.zhul.erp.modules.purchase.support.PurchaseLogs;
@@ -86,6 +83,9 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import com.zhul.erp.framework.storage.StorageArea;
+import com.zhul.erp.framework.storage.FileStorageService.FileLink;
+import com.zhul.erp.framework.storage.FileStorageService;
 
 @Service
 @RequiredArgsConstructor
@@ -111,7 +111,7 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
     private final PurchaseLogs logs;
     private final RequirementQty qty;
     private final OrderPurchaseProgress progress;
-    private final PurchaseAttachmentStorage storage;
+    private final FileStorageService fileStorage;
     private final DocumentNumberService documentNumberService;
     private final ExchangeRateService exchangeRateService;
     private final DataScopeResolver dataScopeResolver;
@@ -1016,11 +1016,13 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
         if (count >= PurchaseConstants.MAX_ATTACHMENTS) {
             throw new BizException("每张采购订单最多 " + PurchaseConstants.MAX_ATTACHMENTS + " 个合同文件");
         }
-        PrivateFileStorage.StoredFile stored = storage.store(p.getTenantId(), file);
+        FileStorageService.StoredFile stored = fileStorage.store(StorageArea.PURCHASE, p.getTenantId(), file,
+                Set.of("pdf", "jpg", "png"), PurchaseConstants.ATTACHMENT_MAX_BYTES, "只支持 PDF、JPG、PNG");
         PurchaseOrderAttachmentDO x = new PurchaseOrderAttachmentDO();
         x.setTenantId(p.getTenantId());
         x.setPoId(id);
         x.setFileKey(stored.fileKey());
+        x.setStorage(stored.storage());
         x.setFileName(stored.fileName());
         x.setFileSize(stored.fileSize());
         x.setContentType(stored.contentType());
@@ -1042,10 +1044,10 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
     }
 
     @Override
-    public PurchaseAttachmentFile attachmentFile(Long id, Long attachmentId) {
-        PurchaseOrderDO p = visible(id);
+    public FileLink attachmentLink(Long id, Long attachmentId, boolean download) {
+        visible(id);
         PurchaseOrderAttachmentDO x = attachmentOf(id, attachmentId);
-        return new PurchaseAttachmentFile(storage.resolveOwned(x.getFileKey(), p.getTenantId()), x.getFileName(), x.getContentType());
+        return fileStorage.link(x.getStorage(), x.getFileKey(), x.getFileName(), download);
     }
 
     private PurchaseOrderAttachmentDO attachmentOf(Long poId, Long attachmentId) {

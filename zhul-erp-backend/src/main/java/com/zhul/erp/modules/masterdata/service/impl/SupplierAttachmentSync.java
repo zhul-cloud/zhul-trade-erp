@@ -7,14 +7,9 @@ import com.zhul.erp.modules.masterdata.dto.SupplierAttachmentRequest;
 import com.zhul.erp.modules.masterdata.dto.SupplierAttachmentVO;
 import com.zhul.erp.modules.masterdata.entity.SupplierAttachmentDO;
 import com.zhul.erp.modules.masterdata.repository.SupplierAttachmentMapper;
-import com.zhul.erp.modules.masterdata.support.SupplierAttachmentStorage;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
-import java.io.IOException;
-import java.io.UncheckedIOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -24,6 +19,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import com.zhul.erp.framework.storage.UploadRules;
+import com.zhul.erp.framework.storage.StorageArea;
+import com.zhul.erp.framework.storage.FileStorageService;
 
 /**
  * 供应商附件的保存与读取。按 id 合并：带 id 的保留（可改类型），不带 id 的按上传接口返回的 fileKey 新增，
@@ -34,7 +32,7 @@ import java.util.Set;
 public class SupplierAttachmentSync {
 
     private final SupplierAttachmentMapper attachmentMapper;
-    private final SupplierAttachmentStorage storage;
+    private final FileStorageService fileStorage;
 
     public void merge(int tenantId, long supplierId, List<SupplierAttachmentRequest> reqs) {
         if (reqs.size() > SupplierConstants.MAX_ATTACHMENTS) {
@@ -57,20 +55,17 @@ public class SupplierAttachmentSync {
                 }
                 continue;
             }
-            Path file = storage.resolveOwned(req.getFileKey(), tenantId);
+            String storage = fileStorage.locate(StorageArea.SUPPLIER, req.getFileKey(), tenantId);
             SupplierAttachmentDO row = new SupplierAttachmentDO();
             row.setTenantId(tenantId);
             row.setSupplierId(supplierId);
             row.setCategory(req.getCategory());
             row.setFileKey(req.getFileKey());
-            row.setFileName(SupplierAttachmentStorage.cleanFileName(req.getFileName(),
+            row.setStorage(storage);
+            row.setFileName(UploadRules.cleanFileName(req.getFileName(),
                     req.getFileKey().substring(req.getFileKey().lastIndexOf('.') + 1)));
-            row.setContentType(SupplierAttachmentStorage.contentTypeOf(req.getFileKey()));
-            try {
-                row.setFileSize(Files.size(file));
-            } catch (IOException e) {
-                throw new UncheckedIOException("读取附件失败", e);
-            }
+            row.setContentType(UploadRules.contentTypeOf(req.getFileKey()));
+            row.setFileSize(fileStorage.storages().of(storage).size(false, req.getFileKey()));
             attachmentMapper.insert(row);
         }
         LocalDateTime now = LocalDateTime.now();
@@ -101,10 +96,6 @@ public class SupplierAttachmentSync {
             throw new BizException("附件不存在");
         }
         return row;
-    }
-
-    public Path fileOf(SupplierAttachmentDO row) {
-        return storage.resolveOwned(row.getFileKey(), row.getTenantId());
     }
 
     private SupplierAttachmentVO toVo(SupplierAttachmentDO row) {

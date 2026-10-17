@@ -9,7 +9,7 @@ FROM eclipse-temurin:17-jre-jammy
 RUN sed -i 's|http://|https://|g' /etc/apt/sources.list \
     && apt-get update --error-on=any \
     && apt-get install -y --no-install-recommends \
-        ca-certificates curl libreoffice-calc fonts-noto-cjk fonts-liberation \
+        ca-certificates curl libreoffice-calc fonts-noto-cjk fonts-liberation ffmpeg \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd --gid 10001 zhul \
     && useradd --uid 10001 --gid 10001 --create-home zhul

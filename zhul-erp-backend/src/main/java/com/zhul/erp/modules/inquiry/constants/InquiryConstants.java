@@ -127,14 +127,12 @@ public final class InquiryConstants {
     public static final String BASE_CURRENCY = "CNY";
 
     /** 询盘附件：图片、Excel、PDF，单个 ≤10MB，每条询盘 ≤10 个 */
-    public static final String ATTACHMENT_MODULE = "customer-inquiry";
     public static final Set<String> ATTACHMENT_EXTS = Set.of("jpg", "png", "xls", "xlsx", "csv", "pdf");
     public static final long ATTACHMENT_MAX_BYTES = 10L * 1024 * 1024;
     public static final int MAX_ATTACHMENTS = 10;
     public static final String ATTACHMENT_TYPE_MESSAGE = "文件类型不支持，只支持 JPG、PNG、XLS、XLSX、CSV、PDF";
 
     /** 导入询价结果的文件 */
-    public static final String IMPORT_MODULE = "sourcing-import";
     public static final Set<String> IMPORT_EXTS = Set.of("xlsx");
     public static final long IMPORT_MAX_BYTES = 5L * 1024 * 1024;
 

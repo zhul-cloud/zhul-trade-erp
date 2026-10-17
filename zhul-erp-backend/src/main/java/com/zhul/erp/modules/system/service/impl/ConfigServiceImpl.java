@@ -15,23 +15,20 @@ import com.zhul.erp.modules.system.repository.SysConfigMapper;
 import com.zhul.erp.modules.system.service.ConfigService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.UUID;
 import java.util.stream.Collectors;
+import com.zhul.erp.framework.storage.StorageArea;
+import com.zhul.erp.framework.storage.FileStorageService;
 
 @Slf4j
 @Service
@@ -54,9 +51,8 @@ public class ConfigServiceImpl implements ConfigService {
     private final SysConfigMapper sysConfigMapper;
     private final AesUtils aesUtils;
     private final ObjectMapper objectMapper;
+    private final FileStorageService fileStorage;
 
-    @Value("${zhul.upload.dir}")
-    private String uploadDir;
 
     @Override
     public PageResult<ConfigVO> listAll(Integer page, Integer pageSize, String keyword, String group) {
@@ -254,17 +250,9 @@ public class ConfigServiceImpl implements ConfigService {
             throw new BizException("仅支持 PNG/JPEG/WEBP/GIF/SVG 格式的图片");
         }
 
-        try {
-            Path imagesDir = Path.of(uploadDir, "images");
-            Files.createDirectories(imagesDir);
-            String filename = UUID.randomUUID().toString().replace("-", "") + "." + ext;
-            Path target = imagesDir.resolve(filename);
-            file.transferTo(target);
-            return "/uploads/images/" + filename;
-        } catch (IOException e) {
-            log.error("图片上传失败", e);
-            throw new BizException("图片上传失败，请稍后重试");
-        }
+        Integer tenantId = TenantContext.getTenantId();
+        FileStorageService.StoredFile stored = fileStorage.storeValidated(StorageArea.SYSTEM, tenantId == null ? 0 : tenantId, file, ext);
+        return fileStorage.publicUrl(stored.storage(), stored.fileKey());
     }
 
     @Override

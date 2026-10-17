@@ -23,6 +23,8 @@ public class SupplierAttachmentDO {
     private String fileName;
     /** 私有存储目录下的相对路径 */
     private String fileKey;
+    /** 存储方式（LOCAL-服务器目录、OSS-对象存储） */
+    private String storage;
     private Long fileSize;
     private String contentType;
     private LocalDateTime deletedAt;

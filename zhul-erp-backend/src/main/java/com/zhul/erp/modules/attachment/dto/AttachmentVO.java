@@ -13,6 +13,8 @@ public class AttachmentVO {
     private String fileName;
     private Long fileSize;
     private String contentType;
+    /** 处理状态（0-无需处理、1-转码中、2-已完成、3-失败） */
+    private Integer processingStatus;
     private String uploadedByName;
     private LocalDateTime createTime;
 }

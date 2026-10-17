@@ -28,6 +28,14 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.context.event.EventListener;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import com.zhul.erp.modules.product.repository.ProductBrandMapper;
+import com.zhul.erp.modules.product.entity.ProductDO;
+import com.zhul.erp.modules.product.entity.ProductBrandDO;
+import com.zhul.erp.framework.storage.VideoTranscoder;
 
 @Slf4j
 @Service
@@ -43,6 +51,8 @@ public class ProductMediaServiceImpl implements ProductMediaService {
     private final ProductMediaMapper mediaMapper;
     private final ProductMediaStorageService storageService;
     private final ProductFinder productFinder;
+    private final ProductBrandMapper brandMapper;
+    private final VideoTranscoder transcoder;
     private final PlatformScopeGuard platformScopeGuard;
     private final StringRedisTemplate redis;
 
@@ -97,13 +107,22 @@ public class ProductMediaServiceImpl implements ProductMediaService {
         int type = mediaType(mediaType);
         String cleanTitle = TextRules.optional(title, "标题", 128);
         // 商品不存在就不必落盘；大文件写盘期间不持有商品行锁，写完再加锁入库
-        productFinder.active(productId);
+        ProductDO product = productFinder.active(productId);
+        ProductBrandDO brand = brandMapper.selectById(product.getBrandId());
 
-        ProductMediaStorageService.StoredMedia stored = storageService.store(file, type);
+        ProductMediaStorageService.StoredMedia stored = storageService.store(file, type,
+                brand == null ? "" : brand.getBrandName(), product.getMpnRaw());
         try {
             productFinder.lockActive(productId);
             ProductMediaDO row = newRow(productId, type, stored.url(), STORAGE_UPLOAD, stored.size(), cleanTitle, null);
+            row.setStorage(stored.storage());
+            row.setFileKey(stored.fileKey());
+            boolean video = type == ProductMediaStorageService.MEDIA_VIDEO;
+            row.setProcessingStatus(video ? VideoTranscoder.PROCESSING : VideoTranscoder.NONE);
             mediaMapper.insert(row);
+            if (video) {
+                transcodeAfterCommit(row);
+            }
             if (Boolean.TRUE.equals(setMain)) {
                 applyMain(productId, row.getId(), type);
                 row.setIsMain(1);
@@ -111,9 +130,51 @@ public class ProductMediaServiceImpl implements ProductMediaService {
             return toVO(row);
         } catch (RuntimeException e) {
             // 入库失败（含商品被并发删除）时不留下孤儿文件
-            storageService.deleteQuietly(stored.url());
+            storageService.deleteQuietly(stored.storage(), stored.fileKey());
             throw e;
         }
+    }
+
+    /** 商品视频后台转码：事务提交后再排队，转完换成转好的文件，失败时保留原视频 */
+    private void transcodeAfterCommit(ProductMediaDO row) {
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    transcode(row);
+                }
+            });
+        } else {
+            transcode(row);
+        }
+    }
+
+    private void transcode(ProductMediaDO row) {
+        Long id = row.getId();
+        String storage = row.getStorage();
+        transcoder.submit(storage, row.getFileKey(), true, done -> {
+            ProductMediaDO upd = new ProductMediaDO();
+            upd.setId(id);
+            upd.setFileKey(done.key());
+            upd.setFileUrl(storageService.publicUrl(storage, done.key()));
+            upd.setFileSize(done.size());
+            upd.setProcessingStatus(VideoTranscoder.DONE);
+            mediaMapper.updateById(upd);
+        }, () -> {
+            ProductMediaDO upd = new ProductMediaDO();
+            upd.setId(id);
+            upd.setProcessingStatus(VideoTranscoder.FAILED);
+            mediaMapper.updateById(upd);
+        });
+    }
+
+    /** 服务重启时仍在转码中的商品视频重新排队 */
+    @EventListener(ApplicationReadyEvent.class)
+    public void resumeTranscoding() {
+        mediaMapper.selectList(new LambdaQueryWrapper<ProductMediaDO>()
+                        .eq(ProductMediaDO::getProcessingStatus, VideoTranscoder.PROCESSING)
+                        .isNull(ProductMediaDO::getDeletedAt))
+                .forEach(this::transcode);
     }
 
     @Override

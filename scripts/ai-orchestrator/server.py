@@ -178,11 +178,19 @@ def _strict(schema):
     return schema
 
 
-def _attachment_block(path: str) -> dict:
-    """图片、PDF 附件读成 base64 随请求发送"""
-    ext = os.path.splitext(path)[1].lower()
-    with open(path, "rb") as f:
-        data = base64.standard_b64encode(f.read()).decode("ascii")
+def _read_attachment(ref) -> tuple:
+    """附件内容与扩展名：ref 为本地路径（旧版后端，共享磁盘）或 {"url", "ext"}（后端签发的临时链接）"""
+    if isinstance(ref, dict):
+        with urllib.request.urlopen(ref["url"], timeout=120) as resp:
+            return resp.read(), "." + ref.get("ext", "").lower().lstrip(".")
+    with open(ref, "rb") as f:
+        return f.read(), os.path.splitext(ref)[1].lower()
+
+
+def _attachment_block(ref) -> dict:
+    """图片、PDF 附件读成 base64 随请求发送；ref 也可以是已读好的 (内容, 扩展名)"""
+    raw, ext = ref if isinstance(ref, tuple) else _read_attachment(ref)
+    data = base64.standard_b64encode(raw).decode("ascii")
     if ext == ".pdf":
         return {"type": "document", "source": {"type": "base64", "media_type": "application/pdf", "data": data}}
     if ext in IMAGE_TYPES:
@@ -230,7 +238,7 @@ def call_api(system_prompt: str, content: list, schema: dict, tools=None) -> dic
 
 
 def call_claude(raw_content: str, file_paths=None, categories=None) -> dict:
-    """raw_content 为正文（Excel/CSV 附件已由后端抽成文本拼在里面）；file_paths 为图片、PDF 的本地绝对路径；
+    """raw_content 为正文（Excel/CSV 附件已由后端抽成文本拼在里面）；file_paths 为图片、PDF 附件（已读好的 (内容, 扩展名)，或临时链接、本地路径）；
     categories 为后端带来的品类清单（没有时沿用 skill 里的品类枚举）。"""
     file_paths = file_paths or []
     content = [_attachment_block(p) for p in file_paths]
@@ -327,20 +335,26 @@ def process_job(payload: dict, callback_url: str):
     try:
         input_data = payload.get("input") or {}
         raw_content = (input_data.get("rawContent") or "").strip()
-        # Excel/CSV 附件已由后端抽成文本拼进 rawContent；图片、PDF 通过 attachmentPaths 传本地路径。
-        # 旧版后端只传单个 rawAttachmentPath，这里一并兼容。
+        # Excel/CSV 附件已由后端抽成文本拼进 rawContent；图片、PDF 通过 attachments 传后端签发的临时链接
+        # （[{"url", "ext"}]，本服务下载后发给模型）。旧版后端传本地路径 attachmentPaths / rawAttachmentPath，这里一并兼容。
+        refs = [a for a in (input_data.get("attachments") or []) if a and a.get("url")]
         paths = [p.strip() for p in (input_data.get("attachmentPaths") or []) if p and p.strip()]
         legacy = (input_data.get("rawAttachmentPath") or "").strip()
         if legacy and legacy not in paths:
             paths.append(legacy)
-        if not raw_content and not paths:
+        if not raw_content and not refs and not paths:
             send_callback(callback_url, "failed", error="询盘既没有正文也没有可读的附件，无法解析")
             return
         missing = [p for p in paths if not os.path.isfile(p)]
         if missing:
             send_callback(callback_url, "failed", error=f"附件文件不存在: {missing[0]}")
             return
-        output = call_claude(raw_content, paths, input_data.get("categories") or [])
+        try:
+            loaded = [_read_attachment(r) for r in refs + paths]
+        except Exception as e:  # noqa: BLE001 - 链接过期或网络问题都按附件读取失败回报
+            send_callback(callback_url, "failed", error=f"附件下载失败: {str(e)[:200]}")
+            return
+        output = call_claude(raw_content, loaded, input_data.get("categories") or [])
         send_callback(callback_url, "success", output=output)
     except anthropic.APITimeoutError:
         send_callback(callback_url, "failed", error=f"AI 处理超过 {TIMEOUT_SECONDS} 秒未完成")

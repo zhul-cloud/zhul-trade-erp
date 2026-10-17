@@ -10,7 +10,10 @@ import com.zhul.erp.common.exception.BizException;
 import com.zhul.erp.common.result.PageResult;
 import com.zhul.erp.framework.security.DataScope;
 import com.zhul.erp.framework.security.DataScopeResolver;
-import com.zhul.erp.framework.storage.PrivateFileStorage;
+import com.zhul.erp.framework.storage.FileStorageService;
+import com.zhul.erp.framework.storage.FileStorageService.FileLink;
+import com.zhul.erp.framework.storage.StorageArea;
+import com.zhul.erp.framework.storage.UploadRules;
 import com.zhul.erp.framework.tenant.TenantContext;
 import com.zhul.erp.modules.aitask.dto.AiTaskVO;
 import com.zhul.erp.modules.aitask.service.AiTaskService;
@@ -76,6 +79,7 @@ import com.zhul.erp.modules.inquiry.support.QuoteDicts;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DuplicateKeyException;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
@@ -83,6 +87,7 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.nio.file.Path;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -122,7 +127,14 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
     private final SourcingTaskService sourcingTaskService;
     private final SourcingProgress progress;
     private final SourcingSettings settings;
-    private final PrivateFileStorage fileStorage;
+    /** 发给 AI 编排服务的附件链接有效期：解析任务可能排队，比页面预览的 10 分钟长 */
+    private static final Duration AI_LINK_TTL = Duration.ofMinutes(60);
+
+    private final FileStorageService fileStorage;
+
+    /** 后端对外可达地址：本地存储方式下的附件链接是相对地址，发给 AI 编排服务时拼上它 */
+    @Value("${zhul.ai-task.callback-base-url}")
+    private String backendBaseUrl;
     private final PriceKeys priceKeys;
     private final CurrentUserResolver currentUser;
     private final DataScopeResolver dataScopeResolver;
@@ -140,7 +152,7 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
 
     @Override
     public UploadedFileVO uploadAttachment(MultipartFile file) {
-        PrivateFileStorage.StoredFile stored = fileStorage.store(InquiryConstants.ATTACHMENT_MODULE, tenantId(), file,
+        FileStorageService.StoredFile stored = fileStorage.store(StorageArea.INQUIRY, tenantId(), file,
                 InquiryConstants.ATTACHMENT_EXTS, InquiryConstants.ATTACHMENT_MAX_BYTES, InquiryConstants.ATTACHMENT_TYPE_MESSAGE);
         return toUploaded(stored);
     }
@@ -148,10 +160,10 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
     @Override
     public UploadedFileVO copyOpportunityAttachment(Long opportunityId, Long attachmentId) {
         OpportunityService.AttachmentFile file = opportunityService.attachmentFile(opportunityId, attachmentId);
-        return toUploaded(fileStorage.copy(InquiryConstants.ATTACHMENT_MODULE, tenantId(), file.path(), file.fileName()));
+        return toUploaded(fileStorage.copy(file.storage(), file.fileKey(), StorageArea.INQUIRY, tenantId(), file.fileName()));
     }
 
-    private static UploadedFileVO toUploaded(PrivateFileStorage.StoredFile stored) {
+    private static UploadedFileVO toUploaded(FileStorageService.StoredFile stored) {
         UploadedFileVO vo = new UploadedFileVO();
         vo.setFileKey(stored.fileKey());
         vo.setFileName(stored.fileName());
@@ -161,14 +173,13 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
     }
 
     @Override
-    public AttachmentFile attachmentFile(Long id, Long attachmentId) {
+    public FileLink attachmentLink(Long id, Long attachmentId, boolean download) {
         CustomerInquiryDO inquiry = getVisible(id);
         CustomerInquiryAttachmentDO a = attachmentMapper.selectById(attachmentId);
         if (a == null || a.getDeletedAt() != null || !Objects.equals(a.getCustomerInquiryId(), inquiry.getId())) {
             throw new BizException("附件不存在");
         }
-        Path path = fileStorage.resolveOwned(InquiryConstants.ATTACHMENT_MODULE, a.getFileKey(), inquiry.getTenantId());
-        return new AttachmentFile(path, a.getFileName(), a.getContentType());
+        return fileStorage.link(a.getStorage(), a.getFileKey(), a.getFileName(), download);
     }
 
     // ---------------------------------------------------------------- 录入
@@ -215,7 +226,7 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
         }
         dictItemService.requireEnabledValue(DictTypes.SOURCE_CHANNEL, req.getSource(), "来源渠道不正确");
         for (AttachmentRef ref : refs) {
-            fileStorage.resolveOwned(InquiryConstants.ATTACHMENT_MODULE, ref.getFileKey(), tenantId);
+            fileStorage.locate(StorageArea.INQUIRY, ref.getFileKey(), tenantId);
         }
 
         CustomerInquiryDO inquiry = new CustomerInquiryDO();
@@ -256,15 +267,16 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
         int sort = Math.toIntExact(attachmentMapper.selectCount(new LambdaQueryWrapper<CustomerInquiryAttachmentDO>()
                 .eq(CustomerInquiryAttachmentDO::getCustomerInquiryId, inquiry.getId())));
         for (AttachmentRef ref : refs) {
-            Path path = fileStorage.resolveOwned(InquiryConstants.ATTACHMENT_MODULE, ref.getFileKey(), inquiry.getTenantId());
+            String storage = fileStorage.locate(StorageArea.INQUIRY, ref.getFileKey(), inquiry.getTenantId());
             CustomerInquiryAttachmentDO a = new CustomerInquiryAttachmentDO();
             a.setTenantId(inquiry.getTenantId());
             a.setCustomerInquiryId(inquiry.getId());
             a.setAppendId(appendId);
             a.setFileKey(ref.getFileKey());
-            a.setFileName(PrivateFileStorage.cleanFileName(ref.getFileName(), PrivateFileStorage.extOf(ref.getFileKey())));
-            a.setContentType(PrivateFileStorage.contentTypeOf(ref.getFileKey()));
-            a.setFileSize(path.toFile().length());
+            a.setStorage(storage);
+            a.setFileName(UploadRules.cleanFileName(ref.getFileName(), UploadRules.extOf(ref.getFileKey())));
+            a.setContentType(UploadRules.contentTypeOf(ref.getFileKey()));
+            a.setFileSize(fileStorage.storages().of(storage).size(false, ref.getFileKey()));
             a.setSort(sort++);
             attachmentMapper.insert(a);
         }
@@ -598,32 +610,37 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
         return toVos(List.of(inquiry)).get(0);
     }
 
-    /** 解析输入：只取这次的内容与附件（appendId 为 0 时是录入询盘单时的） */
+    /**
+     * 解析输入：只取这次的内容与附件（appendId 为 0 时是录入询盘单时的）。Excel、CSV 抽成文本拼进正文；
+     * 图片、PDF 给 AI 编排服务签发 60 分钟的临时链接（任务可能排队），由它下载后发给模型。
+     */
     private String parseInput(CustomerInquiryDO inquiry, String rawContent, long appendId) {
         StringBuilder text = new StringBuilder(rawContent == null ? "" : rawContent);
-        List<String> paths = new ArrayList<>();
+        List<Map<String, String>> files = new ArrayList<>();
         for (CustomerInquiryAttachmentDO a : attachmentMapper.selectList(new LambdaQueryWrapper<CustomerInquiryAttachmentDO>()
                 .eq(CustomerInquiryAttachmentDO::getCustomerInquiryId, inquiry.getId())
                 .eq(CustomerInquiryAttachmentDO::getAppendId, appendId)
                 .isNull(CustomerInquiryAttachmentDO::getDeletedAt)
                 .orderByAsc(CustomerInquiryAttachmentDO::getSort))) {
-            Path path = fileStorage.resolveOwned(InquiryConstants.ATTACHMENT_MODULE, a.getFileKey(), inquiry.getTenantId());
-            String ext = PrivateFileStorage.extOf(a.getFileKey());
+            String ext = UploadRules.extOf(a.getFileKey());
             if (Set.of("xls", "xlsx", "csv").contains(ext)) {
-                text.append(text.isEmpty() ? "" : "\n\n").append("附件《").append(a.getFileName()).append("》：\n")
-                        .append(SpreadsheetText.extract(path));
+                Path tmp = fileStorage.download(a.getStorage(), a.getFileKey());
+                try {
+                    text.append(text.isEmpty() ? "" : "\n\n").append("附件《").append(a.getFileName()).append("》：\n")
+                            .append(SpreadsheetText.extract(tmp));
+                } finally {
+                    FileStorageService.deleteTemp(tmp);
+                }
             } else {
-                paths.add(path.toString());
+                String url = fileStorage.link(a.getStorage(), a.getFileKey(), a.getFileName(), false, AI_LINK_TTL).url();
+                files.add(Map.of("url", url.startsWith("/") ? backendBaseUrl.replaceAll("/+$", "") + url : url, "ext", ext));
             }
         }
         Map<String, Object> input = new HashMap<>();
         input.put("customerInquiryId", inquiry.getId());
         input.put("rawContent", text.toString());
-        input.put("attachmentPaths", paths);
+        input.put("attachments", files);
         input.put("categories", parseCategories());
-        if (!paths.isEmpty()) {
-            input.put("rawAttachmentPath", paths.get(0));
-        }
         return writeJson(input);
     }
 

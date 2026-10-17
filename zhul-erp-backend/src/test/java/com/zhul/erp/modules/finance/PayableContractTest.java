@@ -97,8 +97,12 @@ class PayableContractTest extends SalesContractSupport {
     }
 
     private long screenshot(String token) throws Exception {
-        return ok(call(multipart("/api/v1/attachments").file(new MockMultipartFile("file", "回单.png", "image/png", PNG))
+        long id = ok(call(multipart("/api/v1/attachments").file(new MockMultipartFile("file", "回单.png", "image/png", PNG))
                 .param("ownerType", "PAYMENT"), token)).path("id").asLong();
+        // 付款截图属于财务凭证，放在财务目录
+        String key = jdbc.queryForObject("select file_key from biz_attachment where id = ?", String.class, id);
+        assertTrue(key.matches("tenant/\\d+/finance/\\d{6}/[0-9a-f]{32}\\.png"), key);
+        return id;
     }
 
     private Map<String, Object> payBody(int method, String amount, Map<Long, String> allocations, String token) throws Exception {
