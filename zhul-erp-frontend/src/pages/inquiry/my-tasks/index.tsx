@@ -28,7 +28,7 @@ import {
   Tooltip,
 } from 'antd';
 import dayjs from 'dayjs';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ACCEPT_PROOF, ProofLinks } from '@/pages/finance/payables/components';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
 import { AttachmentWall } from '@/pages/warehouse/components';
@@ -72,6 +72,7 @@ import {
   type QuoteEntry,
   readBizError,
 } from '../shared/service';
+import { nextActiveTask } from './activeTask';
 import ItemHistory from './ItemHistory';
 import PasteQuoteModal, { type PasteFill } from './PasteQuoteModal';
 import SupplierSelect from './SupplierSelect';
@@ -158,6 +159,11 @@ const MyTasksPage: React.FC = () => {
     reviewRequired?: boolean;
   } | null>(null);
   const [state, setState] = useState<Record<number, ItemState>>({});
+  // 列表刷新时要知道当前选中哪个任务、明细是否有没保存的改动
+  const activeIdRef = useRef(activeId);
+  activeIdRef.current = activeId;
+  const dirtyRef = useRef(false);
+  dirtyRef.current = Object.values(state).some((s) => s.dirty);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [returnOpen, setReturnOpen] = useState(false);
@@ -180,11 +186,12 @@ const MyTasksPage: React.FC = () => {
       setCounts({ pending: pending.length, done: finished.length });
       const list = done ? finished : pending;
       setTasks(list);
-      setActiveId((prev) =>
-        prev && list.some((t) => t.id === prev) ? prev : list[0]?.id,
-      );
+      const next = nextActiveTask(activeIdRef.current, list);
+      setActiveId(next.id);
+      return next.kept ? next.id : undefined;
     } catch (e) {
       setError(readBizError(e).message);
+      return undefined;
     }
   }, [done, search]);
 
@@ -244,9 +251,13 @@ const MyTasksPage: React.FC = () => {
     }
   }, []);
 
+  // 搜索、切换待处理/已回价会重新加载列表；选中的还是同一任务时，选中项不变、明细不会自动刷新，
+  // 列表与明细的「已填」等数字会对不上，这里一并刷新明细（有没保存的改动时不刷，免得冲掉）
   useEffect(() => {
-    loadList();
-  }, [loadList]);
+    loadList().then((kept) => {
+      if (kept && !dirtyRef.current) loadDetail(kept);
+    });
+  }, [loadList, loadDetail]);
 
   useEffect(() => {
     loadDetail(activeId);
