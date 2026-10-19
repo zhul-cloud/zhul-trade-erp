@@ -1,4 +1,5 @@
 import {
+  CheckOutlined,
   CopyOutlined,
   DeleteOutlined,
   DownloadOutlined,
@@ -9,6 +10,7 @@ import {
   RollbackOutlined,
   SendOutlined,
   SnippetsOutlined,
+  StarOutlined,
   UploadOutlined,
 } from '@ant-design/icons';
 import {
@@ -26,12 +28,12 @@ import {
   Skeleton,
   Space,
   Tooltip,
+  theme,
 } from 'antd';
 import dayjs from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
-import { ACCEPT_PROOF, ProofLinks } from '@/pages/finance/payables/components';
+import { ProofLinks } from '@/pages/finance/payables/components';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
-import { AttachmentWall } from '@/pages/warehouse/components';
 import type { Attachment } from '@/pages/warehouse/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
@@ -74,6 +76,10 @@ import {
 } from '../shared/service';
 import ItemHistory from './ItemHistory';
 import PasteQuoteModal, { type PasteFill } from './PasteQuoteModal';
+import QuoteAttachments, {
+  QUOTE_ATTACH_WIDTH,
+  QUOTE_MAX_FILES,
+} from './QuoteAttachments';
 import SupplierSelect from './SupplierSelect';
 import { buildTaskScript, pendingItems } from './taskScript';
 
@@ -110,11 +116,19 @@ const newEntry = (): DraftEntry => ({
 /** 含税报价没选税率时按 13%（字典 inquiry_tax_rate 的默认值） */
 const DEFAULT_TAX_RATE = 13;
 
-const ENTRY_COLUMNS =
-  '36px 100px minmax(140px, 1.2fr) 190px 130px 110px minmax(100px, 1fr) 32px';
-/** 兼职采购没有「推荐」列：推荐由采购负责人审核时选定 */
-const ENTRY_COLUMNS_NO_REC =
-  '100px minmax(140px, 1.2fr) 190px 130px 110px minmax(100px, 1fr) 32px';
+/** 税、运费分段切换的单项：两项等宽、文字居中 */
+const SEG_ITEM: React.CSSProperties = {
+  width: 60,
+  padding: 0,
+  textAlign: 'center',
+};
+/** 备注框：单行时 44 高（含 1px 边框），与附件缩略图对齐；最多显示 4 行，超出在框内滚动 */
+const NOTE_BOX: React.CSSProperties = {
+  padding: '10px 11px',
+  fontSize: 14,
+  lineHeight: '22px',
+};
+const NOTE_MAX_HEIGHT = 4 * 22 + 22;
 
 /** 已提交的回价：已提交，或兼职提交后待审核 */
 const isSubmitted = (q: MyQuote) => q.status === 2 || q.status === 3;
@@ -140,6 +154,7 @@ const MyTasksPage: React.FC = () => {
   const wide = useWide();
   const { palette } = useAppTheme();
   const { message, modal } = App.useApp();
+  const { token } = theme.useToken();
   const { conditionOptions, leadTimeOptions } = useQuoteDicts();
   const { taxRateOptions } = useTaxRates();
   const { lifecycleOptions } = useLifecycles();
@@ -265,6 +280,36 @@ const MyTasksPage: React.FC = () => {
         ),
       },
     }));
+  const [hoverDel, setHoverDel] = useState<string>();
+  /** 删除一条报价：保存前可以撤销，撤销后放回原来的位置 */
+  const removeEntry = (id: number, key: string, index: number) => {
+    const removed = state[id]?.drafts.find((x) => x.key === key);
+    if (!removed) return;
+    patchItem(id, { drafts: state[id].drafts.filter((x) => x.key !== key) });
+    setHoverDel(undefined);
+    const msgKey = `quote-del-${key}`;
+    message.open({
+      key: msgKey,
+      type: 'info',
+      content: (
+        <span>
+          已删除这条报价{' '}
+          <a
+            onClick={() => {
+              setState((prev) => {
+                const drafts = [...prev[id].drafts];
+                drafts.splice(Math.min(index, drafts.length), 0, removed);
+                return { ...prev, [id]: { ...prev[id], drafts, dirty: true } };
+              });
+              message.destroy(msgKey);
+            }}
+          >
+            撤销
+          </a>
+        </span>
+      ),
+    });
+  };
 
   /** 本次要保存的型号：有改动、且填了报价或标了无货 */
   const collect = (
@@ -461,7 +506,6 @@ const MyTasksPage: React.FC = () => {
 
   const editable = detail?.task.editable !== false;
   const review = !!detail?.reviewRequired;
-  const columns = review ? ENTRY_COLUMNS_NO_REC : ENTRY_COLUMNS;
 
   if (error) return <ErrorHint message={error} onRetry={loadList} />;
 
@@ -1096,166 +1140,274 @@ const MyTasksPage: React.FC = () => {
                       }
                     />
                   ) : (
-                    <div
-                      style={{
-                        display: 'grid',
-                        gap: 8,
-                        overflowX: 'auto',
-                        // 列宽固定，窄屏时在卡片内横向滚动，不撑开整页
-                        gridTemplateColumns: 'minmax(900px, 1fr)',
-                      }}
-                    >
-                      {s.drafts.length > 0 && (
-                        <div
-                          style={{
-                            display: 'grid',
-                            gridTemplateColumns: columns,
-                            gap: 8,
-                            color: palette.mute,
-                            fontSize: 12,
-                          }}
-                        >
-                          {!review && (
-                            <Tooltip title="报给业务员的价格：每个型号标一条；不标时按全新原装里最低价自动推荐">
-                              <span>推荐</span>
-                            </Tooltip>
-                          )}
-                          <span>渠道</span>
-                          <span>店铺 / 供应商</span>
-                          <Tooltip title="默认不含税；店家只给含税价时勾「含税」并选税率，系统按不含税价比价">
-                            <span>单价（CNY）</span>
-                          </Tooltip>
-                          <span>货况</span>
-                          <span>货期</span>
-                          <span>备注</span>
-                          <span />
-                        </div>
-                      )}
-                      {s.drafts.map((d) => {
+                    <div style={{ display: 'grid', gap: 12 }}>
+                      {s.drafts.map((d, idx) => {
                         const err =
                           d.unitPrice != null || d.shopName
                             ? entryError(d)
                             : '';
+                        const files = d.files ?? [];
+                        const label = (text: string, extra?: string) => (
+                          <span
+                            style={{
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              color: palette.mute,
+                              fontSize: 12,
+                            }}
+                          >
+                            <span>{text}</span>
+                            {extra && <span>{extra}</span>}
+                          </span>
+                        );
+                        const field = (
+                          text: string,
+                          width: number | undefined,
+                          control: React.ReactNode,
+                        ) => (
+                          <div
+                            style={{
+                              display: 'grid',
+                              gap: 6,
+                              alignContent: 'start',
+                              ...(width
+                                ? { width }
+                                : { flex: 1, minWidth: 120 }),
+                            }}
+                          >
+                            {label(text)}
+                            {control}
+                          </div>
+                        );
                         return (
-                          <div key={d.key} style={{ display: 'grid', gap: 6 }}>
+                          <div
+                            key={d.key}
+                            style={{
+                              display: 'grid',
+                              gap: 12,
+                              padding: '12px 16px 16px',
+                              borderRadius: 14,
+                              border: d.recommended
+                                ? `1.5px solid ${token.colorPrimary}`
+                                : `1px solid ${palette.hairline}`,
+                            }}
+                          >
+                            {/* 卡片头：推荐、渠道 · 店铺摘要、删除 */}
                             <div
                               style={{
-                                display: 'grid',
-                                gridTemplateColumns: columns,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
                                 gap: 8,
+                              }}
+                            >
+                              <span
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: 10,
+                                  minWidth: 0,
+                                }}
+                              >
+                                {!review && (
+                                  <Tooltip title="报给业务员的价格：每个型号标一条；不标时按全新原装里最低价自动推荐">
+                                    <Button
+                                      size="small"
+                                      shape="round"
+                                      type={
+                                        d.recommended ? 'primary' : 'default'
+                                      }
+                                      icon={
+                                        d.recommended ? (
+                                          <CheckOutlined />
+                                        ) : (
+                                          <StarOutlined />
+                                        )
+                                      }
+                                      aria-pressed={!!d.recommended}
+                                      onClick={() =>
+                                        patchItem(it.id, {
+                                          drafts: s.drafts.map((x) => ({
+                                            ...x,
+                                            recommended:
+                                              x.key === d.key
+                                                ? !d.recommended
+                                                : false,
+                                          })),
+                                        })
+                                      }
+                                    >
+                                      {d.recommended ? '推荐报价' : '设为推荐'}
+                                    </Button>
+                                  </Tooltip>
+                                )}
+                                <span
+                                  style={{
+                                    color: palette.mute,
+                                    fontSize: 13,
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    whiteSpace: 'nowrap',
+                                  }}
+                                >
+                                  {channelLabel(d.channel)}
+                                  {d.shopName ? ` · ${d.shopName}` : ''}
+                                </span>
+                              </span>
+                              <Button
+                                size="small"
+                                type="text"
+                                danger={hoverDel === d.key}
+                                aria-label="删除这条报价"
+                                icon={<DeleteOutlined />}
+                                onMouseEnter={() => setHoverDel(d.key)}
+                                onMouseLeave={() => setHoverDel(undefined)}
+                                onClick={() => removeEntry(it.id, d.key, idx)}
+                              >
+                                {hoverDel === d.key ? '删除这条报价' : null}
+                              </Button>
+                            </div>
+                            {/* 第 1 行：来源 → 价格 → 交付 */}
+                            <div
+                              style={{
+                                display: 'flex',
+                                flexWrap: 'wrap',
+                                gap: 12,
                                 alignItems: 'start',
                               }}
                             >
-                              {!review && (
-                                <Radio
-                                  aria-label="设为推荐报价"
-                                  checked={!!d.recommended}
-                                  style={{ marginTop: 4 }}
-                                  onClick={() =>
-                                    patchItem(it.id, {
-                                      drafts: s.drafts.map((x) => ({
-                                        ...x,
-                                        recommended:
-                                          x.key === d.key
-                                            ? !d.recommended
-                                            : false,
-                                      })),
-                                    })
-                                  }
-                                />
-                              )}
-                              <Select
-                                size="small"
-                                value={d.channel}
-                                options={CHANNEL_OPTIONS}
-                                onChange={(v) =>
-                                  patchEntry(it.id, d.key, {
-                                    channel: v,
-                                    // 换渠道时清掉供应商，避免把供应商名当店铺名带走
-                                    supplierId: undefined,
-                                    shopName:
-                                      v === CHANNEL_SUPPLIER ||
-                                      d.channel === CHANNEL_SUPPLIER
-                                        ? ''
-                                        : d.shopName,
-                                  })
-                                }
-                              />
-                              {d.channel === CHANNEL_SUPPLIER ? (
-                                <SupplierSelect
-                                  value={d.supplierId}
-                                  label={d.shopName}
-                                  status={
-                                    (d.unitPrice != null || d.shopName) &&
-                                    !d.supplierId
-                                      ? 'error'
-                                      : undefined
-                                  }
-                                  onChange={(supplierId, name) =>
-                                    patchEntry(it.id, d.key, {
-                                      supplierId,
-                                      shopName: name,
-                                    })
-                                  }
-                                />
-                              ) : (
-                                <Input
-                                  size="small"
-                                  placeholder="店铺名称"
-                                  value={d.shopName}
-                                  maxLength={128}
-                                  onChange={(e) =>
-                                    patchEntry(it.id, d.key, {
-                                      shopName: e.target.value,
-                                    })
-                                  }
-                                />
-                              )}
-                              <span style={{ display: 'grid', gap: 2 }}>
-                                <InputNumber
-                                  size="small"
-                                  precision={2}
-                                  placeholder="如 18.50"
-                                  value={d.unitPrice}
-                                  status={err ? 'error' : undefined}
-                                  style={{ width: '100%' }}
+                              {field(
+                                '渠道',
+                                100,
+                                <Select
+                                  value={d.channel}
+                                  options={CHANNEL_OPTIONS}
                                   onChange={(v) =>
-                                    patchEntry(it.id, d.key, { unitPrice: v })
+                                    patchEntry(it.id, d.key, {
+                                      channel: v,
+                                      // 换渠道时清掉供应商，避免把供应商名当店铺名带走
+                                      supplierId: undefined,
+                                      shopName:
+                                        v === CHANNEL_SUPPLIER ||
+                                        d.channel === CHANNEL_SUPPLIER
+                                          ? ''
+                                          : d.shopName,
+                                    })
                                   }
-                                />
-                                <span
-                                  style={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: 6,
-                                    fontSize: 12,
-                                  }}
-                                >
-                                  <Checkbox
-                                    checked={!!d.taxIncluded}
+                                />,
+                              )}
+                              {field(
+                                '店铺 / 供应商',
+                                undefined,
+                                d.channel === CHANNEL_SUPPLIER ? (
+                                  <SupplierSelect
+                                    value={d.supplierId}
+                                    label={d.shopName}
+                                    status={
+                                      (d.unitPrice != null || d.shopName) &&
+                                      !d.supplierId
+                                        ? 'error'
+                                        : undefined
+                                    }
+                                    onChange={(supplierId, name) =>
+                                      patchEntry(it.id, d.key, {
+                                        supplierId,
+                                        shopName: name,
+                                      })
+                                    }
+                                  />
+                                ) : (
+                                  <Input
+                                    placeholder="店铺名称"
+                                    value={d.shopName}
+                                    maxLength={128}
                                     onChange={(e) =>
                                       patchEntry(it.id, d.key, {
-                                        taxIncluded: e.target.checked,
-                                        taxRate: e.target.checked
+                                        shopName: e.target.value,
+                                      })
+                                    }
+                                  />
+                                ),
+                              )}
+                              {field(
+                                '单价',
+                                150,
+                                <span style={{ display: 'grid', gap: 2 }}>
+                                  <InputNumber
+                                    prefix="CNY"
+                                    precision={2}
+                                    placeholder="如 18.50"
+                                    value={d.unitPrice}
+                                    status={err ? 'error' : undefined}
+                                    style={{ width: '100%' }}
+                                    onChange={(v) =>
+                                      patchEntry(it.id, d.key, { unitPrice: v })
+                                    }
+                                  />
+                                  {d.taxIncluded && d.unitPrice != null && (
+                                    <Tooltip title="比价、推荐与采购成本价都按不含税价">
+                                      <span
+                                        style={{
+                                          color: palette.mute,
+                                          fontSize: 12,
+                                          whiteSpace: 'nowrap',
+                                        }}
+                                      >
+                                        不含税{' '}
+                                        {formatAmount(
+                                          excludeTax(
+                                            d.unitPrice,
+                                            d.taxRate ?? DEFAULT_TAX_RATE,
+                                          ),
+                                        )}
+                                      </span>
+                                    </Tooltip>
+                                  )}
+                                  {err && (
+                                    <span
+                                      style={{
+                                        color: palette.red,
+                                        fontSize: 12,
+                                      }}
+                                    >
+                                      {err}
+                                    </span>
+                                  )}
+                                </span>,
+                              )}
+                              {field(
+                                '税',
+                                d.taxIncluded ? 220 : 128,
+                                <span style={{ display: 'flex', gap: 8 }}>
+                                  <Radio.Group
+                                    optionType="button"
+                                    buttonStyle="solid"
+                                    value={!!d.taxIncluded}
+                                    options={[
+                                      {
+                                        label: '不含税',
+                                        value: false,
+                                        style: SEG_ITEM,
+                                      },
+                                      {
+                                        label: '含税',
+                                        value: true,
+                                        style: SEG_ITEM,
+                                      },
+                                    ]}
+                                    onChange={(e) =>
+                                      patchEntry(it.id, d.key, {
+                                        taxIncluded: e.target.value,
+                                        taxRate: e.target.value
                                           ? (d.taxRate ?? DEFAULT_TAX_RATE)
                                           : undefined,
                                       })
                                     }
-                                  >
-                                    <span
-                                      style={{
-                                        fontSize: 12,
-                                        whiteSpace: 'nowrap',
-                                      }}
-                                    >
-                                      含税
-                                    </span>
-                                  </Checkbox>
+                                  />
                                   {d.taxIncluded && (
                                     <Select
-                                      size="small"
                                       aria-label="税率"
-                                      style={{ width: 70 }}
+                                      style={{ width: 84 }}
                                       value={d.taxRate ?? DEFAULT_TAX_RATE}
                                       options={taxRateOptions}
                                       onChange={(v) =>
@@ -1263,115 +1415,163 @@ const MyTasksPage: React.FC = () => {
                                       }
                                     />
                                   )}
-                                </span>
-                                {d.taxIncluded && d.unitPrice != null && (
-                                  <span
-                                    style={{
-                                      color: palette.mute,
-                                      fontSize: 12,
-                                    }}
-                                  >
-                                    不含税{' '}
-                                    {formatAmount(
-                                      excludeTax(
-                                        d.unitPrice,
-                                        d.taxRate ?? DEFAULT_TAX_RATE,
-                                      ),
-                                    )}
-                                    ，按此价比价
-                                  </span>
-                                )}
-                                {err && (
-                                  <span
-                                    style={{ color: palette.red, fontSize: 11 }}
-                                  >
-                                    {err}
-                                  </span>
-                                )}
-                              </span>
-                              <Select
-                                size="small"
-                                value={d.itemCondition}
-                                options={conditionOptions}
-                                onChange={(v) =>
-                                  patchEntry(it.id, d.key, { itemCondition: v })
-                                }
-                              />
-                              <Select
-                                size="small"
-                                allowClear
-                                placeholder="选择货期"
-                                value={d.leadTime || undefined}
-                                options={leadTimeOptions}
-                                onChange={(v) =>
-                                  patchEntry(it.id, d.key, { leadTime: v ?? 0 })
-                                }
-                              />
-                              <Input
-                                size="small"
-                                placeholder="可选"
-                                value={d.note}
-                                maxLength={300}
-                                onChange={(e) =>
-                                  patchEntry(it.id, d.key, {
-                                    note: e.target.value,
-                                  })
-                                }
-                              />
-                              <Button
-                                size="small"
-                                type="text"
-                                aria-label="删除这条报价"
-                                icon={<DeleteOutlined />}
-                                onClick={() =>
-                                  patchItem(it.id, {
-                                    drafts: s.drafts.filter(
-                                      (x) => x.key !== d.key,
-                                    ),
-                                  })
-                                }
-                              />
+                                </span>,
+                              )}
+                              {field(
+                                '货况',
+                                120,
+                                <Select
+                                  value={d.itemCondition}
+                                  options={conditionOptions}
+                                  onChange={(v) =>
+                                    patchEntry(it.id, d.key, {
+                                      itemCondition: v,
+                                    })
+                                  }
+                                />,
+                              )}
+                              {field(
+                                '货期',
+                                110,
+                                <Select
+                                  allowClear
+                                  placeholder="选择货期"
+                                  value={d.leadTime || undefined}
+                                  options={leadTimeOptions}
+                                  onChange={(v) =>
+                                    patchEntry(it.id, d.key, {
+                                      leadTime: v ?? 0,
+                                    })
+                                  }
+                                />,
+                              )}
+                              {field(
+                                '运费',
+                                128,
+                                <Radio.Group
+                                  optionType="button"
+                                  buttonStyle="solid"
+                                  value={d.freeShipping !== false}
+                                  options={[
+                                    {
+                                      label: '包邮',
+                                      value: true,
+                                      style: SEG_ITEM,
+                                    },
+                                    {
+                                      label: '不包邮',
+                                      value: false,
+                                      // 选中不包邮时用橙色提醒运费另计
+                                      style:
+                                        d.freeShipping === false
+                                          ? {
+                                              ...SEG_ITEM,
+                                              background: palette.orangeSoft,
+                                              borderColor: palette.orange,
+                                              color: palette.orange,
+                                            }
+                                          : SEG_ITEM,
+                                    },
+                                  ]}
+                                  onChange={(e) =>
+                                    patchEntry(it.id, d.key, {
+                                      freeShipping: e.target.value,
+                                    })
+                                  }
+                                />,
+                              )}
                             </div>
+                            {/* 第 2 行：备注与附件等高，取较高一侧 */}
                             <div
                               style={{
-                                display: 'flex',
-                                alignItems: 'flex-start',
+                                display: 'grid',
+                                gridTemplateColumns: `minmax(0, 1fr) ${QUOTE_ATTACH_WIDTH}px`,
                                 gap: 16,
-                                paddingLeft: review ? 0 : 44,
                               }}
                             >
-                              <Checkbox
-                                checked={d.freeShipping !== false}
-                                onChange={(e) =>
-                                  patchEntry(it.id, d.key, {
-                                    freeShipping: e.target.checked,
-                                  })
-                                }
+                              <div
+                                style={{
+                                  display: 'flex',
+                                  flexDirection: 'column',
+                                  gap: 6,
+                                }}
                               >
-                                <span style={{ fontSize: 12 }}>包邮</span>
-                              </Checkbox>
-                              <AttachmentWall
-                                ownerType="SOURCING_QUOTE"
-                                value={d.files}
-                                onChange={(files) =>
-                                  patchEntry(it.id, d.key, { files })
-                                }
-                                max={5}
-                                accept={ACCEPT_PROOF}
-                              />
+                                {label(
+                                  '备注',
+                                  `${(d.note ?? '').length} / 300`,
+                                )}
+                                {/* 隐藏的同内容文字撑开高度，文本框叠在上面；内容超过 4 行时文本框内滚动 */}
+                                <div style={{ display: 'grid', flex: 1 }}>
+                                  <div
+                                    aria-hidden
+                                    style={{
+                                      ...NOTE_BOX,
+                                      // 与文本框的 1px 边框占位一致
+                                      border: '1px solid transparent',
+                                      gridArea: '1 / 1',
+                                      visibility: 'hidden',
+                                      whiteSpace: 'pre-wrap',
+                                      wordBreak: 'break-word',
+                                      maxHeight: NOTE_MAX_HEIGHT,
+                                      overflow: 'hidden',
+                                    }}
+                                  >
+                                    {`${d.note ?? ''} `}
+                                  </div>
+                                  <Input.TextArea
+                                    placeholder="店家原话、商品链接、需要提醒的情况（价格异常、票种未说明、替代型号等）"
+                                    value={d.note}
+                                    maxLength={300}
+                                    // 默认 2 行会把行撑高；高度由隐藏文字决定
+                                    rows={1}
+                                    style={{
+                                      ...NOTE_BOX,
+                                      gridArea: '1 / 1',
+                                      height: '100%',
+                                      resize: 'none',
+                                    }}
+                                    onChange={(e) =>
+                                      patchEntry(it.id, d.key, {
+                                        note: e.target.value,
+                                      })
+                                    }
+                                  />
+                                </div>
+                              </div>
+                              <div
+                                style={{
+                                  display: 'grid',
+                                  gap: 6,
+                                  alignContent: 'start',
+                                }}
+                              >
+                                {label(
+                                  '附件',
+                                  `${files.length} / ${QUOTE_MAX_FILES}`,
+                                )}
+                                <QuoteAttachments
+                                  value={files}
+                                  onChange={(list) =>
+                                    patchEntry(it.id, d.key, { files: list })
+                                  }
+                                />
+                              </div>
                             </div>
                           </div>
                         );
                       })}
-                      <a
+                      <Button
+                        block
+                        type="dashed"
+                        icon={<PlusOutlined />}
                         onClick={() =>
                           patchItem(it.id, {
                             drafts: [...s.drafts, newEntry()],
                           })
                         }
                       >
-                        <PlusOutlined /> 再加一条报价
-                      </a>
+                        再加一条报价
+                      </Button>
                       {!review &&
                         s.drafts.length > 1 &&
                         !s.drafts.some((x) => x.recommended) && (
