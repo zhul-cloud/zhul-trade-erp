@@ -273,9 +273,21 @@ export const UploadTile: React.FC<{
   ownerType: OwnerType;
   accept?: string;
   size?: number;
+  /** 宽度，默认与 size 相同；给了宽度时图标与文字横排 */
+  width?: number;
+  /** 按钮文字，默认「上传」；传空字符串只显示图标 */
+  label?: string;
   disabled?: boolean;
   onUploaded: (a: Attachment) => void | Promise<void>;
-}> = ({ ownerType, accept = ACCEPT_ALL, size = 76, disabled, onUploaded }) => {
+}> = ({
+  ownerType,
+  accept = ACCEPT_ALL,
+  size = 76,
+  width,
+  label = '上传',
+  disabled,
+  onUploaded,
+}) => {
   const { palette } = useAppTheme();
   const { message } = App.useApp();
   const [busy, setBusy] = useState(0);
@@ -306,7 +318,7 @@ export const UploadTile: React.FC<{
         type="button"
         disabled={disabled}
         style={{
-          width: size,
+          width: width ?? size,
           height: size,
           borderRadius: 10,
           border: `1px dashed ${palette.hairline}`,
@@ -318,9 +330,15 @@ export const UploadTile: React.FC<{
           fontSize: 12,
         }}
       >
-        <span style={{ display: 'grid', placeItems: 'center', gap: 2 }}>
+        <span
+          style={
+            width
+              ? { display: 'flex', alignItems: 'center', gap: 6 }
+              : { display: 'grid', placeItems: 'center', gap: 2 }
+          }
+        >
           {busy > 0 ? <LoadingOutlined /> : <PlusOutlined />}
-          {busy > 0 ? `上传中 ${busy}` : '上传'}
+          {label && (busy > 0 ? `上传中 ${busy}` : label)}
         </span>
       </button>
     </Upload>
