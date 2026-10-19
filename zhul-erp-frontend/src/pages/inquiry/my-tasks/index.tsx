@@ -1333,7 +1333,7 @@ const MyTasksPage: React.FC = () => {
                                 ),
                               )}
                               <div
-                                style={{ display: 'grid', gap: 6, width: 240 }}
+                                style={{ display: 'grid', gap: 6, width: 252 }}
                               >
                                 {label(
                                   '单价',
@@ -1373,7 +1373,7 @@ const MyTasksPage: React.FC = () => {
                                   {/* 是否含税与税率一次选定，切换不会丢失税率 */}
                                   <Select
                                     aria-label="税率"
-                                    style={{ width: 98 }}
+                                    style={{ width: 110 }}
                                     value={
                                       d.taxIncluded
                                         ? (d.taxRate ?? DEFAULT_TAX_RATE)
