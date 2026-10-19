@@ -62323,7 +62323,7 @@
                       "height": "fit_content",
                       "layout": "horizontal",
                       "gap": 12.0,
-                      "alignItems": "end",
+                      "alignItems": "start",
                       "children": [
                         {
                           "type": "frame",
@@ -62488,39 +62488,47 @@
                         {
                           "type": "frame",
                           "id": "n4292",
-                          "width": 150.0,
+                          "width": 240.0,
                           "height": "fit_content",
                           "layout": "vertical",
                           "gap": 6.0,
                           "children": [
                             {
-                              "type": "text",
+                              "type": "frame",
                               "id": "n4293",
-                              "width": "fit_content",
+                              "width": "fill_container",
                               "height": "fit_content",
-                              "content": "单价",
-                              "fontFamily": "Noto Sans SC",
-                              "fontSize": 12.0,
-                              "lineHeight": 1.5,
-                              "fill": [
+                              "layout": "horizontal",
+                              "gap": 12.0,
+                              "justifyContent": "space_between",
+                              "alignItems": "center",
+                              "children": [
                                 {
-                                  "type": "solid",
-                                  "color": "#94A3B8"
+                                  "type": "text",
+                                  "id": "n4294",
+                                  "width": "fit_content",
+                                  "height": "fit_content",
+                                  "content": "单价",
+                                  "fontFamily": "Noto Sans SC",
+                                  "fontSize": 12.0,
+                                  "lineHeight": 1.5,
+                                  "fill": [
+                                    {
+                                      "type": "solid",
+                                      "color": "#94A3B8"
+                                    }
+                                  ]
                                 }
                               ]
                             },
                             {
                               "type": "frame",
-                              "id": "n4294",
+                              "id": "n4295",
                               "width": "fill_container",
                               "height": 36.0,
                               "layout": "horizontal",
-                              "gap": 8.0,
-                              "padding": [
-                                0.0,
-                                12.0
-                              ],
                               "alignItems": "center",
+                              "clipContent": true,
                               "cornerRadius": 10.0,
                               "fill": [
                                 {
@@ -62539,167 +62547,112 @@
                               },
                               "children": [
                                 {
-                                  "type": "text",
-                                  "id": "n4295",
-                                  "width": "fit_content",
-                                  "height": "fit_content",
-                                  "content": "CNY",
-                                  "fontFamily": "Noto Sans SC",
-                                  "fontSize": 12.0,
-                                  "fontWeight": 600,
-                                  "lineHeight": 1.5,
-                                  "fill": [
+                                  "type": "frame",
+                                  "id": "n4296",
+                                  "width": "fill_container",
+                                  "height": "fill_container",
+                                  "layout": "horizontal",
+                                  "gap": 8.0,
+                                  "padding": [
+                                    0.0,
+                                    12.0
+                                  ],
+                                  "alignItems": "center",
+                                  "children": [
                                     {
-                                      "type": "solid",
-                                      "color": "#94A3B8"
+                                      "type": "text",
+                                      "id": "n4297",
+                                      "width": "fit_content",
+                                      "height": "fit_content",
+                                      "content": "CNY",
+                                      "fontFamily": "Noto Sans SC",
+                                      "fontSize": 12.0,
+                                      "fontWeight": 600,
+                                      "lineHeight": 1.5,
+                                      "fill": [
+                                        {
+                                          "type": "solid",
+                                          "color": "#94A3B8"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "n4298",
+                                      "width": "fit_content",
+                                      "height": "fit_content",
+                                      "content": "1,750.00",
+                                      "fontFamily": "Noto Sans SC",
+                                      "fontSize": 14.0,
+                                      "lineHeight": 1.5,
+                                      "fill": [
+                                        {
+                                          "type": "solid",
+                                          "color": "#F8FAFC"
+                                        }
+                                      ]
                                     }
                                   ]
                                 },
                                 {
-                                  "type": "text",
-                                  "id": "n4296",
-                                  "width": "fit_content",
-                                  "height": "fit_content",
-                                  "content": "1,750.00",
-                                  "fontFamily": "Noto Sans SC",
-                                  "fontSize": 14.0,
-                                  "lineHeight": 1.5,
+                                  "type": "rectangle",
+                                  "id": "n4299",
+                                  "width": 1.0,
+                                  "height": "fill_container",
                                   "fill": [
                                     {
                                       "type": "solid",
-                                      "color": "#F8FAFC"
+                                      "color": "#64748B"
                                     }
-                                  ]
-                                }
-                              ]
-                            }
-                          ]
-                        },
-                        {
-                          "type": "frame",
-                          "id": "n4297",
-                          "width": "fit_content",
-                          "height": "fit_content",
-                          "layout": "vertical",
-                          "gap": 6.0,
-                          "children": [
-                            {
-                              "type": "text",
-                              "id": "n4298",
-                              "width": "fit_content",
-                              "height": "fit_content",
-                              "content": "税",
-                              "fontFamily": "Noto Sans SC",
-                              "fontSize": 12.0,
-                              "lineHeight": 1.5,
-                              "fill": [
-                                {
-                                  "type": "solid",
-                                  "color": "#94A3B8"
-                                }
-                              ]
-                            },
-                            {
-                              "type": "frame",
-                              "id": "n4299",
-                              "width": "fit_content",
-                              "height": 36.0,
-                              "layout": "horizontal",
-                              "gap": 8.0,
-                              "alignItems": "center",
-                              "children": [
+                                  ],
+                                  "children": []
+                                },
                                 {
                                   "type": "frame",
                                   "id": "n4300",
-                                  "width": "fit_content",
-                                  "height": 36.0,
+                                  "width": 98.0,
+                                  "height": "fill_container",
                                   "layout": "horizontal",
-                                  "gap": 2.0,
-                                  "padding": 3.0,
-                                  "cornerRadius": 10.0,
+                                  "padding": [
+                                    0.0,
+                                    10.0
+                                  ],
+                                  "justifyContent": "space_between",
+                                  "alignItems": "center",
                                   "fill": [
                                     {
                                       "type": "solid",
                                       "color": "#0D1524"
                                     }
                                   ],
-                                  "stroke": {
-                                    "thickness": 1.0,
-                                    "fill": [
-                                      {
-                                        "type": "solid",
-                                        "color": "#64748B"
-                                      }
-                                    ]
-                                  },
                                   "children": [
                                     {
-                                      "type": "frame",
+                                      "type": "text",
                                       "id": "n4301",
-                                      "width": 60.0,
-                                      "height": "fill_container",
-                                      "layout": "horizontal",
-                                      "justifyContent": "center",
-                                      "alignItems": "center",
-                                      "cornerRadius": 8.0,
+                                      "width": "fit_content",
+                                      "height": "fit_content",
+                                      "content": "不含税",
+                                      "fontFamily": "Noto Sans SC",
+                                      "fontSize": 13.0,
+                                      "fontWeight": 400,
+                                      "lineHeight": 1.5,
                                       "fill": [
                                         {
                                           "type": "solid",
-                                          "color": "#2563EB"
-                                        }
-                                      ],
-                                      "children": [
-                                        {
-                                          "type": "text",
-                                          "id": "n4302",
-                                          "width": "fit_content",
-                                          "height": "fit_content",
-                                          "content": "不含税",
-                                          "fontFamily": "Noto Sans SC",
-                                          "fontSize": 13.0,
-                                          "fontWeight": 600,
-                                          "lineHeight": 1.5,
-                                          "fill": [
-                                            {
-                                              "type": "solid",
-                                              "color": "#FFFFFF"
-                                            }
-                                          ]
+                                          "color": "#CBD5E1"
                                         }
                                       ]
                                     },
                                     {
-                                      "type": "frame",
-                                      "id": "n4303",
-                                      "width": 60.0,
-                                      "height": "fill_container",
-                                      "layout": "horizontal",
-                                      "justifyContent": "center",
-                                      "alignItems": "center",
-                                      "cornerRadius": 8.0,
+                                      "type": "icon_font",
+                                      "id": "n4302",
+                                      "iconFontName": "chevron-down",
+                                      "width": 14.0,
+                                      "height": 14.0,
                                       "fill": [
                                         {
                                           "type": "solid",
-                                          "color": "#0D1524"
-                                        }
-                                      ],
-                                      "children": [
-                                        {
-                                          "type": "text",
-                                          "id": "n4304",
-                                          "width": "fit_content",
-                                          "height": "fit_content",
-                                          "content": "含税",
-                                          "fontFamily": "Noto Sans SC",
-                                          "fontSize": 13.0,
-                                          "fontWeight": 400,
-                                          "lineHeight": 1.5,
-                                          "fill": [
-                                            {
-                                              "type": "solid",
-                                              "color": "#CBD5E1"
-                                            }
-                                          ]
+                                          "color": "#94A3B8"
                                         }
                                       ]
                                     }
@@ -62711,7 +62664,7 @@
                         },
                         {
                           "type": "frame",
-                          "id": "n4305",
+                          "id": "n4303",
                           "width": 120.0,
                           "height": "fit_content",
                           "layout": "vertical",
@@ -62719,7 +62672,7 @@
                           "children": [
                             {
                               "type": "text",
-                              "id": "n4306",
+                              "id": "n4304",
                               "width": "fit_content",
                               "height": "fit_content",
                               "content": "货况",
@@ -62735,7 +62688,7 @@
                             },
                             {
                               "type": "frame",
-                              "id": "n4307",
+                              "id": "n4305",
                               "width": "fill_container",
                               "height": 36.0,
                               "layout": "horizontal",
@@ -62765,7 +62718,7 @@
                               "children": [
                                 {
                                   "type": "text",
-                                  "id": "n4308",
+                                  "id": "n4306",
                                   "width": "fit_content",
                                   "height": "fit_content",
                                   "content": "全新原装",
@@ -62781,7 +62734,7 @@
                                 },
                                 {
                                   "type": "icon_font",
-                                  "id": "n4309",
+                                  "id": "n4307",
                                   "iconFontName": "chevron-down",
                                   "width": 16.0,
                                   "height": 16.0,
@@ -62798,7 +62751,7 @@
                         },
                         {
                           "type": "frame",
-                          "id": "n4310",
+                          "id": "n4308",
                           "width": 104.0,
                           "height": "fit_content",
                           "layout": "vertical",
@@ -62806,7 +62759,7 @@
                           "children": [
                             {
                               "type": "text",
-                              "id": "n4311",
+                              "id": "n4309",
                               "width": "fit_content",
                               "height": "fit_content",
                               "content": "货期",
@@ -62822,7 +62775,7 @@
                             },
                             {
                               "type": "frame",
-                              "id": "n4312",
+                              "id": "n4310",
                               "width": "fill_container",
                               "height": 36.0,
                               "layout": "horizontal",
@@ -62852,7 +62805,7 @@
                               "children": [
                                 {
                                   "type": "text",
-                                  "id": "n4313",
+                                  "id": "n4311",
                                   "width": "fit_content",
                                   "height": "fit_content",
                                   "content": "现货",
@@ -62868,7 +62821,7 @@
                                 },
                                 {
                                   "type": "icon_font",
-                                  "id": "n4314",
+                                  "id": "n4312",
                                   "iconFontName": "chevron-down",
                                   "width": 16.0,
                                   "height": 16.0,
@@ -62885,15 +62838,15 @@
                         },
                         {
                           "type": "frame",
-                          "id": "n4315",
-                          "width": "fit_content",
+                          "id": "n4313",
+                          "width": 96.0,
                           "height": "fit_content",
                           "layout": "vertical",
                           "gap": 6.0,
                           "children": [
                             {
                               "type": "text",
-                              "id": "n4316",
+                              "id": "n4314",
                               "width": "fit_content",
                               "height": "fit_content",
                               "content": "运费",
@@ -62909,12 +62862,17 @@
                             },
                             {
                               "type": "frame",
-                              "id": "n4317",
-                              "width": "fit_content",
+                              "id": "n4315",
+                              "width": "fill_container",
                               "height": 36.0,
                               "layout": "horizontal",
-                              "gap": 2.0,
-                              "padding": 3.0,
+                              "gap": 8.0,
+                              "padding": [
+                                0.0,
+                                12.0
+                              ],
+                              "justifyContent": "space_between",
+                              "alignItems": "center",
                               "cornerRadius": 10.0,
                               "fill": [
                                 {
@@ -62933,72 +62891,32 @@
                               },
                               "children": [
                                 {
-                                  "type": "frame",
-                                  "id": "n4318",
-                                  "width": 56.0,
-                                  "height": "fill_container",
-                                  "layout": "horizontal",
-                                  "justifyContent": "center",
-                                  "alignItems": "center",
-                                  "cornerRadius": 8.0,
+                                  "type": "text",
+                                  "id": "n4316",
+                                  "width": "fit_content",
+                                  "height": "fit_content",
+                                  "content": "包邮",
+                                  "fontFamily": "Noto Sans SC",
+                                  "fontSize": 14.0,
+                                  "fontWeight": 400,
+                                  "lineHeight": 1.5,
                                   "fill": [
                                     {
                                       "type": "solid",
-                                      "color": "#2563EB"
-                                    }
-                                  ],
-                                  "children": [
-                                    {
-                                      "type": "text",
-                                      "id": "n4319",
-                                      "width": "fit_content",
-                                      "height": "fit_content",
-                                      "content": "包邮",
-                                      "fontFamily": "Noto Sans SC",
-                                      "fontSize": 13.0,
-                                      "fontWeight": 600,
-                                      "lineHeight": 1.5,
-                                      "fill": [
-                                        {
-                                          "type": "solid",
-                                          "color": "#FFFFFF"
-                                        }
-                                      ]
+                                      "color": "#F8FAFC"
                                     }
                                   ]
                                 },
                                 {
-                                  "type": "frame",
-                                  "id": "n4320",
-                                  "width": 56.0,
-                                  "height": "fill_container",
-                                  "layout": "horizontal",
-                                  "justifyContent": "center",
-                                  "alignItems": "center",
-                                  "cornerRadius": 8.0,
+                                  "type": "icon_font",
+                                  "id": "n4317",
+                                  "iconFontName": "chevron-down",
+                                  "width": 16.0,
+                                  "height": 16.0,
                                   "fill": [
                                     {
                                       "type": "solid",
-                                      "color": "#0D1524"
-                                    }
-                                  ],
-                                  "children": [
-                                    {
-                                      "type": "text",
-                                      "id": "n4321",
-                                      "width": "fit_content",
-                                      "height": "fit_content",
-                                      "content": "不包邮",
-                                      "fontFamily": "Noto Sans SC",
-                                      "fontSize": 13.0,
-                                      "fontWeight": 400,
-                                      "lineHeight": 1.5,
-                                      "fill": [
-                                        {
-                                          "type": "solid",
-                                          "color": "#CBD5E1"
-                                        }
-                                      ]
+                                      "color": "#94A3B8"
                                     }
                                   ]
                                 }
@@ -63010,7 +62928,7 @@
                     },
                     {
                       "type": "frame",
-                      "id": "n4322",
+                      "id": "n4318",
                       "width": "fill_container",
                       "height": "fit_content",
                       "layout": "horizontal",
@@ -63019,7 +62937,7 @@
                       "children": [
                         {
                           "type": "frame",
-                          "id": "n4323",
+                          "id": "n4319",
                           "width": "fill_container",
                           "height": "fit_content",
                           "layout": "vertical",
@@ -63027,7 +62945,7 @@
                           "children": [
                             {
                               "type": "frame",
-                              "id": "n4324",
+                              "id": "n4320",
                               "width": "fill_container",
                               "height": "fit_content",
                               "layout": "horizontal",
@@ -63037,7 +62955,7 @@
                               "children": [
                                 {
                                   "type": "text",
-                                  "id": "n4325",
+                                  "id": "n4321",
                                   "width": "fit_content",
                                   "height": "fit_content",
                                   "content": "备注",
@@ -63053,7 +62971,7 @@
                                 },
                                 {
                                   "type": "text",
-                                  "id": "n4326",
+                                  "id": "n4322",
                                   "width": "fit_content",
                                   "height": "fit_content",
                                   "content": "73 / 300",
@@ -63071,7 +62989,7 @@
                             },
                             {
                               "type": "frame",
-                              "id": "n4327",
+                              "id": "n4323",
                               "width": "fill_container",
                               "height": 44.0,
                               "layout": "vertical",
@@ -63098,7 +63016,7 @@
                               "children": [
                                 {
                                   "type": "text",
-                                  "id": "n4328",
+                                  "id": "n4324",
                                   "width": "fill_container",
                                   "height": "fit_content",
                                   "content": "店家：1750 不含税，全新原装，现货可发。链接 https://item.taobao.com/item.htm?id=977228996145",
@@ -63119,7 +63037,7 @@
                         },
                         {
                           "type": "frame",
-                          "id": "n4329",
+                          "id": "n4325",
                           "width": 148.0,
                           "height": "fit_content",
                           "layout": "vertical",
@@ -63127,7 +63045,7 @@
                           "children": [
                             {
                               "type": "frame",
-                              "id": "n4330",
+                              "id": "n4326",
                               "width": "fill_container",
                               "height": "fit_content",
                               "layout": "horizontal",
@@ -63137,7 +63055,7 @@
                               "children": [
                                 {
                                   "type": "text",
-                                  "id": "n4331",
+                                  "id": "n4327",
                                   "width": "fit_content",
                                   "height": "fit_content",
                                   "content": "附件",
@@ -63153,7 +63071,7 @@
                                 },
                                 {
                                   "type": "text",
-                                  "id": "n4332",
+                                  "id": "n4328",
                                   "width": "fit_content",
                                   "height": "fit_content",
                                   "content": "1 / 5",
@@ -63171,7 +63089,7 @@
                             },
                             {
                               "type": "frame",
-                              "id": "n4333",
+                              "id": "n4329",
                               "width": "fill_container",
                               "height": "fit_content",
                               "layout": "vertical",
@@ -63179,7 +63097,7 @@
                               "children": [
                                 {
                                   "type": "frame",
-                                  "id": "n4334",
+                                  "id": "n4330",
                                   "width": "fill_container",
                                   "height": 44.0,
                                   "layout": "horizontal",
@@ -63187,7 +63105,7 @@
                                   "children": [
                                     {
                                       "type": "frame",
-                                      "id": "n4335",
+                                      "id": "n4331",
                                       "width": 44.0,
                                       "height": 44.0,
                                       "layout": "horizontal",
@@ -63212,7 +63130,7 @@
                                       "children": [
                                         {
                                           "type": "icon_font",
-                                          "id": "n4336",
+                                          "id": "n4332",
                                           "iconFontName": "image",
                                           "width": 18.0,
                                           "height": 18.0,
@@ -63227,7 +63145,7 @@
                                     },
                                     {
                                       "type": "frame",
-                                      "id": "n4337",
+                                      "id": "n4333",
                                       "width": 44.0,
                                       "height": 44.0,
                                       "layout": "horizontal",
@@ -63250,7 +63168,7 @@
                                       "children": [
                                         {
                                           "type": "icon_font",
-                                          "id": "n4338",
+                                          "id": "n4334",
                                           "iconFontName": "plus",
                                           "width": 16.0,
                                           "height": 16.0,
@@ -63275,7 +63193,7 @@
                 },
                 {
                   "type": "frame",
-                  "id": "n4339",
+                  "id": "n4335",
                   "name": "报价卡片-含税长备注",
                   "width": "fill_container",
                   "height": "fit_content",
@@ -63306,7 +63224,7 @@
                   "children": [
                     {
                       "type": "frame",
-                      "id": "n4340",
+                      "id": "n4336",
                       "width": "fill_container",
                       "height": "fit_content",
                       "layout": "horizontal",
@@ -63316,7 +63234,7 @@
                       "children": [
                         {
                           "type": "frame",
-                          "id": "n4341",
+                          "id": "n4337",
                           "width": "fit_content",
                           "height": "fit_content",
                           "layout": "horizontal",
@@ -63325,7 +63243,7 @@
                           "children": [
                             {
                               "type": "frame",
-                              "id": "n4342",
+                              "id": "n4338",
                               "width": "fit_content",
                               "height": 26.0,
                               "layout": "horizontal",
@@ -63348,7 +63266,7 @@
                               "children": [
                                 {
                                   "type": "icon_font",
-                                  "id": "n4343",
+                                  "id": "n4339",
                                   "iconFontName": "star",
                                   "width": 14.0,
                                   "height": 14.0,
@@ -63361,7 +63279,7 @@
                                 },
                                 {
                                   "type": "text",
-                                  "id": "n4344",
+                                  "id": "n4340",
                                   "width": "fit_content",
                                   "height": "fit_content",
                                   "content": "设为推荐",
@@ -63379,7 +63297,7 @@
                             },
                             {
                               "type": "text",
-                              "id": "n4345",
+                              "id": "n4341",
                               "width": "fit_content",
                               "height": "fit_content",
                               "content": "淘宝 · 鸿盛自动化",
@@ -63397,7 +63315,7 @@
                         },
                         {
                           "type": "frame",
-                          "id": "n4346",
+                          "id": "n4342",
                           "width": "fit_content",
                           "height": 32.0,
                           "layout": "horizontal",
@@ -63417,7 +63335,7 @@
                           "children": [
                             {
                               "type": "icon_font",
-                              "id": "n4347",
+                              "id": "n4343",
                               "iconFontName": "trash-2",
                               "width": 16.0,
                               "height": 16.0,
@@ -63430,7 +63348,7 @@
                             },
                             {
                               "type": "text",
-                              "id": "n4348",
+                              "id": "n4344",
                               "width": "fit_content",
                               "height": "fit_content",
                               "content": "删除这条报价",
@@ -63450,16 +63368,16 @@
                     },
                     {
                       "type": "frame",
-                      "id": "n4349",
+                      "id": "n4345",
                       "width": "fill_container",
                       "height": "fit_content",
                       "layout": "horizontal",
                       "gap": 12.0,
-                      "alignItems": "end",
+                      "alignItems": "start",
                       "children": [
                         {
                           "type": "frame",
-                          "id": "n4350",
+                          "id": "n4346",
                           "width": 100.0,
                           "height": "fit_content",
                           "layout": "vertical",
@@ -63467,7 +63385,7 @@
                           "children": [
                             {
                               "type": "text",
-                              "id": "n4351",
+                              "id": "n4347",
                               "width": "fit_content",
                               "height": "fit_content",
                               "content": "渠道",
@@ -63483,7 +63401,7 @@
                             },
                             {
                               "type": "frame",
-                              "id": "n4352",
+                              "id": "n4348",
                               "width": "fill_container",
                               "height": 36.0,
                               "layout": "horizontal",
@@ -63513,7 +63431,7 @@
                               "children": [
                                 {
                                   "type": "text",
-                                  "id": "n4353",
+                                  "id": "n4349",
                                   "width": "fit_content",
                                   "height": "fit_content",
                                   "content": "淘宝",
@@ -63529,7 +63447,7 @@
                                 },
                                 {
                                   "type": "icon_font",
-                                  "id": "n4354",
+                                  "id": "n4350",
                                   "iconFontName": "chevron-down",
                                   "width": 16.0,
                                   "height": 16.0,
@@ -63546,7 +63464,7 @@
                         },
                         {
                           "type": "frame",
-                          "id": "n4355",
+                          "id": "n4351",
                           "width": "fill_container",
                           "height": "fit_content",
                           "layout": "vertical",
@@ -63554,7 +63472,7 @@
                           "children": [
                             {
                               "type": "text",
-                              "id": "n4356",
+                              "id": "n4352",
                               "width": "fit_content",
                               "height": "fit_content",
                               "content": "店铺 / 供应商",
@@ -63570,7 +63488,7 @@
                             },
                             {
                               "type": "frame",
-                              "id": "n4357",
+                              "id": "n4353",
                               "width": "fill_container",
                               "height": 36.0,
                               "layout": "horizontal",
@@ -63599,7 +63517,7 @@
                               "children": [
                                 {
                                   "type": "text",
-                                  "id": "n4358",
+                                  "id": "n4354",
                                   "width": "fit_content",
                                   "height": "fit_content",
                                   "content": "鸿盛自动化",
@@ -63619,40 +63537,65 @@
                         },
                         {
                           "type": "frame",
-                          "id": "n4359",
-                          "width": 150.0,
+                          "id": "n4355",
+                          "width": 240.0,
                           "height": "fit_content",
                           "layout": "vertical",
                           "gap": 6.0,
                           "children": [
                             {
-                              "type": "text",
-                              "id": "n4360",
-                              "width": "fit_content",
+                              "type": "frame",
+                              "id": "n4356",
+                              "width": "fill_container",
                               "height": "fit_content",
-                              "content": "单价",
-                              "fontFamily": "Noto Sans SC",
-                              "fontSize": 12.0,
-                              "lineHeight": 1.5,
-                              "fill": [
+                              "layout": "horizontal",
+                              "gap": 12.0,
+                              "justifyContent": "space_between",
+                              "alignItems": "center",
+                              "children": [
                                 {
-                                  "type": "solid",
-                                  "color": "#94A3B8"
+                                  "type": "text",
+                                  "id": "n4357",
+                                  "width": "fit_content",
+                                  "height": "fit_content",
+                                  "content": "单价",
+                                  "fontFamily": "Noto Sans SC",
+                                  "fontSize": 12.0,
+                                  "lineHeight": 1.5,
+                                  "fill": [
+                                    {
+                                      "type": "solid",
+                                      "color": "#94A3B8"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "n4358",
+                                  "width": "fit_content",
+                                  "height": "fit_content",
+                                  "content": "不含税 CNY 1,699.03",
+                                  "fontFamily": "Noto Sans SC",
+                                  "fontSize": 12.0,
+                                  "fontWeight": 600,
+                                  "lineHeight": 1.5,
+                                  "fill": [
+                                    {
+                                      "type": "solid",
+                                      "color": "#F87171"
+                                    }
+                                  ]
                                 }
                               ]
                             },
                             {
                               "type": "frame",
-                              "id": "n4361",
+                              "id": "n4359",
                               "width": "fill_container",
                               "height": 36.0,
                               "layout": "horizontal",
-                              "gap": 8.0,
-                              "padding": [
-                                0.0,
-                                12.0
-                              ],
                               "alignItems": "center",
+                              "clipContent": true,
                               "cornerRadius": 10.0,
                               "fill": [
                                 {
@@ -63671,207 +63614,41 @@
                               },
                               "children": [
                                 {
-                                  "type": "text",
-                                  "id": "n4362",
-                                  "width": "fit_content",
-                                  "height": "fit_content",
-                                  "content": "CNY",
-                                  "fontFamily": "Noto Sans SC",
-                                  "fontSize": 12.0,
-                                  "fontWeight": 600,
-                                  "lineHeight": 1.5,
-                                  "fill": [
-                                    {
-                                      "type": "solid",
-                                      "color": "#94A3B8"
-                                    }
-                                  ]
-                                },
-                                {
-                                  "type": "text",
-                                  "id": "n4363",
-                                  "width": "fit_content",
-                                  "height": "fit_content",
-                                  "content": "1,750.00",
-                                  "fontFamily": "Noto Sans SC",
-                                  "fontSize": 14.0,
-                                  "lineHeight": 1.5,
-                                  "fill": [
-                                    {
-                                      "type": "solid",
-                                      "color": "#F8FAFC"
-                                    }
-                                  ]
-                                }
-                              ]
-                            }
-                          ]
-                        },
-                        {
-                          "type": "frame",
-                          "id": "n4364",
-                          "width": "fit_content",
-                          "height": "fit_content",
-                          "layout": "vertical",
-                          "gap": 6.0,
-                          "children": [
-                            {
-                              "type": "text",
-                              "id": "n4365",
-                              "width": "fit_content",
-                              "height": "fit_content",
-                              "content": "税",
-                              "fontFamily": "Noto Sans SC",
-                              "fontSize": 12.0,
-                              "lineHeight": 1.5,
-                              "fill": [
-                                {
-                                  "type": "solid",
-                                  "color": "#94A3B8"
-                                }
-                              ]
-                            },
-                            {
-                              "type": "frame",
-                              "id": "n4366",
-                              "width": "fit_content",
-                              "height": 36.0,
-                              "layout": "horizontal",
-                              "gap": 8.0,
-                              "alignItems": "center",
-                              "children": [
-                                {
                                   "type": "frame",
-                                  "id": "n4367",
-                                  "width": "fit_content",
-                                  "height": 36.0,
+                                  "id": "n4360",
+                                  "width": "fill_container",
+                                  "height": "fill_container",
                                   "layout": "horizontal",
-                                  "gap": 2.0,
-                                  "padding": 3.0,
-                                  "cornerRadius": 10.0,
-                                  "fill": [
-                                    {
-                                      "type": "solid",
-                                      "color": "#0D1524"
-                                    }
-                                  ],
-                                  "stroke": {
-                                    "thickness": 1.0,
-                                    "fill": [
-                                      {
-                                        "type": "solid",
-                                        "color": "#64748B"
-                                      }
-                                    ]
-                                  },
-                                  "children": [
-                                    {
-                                      "type": "frame",
-                                      "id": "n4368",
-                                      "width": 60.0,
-                                      "height": "fill_container",
-                                      "layout": "horizontal",
-                                      "justifyContent": "center",
-                                      "alignItems": "center",
-                                      "cornerRadius": 8.0,
-                                      "fill": [
-                                        {
-                                          "type": "solid",
-                                          "color": "#0D1524"
-                                        }
-                                      ],
-                                      "children": [
-                                        {
-                                          "type": "text",
-                                          "id": "n4369",
-                                          "width": "fit_content",
-                                          "height": "fit_content",
-                                          "content": "不含税",
-                                          "fontFamily": "Noto Sans SC",
-                                          "fontSize": 13.0,
-                                          "fontWeight": 400,
-                                          "lineHeight": 1.5,
-                                          "fill": [
-                                            {
-                                              "type": "solid",
-                                              "color": "#CBD5E1"
-                                            }
-                                          ]
-                                        }
-                                      ]
-                                    },
-                                    {
-                                      "type": "frame",
-                                      "id": "n4370",
-                                      "width": 60.0,
-                                      "height": "fill_container",
-                                      "layout": "horizontal",
-                                      "justifyContent": "center",
-                                      "alignItems": "center",
-                                      "cornerRadius": 8.0,
-                                      "fill": [
-                                        {
-                                          "type": "solid",
-                                          "color": "#2563EB"
-                                        }
-                                      ],
-                                      "children": [
-                                        {
-                                          "type": "text",
-                                          "id": "n4371",
-                                          "width": "fit_content",
-                                          "height": "fit_content",
-                                          "content": "含税",
-                                          "fontFamily": "Noto Sans SC",
-                                          "fontSize": 13.0,
-                                          "fontWeight": 600,
-                                          "lineHeight": 1.5,
-                                          "fill": [
-                                            {
-                                              "type": "solid",
-                                              "color": "#FFFFFF"
-                                            }
-                                          ]
-                                        }
-                                      ]
-                                    }
-                                  ]
-                                },
-                                {
-                                  "type": "frame",
-                                  "id": "n4372",
-                                  "width": 108.0,
-                                  "height": 36.0,
-                                  "layout": "horizontal",
+                                  "gap": 8.0,
                                   "padding": [
                                     0.0,
                                     12.0
                                   ],
-                                  "justifyContent": "space_between",
                                   "alignItems": "center",
-                                  "cornerRadius": 10.0,
-                                  "fill": [
-                                    {
-                                      "type": "solid",
-                                      "color": "#0D1524"
-                                    }
-                                  ],
-                                  "stroke": {
-                                    "thickness": 1.0,
-                                    "fill": [
-                                      {
-                                        "type": "solid",
-                                        "color": "#64748B"
-                                      }
-                                    ]
-                                  },
                                   "children": [
                                     {
                                       "type": "text",
-                                      "id": "n4373",
+                                      "id": "n4361",
                                       "width": "fit_content",
                                       "height": "fit_content",
-                                      "content": "普票 3%",
+                                      "content": "CNY",
+                                      "fontFamily": "Noto Sans SC",
+                                      "fontSize": 12.0,
+                                      "fontWeight": 600,
+                                      "lineHeight": 1.5,
+                                      "fill": [
+                                        {
+                                          "type": "solid",
+                                          "color": "#94A3B8"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "n4362",
+                                      "width": "fit_content",
+                                      "height": "fit_content",
+                                      "content": "1,750.00",
                                       "fontFamily": "Noto Sans SC",
                                       "fontSize": 14.0,
                                       "lineHeight": 1.5,
@@ -63881,13 +63658,64 @@
                                           "color": "#F8FAFC"
                                         }
                                       ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "rectangle",
+                                  "id": "n4363",
+                                  "width": 1.0,
+                                  "height": "fill_container",
+                                  "fill": [
+                                    {
+                                      "type": "solid",
+                                      "color": "#64748B"
+                                    }
+                                  ],
+                                  "children": []
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "n4364",
+                                  "width": 98.0,
+                                  "height": "fill_container",
+                                  "layout": "horizontal",
+                                  "padding": [
+                                    0.0,
+                                    10.0
+                                  ],
+                                  "justifyContent": "space_between",
+                                  "alignItems": "center",
+                                  "fill": [
+                                    {
+                                      "type": "solid",
+                                      "color": "#182B4C"
+                                    }
+                                  ],
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "n4365",
+                                      "width": "fit_content",
+                                      "height": "fit_content",
+                                      "content": "含税 3%",
+                                      "fontFamily": "Noto Sans SC",
+                                      "fontSize": 13.0,
+                                      "fontWeight": 600,
+                                      "lineHeight": 1.5,
+                                      "fill": [
+                                        {
+                                          "type": "solid",
+                                          "color": "#60A5FA"
+                                        }
+                                      ]
                                     },
                                     {
                                       "type": "icon_font",
-                                      "id": "n4374",
+                                      "id": "n4366",
                                       "iconFontName": "chevron-down",
-                                      "width": 16.0,
-                                      "height": 16.0,
+                                      "width": 14.0,
+                                      "height": 14.0,
                                       "fill": [
                                         {
                                           "type": "solid",
@@ -63903,7 +63731,7 @@
                         },
                         {
                           "type": "frame",
-                          "id": "n4375",
+                          "id": "n4367",
                           "width": 120.0,
                           "height": "fit_content",
                           "layout": "vertical",
@@ -63911,7 +63739,7 @@
                           "children": [
                             {
                               "type": "text",
-                              "id": "n4376",
+                              "id": "n4368",
                               "width": "fit_content",
                               "height": "fit_content",
                               "content": "货况",
@@ -63927,7 +63755,7 @@
                             },
                             {
                               "type": "frame",
-                              "id": "n4377",
+                              "id": "n4369",
                               "width": "fill_container",
                               "height": 36.0,
                               "layout": "horizontal",
@@ -63957,7 +63785,7 @@
                               "children": [
                                 {
                                   "type": "text",
-                                  "id": "n4378",
+                                  "id": "n4370",
                                   "width": "fit_content",
                                   "height": "fit_content",
                                   "content": "99新",
@@ -63973,7 +63801,7 @@
                                 },
                                 {
                                   "type": "icon_font",
-                                  "id": "n4379",
+                                  "id": "n4371",
                                   "iconFontName": "chevron-down",
                                   "width": 16.0,
                                   "height": 16.0,
@@ -63990,7 +63818,7 @@
                         },
                         {
                           "type": "frame",
-                          "id": "n4380",
+                          "id": "n4372",
                           "width": 104.0,
                           "height": "fit_content",
                           "layout": "vertical",
@@ -63998,7 +63826,7 @@
                           "children": [
                             {
                               "type": "text",
-                              "id": "n4381",
+                              "id": "n4373",
                               "width": "fit_content",
                               "height": "fit_content",
                               "content": "货期",
@@ -64014,7 +63842,7 @@
                             },
                             {
                               "type": "frame",
-                              "id": "n4382",
+                              "id": "n4374",
                               "width": "fill_container",
                               "height": 36.0,
                               "layout": "horizontal",
@@ -64044,7 +63872,7 @@
                               "children": [
                                 {
                                   "type": "text",
-                                  "id": "n4383",
+                                  "id": "n4375",
                                   "width": "fit_content",
                                   "height": "fit_content",
                                   "content": "现货",
@@ -64060,7 +63888,7 @@
                                 },
                                 {
                                   "type": "icon_font",
-                                  "id": "n4384",
+                                  "id": "n4376",
                                   "iconFontName": "chevron-down",
                                   "width": 16.0,
                                   "height": 16.0,
@@ -64077,15 +63905,15 @@
                         },
                         {
                           "type": "frame",
-                          "id": "n4385",
-                          "width": "fit_content",
+                          "id": "n4377",
+                          "width": 96.0,
                           "height": "fit_content",
                           "layout": "vertical",
                           "gap": 6.0,
                           "children": [
                             {
                               "type": "text",
-                              "id": "n4386",
+                              "id": "n4378",
                               "width": "fit_content",
                               "height": "fit_content",
                               "content": "运费",
@@ -64101,12 +63929,17 @@
                             },
                             {
                               "type": "frame",
-                              "id": "n4387",
-                              "width": "fit_content",
+                              "id": "n4379",
+                              "width": "fill_container",
                               "height": 36.0,
                               "layout": "horizontal",
-                              "gap": 2.0,
-                              "padding": 3.0,
+                              "gap": 8.0,
+                              "padding": [
+                                0.0,
+                                12.0
+                              ],
+                              "justifyContent": "space_between",
+                              "alignItems": "center",
                               "cornerRadius": 10.0,
                               "fill": [
                                 {
@@ -64125,72 +63958,32 @@
                               },
                               "children": [
                                 {
-                                  "type": "frame",
-                                  "id": "n4388",
-                                  "width": 56.0,
-                                  "height": "fill_container",
-                                  "layout": "horizontal",
-                                  "justifyContent": "center",
-                                  "alignItems": "center",
-                                  "cornerRadius": 8.0,
+                                  "type": "text",
+                                  "id": "n4380",
+                                  "width": "fit_content",
+                                  "height": "fit_content",
+                                  "content": "包邮",
+                                  "fontFamily": "Noto Sans SC",
+                                  "fontSize": 14.0,
+                                  "fontWeight": 400,
+                                  "lineHeight": 1.5,
                                   "fill": [
                                     {
                                       "type": "solid",
-                                      "color": "#2563EB"
-                                    }
-                                  ],
-                                  "children": [
-                                    {
-                                      "type": "text",
-                                      "id": "n4389",
-                                      "width": "fit_content",
-                                      "height": "fit_content",
-                                      "content": "包邮",
-                                      "fontFamily": "Noto Sans SC",
-                                      "fontSize": 13.0,
-                                      "fontWeight": 600,
-                                      "lineHeight": 1.5,
-                                      "fill": [
-                                        {
-                                          "type": "solid",
-                                          "color": "#FFFFFF"
-                                        }
-                                      ]
+                                      "color": "#F8FAFC"
                                     }
                                   ]
                                 },
                                 {
-                                  "type": "frame",
-                                  "id": "n4390",
-                                  "width": 56.0,
-                                  "height": "fill_container",
-                                  "layout": "horizontal",
-                                  "justifyContent": "center",
-                                  "alignItems": "center",
-                                  "cornerRadius": 8.0,
+                                  "type": "icon_font",
+                                  "id": "n4381",
+                                  "iconFontName": "chevron-down",
+                                  "width": 16.0,
+                                  "height": 16.0,
                                   "fill": [
                                     {
                                       "type": "solid",
-                                      "color": "#0D1524"
-                                    }
-                                  ],
-                                  "children": [
-                                    {
-                                      "type": "text",
-                                      "id": "n4391",
-                                      "width": "fit_content",
-                                      "height": "fit_content",
-                                      "content": "不包邮",
-                                      "fontFamily": "Noto Sans SC",
-                                      "fontSize": 13.0,
-                                      "fontWeight": 400,
-                                      "lineHeight": 1.5,
-                                      "fill": [
-                                        {
-                                          "type": "solid",
-                                          "color": "#CBD5E1"
-                                        }
-                                      ]
+                                      "color": "#94A3B8"
                                     }
                                   ]
                                 }
@@ -64202,7 +63995,7 @@
                     },
                     {
                       "type": "frame",
-                      "id": "n4392",
+                      "id": "n4382",
                       "width": "fill_container",
                       "height": "fit_content",
                       "layout": "horizontal",
@@ -64211,7 +64004,7 @@
                       "children": [
                         {
                           "type": "frame",
-                          "id": "n4393",
+                          "id": "n4383",
                           "width": "fill_container",
                           "height": "fit_content",
                           "layout": "vertical",
@@ -64219,7 +64012,7 @@
                           "children": [
                             {
                               "type": "frame",
-                              "id": "n4394",
+                              "id": "n4384",
                               "width": "fill_container",
                               "height": "fit_content",
                               "layout": "horizontal",
@@ -64229,7 +64022,7 @@
                               "children": [
                                 {
                                   "type": "text",
-                                  "id": "n4395",
+                                  "id": "n4385",
                                   "width": "fit_content",
                                   "height": "fit_content",
                                   "content": "备注",
@@ -64245,7 +64038,7 @@
                                 },
                                 {
                                   "type": "text",
-                                  "id": "n4396",
+                                  "id": "n4386",
                                   "width": "fit_content",
                                   "height": "fit_content",
                                   "content": "162 / 300",
@@ -64263,7 +64056,7 @@
                             },
                             {
                               "type": "frame",
-                              "id": "n4397",
+                              "id": "n4387",
                               "width": "fill_container",
                               "height": 67.0,
                               "layout": "vertical",
@@ -64290,7 +64083,7 @@
                               "children": [
                                 {
                                   "type": "text",
-                                  "id": "n4398",
+                                  "id": "n4388",
                                   "width": "fill_container",
                                   "height": 45.0,
                                   "content": "店家原话：1750 含普票，99 新，拆机件已测试，可提供测试视频；不开专票。机器人先回「您咨询的这款不是当前商品」，人工客服随后报价。提醒：标题写「全新」但店家确认是 99 新，价格比中位价低约 6%，未触发价格异常。链接 https://item.taobao.com/item.htm?id=1000006104042",
@@ -64311,7 +64104,7 @@
                         },
                         {
                           "type": "frame",
-                          "id": "n4399",
+                          "id": "n4389",
                           "width": 148.0,
                           "height": "fit_content",
                           "layout": "vertical",
@@ -64319,7 +64112,7 @@
                           "children": [
                             {
                               "type": "frame",
-                              "id": "n4400",
+                              "id": "n4390",
                               "width": "fill_container",
                               "height": "fit_content",
                               "layout": "horizontal",
@@ -64329,7 +64122,7 @@
                               "children": [
                                 {
                                   "type": "text",
-                                  "id": "n4401",
+                                  "id": "n4391",
                                   "width": "fit_content",
                                   "height": "fit_content",
                                   "content": "附件",
@@ -64345,7 +64138,7 @@
                                 },
                                 {
                                   "type": "text",
-                                  "id": "n4402",
+                                  "id": "n4392",
                                   "width": "fit_content",
                                   "height": "fit_content",
                                   "content": "2 / 5",
@@ -64363,7 +64156,7 @@
                             },
                             {
                               "type": "frame",
-                              "id": "n4403",
+                              "id": "n4393",
                               "width": "fill_container",
                               "height": "fit_content",
                               "layout": "vertical",
@@ -64371,7 +64164,7 @@
                               "children": [
                                 {
                                   "type": "frame",
-                                  "id": "n4404",
+                                  "id": "n4394",
                                   "width": "fill_container",
                                   "height": 44.0,
                                   "layout": "horizontal",
@@ -64379,7 +64172,7 @@
                                   "children": [
                                     {
                                       "type": "frame",
-                                      "id": "n4405",
+                                      "id": "n4395",
                                       "width": 44.0,
                                       "height": 44.0,
                                       "layout": "horizontal",
@@ -64404,7 +64197,7 @@
                                       "children": [
                                         {
                                           "type": "icon_font",
-                                          "id": "n4406",
+                                          "id": "n4396",
                                           "iconFontName": "image",
                                           "width": 18.0,
                                           "height": 18.0,
@@ -64419,7 +64212,7 @@
                                     },
                                     {
                                       "type": "frame",
-                                      "id": "n4407",
+                                      "id": "n4397",
                                       "width": 44.0,
                                       "height": 44.0,
                                       "layout": "horizontal",
@@ -64444,7 +64237,7 @@
                                       "children": [
                                         {
                                           "type": "icon_font",
-                                          "id": "n4408",
+                                          "id": "n4398",
                                           "iconFontName": "image",
                                           "width": 18.0,
                                           "height": 18.0,
@@ -64459,7 +64252,7 @@
                                     },
                                     {
                                       "type": "frame",
-                                      "id": "n4409",
+                                      "id": "n4399",
                                       "width": 44.0,
                                       "height": 44.0,
                                       "layout": "horizontal",
@@ -64482,7 +64275,7 @@
                                       "children": [
                                         {
                                           "type": "icon_font",
-                                          "id": "n4410",
+                                          "id": "n4400",
                                           "iconFontName": "plus",
                                           "width": 16.0,
                                           "height": 16.0,
@@ -64507,7 +64300,7 @@
                 },
                 {
                   "type": "frame",
-                  "id": "n4411",
+                  "id": "n4401",
                   "name": "报价卡片-附件已满",
                   "width": "fill_container",
                   "height": "fit_content",
@@ -64538,7 +64331,7 @@
                   "children": [
                     {
                       "type": "frame",
-                      "id": "n4412",
+                      "id": "n4402",
                       "width": "fill_container",
                       "height": "fit_content",
                       "layout": "horizontal",
@@ -64548,7 +64341,7 @@
                       "children": [
                         {
                           "type": "frame",
-                          "id": "n4413",
+                          "id": "n4403",
                           "width": "fit_content",
                           "height": "fit_content",
                           "layout": "horizontal",
@@ -64557,7 +64350,7 @@
                           "children": [
                             {
                               "type": "frame",
-                              "id": "n4414",
+                              "id": "n4404",
                               "width": "fit_content",
                               "height": 26.0,
                               "layout": "horizontal",
@@ -64580,7 +64373,7 @@
                               "children": [
                                 {
                                   "type": "icon_font",
-                                  "id": "n4415",
+                                  "id": "n4405",
                                   "iconFontName": "star",
                                   "width": 14.0,
                                   "height": 14.0,
@@ -64593,7 +64386,7 @@
                                 },
                                 {
                                   "type": "text",
-                                  "id": "n4416",
+                                  "id": "n4406",
                                   "width": "fit_content",
                                   "height": "fit_content",
                                   "content": "设为推荐",
@@ -64611,7 +64404,7 @@
                             },
                             {
                               "type": "text",
-                              "id": "n4417",
+                              "id": "n4407",
                               "width": "fit_content",
                               "height": "fit_content",
                               "content": "1688 · 西门子工控旗舰店",
@@ -64629,7 +64422,7 @@
                         },
                         {
                           "type": "frame",
-                          "id": "n4418",
+                          "id": "n4408",
                           "width": "fit_content",
                           "height": 32.0,
                           "layout": "horizontal",
@@ -64643,7 +64436,7 @@
                           "children": [
                             {
                               "type": "icon_font",
-                              "id": "n4419",
+                              "id": "n4409",
                               "iconFontName": "trash-2",
                               "width": 16.0,
                               "height": 16.0,
@@ -64660,16 +64453,16 @@
                     },
                     {
                       "type": "frame",
-                      "id": "n4420",
+                      "id": "n4410",
                       "width": "fill_container",
                       "height": "fit_content",
                       "layout": "horizontal",
                       "gap": 12.0,
-                      "alignItems": "end",
+                      "alignItems": "start",
                       "children": [
                         {
                           "type": "frame",
-                          "id": "n4421",
+                          "id": "n4411",
                           "width": 100.0,
                           "height": "fit_content",
                           "layout": "vertical",
@@ -64677,7 +64470,7 @@
                           "children": [
                             {
                               "type": "text",
-                              "id": "n4422",
+                              "id": "n4412",
                               "width": "fit_content",
                               "height": "fit_content",
                               "content": "渠道",
@@ -64693,7 +64486,7 @@
                             },
                             {
                               "type": "frame",
-                              "id": "n4423",
+                              "id": "n4413",
                               "width": "fill_container",
                               "height": 36.0,
                               "layout": "horizontal",
@@ -64723,7 +64516,7 @@
                               "children": [
                                 {
                                   "type": "text",
-                                  "id": "n4424",
+                                  "id": "n4414",
                                   "width": "fit_content",
                                   "height": "fit_content",
                                   "content": "1688",
@@ -64739,7 +64532,7 @@
                                 },
                                 {
                                   "type": "icon_font",
-                                  "id": "n4425",
+                                  "id": "n4415",
                                   "iconFontName": "chevron-down",
                                   "width": 16.0,
                                   "height": 16.0,
@@ -64756,7 +64549,7 @@
                         },
                         {
                           "type": "frame",
-                          "id": "n4426",
+                          "id": "n4416",
                           "width": "fill_container",
                           "height": "fit_content",
                           "layout": "vertical",
@@ -64764,7 +64557,7 @@
                           "children": [
                             {
                               "type": "text",
-                              "id": "n4427",
+                              "id": "n4417",
                               "width": "fit_content",
                               "height": "fit_content",
                               "content": "店铺 / 供应商",
@@ -64780,7 +64573,7 @@
                             },
                             {
                               "type": "frame",
-                              "id": "n4428",
+                              "id": "n4418",
                               "width": "fill_container",
                               "height": 36.0,
                               "layout": "horizontal",
@@ -64809,7 +64602,7 @@
                               "children": [
                                 {
                                   "type": "text",
-                                  "id": "n4429",
+                                  "id": "n4419",
                                   "width": "fit_content",
                                   "height": "fit_content",
                                   "content": "西门子工控旗舰店",
@@ -64829,40 +64622,65 @@
                         },
                         {
                           "type": "frame",
-                          "id": "n4430",
-                          "width": 150.0,
+                          "id": "n4420",
+                          "width": 240.0,
                           "height": "fit_content",
                           "layout": "vertical",
                           "gap": 6.0,
                           "children": [
                             {
-                              "type": "text",
-                              "id": "n4431",
-                              "width": "fit_content",
+                              "type": "frame",
+                              "id": "n4421",
+                              "width": "fill_container",
                               "height": "fit_content",
-                              "content": "单价",
-                              "fontFamily": "Noto Sans SC",
-                              "fontSize": 12.0,
-                              "lineHeight": 1.5,
-                              "fill": [
+                              "layout": "horizontal",
+                              "gap": 12.0,
+                              "justifyContent": "space_between",
+                              "alignItems": "center",
+                              "children": [
                                 {
-                                  "type": "solid",
-                                  "color": "#94A3B8"
+                                  "type": "text",
+                                  "id": "n4422",
+                                  "width": "fit_content",
+                                  "height": "fit_content",
+                                  "content": "单价",
+                                  "fontFamily": "Noto Sans SC",
+                                  "fontSize": 12.0,
+                                  "lineHeight": 1.5,
+                                  "fill": [
+                                    {
+                                      "type": "solid",
+                                      "color": "#94A3B8"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "n4423",
+                                  "width": "fit_content",
+                                  "height": "fit_content",
+                                  "content": "不含税 CNY 1,663.72",
+                                  "fontFamily": "Noto Sans SC",
+                                  "fontSize": 12.0,
+                                  "fontWeight": 600,
+                                  "lineHeight": 1.5,
+                                  "fill": [
+                                    {
+                                      "type": "solid",
+                                      "color": "#F87171"
+                                    }
+                                  ]
                                 }
                               ]
                             },
                             {
                               "type": "frame",
-                              "id": "n4432",
+                              "id": "n4424",
                               "width": "fill_container",
                               "height": 36.0,
                               "layout": "horizontal",
-                              "gap": 8.0,
-                              "padding": [
-                                0.0,
-                                12.0
-                              ],
                               "alignItems": "center",
+                              "clipContent": true,
                               "cornerRadius": 10.0,
                               "fill": [
                                 {
@@ -64881,207 +64699,41 @@
                               },
                               "children": [
                                 {
-                                  "type": "text",
-                                  "id": "n4433",
-                                  "width": "fit_content",
-                                  "height": "fit_content",
-                                  "content": "CNY",
-                                  "fontFamily": "Noto Sans SC",
-                                  "fontSize": 12.0,
-                                  "fontWeight": 600,
-                                  "lineHeight": 1.5,
-                                  "fill": [
-                                    {
-                                      "type": "solid",
-                                      "color": "#94A3B8"
-                                    }
-                                  ]
-                                },
-                                {
-                                  "type": "text",
-                                  "id": "n4434",
-                                  "width": "fit_content",
-                                  "height": "fit_content",
-                                  "content": "1,880.00",
-                                  "fontFamily": "Noto Sans SC",
-                                  "fontSize": 14.0,
-                                  "lineHeight": 1.5,
-                                  "fill": [
-                                    {
-                                      "type": "solid",
-                                      "color": "#F8FAFC"
-                                    }
-                                  ]
-                                }
-                              ]
-                            }
-                          ]
-                        },
-                        {
-                          "type": "frame",
-                          "id": "n4435",
-                          "width": "fit_content",
-                          "height": "fit_content",
-                          "layout": "vertical",
-                          "gap": 6.0,
-                          "children": [
-                            {
-                              "type": "text",
-                              "id": "n4436",
-                              "width": "fit_content",
-                              "height": "fit_content",
-                              "content": "税",
-                              "fontFamily": "Noto Sans SC",
-                              "fontSize": 12.0,
-                              "lineHeight": 1.5,
-                              "fill": [
-                                {
-                                  "type": "solid",
-                                  "color": "#94A3B8"
-                                }
-                              ]
-                            },
-                            {
-                              "type": "frame",
-                              "id": "n4437",
-                              "width": "fit_content",
-                              "height": 36.0,
-                              "layout": "horizontal",
-                              "gap": 8.0,
-                              "alignItems": "center",
-                              "children": [
-                                {
                                   "type": "frame",
-                                  "id": "n4438",
-                                  "width": "fit_content",
-                                  "height": 36.0,
+                                  "id": "n4425",
+                                  "width": "fill_container",
+                                  "height": "fill_container",
                                   "layout": "horizontal",
-                                  "gap": 2.0,
-                                  "padding": 3.0,
-                                  "cornerRadius": 10.0,
-                                  "fill": [
-                                    {
-                                      "type": "solid",
-                                      "color": "#0D1524"
-                                    }
-                                  ],
-                                  "stroke": {
-                                    "thickness": 1.0,
-                                    "fill": [
-                                      {
-                                        "type": "solid",
-                                        "color": "#64748B"
-                                      }
-                                    ]
-                                  },
-                                  "children": [
-                                    {
-                                      "type": "frame",
-                                      "id": "n4439",
-                                      "width": 60.0,
-                                      "height": "fill_container",
-                                      "layout": "horizontal",
-                                      "justifyContent": "center",
-                                      "alignItems": "center",
-                                      "cornerRadius": 8.0,
-                                      "fill": [
-                                        {
-                                          "type": "solid",
-                                          "color": "#0D1524"
-                                        }
-                                      ],
-                                      "children": [
-                                        {
-                                          "type": "text",
-                                          "id": "n4440",
-                                          "width": "fit_content",
-                                          "height": "fit_content",
-                                          "content": "不含税",
-                                          "fontFamily": "Noto Sans SC",
-                                          "fontSize": 13.0,
-                                          "fontWeight": 400,
-                                          "lineHeight": 1.5,
-                                          "fill": [
-                                            {
-                                              "type": "solid",
-                                              "color": "#CBD5E1"
-                                            }
-                                          ]
-                                        }
-                                      ]
-                                    },
-                                    {
-                                      "type": "frame",
-                                      "id": "n4441",
-                                      "width": 60.0,
-                                      "height": "fill_container",
-                                      "layout": "horizontal",
-                                      "justifyContent": "center",
-                                      "alignItems": "center",
-                                      "cornerRadius": 8.0,
-                                      "fill": [
-                                        {
-                                          "type": "solid",
-                                          "color": "#2563EB"
-                                        }
-                                      ],
-                                      "children": [
-                                        {
-                                          "type": "text",
-                                          "id": "n4442",
-                                          "width": "fit_content",
-                                          "height": "fit_content",
-                                          "content": "含税",
-                                          "fontFamily": "Noto Sans SC",
-                                          "fontSize": 13.0,
-                                          "fontWeight": 600,
-                                          "lineHeight": 1.5,
-                                          "fill": [
-                                            {
-                                              "type": "solid",
-                                              "color": "#FFFFFF"
-                                            }
-                                          ]
-                                        }
-                                      ]
-                                    }
-                                  ]
-                                },
-                                {
-                                  "type": "frame",
-                                  "id": "n4443",
-                                  "width": 108.0,
-                                  "height": 36.0,
-                                  "layout": "horizontal",
+                                  "gap": 8.0,
                                   "padding": [
                                     0.0,
                                     12.0
                                   ],
-                                  "justifyContent": "space_between",
                                   "alignItems": "center",
-                                  "cornerRadius": 10.0,
-                                  "fill": [
-                                    {
-                                      "type": "solid",
-                                      "color": "#0D1524"
-                                    }
-                                  ],
-                                  "stroke": {
-                                    "thickness": 1.0,
-                                    "fill": [
-                                      {
-                                        "type": "solid",
-                                        "color": "#64748B"
-                                      }
-                                    ]
-                                  },
                                   "children": [
                                     {
                                       "type": "text",
-                                      "id": "n4444",
+                                      "id": "n4426",
                                       "width": "fit_content",
                                       "height": "fit_content",
-                                      "content": "专票 13%",
+                                      "content": "CNY",
+                                      "fontFamily": "Noto Sans SC",
+                                      "fontSize": 12.0,
+                                      "fontWeight": 600,
+                                      "lineHeight": 1.5,
+                                      "fill": [
+                                        {
+                                          "type": "solid",
+                                          "color": "#94A3B8"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "n4427",
+                                      "width": "fit_content",
+                                      "height": "fit_content",
+                                      "content": "1,880.00",
                                       "fontFamily": "Noto Sans SC",
                                       "fontSize": 14.0,
                                       "lineHeight": 1.5,
@@ -65091,13 +64743,64 @@
                                           "color": "#F8FAFC"
                                         }
                                       ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "rectangle",
+                                  "id": "n4428",
+                                  "width": 1.0,
+                                  "height": "fill_container",
+                                  "fill": [
+                                    {
+                                      "type": "solid",
+                                      "color": "#64748B"
+                                    }
+                                  ],
+                                  "children": []
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "n4429",
+                                  "width": 98.0,
+                                  "height": "fill_container",
+                                  "layout": "horizontal",
+                                  "padding": [
+                                    0.0,
+                                    10.0
+                                  ],
+                                  "justifyContent": "space_between",
+                                  "alignItems": "center",
+                                  "fill": [
+                                    {
+                                      "type": "solid",
+                                      "color": "#182B4C"
+                                    }
+                                  ],
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "n4430",
+                                      "width": "fit_content",
+                                      "height": "fit_content",
+                                      "content": "含税 13%",
+                                      "fontFamily": "Noto Sans SC",
+                                      "fontSize": 13.0,
+                                      "fontWeight": 600,
+                                      "lineHeight": 1.5,
+                                      "fill": [
+                                        {
+                                          "type": "solid",
+                                          "color": "#60A5FA"
+                                        }
+                                      ]
                                     },
                                     {
                                       "type": "icon_font",
-                                      "id": "n4445",
+                                      "id": "n4431",
                                       "iconFontName": "chevron-down",
-                                      "width": 16.0,
-                                      "height": 16.0,
+                                      "width": 14.0,
+                                      "height": 14.0,
                                       "fill": [
                                         {
                                           "type": "solid",
@@ -65113,7 +64816,7 @@
                         },
                         {
                           "type": "frame",
-                          "id": "n4446",
+                          "id": "n4432",
                           "width": 120.0,
                           "height": "fit_content",
                           "layout": "vertical",
@@ -65121,7 +64824,7 @@
                           "children": [
                             {
                               "type": "text",
-                              "id": "n4447",
+                              "id": "n4433",
                               "width": "fit_content",
                               "height": "fit_content",
                               "content": "货况",
@@ -65137,7 +64840,7 @@
                             },
                             {
                               "type": "frame",
-                              "id": "n4448",
+                              "id": "n4434",
                               "width": "fill_container",
                               "height": 36.0,
                               "layout": "horizontal",
@@ -65167,7 +64870,7 @@
                               "children": [
                                 {
                                   "type": "text",
-                                  "id": "n4449",
+                                  "id": "n4435",
                                   "width": "fit_content",
                                   "height": "fit_content",
                                   "content": "全新原装",
@@ -65183,7 +64886,7 @@
                                 },
                                 {
                                   "type": "icon_font",
-                                  "id": "n4450",
+                                  "id": "n4436",
                                   "iconFontName": "chevron-down",
                                   "width": 16.0,
                                   "height": 16.0,
@@ -65200,7 +64903,7 @@
                         },
                         {
                           "type": "frame",
-                          "id": "n4451",
+                          "id": "n4437",
                           "width": 104.0,
                           "height": "fit_content",
                           "layout": "vertical",
@@ -65208,7 +64911,7 @@
                           "children": [
                             {
                               "type": "text",
-                              "id": "n4452",
+                              "id": "n4438",
                               "width": "fit_content",
                               "height": "fit_content",
                               "content": "货期",
@@ -65224,7 +64927,7 @@
                             },
                             {
                               "type": "frame",
-                              "id": "n4453",
+                              "id": "n4439",
                               "width": "fill_container",
                               "height": 36.0,
                               "layout": "horizontal",
@@ -65254,7 +64957,7 @@
                               "children": [
                                 {
                                   "type": "text",
-                                  "id": "n4454",
+                                  "id": "n4440",
                                   "width": "fit_content",
                                   "height": "fit_content",
                                   "content": "1-2天",
@@ -65270,7 +64973,7 @@
                                 },
                                 {
                                   "type": "icon_font",
-                                  "id": "n4455",
+                                  "id": "n4441",
                                   "iconFontName": "chevron-down",
                                   "width": 16.0,
                                   "height": 16.0,
@@ -65287,15 +64990,15 @@
                         },
                         {
                           "type": "frame",
-                          "id": "n4456",
-                          "width": "fit_content",
+                          "id": "n4442",
+                          "width": 96.0,
                           "height": "fit_content",
                           "layout": "vertical",
                           "gap": 6.0,
                           "children": [
                             {
                               "type": "text",
-                              "id": "n4457",
+                              "id": "n4443",
                               "width": "fit_content",
                               "height": "fit_content",
                               "content": "运费",
@@ -65311,12 +65014,17 @@
                             },
                             {
                               "type": "frame",
-                              "id": "n4458",
-                              "width": "fit_content",
+                              "id": "n4444",
+                              "width": "fill_container",
                               "height": 36.0,
                               "layout": "horizontal",
-                              "gap": 2.0,
-                              "padding": 3.0,
+                              "gap": 8.0,
+                              "padding": [
+                                0.0,
+                                12.0
+                              ],
+                              "justifyContent": "space_between",
+                              "alignItems": "center",
                               "cornerRadius": 10.0,
                               "fill": [
                                 {
@@ -65335,72 +65043,32 @@
                               },
                               "children": [
                                 {
-                                  "type": "frame",
-                                  "id": "n4459",
-                                  "width": 56.0,
-                                  "height": "fill_container",
-                                  "layout": "horizontal",
-                                  "justifyContent": "center",
-                                  "alignItems": "center",
-                                  "cornerRadius": 8.0,
+                                  "type": "text",
+                                  "id": "n4445",
+                                  "width": "fit_content",
+                                  "height": "fit_content",
+                                  "content": "包邮",
+                                  "fontFamily": "Noto Sans SC",
+                                  "fontSize": 14.0,
+                                  "fontWeight": 400,
+                                  "lineHeight": 1.5,
                                   "fill": [
                                     {
                                       "type": "solid",
-                                      "color": "#2563EB"
-                                    }
-                                  ],
-                                  "children": [
-                                    {
-                                      "type": "text",
-                                      "id": "n4460",
-                                      "width": "fit_content",
-                                      "height": "fit_content",
-                                      "content": "包邮",
-                                      "fontFamily": "Noto Sans SC",
-                                      "fontSize": 13.0,
-                                      "fontWeight": 600,
-                                      "lineHeight": 1.5,
-                                      "fill": [
-                                        {
-                                          "type": "solid",
-                                          "color": "#FFFFFF"
-                                        }
-                                      ]
+                                      "color": "#F8FAFC"
                                     }
                                   ]
                                 },
                                 {
-                                  "type": "frame",
-                                  "id": "n4461",
-                                  "width": 56.0,
-                                  "height": "fill_container",
-                                  "layout": "horizontal",
-                                  "justifyContent": "center",
-                                  "alignItems": "center",
-                                  "cornerRadius": 8.0,
+                                  "type": "icon_font",
+                                  "id": "n4446",
+                                  "iconFontName": "chevron-down",
+                                  "width": 16.0,
+                                  "height": 16.0,
                                   "fill": [
                                     {
                                       "type": "solid",
-                                      "color": "#0D1524"
-                                    }
-                                  ],
-                                  "children": [
-                                    {
-                                      "type": "text",
-                                      "id": "n4462",
-                                      "width": "fit_content",
-                                      "height": "fit_content",
-                                      "content": "不包邮",
-                                      "fontFamily": "Noto Sans SC",
-                                      "fontSize": 13.0,
-                                      "fontWeight": 400,
-                                      "lineHeight": 1.5,
-                                      "fill": [
-                                        {
-                                          "type": "solid",
-                                          "color": "#CBD5E1"
-                                        }
-                                      ]
+                                      "color": "#94A3B8"
                                     }
                                   ]
                                 }
@@ -65412,7 +65080,7 @@
                     },
                     {
                       "type": "frame",
-                      "id": "n4463",
+                      "id": "n4447",
                       "width": "fill_container",
                       "height": "fit_content",
                       "layout": "horizontal",
@@ -65421,7 +65089,7 @@
                       "children": [
                         {
                           "type": "frame",
-                          "id": "n4464",
+                          "id": "n4448",
                           "width": "fill_container",
                           "height": "fit_content",
                           "layout": "vertical",
@@ -65429,7 +65097,7 @@
                           "children": [
                             {
                               "type": "frame",
-                              "id": "n4465",
+                              "id": "n4449",
                               "width": "fill_container",
                               "height": "fit_content",
                               "layout": "horizontal",
@@ -65439,7 +65107,7 @@
                               "children": [
                                 {
                                   "type": "text",
-                                  "id": "n4466",
+                                  "id": "n4450",
                                   "width": "fit_content",
                                   "height": "fit_content",
                                   "content": "备注",
@@ -65455,7 +65123,7 @@
                                 },
                                 {
                                   "type": "text",
-                                  "id": "n4467",
+                                  "id": "n4451",
                                   "width": "fit_content",
                                   "height": "fit_content",
                                   "content": "46 / 300",
@@ -65473,7 +65141,7 @@
                             },
                             {
                               "type": "frame",
-                              "id": "n4468",
+                              "id": "n4452",
                               "width": "fill_container",
                               "height": 96.0,
                               "layout": "vertical",
@@ -65500,7 +65168,7 @@
                               "children": [
                                 {
                                   "type": "text",
-                                  "id": "n4469",
+                                  "id": "n4453",
                                   "width": "fill_container",
                                   "height": "fit_content",
                                   "content": "含 13% 专票，原厂包装，可开合格证。附件为聊天截图、报价单、合格证、包装照片和发票样张。",
@@ -65521,7 +65189,7 @@
                         },
                         {
                           "type": "frame",
-                          "id": "n4470",
+                          "id": "n4454",
                           "width": 148.0,
                           "height": "fit_content",
                           "layout": "vertical",
@@ -65529,7 +65197,7 @@
                           "children": [
                             {
                               "type": "frame",
-                              "id": "n4471",
+                              "id": "n4455",
                               "width": "fill_container",
                               "height": "fit_content",
                               "layout": "horizontal",
@@ -65539,7 +65207,7 @@
                               "children": [
                                 {
                                   "type": "text",
-                                  "id": "n4472",
+                                  "id": "n4456",
                                   "width": "fit_content",
                                   "height": "fit_content",
                                   "content": "附件",
@@ -65555,7 +65223,7 @@
                                 },
                                 {
                                   "type": "text",
-                                  "id": "n4473",
+                                  "id": "n4457",
                                   "width": "fit_content",
                                   "height": "fit_content",
                                   "content": "5 / 5",
@@ -65573,7 +65241,7 @@
                             },
                             {
                               "type": "frame",
-                              "id": "n4474",
+                              "id": "n4458",
                               "width": "fill_container",
                               "height": "fit_content",
                               "layout": "vertical",
@@ -65581,7 +65249,7 @@
                               "children": [
                                 {
                                   "type": "frame",
-                                  "id": "n4475",
+                                  "id": "n4459",
                                   "width": "fill_container",
                                   "height": 44.0,
                                   "layout": "horizontal",
@@ -65589,7 +65257,7 @@
                                   "children": [
                                     {
                                       "type": "frame",
-                                      "id": "n4476",
+                                      "id": "n4460",
                                       "width": 44.0,
                                       "height": 44.0,
                                       "layout": "horizontal",
@@ -65614,7 +65282,7 @@
                                       "children": [
                                         {
                                           "type": "icon_font",
-                                          "id": "n4477",
+                                          "id": "n4461",
                                           "iconFontName": "image",
                                           "width": 18.0,
                                           "height": 18.0,
@@ -65629,7 +65297,7 @@
                                     },
                                     {
                                       "type": "frame",
-                                      "id": "n4478",
+                                      "id": "n4462",
                                       "width": 44.0,
                                       "height": 44.0,
                                       "layout": "horizontal",
@@ -65654,7 +65322,7 @@
                                       "children": [
                                         {
                                           "type": "icon_font",
-                                          "id": "n4479",
+                                          "id": "n4463",
                                           "iconFontName": "image",
                                           "width": 18.0,
                                           "height": 18.0,
@@ -65669,7 +65337,7 @@
                                     },
                                     {
                                       "type": "frame",
-                                      "id": "n4480",
+                                      "id": "n4464",
                                       "width": 44.0,
                                       "height": 44.0,
                                       "layout": "horizontal",
@@ -65694,7 +65362,7 @@
                                       "children": [
                                         {
                                           "type": "icon_font",
-                                          "id": "n4481",
+                                          "id": "n4465",
                                           "iconFontName": "image",
                                           "width": 18.0,
                                           "height": 18.0,
@@ -65711,7 +65379,7 @@
                                 },
                                 {
                                   "type": "frame",
-                                  "id": "n4482",
+                                  "id": "n4466",
                                   "width": "fill_container",
                                   "height": 44.0,
                                   "layout": "horizontal",
@@ -65719,7 +65387,7 @@
                                   "children": [
                                     {
                                       "type": "frame",
-                                      "id": "n4483",
+                                      "id": "n4467",
                                       "width": 44.0,
                                       "height": 44.0,
                                       "layout": "horizontal",
@@ -65744,7 +65412,7 @@
                                       "children": [
                                         {
                                           "type": "icon_font",
-                                          "id": "n4484",
+                                          "id": "n4468",
                                           "iconFontName": "image",
                                           "width": 18.0,
                                           "height": 18.0,
@@ -65759,7 +65427,7 @@
                                     },
                                     {
                                       "type": "frame",
-                                      "id": "n4485",
+                                      "id": "n4469",
                                       "width": 44.0,
                                       "height": 44.0,
                                       "layout": "horizontal",
@@ -65784,7 +65452,7 @@
                                       "children": [
                                         {
                                           "type": "icon_font",
-                                          "id": "n4486",
+                                          "id": "n4470",
                                           "iconFontName": "image",
                                           "width": 18.0,
                                           "height": 18.0,
@@ -65809,7 +65477,7 @@
                 },
                 {
                   "type": "frame",
-                  "id": "n4487",
+                  "id": "n4471",
                   "name": "报价卡片-新增编辑中",
                   "width": "fill_container",
                   "height": "fit_content",
@@ -65840,7 +65508,7 @@
                   "children": [
                     {
                       "type": "frame",
-                      "id": "n4488",
+                      "id": "n4472",
                       "width": "fill_container",
                       "height": "fit_content",
                       "layout": "horizontal",
@@ -65850,7 +65518,7 @@
                       "children": [
                         {
                           "type": "frame",
-                          "id": "n4489",
+                          "id": "n4473",
                           "width": "fit_content",
                           "height": "fit_content",
                           "layout": "horizontal",
@@ -65859,7 +65527,7 @@
                           "children": [
                             {
                               "type": "frame",
-                              "id": "n4490",
+                              "id": "n4474",
                               "width": "fit_content",
                               "height": 26.0,
                               "layout": "horizontal",
@@ -65882,7 +65550,7 @@
                               "children": [
                                 {
                                   "type": "icon_font",
-                                  "id": "n4491",
+                                  "id": "n4475",
                                   "iconFontName": "star",
                                   "width": 14.0,
                                   "height": 14.0,
@@ -65895,7 +65563,7 @@
                                 },
                                 {
                                   "type": "text",
-                                  "id": "n4492",
+                                  "id": "n4476",
                                   "width": "fit_content",
                                   "height": "fit_content",
                                   "content": "设为推荐",
@@ -65913,7 +65581,7 @@
                             },
                             {
                               "type": "text",
-                              "id": "n4493",
+                              "id": "n4477",
                               "width": "fit_content",
                               "height": "fit_content",
                               "content": "1688 · 新报价",
@@ -65931,7 +65599,7 @@
                         },
                         {
                           "type": "frame",
-                          "id": "n4494",
+                          "id": "n4478",
                           "width": "fit_content",
                           "height": 32.0,
                           "layout": "horizontal",
@@ -65945,7 +65613,7 @@
                           "children": [
                             {
                               "type": "icon_font",
-                              "id": "n4495",
+                              "id": "n4479",
                               "iconFontName": "trash-2",
                               "width": 16.0,
                               "height": 16.0,
@@ -65962,16 +65630,16 @@
                     },
                     {
                       "type": "frame",
-                      "id": "n4496",
+                      "id": "n4480",
                       "width": "fill_container",
                       "height": "fit_content",
                       "layout": "horizontal",
                       "gap": 12.0,
-                      "alignItems": "end",
+                      "alignItems": "start",
                       "children": [
                         {
                           "type": "frame",
-                          "id": "n4497",
+                          "id": "n4481",
                           "width": 100.0,
                           "height": "fit_content",
                           "layout": "vertical",
@@ -65979,7 +65647,7 @@
                           "children": [
                             {
                               "type": "text",
-                              "id": "n4498",
+                              "id": "n4482",
                               "width": "fit_content",
                               "height": "fit_content",
                               "content": "渠道",
@@ -65995,7 +65663,7 @@
                             },
                             {
                               "type": "frame",
-                              "id": "n4499",
+                              "id": "n4483",
                               "width": "fill_container",
                               "height": 36.0,
                               "layout": "horizontal",
@@ -66025,7 +65693,7 @@
                               "children": [
                                 {
                                   "type": "text",
-                                  "id": "n4500",
+                                  "id": "n4484",
                                   "width": "fit_content",
                                   "height": "fit_content",
                                   "content": "1688",
@@ -66041,7 +65709,7 @@
                                 },
                                 {
                                   "type": "icon_font",
-                                  "id": "n4501",
+                                  "id": "n4485",
                                   "iconFontName": "chevron-down",
                                   "width": 16.0,
                                   "height": 16.0,
@@ -66058,7 +65726,7 @@
                         },
                         {
                           "type": "frame",
-                          "id": "n4502",
+                          "id": "n4486",
                           "width": "fill_container",
                           "height": "fit_content",
                           "layout": "vertical",
@@ -66066,7 +65734,7 @@
                           "children": [
                             {
                               "type": "text",
-                              "id": "n4503",
+                              "id": "n4487",
                               "width": "fit_content",
                               "height": "fit_content",
                               "content": "店铺 / 供应商",
@@ -66082,7 +65750,7 @@
                             },
                             {
                               "type": "frame",
-                              "id": "n4504",
+                              "id": "n4488",
                               "width": "fill_container",
                               "height": 36.0,
                               "layout": "horizontal",
@@ -66121,7 +65789,7 @@
                               "children": [
                                 {
                                   "type": "text",
-                                  "id": "n4505",
+                                  "id": "n4489",
                                   "width": "fit_content",
                                   "height": "fit_content",
                                   "content": "店铺名称",
@@ -66137,7 +65805,7 @@
                                 },
                                 {
                                   "type": "rectangle",
-                                  "id": "n4506",
+                                  "id": "n4490",
                                   "width": 1.5,
                                   "height": 18.0,
                                   "fill": [
@@ -66154,8 +65822,272 @@
                         },
                         {
                           "type": "frame",
+                          "id": "n4491",
+                          "width": 240.0,
+                          "height": "fit_content",
+                          "layout": "vertical",
+                          "gap": 6.0,
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "n4492",
+                              "width": "fill_container",
+                              "height": "fit_content",
+                              "layout": "horizontal",
+                              "gap": 12.0,
+                              "justifyContent": "space_between",
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "n4493",
+                                  "width": "fit_content",
+                                  "height": "fit_content",
+                                  "content": "单价",
+                                  "fontFamily": "Noto Sans SC",
+                                  "fontSize": 12.0,
+                                  "lineHeight": 1.5,
+                                  "fill": [
+                                    {
+                                      "type": "solid",
+                                      "color": "#94A3B8"
+                                    }
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "n4494",
+                              "width": "fill_container",
+                              "height": 36.0,
+                              "layout": "horizontal",
+                              "alignItems": "center",
+                              "clipContent": true,
+                              "cornerRadius": 10.0,
+                              "fill": [
+                                {
+                                  "type": "solid",
+                                  "color": "#0D1524"
+                                }
+                              ],
+                              "stroke": {
+                                "thickness": 1.0,
+                                "fill": [
+                                  {
+                                    "type": "solid",
+                                    "color": "#64748B"
+                                  }
+                                ]
+                              },
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "n4495",
+                                  "width": "fill_container",
+                                  "height": "fill_container",
+                                  "layout": "horizontal",
+                                  "gap": 8.0,
+                                  "padding": [
+                                    0.0,
+                                    12.0
+                                  ],
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "n4496",
+                                      "width": "fit_content",
+                                      "height": "fit_content",
+                                      "content": "CNY",
+                                      "fontFamily": "Noto Sans SC",
+                                      "fontSize": 12.0,
+                                      "fontWeight": 600,
+                                      "lineHeight": 1.5,
+                                      "fill": [
+                                        {
+                                          "type": "solid",
+                                          "color": "#94A3B8"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "n4497",
+                                      "width": "fit_content",
+                                      "height": "fit_content",
+                                      "content": "如 18.50",
+                                      "fontFamily": "Noto Sans SC",
+                                      "fontSize": 14.0,
+                                      "lineHeight": 1.5,
+                                      "fill": [
+                                        {
+                                          "type": "solid",
+                                          "color": "#94A3B8"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "rectangle",
+                                  "id": "n4498",
+                                  "width": 1.0,
+                                  "height": "fill_container",
+                                  "fill": [
+                                    {
+                                      "type": "solid",
+                                      "color": "#64748B"
+                                    }
+                                  ],
+                                  "children": []
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "n4499",
+                                  "width": 98.0,
+                                  "height": "fill_container",
+                                  "layout": "horizontal",
+                                  "padding": [
+                                    0.0,
+                                    10.0
+                                  ],
+                                  "justifyContent": "space_between",
+                                  "alignItems": "center",
+                                  "fill": [
+                                    {
+                                      "type": "solid",
+                                      "color": "#0D1524"
+                                    }
+                                  ],
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "n4500",
+                                      "width": "fit_content",
+                                      "height": "fit_content",
+                                      "content": "不含税",
+                                      "fontFamily": "Noto Sans SC",
+                                      "fontSize": 13.0,
+                                      "fontWeight": 400,
+                                      "lineHeight": 1.5,
+                                      "fill": [
+                                        {
+                                          "type": "solid",
+                                          "color": "#CBD5E1"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "icon_font",
+                                      "id": "n4501",
+                                      "iconFontName": "chevron-down",
+                                      "width": 14.0,
+                                      "height": 14.0,
+                                      "fill": [
+                                        {
+                                          "type": "solid",
+                                          "color": "#94A3B8"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "n4502",
+                          "width": 120.0,
+                          "height": "fit_content",
+                          "layout": "vertical",
+                          "gap": 6.0,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "n4503",
+                              "width": "fit_content",
+                              "height": "fit_content",
+                              "content": "货况",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 12.0,
+                              "lineHeight": 1.5,
+                              "fill": [
+                                {
+                                  "type": "solid",
+                                  "color": "#94A3B8"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "n4504",
+                              "width": "fill_container",
+                              "height": 36.0,
+                              "layout": "horizontal",
+                              "gap": 8.0,
+                              "padding": [
+                                0.0,
+                                12.0
+                              ],
+                              "justifyContent": "space_between",
+                              "alignItems": "center",
+                              "cornerRadius": 10.0,
+                              "fill": [
+                                {
+                                  "type": "solid",
+                                  "color": "#0D1524"
+                                }
+                              ],
+                              "stroke": {
+                                "thickness": 1.0,
+                                "fill": [
+                                  {
+                                    "type": "solid",
+                                    "color": "#64748B"
+                                  }
+                                ]
+                              },
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "n4505",
+                                  "width": "fit_content",
+                                  "height": "fit_content",
+                                  "content": "选择货况",
+                                  "fontFamily": "Noto Sans SC",
+                                  "fontSize": 14.0,
+                                  "lineHeight": 1.5,
+                                  "fill": [
+                                    {
+                                      "type": "solid",
+                                      "color": "#94A3B8"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "icon_font",
+                                  "id": "n4506",
+                                  "iconFontName": "chevron-down",
+                                  "width": 16.0,
+                                  "height": 16.0,
+                                  "fill": [
+                                    {
+                                      "type": "solid",
+                                      "color": "#94A3B8"
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
                           "id": "n4507",
-                          "width": 150.0,
+                          "width": 104.0,
                           "height": "fit_content",
                           "layout": "vertical",
                           "gap": 6.0,
@@ -66165,7 +66097,7 @@
                               "id": "n4508",
                               "width": "fit_content",
                               "height": "fit_content",
-                              "content": "单价",
+                              "content": "货期",
                               "fontFamily": "Noto Sans SC",
                               "fontSize": 12.0,
                               "lineHeight": 1.5,
@@ -66187,6 +66119,7 @@
                                 0.0,
                                 12.0
                               ],
+                              "justifyContent": "space_between",
                               "alignItems": "center",
                               "cornerRadius": 10.0,
                               "fill": [
@@ -66210,10 +66143,9 @@
                                   "id": "n4510",
                                   "width": "fit_content",
                                   "height": "fit_content",
-                                  "content": "CNY",
+                                  "content": "选择货期",
                                   "fontFamily": "Noto Sans SC",
-                                  "fontSize": 12.0,
-                                  "fontWeight": 600,
+                                  "fontSize": 14.0,
                                   "lineHeight": 1.5,
                                   "fill": [
                                     {
@@ -66223,14 +66155,11 @@
                                   ]
                                 },
                                 {
-                                  "type": "text",
+                                  "type": "icon_font",
                                   "id": "n4511",
-                                  "width": "fit_content",
-                                  "height": "fit_content",
-                                  "content": "如 18.50",
-                                  "fontFamily": "Noto Sans SC",
-                                  "fontSize": 14.0,
-                                  "lineHeight": 1.5,
+                                  "iconFontName": "chevron-down",
+                                  "width": 16.0,
+                                  "height": 16.0,
                                   "fill": [
                                     {
                                       "type": "solid",
@@ -66245,7 +66174,7 @@
                         {
                           "type": "frame",
                           "id": "n4512",
-                          "width": "fit_content",
+                          "width": 96.0,
                           "height": "fit_content",
                           "layout": "vertical",
                           "gap": 6.0,
@@ -66253,314 +66182,6 @@
                             {
                               "type": "text",
                               "id": "n4513",
-                              "width": "fit_content",
-                              "height": "fit_content",
-                              "content": "税",
-                              "fontFamily": "Noto Sans SC",
-                              "fontSize": 12.0,
-                              "lineHeight": 1.5,
-                              "fill": [
-                                {
-                                  "type": "solid",
-                                  "color": "#94A3B8"
-                                }
-                              ]
-                            },
-                            {
-                              "type": "frame",
-                              "id": "n4514",
-                              "width": "fit_content",
-                              "height": 36.0,
-                              "layout": "horizontal",
-                              "gap": 8.0,
-                              "alignItems": "center",
-                              "children": [
-                                {
-                                  "type": "frame",
-                                  "id": "n4515",
-                                  "width": "fit_content",
-                                  "height": 36.0,
-                                  "layout": "horizontal",
-                                  "gap": 2.0,
-                                  "padding": 3.0,
-                                  "cornerRadius": 10.0,
-                                  "fill": [
-                                    {
-                                      "type": "solid",
-                                      "color": "#0D1524"
-                                    }
-                                  ],
-                                  "stroke": {
-                                    "thickness": 1.0,
-                                    "fill": [
-                                      {
-                                        "type": "solid",
-                                        "color": "#64748B"
-                                      }
-                                    ]
-                                  },
-                                  "children": [
-                                    {
-                                      "type": "frame",
-                                      "id": "n4516",
-                                      "width": 60.0,
-                                      "height": "fill_container",
-                                      "layout": "horizontal",
-                                      "justifyContent": "center",
-                                      "alignItems": "center",
-                                      "cornerRadius": 8.0,
-                                      "fill": [
-                                        {
-                                          "type": "solid",
-                                          "color": "#2563EB"
-                                        }
-                                      ],
-                                      "children": [
-                                        {
-                                          "type": "text",
-                                          "id": "n4517",
-                                          "width": "fit_content",
-                                          "height": "fit_content",
-                                          "content": "不含税",
-                                          "fontFamily": "Noto Sans SC",
-                                          "fontSize": 13.0,
-                                          "fontWeight": 600,
-                                          "lineHeight": 1.5,
-                                          "fill": [
-                                            {
-                                              "type": "solid",
-                                              "color": "#FFFFFF"
-                                            }
-                                          ]
-                                        }
-                                      ]
-                                    },
-                                    {
-                                      "type": "frame",
-                                      "id": "n4518",
-                                      "width": 60.0,
-                                      "height": "fill_container",
-                                      "layout": "horizontal",
-                                      "justifyContent": "center",
-                                      "alignItems": "center",
-                                      "cornerRadius": 8.0,
-                                      "fill": [
-                                        {
-                                          "type": "solid",
-                                          "color": "#0D1524"
-                                        }
-                                      ],
-                                      "children": [
-                                        {
-                                          "type": "text",
-                                          "id": "n4519",
-                                          "width": "fit_content",
-                                          "height": "fit_content",
-                                          "content": "含税",
-                                          "fontFamily": "Noto Sans SC",
-                                          "fontSize": 13.0,
-                                          "fontWeight": 400,
-                                          "lineHeight": 1.5,
-                                          "fill": [
-                                            {
-                                              "type": "solid",
-                                              "color": "#CBD5E1"
-                                            }
-                                          ]
-                                        }
-                                      ]
-                                    }
-                                  ]
-                                }
-                              ]
-                            }
-                          ]
-                        },
-                        {
-                          "type": "frame",
-                          "id": "n4520",
-                          "width": 120.0,
-                          "height": "fit_content",
-                          "layout": "vertical",
-                          "gap": 6.0,
-                          "children": [
-                            {
-                              "type": "text",
-                              "id": "n4521",
-                              "width": "fit_content",
-                              "height": "fit_content",
-                              "content": "货况",
-                              "fontFamily": "Noto Sans SC",
-                              "fontSize": 12.0,
-                              "lineHeight": 1.5,
-                              "fill": [
-                                {
-                                  "type": "solid",
-                                  "color": "#94A3B8"
-                                }
-                              ]
-                            },
-                            {
-                              "type": "frame",
-                              "id": "n4522",
-                              "width": "fill_container",
-                              "height": 36.0,
-                              "layout": "horizontal",
-                              "gap": 8.0,
-                              "padding": [
-                                0.0,
-                                12.0
-                              ],
-                              "justifyContent": "space_between",
-                              "alignItems": "center",
-                              "cornerRadius": 10.0,
-                              "fill": [
-                                {
-                                  "type": "solid",
-                                  "color": "#0D1524"
-                                }
-                              ],
-                              "stroke": {
-                                "thickness": 1.0,
-                                "fill": [
-                                  {
-                                    "type": "solid",
-                                    "color": "#64748B"
-                                  }
-                                ]
-                              },
-                              "children": [
-                                {
-                                  "type": "text",
-                                  "id": "n4523",
-                                  "width": "fit_content",
-                                  "height": "fit_content",
-                                  "content": "选择货况",
-                                  "fontFamily": "Noto Sans SC",
-                                  "fontSize": 14.0,
-                                  "lineHeight": 1.5,
-                                  "fill": [
-                                    {
-                                      "type": "solid",
-                                      "color": "#94A3B8"
-                                    }
-                                  ]
-                                },
-                                {
-                                  "type": "icon_font",
-                                  "id": "n4524",
-                                  "iconFontName": "chevron-down",
-                                  "width": 16.0,
-                                  "height": 16.0,
-                                  "fill": [
-                                    {
-                                      "type": "solid",
-                                      "color": "#94A3B8"
-                                    }
-                                  ]
-                                }
-                              ]
-                            }
-                          ]
-                        },
-                        {
-                          "type": "frame",
-                          "id": "n4525",
-                          "width": 104.0,
-                          "height": "fit_content",
-                          "layout": "vertical",
-                          "gap": 6.0,
-                          "children": [
-                            {
-                              "type": "text",
-                              "id": "n4526",
-                              "width": "fit_content",
-                              "height": "fit_content",
-                              "content": "货期",
-                              "fontFamily": "Noto Sans SC",
-                              "fontSize": 12.0,
-                              "lineHeight": 1.5,
-                              "fill": [
-                                {
-                                  "type": "solid",
-                                  "color": "#94A3B8"
-                                }
-                              ]
-                            },
-                            {
-                              "type": "frame",
-                              "id": "n4527",
-                              "width": "fill_container",
-                              "height": 36.0,
-                              "layout": "horizontal",
-                              "gap": 8.0,
-                              "padding": [
-                                0.0,
-                                12.0
-                              ],
-                              "justifyContent": "space_between",
-                              "alignItems": "center",
-                              "cornerRadius": 10.0,
-                              "fill": [
-                                {
-                                  "type": "solid",
-                                  "color": "#0D1524"
-                                }
-                              ],
-                              "stroke": {
-                                "thickness": 1.0,
-                                "fill": [
-                                  {
-                                    "type": "solid",
-                                    "color": "#64748B"
-                                  }
-                                ]
-                              },
-                              "children": [
-                                {
-                                  "type": "text",
-                                  "id": "n4528",
-                                  "width": "fit_content",
-                                  "height": "fit_content",
-                                  "content": "选择货期",
-                                  "fontFamily": "Noto Sans SC",
-                                  "fontSize": 14.0,
-                                  "lineHeight": 1.5,
-                                  "fill": [
-                                    {
-                                      "type": "solid",
-                                      "color": "#94A3B8"
-                                    }
-                                  ]
-                                },
-                                {
-                                  "type": "icon_font",
-                                  "id": "n4529",
-                                  "iconFontName": "chevron-down",
-                                  "width": 16.0,
-                                  "height": 16.0,
-                                  "fill": [
-                                    {
-                                      "type": "solid",
-                                      "color": "#94A3B8"
-                                    }
-                                  ]
-                                }
-                              ]
-                            }
-                          ]
-                        },
-                        {
-                          "type": "frame",
-                          "id": "n4530",
-                          "width": "fit_content",
-                          "height": "fit_content",
-                          "layout": "vertical",
-                          "gap": 6.0,
-                          "children": [
-                            {
-                              "type": "text",
-                              "id": "n4531",
                               "width": "fit_content",
                               "height": "fit_content",
                               "content": "运费",
@@ -66576,17 +66197,22 @@
                             },
                             {
                               "type": "frame",
-                              "id": "n4532",
-                              "width": "fit_content",
+                              "id": "n4514",
+                              "width": "fill_container",
                               "height": 36.0,
                               "layout": "horizontal",
-                              "gap": 2.0,
-                              "padding": 3.0,
+                              "gap": 8.0,
+                              "padding": [
+                                0.0,
+                                12.0
+                              ],
+                              "justifyContent": "space_between",
+                              "alignItems": "center",
                               "cornerRadius": 10.0,
                               "fill": [
                                 {
                                   "type": "solid",
-                                  "color": "#0D1524"
+                                  "color": "#2D282E"
                                 }
                               ],
                               "stroke": {
@@ -66594,87 +66220,38 @@
                                 "fill": [
                                   {
                                     "type": "solid",
-                                    "color": "#64748B"
+                                    "color": "#FB923C"
                                   }
                                 ]
                               },
                               "children": [
                                 {
-                                  "type": "frame",
-                                  "id": "n4533",
-                                  "width": 56.0,
-                                  "height": "fill_container",
-                                  "layout": "horizontal",
-                                  "justifyContent": "center",
-                                  "alignItems": "center",
-                                  "cornerRadius": 8.0,
+                                  "type": "text",
+                                  "id": "n4515",
+                                  "width": "fit_content",
+                                  "height": "fit_content",
+                                  "content": "不包邮",
+                                  "fontFamily": "Noto Sans SC",
+                                  "fontSize": 14.0,
+                                  "fontWeight": 600,
+                                  "lineHeight": 1.5,
                                   "fill": [
                                     {
                                       "type": "solid",
-                                      "color": "#0D1524"
-                                    }
-                                  ],
-                                  "children": [
-                                    {
-                                      "type": "text",
-                                      "id": "n4534",
-                                      "width": "fit_content",
-                                      "height": "fit_content",
-                                      "content": "包邮",
-                                      "fontFamily": "Noto Sans SC",
-                                      "fontSize": 13.0,
-                                      "fontWeight": 400,
-                                      "lineHeight": 1.5,
-                                      "fill": [
-                                        {
-                                          "type": "solid",
-                                          "color": "#CBD5E1"
-                                        }
-                                      ]
+                                      "color": "#FB923C"
                                     }
                                   ]
                                 },
                                 {
-                                  "type": "frame",
-                                  "id": "n4535",
-                                  "width": 56.0,
-                                  "height": "fill_container",
-                                  "layout": "horizontal",
-                                  "justifyContent": "center",
-                                  "alignItems": "center",
-                                  "cornerRadius": 8.0,
+                                  "type": "icon_font",
+                                  "id": "n4516",
+                                  "iconFontName": "chevron-down",
+                                  "width": 16.0,
+                                  "height": 16.0,
                                   "fill": [
                                     {
                                       "type": "solid",
-                                      "color": "#2D282E"
-                                    }
-                                  ],
-                                  "stroke": {
-                                    "thickness": 1.0,
-                                    "fill": [
-                                      {
-                                        "type": "solid",
-                                        "color": "#FB923C"
-                                      }
-                                    ]
-                                  },
-                                  "children": [
-                                    {
-                                      "type": "text",
-                                      "id": "n4536",
-                                      "width": "fit_content",
-                                      "height": "fit_content",
-                                      "content": "不包邮",
-                                      "fontFamily": "Noto Sans SC",
-                                      "fontSize": 13.0,
-                                      "fontWeight": 600,
-                                      "lineHeight": 1.5,
-                                      "fill": [
-                                        {
-                                          "type": "solid",
-                                          "color": "#FB923C"
-                                        }
-                                      ]
+                                      "color": "#FB923C"
                                     }
                                   ]
                                 }
@@ -66686,7 +66263,7 @@
                     },
                     {
                       "type": "frame",
-                      "id": "n4537",
+                      "id": "n4517",
                       "width": "fill_container",
                       "height": "fit_content",
                       "layout": "horizontal",
@@ -66695,7 +66272,7 @@
                       "children": [
                         {
                           "type": "frame",
-                          "id": "n4538",
+                          "id": "n4518",
                           "width": "fill_container",
                           "height": "fit_content",
                           "layout": "vertical",
@@ -66703,7 +66280,7 @@
                           "children": [
                             {
                               "type": "frame",
-                              "id": "n4539",
+                              "id": "n4519",
                               "width": "fill_container",
                               "height": "fit_content",
                               "layout": "horizontal",
@@ -66713,7 +66290,7 @@
                               "children": [
                                 {
                                   "type": "text",
-                                  "id": "n4540",
+                                  "id": "n4520",
                                   "width": "fit_content",
                                   "height": "fit_content",
                                   "content": "备注",
@@ -66729,7 +66306,7 @@
                                 },
                                 {
                                   "type": "text",
-                                  "id": "n4541",
+                                  "id": "n4521",
                                   "width": "fit_content",
                                   "height": "fit_content",
                                   "content": "0 / 300",
@@ -66747,7 +66324,7 @@
                             },
                             {
                               "type": "frame",
-                              "id": "n4542",
+                              "id": "n4522",
                               "width": "fill_container",
                               "height": 44.0,
                               "layout": "vertical",
@@ -66774,7 +66351,7 @@
                               "children": [
                                 {
                                   "type": "text",
-                                  "id": "n4543",
+                                  "id": "n4523",
                                   "width": "fill_container",
                                   "height": "fit_content",
                                   "content": "店家原话、商品链接、需要提醒的情况（价格异常、票种未说明、替代型号等）",
@@ -66795,7 +66372,7 @@
                         },
                         {
                           "type": "frame",
-                          "id": "n4544",
+                          "id": "n4524",
                           "width": 148.0,
                           "height": "fit_content",
                           "layout": "vertical",
@@ -66803,7 +66380,7 @@
                           "children": [
                             {
                               "type": "frame",
-                              "id": "n4545",
+                              "id": "n4525",
                               "width": "fill_container",
                               "height": "fit_content",
                               "layout": "horizontal",
@@ -66813,7 +66390,7 @@
                               "children": [
                                 {
                                   "type": "text",
-                                  "id": "n4546",
+                                  "id": "n4526",
                                   "width": "fit_content",
                                   "height": "fit_content",
                                   "content": "附件",
@@ -66829,7 +66406,7 @@
                                 },
                                 {
                                   "type": "text",
-                                  "id": "n4547",
+                                  "id": "n4527",
                                   "width": "fit_content",
                                   "height": "fit_content",
                                   "content": "0 / 5",
@@ -66847,7 +66424,7 @@
                             },
                             {
                               "type": "frame",
-                              "id": "n4548",
+                              "id": "n4528",
                               "width": "fill_container",
                               "height": 44.0,
                               "layout": "horizontal",
@@ -66871,7 +66448,7 @@
                               "children": [
                                 {
                                   "type": "icon_font",
-                                  "id": "n4549",
+                                  "id": "n4529",
                                   "iconFontName": "paperclip",
                                   "width": 16.0,
                                   "height": 16.0,
@@ -66884,7 +66461,7 @@
                                 },
                                 {
                                   "type": "text",
-                                  "id": "n4550",
+                                  "id": "n4530",
                                   "width": "fit_content",
                                   "height": "fit_content",
                                   "content": "添加附件",
@@ -66908,7 +66485,7 @@
                 },
                 {
                   "type": "frame",
-                  "id": "n4551",
+                  "id": "n4531",
                   "width": "fill_container",
                   "height": 44.0,
                   "layout": "horizontal",
@@ -66932,7 +66509,7 @@
                   "children": [
                     {
                       "type": "icon_font",
-                      "id": "n4552",
+                      "id": "n4532",
                       "iconFontName": "plus",
                       "width": 16.0,
                       "height": 16.0,
@@ -66945,7 +66522,7 @@
                     },
                     {
                       "type": "text",
-                      "id": "n4553",
+                      "id": "n4533",
                       "width": "fit_content",
                       "height": "fit_content",
                       "content": "再加一条报价",
@@ -66966,7 +66543,7 @@
             },
             {
               "type": "frame",
-              "id": "n4554",
+              "id": "n4534",
               "name": "设计说明",
               "width": "fill_container",
               "height": "fit_content",
@@ -66992,7 +66569,7 @@
               "children": [
                 {
                   "type": "text",
-                  "id": "n4555",
+                  "id": "n4535",
                   "width": "fit_content",
                   "height": "fit_content",
                   "content": "设计说明",
@@ -67009,7 +66586,7 @@
                 },
                 {
                   "type": "frame",
-                  "id": "n4556",
+                  "id": "n4536",
                   "width": "fill_container",
                   "height": "fit_content",
                   "layout": "horizontal",
@@ -67018,7 +66595,7 @@
                   "children": [
                     {
                       "type": "frame",
-                      "id": "n4557",
+                      "id": "n4537",
                       "width": 24.0,
                       "height": 24.0,
                       "layout": "horizontal",
@@ -67034,7 +66611,7 @@
                       "children": [
                         {
                           "type": "text",
-                          "id": "n4558",
+                          "id": "n4538",
                           "width": "fit_content",
                           "height": "fit_content",
                           "content": "1",
@@ -67053,7 +66630,7 @@
                     },
                     {
                       "type": "frame",
-                      "id": "n4559",
+                      "id": "n4539",
                       "width": "fill_container",
                       "height": "fit_content",
                       "layout": "vertical",
@@ -67061,7 +66638,7 @@
                       "children": [
                         {
                           "type": "text",
-                          "id": "n4560",
+                          "id": "n4540",
                           "width": "fit_content",
                           "height": "fit_content",
                           "content": "两行卡片",
@@ -67078,7 +66655,7 @@
                         },
                         {
                           "type": "text",
-                          "id": "n4561",
+                          "id": "n4541",
                           "width": "fill_container",
                           "height": "fit_content",
                           "content": "第 1 行按「来源 → 价格 → 交付」排渠道、店铺、单价、税、货况、货期、包邮；第 2 行是备注和附件。常规卡片约 220px 高（上一版约 390px），多条报价不用滚动太多。",
@@ -67099,7 +66676,7 @@
                 },
                 {
                   "type": "frame",
-                  "id": "n4562",
+                  "id": "n4542",
                   "width": "fill_container",
                   "height": "fit_content",
                   "layout": "horizontal",
@@ -67108,7 +66685,7 @@
                   "children": [
                     {
                       "type": "frame",
-                      "id": "n4563",
+                      "id": "n4543",
                       "width": 24.0,
                       "height": 24.0,
                       "layout": "horizontal",
@@ -67124,7 +66701,7 @@
                       "children": [
                         {
                           "type": "text",
-                          "id": "n4564",
+                          "id": "n4544",
                           "width": "fit_content",
                           "height": "fit_content",
                           "content": "2",
@@ -67143,7 +66720,7 @@
                     },
                     {
                       "type": "frame",
-                      "id": "n4565",
+                      "id": "n4545",
                       "width": "fill_container",
                       "height": "fit_content",
                       "layout": "vertical",
@@ -67151,10 +66728,10 @@
                       "children": [
                         {
                           "type": "text",
-                          "id": "n4566",
+                          "id": "n4546",
                           "width": "fit_content",
                           "height": "fit_content",
-                          "content": "备注多行",
+                          "content": "备注完整显示",
                           "fontFamily": "Noto Sans SC",
                           "fontSize": 14.0,
                           "fontWeight": 600,
@@ -67168,10 +66745,10 @@
                         },
                         {
                           "type": "text",
-                          "id": "n4567",
+                          "id": "n4547",
                           "width": "fill_container",
                           "height": "fit_content",
-                          "content": "备注占第 2 行的大部分宽度，随内容自动长高（1–4 行，超出滚动）；字数显示在「备注」标签右侧，不占输入框高度。店家原话、链接、提醒都能读全。",
+                          "content": "备注占第 2 行的大部分宽度，随内容自动长高、不限行数（300 字上限），不出现框内滚动，店家原话、链接、提醒都能读全；字数显示在「备注」标签右侧。",
                           "fontFamily": "Noto Sans SC",
                           "fontSize": 13.0,
                           "lineHeight": 1.6,
@@ -67189,7 +66766,7 @@
                 },
                 {
                   "type": "frame",
-                  "id": "n4568",
+                  "id": "n4548",
                   "width": "fill_container",
                   "height": "fit_content",
                   "layout": "horizontal",
@@ -67198,7 +66775,7 @@
                   "children": [
                     {
                       "type": "frame",
-                      "id": "n4569",
+                      "id": "n4549",
                       "width": 24.0,
                       "height": 24.0,
                       "layout": "horizontal",
@@ -67214,7 +66791,7 @@
                       "children": [
                         {
                           "type": "text",
-                          "id": "n4570",
+                          "id": "n4550",
                           "width": "fit_content",
                           "height": "fit_content",
                           "content": "3",
@@ -67233,7 +66810,7 @@
                     },
                     {
                       "type": "frame",
-                      "id": "n4571",
+                      "id": "n4551",
                       "width": "fill_container",
                       "height": "fit_content",
                       "layout": "vertical",
@@ -67241,10 +66818,10 @@
                       "children": [
                         {
                           "type": "text",
-                          "id": "n4572",
+                          "id": "n4552",
                           "width": "fit_content",
                           "height": "fit_content",
-                          "content": "含税改为切换",
+                          "content": "税并入单价",
                           "fontFamily": "Noto Sans SC",
                           "fontSize": 14.0,
                           "fontWeight": 600,
@@ -67258,10 +66835,10 @@
                         },
                         {
                           "type": "text",
-                          "id": "n4573",
+                          "id": "n4553",
                           "width": "fill_container",
                           "height": "fit_content",
-                          "content": "「不含税 / 含税」分段切换，两个选项等宽；选含税后右侧出现税率（普票 3%、专票 13%），与单价同一行。",
+                          "content": "单价框右侧接「不含税 / 含税 13% / 含税 3% / 含税 1%」下拉，是否含税与税率一次选定，切换不会丢失税率；含税时不含税折算以红字显示在「单价」标签右侧，不增加控件高度。单价与税合计约 240px（上一版约 380px）。",
                           "fontFamily": "Noto Sans SC",
                           "fontSize": 13.0,
                           "lineHeight": 1.6,
@@ -67279,7 +66856,7 @@
                 },
                 {
                   "type": "frame",
-                  "id": "n4574",
+                  "id": "n4554",
                   "width": "fill_container",
                   "height": "fit_content",
                   "layout": "horizontal",
@@ -67288,7 +66865,7 @@
                   "children": [
                     {
                       "type": "frame",
-                      "id": "n4575",
+                      "id": "n4555",
                       "width": 24.0,
                       "height": 24.0,
                       "layout": "horizontal",
@@ -67304,7 +66881,7 @@
                       "children": [
                         {
                           "type": "text",
-                          "id": "n4576",
+                          "id": "n4556",
                           "width": "fit_content",
                           "height": "fit_content",
                           "content": "4",
@@ -67323,7 +66900,7 @@
                     },
                     {
                       "type": "frame",
-                      "id": "n4577",
+                      "id": "n4557",
                       "width": "fill_container",
                       "height": "fit_content",
                       "layout": "vertical",
@@ -67331,10 +66908,10 @@
                       "children": [
                         {
                           "type": "text",
-                          "id": "n4578",
+                          "id": "n4558",
                           "width": "fit_content",
                           "height": "fit_content",
-                          "content": "运费改分段切换",
+                          "content": "运费改窄下拉",
                           "fontFamily": "Noto Sans SC",
                           "fontSize": 14.0,
                           "fontWeight": 600,
@@ -67348,10 +66925,10 @@
                         },
                         {
                           "type": "text",
-                          "id": "n4579",
+                          "id": "n4559",
                           "width": "fill_container",
                           "height": "fit_content",
-                          "content": "「包邮 / 不包邮」与税用同一种分段控件、两项等宽，两种状态都直接显示文字；选中不包邮时为橙色，提醒运费另计。",
+                          "content": "「包邮 / 不包邮」96px 下拉；选不包邮时整框橙色，提醒运费另计。第 1 行合计省出约 170px，窗口约 1100px 宽也能排成一行。",
                           "fontFamily": "Noto Sans SC",
                           "fontSize": 13.0,
                           "lineHeight": 1.6,
@@ -67369,7 +66946,7 @@
                 },
                 {
                   "type": "frame",
-                  "id": "n4580",
+                  "id": "n4560",
                   "width": "fill_container",
                   "height": "fit_content",
                   "layout": "horizontal",
@@ -67378,7 +66955,7 @@
                   "children": [
                     {
                       "type": "frame",
-                      "id": "n4581",
+                      "id": "n4561",
                       "width": 24.0,
                       "height": 24.0,
                       "layout": "horizontal",
@@ -67394,7 +66971,7 @@
                       "children": [
                         {
                           "type": "text",
-                          "id": "n4582",
+                          "id": "n4562",
                           "width": "fit_content",
                           "height": "fit_content",
                           "content": "5",
@@ -67413,7 +66990,7 @@
                     },
                     {
                       "type": "frame",
-                      "id": "n4583",
+                      "id": "n4563",
                       "width": "fill_container",
                       "height": "fit_content",
                       "layout": "vertical",
@@ -67421,7 +66998,7 @@
                       "children": [
                         {
                           "type": "text",
-                          "id": "n4584",
+                          "id": "n4564",
                           "width": "fit_content",
                           "height": "fit_content",
                           "content": "备注与附件等高",
@@ -67438,7 +67015,7 @@
                         },
                         {
                           "type": "text",
-                          "id": "n4585",
+                          "id": "n4565",
                           "width": "fill_container",
                           "height": "fit_content",
                           "content": "附件区定宽，一行 3 个 44px 缩略图，满 5 个（系统原有上限）时隐藏「+」。备注框与附件区取较高一侧对齐：备注内容多时备注长高、附件靠上；附件换成两行时备注框跟着拉高。字数和附件数显示在标签右侧。",
@@ -67459,7 +67036,7 @@
                 },
                 {
                   "type": "frame",
-                  "id": "n4586",
+                  "id": "n4566",
                   "width": "fill_container",
                   "height": "fit_content",
                   "layout": "horizontal",
@@ -67468,7 +67045,7 @@
                   "children": [
                     {
                       "type": "frame",
-                      "id": "n4587",
+                      "id": "n4567",
                       "width": 24.0,
                       "height": 24.0,
                       "layout": "horizontal",
@@ -67484,7 +67061,7 @@
                       "children": [
                         {
                           "type": "text",
-                          "id": "n4588",
+                          "id": "n4568",
                           "width": "fit_content",
                           "height": "fit_content",
                           "content": "6",
@@ -67503,7 +67080,7 @@
                     },
                     {
                       "type": "frame",
-                      "id": "n4589",
+                      "id": "n4569",
                       "width": "fill_container",
                       "height": "fit_content",
                       "layout": "vertical",
@@ -67511,7 +67088,7 @@
                       "children": [
                         {
                           "type": "text",
-                          "id": "n4590",
+                          "id": "n4570",
                           "width": "fit_content",
                           "height": "fit_content",
                           "content": "推荐与删除",
@@ -67528,7 +67105,7 @@
                         },
                         {
                           "type": "text",
-                          "id": "n4591",
+                          "id": "n4571",
                           "width": "fill_container",
                           "height": "fit_content",
                           "content": "推荐改为卡片左上角的标签，选中时整卡蓝色描边；删除在右上角，悬停时变红并显示文字。删除前不弹窗，提供撤销提示。",
@@ -67549,7 +67126,7 @@
                 },
                 {
                   "type": "frame",
-                  "id": "n4592",
+                  "id": "n4572",
                   "width": "fill_container",
                   "height": "fit_content",
                   "layout": "horizontal",
@@ -67558,7 +67135,7 @@
                   "children": [
                     {
                       "type": "frame",
-                      "id": "n4593",
+                      "id": "n4573",
                       "width": 24.0,
                       "height": 24.0,
                       "layout": "horizontal",
@@ -67574,7 +67151,7 @@
                       "children": [
                         {
                           "type": "text",
-                          "id": "n4594",
+                          "id": "n4574",
                           "width": "fit_content",
                           "height": "fit_content",
                           "content": "7",
@@ -67593,7 +67170,7 @@
                     },
                     {
                       "type": "frame",
-                      "id": "n4595",
+                      "id": "n4575",
                       "width": "fill_container",
                       "height": "fit_content",
                       "layout": "vertical",
@@ -67601,7 +67178,7 @@
                       "children": [
                         {
                           "type": "text",
-                          "id": "n4596",
+                          "id": "n4576",
                           "width": "fit_content",
                           "height": "fit_content",
                           "content": "状态",
@@ -67618,7 +67195,7 @@
                         },
                         {
                           "type": "text",
-                          "id": "n4597",
+                          "id": "n4577",
                           "width": "fill_container",
                           "height": "fit_content",
                           "content": "图中四张卡片依次为：已设推荐（1 个附件）、含税普票 + 长备注 + 删除悬停、专票 + 附件已满 5 个（两行）、新增卡片聚焦在店铺名称。金额用 CNY 前缀和等宽数字。",
@@ -67643,7 +67220,7 @@
         },
         {
           "type": "frame",
-          "id": "n4598",
+          "id": "n4578",
           "name": "改版前对照",
           "width": "fill_container",
           "height": "fit_content",
@@ -67669,7 +67246,7 @@
           "children": [
             {
               "type": "text",
-              "id": "n4599",
+              "id": "n4579",
               "width": "fit_content",
               "height": "fit_content",
               "content": "改版前（现状截图）",
@@ -67686,7 +67263,7 @@
             },
             {
               "type": "text",
-              "id": "n4600",
+              "id": "n4580",
               "width": "fit_content",
               "height": "fit_content",
               "content": "10 个字段挤在一行：备注最窄且只有一行；含税掉到单价下方；包邮和 90px 上传方块另起一行并缩进。",
@@ -67702,7 +67279,7 @@
             },
             {
               "type": "image",
-              "id": "n4601",
+              "id": "n4581",
               "name": "改版前截图",
               "src": "op-image:54b746d8da7c6cb1",
               "objectFit": "fit",

@@ -116,19 +116,17 @@ const newEntry = (): DraftEntry => ({
 /** 含税报价没选税率时按 13%（字典 inquiry_tax_rate 的默认值） */
 const DEFAULT_TAX_RATE = 13;
 
-/** 税、运费分段切换的单项：两项等宽、文字居中 */
-const SEG_ITEM: React.CSSProperties = {
-  width: 60,
-  padding: 0,
-  textAlign: 'center',
-};
-/** 备注框：单行时 44 高（含 1px 边框），与附件缩略图对齐；最多显示 4 行，超出在框内滚动 */
+/** 税率下拉里「不含税」的取值（字典税率都是正整数） */
+const NO_TAX = -1;
+/** 备注框：单行时 44 高（含 1px 边框），与附件缩略图对齐；随内容长高，不限行数 */
 const NOTE_BOX: React.CSSProperties = {
   padding: '10px 11px',
   fontSize: 14,
   lineHeight: '22px',
+  // 文本框与隐藏文字的折行规则必须一致，否则高度对不上
+  whiteSpace: 'pre-wrap',
+  wordBreak: 'break-word',
 };
-const NOTE_MAX_HEIGHT = 4 * 22 + 22;
 
 /** 已提交的回价：已提交，或兼职提交后待审核 */
 const isSubmitted = (q: MyQuote) => q.status === 2 || q.status === 3;
@@ -1147,7 +1145,10 @@ const MyTasksPage: React.FC = () => {
                             ? entryError(d)
                             : '';
                         const files = d.files ?? [];
-                        const label = (text: string, extra?: string) => (
+                        const label = (
+                          text: string,
+                          extra?: React.ReactNode,
+                        ) => (
                           <span
                             style={{
                               display: 'flex',
@@ -1329,27 +1330,18 @@ const MyTasksPage: React.FC = () => {
                                   />
                                 ),
                               )}
-                              {field(
-                                '单价',
-                                150,
-                                <span style={{ display: 'grid', gap: 2 }}>
-                                  <InputNumber
-                                    prefix="CNY"
-                                    precision={2}
-                                    placeholder="如 18.50"
-                                    value={d.unitPrice}
-                                    status={err ? 'error' : undefined}
-                                    style={{ width: '100%' }}
-                                    onChange={(v) =>
-                                      patchEntry(it.id, d.key, { unitPrice: v })
-                                    }
-                                  />
-                                  {d.taxIncluded && d.unitPrice != null && (
+                              <div
+                                style={{ display: 'grid', gap: 6, width: 240 }}
+                              >
+                                {label(
+                                  '单价',
+                                  // 含税时不含税折算放在标签行右侧，不增加控件高度
+                                  d.taxIncluded && d.unitPrice != null && (
                                     <Tooltip title="比价、推荐与采购成本价都按不含税价">
                                       <span
                                         style={{
-                                          color: palette.mute,
-                                          fontSize: 12,
+                                          color: palette.red,
+                                          fontWeight: 600,
                                           whiteSpace: 'nowrap',
                                         }}
                                       >
@@ -1362,61 +1354,58 @@ const MyTasksPage: React.FC = () => {
                                         )}
                                       </span>
                                     </Tooltip>
-                                  )}
-                                  {err && (
-                                    <span
-                                      style={{
-                                        color: palette.red,
-                                        fontSize: 12,
-                                      }}
-                                    >
-                                      {err}
-                                    </span>
-                                  )}
-                                </span>,
-                              )}
-                              {field(
-                                '税',
-                                d.taxIncluded ? 220 : 128,
-                                <span style={{ display: 'flex', gap: 8 }}>
-                                  <Radio.Group
-                                    optionType="button"
-                                    buttonStyle="solid"
-                                    value={!!d.taxIncluded}
-                                    options={[
-                                      {
-                                        label: '不含税',
-                                        value: false,
-                                        style: SEG_ITEM,
-                                      },
-                                      {
-                                        label: '含税',
-                                        value: true,
-                                        style: SEG_ITEM,
-                                      },
-                                    ]}
-                                    onChange={(e) =>
-                                      patchEntry(it.id, d.key, {
-                                        taxIncluded: e.target.value,
-                                        taxRate: e.target.value
-                                          ? (d.taxRate ?? DEFAULT_TAX_RATE)
-                                          : undefined,
-                                      })
+                                  ),
+                                )}
+                                <Space.Compact block>
+                                  <InputNumber
+                                    prefix="CNY"
+                                    precision={2}
+                                    placeholder="如 18.50"
+                                    value={d.unitPrice}
+                                    status={err ? 'error' : undefined}
+                                    style={{ flex: 1 }}
+                                    onChange={(v) =>
+                                      patchEntry(it.id, d.key, { unitPrice: v })
                                     }
                                   />
-                                  {d.taxIncluded && (
-                                    <Select
-                                      aria-label="税率"
-                                      style={{ width: 84 }}
-                                      value={d.taxRate ?? DEFAULT_TAX_RATE}
-                                      options={taxRateOptions}
-                                      onChange={(v) =>
-                                        patchEntry(it.id, d.key, { taxRate: v })
-                                      }
-                                    />
-                                  )}
-                                </span>,
-                              )}
+                                  {/* 是否含税与税率一次选定，切换不会丢失税率 */}
+                                  <Select
+                                    aria-label="税率"
+                                    style={{ width: 98 }}
+                                    value={
+                                      d.taxIncluded
+                                        ? (d.taxRate ?? DEFAULT_TAX_RATE)
+                                        : NO_TAX
+                                    }
+                                    options={[
+                                      { value: NO_TAX, label: '不含税' },
+                                      ...taxRateOptions.map((o) => ({
+                                        value: o.value,
+                                        label: `含税 ${o.label}`,
+                                      })),
+                                    ]}
+                                    onChange={(v) =>
+                                      patchEntry(
+                                        it.id,
+                                        d.key,
+                                        v === NO_TAX
+                                          ? {
+                                              taxIncluded: false,
+                                              taxRate: undefined,
+                                            }
+                                          : { taxIncluded: true, taxRate: v },
+                                      )
+                                    }
+                                  />
+                                </Space.Compact>
+                                {err && (
+                                  <span
+                                    style={{ color: palette.red, fontSize: 12 }}
+                                  >
+                                    {err}
+                                  </span>
+                                )}
+                              </div>
                               {field(
                                 '货况',
                                 120,
@@ -1447,35 +1436,30 @@ const MyTasksPage: React.FC = () => {
                               )}
                               {field(
                                 '运费',
-                                128,
-                                <Radio.Group
-                                  optionType="button"
-                                  buttonStyle="solid"
-                                  value={d.freeShipping !== false}
+                                96,
+                                <Select
+                                  aria-label="运费"
+                                  value={d.freeShipping !== false ? 1 : 0}
+                                  // 不包邮用橙色提醒运费另计
+                                  status={
+                                    d.freeShipping === false
+                                      ? 'warning'
+                                      : undefined
+                                  }
                                   options={[
+                                    { value: 1, label: '包邮' },
                                     {
-                                      label: '包邮',
-                                      value: true,
-                                      style: SEG_ITEM,
-                                    },
-                                    {
-                                      label: '不包邮',
-                                      value: false,
-                                      // 选中不包邮时用橙色提醒运费另计
-                                      style:
-                                        d.freeShipping === false
-                                          ? {
-                                              ...SEG_ITEM,
-                                              background: palette.orangeSoft,
-                                              borderColor: palette.orange,
-                                              color: palette.orange,
-                                            }
-                                          : SEG_ITEM,
+                                      value: 0,
+                                      label: (
+                                        <span style={{ color: palette.orange }}>
+                                          不包邮
+                                        </span>
+                                      ),
                                     },
                                   ]}
-                                  onChange={(e) =>
+                                  onChange={(v) =>
                                     patchEntry(it.id, d.key, {
-                                      freeShipping: e.target.value,
+                                      freeShipping: v === 1,
                                     })
                                   }
                                 />,
@@ -1500,7 +1484,7 @@ const MyTasksPage: React.FC = () => {
                                   '备注',
                                   `${(d.note ?? '').length} / 300`,
                                 )}
-                                {/* 隐藏的同内容文字撑开高度，文本框叠在上面；内容超过 4 行时文本框内滚动 */}
+                                {/* 隐藏的同内容文字撑开高度，文本框叠在上面；随内容长高，不限行数 */}
                                 <div style={{ display: 'grid', flex: 1 }}>
                                   <div
                                     aria-hidden
@@ -1510,10 +1494,6 @@ const MyTasksPage: React.FC = () => {
                                       border: '1px solid transparent',
                                       gridArea: '1 / 1',
                                       visibility: 'hidden',
-                                      whiteSpace: 'pre-wrap',
-                                      wordBreak: 'break-word',
-                                      maxHeight: NOTE_MAX_HEIGHT,
-                                      overflow: 'hidden',
                                     }}
                                   >
                                     {`${d.note ?? ''} `}
@@ -1529,6 +1509,8 @@ const MyTasksPage: React.FC = () => {
                                       gridArea: '1 / 1',
                                       height: '100%',
                                       resize: 'none',
+                                      // 高度随内容，不需要滚动条；滚动条占宽会让折行与隐藏文字不一致
+                                      overflow: 'hidden',
                                     }}
                                     onChange={(e) =>
                                       patchEntry(it.id, d.key, {
