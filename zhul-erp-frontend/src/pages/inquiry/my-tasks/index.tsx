@@ -116,6 +116,8 @@ const newEntry = (): DraftEntry => ({
 /** 含税报价没选税率时按 13%（字典 inquiry_tax_rate 的默认值） */
 const DEFAULT_TAX_RATE = 13;
 
+const NOTE_PLACEHOLDER =
+  '店家原话、商品链接、需要提醒的情况（价格异常、票种未说明、替代型号等）';
 /** 税率下拉里「不含税」的取值（字典税率都是正整数） */
 const NO_TAX = -1;
 /** 备注框：单行时 44 高（含 1px 边框），与附件缩略图对齐；随内容长高，不限行数 */
@@ -1496,10 +1498,11 @@ const MyTasksPage: React.FC = () => {
                                       visibility: 'hidden',
                                     }}
                                   >
-                                    {`${d.note ?? ''} `}
+                                    {/* 为空时按占位文字撑高，窄屏下占位文字折行也不会被裁掉 */}
+                                    {`${d.note || NOTE_PLACEHOLDER} `}
                                   </div>
                                   <Input.TextArea
-                                    placeholder="店家原话、商品链接、需要提醒的情况（价格异常、票种未说明、替代型号等）"
+                                    placeholder={NOTE_PLACEHOLDER}
                                     value={d.note}
                                     maxLength={300}
                                     // 默认 2 行会把行撑高；高度由隐藏文字决定
