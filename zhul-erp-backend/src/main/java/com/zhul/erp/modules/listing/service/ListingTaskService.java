@@ -340,6 +340,40 @@ public class ListingTaskService {
         return mediaReferences.references(brandName(p), p.getMpnRaw());
     }
 
+    /** 参考型号的可发客户图片和视频（选用前预览）；只限这个任务的参考列表 */
+    public List<MediaItemVO> referenceMedia(Long id, String brand, String model) {
+        requireReference(find(id), brand, model);
+        return media(brand, model, false);
+    }
+
+    /** 参考型号素材的预览或下载链接 */
+    public List<FileLink> referenceLinks(Long id, String brand, String model, List<MediaRef> refs, boolean download) {
+        List<MediaItemVO> items = referenceMedia(id, brand, model);
+        Set<String> allowed = new HashSet<>();
+        items.forEach(i -> allowed.add(i.getItemId() != null ? "i" + i.getItemId() : "o" + i.getOfficialTable() + i.getOfficialId()));
+        for (MediaRef r : refs) {
+            String k = r.getItemId() != null ? "i" + r.getItemId() : "o" + r.getOfficialTable() + r.getOfficialId();
+            if (!allowed.contains(k)) {
+                throw new BizException("素材不属于这个参考型号");
+            }
+        }
+        return mediaLibrary.links(refs, download);
+    }
+
+    /** 型号必须在这个任务型号的参考列表里 */
+    private void requireReference(ListingTaskDO t, String brand, String model) {
+        if (!StringUtils.hasText(model)) {
+            throw new BizException("请指定参考型号");
+        }
+        ProductDO p = product(t);
+        String key = MediaIndexer.key(brand, model);
+        boolean listed = mediaReferences.references(brandName(p), p.getMpnRaw()).getModels().stream()
+                .anyMatch(m -> MediaIndexer.key(m.getBrand(), m.getModel()).equals(key));
+        if (!listed) {
+            throw new BizException("只能从这个型号的参考素材里选择");
+        }
+    }
+
     // ================================================================ 操作
 
     @Transactional(rollbackFor = Exception.class)
@@ -358,14 +392,7 @@ public class ListingTaskService {
             if (hasOwn(id)) {
                 throw new BizException("本型号已有发品素材，不需要参考素材");
             }
-            ProductDO p = product(t);
-            String brand = brandName(p);
-            String key = MediaIndexer.key(req.getBrand(), req.getModel());
-            boolean listed = mediaReferences.references(brand, p.getMpnRaw()).getModels().stream()
-                    .anyMatch(m -> MediaIndexer.key(m.getBrand(), m.getModel()).equals(key));
-            if (!listed) {
-                throw new BizException("只能从这个型号的参考素材里选择");
-            }
+            requireReference(t, req.getBrand(), req.getModel());
             w.set(ListingTaskDO::getRefBrand, req.getBrand() == null ? "" : req.getBrand().trim())
                     .set(ListingTaskDO::getRefModel, req.getModel().trim())
                     .set(ListingTaskDO::getRefBy, user).set(ListingTaskDO::getRefTime, now);

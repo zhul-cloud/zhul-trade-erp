@@ -10,6 +10,7 @@ import com.zhul.erp.modules.listing.dto.ListingTaskQuery;
 import com.zhul.erp.modules.listing.dto.PublishRequest;
 import com.zhul.erp.modules.listing.dto.ReferenceRequest;
 import com.zhul.erp.modules.listing.service.ListingTaskService;
+import com.zhul.erp.modules.media.dto.MediaItemVO;
 import com.zhul.erp.modules.media.dto.MediaReferenceVO;
 import com.zhul.erp.modules.media.dto.MediaUrlRequest;
 import jakarta.validation.Valid;
@@ -21,6 +22,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -75,6 +77,22 @@ public class ListingTaskController {
     @PreAuthorize(VIEW)
     public Result<MediaReferenceVO> references(@PathVariable Long id) {
         return Result.ok(service.references(id));
+    }
+
+    /** 参考型号的可发客户图片和视频（选用前预览） */
+    @GetMapping("/{id}/references/media")
+    @PreAuthorize(VIEW)
+    public Result<List<MediaItemVO>> referenceMedia(@PathVariable Long id, @RequestParam(required = false) String brand,
+                                                    @RequestParam String model) {
+        return Result.ok(service.referenceMedia(id, brand, model));
+    }
+
+    /** 参考型号素材的预览或下载链接 */
+    @PostMapping("/{id}/references/urls")
+    @PreAuthorize(VIEW)
+    public Result<List<FileLink>> referenceUrls(@PathVariable Long id, @RequestParam(required = false) String brand,
+                                                @RequestParam String model, @Valid @RequestBody MediaUrlRequest req) {
+        return Result.ok(service.referenceLinks(id, brand, model, req.getRefs(), req.isDownload()));
     }
 
     @PutMapping("/{id}/reference")

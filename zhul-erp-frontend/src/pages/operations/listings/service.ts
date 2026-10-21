@@ -128,6 +128,27 @@ export const listingApi = {
   urls: (id: number, refs: MediaRef[], download: boolean) =>
     send<FileLink[]>('POST', `${API}/${id}/urls`, { refs, download }),
   references: (id: number) => get<MediaReference>(`${API}/${id}/references`),
+  /** 参考型号的可发客户图片和视频（选用前预览） */
+  referenceMedia: (id: number, brand: string, model: string) =>
+    request<{ data: MediaItem[] }>(`${API}/${id}/references/media`, {
+      method: 'GET',
+      params: { brand, model },
+      ...quiet,
+    }).then((r) => r.data),
+  /** 参考型号素材的预览或下载链接 */
+  referenceUrls: (
+    id: number,
+    brand: string,
+    model: string,
+    refs: MediaRef[],
+    download: boolean,
+  ) =>
+    request<{ data: FileLink[] }>(`${API}/${id}/references/urls`, {
+      method: 'POST',
+      params: { brand, model },
+      data: { refs, download },
+      ...quiet,
+    }).then((r) => r.data),
   /** 选择参考素材；不传型号表示取消 */
   setReference: (id: number, ref?: { brand: string; model: string }) =>
     send<ListingDetail>('PUT', `${API}/${id}/reference`, ref ?? {}),

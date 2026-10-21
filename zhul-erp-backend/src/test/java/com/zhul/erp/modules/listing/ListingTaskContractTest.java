@@ -189,6 +189,15 @@ class ListingTaskContractTest extends TenantContractSupport {
         long refItem = media("L-2", 9, 1, 0);
         JsonNode refs = ok(call(get(API + "/" + id + "/references"), a));
         assertTrue(refs.path("level").asInt() > 0, "同品牌的 L-2 有素材");
+
+        // 选用前预览参考型号的素材：列表里的型号可以取，素材链接只限这个型号；不在列表里的拒绝
+        JsonNode refMedia = ok(call(get(API + "/" + id + "/references/media").param("brand", BRAND).param("model", "L-2"), a));
+        assertEquals(1, refMedia.size());
+        assertEquals(refItem, refMedia.get(0).path("itemId").asLong());
+        assertEquals(1, ok(call(json(post(API + "/" + id + "/references/urls").param("brand", BRAND).param("model", "L-2"),
+                write(Map.of("refs", List.of(Map.of("itemId", refItem)), "download", false))), a)).size());
+        assertEquals("只能从这个型号的参考素材里选择", fail(call(get(API + "/" + id + "/references/media")
+                .param("brand", BRAND).param("model", "L-9"), a)).path("message").asText());
         assertEquals("L-2", refs.path("models").get(0).path("model").asText());
         assertEquals("只能从这个型号的参考素材里选择",
                 fail(call(json(put(API + "/" + id + "/reference"), write(Map.of("brand", BRAND, "model", "L-9"))), a)).path("message").asText());
