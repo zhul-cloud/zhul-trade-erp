@@ -149,6 +149,37 @@ export const listingApi = {
       data: { refs, download },
       ...quiet,
     }).then((r) => r.data),
+  /** 参考型号的可发客户图片和视频打成一个 zip 下载 */
+  downloadReferenceZip: async (id: number, brand: string, model: string) => {
+    const res = await request<Blob>(`${API}/${id}/references/zip`, {
+      method: 'GET',
+      params: { brand, model },
+      responseType: 'blob',
+      getResponse: true,
+      ...quiet,
+    });
+    const data = res.data as Blob;
+    if (data.type.includes('json')) {
+      const body = JSON.parse(await data.text()) as { message?: string };
+      throw new Error(body.message || '下载失败，请稍后重试');
+    }
+    const disposition =
+      (res.headers as Record<string, string | undefined>)?.[
+        'content-disposition'
+      ] ?? '';
+    const match = /filename\*=UTF-8''([^;]+)/.exec(disposition);
+    const name = match
+      ? decodeURIComponent(match[1])
+      : `参考素材-${brand}-${model}.zip`;
+    const url = window.URL.createObjectURL(data);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
+  },
   /** 选择参考素材；不传型号表示取消 */
   setReference: (id: number, ref?: { brand: string; model: string }) =>
     send<ListingDetail>('PUT', `${API}/${id}/reference`, ref ?? {}),

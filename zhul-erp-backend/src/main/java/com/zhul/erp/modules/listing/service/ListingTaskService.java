@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.zhul.erp.common.exception.BizException;
 import com.zhul.erp.common.result.PageResult;
 import com.zhul.erp.framework.security.SecurityUtils;
+import com.zhul.erp.framework.storage.FileStorageService;
 import com.zhul.erp.framework.storage.FileStorageService.FileLink;
 import com.zhul.erp.framework.tenant.TenantContext;
 import com.zhul.erp.modules.listing.constants.ListingConstants;
@@ -42,6 +43,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -51,6 +56,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -58,6 +64,9 @@ import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import java.util.zip.Deflater;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 /** 发品任务：列表、详情（复制助手与素材）、参考素材、回填发布结果、已同步、已替换（spec product/listing-task） */
 @Service
@@ -78,6 +87,7 @@ public class ListingTaskService {
     private final MediaLibraryService mediaLibrary;
     private final MediaReferenceService mediaReferences;
     private final ContentTaskService contentTasks;
+    private final FileStorageService files;
 
     // ================================================================ 列表
 
@@ -358,6 +368,83 @@ public class ListingTaskService {
             }
         }
         return mediaLibrary.links(refs, download);
+    }
+
+    /** 参考素材打包：zip 文件名、要打进包的文件（原文件名已去重）、说明（外链与超出上限的） */
+    public record ZipPlan(String fileName, List<ZipFile> files, List<String> notes) {
+    }
+
+    public record ZipFile(String name, String storage, String key) {
+    }
+
+    /** 参考型号的可发客户图片和视频打包（最多 50 个）；先算好清单，校验失败时按普通错误返回 */
+    public ZipPlan referenceZip(Long id, String brand, String model) {
+        List<MediaItemVO> items = referenceMedia(id, brand, model);
+        if (items.isEmpty()) {
+            throw new BizException("这个型号没有可发客户的图片和视频");
+        }
+        List<ZipFile> files = new ArrayList<>();
+        List<String> notes = new ArrayList<>();
+        Set<String> used = new HashSet<>();
+        for (MediaItemVO i : items) {
+            MediaRef ref = new MediaRef();
+            ref.setItemId(i.getItemId());
+            ref.setOfficialTable(i.getOfficialTable());
+            ref.setOfficialId(i.getOfficialId());
+            ref.setBrand(brand);
+            ref.setModel(model);
+            MediaLibraryService.FileSource src = mediaLibrary.source(ref);
+            if (src.externalUrl() != null) {
+                notes.add("外部链接的官方素材，没有打包：" + src.externalUrl());
+                continue;
+            }
+            if (files.size() >= ListingConstants.MAX_ZIP_FILES) {
+                notes.add("超过 " + ListingConstants.MAX_ZIP_FILES + " 个文件，没有打包：" + src.fileName());
+                continue;
+            }
+            files.add(new ZipFile(uniqueName(safeName(src.fileName()), used), src.storage(), src.key()));
+        }
+        return new ZipPlan(safeName("参考素材-" + (brand == null ? "" : brand.trim()) + "-" + model.trim()) + ".zip", files, notes);
+    }
+
+    /** 按清单边读边写 zip（图片视频本身已压缩，不再压缩，省 CPU） */
+    public void writeZip(ZipPlan plan, OutputStream out) throws IOException {
+        try (ZipOutputStream zip = new ZipOutputStream(out, StandardCharsets.UTF_8)) {
+            zip.setLevel(Deflater.NO_COMPRESSION);
+            for (ZipFile f : plan.files()) {
+                zip.putNextEntry(new ZipEntry(f.name()));
+                try (InputStream in = files.open(f.storage(), f.key())) {
+                    in.transferTo(zip);
+                }
+                zip.closeEntry();
+            }
+            if (!plan.notes().isEmpty()) {
+                zip.putNextEntry(new ZipEntry("说明.txt"));
+                zip.write(String.join("\n", plan.notes()).getBytes(StandardCharsets.UTF_8));
+                zip.closeEntry();
+            }
+        }
+    }
+
+    private static String safeName(String name) {
+        String n = name == null ? "" : name.replaceAll("[\\\\/:*?\"<>|\\r\\n\\t]", "_").strip();
+        return n.isEmpty() ? "file" : n;
+    }
+
+    /** 重名时在扩展名前加「 (2)」「 (3)」… */
+    private static String uniqueName(String name, Set<String> used) {
+        if (used.add(name.toLowerCase(Locale.ROOT))) {
+            return name;
+        }
+        int dot = name.lastIndexOf('.');
+        String base = dot > 0 ? name.substring(0, dot) : name;
+        String ext = dot > 0 ? name.substring(dot) : "";
+        for (int n = 2; ; n++) {
+            String candidate = base + " (" + n + ")" + ext;
+            if (used.add(candidate.toLowerCase(Locale.ROOT))) {
+                return candidate;
+            }
+        }
     }
 
     /** 型号必须在这个任务型号的参考列表里 */

@@ -436,6 +436,44 @@ public class MediaLibraryService {
         return out;
     }
 
+    /**
+     * 素材文件在哪里：本公司上传的和平台上传的官方素材有存储位置（storage + key）；外部链接的官方素材只有地址。
+     * 只给可发客户的图片和视频（打包下载用）。
+     */
+    public record FileSource(String storage, String key, String fileName, String externalUrl) {
+    }
+
+    public FileSource source(MediaRef ref) {
+        MediaItemDO item = locate(ref, false);
+        if (!Objects.equals(item.getCanSend(), 1)) {
+            throw new BizException("仅内部的素材不能下载");
+        }
+        if (MediaCategory.BIZ_ATTACHMENT.equals(item.getSourceTable())) {
+            BizAttachmentDO a = attachmentMapper.selectById(item.getSourceId());
+            if (a == null || a.getDeletedAt() != null) {
+                throw new BizException("素材不存在");
+            }
+            return new FileSource(a.getStorage(), a.getFileKey(), a.getFileName(), null);
+        }
+        if (MediaCategory.INQUIRY_ATTACHMENT.equals(item.getSourceTable())) {
+            CustomerInquiryAttachmentDO a = inquiryAttachmentMapper.selectById(item.getSourceId());
+            if (a == null || a.getDeletedAt() != null) {
+                throw new BizException("素材不存在");
+            }
+            return new FileSource(a.getStorage(), a.getFileKey(), a.getFileName(), null);
+        }
+        ProductMediaDO m = OFFICIAL_DOC.equals(item.getSourceTable()) ? null : productMediaMapper.selectById(item.getSourceId());
+        if (m == null || m.getDeletedAt() != null) {
+            throw new BizException("素材不存在");
+        }
+        String url = m.getFileUrl() == null ? "" : m.getFileUrl();
+        String name = url.substring(url.lastIndexOf('/') + 1);
+        if (StringUtils.hasText(m.getStorage()) && StringUtils.hasText(m.getFileKey())) {
+            return new FileSource(m.getStorage(), m.getFileKey(), StringUtils.hasText(name) ? name : item.getModel(), null);
+        }
+        return new FileSource(null, null, name, url);
+    }
+
     private FileLink link(MediaItemDO item, boolean download) {
         if (MediaCategory.BIZ_ATTACHMENT.equals(item.getSourceTable())) {
             BizAttachmentDO a = attachmentMapper.selectById(item.getSourceId());

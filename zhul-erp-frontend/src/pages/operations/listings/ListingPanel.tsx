@@ -209,11 +209,14 @@ const MediaBlock: React.FC<{
   model: string;
   fetchUrls: FetchUrls;
   extra?: React.ReactNode;
-}> = ({ title, items, brand, model, fetchUrls, extra }) => {
+  /** 「全部下载」的做法；不传时逐个下载（最多 50 个） */
+  onDownloadAll?: () => Promise<void>;
+}> = ({ title, items, brand, model, fetchUrls, extra, onDownloadAll }) => {
   const { palette } = useAppTheme();
   const { message } = App.useApp();
   const [previews, setPreviews] = useState<Record<string, string>>({});
   const preview = usePreviewer(brand, model, fetchUrls);
+  const [downloading, setDownloading] = useState(false);
 
   useEffect(() => {
     loadPreviews(items, brand, model, fetchUrls)
@@ -235,8 +238,14 @@ const MediaBlock: React.FC<{
         <Button
           size="small"
           icon={<DownloadOutlined />}
+          loading={downloading}
           onClick={async () => {
+            setDownloading(true);
             try {
+              if (onDownloadAll) {
+                await onDownloadAll();
+                return;
+              }
               await downloadAll(
                 await fetchUrls(
                   items
@@ -247,6 +256,8 @@ const MediaBlock: React.FC<{
               );
             } catch (e) {
               message.error(readBizError(e).message);
+            } finally {
+              setDownloading(false);
             }
           }}
         >
@@ -303,6 +314,7 @@ const ReferenceModelMedia: React.FC<{
       brand={brand}
       model={model}
       fetchUrls={fetchUrls}
+      onDownloadAll={() => listingApi.downloadReferenceZip(id, brand, model)}
     />
   );
 };

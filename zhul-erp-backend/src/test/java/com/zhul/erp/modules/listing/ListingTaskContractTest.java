@@ -1,21 +1,34 @@
 package com.zhul.erp.modules.listing;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.zhul.erp.framework.storage.FileStorageService;
 import com.zhul.erp.modules.listing.service.ListingTaskBackfill;
 import com.zhul.erp.support.TenantContractSupport;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.mock.web.MockHttpServletResponse;
+import org.springframework.test.web.servlet.MvcResult;
 
+import java.io.ByteArrayInputStream;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.asyncDispatch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -51,6 +64,8 @@ class ListingTaskContractTest extends TenantContractSupport {
 
     @Autowired
     private ListingTaskBackfill backfill;
+    @Autowired
+    private FileStorageService files;
 
     private long brand;
     private long p1;
@@ -83,6 +98,8 @@ class ListingTaskContractTest extends TenantContractSupport {
         jdbc.update("delete from product where brand_id in (select id from product_brand where brand_name = ?)", BRAND);
         jdbc.update("delete from product_brand where brand_name = ?", BRAND);
         jdbc.update("delete from sys_config where config_key = 'product.content.platforms' and tenant_id in (?, ?)", A, B);
+        files.deleteQuietly("LOCAL", "it-listing/ref-1.png", false);
+        files.deleteQuietly("LOCAL", "it-listing/ref-2.mp4", false);
     }
 
     @Test
@@ -281,7 +298,52 @@ class ListingTaskContractTest extends TenantContractSupport {
         assertEquals(1, tasks(A, p1).size());
     }
 
+    @Test
+    void referenceZip_packsOriginalNames_onlyListedModels() throws Exception {
+        ok(call(json(post(TASKS + "/products/" + p1 + "/verify-facts"), "{}"), a));
+        confirm(a, platformMd("alibaba", "L-1", "en", ALIBABA_BODY));
+        long id = id(A, p1, "alibaba");
+        // 参考型号 L-2 两个可发客户的文件，原文件名相同
+        storedMedia("L-2", "it-listing/ref-1.png", "营销图.png", 1, "first-image".getBytes(StandardCharsets.UTF_8));
+        storedMedia("L-2", "it-listing/ref-2.mp4", "营销图.png", 2, "second-video".getBytes(StandardCharsets.UTF_8));
+
+        MvcResult started = mvc.perform(get(API + "/" + id + "/references/zip").param("brand", BRAND).param("model", "L-2")
+                .header("Authorization", "Bearer " + a)).andReturn();
+        MockHttpServletResponse res = mvc.perform(asyncDispatch(started)).andReturn().getResponse();
+        assertEquals(200, res.getStatus());
+        Matcher name = Pattern.compile("filename\\*=UTF-8''([^;]+)").matcher(res.getHeader("Content-Disposition"));
+        assertTrue(name.find(), res.getHeader("Content-Disposition"));
+        assertEquals("参考素材-ITLBrand-L-2.zip", URLDecoder.decode(name.group(1), StandardCharsets.UTF_8));
+        Map<String, byte[]> entries = new LinkedHashMap<>();
+        try (ZipInputStream zip = new ZipInputStream(new ByteArrayInputStream(res.getContentAsByteArray()), StandardCharsets.UTF_8)) {
+            for (ZipEntry e = zip.getNextEntry(); e != null; e = zip.getNextEntry()) {
+                entries.put(e.getName(), zip.readAllBytes());
+            }
+        }
+        assertEquals(List.of("营销图.png", "营销图 (2).png"), new ArrayList<>(entries.keySet()), "原文件名，重名加序号");
+        // 两个文件的内容都在包里（先后按素材库的显示顺序）
+        List<String> contents = entries.values().stream().map(b -> new String(b, StandardCharsets.UTF_8)).sorted().toList();
+        assertEquals(List.of("first-image", "second-video"), contents);
+
+        // 不在参考列表的型号：按普通错误返回，不打包
+        assertEquals("只能从这个型号的参考素材里选择", fail(call(get(API + "/" + id + "/references/zip")
+                .param("brand", BRAND).param("model", "L-9"), a)).path("message").asText());
+    }
+
     // ---------------------------------------------------------------- 准备数据
+
+    /** 一条真实写入本地存储的可发客户素材 */
+    private void storedMedia(String model, String key, String fileName, int kind, byte[] content) throws Exception {
+        Path tmp = Files.createTempFile("it-listing", ".bin");
+        Files.write(tmp, content);
+        files.storages().local().put(false, key, tmp, kind == 1 ? "image/png" : "video/mp4");
+        Files.deleteIfExists(tmp);
+        jdbc.update("insert into biz_attachment (tenant_id, owner_type, owner_id, kind, storage, file_key, url, file_name, file_size, content_type, uploaded_by) "
+                + "values (?, 'SHOOT', 1, ?, 'LOCAL', ?, '', ?, ?, 'image/png', 0)", A, kind, key, fileName, content.length);
+        long att = jdbc.queryForObject("select max(id) from biz_attachment where tenant_id = ?", Long.class, A);
+        jdbc.update("insert into media_item (tenant_id, asset_key, brand, model, category, kind, source_table, source_id, can_send, for_listing) "
+                + "values (?, ?, ?, ?, 9, ?, 'biz_attachment', ?, 1, 0)", A, (BRAND + " " + model).toLowerCase(), BRAND, model, kind, att);
+    }
 
     private long product(String mpn) {
         jdbc.update("insert into product (tenant_id, brand_id, mpn_raw, mpn_normalized, product_name) values (0, ?, ?, ?, ?)",

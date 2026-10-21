@@ -15,6 +15,10 @@ import com.zhul.erp.modules.media.dto.MediaReferenceVO;
 import com.zhul.erp.modules.media.dto.MediaUrlRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -24,7 +28,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 
@@ -93,6 +99,20 @@ public class ListingTaskController {
     public Result<List<FileLink>> referenceUrls(@PathVariable Long id, @RequestParam(required = false) String brand,
                                                 @RequestParam String model, @Valid @RequestBody MediaUrlRequest req) {
         return Result.ok(service.referenceLinks(id, brand, model, req.getRefs(), req.isDownload()));
+    }
+
+    /** 参考型号的可发客户图片和视频打成 zip（边读边写，视频较大也不占内存） */
+    @GetMapping("/{id}/references/zip")
+    @PreAuthorize(VIEW)
+    public ResponseEntity<StreamingResponseBody> referenceZip(@PathVariable Long id, @RequestParam(required = false) String brand,
+                                                              @RequestParam String model) {
+        ListingTaskService.ZipPlan plan = service.referenceZip(id, brand, model);
+        StreamingResponseBody body = out -> service.writeZip(plan, out);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        ContentDisposition.attachment().filename(plan.fileName(), StandardCharsets.UTF_8).build().toString())
+                .contentType(MediaType.parseMediaType("application/zip"))
+                .body(body);
     }
 
     @PutMapping("/{id}/reference")
