@@ -4,7 +4,10 @@ import com.zhul.erp.modules.product.content.constants.ContentConstants;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
+import java.util.Currency;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -14,6 +17,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 /**
  * 商品内容规范 v2 解析（纯函数，见 docs/02-产品PRD/02-商品域/商品内容规范-v2.md）。
@@ -47,6 +51,11 @@ public final class ContentV2Parser {
     /** 编号写在加粗里的问题：**1. What is …?**（答案在下一段） */
     private static final Pattern BOLD_NUMBERED = Pattern.compile("^\\*\\*\\s*\\d+[.、)）]\\s*(.+?)\\*\\*\\s*(.*)$");
     private static final Pattern MONEY = Pattern.compile("\\d[\\d,]*(?:\\.\\d+)?");
+    /** 商品平台参考价的上限，与 product_reference_price 的 decimal(18,2)、decimal(18,6) 一致 */
+    private static final BigDecimal AMOUNT_LIMIT = new BigDecimal("10000000000000000");
+    private static final BigDecimal RATE_LIMIT = new BigDecimal("1000000000000");
+    private static final Set<String> ISO_CURRENCIES = Currency.getAvailableCurrencies().stream()
+            .map(Currency::getCurrencyCode).collect(Collectors.toUnmodifiableSet());
     /**
      * 中国制造网（工业产品页版式）用加粗二级标题写的四个区块，归回前面的平台章节：
      * Technical Specifications → 产品属性、Key Features and Benefits → 卖点、Product Details → 产品详情、FAQ → FAQ
@@ -236,6 +245,9 @@ public final class ContentV2Parser {
         }
         if (n.startsWith("冲突与待确认") || n.startsWith("冲突")) {
             return ContentSection.CONFLICTS;
+        }
+        if (n.startsWith("商品平台参考价")) {
+            return ContentSection.CARD_PRICE;
         }
         if (n.startsWith("平台参考价") || n.startsWith("参考价")) {
             return ContentSection.LISTING_PRICES;
@@ -437,6 +449,7 @@ public final class ContentV2Parser {
             case SOURCES -> parseSources(content, block);
             case CONFLICTS -> parseConflicts(content, block);
             case LISTING_PRICES -> parseListings(content, block);
+            case CARD_PRICE -> parseCardPrice(content, block);
             case KEYWORD_LIBRARY -> parseKeywordLibrary(content, block);
             case KEYWORD_PICKS -> parsePicks(content, block);
             case TITLE -> parseTitles(content, block);
@@ -776,6 +789,109 @@ public final class ContentV2Parser {
             block.getListings().add(new ContentDraft.ListingRow(cell(c, 0), cell(c, 1), cell(c, 2), usd, cell(c, 4),
                     title.length() > 255 ? title.substring(0, 255) : title, url));
         }
+    }
+
+    /**
+     * 商品平台参考价：「字段 | 内容」，字段为币种、参考价（原币）、汇率（原币 → 人民币）、价格来源、取价日期。
+     * 校验与商品卡片手工保存一致（ProductReferencePriceServiceImpl）：币种 ISO 4217；参考价大于 0、HALF_UP 保留 2 位；
+     * 汇率大于 0、HALF_UP 保留 6 位；来源最长 128 字；日期 YYYY-MM-DD。未知值留空，写入时不覆盖已有值。
+     */
+    private static void parseCardPrice(List<String> content, ContentDraft.Block block) {
+        String currency = null;
+        BigDecimal original = null;
+        BigDecimal rate = null;
+        String source = null;
+        LocalDate date = null;
+        boolean currencyGiven = false;
+        boolean priceGiven = false;
+        for (ContentMarkdownParser.TableRow row : ContentMarkdownParser.table(content, block)) {
+            List<String> c = row.cells();
+            String key = c.isEmpty() ? "" : normalize(c.get(0)).replaceAll("[（）()→>\\-]", "");
+            if (key.isEmpty() || "字段".equals(key)) {
+                continue;
+            }
+            String raw = c.size() > 1 ? c.get(1).strip() : "";
+            boolean unknown = isUnknownValue(raw);
+            String at = "第 " + row.lineNo() + " 行";
+            if (key.startsWith("币种") || key.startsWith("currency")) {
+                if (!unknown) {
+                    currencyGiven = true;
+                    if (!ISO_CURRENCIES.contains(raw)) {
+                        block.getErrors().add(at + "币种须为三位大写 ISO 4217 代码，如 USD、CNY");
+                    } else {
+                        currency = raw;
+                    }
+                }
+            } else if (key.startsWith("参考价") || key.startsWith("原币参考价") || key.startsWith("price")) {
+                if (!unknown) {
+                    priceGiven = true;
+                    original = decimal(raw, at + "参考价（原币）", 2, AMOUNT_LIMIT, block);
+                }
+            } else if (key.startsWith("汇率") || key.startsWith("exchangerate")) {
+                if (!unknown) {
+                    rate = decimal(raw, at + "汇率", 6, RATE_LIMIT, block);
+                }
+            } else if (key.startsWith("价格来源") || key.startsWith("来源") || key.startsWith("source")) {
+                if (!unknown) {
+                    ContentMarkdownParser.check(block, row.lineNo(), "价格来源", raw, 128);
+                    source = raw.length() > 128 ? raw.substring(0, 128) : raw;
+                }
+            } else if (key.startsWith("取价日期") || key.startsWith("日期") || key.startsWith("date")) {
+                if (!unknown) {
+                    try {
+                        date = LocalDate.parse(raw);
+                    } catch (DateTimeParseException e) {
+                        block.getErrors().add(at + "取价日期须为 YYYY-MM-DD，如 2026-10-19");
+                    }
+                }
+            } else {
+                block.getNotes().add(at + "字段「" + c.get(0) + "」不认识，已跳过");
+            }
+        }
+        if (!currencyGiven && !priceGiven) {
+            block.getNotes().add("币种和参考价未知，不写入商品平台参考价");
+            return;
+        }
+        if (currencyGiven != priceGiven) {
+            block.getErrors().add("币种和参考价（原币）要同时提供；只知道其中一个时不能写入商品平台参考价");
+            return;
+        }
+        if (currency == null || original == null) {
+            return;
+        }
+        if ("CNY".equals(currency)) {
+            // 人民币按 1 处理，表里写的汇率不用
+            rate = BigDecimal.ONE.setScale(6);
+        }
+        block.setCardPrice(new ContentDraft.CardPriceRow(currency, original, rate, source, date));
+    }
+
+    /** 大于 0 的数（可带千分位逗号），HALF_UP 保留 scale 位后仍大于 0 且不超过上限；不合规时记错误并返回空 */
+    private static BigDecimal decimal(String raw, String label, int scale, BigDecimal limit, ContentDraft.Block block) {
+        String t = raw.replace(",", "");
+        if (!t.matches("\\d+(?:\\.\\d+)?")) {
+            block.getErrors().add(label + "须为大于 0 的数字，当前为「" + raw + "」");
+            return null;
+        }
+        BigDecimal v = new BigDecimal(t).setScale(scale, RoundingMode.HALF_UP);
+        if (v.signum() <= 0) {
+            block.getErrors().add(label + "须大于 0");
+            return null;
+        }
+        if (v.compareTo(limit) >= 0) {
+            block.getErrors().add(label + "数值过大");
+            return null;
+        }
+        return v;
+    }
+
+    /** 未知值：空、破折号、含「[待确认]」，以及「未知」「unknown」 */
+    static boolean isUnknownValue(String v) {
+        if (isBlankValue(v)) {
+            return true;
+        }
+        String t = v.strip().toLowerCase(Locale.ROOT);
+        return t.equals("未知") || t.equals("unknown") || t.equals("n/a");
     }
 
     private static void parseFaq(List<String> content, ContentDraft.Block block) {

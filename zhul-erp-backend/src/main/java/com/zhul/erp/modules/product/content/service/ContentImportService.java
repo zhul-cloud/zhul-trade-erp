@@ -29,6 +29,7 @@ import com.zhul.erp.modules.product.entity.ProductLogisticsDO;
 import com.zhul.erp.modules.product.entity.ProductDO;
 import com.zhul.erp.modules.product.entity.ProductDocumentDO;
 import com.zhul.erp.modules.product.entity.ProductFaqDO;
+import com.zhul.erp.modules.product.entity.ProductReferencePriceDO;
 import com.zhul.erp.modules.product.entity.ProductRelationshipDO;
 import com.zhul.erp.modules.product.entity.ProductSpecificationDO;
 import com.zhul.erp.modules.product.repository.ProductApplicationMapper;
@@ -38,6 +39,7 @@ import com.zhul.erp.modules.product.repository.ProductLogisticsMapper;
 import com.zhul.erp.modules.product.repository.ProductDocumentMapper;
 import com.zhul.erp.modules.product.repository.ProductFaqMapper;
 import com.zhul.erp.modules.product.repository.ProductMapper;
+import com.zhul.erp.modules.product.repository.ProductReferencePriceMapper;
 import com.zhul.erp.modules.product.repository.ProductRelationshipMapper;
 import com.zhul.erp.modules.product.repository.ProductSpecificationMapper;
 import com.zhul.erp.modules.product.support.BrandResolver;
@@ -87,6 +89,7 @@ public class ContentImportService {
     private final ProductFactNoteMapper factNoteMapper;
     private final ProductLogisticsMapper logisticsMapper;
     private final ProductCustomsMapper customsMapper;
+    private final ProductReferencePriceMapper referencePriceMapper;
 
     private static final Map<Integer, String> TIER_LABELS = Map.of(ContentConstants.TIER_CORE, "核心",
             ContentConstants.TIER_MAIN, "主要", ContentConstants.TIER_LONG_TAIL, "长尾");
@@ -225,7 +228,7 @@ public class ContentImportService {
             bv.setSkipped(skip.contains(b.getSection()));
             bv.setEdited(file.getEdits() != null && file.getEdits().containsKey(bv.getSection()));
             if (product != null) {
-                bv.getHints().addAll(hints(b, product, draft.getLang(), platform));
+                bv.getHints().addAll(hints(b, product, draft, platform));
             }
             // 去重、截断等提示排在写入方式说明之后（第一条是写入方式）
             bv.getHints().addAll(b.getNotes());
@@ -398,6 +401,17 @@ public class ContentImportService {
                 b.getListings().forEach(r -> bv.getRows().add(List.of(r.category(), r.platform(), r.condition(),
                         r.priceUsd().toPlainString(), r.sourcePrice(), r.linkUrl())));
             }
+            case CARD_PRICE -> {
+                ContentDraft.CardPriceRow r = b.getCardPrice();
+                if (r != null) {
+                    bv.setColumns(List.of("字段", "内容"));
+                    bv.getRows().add(List.of("币种", r.currency()));
+                    bv.getRows().add(List.of("参考价（原币）", r.priceOriginal().toPlainString()));
+                    bv.getRows().add(List.of("汇率（原币 → 人民币）", r.exchangeRate() == null ? "未知" : r.exchangeRate().toPlainString()));
+                    bv.getRows().add(List.of("价格来源", r.priceSource() == null ? "未知" : r.priceSource()));
+                    bv.getRows().add(List.of("取价日期", r.priceDate() == null ? "未知" : r.priceDate().toString()));
+                }
+            }
             case KEYWORD_PICKS -> {
                 bv.setColumns(List.of("选用关键词"));
                 b.getPicks().forEach(r -> bv.getRows().add(List.of(r)));
@@ -464,7 +478,8 @@ public class ContentImportService {
     }
 
     /** 写入方式说明：对照商品现有数据，告诉运营哪些会保留、哪些会替换 */
-    private List<String> hints(ContentDraft.Block b, ProductDO product, String lang, MarketingPlatform platform) {
+    private List<String> hints(ContentDraft.Block b, ProductDO product, ContentDraft draft, MarketingPlatform platform) {
+        String lang = draft.getLang();
         List<String> hints = new ArrayList<>();
         Long productId = product.getId();
         switch (b.getSection()) {
@@ -598,12 +613,40 @@ public class ContentImportService {
                 hints.add("整份替换该商品的资料待确认项（" + b.getSection().label() + "，现有 " + existing + " 项），所有公司共用");
             }
             case LISTING_PRICES -> hints.add("整份替换该商品的平台参考价（公开挂牌价，所有公司共用），不是成交价或报价");
+            case CARD_PRICE -> hints.addAll(cardPriceHints(b.getCardPrice(), productId, draft.getUpdated()));
             case SOURCES -> {
                 long local = b.getSources().stream().filter(x -> !ContentWriter.isWebLink(x.link())).count();
                 hints.add("网页链接按地址并入技术资料，不删除已有资料" + (local > 0 ? "；本地路径 " + local + " 条不导入" : ""));
             }
             default -> hints.add("替换");
         }
+        return hints;
+    }
+
+    /** 商品平台参考价：合并已有值后写入什么（未知值保留现有、汇率缺失为未计算） */
+    private List<String> cardPriceHints(ContentDraft.CardPriceRow r, Long productId, String updated) {
+        if (r == null) {
+            // 块有错误时没有解析结果，先改错
+            return List.of();
+        }
+        ProductReferencePriceDO existing = referencePriceMapper.selectOne(new LambdaQueryWrapper<ProductReferencePriceDO>()
+                .eq(ProductReferencePriceDO::getTenantId, ProductConstants.PLATFORM_TENANT_ID)
+                .eq(ProductReferencePriceDO::getProductId, productId)
+                .isNull(ProductReferencePriceDO::getDeletedAt));
+        ContentWriter.CardPrice p = ContentWriter.resolveCardPrice(r, existing, updated);
+        List<String> hints = new ArrayList<>();
+        hints.add("写入商品卡片的平台参考价（所有公司共用），" + (existing == null ? "商品还没有平台参考价" : "替换现有 "
+                + existing.getCurrencyCode() + " " + existing.getPriceOriginal().toPlainString()) + "；不影响公开挂牌价");
+        hints.add("人民币参考价：" + (p.priceCny() == null ? "未计算（没有汇率）" : p.priceCny().toPlainString())
+                + (p.rateKept() ? "（汇率未知，沿用现有 " + p.exchangeRate().toPlainString() + "）" : ""));
+        if (p.sourceKept()) {
+            hints.add("价格来源未知，保留现有「" + p.priceSource() + "」");
+        }
+        hints.add(p.priceDate() == null ? "取价日期未知，不填" : "取价日期 " + p.priceDate() + switch (p.dateFrom()) {
+            case "updated" -> "（表内没有，取 frontmatter 的 updated）";
+            case "现有" -> "（未知，保留现有）";
+            default -> "";
+        });
         return hints;
     }
 
