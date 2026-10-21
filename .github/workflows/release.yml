@@ -1,0 +1,151 @@
+# 生产发版：release/* 通过 PR 合并到 main 后，自动打版本标签 → 构建三个镜像推送到 GHCR → 部署到生产服务器。
+# 版本号取分支名 release/X.Y.Z；同一 X.Y 已有标签时取最大补丁号 +1（已有 v1.3.0 再合并就打 v1.3.1）。
+# 手动运行（Actions → 生产发版 → Run workflow）只重新部署已有版本，用于重试或回滚，不打标签、不构建。
+# 需要的配置（Settings → Secrets and variables → Actions），说明见 docs/06-部署运维/08-生产发版.md：
+#   Secret   DEPLOY_SSH_KEY      受限部署密钥的私钥（服务器只允许它执行部署脚本）
+#   Variable DEPLOY_HOST         生产服务器地址
+#   Variable DEPLOY_KNOWN_HOSTS  生产服务器的 SSH 主机公钥
+name: 生产发版
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 要重新部署的已有版本（如 v1.3.0）
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-release
+  cancel-in-progress: false
+
+jobs:
+  version:
+    name: 确定版本号
+    # 只处理本仓库 release/* 分支合并到 main 的 PR；fork 的 PR 和未合并就关闭的 PR 不发版。
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.pull_request.merged == true &&
+       startsWith(github.event.pull_request.head.ref, 'release/') &&
+       github.event.pull_request.head.repo.full_name == github.repository)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+      build: ${{ steps.v.outputs.build }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha || github.sha }}
+          fetch-depth: 0
+      - id: v
+        env:
+          EVENT: ${{ github.event_name }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          MERGE_SHA: ${{ github.event.pull_request.merge_commit_sha }}
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT" = workflow_dispatch ]; then
+            [[ "$INPUT_VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::版本号格式应为 vX.Y.Z"; exit 1; }
+            git rev-parse -q --verify "refs/tags/$INPUT_VERSION" >/dev/null || { echo "::error::标签 $INPUT_VERSION 不存在"; exit 1; }
+            git merge-base --is-ancestor "$INPUT_VERSION^{commit}" origin/main || { echo "::error::$INPUT_VERSION 不在 main 上"; exit 1; }
+            echo "version=$INPUT_VERSION" >> "$GITHUB_OUTPUT"
+            echo "build=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          base="${HEAD_REF#release/}"
+          [[ "$base" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)$ ]] || { echo "::error::分支名 $HEAD_REF 不是 release/X.Y.Z"; exit 1; }
+          major=${BASH_REMATCH[1]}
+          minor=${BASH_REMATCH[2]}
+          patch=${BASH_REMATCH[3]}
+          latest=$(git tag -l "v$major.$minor.*" | grep -E "^v$major\.$minor\.[0-9]+$" | sort -V | tail -n1 || true)
+          if [ -n "$latest" ] && [ $(( ${latest##*.} + 1 )) -gt "$patch" ]; then
+            patch=$(( ${latest##*.} + 1 ))
+          fi
+          version="v$major.$minor.$patch"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "$version" -m "发版 $version（$HEAD_REF 合并到 main）" "$MERGE_SHA"
+          git push origin "refs/tags/$version"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "build=true" >> "$GITHUB_OUTPUT"
+          echo "### 版本 $version（$MERGE_SHA）" >> "$GITHUB_STEP_SUMMARY"
+
+  build:
+    name: 构建 ${{ matrix.name }}
+    needs: version
+    if: needs.version.outputs.build == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - name: backend
+            context: zhul-erp-backend
+            file: zhul-erp-backend/Dockerfile
+          - name: frontend
+            context: zhul-erp-frontend
+            file: zhul-erp-frontend/Dockerfile
+          - name: ai-orchestrator
+            context: scripts
+            file: scripts/ai-orchestrator/Dockerfile
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: refs/tags/${{ needs.version.outputs.version }}
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v7
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.file }}
+          push: true
+          tags: ghcr.io/zhul-cloud/zhul-erp-${{ matrix.name }}:${{ needs.version.outputs.version }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.version=${{ needs.version.outputs.version }}
+          cache-from: type=gha,scope=${{ matrix.name }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.name }}
+
+  deploy:
+    name: 部署到生产服务器
+    needs: [version, build]
+    if: >-
+      always() && needs.version.result == 'success' &&
+      (needs.build.result == 'success' || needs.build.result == 'skipped')
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - env:
+          VERSION: ${{ needs.version.outputs.version }}
+          DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
+          DEPLOY_KNOWN_HOSTS: ${{ vars.DEPLOY_KNOWN_HOSTS }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+        run: |
+          set -euo pipefail
+          for v in DEPLOY_HOST DEPLOY_KNOWN_HOSTS DEPLOY_SSH_KEY; do
+            [ -n "${!v}" ] || { echo "::error::缺少配置 $v，见 docs/06-部署运维/08-生产发版.md"; exit 1; }
+          done
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/known_hosts ~/.ssh/deploy_key
+          # 服务器端用 authorized_keys 的 command= 强制执行部署脚本，这里传过去的只是版本号。
+          ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes \
+            -o ServerAliveInterval=30 "root@$DEPLOY_HOST" "$VERSION"
