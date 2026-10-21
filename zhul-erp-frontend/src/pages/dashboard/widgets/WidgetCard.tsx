@@ -140,6 +140,7 @@ export const Metric: React.FC<{
           color: palette.ink,
           fontVariantNumeric: 'tabular-nums',
           margin: '6px 0 4px',
+          whiteSpace: 'nowrap',
         }}
       >
         {value}
@@ -152,7 +153,8 @@ export const Metric: React.FC<{
     </>
   );
   const style: React.CSSProperties = {
-    flex: 1,
+    // 半行卡片放不下时两两换行，金额不被拆成两行
+    flex: '1 1 190px',
     minWidth: 0,
     padding: 16,
     borderRadius: 12,

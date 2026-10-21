@@ -100,6 +100,16 @@ public interface ListingTaskMapper extends BaseMapper<ListingTaskDO> {
             + "<foreach collection='productIds' item='id' open='(' separator=',' close=')'>#{id}</foreach></script>")
     List<Integer> tenantsOf(@Param("productIds") Collection<Long> productIds);
 
+    /** 各平台各状态的任务数（工作台「平台发布进度」） */
+    @Select("SELECT platform, status, COUNT(*) AS cnt FROM listing_task WHERE tenant_id = #{tenantId} AND deleted_at IS NULL "
+            + "GROUP BY platform, status")
+    List<Map<String, Object>> countByPlatformStatus(@Param("tenantId") Integer tenantId);
+
+    /** 有待发布平台缺发品素材的商品数（工作台「内容流水线」） */
+    @Select("<script>SELECT COUNT(DISTINCT l.product_id) FROM listing_task l WHERE l.tenant_id = #{tenantId} "
+            + "AND l.deleted_at IS NULL AND " + NEED_MEDIA + "</script>")
+    long needMediaProducts(@Param("tenantId") Integer tenantId);
+
     /** 有营销写入的公司（启动补齐用，显式跨公司） */
     @Select("SELECT DISTINCT tenant_id FROM product_content_task WHERE deleted_at IS NULL "
             + "AND (alibaba_at IS NOT NULL OR mic_at IS NOT NULL OR social_at IS NOT NULL OR en_at IS NOT NULL OR ru_at IS NOT NULL)")

@@ -95,10 +95,10 @@ class WorkbenchContractTest extends TenantContractSupport {
         assertEquals("general", general.path("code").asText());
         assertEquals(List.of("opportunity-stats", "overdue-pi"), keys(general));
 
-        // 老板看板的组件还没上线：先显示通用看板的组件，并标出兜底
-        role(ROLE, "boss");
+        // 运营负责人看板的组件都没有权限：先显示通用看板的组件，并标出兜底
+        role(ROLE, "ops_lead");
         JsonNode boss = ok(call(get(API), token)).path("boards").get(0);
-        assertEquals("boss", boss.path("code").asText());
+        assertEquals("ops_lead", boss.path("code").asText());
         assertTrue(boss.path("fallback").asBoolean());
         assertEquals(List.of("opportunity-stats", "overdue-pi"), keys(boss));
         // 只用现有接口取数的组件（前端直接调商机统计接口）没有工作台数据接口
@@ -117,6 +117,54 @@ class WorkbenchContractTest extends TenantContractSupport {
         bench.path("boards").forEach(b -> codes.add(b.path("code").asText()));
         assertEquals(List.of("purchase_lead", "purchaser"), codes, "负责人在前");
         assertEquals("purchase_lead", bench.path("defaultCode").asText());
+    }
+
+    /** 每个岗位看板的全部组件都能取到数据（不报错、至少一块），组件清单与模板一致 */
+    @Test
+    void everyRoleBoard_widgetsLoad() throws Exception {
+        int[] all = {DASHBOARD, MY_TASKS, OPP_STATS, PI, REQUIREMENTS, ORDERS, SHIPMENTS, 100051, 100053, 100054, 100079,
+                100100, 100102, 100103, 100107, 100108, 100109, 100112, 100113, 100114, 100116, 100117};
+        Map<String, List<String>> expected = Map.of(
+                "boss", List.of("biz-overview", "cash", "sales-funnel", "revenue-trend", "risk-alerts", "rankings"),
+                "sales_lead", List.of("team-performance", "follow-ups", "opportunity-stats", "sales-compare", "quote-conversion"),
+                "sales", List.of("my-todo", "my-performance", "quote-progress", "overdue-pi", "my-opportunities"),
+                "purchase_lead", List.of("sourcing-overview", "buyer-efficiency", "purchase-execution", "bargain-result", "payables"),
+                "ops_lead", List.of("content-pipeline", "platform-progress", "media-overview", "monthly-output"));
+        for (Map.Entry<String, List<String>> e : expected.entrySet()) {
+            jdbc.update("delete from role where code = ?", ROLE);
+            role(ROLE, e.getKey());
+            loginWithResources("it_wb_all", all);
+            String token = token("it_wb_all", T);
+            JsonNode board = ok(call(get(API), token)).path("boards").get(0);
+            assertEquals(e.getKey(), board.path("code").asText());
+            assertFalse(board.path("fallback").asBoolean(), e.getKey() + " 的组件都已上线");
+            assertEquals(e.getValue(), keys(board), e.getKey());
+            for (String key : e.getValue()) {
+                if (key.equals("opportunity-stats") || key.equals("overdue-pi")) {
+                    continue;
+                }
+                JsonNode data = ok(call(get(API + "/widgets/" + key), token));
+                assertTrue(data.path("blocks").size() > 0, key + "：" + data);
+            }
+        }
+    }
+
+    @Test
+    void salesTodo_countsOwnInquiriesOnly() throws Exception {
+        role(ROLE, "sales");
+        loginWithResources("it_wb_sales", DASHBOARD, 100051);
+        long me = 99000002L;
+        jdbc.update("insert into customer_inquiry (tenant_id, inquiry_code, owner_id, status, inquiry_date, quote_deadline) values (?, 'IT-WB-1', ?, 3, curdate(), curdate()), "
+                + "(?, 'IT-WB-2', ?, 6, curdate(), curdate()), (?, 'IT-WB-3', ?, 6, curdate(), curdate()), (?, 'IT-WB-4', 1, 6, curdate(), curdate())", T, me, T, me, T, me, T);
+        try {
+            JsonNode todos = ok(call(get(API + "/widgets/my-todo"), token("it_wb_sales", T))).path("blocks").get(0).path("todos");
+            assertEquals(2, todos.size(), "只有询盘单权限：只给询盘的两项");
+            assertEquals("待确认的询盘", todos.get(0).path("title").asText());
+            assertEquals(1, todos.get(0).path("count").asInt());
+            assertEquals(2, todos.get(1).path("count").asInt(), "别人的询盘不算（角色数据范围为本人）");
+        } finally {
+            jdbc.update("delete from customer_inquiry where tenant_id = ? and inquiry_code like 'IT-WB-%'", T);
+        }
     }
 
     @Test

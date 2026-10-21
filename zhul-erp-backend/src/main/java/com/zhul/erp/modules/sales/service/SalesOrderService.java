@@ -6,6 +6,8 @@ import com.zhul.erp.modules.sales.dto.SalesOrderListVO;
 import com.zhul.erp.modules.sales.dto.SalesOrderPageQuery;
 import com.zhul.erp.modules.sales.dto.SalesOrderVO;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 
 /** 销售订单（最小闭环）：由 PI 转成、不可修改只能取消；与报价单、询盘的成交联动在同一事务内 */
@@ -39,4 +41,7 @@ public interface SalesOrderService {
 
     /** type：inquiry / quotation / pi / order */
     ChainVO chain(String type, Long id);
+
+    /** 数据范围内有效订单在期间内的实收人民币（口径同订单列表顶部「本月实收」） */
+    BigDecimal receivedNetCny(LocalDate from, LocalDate to);
 }
