@@ -1,5 +1,8 @@
 package com.zhul.erp.modules.product.content.service;
 
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.context.ApplicationEventPublisher;
+import com.zhul.erp.modules.product.content.support.MarketingChangedEvent;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.zhul.erp.common.exception.BizException;
@@ -29,9 +32,11 @@ import java.util.Map;
 public class MarketingSkipService {
 
     private final ProductMarketingSkipMapper skipMapper;
+    private final ApplicationEventPublisher events;
     private final ProductFinder productFinder;
     private final PlatformSettingService platformSettings;
 
+    @Transactional(rollbackFor = Exception.class)
     public void mark(Long productId, String platformCode) {
         productFinder.active(productId);
         MarketingPlatform platform = platformSettings.requireEnabled(platformCode);
@@ -54,6 +59,7 @@ public class MarketingSkipService {
             } catch (DuplicateKeyException e) {
                 // 并发时另一个请求先标记了，结果相同
             }
+            changed(productId);
             return;
         }
         if (row.getDeletedAt() == null) {
@@ -66,9 +72,16 @@ public class MarketingSkipService {
                 .set(ProductMarketingSkipDO::getMarkedBy, user)
                 .set(ProductMarketingSkipDO::getUpdateTime, now)
                 .set(ProductMarketingSkipDO::getUpdateBy, user));
+        changed(productId);
+    }
+
+    /** 不发布标记变了：重算本公司这个商品的发品任务 */
+    private void changed(Long productId) {
+        events.publishEvent(new MarketingChangedEvent(TenantContext.getTenantId(), List.of(productId)));
     }
 
     /** 撤销不发布；没有标记时什么也不做 */
+    @Transactional(rollbackFor = Exception.class)
     public void unmark(Long productId, String platformCode) {
         productFinder.active(productId);
         MarketingPlatform platform = MarketingPlatform.of(platformCode);
@@ -84,6 +97,7 @@ public class MarketingSkipService {
                 .set(ProductMarketingSkipDO::getDeletedAt, now)
                 .set(ProductMarketingSkipDO::getUpdateTime, now)
                 .set(ProductMarketingSkipDO::getUpdateBy, SecurityUtils.getCurrentUsername()));
+        changed(productId);
     }
 
     /** 本公司这些商品当前有效的不发布标记：商品 → 平台编码 → 标记 */

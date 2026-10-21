@@ -1,5 +1,7 @@
 package com.zhul.erp.modules.product.content.service;
 
+import org.springframework.context.ApplicationEventPublisher;
+import com.zhul.erp.modules.product.content.support.MarketingChangedEvent;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -68,6 +70,7 @@ import java.util.stream.Collectors;
 public class ContentTaskService {
 
     private final ProductContentTaskMapper taskMapper;
+    private final ApplicationEventPublisher events;
     private final ProductContentImportMapper importMapper;
     private final ProductSeoMapper seoMapper;
     private final ProductSeoFaqMapper faqMapper;
@@ -256,6 +259,7 @@ public class ContentTaskService {
             }
         }
         taskMapper.updateById(task);
+        events.publishEvent(new MarketingChangedEvent(task.getTenantId(), List.of(task.getProductId())));
     }
 
     private static Map<String, MarketingSkipVO> skipVOs(Map<String, ProductMarketingSkipDO> rows) {

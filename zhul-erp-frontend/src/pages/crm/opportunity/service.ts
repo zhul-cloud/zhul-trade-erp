@@ -1,4 +1,5 @@
 import { request } from '@umijs/max';
+import { downloadFile, fileUrl } from '@/utils/fileLink';
 
 export interface OpportunityStage {
   code: string;
@@ -223,17 +224,10 @@ export const opportunityApi = {
       ...quiet,
     }).then((r) => r.data);
   },
-  /** 取附件文件（接口需要登录与权限，不能直接用链接），返回浏览器本地地址，用完需 revoke */
-  attachmentBlobUrl: async (id: number, attachmentId: number) => {
-    const blob: Blob = await request(
-      `${BASE}/${id}/attachments/${attachmentId}`,
-      {
-        method: 'GET',
-        params: { inline: true },
-        responseType: 'blob',
-        ...quiet,
-      },
-    );
-    return window.URL.createObjectURL(blob);
-  },
+  /** 附件的临时访问链接（10 分钟有效），可直接用于预览 */
+  attachmentBlobUrl: (id: number, attachmentId: number) =>
+    fileUrl(`${BASE}/${id}/attachments/${attachmentId}`),
+  /** 下载附件：链接带下载响应头，按原文件名保存 */
+  downloadAttachment: (id: number, attachmentId: number) =>
+    downloadFile(`${BASE}/${id}/attachments/${attachmentId}`),
 };

@@ -450,18 +450,10 @@ const OpportunityDetailPage: React.FC = () => {
                           style={iconButton}
                           onClick={async () => {
                             try {
-                              const url =
-                                await opportunityApi.attachmentBlobUrl(
-                                  d.id,
-                                  a.id,
-                                );
-                              const link = document.createElement('a');
-                              link.href = url;
-                              link.download = a.fileName;
-                              document.body.appendChild(link);
-                              link.click();
-                              document.body.removeChild(link);
-                              window.URL.revokeObjectURL(url);
+                              await opportunityApi.downloadAttachment(
+                                d.id,
+                                a.id,
+                              );
                             } catch (e) {
                               message.error(readBizError(e).message);
                             }

@@ -83,6 +83,28 @@ class InquiryIntakeContractTest extends InquiryContractSupport {
         assertEquals(1, created.path("customerType").asInt());
     }
 
+    /** 询盘的图片附件确认型号后进素材库「客户来图」，标注询盘单的全部型号，默认仅内部；Excel 询价清单不算素材 */
+    @Test
+    void confirm_indexesImageAttachmentsAsCustomerImages() throws Exception {
+        loginAsAdmin("it_inq_admin");
+        String admin = token("it_inq_admin");
+        byte[] png = {(byte) 0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A, 0, 0, 0, 0x0D, 'I', 'H', 'D', 'R'};
+        JsonNode img = ok(call(multipart(INQ + "/attachments").file(new MockMultipartFile("file", "铭牌.png", "image/png", png)), admin));
+        JsonNode csv = ok(call(multipart(INQ + "/attachments").file(new MockMultipartFile("file", "清单.csv", "text/csv",
+                "model,qty\nE3Z-D61,1".getBytes(StandardCharsets.UTF_8))), admin));
+        String files = ",\"attachments\":[{\"fileKey\":\"" + img.path("fileKey").asText() + "\",\"fileName\":\"铭牌.png\"},"
+                + "{\"fileKey\":\"" + csv.path("fileKey").asText() + "\",\"fileName\":\"清单.csv\"}]";
+        long id = submit(admin, customer("Wingrid Rocha", "Brazil"), files);
+        ok(call(json(post(INQ + "/" + id + "/confirm"), write(Map.of("rows", List.of(
+                row("Omron", "传感器", "E3Z-D61", 1, null), row("Siemens", "PLC", "6ES7214-1AG40-0XB0", 2, null))))), admin));
+        List<String> items = jdbc.queryForList("select concat(m.category, ':', m.can_send, ':', m.asset_key) from media_item m "
+                + "join customer_inquiry_attachment a on a.id = m.source_id where m.source_table = 'customer_inquiry_attachment' "
+                + "and a.customer_inquiry_id = ? and m.deleted_at is null order by m.asset_key", String.class, id);
+        assertEquals(List.of("3:0:omron e3z-d61", "3:0:siemens 6es7214-1ag40-0xb0"), items);
+        jdbc.update("delete from media_item where source_table = 'customer_inquiry_attachment' and source_id in "
+                + "(select id from customer_inquiry_attachment where customer_inquiry_id = ?)", id);
+    }
+
     @Test
     void customerType_snapshotFromWonInquiries() throws Exception {
         loginAsAdmin("it_inq_admin");

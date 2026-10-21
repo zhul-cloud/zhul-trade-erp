@@ -4,7 +4,6 @@ import com.zhul.erp.common.result.PageResult;
 import com.zhul.erp.common.result.Result;
 import com.zhul.erp.modules.masterdata.dto.CreateSupplierFromChannelRequest;
 import com.zhul.erp.modules.masterdata.dto.SaveSupplierRequest;
-import com.zhul.erp.modules.masterdata.dto.SupplierAttachmentFile;
 import com.zhul.erp.modules.masterdata.dto.SupplierAttachmentUploadVO;
 import com.zhul.erp.modules.masterdata.dto.SupplierBatchDeleteRequest;
 import com.zhul.erp.modules.masterdata.dto.SupplierBatchDeleteResultVO;
@@ -35,11 +34,11 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
+import com.zhul.erp.framework.storage.FileStorageService.FileLink;
 
 /**
  * 供应商主数据管理：创建（含内联快速创建、以及从电商询价渠道转正式供应商，不做权限校验，
@@ -95,19 +94,12 @@ public class SupplierController {
         return Result.ok(supplierService.uploadAttachment(file));
     }
 
-    /** 预览（inline=true）或下载附件；只能访问本租户的附件，需要能访问供应商管理菜单 */
-    @GetMapping("/{id}/attachments/{attachmentId}")
+    /** 附件的临时访问链接（download=true 时强制下载）；只能访问本租户的附件，需要能访问供应商管理菜单 */
+    @GetMapping("/{id}/attachments/{attachmentId}/url")
     @PreAuthorize("@perm.canAccessMenu('/supplier/list')")
-    public void downloadAttachment(@PathVariable Long id, @PathVariable Long attachmentId,
-                                   @RequestParam(defaultValue = "false") boolean inline,
-                                   HttpServletResponse response) throws IOException {
-        SupplierAttachmentFile file = supplierService.getAttachmentFile(id, attachmentId);
-        response.setContentType(file.contentType());
-        response.setContentLengthLong(Files.size(file.path()));
-        response.setHeader(HttpHeaders.CONTENT_DISPOSITION, (inline ? "inline" : "attachment")
-                + "; filename*=UTF-8''" + URLEncoder.encode(file.fileName(), StandardCharsets.UTF_8).replace("+", "%20"));
-        response.setHeader("X-Content-Type-Options", "nosniff");
-        Files.copy(file.path(), response.getOutputStream());
+    public Result<FileLink> attachmentUrl(@PathVariable Long id, @PathVariable Long attachmentId,
+                                          @RequestParam(defaultValue = "false") boolean download) {
+        return Result.ok(supplierService.getAttachmentLink(id, attachmentId, download));
     }
 
     @GetMapping("/{id}")

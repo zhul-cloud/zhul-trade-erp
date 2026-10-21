@@ -21,6 +21,8 @@ public class DocumentTemplateVersionDO {
     private String note;
     /** 私有存储 key；平台内置为 classpath: 路径 */
     private String fileKey;
+    /** 存储方式（LOCAL-服务器目录、OSS-对象存储） */
+    private String storage;
     private String fileName;
     /** 文字报价模版正文 */
     private String content;

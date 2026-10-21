@@ -34,7 +34,8 @@ class PaymentReceiptContractTest extends SalesContractSupport {
         assertEquals(1, slip.path("kind").asInt());
         assertEquals("slip.png", slip.path("files").get(0).path("fileName").asText());
         money("0", afterSlip.path("receivedAmount"));
-        assertEquals(200, perform(get(PI + "/" + id + "/slips/" + slip.path("id").asLong() + "/files/0"), admin).getStatus());
+        String link = ok(call(get(PI + "/" + id + "/slips/" + slip.path("id").asLong() + "/files/0/url"), admin)).path("url").asText();
+        assertEquals(200, mvc.perform(get(java.net.URI.create(link))).andReturn().getResponse().getStatus());
 
         // 剩余 1,333.65 − 1,000 = 333.65 > 50：不能记为手续费
         assertTrue(fail(confirmReceipt(id, "1000", null, true, admin)).path("message").asText().contains("超过可记为手续费的上限 USD 50"));

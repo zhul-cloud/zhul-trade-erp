@@ -11,15 +11,14 @@ import {
   Space,
   Table,
 } from 'antd';
-import dayjs from 'dayjs';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import MediaDrawer from '@/pages/operations/media/MediaDrawer';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { auditColumns } from '@/pages/purchase/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { usePageSize } from '@/utils/pageSize';
 import {
   ACCEPT_IMAGE,
-  ACCEPT_VIDEO,
   MediaTile,
   Pill,
   ReasonModal,
@@ -39,22 +38,14 @@ import {
 
 const NEED_PHOTOS = 6;
 
-/** 还缺什么：视频、图片 */
-const missingText = (t: ShootTask) => {
-  const parts: string[] = [];
-  if (t.photoCount < NEED_PHOTOS)
-    parts.push(`实物图还差 ${NEED_PHOTOS - t.photoCount} 张`);
-  const videos = [
-    t.unboxingCount < 1 && '拆箱视频',
-    t.inspectionCount < 1 && '验货视频',
-  ].filter(Boolean);
-  if (videos.length) parts.push(`还缺${videos.join('和')}`);
-  return parts.join('，');
-};
+/** 还缺几张营销图 */
+const missingText = (t: ShootTask) =>
+  t.photoCount < NEED_PHOTOS
+    ? `营销图还差 ${NEED_PHOTOS - t.photoCount} 张`
+    : '';
 
 const Shoots: React.FC = () => {
   const { palette } = useAppTheme();
-  const { message } = App.useApp();
   const access = useAccess();
   const canEdit = !!access['warehouse:shoot:edit'];
   const [status, setStatus] = useState<number | 'all'>(1);
@@ -98,17 +89,6 @@ const Shoots: React.FC = () => {
   }, [load]);
   useEffect(refreshCount, [refreshCount]);
 
-  const reuse = async (t: ShootTask) => {
-    try {
-      await shootApi.reuse(t.id);
-      message.success('已复用同型号素材');
-      load();
-      refreshCount();
-    } catch (e) {
-      message.error(readBizError(e).message);
-    }
-  };
-
   const columns: TableColumnsType<ShootTask> = [
     {
       title: '型号 · 品牌 · 品类',
@@ -144,21 +124,6 @@ const Shoots: React.FC = () => {
         if (r.status === 3) return sub(palette.mute, r.skipReason);
         if (r.reusedFromTaskId)
           return sub(palette.green, '复用了同型号已有素材');
-        if (r.status === 1 && r.reusable)
-          return (
-            <div>
-              <b style={{ color: palette.link, fontSize: 12 }}>
-                已有素材，可复用
-              </b>
-              {r.reusableShotAt &&
-                sub(
-                  palette.mute,
-                  `上次 ${dayjs(r.reusableShotAt).format('YYYY-MM-DD')} 拍摄`,
-                )}
-            </div>
-          );
-        const videos =
-          Math.min(1, r.unboxingCount) + Math.min(1, r.inspectionCount);
         const done = r.status === 2;
         return (
           <div>
@@ -168,8 +133,7 @@ const Shoots: React.FC = () => {
                 color: done ? palette.green : palette.orange,
               }}
             >
-              视频 {videos}/2 · 图片 {Math.min(r.photoCount, NEED_PHOTOS)}/
-              {NEED_PHOTOS}
+              营销图 {Math.min(r.photoCount, NEED_PHOTOS)}/{NEED_PHOTOS}
               {r.photoCount > NEED_PHOTOS &&
                 ` (+${r.photoCount - NEED_PHOTOS})`}
             </b>
@@ -201,9 +165,6 @@ const Shoots: React.FC = () => {
       fixed: 'right',
       render: (_, r) => (
         <Space size={12}>
-          {r.status === 1 && r.reusable && canEdit && (
-            <a onClick={() => reuse(r)}>复用</a>
-          )}
           <a onClick={() => setOpen(r.id)}>
             {r.status === 1 && canEdit ? '拍摄' : '查看'}
           </a>
@@ -222,7 +183,7 @@ const Shoots: React.FC = () => {
       <WarehousePageTitle
         crumbs={['实拍任务']}
         title="实拍任务"
-        description="验收入库后拍拆箱视频、验货视频和 6 张实物图，素材齐了就完成；素材归到型号名下，下次同型号可以复用。"
+        description="还没有营销图的型号到货后，拍 6 张带公司 Logo 摆台的营销图就完成；每个型号拍一次，拍好的图进素材库，以后同型号一直可以用。验货照片和视频在验收入库时上传。"
       />
       <div
         style={{
@@ -290,8 +251,8 @@ const Shoots: React.FC = () => {
         />
       )}
       <div style={{ fontSize: 12, color: palette.mute, marginTop: 8 }}>
-        <InfoCircleOutlined /> 这里只负责拍摄；发布到 B2B
-        平台、独立站以后在运营管理里做。
+        <InfoCircleOutlined /> 这里只负责拍摄；拍好的营销图在「运营管理 →
+        素材库」里，运营从中挑选用于发品的图片。
       </div>
       <ShootDrawer
         id={open}
@@ -309,9 +270,7 @@ const Shoots: React.FC = () => {
 // ---------------------------------------------------------------- 拍摄抽屉
 
 const SLOTS = [
-  { type: 1, title: '拆箱视频', need: 1, accept: ACCEPT_VIDEO },
-  { type: 2, title: '验货视频', need: 1, accept: ACCEPT_VIDEO },
-  { type: 3, title: '实物图', need: NEED_PHOTOS, accept: ACCEPT_IMAGE },
+  { type: 3, title: '营销图', need: NEED_PHOTOS, accept: ACCEPT_IMAGE },
 ];
 
 const ShootDrawer: React.FC<{
@@ -326,6 +285,10 @@ const ShootDrawer: React.FC<{
   const [d, setD] = useState<ShootDetail>();
   const [error, setError] = useState<string>();
   const [skipping, setSkipping] = useState(false);
+  const [showMedia, setShowMedia] = useState(false);
+  const access = useAccess();
+  /** 素材库菜单：拍摄时参考这个型号已有的验货记录、供方实拍等 */
+  const canViewMedia = !!access.operationsMedia;
   /** 多个文件同时上传完时，挂到任务上的请求排队发，界面按最后一次结果显示 */
   const queue = useRef<Promise<void>>(Promise.resolve());
 
@@ -343,8 +306,8 @@ const ShootDrawer: React.FC<{
     if (d && next.task.status !== d.task.status) {
       message.success(
         next.task.status === 2
-          ? '素材齐了，任务已完成'
-          : '素材不齐，回到待拍摄',
+          ? '营销图够 6 张，任务已完成'
+          : '营销图不足 6 张，回到待拍摄',
       );
     }
     setD(next);
@@ -371,7 +334,7 @@ const ShootDrawer: React.FC<{
       }
       onRemove={
         removable && t
-          ? () => run(() => shootApi.removeMedia(t.id, m.id))
+          ? () => run(() => shootApi.removeMedia(t.id, m.attachmentId))
           : undefined
       }
     />
@@ -402,10 +365,8 @@ const ShootDrawer: React.FC<{
               <Button onClick={() => setSkipping(true)}>跳过</Button>
             )}
             <span style={{ flex: 1 }} />
-            {canEdit && t.status === 1 && t.reusable && (
-              <Button onClick={() => run(() => shootApi.reuse(t.id))}>
-                复用已有素材
-              </Button>
+            {canViewMedia && (
+              <Button onClick={() => setShowMedia(true)}>这个型号的素材</Button>
             )}
             <Button
               type={t.status === 2 ? 'primary' : 'default'}
@@ -462,10 +423,11 @@ const ShootDrawer: React.FC<{
                   {editable && (
                     <UploadTile
                       ownerType="SHOOT"
+                      ownerId={t.id}
                       accept={s.accept}
                       onUploaded={(a) => {
                         queue.current = queue.current.then(() =>
-                          run(() => shootApi.addMedia(t.id, a.id, s.type)),
+                          run(() => shootApi.addMedia(t.id, a.id)),
                         );
                       }}
                     />
@@ -488,29 +450,19 @@ const ShootDrawer: React.FC<{
               color: palette.mute,
             }}
           >
-            <InfoCircleOutlined /> 拆箱视频、验货视频各 1 个以上，实物图 6
-            张以上，齐了任务自动完成。素材会归到「
-            {t.brand} {t.model}」名下，以后运营发布、同型号复用都从这里取。
+            <InfoCircleOutlined /> 拍 6 张带公司 Logo
+            摆台的营销图，够了任务自动完成。图片归到「{t.brand} {t.model}
+            」名下，进素材库「营销实拍」，以后同型号到货不再需要拍。
           </div>
-          {d.sameModel.length > 0 && (
-            <div>
-              <b
-                style={{
-                  color: palette.ink,
-                  display: 'block',
-                  marginBottom: 8,
-                }}
-              >
-                同型号已有的素材（{d.sameModel.length}）
-              </b>
-              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                {d.sameModel.map((m) => tile(m, false))}
-              </div>
-            </div>
-          )}
         </div>
       )}
       {preview.node}
+      <MediaDrawer
+        open={showMedia}
+        brand={t?.brand}
+        model={t?.model}
+        onClose={() => setShowMedia(false)}
+      />
       <ReasonModal
         open={skipping}
         title="跳过拍摄"

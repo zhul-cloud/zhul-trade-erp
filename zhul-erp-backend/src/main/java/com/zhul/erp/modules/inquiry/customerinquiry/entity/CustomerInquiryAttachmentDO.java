@@ -21,6 +21,8 @@ public class CustomerInquiryAttachmentDO {
     private Long appendId;
     private String fileName;
     private String fileKey;
+    /** 存储方式（LOCAL-服务器目录、OSS-对象存储） */
+    private String storage;
     private String contentType;
     private Long fileSize;
     private Integer sort;

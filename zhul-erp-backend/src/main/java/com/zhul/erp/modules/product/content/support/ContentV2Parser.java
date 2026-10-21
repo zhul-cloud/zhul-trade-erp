@@ -149,6 +149,7 @@ public final class ContentV2Parser {
         d.setModel(head.getModel());
         d.setLang(head.getLang());
         d.setType(head.getType());
+        d.setUpdated(head.getUpdated());
         d.setSchema(2);
         d.setPlatform(platform);
         d.setPart(part);

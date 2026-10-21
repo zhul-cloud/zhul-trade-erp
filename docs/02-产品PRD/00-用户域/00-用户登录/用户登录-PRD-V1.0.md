@@ -278,7 +278,7 @@ POST /auth/logout  关闭对话框
 | 忘记密码 | Button(link) | 文字"忘记密码?"；color:#1890ff；float:right；font-size:14px；无下划线 |
 | 登录按钮 | Button | type="primary"；block=true；size="large"（高40px）；htmlType="submit"；文字"登  录"（两字中间加空格）；loading时文字"登录中..."；背景#1890ff；hover背景#40a9ff |
 | 错误Alert | Alert | type="error"；showIcon=true；margin-bottom:16px；closable=false；在输入框上方、标题下方插入 |
-| 版权信息 | Text | "© 2026 烛龙科技  版本 1.0.0"；color:rgba(255,255,255,0.5)；font-size:12px；text-align:center；position:fixed；bottom:16px |
+| 版权信息 | Text | "© 2026 烛龙科技  版本 {版本号}"，版本号构建时取前端 `package.json` 的 version，不在代码里写死；color:rgba(255,255,255,0.5)；font-size:12px；text-align:center；position:fixed；bottom:16px |
 
 #### 5.1.3 表单验证规则
 

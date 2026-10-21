@@ -447,10 +447,11 @@ class ReceivingContractTest extends SalesContractSupport {
         assertEquals("已入库", order(soOf(po)).path("items").get(0).path("progressName").asText());
     }
 
-    // ---------------------------------------------------------------- 实拍任务与附件
+    // ---------------------------------------------------------------- 实拍任务（营销拍摄）与素材库
 
+    /** 营销拍摄：只收图片、带任务上传按型号归档、6 张完成、删到不足回到待拍摄、已有营销图的型号再入库不再生成、开始后不能冲销 */
     @Test
-    void shoot_uploadComplete_deleteBack_reuse_skip_attachmentAccess() throws Exception {
+    void shoot_marketingPhotos_complete_deleteBack_noRegenerate() throws Exception {
         long sup = supplier("华控自动化", null);
         JsonNode po = orderedPo(sup, l("A-1", 4, "1000", "200"));
         long poId = po.path("id").asLong();
@@ -458,57 +459,69 @@ class ReceivingContractTest extends SalesContractSupport {
         ok(accept(s1, List.of(new int[] {2, 2, 0}), keeper));
         long task = ok(call(json(post(SHOOT + "/page"), "{}"), keeper)).path("records").get(0).path("id").asLong();
 
-        // 伪装的文件：扩展名 mp4，内容不是视频
-        JsonNode fake = call(multipart(FILE).file(new MockMultipartFile("file", "a.mp4", "video/mp4", "MZ\u0090\u0000exe".getBytes()))
-                .param("ownerType", "SHOOT"), keeper);
-        assertEquals("只支持 MP4、MOV 视频", fail(fake).path("message").asText());
+        long video = upload("SHOOT", "a.mp4", MP4, keeper);
+        assertEquals("营销图请上传图片", fail(call(json(post(SHOOT + "/" + task + "/media"),
+                write(Map.of("attachmentId", video))), keeper)).path("message").asText());
 
-        long unbox = upload("SHOOT", "拆箱.mp4", MP4, keeper);
-        long inspect = upload("SHOOT", "验货.mp4", MP4, keeper);
-        assertEquals("实物图请上传图片", fail(call(json(post(SHOOT + "/" + task + "/media"),
-                write(Map.of("attachmentId", unbox, "mediaType", 3))), keeper)).path("message").asText());
-        ok(call(json(post(SHOOT + "/" + task + "/media"), write(Map.of("attachmentId", unbox, "mediaType", 1))), keeper));
-        ok(call(json(post(SHOOT + "/" + task + "/media"), write(Map.of("attachmentId", inspect, "mediaType", 2))), keeper));
         JsonNode t = null;
         for (int i = 0; i < 6; i++) {
-            long img = upload("SHOOT", "p" + i + ".png", PNG, keeper);
-            t = ok(call(json(post(SHOOT + "/" + task + "/media"), write(Map.of("attachmentId", img, "mediaType", 3))), keeper));
-            assertEquals(i < 5 ? "待拍摄" : "已完成", t.path("task").path("statusName").asText(), "拍够 6 张图才完成");
+            long img = ok(call(multipart(FILE).file(new MockMultipartFile("file", "p" + i + ".png", "image/png", PNG))
+                    .param("ownerType", "SHOOT").param("ownerId", String.valueOf(task)), keeper)).path("id").asLong();
+            if (i == 0) {
+                assertTrue(jdbc.queryForObject("select file_key from biz_attachment where id = ?", String.class, img)
+                        .matches("tenant/\\d+/media/[a-z0-9-]+/a-1/[0-9a-f]{32}\\.png"), "营销图按品牌与型号归档");
+            }
+            t = ok(call(json(post(SHOOT + "/" + task + "/media"), write(Map.of("attachmentId", img))), keeper));
+            assertEquals(i < 5 ? "待拍摄" : "已完成", t.path("task").path("statusName").asText(), "拍够 6 张才完成");
         }
         assertEquals("陈晨", t.path("task").path("shooterName").asText());
+        assertEquals(6, t.path("task").path("needPhotos").asInt());
+        assertEquals(6, marketing("a-1"), "营销图进素材库「营销实拍」");
         long photo = t.path("media").get(2).path("id").asLong();
         JsonNode back = ok(call(delete(SHOOT + "/" + task + "/media/" + photo), keeper));
-        assertEquals("待拍摄", back.path("task").path("statusName").asText(), "删到不齐回到待拍摄");
+        assertEquals("待拍摄", back.path("task").path("statusName").asText(), "删到不足回到待拍摄");
         assertEquals(5, back.path("task").path("photoCount").asInt());
-        long img = upload("SHOOT", "p6.png", PNG, keeper);
-        ok(call(json(post(SHOOT + "/" + task + "/media"), write(Map.of("attachmentId", img, "mediaType", 3))), keeper));
+        assertEquals(5, marketing("a-1"), "删除的图移出素材库");
+        ok(call(json(post(SHOOT + "/" + task + "/media"), write(Map.of("attachmentId", upload("SHOOT", "p6.png", PNG, keeper)))), keeper));
 
-        // 附件访问：本人能预览视频（Range），没有实拍任务菜单的不行
-        MockHttpServletResponse res = perform(get(FILE + "/" + unbox).header("Range", "bytes=0-3"), keeper);
-        assertEquals(206, res.getStatus(), "视频支持分段读取");
-        assertEquals(4, res.getContentAsByteArray().length);
-        assertEquals(403, perform(get(FILE + "/" + unbox), lin).getStatus(), "没有实拍任务菜单的人不能看");
+        // 没有实拍任务菜单的拿不到营销图链接
+        long anyPhoto = ok(call(get(SHOOT + "/" + task), keeper)).path("media").get(0).path("attachmentId").asLong();
+        assertEquals(403, perform(get(FILE + "/" + anyPhoto + "/url"), lin).getStatus(), "没有实拍任务菜单的人不能看");
 
-        // 同型号再入库：可以复用；另一个跳过
+        // 同型号再入库：已有营销图，不再生成任务
         long s2 = ok(ship(poId, Map.of(item(po, 0), 2), lin)).path("shipment").path("id").asLong();
         ok(accept(s2, List.of(new int[] {2, 2, 0}), keeper));
-        JsonNode pending = ok(call(json(post(SHOOT + "/page"), write(Map.of("status", 1))), keeper));
-        assertEquals(1, pending.path("total").asInt());
-        JsonNode second = pending.path("records").get(0);
-        assertTrue(second.path("reusable").asBoolean(), "同型号已有素材，可复用");
-        JsonNode reused = ok(call(post(SHOOT + "/" + second.path("id").asLong() + "/reuse"), keeper));
-        assertEquals("已完成", reused.path("task").path("statusName").asText());
-        assertEquals(8, reused.path("media").size(), "复用引用已有素材");
-        assertEquals("这个任务复用了已有素材，不需要再上传", fail(call(json(post(SHOOT + "/" + second.path("id").asLong() + "/media"),
-                write(Map.of("attachmentId", upload("SHOOT", "x.png", PNG, keeper), "mediaType", 3))), keeper)).path("message").asText());
+        assertEquals(1, ok(call(json(post(SHOOT + "/page"), "{}"), keeper)).path("total").asInt(), "已有营销图的型号不再生成");
         assertEquals("只有待拍摄的任务可以跳过",
                 fail(call(json(post(SHOOT + "/" + task + "/skip"), "{\"reason\":\"重复入库\"}"), keeper)).path("message").asText());
-        assertEquals(0, ok(call(get(SHOOT + "/counts"), keeper)).path("pending").asInt());
 
-        // 实拍任务开始后采购入库单不能冲销
+        // 实拍任务开始后，生成它的采购入库单不能冲销
         long gr1 = jdbc.queryForObject("select receipt_id from shoot_task where id = ?", Long.class, task);
         assertEquals("实拍任务已经开始，不能冲销",
                 fail(call(json(post(GR + "/" + gr1 + "/reverse"), "{\"reason\":\"x\"}"), keeper)).path("message").asText());
+    }
+
+    /** 两批到货、任务没完成：只有一条待拍摄；跳过后再到货重新生成 */
+    @Test
+    void shoot_oneTaskPerModel_skipThenRegenerate() throws Exception {
+        long sup = supplier("华控自动化", null);
+        JsonNode po = orderedPo(sup, l("A-1", 6, "1000", "200"));
+        long poId = po.path("id").asLong();
+        for (int n = 0; n < 2; n++) {
+            long sid = ok(ship(poId, Map.of(item(po, 0), 2), lin)).path("shipment").path("id").asLong();
+            ok(accept(sid, List.of(new int[] {2, 2, 0}), keeper));
+        }
+        JsonNode pending = ok(call(json(post(SHOOT + "/page"), write(Map.of("status", 1))), keeper));
+        assertEquals(1, pending.path("total").asInt(), "两批到货只生成一条");
+        long task = pending.path("records").get(0).path("id").asLong();
+        JsonNode skipped = ok(call(json(post(SHOOT + "/" + task + "/skip"), "{\"reason\":\"货已发走\"}"), keeper));
+        assertEquals("已跳过", skipped.path("task").path("statusName").asText());
+        assertEquals("货已发走", skipped.path("task").path("skipReason").asText());
+
+        long sid = ok(ship(poId, Map.of(item(po, 0), 2), lin)).path("shipment").path("id").asLong();
+        ok(accept(sid, List.of(new int[] {2, 2, 0}), keeper));
+        assertEquals(1, ok(call(json(post(SHOOT + "/page"), write(Map.of("status", 1))), keeper)).path("total").asInt(),
+                "跳过后再到货重新生成");
     }
 
     @Test
@@ -518,18 +531,16 @@ class ReceivingContractTest extends SalesContractSupport {
         long sid = ok(ship(po.path("id").asLong(), Map.of(item(po, 0), 1), lin)).path("shipment").path("id").asLong();
         ok(accept(sid, List.of(new int[] {1, 1, 0}), keeper));
         long task = ok(call(json(post(SHOOT + "/page"), "{}"), keeper)).path("records").get(0).path("id").asLong();
-        ok(call(json(post(SHOOT + "/" + task + "/media"), write(Map.of("attachmentId", upload("SHOOT", "a.mp4", MP4, keeper), "mediaType", 1))), keeper));
-        ok(call(json(post(SHOOT + "/" + task + "/media"), write(Map.of("attachmentId", upload("SHOOT", "b.mp4", MP4, keeper), "mediaType", 2))), keeper));
         List<Long> imgs = new ArrayList<>();
         for (int i = 0; i < 6; i++) {
             imgs.add(upload("SHOOT", "p" + i + ".png", PNG, keeper));
         }
-        // 6 张图同时挂上：拿到行锁后要看到别人已提交的素材
+        // 6 张图同时挂上：拿到行锁后要看到别人已提交的图片
         java.util.concurrent.ExecutorService pool = java.util.concurrent.Executors.newFixedThreadPool(6);
         try {
             List<java.util.concurrent.Future<JsonNode>> all = new ArrayList<>();
             for (Long img : imgs) {
-                all.add(pool.submit(() -> call(json(post(SHOOT + "/" + task + "/media"), write(Map.of("attachmentId", img, "mediaType", 3))), keeper)));
+                all.add(pool.submit(() -> call(json(post(SHOOT + "/" + task + "/media"), write(Map.of("attachmentId", img))), keeper)));
             }
             for (java.util.concurrent.Future<JsonNode> f : all) {
                 ok(f.get());
@@ -540,27 +551,79 @@ class ReceivingContractTest extends SalesContractSupport {
         assertEquals("已完成", ok(call(get(SHOOT + "/" + task), keeper)).path("task").path("statusName").asText());
     }
 
+    /** 供方发货的标注、验收照片与不良品照片进素材库；作废发货单、冲销入库单后移出 */
     @Test
-    void shoot_skip_andShipmentAttachments() throws Exception {
+    void media_shipmentTags_receiptDefect_voidAndReverseRetire() throws Exception {
         long sup = supplier("华控自动化", null);
-        JsonNode po = orderedPo(sup, l("A-1", 1, "1000", "200"));
+        JsonNode po = orderedPo(sup, l("A-1", 4, "1000", "200"), l("C-1", 4, "500", "100"));
+        long poId = po.path("id").asLong();
         long att = upload("SHIPMENT", "发货.png", PNG, lin);
         Map<String, Object> body = new LinkedHashMap<>();
-        body.put("poId", po.path("id").asLong());
+        body.put("poId", poId);
         body.put("shipDate", LocalDate.now().toString());
-        body.put("items", List.of(Map.of("poItemId", item(po, 0), "quantity", 1)));
+        body.put("items", List.of(Map.of("poItemId", item(po, 0), "quantity", 2), Map.of("poItemId", item(po, 1), "quantity", 2)));
         body.put("attachmentIds", List.of(att));
+        String brand = jdbc.queryForObject("select brand from purchase_order_item where id = ?", String.class, item(po, 0));
+        body.put("attachmentModels", List.of(Map.of("attachmentId", att, "models", List.of(Map.of("brand", brand, "model", "X-9")))));
+        assertEquals("只能标注本单据里的型号", fail(call(json(post(SHIP), write(body)), lin)).path("message").asText());
+        body.put("attachmentModels", List.of(Map.of("attachmentId", att, "models", List.of(Map.of("brand", brand, "model", "A-1")))));
         JsonNode s = ok(call(json(post(SHIP), write(body)), lin));
-        assertEquals(1, s.path("attachments").size());
-        assertEquals(1, s.path("shipment").path("attachmentCount").asInt());
         long sid = s.path("shipment").path("id").asLong();
-        assertEquals(200, perform(get(FILE + "/" + att), keeper).getStatus(), "仓库可以看发货单附件");
-        ok(accept(sid, List.of(new int[] {1, 1, 0}), keeper));
-        long task = ok(call(json(post(SHOOT + "/page"), "{}"), keeper)).path("records").get(0).path("id").asLong();
-        assertEquals("这个型号还没有可复用的素材", fail(call(post(SHOOT + "/" + task + "/reuse"), keeper)).path("message").asText());
-        JsonNode skipped = ok(call(json(post(SHOOT + "/" + task + "/skip"), "{\"reason\":\"客户不需要\"}"), keeper));
-        assertEquals("已跳过", skipped.path("task").path("statusName").asText());
-        assertEquals("客户不需要", skipped.path("task").path("skipReason").asText());
+        assertEquals("A-1", s.path("attachments").get(0).path("models").get(0).path("model").asText());
+        assertEquals(List.of("6:0:a-1"), items(att), "只标了 A-1：供方发货，默认仅内部");
+
+        // 验收：验货照片默认标两个型号；没有不良时不能传不良品照片
+        long photo = upload("RECEIPT", "验货.png", PNG, keeper);
+        long defect = upload("RECEIPT_DEFECT", "不良.png", PNG, keeper);
+        JsonNode shipView = ok(call(get(GR + "/shipments/" + sid), keeper));
+        Map<String, Object> acc = new LinkedHashMap<>();
+        acc.put("shipmentId", sid);
+        acc.put("receivedDate", LocalDate.now().toString());
+        acc.put("items", List.of(
+                Map.of("shipmentItemId", shipView.path("shipment").path("items").get(0).path("id").asLong(), "receivedQty", 2, "qualifiedQty", 2),
+                Map.of("shipmentItemId", shipView.path("shipment").path("items").get(1).path("id").asLong(), "receivedQty", 2, "qualifiedQty", 2)));
+        acc.put("attachmentIds", List.of(photo));
+        acc.put("defectAttachmentIds", List.of(defect));
+        assertEquals("没有不良品，不能上传不良品照片", fail(call(json(post(GR), write(acc)), keeper)).path("message").asText());
+        acc.put("items", List.of(
+                Map.of("shipmentItemId", shipView.path("shipment").path("items").get(0).path("id").asLong(), "receivedQty", 2, "qualifiedQty", 1),
+                Map.of("shipmentItemId", shipView.path("shipment").path("items").get(1).path("id").asLong(), "receivedQty", 2, "qualifiedQty", 2)));
+        JsonNode gr = ok(call(json(post(GR), write(acc)), keeper));
+        assertEquals(List.of("7:1:a-1", "7:1:c-1"), items(photo), "验货记录默认标单据的全部型号，可发客户");
+        assertEquals(List.of("8:0:a-1", "8:0:c-1"), items(defect), "不良品照片是到货异常，仅内部");
+        assertEquals(1, gr.path("defectAttachments").size());
+
+        // 冲销入库单：验货记录与到货异常移出素材库（营销拍摄还没开始，可以冲销）
+        ok(call(json(post(GR + "/" + gr.path("receipt").path("id").asLong() + "/reverse"), "{\"reason\":\"录错\"}"), keeper));
+        assertEquals(List.of(), items(photo));
+        assertEquals(List.of(), items(defect));
+
+        // 修改发货单、把标注改成两个型号：A-1 上运营改过的「可发客户」保留，新增的 C-1 用默认值
+        jdbc.update("update media_item set can_send = 1, flag_by = 1 where source_table = 'biz_attachment' and source_id = ?", att);
+        body.put("attachmentModels", List.of(Map.of("attachmentId", att, "models",
+                List.of(Map.of("brand", brand, "model", "A-1"), Map.of("brand", brand, "model", "C-1")))));
+        ok(call(json(put(SHIP + "/" + sid), write(body)), lin));
+        assertEquals(List.of("6:1:a-1", "6:0:c-1"), items(att), "已有标记保留");
+        // 不提交标注时沿用已有标注
+        body.remove("attachmentModels");
+        ok(call(json(put(SHIP + "/" + sid), write(body)), lin));
+        assertEquals(List.of("6:1:a-1", "6:0:c-1"), items(att), "沿用已有标注");
+
+        // 作废在途发货单：供方发货移出素材库
+        ok(call(json(post(SHIP + "/" + sid + "/void"), "{\"reason\":\"供应商撤回\"}"), lin));
+        assertEquals(List.of(), items(att));
+    }
+
+    /** 营销实拍里某个型号的素材数 */
+    private int marketing(String modelLower) {
+        return jdbc.queryForObject("select count(*) from media_item where category = 9 and deleted_at is null and asset_key like ?",
+                Integer.class, "% " + modelLower);
+    }
+
+    /** 某个附件在素材库里的「类别:可发客户:型号」（型号只取最后一段，便于断言） */
+    private List<String> items(long attachmentId) {
+        return jdbc.queryForList("select concat(category, ':', can_send, ':', substring_index(asset_key, ' ', -1)) from media_item "
+                + "where source_table = 'biz_attachment' and source_id = ? and deleted_at is null order by asset_key", String.class, attachmentId);
     }
 
     // ---------------------------------------------------------------- 发货跟踪：预计发货日期、发货进度、预计到货、货物状态

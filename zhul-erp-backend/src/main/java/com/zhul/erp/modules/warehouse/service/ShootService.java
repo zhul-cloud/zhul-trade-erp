@@ -6,6 +6,7 @@ import com.zhul.erp.common.result.PageResult;
 import com.zhul.erp.modules.attachment.dto.AttachmentVO;
 import com.zhul.erp.modules.attachment.entity.BizAttachmentDO;
 import com.zhul.erp.modules.attachment.service.AttachmentService;
+import com.zhul.erp.modules.media.service.MediaIndexer;
 import com.zhul.erp.modules.inquiry.support.CurrentUserResolver;
 import com.zhul.erp.modules.inquiry.support.InquiryLookups;
 import com.zhul.erp.modules.sales.entity.SalesOrderDO;
@@ -17,11 +18,9 @@ import com.zhul.erp.modules.warehouse.dto.AddMediaRequest;
 import com.zhul.erp.modules.warehouse.dto.ShootListVO;
 import com.zhul.erp.modules.warehouse.dto.ShootPageQuery;
 import com.zhul.erp.modules.warehouse.dto.ShootVO;
-import com.zhul.erp.modules.warehouse.entity.MediaAssetDO;
 import com.zhul.erp.modules.warehouse.entity.PurchaseReceiptDO;
 import com.zhul.erp.modules.warehouse.entity.PurchaseReceiptItemDO;
 import com.zhul.erp.modules.warehouse.entity.ShootTaskDO;
-import com.zhul.erp.modules.warehouse.repository.MediaAssetMapper;
 import com.zhul.erp.modules.warehouse.repository.PurchaseReceiptMapper;
 import com.zhul.erp.modules.warehouse.repository.ShootTaskMapper;
 import com.zhul.erp.modules.warehouse.support.ReceivingSupport;
@@ -33,36 +32,60 @@ import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.LinkedHashMap;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
 /**
- * 实拍任务：采购入库时为合格入库的型号生成；拆箱视频、验货视频各 1 个以上、实物图 6 张以上时自动完成。
- * 素材归到「品牌 + 型号」名下（media_asset），同型号已有完成的素材时可以直接复用。不管发布。
- * 写操作用读已提交：同一任务并发上传多张图时，拿到行锁后要看到别人已提交的素材，才能判定是否齐全。
+ * 实拍任务（营销拍摄）：每个型号拍一次 6 张营销图，拍好的图进素材库「营销实拍」，以后同型号一直可以用。
+ * 采购入库时，为还没有营销实拍、也没有待拍摄任务的合格入库型号生成（同一次入库按型号去重）。验货证据在验收入库时上传，不在这里。
+ * 写操作用读已提交：同一任务并发上传多张图时，拿到行锁后要看到别人已提交的图片，才能判定是否够 6 张。
  */
 @Service
 @RequiredArgsConstructor
 public class ShootService {
 
     private final ShootTaskMapper taskMapper;
-    private final MediaAssetMapper mediaMapper;
     private final PurchaseReceiptMapper receiptMapper;
     private final SalesOrderMapper soMapper;
     private final AttachmentService attachments;
+    private final MediaIndexer media;
     private final CurrentUserResolver currentUser;
     private final InquiryLookups lookups;
     private final LogService logService;
 
-    /** 采购入库确认时调用（调用方事务内）：每个合格数量大于 0 的入库行一条任务 */
+    /** 采购入库确认时调用（调用方事务内）：还没有营销实拍、也没有待拍摄任务的合格入库型号，每个型号一条任务 */
     void createForReceipt(PurchaseReceiptDO receipt, List<PurchaseReceiptItemDO> items, Map<Long, Long> soIdByPoItem) {
+        Map<String, PurchaseReceiptItemDO> byKey = new LinkedHashMap<>();
         for (PurchaseReceiptItemDO i : items) {
-            if (i.getQualifiedQty() <= 0) {
-                continue;
+            if (i.getQualifiedQty() > 0) {
+                byKey.putIfAbsent(ReceivingSupport.assetKey(i.getBrand(), i.getModel()), i);
+            }
+        }
+        if (byKey.isEmpty()) {
+            return;
+        }
+        Set<String> missing = new HashSet<>();
+        byKey.forEach((k, i) -> {
+            if (!media.missingMarketing(receipt.getTenantId(), List.of(new MediaIndexer.ModelRef(i.getBrand(), i.getModel()))).isEmpty()) {
+                missing.add(k);
+            }
+        });
+        Set<String> pending = taskMapper.selectList(new LambdaQueryWrapper<ShootTaskDO>()
+                        .select(ShootTaskDO::getAssetKey)
+                        .eq(ShootTaskDO::getTenantId, receipt.getTenantId())
+                        .in(ShootTaskDO::getAssetKey, byKey.keySet())
+                        .eq(ShootTaskDO::getStatus, WarehouseConstants.SHOOT_PENDING)
+                        .isNull(ShootTaskDO::getDeletedAt)).stream()
+                .map(ShootTaskDO::getAssetKey).collect(Collectors.toSet());
+        byKey.forEach((key, i) -> {
+            if (!missing.contains(key) || pending.contains(key)) {
+                return;
             }
             ShootTaskDO t = new ShootTaskDO();
             t.setTenantId(receipt.getTenantId());
@@ -72,25 +95,24 @@ public class ShootService {
             t.setModel(i.getModel());
             t.setBrand(i.getBrand());
             t.setCategory(i.getCategory());
-            t.setAssetKey(ReceivingSupport.assetKey(i.getBrand(), i.getModel()));
+            t.setAssetKey(key);
             t.setStatus(WarehouseConstants.SHOOT_PENDING);
             t.setSkipReason("");
             taskMapper.insert(t);
-        }
+        });
     }
 
-    /** 采购入库单的任务都还没开始（待拍摄、没有素材）时返回 true */
+    /** 采购入库单生成的任务都还没开始（待拍摄、没有图片）时返回 true */
     boolean notStarted(Long receiptId) {
         List<ShootTaskDO> tasks = tasksOfReceipt(receiptId);
         if (tasks.stream().anyMatch(t -> t.getStatus() != WarehouseConstants.SHOOT_PENDING)) {
             return false;
         }
-        return tasks.isEmpty() || mediaMapper.selectCount(new LambdaQueryWrapper<MediaAssetDO>()
-                .in(MediaAssetDO::getTaskId, tasks.stream().map(ShootTaskDO::getId).toList())
-                .isNull(MediaAssetDO::getDeletedAt)) == 0;
+        return tasks.isEmpty() || attachments.counts(AttachmentService.SHOOT, tasks.stream().map(ShootTaskDO::getId).toList())
+                .values().stream().allMatch(n -> n == 0);
     }
 
-    /** 冲销入库时作废它的实拍任务（调用方事务内） */
+    /** 冲销入库时作废它生成的实拍任务（调用方事务内） */
     void voidForReceipt(Long receiptId) {
         for (ShootTaskDO t : tasksOfReceipt(receiptId)) {
             t.setDeletedAt(LocalDateTime.now());
@@ -158,33 +180,25 @@ public class ShootService {
         ShootTaskDO t = visible(id);
         ShootVO vo = new ShootVO();
         vo.setTask(toListVos(List.of(t)).get(0));
-        Long own = mediaOwner(t);
-        vo.setMedia(mediaVos(mediaMapper.selectList(new LambdaQueryWrapper<MediaAssetDO>()
-                .eq(MediaAssetDO::getTaskId, own)
-                .isNull(MediaAssetDO::getDeletedAt)
-                .orderByAsc(MediaAssetDO::getId))));
-        vo.setSameModel(mediaVos(mediaMapper.selectList(new LambdaQueryWrapper<MediaAssetDO>()
-                .eq(MediaAssetDO::getTenantId, t.getTenantId())
-                .eq(MediaAssetDO::getAssetKey, t.getAssetKey())
-                .ne(MediaAssetDO::getTaskId, own)
-                .isNull(MediaAssetDO::getDeletedAt)
-                .orderByDesc(MediaAssetDO::getId)
-                .last("LIMIT 60"))));
+        vo.setMedia(attachments.listOf(AttachmentService.SHOOT, mediaOwner(t)).stream().map(ShootService::toMedia).toList());
         return vo;
     }
 
+    private static ShootVO.Media toMedia(AttachmentVO a) {
+        ShootVO.Media x = new ShootVO.Media();
+        x.setId(a.getId());
+        x.setAttachmentId(a.getId());
+        x.setMediaType(WarehouseConstants.MEDIA_PHOTO);
+        x.setKind(a.getKind());
+        x.setFileName(a.getFileName());
+        x.setFileSize(a.getFileSize());
+        x.setContentType(a.getContentType());
+        x.setCreateTime(a.getCreateTime());
+        return x;
+    }
+
     private List<ShootListVO> toListVos(List<ShootTaskDO> rows) {
-        Map<Long, Map<Integer, Long>> counts = new HashMap<>();
-        List<Long> owners = rows.stream().map(ShootService::mediaOwner).distinct().toList();
-        if (!owners.isEmpty()) {
-            for (MediaAssetDO m : mediaMapper.selectList(new LambdaQueryWrapper<MediaAssetDO>()
-                    .select(MediaAssetDO::getTaskId, MediaAssetDO::getMediaType)
-                    .in(MediaAssetDO::getTaskId, owners)
-                    .isNull(MediaAssetDO::getDeletedAt))) {
-                counts.computeIfAbsent(m.getTaskId(), k -> new HashMap<>()).merge(m.getMediaType(), 1L, Long::sum);
-            }
-        }
-        Map<String, ShootTaskDO> sources = sources(rows.stream().map(ShootTaskDO::getAssetKey).distinct().toList());
+        Map<Long, Long> counts = attachments.counts(AttachmentService.SHOOT, rows.stream().map(ShootService::mediaOwner).distinct().toList());
         Map<Long, String> grNos = new HashMap<>();
         ReceivingSupport.byId(rows.stream().map(ShootTaskDO::getReceiptId).toList(), receiptMapper::selectBatchIds, PurchaseReceiptDO::getId)
                 .forEach((k, v) -> grNos.put(k, v.getGrNo()));
@@ -194,8 +208,6 @@ public class ShootService {
         Map<Long, String> users = lookups.userNames(rows.stream().map(ShootTaskDO::getShooterId).toList());
         List<ShootListVO> out = new ArrayList<>(rows.size());
         for (ShootTaskDO t : rows) {
-            Map<Integer, Long> c = counts.getOrDefault(mediaOwner(t), Map.of());
-            ShootTaskDO src = sources.get(t.getAssetKey());
             ShootListVO vo = new ShootListVO();
             vo.setId(t.getId());
             vo.setModel(t.getModel());
@@ -207,12 +219,8 @@ public class ShootService {
             vo.setSoNo(soNos.get(t.getSoId()));
             vo.setStatus(t.getStatus());
             vo.setStatusName(WarehouseConstants.SHOOT_STATUS_NAMES.get(t.getStatus()));
-            vo.setUnboxingCount(c.getOrDefault(WarehouseConstants.MEDIA_UNBOXING, 0L).intValue());
-            vo.setInspectionCount(c.getOrDefault(WarehouseConstants.MEDIA_INSPECTION, 0L).intValue());
-            vo.setPhotoCount(c.getOrDefault(WarehouseConstants.MEDIA_PHOTO, 0L).intValue());
-            boolean reusable = src != null && !src.getId().equals(t.getId());
-            vo.setReusable(reusable);
-            vo.setReusableShotAt(reusable ? src.getCompletedAt() : null);
+            vo.setPhotoCount(counts.getOrDefault(mediaOwner(t), 0L).intValue());
+            vo.setNeedPhotos(WarehouseConstants.NEED_PHOTOS);
             vo.setReusedFromTaskId(t.getReusedFromTaskId());
             vo.setSkipReason(t.getSkipReason());
             vo.setShooterName(users.get(t.getShooterId()));
@@ -226,111 +234,30 @@ public class ShootService {
         return out;
     }
 
-    /** 素材键 → 最近完成的、自己拍的（不是复用的）任务 */
-    private Map<String, ShootTaskDO> sources(List<String> keys) {
-        Map<String, ShootTaskDO> out = new HashMap<>();
-        if (keys.isEmpty()) {
-            return out;
-        }
-        taskMapper.selectList(new LambdaQueryWrapper<ShootTaskDO>()
-                        .eq(ShootTaskDO::getTenantId, PiStore.tenantId())
-                        .in(ShootTaskDO::getAssetKey, keys)
-                        .eq(ShootTaskDO::getStatus, WarehouseConstants.SHOOT_DONE)
-                        .isNull(ShootTaskDO::getReusedFromTaskId)
-                        .isNull(ShootTaskDO::getDeletedAt))
-                .stream()
-                .sorted(Comparator.comparing(ShootTaskDO::getCompletedAt, Comparator.nullsFirst(Comparator.naturalOrder())))
-                .forEach(t -> out.put(t.getAssetKey(), t));
-        return out;
-    }
-
-    private List<ShootVO.Media> mediaVos(List<MediaAssetDO> rows) {
-        Map<Long, AttachmentVO> files = new HashMap<>();
-        rows.stream().map(MediaAssetDO::getTaskId).distinct().forEach(taskId ->
-                attachments.listOf(AttachmentService.SHOOT, taskId).forEach(a -> files.put(a.getId(), a)));
-        return rows.stream().filter(m -> files.containsKey(m.getAttachmentId())).map(m -> {
-            AttachmentVO a = files.get(m.getAttachmentId());
-            ShootVO.Media x = new ShootVO.Media();
-            x.setId(m.getId());
-            x.setAttachmentId(m.getAttachmentId());
-            x.setMediaType(m.getMediaType());
-            x.setKind(a.getKind());
-            x.setFileName(a.getFileName());
-            x.setFileSize(a.getFileSize());
-            x.setContentType(a.getContentType());
-            x.setCreateTime(m.getCreateTime());
-            return x;
-        }).toList();
-    }
-
     // ---------------------------------------------------------------- 拍摄
 
     @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public ShootVO addMedia(Long id, AddMediaRequest req) {
         ShootTaskDO t = lock(id);
         requireEditable(t);
-        int type = req.getMediaType();
-        if (!WarehouseConstants.MEDIA_TYPE_NAMES.containsKey(type)) {
-            throw new BizException("素材类型不正确");
-        }
         BizAttachmentDO a = attachments.require(req.getAttachmentId());
-        boolean video = type != WarehouseConstants.MEDIA_PHOTO;
-        if (video && a.getKind() != AttachmentService.VIDEO) {
-            throw new BizException(WarehouseConstants.MEDIA_TYPE_NAMES.get(type) + "请上传视频");
-        }
-        if (!video && a.getKind() != AttachmentService.IMAGE) {
-            throw new BizException("实物图请上传图片");
+        if (a.getKind() != AttachmentService.IMAGE) {
+            throw new BizException("营销图请上传图片");
         }
         attachments.attach(AttachmentService.SHOOT, t.getId(), List.of(a.getId()));
-        MediaAssetDO m = new MediaAssetDO();
-        m.setTenantId(t.getTenantId());
-        m.setAssetKey(t.getAssetKey());
-        m.setBrand(t.getBrand());
-        m.setModel(t.getModel());
-        m.setAttachmentId(a.getId());
-        m.setMediaType(type);
-        m.setTaskId(t.getId());
-        mediaMapper.insert(m);
+        media.indexShoot(t.getId(), t.getTenantId(), t.getBrand(), t.getModel());
         refreshStatus(t);
         return detail(id);
     }
 
+    /** 删除一张营销图：attachmentId 为图片的附件 ID */
     @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
-    public ShootVO removeMedia(Long id, Long mediaId) {
+    public ShootVO removeMedia(Long id, Long attachmentId) {
         ShootTaskDO t = lock(id);
         requireEditable(t);
-        MediaAssetDO m = mediaId == null ? null : mediaMapper.selectById(mediaId);
-        if (m == null || m.getDeletedAt() != null || !Objects.equals(m.getTaskId(), t.getId())) {
-            throw new BizException("素材不存在");
-        }
-        m.setDeletedAt(LocalDateTime.now());
-        mediaMapper.updateById(m);
-        attachments.remove(AttachmentService.SHOOT, t.getId(), m.getAttachmentId());
+        attachments.remove(AttachmentService.SHOOT, t.getId(), attachmentId);
+        media.indexShoot(t.getId(), t.getTenantId(), t.getBrand(), t.getModel());
         refreshStatus(t);
-        return detail(id);
-    }
-
-    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
-    public ShootVO reuse(Long id) {
-        ShootTaskDO t = lock(id);
-        if (t.getStatus() != WarehouseConstants.SHOOT_PENDING) {
-            throw new BizException("只有待拍摄的任务可以复用素材");
-        }
-        ShootTaskDO src = sources(List.of(t.getAssetKey())).get(t.getAssetKey());
-        if (src == null || src.getId().equals(t.getId())) {
-            throw new BizException("这个型号还没有可复用的素材");
-        }
-        if (mediaMapper.selectCount(new LambdaQueryWrapper<MediaAssetDO>()
-                .eq(MediaAssetDO::getTaskId, t.getId()).isNull(MediaAssetDO::getDeletedAt)) > 0) {
-            throw new BizException("已经上传了素材，请先删除再复用");
-        }
-        t.setReusedFromTaskId(src.getId());
-        t.setStatus(WarehouseConstants.SHOOT_DONE);
-        t.setShooterId(currentUser.resolve());
-        t.setCompletedAt(LocalDateTime.now());
-        taskMapper.updateById(t);
-        logService.recordOperateLog(WarehouseConstants.MENU_SHOOT, "复用素材", null,
-                Map.of("model", t.getBrand() + " " + t.getModel(), "from", src.getId()));
         return detail(id);
     }
 
@@ -348,16 +275,10 @@ public class ShootService {
         return detail(id);
     }
 
-    /** 素材齐全 → 已完成；完成后删到不齐 → 回到待拍摄 */
+    /** 营销图够 6 张 → 已完成；完成后删到不足 → 回到待拍摄 */
     private void refreshStatus(ShootTaskDO t) {
-        Map<Integer, Long> c = mediaMapper.selectList(new LambdaQueryWrapper<MediaAssetDO>()
-                        .select(MediaAssetDO::getMediaType)
-                        .eq(MediaAssetDO::getTaskId, t.getId())
-                        .isNull(MediaAssetDO::getDeletedAt))
-                .stream().collect(Collectors.groupingBy(MediaAssetDO::getMediaType, Collectors.counting()));
-        boolean complete = c.getOrDefault(WarehouseConstants.MEDIA_UNBOXING, 0L) >= WarehouseConstants.NEED_VIDEO
-                && c.getOrDefault(WarehouseConstants.MEDIA_INSPECTION, 0L) >= WarehouseConstants.NEED_VIDEO
-                && c.getOrDefault(WarehouseConstants.MEDIA_PHOTO, 0L) >= WarehouseConstants.NEED_PHOTOS;
+        long photos = attachments.counts(AttachmentService.SHOOT, List.of(t.getId())).getOrDefault(t.getId(), 0L);
+        boolean complete = photos >= WarehouseConstants.NEED_PHOTOS;
         if (complete && t.getStatus() == WarehouseConstants.SHOOT_PENDING) {
             t.setStatus(WarehouseConstants.SHOOT_DONE);
             t.setShooterId(currentUser.resolve());
@@ -369,7 +290,7 @@ public class ShootService {
         } else if (t.getShooterId() == null) {
             t.setShooterId(currentUser.resolve());
         }
-        // 素材变化也刷新更新时间与更新人
+        // 图片变化也刷新更新时间与更新人
         taskMapper.updateById(t);
     }
 
@@ -382,7 +303,7 @@ public class ShootService {
         }
     }
 
-    /** 复用的任务看被复用任务的素材 */
+    /** 拆分前复用了其他任务素材的历史任务，显示被复用任务的图片 */
     private static Long mediaOwner(ShootTaskDO t) {
         return t.getReusedFromTaskId() == null ? t.getId() : t.getReusedFromTaskId();
     }

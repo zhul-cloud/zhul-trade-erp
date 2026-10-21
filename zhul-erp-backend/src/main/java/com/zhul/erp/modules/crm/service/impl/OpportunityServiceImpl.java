@@ -7,7 +7,10 @@ import com.zhul.erp.common.exception.BizException;
 import com.zhul.erp.common.result.PageResult;
 import com.zhul.erp.framework.security.DataScope;
 import com.zhul.erp.framework.security.DataScopeResolver;
-import com.zhul.erp.framework.storage.PrivateFileStorage;
+import com.zhul.erp.framework.storage.FileStorageService;
+import com.zhul.erp.framework.storage.FileStorageService.FileLink;
+import com.zhul.erp.framework.storage.StorageArea;
+import com.zhul.erp.framework.storage.UploadRules;
 import com.zhul.erp.framework.tenant.TenantContext;
 import com.zhul.erp.modules.aitask.translation.ContactNameTranslations;
 import com.zhul.erp.modules.crm.constants.OpportunityConstants;
@@ -49,10 +52,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.IOException;
-import java.io.UncheckedIOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -86,7 +85,7 @@ public class OpportunityServiceImpl implements OpportunityService {
     private final CustomerMapper customerMapper;
     private final UserBasicMapper userBasicMapper;
     private final DataScopeResolver dataScopeResolver;
-    private final PrivateFileStorage fileStorage;
+    private final FileStorageService fileStorage;
     private final DictItemService dictItemService;
     private final ContactNameTranslations contactNameTranslations;
 
@@ -396,7 +395,7 @@ public class OpportunityServiceImpl implements OpportunityService {
 
     @Override
     public OpportunityUploadVO uploadAttachment(MultipartFile file) {
-        PrivateFileStorage.StoredFile f = fileStorage.store(OpportunityConstants.ATTACHMENT_MODULE, currentTenantId(), file,
+        FileStorageService.StoredFile f = fileStorage.store(StorageArea.OPPORTUNITY, currentTenantId(), file,
                 OpportunityConstants.ATTACHMENT_EXTS, OpportunityConstants.ATTACHMENT_MAX_BYTES,
                 OpportunityConstants.ATTACHMENT_TYPE_MESSAGE);
         OpportunityUploadVO vo = new OpportunityUploadVO();
@@ -414,8 +413,13 @@ public class OpportunityServiceImpl implements OpportunityService {
         if (a == null || a.getDeletedAt() != null || !Objects.equals(a.getOpportunityId(), o.getId())) {
             throw new BizException("附件不存在");
         }
-        Path path = fileStorage.resolveOwned(OpportunityConstants.ATTACHMENT_MODULE, a.getFileKey(), o.getTenantId());
-        return new AttachmentFile(path, a.getFileName(), a.getContentType());
+        return new AttachmentFile(a.getStorage(), a.getFileKey(), a.getFileName(), a.getContentType());
+    }
+
+    @Override
+    public FileLink attachmentLink(Long id, Long attachmentId, boolean download) {
+        AttachmentFile f = attachmentFile(id, attachmentId);
+        return fileStorage.link(f.storage(), f.fileKey(), f.fileName(), download);
     }
 
     /** 按 id 合并：带 id 的保留，不带的按上传返回的 fileKey 新增，未出现的软删除 */
@@ -435,18 +439,15 @@ public class OpportunityServiceImpl implements OpportunityService {
                 }
                 continue;
             }
-            Path file = fileStorage.resolveOwned(OpportunityConstants.ATTACHMENT_MODULE, req.getFileKey(), o.getTenantId());
+            String storage = fileStorage.locate(StorageArea.OPPORTUNITY, req.getFileKey(), o.getTenantId());
             OpportunityAttachmentDO a = new OpportunityAttachmentDO();
             a.setTenantId(o.getTenantId());
             a.setOpportunityId(o.getId());
             a.setFileKey(req.getFileKey());
-            a.setFileName(PrivateFileStorage.cleanFileName(req.getFileName(), PrivateFileStorage.extOf(req.getFileKey())));
-            a.setContentType(PrivateFileStorage.contentTypeOf(req.getFileKey()));
-            try {
-                a.setFileSize(Files.size(file));
-            } catch (IOException e) {
-                throw new UncheckedIOException("读取附件失败", e);
-            }
+            a.setStorage(storage);
+            a.setFileName(UploadRules.cleanFileName(req.getFileName(), UploadRules.extOf(req.getFileKey())));
+            a.setContentType(UploadRules.contentTypeOf(req.getFileKey()));
+            a.setFileSize(fileStorage.storages().of(storage).size(false, req.getFileKey()));
             attachmentMapper.insert(a);
         }
         LocalDateTime now = LocalDateTime.now();

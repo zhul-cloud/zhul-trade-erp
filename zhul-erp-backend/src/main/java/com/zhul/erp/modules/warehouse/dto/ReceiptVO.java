@@ -11,6 +11,8 @@ public class ReceiptVO {
     private List<Item> items;
     private List<DiscrepancyVO> discrepancies;
     private List<AttachmentVO> attachments;
+    /** 不良品照片（到货异常） */
+    private List<AttachmentVO> defectAttachments;
     private List<AttachmentVO> shipmentAttachments;
     /** 差异都没处理、实拍任务都没开始时可以冲销 */
     private Boolean reversible;

@@ -36,7 +36,6 @@ public final class OpportunityConstants {
             11, "价格", 12, "交期", 13, "无货源", 14, "客户取消", 15, "选择了竞争对手", 19, "其他");
 
     /** 需求附件：图片与 Excel，单个 ≤10MB，每条商机 ≤10 个 */
-    public static final String ATTACHMENT_MODULE = "opportunity";
     public static final Set<String> ATTACHMENT_EXTS = Set.of("jpg", "png", "xlsx", "xls", "csv");
     public static final long ATTACHMENT_MAX_BYTES = 10L * 1024 * 1024;
     public static final int MAX_ATTACHMENTS = 10;

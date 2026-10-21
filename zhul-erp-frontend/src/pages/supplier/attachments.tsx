@@ -88,14 +88,7 @@ export async function downloadAttachment(
   row: Pick<AttachmentRow, 'id' | 'fileName'>,
 ) {
   if (!row.id) return;
-  const url = await supplierApi.attachmentBlobUrl(supplierId, row.id);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = row.fileName;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  window.URL.revokeObjectURL(url);
+  await supplierApi.downloadAttachment(supplierId, row.id);
 }
 
 const FileChip: React.FC<{

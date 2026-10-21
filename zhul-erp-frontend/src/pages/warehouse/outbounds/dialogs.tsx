@@ -36,6 +36,14 @@ import {
 } from '@/pages/logistics/service';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { CARRIERS } from '@/pages/purchase/shipments/ShipmentDrawer';
+import {
+  ACCEPT_IMAGE,
+  AttachmentWall,
+  attachmentModels,
+  type ModelTagMap,
+  ModelTags,
+} from '@/pages/warehouse/components';
+import type { Attachment } from '@/pages/warehouse/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount, formatDateTime } from '@/utils/format';
 
@@ -66,15 +74,19 @@ export const PackDrawer: React.FC<{
   const [error, setError] = useState<string>();
   const [boxes, setBoxes] = useState<BoxInput[]>([]);
   const [busy, setBusy] = useState(false);
+  const [photos, setPhotos] = useState<Attachment[]>([]);
+  const [tags, setTags] = useState<ModelTagMap>({});
 
   useEffect(() => {
     if (id === undefined) return;
     setOb(undefined);
+    setTags({});
     setError(undefined);
     outboundApi
       .detail(id)
       .then((d) => {
         setOb(d);
+        setPhotos(d.packingAttachments ?? []);
         const lines = d.items.map((i) => ({
           key: i.id,
           model: i.model,
@@ -100,7 +112,10 @@ export const PackDrawer: React.FC<{
     if (!ob) return;
     setBusy(true);
     try {
-      await outboundApi.pack(ob.id, boxes);
+      await outboundApi.pack(ob.id, boxes, {
+        attachmentIds: photos.map((p) => p.id),
+        attachmentModels: attachmentModels(photos, tags),
+      });
       message.success(`${ob.obNo} 已打包`);
       onDone();
     } catch (e) {
@@ -171,7 +186,54 @@ export const PackDrawer: React.FC<{
               业务员备注：{ob.note}
             </div>
           )}
+          {(ob.missingMarketing?.length ?? 0) > 0 && (
+            <div
+              style={{
+                marginBottom: 12,
+                padding: '8px 12px',
+                borderRadius: 10,
+                background: palette.orangeSoft,
+                color: palette.orange,
+                fontSize: 13,
+              }}
+            >
+              <InfoCircleOutlined /> 以下型号还没有营销实拍：
+              {ob.missingMarketing?.join('、')}
+              。货发走前可以请拍摄人员补拍，不影响打包。
+            </div>
+          )}
           <BoxEditor lines={lines} boxes={boxes} onChange={setBoxes} />
+          <div
+            style={{
+              margin: '18px 0 8px',
+              color: palette.ink,
+              fontWeight: 600,
+            }}
+          >
+            打包发货照片
+            <span
+              style={{
+                marginLeft: 8,
+                fontSize: 12,
+                fontWeight: 400,
+                color: palette.mute,
+              }}
+            >
+              选填；发给客户前的打包照片，进素材库「打包发货」，可以发给客户
+            </span>
+          </div>
+          <AttachmentWall
+            ownerType="PACKING"
+            value={photos}
+            onChange={setPhotos}
+            accept={ACCEPT_IMAGE}
+          />
+          <ModelTags
+            files={photos}
+            models={ob.items}
+            value={tags}
+            onChange={setTags}
+          />
         </>
       )}
     </Drawer>

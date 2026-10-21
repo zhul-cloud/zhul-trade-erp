@@ -34,6 +34,7 @@ class SourcingQuoteEnhancementsContractTest extends InquiryContractSupport {
         jdbc.update("delete from purchase_order where tenant_id = 0");
         jdbc.update("delete from sales_order_item where tenant_id = 0");
         jdbc.update("delete from biz_attachment where tenant_id = 0 and owner_type = 'SOURCING_QUOTE'");
+        jdbc.update("delete from media_item where tenant_id = 0 and category = 4");
     }
 
     private long inquiry(String model) throws Exception {
@@ -99,6 +100,9 @@ class SourcingQuoteEnhancementsContractTest extends InquiryContractSupport {
         assertEquals(0, new BigDecimal("1020").compareTo(q2.path("unitPrice").decimalValue()));
         assertEquals(file, q2.path("attachments").get(0).path("id").asLong());
         assertEquals(q2.path("id").asLong(), jdbc.queryForObject("select owner_id from biz_attachment where id = ?", Long.class, file));
+        // 回价图片进素材库「供方实拍」，默认仅内部；换到新版本后仍只有一条
+        assertEquals(List.of("4:0"), jdbc.queryForList("select concat(category, ':', can_send) from media_item "
+                + "where source_table = 'biz_attachment' and source_id = ? and deleted_at is null", String.class, file));
 
         JsonNode bad = call(json(put(MY + "/" + task + "/quotes"), quote(item, "1020", true, List.of(987654321L))), lin);
         assertEquals("附件不存在，请重新上传", bad.path("message").asText());

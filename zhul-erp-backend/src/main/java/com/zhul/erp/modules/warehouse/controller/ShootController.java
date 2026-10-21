@@ -57,16 +57,10 @@ public class ShootController {
         return Result.ok(service.addMedia(id, req));
     }
 
-    @DeleteMapping("/{id}/media/{mediaId}")
+    @DeleteMapping("/{id}/media/{attachmentId}")
     @PreAuthorize(EDIT)
-    public Result<ShootVO> removeMedia(@PathVariable Long id, @PathVariable Long mediaId) {
-        return Result.ok(service.removeMedia(id, mediaId));
-    }
-
-    @PostMapping("/{id}/reuse")
-    @PreAuthorize(EDIT)
-    public Result<ShootVO> reuse(@PathVariable Long id) {
-        return Result.ok(service.reuse(id));
+    public Result<ShootVO> removeMedia(@PathVariable Long id, @PathVariable Long attachmentId) {
+        return Result.ok(service.removeMedia(id, attachmentId));
     }
 
     @PostMapping("/{id}/skip")

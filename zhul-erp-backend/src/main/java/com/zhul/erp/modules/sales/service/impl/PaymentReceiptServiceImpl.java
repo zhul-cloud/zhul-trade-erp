@@ -8,7 +8,10 @@ import com.zhul.erp.common.exception.BizException;
 import com.zhul.erp.common.result.PageResult;
 import com.zhul.erp.framework.security.DataScopeResolver;
 import com.zhul.erp.framework.security.PermissionChecker;
-import com.zhul.erp.framework.storage.PrivateFileStorage;
+import com.zhul.erp.framework.storage.FileStorageService;
+import com.zhul.erp.framework.storage.FileStorageService.FileLink;
+import com.zhul.erp.framework.storage.StorageArea;
+import com.zhul.erp.framework.storage.StorageKeys;
 import com.zhul.erp.modules.inquiry.support.CurrentUserResolver;
 import com.zhul.erp.modules.inquiry.support.InquiryLookups;
 import com.zhul.erp.modules.masterdata.entity.CustomerDO;
@@ -79,7 +82,7 @@ public class PaymentReceiptServiceImpl implements PaymentReceiptService {
     private final PiSummary summary;
     private final PiService piService;
     private final BankAccountService bankAccountService;
-    private final PrivateFileStorage fileStorage;
+    private final FileStorageService fileStorage;
     private final CurrentUserResolver currentUser;
     private final LogService logService;
     private final ObjectMapper objectMapper;
@@ -126,10 +129,11 @@ public class PaymentReceiptServiceImpl implements PaymentReceiptService {
         }
         List<ReceiptVO.SlipFile> stored = new ArrayList<>();
         for (MultipartFile f : list) {
-            PrivateFileStorage.StoredFile s = fileStorage.store(SalesConstants.SLIP_MODULE, o.tenantId(), f, SLIP_TYPES,
+            FileStorageService.StoredFile s = fileStorage.store(StorageArea.FINANCE, o.tenantId(), f, SLIP_TYPES,
                     SalesConstants.MAX_SLIP_BYTES, "水单只支持 JPG、PNG、PDF");
             ReceiptVO.SlipFile sf = new ReceiptVO.SlipFile();
             sf.setFileKey(s.fileKey());
+            sf.setStorage(s.storage());
             sf.setFileName(s.fileName());
             stored.add(sf);
         }
@@ -191,23 +195,26 @@ public class PaymentReceiptServiceImpl implements PaymentReceiptService {
     }
 
     @Override
-    public SlipFile slipFile(Long piId, Long slipId, int index) {
-        return slipFileOf(Owner.of(store.visible(piId)), slipId, index);
+    public FileLink slipLink(Long piId, Long slipId, int index) {
+        return slipLinkOf(Owner.of(store.visible(piId)), slipId, index);
     }
 
     @Override
-    public SlipFile orderSlipFile(Long soId, Long slipId, int index) {
-        return slipFileOf(Owner.of(visibleOrder(soId)), slipId, index);
+    public FileLink orderSlipLink(Long soId, Long slipId, int index) {
+        return slipLinkOf(Owner.of(visibleOrder(soId)), slipId, index);
     }
 
-    private SlipFile slipFileOf(Owner o, Long slipId, int index) {
+    private FileLink slipLinkOf(Owner o, Long slipId, int index) {
         PaymentReceiptDO slip = record(o, slipId, SalesConstants.KIND_SLIP);
         List<ReceiptVO.SlipFile> files = fromJson(slip.getFileKeys());
         if (index < 0 || index >= files.size()) {
             throw new BizException("附件不存在");
         }
         ReceiptVO.SlipFile f = files.get(index);
-        return new SlipFile(fileStorage.resolveOwned(SalesConstants.SLIP_MODULE, f.getFileKey(), slip.getTenantId()), f.getFileName());
+        if (!StorageKeys.owned(StorageArea.FINANCE, f.getFileKey(), slip.getTenantId())) {
+            throw new BizException("附件不存在");
+        }
+        return fileStorage.link(f.getStorage(), f.getFileKey(), f.getFileName(), false);
     }
 
     // ---------------------------------------------------------------- 到账

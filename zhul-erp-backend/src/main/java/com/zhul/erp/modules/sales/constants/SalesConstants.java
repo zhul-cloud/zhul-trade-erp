@@ -101,7 +101,6 @@ public final class SalesConstants {
     public static final int MAX_ITEMS = 300;
     public static final int MAX_SLIP_FILES = 5;
     public static final long MAX_SLIP_BYTES = 10L * 1024 * 1024;
-    public static final String SLIP_MODULE = "payment-slip";
     public static final String CONFIG_FEE_TOLERANCE = "sales.receipt.fee-tolerance";
     public static final int DEFAULT_FEE_TOLERANCE = 50;
 

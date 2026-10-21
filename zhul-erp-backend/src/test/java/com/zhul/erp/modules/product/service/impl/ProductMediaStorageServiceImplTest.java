@@ -17,8 +17,14 @@ import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import com.zhul.erp.framework.storage.StorageProperties;
+import com.zhul.erp.framework.storage.LocalFileStorage;
+import com.zhul.erp.framework.storage.FileStorages;
+import com.zhul.erp.framework.storage.FileStorageService;
+import com.zhul.erp.framework.storage.UploadRules;
 
 class ProductMediaStorageServiceImplTest {
 
@@ -36,7 +42,9 @@ class ProductMediaStorageServiceImplTest {
 
     @BeforeEach
     void setUp() {
-        storage = new ProductMediaStorageServiceImpl(uploadDir.toString());
+        StorageProperties props = new StorageProperties();
+        LocalFileStorage local = new LocalFileStorage(uploadDir.resolve("private").toString(), uploadDir.toString(), "s");
+        storage = new ProductMediaStorageServiceImpl(new FileStorageService(new FileStorages(props, local, null), props));
     }
 
     private static MockMultipartFile file(String name, byte[] content) {
@@ -67,9 +75,9 @@ class ProductMediaStorageServiceImplTest {
                 new Case("a.png", PNG, 1, "png"), new Case("a.jpg", JPEG, 1, "jpg"),
                 new Case("a.jpeg", JPEG, 1, "jpg"), new Case("a.webp", WEBP, 1, "webp"),
                 new Case("a.mp4", MP4, 2, "mp4"), new Case("a.webm", WEBM, 2, "webm"))) {
-            var stored = storage.store(file(c.name(), withPadding(c.content(), 64)), c.type());
+            var stored = storage.store(file(c.name(), withPadding(c.content(), 64)), c.type(), "Siemens", "6ES7");
 
-            assertTrue(stored.url().startsWith("/uploads/product/"), stored.url());
+            assertTrue(stored.url().startsWith("/uploads/shared/product/siemens/6es7/"), stored.url());
             assertTrue(stored.url().endsWith("." + c.expectedExt()), stored.url());
             assertEquals(64, stored.size());
             assertTrue(Files.exists(uploadDir.resolve(stored.url().substring("/uploads/".length()))));
@@ -78,14 +86,14 @@ class ProductMediaStorageServiceImplTest {
 
     @Test
     void uppercaseExtensionIsAccepted() {
-        var stored = storage.store(file("PHOTO.PNG", withPadding(PNG, 32)), 1);
+        var stored = storage.store(file("PHOTO.PNG", withPadding(PNG, 32)), 1, "Siemens", "6ES7");
         assertTrue(stored.url().endsWith(".png"));
     }
 
     @Test
     void storedNameIsRandomAndNeverContainsClientFilename() {
-        var a = storage.store(file("secret-name.png", withPadding(PNG, 32)), 1);
-        var b = storage.store(file("secret-name.png", withPadding(PNG, 32)), 1);
+        var a = storage.store(file("secret-name.png", withPadding(PNG, 32)), 1, "Siemens", "6ES7");
+        var b = storage.store(file("secret-name.png", withPadding(PNG, 32)), 1, "Siemens", "6ES7");
 
         assertFalse(a.url().contains("secret-name"));
         assertFalse(a.url().equals(b.url()));
@@ -93,7 +101,7 @@ class ProductMediaStorageServiceImplTest {
 
     @Test
     void clientFilenameWithTraversalCannotEscapeUploadDirectory() throws IOException {
-        var stored = storage.store(file("../../../etc/evil.png", withPadding(PNG, 32)), 1);
+        var stored = storage.store(file("../../../etc/evil.png", withPadding(PNG, 32)), 1, "Siemens", "6ES7");
 
         Path saved = uploadDir.resolve(stored.url().substring("/uploads/".length())).normalize();
         assertTrue(saved.startsWith(uploadDir));
@@ -103,11 +111,11 @@ class ProductMediaStorageServiceImplTest {
 
     @Test
     void extensionMustMatchFileHeader() throws IOException {
-        assertRejected(() -> storage.store(file("a.png", EXE), 1), ProductErrorCodes.MEDIA_FILE_INVALID);
-        assertRejected(() -> storage.store(file("a.png", withPadding(JPEG, 32)), 1), ProductErrorCodes.MEDIA_FILE_INVALID);
-        assertRejected(() -> storage.store(file("a.jpg", withPadding(PNG, 32)), 1), ProductErrorCodes.MEDIA_FILE_INVALID);
-        assertRejected(() -> storage.store(file("a.mp4", withPadding(WEBM, 32)), 2), ProductErrorCodes.MEDIA_FILE_INVALID);
-        assertRejected(() -> storage.store(file("a.webm", withPadding(MP4, 32)), 2), ProductErrorCodes.MEDIA_FILE_INVALID);
+        assertRejected(() -> storage.store(file("a.png", EXE), 1, "Siemens", "6ES7"), ProductErrorCodes.MEDIA_FILE_INVALID);
+        assertRejected(() -> storage.store(file("a.png", withPadding(JPEG, 32)), 1, "Siemens", "6ES7"), ProductErrorCodes.MEDIA_FILE_INVALID);
+        assertRejected(() -> storage.store(file("a.jpg", withPadding(PNG, 32)), 1, "Siemens", "6ES7"), ProductErrorCodes.MEDIA_FILE_INVALID);
+        assertRejected(() -> storage.store(file("a.mp4", withPadding(WEBM, 32)), 2, "Siemens", "6ES7"), ProductErrorCodes.MEDIA_FILE_INVALID);
+        assertRejected(() -> storage.store(file("a.webm", withPadding(MP4, 32)), 2, "Siemens", "6ES7"), ProductErrorCodes.MEDIA_FILE_INVALID);
         assertEquals(0, filesOnDisk(), "校验不通过时不应留下任何文件");
     }
 
@@ -115,59 +123,59 @@ class ProductMediaStorageServiceImplTest {
     void svgIsAlwaysRejected() {
         byte[] svg = "<svg xmlns=\"http://www.w3.org/2000/svg\"><script>alert(1)</script></svg>".getBytes(StandardCharsets.UTF_8);
 
-        BizException e = assertThrows(BizException.class, () -> storage.store(file("a.svg", svg), 1));
+        BizException e = assertThrows(BizException.class, () -> storage.store(file("a.svg", svg), 1, "Siemens", "6ES7"));
         assertEquals(ProductErrorCodes.MEDIA_FILE_INVALID, e.getErrorCode());
         assertTrue(e.getMessage().contains("SVG"));
-        assertRejected(() -> storage.store(file("a.SVG", svg), 1), ProductErrorCodes.MEDIA_FILE_INVALID);
-        assertRejected(() -> storage.store(file("a.svgz", svg), 1), ProductErrorCodes.MEDIA_FILE_INVALID);
+        assertRejected(() -> storage.store(file("a.SVG", svg), 1, "Siemens", "6ES7"), ProductErrorCodes.MEDIA_FILE_INVALID);
+        assertRejected(() -> storage.store(file("a.svgz", svg), 1, "Siemens", "6ES7"), ProductErrorCodes.MEDIA_FILE_INVALID);
         // 改成图片扩展名也不行：文件头不是图片
-        assertRejected(() -> storage.store(file("a.png", svg), 1), ProductErrorCodes.MEDIA_FILE_INVALID);
+        assertRejected(() -> storage.store(file("a.png", svg), 1, "Siemens", "6ES7"), ProductErrorCodes.MEDIA_FILE_INVALID);
     }
 
     @Test
     void unsupportedExtensionsAreRejected() {
-        assertRejected(() -> storage.store(file("a.gif", withPadding(PNG, 32)), 1), ProductErrorCodes.MEDIA_FILE_INVALID);
-        assertRejected(() -> storage.store(file("a.exe", EXE), 1), ProductErrorCodes.MEDIA_FILE_INVALID);
-        assertRejected(() -> storage.store(file("noextension", withPadding(PNG, 32)), 1), ProductErrorCodes.MEDIA_FILE_INVALID);
-        assertRejected(() -> storage.store(file(null, withPadding(PNG, 32)), 1), ProductErrorCodes.MEDIA_FILE_INVALID);
+        assertRejected(() -> storage.store(file("a.gif", withPadding(PNG, 32)), 1, "Siemens", "6ES7"), ProductErrorCodes.MEDIA_FILE_INVALID);
+        assertRejected(() -> storage.store(file("a.exe", EXE), 1, "Siemens", "6ES7"), ProductErrorCodes.MEDIA_FILE_INVALID);
+        assertRejected(() -> storage.store(file("noextension", withPadding(PNG, 32)), 1, "Siemens", "6ES7"), ProductErrorCodes.MEDIA_FILE_INVALID);
+        assertRejected(() -> storage.store(file(null, withPadding(PNG, 32)), 1, "Siemens", "6ES7"), ProductErrorCodes.MEDIA_FILE_INVALID);
         // 视频扩展名不能当图片传，反之亦然
-        assertRejected(() -> storage.store(file("a.mp4", withPadding(MP4, 32)), 1), ProductErrorCodes.MEDIA_FILE_INVALID);
-        assertRejected(() -> storage.store(file("a.png", withPadding(PNG, 32)), 2), ProductErrorCodes.MEDIA_FILE_INVALID);
+        assertRejected(() -> storage.store(file("a.mp4", withPadding(MP4, 32)), 1, "Siemens", "6ES7"), ProductErrorCodes.MEDIA_FILE_INVALID);
+        assertRejected(() -> storage.store(file("a.png", withPadding(PNG, 32)), 2, "Siemens", "6ES7"), ProductErrorCodes.MEDIA_FILE_INVALID);
     }
 
     @Test
     void emptyOrMissingFileIsRejected() {
-        assertRejected(() -> storage.store(file("a.png", new byte[0]), 1), ProductErrorCodes.MEDIA_FILE_INVALID);
-        assertRejected(() -> storage.store(null, 1), ProductErrorCodes.MEDIA_FILE_INVALID);
+        assertRejected(() -> storage.store(file("a.png", new byte[0]), 1, "Siemens", "6ES7"), ProductErrorCodes.MEDIA_FILE_INVALID);
+        assertRejected(() -> storage.store(null, 1, "Siemens", "6ES7"), ProductErrorCodes.MEDIA_FILE_INVALID);
     }
 
     @Test
     void headerShorterThanSignatureIsRejected() {
-        assertRejected(() -> storage.store(file("a.png", new byte[]{(byte) 0x89, 'P'}), 1), ProductErrorCodes.MEDIA_FILE_INVALID);
+        assertRejected(() -> storage.store(file("a.png", new byte[]{(byte) 0x89, 'P'}), 1, "Siemens", "6ES7"), ProductErrorCodes.MEDIA_FILE_INVALID);
     }
 
     @Test
     void invalidMediaTypeIsRejected() {
-        assertRejected(() -> storage.store(file("a.png", withPadding(PNG, 32)), 3), ProductErrorCodes.PARAM_INVALID);
+        assertRejected(() -> storage.store(file("a.png", withPadding(PNG, 32)), 3, "Siemens", "6ES7"), ProductErrorCodes.PARAM_INVALID);
     }
 
     @Test
     void imageSizeBoundaryIsFiveMegabytes() throws IOException {
         long limit = 5L * 1024 * 1024;
 
-        var atLimit = storage.store(file("a.png", withPadding(PNG, (int) limit)), 1);
+        var atLimit = storage.store(file("a.png", withPadding(PNG, (int) limit)), 1, "Siemens", "6ES7");
         assertEquals(limit, atLimit.size());
 
-        assertRejected(() -> storage.store(file("a.png", withPadding(PNG, (int) limit + 1)), 1), ProductErrorCodes.MEDIA_TOO_LARGE);
-        assertRejected(() -> storage.store(file("a.jpg", withPadding(JPEG, 6 * 1024 * 1024)), 1), ProductErrorCodes.MEDIA_TOO_LARGE);
+        assertRejected(() -> storage.store(file("a.png", withPadding(PNG, (int) limit + 1)), 1, "Siemens", "6ES7"), ProductErrorCodes.MEDIA_TOO_LARGE);
+        assertRejected(() -> storage.store(file("a.jpg", withPadding(JPEG, 6 * 1024 * 1024)), 1, "Siemens", "6ES7"), ProductErrorCodes.MEDIA_TOO_LARGE);
         assertEquals(1, filesOnDisk(), "超限的文件不应保存");
     }
 
     @Test
     void videoAllowsMoreThanImageButNotMoreThanHundredMegabytes() {
         // 6MB 的视频可以，但同样大小的图片不行
-        storage.store(file("a.mp4", withPadding(MP4, 6 * 1024 * 1024)), 2);
-        assertRejected(() -> storage.store(file("a.png", withPadding(PNG, 6 * 1024 * 1024)), 1), ProductErrorCodes.MEDIA_TOO_LARGE);
+        storage.store(file("a.mp4", withPadding(MP4, 6 * 1024 * 1024)), 2, "Siemens", "6ES7");
+        assertRejected(() -> storage.store(file("a.png", withPadding(PNG, 6 * 1024 * 1024)), 1, "Siemens", "6ES7"), ProductErrorCodes.MEDIA_TOO_LARGE);
     }
 
     @Test
@@ -179,7 +187,7 @@ class ProductMediaStorageServiceImplTest {
             }
         };
 
-        assertRejected(() -> storage.store(declaredHuge, 2), ProductErrorCodes.MEDIA_TOO_LARGE);
+        assertRejected(() -> storage.store(declaredHuge, 2, "Siemens", "6ES7"), ProductErrorCodes.MEDIA_TOO_LARGE);
         assertEquals(0, filesOnDisk());
     }
 
@@ -192,34 +200,23 @@ class ProductMediaStorageServiceImplTest {
             }
         };
 
-        assertRejected(() -> storage.store(lying, 1), ProductErrorCodes.MEDIA_TOO_LARGE);
-        assertEquals(0, filesOnDisk(), "写盘中途超限，已写入的部分要清理掉");
+        assertThrows(BizException.class, () -> storage.store(lying, 1, "Siemens", "6ES7"));
+        assertEquals(0, filesOnDisk(), "实际字节多于声明时拒绝，不留下文件");
     }
 
     @Test
     void deleteQuietlyRemovesOnlyFilesInsideUploadDirectory() throws IOException {
-        var stored = storage.store(file("a.png", withPadding(PNG, 32)), 1);
+        var stored = storage.store(file("a.png", withPadding(PNG, 32)), 1, "Siemens", "6ES7");
         Path outside = Files.createTempFile("outside", ".txt");
 
-        storage.deleteQuietly(stored.url());
-        storage.deleteQuietly("/uploads/../" + outside.getFileName());
-        storage.deleteQuietly("https://example.com/a.png");
-        storage.deleteQuietly(null);
+        storage.deleteQuietly(stored.storage(), stored.fileKey());
+        storage.deleteQuietly("LOCAL", "../" + outside.getFileName());
+        storage.deleteQuietly("LOCAL", "");
+        storage.deleteQuietly("LOCAL", null);
 
         assertEquals(0, filesOnDisk());
         assertTrue(Files.exists(outside));
         Files.deleteIfExists(outside);
-    }
-
-    @Test
-    void resolvedPathOutsideUploadRootIsRefused() {
-        Path root = uploadDir.toAbsolutePath().normalize();
-
-        assertRejected(() -> ProductMediaStorageServiceImpl.resolveInside(root, root.resolve("product"), "../../evil.png"),
-                ProductErrorCodes.MEDIA_FILE_INVALID);
-        assertRejected(() -> ProductMediaStorageServiceImpl.resolveInside(root, root, "/etc/passwd"),
-                ProductErrorCodes.MEDIA_FILE_INVALID);
-        assertTrue(ProductMediaStorageServiceImpl.resolveInside(root, root.resolve("product"), "a.png").startsWith(root));
     }
 
     @Test
@@ -231,15 +228,15 @@ class ProductMediaStorageServiceImplTest {
             }
         };
 
-        assertRejected(() -> storage.store(noName, 1), ProductErrorCodes.MEDIA_FILE_INVALID);
+        assertRejected(() -> storage.store(noName, 1, "Siemens", "6ES7"), ProductErrorCodes.MEDIA_FILE_INVALID);
     }
 
     @Test
     void ioFailureWhileSavingIsReportedAndLeavesNothingBehind() throws IOException {
-        // 让目标目录无法创建：上传根目录下的 product 是一个普通文件
-        Files.writeString(uploadDir.resolve("product"), "not a directory");
+        // 让目标目录无法创建：公开目录下的 shared 是一个普通文件
+        Files.writeString(uploadDir.resolve("shared"), "not a directory");
 
-        assertRejected(() -> storage.store(file("a.png", withPadding(PNG, 32)), 1), ProductErrorCodes.MEDIA_FILE_INVALID);
+        assertRejected(() -> storage.store(file("a.png", withPadding(PNG, 32)), 1, "Siemens", "6ES7"), ProductErrorCodes.MEDIA_FILE_INVALID);
     }
 
     @Test
@@ -247,7 +244,7 @@ class ProductMediaStorageServiceImplTest {
         Path dir = Files.createDirectories(uploadDir.resolve("full"));
         Files.writeString(dir.resolve("inner.txt"), "x");
 
-        storage.deleteQuietly("/uploads/full");   // 非空目录删不掉，只记日志，不抛异常
+        storage.deleteQuietly("LOCAL", "full");   // 非空目录删不掉，只记日志，不抛异常
 
         assertTrue(Files.exists(dir.resolve("inner.txt")));
     }
@@ -255,13 +252,13 @@ class ProductMediaStorageServiceImplTest {
     @Test
     void shortHeadersOfEachFormatAreNotMistakenForThatFormat() {
         for (byte[] truncated : List.of(Arrays.copyOf(WEBP, 8), Arrays.copyOf(MP4, 8), Arrays.copyOf(WEBM, 3),
-                Arrays.copyOf(PNG, 7), Arrays.copyOf(JPEG, 2))) {
-            assertEquals("", ProductMediaStorageServiceImpl.detectFormat(truncated));
+                Arrays.copyOf(PNG, 3), Arrays.copyOf(JPEG, 2))) {
+            assertNull(UploadRules.detect(truncated, "a"));
         }
-        assertEquals("jpeg", ProductMediaStorageServiceImpl.detectFormat(JPEG));
-        assertEquals("png", ProductMediaStorageServiceImpl.detectFormat(PNG));
-        assertEquals("webp", ProductMediaStorageServiceImpl.detectFormat(WEBP));
-        assertEquals("mp4", ProductMediaStorageServiceImpl.detectFormat(MP4));
-        assertEquals("webm", ProductMediaStorageServiceImpl.detectFormat(WEBM));
+        assertEquals("jpg", UploadRules.detect(JPEG, "a"));
+        assertEquals("png", UploadRules.detect(PNG, "a"));
+        assertEquals("webp", UploadRules.detect(WEBP, "a"));
+        assertEquals("mp4", UploadRules.detect(MP4, "a"));
+        assertEquals("webm", UploadRules.detect(WEBM, "a"));
     }
 }

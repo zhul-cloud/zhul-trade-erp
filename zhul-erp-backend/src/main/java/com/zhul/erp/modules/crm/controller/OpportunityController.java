@@ -14,11 +14,9 @@ import com.zhul.erp.modules.crm.dto.OpportunityVO;
 import com.zhul.erp.modules.crm.dto.RegisterOpportunityRequest;
 import com.zhul.erp.modules.crm.dto.UpdateOpportunityRequest;
 import com.zhul.erp.modules.crm.service.OpportunityService;
-import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
-import org.springframework.http.HttpHeaders;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -31,13 +29,10 @@ import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.IOException;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
+import com.zhul.erp.framework.storage.FileStorageService.FileLink;
 
 /**
  * 商机管理：登记（同时建客户）、阶段流转、列表 / 详情、附件、每日统计。
@@ -128,18 +123,11 @@ public class OpportunityController {
         return Result.ok(opportunityService.uploadAttachment(file));
     }
 
-    /** 预览（inline=true）或下载附件 */
-    @GetMapping("/{id}/attachments/{attachmentId}")
+    /** 附件的临时访问链接：download=true 时强制下载，否则预览 */
+    @GetMapping("/{id}/attachments/{attachmentId}/url")
     @PreAuthorize(VIEW)
-    public void download(@PathVariable Long id, @PathVariable Long attachmentId,
-                         @RequestParam(defaultValue = "false") boolean inline,
-                         HttpServletResponse response) throws IOException {
-        OpportunityService.AttachmentFile file = opportunityService.attachmentFile(id, attachmentId);
-        response.setContentType(file.contentType());
-        response.setContentLengthLong(Files.size(file.path()));
-        response.setHeader(HttpHeaders.CONTENT_DISPOSITION, (inline ? "inline" : "attachment")
-                + "; filename*=UTF-8''" + URLEncoder.encode(file.fileName(), StandardCharsets.UTF_8).replace("+", "%20"));
-        response.setHeader("X-Content-Type-Options", "nosniff");
-        Files.copy(file.path(), response.getOutputStream());
+    public Result<FileLink> attachmentUrl(@PathVariable Long id, @PathVariable Long attachmentId,
+                                          @RequestParam(defaultValue = "false") boolean download) {
+        return Result.ok(opportunityService.attachmentLink(id, attachmentId, download));
     }
 }

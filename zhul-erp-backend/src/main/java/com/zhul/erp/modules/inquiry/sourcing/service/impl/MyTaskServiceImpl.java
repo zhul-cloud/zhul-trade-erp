@@ -65,6 +65,7 @@ import java.util.Objects;
 import java.util.Set;
 
 import java.util.stream.Collectors;
+import com.zhul.erp.modules.media.service.MediaIndexer;
 
 @Service
 @RequiredArgsConstructor
@@ -86,6 +87,7 @@ public class MyTaskServiceImpl implements MyTaskService {
     private final QuotationLocks quotationLocks;
     private final com.zhul.erp.modules.product.candidate.service.ProductArchiver productArchiver;
     private final AttachmentService attachmentService;
+    private final MediaIndexer media;
     private final ItemPriceHistory priceHistory;
 
     /** 兼职工作台按提交统计工作量：已提交、待审核、审核时作废的都算，与是否审核通过无关 */
@@ -622,6 +624,9 @@ public class MyTaskServiceImpl implements MyTaskService {
             if (!d.noStock() && !d.attachmentIds().isEmpty()) {
                 attachmentService.reassign(AttachmentService.SOURCING_QUOTE, d.attachmentIds(), ownQuoteIds, q.getId());
             }
+            // 回价图片进素材库「供方实拍」；被替换的旧回价上的图片随之移走
+            media.indexSourcingQuote(q.getId(), q.getTenantId(), q.getBrand(), q.getModel());
+            ownQuoteIds.forEach(old -> media.indexSourcingQuote(old, q.getTenantId(), q.getBrand(), q.getModel()));
         }
     }
 

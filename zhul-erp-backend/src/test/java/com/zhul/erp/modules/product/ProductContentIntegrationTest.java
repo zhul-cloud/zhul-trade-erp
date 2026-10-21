@@ -385,7 +385,7 @@ class ProductContentIntegrationTest extends IntegrationTestBase {
         assertEquals(1, vo.getStorageType());
         assertEquals(64L, vo.getFileSize());
         assertEquals(0, vo.getIsMain());
-        assertTrue(vo.getFileUrl().startsWith("/uploads/product/"));
+        assertTrue(vo.getFileUrl().startsWith("/uploads/shared/product/"), vo.getFileUrl());
         assertTrue(Files.exists(storedFile(vo)));
         assertFalse(vo.getFileUrl().contains("photo"));
     }

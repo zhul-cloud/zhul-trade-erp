@@ -59,12 +59,9 @@ public final class WarehouseConstants {
     public static final int SHOOT_SKIPPED = 3;
     public static final Map<Integer, String> SHOOT_STATUS_NAMES = Map.of(SHOOT_PENDING, "待拍摄", SHOOT_DONE, "已完成", SHOOT_SKIPPED, "已跳过");
 
-    public static final int MEDIA_UNBOXING = 1;
-    public static final int MEDIA_INSPECTION = 2;
+    /** 实拍任务的素材都是营销图（素材类型 3，接口沿用） */
     public static final int MEDIA_PHOTO = 3;
-    public static final Map<Integer, String> MEDIA_TYPE_NAMES = Map.of(MEDIA_UNBOXING, "拆箱视频", MEDIA_INSPECTION, "验货视频", MEDIA_PHOTO, "实物图");
-    /** 齐全的门槛：拆箱视频 1、验货视频 1、实物图 6 */
-    public static final int NEED_VIDEO = 1;
+    /** 完成的门槛：营销图 6 张 */
     public static final int NEED_PHOTOS = 6;
 
     private WarehouseConstants() {

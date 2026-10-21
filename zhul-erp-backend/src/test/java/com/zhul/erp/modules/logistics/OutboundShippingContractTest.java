@@ -6,6 +6,7 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.mock.web.MockHttpServletResponse;
 
 import java.io.ByteArrayInputStream;
@@ -13,6 +14,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -21,6 +23,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 
 /**
@@ -134,6 +137,37 @@ class OutboundShippingContractTest extends SalesContractSupport {
     }
 
     // ---------------------------------------------------------------- 发货通知、打包、交快递
+
+    /** 打包发货的照片进素材库并标注型号；缺营销图只提醒、不影响打包；重新打包去掉照片后移出素材库 */
+    @Test
+    void pack_photosIntoMediaLibrary_missingMarketingOnlyReminds() throws Exception {
+        JsonNode po = orderedPo(supplier("华控自动化", null), 10);
+        long soId = soOf(po);
+        receive(po, 10);
+        JsonNode ob = ok(notice(soId, 4));
+        long obId = ob.path("id").asLong();
+        assertEquals("A-1", ok(call(get(OB + "/" + obId), keeper)).path("missingMarketing").get(0).asText(), "还没有营销图，打包页提醒");
+
+        long photo = ok(call(multipart("/api/v1/attachments").file(new MockMultipartFile("file", "打包.png", "image/png", PNG))
+                .param("ownerType", "PACKING"), keeper)).path("id").asLong();
+        assertTrue(jdbc.queryForObject("select file_key from biz_attachment where id = ?", String.class, photo).contains("/packing/"));
+        long item = ob.path("items").get(0).path("id").asLong();
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("boxes", List.of(Map.of("length", 40, "width", 30, "height", 30, "grossWeight", "6.00",
+                "items", List.of(Map.of("outboundItemId", item, "quantity", 4)))));
+        body.put("attachmentIds", List.of(photo));
+        JsonNode packed = ok(call(json(put(OB + "/" + obId + "/pack"), write(body)), keeper));
+        assertEquals("已打包", packed.path("statusName").asText(), "缺营销图不影响打包");
+        assertEquals(1, packed.path("packingAttachments").size());
+        assertEquals("A-1", packed.path("packingAttachments").get(0).path("models").get(0).path("model").asText());
+        assertEquals("10:1", jdbc.queryForObject("select concat(category, ':', can_send) from media_item "
+                + "where source_table = 'biz_attachment' and source_id = ? and deleted_at is null", String.class, photo), "打包发货，可发客户");
+
+        body.put("attachmentIds", List.of());
+        ok(call(json(put(OB + "/" + obId + "/pack"), write(body)), keeper));
+        assertEquals(0, jdbc.queryForObject("select count(*) from media_item where source_table = 'biz_attachment' and source_id = ? "
+                + "and deleted_at is null", Integer.class, photo), "去掉的照片移出素材库");
+    }
 
     @Test
     void notice_pack_handOver_progress_undo() throws Exception {

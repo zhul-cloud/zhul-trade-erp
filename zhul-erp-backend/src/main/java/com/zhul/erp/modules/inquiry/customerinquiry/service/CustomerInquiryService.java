@@ -1,5 +1,6 @@
 package com.zhul.erp.modules.inquiry.customerinquiry.service;
 
+import com.zhul.erp.framework.storage.FileStorageService.FileLink;
 import com.zhul.erp.common.result.PageResult;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.AppendRequest;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.AppendVO;
@@ -9,13 +10,9 @@ import com.zhul.erp.modules.inquiry.customerinquiry.dto.CustomerInquiryPageQuery
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.CustomerInquiryVO;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.CustomerTypeVO;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.DraftVO;
-import com.zhul.erp.modules.inquiry.customerinquiry.dto.PriceRecordVO;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.SubmitCustomerInquiryRequest;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.UploadedFileVO;
 import org.springframework.web.multipart.MultipartFile;
-
-import java.nio.file.Path;
-import java.util.List;
 
 /** 询盘单：录入、AI 解析或手动录入、确认生成型号明细与询价任务、改选价格、取消 */
 public interface CustomerInquiryService {
@@ -34,7 +31,8 @@ public interface CustomerInquiryService {
 
     CustomerInquiryDetailVO detail(Long id);
 
-    AttachmentFile attachmentFile(Long id, Long attachmentId);
+    /** 附件的临时访问链接：download=true 时强制下载，否则预览 */
+    FileLink attachmentLink(Long id, Long attachmentId, boolean download);
 
     CustomerInquiryVO startParse(Long id);
 
@@ -67,6 +65,4 @@ public interface CustomerInquiryService {
 
     void applyParseFailure(Long aiTaskId, String errorMessage);
 
-    record AttachmentFile(Path path, String fileName, String contentType) {
-    }
 }

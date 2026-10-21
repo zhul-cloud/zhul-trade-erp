@@ -302,7 +302,7 @@ class ProductApiContractTest extends IntegrationTestBase {
 
         assertEquals(0, uploaded.path("code").asInt(), uploaded.toString());
         assertEquals(1, uploaded.path("data").path("isMain").asInt());
-        assertTrue(uploaded.path("data").path("fileUrl").asText().startsWith("/uploads/product/"));
+        assertTrue(uploaded.path("data").path("fileUrl").asText().startsWith("/uploads/shared/product/"), uploaded.toString());
         assertEquals(1, uploaded.path("data").path("storageType").asInt());
 
         JsonNode refused = call(multipart(BASE + "/products/" + productId + "/media/upload").file(file)

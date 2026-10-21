@@ -1,5 +1,8 @@
 package com.zhul.erp.modules.product.content.service;
 
+import java.util.List;
+import org.springframework.context.ApplicationEventPublisher;
+import com.zhul.erp.modules.product.content.support.MarketingChangedEvent;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.zhul.erp.common.exception.BizException;
@@ -34,6 +37,7 @@ import java.util.Set;
 public class FactTaskService {
 
     private final ProductFactTaskMapper factTaskMapper;
+    private final ApplicationEventPublisher events;
     private final ProductSpecificationMapper specificationMapper;
     private final ProductApplicationMapper applicationMapper;
     private final ProductFinder productFinder;
@@ -108,6 +112,8 @@ public class FactTaskService {
                 .set(ProductApplicationDO::getVerified, 1)
                 .set(ProductApplicationDO::getUpdateTime, now)
                 .set(ProductApplicationDO::getUpdateBy, user));
+        // 资料是共享的：所有有这个商品营销任务的公司都重算发品任务
+        events.publishEvent(new MarketingChangedEvent(null, List.of(productId)));
     }
 
     /** 记录下载资料包时间（逐个商品独立，不锁商品） */
@@ -134,7 +140,7 @@ public class FactTaskService {
     }
 
     /** 已核对且之后没有再导入 */
-    static boolean verified(ProductFactTaskDO fact) {
+    public static boolean verified(ProductFactTaskDO fact) {
         return fact != null && fact.getVerifiedAt() != null
                 && (fact.getImportedAt() == null || !fact.getVerifiedAt().isBefore(fact.getImportedAt()));
     }

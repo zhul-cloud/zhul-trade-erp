@@ -18,6 +18,8 @@ public class PurchaseOrderAttachmentDO {
     private Integer tenantId;
     private Long poId;
     private String fileKey;
+    /** 存储方式（LOCAL-服务器目录、OSS-对象存储） */
+    private String storage;
     private String fileName;
     private Long fileSize;
     private String contentType;

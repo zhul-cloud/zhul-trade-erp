@@ -1,17 +1,12 @@
 package com.zhul.erp.modules.attachment.controller;
 
-import com.zhul.erp.common.exception.BizException;
 import com.zhul.erp.common.result.Result;
 import com.zhul.erp.framework.security.PermissionChecker;
-import com.zhul.erp.modules.attachment.dto.AttachmentFile;
+import com.zhul.erp.framework.storage.FileStorageService.FileLink;
 import com.zhul.erp.modules.attachment.dto.AttachmentVO;
 import com.zhul.erp.modules.attachment.entity.BizAttachmentDO;
 import com.zhul.erp.modules.attachment.service.AttachmentService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.core.io.Resource;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -21,14 +16,11 @@ import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 
 /**
- * 业务附件上传与读取：按所属单据类型校验菜单权限；
- * 返回 Resource 时由 Spring 处理 Range 请求（206），视频可以拖动播放。
+ * 业务附件上传与读取：按所属单据类型校验菜单权限；读取返回临时签名链接，浏览器直接从存储取文件（支持 Range，视频可以拖动播放）。
  */
 @RestController
 @RequestMapping("/api/v1/attachments")
@@ -40,6 +32,9 @@ public class AttachmentController {
             Map.entry(AttachmentService.SHIPMENT, List.of("/purchase/shipments", "/warehouse/receipts")),
             Map.entry(AttachmentService.RECEIPT, List.of("/warehouse/receipts", "/purchase/shipments")),
             Map.entry(AttachmentService.SHOOT, List.of("/warehouse/shoots")),
+            Map.entry(AttachmentService.RECEIPT_DEFECT, List.of("/warehouse/receipts", "/purchase/shipments")),
+            Map.entry(AttachmentService.PACKING, List.of("/warehouse/outbounds")),
+            Map.entry(AttachmentService.NETWORK, List.of("/operations/media")),
             Map.entry(AttachmentService.LOGISTICS, List.of("/logistics/shipments")),
             Map.entry(AttachmentService.PAYMENT, List.of("/finance/payables", "/finance/payments", "/purchase/orders",
                     "/logistics/statements", "/finance/reimbursements")),
@@ -56,24 +51,20 @@ public class AttachmentController {
     private final AttachmentService service;
     private final PermissionChecker perm;
 
+    /** ownerId 选填：实拍任务传入时，素材直接放到该型号的目录 */
     @PostMapping
-    public Result<AttachmentVO> upload(@RequestParam String ownerType, @RequestPart("file") MultipartFile file) {
+    public Result<AttachmentVO> upload(@RequestParam String ownerType, @RequestParam(required = false) Long ownerId,
+                                       @RequestPart("file") MultipartFile file) {
         requireMenu(ownerType);
-        return Result.ok(service.upload(ownerType, file));
+        return Result.ok(service.upload(ownerType, ownerId, file));
     }
 
-    @GetMapping("/{id}")
-    public ResponseEntity<Resource> download(@PathVariable Long id, @RequestParam(defaultValue = "true") boolean inline) {
+    /** 附件的临时访问链接（默认 10 分钟）：download=true 时强制下载，否则浏览器内预览、播放 */
+    @GetMapping("/{id}/url")
+    public Result<FileLink> url(@PathVariable Long id, @RequestParam(defaultValue = "false") boolean download) {
         BizAttachmentDO a = service.require(id);
         requireMenu(a.getOwnerType());
-        AttachmentFile f = service.file(a);
-        return ResponseEntity.ok()
-                .contentType(MediaType.parseMediaType(f.contentType()))
-                .header(HttpHeaders.CONTENT_DISPOSITION, (inline ? "inline" : "attachment")
-                        + "; filename*=UTF-8''" + URLEncoder.encode(f.fileName(), StandardCharsets.UTF_8).replace("+", "%20"))
-                .header("X-Content-Type-Options", "nosniff")
-                .header(HttpHeaders.ACCEPT_RANGES, "bytes")
-                .body(f.resource());
+        return Result.ok(service.link(a, download));
     }
 
     private void requireMenu(String ownerType) {

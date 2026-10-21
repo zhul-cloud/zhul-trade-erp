@@ -21,9 +21,13 @@ import React, { useEffect, useRef, useState } from 'react';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useAppTheme } from '@/theme/AppTheme';
 import {
+  ACCEPT_IMAGE,
   AttachmentWall,
+  attachmentModels,
   DiffStatusPill,
   DiffTypePill,
+  type ModelTagMap,
+  ModelTags,
   ReasonModal,
   ReceiptStatusPill,
   sub,
@@ -248,8 +252,12 @@ const Footer: React.FC<{
   );
 };
 
+/** 有行的不良数量大于 0（实收 − 合格） */
+const hasDefect = (rows: Row[]) =>
+  rows.some((r) => r.qty.receivedQty - r.qty.qualifiedQty > 0);
+
 const HINT =
-  '确认后生成采购入库单；合格的型号会生成实拍任务，订单型号的合格数量到齐后自动变「已入库」';
+  '确认后生成采购入库单；还没有营销图的合格型号会生成实拍任务，订单型号的合格数量到齐后自动变「已入库」';
 
 // ---------------------------------------------------------------- 验收入库
 
@@ -265,6 +273,8 @@ export const AcceptDrawer: React.FC<{
   const [date, setDate] = useState<Dayjs>(dayjs());
   const [note, setNote] = useState('');
   const [files, setFiles] = useState<Attachment[]>([]);
+  const [defects, setDefects] = useState<Attachment[]>([]);
+  const [tags, setTags] = useState<ModelTagMap>({});
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -273,6 +283,8 @@ export const AcceptDrawer: React.FC<{
     setDate(dayjs());
     setNote('');
     setFiles([]);
+    setDefects([]);
+    setTags({});
     receiptApi
       .shipment(shipmentId)
       .then((d) => {
@@ -336,6 +348,13 @@ export const AcceptDrawer: React.FC<{
                 note: note.trim(),
                 items: rows.map((r) => ({ shipmentItemId: r.key, ...r.qty })),
                 attachmentIds: files.map((f) => f.id),
+                defectAttachmentIds: hasDefect(rows)
+                  ? defects.map((f) => f.id)
+                  : [],
+                attachmentModels: attachmentModels(
+                  [...files, ...defects],
+                  tags,
+                ),
               });
               message.success(`已入库 ${d.receipt.grNo}`);
               onDone(d);
@@ -404,6 +423,31 @@ export const AcceptDrawer: React.FC<{
             value={files}
             onChange={setFiles}
           />
+          <ModelTags
+            files={files}
+            models={rows}
+            value={tags}
+            onChange={setTags}
+          />
+          {hasDefect(rows) && (
+            <>
+              <Label extra="选填，有不良时才能上传；进素材库「到货异常」，仅内部可见">
+                <b style={{ color: palette.ink }}>不良品照片</b>
+              </Label>
+              <AttachmentWall
+                ownerType="RECEIPT_DEFECT"
+                value={defects}
+                onChange={setDefects}
+                accept={ACCEPT_IMAGE}
+              />
+              <ModelTags
+                files={defects}
+                models={rows}
+                value={tags}
+                onChange={setTags}
+              />
+            </>
+          )}
         </>
       )}
     </Drawer>
@@ -426,6 +470,8 @@ export const DirectReceiveDrawer: React.FC<{
   const [date, setDate] = useState<Dayjs>(dayjs());
   const [note, setNote] = useState('');
   const [files, setFiles] = useState<Attachment[]>([]);
+  const [defects, setDefects] = useState<Attachment[]>([]);
+  const [tags, setTags] = useState<ModelTagMap>({});
   const [busy, setBusy] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
@@ -450,6 +496,8 @@ export const DirectReceiveDrawer: React.FC<{
     setDate(dayjs());
     setNote('');
     setFiles([]);
+    setDefects([]);
+    setTags({});
     search('');
   }, [open]);
 
@@ -494,6 +542,13 @@ export const DirectReceiveDrawer: React.FC<{
                 note: note.trim(),
                 items: filled.map((r) => ({ poItemId: r.key, ...r.qty })),
                 attachmentIds: files.map((f) => f.id),
+                defectAttachmentIds: hasDefect(rows)
+                  ? defects.map((f) => f.id)
+                  : [],
+                attachmentModels: attachmentModels(
+                  [...files, ...defects],
+                  tags,
+                ),
               });
               message.success(`已入库 ${d.receipt.grNo}`);
               onDone(d);
@@ -562,6 +617,31 @@ export const DirectReceiveDrawer: React.FC<{
             value={files}
             onChange={setFiles}
           />
+          <ModelTags
+            files={files}
+            models={rows}
+            value={tags}
+            onChange={setTags}
+          />
+          {hasDefect(rows) && (
+            <>
+              <Label extra="选填，有不良时才能上传；进素材库「到货异常」，仅内部可见">
+                <b style={{ color: palette.ink }}>不良品照片</b>
+              </Label>
+              <AttachmentWall
+                ownerType="RECEIPT_DEFECT"
+                value={defects}
+                onChange={setDefects}
+                accept={ACCEPT_IMAGE}
+              />
+              <ModelTags
+                files={defects}
+                models={rows}
+                value={tags}
+                onChange={setTags}
+              />
+            </>
+          )}
         </>
       )}
     </Drawer>
