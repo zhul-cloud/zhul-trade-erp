@@ -13,6 +13,7 @@ SERVICES=(backend frontend ai-orchestrator)
 CONTAINERS=(zhul-erp-mysql zhul-erp-redis zhul-erp-backend zhul-erp-frontend zhul-erp-ai-orchestrator)
 HEALTH_TIMEOUT=600
 KEEP_VERSIONS=3
+PULL_ATTEMPTS=3
 
 log() { echo "[$(date '+%F %T')] $*"; }
 fail() { echo "[$(date '+%F %T')] 失败：$*" >&2; exit 1; }
@@ -42,8 +43,14 @@ docker compose --project-directory "$APP_DIR" -f "$stage/docker-compose.yaml" -f
     --profile app config --quiet || fail "compose 配置校验未通过"
 
 log "拉取镜像"
+# ghcr.io 偶尔响应超时，每个镜像最多拉 PULL_ATTEMPTS 次；已下载的层会保留，重试只补缺的部分。
 for s in "${SERVICES[@]}"; do
-    docker pull -q "$REGISTRY/zhul-erp-$s:$VERSION" >/dev/null || fail "拉取 zhul-erp-$s:$VERSION 失败"
+    for attempt in $(seq 1 "$PULL_ATTEMPTS"); do
+        docker pull -q "$REGISTRY/zhul-erp-$s:$VERSION" >/dev/null && break
+        [ "$attempt" -lt "$PULL_ATTEMPTS" ] || fail "拉取 zhul-erp-$s:$VERSION 失败（已重试 $PULL_ATTEMPTS 次）"
+        log "拉取 zhul-erp-$s 失败，$((attempt * 15))s 后第 $((attempt + 1)) 次重试"
+        sleep $((attempt * 15))
+    done
 done
 
 prev=$(docker image inspect -f '{{ index .Config.Labels "org.opencontainers.image.version" }}' \
