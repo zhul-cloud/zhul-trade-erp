@@ -13,6 +13,8 @@ public class RoleDO extends BaseEntity {
     private String code;
     private String name;
     private Integer permissionScope;
+    /** 工作台模板编码（workbench_template.code） */
+    private String workbenchTemplate;
     private Integer status;
     private Integer isBuiltIn;
     private String remark;

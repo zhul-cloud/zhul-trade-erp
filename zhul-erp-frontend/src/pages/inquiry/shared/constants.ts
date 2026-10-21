@@ -113,7 +113,6 @@ export const PATHS = {
   rules: '/inquiry/sourcing-board/rules',
   myTasks: '/inquiry/my-tasks',
   history: '/inquiry/price-history',
-  partTimeBoard: '/inquiry/part-time-board',
 };
 
 /** 货源直达：按关键词拼淘宝、1688、闲鱼的搜索地址 */

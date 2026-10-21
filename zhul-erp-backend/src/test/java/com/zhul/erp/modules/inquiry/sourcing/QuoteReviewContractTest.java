@@ -187,6 +187,8 @@ class QuoteReviewContractTest extends InquiryContractSupport {
         assertEquals(3, mine.path("reviewStatus").asInt());
         assertEquals("请再找全新原装", mine.path("reviewNote").asText());
         assertEquals(0, ok(call(get(BOARD).param("status", String.valueOf(REVIEW_TAB)), admin)).path("tasks").size(), "退回后不在待审核");
+        assertEquals(1, ok(call(get("/api/v1/workbench/widgets/my-inquiry"), wang)).path("returnedItems").asInt(),
+                "采购员看板显示被退回待补的型号");
 
         // 修改已通过的回价：新版本审核前业务员仍看到旧价，通过后才换
         long old = quoteId(ids.get(0), "100", 2);

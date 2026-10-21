@@ -163,7 +163,7 @@ const MyTasksPage: React.FC = () => {
   const [keyword, setKeyword] = useState('');
   const [search, setSearch] = useState('');
   const [tasks, setTasks] = useState<MyTask[] | null>(null);
-  // 从兼职看板点进来时带 ?task=任务ID，直接打开该任务
+  // 从工作台采购员看板点进来时带 ?task=任务ID，直接打开该任务
   const [activeId, setActiveId] = useState<number | undefined>(() => {
     const id = Number(new URLSearchParams(window.location.search).get('task'));
     return Number.isInteger(id) && id > 0 ? id : undefined;

@@ -19,6 +19,7 @@ import com.zhul.erp.modules.system.repository.RoleMapper;
 import com.zhul.erp.modules.system.repository.RoleOrgMapper;
 import com.zhul.erp.modules.system.repository.UserBasicMapper;
 import com.zhul.erp.modules.system.service.RoleService;
+import com.zhul.erp.modules.workbench.service.WorkbenchService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -39,6 +40,7 @@ public class RoleServiceImpl implements RoleService {
     private static final int MAX_SAMPLE_USER_NAMES = 4;
 
     private final RoleMapper roleMapper;
+    private final WorkbenchService workbenchService;
     private final UserBasicMapper userBasicMapper;
     private final RoleOrgMapper roleOrgMapper;
     private final DepartmentMapper departmentMapper;
@@ -123,6 +125,7 @@ public class RoleServiceImpl implements RoleService {
         role.setCode("R" + (System.currentTimeMillis() % 100000000));
         role.setName(request.getName());
         role.setPermissionScope(request.getPermissionScope() != null ? request.getPermissionScope() : 0);
+        role.setWorkbenchTemplate(workbenchTemplate(request.getWorkbenchTemplate()));
         role.setStatus(request.getStatus() != null ? request.getStatus() : 1);
         role.setIsBuiltIn(0);
         role.setRemark(request.getRemark());
@@ -149,6 +152,9 @@ public class RoleServiceImpl implements RoleService {
         }
         if (request.getStatus() != null) {
             wrapper.set(RoleDO::getStatus, request.getStatus());
+        }
+        if (StringUtils.hasText(request.getWorkbenchTemplate())) {
+            wrapper.set(RoleDO::getWorkbenchTemplate, workbenchTemplate(request.getWorkbenchTemplate()));
         }
         if (request.getRemark() != null) {
             wrapper.set(RoleDO::getRemark, request.getRemark());
@@ -235,6 +241,17 @@ public class RoleServiceImpl implements RoleService {
                 .stream().map(DepartmentDO::getId).collect(Collectors.toList());
     }
 
+    /** 工作台模板：不传为通用，传了必须是启用的模板 */
+    private String workbenchTemplate(String code) {
+        if (!StringUtils.hasText(code)) {
+            return WorkbenchService.GENERAL;
+        }
+        if (!workbenchService.exists(code.trim())) {
+            throw new BizException("工作台模板不存在");
+        }
+        return code.trim();
+    }
+
     private List<RoleVO> toVoList(List<RoleDO> roles) {
         if (roles.isEmpty()) {
             return new ArrayList<>();
@@ -252,6 +269,7 @@ public class RoleServiceImpl implements RoleService {
             vo.setCode(role.getCode());
             vo.setName(role.getName());
             vo.setPermissionScope(role.getPermissionScope());
+            vo.setWorkbenchTemplate(role.getWorkbenchTemplate());
             vo.setStatus(role.getStatus());
             vo.setIsBuiltIn(role.getIsBuiltIn());
             vo.setUserCount(userCountByRoleCode.getOrDefault(role.getCode(), 0L).intValue());

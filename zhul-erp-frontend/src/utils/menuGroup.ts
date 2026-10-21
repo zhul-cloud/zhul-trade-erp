@@ -22,7 +22,6 @@ const GROUPS: [string, string][] = [
   ['/system/transit-times', '业务设置'],
   ['/inquiry/sourcing-board', '采购管理'],
   ['/inquiry/my-tasks', '采购管理'],
-  ['/inquiry/part-time-board', '采购管理'],
   ['/inquiry/price-history', '采购管理'],
   ['/supplier/', '采购管理'],
   ['/purchase/', '采购管理'],

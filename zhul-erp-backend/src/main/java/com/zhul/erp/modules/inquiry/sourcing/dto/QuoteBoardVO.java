@@ -6,15 +6,19 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 
-/** 兼职工作台：本人询价统计（本月按自然月，趋势为近 30 天） */
+/** 本人询价统计（工作台采购员看板，原兼职看板；本月按自然月，趋势为近 30 天） */
 @Data
-public class PartTimeBoardVO {
+public class QuoteBoardVO {
     /** 待处理任务数（询价中、本人有效分配） */
     private Integer pendingTasks;
     /** 其中已超时 */
     private Integer timeoutTasks;
     /** 其中紧急 */
     private Integer urgentTasks;
+    /** 其中今天到期（还没超时、今天之内超时） */
+    private Integer dueTodayTasks;
+    /** 被退回待补的型号数（审核退回、还没再次提交） */
+    private Integer returnedItems;
     /** 本月回价的型号数（去重） */
     private Integer monthQuotedItems;
     /** 本月提交的有货报价条数 */
