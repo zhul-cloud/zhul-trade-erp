@@ -121,7 +121,9 @@ jobs:
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.version=${{ needs.version.outputs.version }}
           cache-from: type=gha,scope=${{ matrix.name }}
-          cache-to: type=gha,mode=max,scope=${{ matrix.name }}
+          # 三个镜像并行构建时可能同时写同一个基础层的缓存（如 Debian 层），写缓存失败只影响下次构建速度，
+          # 不能因此中断镜像推送，所以忽略缓存写入错误。
+          cache-to: type=gha,mode=max,scope=${{ matrix.name }},ignore-error=true
 
   deploy:
     name: 部署到生产服务器
