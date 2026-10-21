@@ -34,6 +34,7 @@ import com.zhul.erp.modules.media.support.MediaProducts;
 import com.zhul.erp.modules.product.entity.ProductDO;
 import com.zhul.erp.modules.product.entity.ProductDocumentDO;
 import com.zhul.erp.modules.product.entity.ProductMediaDO;
+import com.zhul.erp.modules.product.repository.ProductCategoryMapper;
 import com.zhul.erp.modules.product.repository.ProductDocumentMapper;
 import com.zhul.erp.modules.product.repository.ProductMediaMapper;
 import com.zhul.erp.modules.sales.support.PiStore;
@@ -88,6 +89,7 @@ public class MediaLibraryService {
     private final ProductMediaMapper productMediaMapper;
     private final ProductDocumentMapper productDocumentMapper;
     private final MediaProducts products;
+    private final ProductCategoryMapper categoryMapper;
     private final FileStorageService files;
     private final AttachmentService attachments;
     private final InquiryLookups lookups;
@@ -118,6 +120,7 @@ public class MediaLibraryService {
             }
         }
         Map<String, ProductDO> matched = products.findAll(rows.stream().map(r -> new MediaIndexer.ModelRef(r.getBrand(), r.getModel())).toList());
+        Map<Long, String> categories = categoryNames(matched.values());
         List<MediaModelVO> out = rows.stream().map(r -> {
             MediaModelVO vo = new MediaModelVO();
             vo.setBrand(r.getBrand());
@@ -125,14 +128,41 @@ public class MediaLibraryService {
             ProductDO p = matched.get(r.getAssetKey());
             vo.setProductId(p == null ? null : p.getId());
             vo.setProductName(p == null ? null : p.getProductName());
+            vo.setCategory(p == null ? null : categories.get(p.getCategoryId()));
             vo.setGroupCounts(groups.getOrDefault(r.getAssetKey(), Map.of()));
             vo.setHasMarketing(r.getMarketingCount() != null && r.getMarketingCount() > 0);
             vo.setSendableCount(r.getSendableCount());
             vo.setListingCount(r.getListingCount());
             vo.setLastAddedAt(r.getLastAddedAt());
+            status(vo);
             return vo;
         }).toList();
         return PageResult.of(total, out);
+    }
+
+    /** 型号状态：已选发品素材 → 待选发品素材（有营销实拍）→ 缺营销实拍，取第一个满足的 */
+    private static void status(MediaModelVO vo) {
+        if (vo.getListingCount() != null && vo.getListingCount() > 0) {
+            vo.setStatus("listed");
+            vo.setStatusName("已选发品素材");
+        } else if (Boolean.TRUE.equals(vo.getHasMarketing())) {
+            vo.setStatus("marketing");
+            vo.setStatusName("待选发品素材");
+        } else {
+            vo.setStatus("noMarketing");
+            vo.setStatusName("缺营销实拍");
+        }
+    }
+
+    private Map<Long, String> categoryNames(Collection<ProductDO> matched) {
+        List<Long> ids = matched.stream().map(ProductDO::getCategoryId).filter(Objects::nonNull).distinct().toList();
+        if (ids.isEmpty()) {
+            return Map.of();
+        }
+        Map<Long, String> out = new HashMap<>();
+        categoryMapper.selectBatchIds(ids).forEach(c -> out.put(c.getId(),
+                StringUtils.hasText(c.getCategoryNameZh()) ? c.getCategoryNameZh() : c.getCategoryName()));
+        return out;
     }
 
     // ================================================================ 型号详情

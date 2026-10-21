@@ -22,11 +22,20 @@ const GROUPS = [
 ];
 
 type Tri = 'all' | 'yes' | 'no';
+
+const STATUS_TONES: Record<
+  MediaModel['status'],
+  'green' | 'accent' | 'orange'
+> = {
+  listed: 'green',
+  marketing: 'accent',
+  noMarketing: 'orange',
+};
 const triValue = (v: Tri) => (v === 'all' ? undefined : v === 'yes');
 
 /**
- * 运营管理 → 素材库：按型号汇总各环节的图片、视频与资料。这是按型号汇总的视图，没有单条记录的创建人、更新人，
- * 不显示四个审计列；按最近新增素材的时间倒序。
+ * 运营管理 → 素材库：按型号汇总各环节的图片、视频与资料。与其他运营列表一样以商品、品牌、品类、状态开头；
+ * 这是按型号汇总的视图，没有单条记录的创建人、更新人，不显示四个审计列；按最近新增素材的时间倒序。
  */
 const MediaLibraryPage: React.FC = () => {
   const { palette } = useAppTheme();
@@ -77,26 +86,42 @@ const MediaLibraryPage: React.FC = () => {
 
   const columns: TableColumnsType<MediaModel> = [
     {
-      title: '型号',
+      title: '商品',
       key: 'model',
       width: 260,
       fixed: 'left',
       render: (_, r) => (
         <div>
-          <a style={{ fontWeight: 600 }} onClick={() => setOpen(r)}>
-            {r.brand} {r.model}
+          <a onClick={() => setOpen(r)}>
+            <b>
+              {r.brand} · {r.model}
+            </b>
           </a>
-          {r.productName && (
-            <div style={{ fontSize: 12, color: palette.mute }}>
-              {r.productName}
-            </div>
-          )}
+          <div style={{ fontSize: 12, color: palette.mute }}>
+            {r.productName || '—'}
+          </div>
         </div>
+      ),
+    },
+    { title: '品牌', dataIndex: 'brand', width: 110 },
+    {
+      title: '品类',
+      dataIndex: 'category',
+      width: 120,
+      render: (v?: string) => v || '—',
+    },
+    {
+      title: '状态',
+      key: 'status',
+      width: 130,
+      render: (_, r) => (
+        <Pill tone={STATUS_TONES[r.status]}>{r.statusName}</Pill>
       ),
     },
     {
       title: '各环节素材',
       key: 'groups',
+      width: 240,
       render: (_, r) => (
         <Space size={[6, 6]} wrap>
           {GROUPS.filter((g) => r.groupCounts[g]).map((g) => (
@@ -106,17 +131,6 @@ const MediaLibraryPage: React.FC = () => {
           ))}
         </Space>
       ),
-    },
-    {
-      title: '营销实拍',
-      key: 'marketing',
-      width: 100,
-      render: (_, r) =>
-        r.hasMarketing ? (
-          <Pill tone="green">已拍</Pill>
-        ) : (
-          <Pill tone="orange">没有</Pill>
-        ),
     },
     {
       title: '可发客户',

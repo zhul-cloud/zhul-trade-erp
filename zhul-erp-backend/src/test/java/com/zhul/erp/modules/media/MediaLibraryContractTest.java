@@ -83,6 +83,8 @@ class MediaLibraryContractTest extends TenantContractSupport {
         assertEquals(1, row.path("groupCounts").path("到货验收").asInt());
         assertFalse(row.path("hasMarketing").asBoolean());
         assertEquals("ITMediaBrand M-1", row.path("productName").asText());
+        assertEquals("PLC", row.path("category").asText());
+        assertEquals("缺营销实拍", row.path("statusName").asText());
         assertEquals(0, ok(call(json(post(API + "/models/page"), "{\"hasMarketing\":true}"), admin)).path("total").asInt());
 
         JsonNode detail = ok(call(get(API + "/models/detail").param("brand", BRAND).param("model", "m-1"), admin));
@@ -97,8 +99,11 @@ class MediaLibraryContractTest extends TenantContractSupport {
         assertEquals("「验货记录」不能用于发品", fail(flag(admin, inspection, null, true)).path("message").asText());
         ok(flag(admin, quotePhoto, true, null));
         assertTrue(ok(flag(admin, quotePhoto, null, true)).path("forListing").asBoolean());
+        assertEquals("listed", status(admin, "M-1"), "有用于发品的素材");
         JsonNode back = ok(flag(admin, quotePhoto, false, null));
         assertFalse(back.path("forListing").asBoolean(), "改回仅内部时同时取消用于发品");
+        item("M-1", 9, 1, 1);
+        assertEquals("marketing", status(admin, "M-1"), "有营销实拍、还没选发品素材");
 
         // 链接：仅内部的不能下载，预览可以
         assertEquals("仅内部的素材不能下载", fail(urls(admin, List.of(quotePhoto), true)).path("message").asText());
@@ -207,6 +212,11 @@ class MediaLibraryContractTest extends TenantContractSupport {
     private JsonNode urls(String token, List<Long> itemIds, boolean download) throws Exception {
         return call(json(post(API + "/urls"), write(Map.of("refs", itemIds.stream().map(i -> Map.of("itemId", i)).toList(),
                 "download", download))), token);
+    }
+
+    private String status(String token, String model) throws Exception {
+        return ok(call(json(post(API + "/models/page"), write(Map.of("keyword", model))), token))
+                .path("records").get(0).path("status").asText();
     }
 
     private static List<String> names(JsonNode groups) {

@@ -13,6 +13,11 @@ export interface MediaModel {
   model: string;
   productId?: number;
   productName?: string;
+  /** 商品库里的品类 */
+  category?: string;
+  /** 状态：已选发品素材、待选发品素材（有营销实拍）、缺营销实拍 */
+  status: 'listed' | 'marketing' | 'noMarketing';
+  statusName: string;
   /** 分组名 → 素材数（本公司的，不含官方资料） */
   groupCounts: Record<string, number>;
   hasMarketing: boolean;

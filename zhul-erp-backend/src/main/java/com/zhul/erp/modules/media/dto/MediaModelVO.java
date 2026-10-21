@@ -12,6 +12,11 @@ public class MediaModelVO {
     private String model;
     /** 共享商品库里的商品名称，没有为空 */
     private String productName;
+    /** 商品库里的品类，型号不在商品库时为空 */
+    private String category;
+    /** 状态：listed 已选发品素材、marketing 待选发品素材（有营销实拍）、noMarketing 缺营销实拍 */
+    private String status;
+    private String statusName;
     private Long productId;
     /** 分组名 → 素材数（本公司的素材，不含官方资料） */
     private Map<String, Integer> groupCounts;
