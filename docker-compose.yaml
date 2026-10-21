@@ -80,6 +80,7 @@ services:
       SPRING_FLYWAY_LOCATIONS: ${FLYWAY_LOCATIONS:-classpath:db/migration}
       DB_CONNECT_RETRIES: ${DB_CONNECT_RETRIES:-12}
       JAVA_TOOL_OPTIONS: ${JAVA_TOOL_OPTIONS:-}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:*}
       UPLOAD_DIR: /app/uploads
       UPLOAD_PRIVATE_DIR: /app/private-uploads
       STORAGE_TYPE: ${STORAGE_TYPE:-local}

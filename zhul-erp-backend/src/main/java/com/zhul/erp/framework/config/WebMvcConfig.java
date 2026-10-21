@@ -6,6 +6,7 @@ import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 import java.io.File;
+import java.util.Arrays;
 
 @Configuration
 public class WebMvcConfig implements WebMvcConfigurer {
@@ -13,10 +14,18 @@ public class WebMvcConfig implements WebMvcConfigurer {
     @Value("${zhul.upload.dir}")
     private String uploadDir;
 
+    /** 逗号分隔的来源，见 application.yml 的 zhul.cors.allowed-origin-patterns */
+    @Value("${zhul.cors.allowed-origin-patterns}")
+    private String allowedOriginPatterns;
+
     @Override
     public void addCorsMappings(CorsRegistry registry) {
+        String[] patterns = Arrays.stream(allowedOriginPatterns.split(","))
+                .map(String::trim)
+                .filter(p -> !p.isEmpty())
+                .toArray(String[]::new);
         registry.addMapping("/api/**")
-                .allowedOriginPatterns("http://localhost:*", "https://*.zhul.com")
+                .allowedOriginPatterns(patterns)
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
                 .allowedHeaders("*")
                 .allowCredentials(true)
