@@ -263,7 +263,6 @@ const CategoryPage: React.FC = () => {
     <ProductThemeProvider>
       <PageHeader
         eyebrow="PRODUCT MASTER"
-        title="品类"
         description="一级品类用于商品和独立站，编码有商品后不能再改；细分品类用于供应商主营产品和询盘单匹配。"
         actions={
           access['product:category:add'] && (

@@ -202,11 +202,7 @@ const PricingStrategyPage: React.FC = () => {
 
   return (
     <div>
-      <QuotationPageTitle
-        crumbs={['定价策略']}
-        title="定价策略"
-        description="依据《工控自动化产品定价策略 SOP》V6 第十章：按品相给建议毛利率与红线，售价 = 采购成本价 ÷ (1 − 毛利率)；报价时也可以按加价定价。"
-      />
+      <QuotationPageTitle description="依据《工控自动化产品定价策略 SOP》V6 第十章：按品相给建议毛利率与红线，售价 = 采购成本价 ÷ (1 − 毛利率)；报价时也可以按加价定价。" />
       {!canEdit && (
         <Alert
           type="info"

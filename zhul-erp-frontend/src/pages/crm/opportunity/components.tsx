@@ -3,12 +3,11 @@ import {
   FileExcelOutlined,
   FileImageOutlined,
 } from '@ant-design/icons';
-import { Link } from '@umijs/max';
 import { App, Breadcrumb } from 'antd';
 import React from 'react';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatDateTime } from '@/utils/format';
-import { menuGroupOf } from '@/utils/menuGroup';
+import { MenuLink, useMenu } from '@/utils/menuName';
 import {
   CATEGORY_ACTIVE,
   CATEGORY_INVALID,
@@ -103,21 +102,23 @@ export const StagePill: React.FC<{
   );
 };
 
-/** 面包屑 + 标题 + 右侧操作 */
+/** 面包屑 + 标题 + 右侧操作；分组、页面名称取「菜单管理」（列表页、统计页不用传标题），详情页传 current */
 export const PageTitle: React.FC<{
-  title: React.ReactNode;
-  /** 面包屑第二级：商机 / 商机统计 */
-  section?: string;
+  title?: React.ReactNode;
   current?: string;
   description?: React.ReactNode;
   actions?: React.ReactNode;
-}> = ({ title, section = '商机', current, description, actions }) => {
+}> = ({ title, current, description, actions }) => {
   const { palette } = useAppTheme();
-  const items = [
-    { title: menuGroupOf(LIST_PATH) },
-    current ? { title: <Link to={LIST_PATH}>商机</Link> } : { title: section },
-    ...(current ? [{ title: current }] : []),
-  ];
+  const page = useMenu();
+  const list = useMenu(LIST_PATH);
+  const items = current
+    ? [
+        { title: list?.group },
+        { title: <MenuLink to={LIST_PATH} /> },
+        { title: current },
+      ]
+    : [{ title: page?.group }, { title: page?.name }];
   return (
     <header
       style={{
@@ -143,7 +144,7 @@ export const PageTitle: React.FC<{
             color: palette.ink,
           }}
         >
-          {title}
+          {title ?? page?.name}
         </h1>
         {description && (
           <div style={{ margin: '6px 0 0', color: palette.sub, fontSize: 14 }}>

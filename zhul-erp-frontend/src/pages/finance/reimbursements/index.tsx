@@ -859,11 +859,7 @@ const ReimbursementPage: React.FC = () => {
   const onCount = useCallback((n: number) => setCount(n), []);
   return (
     <div>
-      <PageTitle
-        crumbs={['报销单']}
-        title="报销单"
-        description="勾选自己的待报销项提交，暂不审批；快递费、退货运费在这里补传截图。供应商退到你手里的钱，登记「已收到退款」后会在报销时冲减。"
-      />
+      <PageTitle description="勾选自己的待报销项提交，暂不审批；快递费、退货运费在这里补传截图。供应商退到你手里的钱，登记「已收到退款」后会在报销时冲减。" />
       <Tabs
         activeKey={tab}
         onChange={setTab}

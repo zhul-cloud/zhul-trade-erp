@@ -716,8 +716,6 @@ const ExpensePage: React.FC = () => {
   return (
     <div>
       <PageTitle
-        crumbs={['费用单']}
-        title="费用单"
         description="补发运费这类偶发成本，以及房租、工资、平台费等运营成本；公司对公生成应付，员工垫付进入垫付人的待报销。关联订单型号的计入订单成本，不关联的按类别与分摊月数计入经营统计。"
         actions={
           canEdit && (

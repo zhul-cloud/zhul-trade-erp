@@ -191,7 +191,6 @@ const SeriesPage: React.FC = () => {
     <ProductThemeProvider>
       <PageHeader
         eyebrow="PRODUCT MASTER"
-        title="系列"
         description="品牌下可选的分组（如 Siemens 的 S7-1200），同一个品牌下系列名称不重复，不同品牌可以同名。"
         actions={
           access['product:series:add'] && (

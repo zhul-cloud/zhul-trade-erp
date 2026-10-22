@@ -286,11 +286,7 @@ const ProfitStatsPage: React.FC = () => {
 
   return (
     <div>
-      <PageTitle
-        crumbs={['利润统计']}
-        title="利润统计"
-        description="按销售日期汇总订单收入、实际成本与毛利；收入按毛额 × 结汇汇率，平台手续费算成本，口径与订单的成本明细一致。"
-      />
+      <PageTitle description="按销售日期汇总订单收入、实际成本与毛利；收入按毛额 × 结汇汇率，平台手续费算成本，口径与订单的成本明细一致。" />
       <div
         style={{
           display: 'flex',

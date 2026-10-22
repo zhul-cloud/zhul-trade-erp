@@ -268,11 +268,7 @@ const BargainStatsPage: React.FC = () => {
 
   return (
     <div>
-      <PageTitle
-        crumbs={['砍价统计']}
-        title="砍价统计"
-        description="已下单、未取消的采购订单行；砍价 = (目标价 − 人民币单价) × 数量，砍价率按目标金额加权；质量索赔与开票成本单独列，不计入砍价。"
-      />
+      <PageTitle description="已下单、未取消的采购订单行；砍价 = (目标价 − 人民币单价) × 数量，砍价率按目标金额加权；质量索赔与开票成本单独列，不计入砍价。" />
       <div
         style={{
           display: 'flex',

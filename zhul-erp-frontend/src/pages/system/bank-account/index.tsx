@@ -346,8 +346,6 @@ const BankAccountPage: React.FC = () => {
   return (
     <div>
       <PageTitle
-        crumbs={['收款账户']}
-        title="收款账户"
         description="显示在 PI 等对外单据上的收款银行信息；开 PI 时按币种带出默认账户。"
         actions={
           canEdit && (

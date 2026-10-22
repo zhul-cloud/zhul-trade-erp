@@ -25,6 +25,7 @@ import {
   readBizError,
 } from '@/pages/product/service';
 import { useAppTheme } from '@/theme/AppTheme';
+import { MenuLink, MenuName } from '@/utils/menuName';
 
 type Tab = 'keywords' | MarketingPlatform | 'records';
 type LibraryKeyword = NonNullable<ProductContent['keywordLibrary']>[number];
@@ -182,8 +183,15 @@ const OperationsProductDetail: React.FC = () => {
   return (
     <div>
       <PageTitle
-        crumbs={['营销任务', product.mpnDisplay || product.mpnRaw]}
-        title={`营销任务 · ${label}`}
+        crumbs={[
+          <MenuLink key="list" to="/operations/products" />,
+          product.mpnDisplay || product.mpnRaw,
+        ]}
+        title={
+          <>
+            <MenuName /> · {label}
+          </>
+        }
         description="本公司 · 只列本公司启用的平台"
       />
       <Card style={{ marginBottom: 16 }}>

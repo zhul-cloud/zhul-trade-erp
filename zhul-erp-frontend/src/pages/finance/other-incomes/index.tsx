@@ -278,8 +278,6 @@ const OtherIncomePage: React.FC = () => {
   return (
     <div>
       <PageTitle
-        crumbs={['其他收入']}
-        title="其他收入"
         description="不属于订单的收入（平台返点、利息、政府补贴等），按日期所在月份计入经营统计。"
         actions={
           canEdit && (

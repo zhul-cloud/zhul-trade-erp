@@ -552,8 +552,6 @@ const FxSettlementPage: React.FC = () => {
   return (
     <div>
       <PageTitle
-        crumbs={['结汇单']}
-        title="结汇单"
         description="外币到账攒一批结汇；按到账日期先进先出分摊到每笔到账，还没结汇的按最近一次结汇汇率估算人民币。"
         actions={
           canSettle && (

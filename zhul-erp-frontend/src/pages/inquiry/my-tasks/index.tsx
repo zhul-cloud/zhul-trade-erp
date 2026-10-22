@@ -523,8 +523,6 @@ const MyTasksPage: React.FC = () => {
   return (
     <div>
       <PageTitle
-        crumbs={['我的询价']}
-        title="我的询价"
         description="逐个型号问价，填好提交即可；也可以下载询价包在 Excel 里填，填完上传回来。"
         actions={
           <>

@@ -351,11 +351,7 @@ const SalesStatsPage: React.FC = () => {
 
   return (
     <div>
-      <PageTitle
-        crumbs={['销售统计']}
-        title="销售统计"
-        description="各项按各自单据的日期统计：商机按创建日期、询盘按询盘日期、报价与 PI 按发送日期、订单按销售日期，所以转化率是同期数量相除。收入与毛利与利润统计一致（收入扣退款）。"
-      />
+      <PageTitle description="各项按各自单据的日期统计：商机按创建日期、询盘按询盘日期、报价与 PI 按发送日期、订单按销售日期，所以转化率是同期数量相除。收入与毛利与利润统计一致（收入扣退款）。" />
       <div
         style={{
           display: 'flex',

@@ -359,8 +359,6 @@ const OrderList: React.FC = () => {
   return (
     <div>
       <SalesPageTitle
-        crumbs={['销售订单']}
-        title="销售订单"
         description="客户付款后的订单：由 PI 转成或手动创建；按型号跟进采购与发货进度。"
         actions={
           (canFromPi || canManual) && (

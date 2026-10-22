@@ -4,13 +4,14 @@ import {
   PlusOutlined,
   ThunderboltOutlined,
 } from '@ant-design/icons';
-import { Link, useAccess } from '@umijs/max';
+import { useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { App, Button, Form, Modal, Radio, Select, Switch, Table } from 'antd';
 import React, { useEffect, useState } from 'react';
 import BrandCategoryPicker from '@/components/BrandCategoryPicker';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useAppTheme } from '@/theme/AppTheme';
+import { MenuLink } from '@/utils/menuName';
 import { Card, PageTitle, Pill } from '../shared/components';
 import { PATHS } from '../shared/constants';
 import {
@@ -223,12 +224,7 @@ const AssignRulesPage: React.FC = () => {
   return (
     <div>
       <PageTitle
-        crumbs={[
-          <Link key="b" to={PATHS.board}>
-            询价分配
-          </Link>,
-          '分配规则',
-        ]}
+        crumbs={[<MenuLink key="b" to={PATHS.board} />, '分配规则']}
         title="分配规则"
         description="按品牌、品类指定采购，没命中时按推荐。开启后新任务自动分配；关闭时可以在工作台选中任务手动「按规则分配」试用。"
         actions={

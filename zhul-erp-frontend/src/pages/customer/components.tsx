@@ -4,7 +4,6 @@ import {
   FileTextOutlined,
   UserOutlined,
 } from '@ant-design/icons';
-import { Link } from '@umijs/max';
 import {
   App,
   Breadcrumb,
@@ -20,7 +19,7 @@ import {
 import React, { useEffect, useState } from 'react';
 import { useCountries } from '@/pages/product/components/useCountries';
 import { useAppTheme } from '@/theme/AppTheme';
-import { menuGroupOf } from '@/utils/menuGroup';
+import { MenuLink, useMenu } from '@/utils/menuName';
 import {
   CJK_PATTERN,
   ENGLISH_ONLY_MESSAGE,
@@ -98,19 +97,23 @@ export const StatusPill: React.FC<{ status?: number }> = ({ status }) => (
   </Pill>
 );
 
-/** 面包屑 + 标题 + 右侧操作 */
+/** 面包屑 + 标题 + 右侧操作；分组、页面名称取「菜单管理」（列表页不用传标题），详情页传 current */
 export const PageTitle: React.FC<{
-  title: React.ReactNode;
+  title?: React.ReactNode;
   current?: string;
   description?: React.ReactNode;
   actions?: React.ReactNode;
 }> = ({ title, current, description, actions }) => {
   const { palette } = useAppTheme();
-  const items = [
-    { title: menuGroupOf(LIST_PATH) },
-    current ? { title: <Link to={LIST_PATH}>客户</Link> } : { title: '客户' },
-    ...(current ? [{ title: current }] : []),
-  ];
+  const page = useMenu();
+  const list = useMenu(LIST_PATH);
+  const items = current
+    ? [
+        { title: list?.group },
+        { title: <MenuLink to={LIST_PATH} /> },
+        { title: current },
+      ]
+    : [{ title: page?.group }, { title: page?.name }];
   return (
     <header
       style={{
@@ -138,7 +141,7 @@ export const PageTitle: React.FC<{
             color: palette.ink,
           }}
         >
-          {title}
+          {title ?? page?.name}
         </h1>
         {description && (
           <p style={{ margin: '6px 0 0', color: palette.sub, fontSize: 14 }}>

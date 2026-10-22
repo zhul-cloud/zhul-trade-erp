@@ -106,11 +106,7 @@ const ExchangeRatePage: React.FC = () => {
 
   return (
     <div>
-      <PageTitle
-        crumbs={['汇率']}
-        title="汇率"
-        description="全公司统一使用这里的汇率；报价单新建时取当前汇率并保存快照，单据上不能修改。"
-      />
+      <PageTitle description="全公司统一使用这里的汇率；报价单新建时取当前汇率并保存快照，单据上不能修改。" />
       <div
         style={{
           display: 'grid',

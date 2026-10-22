@@ -170,11 +170,7 @@ const PriceHistoryPage: React.FC = () => {
 
   return (
     <div>
-      <PageTitle
-        crumbs={['询价记录']}
-        title="询价记录"
-        description="同一型号以前问到的价格都在这里，询价和报价前先查一查。同品牌、型号写法不同（大小写、空格、连字符）也会归到一起。"
-      />
+      <PageTitle description="同一型号以前问到的价格都在这里，询价和报价前先查一查。同品牌、型号写法不同（大小写、空格、连字符）也会归到一起。" />
       <Card style={{ marginBottom: 16, padding: 20 }}>
         <Form
           form={form}

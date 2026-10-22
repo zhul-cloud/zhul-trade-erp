@@ -74,6 +74,7 @@ import {
   DICT_WARRANTY,
 } from '@/utils/dict';
 import { formatAmount, formatDateTime } from '@/utils/format';
+import { MenuLink } from '@/utils/menuName';
 import {
   Card,
   CHANNEL,
@@ -2309,12 +2310,7 @@ const PiDetail: React.FC = () => {
   return (
     <div>
       <SalesPageTitle
-        crumbs={[
-          <a key="list" onClick={() => history.push(PATHS.piList)}>
-            PI
-          </a>,
-          pi.piNo,
-        ]}
+        crumbs={[<MenuLink key="list" to={PATHS.piList} />, pi.piNo]}
         title={
           <>
             {pi.piNo}

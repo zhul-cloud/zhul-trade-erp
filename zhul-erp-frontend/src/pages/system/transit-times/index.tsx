@@ -143,8 +143,6 @@ const TransitTimes: React.FC = () => {
   return (
     <div>
       <PageTitle
-        crumbs={['快递时效']}
-        title="快递时效"
         description="货从供应商所在省份发到福州仓库要几天；登记发货时按这里估算预计到货日期。"
         actions={
           canEdit && (

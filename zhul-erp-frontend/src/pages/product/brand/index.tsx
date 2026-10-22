@@ -354,7 +354,6 @@ const BrandPage: React.FC = () => {
     <ProductThemeProvider>
       <PageHeader
         eyebrow="PRODUCT MASTER"
-        title="品牌"
         description="商品归属的品牌，所有租户共用同一份；核心品牌覆盖 PLC、HMI、驱动、伺服四个主营方向，在各处品牌下拉里排在最前。"
         actions={
           access['product:brand:add'] && (

@@ -333,10 +333,7 @@ const SupplierListPage: React.FC = () => {
       <a className="zhul-skip" href="#supplier-main">
         跳到主要内容
       </a>
-      <PageTitle
-        title="供应商"
-        description="维护企业供应商工商信息、联系方式与结算账户，作为采购与结算业务的统一数据来源。"
-      />
+      <PageTitle description="维护企业供应商工商信息、联系方式与结算账户，作为采购与结算业务的统一数据来源。" />
 
       <Form
         form={form}

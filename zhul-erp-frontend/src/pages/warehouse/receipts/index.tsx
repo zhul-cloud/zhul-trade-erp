@@ -250,8 +250,6 @@ const Receipts: React.FC = () => {
   return (
     <div>
       <WarehousePageTitle
-        crumbs={['采购入库']}
-        title="采购入库"
         description="按发货单验收：只记录实收、合格、不良，差异由采购员处理。"
         actions={
           canEdit && (

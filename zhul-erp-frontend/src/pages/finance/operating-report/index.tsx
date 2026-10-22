@@ -216,11 +216,7 @@ const OperatingReportPage: React.FC = () => {
 
   return (
     <div>
-      <PageTitle
-        crumbs={['经营统计']}
-        title="经营统计"
-        description="预计盈亏 = 销售毛利 − 退款 + 其他收入 − 运营成本。这里的毛利不扣退款（按销售日期归月），退款按退款月份单列；运营成本为不关联订单的费用单，年费等按分摊后的月份计。"
-      />
+      <PageTitle description="预计盈亏 = 销售毛利 − 退款 + 其他收入 − 运营成本。这里的毛利不扣退款（按销售日期归月），退款按退款月份单列；运营成本为不关联订单的费用单，年费等按分摊后的月份计。" />
       <div
         style={{
           display: 'flex',

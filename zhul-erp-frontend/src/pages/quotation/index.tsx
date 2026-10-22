@@ -284,8 +284,6 @@ const QuotationList: React.FC = () => {
   return (
     <div>
       <QuotationPageTitle
-        crumbs={['报价单']}
-        title="报价单"
         description="把可报价的型号定好售价发给客户；报价单标为已发送后，询盘单自动变为「已报价」。"
         actions={
           <>

@@ -1,4 +1,3 @@
-import { useLocation } from '@umijs/max';
 import { Breadcrumb, Grid } from 'antd';
 import dayjs from 'dayjs';
 import React from 'react';
@@ -13,7 +12,7 @@ import {
   useDictOptions,
 } from '@/utils/dict';
 import { formatAmount } from '@/utils/format';
-import { menuGroupOf } from '@/utils/menuGroup';
+import { useMenu } from '@/utils/menuName';
 import {
   channelLabel,
   conditionTone,
@@ -27,17 +26,21 @@ export { Card, FileChip, Pill } from '@/pages/crm/opportunity/components';
 /** 宽屏（≥1200px）左右两栏，窄屏上下排列 */
 export const useWide = () => !!Grid.useBreakpoint().xl;
 
-/** 面包屑「分组 / …」+ 标题 + 右侧操作；root 为面包屑第一级（默认按当前页面路径取侧边栏分组） */
+/**
+ * 面包屑「分组 / …」+ 标题 + 右侧操作。分组、标题与面包屑默认取当前页面在「菜单管理」里的名称（列表页不用传），
+ * 详情页传自己的标题与面包屑；root 为面包屑第一级（默认为当前页面所属分组）。
+ */
 export const PageTitle: React.FC<{
-  crumbs: React.ReactNode[];
-  title: React.ReactNode;
+  crumbs?: React.ReactNode[];
+  title?: React.ReactNode;
   description?: React.ReactNode;
   actions?: React.ReactNode;
   root?: string;
 }> = ({ crumbs, title, description, actions, root }) => {
   const { palette } = useAppTheme();
-  const { pathname } = useLocation();
-  const group = root ?? menuGroupOf(pathname);
+  const menu = useMenu();
+  const group = root ?? menu?.group;
+  const items = [group, ...(crumbs ?? [menu?.name])].filter(Boolean);
   return (
     <header
       style={{
@@ -51,7 +54,7 @@ export const PageTitle: React.FC<{
     >
       <div style={{ minWidth: 0 }}>
         <Breadcrumb
-          items={[group, ...crumbs].map((c) => ({ title: c }))}
+          items={items.map((c) => ({ title: c }))}
           style={{ fontSize: 13 }}
         />
         <h1
@@ -66,7 +69,7 @@ export const PageTitle: React.FC<{
             color: palette.ink,
           }}
         >
-          {title}
+          {title ?? menu?.name}
         </h1>
         {description && (
           <div style={{ margin: '6px 0 0', color: palette.sub, fontSize: 14 }}>

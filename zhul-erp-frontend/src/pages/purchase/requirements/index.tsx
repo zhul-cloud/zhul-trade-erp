@@ -368,11 +368,7 @@ const RequirementList: React.FC = () => {
 
   return (
     <div>
-      <PurchasePageTitle
-        crumbs={['采购需求']}
-        title="采购需求"
-        description="先看哪些订单要采购，再看每单的型号向谁买、谁负责；渠道已定的型号已自动排进草稿采购订单。"
-      />
+      <PurchasePageTitle description="先看哪些订单要采购，再看每单的型号向谁买、谁负责；渠道已定的型号已自动排进草稿采购订单。" />
 
       {stats && (
         <div

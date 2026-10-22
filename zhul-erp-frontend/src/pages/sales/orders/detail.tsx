@@ -25,6 +25,7 @@ import { useWide } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount, formatDateTime } from '@/utils/format';
+import { MenuLink } from '@/utils/menuName';
 import {
   Card,
   ChainCard,
@@ -1165,12 +1166,7 @@ const OrderDetail: React.FC = () => {
   return (
     <div>
       <SalesPageTitle
-        crumbs={[
-          <a key="list" onClick={() => history.push(PATHS.orderList)}>
-            销售订单
-          </a>,
-          o.soNo,
-        ]}
+        crumbs={[<MenuLink key="list" to={PATHS.orderList} />, o.soNo]}
         title={
           <>
             {o.soNo}

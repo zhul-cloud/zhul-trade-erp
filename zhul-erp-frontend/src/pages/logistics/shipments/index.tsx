@@ -379,11 +379,7 @@ const Shipments: React.FC = () => {
 
   return (
     <div>
-      <PageTitle
-        crumbs={['出运单']}
-        title="出运单"
-        description="同一客户、同一货代的货合成一票：生成 CI/PL，货代申报后登记运单号、面单和运费。"
-      />
+      <PageTitle description="同一客户、同一货代的货合成一票：生成 CI/PL，货代申报后登记运单号、面单和运费。" />
       <PendingPanel canEdit={canEdit} version={version} />
       <div
         style={{

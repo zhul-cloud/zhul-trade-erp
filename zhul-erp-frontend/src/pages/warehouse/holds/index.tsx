@@ -159,11 +159,7 @@ const Holds: React.FC = () => {
 
   return (
     <div>
-      <WarehousePageTitle
-        crumbs={['闲置库存']}
-        title="闲置库存"
-        description="多发且没有退回的货：记下在哪、值多少；可以退回供应商、报废或转样品。"
-      />
+      <WarehousePageTitle description="多发且没有退回的货：记下在哪、值多少；可以退回供应商、报废或转样品。" />
       <div
         style={{
           display: 'flex',
