@@ -12,6 +12,15 @@
 const SESSION_KEY = 'akt';
 const LOCAL_KEY = 'zhul_token';
 
+/** 登录、注册、找回密码这类页面：登录后不跳回这里，在这里收到未登录也不再跳登录页 */
+export function isAuthPath(pathname: string) {
+  return (
+    pathname === '/login' ||
+    pathname.startsWith('/user/') ||
+    pathname.startsWith('/forget-password')
+  );
+}
+
 export function setToken(token: string, rememberMe: boolean) {
   if (rememberMe) {
     localStorage.setItem(LOCAL_KEY, token);

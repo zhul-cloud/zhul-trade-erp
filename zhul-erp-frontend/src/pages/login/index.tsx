@@ -5,7 +5,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { AuthLayout } from '@/components';
 import { login } from '@/services/zhul/auth';
 import { useAppTheme } from '@/theme/AppTheme';
-import { setToken } from '@/utils/tokenStore';
+import { isAuthPath, setToken } from '@/utils/tokenStore';
 
 interface LoginErrorState {
   type: 'error' | 'warning';
@@ -18,6 +18,8 @@ const getSafeRedirectUrl = (redirect: string | null): string => {
   try {
     const parsed = new URL(redirect, window.location.origin);
     if (parsed.origin !== window.location.origin) return '/dashboard';
+    // 登录后不回到登录、注册这类页面
+    if (isAuthPath(parsed.pathname)) return '/dashboard';
     return `${parsed.pathname}${parsed.search}${parsed.hash}`;
   } catch {
     return '/dashboard';
