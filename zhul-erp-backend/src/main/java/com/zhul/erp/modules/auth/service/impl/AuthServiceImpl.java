@@ -11,6 +11,7 @@ import com.zhul.erp.common.exception.BizException;
 import com.zhul.erp.common.result.ResultCode;
 import com.zhul.erp.common.utils.IpUtils;
 import com.zhul.erp.common.utils.JwtUtils;
+import com.zhul.erp.framework.mail.MailService;
 import com.zhul.erp.modules.auth.dto.LoginRequest;
 import com.zhul.erp.modules.auth.dto.LoginResponse;
 import com.zhul.erp.modules.auth.dto.RefreshTokenResponse;
@@ -40,6 +41,7 @@ import org.springframework.http.ResponseCookie;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
+import org.springframework.web.util.HtmlUtils;
 
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
@@ -64,6 +66,7 @@ public class AuthServiceImpl implements AuthService {
     private final LogService logService;
     private final ObjectMapper objectMapper;
     private final LoginFailureTracker loginFailureTracker;
+    private final MailService mailService;
 
     private static final long EXPIRES_NORMAL = 7200L;
     private static final long EXPIRES_REMEMBER = 604800L;
@@ -313,6 +316,10 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public void sendResetCode(SendResetCodeRequest request) {
+        // 没配置发信邮箱时直接提示（放在查账号之前，不暴露账号是否存在）；本地开发与测试可只写日志
+        if (!mailService.configured() && !mailService.logOnly()) {
+            throw new BizException(ResultCode.MAIL_NOT_CONFIGURED);
+        }
         String cooldownKey = RedisKeyConstants.RESET_CODE_COOLDOWN_PREFIX + request.getUsername();
         Long ttl = redisTemplate.getExpire(cooldownKey, TimeUnit.SECONDS);
         if (ttl != null && ttl > 0) {
@@ -350,12 +357,36 @@ public class AuthServiceImpl implements AuthService {
                 .set(AccountLocalAuthDO::getResetTokenExpiresAt, LocalDateTime.now().plusMinutes(RESET_CODE_TTL_MINUTES))
                 .set(AccountLocalAuthDO::getResetFailCount, 0));
 
+        if (mailService.configured()) {
+            try {
+                mailService.sendHtml(account.getEmail(), "【烛龙ERP】找回密码验证码", resetCodeMail(account.getUsername(), code));
+            } catch (MailService.MailSendException e) {
+                // 没发出去不进入冷却，用户可以马上重试
+                throw new BizException(ResultCode.MAIL_SEND_FAILED, e);
+            }
+        } else {
+            // 只用于本地开发与测试（zhul.mail.log-only）：验证码写日志
+            log.info("[未配置发信邮箱，仅写日志] 找回密码验证码 username={}, email={}, code={}, {}分钟内有效",
+                    account.getUsername(), MailService.mask(account.getEmail()), code, RESET_CODE_TTL_MINUTES);
+        }
         redisTemplate.opsForValue().set(cooldownKey, "1", RESET_CODE_COOLDOWN_SECONDS, TimeUnit.SECONDS);
+    }
 
-        // 未接入真实邮件服务商（见 PRD 默认假设 3），此处以日志方式模拟“发送”，
-        // 便于本地/测试环境验证找回密码流程。
-        log.info("[模拟邮件发送] 找回密码验证码 username={}, email={}, code={}, 10分钟内有效",
-                account.getUsername(), account.getEmail(), code);
+    /** 找回密码验证码邮件（系统内邮件用中文） */
+    private static String resetCodeMail(String username, String code) {
+        return "<div style=\"font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;max-width:520px;"
+                + "margin:0 auto;padding:32px 28px;color:#0F172A;\">"
+                + "<div style=\"font-size:18px;font-weight:700;margin-bottom:20px;\">烛龙ERP</div>"
+                + "<p style=\"margin:0 0 12px;font-size:14px;\">你好，" + HtmlUtils.htmlEscape(username) + "：</p>"
+                + "<p style=\"margin:0 0 16px;font-size:14px;\">你正在找回登录密码，验证码是：</p>"
+                + "<div style=\"font-size:32px;font-weight:700;letter-spacing:8px;padding:16px 0;text-align:center;"
+                + "background:#F1F5F9;border-radius:12px;margin-bottom:16px;\">" + code + "</div>"
+                + "<p style=\"margin:0 0 8px;font-size:13px;color:#475569;\">验证码 " + RESET_CODE_TTL_MINUTES
+                + " 分钟内有效，请勿告诉他人。</p>"
+                + "<p style=\"margin:0 0 24px;font-size:13px;color:#475569;\">如果不是你本人操作，请忽略这封邮件，"
+                + "你的密码不会被修改。</p>"
+                + "<p style=\"margin:0;font-size:12px;color:#94A3B8;\">这是系统自动发送的邮件，请勿直接回复。</p>"
+                + "</div>";
     }
 
     @Override

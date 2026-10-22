@@ -33,6 +33,14 @@ public class BizException extends RuntimeException {
         this.detail = null;
     }
 
+    /** 业务错误码 + 保留原始异常（如邮件发送失败） */
+    public BizException(ResultCode rc, Throwable cause) {
+        super(rc.getMessage(), cause);
+        this.code = rc.getCode();
+        this.errorCode = null;
+        this.detail = null;
+    }
+
     public BizException(ResultCode rc, String message) {
         super(message);
         this.code = rc.getCode();

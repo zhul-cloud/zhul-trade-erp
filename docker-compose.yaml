@@ -97,6 +97,15 @@ services:
       OSS_PUBLIC_BUCKET: ${OSS_PUBLIC_BUCKET:-}
       OSS_PUBLIC_DOMAIN: ${OSS_PUBLIC_DOMAIN:-}
       OSS_KEY_PREFIX: ${OSS_KEY_PREFIX:-}
+      # 发信邮箱（SMTP），找回密码验证码等系统邮件；见 docs/06-部署运维/09-发信邮箱.md
+      MAIL_HOST: ${MAIL_HOST:-}
+      MAIL_PORT: ${MAIL_PORT:-465}
+      MAIL_USERNAME: ${MAIL_USERNAME:-}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+      MAIL_SSL: ${MAIL_SSL:-true}
+      MAIL_STARTTLS: ${MAIL_STARTTLS:-false}
+      MAIL_FROM: ${MAIL_FROM:-}
+      MAIL_FROM_NAME: ${MAIL_FROM_NAME:-烛龙ERP}
     ports:
       - "${BACKEND_BIND_ADDRESS:-127.0.0.1}:${BACKEND_HOST_PORT:-8080}:8080"
     # 无 depends_on：独立部署后端不会自动启动本地数据库。
