@@ -417,7 +417,7 @@ const DeptPage: React.FC = () => {
     if (!selectedDept) return;
     modal.confirm({
       title: '取消事业部',
-      content: `取消后「${selectedDept.name}」变为公共部门。已有单据归属它时不能取消。`,
+      content: `取消后「${selectedDept.name}」不再独立核算，与共享中台一样费用按销售额比例分摊。已有单据归属它时不能取消。`,
       onOk: async () => {
         try {
           await markBusinessUnit(selectedDept.id, false);
@@ -615,7 +615,7 @@ const DeptPage: React.FC = () => {
                   ) : unitInfo.unit ? (
                     `属于「${unitInfo.unit.name}」事业部`
                   ) : (
-                    '公共部门：费用按当月销售额比例分摊给各事业部'
+                    '不独立核算（共享中台、总经办等）：费用按当月销售额比例分摊给各事业部'
                   )}
                 </div>
                 <div style={{ fontSize: 12, color: p.mute, marginTop: 6 }}>
