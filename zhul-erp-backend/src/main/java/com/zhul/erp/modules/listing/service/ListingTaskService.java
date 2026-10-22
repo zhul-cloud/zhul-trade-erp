@@ -38,6 +38,7 @@ import com.zhul.erp.modules.product.repository.ProductCategoryMapper;
 import com.zhul.erp.modules.product.repository.ProductMapper;
 import com.zhul.erp.modules.product.support.MpnNormalizer;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -70,6 +71,7 @@ import java.util.zip.ZipOutputStream;
 
 /** 发品任务：列表、详情（复制助手与素材）、参考素材、回填发布结果、已同步、已替换（spec product/listing-task） */
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class ListingTaskService {
 
@@ -374,7 +376,7 @@ public class ListingTaskService {
     public record ZipPlan(String fileName, List<ZipFile> files, List<String> notes) {
     }
 
-    public record ZipFile(String name, String storage, String key) {
+    public record ZipFile(String name, String storage, String key, boolean publicRead) {
     }
 
     /** 参考型号的可发客户图片和视频打包（最多 50 个）；先算好清单，校验失败时按普通错误返回 */
@@ -422,25 +424,37 @@ public class ListingTaskService {
                 notes.add("超过 " + ListingConstants.MAX_ZIP_FILES + " 个文件，没有打包：" + src.fileName());
                 continue;
             }
-            files.add(new ZipFile(uniqueName(safeName(src.fileName()), used), src.storage(), src.key()));
+            files.add(new ZipFile(uniqueName(safeName(src.fileName()), used), src.storage(), src.key(), src.publicRead()));
         }
         return new ZipPlan(safeName(prefix + (brand == null ? "" : brand.trim()) + "-" + model.trim()) + ".zip", files, notes);
     }
 
-    /** 按清单边读边写 zip（图片视频本身已压缩，不再压缩，省 CPU） */
+    /**
+     * 按清单边读边写 zip（图片视频本身已压缩，不再压缩，省 CPU）。
+     * 先打开文件再写条目：某个文件读不到时跳过并写进说明，不让整个包损坏
+     */
     public void writeZip(ZipPlan plan, OutputStream out) throws IOException {
+        List<String> notes = new ArrayList<>(plan.notes());
         try (ZipOutputStream zip = new ZipOutputStream(out, StandardCharsets.UTF_8)) {
             zip.setLevel(Deflater.NO_COMPRESSION);
             for (ZipFile f : plan.files()) {
-                zip.putNextEntry(new ZipEntry(f.name()));
-                try (InputStream in = files.open(f.storage(), f.key())) {
-                    in.transferTo(zip);
+                InputStream opened;
+                try {
+                    opened = files.open(f.storage(), f.key(), f.publicRead());
+                } catch (BizException e) {
+                    log.warn("参考素材打包时文件读取失败，已跳过，name={}, key={}", f.name(), f.key());
+                    notes.add("文件读取失败，没有打包：" + f.name());
+                    continue;
                 }
-                zip.closeEntry();
+                try (InputStream in = opened) {
+                    zip.putNextEntry(new ZipEntry(f.name()));
+                    in.transferTo(zip);
+                    zip.closeEntry();
+                }
             }
-            if (!plan.notes().isEmpty()) {
+            if (!notes.isEmpty()) {
                 zip.putNextEntry(new ZipEntry("说明.txt"));
-                zip.write(String.join("\n", plan.notes()).getBytes(StandardCharsets.UTF_8));
+                zip.write(String.join("\n", notes).getBytes(StandardCharsets.UTF_8));
                 zip.closeEntry();
             }
         }

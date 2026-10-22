@@ -4,31 +4,34 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.zhul.erp.framework.storage.FileStorageService;
 import com.zhul.erp.modules.listing.service.ListingTaskBackfill;
 import com.zhul.erp.support.TenantContractSupport;
+import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.boot.test.context.SpringBootTest;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.mock.web.MockHttpServletResponse;
-import org.springframework.test.web.servlet.MvcResult;
 
-import java.io.ByteArrayInputStream;
+import java.io.InputStream;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.zip.ZipEntry;
-import java.util.zip.ZipInputStream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.asyncDispatch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -38,7 +41,13 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
  * spec product/listing-task：按平台生成、取消与恢复、资料核对跨公司生成、列表页签与提醒、
  * 参考素材、回填发布结果、内容更新与素材替换、权限
  */
+// 真实端口：打包下载要走完整的安全过滤与异步收尾（MockMvc 的 asyncDispatch 不经过这一步）
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 class ListingTaskContractTest extends TenantContractSupport {
+
+    @LocalServerPort
+    private int port;
+
 
     private static final int A = 99711;
     private static final int B = 99712;
@@ -94,11 +103,13 @@ class ListingTaskContractTest extends TenantContractSupport {
             jdbc.update("delete from " + t + " where product_id in " + products);
         }
         jdbc.update("delete from media_item where tenant_id in (?, ?)", A, B);
+        jdbc.update("delete from product_media where file_key = 'it-listing/official.mp4'");
         jdbc.update("delete from biz_attachment where tenant_id in (?, ?)", A, B);
         jdbc.update("delete from product where brand_id in (select id from product_brand where brand_name = ?)", BRAND);
         jdbc.update("delete from product_brand where brand_name = ?", BRAND);
         jdbc.update("delete from sys_config where config_key = 'product.content.platforms' and tenant_id in (?, ?)", A, B);
         files.deleteQuietly("LOCAL", "it-listing/ref-1.png", false);
+        files.deleteQuietly("LOCAL", "it-listing/official.mp4", true);
         files.deleteQuietly("LOCAL", "it-listing/ref-2.mp4", false);
     }
 
@@ -307,19 +318,12 @@ class ListingTaskContractTest extends TenantContractSupport {
         storedMedia("L-2", "it-listing/ref-1.png", "营销图.png", 1, "first-image".getBytes(StandardCharsets.UTF_8));
         storedMedia("L-2", "it-listing/ref-2.mp4", "营销图.png", 2, "second-video".getBytes(StandardCharsets.UTF_8));
 
-        MvcResult started = mvc.perform(get(API + "/" + id + "/references/zip").param("brand", BRAND).param("model", "L-2")
-                .header("Authorization", "Bearer " + a)).andReturn();
-        MockHttpServletResponse res = mvc.perform(asyncDispatch(started)).andReturn().getResponse();
-        assertEquals(200, res.getStatus());
-        Matcher name = Pattern.compile("filename\\*=UTF-8''([^;]+)").matcher(res.getHeader("Content-Disposition"));
-        assertTrue(name.find(), res.getHeader("Content-Disposition"));
+        HttpResponse<byte[]> res = download(API + "/" + id + "/references/zip?brand=" + BRAND + "&model=L-2", a);
+        assertEquals(200, res.statusCode());
+        Matcher name = Pattern.compile("filename\\*=UTF-8''([^;]+)").matcher(res.headers().firstValue("Content-Disposition").orElse(""));
+        assertTrue(name.find(), res.headers().toString());
         assertEquals("参考素材-ITLBrand-L-2.zip", URLDecoder.decode(name.group(1), StandardCharsets.UTF_8));
-        Map<String, byte[]> entries = new LinkedHashMap<>();
-        try (ZipInputStream zip = new ZipInputStream(new ByteArrayInputStream(res.getContentAsByteArray()), StandardCharsets.UTF_8)) {
-            for (ZipEntry e = zip.getNextEntry(); e != null; e = zip.getNextEntry()) {
-                entries.put(e.getName(), zip.readAllBytes());
-            }
-        }
+        Map<String, byte[]> entries = zipEntries(res);
         assertEquals(List.of("营销图.png", "营销图 (2).png"), new ArrayList<>(entries.keySet()), "原文件名，重名加序号");
         // 两个文件的内容都在包里（先后按素材库的显示顺序）
         List<String> contents = entries.values().stream().map(b -> new String(b, StandardCharsets.UTF_8)).sorted().toList();
@@ -333,23 +337,58 @@ class ListingTaskContractTest extends TenantContractSupport {
         assertEquals("还没有选参考素材，或参考型号没有可发客户的图片和视频", fail(call(get(API + "/" + id + "/media/zip")
                 .param("source", "reference"), a)).path("message").asText());
         ok(call(json(put(API + "/" + id + "/reference"), write(Map.of("brand", BRAND, "model", "L-2"))), a));
-        MvcResult refStarted = mvc.perform(get(API + "/" + id + "/media/zip").param("source", "reference")
-                .header("Authorization", "Bearer " + a)).andReturn();
-        MockHttpServletResponse refRes = mvc.perform(asyncDispatch(refStarted)).andReturn().getResponse();
-        assertEquals(200, refRes.getStatus());
-        assertEquals(List.of("营销图.png", "营销图 (2).png"), new ArrayList<>(zipEntries(refRes).keySet()));
+        // 再加一个商品官方视频（在公开存储）和一个文件已丢失的素材
+        Path tmp = Files.createTempFile("it-listing", ".mp4");
+        Files.write(tmp, "official-video".getBytes(StandardCharsets.UTF_8));
+        files.storages().local().put(true, "it-listing/official.mp4", tmp, "video/mp4");
+        Files.deleteIfExists(tmp);
+        jdbc.update("insert into product_media (tenant_id, product_id, media_type, file_url, storage_type, storage, file_key, file_size) "
+                + "values (0, ?, 2, '/files/public/it-listing/official.mp4', 1, 'LOCAL', 'it-listing/official.mp4', 14)", p2);
+        jdbc.update("insert into biz_attachment (tenant_id, owner_type, owner_id, kind, storage, file_key, url, file_name, file_size, content_type, uploaded_by) "
+                + "values (?, 'SHOOT', 1, 1, 'LOCAL', 'it-listing/gone.png', '', '丢失.png', 1, 'image/png', 0)", A);
+        long gone = jdbc.queryForObject("select max(id) from biz_attachment where tenant_id = ?", Long.class, A);
+        jdbc.update("insert into media_item (tenant_id, asset_key, brand, model, category, kind, source_table, source_id, can_send, for_listing) "
+                + "values (?, ?, ?, 'L-2', 9, 1, 'biz_attachment', ?, 1, 0)", A, (BRAND + " L-2").toLowerCase(), BRAND, gone);
+
+        HttpResponse<byte[]> refRes = download(API + "/" + id + "/media/zip?source=reference", a);
+        assertEquals(200, refRes.statusCode());
+        Map<String, byte[]> refEntries = zipEntries(refRes);
+        assertEquals(Set.of("营销图.png", "营销图 (2).png", "official.mp4", "说明.txt"), refEntries.keySet(),
+                "官方视频从公开存储读取；丢失的文件跳过，压缩包仍能打开");
+        assertEquals("official-video", new String(refEntries.get("official.mp4"), StandardCharsets.UTF_8));
+        assertTrue(new String(refEntries.get("说明.txt"), StandardCharsets.UTF_8).contains("文件读取失败，没有打包：丢失.png"));
         // 本型号还没有发品素材
         assertEquals("这个型号还没有发品素材", fail(call(get(API + "/" + id + "/media/zip"), a)).path("message").asText());
     }
 
-    private static Map<String, byte[]> zipEntries(MockHttpServletResponse res) throws Exception {
-        Map<String, byte[]> entries = new LinkedHashMap<>();
-        try (ZipInputStream zip = new ZipInputStream(new ByteArrayInputStream(res.getContentAsByteArray()), StandardCharsets.UTF_8)) {
-            for (ZipEntry e = zip.getNextEntry(); e != null; e = zip.getNextEntry()) {
-                entries.put(e.getName(), zip.readAllBytes());
+    /** 像解压软件一样从文件末尾的目录读：包被截断或后面追加了别的内容（如错误 JSON）时打不开 */
+    /** 通过真实端口下载 */
+    private HttpResponse<byte[]> download(String path, String token) throws Exception {
+        HttpRequest req = HttpRequest.newBuilder(URI.create("http://localhost:" + port + path))
+                .header("Authorization", "Bearer " + token).GET().build();
+        return HttpClient.newHttpClient().send(req, HttpResponse.BodyHandlers.ofByteArray());
+    }
+
+    private static Map<String, byte[]> zipEntries(HttpResponse<byte[]> res) throws Exception {
+        Path tmp = Files.createTempFile("it-listing", ".zip");
+        try {
+            Files.write(tmp, res.body());
+            Map<String, byte[]> entries = new LinkedHashMap<>();
+            try (java.util.zip.ZipFile zip = new java.util.zip.ZipFile(tmp.toFile(), StandardCharsets.UTF_8)) {
+                for (ZipEntry e : java.util.Collections.list(zip.entries())) {
+                    try (InputStream in = zip.getInputStream(e)) {
+                        entries.put(e.getName(), in.readAllBytes());
+                    }
+                }
             }
+            byte[] body = res.body();
+            // 结尾必须是 zip 的目录结束标记（22 字节，无注释）
+            assertEquals(0x06054b50, java.nio.ByteBuffer.wrap(body, body.length - 22, 4)
+                    .order(java.nio.ByteOrder.LITTLE_ENDIAN).getInt(), "压缩包后面不能有多余内容");
+            return entries;
+        } finally {
+            Files.deleteIfExists(tmp);
         }
-        return entries;
     }
 
     // ---------------------------------------------------------------- 准备数据

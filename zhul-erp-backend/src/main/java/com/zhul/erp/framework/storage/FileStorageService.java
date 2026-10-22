@@ -131,7 +131,12 @@ public class FileStorageService {
     // ---------- 读取 ----------
 
     public InputStream open(String storage, String key) {
-        return storages.of(storage).open(false, key);
+        return open(storage, key, false);
+    }
+
+    /** publicRead 为 true 时读公开桶（如商品官方图片视频） */
+    public InputStream open(String storage, String key, boolean publicRead) {
+        return storages.of(storage).open(publicRead, key);
     }
 
     public byte[] readAll(String storage, String key) {
