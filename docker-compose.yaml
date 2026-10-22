@@ -8,6 +8,8 @@ services:
     container_name: zhul-erp-mysql
     restart: unless-stopped
     environment:
+      # 统一北京时间：NOW()、DEFAULT CURRENT_TIMESTAMP 按北京时间写入（与后端一致，见 .claude/rules/coding.md）
+      TZ: Asia/Shanghai
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
       MYSQL_DATABASE: ${MYSQL_DATABASE:-zhul_erp}
       # 可选非 root 应用账号；为空时官方镜像不创建额外用户。
@@ -15,7 +17,8 @@ services:
       MYSQL_PASSWORD: ${MYSQL_PASSWORD:-}
     # 数据目录是临时存储时先打印警告，再交给官方入口启动。
     entrypoint: ["/bin/sh", "-c", "grep -qs ' /var/lib/mysql tmpfs ' /proc/mounts && echo '[警告] /var/lib/mysql 是临时存储（tmpfs），容器停止或重建后数据库会清空；需要保留请按 docs/06-部署运维/03-数据持久化与备份.md 启用持久化' >&2; exec docker-entrypoint.sh \"$$@\"", "--"]
-    command: ["mysqld"]
+    # 会话默认时区固定为 +08:00（中国无夏令时；不依赖镜像里的时区表）
+    command: ["mysqld", "--default-time-zone=+08:00"]
     ports:
       - "${MYSQL_BIND_ADDRESS:-127.0.0.1}:${MYSQL_HOST_PORT:-3306}:3306"
     # 覆盖官方镜像的 VOLUME，避免隐式创建匿名持久化卷。
@@ -60,6 +63,8 @@ services:
     restart: unless-stopped
     environment:
       SPRING_PROFILES_ACTIVE: docker
+      # 统一北京时间：LocalDateTime.now()、日志与定时任务都按北京时间
+      TZ: Asia/Shanghai
       DB_URL: ${DB_URL:-}
       DB_HOST: ${DB_HOST:-mysql}
       DB_PORT: ${DB_PORT:-3306}
