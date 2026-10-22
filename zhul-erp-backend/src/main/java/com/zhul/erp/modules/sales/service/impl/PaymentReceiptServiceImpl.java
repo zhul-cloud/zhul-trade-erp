@@ -41,6 +41,7 @@ import com.zhul.erp.modules.sales.support.ReceiptMoney;
 import com.zhul.erp.modules.sales.support.ReceiptRows;
 import com.zhul.erp.modules.sales.support.PiSummary;
 import com.zhul.erp.modules.system.entity.BankAccountDO;
+import com.zhul.erp.modules.system.repository.BankAccountMapper;
 import com.zhul.erp.modules.system.entity.SysConfigDO;
 import com.zhul.erp.modules.system.repository.SysConfigMapper;
 import com.zhul.erp.modules.system.service.BankAccountService;
@@ -76,6 +77,7 @@ public class PaymentReceiptServiceImpl implements PaymentReceiptService {
     private static final Set<String> SLIP_TYPES = Set.of("jpg", "png", "pdf");
     private static final Set<Integer> RECEIVABLE = Set.of(SalesConstants.PI_SENT, SalesConstants.PI_CONVERTED);
 
+    private final BankAccountMapper bankAccountMapper;
     private final PaymentReceiptMapper receiptMapper;
     private final SysConfigMapper sysConfigMapper;
     private final PiStore store;
@@ -264,11 +266,12 @@ public class PaymentReceiptServiceImpl implements PaymentReceiptService {
         r.setKind(SalesConstants.KIND_RECEIPT);
         r.setCurrencyCode(o.currency());
         setMethod(r, method);
-        ReceiptMoney.apply(r, amount, BigDecimal.ZERO, fxRates.estimate(o.currency()));
+        ReceiptMoney.apply(r, amount, BigDecimal.ZERO, fxRates.estimate(o.unitId(), o.currency()));
         r.setPayer("");
         r.setFeeDiff(feeDiff);
         r.setReceiptDate(req.getReceiptDate());
         r.setBankAccountId(bank.getId());
+        r.setBuMismatch(mismatch(bank.getBusinessUnitId(), o.unitId()));
         r.setSlipId(req.getSlipId());
         r.setFileKeys("[]");
         r.setNote(trim(req.getNote(), 300));
@@ -374,7 +377,7 @@ public class PaymentReceiptServiceImpl implements PaymentReceiptService {
         r.setCurrencyCode(o.currency());
         setMethod(r, method);
         r.setPlatformOrderNo(orderNo);
-        ReceiptMoney.apply(r, amount, req.getPlatformFee(), fxRates.estimate(o.currency()));
+        ReceiptMoney.apply(r, amount, req.getPlatformFee(), fxRates.estimate(o.unitId(), o.currency()));
         r.setFeeDiff(BigDecimal.ZERO);
         r.setPayer("");
         r.setReceiptDate(req.getReceiptDate());
@@ -450,7 +453,15 @@ public class PaymentReceiptServiceImpl implements PaymentReceiptService {
         if (req.getSlipId() != null) {
             requireFreeSlip(o, req.getSlipId());
         }
+        // 认领后归订单的事业部；已在原事业部结过汇的不能换事业部（结汇池按事业部分开）
+        if (!Objects.equals(r.getBusinessUnitId(), o.unitId()) && r.getSettledAmount() != null && r.getSettledAmount().signum() > 0) {
+            throw new BizException("这笔到账已在原事业部结汇，不能认领到其他事业部的" + o.label().trim());
+        }
         o.bind(r);
+        if (r.getBankAccountId() != null) {
+            BankAccountDO bank = bankAccountMapper.selectById(r.getBankAccountId());
+            r.setBuMismatch(mismatch(bank == null ? null : bank.getBusinessUnitId(), o.unitId()));
+        }
         r.setSlipId(req.getSlipId());
         r.setClaimedBy(currentUserId());
         r.setClaimedAt(LocalDateTime.now());
@@ -774,14 +785,25 @@ public class PaymentReceiptServiceImpl implements PaymentReceiptService {
             return pi != null ? SalesConstants.MENU_PI : SalesConstants.MENU_SO;
         }
 
+        /** 所属事业部（spec system/business-unit：收款跟随订单） */
+        Integer unitId() {
+            return pi != null ? pi.getBusinessUnitId() : so.getBusinessUnitId();
+        }
+
         void bind(PaymentReceiptDO r) {
             r.setPiId(pi == null ? null : pi.getId());
             r.setSoId(so == null ? null : so.getId());
+            r.setBusinessUnitId(unitId());
         }
 
         boolean owns(PaymentReceiptDO r) {
             return Objects.equals(r.getPiId(), pi == null ? null : pi.getId()) && Objects.equals(r.getSoId(), so == null ? null : so.getId());
         }
+    }
+
+    /** 收款账户与订单不属于同一事业部（公司没有事业部时都为空，不算不一致） */
+    private static int mismatch(Integer accountUnit, Integer orderUnit) {
+        return accountUnit != null && orderUnit != null && !accountUnit.equals(orderUnit) ? 1 : 0;
     }
 
     private PaymentReceiptDO record(Owner o, Long id, int kind) {

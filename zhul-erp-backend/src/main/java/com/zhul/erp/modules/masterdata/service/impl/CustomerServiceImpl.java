@@ -19,6 +19,7 @@ import com.zhul.erp.modules.masterdata.dto.CustomerPageQuery;
 import com.zhul.erp.modules.masterdata.dto.CustomerPartyRequest;
 import com.zhul.erp.modules.masterdata.dto.CustomerRefVO;
 import com.zhul.erp.modules.masterdata.dto.CustomerTransferRequest;
+import com.zhul.erp.modules.system.service.BusinessUnitService;
 import com.zhul.erp.modules.masterdata.dto.CustomerVO;
 import com.zhul.erp.modules.masterdata.dto.SaveCustomerRequest;
 import com.zhul.erp.modules.masterdata.dto.UpdateCustomerRequest;
@@ -84,6 +85,7 @@ public class CustomerServiceImpl implements CustomerService {
     private final DepartmentMapper departmentMapper;
     private final LogService logService;
     private final DictItemService dictItemService;
+    private final BusinessUnitService businessUnitService;
 
     // ---------------------------------------------------------------- 新增 / 更新
 
@@ -114,6 +116,7 @@ public class CustomerServiceImpl implements CustomerService {
         customer.setOwnerId(ownerId);
         customer.setCustomerRole(req.getCustomerRole() != null ? req.getCustomerRole() : CustomerConstants.UNSET);
         customer.setStatus(req.getStatus() != null ? req.getStatus() : 1);
+        customer.setBusinessUnitId(businessUnitService.forNewCustomer(ownerId, req.getBusinessUnitId()));
         if (!manualCode.isEmpty()) {
             customer.setCustomerCode(manualCode);
         }
@@ -196,6 +199,7 @@ public class CustomerServiceImpl implements CustomerService {
         customer.setCreditCurrency("");
         customer.setOwnerId(scope.selfId() != null ? scope.selfId() : 0L);
         customer.setStatus(1);
+        customer.setBusinessUnitId(businessUnitService.forNewCustomer(customer.getOwnerId(), cmd.businessUnitId()));
         customerMapper.insert(customer);
         customer.setCustomerCode(generateCode(tenantId, customer.getId()));
         customerMapper.updateById(customer);
@@ -599,8 +603,12 @@ public class CustomerServiceImpl implements CustomerService {
         UserBasicDO newOwner = requireAssignableOwner(req.getOwnerId(), scope, tenantId);
         Map<Long, String> names = ownerNames(customers);
         String reason = text(req.getReason());
+        // 勾选时客户转到新负责人的事业部（新负责人在公共部门时不变），已有单据的归属不变
+        Integer newUnit = Boolean.TRUE.equals(req.getMoveBusinessUnit())
+                ? businessUnitService.unitOfUser(req.getOwnerId()) : null;
         for (CustomerDO c : customers) {
-            if (Objects.equals(c.getOwnerId(), req.getOwnerId())) {
+            if (Objects.equals(c.getOwnerId(), req.getOwnerId())
+                    && (newUnit == null || Objects.equals(c.getBusinessUnitId(), newUnit))) {
                 continue;
             }
             Map<String, Object> before = new LinkedHashMap<>();
@@ -613,6 +621,10 @@ public class CustomerServiceImpl implements CustomerService {
             after.put("ownerName", newOwner.getName());
             after.put("reason", reason);
             c.setOwnerId(req.getOwnerId());
+            if (newUnit != null) {
+                after.put("businessUnitId", newUnit);
+                c.setBusinessUnitId(newUnit);
+            }
             customerMapper.updateById(c);
             logService.recordOperateLog("客户管理", "转移客户", before, after);
         }

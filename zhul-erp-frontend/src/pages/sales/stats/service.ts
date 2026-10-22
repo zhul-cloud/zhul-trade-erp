@@ -65,6 +65,7 @@ export const salesStatsApi = {
     dateTo: string;
     ownerId?: number;
     view: StatsView;
+    businessUnitId?: number;
   }) =>
     request<{ data: SalesStats }>('/api/v1/sales/stats', {
       method: 'GET',

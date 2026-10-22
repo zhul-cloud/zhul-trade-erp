@@ -21,6 +21,8 @@ public class BankAccountVO {
     private String bankCode;
     private String branchCode;
     private String remark;
+    /** 所属事业部 */
+    private Integer businessUnitId;
     private Boolean isDefault;
     private Boolean enabled;
     private LocalDateTime updateTime;

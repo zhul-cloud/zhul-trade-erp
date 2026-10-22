@@ -29,6 +29,12 @@ import {
 } from '@/pages/sales/service';
 import { ReasonModal } from '@/pages/warehouse/components';
 import { useAppTheme } from '@/theme/AppTheme';
+import {
+  UnitPill,
+  UnitSelect,
+  unitFilterOptions,
+  useBusinessUnits,
+} from '@/utils/businessUnit';
 import { formatAmount } from '@/utils/format';
 import { usePageSize } from '@/utils/pageSize';
 import { type FxPending, type FxSettlement, fxApi } from './service';
@@ -86,11 +92,31 @@ const RegisterModal: React.FC<{
   const [remark, setRemark] = useState('');
   const [key, setKey] = useState(newKey);
   const [saving, setSaving] = useState(false);
+  const [bu] = useBusinessUnits();
+  const [unit, setUnit] = useState<number>();
+  const [allAccounts, setAllAccounts] = useState<BankOption[]>([]);
+  // 公司有事业部时每个事业部一个先进先出池子，只看所选事业部的待结汇与人民币账户
+  const pools = bu.enabled
+    ? pending.filter((p) => p.businessUnitId === unit)
+    : pending;
+
+  const pickUnit = (u: number | undefined, list = allAccounts) => {
+    setUnit(u);
+    const ps = bu.enabled
+      ? pending.filter((p) => p.businessUnitId === u)
+      : pending;
+    setCurrency(ps[0]?.currencyCode);
+    const ok = list.filter(
+      (a) =>
+        a.currencyCode === 'CNY' && (!bu.enabled || a.businessUnitId === u),
+    );
+    setAccounts(ok);
+    setAccountId((ok.find((a) => a.isDefault) ?? ok[0])?.id);
+  };
 
   useEffect(() => {
     if (!open) return;
     setDate(dayjs());
-    setCurrency(pending[0]?.currencyCode);
     setAmount(null);
     setCny(null);
     setRemark('');
@@ -98,14 +124,13 @@ const RegisterModal: React.FC<{
     bankOptionsApi
       .options()
       .then((list) => {
-        const ok = list.filter((a) => a.currencyCode === 'CNY');
-        setAccounts(ok);
-        setAccountId((ok.find((a) => a.isDefault) ?? ok[0])?.id);
+        setAllAccounts(list);
+        pickUnit(pending[0]?.businessUnitId, list);
       })
       .catch(() => setAccounts([]));
   }, [open, pending]);
 
-  const pool = pending.find((p) => p.currencyCode === currency);
+  const pool = pools.find((p) => p.currencyCode === currency);
   const rate = amount && cny ? cny / amount : undefined;
   const preview = useMemo(() => {
     let left = amount ?? 0;
@@ -133,6 +158,7 @@ const RegisterModal: React.FC<{
         bankAccountId: accountId,
         remark: remark.trim() || undefined,
         idempotencyKey: key,
+        businessUnitId: bu.enabled ? unit : undefined,
       });
       message.success(`已登记结汇单 ${s.settleNo}`);
       onDone();
@@ -185,13 +211,24 @@ const RegisterModal: React.FC<{
                 style={{ width: '100%' }}
               />
             </div>
+            {bu.enabled && (
+              <div>
+                {label('所属事业部')}
+                <UnitSelect
+                  info={bu}
+                  value={unit}
+                  onChange={(u) => pickUnit(u)}
+                  style={{ width: '100%' }}
+                />
+              </div>
+            )}
             <div>
               {label('币种')}
               <Select
                 value={currency}
                 onChange={setCurrency}
                 style={{ width: '100%' }}
-                options={pending.map((p) => ({
+                options={pools.map((p) => ({
                   value: p.currencyCode,
                   label: p.currencyCode,
                 }))}
@@ -256,6 +293,9 @@ const RegisterModal: React.FC<{
               {rate ? rate.toFixed(6) : '—'}
             </b>
             <span style={{ marginLeft: 12 }}>
+              {bu.enabled
+                ? `${bu.units.find((u) => u.id === unit)?.name ?? ''}可结汇的 `
+                : ''}
               {currency} 待结汇余额{' '}
               {formatAmount(pool?.balance ?? 0, currency ?? 'USD')}
               {amount
@@ -331,6 +371,8 @@ const FxSettlementPage: React.FC = () => {
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = usePageSize(20);
+  const [bu] = useBusinessUnits();
+  const [unitFilter, setUnitFilter] = useState<number>();
   const [currency, setCurrency] = useState<string>();
   const [range, setRange] = useState<[Dayjs, Dayjs] | null>(null);
   const [includeVoid, setIncludeVoid] = useState(false);
@@ -347,6 +389,7 @@ const FxSettlementPage: React.FC = () => {
         fxApi.page({
           page,
           pageSize,
+          businessUnitId: unitFilter,
           currencyCode: currency,
           dateFrom: range?.[0].format('YYYY-MM-DD'),
           dateTo: range?.[1].format('YYYY-MM-DD'),
@@ -362,7 +405,7 @@ const FxSettlementPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [page, pageSize, currency, range, includeVoid, message]);
+  }, [page, pageSize, unitFilter, currency, range, includeVoid, message]);
 
   useEffect(() => {
     load();
@@ -400,6 +443,18 @@ const FxSettlementPage: React.FC = () => {
       ),
     },
     { title: '结汇日期', dataIndex: 'settleDate', width: 110 },
+    ...(bu.enabled
+      ? [
+          {
+            title: '所属事业部',
+            key: 'unit',
+            width: 180,
+            render: (_: unknown, r: FxSettlement) => (
+              <UnitPill info={bu} id={r.businessUnitId} />
+            ),
+          },
+        ]
+      : []),
     { title: '币种', dataIndex: 'currencyCode', width: 70 },
     {
       title: '结汇金额',
@@ -583,6 +638,19 @@ const FxSettlementPage: React.FC = () => {
                     alignItems: 'center',
                   }}
                 >
+                  {bu.enabled && (
+                    <Select
+                      allowClear
+                      placeholder="所属事业部"
+                      style={{ width: 170 }}
+                      value={unitFilter}
+                      onChange={(v) => {
+                        setUnitFilter(v);
+                        setPage(1);
+                      }}
+                      options={unitFilterOptions(bu, false)}
+                    />
+                  )}
                   <Select
                     allowClear
                     placeholder="币种"
@@ -647,7 +715,7 @@ const FxSettlementPage: React.FC = () => {
                   style={{ width: '100%' }}
                 >
                   {pending.map((p) => (
-                    <div key={p.currencyCode}>
+                    <div key={`${p.businessUnitId ?? ''}-${p.currencyCode}`}>
                       <div
                         style={{
                           display: 'flex',
@@ -657,7 +725,7 @@ const FxSettlementPage: React.FC = () => {
                         }}
                       >
                         {stat(
-                          `${p.currencyCode} 待结汇余额`,
+                          `${bu.enabled ? `${bu.units.find((u) => u.id === p.businessUnitId)?.name ?? ''} · ` : ''}${p.currencyCode} 待结汇余额`,
                           formatAmount(p.balance, p.currencyCode),
                           `${p.receipts.length} 笔`,
                           palette.orange,

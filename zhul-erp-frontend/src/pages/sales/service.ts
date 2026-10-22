@@ -179,6 +179,10 @@ export interface ReceiptRow {
   platformOrderNo?: string;
   payer?: string;
   receiptDate?: string;
+  /** 所属事业部 */
+  businessUnitId?: number;
+  /** 收款账户与订单的事业部不一致 */
+  buMismatch?: boolean;
   bankAccountName?: string;
   note?: string;
   status: number;
@@ -192,6 +196,8 @@ export interface ReceiptRow {
 export interface Pi {
   id: number;
   piNo: string;
+  /** 所属事业部 */
+  businessUnitId?: number;
   customerId: number;
   customerName: string;
   customerCountry?: string;
@@ -565,6 +571,8 @@ export interface Order {
   piNo?: string;
   piVersionNo?: number;
   piStatus?: number;
+  /** 所属事业部 */
+  businessUnitId?: number;
   customerId: number;
   customerName: string;
   ownerId: number;
@@ -670,6 +678,8 @@ export interface BankOption {
   swiftCode?: string;
   isDefault: boolean;
   enabled: boolean;
+  /** 所属事业部 */
+  businessUnitId?: number;
 }
 
 // ---------------------------------------------------------------- 请求
@@ -948,6 +958,8 @@ export type ReceiptResult = { receiptStatusName?: string };
 /** 收款弹窗的操作对象：PI，或手动创建的订单（同一组接口，返回各自的详情） */
 export interface ReceiptOwner<T> {
   no: string;
+  /** 订单（PI）所属事业部：收款账户属于其他事业部时提示可能收错 */
+  businessUnitId?: number;
   currencyCode: string;
   exchangeRate: number;
   totalAmount: number;
@@ -969,6 +981,7 @@ export interface ReceiptOwner<T> {
 
 export const piReceiptOwner = (pi: Pi): ReceiptOwner<Pi> => ({
   no: pi.piNo,
+  businessUnitId: pi.businessUnitId,
   currencyCode: pi.currencyCode,
   exchangeRate: pi.exchangeRate,
   totalAmount: pi.version.totalAmount,
@@ -984,6 +997,7 @@ export const piReceiptOwner = (pi: Pi): ReceiptOwner<Pi> => ({
 
 export const orderReceiptOwner = (o: Order): ReceiptOwner<Order> => ({
   no: o.soNo,
+  businessUnitId: o.businessUnitId,
   currencyCode: o.currencyCode,
   exchangeRate: o.exchangeRate,
   totalAmount: o.totalAmount,

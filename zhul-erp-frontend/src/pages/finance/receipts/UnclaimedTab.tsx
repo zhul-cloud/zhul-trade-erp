@@ -22,6 +22,11 @@ import {
 } from '@/pages/sales/pi/receiptDialogs';
 import { type ReceiptRow, readBizError } from '@/pages/sales/service';
 import { useAppTheme } from '@/theme/AppTheme';
+import {
+  UnitPill,
+  unitFilterOptions,
+  useBusinessUnits,
+} from '@/utils/businessUnit';
 import { formatAmount } from '@/utils/format';
 import { ledgerApi } from './service';
 
@@ -86,6 +91,7 @@ const RegisterModal: React.FC<{
   onDone: () => void;
 }> = ({ open, onClose, onDone }) => {
   const { message } = App.useApp();
+  const [bu] = useBusinessUnits();
   const { palette } = useAppTheme();
   const [currency, setCurrency] = useState('USD');
   const [amount, setAmount] = useState<number | null>(null);
@@ -200,7 +206,7 @@ const RegisterModal: React.FC<{
             }
             options={banks.map((b) => ({
               value: b.id,
-              label: `${b.bankName} ${b.accountNoMasked}${b.accountType === 2 ? '（对私）' : ''}`,
+              label: `${b.bankName} ${b.accountNoMasked}${b.accountType === 2 ? '（对私）' : ''}${bu.enabled ? ` · ${bu.units.find((u) => u.id === b.businessUnitId)?.name ?? ''}` : ''}`,
             }))}
             aria-label="收款账户"
           />
@@ -254,6 +260,8 @@ const UnclaimedTab: React.FC<{
   }>();
   const [loading, setLoading] = useState(true);
   const [registerOpen, setRegisterOpen] = useState(false);
+  const [bu] = useBusinessUnits();
+  const [unitFilter, setUnitFilter] = useState<number>();
   const [reason, setReason] = useState<{
     id: number;
     kind: 'void' | 'unclaim';
@@ -265,15 +273,18 @@ const UnclaimedTab: React.FC<{
       const res = await ledgerApi.unclaimed(
         keyword.trim() || undefined,
         currency,
+        unitFilter,
       );
       setData(res);
-      if (!keyword.trim() && !currency) onCount?.(res.unclaimed.length);
+      if (!keyword.trim() && !currency && unitFilter == null) {
+        onCount?.(res.unclaimed.length);
+      }
     } catch (e) {
       message.error(readBizError(e).message);
     } finally {
       setLoading(false);
     }
-  }, [keyword, currency, message, onCount]);
+  }, [keyword, currency, unitFilter, message, onCount]);
 
   useEffect(() => {
     load();
@@ -309,6 +320,18 @@ const UnclaimedTab: React.FC<{
       render: (_, r) => <MethodCell r={r} />,
     },
     { title: '收款账户', dataIndex: 'bankAccountName', width: 200 },
+    ...(bu.enabled
+      ? [
+          {
+            title: '所属事业部',
+            key: 'unit',
+            width: 180,
+            render: (_: unknown, r: ReceiptRow) => (
+              <UnitPill info={bu} id={r.businessUnitId} />
+            ),
+          },
+        ]
+      : []),
     {
       title: '实收人民币',
       key: 'cny',
@@ -422,6 +445,16 @@ const UnclaimedTab: React.FC<{
             onChange={setCurrency}
             options={CURRENCIES.map((c) => ({ value: c, label: c }))}
           />
+          {bu.enabled && (
+            <Select
+              allowClear
+              style={{ width: 170 }}
+              placeholder="所属事业部"
+              value={unitFilter}
+              onChange={setUnitFilter}
+              options={unitFilterOptions(bu, false)}
+            />
+          )}
           <Button
             type="primary"
             icon={<PlusOutlined />}

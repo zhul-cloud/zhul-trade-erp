@@ -13,4 +13,6 @@ public class FxSettlementQuery {
     private LocalDate dateFrom;
     private LocalDate dateTo;
     private Boolean includeVoid;
+    /** 所属事业部 */
+    private Integer businessUnitId;
 }

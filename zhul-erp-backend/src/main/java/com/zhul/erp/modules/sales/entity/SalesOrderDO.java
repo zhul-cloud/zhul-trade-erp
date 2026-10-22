@@ -17,6 +17,8 @@ public class SalesOrderDO {
     @TableId(type = IdType.AUTO)
     private Long id;
     private Integer tenantId;
+    /** 所属事业部（department.id）；NULL：公共，或公司没有设置事业部 */
+    private Integer businessUnitId;
     private String soNo;
     private Integer source;
     private java.time.LocalDate salesDate;

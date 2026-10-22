@@ -14,6 +14,7 @@ import com.zhul.erp.modules.sales.entity.SalesOrderDO;
 import com.zhul.erp.modules.sales.repository.PaymentReceiptMapper;
 import com.zhul.erp.modules.sales.repository.SalesOrderMapper;
 import com.zhul.erp.modules.sales.support.PiStore;
+import com.zhul.erp.modules.system.service.BusinessUnitService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -33,7 +34,7 @@ import java.util.stream.Collectors;
 /**
  * 利润统计（spec finance/profit-stats）：本租户进行中与已完成的订单，按销售日期筛选，口径与订单成本明细一致。
  * 毛利率 = 毛利合计 ÷ 收入合计；收入按收款记录的付款方式拆线上 / 线下，还没到账的订单按销售额计入「未到账」。
- * 只读，数据范围为整个租户。
+ * 只读，数据范围为整个租户；公司设置了事业部时按事业部筛选。
  */
 @Service
 @RequiredArgsConstructor
@@ -45,6 +46,7 @@ public class ProfitStatsService {
     private final PaymentReceiptMapper receiptMapper;
     private final OrderCostService orderCostService;
     private final InquiryLookups lookups;
+    private final BusinessUnitService businessUnitService;
 
     public ProfitStatsVO stats(ProfitStatsQuery q) {
         LocalDate from = q.getDateFrom() != null ? q.getDateFrom() : LocalDate.now().withDayOfYear(1);
@@ -57,6 +59,11 @@ public class ProfitStatsService {
                 .le(SalesOrderDO::getSalesDate, to)
                 .orderByAsc(SalesOrderDO::getSalesDate)
                 .orderByAsc(SalesOrderDO::getId);
+        // 事业部可见范围在服务端判定（spec access/data-scope「统计按事业部限定可见范围」）
+        Integer unit = businessUnitService.statsUnit(q.getBusinessUnitId());
+        if (unit != null) {
+            w.eq(SalesOrderDO::getBusinessUnitId, unit);
+        }
         if (q.getOwnerId() != null) {
             w.eq(SalesOrderDO::getOwnerId, q.getOwnerId());
         }

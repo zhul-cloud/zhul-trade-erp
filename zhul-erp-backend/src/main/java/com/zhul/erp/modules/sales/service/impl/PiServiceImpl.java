@@ -282,6 +282,7 @@ public class PiServiceImpl implements PiService {
         pi.setTenantId(PiStore.tenantId());
         pi.setPiNo(documentNumberService.next(DocumentType.PI));
         pi.setCustomerId(customer.getId());
+        pi.setBusinessUnitId(customer.getBusinessUnitId());
         pi.setOwnerId(currentUserId());
         pi.setCurrencyCode(picked.currency());
         pi.setExchangeRate(rate.rate());
@@ -320,7 +321,8 @@ public class PiServiceImpl implements PiService {
         v.setPortOfShipment(defaults.defaultText(PiDefaults.DICT_PORT, PiDefaults.FALLBACK_PORT));
         v.setRemark("");
         v.setValidUntil(LocalDate.now().plusDays(SalesConstants.PI_VALID_DAYS));
-        BankAccountDO bank = bankAccountService.defaultFor(picked.currency());
+        // 带出本事业部该币种的默认账户（spec system/bank-account）
+        BankAccountDO bank = bankAccountService.defaultFor(customer.getBusinessUnitId(), picked.currency());
         v.setBankAccountId(bank == null ? null : bank.getId());
         v.setBankAccountJson(bank == null ? null : store.toJson(PiDefaults.bankSnapshot(bank)));
         v.setDiscountType(SalesConstants.DISCOUNT_NONE);
@@ -812,6 +814,7 @@ public class PiServiceImpl implements PiService {
         vo.setId(pi.getId());
         vo.setPiNo(pi.getPiNo());
         vo.setCustomerId(pi.getCustomerId());
+        vo.setBusinessUnitId(pi.getBusinessUnitId());
         vo.setCustomerName(InquiryLookups.customerName(customer));
         vo.setCustomerCountry(customer == null ? null : customer.getCountry());
         vo.setOwnerId(pi.getOwnerId());
@@ -878,7 +881,7 @@ public class PiServiceImpl implements PiService {
             b.setStatus(q.getStatus());
             return b;
         }).toList());
-        vo.setHasBankAccount(bankAccountService.defaultFor(pi.getCurrencyCode()) != null || v.getBankAccountId() != null);
+        vo.setHasBankAccount(bankAccountService.defaultFor(pi.getBusinessUnitId(), pi.getCurrencyCode()) != null || v.getBankAccountId() != null);
         vo.setCreateTime(pi.getCreateTime());
         return vo;
     }

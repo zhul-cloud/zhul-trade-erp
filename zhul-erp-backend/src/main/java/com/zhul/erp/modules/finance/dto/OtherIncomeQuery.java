@@ -13,4 +13,6 @@ public class OtherIncomeQuery {
     private LocalDate dateFrom;
     private LocalDate dateTo;
     private Boolean showVoid;
+    /** 所属事业部筛选：0 表示「公共」 */
+    private Integer businessUnitId;
 }

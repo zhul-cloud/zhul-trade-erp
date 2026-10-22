@@ -21,6 +21,14 @@ import { readBizError } from '@/pages/sales/service';
 import { AttachmentWall, ReasonModal } from '@/pages/warehouse/components';
 import type { Attachment } from '@/pages/warehouse/service';
 import { useAppTheme } from '@/theme/AppTheme';
+import {
+  PUBLIC_UNIT,
+  UnitPill,
+  UnitSelect,
+  unitFilterOptions,
+  unitOrPublic,
+  useBusinessUnits,
+} from '@/utils/businessUnit';
 import { useDictTexts } from '@/utils/dict';
 import { formatAmount } from '@/utils/format';
 import { usePageSize } from '@/utils/pageSize';
@@ -52,6 +60,8 @@ const IncomeModal: React.FC<{
   const [remark, setRemark] = useState('');
   const [files, setFiles] = useState<Attachment[]>([]);
   const [saving, setSaving] = useState(false);
+  const [bu] = useBusinessUnits();
+  const [unit, setUnit] = useState<number>(PUBLIC_UNIT);
   useEffect(() => {
     if (!open) return;
     setDate(editing ? dayjs(editing.incomeDate) : dayjs());
@@ -59,7 +69,12 @@ const IncomeModal: React.FC<{
     setAmount(editing?.amount ?? null);
     setRemark(editing?.remark ?? '');
     setFiles((editing?.attachments ?? []) as unknown as Attachment[]);
-  }, [open, editing]);
+    setUnit(
+      editing
+        ? (editing.businessUnitId ?? PUBLIC_UNIT)
+        : (bu.myUnitId ?? PUBLIC_UNIT),
+    );
+  }, [open, editing, bu.myUnitId]);
   const submit = async () => {
     if (!category || !amount || !remark.trim()) {
       message.error('请填写类别、金额与说明');
@@ -71,6 +86,7 @@ const IncomeModal: React.FC<{
       amount,
       remark: remark.trim(),
       attachmentIds: files.map((f) => f.id),
+      businessUnitId: unitOrPublic(unit),
     };
     setSaving(true);
     try {
@@ -139,6 +155,18 @@ const IncomeModal: React.FC<{
             />
           </div>
         </div>
+        {bu.enabled && (
+          <div>
+            {label('所属事业部')}
+            <UnitSelect
+              info={bu}
+              allowPublic
+              value={unit}
+              onChange={setUnit}
+              style={{ width: '100%' }}
+            />
+          </div>
+        )}
         <div>
           {label('说明')}
           <Input
@@ -170,6 +198,11 @@ const OtherIncomePage: React.FC = () => {
   const access = useAccess() as Record<string, boolean>;
   const canEdit = !!access['finance:income:edit'];
   const categories = useDictTexts(DICT_INCOME_CATEGORY);
+  const [bu] = useBusinessUnits();
+  const [unitFilter, setUnitFilter] = useState<number | undefined>(() => {
+    const v = new URLSearchParams(window.location.search).get('businessUnitId');
+    return v == null ? undefined : Number(v);
+  });
   const [category, setCategory] = useState<string>();
   const [range, setRange] = useState<[Dayjs, Dayjs] | null>(rangeFromUrl);
   const [showVoid, setShowVoid] = useState(false);
@@ -185,6 +218,7 @@ const OtherIncomePage: React.FC = () => {
   const load = useCallback(async () => {
     setLoading(true);
     const q = {
+      businessUnitId: unitFilter,
       category,
       dateFrom: range?.[0].format('YYYY-MM-DD'),
       dateTo: range?.[1].format('YYYY-MM-DD'),
@@ -203,7 +237,7 @@ const OtherIncomePage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [category, range, showVoid, page, pageSize, message]);
+  }, [unitFilter, category, range, showVoid, page, pageSize, message]);
 
   useEffect(() => {
     load();
@@ -226,6 +260,18 @@ const OtherIncomePage: React.FC = () => {
       ),
     },
     { title: '日期', dataIndex: 'incomeDate', width: 110 },
+    ...(bu.enabled
+      ? [
+          {
+            title: '所属事业部',
+            key: 'unit',
+            width: 180,
+            render: (_: unknown, r: OtherIncome) => (
+              <UnitPill info={bu} id={r.businessUnitId} />
+            ),
+          },
+        ]
+      : []),
     { title: '类别', dataIndex: 'categoryName', width: 110 },
     {
       title: '金额',
@@ -332,6 +378,19 @@ const OtherIncomePage: React.FC = () => {
               setPage(1);
             }}
           />
+          {bu.enabled && (
+            <Select
+              allowClear
+              placeholder="所属事业部"
+              style={{ width: 170 }}
+              value={unitFilter}
+              onChange={(v) => {
+                setUnitFilter(v);
+                setPage(1);
+              }}
+              options={unitFilterOptions(bu)}
+            />
+          )}
           <Select
             allowClear
             placeholder="类别"

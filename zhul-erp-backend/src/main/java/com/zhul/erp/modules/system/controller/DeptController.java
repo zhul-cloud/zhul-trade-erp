@@ -3,7 +3,9 @@ package com.zhul.erp.modules.system.controller;
 import com.zhul.erp.common.result.Result;
 import com.zhul.erp.modules.system.dto.DeptDeleteCheckVO;
 import com.zhul.erp.modules.system.dto.DeptVO;
+import com.zhul.erp.modules.system.dto.MarkBusinessUnitRequest;
 import com.zhul.erp.modules.system.dto.SaveDeptRequest;
+import com.zhul.erp.modules.system.service.BusinessUnitService;
 import com.zhul.erp.modules.system.service.DeptService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +28,7 @@ import java.util.Map;
 public class DeptController {
 
     private final DeptService deptService;
+    private final BusinessUnitService businessUnitService;
 
     @GetMapping
     public Result<List<DeptVO>> listAll() {
@@ -55,6 +58,14 @@ public class DeptController {
     @PutMapping("/{id}/status")
     public Result<Void> updateStatus(@PathVariable Integer id, @RequestBody Map<String, Integer> body) {
         deptService.updateStatus(id, body.get("status"));
+        return Result.ok();
+    }
+
+    /** 标记或取消事业部（spec system/business-unit「设置事业部」） */
+    @PreAuthorize("@perm.has('system:dept:edit')")
+    @PutMapping("/{id}/business-unit")
+    public Result<Void> markBusinessUnit(@PathVariable Integer id, @Valid @RequestBody MarkBusinessUnitRequest req) {
+        businessUnitService.mark(id, req.getEnabled(), req.getStartMonth());
         return Result.ok();
     }
 

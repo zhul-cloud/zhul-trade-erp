@@ -13,6 +13,8 @@ import java.util.List;
 public class FxSettlementVO {
     private Long id;
     private String settleNo;
+    /** 所属事业部 */
+    private Integer businessUnitId;
     private String currencyCode;
     private LocalDate settleDate;
     private BigDecimal amount;

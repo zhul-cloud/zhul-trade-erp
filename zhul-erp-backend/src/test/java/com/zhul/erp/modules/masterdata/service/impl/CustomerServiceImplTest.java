@@ -22,6 +22,7 @@ import com.zhul.erp.modules.product.support.CountryCatalog;
 import com.zhul.erp.modules.system.entity.UserBasicDO;
 import com.zhul.erp.modules.system.repository.DepartmentMapper;
 import com.zhul.erp.modules.system.repository.UserBasicMapper;
+import com.zhul.erp.modules.system.service.BusinessUnitService;
 import com.zhul.erp.modules.system.service.DictItemService;
 import com.zhul.erp.modules.system.service.LogService;
 import com.zhul.erp.support.MybatisPlusTestSupport;
@@ -75,6 +76,7 @@ class CustomerServiceImplTest {
     @Mock private DepartmentMapper departmentMapper;
     @Mock private LogService logService;
     @Mock private DictItemService dictItemService;
+    @Mock private BusinessUnitService businessUnitService;
 
     private CustomerServiceImpl service;
     private final List<CustomerPartyDO> insertedParties = new ArrayList<>();
@@ -88,7 +90,7 @@ class CustomerServiceImplTest {
     @BeforeEach
     void setUp() {
         service = new CustomerServiceImpl(customerMapper, new CustomerPartySync(partyMapper), dataScopeResolver,
-                countryCatalog, userBasicMapper, departmentMapper, logService, dictItemService);
+                countryCatalog, userBasicMapper, departmentMapper, logService, dictItemService, businessUnitService);
         TenantContext.setTenantId(1);
         when(dataScopeResolver.current()).thenReturn(new DataScope(DataScope.Type.SELF, SELF, Set.of(SELF)));
         when(countryCatalog.canonicalName(anyString())).thenAnswer(inv -> {
@@ -487,7 +489,7 @@ class CustomerServiceImplTest {
     // ---------------------------------------------------------------- 商机登记建客户（add-opportunity-management）
 
     private static CustomerLeadCommand lead(String name, String email, String whatsapp, String phone) {
-        return new CustomerLeadCommand(name, "John", "germany", 5, null, email, whatsapp, phone, "");
+        return new CustomerLeadCommand(name, "John", "germany", 5, null, email, whatsapp, phone, "", null);
     }
 
     @Test

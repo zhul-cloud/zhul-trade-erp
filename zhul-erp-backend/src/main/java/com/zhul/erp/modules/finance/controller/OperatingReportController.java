@@ -18,7 +18,8 @@ public class OperatingReportController {
 
     @GetMapping("/api/v1/finance/operating-report")
     @PreAuthorize("@perm.canAccessMenu('/finance/operating-report')")
-    public Result<OperatingReportVO> year(@RequestParam(required = false) Integer year) {
-        return Result.ok(service.year(year));
+    public Result<OperatingReportVO> year(@RequestParam(required = false) Integer year,
+                                          @RequestParam(required = false) Integer businessUnitId) {
+        return Result.ok(service.year(year, businessUnitId));
     }
 }

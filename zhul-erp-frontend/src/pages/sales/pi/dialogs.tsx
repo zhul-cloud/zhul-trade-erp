@@ -30,6 +30,7 @@ import dayjs from 'dayjs';
 import React, { useEffect, useMemo, useState } from 'react';
 import { searchCustomers } from '@/services/zhul/masterdata';
 import { useAppTheme } from '@/theme/AppTheme';
+import { useBusinessUnits } from '@/utils/businessUnit';
 import { formatAmount } from '@/utils/format';
 import { CHANNEL, KIND, Pill, partyAddress } from '../components';
 import {
@@ -737,6 +738,7 @@ export const ConfirmReceiptModal = <T extends ReceiptResult>({
   const { message, modal } = App.useApp();
   const { palette } = useAppTheme();
   const banks = useBankOptions(pi?.currencyCode);
+  const [bu] = useBusinessUnits();
   const [tolerance, setTolerance] = useState(50);
   const [amount, setAmount] = useState<number | null>(null);
   const [date, setDate] = useState<dayjs.Dayjs | null>(dayjs());
@@ -770,11 +772,26 @@ export const ConfirmReceiptModal = <T extends ReceiptResult>({
     setMethod(slip?.paymentMethod);
   }, [open, slips]);
 
+  // 默认取订单所属事业部的默认账户（spec system/bank-account）
+  const ownBanks = bu.enabled
+    ? banks.filter((b) => b.businessUnitId === pi?.businessUnitId)
+    : banks;
+  const ownDefault = (ownBanks.find((b) => b.isDefault) ?? ownBanks[0])?.id;
   useEffect(() => {
     if (!bankId || !banks.some((b) => b.id === bankId)) {
-      setBankId(banks.find((b) => b.isDefault)?.id ?? banks[0]?.id);
+      setBankId(ownDefault ?? banks[0]?.id);
     }
-  }, [banks, bankId]);
+  }, [banks, bankId, ownDefault]);
+  // 收款账户与订单不属于同一事业部：提示可能收错，确认后仍可保存，收款计入订单的事业部
+  const chosenBank = banks.find((b) => b.id === bankId);
+  const mismatch =
+    bu.enabled &&
+    !!chosenBank &&
+    chosenBank.businessUnitId != null &&
+    pi?.businessUnitId != null &&
+    chosenBank.businessUnitId !== pi.businessUnitId;
+  const unitName = (id?: number) =>
+    bu.units.find((u) => u.id === id)?.name ?? '';
 
   const remaining = pi?.remainingAmount ?? 0;
   const after = Math.round((remaining - (amount ?? 0)) * 100) / 100;
@@ -833,7 +850,7 @@ export const ConfirmReceiptModal = <T extends ReceiptResult>({
           disabled={!amount || amount <= 0 || !date || !bankId}
           onClick={submit}
         >
-          登记
+          {mismatch ? '确认没收错，继续保存' : '登记'}
         </Button>,
       ]}
     >
@@ -912,10 +929,47 @@ export const ConfirmReceiptModal = <T extends ReceiptResult>({
             onChange={setBankId}
             options={banks.map((b) => ({
               value: b.id,
-              label: `${b.bankName} ${b.accountNoMasked}${b.accountType === 2 ? '（对私）' : ''}`,
+              label: `${b.bankName} ${b.accountNoMasked}${b.accountType === 2 ? '（对私）' : ''}${bu.enabled ? ` · ${unitName(b.businessUnitId)}` : ''}`,
             }))}
             aria-label="收款账户"
           />
+          {mismatch && (
+            <div
+              role="alert"
+              style={{
+                marginTop: 10,
+                padding: '12px 14px',
+                borderRadius: 10,
+                background: palette.orangeSoft,
+                border: `1px solid ${palette.orange}`,
+              }}
+            >
+              <div style={{ fontWeight: 700, color: palette.ink }}>
+                <WarningOutlined
+                  style={{ color: palette.orange, marginRight: 8 }}
+                />
+                可能收错账户
+              </div>
+              <div style={{ marginTop: 6, color: palette.sub, fontSize: 13 }}>
+                这个账户属于「{unitName(chosenBank?.businessUnitId)}
+                」，订单属于「
+                {unitName(pi?.businessUnitId)}」。
+              </div>
+              <div style={{ marginTop: 4, color: palette.mute, fontSize: 12 }}>
+                确认保存后，这笔收款仍计入{unitName(pi?.businessUnitId)}
+                （以订单为准），收款记录会标记「账户与订单不一致」，方便财务事后调账。
+              </div>
+              {ownDefault && (
+                <Button
+                  size="small"
+                  style={{ marginTop: 10 }}
+                  onClick={() => setBankId(ownDefault)}
+                >
+                  改选{unitName(pi?.businessUnitId)}的账户
+                </Button>
+              )}
+            </div>
+          )}
         </div>
         <div>
           <div style={{ ...label, color: palette.sub }}>对应水单（选填）</div>

@@ -17,4 +17,6 @@ public class SaveCustomerRequest extends AbstractCustomerRequest {
     private String customerCode;
     /** 负责业务员 user_basic.id，为空时为当前用户 */
     private Long ownerId;
+    /** 所属事业部：负责人在公共部门时必选，属于事业部时忽略（取负责人的事业部）；只在新增时使用 */
+    private Integer businessUnitId;
 }

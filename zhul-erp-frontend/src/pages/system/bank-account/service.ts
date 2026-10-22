@@ -8,6 +8,8 @@ export const ACCOUNT_TYPE = { PUBLIC: 1, PRIVATE: 2 } as const;
 export interface BankAccount {
   id: number;
   accountType: number;
+  /** 所属事业部（公司设置了事业部时必选；默认账户按事业部 + 币种各一个） */
+  businessUnitId?: number;
   currencyCode: string;
   bankName: string;
   accountName: string;
@@ -26,6 +28,8 @@ export interface BankAccount {
 
 export interface SaveBankAccount {
   accountType: number;
+  /** 所属事业部（公司设置了事业部时必选；默认账户按事业部 + 币种各一个） */
+  businessUnitId?: number;
   currencyCode: string;
   bankName: string;
   accountName: string;

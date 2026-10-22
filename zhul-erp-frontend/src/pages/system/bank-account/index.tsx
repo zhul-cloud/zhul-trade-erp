@@ -18,6 +18,7 @@ import { Card, PageTitle, Pill } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { CURRENCIES } from '@/pages/quotation/components';
 import { useAppTheme } from '@/theme/AppTheme';
+import { UnitPill, UnitSelect, useBusinessUnits } from '@/utils/businessUnit';
 import {
   ACCOUNT_TYPE,
   type BankAccount,
@@ -38,6 +39,7 @@ const AccountModal: React.FC<{
   const [form] = Form.useForm<SaveBankAccount>();
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [bu] = useBusinessUnits();
 
   useEffect(() => {
     if (!open) return;
@@ -46,6 +48,7 @@ const AccountModal: React.FC<{
       form.setFieldsValue({
         currencyCode: 'USD',
         accountType: ACCOUNT_TYPE.PUBLIC,
+        businessUnitId: bu.myUnitId ?? bu.units[0]?.id,
       });
       return;
     }
@@ -55,7 +58,7 @@ const AccountModal: React.FC<{
       .then((a) => form.setFieldsValue(a))
       .catch((e) => message.error(readBizError(e).message))
       .finally(() => setLoading(false));
-  }, [open, editing, form, message]);
+  }, [open, editing, form, message, bu]);
 
   const submit = async () => {
     const values = await form.validateFields();
@@ -109,6 +112,17 @@ const AccountModal: React.FC<{
                 ]}
               />
             </Form.Item>
+            {bu.enabled && (
+              <Form.Item
+                name="businessUnitId"
+                label="所属事业部"
+                rules={[{ required: true, message: '请选择所属事业部' }]}
+                extra="默认账户按事业部和币种各一个；开 PI 时带出本事业部的账户"
+                style={{ gridColumn: '1 / -1' }}
+              >
+                <UnitSelect info={bu} style={{ width: '100%' }} />
+              </Form.Item>
+            )}
             <Form.Item
               name="currencyCode"
               label="币种"
@@ -189,6 +203,7 @@ const BankAccountPage: React.FC = () => {
   const [error, setError] = useState<string>();
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<BankAccount>();
+  const [bu] = useBusinessUnits();
 
   const load = useCallback(async () => {
     setError(undefined);
@@ -216,8 +231,45 @@ const BankAccountPage: React.FC = () => {
   const missing = CURRENCIES.filter(
     (c) => !(rows ?? []).some((r) => r.currencyCode === c && r.enabled),
   );
+  // 有事业部时：其他事业部已有、本事业部还没有的币种
+  const unitMissing = bu.enabled
+    ? bu.units
+        .map((u) => ({
+          name: u.name,
+          list: CURRENCIES.filter(
+            (c) =>
+              (rows ?? []).some((r) => r.currencyCode === c && r.enabled) &&
+              !(rows ?? []).some(
+                (r) =>
+                  r.currencyCode === c &&
+                  r.enabled &&
+                  r.businessUnitId === u.id,
+              ),
+          ),
+        }))
+        .filter((x) => x.list.length > 0)
+    : [];
+  const sorted = bu.enabled
+    ? [...(rows ?? [])].sort(
+        (a, b) =>
+          bu.units.findIndex((u) => u.id === a.businessUnitId) -
+          bu.units.findIndex((u) => u.id === b.businessUnitId),
+      )
+    : (rows ?? []);
 
   const columns: TableColumnsType<BankAccount> = [
+    ...(bu.enabled
+      ? [
+          {
+            title: '所属事业部',
+            key: 'unit',
+            width: 180,
+            render: (_: unknown, r: BankAccount) => (
+              <UnitPill info={bu} id={r.businessUnitId} />
+            ),
+          },
+        ]
+      : []),
     {
       title: '类型',
       dataIndex: 'accountType',
@@ -346,7 +398,11 @@ const BankAccountPage: React.FC = () => {
   return (
     <div>
       <PageTitle
-        description="显示在 PI 等对外单据上的收款银行信息；开 PI 时按币种带出默认账户。"
+        description={
+          bu.enabled
+            ? '显示在 PI 等对外单据上的收款银行信息；开 PI 时按事业部和币种带出默认账户，只能选本事业部的账户。'
+            : '显示在 PI 等对外单据上的收款银行信息；开 PI 时按币种带出默认账户。'
+        }
         actions={
           canEdit && (
             <Button
@@ -368,7 +424,7 @@ const BankAccountPage: React.FC = () => {
         <Table<BankAccount>
           rowKey="id"
           columns={columns}
-          dataSource={rows ?? []}
+          dataSource={sorted}
           loading={!rows}
           pagination={false}
           scroll={{ x: 1120 }}
@@ -397,6 +453,10 @@ const BankAccountPage: React.FC = () => {
           → 编号规则」设置。
           {missing.length > 0 &&
             `${missing.join('、')} 还没有启用的账户：这些币种的 PI 可以存草稿，发送时提示添加。`}
+          {unitMissing.map(
+            (x) =>
+              ` ${x.name}还没有 ${x.list.join('、')} 账户，开这些币种的 PI 时请先添加。`,
+          )}
         </div>
       )}
       <AccountModal

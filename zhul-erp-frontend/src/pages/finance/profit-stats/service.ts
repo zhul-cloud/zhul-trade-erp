@@ -121,6 +121,8 @@ export interface ProfitQuery {
   customerType?: number;
   settledOnly?: boolean;
   groupBy?: 'MONTH' | 'OWNER' | 'CUSTOMER';
+  /** 事业部；不传时能看合计的看合计，否则后端默认本事业部 */
+  businessUnitId?: number;
 }
 
 export const profitApi = {

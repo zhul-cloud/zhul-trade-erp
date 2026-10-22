@@ -10,6 +10,8 @@ import java.util.Map;
 @Data
 public class OperatingReportVO {
     private Integer year;
+    /** 查看的事业部；全公司合计为空 */
+    private Integer businessUnitId;
     /** 运营成本类别（不含订单费用），按字典顺序 */
     private List<Category> categories;
     private List<Row> rows;
@@ -39,6 +41,14 @@ public class OperatingReportVO {
         /** 运营成本：类别编码 → 分摊后的当月金额 */
         private Map<String, BigDecimal> opex;
         private BigDecimal opexTotal;
+        /** 直接费用：归属本事业部的费用（全公司合计时为归属各事业部的费用之和），按类别 */
+        private Map<String, BigDecimal> opexDirect;
+        private BigDecimal opexDirectTotal;
+        /** 分摊的公共成本：「公共」费用分到本事业部的金额（全公司合计时为全部公共费用），按类别 */
+        private Map<String, BigDecimal> opexShared;
+        private BigDecimal opexSharedTotal;
+        /** 本事业部当月的公共费用分摊比例（四位小数，0.2000 即 20%）；全公司合计与全年行为空 */
+        private BigDecimal sharePercent;
         /** 预计盈亏 = 销售毛利 − 退款 + 其他收入 − 运营成本合计 */
         private BigDecimal net;
         /** 净利率 = 预计盈亏 ÷ 销售收入（%） */

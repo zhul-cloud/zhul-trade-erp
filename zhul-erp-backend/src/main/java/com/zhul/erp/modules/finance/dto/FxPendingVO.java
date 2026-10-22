@@ -10,6 +10,8 @@ import java.util.List;
 /** 某币种的待结汇：余额、估算汇率与按先进先出排好的到账 */
 @Data
 public class FxPendingVO {
+    /** 所属事业部（公司没有事业部时为空） */
+    private Integer businessUnitId;
     private String currencyCode;
     private BigDecimal balance;
     private BigDecimal estimateRate;

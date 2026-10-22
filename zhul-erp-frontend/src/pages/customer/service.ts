@@ -78,6 +78,8 @@ export interface CustomerDetail extends CustomerListItem {
 export interface CustomerPayload {
   customerCode?: string;
   ownerId?: number;
+  /** 所属事业部：负责人在公共部门时必选（只在新增时使用） */
+  businessUnitId?: number;
   name: string;
   nameCn?: string;
   shortName?: string;
@@ -203,10 +205,15 @@ export const customerApi = {
       },
     ).then((r) => r.data),
 
-  transfer: (ids: number[], ownerId: number, reason?: string) =>
+  transfer: (
+    ids: number[],
+    ownerId: number,
+    reason?: string,
+    moveBusinessUnit?: boolean,
+  ) =>
     request(`${BASE}/transfer`, {
       method: 'POST',
-      data: { ids, ownerId, reason },
+      data: { ids, ownerId, reason, moveBusinessUnit },
     }),
 
   assignableOwners: () =>

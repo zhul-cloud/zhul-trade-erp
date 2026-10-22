@@ -16,6 +16,8 @@ const send = <T>(url: string, data?: unknown) =>
 export interface FxSettlement {
   id: number;
   settleNo: string;
+  /** 所属事业部 */
+  businessUnitId?: number;
   currencyCode: string;
   settleDate: string;
   amount: number;
@@ -41,6 +43,8 @@ export interface FxSettlement {
 }
 
 export interface FxPending {
+  /** 所属事业部 */
+  businessUnitId?: number;
   currencyCode: string;
   balance: number;
   estimateRate: number;
@@ -53,6 +57,7 @@ export interface FxPending {
 export interface FxQuery {
   page: number;
   pageSize: number;
+  businessUnitId?: number;
   currencyCode?: string;
   dateFrom?: string;
   dateTo?: string;
@@ -71,6 +76,7 @@ export const fxApi = {
     bankAccountId: number;
     remark?: string;
     idempotencyKey: string;
+    businessUnitId?: number;
   }) => send<FxSettlement>(FX, body),
   voidSettlement: (id: number, reason: string) =>
     send<FxSettlement>(`${FX}/${id}/void`, { reason }),

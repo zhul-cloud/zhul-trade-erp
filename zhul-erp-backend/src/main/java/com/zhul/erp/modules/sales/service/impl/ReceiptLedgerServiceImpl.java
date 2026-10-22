@@ -23,6 +23,7 @@ import com.zhul.erp.modules.sales.support.PiSummary;
 import com.zhul.erp.modules.sales.support.ReceiptMoney;
 import com.zhul.erp.modules.sales.support.ReceiptRows;
 import com.zhul.erp.modules.system.entity.BankAccountDO;
+import com.zhul.erp.modules.system.repository.BankAccountMapper;
 import com.zhul.erp.modules.system.service.BankAccountService;
 import com.zhul.erp.modules.system.service.LogService;
 import lombok.RequiredArgsConstructor;
@@ -50,6 +51,7 @@ public class ReceiptLedgerServiceImpl implements ReceiptLedgerService {
     private static final int RECENT_CLAIMED = 20;
     private static final int KEYWORD_LIMIT = 500;
 
+    private final BankAccountMapper bankAccountMapper;
     private final PaymentReceiptMapper receiptMapper;
     private final ProformaInvoiceMapper piMapper;
     private final CustomerMapper customerMapper;
@@ -65,12 +67,13 @@ public class ReceiptLedgerServiceImpl implements ReceiptLedgerService {
     // ---------------------------------------------------------------- 未认领到账
 
     @Override
-    public UnclaimedListVO unclaimed(String keyword, String currencyCode) {
+    public UnclaimedListVO unclaimed(String keyword, String currencyCode, Integer businessUnitId) {
         int tenant = PiStore.tenantId();
         LambdaQueryWrapper<PaymentReceiptDO> w = base(tenant)
                 .isNull(PaymentReceiptDO::getPiId)
                 .isNull(PaymentReceiptDO::getSoId)
-                .eq(PaymentReceiptDO::getStatus, SalesConstants.RECORD_VALID);
+                .eq(PaymentReceiptDO::getStatus, SalesConstants.RECORD_VALID)
+                .eq(businessUnitId != null, PaymentReceiptDO::getBusinessUnitId, businessUnitId);
         if (StringUtils.hasText(currencyCode)) {
             w.eq(PaymentReceiptDO::getCurrencyCode, currencyCode.trim().toUpperCase(Locale.ROOT));
         }
@@ -103,7 +106,8 @@ public class ReceiptLedgerServiceImpl implements ReceiptLedgerService {
             throw new BizException("收款账户币种（" + bank.getCurrencyCode() + "）与到账币种（" + currency + "）不同");
         }
         PaymentMethods.Method method = paymentMethods.offline(req.getPaymentMethod());
-        BigDecimal rate = fxRates.estimate(currency);
+        // 未认领到账先按收款账户的事业部归属，认领后改为订单的
+        BigDecimal rate = fxRates.estimate(bank.getBusinessUnitId(), currency);
         PaymentReceiptDO r = new PaymentReceiptDO();
         r.setTenantId(PiStore.tenantId());
         r.setPiId(null);
@@ -115,6 +119,7 @@ public class ReceiptLedgerServiceImpl implements ReceiptLedgerService {
         r.setPayer(trim(req.getPayer(), 128));
         r.setReceiptDate(req.getReceiptDate());
         r.setBankAccountId(bank.getId());
+        r.setBusinessUnitId(bank.getBusinessUnitId());
         r.setFileKeys("[]");
         r.setNote(trim(req.getNote(), 300));
         r.setStatus(SalesConstants.RECORD_VALID);
@@ -145,11 +150,19 @@ public class ReceiptLedgerServiceImpl implements ReceiptLedgerService {
                 || r.getStatus() != SalesConstants.RECORD_VALID) {
             throw new BizException("这笔到账状态已变化，请刷新后再试");
         }
+        // 取消认领后回到收款账户的事业部；已在订单事业部结过汇的不能换回（结汇池按事业部分开）
+        BankAccountDO bank = r.getBankAccountId() == null ? null : bankAccountMapper.selectById(r.getBankAccountId());
+        Integer accountUnit = bank == null ? r.getBusinessUnitId() : bank.getBusinessUnitId();
+        if (!Objects.equals(accountUnit, r.getBusinessUnitId()) && r.getSettledAmount() != null && r.getSettledAmount().signum() > 0) {
+            throw new BizException("这笔到账已结汇，不能取消认领，请先作废结汇单");
+        }
         r.setPiId(null);
         r.setSoId(null);
         r.setSlipId(null);
         r.setClaimedBy(null);
         r.setClaimedAt(null);
+        r.setBusinessUnitId(accountUnit);
+        r.setBuMismatch(0);
         receiptMapper.updateById(r);
         if (pi != null) {
             summary.refresh(pi);
@@ -213,6 +226,9 @@ public class ReceiptLedgerServiceImpl implements ReceiptLedgerService {
         }
         if (q.getSettleStatus() != null) {
             w.eq(PaymentReceiptDO::getSettleStatus, q.getSettleStatus());
+        }
+        if (q.getBusinessUnitId() != null) {
+            w.eq(PaymentReceiptDO::getBusinessUnitId, q.getBusinessUnitId());
         }
         if (StringUtils.hasText(q.getCurrencyCode())) {
             w.eq(PaymentReceiptDO::getCurrencyCode, q.getCurrencyCode().trim().toUpperCase(Locale.ROOT));

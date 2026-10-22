@@ -38,6 +38,8 @@ public class SalesOrderVO {
     private Integer piVersionNo;
     private Integer piStatus;
     private Long customerId;
+    /** 所属事业部（跟随 PI 或客户） */
+    private Integer businessUnitId;
     private String customerName;
     private Long ownerId;
     private String ownerName;

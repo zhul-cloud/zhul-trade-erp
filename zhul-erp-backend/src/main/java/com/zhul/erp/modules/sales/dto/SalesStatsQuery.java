@@ -12,4 +12,6 @@ public class SalesStatsQuery {
     private Long ownerId;
     /** MONTH 按月份（默认）、OWNER 按业务员、CUSTOMER 按客户 */
     private String view;
+    /** 事业部；不传时能看合计的看合计，否则看第一个可看的事业部 */
+    private Integer businessUnitId;
 }

@@ -1,6 +1,7 @@
 package com.zhul.erp.modules.system.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.zhul.erp.common.exception.BizException;
 import com.zhul.erp.framework.tenant.TenantContext;
 import com.zhul.erp.modules.masterdata.constants.CustomerConstants;
@@ -9,6 +10,7 @@ import com.zhul.erp.modules.system.dto.SaveBankAccountRequest;
 import com.zhul.erp.modules.system.entity.BankAccountDO;
 import com.zhul.erp.modules.system.repository.BankAccountMapper;
 import com.zhul.erp.modules.system.service.BankAccountService;
+import com.zhul.erp.modules.system.service.BusinessUnitService;
 import com.zhul.erp.modules.system.service.LogService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -30,6 +32,7 @@ public class BankAccountServiceImpl implements BankAccountService {
 
     private final BankAccountMapper mapper;
     private final LogService logService;
+    private final BusinessUnitService businessUnitService;
 
     @Override
     public List<BankAccountVO> list() {
@@ -56,9 +59,10 @@ public class BankAccountServiceImpl implements BankAccountService {
         BankAccountDO a = new BankAccountDO();
         a.setTenantId(tenantId());
         apply(a, req);
+        a.setBusinessUnitId(unitOf(req));
         a.setStatus(1);
-        // 该币种的第一个启用对公账户自动成为默认；对私账户不当默认
-        a.setIsDefault(isPublic(a) && defaultFor(a.getCurrencyCode()) == null ? 1 : 0);
+        // 同一事业部该币种的第一个启用对公账户自动成为默认；对私账户不当默认
+        a.setIsDefault(isPublic(a) && defaultFor(a.getBusinessUnitId(), a.getCurrencyCode()) == null ? 1 : 0);
         mapper.insert(a);
         logService.recordOperateLog(MENU, "新增收款账户", null, logView(a));
         return toVo(a, true);
@@ -70,14 +74,22 @@ public class BankAccountServiceImpl implements BankAccountService {
         BankAccountDO a = require(id);
         Map<String, Object> before = logView(a);
         String oldCurrency = a.getCurrencyCode();
+        Integer oldUnit = a.getBusinessUnitId();
         apply(a, req);
-        if ((!oldCurrency.equals(a.getCurrencyCode()) || !isPublic(a)) && Objects.equals(a.getIsDefault(), 1)) {
-            // 换了币种：原币种的默认交给剩余的第一个启用账户，本账户在新币种里没有默认时才成为默认
+        Integer newUnit = unitOf(req);
+        boolean moved = !oldCurrency.equals(a.getCurrencyCode()) || !Objects.equals(oldUnit, newUnit);
+        if ((moved || !isPublic(a)) && Objects.equals(a.getIsDefault(), 1)) {
+            // 换了币种或事业部：原分组的默认交给剩余的第一个启用账户，本账户在新分组里没有默认时才成为默认
             a.setIsDefault(0);
             mapper.updateById(a);
-            promoteFirst(oldCurrency);
+            promoteFirst(oldUnit, oldCurrency, a.getId());
         }
-        if (Objects.equals(a.getStatus(), 1) && isPublic(a) && defaultFor(a.getCurrencyCode()) == null) {
+        if (!Objects.equals(oldUnit, newUnit)) {
+            mapper.update(null, new LambdaUpdateWrapper<BankAccountDO>()
+                    .set(BankAccountDO::getBusinessUnitId, newUnit).eq(BankAccountDO::getId, a.getId()));
+            a.setBusinessUnitId(newUnit);
+        }
+        if (Objects.equals(a.getStatus(), 1) && isPublic(a) && defaultFor(a.getBusinessUnitId(), a.getCurrencyCode()) == null) {
             a.setIsDefault(1);
         }
         mapper.updateById(a);
@@ -96,7 +108,7 @@ public class BankAccountServiceImpl implements BankAccountService {
             throw new BizException("对私账户不能设为默认");
         }
         for (BankAccountDO other : rows()) {
-            if (other.getCurrencyCode().equals(a.getCurrencyCode()) && Objects.equals(other.getIsDefault(), 1) && !other.getId().equals(id)) {
+            if (sameGroup(other, a.getBusinessUnitId(), a.getCurrencyCode()) && Objects.equals(other.getIsDefault(), 1) && !other.getId().equals(id)) {
                 other.setIsDefault(0);
                 mapper.updateById(other);
             }
@@ -111,7 +123,7 @@ public class BankAccountServiceImpl implements BankAccountService {
     public void setEnabled(Integer id, boolean enabled) {
         BankAccountDO a = require(id);
         if (!enabled && Objects.equals(a.getIsDefault(), 1)) {
-            boolean othersEnabled = rows().stream().anyMatch(o -> !o.getId().equals(id) && o.getCurrencyCode().equals(a.getCurrencyCode())
+            boolean othersEnabled = rows().stream().anyMatch(o -> !o.getId().equals(id) && sameGroup(o, a.getBusinessUnitId(), a.getCurrencyCode())
                     && Objects.equals(o.getStatus(), 1) && isPublic(o));
             if (othersEnabled) {
                 throw new BizException("这是 " + a.getCurrencyCode() + " 的默认账户，请先把另一个账户设为默认");
@@ -119,7 +131,7 @@ public class BankAccountServiceImpl implements BankAccountService {
             a.setIsDefault(0);
         }
         a.setStatus(enabled ? 1 : 0);
-        if (enabled && isPublic(a) && defaultFor(a.getCurrencyCode()) == null) {
+        if (enabled && isPublic(a) && defaultFor(a.getBusinessUnitId(), a.getCurrencyCode()) == null) {
             a.setIsDefault(1);
         }
         mapper.updateById(a);
@@ -127,8 +139,8 @@ public class BankAccountServiceImpl implements BankAccountService {
     }
 
     @Override
-    public BankAccountDO defaultFor(String currencyCode) {
-        return rows().stream().filter(a -> a.getCurrencyCode().equals(currencyCode) && Objects.equals(a.getStatus(), 1)
+    public BankAccountDO defaultFor(Integer businessUnitId, String currencyCode) {
+        return rows().stream().filter(a -> sameGroup(a, businessUnitId, currencyCode) && Objects.equals(a.getStatus(), 1)
                 && Objects.equals(a.getIsDefault(), 1)).findFirst().orElse(null);
     }
 
@@ -141,8 +153,9 @@ public class BankAccountServiceImpl implements BankAccountService {
         return a;
     }
 
-    private void promoteFirst(String currency) {
-        rows().stream().filter(o -> o.getCurrencyCode().equals(currency) && Objects.equals(o.getStatus(), 1) && isPublic(o))
+    private void promoteFirst(Integer unitId, String currency, Integer excludeId) {
+        rows().stream().filter(o -> !o.getId().equals(excludeId) && sameGroup(o, unitId, currency)
+                        && Objects.equals(o.getStatus(), 1) && isPublic(o))
                 .min(Comparator.comparing(BankAccountDO::getId))
                 .ifPresent(o -> {
                     o.setIsDefault(1);
@@ -170,6 +183,22 @@ public class BankAccountServiceImpl implements BankAccountService {
         a.setBankCode(trim(r.getBankCode()));
         a.setBranchCode(trim(r.getBranchCode()));
         a.setRemark(trim(r.getRemark()));
+    }
+
+    /** 默认账户按「事业部 + 币种」分组（spec system/bank-account「收款账户归属事业部」）；公司没有事业部时事业部都为空 */
+    private static boolean sameGroup(BankAccountDO a, Integer unitId, String currency) {
+        return a.getCurrencyCode().equals(currency) && Objects.equals(a.getBusinessUnitId(), unitId);
+    }
+
+    /** 公司设置了事业部时必选，没有时为空 */
+    private Integer unitOf(SaveBankAccountRequest req) {
+        if (!businessUnitService.enabled()) {
+            return null;
+        }
+        if (req.getBusinessUnitId() == null) {
+            throw new BizException("请选择收款账户所属的事业部");
+        }
+        return businessUnitService.require(req.getBusinessUnitId());
     }
 
     private static boolean isPublic(BankAccountDO a) {
@@ -209,6 +238,7 @@ public class BankAccountServiceImpl implements BankAccountService {
         vo.setBankCode(a.getBankCode());
         vo.setBranchCode(a.getBranchCode());
         vo.setRemark(a.getRemark());
+        vo.setBusinessUnitId(a.getBusinessUnitId());
         vo.setIsDefault(Objects.equals(a.getIsDefault(), 1));
         vo.setEnabled(Objects.equals(a.getStatus(), 1));
         vo.setUpdateTime(a.getUpdateTime());

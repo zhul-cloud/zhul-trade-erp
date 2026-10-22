@@ -8,6 +8,7 @@ import {
   App,
   Breadcrumb,
   Button,
+  Checkbox,
   Drawer,
   Form,
   Input,
@@ -19,6 +20,7 @@ import {
 import React, { useEffect, useState } from 'react';
 import { useCountries } from '@/pages/product/components/useCountries';
 import { useAppTheme } from '@/theme/AppTheme';
+import { useBusinessUnits } from '@/utils/businessUnit';
 import { MenuLink, useMenu } from '@/utils/menuName';
 import {
   CJK_PATTERN,
@@ -605,7 +607,12 @@ export const TransferModal: React.FC<{
 }> = ({ open, customers, onClose, onDone }) => {
   const { message } = App.useApp();
   const { palette } = useAppTheme();
-  const [form] = Form.useForm<{ ownerId: number; reason?: string }>();
+  const [form] = Form.useForm<{
+    ownerId: number;
+    reason?: string;
+    moveBusinessUnit?: boolean;
+  }>();
+  const [bu] = useBusinessUnits();
   const [owners, setOwners] = useState<AssignableOwners['owners']>([]);
   const [saving, setSaving] = useState(false);
 
@@ -626,6 +633,7 @@ export const TransferModal: React.FC<{
         customers.map((c) => c.id),
         v.ownerId,
         v.reason,
+        bu.enabled ? !!v.moveBusinessUnit : undefined,
       );
       message.success(
         `已转移给${owners.find((o) => o.id === v.ownerId)?.name ?? '新负责人'}`,
@@ -684,6 +692,15 @@ export const TransferModal: React.FC<{
             }))}
           />
         </Form.Item>
+        {bu.enabled && (
+          <Form.Item
+            name="moveBusinessUnit"
+            valuePropName="checked"
+            extra="不勾选时客户仍归原事业部；勾选后只影响之后新建的询盘、报价、订单，已有单据的归属不变"
+          >
+            <Checkbox>同时转到新负责人所在的事业部</Checkbox>
+          </Form.Item>
+        )}
         <Form.Item name="reason" label="转移原因" rules={[{ max: 200 }]}>
           <Input.TextArea
             rows={3}

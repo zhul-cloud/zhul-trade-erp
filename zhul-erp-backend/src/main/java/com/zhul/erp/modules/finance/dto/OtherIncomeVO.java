@@ -13,6 +13,8 @@ public class OtherIncomeVO {
     private Long id;
     private String incomeNo;
     private LocalDate incomeDate;
+    /** 所属事业部；为空表示「公共」 */
+    private Integer businessUnitId;
     private String category;
     private String categoryName;
     private BigDecimal amount;

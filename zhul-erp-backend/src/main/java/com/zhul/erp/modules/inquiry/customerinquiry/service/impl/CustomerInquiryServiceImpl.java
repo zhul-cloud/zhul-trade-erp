@@ -100,6 +100,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 import com.zhul.erp.modules.media.service.MediaIndexer;
+import com.zhul.erp.modules.system.service.BusinessUnitService;
 
 @Slf4j
 @Service
@@ -113,6 +114,7 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
             InquiryConstants.STATUS_PENDING_PARSE, InquiryConstants.STATUS_PARSING, InquiryConstants.STATUS_PENDING_CONFIRM,
             InquiryConstants.STATUS_PARSE_FAILED, InquiryConstants.STATUS_SOURCING, InquiryConstants.STATUS_READY_TO_QUOTE);
 
+    private final BusinessUnitService businessUnitService;
     private final CustomerInquiryMapper inquiryMapper;
     private final CustomerInquiryAttachmentMapper attachmentMapper;
     private final InquiryItemMapper itemMapper;
@@ -285,6 +287,8 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
     }
 
     private void insertWithRetry(CustomerInquiryDO inquiry) {
+        // 事业部跟随客户（spec system/business-unit「单据归属事业部」）
+        inquiry.setBusinessUnitId(businessUnitService.unitOfCustomer(inquiry.getCustomerId()));
         for (int attempt = 1; attempt <= MAX_CODE_INSERT_ATTEMPTS; attempt++) {
             GeneratedInquiryCode generated = codeGenerator.nextCustomerInquiryCode(inquiry.getTenantId());
             inquiry.setId(null);

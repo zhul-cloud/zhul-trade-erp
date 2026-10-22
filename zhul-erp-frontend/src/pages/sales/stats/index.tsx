@@ -7,6 +7,7 @@ import { Card, PageTitle, Pill } from '@/pages/inquiry/shared/components';
 import { useUserOptions } from '@/pages/sales/orders/dialogs';
 import { readBizError } from '@/pages/sales/service';
 import { useAppTheme } from '@/theme/AppTheme';
+import { StatsUnitSwitch, useBusinessUnits } from '@/utils/businessUnit';
 import { formatAmount } from '@/utils/format';
 import {
   type CustomerRow,
@@ -31,6 +32,8 @@ const SalesStatsPage: React.FC = () => {
     dayjs().startOf('year'),
     dayjs(),
   ]);
+  const [bu] = useBusinessUnits();
+  const [unit, setUnit] = useState<number>();
   const [ownerId, setOwnerId] = useState<number>();
   const [view, setView] = useState<StatsView>('MONTH');
   const [data, setData] = useState<SalesStats>();
@@ -45,6 +48,7 @@ const SalesStatsPage: React.FC = () => {
           dateTo: range[1].format('YYYY-MM-DD'),
           ownerId,
           view,
+          businessUnitId: unit,
         }),
       );
     } catch (e) {
@@ -52,7 +56,7 @@ const SalesStatsPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [range, ownerId, view, message]);
+  }, [range, unit, ownerId, view, message]);
 
   useEffect(() => {
     load();
@@ -366,6 +370,7 @@ const SalesStatsPage: React.FC = () => {
           allowClear={false}
           onChange={(v) => v?.[0] && v[1] && setRange([v[0], v[1]])}
         />
+        <StatsUnitSwitch info={bu} value={unit} onChange={setUnit} />
         <Select
           allowClear
           placeholder="业务员"

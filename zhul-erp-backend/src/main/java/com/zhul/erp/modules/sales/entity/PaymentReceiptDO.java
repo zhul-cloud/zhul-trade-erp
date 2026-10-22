@@ -19,6 +19,10 @@ public class PaymentReceiptDO {
     @TableId(type = IdType.AUTO)
     private Long id;
     private Integer tenantId;
+    /** 所属事业部（department.id）；NULL：公共，或公司没有设置事业部 */
+    private Integer businessUnitId;
+    /** 收款账户与订单的事业部不一致（0-否、1-是） */
+    private Integer buMismatch;
     /** 为空表示未认领到账 */
     @TableField(updateStrategy = FieldStrategy.ALWAYS)
     private Long piId;

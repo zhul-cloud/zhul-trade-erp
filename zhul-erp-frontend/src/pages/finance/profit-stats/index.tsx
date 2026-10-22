@@ -7,6 +7,7 @@ import { Card, PageTitle, Pill } from '@/pages/inquiry/shared/components';
 import { useUserOptions } from '@/pages/sales/orders/dialogs';
 import { readBizError } from '@/pages/sales/service';
 import { useAppTheme } from '@/theme/AppTheme';
+import { StatsUnitSwitch, useBusinessUnits } from '@/utils/businessUnit';
 import { formatAmount } from '@/utils/format';
 import {
   type ProfitGroup,
@@ -34,6 +35,11 @@ const ProfitStatsPage: React.FC = () => {
       ? [dayjs(from), dayjs(to)]
       : [dayjs().startOf('year'), dayjs()];
   });
+  const [bu] = useBusinessUnits();
+  const [unit, setUnit] = useState<number | undefined>(() => {
+    const v = new URLSearchParams(window.location.search).get('businessUnitId');
+    return v == null ? undefined : Number(v);
+  });
   const [ownerId, setOwnerId] = useState<number>();
   const [customerType, setCustomerType] = useState<number>();
   const [settledOnly, setSettledOnly] = useState(false);
@@ -52,6 +58,7 @@ const ProfitStatsPage: React.FC = () => {
         customerType,
         settledOnly: settledOnly || undefined,
         groupBy,
+        businessUnitId: unit,
       });
       setSummary(res.summary);
       setGroups(res.groups);
@@ -60,7 +67,7 @@ const ProfitStatsPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [range, ownerId, customerType, settledOnly, groupBy, message]);
+  }, [range, unit, ownerId, customerType, settledOnly, groupBy, message]);
 
   useEffect(() => {
     load();
@@ -301,6 +308,7 @@ const ProfitStatsPage: React.FC = () => {
           allowClear={false}
           onChange={(v) => v?.[0] && v[1] && setRange([v[0], v[1]])}
         />
+        <StatsUnitSwitch info={bu} value={unit} onChange={setUnit} />
         <Select
           allowClear
           placeholder="业务员"

@@ -1,6 +1,7 @@
 package com.zhul.erp.modules.finance.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.zhul.erp.common.exception.BizException;
 import com.zhul.erp.common.result.PageResult;
@@ -17,6 +18,7 @@ import com.zhul.erp.modules.system.constants.DocumentType;
 import com.zhul.erp.modules.system.service.DictItemService;
 import com.zhul.erp.modules.system.service.DocumentNumberService;
 import com.zhul.erp.modules.system.service.LogService;
+import com.zhul.erp.modules.system.service.BusinessUnitService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -38,6 +40,7 @@ public class OtherIncomeService {
 
     private static final String MENU = "其他收入";
 
+    private final BusinessUnitService businessUnitService;
     private final OtherIncomeMapper mapper;
     private final DocumentNumberService documentNumberService;
     private final AttachmentService attachments;
@@ -52,6 +55,7 @@ public class OtherIncomeService {
         x.setStatus(FinanceConstants.RECORD_VALID);
         x.setVoidReason("");
         fill(x, req);
+        x.setBusinessUnitId(businessUnitService.forOptional(req.getBusinessUnitId()));
         mapper.insert(x);
         attachments.sync(AttachmentService.OTHER_INCOME, x.getId(), req.getAttachmentIds());
         logService.recordOperateLog(MENU, "登记其他收入", null, Map.of("incomeNo", x.getIncomeNo(), "amount", x.getAmount().toPlainString()));
@@ -67,6 +71,10 @@ public class OtherIncomeService {
         BigDecimal before = x.getAmount();
         fill(x, req);
         mapper.updateById(x);
+        // 可在「公共」与某事业部之间改，为空也要写回
+        mapper.update(null, new LambdaUpdateWrapper<OtherIncomeDO>()
+                .set(OtherIncomeDO::getBusinessUnitId, businessUnitService.forOptional(req.getBusinessUnitId()))
+                .eq(OtherIncomeDO::getId, id));
         attachments.sync(AttachmentService.OTHER_INCOME, id, req.getAttachmentIds());
         logService.recordOperateLog(MENU, "修改其他收入", Map.of("incomeNo", x.getIncomeNo(), "amount", before.toPlainString()),
                 Map.of("incomeNo", x.getIncomeNo(), "amount", x.getAmount().toPlainString()));
@@ -141,6 +149,13 @@ public class OtherIncomeService {
         if (!Boolean.TRUE.equals(q.getShowVoid())) {
             w.eq(OtherIncomeDO::getStatus, FinanceConstants.RECORD_VALID);
         }
+        if (q.getBusinessUnitId() != null) {
+            if (q.getBusinessUnitId() == 0) {
+                w.isNull(OtherIncomeDO::getBusinessUnitId);
+            } else {
+                w.eq(OtherIncomeDO::getBusinessUnitId, q.getBusinessUnitId());
+            }
+        }
         if (StringUtils.hasText(q.getCategory())) {
             w.eq(OtherIncomeDO::getCategory, q.getCategory());
         }
@@ -165,6 +180,7 @@ public class OtherIncomeService {
             vo.setId(x.getId());
             vo.setIncomeNo(x.getIncomeNo());
             vo.setIncomeDate(x.getIncomeDate());
+            vo.setBusinessUnitId(x.getBusinessUnitId());
             vo.setCategory(x.getCategory());
             vo.setCategoryName(names.getOrDefault(x.getCategory(), x.getCategory()));
             vo.setAmount(x.getAmount());

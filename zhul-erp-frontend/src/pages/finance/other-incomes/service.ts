@@ -16,6 +16,8 @@ export interface OtherIncome {
   id: number;
   incomeNo: string;
   incomeDate: string;
+  /** 所属事业部；为空表示「公共」 */
+  businessUnitId?: number;
   category: string;
   categoryName?: string;
   amount: number;
@@ -33,6 +35,8 @@ export interface OtherIncome {
 export interface OtherIncomeQuery {
   page: number;
   pageSize: number;
+  /** 所属事业部筛选：0 表示「公共」 */
+  businessUnitId?: number;
   category?: string;
   dateFrom?: string;
   dateTo?: string;
@@ -41,6 +45,8 @@ export interface OtherIncomeQuery {
 
 export interface SaveOtherIncomeBody {
   incomeDate: string;
+  /** 所属事业部；为空表示「公共」 */
+  businessUnitId?: number;
   category: string;
   amount: number;
   remark: string;

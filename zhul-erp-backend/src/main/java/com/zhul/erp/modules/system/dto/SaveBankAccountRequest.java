@@ -33,4 +33,6 @@ public class SaveBankAccountRequest {
     private String branchCode;
     @Size(max = 200, message = "备注不能超过 200 字")
     private String remark;
+    /** 所属事业部（公司设置了事业部时必选） */
+    private Integer businessUnitId;
 }

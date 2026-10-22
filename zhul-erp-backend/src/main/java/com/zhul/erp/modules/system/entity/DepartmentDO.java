@@ -5,6 +5,7 @@ import com.zhul.erp.common.entity.BaseEntity;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Data
@@ -23,5 +24,9 @@ public class DepartmentDO extends BaseEntity {
     private String remark;
     private Integer sort;
     private Integer status;
+    /** 是否事业部（0-否、1-是） */
+    private Integer isBusinessUnit;
+    /** 事业部开始核算月份（当月 1 日） */
+    private LocalDate buStartMonth;
     private LocalDateTime deletedAt;
 }

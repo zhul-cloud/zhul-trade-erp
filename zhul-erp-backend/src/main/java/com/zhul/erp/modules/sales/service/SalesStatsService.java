@@ -24,6 +24,7 @@ import com.zhul.erp.modules.sales.entity.SalesOrderDO;
 import com.zhul.erp.modules.sales.repository.ProformaInvoiceMapper;
 import com.zhul.erp.modules.sales.repository.SalesOrderMapper;
 import com.zhul.erp.modules.sales.support.PiStore;
+import com.zhul.erp.modules.system.service.BusinessUnitService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -64,6 +65,7 @@ public class SalesStatsService {
     private final OrderCostService orderCostService;
     private final DataScopeResolver dataScopeResolver;
     private final InquiryLookups lookups;
+    private final BusinessUnitService businessUnitService;
 
     /** 一组的累计：0 全部、1 新客户、2 老客户 */
     private static final class Acc {
@@ -102,16 +104,20 @@ public class SalesStatsService {
         String view = q.getView() == null ? "MONTH" : q.getView();
         DataScope scope = dataScopeResolver.current();
         int tenant = PiStore.tenantId();
+        // 事业部可见范围在服务端判定（spec access/data-scope「统计按事业部限定可见范围」）
+        Integer unit = businessUnitService.statsUnit(q.getBusinessUnitId());
 
         List<OpportunityDO> opps = opportunityMapper.selectList(owner(scope, q.getOwnerId(),
                 new LambdaQueryWrapper<OpportunityDO>()
                 .eq(OpportunityDO::getTenantId, tenant)
+                .eq(unit != null, OpportunityDO::getBusinessUnitId, unit)
                 .isNull(OpportunityDO::getDeletedAt)
                 .ge(OpportunityDO::getCreateTime, from.atStartOfDay())
                 .lt(OpportunityDO::getCreateTime, to.plusDays(1).atStartOfDay()), OpportunityDO::getOwnerId));
         List<CustomerInquiryDO> inquiries = inquiryMapper.selectList(owner(scope, q.getOwnerId(),
                 new LambdaQueryWrapper<CustomerInquiryDO>()
                 .eq(CustomerInquiryDO::getTenantId, tenant)
+                .eq(unit != null, CustomerInquiryDO::getBusinessUnitId, unit)
                 .isNull(CustomerInquiryDO::getDeletedAt)
                 .ne(CustomerInquiryDO::getStatus, InquiryConstants.STATUS_CANCELLED)
                 .ge(CustomerInquiryDO::getInquiryDate, from)
@@ -119,6 +125,7 @@ public class SalesStatsService {
         List<QuotationDO> quotations = quotationMapper.selectList(owner(scope, q.getOwnerId(),
                 new LambdaQueryWrapper<QuotationDO>()
                 .eq(QuotationDO::getTenantId, tenant)
+                .eq(unit != null, QuotationDO::getBusinessUnitId, unit)
                 .isNull(QuotationDO::getDeletedAt)
                 .ne(QuotationDO::getStatus, QuotationConstants.STATUS_VOID)
                 .isNotNull(QuotationDO::getSentAt)
@@ -127,6 +134,7 @@ public class SalesStatsService {
         List<ProformaInvoiceDO> pis = piMapper.selectList(owner(scope, q.getOwnerId(),
                 new LambdaQueryWrapper<ProformaInvoiceDO>()
                 .eq(ProformaInvoiceDO::getTenantId, tenant)
+                .eq(unit != null, ProformaInvoiceDO::getBusinessUnitId, unit)
                 .isNull(ProformaInvoiceDO::getDeletedAt)
                 .ne(ProformaInvoiceDO::getStatus, SalesConstants.PI_VOID)
                 .isNotNull(ProformaInvoiceDO::getSentAt)
@@ -135,6 +143,7 @@ public class SalesStatsService {
         List<SalesOrderDO> orders = orderMapper.selectList(owner(scope, q.getOwnerId(),
                 new LambdaQueryWrapper<SalesOrderDO>()
                 .eq(SalesOrderDO::getTenantId, tenant)
+                .eq(unit != null, SalesOrderDO::getBusinessUnitId, unit)
                 .isNull(SalesOrderDO::getDeletedAt)
                 .eq(SalesOrderDO::getStatus, SalesConstants.SO_ACTIVE)
                 .ge(SalesOrderDO::getSalesDate, from)

@@ -32,17 +32,26 @@ export interface ReceiptRecordQuery {
   /** 结汇状态：1-未结汇、2-部分结汇、3-已结汇 */
   settleStatus?: number;
   includeVoid?: boolean;
+  /** 所属事业部 */
+  businessUnitId?: number;
   page: number;
   pageSize: number;
 }
 
 /** 财务管理 → 收款单：未认领到账与收款记录 */
 export const ledgerApi = {
-  unclaimed: (keyword?: string, currencyCode?: string) =>
+  unclaimed: (
+    keyword?: string,
+    currencyCode?: string,
+    businessUnitId?: number,
+  ) =>
     unwrap(
       request<{
         data: { unclaimed: ReceiptRow[]; recentClaimed: ReceiptRow[] };
-      }>(`${FIN}/unclaimed`, { params: { keyword, currencyCode }, ...quiet }),
+      }>(`${FIN}/unclaimed`, {
+        params: { keyword, currencyCode, businessUnitId },
+        ...quiet,
+      }),
     ),
   registerUnclaimed: (body: {
     currencyCode: string;

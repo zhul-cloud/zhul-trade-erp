@@ -14,6 +14,8 @@ public class ProfitStatsQuery {
     /** 1-新客户、2-老客户（同询盘的新老客户标记） */
     private Integer customerType;
     private Boolean settledOnly;
+    /** 事业部；不传时能看合计的看合计，否则看第一个可看的事业部 */
+    private Integer businessUnitId;
     /** MONTH 月份（默认）、OWNER 业务员、CUSTOMER 客户 */
     private String groupBy;
 }
