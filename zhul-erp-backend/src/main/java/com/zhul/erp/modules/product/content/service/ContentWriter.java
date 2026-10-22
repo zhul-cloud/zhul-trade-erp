@@ -58,6 +58,7 @@ import com.zhul.erp.modules.product.repository.ProductRelationshipMapper;
 import com.zhul.erp.modules.product.repository.ProductSpecificationMapper;
 import com.zhul.erp.modules.product.support.MpnNormalizer;
 import com.zhul.erp.modules.product.support.ProductFinder;
+import com.zhul.erp.modules.system.service.ExchangeRateService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -67,6 +68,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -75,6 +77,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Stream;
 
 /**
  * 确认写入一个文件（一个商品的一个包），调用方负责事务（spec product/product-content「确认写入」）。
@@ -120,6 +123,7 @@ public class ContentWriter {
     private final ObjectMapper objectMapper;
     private final ProductListingPriceMapper listingPriceMapper;
     private final ProductReferencePriceMapper referencePriceMapper;
+    private final ExchangeRateService exchangeRateService;
 
     /**
      * 返回写入摘要。draft 给出包类型、语言、规范版本与拆出的部分；blocks 为要写入的块（跳过与有错的块已去掉）。
@@ -167,7 +171,16 @@ public class ContentWriter {
                 case SERIES -> summary.add(writeSeries(product, b.getText()));
                 case LOGISTICS -> summary.add(writeLogistics(productId, b.getFields()));
                 case CUSTOMS -> summary.add(writeCustoms(productId, b.getFields()));
-                case LISTING_PRICES -> summary.add(writeListings(productId, b.getListings(), draft.getUpdated(), imp.getId()));
+                case LISTING_PRICES -> {
+                    summary.add(writeListings(productId, b.getListings(), draft.getUpdated(), imp.getId()));
+                    // 没有单独写「商品平台参考价」时，用挂牌价生成商品卡片的平台参考价
+                    ContentDraft.Block card = blocks.get(ContentSection.CARD_PRICE);
+                    ContentDraft.CardPriceRow derived = card != null && card.getCardPrice() != null ? null
+                            : cardPriceFromListings(b.getListings(), usdRate());
+                    if (derived != null) {
+                        summary.add(writeCardPrice(productId, derived, draft.getUpdated()));
+                    }
+                }
                 case CARD_PRICE -> summary.add(writeCardPrice(productId, b.getCardPrice(), draft.getUpdated()));
                 default -> {
                     // SEO/GEO 文本块统一在下面写
@@ -976,6 +989,48 @@ public class ContentWriter {
             listingPriceMapper.insert(row);
         }
         return "平台参考价 " + rows.size() + " 条";
+    }
+
+    /**
+     * 从平台参考价（挂牌价）生成商品卡片的平台参考价：不看类目参考行；成色为全新的行里取最低价，没有全新时取所有行的最低价；
+     * 币种 USD，汇率为系统当前美元汇率（没有时为空，显示未计算），价格来源写平台、成色与价格类别，
+     * 取价日期留空（写入时取 frontmatter 的 updated）。没有行时返回 null
+     */
+    /** 同类别可比商品的挂牌价（价格类别写「类目参考、不代表目标型号价格」）不当作本商品的参考价 */
+    static final String NOT_TARGET = "不代表目标型号";
+
+    public static ContentDraft.CardPriceRow cardPriceFromListings(List<ContentDraft.ListingRow> rows, BigDecimal usdRate) {
+        List<ContentDraft.ListingRow> priced = rows == null ? List.of()
+                : rows.stream().filter(r -> r.priceUsd() != null && r.priceUsd().signum() > 0)
+                .filter(r -> r.category() == null || !r.category().contains(NOT_TARGET)).toList();
+        if (priced.isEmpty()) {
+            return null;
+        }
+        List<ContentDraft.ListingRow> fresh = priced.stream().filter(r -> isNewCondition(r.condition())).toList();
+        ContentDraft.ListingRow pick = (fresh.isEmpty() ? priced : fresh).stream()
+                .min(Comparator.comparing(ContentDraft.ListingRow::priceUsd)).orElseThrow();
+        String source = String.join(" ", Stream.of(pick.platform(), pick.condition(), pick.category())
+                .filter(v -> v != null && !v.isBlank()).map(String::strip).toList());
+        if (source.length() > 128) {
+            source = source.substring(0, 128);
+        }
+        return new ContentDraft.CardPriceRow("USD", pick.priceUsd().setScale(2, RoundingMode.HALF_UP),
+                usdRate == null ? null : usdRate.setScale(6, RoundingMode.HALF_UP), source.isEmpty() ? null : source, null);
+    }
+
+    /** 成色是否为全新：New、全新、新品（不分大小写，New 开头的如 New other 也算） */
+    static boolean isNewCondition(String condition) {
+        if (condition == null) {
+            return false;
+        }
+        String c = condition.strip().toLowerCase(Locale.ROOT);
+        return c.startsWith("new") || c.contains("全新") || c.startsWith("新品");
+    }
+
+    /** 系统当前美元汇率（当前租户）；没有设置时为 null */
+    BigDecimal usdRate() {
+        ExchangeRateService.Snapshot r = exchangeRateService.find("USD");
+        return r == null ? null : r.rate();
     }
 
     /**

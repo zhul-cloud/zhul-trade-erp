@@ -106,7 +106,18 @@ public class ListingTaskController {
     @PreAuthorize(VIEW)
     public ResponseEntity<StreamingResponseBody> referenceZip(@PathVariable Long id, @RequestParam(required = false) String brand,
                                                               @RequestParam String model) {
-        ListingTaskService.ZipPlan plan = service.referenceZip(id, brand, model);
+        return zip(service.referenceZip(id, brand, model));
+    }
+
+    /** 这个任务显示的素材打成 zip：source=reference 为已选的参考素材，否则本型号的发品素材 */
+    @GetMapping("/{id}/media/zip")
+    @PreAuthorize(VIEW)
+    public ResponseEntity<StreamingResponseBody> mediaZip(@PathVariable Long id,
+                                                          @RequestParam(defaultValue = "own") String source) {
+        return zip(service.taskZip(id, "reference".equals(source)));
+    }
+
+    private ResponseEntity<StreamingResponseBody> zip(ListingTaskService.ZipPlan plan) {
         StreamingResponseBody body = out -> service.writeZip(plan, out);
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION,

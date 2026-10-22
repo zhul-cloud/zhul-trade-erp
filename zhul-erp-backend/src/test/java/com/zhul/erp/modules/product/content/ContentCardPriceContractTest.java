@@ -19,7 +19,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 
 /**
  * spec product/product-content「商品内容规范 v2」：资料包「## 商品平台参考价」写商品卡片的平台参考价；
- * 与「## 平台参考价」六列表格（公开挂牌价）互不影响
+ * 没有这一节时，「## 平台参考价」六列表格（公开挂牌价）按全新最低价生成商品卡片的平台参考价
  */
 class ContentCardPriceContractTest extends InquiryContractSupport {
 
@@ -53,6 +53,16 @@ class ContentCardPriceContractTest extends InquiryContractSupport {
         jdbc.update("delete from product where brand_id in (select id from product_brand where brand_name = ?)", BRAND);
         jdbc.update("delete from product_brand where brand_name = ?", BRAND);
         jdbc.update("delete from product_category where category_code = 'itc-cp-plc'");
+        jdbc.update("delete from exchange_rate where tenant_id = 0 and currency_code = 'USD'");
+    }
+
+    private static String listings(String... rows) {
+        StringBuilder b = new StringBuilder("## 平台参考价\n| 价格类别 | 平台/网站 | 成色 | 参考价格（USD） | 来源原价 | 来源链接 |\n"
+                + "| --- | --- | --- | ---: | --- | --- |\n");
+        for (String r : rows) {
+            b.append(r).append('\n');
+        }
+        return b.append('\n').toString();
     }
 
     private static String facts(String updated, String body) {
@@ -122,6 +132,7 @@ class ContentCardPriceContractTest extends InquiryContractSupport {
         assertTrue(b.path("hints").toString().contains("人民币参考价：2137.04"), b.toString());
         assertTrue(b.path("hints").toString().contains("写入商品卡片的平台参考价"));
         assertEquals(1, block(p, "LISTING_PRICES").path("count").asInt());
+        assertTrue(block(p, "LISTING_PRICES").path("hints").toString().contains("商品卡片的平台参考价按「商品平台参考价」写入"));
 
         confirm(content);
         JsonNode r = price();
@@ -136,6 +147,57 @@ class ContentCardPriceContractTest extends InquiryContractSupport {
         JsonNode listings = ok(call(get(PRODUCTS + "/" + product + "/listing-prices"), admin));
         assertEquals(1, listings.size());
         money("120.00", listings.get(0).path("priceUsd"));
+    }
+
+    @Test
+    void listingTable_createsCardPrice_lowestNew_systemRate() throws Exception {
+        jdbc.update("insert into exchange_rate (tenant_id, currency_code, rate) values (0, 'USD', 7.1)");
+        String content = facts("2026-10-19", listings(
+                "| 目标型号挂牌价 | eBay | New | 308.00 | USD 308.00 | [eBay](https://www.ebay.com/itm/1) |",
+                "| 目标型号挂牌价 | eBay | Used | 250.00 | USD 250.00 | [eBay](https://www.ebay.com/itm/2) |",
+                "| 目标型号挂牌价 | Amazon | New | 320.00 | USD 320.00 | [Amazon](https://www.amazon.com/dp/3) |"));
+        JsonNode p = preview(content);
+        assertTrue(p.path("confirmable").asBoolean(), p.toString());
+        String hints = block(p, "LISTING_PRICES").path("hints").toString();
+        assertTrue(hints.contains("同时生成商品卡片的平台参考价：取全新挂牌价里的最低价 USD 308.00"), hints);
+        assertTrue(hints.contains("系统美元汇率 7.100000"), hints);
+        assertTrue(hints.contains("人民币参考价：2186.80"), hints);
+
+        confirm(content);
+        JsonNode r = price();
+        assertEquals("USD", r.path("currencyCode").asText());
+        money("308.00", r.path("priceOriginal"));
+        money("7.100000", r.path("exchangeRate"));
+        money("2186.80", r.path("priceCny"));
+        assertEquals("eBay New 目标型号挂牌价", r.path("priceSource").asText());
+        assertEquals("2026-10-19", r.path("priceDate").asText());
+        assertEquals(3, ok(call(get(PRODUCTS + "/" + product + "/listing-prices"), admin)).size(), "挂牌价照常整份写入");
+
+        // 没有全新：取所有行的最低价；重新导入替换现有
+        confirm(facts("2026-10-20", listings(
+                "| 目标型号参考挂牌 | eBay（美国站） | Used | 300.00 | US$ 300.00 | [eBay](https://www.ebay.com/itm/4) |",
+                "| 目标型号参考挂牌 | eBay（美国站） | Used | 289.69 | US$ 289.69 | [eBay](https://www.ebay.com/itm/5) |")));
+        JsonNode used = price();
+        money("289.69", used.path("priceOriginal"));
+        money("2056.80", used.path("priceCny"));
+        assertEquals("2026-10-20", used.path("priceDate").asText());
+    }
+
+    @Test
+    void listingTable_noSystemRate_notCalculated_categoryRowsSkipped() throws Exception {
+        // 类目参考行不当作本商品的参考价
+        confirm(facts("2026-10-19", listings(
+                "| 类目参考、不代表目标型号价格 | eBay | New | 99.00 | USD 99.00 | [eBay](https://www.ebay.com/itm/6) |")));
+        assertFalse(price().has("currencyCode") && !price().path("currencyCode").isNull(), "只有类目参考时不生成");
+
+        JsonNode p = preview(facts("2026-10-19", listings(
+                "| 目标型号挂牌价 | eBay | New | 120.00 | USD 120.00 | [eBay](https://www.ebay.com/itm/7) |")));
+        assertTrue(block(p, "LISTING_PRICES").path("hints").toString().contains("系统没有美元汇率"), p.toString());
+        confirm(facts("2026-10-19", listings(
+                "| 目标型号挂牌价 | eBay | New | 120.00 | USD 120.00 | [eBay](https://www.ebay.com/itm/7) |")));
+        JsonNode r = price();
+        money("120.00", r.path("priceOriginal"));
+        assertTrue(r.path("priceCny").isNull() || r.path("priceCny").isMissingNode(), "没有汇率时未计算");
     }
 
     @Test

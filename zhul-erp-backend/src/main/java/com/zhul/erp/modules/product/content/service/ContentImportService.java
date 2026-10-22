@@ -612,7 +612,24 @@ public class ContentImportService {
                         .isNull(ProductFactNoteDO::getDeletedAt));
                 hints.add("整份替换该商品的资料待确认项（" + b.getSection().label() + "，现有 " + existing + " 项），所有公司共用");
             }
-            case LISTING_PRICES -> hints.add("整份替换该商品的平台参考价（公开挂牌价，所有公司共用），不是成交价或报价");
+            case LISTING_PRICES -> {
+                hints.add("整份替换该商品的平台参考价（公开挂牌价，所有公司共用），不是成交价或报价");
+                ContentDraft.Block card = draft.getBlocks().get(ContentSection.CARD_PRICE);
+                if (card != null && card.getCardPrice() != null) {
+                    hints.add("商品卡片的平台参考价按「商品平台参考价」写入");
+                } else {
+                    ContentDraft.CardPriceRow derived = ContentWriter.cardPriceFromListings(b.getListings(), writer.usdRate());
+                    if (derived != null) {
+                        hints.add("同时生成商品卡片的平台参考价：取" + (b.getListings().stream()
+                                .anyMatch(r -> ContentWriter.isNewCondition(r.condition())) ? "全新" : "所有")
+                                + "挂牌价里的最低价 USD " + derived.priceOriginal().toPlainString()
+                                + (derived.priceSource() == null ? "" : "（" + derived.priceSource() + "）")
+                                + (derived.exchangeRate() == null ? "，系统没有美元汇率" : "，系统美元汇率 "
+                                + derived.exchangeRate().toPlainString()));
+                        hints.addAll(cardPriceHints(derived, productId, draft.getUpdated()));
+                    }
+                }
+            }
             case CARD_PRICE -> hints.addAll(cardPriceHints(b.getCardPrice(), productId, draft.getUpdated()));
             case SOURCES -> {
                 long local = b.getSources().stream().filter(x -> !ContentWriter.isWebLink(x.link())).count();

@@ -140,6 +140,16 @@ public class ExchangeRateServiceImpl implements ExchangeRateService {
 
     @Override
     public Snapshot require(String currencyCode) {
+        Snapshot rate = find(currencyCode);
+        if (rate == null) {
+            String code = currencyCode == null ? "" : currencyCode.trim().toUpperCase(Locale.ROOT);
+            throw BizException.of("EXCHANGE_RATE_MISSING", "还没有设置 " + code + " 汇率，请联系管理员在系统管理中设置");
+        }
+        return rate;
+    }
+
+    @Override
+    public Snapshot find(String currencyCode) {
         String code = currencyCode == null ? "" : currencyCode.trim().toUpperCase(Locale.ROOT);
         if (BASE_CURRENCY.equals(code)) {
             return new Snapshot(BASE_CURRENCY, BigDecimal.ONE.setScale(SCALE), null);
@@ -148,7 +158,7 @@ public class ExchangeRateServiceImpl implements ExchangeRateService {
                 .eq(ExchangeRateDO::getTenantId, tenantId())
                 .eq(ExchangeRateDO::getCurrencyCode, code)) : null;
         if (row == null || row.getRate() == null || row.getRate().signum() <= 0) {
-            throw BizException.of("EXCHANGE_RATE_MISSING", "还没有设置 " + code + " 汇率，请联系管理员在系统管理中设置");
+            return null;
         }
         return new Snapshot(code, row.getRate(), row.getRateTime());
     }

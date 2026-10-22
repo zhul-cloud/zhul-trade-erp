@@ -328,6 +328,28 @@ class ListingTaskContractTest extends TenantContractSupport {
         // 不在参考列表的型号：按普通错误返回，不打包
         assertEquals("只能从这个型号的参考素材里选择", fail(call(get(API + "/" + id + "/references/zip")
                 .param("brand", BRAND).param("model", "L-9"), a)).path("message").asText());
+
+        // 选好参考素材后，详情里「参考素材」的全部下载也打成一个包，图片和视频都在
+        assertEquals("还没有选参考素材，或参考型号没有可发客户的图片和视频", fail(call(get(API + "/" + id + "/media/zip")
+                .param("source", "reference"), a)).path("message").asText());
+        ok(call(json(put(API + "/" + id + "/reference"), write(Map.of("brand", BRAND, "model", "L-2"))), a));
+        MvcResult refStarted = mvc.perform(get(API + "/" + id + "/media/zip").param("source", "reference")
+                .header("Authorization", "Bearer " + a)).andReturn();
+        MockHttpServletResponse refRes = mvc.perform(asyncDispatch(refStarted)).andReturn().getResponse();
+        assertEquals(200, refRes.getStatus());
+        assertEquals(List.of("营销图.png", "营销图 (2).png"), new ArrayList<>(zipEntries(refRes).keySet()));
+        // 本型号还没有发品素材
+        assertEquals("这个型号还没有发品素材", fail(call(get(API + "/" + id + "/media/zip"), a)).path("message").asText());
+    }
+
+    private static Map<String, byte[]> zipEntries(MockHttpServletResponse res) throws Exception {
+        Map<String, byte[]> entries = new LinkedHashMap<>();
+        try (ZipInputStream zip = new ZipInputStream(new ByteArrayInputStream(res.getContentAsByteArray()), StandardCharsets.UTF_8)) {
+            for (ZipEntry e = zip.getNextEntry(); e != null; e = zip.getNextEntry()) {
+                entries.put(e.getName(), zip.readAllBytes());
+            }
+        }
+        return entries;
     }
 
     // ---------------------------------------------------------------- 准备数据

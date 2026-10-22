@@ -28,11 +28,9 @@ import {
   MediaGrid,
   usePreviewer,
 } from '@/pages/operations/media/MediaDrawer';
-import {
-  downloadAll,
-  type MediaItem,
-  type MediaReference,
-  refOf,
+import type {
+  MediaItem,
+  MediaReference,
 } from '@/pages/operations/media/service';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import type { PlatformContent, ProductContent } from '@/pages/product/service';
@@ -47,8 +45,6 @@ import {
   type PublishBody,
   readBizError,
 } from './service';
-
-const MAX_DOWNLOAD = 50;
 
 /** 复制到剪贴板：优先用剪贴板接口，不可用时退回选中文本复制 */
 const copyText = async (text: string) => {
@@ -209,8 +205,8 @@ const MediaBlock: React.FC<{
   model: string;
   fetchUrls: FetchUrls;
   extra?: React.ReactNode;
-  /** 「全部下载」的做法；不传时逐个下载（最多 50 个） */
-  onDownloadAll?: () => Promise<void>;
+  /** 「全部下载」：图片和视频打成一个 zip */
+  onDownloadAll: () => Promise<void>;
 }> = ({ title, items, brand, model, fetchUrls, extra, onDownloadAll }) => {
   const { palette } = useAppTheme();
   const { message } = App.useApp();
@@ -242,18 +238,7 @@ const MediaBlock: React.FC<{
           onClick={async () => {
             setDownloading(true);
             try {
-              if (onDownloadAll) {
-                await onDownloadAll();
-                return;
-              }
-              await downloadAll(
-                await fetchUrls(
-                  items
-                    .slice(0, MAX_DOWNLOAD)
-                    .map((i) => refOf(i, brand, model)),
-                  true,
-                ),
-              );
+              await onDownloadAll();
             } catch (e) {
               message.error(readBizError(e).message);
             } finally {
@@ -772,6 +757,9 @@ const ListingPanel: React.FC<{
                 brand={t.refBrand ?? ''}
                 model={t.refModel as string}
                 fetchUrls={fetchUrls}
+                onDownloadAll={() =>
+                  listingApi.downloadMediaZip(id, 'reference')
+                }
                 extra={
                   pending &&
                   canEdit && (
@@ -807,6 +795,7 @@ const ListingPanel: React.FC<{
                 brand={brand}
                 model={model}
                 fetchUrls={fetchUrls}
+                onDownloadAll={() => listingApi.downloadMediaZip(id, 'own')}
               />
             )}
             {!showOwn && !showRef && (

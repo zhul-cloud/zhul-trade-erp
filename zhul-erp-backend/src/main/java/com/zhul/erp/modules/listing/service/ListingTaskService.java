@@ -383,6 +383,26 @@ public class ListingTaskService {
         if (items.isEmpty()) {
             throw new BizException("这个型号没有可发客户的图片和视频");
         }
+        return zipPlan(items, brand, model, "参考素材-");
+    }
+
+    /**
+     * 这个任务显示的素材打包：reference = 已选的参考素材（可发客户），否则本型号的发品素材。
+     * 与详情页显示的一致，所以已选参考型号不再在参考列表里时也能下载。
+     */
+    public ZipPlan taskZip(Long id, boolean reference) {
+        ListingTaskDetailVO d = detail(id);
+        ListingTaskDO t = find(id);
+        List<MediaItemVO> items = reference ? d.getReferenceMedia() : d.getOwnMedia();
+        if (items == null || items.isEmpty()) {
+            throw new BizException(reference ? "还没有选参考素材，或参考型号没有可发客户的图片和视频" : "这个型号还没有发品素材");
+        }
+        String brand = reference ? t.getRefBrand() : d.getTask().getBrand();
+        String model = reference ? t.getRefModel() : d.getTask().getModel();
+        return zipPlan(items, brand, model, reference ? "参考素材-" : "发品素材-");
+    }
+
+    private ZipPlan zipPlan(List<MediaItemVO> items, String brand, String model, String prefix) {
         List<ZipFile> files = new ArrayList<>();
         List<String> notes = new ArrayList<>();
         Set<String> used = new HashSet<>();
@@ -404,7 +424,7 @@ public class ListingTaskService {
             }
             files.add(new ZipFile(uniqueName(safeName(src.fileName()), used), src.storage(), src.key()));
         }
-        return new ZipPlan(safeName("参考素材-" + (brand == null ? "" : brand.trim()) + "-" + model.trim()) + ".zip", files, notes);
+        return new ZipPlan(safeName(prefix + (brand == null ? "" : brand.trim()) + "-" + model.trim()) + ".zip", files, notes);
     }
 
     /** 按清单边读边写 zip（图片视频本身已压缩，不再压缩，省 CPU） */

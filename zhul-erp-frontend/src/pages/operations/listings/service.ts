@@ -150,36 +150,15 @@ export const listingApi = {
       ...quiet,
     }).then((r) => r.data),
   /** 参考型号的可发客户图片和视频打成一个 zip 下载 */
-  downloadReferenceZip: async (id: number, brand: string, model: string) => {
-    const res = await request<Blob>(`${API}/${id}/references/zip`, {
-      method: 'GET',
-      params: { brand, model },
-      responseType: 'blob',
-      getResponse: true,
-      ...quiet,
-    });
-    const data = res.data as Blob;
-    if (data.type.includes('json')) {
-      const body = JSON.parse(await data.text()) as { message?: string };
-      throw new Error(body.message || '下载失败，请稍后重试');
-    }
-    const disposition =
-      (res.headers as Record<string, string | undefined>)?.[
-        'content-disposition'
-      ] ?? '';
-    const match = /filename\*=UTF-8''([^;]+)/.exec(disposition);
-    const name = match
-      ? decodeURIComponent(match[1])
-      : `参考素材-${brand}-${model}.zip`;
-    const url = window.URL.createObjectURL(data);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = name;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    window.URL.revokeObjectURL(url);
-  },
+  downloadReferenceZip: (id: number, brand: string, model: string) =>
+    saveZip(
+      `${API}/${id}/references/zip`,
+      { brand, model },
+      `参考素材-${brand}-${model}.zip`,
+    ),
+  /** 这个任务显示的素材打成一个 zip：已选的参考素材，或本型号的发品素材 */
+  downloadMediaZip: (id: number, source: 'reference' | 'own') =>
+    saveZip(`${API}/${id}/media/zip`, { source }, '素材.zip'),
   /** 选择参考素材；不传型号表示取消 */
   setReference: (id: number, ref?: { brand: string; model: string }) =>
     send<ListingDetail>('PUT', `${API}/${id}/reference`, ref ?? {}),
@@ -193,3 +172,37 @@ export const listingApi = {
 };
 
 export { readBizError } from '@/pages/inquiry/shared/service';
+
+/** 下载打包好的 zip；接口报错时（返回 JSON）抛出业务提示 */
+async function saveZip(
+  url: string,
+  params: Record<string, string>,
+  fallbackName: string,
+) {
+  const res = await request<Blob>(url, {
+    method: 'GET',
+    params,
+    responseType: 'blob',
+    getResponse: true,
+    ...quiet,
+  });
+  const data = res.data as Blob;
+  if (data.type.includes('json')) {
+    const body = JSON.parse(await data.text()) as { message?: string };
+    throw new Error(body.message || '下载失败，请稍后重试');
+  }
+  const disposition =
+    (res.headers as Record<string, string | undefined>)?.[
+      'content-disposition'
+    ] ?? '';
+  const match = /filename\*=UTF-8''([^;]+)/.exec(disposition);
+  const name = match ? decodeURIComponent(match[1]) : fallbackName;
+  const href = window.URL.createObjectURL(data);
+  const a = document.createElement('a');
+  a.href = href;
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  window.URL.revokeObjectURL(href);
+}
