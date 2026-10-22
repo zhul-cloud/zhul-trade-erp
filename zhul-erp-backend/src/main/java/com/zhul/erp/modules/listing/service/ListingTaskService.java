@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.zhul.erp.common.exception.BizException;
 import com.zhul.erp.common.result.PageResult;
 import com.zhul.erp.framework.security.SecurityUtils;
+import com.zhul.erp.framework.storage.FileStorageService;
 import com.zhul.erp.framework.storage.FileStorageService.FileLink;
 import com.zhul.erp.framework.tenant.TenantContext;
 import com.zhul.erp.modules.listing.constants.ListingConstants;
@@ -37,11 +38,16 @@ import com.zhul.erp.modules.product.repository.ProductCategoryMapper;
 import com.zhul.erp.modules.product.repository.ProductMapper;
 import com.zhul.erp.modules.product.support.MpnNormalizer;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -51,6 +57,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -58,9 +65,13 @@ import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import java.util.zip.Deflater;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 /** 发品任务：列表、详情（复制助手与素材）、参考素材、回填发布结果、已同步、已替换（spec product/listing-task） */
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class ListingTaskService {
 
@@ -78,6 +89,7 @@ public class ListingTaskService {
     private final MediaLibraryService mediaLibrary;
     private final MediaReferenceService mediaReferences;
     private final ContentTaskService contentTasks;
+    private final FileStorageService files;
 
     // ================================================================ 列表
 
@@ -340,6 +352,149 @@ public class ListingTaskService {
         return mediaReferences.references(brandName(p), p.getMpnRaw());
     }
 
+    /** 参考型号的可发客户图片和视频（选用前预览）；只限这个任务的参考列表 */
+    public List<MediaItemVO> referenceMedia(Long id, String brand, String model) {
+        requireReference(find(id), brand, model);
+        return media(brand, model, false);
+    }
+
+    /** 参考型号素材的预览或下载链接 */
+    public List<FileLink> referenceLinks(Long id, String brand, String model, List<MediaRef> refs, boolean download) {
+        List<MediaItemVO> items = referenceMedia(id, brand, model);
+        Set<String> allowed = new HashSet<>();
+        items.forEach(i -> allowed.add(i.getItemId() != null ? "i" + i.getItemId() : "o" + i.getOfficialTable() + i.getOfficialId()));
+        for (MediaRef r : refs) {
+            String k = r.getItemId() != null ? "i" + r.getItemId() : "o" + r.getOfficialTable() + r.getOfficialId();
+            if (!allowed.contains(k)) {
+                throw new BizException("素材不属于这个参考型号");
+            }
+        }
+        return mediaLibrary.links(refs, download);
+    }
+
+    /** 参考素材打包：zip 文件名、要打进包的文件（原文件名已去重）、说明（外链与超出上限的） */
+    public record ZipPlan(String fileName, List<ZipFile> files, List<String> notes) {
+    }
+
+    public record ZipFile(String name, String storage, String key, boolean publicRead) {
+    }
+
+    /** 参考型号的可发客户图片和视频打包（最多 50 个）；先算好清单，校验失败时按普通错误返回 */
+    public ZipPlan referenceZip(Long id, String brand, String model) {
+        List<MediaItemVO> items = referenceMedia(id, brand, model);
+        if (items.isEmpty()) {
+            throw new BizException("这个型号没有可发客户的图片和视频");
+        }
+        return zipPlan(items, brand, model, "参考素材-");
+    }
+
+    /**
+     * 这个任务显示的素材打包：reference = 已选的参考素材（可发客户），否则本型号的发品素材。
+     * 与详情页显示的一致，所以已选参考型号不再在参考列表里时也能下载。
+     */
+    public ZipPlan taskZip(Long id, boolean reference) {
+        ListingTaskDetailVO d = detail(id);
+        ListingTaskDO t = find(id);
+        List<MediaItemVO> items = reference ? d.getReferenceMedia() : d.getOwnMedia();
+        if (items == null || items.isEmpty()) {
+            throw new BizException(reference ? "还没有选参考素材，或参考型号没有可发客户的图片和视频" : "这个型号还没有发品素材");
+        }
+        String brand = reference ? t.getRefBrand() : d.getTask().getBrand();
+        String model = reference ? t.getRefModel() : d.getTask().getModel();
+        return zipPlan(items, brand, model, reference ? "参考素材-" : "发品素材-");
+    }
+
+    private ZipPlan zipPlan(List<MediaItemVO> items, String brand, String model, String prefix) {
+        List<ZipFile> files = new ArrayList<>();
+        List<String> notes = new ArrayList<>();
+        Set<String> used = new HashSet<>();
+        for (MediaItemVO i : items) {
+            MediaRef ref = new MediaRef();
+            ref.setItemId(i.getItemId());
+            ref.setOfficialTable(i.getOfficialTable());
+            ref.setOfficialId(i.getOfficialId());
+            ref.setBrand(brand);
+            ref.setModel(model);
+            MediaLibraryService.FileSource src = mediaLibrary.source(ref);
+            if (src.externalUrl() != null) {
+                notes.add("外部链接的官方素材，没有打包：" + src.externalUrl());
+                continue;
+            }
+            if (files.size() >= ListingConstants.MAX_ZIP_FILES) {
+                notes.add("超过 " + ListingConstants.MAX_ZIP_FILES + " 个文件，没有打包：" + src.fileName());
+                continue;
+            }
+            files.add(new ZipFile(uniqueName(safeName(src.fileName()), used), src.storage(), src.key(), src.publicRead()));
+        }
+        return new ZipPlan(safeName(prefix + (brand == null ? "" : brand.trim()) + "-" + model.trim()) + ".zip", files, notes);
+    }
+
+    /**
+     * 按清单边读边写 zip（图片视频本身已压缩，不再压缩，省 CPU）。
+     * 先打开文件再写条目：某个文件读不到时跳过并写进说明，不让整个包损坏
+     */
+    public void writeZip(ZipPlan plan, OutputStream out) throws IOException {
+        List<String> notes = new ArrayList<>(plan.notes());
+        try (ZipOutputStream zip = new ZipOutputStream(out, StandardCharsets.UTF_8)) {
+            zip.setLevel(Deflater.NO_COMPRESSION);
+            for (ZipFile f : plan.files()) {
+                InputStream opened;
+                try {
+                    opened = files.open(f.storage(), f.key(), f.publicRead());
+                } catch (BizException e) {
+                    log.warn("参考素材打包时文件读取失败，已跳过，name={}, key={}", f.name(), f.key());
+                    notes.add("文件读取失败，没有打包：" + f.name());
+                    continue;
+                }
+                try (InputStream in = opened) {
+                    zip.putNextEntry(new ZipEntry(f.name()));
+                    in.transferTo(zip);
+                    zip.closeEntry();
+                }
+            }
+            if (!notes.isEmpty()) {
+                zip.putNextEntry(new ZipEntry("说明.txt"));
+                zip.write(String.join("\n", notes).getBytes(StandardCharsets.UTF_8));
+                zip.closeEntry();
+            }
+        }
+    }
+
+    private static String safeName(String name) {
+        String n = name == null ? "" : name.replaceAll("[\\\\/:*?\"<>|\\r\\n\\t]", "_").strip();
+        return n.isEmpty() ? "file" : n;
+    }
+
+    /** 重名时在扩展名前加「 (2)」「 (3)」… */
+    private static String uniqueName(String name, Set<String> used) {
+        if (used.add(name.toLowerCase(Locale.ROOT))) {
+            return name;
+        }
+        int dot = name.lastIndexOf('.');
+        String base = dot > 0 ? name.substring(0, dot) : name;
+        String ext = dot > 0 ? name.substring(dot) : "";
+        for (int n = 2; ; n++) {
+            String candidate = base + " (" + n + ")" + ext;
+            if (used.add(candidate.toLowerCase(Locale.ROOT))) {
+                return candidate;
+            }
+        }
+    }
+
+    /** 型号必须在这个任务型号的参考列表里 */
+    private void requireReference(ListingTaskDO t, String brand, String model) {
+        if (!StringUtils.hasText(model)) {
+            throw new BizException("请指定参考型号");
+        }
+        ProductDO p = product(t);
+        String key = MediaIndexer.key(brand, model);
+        boolean listed = mediaReferences.references(brandName(p), p.getMpnRaw()).getModels().stream()
+                .anyMatch(m -> MediaIndexer.key(m.getBrand(), m.getModel()).equals(key));
+        if (!listed) {
+            throw new BizException("只能从这个型号的参考素材里选择");
+        }
+    }
+
     // ================================================================ 操作
 
     @Transactional(rollbackFor = Exception.class)
@@ -358,14 +513,7 @@ public class ListingTaskService {
             if (hasOwn(id)) {
                 throw new BizException("本型号已有发品素材，不需要参考素材");
             }
-            ProductDO p = product(t);
-            String brand = brandName(p);
-            String key = MediaIndexer.key(req.getBrand(), req.getModel());
-            boolean listed = mediaReferences.references(brand, p.getMpnRaw()).getModels().stream()
-                    .anyMatch(m -> MediaIndexer.key(m.getBrand(), m.getModel()).equals(key));
-            if (!listed) {
-                throw new BizException("只能从这个型号的参考素材里选择");
-            }
+            requireReference(t, req.getBrand(), req.getModel());
             w.set(ListingTaskDO::getRefBrand, req.getBrand() == null ? "" : req.getBrand().trim())
                     .set(ListingTaskDO::getRefModel, req.getModel().trim())
                     .set(ListingTaskDO::getRefBy, user).set(ListingTaskDO::getRefTime, now);

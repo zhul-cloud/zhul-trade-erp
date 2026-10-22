@@ -4,7 +4,12 @@ import { getIntl } from '@umijs/max';
 import { message, notification } from 'antd';
 import axios from 'axios';
 import { refreshToken as refreshTokenApi } from '@/services/zhul/auth';
-import { clearToken, getToken, updateTokenInPlace } from '@/utils/tokenStore';
+import {
+  clearToken,
+  getToken,
+  isAuthPath,
+  updateTokenInPlace,
+} from '@/utils/tokenStore';
 
 // 错误处理方案： 错误类型
 enum ErrorShowType {
@@ -73,6 +78,8 @@ function redirectToLoginExpired() {
   clearToken();
   localStorage.removeItem('zhul_user');
   const { pathname, search, hash } = window.location;
+  // 已经在登录页（如刚退出登录，之前发出的请求才返回未登录）：不再跳转，否则登录后会跳回登录页
+  if (isAuthPath(pathname)) return;
   window.location.href = `/login?redirect=${encodeURIComponent(pathname + search + hash)}&reason=token_expired`;
 }
 

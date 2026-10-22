@@ -23,4 +23,6 @@ public final class ListingConstants {
     public static final int MAX_URL = 500;
     public static final int MAX_ITEM_ID = 64;
     public static final int MAX_NOTE = 300;
+    /** 参考素材打包下载一个包最多的文件数，与素材下载一次最多 50 个一致 */
+    public static final int MAX_ZIP_FILES = 50;
 }

@@ -262,13 +262,6 @@ export default [
     routes: [
       { path: '/inquiry', redirect: '/inquiry/customer-inquiries' },
       {
-        path: '/inquiry/part-time-board',
-        name: 'partTimeBoard',
-        icon: 'dashboard',
-        access: 'inquiryPartTimeBoard',
-        component: './inquiry/part-time-board',
-      },
-      {
         path: '/inquiry/customer-inquiries',
         name: 'customerInquiry',
         icon: 'inbox',
@@ -718,6 +711,8 @@ export default [
       },
     ],
   },
+  // 兼职看板已并入工作台的采购员看板，原地址跳到工作台
+  { path: '/inquiry/part-time-board', redirect: '/dashboard' },
   { path: '/', redirect: '/dashboard' },
   { path: '/*', component: './exception/404' },
 ];

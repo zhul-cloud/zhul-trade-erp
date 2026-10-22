@@ -61,6 +61,8 @@ public class ContentDraft {
         private List<PostRow> posts = new ArrayList<>();
         /** 平台参考价（公开挂牌价） */
         private List<ListingRow> listings = new ArrayList<>();
+        /** 商品平台参考价（商品卡片）；整节未知时为空 */
+        private CardPriceRow cardPrice;
         /** 块级错误：有则该块必须修改或跳过才能确认 */
         private List<String> errors = new ArrayList<>();
         /** 块级提示：去重、截断等（不影响确认） */
@@ -72,7 +74,7 @@ public class ContentDraft {
             }
             return specs.size() + apps.size() + compat.size() + faqs.size() + docs.size() + keywords.size()
                     + points.size() + fields.size() + titles.size() + pairs.size() + notesRows.size() + sources.size()
-                    + picks.size() + posts.size() + listings.size();
+                    + picks.size() + posts.size() + listings.size() + (cardPrice == null ? 0 : 1);
         }
     }
 
@@ -123,6 +125,14 @@ public class ContentDraft {
     /** 平台参考价：价格类别、平台/网站、成色、美元价、来源原价、来源链接 */
     public record ListingRow(String category, String platform, String condition, java.math.BigDecimal priceUsd,
                              String sourcePrice, String linkTitle, String linkUrl) {
+    }
+
+    /**
+     * 商品平台参考价：币种、原币参考价（已保留 2 位）、汇率（已保留 6 位）、价格来源、取价日期。
+     * 币种与参考价必有；其余为空表示文件里未知，写入时不覆盖已有值
+     */
+    public record CardPriceRow(String currency, java.math.BigDecimal priceOriginal, java.math.BigDecimal exchangeRate,
+                               String priceSource, java.time.LocalDate priceDate) {
     }
 
     /** 社媒帖子（channel 为 LinkedIn、Facebook）或视频方案（channel 为 YouTube）；text 为原文 */

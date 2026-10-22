@@ -20,7 +20,7 @@ import com.zhul.erp.modules.inquiry.sourcing.dto.MyQuoteVO;
 import com.zhul.erp.modules.inquiry.sourcing.dto.MyTaskDetailVO;
 import com.zhul.erp.modules.inquiry.sourcing.dto.MyTaskItemVO;
 import com.zhul.erp.modules.inquiry.sourcing.dto.MyTaskVO;
-import com.zhul.erp.modules.inquiry.sourcing.dto.PartTimeBoardVO;
+import com.zhul.erp.modules.inquiry.sourcing.dto.QuoteBoardVO;
 import com.zhul.erp.modules.inquiry.sourcing.dto.PastePreviewVO;
 import com.zhul.erp.modules.inquiry.sourcing.dto.QuoteEntryRequest;
 import com.zhul.erp.modules.inquiry.sourcing.dto.ReturnTaskRequest;
@@ -170,14 +170,26 @@ public class MyTaskServiceImpl implements MyTaskService {
     }
 
     @Override
-    public PartTimeBoardVO partTimeBoard() {
+    public QuoteBoardVO quoteBoard() {
         Long me = me();
         List<MyTaskVO> pending = myTasks(false);
-        PartTimeBoardVO vo = new PartTimeBoardVO();
+        QuoteBoardVO vo = new QuoteBoardVO();
         vo.setPendingTasks(pending.size());
         vo.setTimeoutTasks((int) pending.stream().filter(t -> Boolean.TRUE.equals(t.getTimeout())).count());
         vo.setUrgentTasks((int) pending.stream().filter(t -> Boolean.TRUE.equals(t.getUrgent())).count());
         vo.setTodo(pending.subList(0, Math.min(5, pending.size())));
+        long untilMidnight = Duration.between(LocalDateTime.now(), LocalDate.now().plusDays(1).atStartOfDay()).toMinutes();
+        vo.setDueTodayTasks((int) pending.stream().filter(t -> !Boolean.TRUE.equals(t.getTimeout())
+                && t.getRemainingMinutes() != null && t.getRemainingMinutes() <= untilMidnight).count());
+        vo.setReturnedItems(quoteMapper.selectObjs(new QueryWrapper<SourcingQuoteDO>()
+                        .select("COUNT(DISTINCT inquiry_item_id)")
+                        .eq("tenant_id", tenantId())
+                        .eq("quoted_by", me)
+                        .eq("status", InquiryConstants.QUOTE_DRAFT)
+                        .isNotNull("reviewed_at")
+                        .ne("review_note", "")
+                        .isNull("deleted_at"))
+                .stream().findFirst().map(o -> ((Number) o).intValue()).orElse(0));
 
         LocalDate today = LocalDate.now();
         LocalDateTime monthStart = today.withDayOfMonth(1).atStartOfDay();
@@ -215,7 +227,7 @@ public class MyTaskServiceImpl implements MyTaskService {
         vo.setMonthQuotes(monthQuotes);
         vo.setMonthNoStock(monthNoStock);
         vo.setTrend(byDay.entrySet().stream().map(e -> {
-            PartTimeBoardVO.DayCount d = new PartTimeBoardVO.DayCount();
+            QuoteBoardVO.DayCount d = new QuoteBoardVO.DayCount();
             d.setDate(e.getKey());
             d.setItems(e.getValue().size());
             return d;

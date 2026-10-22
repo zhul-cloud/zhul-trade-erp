@@ -232,8 +232,13 @@ class SourcingExcelContractTest extends InquiryContractSupport {
         ok(call(json(post(BOARD + "/reviews/" + task + "/approve"), write(Map.of("items", approve))), admin));
         assertEquals(3, jdbc.queryForObject("select status from sourcing_task where id = ?", Integer.class, task));
 
-        // 兼职工作台：只统计本人；本月回价 3 个型号（含负责人代导入的那条）
-        JsonNode board = ok(call(get("/api/v1/inquiry/part-time-board"), wang));
+        // 工作台采购员看板（原兼职看板）：兼职采购的角色预设为采购员模板，只统计本人；本月回价 3 个型号（含负责人代导入的那条）
+        JsonNode bench = ok(call(get("/api/v1/workbench"), wang));
+        assertEquals("purchaser", bench.path("defaultCode").asText(), bench.toString());
+        List<String> keys = new java.util.ArrayList<>();
+        bench.path("boards").get(0).path("widgets").forEach(w -> keys.add(w.path("key").asText()));
+        assertEquals(List.of("my-inquiry", "quote-stats", "quote-trend"), keys, "兼职采购没有采购需求、采购订单菜单，不显示我的采购");
+        JsonNode board = ok(call(get("/api/v1/workbench/widgets/my-inquiry"), wang));
         assertEquals(0, board.path("pendingTasks").asInt());
         assertEquals(3, board.path("monthQuotedItems").asInt(), board.toString());
         assertEquals(3, board.path("totalQuotedItems").asInt());
@@ -241,6 +246,7 @@ class SourcingExcelContractTest extends InquiryContractSupport {
         assertEquals(1, board.path("monthCompletedTasks").asInt());
         assertEquals(30, board.path("trend").size());
         assertEquals(3, board.path("trend").get(29).path("items").asInt(), "今天的柱子");
-        assertEquals(403, perform(get("/api/v1/inquiry/part-time-board"), token("it_lin")).getStatus(), "没有兼职工作台菜单的采购不能访问");
+        assertEquals(0, board.path("returnedItems").asInt());
+        assertEquals(404, perform(get("/api/v1/inquiry/part-time-board"), wang).getStatus(), "兼职看板接口已去掉");
     }
 }

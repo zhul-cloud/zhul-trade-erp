@@ -4,7 +4,9 @@ import {
   DownloadOutlined,
   EditOutlined,
   ExportOutlined,
+  MinusOutlined,
   PictureOutlined,
+  PlusOutlined,
   SyncOutlined,
 } from '@ant-design/icons';
 import { Link, useAccess } from '@umijs/max';
@@ -26,11 +28,9 @@ import {
   MediaGrid,
   usePreviewer,
 } from '@/pages/operations/media/MediaDrawer';
-import {
-  downloadAll,
-  type MediaItem,
-  type MediaReference,
-  refOf,
+import type {
+  MediaItem,
+  MediaReference,
 } from '@/pages/operations/media/service';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import type { PlatformContent, ProductContent } from '@/pages/product/service';
@@ -45,8 +45,6 @@ import {
   type PublishBody,
   readBizError,
 } from './service';
-
-const MAX_DOWNLOAD = 50;
 
 /** 复制到剪贴板：优先用剪贴板接口，不可用时退回选中文本复制 */
 const copyText = async (text: string) => {
@@ -207,11 +205,14 @@ const MediaBlock: React.FC<{
   model: string;
   fetchUrls: FetchUrls;
   extra?: React.ReactNode;
-}> = ({ title, items, brand, model, fetchUrls, extra }) => {
+  /** 「全部下载」：图片和视频打成一个 zip */
+  onDownloadAll: () => Promise<void>;
+}> = ({ title, items, brand, model, fetchUrls, extra, onDownloadAll }) => {
   const { palette } = useAppTheme();
   const { message } = App.useApp();
   const [previews, setPreviews] = useState<Record<string, string>>({});
   const preview = usePreviewer(brand, model, fetchUrls);
+  const [downloading, setDownloading] = useState(false);
 
   useEffect(() => {
     loadPreviews(items, brand, model, fetchUrls)
@@ -233,18 +234,15 @@ const MediaBlock: React.FC<{
         <Button
           size="small"
           icon={<DownloadOutlined />}
+          loading={downloading}
           onClick={async () => {
+            setDownloading(true);
             try {
-              await downloadAll(
-                await fetchUrls(
-                  items
-                    .slice(0, MAX_DOWNLOAD)
-                    .map((i) => refOf(i, brand, model)),
-                  true,
-                ),
-              );
+              await onDownloadAll();
             } catch (e) {
               message.error(readBizError(e).message);
+            } finally {
+              setDownloading(false);
             }
           }}
         >
@@ -261,7 +259,52 @@ const MediaBlock: React.FC<{
   );
 };
 
-/** 选择参考素材：查找顺序与素材库相同，按热度排序 */
+/** 展开一个参考型号：它的可发客户图片和视频，点开放大或播放 */
+const ReferenceModelMedia: React.FC<{
+  id: number;
+  brand: string;
+  model: string;
+}> = ({ id, brand, model }) => {
+  const { palette } = useAppTheme();
+  const [items, setItems] = useState<MediaItem[]>();
+  const [error, setError] = useState<string>();
+  const fetchUrls: FetchUrls = useMemo(
+    () => (refs, download) =>
+      listingApi.referenceUrls(id, brand, model, refs, download),
+    [id, brand, model],
+  );
+
+  useEffect(() => {
+    listingApi
+      .referenceMedia(id, brand, model)
+      .then(setItems)
+      .catch((e) => setError(readBizError(e).message));
+  }, [id, brand, model]);
+
+  if (error) {
+    return <div style={{ color: palette.red, fontSize: 13 }}>{error}</div>;
+  }
+  if (!items) return <Skeleton active paragraph={{ rows: 2 }} />;
+  if (items.length === 0) {
+    return (
+      <div style={{ color: palette.mute, fontSize: 13 }}>
+        这个型号没有可发客户的图片和视频。
+      </div>
+    );
+  }
+  return (
+    <MediaBlock
+      title="可发客户的图片和视频（点开放大或播放）"
+      items={items}
+      brand={brand}
+      model={model}
+      fetchUrls={fetchUrls}
+      onDownloadAll={() => listingApi.downloadReferenceZip(id, brand, model)}
+    />
+  );
+};
+
+/** 选择参考素材：查找顺序与素材库相同，按热度排序；每个型号可展开预览素材 */
 const ReferencePicker: React.FC<{
   id?: number;
   onPick: (ref: { brand: string; model: string }) => Promise<void>;
@@ -271,10 +314,12 @@ const ReferencePicker: React.FC<{
   const { message } = App.useApp();
   const [data, setData] = useState<MediaReference>();
   const [picking, setPicking] = useState<string>();
+  const [expanded, setExpanded] = useState<string>();
 
   useEffect(() => {
     if (id === undefined) return;
     setData(undefined);
+    setExpanded(undefined);
     listingApi
       .references(id)
       .then(setData)
@@ -286,7 +331,7 @@ const ReferencePicker: React.FC<{
       open={id !== undefined}
       title="用参考素材发布"
       footer={null}
-      width={640}
+      width={860}
       onCancel={onClose}
       destroyOnHidden
     >
@@ -300,50 +345,67 @@ const ReferencePicker: React.FC<{
         <div style={{ display: 'grid', gap: 8 }}>
           <div style={{ fontSize: 13, color: palette.sub }}>
             按{data.levelName}找到 {data.models.length}{' '}
-            个有素材的型号，按询盘热度排序；选用后任务显示这个型号的可发客户图片和视频。
+            个有素材的型号，按询盘热度排序；点 +
+            展开预览图片和视频，选用后任务显示这个型号的可发客户图片和视频。
             {data.warning && (
               <span style={{ color: palette.orange }}>{data.warning}</span>
             )}
           </div>
           {data.models.map((m) => {
             const key = `${m.brand}|${m.model}`;
+            const open = expanded === key;
             return (
               <div
                 key={key}
                 style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 10,
                   border: `1px solid ${palette.hairline}`,
                   borderRadius: 12,
                   padding: '8px 12px',
                 }}
               >
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 600, color: palette.ink }}>
-                    {m.brand} {m.model}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <Button
+                    size="small"
+                    type="text"
+                    icon={open ? <MinusOutlined /> : <PlusOutlined />}
+                    aria-label={open ? '收起' : '展开预览'}
+                    onClick={() => setExpanded(open ? undefined : key)}
+                  />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 600, color: palette.ink }}>
+                      {m.brand} {m.model}
+                    </div>
+                    <div style={{ fontSize: 12, color: palette.mute }}>
+                      {m.productName} · 询盘 {m.inquiryCount} 次 · 成交{' '}
+                      {m.dealCount} 次
+                    </div>
                   </div>
-                  <div style={{ fontSize: 12, color: palette.mute }}>
-                    {m.productName} · 询盘 {m.inquiryCount} 次 · 成交{' '}
-                    {m.dealCount} 次
-                  </div>
+                  <Button
+                    size="small"
+                    type="primary"
+                    loading={picking === key}
+                    disabled={!!picking && picking !== key}
+                    onClick={async () => {
+                      setPicking(key);
+                      try {
+                        await onPick({ brand: m.brand, model: m.model });
+                      } finally {
+                        setPicking(undefined);
+                      }
+                    }}
+                  >
+                    选用
+                  </Button>
                 </div>
-                <Button
-                  size="small"
-                  type="primary"
-                  loading={picking === key}
-                  disabled={!!picking && picking !== key}
-                  onClick={async () => {
-                    setPicking(key);
-                    try {
-                      await onPick({ brand: m.brand, model: m.model });
-                    } finally {
-                      setPicking(undefined);
-                    }
-                  }}
-                >
-                  选用
-                </Button>
+                {open && id !== undefined && (
+                  <div style={{ marginTop: 10 }}>
+                    <ReferenceModelMedia
+                      id={id}
+                      brand={m.brand}
+                      model={m.model}
+                    />
+                  </div>
+                )}
               </div>
             );
           })}
@@ -695,6 +757,9 @@ const ListingPanel: React.FC<{
                 brand={t.refBrand ?? ''}
                 model={t.refModel as string}
                 fetchUrls={fetchUrls}
+                onDownloadAll={() =>
+                  listingApi.downloadMediaZip(id, 'reference')
+                }
                 extra={
                   pending &&
                   canEdit && (
@@ -730,6 +795,7 @@ const ListingPanel: React.FC<{
                 brand={brand}
                 model={model}
                 fetchUrls={fetchUrls}
+                onDownloadAll={() => listingApi.downloadMediaZip(id, 'own')}
               />
             )}
             {!showOwn && !showRef && (

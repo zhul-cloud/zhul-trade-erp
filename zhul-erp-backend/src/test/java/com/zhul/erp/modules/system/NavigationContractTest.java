@@ -45,9 +45,9 @@ class NavigationContractTest extends InquiryContractSupport {
     }
 
     @Test
-    void partTimerSeesOnlyPurchaseBoardAndMyQuotes() throws Exception {
+    void partTimerSeesOnlyWorkbenchAndMyQuotes() throws Exception {
         String pt = token("it_wang");
-        assertEquals(Map.of("采购管理", List.of("兼职看板", "我的询价")), sidebar(pt));
+        assertEquals(Map.of("工作台", List.of(), "采购管理", List.of("我的询价")), sidebar(pt), "兼职看板并入工作台的采购员看板");
         assertEquals(403, perform(json(post("/api/v1/inquiry/customer-inquiries/page"), "{}"), pt).getStatus(), "兼职采购不能访问询盘单");
     }
 
@@ -90,7 +90,7 @@ class NavigationContractTest extends InquiryContractSupport {
         assertEquals(List.of("商品候选", "资料任务", "营销任务", "发品任务", "素材库"), all.get("运营管理"), "运营人员处理的任务");
         assertEquals(List.of("销售统计", "询价统计", "砍价统计", "利润统计", "经营统计", "商机统计"), all.get("统计分析"), "只读统计统一在这里");
         assertEquals(List.of("商机", "客户", "询盘单", "报价单", "PI", "销售订单"), all.get("销售管理"));
-        assertEquals(List.of("兼职看板", "询价分配", "我的询价", "询价记录", "采购需求", "采购订单", "供应商发货", "供应商"), all.get("采购管理"));
+        assertEquals(List.of("询价分配", "我的询价", "询价记录", "采购需求", "采购订单", "供应商发货", "供应商"), all.get("采购管理"));
         assertEquals(List.of("采购入库", "销售出库", "闲置库存", "实拍任务"), all.get("仓库管理"));
         assertEquals(List.of("出运单", "运费账单"), all.get("物流管理"));
         assertEquals(List.of("收款单", "退款单", "结汇单", "应付单", "付款单", "报销单", "费用单", "其他收入"), all.get("财务管理"));

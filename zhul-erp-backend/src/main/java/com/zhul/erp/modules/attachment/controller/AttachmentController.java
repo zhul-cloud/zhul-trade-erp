@@ -45,7 +45,7 @@ public class AttachmentController {
             Map.entry(AttachmentService.PO_INVOICE, List.of("/purchase/orders", "/finance/payables")),
             Map.entry(AttachmentService.REFUND, List.of("/finance/refunds", "/sales/orders")),
             Map.entry(AttachmentService.OTHER_INCOME, List.of("/finance/other-incomes")),
-            Map.entry(AttachmentService.SOURCING_QUOTE, List.of("/inquiry/my-tasks", "/inquiry/part-time-board", "/inquiry/sourcing-board",
+            Map.entry(AttachmentService.SOURCING_QUOTE, List.of("/inquiry/my-tasks", "/inquiry/sourcing-board",
                     "/inquiry/price-history", "/inquiry/customer-inquiries", "/quotation/quotations")));
 
     private final AttachmentService service;

@@ -1117,6 +1117,26 @@ public class SalesOrderServiceImpl implements SalesOrderService {
                         .isNull(SalesOrderItemDO::getPurchaserId)
                         .isNull(SalesOrderItemDO::getDeletedAt))
                 .stream().map(SalesOrderItemDO::getSoId).distinct().count());
+        BigDecimal[] received = received(active, first, last);
+        BigDecimal online = received[0];
+        BigDecimal offline = received[1];
+        vo.setMonthOnlineCny(online);
+        vo.setMonthOfflineCny(offline);
+        vo.setMonthNetCny(online.add(offline));
+        return vo;
+    }
+
+    @Override
+    public BigDecimal receivedNetCny(LocalDate from, LocalDate to) {
+        List<SalesOrderDO> active = orderMapper.selectList(scoped()
+                .select(SalesOrderDO::getId, SalesOrderDO::getPiId, SalesOrderDO::getSource)
+                .eq(SalesOrderDO::getStatus, SalesConstants.SO_ACTIVE));
+        BigDecimal[] r = received(active, from, to);
+        return r[0].add(r[1]);
+    }
+
+    /** 这些订单在期间内到账的有效收款（含平台收款）的实收人民币：[线上, 线下] */
+    private BigDecimal[] received(List<SalesOrderDO> active, LocalDate first, LocalDate last) {
         List<Long> piIds = active.stream().filter(o -> o.getPiId() != null && o.getPiId() > 0).map(SalesOrderDO::getPiId).toList();
         List<Long> soIds = active.stream().filter(o -> Objects.equals(o.getSource(), SalesConstants.SO_MANUAL)).map(SalesOrderDO::getId).toList();
         BigDecimal online = BigDecimal.ZERO;
@@ -1144,10 +1164,7 @@ public class SalesOrderServiceImpl implements SalesOrderService {
                 }
             }
         }
-        vo.setMonthOnlineCny(online);
-        vo.setMonthOfflineCny(offline);
-        vo.setMonthNetCny(online.add(offline));
-        return vo;
+        return new BigDecimal[] {online, offline};
     }
 
     @Override

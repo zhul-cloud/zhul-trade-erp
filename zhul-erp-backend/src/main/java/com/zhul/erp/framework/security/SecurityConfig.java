@@ -6,6 +6,7 @@ import com.zhul.erp.common.result.ResultCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import jakarta.servlet.DispatcherType;
 import org.springframework.http.MediaType;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -51,6 +52,8 @@ public class SecurityConfig {
             .csrf(AbstractHttpConfigurer::disable)
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
+                // 流式下载（如打包 zip）写完后的异步收尾：原请求已校验过登录与权限，这里再拦会往已发出的文件后面追加错误 JSON
+                .dispatcherTypeMatchers(DispatcherType.ASYNC).permitAll()
                 .requestMatchers(WHITE_LIST).permitAll()
                 .anyRequest().authenticated()
             )

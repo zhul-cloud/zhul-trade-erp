@@ -700,25 +700,6 @@ export const boardApi = {
     send<void>('POST', `${BOARD}/import/confirm`, { files }),
 };
 
-export interface PartTimeBoard {
-  pendingTasks: number;
-  timeoutTasks: number;
-  urgentTasks: number;
-  monthQuotedItems: number;
-  monthQuotes: number;
-  monthNoStock: number;
-  monthCompletedTasks: number;
-  /** 本月平均回价用时（小时），本月没有提交为空 */
-  monthAvgHours?: number | null;
-  totalQuotedItems: number;
-  trend: { date: string; items: number }[];
-  todo: MyTask[];
-}
-
-export const partTimeBoardApi = {
-  get: () => get<PartTimeBoard>('/api/v1/inquiry/part-time-board'),
-};
-
 export interface BoardTaskItem {
   id: number;
   model: string;

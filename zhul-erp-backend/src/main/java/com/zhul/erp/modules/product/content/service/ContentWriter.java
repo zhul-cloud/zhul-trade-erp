@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.zhul.erp.common.exception.BizException;
 import com.zhul.erp.framework.security.SecurityUtils;
 import com.zhul.erp.framework.tenant.TenantContext;
 import com.zhul.erp.modules.product.constants.ProductConstants;
@@ -37,6 +38,7 @@ import com.zhul.erp.modules.product.entity.ProductListingPriceDO;
 import com.zhul.erp.modules.product.entity.ProductApplicationDO;
 import com.zhul.erp.modules.product.entity.ProductCustomsDO;
 import com.zhul.erp.modules.product.entity.ProductLogisticsDO;
+import com.zhul.erp.modules.product.entity.ProductReferencePriceDO;
 import com.zhul.erp.modules.product.entity.ProductSeriesDO;
 import com.zhul.erp.modules.product.entity.ProductDO;
 import com.zhul.erp.modules.product.entity.ProductDocumentDO;
@@ -47,6 +49,7 @@ import com.zhul.erp.modules.product.repository.ProductListingPriceMapper;
 import com.zhul.erp.modules.product.repository.ProductApplicationMapper;
 import com.zhul.erp.modules.product.repository.ProductCustomsMapper;
 import com.zhul.erp.modules.product.repository.ProductLogisticsMapper;
+import com.zhul.erp.modules.product.repository.ProductReferencePriceMapper;
 import com.zhul.erp.modules.product.repository.ProductSeriesMapper;
 import com.zhul.erp.modules.product.repository.ProductDocumentMapper;
 import com.zhul.erp.modules.product.repository.ProductFaqMapper;
@@ -55,14 +58,17 @@ import com.zhul.erp.modules.product.repository.ProductRelationshipMapper;
 import com.zhul.erp.modules.product.repository.ProductSpecificationMapper;
 import com.zhul.erp.modules.product.support.MpnNormalizer;
 import com.zhul.erp.modules.product.support.ProductFinder;
+import com.zhul.erp.modules.system.service.ExchangeRateService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -71,6 +77,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Stream;
 
 /**
  * 确认写入一个文件（一个商品的一个包），调用方负责事务（spec product/product-content「确认写入」）。
@@ -115,6 +122,8 @@ public class ContentWriter {
     private final ProductFactNoteMapper factNoteMapper;
     private final ObjectMapper objectMapper;
     private final ProductListingPriceMapper listingPriceMapper;
+    private final ProductReferencePriceMapper referencePriceMapper;
+    private final ExchangeRateService exchangeRateService;
 
     /**
      * 返回写入摘要。draft 给出包类型、语言、规范版本与拆出的部分；blocks 为要写入的块（跳过与有错的块已去掉）。
@@ -162,7 +171,17 @@ public class ContentWriter {
                 case SERIES -> summary.add(writeSeries(product, b.getText()));
                 case LOGISTICS -> summary.add(writeLogistics(productId, b.getFields()));
                 case CUSTOMS -> summary.add(writeCustoms(productId, b.getFields()));
-                case LISTING_PRICES -> summary.add(writeListings(productId, b.getListings(), draft.getUpdated(), imp.getId()));
+                case LISTING_PRICES -> {
+                    summary.add(writeListings(productId, b.getListings(), draft.getUpdated(), imp.getId()));
+                    // 没有单独写「商品平台参考价」时，用挂牌价生成商品卡片的平台参考价
+                    ContentDraft.Block card = blocks.get(ContentSection.CARD_PRICE);
+                    ContentDraft.CardPriceRow derived = card != null && card.getCardPrice() != null ? null
+                            : cardPriceFromListings(b.getListings(), usdRate());
+                    if (derived != null) {
+                        summary.add(writeCardPrice(productId, derived, draft.getUpdated()));
+                    }
+                }
+                case CARD_PRICE -> summary.add(writeCardPrice(productId, b.getCardPrice(), draft.getUpdated()));
                 default -> {
                     // SEO/GEO 文本块统一在下面写
                 }
@@ -970,6 +989,131 @@ public class ContentWriter {
             listingPriceMapper.insert(row);
         }
         return "平台参考价 " + rows.size() + " 条";
+    }
+
+    /**
+     * 从平台参考价（挂牌价）生成商品卡片的平台参考价：不看类目参考行；成色为全新的行里取最低价，没有全新时取所有行的最低价；
+     * 币种 USD，汇率为系统当前美元汇率（没有时为空，显示未计算），价格来源写平台、成色与价格类别，
+     * 取价日期留空（写入时取 frontmatter 的 updated）。没有行时返回 null
+     */
+    /** 同类别可比商品的挂牌价（价格类别写「类目参考、不代表目标型号价格」）不当作本商品的参考价 */
+    static final String NOT_TARGET = "不代表目标型号";
+
+    public static ContentDraft.CardPriceRow cardPriceFromListings(List<ContentDraft.ListingRow> rows, BigDecimal usdRate) {
+        List<ContentDraft.ListingRow> priced = rows == null ? List.of()
+                : rows.stream().filter(r -> r.priceUsd() != null && r.priceUsd().signum() > 0)
+                .filter(r -> r.category() == null || !r.category().contains(NOT_TARGET)).toList();
+        if (priced.isEmpty()) {
+            return null;
+        }
+        List<ContentDraft.ListingRow> fresh = priced.stream().filter(r -> isNewCondition(r.condition())).toList();
+        ContentDraft.ListingRow pick = (fresh.isEmpty() ? priced : fresh).stream()
+                .min(Comparator.comparing(ContentDraft.ListingRow::priceUsd)).orElseThrow();
+        String source = String.join(" ", Stream.of(pick.platform(), pick.condition(), pick.category())
+                .filter(v -> v != null && !v.isBlank()).map(String::strip).toList());
+        if (source.length() > 128) {
+            source = source.substring(0, 128);
+        }
+        return new ContentDraft.CardPriceRow("USD", pick.priceUsd().setScale(2, RoundingMode.HALF_UP),
+                usdRate == null ? null : usdRate.setScale(6, RoundingMode.HALF_UP), source.isEmpty() ? null : source, null);
+    }
+
+    /** 成色是否为全新：New、全新、新品（不分大小写，New 开头的如 New other 也算） */
+    static boolean isNewCondition(String condition) {
+        if (condition == null) {
+            return false;
+        }
+        String c = condition.strip().toLowerCase(Locale.ROOT);
+        return c.startsWith("new") || c.contains("全新") || c.startsWith("新品");
+    }
+
+    /** 系统当前美元汇率（当前租户）；没有设置时为 null */
+    BigDecimal usdRate() {
+        ExchangeRateService.Snapshot r = exchangeRateService.find("USD");
+        return r == null ? null : r.rate();
+    }
+
+    /**
+     * 商品平台参考价合并已有值后要写入的内容。未知值不覆盖：汇率未知时沿用原汇率（币种不变时），否则为空（未计算）；
+     * 来源未知沿用原值；取价日期 表内 → frontmatter updated → 原值。
+     * 精度：人民币参考价 = 原币参考价 × 6 位汇率，最后 HALF_UP 保留 2 位；人民币按汇率 1。
+     */
+    public record CardPrice(String currency, BigDecimal priceOriginal, BigDecimal exchangeRate, BigDecimal priceCny,
+                            String priceSource, LocalDate priceDate, boolean rateKept, boolean sourceKept, String dateFrom) {
+    }
+
+    public static CardPrice resolveCardPrice(ContentDraft.CardPriceRow r, ProductReferencePriceDO existing, String updated) {
+        boolean sameCurrency = existing != null && r.currency().equals(existing.getCurrencyCode());
+        BigDecimal rate = r.exchangeRate();
+        boolean rateKept = false;
+        if (rate == null && sameCurrency && existing.getExchangeRate() != null) {
+            rate = existing.getExchangeRate();
+            rateKept = true;
+        }
+        BigDecimal cny = "CNY".equals(r.currency()) ? r.priceOriginal()
+                : rate == null ? null : r.priceOriginal().multiply(rate).setScale(2, RoundingMode.HALF_UP);
+        String source = r.priceSource();
+        boolean sourceKept = source == null && existing != null && existing.getPriceSource() != null;
+        if (source == null && existing != null) {
+            source = existing.getPriceSource();
+        }
+        LocalDate date = r.priceDate();
+        String dateFrom = "表内";
+        if (date == null) {
+            date = parseDate(updated);
+            dateFrom = "updated";
+        }
+        if (date == null) {
+            date = existing == null ? null : existing.getPriceDate();
+            dateFrom = date == null ? "" : "现有";
+        }
+        return new CardPrice(r.currency(), r.priceOriginal(), rate, cny, source, date, rateKept, sourceKept, dateFrom);
+    }
+
+    private static LocalDate parseDate(String v) {
+        if (v == null || v.isBlank()) {
+            return null;
+        }
+        try {
+            return LocalDate.parse(v.strip());
+        } catch (DateTimeParseException e) {
+            return null;
+        }
+    }
+
+    /** 商品平台参考价：写商品卡片的平台参考价（一个商品一条，含已软删除的行时复用） */
+    private String writeCardPrice(Long productId, ContentDraft.CardPriceRow r, String updated) {
+        ProductReferencePriceDO row = referencePriceMapper.selectOne(new LambdaQueryWrapper<ProductReferencePriceDO>()
+                .eq(ProductReferencePriceDO::getTenantId, ProductConstants.PLATFORM_TENANT_ID)
+                .eq(ProductReferencePriceDO::getProductId, productId));
+        ProductReferencePriceDO active = row == null || row.getDeletedAt() != null ? null : row;
+        CardPrice p = resolveCardPrice(r, active, updated);
+        if (p.priceCny() != null && p.priceCny().compareTo(new BigDecimal("10000000000000000")) >= 0) {
+            throw new BizException("折算后的人民币参考价过大");
+        }
+        if (row == null) {
+            ProductReferencePriceDO n = new ProductReferencePriceDO();
+            n.setTenantId(ProductConstants.PLATFORM_TENANT_ID);
+            n.setProductId(productId);
+            n.setPriceOriginal(p.priceOriginal());
+            n.setCurrencyCode(p.currency());
+            n.setExchangeRate(p.exchangeRate());
+            n.setPriceCny(p.priceCny());
+            n.setPriceSource(p.priceSource());
+            n.setPriceDate(p.priceDate());
+            referencePriceMapper.insert(n);
+        } else {
+            referencePriceMapper.update(new ProductReferencePriceDO(), new LambdaUpdateWrapper<ProductReferencePriceDO>()
+                    .eq(ProductReferencePriceDO::getId, row.getId())
+                    .set(ProductReferencePriceDO::getPriceOriginal, p.priceOriginal())
+                    .set(ProductReferencePriceDO::getCurrencyCode, p.currency())
+                    .set(ProductReferencePriceDO::getExchangeRate, p.exchangeRate())
+                    .set(ProductReferencePriceDO::getPriceCny, p.priceCny())
+                    .set(ProductReferencePriceDO::getPriceSource, p.priceSource())
+                    .set(ProductReferencePriceDO::getPriceDate, p.priceDate())
+                    .set(ProductReferencePriceDO::getDeletedAt, null));
+        }
+        return "商品平台参考价 " + p.currency() + " " + p.priceOriginal().toPlainString();
     }
 
     private String writeFactNotes(Long productId, ContentDraft draft, Map<ContentSection, ContentDraft.Block> blocks,

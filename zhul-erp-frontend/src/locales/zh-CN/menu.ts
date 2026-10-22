@@ -104,7 +104,6 @@ export default {
   'menu.logistics.statements': '运费账单',
   'menu.inquiry': '询盘',
   'menu.inquiry.customerInquiry': '询盘单',
-  'menu.inquiry.partTimeBoard': '兼职看板',
   'menu.inquiry.sourcingBoard': '询价分配',
   'menu.inquiry.myTasks': '我的询价',
   'menu.inquiry.priceHistory': '询价记录',

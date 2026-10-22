@@ -27,7 +27,6 @@ export default function access(initialState: {
       '/inquiry/sourcing-board',
       '/inquiry/my-tasks',
       '/inquiry/price-history',
-      '/inquiry/part-time-board',
       '/inquiry/sourcing-stats',
     ),
     // 商机管理：crmMenu 是两个子菜单任一为真，供 /crm 父路由的 access 用
@@ -38,7 +37,6 @@ export default function access(initialState: {
     inquirySourcingBoard: can('/inquiry/sourcing-board'),
     inquiryMyTasks: can('/inquiry/my-tasks'),
     inquiryPriceHistory: can('/inquiry/price-history'),
-    inquiryPartTimeBoard: can('/inquiry/part-time-board'),
     inquirySourcingStats: can('/inquiry/sourcing-stats'),
     // 按钮级 - 询价协作
     'inquiry:task:assign': can('inquiry:task:assign'),

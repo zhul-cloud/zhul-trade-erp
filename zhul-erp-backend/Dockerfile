@@ -20,7 +20,9 @@ RUN sed -i 's/\r$//' /usr/local/bin/zhul-entrypoint \
     && chmod 755 /usr/local/bin/zhul-entrypoint \
     && mkdir -p /app/uploads /app/private-uploads \
     && chown -R 10001:10001 /app
-ENV SPRING_PROFILES_ACTIVE=docker \
+# 统一北京时间（不用 Compose 单独部署时也生效）；JVM 自带时区库，不依赖系统 tzdata
+ENV TZ=Asia/Shanghai \
+    SPRING_PROFILES_ACTIVE=docker \
     UPLOAD_DIR=/app/uploads \
     UPLOAD_PRIVATE_DIR=/app/private-uploads
 USER 10001:10001

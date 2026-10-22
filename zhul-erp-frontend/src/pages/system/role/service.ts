@@ -5,6 +5,8 @@ export interface RoleItem {
   code: string;
   name: string;
   permissionScope: number;
+  /** 工作台模板编码 */
+  workbenchTemplate?: string;
   status: number;
   isBuiltIn: number;
   userCount: number;

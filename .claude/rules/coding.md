@@ -6,7 +6,7 @@
 
 - 金额：`DECIMAL(18,2)`，绝对不用 FLOAT
 - 状态字段：`tinyint(2) NOT NULL DEFAULT 1`，COMMENT 必须列举枚举值，如 `'状态（0-禁用、1-启用）'`
-- 时间字段：`datetime NOT NULL DEFAULT CURRENT_TIMESTAMP`，存本地时间（业务展示层无需转换）
+- 时间字段：`datetime NOT NULL DEFAULT CURRENT_TIMESTAMP`，存北京时间（Asia/Shanghai，业务展示层无需转换；数据库与后端容器均设 TZ=Asia/Shanghai）
 - 表名、字段名：统一 snake_case，反引号包裹
 
 ### 必填字段（所有表）

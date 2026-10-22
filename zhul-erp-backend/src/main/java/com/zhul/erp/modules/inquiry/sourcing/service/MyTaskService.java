@@ -2,7 +2,7 @@ package com.zhul.erp.modules.inquiry.sourcing.service;
 
 import com.zhul.erp.modules.inquiry.sourcing.dto.MyTaskDetailVO;
 import com.zhul.erp.modules.inquiry.sourcing.dto.MyTaskVO;
-import com.zhul.erp.modules.inquiry.sourcing.dto.PartTimeBoardVO;
+import com.zhul.erp.modules.inquiry.sourcing.dto.QuoteBoardVO;
 import com.zhul.erp.modules.inquiry.sourcing.dto.PastePreviewVO;
 import com.zhul.erp.modules.inquiry.sourcing.dto.ReturnTaskRequest;
 import com.zhul.erp.modules.inquiry.sourcing.dto.SaveQuotesRequest;
@@ -25,7 +25,7 @@ public interface MyTaskService {
     com.zhul.erp.modules.inquiry.sourcing.service.impl.ItemPriceHistory.Detail itemHistory(Long taskId, Long itemId);
 
     /** 兼职工作台：本人待办与回价统计 */
-    PartTimeBoardVO partTimeBoard();
+    QuoteBoardVO quoteBoard();
 
     void saveQuotes(Long taskId, SaveQuotesRequest req);
 

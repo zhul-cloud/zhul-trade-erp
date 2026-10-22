@@ -10,6 +10,7 @@ import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import {
   DrawerForm,
   ProFormDependency,
+  ProFormSelect,
   ProFormSwitch,
   ProFormText,
   ProFormTextArea,
@@ -30,6 +31,10 @@ import {
   Tree,
 } from 'antd';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  type WorkbenchTemplate,
+  workbenchApi,
+} from '@/pages/dashboard/service';
 import type { MenuItem } from '@/pages/system/menu/service';
 import {
   assignRoleMenus,
@@ -239,6 +244,7 @@ const RolePage: React.FC = () => {
   const [editingRole, setEditingRole] = useState<RoleItem | null>(null);
   const [editingDeptIds, setEditingDeptIds] = useState<number[]>([]);
   const [deptOptions, setDeptOptions] = useState<DeptTreeOption[]>([]);
+  const [templates, setTemplates] = useState<WorkbenchTemplate[]>([]);
 
   const [permOpen, setPermOpen] = useState(false);
   const [permRole, setPermRole] = useState<RoleItem | null>(null);
@@ -264,6 +270,14 @@ const RolePage: React.FC = () => {
     loadStats();
     loadDepts();
   }, []);
+
+  useEffect(() => {
+    if (!canAdd && !canEdit) return;
+    workbenchApi
+      .templates()
+      .then(setTemplates)
+      .catch(() => setTemplates([]));
+  }, [canAdd, canEdit]);
 
   const displayMenuTree = useMemo(
     () => filterMenuTree(rawMenuTree, menuKeyword),
@@ -322,6 +336,7 @@ const RolePage: React.FC = () => {
     const payload = {
       name: values.name as string,
       permissionScope: values.permissionScope as number,
+      workbenchTemplate: (values.workbenchTemplate as string) || 'general',
       status: values.status ? 1 : 0,
       remark: (values.remark as string) || '',
       deptIds:
@@ -627,11 +642,12 @@ const RolePage: React.FC = () => {
             ? {
                 name: editingRole.name,
                 permissionScope: editingRole.permissionScope || 3,
+                workbenchTemplate: editingRole.workbenchTemplate || 'general',
                 deptIds: editingDeptIds,
                 remark: editingRole.remark,
                 status: editingRole.status === 1,
               }
-            : { permissionScope: 3, status: true }
+            : { permissionScope: 3, workbenchTemplate: 'general', status: true }
         }
         drawerProps={{ destroyOnClose: true }}
       >
@@ -696,6 +712,26 @@ const RolePage: React.FC = () => {
             )
           }
         </ProFormDependency>
+
+        <ProFormSelect
+          name="workbenchTemplate"
+          label="工作台模板"
+          extra="拥有这个角色的人登录后，工作台显示这个看板；一个人有多个角色时可以在工作台顶部切换，默认职级最高的。"
+          rules={[{ required: true, message: '请选择工作台模板' }]}
+          fieldProps={{
+            options: templates.map((t) => ({
+              value: t.code,
+              label: (
+                <span>
+                  <b>{t.name}</b>
+                  <span style={{ marginLeft: 8, fontSize: 12, color: p.mute }}>
+                    {t.description}
+                  </span>
+                </span>
+              ),
+            })),
+          }}
+        />
 
         <ProFormTextArea
           name="remark"

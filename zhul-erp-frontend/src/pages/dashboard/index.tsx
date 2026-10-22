@@ -5,30 +5,14 @@ import {
   ShoppingCartOutlined,
 } from '@ant-design/icons';
 import { history, useAccess, useModel } from '@umijs/max';
-import { Button } from 'antd';
-import React from 'react';
-import { Card, PageTitle } from '@/pages/inquiry/shared/components';
+import { Button, Segmented, Skeleton } from 'antd';
+import React, { useCallback, useEffect, useState } from 'react';
+import { readBizError } from '@/pages/crm/opportunity/service';
+import { Card, PageTitle, useWide } from '@/pages/inquiry/shared/components';
+import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useAppTheme } from '@/theme/AppTheme';
-import OpportunityCard from './OpportunityCard';
-import OverduePiCard from './OverduePiCard';
-
-/**
- * 工作台卡片：每张卡片声明需要的菜单权限，没有权限不显示；卡片自己加载数据、失败只影响自己。
- * 后续卡片（待报价的询盘、待分配的询价、待确认的水单、本月成交）按同样方式加入。
- */
-const CARDS: { key: string; access: string; render: () => React.ReactNode }[] =
-  [
-    {
-      key: 'opportunity',
-      access: 'crmOpportunityStats',
-      render: () => <OpportunityCard />,
-    },
-    {
-      key: 'overdue-pi',
-      access: 'salesPi',
-      render: () => <OverduePiCard />,
-    },
-  ];
+import { type Workbench, workbenchApi } from './service';
+import { WIDGETS } from './widgets';
 
 /** 没有卡片时的常用入口，同样按权限过滤 */
 const SHORTCUTS: {
@@ -65,13 +49,57 @@ const greeting = () => {
   return '晚上好';
 };
 
+/** 记住上次选的看板（按账号，存在浏览器本地；读不到时用默认看板） */
+const boardKey = (user?: string) => `zhul:workbench:${user ?? ''}`;
+const readBoard = (user?: string) => {
+  try {
+    return localStorage.getItem(boardKey(user)) ?? undefined;
+  } catch {
+    return undefined;
+  }
+};
+const saveBoard = (user: string | undefined, code: string) => {
+  try {
+    localStorage.setItem(boardKey(user), code);
+  } catch {
+    // 无痕模式等读写不了本地存储时只是不记住
+  }
+};
+
+/**
+ * 工作台：按角色的工作台模板显示岗位看板（spec system/workbench），一人对应多个看板时顶部切换，
+ * 默认职级最高的；看板里的组件按编码从注册表取，各自加载数据、失败只影响自己。
+ */
 const Dashboard: React.FC = () => {
   const { palette } = useAppTheme();
+  const wide = useWide();
   const access = useAccess() as Record<string, boolean>;
   const { initialState } = useModel('@@initialState');
   const name = initialState?.currentUser?.name;
-  const cards = CARDS.filter((c) => access[c.access]);
+  const user = initialState?.currentUser?.userid ?? name;
   const shortcuts = SHORTCUTS.filter((s) => access[s.access]);
+  const [bench, setBench] = useState<Workbench>();
+  const [error, setError] = useState('');
+  const [code, setCode] = useState<string>();
+
+  const load = useCallback(async () => {
+    setError('');
+    try {
+      const b = await workbenchApi.current();
+      setBench(b);
+      const saved = readBoard(user);
+      setCode(b.boards.some((x) => x.code === saved) ? saved : b.defaultCode);
+    } catch (e) {
+      setError(readBizError(e).message);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const board = bench?.boards.find((b) => b.code === code) ?? bench?.boards[0];
+  const widgets = (board?.widgets ?? []).filter((w) => WIDGETS[w.key]);
 
   return (
     <div>
@@ -79,14 +107,74 @@ const Dashboard: React.FC = () => {
         root="工作台"
         crumbs={[]}
         title={name ? `${greeting()}，${name}` : '工作台'}
-        description="按你的权限显示相关的业务数据。"
+        description={
+          board && board.code !== 'general' && !board.fallback
+            ? `${board.name}看板：按你的数据范围显示，点击数字进入对应列表处理。`
+            : '按你的权限显示相关的业务数据。'
+        }
+        actions={
+          bench && bench.boards.length > 1 ? (
+            <Segmented<string>
+              value={board?.code}
+              onChange={(c) => {
+                setCode(c);
+                saveBoard(user, c);
+              }}
+              options={bench.boards.map((b) => ({
+                value: b.code,
+                label: b.name,
+              }))}
+            />
+          ) : undefined
+        }
       />
-      {cards.length > 0 ? (
-        <div style={{ display: 'grid', gap: 16 }}>
-          {cards.map((c) => (
-            <React.Fragment key={c.key}>{c.render()}</React.Fragment>
-          ))}
-        </div>
+      {error ? (
+        <ErrorHint message={error} onRetry={load} />
+      ) : !bench ? (
+        <Card style={{ padding: 20 }}>
+          <Skeleton active paragraph={{ rows: 6 }} />
+        </Card>
+      ) : widgets.length > 0 ? (
+        <>
+          {board?.fallback && (
+            <div
+              style={{
+                marginBottom: 16,
+                padding: '10px 14px',
+                borderRadius: 12,
+                background: palette.inset,
+                color: palette.mute,
+                fontSize: 13,
+              }}
+            >
+              {board.name}看板正在建设中，先显示通用卡片。
+            </div>
+          )}
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: wide
+                ? 'repeat(2, minmax(0, 1fr))'
+                : 'minmax(0, 1fr)',
+              gap: 16,
+              alignItems: 'start',
+            }}
+          >
+            {widgets.map((w) => {
+              const Widget = WIDGETS[w.key];
+              return (
+                <div
+                  key={w.key}
+                  style={
+                    w.size === 'full' ? { gridColumn: '1 / -1' } : undefined
+                  }
+                >
+                  <Widget />
+                </div>
+              );
+            })}
+          </div>
+        </>
       ) : (
         <Card style={{ padding: '48px 24px', textAlign: 'center' }}>
           <span

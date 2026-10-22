@@ -24,6 +24,9 @@ public interface ExchangeRateService {
     /** 当前租户某币种的汇率；人民币为 1；没有设置时抛业务异常（提示联系管理员设置） */
     Snapshot require(String currencyCode);
 
+    /** 当前租户某币种的汇率；人民币为 1；没有设置时返回 null */
+    Snapshot find(String currencyCode);
+
     record Snapshot(String currencyCode, BigDecimal rate, LocalDateTime rateTime) {
     }
 }
