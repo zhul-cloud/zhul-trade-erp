@@ -1,0 +1,515 @@
+品牌	系列	品类	处理	原名称	简介	待核实
+Siemens	LOGO!	plc_cpu	保留		小型 PLC：LOGO! 逻辑模块，带显示与按键，适合简单控制。	
+Siemens	S7-200 SMART	plc_cpu	新增		小型 PLC：S7-200 SMART 一体机与扩展模块，国内市场主力机型。	
+Siemens	S7-1200	plc_cpu	保留		小型 PLC：SIMATIC S7-1200 CPU、信号模块与通讯模块，TIA 博途编程。	
+Siemens	S7-1500	plc_cpu	新增		中大型 PLC：SIMATIC S7-1500 CPU、I/O 与工艺模块，含 F 安全型与 T 运动型 CPU。	
+Siemens	S7-300	plc_cpu	保留		中型 PLC：SIMATIC S7-300 CPU 与 SM/CP/FM 模块，存量设备维修需求大。	
+Siemens	S7-400	plc_cpu	保留		大型 PLC：SIMATIC S7-400 CPU、冗余 H 系统与机架模块。	
+Siemens	S7-200	plc_cpu	新增		老款小型 PLC：S7-200 CPU 22x 与 EM 扩展模块，已停产，多为维修替换。	
+Siemens	ET-200	distributed_io	保留		分布式 I/O：ET 200SP、ET 200MP、ET 200S、ET 200M 等接口模块与 I/O 模块。	
+Siemens	Basic Panel(KTP)	hmi_panel	保留		触摸屏：SIMATIC KTP 精简面板，4–15 寸。	
+Siemens	Comfort Panel	hmi_panel	保留		触摸屏：SIMATIC TP/KP 精智面板，带按键或触摸，7–22 寸。	
+Siemens	TP/OP	hmi_panel	保留		老款面板：TP177、TP277、OP177、OP277 等触摸屏与操作面板，多为维修替换。	
+Siemens	SIMATIC IPC	panel_pc	新增		工控机：SIMATIC 平板式与箱式工业 PC。	
+Siemens	SCALANCE X	ethernet_switch	新增		工业以太网交换机：SCALANCE X 非网管与网管型。	
+Siemens	V20	vfd	保留		变频器：SINAMICS V20 基本型，0.12–30 kW。	
+Siemens	G120	vfd	保留		变频器：SINAMICS G120 模块化（控制单元 CU + 功率模块 PM）。	
+Siemens	G120C	vfd	保留		变频器：SINAMICS G120C 紧凑型一体机。	
+Siemens	S120	modular_drive	新增		多轴驱动：SINAMICS S120 电机模块、电源模块与 CU320 控制单元。	
+Siemens	Micro Master420	vfd	保留		老款变频器：MICROMASTER 420 通用型。	
+Siemens	Micro Master430	vfd	保留		老款变频器：MICROMASTER 430 风机水泵型。	
+Siemens	Micro Master440	vfd	保留		老款变频器：MICROMASTER 440 矢量型，存量大。	
+Siemens	3RW30	soft_starter	保留		软启动器：SIRIUS 3RW30 简易型。	
+Siemens	3RW40	soft_starter	保留		软启动器：SIRIUS 3RW40，带内置旁路与过载保护。	
+Siemens	3RW44	soft_starter	保留		软启动器：SIRIUS 3RW44 高性能型，带通讯与显示。	
+Siemens	SINAMICS V90	servo_drive	保留		伺服：SINAMICS V90 驱动器与 SIMOTICS S-1FL6 电机。	
+Siemens	SIMOTICS S-1FK7	servo_motor	新增		伺服电机：1FK7 同步伺服电机，配 S120 使用。	
+Siemens	SIRIUS 3RT	contactor	新增		接触器：SIRIUS 3RT2 / 3RT1 系列及辅助触点。	
+Siemens	SIRIUS 3RV	motor_protection_breaker	新增		电动机保护断路器：SIRIUS 3RV2 / 3RV1。	
+Siemens	SIMOCODE pro	motor_management	新增		电机管理：SIMOCODE pro 电机保护与控制系统。	
+Siemens	SITOP	din_power	新增		导轨电源：SITOP PSU、smart、modular 及 UPS 模块。	
+Siemens	SITRANS P	pressure_transmitter	新增		压力变送器：SITRANS P 系列压力与差压变送器。	
+Siemens	SIPART PS2	valve_positioner	新增		阀门定位器：SIPART PS2 智能电气阀门定位器。	
+Siemens	SINUMERIK	cnc_system	新增		数控系统：SINUMERIK 808D、828D、840D 系统与面板。	
+ABB	AC500	plc_cpu	新增		PLC：AC500 与 AC500-eCo CPU 及 S500 I/O 模块。	
+ABB	ACS 150	vfd	保留		变频器：ACS150 微型通用型。	
+ABB	ACS 310	vfd	保留		变频器：ACS310 风机水泵型。	
+ABB	ACS 355	vfd	保留		变频器：ACS355 机械型，紧凑安装。	
+ABB	ACS 380	vfd	保留		变频器：ACS380 机械型，替代 ACS355。	
+ABB	ACS 530	vfd	保留		变频器：ACS530 通用型（国内市场）。	
+ABB	ACS 550	vfd	新增		老款变频器：ACS550 通用型，存量大。	
+ABB	ACS 580	vfd	保留		变频器：ACS580 通用型，替代 ACS550。	
+ABB	ACS 800	vfd	新增		老款变频器：ACS800 工业型，单传动与多传动。	
+ABB	ACS 880	vfd	保留		变频器：ACS880 工业型，替代 ACS800。	
+ABB	DCS800	dc_drive	新增		直流调速器：DCS800。	
+ABB	PSR	soft_starter	保留		软启动器：PSR 紧凑型。	
+ABB	PSE	soft_starter	保留		软启动器：PSE 高效型，带显示。	
+ABB	PSTX	soft_starter	保留		软启动器：PSTX 高级型，带通讯与扭矩控制。	
+ABB	AF	contactor	新增		接触器：AF 系列（宽电压线圈）。	
+ABB	MS116/MS132	motor_protection_breaker	新增		电动机保护断路器：MS116、MS132。	
+ABB	S200	circuit_breaker	新增		微型断路器：S200 系列。	
+ABB	Tmax	circuit_breaker	新增		塑壳断路器：Tmax T 与 Tmax XT 系列。	
+ABB	266	pressure_transmitter	新增		压力变送器：266 系列压力与差压变送器。	
+ABB	IRC5	robot_controller	新增		机器人：IRC5 控制柜及 FlexPendant 示教器。	
+Schneider Electric	M100/M200 Series	plc_cpu	保留		小型 PLC：Modicon M100/M200 经济型。	
+Schneider Electric	TM221/241/251 Series	plc_cpu	保留		小型 PLC：Modicon M221、M241、M251 及 TM3 扩展模块。	
+Schneider Electric	M340/M580 Series	plc_cpu	保留		中大型 PLC：Modicon M340、M580（以太网 ePAC）。	
+Schneider Electric	TSX Micro	plc_cpu	保留		老款 PLC：TSX Micro，多为维修替换。	
+Schneider Electric	PREMIUM	plc_cpu	保留		老款 PLC：Modicon Premium（TSX57），多为维修替换。	
+Schneider Electric	QUANTUM	plc_cpu	保留		老款大型 PLC：Modicon Quantum（140 系列）。	
+Schneider Electric	ZELIO Series	plc_cpu	保留		智能继电器：Zelio Logic SR2/SR3 小型逻辑控制器。	
+Schneider Electric	Magelis HMI	hmi_panel	新增		触摸屏：Magelis / Harmony HMIGTO、HMISTO、HMIGXU 等。	
+Schneider Electric	ATV12	vfd	保留		变频器：Altivar 12 微型。	
+Schneider Electric	ATV212	vfd	保留		变频器：Altivar 212 风机水泵型。	
+Schneider Electric	ATV310	vfd	保留		变频器：Altivar 310 经济型。	
+Schneider Electric	ATV312	vfd	保留		变频器：Altivar 312 通用型，存量大。	
+Schneider Electric	ATV320	vfd	保留		变频器：Altivar Machine 320 机械型。	
+Schneider Electric	ATV61	vfd	保留		老款变频器：Altivar 61 风机水泵型。	
+Schneider Electric	ATV71	vfd	保留		老款变频器：Altivar 71 重载型。	
+Schneider Electric	ATV610	vfd	保留		变频器：Altivar 610 风机水泵型。	
+Schneider Electric	ATV930	vfd	保留		变频器：Altivar Process 930 过程型。	
+Schneider Electric	ATS01/ATS22	soft_starter	改名	ATS01/ATV22	软启动器：Altistart 01（ATS01）、Altistart 22（ATS22）。	原名称写作 ATV22，施耐德软启动器为 ATS22
+Schneider Electric	ATS48	soft_starter	改名	ATV48	软启动器：Altistart 48（ATS48）。	原名称写作 ATV48，施耐德没有 ATV48，应为软启动器 ATS48
+Schneider Electric	Lexium 32	servo_drive	保留		伺服：Lexium 32 驱动器与 BMH/BSH 电机。	
+Schneider Electric	Lexium 28	servo_drive	保留		伺服：Lexium 28 经济型驱动器与 BCH2 电机。	
+Schneider Electric	Lexium 26	servo_drive	保留		伺服：Lexium 26 驱动器与 BCH 电机。	
+Schneider Electric	Lexium 16D	servo_drive	保留		老款伺服：Lexium 16 系列，多为维修替换。	
+Schneider Electric	TeSys D	contactor	新增		接触器：TeSys D（LC1D）及热继电器 LRD。	
+Schneider Electric	TeSys GV2	motor_protection_breaker	新增		电动机保护断路器：TeSys GV2、GV3。	
+Schneider Electric	Acti9	circuit_breaker	新增		微型断路器：Acti9 iC65 等。	
+Schneider Electric	Compact NSX	circuit_breaker	新增		塑壳断路器：Compact NSX。	
+Schneider Electric	Zelio Relay	relay	新增		中间继电器：Zelio Relay RXM、RSB 等。	
+Schneider Electric	Harmony XB5	pushbutton	新增		按钮指示灯：Harmony XB4、XB5、XB7。	
+Telemecanique	XS	proximity_sensor	新增		接近开关：OsiSense XS 电感式。	
+Telemecanique	XU	photoelectric_sensor	新增		光电开关：OsiSense XU。	
+Telemecanique	XC	limit_switch	新增		限位开关：OsiSense XC。	
+Telemecanique	XM	pressure_switch	新增		压力开关：OsiSense XM（XMLP、XMLR 等）。	
+Bosch Rexroth	IndraDrive	servo_drive	新增		伺服驱动：IndraDrive Cs、C、M 系列。	
+Bosch Rexroth	MSK/MS2N	servo_motor	新增		伺服电机：MSK（老款）与 MS2N。	
+Bosch Rexroth	EFC	vfd	新增		变频器：EFC 3610、EFC 5610。	
+Bosch Rexroth	4WE	hydraulic_valve	新增		液压阀：4WE 电磁换向阀。	
+Bosch Rexroth	A10VSO	hydraulic_pump	新增		液压泵：A10VSO 变量柱塞泵。	
+Lenze	i500	vfd	保留		变频器：i500 系列（i510、i550）。	
+Lenze	8400	vfd	新增		变频器：8400 系列（BaseLine、StateLine、HighLine、TopLine）。	
+Lenze	9400	servo_drive	新增		伺服驱动：9400 系列。	
+Lenze	g500	gear_motor	新增		齿轮电机：g500 系列斜齿轮、锥齿轮减速电机。	
+SEW-EURODRIVE	MOVITRAC	vfd	新增		变频器：MOVITRAC B、LTE-B 等。	
+SEW-EURODRIVE	MOVIDRIVE	modular_drive	新增		驱动：MOVIDRIVE B、MOVIDRIVE modular 等。	
+SEW-EURODRIVE	MOVIMOT	gear_motor	新增		分布式驱动：MOVIMOT 电机集成变频器。	
+SEW-EURODRIVE	R/F/K/S	gear_motor	新增		齿轮电机：R 斜齿轮、F 平行轴、K 锥齿轮、S 蜗轮蜗杆减速电机。	
+Danfoss	FC51	vfd	保留		变频器：VLT Micro Drive FC 51。	
+Danfoss	FC101	vfd	保留		变频器：VLT HVAC Basic Drive FC 101。	
+Danfoss	FC102	vfd	保留		变频器：VLT HVAC Drive FC 102。	
+Danfoss	FC111	vfd	保留		变频器：VLT FC 111（主营产品表中的型号，定位待核实）。	FC 111 的产品定位未能确认
+Danfoss	FC202	vfd	保留		变频器：VLT AQUA Drive FC 202 水处理型。	
+Danfoss	FC280	vfd	新增		变频器：VLT Midi Drive FC 280。	
+Danfoss	FC301	vfd	保留		变频器：VLT AutomationDrive FC 301。	
+Danfoss	FC302	vfd	保留		变频器：VLT AutomationDrive FC 302 高性能型。	
+Danfoss	FC360	vfd	保留		变频器：VLT AutomationDrive FC 360 经济型。	
+Danfoss	VACON 10	vfd	保留		变频器：VACON 10 微型（原伟肯）。	
+Danfoss	VACON 20	vfd	保留		变频器：VACON 20 紧凑型。	
+Danfoss	VACON 20Cold Plate	vfd	保留		变频器：VACON 20 冷板型。	
+Danfoss	VACON NXP	vfd	新增		变频器：VACON NXP / NXS 高性能型。	
+Danfoss	VACON 100	vfd	新增		变频器：VACON 100 系列。	
+Danfoss	MCD201	soft_starter	保留		软启动器：VLT Soft Starter MCD 201。	
+Danfoss	MCD202	soft_starter	保留		软启动器：VLT Soft Starter MCD 202，带电机保护。	
+Danfoss	MCD500	soft_starter	保留		软启动器：VLT Soft Starter MCD 500 高级型。	
+Danfoss	MBS	pressure_transmitter	新增		压力变送器：MBS 3000 等工业压力变送器。	
+Danfoss	KP	pressure_switch	新增		压力开关：KP 系列。	
+Danfoss	EV220B	solenoid_valve	新增		电磁阀：EV220B 等伺服式电磁阀。	
+Beckhoff	CX	plc_cpu	新增		嵌入式控制器：CX 系列嵌入式 PC（TwinCAT）。	
+Beckhoff	EL	io_module	新增		I/O：EtherCAT 端子模块 EL 系列。	
+Beckhoff	EK	distributed_io	新增		总线耦合器：EK 系列 EtherCAT 耦合器。	
+Beckhoff	AX5000	servo_drive	新增		伺服驱动：AX5000 EtherCAT 伺服驱动器。	
+Beckhoff	AM8000	servo_motor	新增		伺服电机：AM8000 系列。	
+Beckhoff	CP	panel_pc	新增		平板工控机与控制面板：CP 系列。	
+B&R	X20	io_module	新增		控制器与 I/O：X20 系统 CPU 与 I/O 模块。	
+B&R	Power Panel	hmi_panel	新增		人机界面：Power Panel 系列。	
+B&R	ACOPOS	servo_drive	新增		伺服驱动：ACOPOS、ACOPOSmulti、ACOPOS P3。	
+B&R	Automation PC	box_pc	新增		工控机：Automation PC 系列。	
+Phoenix Contact	QUINT	din_power	新增		导轨电源：QUINT POWER 高端型，含 UPS 与冗余模块。	
+Phoenix Contact	TRIO	din_power	新增		导轨电源：TRIO POWER 标准型。	
+Phoenix Contact	PLC-INTERFACE	interface_module	新增		继电器接口：PLC-INTERFACE 继电器模块（PLC-RSC 等）。	
+Phoenix Contact	MINI Analog	signal_isolator	新增		信号隔离：MINI Analog（MINI MCR）信号调理器。	
+Phoenix Contact	UT/PT	terminal_block	新增		接线端子：UT 螺钉式、PT 直插式等。	
+Phoenix Contact	FL SWITCH	ethernet_switch	新增		工业以太网交换机：FL SWITCH 系列。	
+Phoenix Contact	PLCnext	plc_cpu	新增		控制器：PLCnext Control（AXC F 系列）。	
+Weidmüller	PRO	din_power	新增		导轨电源：PROmax、PROtop、PROeco。	
+Weidmüller	TERMSERIES	relay	新增		继电器：TERMSERIES 超薄继电器模块。	
+Weidmüller	ACT20	signal_isolator	新增		信号隔离：ACT20 系列信号调理器。	
+Weidmüller	u-remote	distributed_io	新增		远程 I/O：u-remote 系列。	
+Weidmüller	Klippon Connect	terminal_block	新增		接线端子：W 螺钉式、A 直插式、Z 弹簧式。	
+WAGO	750	io_module	新增		I/O 系统：750 系列总线耦合器与 I/O 模块。	
+WAGO	PFC200	plc_cpu	新增		控制器：PFC200 系列。	
+WAGO	787	din_power	新增		导轨电源：787 系列 Eco、Classic、Pro 电源。	
+WAGO	857	signal_isolator	新增		信号隔离：857 JUMPFLEX 信号调理器。	
+WAGO	TOPJOB S	terminal_block	新增		接线端子：TOPJOB S（2002 等）直插式端子。	
+WAGO	221	terminal_block	新增		接线连接器：221 系列杠杆式连接器。	
+Pilz	PNOZ	safety_relay	新增		安全继电器：PNOZ、PNOZ X、PNOZsigma、PNOZmulti。	
+Pilz	PSS 4000	safety_plc	新增		安全控制系统：PSS 4000。	
+Pilz	PSEN	safety_switch	新增		安全传感器：PSEN 安全门开关、安全光幕等。	
+SICK	W12	photoelectric_sensor	新增		光电开关：W12、W16、W26 等 W 系列。	
+SICK	IME	proximity_sensor	新增		接近开关：IME 电感式。	
+SICK	DFS60	encoder	新增		编码器：DFS60 增量式。	
+SICK	deTec4	safety_light_curtain	新增		安全光幕：deTec4。	
+SICK	S300	safety_light_curtain	新增		安全激光扫描仪：S300、microScan3。	
+SICK	Lector	code_reader	新增		读码器：Lector 图像式读码器。	
+Pepperl+Fuchs	K-System	signal_isolator	新增		安全栅与隔离器：K 系统（KFD2 等）。	
+Pepperl+Fuchs	NBB/NBN	proximity_sensor	新增		接近开关：NBB、NBN 等电感式。	
+Pepperl+Fuchs	VisuNet	panel_pc	新增		防爆工作站：VisuNet 系列 HMI 与远程监视器。	
+ifm	IF/IG/IE	proximity_sensor	新增		接近开关：IF、IG、IE 等电感式。	
+ifm	O5/O6	photoelectric_sensor	新增		光电开关：O5、O6 系列。	
+ifm	PN	pressure_switch	新增		压力传感器：PN 系列电子式压力开关。	
+ifm	SI	flowmeter	新增		流量开关：SI 系列流量监视器。	
+ifm	TA/TN	temperature_sensor	新增		温度传感器：TA 系列与 TN 温度开关。	
+ifm	AL	io_link_master	新增		IO-Link 主站：AL 系列。	
+Balluff	BES	proximity_sensor	新增		接近开关：BES 电感式。	
+Balluff	BOS	photoelectric_sensor	新增		光电开关：BOS 系列。	
+Balluff	BTL	displacement_sensor	新增		位移传感器：BTL 磁致伸缩直线位移传感器。	
+Balluff	BIS	code_reader	新增		RFID：BIS 工业 RFID 系统。	
+Balluff	BNI	io_link_master	新增		IO-Link：BNI 主站与集线器。	
+TURCK	BI/NI	proximity_sensor	新增		接近开关：BI、NI 电感式（含 uprox）。	
+TURCK	TBEN	distributed_io	新增		块式 I/O：TBEN 系列 IP67 模块。	
+TURCK	BL20	distributed_io	新增		远程 I/O：BL20 系列。	
+TURCK	IM	signal_isolator	新增		隔离与安全栅：IM 系列接口模块。	
+Leuze	BCL	code_reader	新增		条码读码器：BCL 系列。	
+Leuze	MLC	safety_light_curtain	新增		安全光幕：MLC 系列。	
+Leuze	ODS	displacement_sensor	新增		距离传感器：ODS 系列。	
+Festo	DSBC	pneumatic_cylinder	新增		气缸：DSBC 标准气缸（ISO 15552）。	
+Festo	ADN	pneumatic_cylinder	新增		气缸：ADN 紧凑型气缸。	
+Festo	VUVG	solenoid_valve	新增		电磁阀：VUVG 系列。	
+Festo	MS	air_preparation	新增		气源处理：MS 系列过滤减压阀等。	
+Festo	CPX	solenoid_valve	新增		阀岛：CPX 电气终端与 VTSA、MPA 阀岛。	
+Bürkert	6013	solenoid_valve	新增		电磁阀：6013 直动式两位两通电磁阀。	
+Bürkert	6213	solenoid_valve	新增		电磁阀：6213 伺服辅助式电磁阀。	
+Bürkert	ELEMENT	process_valve	新增		过程阀：ELEMENT 系列角座阀与调节阀。	
+Bürkert	8692	valve_positioner	新增		定位器：8692、8693 等阀门定位器。	
+Endress+Hauser	Cerabar	pressure_transmitter	新增		压力变送器：Cerabar 系列。	
+Endress+Hauser	Promag	flowmeter	新增		流量计：Promag 电磁流量计。	
+Endress+Hauser	Micropilot	level_meter	新增		物位计：Micropilot 雷达物位计。	
+Endress+Hauser	Liquiphant	level_switch	新增		液位开关：Liquiphant 音叉液位开关。	
+Endress+Hauser	iTEMP	temperature_transmitter	新增		温度变送器：iTEMP 系列。	
+VEGA	VEGAPULS	level_meter	新增		物位计：VEGAPULS 雷达物位计。	
+VEGA	VEGAFLEX	level_meter	新增		物位计：VEGAFLEX 导波雷达。	
+VEGA	VEGASWING	level_switch	新增		液位开关：VEGASWING 音叉。	
+VEGA	VEGABAR	pressure_transmitter	新增		压力变送器：VEGABAR 系列。	
+KROHNE	OPTIFLUX	flowmeter	新增		流量计：OPTIFLUX 电磁流量计。	
+KROHNE	OPTIMASS	flowmeter	新增		流量计：OPTIMASS 质量流量计。	
+KROHNE	OPTIWAVE	level_meter	新增		物位计：OPTIWAVE 雷达物位计。	
+KROHNE	H250	flowmeter	新增		流量计：H250 金属管浮子流量计。	
+Heidenhain	ERN	encoder	新增		编码器：ERN 增量式旋转编码器。	
+Heidenhain	ECN	encoder	新增		编码器：ECN、EQN 绝对式旋转编码器。	
+Heidenhain	LS	displacement_sensor	新增		光栅尺：LS 系列封闭式直线光栅尺。	
+Heidenhain	TNC	cnc_system	新增		数控系统：TNC 系列（TNC 640 等）。	
+Kübler	Sendix	encoder	新增		编码器：Sendix 增量式与绝对式。	
+Kübler	Codix	counter_timer	新增		计数器与显示器：Codix 系列。	
+POSITAL	IXARC	encoder	新增		编码器：IXARC 绝对值编码器。	
+POSITAL	TILTIX	vibration_sensor	新增		倾角传感器：TILTIX 系列。	
+POSITAL	LINARIX	displacement_sensor	新增		拉线位移传感器：LINARIX 系列。	
+Moeller	DILM	contactor	新增		接触器：DILM 系列（现属 Eaton）。	
+Moeller	PKZM0	motor_protection_breaker	新增		电动机保护断路器：PKZM0、PKZM4（现属 Eaton）。	
+Moeller	easy	plc_cpu	新增		控制继电器：easy500、easy700、easy800 等（现属 Eaton）。	
+Eaton	easyE4	plc_cpu	新增		控制继电器：easyE4 系列。	
+Eaton	XV	hmi_panel	新增		触摸屏：XV100、XV300 系列。	
+Eaton	PowerXL	vfd	新增		变频器：PowerXL DC1、DG1、DA1。	
+Eaton	Bussmann	fuse	新增		熔断器：Bussmann 系列熔断器与熔断器座。	
+Rittal	Blue e	cooling_fan	新增		机柜空调：Blue e、Blue e+ 系列。	
+Rittal	TopTherm	cooling_fan	新增		机柜风扇：TopTherm 过滤风扇。	
+Murrelektronik	Emparro	din_power	新增		导轨电源：Emparro 系列。	
+Murrelektronik	MICO	ups	新增		电源分配：MICO 智能电流分配模块。	
+Murrelektronik	Cube67	distributed_io	新增		分布式 I/O：Cube67 系列。	
+Control Techniques	Unidrive M	vfd	新增		变频器：Unidrive M 系列（M200–M700）。	
+Control Techniques	Unidrive SP	vfd	新增		老款变频器：Unidrive SP，多为维修替换。	
+Control Techniques	Commander C	vfd	新增		变频器：Commander C200、C300。	
+Control Techniques	Digitax HD	servo_drive	新增		伺服驱动：Digitax HD 系列。	
+Control Techniques	Mentor MP	dc_drive	新增		直流调速器：Mentor MP。	
+Allen-Bradley	Micro800 Series	plc_cpu	保留		小型 PLC：Micro810、Micro820、Micro850、Micro870。	
+Allen-Bradley	Micrologix Series	plc_cpu	保留		小型 PLC：MicroLogix 1000、1100、1400、1500。	
+Allen-Bradley	Compactlogix Series	plc_cpu	保留		中型 PLC：CompactLogix 5370、5380 与 1769 I/O。	
+Allen-Bradley	Controllogix Series	plc_cpu	保留		大型 PLC：ControlLogix 1756 控制器与 I/O。	
+Allen-Bradley	GuardLogix	safety_plc	新增		安全控制器：GuardLogix、Compact GuardLogix。	
+Allen-Bradley	SLC-500 Series	plc_cpu	保留		老款 PLC：SLC 500（1747/1746），多为维修替换。	
+Allen-Bradley	PLC-5 Series	plc_cpu	保留		老款大型 PLC：PLC-5（1771/1785）。	
+Allen-Bradley	Flex I/O	distributed_io	保留		分布式 I/O：FLEX I/O（1794）。	
+Allen-Bradley	POINT I/O	distributed_io	新增		分布式 I/O：POINT I/O（1734）。	
+Allen-Bradley	PanelView 800 Graphic Terminals	hmi_panel	保留		触摸屏：PanelView 800（2711R）。	
+Allen-Bradley	PanelView Compact Graphic Terminals	hmi_panel	保留		老款触摸屏：PanelView Component / Compact。	
+Allen-Bradley	PanelView Plus 6 Compact Graphic Terminals	hmi_panel	保留		触摸屏：PanelView Plus 6 Compact（2711PC）。	
+Allen-Bradley	PanelView Plus 6 Graphic Terminals	hmi_panel	保留		触摸屏：PanelView Plus 6（2711P），存量大。	
+Allen-Bradley	PanelView Plus 7 Graphic Terminals	hmi_panel	保留		触摸屏：PanelView Plus 7（2711P）。	
+Allen-Bradley	PanelView 5000 Graphic Terminals	hmi_panel	保留		触摸屏：PanelView 5310、5510（2713P）。	
+Allen-Bradley	Stratix	ethernet_switch	新增		工业以太网交换机：Stratix 2000、5700 等。	
+Allen-Bradley	PowerFlex 4	vfd	保留		变频器：PowerFlex 4 微型。	
+Allen-Bradley	PowerFlex 4M	vfd	保留		变频器：PowerFlex 4M 微型。	
+Allen-Bradley	PowerFlex 40	vfd	保留		变频器：PowerFlex 40 紧凑型。	
+Allen-Bradley	PowerFlex 40P	vfd	保留		变频器：PowerFlex 40P，带位置控制。	
+Allen-Bradley	PowerFlex 400	vfd	保留		变频器：PowerFlex 400 风机水泵型。	
+Allen-Bradley	PowerFlex 523	vfd	保留		变频器：PowerFlex 523 紧凑型。	
+Allen-Bradley	PowerFlex 525	vfd	保留		变频器：PowerFlex 525 紧凑型，带以太网。	
+Allen-Bradley	PowerFlex 527	vfd	保留		变频器：PowerFlex 527，配 Logix 运动控制。	
+Allen-Bradley	PowerFlex 700	vfd	新增		老款变频器：PowerFlex 70 / 700，存量大。	
+Allen-Bradley	PowerFlex 753	vfd	保留		变频器：PowerFlex 753 架构型。	
+Allen-Bradley	PowerFlex 755	vfd	保留		变频器：PowerFlex 755 架构型。	
+Allen-Bradley	Kinetix 5500	servo_drive	新增		伺服驱动：Kinetix 5500。	
+Allen-Bradley	Kinetix 5700	servo_drive	新增		伺服驱动：Kinetix 5700 多轴。	
+Allen-Bradley	100-C	contactor	新增		接触器：Bulletin 100-C。	
+Allen-Bradley	140M	motor_protection_breaker	新增		电动机保护断路器：Bulletin 140M。	
+Allen-Bradley	1606	din_power	新增		导轨电源：Bulletin 1606。	
+Allen-Bradley	Guardmaster	safety_relay	新增		安全继电器：Guardmaster 440R、GSR 等。	
+Honeywell	MICRO SWITCH	limit_switch	新增		限位与微动开关：MICRO SWITCH 系列。	
+Honeywell	SmartLine	pressure_transmitter	新增		变送器：SmartLine STG、STD 压力与差压变送器。	
+Honeywell	UDC	temperature_controller	新增		调节器：UDC2500、UDC3200 等。	
+Emerson	Rosemount 3051	pressure_transmitter	新增		压力变送器：Rosemount 3051 系列。	
+Emerson	Micro Motion	flowmeter	新增		流量计：Micro Motion 科里奥利质量流量计。	
+Emerson	Fisher DVC6200	valve_positioner	新增		阀门定位器：Fisher FIELDVUE DVC6200。	
+Emerson	ASCO	solenoid_valve	新增		电磁阀：ASCO 8210 等系列。	
+Parker	Compax3	servo_drive	新增		伺服驱动：Compax3 系列。	
+Parker	AC10	vfd	新增		变频器：AC10、AC890（原 SSD Drives）。	
+Parker	D1VW	hydraulic_valve	新增		液压阀：D1VW 电磁换向阀。	
+Parker	PV	hydraulic_pump	新增		液压泵：PV 变量柱塞泵。	
+Parker	P1D	pneumatic_cylinder	新增		气缸：P1D 标准气缸。	
+Banner	QS18	photoelectric_sensor	新增		光电开关：WORLD-BEAM QS18。	
+Banner	Q4X	displacement_sensor	新增		激光测距与检测：Q4X 系列。	
+Banner	EZ-SCREEN	safety_light_curtain	新增		安全光幕：EZ-SCREEN 系列。	
+Banner	TL50	indicator	新增		信号灯：TL50 塔灯。	
+Cognex	In-Sight	vision	新增		视觉系统：In-Sight 智能相机。	
+Cognex	DataMan	code_reader	新增		读码器：DataMan 固定式与手持式读码器。	
+Red Lion	Graphite	hmi_panel	新增		触摸屏与控制器：Graphite HMI。	
+Red Lion	G3	hmi_panel	新增		老款触摸屏：G3 系列。	
+Red Lion	PAX	panel_meter	新增		面板表：PAX 系列数显表。	
+Red Lion	N-Tron	ethernet_switch	新增		工业以太网交换机：N-Tron 系列。	
+MAC	35 Series	solenoid_valve	新增		电磁阀：35 系列。	系列名称按记忆整理，请核实
+MAC	45 Series	solenoid_valve	新增		电磁阀：45 系列。	系列名称按记忆整理，请核实
+Mitsubishi Electric	FX Series	plc_cpu	保留		小型 PLC：MELSEC FX3U、FX3G、FX3S 等。	
+Mitsubishi Electric	iQ-F Series	plc_cpu	新增		小型 PLC：MELSEC iQ-F（FX5U、FX5UC 等）。	
+Mitsubishi Electric	L Series	plc_cpu	保留		中型 PLC：MELSEC-L 系列。	
+Mitsubishi Electric	Q Series	plc_cpu	保留		中大型 PLC：MELSEC-Q 系列 CPU 与模块，存量大。	
+Mitsubishi Electric	iQ-R Series	plc_cpu	新增		大型 PLC：MELSEC iQ-R 系列。	
+Mitsubishi Electric	CC-Link	fieldbus	保留		现场网络：CC-Link 主站、远程 I/O 与网络模块。	
+Mitsubishi Electric	CC-Link/LT	fieldbus	保留		现场网络：CC-Link/LT 省配线网络模块。	
+Mitsubishi Electric	GOT1000	hmi_panel	保留		触摸屏：GOT1000（GT11、GT15、GT16）。	
+Mitsubishi Electric	GOT2000	hmi_panel	保留		触摸屏：GOT2000（GT21、GT25、GT27）。	
+Mitsubishi Electric	FR-D700	vfd	保留		变频器：FR-D700 紧凑型。	
+Mitsubishi Electric	FR-E700	vfd	保留		变频器：FR-E700 经济型。	
+Mitsubishi Electric	FR-E800	vfd	新增		变频器：FR-E800，替代 FR-E700。	
+Mitsubishi Electric	FR-A700	vfd	新增		老款变频器：FR-A700 高性能型。	
+Mitsubishi Electric	FR-A800	vfd	保留		变频器：FR-A800 高性能型。	
+Mitsubishi Electric	FR-F800	vfd	保留		变频器：FR-F800 风机水泵型。	
+Mitsubishi Electric	JE Series	servo_drive	保留		伺服：MELSERVO-JE 经济型驱动器与 HG-KN/SN 电机。	
+Mitsubishi Electric	J3 Series	servo_drive	保留		伺服：MELSERVO-J3 驱动器与 HF 电机，存量大。	
+Mitsubishi Electric	J4 Series	servo_drive	保留		伺服：MELSERVO-J4 驱动器与 HG 电机。	
+Mitsubishi Electric	J5 Series	servo_drive	新增		伺服：MELSERVO-J5 驱动器与 HK 电机。	
+Mitsubishi Electric	M800/M80	cnc_system	新增		数控系统：M800、M80 系列。	
+OMRON	CP Series	plc_cpu	保留		小型 PLC：CP1E、CP1H、CP1L、CP2E。	
+OMRON	CJ Series	plc_cpu	保留		中型 PLC：CJ1、CJ2 CPU 与模块。	
+OMRON	CS Series	plc_cpu	保留		大型 PLC：CS1 系列。	
+OMRON	NJ Series	plc_cpu	保留		机器自动化控制器：NJ 系列（Sysmac）。	
+OMRON	NX Series	plc_cpu	保留		机器自动化控制器与 I/O：NX1P、NX102 及 NX I/O。	
+OMRON	Zen Series	plc_cpu	保留		可编程继电器：ZEN 系列。	
+OMRON	Remote I/O DRT	distributed_io	保留		远程 I/O：DRT 系列 DeviceNet 远程终端。	
+OMRON	NS Series	hmi_panel	保留		触摸屏：NS 系列。	
+OMRON	NB Series	hmi_panel	保留		触摸屏：NB 系列经济型。	
+OMRON	NA Series	hmi_panel	新增		触摸屏：NA 系列（Sysmac）。	
+OMRON	MX2	vfd	保留		变频器：3G3MX2。	
+OMRON	G5 Series	servo_drive	保留		伺服：G5 系列（R88D-K 驱动器、R88M-K 电机）。	
+OMRON	1S Series	servo_drive	新增		伺服：1S 系列（R88D-1S）。	
+OMRON	E2E	proximity_sensor	新增		接近开关：E2E 电感式。	
+OMRON	E3Z	photoelectric_sensor	新增		光电开关：E3Z 小型光电。	
+OMRON	E6B2/E6C2	encoder	新增		编码器：E6B2、E6C2 增量式。	
+OMRON	E5CC	temperature_controller	新增		温控器：E5CC、E5EC 等 E5 系列。	
+OMRON	H3CR	timer_relay	新增		时间继电器：H3CR 系列。	
+OMRON	MY	relay	新增		中间继电器：MY 系列。	
+OMRON	G3NA	solid_state_relay	新增		固态继电器：G3NA 系列。	
+OMRON	S8VK	din_power	新增		导轨电源：S8VK 系列。	
+Yaskawa	J1000	vfd	保留		变频器：J1000 小型。	
+Yaskawa	V1000	vfd	保留		变频器：V1000 紧凑矢量型。	
+Yaskawa	A1000	vfd	保留		变频器：A1000 高性能矢量型。	
+Yaskawa	E1000	vfd	保留		变频器：E1000 风机水泵型。	
+Yaskawa	H1000	vfd	保留		变频器：H1000 重载型。	
+Yaskawa	GA500	vfd	新增		变频器：GA500 小型通用型。	
+Yaskawa	GA700	vfd	保留		变频器：GA700，替代 A1000。	
+Yaskawa	Varispeed G7/F7	vfd	新增		老款变频器：Varispeed G7、F7，多为维修替换。	
+Yaskawa	Sigma-5	servo_drive	新增		伺服：Σ-V（SGDV 驱动器、SGMJV 等电机）。	
+Yaskawa	Sigma 7 Series	servo_drive	保留		伺服：Σ-7（SGD7S 驱动器、SGM7 电机）。	
+Yaskawa	MP3000	motion_controller	新增		运动控制器：MP3000 系列。	
+Yaskawa	YRC1000/DX200	robot_controller	新增		机器人：MOTOMAN 控制柜 YRC1000、DX200、DX100 及示教器。	
+Fanuc	Series 0i	cnc_system	新增		数控系统：Series 0i-F / 0i-D 等。	
+Fanuc	αi 伺服放大器	servo_drive	新增		伺服：αi 系列伺服放大器（SVM）与电源模块（PSM）。	
+Fanuc	βi 伺服	servo_drive	新增		伺服：βi 系列伺服放大器与电机。	
+Fanuc	αi 主轴	spindle	新增		主轴：αi 主轴放大器（SPM）与主轴电机。	
+Fanuc	R-30iB	robot_controller	新增		机器人：R-30iA / R-30iB 控制柜。	
+Fanuc	iPendant	teach_pendant	新增		示教器：iPendant 系列。	
+Panasonic	FPOR/FP Series	plc_cpu	保留		小型 PLC：FP0R、FP0H 等 FP 系列。	
+Panasonic	FP-X Series	plc_cpu	保留		小型 PLC：FP-X、FP-XH 系列。	
+Panasonic	FP7 Series	plc_cpu	保留		中型 PLC：FP7 系列。	
+Panasonic	FP-2SH Series	plc_cpu	保留		老款 PLC：FP2SH。	
+Panasonic	GT 02	hmi_panel	保留		触摸屏：GT02 小型。	
+Panasonic	GT 05	hmi_panel	保留		触摸屏：GT05。	
+Panasonic	GT 12	hmi_panel	保留		触摸屏：GT12。	
+Panasonic	GT 32	hmi_panel	保留		触摸屏：GT32。	
+Panasonic	A5 Series	servo_drive	新增		伺服：MINAS A5 系列。	
+Panasonic	A6 Series	servo_drive	保留		伺服：MINAS A6 系列。	
+Panasonic	CX-400	photoelectric_sensor	新增		光电开关：CX-400 系列（原 SUNX）。	
+Keyence	KV	plc_cpu	新增		PLC：KV-8000、KV-5500、KV Nano 等。	
+Keyence	FS-N	fiber_sensor	新增		光纤放大器：FS-N 系列。	
+Keyence	LV-N	photoelectric_sensor	新增		激光传感器：LV-N 系列。	
+Keyence	IL	displacement_sensor	新增		激光位移传感器：IL 系列。	
+Keyence	SR	code_reader	新增		读码器：SR-1000、SR-X 等。	
+Keyence	CV-X	vision	新增		视觉系统：CV-X、XG-X 系列。	
+Fuji Electric	MINI[C]	vfd	保留		变频器：FRENIC-Mini（C 系列）。	
+Fuji Electric	MULTI[E]	vfd	保留		变频器：FRENIC-Multi（E 系列）。	
+Fuji Electric	MEGA[G]	vfd	保留		变频器：FRENIC-MEGA（G 系列）。	
+Fuji Electric	ECO[F]	vfd	保留		变频器：FRENIC-Eco（F 系列）风机水泵型。	
+Fuji Electric	HVAC[AR]	vfd	保留		变频器：FRENIC-HVAC（AR 系列）。	
+Fuji Electric	AEC	vfd	保留		变频器：FRENIC-Ace（主营产品表写作 AEC）。	AEC 按 FRENIC-Ace 理解，请核实
+Fuji Electric	ALPHA5	servo_drive	新增		伺服：ALPHA5 系列。	
+Fuji Electric	MICREX-SX	plc_cpu	新增		PLC：MICREX-SX（SPH）系列。	
+Hitachi	WJ200	vfd	保留		变频器：WJ200 紧凑型。	
+Hitachi	WJ200N	vfd	保留		变频器：WJ200N。	
+Hitachi	SJ700	vfd	保留		变频器：SJ700 高性能型。	
+Hitachi	SJ-P1	vfd	新增		变频器：SJ-P1，替代 SJ700。	
+Hitachi	NJ600B	vfd	保留		变频器：NJ600B 风机水泵型。	
+Toshiba	VFNC-3	vfd	保留		变频器：TOSVERT VF-nC3 小型。	
+Toshiba	VFS-15	vfd	保留		变频器：TOSVERT VF-S15 通用型。	
+Toshiba	AS-1	vfd	保留		变频器：TOSVERT VF-AS1 高性能型。	
+Toshiba	PS-1	vfd	保留		变频器：TOSVERT VF-PS1 风机水泵型。	
+Pro-face	GP4000 Series	hmi_panel	保留		触摸屏：GP4000 系列。	
+Pro-face	GP3000 Series	hmi_panel	新增		老款触摸屏：GP3000 系列，多为维修替换。	
+Pro-face	SP5000 Series	hmi_panel	保留		触摸屏与工控机：SP5000 系列。	
+Pro-face	ST6000 Series	hmi_panel	新增		触摸屏：ST6000 系列。	
+Pro-face	FP5000 Series	industrial_monitor	保留		工业显示器：FP5000 系列。	
+Pro-face	LT4000M Series	hmi_panel	保留		一体式触摸屏：LT4000M（HMI 带 I/O）。	
+Pro-face	LM48 Series	hmi_panel	保留		主营产品表中的 Pro-face 系列，具体型号范围待核实。	LM48 未能确认是哪个系列
+Koyo	DirectLOGIC	plc_cpu	新增		小型 PLC：DirectLOGIC DL05、DL06 等。	
+Koyo	TRD	encoder	新增		编码器：TRD 系列增量式。	
+SMC	SY	solenoid_valve	新增		电磁阀：SY 系列五通电磁阀。	
+SMC	CQ2	pneumatic_cylinder	新增		气缸：CQ2 薄型气缸。	
+SMC	CP96	pneumatic_cylinder	新增		气缸：CP96 标准气缸（ISO 15552）。	
+SMC	AC	air_preparation	新增		气源处理：AC 系列三联件与 AW、AR 等。	
+SMC	ZP	vacuum	新增		真空吸盘：ZP 系列。	
+SMC	KQ2	pneumatic_fitting	新增		快插接头：KQ2 系列。	
+SMC	ITV	proportional_valve	新增		电气比例阀：ITV 系列。	
+CKD	4GB	solenoid_valve	新增		电磁阀：4GB 系列。	
+CKD	SCM	pneumatic_cylinder	新增		气缸：SCM 标准气缸。	
+CKD	SSD2	pneumatic_cylinder	新增		气缸：SSD2 超薄气缸。	
+Azbil	SDC	temperature_controller	新增		调节器：SDC 系列。	
+Azbil	HPX	photoelectric_sensor	新增		光电开关：HPX 系列。	
+Azbil	AVP	valve_positioner	新增		阀门定位器：AVP 智能阀门定位器。	
+Oriental Motor	PKP	stepper	新增		步进电机：PKP 系列。	
+Oriental Motor	AZ	stepper	新增		步进：AZ 系列（αSTEP）闭环步进电机与驱动器。	
+Oriental Motor	BLE2	dc_motor	新增		无刷电机：BLE2 系列。	
+Nidec	VRL/VRB	reducer	新增		减速机：VRL、VRB 行星减速机（Nidec-Shimpo）。	
+IDEC	FC6A	plc_cpu	新增		小型 PLC：MicroSmart FC6A。	
+IDEC	HG	hmi_panel	新增		触摸屏：HG 系列。	
+IDEC	RJ	relay	新增		继电器：RJ 系列。	
+IDEC	HW	pushbutton	新增		按钮指示灯：HW 系列。	
+Hokuyo	UAM	safety_light_curtain	新增		安全激光扫描仪：UAM 系列。	
+Hokuyo	UST	displacement_sensor	新增		激光测距扫描仪：UST 系列。	
+LS Electric	MASTER-K/GLOFA(K10S1/K80S/K120S/GM7/GM7U)	plc_cpu	保留		老款小型 PLC：MASTER-K K10S1、K80S、K120S 与 GLOFA GM7、GM7U。	
+LS Electric	MASTER-K/GLOFA(K200S/K300S/GM6/GM4)	plc_cpu	保留		老款中型 PLC：MASTER-K K200S、K300S 与 GLOFA GM6、GM4。	
+LS Electric	XGB Series	plc_cpu	保留		小型 PLC：XGB 系列。	
+LS Electric	XGT Series	plc_cpu	保留		中大型 PLC：XGT（XGK、XGI）系列。	
+LS Electric	XP Series	hmi_panel	保留		触摸屏：XP 系列。	
+LS Electric	eXP Series	hmi_panel	保留		触摸屏：eXP 系列。	
+LS Electric	iXP Series	hmi_panel	保留		触摸屏：iXP 系列。	
+LS Electric	IE5/IC5	vfd	保留		变频器：iE5、iC5 微型。	
+LS Electric	IG5A	vfd	保留		变频器：iG5A 通用型，存量大。	
+LS Electric	IP5A	vfd	保留		变频器：iP5A 风机水泵型。	
+LS Electric	IS7	vfd	保留		变频器：iS7 高性能型。	
+LS Electric	IV5	vfd	保留		变频器：iV5 矢量型。	
+LS Electric	S100	vfd	保留		变频器：S100 系列，替代 iG5A。	
+LS Electric	H100	vfd	保留		变频器：H100 风机水泵型。	
+LS Electric	L7	servo_drive	新增		伺服：XDL-L7 系列驱动器。	
+LS Electric	Metasol MC	contactor	新增		接触器：Metasol MC 系列。	
+LS Electric	Metasol ABN/ABS	circuit_breaker	新增		塑壳断路器：Metasol ABN、ABS。	
+Autonics	PR	proximity_sensor	新增		接近开关：PR 系列。	
+Autonics	BJ	photoelectric_sensor	新增		光电开关：BJ 系列。	
+Autonics	E40/E50	encoder	新增		编码器：E40、E50 系列增量式。	
+Autonics	TK	temperature_controller	新增		温控器：TK 系列。	
+Delta	ES2/EX2 Series	plc_cpu	保留		小型 PLC：DVP-ES2、DVP-EX2 标准型。	
+Delta	SS2/SA2/SX2	plc_cpu	保留		小型 PLC：DVP-SS2、SA2、SX2 薄型。	
+Delta	SV2 Series	plc_cpu	保留		小型 PLC：DVP-SV2 高性能薄型。	
+Delta	EH3 Series	plc_cpu	保留		小型 PLC：DVP-EH3 高性能型。	
+Delta	EC3 Series	plc_cpu	保留		小型 PLC：DVP-EC3 经济型。	
+Delta	AS Series	plc_cpu	新增		中型 PLC：AS300 系列。	
+Delta	AH500 Series	plc_cpu	保留		中大型 PLC：AH500 系列。	
+Delta	DOP-100 Series	hmi_panel	保留		触摸屏：DOP-100 系列。	
+Delta	VFD-E	vfd	保留		变频器：VFD-E 系列，存量大。	
+Delta	VFD-EL	vfd	新增		变频器：VFD-EL 简易型。	
+Delta	VFD-B	vfd	保留		老款变频器：VFD-B 系列。	
+Delta	MS300	vfd	保留		变频器：MS300 紧凑型，替代 VFD-E。	
+Delta	MH300	vfd	保留		变频器：MH300 高性能紧凑型。	
+Delta	C-2000	vfd	保留		变频器：C2000 高性能矢量型。	
+Delta	CP-2000	vfd	保留		变频器：CP2000 风机水泵型。	
+Delta	ASDA-A2	servo_drive	保留		伺服：ASDA-A2 高性能型。	
+Delta	ASDA-A3	servo_drive	新增		伺服：ASDA-A3，替代 A2。	
+Delta	ASDA-B2	servo_drive	保留		伺服：ASDA-B2 标准型。	
+Delta	ASDA-B3	servo_drive	新增		伺服：ASDA-B3，替代 B2。	
+Delta	ECMA	servo_motor	新增		伺服电机：ECMA 系列，配 ASDA-A2/B2。	
+Delta	S7-1200	plc_cpu	删除		（西门子系列，误挂在台达下）	S7-1200 是西门子系列；有商品使用时改为停用
+Weintek	eMT Series	hmi_panel	保留		触摸屏：eMT 系列。	
+Weintek	iE Series	hmi_panel	保留		触摸屏：MT8000iE / MT6000iE 系列。	
+Weintek	iP Series	hmi_panel	保留		触摸屏：MT8000iP / MT6000iP 经济型。	
+Weintek	CMT Series	hmi_panel	保留		触摸屏：cMT 系列（cMT X 等）。	
+Weintek	MT8000i/MT6000i	hmi_panel	新增		老款触摸屏：MT8000i、MT6000i 系列，多为维修替换。	
+AirTAC	SC	pneumatic_cylinder	新增		气缸：SC 标准气缸。	
+AirTAC	MAL	pneumatic_cylinder	新增		气缸：MAL 铝合金迷你气缸。	
+AirTAC	4V	solenoid_valve	新增		电磁阀：4V100、4V200、4V300 等五通电磁阀。	
+AirTAC	GFC/GFR	air_preparation	新增		气源处理：GFC 二联件、GFR 过滤减压阀等。	
+Advantech	ADAM	distributed_io	新增		远程 I/O：ADAM-4000、ADAM-6000 系列。	
+Advantech	IPC	box_pc	新增		工控机：IPC-610 等机架式工控机。	
+Advantech	UNO	box_pc	新增		嵌入式工控机：UNO 系列。	
+Advantech	PPC	panel_pc	新增		平板工控机：PPC 系列。	
+Advantech	EKI	ethernet_switch	新增		工业网络：EKI 交换机与串口服务器。	
+Moxa	EDS	ethernet_switch	新增		工业以太网交换机：EDS 系列。	
+Moxa	NPort	gateway	新增		串口服务器：NPort 系列。	
+Moxa	MGate	gateway	新增		协议网关：MGate 系列（Modbus、PROFINET 等）。	
+Moxa	ioLogik	distributed_io	新增		远程 I/O：ioLogik 系列。	
+Moxa	AWK	industrial_wireless	新增		工业无线：AWK 系列 AP 与客户端。	
+HIWIN	E1	servo_drive	新增		伺服驱动：E1 系列。	
+TECO	E510	vfd	新增		变频器：E510 系列。	
+TECO	A510	vfd	新增		变频器：A510 系列。	
+MEAN WELL	NDR	din_power	新增		导轨电源：NDR 系列。	
+MEAN WELL	SDR	din_power	新增		导轨电源：SDR 系列，带 PFC。	
+MEAN WELL	HDR	din_power	新增		导轨电源：HDR 超薄型。	
+MEAN WELL	DDR	dc_dc	新增		导轨 DC/DC 转换器：DDR 系列。	
+Inovance	MD500	vfd	新增		变频器：MD500 系列。	
+Inovance	MD290	vfd	新增		变频器：MD290 风机水泵型。	
+Inovance	SV660	servo_drive	新增		伺服：SV660 系列。	
+Inovance	IS620	servo_drive	新增		老款伺服：IS620 系列。	
+Inovance	H3U/H5U	plc_cpu	新增		小型 PLC：H3U、H5U 系列。	
+Inovance	IT7000	hmi_panel	新增		触摸屏：IT7000 系列。	
+INVT	GD20	vfd	新增		变频器：Goodrive20 通用型。	
+INVT	GD200A	vfd	新增		变频器：Goodrive200A 通用型。	
+INVT	GD350	vfd	新增		变频器：Goodrive350 高性能型。	
+INVT	DA200	servo_drive	新增		伺服：DA200 系列。	
+INVT	IVC	plc_cpu	新增		小型 PLC：IVC1S、IVC3 等 IVC 系列。	
+Kinco	GL	hmi_panel	新增		触摸屏：GL 系列。	
+Kinco	K	plc_cpu	新增		小型 PLC：K2、K5 系列。	
+Kinco	FD	servo_drive	新增		伺服驱动：FD 系列。	
+Kinco	2M/3M	stepper	新增		步进驱动：2M、3M 系列。	
+Leadshine	DM	stepper	新增		步进驱动：DM 系列数字式步进驱动器。	
+Leadshine	EL5/EL6	servo_drive	新增		伺服：EL5、EL6 系列。	
+WECON	LX3V	plc_cpu	新增		小型 PLC：LX3V 系列。	
+WECON	LX5V	plc_cpu	新增		小型 PLC：LX5V 系列。	
+WECON	PI	hmi_panel	新增		触摸屏：PI3000、PI8000 系列。	
+Haiwell	C/T/H Series	plc_cpu	新增		小型 PLC：C、T、H 系列。	系列划分按记忆整理，请核实
+Xinje	XD	plc_cpu	新增		小型 PLC：XD、XL 系列。	
+Xinje	XC	plc_cpu	新增		小型 PLC：XC 系列（经典款）。	
+Xinje	TG	hmi_panel	新增		触摸屏：TG 系列。	
+Xinje	DS5	servo_drive	新增		伺服：DS5 系列。	
+Estun	ProNet	servo_drive	新增		伺服：ProNet 系列。	
+Estun	ED3L	servo_drive	新增		伺服：ED3L 系列。	
+CHINT	NXC	contactor	新增		接触器：NXC 系列。	
+CHINT	NR2	thermal_overload	新增		热过载继电器：NR2 系列。	
+CHINT	NXB	circuit_breaker	新增		微型断路器：NXB 系列。	
+CHINT	NM1	circuit_breaker	新增		塑壳断路器：NM1 系列。	
+CHINT	NVF2G	vfd	新增		变频器：NVF2G 系列。	
+Hollysys	LK	plc_cpu	新增		大型 PLC：LK 系列。	
+Hollysys	LE	plc_cpu	新增		小型 PLC：LE 系列。	
+SUPCON	JX-300XP	plc_cpu	新增		DCS：JX-300XP 控制系统卡件。	
+SUPCON	ECS-700	plc_cpu	新增		DCS：ECS-700 控制系统。	
+Carlo Gavazzi	RM	solid_state_relay	新增		固态继电器：RM 系列。	
+Carlo Gavazzi	EM24	energy_meter	新增		电能表：EM24 系列。	
+Carlo Gavazzi	DPA/DPB	monitoring_relay	新增		监控继电器：DPA、DPB 相序与电压监控。	
+Hitech	PWS Series	hmi_panel	保留		触摸屏：PWS 系列（海泰克，品牌已停用，保留供老型号查询）。	
