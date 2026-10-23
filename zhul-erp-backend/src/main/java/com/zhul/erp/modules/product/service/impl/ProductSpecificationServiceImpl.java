@@ -11,7 +11,7 @@ import com.zhul.erp.modules.product.entity.ProductSpecificationDO;
 import com.zhul.erp.modules.product.repository.ProductSpecificationMapper;
 import com.zhul.erp.modules.product.service.ProductSpecificationService;
 import com.zhul.erp.modules.product.support.LangRules;
-import com.zhul.erp.modules.product.support.PlatformScopeGuard;
+import com.zhul.erp.modules.product.support.ProductWriteGuard;
 import com.zhul.erp.modules.product.support.ProductFinder;
 import com.zhul.erp.modules.product.support.TextRules;
 import lombok.RequiredArgsConstructor;
@@ -34,7 +34,7 @@ public class ProductSpecificationServiceImpl implements ProductSpecificationServ
 
     private final ProductSpecificationMapper specificationMapper;
     private final ProductFinder productFinder;
-    private final PlatformScopeGuard platformScopeGuard;
+    private final ProductWriteGuard productWriteGuard;
 
     @Override
     public List<SpecificationVO> list(Long productId, String lang) {
@@ -45,7 +45,7 @@ public class ProductSpecificationServiceImpl implements ProductSpecificationServ
     @Override
     @Transactional(rollbackFor = Exception.class)
     public List<SpecificationVO> replace(Long productId, SaveSpecificationsRequest req) {
-        platformScopeGuard.requirePlatform();
+        productWriteGuard.require(productId);
         // 锁商品行，让同一商品的并发整体替换串行执行
         productFinder.lockActive(productId);
 

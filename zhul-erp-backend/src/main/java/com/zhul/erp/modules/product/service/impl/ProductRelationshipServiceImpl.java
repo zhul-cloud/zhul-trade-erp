@@ -20,7 +20,7 @@ import com.zhul.erp.modules.product.support.MpnNormalizer;
 import com.zhul.erp.modules.product.content.entity.ProductRelationshipNoteDO;
 import com.zhul.erp.modules.product.content.repository.ProductRelationshipNoteMapper;
 import com.zhul.erp.modules.product.support.LangRules;
-import com.zhul.erp.modules.product.support.PlatformScopeGuard;
+import com.zhul.erp.modules.product.support.ProductWriteGuard;
 import com.zhul.erp.modules.product.support.ProductFinder;
 import com.zhul.erp.modules.product.support.TextRules;
 import lombok.RequiredArgsConstructor;
@@ -47,7 +47,7 @@ public class ProductRelationshipServiceImpl implements ProductRelationshipServic
     private final ProductMapper productMapper;
     private final ProductBrandMapper brandMapper;
     private final ProductFinder productFinder;
-    private final PlatformScopeGuard platformScopeGuard;
+    private final ProductWriteGuard productWriteGuard;
     private final ProductRelationshipNoteMapper noteMapper;
 
     /** 校验并解析后的入参 */
@@ -77,7 +77,7 @@ public class ProductRelationshipServiceImpl implements ProductRelationshipServic
     @Override
     @Transactional(rollbackFor = Exception.class)
     public RelationshipVO create(Long productId, SaveRelationshipRequest req) {
-        platformScopeGuard.requirePlatform();
+        productWriteGuard.require(productId);
         ProductDO self = productFinder.active(productId);
         Resolved in = resolve(self, req, null);
         boolean reverse = Boolean.TRUE.equals(req.getCreateReverse()) && RelationshipType.isSymmetric(in.type());
@@ -108,7 +108,7 @@ public class ProductRelationshipServiceImpl implements ProductRelationshipServic
     @Override
     @Transactional(rollbackFor = Exception.class)
     public RelationshipVO update(Long productId, Long relationshipId, SaveRelationshipRequest req) {
-        platformScopeGuard.requirePlatform();
+        productWriteGuard.require(productId);
         ProductDO self = productFinder.lockActive(productId);
         ProductRelationshipDO current = ownedRow(productId, relationshipId);
         Resolved in = resolve(self, req, current);
@@ -132,7 +132,7 @@ public class ProductRelationshipServiceImpl implements ProductRelationshipServic
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void delete(Long productId, Long relationshipId) {
-        platformScopeGuard.requirePlatform();
+        productWriteGuard.require(productId);
         productFinder.lockActive(productId);
         ownedRow(productId, relationshipId);
         ProductRelationshipDO change = new ProductRelationshipDO();

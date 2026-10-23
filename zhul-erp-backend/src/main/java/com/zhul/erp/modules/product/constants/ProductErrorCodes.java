@@ -7,6 +7,8 @@ public final class ProductErrorCodes {
     }
 
     public static final String PLATFORM_ADMIN_REQUIRED = "PLATFORM_ADMIN_REQUIRED";
+    /** 租户修改不属于本租户的商品（spec product/product「商品数据平台共享，按归属维护」） */
+    public static final String PRODUCT_NOT_OWNED = "PRODUCT_NOT_OWNED";
 
     public static final String PRODUCT_NOT_FOUND = "PRODUCT_NOT_FOUND";
     public static final String PRODUCT_DUPLICATE = "PRODUCT_DUPLICATE";

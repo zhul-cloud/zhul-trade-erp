@@ -242,14 +242,14 @@ class ProductCandidateContractTest extends InquiryContractSupport {
         assertEquals(1, d.path("otherSourceCount").asInt());
         assertEquals("候选不存在", fail(call(get(CAND + "/" + other), t1001)).path("message").asText());
 
-        // 租户账号直接新建商品仍被拒绝，经候选审核可以建档
-        JsonNode direct = call(json(post(PRODUCTS), write(Map.of("brandId", siemens, "categoryId", servo, "mpnRaw", "X-1"))), t1001);
-        assertEquals("PLATFORM_ADMIN_REQUIRED", direct.path("data").path("errorCode").asText());
+        // 有「新增商品」权限的租户账号可以直接建档，商品属于本租户（spec product/product「按归属维护」）；经候选审核建档同样属于本租户
+        JsonNode direct = ok(call(json(post(PRODUCTS), write(Map.of("brandId", siemens, "categoryId", servo, "mpnRaw", "X-1"))), t1001));
+        assertEquals(1001, direct.path("ownerTenantId").asInt());
         JsonNode approved = ok(call(json(post(CAND + "/" + c + "/approve"), write(Map.of("categoryId", servo))), t1001));
         assertEquals("已建档", approved.path("statusName").asText());
         assertTrue(approved.path("productId").asLong() > 0);
-        assertFalse(call(json(post(PRODUCTS), write(Map.of("brandId", siemens, "categoryId", servo, "mpnRaw", "X-2"))), t1001)
-                .path("code").asInt() == 0, "审核结束后例外不残留");
+        assertEquals(1001, jdbc.queryForObject("select owner_tenant_id from product where id = ?", Integer.class,
+                approved.path("productId").asLong()), "候选审核建档属于本租户");
     }
 
     @Test

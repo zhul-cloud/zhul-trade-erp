@@ -67,7 +67,7 @@ class ProductMediaServiceImplTest {
         product.setBrandId(9L);
         product.setMpnRaw("6ES7214-1AG40-0XB0");
         when(productFinder.active(1L)).thenReturn(product);
-        service = new ProductMediaServiceImpl(mediaMapper, storage, productFinder, brandMapper, transcoder, new PlatformScopeGuard(), redis);
+        service = new ProductMediaServiceImpl(mediaMapper, storage, productFinder, brandMapper, transcoder, com.zhul.erp.modules.product.support.TestProductWriteGuards.ownedBy(0), redis);
     }
 
     @AfterEach

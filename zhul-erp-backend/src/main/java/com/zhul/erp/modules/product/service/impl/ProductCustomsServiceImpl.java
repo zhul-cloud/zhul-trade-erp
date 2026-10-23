@@ -10,7 +10,7 @@ import com.zhul.erp.modules.product.dto.SaveCustomsRequest;
 import com.zhul.erp.modules.product.entity.ProductCustomsDO;
 import com.zhul.erp.modules.product.repository.ProductCustomsMapper;
 import com.zhul.erp.modules.product.service.ProductCustomsService;
-import com.zhul.erp.modules.product.support.PlatformScopeGuard;
+import com.zhul.erp.modules.product.support.ProductWriteGuard;
 import com.zhul.erp.modules.product.support.ProductFinder;
 import com.zhul.erp.modules.product.support.TextRules;
 import lombok.RequiredArgsConstructor;
@@ -36,7 +36,7 @@ public class ProductCustomsServiceImpl implements ProductCustomsService {
 
     private final ProductCustomsMapper customsMapper;
     private final ProductFinder productFinder;
-    private final PlatformScopeGuard platformScopeGuard;
+    private final ProductWriteGuard productWriteGuard;
 
     @Override
     public CustomsVO get(Long productId) {
@@ -51,7 +51,7 @@ public class ProductCustomsServiceImpl implements ProductCustomsService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public CustomsVO save(Long productId, SaveCustomsRequest req) {
-        platformScopeGuard.requirePlatform();
+        productWriteGuard.require(productId);
         productFinder.lockActive(productId);
 
         String hsCode = hsCode(req.getHsCode());

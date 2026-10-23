@@ -264,12 +264,12 @@ const DetailInner: React.FC = () => {
   const params = useParams<{ id: string }>();
   const [search] = useSearchParams();
   const id = Number(params.id);
-  const platform = !!access.productPlatform;
-  const canEdit = platform && !!access['product:product:edit'];
+  const [product, setProduct] = useState<Product>();
+  // 维护方：平台账号，或商品属于本租户（后端按归属算出 editable）；修改还需「编辑商品」按钮权限
+  const maintainer = !!product?.editable;
+  const canEdit = maintainer && !!access['product:product:edit'];
   const readOnly = !canEdit;
   const canReviewFaq = canEdit || !!access['product:content:edit'];
-
-  const [product, setProduct] = useState<Product>();
   const [error, setError] = useState<string>();
   const [loading, setLoading] = useState(true);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -387,7 +387,7 @@ const DetailInner: React.FC = () => {
 
   const c = product.completeness;
   const doneOf = (key: string): boolean | undefined =>
-    platform ? c?.modules.find((m) => m.key === key)?.done : undefined;
+    c?.modules.find((m) => m.key === key)?.done;
   const usage = product.usageCount ?? 0;
   const common = { productId: product.id, readOnly, onChanged: load };
 
@@ -428,7 +428,7 @@ const DetailInner: React.FC = () => {
               {product.mpnDisplay}
             </h1>
             <LifecyclePill value={product.lifecycleStatus} />
-            {platform && (
+            {maintainer && (
               <Pill tone={product.status === 1 ? 'green' : 'gray'}>
                 {product.status === 1 ? '启用' : '已停用'}
               </Pill>
@@ -473,7 +473,16 @@ const DetailInner: React.FC = () => {
         </Space>
       </div>
 
-      {platform && usage > 0 && (
+      {!maintainer && (
+        <Alert
+          style={{ marginBottom: 20, borderRadius: 12 }}
+          type="warning"
+          showIcon
+          title={`该商品由${product.ownerTenantId ? '其他公司' : '平台'}维护，只能查看`}
+          description="可以在报价、订单中正常使用它；需要补充规格、资料时，可通过资料包确认写入。"
+        />
+      )}
+      {maintainer && usage > 0 && (
         <Alert
           style={{ marginBottom: 20, borderRadius: 12 }}
           type="info"
@@ -500,7 +509,7 @@ const DetailInner: React.FC = () => {
         }}
       >
         <div style={{ flex: '1 1 560px', minWidth: 0 }}>
-          {platform && c && (
+          {c && (
             <section
               aria-labelledby="completeness-title"
               style={panel(palette)}
@@ -614,7 +623,7 @@ const DetailInner: React.FC = () => {
           <FaqCard
             {...common}
             done={doneOf('faq')}
-            platform={platform}
+            platform={maintainer}
             canReview={canReviewFaq}
           />
 
@@ -624,7 +633,7 @@ const DetailInner: React.FC = () => {
         <div style={{ flex: '0 0 340px', maxWidth: '100%' }}>
           <Sidebar
             product={product}
-            platform={platform}
+            platform={maintainer}
             canEdit={canEdit}
             onChanged={load}
             onToggleStatus={toggleStatus}

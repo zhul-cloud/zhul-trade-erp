@@ -216,8 +216,7 @@ export const categoryApi = {
   /** level：1 或不传只返回一级品类，2 只返回细分品类，0 返回全部 */
   options: (level?: number) =>
     call<CategoryOption[]>(`${BASE}/categories/options`, { params: { level } }),
-  /** 两级品类树（含停用的） */
-  /** industryCode：平台账号按行业筛选；租户账号固定为本租户行业 */
+  /** 两级品类树（含停用的）；industryCode：平台账号按行业筛选，租户账号固定为本租户行业 */
   tree: (industryCode?: string) =>
     call<Category[]>(`${BASE}/categories/tree`, { params: { industryCode } }),
   create: (data: SaveCategory) =>
@@ -320,6 +319,10 @@ export interface Product {
   usageCount?: number;
   warnings?: string[];
   completeness?: Completeness;
+  /** 所属租户（0-平台） */
+  ownerTenantId?: number;
+  /** 当前账号能否修改（平台账号、或商品属于本租户；不含按钮权限） */
+  editable?: boolean;
   /** 需求热度：关联的询盘型号数、有效订单数（租户只统计本公司） */
   inquiryCount?: number;
   dealCount?: number;
@@ -343,6 +346,8 @@ export interface SaveProduct {
 }
 
 export interface ProductQuery extends PageParams {
+  /** 只看本租户维护的商品（租户账号有效） */
+  mine?: boolean;
   keyword?: string;
   brandId?: number;
   categoryId?: number;

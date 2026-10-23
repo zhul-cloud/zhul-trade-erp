@@ -88,7 +88,8 @@ class ProductServiceImplTest {
         when(productNames.load(any())).thenReturn(new ProductNames.Lookup(Map.of(), Map.of(), Map.of()));
         service = new ProductServiceImpl(productMapper, brandMapper, categoryMapper, seriesMapper,
                 relationshipMapper, productFinder, productNames, completenessService, new PlatformScopeGuard(),
-                usageCheckers, heatMapper, new com.zhul.erp.modules.product.support.IndustryScope(null, null, null, null));
+                usageCheckers, heatMapper, new com.zhul.erp.modules.product.support.IndustryScope(null, null, null, null),
+                com.zhul.erp.modules.product.support.TestProductWriteGuards.ownedBy(0));
         when(brandMapper.selectOne(any())).thenReturn(brand(1L, 1));
         when(categoryMapper.selectOne(any())).thenReturn(category(2L, 1));
     }
@@ -479,14 +480,14 @@ class ProductServiceImplTest {
     // ---------- 平台账号 ----------
 
     @Test
-    void tenantAccountCannotWrite() {
+    void tenantCannotWriteOthersProduct() {
+        // 守卫里的商品都属于平台；租户新建（按行业校验）由集成测试 TenantProductEditingContractTest 覆盖
         TenantContext.setTenantId(1001);
 
-        assertBiz(() -> service.create(request("A1")), ProductErrorCodes.PLATFORM_ADMIN_REQUIRED);
-        assertBiz(() -> service.update(5L, request("A1")), ProductErrorCodes.PLATFORM_ADMIN_REQUIRED);
-        assertBiz(() -> service.updateStatus(5L, 0), ProductErrorCodes.PLATFORM_ADMIN_REQUIRED);
-        assertBiz(() -> service.delete(5L), ProductErrorCodes.PLATFORM_ADMIN_REQUIRED);
-        assertBiz(() -> service.restore(5L), ProductErrorCodes.PLATFORM_ADMIN_REQUIRED);
+        assertBiz(() -> service.update(5L, request("A1")), ProductErrorCodes.PRODUCT_NOT_OWNED);
+        assertBiz(() -> service.updateStatus(5L, 0), ProductErrorCodes.PRODUCT_NOT_OWNED);
+        assertBiz(() -> service.delete(5L), ProductErrorCodes.PRODUCT_NOT_OWNED);
+        assertBiz(() -> service.restore(5L), ProductErrorCodes.PRODUCT_NOT_OWNED);
         verifyNoInteractions(productMapper, productFinder);
     }
 

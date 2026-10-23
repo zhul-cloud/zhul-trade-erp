@@ -176,7 +176,7 @@ class ProductApiContractTest extends IntegrationTestBase {
     }
 
     @Test
-    void tenantTokenCanReadButWriteReturnsPlatformAdminRequired() throws Exception {
+    void tenantTokenCanReadButCannotWriteBrandsOrOthersProducts() throws Exception {
         loginAsAdmin("contract_admin");
         String platform = token("contract_admin", 0);
         long productId = createBrandAndCategoryAndProduct(platform);
@@ -185,7 +185,8 @@ class ProductApiContractTest extends IntegrationTestBase {
 
         JsonNode read = call(get(BASE + "/products/" + productId), tenant);
         assertEquals(0, read.path("code").asInt());
-        assertFalse(read.path("data").has("completeness"), "租户账号看不到完整度");
+        assertTrue(read.path("data").has("completeness"), "租户账号看得到完整度");
+        assertFalse(read.path("data").path("editable").asBoolean(), "平台建的商品对租户只读");
         assertEquals(0, call(get(BASE + "/products/search").param("keyword", "6ES7"), tenant).path("code").asInt());
 
         JsonNode write = call(json(post(BASE + "/brands"), "{\"brandName\":\"ABB\"}"), tenant);
@@ -195,7 +196,7 @@ class ProductApiContractTest extends IntegrationTestBase {
         assertEquals(1, jdbc.queryForObject("select count(*) from product_brand", Integer.class));
 
         JsonNode summary = call(get(BASE + "/products/completeness-summary"), tenant);
-        assertEquals("PLATFORM_ADMIN_REQUIRED", summary.path("data").path("errorCode").asText());
+        assertEquals(0, summary.path("code").asInt(), "租户也能看缺项统计");
     }
 
     @Test
@@ -307,7 +308,7 @@ class ProductApiContractTest extends IntegrationTestBase {
 
         JsonNode refused = call(multipart(BASE + "/products/" + productId + "/media/upload").file(file)
                 .param("mediaType", "1"), token("contract_admin", 1001));
-        assertEquals("PLATFORM_ADMIN_REQUIRED", refused.path("data").path("errorCode").asText());
+        assertEquals("PRODUCT_NOT_OWNED", refused.path("data").path("errorCode").asText());
         assertEquals(1, jdbc.queryForObject("select count(*) from product_media", Integer.class));
 
         MockMultipartFile bogus = new MockMultipartFile("file", "evil.png", "image/png", new byte[]{'M', 'Z', 0, 0});

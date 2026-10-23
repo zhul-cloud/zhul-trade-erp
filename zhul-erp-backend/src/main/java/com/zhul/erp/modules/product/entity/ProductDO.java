@@ -18,6 +18,8 @@ public class ProductDO {
     private Long id;
     /** 租户ID（0=平台级共享，本模块所有数据均为0） */
     private Integer tenantId;
+    /** 所属租户（0-平台）；只有所属租户与平台可以修改 */
+    private Integer ownerTenantId;
     /** 原始型号（制造商资料/询盘原文，仅去首尾空格，其余不清洗；被引用后不可修改） */
     private String mpnRaw;
     /** 归一化型号（NFKC后转小写，去掉所有非字母数字字符），用于去重与检索；系统生成，禁止手工编辑 */

@@ -12,6 +12,7 @@ import com.zhul.erp.modules.product.entity.ProductFaqDO;
 import com.zhul.erp.modules.product.repository.ProductFaqMapper;
 import com.zhul.erp.modules.product.service.ProductFaqService;
 import com.zhul.erp.modules.product.support.PlatformScopeGuard;
+import com.zhul.erp.modules.product.support.ProductWriteGuard;
 import com.zhul.erp.modules.product.support.ProductFinder;
 import com.zhul.erp.modules.product.support.TextRules;
 import lombok.RequiredArgsConstructor;
@@ -37,6 +38,7 @@ public class ProductFaqServiceImpl implements ProductFaqService {
     private final ProductFaqMapper faqMapper;
     private final ProductFinder productFinder;
     private final PlatformScopeGuard platformScopeGuard;
+    private final ProductWriteGuard productWriteGuard;
     private final PermissionChecker perm;
 
     /** 「商品内容维护」：资料包导入的技术问答由这些公司账号确认写入，也由他们直接审核 */
@@ -64,7 +66,7 @@ public class ProductFaqServiceImpl implements ProductFaqService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public FaqVO create(Long productId, SaveFaqRequest req) {
-        platformScopeGuard.requirePlatform();
+        productWriteGuard.require(productId);
         productFinder.lockActive(productId);
         String question = TextRules.required(req.getQuestion(), "问题", 256);
         String answer = TextRules.required(req.getAnswer(), "答案", ANSWER_MAX);
@@ -84,7 +86,7 @@ public class ProductFaqServiceImpl implements ProductFaqService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public FaqVO update(Long productId, Long itemId, SaveFaqRequest req) {
-        platformScopeGuard.requirePlatform();
+        productWriteGuard.require(productId);
         productFinder.lockActive(productId);
         ProductFaqDO current = owned(productId, itemId);
         String question = TextRules.required(req.getQuestion(), "问题", 256);
@@ -104,7 +106,7 @@ public class ProductFaqServiceImpl implements ProductFaqService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void delete(Long productId, Long itemId) {
-        platformScopeGuard.requirePlatform();
+        productWriteGuard.require(productId);
         productFinder.lockActive(productId);
         owned(productId, itemId);
         ProductFaqDO change = new ProductFaqDO();
