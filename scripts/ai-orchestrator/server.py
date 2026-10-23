@@ -31,6 +31,9 @@ ANTHROPIC_API_KEY，不需要安装 Claude Code CLI。
   （Docker 部署时两个容器挂载同一个目录）。
 - 长时间的搜索轮次可能以 pause_turn 暂停，原样续传即可继续。
 - 拒答兜底：启用服务端 fallbacks="default"，模型因安全策略拒答时由服务端改用推荐的备用模型重试。
+  Haiku 没有服务端兜底，用 Haiku 时不带这个参数。
+- 模型：询盘解析用 AI_ORCHESTRATOR_MODEL（默认 Opus）；型号描述翻译、联系人名音译任务简单、
+  不联网搜索，用 AI_ORCHESTRATOR_TRANSLATE_MODEL（默认 Haiku）。
 """
 import base64
 import json
@@ -46,6 +49,7 @@ import anthropic
 PORT = int(os.environ.get("AI_STUB_PORT", "8899"))
 CALLBACK_TOKEN = os.environ.get("AI_TASK_CALLBACK_TOKEN", "zhul-erp-ai-callback-secret")
 MODEL = os.environ.get("AI_ORCHESTRATOR_MODEL") or "claude-opus-5-5"
+TRANSLATE_MODEL = os.environ.get("AI_ORCHESTRATOR_TRANSLATE_MODEL") or "claude-haiku-5-5"
 MAX_WEB_SEARCHES = int(os.environ.get("AI_ORCHESTRATOR_MAX_WEB_SEARCHES") or "20")
 # 单次 API 调用超时（秒）——联网搜索验证一条含多个型号的询盘可能是分钟级，
 # 这里给足余量；对应地 zhul-erp-backend 的 AiTaskTimeoutWatchdog 超时阈值
@@ -198,20 +202,22 @@ def _attachment_block(ref) -> dict:
     raise RuntimeError(f"不支持的附件类型 {ext}，只支持图片和 PDF")
 
 
-def call_api(system_prompt: str, content: list, schema: dict, tools=None) -> dict:
+def call_api(system_prompt: str, content: list, schema: dict, tools=None, model: str = MODEL) -> dict:
     """调用 Anthropic API，返回按 schema 校验过的 JSON；pause_turn 时原样续传"""
     if not os.environ.get("ANTHROPIC_API_KEY"):
         raise RuntimeError("未配置 ANTHROPIC_API_KEY，无法调用 AI")
     client = anthropic.Anthropic(timeout=TIMEOUT_SECONDS)
     messages = [{"role": "user", "content": content}]
     params = {
-        "model": MODEL,
+        "model": model,
         "max_tokens": 64000,
         "system": system_prompt,
         "output_config": {"effort": "medium", "format": {"type": "json_schema", "schema": _strict(schema)}},
-        "betas": [FALLBACK_BETA],
-        "fallbacks": "default",
     }
+    # Haiku 没有服务端拒答兜底，带上 fallbacks 也不会生效，按官方说明不传
+    if not model.startswith("claude-haiku"):
+        params["betas"] = [FALLBACK_BETA]
+        params["fallbacks"] = "default"
     if tools:
         params["tools"] = tools
     for _ in range(MAX_CONTINUATIONS + 1):
@@ -295,7 +301,7 @@ NAME_PROMPT = """你是外贸公司的翻译。把下面每一条客户联系人
 def call_claude_translate(items: list, prompt: str = TRANSLATE_PROMPT) -> dict:
     """通过 API 翻译型号描述或联系人名称，不启用搜索工具。"""
     content = [{"type": "text", "text": json.dumps({"items": items}, ensure_ascii=False)}]
-    structured = call_api(prompt, content, TRANSLATE_SCHEMA)
+    structured = call_api(prompt, content, TRANSLATE_SCHEMA, model=TRANSLATE_MODEL)
     if "items" not in structured:
         raise RuntimeError("AI 未返回符合 schema 的翻译结果")
     print(f"[ai-orchestrator] 翻译完成 {len(items)} 条")
