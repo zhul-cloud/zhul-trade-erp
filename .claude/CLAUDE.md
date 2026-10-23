@@ -102,6 +102,15 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 - 所有列表页（分页的业务数据表格）默认按更新时间倒序，并固定显示创建时间、创建人、更新时间、更新人四列（顺序固定，紧邻业务字段之后、操作列之前）；例外与细则见 `.claude/context/ui-design-patterns.md` 的「列表页统一规范」。新做或改动列表页（含原型）时逐条对照（2026-10-09 提升到此处）
 - 所有原型的界面风格和交互必须符合消费级互联网产品该有的质感：视觉克制、层次清晰、反馈及时、状态完整，不能停留在"能用的后台表单"。具体要求见 `.claude/context/ui-design-patterns.md` 的「消费级质感」一节（2026-09-19 追加）
 
+## 分支与发版
+
+详见 `docs/06-部署运维/08-生产发版.md`。
+
+- 开发分支是 `release/X.Y.Z`：功能分支从它拉出，PR 发往它，不要直接向 `main` 发 PR
+- `release/X.Y.Z` 合并到 `main` 就是生产上线：自动打版本标签、构建镜像、部署，中间没有人工确认
+- 新增或改名 `.env` 配置项（`.env.example`）时：在 PR 说明里列出配置项名称和生产应填的值；合并到 `main` 之前，必须由有服务器权限的人先在生产 `.env` 补齐，否则部署会在预检阶段停止
+- 带数据库迁移的改动，在 PR 说明里写明迁移版本号以及能否回退
+
 ## 上下文文件索引
 
 | 文件 | 内容 |
@@ -112,3 +121,4 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 | `.claude/context/data-model.md` | 核心数据模型 |
 | `.claude/context/ui-design-patterns.md` | 前端 UI 设计规范（列表页/表单弹窗结构、Design Token） |
 | `.claude/rules/finance-rules.md` | 财务计算规则 |
+| `docs/06-部署运维/08-生产发版.md` | 生产发版流程、合并到 main 前的检查、重新部署与回滚 |
