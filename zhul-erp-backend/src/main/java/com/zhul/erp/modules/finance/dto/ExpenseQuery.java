@@ -20,4 +20,6 @@ public class ExpenseQuery {
     /** true 只看关联订单的；false 只看不关联订单的（运营成本） */
     private Boolean linked;
     private Boolean showVoid;
+    /** 所属事业部筛选：0 表示「公共」 */
+    private Integer businessUnitId;
 }

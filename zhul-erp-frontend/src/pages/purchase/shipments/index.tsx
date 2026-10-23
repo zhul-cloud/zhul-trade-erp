@@ -60,11 +60,7 @@ const SupplierShipments: React.FC = () => {
 
   return (
     <div>
-      <WarehousePageTitle
-        crumbs={['供应商发货']}
-        title="供应商发货"
-        description="登记供应商发出的货；仓库验收后发现的少发、不良、多发在这里处理。"
-      />
+      <WarehousePageTitle description="登记供应商发出的货；仓库验收后发现的少发、不良、多发在这里处理。" />
       <Segmented<Tab>
         value={tab}
         onChange={setTab}

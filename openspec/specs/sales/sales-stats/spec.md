@@ -57,3 +57,10 @@ TBD - created by archiving change add-sales-funnel-stats. Update Purpose after a
 #### Scenario: 按客户看
 - **WHEN** 财务切换到「按客户」
 - **THEN** 列出期间内成交的客户及国家、新老客户、订单数、销售收入与毛利，按销售收入从高到低
+
+### Requirement: 销售统计按事业部筛选
+销售统计 SHALL 增加事业部筛选（可选范围见 `access/data-scope` 的「统计按事业部限定可见范围」）：商机、询盘、报价、PI、订单、收款各项只统计归属所选事业部的单据，按业务员的拆分只列该事业部单据涉及的业务员。选择全公司合计时与原口径一致。
+
+#### Scenario: 合伙人看本事业部销售漏斗
+- **WHEN** 阿里国际站事业部合伙人打开销售统计
+- **THEN** 只显示归属阿里国际站事业部的商机、询盘、报价、PI、订单与收款数据

@@ -18,6 +18,8 @@ public class ReceiptRecordQuery {
     private Integer settleStatus;
     /** 同时列出已作废的到账 */
     private Boolean includeVoid;
+    /** 所属事业部 */
+    private Integer businessUnitId;
     private Integer page = 1;
     private Integer pageSize = 20;
 }

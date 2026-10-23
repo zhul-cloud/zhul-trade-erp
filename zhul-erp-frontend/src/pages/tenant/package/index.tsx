@@ -13,6 +13,7 @@ import type { MenuItem } from '@/pages/system/menu/service';
 import { getMenuTree } from '@/pages/system/menu/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatDateTime } from '@/utils/format';
+import { useMenu } from '@/utils/menuName';
 import { usePagination } from '@/utils/pageSize';
 import type { SaveTenantPackagePayload, TenantPackageItem } from './service';
 import {
@@ -56,6 +57,7 @@ const toAntdTree = (list: MenuItem[]): any[] =>
   }));
 
 const TenantPackagePage: React.FC = () => {
+  const menu = useMenu();
   const pager = usePagination(20);
   const { message, modal } = App.useApp();
   const access = useAccess();
@@ -285,7 +287,7 @@ const TenantPackagePage: React.FC = () => {
     <>
       <ProTable<TenantPackageItem>
         pagination={pager}
-        headerTitle="套餐"
+        headerTitle={menu?.name}
         rowKey="id"
         actionRef={actionRef}
         columns={columns}

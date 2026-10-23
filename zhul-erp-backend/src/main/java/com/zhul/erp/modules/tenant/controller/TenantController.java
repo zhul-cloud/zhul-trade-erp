@@ -8,6 +8,8 @@ import com.zhul.erp.modules.tenant.dto.SaveTenantRequest;
 import com.zhul.erp.modules.tenant.dto.TenantCreateResultVO;
 import com.zhul.erp.modules.tenant.dto.TenantQuery;
 import com.zhul.erp.modules.tenant.dto.TenantVO;
+import com.zhul.erp.modules.tenant.dto.TenantInitResultVO;
+import com.zhul.erp.modules.tenant.service.TenantDataInitService;
 import com.zhul.erp.modules.tenant.service.TenantService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -28,6 +30,7 @@ import java.util.Map;
 public class TenantController {
 
     private final TenantService tenantService;
+    private final TenantDataInitService tenantDataInitService;
 
     @GetMapping
     public Result<PageResult<TenantVO>> page(TenantQuery query) {
@@ -64,5 +67,12 @@ public class TenantController {
     @PostMapping("/{id}/reset-password")
     public Result<ResetPasswordResultVO> resetPassword(@PathVariable Integer id) {
         return Result.ok(tenantService.resetPassword(id));
+    }
+
+    /** 数据初始化：按福唯模板写入部门、岗位、角色与初始汇率，只补缺的（spec system/tenant-data-init） */
+    @PreAuthorize("@perm.has('tenant:list:init')")
+    @PostMapping("/{id}/init-data")
+    public Result<TenantInitResultVO> initData(@PathVariable Integer id) {
+        return Result.ok(tenantDataInitService.initialize(id));
     }
 }

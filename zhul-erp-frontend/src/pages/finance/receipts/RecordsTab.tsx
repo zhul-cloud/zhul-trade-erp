@@ -8,6 +8,11 @@ import { CURRENCIES } from '@/pages/quotation/components';
 import { Card, PATHS, Pill } from '@/pages/sales/components';
 import { type ReceiptRow, readBizError } from '@/pages/sales/service';
 import { useAppTheme } from '@/theme/AppTheme';
+import {
+  UnitPill,
+  unitFilterOptions,
+  useBusinessUnits,
+} from '@/utils/businessUnit';
 import { usePaymentMethods } from '@/utils/dict';
 import { formatAmount } from '@/utils/format';
 import { usePageSize } from '@/utils/pageSize';
@@ -28,6 +33,7 @@ interface Filters {
   currencyCode?: string;
   settleStatus?: number;
   includeVoid: boolean;
+  unit?: number;
 }
 
 const initial = (): Filters => ({
@@ -41,6 +47,7 @@ const RecordsTab: React.FC = () => {
   const { message } = App.useApp();
   const { palette } = useAppTheme();
   const methods = usePaymentMethods();
+  const [bu] = useBusinessUnits();
   const [draft, setDraft] = useState<Filters>(initial);
   const [filters, setFilters] = useState<Filters>(initial);
   const [page, setPage] = useState(1);
@@ -62,6 +69,7 @@ const RecordsTab: React.FC = () => {
         currencyCode: filters.currencyCode,
         settleStatus: filters.settleStatus,
         includeVoid: filters.includeVoid || undefined,
+        businessUnitId: filters.unit,
         page,
         pageSize,
       });
@@ -145,6 +153,23 @@ const RecordsTab: React.FC = () => {
         ),
     },
     { title: '客户', dataIndex: 'customerName', ellipsis: true },
+    ...(bu.enabled
+      ? [
+          {
+            title: '所属事业部',
+            key: 'unit',
+            width: 180,
+            render: (_: unknown, r: ReceiptRow) => (
+              <span
+                style={{ display: 'inline-flex', gap: 6, flexWrap: 'wrap' }}
+              >
+                <UnitPill info={bu} id={r.businessUnitId} />
+                {r.buMismatch && <Pill tone="orange">账户与订单不一致</Pill>}
+              </span>
+            ),
+          },
+        ]
+      : []),
     {
       title: '付款方式',
       key: 'method',
@@ -252,6 +277,16 @@ const RecordsTab: React.FC = () => {
             }
             aria-label="到账日期"
           />
+          {bu.enabled && (
+            <Select
+              allowClear
+              style={{ width: 170 }}
+              placeholder="所属事业部"
+              value={draft.unit}
+              onChange={(v) => setDraft({ ...draft, unit: v })}
+              options={unitFilterOptions(bu, false)}
+            />
+          )}
           <Select
             allowClear
             style={{ width: 160 }}

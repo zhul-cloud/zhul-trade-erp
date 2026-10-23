@@ -11,4 +11,6 @@ public class CategoryQuery extends PageQuery {
     private Integer status;
     /** 上级品类ID：为空时只查一级品类 */
     private Long parentId;
+    /** 按行业筛选（平台账号用；租户账号固定为本租户行业） */
+    private String industryCode;
 }

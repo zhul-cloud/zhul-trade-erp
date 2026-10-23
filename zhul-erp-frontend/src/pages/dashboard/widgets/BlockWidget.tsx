@@ -27,6 +27,7 @@ import { Tooltip } from 'antd';
 import React from 'react';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
+import { MenuName } from '@/utils/menuName';
 import {
   Metric,
   TodoItem,
@@ -540,7 +541,8 @@ export const blockWidget = (opts: {
   icon: React.ReactNode;
   tone: Tone;
   sub?: string;
-  more?: { label: string; link: string };
+  /** 「查看更多」跳转的页面，文字取该页的菜单名称 */
+  more?: { link: string };
 }): React.FC => {
   const BlockWidget: React.FC = () => {
     const { data, error, reload } = useWidgetData<{ blocks: Block[] }>(
@@ -555,7 +557,8 @@ export const blockWidget = (opts: {
         extra={
           opts.more && (
             <a onClick={() => go(opts.more?.link)} style={{ fontSize: 13 }}>
-              {opts.more.label} <RightOutlined style={{ fontSize: 11 }} />
+              <MenuName path={opts.more.link} />{' '}
+              <RightOutlined style={{ fontSize: 11 }} />
             </a>
           )
         }

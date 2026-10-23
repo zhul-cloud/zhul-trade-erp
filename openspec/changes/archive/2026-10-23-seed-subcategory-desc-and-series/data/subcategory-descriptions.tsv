@@ -1,0 +1,141 @@
+编码	中文简介	英文简介
+plc_cpu	PLC 的中央处理单元及一体式小型 PLC（CPU 与 I/O 集成），负责程序运行和逻辑控制。	PLC central processing units and compact all-in-one PLCs with built-in I/O that run the control program.
+io_module	装在 PLC 机架或主机旁的数字量、模拟量输入输出模块，连接现场传感器与执行器。	Digital and analog input/output modules mounted on the PLC rack or next to the CPU to connect field sensors and actuators.
+distributed_io	通过现场总线或工业以太网连接 PLC 的远程 I/O 站及其接口模块（耦合器、适配器）。	Remote I/O stations and their interface modules (couplers, adapters) connected to the PLC over fieldbus or industrial Ethernet.
+comm_module	PLC 的以太网、PROFIBUS、串口、CC-Link 等通讯处理器与通讯模块。	PLC communication processors and modules for Ethernet, PROFIBUS, serial, CC-Link and other networks.
+redundancy_module	冗余 PLC 系统使用的同步模块、冗余电源与热备切换组件。	Synchronization modules, redundant power supplies and hot-standby components for redundant PLC systems.
+function_module	高速计数、定位、温度控制、称重等专用功能模块。	Special function modules for high-speed counting, positioning, temperature control, weighing and similar tasks.
+plc_power	给 PLC 机架和模块供电的专用电源模块。	Dedicated power supply modules that power the PLC rack and modules.
+plc_rack	PLC 的底板、机架、基座和扩展底板。	PLC backplanes, racks, base units and expansion bases.
+expansion_board	插在小型 PLC 主机上的扩展板，增加通讯口、模拟量或少量 I/O。	Expansion boards that plug into compact PLCs to add communication ports, analog channels or a few I/O points.
+safety_plc	符合安全标准（如 SIL、PL）的安全控制器、安全 CPU 和安全 I/O 模块。	Safety controllers, safety CPUs and safety I/O modules certified to standards such as SIL and PL.
+motion_controller	多轴运动控制器与运动控制 CPU，用于定位、同步和插补控制。	Multi-axis motion controllers and motion CPUs for positioning, synchronization and interpolation.
+plc_accessory	存储卡、电池、前连接器、端子排、编程适配器等 PLC 配件。	PLC accessories such as memory cards, batteries, front connectors, terminal blocks and programming adapters.
+hmi_panel	工业触摸屏人机界面，用于设备监控与参数设置。	Industrial touch-screen HMIs for machine monitoring and parameter setting.
+text_display	文本显示器、按键式操作面板等小型人机界面。	Text displays, keypad operator panels and other small operator interfaces.
+handheld_hmi	带急停和使能开关的手持式操作终端。	Handheld operator terminals with emergency stop and enabling switches.
+panel_pc	带触摸显示屏的一体式工业平板电脑。	Industrial panel PCs with an integrated touch display.
+box_pc	无屏的箱式、嵌入式和机架式工控机。	Box, embedded and rack-mount industrial PCs without a display.
+industrial_monitor	工业级显示器与触摸显示器，配合工控机使用。	Industrial-grade monitors and touch monitors used with industrial PCs.
+hmi_repair_part	触摸屏和工控机的维修备件：触摸玻璃、LCD 屏、背光、面膜、主板等。	Repair parts for HMIs and panel PCs: touch glass, LCD screens, backlights, overlays and mainboards.
+ethernet_switch	非网管与网管型工业以太网交换机，适应宽温和导轨安装。	Unmanaged and managed industrial Ethernet switches built for wide temperatures and DIN-rail mounting.
+gateway	不同协议之间的网关与协议转换器，以及串口服务器。	Gateways and protocol converters between different networks, plus serial device servers.
+fieldbus	PROFIBUS、DeviceNet、CANopen 等现场总线的中继器、终端电阻与网络组件。	Repeaters, terminators and network components for PROFIBUS, DeviceNet, CANopen and other fieldbuses.
+fiber_converter	把以太网或串口信号转为光纤传输的工业光纤收发器。	Industrial media converters that carry Ethernet or serial signals over fiber.
+io_link_master	连接 IO-Link 传感器和执行器的主站模块与集线器。	IO-Link master modules and hubs that connect IO-Link sensors and actuators.
+industrial_wireless	工业无线 AP、无线客户端、4G/5G 工业路由器。	Industrial wireless access points, wireless clients and 4G/5G industrial routers.
+sfp_module	SFP 光模块、网络电缆附件与机柜网络配件。	SFP transceivers, network cable accessories and cabinet networking parts.
+robot_controller	工业机器人控制柜、驱动单元与控制板卡。	Industrial robot controllers, drive units and control boards.
+teach_pendant	工业机器人的示教器及其电缆。	Teach pendants for industrial robots and their cables.
+robot_motor	机器人关节电机、减速机、编码器等维修备件。	Robot joint motors, reducers, encoders and other spare parts.
+gripper	机器人夹爪、真空吸盘组件、快换装置等末端执行器。	Grippers, vacuum gripper assemblies, tool changers and other end effectors.
+robot_cable	机器人本体与控制柜之间的动力、编码器和示教器电缆。	Power, encoder and teach-pendant cables between the robot arm and the controller.
+cnc_system	数控系统主机、操作面板、I/O 单元与相关板卡。	CNC controllers, operator panels, I/O units and related boards.
+spindle	机床主轴驱动器与主轴电机。	Machine tool spindle drives and spindle motors.
+vfd	调节交流电机转速的通用变频器。	General purpose inverters (VFDs) that control AC motor speed.
+modular_drive	由整流、逆变等单元组合的模块化多传动系统。	Modular multi-drive systems built from rectifier, inverter and control units.
+dc_drive	用于直流电机调速的直流调速器。	DC drives for controlling DC motor speed.
+soft_starter	降低电机启动电流与冲击的软启动器。	Soft starters that reduce motor starting current and mechanical shock.
+motor_starter	直接启动、正反转等电机启动器与启动器组合。	Direct-on-line, reversing and other motor starters and starter combinations.
+drive_option	变频器的操作面板、通讯卡、编码器卡、I/O 扩展卡等选件。	Inverter options such as operator panels, communication cards, encoder cards and I/O extension cards.
+drive_board	变频器和伺服的控制板、电源板、驱动板等维修备件。	Control, power and driver boards for inverters and servo drives, used as repair parts.
+braking	制动单元与制动电阻，吸收电机减速时的回馈能量。	Braking units and resistors that absorb regenerative energy during deceleration.
+drive_filter	输入输出电抗器、正弦波滤波器与 EMC 滤波器。	Input and output reactors, sine-wave filters and EMC filters for drives.
+servo_drive	驱动伺服电机实现精确位置、速度和转矩控制的伺服驱动器。	Servo drives that control servo motors for precise position, speed and torque.
+servo_motor	带编码器的交流伺服电机。	AC servo motors with encoders.
+servo_kit	配套出售的伺服驱动器与伺服电机组合。	Matched servo drive and motor packages.
+stepper	步进驱动器、步进电机与闭环步进系统。	Stepper drives, stepper motors and closed-loop stepper systems.
+linear_motor	直线电机与直驱力矩电机。	Linear motors and direct drive torque motors.
+servo_cable	伺服电机的动力电缆、编码器电缆与制动电缆。	Power, encoder and brake cables for servo motors.
+servo_accessory	伺服系统的电池、再生电阻、连接器与安装附件。	Servo system batteries, regenerative resistors, connectors and mounting accessories.
+ac_motor	三相与单相交流异步电机及高效电机。	Three-phase and single-phase AC induction motors, including high-efficiency motors.
+gear_motor	电机与减速机一体的齿轮电机。	Gear motors with an integrated motor and gearbox.
+reducer	行星、蜗轮、斜齿轮等减速机。	Planetary, worm, helical and other gear reducers.
+dc_motor	直流电机与无刷直流电机。	DC motors and brushless DC motors.
+brake_clutch	电磁制动器、电磁离合器与制动离合器组合。	Electromagnetic brakes, clutches and clutch-brake units.
+electric_actuator	电动缸、电动滑台与阀门电动执行器。	Electric cylinders, electric slides and electric valve actuators.
+coupling	连接电机与负载的联轴器。	Couplings that connect motors to their loads.
+motor_accessory	电机风扇、风罩、接线盒、编码器安装件等配件。	Motor accessories such as fans, fan covers, terminal boxes and encoder mounting kits.
+proximity_sensor	电感式、电容式接近开关，非接触检测金属或物体。	Inductive and capacitive proximity sensors for non-contact detection of metal and other objects.
+photoelectric_sensor	对射、反射、漫反射等光电开关。	Through-beam, retro-reflective and diffuse photoelectric sensors.
+fiber_sensor	光纤放大器与配套光纤头。	Fiber optic amplifiers and fiber heads.
+ultrasonic_sensor	超声波测距与检测传感器，适合透明或液体目标。	Ultrasonic distance and presence sensors, suited to transparent and liquid targets.
+encoder	增量式、绝对值编码器与拉线编码器。	Incremental, absolute and draw-wire encoders.
+displacement_sensor	激光位移、线性位移与测距传感器。	Laser displacement, linear position and distance sensors.
+magnetic_switch	检测气缸活塞位置的磁性开关。	Magnetic switches that detect cylinder piston position.
+limit_switch	机械式限位开关与微动开关。	Mechanical limit switches and micro switches.
+temperature_sensor	热电阻、热电偶与温湿度传感器。	RTDs, thermocouples and temperature and humidity sensors.
+vision	工业相机、视觉传感器与视觉系统。	Industrial cameras, vision sensors and machine vision systems.
+color_sensor	颜色传感器与色标传感器。	Color sensors and contrast (registration mark) sensors.
+code_reader	条码与二维码读码器、RFID 读写器与标签。	Barcode and 2D code readers, RFID readers and tags.
+safety_light_curtain	安全光幕、安全光栅与安全激光扫描仪。	Safety light curtains, light grids and safety laser scanners.
+vibration_sensor	振动、倾角、电流等状态监测传感器。	Condition monitoring sensors for vibration, tilt and current.
+sensor_accessory	传感器支架、反光板、连接线与安装附件。	Sensor brackets, reflectors, cables and mounting accessories.
+level_meter	雷达、超声波、导波雷达等连续物位计。	Continuous level meters such as radar, ultrasonic and guided wave radar.
+level_switch	音叉、浮球、电容等液位与料位开关。	Vibrating fork, float, capacitive and other point level switches.
+pressure_transmitter	压力传感器、压力与差压变送器。	Pressure sensors and pressure and differential pressure transmitters.
+pressure_switch	机械式与电子式压力开关。	Mechanical and electronic pressure switches.
+flowmeter	电磁、涡街、质量等流量计与流量开关。	Electromagnetic, vortex, Coriolis and other flow meters and flow switches.
+temperature_transmitter	把热电阻、热电偶信号转为标准信号的温度变送器。	Temperature transmitters that convert RTD and thermocouple signals into standard outputs.
+load_cell	称重传感器、称重变送器与称重显示器。	Load cells, weighing transmitters and weighing indicators.
+pressure_gauge	指针式压力表、双金属温度计等现场显示仪表。	Dial pressure gauges, bimetal thermometers and other local indicators.
+analyzer	pH、电导率、溶解氧、气体等分析仪表。	Analytical instruments for pH, conductivity, dissolved oxygen, gas and more.
+recorder	无纸记录仪与数据记录仪。	Paperless recorders and data loggers.
+temperature_controller	温控器与 PID 调节器。	Temperature controllers and PID controllers.
+counter_timer	面板式计数器、计时器与转速表。	Panel-mount counters, timers and tachometers.
+panel_meter	数显电压、电流等面板表与过程显示表。	Digital panel meters for voltage, current and process signals.
+energy_meter	电能表与多功能电力仪表。	Energy meters and multifunction power meters.
+contactor	交流与直流接触器及辅助触点。	AC and DC contactors and auxiliary contacts.
+thermal_overload	保护电机过载的热过载继电器。	Thermal overload relays that protect motors from overload.
+motor_protection_breaker	兼具短路与过载保护的电动机保护断路器。	Motor protection circuit breakers with short-circuit and overload protection.
+motor_management	电机管理系统与电子式电机保护器，带通讯与诊断。	Motor management systems and electronic motor protectors with communication and diagnostics.
+circuit_breaker	微型断路器、塑壳断路器与框架断路器。	Miniature, molded case and air circuit breakers.
+fuse	熔断器、熔断体与熔断器座。	Fuses, fuse links and fuse holders.
+surge_protector	电源与信号线路的浪涌保护器。	Surge protective devices for power and signal lines.
+disconnect_switch	负荷隔离开关与熔断器式隔离开关。	Load break disconnect switches and fuse switch disconnectors.
+transfer_switch	在两路电源之间自动切换的双电源转换开关。	Automatic transfer switches that switch between two power sources.
+switchgear_accessory	低压电器的辅助触点、分励脱扣器、手柄、母排等附件。	Switchgear accessories such as auxiliary contacts, shunt trips, handles and busbars.
+relay	中间继电器、小型继电器及继电器底座。	General purpose and miniature relays and relay sockets.
+solid_state_relay	无触点的固态继电器与固态接触器。	Contactless solid state relays and solid state contactors.
+safety_relay	用于急停、安全门、光幕等回路的安全继电器。	Safety relays for emergency stop, safety door and light curtain circuits.
+timer_relay	通电延时、断电延时等时间继电器。	On-delay, off-delay and multifunction timer relays.
+monitoring_relay	相序、电压、电流、液位等监控继电器。	Monitoring relays for phase sequence, voltage, current, level and more.
+protection_relay	电力系统用的综合保护继电器与保护装置。	Protection relays and protection devices for power distribution systems.
+signal_isolator	信号隔离器、信号转换器与本安型安全栅。	Signal isolators, signal converters and intrinsic safety barriers.
+interface_module	继电器输出、端子转接等 PLC 接口模块。	PLC interface modules such as relay output modules and terminal adapters.
+din_power	导轨安装的开关电源。	DIN-rail mounted switching power supplies.
+ups	直流 UPS、缓冲模块与冗余模块。	DC UPS, buffer modules and redundancy modules.
+dc_dc	直流输入转换为另一电压的 DC/DC 转换器。	DC/DC converters that convert one DC voltage to another.
+transformer	控制变压器与隔离变压器。	Control transformers and isolation transformers.
+power_controller	调节电加热等负载功率的晶闸管电力调整器。	Thyristor power controllers that regulate electric heaters and similar loads.
+power_filter	抑制电源线干扰的电源滤波器。	Power line filters that suppress interference on supply lines.
+capacitor_compensation	功率因数补偿电容器、补偿控制器与电容接触器。	Power factor correction capacitors, PFC controllers and capacitor contactors.
+pushbutton	按钮、急停按钮与选择开关。	Pushbuttons, emergency stop buttons and selector switches.
+cam_switch	凸轮开关与万能转换开关。	Cam switches and changeover switches.
+indicator	指示灯与多层信号灯（三色灯）。	Indicator lights and stacked signal towers.
+safety_switch	安全门锁、安全门开关与拉绳开关。	Safety interlock switches, safety door switches and rope pull switches.
+foot_switch	脚踏开关、操纵杆与按钮操作盒。	Foot switches, joysticks and pushbutton control stations.
+programming_cable	PLC、触摸屏、变频器的编程电缆与通讯电缆。	Programming and communication cables for PLCs, HMIs and drives.
+drive_cable	变频器、伺服与操作面板之间的连接电缆。	Connection cables between drives, servo systems and operator panels.
+fiber_patch_cord	工业光纤跳线与光纤连接器。	Industrial fiber patch cords and fiber connectors.
+bus_connector	PROFIBUS 等总线接头与工业连接器。	PROFIBUS and other bus connectors and industrial connectors.
+terminal_block	螺钉、弹簧、直插式接线端子及标记附件。	Screw, spring-clamp and push-in terminal blocks and marking accessories.
+solenoid_valve	气动与流体用电磁阀及阀岛。	Solenoid valves and valve terminals for pneumatics and fluids.
+process_valve	球阀、蝶阀、角座阀等过程阀门。	Process valves such as ball, butterfly and angle seat valves.
+self_operated_valve	无需外部能源、靠介质自身压力或温度动作的自力式调节阀。	Self-operated regulators driven by the process pressure or temperature without external power.
+valve_positioner	阀门定位器与气动、电动执行机构。	Valve positioners and pneumatic or electric valve actuators.
+proportional_valve	气动和液压比例阀、伺服阀与电气比例调压阀。	Pneumatic and hydraulic proportional valves, servo valves and electro-pneumatic regulators.
+pneumatic_cylinder	标准、薄型、迷你等各类气缸。	Standard, compact, mini and other pneumatic cylinders.
+air_preparation	过滤器、减压阀、油雾器等气源处理元件。	Filters, regulators, lubricators and other air preparation units.
+vacuum	真空发生器、真空吸盘与真空开关。	Vacuum generators, vacuum cups and vacuum switches.
+pneumatic_fitting	快插接头、气管与消声器等气动附件。	Push-in fittings, tubing, silencers and other pneumatic accessories.
+hydraulic_valve	换向阀、溢流阀、叠加阀等液压阀。	Directional, relief, modular and other hydraulic valves.
+hydraulic_pump	柱塞泵、叶片泵、齿轮泵与液压马达。	Piston, vane and gear pumps and hydraulic motors.
+hydraulic_cylinder	各类液压缸（油缸）。	Hydraulic cylinders of various types.
+hydraulic_filter	液压系统的滤芯与过滤器。	Filter elements and filters for hydraulic systems.
+igbt_module	IGBT 模块、整流桥、晶闸管等功率器件，多用于变频器维修。	IGBT modules, rectifier bridges, thyristors and other power devices, mainly for drive repair.
+control_board	设备控制板、主板与电路板备件。	Machine control boards, mainboards and circuit board spare parts.
+capacitor	电解电容、薄膜电容等电子元件。	Electrolytic and film capacitors and other electronic components.
+cooling_fan	散热风扇、柜体风扇与空调等热管理产品。	Cooling fans, enclosure fans, cooling units and other thermal management products.
+backup_battery	PLC、CNC、伺服用的备用锂电池。	Backup lithium batteries for PLCs, CNCs and servo systems.
+lcd_module	工业 LCD 屏与显示模组。	Industrial LCD panels and display modules.

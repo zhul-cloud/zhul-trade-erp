@@ -616,8 +616,6 @@ const Statements: React.FC = () => {
   return (
     <div>
       <PageTitle
-        crumbs={['运费账单']}
-        title="运费账单"
         description="按货代的月结账单逐票核对运费；有差额的确认后更新运费并重新分摊。"
         actions={
           canEdit && (

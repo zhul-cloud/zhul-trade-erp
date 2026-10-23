@@ -102,21 +102,14 @@ const rowStatus = (entry: PackageType, status: number) => {
       : TABS.marketing[3];
 };
 
-const COPY: Record<
-  PackageType,
-  { crumbs: string[]; title: string; description: string; footer: string }
-> = {
+const COPY: Record<PackageType, { description: string; footer: string }> = {
   facts: {
-    crumbs: ['资料任务'],
-    title: '资料任务',
     description:
       '补商品资料（中文，所有公司共用一份）：下载资料包交给 AI，或直接上传 llm-wiki 商品文件；导入后有人核对。营销内容在「运营管理 → 营销任务」。',
     footer:
       '只收资料包和 llm-wiki 商品文件；「资料已核」会把未核实的中文规格和应用场景标为已核实，以后导入资料包不再覆盖；按更新时间倒序',
   },
   marketing: {
-    crumbs: ['营销任务'],
-    title: '营销任务',
     description:
       '本公司各平台的营销内容：下载营销包交给 AI，生成好的 Markdown 传回来；启用的平台都写完（或标了不发布）、且资料已核才算完成。',
     footer:
@@ -372,8 +365,6 @@ export const TaskList: React.FC<{ entry: PackageType }> = ({ entry }) => {
   return (
     <div>
       <PageTitle
-        crumbs={copy.crumbs}
-        title={copy.title}
         description={copy.description}
         actions={
           <>

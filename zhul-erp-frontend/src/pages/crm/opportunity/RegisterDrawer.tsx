@@ -20,6 +20,7 @@ import dayjs, { type Dayjs } from 'dayjs';
 import React, { useEffect, useRef, useState } from 'react';
 import { useCountries } from '@/pages/product/components/useCountries';
 import { useAppTheme } from '@/theme/AppTheme';
+import { UnitSelect, useBusinessUnits } from '@/utils/businessUnit';
 import { DICT_SOURCE_CHANNEL, useDictOptions } from '@/utils/dict';
 import { FileChip, fileMeta, iconButton } from './components';
 import {
@@ -43,6 +44,7 @@ interface FormState {
   phone?: string;
   website?: string;
   demandSummary?: string;
+  businessUnitId?: number;
 }
 
 type LocalFile = UploadedFile & { localUrl: string };
@@ -73,6 +75,7 @@ const RegisterDrawer: React.FC<{
   const { palette } = useAppTheme();
   const { message } = App.useApp();
   const [form] = Form.useForm<FormState>();
+  const [bu] = useBusinessUnits();
   const { options: countryOptions } = useCountries();
   const [files, setFiles] = useState<LocalFile[]>([]);
   const [uploading, setUploading] = useState(0);
@@ -162,6 +165,7 @@ const RegisterDrawer: React.FC<{
         phone: v.phone?.trim(),
         website: v.website?.trim(),
         demandSummary: v.demandSummary?.trim(),
+        businessUnitId: v.businessUnitId,
         attachments: files.map((f) => ({
           fileKey: f.fileKey,
           fileName: f.fileName,
@@ -323,6 +327,16 @@ const RegisterDrawer: React.FC<{
               options={countryOptions}
             />
           </Form.Item>
+          {bu.enabled && bu.myUnitId == null && (
+            <Form.Item
+              name="businessUnitId"
+              label="所属事业部"
+              extra="你不属于事业部（在共享中台或总经办），新客户须选择归属的事业部；以后从其他渠道来的询盘仍归这个事业部"
+              rules={[{ required: true, message: '请选择所属事业部' }]}
+            >
+              <UnitSelect info={bu} />
+            </Form.Item>
+          )}
           <Form.Item
             name="sourceChannel"
             label="来源渠道"

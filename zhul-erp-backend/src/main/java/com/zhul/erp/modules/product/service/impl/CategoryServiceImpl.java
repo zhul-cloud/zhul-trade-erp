@@ -18,6 +18,7 @@ import com.zhul.erp.modules.product.repository.ProductCategoryMapper;
 import com.zhul.erp.modules.product.repository.ProductMapper;
 import com.zhul.erp.modules.product.service.CategoryService;
 import com.zhul.erp.modules.product.support.LikeUtils;
+import com.zhul.erp.modules.product.support.IndustryScope;
 import com.zhul.erp.modules.product.support.OptionsCache;
 import com.zhul.erp.modules.product.support.PlatformScopeGuard;
 import com.zhul.erp.modules.product.support.TextRules;
@@ -51,6 +52,7 @@ public class CategoryServiceImpl implements CategoryService {
     private final ProductMapper productMapper;
     private final PlatformScopeGuard platformScopeGuard;
     private final OptionsCache optionsCache;
+    private final IndustryScope industryScope;
 
     @Override
     public PageResult<CategoryVO> page(CategoryQuery query) {
@@ -68,6 +70,13 @@ public class CategoryServiceImpl implements CategoryService {
                     .or().like(ProductCategoryDO::getCategoryName, keyword)
                     .or().like(ProductCategoryDO::getCategoryNameZh, keyword));
         }
+        Set<Long> scope = scopeOf(query.getIndustryCode());
+        if (scope != null) {
+            if (scope.isEmpty()) {
+                return PageResult.of(0L, List.of());
+            }
+            wrapper.in(ProductCategoryDO::getId, scope);
+        }
         Page<ProductCategoryDO> page = categoryMapper.selectPage(
                 new Page<>(query.pageOrDefault(), query.pageSizeOrDefault()), wrapper);
 
@@ -81,7 +90,9 @@ public class CategoryServiceImpl implements CategoryService {
 
     @Override
     public List<CategoryOptionVO> options(Integer level) {
-        List<CategoryOptionVO> all = allOptions();
+        Set<Long> visible = industryScope.visibleCategoryIds();
+        List<CategoryOptionVO> all = visible == null ? allOptions()
+                : allOptions().stream().filter(o -> visible.contains(o.getId())).toList();
         if (level != null && level == 0) {
             return all;
         }
@@ -137,6 +148,7 @@ public class CategoryServiceImpl implements CategoryService {
         category.setDescription(TextRules.optional(req.getDescription(), "英文简介", ProductConstants.DESCRIPTION_MAX));
         category.setDescriptionZh(TextRules.optional(req.getDescriptionZh(), "中文简介", ProductConstants.DESCRIPTION_MAX));
         category.setSortOrder(req.getSortOrder() == null ? 0 : req.getSortOrder());
+        category.setIndustryCode(parentId == null ? industryScope.industryOrDefault(req.getIndustryCode()) : "");
         category.setStatus(ProductConstants.STATUS_ENABLED);
         try {
             categoryMapper.insert(category);
@@ -173,6 +185,9 @@ public class CategoryServiceImpl implements CategoryService {
         change.setDescription(TextRules.optional(req.getDescription(), "英文简介", ProductConstants.DESCRIPTION_MAX));
         change.setDescriptionZh(TextRules.optional(req.getDescriptionZh(), "中文简介", ProductConstants.DESCRIPTION_MAX));
         change.setSortOrder(req.getSortOrder() == null ? current.getSortOrder() : req.getSortOrder());
+        change.setIndustryCode(parentId != null ? ""
+                : StringUtils.hasText(req.getIndustryCode()) || !StringUtils.hasText(current.getIndustryCode())
+                ? industryScope.industryOrDefault(req.getIndustryCode()) : current.getIndustryCode());
         try {
             categoryMapper.updateById(change);
             if (!Objects.equals(parentId, current.getParentId())) {
@@ -227,10 +242,15 @@ public class CategoryServiceImpl implements CategoryService {
     }
 
     @Override
-    public List<CategoryVO> tree() {
+    public List<CategoryVO> tree(String industryCode) {
+        Set<Long> scope = scopeOf(industryCode);
+        if (scope != null && scope.isEmpty()) {
+            return List.of();
+        }
         List<ProductCategoryDO> all = categoryMapper.selectList(new LambdaQueryWrapper<ProductCategoryDO>()
                 .eq(ProductCategoryDO::getTenantId, ProductConstants.PLATFORM_TENANT_ID)
                 .isNull(ProductCategoryDO::getDeletedAt)
+                .in(scope != null, ProductCategoryDO::getId, scope)
                 .orderByAsc(ProductCategoryDO::getSortOrder)
                 .orderByAsc(ProductCategoryDO::getId));
         Map<Long, Long> counts = productCounts(all);
@@ -246,6 +266,15 @@ public class CategoryServiceImpl implements CategoryService {
             }
         }
         return roots;
+    }
+
+    /** 列表的品类范围：租户账号固定为本租户行业；平台账号按筛选的行业，不筛选时不限（null） */
+    private Set<Long> scopeOf(String industryFilter) {
+        Set<Long> visible = industryScope.visibleCategoryIds();
+        if (visible != null) {
+            return visible;
+        }
+        return StringUtils.hasText(industryFilter) ? industryScope.categoryIdsOf(industryFilter.trim()) : null;
     }
 
     /**
@@ -372,6 +401,7 @@ public class CategoryServiceImpl implements CategoryService {
         vo.setCategoryName(category.getCategoryName());
         vo.setCategoryNameZh(category.getCategoryNameZh());
         vo.setParentId(category.getParentId());
+        vo.setIndustryCode(category.getIndustryCode());
         vo.setDescription(category.getDescription());
         vo.setDescriptionZh(category.getDescriptionZh());
         vo.setSortOrder(category.getSortOrder());

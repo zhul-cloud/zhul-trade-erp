@@ -20,6 +20,7 @@ import com.zhul.erp.modules.product.repository.ProductMapper;
 import com.zhul.erp.modules.product.repository.ProductSeriesMapper;
 import com.zhul.erp.modules.product.service.SeriesService;
 import com.zhul.erp.modules.product.support.LikeUtils;
+import com.zhul.erp.modules.product.support.IndustryScope;
 import com.zhul.erp.modules.product.support.PlatformScopeGuard;
 import com.zhul.erp.modules.product.support.TextRules;
 import lombok.RequiredArgsConstructor;
@@ -47,6 +48,7 @@ public class SeriesServiceImpl implements SeriesService {
     private final ProductBrandMapper brandMapper;
     private final ProductMapper productMapper;
     private final PlatformScopeGuard platformScopeGuard;
+    private final IndustryScope industryScope;
 
     @Override
     public PageResult<SeriesVO> page(SeriesQuery query) {
@@ -60,6 +62,14 @@ public class SeriesServiceImpl implements SeriesService {
                 .orderByAsc(ProductSeriesDO::getId);
         if (StringUtils.hasText(query.getKeyword())) {
             wrapper.like(ProductSeriesDO::getSeriesName, LikeUtils.escape(query.getKeyword().trim()));
+        }
+        // 系列跟随品牌：租户只看到本行业品牌下的系列
+        Set<Long> visibleBrands = industryScope.visibleBrandIds();
+        if (visibleBrands != null) {
+            if (visibleBrands.isEmpty()) {
+                return PageResult.of(0L, List.of());
+            }
+            wrapper.in(ProductSeriesDO::getBrandId, visibleBrands);
         }
         Page<ProductSeriesDO> page = seriesMapper.selectPage(
                 new Page<>(query.pageOrDefault(), query.pageSizeOrDefault()), wrapper);
@@ -86,11 +96,16 @@ public class SeriesServiceImpl implements SeriesService {
 
     @Override
     public List<SeriesOptionVO> options(Long brandId) {
+        Set<Long> visibleBrands = industryScope.visibleBrandIds();
+        if (visibleBrands != null && (visibleBrands.isEmpty() || brandId != null && !visibleBrands.contains(brandId))) {
+            return List.of();
+        }
         List<ProductSeriesDO> rows = seriesMapper.selectList(new LambdaQueryWrapper<ProductSeriesDO>()
                 .eq(ProductSeriesDO::getTenantId, ProductConstants.PLATFORM_TENANT_ID)
                 .isNull(ProductSeriesDO::getDeletedAt)
                 .eq(ProductSeriesDO::getStatus, ProductConstants.STATUS_ENABLED)
                 .eq(brandId != null, ProductSeriesDO::getBrandId, brandId)
+                .in(brandId == null && visibleBrands != null, ProductSeriesDO::getBrandId, visibleBrands)
                 .orderByAsc(ProductSeriesDO::getSeriesName)
                 .orderByAsc(ProductSeriesDO::getId));
         List<SeriesOptionVO> options = new ArrayList<>(rows.size());

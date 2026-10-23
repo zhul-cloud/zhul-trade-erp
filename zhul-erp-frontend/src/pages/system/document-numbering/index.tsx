@@ -110,11 +110,7 @@ const DocumentNumberingPage: React.FC = () => {
 
   return (
     <div>
-      <PageTitle
-        crumbs={['编号规则']}
-        title="编号规则"
-        description="对外单据的编号前缀与编号规则。"
-      />
+      <PageTitle description="对外单据的编号前缀与编号规则。" />
       {error ? (
         <Alert type="error" showIcon title={error} />
       ) : (

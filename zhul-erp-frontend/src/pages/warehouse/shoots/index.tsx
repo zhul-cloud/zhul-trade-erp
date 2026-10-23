@@ -180,11 +180,7 @@ const Shoots: React.FC = () => {
 
   return (
     <div>
-      <WarehousePageTitle
-        crumbs={['实拍任务']}
-        title="实拍任务"
-        description="还没有营销图的型号到货后，拍 6 张带公司 Logo 摆台的营销图就完成；每个型号拍一次，拍好的图进素材库，以后同型号一直可以用。验货照片和视频在验收入库时上传。"
-      />
+      <WarehousePageTitle description="还没有营销图的型号到货后，拍 6 张带公司 Logo 摆台的营销图就完成；每个型号拍一次，拍好的图进素材库，以后同型号一直可以用。验货照片和视频在验收入库时上传。" />
       <div
         style={{
           display: 'flex',

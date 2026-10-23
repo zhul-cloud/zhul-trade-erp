@@ -21,6 +21,7 @@ import com.zhul.erp.modules.product.service.BrandService;
 import com.zhul.erp.modules.product.support.BrandResolver;
 import com.zhul.erp.modules.product.support.CountryCatalog;
 import com.zhul.erp.modules.product.support.LikeUtils;
+import com.zhul.erp.modules.product.support.IndustryScope;
 import com.zhul.erp.modules.product.support.OptionsCache;
 import com.zhul.erp.modules.product.support.PlatformScopeGuard;
 import com.zhul.erp.modules.product.support.TextRules;
@@ -55,6 +56,7 @@ public class BrandServiceImpl implements BrandService {
     private final OptionsCache optionsCache;
     private final CountryCatalog countryCatalog;
     private final ProductBrandAliasMapper aliasMapper;
+    private final IndustryScope industryScope;
 
     @Override
     public PageResult<BrandVO> page(BrandQuery query) {
@@ -76,8 +78,17 @@ public class BrandServiceImpl implements BrandService {
             wrapper.and(w -> w.like(ProductBrandDO::getBrandName, keyword)
                     .or(!aliasHits.isEmpty(), x -> x.in(ProductBrandDO::getId, aliasHits)));
         }
+        Set<Long> scope = scopeOf(query.getIndustryCode());
+        if (scope != null) {
+            if (scope.isEmpty()) {
+                return PageResult.of(0L, List.of());
+            }
+            wrapper.in(ProductBrandDO::getId, scope);
+        }
         Page<ProductBrandDO> page = brandMapper.selectPage(
                 new Page<>(query.pageOrDefault(), query.pageSizeOrDefault()), wrapper);
+        Map<Long, List<String>> industries = industryScope.industriesOfBrands(
+                page.getRecords().stream().map(ProductBrandDO::getId).toList());
 
         Map<Long, Long> counts = toCountMap(page.getRecords().isEmpty() ? List.of()
                 : productMapper.countByBrandIds(page.getRecords().stream().map(ProductBrandDO::getId).toList()));
@@ -86,6 +97,7 @@ public class BrandServiceImpl implements BrandService {
         for (ProductBrandDO brand : page.getRecords()) {
             BrandVO vo = toVO(brand, counts.getOrDefault(brand.getId(), 0L));
             vo.setAliases(aliases.getOrDefault(brand.getId(), List.of()));
+            vo.setIndustryCodes(industries.getOrDefault(brand.getId(), List.of()));
             records.add(vo);
         }
         return PageResult.of(page.getTotal(), records);
@@ -93,6 +105,13 @@ public class BrandServiceImpl implements BrandService {
 
     @Override
     public List<BrandOptionVO> options() {
+        Set<Long> visible = industryScope.visibleBrandIds();
+        List<BrandOptionVO> all = allOptions();
+        return visible == null ? all : all.stream().filter(o -> visible.contains(o.getId())).toList();
+    }
+
+    /** 全部行业的品牌选项（缓存的是这一份，读取时再按行业过滤） */
+    private List<BrandOptionVO> allOptions() {
         List<BrandOptionVO> cached = optionsCache.get(ProductConstants.CACHE_KEY_BRAND_OPTIONS, BrandOptionVO.class);
         if (cached != null) {
             return cached;
@@ -141,6 +160,7 @@ public class BrandServiceImpl implements BrandService {
         brand.setBrandLevel(level(req.getBrandLevel(), ProductConstants.BRAND_LEVEL_NORMAL));
         brand.setIsGenuine(genuine(req.getIsGenuine(), 1));
         brand.setStatus(ProductConstants.STATUS_ENABLED);
+        List<String> industries = industriesForCreate(req.getIndustryCodes());
         try {
             brandMapper.insert(brand);
         } catch (DuplicateKeyException e) {
@@ -149,6 +169,7 @@ public class BrandServiceImpl implements BrandService {
         if (aliases != null) {
             replaceAliases(brand.getId(), aliases);
         }
+        industryScope.replaceBrandIndustries(brand.getId(), industries);
         optionsCache.evictAfterCommit(ProductConstants.CACHE_KEY_BRAND_OPTIONS);
         return withAliases(toVO(brand, 0L));
     }
@@ -173,6 +194,7 @@ public class BrandServiceImpl implements BrandService {
         change.setDescriptionZh(TextRules.optional(req.getDescriptionZh(), "中文简介", ProductConstants.DESCRIPTION_MAX));
         change.setBrandLevel(level(req.getBrandLevel(), current.getBrandLevel()));
         change.setIsGenuine(genuine(req.getIsGenuine(), current.getIsGenuine()));
+        List<String> industries = req.getIndustryCodes() == null ? null : industryScope.requireIndustries(req.getIndustryCodes());
         try {
             brandMapper.updateById(change);
         } catch (DuplicateKeyException e) {
@@ -180,6 +202,9 @@ public class BrandServiceImpl implements BrandService {
         }
         if (aliases != null) {
             replaceAliases(id, aliases);
+        }
+        if (industries != null) {
+            industryScope.replaceBrandIndustries(id, industries);
         }
         optionsCache.evictAfterCommit(ProductConstants.CACHE_KEY_BRAND_OPTIONS);
         return withAliases(toVO(getActive(id), countProducts(id)));
@@ -328,6 +353,8 @@ public class BrandServiceImpl implements BrandService {
     private BrandVO withAliases(BrandVO vo) {
         vo.setAliases(vo.getId() == null ? List.of()
                 : aliasesOf(List.of(vo.getId())).getOrDefault(vo.getId(), List.of()));
+        vo.setIndustryCodes(vo.getId() == null ? List.of()
+                : industryScope.industriesOfBrands(List.of(vo.getId())).getOrDefault(vo.getId(), List.of()));
         return vo;
     }
 
@@ -421,15 +448,38 @@ public class BrandServiceImpl implements BrandService {
         for (int lv = ProductConstants.BRAND_LEVEL_CORE; lv >= ProductConstants.BRAND_LEVEL_NORMAL; lv--) {
             result.put(String.valueOf(lv), 0L);
         }
+        Set<Long> scope = scopeOf(query.getIndustryCode());
+        if (scope != null && scope.isEmpty()) {
+            return result;
+        }
         for (ProductBrandDO b : brandMapper.selectList(new LambdaQueryWrapper<ProductBrandDO>()
                 .select(ProductBrandDO::getBrandLevel)
                 .eq(ProductBrandDO::getTenantId, ProductConstants.PLATFORM_TENANT_ID)
                 .isNull(ProductBrandDO::getDeletedAt)
+                .in(scope != null, ProductBrandDO::getId, scope)
                 .eq(query.getStatus() != null, ProductBrandDO::getStatus, query.getStatus()))) {
             result.merge(String.valueOf(b.getBrandLevel()), 1L, Long::sum);
             result.merge("all", 1L, Long::sum);
         }
         return result;
+    }
+
+    /** 列表的品牌范围：租户账号固定为本租户行业；平台账号按筛选的行业，不筛选时不限（null） */
+    private Set<Long> scopeOf(String industryFilter) {
+        Set<Long> visible = industryScope.visibleBrandIds();
+        if (visible != null) {
+            return visible;
+        }
+        return StringUtils.hasText(industryFilter) ? industryScope.brandIdsOf(industryFilter.trim()) : null;
+    }
+
+    /** 新建品牌的行业：请求里选了就用；没选时租户（审核候选）用本租户行业，平台用第一个启用的行业 */
+    private List<String> industriesForCreate(List<String> requested) {
+        if (requested != null && !requested.isEmpty()) {
+            return industryScope.requireIndustries(requested);
+        }
+        String current = industryScope.currentIndustry();
+        return List.of(current != null ? current : industryScope.industryOrDefault(null));
     }
 
     /** 品牌等级：只能是 0-普通、1-常做、2-核心；不传时用默认值 */

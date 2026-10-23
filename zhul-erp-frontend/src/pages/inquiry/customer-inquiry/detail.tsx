@@ -30,6 +30,7 @@ import { ChainCard } from '@/pages/sales/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { DICT_SOURCE_CHANNEL, useDictOptions } from '@/utils/dict';
 import { formatAmount, formatDateTime } from '@/utils/format';
+import { MenuLink } from '@/utils/menuName';
 import {
   Card,
   CustomerTypePill,
@@ -361,12 +362,7 @@ const CustomerInquiryDetailPage: React.FC = () => {
   return (
     <div>
       <PageTitle
-        crumbs={[
-          <Link key="l" to={PATHS.inquiries}>
-            询盘单
-          </Link>,
-          inq.inquiryCode,
-        ]}
+        crumbs={[<MenuLink key="l" to={PATHS.inquiries} />, inq.inquiryCode]}
         title={inq.customerName}
         actions={
           <>

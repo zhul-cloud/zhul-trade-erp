@@ -17,6 +17,10 @@ public class DeptVO {
     private Integer level;
     private Integer sort;
     private Integer status;
+    /** 是否事业部（0-否、1-是） */
+    private Integer isBusinessUnit;
+    /** 事业部开始核算月份 yyyy-MM */
+    private String buStartMonth;
     private String remark;
     private LocalDateTime createTime;
     private LocalDateTime updateTime;

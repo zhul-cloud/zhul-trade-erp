@@ -238,8 +238,6 @@ const RefundPage: React.FC = () => {
   return (
     <div>
       <PageTitle
-        crumbs={['退款单']}
-        title="退款单"
         description="给客户的退款：关联订单，冲减订单毛利；经营统计按退款月份单列一行。"
         actions={
           canEdit && (

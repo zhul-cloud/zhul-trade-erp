@@ -17,6 +17,8 @@ public class CustomerInquiryDO {
     @TableId(type = IdType.AUTO)
     private Long id;
     private Integer tenantId;
+    /** 所属事业部（department.id）；NULL：公共，或公司没有设置事业部 */
+    private Integer businessUnitId;
     private String inquiryCode;
     private Long customerId;
     /** 来源商机ID，从商机创建时写入，可空 */

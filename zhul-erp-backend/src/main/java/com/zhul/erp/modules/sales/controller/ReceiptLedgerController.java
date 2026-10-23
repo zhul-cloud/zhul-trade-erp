@@ -31,8 +31,9 @@ public class ReceiptLedgerController {
 
     @GetMapping("/unclaimed")
     public Result<UnclaimedListVO> unclaimed(@RequestParam(required = false) String keyword,
-                                             @RequestParam(required = false) String currencyCode) {
-        return Result.ok(service.unclaimed(keyword, currencyCode));
+                                             @RequestParam(required = false) String currencyCode,
+                                              @RequestParam(required = false) Integer businessUnitId) {
+        return Result.ok(service.unclaimed(keyword, currencyCode, businessUnitId));
     }
 
     @PostMapping("/unclaimed")

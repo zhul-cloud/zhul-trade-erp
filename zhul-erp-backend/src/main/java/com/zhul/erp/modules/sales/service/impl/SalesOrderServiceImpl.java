@@ -56,6 +56,7 @@ import com.zhul.erp.modules.inquiry.constants.InquiryConstants;
 import com.zhul.erp.modules.system.constants.DocumentType;
 import com.zhul.erp.modules.system.service.DocumentNumberService;
 import com.zhul.erp.modules.system.service.LogService;
+import com.zhul.erp.modules.system.service.BusinessUnitService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -92,6 +93,7 @@ public class SalesOrderServiceImpl implements SalesOrderService {
             5, "询价中", 6, "可报价", 7, "已报价", 8, "已成交", 9, "未成交", 10, "已取消");
 
     private final com.zhul.erp.modules.product.candidate.service.ProductArchiver productArchiver;
+    private final BusinessUnitService businessUnitService;
     private final SalesOrderMapper orderMapper;
     private final SalesOrderItemMapper orderItemMapper;
     private final SalesOrderFeeMapper orderFeeMapper;
@@ -163,6 +165,7 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         o.setPiId(piId);
         o.setPiVersionNo(v.getVersionNo());
         o.setCustomerId(pi.getCustomerId());
+        o.setBusinessUnitId(pi.getBusinessUnitId());
         o.setOwnerId(pi.getOwnerId());
         o.setCurrencyCode(pi.getCurrencyCode());
         o.setExchangeRate(pi.getExchangeRate());
@@ -384,6 +387,7 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         o.setItemAmount(total);
         o.setTotalAmount(total);
         o.setTotalAmountCny(total.multiply(rate).setScale(2, RoundingMode.HALF_UP));
+        o.setBusinessUnitId(businessUnitService.unitOfCustomer(o.getCustomerId()));
         o.setStockType(rows.stream().anyMatch(x -> x.getStockType() == SalesConstants.STOCK_FUTURES)
                 ? SalesConstants.STOCK_FUTURES : SalesConstants.STOCK_SPOT);
         orderMapper.insert(o);
@@ -709,6 +713,7 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         vo.setPiVersionNo(o.getPiVersionNo());
         vo.setPiStatus(pi == null ? null : pi.getStatus());
         vo.setCustomerId(o.getCustomerId());
+        vo.setBusinessUnitId(o.getBusinessUnitId());
         vo.setCustomerName(InquiryLookups.customerName(customer));
         vo.setOwnerId(o.getOwnerId());
         vo.setOwnerName(users.get(o.getOwnerId()));

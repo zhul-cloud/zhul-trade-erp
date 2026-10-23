@@ -351,11 +351,7 @@ const PurchaseOrderList: React.FC = () => {
 
   return (
     <div>
-      <PurchasePageTitle
-        crumbs={['采购订单']}
-        title="采购订单"
-        description="向供应商下的单：记录实际采购价、开票、付款条件与供应商合同；砍价 = 目标价 − 人民币采购价，开票成本不计入砍价。"
-      />
+      <PurchasePageTitle description="向供应商下的单：记录实际采购价、开票、付款条件与供应商合同；砍价 = 目标价 − 人民币采购价，开票成本不计入砍价。" />
 
       {stats && (
         <div

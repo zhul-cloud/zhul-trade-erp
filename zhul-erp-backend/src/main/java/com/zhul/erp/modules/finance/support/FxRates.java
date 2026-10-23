@@ -17,7 +17,8 @@ import java.math.BigDecimal;
 
 /**
  * 结汇相关的汇率（spec finance/fx-settlement）：外币到账未结汇的部分按估算汇率计，
- * 估算汇率 = 该币种最近一张有效结汇单的汇率（迁移生成的除外）；还没有结汇单时用系统汇率。
+ * 估算汇率 = 同一事业部该币种最近一张有效结汇单的汇率（迁移生成的除外）；还没有结汇单时用系统汇率。
+ * 各事业部分别取（spec finance/fx-settlement「结汇按事业部分别先进先出」）；公司没有事业部时事业部为空。
  */
 @Component
 @RequiredArgsConstructor
@@ -30,18 +31,20 @@ public class FxRates {
     private final ExchangeRateService exchangeRateService;
 
     /** 估算汇率（6 位小数）；人民币为 1 */
-    public BigDecimal estimate(String currency) {
+    public BigDecimal estimate(Integer businessUnitId, String currency) {
         if (CNY.equals(currency)) {
             return BigDecimal.ONE.setScale(6);
         }
-        FxSettlementDO latest = latest(currency);
+        FxSettlementDO latest = latest(businessUnitId, currency);
         return latest != null ? latest.getExchangeRate() : exchangeRateService.require(currency).rate();
     }
 
-    /** 该币种最近一张有效结汇单（不含迁移生成的） */
-    public FxSettlementDO latest(String currency) {
+    /** 同一事业部该币种最近一张有效结汇单（不含迁移生成的） */
+    public FxSettlementDO latest(Integer businessUnitId, String currency) {
         return settlementMapper.selectOne(new LambdaQueryWrapper<FxSettlementDO>()
                 .eq(FxSettlementDO::getTenantId, PiStore.tenantId())
+                .eq(businessUnitId != null, FxSettlementDO::getBusinessUnitId, businessUnitId)
+                .isNull(businessUnitId == null, FxSettlementDO::getBusinessUnitId)
                 .eq(FxSettlementDO::getCurrencyCode, currency)
                 .eq(FxSettlementDO::getStatus, FinanceConstants.FX_VALID)
                 .eq(FxSettlementDO::getMigrated, 0)

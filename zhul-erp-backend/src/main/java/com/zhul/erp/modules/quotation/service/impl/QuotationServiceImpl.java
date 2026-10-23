@@ -55,6 +55,7 @@ import com.zhul.erp.modules.system.service.ExchangeRateService;
 import com.zhul.erp.modules.system.service.LogService;
 import com.zhul.erp.modules.system.service.DocumentNumberService;
 import com.zhul.erp.modules.system.constants.DocumentType;
+import com.zhul.erp.modules.system.service.BusinessUnitService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -92,6 +93,7 @@ public class QuotationServiceImpl implements QuotationService {
             QuotationPricing.HINT_DISCONTINUED_URGENT, "停产急件 · 建议主管核价",
             QuotationPricing.HINT_PREMIUM_BRAND, "现货优势品牌 · 建议主管核价");
 
+    private final BusinessUnitService businessUnitService;
     private final QuotationMapper quotationMapper;
     private final QuotationItemMapper itemMapper;
     private final QuotationFeeMapper feeMapper;
@@ -309,6 +311,8 @@ public class QuotationServiceImpl implements QuotationService {
     private void insertWithNo(QuotationDO q) {
         q.setId(null);
         q.setQuotationNo(documentNumberService.next(DocumentType.QT));
+        // 事业部跟随客户（spec system/business-unit「单据归属事业部」）
+        q.setBusinessUnitId(businessUnitService.unitOfCustomer(q.getCustomerId()));
         quotationMapper.insert(q);
     }
 

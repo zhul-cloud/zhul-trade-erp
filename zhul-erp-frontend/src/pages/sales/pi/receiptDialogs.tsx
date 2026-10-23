@@ -59,7 +59,7 @@ export const FxEstimateHint: React.FC<{ currency: string }> = ({
   if (currency === 'CNY') return null;
   return (
     <div style={{ marginTop: 12, fontSize: 12, color: palette.mute }}>
-      人民币先按最近一次结汇的汇率估算，标「未结汇」；结汇后由财务在「结汇单」登记，系统按先进先出确定实际人民币。
+      人民币先按最近一次结汇的汇率估算，标「未结汇」；结汇后由财务在「结汇管理」登记结汇单，系统按先进先出确定实际人民币。
     </div>
   );
 };
@@ -426,7 +426,7 @@ export const ClaimReceiptModal = <T extends ReceiptResult>({
       )}
       <div style={{ marginTop: 12, fontSize: 12, color: palette.mute }}>
         <InfoCircleOutlined /> 认领后按正常到账计入
-        PI；认领错了请总经理在「收款单」取消认领。
+        PI；认领错了请总经理在「收款管理」取消认领。
       </div>
     </Modal>
   );

@@ -45,7 +45,8 @@ class SeriesServiceImplTest {
     @BeforeEach
     void setUp() {
         TenantContext.setTenantId(0);
-        service = new SeriesServiceImpl(seriesMapper, brandMapper, productMapper, new PlatformScopeGuard());
+        service = new SeriesServiceImpl(seriesMapper, brandMapper, productMapper, new PlatformScopeGuard(),
+                new com.zhul.erp.modules.product.support.UnlimitedIndustryScope());
     }
 
     @AfterEach

@@ -501,7 +501,6 @@ const ProductListInner: React.FC = () => {
     <>
       <PageHeader
         eyebrow="PRODUCT MASTER"
-        title="商品"
         description="一个「品牌 + 型号」就是一个商品。所有租户共用同一份，询盘、报价都从这里选。"
         actions={
           access['product:product:add'] && (

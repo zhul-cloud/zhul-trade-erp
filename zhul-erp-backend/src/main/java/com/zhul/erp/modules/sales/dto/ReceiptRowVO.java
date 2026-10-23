@@ -37,6 +37,10 @@ public class ReceiptRowVO {
     private String payer;
     private LocalDate receiptDate;
     private String bankAccountName;
+    /** 所属事业部 */
+    private Integer businessUnitId;
+    /** 收款账户与订单的事业部不一致 */
+    private Boolean buMismatch;
     private String note;
     /** 1-有效、2-已作废 */
     private Integer status;

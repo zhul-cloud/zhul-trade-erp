@@ -18,7 +18,12 @@ public interface CategoryService {
     List<CategoryOptionVO> options(Integer level);
 
     /** 两级品类树：未删除的一级品类（含停用）及其细分品类，按排序号 */
-    List<CategoryVO> tree();
+    /** 两级品类树；industryCode 为平台账号的行业筛选，租户账号固定为本租户行业 */
+    List<CategoryVO> tree(String industryCode);
+
+    default List<CategoryVO> tree() {
+        return tree(null);
+    }
 
     CategoryVO create(SaveCategoryRequest req);
 

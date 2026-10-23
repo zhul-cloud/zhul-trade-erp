@@ -350,8 +350,6 @@ const PiList: React.FC = () => {
   return (
     <div>
       <SalesPageTitle
-        crumbs={['PI']}
-        title="PI（形式发票）"
         description="客户有意向后，从报价单开 PI 确认型号与金额并请款；客户付款后转成销售订单。"
         actions={
           <Button

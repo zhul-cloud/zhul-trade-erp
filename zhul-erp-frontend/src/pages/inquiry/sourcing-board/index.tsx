@@ -163,8 +163,6 @@ const SourcingBoardPage: React.FC = () => {
   return (
     <div>
       <PageTitle
-        crumbs={['询价分配']}
-        title="询价分配"
         description="把待分配的询价任务交给合适的采购；推荐依据近 180 天的品牌熟悉度和当前负载。"
         actions={
           <>

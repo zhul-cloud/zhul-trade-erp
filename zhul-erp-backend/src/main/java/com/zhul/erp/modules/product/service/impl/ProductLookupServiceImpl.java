@@ -12,6 +12,7 @@ import com.zhul.erp.modules.product.repository.ProductMapper;
 import com.zhul.erp.modules.product.service.ProductLookupService;
 import com.zhul.erp.modules.product.support.LikeUtils;
 import com.zhul.erp.modules.product.support.MpnNormalizer;
+import com.zhul.erp.modules.product.support.IndustryScope;
 import com.zhul.erp.modules.product.support.ProductNames;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -31,6 +32,7 @@ public class ProductLookupServiceImpl implements ProductLookupService {
     private final ProductMapper productMapper;
     private final ProductBrandMapper brandMapper;
     private final ProductNames productNames;
+    private final IndustryScope industryScope;
 
     @Override
     public List<ProductOptionVO> search(String keyword, Integer limit, Long brandId) {
@@ -105,10 +107,20 @@ public class ProductLookupServiceImpl implements ProductLookupService {
 
     /** 只有启用且未删除的商品才能被业务单据选用 */
     private LambdaQueryWrapper<ProductDO> selectable() {
-        return new LambdaQueryWrapper<ProductDO>()
+        LambdaQueryWrapper<ProductDO> wrapper = new LambdaQueryWrapper<ProductDO>()
                 .eq(ProductDO::getTenantId, ProductConstants.PLATFORM_TENANT_ID)
                 .isNull(ProductDO::getDeletedAt)
                 .eq(ProductDO::getStatus, ProductConstants.STATUS_ENABLED);
+        // 租户只在本行业的商品里查找（按所属品类的一级品类）
+        java.util.Set<Long> visibleCategories = industryScope.visibleCategoryIds();
+        if (visibleCategories != null) {
+            if (visibleCategories.isEmpty()) {
+                wrapper.apply("1 = 0");
+            } else {
+                wrapper.in(ProductDO::getCategoryId, visibleCategories);
+            }
+        }
+        return wrapper;
     }
 
     private List<ProductOptionVO> toOptions(List<ProductDO> products) {

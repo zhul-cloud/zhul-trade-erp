@@ -2,6 +2,7 @@ import { PlusOutlined } from '@ant-design/icons';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import {
   ModalForm,
+  ProFormDependency,
   ProFormDigit,
   ProFormSelect,
   ProFormText,
@@ -11,6 +12,7 @@ import {
 import { useAccess } from '@umijs/max';
 import { App, Button, Tooltip } from 'antd';
 import React, { useRef, useState } from 'react';
+import { useIndustryOptions } from '@/utils/dict';
 import { formatDateTime } from '@/utils/format';
 import { usePagination } from '@/utils/pageSize';
 import { Pill } from '../components/Pills';
@@ -83,7 +85,17 @@ const CategoryPage: React.FC = () => {
     });
   };
 
+  const { options: industryOptions, labelOf: industryLabel } =
+    useIndustryOptions();
+
   const columns: ProColumns<Category>[] = [
+    {
+      title: '行业',
+      dataIndex: 'industryFilter',
+      hideInTable: true,
+      valueType: 'select',
+      fieldProps: { options: industryOptions, placeholder: '全部行业' },
+    },
     {
       title: '编码或名称',
       dataIndex: 'keyword',
@@ -135,6 +147,18 @@ const CategoryPage: React.FC = () => {
           <Pill tone="gray">细分品类</Pill>
         ) : (
           <Pill tone="accent">一级品类</Pill>
+        ),
+    },
+    {
+      title: '行业',
+      dataIndex: 'industryCode',
+      search: false,
+      width: 110,
+      render: (_, r) =>
+        r.parentId ? (
+          <span style={{ opacity: 0.55 }}>跟随上级</span>
+        ) : (
+          <Pill tone="accent">{industryLabel(r.industryCode)}</Pill>
         ),
     },
     {
@@ -263,7 +287,6 @@ const CategoryPage: React.FC = () => {
     <ProductThemeProvider>
       <PageHeader
         eyebrow="PRODUCT MASTER"
-        title="品类"
         description="一级品类用于商品和独立站，编码有商品后不能再改；细分品类用于供应商主营产品和询盘单匹配。"
         actions={
           access['product:category:add'] && (
@@ -284,7 +307,9 @@ const CategoryPage: React.FC = () => {
         search={{ labelWidth: 'auto', defaultCollapsed: false }}
         options={false}
         request={async (params) => {
-          const tree = await categoryApi.tree();
+          const tree = await categoryApi.tree(
+            (params.industryFilter as string) || undefined,
+          );
           setTopLevels(tree);
           // 两级品类数量不大，一次取回整棵树在前端筛选：命中细分品类时保留它的一级品类
           const keyword = (params.keyword ?? '').trim().toLowerCase();
@@ -323,6 +348,7 @@ const CategoryPage: React.FC = () => {
         description?: string;
         descriptionZh?: string;
         sortOrder?: number;
+        industryCode?: string;
       }>
         title={
           editing
@@ -338,7 +364,13 @@ const CategoryPage: React.FC = () => {
         width={520}
         modalProps={{ destroyOnHidden: true }}
         initialValues={
-          editing ? { ...editing } : { sortOrder: 0, parentId: presetParent }
+          editing
+            ? { ...editing }
+            : {
+                sortOrder: 0,
+                parentId: presetParent,
+                industryCode: industryOptions[0]?.value,
+              }
         }
         onFinish={async (values) => {
           const data = { ...values, parentId: values.parentId ?? null };
@@ -387,6 +419,20 @@ const CategoryPage: React.FC = () => {
                 : t.categoryName,
             }))}
         />
+        <ProFormDependency name={['parentId']}>
+          {({ parentId }) =>
+            parentId ? null : (
+              <ProFormSelect
+                name="industryCode"
+                label="所属行业"
+                placeholder="选择行业"
+                options={industryOptions}
+                rules={[{ required: true, message: '请选择行业' }]}
+                extra="租户只看到本行业的品类；细分品类跟随上级，不用选"
+              />
+            )
+          }
+        </ProFormDependency>
         <ProFormText
           name="categoryNameZh"
           label="中文名称"

@@ -597,8 +597,6 @@ const CustomerInquiryPage: React.FC = () => {
   return (
     <div>
       <PageTitle
-        crumbs={['询盘单']}
-        title="询盘单"
         description="一个客户的一次需求。确认型号后按品牌拆给采购询价，有回价的型号就可以去报价。"
         actions={
           <Button

@@ -217,6 +217,13 @@ public class UserServiceImpl implements UserService {
             wrapper.set(UserBasicDO::getStatus, request.getStatus());
         }
         userBasicMapper.update(new UserBasicDO(), wrapper);
+        // 找回密码按登录账号上的邮箱发验证码，与用户资料保持一致
+        if (StringUtils.hasText(request.getEmail())) {
+            accountMapper.update(null, new LambdaUpdateWrapper<AccountDO>()
+                    .eq(AccountDO::getUserId, userId)
+                    .set(AccountDO::getEmail, request.getEmail())
+                    .set(AccountDO::getUpdateTime, LocalDateTime.now()));
+        }
     }
 
     @Override

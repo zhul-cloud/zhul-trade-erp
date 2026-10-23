@@ -26,7 +26,7 @@ class BrandResolverTest {
 
     @BeforeEach
     void setUp() {
-        resolver = new BrandResolver(brandMapper, aliasMapper);
+        resolver = new BrandResolver(brandMapper, aliasMapper, new com.zhul.erp.modules.product.support.UnlimitedIndustryScope());
     }
 
     private static ProductBrandDO brand(long id, String name) {

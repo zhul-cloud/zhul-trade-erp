@@ -83,7 +83,7 @@ export const WIDGETS: Record<string, React.FC> = {
     icon: <TeamOutlined />,
     tone: 'blue',
     sub: '本月，按你的数据范围，口径同销售统计',
-    more: { label: '销售统计', link: '/sales/stats' },
+    more: { link: '/sales/stats' },
   }),
   'follow-ups': blockWidget({
     key: 'follow-ups',
@@ -112,7 +112,7 @@ export const WIDGETS: Record<string, React.FC> = {
     icon: <ProfileOutlined />,
     tone: 'blue',
     sub: '口径同询价分配',
-    more: { label: '询价分配', link: '/inquiry/sourcing-board' },
+    more: { link: '/inquiry/sourcing-board' },
   }),
   'buyer-efficiency': blockWidget({
     key: 'buyer-efficiency',
@@ -120,7 +120,7 @@ export const WIDGETS: Record<string, React.FC> = {
     icon: <DashboardOutlined />,
     tone: 'green',
     sub: '本月，口径同询价统计',
-    more: { label: '询价统计', link: '/inquiry/sourcing-stats' },
+    more: { link: '/inquiry/sourcing-stats' },
   }),
   'purchase-execution': blockWidget({
     key: 'purchase-execution',
@@ -141,7 +141,7 @@ export const WIDGETS: Record<string, React.FC> = {
     title: '应付',
     icon: <WalletOutlined />,
     tone: 'orange',
-    more: { label: '应付单', link: '/finance/payables' },
+    more: { link: '/finance/payables' },
   }),
   // 运营负责人
   'content-pipeline': blockWidget({
@@ -163,7 +163,7 @@ export const WIDGETS: Record<string, React.FC> = {
     title: '素材',
     icon: <PictureOutlined />,
     tone: 'orange',
-    more: { label: '素材库', link: '/operations/media' },
+    more: { link: '/operations/media' },
   }),
   'monthly-output': blockWidget({
     key: 'monthly-output',
@@ -178,7 +178,7 @@ export const WIDGETS: Record<string, React.FC> = {
     icon: <BankOutlined />,
     tone: 'blue',
     sub: '本月 · 人民币，口径同经营统计',
-    more: { label: '经营统计', link: '/finance/operating-report' },
+    more: { link: '/finance/operating-report' },
   }),
   cash: blockWidget({
     key: 'cash',

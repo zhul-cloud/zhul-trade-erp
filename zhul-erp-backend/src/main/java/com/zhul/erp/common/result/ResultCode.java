@@ -26,7 +26,9 @@ public enum ResultCode {
     RESET_CODE_FAIL_LIMIT(1014, "验证码错误次数过多，请重新发送验证码"),
     SAME_AS_OLD_PASSWORD(1015, "新密码不能与原密码相同"),
     NO_EMAIL_BOUND(1016, "该账号未绑定邮箱，请联系管理员重置密码"),
-    REFRESH_TOKEN_INVALID(1017, "登录已过期，请重新登录");
+    REFRESH_TOKEN_INVALID(1017, "登录已过期，请重新登录"),
+    MAIL_NOT_CONFIGURED(1018, "系统未配置发信邮箱，暂时不能通过邮箱找回密码，请联系管理员重置密码"),
+    MAIL_SEND_FAILED(1019, "验证码邮件发送失败，请稍后重试");
 
     private final Integer code;
     private final String message;

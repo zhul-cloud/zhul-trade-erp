@@ -87,6 +87,8 @@ public class ReceiptRows {
             vo.setReceiptDate(r.getReceiptDate());
             BankAccountDO b = r.getBankAccountId() == null ? null : banks.get(r.getBankAccountId());
             vo.setBankAccountName(b == null ? null : b.getBankName() + " " + BankAccountService.mask(b.getAccountNo()));
+            vo.setBusinessUnitId(r.getBusinessUnitId());
+            vo.setBuMismatch(Integer.valueOf(1).equals(r.getBuMismatch()));
             vo.setNote(r.getNote());
             vo.setStatus(r.getStatus());
             vo.setVoidReason(r.getVoidReason());

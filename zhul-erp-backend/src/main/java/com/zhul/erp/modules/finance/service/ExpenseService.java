@@ -1,6 +1,7 @@
 package com.zhul.erp.modules.finance.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.zhul.erp.common.exception.BizException;
 import com.zhul.erp.common.result.PageResult;
@@ -34,6 +35,7 @@ import com.zhul.erp.modules.system.constants.DocumentType;
 import com.zhul.erp.modules.system.service.DocumentNumberService;
 import com.zhul.erp.modules.system.service.ExchangeRateService;
 import com.zhul.erp.modules.system.service.LogService;
+import com.zhul.erp.modules.system.service.BusinessUnitService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
@@ -66,6 +68,7 @@ public class ExpenseService {
     private static final String CNY = "CNY";
     private static final int MAX_PAGE_SIZE = 100;
 
+    private final BusinessUnitService businessUnitService;
     private final ExpenseMapper expenseMapper;
     private final ExpenseAllocationMapper allocationMapper;
     private final ReimbursementLineMapper lineMapper;
@@ -115,6 +118,7 @@ public class ExpenseService {
         e.setStatus(FinanceConstants.FE_VALID);
         e.setVoidReason("");
         fill(e, req, false);
+        e.setBusinessUnitId(unitOf(req));
         expenseMapper.insert(e);
         saveAllocations(e, req.getAllocations());
         attachments.sync(AttachmentService.EXPENSE, e.getId(), req.getAttachmentIds());
@@ -135,6 +139,9 @@ public class ExpenseService {
         boolean locked = locked(e);
         fill(e, req, locked);
         expenseMapper.updateById(e);
+        // 事业部可在「公共」与某事业部之间改，为空也要写回
+        expenseMapper.update(null, new LambdaUpdateWrapper<ExpenseDO>()
+                .set(ExpenseDO::getBusinessUnitId, unitOf(req)).eq(ExpenseDO::getId, e.getId()));
         saveAllocations(e, req.getAllocations());
         attachments.sync(AttachmentService.EXPENSE, e.getId(), req.getAttachmentIds());
         requireProof(e);
@@ -335,6 +342,24 @@ public class ExpenseService {
     }
 
     /** 分摊：整份替换；合计须等于金额；人民币按费用单汇率折算，尾差放最后一行 */
+    /**
+     * 所属事业部（spec finance/expense「费用归属事业部」）：关联了订单型号的跟随订单，分摊行的订单须属于同一事业部；
+     * 不关联的取所选事业部，没选为「公共」。公司没有事业部时为空。
+     */
+    private Integer unitOf(SaveExpenseRequest req) {
+        if (req.getAllocations() == null || req.getAllocations().isEmpty()) {
+            return businessUnitService.forOptional(req.getBusinessUnitId());
+        }
+        List<Long> itemIds = req.getAllocations().stream().map(SaveExpenseRequest.Alloc::getSoItemId).distinct().toList();
+        Set<Long> soIds = soItemMapper.selectBatchIds(itemIds).stream().map(SalesOrderItemDO::getSoId).collect(Collectors.toSet());
+        Set<Integer> units = soIds.isEmpty() ? Set.of() : soMapper.selectBatchIds(soIds).stream()
+                .map(SalesOrderDO::getBusinessUnitId).collect(Collectors.toCollection(HashSet::new));
+        if (units.size() > 1) {
+            throw new BizException("分摊的订单须属于同一个事业部");
+        }
+        return units.isEmpty() ? null : units.iterator().next();
+    }
+
     private void saveAllocations(ExpenseDO e, List<SaveExpenseRequest.Alloc> rows) {
         List<SaveExpenseRequest.Alloc> list = rows == null ? List.of() : rows;
         Set<Long> seen = new HashSet<>();
@@ -421,6 +446,13 @@ public class ExpenseService {
         if (q.getMethod() != null) {
             w.eq(ExpenseDO::getMethod, q.getMethod());
         }
+        if (q.getBusinessUnitId() != null) {
+            if (q.getBusinessUnitId() == 0) {
+                w.isNull(ExpenseDO::getBusinessUnitId);
+            } else {
+                w.eq(ExpenseDO::getBusinessUnitId, q.getBusinessUnitId());
+            }
+        }
         if (StringUtils.hasText(q.getCategory())) {
             w.eq(ExpenseDO::getCategory, q.getCategory().trim());
         }
@@ -475,6 +507,7 @@ public class ExpenseService {
             vo.setId(e.getId());
             vo.setExpenseNo(e.getExpenseNo());
             vo.setName(e.getName());
+            vo.setBusinessUnitId(e.getBusinessUnitId());
             vo.setCategory(e.getCategory());
             vo.setCategoryName(categories.getOrDefault(e.getCategory(), e.getCategory()));
             vo.setAmortizeMonths(e.getAmortizeMonths());

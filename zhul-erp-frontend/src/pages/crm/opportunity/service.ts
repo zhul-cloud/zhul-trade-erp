@@ -145,6 +145,8 @@ export interface RegisterPayload {
   phone?: string;
   website?: string;
   demandSummary?: string;
+  /** 所属事业部：登记人在公共部门时必选 */
+  businessUnitId?: number;
   attachments: AttachmentPayload[];
 }
 

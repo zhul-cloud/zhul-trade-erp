@@ -52,6 +52,7 @@ import {
 import { type Attachment, shipmentApi } from '@/pages/warehouse/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
+import { MenuLink } from '@/utils/menuName';
 import {
   bargainOf,
   defaultPrice,
@@ -526,12 +527,7 @@ const PurchaseOrderDetail: React.FC = () => {
   return (
     <div>
       <PurchasePageTitle
-        crumbs={[
-          <a key="list" onClick={() => history.push(PATHS.orders)}>
-            采购订单
-          </a>,
-          po.poNo ?? '草稿',
-        ]}
+        crumbs={[<MenuLink key="list" to={PATHS.orders} />, po.poNo ?? '草稿']}
         title={
           <span
             style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}

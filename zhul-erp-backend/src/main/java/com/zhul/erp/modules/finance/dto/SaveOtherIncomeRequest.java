@@ -23,5 +23,7 @@ public class SaveOtherIncomeRequest {
     @NotBlank(message = "请填写说明")
     @Size(max = 500, message = "说明不能超过 500 个字符")
     private String remark;
+    /** 所属事业部（公司设置了事业部时有效）：为空表示「公共」，按销售额比例分摊 */
+    private Integer businessUnitId;
     private List<Long> attachmentIds;
 }

@@ -154,6 +154,8 @@ export interface Expense {
   id: number;
   expenseNo: string;
   name: string;
+  /** 所属事业部；为空表示「公共」 */
+  businessUnitId?: number;
   category: string;
   categoryName?: string;
   amortizeMonths: number;
@@ -204,6 +206,8 @@ export interface SoItemOption {
 
 export interface SaveExpenseBody {
   name: string;
+  /** 所属事业部；为空表示「公共」 */
+  businessUnitId?: number;
   category?: string;
   amortizeMonths?: number;
   occurDate: string;
@@ -229,6 +233,8 @@ export interface ExpenseQuery {
   dateFrom?: string;
   dateTo?: string;
   method?: number;
+  /** 所属事业部筛选：0 表示「公共」 */
+  businessUnitId?: number;
   category?: string;
   /** true 只看关联订单的；false 只看运营成本 */
   linked?: boolean;

@@ -1026,8 +1026,6 @@ const Candidates: React.FC = () => {
   return (
     <div>
       <PageTitle
-        crumbs={['商品候选']}
-        title="商品候选"
         description="询盘、成交带进来的新型号，以及上传商品文件添加的型号，先在这里审核，通过后才进入商品库；被问得多、成交过的优先审核。"
         actions={
           <>

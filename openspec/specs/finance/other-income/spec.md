@@ -24,3 +24,10 @@ TBD - created by archiving change add-operating-report. Update Purpose after arc
 #### Scenario: 按类别筛选
 - **WHEN** 财务选类别「利息」
 - **THEN** 只列出利息收入，顶部合计随之变化
+
+### Requirement: 其他收入归属事业部
+登记其他收入时 SHALL 选择所属事业部：某个事业部，或「公共」（必选）。归属事业部的直接计入该事业部；「公共」的按 `system/business-unit` 的规则与公共费用同比例分摊。列表显示所属事业部并可筛选。
+
+#### Scenario: 阿里平台返点
+- **WHEN** 财务登记阿里国际站平台返点 ¥2,000.00，所属事业部选阿里国际站事业部
+- **THEN** 该收入只计入阿里国际站事业部的其他收入

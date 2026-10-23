@@ -135,8 +135,8 @@ public class BossWidgets {
         return W.widget("revenue-trend", List.of(OPERATING), () -> {
             LocalDate today = LocalDate.now();
             List<OperatingReportVO.Row> rows = new ArrayList<>();
-            OperatingReportVO lastYear = report.year(today.getYear() - 1);
-            OperatingReportVO thisYear = report.year(today.getYear());
+            OperatingReportVO lastYear = report.year(today.getYear() - 1, null);
+            OperatingReportVO thisYear = report.year(today.getYear(), null);
             for (int i = 11; i >= 0; i--) {
                 LocalDate m = today.minusMonths(i);
                 OperatingReportVO vo = m.getYear() == today.getYear() ? thisYear : lastYear;
@@ -227,7 +227,7 @@ public class BossWidgets {
 
     /** 经营统计里某个月的一行；没有（如未来月份）为空 */
     private static OperatingReportVO.Row month(OperatingReportService report, LocalDate d) {
-        return report.year(d.getYear()).getRows().stream()
+        return report.year(d.getYear(), null).getRows().stream()
                 .filter(r -> r.getMonth() != null && r.getMonth() == d.getMonthValue())
                 .findFirst().orElse(null);
     }

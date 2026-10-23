@@ -262,11 +262,7 @@ const PaymentRecords: React.FC = () => {
 
   return (
     <div>
-      <PageTitle
-        crumbs={['付款单']}
-        title="付款单"
-        description="公司对公、私对私由财务登记，员工垫付由付款的员工本人登记（进入待报销）；供应商退款也在这里。登记错了由登记人或财务作废，应付随之恢复。"
-      />
+      <PageTitle description="公司对公、私对私由财务登记，员工垫付由付款的员工本人登记（进入待报销）；供应商退款也在这里。登记错了由登记人或财务作废，应付随之恢复。" />
       <div
         style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginBottom: 16 }}
       >

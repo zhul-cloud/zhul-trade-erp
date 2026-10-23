@@ -16,4 +16,6 @@ public class SaveCategoryRequest {
     /** 中文简介 */
     private String descriptionZh;
     private Integer sortOrder;
+    /** 所属行业编码（字典 industry），只对一级品类有效；不传时新建用默认行业、修改保持不变 */
+    private String industryCode;
 }

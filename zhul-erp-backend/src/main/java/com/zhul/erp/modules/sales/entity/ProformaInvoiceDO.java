@@ -18,6 +18,8 @@ public class ProformaInvoiceDO {
     @TableId(type = IdType.AUTO)
     private Long id;
     private Integer tenantId;
+    /** 所属事业部（department.id）；NULL：公共，或公司没有设置事业部 */
+    private Integer businessUnitId;
     private String piNo;
     private Long customerId;
     private Long ownerId;

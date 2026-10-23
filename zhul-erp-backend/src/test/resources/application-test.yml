@@ -14,6 +14,9 @@ spring:
       database: 1
 
 zhul:
+  # 测试不连真实邮箱：没配置发信邮箱时验证码写日志（用例需要真实发送时自己 mock JavaMailSender）
+  mail:
+    log-only: true
   upload:
     dir: ./target/test-uploads
     private-dir: ./target/test-private-uploads

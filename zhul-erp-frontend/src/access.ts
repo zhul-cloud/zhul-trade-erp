@@ -244,6 +244,7 @@ export default function access(initialState: {
     'tenant:list:edit': canWrite('tenant:list:edit'),
     'tenant:list:status': canWrite('tenant:list:status'),
     'tenant:list:resetPwd': canWrite('tenant:list:resetPwd'),
+    'tenant:list:init': canWrite('tenant:list:init'),
     // 按钮级 - 套餐管理（同上，读写都要求平台账号）
     'tenant:package:add': canWrite('tenant:package:add'),
     'tenant:package:edit': canWrite('tenant:package:edit'),

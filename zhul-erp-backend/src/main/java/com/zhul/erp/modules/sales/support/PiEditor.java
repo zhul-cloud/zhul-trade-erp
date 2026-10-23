@@ -21,6 +21,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -128,6 +129,9 @@ public class PiEditor {
             BankAccountDO bank = bankAccountService.requireEnabled(req.getBankAccountId());
             if (!bank.getCurrencyCode().equals(pi.getCurrencyCode())) {
                 throw new BizException("收款账户币种（" + bank.getCurrencyCode() + "）与 PI 币种（" + pi.getCurrencyCode() + "）不同");
+            }
+            if (!Objects.equals(bank.getBusinessUnitId(), pi.getBusinessUnitId())) {
+                throw new BizException("只能选择本事业部的收款账户");
             }
             v.setBankAccountId(bank.getId());
             v.setBankAccountJson(store.toJson(PiDefaults.bankSnapshot(bank)));

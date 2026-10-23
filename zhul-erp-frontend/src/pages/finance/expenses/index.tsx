@@ -33,6 +33,14 @@ import { readBizError } from '@/pages/sales/service';
 import { AttachmentWall, ReasonModal } from '@/pages/warehouse/components';
 import type { Attachment } from '@/pages/warehouse/service';
 import { useAppTheme } from '@/theme/AppTheme';
+import {
+  PUBLIC_UNIT,
+  UnitPill,
+  UnitSelect,
+  unitFilterOptions,
+  unitOrPublic,
+  useBusinessUnits,
+} from '@/utils/businessUnit';
 import { useDictTexts } from '@/utils/dict';
 import { formatAmount } from '@/utils/format';
 import { usePageSize } from '@/utils/pageSize';
@@ -88,6 +96,8 @@ const ExpenseDrawer: React.FC<{
   const [remark, setRemark] = useState('');
   const [files, setFiles] = useState<Attachment[]>([]);
   const [allocs, setAllocs] = useState<AllocRow[]>([]);
+  const [bu] = useBusinessUnits();
+  const [unit, setUnit] = useState<number>(PUBLIC_UNIT);
   const [options, setOptions] = useState<SoItemOption[]>([]);
   const [saving, setSaving] = useState(false);
   const locked = !!editing?.locked;
@@ -110,6 +120,9 @@ const ExpenseDrawer: React.FC<{
     setMethod(e?.method ?? METHOD.COMPANY);
     setAdvanceUserId(e?.advanceUserId);
     setRemark(e?.remark ?? '');
+    setUnit(
+      e ? (e.businessUnitId ?? PUBLIC_UNIT) : (bu.myUnitId ?? PUBLIC_UNIT),
+    );
     setFiles((e?.attachments ?? []) as unknown as Attachment[]);
     setAllocs(
       (e?.allocations ?? []).map((a) => ({
@@ -123,7 +136,7 @@ const ExpenseDrawer: React.FC<{
       .soItems()
       .then(setOptions)
       .catch(() => setOptions([]));
-  }, [open, editing]);
+  }, [open, editing, bu.myUnitId]);
 
   const allocTotal = round2(allocs.reduce((s, a) => s + (a.amount ?? 0), 0));
   const allocOk = allocs.length === 0 || allocTotal === round2(amount ?? 0);
@@ -156,6 +169,7 @@ const ExpenseDrawer: React.FC<{
       advanceUserId: method === METHOD.ADVANCE ? advanceUserId : undefined,
       remark: remark.trim() || undefined,
       attachmentIds: files.map((f) => f.id),
+      businessUnitId: unitOrPublic(unit),
       allocations: allocs
         .filter((a) => a.amount)
         .map((a) => ({ soItemId: a.soItemId, amount: a.amount as number })),
@@ -336,6 +350,25 @@ const ExpenseDrawer: React.FC<{
             />
           </div>
         </div>
+        {bu.enabled && (
+          <div style={{ maxWidth: 420 }}>
+            {label('所属事业部')}
+            <UnitSelect
+              info={bu}
+              allowPublic
+              value={unit}
+              onChange={setUnit}
+              style={{ width: '100%' }}
+            />
+            <div style={{ fontSize: 12, color: palette.mute, marginTop: 6 }}>
+              {allocs.length
+                ? '已分摊到订单型号：归属订单的事业部，这里的选择不生效'
+                : unit === PUBLIC_UNIT
+                  ? '公共费用每月按销售额比例分给各事业部'
+                  : '计入该事业部的直接费用，不分给其他事业部'}
+            </div>
+          </div>
+        )}
         <div>
           {label('付款方式')}
           <Segmented<number>
@@ -511,6 +544,7 @@ interface Filters {
   category?: string;
   linked?: boolean;
   showVoid: boolean;
+  unit?: number;
 }
 
 /** 初始筛选：经营统计跳转时带 dateFrom、dateTo、category、linked */
@@ -526,6 +560,10 @@ const initial = (): Filters => {
     category: p.get('category') ?? undefined,
     linked: linked == null ? undefined : linked === 'true',
     showVoid: false,
+    unit:
+      p.get('businessUnitId') == null
+        ? undefined
+        : Number(p.get('businessUnitId')),
   };
 };
 
@@ -536,6 +574,7 @@ const ExpensePage: React.FC = () => {
   const access = useAccess() as Record<string, boolean>;
   const canEdit = !!access['finance:expense:edit'];
   const categories = useDictTexts('expense_category');
+  const [bu] = useBusinessUnits();
   const [draft, setDraft] = useState<Filters>(initial);
   const [filters, setFilters] = useState<Filters>(initial);
   const [page, setPage] = useState(1);
@@ -558,6 +597,7 @@ const ExpensePage: React.FC = () => {
       category: filters.category,
       linked: filters.linked,
       showVoid: filters.showVoid || undefined,
+      businessUnitId: filters.unit,
     };
     try {
       const [res, t] = await Promise.all([
@@ -603,6 +643,21 @@ const ExpensePage: React.FC = () => {
     },
     { title: '发生日期', dataIndex: 'occurDate', width: 110 },
     { title: '名称', dataIndex: 'name', width: 160 },
+    ...(bu.enabled
+      ? [
+          {
+            title: '所属事业部',
+            key: 'unit',
+            width: 180,
+            render: (_: unknown, r: Expense) =>
+              r.allocations.length ? (
+                <span style={{ color: palette.mute }}>跟随订单</span>
+              ) : (
+                <UnitPill info={bu} id={r.businessUnitId} />
+              ),
+          },
+        ]
+      : []),
     {
       title: '类别',
       key: 'category',
@@ -716,8 +771,6 @@ const ExpensePage: React.FC = () => {
   return (
     <div>
       <PageTitle
-        crumbs={['费用单']}
-        title="费用单"
         description="补发运费这类偶发成本，以及房租、工资、平台费等运营成本；公司对公生成应付，员工垫付进入垫付人的待报销。关联订单型号的计入订单成本，不关联的按类别与分摊月数计入经营统计。"
         actions={
           canEdit && (
@@ -801,6 +854,16 @@ const ExpensePage: React.FC = () => {
               { value: METHOD.ADVANCE, label: '员工垫付' },
             ]}
           />
+          {bu.enabled && (
+            <Select
+              allowClear
+              placeholder="所属事业部"
+              style={{ width: 170 }}
+              value={draft.unit}
+              onChange={(v) => apply({ unit: v })}
+              options={unitFilterOptions(bu)}
+            />
+          )}
           <Select
             allowClear
             placeholder="费用类别"

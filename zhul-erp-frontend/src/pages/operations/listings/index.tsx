@@ -149,11 +149,7 @@ const ListingTasksPage: React.FC = () => {
 
   return (
     <div>
-      <PageTitle
-        crumbs={['发品任务']}
-        title="发品任务"
-        description="一个商品一行，汇总各平台的发品状态。商品资料核对、某个平台的营销内容写完后自动生成这个平台的发品任务；进详情按平台复制内容、下载素材，到平台上发布后回填链接。"
-      />
+      <PageTitle description="一个商品一行，汇总各平台的发品状态。商品资料核对、某个平台的营销内容写完后自动生成这个平台的发品任务；进详情按平台复制内容、下载素材，到平台上发布后回填链接。" />
       <div
         style={{
           display: 'flex',

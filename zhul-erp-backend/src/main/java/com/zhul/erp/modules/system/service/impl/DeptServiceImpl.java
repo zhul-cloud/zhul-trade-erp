@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -248,6 +249,9 @@ public class DeptServiceImpl implements DeptService {
             vo.setLevel(dept.getLevel());
             vo.setSort(dept.getSort());
             vo.setStatus(dept.getStatus());
+            vo.setIsBusinessUnit(dept.getIsBusinessUnit());
+            vo.setBuStartMonth(dept.getBuStartMonth() == null ? null
+                    : YearMonth.from(dept.getBuStartMonth()).toString());
             vo.setRemark(dept.getRemark());
             vo.setCreateTime(dept.getCreateTime());
             vo.setUpdateTime(dept.getUpdateTime());

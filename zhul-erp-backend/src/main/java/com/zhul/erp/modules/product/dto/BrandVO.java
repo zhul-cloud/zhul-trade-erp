@@ -22,6 +22,8 @@ public class BrandVO {
     private Long productCount;
     /** 别名 */
     private List<String> aliases;
+    /** 所属行业编码 */
+    private List<String> industryCodes;
     private String createBy;
     private LocalDateTime createTime;
     private String updateBy;

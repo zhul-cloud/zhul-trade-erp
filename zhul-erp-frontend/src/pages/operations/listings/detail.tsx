@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Card, PageTitle, Pill } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useAppTheme } from '@/theme/AppTheme';
+import { MenuLink, MenuName } from '@/utils/menuName';
 import { PlatformTaskChip, TABS } from './components';
 import ListingPanel from './ListingPanel';
 import { type ListingProduct, listingApi, readBizError } from './service';
@@ -45,8 +46,12 @@ const ListingProductDetail: React.FC = () => {
   return (
     <div>
       <PageTitle
-        crumbs={['发品任务', data.model]}
-        title={`发品任务 · ${label}`}
+        crumbs={[<MenuLink key="list" to="/operations/listings" />, data.model]}
+        title={
+          <>
+            <MenuName /> · {label}
+          </>
+        }
         description="本公司 · 每个平台一个店铺，逐个平台复制内容、下载素材，发布后回填链接"
       />
       <Card style={{ marginBottom: 16 }}>

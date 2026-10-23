@@ -26,7 +26,7 @@ public interface BankAccountService {
     void setEnabled(Integer id, boolean enabled);
 
     /** 当前租户某币种的默认启用账户，没有时为 null */
-    BankAccountDO defaultFor(String currencyCode);
+    BankAccountDO defaultFor(Integer businessUnitId, String currencyCode);
 
     /** 当前租户的启用账户，不存在或已停用时抛业务异常 */
     BankAccountDO requireEnabled(Integer id);

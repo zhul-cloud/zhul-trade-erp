@@ -209,11 +209,7 @@ const SourcingStatsPage: React.FC = () => {
 
   return (
     <div>
-      <PageTitle
-        crumbs={['询价统计']}
-        title="询价统计"
-        description="按月份按询盘单统计：没有待回价型号且至少一个有价为询价完成，全部无货为无法报价，还有待回价的为询价中。按采购员按分配给他的型号统计。"
-      />
+      <PageTitle description="按月份按询盘单统计：没有待回价型号且至少一个有价为询价完成，全部无货为无法报价，还有待回价的为询价中。按采购员按分配给他的型号统计。" />
       <div style={{ marginBottom: 16 }}>
         <DatePicker.RangePicker
           value={range}

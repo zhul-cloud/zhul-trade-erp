@@ -11,31 +11,28 @@ import { readBizError } from '@/pages/crm/opportunity/service';
 import { Card, PageTitle, useWide } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useAppTheme } from '@/theme/AppTheme';
+import { MenuName, useMenu } from '@/utils/menuName';
 import { type Workbench, workbenchApi } from './service';
 import { WIDGETS } from './widgets';
 
-/** 没有卡片时的常用入口，同样按权限过滤 */
+/** 没有卡片时的常用入口，同样按权限过滤；按钮文字取菜单名称 */
 const SHORTCUTS: {
   access: string;
-  label: string;
   path: string;
   icon: React.ReactNode;
 }[] = [
   {
     access: 'inquiryCustomerInquiry',
-    label: '询盘单',
     path: '/inquiry/customer-inquiries',
     icon: <MailOutlined />,
   },
   {
     access: 'quotationList',
-    label: '报价单',
     path: '/quotation/quotations',
     icon: <FileTextOutlined />,
   },
   {
     access: 'inquiryMyTasks',
-    label: '我的询价',
     path: '/inquiry/my-tasks',
     icon: <ShoppingCartOutlined />,
   },
@@ -75,6 +72,7 @@ const Dashboard: React.FC = () => {
   const wide = useWide();
   const access = useAccess() as Record<string, boolean>;
   const { initialState } = useModel('@@initialState');
+  const menu = useMenu();
   const name = initialState?.currentUser?.name;
   const user = initialState?.currentUser?.userid ?? name;
   const shortcuts = SHORTCUTS.filter((s) => access[s.access]);
@@ -104,9 +102,9 @@ const Dashboard: React.FC = () => {
   return (
     <div>
       <PageTitle
-        root="工作台"
+        root={menu?.name}
         crumbs={[]}
-        title={name ? `${greeting()}，${name}` : '工作台'}
+        title={name ? `${greeting()}，${name}` : menu?.name}
         description={
           board && board.code !== 'general' && !board.fallback
             ? `${board.name}看板：按你的数据范围显示，点击数字进入对应列表处理。`
@@ -221,7 +219,7 @@ const Dashboard: React.FC = () => {
                   icon={s.icon}
                   onClick={() => history.push(s.path)}
                 >
-                  {s.label}
+                  <MenuName path={s.path} />
                 </Button>
               ))}
             </div>

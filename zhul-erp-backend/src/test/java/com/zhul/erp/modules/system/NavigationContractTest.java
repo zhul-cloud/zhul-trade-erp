@@ -5,6 +5,7 @@ import com.zhul.erp.modules.inquiry.InquiryContractSupport;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -12,6 +13,7 @@ import java.util.Map;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 
@@ -56,12 +58,12 @@ class NavigationContractTest extends InquiryContractSupport {
         loginWithResources("it_nav_sales", 100001, 100053, 100051, 100073, 100078, 100079, 100056);
         Map<String, List<String>> sales = sidebar(token("it_nav_sales"));
         assertEquals(List.of("工作台", "销售管理", "采购管理"), new ArrayList<>(sales.keySet()));
-        assertEquals(List.of("商机", "询盘单", "报价单", "PI", "销售订单"), sales.get("销售管理"));
+        assertEquals(List.of("商机管理", "询盘管理", "报价管理", "形式发票", "销售订单"), sales.get("销售管理"));
         assertEquals(List.of("询价记录"), sales.get("采购管理"));
         assertEquals(200, perform(json(post("/api/v1/inquiry/customer-inquiries/page"), "{}"), token("it_nav_sales")).getStatus(), "调整后仍能访问");
 
         loginWithResources("it_nav_buyer", 100055, 100056, 100087, 100088, 100089, 100062);
-        assertEquals(Map.of("采购管理", List.of("我的询价", "询价记录", "采购需求", "采购订单", "供应商发货", "供应商")), sidebar(token("it_nav_buyer")));
+        assertEquals(Map.of("采购管理", List.of("我的询价", "询价记录", "采购需求", "采购订单", "发货跟踪", "供应商库")), sidebar(token("it_nav_buyer")));
     }
 
     @Test
@@ -71,8 +73,8 @@ class NavigationContractTest extends InquiryContractSupport {
         try {
             Map<String, List<String>> wh = sidebar(token("it_nav_wh"));
             assertEquals(List.of("工作台", "仓库管理", "财务管理", "运营管理"), new ArrayList<>(wh.keySet()));
-            assertEquals(List.of("素材库"), wh.get("运营管理"), "验货和拍摄时参考素材库");
-            assertEquals(List.of("报销单"), wh.get("财务管理"), "仓库垫付国内快递运费，要提交报销");
+            assertEquals(List.of("素材管理"), wh.get("运营管理"), "验货和拍摄时参考素材");
+            assertEquals(List.of("报销管理"), wh.get("财务管理"), "仓库垫付国内快递运费，要提交报销");
             assertEquals(List.of("采购入库", "销售出库", "闲置库存", "实拍任务"), wh.get("仓库管理"));
         } finally {
             jdbc.update("delete from account where id = 99000042");
@@ -86,15 +88,25 @@ class NavigationContractTest extends InquiryContractSupport {
         Map<String, List<String>> all = sidebar(token("it_nav_admin"));
         assertEquals(List.of("工作台", "销售管理", "采购管理", "仓库管理", "物流管理", "财务管理", "商品管理", "运营管理", "统计分析", "业务设置",
                 "系统管理", "租户管理"), new ArrayList<>(all.keySet()));
-        assertEquals(List.of("商品", "品牌", "品类", "系列"), all.get("商品管理"), "商品管理只放基础资料");
-        assertEquals(List.of("商品候选", "资料任务", "营销任务", "发品任务", "素材库"), all.get("运营管理"), "运营人员处理的任务");
+        assertEquals(List.of("商品档案", "品牌管理", "品类管理", "系列管理"), all.get("商品管理"), "商品管理只放基础资料");
+        assertEquals(List.of("商品候选", "资料任务", "营销任务", "发品任务", "素材管理"), all.get("运营管理"), "运营人员处理的任务");
         assertEquals(List.of("销售统计", "询价统计", "砍价统计", "利润统计", "经营统计", "商机统计"), all.get("统计分析"), "只读统计统一在这里");
-        assertEquals(List.of("商机", "客户", "询盘单", "报价单", "PI", "销售订单"), all.get("销售管理"));
-        assertEquals(List.of("询价分配", "我的询价", "询价记录", "采购需求", "采购订单", "供应商发货", "供应商"), all.get("采购管理"));
+        assertEquals(List.of("商机管理", "客户管理", "询盘管理", "报价管理", "形式发票", "销售订单"), all.get("销售管理"));
+        assertEquals(List.of("询价分配", "我的询价", "询价记录", "采购需求", "采购订单", "发货跟踪", "供应商库"), all.get("采购管理"));
         assertEquals(List.of("采购入库", "销售出库", "闲置库存", "实拍任务"), all.get("仓库管理"));
-        assertEquals(List.of("出运单", "运费账单"), all.get("物流管理"));
-        assertEquals(List.of("收款单", "退款单", "结汇单", "应付单", "付款单", "报销单", "费用单", "其他收入"), all.get("财务管理"));
-        assertEquals(List.of("定价策略", "汇率", "收款账户", "单据模板", "编号规则", "快递时效"), all.get("业务设置"));
-        assertEquals(List.of("用户", "角色", "部门", "岗位", "菜单", "字典", "系统设置", "操作日志", "登录日志"), all.get("系统管理"));
+        assertEquals(List.of("出运管理", "运费账单"), all.get("物流管理"));
+        assertEquals(List.of("收款管理", "退款管理", "结汇管理", "应付管理", "付款管理", "报销管理", "费用管理", "其他收入"), all.get("财务管理"));
+        assertEquals(List.of("定价策略", "汇率设置", "收款账户", "单据模板", "编号规则", "快递时效"), all.get("业务设置"));
+        assertEquals(List.of("用户管理", "角色管理", "部门管理", "岗位管理", "菜单管理", "字典管理", "系统设置", "操作日志", "登录日志"), all.get("系统管理"));
+        assertEquals(List.of("租户列表", "套餐管理"), all.get("租户管理"));
+    }
+
+    @Test
+    void warehouseAndLogisticsHaveDistinctSort() throws Exception {
+        loginAsAdmin("it_nav_sort");
+        Map<String, Integer> sort = new HashMap<>();
+        ok(call(get("/api/v1/system/menus"), token("it_nav_sort")))
+                .forEach(n -> sort.put(n.path("name").asText(), n.path("sort").asInt()));
+        assertTrue(sort.get("仓库管理") < sort.get("物流管理"), "一级菜单排序号不重复，物流管理排在仓库管理之后");
     }
 }

@@ -7,7 +7,7 @@ import {
   RocketOutlined,
   StopOutlined,
 } from '@ant-design/icons';
-import { history, Link, useAccess, useParams } from '@umijs/max';
+import { Link, useAccess, useParams } from '@umijs/max';
 import { App, Button, Skeleton, Table } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
 import { Card, PageTitle, Pill } from '@/pages/inquiry/shared/components';
@@ -15,6 +15,7 @@ import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { ReasonModal } from '@/pages/warehouse/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
+import { MenuLink } from '@/utils/menuName';
 import { kg, LOGISTICS_PATHS, ShStatusPill } from '../components';
 import {
   type DirectRef,
@@ -144,9 +145,7 @@ const ShipmentDetail: React.FC = () => {
     <div>
       <PageTitle
         crumbs={[
-          <a key="list" onClick={() => history.push(LOGISTICS_PATHS.shipments)}>
-            出运单
-          </a>,
+          <MenuLink key="list" to={LOGISTICS_PATHS.shipments} />,
           sh.shNo,
         ]}
         title={

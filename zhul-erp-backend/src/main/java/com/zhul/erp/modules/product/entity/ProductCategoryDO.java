@@ -30,6 +30,8 @@ public class ProductCategoryDO {
     private String descriptionZh;
     /** 上级品类ID：NULL 为一级品类（独立站品类），非空为细分品类（最多两级，只用于供应商主营产品与询盘匹配） */
     private Long parentId;
+    /** 所属行业编码（字典 industry）；一级品类必填，细分品类为空、跟随上级 */
+    private String industryCode;
     /** 排序 */
     private Integer sortOrder;
     /** 状态（0-禁用、1-启用） */

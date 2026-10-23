@@ -16,4 +16,6 @@ public class CustomerTransferRequest {
     private Long ownerId;
     @Size(max = 200, message = "转移原因不能超过200个字符")
     private String reason;
+    /** 是否同时把客户转到新负责人所在的事业部（只影响之后新建的单据） */
+    private Boolean moveBusinessUnit;
 }

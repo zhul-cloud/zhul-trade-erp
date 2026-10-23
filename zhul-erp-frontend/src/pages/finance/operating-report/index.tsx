@@ -6,6 +6,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Card, PageTitle, Pill } from '@/pages/inquiry/shared/components';
 import { readBizError } from '@/pages/sales/service';
 import { useAppTheme } from '@/theme/AppTheme';
+import { StatsUnitSwitch, useBusinessUnits } from '@/utils/businessUnit';
 import { formatAmount } from '@/utils/format';
 import {
   type OperatingReport,
@@ -25,17 +26,21 @@ const OperatingReportPage: React.FC = () => {
   const [year, setYear] = useState(thisYear);
   const [data, setData] = useState<OperatingReport>();
   const [loading, setLoading] = useState(true);
+  const [bu] = useBusinessUnits();
+  /** 查看的事业部：空为全公司（没有合计权限的由后端默认为本事业部） */
+  const [unit, setUnit] = useState<number>();
+  const viewUnit = data?.businessUnitId;
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      setData(await operatingApi.year(year));
+      setData(await operatingApi.year(year, unit));
     } catch (e) {
       message.error(readBizError(e).message);
     } finally {
       setLoading(false);
     }
-  }, [year, message]);
+  }, [year, unit, message]);
 
   useEffect(() => {
     load();
@@ -55,7 +60,13 @@ const OperatingReportPage: React.FC = () => {
   };
   const go = (path: string, r: OperatingRow, extra = '') => {
     const { dateFrom, dateTo } = rangeOf(r);
-    history.push(`${path}?dateFrom=${dateFrom}&dateTo=${dateTo}${extra}`);
+    const unitParam =
+      viewUnit != null && !extra.includes('businessUnitId')
+        ? `&businessUnitId=${viewUnit}`
+        : '';
+    history.push(
+      `${path}?dateFrom=${dateFrom}&dateTo=${dateTo}${extra}${unitParam}`,
+    );
   };
   const link = (
     value: number,
@@ -141,16 +152,57 @@ const OperatingReportPage: React.FC = () => {
       render: (_, r) =>
         link(r.otherIncome, () => go('/finance/other-incomes', r)),
     },
-    ...(data?.categories ?? []).map((c) => ({
-      title: c.name,
-      key: `opex-${c.code}`,
-      width: 105,
-      align: 'right' as const,
-      render: (_: unknown, r: OperatingRow) =>
-        link(r.opex[c.code] ?? 0, () =>
-          go('/finance/expenses', r, `&category=${c.code}&linked=false`),
-        ),
-    })),
+    ...(bu.enabled
+      ? [
+          {
+            title: '直接费用',
+            key: 'direct',
+            width: 120,
+            align: 'right' as const,
+            render: (_: unknown, r: OperatingRow) =>
+              link(r.opexDirectTotal, () =>
+                go('/finance/expenses', r, '&linked=false'),
+              ),
+          },
+          ...(viewUnit != null
+            ? [
+                {
+                  title: '分摊比例',
+                  key: 'share',
+                  width: 90,
+                  align: 'right' as const,
+                  render: (_: unknown, r: OperatingRow) =>
+                    r.sharePercent == null ? (
+                      <span style={{ color: palette.mute }}>—</span>
+                    ) : (
+                      <span style={num}>
+                        {(Number(r.sharePercent) * 100).toFixed(2)}%
+                      </span>
+                    ),
+                },
+              ]
+            : []),
+          {
+            title: viewUnit == null ? '公共费用' : '分摊的公共成本',
+            key: 'shared',
+            width: 130,
+            align: 'right' as const,
+            render: (_: unknown, r: OperatingRow) =>
+              link(r.opexSharedTotal, () =>
+                go('/finance/expenses', r, '&linked=false&businessUnitId=0'),
+              ),
+          },
+        ]
+      : (data?.categories ?? []).map((c) => ({
+          title: c.name,
+          key: `opex-${c.code}`,
+          width: 105,
+          align: 'right' as const,
+          render: (_: unknown, r: OperatingRow) =>
+            link(r.opex[c.code] ?? 0, () =>
+              go('/finance/expenses', r, `&category=${c.code}&linked=false`),
+            ),
+        }))),
     {
       title: '运营成本',
       dataIndex: 'opexTotal',
@@ -217,9 +269,13 @@ const OperatingReportPage: React.FC = () => {
   return (
     <div>
       <PageTitle
-        crumbs={['经营统计']}
-        title="经营统计"
-        description="预计盈亏 = 销售毛利 − 退款 + 其他收入 − 运营成本。这里的毛利不扣退款（按销售日期归月），退款按退款月份单列；运营成本为不关联订单的费用单，年费等按分摊后的月份计。"
+        description={
+          bu.enabled
+            ? '预计盈亏 = 销售毛利 − 退款 + 其他收入 − 直接费用 − 分摊的公共成本。直接费用是归属本事业部的费用单；公共费用每月按销售额比例分给各事业部（每个事业部至少 ' +
+              bu.minSharePercent +
+              '%），各事业部之和等于全公司。'
+            : '预计盈亏 = 销售毛利 − 退款 + 其他收入 − 运营成本。这里的毛利不扣退款（按销售日期归月），退款按退款月份单列；运营成本为不关联订单的费用单，年费等按分摊后的月份计。'
+        }
       />
       <div
         style={{
@@ -238,6 +294,7 @@ const OperatingReportPage: React.FC = () => {
             label: `${thisYear - d} 年`,
           }))}
         />
+        <StatsUnitSwitch info={bu} value={unit} onChange={setUnit} />
         <span style={{ fontSize: 12, color: palette.mute }}>
           点数字打开来源：收入与毛利 → 利润统计；退款、其他收入、运营成本 →
           对应列表
@@ -265,7 +322,13 @@ const OperatingReportPage: React.FC = () => {
             `其他收入 ${cny(total.otherIncome)}`,
             palette.orange,
           )}
-          {stat('运营成本', cny(total.opexTotal))}
+          {stat(
+            '运营成本',
+            cny(total.opexTotal),
+            bu.enabled
+              ? `直接 ${cny(total.opexDirectTotal)} · ${viewUnit == null ? '公共' : '分摊'} ${cny(total.opexSharedTotal)}`
+              : undefined,
+          )}
           {stat(
             '预计盈亏',
             cny(total.net),
@@ -281,12 +344,56 @@ const OperatingReportPage: React.FC = () => {
           columns={columns}
           dataSource={data?.rows ?? []}
           pagination={false}
-          scroll={{ x: 1500 + (data?.categories.length ?? 0) * 105 }}
+          expandable={
+            bu.enabled
+              ? {
+                  expandedRowRender: (r) => (
+                    <Table
+                      size="small"
+                      rowKey="code"
+                      pagination={false}
+                      style={{ maxWidth: 560 }}
+                      dataSource={(data?.categories ?? []).map((c) => ({
+                        code: c.code,
+                        name: c.name,
+                        direct: r.opexDirect[c.code] ?? 0,
+                        shared: r.opexShared[c.code] ?? 0,
+                      }))}
+                      columns={[
+                        { title: '类别', dataIndex: 'name', width: 160 },
+                        {
+                          title: '直接费用',
+                          dataIndex: 'direct',
+                          align: 'right',
+                          render: (v: number) => (
+                            <span style={num}>{v ? cny(v) : '—'}</span>
+                          ),
+                        },
+                        {
+                          title:
+                            viewUnit == null ? '公共费用' : '分摊的公共成本',
+                          dataIndex: 'shared',
+                          align: 'right',
+                          render: (v: number) => (
+                            <span style={num}>{v ? cny(v) : '—'}</span>
+                          ),
+                        },
+                      ]}
+                    />
+                  ),
+                }
+              : undefined
+          }
+          scroll={{
+            x: bu.enabled ? 1700 : 1500 + (data?.categories.length ?? 0) * 105,
+          }}
           locale={{ emptyText: '这一年还没有数据' }}
           summary={() =>
             total ? (
               <Table.Summary fixed>
                 <Table.Summary.Row>
+                  {/* 有事业部时多一列展开按钮 */}
+                  {bu.enabled && <Table.Summary.Cell index={0} />}
                   {columns.map((c, i) => {
                     const key = String(
                       c.key ?? (c as { dataIndex?: string }).dataIndex,
@@ -303,7 +410,7 @@ const OperatingReportPage: React.FC = () => {
                     return (
                       <Table.Summary.Cell
                         key={key}
-                        index={i}
+                        index={bu.enabled ? i + 1 : i}
                         align={(c as { align?: 'left' | 'right' }).align}
                       >
                         {render

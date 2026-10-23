@@ -283,8 +283,6 @@ const PayableManagement: React.FC = () => {
   return (
     <div>
       <PageTitle
-        crumbs={['应付单']}
-        title="应付单"
         description="采购订单确认下单、运费账单确认后自动生成应付；付款按到期先后核销，多付的部分记为供应商欠款，可以抵扣下一笔或登记退款。"
         actions={
           canRegister && (

@@ -28,6 +28,7 @@ import { type CategoryOption, categoryApi } from '@/pages/product/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import { DICT_SOURCE_CHANNEL, useDictOptions } from '@/utils/dict';
 import { formatAmount } from '@/utils/format';
+import { MenuLink } from '@/utils/menuName';
 import {
   AgeText,
   Card,
@@ -614,7 +615,7 @@ const ConfirmPage: React.FC = () => {
   return (
     <div>
       <PageTitle
-        crumbs={['询盘单', inq.inquiryCode]}
+        crumbs={[<MenuLink key="list" to={PATHS.inquiries} />, inq.inquiryCode]}
         title={
           appendId
             ? manual

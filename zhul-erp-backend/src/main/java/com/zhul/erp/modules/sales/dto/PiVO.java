@@ -11,6 +11,8 @@ public class PiVO {
     private Long id;
     private String piNo;
     private Long customerId;
+    /** 所属事业部（跟随客户） */
+    private Integer businessUnitId;
     private String customerName;
     /** 客户国家：贸易术语 DAP 的默认地点 */
     private String customerCountry;

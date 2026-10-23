@@ -237,11 +237,7 @@ const Outbounds: React.FC = () => {
 
   return (
     <div>
-      <WarehousePageTitle
-        crumbs={['销售出库']}
-        title="销售出库"
-        description="按业务员的发货通知打包：逐箱登记尺寸、重量和箱内型号，交国内快递发往深圳货代。"
-      />
+      <WarehousePageTitle description="按业务员的发货通知打包：逐箱登记尺寸、重量和箱内型号，交国内快递发往深圳货代。" />
       <div
         style={{
           display: 'flex',

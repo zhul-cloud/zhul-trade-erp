@@ -67,6 +67,7 @@ import type { LineResult } from '@/pages/quotation/calc';
 import { formatMargin } from '@/pages/quotation/calc';
 import { LostReasonModal } from '@/pages/quotation/dialogs';
 import { useAppTheme } from '@/theme/AppTheme';
+import { useBusinessUnits } from '@/utils/businessUnit';
 import {
   DICT_PI_DELIVERY_TIME,
   DICT_PI_PAYMENT_TERM,
@@ -74,6 +75,7 @@ import {
   DICT_WARRANTY,
 } from '@/utils/dict';
 import { formatAmount, formatDateTime } from '@/utils/format';
+import { MenuLink } from '@/utils/menuName';
 import {
   Card,
   CHANNEL,
@@ -438,7 +440,12 @@ const PiDetail: React.FC = () => {
   const dirty = editable && payload !== saved;
   const cur = pi?.currencyCode ?? 'USD';
   const rate = pi?.exchangeRate ?? 1;
-  const banks = useBankOptions(pi?.currencyCode);
+  const [bu] = useBusinessUnits();
+  // 只能选本事业部的收款账户（spec system/bank-account）
+  const allBanks = useBankOptions(pi?.currencyCode);
+  const banks = bu.enabled
+    ? allBanks.filter((b) => b.businessUnitId === pi?.businessUnitId)
+    : allBanks;
 
   useEffect(() => {
     if (!dirty) return undefined;
@@ -1085,7 +1092,7 @@ const PiDetail: React.FC = () => {
             aria-label="收款账户"
           />,
           banks.length === 0
-            ? `请先在「系统管理 → 收款账户」中添加 ${cur} 账户，没有收款账户不能发送`
+            ? `请先在「业务设置 → 收款账户」中${bu.enabled ? '为本事业部' : ''}添加 ${cur} 账户，没有收款账户不能发送`
             : `默认取 ${cur} 默认收款账户；发送后不受账户修改影响`,
         )}
         {field(
@@ -2309,12 +2316,7 @@ const PiDetail: React.FC = () => {
   return (
     <div>
       <SalesPageTitle
-        crumbs={[
-          <a key="list" onClick={() => history.push(PATHS.piList)}>
-            PI
-          </a>,
-          pi.piNo,
-        ]}
+        crumbs={[<MenuLink key="list" to={PATHS.piList} />, pi.piNo]}
         title={
           <>
             {pi.piNo}

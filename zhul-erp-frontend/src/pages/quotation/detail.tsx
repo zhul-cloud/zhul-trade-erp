@@ -67,6 +67,7 @@ import { type PiListItem, piApi } from '@/pages/sales/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import { DICT_WARRANTY } from '@/utils/dict';
 import { formatAmount, formatDateTime } from '@/utils/format';
+import { MenuLink } from '@/utils/menuName';
 import {
   calcLine,
   calcTotals,
@@ -2049,12 +2050,7 @@ const QuotationDetail: React.FC = () => {
   return (
     <div>
       <QuotationPageTitle
-        crumbs={[
-          <a key="list" onClick={() => history.push(PATHS.list)}>
-            报价单
-          </a>,
-          q.quotationNo,
-        ]}
+        crumbs={[<MenuLink key="list" to={PATHS.list} />, q.quotationNo]}
         title={
           <>
             {q.quotationNo}

@@ -13,4 +13,6 @@ public class BrandQuery extends PageQuery {
     private Integer brandLevel;
     /** 原产地（国家清单英文名），不传为全部 */
     private String country;
+    /** 按行业筛选（平台账号用；租户账号固定为本租户行业） */
+    private String industryCode;
 }

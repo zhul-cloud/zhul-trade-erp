@@ -39,6 +39,7 @@ import com.zhul.erp.modules.crm.repository.OpportunityStageLogMapper;
 import com.zhul.erp.modules.crm.service.OpportunityService;
 import com.zhul.erp.modules.crm.support.OpportunityStageRules;
 import com.zhul.erp.modules.masterdata.dto.CustomerLeadCommand;
+import com.zhul.erp.modules.system.service.BusinessUnitService;
 import com.zhul.erp.modules.masterdata.entity.CustomerDO;
 import com.zhul.erp.modules.masterdata.repository.CustomerMapper;
 import com.zhul.erp.modules.masterdata.service.CustomerService;
@@ -77,6 +78,7 @@ public class OpportunityServiceImpl implements OpportunityService {
     /** 关键词先匹配客户，最多取这么多个客户再过滤商机 */
     private static final int KEYWORD_CUSTOMER_LIMIT = 500;
 
+    private final BusinessUnitService businessUnitService;
     private final OpportunityMapper opportunityMapper;
     private final OpportunityStageLogMapper logMapper;
     private final OpportunityAttachmentMapper attachmentMapper;
@@ -115,12 +117,13 @@ public class OpportunityServiceImpl implements OpportunityService {
         // 查重在客户服务里做（客户是查重对象）；命中时直接抛 CUSTOMER_DUPLICATE
         Long customerId = customerService.createLead(new CustomerLeadCommand(req.getCustomerName(),
                 req.getContactName().trim(), req.getCountry(), req.getSourceChannel(), req.getAliLevel(), req.getEmail(),
-                req.getWhatsapp(), req.getPhone(), req.getWebsite()));
+                req.getWhatsapp(), req.getPhone(), req.getWebsite(), req.getBusinessUnitId()));
 
         OpportunityDO o = new OpportunityDO();
         o.setTenantId(tenantId);
         o.setOpportunityCode(nextCode(tenantId));
         o.setCustomerId(customerId);
+        o.setBusinessUnitId(businessUnitService.unitOfCustomer(customerId));
         o.setSourceChannel(req.getSourceChannel());
         o.setAliLevel(aliLevel(req.getSourceChannel(), req.getAliLevel()));
         o.setFirstContactDate(req.getFirstContactDate());

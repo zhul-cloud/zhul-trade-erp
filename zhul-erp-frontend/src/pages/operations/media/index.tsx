@@ -162,11 +162,7 @@ const MediaLibraryPage: React.FC = () => {
 
   return (
     <div>
-      <PageTitle
-        crumbs={['素材库']}
-        title="素材库"
-        description="一个型号在询价、到货、拍摄、发货各环节的图片和视频都汇总在这里；可发客户的可以下载发给客户，运营从中挑选用于发品的素材。"
-      />
+      <PageTitle description="一个型号在询价、到货、拍摄、发货各环节的图片和视频都汇总在这里；可发客户的可以下载发给客户，运营从中挑选用于发品的素材。" />
       <div
         style={{
           display: 'flex',

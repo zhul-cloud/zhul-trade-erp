@@ -5,6 +5,7 @@ import { Alert, App, Button, Descriptions, Modal, Tag } from 'antd';
 import dayjs from 'dayjs';
 import React, { useRef, useState } from 'react';
 import { useAppTheme } from '@/theme/AppTheme';
+import { useMenu } from '@/utils/menuName';
 import { usePagination } from '@/utils/pageSize';
 import type { OperateLogDetail, OperateLogItem } from './service';
 import {
@@ -59,6 +60,7 @@ function renderJsonPanel(value: unknown, emptyText: string) {
 }
 
 const OperateLogPage: React.FC = () => {
+  const menu = useMenu();
   const pager = usePagination(20);
   const { palette: p } = useAppTheme();
   const actionRef = useRef<ActionType>(undefined);
@@ -193,7 +195,7 @@ const OperateLogPage: React.FC = () => {
         />
       )}
       <ProTable<OperateLogItem>
-        headerTitle="操作日志"
+        headerTitle={menu?.name}
         actionRef={actionRef}
         rowKey="id"
         columns={columns}

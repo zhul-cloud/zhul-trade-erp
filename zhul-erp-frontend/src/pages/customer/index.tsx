@@ -391,10 +391,7 @@ const CustomerListPage: React.FC = () => {
       <a className="zhul-skip" href="#customer-main">
         跳到主要内容
       </a>
-      <PageTitle
-        title="客户"
-        description="维护成交客户与重点跟进客户的档案，报价单、PI、CI 从这里带出客户信息。"
-      />
+      <PageTitle description="维护成交客户与重点跟进客户的档案，报价单、PI、CI 从这里带出客户信息。" />
 
       <Form
         form={form}

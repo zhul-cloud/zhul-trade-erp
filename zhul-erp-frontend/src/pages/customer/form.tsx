@@ -30,6 +30,7 @@ import {
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useCountries } from '@/pages/product/components/useCountries';
 import { useAppTheme } from '@/theme/AppTheme';
+import { UnitSelect, useBusinessUnits } from '@/utils/businessUnit';
 import { DICT_SOURCE_CHANNEL, useDictOptions } from '@/utils/dict';
 import { formatDateTime } from '@/utils/format';
 import {
@@ -152,7 +153,11 @@ const toPayload = (
 ): CustomerPayload => ({
   ...(editing
     ? {}
-    : { customerCode: text(v.customerCode), ownerId: v.ownerId }),
+    : {
+        customerCode: text(v.customerCode),
+        ownerId: v.ownerId,
+        businessUnitId: v.businessUnitId,
+      }),
   name: text(v.name),
   nameCn: text(v.nameCn),
   shortName: text(v.shortName),
@@ -204,6 +209,7 @@ const CustomerFormPage: React.FC = () => {
   const access = useAccess() as Record<string, boolean>;
   const { palette } = useAppTheme();
   const [form] = Form.useForm<FormState>();
+  const [bu] = useBusinessUnits();
   const {
     options: countryOptions,
     codeOf,
@@ -700,6 +706,16 @@ const CustomerFormPage: React.FC = () => {
                       label: o.deptName ? `${o.name} · ${o.deptName}` : o.name,
                     }))}
                   />
+                </Form.Item>
+              )}
+              {!editing && bu.enabled && bu.myUnitId == null && (
+                <Form.Item
+                  name="businessUnitId"
+                  label="所属事业部"
+                  extra="负责人属于事业部时按负责人的事业部；负责人在共享中台或总经办时按这里的选择"
+                  rules={[{ required: true, message: '请选择所属事业部' }]}
+                >
+                  <UnitSelect info={bu} />
                 </Form.Item>
               )}
               <Form.Item

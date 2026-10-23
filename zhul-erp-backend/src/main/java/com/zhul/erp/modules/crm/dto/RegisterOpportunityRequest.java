@@ -54,6 +54,8 @@ public class RegisterOpportunityRequest {
 
     @Size(max = 2000, message = "需求摘要不能超过2000个字符")
     private String demandSummary;
+    /** 所属事业部：登记人在公共部门时必选，属于事业部时忽略（取登记人的事业部） */
+    private Integer businessUnitId;
 
     @Valid
     @Size(max = 10, message = "每条商机最多 10 个附件")

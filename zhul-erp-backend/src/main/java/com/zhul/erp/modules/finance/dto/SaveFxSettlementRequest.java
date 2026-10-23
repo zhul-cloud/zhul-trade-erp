@@ -26,6 +26,8 @@ public class SaveFxSettlementRequest {
     private Integer bankAccountId;
     @Size(max = 500, message = "说明不能超过 500 个字符")
     private String remark;
+    /** 所属事业部（公司设置了事业部时必选，默认取入账账户的事业部）；只分摊本事业部的到账 */
+    private Integer businessUnitId;
     @NotBlank(message = "缺少幂等键")
     @Size(max = 64, message = "幂等键过长")
     private String idempotencyKey;
