@@ -48,7 +48,8 @@ python3 scripts/ai-orchestrator/server.py
 | `ANTHROPIC_API_KEY` | 无 | 必填；为空时任务直接回调失败 |
 | `AI_STUB_PORT` | `8899` | 监听端口（沿用 stub 的变量名，两边共用同一份 `.env`） |
 | `AI_TASK_CALLBACK_TOKEN` | `zhul-erp-ai-callback-secret` | 回调时携带的共享密钥，必须与 zhul-erp-backend 的 `zhul.ai-task.callback-token` 配置一致 |
-| `AI_ORCHESTRATOR_MODEL` | `claude-opus-5-5` | 使用的模型 |
+| `AI_ORCHESTRATOR_MODEL` | `claude-opus-5-5` | 询盘解析使用的模型 |
+| `AI_ORCHESTRATOR_TRANSLATE_MODEL` | `claude-haiku-5-5` | 型号描述翻译、联系人名音译使用的模型 |
 | `AI_ORCHESTRATOR_MAX_WEB_SEARCHES` | `20` | 单次解析最多联网搜索次数 |
 | `AI_ORCHESTRATOR_TIMEOUT_SECONDS` | `900` | 单次调用的最长等待时间（秒） |
 
@@ -61,4 +62,5 @@ python3 scripts/ai-orchestrator/server.py
   返回 `pause_turn`，原样续传继续
 - 图片、PDF 附件由本服务读取后端私有上传目录里的文件，随请求发送；
   Docker 部署时两个容器挂载同一个目录
-- 启用服务端 `fallbacks: "default"`：模型因安全策略拒答时由服务端改用推荐的备用模型重试
+- 启用服务端 `fallbacks: "default"`：模型因安全策略拒答时由服务端改用推荐的备用模型重试；
+  Haiku 没有服务端兜底，用 Haiku 时不带这个参数
