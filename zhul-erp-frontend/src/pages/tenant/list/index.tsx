@@ -32,6 +32,7 @@ import {
 import dayjs from 'dayjs';
 import React, { useEffect, useRef, useState } from 'react';
 import { useAppTheme } from '@/theme/AppTheme';
+import { useIndustryOptions } from '@/utils/dict';
 import { formatDateTime } from '@/utils/format';
 import { useMenu } from '@/utils/menuName';
 import { usePagination } from '@/utils/pageSize';
@@ -40,12 +41,14 @@ import type {
   RenewPayload,
   ResetPasswordResult,
   SaveTenantPayload,
+  TenantInitResult,
   TenantItem,
 } from './service';
 import {
   createTenant,
   getPackageOptions,
   getTenantList,
+  initTenantData,
   renewTenant,
   resetTenantPassword,
   updateTenant,
@@ -89,6 +92,7 @@ const TenantListPage: React.FC = () => {
     const payload: SaveTenantPayload = {
       name: values.name as string,
       packageId: values.packageId as number,
+      industryCode: values.industryCode as string,
       contactName: values.contactName as string,
       contactPhone: values.contactPhone as string,
       contactEmail: values.contactEmail as string,
@@ -197,6 +201,27 @@ const TenantListPage: React.FC = () => {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  // ---------- 数据初始化 ----------
+  const [initTarget, setInitTarget] = useState<TenantItem | null>(null);
+  const [initResult, setInitResult] = useState<TenantInitResult | null>(null);
+  const [initSubmitting, setInitSubmitting] = useState(false);
+
+  const openInit = (row: TenantItem) => {
+    setInitTarget(row);
+    setInitResult(null);
+  };
+
+  const submitInit = async () => {
+    if (!initTarget) return;
+    setInitSubmitting(true);
+    try {
+      setInitResult(await initTenantData(initTarget.id));
+      actionRef.current?.reload();
+    } finally {
+      setInitSubmitting(false);
+    }
+  };
+
   // ---------- 启用 / 禁用 ----------
   const toggleStatus = (row: TenantItem) => {
     const disabling = row.status === 1;
@@ -216,12 +241,22 @@ const TenantListPage: React.FC = () => {
     });
   };
 
+  const { options: industryOptions, labelOf: industryLabel } =
+    useIndustryOptions();
+
   const columns: ProColumns<TenantItem>[] = [
     {
       title: '租户名称',
       dataIndex: 'name',
       hideInTable: true,
       fieldProps: { placeholder: '请输入租户名称' },
+    },
+    {
+      title: '行业',
+      dataIndex: 'industryCode',
+      hideInTable: true,
+      valueType: 'select',
+      fieldProps: { options: industryOptions },
     },
     {
       title: '状态',
@@ -255,6 +290,15 @@ const TenantListPage: React.FC = () => {
       search: false,
       width: 170,
       ellipsis: true,
+    },
+    {
+      title: '行业',
+      dataIndex: 'industryCode',
+      search: false,
+      width: 100,
+      render: (_, r) => (
+        <Tag color="geekblue">{industryLabel(r.industryCode)}</Tag>
+      ),
     },
     {
       title: '套餐名称',
@@ -334,6 +378,11 @@ const TenantListPage: React.FC = () => {
             续期
           </a>
         ),
+        access['tenant:list:init'] && (
+          <a key="init" onClick={() => openInit(row)}>
+            数据初始化
+          </a>
+        ),
         access['tenant:list:resetPwd'] && (
           <a key="reset" onClick={() => openReset(row)}>
             重置密码
@@ -377,6 +426,7 @@ const TenantListPage: React.FC = () => {
             pageSize: params.pageSize,
             name: params.name,
             status: params.status,
+            industryCode: params.industryCode,
             expireDateFrom: (params as Record<string, string>).expireDateFrom,
             expireDateTo: (params as Record<string, string>).expireDateTo,
           });
@@ -408,6 +458,7 @@ const TenantListPage: React.FC = () => {
             ? {
                 name: editing.name,
                 packageId: editing.packageId,
+                industryCode: editing.industryCode,
                 contactName: editing.contactName,
                 contactPhone: editing.contactPhone,
                 contactEmail: editing.contactEmail,
@@ -453,6 +504,14 @@ const TenantListPage: React.FC = () => {
           showSearch
           options={packageOptions.map((p) => ({ label: p.name, value: p.id }))}
           rules={[{ required: true, message: '请选择套餐' }]}
+        />
+        <ProFormSelect
+          name="industryCode"
+          label="行业"
+          placeholder="请选择行业"
+          options={industryOptions}
+          extra="决定租户能看到哪些品牌、品类、系列和商品；平台共用一份数据，不复制。修改后立即生效，已开单据不受影响"
+          rules={[{ required: true, message: '请选择行业' }]}
         />
 
         {sectionTitle(
@@ -663,6 +722,163 @@ const TenantListPage: React.FC = () => {
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <span style={{ color: palette.sub }}>管理员账号</span>
               <span className="num">{resetTarget?.contactEmail}</span>
+            </div>
+          </Space>
+        )}
+      </Modal>
+      {/* 数据初始化 */}
+      <Modal
+        title={initResult ? '数据初始化结果' : '数据初始化'}
+        open={!!initTarget}
+        onCancel={() => setInitTarget(null)}
+        width={640}
+        destroyOnHidden
+        footer={
+          initResult ? (
+            <Button type="primary" onClick={() => setInitTarget(null)}>
+              知道了
+            </Button>
+          ) : (
+            <Space>
+              <Button onClick={() => setInitTarget(null)}>取消</Button>
+              <Button
+                type="primary"
+                loading={initSubmitting}
+                onClick={submitInit}
+              >
+                开始初始化
+              </Button>
+            </Space>
+          )
+        }
+      >
+        {initResult ? (
+          <Space orientation="vertical" size={14} style={{ width: '100%' }}>
+            <Space>
+              <CheckCircleFilled style={{ color: palette.green }} />
+              <span style={{ fontWeight: 600 }}>初始化完成</span>
+            </Space>
+            <div
+              style={{
+                borderRadius: 8,
+                background: palette.inset,
+                border: `1px solid ${palette.hairline}`,
+              }}
+            >
+              {initResult.items.map((it, idx) => (
+                <div
+                  key={it.type}
+                  style={{
+                    display: 'flex',
+                    gap: 10,
+                    alignItems: 'center',
+                    padding: '10px 14px',
+                    borderTop: idx
+                      ? `1px solid ${palette.hairline}`
+                      : undefined,
+                  }}
+                >
+                  <span style={{ width: 72, fontWeight: 600 }}>{it.type}</span>
+                  <Tag color="green">新建 {it.created}</Tag>
+                  <Tag>已存在 {it.existed}</Tag>
+                  <span style={{ fontSize: 12, color: palette.mute }}>
+                    {it.note}
+                  </span>
+                </div>
+              ))}
+              <div
+                style={{
+                  display: 'flex',
+                  gap: 10,
+                  alignItems: 'center',
+                  padding: '10px 14px',
+                  borderTop: `1px solid ${palette.hairline}`,
+                }}
+              >
+                <span style={{ width: 72, fontWeight: 600 }}>商品主数据</span>
+                {initResult.industryCode ? (
+                  <>
+                    <Tag color="geekblue">{initResult.industryName}</Tag>
+                    <span style={{ fontSize: 12, color: palette.mute }}>
+                      品牌 {initResult.brandCount}、品类{' '}
+                      {initResult.categoryCount}、系列 {initResult.seriesCount}
+                      （平台共用，不复制）
+                    </span>
+                  </>
+                ) : (
+                  <span style={{ fontSize: 12, color: palette.mute }}>
+                    租户还没有选择行业
+                  </span>
+                )}
+              </div>
+            </div>
+            <div>
+              <div style={{ fontWeight: 600, marginBottom: 6 }}>
+                接下来请完成
+              </div>
+              <ol style={{ margin: 0, paddingLeft: 20, color: palette.sub }}>
+                {initResult.todos.map((t) => (
+                  <li key={t}>{t}</li>
+                ))}
+              </ol>
+            </div>
+          </Space>
+        ) : (
+          <Space orientation="vertical" size={14} style={{ width: '100%' }}>
+            <span style={{ color: palette.sub }}>
+              将为「{initTarget?.name}」写入以下基础数据（福唯模板）：
+            </span>
+            <div
+              style={{
+                padding: '6px 14px',
+                borderRadius: 8,
+                background: palette.inset,
+                border: `1px solid ${palette.hairline}`,
+              }}
+            >
+              {[
+                [
+                  '部门 13 个',
+                  '总经办、共享中台（运营、供应链、综合、IT）、阿里国际站与中国制造网两个事业部（各含业务部、采购部），带用途说明',
+                ],
+                [
+                  '岗位 18 个',
+                  '总经理、事业部合伙人、业务员、采购员、运营、供应链、会计、出纳等，带职责与对应角色',
+                ],
+                [
+                  '角色 9 个',
+                  '总经理、财务、运营主管、运营专员、供应链主管、两个事业部合伙人（只看本事业部）、业务员、采购员，含菜单权限',
+                ],
+                ['汇率', '租户还没有的币种按平台当前汇率写入初始值'],
+                [
+                  '商品主数据',
+                  `不复制；按租户行业「${industryLabel(initTarget?.industryCode)}」使用平台的品牌、品类、系列`,
+                ],
+              ].map(([title, desc]) => (
+                <div
+                  key={title}
+                  style={{ display: 'flex', gap: 10, padding: '8px 0' }}
+                >
+                  <CheckCircleFilled
+                    style={{ color: palette.green, marginTop: 4 }}
+                  />
+                  <span style={{ width: 90, flex: 'none', fontWeight: 600 }}>
+                    {title}
+                  </span>
+                  <span style={{ fontSize: 12, color: palette.sub }}>
+                    {desc}
+                  </span>
+                </div>
+              ))}
+            </div>
+            <div style={{ fontSize: 12, color: palette.mute }}>
+              <InfoCircleOutlined style={{ marginRight: 6 }} />
+              可以重复执行，只补缺的：已有的部门、岗位、角色、汇率不改不删，角色的菜单权限不会被覆盖。
+            </div>
+            <div style={{ fontSize: 12, color: palette.orange }}>
+              <WarningFilled style={{ marginRight: 6 }} />
+              两个事业部的开始核算月份为本月（{dayjs().format('YYYY-MM')}
+              ），导入历史数据后可在部门管理里修改。
             </div>
           </Space>
         )}

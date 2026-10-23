@@ -13,6 +13,8 @@ public class CategoryVO {
     private String categoryNameZh;
     /** 上级品类ID，一级品类为空 */
     private Long parentId;
+    /** 所属行业编码；细分品类为空、跟随上级 */
+    private String industryCode;
     private String description;
     /** 中文简介 */
     private String descriptionZh;

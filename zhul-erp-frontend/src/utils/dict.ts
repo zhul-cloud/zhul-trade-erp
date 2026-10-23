@@ -181,3 +181,45 @@ export const usePaymentMethods = (online?: boolean) => {
   }, []);
   return online == null ? items : items.filter((m) => m.online === online);
 };
+
+// ---------------------------------------------------------------- 行业（编码为字符串）
+
+/** 行业：租户、品牌、一级品类按行业划分，在「系统管理 / 字典管理」维护（spec product/industry） */
+export const DICT_INDUSTRY = 'industry';
+
+interface IndustryItem {
+  itemCode: string;
+  itemName: string;
+  status: number;
+}
+
+let industryCache: Promise<IndustryItem[]> | undefined;
+
+/** 行业选项：options 只含启用项用于下拉，labelOf 含停用项用于展示 */
+export const useIndustryOptions = () => {
+  const [all, setAll] = useState<IndustryItem[]>([]);
+  useEffect(() => {
+    let alive = true;
+    if (!industryCache) {
+      industryCache = request<{ data: IndustryItem[] }>(
+        '/api/v1/system/dict-items',
+        { params: { dictType: DICT_INDUSTRY } },
+      ).then((res) => res.data ?? []);
+      industryCache.catch(() => {
+        industryCache = undefined;
+      });
+    }
+    industryCache
+      .then((items) => alive && setAll(items))
+      .catch(() => alive && setAll([]));
+    return () => {
+      alive = false;
+    };
+  }, []);
+  const options = all
+    .filter((i) => i.status === 1)
+    .map((i) => ({ value: i.itemCode, label: i.itemName }));
+  const labelOf = (code?: string | null) =>
+    all.find((i) => i.itemCode === code)?.itemName ?? code ?? '—';
+  return { options, labelOf };
+};

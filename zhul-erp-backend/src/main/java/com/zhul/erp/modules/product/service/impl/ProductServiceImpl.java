@@ -29,6 +29,7 @@ import com.zhul.erp.modules.product.service.ProductCompletenessService;
 import com.zhul.erp.modules.product.service.ProductService;
 import com.zhul.erp.modules.product.support.LikeUtils;
 import com.zhul.erp.modules.product.support.MpnNormalizer;
+import com.zhul.erp.modules.product.support.IndustryScope;
 import com.zhul.erp.modules.product.support.PlatformScopeGuard;
 import com.zhul.erp.modules.product.support.ProductFinder;
 import com.zhul.erp.modules.product.support.ProductNames;
@@ -66,6 +67,7 @@ public class ProductServiceImpl implements ProductService {
     private final ProductNames productNames;
     private final ProductCompletenessService completenessService;
     private final PlatformScopeGuard platformScopeGuard;
+    private final IndustryScope industryScope;
     private final ObjectProvider<ProductUsageChecker> usageCheckers;
 
     public ProductServiceImpl(ProductMapper productMapper, ProductBrandMapper brandMapper,
@@ -74,8 +76,10 @@ public class ProductServiceImpl implements ProductService {
                               ProductNames productNames, ProductCompletenessService completenessService,
                               PlatformScopeGuard platformScopeGuard,
                               ObjectProvider<ProductUsageChecker> usageCheckers,
-                              com.zhul.erp.modules.product.candidate.repository.ProductHeatMapper heatMapper) {
+                              com.zhul.erp.modules.product.candidate.repository.ProductHeatMapper heatMapper,
+                              IndustryScope industryScope) {
         this.heatMapper = heatMapper;
+        this.industryScope = industryScope;
         this.productMapper = productMapper;
         this.brandMapper = brandMapper;
         this.categoryMapper = categoryMapper;
@@ -102,6 +106,14 @@ public class ProductServiceImpl implements ProductService {
                 .eq(query.getSeriesId() != null, ProductDO::getSeriesId, query.getSeriesId())
                 .eq(query.getLifecycleStatus() != null, ProductDO::getLifecycleStatus, query.getLifecycleStatus())
                 .eq(query.getStatus() != null, ProductDO::getStatus, query.getStatus());
+        // 租户只看到本行业的商品（按所属品类的一级品类）
+        java.util.Set<Long> visibleCategories = industryScope.visibleCategoryIds();
+        if (visibleCategories != null) {
+            if (visibleCategories.isEmpty()) {
+                return PageResult.of(0L, List.of());
+            }
+            wrapper.in(ProductDO::getCategoryId, visibleCategories);
+        }
         Integer heatTenant = platformScopeGuard.isPlatform() ? null : com.zhul.erp.framework.tenant.TenantContext.getTenantId();
         String heatOrder = heatOrder(query.getSort(), heatTenant);
         // 默认按更新时间倒序（列表页统一规范）

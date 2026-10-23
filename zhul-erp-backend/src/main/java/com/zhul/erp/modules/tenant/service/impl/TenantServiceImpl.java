@@ -13,6 +13,7 @@ import com.zhul.erp.modules.system.entity.UserBasicDO;
 import com.zhul.erp.modules.system.repository.AccountLocalAuthMapper;
 import com.zhul.erp.modules.system.repository.AccountMapper;
 import com.zhul.erp.modules.system.repository.UserBasicMapper;
+import com.zhul.erp.modules.product.support.IndustryScope;
 import com.zhul.erp.modules.tenant.dto.PackageOptionVO;
 import com.zhul.erp.modules.tenant.dto.RenewTenantRequest;
 import com.zhul.erp.modules.tenant.dto.ResetPasswordResultVO;
@@ -67,6 +68,7 @@ public class TenantServiceImpl implements TenantService {
     private final UserBasicMapper userBasicMapper;
     private final AccountMapper accountMapper;
     private final AccountLocalAuthMapper accountLocalAuthMapper;
+    private final IndustryScope industryScope;
 
     @Override
     public PageResult<TenantVO> page(TenantQuery query) {
@@ -77,6 +79,9 @@ public class TenantServiceImpl implements TenantService {
         }
         if (query.getStatus() != null) {
             wrapper.eq(TenantDO::getStatus, query.getStatus());
+        }
+        if (StringUtils.hasText(query.getIndustryCode())) {
+            wrapper.eq(TenantDO::getIndustryCode, query.getIndustryCode().trim());
         }
         if (query.getExpireDateFrom() != null) {
             wrapper.ge(TenantDO::getExpireTime, query.getExpireDateFrom().atStartOfDay());
@@ -106,6 +111,7 @@ public class TenantServiceImpl implements TenantService {
         tenant.setCode("");
         tenant.setName(req.getName());
         tenant.setPackageId(pkg.getId());
+        tenant.setIndustryCode(industryScope.industryOrDefault(req.getIndustryCode()));
         tenant.setContactName(req.getContactName());
         tenant.setContactPhone(req.getContactPhone());
         tenant.setExpireTime(req.getExpireDate().atTime(END_OF_DAY));
@@ -158,6 +164,9 @@ public class TenantServiceImpl implements TenantService {
         change.setId(id);
         change.setName(req.getName());
         change.setPackageId(req.getPackageId());
+        if (StringUtils.hasText(req.getIndustryCode())) {
+            change.setIndustryCode(industryScope.requireIndustry(req.getIndustryCode()));
+        }
         change.setContactName(req.getContactName());
         change.setContactPhone(req.getContactPhone());
         change.setExpireTime(req.getExpireDate().atTime(END_OF_DAY));
@@ -468,6 +477,7 @@ public class TenantServiceImpl implements TenantService {
         vo.setName(tenant.getName());
         vo.setPackageId(tenant.getPackageId());
         vo.setPackageName(packageName == null ? "" : packageName);
+        vo.setIndustryCode(tenant.getIndustryCode());
         vo.setContactName(tenant.getContactName());
         vo.setContactPhone(tenant.getContactPhone());
         vo.setContactEmail(contactEmail == null ? "" : contactEmail);

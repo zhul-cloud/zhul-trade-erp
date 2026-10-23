@@ -18,6 +18,8 @@ public class TenantDO extends BaseEntity {
     private String name;
     /** 套餐ID，关联 tenant_package.id */
     private Integer packageId;
+    /** 所属行业编码（字典 industry），决定租户可见的品牌、品类、系列与商品 */
+    private String industryCode;
     /** 联系人姓名 */
     private String contactName;
     /** 联系人手机号，平台内唯一 */

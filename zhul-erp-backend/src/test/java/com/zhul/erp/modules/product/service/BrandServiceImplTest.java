@@ -65,7 +65,7 @@ class BrandServiceImplTest {
         CountryCatalog countryCatalog = new CountryCatalog(new ObjectMapper());
         countryCatalog.load();
         service = new BrandServiceImpl(brandMapper, productMapper, new PlatformScopeGuard(), optionsCache,
-                countryCatalog, aliasMapper);
+                countryCatalog, aliasMapper, new com.zhul.erp.modules.product.support.UnlimitedIndustryScope());
     }
 
     @AfterEach

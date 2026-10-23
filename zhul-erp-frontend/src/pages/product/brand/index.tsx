@@ -27,6 +27,7 @@ import {
   Tooltip,
 } from 'antd';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useIndustryOptions } from '@/utils/dict';
 import { formatDateTime } from '@/utils/format';
 import { usePagination } from '@/utils/pageSize';
 import BrandColorInput from '../components/BrandColorInput';
@@ -105,6 +106,9 @@ const BrandPage: React.FC = () => {
   const [keywordInput, setKeywordInput] = useState('');
   const [keyword, setKeyword] = useState<string>();
   const [country, setCountry] = useState<string>();
+  const [industry, setIndustry] = useState<string>();
+  const { options: industryOptions, labelOf: industryLabel } =
+    useIndustryOptions();
   const [status, setStatus] = useState<number>();
   const [total, setTotal] = useState(0);
 
@@ -236,6 +240,23 @@ const BrandPage: React.FC = () => {
           </Tooltip>
         );
       },
+    },
+    {
+      title: '行业',
+      dataIndex: 'industryCodes',
+      width: 150,
+      render: (_, r) =>
+        r.industryCodes?.length ? (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+            {r.industryCodes.map((c) => (
+              <Pill key={c} tone="accent">
+                {industryLabel(c)}
+              </Pill>
+            ))}
+          </div>
+        ) : (
+          muted
+        ),
     },
     {
       title: '中文简介',
@@ -476,6 +497,15 @@ const BrandPage: React.FC = () => {
             />
             <Select
               allowClear
+              placeholder="行业：全部"
+              value={industry}
+              onChange={setIndustry}
+              options={industryOptions}
+              style={{ width: 150 }}
+              aria-label="行业"
+            />
+            <Select
+              allowClear
               placeholder="状态：全部"
               value={status}
               onChange={setStatus}
@@ -495,11 +525,11 @@ const BrandPage: React.FC = () => {
             rowKey="id"
             actionRef={actionRef}
             columns={columns}
-            params={{ level, keyword, country, status }}
+            params={{ level, keyword, country, status, industry }}
             search={false}
             options={false}
             toolBarRender={false}
-            scroll={{ x: 1590 }}
+            scroll={{ x: 1740 }}
             request={async (params) => {
               const [res, counts] = await Promise.all([
                 brandApi.page({
@@ -508,6 +538,7 @@ const BrandPage: React.FC = () => {
                   keyword,
                   country,
                   status,
+                  industryCode: industry,
                   brandLevel: level === 'all' ? undefined : level,
                 }),
                 brandApi.levelCounts({ status }),
@@ -533,6 +564,7 @@ const BrandPage: React.FC = () => {
         brandLevel: number;
         isGenuine: number;
         aliases?: string[];
+        industryCodes?: string[];
       }>
         title={editing ? '编辑品牌' : creatingFrom ? '新建为品牌' : '新增品牌'}
         open={open}
@@ -545,6 +577,7 @@ const BrandPage: React.FC = () => {
             : {
                 isGenuine: 1,
                 brandLevel: 0,
+                industryCodes: industryOptions.slice(0, 1).map((o) => o.value),
                 brandColor: defaultColor,
                 brandName: creatingFrom?.name,
               }
@@ -591,6 +624,15 @@ const BrandPage: React.FC = () => {
             suffixIcon: null,
           }}
           extra="询盘、供应商里出现这些写法时会自动归到这个品牌；别名不能与其他品牌的名称或别名重复"
+        />
+        <ProFormSelect
+          name="industryCodes"
+          label="所属行业"
+          mode="multiple"
+          placeholder="选择行业，可多选"
+          options={industryOptions}
+          rules={[{ required: true, message: '请选择行业' }]}
+          extra="租户只看到本行业的品牌和它的系列；跨行业的品牌选多个"
         />
         <ProForm.Group>
           <ProFormSelect

@@ -48,7 +48,8 @@ class CategoryServiceImplTest {
     @BeforeEach
     void setUp() {
         TenantContext.setTenantId(0);
-        service = new CategoryServiceImpl(categoryMapper, productMapper, new PlatformScopeGuard(), optionsCache);
+        service = new CategoryServiceImpl(categoryMapper, productMapper, new PlatformScopeGuard(), optionsCache,
+                new com.zhul.erp.modules.product.support.UnlimitedIndustryScope());
     }
 
     @AfterEach

@@ -47,8 +47,8 @@ public class CategoryController {
 
     /** 两级品类树（含停用的，品类管理页用） */
     @GetMapping("/tree")
-    public Result<List<CategoryVO>> tree() {
-        return Result.ok(categoryService.tree());
+    public Result<List<CategoryVO>> tree(@RequestParam(required = false) String industryCode) {
+        return Result.ok(categoryService.tree(industryCode));
     }
 
     @PostMapping

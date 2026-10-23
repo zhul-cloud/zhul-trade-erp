@@ -6,6 +6,8 @@ export interface TenantItem {
   name: string;
   packageId: number;
   packageName: string;
+  /** 所属行业编码（字典 industry） */
+  industryCode: string;
   contactName: string;
   contactPhone: string;
   contactEmail: string;
@@ -26,6 +28,7 @@ export interface PackageOption {
 export interface SaveTenantPayload {
   name: string;
   packageId: number;
+  industryCode: string;
   contactName: string;
   contactPhone: string;
   contactEmail: string;
@@ -44,6 +47,27 @@ export interface ResetPasswordResult {
   tempPassword: string;
 }
 
+/** 数据初始化结果（spec system/tenant-data-init） */
+export interface TenantInitResult {
+  tenantId: number;
+  tenantName: string;
+  items: { type: string; created: number; existed: number; note: string }[];
+  /** 租户行业；为空表示还没有选择行业 */
+  industryCode?: string;
+  industryName?: string;
+  brandCount: number;
+  categoryCount: number;
+  seriesCount: number;
+  todos: string[];
+}
+
+export async function initTenantData(id: number): Promise<TenantInitResult> {
+  const res = await request(`/api/v1/tenant/tenants/${id}/init-data`, {
+    method: 'POST',
+  });
+  return res.data;
+}
+
 export interface RenewPayload {
   mode: 'DURATION' | 'DATE';
   months?: number;
@@ -55,6 +79,7 @@ export async function getTenantList(params: {
   pageSize?: number;
   name?: string;
   status?: number;
+  industryCode?: string;
   expireDateFrom?: string;
   expireDateTo?: string;
 }): Promise<{ data: TenantItem[]; total: number; success: boolean }> {
@@ -65,6 +90,7 @@ export async function getTenantList(params: {
       pageSize: params.pageSize,
       name: params.name,
       status: params.status,
+      industryCode: params.industryCode,
       expireDateFrom: params.expireDateFrom,
       expireDateTo: params.expireDateTo,
     },

@@ -22,4 +22,6 @@ public class SaveBrandRequest {
     private Integer isGenuine;
     /** 别名（每个 ≤64）；为 null 表示不修改，空列表表示清空 */
     private List<String> aliases;
+    /** 所属行业编码（字典 industry），至少一个；不传时修改不变、新建按租户行业或默认行业 */
+    private List<String> industryCodes;
 }

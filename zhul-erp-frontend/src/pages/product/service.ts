@@ -67,6 +67,8 @@ export interface Brand {
   productCount: number;
   /** 别名：询盘原文、供应商手填的其他写法 */
   aliases: string[];
+  /** 所属行业编码（字典 industry），可多个 */
+  industryCodes?: string[];
   createBy: string;
   createTime: string;
   updateBy: string;
@@ -96,6 +98,8 @@ export interface SaveBrand {
   isGenuine?: number;
   /** 为空不修改，空数组清空 */
   aliases?: string[];
+  /** 所属行业编码，至少一个；不传时修改不变 */
+  industryCodes?: string[];
 }
 
 export interface Category {
@@ -106,6 +110,8 @@ export interface Category {
   categoryNameZh: string;
   /** 上级品类，一级品类为空 */
   parentId?: number | null;
+  /** 所属行业编码：一级品类有值，细分品类为空、跟随上级 */
+  industryCode?: string;
   /** 细分品类（树形接口返回） */
   children?: Category[];
   /** 英文简介（独立站等对外场景） */
@@ -140,6 +146,8 @@ export interface SaveCategory {
   description?: string;
   descriptionZh?: string;
   sortOrder?: number;
+  /** 所属行业编码，只对一级品类有效 */
+  industryCode?: string;
 }
 
 export interface Series {
@@ -181,6 +189,8 @@ export const brandApi = {
       brandLevel?: number;
       /** 原产地（国家清单英文名） */
       country?: string;
+      /** 行业编码（平台账号筛选用） */
+      industryCode?: string;
     },
   ) => call<PageResult<Brand>>(`${BASE}/brands`, { params }),
   /** 各等级品牌数：all / 2 / 1 / 0 */
@@ -207,7 +217,9 @@ export const categoryApi = {
   options: (level?: number) =>
     call<CategoryOption[]>(`${BASE}/categories/options`, { params: { level } }),
   /** 两级品类树（含停用的） */
-  tree: () => call<Category[]>(`${BASE}/categories/tree`),
+  /** industryCode：平台账号按行业筛选；租户账号固定为本租户行业 */
+  tree: (industryCode?: string) =>
+    call<Category[]>(`${BASE}/categories/tree`, { params: { industryCode } }),
   create: (data: SaveCategory) =>
     call<Category>(`${BASE}/categories`, { method: 'POST', data }),
   update: (id: number, data: SaveCategory) =>

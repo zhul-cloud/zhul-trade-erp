@@ -88,7 +88,7 @@ class ProductServiceImplTest {
         when(productNames.load(any())).thenReturn(new ProductNames.Lookup(Map.of(), Map.of(), Map.of()));
         service = new ProductServiceImpl(productMapper, brandMapper, categoryMapper, seriesMapper,
                 relationshipMapper, productFinder, productNames, completenessService, new PlatformScopeGuard(),
-                usageCheckers, heatMapper);
+                usageCheckers, heatMapper, new com.zhul.erp.modules.product.support.IndustryScope(null, null, null, null));
         when(brandMapper.selectOne(any())).thenReturn(brand(1L, 1));
         when(categoryMapper.selectOne(any())).thenReturn(category(2L, 1));
     }

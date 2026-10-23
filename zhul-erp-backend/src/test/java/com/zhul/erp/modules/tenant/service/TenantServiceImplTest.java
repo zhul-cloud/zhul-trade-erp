@@ -69,7 +69,8 @@ class TenantServiceImplTest {
     @BeforeEach
     void setUp() {
         TenantContext.setTenantId(0);
-        service = new TenantServiceImpl(tenantMapper, packageMapper, userBasicMapper, accountMapper, accountLocalAuthMapper);
+        service = new TenantServiceImpl(tenantMapper, packageMapper, userBasicMapper, accountMapper, accountLocalAuthMapper,
+                new com.zhul.erp.modules.product.support.UnlimitedIndustryScope());
         // insert 时模拟自增主键回填，跟真实 MyBatis-Plus 行为一致；lenient 是因为不是每个用例都会
         // 走到创建这一步（校验类用例提交就被拦下了），严格模式下会被判定成没用到的多余 stub
         lenient().doAnswer(invocation -> {

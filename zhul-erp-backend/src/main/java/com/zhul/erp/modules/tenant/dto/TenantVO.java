@@ -11,6 +11,8 @@ public class TenantVO {
     private String name;
     private Integer packageId;
     private String packageName;
+    /** 所属行业编码（字典 industry） */
+    private String industryCode;
     private String contactName;
     private String contactPhone;
     /** 租户管理员登录邮箱，取自关联的管理员账号（account.email），不存在 tenant 表上 */

@@ -31,6 +31,7 @@ public class CategoryMatcher {
     private static final int MIN_CONTAINED_NAME = 3;
 
     private final ProductCategoryMapper categoryMapper;
+    private final IndustryScope industryScope;
 
     /**
      * 匹配结果
@@ -43,12 +44,14 @@ public class CategoryMatcher {
         static final Result AMBIGUOUS = new Result(null, true);
     }
 
-    /** 启用、未删除的平台品类 */
+    /** 启用、未删除的平台品类；租户账号只返回本租户行业的（spec product/industry） */
     public List<ProductCategoryDO> enabledCategories() {
-        return categoryMapper.selectList(new LambdaQueryWrapper<ProductCategoryDO>()
+        java.util.Set<Long> visible = industryScope.visibleCategoryIds();
+        List<ProductCategoryDO> all = categoryMapper.selectList(new LambdaQueryWrapper<ProductCategoryDO>()
                 .eq(ProductCategoryDO::getTenantId, ProductConstants.PLATFORM_TENANT_ID)
                 .eq(ProductCategoryDO::getStatus, ProductConstants.STATUS_ENABLED)
                 .isNull(ProductCategoryDO::getDeletedAt));
+        return visible == null ? all : all.stream().filter(c -> visible.contains(c.getId())).toList();
     }
 
     public static Result match(String text, List<ProductCategoryDO> categories) {

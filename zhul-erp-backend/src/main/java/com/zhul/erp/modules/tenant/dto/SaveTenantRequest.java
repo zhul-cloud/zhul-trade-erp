@@ -19,6 +19,9 @@ public class SaveTenantRequest {
     @NotNull(message = "请选择套餐")
     private Integer packageId;
 
+    /** 所属行业编码（字典 industry）；页面必选，接口不传时新建用默认行业、修改保持不变 */
+    private String industryCode;
+
     @NotBlank(message = "联系人姓名不能为空")
     @Size(min = 2, max = 50, message = "联系人姓名长度需为 2~50 字符")
     private String contactName;

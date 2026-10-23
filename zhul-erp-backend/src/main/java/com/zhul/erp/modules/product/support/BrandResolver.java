@@ -27,14 +27,20 @@ public class BrandResolver {
 
     private final ProductBrandMapper brandMapper;
     private final ProductBrandAliasMapper aliasMapper;
+    private final IndustryScope industryScope;
 
     /** 比较键：去首尾空格、转小写 */
     public static String key(String text) {
         return text == null ? "" : text.trim().toLowerCase(Locale.ROOT);
     }
 
-    /** 返回正式品牌 ID；匹配不到返回 null */
+    /** 返回正式品牌 ID；匹配不到、或品牌不属于当前租户行业时返回 null（spec product/industry） */
     public Long resolve(String text) {
+        Long id = resolveAny(text);
+        return id != null && industryScope.brandVisible(id) ? id : null;
+    }
+
+    private Long resolveAny(String text) {
         String key = key(text);
         if (!StringUtils.hasText(key)) {
             return null;
