@@ -76,7 +76,7 @@ flowchart LR
     FE -->|/api| BE["后端<br/>Spring Boot 3 · Java 17"]
     BE --> DB[(MySQL 8<br/>Flyway 迁移)]
     BE --> RD[(Redis 7<br/>会话 · 缓存 · 分布式锁)]
-    BE -->|询盘解析| AI["AI 编排服务<br/>Python · Anthropic API"]
+    BE -->|询盘解析| AI["AI 编排服务<br/>Python · Claude / OpenAI API"]
 ```
 
 业务主链路：
@@ -95,7 +95,7 @@ flowchart LR
 | 后端 | Spring Boot 3.2.5 · Java 17 · MyBatis-Plus 3.5.6 · Spring Security + JWT · Redisson · Flyway · Knife4j |
 | 前端 | Ant Design Pro v6 · Umi Max v4 · antd 6 · ProComponents v3 · React 19 · Utoopack |
 | 存储 | MySQL 8 · Redis 7 |
-| AI | Python 编排服务 · Anthropic API |
+| AI | Python 编排服务 · Claude / OpenAI API |
 | 工程 | Docker Compose · OpenSpec 规格驱动开发 · Biome · JUnit 5 |
 
 ## 🚀 快速开始
@@ -118,7 +118,7 @@ powershell -ExecutionPolicy Bypass -File scripts\docker-dev.ps1
 
 脚本会生成 `.env`（随机密钥、导入演示账号），构建并启动 MySQL、Redis、后端、前端和 AI 编排服务。就绪后打开 <http://localhost:8000>，用下面的演示账号登录。默认不持久化，停止或重建容器后数据清空。
 
-> 询盘的 AI 解析需要在 `.env` 里填写 `ANTHROPIC_API_KEY`；只联调页面可把 `AI_ORCHESTRATOR_MODE` 改成 `stub`。
+> 询盘的 AI 解析需要在 `.env` 里填写 `AI_ORCHESTRATOR_API_KEY`（默认服务商 Claude，可切换为 OpenAI）；只联调页面可把 `AI_ORCHESTRATOR_MODE` 改成 `stub`。
 
 ### 方式二：本机开发
 
