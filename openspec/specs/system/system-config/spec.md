@@ -25,7 +25,7 @@
 - **THEN** 服务端同样拒绝
 
 ### Requirement: 内置配置的键名约定
-内置配置的键 SHALL 以所属分组代码为第一段（如采购分组的 `purchase.transit.default-days`）；`sys.` 开头的系统保留键除外，按用途归入分组（如 `sys.site.name` 属于外观分组）。所有内置配置的键都符合配置键命名规则。
+内置配置的键 SHALL 以所属分组代码为第一段，没有例外：如采购分组的 `purchase.transit.default-days`、系统分组的 `sys.site.name`。所有内置配置的键都符合配置键命名规则。`sys.` 开头的键为系统保留，只能是平台内置配置。
 
 #### Scenario: 默认运输天数的键
 - **WHEN** 平台管理员在系统参数页的「采购」分组查看默认运输天数
@@ -34,6 +34,10 @@
 #### Scenario: 升级后保留已设的天数
 - **WHEN** 升级前默认运输天数为 5 天，升级到本版本
 - **THEN** `purchase.transit.default-days` 的值仍为 5，发货估算预计到货仍按 5 天；不再存在 `transit.default-days`
+
+#### Scenario: 系统保留键属于系统分组
+- **WHEN** 平台管理员在系统参数页查看 `sys.site.name`
+- **THEN** 它位于「系统」分组
 
 ### Requirement: 配置类型与取值校验
 配置类型 SHALL 只有字符串 `STRING`、整数 `INTEGER`、布尔 `BOOLEAN`、JSON `JSON`、网址 `URL` 五种。修改配置值时，服务端按类型校验：整数必须是整数，布尔只能是 true / false，JSON 必须格式正确，网址必须以 `http://`、`https://` 或 `/` 开头，字符串最长 4096 个字符；类型不在这五种之内时拒绝修改并提示「配置类型不支持」。系统参数页按类型显示对应的编辑控件（整数用数字输入框）。

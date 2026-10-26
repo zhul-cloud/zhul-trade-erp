@@ -38,7 +38,7 @@
 | 配置类型 | config_type | VARCHAR(32) | 是 | 只有 STRING / INTEGER / BOOLEAN / JSON / URL 五种；用于前端渲染合适的编辑组件，服务端按类型校验配置值，其他类型拒绝修改（提示「配置类型不支持」） |
 | 是否内置 | is_builtin | TINYINT | 是 | 0=自定义，1=系统内置；内置配置不可删除键 |
 | 是否加密 | is_encrypted | TINYINT | 是 | 0=明文，1=加密存储（如密钥类配置）；加密配置值展示脱敏 |
-| 配置分组 | config_group | VARCHAR(64) | 是 | 分组代码，如 basic / security / mail / appearance（页面显示 基础 / 安全 / 邮件 / 外观） |
+| 配置分组 | config_group | VARCHAR(64) | 是 | 分组代码，如 basic / security / mail / sys（页面显示 基础 / 安全 / 邮件 / 系统） |
 | 备注 | remark | VARCHAR(256) | 否 | 配置项说明，展示在编辑弹窗内 |
 | 创建人ID | created_by | BIGINT | 是 | 操作人用户ID |
 | 创建时间 | created_at | DATETIME | 是 | UTC 时间 |
@@ -77,11 +77,11 @@
 | quotation.strategy.cost-tiers | 报价策略：按金额分层毛利 | JSON | 三档：≤300 毛利 35%、≤3000 毛利 20%、以上 12% | 报价单「报价策略 · 按金额分层毛利」的默认档位；在报价策略抽屉里「保存为默认」后写入租户自己的一份 |
 | sales.receipt.fee-tolerance | 到账差额可记为手续费的上限 | INTEGER | 50 | 登记到账时，剩余金额不超过该值（PI 币种）可勾选「差额记为银行中转手续费」 |
 
-> 外观（`sys.site.*`、`sys.login.*`，分组代码 `appearance`，页面显示「外观」）为**平台统一**配置：只存 `tenant_id=0` 一份，由迁移 `V1.3.14` 写入；只有平台账号可以查看和修改，租户的系统参数页不显示这些项，接口也拒绝租户修改（提示「外观由平台统一管理」）。Logo 与登录页背景可以清空，清空后恢复默认样式。规范见 `openspec/specs/system/site-appearance`。
+> 外观（`sys.site.*`、`sys.login.*`，分组代码 `sys`，页面显示「系统」；`V1.3.14` 写入时为 `appearance`，`V1.3.16` 改为 `sys`）为**平台统一**配置：只存 `tenant_id=0` 一份，由迁移 `V1.3.14` 写入；只有平台账号可以查看和修改，租户的系统参数页不显示这些项，接口也拒绝租户修改（提示「外观由平台统一管理」）。Logo 与登录页背景可以清空，清空后恢复默认样式。规范见 `openspec/specs/system/site-appearance`。
 
-> 配置键命名规范：键由 2 段及以上组成，段之间用点；每段小写字母开头，只含小写字母和数字，段内多个单词用短横线连接（如 `purchase.transit.default-days`），不允许下划线，4~128 个字符。内置配置的第一段为所属分组代码，`sys.` 开头的为系统保留键（按用途归组）。新增内置配置违反约定时，集成测试 `ConfigNormalizeContractTest` 会失败。规范见 `openspec/specs/system/system-config`。
+> 配置键命名规范：键由 2 段及以上组成，段之间用点；每段小写字母开头，只含小写字母和数字，段内多个单词用短横线连接（如 `purchase.transit.default-days`），不允许下划线，4~128 个字符。内置配置的第一段为所属分组代码，没有例外；`sys.` 开头的为系统保留键，属于「系统」分组（`sys`），只能是平台内置配置。新增内置配置违反约定时，集成测试 `ConfigNormalizeContractTest` 会失败。规范见 `openspec/specs/system/system-config`。
 
-> 配置分组规范：分组一律存小写英文代码，页面统一显示为 2 个字的中文名（不带「设置」后缀）。内置配置的分组 = 配置键第一段的模块代码（`inquiry` 询价、`quotation` 报价、`document` 单据、`sales` 销售、`purchase` 采购、`product` 商品、`finance` 财务），`sys.` 开头的系统保留键按用途归组（`appearance` 外观）；自定义配置只能选 `basic` 基础、`security` 安全、`mail` 邮件、`custom` 其他，服务端校验。新增模块的内置配置时，同步在前端 `pages/system/config/groupLabel.ts` 补中文名。（`V1__init.sql` 中 `config_group` 字段注释仍写中文示例，以本规范为准。）
+> 配置分组规范：分组一律存小写英文代码，页面统一显示为 2 个字的中文名（不带「设置」后缀）。内置配置的分组 = 配置键第一段的模块代码（`inquiry` 询价、`quotation` 报价、`document` 单据、`sales` 销售、`purchase` 采购、`product` 商品、`finance` 财务、`sys` 系统）；自定义配置只能选 `basic` 基础、`security` 安全、`mail` 邮件、`custom` 其他，服务端校验。新增模块的内置配置时，同步在前端 `pages/system/config/groupLabel.ts` 补中文名。（`V1__init.sql` 中 `config_group` 字段注释仍写中文示例，以本规范为准。）
 
 ---
 
