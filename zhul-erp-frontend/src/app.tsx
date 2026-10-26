@@ -23,6 +23,7 @@ import { AppThemeSync, useAppTheme } from '@/theme/AppTheme';
 import { buildShellSettings } from '@/theme/shell';
 import { getThemeMode } from '@/theme/store';
 import { firstMenuPath, toProLayoutMenu } from '@/utils/menuOrder';
+import { normalizePath } from '@/utils/tokenStore';
 import defaultSettings from '../config/defaultSettings';
 import { errorConfig } from './requestErrorConfig';
 
@@ -119,7 +120,7 @@ export async function getInitialState(): Promise<{
   const appearancePromise = getAppearance();
   // 如果不是登录页面，执行
   const { location } = history;
-  if (!publicPaths.includes(location.pathname)) {
+  if (!publicPaths.includes(normalizePath(location.pathname))) {
     const currentUser = await fetchUserInfo();
     const menuTree = currentUser
       ? await getMenuTree().catch(() => [])
@@ -188,7 +189,10 @@ export const layout: RunTimeLayoutConfig = ({ initialState }) => {
     onPageChange: () => {
       const { location } = history;
       // 如果没有登录，重定向到 login
-      if (!initialState?.currentUser && location.pathname !== loginPath) {
+      if (
+        !initialState?.currentUser &&
+        normalizePath(location.pathname) !== loginPath
+      ) {
         history.replace(
           `${loginPath}?redirect=${encodeURIComponent(location.pathname + location.search + location.hash)}`,
         );
@@ -198,7 +202,7 @@ export const layout: RunTimeLayoutConfig = ({ initialState }) => {
       const allowed = new Set(initialState?.currentUser?.permissions ?? []);
       if (
         initialState?.currentUser &&
-        (location.pathname === '/' || location.pathname === '/dashboard') &&
+        ['/', '/dashboard'].includes(normalizePath(location.pathname)) &&
         !allowed.has('/dashboard')
       ) {
         const home = firstMenuPath(

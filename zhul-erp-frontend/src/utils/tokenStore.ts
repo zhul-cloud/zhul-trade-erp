@@ -12,12 +12,18 @@
 const SESSION_KEY = 'akt';
 const LOCAL_KEY = 'zhul_token';
 
+/** 去掉路径末尾的斜杠（/login/ → /login），按页面判断时两种写法视为同一页 */
+export function normalizePath(pathname: string) {
+  return pathname.length > 1 ? pathname.replace(/\/+$/, '') || '/' : pathname;
+}
+
 /** 登录、注册、找回密码这类页面：登录后不跳回这里，在这里收到未登录也不再跳登录页 */
 export function isAuthPath(pathname: string) {
+  const path = normalizePath(pathname);
   return (
-    pathname === '/login' ||
-    pathname.startsWith('/user/') ||
-    pathname.startsWith('/forget-password')
+    path === '/login' ||
+    path.startsWith('/user/') ||
+    path.startsWith('/forget-password')
   );
 }
 
