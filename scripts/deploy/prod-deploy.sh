@@ -18,6 +18,83 @@ PULL_ATTEMPTS=3
 log() { echo "[$(date '+%F %T')] $*"; }
 fail() { echo "[$(date '+%F %T')] 失败：$*" >&2; exit 1; }
 
+# 部署成功后发通知邮件：收件人取 .env 的 DEPLOY_NOTIFY_TO（逗号分隔，留空不发），用 MAIL_* 的发信邮箱发送；
+# 正文列出上一版到本版之间的提交标题（GitHub 取不到时只写版本信息）。发送失败只记日志，不影响部署结果。
+notify_success() {
+    APP_DIR="$APP_DIR" REPO="$REPO" VERSION="$VERSION" PREV="$1" DONE_AT="$2" python3 - <<'PY'
+import json, os, smtplib, ssl, urllib.request
+from email.message import EmailMessage
+from email.utils import formataddr
+
+env = {}
+with open(os.path.join(os.environ["APP_DIR"], ".env"), encoding="utf-8") as f:
+    for line in f:
+        line = line.rstrip("\n")
+        if "=" in line and not line.lstrip().startswith("#"):
+            key, value = line.split("=", 1)
+            if len(value) >= 2 and value[0] == value[-1] and value[0] in "'\"":
+                value = value[1:-1]
+            env[key.strip()] = value
+
+to = [a.strip() for a in env.get("DEPLOY_NOTIFY_TO", "").split(",") if a.strip()]
+if not to:
+    print("未设置 DEPLOY_NOTIFY_TO，不发通知邮件")
+    raise SystemExit(0)
+if not env.get("MAIL_HOST"):
+    print("未配置发信邮箱 MAIL_HOST，不发通知邮件")
+    raise SystemExit(0)
+
+repo, version, prev, done_at = os.environ["REPO"], os.environ["VERSION"], os.environ["PREV"], os.environ["DONE_AT"]
+changes = ""
+if prev and prev != version:
+    try:
+        req = urllib.request.Request(f"https://api.github.com/repos/{repo}/compare/{prev}...{version}",
+                                     headers={"Accept": "application/vnd.github+json", "User-Agent": "zhul-erp-deploy"})
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            commits = json.load(resp).get("commits", [])
+        # 提交标题习惯写成「概括：详细说明」，邮件里只列概括，过长的截断
+        titles = [c["commit"]["message"].splitlines()[0].split("：", 1)[0][:100]
+                  for c in commits if len(c.get("parents", [])) < 2]
+        if titles:
+            shown = titles[-30:]
+            changes = "本次更新：\n" + "\n".join(f"- {t}" for t in shown)
+            if len(titles) > len(shown):
+                changes += f"\n（共 {len(titles)} 条，只列出最近 {len(shown)} 条）"
+            changes += f"\n\n完整对比：https://github.com/{repo}/compare/{prev}...{version}"
+    except Exception as e:  # GitHub 取不到不影响发信
+        changes = f"（未能从 GitHub 获取更新内容：{type(e).__name__}）"
+elif prev == version:
+    changes = "本次为重新部署同一版本。"
+
+# CORS_ALLOWED_ORIGINS 就是用户访问的页面地址，取第一个作为网址
+site = env.get("CORS_ALLOWED_ORIGINS", "").split(",")[0].strip()
+lines = [f"版本：{version}（上一版 {prev or '无'}）", f"完成时间：{done_at}（北京时间）"]
+if site:
+    lines.append(f"网址：{site}")
+body = "\n".join(lines) + ("\n\n" + changes if changes else "") + "\n"
+
+msg = EmailMessage()
+msg["Subject"] = f"[烛龙ERP] 生产发版成功 {version}"
+msg["From"] = formataddr((env.get("MAIL_FROM_NAME") or "烛龙ERP", env.get("MAIL_FROM") or env.get("MAIL_USERNAME", "")))
+msg["To"] = ", ".join(to)
+msg.set_content(body)
+
+port = int(env.get("MAIL_PORT") or 465)
+if (env.get("MAIL_SSL") or "true").lower() == "true":
+    server = smtplib.SMTP_SSL(env["MAIL_HOST"], port, context=ssl.create_default_context(), timeout=30)
+else:
+    server = smtplib.SMTP(env["MAIL_HOST"], port, timeout=30)
+    if (env.get("MAIL_STARTTLS") or "").lower() == "true":
+        server.starttls(context=ssl.create_default_context())
+with server:
+    if env.get("MAIL_USERNAME"):
+        server.login(env["MAIL_USERNAME"], env.get("MAIL_PASSWORD", ""))
+    server.send_message(msg)
+# Actions 日志公开，不输出收件人地址
+print(f"已发送部署通知邮件（{len(to)} 个收件人）")
+PY
+}
+
 VERSION="${1:-${SSH_ORIGINAL_COMMAND:-}}"
 [[ "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || fail "版本号应为 vX.Y.Z，收到 '${VERSION}'"
 
@@ -86,8 +163,10 @@ while :; do
     fi
     sleep 10
 done
-echo "$(date '+%F %T') $VERSION 成功 上一版=${prev:-无}" >> "$APP_DIR/releases.log"
+done_at=$(date '+%F %T')
+echo "$done_at $VERSION 成功 上一版=${prev:-无}" >> "$APP_DIR/releases.log"
 log "全部服务健康，$VERSION 部署完成"
+notify_success "$prev" "$done_at" || log "发送部署通知邮件失败（不影响部署结果）"
 
 # 只保留最近 KEEP_VERSIONS 个版本的镜像，当前版本始终保留。
 for s in "${SERVICES[@]}"; do
