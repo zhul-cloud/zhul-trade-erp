@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { ThemeToggle } from '@/components/Shell';
-import type { AppearanceInfo } from '@/services/zhul/public';
-import { getAppearance } from '@/services/zhul/public';
+import {
+  DefaultLogo,
+  SiteFavicon,
+  useAppearance,
+} from '@/components/Shell/BrandLogo';
 import { useAppTheme } from '@/theme/AppTheme';
-import { LOGO_GRADIENT } from '@/theme/palette';
 
 /** 极光底：蓝、靛、青三团柔光叠在主题底色上，深色下亮一些，浅色下淡一些 */
 const aurora = (dark: boolean, canvas: string) => {
@@ -25,13 +27,9 @@ const AuthLayout: React.FC<AuthLayoutProps> = ({
   children,
   cardWidth = 400,
 }) => {
-  const [appearance, setAppearance] = useState<AppearanceInfo>();
+  const appearance = useAppearance();
   const [bgLoaded, setBgLoaded] = useState(false);
   const { mode, palette: p } = useAppTheme();
-
-  useEffect(() => {
-    getAppearance().then(setAppearance);
-  }, []);
 
   useEffect(() => {
     // 自定义背景图可能是占位值（如种子数据里的 /bg.jpg）而实际文件并不存在；
@@ -79,32 +77,19 @@ const AuthLayout: React.FC<AuthLayoutProps> = ({
       <div style={{ position: 'absolute', top: 16, right: 24 }}>
         <ThemeToggle />
       </div>
+      <SiteFavicon
+        siteName={appearance.siteName}
+        logoUrl={appearance.logoUrl}
+      />
       <div style={{ textAlign: 'center', marginBottom: 24 }}>
-        {appearance?.logoUrl ? (
+        {appearance.logoUrl ? (
           <img
             src={appearance.logoUrl}
-            alt={appearance.siteName || '烛龙ERP'}
+            alt={appearance.siteName}
             style={{ width: 120, height: 40, objectFit: 'contain' }}
           />
         ) : (
-          <span
-            role="img"
-            aria-label={appearance?.siteName || '烛龙ERP'}
-            style={{
-              width: 48,
-              height: 48,
-              borderRadius: 14,
-              background: LOGO_GRADIENT,
-              color: '#FFFFFF',
-              fontWeight: 800,
-              fontSize: 24,
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            烛
-          </span>
+          <DefaultLogo siteName={appearance.siteName} size={48} />
         )}
         <div
           style={{
@@ -113,7 +98,7 @@ const AuthLayout: React.FC<AuthLayoutProps> = ({
             marginTop: 8,
           }}
         >
-          烛龙外贸业财一体化中台
+          {appearance.siteSubtitle}
         </div>
       </div>
 
@@ -143,7 +128,7 @@ const AuthLayout: React.FC<AuthLayoutProps> = ({
           fontSize: 12,
         }}
       >
-        {appearance?.loginFooter || '© 2026 烛龙科技'}　版本 {__APP_VERSION__}
+        {appearance.loginFooter}　版本 {__APP_VERSION__}
       </div>
     </div>
   );

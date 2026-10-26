@@ -1,5 +1,6 @@
 import { createStyles } from 'antd-style';
 import React from 'react';
+import { useAppearance } from '@/components/Shell/BrandLogo';
 
 const useStyles = createStyles(({ token, css }) => ({
   footer: css`
@@ -18,10 +19,13 @@ const useStyles = createStyles(({ token, css }) => ({
 const Footer: React.FC = () => {
   const { styles } = useStyles();
   const year = new Date().getFullYear();
+  const { siteName } = useAppearance();
 
   return (
     <div className={styles.footer}>
-      <div className={styles.copyright}>烛龙ERP &copy; {year}</div>
+      <div className={styles.copyright}>
+        {siteName} &copy; {year}
+      </div>
     </div>
   );
 };
