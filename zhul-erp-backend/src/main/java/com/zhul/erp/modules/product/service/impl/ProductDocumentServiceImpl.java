@@ -10,7 +10,7 @@ import com.zhul.erp.modules.product.dto.SaveDocumentRequest;
 import com.zhul.erp.modules.product.entity.ProductDocumentDO;
 import com.zhul.erp.modules.product.repository.ProductDocumentMapper;
 import com.zhul.erp.modules.product.service.ProductDocumentService;
-import com.zhul.erp.modules.product.support.PlatformScopeGuard;
+import com.zhul.erp.modules.product.support.ProductWriteGuard;
 import com.zhul.erp.modules.product.support.ProductFinder;
 import com.zhul.erp.modules.product.support.TextRules;
 import com.zhul.erp.modules.product.support.UrlRules;
@@ -33,7 +33,7 @@ public class ProductDocumentServiceImpl implements ProductDocumentService {
 
     private final ProductDocumentMapper documentMapper;
     private final ProductFinder productFinder;
-    private final PlatformScopeGuard platformScopeGuard;
+    private final ProductWriteGuard productWriteGuard;
 
     /** 校验后的入参 */
     private record Input(int type, String title, String fileUrl, String language, String version, String source,
@@ -59,7 +59,7 @@ public class ProductDocumentServiceImpl implements ProductDocumentService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public DocumentVO create(Long productId, SaveDocumentRequest req) {
-        platformScopeGuard.requirePlatform();
+        productWriteGuard.require(productId);
         productFinder.lockActive(productId);
         Input in = validate(req);
         assertUrlFree(productId, in.fileUrl(), null);
@@ -83,7 +83,7 @@ public class ProductDocumentServiceImpl implements ProductDocumentService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public DocumentVO update(Long productId, Long itemId, SaveDocumentRequest req) {
-        platformScopeGuard.requirePlatform();
+        productWriteGuard.require(productId);
         productFinder.lockActive(productId);
         ProductDocumentDO current = owned(productId, itemId);
         Input in = validate(req);
@@ -113,7 +113,7 @@ public class ProductDocumentServiceImpl implements ProductDocumentService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void delete(Long productId, Long itemId) {
-        platformScopeGuard.requirePlatform();
+        productWriteGuard.require(productId);
         productFinder.lockActive(productId);
         owned(productId, itemId);
         ProductDocumentDO change = new ProductDocumentDO();

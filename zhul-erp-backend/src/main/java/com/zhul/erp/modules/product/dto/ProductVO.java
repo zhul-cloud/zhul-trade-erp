@@ -28,6 +28,10 @@ public class ProductVO {
     private Integer lifecycleStatus;
     private String lifecycleSource;
     private Integer status;
+    /** 所属租户（0-平台） */
+    private Integer ownerTenantId;
+    /** 当前账号能否修改该商品（平台账号、或商品属于本租户；不含按钮权限） */
+    private Boolean editable;
     /** 是否已软删除（仅平台账号带 includeDeleted 查询时可能为 true） */
     private Boolean deleted;
     /** 被业务单据引用的次数，仅详情返回 */

@@ -13,7 +13,7 @@ import com.zhul.erp.modules.product.entity.ProductReferencePriceDO;
 import com.zhul.erp.modules.product.repository.ProductListingPriceMapper;
 import com.zhul.erp.modules.product.repository.ProductReferencePriceMapper;
 import com.zhul.erp.modules.product.service.ProductReferencePriceService;
-import com.zhul.erp.modules.product.support.PlatformScopeGuard;
+import com.zhul.erp.modules.product.support.ProductWriteGuard;
 import com.zhul.erp.modules.product.support.ProductFinder;
 import com.zhul.erp.modules.product.support.TextRules;
 import lombok.RequiredArgsConstructor;
@@ -50,7 +50,7 @@ public class ProductReferencePriceServiceImpl implements ProductReferencePriceSe
     private final ProductReferencePriceMapper priceMapper;
     private final ProductListingPriceMapper listingMapper;
     private final ProductFinder productFinder;
-    private final PlatformScopeGuard platformScopeGuard;
+    private final ProductWriteGuard productWriteGuard;
 
     @Override
     public ReferencePriceVO get(Long productId) {
@@ -62,7 +62,7 @@ public class ProductReferencePriceServiceImpl implements ProductReferencePriceSe
     @Override
     @Transactional(rollbackFor = Exception.class)
     public ReferencePriceVO save(Long productId, SaveReferencePriceRequest req) {
-        platformScopeGuard.requirePlatform();
+        productWriteGuard.require(productId);
         productFinder.lockActive(productId);
 
         String currency = currency(req.getCurrencyCode());
@@ -115,7 +115,7 @@ public class ProductReferencePriceServiceImpl implements ProductReferencePriceSe
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void clear(Long productId) {
-        platformScopeGuard.requirePlatform();
+        productWriteGuard.require(productId);
         productFinder.lockActive(productId);
         ProductReferencePriceDO row = activeRow(productId);
         if (row == null) {

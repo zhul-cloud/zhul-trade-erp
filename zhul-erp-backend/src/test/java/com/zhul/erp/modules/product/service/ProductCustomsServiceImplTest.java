@@ -50,7 +50,7 @@ class ProductCustomsServiceImplTest {
     @BeforeEach
     void setUp() {
         TenantContext.setTenantId(0);
-        service = new ProductCustomsServiceImpl(customsMapper, productFinder, new PlatformScopeGuard());
+        service = new ProductCustomsServiceImpl(customsMapper, productFinder, com.zhul.erp.modules.product.support.TestProductWriteGuards.ownedBy(0));
     }
 
     @AfterEach
@@ -168,11 +168,11 @@ class ProductCustomsServiceImplTest {
     }
 
     @Test
-    void tenantAccountCannotWrite() {
+    void tenantCannotWriteOthersProduct() {
         TenantContext.setTenantId(1001);
 
         BizException e = assertThrows(BizException.class, () -> service.save(1L, new SaveCustomsRequest()));
-        assertEquals(ProductErrorCodes.PLATFORM_ADMIN_REQUIRED, e.getErrorCode());
+        assertEquals(ProductErrorCodes.PRODUCT_NOT_OWNED, e.getErrorCode());
         verifyNoInteractions(customsMapper);
     }
 }

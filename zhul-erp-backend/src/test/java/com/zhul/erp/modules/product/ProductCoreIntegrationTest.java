@@ -698,14 +698,14 @@ class ProductCoreIntegrationTest extends IntegrationTestBase {
     }
 
     @Test
-    void tenantAccountWritesAreRejectedEvenWithPermission() {
+    void tenantAccountCannotWriteOthersProduct() {
+        // 平台建的商品：租户即使有按钮权限也不能改（spec product/product「按归属维护」）；租户维护本租户商品见 TenantProductEditingContractTest
         long id = product(siemens, "6ES7214");
         loginWithResources("it_product_user", RES_PRODUCT_ADD);
         TenantContext.setTenantId(1001);
 
-        biz(() -> productController.create(productRequest(siemens, "NEW-1")), ProductErrorCodes.PLATFORM_ADMIN_REQUIRED);
-        biz(() -> specificationService.replace(id, specs(spec("a", "1"))), ProductErrorCodes.PLATFORM_ADMIN_REQUIRED);
-        biz(() -> relationshipService.create(id, relationship("X-1", 4)), ProductErrorCodes.PLATFORM_ADMIN_REQUIRED);
+        biz(() -> specificationService.replace(id, specs(spec("a", "1"))), ProductErrorCodes.PRODUCT_NOT_OWNED);
+        biz(() -> relationshipService.create(id, relationship("X-1", 4)), ProductErrorCodes.PRODUCT_NOT_OWNED);
         assertEquals(1, jdbc.queryForObject("select count(*) from product", Integer.class));
     }
 

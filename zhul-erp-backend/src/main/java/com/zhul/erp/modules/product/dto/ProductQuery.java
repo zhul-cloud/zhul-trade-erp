@@ -17,6 +17,8 @@ public class ProductQuery extends PageQuery {
     private Boolean includeDeleted;
     /** 仅平台账号有效：按缺项筛选，取值 media、logistics、customs、price；租户账号传入会被忽略 */
     private String missing;
+    /** 只看本租户维护的商品（租户账号有效，平台账号忽略） */
+    private Boolean mine;
     /** 按热度排序（倒序）：inquiryCount-询盘次数、dealCount-成交次数；不传按更新时间倒序 */
     private String sort;
 }

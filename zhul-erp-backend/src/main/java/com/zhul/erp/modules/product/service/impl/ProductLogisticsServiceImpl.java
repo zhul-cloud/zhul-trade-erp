@@ -10,7 +10,7 @@ import com.zhul.erp.modules.product.dto.SaveLogisticsRequest;
 import com.zhul.erp.modules.product.entity.ProductLogisticsDO;
 import com.zhul.erp.modules.product.repository.ProductLogisticsMapper;
 import com.zhul.erp.modules.product.service.ProductLogisticsService;
-import com.zhul.erp.modules.product.support.PlatformScopeGuard;
+import com.zhul.erp.modules.product.support.ProductWriteGuard;
 import com.zhul.erp.modules.product.support.ProductFinder;
 import com.zhul.erp.modules.product.support.TextRules;
 import lombok.RequiredArgsConstructor;
@@ -36,7 +36,7 @@ public class ProductLogisticsServiceImpl implements ProductLogisticsService {
 
     private final ProductLogisticsMapper logisticsMapper;
     private final ProductFinder productFinder;
-    private final PlatformScopeGuard platformScopeGuard;
+    private final ProductWriteGuard productWriteGuard;
 
     @Override
     public LogisticsVO get(Long productId) {
@@ -51,7 +51,7 @@ public class ProductLogisticsServiceImpl implements ProductLogisticsService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public LogisticsVO save(Long productId, SaveLogisticsRequest req) {
-        platformScopeGuard.requirePlatform();
+        productWriteGuard.require(productId);
         productFinder.lockActive(productId);
 
         BigDecimal net = amount(req.getNetWeightKg(), "净重", WEIGHT_SCALE, WEIGHT_LIMIT);

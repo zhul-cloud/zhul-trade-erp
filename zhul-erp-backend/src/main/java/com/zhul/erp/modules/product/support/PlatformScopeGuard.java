@@ -37,6 +37,11 @@ public class PlatformScopeGuard {
         return tenantId != null && tenantId == ProductConstants.PLATFORM_TENANT_ID;
     }
 
+    /** 是否在候选审核范围内（见 {@link #asCandidateReview}） */
+    public boolean inCandidateReview() {
+        return Boolean.TRUE.equals(CANDIDATE_REVIEW.get());
+    }
+
     public void requirePlatform() {
         if (!isPlatform() && !Boolean.TRUE.equals(CANDIDATE_REVIEW.get())) {
             throw BizException.of(ProductErrorCodes.PLATFORM_ADMIN_REQUIRED, "仅平台账号可维护商品主数据");

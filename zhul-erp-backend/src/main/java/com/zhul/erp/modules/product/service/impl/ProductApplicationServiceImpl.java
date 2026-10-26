@@ -10,7 +10,7 @@ import com.zhul.erp.modules.product.entity.ProductApplicationDO;
 import com.zhul.erp.modules.product.repository.ProductApplicationMapper;
 import com.zhul.erp.modules.product.service.ProductApplicationService;
 import com.zhul.erp.modules.product.support.LangRules;
-import com.zhul.erp.modules.product.support.PlatformScopeGuard;
+import com.zhul.erp.modules.product.support.ProductWriteGuard;
 import com.zhul.erp.modules.product.support.ProductFinder;
 import com.zhul.erp.modules.product.support.TextRules;
 import lombok.RequiredArgsConstructor;
@@ -30,7 +30,7 @@ public class ProductApplicationServiceImpl implements ProductApplicationService 
 
     private final ProductApplicationMapper applicationMapper;
     private final ProductFinder productFinder;
-    private final PlatformScopeGuard platformScopeGuard;
+    private final ProductWriteGuard productWriteGuard;
 
     @Override
     public List<ApplicationVO> list(Long productId, String lang) {
@@ -45,7 +45,7 @@ public class ProductApplicationServiceImpl implements ProductApplicationService 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public ApplicationVO create(Long productId, SaveApplicationRequest req) {
-        platformScopeGuard.requirePlatform();
+        productWriteGuard.require(productId);
         productFinder.lockActive(productId);
         String title = TextRules.required(req.getTitle(), "应用场景标题", 64);
         String lang = LangRules.of(req.getLang());
@@ -67,7 +67,7 @@ public class ProductApplicationServiceImpl implements ProductApplicationService 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public ApplicationVO update(Long productId, Long itemId, SaveApplicationRequest req) {
-        platformScopeGuard.requirePlatform();
+        productWriteGuard.require(productId);
         productFinder.lockActive(productId);
         ProductApplicationDO current = owned(productId, itemId);
         String title = TextRules.required(req.getTitle(), "应用场景标题", 64);
@@ -87,7 +87,7 @@ public class ProductApplicationServiceImpl implements ProductApplicationService 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void delete(Long productId, Long itemId) {
-        platformScopeGuard.requirePlatform();
+        productWriteGuard.require(productId);
         productFinder.lockActive(productId);
         owned(productId, itemId);
         ProductApplicationDO change = new ProductApplicationDO();

@@ -260,9 +260,9 @@ export default function access(initialState: {
     'product:series:add': canWrite('product:series:add'),
     'product:series:edit': canWrite('product:series:edit'),
     'product:series:delete': canWrite('product:series:delete'),
-    'product:product:add': canWrite('product:product:add'),
-    'product:product:edit': canWrite('product:product:edit'),
-    'product:product:delete': canWrite('product:product:delete'),
+    'product:product:add': can('product:product:add'),
+    'product:product:edit': can('product:product:edit'),
+    'product:product:delete': can('product:product:delete'),
     // 按钮级 - 客户管理 / 供应商管理（租户自己的数据，不要求平台账号，跟商品主数据不同）
     'partner:customer:add': can('partner:customer:add'),
     'partner:customer:edit': can('partner:customer:edit'),

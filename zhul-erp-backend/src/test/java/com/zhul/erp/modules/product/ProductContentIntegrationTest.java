@@ -537,7 +537,7 @@ class ProductContentIntegrationTest extends IntegrationTestBase {
         TenantContext.setTenantId(1001);
 
         biz(() -> mediaService.upload(productId, new MockMultipartFile("file", "a.png", "image/png", PNG), 1, null, null),
-                ProductErrorCodes.PLATFORM_ADMIN_REQUIRED);
+                ProductErrorCodes.PRODUCT_NOT_OWNED);
 
         assertEquals(before, countFiles());
         assertEquals(0, jdbc.queryForObject("select count(*) from product_media", Integer.class));
@@ -792,11 +792,11 @@ class ProductContentIntegrationTest extends IntegrationTestBase {
     }
 
     @Test
-    void tenantAccountsNeverSeeCompleteness() {
+    void tenantAccountsSeeCompleteness() {
         TenantContext.setTenantId(1001);
 
-        assertNull(productService.page(new ProductQuery()).getRecords().get(0).getCompleteness());
-        assertNull(productService.getById(productId).getCompleteness());
+        assertNotNull(productService.page(new ProductQuery()).getRecords().get(0).getCompleteness());
+        assertNotNull(productService.getById(productId).getCompleteness());
     }
 
     @Test
@@ -853,12 +853,12 @@ class ProductContentIntegrationTest extends IntegrationTestBase {
     }
 
     @Test
-    void tenantMissingFilterIsIgnoredAndInvalidValueIsRejectedForPlatform() {
+    void tenantMissingFilterAppliesAndInvalidValueIsRejected() {
         ProductQuery q = new ProductQuery();
         q.setMissing("media");
         TenantContext.setTenantId(1001);
-        assertEquals(productService.page(new ProductQuery()).getTotal(), productService.page(q).getTotal());
-        biz(() -> productService.completenessSummary(), ProductErrorCodes.PLATFORM_ADMIN_REQUIRED);
+        assertEquals(productService.completenessSummary().getMissingMedia(), productService.page(q).getTotal(),
+                "租户的缺项筛选生效，数量与缺项统计一致");
 
         TenantContext.setTenantId(0);
         q.setMissing("everything");
@@ -868,7 +868,7 @@ class ProductContentIntegrationTest extends IntegrationTestBase {
     // ================= 5.11：所有写接口的权限 =================
 
     @Test
-    void everyWriteEndpointRejectsTenantAccountsEvenWithEditPermission() {
+    void everyWriteEndpointRejectsTenantForOthersProduct() {
         long pending = insertPendingFaq(productId, "Pending one?");
         // 给足商品编辑权限（新增、编辑、删除），但账号所在租户不是平台
         loginWithResources("it_product_user", 110131, 110132, 110133);
@@ -898,7 +898,9 @@ class ProductContentIntegrationTest extends IntegrationTestBase {
                 () -> productController.clearReferencePrice(productId));
         for (int i = 0; i < writes.size(); i++) {
             BizException e = assertThrows(BizException.class, writes.get(i), "第 " + i + " 个写接口应被拒绝");
-            assertEquals(ProductErrorCodes.PLATFORM_ADMIN_REQUIRED, e.getErrorCode(), "第 " + i);
+            // 商品属于平台：租户写入按归属拒绝；FAQ 审核仍按原规则只限平台或「商品内容维护」权限
+            String expected = i == 8 ? ProductErrorCodes.PLATFORM_ADMIN_REQUIRED : ProductErrorCodes.PRODUCT_NOT_OWNED;
+            assertEquals(expected, e.getErrorCode(), "第 " + i);
         }
 
         try {

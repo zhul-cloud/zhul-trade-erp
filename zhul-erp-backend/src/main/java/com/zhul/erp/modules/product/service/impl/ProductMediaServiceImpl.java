@@ -13,7 +13,7 @@ import com.zhul.erp.modules.product.entity.ProductMediaDO;
 import com.zhul.erp.modules.product.repository.ProductMediaMapper;
 import com.zhul.erp.modules.product.service.ProductMediaService;
 import com.zhul.erp.modules.product.service.ProductMediaStorageService;
-import com.zhul.erp.modules.product.support.PlatformScopeGuard;
+import com.zhul.erp.modules.product.support.ProductWriteGuard;
 import com.zhul.erp.modules.product.support.ProductFinder;
 import com.zhul.erp.modules.product.support.TextRules;
 import com.zhul.erp.modules.product.support.UrlRules;
@@ -53,7 +53,7 @@ public class ProductMediaServiceImpl implements ProductMediaService {
     private final ProductFinder productFinder;
     private final ProductBrandMapper brandMapper;
     private final VideoTranscoder transcoder;
-    private final PlatformScopeGuard platformScopeGuard;
+    private final ProductWriteGuard productWriteGuard;
     private final StringRedisTemplate redis;
 
     @Override
@@ -76,7 +76,7 @@ public class ProductMediaServiceImpl implements ProductMediaService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public MediaVO register(Long productId, RegisterMediaRequest req) {
-        platformScopeGuard.requirePlatform();
+        productWriteGuard.require(productId);
         productFinder.lockActive(productId);
         int type = mediaType(req.getMediaType());
         String fileUrl = TextRules.required(req.getFileUrl(), "文件地址", 512);
@@ -102,7 +102,7 @@ public class ProductMediaServiceImpl implements ProductMediaService {
     @Transactional(rollbackFor = Exception.class)
     public MediaVO upload(Long productId, MultipartFile file, Integer mediaType, String title, Boolean setMain) {
         // 先校验身份再碰文件：租户账号上传不保存任何内容
-        platformScopeGuard.requirePlatform();
+        productWriteGuard.require(productId);
         checkUploadRate();
         int type = mediaType(mediaType);
         String cleanTitle = TextRules.optional(title, "标题", 128);
@@ -180,7 +180,7 @@ public class ProductMediaServiceImpl implements ProductMediaService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public MediaVO update(Long productId, Long itemId, UpdateMediaRequest req) {
-        platformScopeGuard.requirePlatform();
+        productWriteGuard.require(productId);
         productFinder.lockActive(productId);
         ProductMediaDO current = owned(productId, itemId);
         String coverUrl = req.getCoverUrl() == null ? current.getCoverUrl()
@@ -201,7 +201,7 @@ public class ProductMediaServiceImpl implements ProductMediaService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void delete(Long productId, Long itemId) {
-        platformScopeGuard.requirePlatform();
+        productWriteGuard.require(productId);
         productFinder.lockActive(productId);
         owned(productId, itemId);
         // 软删除，文件保留；被删除的主图同时取消主图标记，避免"已删除的图片仍占着主图"
@@ -214,7 +214,7 @@ public class ProductMediaServiceImpl implements ProductMediaService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public MediaVO setMain(Long productId, Long itemId) {
-        platformScopeGuard.requirePlatform();
+        productWriteGuard.require(productId);
         // 锁商品行，两个人同时给同一商品设不同主图时串行执行，最终只有一张主图
         productFinder.lockActive(productId);
         ProductMediaDO row = owned(productId, itemId);

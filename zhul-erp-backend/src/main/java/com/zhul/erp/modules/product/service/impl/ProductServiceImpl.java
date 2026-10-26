@@ -31,6 +31,7 @@ import com.zhul.erp.modules.product.support.LikeUtils;
 import com.zhul.erp.modules.product.support.MpnNormalizer;
 import com.zhul.erp.modules.product.support.IndustryScope;
 import com.zhul.erp.modules.product.support.PlatformScopeGuard;
+import com.zhul.erp.modules.product.support.ProductWriteGuard;
 import com.zhul.erp.modules.product.support.ProductFinder;
 import com.zhul.erp.modules.product.support.ProductNames;
 import com.zhul.erp.modules.product.support.ProductUsageChecker;
@@ -47,6 +48,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.Objects;
 
 @Slf4j
@@ -68,6 +70,7 @@ public class ProductServiceImpl implements ProductService {
     private final ProductCompletenessService completenessService;
     private final PlatformScopeGuard platformScopeGuard;
     private final IndustryScope industryScope;
+    private final ProductWriteGuard productWriteGuard;
     private final ObjectProvider<ProductUsageChecker> usageCheckers;
 
     public ProductServiceImpl(ProductMapper productMapper, ProductBrandMapper brandMapper,
@@ -77,9 +80,10 @@ public class ProductServiceImpl implements ProductService {
                               PlatformScopeGuard platformScopeGuard,
                               ObjectProvider<ProductUsageChecker> usageCheckers,
                               com.zhul.erp.modules.product.candidate.repository.ProductHeatMapper heatMapper,
-                              IndustryScope industryScope) {
+                              IndustryScope industryScope, ProductWriteGuard productWriteGuard) {
         this.heatMapper = heatMapper;
         this.industryScope = industryScope;
+        this.productWriteGuard = productWriteGuard;
         this.productMapper = productMapper;
         this.brandMapper = brandMapper;
         this.categoryMapper = categoryMapper;
@@ -106,6 +110,10 @@ public class ProductServiceImpl implements ProductService {
                 .eq(query.getSeriesId() != null, ProductDO::getSeriesId, query.getSeriesId())
                 .eq(query.getLifecycleStatus() != null, ProductDO::getLifecycleStatus, query.getLifecycleStatus())
                 .eq(query.getStatus() != null, ProductDO::getStatus, query.getStatus());
+        // 只看本租户维护的商品
+        if (Boolean.TRUE.equals(query.getMine()) && !platformScopeGuard.isPlatform()) {
+            wrapper.eq(ProductDO::getOwnerTenantId, com.zhul.erp.framework.tenant.TenantContext.getTenantId());
+        }
         // 租户只看到本行业的商品（按所属品类的一级品类）
         java.util.Set<Long> visibleCategories = industryScope.visibleCategoryIds();
         if (visibleCategories != null) {
@@ -120,8 +128,8 @@ public class ProductServiceImpl implements ProductService {
         if (heatOrder == null) {
             wrapper.orderByDesc(ProductDO::getUpdateTime).orderByDesc(ProductDO::getId);
         }
-        // 缺项筛选只对平台账号生效，租户账号传了也当没传
-        if (platformScopeGuard.isPlatform() && StringUtils.hasText(query.getMissing())) {
+        // 缺项筛选对平台与租户都生效（租户的范围已按行业过滤）
+        if (StringUtils.hasText(query.getMissing())) {
             wrapper.notExists(missingSql(query.getMissing().trim()));
         }
         if (StringUtils.hasText(query.getKeyword())) {
@@ -148,9 +156,8 @@ public class ProductServiceImpl implements ProductService {
         }
 
         ProductNames.Lookup lookup = productNames.load(page.getRecords());
-        // 完整度只对平台账号返回；一页商品的完整度只发固定的一条查询
-        Map<Long, CompletenessVO> completeness = platformScopeGuard.isPlatform()
-                ? completenessService.compute(page.getRecords()) : Map.of();
+        // 完整度对平台与租户都返回；一页商品的完整度只发固定的一条查询
+        Map<Long, CompletenessVO> completeness = completenessService.compute(page.getRecords());
         List<ProductVO> records = new ArrayList<>(page.getRecords().size());
         for (ProductDO product : page.getRecords()) {
             ProductVO vo = toVO(product, lookup);
@@ -182,9 +189,7 @@ public class ProductServiceImpl implements ProductService {
         ProductDO product = productFinder.active(id);
         ProductVO vo = toVO(product, productNames.load(List.of(product)));
         vo.setUsageCount(usageCount(id));
-        if (platformScopeGuard.isPlatform()) {
-            vo.setCompleteness(completenessService.compute(List.of(product)).get(id));
-        }
+        vo.setCompleteness(completenessService.compute(List.of(product)).get(id));
         return vo;
     }
 
@@ -193,8 +198,16 @@ public class ProductServiceImpl implements ProductService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public ProductVO create(SaveProductRequest req) {
-        platformScopeGuard.requirePlatform();
         ProductDO product = buildFields(req, null);
+        // 租户新建（候选审核建档另有校验）：品牌、品类必须属于本租户行业
+        if (!platformScopeGuard.isPlatform() && !platformScopeGuard.inCandidateReview()) {
+            Set<Long> categories = industryScope.visibleCategoryIds();
+            if (!industryScope.brandVisible(product.getBrandId())
+                    || categories != null && !categories.contains(product.getCategoryId())) {
+                throw BizException.of(ProductErrorCodes.PARAM_INVALID, "品牌或品类不属于本公司行业");
+            }
+        }
+        product.setOwnerTenantId(productWriteGuard.ownerForCreate());
         assertMpnFree(product.getBrandId(), product.getMpnNormalized(), null);
         product.setStatus(ProductConstants.STATUS_ENABLED);
         try {
@@ -213,7 +226,7 @@ public class ProductServiceImpl implements ProductService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public ProductVO update(Long id, SaveProductRequest req) {
-        platformScopeGuard.requirePlatform();
+        productWriteGuard.require(id);
         ProductDO current = productFinder.lockActive(id);
         long usage = usageCount(id);
         ProductDO change = buildFields(req, current);
@@ -250,7 +263,7 @@ public class ProductServiceImpl implements ProductService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void updateStatus(Long id, Integer status) {
-        platformScopeGuard.requirePlatform();
+        productWriteGuard.require(id);
         int value = TextRules.status(status);
         productFinder.active(id);
         ProductDO change = new ProductDO();
@@ -264,7 +277,7 @@ public class ProductServiceImpl implements ProductService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void delete(Long id) {
-        platformScopeGuard.requirePlatform();
+        productWriteGuard.require(id);
         // 先锁商品行再汇总引用次数，业务模块关联商品时对同一行加共享锁，避免"刚检查完无引用就被关联"
         productFinder.lockActive(id);
         long usage = usageCount(id);
@@ -282,7 +295,7 @@ public class ProductServiceImpl implements ProductService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public ProductVO restore(Long id) {
-        platformScopeGuard.requirePlatform();
+        productWriteGuard.require(id);
         ProductDO deleted = id == null ? null : productMapper.selectOne(new LambdaQueryWrapper<ProductDO>()
                 .eq(ProductDO::getId, id)
                 .eq(ProductDO::getTenantId, ProductConstants.PLATFORM_TENANT_ID)
@@ -311,7 +324,6 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     public CompletenessSummaryVO completenessSummary() {
-        platformScopeGuard.requirePlatform();
         CompletenessSummaryVO summary = new CompletenessSummaryVO();
         summary.setTotal(countUndeleted(null));
         summary.setMissingMedia(countUndeleted(CompletenessSql.MISSING_MEDIA));
@@ -326,6 +338,14 @@ public class ProductServiceImpl implements ProductService {
         LambdaQueryWrapper<ProductDO> wrapper = new LambdaQueryWrapper<ProductDO>()
                 .eq(ProductDO::getTenantId, ProductConstants.PLATFORM_TENANT_ID)
                 .isNull(ProductDO::getDeletedAt);
+        // 租户只统计本行业的商品，与列表的范围一致
+        Set<Long> visibleCategories = industryScope.visibleCategoryIds();
+        if (visibleCategories != null) {
+            if (visibleCategories.isEmpty()) {
+                return 0;
+            }
+            wrapper.in(ProductDO::getCategoryId, visibleCategories);
+        }
         if (notExistsSql != null) {
             wrapper.notExists(notExistsSql);
         }
@@ -513,7 +533,7 @@ public class ProductServiceImpl implements ProductService {
         return warnings;
     }
 
-    private static ProductVO toVO(ProductDO product, ProductNames.Lookup lookup) {
+    private ProductVO toVO(ProductDO product, ProductNames.Lookup lookup) {
         ProductVO vo = new ProductVO();
         vo.setId(product.getId());
         vo.setBrandId(product.getBrandId());
@@ -548,6 +568,8 @@ public class ProductServiceImpl implements ProductService {
         vo.setCreateBy(product.getCreateBy());
         vo.setUpdateTime(product.getUpdateTime());
         vo.setUpdateBy(product.getUpdateBy());
+        vo.setOwnerTenantId(product.getOwnerTenantId());
+        vo.setEditable(productWriteGuard.canWrite(product));
         return vo;
     }
 }

@@ -58,7 +58,7 @@ class ProductReferencePriceServiceImplTest {
     @BeforeEach
     void setUp() {
         TenantContext.setTenantId(0);
-        service = new ProductReferencePriceServiceImpl(priceMapper, listingMapper, productFinder, new PlatformScopeGuard());
+        service = new ProductReferencePriceServiceImpl(priceMapper, listingMapper, productFinder, com.zhul.erp.modules.product.support.TestProductWriteGuards.ownedBy(0));
     }
 
     @AfterEach
@@ -243,11 +243,11 @@ class ProductReferencePriceServiceImplTest {
     }
 
     @Test
-    void tenantAccountCannotWrite() {
+    void tenantCannotWriteOthersProduct() {
         TenantContext.setTenantId(1001);
 
         BizException e = assertThrows(BizException.class, () -> service.save(1L, request("10", "USD", "7")));
-        assertEquals(ProductErrorCodes.PLATFORM_ADMIN_REQUIRED, e.getErrorCode());
+        assertEquals(ProductErrorCodes.PRODUCT_NOT_OWNED, e.getErrorCode());
         assertThrows(BizException.class, () -> service.clear(1L));
         verifyNoInteractions(priceMapper);
     }

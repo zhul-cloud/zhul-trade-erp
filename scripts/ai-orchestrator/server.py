@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-真正调用 AI 的编排服务实现——通过 Anthropic API（官方 Python SDK）执行
-本目录 skills/ 下的 inquiry-parser + order-splitter 两个 skill，替代
-scripts/ai-orchestrator-stub 里那个返回固定假数据的占位脚本。
+真正调用 AI 的编排服务实现——通过 Claude（Anthropic API）或 OpenAI（Responses API）的官方 Python SDK
+执行本目录 skills/ 下的 inquiry-parser + order-splitter 两个 skill，替代
+scripts/ai-orchestrator-stub 里那个返回固定假数据的占位脚本。服务商由 AI_ORCHESTRATOR_PROVIDER 选择。
 
 对应 openspec/changes/add-inquiry-management/design.md 决策3的通用契约：
   POST /skills/{skill_id}/run
@@ -13,8 +13,8 @@ scripts/ai-orchestrator-stub 里那个返回固定假数据的占位脚本。
     header: X-AI-Callback-Token: <与 zhul-erp-backend 配置一致的共享密钥>
     body: {"status": "success"|"failed", "output": {...}|null, "error": null|string}
 
-依赖：Python 3.10+ 与 `anthropic` SDK（见 requirements.txt）；鉴权用环境变量
-ANTHROPIC_API_KEY，不需要安装 Claude Code CLI。
+依赖：Python 3.10+ 与 `anthropic`、`openai` SDK（见 requirements.txt）；鉴权用环境变量
+AI_ORCHESTRATOR_API_KEY（填当前服务商的 Key），不需要安装 Claude Code CLI。
 
 ## 真实调用会产生费用
 
@@ -24,32 +24,48 @@ ANTHROPIC_API_KEY，不需要安装 Claude Code CLI。
 
 ## 实现要点
 
-- 结构化输出：output_config.format 指定 JSON Schema，返回的 JSON 直接符合后端字段约定
-  （驼峰命名、confidence 用整数），不再需要一层格式转换。
-- 联网搜索：服务端工具 web_search，在 Anthropic 服务器上执行，本服务不实现搜索逻辑。
+- 结构化输出：Claude 用 output_config.format、OpenAI 用 text.format 指定 JSON Schema，返回的 JSON
+  直接符合后端字段约定（驼峰命名、confidence 用整数），不再需要一层格式转换。OpenAI 严格模式要求字段
+  全部必填，发送前把非必填字段改成可空，收到后删掉值为 null 的字段，回调内容与 Claude 一致。
+- 联网搜索：两家都用服务商托管的 web_search 工具，在服务商服务器上执行，本服务不实现搜索逻辑。
 - 附件：图片、PDF 由本服务读取本地文件后随请求发送，因此需要能读到后端的私有上传目录
   （Docker 部署时两个容器挂载同一个目录）。
-- 长时间的搜索轮次可能以 pause_turn 暂停，原样续传即可继续。
-- 拒答兜底：启用服务端 fallbacks="default"，模型因安全策略拒答时由服务端改用推荐的备用模型重试。
-  Haiku 没有服务端兜底，用 Haiku 时不带这个参数。
-- 模型：询盘解析用 AI_ORCHESTRATOR_MODEL（默认 Opus）；型号描述翻译、联系人名音译任务简单、
-  不联网搜索，用 AI_ORCHESTRATOR_TRANSLATE_MODEL（默认 Haiku）。
+- Claude 长时间的搜索轮次可能以 pause_turn 暂停，原样续传即可继续。
+- 拒答兜底：Claude 启用服务端 fallbacks="default"，模型因安全策略拒答时由服务端改用推荐的备用模型重试。
+  Haiku 没有服务端兜底，用 Haiku 时不带这个参数；OpenAI 没有对应功能，拒答直接回调失败。
+- 模型：询盘解析用 AI_ORCHESTRATOR_PARSE_MODEL；型号描述翻译、联系人名音译任务简单、不联网搜索，
+  用 AI_ORCHESTRATOR_TRANSLATE_MODEL。留空时按服务商取 DEFAULT_MODELS 里的推荐模型。
+  思考强度分别由 AI_ORCHESTRATOR_PARSE_EFFORT、AI_ORCHESTRATOR_TRANSLATE_EFFORT 设置，默认 medium。
 """
 import base64
+import copy
 import json
 import os
 import re
+import sys
 import threading
 import urllib.request
 import uuid
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
 import anthropic
+import openai
 
 PORT = int(os.environ.get("AI_STUB_PORT", "8899"))
 CALLBACK_TOKEN = os.environ.get("AI_TASK_CALLBACK_TOKEN", "zhul-erp-ai-callback-secret")
-MODEL = os.environ.get("AI_ORCHESTRATOR_MODEL") or "claude-opus-5-5"
-TRANSLATE_MODEL = os.environ.get("AI_ORCHESTRATOR_TRANSLATE_MODEL") or "claude-haiku-5-5"
+# 每个服务商的推荐模型：询盘解析要识图、联网核实型号，用能力强的；翻译简单，用便宜的
+DEFAULT_MODELS = {
+    "claude": {"parse": "claude-opus-5-5", "translate": "claude-haiku-5-5"},
+    "openai": {"parse": "gpt-6.1-sol", "translate": "gpt-6-luna"},
+}
+EFFORTS = ("low", "medium", "high", "xhigh", "max")
+PROVIDER = (os.environ.get("AI_ORCHESTRATOR_PROVIDER") or "claude").strip().lower()
+API_KEY = (os.environ.get("AI_ORCHESTRATOR_API_KEY") or "").strip()
+_defaults = DEFAULT_MODELS.get(PROVIDER, DEFAULT_MODELS["claude"])
+PARSE_MODEL = os.environ.get("AI_ORCHESTRATOR_PARSE_MODEL") or _defaults["parse"]
+TRANSLATE_MODEL = os.environ.get("AI_ORCHESTRATOR_TRANSLATE_MODEL") or _defaults["translate"]
+PARSE_EFFORT = (os.environ.get("AI_ORCHESTRATOR_PARSE_EFFORT") or "medium").strip().lower()
+TRANSLATE_EFFORT = (os.environ.get("AI_ORCHESTRATOR_TRANSLATE_EFFORT") or "medium").strip().lower()
 MAX_WEB_SEARCHES = int(os.environ.get("AI_ORCHESTRATOR_MAX_WEB_SEARCHES") or "20")
 # 单次 API 调用超时（秒）——联网搜索验证一条含多个型号的询盘可能是分钟级，
 # 这里给足余量；对应地 zhul-erp-backend 的 AiTaskTimeoutWatchdog 超时阈值
@@ -191,35 +207,56 @@ def _read_attachment(ref) -> tuple:
         return f.read(), os.path.splitext(ref)[1].lower()
 
 
-def _attachment_block(ref) -> dict:
-    """图片、PDF 附件读成 base64 随请求发送；ref 也可以是已读好的 (内容, 扩展名)"""
+def _attachment_data(ref) -> tuple:
+    """附件读成 (base64, 扩展名)；ref 也可以是已读好的 (内容, 扩展名)"""
     raw, ext = ref if isinstance(ref, tuple) else _read_attachment(ref)
-    data = base64.standard_b64encode(raw).decode("ascii")
+    if ext != ".pdf" and ext not in IMAGE_TYPES:
+        raise RuntimeError(f"不支持的附件类型 {ext}，只支持图片和 PDF")
+    return base64.standard_b64encode(raw).decode("ascii"), ext
+
+
+def _attachment_block(ref) -> dict:
+    """Claude 的图片、PDF 内容块"""
+    data, ext = _attachment_data(ref)
     if ext == ".pdf":
         return {"type": "document", "source": {"type": "base64", "media_type": "application/pdf", "data": data}}
-    if ext in IMAGE_TYPES:
-        return {"type": "image", "source": {"type": "base64", "media_type": IMAGE_TYPES[ext], "data": data}}
-    raise RuntimeError(f"不支持的附件类型 {ext}，只支持图片和 PDF")
+    return {"type": "image", "source": {"type": "base64", "media_type": IMAGE_TYPES[ext], "data": data}}
 
 
-def call_api(system_prompt: str, content: list, schema: dict, tools=None, model: str = MODEL) -> dict:
-    """调用 Anthropic API，返回按 schema 校验过的 JSON；pause_turn 时原样续传"""
-    if not os.environ.get("ANTHROPIC_API_KEY"):
-        raise RuntimeError("未配置 ANTHROPIC_API_KEY，无法调用 AI")
-    client = anthropic.Anthropic(timeout=TIMEOUT_SECONDS)
+def _openai_attachment_block(ref) -> dict:
+    """OpenAI 的图片、PDF 输入块"""
+    data, ext = _attachment_data(ref)
+    if ext == ".pdf":
+        return {"type": "input_file", "filename": "attachment.pdf", "file_data": f"data:application/pdf;base64,{data}"}
+    return {"type": "input_image", "image_url": f"data:{IMAGE_TYPES[ext]};base64,{data}"}
+
+
+def call_api(system_prompt: str, text: str, attachments: list, schema: dict, *,
+             model: str, effort: str, web_search: bool = False) -> dict:
+    """按 AI_ORCHESTRATOR_PROVIDER 调用对应服务商，返回符合 schema 的 JSON"""
+    if not API_KEY:
+        raise RuntimeError("未配置 AI_ORCHESTRATOR_API_KEY，无法调用 AI")
+    call = _call_openai if PROVIDER == "openai" else _call_claude
+    return call(system_prompt, text, attachments, schema, model, effort, web_search)
+
+
+def _call_claude(system_prompt, text, attachments, schema, model, effort, web_search) -> dict:
+    """调用 Anthropic API；pause_turn 时原样续传"""
+    client = anthropic.Anthropic(api_key=API_KEY, timeout=TIMEOUT_SECONDS)
+    content = [_attachment_block(a) for a in attachments] + [{"type": "text", "text": text}]
     messages = [{"role": "user", "content": content}]
     params = {
         "model": model,
         "max_tokens": 64000,
         "system": system_prompt,
-        "output_config": {"effort": "medium", "format": {"type": "json_schema", "schema": _strict(schema)}},
+        "output_config": {"effort": effort, "format": {"type": "json_schema", "schema": _strict(schema)}},
     }
     # Haiku 没有服务端拒答兜底，带上 fallbacks 也不会生效，按官方说明不传
     if not model.startswith("claude-haiku"):
         params["betas"] = [FALLBACK_BETA]
         params["fallbacks"] = "default"
-    if tools:
-        params["tools"] = tools
+    if web_search:
+        params["tools"] = [{"type": "web_search_20260209", "name": "web_search", "max_uses": MAX_WEB_SEARCHES}]
     for _ in range(MAX_CONTINUATIONS + 1):
         with client.beta.messages.stream(messages=messages, **params) as stream:
             response = stream.get_final_message()
@@ -243,11 +280,78 @@ def call_api(system_prompt: str, content: list, schema: dict, tools=None, model:
     return json.loads(texts[-1])
 
 
-def call_claude(raw_content: str, file_paths=None, categories=None) -> dict:
+def _openai_schema(schema):
+    """OpenAI 严格模式：每个 object 的字段都要列为必填，原来非必填的字段改成可空"""
+    schema = copy.deepcopy(schema)
+
+    def walk(node):
+        if not isinstance(node, dict):
+            return
+        if node.get("type") == "array":
+            walk(node.get("items"))
+        if node.get("type") == "object" and "properties" in node:
+            required = set(node.get("required", []))
+            for name, prop in node["properties"].items():
+                walk(prop)
+                if name not in required:
+                    prop["type"] = [prop["type"], "null"]
+            node["required"] = list(node["properties"])
+            node["additionalProperties"] = False
+
+    walk(schema)
+    return schema
+
+
+def _drop_nulls(value):
+    """删掉值为 null 的字段，未给出的可选字段与 Claude 一样不出现"""
+    if isinstance(value, dict):
+        return {k: _drop_nulls(v) for k, v in value.items() if v is not None}
+    if isinstance(value, list):
+        return [_drop_nulls(v) for v in value]
+    return value
+
+
+def _call_openai(system_prompt, text, attachments, schema, model, effort, web_search) -> dict:
+    """调用 OpenAI Responses API"""
+    client = openai.OpenAI(api_key=API_KEY, timeout=TIMEOUT_SECONDS)
+    content = [_openai_attachment_block(a) for a in attachments] + [{"type": "input_text", "text": text}]
+    params = {
+        "model": model,
+        "instructions": system_prompt,
+        "input": [{"role": "user", "content": content}],
+        "reasoning": {"effort": effort},
+        "max_output_tokens": 64000,
+        "text": {"format": {"type": "json_schema", "name": "result", "schema": _openai_schema(schema), "strict": True}},
+    }
+    if web_search:
+        # max_tool_calls 统计全部托管工具调用（搜索、打开网页、页内查找），不只是搜索
+        params["tools"] = [{"type": "web_search"}]
+        params["max_tool_calls"] = MAX_WEB_SEARCHES
+    response = client.responses.create(**params)
+
+    if response.status == "incomplete":
+        reason = getattr(response.incomplete_details, "reason", None)
+        if reason == "max_output_tokens":
+            raise RuntimeError("输出超过长度上限，内容可能过多，请拆分后重试")
+        if reason == "content_filter":
+            raise RuntimeError("模型拒绝处理这条内容")
+        raise RuntimeError(f"AI 未完成处理（{reason}）")
+    for item in response.output:
+        if item.type == "message" and any(part.type == "refusal" for part in item.content):
+            raise RuntimeError("模型拒绝处理这条内容")
+    if not response.output_text:
+        raise RuntimeError("AI 未返回结果")
+    usage = response.usage
+    searches = sum(1 for item in response.output if item.type == "web_search_call")
+    print(f"[ai-orchestrator] API 调用完成 model={response.model}，输入 {usage.input_tokens} tokens，"
+          f"输出 {usage.output_tokens} tokens，联网搜索 {searches} 次，response_id={response.id}")
+    return _drop_nulls(json.loads(response.output_text))
+
+
+def call_parse(raw_content: str, file_paths=None, categories=None) -> dict:
     """raw_content 为正文（Excel/CSV 附件已由后端抽成文本拼在里面）；file_paths 为图片、PDF 附件（已读好的 (内容, 扩展名)，或临时链接、本地路径）；
     categories 为后端带来的品类清单（没有时沿用 skill 里的品类枚举）。"""
     file_paths = file_paths or []
-    content = [_attachment_block(p) for p in file_paths]
     if file_paths:
         text = (
             (f"询盘正文：\n{raw_content}\n\n" if raw_content else "这条询盘没有正文。\n")
@@ -255,9 +359,8 @@ def call_claude(raw_content: str, file_paths=None, categories=None) -> dict:
         )
     else:
         text = raw_content
-    content.append({"type": "text", "text": text})
-    tools = [{"type": "web_search_20260209", "name": "web_search", "max_uses": MAX_WEB_SEARCHES}]
-    structured = call_api(build_system_prompt(categories), content, OUTPUT_SCHEMA, tools)
+    structured = call_api(build_system_prompt(categories), text, file_paths, OUTPUT_SCHEMA,
+                          model=PARSE_MODEL, effort=PARSE_EFFORT, web_search=True)
     if "groups" not in structured:
         raise RuntimeError("AI 未返回符合 schema 的结构化输出")
     return structured
@@ -298,10 +401,10 @@ NAME_PROMPT = """你是外贸公司的翻译。把下面每一条客户联系人
 只输出 JSON。"""
 
 
-def call_claude_translate(items: list, prompt: str = TRANSLATE_PROMPT) -> dict:
+def call_translate(items: list, prompt: str = TRANSLATE_PROMPT) -> dict:
     """通过 API 翻译型号描述或联系人名称，不启用搜索工具。"""
-    content = [{"type": "text", "text": json.dumps({"items": items}, ensure_ascii=False)}]
-    structured = call_api(prompt, content, TRANSLATE_SCHEMA, model=TRANSLATE_MODEL)
+    text = json.dumps({"items": items}, ensure_ascii=False)
+    structured = call_api(prompt, text, [], TRANSLATE_SCHEMA, model=TRANSLATE_MODEL, effort=TRANSLATE_EFFORT)
     if "items" not in structured:
         raise RuntimeError("AI 未返回符合 schema 的翻译结果")
     print(f"[ai-orchestrator] 翻译完成 {len(items)} 条")
@@ -314,8 +417,8 @@ def process_translate(payload: dict, callback_url: str, prompt: str = TRANSLATE_
         if not items:
             send_callback(callback_url, "failed", error="没有需要翻译的内容")
             return
-        send_callback(callback_url, "success", output=call_claude_translate(items, prompt))
-    except anthropic.APITimeoutError:
+        send_callback(callback_url, "success", output=call_translate(items, prompt))
+    except (anthropic.APITimeoutError, openai.APITimeoutError):
         send_callback(callback_url, "failed", error=f"AI 处理超过 {TIMEOUT_SECONDS} 秒未完成")
     except Exception as e:
         print(f"[ai-orchestrator] translate failed: {e}")
@@ -360,9 +463,9 @@ def process_job(payload: dict, callback_url: str):
         except Exception as e:  # noqa: BLE001 - 链接过期或网络问题都按附件读取失败回报
             send_callback(callback_url, "failed", error=f"附件下载失败: {str(e)[:200]}")
             return
-        output = call_claude(raw_content, loaded, input_data.get("categories") or [])
+        output = call_parse(raw_content, loaded, input_data.get("categories") or [])
         send_callback(callback_url, "success", output=output)
-    except anthropic.APITimeoutError:
+    except (anthropic.APITimeoutError, openai.APITimeoutError):
         send_callback(callback_url, "failed", error=f"AI 处理超过 {TIMEOUT_SECONDS} 秒未完成")
     except Exception as e:
         print(f"[ai-orchestrator] job failed: {e}")
@@ -415,12 +518,25 @@ class Handler(BaseHTTPRequestHandler):
 if __name__ == "__main__":
     # 无缓冲输出——重定向到文件/nohup时 Python 默认是整块缓冲，日志会迟迟不落盘，
     # 排查问题时容易误以为脚本卡住或什么都没做。
-    import sys
     sys.stdout.reconfigure(line_buffering=True)
     sys.stderr.reconfigure(line_buffering=True)
 
+    # 配置写错时直接退出，容器反复重启，docker ps 和日志能马上看到原因
+    errors = []
+    if PROVIDER not in DEFAULT_MODELS:
+        errors.append(f"AI_ORCHESTRATOR_PROVIDER={PROVIDER} 不支持，可选：{'、'.join(DEFAULT_MODELS)}")
+    for name, value in (("AI_ORCHESTRATOR_PARSE_EFFORT", PARSE_EFFORT), ("AI_ORCHESTRATOR_TRANSLATE_EFFORT", TRANSLATE_EFFORT)):
+        if value not in EFFORTS:
+            errors.append(f"{name}={value} 不支持，可选：{'、'.join(EFFORTS)}")
+    if errors:
+        for e in errors:
+            print(f"[ai-orchestrator] 配置错误：{e}", file=sys.stderr)
+        sys.exit(1)
+
     server = HTTPServer(("0.0.0.0", PORT), Handler)
-    print(f"[ai-orchestrator] listening on :{PORT}（Anthropic API，model={MODEL}，每次调用按用量计费）")
-    if not os.environ.get("ANTHROPIC_API_KEY"):
-        print("[ai-orchestrator] 警告：未配置 ANTHROPIC_API_KEY，AI 解析与翻译任务会直接回调失败")
+    print(f"[ai-orchestrator] listening on :{PORT}（服务商 {PROVIDER}，每次调用按用量计费）")
+    print(f"[ai-orchestrator] 询盘解析 model={PARSE_MODEL} effort={PARSE_EFFORT}；"
+          f"翻译 model={TRANSLATE_MODEL} effort={TRANSLATE_EFFORT}")
+    if not API_KEY:
+        print("[ai-orchestrator] 警告：未配置 AI_ORCHESTRATOR_API_KEY，AI 解析与翻译任务会直接回调失败")
     server.serve_forever()

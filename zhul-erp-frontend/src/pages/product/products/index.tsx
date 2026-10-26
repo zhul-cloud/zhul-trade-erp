@@ -53,6 +53,8 @@ interface Filters {
   status?: number;
   includeDeleted?: boolean;
   missing?: string;
+  /** 只看本公司维护的（租户） */
+  mine?: boolean;
 }
 
 /** 记住上次的筛选条件（关键词和缺项筛选不记：那是临时的） */
@@ -150,12 +152,11 @@ const ProductListInner: React.FC = () => {
   }, [filters.brandId]);
 
   const loadSummary = useCallback(() => {
-    if (platform)
-      productApi
-        .summary()
-        .then(setSummary)
-        .catch(() => {});
-  }, [platform]);
+    productApi
+      .summary()
+      .then(setSummary)
+      .catch(() => {});
+  }, []);
 
   useEffect(loadSummary, [loadSummary]);
 
@@ -169,6 +170,7 @@ const ProductListInner: React.FC = () => {
       keyword: debounced || undefined,
       ...filters,
       includeDeleted: filters.includeDeleted || undefined,
+      mine: filters.mine || undefined,
       sort: heatSort,
     }),
     [page, pageSize, debounced, filters, heatSort],
@@ -422,26 +424,39 @@ const ProductListInner: React.FC = () => {
         );
       },
     })),
-    ...(platform
-      ? ([
-          {
-            title: '档案完整度',
-            key: 'completeness',
-            width: 190,
-            sorter: (a: Product, b: Product) =>
-              (a.completeness?.done ?? 0) - (b.completeness?.done ?? 0),
-            render: (_: unknown, r: Product) => (
-              <CompletenessBar value={r.completeness} />
-            ),
-          },
-        ] as ColumnsType<Product>)
-      : []),
+    ...([
+      {
+        title: '档案完整度',
+        key: 'completeness',
+        width: 190,
+        sorter: (a: Product, b: Product) =>
+          (a.completeness?.done ?? 0) - (b.completeness?.done ?? 0),
+        render: (_: unknown, r: Product) => (
+          <CompletenessBar value={r.completeness} />
+        ),
+      },
+    ] as ColumnsType<Product>),
+    {
+      title: '维护方',
+      key: 'owner',
+      width: 90,
+      render: (_: unknown, r: Product) =>
+        !r.ownerTenantId ? (
+          <Pill tone="gray">平台</Pill>
+        ) : platform ? (
+          <Pill tone="accent">租户</Pill>
+        ) : r.editable ? (
+          <Pill tone="green">本公司</Pill>
+        ) : (
+          <Pill tone="gray">其他公司</Pill>
+        ),
+    },
     {
       title: '状态',
       dataIndex: 'status',
       width: 90,
       render: (_, r) =>
-        canEdit && !r.deleted ? (
+        canEdit && r.editable && !r.deleted ? (
           <span
             onClick={(e) => e.stopPropagation()}
             onKeyDown={(e) => e.stopPropagation()}
@@ -515,7 +530,7 @@ const ProductListInner: React.FC = () => {
         }
       />
 
-      {platform && summary && (
+      {summary && (
         <div
           style={{
             display: 'flex',
@@ -680,6 +695,14 @@ const ProductListInner: React.FC = () => {
           ]}
           onChange={(v) => updateFilters({ status: v })}
         />
+        {!platform && (
+          <Checkbox
+            checked={!!filters.mine}
+            onChange={(e) => updateFilters({ mine: e.target.checked })}
+          >
+            只看本公司维护
+          </Checkbox>
+        )}
         {platform && (
           <Checkbox
             checked={!!filters.includeDeleted}
