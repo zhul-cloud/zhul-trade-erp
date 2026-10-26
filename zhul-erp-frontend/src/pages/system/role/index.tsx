@@ -649,7 +649,7 @@ const RolePage: React.FC = () => {
               }
             : { permissionScope: 3, workbenchTemplate: 'general', status: true }
         }
-        drawerProps={{ destroyOnClose: true }}
+        drawerProps={{ destroyOnHidden: true }}
       >
         <ProFormText
           name="name"
@@ -682,7 +682,7 @@ const RolePage: React.FC = () => {
           style={{ marginBottom: 0 }}
         >
           <Radio.Group style={{ width: '100%' }}>
-            <Space direction="vertical" style={{ width: '100%' }}>
+            <Space orientation="vertical" style={{ width: '100%' }}>
               {SCOPE_OPTIONS.map((opt) => (
                 <Radio key={opt.value} value={opt.value}>
                   <div style={{ fontWeight: 500 }}>{opt.title}</div>
@@ -772,7 +772,7 @@ const RolePage: React.FC = () => {
             </Button>,
           ],
         }}
-        drawerProps={{ destroyOnClose: true }}
+        drawerProps={{ destroyOnHidden: true }}
       >
         <div style={{ marginBottom: 12 }}>
           <Space size={16}>

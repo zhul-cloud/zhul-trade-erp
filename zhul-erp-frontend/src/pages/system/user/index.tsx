@@ -520,7 +520,7 @@ const UserPage: React.FC = () => {
         open={createOpen}
         onOpenChange={setCreateOpen}
         onFinish={handleCreate}
-        modalProps={{ destroyOnClose: true }}
+        modalProps={{ destroyOnHidden: true }}
       >
         {renderFormItems(true)}
       </ModalForm>
@@ -545,7 +545,7 @@ const UserPage: React.FC = () => {
               }
             : {}
         }
-        modalProps={{ destroyOnClose: true }}
+        modalProps={{ destroyOnHidden: true }}
       >
         {renderFormItems(false)}
       </ModalForm>
@@ -559,7 +559,7 @@ const UserPage: React.FC = () => {
           setResetPwdOpen(false);
           pwdForm.resetFields();
         }}
-        destroyOnClose
+        destroyOnHidden
       >
         <Form form={pwdForm} layout="vertical">
           <Form.Item

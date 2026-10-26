@@ -472,7 +472,7 @@ const ConfigPage: React.FC = () => {
         params={{ keyword, activeGroup }}
         toolbar={{
           filter: (
-            <Space direction="vertical" style={{ width: '100%' }} size={16}>
+            <Space orientation="vertical" style={{ width: '100%' }} size={16}>
               <Space>
                 <Input
                   placeholder="请输入配置键或配置名称"
@@ -549,7 +549,7 @@ const ConfigPage: React.FC = () => {
               }
             : {}
         }
-        modalProps={{ destroyOnClose: true, maskClosable: false }}
+        modalProps={{ destroyOnHidden: true, maskClosable: false }}
       >
         {editingConfig && (
           <>
@@ -619,7 +619,7 @@ const ConfigPage: React.FC = () => {
           configGroup: 'custom',
           isEncrypted: false,
         }}
-        modalProps={{ destroyOnClose: true, maskClosable: false }}
+        modalProps={{ destroyOnHidden: true, maskClosable: false }}
       >
         <ProFormText
           name="configKey"

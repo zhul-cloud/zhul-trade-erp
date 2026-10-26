@@ -805,7 +805,7 @@ const MenuPage: React.FC = () => {
               }
             : {}
         }
-        drawerProps={{ destroyOnClose: true }}
+        drawerProps={{ destroyOnHidden: true }}
       >
         <ProForm.Group title={groupTitle(<AppstoreOutlined />, '节点信息')}>
           {isEdit || lockType ? (

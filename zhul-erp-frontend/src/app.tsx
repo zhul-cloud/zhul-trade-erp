@@ -55,8 +55,6 @@ const initialShellSettings = () =>
 const loginPath = '/login';
 const publicPaths = [
   loginPath,
-  '/user/register',
-  '/user/register-result',
   '/forget-password/step1',
   '/forget-password/step2',
   '/forget-password/step3',
