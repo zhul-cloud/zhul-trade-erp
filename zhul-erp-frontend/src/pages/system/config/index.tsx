@@ -33,6 +33,7 @@ import { useAppTheme } from '@/theme/AppTheme';
 import { APPEARANCE_IMAGE_KEYS } from '@/utils/appearance';
 import { formatDateTime } from '@/utils/format';
 import { usePagination } from '@/utils/pageSize';
+import { CONFIG_KEY_MESSAGE, CONFIG_KEY_PATTERN } from './configKey';
 import { GROUP_OPTIONS, groupLabel } from './groupLabel';
 import type { ConfigGroupCount, ConfigItem, ConfigType } from './service';
 import {
@@ -623,14 +624,11 @@ const ConfigPage: React.FC = () => {
         <ProFormText
           name="configKey"
           label="配置键"
-          placeholder="点分层级命名，如 custom.cust_grade_rule"
+          placeholder="点分多段命名，如 custom.order.auto-close"
           fieldProps={{ maxLength: 128 }}
           rules={[
             { required: true, message: '请输入配置键' },
-            {
-              pattern: /^[a-z][a-z0-9_.]{3,127}$/,
-              message: '点分层级命名，小写字母+数字+点+下划线，4~128字符',
-            },
+            { pattern: CONFIG_KEY_PATTERN, message: CONFIG_KEY_MESSAGE },
             {
               validator: (_, value) =>
                 value && String(value).startsWith('sys.')
