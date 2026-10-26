@@ -123,10 +123,9 @@ const LoginPage: React.FC = () => {
         <Alert
           type="info"
           showIcon
-          closable
+          closable={{ onClose: () => setExpiredTip(false) }}
           title="登录状态已过期，请重新登录"
           style={{ marginBottom: 16 }}
-          onClose={() => setExpiredTip(false)}
         />
       )}
       {error && (

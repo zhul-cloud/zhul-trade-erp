@@ -526,7 +526,7 @@ const DictPage: React.FC = () => {
             : { status: 1 }
         }
         onFinish={handleTypeFinish}
-        modalProps={{ destroyOnClose: true, maskClosable: false }}
+        modalProps={{ destroyOnHidden: true, maskClosable: false }}
       >
         {typeDrawerMode === 'edit' ? (
           <div style={{ marginBottom: 24 }}>
@@ -601,7 +601,7 @@ const DictPage: React.FC = () => {
             : { sortOrder: 0, status: 1, isDefault: false }
         }
         onFinish={handleItemFinish}
-        modalProps={{ destroyOnClose: true, maskClosable: false }}
+        modalProps={{ destroyOnHidden: true, maskClosable: false }}
       >
         <div style={{ marginBottom: 24 }}>
           <div style={{ fontSize: 13, marginBottom: 8 }}>所属字典类型</div>

@@ -649,7 +649,7 @@ const RolePage: React.FC = () => {
               }
             : { permissionScope: 3, workbenchTemplate: 'general', status: true }
         }
-        drawerProps={{ destroyOnClose: true }}
+        drawerProps={{ destroyOnHidden: true }}
       >
         <ProFormText
           name="name"
@@ -772,7 +772,7 @@ const RolePage: React.FC = () => {
             </Button>,
           ],
         }}
-        drawerProps={{ destroyOnClose: true }}
+        drawerProps={{ destroyOnHidden: true }}
       >
         <div style={{ marginBottom: 12 }}>
           <Space size={16}>

@@ -252,7 +252,7 @@ const PositionPage: React.FC = () => {
         layout="vertical"
         initialValues={editRecord ?? { sort: 0, status: 1 }}
         onFinish={handleFinish}
-        modalProps={{ destroyOnClose: true, maskClosable: false }}
+        modalProps={{ destroyOnHidden: true, maskClosable: false }}
       >
         {editRecord ? (
           <div style={{ marginBottom: 24 }}>
