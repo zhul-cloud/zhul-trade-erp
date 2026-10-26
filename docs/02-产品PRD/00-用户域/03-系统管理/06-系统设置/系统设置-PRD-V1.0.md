@@ -38,7 +38,7 @@
 | 配置类型 | config_type | VARCHAR(32) | 是 | 值类型标注：STRING / INTEGER / BOOLEAN / JSON / URL；用于前端渲染合适的编辑组件 |
 | 是否内置 | is_builtin | TINYINT | 是 | 0=自定义，1=系统内置；内置配置不可删除键 |
 | 是否加密 | is_encrypted | TINYINT | 是 | 0=明文，1=加密存储（如密钥类配置）；加密配置值展示脱敏 |
-| 配置分组 | config_group | VARCHAR(64) | 是 | 分组标签，如 基础设置 / 安全策略 / 邮件设置 / 外观设置 |
+| 配置分组 | config_group | VARCHAR(64) | 是 | 分组代码，如 basic / security / mail / appearance（页面显示 基础 / 安全 / 邮件 / 外观） |
 | 备注 | remark | VARCHAR(256) | 否 | 配置项说明，展示在编辑弹窗内 |
 | 创建人ID | created_by | BIGINT | 是 | 操作人用户ID |
 | 创建时间 | created_at | DATETIME | 是 | UTC 时间 |
@@ -74,9 +74,9 @@
 | sys.email.sender | 发件人邮箱 | STRING | — | 系统邮件发件人 |
 | sys.watermark.enabled | 是否开启页面水印 | BOOLEAN | false | 开启后页面显示登录用户水印 |
 
-> 外观设置（`sys.site.*`、`sys.login.*`，分组代码 `appearance`，页面显示「外观设置」）为**平台统一**配置：只存 `tenant_id=0` 一份，由迁移 `V1.3.14` 写入；只有平台账号可以查看和修改，租户的系统参数页不显示这些项，接口也拒绝租户修改（提示「外观设置由平台统一管理」）。Logo 与登录页背景可以清空，清空后恢复默认样式。规范见 `openspec/specs/system/site-appearance`。
+> 外观（`sys.site.*`、`sys.login.*`，分组代码 `appearance`，页面显示「外观」）为**平台统一**配置：只存 `tenant_id=0` 一份，由迁移 `V1.3.14` 写入；只有平台账号可以查看和修改，租户的系统参数页不显示这些项，接口也拒绝租户修改（提示「外观由平台统一管理」）。Logo 与登录页背景可以清空，清空后恢复默认样式。规范见 `openspec/specs/system/site-appearance`。
 
-> 配置分组规范：分组一律存小写英文代码，页面统一显示为 4 个字的中文名。内置配置的分组 = 配置键第一段的模块代码（`inquiry` 询价设置、`quotation` 报价设置、`document` 单据设置、`sales` 销售设置、`purchase` 采购设置、`product` 商品设置、`finance` 财务设置），`sys.` 开头的系统保留键按用途归组（`appearance` 外观设置）；自定义配置只能选 `basic` 基础设置、`security` 安全策略、`mail` 邮件设置、`custom` 自定义项，服务端校验。新增模块的内置配置时，同步在前端 `pages/system/config/groupLabel.ts` 补中文名。（`V1__init.sql` 中 `config_group` 字段注释仍写中文示例，以本规范为准。）
+> 配置分组规范：分组一律存小写英文代码，页面统一显示为 2 个字的中文名（不带「设置」后缀）。内置配置的分组 = 配置键第一段的模块代码（`inquiry` 询价、`quotation` 报价、`document` 单据、`sales` 销售、`purchase` 采购、`product` 商品、`finance` 财务），`sys.` 开头的系统保留键按用途归组（`appearance` 外观）；自定义配置只能选 `basic` 基础、`security` 安全、`mail` 邮件、`custom` 其他，服务端校验。新增模块的内置配置时，同步在前端 `pages/system/config/groupLabel.ts` 补中文名。（`V1__init.sql` 中 `config_group` 字段注释仍写中文示例，以本规范为准。）
 
 ---
 
@@ -140,7 +140,7 @@
 | 搜索区                                                       |
 |  配置键/名称: [__________________]  [搜索] [重置]             |
 | 分组 Tab:                                                    |
-| [全部] [基础设置] [安全策略] [外观设置] [邮件设置] [自定义]    |
+| [全部] [基础] [安全] [邮件] [外观] [其他]                  |
 +-------------------------------------------------------------+
 | 工具栏                                                       |
 |  [+ 新增自定义配置]                                           |
@@ -210,7 +210,7 @@
 | 配置名称 | Input | 是 | 1~128字符 |
 | 配置类型 | Select | 是 | STRING / INTEGER / BOOLEAN / JSON / URL |
 | 配置值 | 动态渲染（同编辑弹窗规则） | 是 | 与类型对应的格式校验 |
-| 配置分组 | Select | 是 | 选项：基础设置（basic）/ 安全策略（security）/ 邮件设置（mail）/ 自定义项（custom，默认）；存英文代码 |
+| 配置分组 | Select | 是 | 选项：基础（basic）/ 安全（security）/ 邮件（mail）/ 其他（custom，默认）；存英文代码 |
 | 是否加密 | Switch | 是 | 默认关；开启后值加密存储、界面脱敏显示 |
 | 备注 | TextArea | 否 | 最多256字符 |
 
@@ -270,7 +270,7 @@
 
 ## 7. 默认假设
 
-1. 系统内置配置（`is_builtin=1`）由部署时的初始化脚本写入，`tenant_id=0` 为全局模板；各租户首次访问时按需从全局模板继承，形成租户独立的配置副本（`tenant_id=租户ID`），不同租户的配置修改互不影响。外观设置除外：平台统一，不形成租户副本，租户不可修改。
+1. 系统内置配置（`is_builtin=1`）由部署时的初始化脚本写入，`tenant_id=0` 为全局模板；各租户首次访问时按需从全局模板继承，形成租户独立的配置副本（`tenant_id=租户ID`），不同租户的配置修改互不影响。外观除外：平台统一，不形成租户副本，租户不可修改。
 2. 配置键使用 `sys.` 前缀的为系统保留命名空间，自定义配置不可使用此前缀。
 3. 配置值统一以 VARCHAR/TEXT 字符串存储；业务代码按 `config_type` 做类型转换。
 4. 加密配置值（`is_encrypted=1`）在数据库中存密文，后端通过 AES 加密；前端展示时一律脱敏为 ****，编辑时重新输入覆盖。

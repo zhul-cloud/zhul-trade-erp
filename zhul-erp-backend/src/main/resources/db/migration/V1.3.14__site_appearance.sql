@@ -1,6 +1,6 @@
--- 外观设置（openspec site-appearance）：写入平台统一的内置外观配置（tenant_id=0，租户不可见、不可改）。
--- 系统设置 PRD 早已约定这些键，但此前从未写入，外观设置无法修改。默认值等于此前页面写死的内容，升级后外观不变。
--- 分组存代码 appearance（与其他内置配置一致用英文代码），系统参数页显示为「外观设置」。
+-- 外观（openspec site-appearance）：写入平台统一的内置外观配置（tenant_id=0，租户不可见、不可改）。
+-- 系统设置 PRD 早已约定这些键，但此前从未写入，外观无法修改。默认值等于此前页面写死的内容，升级后外观不变。
+-- 分组存代码 appearance（与其他内置配置一致用英文代码），系统参数页显示为「外观」。
 -- 只补缺失的键，已存在的值保持不变，可重复执行。
 
 INSERT INTO `sys_config` (`tenant_id`, `config_key`, `config_name`, `config_value`, `config_type`, `is_builtin`, `config_group`, `remark`, `create_by`, `update_by`)

@@ -24,7 +24,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * 外观设置（openspec site-appearance）：内置配置由迁移 V1.3.14 写入，平台统一，租户不可见、不可改。
+ * 外观（openspec site-appearance）：内置配置由迁移 V1.3.14 写入，平台统一，租户不可见、不可改。
  * 测试库共享，用例开始前记下 5 项外观配置的原值，结束后还原。
  */
 class ConfigAppearanceIntegrationTest extends IntegrationTestBase {
@@ -116,7 +116,7 @@ class ConfigAppearanceIntegrationTest extends IntegrationTestBase {
         TenantContext.setTenantId(TENANT);
         BizException e = assertThrows(BizException.class,
                 () -> configService.updateValue(idOf("sys.site.name"), "某租户ERP"));
-        assertEquals("外观设置由平台统一管理", e.getMessage());
+        assertEquals("外观由平台统一管理", e.getMessage());
         assertEquals(original.get("sys.site.name"), valueOf("sys.site.name"), "平台的系统名称不应被改");
         assertEquals(0, jdbc.queryForObject(
                 "select count(*) from sys_config where tenant_id = ? and config_key = 'sys.site.name'", Integer.class, TENANT));
@@ -124,7 +124,7 @@ class ConfigAppearanceIntegrationTest extends IntegrationTestBase {
 
     @Test
     void createCustomConfig_onlyAcceptsCustomGroupCodes() {
-        for (String bad : List.of("appearance", "外观设置", "自定义", "inquiry")) {
+        for (String bad : List.of("appearance", "外观", "自定义", "inquiry")) {
             SaveConfigRequest req = new SaveConfigRequest();
             req.setConfigKey("it.appearance.group-check");
             req.setConfigName("分组校验");

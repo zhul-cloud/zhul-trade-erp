@@ -39,7 +39,7 @@ public class ConfigServiceImpl implements ConfigService {
     private static final String MASK = "****";
     private static final long MAX_IMAGE_SIZE = 5L * 1024 * 1024;
     /**
-     * 外观设置：平台统一（tenant_id=0），登录页在鉴权前读取，不按租户区分。
+     * 外观：平台统一（tenant_id=0），登录页在鉴权前读取，不按租户区分。
      * 租户看不到这些键，也不能修改（否则会改掉所有租户的外观）。
      */
     private static final List<String> APPEARANCE_KEYS = List.of(
@@ -115,7 +115,7 @@ public class ConfigServiceImpl implements ConfigService {
         all.stream().filter(c -> c.getTenantId() == 0).forEach(c -> merged.put(c.getConfigKey(), c));
         all.stream().filter(c -> c.getTenantId() != 0).forEach(c -> merged.put(c.getConfigKey(), c));
         if (tenantId != 0) {
-            // 外观设置由平台统一管理，租户的列表与分组计数里不出现
+            // 外观由平台统一管理，租户的列表与分组计数里不出现
             GLOBAL_APPEARANCE_KEYS.forEach(merged::remove);
         }
         return new ArrayList<>(merged.values());
@@ -133,7 +133,7 @@ public class ConfigServiceImpl implements ConfigService {
             throw new BizException("sys. 为系统保留前缀，自定义配置请使用其他前缀");
         }
         if (!CUSTOM_GROUPS.contains(req.getConfigGroup())) {
-            throw new BizException("配置分组不合法，只能选择基础设置、安全策略、邮件设置或自定义项");
+            throw new BizException("配置分组不合法，只能选择基础、安全、邮件或其他");
         }
         int tenantId = effectiveTenantId();
         long dup = sysConfigMapper.selectCount(new LambdaQueryWrapper<SysConfigDO>()
@@ -169,7 +169,7 @@ public class ConfigServiceImpl implements ConfigService {
         int tenantId = effectiveTenantId();
         boolean appearance = GLOBAL_APPEARANCE_KEYS.contains(config.getConfigKey());
         if (appearance && tenantId != 0) {
-            throw new BizException(ResultCode.FORBIDDEN, "外观设置由平台统一管理");
+            throw new BizException(ResultCode.FORBIDDEN, "外观由平台统一管理");
         }
 
         if (config.getIsEncrypted() == 1 && !StringUtils.hasText(value)) {

@@ -35,7 +35,7 @@ export const DefaultLogo: React.FC<{ siteName?: string; size: number }> = ({
   </span>
 );
 
-/** 当前外观设置（getInitialState 加载，登录前页面同样可用） */
+/** 当前外观（getInitialState 加载，登录前页面同样可用） */
 export const useAppearance = () =>
   useModel('@@initialState').initialState?.appearance ?? DEFAULT_APPEARANCE;
 
@@ -74,7 +74,7 @@ const drawDefaultIcon = (siteName?: string): string | undefined => {
 };
 
 /**
- * 按外观设置更新浏览器标签图标：有 Logo 用 Logo，没有就用默认 Logo 现画一个。
+ * 按外观更新浏览器标签图标：有 Logo 用 Logo，没有就用默认 Logo 现画一个。
  * index.html 里的静态 favicon（「烛」）只是脚本运行前的兜底。
  */
 export const SiteFavicon: React.FC<{ siteName?: string; logoUrl?: string }> = ({

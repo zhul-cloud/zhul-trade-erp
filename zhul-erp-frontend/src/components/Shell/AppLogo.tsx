@@ -3,7 +3,7 @@ import React from 'react';
 import { useAppTheme } from '@/theme/AppTheme';
 import { DefaultLogo } from './BrandLogo';
 
-/** 侧栏顶部：外观设置里的 Logo（未上传时为默认 Logo）+ 系统名称；侧栏收起时只留 Logo */
+/** 侧栏顶部：外观里的 Logo（未上传时为默认 Logo）+ 系统名称；侧栏收起时只留 Logo */
 export const AppLogo: React.FC<{ collapsed?: boolean }> = ({ collapsed }) => {
   const { palette } = useAppTheme();
   const { initialState } = useModel('@@initialState');

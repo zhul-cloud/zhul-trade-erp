@@ -3,7 +3,7 @@ import { type Appearance, DEFAULT_APPEARANCE } from '@/utils/appearance';
 
 export type AppearanceInfo = Appearance;
 
-/** 外观设置（平台统一，免登录可读）；接口失败或字段为空时用默认值 */
+/** 外观（平台统一，免登录可读）；接口失败或字段为空时用默认值 */
 export const getAppearance = (): Promise<AppearanceInfo> =>
   request('/api/v1/public/appearance', {
     method: 'GET',

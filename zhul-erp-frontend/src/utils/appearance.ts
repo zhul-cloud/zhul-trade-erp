@@ -1,5 +1,5 @@
 /**
- * 外观设置（系统参数 → 外观设置，平台统一）：系统名称、副标题、Logo、登录页背景与底部文字。
+ * 外观（系统参数 → 外观，平台统一）：系统名称、副标题、Logo、登录页背景与底部文字。
  * 默认值与后端迁移 V1.3.14 写入的一致，接口失败时使用。
  */
 export interface Appearance {
@@ -16,7 +16,7 @@ export const DEFAULT_APPEARANCE: Appearance = {
   loginFooter: '© 2026 烛龙科技',
 };
 
-/** 外观设置里的图片项：允许清空，清空后恢复默认 Logo / 默认登录页背景 */
+/** 外观里的图片项：允许清空，清空后恢复默认 Logo / 默认登录页背景 */
 export const APPEARANCE_IMAGE_KEYS = ['sys.site.logo', 'sys.login.background'];
 
 /** 默认 Logo 方块里的字：系统名称的第一个字（按字符取，不会把生僻字或表情拆成半个），名称为空时用「烛」 */
