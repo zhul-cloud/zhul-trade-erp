@@ -115,6 +115,8 @@ export default defineConfig({
    * @doc https://umijs.org/docs/max/layout-menu
    */
   title: '烛龙ERP',
+  // 浏览器标签页图标，与侧栏 AppLogo 一致；改图标时把 v 改一下，避免浏览器沿用缓存
+  favicons: ['/favicon.ico?v=2'],
   layout: {
     locale: true,
     ...defaultSettings,
@@ -173,14 +175,6 @@ export default defineConfig({
    * @doc https://umijs.org/docs/max/access
    */
   access: {},
-  /**
-   * @name Google Analytics
-   * @description 使用 GA4 (gtag.js) 进行站点分析
-   * @doc https://umijs.org/docs/max/analytics
-   */
-  analytics: {
-    ga_v2: 'G-59NF1VHHPF',
-  },
   /**
    * @name <head> 中额外的 script
    * @description 配置 <head> 中额外的 script

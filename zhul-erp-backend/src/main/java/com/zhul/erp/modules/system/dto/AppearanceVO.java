@@ -5,6 +5,7 @@ import lombok.Data;
 @Data
 public class AppearanceVO {
     private String siteName;
+    private String siteSubtitle;
     private String logoUrl;
     private String loginBackgroundUrl;
     private String loginFooter;

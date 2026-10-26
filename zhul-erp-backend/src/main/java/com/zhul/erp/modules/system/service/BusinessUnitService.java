@@ -383,7 +383,7 @@ public class BusinessUnitService {
         row.setConfigKey(CONFIG_MIN_SHARE);
         row.setConfigName("事业部最低分摊比例（%）");
         row.setConfigValue(String.valueOf(percent));
-        row.setConfigType("NUMBER");
+        row.setConfigType("INTEGER");
         row.setIsBuiltin(1);
         row.setIsEncrypted(0);
         row.setConfigGroup("finance");

@@ -3,6 +3,7 @@ import { Helmet, history, useModel } from '@umijs/max';
 import { Alert, App, Button, Checkbox, Form, Input } from 'antd';
 import React, { useEffect, useRef, useState } from 'react';
 import { AuthLayout } from '@/components';
+import { usePageTitle } from '@/components/Shell/BrandLogo';
 import { login } from '@/services/zhul/auth';
 import { useAppTheme } from '@/theme/AppTheme';
 import { isAuthPath, setToken } from '@/utils/tokenStore';
@@ -104,7 +105,7 @@ const LoginPage: React.FC = () => {
   return (
     <AuthLayout>
       <Helmet>
-        <title>登录 - 烛龙ERP</title>
+        <title>{usePageTitle('登录')}</title>
       </Helmet>
       <div
         style={{
@@ -122,10 +123,9 @@ const LoginPage: React.FC = () => {
         <Alert
           type="info"
           showIcon
-          closable
+          closable={{ onClose: () => setExpiredTip(false) }}
           title="登录状态已过期，请重新登录"
           style={{ marginBottom: 16 }}
-          onClose={() => setExpiredTip(false)}
         />
       )}
       {error && (

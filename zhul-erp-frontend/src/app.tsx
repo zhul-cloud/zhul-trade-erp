@@ -16,11 +16,14 @@ import {
   OfflineBanner,
 } from '@/components';
 import { AppLogo, SidebarUser, ThemeToggle, TopBar } from '@/components/Shell';
+import { SiteFavicon } from '@/components/Shell/BrandLogo';
 import { getMenuTree, type MenuItem } from '@/pages/system/menu/service';
+import { type AppearanceInfo, getAppearance } from '@/services/zhul/public';
 import { AppThemeSync, useAppTheme } from '@/theme/AppTheme';
 import { buildShellSettings } from '@/theme/shell';
 import { getThemeMode } from '@/theme/store';
 import { firstMenuPath, toProLayoutMenu } from '@/utils/menuOrder';
+import { normalizePath } from '@/utils/tokenStore';
 import defaultSettings from '../config/defaultSettings';
 import { errorConfig } from './requestErrorConfig';
 
@@ -52,8 +55,6 @@ const initialShellSettings = () =>
 const loginPath = '/login';
 const publicPaths = [
   loginPath,
-  '/user/register',
-  '/user/register-result',
   '/forget-password/step1',
   '/forget-password/step2',
   '/forget-password/step3',
@@ -78,6 +79,8 @@ export async function getInitialState(): Promise<{
   // 侧边栏的顺序/名称/图标/层级全部来自「菜单管理」的原始树，而不是 routes.ts 里
   // 写死的书写顺序/英文 name——由 layout 里的 menu.request 直接转成 ProLayout 菜单数据
   menuTree?: MenuItem[];
+  /** 外观（系统名称、Logo 等，平台统一），侧栏与浏览器标签使用 */
+  appearance?: AppearanceInfo;
 }> {
   const fetchUserInfo = async () => {
     try {
@@ -111,9 +114,11 @@ export async function getInitialState(): Promise<{
       return undefined;
     }
   };
+  // 外观与用户信息并行加载；接口失败时 getAppearance 返回默认值，不影响进入系统
+  const appearancePromise = getAppearance();
   // 如果不是登录页面，执行
   const { location } = history;
-  if (!publicPaths.includes(location.pathname)) {
+  if (!publicPaths.includes(normalizePath(location.pathname))) {
     const currentUser = await fetchUserInfo();
     const menuTree = currentUser
       ? await getMenuTree().catch(() => [])
@@ -122,12 +127,14 @@ export async function getInitialState(): Promise<{
       fetchUserInfo,
       currentUser,
       menuTree,
+      appearance: await appearancePromise,
       settings: initialShellSettings(),
       settingDrawerOpen: false,
     };
   }
   return {
     fetchUserInfo,
+    appearance: await appearancePromise,
     settings: initialShellSettings(),
     settingDrawerOpen: false,
   };
@@ -180,7 +187,10 @@ export const layout: RunTimeLayoutConfig = ({ initialState }) => {
     onPageChange: () => {
       const { location } = history;
       // 如果没有登录，重定向到 login
-      if (!initialState?.currentUser && location.pathname !== loginPath) {
+      if (
+        !initialState?.currentUser &&
+        normalizePath(location.pathname) !== loginPath
+      ) {
         history.replace(
           `${loginPath}?redirect=${encodeURIComponent(location.pathname + location.search + location.hash)}`,
         );
@@ -190,7 +200,7 @@ export const layout: RunTimeLayoutConfig = ({ initialState }) => {
       const allowed = new Set(initialState?.currentUser?.permissions ?? []);
       if (
         initialState?.currentUser &&
-        (location.pathname === '/' || location.pathname === '/dashboard') &&
+        ['/', '/dashboard'].includes(normalizePath(location.pathname)) &&
         !allowed.has('/dashboard')
       ) {
         const home = firstMenuPath(
@@ -210,6 +220,10 @@ export const layout: RunTimeLayoutConfig = ({ initialState }) => {
     childrenRender: (children) => (
       <>
         <ShellThemeSync />
+        <SiteFavicon
+          siteName={initialState?.appearance?.siteName}
+          logoUrl={initialState?.appearance?.logoUrl}
+        />
         <TopBar>
           <ThemeToggle />
           <DocLink />
@@ -219,6 +233,8 @@ export const layout: RunTimeLayoutConfig = ({ initialState }) => {
       </>
     ),
     ...initialState?.settings,
+    // 放在 settings 之后：浏览器标签标题「页面名称 - 系统名称」取外观，覆盖 defaultSettings 里写死的名称
+    title: initialState?.appearance?.siteName ?? initialState?.settings?.title,
   };
 };
 

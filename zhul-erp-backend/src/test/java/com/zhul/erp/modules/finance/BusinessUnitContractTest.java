@@ -60,7 +60,7 @@ class BusinessUnitContractTest extends SalesContractSupport {
         jdbc.update("update department set is_business_unit = 0, bu_start_month = null where tenant_id = 0");
         jdbc.update("delete from sys_config where tenant_id = 0 and config_key = 'finance.bu.min-share-percent'");
         jdbc.update("insert into sys_config (tenant_id, config_key, config_name, config_value, config_type, is_builtin, is_encrypted, "
-                + "config_group, remark) values (0, 'finance.bu.min-share-percent', '事业部最低分摊比例（%）', '20', 'NUMBER', 1, 0, "
+                + "config_group, remark) values (0, 'finance.bu.min-share-percent', '事业部最低分摊比例（%）', '20', 'INTEGER', 1, 0, "
                 + "'finance', '')");
         jdbc.update("delete from customer where tenant_id = 0");
     }

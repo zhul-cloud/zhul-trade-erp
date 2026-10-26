@@ -30,8 +30,11 @@ import {
 } from 'antd';
 import React, { useEffect, useRef, useState } from 'react';
 import { useAppTheme } from '@/theme/AppTheme';
+import { APPEARANCE_IMAGE_KEYS } from '@/utils/appearance';
 import { formatDateTime } from '@/utils/format';
 import { usePagination } from '@/utils/pageSize';
+import { CONFIG_KEY_MESSAGE, CONFIG_KEY_PATTERN } from './configKey';
+import { GROUP_OPTIONS, groupLabel } from './groupLabel';
 import type { ConfigGroupCount, ConfigItem, ConfigType } from './service';
 import {
   createConfig,
@@ -42,15 +45,10 @@ import {
   uploadConfigImage,
 } from './service';
 
-const GROUP_OPTIONS = [
-  '基础设置',
-  '安全策略',
-  '外观设置',
-  '邮件设置',
-  '自定义',
-];
-
-const ImageUrlField: React.FC<{ name: string }> = ({ name }) => {
+const ImageUrlField: React.FC<{ name: string; allowEmpty?: boolean }> = ({
+  name,
+  allowEmpty,
+}) => {
   const { palette: p } = useAppTheme();
   const { message } = App.useApp();
   const form = Form.useFormInstance();
@@ -81,9 +79,13 @@ const ImageUrlField: React.FC<{ name: string }> = ({ name }) => {
       <ProFormText
         name={name}
         label="配置值"
-        placeholder="以 http/https 开头或以 / 开头的相对路径，或点击右侧上传图片"
+        placeholder={
+          allowEmpty
+            ? '留空使用默认样式；或填写图片地址、点击右侧上传图片'
+            : '以 http/https 开头或以 / 开头的相对路径，或点击右侧上传图片'
+        }
         rules={[
-          { required: true, message: '请输入配置值' },
+          { required: !allowEmpty, message: '请输入配置值' },
           {
             pattern: /^(https?:\/\/|\/).*/,
             message: '请输入合法的 URL 地址',
@@ -385,6 +387,7 @@ const ConfigPage: React.FC = () => {
     name: string,
     isEncrypted?: boolean,
     isEdit?: boolean,
+    allowEmpty?: boolean,
   ) => {
     switch (type) {
       case 'INTEGER':
@@ -420,7 +423,7 @@ const ConfigPage: React.FC = () => {
           />
         );
       case 'URL':
-        return <ImageUrlField key={name} name={name} />;
+        return <ImageUrlField key={name} name={name} allowEmpty={allowEmpty} />;
       case 'STRING':
       default:
         if (isEncrypted) {
@@ -469,7 +472,7 @@ const ConfigPage: React.FC = () => {
         params={{ keyword, activeGroup }}
         toolbar={{
           filter: (
-            <Space direction="vertical" style={{ width: '100%' }} size={16}>
+            <Space orientation="vertical" style={{ width: '100%' }} size={16}>
               <Space>
                 <Input
                   placeholder="请输入配置键或配置名称"
@@ -502,7 +505,7 @@ const ConfigPage: React.FC = () => {
                   { key: 'ALL', label: `全部 (${totalCount})` },
                   ...groupCounts.map((g) => ({
                     key: g.group,
-                    label: `${g.group} (${g.count})`,
+                    label: `${groupLabel(g.group)} (${g.count})`,
                   })),
                 ]}
               />
@@ -546,7 +549,7 @@ const ConfigPage: React.FC = () => {
               }
             : {}
         }
-        modalProps={{ destroyOnClose: true, maskClosable: false }}
+        modalProps={{ destroyOnHidden: true, maskClosable: false }}
       >
         {editingConfig && (
           <>
@@ -578,6 +581,7 @@ const ConfigPage: React.FC = () => {
               'value',
               editingConfig.isEncrypted === 1,
               true,
+              APPEARANCE_IMAGE_KEYS.includes(editingConfig.configKey),
             )}
           </>
         )}
@@ -612,22 +616,19 @@ const ConfigPage: React.FC = () => {
         onFinish={handleCreateFinish}
         initialValues={{
           configType: 'STRING',
-          configGroup: '自定义',
+          configGroup: 'custom',
           isEncrypted: false,
         }}
-        modalProps={{ destroyOnClose: true, maskClosable: false }}
+        modalProps={{ destroyOnHidden: true, maskClosable: false }}
       >
         <ProFormText
           name="configKey"
           label="配置键"
-          placeholder="点分层级命名，如 custom.cust_grade_rule"
+          placeholder="点分多段命名，如 custom.order.auto-close"
           fieldProps={{ maxLength: 128 }}
           rules={[
             { required: true, message: '请输入配置键' },
-            {
-              pattern: /^[a-z][a-z0-9_.]{3,127}$/,
-              message: '点分层级命名，小写字母+数字+点+下划线，4~128字符',
-            },
+            { pattern: CONFIG_KEY_PATTERN, message: CONFIG_KEY_MESSAGE },
             {
               validator: (_, value) =>
                 value && String(value).startsWith('sys.')
@@ -677,7 +678,10 @@ const ConfigPage: React.FC = () => {
           name="configGroup"
           label="配置分组"
           rules={[{ required: true }]}
-          options={GROUP_OPTIONS.map((g) => ({ label: g, value: g }))}
+          options={GROUP_OPTIONS.map((g) => ({
+            label: groupLabel(g),
+            value: g,
+          }))}
         />
         <ProFormSwitch name="isEncrypted" label="是否加密" />
         <ProFormTextArea

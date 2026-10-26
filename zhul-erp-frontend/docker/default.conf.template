@@ -59,7 +59,8 @@ server {
         try_files $uri =404;
     }
 
+    # exportStatic 为每个路由生成 <路由>/index.html：直接返回它，不再用 $uri/ 让 nginx 301 补斜杠（/login → /login/）
     location / {
-        try_files $uri $uri/ /index.html;
+        try_files $uri $uri/index.html /index.html;
     }
 }
