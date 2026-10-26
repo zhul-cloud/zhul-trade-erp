@@ -3,6 +3,7 @@ import { Helmet, history } from '@umijs/max';
 import { Alert, Button, Form, Input, Progress } from 'antd';
 import React, { useEffect, useState } from 'react';
 import { AuthLayout } from '@/components';
+import { usePageTitle } from '@/components/Shell/BrandLogo';
 import { resetPassword } from '@/services/zhul/auth';
 import { useAppTheme } from '@/theme/AppTheme';
 import StepsBar from '../components/StepsBar';
@@ -93,7 +94,7 @@ const Step3: React.FC = () => {
   return (
     <AuthLayout>
       <Helmet>
-        <title>忘记密码 - 烛龙ERP</title>
+        <title>{usePageTitle('忘记密码')}</title>
       </Helmet>
       <div
         style={{
