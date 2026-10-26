@@ -213,7 +213,9 @@ public class ConfigServiceImpl implements ConfigService {
     }
 
     private void validateValueByType(String type, String value) {
-        if (type == null) return;
+        if (type == null) {
+            throw new BizException("配置类型不支持");
+        }
         switch (type) {
             case "INTEGER":
                 try {
@@ -240,11 +242,12 @@ public class ConfigServiceImpl implements ConfigService {
                 }
                 break;
             case "STRING":
-            default:
                 if (value != null && value.length() > 4096) {
                     throw new BizException("配置值最长4096字符");
                 }
                 break;
+            default:
+                throw new BizException("配置类型不支持");
         }
     }
 

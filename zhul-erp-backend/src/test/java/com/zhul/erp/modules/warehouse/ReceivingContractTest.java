@@ -738,7 +738,7 @@ class ReceivingContractTest extends SalesContractSupport {
             assertEquals("没填快递公司，按默认 5 天", e.path("basis").asText());
             assertEquals("2026-10-15", e.path("date").asText());
         } finally {
-            jdbc.update("update sys_config set config_value = '3' where tenant_id = 0 and config_key = 'transit.default-days'");
+            jdbc.update("update sys_config set config_value = '3' where tenant_id = 0 and config_key = 'purchase.transit.default-days'");
         }
     }
 

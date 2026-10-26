@@ -2,12 +2,15 @@ package com.zhul.erp.modules.system.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 @Data
 public class SaveConfigRequest {
     @NotBlank(message = "配置键不能为空")
-    @Pattern(regexp = "^[a-z][a-z0-9_.]{3,127}$", message = "配置键仅支持小写字母、数字、点和下划线，长度4~128位")
+    @Size(min = 4, max = 128, message = "配置键长度4~128位")
+    @Pattern(regexp = "^[a-z][a-z0-9]*(-[a-z0-9]+)*(\\.[a-z][a-z0-9]*(-[a-z0-9]+)*)+$",
+            message = "配置键由小写字母、数字和短横线组成的多段名称，段之间用点分隔，如 custom.order.auto-close")
     private String configKey;
     @NotBlank(message = "配置名称不能为空")
     private String configName;
