@@ -10,11 +10,11 @@ describe('groupLabel', () => {
       'purchase',
       'product',
       'finance',
-      'appearance',
+      'sys',
     ]) {
       expect(Array.from(groupLabel(code))).toHaveLength(2);
     }
-    expect(groupLabel('appearance')).toBe('外观');
+    expect(groupLabel('sys')).toBe('系统');
     expect(groupLabel('inquiry')).toBe('询价');
   });
 
@@ -31,7 +31,7 @@ describe('groupLabel', () => {
     expect(groupLabel('warehouse')).toBe('warehouse');
   });
 
-  it('新增自定义配置不能选外观', () => {
-    expect(GROUP_OPTIONS).not.toContain('appearance');
+  it('新增自定义配置不能选系统分组', () => {
+    expect(GROUP_OPTIONS).not.toContain('sys');
   });
 });

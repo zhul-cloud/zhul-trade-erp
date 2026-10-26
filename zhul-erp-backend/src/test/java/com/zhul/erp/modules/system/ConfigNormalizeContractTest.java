@@ -117,9 +117,7 @@ class ConfigNormalizeContractTest extends TenantContractSupport {
             String key = (String) row.get("config_key");
             assertTrue(key.matches(KEY_RULE) && key.length() >= 4 && key.length() <= 128, "键不符合命名规则：" + key);
             assertTrue(TYPES.contains((String) row.get("config_type")), "类型不支持：" + row);
-            if (!key.startsWith("sys.")) {
-                assertEquals(row.get("config_group"), key.substring(0, key.indexOf('.')), "第一段应为分组代码：" + key);
-            }
+            assertEquals(row.get("config_group"), key.substring(0, key.indexOf('.')), "第一段应为分组代码：" + key);
         }
     }
 }

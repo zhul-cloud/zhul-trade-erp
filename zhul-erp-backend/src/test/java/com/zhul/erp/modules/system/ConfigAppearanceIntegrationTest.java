@@ -69,7 +69,7 @@ class ConfigAppearanceIntegrationTest extends IntegrationTestBase {
         assertEquals(5, rows.size());
         for (Map<String, Object> row : rows) {
             assertEquals(1, ((Number) row.get("is_builtin")).intValue(), row.toString());
-            assertEquals("appearance", row.get("config_group"), row.toString());
+            assertEquals("sys", row.get("config_group"), row.toString());
         }
     }
 
@@ -100,14 +100,14 @@ class ConfigAppearanceIntegrationTest extends IntegrationTestBase {
         TenantContext.setTenantId(TENANT);
         List<ConfigVO> list = configService.listAll(1, 1000, null, null).getRecords();
         assertTrue(list.stream().noneMatch(c -> KEYS.contains(c.getConfigKey())), "租户列表不应包含外观配置");
-        assertTrue(configService.listAll(1, 1000, null, "appearance").getRecords().isEmpty());
+        assertTrue(configService.listAll(1, 1000, null, "sys").getRecords().isEmpty());
         List<ConfigGroupCountVO> counts = configService.groupCounts();
-        assertTrue(counts.stream().noneMatch(g -> "appearance".equals(g.getGroup())), counts.toString());
+        assertTrue(counts.stream().noneMatch(g -> "sys".equals(g.getGroup())), counts.toString());
     }
 
     @Test
     void platform_seesAppearanceConfigs() {
-        List<ConfigVO> list = configService.listAll(1, 1000, null, "appearance").getRecords();
+        List<ConfigVO> list = configService.listAll(1, 1000, null, "sys").getRecords();
         assertTrue(list.stream().map(ConfigVO::getConfigKey).toList().containsAll(KEYS), list.toString());
     }
 
@@ -124,7 +124,7 @@ class ConfigAppearanceIntegrationTest extends IntegrationTestBase {
 
     @Test
     void createCustomConfig_onlyAcceptsCustomGroupCodes() {
-        for (String bad : List.of("appearance", "外观", "自定义", "inquiry")) {
+        for (String bad : List.of("sys", "appearance", "自定义", "inquiry")) {
             SaveConfigRequest req = new SaveConfigRequest();
             req.setConfigKey("it.appearance.group-check");
             req.setConfigName("分组校验");
