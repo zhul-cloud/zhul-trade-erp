@@ -1,11 +1,18 @@
 # syntax=docker/dockerfile:1
 # 构建上下文为 scripts/，同一镜像包含真实编排服务与 stub，由 AI_ORCHESTRATOR_MODE 选择。
+FROM node:22-bookworm-slim AS claude-cli
+RUN npm install --global @anthropic-ai/claude-code@2.1.311
+
 FROM python:3.12-slim
+COPY --from=claude-cli /usr/local/lib/node_modules/@anthropic-ai/claude-code/bin/claude.exe /usr/local/bin/claude
 WORKDIR /app
 COPY ai-orchestrator/requirements.txt ./requirements.txt
 RUN --mount=type=cache,target=/root/.cache/pip pip install -r requirements.txt \
+    && python -c "from codex_cli_bin import bundled_codex_path; import os; os.symlink(str(bundled_codex_path()), '/usr/local/bin/codex')" \
     && groupadd --gid 10001 zhul \
-    && useradd --uid 10001 --gid 10001 --no-create-home zhul
+    && useradd --uid 10001 --gid 10001 --home-dir /home/zhul --create-home zhul \
+    && mkdir -p /home/zhul/codex /home/zhul/claude \
+    && chown -R 10001:10001 /home/zhul
 COPY ai-orchestrator/ ./ai-orchestrator/
 COPY ai-orchestrator-stub/ ./ai-orchestrator-stub/
 COPY ai-orchestrator/docker-entrypoint.sh /usr/local/bin/zhul-ai-entrypoint
@@ -13,6 +20,11 @@ COPY ai-orchestrator/docker-entrypoint.sh /usr/local/bin/zhul-ai-entrypoint
 RUN sed -i 's/\r$//' /usr/local/bin/zhul-ai-entrypoint \
     && chmod 755 /usr/local/bin/zhul-ai-entrypoint
 ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    HOME=/home/zhul \
+    CODEX_HOME=/home/zhul/codex \
+    CLAUDE_CONFIG_DIR=/home/zhul/claude \
+    AI_ORCHESTRATOR_HOME=/home/zhul \
     AI_STUB_PORT=8899
 # 与后端同一 UID，才能读取共享的私有上传目录中的附件
 USER 10001:10001

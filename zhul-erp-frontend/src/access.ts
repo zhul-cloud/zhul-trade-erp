@@ -1,7 +1,8 @@
+import type { CurrentUser } from '@/services/zhul/auth';
 import { isPlatformAccount } from '@/utils/platform';
 
 export default function access(initialState: {
-  currentUser?: API.CurrentUser & { permissions?: string[] };
+  currentUser?: CurrentUser & { permissions?: string[] };
 }) {
   const { currentUser } = initialState || {};
   const isAdmin = currentUser?.access === 'admin';

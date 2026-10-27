@@ -49,7 +49,4 @@ build
 # superpowers docs
 docs/superpowers
 
-# cloudflare wrangler
-.wrangler
-requestRecord.mock.js
 .gstack/

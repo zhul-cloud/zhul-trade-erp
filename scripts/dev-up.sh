@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # 一键启动本机开发所需的全部服务：MySQL、Redis、后端(8080)、前端(8000)、AI 编排服务(8899)。
-# 用法：scripts/dev-up.sh [--ai stub|real|none]
+# 用法：scripts/dev-up.sh [--ai stub|real|subscription|none]
 #   --ai real  （默认）真实的 AI 编排服务，调用 AI 服务商的 API（需要 AI_ORCHESTRATOR_API_KEY 和 pip install -r scripts/ai-orchestrator/requirements.txt），产生真实费用
 #   --ai stub  免费的假数据占位服务：不管询盘写什么都返回固定的西门子、施耐德型号，只用于页面联调
+#   --ai subscription  部署者个人订阅，先在专用 HOME 使用官方 CLI 登录（见 AI 编排部署文档）
 #   --ai none  不启动 AI 编排服务
 # 已经在运行的服务（端口已被占用）会跳过。日志和 PID 在 .dev-run/，停止用 scripts/dev-down.sh。
 set -uo pipefail
@@ -13,10 +14,10 @@ AI=real
 while [ $# -gt 0 ]; do
   case "$1" in
     --ai) AI="${2:-real}"; shift 2 ;;
-    *) echo "未知参数：$1（用法：scripts/dev-up.sh [--ai stub|real|none]）" >&2; exit 2 ;;
+    *) echo "未知参数：$1（用法：scripts/dev-up.sh [--ai stub|real|subscription|none]）" >&2; exit 2 ;;
   esac
 done
-case "$AI" in stub|real|none) ;; *) echo "--ai 只能是 stub、real 或 none" >&2; exit 2 ;; esac
+case "$AI" in stub|real|subscription|none) ;; *) echo "--ai 只能是 stub、real、subscription 或 none" >&2; exit 2 ;; esac
 mkdir -p "$RUN"
 
 listening() { lsof -iTCP:"$1" -sTCP:LISTEN -P -n >/dev/null 2>&1; }
@@ -47,7 +48,12 @@ echo "== AI 编排服务（${AI}）"
 if [ "$AI" = none ]; then echo "  - 已跳过"
 elif listening 8899; then echo "  ✓ 8899 已被占用，视为已在运行"
 else
-  script="$ROOT/scripts/ai-orchestrator-stub/server.py"; [ "$AI" = real ] && script="$ROOT/scripts/ai-orchestrator/server.py"
+  script="$ROOT/scripts/ai-orchestrator-stub/server.py"
+  if [ "$AI" = real ] || [ "$AI" = subscription ]; then
+    script="$ROOT/scripts/ai-orchestrator/server.py"
+    export AI_ORCHESTRATOR_MODE=api
+    [ "$AI" = subscription ] && export AI_ORCHESTRATOR_MODE=subscription
+  fi
   [ "$AI" = real ] && echo "  ⚠ 真实模式：每次解析都会调用 AI 服务商的 API，产生费用，需要 AI_ORCHESTRATOR_API_KEY（免费联调用 --ai stub）"
   [ "$AI" = stub ] && echo "  ⚠ 占位模式：解析结果是固定假数据，与询盘内容无关"
   start_bg ai "$ROOT" python3 "$script"

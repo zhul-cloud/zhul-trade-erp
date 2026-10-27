@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
-真正调用 AI 的编排服务实现——通过 Claude（Anthropic API）或 OpenAI（Responses API）的官方 Python SDK
+真正调用 AI 的编排服务实现——支持 API 及部署者个人订阅（官方 Codex SDK / Claude Code CLI）。
+API 通过 Claude（Anthropic API）或 OpenAI（Responses API）的官方 Python SDK
 执行本目录 skills/ 下的 inquiry-parser + order-splitter 两个 skill，替代
 scripts/ai-orchestrator-stub 里那个返回固定假数据的占位脚本。服务商由 AI_ORCHESTRATOR_PROVIDER 选择。
 
@@ -13,8 +14,8 @@ scripts/ai-orchestrator-stub 里那个返回固定假数据的占位脚本。服
     header: X-AI-Callback-Token: <与 zhul-erp-backend 配置一致的共享密钥>
     body: {"status": "success"|"failed", "output": {...}|null, "error": null|string}
 
-依赖：Python 3.10+ 与 `anthropic`、`openai` SDK（见 requirements.txt）；鉴权用环境变量
-AI_ORCHESTRATOR_API_KEY（填当前服务商的 Key），不需要安装 Claude Code CLI。
+API 鉴权用 AI_ORCHESTRATOR_API_KEY。个人订阅模式通过专用容器的官方 CLI 登录，
+依赖、模型默认值及登录说明见 README.md 与部署文档，不复制宿主机个人凭据。
 
 ## 真实调用会产生费用
 
@@ -51,6 +52,8 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 import anthropic
 import openai
 
+from subscription import call_subscription
+
 PORT = int(os.environ.get("AI_STUB_PORT", "8899"))
 CALLBACK_TOKEN = os.environ.get("AI_TASK_CALLBACK_TOKEN", "zhul-erp-ai-callback-secret")
 # 每个服务商的推荐模型：询盘解析要识图、联网核实型号，用能力强的；翻译简单，用便宜的
@@ -60,7 +63,9 @@ DEFAULT_MODELS = {
 }
 EFFORTS = ("low", "medium", "high", "xhigh", "max")
 PROVIDER = (os.environ.get("AI_ORCHESTRATOR_PROVIDER") or "claude").strip().lower()
+MODE = (os.environ.get("AI_ORCHESTRATOR_MODE") or "api").strip().lower()
 API_KEY = (os.environ.get("AI_ORCHESTRATOR_API_KEY") or "").strip()
+# api 与 subscription 使用相同的默认模型
 _defaults = DEFAULT_MODELS.get(PROVIDER, DEFAULT_MODELS["claude"])
 PARSE_MODEL = os.environ.get("AI_ORCHESTRATOR_PARSE_MODEL") or _defaults["parse"]
 TRANSLATE_MODEL = os.environ.get("AI_ORCHESTRATOR_TRANSLATE_MODEL") or _defaults["translate"]
@@ -234,6 +239,11 @@ def _openai_attachment_block(ref) -> dict:
 def call_api(system_prompt: str, text: str, attachments: list, schema: dict, *,
              model: str, effort: str, web_search: bool = False) -> dict:
     """按 AI_ORCHESTRATOR_PROVIDER 调用对应服务商，返回符合 schema 的 JSON"""
+    if MODE == "subscription":
+        wire_schema = _openai_schema(schema) if PROVIDER == "openai" else schema
+        result = call_subscription(PROVIDER, system_prompt, text, attachments, wire_schema, model=model, effort=effort,
+                                   web_search=web_search, max_web_searches=MAX_WEB_SEARCHES, timeout=TIMEOUT_SECONDS)
+        return _drop_nulls(result)
     if not API_KEY:
         raise RuntimeError("未配置 AI_ORCHESTRATOR_API_KEY，无法调用 AI")
     call = _call_openai if PROVIDER == "openai" else _call_claude
@@ -523,6 +533,10 @@ if __name__ == "__main__":
 
     # 配置写错时直接退出，容器反复重启，docker ps 和日志能马上看到原因
     errors = []
+    if MODE not in ("api", "subscription"):
+        errors.append(f"AI_ORCHESTRATOR_MODE={MODE} 不支持，真实服务可选 api、subscription；stub 请使用占位服务")
+    if MAX_WEB_SEARCHES < 1 or TIMEOUT_SECONDS < 1:
+        errors.append("AI_ORCHESTRATOR_MAX_WEB_SEARCHES 和 AI_ORCHESTRATOR_TIMEOUT_SECONDS 必须为正整数")
     if PROVIDER not in DEFAULT_MODELS:
         errors.append(f"AI_ORCHESTRATOR_PROVIDER={PROVIDER} 不支持，可选：{'、'.join(DEFAULT_MODELS)}")
     for name, value in (("AI_ORCHESTRATOR_PARSE_EFFORT", PARSE_EFFORT), ("AI_ORCHESTRATOR_TRANSLATE_EFFORT", TRANSLATE_EFFORT)):
@@ -534,9 +548,9 @@ if __name__ == "__main__":
         sys.exit(1)
 
     server = HTTPServer(("0.0.0.0", PORT), Handler)
-    print(f"[ai-orchestrator] listening on :{PORT}（服务商 {PROVIDER}，每次调用按用量计费）")
+    print(f"[ai-orchestrator] listening on :{PORT}（模式 {MODE}，服务商 {PROVIDER}）")
     print(f"[ai-orchestrator] 询盘解析 model={PARSE_MODEL} effort={PARSE_EFFORT}；"
           f"翻译 model={TRANSLATE_MODEL} effort={TRANSLATE_EFFORT}")
-    if not API_KEY:
+    if MODE == "api" and not API_KEY:
         print("[ai-orchestrator] 警告：未配置 AI_ORCHESTRATOR_API_KEY，AI 解析与翻译任务会直接回调失败")
     server.serve_forever()

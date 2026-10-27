@@ -1,7 +1,7 @@
 # finance/supplier-payment Specification
 
 ## Purpose
-TBD - created by archiving change add-accounts-payable. Update Purpose after archive.
+付款单登记对供应商、货代等收款方的实际付款并核销应付单，外币付款按原币核销并记录实付人民币，作废时撤回核销。
 
 ## Requirements
 

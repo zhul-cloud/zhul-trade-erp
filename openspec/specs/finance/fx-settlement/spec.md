@@ -1,7 +1,7 @@
 # finance/fx-settlement Specification
 
 ## Purpose
-TBD - created by archiving change purchase-invoice-and-fx-settlement. Update Purpose after archive.
+结汇单登记外币到账后的实际结汇：一次结汇按先进先出分摊到多笔外币到账，算出每笔到账的实际人民币，供订单收入与毛利使用；各事业部的结汇分别先进先出。
 
 ## Requirements
 

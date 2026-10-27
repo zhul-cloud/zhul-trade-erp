@@ -1,7 +1,7 @@
 # finance/other-income Specification
 
 ## Purpose
-TBD - created by archiving change add-operating-report. Update Purpose after archive.
+其他收入由财务登记平台返点、利息、政府补贴等不来自销售订单的人民币收入，按日期计入经营统计的「其他收入」，并可归属事业部。
 
 ## Requirements
 

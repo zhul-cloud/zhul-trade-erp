@@ -1,7 +1,7 @@
 # purchase/purchase-order Specification
 
 ## Purpose
-TBD - created by archiving change add-purchase-order. Update Purpose after archive.
+采购订单是公司向供应商或线上店铺下单的单据：由采购需求生成，记录行价格、其他费用、付款条件、合同与开票，确认下单后推进订单型号的已下单数量并生成应付，跟踪发货进度与砍价。
 
 ## Requirements
 

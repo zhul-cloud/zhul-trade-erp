@@ -1,7 +1,7 @@
 # finance/operating-report Specification
 
 ## Purpose
-TBD - created by archiving change add-operating-report. Update Purpose after archive.
+经营统计按月出公司经营结果（销售毛利 − 退款 + 其他收入 − 运营成本，以及净利率），替代手工拼的《公司经营报表》，并可按事业部查看。
 
 ## Requirements
 
