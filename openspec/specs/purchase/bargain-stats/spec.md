@@ -1,7 +1,7 @@
 # purchase/bargain-stats Specification
 
 ## Purpose
-TBD - created by archiving change add-order-actual-cost. Update Purpose after archive.
+砍价统计按采购员、供应商、品牌、品类或月份只读汇总已下单采购订单行的采购金额、目标金额与砍价金额（目标价与实际人民币单价之差），用于考核采购的谈判能力。
 
 ## Requirements
 

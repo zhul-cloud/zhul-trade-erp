@@ -1,7 +1,7 @@
 # finance/customer-refund Specification
 
 ## Purpose
-TBD - created by archiving change add-operating-report. Update Purpose after archive.
+退款单登记退给客户的钱并关联到销售订单，冲减该订单的收入，使经营统计和利润统计扣除退款；作废后恢复。
 
 ## Requirements
 

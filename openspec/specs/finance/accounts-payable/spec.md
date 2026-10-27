@@ -1,7 +1,7 @@
 # finance/accounts-payable Specification
 
 ## Purpose
-TBD - created by archiving change add-accounts-payable. Update Purpose after archive.
+应付单记录公司欠谁多少、什么时候该付：采购订单确认下单、运费账单确认、对公费用单保存时自动生成，按付款计划管理到期，并汇总每个收款方的欠款，替代财务在系统外靠聊天记录和表格对账。
 
 ## Requirements
 
