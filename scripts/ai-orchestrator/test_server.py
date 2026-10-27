@@ -264,10 +264,10 @@ class StartupTest(unittest.TestCase):
 
 
 class SubscriptionRoutingTest(unittest.TestCase):
-    def test_codex_uses_cli_default_and_strict_schema_without_api_key(self):
+    def test_codex_defaults_and_strict_schema_without_api_key(self):
         server = load_server(AI_ORCHESTRATOR_MODE="subscription", AI_ORCHESTRATOR_PROVIDER="openai",
                              AI_ORCHESTRATOR_API_KEY="")
-        self.assertEqual((server.PARSE_MODEL, server.TRANSLATE_MODEL), ("", ""))
+        self.assertEqual((server.PARSE_MODEL, server.TRANSLATE_MODEL), ("gpt-6.1-sol", "gpt-6-luna"))
         with mock.patch.object(server, "call_subscription", return_value={"items": [{"key": "1", "text": "PLC"}]}) as call:
             server.call_translate([{"key": "1", "text": "控制器"}])
         self.assertEqual(call.call_args.args[0], "openai")

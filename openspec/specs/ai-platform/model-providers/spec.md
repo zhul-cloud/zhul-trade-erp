@@ -52,7 +52,7 @@ AI 编排服务 SHALL 用 `AI_ORCHESTRATOR_PARSE_MODEL` 指定询盘解析的模
 
 #### Scenario: 订阅模型默认值
 - **WHEN** subscription 模式中模型变量留空
-- **THEN** Claude 使用 opus/haiku，Codex 不指定模型让账户选择默认，不沿用 API 模型默认值；启动日志列出服务商及所用模型或“账户默认”
+- **THEN** Claude 使用 CLI 别名 opus/haiku（不沿用 API 模型 ID），Codex 使用与 API 相同的 gpt-6.1-sol/gpt-6-luna；启动日志列出服务商及所用模型
 
 ### Requirement: 按任务配置思考强度
 AI 编排服务 SHALL 用 `AI_ORCHESTRATOR_PARSE_EFFORT` 和 `AI_ORCHESTRATOR_TRANSLATE_EFFORT` 分别设置询盘解析与翻译的思考强度，可选 `low`、`medium`、`high`、`xhigh`、`max`，留空均为 `medium`，取值原样传给当前服务商。取值不在可选范围内时，服务启动即报错退出，并说明变量名与可选值。
