@@ -34,7 +34,8 @@ for key in JWT_SECRET AES_KEY AI_TASK_CALLBACK_TOKEN; do
     echo "== 已生成 $key"
   fi
 done
-if [ "$(get AI_ORCHESTRATOR_MODE)" != stub ] && [ -z "$(get AI_ORCHESTRATOR_API_KEY)" ]; then
+ai_mode="$(get AI_ORCHESTRATOR_MODE)"
+if [ "${ai_mode:-api}" = api ] && [ -z "$(get AI_ORCHESTRATOR_API_KEY)" ]; then
   echo "⚠ AI_ORCHESTRATOR_MODE=api 但 AI_ORCHESTRATOR_API_KEY 为空：AI 解析会失败。填写 Key，或改为 stub" >&2
 fi
 

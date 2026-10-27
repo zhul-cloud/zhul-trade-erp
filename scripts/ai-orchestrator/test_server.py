@@ -14,7 +14,7 @@ from unittest import mock
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 
-ENV_KEYS = ("AI_ORCHESTRATOR_PROVIDER", "AI_ORCHESTRATOR_API_KEY", "AI_ORCHESTRATOR_PARSE_MODEL",
+ENV_KEYS = ("AI_ORCHESTRATOR_MODE", "AI_ORCHESTRATOR_PROVIDER", "AI_ORCHESTRATOR_API_KEY", "AI_ORCHESTRATOR_PARSE_MODEL",
             "AI_ORCHESTRATOR_TRANSLATE_MODEL", "AI_ORCHESTRATOR_PARSE_EFFORT", "AI_ORCHESTRATOR_TRANSLATE_EFFORT",
             "AI_ORCHESTRATOR_MAX_WEB_SEARCHES", "ANTHROPIC_API_KEY", "OPENAI_API_KEY")
 IMAGE = (b"\x89PNG fake", ".png")
@@ -261,6 +261,31 @@ class StartupTest(unittest.TestCase):
     def test_openai_defaults_when_models_empty(self):
         server = load_server(AI_ORCHESTRATOR_PROVIDER="openai")
         self.assertEqual((server.PARSE_MODEL, server.TRANSLATE_MODEL), ("gpt-6.1-sol", "gpt-6-luna"))
+
+
+class SubscriptionRoutingTest(unittest.TestCase):
+    def test_codex_uses_cli_default_and_strict_schema_without_api_key(self):
+        server = load_server(AI_ORCHESTRATOR_MODE="subscription", AI_ORCHESTRATOR_PROVIDER="openai",
+                             AI_ORCHESTRATOR_API_KEY="")
+        self.assertEqual((server.PARSE_MODEL, server.TRANSLATE_MODEL), ("", ""))
+        with mock.patch.object(server, "call_subscription", return_value={"items": [{"key": "1", "text": "PLC"}]}) as call:
+            server.call_translate([{"key": "1", "text": "控制器"}])
+        self.assertEqual(call.call_args.args[0], "openai")
+        self.assertIs(call.call_args.args[4]["additionalProperties"], False)
+        self.assertFalse(call.call_args.kwargs["web_search"])
+
+    def test_claude_subscription_defaults(self):
+        server = load_server(AI_ORCHESTRATOR_MODE="subscription")
+        self.assertEqual((server.PARSE_MODEL, server.TRANSLATE_MODEL), ("opus", "haiku"))
+
+    def test_subscription_failure_uses_existing_failed_callback(self):
+        server = load_server(AI_ORCHESTRATOR_MODE="subscription")
+        sent = []
+        with mock.patch.object(server, "call_subscription", side_effect=RuntimeError("未登录个人订阅")), \
+                mock.patch.object(server, "send_callback", side_effect=lambda *a, **kw: sent.append((a, kw))):
+            server.process_translate({"input": {"items": [{"key": "1", "text": "x"}]}}, "http://cb")
+        self.assertEqual(sent[0][0][1], "failed")
+        self.assertIn("未登录", sent[0][1]["error"])
 
 
 if __name__ == "__main__":

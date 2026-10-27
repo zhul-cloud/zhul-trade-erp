@@ -39,7 +39,7 @@ foreach ($key in 'JWT_SECRET', 'AES_KEY', 'AI_TASK_CALLBACK_TOKEN') {
         Write-Host "== 已生成 $key"
     }
 }
-if ((Get-EnvValue 'AI_ORCHESTRATOR_MODE') -ne 'stub' -and -not (Get-EnvValue 'AI_ORCHESTRATOR_API_KEY')) {
+if ((Get-EnvValue 'AI_ORCHESTRATOR_MODE') -in @('', 'api') -and -not (Get-EnvValue 'AI_ORCHESTRATOR_API_KEY')) {
     Write-Warning 'AI_ORCHESTRATOR_MODE=api 但 AI_ORCHESTRATOR_API_KEY 为空：AI 解析会失败。填写 Key，或改为 stub'
 }
 
