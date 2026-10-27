@@ -98,9 +98,9 @@ AI 编排服务 SHALL 在 `AI_ORCHESTRATOR_PROVIDER` 不是 `claude`、`openai` 
 - **WHEN** 未登录或仅配置 API Key，订阅模式接收任务
 - **THEN** 任务失败回调明确提示在容器内通过官方 CLI 登录，不转用 API
 
-#### Scenario: 默认与持久登录目录
-- **WHEN** Docker 按默认 Compose 运行订阅服务
-- **THEN** 认证保存在专用临时 HOME，容器重建后需重新登录；部署者可按注释选择独占持久目录，不复制宿主个人目录
+#### Scenario: 登录状态持久保存
+- **WHEN** Docker 按默认 Compose 运行订阅服务，部署者在容器内完成官方 CLI 登录后停止、重启、重建容器或重新构建镜像
+- **THEN** 认证保存在专用 HOME 的 Docker 命名卷中（属主 10001、权限 0700，不在 `storage/` 备份范围内），无需重新登录；删除该卷或执行官方退出命令后才需重新登录；不挂载或复制宿主个人目录
 
 ### Requirement: 订阅任务隔离与完整结果
 订阅任务 SHALL 单实例串行执行，使用独立临时工作目录与 Linux 进程组，禁用 shell/编辑、外部 MCP/hooks/插件及交互审批；图片/PDF 必须实际处理，超限明确失败；只有完整且符合 JSON Schema 的结果可以成功回调。

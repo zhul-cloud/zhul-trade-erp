@@ -15,8 +15,6 @@ zhul-erp-backend/src/main/resources/application-prod.yml
 # optional Docker bind mounts (all local runtime data stays under storage/)
 /storage/*
 !/storage/.gitkeep
-# 本机开发专用的 Compose 覆盖文件（如 AI 订阅登录持久化），生产用 -f 指定文件，不读取它
-/docker-compose.override.yaml
 
 # frontend build output
 zhul-erp-frontend/dist

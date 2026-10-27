@@ -156,17 +156,13 @@ services:
       AI_TASK_CALLBACK_TOKEN: ${AI_TASK_CALLBACK_TOKEN:-}
     # 不映射宿主机端口：只供同一 Compose 网络里的后端调用。
     # 只读挂载后端的私有上传目录，用于读取询盘附件；路径必须与后端一致。
+    # 个人订阅的官方 CLI 登录状态存命名卷 ai-orchestrator-home，重启、重建、重新构建后保留。
     volumes:
       - private-uploads:/app/private-uploads:ro
-    # 个人订阅的官方 CLI 登录状态默认临时保存，停止、重启或重建容器后需重新登录。
-    tmpfs:
-      - /home/zhul:uid=10001,gid=10001,mode=0700
-    # 启用持久化时与后端一起改成：
+      - ai-orchestrator-home:/home/zhul
+    # 启用持久化时与后端一起改成（保留上面的 ai-orchestrator-home 一行）：
     # volumes:
     #   - ./storage/private-uploads:/app/private-uploads:ro
-    # 需要保留个人订阅登录时，先建立 UID/GID 10001、权限 0700 的目录，
-    # 删除上面的 tmpfs，并在 volumes 追加：
-    #   - ./storage/ai-orchestrator:/home/zhul
 
 volumes:
   # 默认不持久化：tmpfs 类型，后端与 AI 编排服务共享；全部容器停止后内容清空。
@@ -175,3 +171,6 @@ volumes:
       type: tmpfs
       device: tmpfs
       o: uid=10001,gid=10001,mode=0750
+  # 个人订阅登录状态，普通 Docker 卷（不是 tmpfs）：首次挂载继承镜像中 /home/zhul 的属主 10001 与 0700 权限。
+  # docker compose down -v 或 docker volume rm <项目名>_ai-orchestrator-home 会清除登录。
+  ai-orchestrator-home:
