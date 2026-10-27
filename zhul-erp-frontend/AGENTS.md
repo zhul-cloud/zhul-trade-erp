@@ -33,7 +33,7 @@
 
 ## 构建补丁
 
-`patches/@utoo+pack+1.4.3.patch`（`postinstall` 时由 patch-package 自动应用）修复 utoopack 把 worker 分错执行池导致的构建偶发失败（`missing field source`）。上游修复 vercel/next.js#96761、#96810 合并并随 umi 升级后删除；`@utoo/pack` 版本变化时 patch-package 会提示补丁不匹配，需要重新评估。排查时设 `UTOO_WORKER_LOG=1` 可输出 worker 创建顺序。
+`patches/@utoo+pack+1.4.3.patch`（`postinstall` 时由 patch-package 自动应用）修复 utoopack 把 worker 分错执行池导致的构建偶发失败（`missing field source`）。上游修复 vercel/next.js#96761 合并并随 umi 升级后删除；`@utoo/pack` 版本变化时 patch-package 会提示补丁不匹配，需要重新评估。排查时设 `UTOO_WORKER_LOG=1` 可输出 worker 创建顺序。
 
 ## 页面组织
 
