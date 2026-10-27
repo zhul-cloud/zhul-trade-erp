@@ -65,10 +65,8 @@ EFFORTS = ("low", "medium", "high", "xhigh", "max")
 PROVIDER = (os.environ.get("AI_ORCHESTRATOR_PROVIDER") or "claude").strip().lower()
 MODE = (os.environ.get("AI_ORCHESTRATOR_MODE") or "api").strip().lower()
 API_KEY = (os.environ.get("AI_ORCHESTRATOR_API_KEY") or "").strip()
+# api 与 subscription 使用相同的默认模型
 _defaults = DEFAULT_MODELS.get(PROVIDER, DEFAULT_MODELS["claude"])
-if MODE == "subscription" and PROVIDER == "claude":
-    # Claude Code 用模型别名，自动对应订阅可用的最新一代；Codex 与 API 使用相同的模型名。
-    _defaults = {"parse": "opus", "translate": "haiku"}
 PARSE_MODEL = os.environ.get("AI_ORCHESTRATOR_PARSE_MODEL") or _defaults["parse"]
 TRANSLATE_MODEL = os.environ.get("AI_ORCHESTRATOR_TRANSLATE_MODEL") or _defaults["translate"]
 PARSE_EFFORT = (os.environ.get("AI_ORCHESTRATOR_PARSE_EFFORT") or "medium").strip().lower()

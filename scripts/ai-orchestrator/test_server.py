@@ -276,7 +276,7 @@ class SubscriptionRoutingTest(unittest.TestCase):
 
     def test_claude_subscription_defaults(self):
         server = load_server(AI_ORCHESTRATOR_MODE="subscription")
-        self.assertEqual((server.PARSE_MODEL, server.TRANSLATE_MODEL), ("opus", "haiku"))
+        self.assertEqual((server.PARSE_MODEL, server.TRANSLATE_MODEL), ("claude-opus-5-5", "claude-haiku-5-5"))
 
     def test_subscription_failure_uses_existing_failed_callback(self):
         server = load_server(AI_ORCHESTRATOR_MODE="subscription")

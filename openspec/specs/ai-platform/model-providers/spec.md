@@ -36,7 +36,7 @@ AI 编排服务在 API 模式 SHALL 从 `AI_ORCHESTRATOR_API_KEY` 读取当前�
 - **THEN** 编排服务视为未配置 Key，启动警告与任务失败原因都指向 `AI_ORCHESTRATOR_API_KEY`
 
 ### Requirement: 按任务配置模型并提供推荐默认值
-AI 编排服务 SHALL 用 `AI_ORCHESTRATOR_PARSE_MODEL` 指定询盘解析的模型，用 `AI_ORCHESTRATOR_TRANSLATE_MODEL` 指定型号描述翻译与联系人名音译的模型，不再读取 `AI_ORCHESTRATOR_MODEL`。API 模式留空时使用当前服务商的推荐默认值：Claude 为解析 `claude-opus-5-5`、翻译 `claude-haiku-5-5`；OpenAI 为解析 `gpt-6.1-sol`、翻译 `gpt-6-luna`。订阅模式 Claude 留空默认解析 `opus`、翻译 `haiku`，Codex 留空使用账户默认模型，不沿用 API 模型默认值。填写的模型名原样传给当前执行器，不做校验，不默默替换模型。
+AI 编排服务 SHALL 用 `AI_ORCHESTRATOR_PARSE_MODEL` 指定询盘解析的模型，用 `AI_ORCHESTRATOR_TRANSLATE_MODEL` 指定型号描述翻译与联系人名音译的模型，不再读取 `AI_ORCHESTRATOR_MODEL`。留空时使用当前服务商的推荐默认值，API 与订阅模式相同：Claude 为解析 `claude-opus-5-5`、翻译 `claude-haiku-5-5`；OpenAI 为解析 `gpt-6.1-sol`、翻译 `gpt-6-luna`。填写的模型名原样传给当前执行器，不做校验，不默默替换模型。
 
 #### Scenario: 留空使用推荐模型
 - **WHEN** API 模式中 `AI_ORCHESTRATOR_PROVIDER=openai`，两个模型变量都留空
@@ -52,7 +52,7 @@ AI 编排服务 SHALL 用 `AI_ORCHESTRATOR_PARSE_MODEL` 指定询盘解析的模
 
 #### Scenario: 订阅模型默认值
 - **WHEN** subscription 模式中模型变量留空
-- **THEN** Claude 使用 CLI 别名 opus/haiku（不沿用 API 模型 ID），Codex 使用与 API 相同的 gpt-6.1-sol/gpt-6-luna；启动日志列出服务商及所用模型
+- **THEN** 与 API 模式相同：Claude 使用 `claude-opus-5-5` / `claude-haiku-5-5`，Codex 使用 `gpt-6.1-sol` / `gpt-6-luna`；启动日志列出服务商及所用模型
 
 ### Requirement: 按任务配置思考强度
 AI 编排服务 SHALL 用 `AI_ORCHESTRATOR_PARSE_EFFORT` 和 `AI_ORCHESTRATOR_TRANSLATE_EFFORT` 分别设置询盘解析与翻译的思考强度，可选 `low`、`medium`、`high`、`xhigh`、`max`，留空均为 `medium`，取值原样传给当前服务商。取值不在可选范围内时，服务启动即报错退出，并说明变量名与可选值。
