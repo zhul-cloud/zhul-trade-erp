@@ -23,6 +23,6 @@ npm run build      # 生产构建，输出到 dist/
 
 ## 说明
 
-- 开发约定与架构要点见 [CLAUDE.md](./CLAUDE.md)
-- `patches/` 下是对第三方依赖的补丁，`npm install` 时自动应用，用途见 CLAUDE.md「构建补丁」
+- 开发约定与架构要点见 [AGENTS.md](./AGENTS.md)（Claude Code 通过 CLAUDE.md 引用）
+- `patches/` 下是对第三方依赖的补丁，`npm install` 时自动应用，用途见 AGENTS.md「构建补丁」
 - 项目最初来自 [Ant Design Pro](https://github.com/ant-design/ant-design-pro) 模板（MIT 许可，见 [LICENSE](./LICENSE)）
