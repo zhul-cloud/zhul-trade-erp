@@ -7,7 +7,7 @@ set -eu
 case "${AI_ORCHESTRATOR_MODE:-api}" in
     api) exec python /app/ai-orchestrator/server.py ;;
     subscription)
-        # tmpfs 覆盖镜像里的 HOME，官方 CLI 登录前就必须有其配置目录。
+        # 挂载到 HOME 的卷可能是空目录，官方 CLI 登录前就必须有其配置目录。
         umask 077
         mkdir -p "${CODEX_HOME:-/home/zhul/codex}" "${CLAUDE_CONFIG_DIR:-/home/zhul/claude}"
         exec python /app/ai-orchestrator/server.py
