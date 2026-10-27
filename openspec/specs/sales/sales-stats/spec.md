@@ -1,7 +1,7 @@
 # sales/sales-stats Specification
 
 ## Purpose
-TBD - created by archiving change add-sales-funnel-stats. Update Purpose after archive.
+销售统计按统一口径汇总销售漏斗（商机 → 询盘 → 报价 → PI → 成交）、转化率、新老客户、笔单价与复购率，替代每月手工整理的公司、业务员、客户销售报表，并可按事业部筛选。
 
 ## Requirements
 

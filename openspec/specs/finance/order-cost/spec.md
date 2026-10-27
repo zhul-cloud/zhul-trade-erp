@@ -1,7 +1,7 @@
 # finance/order-cost Specification
 
 ## Purpose
-TBD - created by archiving change add-order-actual-cost. Update Purpose after archive.
+订单成本按型号行归集实际采购价、实付人民币、到货差异、分摊运费与费用，算出订单的实际收入、毛利与结算状态，替代手工的《成本核算》表。
 
 ## Requirements
 
