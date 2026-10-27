@@ -31,7 +31,6 @@ zhul-erp-frontend/.firebase
 zhul-erp-frontend/.worktrees
 zhul-erp-frontend/.history
 zhul-erp-frontend/yarn.lock
-zhul-erp-frontend/requestRecord.mock.js
 
 # IDE / OS
 .idea/

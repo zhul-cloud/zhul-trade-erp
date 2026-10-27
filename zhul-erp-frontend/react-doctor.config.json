@@ -2,11 +2,8 @@
   "ignore": {
     "files": [
       "config/**",
-      "mock/**",
       "public/**",
       "scripts/**",
-      "types/**",
-      "cloudflare-worker/**",
       "src/.umi*/**",
       "src/services/**",
       "src/service-worker.js",

@@ -18,6 +18,7 @@ import {
 import { AppLogo, SidebarUser, ThemeToggle, TopBar } from '@/components/Shell';
 import { SiteFavicon } from '@/components/Shell/BrandLogo';
 import { getMenuTree, type MenuItem } from '@/pages/system/menu/service';
+import type { CurrentUser } from '@/services/zhul/auth';
 import { type AppearanceInfo, getAppearance } from '@/services/zhul/public';
 import { AppThemeSync, useAppTheme } from '@/theme/AppTheme';
 import { buildShellSettings } from '@/theme/shell';
@@ -66,13 +67,13 @@ const publicPaths = [
  * */
 export async function getInitialState(): Promise<{
   settings?: Partial<LayoutSettings>;
-  currentUser?: API.CurrentUser & {
+  currentUser?: CurrentUser & {
     permissions?: string[];
     tenantName?: string;
   };
   loading?: boolean;
   fetchUserInfo?: () => Promise<
-    | (API.CurrentUser & { permissions?: string[]; tenantName?: string })
+    | (CurrentUser & { permissions?: string[]; tenantName?: string })
     | undefined
   >;
   settingDrawerOpen?: boolean;
@@ -92,7 +93,7 @@ export async function getInitialState(): Promise<{
         );
         return undefined;
       }
-      const currentUser = JSON.parse(userStr) as API.CurrentUser;
+      const currentUser = JSON.parse(userStr) as CurrentUser;
 
       // 权限列表统一由后端算好再给前端：已经把平台超管/租户套餐/角色三层限制都
       // 算进去了（管理员账号不再是前端直通的万能通行证，租户套餐没给的菜单/按钮，
