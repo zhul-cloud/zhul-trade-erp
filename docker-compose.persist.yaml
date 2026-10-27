@@ -1,0 +1,28 @@
+# 数据持久化开关：与 docker-compose.yaml 叠加后，MySQL、Redis、上传文件改存 ./storage/，停止、重启、重建后保留。
+# 启用方法：在 .env 加入以下两行（不要改 docker-compose.yaml），之后所有 docker compose 命令自动叠加本文件：
+#   COMPOSE_PATH_SEPARATOR=;
+#   COMPOSE_FILE=docker-compose.yaml;docker-compose.persist.yaml
+# 首次启用前先创建 storage/ 下的目录，详见 docs/06-部署运维/03-数据持久化与备份.md。
+# 命令行显式指定 -f 时不读取 COMPOSE_FILE；生产按 docker-compose.prod.yaml 持久化，不使用本文件。
+services:
+  mysql:
+    tmpfs: !reset []
+    volumes:
+      - ./storage/mysql:/var/lib/mysql
+
+  redis:
+    tmpfs: !reset []
+    volumes:
+      - ./storage/redis:/data
+
+  backend:
+    tmpfs: !reset []
+    # 与 docker-compose.yaml 中同一目标路径的挂载按目标合并，替换默认的 tmpfs 卷
+    volumes:
+      - ./storage/uploads:/app/uploads
+      - ./storage/private-uploads:/app/private-uploads
+
+  ai-orchestrator:
+    # 私有上传必须与 backend 指向同一目录，否则编排服务读不到附件
+    volumes:
+      - ./storage/private-uploads:/app/private-uploads:ro
