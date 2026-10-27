@@ -65,10 +65,8 @@ EFFORTS = ("low", "medium", "high", "xhigh", "max")
 PROVIDER = (os.environ.get("AI_ORCHESTRATOR_PROVIDER") or "claude").strip().lower()
 MODE = (os.environ.get("AI_ORCHESTRATOR_MODE") or "api").strip().lower()
 API_KEY = (os.environ.get("AI_ORCHESTRATOR_API_KEY") or "").strip()
+# api 与 subscription 使用相同的默认模型
 _defaults = DEFAULT_MODELS.get(PROVIDER, DEFAULT_MODELS["claude"])
-if MODE == "subscription":
-    # 订阅使用 CLI 的模型别名/默认模型，不能沿用 API 模型配置。
-    _defaults = {"parse": "opus", "translate": "haiku"} if PROVIDER == "claude" else {"parse": "", "translate": ""}
 PARSE_MODEL = os.environ.get("AI_ORCHESTRATOR_PARSE_MODEL") or _defaults["parse"]
 TRANSLATE_MODEL = os.environ.get("AI_ORCHESTRATOR_TRANSLATE_MODEL") or _defaults["translate"]
 PARSE_EFFORT = (os.environ.get("AI_ORCHESTRATOR_PARSE_EFFORT") or "medium").strip().lower()
@@ -551,8 +549,8 @@ if __name__ == "__main__":
 
     server = HTTPServer(("0.0.0.0", PORT), Handler)
     print(f"[ai-orchestrator] listening on :{PORT}（模式 {MODE}，服务商 {PROVIDER}）")
-    print(f"[ai-orchestrator] 询盘解析 model={PARSE_MODEL or '账户默认'} effort={PARSE_EFFORT}；"
-          f"翻译 model={TRANSLATE_MODEL or '账户默认'} effort={TRANSLATE_EFFORT}")
+    print(f"[ai-orchestrator] 询盘解析 model={PARSE_MODEL} effort={PARSE_EFFORT}；"
+          f"翻译 model={TRANSLATE_MODEL} effort={TRANSLATE_EFFORT}")
     if MODE == "api" and not API_KEY:
         print("[ai-orchestrator] 警告：未配置 AI_ORCHESTRATOR_API_KEY，AI 解析与翻译任务会直接回调失败")
     server.serve_forever()

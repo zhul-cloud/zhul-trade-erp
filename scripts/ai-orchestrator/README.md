@@ -19,7 +19,7 @@ python scripts/ai-orchestrator/server.py
 
 Key 通过当前终端的 `AI_ORCHESTRATOR_API_KEY` 提供。监听端口默认 `8899`（`AI_STUB_PORT`）；服务商 `AI_ORCHESTRATOR_PROVIDER=claude|openai`，默认 `claude`。回调共享令牌 `AI_TASK_CALLBACK_TOKEN` 必须与后端一致，不能将服务端口公开到互联网。
 
-两种任务分别由 `AI_ORCHESTRATOR_PARSE_MODEL` / `AI_ORCHESTRATOR_TRANSLATE_MODEL` 和对应 `*_EFFORT` 控制，effort 可选 `low/medium/high/xhigh/max`，默认 `medium`。API 模型默认值：Claude 为 `claude-opus-5-5` / `claude-haiku-5-5`，OpenAI 为 `gpt-6.1-sol` / `gpt-6-luna`。订阅 Claude 默认 `opus` / `haiku`，Codex 两者使用账户默认模型；切换模式时先清空之前手填的模型。
+两种任务分别由 `AI_ORCHESTRATOR_PARSE_MODEL` / `AI_ORCHESTRATOR_TRANSLATE_MODEL` 和对应 `*_EFFORT` 控制，effort 可选 `low/medium/high/xhigh/max`，默认 `medium`。模型默认值（api 与 subscription 模式相同）：Claude 为 `claude-opus-5-5` / `claude-haiku-5-5`，OpenAI 为 `gpt-6.1-sol` / `gpt-6-luna`。
 
 `AI_ORCHESTRATOR_MAX_WEB_SEARCHES=20`，`AI_ORCHESTRATOR_TIMEOUT_SECONDS=900`。订阅使用保守的操作事件阈值，达到阈值会终止并回调失败，成功任务须少于该阈值；超时终止整个 Linux 任务进程组。一个实例同时只执行一个订阅任务，忙碌时立即失败，调用方可稍后重试。认证失败不会降级 API。
 
