@@ -1,7 +1,5 @@
 package com.zhul.erp.common.utils;
 
-import cn.hutool.crypto.digest.DigestUtil;
-import cn.hutool.crypto.symmetric.AES;
 import com.zhul.erp.common.exception.BizException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -22,9 +20,7 @@ import java.util.Base64;
  * 敏感数据加密存储（系统参数加密项、收款人身份证号等）。
  * <p>
  * 格式 {@code v2:} + Base64(12 字节初始向量 ‖ 密文 ‖ 16 字节认证标签)，AES-256-GCM，
- * 密钥由 AES_KEY 经 HKDF-SHA256 派生；密文被改动或 AES_KEY 不同时解密报错。
- * 没有前缀的是旧格式（AES/ECB，密钥为 AES_KEY 的 MD5，hex 编码），只用于读取迁移前的数据，
- * 启动时由 EncryptionMigrationRunner 改写为 v2，下一个版本删除。
+ * 密钥由 AES_KEY 经 HKDF-SHA256 派生；密文被改动、AES_KEY 不同或没有 v2: 前缀时解密报错。
  */
 @Component
 public class AesUtils {
@@ -43,8 +39,6 @@ public class AesUtils {
     private String secret;
 
     private SecretKeySpec gcmKey;
-
-    private AES legacyAes;
 
     public String encrypt(String plainText) {
         if (plainText == null || plainText.isEmpty()) {
@@ -68,7 +62,7 @@ public class AesUtils {
             return cipherText;
         }
         if (!cipherText.startsWith(V2_PREFIX)) {
-            return decryptLegacy(cipherText);
+            throw new BizException("数据解密失败：密文格式不正确");
         }
         byte[] data;
         try {
@@ -87,18 +81,6 @@ public class AesUtils {
         } catch (GeneralSecurityException e) {
             throw new BizException("数据解密失败：密文被改动或密钥不一致", e);
         }
-    }
-
-    /** 是否旧格式（ECB）密文；迁移时据此判断是否需要重新加密 */
-    public static boolean isLegacy(String cipherText) {
-        return cipherText != null && !cipherText.isEmpty() && !cipherText.startsWith(V2_PREFIX);
-    }
-
-    private String decryptLegacy(String cipherText) {
-        if (legacyAes == null) {
-            legacyAes = new AES(DigestUtil.md5(secret.getBytes(StandardCharsets.UTF_8)));
-        }
-        return legacyAes.decryptStr(cipherText);
     }
 
     private SecretKeySpec gcmKey() {
