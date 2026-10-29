@@ -12,7 +12,7 @@ REGISTRY=ghcr.io/zhul-cloud
 SERVICES=(backend frontend ai-orchestrator)
 CONTAINERS=(zhul-erp-mysql zhul-erp-redis zhul-erp-backend zhul-erp-frontend zhul-erp-ai-orchestrator)
 HEALTH_TIMEOUT=600
-KEEP_VERSIONS=3
+KEEP_VERSIONS=2
 PULL_ATTEMPTS=3
 
 log() { echo "[$(date '+%F %T')] $*"; }
