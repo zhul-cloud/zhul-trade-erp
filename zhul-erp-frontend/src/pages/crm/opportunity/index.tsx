@@ -17,7 +17,7 @@ import { getUserList } from '@/pages/system/user/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import { DICT_SOURCE_CHANNEL, useDictOptions } from '@/utils/dict';
 import { usePageSize } from '@/utils/pageSize';
-import { Card, PageTitle, Pill, StagePill } from './components';
+import { Card, MigratedPill, PageTitle, Pill, StagePill } from './components';
 import { CATEGORY_ACTIVE, LIST_PATH } from './constants';
 import RegisterDrawer from './RegisterDrawer';
 import { rate } from './StatsPanel';
@@ -135,7 +135,14 @@ const OpportunityPage: React.FC = () => {
       dataIndex: 'opportunityCode',
       width: 160,
       render: (v: string, r) => (
-        <a onClick={() => history.push(`${LIST_PATH}/${r.id}`)}>{v}</a>
+        <div>
+          <a onClick={() => history.push(`${LIST_PATH}/${r.id}`)}>{v}</a>
+          {r.migrated && (
+            <div style={{ marginTop: 4 }}>
+              <MigratedPill migrated />
+            </div>
+          )}
+        </div>
       ),
     },
     {

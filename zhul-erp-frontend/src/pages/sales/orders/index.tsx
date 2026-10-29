@@ -18,7 +18,13 @@ import { CURRENCIES } from '@/pages/quotation/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
 import { usePageSize } from '@/utils/pageSize';
-import { Card, PATHS, RECEIPT_META, SalesPageTitle } from '../components';
+import {
+  Card,
+  MigratedPill,
+  PATHS,
+  RECEIPT_META,
+  SalesPageTitle,
+} from '../components';
 import {
   type OrderListItem,
   type OrderQuery,
@@ -145,6 +151,11 @@ const OrderList: React.FC = () => {
       render: (v: string, r) => (
         <div>
           <a onClick={() => history.push(PATHS.order(r.id))}>{v}</a>
+          {r.migrated && (
+            <div style={{ marginTop: 4 }}>
+              <MigratedPill migrated />
+            </div>
+          )}
           {sub(r.salesDate ?? '—')}
         </div>
       ),

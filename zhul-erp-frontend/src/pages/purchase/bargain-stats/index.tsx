@@ -1,8 +1,9 @@
 import { history } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
-import { App, DatePicker, Input, Segmented, Select, Table } from 'antd';
-import dayjs, { type Dayjs } from 'dayjs';
+import { App, Input, Segmented, Select, Table } from 'antd';
+import type { Dayjs } from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
+import StatsRangeFilter, { presetRange } from '@/components/StatsRangeFilter';
 import { Card, PageTitle } from '@/pages/inquiry/shared/components';
 import { SupplierPicker } from '@/pages/purchase/components';
 import { useUserOptions } from '@/pages/sales/orders/dialogs';
@@ -34,10 +35,9 @@ const BargainStatsPage: React.FC = () => {
   const { message } = App.useApp();
   const { palette } = useAppTheme();
   const users = useUserOptions();
-  const [range, setRange] = useState<[Dayjs, Dayjs]>([
-    dayjs().startOf('year'),
-    dayjs(),
-  ]);
+  const [range, setRange] = useState<[Dayjs, Dayjs]>(() =>
+    presetRange('month'),
+  );
   const [purchaserId, setPurchaserId] = useState<number>();
   const [supplierId, setSupplierId] = useState<number>();
   const [brand, setBrand] = useState('');
@@ -278,11 +278,7 @@ const BargainStatsPage: React.FC = () => {
           alignItems: 'center',
         }}
       >
-        <DatePicker.RangePicker
-          value={range}
-          allowClear={false}
-          onChange={(v) => v?.[0] && v[1] && setRange([v[0], v[1]])}
-        />
+        <StatsRangeFilter value={range} onChange={setRange} />
         <Select
           allowClear
           placeholder="采购员"

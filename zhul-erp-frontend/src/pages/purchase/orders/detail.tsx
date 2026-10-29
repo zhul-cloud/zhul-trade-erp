@@ -67,6 +67,7 @@ import {
   Card,
   CounterpartyPicker,
   counterpartyReady,
+  MigratedPill,
   PATHS,
   PaymentTermsEditor,
   Pill,
@@ -165,10 +166,11 @@ const PurchaseOrderDetail: React.FC = () => {
   const { palette } = useAppTheme();
   const { message, modal } = App.useApp();
   const access = useAccess();
-  const canEdit = !!access['purchase:order:create'];
-  const canCancel = !!access['purchase:order:cancel'];
-  const canShip = !!access['purchase:shipment:create'];
   const [po, setPo] = useState<PurchaseOrder>();
+  // 历史迁移的采购单只读
+  const canEdit = !!access['purchase:order:create'] && !po?.migrated;
+  const canCancel = !!access['purchase:order:cancel'] && !po?.migrated;
+  const canShip = !!access['purchase:shipment:create'] && !po?.migrated;
   const [error, setError] = useState<string>();
   const [draft, setDraft] = useState<Draft>();
   const [editing, setEditing] = useState(false);
@@ -534,6 +536,7 @@ const PurchaseOrderDetail: React.FC = () => {
           >
             {title}
             {po.shop && <Pill tone="orange">线上店铺</Pill>}
+            <MigratedPill migrated={po.migrated} />
             <PoStatusPill status={po.status} />
             <ShipProgressPill
               code={po.shipProgress}

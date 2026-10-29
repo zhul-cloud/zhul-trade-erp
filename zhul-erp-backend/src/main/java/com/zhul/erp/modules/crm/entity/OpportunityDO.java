@@ -40,6 +40,8 @@ public class OpportunityDO {
     /** 是否曾进入有效阶段（0/1），只会从 0 变 1 */
     private Integer reachedValid;
     private String demandSummary;
+    /** 历史迁移（0-否、1-是）；迁移数据只读，见 MigratedGuard */
+    private Integer migrated;
     private LocalDateTime deletedAt;
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createTime;

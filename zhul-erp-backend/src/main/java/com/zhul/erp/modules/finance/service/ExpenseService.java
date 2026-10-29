@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.zhul.erp.common.exception.BizException;
+import com.zhul.erp.common.utils.MigratedGuard;
 import com.zhul.erp.common.result.PageResult;
 import com.zhul.erp.modules.attachment.dto.AttachmentVO;
 import com.zhul.erp.modules.attachment.service.AttachmentService;
@@ -132,6 +133,7 @@ public class ExpenseService {
     @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public ExpenseVO update(Long id, SaveExpenseRequest req) {
         ExpenseDO e = lock(id);
+        MigratedGuard.requireEditable(e.getMigrated());
         if (e.getStatus() == FinanceConstants.FE_VOID) {
             throw new BizException("费用单已作废");
         }
@@ -154,6 +156,7 @@ public class ExpenseService {
     @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public ExpenseVO voidExpense(Long id, String reason) {
         ExpenseDO e = lock(id);
+        MigratedGuard.requireEditable(e.getMigrated());
         if (e.getStatus() == FinanceConstants.FE_VOID) {
             throw new BizException("费用单已作废");
         }
@@ -504,6 +507,7 @@ public class ExpenseService {
         List<ExpenseVO> out = new ArrayList<>();
         for (ExpenseDO e : rows) {
             ExpenseVO vo = new ExpenseVO();
+            vo.setMigrated(MigratedGuard.isMigrated(e.getMigrated()));
             vo.setId(e.getId());
             vo.setExpenseNo(e.getExpenseNo());
             vo.setName(e.getName());

@@ -7,6 +7,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhul.erp.modules.quotation.support.QuotationLocks;
 import com.zhul.erp.common.exception.BizException;
+import com.zhul.erp.common.utils.MigratedGuard;
 import com.zhul.erp.framework.tenant.TenantContext;
 import com.zhul.erp.modules.inquiry.constants.InquiryConstants;
 import com.zhul.erp.modules.inquiry.customerinquiry.entity.CustomerInquiryDO;
@@ -877,6 +878,9 @@ public class SourcingTaskServiceImpl implements SourcingTaskService {
         }
         progress.lock(item.getCustomerInquiryId());
         CustomerInquiryDO inquiry = inquiryMapper.selectById(item.getCustomerInquiryId());
+        if (inquiry != null) {
+            MigratedGuard.requireEditable(inquiry.getMigrated());
+        }
         if (inquiry != null && inquiry.getStatus() == InquiryConstants.STATUS_CANCELLED) {
             throw new BizException("询盘单已取消，采购成本价不能再修改");
         }

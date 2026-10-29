@@ -21,6 +21,8 @@ export const REFUND_METHODS = [
 ];
 
 export interface Refund {
+  /** 历史迁移的单据（只读） */
+  migrated?: boolean;
   id: number;
   refundNo: string;
   soId: number;

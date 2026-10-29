@@ -22,6 +22,7 @@ import {
   auditColumns,
   BargainText,
   Card,
+  MigratedPill,
   PATHS,
   Pill,
   PO_STATUS,
@@ -129,6 +130,11 @@ const PurchaseOrderList: React.FC = () => {
       render: (v: string | undefined, r) => (
         <div>
           <a onClick={() => history.push(PATHS.order(r.id))}>{v ?? '草稿'}</a>
+          {r.migrated && (
+            <div style={{ marginTop: 4 }}>
+              <MigratedPill migrated />
+            </div>
+          )}
           {r.status === PO_STATUS.DRAFT
             ? sub(
                 r.staleDays ? palette.orange : palette.mute,

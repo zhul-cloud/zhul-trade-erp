@@ -151,6 +151,8 @@ export interface ExpenseAlloc {
 }
 
 export interface Expense {
+  /** 历史迁移的单据（只读） */
+  migrated?: boolean;
   id: number;
   expenseNo: string;
   name: string;

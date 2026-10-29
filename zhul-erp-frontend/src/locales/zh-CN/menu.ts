@@ -68,6 +68,7 @@ export default {
   'menu.tenant': '租户管理',
   'menu.tenant.list': '租户',
   'menu.tenant.package': '套餐',
+  'menu.tenant.historyMigration': '历史迁移',
   'menu.crm': '商机',
   'menu.crm.opportunity': '商机',
   'menu.crm.opportunityStats': '商机统计',

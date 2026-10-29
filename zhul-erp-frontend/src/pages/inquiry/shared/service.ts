@@ -22,6 +22,8 @@ export interface InquiryAttachment {
 export interface CustomerInquiry {
   id: number;
   inquiryCode: string;
+  /** 历史迁移的询盘单（只读） */
+  migrated?: boolean;
   customerId: number;
   customerName: string;
   customerCountry: string;

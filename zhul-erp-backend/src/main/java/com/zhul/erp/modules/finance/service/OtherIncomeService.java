@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.zhul.erp.common.exception.BizException;
+import com.zhul.erp.common.utils.MigratedGuard;
 import com.zhul.erp.common.result.PageResult;
 import com.zhul.erp.modules.attachment.dto.AttachmentVO;
 import com.zhul.erp.modules.attachment.service.AttachmentService;
@@ -65,6 +66,7 @@ public class OtherIncomeService {
     @Transactional(rollbackFor = Exception.class)
     public OtherIncomeVO update(Long id, SaveOtherIncomeRequest req) {
         OtherIncomeDO x = require(id);
+        MigratedGuard.requireEditable(x.getMigrated());
         if (x.getStatus() == FinanceConstants.RECORD_VOID) {
             throw new BizException("已作废，不能修改");
         }
@@ -88,6 +90,7 @@ public class OtherIncomeService {
             throw new BizException("请填写作废原因");
         }
         OtherIncomeDO x = require(id);
+        MigratedGuard.requireEditable(x.getMigrated());
         if (x.getStatus() == FinanceConstants.RECORD_VOID) {
             throw new BizException("已作废");
         }
@@ -177,6 +180,7 @@ public class OtherIncomeService {
         List<OtherIncomeVO> out = new ArrayList<>(rows.size());
         for (OtherIncomeDO x : rows) {
             OtherIncomeVO vo = new OtherIncomeVO();
+            vo.setMigrated(MigratedGuard.isMigrated(x.getMigrated()));
             vo.setId(x.getId());
             vo.setIncomeNo(x.getIncomeNo());
             vo.setIncomeDate(x.getIncomeDate());

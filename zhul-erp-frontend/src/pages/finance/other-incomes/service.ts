@@ -13,6 +13,8 @@ const send = <T>(method: string, url: string, data?: unknown) =>
 export const DICT_INCOME_CATEGORY = 'other_income_category';
 
 export interface OtherIncome {
+  /** 历史迁移的单据（只读） */
+  migrated?: boolean;
   id: number;
   incomeNo: string;
   incomeDate: string;

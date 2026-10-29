@@ -16,7 +16,7 @@ import {
   ProFormTextArea,
   ProTable,
 } from '@ant-design/pro-components';
-import { useAccess } from '@umijs/max';
+import { history, useAccess } from '@umijs/max';
 import {
   App,
   Badge,
@@ -381,6 +381,18 @@ const TenantListPage: React.FC = () => {
         access['tenant:list:init'] && (
           <a key="init" onClick={() => openInit(row)}>
             数据初始化
+          </a>
+        ),
+        access['tenant:list:init'] && (
+          <a
+            key="migrate"
+            onClick={() =>
+              history.push(
+                `/tenant/history-migration?tenantId=${row.id}&name=${encodeURIComponent(row.name)}`,
+              )
+            }
+          >
+            历史迁移
           </a>
         ),
         access['tenant:list:resetPwd'] && (

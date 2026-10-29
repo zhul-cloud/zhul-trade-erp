@@ -1,8 +1,9 @@
 import { history } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
-import { App, DatePicker, Segmented, Select, Table } from 'antd';
+import { App, Segmented, Select, Table } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
+import StatsRangeFilter, { presetRange } from '@/components/StatsRangeFilter';
 import { Card, PageTitle, Pill } from '@/pages/inquiry/shared/components';
 import { useUserOptions } from '@/pages/sales/orders/dialogs';
 import { readBizError } from '@/pages/sales/service';
@@ -31,9 +32,7 @@ const ProfitStatsPage: React.FC = () => {
     const p = new URLSearchParams(window.location.search);
     const from = p.get('dateFrom');
     const to = p.get('dateTo');
-    return from && to
-      ? [dayjs(from), dayjs(to)]
-      : [dayjs().startOf('year'), dayjs()];
+    return from && to ? [dayjs(from), dayjs(to)] : presetRange('month');
   });
   const [bu] = useBusinessUnits();
   const [unit, setUnit] = useState<number | undefined>(() => {
@@ -303,11 +302,7 @@ const ProfitStatsPage: React.FC = () => {
           alignItems: 'center',
         }}
       >
-        <DatePicker.RangePicker
-          value={range}
-          allowClear={false}
-          onChange={(v) => v?.[0] && v[1] && setRange([v[0], v[1]])}
-        />
+        <StatsRangeFilter value={range} onChange={setRange} />
         <StatsUnitSwitch info={bu} value={unit} onChange={setUnit} />
         <Select
           allowClear

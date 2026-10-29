@@ -1,8 +1,9 @@
 import { history } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
-import { App, DatePicker, Table } from 'antd';
+import { App, Table } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
+import StatsRangeFilter, { presetRange } from '@/components/StatsRangeFilter';
 import { Card, PageTitle } from '@/pages/inquiry/shared/components';
 import { readBizError } from '@/pages/sales/service';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -20,10 +21,9 @@ const rateText = (v?: number | null) => (v == null ? '—' : `${v}%`);
 const SourcingStatsPage: React.FC = () => {
   const { message } = App.useApp();
   const { palette } = useAppTheme();
-  const [range, setRange] = useState<[Dayjs, Dayjs]>([
-    dayjs().startOf('year'),
-    dayjs(),
-  ]);
+  const [range, setRange] = useState<[Dayjs, Dayjs]>(() =>
+    presetRange('month'),
+  );
   const [data, setData] = useState<SourcingStats>();
   const [loading, setLoading] = useState(true);
 
@@ -211,11 +211,7 @@ const SourcingStatsPage: React.FC = () => {
     <div>
       <PageTitle description="按月份按询盘单统计：没有待回价型号且至少一个有价为询价完成，全部无货为无法报价，还有待回价的为询价中。按采购员按分配给他的型号统计。" />
       <div style={{ marginBottom: 16 }}>
-        <DatePicker.RangePicker
-          value={range}
-          allowClear={false}
-          onChange={(v) => v?.[0] && v[1] && setRange([v[0], v[1]])}
-        />
+        <StatsRangeFilter value={range} onChange={setRange} />
       </div>
       {total && (
         <div

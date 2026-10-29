@@ -30,6 +30,22 @@ public class OrderCostVO {
     /** 没下采购订单又没有采购成本价的型号数 */
     private Integer missingCostCount;
     private List<Line> lines;
+    /** 历史迁移订单：收入、成本、毛利与结算状态取旧系统《成本核算》的快照，不按入库与对账推算 */
+    private Boolean historySnapshot;
+    /** 快照的各项金额（historySnapshot 为 true 时有值） */
+    private Snapshot snapshot;
+
+    @Data
+    public static class Snapshot {
+        private BigDecimal purchaseAmount;
+        private BigDecimal freight;
+        private BigDecimal surcharge;
+        private BigDecimal serviceFee;
+        /** 核算月份 YYYY-MM */
+        private String accountingMonth;
+        /** 来源核算单旧编号 */
+        private String sourceCodes;
+    }
 
     @Data
     public static class Line {

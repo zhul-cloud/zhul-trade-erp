@@ -2,6 +2,7 @@ package com.zhul.erp.modules.purchase.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.zhul.erp.common.exception.BizException;
+import com.zhul.erp.common.utils.MigratedGuard;
 import com.zhul.erp.common.result.PageResult;
 import com.zhul.erp.framework.security.DataScopeResolver;
 import com.zhul.erp.modules.inquiry.support.CurrentUserResolver;
@@ -396,6 +397,8 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
                 .flatMap(s -> s).toList());
 
         PurchaseOrderVO vo = new PurchaseOrderVO();
+
+        vo.setMigrated(MigratedGuard.isMigrated(p.getMigrated()));
         vo.setId(p.getId());
         vo.setPoNo(p.getPoNo());
         vo.setStatus(p.getStatus());
@@ -1077,10 +1080,13 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
         return p;
     }
 
+    /** 加锁取采购单（修改类入口都经过这里）：历史迁移的采购单只读 */
     private PurchaseOrderDO lockVisible(Long id) {
         visible(id);
         orderMapper.lockById(id);
-        return visible(id);
+        PurchaseOrderDO p = visible(id);
+        MigratedGuard.requireEditable(p.getMigrated());
+        return p;
     }
 
     private Set<Long> orderCancelledRequirements(Collection<Long> ids) {

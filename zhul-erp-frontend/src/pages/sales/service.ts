@@ -422,6 +422,8 @@ export interface PreviewResult {
 export interface OrderListItem {
   id: number;
   soNo: string;
+  /** 历史迁移的订单（只读） */
+  migrated?: boolean;
   /** 1-PI 转成、2-手动创建 */
   source: number;
   salesDate?: string;
@@ -530,6 +532,8 @@ export interface OrderStep {
 export interface Order {
   id: number;
   soNo: string;
+  /** 历史迁移的订单（只读） */
+  migrated?: boolean;
   /** 1-PI 转成、2-手动创建 */
   source: number;
   salesDate?: string;

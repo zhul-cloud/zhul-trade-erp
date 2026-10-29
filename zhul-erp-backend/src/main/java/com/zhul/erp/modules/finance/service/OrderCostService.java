@@ -1,5 +1,8 @@
 package com.zhul.erp.modules.finance.service;
 
+import com.zhul.erp.common.utils.MigratedGuard;
+import com.zhul.erp.modules.finance.entity.SalesOrderCostSnapshotDO;
+import com.zhul.erp.modules.finance.repository.SalesOrderCostSnapshotMapper;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.zhul.erp.modules.finance.constants.FinanceConstants;
 import com.zhul.erp.modules.finance.dto.OrderCostVO;
@@ -75,17 +78,29 @@ public class OrderCostService {
     private final ExpenseMapper expenseMapper;
     private final CustomerRefundMapper refundMapper;
     private final DictItemService dictItemService;
+    private final SalesOrderCostSnapshotMapper snapshotMapper;
 
     public OrderCostVO of(SalesOrderDO order) {
         return of(List.of(order)).get(order.getId());
     }
 
-    /** 一批订单的成本；已取消的订单不计算（不在结果里） */
+    /** 一批订单的成本；已取消的订单不计算（不在结果里）。历史迁移的订单取成本核算快照，其余按实际单据推算 */
     public Map<Long, OrderCostVO> of(Collection<SalesOrderDO> orders) {
         List<SalesOrderDO> active = orders.stream().filter(o -> o.getStatus() == SalesConstants.SO_ACTIVE).toList();
-        if (active.isEmpty()) {
-            return Map.of();
+        List<SalesOrderDO> migrated = active.stream().filter(o -> MigratedGuard.isMigrated(o.getMigrated())).toList();
+        List<SalesOrderDO> normal = active.stream().filter(o -> !MigratedGuard.isMigrated(o.getMigrated())).toList();
+        Map<Long, OrderCostVO> out = new LinkedHashMap<>();
+        if (!normal.isEmpty()) {
+            out.putAll(computed(normal));
         }
+        if (!migrated.isEmpty()) {
+            out.putAll(fromSnapshots(migrated));
+        }
+        return out;
+    }
+
+    /** 按实际单据推算（spec finance/order-cost「订单型号行实际成本」「收入、毛利与结算状态」） */
+    private Map<Long, OrderCostVO> computed(List<SalesOrderDO> active) {
         Set<Long> soIds = active.stream().map(SalesOrderDO::getId).collect(Collectors.toSet());
         List<SalesOrderItemDO> items = soItemMapper.selectList(new LambdaQueryWrapper<SalesOrderItemDO>()
                 .in(SalesOrderItemDO::getSoId, soIds)
@@ -216,20 +231,116 @@ public class OrderCostService {
                     o.getTotalAmountCny(), calcItems, calcLines, calcPos, calcReceipts, refund));
             OrderCostVO vo = toVo(o, mine, res, poLinesByItem, pos, qualified, freightByItem, shipments, waybills, expenseByItem, expenses);
             vo.setRefund(res.refund());
-            vo.setRefunds(refunds.stream().map(f -> {
-                OrderCostVO.RefundBrief b = new OrderCostVO.RefundBrief();
-                b.setId(f.getId());
-                b.setRefundNo(f.getRefundNo());
-                b.setRefundDate(f.getRefundDate());
-                b.setReasonName(reasonNames.getOrDefault(f.getReason(), f.getReason()));
-                b.setCurrencyCode(f.getCurrencyCode());
-                b.setAmount(f.getAmount());
-                b.setAmountCny(f.getAmountCny());
-                return b;
+            vo.setRefunds(refunds.stream().map(f -> brief(f, reasonNames)).toList());
+            vo.setHistorySnapshot(false);
+            out.put(o.getId(), vo);
+        }
+        return out;
+    }
+
+    /**
+     * 历史迁移订单取成本核算快照（spec finance/order-cost「迁移订单按历史核算快照」）：收入、成本、结算状态取快照；
+     * 退款仍按有效退款单（含切换后新建的）；型号行按行金额比例分摊快照收入、成本与退款，尾差放到金额最大的行。
+     */
+    private Map<Long, OrderCostVO> fromSnapshots(List<SalesOrderDO> orders) {
+        Set<Long> soIds = orders.stream().map(SalesOrderDO::getId).collect(Collectors.toSet());
+        Map<Long, SalesOrderCostSnapshotDO> snaps = snapshotMapper.selectList(new LambdaQueryWrapper<SalesOrderCostSnapshotDO>()
+                        .in(SalesOrderCostSnapshotDO::getSoId, soIds)
+                        .isNull(SalesOrderCostSnapshotDO::getDeletedAt))
+                .stream().collect(Collectors.toMap(SalesOrderCostSnapshotDO::getSoId, Function.identity(), (a, b) -> a));
+        Map<Long, List<SalesOrderItemDO>> itemsBySo = soItemMapper.selectList(new LambdaQueryWrapper<SalesOrderItemDO>()
+                        .in(SalesOrderItemDO::getSoId, soIds)
+                        .isNull(SalesOrderItemDO::getDeletedAt)
+                        .orderByAsc(SalesOrderItemDO::getLineNo))
+                .stream().collect(Collectors.groupingBy(SalesOrderItemDO::getSoId));
+        Map<Long, List<CustomerRefundDO>> refundsBySo = refundMapper.selectList(new LambdaQueryWrapper<CustomerRefundDO>()
+                        .in(CustomerRefundDO::getSoId, soIds)
+                        .eq(CustomerRefundDO::getStatus, FinanceConstants.RECORD_VALID)
+                        .isNull(CustomerRefundDO::getDeletedAt)
+                        .orderByAsc(CustomerRefundDO::getRefundDate))
+                .stream().collect(Collectors.groupingBy(CustomerRefundDO::getSoId));
+        Map<String, String> reasonNames = new HashMap<>();
+        if (!refundsBySo.isEmpty()) {
+            dictItemService.listByDictType(FinanceConstants.DICT_REFUND_REASON).forEach(d -> reasonNames.put(d.getItemCode(), d.getItemName()));
+        }
+        Map<Long, OrderCostVO> out = new LinkedHashMap<>();
+        for (SalesOrderDO o : orders) {
+            SalesOrderCostSnapshotDO snap = snaps.get(o.getId());
+            BigDecimal revenue = snap == null ? BigDecimal.ZERO.setScale(2) : OrderCostCalc.money(snap.getRevenue());
+            BigDecimal cost = snap == null ? BigDecimal.ZERO.setScale(2) : OrderCostCalc.money(snap.getCost());
+            List<CustomerRefundDO> refunds = refundsBySo.getOrDefault(o.getId(), List.of());
+            BigDecimal refund = OrderCostCalc.money(sum(refunds.stream().map(CustomerRefundDO::getAmountCny)));
+            BigDecimal profit = revenue.subtract(refund).subtract(cost);
+
+            OrderCostVO vo = new OrderCostVO();
+            vo.setSoId(o.getId());
+            vo.setSalesAmountCny(o.getTotalAmountCny());
+            vo.setRevenue(revenue);
+            vo.setCost(cost);
+            vo.setReceiptFee(snap == null ? BigDecimal.ZERO.setScale(2) : OrderCostCalc.money(snap.getServiceFee()));
+            vo.setRefund(refund);
+            vo.setRefunds(refunds.stream().map(f -> brief(f, reasonNames)).toList());
+            vo.setProfit(profit);
+            vo.setProfitRate(OrderCostCalc.rate(profit, revenue.subtract(refund)));
+            // 切换日之前的单据一律完结，迁移订单都算已结算（含没有快照的）
+            vo.setSettled(true);
+            vo.setPending(snap == null ? List.of("没有历史核算快照") : List.of());
+            vo.setMissingCostCount(0);
+            vo.setHistorySnapshot(true);
+            if (snap != null) {
+                OrderCostVO.Snapshot s = new OrderCostVO.Snapshot();
+                s.setPurchaseAmount(snap.getPurchaseAmount());
+                s.setFreight(snap.getFreight());
+                s.setSurcharge(snap.getSurcharge());
+                s.setServiceFee(snap.getServiceFee());
+                s.setAccountingMonth(snap.getAccountingMonth());
+                s.setSourceCodes(snap.getSourceCodes());
+                vo.setSnapshot(s);
+            }
+
+            List<SalesOrderItemDO> items = itemsBySo.getOrDefault(o.getId(), List.of());
+            Map<Long, BigDecimal> weights = new LinkedHashMap<>();
+            items.forEach(i -> weights.put(i.getId(), i.getAmount() == null ? BigDecimal.ZERO : i.getAmount()));
+            Map<Long, BigDecimal> lineRevenue = OrderCostCalc.split(revenue, weights);
+            Map<Long, BigDecimal> lineCost = OrderCostCalc.split(cost, weights);
+            Map<Long, BigDecimal> lineRefund = OrderCostCalc.split(refund, weights);
+            vo.setLines(items.stream().map(i -> {
+                BigDecimal r = lineRevenue.get(i.getId());
+                BigDecimal c = lineCost.get(i.getId());
+                BigDecimal f = lineRefund.get(i.getId());
+                BigDecimal p = r.subtract(f).subtract(c);
+                OrderCostVO.Line x = new OrderCostVO.Line();
+                x.setSoItemId(i.getId());
+                x.setModel(i.getModel());
+                x.setBrand(i.getBrand());
+                x.setQuantity(i.getQuantity());
+                x.setCost(c);
+                x.setRevenue(r);
+                x.setRefund(f);
+                x.setProfit(p);
+                x.setProfitRate(OrderCostCalc.rate(p, r.subtract(f)));
+                x.setPurchaseSettled(vo.getSettled());
+                x.setUnreceivedQty(0);
+                x.setUnorderedQty(0);
+                x.setMissingCostPrice(false);
+                x.setSources(Map.of());
+                return x;
             }).toList());
             out.put(o.getId(), vo);
         }
         return out;
+    }
+
+    private static OrderCostVO.RefundBrief brief(CustomerRefundDO f, Map<String, String> reasonNames) {
+        OrderCostVO.RefundBrief b = new OrderCostVO.RefundBrief();
+        b.setId(f.getId());
+        b.setRefundNo(f.getRefundNo());
+        b.setRefundDate(f.getRefundDate());
+        b.setReasonName(reasonNames.getOrDefault(f.getReason(), f.getReason()));
+        b.setCurrencyCode(f.getCurrencyCode());
+        b.setAmount(f.getAmount());
+        b.setAmountCny(f.getAmountCny());
+        return b;
     }
 
     private static OrderCostCalc.Po toCalcPo(PurchaseOrderDO p, PayableDO ap) {

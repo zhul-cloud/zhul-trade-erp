@@ -29,6 +29,8 @@ public class OtherIncomeDO {
     /** 1-有效、2-已作废 */
     private Integer status;
     private String voidReason;
+    /** 历史迁移（0-否、1-是）；迁移数据只读，见 MigratedGuard */
+    private Integer migrated;
     private LocalDateTime deletedAt;
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createTime;

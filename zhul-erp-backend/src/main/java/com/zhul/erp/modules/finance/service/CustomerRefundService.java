@@ -3,6 +3,7 @@ package com.zhul.erp.modules.finance.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.zhul.erp.common.exception.BizException;
+import com.zhul.erp.common.utils.MigratedGuard;
 import com.zhul.erp.common.result.PageResult;
 import com.zhul.erp.modules.attachment.dto.AttachmentVO;
 import com.zhul.erp.modules.attachment.service.AttachmentService;
@@ -117,6 +118,7 @@ public class CustomerRefundService {
             throw new BizException("请填写作废原因");
         }
         CustomerRefundDO f = require(id);
+        MigratedGuard.requireEditable(f.getMigrated());
         if (f.getStatus() == FinanceConstants.RECORD_VOID) {
             throw new BizException("退款单已作废");
         }
@@ -259,6 +261,7 @@ public class CustomerRefundService {
         for (CustomerRefundDO f : rows) {
             SalesOrderDO o = orders.get(f.getSoId());
             RefundVO vo = new RefundVO();
+            vo.setMigrated(MigratedGuard.isMigrated(f.getMigrated()));
             vo.setId(f.getId());
             vo.setRefundNo(f.getRefundNo());
             vo.setSoId(f.getSoId());

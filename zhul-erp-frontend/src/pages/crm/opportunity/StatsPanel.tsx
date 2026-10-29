@@ -1,7 +1,11 @@
 import { useSearchParams } from '@umijs/max';
-import { DatePicker, Segmented, Skeleton, Table } from 'antd';
-import dayjs, { type Dayjs } from 'dayjs';
+import { Segmented, Skeleton, Table } from 'antd';
+import type { Dayjs } from 'dayjs';
 import React, { useEffect, useState } from 'react';
+import StatsRangeFilter, {
+  presetRange,
+  type RangePreset,
+} from '@/components/StatsRangeFilter';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useAppTheme } from '@/theme/AppTheme';
 import { Card } from './components';
@@ -12,30 +16,16 @@ import {
   type StatRow,
 } from './service';
 
-type Preset = 'today' | 'yesterday' | 'week' | 'month' | 'custom';
 type GroupBy = 'channel' | 'owner' | 'date';
 
-const PRESETS: { value: Preset; label: string }[] = [
-  { value: 'today', label: '今天' },
-  { value: 'yesterday', label: '昨天' },
-  { value: 'week', label: '近 7 天' },
-  { value: 'month', label: '本月' },
-  { value: 'custom', label: '自定义' },
+const PRESETS: RangePreset[] = [
+  'today',
+  'yesterday',
+  'week',
+  'month',
+  'lastMonth',
+  'halfYear',
 ];
-
-const rangeOf = (p: Preset): [Dayjs, Dayjs] => {
-  const today = dayjs().startOf('day');
-  switch (p) {
-    case 'today':
-      return [today, today];
-    case 'yesterday':
-      return [today.subtract(1, 'day'), today.subtract(1, 'day')];
-    case 'month':
-      return [today.startOf('month'), today];
-    default:
-      return [today.subtract(6, 'day'), today];
-  }
-};
 
 /** 有效率：一位小数；新增为 0 时显示「—」 */
 export const rate = (valid: number, total: number) =>
@@ -45,11 +35,10 @@ const StatsPanel: React.FC = () => {
   const { palette } = useAppTheme();
   // 从工作台商机统计卡片点「查看完整统计」时带 ?preset=，沿用卡片上选的区间
   const [search] = useSearchParams();
-  const initial = PRESETS.some((p) => p.value === search.get('preset'))
-    ? (search.get('preset') as Preset)
-    : 'week';
-  const [preset, setPreset] = useState<Preset>(initial);
-  const [range, setRange] = useState<[Dayjs, Dayjs]>(rangeOf(initial));
+  const initial = PRESETS.find((p) => p === search.get('preset')) ?? 'month';
+  const [range, setRange] = useState<[Dayjs, Dayjs]>(() =>
+    presetRange(initial),
+  );
   const [groupBy, setGroupBy] = useState<GroupBy>('channel');
   const [data, setData] = useState<OpportunityStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -119,25 +108,7 @@ const StatsPanel: React.FC = () => {
           flexWrap: 'wrap',
         }}
       >
-        <Segmented<Preset>
-          value={preset}
-          options={PRESETS}
-          onChange={(v) => {
-            setPreset(v);
-            if (v !== 'custom') setRange(rangeOf(v));
-          }}
-        />
-        <DatePicker.RangePicker
-          value={range}
-          allowClear={false}
-          disabledDate={(d) => d.isAfter(dayjs(), 'day')}
-          onChange={(v) => {
-            if (v?.[0] && v[1]) {
-              setPreset('custom');
-              setRange([v[0], v[1]]);
-            }
-          }}
-        />
+        <StatsRangeFilter value={range} onChange={setRange} presets={PRESETS} />
         <span style={{ flex: 1 }} />
         <span style={{ color: palette.mute }}>分组</span>
         <Segmented<GroupBy>

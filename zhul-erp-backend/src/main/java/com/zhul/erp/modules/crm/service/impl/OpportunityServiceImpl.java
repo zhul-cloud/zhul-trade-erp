@@ -2,6 +2,7 @@ package com.zhul.erp.modules.crm.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.zhul.erp.common.utils.MigratedGuard;
 import com.zhul.erp.common.constants.DictTypes;
 import com.zhul.erp.common.exception.BizException;
 import com.zhul.erp.common.result.PageResult;
@@ -148,6 +149,7 @@ public class OpportunityServiceImpl implements OpportunityService {
     @Transactional(rollbackFor = Exception.class)
     public void update(Long id, UpdateOpportunityRequest req) {
         OpportunityDO o = getInScope(id);
+        o.setMigrated(0);
         if (!Objects.equals(req.getSourceChannel(), o.getSourceChannel())) {
             dictItemService.requireEnabledValue(DictTypes.SOURCE_CHANNEL, req.getSourceChannel(), "来源渠道不正确");
         }
@@ -185,6 +187,7 @@ public class OpportunityServiceImpl implements OpportunityService {
     @Transactional(rollbackFor = Exception.class)
     public void changeStage(Long id, ChangeStageRequest req) {
         OpportunityDO o = getInScope(id);
+        o.setMigrated(0);
         OpportunityStageRules.Stages stages = stageRules.load();
         String to = req.getToStage().trim();
         stages.checkChange(o.getStageCode(), to);
@@ -198,6 +201,7 @@ public class OpportunityServiceImpl implements OpportunityService {
     @Transactional(rollbackFor = Exception.class)
     public void close(Long id, CloseOpportunityRequest req) {
         OpportunityDO o = getInScope(id);
+        o.setMigrated(0);
         OpportunityStageRules.Stages stages = stageRules.load();
         String result = req.getResult().trim();
         stages.checkClose(o.getStageCode(), result, req.getReason());
@@ -217,6 +221,7 @@ public class OpportunityServiceImpl implements OpportunityService {
     @Transactional(rollbackFor = Exception.class)
     public void reopen(Long id) {
         OpportunityDO o = getInScope(id);
+        o.setMigrated(0);
         OpportunityStageRules.Stages stages = stageRules.load();
         if (stages.isActive(o.getStageCode())) {
             throw new BizException("商机还在进行中，不需要重新打开");
@@ -230,6 +235,19 @@ public class OpportunityServiceImpl implements OpportunityService {
         moveTo(o, to, stages);
         opportunityMapper.updateById(o);
         log(o, from, to, OpportunityConstants.ACTION_REOPEN, 0, "");
+    }
+
+    /**
+     * 历史迁移的商机可以照常跟进：一经修改、推进、结束、重新打开或从它创建询盘，就成为普通商机（清除迁移标记），
+     * 见 openspec migrate-feishu-history「迁移数据只读」。
+     */
+    private void clearMigrated(OpportunityDO o) {
+        if (Objects.equals(o.getMigrated(), 1)) {
+            opportunityMapper.update(null, new com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<OpportunityDO>()
+                    .set(OpportunityDO::getMigrated, 0)
+                    .set(OpportunityDO::getUpdateTime, LocalDateTime.now())
+                    .eq(OpportunityDO::getId, o.getId()));
+        }
     }
 
     /** 切换阶段；进入计为有效的阶段时记下「曾有效」，之后不会再清掉 */
@@ -485,8 +503,10 @@ public class OpportunityServiceImpl implements OpportunityService {
             throw new BizException("商机已结束，不能再创建询盘；老客户的新需求请在询盘单列表新建");
         }
         if (stages.countsAsValid(o.getStageCode())) {
+            clearMigrated(o);
             return;
         }
+        o.setMigrated(0);
         String from = o.getStageCode();
         String to = stages.firstValid().getCode();
         moveTo(o, to, stages);
@@ -566,6 +586,7 @@ public class OpportunityServiceImpl implements OpportunityService {
     private static void fill(OpportunityVO vo, OpportunityDO o, CustomerDO c, Map<Long, String> owners,
                              OpportunityStageRules.Stages stages) {
         vo.setId(o.getId());
+        vo.setMigrated(MigratedGuard.isMigrated(o.getMigrated()));
         vo.setOpportunityCode(o.getOpportunityCode());
         vo.setCustomerId(o.getCustomerId());
         if (c != null) {

@@ -8,7 +8,12 @@ import {
 import type { TableColumnsType } from 'antd';
 import { Button, Input, InputNumber, Segmented, Select, Space } from 'antd';
 import React, { useEffect, useRef, useState } from 'react';
-import { Card, PageTitle, Pill } from '@/pages/inquiry/shared/components';
+import {
+  Card,
+  MigratedPill,
+  PageTitle,
+  Pill,
+} from '@/pages/inquiry/shared/components';
 import type { Tone } from '@/pages/inquiry/shared/constants';
 import { searchSuppliers } from '@/services/zhul/masterdata';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -20,7 +25,7 @@ import type {
   RequirementStatus,
 } from './service';
 
-export { Card, Pill };
+export { Card, MigratedPill, Pill };
 
 export const PO_STATUS = { DRAFT: 1, ORDERED: 2, CANCELLED: 3 } as const;
 

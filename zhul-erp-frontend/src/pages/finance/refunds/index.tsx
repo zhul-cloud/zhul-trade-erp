@@ -13,7 +13,12 @@ import {
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
-import { Card, PageTitle, Pill } from '@/pages/inquiry/shared/components';
+import {
+  Card,
+  MigratedPill,
+  PageTitle,
+  Pill,
+} from '@/pages/inquiry/shared/components';
 import { auditColumns } from '@/pages/purchase/components';
 import { orderApi, readBizError } from '@/pages/sales/service';
 import { ReasonModal } from '@/pages/warehouse/components';
@@ -227,7 +232,9 @@ const RefundPage: React.FC = () => {
       width: 90,
       fixed: 'right',
       render: (_, r) =>
-        canEdit && r.status === 1 ? (
+        r.migrated ? (
+          <MigratedPill migrated />
+        ) : canEdit && r.status === 1 ? (
           <a onClick={() => setVoiding(r)}>作废</a>
         ) : (
           <span style={{ color: palette.mute }}>—</span>

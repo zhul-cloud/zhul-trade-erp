@@ -233,6 +233,9 @@ const OrderCostCard: React.FC<{ cost: OrderCost }> = ({ cost }) => {
       ),
     },
   ];
+  if (cost.historySnapshot) {
+    return <SnapshotCostCard cost={cost} />;
+  }
   return (
     <Card style={{ padding: 20, marginBottom: 16 }}>
       <div
@@ -330,6 +333,88 @@ const OrderCostCard: React.FC<{ cost: OrderCost }> = ({ cost }) => {
           ))}
         </div>
       )}
+    </Card>
+  );
+};
+
+/** 历史迁移订单的成本：取旧系统《成本核算》的快照，不随入库、付款、结汇、对账变化（spec finance/order-cost） */
+const SnapshotCostCard: React.FC<{ cost: OrderCost }> = ({ cost }) => {
+  const { palette } = useAppTheme();
+  const s = cost.snapshot ?? {};
+  const item = (label: string, value: React.ReactNode) => (
+    <div key={label}>
+      <div style={{ fontSize: 12, color: palette.sub, marginBottom: 4 }}>
+        {label}
+      </div>
+      <div
+        style={{
+          fontSize: 14,
+          color: palette.ink,
+          fontVariantNumeric: 'tabular-nums',
+        }}
+      >
+        {value}
+      </div>
+    </div>
+  );
+  const grid: React.CSSProperties = {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
+    gap: 16,
+    marginBottom: 16,
+  };
+  return (
+    <Card style={{ padding: 20, marginBottom: 16 }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10,
+          flexWrap: 'wrap',
+          marginBottom: 16,
+        }}
+      >
+        <b style={{ fontSize: 16, color: palette.ink }}>订单成本</b>
+        <Pill tone="orange">历史迁移：按旧系统成本核算</Pill>
+        {(s.sourceCodes || s.accountingMonth) && (
+          <span style={{ fontSize: 12, color: palette.mute }}>
+            {s.sourceCodes ? `来源核算单 ${s.sourceCodes}` : ''}
+            {s.sourceCodes && s.accountingMonth ? ' · ' : ''}
+            {s.accountingMonth ? `核算月份 ${s.accountingMonth}` : ''}
+          </span>
+        )}
+      </div>
+      <div style={grid}>
+        {item('收入', formatAmount(cost.revenue, 'CNY'))}
+        {item('实际成本', formatAmount(cost.cost, 'CNY'))}
+        {item(
+          '毛利',
+          <span
+            style={{ color: cost.profit >= 0 ? palette.green : palette.red }}
+          >
+            {formatAmount(cost.profit, 'CNY')}
+          </span>,
+        )}
+        {item('毛利率', cost.profitRate != null ? `${cost.profitRate}%` : '—')}
+        {item(
+          '结算状态',
+          cost.settled ? (
+            <Pill tone="green">已结算</Pill>
+          ) : (
+            <Pill tone="orange">未结算</Pill>
+          ),
+        )}
+      </div>
+      <div style={grid}>
+        {item('采购货款', formatAmount(s.purchaseAmount ?? 0, 'CNY'))}
+        {item('运费', formatAmount(s.freight ?? 0, 'CNY'))}
+        {item('附加费', formatAmount(s.surcharge ?? 0, 'CNY'))}
+        {item('交易服务费', formatAmount(s.serviceFee ?? 0, 'CNY'))}
+        {item('退款', formatAmount(cost.refund ?? 0, 'CNY'))}
+      </div>
+      <div style={{ fontSize: 12, color: palette.mute }}>
+        迁移订单的收入、成本、毛利与结算状态取旧系统《成本核算》的值，不随入库、付款、结汇、对账变化。
+      </div>
     </Card>
   );
 };

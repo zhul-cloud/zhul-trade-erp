@@ -7,6 +7,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhul.erp.common.exception.BizException;
+import com.zhul.erp.common.utils.MigratedGuard;
 import com.zhul.erp.framework.tenant.TenantContext;
 import com.zhul.erp.modules.attachment.service.AttachmentService;
 import com.zhul.erp.modules.attachment.dto.AttachmentVO;
@@ -550,6 +551,7 @@ public class MyTaskServiceImpl implements MyTaskService {
 
     @Override
     public void writeQuotes(SourcingTaskDO task, Long quotedBy, List<QuoteDraft> drafts, boolean submit, int entryMode, Long importId) {
+        MigratedGuard.requireEditable(task.getMigrated());
         Map<Long, InquiryItemDO> items = taskItems(task.getId()).stream().collect(Collectors.toMap(InquiryItemDO::getId, i -> i));
         QuoteDictSnapshot dicts = quoteDicts.snapshot();
         LocalDateTime now = LocalDateTime.now();
@@ -701,6 +703,7 @@ public class MyTaskServiceImpl implements MyTaskService {
     @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public MyTaskItemVO saveActualModel(Long taskId, Long itemId, String actualModel) {
         SourcingTaskDO task = myTask(taskId);
+        MigratedGuard.requireEditable(task.getMigrated());
         progress.lock(task.getCustomerInquiryId());
         CustomerInquiryDO inquiry = inquiryMapper.selectById(task.getCustomerInquiryId());
         if (inquiry != null && inquiry.getStatus() == InquiryConstants.STATUS_CANCELLED) {
