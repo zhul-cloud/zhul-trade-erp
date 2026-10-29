@@ -51,6 +51,8 @@ public abstract class InquiryContractSupport extends IntegrationTestBase {
     @BeforeEach
     void setUpInquiryData() {
         cleanupInquiryData();
+        // 询盘解析、追加型号会提交 AI 任务，需要平台租户已配置 AI
+        seedAiConfig(0);
         for (int id : new int[] {MENU_INQUIRY, MENU_MY_TASKS, MENU_HISTORY}) {
             jdbc.update("insert into role_resource (role_code, resource_id, resource_code) values (?, ?, '')", BUYER_ROLE, id);
         }
@@ -62,6 +64,7 @@ public abstract class InquiryContractSupport extends IntegrationTestBase {
     @AfterEach
     void tearDownInquiryData() {
         cleanupInquiryData();
+        removeAiConfig(0);
     }
 
     private void user(long id, String name, String username, String role) {
