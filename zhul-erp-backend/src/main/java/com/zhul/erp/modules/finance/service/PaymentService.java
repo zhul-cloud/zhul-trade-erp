@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.zhul.erp.common.exception.BizException;
+import com.zhul.erp.common.utils.MigratedGuard;
 import com.zhul.erp.common.result.PageResult;
 import com.zhul.erp.framework.security.PermissionChecker;
 import com.zhul.erp.framework.security.SecurityUtils;
@@ -324,6 +325,7 @@ public class PaymentService {
     @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public PaymentVO voidPayment(Long id, String reason) {
         PaymentDO pay = visible(id);
+        MigratedGuard.requireEditable(pay.getMigrated());
         if (pay.getVoidAt() != null) {
             throw new BizException("付款单已作废");
         }

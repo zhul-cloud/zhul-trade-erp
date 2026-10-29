@@ -10,6 +10,9 @@ public interface DocumentNumberService {
     /** 生成当前租户下一个编号；独立事务，调用方回滚只留下空号 */
     String next(DocumentType type);
 
+    /** 按指定业务日期生成编号（历史数据迁移用：日期段取单据的业务日期，并推进该日期的流水） */
+    String next(DocumentType type, java.time.LocalDate bizDate);
+
     /** 当前租户的单据前缀（可能为空字符串） */
     String prefix();
 

@@ -2,6 +2,7 @@ package com.zhul.erp.modules.warehouse.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.zhul.erp.common.exception.BizException;
+import com.zhul.erp.common.utils.MigratedGuard;
 import com.zhul.erp.common.result.PageResult;
 import com.zhul.erp.modules.attachment.service.AttachmentService;
 import com.zhul.erp.modules.media.service.MediaIndexer;
@@ -145,6 +146,7 @@ public class ShipmentService {
             List<SupplierShipmentItemDO> lines = items.getOrDefault(s.getId(), List.of());
             PurchaseOrderDO p = pos.get(s.getPoId());
             ShipmentListVO vo = new ShipmentListVO();
+            vo.setMigrated(MigratedGuard.isMigrated(s.getMigrated()));
             vo.setId(s.getId());
             vo.setSdNo(s.getSdNo());
             vo.setDirectForwarderId(s.getDirectForwarderId());
@@ -492,8 +494,13 @@ public class ShipmentService {
         return s;
     }
 
+    /** 加锁取发货单（修改、作废、入库都经过这里）：历史迁移的发货单只读 */
     SupplierShipmentDO lockShipment(Long id) {
         shipmentMapper.lockById(id);
-        return shipmentMapper.selectById(id);
+        SupplierShipmentDO s = shipmentMapper.selectById(id);
+        if (s != null) {
+            MigratedGuard.requireEditable(s.getMigrated());
+        }
+        return s;
     }
 }

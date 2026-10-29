@@ -36,6 +36,7 @@ import {
   CustomerTypePill,
   DeadlineText,
   LevelPill,
+  MigratedPill,
   PageTitle,
   Pill,
   PriceSummary,
@@ -490,6 +491,7 @@ const CustomerInquiryDetailPage: React.FC = () => {
             <StatusPill status={inq.status} />
             {inq.urgent && <Pill tone="red">紧急</Pill>}
             <CustomerTypePill type={inq.customerType} />
+            <MigratedPill migrated={inq.migrated} />
           </span>
           <Meta
             label={`${new Set(detail.items.map((i) => i.brandKey)).size} 个品牌`}

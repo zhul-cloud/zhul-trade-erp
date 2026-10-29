@@ -10,7 +10,12 @@ import {
 import { Link, useAccess, useParams } from '@umijs/max';
 import { App, Button, Skeleton, Table } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
-import { Card, PageTitle, Pill } from '@/pages/inquiry/shared/components';
+import {
+  Card,
+  MigratedPill,
+  PageTitle,
+  Pill,
+} from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { ReasonModal } from '@/pages/warehouse/components';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -153,6 +158,7 @@ const ShipmentDetail: React.FC = () => {
             {sh.shNo}
             <ShStatusPill value={sh.status}>{sh.statusName}</ShStatusPill>
             {sh.reconciled && <Pill tone="green">已对账</Pill>}
+            <MigratedPill migrated={sh.migrated} />
           </>
         }
         description={`${sh.customerName ?? ''} · 货代 ${sh.forwarderName ?? ''}（体积系数 ${sh.volumeDivisor}）· ${sh.ownerName ?? '—'}${
@@ -160,7 +166,8 @@ const ShipmentDetail: React.FC = () => {
         }`}
         actions={
           canEdit &&
-          !voided && (
+          !voided &&
+          !sh.migrated && (
             <>
               {pending && (
                 <>

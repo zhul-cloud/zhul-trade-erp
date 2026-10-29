@@ -2,6 +2,7 @@ package com.zhul.erp.modules.sales.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.zhul.erp.common.exception.BizException;
+import com.zhul.erp.common.utils.MigratedGuard;
 import com.zhul.erp.common.result.PageResult;
 import com.zhul.erp.framework.security.DataScopeResolver;
 import com.zhul.erp.modules.inquiry.customerinquiry.entity.CustomerInquiryDO;
@@ -688,8 +689,13 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         orderMapper.updateById(o);
     }
 
+    /** 加锁取订单（修改类入口都经过这里）：历史迁移的订单只读 */
     private SalesOrderDO lockOrder(Long id) {
-        return orderMapper.selectOne(new LambdaQueryWrapper<SalesOrderDO>().eq(SalesOrderDO::getId, id).last("FOR UPDATE"));
+        SalesOrderDO o = orderMapper.selectOne(new LambdaQueryWrapper<SalesOrderDO>().eq(SalesOrderDO::getId, id).last("FOR UPDATE"));
+        if (o != null) {
+            MigratedGuard.requireEditable(o.getMigrated());
+        }
+        return o;
     }
 
     // ---------------------------------------------------------------- 查看
@@ -701,6 +707,7 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         CustomerDO customer = customerMapper.selectById(o.getCustomerId());
         Map<Long, String> users = lookups.userNames(List.of(o.getOwnerId(), o.getCancelledBy() == null ? 0L : o.getCancelledBy()));
         SalesOrderVO vo = new SalesOrderVO();
+        vo.setMigrated(MigratedGuard.isMigrated(o.getMigrated()));
         vo.setId(o.getId());
         vo.setSoNo(o.getSoNo());
         vo.setSource(o.getSource());
@@ -857,9 +864,11 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         boolean completed = SalesConstants.PROGRESS_COMPLETED.equals(o.getProgressCode());
         vo.setProgressCode(active ? o.getProgressCode() : SalesConstants.PROGRESS_CANCELLED);
         vo.setProgressName(progressNames.getOrDefault(vo.getProgressCode(), vo.getProgressCode()));
-        vo.setTrackable(active && !completed);
+        // 历史迁移的订单只读：不能改跟单信息、确认收货
+        boolean editable = active && !MigratedGuard.isMigrated(o.getMigrated());
+        vo.setTrackable(editable && !completed);
         int lastRank = OrderProgress.rank(ordered, OrderProgress.last(ordered).code());
-        vo.setCompletable(active && !completed && items.stream().allMatch(i -> OrderProgress.rank(ordered, i.getProgressCode()) >= lastRank));
+        vo.setCompletable(editable && !completed && items.stream().allMatch(i -> OrderProgress.rank(ordered, i.getProgressCode()) >= lastRank));
         vo.setSteps(ordered.stream().map(st -> {
             SalesOrderVO.Step x = new SalesOrderVO.Step();
             x.setCode(st.code());

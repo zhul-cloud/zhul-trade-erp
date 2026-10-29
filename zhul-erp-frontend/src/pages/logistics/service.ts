@@ -143,6 +143,8 @@ export interface PendingGroup {
 export interface Logistics extends Audit {
   id: number;
   shNo: string;
+  /** 历史迁移的出运单（只读） */
+  migrated?: boolean;
   customerId: number;
   customerName?: string;
   forwarderId: number;

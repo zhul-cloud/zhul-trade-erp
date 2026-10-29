@@ -133,6 +133,8 @@ export interface GenerateGroup {
 }
 
 export interface PoListItem {
+  /** 历史迁移的采购单（只读） */
+  migrated?: boolean;
   /** 预计发货日期 */
   expectedShipDate?: string | null;
   /** 发货进度（已下单才有）：UNSHIPPED、PARTIAL、SHIPPED、RECEIVED */
@@ -274,6 +276,8 @@ export interface PoReceiptRef {
 }
 
 export interface PurchaseOrder {
+  /** 历史迁移的采购单（只读） */
+  migrated?: boolean;
   /** 预计发货日期 */
   expectedShipDate?: string | null;
   /** 发货进度（已下单才有）：UNSHIPPED、PARTIAL、SHIPPED、RECEIVED */

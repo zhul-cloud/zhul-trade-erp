@@ -30,4 +30,6 @@ public class OpportunityVO {
     private String updateBy;
     private LocalDateTime createTime;
     private String createBy;
+    /** 历史迁移的单据（只读） */
+    private Boolean migrated;
 }

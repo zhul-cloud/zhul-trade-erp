@@ -64,4 +64,6 @@ public class ExpenseVO {
         private BigDecimal amount;
         private BigDecimal amountCny;
     }
+    /** 历史迁移的单据（只读） */
+    private Boolean migrated;
 }

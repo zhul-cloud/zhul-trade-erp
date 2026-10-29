@@ -76,4 +76,6 @@ public class PurchaseOrderListVO implements ShipFields {
         private Long id;
         private String soNo;
     }
+    /** 历史迁移的单据（只读） */
+    private Boolean migrated;
 }

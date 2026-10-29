@@ -61,4 +61,6 @@ public class LogisticsVO {
         private List<String> soNos;
         private String paymentRef;
     }
+    /** 历史迁移的单据（只读） */
+    private Boolean migrated;
 }

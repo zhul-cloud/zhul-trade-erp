@@ -21,7 +21,12 @@ import {
 } from './constants';
 import type { PriceRecord } from './service';
 
-export { Card, FileChip, Pill } from '@/pages/crm/opportunity/components';
+export {
+  Card,
+  FileChip,
+  MigratedPill,
+  Pill,
+} from '@/pages/crm/opportunity/components';
 
 /** 宽屏（≥1200px）左右两栏，窄屏上下排列 */
 export const useWide = () => !!Grid.useBreakpoint().xl;

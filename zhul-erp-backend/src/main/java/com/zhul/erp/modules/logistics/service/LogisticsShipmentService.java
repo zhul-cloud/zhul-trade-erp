@@ -2,6 +2,7 @@ package com.zhul.erp.modules.logistics.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.zhul.erp.common.exception.BizException;
+import com.zhul.erp.common.utils.MigratedGuard;
 import com.zhul.erp.common.result.PageResult;
 import com.zhul.erp.modules.attachment.service.AttachmentService;
 import com.zhul.erp.modules.inquiry.support.CurrentUserResolver;
@@ -405,6 +406,7 @@ public class LogisticsShipmentService {
         visible(id);
         shipmentMapper.lockById(id);
         LogisticsShipmentDO sh = visible(id);
+        MigratedGuard.requireEditable(sh.getMigrated());
         if (sh.getStatus() != LogisticsConstants.SH_SHIPPED) {
             throw new BizException("出运单还没出运");
         }
@@ -427,6 +429,7 @@ public class LogisticsShipmentService {
     public void reconcile(Long id, BigDecimal amount) {
         shipmentMapper.lockById(id);
         LogisticsShipmentDO sh = shipmentMapper.selectById(id);
+        MigratedGuard.requireEditable(sh.getMigrated());
         if (amount != null && (sh.getFreight() == null || sh.getFreight().compareTo(amount) != 0)) {
             sh.setFreight(amount);
             freight.allocateInternational(id, amount, outboundsOf(id).stream().map(OutboundOrderDO::getId).toList(), support.divisorOf(sh.getForwarderId()));
@@ -509,6 +512,7 @@ public class LogisticsShipmentService {
             BigDecimal divisor = support.divisorOf(sh.getForwarderId());
             List<OutboundOrderDO> mine = obs.getOrDefault(sh.getId(), List.of());
             LogisticsVO vo = new LogisticsVO();
+            vo.setMigrated(MigratedGuard.isMigrated(sh.getMigrated()));
             vo.setId(sh.getId());
             vo.setShNo(sh.getShNo());
             vo.setCustomerId(sh.getCustomerId());
@@ -701,6 +705,7 @@ public class LogisticsShipmentService {
         visible(id);
         shipmentMapper.lockById(id);
         LogisticsShipmentDO sh = visible(id);
+        MigratedGuard.requireEditable(sh.getMigrated());
         if (sh.getStatus() != LogisticsConstants.SH_PENDING) {
             throw new BizException(sh.getStatus() == LogisticsConstants.SH_SHIPPED ? "出运单已出运" : "出运单已作废");
         }

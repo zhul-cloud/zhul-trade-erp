@@ -1,6 +1,7 @@
 package com.zhul.erp.modules.sales.support;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.zhul.erp.common.utils.MigratedGuard;
 import com.zhul.erp.modules.finance.entity.FxSettlementAllocationDO;
 import com.zhul.erp.modules.finance.entity.FxSettlementDO;
 import com.zhul.erp.modules.finance.repository.FxSettlementAllocationMapper;
@@ -59,6 +60,7 @@ public class ReceiptRows {
         List<ReceiptRowVO> list = new ArrayList<>(rows.size());
         for (PaymentReceiptDO r : rows) {
             ReceiptRowVO vo = new ReceiptRowVO();
+            vo.setMigrated(MigratedGuard.isMigrated(r.getMigrated()));
             vo.setId(r.getId());
             vo.setPiId(r.getPiId());
             ProformaInvoiceDO pi = r.getPiId() == null ? null : pis.get(r.getPiId());

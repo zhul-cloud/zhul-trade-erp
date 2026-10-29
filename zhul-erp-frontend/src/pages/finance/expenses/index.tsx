@@ -21,7 +21,12 @@ import {
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
-import { Card, PageTitle, Pill } from '@/pages/inquiry/shared/components';
+import {
+  Card,
+  MigratedPill,
+  PageTitle,
+  Pill,
+} from '@/pages/inquiry/shared/components';
 import {
   auditColumns,
   SHOP_CHANNELS,
@@ -757,7 +762,9 @@ const ExpensePage: React.FC = () => {
       width: 110,
       fixed: 'right',
       render: (_, r) =>
-        canEdit && r.status === 1 ? (
+        r.migrated ? (
+          <MigratedPill migrated />
+        ) : canEdit && r.status === 1 ? (
           <Space size={10}>
             <a onClick={() => setDrawer({ editing: r })}>修改</a>
             {!r.locked && <a onClick={() => setVoiding(r)}>作废</a>}

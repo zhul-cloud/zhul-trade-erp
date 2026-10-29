@@ -26,4 +26,6 @@ public class OtherIncomeVO {
     private String createBy;
     private LocalDateTime updateTime;
     private String updateBy;
+    /** 历史迁移的单据（只读） */
+    private Boolean migrated;
 }

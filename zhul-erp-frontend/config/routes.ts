@@ -716,6 +716,14 @@ export default [
         access: 'tenantPackage',
         component: './tenant/package',
       },
+      {
+        // 飞书历史数据迁移（openspec migrate-feishu-history）：从租户列表的「历史迁移」进入，不在侧边栏显示
+        path: '/tenant/history-migration',
+        name: 'historyMigration',
+        hideInMenu: true,
+        access: 'tenant:list:init',
+        component: './tenant/history-migration',
+      },
     ],
   },
   // 兼职看板已并入工作台的采购员看板，原地址跳到工作台
