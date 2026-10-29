@@ -156,8 +156,8 @@ public class BusinessUnitService {
     }
 
     /**
-     * 新客户的事业部：负责人属于事业部时取负责人的；负责人在公共部门时用登记人选的（必选）。
-     * 公司没有事业部时为 null。
+     * 新客户的事业部：负责人属于事业部时取负责人的；负责人在公共部门时用登记人选的，
+     * 公司只有一个事业部时不用选、直接归它，有多个时必选。公司没有事业部时为 null。
      */
     public Integer forNewCustomer(Long ownerId, Integer chosen) {
         if (!enabled()) {
@@ -168,6 +168,10 @@ public class BusinessUnitService {
             return own;
         }
         if (chosen == null) {
+            List<Unit> all = units();
+            if (all.size() == 1) {
+                return all.get(0).id();
+            }
             throw new BizException("负责人不属于任何事业部，请选择客户所属的事业部");
         }
         return require(chosen);

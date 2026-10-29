@@ -339,7 +339,7 @@ const ReferencePicker: React.FC<{
         <Skeleton active paragraph={{ rows: 4 }} />
       ) : data.level === 0 ? (
         <div style={{ color: palette.mute }}>
-          同系列、同品牌、同品类都没有找到有素材的型号。可以先在素材库为这个型号上传网络图片。
+          同品牌里没有找到有素材的型号（不参考其他品牌）。可以先在素材库为这个型号上传网络图片。
         </div>
       ) : (
         <div style={{ display: 'grid', gap: 8 }}>
@@ -347,9 +347,6 @@ const ReferencePicker: React.FC<{
             按{data.levelName}找到 {data.models.length}{' '}
             个有素材的型号，按询盘热度排序；点 +
             展开预览图片和视频，选用后任务显示这个型号的可发客户图片和视频。
-            {data.warning && (
-              <span style={{ color: palette.orange }}>{data.warning}</span>
-            )}
           </div>
           {data.models.map((m) => {
             const key = `${m.brand}|${m.model}`;

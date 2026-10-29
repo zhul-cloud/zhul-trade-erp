@@ -386,7 +386,7 @@ const ReferencePanel: React.FC<{ brand: string; model: string }> = ({
   if (!data || data.level === 0) {
     return (
       <div style={{ color: palette.mute, fontSize: 13 }}>
-        同系列、同品牌、同品类都没有找到有素材的型号。
+        同品牌里没有找到有素材的型号（不参考其他品牌）。
       </div>
     );
   }
@@ -395,9 +395,6 @@ const ReferencePanel: React.FC<{ brand: string; model: string }> = ({
       <div style={{ fontSize: 13, color: palette.sub }}>
         按{data.levelName}找到 {data.models.length}{' '}
         个有素材的型号，按询盘热度排序
-        {data.warning && (
-          <span style={{ color: palette.orange }}>；{data.warning}</span>
-        )}
       </div>
       {data.models.map((r) => {
         const key = `${r.brand}|${r.model}`;

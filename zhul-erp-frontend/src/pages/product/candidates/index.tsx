@@ -841,7 +841,12 @@ const Candidates: React.FC = () => {
   const [importOpen, setImportOpen] = useState(false);
   const [keyword, setKeyword] = useState('');
   const [level, setLevel] = useState<number>();
-  const [query, setQuery] = useState<{ keyword?: string; level?: number }>({});
+  const [brandState, setBrandState] = useState<number>();
+  const [query, setQuery] = useState<{
+    keyword?: string;
+    level?: number;
+    brandState?: number;
+  }>({});
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = usePageSize(20);
   const [rows, setRows] = useState<Candidate[]>([]);
@@ -1019,7 +1024,7 @@ const Candidates: React.FC = () => {
   ];
 
   const apply = () => {
-    setQuery({ keyword: keyword.trim() || undefined, level });
+    setQuery({ keyword: keyword.trim() || undefined, level, brandState });
     setPage(1);
   };
 
@@ -1094,6 +1099,18 @@ const Candidates: React.FC = () => {
           ]}
           style={{ width: 150 }}
           aria-label="可信度"
+        />
+        <Select
+          allowClear
+          value={brandState}
+          onChange={setBrandState}
+          placeholder="全部品牌"
+          options={[
+            { value: 1, label: '品牌已确认' },
+            { value: 2, label: '待确认品牌' },
+          ]}
+          style={{ width: 150 }}
+          aria-label="品牌"
         />
         <span style={{ flex: 1 }} />
         <Button type="primary" onClick={apply}>

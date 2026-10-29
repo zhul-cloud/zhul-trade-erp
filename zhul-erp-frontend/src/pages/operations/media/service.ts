@@ -70,10 +70,9 @@ export interface MediaDetail {
 }
 
 export interface MediaReference {
-  /** 1 同系列、2 同品牌同品类、3 同品牌、4 同品类其他品牌；0 没找到 */
+  /** 1 同系列、2 同品牌同品类、3 同品牌；0 没找到（不回退到其他品牌） */
   level: number;
   levelName: string;
-  warning?: string;
   models: {
     productId: number;
     brand: string;

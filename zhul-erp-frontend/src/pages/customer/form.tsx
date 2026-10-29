@@ -708,16 +708,19 @@ const CustomerFormPage: React.FC = () => {
                   />
                 </Form.Item>
               )}
-              {!editing && bu.enabled && bu.myUnitId == null && (
-                <Form.Item
-                  name="businessUnitId"
-                  label="所属事业部"
-                  extra="负责人属于事业部时按负责人的事业部；负责人在共享中台或总经办时按这里的选择"
-                  rules={[{ required: true, message: '请选择所属事业部' }]}
-                >
-                  <UnitSelect info={bu} />
-                </Form.Item>
-              )}
+              {!editing &&
+                bu.enabled &&
+                bu.myUnitId == null &&
+                bu.units.length > 1 && (
+                  <Form.Item
+                    name="businessUnitId"
+                    label="所属事业部"
+                    extra="负责人属于事业部时按负责人的事业部；负责人在共享中台或总经办时按这里的选择"
+                    rules={[{ required: true, message: '请选择所属事业部' }]}
+                  >
+                    <UnitSelect info={bu} />
+                  </Form.Item>
+                )}
               <Form.Item
                 name="externalRef"
                 label="小满客户编号"

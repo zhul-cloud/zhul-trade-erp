@@ -159,13 +159,12 @@ class MediaLibraryContractTest extends TenantContractSupport {
         item("R-3", 9, 1, 1);
         assertEquals(2, ok(call(get(API + "/references").param("brand", BRAND).param("model", "R-0"), admin)).path("level").asInt());
 
-        // 本品牌都没有 → 同品类的其他品牌，带提示
+        // 本品牌都没有 → 不回退到同品类的其他品牌
         jdbc.update("delete from media_item where tenant_id = ? and asset_key = ?", T, "itmediabrand r-3");
         item("X-1", 9, 1, 1, "ITMediaOther");
-        JsonNode r4 = ok(call(get(API + "/references").param("brand", BRAND).param("model", "R-0"), admin));
-        assertEquals(4, r4.path("level").asInt());
-        assertEquals(List.of("X-1"), models(r4));
-        assertTrue(r4.path("warning").asText().contains("不建议直接用于发品"));
+        JsonNode none = ok(call(get(API + "/references").param("brand", BRAND).param("model", "R-0"), admin));
+        assertEquals(0, none.path("level").asInt());
+        assertEquals(List.of(), models(none));
     }
 
     // ---------------------------------------------------------------- 准备数据

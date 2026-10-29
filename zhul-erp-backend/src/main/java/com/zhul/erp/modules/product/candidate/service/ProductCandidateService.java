@@ -98,6 +98,11 @@ public class ProductCandidateService {
         if (q.getLevel() != null) {
             w.eq(ProductCandidateDO::getLevel, q.getLevel());
         }
+        if (Integer.valueOf(1).equals(q.getBrandState())) {
+            w.isNotNull(ProductCandidateDO::getBrandId);
+        } else if (Integer.valueOf(2).equals(q.getBrandState())) {
+            w.isNull(ProductCandidateDO::getBrandId);
+        }
         if (StringUtils.hasText(q.getKeyword())) {
             String kw = q.getKeyword().trim();
             String key = MpnNormalizer.normalize(kw);
@@ -111,8 +116,8 @@ public class ProductCandidateService {
         if (total == 0) {
             return PageResult.of(0L, List.of());
         }
-        // 各页签都按可信度从高到低、再按更新时间倒序
-        w.last("ORDER BY level DESC, update_time DESC, id DESC LIMIT " + (long) (page - 1) * size + ", " + size);
+        // 待确认品牌的排在最后，方便先批量审核品牌已确认的；再按可信度从高到低、更新时间倒序
+        w.last("ORDER BY brand_id IS NULL, level DESC, update_time DESC, id DESC LIMIT " + (long) (page - 1) * size + ", " + size);
         return PageResult.of(total, toVos(candidateMapper.selectList(w), false));
     }
 
