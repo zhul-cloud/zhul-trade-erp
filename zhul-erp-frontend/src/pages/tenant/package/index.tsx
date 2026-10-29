@@ -9,6 +9,11 @@ import {
 import { useAccess } from '@umijs/max';
 import { Alert, App, Badge, Button, Space, Tree } from 'antd';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  indexMenuTree,
+  splitChecked,
+  toggleMenuKey,
+} from '@/pages/system/menu/menuCheck';
 import type { MenuItem } from '@/pages/system/menu/service';
 import { getMenuTree } from '@/pages/system/menu/service';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -69,6 +74,7 @@ const TenantPackagePage: React.FC = () => {
     getMenuTree().then(setRawMenuTree);
   }, []);
   const antdMenuTree = useMemo(() => toAntdTree(rawMenuTree), [rawMenuTree]);
+  const menuIndex = useMemo(() => indexMenuTree(rawMenuTree), [rawMenuTree]);
 
   // ---------- 新增 / 编辑 ----------
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -406,11 +412,14 @@ const TenantPackagePage: React.FC = () => {
         >
           <Tree
             checkable
-            checkedKeys={checkedKeys}
+            checkStrictly
+            checkedKeys={splitChecked(menuIndex, checkedKeys)}
             expandedKeys={expandedKeys}
             onExpand={(keys) => setExpandedKeys(keys as number[])}
-            onCheck={(keys) => {
-              setCheckedKeys(keys as number[]);
+            onCheck={(_, e) => {
+              setCheckedKeys((prev) =>
+                toggleMenuKey(menuIndex, prev, e.node.key as number, e.checked),
+              );
               setMenuError(false);
             }}
             treeData={antdMenuTree}
