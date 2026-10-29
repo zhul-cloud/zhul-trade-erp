@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhul.erp.modules.aitask.constants.AiTaskStatus;
 import com.zhul.erp.modules.aitask.entity.AiTaskDO;
+import com.zhul.erp.modules.aitask.service.AiConfigService;
 import com.zhul.erp.modules.aitask.service.AiTaskResultHandler;
 import com.zhul.erp.modules.aitask.service.AiTaskService;
 import com.zhul.erp.modules.masterdata.entity.CustomerDO;
@@ -32,6 +33,7 @@ public class ContactNameTranslations implements AiTaskResultHandler {
     private static final int MAX_NAME = 100;
 
     private final AiTaskService aiTaskService;
+    private final AiConfigService aiConfigService;
     private final CustomerMapper customerMapper;
     private final ObjectMapper objectMapper;
 
@@ -39,6 +41,11 @@ public class ContactNameTranslations implements AiTaskResultHandler {
     public void submit(Long customerId, String contactName, Long requestedBy) {
         String name = contactName == null ? "" : contactName.trim();
         if (customerId == null || name.isEmpty() || name.codePoints().anyMatch(c -> c >= 0x4E00 && c <= 0x9FFF)) {
+            return;
+        }
+        // 保存商机时顺带触发：租户未配置 AI 时跳过，不影响商机保存（不能靠捕获异常，见 isConfiguredForCurrentTenant）
+        if (!aiConfigService.isConfiguredForCurrentTenant()) {
+            log.info("当前租户未配置 AI，跳过联系人名称翻译，customerId={}", customerId);
             return;
         }
         try {

@@ -98,7 +98,7 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 - 涉及跨模块数据联动，须说明事务边界
 - 金额字段统一用 decimal/Numeric 类型，禁用 float
 - 日期时间统一存北京时间（Asia/Shanghai），展示时不再换算；数据库与后端容器都设 TZ=Asia/Shanghai（与 `.claude/rules/coding.md` 一致）。客户所在地时间只在需要时由前端换算（`customer/time.ts`）
-- 所有 UI 设计 / 原型设计任务，统一使用 OpenPencil（`op` CLI / openpencil-design 技能）完成，无需用户每次特别说明
+- 所有 UI 设计 / 原型设计任务，统一使用 OpenPencil（`op` CLI / openpencil-design 技能）完成，无需用户每次特别说明。原型经用户确认后才能开发页面；pencil MCP 连不上时改用 `op` 命令行，命令行也不可用时请用户解决 OpenPencil 工具问题，不能跳过原型直接开发（2026-10-29 追加）
 - 所有列表页（分页的业务数据表格）默认按更新时间倒序，并固定显示创建时间、创建人、更新时间、更新人四列（顺序固定，紧邻业务字段之后、操作列之前）；例外与细则见 `.claude/context/ui-design-patterns.md` 的「列表页统一规范」。新做或改动列表页（含原型）时逐条对照（2026-10-09 提升到此处）
 - 所有原型的界面风格和交互必须符合消费级互联网产品该有的质感：视觉克制、层次清晰、反馈及时、状态完整，不能停留在"能用的后台表单"。具体要求见 `.claude/context/ui-design-patterns.md` 的「消费级质感」一节（2026-09-19 追加）
 

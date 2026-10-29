@@ -4,10 +4,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhul.erp.common.exception.BizException;
 import com.zhul.erp.framework.tenant.TenantContext;
 import com.zhul.erp.modules.aitask.constants.AiTaskStatus;
+import com.zhul.erp.modules.aitask.dto.AiCallConfig;
 import com.zhul.erp.modules.aitask.dto.AiTaskCallbackRequest;
 import com.zhul.erp.modules.aitask.dto.AiTaskVO;
 import com.zhul.erp.modules.aitask.entity.AiTaskDO;
 import com.zhul.erp.modules.aitask.repository.AiTaskMapper;
+import com.zhul.erp.modules.aitask.service.AiConfigService;
 import com.zhul.erp.modules.aitask.service.AiOrchestratorClient;
 import com.zhul.erp.modules.aitask.service.AiTaskResultDispatcher;
 import com.zhul.erp.modules.aitask.service.AiTaskService;
@@ -33,22 +35,28 @@ public class AiTaskServiceImpl implements AiTaskService {
     // 注解从字段复制到生成的构造函数参数上，那样 Spring 看不到 @Lazy，循环依赖检测仍会报错。
     private final AiTaskResultDispatcher resultDispatcher;
     private final ObjectMapper objectMapper;
+    private final AiConfigService aiConfigService;
 
     public AiTaskServiceImpl(AiTaskMapper aiTaskMapper,
                               AiOrchestratorClient orchestratorClient,
                               @Lazy AiTaskResultDispatcher resultDispatcher,
-                              ObjectMapper objectMapper) {
+                              ObjectMapper objectMapper,
+                              AiConfigService aiConfigService) {
         this.aiTaskMapper = aiTaskMapper;
         this.orchestratorClient = orchestratorClient;
         this.resultDispatcher = resultDispatcher;
         this.objectMapper = objectMapper;
+        this.aiConfigService = aiConfigService;
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public AiTaskVO createAndSubmit(String skillId, String inputJson, Long requestedBy) {
+        // 先取当前租户的配置快照：未配置时直接抛 AiNotConfiguredException，不产生任务；
+        // 必须在请求线程里取，afterCommit 的异步提交里没有可靠的租户上下文
+        AiCallConfig ai = aiConfigService.resolveForCurrentTenant();
         AiTaskDO task = create(skillId, inputJson, requestedBy);
-        submit(task, inputJson);
+        submit(task, inputJson, ai);
         return toVo(task);
     }
 
@@ -80,23 +88,23 @@ public class AiTaskServiceImpl implements AiTaskService {
      * 但询盘单走图片/Excel录入时 rawContent 为空、编排服务会立刻同步拒绝，稳定复现。
      * 所以提交动作必须等当前事务真正提交之后才发起，不能指望"响应总是比事务提交慢"。
      */
-    private void submit(AiTaskDO task, String inputJson) {
+    private void submit(AiTaskDO task, String inputJson, AiCallConfig ai) {
         if (TransactionSynchronizationManager.isSynchronizationActive()) {
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
                 @Override
                 public void afterCommit() {
-                    doSubmit(task, inputJson);
+                    doSubmit(task, inputJson, ai);
                 }
             });
         } else {
             // 理论上 createAndSubmit() 总是带着 @Transactional 被 Spring 代理调用，
             // 这个分支只在没有事务上下文时（比如单测直接 new 出来调用）兜底，保持行为一致。
-            doSubmit(task, inputJson);
+            doSubmit(task, inputJson, ai);
         }
     }
 
-    private void doSubmit(AiTaskDO task, String inputJson) {
-        orchestratorClient.submit(task.getSkillId(), task.getId(), inputJson)
+    private void doSubmit(AiTaskDO task, String inputJson, AiCallConfig ai) {
+        orchestratorClient.submit(task.getSkillId(), task.getId(), inputJson, ai)
                 .thenAccept(result -> {
                     LocalDateTime now = LocalDateTime.now();
                     if (result.isAccepted()) {
