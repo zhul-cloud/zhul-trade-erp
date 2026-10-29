@@ -32,8 +32,8 @@ API 方式用任务携带的 Key（只在本次请求的内存中使用，日志
 ## 实现要点
 
 - 结构化输出：Claude 用 output_config.format、OpenAI 用 text.format 指定 JSON Schema，返回的 JSON
-  直接符合后端字段约定（驼峰命名、confidence 用整数），不再需要一层格式转换。OpenAI 严格模式要求字段
-  全部必填，发送前把非必填字段改成可空，收到后删掉值为 null 的字段，回调内容与 Claude 一致。
+  符合后端字段约定（驼峰命名、confidence 用整数）。两家 API 发送前均使用全字段必填、原可选字段可空的
+  Schema 副本，收到后删掉值为 null 的字段；Claude API 另按原业务 Schema 校验，订阅模式沿用原流程。
 - 联网搜索：两家都用服务商托管的 web_search 工具，在服务商服务器上执行，本服务不实现搜索逻辑。
 - 附件：图片、PDF 由本服务读取本地文件后随请求发送，因此需要能读到后端的私有上传目录
   （Docker 部署时两个容器挂载同一个目录）。
@@ -57,6 +57,7 @@ from dataclasses import dataclass
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import anthropic
+import jsonschema
 import openai
 
 from subscription import call_subscription, codex_models, login_status
@@ -265,19 +266,6 @@ def _category_rules(categories: list) -> str:
 """
 
 
-def _strict(schema):
-    """结构化输出要求每个 object 都声明 additionalProperties: false"""
-    if isinstance(schema, dict):
-        if schema.get("type") == "object":
-            schema.setdefault("additionalProperties", False)
-        for value in schema.values():
-            _strict(value)
-    elif isinstance(schema, list):
-        for value in schema:
-            _strict(value)
-    return schema
-
-
 def _read_attachment(ref) -> tuple:
     """附件内容与扩展名：ref 为本地路径（旧版后端，共享磁盘）或 {"url", "ext"}（后端签发的临时链接）"""
     if isinstance(ref, dict):
@@ -315,7 +303,7 @@ def call_api(cfg: AiConfig, system_prompt: str, text: str, attachments: list, sc
              model: str, effort: str, web_search: bool = False) -> dict:
     """按任务携带的配置调用对应服务商，返回符合 schema 的 JSON"""
     if cfg.mode == "subscription":
-        wire_schema = _openai_schema(schema) if cfg.provider == "openai" else schema
+        wire_schema = _required_nullable_schema(schema) if cfg.provider == "openai" else schema
         result = call_subscription(cfg.provider, system_prompt, text, attachments, wire_schema, model=model,
                                    effort=effort, web_search=web_search, max_web_searches=cfg.max_web_searches,
                                    timeout=TIMEOUT_SECONDS)
@@ -333,7 +321,8 @@ def _call_claude(cfg, system_prompt, text, attachments, schema, model, effort, w
         "model": model,
         "max_tokens": 64000,
         "system": system_prompt,
-        "output_config": {"effort": effort, "format": {"type": "json_schema", "schema": _strict(schema)}},
+        "output_config": {"effort": effort, "format": {
+            "type": "json_schema", "schema": _required_nullable_schema(schema)}},
     }
     # Haiku 没有服务端拒答兜底，带上 fallbacks 也不会生效，按官方说明不传
     if not model.startswith("claude-haiku"):
@@ -361,11 +350,16 @@ def _call_claude(cfg, system_prompt, text, attachments, schema, model, effort, w
     searches = getattr(getattr(usage, "server_tool_use", None), "web_search_requests", 0) or 0
     print(f"[ai-orchestrator] API 调用完成 model={response.model}，输入 {usage.input_tokens} tokens，"
           f"输出 {usage.output_tokens} tokens，联网搜索 {searches} 次，request_id={response._request_id}")
-    return json.loads(texts[-1])
+    result = _drop_nulls(json.loads(texts[-1]))
+    try:
+        jsonschema.validate(result, schema)
+    except jsonschema.ValidationError as exc:
+        raise RuntimeError("AI 返回结果不符合业务 Schema") from exc
+    return result
 
 
-def _openai_schema(schema):
-    """OpenAI 严格模式：每个 object 的字段都要列为必填，原来非必填的字段改成可空"""
+def _required_nullable_schema(schema):
+    """API 严格输出：使用副本将每个 object 的字段列为必填，原非必填字段改为可空"""
     schema = copy.deepcopy(schema)
 
     def walk(node):
@@ -405,7 +399,8 @@ def _call_openai(cfg, system_prompt, text, attachments, schema, model, effort, w
         "input": [{"role": "user", "content": content}],
         "reasoning": {"effort": effort},
         "max_output_tokens": 64000,
-        "text": {"format": {"type": "json_schema", "name": "result", "schema": _openai_schema(schema), "strict": True}},
+        "text": {"format": {"type": "json_schema", "name": "result",
+                            "schema": _required_nullable_schema(schema), "strict": True}},
     }
     if web_search:
         # max_tool_calls 统计全部托管工具调用（搜索、打开网页、页内查找），不只是搜索
