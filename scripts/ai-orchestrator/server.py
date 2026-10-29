@@ -333,6 +333,7 @@ def _call_claude(cfg, system_prompt, text, attachments, schema, model, effort, w
     for _ in range(MAX_CONTINUATIONS + 1):
         with client.beta.messages.stream(messages=messages, **params) as stream:
             response = stream.get_final_message()
+            request_id = stream.request_id
         if response.stop_reason != "pause_turn":
             break
         messages = [messages[0], {"role": "assistant", "content": response.content}]
@@ -349,7 +350,7 @@ def _call_claude(cfg, system_prompt, text, attachments, schema, model, effort, w
     usage = response.usage
     searches = getattr(getattr(usage, "server_tool_use", None), "web_search_requests", 0) or 0
     print(f"[ai-orchestrator] API 调用完成 model={response.model}，输入 {usage.input_tokens} tokens，"
-          f"输出 {usage.output_tokens} tokens，联网搜索 {searches} 次，request_id={response._request_id}")
+          f"输出 {usage.output_tokens} tokens，联网搜索 {searches} 次，request_id={request_id}")
     result = _drop_nulls(json.loads(texts[-1]))
     try:
         jsonschema.validate(result, schema)
