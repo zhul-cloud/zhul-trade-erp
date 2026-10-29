@@ -327,7 +327,7 @@ const RegisterDrawer: React.FC<{
               options={countryOptions}
             />
           </Form.Item>
-          {bu.enabled && bu.myUnitId == null && (
+          {bu.enabled && bu.myUnitId == null && bu.units.length > 1 && (
             <Form.Item
               name="businessUnitId"
               label="所属事业部"

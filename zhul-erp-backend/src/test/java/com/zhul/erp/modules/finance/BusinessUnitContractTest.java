@@ -172,6 +172,10 @@ class BusinessUnitContractTest extends SalesContractSupport {
         assertEquals(deptA, jdbc.queryForObject("select business_unit_id from fin_expense where id = ?", Integer.class,
                 oldFee.path("id").asLong()));
         assertEquals(deptA, jdbc.queryForObject("select business_unit_id from tenant_bank_account where tenant_id = 0", Integer.class));
+        // 只有一个事业部时，公共部门的人登记客户不用选，直接归它
+        long single = ok(call(json(post("/api/v1/masterdata/customers"),
+                write(Map.of("name", "Solo Automation AB", "country", "Sweden"))), admin)).path("id").asLong();
+        assertEquals(deptA, jdbc.queryForObject("select business_unit_id from customer where id = ?", Integer.class, single));
         assertEquals("上级部门「IT-外贸部门-阿里国际站」已是事业部，事业部不能嵌套",
                 fail(mark(deptA1, true, thisMonth)).path("message").asText());
         ok(mark(deptB, true, thisMonth));
