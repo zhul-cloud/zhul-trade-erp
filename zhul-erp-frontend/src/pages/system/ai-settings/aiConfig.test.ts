@@ -1,8 +1,9 @@
 import {
   defaultModel,
   isDirty,
-  modelAfterProviderChange,
   modelOptions,
+  profileFormValues,
+  subscriptionState,
   testSlot,
   toFormValues,
   toPayload,
@@ -41,27 +42,77 @@ describe('toPayload', () => {
   });
 });
 
-describe('toFormValues', () => {
-  it('Key 不回填，思考强度空值显示为未选', () => {
-    const values = toFormValues({
-      configured: true,
-      mode: 'api',
-      provider: 'claude',
-      hasKey: true,
-      apiKeyMasked: 'sk-ant-••••••••••••••••abcd',
-      parseModel: '',
-      translateModel: '',
-      parseEffort: '',
-      translateEffort: 'high',
-      maxWebSearches: 8,
-      subscriptionAllowed: false,
-      defaultModels: DEFAULTS,
-    } as AiConfig);
-    expect(values).not.toHaveProperty('apiKey');
+const profile = (overrides: Record<string, unknown> = {}) => ({
+  saved: true,
+  hasKey: false,
+  apiKeyMasked: '',
+  parseModel: '',
+  translateModel: '',
+  parseEffort: '',
+  translateEffort: '',
+  maxWebSearches: 20,
+  ...overrides,
+});
+
+const config = (overrides: Record<string, unknown> = {}) =>
+  ({
+    configured: true,
+    mode: 'api',
+    provider: 'claude',
+    platform: false,
+    subscriptionAllowed: true,
+    apiProfiles: {
+      claude: profile({ hasKey: true, translateEffort: 'high' }),
+      openai: profile({ parseModel: 'gpt-6-terra', maxWebSearches: 8 }),
+    },
+    subscriptionProfiles: {
+      claude: profile({ parseModel: 'claude-opus-5-1' }),
+      openai: profile(),
+    },
+    defaultModels: DEFAULTS,
+    ...overrides,
+  }) as AiConfig;
+
+describe('profileFormValues', () => {
+  it('Key 不回填，模型没填时预填推荐模型，思考强度空值显示为未选', () => {
+    const values = toFormValues(config());
+    expect(values.apiKey).toBe('');
     expect(values.parseModel).toBe('claude-opus-5-5');
-    expect(values.translateModel).toBe('claude-haiku-5-5');
     expect(values.parseEffort).toBeUndefined();
     expect(values.translateEffort).toBe('high');
+  });
+
+  it('按连接方式取各自的设置，两家互不影响', () => {
+    expect(profileFormValues(config(), 'api', 'openai')).toMatchObject({
+      parseModel: 'gpt-6-terra',
+      translateModel: 'gpt-6-luna',
+      maxWebSearches: 8,
+    });
+    expect(
+      profileFormValues(config(), 'subscription', 'claude').parseModel,
+    ).toBe('claude-opus-5-1');
+  });
+});
+
+describe('subscriptionState', () => {
+  const status = { available: { claude: true, openai: false } };
+
+  it('平台看登录状态，租户只看可用与否', () => {
+    expect(subscriptionState(status, 'claude', true)).toBe('in');
+    expect(subscriptionState(status, 'openai', true)).toBe('out');
+    expect(subscriptionState(status, 'claude', false)).toBe('avail');
+    expect(subscriptionState(status, 'openai', false)).toBe('unavail');
+  });
+
+  it('查询失败或还没查到为未知', () => {
+    expect(
+      subscriptionState(
+        { available: { claude: null, openai: null } },
+        'claude',
+        false,
+      ),
+    ).toBe('unknown');
+    expect(subscriptionState(undefined, 'openai', true)).toBe('unknown');
   });
 });
 
@@ -128,22 +179,5 @@ describe('testSlot', () => {
     expect(testSlot(items, 'API Key')?.ok).toBe(true);
     expect(testSlot(items, '解析模型')?.message).toBe('模型不存在');
     expect(testSlot(items, '翻译模型')).toBeUndefined();
-  });
-});
-
-describe('modelAfterProviderChange', () => {
-  it('没填或是推荐模型时换成新服务商的推荐模型', () => {
-    expect(
-      modelAfterProviderChange('claude-opus-5-5', DEFAULTS, 'openai', 'parse'),
-    ).toBe('gpt-6.1-sol');
-    expect(modelAfterProviderChange('', DEFAULTS, 'openai', 'translate')).toBe(
-      'gpt-6-luna',
-    );
-  });
-
-  it('用户自己填的模型保持不变', () => {
-    expect(
-      modelAfterProviderChange('my-model', DEFAULTS, 'openai', 'parse'),
-    ).toBe('my-model');
   });
 });

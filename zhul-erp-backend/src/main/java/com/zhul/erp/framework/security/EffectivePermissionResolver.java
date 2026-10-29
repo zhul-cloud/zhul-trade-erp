@@ -82,6 +82,11 @@ public class EffectivePermissionResolver {
         ).stream().map(RoleResourceDO::getResourceId).collect(Collectors.toCollection(HashSet::new));
     }
 
+    /** 公司所属套餐包含的资源 ID（不看员工角色）；租户或套餐不存在时为空集合 */
+    public Set<Integer> resolveTenantPackageResourceIds(Integer tenantId) {
+        return resolvePackageResourceIds(tenantId);
+    }
+
     private Set<Integer> resolvePackageResourceIds(Integer tenantId) {
         TenantDO tenant = tenantMapper.selectById(tenantId);
         if (tenant == null || tenant.getPackageId() == null) {

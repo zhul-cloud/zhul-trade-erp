@@ -4,7 +4,7 @@ import com.zhul.erp.modules.aitask.dto.AiCallConfig;
 import com.zhul.erp.modules.aitask.dto.AiConnectionTestVO;
 import com.zhul.erp.modules.aitask.dto.AiModelListVO;
 import com.zhul.erp.modules.aitask.dto.AiOrchestratorSubmitResult;
-import com.zhul.erp.modules.aitask.dto.AiSubscriptionStatusVO;
+import com.zhul.erp.modules.aitask.dto.AiLoginStatus;
 
 import java.util.concurrent.CompletableFuture;
 
@@ -25,5 +25,5 @@ public interface AiOrchestratorClient {
     AiModelListVO models(AiCallConfig ai);
 
     /** 同步查询容器内两个官方 CLI 的登录状态 */
-    AiSubscriptionStatusVO status();
+    AiLoginStatus status();
 }

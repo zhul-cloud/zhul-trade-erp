@@ -82,10 +82,10 @@ AI 编排服务 SHALL 按任务携带的解析与翻译思考强度调用服务�
 - **THEN** 后续订阅收到与 API 调用前相同的业务 Schema 和执行参数，并沿用原结果校验与回调行为
 
 ### Requirement: 部署者个人订阅模式
-编排服务 SHALL 在任务携带的运行方式为 `subscription` 时，按携带的服务商使用官方 Codex Python SDK（`openai`）或原版 Claude Code CLI（`claude`）执行。订阅方式只用于平台租户的任务，不使用 API Key，不自动回退 API；部署者本人通过容器内官方 CLI 登录，项目不代收 token，不提供账号共享池。
+编排服务 SHALL 在任务携带的运行方式为 `subscription` 时，按携带的服务商使用官方 Codex Python SDK（`openai`）或原版 Claude Code CLI（`claude`）执行。订阅方式用于平台租户以及获平台授权使用订阅的公司的任务（授权与可用性由后端在创建任务前检查，编排服务按任务携带的配置执行），不使用 API Key，不自动回退 API 或改用其他服务商；部署者本人通过容器内官方 CLI 登录，项目不代收 token，不向租户下发任何凭据。
 
 #### Scenario: Codex 订阅无 API Key
-- **WHEN** 平台租户的任务携带订阅方式、服务商 `openai`，容器内已由部署者完成 ChatGPT 登录
+- **WHEN** 平台租户或获授权公司的任务携带订阅方式、服务商 `openai`，容器内已由部署者完成 ChatGPT 登录
 - **THEN** 编排服务通过官方 Codex SDK 执行任务，并使用原回调契约
 
 #### Scenario: 缺少个人订阅登录

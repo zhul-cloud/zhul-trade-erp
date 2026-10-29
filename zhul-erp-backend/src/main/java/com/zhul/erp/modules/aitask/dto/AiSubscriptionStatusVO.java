@@ -1,12 +1,18 @@
 package com.zhul.erp.modules.aitask.dto;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.Data;
 
-/** 容器内两个官方 CLI 的登录状态，不含账号信息 */
+import java.util.Map;
+
+/** 平台订阅状态：租户只拿到可用与否；登录状态与登录命令只返回给平台 */
 @Data
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class AiSubscriptionStatusVO {
-    private boolean codexLoggedIn;
-    private boolean claudeLoggedIn;
-    private String codexLoginCommand = "docker compose exec ai-orchestrator codex login --device-auth";
-    private String claudeLoginCommand = "docker compose exec ai-orchestrator claude auth login";
+    /** provider → 是否可用；状态查询失败时为 null（未知） */
+    private Map<String, Boolean> available;
+    /** 仅平台：provider → logged_in / logged_out / unknown */
+    private Map<String, String> states;
+    /** 仅平台：provider → 容器内登录命令 */
+    private Map<String, String> loginCommands;
 }
