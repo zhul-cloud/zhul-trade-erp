@@ -11,7 +11,7 @@ import {
   TrophyOutlined,
 } from '@ant-design/icons';
 import { history, useAccess, useParams } from '@umijs/max';
-import { App, Button, Dropdown, Skeleton } from 'antd';
+import { Alert, App, Button, Dropdown, Skeleton } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
 import { StatusPill } from '@/pages/inquiry/shared/components';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
@@ -23,6 +23,7 @@ import {
   FileChip,
   fileMeta,
   iconButton,
+  MigratedPill,
   PageTitle,
   Pill,
   PreviewButton,
@@ -266,6 +267,7 @@ const OpportunityDetailPage: React.FC = () => {
               {d.aliLevel ? ` · ${d.aliLevel}` : ''}
             </Pill>
             {d.customerNameMissing && <Pill tone="orange">未填客户名称</Pill>}
+            <MigratedPill migrated={d.migrated} />
             <span style={{ color: palette.mute }}>
               首次接触 {d.firstContactDate} · 负责人 {d.ownerName || '未分配'} ·{' '}
               {d.country}
@@ -291,6 +293,14 @@ const OpportunityDetailPage: React.FC = () => {
         }
       />
 
+      {d.migrated && (
+        <Alert
+          type="info"
+          showIcon
+          style={{ marginBottom: 16 }}
+          title="这条商机从旧系统迁移，可以照常跟进；推进阶段、结束、重新打开、修改或从它创建询盘后，就成为普通商机。"
+        />
+      )}
       <Card title="阶段" extra={actions} style={{ marginBottom: 20 }}>
         {!isActive && (
           <div

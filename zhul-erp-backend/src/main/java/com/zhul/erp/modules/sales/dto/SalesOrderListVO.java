@@ -65,4 +65,6 @@ public class SalesOrderListVO {
     private java.math.BigDecimal profit;
     private java.math.BigDecimal profitRate;
     private Boolean profitSettled;
+    /** 历史迁移的单据（只读） */
+    private Boolean migrated;
 }

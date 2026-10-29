@@ -67,6 +67,18 @@ export interface OrderCost {
   pending: string[];
   missingCostCount: number;
   lines: CostLine[];
+  /** 历史迁移订单：收入、成本、毛利与结算状态取旧系统《成本核算》的快照 */
+  historySnapshot?: boolean;
+  snapshot?: {
+    purchaseAmount?: number;
+    freight?: number;
+    surcharge?: number;
+    serviceFee?: number;
+    /** 核算月份 YYYY-MM */
+    accountingMonth?: string;
+    /** 来源核算单旧编号 */
+    sourceCodes?: string;
+  };
 }
 
 export interface ProfitTotals {

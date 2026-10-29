@@ -39,6 +39,7 @@ import {
   CustomerTypePill,
   DeadlineText,
   LevelPill,
+  MigratedPill,
   PageTitle,
   Pill,
   Progress,
@@ -348,6 +349,7 @@ const CustomerInquiryPage: React.FC = () => {
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
           <a onClick={() => history.push(`${PATHS.inquiries}/${r.id}`)}>{v}</a>
           {r.urgent && <Pill tone="red">紧急</Pill>}
+          <MigratedPill migrated={r.migrated} />
         </span>
       ),
     },

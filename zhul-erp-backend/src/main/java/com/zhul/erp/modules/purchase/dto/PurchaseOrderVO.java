@@ -168,4 +168,6 @@ public class PurchaseOrderVO implements ShipFields {
         private Integer status;
         private String statusName;
     }
+    /** 历史迁移的单据（只读） */
+    private Boolean migrated;
 }

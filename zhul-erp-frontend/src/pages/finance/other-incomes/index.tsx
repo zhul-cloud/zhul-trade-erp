@@ -15,7 +15,12 @@ import {
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
-import { Card, PageTitle, Pill } from '@/pages/inquiry/shared/components';
+import {
+  Card,
+  MigratedPill,
+  PageTitle,
+  Pill,
+} from '@/pages/inquiry/shared/components';
 import { auditColumns } from '@/pages/purchase/components';
 import { readBizError } from '@/pages/sales/service';
 import { AttachmentWall, ReasonModal } from '@/pages/warehouse/components';
@@ -310,7 +315,9 @@ const OtherIncomePage: React.FC = () => {
       width: 110,
       fixed: 'right',
       render: (_, r) =>
-        canEdit && r.status === 1 ? (
+        r.migrated ? (
+          <MigratedPill migrated />
+        ) : canEdit && r.status === 1 ? (
           <Space size={10}>
             <a onClick={() => setModal({ editing: r })}>修改</a>
             <a onClick={() => setVoiding(r)}>作废</a>

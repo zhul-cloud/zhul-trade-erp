@@ -13,6 +13,8 @@ export interface OpportunityStage {
 export interface OpportunityItem {
   id: number;
   opportunityCode: string;
+  /** 从旧系统迁移、还没有人跟进过 */
+  migrated?: boolean;
   customerId: number;
   /** 客户展示名：有客户名称用名称，否则用联系人名称 */
   customerName: string;

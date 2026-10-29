@@ -46,8 +46,13 @@ public class DocumentNumberServiceImpl implements DocumentNumberService {
 
     @Override
     public String next(DocumentType type) {
+        return next(type, LocalDate.now());
+    }
+
+    @Override
+    public String next(DocumentType type, LocalDate bizDate) {
         int tenant = tenantId();
-        LocalDate today = LocalDate.now();
+        LocalDate today = bizDate == null ? LocalDate.now() : bizDate;
         for (int attempt = 1; ; attempt++) {
             try {
                 // 独立事务：取号立即提交，调用方回滚只留下空号

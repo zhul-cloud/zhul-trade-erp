@@ -3,7 +3,12 @@ import { history, Link, useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { App, Button, Checkbox, Input, Select, Table } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
-import { Card, PageTitle, Pill } from '@/pages/inquiry/shared/components';
+import {
+  Card,
+  MigratedPill,
+  PageTitle,
+  Pill,
+} from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { auditColumns } from '@/pages/purchase/components';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -278,7 +283,16 @@ const Shipments: React.FC = () => {
       dataIndex: 'shNo',
       width: 160,
       fixed: 'left',
-      render: (v: string, r) => <a onClick={() => open(r.id)}>{v}</a>,
+      render: (v: string, r) => (
+        <div>
+          <a onClick={() => open(r.id)}>{v}</a>
+          {r.migrated && (
+            <div style={{ marginTop: 4 }}>
+              <MigratedPill migrated />
+            </div>
+          )}
+        </div>
+      ),
     },
     { title: '客户', dataIndex: 'customerName', width: 200 },
     { title: '货代', dataIndex: 'forwarderName', width: 120 },

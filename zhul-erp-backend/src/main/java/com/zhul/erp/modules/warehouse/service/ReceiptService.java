@@ -2,6 +2,7 @@ package com.zhul.erp.modules.warehouse.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.zhul.erp.common.exception.BizException;
+import com.zhul.erp.common.utils.MigratedGuard;
 import com.zhul.erp.common.result.PageResult;
 import com.zhul.erp.modules.attachment.service.AttachmentService;
 import com.zhul.erp.modules.media.dto.AttachmentModelsRequest;
@@ -466,6 +467,7 @@ public class ReceiptService {
     public ReceiptVO reverse(Long id, String reason) {
         PurchaseReceiptDO r = visible(id);
         PurchaseOrderDO p = support.lockPo(r.getPoId(), false);
+        MigratedGuard.requireEditable(p.getMigrated());
         receiptMapper.lockById(id);
         r = visible(id);
         if (r.getStatus() != WarehouseConstants.GR_VALID) {

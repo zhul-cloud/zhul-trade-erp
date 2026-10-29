@@ -1,12 +1,17 @@
 import { history } from '@umijs/max';
 import { Skeleton } from 'antd';
 import React, { useEffect, useState } from 'react';
-import { Card, PageTitle, Pill } from '@/pages/inquiry/shared/components';
+import {
+  Card,
+  MigratedPill,
+  PageTitle,
+  Pill,
+} from '@/pages/inquiry/shared/components';
 import type { Tone } from '@/pages/inquiry/shared/constants';
 import { useAppTheme } from '@/theme/AppTheme';
 import { type Chain, type ChainNode, chainApi } from './service';
 
-export { Card, Pill };
+export { Card, MigratedPill, Pill };
 
 export const PI_STATUS = {
   DRAFT: 1,

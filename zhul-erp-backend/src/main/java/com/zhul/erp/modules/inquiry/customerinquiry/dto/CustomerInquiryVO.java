@@ -33,4 +33,6 @@ public class CustomerInquiryVO {
     private Long opportunityId;
     private LocalDateTime createTime;
     private LocalDateTime updateTime;
+    /** 历史迁移的单据（只读） */
+    private Boolean migrated;
 }

@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhul.erp.modules.quotation.support.QuotationLocks;
 import com.zhul.erp.common.constants.DictTypes;
 import com.zhul.erp.common.exception.BizException;
+import com.zhul.erp.common.utils.MigratedGuard;
 import com.zhul.erp.common.result.PageResult;
 import com.zhul.erp.framework.security.DataScope;
 import com.zhul.erp.framework.security.DataScopeResolver;
@@ -527,6 +528,7 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
         List<CustomerInquiryVO> list = new ArrayList<>(inquiries.size());
         for (CustomerInquiryDO i : inquiries) {
             CustomerInquiryVO vo = new CustomerInquiryVO();
+            vo.setMigrated(MigratedGuard.isMigrated(i.getMigrated()));
             CustomerDO c = customers.get(i.getCustomerId());
             vo.setId(i.getId());
             vo.setInquiryCode(i.getInquiryCode());
@@ -584,7 +586,7 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public CustomerInquiryVO startParse(Long id) {
-        CustomerInquiryDO inquiry = getVisible(id);
+        CustomerInquiryDO inquiry = getEditable(id);
         if (inquiry.getStatus() != InquiryConstants.STATUS_PENDING_PARSE) {
             throw new BizException("只有待解析的询盘可以发起 AI 解析");
         }
@@ -594,7 +596,7 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public CustomerInquiryVO retryParse(Long id) {
-        CustomerInquiryDO inquiry = getVisible(id);
+        CustomerInquiryDO inquiry = getEditable(id);
         // 待确认也可以重新解析：解析结果不对或补了附件时重来，新结果覆盖原草稿
         if (inquiry.getStatus() != InquiryConstants.STATUS_PARSE_FAILED
                 && inquiry.getStatus() != InquiryConstants.STATUS_PENDING_CONFIRM) {
@@ -779,7 +781,7 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
     @Override
     @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public void confirm(Long id, ConfirmRequest req) {
-        CustomerInquiryDO inquiry = getVisible(id);
+        CustomerInquiryDO inquiry = getEditable(id);
         progress.lock(inquiry.getId());
         inquiry = inquiryMapper.selectById(id);
         if (!confirmable(inquiry.getStatus())) {
@@ -910,7 +912,7 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public AppendVO startAppend(Long id, AppendRequest req) {
-        CustomerInquiryDO inquiry = getVisible(id);
+        CustomerInquiryDO inquiry = getEditable(id);
         progress.lock(inquiry.getId());
         inquiry = inquiryMapper.selectById(id);
         if (!APPENDABLE.contains(inquiry.getStatus())) {
@@ -943,7 +945,7 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public AppendVO retryAppend(Long id, Long appendId) {
-        CustomerInquiryDO inquiry = getVisible(id);
+        CustomerInquiryDO inquiry = getEditable(id);
         CustomerInquiryAppendDO a = requireAppend(inquiry, appendId);
         if (a.getStatus() != APPEND_PARSE_FAILED && a.getStatus() != APPEND_PENDING_CONFIRM) {
             throw new BizException("只有解析失败或待确认的追加可以重新解析");
@@ -1014,7 +1016,7 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
     @Override
     @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public void confirmAppend(Long id, Long appendId, ConfirmRequest req) {
-        CustomerInquiryDO inquiry = getVisible(id);
+        CustomerInquiryDO inquiry = getEditable(id);
         progress.lock(inquiry.getId());
         inquiry = inquiryMapper.selectById(id);
         CustomerInquiryAppendDO a = requireAppend(inquiry, appendId);
@@ -1058,7 +1060,7 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void discardAppend(Long id, Long appendId) {
-        CustomerInquiryDO inquiry = getVisible(id);
+        CustomerInquiryDO inquiry = getEditable(id);
         CustomerInquiryAppendDO a = requireAppend(inquiry, appendId);
         if (!APPEND_OPEN.contains(a.getStatus())) {
             throw new BizException("这次追加已经结束");
@@ -1104,7 +1106,7 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void updateLevel(Long id, Integer level) {
-        CustomerInquiryDO inquiry = getVisible(id);
+        CustomerInquiryDO inquiry = getEditable(id);
         if (InquiryConstants.STATUS_CANCELLED == inquiry.getStatus()) {
             throw new BizException("已取消的询盘不能调整等级");
         }
@@ -1125,7 +1127,7 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
     @Override
     @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public void cancel(Long id) {
-        CustomerInquiryDO inquiry = getVisible(id);
+        CustomerInquiryDO inquiry = getEditable(id);
         progress.lock(id);
         inquiry = inquiryMapper.selectById(id);
         if (!CANCELLABLE.contains(inquiry.getStatus())) {
@@ -1138,7 +1140,7 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
 
     @Override
     public void markReviewed(Long id) {
-        CustomerInquiryDO inquiry = getVisible(id);
+        CustomerInquiryDO inquiry = getEditable(id);
         inquiry.setNeedsReview(0);
         inquiryMapper.updateById(inquiry);
     }
@@ -1159,6 +1161,13 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
                 || !scope.canSee(inquiry.getOwnerId())) {
             throw new BizException("询盘单不存在");
         }
+        return inquiry;
+    }
+
+    /** 修改类入口取询盘单：历史迁移的询盘单只读 */
+    private CustomerInquiryDO getEditable(Long id) {
+        CustomerInquiryDO inquiry = getVisible(id);
+        MigratedGuard.requireEditable(inquiry.getMigrated());
         return inquiry;
     }
 

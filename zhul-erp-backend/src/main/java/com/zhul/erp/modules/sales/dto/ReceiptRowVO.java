@@ -49,4 +49,6 @@ public class ReceiptRowVO {
     private String claimedByName;
     private LocalDateTime claimedAt;
     private LocalDateTime createTime;
+    /** 历史迁移的单据（只读） */
+    private Boolean migrated;
 }

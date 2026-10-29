@@ -30,6 +30,7 @@ import {
   Card,
   ChainCard,
   KIND,
+  MigratedPill,
   PATHS,
   Pill,
   partyAddress,
@@ -120,6 +121,8 @@ const OrderDetail: React.FC = () => {
 
   const cur = o.currencyCode;
   const active = o.status === 1;
+  /** 历史迁移的订单只读（可以照常登记退款） */
+  const editable = active && !o.migrated;
   const manual = o.source === 2;
   const completed = o.progressCode === 'COMPLETED';
   const orderedModels = o.items.filter(
@@ -195,7 +198,7 @@ const OrderDetail: React.FC = () => {
           '销售日期',
           <>
             {o.salesDate ?? '—'}
-            {active && (
+            {editable && (
               <Button
                 type="text"
                 size="small"
@@ -792,7 +795,7 @@ const OrderDetail: React.FC = () => {
   const canConfirm = access['sales:pi:receipt-confirm'];
   const canPlatform = access['sales:pi:platform-receipt'];
   const canClaim = access['sales:pi:claim-receipt'];
-  const receivable = manual && active;
+  const receivable = manual && editable;
   const openSlip = (receiptId: number, index: number) =>
     (manual
       ? orderApi.openSlipFile(o.id, receiptId, index)
@@ -1117,6 +1120,14 @@ const OrderDetail: React.FC = () => {
 
   const main = (
     <div style={{ minWidth: 0 }}>
+      {o.migrated && (
+        <Alert
+          type="warning"
+          showIcon
+          style={{ marginBottom: 16 }}
+          title="这张订单从旧系统迁移，只能查看，不能修改、取消或登记收款；需要退款时可以照常登记退款。"
+        />
+      )}
       {!active && (
         <Alert
           type="warning"
@@ -1170,6 +1181,7 @@ const OrderDetail: React.FC = () => {
         title={
           <>
             {o.soNo}
+            <MigratedPill migrated={o.migrated} />
             <ProgressPill code={o.progressCode} name={o.progressName} />
             <StockPill type={o.stockType} />
             <ReceiptStatusPill status={o.receiptStatus} />

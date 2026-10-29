@@ -71,6 +71,10 @@ export const Pill: React.FC<{
   );
 };
 
+/** 历史迁移的单据（只读）标记；不是迁移数据时不显示（openspec migrate-feishu-history） */
+export const MigratedPill: React.FC<{ migrated?: boolean }> = ({ migrated }) =>
+  migrated ? <Pill tone="orange">历史迁移</Pill> : null;
+
 /** 进行中阶段按顺序渐变色调；结束状态按结果着色 */
 const ACTIVE_TONES: Tone[] = [
   'gray',

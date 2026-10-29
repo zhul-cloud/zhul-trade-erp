@@ -115,4 +115,6 @@ public class SalesOrderVO {
         /** 没有采购成本价的型号数 */
         private Integer missingCostCount;
     }
+    /** 历史迁移的单据（只读） */
+    private Boolean migrated;
 }

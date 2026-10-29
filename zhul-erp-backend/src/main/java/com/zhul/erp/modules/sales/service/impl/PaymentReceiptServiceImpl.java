@@ -5,6 +5,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhul.erp.common.exception.BizException;
+import com.zhul.erp.common.utils.MigratedGuard;
 import com.zhul.erp.common.result.PageResult;
 import com.zhul.erp.framework.security.DataScopeResolver;
 import com.zhul.erp.framework.security.PermissionChecker;
@@ -712,6 +713,7 @@ public class PaymentReceiptServiceImpl implements PaymentReceiptService {
     private SalesOrderDO requireOrder(Long soId, boolean receivable) {
         visibleOrder(soId);
         SalesOrderDO so = orderMapper.selectOne(new LambdaQueryWrapper<SalesOrderDO>().eq(SalesOrderDO::getId, soId).last("FOR UPDATE"));
+        MigratedGuard.requireEditable(so.getMigrated());
         if (!Objects.equals(so.getSource(), SalesConstants.SO_MANUAL)) {
             throw new BizException("这张订单由 PI 转成，收款请在 PI 上登记");
         }
@@ -811,6 +813,7 @@ public class PaymentReceiptServiceImpl implements PaymentReceiptService {
         if (r == null || r.getDeletedAt() != null || !o.owns(r) || r.getKind() != kind) {
             throw new BizException(kind == SalesConstants.KIND_SLIP ? "水单不存在" : "到账记录不存在");
         }
+        MigratedGuard.requireEditable(r.getMigrated());
         return r;
     }
 
