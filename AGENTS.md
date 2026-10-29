@@ -94,6 +94,7 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 
 ### ALWAYS
 - 输出计划前先列出影响范围
+- 凭据按用途保护：租户运行时需调用的 API Key 等第三方凭据可按租户隔离加密存入业务库，管理查询与展示脱敏；系统用户登录密码只存安全单向哈希，具体遵循 [编码规范「凭据与密码」](.claude/rules/coding.md#凭据与密码)。
 - 财务相关计算必须注明精度规则（四舍五入方式）
 - 涉及跨模块数据联动，须说明事务边界
 - 金额字段统一用 decimal/Numeric 类型，禁用 float

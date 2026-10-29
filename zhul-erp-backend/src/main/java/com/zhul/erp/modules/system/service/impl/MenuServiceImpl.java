@@ -3,6 +3,8 @@ package com.zhul.erp.modules.system.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.zhul.erp.common.exception.BizException;
+import com.zhul.erp.common.result.ResultCode;
+import com.zhul.erp.framework.tenant.TenantContext;
 import com.zhul.erp.framework.security.EffectivePermissionResolver;
 import com.zhul.erp.modules.system.dto.DeleteCheckVO;
 import com.zhul.erp.modules.system.dto.MenuVO;
@@ -86,6 +88,14 @@ public class MenuServiceImpl implements MenuService {
         return result;
     }
 
+    /** 菜单资源是所有租户共用的全局配置，租户账号即使有按钮权限也不能修改 */
+    private static void requirePlatform() {
+        Integer tenantId = TenantContext.getTenantId();
+        if (tenantId == null || tenantId != 0) {
+            throw new BizException(ResultCode.FORBIDDEN, "菜单是全局配置，只有平台账号能修改");
+        }
+    }
+
     private static String currentUsername() {
         return SecurityContextHolder.getContext().getAuthentication().getName();
     }
@@ -104,6 +114,7 @@ public class MenuServiceImpl implements MenuService {
 
     @Override
     public void createMenu(SaveMenuRequest request) {
+        requirePlatform();
         ResourceDO menu = new ResourceDO();
         menu.setPid(request.getPid());
         menu.setTenantId(0);
@@ -129,6 +140,7 @@ public class MenuServiceImpl implements MenuService {
 
     @Override
     public void updateMenu(Integer id, SaveMenuRequest request) {
+        requirePlatform();
         ResourceDO menu = resourceMapper.selectById(id);
         if (menu == null) throw new BizException("菜单不存在");
         menu.setPid(request.getPid());
@@ -150,6 +162,7 @@ public class MenuServiceImpl implements MenuService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void deleteMenu(Integer id) {
+        requirePlatform();
         long childCount = resourceMapper.selectCount(
             new LambdaQueryWrapper<ResourceDO>().eq(ResourceDO::getPid, id)
         );
@@ -203,6 +216,7 @@ public class MenuServiceImpl implements MenuService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void updateStatus(Integer id, Integer status) {
+        requirePlatform();
         resourceMapper.update(new ResourceDO(), new LambdaUpdateWrapper<ResourceDO>()
             .eq(ResourceDO::getId, id)
             .set(ResourceDO::getStatus, status));
@@ -225,6 +239,7 @@ public class MenuServiceImpl implements MenuService {
 
     @Override
     public void updateSort(Integer id, Integer sort) {
+        requirePlatform();
         resourceMapper.update(new ResourceDO(), new LambdaUpdateWrapper<ResourceDO>()
             .eq(ResourceDO::getId, id)
             .set(ResourceDO::getSort, sort));

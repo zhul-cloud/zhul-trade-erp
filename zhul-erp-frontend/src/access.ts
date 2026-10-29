@@ -222,9 +222,10 @@ export default function access(initialState: {
     'system:role:delete': can('system:role:delete'),
     'system:role:assign': can('system:role:assign'),
     // 按钮级 - 菜单管理
-    'system:menu:add': can('system:menu:add'),
-    'system:menu:edit': can('system:menu:edit'),
-    'system:menu:delete': can('system:menu:delete'),
+    // 菜单是全局配置，只有平台账号能改（服务端同样会校验）
+    'system:menu:add': canWrite('system:menu:add'),
+    'system:menu:edit': canWrite('system:menu:edit'),
+    'system:menu:delete': canWrite('system:menu:delete'),
     // 按钮级 - 部门管理
     'system:dept:add': can('system:dept:add'),
     'system:dept:edit': can('system:dept:edit'),

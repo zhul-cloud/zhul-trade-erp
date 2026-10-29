@@ -21,6 +21,12 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class MenuController {
 
+    /** 菜单资源是全局配置：写操作要求菜单管理页面权限 + 对应按钮权限，服务层再限定平台账号 */
+    private static final String MENU = "@perm.canAccessMenu('/system/menu')";
+    private static final String ADD = MENU + " and @perm.has('system:menu:add')";
+    private static final String EDIT = MENU + " and @perm.has('system:menu:edit')";
+    private static final String DELETE = MENU + " and @perm.has('system:menu:delete')";
+
     private final MenuService menuService;
 
     @Operation(summary = "获取菜单树")
@@ -30,6 +36,7 @@ public class MenuController {
     }
 
     @Operation(summary = "新增菜单")
+    @PreAuthorize(ADD)
     @PostMapping
     public Result<Void> create(@Valid @RequestBody SaveMenuRequest request) {
         menuService.createMenu(request);
@@ -37,6 +44,7 @@ public class MenuController {
     }
 
     @Operation(summary = "编辑菜单")
+    @PreAuthorize(EDIT)
     @PutMapping("/{id}")
     public Result<Void> update(@PathVariable Integer id, @RequestBody SaveMenuRequest request) {
         menuService.updateMenu(id, request);
@@ -44,6 +52,7 @@ public class MenuController {
     }
 
     @Operation(summary = "删除菜单")
+    @PreAuthorize(DELETE)
     @DeleteMapping("/{id}")
     public Result<Void> delete(@PathVariable Integer id) {
         menuService.deleteMenu(id);
@@ -57,6 +66,7 @@ public class MenuController {
     }
 
     @Operation(summary = "启用/禁用菜单")
+    @PreAuthorize(EDIT)
     @PutMapping("/{id}/status")
     public Result<Void> updateStatus(@PathVariable Integer id, @RequestBody Map<String, Integer> body) {
         menuService.updateStatus(id, body.get("status"));
@@ -64,6 +74,7 @@ public class MenuController {
     }
 
     @Operation(summary = "更新排序")
+    @PreAuthorize(EDIT)
     @PutMapping("/{id}/sort")
     public Result<Void> updateSort(@PathVariable Integer id, @RequestBody Map<String, Integer> body) {
         menuService.updateSort(id, body.get("sort"));

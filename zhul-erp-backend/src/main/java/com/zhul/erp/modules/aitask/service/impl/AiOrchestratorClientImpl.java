@@ -8,7 +8,7 @@ import com.zhul.erp.modules.aitask.dto.AiCallConfig;
 import com.zhul.erp.modules.aitask.dto.AiConnectionTestVO;
 import com.zhul.erp.modules.aitask.dto.AiModelListVO;
 import com.zhul.erp.modules.aitask.dto.AiOrchestratorSubmitResult;
-import com.zhul.erp.modules.aitask.dto.AiSubscriptionStatusVO;
+import com.zhul.erp.modules.aitask.dto.AiLoginStatus;
 import com.zhul.erp.modules.aitask.service.AiOrchestratorClient;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -115,7 +115,7 @@ public class AiOrchestratorClientImpl implements AiOrchestratorClient {
     }
 
     @Override
-    public AiSubscriptionStatusVO status() {
+    public AiLoginStatus status() {
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(orchestratorBaseUrl + "/status"))
                 .header(TOKEN_HEADER, callbackToken)
@@ -123,10 +123,8 @@ public class AiOrchestratorClientImpl implements AiOrchestratorClient {
                 .GET()
                 .build();
         JsonNode json = send(request, "/status");
-        AiSubscriptionStatusVO vo = new AiSubscriptionStatusVO();
-        vo.setCodexLoggedIn(json.path("codex").path("logged_in").asBoolean(false));
-        vo.setClaudeLoggedIn(json.path("claude").path("logged_in").asBoolean(false));
-        return vo;
+        return new AiLoginStatus(json.path("claude").path("logged_in").asBoolean(false),
+                json.path("codex").path("logged_in").asBoolean(false));
     }
 
     private JsonNode post(String path, Map<String, Object> body) {

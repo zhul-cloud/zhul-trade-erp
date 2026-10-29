@@ -8,8 +8,13 @@ public final class AiConfigConstants {
     private AiConfigConstants() {
     }
 
-    /** 平台租户：只有它能使用部署者个人订阅 */
+    /** 平台租户：始终可用平台订阅，订阅设置以它的为准 */
     public static final int PLATFORM_TENANT_ID = 0;
+
+    /** 按钮资源「使用平台订阅」：套餐包含它的公司可以使用平台订阅（V1.3.22） */
+    public static final int RESOURCE_USE_SUBSCRIPTION = 110215;
+    /** 「使用平台订阅」所在的菜单：AI 设置 */
+    public static final int RESOURCE_AI_SETTINGS = 100118;
 
     public static final String MODE_API = "api";
     public static final String MODE_SUBSCRIPTION = "subscription";
@@ -31,4 +36,11 @@ public final class AiConfigConstants {
             PROVIDER_OPENAI, Map.of("parse", "gpt-6.1-sol", "translate", "gpt-6-luna"));
 
     public static final String NOT_CONFIGURED_MESSAGE = "AI 未配置，请在「业务设置 → AI 设置」中填写";
+    /** 选用的平台订阅不可用时的提示，不说明原因 */
+    public static final String UNAVAILABLE_MESSAGE = "AI 暂不可用，请在「业务设置 → AI 设置」中改选其他方式";
+
+    /** 容器内登录命令：provider → 命令，只返回给平台 */
+    public static final Map<String, String> LOGIN_COMMANDS = Map.of(
+            PROVIDER_CLAUDE, "docker compose exec ai-orchestrator claude auth login",
+            PROVIDER_OPENAI, "docker compose exec ai-orchestrator codex login --device-auth");
 }
