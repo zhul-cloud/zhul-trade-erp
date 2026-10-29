@@ -51,10 +51,10 @@ class FakeClaude:
     def _stream(self, **params):
         FakeClaude.calls[-1]["params"] = params
         message = SimpleNamespace(
-            stop_reason="end_turn", model=params["model"], _request_id="req_test",
+            stop_reason="end_turn", model=params["model"],
             content=[SimpleNamespace(type="text", text=FakeClaude.reply)],
             usage=SimpleNamespace(input_tokens=1, output_tokens=1, server_tool_use=None))
-        return mock.MagicMock(__enter__=lambda s: SimpleNamespace(get_final_message=lambda: message),
+        return mock.MagicMock(__enter__=lambda s: SimpleNamespace(get_final_message=lambda: message, request_id="req_test"),
                               __exit__=lambda s, *a: False)
 
 
