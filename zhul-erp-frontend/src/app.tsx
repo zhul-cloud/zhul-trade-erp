@@ -15,6 +15,7 @@ import {
   LangDropdown,
   OfflineBanner,
 } from '@/components';
+import PasteToUpload from '@/components/PasteToUpload';
 import { AppLogo, SidebarUser, ThemeToggle, TopBar } from '@/components/Shell';
 import { SiteFavicon } from '@/components/Shell/BrandLogo';
 import { getMenuTree, type MenuItem } from '@/pages/system/menu/service';
@@ -73,8 +74,7 @@ export async function getInitialState(): Promise<{
   };
   loading?: boolean;
   fetchUserInfo?: () => Promise<
-    | (CurrentUser & { permissions?: string[]; tenantName?: string })
-    | undefined
+    (CurrentUser & { permissions?: string[]; tenantName?: string }) | undefined
   >;
   settingDrawerOpen?: boolean;
   // 侧边栏的顺序/名称/图标/层级全部来自「菜单管理」的原始树，而不是 routes.ts 里
@@ -221,6 +221,7 @@ export const layout: RunTimeLayoutConfig = ({ initialState }) => {
     childrenRender: (children) => (
       <>
         <ShellThemeSync />
+        <PasteToUpload />
         <SiteFavicon
           siteName={initialState?.appearance?.siteName}
           logoUrl={initialState?.appearance?.logoUrl}
