@@ -291,8 +291,8 @@ const OptionRow: React.FC<{
           {label}
           {extra}
         </span>
-        {state}
         {action}
+        {state}
       </div>
       {children && (
         <div style={{ padding: '0 14px 14px 42px' }}>{children}</div>
