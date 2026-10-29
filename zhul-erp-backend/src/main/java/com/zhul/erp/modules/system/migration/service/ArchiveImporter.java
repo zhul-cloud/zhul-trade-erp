@@ -2,6 +2,7 @@ package com.zhul.erp.modules.system.migration.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.zhul.erp.common.exception.BizException;
 import com.zhul.erp.framework.storage.FileStorageService;
 import com.zhul.erp.framework.storage.StorageArea;
 import com.zhul.erp.modules.attachment.dto.AttachmentVO;
@@ -15,6 +16,8 @@ import com.zhul.erp.modules.product.candidate.service.ProductArchiver;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.io.IOException;
 import java.net.URI;
@@ -37,6 +40,9 @@ import static com.zhul.erp.modules.system.migration.service.MigrationRun.text;
 /**
  * 候选商品与素材阶段：型号行按日常规则关联商品或进入候选池（询盘出现、采购问到有货、成交），
  * 图片按品牌 + 型号归档到素材库（客户来图、供方实拍、供方发货）。干跑不写文件。
+ * <p>
+ * 事务边界：型号每 200 行一个事务，图片每张单据一个事务，下载在事务外进行，避免长时间锁住候选池。
+ * 干跑时这些事务并入外层事务，一起回滚。
  */
 @Slf4j
 @Component
@@ -45,6 +51,8 @@ public class ArchiveImporter {
 
     static final String STAGE = "候选商品与素材";
     private static final int SYNC_BATCH = 200;
+    /** 每处理这么多张图片写一次进度 */
+    private static final int PROGRESS_EVERY = 100;
 
     private final ProductArchiver archiver;
     private final InquiryItemMapper itemMapper;
@@ -52,16 +60,21 @@ public class ArchiveImporter {
     private final FileStorageService files;
     private final CustomerInquiryAttachmentMapper inquiryAttachmentMapper;
     private final MediaIndexer mediaIndexer;
+    private final PlatformTransactionManager transactionManager;
     private final HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(20))
             .followRedirects(HttpClient.Redirect.NORMAL).build();
 
-    void run(MigrationRun r, Collection<Long> itemIds) {
+    /** progress：写一次进度（正式执行时写入批次的阶段统计） */
+    void run(MigrationRun r, Collection<Long> itemIds, Runnable progress) {
+        TransactionTemplate tx = new TransactionTemplate(transactionManager);
         List<Long> ids = new ArrayList<>(new LinkedHashSet<>(itemIds));
         for (int i = 0; i < ids.size(); i += SYNC_BATCH) {
-            archiver.sync(ids.subList(i, Math.min(ids.size(), i + SYNC_BATCH)));
+            List<Long> part = ids.subList(i, Math.min(ids.size(), i + SYNC_BATCH));
+            tx.executeWithoutResult(s -> archiver.sync(part));
         }
         r.created(STAGE, "型号建档或入池（询盘型号行）", ids.size());
-        media(r);
+        progress.run();
+        media(r, tx, progress);
     }
 
     private record Group(int category, String sourceKey, Set<String> tokens, Map<String, MediaIndexer.ModelRef> models,
@@ -72,7 +85,7 @@ public class ArchiveImporter {
     private record Fetched(LocalMultipartFile file, Path temp) {
     }
 
-    private void media(MigrationRun r) {
+    private void media(MigrationRun r, TransactionTemplate tx, Runnable progress) {
         Map<String, Group> groups = new LinkedHashMap<>();
         for (JsonNode m : r.list("media")) {
             int category = m.path("category").asInt();
@@ -87,22 +100,82 @@ public class ArchiveImporter {
             MediaIndexer.ModelRef ref = new MediaIndexer.ModelRef(text(m, "brand"), text(m, "model"));
             g.models().putIfAbsent(ref.assetKey(), ref);
         }
+        if (!r.dryRun) {
+            probe(groups.values());
+        }
+        int done = 0;
         for (Group g : groups.values()) {
             if (r.dryRun) {
                 r.created(STAGE, "素材图片（干跑不上传）");
                 continue;
             }
+            Map<String, Fetched> got = new LinkedHashMap<>();
             try {
-                switch (g.category()) {
-                    case 3 -> inquiryImages(r, g);
-                    case 4 -> quoteImages(r, g);
-                    default -> shipmentImages(r, g);
+                if (owner(r, g) == null) {
+                    continue;
                 }
+                String target = g.category() == 3 ? "customer_inquiry_attachment" : "biz_attachment";
+                for (String token : g.tokens()) {
+                    if (r.mapped("media", token + "|" + g.sourceKey(), target) == null) {
+                        Fetched f = fetch(r, g, token);
+                        if (f == null) {
+                            r.failed(STAGE, "素材图片（取不到文件）");
+                        } else {
+                            got.put(token, f);
+                        }
+                    }
+                    if (++done % PROGRESS_EVERY == 0) {
+                        progress.run();
+                    }
+                }
+                tx.executeWithoutResult(s -> {
+                    switch (g.category()) {
+                        case 3 -> inquiryImages(r, g, got);
+                        case 4 -> quoteImages(r, g, got);
+                        default -> shipmentImages(r, g, got);
+                    }
+                });
             } catch (RuntimeException e) {
                 log.warn("素材归档失败，category={}，sourceKey={}", g.category(), g.sourceKey(), e);
                 r.failed(STAGE, "素材图片");
+            } finally {
+                got.values().forEach(f -> FileStorageService.deleteTemp(f.temp()));
             }
         }
+    }
+
+    /** 图片所属单据的ID；单据没迁移过来时为 null */
+    private Long owner(MigrationRun r, Group g) {
+        return switch (g.category()) {
+            case 3 -> r.mapped("inquiries", g.sourceKey(), "customer_inquiry");
+            case 4 -> r.mapped("quotes", g.sourceKey(), "sourcing_quote");
+            default -> r.mapped("shipments", g.sourceKey(), "supplier_shipment");
+        };
+    }
+
+    /** 开始归档前先试下载一张：服务器访问不了图片地址或链接已过期时立即失败，不逐张空等超时 */
+    private void probe(Collection<Group> groups) {
+        String url = groups.stream().flatMap(g -> g.urls().values().stream())
+                .filter(u -> u != null && !u.isBlank()).findFirst().orElse(null);
+        if (url == null) {
+            return;
+        }
+        long start = System.currentTimeMillis();
+        try {
+            HttpResponse<Void> res = http.send(HttpRequest.newBuilder(URI.create(url)).timeout(Duration.ofSeconds(60)).GET().build(),
+                    HttpResponse.BodyHandlers.discarding());
+            if (res.statusCode() != 200) {
+                throw new BizException("试下载迁移图片失败（HTTP " + res.statusCode() + "），403 一般是图片链接已过期，需要重新打包；"
+                        + "已完成的阶段保留");
+            }
+        } catch (IOException e) {
+            throw new BizException("服务器访问不了迁移图片地址（" + e.getClass().getSimpleName()
+                    + (e.getMessage() == null ? "" : "：" + e.getMessage()) + "），请检查服务器能否访问开发 OSS；已完成的阶段保留", e);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new BizException("试下载迁移图片被中断", e);
+        }
+        log.info("迁移图片试下载成功，耗时 {} 毫秒", System.currentTimeMillis() - start);
     }
 
     /** 有下载链接的先下载到临时文件（生产环境：图片放在开发 OSS，链接有效期 7 天），否则读附件目录 */
@@ -149,7 +222,7 @@ public class ArchiveImporter {
     }
 
     /** 客户来图：存为询盘单附件，按询盘单的型号建索引 */
-    private void inquiryImages(MigrationRun r, Group g) {
+    private void inquiryImages(MigrationRun r, Group g, Map<String, Fetched> fetched) {
         Long inquiryId = r.mapped("inquiries", g.sourceKey(), "customer_inquiry");
         if (inquiryId == null) {
             return;
@@ -159,19 +232,13 @@ public class ArchiveImporter {
             if (r.mapped("media", token + "|" + g.sourceKey(), "customer_inquiry_attachment") != null) {
                 continue;
             }
-            Fetched got = fetch(r, g, token);
+            Fetched got = fetched.get(token);
             if (got == null) {
-                r.failed(STAGE, "素材图片（取不到文件）");
                 continue;
             }
             LocalMultipartFile f = got.file();
             String ext = f.getOriginalFilename().substring(f.getOriginalFilename().lastIndexOf('.') + 1);
-            FileStorageService.StoredFile s;
-            try {
-                s = files.storeValidated(StorageArea.INQUIRY, r.tenantId, f, ext);
-            } finally {
-                FileStorageService.deleteTemp(got.temp());
-            }
+            FileStorageService.StoredFile s = files.storeValidated(StorageArea.INQUIRY, r.tenantId, f, ext);
             CustomerInquiryAttachmentDO a = new CustomerInquiryAttachmentDO();
             a.setTenantId(r.tenantId);
             a.setCustomerInquiryId(inquiryId);
@@ -194,12 +261,12 @@ public class ArchiveImporter {
     }
 
     /** 供方实拍：存为询价记录附件，归该询价记录的型号 */
-    private void quoteImages(MigrationRun r, Group g) {
+    private void quoteImages(MigrationRun r, Group g, Map<String, Fetched> fetched) {
         Long quoteId = r.mapped("quotes", g.sourceKey(), "sourcing_quote");
         if (quoteId == null) {
             return;
         }
-        List<Long> ids = upload(r, g, AttachmentService.SOURCING_QUOTE, "供方实拍");
+        List<Long> ids = upload(r, g, fetched, AttachmentService.SOURCING_QUOTE, "供方实拍");
         if (!ids.isEmpty()) {
             attachments.attach(AttachmentService.SOURCING_QUOTE, quoteId, ids);
         }
@@ -208,35 +275,29 @@ public class ArchiveImporter {
     }
 
     /** 发货、到货图片：存为供应商发货单附件，标注订单的型号 */
-    private void shipmentImages(MigrationRun r, Group g) {
+    private void shipmentImages(MigrationRun r, Group g, Map<String, Fetched> fetched) {
         Long shipmentId = r.mapped("shipments", g.sourceKey(), "supplier_shipment");
         if (shipmentId == null) {
             return;
         }
-        List<Long> ids = upload(r, g, AttachmentService.SHIPMENT, g.category() == 7 ? "到货图片" : "供方发货");
+        List<Long> ids = upload(r, g, fetched, AttachmentService.SHIPMENT, g.category() == 7 ? "到货图片" : "供方发货");
         if (!ids.isEmpty()) {
             attachments.attach(AttachmentService.SHIPMENT, shipmentId, ids);
         }
         mediaIndexer.indexDocument(AttachmentService.SHIPMENT, shipmentId, r.tenantId, new ArrayList<>(g.models().values()), null);
     }
 
-    private List<Long> upload(MigrationRun r, Group g, String ownerType, String kind) {
+    private List<Long> upload(MigrationRun r, Group g, Map<String, Fetched> fetched, String ownerType, String kind) {
         List<Long> ids = new ArrayList<>();
         for (String token : g.tokens()) {
             if (r.mapped("media", token + "|" + g.sourceKey(), "biz_attachment") != null) {
                 continue;
             }
-            Fetched got = fetch(r, g, token);
+            Fetched got = fetched.get(token);
             if (got == null) {
-                r.failed(STAGE, "素材图片（取不到文件）");
                 continue;
             }
-            AttachmentVO a;
-            try {
-                a = attachments.upload(ownerType, null, got.file());
-            } finally {
-                FileStorageService.deleteTemp(got.temp());
-            }
+            AttachmentVO a = attachments.upload(ownerType, null, got.file());
             r.record("media", token + "|" + g.sourceKey(), "biz_attachment", a.getId());
             ids.add(a.getId());
             r.created(STAGE, kind);

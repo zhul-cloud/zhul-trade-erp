@@ -178,7 +178,7 @@ public class HistoryMigrationService {
                 progress(batch, r);
                 tx.executeWithoutResult(s -> finance.run(r, bu));
                 progress(batch, r);
-                tx.executeWithoutResult(s -> archive.run(r, r.inquiryItemIds));
+                archive.run(r, r.inquiryItemIds, () -> progress(batch, r));
             }
         } catch (RuntimeException e) {
             log.error("历史数据迁移失败，tenantId={}，batchId={}", tenantId, batch.getId(), e);
@@ -197,7 +197,7 @@ public class HistoryMigrationService {
         log.info("历史数据迁移结束，tenantId={}，batchNo={}，dryRun={}，status={}", tenantId, batch.getBatchNo(), dryRun, batch.getStatus());
     }
 
-    /** 正式执行每提交一个阶段写一次进度 */
+    /** 正式执行每提交一个阶段写一次进度；候选商品与素材阶段每处理 100 张图片再写一次 */
     private void progress(MigrationBatchDO batch, MigrationRun r) {
         MigrationBatchDO p = new MigrationBatchDO();
         p.setId(batch.getId());
@@ -224,7 +224,8 @@ public class HistoryMigrationService {
         inquiries.run(r, bu);
         orders.run(r, bu);
         finance.run(r, bu);
-        archive.run(r, r.inquiryItemIds);
+        archive.run(r, r.inquiryItemIds, () -> {
+        });
     }
 
     private Map<String, JsonNode> loadBundle(String dir) {

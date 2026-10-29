@@ -300,6 +300,30 @@ class HistoryMigrationContractTest extends TenantContractSupport {
                 zip(Map.of("../evil.json", "[]")))), token(PLATFORM_USER, 0)));
     }
 
+    /** 图片链接过期或服务器访问不了：试下载第一张就失败，不逐张空等；前面的阶段保留 */
+    @Test
+    void imageProbeFails_stopsBeforeArchiving() throws Exception {
+        bundle("USD", "6.69");
+        HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/", ex -> {
+            ex.sendResponseHeaders(403, -1);
+            ex.close();
+        });
+        server.start();
+        try {
+            String url = "http://127.0.0.1:" + server.getAddress().getPort() + "/img.png";
+            write("media", List.of(
+                    map("category", 6, "sourceKey", "FH1", "token", "T1", "file", "t1.png", "url", url, "brand", "Siemens", "model", MODEL)));
+            JsonNode res = runDone(false);
+            assertEquals(3, res.path("status").asInt(), res.toString());
+            assertTrue(res.path("errorText").asText().contains("403"), res.toString());
+            assertEquals(1, count("sales_order", ""), "前面的阶段保留");
+            assertEquals(0, count("biz_attachment", ""));
+        } finally {
+            server.stop(0);
+        }
+    }
+
     /** 把样例清洗结果目录打成 zip，extra 追加额外条目 */
     private byte[] zip(Map<String, String> extra) throws Exception {
         ByteArrayOutputStream bytes = new ByteArrayOutputStream();
