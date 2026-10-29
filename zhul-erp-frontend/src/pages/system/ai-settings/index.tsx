@@ -1,13 +1,13 @@
 import {
   ApiOutlined,
   CheckCircleFilled,
-  CheckOutlined,
   ClockCircleOutlined,
   CloseCircleFilled,
   EnterOutlined,
   ExportOutlined,
   InfoCircleOutlined,
   KeyOutlined,
+  LockOutlined,
   ReloadOutlined,
   RobotOutlined,
   UserOutlined,
@@ -41,15 +41,21 @@ import {
   EFFORT_OPTIONS,
   isDirty,
   type ModelField,
-  modelAfterProviderChange,
   modelOptions,
+  PROVIDERS,
+  profileFormValues,
+  type SubState,
+  subscriptionState,
   testSlot,
   toFormValues,
   toPayload,
 } from './aiConfig';
+import { ClaudeLogo, OpenAILogo } from './brandLogos';
 import {
   type AiConfig,
+  type AiMode,
   type AiModelList,
+  type AiProvider,
   type AiSubscriptionStatus,
   type AiTestResult,
   getAiConfig,
@@ -59,111 +65,39 @@ import {
   testAiConfig,
 } from './service';
 
-const PROVIDERS = {
+const PROVIDER_META: Record<
+  AiProvider,
+  {
+    name: string;
+    desc: string;
+    console: string;
+    consoleName: string;
+    Logo: React.FC<{ size?: number }>;
+  }
+> = {
   claude: {
     name: 'Claude',
     desc: 'Anthropic · Opus / Haiku',
     console: 'https://console.anthropic.com/settings/keys',
     consoleName: 'Anthropic',
+    Logo: ClaudeLogo,
   },
   openai: {
     name: 'OpenAI',
     desc: 'GPT 系列',
     console: 'https://platform.openai.com/api-keys',
     consoleName: 'OpenAI',
+    Logo: OpenAILogo,
   },
-} as const;
+};
 
-/** 可选卡片：服务商、运行方式共用 */
-const OptionCard: React.FC<{
-  selected: boolean;
-  disabled?: boolean;
-  icon: React.ReactNode;
-  title: string;
-  desc: string;
-  tag?: React.ReactNode;
-  onSelect: () => void;
-}> = ({ selected, disabled, icon, title, desc, tag, onSelect }) => {
-  const { palette } = useAppTheme();
-  return (
-    <button
-      type="button"
-      aria-pressed={selected}
-      disabled={disabled}
-      onClick={onSelect}
-      style={{
-        display: 'flex',
-        gap: 12,
-        alignItems: 'flex-start',
-        width: '100%',
-        height: '100%',
-        padding: 16,
-        textAlign: 'left',
-        borderRadius: 10,
-        cursor: disabled ? 'not-allowed' : 'pointer',
-        background: selected ? palette.accentSoft : palette.card,
-        border: `${selected ? 1.5 : 1}px solid ${selected ? palette.link : palette.hairline}`,
-        transition: 'background 200ms ease-out, border-color 200ms ease-out',
-      }}
-    >
-      <span
-        style={{
-          display: 'grid',
-          placeItems: 'center',
-          flex: 'none',
-          width: 36,
-          height: 36,
-          borderRadius: 10,
-          fontSize: 18,
-          color: selected ? palette.link : palette.sub,
-          background: selected ? palette.card : palette.inset,
-        }}
-      >
-        {icon}
-      </span>
-      <span style={{ flex: 1, minWidth: 0 }}>
-        <span
-          style={{
-            display: 'flex',
-            gap: 6,
-            alignItems: 'center',
-            fontSize: 14,
-            fontWeight: 600,
-            color: palette.ink,
-          }}
-        >
-          {title}
-          {tag}
-        </span>
-        <span
-          style={{
-            display: 'block',
-            marginTop: 4,
-            fontSize: 12,
-            color: palette.mute,
-          }}
-        >
-          {desc}
-        </span>
-      </span>
-      <span
-        style={{
-          display: 'grid',
-          placeItems: 'center',
-          flex: 'none',
-          width: 18,
-          height: 18,
-          borderRadius: 9,
-          fontSize: 11,
-          color: '#fff',
-          background: selected ? palette.link : 'transparent',
-          border: `1px solid ${selected ? palette.link : palette.control}`,
-        }}
-      >
-        {selected && <CheckOutlined />}
-      </span>
-    </button>
-  );
+/** 订阅状态的显示：平台看登录状态，租户只看可用与否 */
+const SUB_LABEL: Record<SubState, [string, 'green' | 'red' | 'gray']> = {
+  in: ['已登录', 'green'],
+  out: ['未登录', 'red'],
+  avail: ['可用', 'green'],
+  unavail: ['不可用', 'red'],
+  unknown: ['状态未知', 'gray'],
 };
 
 /** 思考强度：分段选择，空值显示为「中」 */
@@ -233,7 +167,189 @@ const Divider: React.FC<{ palette: Palette }> = ({ palette }) => (
   <div style={{ height: 1, background: palette.hairline, margin: '4px 0' }} />
 );
 
-/** 业务设置 → AI 设置：当前租户的 AI 编排配置，见 openspec ai-platform/tenant-ai-settings */
+/** 状态标签：带色点 */
+const StatePill: React.FC<{
+  label: string;
+  tone: 'green' | 'red' | 'gray';
+}> = ({ label, tone }) => (
+  <Pill tone={tone} dot>
+    {label}
+  </Pill>
+);
+
+/** 连接方式的一行：单选 + 用法 + 状态 + 操作，选中或展开时下方放内容 */
+const OptionRow: React.FC<{
+  selected: boolean;
+  disabled?: boolean;
+  icon: React.ReactNode;
+  label: string;
+  extra?: React.ReactNode;
+  state: React.ReactNode;
+  action?: React.ReactNode;
+  onSelect: () => void;
+  children?: React.ReactNode;
+}> = ({
+  selected,
+  disabled,
+  icon,
+  label,
+  extra,
+  state,
+  action,
+  onSelect,
+  children,
+}) => {
+  const { palette } = useAppTheme();
+  // 选中但已不可用（如授权被收回）用警示色，不用「正在使用」的蓝色
+  const warn = selected && disabled;
+  return (
+    <div
+      style={{
+        borderRadius: 10,
+        border: `${selected ? 1.5 : 1}px solid ${
+          warn ? palette.orange : selected ? palette.link : palette.hairline
+        }`,
+        background: warn
+          ? palette.orangeSoft
+          : selected
+            ? palette.accentSoft
+            : disabled
+              ? palette.inset
+              : palette.card,
+        transition: 'background 200ms ease-out, border-color 200ms ease-out',
+      }}
+    >
+      {/* biome-ignore lint/a11y/useSemanticElements: 整行可点的卡片式单选，行内还有「更换」「填写」按钮，不能整体用原生 input 或 button 包裹；按 ARIA radio 模式实现 */}
+      <div
+        role="radio"
+        aria-checked={selected}
+        aria-disabled={disabled}
+        tabIndex={disabled ? -1 : 0}
+        onClick={() => !disabled && onSelect()}
+        onKeyDown={(e) => {
+          if (!disabled && (e.key === 'Enter' || e.key === ' ')) {
+            e.preventDefault();
+            onSelect();
+          }
+        }}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10,
+          padding: '12px 14px',
+          cursor: disabled ? 'not-allowed' : 'pointer',
+        }}
+      >
+        <span
+          style={{
+            display: 'grid',
+            placeItems: 'center',
+            flex: 'none',
+            width: 18,
+            height: 18,
+            borderRadius: 9,
+            border: `1px solid ${
+              selected && !disabled ? palette.link : palette.control
+            }`,
+            background: selected && !disabled ? palette.link : 'transparent',
+          }}
+        >
+          {selected && !disabled && (
+            <span
+              style={{
+                width: 6,
+                height: 6,
+                borderRadius: 3,
+                background: '#fff',
+              }}
+            />
+          )}
+        </span>
+        <span
+          style={{
+            color: disabled
+              ? palette.faint
+              : selected
+                ? palette.link
+                : palette.sub,
+          }}
+        >
+          {icon}
+        </span>
+        <span
+          style={{
+            flex: 1,
+            minWidth: 0,
+            display: 'flex',
+            gap: 8,
+            alignItems: 'center',
+            fontSize: 14,
+            fontWeight: 500,
+            color: disabled ? palette.mute : palette.ink,
+          }}
+        >
+          {label}
+          {extra}
+        </span>
+        {state}
+        {action}
+      </div>
+      {children && (
+        <div style={{ padding: '0 14px 14px 42px' }}>{children}</div>
+      )}
+    </div>
+  );
+};
+
+const SectionHead: React.FC<{
+  palette: Palette;
+  title: string;
+  hint?: string;
+  extra?: React.ReactNode;
+}> = ({ palette, title, hint, extra }) => (
+  <div
+    style={{
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8,
+      marginBottom: 20,
+    }}
+  >
+    <span style={{ fontSize: 16, fontWeight: 600, color: palette.ink }}>
+      {title}
+    </span>
+    {hint && <span style={{ fontSize: 12, color: palette.mute }}>{hint}</span>}
+    <span style={{ marginLeft: 'auto' }}>{extra}</span>
+  </div>
+);
+
+/** 字段标题，说明以小字跟在标题后面 */
+const FieldLabel: React.FC<{ title: string; hint: React.ReactNode }> = ({
+  title,
+  hint,
+}) => {
+  const { palette } = useAppTheme();
+  return (
+    <span>
+      {title}
+      <span
+        style={{
+          marginLeft: 8,
+          fontSize: 12,
+          fontWeight: 400,
+          color: palette.mute,
+        }}
+      >
+        {hint}
+      </span>
+    </span>
+  );
+};
+
+/**
+ * 业务设置 → AI 设置：按服务商分组列出连接方式（本公司 API Key、平台订阅），选中哪一行就用哪一种；
+ * 所有修改只通过底部保存条保存。见 openspec ai-platform/tenant-ai-settings 与原型 AI设置.op 第三页（V3）。
+ */
 const AiSettingsPage: React.FC = () => {
   const { palette } = useAppTheme();
   const { message, modal } = App.useApp();
@@ -242,32 +358,23 @@ const AiSettingsPage: React.FC = () => {
     'system:ai-config:edit'
   ];
   const [form] = Form.useForm<AiFormValues>();
-  const values = Form.useWatch([], form) as AiFormValues | undefined;
-  const mode = values?.mode;
-  const provider = values?.provider ?? 'claude';
+  // preserve：右侧切到只读时模型字段不再渲染，仍要拿到它们的值
+  const values = Form.useWatch([], { form, preserve: true }) as
+    | AiFormValues
+    | undefined;
+  const mode: AiMode = values?.mode ?? 'api';
+  const provider: AiProvider = values?.provider ?? 'claude';
 
   const [config, setConfig] = useState<AiConfig>();
   const [loadError, setLoadError] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [changingKey, setChangingKey] = useState(false);
+  const [editingKey, setEditingKey] = useState<AiProvider>();
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<AiTestResult>();
   const [models, setModels] = useState<AiModelList>();
   const [modelsLoading, setModelsLoading] = useState(false);
   const [status, setStatus] = useState<AiSubscriptionStatus>();
   const [statusLoading, setStatusLoading] = useState(false);
-
-  const load = useCallback(async () => {
-    setLoadError(false);
-    try {
-      const c = await getAiConfig();
-      setConfig(c);
-      setChangingKey(false);
-      form.setFieldsValue({ ...toFormValues(c), apiKey: '' });
-    } catch {
-      setLoadError(true);
-    }
-  }, [form]);
 
   const loadStatus = useCallback(async () => {
     setStatusLoading(true);
@@ -280,17 +387,28 @@ const AiSettingsPage: React.FC = () => {
     }
   }, []);
 
+  const load = useCallback(async () => {
+    setLoadError(false);
+    try {
+      const c = await getAiConfig();
+      setConfig(c);
+      setEditingKey(undefined);
+      form.setFieldsValue(toFormValues(c));
+      if (c.subscriptionAllowed) loadStatus();
+    } catch {
+      setLoadError(true);
+    }
+  }, [form, loadStatus]);
+
   useEffect(() => {
     load();
   }, [load]);
 
-  const subscription = mode === 'subscription';
-  useEffect(() => {
-    if (config?.subscriptionAllowed && subscription) loadStatus();
-  }, [config?.subscriptionAllowed, subscription, loadStatus]);
-
-  /** 切换服务商、运行方式或更换 Key 后，已取到的列表与测试结果都作废 */
-  const resetDerived = () => {
+  /** 选中一种连接方式：表单换成这一种已保存的设置；之前取到的模型列表与测试结果作废 */
+  const select = (m: AiMode, p: AiProvider, editKey = false) => {
+    if (!config) return;
+    form.setFieldsValue(profileFormValues(config, m, p));
+    setEditingKey(editKey ? p : undefined);
     setModels(undefined);
     setTestResult(undefined);
   };
@@ -330,6 +448,7 @@ const AiSettingsPage: React.FC = () => {
     try {
       await saveAiConfig(toPayload(v));
       message.success('已保存，之后提交的 AI 任务立即使用新配置');
+      setTestResult(undefined);
       await load();
     } finally {
       setSaving(false);
@@ -341,9 +460,10 @@ const AiSettingsPage: React.FC = () => {
       doSave(v);
       return;
     }
+    const replacing = config?.apiProfiles[v.provider ?? 'claude']?.hasKey;
     modal.confirm({
-      title: config?.hasKey ? '确认更换 API Key？' : '确认保存 API Key？',
-      content: config?.hasKey
+      title: replacing ? '确认更换 API Key？' : '确认保存 API Key？',
+      content: replacing
         ? '保存后原来的 Key 不再使用，之后提交的 AI 任务都按新 Key 计费。'
         : '之后提交的 AI 任务会使用这个 Key，费用记在该 Key 所属的账号上。',
       okText: '确认保存',
@@ -376,7 +496,7 @@ const AiSettingsPage: React.FC = () => {
       <>
         <PageTitle title="AI 设置" />
         <Card>
-          <Skeleton active paragraph={{ rows: 3 }} />
+          <Skeleton active paragraph={{ rows: 2 }} />
         </Card>
         <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
           <Col xs={24} xl={12}>
@@ -394,38 +514,79 @@ const AiSettingsPage: React.FC = () => {
     );
   }
 
-  const saved = toFormValues(config);
-  const dirty = !!values && isDirty(values, saved);
+  const platform = config.platform;
+  const subState = (p: AiProvider) =>
+    statusLoading && !status
+      ? 'unknown'
+      : subscriptionState(status, p, platform);
+  // 已选用平台订阅、但授权已被收回：只显示原来选的那一行（不可选）
+  const revoked =
+    config.configured &&
+    config.mode === 'subscription' &&
+    !config.subscriptionAllowed;
+  const dirty = !!values && isDirty(values, toFormValues(config));
   const typedKey = !!(values?.apiKey ?? '').trim();
-  const keyMissing = !subscription && !config.hasKey && !typedKey;
-  const meta = PROVIDERS[provider];
+  const selectedProfile = config.apiProfiles[provider];
+  const keyMissing = mode === 'api' && !selectedProfile?.hasKey && !typedKey;
+  const subscriptionReadonly = mode === 'subscription' && !platform;
+  const meta = PROVIDER_META[provider];
   const keyTest = testResult && testSlot(testResult.items, 'API Key');
 
-  // —— 顶部状态卡 ——
-  const tone = testResult
-    ? testResult.ok
-      ? 'ok'
-      : 'fail'
-    : config.configured
-      ? 'saved'
-      : 'empty';
-  const toneColor = {
-    ok: [palette.green, palette.greenSoft],
-    saved: [palette.green, palette.greenSoft],
-    fail: [palette.red, palette.redSoft],
-    empty: [palette.mute, palette.inset],
+  // —— 顶部状态卡：描述已保存的选择 ——
+  const savedMeta = PROVIDER_META[config.provider];
+  const savedSub = config.mode === 'subscription';
+  const savedState = subState(config.provider);
+  type Tone = 'ok' | 'warn' | 'bad' | 'idle';
+  let tone: Tone = 'ok';
+  let title = 'AI 已配置';
+  let pill: [string, 'green' | 'red' | 'orange' | 'gray'] | undefined;
+  let desc: string | undefined;
+  if (!config.configured) {
+    tone = 'idle';
+    title = '还没有配置 AI';
+    pill = ['未配置', 'gray'];
+    desc = '填写本公司 API Key 后即可使用。';
+  } else if (!savedSub) {
+    if (testResult) {
+      tone = testResult.ok ? 'ok' : 'bad';
+      title = testResult.ok ? 'AI 已就绪' : '连接失败';
+      pill = testResult.ok ? ['测试通过', 'green'] : ['测试未通过', 'red'];
+    }
+  } else if (revoked) {
+    tone = 'warn';
+    title = '平台订阅不可用';
+    pill = ['不可用', 'orange'];
+    desc = '请改用本公司 API Key。';
+  } else if (savedState === 'in' || savedState === 'avail') {
+    title = 'AI 已就绪';
+    pill = ['可用', 'green'];
+  } else if (savedState === 'out') {
+    tone = 'bad';
+    title = `${savedMeta.name} 平台订阅未登录`;
+    pill = ['不可用', 'red'];
+    desc = '登录后才能使用。';
+  } else if (savedState === 'unavail') {
+    tone = 'bad';
+    title = `${savedMeta.name} 平台订阅不可用`;
+    pill = ['不可用', 'red'];
+    desc = '请改选其他可用的方式。';
+  } else if (!statusLoading) {
+    tone = 'warn';
+    title = '订阅状态获取失败';
+    pill = ['状态未知', 'orange'];
+  }
+  const toneBg = {
+    ok: palette.greenSoft,
+    warn: palette.orangeSoft,
+    bad: palette.redSoft,
+    idle: palette.inset,
   }[tone];
-  const savedMeta = [
+  const showMeta = config.configured && !desc && !(tone === 'warn');
+  const metaItems = [
     {
-      icon: <RobotOutlined />,
-      text: PROVIDERS[config.provider]?.name ?? config.provider,
+      icon: savedSub ? <UserOutlined /> : <KeyOutlined />,
+      text: `${savedMeta.name} · ${savedSub ? '平台订阅' : '本公司 API Key'}`,
     },
-    config.mode === 'subscription'
-      ? { icon: <UserOutlined />, text: '个人订阅' }
-      : {
-          icon: <KeyOutlined />,
-          text: `API Key ${config.apiKeyMasked || '未填写'}`,
-        },
     config.updateTime
       ? {
           icon: <ClockCircleOutlined />,
@@ -452,11 +613,17 @@ const AiSettingsPage: React.FC = () => {
             height: 48,
             borderRadius: 12,
             fontSize: 22,
-            color: toneColor[0],
-            background: toneColor[1],
+            color: palette.mute,
+            background: toneBg,
           }}
         >
-          {tone === 'fail' ? <WarningOutlined /> : <RobotOutlined />}
+          {config.configured ? (
+            <savedMeta.Logo size={24} />
+          ) : tone === 'bad' ? (
+            <WarningOutlined />
+          ) : (
+            <RobotOutlined />
+          )}
         </span>
         <div style={{ flex: 1, minWidth: 240 }}>
           <div
@@ -469,100 +636,45 @@ const AiSettingsPage: React.FC = () => {
               color: palette.ink,
             }}
           >
-            {
-              {
-                ok: 'AI 已就绪',
-                saved: 'AI 已配置',
-                fail: '连接失败',
-                empty: '还没有配置 AI',
-              }[tone]
-            }
-            {tone === 'ok' && <Pill tone="green">测试通过</Pill>}
-            {tone === 'fail' && <Pill tone="red">测试未通过</Pill>}
-            {tone === 'empty' && <Pill tone="gray">未配置</Pill>}
+            {title}
+            {pill && <Pill tone={pill[1]}>{pill[0]}</Pill>}
           </div>
           <div style={{ marginTop: 6, fontSize: 13, color: palette.mute }}>
-            {tone === 'empty' &&
-              '配置前，询盘解析、型号翻译和联系人音译都不可用。平台的配置不会共享给你的公司，需要单独填写。'}
-            {tone === 'fail' &&
-              '当前填写的配置无法调用 AI，询盘解析和翻译会失败。按下面的提示修改后重新测试。'}
-            {(tone === 'ok' || tone === 'saved') && (
+            {desc}
+            {showMeta && (
               <span style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-                {savedMeta.map((m) => (
+                {metaItems.map((m) => (
                   <span key={m.text} style={{ display: 'inline-flex', gap: 6 }}>
                     {m.icon}
                     {m.text}
                   </span>
                 ))}
-                {tone === 'saved' && !dirty && (
-                  <span>点「测试连接」确认 Key 和模型可用</span>
-                )}
               </span>
             )}
           </div>
         </div>
-        {canEdit && (
+        {canEdit && mode === 'api' && (
           <Button
             icon={<ApiOutlined />}
             loading={testing}
             disabled={keyMissing}
             onClick={runTest}
           >
-            {tone === 'fail' ? '重新测试' : '测试连接'}
+            {tone === 'bad' && testResult ? '重新测试' : '测试连接'}
+          </Button>
+        )}
+        {mode === 'subscription' && !revoked && (
+          <Button
+            icon={<ReloadOutlined />}
+            loading={statusLoading}
+            onClick={loadStatus}
+          >
+            {savedState === 'unknown' && savedSub ? '重试' : '刷新状态'}
           </Button>
         )}
       </div>
 
-      {testResult && (
-        <>
-          <div
-            style={{
-              height: 1,
-              background: palette.hairline,
-              margin: '16px 0',
-            }}
-          />
-          {subscription ? (
-            <Row gutter={[24, 12]}>
-              {testResult.items.map((i) => (
-                <Col key={i.name} xs={24} md={8}>
-                  <CheckItem state={i.ok} title={i.name} detail={i.message} />
-                </Col>
-              ))}
-            </Row>
-          ) : (
-            <Row gutter={[24, 12]}>
-              {(['API Key', '解析模型', '翻译模型'] as const).map((slot) => {
-                const item = testSlot(testResult.items, slot);
-                const model = item?.name.slice(slot.length).trim();
-                const title = !item
-                  ? `${slot}未检测`
-                  : slot === 'API Key'
-                    ? item.ok
-                      ? 'API Key 有效'
-                      : 'API Key 无效或已失效'
-                    : `${slot}${item.ok ? '可用' : '不可用'}`;
-                const detail = !item
-                  ? '前一项通过后再检测'
-                  : slot === 'API Key'
-                    ? item.ok
-                      ? `${meta.consoleName} 已确认身份`
-                      : item.message
-                    : item.ok
-                      ? model
-                      : `${model}：${item.message}`;
-                return (
-                  <Col key={slot} xs={24} md={8}>
-                    <CheckItem state={item?.ok} title={title} detail={detail} />
-                  </Col>
-                );
-              })}
-            </Row>
-          )}
-        </>
-      )}
-
-      {tone === 'empty' && (
+      {testResult && mode === 'api' && (
         <>
           <div
             style={{
@@ -572,46 +684,32 @@ const AiSettingsPage: React.FC = () => {
             }}
           />
           <Row gutter={[24, 12]}>
-            {[
-              ['选择服务商', 'Claude 或 OpenAI'],
-              ['填写 API Key', '在服务商控制台创建'],
-              ['测试连接并保存', '通过后即可使用'],
-            ].map(([a, b], i) => {
-              const done = i === 0 || (i === 1 && typedKey);
+            {(['API Key', '解析模型', '翻译模型'] as const).map((slot) => {
+              const item = testSlot(testResult.items, slot);
+              const model = item?.name.slice(slot.length).trim();
+              const itemTitle = !item
+                ? `${slot}未检测`
+                : slot === 'API Key'
+                  ? item.ok
+                    ? 'API Key 有效'
+                    : 'API Key 无效或已失效'
+                  : `${slot}${item.ok ? '可用' : '不可用'}`;
+              const detail = !item
+                ? '前一项通过后再检测'
+                : slot === 'API Key'
+                  ? item.ok
+                    ? `${meta.consoleName} 已确认身份`
+                    : item.message
+                  : item.ok
+                    ? model
+                    : `${model}：${item.message}`;
               return (
-                <Col key={a} xs={24} md={8}>
-                  <div style={{ display: 'flex', gap: 10 }}>
-                    <span
-                      style={{
-                        display: 'grid',
-                        placeItems: 'center',
-                        flex: 'none',
-                        width: 24,
-                        height: 24,
-                        borderRadius: 12,
-                        fontSize: 12,
-                        fontWeight: 600,
-                        color: done ? '#fff' : palette.sub,
-                        background: done ? palette.link : palette.inset,
-                      }}
-                    >
-                      {i + 1}
-                    </span>
-                    <div>
-                      <div
-                        style={{
-                          fontSize: 13,
-                          fontWeight: 600,
-                          color: palette.ink,
-                        }}
-                      >
-                        {a}
-                      </div>
-                      <div style={{ fontSize: 12, color: palette.mute }}>
-                        {b}
-                      </div>
-                    </div>
-                  </div>
+                <Col key={slot} xs={24} md={8}>
+                  <CheckItem
+                    state={item?.ok}
+                    title={itemTitle}
+                    detail={detail}
+                  />
                 </Col>
               );
             })}
@@ -621,7 +719,213 @@ const AiSettingsPage: React.FC = () => {
     </Card>
   );
 
-  // —— 模型输入框 ——
+  // —— 左：服务商与账号（连接方式列表） ——
+  const keyEditor = (p: AiProvider) => (
+    <Form.Item
+      name="apiKey"
+      style={{ marginBottom: 0 }}
+      validateStatus={keyTest && !keyTest.ok ? 'error' : undefined}
+      help={
+        keyTest && !keyTest.ok ? 'Key 无效或已失效，请粘贴新的 Key' : undefined
+      }
+      extra={
+        <span style={{ fontSize: 12 }}>
+          还没有 Key？
+          <a href={PROVIDER_META[p].console} target="_blank" rel="noreferrer">
+            去 {PROVIDER_META[p].consoleName} 控制台创建 <ExportOutlined />
+          </a>
+        </span>
+      }
+    >
+      {/* 普通文本框：Key 很长，粘贴后能看到内容便于核对；页面不回显已保存的 Key */}
+      <Input
+        autoComplete="off"
+        spellCheck={false}
+        autoFocus={editingKey === p}
+        prefix={<KeyOutlined style={{ color: palette.faint }} />}
+        placeholder={`粘贴 ${PROVIDER_META[p].name} 的 API Key`}
+        suffix={
+          config.apiProfiles[p]?.hasKey && (
+            <Button
+              type="link"
+              size="small"
+              style={{ padding: 0, height: 'auto' }}
+              onClick={() => {
+                form.setFieldValue('apiKey', '');
+                setEditingKey(undefined);
+                setTestResult(undefined);
+              }}
+            >
+              取消
+            </Button>
+          )
+        }
+      />
+    </Form.Item>
+  );
+
+  const providerGroup = (p: AiProvider) => {
+    const m = PROVIDER_META[p];
+    const apiProfile = config.apiProfiles[p];
+    const apiSelected = mode === 'api' && provider === p;
+    const subSelected = mode === 'subscription' && provider === p;
+    const st = subState(p);
+    const showSub =
+      config.subscriptionAllowed || (revoked && config.provider === p);
+    const subDisabled = revoked || (!platform && st !== 'avail');
+    const showKeyEditor =
+      apiSelected && (editingKey === p || !apiProfile.hasKey);
+    return (
+      <div key={p} style={{ display: 'grid', gap: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span
+            style={{
+              display: 'grid',
+              placeItems: 'center',
+              width: 32,
+              height: 32,
+              borderRadius: 8,
+              background: palette.card,
+              border: `1px solid ${palette.hairline}`,
+              color: palette.ink,
+            }}
+          >
+            <m.Logo size={20} />
+          </span>
+          <span style={{ fontSize: 14, fontWeight: 600, color: palette.ink }}>
+            {m.name}
+          </span>
+          <span style={{ fontSize: 12, color: palette.mute }}>{m.desc}</span>
+        </div>
+        <OptionRow
+          selected={apiSelected}
+          disabled={!canEdit && !apiSelected}
+          icon={<KeyOutlined />}
+          label="本公司 API Key"
+          extra={
+            apiProfile.hasKey && (
+              <span
+                style={{
+                  fontSize: 12,
+                  fontWeight: 400,
+                  color: palette.mute,
+                  fontFamily: 'monospace',
+                }}
+              >
+                {apiProfile.apiKeyMasked}
+              </span>
+            )
+          }
+          state={
+            <StatePill
+              label={apiProfile.hasKey ? '已配置' : '未配置'}
+              tone={apiProfile.hasKey ? 'green' : 'gray'}
+            />
+          }
+          action={
+            canEdit &&
+            !showKeyEditor && (
+              <Button
+                type="link"
+                size="small"
+                style={{ padding: 0 }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  select('api', p, true);
+                }}
+              >
+                {apiProfile.hasKey ? '更换' : '填写'}
+              </Button>
+            )
+          }
+          onSelect={() => !apiSelected && select('api', p)}
+        >
+          {showKeyEditor && canEdit && keyEditor(p)}
+        </OptionRow>
+        {showSub && (
+          <OptionRow
+            selected={subSelected}
+            disabled={subDisabled || !canEdit}
+            icon={<UserOutlined />}
+            label="平台订阅"
+            state={
+              revoked ? (
+                <StatePill label="不可用" tone="gray" />
+              ) : (
+                <StatePill label={SUB_LABEL[st][0]} tone={SUB_LABEL[st][1]} />
+              )
+            }
+            action={
+              platform &&
+              st === 'out' &&
+              !subSelected &&
+              canEdit && (
+                <Button
+                  type="link"
+                  size="small"
+                  style={{ padding: 0 }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    select('subscription', p);
+                  }}
+                >
+                  登录方法
+                </Button>
+              )
+            }
+            onSelect={() => !subSelected && select('subscription', p)}
+          >
+            {platform &&
+              subSelected &&
+              st === 'out' &&
+              status?.loginCommands && (
+                <div style={{ fontSize: 12, color: palette.mute }}>
+                  在服务器执行以下命令登录：
+                  <Typography.Paragraph
+                    code
+                    copyable
+                    style={{ margin: '6px 0 0', fontSize: 12 }}
+                  >
+                    {status.loginCommands[p]}
+                  </Typography.Paragraph>
+                </div>
+              )}
+          </OptionRow>
+        )}
+      </div>
+    );
+  };
+
+  const connectCard = (
+    <Card style={{ height: '100%' }}>
+      <SectionHead
+        palette={palette}
+        title="服务商与账号"
+        hint="API Key 加密保存，只显示首尾几位"
+      />
+      <div style={{ display: 'grid', gap: 16 }}>
+        {PROVIDERS.map(providerGroup)}
+        {platform && mode === 'subscription' && (
+          <div
+            style={{
+              display: 'flex',
+              gap: 8,
+              padding: '10px 12px',
+              borderRadius: 8,
+              fontSize: 12,
+              color: palette.orange,
+              background: palette.orangeSoft,
+            }}
+          >
+            <InfoCircleOutlined style={{ marginTop: 2 }} />
+            平台订阅受账号套餐额度限制，同一时间只处理一个任务。
+          </div>
+        )}
+      </div>
+    </Card>
+  );
+
+  // —— 右：模型与用量 ——
   const modelField = (field: ModelField, label: string, hint: string) => {
     const fallback = defaultModel(config.defaultModels, provider, field);
     return (
@@ -677,7 +981,7 @@ const AiSettingsPage: React.FC = () => {
                   >
                     {models.source === 'provider'
                       ? `${meta.consoleName} 返回的模型`
-                      : subscription
+                      : mode === 'subscription'
                         ? '推荐模型'
                         : '填写 API Key 后可获取完整的模型列表'}
                   </Typography.Text>
@@ -701,157 +1005,76 @@ const AiSettingsPage: React.FC = () => {
     );
   };
 
-  // —— 左：服务商与账号 ——
-  const connectCard = (
-    <Card style={{ height: '100%' }}>
-      <SectionHead palette={palette} title="服务商与账号" />
-      <Form.Item name="provider" label="服务商" required>
-        <ChoiceGroup>
-          {(value, select) => (
-            <Row gutter={12}>
-              {(['claude', 'openai'] as const).map((p) => (
-                <Col span={12} key={p}>
-                  <OptionCard
-                    selected={(value ?? 'claude') === p}
-                    disabled={!canEdit}
-                    icon={<RobotOutlined />}
-                    title={PROVIDERS[p].name}
-                    desc={PROVIDERS[p].desc}
-                    onSelect={() => select(p)}
-                  />
-                </Col>
-              ))}
-            </Row>
-          )}
-        </ChoiceGroup>
-      </Form.Item>
-      {config.subscriptionAllowed && (
-        <Form.Item name="mode" label="运行方式">
-          <ChoiceGroup>
-            {(value, select) => (
-              <Row gutter={12}>
-                <Col span={12}>
-                  <OptionCard
-                    selected={value !== 'subscription'}
-                    disabled={!canEdit}
-                    icon={<KeyOutlined />}
-                    title="API Key"
-                    desc="按调用量计费，适合正式使用"
-                    onSelect={() => select('api')}
-                  />
-                </Col>
-                <Col span={12}>
-                  <OptionCard
-                    selected={value === 'subscription'}
-                    disabled={!canEdit}
-                    icon={<UserOutlined />}
-                    title="个人订阅"
-                    tag={<Pill tone="orange">仅平台</Pill>}
-                    desc="使用平台登录的 ChatGPT / Claude 账号"
-                    onSelect={() => select('subscription')}
-                  />
-                </Col>
-              </Row>
-            )}
-          </ChoiceGroup>
-        </Form.Item>
-      )}
+  const effortLabel = (v?: string) =>
+    EFFORT_OPTIONS.find((o) => o.value === (v || DEFAULT_EFFORT))?.label ??
+    '中';
 
-      {subscription ? (
-        <SubscriptionBlock
-          palette={palette}
-          status={status}
-          loading={statusLoading}
-          onRefresh={loadStatus}
-        />
-      ) : config.hasKey && !changingKey ? (
-        <Form.Item
-          label={
-            <FieldLabel
-              title="API Key"
-              hint="加密保存，只显示首尾几位；更换服务商时要一并更换"
-            />
-          }
-          required
-          validateStatus={keyTest && !keyTest.ok ? 'error' : undefined}
-          help={
-            keyTest && !keyTest.ok
-              ? 'Key 无效或已失效，点「更换」粘贴新的 Key'
-              : undefined
-          }
-        >
-          <Input
-            readOnly
-            value={config.apiKeyMasked}
-            prefix={<KeyOutlined style={{ color: palette.faint }} />}
-            suffix={
-              canEdit && (
-                <Button
-                  type="link"
-                  size="small"
-                  style={{ padding: 0, height: 'auto' }}
-                  onClick={() => {
-                    setChangingKey(true);
-                    resetDerived();
-                  }}
+  const readonlyModels = (
+    <Card style={{ height: '100%' }}>
+      <SectionHead
+        palette={palette}
+        title="模型与用量"
+        extra={
+          <Pill tone="gray">
+            <LockOutlined /> 由平台设置
+          </Pill>
+        }
+      />
+      {[
+        ['解析模型', '解析询盘、拆分订单时使用', values?.parseModel],
+        ['解析思考强度', '', effortLabel(values?.parseEffort)],
+        [
+          '翻译模型',
+          '翻译型号描述、音译联系人名时使用',
+          values?.translateModel,
+        ],
+        ['翻译思考强度', '', effortLabel(values?.translateEffort)],
+        [
+          '每次解析最多搜索',
+          '联网查型号资料的上限',
+          `${values?.maxWebSearches ?? 20} 次`,
+        ],
+      ].map(([k, d, v], i) => (
+        <React.Fragment key={k}>
+          {(i === 2 || i === 4) && <Divider palette={palette} />}
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              padding: '10px 0',
+            }}
+          >
+            <div>
+              <div
+                style={{ fontSize: 13, fontWeight: 500, color: palette.ink }}
+              >
+                {k}
+              </div>
+              {d && (
+                <div
+                  style={{ fontSize: 12, color: palette.mute, marginTop: 2 }}
                 >
-                  更换
-                </Button>
-              )
-            }
-          />
-        </Form.Item>
-      ) : (
-        <Form.Item
-          name="apiKey"
-          label={
-            <FieldLabel
-              title="API Key"
-              hint={
-                <>
-                  加密保存。还没有 Key？
-                  <a href={meta.console} target="_blank" rel="noreferrer">
-                    去 {meta.consoleName} 控制台创建 <ExportOutlined />
-                  </a>
-                </>
-              }
-            />
-          }
-          required
-        >
-          {/* 普通文本框：Key 很长，粘贴后能看到内容便于核对；页面不回显已保存的 Key */}
-          <Input
-            autoComplete="off"
-            spellCheck={false}
-            autoFocus={changingKey}
-            prefix={<KeyOutlined style={{ color: palette.faint }} />}
-            placeholder={`粘贴 ${meta.name} 的 API Key`}
-            suffix={
-              changingKey && (
-                <Button
-                  type="link"
-                  size="small"
-                  style={{ padding: 0, height: 'auto' }}
-                  onClick={() => {
-                    form.setFieldValue('apiKey', '');
-                    setChangingKey(false);
-                    resetDerived();
-                  }}
-                >
-                  取消更换
-                </Button>
-              )
-            }
-          />
-        </Form.Item>
-      )}
+                  {d}
+                </div>
+              )}
+            </div>
+            <span style={{ fontSize: 14, fontWeight: 500, color: palette.ink }}>
+              {v}
+            </span>
+          </div>
+        </React.Fragment>
+      ))}
     </Card>
   );
 
-  // —— 右：模型与用量 ——
-  const modelCard = (
+  const editableModels = (
     <Card style={{ height: '100%' }}>
-      <SectionHead palette={palette} title="模型与用量" />
+      <SectionHead
+        palette={palette}
+        title="模型与用量"
+        hint={mode === 'subscription' ? '获授权的公司共用' : undefined}
+      />
       {modelField(
         'parse',
         '解析模型',
@@ -888,11 +1111,7 @@ const AiSettingsPage: React.FC = () => {
             <span style={{ whiteSpace: 'nowrap' }}>1–100</span>
           </div>
         </div>
-        <Form.Item
-          name="maxWebSearches"
-          noStyle
-          rules={[{ required: true, message: '请填写最多搜索次数' }]}
-        >
+        <Form.Item name="maxWebSearches" noStyle>
           <InputNumber
             mode="spinner"
             min={1}
@@ -905,7 +1124,7 @@ const AiSettingsPage: React.FC = () => {
     </Card>
   );
 
-  // —— 底部保存条 ——
+  // —— 底部保存条：只在有修改时出现，页面唯一的保存入口 ——
   const saveBar = canEdit && dirty && (
     <div
       style={{
@@ -954,9 +1173,10 @@ const AiSettingsPage: React.FC = () => {
           type="text"
           disabled={saving}
           onClick={() => {
-            form.setFieldsValue({ ...saved, apiKey: '' });
-            setChangingKey(false);
-            resetDerived();
+            form.setFieldsValue(toFormValues(config));
+            setEditingKey(undefined);
+            setModels(undefined);
+            setTestResult(undefined);
           }}
         >
           撤销修改
@@ -977,220 +1197,34 @@ const AiSettingsPage: React.FC = () => {
     <>
       <PageTitle
         title="AI 设置"
-        description="询盘解析、型号描述翻译、联系人名音译使用的 AI 服务。只对本公司生效，平台和其他公司的配置互不影响。"
+        description="询盘解析、型号描述翻译、联系人名音译使用的 AI 服务。"
       />
       {statusCard}
       <Form
         form={form}
         layout="vertical"
         disabled={!canEdit}
-        requiredMark
-        onFinish={onFinish}
+        onFinish={() => onFinish(form.getFieldsValue(true))}
         onValuesChange={(changed) => {
-          if (
-            'provider' in changed ||
-            'mode' in changed ||
-            'apiKey' in changed
-          ) {
-            resetDerived();
-          }
-          if ('provider' in changed) {
-            const next = (field: ModelField) =>
-              modelAfterProviderChange(
-                form.getFieldValue(
-                  field === 'parse' ? 'parseModel' : 'translateModel',
-                ),
-                config.defaultModels,
-                changed.provider ?? 'claude',
-                field,
-              );
-            form.setFieldsValue({
-              parseModel: next('parse'),
-              translateModel: next('translate'),
-            });
-          }
+          if ('apiKey' in changed) setTestResult(undefined);
         }}
       >
+        <Form.Item name="mode" hidden>
+          <Input />
+        </Form.Item>
+        <Form.Item name="provider" hidden>
+          <Input />
+        </Form.Item>
         <Row gutter={[16, 16]}>
           <Col xs={24} xl={12}>
             {connectCard}
           </Col>
           <Col xs={24} xl={12}>
-            {modelCard}
+            {subscriptionReadonly ? readonlyModels : editableModels}
           </Col>
         </Row>
         {saveBar}
       </Form>
-    </>
-  );
-};
-
-const SectionHead: React.FC<{ palette: Palette; title: string }> = ({
-  palette,
-  title,
-}) => (
-  <div
-    style={{
-      marginBottom: 20,
-      fontSize: 16,
-      fontWeight: 600,
-      color: palette.ink,
-    }}
-  >
-    {title}
-  </div>
-);
-
-/** 字段标题，说明以小字跟在标题后面 */
-const FieldLabel: React.FC<{ title: string; hint: React.ReactNode }> = ({
-  title,
-  hint,
-}) => {
-  const { palette } = useAppTheme();
-  return (
-    <span>
-      {title}
-      <span
-        style={{
-          marginLeft: 8,
-          fontSize: 12,
-          fontWeight: 400,
-          color: palette.mute,
-        }}
-      >
-        {hint}
-      </span>
-    </span>
-  );
-};
-
-/** 让卡片式单选接入 Form.Item（value / onChange） */
-const ChoiceGroup: React.FC<{
-  value?: string;
-  onChange?: (v: string) => void;
-  children: (
-    value: string | undefined,
-    select: (v: string) => void,
-  ) => React.ReactNode;
-}> = ({ value, onChange, children }) => (
-  <div>{children(value, (v) => onChange?.(v))}</div>
-);
-
-const SubscriptionBlock: React.FC<{
-  palette: Palette;
-  status?: AiSubscriptionStatus;
-  loading: boolean;
-  onRefresh: () => void;
-}> = ({ palette, status, loading, onRefresh }) => {
-  const accounts = status
-    ? [
-        {
-          name: 'ChatGPT 账号（OpenAI）',
-          ok: status.codexLoggedIn,
-          cmd: status.codexLoginCommand,
-        },
-        {
-          name: 'Claude 账号',
-          ok: status.claudeLoggedIn,
-          cmd: status.claudeLoginCommand,
-        },
-      ]
-    : [];
-  return (
-    <>
-      <Form.Item
-        label={
-          <span
-            style={{ display: 'inline-flex', gap: 8, alignItems: 'center' }}
-          >
-            账号登录状态
-            <Button
-              type="link"
-              size="small"
-              icon={<ReloadOutlined />}
-              loading={loading}
-              onClick={onRefresh}
-              disabled={false}
-            >
-              刷新
-            </Button>
-          </span>
-        }
-      >
-        {loading && !status ? (
-          <Skeleton active paragraph={{ rows: 2 }} title={false} />
-        ) : !status ? (
-          <Typography.Text type="secondary">
-            暂时查不到登录状态，请确认 AI 编排服务已启动后刷新
-          </Typography.Text>
-        ) : (
-          <div
-            style={{
-              borderRadius: 10,
-              border: `1px solid ${palette.hairline}`,
-              overflow: 'hidden',
-            }}
-          >
-            {accounts.map((a, i) => (
-              <div
-                key={a.name}
-                style={{
-                  padding: '12px 16px',
-                  borderTop: i ? `1px solid ${palette.hairline}` : undefined,
-                  background: a.ok ? undefined : palette.inset,
-                }}
-              >
-                <div
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    fontSize: 13,
-                    fontWeight: 500,
-                    color: palette.ink,
-                  }}
-                >
-                  {a.name}
-                  {a.ok ? (
-                    <Pill tone="green">已登录</Pill>
-                  ) : (
-                    <Pill tone="gray">未登录</Pill>
-                  )}
-                </div>
-                {!a.ok && (
-                  <div
-                    style={{ marginTop: 8, fontSize: 12, color: palette.mute }}
-                  >
-                    需要时由运维在服务器上执行下面的命令登录，登录后点「刷新」：
-                    <Typography.Paragraph
-                      code
-                      copyable
-                      style={{ margin: '6px 0 0', fontSize: 12 }}
-                    >
-                      {a.cmd}
-                    </Typography.Paragraph>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-      </Form.Item>
-      <div
-        style={{
-          display: 'flex',
-          gap: 8,
-          padding: '10px 12px',
-          borderRadius: 8,
-          fontSize: 12,
-          color: palette.orange,
-          background: palette.orangeSoft,
-        }}
-      >
-        <InfoCircleOutlined style={{ marginTop: 2 }} />
-        个人订阅受账号套餐额度限制，同一时间只处理一个任务，适合演示。正式使用请切换到
-        API Key。
-      </div>
     </>
   );
 };

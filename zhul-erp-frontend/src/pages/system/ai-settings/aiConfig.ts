@@ -1,4 +1,11 @@
-import type { AiConfig, AiConfigPayload, AiModelList } from './service';
+import type {
+  AiConfig,
+  AiConfigPayload,
+  AiMode,
+  AiModelList,
+  AiProvider,
+  AiSubscriptionStatus,
+} from './service';
 
 /** AI 设置表单的取值；apiKey 为本次新填写的 Key（空表示不修改） */
 export interface AiFormValues {
@@ -41,38 +48,53 @@ export function toPayload(values: AiFormValues): AiConfigPayload {
   return payload;
 }
 
-/** 已保存的配置 → 表单初始值（Key 不回填；模型没填时预填当前服务商的推荐模型） */
-export function toFormValues(config: AiConfig): AiFormValues {
+export const PROVIDERS: AiProvider[] = ['claude', 'openai'];
+
+/** 某一种连接方式已保存的设置 → 表单值（Key 不回填；模型没填时预填该服务商的推荐模型） */
+export function profileFormValues(
+  config: AiConfig,
+  mode: AiMode,
+  provider: AiProvider,
+): AiFormValues {
+  const profile =
+    mode === 'subscription'
+      ? config.subscriptionProfiles?.[provider]
+      : config.apiProfiles[provider];
   return {
-    mode: config.mode,
-    provider: config.provider,
+    mode,
+    provider,
+    apiKey: '',
     parseModel:
-      config.parseModel ||
-      defaultModel(config.defaultModels, config.provider, 'parse'),
+      profile?.parseModel ||
+      defaultModel(config.defaultModels, provider, 'parse'),
     translateModel:
-      config.translateModel ||
-      defaultModel(config.defaultModels, config.provider, 'translate'),
-    parseEffort: config.parseEffort || undefined,
-    translateEffort: config.translateEffort || undefined,
-    maxWebSearches: config.maxWebSearches,
+      profile?.translateModel ||
+      defaultModel(config.defaultModels, provider, 'translate'),
+    parseEffort: profile?.parseEffort || undefined,
+    translateEffort: profile?.translateEffort || undefined,
+    maxWebSearches: profile?.maxWebSearches ?? 20,
   };
 }
 
+/** 已保存的当前选择 → 表单初始值 */
+export function toFormValues(config: AiConfig): AiFormValues {
+  return profileFormValues(config, config.mode, config.provider);
+}
+
 /**
- * 切换服务商后模型字段的新值：没填或是某家服务商的推荐模型时换成新服务商的推荐模型，
- * 用户自己填的模型保持不变。
+ * 平台订阅某一家的状态：平台看登录状态（in / out），租户只看可用与否（avail / unavail）；
+ * 查询失败或还没查到为 unknown。
  */
-export function modelAfterProviderChange(
-  current: string | undefined,
-  defaults: AiConfig['defaultModels'] | undefined,
-  provider: string,
-  field: ModelField,
-): string {
-  const value = (current ?? '').trim();
-  const recommended = Object.values(defaults ?? {}).map((d) => d[field]);
-  return !value || recommended.includes(value)
-    ? defaultModel(defaults, provider, field)
-    : value;
+export type SubState = 'in' | 'out' | 'avail' | 'unavail' | 'unknown';
+export function subscriptionState(
+  status: AiSubscriptionStatus | undefined,
+  provider: AiProvider,
+  platform: boolean,
+): SubState {
+  const available = status?.available?.[provider];
+  if (available === null || available === undefined) return 'unknown';
+  if (platform) return available ? 'in' : 'out';
+  return available ? 'avail' : 'unavail';
 }
 
 /** 当前服务商在该字段的默认模型 */
