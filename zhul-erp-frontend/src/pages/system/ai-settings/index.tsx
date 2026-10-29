@@ -691,7 +691,7 @@ const AiSettingsPage: React.FC = () => {
                     : 'API Key 无效或已失效'
                   : `${slot}${item.ok ? '可用' : '不可用'}`;
               const detail = !item
-                ? '前一项通过后再检测'
+                ? undefined
                 : slot === 'API Key'
                   ? item.ok
                     ? `${meta.consoleName} 已确认身份`
