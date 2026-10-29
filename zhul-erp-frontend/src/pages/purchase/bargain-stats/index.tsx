@@ -378,7 +378,12 @@ const BargainStatsPage: React.FC = () => {
                 size="small"
                 columns={lineColumns}
                 dataSource={g.lines}
-                pagination={false}
+                pagination={{
+                  defaultPageSize: 10,
+                  hideOnSinglePage: true,
+                  size: 'small',
+                  showTotal: (total) => `共 ${total} 行`,
+                }}
                 scroll={{ x: 1400 }}
               />
             ),

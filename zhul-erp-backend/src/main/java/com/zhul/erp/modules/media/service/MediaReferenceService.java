@@ -41,8 +41,8 @@ public class MediaReferenceService {
     private static final int MAX_RESULTS = 20;
     /** 每层最多看多少个候选商品 */
     private static final int MAX_CANDIDATES = 2000;
-    private static final String[] LEVEL_NAMES = {"", "同系列", "同品牌同品类", "同品牌", "同品类的其他品牌"};
-    private static final String OTHER_BRAND_WARNING = "其他品牌，只作参考，不建议直接用于发品";
+    /** 只在同品牌里找，不回退到其他品牌 */
+    private static final String[] LEVEL_NAMES = {"", "同系列", "同品牌同品类", "同品牌"};
 
     private final MediaProducts products;
     private final BrandResolver brandResolver;
@@ -58,7 +58,7 @@ public class MediaReferenceService {
         Optional<ProductDO> self = products.find(brand, model);
         Long brandId = self.map(ProductDO::getBrandId).orElseGet(() -> brandResolver.resolve(brand));
         Long selfId = self.map(ProductDO::getId).orElse(-1L);
-        for (int level = 1; level <= 4; level++) {
+        for (int level = 1; level < LEVEL_NAMES.length; level++) {
             Consumer<LambdaQueryWrapper<ProductDO>> filter = levelFilter(level, self.orElse(null), brandId);
             if (filter == null) {
                 continue;
@@ -88,8 +88,6 @@ public class MediaReferenceService {
             case 2 -> self == null || self.getCategoryId() == null ? null
                     : w -> w.eq(ProductDO::getBrandId, self.getBrandId()).eq(ProductDO::getCategoryId, self.getCategoryId());
             case 3 -> brandId == null ? null : w -> w.eq(ProductDO::getBrandId, brandId);
-            case 4 -> self == null || self.getCategoryId() == null ? null
-                    : w -> w.eq(ProductDO::getCategoryId, self.getCategoryId()).ne(ProductDO::getBrandId, self.getBrandId());
             default -> null;
         };
     }
@@ -132,7 +130,6 @@ public class MediaReferenceService {
         MediaReferenceVO vo = new MediaReferenceVO();
         vo.setLevel(level);
         vo.setLevelName(LEVEL_NAMES[level]);
-        vo.setWarning(level == 4 ? OTHER_BRAND_WARNING : null);
         vo.setModels(found.stream()
                 .sorted(Comparator.comparing((ProductDO p) -> inquiries.getOrDefault(p.getId(), 0L)).reversed()
                         .thenComparing(p -> deals.getOrDefault(p.getId(), 0L), Comparator.reverseOrder())
