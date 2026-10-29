@@ -1,4 +1,4 @@
--- 飞书历史数据迁移 V1.3.14 的反向 SQL（备用，只在需要回退该版本时手工执行，执行后还需从 flyway_schema_history 删除 1.3.14 的记录）。
+-- 飞书历史数据迁移 V1.3.19 的反向 SQL（备用，只在需要回退该版本时手工执行，执行后还需从 flyway_schema_history 删除 1.3.19 的记录）。
 -- 先按批次回滚迁移数据（软删除）再执行本脚本；fin_fx_settlement.migrated 为 V1.2.61 所加，这里不删。
 
 DROP TABLE IF EXISTS `sales_order_cost_snapshot`;
