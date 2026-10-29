@@ -6,7 +6,7 @@
 
 | `AI_ORCHESTRATOR_MODE` | 实现 |
 | --- | --- |
-| `api`（默认） | 真实服务：任务携带的运行方式为 API 时用官方 Anthropic/OpenAI Python SDK；为订阅时 `openai` 用官方 Codex Python SDK、`claude` 用原版 Claude Code CLI（只供平台租户） |
+| `api`（默认） | 真实服务：任务携带的运行方式为 API 时用官方 Anthropic/OpenAI Python SDK；为订阅时 `openai` 用官方 Codex Python SDK、`claude` 用原版 Claude Code CLI（供平台租户与获平台授权的公司，授权由后端检查） |
 | `stub` | 独立占位脚本，固定假数据，仅供联调 |
 
 订阅登录、专用目录与持久化、套餐适用范围、附件与搜索限制见 [AI 编排部署说明](../../docs/06-部署运维/04-AI编排服务.md)。Windows 的订阅执行请使用 Docker；不要挂载宿主机个人 CLI 目录，不提供账号共享或代登录服务。
