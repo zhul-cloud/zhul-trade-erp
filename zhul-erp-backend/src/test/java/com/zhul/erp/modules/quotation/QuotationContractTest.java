@@ -50,6 +50,8 @@ class QuotationContractTest extends InquiryContractSupport {
     @BeforeEach
     void setUpQuotation() {
         cleanupQuotation();
+        // 型号描述翻译会提交 AI 任务，需要平台租户已配置 AI
+        seedAiConfig(0);
         jdbc.update("insert into exchange_rate (tenant_id, currency_code, rate) values (0, 'USD', 7.150000)");
         loginAsAdmin("it_qt_admin");
         admin = token("it_qt_admin");
@@ -58,6 +60,7 @@ class QuotationContractTest extends InquiryContractSupport {
     @AfterEach
     void tearDownQuotation() {
         cleanupQuotation();
+        removeAiConfig(0);
     }
 
     private void cleanupQuotation() {

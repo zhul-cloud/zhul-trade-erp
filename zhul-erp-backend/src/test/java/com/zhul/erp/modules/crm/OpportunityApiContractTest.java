@@ -56,6 +56,8 @@ class OpportunityApiContractTest extends IntegrationTestBase {
     @BeforeEach
     void setUp() {
         cleanup();
+        // 登记商机会顺带提交联系人名翻译，需要平台租户已配置 AI
+        seedAiConfig(0);
         jdbc.update("insert into user_basic (id, tenant_id, name, username, role_code, status) values (?, 0, '李娜', 'it_lina', '', 1)",
                 OTHER_OWNER);
     }
@@ -74,6 +76,7 @@ class OpportunityApiContractTest extends IntegrationTestBase {
         jdbc.update("delete from customer where tenant_id = 0");
         jdbc.update("delete from ai_task where tenant_id = 0 and skill_id = ?", ContactNameTranslations.SKILL_ID);
         jdbc.update("delete from user_basic where id = ?", OTHER_OWNER);
+        removeAiConfig(0);
     }
 
     private String token(String username) {
@@ -137,6 +140,19 @@ class OpportunityApiContractTest extends IntegrationTestBase {
         assertEquals(400, perform(json(post(BASE), lead("Anna", 5, tomorrow, "")), admin).getStatus());
         assertEquals(400, perform(json(post(BASE), "{\"country\":\"germany\",\"sourceChannel\":5,\"firstContactDate\":\""
                 + today + "\"}"), admin).getStatus(), "联系人名称必填");
+    }
+
+    @Test
+    void register_whenAiNotConfigured_savesWithoutTranslation() throws Exception {
+        removeAiConfig(0);
+        loginAsAdmin("opp_admin");
+        String admin = token("opp_admin");
+        long id = register(admin, lead("John", 1, LocalDate.now().toString(), ",\"email\":\"john@a.com\""));
+
+        assertTrue(id > 0);
+        assertEquals(1, jdbc.queryForObject("select count(*) from opportunity where tenant_id = 0", Integer.class));
+        assertEquals(0, jdbc.queryForObject("select count(*) from ai_task where tenant_id = 0 and skill_id = ?", Integer.class,
+                ContactNameTranslations.SKILL_ID));
     }
 
     @Test

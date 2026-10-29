@@ -2,7 +2,7 @@
 # 一键用 Docker 启动开发环境：MySQL、Redis、后端、前端、AI 编排服务。
 # 用法：scripts/docker-dev.sh
 #   首次运行生成 .env：随机填写三个后端密钥，导入演示账号（platform / admin123），
-#   未配置 AI_ORCHESTRATOR_API_KEY 时 AI 编排服务用 stub 假数据。已有 .env 只补空密钥，其他配置不动。
+#   AI 编排服务默认用 stub 假数据（Key 等在「业务设置 → AI 设置」中按租户填写）。已有 .env 只补空密钥，其他配置不动。
 # 默认不持久化：停止或重建容器后数据清空。详见 docs/06-部署运维/00-快速开始.md。
 set -euo pipefail
 
@@ -25,7 +25,7 @@ docker info >/dev/null 2>&1 || { echo "Docker 没有运行，请先启动 Docker
 if [ ! -f .env ]; then
   cp .env.example .env
   set_value FLYWAY_LOCATIONS "classpath:db/migration,classpath:db/dev-data"
-  [ -z "$(get AI_ORCHESTRATOR_API_KEY)" ] && set_value AI_ORCHESTRATOR_MODE stub
+  set_value AI_ORCHESTRATOR_MODE stub
   echo "== 已生成 .env（开发配置：导入演示账号，AI 使用 stub 假数据）"
 fi
 for key in JWT_SECRET AES_KEY AI_TASK_CALLBACK_TOKEN; do
@@ -34,10 +34,7 @@ for key in JWT_SECRET AES_KEY AI_TASK_CALLBACK_TOKEN; do
     echo "== 已生成 $key"
   fi
 done
-ai_mode="$(get AI_ORCHESTRATOR_MODE)"
-if [ "${ai_mode:-api}" = api ] && [ -z "$(get AI_ORCHESTRATOR_API_KEY)" ]; then
-  echo "⚠ AI_ORCHESTRATOR_MODE=api 但 AI_ORCHESTRATOR_API_KEY 为空：AI 解析会失败。填写 Key，或改为 stub" >&2
-fi
+echo "== AI 的服务商与 Key 在「业务设置 → AI 设置」中按租户填写；未填写时 AI 解析会提示未配置"
 
 echo "== 构建并启动（首次需要下载镜像和依赖，可能要几分钟）"
 docker compose --profile app up -d --build

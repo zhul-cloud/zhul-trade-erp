@@ -130,8 +130,63 @@ def call_subscription(provider, system_prompt, text, attachments, schema, *, mod
         _SLOT.release()
 
 
+def login_status(timeout=10):
+    """两个官方 CLI 是否已用个人订阅登录；只返回是否登录，不返回账号信息。"""
+    env = subscription_env()
+    status = {"codex": False, "claude": False}
+    try:
+        result = subprocess.run(["codex", "login", "status"], env=env, capture_output=True, text=True,
+                                encoding="utf-8", timeout=timeout)
+        # API Key 登录也会显示 Logged in，订阅只认 ChatGPT 登录
+        status["codex"] = result.returncode == 0 and "chatgpt" in (result.stdout + result.stderr).lower()
+    except (OSError, subprocess.TimeoutExpired):
+        pass
+    try:
+        result = subprocess.run(["claude", "auth", "status"], env=env, capture_output=True, text=True,
+                                encoding="utf-8", timeout=timeout)
+        data = json.loads(result.stdout or "{}")
+        status["claude"] = bool(data.get("loggedIn")) and data.get("authMethod") == "claude.ai"
+    except (OSError, subprocess.TimeoutExpired, json.JSONDecodeError):
+        pass
+    return status
+
+
+def codex_models(timeout=30):
+    """Codex 订阅账号可用的模型 [{"id", "default"}]；在隔离的工作目录与环境中调用官方 SDK。"""
+    with tempfile.TemporaryDirectory(prefix="zhul-ai-models-") as directory:
+        process = subprocess.Popen(
+            [sys.executable, str(Path(__file__).resolve()), "worker"], cwd=directory,
+            env=subscription_env(), stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            text=True, encoding="utf-8", start_new_session=os.name != "nt")
+        try:
+            stdout, _ = process.communicate(json.dumps({"action": "models"}), timeout=timeout)
+        except subprocess.TimeoutExpired as exc:
+            stop_process(process)
+            raise RuntimeError("获取 Codex 模型列表超时") from exc
+        if process.returncode:
+            if stdout.strip() == "auth":
+                raise RuntimeError("Codex 未登录个人订阅")
+            raise RuntimeError("获取 Codex 模型列表失败")
+        try:
+            return json.loads(stdout)
+        except json.JSONDecodeError as exc:
+            raise RuntimeError("获取 Codex 模型列表失败") from exc
+
+
 class SubscriptionError(RuntimeError):
     pass
+
+
+def list_codex_models():
+    from openai_codex import Codex, CodexConfig
+
+    config = CodexConfig(cwd=os.getcwd(), config_overrides=(
+        'forced_login_method="chatgpt"', 'cli_auth_credentials_store="file"', 'mcp_servers={}'))
+    with Codex(config) as codex:
+        account = codex.account().account
+        if account is None or account.root.type != "chatgpt":
+            raise SubscriptionError("auth")
+        return [{"id": m.model, "default": bool(m.is_default)} for m in codex.models().data if not m.hidden]
 
 
 def _check_searches(seen, item_id, limit):
@@ -229,6 +284,9 @@ def run_claude(request):
 if __name__ == "__main__":
     try:
         request = json.load(sys.stdin)
+        if request.get("action") == "models":
+            print(json.dumps(list_codex_models(), ensure_ascii=False))
+            sys.exit(0)
         result = run_codex(request) if request["provider"] == "openai" else run_claude(request)
         jsonschema.validate(result, request["schema"])
         print(json.dumps(result, ensure_ascii=False))

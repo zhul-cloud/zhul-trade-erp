@@ -118,7 +118,7 @@ powershell -ExecutionPolicy Bypass -File scripts\docker-dev.ps1
 
 脚本会生成 `.env`（随机密钥、导入演示账号），构建并启动 MySQL、Redis、后端、前端和 AI 编排服务。就绪后打开 <http://localhost:8000>，用下面的演示账号登录。默认不持久化，停止或重建容器后数据清空。
 
-> 询盘的 AI 解析需要在 `.env` 里填写 `AI_ORCHESTRATOR_API_KEY`（默认服务商 Claude，可切换为 OpenAI）；只联调页面可把 `AI_ORCHESTRATOR_MODE` 改成 `stub`。
+> 询盘的 AI 解析需要在系统里配置：登录后进入「业务设置 → AI 设置」，填写服务商（Claude 或 OpenAI）和 API Key，每个租户各自维护。脚本生成的 `.env` 默认 `AI_ORCHESTRATOR_MODE=stub`（假数据），要真实解析改成 `api`，见 [AI 编排服务](docs/06-部署运维/04-AI编排服务.md)。
 
 ### 方式二：本机开发
 

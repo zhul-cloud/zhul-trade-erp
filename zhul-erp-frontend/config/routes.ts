@@ -664,6 +664,13 @@ export default [
         component: './system/transit-times',
       },
       {
+        path: '/system/ai-settings',
+        name: 'aiSettings',
+        icon: 'robot',
+        access: 'systemAiSettings',
+        component: './system/ai-settings',
+      },
+      {
         path: '/system/config',
         name: 'config',
         icon: 'tool',

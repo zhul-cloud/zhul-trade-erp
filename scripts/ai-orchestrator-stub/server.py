@@ -14,6 +14,7 @@ zhul-erp-backend 能够本地联调"提交任务 -> 异步 webhook 回调"这条
 
 只依赖 Python 标准库，不需要额外安装依赖。
 """
+import hmac
 import json
 import os
 import threading
@@ -161,7 +162,39 @@ def send_callback(callback_url: str, output=None):
 
 
 class Handler(BaseHTTPRequestHandler):
+    def _authorized(self) -> bool:
+        """与真实服务一致：所有接口校验共享令牌"""
+        token = self.headers.get("X-AI-Callback-Token") or ""
+        if hmac.compare_digest(token.encode("utf-8"), CALLBACK_TOKEN.encode("utf-8")):
+            return True
+        self._send_json(401, {"error": "unauthorized"})
+        return False
+
+    def _send_json(self, status, body):
+        data = json.dumps(body, ensure_ascii=False).encode("utf-8")
+        self.send_response(status)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(data)))
+        self.end_headers()
+        self.wfile.write(data)
+
+    def do_GET(self):
+        if not self._authorized():
+            return
+        if self.path != "/status":
+            self._send_json(404, {"error": "not found"})
+            return
+        self._send_json(200, {"codex": {"logged_in": False}, "claude": {"logged_in": False}})
+
     def do_POST(self):
+        if not self._authorized():
+            return
+        if self.path == "/test":
+            self._send_json(200, {"ok": True, "items": [{"name": "假数据模式", "ok": True, "message": "未调用任何服务商"}]})
+            return
+        if self.path == "/models":
+            self._send_json(200, {"models": [], "source": "defaults", "error": None})
+            return
         if not self.path.startswith("/skills/") or not self.path.endswith("/run"):
             self.send_response(404)
             self.end_headers()

@@ -1,5 +1,6 @@
 package com.zhul.erp.support;
 
+import com.zhul.erp.common.utils.AesUtils;
 import com.zhul.erp.framework.tenant.TenantContext;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -30,6 +31,9 @@ public abstract class IntegrationTestBase {
 
     @Autowired
     protected JdbcTemplate jdbc;
+
+    @Autowired
+    private AesUtils aesUtils;
 
     @BeforeEach
     void assertUsingTestDatabase() {
@@ -69,6 +73,17 @@ public abstract class IntegrationTestBase {
         }
         SecurityContextHolder.getContext().setAuthentication(
                 new UsernamePasswordAuthenticationToken(username, null, List.of()));
+    }
+
+    /** 给租户写一份 API 方式的 AI 配置（测试 Key），供会提交 AI 任务的用例使用；用例结束后调 removeAiConfig 清理 */
+    protected void seedAiConfig(int tenantId) {
+        removeAiConfig(tenantId);
+        jdbc.update("insert into sys_ai_config (tenant_id, mode, provider, api_key) values (?, 'api', 'claude', ?)",
+                tenantId, aesUtils.encrypt("sk-it-test-key-0000"));
+    }
+
+    protected void removeAiConfig(int tenantId) {
+        jdbc.update("delete from sys_ai_config where tenant_id = ?", tenantId);
     }
 
     private void removeTestAccount() {
