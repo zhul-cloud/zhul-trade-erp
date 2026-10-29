@@ -32,6 +32,13 @@ SELECT `tenant_id`, `mode`, `provider`, IF(`mode` = 'subscription', '', `api_key
        `create_time`, `create_by`, `update_time`, `update_by`
 FROM `sys_ai_config`;
 
+-- 已切到订阅、但旧行里还留着之前填的 Key：同时保存为该服务商的本公司 API Key，不丢失
+INSERT INTO `sys_ai_provider_config` (`tenant_id`, `mode`, `provider`, `api_key`, `status`,
+                                      `create_time`, `create_by`, `update_time`, `update_by`)
+SELECT `tenant_id`, 'api', `provider`, `api_key`, `status`, `create_time`, `create_by`, `update_time`, `update_by`
+FROM `sys_ai_config`
+WHERE `mode` = 'subscription' AND `api_key` <> '';
+
 ALTER TABLE `sys_ai_config`
     COMMENT = '租户当前使用的AI连接方式（每个租户一行）；各连接方式的设置见 sys_ai_provider_config',
     MODIFY `mode`             varchar(16)  NOT NULL DEFAULT 'api' COMMENT '当前用法（api-本公司API Key、subscription-平台订阅）',
