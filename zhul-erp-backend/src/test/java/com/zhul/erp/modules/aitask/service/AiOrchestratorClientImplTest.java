@@ -9,7 +9,7 @@ import com.zhul.erp.modules.aitask.dto.AiCallConfig;
 import com.zhul.erp.modules.aitask.dto.AiConnectionTestVO;
 import com.zhul.erp.modules.aitask.dto.AiModelListVO;
 import com.zhul.erp.modules.aitask.dto.AiOrchestratorSubmitResult;
-import com.zhul.erp.modules.aitask.dto.AiSubscriptionStatusVO;
+import com.zhul.erp.modules.aitask.dto.AiLoginStatus;
 import com.zhul.erp.modules.aitask.service.impl.AiOrchestratorClientImpl;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -113,9 +113,9 @@ class AiOrchestratorClientImplTest {
         assertTrue(models.getModels().get(0).isDefaultModel());
         assertFalse(models.getModels().get(1).isDefaultModel());
 
-        AiSubscriptionStatusVO status = client.status();
-        assertTrue(status.isCodexLoggedIn());
-        assertFalse(status.isClaudeLoggedIn());
+        AiLoginStatus status = client.status();
+        assertTrue(status.openai());
+        assertFalse(status.claude());
     }
 
     @Test

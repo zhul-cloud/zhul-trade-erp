@@ -78,12 +78,14 @@ public abstract class IntegrationTestBase {
     /** 给租户写一份 API 方式的 AI 配置（测试 Key），供会提交 AI 任务的用例使用；用例结束后调 removeAiConfig 清理 */
     protected void seedAiConfig(int tenantId) {
         removeAiConfig(tenantId);
-        jdbc.update("insert into sys_ai_config (tenant_id, mode, provider, api_key) values (?, 'api', 'claude', ?)",
+        jdbc.update("insert into sys_ai_config (tenant_id, mode, provider) values (?, 'api', 'claude')", tenantId);
+        jdbc.update("insert into sys_ai_provider_config (tenant_id, mode, provider, api_key) values (?, 'api', 'claude', ?)",
                 tenantId, aesUtils.encrypt("sk-it-test-key-0000"));
     }
 
     protected void removeAiConfig(int tenantId) {
         jdbc.update("delete from sys_ai_config where tenant_id = ?", tenantId);
+        jdbc.update("delete from sys_ai_provider_config where tenant_id = ?", tenantId);
     }
 
     private void removeTestAccount() {
