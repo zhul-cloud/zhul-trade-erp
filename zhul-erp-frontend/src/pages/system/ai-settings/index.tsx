@@ -824,6 +824,7 @@ const AiSettingsPage: React.FC = () => {
           }
           action={
             canEdit &&
+            apiProfile.hasKey &&
             !showKeyEditor && (
               <Button
                 type="link"
@@ -834,7 +835,7 @@ const AiSettingsPage: React.FC = () => {
                   select('api', p, true);
                 }}
               >
-                {apiProfile.hasKey ? '更换' : '填写'}
+                更换
               </Button>
             )
           }
@@ -853,24 +854,6 @@ const AiSettingsPage: React.FC = () => {
                 <StatePill label="不可用" tone="gray" />
               ) : (
                 <StatePill label={SUB_LABEL[st][0]} tone={SUB_LABEL[st][1]} />
-              )
-            }
-            action={
-              platform &&
-              st === 'out' &&
-              !subSelected &&
-              canEdit && (
-                <Button
-                  type="link"
-                  size="small"
-                  style={{ padding: 0 }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    select('subscription', p);
-                  }}
-                >
-                  登录方法
-                </Button>
               )
             }
             onSelect={() => !subSelected && select('subscription', p)}

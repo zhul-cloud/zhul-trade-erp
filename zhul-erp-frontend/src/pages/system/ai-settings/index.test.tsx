@@ -105,7 +105,8 @@ describe('AiSettingsPage', () => {
     mocked.getAiConfig.mockResolvedValue(config());
     renderPage();
     await screen.findByText('AI 已配置');
-    fireEvent.click(screen.getByRole('button', { name: /^填\s?写$/ }));
+    expect(screen.queryByRole('button', { name: /^填\s?写$/ })).toBeNull();
+    fireEvent.click(rows()[1]);
     expect(screen.getByDisplayValue('gpt-6.1-sol')).toBeTruthy();
     expect(await screen.findByText('填写 API Key 后才能保存')).toBeTruthy();
     expect((saveButton() as HTMLButtonElement).disabled).toBe(true);
@@ -161,7 +162,8 @@ describe('AiSettingsPage', () => {
     renderPage();
     expect(await screen.findByText('已登录')).toBeTruthy();
     expect(screen.getByText('未登录')).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: '登录方法' }));
+    expect(screen.queryByRole('button', { name: '登录方法' })).toBeNull();
+    fireEvent.click(rows()[3]);
     expect(await screen.findByText('codex-cmd')).toBeTruthy();
     // 平台的订阅设置可编辑，供获授权的公司共用
     expect(screen.getByText('获授权的公司共用')).toBeTruthy();
