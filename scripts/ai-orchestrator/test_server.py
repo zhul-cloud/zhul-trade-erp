@@ -2,6 +2,7 @@
 
 运行：pip install -r requirements.txt 后，在本目录执行 python -m unittest -v
 """
+import copy
 import importlib
 import json
 import os
@@ -167,6 +168,128 @@ class ClaudeTest(unittest.TestCase):
         self.assertEqual([c["client"]["api_key"] for c in FakeClaude.calls], ["sk-tenant-a-0000001", "sk-tenant-b-0000002"])
 
 
+class ClaudeSchemaRegressionTest(unittest.TestCase):
+    def setUp(self):
+        FakeClaude.calls = []
+        self.server = load_server()
+        self.cfg = self.server.parse_ai_config(ai())
+
+    def parse(self, result):
+        FakeClaude.reply = json.dumps(result)
+        with mock.patch.object(self.server.anthropic, "Anthropic", FakeClaude):
+            return self.server.call_parse(self.cfg, "询盘正文", [], [])
+
+    def test_request_preserves_every_field_without_mutating_business_schemas(self):
+        original = copy.deepcopy(self.server.OUTPUT_SCHEMA)
+        translate_original = copy.deepcopy(self.server.TRANSLATE_SCHEMA)
+        self.parse(PARSE_RESULT)
+        schema = FakeClaude.calls[-1]["params"]["output_config"]["format"]["schema"]
+        group = schema["properties"]["groups"]["items"]
+        item = group["properties"]["items"]["items"]
+        self.assertEqual(set(group["properties"]), {
+            "brand", "category", "inquiryTemplate", "emailTemplateCn", "emailTemplateEn", "items"})
+        self.assertEqual(set(item["properties"]), {
+            "categoryCode", "originalModel", "confirmedModel", "confidence", "correctionNote", "description",
+            "descriptionEn", "quantity", "unit", "remark", "lifecycle", "replacementModel", "difficulty",
+            "inquiryScript", "searchKeywords"})
+        for obj in (schema, group, item):
+            self.assertEqual(set(obj["required"]), set(obj["properties"]))
+            self.assertIs(obj["additionalProperties"], False)
+        self.assertEqual(item["properties"]["difficulty"]["type"], ["integer", "null"])
+        self.assertEqual(item["properties"]["confidence"]["type"], "integer")
+        FakeClaude.reply = '{"items": []}'
+        with mock.patch.object(self.server.anthropic, "Anthropic", FakeClaude):
+            self.server.call_translate(self.cfg, [{"key": "1", "text": "x"}])
+        self.assertEqual(self.server.OUTPUT_SCHEMA, original)
+        self.assertEqual(self.server.TRANSLATE_SCHEMA, translate_original)
+
+    def test_null_means_missing_while_empty_values_are_preserved(self):
+        result = copy.deepcopy(PARSE_RESULT)
+        group = result["groups"][0]
+        group.update(inquiryTemplate=None, emailTemplateCn="", emailTemplateEn=None)
+        group["items"][0].update(description=None, remark="", lifecycle=0, difficulty=None, searchKeywords=[])
+        normalized = self.parse(result)
+        normalized_group = normalized["groups"][0]
+        item = normalized_group["items"][0]
+        self.assertNotIn("inquiryTemplate", normalized_group)
+        self.assertNotIn("emailTemplateEn", normalized_group)
+        self.assertEqual(normalized_group["emailTemplateCn"], "")
+        self.assertNotIn("description", item)
+        self.assertNotIn("difficulty", item)
+        self.assertEqual((item["remark"], item["lifecycle"], item["searchKeywords"]), ("", 0, []))
+        self.assertIsNone(group["inquiryTemplate"])  # 原响应对象也不改写
+
+    def test_complete_result_round_trip(self):
+        result = copy.deepcopy(PARSE_RESULT)
+        group = result["groups"][0]
+        group.update(inquiryTemplate="inquiry", emailTemplateCn="中文", emailTemplateEn="English")
+        group["items"][0].update(categoryCode="plc", correctionNote="", description="控制器",
+            descriptionEn="PLC", remark="", lifecycle=1, replacementModel="", difficulty=2,
+            inquiryScript="询价", searchKeywords=["6ES7", "Siemens 6ES7"])
+        self.assertEqual(self.parse(result), result)
+
+    def test_invalid_results_use_failed_callback(self):
+        missing = copy.deepcopy(PARSE_RESULT)
+        del missing["groups"][0]["items"][0]["quantity"]
+        required_null = copy.deepcopy(PARSE_RESULT)
+        required_null["groups"][0]["items"][0]["quantity"] = None
+        wrong_type = copy.deepcopy(PARSE_RESULT)
+        wrong_type["groups"][0]["items"][0]["confidence"] = "private-customer-business-value"
+        for result in ({}, missing, required_null, wrong_type):
+            with self.subTest(result=result):
+                FakeClaude.reply = json.dumps(result)
+                with mock.patch.object(self.server.anthropic, "Anthropic", FakeClaude), \
+                        mock.patch.object(self.server, "send_callback") as callback, \
+                        mock.patch("builtins.print") as printed:
+                    self.server.process_job({"ai": ai(), "input": {"rawContent": "model"}}, "http://cb")
+                callback.assert_called_once()
+                self.assertEqual(callback.call_args.args, ("http://cb", "failed"))
+                self.assertEqual(callback.call_args.kwargs["error"], "AI 返回结果不符合业务 Schema")
+                self.assertNotIn("private-customer-business-value", str(printed.call_args_list))
+                self.assertNotIn("output", callback.call_args.kwargs)
+
+    def test_bad_json_and_provider_schema_error_are_not_swallowed(self):
+        with mock.patch.object(self.server.anthropic, "Anthropic", FakeClaude):
+            FakeClaude.reply = "not-json"
+            with self.assertRaises(json.JSONDecodeError):
+                self.server.call_parse(self.cfg, "model")
+        error = self.server.anthropic.BadRequestError(
+            "Schema is too complex", response=mock.MagicMock(status_code=400, headers={}), body=None)
+        with mock.patch.object(self.server.anthropic, "Anthropic", side_effect=error), \
+                mock.patch.object(self.server, "send_callback") as callback:
+            self.server.process_job({"ai": ai(), "input": {"rawContent": "model"}}, "http://cb")
+        self.assertEqual(callback.call_args.args, ("http://cb", "failed"))
+        self.assertIn("Schema is too complex", callback.call_args.kwargs["error"])
+
+    def test_subscription_requests_and_claude_command_unchanged_after_api_call(self):
+        import subscription
+
+        schemas = copy.deepcopy((self.server.OUTPUT_SCHEMA, self.server.TRANSLATE_SCHEMA))
+        snapshots = {}
+        commands = {}
+        for phase in ("before", "after"):
+            snapshots[phase] = []
+            for provider in ("claude", "openai"):
+                cfg = self.server.parse_ai_config(ai(mode="subscription", provider=provider, api_key=""))
+                with mock.patch.object(self.server, "call_subscription", return_value=PARSE_RESULT) as call:
+                    self.assertEqual(self.server.call_parse(cfg, "model", [IMAGE], []), PARSE_RESULT)
+                snapshots[phase].append(copy.deepcopy((call.call_args.args, call.call_args.kwargs)))
+            args, kwargs = snapshots[phase][0]
+            self.assertEqual(args[4], schemas[0])
+            self.assertEqual(kwargs["max_web_searches"], 20)
+            self.assertTrue(kwargs["web_search"])
+            commands[phase] = subscription.claude_command({
+                "web_search": kwargs["web_search"], "model": kwargs["model"], "effort": kwargs["effort"],
+                "schema": args[4], "system_prompt": args[1]})
+            if phase == "before":
+                self.parse(PARSE_RESULT)
+        self.assertEqual(snapshots["before"], snapshots["after"])
+        self.assertEqual(commands["before"], commands["after"])
+        command = commands["after"]
+        self.assertEqual(json.loads(command[command.index("--json-schema") + 1]), schemas[0])
+        self.assertEqual((self.server.OUTPUT_SCHEMA, self.server.TRANSLATE_SCHEMA), schemas)
+
+
 class CallbackTest(unittest.TestCase):
     def setUp(self):
         self.server = load_server()
@@ -219,7 +342,7 @@ class OpenAISchemaTest(unittest.TestCase):
 
     def test_every_field_required_and_optional_nullable(self):
         original = json.dumps(self.server.OUTPUT_SCHEMA, sort_keys=True)
-        schema = self.server._openai_schema(self.server.OUTPUT_SCHEMA)
+        schema = self.server._required_nullable_schema(self.server.OUTPUT_SCHEMA)
         for obj in self.objects(schema):
             self.assertEqual(sorted(obj["required"]), sorted(obj["properties"]))
             self.assertIs(obj["additionalProperties"], False)
