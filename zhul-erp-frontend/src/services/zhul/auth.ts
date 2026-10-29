@@ -17,6 +17,16 @@ export interface LoginResult {
   tenantName: string;
 }
 
+/** 当前登录用户：登录成功后存在 localStorage 的 zhul_user（见 pages/login） */
+export interface CurrentUser {
+  name?: string;
+  avatar?: string;
+  userid?: string;
+  /** admin-管理员、user-成员，只用于展示文案，权限以 permissions 为准 */
+  access?: 'admin' | 'user';
+  tenantName?: string;
+}
+
 export interface ApiResponse<T> {
   code: number;
   message: string;

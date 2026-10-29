@@ -26,7 +26,7 @@
 | `redis` | `zhul-erp-redis` | Redis 7，启用 AOF | 6379 | `127.0.0.1:6379` |
 | `backend` | `zhul-erp-backend` | Java 17 / Spring Boot | 8080 | `127.0.0.1:8080` |
 | `frontend` | `zhul-erp-frontend` | Nginx 1.28 + 前端构建产物 | 80 | `0.0.0.0:8000` |
-| `ai-orchestrator` | `zhul-erp-ai-orchestrator` | Python + Anthropic API | 8899 | 不映射，只供后端调用 |
+| `ai-orchestrator` | `zhul-erp-ai-orchestrator` | Python + Claude / OpenAI API | 8899 | 不映射，只供后端调用 |
 
 MySQL、Redis 默认启动；后端、前端、AI 编排服务属于 `app` profile，用 `--profile app` 或显式写服务名启动。
 
@@ -34,4 +34,4 @@ MySQL、Redis 默认启动；后端、前端、AI 编排服务属于 `app` profi
 
 1. **默认不持久化。** 数据库、Redis 和上传目录都是临时存储，停止或重建容器就清空，各服务启动时会在日志里打印警告。生产使用前按 [数据持久化与备份](03-数据持久化与备份.md) 启用。
 2. **只有一份配置。** 所有服务共用根目录 `.env`，模板是 `.env.example`，每一项都有说明。不要另建 `.env.dev` 之类的副本，容易漏改。
-3. **AI 解析需要 Anthropic API Key。** 没有 Key 时，可以用 stub 模式联调页面，见 [AI 编排服务](04-AI编排服务.md)。
+3. **AI 解析需要 AI 服务商的 API Key（默认 Claude，可切换为 OpenAI）。** 没有 Key 时，可以用 stub 模式联调页面，见 [AI 编排服务](04-AI编排服务.md)。

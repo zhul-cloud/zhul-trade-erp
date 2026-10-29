@@ -4,10 +4,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhul.erp.common.exception.BizException;
 import com.zhul.erp.framework.tenant.TenantContext;
 import com.zhul.erp.modules.aitask.constants.AiTaskStatus;
+import com.zhul.erp.modules.aitask.dto.AiCallConfig;
 import com.zhul.erp.modules.aitask.dto.AiOrchestratorSubmitResult;
 import com.zhul.erp.modules.aitask.dto.AiTaskCallbackRequest;
 import com.zhul.erp.modules.aitask.dto.AiTaskVO;
 import com.zhul.erp.modules.aitask.entity.AiTaskDO;
+import com.zhul.erp.modules.aitask.exception.AiNotConfiguredException;
 import com.zhul.erp.modules.aitask.repository.AiTaskMapper;
 import com.zhul.erp.modules.aitask.service.impl.AiTaskServiceImpl;
 import org.junit.jupiter.api.AfterEach;
@@ -26,6 +28,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -36,6 +40,7 @@ import static org.mockito.Mockito.when;
  * - 提交任务给 AI 编排服务不阻塞等待
  * - 接收 webhook 回调更新任务状态
  * - 按 skillId 路由处理结果
+ * 以及 specs/ai-platform/tenant-ai-settings/spec.md「未配置时的处理」：未配置时不创建任务
  */
 @ExtendWith(MockitoExtension.class)
 class AiTaskServiceImplTest {
@@ -46,12 +51,20 @@ class AiTaskServiceImplTest {
     private AiOrchestratorClient orchestratorClient;
     @Mock
     private AiTaskResultDispatcher resultDispatcher;
+    @Mock
+    private AiConfigService aiConfigService;
+
+    private static final AiCallConfig CONFIG = AiCallConfig.builder().mode("api").provider("claude")
+            .apiKey("sk-test-key-1234").parseModel("claude-opus-5-5").translateModel("claude-haiku-5-5")
+            .parseEffort("medium").translateEffort("medium").maxWebSearches(20).build();
 
     private AiTaskServiceImpl aiTaskService;
 
     @BeforeEach
     void setUp() {
-        aiTaskService = new AiTaskServiceImpl(aiTaskMapper, orchestratorClient, resultDispatcher, new ObjectMapper());
+        aiTaskService = new AiTaskServiceImpl(aiTaskMapper, orchestratorClient, resultDispatcher, new ObjectMapper(),
+                aiConfigService);
+        lenient().when(aiConfigService.resolveForCurrentTenant()).thenReturn(CONFIG);
         TenantContext.setTenantId(1);
     }
 
@@ -80,7 +93,7 @@ class AiTaskServiceImplTest {
         }).when(aiTaskMapper).insert(any(AiTaskDO.class));
 
         CompletableFuture<AiOrchestratorSubmitResult> pending = new CompletableFuture<>();
-        when(orchestratorClient.submit(eq("inquiry-parse-and-split"), eq(42L), eq("{}"))).thenReturn(pending);
+        when(orchestratorClient.submit(eq("inquiry-parse-and-split"), eq(42L), eq("{}"), eq(CONFIG))).thenReturn(pending);
 
         long start = System.nanoTime();
         AiTaskVO result = aiTaskService.createAndSubmit("inquiry-parse-and-split", "{}", 1000L);
@@ -108,14 +121,14 @@ class AiTaskServiceImplTest {
             arg.setId(44L);
             return 1;
         }).when(aiTaskMapper).insert(any(AiTaskDO.class));
-        when(orchestratorClient.submit(any(), any(), any())).thenReturn(new CompletableFuture<>());
+        when(orchestratorClient.submit(any(), any(), any(), any())).thenReturn(new CompletableFuture<>());
 
         TransactionSynchronizationManager.initSynchronization();
         try {
             aiTaskService.createAndSubmit("inquiry-parse-and-split", "{}", 1000L);
 
             // 事务还没提交——不应该已经调用编排服务
-            verify(orchestratorClient, times(0)).submit(any(), any(), any());
+            verify(orchestratorClient, times(0)).submit(any(), any(), any(), any());
 
             TransactionSynchronizationManager.getSynchronizations()
                     .forEach(sync -> sync.afterCommit());
@@ -124,7 +137,7 @@ class AiTaskServiceImplTest {
         }
 
         // 事务提交后，才真正发起提交
-        verify(orchestratorClient, times(1)).submit(eq("inquiry-parse-and-split"), eq(44L), eq("{}"));
+        verify(orchestratorClient, times(1)).submit(eq("inquiry-parse-and-split"), eq(44L), eq("{}"), eq(CONFIG));
     }
 
     @Test
@@ -139,7 +152,7 @@ class AiTaskServiceImplTest {
         }).when(aiTaskMapper).insert(any(AiTaskDO.class));
 
         CompletableFuture<AiOrchestratorSubmitResult> pending = new CompletableFuture<>();
-        when(orchestratorClient.submit(eq("inquiry-parse-and-split"), eq(43L), eq("{}"))).thenReturn(pending);
+        when(orchestratorClient.submit(eq("inquiry-parse-and-split"), eq(43L), eq("{}"), eq(CONFIG))).thenReturn(pending);
 
         aiTaskService.createAndSubmit("inquiry-parse-and-split", "{}", 1000L);
         pending.complete(AiOrchestratorSubmitResult.rejected("java.net.ConnectException"));
@@ -154,6 +167,18 @@ class AiTaskServiceImplTest {
         assertThat(dispatchCaptor.getValue().getId()).isEqualTo(43L);
         assertThat(dispatchCaptor.getValue().getStatus()).isEqualTo(AiTaskStatus.FAILED);
         assertThat(dispatchCaptor.getValue().getSkillId()).isEqualTo("inquiry-parse-and-split");
+    }
+
+    @Test
+    void createAndSubmit_whenAiNotConfigured_throwsWithoutCreatingTask() {
+        when(aiConfigService.resolveForCurrentTenant()).thenThrow(new AiNotConfiguredException());
+
+        AiNotConfiguredException e = assertThrows(AiNotConfiguredException.class,
+                () -> aiTaskService.createAndSubmit("inquiry-parse-and-split", "{}", 1000L));
+
+        assertThat(e.getMessage()).contains("AI 未配置");
+        verify(aiTaskMapper, never()).insert(any(AiTaskDO.class));
+        verify(orchestratorClient, never()).submit(any(), any(), any(), any());
     }
 
     @Test

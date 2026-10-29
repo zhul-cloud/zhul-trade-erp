@@ -1,7 +1,7 @@
 # purchase/purchase-requirement Specification
 
 ## Purpose
-TBD - created by archiving change add-purchase-order. Update Purpose after archive.
+采购需求由销售订单生成，是采购员的工作池：按订单型号记录要采购的数量与状态，支持拆分、指派采购员和选定采购渠道，再由此生成采购订单。
 
 ## Requirements
 

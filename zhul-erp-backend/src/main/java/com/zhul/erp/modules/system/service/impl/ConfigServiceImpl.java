@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhul.erp.common.exception.BizException;
 import com.zhul.erp.common.result.PageResult;
+import com.zhul.erp.common.result.ResultCode;
 import com.zhul.erp.common.utils.AesUtils;
 import com.zhul.erp.framework.tenant.TenantContext;
 import com.zhul.erp.modules.system.dto.AppearanceVO;
@@ -37,9 +38,19 @@ public class ConfigServiceImpl implements ConfigService {
 
     private static final String MASK = "****";
     private static final long MAX_IMAGE_SIZE = 5L * 1024 * 1024;
-    /** 登录页在鉴权前访问，不支持按租户解析，这些键始终读取 tenant_id=0，因此也必须始终写入 tenant_id=0，不走租户覆盖副本 */
-    private static final Set<String> GLOBAL_APPEARANCE_KEYS = Set.of(
-            "sys.site.name", "sys.site.logo", "sys.login.background", "sys.login.footer");
+    /**
+     * 外观：平台统一（tenant_id=0），登录页在鉴权前读取，不按租户区分。
+     * 租户看不到这些键，也不能修改（否则会改掉所有租户的外观）。
+     */
+    private static final List<String> APPEARANCE_KEYS = List.of(
+            "sys.site.name", "sys.site.subtitle", "sys.site.logo", "sys.login.background", "sys.login.footer");
+    private static final Set<String> GLOBAL_APPEARANCE_KEYS = Set.copyOf(APPEARANCE_KEYS);
+    /** 外观配置为空时的默认值，与迁移 V1.3.14 写入的默认值一致 */
+    private static final String DEFAULT_SITE_NAME = "烛龙ERP";
+    private static final String DEFAULT_SITE_SUBTITLE = "烛龙外贸业财一体化中台";
+    private static final String DEFAULT_LOGIN_FOOTER = "© 2026 烛龙科技";
+    /** 自定义配置可选的分组代码（与前端 groupLabel.ts 一致）；内置配置的分组由迁移写入模块代码 */
+    private static final Set<String> CUSTOM_GROUPS = Set.of("basic", "security", "mail", "custom");
     private static final Map<String, String> ALLOWED_IMAGE_TYPES = Map.of(
             "image/png", "png",
             "image/jpeg", "jpg",
@@ -103,6 +114,10 @@ public class ConfigServiceImpl implements ConfigService {
         Map<String, SysConfigDO> merged = new LinkedHashMap<>();
         all.stream().filter(c -> c.getTenantId() == 0).forEach(c -> merged.put(c.getConfigKey(), c));
         all.stream().filter(c -> c.getTenantId() != 0).forEach(c -> merged.put(c.getConfigKey(), c));
+        if (tenantId != 0) {
+            // 外观由平台统一管理，租户的列表与分组计数里不出现
+            GLOBAL_APPEARANCE_KEYS.forEach(merged::remove);
+        }
         return new ArrayList<>(merged.values());
     }
 
@@ -116,6 +131,9 @@ public class ConfigServiceImpl implements ConfigService {
     public void create(SaveConfigRequest req) {
         if (req.getConfigKey().startsWith("sys.")) {
             throw new BizException("sys. 为系统保留前缀，自定义配置请使用其他前缀");
+        }
+        if (!CUSTOM_GROUPS.contains(req.getConfigGroup())) {
+            throw new BizException("配置分组不合法，只能选择基础、安全、邮件或其他");
         }
         int tenantId = effectiveTenantId();
         long dup = sysConfigMapper.selectCount(new LambdaQueryWrapper<SysConfigDO>()
@@ -148,15 +166,23 @@ public class ConfigServiceImpl implements ConfigService {
             throw new BizException("配置不存在");
         }
 
+        int tenantId = effectiveTenantId();
+        boolean appearance = GLOBAL_APPEARANCE_KEYS.contains(config.getConfigKey());
+        if (appearance && tenantId != 0) {
+            throw new BizException(ResultCode.FORBIDDEN, "外观由平台统一管理");
+        }
+
         if (config.getIsEncrypted() == 1 && !StringUtils.hasText(value)) {
             // 加密配置留空视为不修改
             return;
         }
-        validateValueByType(config.getConfigType(), value);
-        String storedValue = config.getIsEncrypted() == 1 ? aesUtils.encrypt(value) : value;
+        // 外观的图片地址（Logo、登录页背景）允许清空，清空后显示默认样式
+        if (!(appearance && !StringUtils.hasText(value))) {
+            validateValueByType(config.getConfigType(), value);
+        }
+        String storedValue = config.getIsEncrypted() == 1 ? aesUtils.encrypt(value) : (value == null ? "" : value);
 
-        int tenantId = effectiveTenantId();
-        if (config.getTenantId() == 0 && tenantId != 0 && !GLOBAL_APPEARANCE_KEYS.contains(config.getConfigKey())) {
+        if (config.getTenantId() == 0 && tenantId != 0) {
             // 租户编辑内置模板：形成租户独立副本，模板本身不受影响
             SysConfigDO override = sysConfigMapper.selectOne(new LambdaQueryWrapper<SysConfigDO>()
                     .isNull(SysConfigDO::getDeletedAt)
@@ -187,7 +213,9 @@ public class ConfigServiceImpl implements ConfigService {
     }
 
     private void validateValueByType(String type, String value) {
-        if (type == null) return;
+        if (type == null) {
+            throw new BizException("配置类型不支持");
+        }
         switch (type) {
             case "INTEGER":
                 try {
@@ -214,11 +242,12 @@ public class ConfigServiceImpl implements ConfigService {
                 }
                 break;
             case "STRING":
-            default:
                 if (value != null && value.length() > 4096) {
                     throw new BizException("配置值最长4096字符");
                 }
                 break;
+            default:
+                throw new BizException("配置类型不支持");
         }
     }
 
@@ -261,19 +290,21 @@ public class ConfigServiceImpl implements ConfigService {
         // 统一读取平台级模板（tenant_id=0）配置
         List<SysConfigDO> rows = sysConfigMapper.selectList(new LambdaQueryWrapper<SysConfigDO>()
                 .eq(SysConfigDO::getTenantId, 0)
-                .in(SysConfigDO::getConfigKey, List.of(
-                        "sys.site.name", "sys.site.logo", "sys.login.background", "sys.login.footer"))
+                .in(SysConfigDO::getConfigKey, APPEARANCE_KEYS)
                 .isNull(SysConfigDO::getDeletedAt));
         Map<String, String> map = new LinkedHashMap<>();
         for (SysConfigDO row : rows) {
-            map.put(row.getConfigKey(), row.getConfigValue());
+            if (StringUtils.hasText(row.getConfigValue())) {
+                map.put(row.getConfigKey(), row.getConfigValue().trim());
+            }
         }
 
         AppearanceVO vo = new AppearanceVO();
-        vo.setSiteName(map.getOrDefault("sys.site.name", "烛龙ERP"));
+        vo.setSiteName(map.getOrDefault("sys.site.name", DEFAULT_SITE_NAME));
+        vo.setSiteSubtitle(map.getOrDefault("sys.site.subtitle", DEFAULT_SITE_SUBTITLE));
         vo.setLogoUrl(map.get("sys.site.logo"));
         vo.setLoginBackgroundUrl(map.get("sys.login.background"));
-        vo.setLoginFooter(map.get("sys.login.footer"));
+        vo.setLoginFooter(map.getOrDefault("sys.login.footer", DEFAULT_LOGIN_FOOTER));
         return vo;
     }
 

@@ -3,6 +3,7 @@ import { Helmet, history } from '@umijs/max';
 import { Button } from 'antd';
 import React, { useEffect, useState } from 'react';
 import { AuthLayout } from '@/components';
+import { usePageTitle } from '@/components/Shell/BrandLogo';
 import { useAppTheme } from '@/theme/AppTheme';
 
 const Done: React.FC = () => {
@@ -26,7 +27,7 @@ const Done: React.FC = () => {
   return (
     <AuthLayout>
       <Helmet>
-        <title>密码重置成功 - 烛龙ERP</title>
+        <title>{usePageTitle('密码重置成功')}</title>
       </Helmet>
       <div style={{ textAlign: 'center' }}>
         <CheckCircleFilled style={{ fontSize: 72, color: p.green }} />

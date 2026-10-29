@@ -115,6 +115,8 @@ export default defineConfig({
    * @doc https://umijs.org/docs/max/layout-menu
    */
   title: '烛龙ERP',
+  // 浏览器标签页图标，与侧栏 AppLogo 一致；改图标时把 v 改一下，避免浏览器沿用缓存
+  favicons: ['/favicon.ico?v=2'],
   layout: {
     locale: true,
     ...defaultSettings,
@@ -174,14 +176,6 @@ export default defineConfig({
    */
   access: {},
   /**
-   * @name Google Analytics
-   * @description 使用 GA4 (gtag.js) 进行站点分析
-   * @doc https://umijs.org/docs/max/analytics
-   */
-  analytics: {
-    ga_v2: 'G-59NF1VHHPF',
-  },
-  /**
    * @name <head> 中额外的 script
    * @description 配置 <head> 中额外的 script
    */
@@ -190,27 +184,8 @@ export default defineConfig({
     { src: join(PUBLIC_PATH, 'scripts/loading.js'), async: true },
   ],
 
-  //================ pro 插件配置 =================
-  plugins: ['@umijs/max-plugin-openapi', '@umijs/request-record'],
-
-  /**
-   * @name openAPI 插件的配置
-   * @description 基于 openapi 的规范生成serve 和mock，能减少很多样板代码
-   * @doc https://pro.ant.design/zh-cn/docs/openapi/
-   */
-  openAPI: [
-    {
-      requestLibPath: "import { request } from '@umijs/max'",
-      // 或者使用在线的版本
-      // schemaPath: "https://gw.alipayobjects.com/os/antfincdn/M%24jrzTTYJN/oneapi.json"
-      schemaPath: join(__dirname, 'oneapi.json'),
-      mock: false,
-    },
-  ],
-
   mock: {
     include: ['src/pages/**/_mock.ts'],
-    exclude: ['mock/requestRecord.mock.js'],
   },
   utoopack: {
     module: {
@@ -222,7 +197,6 @@ export default defineConfig({
       },
     },
   },
-  requestRecord: {},
   exportStatic: {},
   define: {
     'process.env.CI': process.env.CI,

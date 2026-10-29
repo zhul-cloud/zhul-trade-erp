@@ -36,7 +36,7 @@ import java.util.Objects;
 @RequiredArgsConstructor
 public class TransitTimeService {
 
-    public static final String CONFIG_DEFAULT_DAYS = "transit.default-days";
+    public static final String CONFIG_DEFAULT_DAYS = "purchase.transit.default-days";
     private static final int FALLBACK_DAYS = 3;
     private static final String DEST = "福州";
     private static final String[] SUFFIXES = {"维吾尔自治区", "壮族自治区", "回族自治区", "特别行政区", "自治区", "省", "市"};
@@ -145,7 +145,7 @@ public class TransitTimeService {
             row.setConfigKey(CONFIG_DEFAULT_DAYS);
             row.setConfigName("默认运输天数");
             row.setConfigValue(String.valueOf(days));
-            row.setConfigType("NUMBER");
+            row.setConfigType("INTEGER");
             row.setIsBuiltin(1);
             row.setIsEncrypted(0);
             row.setConfigGroup("purchase");

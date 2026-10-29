@@ -1,0 +1,104 @@
+diff --git a/node_modules/@utoo/pack/cjs/core/loaderWorkerBinding.js b/node_modules/@utoo/pack/cjs/core/loaderWorkerBinding.js
+new file mode 100755
+index 0000000..d83ddbc
+--- /dev/null
++++ b/node_modules/@utoo/pack/cjs/core/loaderWorkerBinding.js
+@@ -0,0 +1,11 @@
++"use strict";
++// [zhul-erp 补丁] 在 loader 工作线程里代替原 binding：worker 调 workerCreated 报到后通知主线程，
++// 主线程收到后才创建下一个 worker（见 loaderWorkerPool.js）。
++const { parentPort, workerData } = require("worker_threads");
++const binding = require(workerData.realBindingPath);
++module.exports = Object.assign(Object.create(binding), {
++    workerCreated(workerId) {
++        binding.workerCreated(workerId);
++        parentPort.postMessage({ type: "utoo:worker-created", workerId });
++    },
++});
+diff --git a/node_modules/@utoo/pack/cjs/core/loaderWorkerPool.js b/node_modules/@utoo/pack/cjs/core/loaderWorkerPool.js
+index a9dfb16..343227c 100644
+--- a/node_modules/@utoo/pack/cjs/core/loaderWorkerPool.js
++++ b/node_modules/@utoo/pack/cjs/core/loaderWorkerPool.js
+@@ -1,11 +1,62 @@
+ "use strict";
+ Object.defineProperty(exports, "__esModule", { value: true });
+ exports.runLoaderWorkerPool = runLoaderWorkerPool;
++const path_1 = require("path");
+ const worker_threads_1 = require("worker_threads");
+ const loaderWorkers = {};
+ function getPoolId(cwd, filename) {
+     return `${cwd}:${filename}`;
+ }
++// [zhul-erp 补丁] 原生端（turbopack-node worker_thread.rs）把所有执行池「等待 worker」的请求放在同一个先进先出队列里，
++// worker 报到（workerCreated）时直接取队头，不核对它跑的是哪个池的入口脚本。并发创建时入口脚本加载快的先报到，
++// 可能被分给别的池：PostCSS 的 worker 被分给 webpack loader 池后，less 处理拿到 PostCSS 的结果，
++// 构建报 “Unable to deserializate response from webpack loaders transform operation / missing field `source`”。
++// 这里改为逐个创建：上一个 worker 报到（或异常退出）后再创建下一个，使报到顺序与请求顺序一致。
++// 上游修复（按池配对创建请求）：vercel/next.js#96761，合并并随 umi 升级后可删除本补丁。
++// UTOO_WORKER_LOG=1 时把请求与报到顺序输出到 stderr，用于排查。
++const pendingCreations = [];
++let creating = false;
++const log = process.env.UTOO_WORKER_LOG === "1"
++    ? (msg) => process.stderr.write(`[utoo-worker] ${msg}\n`)
++    : () => { };
++function createNext(bindingPath) {
++    if (creating || pendingCreations.length === 0) {
++        return;
++    }
++    creating = true;
++    const { filename, cwd } = pendingCreations.shift();
++    const poolId = getPoolId(cwd, filename);
++    const worker = new worker_threads_1.Worker(filename, {
++        workerData: {
++            bindingPath: path_1.resolve(__dirname, "./loaderWorkerBinding.js"),
++            realBindingPath: bindingPath,
++            cwd,
++        },
++    });
++    log(`spawn thread=${worker.threadId} entry=${path_1.basename(filename)}`);
++    let released = false;
++    const onMessage = (msg) => {
++        if (msg && msg.type === "utoo:worker-created") {
++            log(`created thread=${msg.workerId} entry=${path_1.basename(filename)}`);
++            release();
++        }
++    };
++    const release = () => {
++        if (released) {
++            return;
++        }
++        released = true;
++        worker.off("message", onMessage);
++        creating = false;
++        createNext(bindingPath);
++    };
++    worker.on("message", onMessage);
++    worker.once("error", release);
++    worker.once("exit", release);
++    worker.unref();
++    const workers = loaderWorkers[poolId] || (loaderWorkers[poolId] = new Map());
++    workers.set(worker.threadId, worker);
++}
+ let workerSchedulerRegistered = false;
+ async function runLoaderWorkerPool(binding, bindingPath) {
+     if (workerSchedulerRegistered) {
+@@ -13,16 +64,9 @@ async function runLoaderWorkerPool(binding, bindingPath) {
+     }
+     binding.registerWorkerScheduler((creation) => {
+         const { options: { filename, cwd }, } = creation;
+-        let poolId = getPoolId(cwd, filename);
+-        const worker = new worker_threads_1.Worker(filename, {
+-            workerData: {
+-                bindingPath,
+-                cwd,
+-            },
+-        });
+-        worker.unref();
+-        const workers = loaderWorkers[poolId] || (loaderWorkers[poolId] = new Map());
+-        workers.set(worker.threadId, worker);
++        log(`request entry=${path_1.basename(filename)}`);
++        pendingCreations.push({ filename, cwd });
++        createNext(bindingPath);
+     }, (termination) => {
+         var _a;
+         const { options: { filename, cwd }, workerId, } = termination;

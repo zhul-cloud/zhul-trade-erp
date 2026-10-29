@@ -1,7 +1,7 @@
 # system/business-unit Specification
 
 ## Purpose
-TBD - created by archiving change business-unit-accounting. Update Purpose after archive.
+事业部用于「管理统一、财务独立」：多个合伙人团队共用商品、供应商与采购等基础数据，但用户与单据归属各自事业部，公共费用按销售额比例分摊，从而分别算出各团队的利润。
 
 ## Requirements
 

@@ -328,7 +328,7 @@ const TenantPackagePage: React.FC = () => {
             ? { name: editing.name, description: editing.description }
             : {}
         }
-        drawerProps={{ destroyOnClose: true }}
+        drawerProps={{ destroyOnHidden: true }}
         submitTimeout={2000}
       >
         <ProFormText
@@ -357,7 +357,7 @@ const TenantPackagePage: React.FC = () => {
             showIcon
             icon={<WarningOutlined />}
             style={{ marginBottom: 16 }}
-            message={`注意：此套餐已被 ${boundTenantCount} 个租户使用，修改菜单范围后，所有绑定租户的可见菜单将立即变更。`}
+            title={`注意：此套餐已被 ${boundTenantCount} 个租户使用，修改菜单范围后，所有绑定租户的可见菜单将立即变更。`}
           />
         )}
 

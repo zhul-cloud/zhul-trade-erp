@@ -1,7 +1,7 @@
 # finance/profit-stats Specification
 
 ## Purpose
-TBD - created by archiving change add-order-actual-cost. Update Purpose after archive.
+利润统计按订单实际成本口径汇总公司、业务员、客户的收入与毛利，替代每月手工整理的销售利润报表，并可按事业部筛选。
 
 ## Requirements
 

@@ -1,7 +1,7 @@
 # inquiry/sourcing-stats Specification
 
 ## Purpose
-TBD - created by archiving change add-sales-funnel-stats. Update Purpose after archive.
+询价统计按月份（询盘单口径）和按采购员（型号口径）只读汇总询价完成、无法报价与有价情况，替代《公司采购报表》中手工整理的询价部分。
 
 ## Requirements
 

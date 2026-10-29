@@ -479,7 +479,7 @@ const TenantListPage: React.FC = () => {
               }
             : {}
         }
-        drawerProps={{ destroyOnClose: true }}
+        drawerProps={{ destroyOnHidden: true }}
         submitTimeout={2000}
       >
         {sectionTitle(
@@ -597,7 +597,7 @@ const TenantListPage: React.FC = () => {
         onOk={submitRenew}
         okText="确认续期"
         confirmLoading={renewSubmitting}
-        destroyOnClose
+        destroyOnHidden
       >
         <Space orientation="vertical" size={16} style={{ width: '100%' }}>
           <div
@@ -685,7 +685,7 @@ const TenantListPage: React.FC = () => {
                 </Button>,
               ]
         }
-        destroyOnClose
+        destroyOnHidden
       >
         {resetResult ? (
           <Space orientation="vertical" size={16} style={{ width: '100%' }}>

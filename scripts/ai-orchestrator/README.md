@@ -1,66 +1,39 @@
-# AI 编排服务（真实实现，基于 Anthropic API）
+# AI 编排服务
 
-跟 `scripts/ai-orchestrator-stub/` 不是一回事——那个是免费的假数据占位脚本，
-这个是真的会调用 AI、产生真实费用的实现，通过官方 Python SDK 调用 Anthropic API，
-鉴权用 `ANTHROPIC_API_KEY`，不需要安装 Claude Code CLI。
+为询盘解析、型号描述翻译、联系人名音译提供统一异步 webhook。后端提交 `POST /skills/{skill_id}/run`，立即得到 `202 {job_id}`；任务结束后按现有契约回调 `success` 或 `failed`，前后端不依赖所用服务商或认证模式。
 
-对应 `openspec/changes/add-inquiry-management/design.md` 决策3的通用契约，跟
-zhul-erp-backend 之间走同一套 webhook 接口，两边代码都不用改，直接把这个服务
-指向和 stub 一样的端口/回调地址即可切换。
+服务商、API Key、模型、思考强度、搜索上限、运行方式（API / 个人订阅）都由后端随每个任务放在请求体 `ai` 字段中传入，来自租户在「业务设置 → AI 设置」中维护的配置；本服务不读取这些环境变量，同一实例可同时为不同租户使用不同服务商。另有同步接口 `POST /test`（测试连接）、`POST /models`（模型下拉列表）、`GET /status`（订阅登录状态）。所有接口校验请求头 `X-AI-Callback-Token` 与 `AI_TASK_CALLBACK_TOKEN` 一致，不一致返回 401。
 
-## 前置条件
+| `AI_ORCHESTRATOR_MODE` | 实现 |
+| --- | --- |
+| `api`（默认） | 真实服务：任务携带的运行方式为 API 时用官方 Anthropic/OpenAI Python SDK；为订阅时 `openai` 用官方 Codex Python SDK、`claude` 用原版 Claude Code CLI（只供平台租户） |
+| `stub` | 独立占位脚本，固定假数据，仅供联调 |
 
-1. Python 3.10+，`pip install -r requirements.txt`
-2. 环境变量 `ANTHROPIC_API_KEY`（在 Anthropic Console 创建）
-3. `skills/` 目录下的 `inquiry-parser/SKILL.md`、`order-splitter/SKILL.md`
-   是从团队现有的"烛龙询盘助手"复制过来的，改动请求先跟维护这套 skill 的人对齐
+订阅登录、专用目录与持久化、套餐适用范围、附件与搜索限制见 [AI 编排部署说明](../../docs/06-部署运维/04-AI编排服务.md)。Windows 的订阅执行请使用 Docker；不要挂载宿主机个人 CLI 目录，不提供账号共享或代登录服务。
 
-## 运行
-
-Docker 部署时随 `docker compose --profile app up` 一起启动（服务名 `ai-orchestrator`），
-配置都在项目根目录 `.env`，见 `docs/06-部署运维/04-AI编排服务.md`。同一个镜像包含本服务和 stub，
-用 `AI_ORCHESTRATOR_MODE=api|stub` 切换。
-
-本机直接运行：
+## 本机运行
 
 ```bash
 pip install -r scripts/ai-orchestrator/requirements.txt
-python3 scripts/ai-orchestrator/server.py
+python scripts/ai-orchestrator/server.py
 ```
 
-默认监听 `8899` 端口，跟 `scripts/ai-orchestrator-stub` 用的是同一个默认端口
-（`zhul.ai-task.orchestrator-base-url` 不用改），两个脚本不要同时启动。
+监听端口默认 `8899`（`AI_STUB_PORT`）；共享令牌 `AI_TASK_CALLBACK_TOKEN` 必须与后端一致，不能将服务端口公开到互联网。`AI_ORCHESTRATOR_TIMEOUT_SECONDS` 为单次调用超时，默认 900 秒。
 
-## 会产生真实费用，务必知道这几件事
+模型默认值（API 与订阅相同，后端也会先补全）：Claude 为 `claude-opus-5-5` / `claude-haiku-5-5`，OpenAI 为 `gpt-6.1-sol` / `gpt-6-luna`；思考强度可选 `low/medium/high/xhigh/max`，默认 `medium`；单次解析最大搜索次数 1–100，默认 20。任务携带的配置不合法（如不支持的服务商、思考强度，API 方式缺 Key）时只让该任务回调失败，不影响其他任务。
 
-- 每次"开始AI解析"/"重试"点击，都会真的调用一次 API，按用量计费，不是免费的
-- 一条含 10~20 个型号的询盘，每个型号都要联网搜索验证，费用和耗时会明显更高（分钟级），
-  这是 design.md 里早就提示过的已知风险，不是这个实现引入的新问题
-- API 没有「单次最多花多少钱」的开关，用 `AI_ORCHESTRATOR_MAX_WEB_SEARCHES`（默认 20）
-  限制联网搜索次数间接控制；每次调用完成后日志打印 token 用量与搜索次数
-- 想省钱先用 `scripts/ai-orchestrator-stub` 跑通页面交互和联调，需要看真实解析
-  效果时再切到这个
+订阅使用保守的操作事件阈值，达到阈值会终止并回调失败，成功任务须少于该阈值；超时终止整个 Linux 任务进程组。一个实例同时只执行一个订阅任务，忙碌时立即失败，调用方可稍后重试。认证失败不会降级 API。
 
-## 可选环境变量
+## 实现与验证
 
-| 变量 | 默认值 | 说明 |
-|------|--------|------|
-| `ANTHROPIC_API_KEY` | 无 | 必填；为空时任务直接回调失败 |
-| `AI_STUB_PORT` | `8899` | 监听端口（沿用 stub 的变量名，两边共用同一份 `.env`） |
-| `AI_TASK_CALLBACK_TOKEN` | `zhul-erp-ai-callback-secret` | 回调时携带的共享密钥，必须与 zhul-erp-backend 的 `zhul.ai-task.callback-token` 配置一致 |
-| `AI_ORCHESTRATOR_MODEL` | `claude-opus-5-5` | 询盘解析使用的模型 |
-| `AI_ORCHESTRATOR_TRANSLATE_MODEL` | `claude-haiku-5-5` | 型号描述翻译、联系人名音译使用的模型 |
-| `AI_ORCHESTRATOR_MAX_WEB_SEARCHES` | `20` | 单次解析最多联网搜索次数 |
-| `AI_ORCHESTRATOR_TIMEOUT_SECONDS` | `900` | 单次调用的最长等待时间（秒） |
+`server.py` 负责任务路由、按任务配置调用 API 客户端（每次新建客户端，不跨租户复用）、测试连接与模型列表、令牌校验和后端回调；`AiConfig` 的字符串表示与错误信息都对 Key 脱敏。`subscription.py` 负责专用环境、短生命周期 worker、官方 SDK/CLI、搜索事件计数、严格结果校验，以及 CLI 登录状态与 Codex 账号模型列表。图片转 PNG，PDF（含扫描件）逐页渲染；不静默忽略附件。附件通过后端签发临时 URL 下载，兼容旧版共享目录路径。
 
-## 实现要点
+`skills/inquiry-parser/SKILL.md` 与 `skills/order-splitter/SKILL.md` 作为任务说明注入模型；CLI 不加载外部 hooks、MCP、插件或个人项目指令。Codex 禁用 shell 与不需要的工具，Claude 仅开放搜索工具；图片直接输入，不授予文件读取权限。API 的服务商原有结构化输出、托管搜索、Claude `pause_turn` 续传/拒答兜底保持不变。
 
-- 结构化输出（`output_config.format` + JSON Schema）直接拿到后端要的驼峰字段结构，
-  不用额外写一层格式转换（`confirmed_model`→`confirmedModel`、中文置信度→整数这些映射
-  写进了系统提示词，让模型一步到位输出目标格式）
-- 联网搜索用服务端工具 `web_search`，在 Anthropic 服务器上执行；搜索轮次较长时
-  返回 `pause_turn`，原样续传继续
-- 图片、PDF 附件由本服务读取后端私有上传目录里的文件，随请求发送；
-  Docker 部署时两个容器挂载同一个目录
-- 启用服务端 `fallbacks: "default"`：模型因安全策略拒答时由服务端改用推荐的备用模型重试；
-  Haiku 没有服务端兜底，用 Haiku 时不带这个参数
+离线测试（假客户端/真实附件，不调用模型、不产生模型费用）：
+
+```bash
+python -B -m unittest discover -s scripts/ai-orchestrator -v
+```
+
+Linux 进程组回归在构建出的镜像内运行同一命令（测试目录为 `/app/ai-orchestrator`）。SDK/CLI 的登录状态与 thread 构造可用空 HOME 验证；这不代替实际账号授权后的端到端模型验收。

@@ -764,7 +764,7 @@ const DeptPage: React.FC = () => {
         open={drawerOpen}
         onOpenChange={setDrawerOpen}
         onFinish={handleSubmit}
-        modalProps={{ destroyOnClose: true, maskClosable: false }}
+        modalProps={{ destroyOnHidden: true, maskClosable: false }}
         layout="vertical"
         initialValues={
           isEdit && editingDept

@@ -1,7 +1,7 @@
 # finance/reimbursement Specification
 
 ## Purpose
-TBD - created by archiving change add-reimbursement-expense. Update Purpose after archive.
+报销单处理员工垫付的钱怎么拿回来：汇集待报销项提交报销、登记已付，并跟进供应商退到员工手里的退款，让垫付和退款都有记录。
 
 ## Requirements
 

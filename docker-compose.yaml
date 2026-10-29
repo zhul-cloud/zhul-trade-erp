@@ -1,6 +1,6 @@
 # 唯一部署入口：默认仅 MySQL/Redis；--profile app 启动全部；显式服务名独立部署。
 # 默认所有业务数据使用 tmpfs，停止/重启即清空，各服务启动时会打印警告。
-# 持久化请按服务注释切换到 ./storage/，详见 docs/06-部署运维/03-数据持久化与备份.md。
+# 持久化不改本文件：在 .env 设置 COMPOSE_FILE 叠加 docker-compose.persist.yaml，详见 docs/06-部署运维/03-数据持久化与备份.md。
 # 不要用 COMPOSE_PROFILES=app 改变默认启动范围。
 services:
   mysql:
@@ -24,9 +24,6 @@ services:
     # 覆盖官方镜像的 VOLUME，避免隐式创建匿名持久化卷。
     tmpfs:
       - /var/lib/mysql
-    # 启用持久化：注释上面的 tmpfs 两行，取消以下两行注释。
-    # volumes:
-    #   - ./storage/mysql:/var/lib/mysql
     healthcheck:
       test: ["CMD-SHELL", "MYSQL_PWD=\"$$MYSQL_ROOT_PASSWORD\" mysql --protocol=TCP -h127.0.0.1 -uroot --database=\"$$MYSQL_DATABASE\" -e 'SELECT 1' >/dev/null"]
       interval: 5s
@@ -38,16 +35,13 @@ services:
     image: redis:7
     container_name: zhul-erp-redis
     restart: unless-stopped
-    # AOF 在默认 tmpfs 中仍是临时数据；启用下面的 bind mount 后才会跨重启保留。
+    # AOF 在默认 tmpfs 中仍是临时数据；启用持久化（docker-compose.persist.yaml）后才会跨重启保留。
     entrypoint: ["/bin/sh", "-c", "grep -qs ' /data tmpfs ' /proc/mounts && echo '[警告] Redis /data 是临时存储（tmpfs），容器停止或重建后缓存与 AOF 会清空；需要保留请按 docs/06-部署运维/03-数据持久化与备份.md 启用持久化' >&2; exec docker-entrypoint.sh \"$$@\"", "--"]
     command: ["redis-server", "--appendonly", "yes"]
     ports:
       - "${REDIS_BIND_ADDRESS:-127.0.0.1}:${REDIS_HOST_PORT:-6379}:6379"
     tmpfs:
       - /data
-    # 启用持久化：注释上面的 tmpfs 两行，取消以下两行注释。
-    # volumes:
-    #   - ./storage/redis:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -114,11 +108,6 @@ services:
     # 私有上传（询盘附件等）与 AI 编排服务共享，默认是 tmpfs 类型的卷。
     volumes:
       - private-uploads:/app/private-uploads
-    # 启用持久化：注释上面的 tmpfs 两行，并把 volumes 改成以下两行。
-    # Linux 上先创建目录并授予容器用户 10001:10001 写权限，详见部署文档。
-    # volumes:
-    #   - ./storage/uploads:/app/uploads
-    #   - ./storage/private-uploads:/app/private-uploads
     # 云服务私有 CA：可在同一个 volumes 列表追加只读 truststore 挂载，
     # 并通过 JAVA_TOOL_OPTIONS 配置 javax.net.ssl.trustStore（详见部署文档）。
 
@@ -145,19 +134,14 @@ services:
     restart: unless-stopped
     environment:
       AI_ORCHESTRATOR_MODE: ${AI_ORCHESTRATOR_MODE:-api}
-      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
-      AI_ORCHESTRATOR_MODEL: ${AI_ORCHESTRATOR_MODEL:-}
-      AI_ORCHESTRATOR_TRANSLATE_MODEL: ${AI_ORCHESTRATOR_TRANSLATE_MODEL:-}
-      AI_ORCHESTRATOR_MAX_WEB_SEARCHES: ${AI_ORCHESTRATOR_MAX_WEB_SEARCHES:-20}
       AI_ORCHESTRATOR_TIMEOUT_SECONDS: ${AI_ORCHESTRATOR_TIMEOUT_SECONDS:-900}
       AI_TASK_CALLBACK_TOKEN: ${AI_TASK_CALLBACK_TOKEN:-}
     # 不映射宿主机端口：只供同一 Compose 网络里的后端调用。
     # 只读挂载后端的私有上传目录，用于读取询盘附件；路径必须与后端一致。
+    # 个人订阅的官方 CLI 登录状态存命名卷 ai-orchestrator-home，重启、重建、重新构建后保留。
     volumes:
       - private-uploads:/app/private-uploads:ro
-    # 启用持久化时与后端一起改成：
-    # volumes:
-    #   - ./storage/private-uploads:/app/private-uploads:ro
+      - ai-orchestrator-home:/home/zhul
 
 volumes:
   # 默认不持久化：tmpfs 类型，后端与 AI 编排服务共享；全部容器停止后内容清空。
@@ -166,3 +150,6 @@ volumes:
       type: tmpfs
       device: tmpfs
       o: uid=10001,gid=10001,mode=0750
+  # 个人订阅登录状态，普通 Docker 卷（不是 tmpfs）：首次挂载继承镜像中 /home/zhul 的属主 10001 与 0700 权限。
+  # docker compose down -v 或 docker volume rm <项目名>_ai-orchestrator-home 会清除登录。
+  ai-orchestrator-home:

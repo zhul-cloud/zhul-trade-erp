@@ -1,7 +1,7 @@
 ﻿# 一键用 Docker 启动开发环境：MySQL、Redis、后端、前端、AI 编排服务。
 # 用法：powershell -ExecutionPolicy Bypass -File scripts\docker-dev.ps1
 #   首次运行生成 .env：随机填写三个后端密钥，导入演示账号（platform / admin123），
-#   未配置 ANTHROPIC_API_KEY 时 AI 编排服务用 stub 假数据。已有 .env 只补空密钥，其他配置不动。
+#   AI 编排服务默认用 stub 假数据（Key 等在「业务设置 → AI 设置」中按租户填写）。已有 .env 只补空密钥，其他配置不动。
 # 默认不持久化：停止或重建容器后数据清空。详见 docs/06-部署运维/00-快速开始.md。
 $ErrorActionPreference = 'Stop'
 Set-Location (Split-Path -Parent $PSScriptRoot)
@@ -30,7 +30,7 @@ if ($LASTEXITCODE -ne 0) { throw 'Docker 没有运行，请先启动 Docker Desk
 if (-not (Test-Path .env)) {
     Copy-Item .env.example .env
     Set-EnvValue 'FLYWAY_LOCATIONS' 'classpath:db/migration,classpath:db/dev-data'
-    if (-not (Get-EnvValue 'ANTHROPIC_API_KEY')) { Set-EnvValue 'AI_ORCHESTRATOR_MODE' 'stub' }
+    Set-EnvValue 'AI_ORCHESTRATOR_MODE' 'stub'
     Write-Host '== 已生成 .env（开发配置：导入演示账号，AI 使用 stub 假数据）'
 }
 foreach ($key in 'JWT_SECRET', 'AES_KEY', 'AI_TASK_CALLBACK_TOKEN') {
@@ -39,9 +39,7 @@ foreach ($key in 'JWT_SECRET', 'AES_KEY', 'AI_TASK_CALLBACK_TOKEN') {
         Write-Host "== 已生成 $key"
     }
 }
-if ((Get-EnvValue 'AI_ORCHESTRATOR_MODE') -ne 'stub' -and -not (Get-EnvValue 'ANTHROPIC_API_KEY')) {
-    Write-Warning 'AI_ORCHESTRATOR_MODE=api 但 ANTHROPIC_API_KEY 为空：AI 解析会失败。填写 Key，或改为 stub'
-}
+Write-Host '== AI 的服务商与 Key 在「业务设置 → AI 设置」中按租户填写；未填写时 AI 解析会提示未配置'
 
 Write-Host '== 构建并启动（首次需要下载镜像和依赖，可能要几分钟）'
 docker compose --profile app up -d --build

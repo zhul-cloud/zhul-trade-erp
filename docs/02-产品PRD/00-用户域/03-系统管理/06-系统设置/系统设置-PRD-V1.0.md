@@ -32,13 +32,13 @@
 |--------|---------|------|------|------|
 | 主键 | id | BIGINT | 是 | 自增主键 |
 | 租户ID | tenant_id | BIGINT | 是 | 多租户隔离；内置配置 tenant_id=0，各租户可覆盖 |
-| 配置键 | config_key | VARCHAR(128) | 是 | 唯一标识，如 sys.site.name；点分层级命名，租户内唯一 |
+| 配置键 | config_key | VARCHAR(128) | 是 | 唯一标识，如 purchase.transit.default-days；按下方「配置键命名规范」命名，租户内唯一 |
 | 配置名称 | config_name | VARCHAR(128) | 是 | 可读名称，如"系统名称" |
 | 配置值 | config_value | TEXT | 是 | 实际配置值，统一以字符串存储 |
-| 配置类型 | config_type | VARCHAR(32) | 是 | 值类型标注：STRING / INTEGER / BOOLEAN / JSON / URL；用于前端渲染合适的编辑组件 |
+| 配置类型 | config_type | VARCHAR(32) | 是 | 只有 STRING / INTEGER / BOOLEAN / JSON / URL 五种；用于前端渲染合适的编辑组件，服务端按类型校验配置值，其他类型拒绝修改（提示「配置类型不支持」） |
 | 是否内置 | is_builtin | TINYINT | 是 | 0=自定义，1=系统内置；内置配置不可删除键 |
 | 是否加密 | is_encrypted | TINYINT | 是 | 0=明文，1=加密存储（如密钥类配置）；加密配置值展示脱敏 |
-| 配置分组 | config_group | VARCHAR(64) | 是 | 分组标签，如 基础设置 / 安全策略 / 邮件设置 / 外观设置 |
+| 配置分组 | config_group | VARCHAR(64) | 是 | 分组代码，如 basic / security / mail / sys（页面显示 基础 / 安全 / 邮件 / 系统） |
 | 备注 | remark | VARCHAR(256) | 否 | 配置项说明，展示在编辑弹窗内 |
 | 创建人ID | created_by | BIGINT | 是 | 操作人用户ID |
 | 创建时间 | created_at | DATETIME | 是 | UTC 时间 |
@@ -57,21 +57,31 @@
 
 | 配置键 | 配置名称 | 类型 | 默认值 | 说明 |
 |--------|---------|------|--------|------|
-| sys.site.name | 系统名称 | STRING | 烛龙ERP | 显示在顶栏、登录页、浏览器标签 |
-| sys.site.logo | 系统 Logo URL | URL | /logo.png | 登录页及顶栏 Logo 图片地址 |
-| sys.login.background | 登录页背景 URL | URL | /bg.jpg | 登录页背景图片或颜色值 |
+| sys.site.name | 系统名称 | STRING | 烛龙ERP | 显示在侧边栏、浏览器标签（「页面名称 - 系统名称」）；未上传 Logo 时，默认 Logo 显示系统名称的第一个字 |
+| sys.site.subtitle | 系统副标题 | STRING | 烛龙外贸业财一体化中台 | 显示在登录页 Logo 下方 |
+| sys.site.logo | 系统 Logo | URL | （空） | 登录页、侧边栏与浏览器标签图标，建议上传方形图片；留空显示默认 Logo（渐变方块 + 系统名称首字） |
+| sys.login.background | 登录页背景 | URL | （空） | 登录、注册、找回密码页面的背景图片；留空或加载失败用默认背景 |
 | sys.login.footer | 登录页底部文字 | STRING | © 2026 烛龙科技 | 版权信息等 |
-| sys.security.password.min_length | 密码最小长度 | INTEGER | 8 | 新建/修改密码时的最小字符数 |
-| sys.security.password.complexity | 密码复杂度要求 | STRING | MEDIUM | LOW/MEDIUM/HIGH，控制字符类型要求 |
-| sys.security.session.timeout | 会话超时时长（分钟） | INTEGER | 30 | 用户无操作后自动退出的时间 |
-| sys.security.login.max_fail | 登录失败锁定次数 | INTEGER | 5 | 连续失败 N 次后锁定账号 |
-| sys.security.login.lock_duration | 账号锁定时长（分钟） | INTEGER | 15 | 锁定后自动解锁的等待时间 |
-| sys.register.enabled | 是否开启注册 | BOOLEAN | false | 控制登录页是否显示"注册"入口 |
-| sys.register.invite_only | 仅允许邀请注册 | BOOLEAN | true | 开启后只有持邀请链接才可注册 |
-| sys.email.smtp.host | SMTP 服务地址 | STRING | — | 系统发送邮件的 SMTP 服务器 |
-| sys.email.smtp.port | SMTP 端口 | INTEGER | 465 | — |
-| sys.email.sender | 发件人邮箱 | STRING | — | 系统邮件发件人 |
-| sys.watermark.enabled | 是否开启页面水印 | BOOLEAN | false | 开启后页面显示登录用户水印 |
+| document.number-prefix | 单据编号前缀 | STRING | （空） | 2–4 位大写字母，只加在对外单据（报价单、PI、CI、PL、采购订单、借项 / 贷项通知单、运费账单）上，可为空 |
+| finance.bu.min-share-percent | 事业部最低分摊比例（%） | INTEGER | 20 | 公共费用按销售额比例分给各事业部时，每个事业部至少承担的比例；在事业部设置中修改时校验 0–100 且 × 事业部数不超过 100% |
+| inquiry.sourcing.auto-assign | 询价任务自动分配 | BOOLEAN | false | 开启后新任务按分配规则自动分配 |
+| inquiry.sourcing.timeout-hours | 询价任务超时（小时） | INTEGER | 24 | 分配后超过该时长仍未回齐即标记超时 |
+| inquiry.sourcing.urgent-timeout-hours | 紧急询价任务超时（小时） | INTEGER | 4 | 紧急任务分配后超过该时长仍未回齐即标记超时 |
+| product.content.platforms | 营销平台 | STRING | alibaba,mic,site,social | 本公司做哪些平台的营销内容（alibaba-阿里国际站、mic-中国制造网、site-独立站、social-社媒，逗号分隔） |
+| purchase.transit.default-days | 默认运输天数 | INTEGER | 3 | 快递公司没有时效规则、或发货单没填快递公司时按这个天数估算预计到货；在业务设置「快递时效」中修改时校验 1–30 天 |
+| quotation.hint.discontinued-urgent | 提示：停产急件 | BOOLEAN | true | 型号停产且询盘紧急时提示建议主管核价（SOP 10.4） |
+| quotation.hint.premium-brand | 提示：现货优势品牌 | BOOLEAN | true | 型号品牌在现货优势品牌清单中时提示建议主管核价（SOP 4.2.1） |
+| quotation.hint.returning-customer | 提示：老客户 | BOOLEAN | true | 老客户报价时提示参考历史成交毛利率（SOP 4.3） |
+| quotation.hint.to-confirm | 提示：品相或生命周期待查 | BOOLEAN | true | 品相待查或生命周期待查时提示建议主管核价 |
+| quotation.premium-brands | 现货优势品牌 | JSON | ["VEGA"] | 品牌名称列表，按品牌及别名识别 |
+| quotation.strategy.cost-tiers | 报价策略：按金额分层毛利 | JSON | 三档：≤300 毛利 35%、≤3000 毛利 20%、以上 12% | 报价单「报价策略 · 按金额分层毛利」的默认档位；在报价策略抽屉里「保存为默认」后写入租户自己的一份 |
+| sales.receipt.fee-tolerance | 到账差额可记为手续费的上限 | INTEGER | 50 | 登记到账时，剩余金额不超过该值（PI 币种）可勾选「差额记为银行中转手续费」 |
+
+> 外观（`sys.site.*`、`sys.login.*`，分组代码 `sys`，页面显示「系统」；`V1.3.14` 写入时为 `appearance`，`V1.3.16` 改为 `sys`）为**平台统一**配置：只存 `tenant_id=0` 一份，由迁移 `V1.3.14` 写入；只有平台账号可以查看和修改，租户的系统参数页不显示这些项，接口也拒绝租户修改（提示「外观由平台统一管理」）。Logo 与登录页背景可以清空，清空后恢复默认样式。规范见 `openspec/specs/system/site-appearance`。
+
+> 配置键命名规范：键由 2 段及以上组成，段之间用点；每段小写字母开头，只含小写字母和数字，段内多个单词用短横线连接（如 `purchase.transit.default-days`），不允许下划线，4~128 个字符。内置配置的第一段为所属分组代码，没有例外；`sys.` 开头的为系统保留键，属于「系统」分组（`sys`），只能是平台内置配置。新增内置配置违反约定时，集成测试 `ConfigNormalizeContractTest` 会失败。规范见 `openspec/specs/system/system-config`。
+
+> 配置分组规范：分组一律存小写英文代码，页面统一显示为 2 个字的中文名（不带「设置」后缀）。内置配置的分组 = 配置键第一段的模块代码（`inquiry` 询价、`quotation` 报价、`document` 单据、`sales` 销售、`purchase` 采购、`product` 商品、`finance` 财务、`sys` 系统）；自定义配置只能选 `basic` 基础、`security` 安全、`mail` 邮件、`custom` 其他，服务端校验。新增模块的内置配置时，同步在前端 `pages/system/config/groupLabel.ts` 补中文名。（`V1__init.sql` 中 `config_group` 字段注释仍写中文示例，以本规范为准。）
 
 ---
 
@@ -135,7 +145,7 @@
 | 搜索区                                                       |
 |  配置键/名称: [__________________]  [搜索] [重置]             |
 | 分组 Tab:                                                    |
-| [全部] [基础设置] [安全策略] [外观设置] [邮件设置] [自定义]    |
+| [全部] [基础] [安全] [邮件] [外观] [其他]                  |
 +-------------------------------------------------------------+
 | 工具栏                                                       |
 |  [+ 新增自定义配置]                                           |
@@ -183,7 +193,7 @@
 | config_type | 编辑组件 | 校验规则 |
 |-------------|---------|---------|
 | STRING | Input / TextArea（长内容） | 最长 4096字符 |
-| INTEGER | InputNumber | 整数；部分配置有范围限制（如密码长度 6~32） |
+| INTEGER | InputNumber | 整数（服务端校验）；系统参数页不校验业务范围，范围由专门的设置入口校验（如默认运输天数 1–30） |
 | BOOLEAN | Switch | true / false，存储为字符串 "true" / "false" |
 | JSON | TextArea（等宽字体）+ 实时 JSON 校验 | 合法 JSON 格式 |
 | URL | Input | 以 http/https 开头或以 / 开头的相对路径 |
@@ -201,11 +211,11 @@
 
 | 字段 | 组件类型 | 必填 | 校验规则 |
 |------|---------|------|---------|
-| 配置键 | Input | 是 | 点分层级命名，小写字母+数字+点+下划线，4~128字符，租户内唯一；不可使用 sys. 前缀（系统保留） |
+| 配置键 | Input | 是 | 按「配置键命名规范」：2 段及以上，段之间用点，段内用短横线，只含小写字母和数字，4~128字符，如 custom.order.auto-close；不允许下划线；租户内唯一；不可使用 sys. 前缀（系统保留）；前端与服务端同一规则 |
 | 配置名称 | Input | 是 | 1~128字符 |
 | 配置类型 | Select | 是 | STRING / INTEGER / BOOLEAN / JSON / URL |
 | 配置值 | 动态渲染（同编辑弹窗规则） | 是 | 与类型对应的格式校验 |
-| 配置分组 | Select | 是 | 选项：基础设置 / 安全策略 / 外观设置 / 邮件设置 / 自定义（默认自定义） |
+| 配置分组 | Select | 是 | 选项：基础（basic）/ 安全（security）/ 邮件（mail）/ 其他（custom，默认）；存英文代码 |
 | 是否加密 | Switch | 是 | 默认关；开启后值加密存储、界面脱敏显示 |
 | 备注 | TextArea | 否 | 最多256字符 |
 
@@ -265,7 +275,7 @@
 
 ## 7. 默认假设
 
-1. 系统内置配置（`is_builtin=1`）由部署时的初始化脚本写入，`tenant_id=0` 为全局模板；各租户首次访问时按需从全局模板继承，形成租户独立的配置副本（`tenant_id=租户ID`），不同租户的配置修改互不影响。
+1. 系统内置配置（`is_builtin=1`）由部署时的初始化脚本写入，`tenant_id=0` 为全局模板；各租户首次访问时按需从全局模板继承，形成租户独立的配置副本（`tenant_id=租户ID`），不同租户的配置修改互不影响。外观除外：平台统一，不形成租户副本，租户不可修改。
 2. 配置键使用 `sys.` 前缀的为系统保留命名空间，自定义配置不可使用此前缀。
 3. 配置值统一以 VARCHAR/TEXT 字符串存储；业务代码按 `config_type` 做类型转换。
 4. 加密配置值（`is_encrypted=1`）在数据库中存密文，后端通过 AES 加密；前端展示时一律脱敏为 ****，编辑时重新输入覆盖。

@@ -1,7 +1,7 @@
 # finance/expense Specification
 
 ## Purpose
-TBD - created by archiving change add-reimbursement-expense. Update Purpose after archive.
+费用单记录不属于采购货款的成本（运营费用、补发运费等），按付款方式生成应付或待报销项，关联订单型号的计入订单成本，其余计入经营统计的运营成本，并归属事业部。
 
 ## Requirements
 

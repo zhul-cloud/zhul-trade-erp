@@ -1,7 +1,8 @@
+import type { CurrentUser } from '@/services/zhul/auth';
 import { isPlatformAccount } from '@/utils/platform';
 
 export default function access(initialState: {
-  currentUser?: API.CurrentUser & { permissions?: string[] };
+  currentUser?: CurrentUser & { permissions?: string[] };
 }) {
   const { currentUser } = initialState || {};
   const isAdmin = currentUser?.access === 'admin';
@@ -142,6 +143,7 @@ export default function access(initialState: {
       '/system/bank-account',
       '/system/document-numbering',
       '/system/transit-times',
+      '/system/ai-settings',
       '/system/log/operate',
       '/system/log/login',
     ),
@@ -158,6 +160,8 @@ export default function access(initialState: {
     systemDocumentNumbering: can('/system/document-numbering'),
     systemTransitTimes: can('/system/transit-times'),
     'system:transit-time:edit': can('system:transit-time:edit'),
+    systemAiSettings: can('/system/ai-settings'),
+    'system:ai-config:edit': can('system:ai-config:edit'),
     'system:document-numbering:edit': can('system:document-numbering:edit'),
     'system:bank-account:edit': can('system:bank-account:edit'),
     'system:exchange-rate:edit': can('system:exchange-rate:edit'),
