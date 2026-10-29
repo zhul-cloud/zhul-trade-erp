@@ -575,12 +575,6 @@ const AiSettingsPage: React.FC = () => {
     title = '订阅状态获取失败';
     pill = ['状态未知', 'orange'];
   }
-  const toneBg = {
-    ok: palette.greenSoft,
-    warn: palette.orangeSoft,
-    bad: palette.redSoft,
-    idle: palette.inset,
-  }[tone];
   const showMeta = config.configured && !desc && !(tone === 'warn');
   const metaItems = [
     {
@@ -614,7 +608,9 @@ const AiSettingsPage: React.FC = () => {
             borderRadius: 12,
             fontSize: 22,
             color: palette.mute,
-            background: toneBg,
+            // 与下方服务商分组的 logo 同一样式；状态由标题与标签表达
+            background: palette.card,
+            border: `1px solid ${palette.hairline}`,
           }}
         >
           {config.configured ? (
@@ -695,7 +691,7 @@ const AiSettingsPage: React.FC = () => {
                     : 'API Key 无效或已失效'
                   : `${slot}${item.ok ? '可用' : '不可用'}`;
               const detail = !item
-                ? '前一项通过后再检测'
+                ? undefined
                 : slot === 'API Key'
                   ? item.ok
                     ? `${meta.consoleName} 已确认身份`

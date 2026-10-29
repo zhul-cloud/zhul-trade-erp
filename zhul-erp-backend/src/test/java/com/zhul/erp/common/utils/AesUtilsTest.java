@@ -107,18 +107,14 @@ class AesUtilsTest {
     }
 
     @Test
-    void legacyEcbCipherStillDecrypts() {
-        AES legacy = new AES(DigestUtil.md5(KEY.getBytes(StandardCharsets.UTF_8)));
-        String old = legacy.encryptHex("110101199003076515");
-        assertTrue(AesUtils.isLegacy(old));
-        assertEquals("110101199003076515", aes.decrypt(old));
-    }
-
-    @Test
-    void isLegacyOnlyForNonEmptyCipherWithoutPrefix() {
-        assertFalse(AesUtils.isLegacy(null));
-        assertFalse(AesUtils.isLegacy(""));
-        assertFalse(AesUtils.isLegacy(aes.encrypt("x")));
-        assertTrue(AesUtils.isLegacy("0a1b2c"));
+    void cipherWithoutV2PrefixIsRejected() {
+        String plain = "110101199003076515";
+        // 旧格式（AES/ECB，密钥为 AES_KEY 的 MD5）已不再支持
+        String legacy = new AES(DigestUtil.md5(KEY.getBytes(StandardCharsets.UTF_8))).encryptHex(plain);
+        for (String cipher : new String[] {legacy, "0a1b2c", plain}) {
+            BizException e = assertThrows(BizException.class, () -> aes.decrypt(cipher));
+            assertFalse(e.getMessage().contains(plain));
+            assertFalse(e.getMessage().contains(cipher));
+        }
     }
 }

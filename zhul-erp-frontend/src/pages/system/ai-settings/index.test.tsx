@@ -263,5 +263,6 @@ describe('AiSettingsPage', () => {
     expect(await screen.findByText('连接失败')).toBeTruthy();
     expect(screen.getByText('API Key 无效或已失效')).toBeTruthy();
     expect(screen.getByText('解析模型未检测')).toBeTruthy();
+    expect(screen.queryByText('前一项通过后再检测')).toBeNull();
   });
 });
