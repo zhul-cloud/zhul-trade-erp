@@ -88,6 +88,34 @@ public class ProductCandidateService {
 
     public PageResult<CandidateVO> page(CandidatePageQuery q) {
         int status = q.getStatus() == null ? CandidateConstants.STATUS_PENDING : q.getStatus();
+        LambdaQueryWrapper<ProductCandidateDO> w = filtered(q, status);
+        int size = q.getPageSize() == null || q.getPageSize() <= 0 ? 20 : Math.min(q.getPageSize(), 100);
+        int page = Math.max(1, q.getPage() == null ? 1 : q.getPage());
+        long total = candidateMapper.selectCount(w);
+        if (total == 0) {
+            return PageResult.of(0L, List.of());
+        }
+        // 待确认品牌的排在最后，其次是没选品类的，方便先批量审核能直接通过的；再按可信度从高到低、更新时间倒序
+        w.last("ORDER BY brand_id IS NULL, category_id IS NULL, level DESC, update_time DESC, id DESC LIMIT "
+                + (long) (page - 1) * size + ", " + size);
+        return PageResult.of(total, toVos(candidateMapper.selectList(w), false));
+    }
+
+    /** 各页签的条数，按列表同样的筛选条件统计（忽略 status），页签上的数字和筛选后的列表一致 */
+    public Map<String, Long> counts(CandidatePageQuery q) {
+        Map<String, Long> out = new LinkedHashMap<>();
+        out.put("pending", candidateMapper.selectCount(filtered(q, CandidateConstants.STATUS_PENDING)));
+        out.put("archived", candidateMapper.selectCount(filtered(q, CandidateConstants.STATUS_ARCHIVED)));
+        out.put("merged", candidateMapper.selectCount(filtered(q, CandidateConstants.STATUS_MERGED)));
+        out.put("rejected", candidateMapper.selectCount(filtered(q, CandidateConstants.STATUS_REJECTED)));
+        return out;
+    }
+
+    public Map<String, Long> counts() {
+        return counts(new CandidatePageQuery());
+    }
+
+    private LambdaQueryWrapper<ProductCandidateDO> filtered(CandidatePageQuery q, int status) {
         LambdaQueryWrapper<ProductCandidateDO> w = new LambdaQueryWrapper<ProductCandidateDO>()
                 .eq(ProductCandidateDO::getStatus, status)
                 .isNull(ProductCandidateDO::getDeletedAt);
@@ -115,28 +143,7 @@ public class ProductCandidateService {
                     .or().like(ProductCandidateDO::getProductName, kw)
                     .or(!key.isEmpty(), y -> y.like(ProductCandidateDO::getMpnNormalized, key)));
         }
-        int size = q.getPageSize() == null || q.getPageSize() <= 0 ? 20 : Math.min(q.getPageSize(), 100);
-        int page = Math.max(1, q.getPage() == null ? 1 : q.getPage());
-        long total = candidateMapper.selectCount(w);
-        if (total == 0) {
-            return PageResult.of(0L, List.of());
-        }
-        // 待确认品牌的排在最后，其次是没选品类的，方便先批量审核能直接通过的；再按可信度从高到低、更新时间倒序
-        w.last("ORDER BY brand_id IS NULL, category_id IS NULL, level DESC, update_time DESC, id DESC LIMIT " + (long) (page - 1) * size + ", " + size);
-        return PageResult.of(total, toVos(candidateMapper.selectList(w), false));
-    }
-
-    public Map<String, Long> counts() {
-        Map<String, Long> out = new LinkedHashMap<>();
-        LambdaQueryWrapper<ProductCandidateDO> w = new LambdaQueryWrapper<ProductCandidateDO>()
-                .eq(ProductCandidateDO::getStatus, CandidateConstants.STATUS_PENDING)
-                .isNull(ProductCandidateDO::getDeletedAt);
-        if (!platformScopeGuard.isPlatform()) {
-            w.inSql(ProductCandidateDO::getId, "SELECT candidate_id FROM product_candidate_source WHERE deleted_at IS NULL AND tenant_id = "
-                    + tenantId());
-        }
-        out.put("pending", candidateMapper.selectCount(w));
-        return out;
+        return w;
     }
 
     public CandidateVO detail(Long id) {

@@ -14,6 +14,7 @@ import com.zhul.erp.modules.inquiry.customerinquiry.dto.InquiryDownstreamVO;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.DraftVO;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.PriceMatchVO;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.SubmitCustomerInquiryRequest;
+import com.zhul.erp.modules.inquiry.customerinquiry.dto.UpdateCustomerInquiryRequest;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.UpdateInquiryLevelRequest;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.UploadedFileVO;
 import com.zhul.erp.modules.inquiry.customerinquiry.service.CustomerInquiryService;
@@ -141,6 +142,12 @@ public class CustomerInquiryController {
     @PostMapping("/{id}/appends/{appendId}/discard")
     public Result<Void> discardAppend(@PathVariable Long id, @PathVariable Long appendId) {
         service.discardAppend(id, appendId);
+        return Result.ok();
+    }
+
+    @PutMapping("/{id}")
+    public Result<Void> update(@PathVariable Long id, @Valid @RequestBody UpdateCustomerInquiryRequest req) {
+        service.update(id, req);
         return Result.ok();
     }
 

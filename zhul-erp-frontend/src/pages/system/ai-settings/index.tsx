@@ -69,7 +69,6 @@ const PROVIDER_META: Record<
   AiProvider,
   {
     name: string;
-    desc: string;
     console: string;
     consoleName: string;
     Logo: React.FC<{ size?: number }>;
@@ -77,14 +76,12 @@ const PROVIDER_META: Record<
 > = {
   claude: {
     name: 'Claude',
-    desc: 'Anthropic · Opus / Haiku',
     console: 'https://console.anthropic.com/settings/keys',
     consoleName: 'Anthropic',
     Logo: ClaudeLogo,
   },
   openai: {
     name: 'OpenAI',
-    desc: 'GPT 系列',
     console: 'https://platform.openai.com/api-keys',
     consoleName: 'OpenAI',
     Logo: OpenAILogo,
@@ -347,7 +344,7 @@ const FieldLabel: React.FC<{ title: string; hint: React.ReactNode }> = ({
 };
 
 /**
- * 业务设置 → AI 设置：按服务商分组列出连接方式（本公司 API Key、平台订阅），选中哪一行就用哪一种；
+ * 业务设置 → AI 设置：按服务商分组列出连接方式（API Key、平台订阅），选中哪一行就用哪一种；
  * 所有修改只通过底部保存条保存。见 openspec ai-platform/tenant-ai-settings 与原型 AI设置.op 第三页（V3）。
  */
 const AiSettingsPage: React.FC = () => {
@@ -545,7 +542,7 @@ const AiSettingsPage: React.FC = () => {
     tone = 'idle';
     title = '还没有配置 AI';
     pill = ['未配置', 'gray'];
-    desc = '填写本公司 API Key 后即可使用。';
+    desc = '填写 API Key 后即可使用。';
   } else if (!savedSub) {
     if (testResult) {
       tone = testResult.ok ? 'ok' : 'bad';
@@ -556,7 +553,7 @@ const AiSettingsPage: React.FC = () => {
     tone = 'warn';
     title = '平台订阅不可用';
     pill = ['不可用', 'orange'];
-    desc = '请改用本公司 API Key。';
+    desc = '请改用 API Key。';
   } else if (savedState === 'in' || savedState === 'avail') {
     title = 'AI 已就绪';
     pill = ['可用', 'green'];
@@ -579,7 +576,7 @@ const AiSettingsPage: React.FC = () => {
   const metaItems = [
     {
       icon: savedSub ? <UserOutlined /> : <KeyOutlined />,
-      text: `${savedMeta.name} · ${savedSub ? '平台订阅' : '本公司 API Key'}`,
+      text: `${savedMeta.name} · ${savedSub ? '平台订阅' : 'API Key'}`,
     },
     config.updateTime
       ? {
@@ -791,13 +788,12 @@ const AiSettingsPage: React.FC = () => {
           <span style={{ fontSize: 14, fontWeight: 600, color: palette.ink }}>
             {m.name}
           </span>
-          <span style={{ fontSize: 12, color: palette.mute }}>{m.desc}</span>
         </div>
         <OptionRow
           selected={apiSelected}
           disabled={!canEdit && !apiSelected}
           icon={<KeyOutlined />}
-          label="本公司 API Key"
+          label="API Key"
           extra={
             apiProfile.hasKey && (
               <span
@@ -877,11 +873,7 @@ const AiSettingsPage: React.FC = () => {
 
   const connectCard = (
     <Card style={{ height: '100%' }}>
-      <SectionHead
-        palette={palette}
-        title="服务商与账号"
-        hint="API Key 加密保存，只显示首尾几位"
-      />
+      <SectionHead palette={palette} title="服务商与账号" />
       <div style={{ display: 'grid', gap: 16 }}>
         {PROVIDERS.map(providerGroup)}
         {platform && mode === 'subscription' && (

@@ -55,9 +55,9 @@ public class ProductCandidateController {
         return Result.ok(service.page(query));
     }
 
-    @GetMapping("/counts")
-    public Result<Map<String, Long>> counts() {
-        return Result.ok(service.counts());
+    @PostMapping("/counts")
+    public Result<Map<String, Long>> counts(@RequestBody CandidatePageQuery query) {
+        return Result.ok(service.counts(query));
     }
 
     @GetMapping("/{id}")
