@@ -11,6 +11,7 @@ import com.zhul.erp.modules.system.entity.UserBasicDO;
 import com.zhul.erp.modules.system.repository.DepartmentMapper;
 import com.zhul.erp.modules.system.repository.UserBasicMapper;
 import com.zhul.erp.modules.system.service.DeptService;
+import com.zhul.erp.modules.system.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -191,7 +192,8 @@ public class DeptServiceImpl implements DeptService {
         DeptDeleteCheckVO vo = new DeptDeleteCheckVO();
         long childCount = departmentMapper.selectCount(activeWrapper().eq(DepartmentDO::getPid, id));
         List<UserBasicDO> users = userBasicMapper.selectList(
-                new LambdaQueryWrapper<UserBasicDO>().eq(UserBasicDO::getDeptId, id));
+                new LambdaQueryWrapper<UserBasicDO>().eq(UserBasicDO::getDeptId, id)
+                        .ne(UserBasicDO::getStatus, UserService.STATUS_DELETED));
         vo.setChildCount((int) childCount);
         vo.setUserCount(users.size());
         vo.setBlocked(childCount > 0 || !users.isEmpty());
@@ -214,7 +216,8 @@ public class DeptServiceImpl implements DeptService {
             throw new BizException("该部门下存在子部门，请先删除或迁移子部门后重试");
         }
         long userCount = userBasicMapper.selectCount(
-                new LambdaQueryWrapper<UserBasicDO>().eq(UserBasicDO::getDeptId, id));
+                new LambdaQueryWrapper<UserBasicDO>().eq(UserBasicDO::getDeptId, id)
+                        .ne(UserBasicDO::getStatus, UserService.STATUS_DELETED));
         if (userCount > 0) {
             throw new BizException("该部门已分配 " + userCount + " 名用户，请先移除关联用户后重试");
         }

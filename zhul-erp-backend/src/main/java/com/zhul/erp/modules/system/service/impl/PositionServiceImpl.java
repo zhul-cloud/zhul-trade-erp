@@ -13,6 +13,7 @@ import com.zhul.erp.modules.system.entity.UserBasicDO;
 import com.zhul.erp.modules.system.repository.PositionMapper;
 import com.zhul.erp.modules.system.repository.UserBasicMapper;
 import com.zhul.erp.modules.system.service.PositionService;
+import com.zhul.erp.modules.system.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -133,7 +134,8 @@ public class PositionServiceImpl implements PositionService {
     public PositionDeleteCheckVO checkDeletable(Integer id) {
         List<UserBasicDO> users = userBasicMapper.selectList(
                 new LambdaQueryWrapper<UserBasicDO>()
-                        .eq(UserBasicDO::getPositionId, id));
+                        .eq(UserBasicDO::getPositionId, id)
+                        .ne(UserBasicDO::getStatus, UserService.STATUS_DELETED));
         PositionDeleteCheckVO vo = new PositionDeleteCheckVO();
         vo.setUserCount(users.size());
         vo.setBlocked(!users.isEmpty());
@@ -153,7 +155,8 @@ public class PositionServiceImpl implements PositionService {
         }
         long userCount = userBasicMapper.selectCount(
                 new LambdaQueryWrapper<UserBasicDO>()
-                        .eq(UserBasicDO::getPositionId, id));
+                        .eq(UserBasicDO::getPositionId, id)
+                        .ne(UserBasicDO::getStatus, UserService.STATUS_DELETED));
         if (userCount > 0) {
             throw new BizException("该岗位已分配 " + userCount + " 名用户，请先解除关联后再删除");
         }
