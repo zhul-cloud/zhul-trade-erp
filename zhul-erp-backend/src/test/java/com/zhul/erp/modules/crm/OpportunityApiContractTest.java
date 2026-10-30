@@ -27,6 +27,7 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -243,6 +244,32 @@ class OpportunityApiContractTest extends IntegrationTestBase {
         JsonNode page = ok(call(get(BASE + "/page").param("stage", "CLOSED"), admin));
         assertEquals(3, page.path("total").asInt());
         assertEquals(1, ok(call(get(BASE + "/page").param("keyword", "b@x"), admin)).path("total").asInt());
+    }
+
+    @Test
+    void delete_onlyWithoutLinkedInquiries_keepsCustomer_needsButton() throws Exception {
+        loginAsAdmin("opp_admin");
+        String admin = token("opp_admin");
+        String today = LocalDate.now().toString();
+        long lone = register(admin, lead("Lone", 5, today, ",\"email\":\"lone@x.com\""));
+        long customerId = ok(call(get(BASE + "/" + lone), admin)).path("customerId").asLong();
+        ok(call(delete(BASE + "/" + lone), admin));
+        assertEquals("商机不存在", call(get(BASE + "/" + lone), admin).path("message").asText());
+        assertEquals(1, jdbc.queryForObject("select count(*) from opportunity where id = ? and deleted_at is not null", Integer.class, lone), "软删除");
+        assertEquals(1, jdbc.queryForObject("select count(*) from customer where id = ? and deleted_at is null", Integer.class, customerId), "客户档案保留");
+
+        long linked = register(admin, lead("Linked", 5, today, ",\"email\":\"linked@x.com\""));
+        long linkedCustomer = ok(call(get(BASE + "/" + linked), admin)).path("customerId").asLong();
+        long inquiryId = ok(call(json(post("/api/v1/inquiry/customer-inquiries"), "{\"customerId\":" + linkedCustomer
+                + ",\"source\":1,\"rawContent\":\"rfq\",\"opportunityId\":" + linked + "}"), admin)).path("id").asLong();
+        assertEquals("这条商机已有关联的询盘，不能删除", call(delete(BASE + "/" + linked), admin).path("message").asText());
+        jdbc.update("update customer_inquiry set deleted_at = now() where id = ?", inquiryId);
+        ok(call(delete(BASE + "/" + linked), admin));
+
+        long own = register(admin, lead("Own", 5, today, ",\"email\":\"own2@x.com\""));
+        jdbc.update("update opportunity set owner_id = ? where id = ?", SELF, own);
+        loginWithResources("opp_editor", MENU, RES_EDIT);
+        assertEquals(403, perform(delete(BASE + "/" + own), token("opp_editor")).getStatus(), "没有删除按钮权限");
     }
 
     @Test

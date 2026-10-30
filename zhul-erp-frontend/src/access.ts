@@ -211,6 +211,7 @@ export default function access(initialState: {
     // 按钮级 - 商机
     'crm:opportunity:add': can('crm:opportunity:add'),
     'crm:opportunity:edit': can('crm:opportunity:edit'),
+    'crm:opportunity:delete': can('crm:opportunity:delete'),
     // 按钮级 - 用户管理
     'system:user:add': can('system:user:add'),
     'system:user:edit': can('system:user:edit'),
