@@ -41,6 +41,7 @@ import com.zhul.erp.modules.crm.service.OpportunityService;
 import com.zhul.erp.modules.crm.support.OpportunityStageRules;
 import com.zhul.erp.modules.masterdata.dto.CustomerLeadCommand;
 import com.zhul.erp.modules.system.service.BusinessUnitService;
+import com.zhul.erp.modules.system.service.LogService;
 import com.zhul.erp.modules.masterdata.entity.CustomerDO;
 import com.zhul.erp.modules.masterdata.repository.CustomerMapper;
 import com.zhul.erp.modules.masterdata.service.CustomerService;
@@ -81,6 +82,7 @@ public class OpportunityServiceImpl implements OpportunityService {
 
     private final BusinessUnitService businessUnitService;
     private final OpportunityMapper opportunityMapper;
+    private final LogService logService;
     private final OpportunityStageLogMapper logMapper;
     private final OpportunityAttachmentMapper attachmentMapper;
     private final OpportunityStageRules stageRules;
@@ -215,6 +217,21 @@ public class OpportunityServiceImpl implements OpportunityService {
         moveTo(o, result, stages);
         opportunityMapper.updateById(o);
         log(o, from, result, OpportunityConstants.ACTION_CLOSE, reason, o.getCloseNote());
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void delete(Long id) {
+        OpportunityDO o = getInScope(id);
+        if (!opportunityMapper.selectLinkedInquiries(o.getTenantId(), o.getId()).isEmpty()) {
+            throw new BizException("这条商机已有关联的询盘，不能删除");
+        }
+        opportunityMapper.update(null, new com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<OpportunityDO>()
+                .set(OpportunityDO::getDeletedAt, LocalDateTime.now())
+                .set(OpportunityDO::getUpdateTime, LocalDateTime.now())
+                .eq(OpportunityDO::getId, o.getId()));
+        logService.recordOperateLog("商机", "删除商机", Map.of("opportunityCode", o.getOpportunityCode(),
+                "customerId", String.valueOf(o.getCustomerId())), null);
     }
 
     @Override

@@ -218,6 +218,8 @@ export const opportunityApi = {
   close: (id: number, result: string, reason?: number, note?: string) =>
     post<void>(`${BASE}/${id}/close`, { result, reason, note }),
   reopen: (id: number) => post<void>(`${BASE}/${id}/reopen`),
+  remove: (id: number) =>
+    request(`${BASE}/${id}`, { method: 'DELETE', ...quiet }),
   upload: (file: File) => {
     const data = new FormData();
     data.append('file', file);
