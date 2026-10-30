@@ -44,6 +44,9 @@ import com.zhul.erp.modules.quotation.support.QuotationLocks;
 import com.zhul.erp.modules.masterdata.entity.SupplierDO;
 import com.zhul.erp.modules.masterdata.repository.SupplierMapper;
 import com.zhul.erp.modules.system.service.LogService;
+import com.zhul.erp.modules.quotation.entity.QuotationDO;
+import com.zhul.erp.modules.quotation.constants.QuotationConstants;
+import com.zhul.erp.modules.inquiry.sourcing.dto.WithdrawPreviewVO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
@@ -60,6 +63,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -813,6 +817,85 @@ public class MyTaskServiceImpl implements MyTaskService {
             inquiry.setNeedsReview(1);
             inquiryMapper.updateById(inquiry);
         }
+    }
+
+    /** 本人在这个任务里已提交（含待审核）的回价，按型号分组 */
+    private Map<Long, List<SourcingQuoteDO>> mySubmitted(Long taskId, Long me) {
+        return quoteMapper.selectList(new LambdaQueryWrapper<SourcingQuoteDO>()
+                        .eq(SourcingQuoteDO::getTaskId, taskId)
+                        .eq(SourcingQuoteDO::getQuotedBy, me)
+                        .in(SourcingQuoteDO::getStatus, InquiryConstants.QUOTE_SUBMITTED, InquiryConstants.QUOTE_PENDING_REVIEW)
+                        .isNull(SourcingQuoteDO::getDeletedAt))
+                .stream().collect(Collectors.groupingBy(SourcingQuoteDO::getInquiryItemId));
+    }
+
+    @Override
+    public WithdrawPreviewVO withdrawPreview(Long taskId) {
+        SourcingTaskDO task = myTask(taskId);
+        Map<Long, InquiryItemDO> items = taskItems(task.getId()).stream().collect(Collectors.toMap(InquiryItemDO::getId, i -> i));
+        Set<Long> mine = new LinkedHashSet<>(mySubmitted(taskId, me()).keySet());
+        mine.retainAll(items.keySet());
+        Map<Long, List<QuotationDO>> locking = quotationLocks.quotationsByItem(mine, QuotationConstants.ITEM_LOCKING_STATUSES);
+        List<Long> open = mine.stream().filter(id -> !locking.containsKey(id)).toList();
+        Map<String, List<String>> drafts = new LinkedHashMap<>();
+        quotationLocks.quotationsByItem(open, List.of(QuotationConstants.STATUS_DRAFT)).forEach((itemId, qs) -> qs.forEach(q ->
+                drafts.computeIfAbsent(q.getQuotationNo(), k -> new ArrayList<>()).add(items.get(itemId).getConfirmedModel())));
+        WithdrawPreviewVO vo = new WithdrawPreviewVO();
+        vo.setModels(open.stream().map(id -> items.get(id).getConfirmedModel()).toList());
+        vo.setLocked(locking.entrySet().stream().map(e -> new WithdrawPreviewVO.Locked(items.get(e.getKey()).getConfirmedModel(),
+                e.getValue().get(0).getQuotationNo())).toList());
+        vo.setDrafts(drafts.entrySet().stream().map(e -> new WithdrawPreviewVO.DraftQuotation(e.getKey(), e.getValue())).toList());
+        return vo;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void withdraw(Long taskId) {
+        Long me = me();
+        SourcingTaskDO task = myTask(taskId);
+        if (task.getStatus() != InquiryConstants.TASK_DONE) {
+            throw new BizException("只有已回价的任务可以撤回回价");
+        }
+        progress.lock(task.getCustomerInquiryId());
+        CustomerInquiryDO inquiry = inquiryMapper.selectById(task.getCustomerInquiryId());
+        if (inquiry == null || inquiry.getStatus() == InquiryConstants.STATUS_CANCELLED) {
+            throw new BizException("询盘单已取消，回价不能再撤回");
+        }
+        Set<Long> taskItemIds = taskItems(taskId).stream().map(InquiryItemDO::getId).collect(Collectors.toSet());
+        Map<Long, List<SourcingQuoteDO>> mine = mySubmitted(taskId, me);
+        mine.keySet().retainAll(taskItemIds);
+        Set<Long> locked = quotationLocks.lockedItemIds(mine.keySet());
+        List<Long> open = mine.keySet().stream().filter(id -> !locked.contains(id)).toList();
+        if (open.isEmpty()) {
+            throw new BizException(mine.isEmpty() ? "这个任务里没有你提交的回价" : "型号都已报给客户，回价不能撤回");
+        }
+        List<Long> quoteIds = open.stream().flatMap(id -> mine.get(id).stream()).map(SourcingQuoteDO::getId).toList();
+        quoteMapper.update(new SourcingQuoteDO(), new LambdaUpdateWrapper<SourcingQuoteDO>()
+                .in(SourcingQuoteDO::getId, quoteIds)
+                .set(SourcingQuoteDO::getStatus, InquiryConstants.QUOTE_DRAFT)
+                .set(SourcingQuoteDO::getUpdateTime, LocalDateTime.now()));
+        progress.refreshItems(open);
+        boolean pending = itemMapper.selectCount(new LambdaQueryWrapper<InquiryItemDO>()
+                .eq(InquiryItemDO::getSourcingTaskId, taskId)
+                .eq(InquiryItemDO::getQuoteStatus, InquiryConstants.ITEM_PENDING)
+                .isNull(InquiryItemDO::getDeletedAt)) > 0;
+        if (pending) {
+            taskMapper.update(null, new LambdaUpdateWrapper<SourcingTaskDO>()
+                    .eq(SourcingTaskDO::getId, taskId)
+                    .set(SourcingTaskDO::getStatus, InquiryConstants.TASK_SOURCING)
+                    .set(SourcingTaskDO::getCompletedAt, null)
+                    .set(SourcingTaskDO::getUpdateTime, LocalDateTime.now()));
+        }
+        progress.refreshInquiry(task.getCustomerInquiryId());
+        CustomerInquiryDO after = inquiryMapper.selectById(task.getCustomerInquiryId());
+        if (after.getStatus() == InquiryConstants.STATUS_READY_TO_QUOTE && after.getPricedItemCount() < after.getTotalItemCount()) {
+            CustomerInquiryDO patch = new CustomerInquiryDO();
+            patch.setId(after.getId());
+            patch.setStatus(InquiryConstants.STATUS_SOURCING);
+            inquiryMapper.updateById(patch);
+        }
+        logService.recordOperateLog("我的询价", "撤回回价", null, Map.of("taskCode", task.getTaskCode(),
+                "items", open.size()));
     }
 
     @Override

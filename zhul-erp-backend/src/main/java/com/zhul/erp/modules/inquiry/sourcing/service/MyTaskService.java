@@ -34,6 +34,15 @@ public interface MyTaskService {
 
     void returnTask(Long taskId, ReturnTaskRequest req);
 
+    /** 撤回回价前的预览 */
+    com.zhul.erp.modules.inquiry.sourcing.dto.WithdrawPreviewVO withdrawPreview(Long taskId);
+
+    /**
+     * 撤回已回价任务里本人提交的回价：未报给客户的型号的回价变回草稿（业务员看不到），
+     * 任务回到询价中，询盘从可报价回到询价中；已报给客户的型号保持不变
+     */
+    void withdraw(Long taskId);
+
     /** 采购回填真实型号：只影响建档，不受「已报给客户」的锁定限制；返回最新建档状态 */
     com.zhul.erp.modules.inquiry.sourcing.dto.MyTaskItemVO saveActualModel(Long taskId, Long itemId, String actualModel);
 

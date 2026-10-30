@@ -372,6 +372,56 @@ class SourcingContractTest extends InquiryContractSupport {
     }
 
     @Test
+    void withdraw_hidesPricesBackToSourcing_lockedItemsKept() throws Exception {
+        login();
+        long inq = inquiry(false, row("Inovance", "变频器", "MD500T0.7GB", 4), row("Inovance", "变频器", "MD500T1.5GB", 2));
+        long task = taskId(inq, "Inovance");
+        List<Long> items = itemIds(task);
+        assign(task, BUYER_LIN);
+        String lin = token("it_lin");
+        for (long item : items) {
+            ok(call(json(put(MY + "/" + task + "/quotes"), quotes(true, item, false, null, List.of(entry(2, "华南工控", "560", 1, 1)))), lin));
+        }
+        assertEquals(3, jdbc.queryForObject("select status from sourcing_task where id = ?", Integer.class, task), "已回价");
+        assertEquals(6, jdbc.queryForObject("select status from customer_inquiry where id = ?", Integer.class, inq), "可报价");
+
+        // 第二个型号已报给客户、第一个在业务员的草稿报价单里
+        jdbc.update("insert into quotation (tenant_id, quotation_no, customer_id, status) values (0, 'QTIT00000091', 0, 2), (0, 'QTIT00000092', 0, 1)");
+        long sent = jdbc.queryForObject("select id from quotation where quotation_no = 'QTIT00000091'", Long.class);
+        long draft = jdbc.queryForObject("select id from quotation where quotation_no = 'QTIT00000092'", Long.class);
+        jdbc.update("insert into quotation_item (tenant_id, quotation_id, customer_inquiry_id, inquiry_item_id, model) values (0, ?, ?, ?, 'x'), (0, ?, ?, ?, 'x')",
+                sent, inq, items.get(1), draft, inq, items.get(0));
+        try {
+            JsonNode preview = ok(call(get(MY + "/" + task + "/withdraw-preview"), lin));
+            assertEquals("MD500T0.7GB", preview.path("models").get(0).asText());
+            assertEquals(1, preview.path("models").size());
+            assertEquals("QTIT00000091", preview.path("locked").get(0).path("quotationNo").asText());
+            assertEquals("QTIT00000092", preview.path("drafts").get(0).path("quotationNo").asText());
+
+            ok(call(post(MY + "/" + task + "/withdraw"), lin));
+            assertEquals(2, jdbc.queryForObject("select status from sourcing_task where id = ?", Integer.class, task), "回到询价中");
+            assertEquals(5, jdbc.queryForObject("select status from customer_inquiry where id = ?", Integer.class, inq), "询盘回到询价中");
+            assertEquals(1, jdbc.queryForObject("select priced_item_count from customer_inquiry where id = ?", Integer.class, inq));
+            assertEquals(1, jdbc.queryForObject("select status from sourcing_quote where inquiry_item_id = ? and deleted_at is null", Integer.class,
+                    items.get(0)), "撤回的回价变回草稿");
+            assertEquals(2, jdbc.queryForObject("select status from sourcing_quote where inquiry_item_id = ? and deleted_at is null", Integer.class,
+                    items.get(1)), "已报给客户的不动");
+            JsonNode d = ok(call(get(INQ + "/" + inq), admin));
+            assertTrue(d.path("items").get(0).path("selectedQuote").isMissingNode() || d.path("items").get(0).path("selectedQuote").isNull(),
+                    "业务员看不到撤回的价格");
+            assertEquals("只有已回价的任务可以撤回回价", call(post(MY + "/" + task + "/withdraw"), lin).path("message").asText());
+
+            // 改好后重新提交：任务与询盘再回到已回价、可报价
+            ok(call(json(put(MY + "/" + task + "/quotes"), quotes(true, items.get(0), false, null, List.of(entry(2, "华南工控", "540", 1, 1)))), lin));
+            assertEquals(3, jdbc.queryForObject("select status from sourcing_task where id = ?", Integer.class, task));
+            assertEquals(6, jdbc.queryForObject("select status from customer_inquiry where id = ?", Integer.class, inq));
+        } finally {
+            jdbc.update("delete from quotation_item where quotation_id in (?, ?)", sent, draft);
+            jdbc.update("delete from quotation where id in (?, ?)", sent, draft);
+        }
+    }
+
+    @Test
     void taxIncludedQuote_comparedByPriceExcludingTax() throws Exception {
         login();
         long inq = inquiry(false, row("Delta", "HMI", "DOP-107BV", 1));
