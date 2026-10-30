@@ -6,6 +6,7 @@ import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.cors.CorsConfiguration;
@@ -17,6 +18,7 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 
 /** /api/** 的跨域白名单来自 zhul.cors.allowed-origin-patterns：名单内的来源放行，名单外的拒绝（403） */
@@ -26,6 +28,11 @@ class WebMvcConfigCorsTest {
     static class DemoController {
         @PostMapping("/api/v1/demo")
         public Map<String, Object> demo() {
+            return Map.of();
+        }
+
+        @PatchMapping("/api/v1/demo")
+        public Map<String, Object> patchDemo() {
             return Map.of();
         }
     }
@@ -79,6 +86,19 @@ class WebMvcConfigCorsTest {
         assertEquals(200, res.getStatus());
         assertEquals("https://erp.zhulcloud.com", res.getHeader(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN));
         assertEquals("true", res.getHeader(HttpHeaders.ACCESS_CONTROL_ALLOW_CREDENTIALS));
+    }
+
+    /** 启用、停用品牌等用 PATCH：生产环境浏览器带 Origin，方法不在白名单里会被拒（403 Invalid CORS request） */
+    @Test
+    void patchFromAllowedOriginIsAllowed() throws Exception {
+        MockMvc mvc = mvcWith("https://erp.zhulcloud.com");
+        assertEquals(200, mvc.perform(patch("/api/v1/demo").header(HttpHeaders.ORIGIN, "https://erp.zhulcloud.com"))
+                .andReturn().getResponse().getStatus());
+        MockHttpServletResponse preflight = mvc.perform(options("/api/v1/demo")
+                        .header(HttpHeaders.ORIGIN, "https://erp.zhulcloud.com")
+                        .header(HttpHeaders.ACCESS_CONTROL_REQUEST_METHOD, "PATCH"))
+                .andReturn().getResponse();
+        assertEquals(200, preflight.getStatus());
     }
 
     @Test

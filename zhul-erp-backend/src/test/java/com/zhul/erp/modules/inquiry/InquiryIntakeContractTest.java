@@ -181,7 +181,7 @@ class InquiryIntakeContractTest extends InquiryContractSupport {
         assertEquals(3, tasks.get(0).path("itemCount").asInt(), "三菱·伺服三个型号一组");
         assertEquals("Delta", tasks.get(1).path("brand").asText());
         assertEquals(2, tasks.get(1).path("itemCount").asInt());
-        assertEquals("变频器", tasks.get(2).path("category").asText());
+        assertEquals("变频器与驱动", tasks.get(2).path("category").asText(), "「变频器」关联到品类后，任务按一级品类命名");
         JsonNode items = detail.path("items");
         assertEquals("SIEMENS", items.get(0).path("brand").asText());
         assertEquals(1, items.get(0).path("priceSource").asInt());
@@ -407,15 +407,21 @@ class InquiryIntakeContractTest extends InquiryContractSupport {
 
         // 报价单引用：作废后不再算
         long quoted = submit(admin, customer("Cairo Steel", "Egypt"), "");
+        jdbc.update("delete from quotation where tenant_id = 0 and quotation_no = 'QT20261030901'");
         jdbc.update("insert into quotation (tenant_id, quotation_no, status) values (0, 'QT20261030901', 2)");
         long q = jdbc.queryForObject("select max(id) from quotation where quotation_no = 'QT20261030901'", Long.class);
-        jdbc.update("insert into quotation_item (tenant_id, quotation_id, customer_inquiry_id) values (0, ?, ?)", q, quoted);
-        down = ok(call(get(INQ + "/" + quoted + "/downstream"), admin));
-        assertEquals("QUOTATION", down.get(0).path("kind").asText());
-        assertEquals("QT20261030901", down.get(0).path("no").asText());
-        assertEquals("已发送", down.get(0).path("statusName").asText());
-        jdbc.update("update quotation set status = 5 where id = ?", q);
-        assertEquals(0, ok(call(get(INQ + "/" + quoted + "/downstream"), admin)).size());
+        try {
+            jdbc.update("insert into quotation_item (tenant_id, quotation_id, customer_inquiry_id) values (0, ?, ?)", q, quoted);
+            down = ok(call(get(INQ + "/" + quoted + "/downstream"), admin));
+            assertEquals("QUOTATION", down.get(0).path("kind").asText());
+            assertEquals("QT20261030901", down.get(0).path("no").asText());
+            assertEquals("已发送", down.get(0).path("statusName").asText());
+            jdbc.update("update quotation set status = 5 where id = ?", q);
+            assertEquals(0, ok(call(get(INQ + "/" + quoted + "/downstream"), admin)).size());
+        } finally {
+            jdbc.update("delete from quotation_item where quotation_id = ?", q);
+            jdbc.update("delete from quotation where id = ?", q);
+        }
 
         // 没有「删除询盘」按钮权限的不能删
         loginWithResources("it_inq_staff", MENU_INQUIRY);
