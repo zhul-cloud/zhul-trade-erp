@@ -26,6 +26,7 @@ interface FormValues {
   seriesId?: number;
   mpnRaw: string;
   mpnDisplay?: string;
+  orderCodes?: string[];
   productName?: string;
   specSummary?: string;
   shortDescription?: string;
@@ -76,6 +77,7 @@ export const BasicCard: React.FC<{
       seriesId: product.seriesId,
       mpnRaw: product.mpnRaw,
       mpnDisplay: product.mpnDisplay,
+      orderCodes: product.orderCodes ?? [],
       productName: product.productName,
       specSummary: product.specSummary,
       shortDescription: product.shortDescription,
@@ -216,6 +218,19 @@ export const BasicCard: React.FC<{
             </Form.Item>
           </div>
           <Form.Item
+            name="orderCodes"
+            label="订货号"
+            extra="物料号、料号、Order No. 等，辅助识别：询盘、搜索里出现任何一个都能认出这个商品；同一品牌下一个订货号只能属于一个商品"
+          >
+            <Select
+              mode="tags"
+              open={false}
+              tokenSeparators={[',', '，', ';', '；', ' ']}
+              placeholder="输入后回车，可以有多个"
+              aria-label="订货号"
+            />
+          </Form.Item>
+          <Form.Item
             name="specSummary"
             label="一句话规格摘要"
             extra="列表页展示，如 24V DC / 5A / 120W"
@@ -258,6 +273,9 @@ export const BasicCard: React.FC<{
               {product.mpnRaw}
             </Field>
             <Field label="展示型号">{product.mpnDisplay}</Field>
+            <Field label="订货号">
+              {product.orderCodes?.length ? product.orderCodes.join('、') : '—'}
+            </Field>
             <Field label="品类">{product.categoryName}</Field>
             <Field label="系列">{product.seriesName}</Field>
             <Field label="产品名称">{product.productName}</Field>

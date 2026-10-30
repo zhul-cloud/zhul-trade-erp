@@ -921,6 +921,11 @@ const MyTasksPage: React.FC = () => {
                     >
                       {it.model}
                     </span>
+                    {it.orderCode && (
+                      <span style={{ color: palette.mute, fontSize: 12 }}>
+                        订货号 {it.orderCode}
+                      </span>
+                    )}
                     <span style={{ color: palette.sub }}>
                       {it.quantity} {it.unit}
                     </span>

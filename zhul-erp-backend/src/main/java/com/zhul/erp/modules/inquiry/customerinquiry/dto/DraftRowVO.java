@@ -13,6 +13,8 @@ public class DraftRowVO {
     private Long categoryId;
     private String originalModel;
     private String confirmedModel;
+    /** 订货号（物料号、料号），辅助识别；多个用英文逗号分隔 */
+    private String orderCode;
     private Integer confidence;
     private String correctionNote;
     private Integer quantity;

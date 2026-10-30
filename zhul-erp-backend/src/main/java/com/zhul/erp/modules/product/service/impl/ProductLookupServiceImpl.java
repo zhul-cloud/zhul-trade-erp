@@ -12,6 +12,7 @@ import com.zhul.erp.modules.product.repository.ProductMapper;
 import com.zhul.erp.modules.product.service.ProductLookupService;
 import com.zhul.erp.modules.product.support.LikeUtils;
 import com.zhul.erp.modules.product.support.MpnNormalizer;
+import com.zhul.erp.modules.product.support.ProductOrderCodes;
 import com.zhul.erp.modules.product.support.IndustryScope;
 import com.zhul.erp.modules.product.support.ProductNames;
 import lombok.RequiredArgsConstructor;
@@ -33,6 +34,7 @@ public class ProductLookupServiceImpl implements ProductLookupService {
     private final ProductBrandMapper brandMapper;
     private final ProductNames productNames;
     private final IndustryScope industryScope;
+    private final ProductOrderCodes orderCodes;
 
     @Override
     public List<ProductOptionVO> search(String keyword, Integer limit, Long brandId) {
@@ -48,12 +50,17 @@ public class ProductLookupServiceImpl implements ProductLookupService {
                 .orderByAsc(ProductDO::getMpnNormalized)
                 .orderByAsc(ProductDO::getId)
                 .last("LIMIT " + size);
+        List<Long> byCode = orderCodes.productsMatching(trimmed, MAX_LIMIT);
         wrapper.and(w -> {
             // 归一化后为空（如 "---"）时跳过型号分支，否则 LIKE '%' 会命中全部商品
             if (!normalized.isEmpty()) {
                 w.likeRight(ProductDO::getMpnNormalized, normalized).or();
             }
             w.like(ProductDO::getProductName, LikeUtils.escape(trimmed));
+            // 也能按订货号（物料号、料号）找
+            if (!byCode.isEmpty()) {
+                w.or().in(ProductDO::getId, byCode);
+            }
         });
         return toOptions(productMapper.selectList(wrapper));
     }

@@ -16,6 +16,8 @@ public class InquiryItemVO {
     private String groupKey;
     private String originalModel;
     private String confirmedModel;
+    /** 订货号（物料号、料号），辅助识别 */
+    private String orderCode;
     private Integer confidence;
     private String correctionNote;
     private Integer quantity;

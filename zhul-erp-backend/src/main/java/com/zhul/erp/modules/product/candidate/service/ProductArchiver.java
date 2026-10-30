@@ -22,6 +22,7 @@ import com.zhul.erp.modules.product.repository.ProductMapper;
 import com.zhul.erp.modules.product.candidate.support.ModelRules;
 import com.zhul.erp.modules.product.support.CategoryMatcher;
 import com.zhul.erp.modules.product.support.MpnNormalizer;
+import com.zhul.erp.modules.product.support.ProductOrderCodes;
 import com.zhul.erp.modules.sales.constants.SalesConstants;
 import com.zhul.erp.modules.sales.entity.SalesOrderDO;
 import com.zhul.erp.modules.sales.entity.SalesOrderItemDO;
@@ -67,6 +68,7 @@ public class ProductArchiver {
     private final ProductCategoryMapper categoryMapper;
     private final ProductCandidateMapper candidateMapper;
     private final ProductCandidateSourceMapper sourceMapper;
+    private final ProductOrderCodes orderCodes;
 
     /** 重算这些询盘型号的建档状态与候选来源 */
     public void sync(Collection<Long> itemIds) {
@@ -104,7 +106,17 @@ public class ProductArchiver {
                 .eq(ProductDO::getStatus, ProductConstants.STATUS_ENABLED)
                 .isNull(ProductDO::getDeletedAt)
                 .last("LIMIT 1"));
+        List<String> codes = ProductOrderCodes.split(item.getOrderCode());
+        if (product == null && !actual) {
+            // 型号对不上时按订货号认商品（型号是建档编码，订货号辅助识别）
+            Long byCode = orderCodes.productOf(item.getBrandId(), codes);
+            product = byCode == null ? null : productMapper.selectOne(new LambdaQueryWrapper<ProductDO>()
+                    .eq(ProductDO::getId, byCode)
+                    .eq(ProductDO::getStatus, ProductConstants.STATUS_ENABLED)
+                    .isNull(ProductDO::getDeletedAt));
+        }
         if (product != null) {
+            orderCodes.addAll(product.getId(), product.getBrandId(), codes);
             touched.addAll(dropSources(item.getId(), null));
             mark(item.getId(), product.getId(), CandidateConstants.ARCHIVE_DONE);
             return touched;
@@ -115,6 +127,7 @@ public class ProductArchiver {
             return touched;
         }
         ProductCandidateDO c = upsert(item, model, key, categories);
+        mergeOrderCodes(c, item.getOrderCode());
         touched.add(c.getId());
         touched.addAll(dropSources(item.getId(), c.getId()));
         writeSources(c, item, actual);
@@ -126,6 +139,26 @@ public class ProductArchiver {
             mark(item.getId(), null, CandidateConstants.ARCHIVE_CANDIDATE);
         }
         return touched;
+    }
+
+    /** 候选带上询盘里出现的订货号；已建档或已并入的候选直接补到商品上 */
+    private void mergeOrderCodes(ProductCandidateDO c, String text) {
+        if (ProductOrderCodes.split(text).isEmpty()) {
+            return;
+        }
+        String merged = ProductOrderCodes.merge(c.getOrderCode(), text);
+        if (!merged.equals(nz(c.getOrderCode()))) {
+            c.setOrderCode(merged);
+            candidateMapper.update(null, new LambdaUpdateWrapper<ProductCandidateDO>()
+                    .eq(ProductCandidateDO::getId, c.getId())
+                    .set(ProductCandidateDO::getOrderCode, merged));
+        }
+        if (c.getProductId() != null && c.getProductId() > 0) {
+            ProductDO p = productMapper.selectById(c.getProductId());
+            if (p != null) {
+                orderCodes.addAll(p.getId(), p.getBrandId(), ProductOrderCodes.split(merged));
+            }
+        }
     }
 
     private ProductCandidateDO upsert(InquiryItemDO item, String model, String key, List<ProductCategoryDO> categories) {
@@ -151,6 +184,7 @@ public class ProductArchiver {
         c.setBrandKey(brandKey);
         c.setMpnRaw(cut(model, 128));
         c.setMpnNormalized(key);
+        c.setOrderCode("");
         c.setCategoryText(cut(nz(item.getCategory()).trim(), 64));
         c.setCategoryId(categoryFor(item, categories));
         String en = nz(item.getDescriptionEn()).trim();

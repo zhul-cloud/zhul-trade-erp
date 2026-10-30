@@ -23,6 +23,8 @@ export interface Candidate {
   brandName?: string;
   brandText: string;
   mpnRaw: string;
+  /** 订货号（物料号、料号），建档时带到商品 */
+  orderCode?: string;
   categoryId?: number | null;
   categoryName?: string;
   categoryText?: string;

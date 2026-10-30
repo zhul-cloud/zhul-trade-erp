@@ -885,6 +885,11 @@ const QuotationDetail: React.FC = () => {
           .filter(Boolean)
           .join(' · ')}
       </div>
+      {src.orderCode && (
+        <div style={{ fontSize: 12, color: palette.mute }}>
+          订货号 {src.orderCode}
+        </div>
+      )}
       {src.noStock &&
         (d
           ? isNoStockLine(src, d) && (
