@@ -104,6 +104,19 @@ const emptyRow = (): Row => ({
   reuseQuoteId: null,
 });
 
+/** 历史价超过这个天数时提醒考虑重新询价 */
+const STALE_DAYS = 90;
+
+/** 最近一次的询价记录 */
+const latestOf = (quotes: { id: number; daysAgo?: number }[]) =>
+  quotes.reduce<{ id: number; daysAgo?: number } | undefined>(
+    (best, q) =>
+      q.daysAgo != null && (best?.daysAgo == null || q.daysAgo < best.daysAgo)
+        ? q
+        : best,
+    undefined,
+  )?.id;
+
 /** 解析确认：逐行核对型号，按品牌 + 归一化型号复用询价记录，确认后生成询价任务 */
 const ConfirmPage: React.FC = () => {
   const { labelOf: sourceLabel } = useDictOptions(DICT_SOURCE_CHANNEL);
@@ -126,6 +139,10 @@ const ConfirmPage: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [categories, setCategories] = useState<CategoryOption[]>([]);
   const lastLookup = useRef<Record<string, string>>({});
+  const toggleExpanded = (key: string) =>
+    setExpanded((prev) =>
+      prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key],
+    );
 
   const load = async () => {
     setLoading(true);
@@ -414,20 +431,36 @@ const ConfirmPage: React.FC = () => {
             </span>
           );
         const same = r.match?.sameBrand ?? [];
+        const actions: React.CSSProperties = {
+          display: 'flex',
+          gap: 12,
+          fontSize: 12,
+        };
         if (r.reuseQuoteId) {
           const q = same.find((x) => x.id === r.reuseQuoteId);
           return (
             <div style={{ display: 'grid', gap: 4 }}>
-              <span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <Pill tone="cyan" dot>
                   复用历史价
                 </Pill>
+                {q && (q.daysAgo ?? 0) > STALE_DAYS && (
+                  <Pill tone="orange">超过 {STALE_DAYS} 天</Pill>
+                )}
               </span>
               {q && (
                 <span style={{ fontSize: 12, color: palette.sub }}>
                   {formatAmount(q.unitPriceCny)} · <AgeText days={q.daysAgo} />
                 </span>
               )}
+              <span style={actions}>
+                <a onClick={() => toggleExpanded(r.key)}>
+                  {same.length} 条历史价 · 换一个
+                </a>
+                <a onClick={() => patch(r.key, { reuseQuoteId: null })}>
+                  改为重新询价
+                </a>
+              </span>
             </div>
           );
         }
@@ -439,8 +472,19 @@ const ConfirmPage: React.FC = () => {
               </Pill>
             </span>
             {same.length > 0 && (
-              <span style={{ fontSize: 12, color: palette.mute }}>
-                询价记录有 {same.length} 条，已选重新询价
+              <span style={actions}>
+                <span style={{ color: palette.mute }}>
+                  有 {same.length} 条历史价
+                </span>
+                <a
+                  onClick={() =>
+                    patch(r.key, {
+                      reuseQuoteId: r.match?.defaultQuoteId ?? same[0].id,
+                    })
+                  }
+                >
+                  改回复用历史价
+                </a>
               </span>
             )}
             {same.length === 0 && (r.match?.otherBrands.length ?? 0) > 0 && (
@@ -534,6 +578,11 @@ const ConfirmPage: React.FC = () => {
                 {r.match?.defaultQuoteId === q.id && (
                   <span style={{ color: palette.link, fontSize: 12 }}>
                     默认：全新原装最低价
+                  </span>
+                )}
+                {latestOf(same) === q.id && (
+                  <span style={{ color: palette.link, fontSize: 12 }}>
+                    最新
                   </span>
                 )}
               </span>
@@ -636,6 +685,18 @@ const ConfirmPage: React.FC = () => {
             <Button icon={<RobotOutlined />} onClick={reparse}>
               {manual ? '改用 AI 解析' : '重新解析'}
             </Button>
+            {reused.length > 0 && (
+              <Button
+                icon={<SyncOutlined />}
+                onClick={() =>
+                  setRows((prev) =>
+                    prev.map((x) => ({ ...x, reuseQuoteId: null })),
+                  )
+                }
+              >
+                全部改为重新询价
+              </Button>
+            )}
             <Button
               type="primary"
               icon={<CheckOutlined />}
