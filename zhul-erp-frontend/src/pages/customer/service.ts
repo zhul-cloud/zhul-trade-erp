@@ -122,6 +122,8 @@ export interface CustomerPayload {
 export interface CustomerQuery {
   customerCode?: string;
   name?: string;
+  /** 主要联系人姓名，模糊匹配 */
+  contactName?: string;
   country?: string;
   customerRole?: number;
   customerGrade?: number;

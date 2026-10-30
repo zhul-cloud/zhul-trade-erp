@@ -842,10 +842,12 @@ const Candidates: React.FC = () => {
   const [keyword, setKeyword] = useState('');
   const [level, setLevel] = useState<number>();
   const [brandState, setBrandState] = useState<number>();
+  const [categoryState, setCategoryState] = useState<number>();
   const [query, setQuery] = useState<{
     keyword?: string;
     level?: number;
     brandState?: number;
+    categoryState?: number;
   }>({});
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = usePageSize(20);
@@ -1075,7 +1077,12 @@ const Candidates: React.FC = () => {
   ];
 
   const apply = () => {
-    setQuery({ keyword: keyword.trim() || undefined, level, brandState });
+    setQuery({
+      keyword: keyword.trim() || undefined,
+      level,
+      brandState,
+      categoryState,
+    });
     setPage(1);
   };
 
@@ -1162,6 +1169,18 @@ const Candidates: React.FC = () => {
           ]}
           style={{ width: 150 }}
           aria-label="品牌"
+        />
+        <Select
+          allowClear
+          value={categoryState}
+          onChange={setCategoryState}
+          placeholder="全部品类"
+          options={[
+            { value: 1, label: '已选品类' },
+            { value: 2, label: '未选品类' },
+          ]}
+          style={{ width: 150 }}
+          aria-label="品类"
         />
         <span style={{ flex: 1 }} />
         <Button type="primary" onClick={apply}>

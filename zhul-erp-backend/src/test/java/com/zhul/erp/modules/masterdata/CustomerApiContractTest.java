@@ -168,6 +168,18 @@ class CustomerApiContractTest extends IntegrationTestBase {
     }
 
     @Test
+    void page_filtersByContactName() throws Exception {
+        loginAsAdmin("cust_admin");
+        String admin = token("cust_admin");
+        long thomas = create(admin, "{\"name\":\"Contact Search GmbH\",\"country\":\"Germany\",\"contactName\":\"Thomas Müller\"}");
+        create(admin, "{\"name\":\"Other Contact GmbH\",\"country\":\"Germany\",\"contactName\":\"Anna Schmidt\"}");
+        JsonNode page = call(get(BASE + "/page").param("contactName", " thomas "), admin).path("data");
+        assertEquals(1, page.path("total").asInt(), "按主要联系人模糊匹配，忽略大小写与首尾空格");
+        assertEquals(thomas, page.path("records").get(0).path("id").asLong());
+        assertEquals(2, call(get(BASE + "/page"), admin).path("data").path("total").asInt(), "不填时不过滤");
+    }
+
+    @Test
     void selfScope_seesOnlyOwnCustomers() throws Exception {
         loginAsAdmin("cust_admin");
         String admin = token("cust_admin");

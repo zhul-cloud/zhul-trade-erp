@@ -91,6 +91,8 @@ export const candidateApi = {
     level?: number;
     /** 1 品牌已确认、2 待确认品牌 */
     brandState?: number;
+    /** 1 已选品类、2 未选品类 */
+    categoryState?: number;
   }) => send<PageResult<Candidate>>('POST', `${C}/page`, q),
   counts: () => send<{ pending: number }>('GET', `${C}/counts`),
   detail: (id: number) => send<Candidate>('GET', `${C}/${id}`),

@@ -29,6 +29,7 @@ import com.zhul.erp.modules.system.repository.AccountLocalAuthMapper;
 import com.zhul.erp.modules.system.repository.AccountMapper;
 import com.zhul.erp.modules.system.repository.UserBasicMapper;
 import com.zhul.erp.modules.system.service.LogService;
+import com.zhul.erp.modules.system.service.UserService;
 import com.zhul.erp.modules.tenant.entity.TenantDO;
 import com.zhul.erp.modules.tenant.repository.TenantMapper;
 import jakarta.servlet.http.Cookie;
@@ -104,8 +105,8 @@ public class AuthServiceImpl implements AuthService {
             // 对外统一返回“用户名或密码错误”，避免暴露账号是否存在
             throw new BizException(ResultCode.INVALID_CREDENTIALS);
         }
-        if (account.getStatus() == 0) {
-            recordLoginFailure(account, httpRequest, "账号已禁用");
+        if (account.getStatus() != UserService.STATUS_ENABLED) {
+            recordLoginFailure(account, httpRequest, account.getStatus() == UserService.STATUS_DELETED ? "账号已删除" : "账号已禁用");
             throw new BizException(ResultCode.ACCOUNT_DISABLED);
         }
 
@@ -266,7 +267,7 @@ public class AuthServiceImpl implements AuthService {
             throw new BizException(ResultCode.REFRESH_TOKEN_INVALID);
         }
         AccountDO account = accountMapper.selectById(tokenRow.getAccountId());
-        if (account == null || account.getStatus() == 0) {
+        if (account == null || account.getStatus() != UserService.STATUS_ENABLED) {
             throw new BizException(ResultCode.REFRESH_TOKEN_INVALID);
         }
 
