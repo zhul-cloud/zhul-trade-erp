@@ -31,7 +31,7 @@ import React, {
 } from 'react';
 import { CustomerTypePill } from '@/pages/inquiry/shared/components';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
-import { useUserOptions } from '@/pages/sales/orders/dialogs';
+import { StockPill, useUserOptions } from '@/pages/sales/orders/dialogs';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
 import { usePageSize } from '@/utils/pageSize';
@@ -1094,7 +1094,7 @@ const GenerateModal: React.FC<{
       new Set(
         groups
           ?.filter((g) => counterpartyReady(g.chosen))
-          .map((g) => keyOf(g.chosen)),
+          .map((g) => `${keyOf(g.chosen)}:${g.stockType}`),
       ).size,
     [groups],
   );
@@ -1139,8 +1139,9 @@ const GenerateModal: React.FC<{
       ) : (
         <div style={{ display: 'grid', gap: 12 }}>
           <div style={{ color: palette.sub }}>
-            已选 {targets?.length} 个型号，按建议渠道分成 {groups.length}{' '}
-            组；确认后每组生成或追加到你对该采购对象的草稿采购订单。
+            已选 {targets?.length} 个型号，按建议渠道和现货 / 期货分成{' '}
+            {groups.length} 组；确认后每组生成或追加到你对该采购对象、同一现货 /
+            期货的草稿采购订单。
           </div>
           {groups.map((g) => (
             <div
@@ -1156,6 +1157,7 @@ const GenerateModal: React.FC<{
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <b style={{ color: palette.ink }}>{g.title}</b>
+                <StockPill type={g.stockType} />
                 <span style={{ fontSize: 12, color: palette.mute }}>
                   {g.lines.length} 个型号
                 </span>
@@ -1195,7 +1197,7 @@ const GenerateModal: React.FC<{
           {ready && (
             <div style={{ color: palette.ink }}>
               将生成或追加 <b>{drafts}</b>{' '}
-              张草稿采购订单；没有采购员的型号会归到你名下。
+              张草稿采购订单；同一供应商的现货和期货分开下单，没有采购员的型号会归到你名下。
             </div>
           )}
         </div>

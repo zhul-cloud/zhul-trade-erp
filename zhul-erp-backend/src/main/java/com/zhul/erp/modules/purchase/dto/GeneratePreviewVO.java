@@ -4,15 +4,17 @@ import lombok.Data;
 
 import java.util.List;
 
-/** 需求池生成采购订单的分组预览：按建议供应商（或店铺）分组 */
+/** 需求池生成采购订单的分组预览：按建议供应商（或店铺）+ 现货 / 期货分组 */
 @Data
 public class GeneratePreviewVO {
     private List<Group> groups;
 
     @Data
     public static class Group {
-        /** supplier:ID / shop:渠道:店铺名 / none */
+        /** supplier:ID / shop:渠道:店铺名 / none，后接 :现货期货 */
         private String key;
+        /** 1-现货、2-期货 */
+        private Integer stockType;
         private String title;
         /** 对应的供应商（建议供应商，或与店铺同名的启用供应商）；没有时为空，须选定或转为供应商 */
         private Long supplierId;

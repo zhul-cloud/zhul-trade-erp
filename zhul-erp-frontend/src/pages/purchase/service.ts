@@ -117,6 +117,8 @@ export interface RequirementStats {
 export interface GenerateGroup {
   key: string;
   title: string;
+  /** 1-现货、2-期货 */
+  stockType?: number;
   supplierId?: number | null;
   supplierName?: string;
   channel?: number;
@@ -159,6 +161,8 @@ export interface PoListItem {
   shop?: boolean;
   channel?: number;
   shopName?: string;
+  /** 1-现货、2-期货 */
+  stockType?: number;
   itemCount: number;
   totalQuantity: number;
   missingPriceCount: number;
@@ -202,6 +206,8 @@ export interface PoQuery {
   invoiceStatus?: string;
   supplierId?: number;
   purchaserId?: number;
+  /** 1-现货、2-期货 */
+  stockType?: number;
   orderFrom?: string;
   orderTo?: string;
   sortField?: string;

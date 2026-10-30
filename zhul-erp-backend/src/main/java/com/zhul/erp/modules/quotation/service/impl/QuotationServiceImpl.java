@@ -7,6 +7,7 @@ import com.zhul.erp.common.result.PageResult;
 import com.zhul.erp.framework.security.DataScope;
 import com.zhul.erp.framework.security.DataScopeResolver;
 import com.zhul.erp.framework.tenant.TenantContext;
+import com.zhul.erp.modules.crm.service.OpportunityService;
 import com.zhul.erp.modules.inquiry.constants.InquiryConstants;
 import com.zhul.erp.modules.inquiry.customerinquiry.entity.CustomerInquiryDO;
 import com.zhul.erp.modules.inquiry.customerinquiry.repository.CustomerInquiryMapper;
@@ -94,6 +95,7 @@ public class QuotationServiceImpl implements QuotationService {
             QuotationPricing.HINT_PREMIUM_BRAND, "现货优势品牌 · 建议主管核价");
 
     private final BusinessUnitService businessUnitService;
+    private final OpportunityService opportunityService;
     private final QuotationMapper quotationMapper;
     private final QuotationItemMapper itemMapper;
     private final QuotationFeeMapper feeMapper;
@@ -202,6 +204,7 @@ public class QuotationServiceImpl implements QuotationService {
         lines.forEach(itemMapper::insert);
         QuotationCalculator.applyTotals(q, lines, List.of());
         quotationMapper.updateById(q);
+        advanceOpportunities(inquiries.values(), q.getQuotationNo());
         logService.recordOperateLog(QuotationConstants.MENU, "新建报价单", null,
                 Map.of("quotationNo", q.getQuotationNo(), "items", lines.size()));
         log.info("新建报价单，quotationNo={}, items={}", q.getQuotationNo(), lines.size());
@@ -246,7 +249,14 @@ public class QuotationServiceImpl implements QuotationService {
         all.addAll(lines);
         QuotationCalculator.applyTotals(q, all, store.fees(id, e.versionNo()));
         store.saveHeader(e);
+        advanceOpportunities(inquiries.values(), q.getQuotationNo());
         return detail(id);
+    }
+
+    /** 询盘关联的商机推进到「已报价」（spec crm/opportunity） */
+    private void advanceOpportunities(Collection<CustomerInquiryDO> inquiries, String quotationNo) {
+        inquiries.stream().map(CustomerInquiryDO::getOpportunityId).filter(Objects::nonNull).distinct()
+                .forEach(id -> opportunityService.onQuoted(id, quotationNo));
     }
 
     /** 由候选型号生成报价行：带出采购成本价、货况货期、建议毛利率与售价、转人工提示 */

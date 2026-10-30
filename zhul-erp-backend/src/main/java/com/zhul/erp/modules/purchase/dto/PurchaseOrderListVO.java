@@ -49,6 +49,8 @@ public class PurchaseOrderListVO implements ShipFields {
     private Boolean shop;
     private Integer channel;
     private String shopName;
+    /** 1-现货、2-期货 */
+    private Integer stockType;
     private Integer itemCount;
     private Integer totalQuantity;
     /** 还没填单价的行数 */

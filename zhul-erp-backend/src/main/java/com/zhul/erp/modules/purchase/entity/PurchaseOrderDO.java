@@ -26,6 +26,8 @@ public class PurchaseOrderDO {
     /** 4-供应商；1-淘宝、2-1688、3-闲鱼、5-其他为线上店铺 */
     private Integer channel;
     private String shopName;
+    /** 现货 / 期货（1-现货、2-期货），取自来源销售订单行；生成草稿时按它拆单 */
+    private Integer stockType;
     private Long purchaserId;
     /** 1-草稿、2-已下单、3-已取消 */
     private Integer status;

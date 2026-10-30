@@ -522,6 +522,7 @@ public class PurchaseRequirementServiceImpl implements PurchaseRequirementServic
         soMapper.selectBatchIds(rows.stream().map(PurchaseRequirementDO::getSoId).distinct().toList())
                 .forEach(o -> soNos.put(o.getId(), o.getSoNo()));
         Map<Long, String> users = lookups.userNames(rows.stream().map(PurchaseRequirementDO::getPurchaserId).toList());
+        Map<Long, Integer> stock = drafts.stockTypes(rows);
         Map<String, GeneratePreviewVO.Group> groups = new LinkedHashMap<>();
         for (PurchaseRequirementDO r : rows) {
             String key;
@@ -532,9 +533,11 @@ public class PurchaseRequirementServiceImpl implements PurchaseRequirementServic
             } else {
                 key = "none";
             }
-            GeneratePreviewVO.Group g = groups.computeIfAbsent(key, k -> {
+            int stockType = stock.get(r.getId());
+            GeneratePreviewVO.Group g = groups.computeIfAbsent(key + ":" + stockType, k -> {
                 GeneratePreviewVO.Group x = new GeneratePreviewVO.Group();
                 x.setKey(k);
+                x.setStockType(stockType);
                 x.setLines(new ArrayList<>());
                 x.setMatchedByName(false);
                 if (r.getSuggestedSupplierId() != null) {

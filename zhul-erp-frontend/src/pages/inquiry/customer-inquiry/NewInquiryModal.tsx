@@ -19,9 +19,9 @@ import {
   Upload,
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import CustomerQuickCreateModal from '@/components/CustomerQuickCreateModal';
-import { formatSize } from '@/pages/crm/opportunity/components';
+import { formatSize, Pill } from '@/pages/crm/opportunity/components';
 import { getCustomer, searchCustomers } from '@/services/zhul/masterdata';
 import { useAppTheme } from '@/theme/AppTheme';
 import { DICT_SOURCE_CHANNEL, useDictOptions } from '@/utils/dict';
@@ -36,9 +36,16 @@ import {
 import {
   type CustomerInquiry,
   inquiryApi,
+  type OpportunityOption,
   readBizError,
   type UploadedFile,
 } from '../shared/service';
+
+/** 附件：fromOpp 为从关联商机带入的，换商机或不关联时一并换掉 */
+type PickedFile = UploadedFile & { fromOpp?: boolean };
+
+/** 不关联商机 */
+const NO_OPP = 0;
 
 interface Values {
   customerId?: number;
@@ -81,10 +88,71 @@ const NewInquiryModal: React.FC<{
     wonCount: number;
     lastWonDate?: string;
   } | null>(null);
-  const [files, setFiles] = useState<UploadedFile[]>([]);
+  const [files, setFiles] = useState<PickedFile[]>([]);
   const [uploading, setUploading] = useState(0);
   const [saving, setSaving] = useState(false);
   const [quickOpen, setQuickOpen] = useState(false);
+  /** 客户进行中的商机；undefined 为还没选客户 */
+  const [opps, setOpps] = useState<OpportunityOption[]>();
+  const [oppId, setOppId] = useState<number>(NO_OPP);
+  /** 从商机带入询盘内容的文字：内容没被改过时换商机跟着换 */
+  const [brought, setBrought] = useState<string>();
+  /** 询盘内容里已有自己写的文字时，商机的原始内容不覆盖，提示追加 */
+  const [appendable, setAppendable] = useState<string>();
+  const broughtRef = useRef<string | undefined>(undefined);
+  /** 换商机时作废还在复制的附件 */
+  const linkSeq = useRef(0);
+  const ownFiles = useRef(0);
+  ownFiles.current = files.filter((f) => !f.fromOpp).length;
+  const bring = (text: string | undefined) => {
+    broughtRef.current = text;
+    setBrought(text);
+  };
+  const rawContent = Form.useWatch('rawContent', form);
+
+  const linkOpportunity = (opp: OpportunityOption | undefined) => {
+    const seq = ++linkSeq.current;
+    setOppId(opp?.id ?? NO_OPP);
+    const summary = opp?.demandSummary?.trim() ?? '';
+    const current =
+      (form.getFieldValue('rawContent') as string | undefined)?.trim() ?? '';
+    if (!current || current === broughtRef.current) {
+      form.setFieldValue('rawContent', summary || undefined);
+      bring(summary || undefined);
+      setAppendable(undefined);
+    } else {
+      bring(undefined);
+      setAppendable(
+        summary && !current.includes(summary) ? summary : undefined,
+      );
+    }
+    setFiles((prev) => prev.filter((f) => !f.fromOpp));
+    if (!opp) return;
+    const take = opp.attachments.slice(
+      0,
+      Math.max(0, MAX_ATTACHMENTS - ownFiles.current),
+    );
+    if (take.length < opp.attachments.length) {
+      message.warning(
+        `附件最多 ${MAX_ATTACHMENTS} 个，商机里的 ${opp.attachments.length - take.length} 个附件没有带入`,
+      );
+    }
+    for (const a of take) {
+      setUploading((n) => n + 1);
+      inquiryApi
+        .copyFromOpportunity(opp.id, a.id)
+        .then((f) => {
+          if (seq === linkSeq.current)
+            setFiles((prev) => [...prev, { ...f, fromOpp: true }]);
+        })
+        .catch((e) =>
+          message.warning(
+            `「${a.fileName}」没能带入：${readBizError(e).message}`,
+          ),
+        )
+        .finally(() => setUploading((n) => n - 1));
+    }
+  };
 
   const search = async (keyword?: string) => {
     const list = await searchCustomers(keyword);
@@ -98,7 +166,18 @@ const NewInquiryModal: React.FC<{
 
   const pickCustomer = async (id?: number) => {
     setTypeHint(null);
+    setOpps(undefined);
+    linkOpportunity(undefined);
     if (!id) return;
+    // 默认关联这个客户最近更新的进行中商机，带入原始内容和全部附件；可以换或不关联
+    inquiryApi
+      .opportunityOptions(id)
+      .then((list) => {
+        if (form.getFieldValue('customerId') !== id) return;
+        setOpps(list);
+        if (list.length > 0) linkOpportunity(list[0]);
+      })
+      .catch(() => setOpps([]));
     const t = await inquiryApi.customerType(id).catch(() => null);
     // 来源默认取客户档案的来源渠道，可以再改
     if (t?.sourceChannel) form.setFieldValue('source', t.sourceChannel);
@@ -115,6 +194,11 @@ const NewInquiryModal: React.FC<{
     form.resetFields();
     setFiles([]);
     setTypeHint(null);
+    setOpps(undefined);
+    setOppId(NO_OPP);
+    bring(undefined);
+    setAppendable(undefined);
+    linkSeq.current++;
     search().catch(() => undefined);
     if (presetCustomerId) {
       getCustomer(presetCustomerId)
@@ -167,6 +251,7 @@ const NewInquiryModal: React.FC<{
         level: v.level,
         rawContent: v.rawContent?.trim() || undefined,
         remark: v.remark?.trim() || undefined,
+        opportunityId: oppId || undefined,
         attachments: files.map((f) => ({
           fileKey: f.fileKey,
           fileName: f.fileName,
@@ -345,7 +430,77 @@ const NewInquiryModal: React.FC<{
               options={levelOptions}
             />
           </Form.Item>
-          <Form.Item name="rawContent" label="询盘内容">
+          {opps && (
+            <Form.Item
+              label="关联商机"
+              extra={
+                opps.length === 0
+                  ? '这个客户没有进行中的商机，询盘照常创建'
+                  : `已自动选中这个客户最近一条进行中的商机，可以换一条或选「不关联」${oppId ? '；创建后商机推进到「有效商机」' : ''}`
+              }
+            >
+              <Select
+                value={opps.length === 0 ? undefined : oppId}
+                disabled={opps.length === 0}
+                placeholder="没有进行中的商机"
+                onChange={(v: number) =>
+                  linkOpportunity(opps.find((o) => o.id === v))
+                }
+                options={[
+                  ...opps.map((o) => ({
+                    value: o.id,
+                    label: (
+                      <span
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 8,
+                        }}
+                      >
+                        <span style={{ color: palette.link }}>
+                          {o.opportunityCode}
+                        </span>
+                        <Pill tone="violet">{o.stageName}</Pill>
+                        <span style={{ color: palette.sub }}>
+                          {[o.firstContactDate, o.demandSummary]
+                            .filter(Boolean)
+                            .join(' · ')
+                            .slice(0, 60)}
+                        </span>
+                      </span>
+                    ),
+                  })),
+                  { value: NO_OPP, label: '不关联商机' },
+                ]}
+              />
+            </Form.Item>
+          )}
+          <Form.Item
+            name="rawContent"
+            label={
+              <span style={{ display: 'inline-flex', gap: 8 }}>
+                询盘内容
+                {brought && rawContent?.trim() === brought && (
+                  <Pill tone="cyan">已从商机带入</Pill>
+                )}
+              </span>
+            }
+            extra={
+              appendable && (
+                <a
+                  onClick={() => {
+                    form.setFieldValue(
+                      'rawContent',
+                      `${(form.getFieldValue('rawContent') as string).trimEnd()}\n\n${appendable}`,
+                    );
+                    setAppendable(undefined);
+                  }}
+                >
+                  商机里有原始内容，点此追加
+                </a>
+              )
+            }
+          >
             <Input.TextArea
               rows={6}
               maxLength={20000}
@@ -382,6 +537,13 @@ const NewInquiryModal: React.FC<{
               支持 JPG、PNG、XLS、XLSX、CSV、PDF，单个不超过 10MB
             </p>
           </Upload.Dragger>
+          {files.some((f) => f.fromOpp) && (
+            <div style={{ marginTop: 12 }}>
+              <Pill tone="cyan">
+                {files.filter((f) => f.fromOpp).length} 个已从商机带入
+              </Pill>
+            </div>
+          )}
           {files.length > 0 && (
             <div style={{ display: 'grid', gap: 8, marginTop: 12 }}>
               {files.map((f) => (

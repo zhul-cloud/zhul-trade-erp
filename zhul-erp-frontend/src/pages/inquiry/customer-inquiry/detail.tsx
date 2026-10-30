@@ -59,6 +59,7 @@ import QuoteExtras from '../shared/QuoteExtras';
 import {
   type InquiryAppend,
   type InquiryDetail,
+  type InquiryDownstream,
   type InquiryItem,
   inquiryApi,
   readBizError,
@@ -94,6 +95,7 @@ const CustomerInquiryDetailPage: React.FC = () => {
   const [quotations, setQuotations] = useState<QuotationListItem[]>();
   const access = useAccess() as Record<string, boolean>;
   const canQuote = !!access.quotationList;
+  const canDelete = !!access['inquiry:customer:delete'];
 
   const load = async () => {
     setError('');
@@ -165,6 +167,50 @@ const CustomerInquiryDetailPage: React.FC = () => {
   const quotedCount = detail.items.filter((i) => i.quoted).length;
   const cancellable =
     inq.status <= STATUS.READY && inq.status !== STATUS.CANCELLED;
+
+  const askDelete = async () => {
+    setBusy(true);
+    let refs: InquiryDownstream[];
+    try {
+      refs = await inquiryApi.downstream(inquiryId);
+    } catch (e) {
+      message.error(readBizError(e).message);
+      return;
+    } finally {
+      setBusy(false);
+    }
+    if (refs.length > 0) {
+      const dialog = modal.info({
+        title: '这条询盘不能删除',
+        width: 560,
+        okText: '知道了',
+        content: (
+          <DownstreamList refs={refs} onNavigate={() => dialog.destroy()} />
+        ),
+      });
+      return;
+    }
+    modal.confirm({
+      title: '删除这条询盘？',
+      content: (
+        <>
+          <div style={{ fontWeight: 600, marginBottom: 6 }}>
+            {inq.inquiryCode} · {inq.customerName}
+          </div>
+          删除后询盘从列表里消失，询价任务一并删除；可以联系管理员恢复。只是不打算跟进了，建议用「取消询盘」，记录会保留在统计里。
+        </>
+      ),
+      okText: '删除',
+      okButtonProps: { danger: true },
+      cancelText: '再想想',
+      onOk: () =>
+        run(
+          () => inquiryApi.remove(inquiryId),
+          '询盘已删除',
+          () => history.push(PATHS.inquiries),
+        ),
+    });
+  };
 
   // 同品牌、同一级品类（与询价任务同口径）的第一行才显示品牌；品类在组内变化时也显示（各行是自己的细分品类）
   const firstOfGroup = new Set<number>();
@@ -367,6 +413,11 @@ const CustomerInquiryDetailPage: React.FC = () => {
         title={inq.customerName}
         actions={
           <>
+            {canDelete && !inq.migrated && (
+              <Button disabled={busy} onClick={askDelete}>
+                删除
+              </Button>
+            )}
             {cancellable && (
               <Button
                 disabled={busy}
@@ -900,3 +951,71 @@ const AppendBanner: React.FC<{
 };
 
 export default CustomerInquiryDetailPage;
+
+const DOWNSTREAM_KINDS: {
+  kind: InquiryDownstream['kind'];
+  label: string;
+  unit: string;
+  path?: (id: number) => string;
+}[] = [
+  { kind: 'TASK', label: '询价任务', unit: '条' },
+  {
+    kind: 'QUOTATION',
+    label: '报价单',
+    unit: '张',
+    path: (id) => `/quotation/quotations/${id}`,
+  },
+  { kind: 'PI', label: 'PI', unit: '张', path: (id) => `/sales/pi/${id}` },
+  {
+    kind: 'ORDER',
+    label: '销售订单',
+    unit: '张',
+    path: (id) => `/sales/orders/${id}`,
+  },
+];
+
+/** 不能删除时列出引用询盘的单据，点单号跳过去 */
+const DownstreamList: React.FC<{
+  refs: InquiryDownstream[];
+  onNavigate: () => void;
+}> = ({ refs, onNavigate }) => {
+  const { palette } = useAppTheme();
+  return (
+    <div style={{ display: 'grid', gap: 12 }}>
+      <div style={{ color: palette.sub }}>
+        已经有下面这些单据引用它。要删除询盘，先作废或删除这些单据；只是不再跟进的话，可以用「取消询盘」。
+      </div>
+      {DOWNSTREAM_KINDS.map(({ kind, label, unit, path }) => {
+        const rows = refs.filter((r) => r.kind === kind);
+        if (rows.length === 0) return null;
+        return (
+          <div key={kind} style={{ display: 'grid', gap: 4 }}>
+            <div>
+              <b style={{ color: palette.ink }}>{label}</b>{' '}
+              <span style={{ fontSize: 12, color: palette.mute }}>
+                {rows.length} {unit}
+              </span>
+            </div>
+            {rows.map((r) => (
+              <div
+                key={r.id}
+                style={{ display: 'flex', justifyContent: 'space-between' }}
+              >
+                {path ? (
+                  <Link to={path(r.id)} onClick={onNavigate}>
+                    {r.no}
+                  </Link>
+                ) : (
+                  <span>{r.no}</span>
+                )}
+                <span style={{ fontSize: 12, color: palette.sub }}>
+                  {r.statusName}
+                </span>
+              </div>
+            ))}
+          </div>
+        );
+      })}
+    </div>
+  );
+};

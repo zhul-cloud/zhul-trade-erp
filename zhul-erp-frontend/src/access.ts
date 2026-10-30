@@ -45,6 +45,7 @@ export default function access(initialState: {
     'inquiry:import:proxy': can('inquiry:import:proxy'),
     'inquiry:supplier:view': can('inquiry:supplier:view'),
     'inquiry:quote:review': can('inquiry:quote:review'),
+    'inquiry:customer:delete': can('inquiry:customer:delete'),
     // 报价中心
     quotationMenu: any('/quotation/quotations', '/quotation/pricing'),
     quotationList: can('/quotation/quotations'),

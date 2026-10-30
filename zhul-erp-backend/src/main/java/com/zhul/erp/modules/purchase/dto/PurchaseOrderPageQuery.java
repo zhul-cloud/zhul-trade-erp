@@ -17,6 +17,8 @@ public class PurchaseOrderPageQuery {
     private String shipProgress;
     private Long supplierId;
     private Long purchaserId;
+    /** 1-现货、2-期货 */
+    private Integer stockType;
     /** 下单日期范围（草稿没有下单日期，有范围时不列出） */
     /** 付款状态筛选：UNPAID 未付、PARTIAL 部分付款、PAID 已付清、CREDIT 有欠款 */
     private String payStatus;
