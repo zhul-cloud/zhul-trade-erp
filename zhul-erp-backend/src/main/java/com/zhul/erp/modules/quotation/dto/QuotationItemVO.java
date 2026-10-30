@@ -14,6 +14,8 @@ public class QuotationItemVO {
     private String inquiryCode;
     private Long inquiryItemId;
     private String model;
+    /** 询盘型号上的订货号（物料号、料号），辅助识别，只在系统内显示 */
+    private String orderCode;
     private String brand;
     private String category;
     private String description;

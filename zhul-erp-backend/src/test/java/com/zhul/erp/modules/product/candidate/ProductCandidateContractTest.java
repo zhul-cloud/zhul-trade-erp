@@ -44,6 +44,7 @@ class ProductCandidateContractTest extends InquiryContractSupport {
 
     @AfterEach
     void cleanup() {
+        jdbc.update("delete from product_order_code where brand_id in (select id from product_brand where brand_name like 'IT%' or brand_name = 'Hengstler')");
         jdbc.update("delete from product_candidate_source");
         jdbc.update("delete from product_candidate");
         jdbc.update("delete from product where brand_id in (select id from product_brand where brand_name like 'IT%' or brand_name = 'Hengstler')");
@@ -295,6 +296,56 @@ class ProductCandidateContractTest extends InquiryContractSupport {
     private static List<String> mpns(JsonNode page) {
         List<String> out = new java.util.ArrayList<>();
         page.path("records").forEach(r -> out.add(r.path("mpnRaw").asText()));
+        return out;
+    }
+
+    /** spec product/product「订货号」：型号是建档编码，订货号辅助识别 */
+    @Test
+    void orderCode_matchesProduct_carriedToCandidateAndProduct_searchable() throws Exception {
+        loginAsAdmin("it_cand_admin");
+        admin = token("it_cand_admin");
+        long abb = jdbc.queryForObject("select id from product_brand where brand_name = 'ITABB'", Long.class);
+        long sick = ok(call(json(post(PRODUCTS), write(Map.of("brandId", abb, "categoryId", servo, "mpnRaw", "WTB4-3P2161",
+                "orderCodes", List.of("1025994", " 1025994 ", "1025994-01")))), admin)).path("id").asLong();
+        assertEquals(List.of("1025994", "1025994-01"), mpns(ok(call(get(PRODUCTS + "/" + sick), admin)), "orderCodes"), "去重，保留原文");
+        assertEquals("订货号 1025994 已属于同品牌的其他商品", fail(call(json(post(PRODUCTS), write(Map.of("brandId", abb, "categoryId", servo,
+                "mpnRaw", "WTB4-OTHER", "orderCodes", List.of("1025994")))), admin)).path("message").asText());
+
+        // 询盘里型号对不上、订货号对上：认成这个商品，新出现的订货号补到商品上
+        Map<String, Object> byCode = row("ITABB", "伺服", "1025994");
+        byCode.put("orderCode", "1025994, 1025994-02");
+        Map<String, Object> fresh = row("ITABB", "伺服", "ACS580-01-12A7-4");
+        fresh.put("orderCode", "3AXD50000038965");
+        long inq = confirmInquiry(List.of(byCode, fresh));
+        long matched = item(inq, "1025994");
+        assertEquals(1, archive(matched), "按订货号认出商品：已建档");
+        assertEquals(sick, jdbc.queryForObject("select product_id from inquiry_item where id = ?", Long.class, matched));
+        assertEquals("1025994, 1025994-02", jdbc.queryForObject("select order_code from inquiry_item where id = ?", String.class, matched));
+        assertTrue(jdbc.queryForObject("select count(*) from product_order_code where product_id = ? and code = '1025994-02' and deleted_at is null",
+                Integer.class, sick) == 1, "新订货号补到商品上");
+
+        // 新型号进候选池，订货号带在候选上；审核通过后带到新商品
+        long cand = candidateOf("ACS580-01-12A7-4");
+        assertEquals("3AXD50000038965", jdbc.queryForObject("select order_code from product_candidate where id = ?", String.class, cand));
+        assertEquals(List.of("ACS580-01-12A7-4"), mpns(ok(call(json(post(CAND + "/page"), "{\"keyword\":\"3AXD5000\"}"), admin))),
+                "候选按订货号搜");
+        long created = ok(call(json(post(CAND + "/" + cand + "/approve"), write(Map.of("categoryId", servo))), admin)).path("productId").asLong();
+        assertEquals(List.of("3AXD50000038965"), mpns(ok(call(get(PRODUCTS + "/" + created), admin)), "orderCodes"));
+
+        // 商品列表按订货号搜
+        JsonNode found = ok(call(get(PRODUCTS).param("keyword", "1025994-02"), admin));
+        assertEquals(sick, found.path("records").get(0).path("id").asLong(), "商品列表按订货号搜");
+
+        // 编辑时整体替换，去掉的软删除
+        ok(call(json(put(PRODUCTS + "/" + sick), write(Map.of("brandId", abb, "categoryId", servo, "mpnRaw", "WTB4-3P2161",
+                "orderCodes", List.of("1025994")))), admin));
+        assertEquals(2, jdbc.queryForObject("select count(*) from product_order_code where product_id = ? and deleted_at is not null",
+                Integer.class, sick), "去掉的订货号软删除");
+    }
+
+    private static List<String> mpns(JsonNode node, String field) {
+        List<String> out = new java.util.ArrayList<>();
+        node.path(field).forEach(x -> out.add(x.asText()));
         return out;
     }
 

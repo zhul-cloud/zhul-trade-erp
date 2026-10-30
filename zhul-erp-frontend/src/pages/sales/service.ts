@@ -1,4 +1,5 @@
 import { request } from '@umijs/max';
+import type { Attachment } from '@/pages/warehouse/service';
 import { openFile } from '@/utils/fileLink';
 
 export { readBizError } from '@/pages/crm/opportunity/service';
@@ -591,6 +592,8 @@ export interface Order {
   incotermPlace: string;
   portOfShipment: string;
   remark: string;
+  /** PI、合同、客户 PO 等附件 */
+  attachments?: Attachment[];
   itemAmount: number;
   feeAmount: number;
   discountAmount: number;
@@ -899,7 +902,16 @@ export const orderApi = {
     currencyCode: string;
     salesDate: string;
     items: CreateOrderLine[];
+    remark?: string;
+    /** PI、合同、客户 PO 等附件：先上传拿到 ID */
+    attachmentIds?: number[];
   }) => send<Order>('POST', SO, body),
+  addAttachments: (id: number, attachmentIds: number[]) =>
+    send<Order>('POST', `${SO}/${id}/attachments`, { attachmentIds }),
+  removeAttachment: (id: number, attachmentId: number) =>
+    send<Order>('DELETE', `${SO}/${id}/attachments/${attachmentId}`),
+  remark: (id: number, remark: string) =>
+    send<Order>('POST', `${SO}/${id}/remark`, { remark }),
   salesDate: (id: number, salesDate: string) =>
     send<Order>('POST', `${SO}/${id}/sales-date`, { salesDate }),
   progress: (

@@ -29,6 +29,7 @@ import com.zhul.erp.modules.product.service.ProductCompletenessService;
 import com.zhul.erp.modules.product.service.ProductService;
 import com.zhul.erp.modules.product.support.LikeUtils;
 import com.zhul.erp.modules.product.support.MpnNormalizer;
+import com.zhul.erp.modules.product.support.ProductOrderCodes;
 import com.zhul.erp.modules.product.support.IndustryScope;
 import com.zhul.erp.modules.product.support.PlatformScopeGuard;
 import com.zhul.erp.modules.product.support.ProductWriteGuard;
@@ -56,6 +57,8 @@ import java.util.Objects;
 public class ProductServiceImpl implements ProductService {
 
     private static final int MPN_MAX = 128;
+    /** 关键字按订货号最多带出的商品数 */
+    private static final int KEYWORD_CODE_LIMIT = 200;
     private static final String WARN_OBSOLETE_WITH_REPLACEMENT =
             "该商品存在替代型号记录，请确认生命周期是否应为「已停产」而不是「停产无替代」";
 
@@ -71,6 +74,7 @@ public class ProductServiceImpl implements ProductService {
     private final PlatformScopeGuard platformScopeGuard;
     private final IndustryScope industryScope;
     private final ProductWriteGuard productWriteGuard;
+    private final ProductOrderCodes orderCodes;
     private final ObjectProvider<ProductUsageChecker> usageCheckers;
 
     public ProductServiceImpl(ProductMapper productMapper, ProductBrandMapper brandMapper,
@@ -80,8 +84,10 @@ public class ProductServiceImpl implements ProductService {
                               PlatformScopeGuard platformScopeGuard,
                               ObjectProvider<ProductUsageChecker> usageCheckers,
                               com.zhul.erp.modules.product.candidate.repository.ProductHeatMapper heatMapper,
-                              IndustryScope industryScope, ProductWriteGuard productWriteGuard) {
+                              IndustryScope industryScope, ProductWriteGuard productWriteGuard,
+                              ProductOrderCodes orderCodes) {
         this.heatMapper = heatMapper;
+        this.orderCodes = orderCodes;
         this.industryScope = industryScope;
         this.productWriteGuard = productWriteGuard;
         this.productMapper = productMapper;
@@ -140,6 +146,10 @@ public class ProductServiceImpl implements ProductService {
                 if (!normalized.isEmpty()) {
                     w.or().like(ProductDO::getMpnNormalized, normalized);
                 }
+                List<Long> byCode = orderCodes.productsMatching(query.getKeyword(), KEYWORD_CODE_LIMIT);
+                if (!byCode.isEmpty()) {
+                    w.or().in(ProductDO::getId, byCode);
+                }
             });
         }
         if (heatOrder != null) {
@@ -190,6 +200,7 @@ public class ProductServiceImpl implements ProductService {
         ProductVO vo = toVO(product, productNames.load(List.of(product)));
         vo.setUsageCount(usageCount(id));
         vo.setCompleteness(completenessService.compute(List.of(product)).get(id));
+        vo.setOrderCodes(orderCodes.codesOf(id));
         return vo;
     }
 
@@ -218,7 +229,12 @@ public class ProductServiceImpl implements ProductService {
         }
         log.info("商品创建，productId={}, brandId={}, mpn={}", product.getId(), product.getBrandId(),
                 product.getMpnNormalized());
-        return toVO(product, productNames.load(List.of(product)));
+        if (req.getOrderCodes() != null) {
+            orderCodes.replace(product.getId(), product.getBrandId(), req.getOrderCodes());
+        }
+        ProductVO created = toVO(product, productNames.load(List.of(product)));
+        created.setOrderCodes(orderCodes.codesOf(product.getId()));
+        return created;
     }
 
     // ---------- 修改 ----------
@@ -253,8 +269,14 @@ public class ProductServiceImpl implements ProductService {
             throw duplicate(findByMpnLocking(change.getBrandId(), change.getMpnNormalized()), e);
         }
 
+        // 品牌改了时订货号跟着换到新品牌下（同品牌唯一按新品牌校验）
+        if (req.getOrderCodes() != null || !Objects.equals(change.getBrandId(), current.getBrandId())) {
+            orderCodes.replace(id, change.getBrandId(),
+                    req.getOrderCodes() != null ? req.getOrderCodes() : orderCodes.codesOf(id));
+        }
         ProductDO saved = productFinder.active(id);
         ProductVO vo = toVO(saved, productNames.load(List.of(saved)));
+        vo.setOrderCodes(orderCodes.codesOf(id));
         vo.setUsageCount(usage);
         vo.setWarnings(warningsFor(saved));
         return vo;

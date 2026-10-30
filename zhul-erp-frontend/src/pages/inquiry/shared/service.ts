@@ -95,6 +95,8 @@ export interface InquiryItem {
   groupKey: string;
   originalModel: string;
   confirmedModel: string;
+  /** 订货号（物料号、料号），辅助识别；多个用英文逗号分隔 */
+  orderCode?: string;
   confidence: number;
   correctionNote: string;
   quantity: number;
@@ -166,6 +168,8 @@ export interface DraftRow {
   categoryId?: number | null;
   originalModel?: string;
   confirmedModel: string;
+  /** 订货号（物料号、料号），辅助识别；多个用英文逗号分隔 */
+  orderCode?: string;
   confidence: number;
   correctionNote?: string;
   quantity: number;
@@ -387,6 +391,8 @@ export interface MyQuote {
 export interface MyTaskItem {
   id: number;
   model: string;
+  /** 订货号（物料号、料号），辅助识别 */
+  orderCode?: string;
   originalModel: string;
   quantity: number;
   unit: string;

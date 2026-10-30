@@ -256,6 +256,11 @@ const CustomerInquiryDetailPage: React.FC = () => {
               {lifecycleLabel(r.lifecycle)}
             </span>
           )}
+          {r.orderCode && (
+            <span style={{ color: palette.mute, fontSize: 12 }}>
+              订货号 {r.orderCode}
+            </span>
+          )}
           {r.actualModel && (
             <span style={{ color: palette.violet, fontSize: 12 }}>
               真实型号：{r.actualModel}

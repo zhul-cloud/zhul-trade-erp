@@ -71,6 +71,8 @@ public class AttachmentService {
     public static final String PACKING = "PACKING";
     /** 素材库里为某个型号上传的网络图片，挂在素材索引上 */
     public static final String NETWORK = "NETWORK";
+    /** 销售订单附件：PI、合同、客户 PO 等，收 PDF、图片与 Excel */
+    public static final String SALES_ORDER = "SALES_ORDER";
     /** 只收图片或 PDF 的归属类型 */
     private static final Set<String> PROOF_TYPES = Set.of(PAYMENT, COURIER_PROOF, RETURN_PROOF, EXPENSE, REIMBURSE, PO_INVOICE, REFUND, OTHER_INCOME,
             SOURCING_QUOTE);
@@ -78,7 +80,7 @@ public class AttachmentService {
             Map.entry(SHOOT, 30), Map.entry(LOGISTICS, 10), Map.entry(PAYMENT, 10), Map.entry(COURIER_PROOF, 10),
             Map.entry(RETURN_PROOF, 10), Map.entry(EXPENSE, 10), Map.entry(REIMBURSE, 10), Map.entry(PO_INVOICE, 10),
             Map.entry(REFUND, 10), Map.entry(OTHER_INCOME, 10), Map.entry(SOURCING_QUOTE, 5), Map.entry(RECEIPT_DEFECT, 20),
-            Map.entry(PACKING, 20), Map.entry(NETWORK, 1));
+            Map.entry(PACKING, 20), Map.entry(NETWORK, 1), Map.entry(SALES_ORDER, 10));
     /** 只收图片的归属类型（不传视频） */
     private static final Set<String> IMAGE_ONLY_TYPES = Set.of(RECEIPT_DEFECT, PACKING, NETWORK);
     public static final int IMAGE = 1;
@@ -88,6 +90,7 @@ public class AttachmentService {
     private static final Set<String> IMAGE_EXTS = Set.of("jpg", "png", "webp");
     private static final Set<String> VIDEO_EXTS = Set.of("mp4", "mov");
     private static final Set<String> FACE_SHEET_EXTS = Set.of("pdf", "jpg", "png", "webp");
+    private static final Set<String> DOC_EXTS = Set.of("pdf", "jpg", "png", "webp", "xlsx", "xls");
     private static final long IMAGE_MAX = 10L * 1024 * 1024;
     private static final long VIDEO_MAX = 200L * 1024 * 1024;
 
@@ -99,7 +102,8 @@ public class AttachmentService {
             Map.entry(REIMBURSE, StorageArea.FINANCE), Map.entry(REFUND, StorageArea.FINANCE),
             Map.entry(OTHER_INCOME, StorageArea.FINANCE), Map.entry(PO_INVOICE, StorageArea.PURCHASE),
             Map.entry(SOURCING_QUOTE, StorageArea.SOURCING), Map.entry(RECEIPT_DEFECT, StorageArea.RECEIPT),
-            Map.entry(PACKING, StorageArea.PACKING), Map.entry(NETWORK, StorageArea.MEDIA));
+            Map.entry(PACKING, StorageArea.PACKING), Map.entry(NETWORK, StorageArea.MEDIA),
+            Map.entry(SALES_ORDER, StorageArea.SALES));
 
     private final BizAttachmentMapper mapper;
     private final BizAttachmentModelMapper tagMapper;
@@ -121,7 +125,10 @@ public class AttachmentService {
         StorageArea area = AREAS.get(ownerType);
         FileStorageService.StoredFile s;
         int kind;
-        if (LOGISTICS.equals(ownerType) || PROOF_TYPES.contains(ownerType)) {
+        if (SALES_ORDER.equals(ownerType)) {
+            s = files.store(area, tenantId, file, DOC_EXTS, IMAGE_MAX, "只支持 PDF、JPG、PNG、WEBP、Excel");
+            kind = s.contentType().startsWith("image/") ? IMAGE : FILE;
+        } else if (LOGISTICS.equals(ownerType) || PROOF_TYPES.contains(ownerType)) {
             s = files.store(area, tenantId, file, FACE_SHEET_EXTS, IMAGE_MAX,
                     PROOF_TYPES.contains(ownerType) ? "截图只支持 PDF、JPG、PNG、WEBP" : "面单只支持 PDF、JPG、PNG、WEBP");
             kind = s.contentType().startsWith("image/") ? IMAGE : FILE;

@@ -57,6 +57,7 @@ import {
   STOCK,
   StockPill,
 } from './dialogs';
+import { OrderFilesCard } from './OrderFiles';
 import {
   GOODS_LABELS,
   GoodsBar,
@@ -748,7 +749,6 @@ const OrderDetail: React.FC = () => {
             {[o.incoterm, o.incotermPlace].filter(Boolean).join(' ') || '—'}
           </span>
           <span>起运港：{o.portOfShipment || '—'}</span>
-          {o.remark && <span>备注：{o.remark}</span>}
         </div>
       )}
       <div
@@ -1259,6 +1259,11 @@ const OrderDetail: React.FC = () => {
       >
         <div style={{ minWidth: 0 }}>
           {main}
+          <OrderFilesCard
+            order={o}
+            canEdit={editable && !!access['sales:order:attachment']}
+            onChanged={load}
+          />
           {o.cost && <OrderCostCard cost={o.cost} />}
           <RefundModal
             open={refundOpen}

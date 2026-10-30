@@ -53,6 +53,8 @@ public class SalesOrderVO {
     private String incotermPlace;
     private String portOfShipment;
     private String remark;
+    /** PI、合同、客户 PO 等附件 */
+    private List<com.zhul.erp.modules.attachment.dto.AttachmentVO> attachments;
     private BigDecimal itemAmount;
     private BigDecimal feeAmount;
     private BigDecimal discountAmount;

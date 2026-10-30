@@ -5,6 +5,9 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import org.springframework.mock.web.MockMultipartFile;
+
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -14,7 +17,9 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 
 /** spec sales/sales-order：销售日期、手动建单、型号进度与采购员、现货 / 期货、订单毛利；sales/payment-receipt：手动订单的收款 */
@@ -225,6 +230,45 @@ class SalesOrderTrackingContractTest extends SalesContractSupport {
         assertEquals(2, second.path("customerType").asInt(), "已有有效订单 → 老客户");
         JsonNode list = ok(call(json(post(SO + "/page"), "{}"), admin)).path("records").get(0);
         assertEquals("未付款", list.path("receiptStatusName").asText());
+    }
+
+    private long uploadSoFile(String name, byte[] bytes) throws Exception {
+        return ok(call(multipart("/api/v1/attachments").file(new MockMultipartFile("file", name, "application/octet-stream", bytes))
+                .param("ownerType", "SALES_ORDER"), admin)).path("id").asLong();
+    }
+
+    @Test
+    void manualCreate_attachmentsAndRemark_maintainedOnDetail() throws Exception {
+        byte[] pdf = "%PDF-1.4\n%test".getBytes(StandardCharsets.US_ASCII);
+        byte[] xlsx = {'P', 'K', 3, 4, 20, 0, 6, 0, 8, 0, 0, 0, 0, 0, 0, 0};
+        assertEquals("只支持 PDF、JPG、PNG、WEBP、Excel", fail(call(multipart("/api/v1/attachments")
+                .file(new MockMultipartFile("file", "说明.txt", "text/plain", "hello".getBytes(StandardCharsets.UTF_8)))
+                .param("ownerType", "SALES_ORDER"), admin)).path("message").asText());
+        long pi = uploadSoFile("PI-1030.pdf", pdf);
+        Map<String, Object> b = new LinkedHashMap<>();
+        b.put("customerId", customer("Ahmed Trading", "United Arab Emirates"));
+        b.put("items", List.of(line("6ES7214-1AG40-0XB0", 2, "420", null, null, null)));
+        b.put("remark", " 客户要求 11 月 15 日前发货 ");
+        b.put("attachmentIds", List.of(pi));
+        JsonNode so = ok(call(json(post(SO), write(b)), admin));
+        long id = so.path("id").asLong();
+        assertEquals("客户要求 11 月 15 日前发货", so.path("remark").asText());
+        assertEquals(1, so.path("attachments").size());
+        assertEquals("PI-1030.pdf", so.path("attachments").get(0).path("fileName").asText());
+
+        long sheet = uploadSoFile("报价明细.xlsx", xlsx);
+        JsonNode added = ok(call(json(post(SO + "/" + id + "/attachments"), write(Map.of("attachmentIds", List.of(sheet)))), admin));
+        assertEquals(2, added.path("attachments").size(), "订单详情里补传");
+        JsonNode removed = ok(call(delete(SO + "/" + id + "/attachments/" + pi), admin));
+        assertEquals(1, removed.path("attachments").size());
+        assertEquals(1, jdbc.queryForObject("select count(*) from biz_attachment where id = ? and deleted_at is not null", Integer.class, pi),
+                "删除是软删除");
+        assertEquals("PI 已线下签字", ok(call(json(post(SO + "/" + id + "/remark"), write(Map.of("remark", "PI 已线下签字"))), admin))
+                .path("remark").asText());
+
+        ok(call(json(post(SO + "/" + id + "/cancel"), write(Map.of("reason", "客户取消"))), admin));
+        assertEquals("订单已取消，不能修改", fail(call(json(post(SO + "/" + id + "/remark"), write(Map.of("remark", "x"))), admin))
+                .path("message").asText());
     }
 
     @Test

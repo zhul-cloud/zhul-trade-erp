@@ -21,6 +21,7 @@ import com.zhul.erp.modules.inquiry.sourcing.repository.SourcingQuoteMapper;
 import com.zhul.erp.modules.inquiry.sourcing.service.PriceHistoryService;
 import com.zhul.erp.modules.inquiry.support.InquiryLookups;
 import com.zhul.erp.modules.inquiry.support.PriceKeys;
+import com.zhul.erp.modules.product.support.ProductOrderCodes;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -40,6 +41,10 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class PriceHistoryServiceImpl implements PriceHistoryService {
 
+    /** 按订货号最多换出的型号数 */
+    private static final int CODE_MATCH_LIMIT = 50;
+
+
     private static final int MATCH_LIMIT = 50;
 
     private final SourcingQuoteMapper quoteMapper;
@@ -48,6 +53,7 @@ public class PriceHistoryServiceImpl implements PriceHistoryService {
     private final InquiryLookups lookups;
     private final PermissionChecker perm;
     private final AttachmentService attachmentService;
+    private final ProductOrderCodes orderCodes;
 
     @Override
     public PriceMatchVO match(String brand, String model) {
@@ -102,7 +108,9 @@ public class PriceHistoryServiceImpl implements PriceHistoryService {
                 .isNull("deleted_at");
         String modelKey = PriceKeys.model(q.getModel());
         if (StringUtils.hasText(modelKey)) {
-            w.like("model_key", modelKey);
+            // 也能按订货号（物料号、料号）找：换成商品库里对应商品的型号
+            List<String> byCode = orderCodes.modelKeysMatching(q.getModel(), CODE_MATCH_LIMIT);
+            w.and(x -> x.like("model_key", modelKey).or(!byCode.isEmpty(), y -> y.in("model_key", byCode)));
         }
         if (StringUtils.hasText(q.getBrand())) {
             w.eq("brand_key", priceKeys.brand(q.getBrand()).brandKey());

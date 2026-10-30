@@ -23,6 +23,8 @@ public class ProductCandidateDO {
     private String brandKey;
     private String mpnRaw;
     private String mpnNormalized;
+    /** 订货号（物料号、料号），建档时带到商品；多个用英文逗号分隔 */
+    private String orderCode;
     @TableField(updateStrategy = FieldStrategy.ALWAYS)
     private Long categoryId;
     private String categoryText;

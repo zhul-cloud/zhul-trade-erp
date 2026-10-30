@@ -64,6 +64,8 @@ export interface QuotationItem {
   inquiryCode?: string;
   inquiryItemId: number;
   model: string;
+  /** 询盘型号上的订货号（物料号、料号），辅助识别，只在系统内显示 */
+  orderCode?: string;
   brand: string;
   category?: string;
   description?: string;

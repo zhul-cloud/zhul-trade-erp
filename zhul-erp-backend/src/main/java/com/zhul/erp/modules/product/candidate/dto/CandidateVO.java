@@ -15,6 +15,8 @@ public class CandidateVO {
     /** 品牌原文 */
     private String brandText;
     private String mpnRaw;
+    /** 订货号（物料号、料号），多个用英文逗号分隔 */
+    private String orderCode;
     private Long categoryId;
     private String categoryName;
     private String categoryText;

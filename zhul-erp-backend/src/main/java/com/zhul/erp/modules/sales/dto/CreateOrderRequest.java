@@ -20,6 +20,9 @@ public class CreateOrderRequest {
     private LocalDate salesDate;
     @Size(max = 500, message = "备注不能超过 500 字")
     private String remark;
+    /** PI、合同、客户 PO 等附件：先上传拿到 ID */
+    @Size(max = 10, message = "附件最多 10 个")
+    private List<Long> attachmentIds;
     @Valid
     private List<Line> items;
 

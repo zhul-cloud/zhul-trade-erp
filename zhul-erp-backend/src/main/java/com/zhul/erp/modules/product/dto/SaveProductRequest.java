@@ -2,6 +2,8 @@ package com.zhul.erp.modules.product.dto;
 
 import lombok.Data;
 
+import java.util.List;
+
 @Data
 public class SaveProductRequest {
     private Long brandId;
@@ -19,4 +21,6 @@ public class SaveProductRequest {
     private Integer lifecycleStatus;
     /** 生命周期依据，4/5 时必填 */
     private String lifecycleSource;
+    /** 订货号（物料号、料号），辅助识别；不传为不改，传空列表为清空 */
+    private List<String> orderCodes;
 }

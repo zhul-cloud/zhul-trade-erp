@@ -27,6 +27,8 @@ public class InquiryItemDO {
     private Long categoryId;
     private String originalModel;
     private String confirmedModel;
+    /** 订货号（物料号、料号），辅助识别；多个用英文逗号分隔 */
+    private String orderCode;
     /** 归一化型号，与商品主数据同规则 */
     private String modelKey;
     private Long productId;

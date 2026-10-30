@@ -108,6 +108,7 @@ OUTPUT_SCHEMA = {
                                 "categoryCode": {"type": "string"},
                                 "originalModel": {"type": "string"},
                                 "confirmedModel": {"type": "string"},
+                                "orderCode": {"type": "string"},
                                 "confidence": {"type": "integer"},
                                 "correctionNote": {"type": "string"},
                                 "description": {"type": "string"},
@@ -236,6 +237,7 @@ def build_system_prompt(categories=None) -> str:
 【输出格式覆盖规则——优先于上面两个 skill 原有的输出格式说明，必须严格遵守】
 最终只输出一个 JSON 对象，字段名必须完全一致（驼峰命名），对应关系：
 - model -> confirmedModel
+- order_code -> orderCode（订货号、物料号、料号，辅助识别；没有时为空字符串；多个用英文逗号分隔。型号与订货号的区分按 inquiry-parser「型号与订货号」执行：confirmedModel 只放型号，西门子这类订货号即型号的品牌除外）
 - note -> remark
 - confidence 原来是中文字符串，现在必须转换成整数：确认=1，已纠正=2，待核实=3，未识别=4
 - email_cn -> emailTemplateCn，email_en -> emailTemplateEn，inquiry_template -> inquiryTemplate（字段名不变）
