@@ -227,6 +227,20 @@ class ReceivingContractTest extends SalesContractSupport {
         assertEquals(403, perform(json(post(GR + "/pending"), "{}"), lin).getStatus(), "采购员不能打开采购入库");
     }
 
+    @Test
+    void poDetail_viewsItsShipment_withoutShipmentMenu() throws Exception {
+        long sup = supplier("华控自动化", null);
+        JsonNode po = orderedPo(sup, l("A-1", 2, "1000", "200"));
+        long poId = po.path("id").asLong();
+        long sid = ok(ship(poId, Map.of(item(po, 0), 2), lin)).path("shipment").path("id").asLong();
+        jdbc.update("delete from role_resource where role_code = ? and resource_id = ?", BUYER_ROLE, MENU_SHIP);
+        assertEquals(403, perform(get(SHIP + "/" + sid), lin).getStatus(), "没有供应商发货菜单");
+        JsonNode viewed = ok(call(get("/api/v1/purchase/orders/" + poId + "/shipments/" + sid), lin));
+        assertEquals(sid, viewed.path("shipment").path("id").asLong(), "采购订单详情里可以查看自己的发货单");
+        assertEquals("发货单不存在", fail(call(get("/api/v1/purchase/orders/" + (poId + 1) + "/shipments/" + sid), lin))
+                .path("message").asText(), "只认这张订单下的发货单");
+    }
+
     // ---------------------------------------------------------------- 验收入库
 
     @Test

@@ -13,6 +13,8 @@ import com.zhul.erp.modules.purchase.dto.RegisterInvoiceRequest;
 import com.zhul.erp.modules.purchase.dto.RevokeInvoiceRequest;
 import com.zhul.erp.modules.purchase.dto.SavePurchaseOrderRequest;
 import com.zhul.erp.modules.purchase.service.PurchaseOrderService;
+import com.zhul.erp.modules.warehouse.dto.ShipmentVO;
+import com.zhul.erp.modules.warehouse.service.ShipmentService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -42,6 +44,7 @@ public class PurchaseOrderController {
     private static final String CANCEL = MENU + " and @perm.has('purchase:order:cancel')";
 
     private final PurchaseOrderService service;
+    private final ShipmentService shipmentService;
 
     @PostMapping("/page")
     @PreAuthorize(MENU)
@@ -59,6 +62,13 @@ public class PurchaseOrderController {
     @PreAuthorize(MENU)
     public Result<PurchaseOrderVO> detail(@PathVariable Long id) {
         return Result.ok(service.detail(id));
+    }
+
+    /** 发货与入库里查看发货单（型号、快递、图片与视频）：有采购订单菜单即可，不需要「供应商发货」菜单 */
+    @GetMapping("/{id}/shipments/{shipmentId}")
+    @PreAuthorize(MENU)
+    public Result<ShipmentVO> shipment(@PathVariable Long id, @PathVariable Long shipmentId) {
+        return Result.ok(shipmentService.detailOfPo(id, shipmentId));
     }
 
     @PutMapping("/{id}")
