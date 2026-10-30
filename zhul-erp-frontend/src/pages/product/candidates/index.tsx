@@ -47,6 +47,15 @@ import {
 } from './service';
 
 type Tab = 1 | 2 | 3 | 4;
+type TabCounts = Awaited<ReturnType<typeof candidateApi.counts>>;
+
+/** 页签上的数字按当前筛选条件统计，和筛选后的列表一致 */
+const TABS: { value: Tab; label: string; key: keyof TabCounts }[] = [
+  { value: 1, label: '待审核', key: 'pending' },
+  { value: 2, label: '已建档', key: 'archived' },
+  { value: 3, label: '已并入', key: 'merged' },
+  { value: 4, label: '已驳回', key: 'rejected' },
+];
 
 /** 可信度：三个点，颜色越暖越可信 */
 export const LevelDots: React.FC<{ level: number; name: string }> = ({
@@ -837,7 +846,7 @@ const Candidates: React.FC = () => {
   const access = useAccess();
   const canReview = !!access['product:candidate:review'];
   const [tab, setTab] = useState<Tab>(1);
-  const [pendingCount, setPendingCount] = useState<number>();
+  const [counts, setCounts] = useState<TabCounts>();
   const [importOpen, setImportOpen] = useState(false);
   const [keyword, setKeyword] = useState('');
   const [level, setLevel] = useState<number>();
@@ -880,10 +889,10 @@ const Candidates: React.FC = () => {
 
   const refreshCount = useCallback(() => {
     candidateApi
-      .counts()
-      .then((c) => setPendingCount(c.pending))
-      .catch(() => setPendingCount(undefined));
-  }, []);
+      .counts(query)
+      .then(setCounts)
+      .catch(() => setCounts(undefined));
+  }, [query]);
 
   useEffect(() => {
     load();
@@ -1125,15 +1134,13 @@ const Candidates: React.FC = () => {
             setPage(1);
             setSelected([]);
           }}
-          options={[
-            {
-              value: 1,
-              label: pendingCount ? `待审核 · ${pendingCount}` : '待审核',
-            },
-            { value: 2, label: '已建档' },
-            { value: 3, label: '已并入' },
-            { value: 4, label: '已驳回' },
-          ]}
+          options={TABS.map((t) => {
+            const n = counts?.[t.key];
+            return {
+              value: t.value,
+              label: n === undefined ? t.label : `${t.label} · ${n}`,
+            };
+          })}
         />
         <Input
           allowClear

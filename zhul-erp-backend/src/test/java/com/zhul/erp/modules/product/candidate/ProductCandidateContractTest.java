@@ -282,6 +282,14 @@ class ProductCandidateContractTest extends InquiryContractSupport {
         assertEquals(List.of("NOCAT-1"), mpns(ok(call(json(post(CAND + "/page"), "{\"categoryState\":2}"), admin))));
         assertEquals(List.of("6ES7215-1AG40-0XB0", "UNK-1"),
                 mpns(ok(call(json(post(CAND + "/page"), "{\"categoryState\":1}"), admin))));
+
+        // 页签条数按同样的筛选条件统计
+        JsonNode all = ok(call(json(post(CAND + "/counts"), "{}"), admin));
+        assertEquals(3, all.path("pending").asInt());
+        assertEquals(0, all.path("archived").asInt());
+        JsonNode noCategory = ok(call(json(post(CAND + "/counts"), "{\"categoryState\":2}"), admin));
+        assertEquals(1, noCategory.path("pending").asInt(), "筛选未选品类后，待审核的条数和列表一致");
+        assertEquals(1, ok(call(json(post(CAND + "/counts"), "{\"keyword\":\"UNK\"}"), admin)).path("pending").asInt());
     }
 
     private static List<String> mpns(JsonNode page) {

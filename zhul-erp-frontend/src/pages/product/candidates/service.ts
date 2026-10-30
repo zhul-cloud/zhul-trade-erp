@@ -82,19 +82,27 @@ const send = <T>(method: string, url: string, data?: unknown) =>
   request<{ data: T }>(url, { method, data, ...quiet }).then((r) => r.data);
 const C = '/api/v1/product/candidates';
 
+export type CandidateFilter = {
+  keyword?: string;
+  level?: number;
+  /** 1 品牌已确认、2 待确认品牌 */
+  brandState?: number;
+  /** 1 已选品类、2 未选品类 */
+  categoryState?: number;
+};
+
 export const candidateApi = {
-  page: (q: {
-    page: number;
-    pageSize: number;
-    status: number;
-    keyword?: string;
-    level?: number;
-    /** 1 品牌已确认、2 待确认品牌 */
-    brandState?: number;
-    /** 1 已选品类、2 未选品类 */
-    categoryState?: number;
-  }) => send<PageResult<Candidate>>('POST', `${C}/page`, q),
-  counts: () => send<{ pending: number }>('GET', `${C}/counts`),
+  page: (
+    q: CandidateFilter & { page: number; pageSize: number; status: number },
+  ) => send<PageResult<Candidate>>('POST', `${C}/page`, q),
+  /** 各页签条数，按同样的筛选条件统计 */
+  counts: (q: CandidateFilter) =>
+    send<{
+      pending: number;
+      archived: number;
+      merged: number;
+      rejected: number;
+    }>('POST', `${C}/counts`, q),
   detail: (id: number) => send<Candidate>('GET', `${C}/${id}`),
   approve: (id: number, body: ApproveBody) =>
     send<Candidate>('POST', `${C}/${id}/approve`, body),
