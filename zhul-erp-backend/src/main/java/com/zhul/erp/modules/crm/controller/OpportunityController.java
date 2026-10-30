@@ -18,6 +18,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -113,6 +114,13 @@ public class OpportunityController {
     @PreAuthorize("@perm.has('crm:opportunity:edit')")
     public Result<Void> reopen(@PathVariable Long id) {
         opportunityService.reopen(id);
+        return Result.ok();
+    }
+
+    @DeleteMapping("/{id}")
+    @PreAuthorize("@perm.has('crm:opportunity:delete')")
+    public Result<Void> delete(@PathVariable Long id) {
+        opportunityService.delete(id);
         return Result.ok();
     }
 

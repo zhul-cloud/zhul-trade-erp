@@ -33,6 +33,9 @@ public interface OpportunityService {
 
     void reopen(Long id);
 
+    /** 删除商机（软删除）：有关联询盘时不能删除；客户档案保留 */
+    void delete(Long id);
+
     PageResult<OpportunityVO> page(OpportunityPageQuery query);
 
     OpportunitySummaryVO summary();

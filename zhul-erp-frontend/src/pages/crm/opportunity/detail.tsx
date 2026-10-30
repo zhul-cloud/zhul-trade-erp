@@ -50,6 +50,7 @@ const OpportunityDetailPage: React.FC = () => {
   const { message, modal } = App.useApp();
   const access = useAccess() as Record<string, boolean>;
   const canEdit = !!access['crm:opportunity:edit'];
+  const canDelete = !!access['crm:opportunity:delete'];
 
   const [detail, setDetail] = useState<OpportunityDetail | null>();
   const [stages, setStages] = useState<OpportunityStage[]>([]);
@@ -130,6 +131,70 @@ const OpportunityDetailPage: React.FC = () => {
 
   const d = detail;
   const isActive = d.stageCategory === CATEGORY_ACTIVE;
+
+  /** 有关联询盘时列出、不能删；没有时确认后软删除，客户档案保留 */
+  const askDelete = () => {
+    if (d.inquiries.length > 0) {
+      const dialog = modal.info({
+        title: '这条商机不能删除',
+        width: 540,
+        okText: '知道了',
+        content: (
+          <div style={{ display: 'grid', gap: 8 }}>
+            <div style={{ color: palette.sub }}>
+              已经有下面这些询盘关联它。要删除商机，先删除这些询盘（询盘有报价单、PI、订单时也不能删）；只是不再跟进的话，可以用「结束商机」。
+            </div>
+            <div>
+              <b style={{ color: palette.ink }}>询盘单</b>{' '}
+              <span style={{ fontSize: 12, color: palette.mute }}>
+                {d.inquiries.length} 条
+              </span>
+            </div>
+            {d.inquiries.map((q) => (
+              <div
+                key={q.id}
+                style={{ display: 'flex', justifyContent: 'space-between' }}
+              >
+                <a
+                  onClick={() => {
+                    dialog.destroy();
+                    history.push(`/inquiry/customer-inquiries/${q.id}`);
+                  }}
+                >
+                  {q.inquiryCode}
+                </a>
+                <StatusPill status={q.status} />
+              </div>
+            ))}
+          </div>
+        ),
+      });
+      return;
+    }
+    modal.confirm({
+      title: '删除这条商机？',
+      content: (
+        <>
+          <div style={{ fontWeight: 600, marginBottom: 6 }}>
+            {d.opportunityCode} · {d.customerName}
+          </div>
+          删除后商机从列表和统计里消失，客户档案保留；可以联系管理员恢复。只是不再跟进的话，建议用「结束商机」标为流失或无效，记录会保留在统计里。
+        </>
+      ),
+      okText: '删除',
+      okButtonProps: { danger: true },
+      cancelText: '再想想',
+      onOk: async () => {
+        try {
+          await opportunityApi.remove(d.id);
+          message.success('商机已删除');
+          history.push(LIST_PATH);
+        } catch (e) {
+          message.error(readBizError(e).message);
+        }
+      },
+    });
+  };
   const idx = active.findIndex((s) => s.code === d.stageCode);
   const next = idx >= 0 ? active[idx + 1] : undefined;
   const last = active[active.length - 1];
@@ -276,6 +341,11 @@ const OpportunityDetailPage: React.FC = () => {
         }
         actions={
           <>
+            {canDelete && (
+              <Button disabled={busy} onClick={askDelete}>
+                删除
+              </Button>
+            )}
             {canEdit && (
               <Button icon={<EditOutlined />} onClick={() => setEditing(true)}>
                 编辑
