@@ -2,6 +2,7 @@ package com.zhul.erp.modules.sales.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.zhul.erp.common.exception.BizException;
+import com.zhul.erp.modules.attachment.service.AttachmentService;
 import com.zhul.erp.common.utils.MigratedGuard;
 import com.zhul.erp.common.result.PageResult;
 import com.zhul.erp.framework.security.DataScopeResolver;
@@ -120,6 +121,7 @@ public class SalesOrderServiceImpl implements SalesOrderService {
     private final com.zhul.erp.modules.sales.support.PiDefaults piDefaults;
     private final com.zhul.erp.modules.sales.support.ReceiptViews receiptViews;
     private final OrderProgress progress;
+    private final AttachmentService attachmentService;
     private final com.zhul.erp.modules.purchase.support.RequirementLifecycle requirementLifecycle;
     private final com.zhul.erp.modules.purchase.support.PurchaseLinks purchaseLinks;
 
@@ -397,6 +399,7 @@ public class SalesOrderServiceImpl implements SalesOrderService {
             orderItemMapper.insert(x);
         }
         requirementLifecycle.onOrderCreated(o, rows);
+        attachmentService.attach(AttachmentService.SALES_ORDER, o.getId(), req.getAttachmentIds());
         Map<String, Object> after = new LinkedHashMap<>();
         after.put("soNo", o.getSoNo());
         after.put("customer", InquiryLookups.customerName(customer));
@@ -538,6 +541,51 @@ public class SalesOrderServiceImpl implements SalesOrderService {
                 Map.of("soNo", o.getSoNo(), "salesDate", before == null ? "" : before.toString()),
                 Map.of("soNo", o.getSoNo(), "salesDate", salesDate.toString()));
         return detail(id);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public SalesOrderVO addAttachments(Long id, List<Long> attachmentIds) {
+        SalesOrderDO o = activeForEdit(id);
+        attachmentService.attach(AttachmentService.SALES_ORDER, id, attachmentIds);
+        logService.recordOperateLog(SalesConstants.MENU_SO, "补传订单附件", null,
+                Map.of("soNo", o.getSoNo(), "attachments", attachmentIds.size()));
+        return detail(id);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public SalesOrderVO removeAttachment(Long id, Long attachmentId) {
+        SalesOrderDO o = activeForEdit(id);
+        attachmentService.remove(AttachmentService.SALES_ORDER, id, attachmentId);
+        logService.recordOperateLog(SalesConstants.MENU_SO, "删除订单附件",
+                Map.of("soNo", o.getSoNo(), "attachmentId", attachmentId), null);
+        return detail(id);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public SalesOrderVO updateRemark(Long id, String remark) {
+        SalesOrderDO o = activeForEdit(id);
+        String before = o.getRemark();
+        String after = remark == null ? "" : remark.trim();
+        if (!after.equals(before)) {
+            o.setRemark(after);
+            orderMapper.updateById(o);
+            logService.recordOperateLog(SalesConstants.MENU_SO, "修改订单备注",
+                    Map.of("soNo", o.getSoNo(), "remark", before == null ? "" : before), Map.of("soNo", o.getSoNo(), "remark", after));
+        }
+        return detail(id);
+    }
+
+    /** 附件与备注：订单取消后只读，历史迁移的订单只读 */
+    private SalesOrderDO activeForEdit(Long id) {
+        visible(id);
+        SalesOrderDO o = lockOrder(id);
+        if (o.getStatus() != SalesConstants.SO_ACTIVE) {
+            throw new BizException("订单已取消，不能修改");
+        }
+        return o;
     }
 
     @Override
@@ -734,6 +782,7 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         vo.setIncotermPlace(o.getIncotermPlace());
         vo.setPortOfShipment(o.getPortOfShipment());
         vo.setRemark(o.getRemark());
+        vo.setAttachments(attachmentService.listOf(AttachmentService.SALES_ORDER, o.getId()));
         vo.setItemAmount(o.getItemAmount());
         vo.setFeeAmount(o.getFeeAmount());
         vo.setDiscountAmount(o.getDiscountAmount());

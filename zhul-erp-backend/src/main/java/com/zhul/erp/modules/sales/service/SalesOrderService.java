@@ -35,6 +35,14 @@ public interface SalesOrderService {
 
     SalesOrderVO cancel(Long id, String reason);
 
+    /** 补传附件（PI、合同、客户 PO 等） */
+    SalesOrderVO addAttachments(Long id, java.util.List<Long> attachmentIds);
+
+    /** 删除附件（软删除） */
+    SalesOrderVO removeAttachment(Long id, Long attachmentId);
+
+    SalesOrderVO updateRemark(Long id, String remark);
+
     SalesOrderVO detail(Long id);
 
     PageResult<SalesOrderListVO> page(SalesOrderPageQuery query);

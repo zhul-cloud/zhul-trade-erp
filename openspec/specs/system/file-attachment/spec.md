@@ -67,6 +67,7 @@
 | `tenant/{租户}/opportunity/{年月}/` | 商机附件 |
 | `tenant/{租户}/sourcing/{年月}/` | 询价回价附件、询价导入文件 |
 | `tenant/{租户}/supplier/{年月}/` | 供应商资质与合同 |
+| `tenant/{租户}/sales/{年月}/` | 销售订单附件（PI、合同、客户 PO 等） |
 | `tenant/{租户}/purchase/{年月}/` | 采购合同、采购发票 |
 | `tenant/{租户}/shipment/{年月}/` | 供应商发货图片与视频 |
 | `tenant/{租户}/receipt/{年月}/` | 验收入库照片与视频 |

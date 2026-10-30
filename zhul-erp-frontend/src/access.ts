@@ -131,6 +131,7 @@ export default function access(initialState: {
     'sales:pi:receipt-confirm': can('sales:pi:receipt-confirm'),
     'sales:order:create': can('sales:order:create'),
     'sales:order:progress': can('sales:order:progress'),
+    'sales:order:attachment': can('sales:order:attachment'),
     systemGroup: any(
       '/system/user',
       '/system/role',

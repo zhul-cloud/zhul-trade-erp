@@ -16,6 +16,7 @@ import {
 import dayjs from 'dayjs';
 import React, { useEffect, useMemo, useState } from 'react';
 import { CURRENCIES } from '@/pages/quotation/components';
+import type { Attachment } from '@/pages/warehouse/service';
 import { searchCustomers } from '@/services/zhul/masterdata';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
@@ -29,6 +30,7 @@ import {
   piApi,
   readBizError,
 } from '../service';
+import { ORDER_FILE_MAX, OrderFileList, OrderFileUpload } from './OrderFiles';
 
 export const STOCK = { SPOT: 1, FUTURES: 2 } as const;
 
@@ -195,6 +197,8 @@ export const CreateOrderDrawer: React.FC<{
   const [currency, setCurrency] = useState('USD');
   const [date, setDate] = useState<dayjs.Dayjs | null>(dayjs());
   const [lines, setLines] = useState<Line[]>([newLine()]);
+  const [files, setFiles] = useState<Attachment[]>([]);
+  const [remark, setRemark] = useState('');
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -203,6 +207,8 @@ export const CreateOrderDrawer: React.FC<{
     setCurrency('USD');
     setDate(dayjs());
     setLines([newLine()]);
+    setFiles([]);
+    setRemark('');
     searchCustomers('')
       .then((list) => setCustomerOptions(toOptions(list)))
       .catch(() => undefined);
@@ -251,6 +257,8 @@ export const CreateOrderDrawer: React.FC<{
           purchaserId: l.purchaserId ?? null,
           stockType: l.stockType,
         })),
+        remark: remark.trim() || undefined,
+        attachmentIds: files.map((f) => f.id),
       });
       message.success(`已创建销售订单 ${order.soNo}`);
       onDone(order);
@@ -455,6 +463,39 @@ export const CreateOrderDrawer: React.FC<{
       >
         添加型号
       </Button>
+      <div style={{ marginTop: 16 }}>
+        <b style={{ display: 'block' }}>附件</b>
+        <div style={{ fontSize: 12, color: palette.mute, margin: '4px 0 8px' }}>
+          上传 PI、合同、客户 PO 等资料，建好后在订单详情里也能补传
+        </div>
+        <div style={{ display: 'grid', gap: 8 }}>
+          <OrderFileList
+            files={files}
+            onRemove={(a) =>
+              setFiles((prev) => prev.filter((f) => f.id !== a.id))
+            }
+          />
+          {files.length < ORDER_FILE_MAX && (
+            <OrderFileUpload
+              dragger
+              count={files.length}
+              onUploaded={(a) => setFiles((prev) => [...prev, a])}
+            />
+          )}
+        </div>
+      </div>
+      <div style={{ marginTop: 16 }}>
+        <b style={{ display: 'block', marginBottom: 8 }}>备注</b>
+        <Input.TextArea
+          rows={2}
+          maxLength={500}
+          showCount
+          placeholder="选填，如 客户要求 11 月 15 日前发货"
+          value={remark}
+          onChange={(e) => setRemark(e.target.value)}
+          aria-label="备注"
+        />
+      </div>
       <Alert
         type="info"
         showIcon
