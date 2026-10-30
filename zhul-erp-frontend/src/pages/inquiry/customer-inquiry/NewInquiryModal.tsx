@@ -507,18 +507,6 @@ const NewInquiryModal: React.FC<{
               placeholder="把客户发来的文字粘贴到这里"
             />
           </Form.Item>
-          <Form.Item
-            name="remark"
-            label="备注"
-            rules={[{ max: 500, message: '备注不能超过 500 字' }]}
-          >
-            <Input.TextArea
-              rows={2}
-              maxLength={500}
-              showCount
-              placeholder="选填，如 客户要求原装进口"
-            />
-          </Form.Item>
           <Upload.Dragger
             multiple
             accept={ATTACHMENT_ACCEPT}
@@ -581,6 +569,19 @@ const NewInquiryModal: React.FC<{
               ))}
             </div>
           )}
+          <Form.Item
+            name="remark"
+            style={{ marginTop: 16, marginBottom: 0 }}
+            label="备注"
+            rules={[{ max: 500, message: '备注不能超过 500 字' }]}
+          >
+            <Input.TextArea
+              rows={2}
+              maxLength={500}
+              showCount
+              placeholder="选填，如 客户要求原装进口"
+            />
+          </Form.Item>
         </Form>
       </Modal>
       <CustomerQuickCreateModal
