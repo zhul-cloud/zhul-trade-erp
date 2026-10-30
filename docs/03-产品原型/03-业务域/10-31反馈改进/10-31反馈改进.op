@@ -4142,6 +4142,1341 @@
           ]
         }
       ]
+    },
+    {
+      "type": "frame",
+      "id": "n217",
+      "name": "E1-商机详情-删除入口",
+      "x": 0.0,
+      "y": 1800.0,
+      "width": 1600.0,
+      "height": "fit_content",
+      "layout": "horizontal",
+      "fill": [
+        {
+          "type": "solid",
+          "color": "#0D1524"
+        }
+      ],
+      "children": [
+        {
+          "type": "frame",
+          "id": "n218",
+          "width": 220.0,
+          "height": "fill_container",
+          "layout": "vertical",
+          "gap": 6.0,
+          "padding": [
+            20.0,
+            16.0
+          ],
+          "fill": [
+            {
+              "type": "solid",
+              "color": "#0A101D"
+            }
+          ],
+          "children": [
+            {
+              "type": "text",
+              "id": "n219",
+              "width": "fit_content",
+              "height": "fit_content",
+              "content": "福唯 ERP",
+              "fontFamily": "Noto Sans SC",
+              "fontSize": 16.0,
+              "fontWeight": 700,
+              "lineHeight": 1.5,
+              "fill": [
+                {
+                  "type": "solid",
+                  "color": "#F8FAFC"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "n220",
+              "width": "fill_container",
+              "height": "fit_content",
+              "layout": "horizontal",
+              "padding": [
+                8.0,
+                12.0
+              ],
+              "cornerRadius": 6.0,
+              "fill": [
+                {
+                  "type": "solid",
+                  "color": "#0A101D"
+                }
+              ],
+              "children": [
+                {
+                  "type": "text",
+                  "id": "n221",
+                  "width": "fit_content",
+                  "height": "fit_content",
+                  "content": "工作台",
+                  "fontFamily": "Noto Sans SC",
+                  "fontSize": 13.0,
+                  "fontWeight": 400,
+                  "lineHeight": 1.5,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "#94A3B8"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "n222",
+              "width": "fill_container",
+              "height": "fit_content",
+              "layout": "horizontal",
+              "padding": [
+                8.0,
+                12.0
+              ],
+              "cornerRadius": 6.0,
+              "fill": [
+                {
+                  "type": "solid",
+                  "color": "#182B4C"
+                }
+              ],
+              "children": [
+                {
+                  "type": "text",
+                  "id": "n223",
+                  "width": "fit_content",
+                  "height": "fit_content",
+                  "content": "商机中心",
+                  "fontFamily": "Noto Sans SC",
+                  "fontSize": 13.0,
+                  "fontWeight": 400,
+                  "lineHeight": 1.5,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "#F8FAFC"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "n224",
+              "width": "fill_container",
+              "height": "fit_content",
+              "layout": "horizontal",
+              "padding": [
+                8.0,
+                12.0
+              ],
+              "cornerRadius": 6.0,
+              "fill": [
+                {
+                  "type": "solid",
+                  "color": "#0A101D"
+                }
+              ],
+              "children": [
+                {
+                  "type": "text",
+                  "id": "n225",
+                  "width": "fit_content",
+                  "height": "fit_content",
+                  "content": "询盘中心",
+                  "fontFamily": "Noto Sans SC",
+                  "fontSize": 13.0,
+                  "fontWeight": 400,
+                  "lineHeight": 1.5,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "#94A3B8"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "n226",
+              "width": "fill_container",
+              "height": "fit_content",
+              "layout": "horizontal",
+              "padding": [
+                8.0,
+                12.0
+              ],
+              "cornerRadius": 6.0,
+              "fill": [
+                {
+                  "type": "solid",
+                  "color": "#0A101D"
+                }
+              ],
+              "children": [
+                {
+                  "type": "text",
+                  "id": "n227",
+                  "width": "fit_content",
+                  "height": "fit_content",
+                  "content": "报价中心",
+                  "fontFamily": "Noto Sans SC",
+                  "fontSize": 13.0,
+                  "fontWeight": 400,
+                  "lineHeight": 1.5,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "#94A3B8"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "n228",
+              "width": "fill_container",
+              "height": "fit_content",
+              "layout": "horizontal",
+              "padding": [
+                8.0,
+                12.0
+              ],
+              "cornerRadius": 6.0,
+              "fill": [
+                {
+                  "type": "solid",
+                  "color": "#0A101D"
+                }
+              ],
+              "children": [
+                {
+                  "type": "text",
+                  "id": "n229",
+                  "width": "fit_content",
+                  "height": "fit_content",
+                  "content": "销售管理",
+                  "fontFamily": "Noto Sans SC",
+                  "fontSize": 13.0,
+                  "fontWeight": 400,
+                  "lineHeight": 1.5,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "#94A3B8"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "n230",
+              "width": "fill_container",
+              "height": "fit_content",
+              "layout": "horizontal",
+              "padding": [
+                8.0,
+                12.0
+              ],
+              "cornerRadius": 6.0,
+              "fill": [
+                {
+                  "type": "solid",
+                  "color": "#0A101D"
+                }
+              ],
+              "children": [
+                {
+                  "type": "text",
+                  "id": "n231",
+                  "width": "fit_content",
+                  "height": "fit_content",
+                  "content": "采购管理",
+                  "fontFamily": "Noto Sans SC",
+                  "fontSize": 13.0,
+                  "fontWeight": 400,
+                  "lineHeight": 1.5,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "#94A3B8"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "n232",
+              "width": "fill_container",
+              "height": "fit_content",
+              "layout": "horizontal",
+              "padding": [
+                8.0,
+                12.0
+              ],
+              "cornerRadius": 6.0,
+              "fill": [
+                {
+                  "type": "solid",
+                  "color": "#0A101D"
+                }
+              ],
+              "children": [
+                {
+                  "type": "text",
+                  "id": "n233",
+                  "width": "fit_content",
+                  "height": "fit_content",
+                  "content": "财务管理",
+                  "fontFamily": "Noto Sans SC",
+                  "fontSize": 13.0,
+                  "fontWeight": 400,
+                  "lineHeight": 1.5,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "#94A3B8"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "n234",
+          "width": "fill_container",
+          "height": "fit_content",
+          "layout": "vertical",
+          "gap": 16.0,
+          "padding": [
+            24.0,
+            32.0
+          ],
+          "children": [
+            {
+              "type": "text",
+              "id": "n235",
+              "width": "fit_content",
+              "height": "fit_content",
+              "content": "商机详情",
+              "fontFamily": "Noto Sans SC",
+              "fontSize": 20.0,
+              "fontWeight": 600,
+              "lineHeight": 1.5,
+              "fill": [
+                {
+                  "type": "solid",
+                  "color": "#F8FAFC"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "n236",
+              "width": "fill_container",
+              "height": "fit_content",
+              "layout": "horizontal",
+              "gap": 10.0,
+              "padding": 0.0,
+              "justifyContent": "space_between",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "n237",
+                  "width": "fit_content",
+                  "height": "fit_content",
+                  "layout": "horizontal",
+                  "gap": 10.0,
+                  "padding": 0.0,
+                  "justifyContent": "start",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "n238",
+                      "width": "fit_content",
+                      "height": "fit_content",
+                      "content": "OPP20261028003 · Ahmed Trading LLC",
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 18.0,
+                      "fontWeight": 600,
+                      "lineHeight": 1.5,
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "#F8FAFC"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "n239",
+                      "width": "fit_content",
+                      "height": "fit_content",
+                      "layout": "horizontal",
+                      "padding": [
+                        2.0,
+                        8.0
+                      ],
+                      "cornerRadius": 4.0,
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "#A78BFA22"
+                        }
+                      ],
+                      "stroke": {
+                        "thickness": 1.0,
+                        "fill": [
+                          {
+                            "type": "solid",
+                            "color": "#A78BFA66"
+                          }
+                        ]
+                      },
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "n240",
+                          "width": "fit_content",
+                          "height": "fit_content",
+                          "content": "需求确认",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 12.0,
+                          "fontWeight": 400,
+                          "lineHeight": 1.5,
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#A78BFA"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "n241",
+                  "width": "fit_content",
+                  "height": "fit_content",
+                  "layout": "horizontal",
+                  "gap": 8.0,
+                  "padding": 0.0,
+                  "justifyContent": "start",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "n242",
+                      "width": "fit_content",
+                      "height": "fit_content",
+                      "layout": "horizontal",
+                      "padding": [
+                        7.0,
+                        16.0
+                      ],
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "cornerRadius": 6.0,
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "#111A2C"
+                        }
+                      ],
+                      "stroke": {
+                        "thickness": 1.0,
+                        "fill": [
+                          {
+                            "type": "solid",
+                            "color": "#1E293B"
+                          }
+                        ]
+                      },
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "n243",
+                          "width": "fit_content",
+                          "height": "fit_content",
+                          "content": "删除",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 13.0,
+                          "fontWeight": 500,
+                          "lineHeight": 1.5,
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#F8FAFC"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "n244",
+                      "width": "fit_content",
+                      "height": "fit_content",
+                      "layout": "horizontal",
+                      "padding": [
+                        7.0,
+                        16.0
+                      ],
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "cornerRadius": 6.0,
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "#111A2C"
+                        }
+                      ],
+                      "stroke": {
+                        "thickness": 1.0,
+                        "fill": [
+                          {
+                            "type": "solid",
+                            "color": "#1E293B"
+                          }
+                        ]
+                      },
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "n245",
+                          "width": "fit_content",
+                          "height": "fit_content",
+                          "content": "编辑",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 13.0,
+                          "fontWeight": 500,
+                          "lineHeight": 1.5,
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#F8FAFC"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "n246",
+                      "width": "fit_content",
+                      "height": "fit_content",
+                      "layout": "horizontal",
+                      "padding": [
+                        7.0,
+                        16.0
+                      ],
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "cornerRadius": 6.0,
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "#111A2C"
+                        }
+                      ],
+                      "stroke": {
+                        "thickness": 1.0,
+                        "fill": [
+                          {
+                            "type": "solid",
+                            "color": "#1E293B"
+                          }
+                        ]
+                      },
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "n247",
+                          "width": "fit_content",
+                          "height": "fit_content",
+                          "content": "创建询盘单",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 13.0,
+                          "fontWeight": 500,
+                          "lineHeight": 1.5,
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#F8FAFC"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "n248",
+                      "width": "fit_content",
+                      "height": "fit_content",
+                      "layout": "horizontal",
+                      "padding": [
+                        7.0,
+                        16.0
+                      ],
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "cornerRadius": 6.0,
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "#3B5BFD"
+                        }
+                      ],
+                      "stroke": {
+                        "thickness": 1.0,
+                        "fill": [
+                          {
+                            "type": "solid",
+                            "color": "#3B5BFD"
+                          }
+                        ]
+                      },
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "n249",
+                          "width": "fit_content",
+                          "height": "fit_content",
+                          "content": "推进阶段",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 13.0,
+                          "fontWeight": 500,
+                          "lineHeight": 1.5,
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#F8FAFC"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "n250",
+              "width": "fill_container",
+              "height": "fit_content",
+              "layout": "vertical",
+              "gap": 10.0,
+              "padding": [
+                12.0,
+                14.0
+              ],
+              "cornerRadius": 10.0,
+              "fill": [
+                {
+                  "type": "solid",
+                  "color": "#111A2C"
+                }
+              ],
+              "stroke": {
+                "thickness": 1.0,
+                "fill": [
+                  {
+                    "type": "solid",
+                    "color": "#1E293B"
+                  }
+                ]
+              },
+              "children": [
+                {
+                  "type": "text",
+                  "id": "n251",
+                  "width": "fit_content",
+                  "height": "fit_content",
+                  "content": "需求摘要",
+                  "fontFamily": "Noto Sans SC",
+                  "fontSize": 13.0,
+                  "fontWeight": 600,
+                  "lineHeight": 1.5,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "#F8FAFC"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "n252",
+                  "width": "fit_content",
+                  "height": "fit_content",
+                  "content": "汇川伺服 + PLC 整套，3 台包装机",
+                  "fontFamily": "Noto Sans SC",
+                  "fontSize": 13.0,
+                  "fontWeight": 400,
+                  "lineHeight": 1.5,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "#94A3B8"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "text",
+              "id": "n253",
+              "width": 1300.0,
+              "height": "fit_content",
+              "content": "「删除」放在操作区最左边、普通样式，进行中和已结束的商机都显示。没有关联询盘时弹 E2 确认；有关联询盘时弹 E3 列出这些询盘，不能删除。删除是软删除：商机不再出现在列表、统计、工作台和新建询盘的「关联商机」里，客户档案保留不动。需要「删除商机」按钮权限，默认只给内置管理员角色。",
+              "fontFamily": "Noto Sans SC",
+              "fontSize": 12.0,
+              "fontWeight": 400,
+              "lineHeight": 1.5,
+              "textGrowth": "fixed-width",
+              "fill": [
+                {
+                  "type": "solid",
+                  "color": "#94A3B8"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "n254",
+      "name": "E2-删除商机-没有关联询盘",
+      "x": 1700.0,
+      "y": 1800.0,
+      "width": 640.0,
+      "height": "fit_content",
+      "layout": "vertical",
+      "padding": [
+        48.0,
+        80.0
+      ],
+      "alignItems": "center",
+      "fill": [
+        {
+          "type": "solid",
+          "color": "#050A14"
+        }
+      ],
+      "children": [
+        {
+          "type": "frame",
+          "id": "n255",
+          "width": 480.0,
+          "height": "fit_content",
+          "layout": "vertical",
+          "gap": 14.0,
+          "padding": [
+            20.0,
+            24.0
+          ],
+          "cornerRadius": 12.0,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "#111A2C"
+            }
+          ],
+          "stroke": {
+            "thickness": 1.0,
+            "fill": [
+              {
+                "type": "solid",
+                "color": "#1E293B"
+              }
+            ]
+          },
+          "effects": [
+            {
+              "type": "shadow",
+              "offsetX": 0.0,
+              "offsetY": 8.0,
+              "blur": 24.0,
+              "spread": -4.0,
+              "color": "rgba(0,0,0,0.5)"
+            }
+          ],
+          "children": [
+            {
+              "type": "frame",
+              "id": "n256",
+              "width": "fill_container",
+              "height": "fit_content",
+              "layout": "horizontal",
+              "gap": 10.0,
+              "padding": 0.0,
+              "justifyContent": "space_between",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "n257",
+                  "width": "fit_content",
+                  "height": "fit_content",
+                  "content": "删除这条商机？",
+                  "fontFamily": "Noto Sans SC",
+                  "fontSize": 16.0,
+                  "fontWeight": 600,
+                  "lineHeight": 1.5,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "#F8FAFC"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "n258",
+                  "width": "fit_content",
+                  "height": "fit_content",
+                  "content": "✕",
+                  "fontFamily": "Noto Sans SC",
+                  "fontSize": 13.0,
+                  "fontWeight": 400,
+                  "lineHeight": 1.5,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "#64748B"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "text",
+              "id": "n259",
+              "width": "fit_content",
+              "height": "fit_content",
+              "content": "OPP20261028003 · Ahmed Trading LLC",
+              "fontFamily": "Noto Sans SC",
+              "fontSize": 13.0,
+              "fontWeight": 600,
+              "lineHeight": 1.5,
+              "fill": [
+                {
+                  "type": "solid",
+                  "color": "#F8FAFC"
+                }
+              ]
+            },
+            {
+              "type": "text",
+              "id": "n260",
+              "width": 432.0,
+              "height": "fit_content",
+              "content": "删除后商机从列表和统计里消失，客户档案保留；可以联系管理员恢复。只是不再跟进的话，建议用「结束商机」标为流失或无效，记录会保留在统计里。",
+              "fontFamily": "Noto Sans SC",
+              "fontSize": 13.0,
+              "fontWeight": 400,
+              "lineHeight": 1.5,
+              "textGrowth": "fixed-width",
+              "fill": [
+                {
+                  "type": "solid",
+                  "color": "#94A3B8"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "n261",
+              "width": "fill_container",
+              "height": "fit_content",
+              "layout": "horizontal",
+              "gap": 8.0,
+              "padding": 0.0,
+              "justifyContent": "end",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "n262",
+                  "width": "fit_content",
+                  "height": "fit_content",
+                  "layout": "horizontal",
+                  "padding": [
+                    7.0,
+                    16.0
+                  ],
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "cornerRadius": 6.0,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "#111A2C"
+                    }
+                  ],
+                  "stroke": {
+                    "thickness": 1.0,
+                    "fill": [
+                      {
+                        "type": "solid",
+                        "color": "#1E293B"
+                      }
+                    ]
+                  },
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "n263",
+                      "width": "fit_content",
+                      "height": "fit_content",
+                      "content": "再想想",
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 13.0,
+                      "fontWeight": 500,
+                      "lineHeight": 1.5,
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "#F8FAFC"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "n264",
+                  "width": "fit_content",
+                  "height": "fit_content",
+                  "layout": "horizontal",
+                  "padding": [
+                    7.0,
+                    16.0
+                  ],
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "cornerRadius": 6.0,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "#7F1D1D"
+                    }
+                  ],
+                  "stroke": {
+                    "thickness": 1.0,
+                    "fill": [
+                      {
+                        "type": "solid",
+                        "color": "#F87171"
+                      }
+                    ]
+                  },
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "n265",
+                      "width": "fit_content",
+                      "height": "fit_content",
+                      "content": "删除",
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 13.0,
+                      "fontWeight": 500,
+                      "lineHeight": 1.5,
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "#F8FAFC"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "n266",
+      "name": "E3-删除商机-有关联询盘不能删除",
+      "x": 2500.0,
+      "y": 1800.0,
+      "width": 700.0,
+      "height": "fit_content",
+      "layout": "vertical",
+      "padding": [
+        48.0,
+        80.0
+      ],
+      "alignItems": "center",
+      "fill": [
+        {
+          "type": "solid",
+          "color": "#050A14"
+        }
+      ],
+      "children": [
+        {
+          "type": "frame",
+          "id": "n267",
+          "width": 540.0,
+          "height": "fit_content",
+          "layout": "vertical",
+          "gap": 14.0,
+          "padding": [
+            20.0,
+            24.0
+          ],
+          "cornerRadius": 12.0,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "#111A2C"
+            }
+          ],
+          "stroke": {
+            "thickness": 1.0,
+            "fill": [
+              {
+                "type": "solid",
+                "color": "#1E293B"
+              }
+            ]
+          },
+          "effects": [
+            {
+              "type": "shadow",
+              "offsetX": 0.0,
+              "offsetY": 8.0,
+              "blur": 24.0,
+              "spread": -4.0,
+              "color": "rgba(0,0,0,0.5)"
+            }
+          ],
+          "children": [
+            {
+              "type": "frame",
+              "id": "n268",
+              "width": "fill_container",
+              "height": "fit_content",
+              "layout": "horizontal",
+              "gap": 10.0,
+              "padding": 0.0,
+              "justifyContent": "space_between",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "n269",
+                  "width": "fit_content",
+                  "height": "fit_content",
+                  "content": "这条商机不能删除",
+                  "fontFamily": "Noto Sans SC",
+                  "fontSize": 16.0,
+                  "fontWeight": 600,
+                  "lineHeight": 1.5,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "#F8FAFC"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "n270",
+                  "width": "fit_content",
+                  "height": "fit_content",
+                  "content": "✕",
+                  "fontFamily": "Noto Sans SC",
+                  "fontSize": 13.0,
+                  "fontWeight": 400,
+                  "lineHeight": 1.5,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "#64748B"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "text",
+              "id": "n271",
+              "width": 492.0,
+              "height": "fit_content",
+              "content": "已经有下面这些询盘关联它。要删除商机，先删除这些询盘（询盘有报价单、PI、订单时也不能删）；只是不再跟进的话，可以用「结束商机」。",
+              "fontFamily": "Noto Sans SC",
+              "fontSize": 13.0,
+              "fontWeight": 400,
+              "lineHeight": 1.5,
+              "textGrowth": "fixed-width",
+              "fill": [
+                {
+                  "type": "solid",
+                  "color": "#94A3B8"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "n272",
+              "width": "fill_container",
+              "height": "fit_content",
+              "layout": "vertical",
+              "gap": 6.0,
+              "padding": [
+                12.0,
+                14.0
+              ],
+              "cornerRadius": 10.0,
+              "fill": [
+                {
+                  "type": "solid",
+                  "color": "#0F1729"
+                }
+              ],
+              "stroke": {
+                "thickness": 1.0,
+                "fill": [
+                  {
+                    "type": "solid",
+                    "color": "#1E293B"
+                  }
+                ]
+              },
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "n273",
+                  "width": "fill_container",
+                  "height": "fit_content",
+                  "layout": "horizontal",
+                  "gap": 10.0,
+                  "padding": 0.0,
+                  "justifyContent": "start",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "n274",
+                      "width": "fit_content",
+                      "height": "fit_content",
+                      "content": "询盘单",
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 13.0,
+                      "fontWeight": 600,
+                      "lineHeight": 1.5,
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "#F8FAFC"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "n275",
+                      "width": "fit_content",
+                      "height": "fit_content",
+                      "content": "2 条",
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 12.0,
+                      "fontWeight": 400,
+                      "lineHeight": 1.5,
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "#64748B"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "n276",
+                  "width": "fill_container",
+                  "height": "fit_content",
+                  "layout": "horizontal",
+                  "gap": 10.0,
+                  "padding": 0.0,
+                  "justifyContent": "space_between",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "n277",
+                      "width": "fit_content",
+                      "height": "fit_content",
+                      "content": "IQ20261030004",
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 13.0,
+                      "fontWeight": 400,
+                      "lineHeight": 1.5,
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "#60A5FA"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "n278",
+                      "width": "fit_content",
+                      "height": "fit_content",
+                      "content": "询价中",
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 12.0,
+                      "fontWeight": 400,
+                      "lineHeight": 1.5,
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "#94A3B8"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "n279",
+                  "width": "fill_container",
+                  "height": "fit_content",
+                  "layout": "horizontal",
+                  "gap": 10.0,
+                  "padding": 0.0,
+                  "justifyContent": "space_between",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "n280",
+                      "width": "fit_content",
+                      "height": "fit_content",
+                      "content": "IQ20261029011",
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 13.0,
+                      "fontWeight": 400,
+                      "lineHeight": 1.5,
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "#60A5FA"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "n281",
+                      "width": "fit_content",
+                      "height": "fit_content",
+                      "content": "已报价",
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 12.0,
+                      "fontWeight": 400,
+                      "lineHeight": 1.5,
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "#94A3B8"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "n282",
+              "width": "fill_container",
+              "height": "fit_content",
+              "layout": "horizontal",
+              "gap": 8.0,
+              "padding": 0.0,
+              "justifyContent": "end",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "n283",
+                  "width": "fit_content",
+                  "height": "fit_content",
+                  "layout": "horizontal",
+                  "padding": [
+                    7.0,
+                    16.0
+                  ],
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "cornerRadius": 6.0,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "#3B5BFD"
+                    }
+                  ],
+                  "stroke": {
+                    "thickness": 1.0,
+                    "fill": [
+                      {
+                        "type": "solid",
+                        "color": "#3B5BFD"
+                      }
+                    ]
+                  },
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "n284",
+                      "width": "fit_content",
+                      "height": "fit_content",
+                      "content": "知道了",
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 13.0,
+                      "fontWeight": 500,
+                      "lineHeight": 1.5,
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "#F8FAFC"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
     }
   ],
   "editorMeta": {
