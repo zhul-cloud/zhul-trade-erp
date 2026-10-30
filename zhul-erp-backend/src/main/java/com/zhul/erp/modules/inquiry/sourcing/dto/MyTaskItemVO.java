@@ -9,6 +9,8 @@ import java.util.List;
 public class MyTaskItemVO {
     private Long id;
     private String model;
+    /** 订货号（物料号、料号），辅助识别 */
+    private String orderCode;
     private String originalModel;
     private Integer quantity;
     private String unit;

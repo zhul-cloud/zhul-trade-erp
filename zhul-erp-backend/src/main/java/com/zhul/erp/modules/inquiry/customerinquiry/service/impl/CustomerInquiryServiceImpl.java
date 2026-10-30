@@ -75,6 +75,7 @@ import com.zhul.erp.modules.inquiry.support.TaskTimeout;
 import com.zhul.erp.modules.masterdata.entity.CustomerDO;
 import com.zhul.erp.modules.masterdata.repository.CustomerMapper;
 import com.zhul.erp.modules.product.dto.ProductMatchVO;
+import com.zhul.erp.modules.product.support.ProductOrderCodes;
 import com.zhul.erp.modules.product.entity.ProductCategoryDO;
 import com.zhul.erp.modules.product.service.ProductLookupService;
 import com.zhul.erp.modules.system.service.DictItemService;
@@ -134,6 +135,7 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
     private final AiTaskService aiTaskService;
     private final OpportunityService opportunityService;
     private final ProductLookupService productLookupService;
+    private final ProductOrderCodes orderCodes;
     private final PriceHistoryService priceHistoryService;
     private final SourcingTaskService sourcingTaskService;
     private final SourcingProgress progress;
@@ -456,6 +458,7 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
             vo.setGroupKey(InquiryCategories.groupKey(i.getBrandKey(), i.getCategoryId(), i.getCategory(), categories));
             vo.setOriginalModel(i.getOriginalModel());
             vo.setConfirmedModel(i.getConfirmedModel());
+            vo.setOrderCode(i.getOrderCode());
             vo.setConfidence(i.getConfidence());
             vo.setCorrectionNote(i.getCorrectionNote());
             vo.setQuantity(i.getQuantity());
@@ -769,6 +772,7 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
         row.setCategoryId(category.categoryId());
         row.setOriginalModel(it.getOriginalModel());
         row.setConfirmedModel(StringUtils.hasText(it.getConfirmedModel()) ? it.getConfirmedModel() : it.getOriginalModel());
+        row.setOrderCode(ProductOrderCodes.join(ProductOrderCodes.split(it.getOrderCode())));
         row.setConfidence(it.getConfidence() == null ? InquiryConstants.CONFIDENCE_CONFIRMED : it.getConfidence());
         row.setCorrectionNote(it.getCorrectionNote());
         row.setQuantity(it.getQuantity() == null || it.getQuantity() < 1 ? 1 : it.getQuantity());
@@ -848,8 +852,9 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
             item.setCategoryId(category.categoryId());
             item.setOriginalModel(StringUtils.hasText(row.getOriginalModel()) ? row.getOriginalModel().trim() : row.getConfirmedModel().trim());
             item.setConfirmedModel(row.getConfirmedModel().trim());
+            item.setOrderCode(ProductOrderCodes.join(ProductOrderCodes.split(row.getOrderCode())));
             item.setModelKey(modelKey);
-            item.setProductId(matchProduct(item.getBrand(), item.getConfirmedModel()));
+            item.setProductId(matchProduct(item.getBrand(), item.getConfirmedModel(), item.getBrandId(), item.getOrderCode()));
             item.setConfidence(range(row.getConfidence(), 1, 4, InquiryConstants.CONFIDENCE_CONFIRMED));
             item.setCorrectionNote(text(row.getCorrectionNote()));
             item.setQuantity(row.getQuantity());
@@ -889,13 +894,17 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
         return new Batch(line, quantity, priced, verify, pending, confirmedIds);
     }
 
-    private Long matchProduct(String brand, String model) {
+    /** 型号对上商品库优先；对不上时按订货号认（型号是建档编码，订货号辅助识别） */
+    private Long matchProduct(String brand, String model, Long brandId, String orderCode) {
         try {
             ProductMatchVO match = productLookupService.match(brand, model);
-            return match == null || match.getExact() == null ? null : match.getExact().getId();
+            if (match != null && match.getExact() != null) {
+                return match.getExact().getId();
+            }
         } catch (BizException e) {
             return null;
         }
+        return orderCodes.productOf(brandId, ProductOrderCodes.split(orderCode));
     }
 
     private static boolean reusable(SourcingQuoteDO q, int tenantId, String brandKey, String modelKey) {

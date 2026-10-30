@@ -23,6 +23,9 @@ public class ConfirmRowRequest {
     @NotBlank(message = "请填写型号")
     @Size(max = 128, message = "型号不能超过 128 字")
     private String confirmedModel;
+    /** 订货号（物料号、料号），辅助识别；多个用英文逗号分隔 */
+    @Size(max = 255, message = "订货号不能超过 255 字")
+    private String orderCode;
     private Integer confidence;
     @Size(max = 300, message = "纠正说明不能超过 300 字")
     private String correctionNote;

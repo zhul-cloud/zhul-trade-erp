@@ -71,6 +71,8 @@ class ProductServiceImplTest {
     private ProductCompletenessService completenessService;
     @Mock
     private ObjectProvider<ProductUsageChecker> usageCheckers;
+    @Mock
+    private com.zhul.erp.modules.product.support.ProductOrderCodes orderCodes;
 
     private ProductServiceImpl service;
     private long usage = 0;
@@ -89,7 +91,7 @@ class ProductServiceImplTest {
         service = new ProductServiceImpl(productMapper, brandMapper, categoryMapper, seriesMapper,
                 relationshipMapper, productFinder, productNames, completenessService, new PlatformScopeGuard(),
                 usageCheckers, heatMapper, new com.zhul.erp.modules.product.support.IndustryScope(null, null, null, null),
-                com.zhul.erp.modules.product.support.TestProductWriteGuards.ownedBy(0));
+                com.zhul.erp.modules.product.support.TestProductWriteGuards.ownedBy(0), orderCodes);
         when(brandMapper.selectOne(any())).thenReturn(brand(1L, 1));
         when(categoryMapper.selectOne(any())).thenReturn(category(2L, 1));
     }

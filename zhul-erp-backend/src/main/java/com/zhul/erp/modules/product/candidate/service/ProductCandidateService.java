@@ -36,6 +36,7 @@ import com.zhul.erp.modules.product.service.BrandService;
 import com.zhul.erp.modules.product.service.ProductService;
 import com.zhul.erp.modules.product.service.SeriesService;
 import com.zhul.erp.modules.product.support.MpnNormalizer;
+import com.zhul.erp.modules.product.support.ProductOrderCodes;
 import com.zhul.erp.modules.product.support.PlatformScopeGuard;
 import com.zhul.erp.modules.sales.entity.SalesOrderDO;
 import com.zhul.erp.modules.sales.repository.SalesOrderMapper;
@@ -82,6 +83,7 @@ public class ProductCandidateService {
     private final PlatformScopeGuard platformScopeGuard;
     private final CurrentUserResolver currentUser;
     private final InquiryLookups lookups;
+    private final ProductOrderCodes orderCodes;
     private final LogService logService;
 
     // ---------------------------------------------------------------- 查询
@@ -141,7 +143,8 @@ public class ProductCandidateService {
             String key = MpnNormalizer.normalize(kw);
             w.and(x -> x.like(ProductCandidateDO::getMpnRaw, kw).or().like(ProductCandidateDO::getBrandText, kw)
                     .or().like(ProductCandidateDO::getProductName, kw)
-                    .or(!key.isEmpty(), y -> y.like(ProductCandidateDO::getMpnNormalized, key)));
+                    .or(!key.isEmpty(), y -> y.like(ProductCandidateDO::getMpnNormalized, key))
+                    .or().like(ProductCandidateDO::getOrderCode, kw));
         }
         return w;
     }
@@ -393,6 +396,10 @@ public class ProductCandidateService {
         c.setReviewedAt(LocalDateTime.now());
         candidateMapper.updateById(c);
         archiver.linkSources(c.getId(), productId);
+        ProductDO p = productMapper.selectById(productId);
+        if (p != null) {
+            orderCodes.addAll(p.getId(), p.getBrandId(), ProductOrderCodes.split(c.getOrderCode()));
+        }
     }
 
     private ProductCandidateDO lockPending(Long id) {
@@ -480,6 +487,7 @@ public class ProductCandidateService {
             vo.setBrandName(at(brands, c.getBrandId()));
             vo.setBrandText(c.getBrandText());
             vo.setMpnRaw(c.getMpnRaw());
+            vo.setOrderCode(c.getOrderCode());
             vo.setCategoryId(c.getCategoryId());
             vo.setCategoryName(at(categories, c.getCategoryId()));
             vo.setCategoryText(c.getCategoryText());

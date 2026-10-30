@@ -309,6 +309,8 @@ export interface Product {
   mpnRaw: string;
   mpnNormalized: string;
   mpnDisplay: string;
+  /** 订货号（物料号、料号），辅助识别 */
+  orderCodes?: string[];
   productName: string;
   shortDescription: string;
   specSummary: string;
@@ -343,6 +345,8 @@ export interface SaveProduct {
   specSummary?: string;
   lifecycleStatus?: number;
   lifecycleSource?: string;
+  /** 订货号：不传为不改，空数组为清空 */
+  orderCodes?: string[];
 }
 
 export interface ProductQuery extends PageParams {

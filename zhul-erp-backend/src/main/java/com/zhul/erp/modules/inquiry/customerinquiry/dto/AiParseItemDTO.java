@@ -11,6 +11,8 @@ public class AiParseItemDTO {
     private String categoryCode;
     private String originalModel;
     private String confirmedModel;
+    /** 订货号（物料号、料号、Order No.），辅助识别；多个用英文逗号分隔，没有时为空 */
+    private String orderCode;
     private Integer confidence;
     private String correctionNote;
     private String description;

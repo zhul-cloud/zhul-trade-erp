@@ -38,7 +38,8 @@ description: 接收工业品采购询盘（文字/图片/Excel），提取所有
 
 | 可能的列名 | 映射字段 |
 |-----------|----------|
-| Model / 型号 / 物料号 / 料号 / P/N / Part No | `original_model` |
+| Model / Type / 型号 / P/N / Part No | `original_model` |
+| Order No. / Order Code / Article No. / Material No. / 订货号 / 物料号 / 料号 | `order_code`（订货号，辅助识别；同一行没有型号列时也先当 `original_model`，见下方「型号与订货号」） |
 | Make / Brand / 品牌 / 厂家 / 制造商 / Manufacturer | `brand` |
 | Qty / Quantity / 数量 / Total Req. Qty | `quantity` |
 | UOM / Unit / 单位 | `unit`（转换为中文单位，见步骤 ④ 单位转换规则） |
@@ -54,6 +55,15 @@ description: 接收工业品采购询盘（文字/图片/Excel），提取所有
 | brand 含 `/` 双品牌（如 POLYPENCO/SHIBAKEI）| 取第一个，第二品牌写入 note |
 | 型号含规格范围（如 213.53.063_0 TO 28 KG/CM^2）| 整段保留为 original_model，note 注明「型号含内嵌规格，请核实」 |
 | 单元格为空但非最后行 | 跳过，继续读取 |
+
+**型号与订货号（行业特殊性，必须遵守）：**
+
+- 型号（`model`）是唯一的建档编码：厂家的型号 / 规格型号（Type designation），如 SICK `WTB4-3P2161`、ABB `ACS580-01-12A7-4`、菲尼克斯 `QUINT-PS/1AC/24DC/10`。
+- 订货号（`order_code`）是辅助识别：厂家的订货号、物料号、料号、Article No.、Order No.，如 SICK `1025994`、ABB `3AXD50000038965`、菲尼克斯 `2866763`。一个型号可能有多个订货号，多个用英文逗号分隔。
+- 客户只写了订货号时：联网查出对应的型号填进 `model`，订货号放进 `order_code`，`confidence` 为「已纠正」，`note` 写「客户写的是订货号 {订货号}，已查到型号」。
+- 查不到订货号对应的型号时：`model` 先填订货号原文，`order_code` 留空，`confidence` 为「待核实」，`note` 写「没查到订货号 {订货号} 对应的型号，先按订货号填」。
+- 型号和订货号都给了：分别填，以型号为准；两者对不上时 `confidence` 为「待核实」并在 `note` 说明。
+- 西门子（6ES7、6SL3、3RT、3VA 等 MLFB 订货号）、施耐德、欧姆龙等订货号本身就是行业通用编码的品牌：订货号就是型号，填进 `model`，`order_code` 留空，不要换成 CPU 1214C DC/DC/DC 这类名称。
 
 **单位转换规则（必须在填入 `unit` 字段前执行）：**
 

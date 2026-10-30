@@ -318,6 +318,7 @@ public class MyTaskServiceImpl implements MyTaskService {
             vo.setLocked(locked.contains(i.getId()));
             vo.setId(i.getId());
             vo.setModel(i.getConfirmedModel());
+            vo.setOrderCode(i.getOrderCode());
             vo.setOriginalModel(i.getOriginalModel());
             vo.setQuantity(i.getQuantity());
             vo.setUnit(i.getUnit());

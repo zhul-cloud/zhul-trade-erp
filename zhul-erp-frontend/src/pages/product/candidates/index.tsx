@@ -993,6 +993,7 @@ const Candidates: React.FC = () => {
         </b>
         <div style={{ fontSize: 12, color: palette.mute }}>
           {c.originalModel ? `回填自「${c.originalModel}」` : '品牌 ✓'}
+          {c.orderCode ? ` · 订货号 ${c.orderCode}` : ''}
         </div>
       </div>
     ) : (
@@ -1000,7 +1001,9 @@ const Candidates: React.FC = () => {
         <b style={{ color: palette.orange }}>
           待确认品牌：{c.brandText || '（空）'} · {c.mpnRaw}
         </b>
-        <div style={{ fontSize: 12, color: palette.mute }}>品牌未识别</div>
+        <div style={{ fontSize: 12, color: palette.mute }}>
+          品牌未识别{c.orderCode ? ` · 订货号 ${c.orderCode}` : ''}
+        </div>
       </div>
     );
 

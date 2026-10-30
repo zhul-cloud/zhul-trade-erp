@@ -22,6 +22,8 @@ public class ProductVO {
     private String mpnRaw;
     private String mpnNormalized;
     private String mpnDisplay;
+    /** 订货号（物料号、料号），辅助识别 */
+    private List<String> orderCodes;
     private String productName;
     private String shortDescription;
     private String specSummary;

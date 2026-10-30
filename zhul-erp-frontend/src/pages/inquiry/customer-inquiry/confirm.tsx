@@ -322,8 +322,8 @@ const ConfirmPage: React.FC = () => {
       ),
     },
     {
-      title: '型号',
-      width: 200,
+      title: '型号 / 订货号',
+      width: 240,
       render: (_, r) => (
         <div style={{ display: 'grid', gap: 6 }}>
           <Input
@@ -334,6 +334,15 @@ const ConfirmPage: React.FC = () => {
             onChange={(e) => patch(r.key, { confirmedModel: e.target.value })}
             onBlur={() => lookup(r)}
             onPressEnter={() => lookup(r)}
+          />
+          <Input
+            size="small"
+            prefix={<span style={{ color: palette.mute }}>订货号</span>}
+            placeholder="选填，多个用逗号隔开"
+            value={r.orderCode ?? ''}
+            maxLength={255}
+            onChange={(e) => patch(r.key, { orderCode: e.target.value })}
+            aria-label="订货号"
           />
           {r.confidence === CONFIDENCE.CORRECTED && (
             <Pill tone="cyan">已纠正 · 原文 {r.originalModel}</Pill>

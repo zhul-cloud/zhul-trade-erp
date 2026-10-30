@@ -189,7 +189,7 @@ class ClaudeSchemaRegressionTest(unittest.TestCase):
         self.assertEqual(set(group["properties"]), {
             "brand", "category", "inquiryTemplate", "emailTemplateCn", "emailTemplateEn", "items"})
         self.assertEqual(set(item["properties"]), {
-            "categoryCode", "originalModel", "confirmedModel", "confidence", "correctionNote", "description",
+            "categoryCode", "originalModel", "confirmedModel", "orderCode", "confidence", "correctionNote", "description",
             "descriptionEn", "quantity", "unit", "remark", "lifecycle", "replacementModel", "difficulty",
             "inquiryScript", "searchKeywords"})
         for obj in (schema, group, item):
