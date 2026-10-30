@@ -1,4 +1,5 @@
 import { request } from '@umijs/max';
+import type { ShipmentDetail } from '@/pages/warehouse/service';
 import { downloadFile, openFile } from '@/utils/fileLink';
 
 export { readBizError } from '@/pages/crm/opportunity/service';
@@ -467,6 +468,9 @@ export const poApi = {
       ...quiet,
     }).then((r) => r.data);
   },
+  /** 发货与入库里查看这张订单的发货单（型号、快递、图片与视频） */
+  shipment: (id: number, shipmentId: number) =>
+    get<ShipmentDetail>(`${PO}/${id}/shipments/${shipmentId}`),
   removeAttachment: (id: number, attachmentId: number) =>
     send<PurchaseOrder>('DELETE', `${PO}/${id}/attachments/${attachmentId}`),
   /** 预览或下载合同：取临时链接后在新窗口打开，或按原文件名保存 */

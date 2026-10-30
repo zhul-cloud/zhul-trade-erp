@@ -89,6 +89,7 @@ import {
   readBizError,
   type SavePoBody,
 } from '../service';
+import { ShipmentView } from '../shipments';
 import ShipmentDrawer from '../shipments/ShipmentDrawer';
 
 interface Draft {
@@ -1446,6 +1447,11 @@ const ShipmentsCard: React.FC<{
   onVoid: (s: PoShipmentRef) => void;
 }> = ({ po, canShip, onEdit, onVoid }) => {
   const { palette } = useAppTheme();
+  const [viewing, setViewing] = useState<number>();
+  const loadShipment = useCallback(
+    (shipmentId: number) => poApi.shipment(po.id, shipmentId),
+    [po.id],
+  );
   const rows: FlowRow[] = [
     ...po.shipments.map((ref) => ({
       kind: 'ship' as const,
@@ -1546,14 +1552,19 @@ const ShipmentsCard: React.FC<{
     {
       title: '操作',
       key: 'actions',
-      width: 120,
+      width: 150,
       render: (_, r) =>
-        r.kind === 'ship' && r.ref.status === 1 && canShip ? (
+        r.kind === 'ship' ? (
           <Space size={12}>
-            <a onClick={() => onEdit(r.ref.id)}>修改</a>
-            <a style={{ color: palette.red }} onClick={() => onVoid(r.ref)}>
-              作废
-            </a>
+            <a onClick={() => setViewing(r.ref.id)}>查看</a>
+            {r.ref.status === 1 && canShip && (
+              <>
+                <a onClick={() => onEdit(r.ref.id)}>修改</a>
+                <a style={{ color: palette.red }} onClick={() => onVoid(r.ref)}>
+                  作废
+                </a>
+              </>
+            )}
           </Space>
         ) : null,
     },
@@ -1585,6 +1596,11 @@ const ShipmentsCard: React.FC<{
         pagination={false}
         scroll={{ x: 1000 }}
         locale={{ emptyText: '供应商还没发货；发货后点右上角「登记发货」' }}
+      />
+      <ShipmentView
+        id={viewing}
+        load={loadShipment}
+        onClose={() => setViewing(undefined)}
       />
     </Card>
   );

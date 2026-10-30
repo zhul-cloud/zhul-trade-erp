@@ -219,6 +219,15 @@ public class ShipmentService {
         return vo;
     }
 
+    /** 采购订单详情里查看它的发货单：只认这张订单下的发货单 */
+    public ShipmentVO detailOfPo(Long poId, Long shipmentId) {
+        SupplierShipmentDO s = visible(shipmentId, true);
+        if (!Objects.equals(s.getPoId(), poId)) {
+            throw new BizException("发货单不存在");
+        }
+        return detail(shipmentId, true);
+    }
+
     /** 登记（shipmentId 为空）或修改发货单的表单 */
     public ShipmentFormVO form(Long poId, Long shipmentId) {
         SupplierShipmentDO s = shipmentId == null ? null : visible(shipmentId, true);
