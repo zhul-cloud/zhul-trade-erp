@@ -12,6 +12,8 @@ import com.zhul.erp.modules.purchase.entity.PurchaseRequirementDO;
 import com.zhul.erp.modules.purchase.repository.PurchaseOrderFeeMapper;
 import com.zhul.erp.modules.purchase.repository.PurchaseOrderItemMapper;
 import com.zhul.erp.modules.purchase.repository.PurchaseOrderMapper;
+import com.zhul.erp.modules.sales.constants.SalesConstants;
+import com.zhul.erp.modules.sales.repository.SalesOrderItemMapper;
 import com.zhul.erp.modules.sales.support.PiStore;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -19,6 +21,7 @@ import org.springframework.stereotype.Component;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -28,7 +31,8 @@ import java.util.Set;
 
 /**
  * 草稿采购订单的放置与重算。自动生成、需求池生成、拆分、改采购员、改到其他供应商都走 {@link #place}：
- * 按「采购员 + 供应商」追加到该采购员对该供应商最近的 CNY 草稿，没有时新建；调用方负责已锁住相关需求。
+ * 按「采购员 + 供应商 + 现货 / 期货」追加到该采购员对该供应商、同一现货 / 期货最近的 CNY 草稿，没有时新建；
+ * 现货 / 期货取自需求的来源销售订单行，没有来源行的按现货。调用方负责已锁住相关需求。
  */
 @Component
 @RequiredArgsConstructor
@@ -40,6 +44,7 @@ public class PurchaseDrafts {
     private final SupplierMapper supplierMapper;
     private final PurchaseLogs logs;
     private final RequirementTouch touch;
+    private final SalesOrderItemMapper soItemMapper;
 
     /** 线上店铺采购订单的默认付款条件：100% 下单后 */
     public static final String SHOP_TERMS = "[{\"percent\":100.00,\"trigger\":1,\"days\":0}]";
@@ -53,20 +58,23 @@ public class PurchaseDrafts {
 
     /** 放入草稿，返回涉及的草稿采购订单（按放置顺序）；action 写在每张草稿的日志上 */
     public List<PurchaseOrderDO> place(List<Placement> placements, String action, String note, Long operatorId) {
+        Map<Long, Integer> stock = stockTypes(placements.stream().map(Placement::requirement).toList());
         Map<String, List<Placement>> groups = new LinkedHashMap<>();
         for (Placement p : placements) {
             if (p.quantity() <= 0) {
                 continue;
             }
-            groups.computeIfAbsent(p.purchaserId() + ":" + p.counterparty().key(), k -> new ArrayList<>()).add(p);
+            groups.computeIfAbsent(p.purchaserId() + ":" + p.counterparty().key() + ":" + stock.get(p.requirement().getId()),
+                    k -> new ArrayList<>()).add(p);
         }
         List<PurchaseOrderDO> touched = new ArrayList<>(groups.size());
         for (List<Placement> group : groups.values()) {
             Placement first = group.get(0);
-            PurchaseOrderDO po = lockLatestDraft(first.purchaserId(), first.counterparty());
+            int stockType = stock.get(first.requirement().getId());
+            PurchaseOrderDO po = lockLatestDraft(first.purchaserId(), first.counterparty(), stockType);
             boolean created = po == null;
             if (created) {
-                po = newDraft(first.purchaserId(), first.counterparty());
+                po = newDraft(first.purchaserId(), first.counterparty(), stockType);
             }
             int sort = nextSort(po.getId());
             List<String> models = new ArrayList<>(group.size());
@@ -107,14 +115,32 @@ public class PurchaseDrafts {
         return target.divide(po.getExchangeRate(), 2, java.math.RoundingMode.HALF_UP);
     }
 
-    /** 该采购员对该采购对象最近的 CNY 草稿（加锁） */
-    public PurchaseOrderDO lockLatestDraft(Long purchaserId, Counterparty cp) {
+    /** 需求 id → 现货 / 期货：取来源销售订单行，没有来源行的按现货 */
+    public Map<Long, Integer> stockTypes(List<PurchaseRequirementDO> requirements) {
+        List<Long> soItemIds = requirements.stream().map(PurchaseRequirementDO::getSoItemId).filter(Objects::nonNull).distinct().toList();
+        Map<Long, Integer> bySoItem = new HashMap<>(soItemIds.size() * 2);
+        if (!soItemIds.isEmpty()) {
+            soItemMapper.selectBatchIds(soItemIds).stream()
+                    .filter(i -> i.getStockType() != null)
+                    .forEach(i -> bySoItem.put(i.getId(), i.getStockType()));
+        }
+        Map<Long, Integer> out = new HashMap<>(requirements.size() * 2);
+        for (PurchaseRequirementDO r : requirements) {
+            out.put(r.getId(), r.getSoItemId() == null ? SalesConstants.STOCK_SPOT
+                    : bySoItem.getOrDefault(r.getSoItemId(), SalesConstants.STOCK_SPOT));
+        }
+        return out;
+    }
+
+    /** 该采购员对该采购对象、同一现货 / 期货最近的 CNY 草稿（加锁） */
+    public PurchaseOrderDO lockLatestDraft(Long purchaserId, Counterparty cp, int stockType) {
         return orderMapper.selectOne(new LambdaQueryWrapper<PurchaseOrderDO>()
                 .eq(PurchaseOrderDO::getTenantId, PiStore.tenantId())
                 .eq(PurchaseOrderDO::getPurchaserId, purchaserId)
                 .eq(PurchaseOrderDO::getChannel, cp.channel())
                 .eq(PurchaseOrderDO::getSupplierId, cp.isShop() ? 0L : cp.supplierId())
                 .eq(PurchaseOrderDO::getShopName, cp.isShop() ? cp.shopName() : "")
+                .eq(PurchaseOrderDO::getStockType, stockType)
                 .eq(PurchaseOrderDO::getCurrencyCode, PurchaseConstants.CNY)
                 .eq(PurchaseOrderDO::getStatus, PurchaseConstants.PO_DRAFT)
                 .isNull(PurchaseOrderDO::getDeletedAt)
@@ -122,13 +148,14 @@ public class PurchaseDrafts {
                 .last("LIMIT 1 FOR UPDATE"));
     }
 
-    private PurchaseOrderDO newDraft(Long purchaserId, Counterparty cp) {
+    private PurchaseOrderDO newDraft(Long purchaserId, Counterparty cp, int stockType) {
         SupplierDO s = cp.isShop() ? null : requireSupplier(cp.supplierId());
         PurchaseOrderDO po = new PurchaseOrderDO();
         po.setTenantId(PiStore.tenantId());
         po.setSupplierId(cp.isShop() ? 0L : cp.supplierId());
         po.setChannel(cp.channel());
         po.setShopName(cp.isShop() ? cp.shopName() : "");
+        po.setStockType(stockType);
         po.setPurchaserId(purchaserId);
         po.setStatus(PurchaseConstants.PO_DRAFT);
         po.setCurrencyCode(PurchaseConstants.CNY);

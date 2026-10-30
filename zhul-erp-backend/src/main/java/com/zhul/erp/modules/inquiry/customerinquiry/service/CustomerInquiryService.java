@@ -8,11 +8,15 @@ import com.zhul.erp.modules.inquiry.customerinquiry.dto.ConfirmRequest;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.CustomerInquiryDetailVO;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.CustomerInquiryPageQuery;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.CustomerInquiryVO;
+import com.zhul.erp.modules.crm.dto.OpportunityDetailVO;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.CustomerTypeVO;
+import com.zhul.erp.modules.inquiry.customerinquiry.dto.InquiryDownstreamVO;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.DraftVO;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.SubmitCustomerInquiryRequest;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.UploadedFileVO;
 import org.springframework.web.multipart.MultipartFile;
+
+import java.util.List;
 
 /** 询盘单：录入、AI 解析或手动录入、确认生成型号明细与询价任务、改选价格、取消 */
 public interface CustomerInquiryService {
@@ -54,6 +58,15 @@ public interface CustomerInquiryService {
     void discardAppend(Long id, Long appendId);
 
     void cancel(Long id);
+
+    /** 新建询盘时可关联的商机：这个客户进行中、数据权限内的商机，最近更新的在前 */
+    List<OpportunityDetailVO> opportunityOptions(Long customerId);
+
+    /** 引用这条询盘、未取消或作废的下游单据 */
+    List<InquiryDownstreamVO> downstream(Long id);
+
+    /** 删除询盘（软删除）：有下游单据时不能删除；已取消的询价任务一并删除 */
+    void delete(Long id);
 
     /** 调整询盘等级，记操作日志 */
     void updateLevel(Long id, Integer level);

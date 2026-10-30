@@ -538,6 +538,26 @@ export interface PriceHistoryGroup {
 // ---------------------------------------------------------------- 请求
 
 const quiet = { skipErrorHandler: true } as const;
+/** 新建询盘时可关联的商机（这个客户进行中的商机） */
+export interface OpportunityOption {
+  id: number;
+  opportunityCode: string;
+  stageCode: string;
+  stageName: string;
+  firstContactDate?: string;
+  /** 需求摘要：作为原始内容带入询盘 */
+  demandSummary?: string;
+  attachments: { id: number; fileName: string; fileSize: number }[];
+}
+
+/** 引用询盘单、未取消或作废的下游单据；有任一条时询盘不能删除 */
+export interface InquiryDownstream {
+  kind: 'TASK' | 'QUOTATION' | 'PI' | 'ORDER';
+  id: number;
+  no: string;
+  statusName: string;
+}
+
 const get = <T>(url: string, params?: object) =>
   request<{ data: T }>(url, { method: 'GET', params, ...quiet }).then(
     (r) => r.data,
@@ -594,6 +614,8 @@ const saveBlob = async (p: Promise<unknown>, fallback: string) => {
 export const inquiryApi = {
   upload: (file: File) =>
     upload<UploadedFile>(`${INQ}/attachments`, 'file', [file]),
+  opportunityOptions: (customerId: number) =>
+    get<OpportunityOption[]>(`${INQ}/opportunity-options`, { customerId }),
   copyFromOpportunity: (opportunityId: number, attachmentId: number) =>
     send<UploadedFile>('POST', `${INQ}/attachments/from-opportunity`, {
       opportunityId,
@@ -644,6 +666,9 @@ export const inquiryApi = {
   discardAppend: (id: number, appendId: number) =>
     send<void>('POST', `${INQ}/${id}/appends/${appendId}/discard`),
   cancel: (id: number) => send<void>('PUT', `${INQ}/${id}/cancel`),
+  downstream: (id: number) =>
+    get<InquiryDownstream[]>(`${INQ}/${id}/downstream`),
+  remove: (id: number) => send<void>('DELETE', `${INQ}/${id}`),
   updateLevel: (id: number, level: number) =>
     send<void>('PUT', `${INQ}/${id}/level`, { level }),
   reviewed: (id: number) => send<void>('POST', `${INQ}/${id}/reviewed`),

@@ -197,6 +197,36 @@ class QuotationContractTest extends InquiryContractSupport {
         assertEquals(3, ok(call(json(post(QT + "/candidates/inquiries"), "{\"readyOnly\":true}"), admin)).path("total").asInt());
     }
 
+    private long opportunity(long customer, String stage) {
+        String code = "ITOPP" + (++codeSeq) + System.nanoTime() % 100000;
+        jdbc.update("insert into opportunity (tenant_id, opportunity_code, customer_id, owner_id, stage_code, source_channel, first_contact_date) "
+                + "values (0, ?, ?, ?, ?, 1, CURDATE())", code, customer, ADMIN_USER, stage);
+        return jdbc.queryForObject("select id from opportunity where opportunity_code = ?", Long.class, code);
+    }
+
+    @Test
+    void quoting_advancesLinkedOpportunityToQuoted_neverBackwards() throws Exception {
+        try {
+            long c = customer("Gulf Automation", "Qatar");
+            long valid = opportunity(c, "S3");
+            long feedback = opportunity(c, "S5");
+            long a = seedInquiry(c, 6, "2026-10-30", m("6ES7214-1AG40-0XB0", "2640"));
+            long b = seedInquiry(c, 6, "2026-10-30", m("6ES7231-4HD32-0XB0", "880"));
+            jdbc.update("update customer_inquiry set opportunity_id = ? where id = ?", valid, a);
+            jdbc.update("update customer_inquiry set opportunity_id = ? where id = ?", feedback, b);
+
+            String no = byInquiries(a, b).path("quotationNo").asText();
+            assertEquals("S4", jdbc.queryForObject("select stage_code from opportunity where id = ?", String.class, valid));
+            assertEquals("生成报价单 " + no + "，自动推进", jdbc.queryForObject(
+                    "select note from opportunity_stage_log where opportunity_id = ? order by id desc limit 1", String.class, valid));
+            assertEquals("S5", jdbc.queryForObject("select stage_code from opportunity where id = ?", String.class, feedback), "已在报价反馈，不回退");
+            assertEquals(0, jdbc.queryForObject("select count(*) from opportunity_stage_log where opportunity_id = ?", Integer.class, feedback));
+        } finally {
+            jdbc.update("delete from opportunity_stage_log where tenant_id = 0");
+            jdbc.update("delete from opportunity where tenant_id = 0");
+        }
+    }
+
     @Test
     void incotermDefaultsToDapAndCustomerCountry_unlessCustomerHasTerms() throws Exception {
         long c = customer("Pacific Controls", "Australia");

@@ -14,7 +14,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { PayStatusPill } from '@/pages/finance/payables/components';
 import { PAY_STATUS } from '@/pages/finance/payables/service';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
-import { useUserOptions } from '@/pages/sales/orders/dialogs';
+import { StockPill, useUserOptions } from '@/pages/sales/orders/dialogs';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
 import { usePageSize } from '@/utils/pageSize';
@@ -51,6 +51,7 @@ interface Filters {
   invoiceStatus?: string;
   supplierId?: number;
   purchaserId?: number;
+  stockType?: number;
   range?: [Dayjs, Dayjs] | null;
 }
 
@@ -81,6 +82,7 @@ const PurchaseOrderList: React.FC = () => {
       invoiceStatus: filters.invoiceStatus,
       supplierId: filters.supplierId,
       purchaserId: filters.purchaserId,
+      stockType: filters.stockType,
       orderFrom: filters.range?.[0]?.format('YYYY-MM-DD'),
       orderTo: filters.range?.[1]?.format('YYYY-MM-DD'),
       sortField: sort.order ? sort.field : undefined,
@@ -119,6 +121,7 @@ const PurchaseOrderList: React.FC = () => {
     !filters.invoiceStatus &&
     !filters.supplierId &&
     !filters.purchaserId &&
+    !filters.stockType &&
     !filters.range;
 
   const columns: TableColumnsType<PoListItem> = [
@@ -143,6 +146,12 @@ const PurchaseOrderList: React.FC = () => {
             : sub(palette.mute, r.orderDate ?? '—')}
         </div>
       ),
+    },
+    {
+      title: '现货 / 期货',
+      dataIndex: 'stockType',
+      width: 100,
+      render: (v?: number) => <StockPill type={v} />,
     },
     {
       title: '采购对象',
@@ -538,6 +547,20 @@ const PurchaseOrderList: React.FC = () => {
               />
             </Form.Item>
             <Form.Item
+              name="stockType"
+              label="现货 / 期货"
+              style={{ marginBottom: 0 }}
+            >
+              <Select
+                allowClear
+                placeholder="全部"
+                options={[
+                  { value: 1, label: '现货' },
+                  { value: 2, label: '期货' },
+                ]}
+              />
+            </Form.Item>
+            <Form.Item
               name="range"
               label="下单日期"
               style={{ marginBottom: 0, gridColumn: 'span 2' }}
@@ -580,7 +603,7 @@ const PurchaseOrderList: React.FC = () => {
           columns={columns}
           dataSource={rows}
           loading={loading}
-          scroll={{ x: 2330 }}
+          scroll={{ x: 2430 }}
           onChange={onTableChange}
           locale={{ emptyText: '没有符合条件的采购订单，换个筛选条件试试' }}
           pagination={{
