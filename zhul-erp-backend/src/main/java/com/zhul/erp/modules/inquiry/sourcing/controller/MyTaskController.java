@@ -18,6 +18,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
+import com.zhul.erp.modules.inquiry.sourcing.dto.WithdrawPreviewVO;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -79,6 +80,17 @@ public class MyTaskController {
     @PostMapping("/{id}/return")
     public Result<Void> returnTask(@PathVariable Long id, @Valid @RequestBody ReturnTaskRequest req) {
         myTaskService.returnTask(id, req);
+        return Result.ok();
+    }
+
+    @GetMapping("/{id}/withdraw-preview")
+    public Result<WithdrawPreviewVO> withdrawPreview(@PathVariable Long id) {
+        return Result.ok(myTaskService.withdrawPreview(id));
+    }
+
+    @PostMapping("/{id}/withdraw")
+    public Result<Void> withdraw(@PathVariable Long id) {
+        myTaskService.withdraw(id);
         return Result.ok();
     }
 

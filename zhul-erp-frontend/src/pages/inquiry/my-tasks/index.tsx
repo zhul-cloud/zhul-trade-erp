@@ -11,6 +11,7 @@ import {
   SendOutlined,
   SnippetsOutlined,
   StarOutlined,
+  UndoOutlined,
   UploadOutlined,
 } from '@ant-design/icons';
 import {
@@ -73,6 +74,7 @@ import {
   myTaskApi,
   type QuoteEntry,
   readBizError,
+  type WithdrawPreview,
 } from '../shared/service';
 import { nextActiveTask } from './activeTask';
 import ItemHistory from './ItemHistory';
@@ -518,6 +520,74 @@ const MyTasksPage: React.FC = () => {
   const editable = detail?.task.editable !== false;
   const review = !!detail?.reviewRequired;
 
+  /** 撤回回价：价格填错、要等供应商重新报价时用，撤回后业务员看不到，任务回到待处理 */
+  const withdraw = async () => {
+    if (!detail) return;
+    const taskId = detail.task.id;
+    setBusy(true);
+    let p: WithdrawPreview;
+    try {
+      p = await myTaskApi.withdrawPreview(taskId);
+    } catch (e) {
+      message.error(readBizError(e).message);
+      return;
+    } finally {
+      setBusy(false);
+    }
+    if (p.models.length === 0) {
+      message.warning(
+        p.locked.length > 0
+          ? '型号都已报给客户，回价不能撤回'
+          : '这个任务里没有你提交的回价',
+      );
+      return;
+    }
+    modal.confirm({
+      title: '撤回这个任务的回价？',
+      width: 520,
+      content: (
+        <div style={{ display: 'grid', gap: 8 }}>
+          <div>撤回后：</div>
+          <div>
+            · 你提交的 {p.models.length} 个型号的回价变回草稿，业务员看不到；
+          </div>
+          <div>· 任务回到「待处理」，改好后点「提交回价」重新提交；</div>
+          <div>· 询盘回到「询价中」，业务员那边这些型号显示「待询价」。</div>
+          {p.locked.length > 0 && (
+            <Alert
+              type="warning"
+              title={`${p.locked
+                .map((l) => `${l.model}（${l.quotationNo}）`)
+                .join('、')} 已报给客户，回价不能撤回，保持不变。`}
+            />
+          )}
+          {p.drafts.length > 0 && (
+            <Alert
+              type="info"
+              title={`业务员的草稿报价单 ${p.drafts
+                .map((d) => `${d.quotationNo}（${d.models.join('、')}）`)
+                .join(
+                  '、',
+                )} 用了这些价格，撤回后草稿里的成本价不会自动变；重新提交回价后，请提醒业务员在报价单里重新取价。`}
+            />
+          )}
+        </div>
+      ),
+      okText: '撤回回价',
+      okButtonProps: { danger: true },
+      cancelText: '再想想',
+      onOk: async () => {
+        try {
+          await myTaskApi.withdraw(taskId);
+          message.success('已撤回，任务回到待处理');
+          setDone(false);
+        } catch (e) {
+          message.error(readBizError(e).message);
+        }
+      },
+    });
+  };
+
   if (error) return <ErrorHint message={error} onRetry={loadList} />;
 
   return (
@@ -773,6 +843,16 @@ const MyTasksPage: React.FC = () => {
                       onClick={() => save(false)}
                     >
                       保存草稿
+                    </Button>
+                  )}
+                  {editable && done && (
+                    <Button
+                      size="small"
+                      icon={<UndoOutlined />}
+                      loading={busy}
+                      onClick={withdraw}
+                    >
+                      撤回回价
                     </Button>
                   )}
                   {editable && (

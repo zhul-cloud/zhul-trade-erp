@@ -895,10 +895,61 @@ const Candidates: React.FC = () => {
     refreshCount();
   };
 
-  const batch = async () => {
+  /** 批量通过前提示：没选品类（或品牌待确认）的会被跳过 */
+  const batch = () => {
+    const missing = selected.filter((c) => !c.categoryId || !c.brandId);
+    if (missing.length === 0) {
+      approve(selected);
+      return;
+    }
+    const ready = selected.filter((c) => c.categoryId && c.brandId);
+    const list = (
+      <div
+        style={{ display: 'grid', gap: 4, maxHeight: 280, overflow: 'auto' }}
+      >
+        {missing.map((c) => (
+          <div key={c.id}>
+            {[c.brandName || c.brandText, c.mpnRaw].filter(Boolean).join(' ')}：
+            {!c.categoryId ? '还没选品类' : '品牌待确认'}
+          </div>
+        ))}
+      </div>
+    );
+    if (ready.length === 0) {
+      modal.warning({
+        title: `选中的 ${missing.length} 个都还不能通过`,
+        content: (
+          <>
+            <div style={{ marginBottom: 8 }}>
+              请先打开候选选好品类、确认品牌，再批量通过。
+            </div>
+            {list}
+          </>
+        ),
+        okText: '知道了',
+      });
+      return;
+    }
+    modal.confirm({
+      title: `有 ${missing.length} 个还没选品类或品牌待确认`,
+      content: (
+        <>
+          <div style={{ marginBottom: 8 }}>
+            这些会被跳过，只通过其余 {ready.length} 个。
+          </div>
+          {list}
+        </>
+      ),
+      okText: `通过其余 ${ready.length} 个`,
+      cancelText: '先去选品类',
+      onOk: () => approve(ready),
+    });
+  };
+
+  const approve = async (rows: Candidate[]) => {
     setBusy(true);
     try {
-      const r = await candidateApi.batchApprove(selected.map((c) => c.id));
+      const r = await candidateApi.batchApprove(rows.map((c) => c.id));
       if (r.skipped.length) {
         modal.info({
           title: `已建档 ${r.approved} 个，跳过 ${r.skipped.length} 个`,

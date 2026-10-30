@@ -538,6 +538,13 @@ export interface PriceHistoryGroup {
 // ---------------------------------------------------------------- 请求
 
 const quiet = { skipErrorHandler: true } as const;
+/** 撤回回价前的预览：会撤回的型号、已报给客户不能撤回的型号、用了这些价格的草稿报价单 */
+export interface WithdrawPreview {
+  models: string[];
+  locked: { model: string; quotationNo: string }[];
+  drafts: { quotationNo: string; models: string[] }[];
+}
+
 /** 新建询盘时可关联的商机（这个客户进行中的商机） */
 export interface OpportunityOption {
   id: number;
@@ -825,6 +832,9 @@ export const myTaskApi = {
     }>('PUT', `${MY}/${id}/items/${itemId}/actual-model`, { actualModel }),
   returnTask: (id: number, reason: number, note?: string) =>
     send<void>('POST', `${MY}/${id}/return`, { reason, note }),
+  withdrawPreview: (id: number) =>
+    get<WithdrawPreview>(`${MY}/${id}/withdraw-preview`),
+  withdraw: (id: number) => send<void>('POST', `${MY}/${id}/withdraw`),
   downloadPackage: (taskIds: number[]) =>
     saveBlob(
       blob(`${MY}/package`, { taskIds: taskIds.join(',') }),
