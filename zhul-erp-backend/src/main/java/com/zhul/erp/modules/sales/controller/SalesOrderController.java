@@ -6,7 +6,9 @@ import com.zhul.erp.modules.sales.dto.CancelOrderRequest;
 import com.zhul.erp.modules.sales.dto.ChainVO;
 import com.zhul.erp.modules.sales.dto.ConvertOrderRequest;
 import com.zhul.erp.modules.sales.dto.CreateOrderRequest;
+import com.zhul.erp.modules.sales.dto.OrderAttachmentsRequest;
 import com.zhul.erp.modules.sales.dto.OrderItemsRequest;
+import com.zhul.erp.modules.sales.dto.OrderRemarkRequest;
 import com.zhul.erp.modules.sales.dto.SalesDateRequest;
 import com.zhul.erp.modules.sales.dto.SalesOrderListVO;
 import com.zhul.erp.modules.sales.dto.SalesOrderPageQuery;
@@ -15,6 +17,7 @@ import com.zhul.erp.modules.sales.service.SalesOrderService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -28,6 +31,9 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/sales")
 @RequiredArgsConstructor
 public class SalesOrderController {
+
+    /** 订单详情里补传、删除附件与修改备注 */
+    private static final String EDIT_ATTACHMENT = "@perm.canAccessMenu('/sales/orders') and @perm.has('sales:order:attachment')";
 
     private final SalesOrderService service;
 
@@ -96,6 +102,24 @@ public class SalesOrderController {
     @PreAuthorize("@perm.canAccessMenu('/sales/orders') or @perm.canAccessMenu('/sales/pi')")
     public Result<SalesOrderVO> detail(@PathVariable Long id) {
         return Result.ok(service.detail(id));
+    }
+
+    @PostMapping("/orders/{id}/attachments")
+    @PreAuthorize(EDIT_ATTACHMENT)
+    public Result<SalesOrderVO> addAttachments(@PathVariable Long id, @Valid @RequestBody OrderAttachmentsRequest req) {
+        return Result.ok(service.addAttachments(id, req.getAttachmentIds()));
+    }
+
+    @DeleteMapping("/orders/{id}/attachments/{attachmentId}")
+    @PreAuthorize(EDIT_ATTACHMENT)
+    public Result<SalesOrderVO> removeAttachment(@PathVariable Long id, @PathVariable Long attachmentId) {
+        return Result.ok(service.removeAttachment(id, attachmentId));
+    }
+
+    @PostMapping("/orders/{id}/remark")
+    @PreAuthorize(EDIT_ATTACHMENT)
+    public Result<SalesOrderVO> remark(@PathVariable Long id, @Valid @RequestBody OrderRemarkRequest req) {
+        return Result.ok(service.updateRemark(id, req.getRemark()));
     }
 
     @PostMapping("/orders/{id}/cancel")
