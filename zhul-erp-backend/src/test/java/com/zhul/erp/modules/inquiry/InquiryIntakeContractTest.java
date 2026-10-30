@@ -18,6 +18,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -379,6 +380,48 @@ class InquiryIntakeContractTest extends InquiryContractSupport {
         long quoted = submit(admin, customer("Bangla Power", "Bangladesh"), "");
         jdbc.update("update customer_inquiry set status = 7 where id = ?", quoted);
         assertEquals("已报价的询盘不能取消", call(put(INQ + "/" + quoted + "/cancel"), admin).path("message").asText());
+    }
+
+    @Test
+    void delete_onlyWithoutDownstream_cancelledTasksGoAlong_needsButton() throws Exception {
+        loginAsAdmin("it_inq_admin");
+        String admin = token("it_inq_admin");
+        long fresh = submit(admin, customer("Gulf Pumps", "Oman"), "");
+        assertEquals(0, ok(call(get(INQ + "/" + fresh + "/downstream"), admin)).size());
+        ok(call(delete(INQ + "/" + fresh), admin));
+        assertEquals("询盘单不存在", call(get(INQ + "/" + fresh), admin).path("message").asText());
+        assertEquals(1, jdbc.queryForObject("select count(*) from customer_inquiry where id = ? and deleted_at is not null", Integer.class, fresh),
+                "软删除");
+
+        // 有询价任务时列出来、不能删；取消询盘后任务为已取消，可以删，任务一并删除
+        long sourcing = submit(admin, customer("Delta Mart", "Kenya"), "");
+        ok(call(json(post(INQ + "/" + sourcing + "/confirm"), write(Map.of("rows", List.of(row("ABB", "变频器", "ACS580-01-12A7-4", 1, null))))), admin));
+        JsonNode down = ok(call(get(INQ + "/" + sourcing + "/downstream"), admin));
+        assertEquals(1, down.size());
+        assertEquals("TASK", down.get(0).path("kind").asText());
+        assertEquals("待分配", down.get(0).path("statusName").asText());
+        assertEquals("这条询盘已有询价任务、报价单、PI 或销售订单引用，不能删除", call(delete(INQ + "/" + sourcing), admin).path("message").asText());
+        ok(call(put(INQ + "/" + sourcing + "/cancel"), admin));
+        ok(call(delete(INQ + "/" + sourcing), admin));
+        assertEquals(0, jdbc.queryForObject("select count(*) from sourcing_task where customer_inquiry_id = ? and deleted_at is null", Integer.class, sourcing));
+
+        // 报价单引用：作废后不再算
+        long quoted = submit(admin, customer("Cairo Steel", "Egypt"), "");
+        jdbc.update("insert into quotation (tenant_id, quotation_no, status) values (0, 'QT20261030901', 2)");
+        long q = jdbc.queryForObject("select max(id) from quotation where quotation_no = 'QT20261030901'", Long.class);
+        jdbc.update("insert into quotation_item (tenant_id, quotation_id, customer_inquiry_id) values (0, ?, ?)", q, quoted);
+        down = ok(call(get(INQ + "/" + quoted + "/downstream"), admin));
+        assertEquals("QUOTATION", down.get(0).path("kind").asText());
+        assertEquals("QT20261030901", down.get(0).path("no").asText());
+        assertEquals("已发送", down.get(0).path("statusName").asText());
+        jdbc.update("update quotation set status = 5 where id = ?", q);
+        assertEquals(0, ok(call(get(INQ + "/" + quoted + "/downstream"), admin)).size());
+
+        // 没有「删除询盘」按钮权限的不能删
+        loginWithResources("it_inq_staff", MENU_INQUIRY);
+        String staff = token("it_inq_staff");
+        long own = submit(staff, customer("Riyadh Valves", "Saudi Arabia"), "");
+        assertEquals(403, perform(delete(INQ + "/" + own), staff).getStatus());
     }
 
     @Test

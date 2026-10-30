@@ -515,6 +515,52 @@ public class OpportunityServiceImpl implements OpportunityService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void onQuoted(Long opportunityId, String quotationNo) {
+        OpportunityDO o = opportunityId == null ? null : opportunityMapper.selectById(opportunityId);
+        if (o == null || o.getDeletedAt() != null || !Objects.equals(o.getTenantId(), currentTenantId())) {
+            return;
+        }
+        OpportunityStageRules.Stages stages = stageRules.load();
+        OpportunityStageDO quoted = stages.byCode().get(OpportunityConstants.STAGE_QUOTED);
+        if (quoted == null || !stages.isActive(o.getStageCode())
+                || stages.get(o.getStageCode()).getSortOrder() >= quoted.getSortOrder()) {
+            return;
+        }
+        o.setMigrated(0);
+        String from = o.getStageCode();
+        moveTo(o, quoted.getCode(), stages);
+        opportunityMapper.updateById(o);
+        log(o, from, quoted.getCode(), OpportunityConstants.ACTION_CHANGE, 0, "生成报价单 " + quotationNo + "，自动推进");
+    }
+
+    @Override
+    public List<OpportunityDetailVO> activeOfCustomer(Long customerId) {
+        if (customerId == null) {
+            return List.of();
+        }
+        OpportunityStageRules.Stages stages = stageRules.load();
+        List<OpportunityDO> rows = opportunityMapper.selectList(scoped()
+                .eq(OpportunityDO::getCustomerId, customerId)
+                .orderByDesc(OpportunityDO::getUpdateTime)
+                .orderByDesc(OpportunityDO::getId)).stream()
+                .filter(o -> stages.isActive(o.getStageCode())).toList();
+        if (rows.isEmpty()) {
+            return List.of();
+        }
+        CustomerDO c = customerMapper.selectById(customerId);
+        Map<Long, String> owners = ownerNames(rows.stream().map(OpportunityDO::getOwnerId).toList());
+        List<OpportunityDetailVO> out = new ArrayList<>(rows.size());
+        for (OpportunityDO o : rows) {
+            OpportunityDetailVO vo = new OpportunityDetailVO();
+            fill(vo, o, c, owners, stages);
+            vo.setAttachments(activeAttachments(o.getId()).stream().map(OpportunityServiceImpl::toAttachmentVo).toList());
+            out.add(vo);
+        }
+        return out;
+    }
+
+    @Override
     public OpportunityVO findVisible(Long id) {
         OpportunityDO o = id == null ? null : opportunityMapper.selectById(id);
         if (o == null || o.getDeletedAt() != null || !Objects.equals(o.getTenantId(), currentTenantId())

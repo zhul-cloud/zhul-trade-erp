@@ -61,6 +61,15 @@ public interface OpportunityService {
      */
     void onInquiryCreated(Long opportunityId, String inquiryCode);
 
+    /**
+     * 关联询盘生成报价单：商机进行中且还在「已报价」之前时推进到「已报价」，之后的阶段不回退；
+     * 商机已结束、不存在或已删除时不处理，不影响报价。
+     */
+    void onQuoted(Long opportunityId, String quotationNo);
+
+    /** 新建询盘时可关联的商机：这个客户进行中、数据权限内的商机，最近更新的在前，带附件 */
+    List<OpportunityDetailVO> activeOfCustomer(Long customerId);
+
     /** 询盘详情回显来源商机：本租户、未删除且在数据权限内时返回，否则返回 null */
     OpportunityVO findVisible(Long id);
 

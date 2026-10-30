@@ -18,6 +18,8 @@ public final class OpportunityConstants {
     public static final int CATEGORY_INVALID = 4;
 
     public static final String STAGE_FIRST = "S1";
+    /** 已报价：关联询盘生成报价单时自动推进到这里 */
+    public static final String STAGE_QUOTED = "S4";
     public static final String STAGE_WON = "WON";
     public static final String STAGE_LOST = "LOST";
     public static final String STAGE_INVALID = "INVALID";

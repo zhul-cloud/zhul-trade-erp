@@ -314,6 +314,10 @@ class OpportunityApiContractTest extends IntegrationTestBase {
         long attId = opp.path("attachments").get(0).path("id").asLong();
 
         String inquiryBase = "/api/v1/inquiry/customer-inquiries";
+        JsonNode options = ok(call(get(inquiryBase + "/opportunity-options").param("customerId", String.valueOf(customerId)), admin));
+        assertEquals(1, options.size(), "新建询盘时可关联这个客户进行中的商机");
+        assertEquals(id, options.get(0).path("id").asLong());
+        assertEquals("bom.csv", options.get(0).path("attachments").get(0).path("fileName").asText());
         JsonNode copied = ok(call(json(post(inquiryBase + "/attachments/from-opportunity"),
                 "{\"opportunityId\":" + id + ",\"attachmentId\":" + attId + "}"), admin));
         assertTrue(copied.path("fileKey").asText().startsWith("tenant/0/inquiry/"), copied.toString());
@@ -344,6 +348,8 @@ class OpportunityApiContractTest extends IntegrationTestBase {
         ok(call(json(post(BASE + "/" + id + "/close"), "{\"result\":\"LOST\",\"reason\":11}"), admin));
         JsonNode closed = call(json(post(inquiryBase), "{\"customerId\":" + customerId + ",\"source\":1,\"rawContent\":\"x\",\"opportunityId\":" + id + "}"), admin);
         assertEquals("商机已结束，不能再创建询盘；老客户的新需求请在询盘单列表新建", closed.path("message").asText());
+        assertEquals(0, ok(call(get(inquiryBase + "/opportunity-options").param("customerId", String.valueOf(customerId)), admin)).size(),
+                "已结束的商机不再列出");
         assertEquals(2, jdbc.queryForObject("select count(*) from customer_inquiry where opportunity_id = ?", Integer.class, id));
     }
 }

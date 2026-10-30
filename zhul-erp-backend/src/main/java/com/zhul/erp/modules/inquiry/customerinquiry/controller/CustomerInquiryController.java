@@ -8,7 +8,9 @@ import com.zhul.erp.modules.inquiry.customerinquiry.dto.ConfirmRequest;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.CustomerInquiryDetailVO;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.CustomerInquiryPageQuery;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.CustomerInquiryVO;
+import com.zhul.erp.modules.crm.dto.OpportunityDetailVO;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.CustomerTypeVO;
+import com.zhul.erp.modules.inquiry.customerinquiry.dto.InquiryDownstreamVO;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.DraftVO;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.PriceMatchVO;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.SubmitCustomerInquiryRequest;
@@ -19,6 +21,7 @@ import com.zhul.erp.modules.inquiry.sourcing.service.PriceHistoryService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -30,6 +33,7 @@ import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.List;
 import java.util.Map;
 import com.zhul.erp.framework.storage.FileStorageService.FileLink;
 
@@ -59,6 +63,12 @@ public class CustomerInquiryController {
     }
 
     /** 确认页逐行查询询价记录（手动录入时填完型号即调用） */
+    /** 新建询盘时可关联的商机：这个客户进行中的商机，最近更新的在前 */
+    @GetMapping("/opportunity-options")
+    public Result<List<OpportunityDetailVO>> opportunityOptions(@RequestParam Long customerId) {
+        return Result.ok(service.opportunityOptions(customerId));
+    }
+
     @GetMapping("/price-match")
     public Result<PriceMatchVO> priceMatch(@RequestParam String brand, @RequestParam String model) {
         return Result.ok(priceHistoryService.match(brand, model));
@@ -143,6 +153,18 @@ public class CustomerInquiryController {
     @PutMapping("/{id}/cancel")
     public Result<Void> cancel(@PathVariable Long id) {
         service.cancel(id);
+        return Result.ok();
+    }
+
+    @GetMapping("/{id}/downstream")
+    public Result<List<InquiryDownstreamVO>> downstream(@PathVariable Long id) {
+        return Result.ok(service.downstream(id));
+    }
+
+    @DeleteMapping("/{id}")
+    @PreAuthorize("@perm.canAccessMenu('/inquiry/customer-inquiries') and @perm.has('inquiry:customer:delete')")
+    public Result<Void> delete(@PathVariable Long id) {
+        service.delete(id);
         return Result.ok();
     }
 

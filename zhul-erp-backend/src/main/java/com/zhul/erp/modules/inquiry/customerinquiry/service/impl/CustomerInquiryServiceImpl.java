@@ -18,6 +18,7 @@ import com.zhul.erp.framework.storage.UploadRules;
 import com.zhul.erp.framework.tenant.TenantContext;
 import com.zhul.erp.modules.aitask.dto.AiTaskVO;
 import com.zhul.erp.modules.aitask.service.AiTaskService;
+import com.zhul.erp.modules.crm.dto.OpportunityDetailVO;
 import com.zhul.erp.modules.crm.dto.OpportunityVO;
 import com.zhul.erp.modules.crm.service.OpportunityService;
 import com.zhul.erp.modules.inquiry.constants.InquiryConstants;
@@ -36,6 +37,7 @@ import com.zhul.erp.modules.inquiry.customerinquiry.dto.CustomerInquiryDetailVO;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.CustomerInquiryPageQuery;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.CustomerInquiryVO;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.CustomerTypeVO;
+import com.zhul.erp.modules.inquiry.customerinquiry.dto.InquiryDownstreamVO;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.DraftRowVO;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.DraftVO;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.InquiryItemVO;
@@ -1136,6 +1138,39 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
         inquiry.setStatus(InquiryConstants.STATUS_CANCELLED);
         inquiryMapper.updateById(inquiry);
         sourcingTaskService.cancelByInquiry(id);
+    }
+
+    @Override
+    public List<OpportunityDetailVO> opportunityOptions(Long customerId) {
+        return opportunityService.activeOfCustomer(customerId);
+    }
+
+    @Override
+    public List<InquiryDownstreamVO> downstream(Long id) {
+        return inquiryMapper.selectDownstream(tenantId(), getVisible(id).getId());
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void delete(Long id) {
+        CustomerInquiryDO inquiry = getEditable(id);
+        progress.lock(id);
+        if (!inquiryMapper.selectDownstream(tenantId(), id).isEmpty()) {
+            throw new BizException("这条询盘已有询价任务、报价单、PI 或销售订单引用，不能删除");
+        }
+        LocalDateTime now = LocalDateTime.now();
+        CustomerInquiryDO patch = new CustomerInquiryDO();
+        patch.setId(id);
+        patch.setDeletedAt(now);
+        inquiryMapper.updateById(patch);
+        SourcingTaskDO task = new SourcingTaskDO();
+        task.setDeletedAt(now);
+        taskMapper.update(task, new LambdaQueryWrapper<SourcingTaskDO>()
+                .eq(SourcingTaskDO::getTenantId, tenantId())
+                .eq(SourcingTaskDO::getCustomerInquiryId, id)
+                .isNull(SourcingTaskDO::getDeletedAt));
+        logService.recordOperateLog("询盘单", "删除询盘", Map.of("inquiryCode", inquiry.getInquiryCode(),
+                "customerId", String.valueOf(inquiry.getCustomerId())), null);
     }
 
     @Override
