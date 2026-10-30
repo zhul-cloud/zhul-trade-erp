@@ -283,6 +283,40 @@ class PurchaseContractTest extends SalesContractSupport {
         assertTrue(list.path("records").get(0).has("updateBy"));
     }
 
+    @Test
+    void spotAndFutures_splitIntoSeparateDrafts_previewGroups_listFilter() throws Exception {
+        long sup = supplier("汇川代理", null);
+        JsonNode so = orderFrom(null, l("S-1", 1, "100", "20"), l("F-1", 2, "100", "20"), l("S-2", 1, "100", "20"));
+        long soId = so.path("id").asLong();
+        jdbc.update("update sales_order_item set stock_type = 2 where so_id = ? and model = 'F-1'", soId);
+        List<Long> reqs = requirementIds(soId);
+        jdbc.update("update purchase_requirement set suggested_supplier_id = ? where so_id = ?", sup, soId);
+
+        JsonNode groups = ok(call(get(REQ + "/generate-preview").param("ids", reqs.stream().map(String::valueOf).toArray(String[]::new)), admin)).path("groups");
+        assertEquals(2, groups.size(), "同一供应商的现货和期货分两组");
+        assertEquals(1, groups.get(0).path("stockType").asInt());
+        assertEquals(2, groups.get(0).path("lines").size());
+        assertEquals(2, groups.get(1).path("stockType").asInt());
+
+        // 前端把同一供应商合成一组提交，后端仍按现货 / 期货拆成两张草稿
+        JsonNode ids = ok(call(json(post(REQ + "/generate"),
+                write(Map.of("groups", List.of(Map.of("supplierId", sup, "requirementIds", reqs))))), admin));
+        assertEquals(2, ids.size());
+        assertEquals(List.of(1, 2), jdbc.queryForList("select stock_type from purchase_order where supplier_id = ? and deleted_at is null order by stock_type",
+                Integer.class, sup));
+
+        JsonNode futures = ok(call(json(post(PO + "/page"), write(Map.of("stockType", 2, "supplierId", sup))), admin));
+        assertEquals(1, futures.path("total").asInt());
+        assertEquals(2, futures.path("records").get(0).path("stockType").asInt());
+        assertEquals(1, futures.path("records").get(0).path("itemCount").asInt());
+
+        // 同一采购员再从需求池生成同供应商的现货型号：追加到现货草稿，不进期货草稿
+        long spot = jdbc.queryForObject("select id from purchase_order where supplier_id = ? and stock_type = 1 and deleted_at is null", Long.class, sup);
+        long so2 = orderFrom(null, l("S-3", 1, "100", "20")).path("id").asLong();
+        assertEquals(spot, generate(sup, requirementIds(so2), admin));
+        assertEquals(3, po(spot, admin).path("items").size());
+    }
+
     // ---------------------------------------------------------------- 价格、税、费用、付款条件、合同
 
     @Test

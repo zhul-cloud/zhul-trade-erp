@@ -160,6 +160,9 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
         if (q.getPurchaserId() != null) {
             w.eq(PurchaseOrderDO::getPurchaserId, q.getPurchaserId());
         }
+        if (q.getStockType() != null) {
+            w.eq(PurchaseOrderDO::getStockType, q.getStockType());
+        }
         String payCondition = PAY_CONDITIONS.get(q.getPayStatus() == null ? "" : q.getPayStatus());
         if (payCondition != null) {
             w.apply(payCondition);
@@ -282,6 +285,7 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
             vo.setChannel(cp.channel());
             vo.setShopName(cp.isShop() ? cp.shopName() : null);
             vo.setSupplierName(cp.isShop() ? cp.shopTitle() : suppliers.get(p.getSupplierId()));
+            vo.setStockType(p.getStockType());
             vo.setItemCount(lines.size());
             vo.setTotalQuantity(lines.stream().mapToInt(PurchaseOrderItemDO::getQuantity).sum());
             vo.setMissingPriceCount((int) lines.stream().filter(i -> i.getUnitPrice() == null).count());
