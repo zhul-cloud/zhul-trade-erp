@@ -418,6 +418,9 @@ const CustomerListPage: React.FC = () => {
           <Form.Item name="name" label={label('客户名称')}>
             <Input placeholder="英文名、中文名或简称" allowClear />
           </Form.Item>
+          <Form.Item name="contactName" label={label('主要联系人')}>
+            <Input placeholder="联系人姓名" allowClear />
+          </Form.Item>
           <Form.Item name="country" label={label('国家/地区')}>
             <Select
               placeholder="全部"

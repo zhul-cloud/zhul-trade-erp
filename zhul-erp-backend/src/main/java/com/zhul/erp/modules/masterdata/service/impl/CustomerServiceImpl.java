@@ -528,6 +528,7 @@ public class CustomerServiceImpl implements CustomerService {
                 .eq(CustomerDO::getTenantId, currentTenantId())
                 .isNull(CustomerDO::getDeletedAt)
                 .like(StringUtils.hasText(q.getCustomerCode()), CustomerDO::getCustomerCode, text(q.getCustomerCode()))
+                .like(StringUtils.hasText(q.getContactName()), CustomerDO::getContactName, text(q.getContactName()))
                 .eq(StringUtils.hasText(q.getCountry()), CustomerDO::getCountry, q.getCountry())
                 .eq(q.getCustomerRole() != null, CustomerDO::getCustomerRole, q.getCustomerRole())
                 .eq(q.getCustomerGrade() != null, CustomerDO::getCustomerGrade, q.getCustomerGrade())

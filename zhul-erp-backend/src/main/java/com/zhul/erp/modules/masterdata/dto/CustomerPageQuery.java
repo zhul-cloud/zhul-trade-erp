@@ -11,6 +11,8 @@ public class CustomerPageQuery {
     private String customerCode;
     /** 模糊匹配英文名称、中文名称、简称 */
     private String name;
+    /** 主要联系人姓名，模糊匹配 */
+    private String contactName;
     private String country;
     private Integer customerRole;
     private Integer customerGrade;
