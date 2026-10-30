@@ -19,6 +19,7 @@ import com.zhul.erp.modules.system.repository.RoleMapper;
 import com.zhul.erp.modules.system.repository.RoleOrgMapper;
 import com.zhul.erp.modules.system.repository.UserBasicMapper;
 import com.zhul.erp.modules.system.service.RoleService;
+import com.zhul.erp.modules.system.service.UserService;
 import com.zhul.erp.modules.workbench.service.WorkbenchService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -198,7 +199,8 @@ public class RoleServiceImpl implements RoleService {
         }
 
         List<UserBasicDO> users = userBasicMapper.selectList(
-                new LambdaQueryWrapper<UserBasicDO>().eq(UserBasicDO::getRoleCode, role.getCode()));
+                new LambdaQueryWrapper<UserBasicDO>().eq(UserBasicDO::getRoleCode, role.getCode())
+                        .ne(UserBasicDO::getStatus, UserService.STATUS_DELETED));
         vo.setBuiltIn(false);
         vo.setUserCount(users.size());
         vo.setBlocked(!users.isEmpty());
@@ -220,7 +222,8 @@ public class RoleServiceImpl implements RoleService {
             throw new BizException("内置角色不可删除");
         }
         Long usedCount = userBasicMapper.selectCount(
-                new LambdaQueryWrapper<UserBasicDO>().eq(UserBasicDO::getRoleCode, role.getCode()));
+                new LambdaQueryWrapper<UserBasicDO>().eq(UserBasicDO::getRoleCode, role.getCode())
+                        .ne(UserBasicDO::getStatus, UserService.STATUS_DELETED));
         if (usedCount > 0) {
             throw new BizException("该角色已有用户使用，无法删除");
         }
@@ -258,7 +261,8 @@ public class RoleServiceImpl implements RoleService {
         }
         List<String> codes = roles.stream().map(RoleDO::getCode).collect(Collectors.toList());
         Map<String, Long> userCountByRoleCode = userBasicMapper.selectList(
-                        new LambdaQueryWrapper<UserBasicDO>().in(UserBasicDO::getRoleCode, codes))
+                        new LambdaQueryWrapper<UserBasicDO>().in(UserBasicDO::getRoleCode, codes)
+                                .ne(UserBasicDO::getStatus, UserService.STATUS_DELETED))
                 .stream()
                 .collect(Collectors.groupingBy(UserBasicDO::getRoleCode, Collectors.counting()));
 

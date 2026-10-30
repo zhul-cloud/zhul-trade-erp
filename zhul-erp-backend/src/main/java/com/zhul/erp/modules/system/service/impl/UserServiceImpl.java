@@ -47,7 +47,8 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public PageResult<UserVO> listUsers(UserPageQuery query) {
-        LambdaQueryWrapper<UserBasicDO> wrapper = new LambdaQueryWrapper<>();
+        LambdaQueryWrapper<UserBasicDO> wrapper = new LambdaQueryWrapper<UserBasicDO>()
+                .ne(UserBasicDO::getStatus, STATUS_DELETED);
 
         Integer tenantId = TenantContext.getTenantId();
         if (tenantId != null) {
@@ -118,7 +119,8 @@ public class UserServiceImpl implements UserService {
     public UserStatsVO getUserStats() {
         Integer tenantId = TenantContext.getTenantId();
 
-        LambdaQueryWrapper<UserBasicDO> base = new LambdaQueryWrapper<>();
+        LambdaQueryWrapper<UserBasicDO> base = new LambdaQueryWrapper<UserBasicDO>()
+                .ne(UserBasicDO::getStatus, STATUS_DELETED);
         if (tenantId != null) {
             base.eq(UserBasicDO::getTenantId, tenantId);
         }
@@ -138,11 +140,22 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void updateUserStatus(Integer userId, Integer status) {
         LambdaUpdateWrapper<UserBasicDO> wrapper = new LambdaUpdateWrapper<>();
         wrapper.eq(UserBasicDO::getId, userId)
+               .ne(UserBasicDO::getStatus, STATUS_DELETED)
                .set(UserBasicDO::getStatus, status);
         userBasicMapper.update(new UserBasicDO(), wrapper);
+        syncAccountStatus(userId, status);
+    }
+
+    /** 登录只看 account.status（见 AuthServiceImpl），停用、启用要同步到登录账号才能真正拦住或放开登录 */
+    private void syncAccountStatus(Integer userId, Integer status) {
+        accountMapper.update(new AccountDO(), new LambdaUpdateWrapper<AccountDO>()
+                .eq(AccountDO::getUserId, userId)
+                .ne(AccountDO::getStatus, STATUS_DELETED)
+                .set(AccountDO::getStatus, status));
     }
 
     @Override
@@ -191,7 +204,8 @@ public class UserServiceImpl implements UserService {
     @Transactional(rollbackFor = Exception.class)
     public void updateUser(Integer userId, UpdateUserRequest request) {
         LambdaUpdateWrapper<UserBasicDO> wrapper = new LambdaUpdateWrapper<UserBasicDO>()
-                .eq(UserBasicDO::getId, userId);
+                .eq(UserBasicDO::getId, userId)
+                .ne(UserBasicDO::getStatus, STATUS_DELETED);
         if (StringUtils.hasText(request.getName())) {
             wrapper.set(UserBasicDO::getName, request.getName());
         }
@@ -217,6 +231,9 @@ public class UserServiceImpl implements UserService {
             wrapper.set(UserBasicDO::getStatus, request.getStatus());
         }
         userBasicMapper.update(new UserBasicDO(), wrapper);
+        if (request.getStatus() != null) {
+            syncAccountStatus(userId, request.getStatus());
+        }
         // 找回密码按登录账号上的邮箱发验证码，与用户资料保持一致
         if (StringUtils.hasText(request.getEmail())) {
             accountMapper.update(null, new LambdaUpdateWrapper<AccountDO>()
@@ -229,14 +246,15 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void deleteUser(Integer userId) {
+        // 软删除：记录保留，历史单据上的创建人、负责人照常显示；用户名不释放，避免和已删除的账号重名
         LambdaUpdateWrapper<UserBasicDO> userWrapper = new LambdaUpdateWrapper<UserBasicDO>()
                 .eq(UserBasicDO::getId, userId)
-                .set(UserBasicDO::getStatus, 0);
+                .set(UserBasicDO::getStatus, STATUS_DELETED);
         userBasicMapper.update(new UserBasicDO(), userWrapper);
 
         LambdaUpdateWrapper<AccountDO> accountWrapper = new LambdaUpdateWrapper<AccountDO>()
                 .eq(AccountDO::getUserId, userId)
-                .set(AccountDO::getStatus, 0);
+                .set(AccountDO::getStatus, STATUS_DELETED);
         accountMapper.update(new AccountDO(), accountWrapper);
     }
 
