@@ -89,7 +89,7 @@ describe('AiSettingsPage', () => {
     });
   });
 
-  it('未授权订阅的租户只有本公司 API Key，Key 显示脱敏值，模型预填推荐值', async () => {
+  it('未授权订阅的租户只有 API Key，Key 显示脱敏值，模型预填推荐值', async () => {
     mocked.getAiConfig.mockResolvedValue(config());
     renderPage();
     expect(await screen.findByText('AI 已配置')).toBeTruthy();
@@ -187,13 +187,13 @@ describe('AiSettingsPage', () => {
     expect(mocked.saveAiConfig).not.toHaveBeenCalled();
   });
 
-  it('订阅授权被收回时提示改用本公司 Key', async () => {
+  it('订阅授权被收回时提示改用 API Key', async () => {
     mocked.getAiConfig.mockResolvedValue(
       config({ mode: 'subscription', subscriptionAllowed: false }),
     );
     renderPage();
     expect(await screen.findByText('平台订阅不可用')).toBeTruthy();
-    expect(screen.getByText('请改用本公司 API Key。')).toBeTruthy();
+    expect(screen.getByText('请改用 API Key。')).toBeTruthy();
     expect(mocked.getAiSubscriptionStatus).not.toHaveBeenCalled();
   });
 
