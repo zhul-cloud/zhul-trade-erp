@@ -546,6 +546,18 @@ export interface WithdrawPreview {
 }
 
 /** 新建询盘时可关联的商机（这个客户进行中的商机） */
+export interface UpdatePayload {
+  source: number;
+  inquiryDate: string;
+  quoteDeadline: string;
+  urgent: boolean;
+  opportunityId?: number;
+  /** 保留的已有附件，不在里面的删除 */
+  keepAttachmentIds: number[];
+  attachments: { fileKey: string; fileName: string }[];
+  remark?: string;
+}
+
 export interface OpportunityOption {
   id: number;
   opportunityCode: string;
@@ -672,6 +684,9 @@ export const inquiryApi = {
     send<void>('POST', `${INQ}/${id}/appends/${appendId}/confirm`, { rows }),
   discardAppend: (id: number, appendId: number) =>
     send<void>('POST', `${INQ}/${id}/appends/${appendId}/discard`),
+  /** 修改询盘：客户、询盘内容与型号不在这里改；补传的附件只保存，不解析 */
+  update: (id: number, data: UpdatePayload) =>
+    send<void>('PUT', `${INQ}/${id}`, data),
   cancel: (id: number) => send<void>('PUT', `${INQ}/${id}/cancel`),
   downstream: (id: number) =>
     get<InquiryDownstream[]>(`${INQ}/${id}/downstream`),

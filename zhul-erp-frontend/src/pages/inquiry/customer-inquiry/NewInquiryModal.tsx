@@ -58,7 +58,7 @@ interface Values {
   remark?: string;
 }
 
-const fileIcon = (name: string) =>
+export const fileIcon = (name: string) =>
   /\.(xlsx?|csv)$/i.test(name) ? (
     <FileExcelOutlined />
   ) : /\.pdf$/i.test(name) ? (

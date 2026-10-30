@@ -24,6 +24,9 @@ public interface SourcingTaskService {
     /** 取消询盘单时调用：未回价的任务一并取消 */
     void cancelByInquiry(Long inquiryId);
 
+    /** 询盘改了紧急后，同步到还没完成的询价任务（采购待办的排序与超时按它算） */
+    void syncUrgent(Long inquiryId, int urgent);
+
     /** status 为空时返回待分配池，否则返回该状态的任务 */
     BoardVO board(Integer status);
 

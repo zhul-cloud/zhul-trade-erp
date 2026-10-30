@@ -13,6 +13,7 @@ import com.zhul.erp.modules.inquiry.customerinquiry.dto.CustomerTypeVO;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.InquiryDownstreamVO;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.DraftVO;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.SubmitCustomerInquiryRequest;
+import com.zhul.erp.modules.inquiry.customerinquiry.dto.UpdateCustomerInquiryRequest;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.UploadedFileVO;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -70,6 +71,9 @@ public interface CustomerInquiryService {
 
     /** 调整询盘等级，记操作日志 */
     void updateLevel(Long id, Integer level);
+
+    /** 修改询盘单：来源、日期、报价截止、紧急、关联商机、附件、备注 */
+    void update(Long id, UpdateCustomerInquiryRequest req);
 
     /** 业务员核实完被退回的存疑型号后清除提醒 */
     void markReviewed(Long id);

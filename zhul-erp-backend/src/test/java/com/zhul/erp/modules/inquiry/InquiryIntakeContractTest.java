@@ -368,6 +368,57 @@ class InquiryIntakeContractTest extends InquiryContractSupport {
     }
 
     @Test
+    void update_deadlineUrgentAttachments_syncsTasks_andLogs() throws Exception {
+        loginAsAdmin("it_inq_admin");
+        String admin = token("it_inq_admin");
+        JsonNode first = ok(call(multipart(INQ + "/attachments").file(new MockMultipartFile("file", "清单.csv", "text/csv",
+                "model,qty\nE3Z-D61,1".getBytes(StandardCharsets.UTF_8))), admin));
+        long id = submit(admin, customer("Edit Buyer", "Turkey"), ",\"attachments\":[{\"fileKey\":\"" + first.path("fileKey").asText()
+                + "\",\"fileName\":\"清单.csv\"}]");
+        ok(call(json(post(INQ + "/" + id + "/confirm"), write(Map.of("rows", List.of(row("ABB", "变频器", "ACS580-01-12A7-4", 1, null))))), admin));
+        long oldAttachment = ok(call(get(INQ + "/" + id), admin)).path("attachments").get(0).path("id").asLong();
+        JsonNode drawing = ok(call(multipart(INQ + "/attachments").file(new MockMultipartFile("file", "图纸.csv", "text/csv",
+                "a,b".getBytes(StandardCharsets.UTF_8))), admin));
+
+        String today = LocalDate.now().toString();
+        String later = LocalDate.now().plusDays(5).toString();
+        assertEquals("报价截止不能早于询盘日期", call(json(put(INQ + "/" + id), write(Map.of("source", 1, "inquiryDate", today,
+                "quoteDeadline", LocalDate.now().minusDays(1).toString()))), admin).path("message").asText());
+
+        String logSql = "select count(*) from sys_log where operation = '修改询盘'";
+        int logsBefore = jdbc.queryForObject(logSql, Integer.class);
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("source", 1);
+        body.put("inquiryDate", today);
+        body.put("quoteDeadline", later);
+        body.put("urgent", true);
+        body.put("keepAttachmentIds", List.of());
+        body.put("attachments", List.of(Map.of("fileKey", drawing.path("fileKey").asText(), "fileName", "图纸.csv")));
+        body.put("remark", "客户要求 5 天内报价");
+        ok(call(json(put(INQ + "/" + id), write(body)), admin));
+
+        JsonNode d = ok(call(get(INQ + "/" + id), admin));
+        assertEquals(later, d.path("inquiry").path("quoteDeadline").asText());
+        assertTrue(d.path("inquiry").path("urgent").asBoolean());
+        assertEquals("客户要求 5 天内报价", d.path("remark").asText());
+        assertEquals(1, d.path("attachments").size(), "旧附件删掉，补传的留下");
+        assertEquals("图纸.csv", d.path("attachments").get(0).path("fileName").asText());
+        assertEquals(1, jdbc.queryForObject("select count(*) from customer_inquiry_attachment where id = ? and deleted_at is not null",
+                Integer.class, oldAttachment), "删附件是软删除");
+        assertEquals(1, jdbc.queryForObject("select urgent from sourcing_task where customer_inquiry_id = ?", Integer.class, id),
+                "紧急同步到还没完成的询价任务");
+        assertEquals(logsBefore + 1, jdbc.queryForObject(logSql, Integer.class), "修改留痕");
+
+        body.put("keepAttachmentIds", List.of(d.path("attachments").get(0).path("id").asLong()));
+        body.put("attachments", List.of());
+        ok(call(json(put(INQ + "/" + id), write(body)), admin));
+        assertEquals(logsBefore + 1, jdbc.queryForObject(logSql, Integer.class), "什么都没改时不记日志");
+
+        ok(call(put(INQ + "/" + id + "/cancel"), admin));
+        assertEquals("已取消的询盘不能修改", call(json(put(INQ + "/" + id), write(body)), admin).path("message").asText());
+    }
+
+    @Test
     void cancel_cancelsTasks_andNotAfterQuoted() throws Exception {
         loginAsAdmin("it_inq_admin");
         String admin = token("it_inq_admin");

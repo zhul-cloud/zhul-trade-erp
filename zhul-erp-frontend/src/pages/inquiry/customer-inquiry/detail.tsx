@@ -65,6 +65,7 @@ import {
   readBizError,
 } from '../shared/service';
 import AppendModal from './AppendModal';
+import EditInquiryModal from './EditInquiryModal';
 
 const Meta: React.FC<{ label: string; children: React.ReactNode }> = ({
   label,
@@ -92,6 +93,7 @@ const CustomerInquiryDetailPage: React.FC = () => {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [appendOpen, setAppendOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   const [quotations, setQuotations] = useState<QuotationListItem[]>();
   const access = useAccess() as Record<string, boolean>;
   const canQuote = !!access.quotationList;
@@ -437,6 +439,11 @@ const CustomerInquiryDetailPage: React.FC = () => {
                 取消询盘
               </Button>
             )}
+            {inq.status !== STATUS.CANCELLED && !inq.migrated && (
+              <Button disabled={busy} onClick={() => setEditOpen(true)}>
+                修改
+              </Button>
+            )}
             {inq.status === STATUS.PENDING_PARSE && (
               <>
                 <Button
@@ -644,6 +651,15 @@ const CustomerInquiryDetailPage: React.FC = () => {
           run={run}
         />
       )}
+      <EditInquiryModal
+        detail={detail}
+        open={editOpen}
+        onClose={() => setEditOpen(false)}
+        onSaved={() => {
+          setEditOpen(false);
+          load();
+        }}
+      />
       <AppendModal
         inquiryId={inquiryId}
         open={appendOpen}

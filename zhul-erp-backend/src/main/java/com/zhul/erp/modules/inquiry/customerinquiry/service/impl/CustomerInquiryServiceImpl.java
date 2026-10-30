@@ -1,6 +1,7 @@
 package com.zhul.erp.modules.inquiry.customerinquiry.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -43,6 +44,7 @@ import com.zhul.erp.modules.inquiry.customerinquiry.dto.DraftVO;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.InquiryItemVO;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.PriceRecordVO;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.SubmitCustomerInquiryRequest;
+import com.zhul.erp.modules.inquiry.customerinquiry.dto.UpdateCustomerInquiryRequest;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.TaskBriefVO;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.UploadedFileVO;
 import com.zhul.erp.modules.inquiry.customerinquiry.entity.CustomerInquiryAttachmentDO;
@@ -113,6 +115,8 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
     static final String PARSE_SKILL_ID = "inquiry-parse-and-split";
     private static final int MAX_CODE_INSERT_ATTEMPTS = 3;
     private static final int KEYWORD_LIMIT = 500;
+    /** 录入询盘时的附件上限，修改时补传也按它算（追加型号的附件另算） */
+    private static final int MAX_ATTACHMENTS = 10;
     private static final Set<Integer> CANCELLABLE = Set.of(
             InquiryConstants.STATUS_PENDING_PARSE, InquiryConstants.STATUS_PARSING, InquiryConstants.STATUS_PENDING_CONFIRM,
             InquiryConstants.STATUS_PARSE_FAILED, InquiryConstants.STATUS_SOURCING, InquiryConstants.STATUS_READY_TO_QUOTE);
@@ -1124,6 +1128,97 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
         inquiryMapper.updateById(patch);
         logService.recordOperateLog("询盘单", "调整询盘等级", before,
                 Map.of("inquiryCode", inquiry.getInquiryCode(), "level", labels.getOrDefault(level, "")));
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void update(Long id, UpdateCustomerInquiryRequest req) {
+        CustomerInquiryDO inquiry = getEditable(id);
+        if (InquiryConstants.STATUS_CANCELLED == inquiry.getStatus()) {
+            throw new BizException("已取消的询盘不能修改");
+        }
+        if (req.getQuoteDeadline().isBefore(req.getInquiryDate())) {
+            throw new BizException("报价截止不能早于询盘日期");
+        }
+        dictItemService.requireEnabledValue(DictTypes.SOURCE_CHANNEL, req.getSource(), "来源渠道不正确");
+        boolean oppChanged = !Objects.equals(req.getOpportunityId(), inquiry.getOpportunityId());
+        if (oppChanged && req.getOpportunityId() != null
+                && !Objects.equals(opportunityService.customerIdOf(req.getOpportunityId()), inquiry.getCustomerId())) {
+            throw new BizException("关联商机与客户不一致");
+        }
+        List<CustomerInquiryAttachmentDO> current = attachmentMapper.selectList(new LambdaQueryWrapper<CustomerInquiryAttachmentDO>()
+                .eq(CustomerInquiryAttachmentDO::getCustomerInquiryId, id)
+                .isNull(CustomerInquiryAttachmentDO::getDeletedAt));
+        Set<Long> keep = req.getKeepAttachmentIds() == null ? Set.of() : Set.copyOf(req.getKeepAttachmentIds());
+        List<CustomerInquiryAttachmentDO> removed = current.stream().filter(a -> !keep.contains(a.getId())).toList();
+        List<AttachmentRef> added = req.getAttachments() == null ? List.of() : req.getAttachments();
+        long baseCount = current.stream().filter(a -> a.getAppendId() == 0 && keep.contains(a.getId())).count();
+        if (baseCount + added.size() > MAX_ATTACHMENTS) {
+            throw new BizException("附件最多 " + MAX_ATTACHMENTS + " 个");
+        }
+        int urgent = Boolean.TRUE.equals(req.getUrgent()) ? 1 : 0;
+        String remark = req.getRemark() == null ? "" : req.getRemark().trim();
+
+        Map<Integer, String> sources = dictItemService.intLabels(DictTypes.SOURCE_CHANNEL);
+        Map<String, Object> before = new LinkedHashMap<>();
+        Map<String, Object> after = new LinkedHashMap<>();
+        before.put("inquiryCode", inquiry.getInquiryCode());
+        after.put("inquiryCode", inquiry.getInquiryCode());
+        diff(before, after, "来源", sources.getOrDefault(inquiry.getSource(), ""), sources.getOrDefault(req.getSource(), ""));
+        diff(before, after, "询盘日期", inquiry.getInquiryDate(), req.getInquiryDate());
+        diff(before, after, "报价截止", inquiry.getQuoteDeadline(), req.getQuoteDeadline());
+        diff(before, after, "紧急", Objects.equals(inquiry.getUrgent(), 1) ? "是" : "否", urgent == 1 ? "是" : "否");
+        diff(before, after, "关联商机", opportunityCode(inquiry.getOpportunityId()), opportunityCode(req.getOpportunityId()));
+        diff(before, after, "备注", inquiry.getRemark(), remark);
+        if (!removed.isEmpty()) {
+            before.put("删除附件", removed.stream().map(CustomerInquiryAttachmentDO::getFileName).toList());
+        }
+        if (!added.isEmpty()) {
+            after.put("补传附件", added.stream().map(AttachmentRef::getFileName).toList());
+        }
+        if (before.size() == 1 && after.size() == 1) {
+            return;
+        }
+
+        inquiryMapper.update(null, new LambdaUpdateWrapper<CustomerInquiryDO>()
+                .eq(CustomerInquiryDO::getId, id)
+                .set(CustomerInquiryDO::getSource, req.getSource())
+                .set(CustomerInquiryDO::getInquiryDate, req.getInquiryDate())
+                .set(CustomerInquiryDO::getQuoteDeadline, req.getQuoteDeadline())
+                .set(CustomerInquiryDO::getUrgent, urgent)
+                .set(CustomerInquiryDO::getOpportunityId, req.getOpportunityId())
+                .set(CustomerInquiryDO::getRemark, remark)
+                .set(CustomerInquiryDO::getUpdateTime, LocalDateTime.now()));
+        LocalDateTime now = LocalDateTime.now();
+        for (CustomerInquiryAttachmentDO a : removed) {
+            attachmentMapper.update(null, new LambdaUpdateWrapper<CustomerInquiryAttachmentDO>()
+                    .eq(CustomerInquiryAttachmentDO::getId, a.getId())
+                    .set(CustomerInquiryAttachmentDO::getDeletedAt, now)
+                    .set(CustomerInquiryAttachmentDO::getUpdateTime, now));
+        }
+        saveAttachments(inquiry, added, 0L);
+        if (!Objects.equals(inquiry.getUrgent(), urgent)) {
+            sourcingTaskService.syncUrgent(id, urgent);
+        }
+        if (oppChanged && req.getOpportunityId() != null) {
+            opportunityService.onInquiryCreated(req.getOpportunityId(), inquiry.getInquiryCode());
+        }
+        logService.recordOperateLog("询盘单", "修改询盘", before, after);
+    }
+
+    /** 只把改了的字段记进操作日志 */
+    private static void diff(Map<String, Object> before, Map<String, Object> after, String field, Object from, Object to) {
+        String a = from == null ? "" : String.valueOf(from);
+        String b = to == null ? "" : String.valueOf(to);
+        if (!a.equals(b)) {
+            before.put(field, a);
+            after.put(field, b);
+        }
+    }
+
+    private String opportunityCode(Long opportunityId) {
+        OpportunityVO opp = opportunityId == null ? null : opportunityService.findVisible(opportunityId);
+        return opp == null ? "" : opp.getOpportunityCode();
     }
 
     @Override
