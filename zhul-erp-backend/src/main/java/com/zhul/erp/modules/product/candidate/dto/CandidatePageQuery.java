@@ -15,4 +15,6 @@ public class CandidatePageQuery {
     private Integer level;
     /** 品牌：1-已确认（品牌库里有）、2-待确认；不传为全部 */
     private Integer brandState;
+    /** 品类：1-已选、2-未选；不传为全部 */
+    private Integer categoryState;
 }

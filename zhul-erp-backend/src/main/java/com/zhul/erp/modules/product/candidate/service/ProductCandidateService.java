@@ -103,6 +103,11 @@ public class ProductCandidateService {
         } else if (Integer.valueOf(2).equals(q.getBrandState())) {
             w.isNull(ProductCandidateDO::getBrandId);
         }
+        if (Integer.valueOf(1).equals(q.getCategoryState())) {
+            w.isNotNull(ProductCandidateDO::getCategoryId);
+        } else if (Integer.valueOf(2).equals(q.getCategoryState())) {
+            w.isNull(ProductCandidateDO::getCategoryId);
+        }
         if (StringUtils.hasText(q.getKeyword())) {
             String kw = q.getKeyword().trim();
             String key = MpnNormalizer.normalize(kw);
@@ -116,8 +121,8 @@ public class ProductCandidateService {
         if (total == 0) {
             return PageResult.of(0L, List.of());
         }
-        // 待确认品牌的排在最后，方便先批量审核品牌已确认的；再按可信度从高到低、更新时间倒序
-        w.last("ORDER BY brand_id IS NULL, level DESC, update_time DESC, id DESC LIMIT " + (long) (page - 1) * size + ", " + size);
+        // 待确认品牌的排在最后，其次是没选品类的，方便先批量审核能直接通过的；再按可信度从高到低、更新时间倒序
+        w.last("ORDER BY brand_id IS NULL, category_id IS NULL, level DESC, update_time DESC, id DESC LIMIT " + (long) (page - 1) * size + ", " + size);
         return PageResult.of(total, toVos(candidateMapper.selectList(w), false));
     }
 
