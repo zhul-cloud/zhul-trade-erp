@@ -266,6 +266,24 @@ class ProductCandidateContractTest extends InquiryContractSupport {
         assertEquals(List.of("6ES7215-1AG40-0XB0"), mpns(ok(call(json(post(CAND + "/page"), "{\"brandState\":1}"), admin))));
     }
 
+    @Test
+    void noCategorySortsAfterCategorized_andFilterByCategoryState() throws Exception {
+        loginAsAdmin("it_cand_admin");
+        String admin = token("it_cand_admin");
+        jdbc.update("insert into product_candidate (tenant_id, brand_id, brand_text, brand_key, mpn_raw, mpn_normalized, status, level, "
+                + "source_count) values (0, ?, 'ITSiemens', ?, 'NOCAT-1', 'NOCAT1', 1, 3, 1)", siemens, "#" + siemens);
+        jdbc.update("insert into product_candidate (tenant_id, brand_id, brand_text, brand_key, mpn_raw, mpn_normalized, category_id, status, level, "
+                + "source_count) values (0, ?, 'ITSiemens', ?, '6ES7215-1AG40-0XB0', '6ES72151AG400XB0', ?, 1, 1, 1)", siemens, "#" + siemens, servo);
+        jdbc.update("insert into product_candidate (tenant_id, brand_text, brand_key, mpn_raw, mpn_normalized, category_id, status, level, source_count) "
+                + "values (0, 'ITUnknown', 'itunknown', 'UNK-1', 'UNK1', ?, 1, 3, 1)", servo);
+        JsonNode page = ok(call(json(post(CAND + "/page"), "{}"), admin));
+        assertEquals(List.of("6ES7215-1AG40-0XB0", "NOCAT-1", "UNK-1"), mpns(page),
+                "没选品类的即使可信度更高也排在已选品类的后面，待确认品牌的仍在最后");
+        assertEquals(List.of("NOCAT-1"), mpns(ok(call(json(post(CAND + "/page"), "{\"categoryState\":2}"), admin))));
+        assertEquals(List.of("6ES7215-1AG40-0XB0", "UNK-1"),
+                mpns(ok(call(json(post(CAND + "/page"), "{\"categoryState\":1}"), admin))));
+    }
+
     private static List<String> mpns(JsonNode page) {
         List<String> out = new java.util.ArrayList<>();
         page.path("records").forEach(r -> out.add(r.path("mpnRaw").asText()));
