@@ -159,6 +159,16 @@ public class SourcingTaskServiceImpl implements SourcingTaskService {
         }
     }
 
+    @Override
+    public void syncUrgent(Long inquiryId, int urgent) {
+        taskMapper.update(null, new LambdaUpdateWrapper<SourcingTaskDO>()
+                .eq(SourcingTaskDO::getCustomerInquiryId, inquiryId)
+                .in(SourcingTaskDO::getStatus, InquiryConstants.TASK_UNASSIGNED, InquiryConstants.TASK_SOURCING)
+                .isNull(SourcingTaskDO::getDeletedAt)
+                .set(SourcingTaskDO::getUrgent, urgent)
+                .set(SourcingTaskDO::getUpdateTime, LocalDateTime.now()));
+    }
+
     // ---------------------------------------------------------------- 工作台
 
     @Override
