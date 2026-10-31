@@ -12,7 +12,7 @@ public interface ProductMediaStorageService {
     int MEDIA_VIDEO = 2;
 
     /**
-     * 校验并保存文件。图片仅 jpg/jpeg/png/webp 且 ≤5MB，视频仅 mp4/webm 且 ≤100MB；
+     * 校验并保存文件。图片仅 jpg/jpeg/png/webp 且 ≤5MB，视频仅 mp4/webm 且 ≤95MB；
      * 同时校验扩展名和文件头，SVG 一律拒绝；存储用随机文件名，不使用客户端文件名。
      */
     StoredMedia store(MultipartFile file, int mediaType, String brand, String model);
