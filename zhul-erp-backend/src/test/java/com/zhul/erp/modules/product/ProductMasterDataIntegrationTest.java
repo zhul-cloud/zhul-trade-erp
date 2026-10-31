@@ -73,6 +73,7 @@ class ProductMasterDataIntegrationTest extends IntegrationTestBase {
 
     @BeforeEach
     void cleanData() {
+        snapshotCategories();
         for (String table : List.of("product", "product_series", "product_category", "product_brand")) {
             jdbc.update("delete from " + table);
         }
