@@ -4,7 +4,7 @@ server {
     root /usr/share/nginx/html;
     index index.html;
 
-    client_max_body_size 210m;
+    client_max_body_size 100m;
 
     # Behind a reverse proxy on the host (or another container), restore the visitor IP from its
     # X-Real-IP so the backend logs the real client instead of the Docker gateway. Only the local

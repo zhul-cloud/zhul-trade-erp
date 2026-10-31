@@ -211,8 +211,8 @@ export const UPLOAD_RULES = {
   },
   video: {
     ext: ['mp4', 'webm'],
-    maxBytes: 100 * 1024 * 1024,
-    label: '视频不能超过 100MB',
+    maxBytes: 95 * 1024 * 1024,
+    label: '视频不能超过 95MB',
   },
 };
 

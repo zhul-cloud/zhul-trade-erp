@@ -38,7 +38,7 @@ import java.util.stream.Collectors;
 
 /**
  * 业务附件：先上传拿到 ID（owner_id = 0），保存单据时挂到单据上；24 小时内没挂上的清理掉。
- * 图片 JPG / PNG / WEBP 不超过 10MB，视频 MP4 / MOV 不超过 200MB，按文件内容识别。
+ * 图片 JPG / PNG / WEBP 不超过 10MB，视频 MP4 / MOV 不超过 95MB，按文件内容识别。
  * 文件按所属单据类型放到对应环节的目录（实拍任务按品牌与型号），图片上传时压缩，视频上传后在后台转码。
  */
 @Slf4j
@@ -92,7 +92,7 @@ public class AttachmentService {
     private static final Set<String> FACE_SHEET_EXTS = Set.of("pdf", "jpg", "png", "webp");
     private static final Set<String> DOC_EXTS = Set.of("pdf", "jpg", "png", "webp", "xlsx", "xls");
     private static final long IMAGE_MAX = 10L * 1024 * 1024;
-    private static final long VIDEO_MAX = 200L * 1024 * 1024;
+    private static final long VIDEO_MAX = 95L * 1024 * 1024;
 
     /** 所属单据类型 → 存储目录对应的业务环节 */
     private static final Map<String, StorageArea> AREAS = Map.ofEntries(Map.entry(SHIPMENT, StorageArea.SHIPMENT),

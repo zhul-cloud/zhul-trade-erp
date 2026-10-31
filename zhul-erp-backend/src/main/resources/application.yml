@@ -60,9 +60,9 @@ spring:
 
   servlet:
     multipart:
-      # 商品视频最大 100MB；各上传接口自己再按业务限制校验大小（图片、询盘附件仍是 5MB）
-      max-file-size: 210MB
-      max-request-size: 210MB
+      # 视频最大 95MB（Cloudflare 免费版单个请求上限 100MB）；各上传接口自己再按业务限制校验大小
+      max-file-size: 100MB
+      max-request-size: 100MB
 
 mybatis-plus:
   mapper-locations: classpath:mapper/**/*.xml
