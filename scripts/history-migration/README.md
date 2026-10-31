@@ -59,6 +59,15 @@ node scripts/history-migration/pack.js
 
 生产不需要开发 OSS 的密钥：导入时按链接下载图片，存进生产自己的 OSS。链接过期就在本机重新运行第 6 步，再上传新的迁移包。
 
+生产服务器访问不了开发 OSS 时，改用生产的私有桶中转：把生产 OSS 的公网 endpoint、私有桶名和一组只能写 `migration/` 的 AccessKey 写进仓库外的文件（如 `~/.zhul-prod-oss.env`，权限 600），再运行：
+
+```bash
+set -a; . ~/.zhul-prod-oss.env; set +a   # 含 HM_OSS_ENDPOINT、HM_OSS_BUCKET、HM_OSS_ACCESS_KEY_ID、HM_OSS_ACCESS_KEY_SECRET
+HM_OSS_ALLOW_PROD=1 node scripts/history-migration/pack.js
+```
+
+迁移完成、核对通过后，生产桶里的 `migration/feishu/` 中转目录可以整体删除（正式图片已另存）。
+
 ## 性质
 
 - **不静默丢弃**：每条源记录都有且只有一种结果（迁移、合并、跳过、需人工处理），见 `out/review/2-逐条处理结果.csv`。
