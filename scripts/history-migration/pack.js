@@ -6,6 +6,7 @@
 //    给每张图生成临时下载链接（默认 7 天，OSS 上限），生产导入时按链接下载后存入生产 OSS——两套 OSS 的密钥互不接触；
 // 3. 打成 out/pack/迁移包-<版本>.zip：清洗结果、reports.json、带链接的 media.json、manifest（含链接到期时间）。
 // 开发 OSS 的配置读 zhul-erp-backend/src/main/resources/application-dev.yml（已被 Git 忽略），也可用 HM_OSS_* 环境变量覆盖。
+// 生产服务器访问不了开发 OSS 时，用 HM_OSS_* 指向生产的私有桶（公网 endpoint），并设 HM_OSS_ALLOW_PROD=1 显式确认。
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
@@ -35,7 +36,9 @@ function ossConfig() {
     bucket: process.env.HM_OSS_BUCKET || pick('private-bucket'),
   };
   for (const [k, v] of Object.entries(c)) if (!v) throw new Error(`缺少开发 OSS 配置：${k}`);
-  if (!c.bucket.includes('dev')) throw new Error(`存储桶 ${c.bucket} 看起来不是开发桶，停止（迁移图片只放开发桶）`);
+  if (!c.bucket.includes('dev') && process.env.HM_OSS_ALLOW_PROD !== '1') {
+    throw new Error(`存储桶 ${c.bucket} 看起来不是开发桶，停止；确认要用生产桶中转时设 HM_OSS_ALLOW_PROD=1`);
+  }
   c.host = `${c.bucket}.${c.endpoint.replace(/^https?:\/\//, '')}`;
   return c;
 }
