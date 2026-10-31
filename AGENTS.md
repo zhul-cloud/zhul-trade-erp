@@ -107,8 +107,8 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 
 详见 `docs/06-部署运维/08-生产发版.md`。
 
-- 开发分支是 `dev-X.Y.Z`：功能分支从它拉出，PR 发往它，不要直接向 `main` 发 PR
-- `dev-X.Y.Z` 合并到 `main` 就是生产上线：自动打版本标签、构建镜像、部署，中间没有人工确认
+- 按 Git Flow：`feat/*`、`fix/*` 从 `develop` 拉出，PR 发往 `develop`；发版从 `develop` 拉 `release/X.Y.Z`；线上紧急修复从 `main` 拉 `hotfix/X.Y.Z`
+- `release/X.Y.Z`、`hotfix/X.Y.Z` 合并到 `main` 就是生产上线，合并后必须再合回 `develop`：自动打版本标签、构建镜像、部署，中间没有人工确认
 - 新增或改名 `.env` 配置项（`.env.example`）时：在 PR 说明里列出配置项名称和生产应填的值；合并到 `main` 之前，必须由有服务器权限的人先在生产 `.env` 补齐，否则部署会在预检阶段停止
 - 带数据库迁移的改动，在 PR 说明里写明迁移版本号以及能否回退
 

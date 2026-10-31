@@ -256,11 +256,11 @@ npm run build                         # 生产构建
 
 ## 🤝 参与贡献
 
-1. 从当前开发分支 `dev-x.y.z` 拉出功能分支
+1. 从 `develop` 拉出功能分支
 2. 用 OpenSpec 写变更提案，说明影响范围
 3. 实现并补齐测试，确保后端 `mvn test`、前端 `npm run lint` 与 `npx antd lint ./src` 全部通过
 4. 提交信息遵循 [Conventional Commits](https://www.conventionalcommits.org/zh-hans/)，例如 `feat(sales): …`
-5. 向 `dev-x.y.z` 发起 Pull Request
+5. 向 `develop` 发起 Pull Request
 
 > 提交 Pull Request 即表示你同意：你的贡献以 AGPL-3.0 授权，并授权烛龙科技将其纳入商业授权版本。
 
