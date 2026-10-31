@@ -35,10 +35,33 @@ public abstract class IntegrationTestBase {
     @Autowired
     private AesUtils aesUtils;
 
+    private boolean categoriesSnapshotted;
+
     @BeforeEach
     void assertUsingTestDatabase() {
         assertEquals(TEST_DB, jdbc.queryForObject("select database()", String.class),
                 "集成测试必须连 " + TEST_DB + "，当前连的不是测试库，已中止");
+    }
+
+    /**
+     * 会清空品类表的用例在清空前调用：先存下品类表（含种子品类），用例结束时自动恢复。
+     * 询盘、询价等用例依赖种子品类，不恢复的话结果取决于测试执行顺序。
+     */
+    protected void snapshotCategories() {
+        jdbc.update("drop table if exists it_category_snapshot");
+        jdbc.update("create table it_category_snapshot as select * from product_category");
+        categoriesSnapshotted = true;
+    }
+
+    @AfterEach
+    void restoreCategories() {
+        if (!categoriesSnapshotted) {
+            return;
+        }
+        jdbc.update("delete from product_category");
+        jdbc.update("insert into product_category select * from it_category_snapshot");
+        jdbc.update("drop table it_category_snapshot");
+        categoriesSnapshotted = false;
     }
 
     @AfterEach
