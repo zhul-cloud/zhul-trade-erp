@@ -267,7 +267,7 @@ export const UploadModal: React.FC<{
           <p style={{ color: palette.sub, fontSize: 13, margin: 0 }}>
             {mediaType === 1
               ? '支持 jpg、jpeg、png、webp，不超过 5MB，可一次选择多张'
-              : '支持 mp4、webm，不超过 100MB'}
+              : '支持 mp4、webm，不超过 95MB'}
           </p>
         </Upload.Dragger>
         {files.length > 0 && (

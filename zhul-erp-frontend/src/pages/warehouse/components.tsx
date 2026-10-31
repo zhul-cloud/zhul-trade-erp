@@ -90,7 +90,7 @@ export const trackingText = (carrier?: string, trackingNo?: string) =>
 // ---------------------------------------------------------------- 附件
 
 const IMAGE_MAX = 10 * 1024 * 1024;
-const VIDEO_MAX = 200 * 1024 * 1024;
+const VIDEO_MAX = 95 * 1024 * 1024;
 const ACCEPT_ALL = 'image/jpeg,image/png,image/webp,video/mp4,video/quicktime';
 export const ACCEPT_IMAGE = 'image/jpeg,image/png,image/webp';
 export const ACCEPT_VIDEO = 'video/mp4,video/quicktime';
@@ -102,7 +102,7 @@ const isVideoFile = (f: File) =>
 export const checkSize = (f: File) =>
   isVideoFile(f)
     ? f.size > VIDEO_MAX
-      ? '视频不能超过 200MB'
+      ? '视频不能超过 95MB'
       : undefined
     : f.size > IMAGE_MAX
       ? '图片不能超过 10MB'

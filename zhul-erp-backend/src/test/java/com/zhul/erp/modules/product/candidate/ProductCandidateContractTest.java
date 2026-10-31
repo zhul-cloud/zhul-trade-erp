@@ -38,8 +38,9 @@ class ProductCandidateContractTest extends InquiryContractSupport {
         siemens = brand("ITSiemens");
         brand("ITABB");
         brand("ITSchneider");
-        servo = category("it-servo", "AC Servo", "伺服");
-        contactor = category("it-contactor", "Contactor", "接触器");
+        // 品类中文名加「仝己」前缀，不与种子品类重名，品类建议只会命中这里造的品类
+        servo = category("it-servo", "AC Servo", "仝己伺服");
+        contactor = category("it-contactor", "Contactor", "仝己接触器");
     }
 
     @AfterEach
@@ -123,8 +124,8 @@ class ProductCandidateContractTest extends InquiryContractSupport {
         long existing = ok(call(json(post(PRODUCTS), write(Map.of("brandId", siemens, "categoryId", servo, "mpnRaw", "6ES7214-1AG40-0XB0"))),
                 admin)).path("id").asLong();
 
-        long inq = confirmInquiry(List.of(row("ITSiemens", "PLC", "6ES7 214-1AG40-0XB0"), row("ITABB", "接触器", "Contactor, 32A"),
-                row("ITSchneider", "伺服驱动器", "LXM32AD30N4"), row("Hengstler", "编码器", "RI58-O/1024ER")));
+        long inq = confirmInquiry(List.of(row("ITSiemens", "PLC", "6ES7 214-1AG40-0XB0"), row("ITABB", "仝己接触器", "Contactor, 32A"),
+                row("ITSchneider", "仝己伺服驱动器", "LXM32AD30N4"), row("Hengstler", "编码器", "RI58-O/1024ER")));
         long siemensItem = item(inq, "6ES7 214-1AG40-0XB0");
         long abbItem = item(inq, "Contactor, 32A");
         long lxmItem = item(inq, "LXM32AD30N4");
@@ -312,9 +313,9 @@ class ProductCandidateContractTest extends InquiryContractSupport {
                 "mpnRaw", "WTB4-OTHER", "orderCodes", List.of("1025994")))), admin)).path("message").asText());
 
         // 询盘里型号对不上、订货号对上：认成这个商品，新出现的订货号补到商品上
-        Map<String, Object> byCode = row("ITABB", "伺服", "1025994");
+        Map<String, Object> byCode = row("ITABB", "仝己伺服", "1025994");
         byCode.put("orderCode", "1025994, 1025994-02");
-        Map<String, Object> fresh = row("ITABB", "伺服", "ACS580-01-12A7-4");
+        Map<String, Object> fresh = row("ITABB", "仝己伺服", "ACS580-01-12A7-4");
         fresh.put("orderCode", "3AXD50000038965");
         long inq = confirmInquiry(List.of(byCode, fresh));
         long matched = item(inq, "1025994");

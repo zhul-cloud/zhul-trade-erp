@@ -20,7 +20,7 @@ import java.util.Set;
 public class ProductMediaStorageServiceImpl implements ProductMediaStorageService {
 
     static final long MAX_IMAGE_BYTES = 5L * 1024 * 1024;
-    static final long MAX_VIDEO_BYTES = 100L * 1024 * 1024;
+    static final long MAX_VIDEO_BYTES = 95L * 1024 * 1024;
 
     /** 扩展名 → 存储时使用的规范扩展名（jpeg 统一存为 jpg） */
     private static final Map<String, String> IMAGE_EXT = Map.of("jpg", "jpg", "jpeg", "jpg", "png", "png", "webp", "webp");
@@ -53,7 +53,7 @@ public class ProductMediaStorageServiceImpl implements ProductMediaStorageServic
         }
         if (file.getSize() > (image ? MAX_IMAGE_BYTES : MAX_VIDEO_BYTES)) {
             throw BizException.of(ProductErrorCodes.MEDIA_TOO_LARGE,
-                    image ? "图片不能超过 5MB" : "视频不能超过 100MB");
+                    image ? "图片不能超过 5MB" : "视频不能超过 95MB");
         }
         if (!storedExt.equals(UploadRules.detect(UploadRules.head(file), file.getOriginalFilename()))) {
             throw BizException.of(ProductErrorCodes.MEDIA_FILE_INVALID, "文件内容与扩展名不一致，已拒绝");

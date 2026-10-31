@@ -60,7 +60,7 @@ describe('precheckUpload（上传预检，服务端仍会再校验）', () => {
     expect(precheckUpload({ name: 'a.png', size: 2 * MB }, 1)).toBeUndefined();
     expect(precheckUpload({ name: 'a.JPG', size: 5 * MB }, 1)).toBeUndefined();
     expect(
-      precheckUpload({ name: 'a.webm', size: 100 * MB }, 2),
+      precheckUpload({ name: 'a.webm', size: 95 * MB }, 2),
     ).toBeUndefined();
   });
 
@@ -68,8 +68,8 @@ describe('precheckUpload（上传预检，服务端仍会再校验）', () => {
     expect(precheckUpload({ name: 'a.png', size: 5 * MB + 1 }, 1)).toBe(
       '图片不能超过 5MB',
     );
-    expect(precheckUpload({ name: 'a.mp4', size: 100 * MB + 1 }, 2)).toBe(
-      '视频不能超过 100MB',
+    expect(precheckUpload({ name: 'a.mp4', size: 95 * MB + 1 }, 2)).toBe(
+      '视频不能超过 95MB',
     );
   });
 

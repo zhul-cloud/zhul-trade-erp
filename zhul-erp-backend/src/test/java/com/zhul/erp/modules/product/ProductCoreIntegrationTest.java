@@ -87,6 +87,7 @@ class ProductCoreIntegrationTest extends IntegrationTestBase {
 
     @BeforeEach
     void setUp() {
+        snapshotCategories();
         for (String table : List.of("product_relationship", "product_specification", "product", "product_series",
                 "product_category", "product_brand")) {
             jdbc.update("delete from " + table);

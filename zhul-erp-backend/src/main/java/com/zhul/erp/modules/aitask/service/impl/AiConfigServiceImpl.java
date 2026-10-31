@@ -146,9 +146,11 @@ public class AiConfigServiceImpl implements AiConfigService {
         if (selected == null) {
             return false;
         }
-        // 订阅只查授权、不查登录：这里在业务保存的事务里，不调用编排服务
+        // 订阅与 resolveForCurrentTenant 同样要查登录，否则随后的 createAndSubmit 会在业务事务里抛 AiUnavailableException
         if (AiConfigConstants.MODE_SUBSCRIPTION.equals(selected.getMode())) {
-            return subscriptionAccess.allowed(tenantId);
+            return tenantId == AiConfigConstants.PLATFORM_TENANT_ID
+                    || (subscriptionAccess.allowed(tenantId)
+                    && Boolean.TRUE.equals(available(loginStatus(), selected.getProvider())));
         }
         SysAiProviderConfigDO row = profile(tenantId, AiConfigConstants.MODE_API, selected.getProvider());
         return row != null && StringUtils.hasText(row.getApiKey());

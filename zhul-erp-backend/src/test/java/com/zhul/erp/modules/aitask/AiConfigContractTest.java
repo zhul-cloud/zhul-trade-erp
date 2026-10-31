@@ -39,6 +39,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -91,7 +92,8 @@ class AiConfigContractTest extends IntegrationTestBase {
     }
 
     private void loggedIn(boolean claude, boolean openai) {
-        when(orchestratorClient.status()).thenReturn(new AiLoginStatus(claude, openai));
+        // doReturn：status() 被设为抛异常后也能重新设值
+        doReturn(new AiLoginStatus(claude, openai)).when(orchestratorClient).status();
     }
 
     private static SaveAiConfigRequest req(String mode, String provider, String key) {
@@ -278,11 +280,19 @@ class AiConfigContractTest extends IntegrationTestBase {
     void revokedGrantOrLoggedOutPlatformMakesAiUnavailable() {
         saveAs(GRANTED, req("subscription", "claude", ""));
         assertTrue(resolveAs(GRANTED).isSubscription());
+        TenantContext.setTenantId(GRANTED);
+        assertTrue(service.isConfiguredForCurrentTenant());
 
         // 平台的 Claude 退出登录：不创建任务，不自动换到 OpenAI，选择不变
         loggedIn(false, true);
         AiUnavailableException e = assertThrows(AiUnavailableException.class, () -> resolveAs(GRANTED));
         assertEquals(AiConfigConstants.UNAVAILABLE_MESSAGE, e.getMessage());
+        // 顺带触发的任务（如保存商机时的联系人名称翻译）据此跳过，不在业务事务里抛异常
+        TenantContext.setTenantId(GRANTED);
+        assertFalse(service.isConfiguredForCurrentTenant());
+        // 状态查询失败：可用与否未知，同样跳过
+        when(orchestratorClient.status()).thenThrow(new BizException("AI 编排服务不可用"));
+        assertFalse(service.isConfiguredForCurrentTenant());
         assertEquals("claude", jdbc.queryForObject("select provider from sys_ai_config where tenant_id = ?", String.class, GRANTED));
 
         // 收回授权：套餐去掉「使用平台订阅」

@@ -465,7 +465,7 @@ const ShipmentDrawer: React.FC<{
           {section(
             <PictureOutlined />,
             '发货图片与视频',
-            '图片 10MB 内，视频 200MB 内',
+            '图片 10MB 内，视频 95MB 内',
           )}
           <AttachmentWall
             ownerType="SHIPMENT"
