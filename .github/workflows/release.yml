@@ -1,5 +1,5 @@
-# 生产发版：release/* 通过 PR 合并到 main 后，自动打版本标签 → 构建三个镜像推送到 GHCR → 部署到生产服务器。
-# 版本号取分支名 release/X.Y.Z；同一 X.Y 已有标签时取最大补丁号 +1（已有 v1.3.0 再合并就打 v1.3.1）。
+# 生产发版：dev-* 通过 PR 合并到 main 后，自动打版本标签 → 构建三个镜像推送到 GHCR → 部署到生产服务器。
+# 版本号取分支名 dev-X.Y.Z；同一 X.Y 已有标签时取最大补丁号 +1（已有 v1.3.0 再合并就打 v1.3.1）。
 # 手动运行（Actions → 生产发版 → Run workflow）只重新部署已有版本，用于重试或回滚，不打标签、不构建。
 # 需要的配置（Settings → Secrets and variables → Actions），说明见 docs/06-部署运维/08-生产发版.md：
 #   Secret   DEPLOY_SSH_KEY      受限部署密钥的私钥（服务器只允许它执行部署脚本）
@@ -27,11 +27,11 @@ concurrency:
 jobs:
   version:
     name: 确定版本号
-    # 只处理本仓库 release/* 分支合并到 main 的 PR；fork 的 PR 和未合并就关闭的 PR 不发版。
+    # 只处理本仓库 dev-* 分支合并到 main 的 PR；fork 的 PR 和未合并就关闭的 PR 不发版。
     if: >-
       github.event_name == 'workflow_dispatch' ||
       (github.event.pull_request.merged == true &&
-       startsWith(github.event.pull_request.head.ref, 'release/') &&
+       startsWith(github.event.pull_request.head.ref, 'dev-') &&
        github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: ubuntu-latest
     permissions:
@@ -61,8 +61,8 @@ jobs:
             exit 0
           fi
 
-          base="${HEAD_REF#release/}"
-          [[ "$base" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)$ ]] || { echo "::error::分支名 $HEAD_REF 不是 release/X.Y.Z"; exit 1; }
+          base="${HEAD_REF#dev-}"
+          [[ "$base" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)$ ]] || { echo "::error::分支名 $HEAD_REF 不是 dev-X.Y.Z"; exit 1; }
           major=${BASH_REMATCH[1]}
           minor=${BASH_REMATCH[2]}
           patch=${BASH_REMATCH[3]}
