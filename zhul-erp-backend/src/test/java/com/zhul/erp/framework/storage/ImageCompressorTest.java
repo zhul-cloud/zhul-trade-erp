@@ -58,9 +58,15 @@ class ImageCompressorTest {
     @Test
     void pngScreenshot_staysPng_longEdge2048() throws Exception {
         BufferedImage img = new BufferedImage(1170, 2532, BufferedImage.TYPE_INT_RGB);
+        // 带杂色的底：纯白底黑字压缩率太高，缩小后反而变大，会按规则保留原图
+        Random rnd = new Random(7);
+        for (int y = 0; y < 2532; y++) {
+            for (int x = 0; x < 1170; x++) {
+                int v = 200 + rnd.nextInt(56);
+                img.setRGB(x, y, (v << 16) | (v << 8) | v);
+            }
+        }
         Graphics2D g = img.createGraphics();
-        g.setColor(Color.WHITE);
-        g.fillRect(0, 0, 1170, 2532);
         g.setColor(Color.BLACK);
         g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 64));
         for (int y = 200; y < 2500; y += 120) {
