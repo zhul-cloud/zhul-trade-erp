@@ -79,6 +79,17 @@ jobs:
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "build=true" >> "$GITHUB_OUTPUT"
           echo "### 版本 $version（$MERGE_SHA）" >> "$GITHUB_STEP_SUMMARY"
+      # 按上一个版本标签以来合并的 PR 自动生成 GitHub Release 说明；失败不影响构建和部署。
+      - name: 生成 Release 说明
+        if: steps.v.outputs.build == 'true'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.v.outputs.version }}
+        run: |
+          set -euo pipefail
+          prev=$(git tag -l 'v*' --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | grep -vx "$VERSION" | head -n1 || true)
+          gh release create "$VERSION" --verify-tag --title "$VERSION" --generate-notes ${prev:+--notes-start-tag "$prev"}
 
   build:
     name: 构建 ${{ matrix.name }}
