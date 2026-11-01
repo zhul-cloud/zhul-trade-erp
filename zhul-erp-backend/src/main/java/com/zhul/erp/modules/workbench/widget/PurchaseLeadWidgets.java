@@ -39,7 +39,7 @@ public class PurchaseLeadWidgets {
     @Bean
     public WorkbenchWidget sourcingOverviewWidget(SourcingTaskService tasks) {
         return W.widget("sourcing-overview", List.of(BOARD), () -> {
-            BoardStatsVO s = tasks.board(null).getStats();
+            BoardStatsVO s = tasks.board(null, 1, 1).getStats();
             long wait = s.getLongestWaitingMinutes() == null ? 0 : s.getLongestWaitingMinutes();
             return W.of(W.metrics(
                     W.link(W.tone(W.metric("待分配的任务", s.getUnassigned(), "count",

@@ -128,6 +128,8 @@ public final class InquiryConstants {
 
     /** 推荐依据的统计窗口 */
     public static final int RECOMMEND_DAYS = 180;
+    /** 分配工作台、待认领每页最多任务数 */
+    public static final int MAX_PAGE_SIZE = 100;
 
     /** 本位币 */
     public static final String BASE_CURRENCY = "CNY";

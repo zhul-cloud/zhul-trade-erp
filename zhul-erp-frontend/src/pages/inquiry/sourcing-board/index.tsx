@@ -25,6 +25,14 @@ import dayjs from 'dayjs';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useAppTheme } from '@/theme/AppTheme';
+import { usePageSize } from '@/utils/pageSize';
+import {
+  BrandGroupHeader,
+  FoldToggle,
+  groupByBrand,
+  TaskPager,
+  useFold,
+} from '../shared/BrandGroups';
 import {
   Card,
   CustomerBrief,
@@ -80,18 +88,30 @@ const SourcingBoardPage: React.FC = () => {
   const [importOpen, setImportOpen] = useState(false);
   const [detailId, setDetailId] = useState<number>();
   const [reviewId, setReviewId] = useState<number>();
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = usePageSize(20);
+  const fold = useFold();
 
   const load = useCallback(async () => {
     setError('');
     try {
-      setBoard(await boardApi.board(tab));
+      const b = await boardApi.board(tab, page, pageSize);
+      // 分配后最后一页可能空了，退回到还有任务的最后一页
+      if (b.tasks.length === 0 && page > 1 && b.total > 0) {
+        setPage(Math.ceil(b.total / pageSize));
+        return;
+      }
+      setBoard(b);
     } catch (e) {
       setError(readBizError(e).message);
     }
-  }, [tab]);
+  }, [tab, page, pageSize]);
 
   useEffect(() => {
     setBoard(null);
+  }, [tab]);
+
+  useEffect(() => {
     setSelected([]);
     load();
   }, [load]);
@@ -110,15 +130,11 @@ const SourcingBoardPage: React.FC = () => {
     }
   };
 
-  const groups = useMemo(() => {
-    const map = new Map<string, BoardTask[]>();
-    for (const t of board?.tasks ?? []) {
-      const list = map.get(t.brand) ?? [];
-      list.push(t);
-      map.set(t.brand, list);
-    }
-    return [...map.entries()];
-  }, [board]);
+  const groups = useMemo(() => groupByBrand(board?.tasks ?? []), [board]);
+  const brandSummary = useMemo(
+    () => new Map((board?.brands ?? []).map((b) => [b.brand, b])),
+    [board],
+  );
 
   const purchaserMenu = (
     onPick: (p: Purchaser) => void,
@@ -272,7 +288,10 @@ const SourcingBoardPage: React.FC = () => {
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <Segmented
                   value={tab}
-                  onChange={(v) => setTab(v as number)}
+                  onChange={(v) => {
+                    setTab(v as number);
+                    setPage(1);
+                  }}
                   options={[
                     { value: UNASSIGNED, label: `待分配 ${s.unassigned}` },
                     { value: SOURCING, label: `询价中 ${s.sourcing}` },
@@ -292,9 +311,12 @@ const SourcingBoardPage: React.FC = () => {
                     {TAB_HINT[tab]}
                   </span>
                 )}
+                <span style={{ marginLeft: 'auto' }} />
+                {tab !== REVIEW && (
+                  <FoldToggle mode={fold.mode} onChange={fold.setAll} />
+                )}
                 <span
                   style={{
-                    marginLeft: 'auto',
                     color: palette.mute,
                     fontSize: 12,
                     whiteSpace: 'nowrap',
@@ -402,289 +424,312 @@ const SourcingBoardPage: React.FC = () => {
               {tab !== REVIEW &&
                 groups.map(([brand, tasks]) => (
                   <Card key={brand} style={{ padding: 0, overflow: 'hidden' }}>
-                    <div
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 10,
-                        padding: '14px 20px',
-                        background: palette.inset,
-                      }}
-                    >
-                      {tab === UNASSIGNED && canAssign && (
-                        <Checkbox
-                          checked={tasks.every((t) => selected.includes(t.id))}
-                          indeterminate={
-                            tasks.some((t) => selected.includes(t.id)) &&
-                            !tasks.every((t) => selected.includes(t.id))
-                          }
-                          onChange={(e) =>
-                            setSelected((prev) =>
-                              e.target.checked
-                                ? [
-                                    ...new Set([
-                                      ...prev,
-                                      ...tasks.map((t) => t.id),
-                                    ]),
-                                  ]
-                                : prev.filter(
-                                    (id) => !tasks.some((t) => t.id === id),
-                                  ),
-                            )
-                          }
-                        />
-                      )}
-                      <span
-                        style={{
-                          fontSize: 15,
-                          fontWeight: 700,
-                          color: palette.ink,
-                        }}
-                      >
-                        {brand}
-                      </span>
-                      <Pill tone="gray">{tasks.length} 个任务</Pill>
-                    </div>
-                    {tasks.map((t) => (
-                      <div
-                        key={t.id}
-                        draggable={tab === UNASSIGNED && canAssign}
-                        onDragStart={(e) =>
-                          e.dataTransfer.setData('text/plain', String(t.id))
-                        }
-                        style={{
-                          display: 'grid',
-                          gridTemplateColumns:
-                            tab === UNASSIGNED
-                              ? '24px 260px 120px minmax(0, 1fr) auto'
-                              : '260px 140px minmax(0, 1fr) auto',
-                          gap: 14,
-                          alignItems: 'center',
-                          padding: '14px 20px',
-                          borderTop: `1px solid ${palette.hairline}`,
-                          background: selected.includes(t.id)
-                            ? palette.hover
-                            : 'transparent',
-                          cursor:
-                            tab === UNASSIGNED && canAssign
-                              ? 'grab'
-                              : 'default',
-                        }}
-                      >
-                        {tab === UNASSIGNED && (
-                          <Checkbox
-                            disabled={!canAssign}
-                            checked={selected.includes(t.id)}
-                            onChange={(e) =>
-                              setSelected((prev) =>
-                                e.target.checked
-                                  ? [...prev, t.id]
-                                  : prev.filter((x) => x !== t.id),
-                              )
+                    <BrandGroupHeader
+                      brand={brand}
+                      count={tasks.length}
+                      summary={brandSummary.get(brand)}
+                      folded={fold.isFolded(brand)}
+                      onToggle={() => fold.toggle(brand)}
+                      checkbox={
+                        tab === UNASSIGNED && canAssign
+                          ? {
+                              checked: tasks.every((t) =>
+                                selected.includes(t.id),
+                              ),
+                              indeterminate:
+                                tasks.some((t) => selected.includes(t.id)) &&
+                                !tasks.every((t) => selected.includes(t.id)),
+                              onChange: (checked) =>
+                                setSelected((prev) =>
+                                  checked
+                                    ? [
+                                        ...new Set([
+                                          ...prev,
+                                          ...tasks.map((t) => t.id),
+                                        ]),
+                                      ]
+                                    : prev.filter(
+                                        (id) => !tasks.some((t) => t.id === id),
+                                      ),
+                                ),
                             }
-                          />
-                        )}
-                        <div style={{ display: 'grid', gap: 4 }}>
+                          : undefined
+                      }
+                      extra={
+                        tab === UNASSIGNED &&
+                        brandSummary.get(brand)?.minutes != null ? (
                           <span
                             style={{
-                              display: 'inline-flex',
-                              gap: 6,
-                              alignItems: 'center',
-                              flexWrap: 'wrap',
+                              color:
+                                (brandSummary.get(brand)?.minutes ?? 0) > 120
+                                  ? palette.orange
+                                  : palette.mute,
                             }}
                           >
-                            <a onClick={() => setDetailId(t.id)}>
-                              {t.taskCode}
-                            </a>
-                            <LevelPill value={t.level} />
-                            {t.urgent && <Pill tone="red">紧急</Pill>}
-                            {t.returnReason > 0 && t.status === UNASSIGNED && (
-                              <Pill tone="orange">被退回</Pill>
-                            )}
-                            {t.selfSourcedBy && (
-                              <Pill tone="violet">
-                                业务员自询 · {t.selfSourcedBy}
-                              </Pill>
-                            )}
+                            最久已等{' '}
+                            {formatMinutes(brandSummary.get(brand)?.minutes)}
                           </span>
-                          <span style={{ color: palette.mute, fontSize: 12 }}>
-                            {t.brand}
-                            {t.category ? ` · ${t.category}` : ''} ·{' '}
-                            {t.itemCount} 个型号
-                          </span>
-                          <span
-                            style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: 4,
-                              color: palette.sub,
-                              fontSize: 12,
-                            }}
-                          >
-                            <UserOutlined style={{ color: palette.mute }} />
-                            业务员 {t.salesName || '—'}
-                          </span>
-                          <CustomerBrief
-                            customerType={t.customerType}
-                            customerName={t.customerName}
-                          />
-                        </div>
-                        {tab === UNASSIGNED ? (
-                          <div style={{ display: 'grid', gap: 2 }}>
+                        ) : undefined
+                      }
+                    />
+                    {!fold.isFolded(brand) &&
+                      tasks.map((t) => (
+                        <div
+                          key={t.id}
+                          draggable={tab === UNASSIGNED && canAssign}
+                          onDragStart={(e) =>
+                            e.dataTransfer.setData('text/plain', String(t.id))
+                          }
+                          style={{
+                            display: 'grid',
+                            gridTemplateColumns:
+                              tab === UNASSIGNED
+                                ? '24px 260px 120px minmax(0, 1fr) auto'
+                                : '260px 140px minmax(0, 1fr) auto',
+                            gap: 14,
+                            alignItems: 'center',
+                            padding: '14px 20px',
+                            borderTop: `1px solid ${palette.hairline}`,
+                            background: selected.includes(t.id)
+                              ? palette.hover
+                              : 'transparent',
+                            cursor:
+                              tab === UNASSIGNED && canAssign
+                                ? 'grab'
+                                : 'default',
+                          }}
+                        >
+                          {tab === UNASSIGNED && (
+                            <Checkbox
+                              disabled={!canAssign}
+                              checked={selected.includes(t.id)}
+                              onChange={(e) =>
+                                setSelected((prev) =>
+                                  e.target.checked
+                                    ? [...prev, t.id]
+                                    : prev.filter((x) => x !== t.id),
+                                )
+                              }
+                            />
+                          )}
+                          <div style={{ display: 'grid', gap: 4 }}>
+                            <span
+                              style={{
+                                display: 'inline-flex',
+                                gap: 6,
+                                alignItems: 'center',
+                                flexWrap: 'wrap',
+                              }}
+                            >
+                              <a onClick={() => setDetailId(t.id)}>
+                                {t.taskCode}
+                              </a>
+                              <LevelPill value={t.level} />
+                              {t.urgent && <Pill tone="red">紧急</Pill>}
+                              {t.returnReason > 0 &&
+                                t.status === UNASSIGNED && (
+                                  <Pill tone="orange">被退回</Pill>
+                                )}
+                              {t.selfSourcedBy && (
+                                <Pill tone="violet">
+                                  业务员自询 · {t.selfSourcedBy}
+                                </Pill>
+                              )}
+                            </span>
                             <span style={{ color: palette.mute, fontSize: 12 }}>
-                              已等待
+                              {t.brand}
+                              {t.category ? ` · ${t.category}` : ''} ·{' '}
+                              {t.itemCount} 个型号
                             </span>
                             <span
                               style={{
-                                fontWeight: 600,
-                                color:
-                                  (t.waitingMinutes ?? 0) > 120
-                                    ? palette.orange
-                                    : palette.sub,
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 4,
+                                color: palette.sub,
+                                fontSize: 12,
                               }}
                             >
-                              {formatMinutes(t.waitingMinutes)}
+                              <UserOutlined style={{ color: palette.mute }} />
+                              业务员 {t.salesName || '—'}
                             </span>
-                          </div>
-                        ) : (
-                          <div style={{ display: 'grid', gap: 4 }}>
-                            <TaskStatusPill
-                              status={t.status}
-                              timeout={t.timeout}
+                            <CustomerBrief
+                              customerType={t.customerType}
+                              customerName={t.customerName}
                             />
-                            <span style={{ color: palette.mute, fontSize: 12 }}>
-                              已回价 {t.pricedCount}/{t.itemCount}
-                            </span>
                           </div>
-                        )}
-                        <div style={{ display: 'grid', gap: 2, minWidth: 0 }}>
                           {tab === UNASSIGNED ? (
-                            <>
+                            <div style={{ display: 'grid', gap: 2 }}>
                               <span
-                                style={{ color: palette.ink, fontWeight: 600 }}
+                                style={{ color: palette.mute, fontSize: 12 }}
                               >
-                                <ThunderboltOutlined
-                                  style={{ color: palette.link }}
-                                />{' '}
-                                推荐 {t.recommendedName ?? '—'}
+                                已等待
                               </span>
                               <span
                                 style={{
-                                  color: t.returnReason
-                                    ? palette.orange
-                                    : palette.mute,
-                                  fontSize: 12,
-                                  overflow: 'hidden',
-                                  textOverflow: 'ellipsis',
-                                  whiteSpace: 'nowrap',
+                                  fontWeight: 600,
+                                  color:
+                                    (t.waitingMinutes ?? 0) > 120
+                                      ? palette.orange
+                                      : palette.sub,
                                 }}
                               >
-                                {t.returnReason
-                                  ? `${t.returnedByName ?? ''}退回：${t.returnReasonLabel}${t.returnNote ? `，${t.returnNote}` : ''}`
-                                  : t.recommendReason}
+                                {formatMinutes(t.waitingMinutes)}
                               </span>
-                            </>
+                            </div>
                           ) : (
-                            <span style={{ color: palette.sub }}>
-                              {t.assignees.map((a) => a.name).join(' + ') ||
-                                '—'}
-                              {t.assignees.length > 1 && (
-                                <span style={{ color: palette.mute }}>
-                                  （比价）
+                            <div style={{ display: 'grid', gap: 4 }}>
+                              <TaskStatusPill
+                                status={t.status}
+                                timeout={t.timeout}
+                              />
+                              <span
+                                style={{ color: palette.mute, fontSize: 12 }}
+                              >
+                                已回价 {t.pricedCount}/{t.itemCount}
+                              </span>
+                            </div>
+                          )}
+                          <div style={{ display: 'grid', gap: 2, minWidth: 0 }}>
+                            {tab === UNASSIGNED ? (
+                              <>
+                                <span
+                                  style={{
+                                    color: palette.ink,
+                                    fontWeight: 600,
+                                  }}
+                                >
+                                  <ThunderboltOutlined
+                                    style={{ color: palette.link }}
+                                  />{' '}
+                                  推荐 {t.recommendedName ?? '—'}
                                 </span>
-                              )}
-                            </span>
+                                <span
+                                  style={{
+                                    color: t.returnReason
+                                      ? palette.orange
+                                      : palette.mute,
+                                    fontSize: 12,
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    whiteSpace: 'nowrap',
+                                  }}
+                                >
+                                  {t.returnReason
+                                    ? `${t.returnedByName ?? ''}退回：${t.returnReasonLabel}${t.returnNote ? `，${t.returnNote}` : ''}`
+                                    : t.recommendReason}
+                                </span>
+                              </>
+                            ) : (
+                              <span style={{ color: palette.sub }}>
+                                {t.assignees.map((a) => a.name).join(' + ') ||
+                                  '—'}
+                                {t.assignees.length > 1 && (
+                                  <span style={{ color: palette.mute }}>
+                                    （比价）
+                                  </span>
+                                )}
+                              </span>
+                            )}
+                          </div>
+                          {tab === DONE ? (
+                            <Button
+                              size="small"
+                              onClick={() => setDetailId(t.id)}
+                            >
+                              看回价 / 定成本价
+                            </Button>
+                          ) : (
+                            canAssign && (
+                              <span style={{ display: 'inline-flex', gap: 6 }}>
+                                {tab === UNASSIGNED ? (
+                                  <>
+                                    {t.recommendedId && (
+                                      <Button
+                                        size="small"
+                                        loading={busy}
+                                        onClick={() =>
+                                          run(
+                                            () =>
+                                              boardApi.assign(
+                                                [t.id],
+                                                t.recommendedId as number,
+                                              ),
+                                            `已分配给 ${t.recommendedName}`,
+                                          )
+                                        }
+                                      >
+                                        分配给 {t.recommendedName}
+                                      </Button>
+                                    )}
+                                    <Dropdown
+                                      menu={purchaserMenu((p) =>
+                                        run(
+                                          () => boardApi.assign([t.id], p.id),
+                                          `已分配给 ${p.name}`,
+                                        ),
+                                      )}
+                                      trigger={['click']}
+                                    >
+                                      <Button size="small">其他人…</Button>
+                                    </Dropdown>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Dropdown
+                                      menu={purchaserMenu(
+                                        (p) =>
+                                          modal.confirm({
+                                            title: `改派给 ${p.name}？`,
+                                            content:
+                                              '原来的采购将看不到这个任务，他已录入的价格会保留。',
+                                            okText: '改派',
+                                            cancelText: '取消',
+                                            onOk: () =>
+                                              run(
+                                                () =>
+                                                  boardApi.reassign(t.id, p.id),
+                                                `已改派给 ${p.name}`,
+                                              ),
+                                          }),
+                                        t.assignees.map((a) => a.id),
+                                      )}
+                                      trigger={['click']}
+                                    >
+                                      <Button size="small">改派</Button>
+                                    </Dropdown>
+                                    <Dropdown
+                                      menu={purchaserMenu(
+                                        (p) =>
+                                          run(
+                                            () =>
+                                              boardApi.addAssignee(t.id, p.id),
+                                            `已追加 ${p.name} 比价`,
+                                          ),
+                                        t.assignees.map((a) => a.id),
+                                      )}
+                                      trigger={['click']}
+                                    >
+                                      <Button size="small">追加比价</Button>
+                                    </Dropdown>
+                                  </>
+                                )}
+                              </span>
+                            )
                           )}
                         </div>
-                        {tab === DONE ? (
-                          <Button
-                            size="small"
-                            onClick={() => setDetailId(t.id)}
-                          >
-                            看回价 / 定成本价
-                          </Button>
-                        ) : (
-                          canAssign && (
-                            <span style={{ display: 'inline-flex', gap: 6 }}>
-                              {tab === UNASSIGNED ? (
-                                <>
-                                  {t.recommendedId && (
-                                    <Button
-                                      size="small"
-                                      loading={busy}
-                                      onClick={() =>
-                                        run(
-                                          () =>
-                                            boardApi.assign(
-                                              [t.id],
-                                              t.recommendedId as number,
-                                            ),
-                                          `已分配给 ${t.recommendedName}`,
-                                        )
-                                      }
-                                    >
-                                      分配给 {t.recommendedName}
-                                    </Button>
-                                  )}
-                                  <Dropdown
-                                    menu={purchaserMenu((p) =>
-                                      run(
-                                        () => boardApi.assign([t.id], p.id),
-                                        `已分配给 ${p.name}`,
-                                      ),
-                                    )}
-                                    trigger={['click']}
-                                  >
-                                    <Button size="small">其他人…</Button>
-                                  </Dropdown>
-                                </>
-                              ) : (
-                                <>
-                                  <Dropdown
-                                    menu={purchaserMenu(
-                                      (p) =>
-                                        modal.confirm({
-                                          title: `改派给 ${p.name}？`,
-                                          content:
-                                            '原来的采购将看不到这个任务，他已录入的价格会保留。',
-                                          okText: '改派',
-                                          cancelText: '取消',
-                                          onOk: () =>
-                                            run(
-                                              () =>
-                                                boardApi.reassign(t.id, p.id),
-                                              `已改派给 ${p.name}`,
-                                            ),
-                                        }),
-                                      t.assignees.map((a) => a.id),
-                                    )}
-                                    trigger={['click']}
-                                  >
-                                    <Button size="small">改派</Button>
-                                  </Dropdown>
-                                  <Dropdown
-                                    menu={purchaserMenu(
-                                      (p) =>
-                                        run(
-                                          () =>
-                                            boardApi.addAssignee(t.id, p.id),
-                                          `已追加 ${p.name} 比价`,
-                                        ),
-                                      t.assignees.map((a) => a.id),
-                                    )}
-                                    trigger={['click']}
-                                  >
-                                    <Button size="small">追加比价</Button>
-                                  </Dropdown>
-                                </>
-                              )}
-                            </span>
-                          )
-                        )}
-                      </div>
-                    ))}
+                      ))}
                   </Card>
                 ))}
+              <TaskPager
+                total={board.total}
+                page={page}
+                pageSize={pageSize}
+                onChange={(p, size) => {
+                  setPage(size === pageSize ? p : 1);
+                  setPageSize(size);
+                }}
+              />
             </div>
 
             <div style={{ display: 'grid', gap: 12 }}>

@@ -28,7 +28,8 @@ public interface SourcingTaskService {
     void syncUrgent(Long inquiryId, int urgent);
 
     /** 当前账号负责的询盘里待业务处理的任务 */
-    List<com.zhul.erp.modules.inquiry.sourcing.dto.SalesPendingTaskVO> salesPending();
+    /** 询盘负责人待认领的任务，按页返回，品牌汇总覆盖全部页 */
+    com.zhul.erp.modules.inquiry.sourcing.dto.SalesPendingVO salesPending(int page, int pageSize);
 
     /** 询盘负责人认领：任务变为询价中，标记为业务员自询 */
     void claim(List<Long> taskIds);
@@ -40,7 +41,8 @@ public interface SourcingTaskService {
     void moveToPoolIfDue(Long taskId);
 
     /** status 为空时返回待分配池，否则返回该状态的任务 */
-    BoardVO board(Integer status);
+    /** 分配工作台：统计按全部任务计算，任务列表只返回当前页 */
+    BoardVO board(Integer status, int page, int pageSize);
 
     /** 分配工作台打开的任务详情（本租户任务，不受业务员数据权限限制） */
     BoardTaskDetailVO taskDetail(Long taskId);

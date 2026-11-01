@@ -1,7 +1,7 @@
 package com.zhul.erp.modules.inquiry.sourcing.controller;
 
 import com.zhul.erp.modules.inquiry.sourcing.dto.ReturnPreviewVO;
-import com.zhul.erp.modules.inquiry.sourcing.dto.SalesPendingTaskVO;
+import com.zhul.erp.modules.inquiry.sourcing.dto.SalesPendingVO;
 import com.zhul.erp.modules.inquiry.sourcing.dto.TaskIdsRequest;
 import com.zhul.erp.modules.inquiry.sourcing.service.SourcingTaskService;
 
@@ -96,8 +96,9 @@ public class MyTaskController {
 
     /** 询盘负责人待认领的任务 */
     @GetMapping("/sales-pending")
-    public Result<List<SalesPendingTaskVO>> salesPending() {
-        return Result.ok(sourcingTaskService.salesPending());
+    public Result<SalesPendingVO> salesPending(@RequestParam(defaultValue = "1") int page,
+                                               @RequestParam(defaultValue = "20") int pageSize) {
+        return Result.ok(sourcingTaskService.salesPending(page, pageSize));
     }
 
     /** 询盘负责人认领：任务进入本人的我的询价 */

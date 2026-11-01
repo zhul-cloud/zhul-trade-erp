@@ -71,7 +71,6 @@ import {
   myTaskApi,
   type QuoteEntry,
   readBizError,
-  type SalesPendingTask,
   type WithdrawPreview,
 } from '../shared/service';
 import { nextActiveTask } from './activeTask';
@@ -187,7 +186,7 @@ const MyTasksPage: React.FC = () => {
   const [returnSelf, setReturnSelf] = useState(false);
   const [returnTitle, setReturnTitle] = useState('');
   const [view, setView] = useState<'sales' | 'pending' | 'done'>('pending');
-  const [salesTasks, setSalesTasks] = useState<SalesPendingTask[] | null>(null);
+  const [salesTotal, setSalesTotal] = useState(0);
   const salesViewChecked = useRef(false);
   const [importOpen, setImportOpen] = useState(false);
   const [pasteOpen, setPasteOpen] = useState(false);
@@ -202,13 +201,14 @@ const MyTasksPage: React.FC = () => {
       const [pending, finished, sales] = await Promise.all([
         myTaskApi.list(false, search),
         myTaskApi.list(true, search),
-        myTaskApi.salesPending(),
+        // 这里只要待认领的数量，列表由待认领页签自己分页加载
+        myTaskApi.salesPending(1, 1),
       ]);
-      setSalesTasks(sales);
+      setSalesTotal(sales.total);
       // 打开页面时有待认领、没指定任务，先看待认领
       if (!salesViewChecked.current) {
         salesViewChecked.current = true;
-        if (sales.length > 0 && !activeIdRef.current) setView('sales');
+        if (sales.total > 0 && !activeIdRef.current) setView('sales');
       }
       setCounts({ pending: pending.length, done: finished.length });
       const list = done ? finished : pending;
@@ -700,14 +700,13 @@ const MyTasksPage: React.FC = () => {
               setDone(v === 'done');
             }}
             options={[
-              { value: 'sales', label: `待认领 ${salesTasks?.length ?? 0}` },
+              { value: 'sales', label: `待认领 ${salesTotal}` },
               { value: 'pending', label: `待处理 ${counts.pending}` },
               { value: 'done', label: `已回价 ${counts.done}` },
             ]}
           />
           {view === 'sales' ? (
             <SalesPending
-              tasks={salesTasks}
               onChanged={loadList}
               onViewPending={() => {
                 setView('pending');

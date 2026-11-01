@@ -319,8 +319,23 @@ export interface Board {
     pendingReviewItems?: number;
     longestReviewMinutes?: number;
   };
+  /** 当前页签的任务总数 */
+  total: number;
+  /** 当前页签按品牌的汇总，覆盖全部页 */
+  brands: BrandGroup[];
+  /** 当前页的任务 */
   tasks: BoardTask[];
   purchasers: Purchaser[];
+}
+
+/** 品牌分组汇总（覆盖全部页），用于分页后的组头 */
+export interface BrandGroup {
+  brand: string;
+  total: number;
+  urgent: number;
+  timeout: number;
+  /** 待分配：最久已等分钟数；待认领：最早自动转给采购的剩余分钟数 */
+  minutes?: number;
 }
 
 export interface RulePreview {
@@ -404,6 +419,13 @@ export interface SalesPendingTask {
   category: string;
   itemCount: number;
   remainingMinutes: number;
+}
+
+/** 待认领：当前页任务 + 全部页的品牌汇总 */
+export interface SalesPending {
+  total: number;
+  brands: BrandGroup[];
+  tasks: SalesPendingTask[];
 }
 
 /** 按型号退回前的预览 */
@@ -775,7 +797,8 @@ export const inquiryApi = {
 };
 
 export const boardApi = {
-  board: (status?: number) => get<Board>(BOARD, { status }),
+  board: (status: number, page: number, pageSize: number) =>
+    get<Board>(BOARD, { status, page, pageSize }),
   purchasers: () => get<Purchaser[]>(`${BOARD}/purchasers`),
   taskDetail: (id: number) => get<BoardTaskDetail>(`${BOARD}/tasks/${id}`),
   itemHistory: (itemId: number) =>
@@ -927,7 +950,8 @@ export const myTaskApi = {
     send<void>('POST', `${MY}/${id}/return`, { reason, note, itemIds }),
   returnPreview: (id: number) =>
     get<ReturnPreview>(`${MY}/${id}/return-preview`),
-  salesPending: () => get<SalesPendingTask[]>(`${MY}/sales-pending`),
+  salesPending: (page: number, pageSize: number) =>
+    get<SalesPending>(`${MY}/sales-pending`, { page, pageSize }),
   claim: (taskIds: number[]) => send<void>('POST', `${MY}/claim`, { taskIds }),
   withdrawPreview: (id: number) =>
     get<WithdrawPreview>(`${MY}/${id}/withdraw-preview`),

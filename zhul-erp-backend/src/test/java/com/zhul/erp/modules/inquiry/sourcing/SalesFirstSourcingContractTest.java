@@ -142,16 +142,57 @@ class SalesFirstSourcingContractTest extends InquiryContractSupport {
         long t = task(inquiry(false, row("Lenze", "变频器", "A1")), "Lenze");
         assertEquals(TASK_SALES, status(t));
         assertTrue(boardCodes(TASK_UNASSIGNED).isEmpty(), "待业务处理的任务不进入待分配池");
-        JsonNode pending = ok(call(get(MY + "/sales-pending"), admin));
+        JsonNode pending = ok(call(get(MY + "/sales-pending"), admin)).path("tasks");
         assertEquals(1, pending.size());
         long minutes = pending.get(0).path("remainingMinutes").asLong();
         assertTrue(minutes > 110 && minutes <= 120, "普通任务默认 2 小时：" + minutes);
     }
 
     @Test
+    void boardReturnsOnePage_brandSummaryCoversAllPages() throws Exception {
+        window(0, 0);
+        long l1 = task(inquiry(false, row("Lenze", "变频器", "P1")), "Lenze");
+        long l2 = task(inquiry(false, row("Lenze", "变频器", "P2")), "Lenze");
+        long abb = task(inquiry(true, row("ABB", "变频器", "P3")), "ABB");
+        JsonNode first = ok(call(get(BOARD).param("page", "1").param("pageSize", "2"), admin));
+        assertEquals(3, first.path("total").asInt());
+        assertEquals(3, first.path("stats").path("unassigned").asInt(), "统计按全部任务");
+        assertEquals(2, first.path("tasks").size(), "只返回本页");
+        assertEquals(abb, first.path("tasks").get(0).path("id").asLong(), "紧急在前");
+        JsonNode lenze = null;
+        for (JsonNode b : first.path("brands")) {
+            if ("Lenze".equals(b.path("brand").asText())) {
+                lenze = b;
+            }
+        }
+        assertEquals(2, lenze.path("total").asInt(), "品牌汇总覆盖全部页");
+        assertEquals(1, first.path("brands").get(0).path("urgent").asInt());
+        JsonNode second = ok(call(get(BOARD).param("page", "2").param("pageSize", "2"), admin));
+        assertEquals(1, second.path("tasks").size());
+        assertTrue(java.util.Set.of(l1, l2).contains(second.path("tasks").get(0).path("id").asLong()));
+        JsonNode beyond = ok(call(get(BOARD).param("page", "9").param("pageSize", "2"), admin));
+        assertEquals(0, beyond.path("tasks").size());
+        assertEquals(3, beyond.path("total").asInt());
+        assertEquals(1, ok(call(get(BOARD).param("pageSize", "0"), admin)).path("tasks").size(), "每页条数小于 1 时按 1 条");
+    }
+
+    @Test
+    void salesPendingPaged_urgentFirst() throws Exception {
+        long normal = task(inquiry(false, row("Lenze", "变频器", "Q1")), "Lenze");
+        long urgent = task(inquiry(true, row("ABB", "变频器", "Q2")), "ABB");
+        JsonNode page1 = ok(call(get(MY + "/sales-pending").param("page", "1").param("pageSize", "1"), admin));
+        assertEquals(2, page1.path("total").asInt());
+        assertEquals(2, page1.path("brands").size());
+        assertEquals(urgent, page1.path("tasks").get(0).path("id").asLong(), "紧急在前");
+        JsonNode page2 = ok(call(get(MY + "/sales-pending").param("page", "2").param("pageSize", "1"), admin));
+        assertEquals(normal, page2.path("tasks").get(0).path("id").asLong());
+        assertTrue(page2.path("tasks").get(0).path("inquiryCode").asText().startsWith("IQ"));
+    }
+
+    @Test
     void urgentWindowAndZeroWindow() throws Exception {
         long urgent = task(inquiry(true, row("Lenze", "变频器", "A2")), "Lenze");
-        assertTrue(ok(call(get(MY + "/sales-pending"), admin)).get(0).path("remainingMinutes").asLong() <= 30);
+        assertTrue(ok(call(get(MY + "/sales-pending"), admin)).path("tasks").get(0).path("remainingMinutes").asLong() <= 30);
         assertEquals(TASK_SALES, status(urgent));
         window(0, 0);
         assertEquals(TASK_UNASSIGNED, status(task(inquiry(false, row("ABB", "变频器", "A3")), "ABB")), "时限为 0 直接进入待分配");
@@ -213,10 +254,10 @@ class SalesFirstSourcingContractTest extends InquiryContractSupport {
         String lin = token("it_lin");
         assertNotEquals(0, call(json(post(MY + "/claim"), "{\"taskIds\":[" + t + "]}"), lin).path("code").asInt());
         assertEquals(TASK_SALES, status(t));
-        assertEquals(0, ok(call(get(MY + "/sales-pending"), lin)).size());
+        assertEquals(0, ok(call(get(MY + "/sales-pending"), lin)).path("tasks").size());
 
         jdbc.update("update customer_inquiry set owner_id = ? where id = ?", BUYER_LIN, inq);
-        assertEquals(1, ok(call(get(MY + "/sales-pending"), lin)).size(), "负责人变更后由新负责人处理");
+        assertEquals(1, ok(call(get(MY + "/sales-pending"), lin)).path("tasks").size(), "负责人变更后由新负责人处理");
         assertNotEquals(0, call(json(post(MY + "/claim"), "{\"taskIds\":[" + t + "]}"), admin).path("code").asInt(), "原负责人不能再处理");
         ok(call(json(post(MY + "/claim"), "{\"taskIds\":[" + t + "]}"), lin));
     }
