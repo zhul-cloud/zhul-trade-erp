@@ -107,7 +107,19 @@ const Holds: React.FC = () => {
       dataIndex: 'poNo',
       width: 260,
       render: (v: string, r) =>
-        r.sourceType === 2 ? (
+        r.sourceType === 3 ? (
+          <div>
+            <Pill tone="violet">售后退货</Pill>{' '}
+            <a
+              onClick={() =>
+                history.push(`/warehouse/returns?id=${r.returnId}`)
+              }
+            >
+              {r.returnNo}
+            </a>
+            {sub(palette.mute, `${r.soNo ?? ''} · 合格品`)}
+          </div>
+        ) : r.sourceType === 2 ? (
           <div>
             <Pill tone="orange">订单部分取消</Pill>{' '}
             {r.soId ? (
@@ -189,7 +201,7 @@ const Holds: React.FC = () => {
 
   return (
     <div>
-      <WarehousePageTitle description="暂时用不上的货：到货多发的、订单部分取消后留在仓库的。记下在哪、值多少；可以退回供应商、报废或转样品。" />
+      <WarehousePageTitle description="暂时用不上的货：到货多发的、订单部分取消后留在仓库的、客户退回的合格品。记下在哪、值多少；可以退回供应商、报废或转样品。" />
       <div
         style={{
           display: 'flex',
@@ -234,6 +246,7 @@ const Holds: React.FC = () => {
           options={[
             { value: 1, label: '到货差异' },
             { value: 2, label: '订单部分取消' },
+            { value: 3, label: '售后退货' },
           ]}
           style={{ width: 150 }}
           aria-label="来源"

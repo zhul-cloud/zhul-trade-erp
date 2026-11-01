@@ -56,7 +56,10 @@ export type OwnerType =
   | 'OTHER_INCOME'
   | 'CREDIT'
   | 'SOURCING_QUOTE'
-  | 'SALES_ORDER';
+  | 'SALES_ORDER'
+  | 'AFTER_SALES'
+  | 'AFTER_SALES_LOG'
+  | 'SALES_RETURN';
 
 export interface ShipmentItem {
   id: number;
@@ -275,6 +278,9 @@ export interface Hold extends Audit {
   /** 来源销售订单（订单部分取消） */
   soId?: number | null;
   soNo?: string;
+  /** 来源退货单（售后退货） */
+  returnId?: number | null;
+  returnNo?: string;
   model: string;
   brand?: string;
   category?: string;

@@ -36,6 +36,11 @@ export interface Refund {
   soId?: number;
   customerId?: number;
   soNo?: string;
+  /** 关联售后单与来源退款申请 */
+  afterSalesId?: number | null;
+  asNo?: string;
+  refundRequestId?: number | null;
+  requestNo?: string;
   customerName?: string;
   refundDate: string;
   reason: string;
@@ -108,7 +113,116 @@ export const refundApi = {
     method: number;
     remark?: string;
     attachmentIds: number[];
+    afterSalesId?: number;
   }) => post<Refund>(BASE, body),
   voidRefund: (id: number, reason: string) =>
     post<Refund>(`${BASE}/${id}/void`, { reason }),
 };
+
+// ---------------------------------------------------------------- 退款申请（spec finance/refund-request）
+
+const RQ = '/api/v1/finance/refund-requests';
+
+export const RQ_STATUS = {
+  PENDING_APPROVAL: 1,
+  PENDING_FINANCE: 2,
+  EXECUTED: 3,
+  REJECTED: 4,
+  WITHDRAWN: 5,
+} as const;
+
+export interface RefundRequest {
+  id: number;
+  requestNo: string;
+  afterSalesId?: number | null;
+  asNo?: string;
+  soId: number;
+  soNo?: string;
+  customerName?: string;
+  currencyCode: string;
+  amount: number;
+  reason: string;
+  reasonName?: string;
+  method: number;
+  methodName?: string;
+  payeeInfo?: string;
+  remark?: string;
+  /** 1-待审批、2-待财务处理、3-已执行、4-已驳回、5-已撤回 */
+  status: number;
+  statusName: string;
+  applicantName?: string;
+  approverName?: string;
+  approvedAt?: string;
+  handlerName?: string;
+  handledAt?: string;
+  rejectReason?: string;
+  refundId?: number | null;
+  refundNo?: string;
+  createTime?: string;
+  createBy?: string;
+  updateTime?: string;
+  updateBy?: string;
+}
+
+export interface RequestRefundable {
+  soId: number;
+  soNo: string;
+  currencyCode: string;
+  received: number;
+  refunded: number;
+  pending: number;
+  available: number;
+  platformOnly: boolean;
+  approvalRequired: boolean;
+}
+
+export const refundRequestApi = {
+  page: (q: {
+    page: number;
+    pageSize: number;
+    status?: number;
+    keyword?: string;
+  }) => post<{ total: number; records: RefundRequest[] }>(`${RQ}/page`, q),
+  counts: () =>
+    get<{
+      pendingApproval: number;
+      pendingFinance: number;
+      approvalRequired: number;
+    }>(`${RQ}/counts`),
+  refundable: (soId: number) =>
+    get<RequestRefundable>(`${RQ}/refundable/${soId}`),
+  ofOrder: (soId: number) => get<RefundRequest[]>(`${RQ}/order/${soId}`),
+  apply: (body: {
+    soId: number;
+    afterSalesId?: number;
+    amount: number;
+    reason: string;
+    method: number;
+    payeeInfo?: string;
+    remark?: string;
+  }) => post<RefundRequest>(RQ, body),
+  withdraw: (id: number) => post<RefundRequest>(`${RQ}/${id}/withdraw`, {}),
+  approve: (id: number) => post<RefundRequest>(`${RQ}/${id}/approve`, {}),
+  rejectApproval: (id: number, reason: string) =>
+    post<RefundRequest>(`${RQ}/${id}/reject-approval`, { reason }),
+  reject: (id: number, reason: string) =>
+    post<RefundRequest>(`${RQ}/${id}/reject`, { reason }),
+  execute: (
+    id: number,
+    body: {
+      refundDate: string;
+      reason: string;
+      amount: number;
+      amountCny?: number;
+      method: number;
+      remark?: string;
+      attachmentIds: number[];
+    },
+  ) => post<RefundRequest>(`${RQ}/${id}/execute`, body),
+};
+
+/** 订单的售后单（退款单、费用单关联用） */
+export const afterSalesOptions = (soId: number) =>
+  get<{ id: number; asNo: string; statusName: string; symptom: string }[]>(
+    `/api/v1/sales/after-sales/order/${soId}`,
+  );

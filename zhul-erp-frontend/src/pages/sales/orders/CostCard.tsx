@@ -17,6 +17,7 @@ const SOURCE_PATH: Record<string, (id: number) => string | undefined> = {
   PO: (id) => `/purchase/orders/${id}`,
   SHIPMENT: (id) => `/logistics/shipments/${id}`,
   EXPENSE: () => '/finance/expenses',
+  RETURN: (id) => `/warehouse/returns?id=${id}`,
   COURIER: () => undefined,
 };
 
@@ -148,6 +149,19 @@ const OrderCostCard: React.FC<{ cost: OrderCost }> = ({ cost }) => {
       width: 90,
       align: 'right',
       render: (v: number) => money(v),
+    },
+    {
+      title: '售后退货冲减',
+      key: 'salesReturn',
+      width: 110,
+      align: 'right',
+      render: (_, l) => (
+        <Amount
+          value={Number(l.salesReturnCredit ?? 0)}
+          sources={l.sources.salesReturn}
+          negative
+        />
+      ),
     },
     {
       title: '国内运费',

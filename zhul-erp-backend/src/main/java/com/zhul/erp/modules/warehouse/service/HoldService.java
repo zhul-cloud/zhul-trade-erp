@@ -49,6 +49,7 @@ public class HoldService {
     private final InquiryLookups lookups;
     private final LogService logService;
     private final com.zhul.erp.modules.sales.repository.SalesOrderMapper soMapper;
+    private final com.zhul.erp.modules.aftersales.repository.SalesReturnMapper returnMapper;
 
     public PageResult<HoldVO> page(HoldPageQuery q) {
         LambdaQueryWrapper<StockHoldDO> w = new LambdaQueryWrapper<StockHoldDO>()
@@ -135,6 +136,11 @@ public class HoldService {
         Map<Long, String> users = lookups.userNames(rows.stream().map(StockHoldDO::getHandledBy).toList());
         List<Long> soIds = rows.stream().map(StockHoldDO::getSoId).filter(x -> x != null && x > 0).distinct().toList();
         Map<Long, String> soNos = new java.util.HashMap<>();
+        List<Long> returnIds = rows.stream().map(StockHoldDO::getReturnId).filter(x -> x != null && x > 0).distinct().toList();
+        Map<Long, String> returnNos = new java.util.HashMap<>();
+        if (!returnIds.isEmpty()) {
+            returnMapper.selectBatchIds(returnIds).forEach(r -> returnNos.put(r.getId(), r.getReturnNo()));
+        }
         if (!soIds.isEmpty()) {
             soMapper.selectBatchIds(soIds).forEach(o -> soNos.put(o.getId(), o.getSoNo()));
         }
@@ -148,6 +154,8 @@ public class HoldService {
             vo.setSourceName(WarehouseConstants.HOLD_SOURCE_NAMES.get(h.getSourceType()));
             vo.setSoId(h.getSoId() == null || h.getSoId() == 0 ? null : h.getSoId());
             vo.setSoNo(soNos.get(h.getSoId()));
+            vo.setReturnId(h.getReturnId() == null || h.getReturnId() == 0 ? null : h.getReturnId());
+            vo.setReturnNo(returnNos.get(h.getReturnId()));
             vo.setModel(h.getModel());
             vo.setBrand(h.getBrand());
             vo.setCategory(h.getCategory());

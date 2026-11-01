@@ -381,6 +381,19 @@ export default [
         component: './sales/orders/detail',
       },
       {
+        path: '/sales/after-sales',
+        name: 'afterSales',
+        icon: 'customerService',
+        access: 'salesAfterSales',
+        component: './sales/after-sales',
+      },
+      {
+        path: '/sales/after-sales/:id',
+        hideInMenu: true,
+        access: 'salesAfterSales',
+        component: './sales/after-sales/detail',
+      },
+      {
         path: '/sales/stats',
         name: 'stats',
         icon: 'barChart',
@@ -453,6 +466,13 @@ export default [
         icon: 'export',
         access: 'warehouseOutbounds',
         component: './warehouse/outbounds',
+      },
+      {
+        path: '/warehouse/returns',
+        name: 'returns',
+        icon: 'import',
+        access: 'warehouseReturns',
+        component: './warehouse/returns',
       },
       {
         path: '/warehouse/holds',

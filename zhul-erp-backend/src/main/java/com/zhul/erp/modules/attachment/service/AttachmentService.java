@@ -75,6 +75,11 @@ public class AttachmentService {
     public static final String NETWORK = "NETWORK";
     /** 销售订单附件：PI、合同、客户 PO 等，收 PDF、图片与 Excel */
     public static final String SALES_ORDER = "SALES_ORDER";
+    /** 售后单证据、售后跟进附件、退货验收照片：图片、视频或 PDF */
+    public static final String AFTER_SALES = "AFTER_SALES";
+    public static final String AFTER_SALES_LOG = "AFTER_SALES_LOG";
+    public static final String SALES_RETURN = "SALES_RETURN";
+    private static final Set<String> AFTER_SALES_TYPES = Set.of(AFTER_SALES, AFTER_SALES_LOG, SALES_RETURN);
     /** 只收图片或 PDF 的归属类型 */
     private static final Set<String> PROOF_TYPES = Set.of(PAYMENT, COURIER_PROOF, RETURN_PROOF, EXPENSE, REIMBURSE, PO_INVOICE, REFUND, OTHER_INCOME,
             SOURCING_QUOTE, CREDIT);
@@ -82,7 +87,8 @@ public class AttachmentService {
             Map.entry(SHOOT, 30), Map.entry(LOGISTICS, 10), Map.entry(PAYMENT, 10), Map.entry(COURIER_PROOF, 10),
             Map.entry(RETURN_PROOF, 10), Map.entry(EXPENSE, 10), Map.entry(REIMBURSE, 10), Map.entry(PO_INVOICE, 10),
             Map.entry(REFUND, 10), Map.entry(OTHER_INCOME, 10), Map.entry(CREDIT, 10), Map.entry(SOURCING_QUOTE, 5), Map.entry(RECEIPT_DEFECT, 20),
-            Map.entry(PACKING, 20), Map.entry(NETWORK, 1), Map.entry(SALES_ORDER, 10));
+            Map.entry(PACKING, 20), Map.entry(NETWORK, 1), Map.entry(SALES_ORDER, 10),
+            Map.entry(AFTER_SALES, 20), Map.entry(AFTER_SALES_LOG, 10), Map.entry(SALES_RETURN, 20));
     /** 只收图片的归属类型（不传视频） */
     private static final Set<String> IMAGE_ONLY_TYPES = Set.of(RECEIPT_DEFECT, PACKING, NETWORK);
     public static final int IMAGE = 1;
@@ -105,7 +111,8 @@ public class AttachmentService {
             Map.entry(OTHER_INCOME, StorageArea.FINANCE), Map.entry(CREDIT, StorageArea.FINANCE), Map.entry(PO_INVOICE, StorageArea.PURCHASE),
             Map.entry(SOURCING_QUOTE, StorageArea.SOURCING), Map.entry(RECEIPT_DEFECT, StorageArea.RECEIPT),
             Map.entry(PACKING, StorageArea.PACKING), Map.entry(NETWORK, StorageArea.MEDIA),
-            Map.entry(SALES_ORDER, StorageArea.SALES));
+            Map.entry(SALES_ORDER, StorageArea.SALES), Map.entry(AFTER_SALES, StorageArea.SALES),
+            Map.entry(AFTER_SALES_LOG, StorageArea.SALES), Map.entry(SALES_RETURN, StorageArea.RECEIPT));
 
     private final BizAttachmentMapper mapper;
     private final BizAttachmentModelMapper tagMapper;
@@ -129,6 +136,9 @@ public class AttachmentService {
         int kind;
         if (SALES_ORDER.equals(ownerType)) {
             s = files.store(area, tenantId, file, DOC_EXTS, IMAGE_MAX, "只支持 PDF、JPG、PNG、WEBP、Excel");
+            kind = s.contentType().startsWith("image/") ? IMAGE : FILE;
+        } else if (AFTER_SALES_TYPES.contains(ownerType) && !video) {
+            s = files.store(area, tenantId, file, FACE_SHEET_EXTS, IMAGE_MAX, "只支持 PDF、JPG、PNG、WEBP 或 MP4、MOV 视频");
             kind = s.contentType().startsWith("image/") ? IMAGE : FILE;
         } else if (LOGISTICS.equals(ownerType) || PROOF_TYPES.contains(ownerType)) {
             s = files.store(area, tenantId, file, FACE_SHEET_EXTS, IMAGE_MAX,

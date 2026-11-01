@@ -75,7 +75,7 @@ class NavigationContractTest extends InquiryContractSupport {
             assertEquals(List.of("工作台", "仓库管理", "财务管理", "运营管理"), new ArrayList<>(wh.keySet()));
             assertEquals(List.of("素材管理"), wh.get("运营管理"), "验货和拍摄时参考素材");
             assertEquals(List.of("报销管理"), wh.get("财务管理"), "仓库垫付国内快递运费，要提交报销");
-            assertEquals(List.of("采购入库", "销售出库", "闲置库存", "实拍任务"), wh.get("仓库管理"));
+            assertEquals(List.of("采购入库", "销售出库", "退货入库", "闲置库存", "实拍任务"), wh.get("仓库管理"));
         } finally {
             jdbc.update("delete from account where id = 99000042");
             jdbc.update("delete from user_basic where id = 99000042");
@@ -91,9 +91,9 @@ class NavigationContractTest extends InquiryContractSupport {
         assertEquals(List.of("商品档案", "品牌管理", "品类管理", "系列管理"), all.get("商品管理"), "商品管理只放基础资料");
         assertEquals(List.of("商品候选", "资料任务", "营销任务", "发品任务", "素材管理"), all.get("运营管理"), "运营人员处理的任务");
         assertEquals(List.of("销售统计", "询价统计", "砍价统计", "利润统计", "经营统计", "商机统计"), all.get("统计分析"), "只读统计统一在这里");
-        assertEquals(List.of("商机管理", "客户管理", "询盘管理", "报价管理", "形式发票", "销售订单"), all.get("销售管理"));
+        assertEquals(List.of("商机管理", "客户管理", "询盘管理", "报价管理", "形式发票", "销售订单", "售后管理"), all.get("销售管理"));
         assertEquals(List.of("询价分配", "我的询价", "询价记录", "采购需求", "采购订单", "发货跟踪", "供应商库"), all.get("采购管理"));
-        assertEquals(List.of("采购入库", "销售出库", "闲置库存", "实拍任务"), all.get("仓库管理"));
+        assertEquals(List.of("采购入库", "销售出库", "退货入库", "闲置库存", "实拍任务"), all.get("仓库管理"));
         assertEquals(List.of("出运管理", "运费账单"), all.get("物流管理"));
         assertEquals(List.of("收款管理", "退款管理", "余额管理", "结汇管理", "应付管理", "付款管理", "报销管理", "费用管理", "其他收入"), all.get("财务管理"));
         assertEquals(List.of("定价策略", "汇率设置", "收款账户", "单据模板", "编号规则", "快递时效", "AI 设置"), all.get("业务设置"));

@@ -18,11 +18,14 @@ import { useDictTexts } from '@/utils/dict';
 import { formatAmount } from '@/utils/format';
 import { ACCEPT_PROOF } from '../payables/components';
 import {
+  afterSalesOptions,
   DICT_REFUND_REASON,
   REFUND_METHODS,
   REFUND_TO_CREDIT,
   type Refundable,
+  type RefundRequest,
   refundApi,
+  refundRequestApi,
 } from './service';
 
 const METHOD_HINTS: Record<number, string> = {
@@ -31,13 +34,17 @@ const METHOD_HINTS: Record<number, string> = {
   3: '不退现金，留作下一单抵扣',
 };
 
-/** 登记退款（spec finance/customer-refund）：订单详情与退款单页共用 */
+/**
+ * 登记退款（spec finance/customer-refund）：订单详情与退款单页共用；
+ * 传入 request 时为执行退款申请（spec finance/refund-request），按申请带出金额、原因与去向
+ */
 const RefundModal: React.FC<{
   soId?: number;
   open: boolean;
   onClose: () => void;
   onDone: () => void;
-}> = ({ soId, open, onClose, onDone }) => {
+  request?: RefundRequest;
+}> = ({ soId, open, onClose, onDone, request }) => {
   const { message } = App.useApp();
   const { palette } = useAppTheme();
   const reasons = useDictTexts(DICT_REFUND_REASON);
@@ -51,6 +58,10 @@ const RefundModal: React.FC<{
   const [remark, setRemark] = useState('');
   const [files, setFiles] = useState<Attachment[]>([]);
   const [saving, setSaving] = useState(false);
+  const [afterSalesId, setAfterSalesId] = useState<number>();
+  const [asOptions, setAsOptions] = useState<
+    { value: number; label: string }[]
+  >([]);
 
   useEffect(() => {
     if (!open || !soId) return;
@@ -63,14 +74,32 @@ const RefundModal: React.FC<{
     setRemark('');
     setFiles([]);
     setInfo(undefined);
+    setAfterSalesId(request?.afterSalesId ?? undefined);
+    setAsOptions([]);
+    if (request) {
+      setReason(request.reason);
+      setAmount(Number(request.amount));
+    }
     refundApi
       .refundable(soId)
       .then((r) => {
         setInfo(r);
-        setMethod(r.platformOnly ? 1 : 2);
+        setMethod(request ? request.method : r.platformOnly ? 1 : 2);
       })
       .catch((e) => message.error(readBizError(e).message));
-  }, [open, soId, message]);
+    if (!request) {
+      afterSalesOptions(soId)
+        .then((rows) =>
+          setAsOptions(
+            rows.map((a) => ({
+              value: a.id,
+              label: `${a.asNo} · ${a.statusName} · ${a.symptom}`,
+            })),
+          ),
+        )
+        .catch(() => setAsOptions([]));
+    }
+  }, [open, soId, message, request]);
 
   // 实际退出人民币默认按平均到账汇率折算，手动改过后不再跟着变
   useEffect(() => {
@@ -94,8 +123,7 @@ const RefundModal: React.FC<{
     }
     setSaving(true);
     try {
-      const r = await refundApi.create({
-        soId,
+      const body = {
         refundDate: date.format('YYYY-MM-DD'),
         reason,
         amount,
@@ -103,8 +131,14 @@ const RefundModal: React.FC<{
         method,
         remark: remark.trim() || undefined,
         attachmentIds: files.map((f) => f.id),
-      });
-      message.success(`已登记退款 ${r.refundNo}`);
+      };
+      if (request) {
+        const q = await refundRequestApi.execute(request.id, body);
+        message.success(`已执行，生成退款单 ${q.refundNo ?? ''}`);
+      } else {
+        const r = await refundApi.create({ ...body, soId, afterSalesId });
+        message.success(`已登记退款 ${r.refundNo}`);
+      }
       onDone();
       onClose();
     } catch (e) {
@@ -125,9 +159,9 @@ const RefundModal: React.FC<{
   return (
     <Modal
       open={open}
-      title="登记退款"
+      title={request ? `执行退款申请 ${request.requestNo}` : '登记退款'}
       width={720}
-      okText="确认退款"
+      okText={request ? '执行并生成退款单' : '确认退款'}
       cancelText="取消"
       confirmLoading={saving}
       onOk={submit}
@@ -135,6 +169,28 @@ const RefundModal: React.FC<{
       destroyOnHidden
     >
       <Space orientation="vertical" size={14} style={{ width: '100%' }}>
+        {request && (
+          <div
+            style={{
+              padding: '10px 14px',
+              borderRadius: 12,
+              background: palette.accentSoft,
+              fontSize: 13,
+              color: palette.sub,
+            }}
+          >
+            <b style={{ color: palette.link }}>
+              申请：{formatAmount(request.amount, request.currencyCode)} ·{' '}
+              {request.reasonName} · 建议{request.methodName}
+            </b>
+            <div style={{ fontSize: 12, marginTop: 2 }}>
+              {request.applicantName} 提交
+              {request.asNo ? ` · 售后单 ${request.asNo}` : ''}
+              {request.payeeInfo ? ` · 收款信息：${request.payeeInfo}` : ''}
+              {request.remark ? ` · ${request.remark}` : ''}
+            </div>
+          </div>
+        )}
         {info && (
           <div style={{ fontSize: 12, color: palette.mute }}>
             {info.soNo} · 已到账 {formatAmount(info.received, cur)} · 已退{' '}
@@ -175,7 +231,14 @@ const RefundModal: React.FC<{
             {label('退款金额')}
             <InputNumber<number>
               min={0.01}
-              max={info?.refundable}
+              max={
+                request
+                  ? Math.min(
+                      Number(request.amount),
+                      Number(info?.refundable ?? request.amount),
+                    )
+                  : info?.refundable
+              }
               precision={2}
               prefix={cur}
               value={amount}
@@ -308,6 +371,17 @@ const RefundModal: React.FC<{
             accept={ACCEPT_PROOF}
           />
         </div>
+        {!request && asOptions.length > 0 && (
+          <Select
+            allowClear
+            style={{ width: '100%' }}
+            placeholder="关联售后单（选填）"
+            value={afterSalesId}
+            onChange={setAfterSalesId}
+            options={asOptions}
+            aria-label="关联售后单"
+          />
+        )}
         <Input
           placeholder="说明（选填）"
           maxLength={500}

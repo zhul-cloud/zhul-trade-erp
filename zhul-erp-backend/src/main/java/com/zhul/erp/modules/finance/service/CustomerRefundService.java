@@ -15,6 +15,7 @@ import com.zhul.erp.modules.finance.dto.RefundableVO;
 import com.zhul.erp.modules.finance.dto.SaveRefundRequest;
 import com.zhul.erp.modules.finance.entity.CustomerCreditEntryDO;
 import com.zhul.erp.modules.finance.entity.CustomerRefundDO;
+import com.zhul.erp.modules.finance.entity.RefundRequestDO;
 import com.zhul.erp.modules.finance.repository.CustomerRefundMapper;
 import com.zhul.erp.modules.finance.service.CustomerCreditLedger.Account;
 import com.zhul.erp.modules.finance.service.CustomerCreditLedger.Source;
@@ -70,6 +71,10 @@ public class CustomerRefundService {
     private final ReceiptPosition receiptPosition;
     private final CustomerCreditLedger ledger;
     private final OtherIncomeService otherIncomeService;
+    private final com.zhul.erp.modules.aftersales.service.AfterSalesService afterSalesService;
+    private final com.zhul.erp.modules.aftersales.support.AfterSalesLogs afterSalesLogs;
+    private final com.zhul.erp.modules.aftersales.repository.AfterSalesMapper afterSalesMapper;
+    private final com.zhul.erp.modules.finance.repository.RefundRequestMapper requestMapper;
 
     /** 订单的可退金额、平均到账汇率与可选去向 */
     public RefundableVO refundable(Long soId) {
@@ -79,7 +84,15 @@ public class CustomerRefundService {
 
     @Transactional(rollbackFor = Exception.class)
     public RefundVO create(SaveRefundRequest req) {
+        return create(req, null);
+    }
+
+    /** 登记售后退款；refundRequestId 不为空时为执行退款申请（由 RefundRequestService 在同一事务内调用） */
+    @Transactional(rollbackFor = Exception.class)
+    public RefundVO create(SaveRefundRequest req, Long refundRequestId) {
         SalesOrderDO o = requireOrder(req.getSoId(), true);
+        com.zhul.erp.modules.aftersales.entity.AfterSalesDO as = req.getAfterSalesId() == null ? null
+                : afterSalesService.requireOfOrder(req.getAfterSalesId(), o.getId());
         if (req.getRefundDate().isAfter(LocalDate.now())) {
             throw new BizException("退款日期不能晚于今天");
         }
@@ -114,8 +127,13 @@ public class CustomerRefundService {
         CustomerRefundDO f = newRefund(FinanceConstants.REFUND_AFTER_SALES, o.getCustomerId(), o.getBusinessUnitId(),
                 req.getRefundDate(), o.getCurrencyCode(), amount, cny, method, "", "", req.getRemark());
         f.setSoId(o.getId());
+        f.setAfterSalesId(as == null ? null : as.getId());
+        f.setRefundRequestId(refundRequestId);
         f.setReason(req.getReason());
         refundMapper.insert(f);
+        afterSalesLogs.add(f.getAfterSalesId(), com.zhul.erp.modules.aftersales.constants.AfterSalesConstants.LOG_REFUND,
+                "退款单 " + f.getRefundNo() + "：" + o.getCurrencyCode() + " " + amount + "，" + FinanceConstants.REFUND_METHOD_NAMES.get(method),
+                null);
         if (toCredit) {
             CustomerCreditEntryDO in = ledger.credit(new Account(o.getCustomerId(), o.getCurrencyCode(), o.getBusinessUnitId()),
                     FinanceConstants.CREDIT_REFUND_IN, amount, cny, new Source(FinanceConstants.SRC_REFUND, f.getId(), f.getRefundNo()),
@@ -173,6 +191,17 @@ public class CustomerRefundService {
         f.setStatus(FinanceConstants.RECORD_VOID);
         f.setVoidReason(w);
         refundMapper.updateById(f);
+        // 由退款申请生成的退款单作废后，申请回到「待财务处理」（spec finance/refund-request）
+        if (f.getRefundRequestId() != null) {
+            RefundRequestDO q = requestMapper.selectById(f.getRefundRequestId());
+            if (q != null && q.getStatus() == FinanceConstants.RQ_EXECUTED) {
+                q.setStatus(FinanceConstants.RQ_PENDING_FINANCE);
+                q.setRefundId(null);
+                requestMapper.updateById(q);
+            }
+        }
+        afterSalesLogs.add(f.getAfterSalesId(), com.zhul.erp.modules.aftersales.constants.AfterSalesConstants.LOG_REFUND,
+                "作废退款单 " + f.getRefundNo() + "：" + w, null);
         logService.recordOperateLog(MENU, "作废退款单", Map.of("refundNo", f.getRefundNo(), "status", "有效"),
                 Map.of("refundNo", f.getRefundNo(), "status", "已作废", "reason", f.getVoidReason()));
         return detail(id);
@@ -358,6 +387,13 @@ public class CustomerRefundService {
         Map<Long, CustomerDO> customers = lookups.customers(customerIds);
         Map<Long, List<AttachmentVO>> files = attachments.list(AttachmentService.REFUND, rows.stream().map(CustomerRefundDO::getId).toList());
         Map<String, String> reasons = reasonNames();
+        List<Long> asIds = rows.stream().map(CustomerRefundDO::getAfterSalesId).filter(Objects::nonNull).distinct().toList();
+        Map<Long, String> asNos = asIds.isEmpty() ? Map.of() : afterSalesMapper.selectBatchIds(asIds).stream()
+                .collect(Collectors.toMap(com.zhul.erp.modules.aftersales.entity.AfterSalesDO::getId,
+                        com.zhul.erp.modules.aftersales.entity.AfterSalesDO::getAsNo));
+        List<Long> rqIds = rows.stream().map(CustomerRefundDO::getRefundRequestId).filter(Objects::nonNull).distinct().toList();
+        Map<Long, String> rqNos = rqIds.isEmpty() ? Map.of() : requestMapper.selectBatchIds(rqIds).stream()
+                .collect(Collectors.toMap(RefundRequestDO::getId, RefundRequestDO::getRequestNo));
         List<RefundVO> out = new ArrayList<>(rows.size());
         for (CustomerRefundDO f : rows) {
             SalesOrderDO o = f.getSoId() == null ? null : orders.get(f.getSoId());
@@ -369,6 +405,10 @@ public class CustomerRefundService {
             vo.setRefundType(f.getRefundType());
             vo.setSoId(f.getSoId());
             vo.setSoNo(o == null ? null : o.getSoNo());
+            vo.setAfterSalesId(f.getAfterSalesId());
+            vo.setAsNo(f.getAfterSalesId() == null ? null : asNos.get(f.getAfterSalesId()));
+            vo.setRefundRequestId(f.getRefundRequestId());
+            vo.setRequestNo(f.getRefundRequestId() == null ? null : rqNos.get(f.getRefundRequestId()));
             vo.setCustomerId(customerId);
             vo.setCustomerName(customerId == null ? null : InquiryLookups.customerName(customers.get(customerId)));
             vo.setBusinessUnitId(f.getBusinessUnitId());

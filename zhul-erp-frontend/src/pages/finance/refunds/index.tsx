@@ -29,6 +29,7 @@ import { formatAmount } from '@/utils/format';
 import { usePageSize } from '@/utils/pageSize';
 import { ProofLinks } from '../payables/components';
 import RefundModal from './RefundModal';
+import RequestsTab from './RequestsTab';
 import {
   DICT_REFUND_REASON,
   REFUND_METHODS,
@@ -37,6 +38,7 @@ import {
   type Refund,
   type RefundTotals,
   refundApi,
+  refundRequestApi,
 } from './service';
 
 const METHOD_FILTERS = [
@@ -130,6 +132,21 @@ const RefundPage: React.FC = () => {
   const [picking, setPicking] = useState(false);
   const [soId, setSoId] = useState<number>();
   const [voiding, setVoiding] = useState<Refund>();
+  const [view, setView] = useState<'refunds' | 'requests'>(() =>
+    new URLSearchParams(window.location.search).get('view') === 'requests'
+      ? 'requests'
+      : 'refunds',
+  );
+  const [pendingRequests, setPendingRequests] = useState(0);
+  const loadPending = useCallback(() => {
+    refundRequestApi
+      .counts()
+      .then((c) => setPendingRequests(c.pendingFinance + c.pendingApproval))
+      .catch(() => setPendingRequests(0));
+  }, []);
+  useEffect(() => {
+    loadPending();
+  }, [loadPending]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -308,151 +325,179 @@ const RefundPage: React.FC = () => {
           )
         }
       />
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
-          gap: 16,
-          marginBottom: 16,
-        }}
-      >
-        {[
-          {
-            label: '售后退款（人民币）',
-            value: sum?.afterSales ?? 0,
-            hint: `${sum?.afterSalesCount ?? 0} 笔 · 其中转客户余额 ${formatAmount(sum?.toCredit ?? 0, 'CNY')}`,
-            color: palette.orange,
-          },
-          {
-            label: '余额提现（人民币）',
-            value: sum?.withdraw ?? 0,
-            hint: `${sum?.withdrawCount ?? 0} 笔 · 不影响利润`,
-            color: palette.cyan,
-          },
-        ].map((c) => (
-          <div
-            key={c.label}
-            style={{
-              padding: '16px 18px',
-              borderRadius: 14,
-              background: palette.card,
-              border: `1px solid ${palette.hairline}`,
-            }}
-          >
-            <div style={{ fontSize: 13, color: palette.sub }}>{c.label}</div>
-            <div
-              style={{
-                ...num,
-                fontSize: 22,
-                fontWeight: 800,
-                color: c.color,
-                marginTop: 4,
-              }}
-            >
-              {formatAmount(c.value, 'CNY')}
-            </div>
-            <div style={{ fontSize: 12, color: palette.mute, marginTop: 2 }}>
-              {c.hint}
-            </div>
-          </div>
-        ))}
-      </div>
-      <Card>
-        <div
-          style={{
-            display: 'flex',
-            gap: 10,
-            flexWrap: 'wrap',
-            marginBottom: 14,
-            alignItems: 'center',
-          }}
-        >
-          <Segmented<number>
-            value={refundType}
-            onChange={(v) => {
-              setRefundType(v);
-              setPage(1);
-            }}
-            options={[
-              { value: 0, label: '全部' },
-              { value: 1, label: '售后退款' },
-              { value: REFUND_TYPE_WITHDRAW, label: '余额提现' },
-            ]}
-          />
-          <Input
-            allowClear
-            placeholder="编号、订单号、客户"
-            style={{ width: 200 }}
-            value={keyword}
-            onChange={(e) => setKeyword(e.target.value)}
-            onPressEnter={() => {
-              setQuery(keyword.trim());
-              setPage(1);
-            }}
-          />
-          <DatePicker.RangePicker
-            value={range}
-            onChange={(v) => {
-              setRange(v?.[0] && v[1] ? [v[0], v[1]] : null);
-              setPage(1);
-            }}
-          />
-          <Select
-            allowClear
-            placeholder="原因"
-            style={{ width: 140 }}
-            value={reason}
-            onChange={(v) => {
-              setReason(v);
-              setPage(1);
-            }}
-            options={reasons.map((r) => ({ value: r.code, label: r.name }))}
-          />
-          <Select
-            allowClear
-            placeholder="去向"
-            style={{ width: 170 }}
-            value={method}
-            onChange={(v) => {
-              setMethod(v);
-              setPage(1);
-            }}
-            options={METHOD_FILTERS}
-          />
-          <Checkbox
-            checked={showVoid}
-            onChange={(e) => setShowVoid(e.target.checked)}
-          >
-            显示已作废
-          </Checkbox>
-          <Button
-            onClick={() => {
-              setQuery(keyword.trim());
-              setPage(1);
-            }}
-          >
-            查询
-          </Button>
-        </div>
-        <Table<Refund>
-          rowKey="id"
-          loading={loading}
-          columns={columns}
-          dataSource={rows}
-          scroll={{ x: 1800 }}
-          pagination={{
-            current: page,
-            pageSize,
-            total,
-            showSizeChanger: true,
-            showTotal: (t) => `共 ${t} 条`,
-            onChange: (p, s) => {
-              setPage(p);
-              setPageSize(s);
+      <div style={{ marginBottom: 16 }}>
+        <Segmented<'refunds' | 'requests'>
+          value={view}
+          onChange={setView}
+          options={[
+            { value: 'refunds', label: '退款单' },
+            {
+              value: 'requests',
+              label: `退款申请${pendingRequests ? ` ${pendingRequests}` : ''}`,
             },
+          ]}
+        />
+      </div>
+      {view === 'requests' ? (
+        <RequestsTab
+          onChanged={() => {
+            load();
+            loadPending();
           }}
         />
-      </Card>
+      ) : (
+        <>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+              gap: 16,
+              marginBottom: 16,
+            }}
+          >
+            {[
+              {
+                label: '售后退款（人民币）',
+                value: sum?.afterSales ?? 0,
+                hint: `${sum?.afterSalesCount ?? 0} 笔 · 其中转客户余额 ${formatAmount(sum?.toCredit ?? 0, 'CNY')}`,
+                color: palette.orange,
+              },
+              {
+                label: '余额提现（人民币）',
+                value: sum?.withdraw ?? 0,
+                hint: `${sum?.withdrawCount ?? 0} 笔 · 不影响利润`,
+                color: palette.cyan,
+              },
+            ].map((c) => (
+              <div
+                key={c.label}
+                style={{
+                  padding: '16px 18px',
+                  borderRadius: 14,
+                  background: palette.card,
+                  border: `1px solid ${palette.hairline}`,
+                }}
+              >
+                <div style={{ fontSize: 13, color: palette.sub }}>
+                  {c.label}
+                </div>
+                <div
+                  style={{
+                    ...num,
+                    fontSize: 22,
+                    fontWeight: 800,
+                    color: c.color,
+                    marginTop: 4,
+                  }}
+                >
+                  {formatAmount(c.value, 'CNY')}
+                </div>
+                <div
+                  style={{ fontSize: 12, color: palette.mute, marginTop: 2 }}
+                >
+                  {c.hint}
+                </div>
+              </div>
+            ))}
+          </div>
+          <Card>
+            <div
+              style={{
+                display: 'flex',
+                gap: 10,
+                flexWrap: 'wrap',
+                marginBottom: 14,
+                alignItems: 'center',
+              }}
+            >
+              <Segmented<number>
+                value={refundType}
+                onChange={(v) => {
+                  setRefundType(v);
+                  setPage(1);
+                }}
+                options={[
+                  { value: 0, label: '全部' },
+                  { value: 1, label: '售后退款' },
+                  { value: REFUND_TYPE_WITHDRAW, label: '余额提现' },
+                ]}
+              />
+              <Input
+                allowClear
+                placeholder="编号、订单号、客户"
+                style={{ width: 200 }}
+                value={keyword}
+                onChange={(e) => setKeyword(e.target.value)}
+                onPressEnter={() => {
+                  setQuery(keyword.trim());
+                  setPage(1);
+                }}
+              />
+              <DatePicker.RangePicker
+                value={range}
+                onChange={(v) => {
+                  setRange(v?.[0] && v[1] ? [v[0], v[1]] : null);
+                  setPage(1);
+                }}
+              />
+              <Select
+                allowClear
+                placeholder="原因"
+                style={{ width: 140 }}
+                value={reason}
+                onChange={(v) => {
+                  setReason(v);
+                  setPage(1);
+                }}
+                options={reasons.map((r) => ({ value: r.code, label: r.name }))}
+              />
+              <Select
+                allowClear
+                placeholder="去向"
+                style={{ width: 170 }}
+                value={method}
+                onChange={(v) => {
+                  setMethod(v);
+                  setPage(1);
+                }}
+                options={METHOD_FILTERS}
+              />
+              <Checkbox
+                checked={showVoid}
+                onChange={(e) => setShowVoid(e.target.checked)}
+              >
+                显示已作废
+              </Checkbox>
+              <Button
+                onClick={() => {
+                  setQuery(keyword.trim());
+                  setPage(1);
+                }}
+              >
+                查询
+              </Button>
+            </div>
+            <Table<Refund>
+              rowKey="id"
+              loading={loading}
+              columns={columns}
+              dataSource={rows}
+              scroll={{ x: 1800 }}
+              pagination={{
+                current: page,
+                pageSize,
+                total,
+                showSizeChanger: true,
+                showTotal: (t) => `共 ${t} 条`,
+                onChange: (p, s) => {
+                  setPage(p);
+                  setPageSize(s);
+                },
+              }}
+            />
+          </Card>
+        </>
+      )}
       <PickOrderModal
         open={picking}
         onClose={() => setPicking(false)}

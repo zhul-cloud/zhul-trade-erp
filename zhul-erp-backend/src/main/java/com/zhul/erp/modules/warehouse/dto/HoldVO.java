@@ -14,6 +14,9 @@ public class HoldVO {
     /** 来源销售订单（订单部分取消） */
     private Long soId;
     private String soNo;
+    /** 来源退货单（售后退货） */
+    private Long returnId;
+    private String returnNo;
     private String model;
     private String brand;
     private String category;

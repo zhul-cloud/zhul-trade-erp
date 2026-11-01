@@ -64,6 +64,8 @@ public class OrderCostVO {
         /** 质量索赔（不良折价，冲减成本） */
         private BigDecimal claim;
         private BigDecimal returnFreight;
+        /** 售后退货冲减（正数为冲减成本） */
+        private BigDecimal salesReturnCredit;
         private BigDecimal domestic;
         private BigDecimal international;
         private Boolean internationalSettled;
