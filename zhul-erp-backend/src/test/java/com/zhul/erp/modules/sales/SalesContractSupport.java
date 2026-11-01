@@ -29,7 +29,7 @@ public abstract class SalesContractSupport extends InquiryContractSupport {
     private static final String[] SALES_TABLES = {"fin_customer_credit_consumption", "fin_customer_credit_entry", "fin_customer_refund", "fin_other_income", "fin_fx_settlement_allocation", "fin_fx_settlement", "fin_reimbursement_line", "fin_reimbursement", "fin_expense_allocation", "fin_expense", "fin_payment_allocation", "fin_payment", "fin_payable_installment", "fin_payable", "forwarder_statement_line", "forwarder_statement", "freight_allocation", "shipment_doc_group",
             "logistics_shipment", "courier_waybill", "outbound_box_item", "outbound_box", "outbound_order_item", "outbound_order", "transit_time", "biz_attachment", "biz_attachment_model", "media_item", "media_asset", "shoot_task", "stock_hold", "receiving_discrepancy",
             "purchase_receipt_item", "purchase_receipt", "supplier_shipment_item", "supplier_shipment", "purchase_order_log", "purchase_order_attachment", "purchase_order_fee",
-            "purchase_order_item", "purchase_order", "purchase_requirement", "sales_order_fee", "sales_order_item", "sales_order", "payment_receipt",
+            "purchase_order_item", "purchase_order", "purchase_requirement", "sales_order_fee", "sales_order_partial_cancel", "sales_order_item", "sales_order", "payment_receipt",
             "proforma_invoice_send_log", "proforma_invoice_fee", "proforma_invoice_item", "proforma_invoice_version", "proforma_invoice",
             "quotation_send_log", "quotation_version", "quotation_fee", "quotation_item", "quotation", "tenant_bank_account", "document_sequence",
             "customer_party", "exchange_rate", "exchange_rate_log"};

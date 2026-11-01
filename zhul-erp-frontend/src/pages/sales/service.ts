@@ -523,6 +523,14 @@ export interface GoodsSummary {
 export interface OrderItem extends PiItem {
   /** 1-现货、2-期货 */
   stockType: number;
+  /** 原数量（成交时）；quantity 为部分取消后的剩余数量 */
+  originalQuantity?: number;
+  /** 已部分取消的数量 */
+  cancelledQuantity?: number;
+  /** 最多还能部分取消的数量 = 剩余数量 − 已出库（出库中、已交货代、已出运） */
+  cancellableQty?: number;
+  /** 已出库（出库中、已交货代、已出运）的数量 */
+  outboundQty?: number;
   progressCode: string;
   progressName: string;
   purchaserId?: number | null;
@@ -559,6 +567,65 @@ export interface OrderItem extends PiItem {
   }[];
 }
 
+export interface PartialCancelRecord {
+  id: number;
+  itemId: number;
+  model: string;
+  quantity: number;
+  amount: number;
+  totalBefore: number;
+  totalAfter: number;
+  reason: string;
+  reasonName: string;
+  remark?: string;
+  /** 采购与库存处理结果摘要 */
+  result: string;
+  operatorName?: string;
+  createTime: string;
+}
+
+export interface PartialCancelBody {
+  items: { itemId: number; quantity: number }[];
+  reason: string;
+  remark?: string;
+}
+
+export interface PartialCancelPoQty {
+  poId: number;
+  poNo?: string;
+  quantity: number;
+}
+
+/** 部分取消的影响（确认前展示） */
+export interface PartialCancelPreview {
+  currencyCode: string;
+  itemAmountBefore: number;
+  itemAmountAfter: number;
+  discountBefore: number;
+  discountAfter: number;
+  totalBefore: number;
+  totalAfter: number;
+  /** 已到账（含手续费差额） */
+  received: number;
+  /** 取消后多出的已到账（进入待处理多收） */
+  overpaidAfter: number;
+  items: {
+    itemId: number;
+    model: string;
+    quantity: number;
+    quantityBefore: number;
+    quantityAfter: number;
+    amount: number;
+    /** 有采购需求；系统外采购的只改订单 */
+    tracked: boolean;
+    unplaced: number;
+    drafts: PartialCancelPoQty[];
+    held: number;
+    ordered: PartialCancelPoQty[];
+    untracked: number;
+  }[];
+}
+
 export interface OrderStep {
   code: string;
   name: string;
@@ -584,6 +651,12 @@ export interface Order {
   trackable: boolean;
   /** 所有型号到达最后一步：可以确认客户收货 */
   completable: boolean;
+  /** 有效且不是历史迁移：显示「部分取消」（已完成时置灰，提示走售后） */
+  partialCancelable?: boolean;
+  /** PI 合计（PI 转成的订单；部分取消后与订单合计不同） */
+  piTotalAmount?: number | null;
+  /** 部分取消记录（新的在前） */
+  partialCancels?: PartialCancelRecord[];
   steps: OrderStep[];
   purchasers: {
     userId?: number | null;
@@ -933,6 +1006,16 @@ export const orderApi = {
   detail: (id: number) => get<Order>(`${SO}/${id}`),
   cancel: (id: number, reason: string) =>
     send<Order>('POST', `${SO}/${id}/cancel`, { reason }),
+  partialCancelReasons: () =>
+    get<Record<string, string>>(`${SO}/partial-cancel-reasons`),
+  partialCancelPreview: (id: number, body: PartialCancelBody) =>
+    send<PartialCancelPreview>(
+      'POST',
+      `${SO}/${id}/partial-cancel/preview`,
+      body,
+    ),
+  partialCancel: (id: number, body: PartialCancelBody) =>
+    send<Order>('POST', `${SO}/${id}/partial-cancel`, body),
   create: (body: {
     customerId: number;
     currencyCode: string;

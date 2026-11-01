@@ -19,7 +19,8 @@ import java.util.List;
 
 /**
  * PI 表头的汇总缓存：型号数与合计取当前有效版本（没有时取编辑中的版本）；
- * 收款状态按有效收款记录重算（手动创建的订单同理，见 refreshOrder）——已到账 + 手续费差额 ≥ 合计为已到账，有到账为部分到账，只有水单为待到账，否则未付款。
+ * 收款状态按有效收款记录重算（手动创建的订单同理，见 refreshOrder）——已到账 + 手续费差额 ≥ 应收合计为已到账，有到账为部分到账，只有水单为待到账，否则未付款。
+ * 应收合计：PI 有有效订单时取订单合计（部分取消后少于 PI 合计），否则取 PI 合计（spec sales/payment-receipt「订单部分取消后的收款」）。
  */
 @Component
 @RequiredArgsConstructor
@@ -43,7 +44,7 @@ public class PiSummary {
             pi.setTotalAmountCny(v.getTotalAmountCny());
             pi.setValidUntil(v.getValidUntil());
         }
-        Totals t = totals(new LambdaQueryWrapper<PaymentReceiptDO>().eq(PaymentReceiptDO::getPiId, pi.getId()), pi.getTotalAmount());
+        Totals t = totals(new LambdaQueryWrapper<PaymentReceiptDO>().eq(PaymentReceiptDO::getPiId, pi.getId()), store.receivable(pi));
         pi.setReceivedAmount(t.received());
         pi.setFeeDiffAmount(t.feeDiff());
         pi.setReceiptStatus(t.status());

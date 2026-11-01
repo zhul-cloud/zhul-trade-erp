@@ -87,6 +87,7 @@ public class ReceiptService {
     private final CurrentUserResolver currentUser;
     private final InquiryLookups lookups;
     private final LogService logService;
+    private final com.zhul.erp.modules.warehouse.support.PartialCancelHolds partialCancelHolds;
 
     // ---------------------------------------------------------------- 列表与详情
 
@@ -439,6 +440,8 @@ public class ReceiptService {
         s.setStatus(WarehouseConstants.SHIP_RECEIVED);
         shipmentMapper.updateById(s);
         int diffCount = discrepancies.createForReceipt(r, items, p);
+        // 来源订单部分取消过的型号：超出订单需要的合格数量转入闲置库存
+        partialCancelHolds.afterReceipt(r, items, poItems, operator);
         Map<Long, Long> soIds = new HashMap<>();
         poItems.forEach((k, v) -> soIds.put(k, v.getSoId()));
         if (shoot) {
@@ -487,6 +490,7 @@ public class ReceiptService {
         s.setStatus(WarehouseConstants.SHIP_IN_TRANSIT);
         shipmentMapper.updateById(s);
         discrepancies.voidForReceipt(id);
+        partialCancelHolds.voidForReceipt(id);
         shoots.voidForReceipt(id);
         media.retireDocument(AttachmentService.RECEIPT, id, r.getTenantId());
         media.retireDocument(AttachmentService.RECEIPT_DEFECT, id, r.getTenantId());

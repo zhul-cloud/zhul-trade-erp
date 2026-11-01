@@ -128,6 +128,26 @@ public class SalesOrderController {
         return Result.ok(service.cancel(id, req.getReason()));
     }
 
+    @GetMapping("/orders/partial-cancel-reasons")
+    @PreAuthorize("@perm.canAccessMenu('/sales/orders')")
+    public Result<java.util.Map<String, String>> partialCancelReasons() {
+        return Result.ok(service.partialCancelReasons());
+    }
+
+    @PostMapping("/orders/{id}/partial-cancel/preview")
+    @PreAuthorize("@perm.canAccessMenu('/sales/orders')")
+    public Result<com.zhul.erp.modules.sales.dto.PartialCancelPreviewVO> partialCancelPreview(@PathVariable Long id,
+            @Valid @RequestBody com.zhul.erp.modules.sales.dto.PartialCancelRequest req) {
+        return Result.ok(service.partialCancelPreview(id, req));
+    }
+
+    @PostMapping("/orders/{id}/partial-cancel")
+    @PreAuthorize("@perm.canAccessMenu('/sales/orders')")
+    public Result<SalesOrderVO> partialCancel(@PathVariable Long id,
+            @Valid @RequestBody com.zhul.erp.modules.sales.dto.PartialCancelRequest req) {
+        return Result.ok(service.partialCancel(id, req));
+    }
+
     @GetMapping("/chain")
     @PreAuthorize("@perm.canAccessMenu('/inquiry/customer-inquiries') or @perm.canAccessMenu('/quotation/quotations')"
             + " or @perm.canAccessMenu('/sales/pi') or @perm.canAccessMenu('/sales/orders')")

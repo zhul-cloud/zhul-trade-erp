@@ -35,6 +35,15 @@ public interface SalesOrderService {
 
     SalesOrderVO cancel(Long id, String reason);
 
+    /** 部分取消的影响（只计算，不写库） */
+    com.zhul.erp.modules.sales.dto.PartialCancelPreviewVO partialCancelPreview(Long id, com.zhul.erp.modules.sales.dto.PartialCancelRequest req);
+
+    /** 按型号部分取消 */
+    SalesOrderVO partialCancel(Long id, com.zhul.erp.modules.sales.dto.PartialCancelRequest req);
+
+    /** 部分取消原因（字典 partial_cancel_reason，启用的） */
+    java.util.Map<String, String> partialCancelReasons();
+
     /** 补传附件（PI、合同、客户 PO 等） */
     SalesOrderVO addAttachments(Long id, java.util.List<Long> attachmentIds);
 

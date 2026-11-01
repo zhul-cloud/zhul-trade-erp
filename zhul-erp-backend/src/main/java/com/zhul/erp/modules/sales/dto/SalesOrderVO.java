@@ -75,6 +75,29 @@ public class SalesOrderVO {
     private BigDecimal feeDiffAmount;
     private BigDecimal remainingAmount;
     private List<SalesOrderItemVO> items;
+    /** 能否部分取消（有效、未完成、非历史迁移）；completed 时前端提示走售后 */
+    private Boolean partialCancelable;
+    /** PI 合计（PI 转成的订单）；部分取消后与订单合计不同 */
+    private java.math.BigDecimal piTotalAmount;
+    /** 部分取消记录（新的在前） */
+    private List<PartialCancelRecord> partialCancels;
+
+    @lombok.Data
+    public static class PartialCancelRecord {
+        private Long id;
+        private Long itemId;
+        private String model;
+        private Integer quantity;
+        private java.math.BigDecimal amount;
+        private java.math.BigDecimal totalBefore;
+        private java.math.BigDecimal totalAfter;
+        private String reason;
+        private String reasonName;
+        private String remark;
+        private String result;
+        private String operatorName;
+        private LocalDateTime createTime;
+    }
     private List<PiFeeVO> fees;
     private List<ReceiptVO> receipts;
     /** 余额：可用余额、代收状态、待处理多收 */

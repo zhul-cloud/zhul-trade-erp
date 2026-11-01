@@ -5,7 +5,7 @@
 - 销售订单的成交内容创建后不能改，只能整单取消；整单取消时 `RequirementLifecycle.onOrderCancelled` 关闭没下单的需求、撤出草稿行，已下单的标「订单已取消」。
 - 下游大量逻辑直接读 `sales_order_item.quantity`：订单进度、货物状态、采购需求、出库、订单成本（采购订单行数量超过型号数量时按型号数量封顶）。
 - 收款记录属于 PI，PI 收款状态由 `PiSummary` 按 PI 合计计算；`ReceiptPosition` 给客户余额的代收、多收、订单收入提供「合计」。
-- 闲置库存只由到货差异的「多发 → 暂存」生成，记录 `discrepancy_id`。
+- 闲置库存只由到货差异的「多发 → 暂存」生成，记录 `discrepancy_id`（没有时为 0）。
 
 ## Goals / Non-Goals
 
@@ -35,7 +35,7 @@
 
 在 `RequirementLifecycle` 新增 `onItemReduced(soItem, n)`，复用现有的 `RequirementQty`（草稿、已下单数量）与 `drafts.takeFromDrafts`：
 - 未排单数量 = 需求数量 − 草稿 − 已下单；
-- 在仓数量 = 合格入库 − 已交货代 − 已出运（按型号行汇总，从已下单数量中扣），生成闲置库存；
+- 在仓数量 = 订单型号的合格入库 − 已出库（出库中、已交货代、已出运），生成闲置库存，成本取合格入库最多的采购订单行；订单型号的合格入库数量从此扣除转入闲置库存的数量（`ReceivingQtyMapper.qualifiedBySoItem`），出库、进度、货物状态随之一致；
 - 已下单未到货：需求数量减少，采购订单行记 `so_reduced_quantity`（累计），详情显示「来源订单减少 N 个」并写日志。
 
 验收入库时，若型号行的合格入库数量（含本次）超过订单型号数量，超出部分直接生成闲置库存（来源「订单部分取消」），不计入订单型号的合格数量。
@@ -48,7 +48,7 @@
 
 ### 5. 闲置库存加来源
 
-`stock_hold` 加 `source_type`（1-到货差异、2-订单部分取消）、`so_id`、`so_item_id`，`discrepancy_id` 改为可空。
+`stock_hold` 加 `source_type`（1-到货差异、2-订单部分取消）、`so_id`、`so_item_id`；订单部分取消产生的 `discrepancy_id` 为 0（原字段已是 NOT NULL DEFAULT 0，不改）。冲销入库时，这张入库单转入的闲置库存还暂存中的一并撤回，已处置的不能冲销。
 
 ### 6. 事务边界
 
@@ -66,5 +66,5 @@
 
 ## Migration Plan
 
-1. 迁移（版本取最新序号）：`sales_order_item` 加 `original_quantity`（回填）、`cancelled_quantity`；新建 `sales_order_partial_cancel`；`purchase_order_item` 加 `so_reduced_quantity`；`stock_hold` 加 `source_type`（存量为 1）、`so_id`、`so_item_id`，`discrepancy_id` 改为可空；新增字典「部分取消原因」。
+1. 迁移（版本取最新序号）：`sales_order_item` 加 `original_quantity`（回填）、`cancelled_quantity`；新建 `sales_order_partial_cancel`；`purchase_order_item` 加 `so_reduced_quantity`；`stock_hold` 加 `source_type`（存量为 1）、`so_id`、`so_item_id`；新增字典「部分取消原因」。
 2. 回退：新增字段与表不影响旧版本运行；回退前确认没有部分取消记录（有的话旧版本会把剩余数量当原数量显示），回退 SQL 删除新表与新增字段。

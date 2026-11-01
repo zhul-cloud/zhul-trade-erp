@@ -25,6 +25,8 @@ public class PurchaseOrderItemDO {
     private String model;
     private String brand;
     private Integer quantity;
+    /** 来源订单部分取消后减少的数量（累计；采购数量不自动改，提示采购员处理） */
+    private Integer soReducedQuantity;
     /** 单价（原币，含税与否按单头），草稿可为空 */
     @TableField(updateStrategy = FieldStrategy.ALWAYS)
     private BigDecimal unitPrice;

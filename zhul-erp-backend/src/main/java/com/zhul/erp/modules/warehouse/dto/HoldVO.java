@@ -8,6 +8,12 @@ import java.time.LocalDateTime;
 @Data
 public class HoldVO {
     private Long id;
+    /** 来源（1-到货差异、2-订单部分取消） */
+    private Integer sourceType;
+    private String sourceName;
+    /** 来源销售订单（订单部分取消） */
+    private Long soId;
+    private String soNo;
     private String model;
     private String brand;
     private String category;

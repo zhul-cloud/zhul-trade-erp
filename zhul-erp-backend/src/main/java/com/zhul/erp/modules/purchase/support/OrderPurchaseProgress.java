@@ -72,7 +72,8 @@ public class OrderPurchaseProgress {
             boolean isTracked = tracked.contains(i.getId());
             boolean hasOutbound = out.containsKey(i.getId());
             boolean afterReceived = SalesConstants.PROGRESS_TO_FORWARDER.equals(code) || SalesConstants.PROGRESS_SHIPPED.equals(code);
-            if (i.getDeletedAt() != null || !AUTO.contains(code) || (!hasOutbound && (!isTracked || afterReceived))) {
+            // 全部取消的型号（数量为 0）不再推进
+            if (i.getDeletedAt() != null || i.getQuantity() <= 0 || !AUTO.contains(code) || (!hasOutbound && (!isTracked || afterReceived))) {
                 continue;
             }
             var o = out.getOrDefault(i.getId(), com.zhul.erp.modules.logistics.support.LogisticsQty.Qty.ZERO);
@@ -109,6 +110,7 @@ public class OrderPurchaseProgress {
             }
             List<SalesOrderItemDO> all = soItemMapper.selectList(new LambdaQueryWrapper<SalesOrderItemDO>()
                     .eq(SalesOrderItemDO::getSoId, soId)
+                    .gt(SalesOrderItemDO::getQuantity, 0)
                     .isNull(SalesOrderItemDO::getDeletedAt));
             String code = all.stream().min(Comparator.comparingInt(x -> OrderProgress.rank(ordered, x.getProgressCode())))
                     .map(SalesOrderItemDO::getProgressCode).orElse(SalesConstants.PROGRESS_PENDING);
