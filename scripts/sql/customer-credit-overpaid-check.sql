@@ -29,7 +29,7 @@ FROM (
     SELECT s.id, s.tenant_id, '手动订单', s.so_no, s.so_no, s.sales_date, s.customer_id, s.currency_code,
            s.total_amount, s.received_amount, s.fee_diff_amount
     FROM sales_order s
-    WHERE s.deleted_at IS NULL AND s.status = 1 AND s.pi_id IS NULL
+    WHERE s.deleted_at IS NULL AND s.status = 1 AND s.source = 2
 ) x
 LEFT JOIN customer c ON c.id = x.customer_id
 WHERE x.received_amount + x.fee_diff_amount > x.total_amount
