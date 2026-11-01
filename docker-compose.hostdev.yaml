@@ -1,0 +1,16 @@
+# 本机开发专用：前后端跑在本机，AI 编排服务留在 Docker。
+# 开放 8899 给本机后端调用；host.docker.internal 让容器能回调本机后端。
+services:
+  ai-orchestrator:
+    ports:
+      - "127.0.0.1:8899:8899"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    # Colima 虚拟机没有配置 DNS，用它的网关解析域名；Docker Desktop 用 HOSTDEV_DNS 改掉
+    dns:
+      - "${HOSTDEV_DNS:-192.168.5.2}"
+    # Claude、OpenAI 要走本机代理；回调本机后端不走代理。没有代理时把 HOSTDEV_PROXY 设成空
+    environment:
+      HTTP_PROXY: ${HOSTDEV_PROXY-http://host.docker.internal:7897}
+      HTTPS_PROXY: ${HOSTDEV_PROXY-http://host.docker.internal:7897}
+      NO_PROXY: host.docker.internal,localhost,127.0.0.1

@@ -20,6 +20,8 @@ public class PiFeeDO {
     private Long piId;
     private Long versionId;
     private String feeName;
+    /** 1-普通费用、2-代收款（客户请我们多做、收到后转回给客户，不计入销售额） */
+    private Integer feeType;
     private BigDecimal amount;
     private BigDecimal amountCny;
     private String remark;

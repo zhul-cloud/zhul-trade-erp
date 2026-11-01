@@ -464,6 +464,7 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
             x.setModel(i.getModel());
             x.setBrand(i.getBrand());
             x.setQuantity(i.getQuantity());
+            x.setSoReducedQuantity(Objects.requireNonNullElse(i.getSoReducedQuantity(), 0));
             PurchaseRequirementDO r = reqById.get(i.getRequirementId());
             x.setCategory(r == null ? null : r.getCategory());
             int available = r == null || r.getStatus() != PurchaseConstants.REQ_ACTIVE ? 0

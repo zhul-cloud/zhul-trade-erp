@@ -18,6 +18,8 @@ public class SourcingSettings {
 
     private static final int DEFAULT_TIMEOUT_HOURS = 24;
     private static final int DEFAULT_URGENT_TIMEOUT_HOURS = 4;
+    private static final int DEFAULT_SALES_WINDOW_MINUTES = 120;
+    private static final int DEFAULT_URGENT_SALES_WINDOW_MINUTES = 30;
 
     private final SysConfigMapper sysConfigMapper;
 
@@ -25,6 +27,20 @@ public class SourcingSettings {
         return urgent
                 ? intValue(tenantId, InquiryConstants.CONFIG_URGENT_TIMEOUT_HOURS, DEFAULT_URGENT_TIMEOUT_HOURS)
                 : intValue(tenantId, InquiryConstants.CONFIG_TIMEOUT_HOURS, DEFAULT_TIMEOUT_HOURS);
+    }
+
+    /** 业务员处理询价任务的时限（分钟）；0 表示直接进入待分配，负数按 0 处理，填错时用默认值 */
+    public int salesWindowMinutes(int tenantId, boolean urgent) {
+        int fallback = urgent ? DEFAULT_URGENT_SALES_WINDOW_MINUTES : DEFAULT_SALES_WINDOW_MINUTES;
+        String v = value(tenantId, urgent ? InquiryConstants.CONFIG_SALES_WINDOW_URGENT : InquiryConstants.CONFIG_SALES_WINDOW);
+        if (!StringUtils.hasText(v)) {
+            return fallback;
+        }
+        try {
+            return Math.max(0, Integer.parseInt(v.trim()));
+        } catch (NumberFormatException e) {
+            return fallback;
+        }
     }
 
     public boolean autoAssign(int tenantId) {

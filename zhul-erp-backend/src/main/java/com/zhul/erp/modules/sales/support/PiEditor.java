@@ -85,6 +85,13 @@ public class PiEditor {
                 fee.setPiId(pi.getId());
                 fee.setVersionId(v.getId());
                 fee.setFeeName(f.getFeeName().trim());
+                fee.setFeeType(f.getFeeType() == null ? SalesConstants.FEE_NORMAL : f.getFeeType());
+                if (fee.getFeeType() != SalesConstants.FEE_NORMAL && fee.getFeeType() != SalesConstants.FEE_COLLECTION) {
+                    throw new BizException("费用类型不正确");
+                }
+                if (fee.getFeeType() == SalesConstants.FEE_COLLECTION && f.getAmount().signum() <= 0) {
+                    throw new BizException("代收款金额须大于 0");
+                }
                 fee.setAmount(f.getAmount());
                 fee.setRemark(trim(f.getRemark()));
                 fees.add(fee);
@@ -144,6 +151,18 @@ public class PiEditor {
             PiCalculator.applyLine(i, pi.getExchangeRate());
         }
         PiCalculator.applyTotals(v, items, fees, pi.getExchangeRate());
+        // 抵扣客户余额：不超过合计减去代收款（spec sales/proforma-invoice「PI 抵扣客户余额」）
+        BigDecimal credit = req.getCreditAmount() == null ? BigDecimal.ZERO : req.getCreditAmount().setScale(2, java.math.RoundingMode.HALF_UP);
+        if (credit.signum() < 0) {
+            throw new BizException("抵扣金额不能为负");
+        }
+        BigDecimal collection = fees.stream().filter(f -> f.getFeeType() == SalesConstants.FEE_COLLECTION)
+                .map(PiFeeDO::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal limit = v.getTotalAmount().subtract(collection);
+        if (credit.compareTo(limit) > 0) {
+            throw new BizException("抵扣不能超过 " + pi.getCurrencyCode() + " " + String.format("%,.2f", limit) + "（合计减去代收款）");
+        }
+        v.setCreditAmount(credit);
         return new Applied(items, fees);
     }
 

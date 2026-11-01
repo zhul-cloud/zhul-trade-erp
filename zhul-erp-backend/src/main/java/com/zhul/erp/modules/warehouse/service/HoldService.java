@@ -1,6 +1,7 @@
 package com.zhul.erp.modules.warehouse.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.zhul.erp.modules.sales.entity.SalesOrderDO;
 import com.zhul.erp.common.exception.BizException;
 import com.zhul.erp.common.result.PageResult;
 import com.zhul.erp.modules.inquiry.support.CurrentUserResolver;
@@ -32,7 +33,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
-/** 闲置库存：多发选择「暂存」时生成；仓库可以退回供应商、报废、转样品，处置不能撤回。 */
+/** 闲置库存：多发选择「暂存」时生成，订单部分取消时在仓的、之后到货超出订单需要的也转入（PartialCancelHolds）；仓库可以退回供应商、报废、转样品，处置不能撤回。 */
 @Service
 @RequiredArgsConstructor
 public class HoldService {
@@ -47,6 +48,8 @@ public class HoldService {
     private final CurrentUserResolver currentUser;
     private final InquiryLookups lookups;
     private final LogService logService;
+    private final com.zhul.erp.modules.sales.repository.SalesOrderMapper soMapper;
+    private final com.zhul.erp.modules.aftersales.repository.SalesReturnMapper returnMapper;
 
     public PageResult<HoldVO> page(HoldPageQuery q) {
         LambdaQueryWrapper<StockHoldDO> w = new LambdaQueryWrapper<StockHoldDO>()
@@ -55,13 +58,25 @@ public class HoldService {
         if (q.getStatus() != null) {
             w.eq(StockHoldDO::getStatus, q.getStatus());
         }
+        if (q.getSourceType() != null) {
+            w.eq(StockHoldDO::getSourceType, q.getSourceType());
+        }
         if (StringUtils.hasText(q.getKeyword())) {
             String kw = q.getKeyword().trim();
             Set<Long> poIds = support.poIdsByKeyword(kw);
+            Set<Long> soIds = soMapper.selectList(new LambdaQueryWrapper<SalesOrderDO>()
+                            .select(SalesOrderDO::getId)
+                            .eq(SalesOrderDO::getTenantId, PiStore.tenantId())
+                            .like(SalesOrderDO::getSoNo, kw)
+                            .last("LIMIT 200"))
+                    .stream().map(SalesOrderDO::getId).collect(java.util.stream.Collectors.toSet());
             w.and(x -> {
                 x.like(StockHoldDO::getModel, kw).or().like(StockHoldDO::getBrand, kw);
                 if (!poIds.isEmpty()) {
                     x.or().in(StockHoldDO::getPoId, poIds);
+                }
+                if (!soIds.isEmpty()) {
+                    x.or().in(StockHoldDO::getSoId, soIds);
                 }
             });
         }
@@ -119,12 +134,28 @@ public class HoldService {
         Map<Long, PurchaseReceiptDO> receipts = ReceivingSupport.byId(rows.stream().map(StockHoldDO::getReceiptId).toList(),
                 receiptMapper::selectBatchIds, PurchaseReceiptDO::getId);
         Map<Long, String> users = lookups.userNames(rows.stream().map(StockHoldDO::getHandledBy).toList());
+        List<Long> soIds = rows.stream().map(StockHoldDO::getSoId).filter(x -> x != null && x > 0).distinct().toList();
+        Map<Long, String> soNos = new java.util.HashMap<>();
+        List<Long> returnIds = rows.stream().map(StockHoldDO::getReturnId).filter(x -> x != null && x > 0).distinct().toList();
+        Map<Long, String> returnNos = new java.util.HashMap<>();
+        if (!returnIds.isEmpty()) {
+            returnMapper.selectBatchIds(returnIds).forEach(r -> returnNos.put(r.getId(), r.getReturnNo()));
+        }
+        if (!soIds.isEmpty()) {
+            soMapper.selectBatchIds(soIds).forEach(o -> soNos.put(o.getId(), o.getSoNo()));
+        }
         List<HoldVO> out = new ArrayList<>(rows.size());
         for (StockHoldDO h : rows) {
             PurchaseOrderDO p = pos.get(h.getPoId());
             PurchaseReceiptDO r = receipts.get(h.getReceiptId());
             HoldVO vo = new HoldVO();
             vo.setId(h.getId());
+            vo.setSourceType(h.getSourceType());
+            vo.setSourceName(WarehouseConstants.HOLD_SOURCE_NAMES.get(h.getSourceType()));
+            vo.setSoId(h.getSoId() == null || h.getSoId() == 0 ? null : h.getSoId());
+            vo.setSoNo(soNos.get(h.getSoId()));
+            vo.setReturnId(h.getReturnId() == null || h.getReturnId() == 0 ? null : h.getReturnId());
+            vo.setReturnNo(returnNos.get(h.getReturnId()));
             vo.setModel(h.getModel());
             vo.setBrand(h.getBrand());
             vo.setCategory(h.getCategory());

@@ -2,9 +2,11 @@ import {
   BankOutlined,
   CheckCircleFilled,
   CheckOutlined,
+  CustomerServiceOutlined,
   EditOutlined,
   FileTextOutlined,
   InboxOutlined,
+  MinusCircleOutlined,
   NodeIndexOutlined,
   PaperClipOutlined,
   RollbackOutlined,
@@ -27,6 +29,17 @@ import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount, formatDateTime } from '@/utils/format';
 import { MenuLink } from '@/utils/menuName';
 import {
+  CreateAfterSalesModal,
+  RefundRequestModal,
+} from '../after-sales/dialogs';
+import {
+  type AfterSales,
+  AS_STATUS_TONE,
+  afterSalesApi,
+  LEVEL_TONE,
+  levelShort,
+} from '../after-sales/service';
+import {
   Card,
   ChainCard,
   KIND,
@@ -37,6 +50,7 @@ import {
   ReceiptStatusPill,
   SalesPageTitle,
 } from '../components';
+import CreditInfo from '../pi/CreditInfo';
 import { ConfirmReceiptModal, ReasonModal, SlipModal } from '../pi/dialogs';
 import { ClaimReceiptModal, PlatformReceiptModal } from '../pi/receiptDialogs';
 import {
@@ -59,6 +73,11 @@ import {
 } from './dialogs';
 import { OrderFilesCard } from './OrderFiles';
 import {
+  PartialCancelModal,
+  PartialCancelRecords,
+  QtyCell,
+} from './partialCancel';
+import {
   GOODS_LABELS,
   GoodsBar,
   ProgressPill,
@@ -77,7 +96,10 @@ type Dialog =
   | 'confirm'
   | 'platform'
   | 'claim'
-  | 'notice';
+  | 'notice'
+  | 'partialCancel'
+  | 'afterSales'
+  | 'refundRequest';
 
 const OrderDetail: React.FC = () => {
   const { id: idParam } = useParams<{ id: string }>();
@@ -96,6 +118,14 @@ const OrderDetail: React.FC = () => {
   const [voidId, setVoidId] = useState<number>();
   /** 订单刷新次数：销售出库单列表随之重新取 */
   const [version, setVersion] = useState(0);
+  const [afterSales, setAfterSales] = useState<AfterSales[]>([]);
+  useEffect(() => {
+    if (!access.salesAfterSales) return;
+    afterSalesApi
+      .ofOrder(id)
+      .then(setAfterSales)
+      .catch(() => setAfterSales([]));
+  }, [id, version, access.salesAfterSales]);
 
   const load = useCallback(async () => {
     setError(undefined);
@@ -185,7 +215,9 @@ const OrderDetail: React.FC = () => {
     </div>
   );
 
-  const futures = o.items.filter((i) => i.stockType === STOCK.FUTURES).length;
+  const futures = o.items.filter(
+    (i) => i.quantity > 0 && i.stockType === STOCK.FUTURES,
+  ).length;
   const info = (
     <Card style={{ padding: 20, marginBottom: 16 }}>
       <div
@@ -285,7 +317,8 @@ const OrderDetail: React.FC = () => {
   );
 
   const counts = new Map<string, number>();
-  for (const i of o.items) {
+  // 全部取消的型号不参与进度
+  for (const i of o.items.filter((x) => x.quantity > 0)) {
     counts.set(i.progressCode, (counts.get(i.progressCode) ?? 0) + 1);
   }
   const rank = (code: string) => o.steps.findIndex((s) => s.code === code);
@@ -466,14 +499,44 @@ const OrderDetail: React.FC = () => {
       width: 260,
       render: (_, r) => (
         <div>
-          <div style={{ fontWeight: 600, color: palette.ink }}>{r.model}</div>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              flexWrap: 'wrap',
+            }}
+          >
+            <span
+              style={{
+                fontWeight: 600,
+                color: r.quantity > 0 ? palette.ink : palette.mute,
+                textDecoration: r.quantity > 0 ? undefined : 'line-through',
+              }}
+            >
+              {r.model}
+            </span>
+            {r.quantity === 0 && <Pill tone="mute">已全部取消</Pill>}
+          </div>
           <div style={{ fontSize: 12, color: palette.mute }}>
             {[r.brand, r.category, r.quotationNo].filter(Boolean).join(' · ')}
           </div>
         </div>
       ),
     },
-    { title: '数量', dataIndex: 'quantity', width: 70, align: 'right' },
+    {
+      title: '数量',
+      dataIndex: 'quantity',
+      width: 130,
+      align: 'right',
+      render: (_, r) => (
+        <QtyCell
+          quantity={r.quantity}
+          original={r.originalQuantity}
+          cancelled={r.cancelledQuantity}
+        />
+      ),
+    },
     {
       title: '单价',
       key: 'price',
@@ -501,15 +564,21 @@ const OrderDetail: React.FC = () => {
       dataIndex: 'purchaserName',
       width: 110,
       render: (v: string | null | undefined, r) =>
-        r.purchaserNames?.length
-          ? r.purchaserNames.join('、')
-          : (v ?? <span style={{ color: palette.orange }}>未指定</span>),
+        r.quantity === 0 ? (
+          <span style={{ color: palette.mute }}>—</span>
+        ) : r.purchaserNames?.length ? (
+          r.purchaserNames.join('、')
+        ) : (
+          (v ?? <span style={{ color: palette.orange }}>未指定</span>)
+        ),
     },
     {
       title: '货物',
       key: 'goods',
       width: 320,
       render: (_, r) => {
+        if (r.quantity === 0)
+          return <span style={{ color: palette.mute }}>—</span>;
         if (!r.purchaseTracked)
           return (
             <span style={{ fontSize: 12, color: palette.mute }}>
@@ -619,7 +688,9 @@ const OrderDetail: React.FC = () => {
       dataIndex: 'progressCode',
       width: 120,
       render: (v: string, r) =>
-        completed ? (
+        r.quantity === 0 ? (
+          <span style={{ fontSize: 12, color: palette.mute }}>不再跟进</span>
+        ) : completed ? (
           <ProgressPill code="COMPLETED" name={o.progressName} />
         ) : (
           <ProgressPill code={v} name={r.progressName} />
@@ -670,6 +741,11 @@ const OrderDetail: React.FC = () => {
   );
 
   // ---------------------------------------------------------------- 买方 / 条款 / 合计
+
+  const piDiffers =
+    !manual &&
+    o.piTotalAmount != null &&
+    Number(o.piTotalAmount) !== Number(o.totalAmount);
 
   const party = (title: string, p?: Party | null) => (
     <div
@@ -772,7 +848,11 @@ const OrderDetail: React.FC = () => {
             marginTop: 8,
           }}
         >
-          <b style={{ fontSize: 16, color: palette.ink }}>合计</b>
+          <b style={{ fontSize: 16, color: palette.ink }}>
+            {(o.partialCancels?.length ?? 0) > 0
+              ? '订单合计（部分取消后）'
+              : '合计'}
+          </b>
           <b style={{ ...num, fontSize: 22, color: palette.ink }}>
             {formatAmount(o.totalAmount, cur)}
           </b>
@@ -783,6 +863,14 @@ const OrderDetail: React.FC = () => {
           >
             ≈ {formatAmount(o.totalAmountCny, 'CNY')}（汇率{' '}
             {Number(o.exchangeRate).toFixed(6)}）
+          </div>
+        )}
+        {piDiffers && (
+          <div
+            style={{ textAlign: 'right', fontSize: 12, color: palette.mute }}
+          >
+            PI 合计 {formatAmount(o.piTotalAmount ?? 0, cur)}（发给客户的 PI
+            不改）
           </div>
         )}
       </div>
@@ -852,6 +940,12 @@ const OrderDetail: React.FC = () => {
         {(o.remainingAmount ?? 0) > 0 && (
           <div style={{ fontSize: 12, color: palette.orange, marginTop: 6 }}>
             剩余 {formatAmount(o.remainingAmount ?? 0, cur)}
+          </div>
+        )}
+        {piDiffers && (
+          <div style={{ fontSize: 12, color: palette.mute, marginTop: 6 }}>
+            按部分取消后的订单合计计算；PI 合计{' '}
+            {formatAmount(o.piTotalAmount ?? 0, cur)}
           </div>
         )}
       </div>
@@ -925,6 +1019,16 @@ const OrderDetail: React.FC = () => {
           ? '手动创建的订单没有 PI，收款直接登记在订单上'
           : `收款登记在 PI ${o.piNo ?? ''} 上，这里只读显示`}
       </div>
+      <CreditInfo
+        credit={o.credit}
+        currency={o.currencyCode}
+        unpaid={o.remainingAmount}
+        onUseCredit={
+          manual && o.status === 1
+            ? async (amount) => setO(await orderApi.applyCredit(o.id, amount))
+            : undefined
+        }
+      />
       {o.receipts.length === 0 ? (
         <div style={{ color: palette.mute, fontSize: 13 }}>还没有收款记录</div>
       ) : (
@@ -953,11 +1057,13 @@ const OrderDetail: React.FC = () => {
                   <b style={{ color: palette.ink }}>
                     {slip
                       ? '水单'
-                      : r.platformOrderNo
-                        ? '平台收款'
-                        : r.claimedAt
-                          ? '到账（认领）'
-                          : '到账'}
+                      : r.paymentMethod === 'CREDIT'
+                        ? '余额抵扣'
+                        : r.platformOrderNo
+                          ? '平台收款'
+                          : r.claimedAt
+                            ? '到账（认领）'
+                            : '到账'}
                   </b>
                   <b
                     style={{
@@ -1159,14 +1265,73 @@ const OrderDetail: React.FC = () => {
             ? {
                 selectedRowKeys: selected,
                 onChange: (keys) => setSelected(keys as number[]),
+                getCheckboxProps: (r) => ({ disabled: r.quantity === 0 }),
               }
             : undefined
         }
       />
       <div style={{ fontSize: 12, color: palette.mute, marginTop: 10 }}>
-        成交内容（型号、数量、单价、费用）不能改，要变更请取消订单；销售日期、进度、采购员、现货
+        成交内容（型号、单价、费用）不能直接改：减少型号数量用「部分取消」，其他变更请取消订单；全部取消的型号保留显示，不再参与进度与货物状态。销售日期、进度、采购员、现货
         / 期货可以随时改，改动写操作日志。
       </div>
+      <PartialCancelRecords order={o} />
+      {afterSales.length > 0 && (
+        <Card style={{ padding: 20, marginTop: 16 }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              marginBottom: 12,
+            }}
+          >
+            <CustomerServiceOutlined style={{ color: palette.link }} />
+            <b style={{ color: palette.ink }}>售后单</b>
+            <span
+              style={{ marginLeft: 'auto', fontSize: 12, color: palette.mute }}
+            >
+              {afterSales.length} 张
+            </span>
+          </div>
+          <div style={{ display: 'grid', gap: 8 }}>
+            {afterSales.map((x) => (
+              <div
+                key={x.id}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 10,
+                  padding: '8px 12px',
+                  borderRadius: 10,
+                  background: palette.inset,
+                }}
+              >
+                <a onClick={() => history.push(`/sales/after-sales/${x.id}`)}>
+                  {x.asNo}
+                </a>
+                <Pill tone={LEVEL_TONE[x.levelCode] ?? 'gray'}>
+                  {levelShort(x.levelCode, x.levelName)}
+                </Pill>
+                <span
+                  style={{
+                    fontSize: 12,
+                    color: palette.sub,
+                    flex: 1,
+                    minWidth: 0,
+                  }}
+                >
+                  {[x.itemSummary, x.reasonName, x.solutionNames.join('、')]
+                    .filter(Boolean)
+                    .join(' · ')}
+                </span>
+                <Pill tone={AS_STATUS_TONE[x.status] ?? 'gray'}>
+                  {x.statusName}
+                </Pill>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
       {terms}
       <div style={{ marginTop: 16 }}>
         <ChainCard type="order" id={o.id} reloadKey={o.status} />
@@ -1207,42 +1372,76 @@ const OrderDetail: React.FC = () => {
           </>
         }
         actions={
-          o.trackable && (
+          (o.trackable || o.partialCancelable) && (
             <>
-              {access['sales:order:ship-notice'] && (
+              {access.salesAfterSales && (
                 <Button
-                  type="primary"
-                  icon={<SendOutlined />}
-                  onClick={() => setDialog('notice')}
+                  icon={<CustomerServiceOutlined />}
+                  onClick={() => setDialog('afterSales')}
                 >
-                  发货通知
+                  售后
                 </Button>
               )}
-              <Button
-                icon={<CheckOutlined />}
-                disabled={!o.completable}
-                title={o.completable ? '' : '所有型号都出运后才能确认收货'}
-                onClick={complete}
-              >
-                客户已收货
-              </Button>
-              {access['finance:refund:edit'] &&
-                active &&
+              {!access['finance:refund:edit'] &&
+                access.salesAfterSales &&
                 (o.receivedAmount ?? 0) > 0 && (
                   <Button
                     icon={<RollbackOutlined />}
-                    onClick={() => setRefundOpen(true)}
+                    onClick={() => setDialog('refundRequest')}
                   >
-                    登记退款
+                    申请退款
                   </Button>
                 )}
-              <Button
-                danger
-                icon={<StopOutlined />}
-                onClick={() => setCancelOpen(true)}
-              >
-                取消订单
-              </Button>
+              {o.trackable && (
+                <>
+                  {access['sales:order:ship-notice'] && (
+                    <Button
+                      type="primary"
+                      icon={<SendOutlined />}
+                      onClick={() => setDialog('notice')}
+                    >
+                      发货通知
+                    </Button>
+                  )}
+                  <Button
+                    icon={<CheckOutlined />}
+                    disabled={!o.completable}
+                    title={o.completable ? '' : '所有型号都出运后才能确认收货'}
+                    onClick={complete}
+                  >
+                    客户已收货
+                  </Button>
+                  {access['finance:refund:edit'] &&
+                    active &&
+                    (o.receivedAmount ?? 0) > 0 && (
+                      <Button
+                        icon={<RollbackOutlined />}
+                        onClick={() => setRefundOpen(true)}
+                      >
+                        登记退款
+                      </Button>
+                    )}
+                </>
+              )}
+              {o.partialCancelable && (
+                <Button
+                  icon={<MinusCircleOutlined />}
+                  disabled={completed}
+                  title={completed ? '订单已完成，请走售后' : ''}
+                  onClick={() => setDialog('partialCancel')}
+                >
+                  部分取消
+                </Button>
+              )}
+              {o.trackable && (
+                <Button
+                  danger
+                  icon={<StopOutlined />}
+                  onClick={() => setCancelOpen(true)}
+                >
+                  取消订单
+                </Button>
+              )}
             </>
           )
         }
@@ -1279,6 +1478,32 @@ const OrderDetail: React.FC = () => {
         </div>
       </div>
 
+      <CreateAfterSalesModal
+        open={dialog === 'afterSales'}
+        order={o}
+        onClose={() => setDialog(undefined)}
+        onDone={(x) => {
+          setDialog(undefined);
+          history.push(`/sales/after-sales/${x.id}`);
+        }}
+      />
+      <RefundRequestModal
+        open={dialog === 'refundRequest'}
+        soId={o.id}
+        onClose={() => setDialog(undefined)}
+        onDone={() => {
+          setDialog(undefined);
+        }}
+      />
+      <PartialCancelModal
+        order={o}
+        open={dialog === 'partialCancel'}
+        onClose={() => setDialog(undefined)}
+        onDone={(next) => {
+          done(next);
+          setVersion((v) => v + 1);
+        }}
+      />
       <ShipNoticeModal
         open={dialog === 'notice'}
         soId={o.id}

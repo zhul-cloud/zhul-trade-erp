@@ -54,8 +54,12 @@ export type OwnerType =
   | 'PO_INVOICE'
   | 'REFUND'
   | 'OTHER_INCOME'
+  | 'CREDIT'
   | 'SOURCING_QUOTE'
-  | 'SALES_ORDER';
+  | 'SALES_ORDER'
+  | 'AFTER_SALES'
+  | 'AFTER_SALES_LOG'
+  | 'SALES_RETURN';
 
 export interface ShipmentItem {
   id: number;
@@ -268,6 +272,15 @@ export interface ReceivableOrder {
 
 export interface Hold extends Audit {
   id: number;
+  /** 来源（1-到货差异、2-订单部分取消） */
+  sourceType: number;
+  sourceName?: string;
+  /** 来源销售订单（订单部分取消） */
+  soId?: number | null;
+  soNo?: string;
+  /** 来源退货单（售后退货） */
+  returnId?: number | null;
+  returnNo?: string;
   model: string;
   brand?: string;
   category?: string;
@@ -463,6 +476,8 @@ export const holdApi = {
     pageSize: number;
     keyword?: string;
     status?: number;
+    /** 1-到货差异、2-订单部分取消 */
+    sourceType?: number;
   }) => send<PageResult<Hold>>('POST', `${HOLD}/page`, q),
   counts: () => get<{ pending: number }>(`${HOLD}/counts`),
   handle: (

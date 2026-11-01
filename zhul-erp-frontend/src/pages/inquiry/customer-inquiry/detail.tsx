@@ -48,6 +48,7 @@ import {
   useWide,
 } from '../shared/components';
 import {
+  formatMinutes,
   ITEM_NO_STOCK,
   ITEM_PENDING,
   LIFECYCLE_DISCONTINUED,
@@ -62,6 +63,7 @@ import {
   type InquiryDownstream,
   type InquiryItem,
   inquiryApi,
+  myTaskApi,
   readBizError,
 } from '../shared/service';
 import AppendModal from './AppendModal';
@@ -846,7 +848,8 @@ const CustomerInquiryDetailPage: React.FC = () => {
                 <span style={{ color: palette.link, fontWeight: 600 }}>
                   {t.taskCode}
                 </span>
-                <span style={{ marginLeft: 'auto' }}>
+                <span style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
+                  {t.selfSourcing && <Pill tone="violet">业务员自询</Pill>}
                   <TaskStatusPill status={t.status} timeout={t.timeout} />
                 </span>
               </div>
@@ -874,6 +877,66 @@ const CustomerInquiryDetailPage: React.FC = () => {
                   已回价 {t.pricedCount}/{t.itemCount}
                 </span>
               </div>
+              {t.salesRemainingMinutes != null && (
+                <div
+                  style={{
+                    color: palette.orange,
+                    fontSize: 12,
+                    marginTop: 6,
+                  }}
+                >
+                  {formatMinutes(t.salesRemainingMinutes)}后转给采购
+                </div>
+              )}
+              {t.status !== 1 && t.returnReason > 0 && t.returnNote && (
+                <div
+                  style={{ color: palette.mute, fontSize: 12, marginTop: 6 }}
+                >
+                  退回备注：{t.returnNote}
+                </div>
+              )}
+              {t.status === 1 && t.returnReason > 0 && (
+                <div
+                  style={{ color: palette.orange, fontSize: 12, marginTop: 6 }}
+                >
+                  已退回等待分配{t.returnNote ? `：${t.returnNote}` : ''}
+                </div>
+              )}
+              {t.canTransfer && (
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'flex-end',
+                    gap: 8,
+                    marginTop: 10,
+                  }}
+                >
+                  <Button
+                    size="small"
+                    disabled={busy}
+                    onClick={() =>
+                      run(() => inquiryApi.transferTasks([t.id]), '已转给采购')
+                    }
+                  >
+                    转采购
+                  </Button>
+                  {t.canClaim && (
+                    <Button
+                      size="small"
+                      type="primary"
+                      disabled={busy}
+                      onClick={() =>
+                        run(
+                          () => myTaskApi.claim([t.id]),
+                          '已领走，去我的询价填价',
+                        )
+                      }
+                    >
+                      我来询价
+                    </Button>
+                  )}
+                </div>
+              )}
               {t.timeout && t.firstAssignedAt && (
                 <div style={{ color: palette.red, fontSize: 12, marginTop: 6 }}>
                   分配于 {formatDateTime(t.firstAssignedAt).slice(5, 16)}

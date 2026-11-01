@@ -18,6 +18,9 @@ public class OrderCostVO {
     private BigDecimal receiptFee;
     /** 有效退款单的人民币合计（从收入中扣减） */
     private BigDecimal refund;
+    /** 收入中已扣除的代收（转入客户余额的锁定价值）与多收（人民币） */
+    private BigDecimal collectionCny;
+    private BigDecimal overpaidCny;
     private List<RefundBrief> refunds;
     /** 毛利 = 收入 − 退款 − 实际成本 */
     private BigDecimal profit;
@@ -61,6 +64,8 @@ public class OrderCostVO {
         /** 质量索赔（不良折价，冲减成本） */
         private BigDecimal claim;
         private BigDecimal returnFreight;
+        /** 售后退货冲减（正数为冲减成本） */
+        private BigDecimal salesReturnCredit;
         private BigDecimal domestic;
         private BigDecimal international;
         private Boolean internationalSettled;

@@ -19,7 +19,15 @@ public class CustomerRefundDO {
     private Long id;
     private Integer tenantId;
     private String refundNo;
+    /** 1-售后退款（冲减订单收入）、2-余额提现（不挂订单、不影响利润） */
+    private Integer refundType;
     private Long soId;
+    /** 关联售后单 */
+    private Long afterSalesId;
+    /** 来源退款申请 */
+    private Long refundRequestId;
+    private Long customerId;
+    private Integer businessUnitId;
     private LocalDate refundDate;
     /** 字典 refund_reason 编码 */
     private String reason;
@@ -27,8 +35,13 @@ public class CustomerRefundDO {
     private BigDecimal amount;
     private BigDecimal exchangeRate;
     private BigDecimal amountCny;
-    /** 1-原路退回平台、2-银行汇款 */
+    /** 去向：1-原路退回平台、2-银行汇款、3-转客户余额、4-其他转出方式（支付宝、微信等，名称见 methodName） */
     private Integer method;
+    private String methodName;
+    /** 收款账户说明（余额提现） */
+    private String payeeAccount;
+    /** 对应的余额流水：转客户余额的转入、余额提现的提现 */
+    private Long creditEntryId;
     private String remark;
     /** 1-有效、2-已作废 */
     private Integer status;

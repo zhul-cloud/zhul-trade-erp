@@ -19,7 +19,8 @@ import java.util.List;
 
 /**
  * PI 表头的汇总缓存：型号数与合计取当前有效版本（没有时取编辑中的版本）；
- * 收款状态按有效收款记录重算（手动创建的订单同理，见 refreshOrder）——已到账 + 手续费差额 ≥ 合计为已到账，有到账为部分到账，只有水单为待到账，否则未付款。
+ * 收款状态按有效收款记录重算（手动创建的订单同理，见 refreshOrder）——已到账 + 手续费差额 ≥ 应收合计为已到账，有到账为部分到账，只有水单为待到账，否则未付款。
+ * 应收合计：PI 有有效订单时取订单合计（部分取消后少于 PI 合计），否则取 PI 合计（spec sales/payment-receipt「订单部分取消后的收款」）。
  */
 @Component
 @RequiredArgsConstructor
@@ -30,6 +31,7 @@ public class PiSummary {
     private final PaymentReceiptMapper receiptMapper;
     private final PiStore store;
     private final SalesOrderMapper orderMapper;
+    private final com.zhul.erp.modules.finance.service.CreditReceiptSync creditSync;
 
     public void refresh(ProformaInvoiceDO pi) {
         PiVersionDO v = store.version(pi.getId(), pi.getCurrentVersionNo() != null && pi.getCurrentVersionNo() > 0
@@ -42,11 +44,13 @@ public class PiSummary {
             pi.setTotalAmountCny(v.getTotalAmountCny());
             pi.setValidUntil(v.getValidUntil());
         }
-        Totals t = totals(new LambdaQueryWrapper<PaymentReceiptDO>().eq(PaymentReceiptDO::getPiId, pi.getId()), pi.getTotalAmount());
+        Totals t = totals(new LambdaQueryWrapper<PaymentReceiptDO>().eq(PaymentReceiptDO::getPiId, pi.getId()), store.receivable(pi));
         pi.setReceivedAmount(t.received());
         pi.setFeeDiffAmount(t.feeDiff());
         pi.setReceiptStatus(t.status());
         piMapper.updateById(pi);
+        // 代收收齐后转入客户余额、作废到账时撤回（spec sales/payment-receipt）
+        creditSync.afterReceipts(pi);
     }
 
     /** 手动创建的订单：收款记录直接挂在订单上，同样的规则算收款状态 */
@@ -56,6 +60,7 @@ public class PiSummary {
         o.setFeeDiffAmount(t.feeDiff());
         o.setReceiptStatus(t.status());
         orderMapper.updateById(o);
+        creditSync.afterReceipts(o);
     }
 
     public record Totals(BigDecimal received, BigDecimal feeDiff, int status) {

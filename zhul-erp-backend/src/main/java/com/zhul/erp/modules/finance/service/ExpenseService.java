@@ -86,6 +86,8 @@ public class ExpenseService {
     private final InquiryLookups lookups;
     private final LogService logService;
     private final com.zhul.erp.modules.system.service.DictItemService dictItemService;
+    private final com.zhul.erp.modules.aftersales.repository.AfterSalesMapper afterSalesMapper;
+    private final com.zhul.erp.modules.aftersales.support.AfterSalesLogs afterSalesLogs;
 
     public static final String DICT_CATEGORY = "expense_category";
     public static final String CATEGORY_ORDER = "ORDER";
@@ -122,6 +124,7 @@ public class ExpenseService {
         e.setBusinessUnitId(unitOf(req));
         expenseMapper.insert(e);
         saveAllocations(e, req.getAllocations());
+        linkAfterSales(e, req.getAfterSalesId());
         attachments.sync(AttachmentService.EXPENSE, e.getId(), req.getAttachmentIds());
         requireProof(e);
         sync.syncExpense(e.getId());
@@ -145,6 +148,7 @@ public class ExpenseService {
         expenseMapper.update(null, new LambdaUpdateWrapper<ExpenseDO>()
                 .set(ExpenseDO::getBusinessUnitId, unitOf(req)).eq(ExpenseDO::getId, e.getId()));
         saveAllocations(e, req.getAllocations());
+        linkAfterSales(e, req.getAfterSalesId());
         attachments.sync(AttachmentService.EXPENSE, e.getId(), req.getAttachmentIds());
         requireProof(e);
         sync.syncExpense(e.getId());
@@ -260,6 +264,34 @@ public class ExpenseService {
     }
 
     /** locked 时只改名称、说明（分摊另行保存），金额、收款方、付款方式保持 */
+    /**
+     * 关联售后单（spec finance/expense「费用单关联售后单」）：只能选分摊订单的、没撤销的售后单；为空时取消关联。
+     * 新关联时在售后单时间线记一条。
+     */
+    private void linkAfterSales(ExpenseDO e, Long afterSalesId) {
+        Long before = e.getAfterSalesId();
+        if (afterSalesId != null) {
+            java.util.Set<Long> soIds = allocationMapper.selectList(new LambdaQueryWrapper<ExpenseAllocationDO>()
+                            .eq(ExpenseAllocationDO::getExpenseId, e.getId())
+                            .isNull(ExpenseAllocationDO::getDeletedAt))
+                    .stream().map(ExpenseAllocationDO::getSoId).collect(java.util.stream.Collectors.toSet());
+            com.zhul.erp.modules.aftersales.entity.AfterSalesDO a = afterSalesMapper.selectById(afterSalesId);
+            if (a == null || a.getDeletedAt() != null || !java.util.Objects.equals(a.getTenantId(), PiStore.tenantId())
+                    || !soIds.contains(a.getSoId())) {
+                throw new BizException("售后单不属于分摊的订单");
+            }
+            if (a.getStatus() == com.zhul.erp.modules.aftersales.constants.AfterSalesConstants.AS_CANCELLED) {
+                throw new BizException("售后单已撤销");
+            }
+        }
+        e.setAfterSalesId(afterSalesId);
+        expenseMapper.updateById(e);
+        if (afterSalesId != null && !afterSalesId.equals(before)) {
+            afterSalesLogs.add(afterSalesId, com.zhul.erp.modules.aftersales.constants.AfterSalesConstants.LOG_EXPENSE,
+                    "费用单 " + e.getExpenseNo() + "：" + e.getName() + " " + e.getCurrencyCode() + " " + e.getAmount(), null);
+        }
+    }
+
     private void fill(ExpenseDO e, SaveExpenseRequest req, boolean locked) {
         if (req.getOccurDate().isAfter(LocalDate.now())) {
             throw new BizException("发生日期不能晚于今天");
@@ -504,9 +536,15 @@ public class ExpenseService {
         Map<Long, ReimbursementDO> bxs = lines.isEmpty() ? Map.of()
                 : reimbursementMapper.selectBatchIds(lines.values().stream().map(ReimbursementLineDO::getReimbursementId).toList())
                 .stream().collect(Collectors.toMap(ReimbursementDO::getId, Function.identity()));
+        List<Long> asIds = rows.stream().map(ExpenseDO::getAfterSalesId).filter(java.util.Objects::nonNull).distinct().toList();
+        Map<Long, String> asNos = asIds.isEmpty() ? Map.of() : afterSalesMapper.selectBatchIds(asIds).stream()
+                .collect(Collectors.toMap(com.zhul.erp.modules.aftersales.entity.AfterSalesDO::getId,
+                        com.zhul.erp.modules.aftersales.entity.AfterSalesDO::getAsNo));
         List<ExpenseVO> out = new ArrayList<>();
         for (ExpenseDO e : rows) {
             ExpenseVO vo = new ExpenseVO();
+            vo.setAfterSalesId(e.getAfterSalesId());
+            vo.setAsNo(e.getAfterSalesId() == null ? null : asNos.get(e.getAfterSalesId()));
             vo.setMigrated(MigratedGuard.isMigrated(e.getMigrated()));
             vo.setId(e.getId());
             vo.setExpenseNo(e.getExpenseNo());

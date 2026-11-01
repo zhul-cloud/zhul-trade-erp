@@ -49,6 +49,8 @@ public class SaveExpenseRequest {
     /** 所属事业部（公司设置了事业部时有效）：为空表示「公共」，按销售额比例分摊 */
     private Integer businessUnitId;
     private List<Long> attachmentIds;
+    /** 关联售后单（选填，须是分摊订单的售后单） */
+    private Long afterSalesId;
     @Valid
     private List<Alloc> allocations;
 

@@ -381,6 +381,19 @@ export default [
         component: './sales/orders/detail',
       },
       {
+        path: '/sales/after-sales',
+        name: 'afterSales',
+        icon: 'customerService',
+        access: 'salesAfterSales',
+        component: './sales/after-sales',
+      },
+      {
+        path: '/sales/after-sales/:id',
+        hideInMenu: true,
+        access: 'salesAfterSales',
+        component: './sales/after-sales/detail',
+      },
+      {
         path: '/sales/stats',
         name: 'stats',
         icon: 'barChart',
@@ -455,6 +468,13 @@ export default [
         component: './warehouse/outbounds',
       },
       {
+        path: '/warehouse/returns',
+        name: 'returns',
+        icon: 'import',
+        access: 'warehouseReturns',
+        component: './warehouse/returns',
+      },
+      {
         path: '/warehouse/holds',
         name: 'holds',
         icon: 'database',
@@ -519,6 +539,13 @@ export default [
         icon: 'rollback',
         access: 'financeRefunds',
         component: './finance/refunds',
+      },
+      {
+        path: '/finance/credits',
+        name: 'credits',
+        icon: 'wallet',
+        access: 'financeCredits',
+        component: './finance/credits',
       },
       {
         path: '/finance/fx-settlements',

@@ -11,6 +11,13 @@ import lombok.ToString;
 public class SalesOrderItemVO extends PiItemVO {
     /** 1-现货、2-期货 */
     private Integer stockType;
+    /** 原数量（成交时）与已部分取消的数量；quantity 为剩余数量 */
+    private Integer originalQuantity;
+    private Integer cancelledQuantity;
+    /** 最多还能部分取消的数量 = 剩余数量 − 已出库（含出库中、已交货代、已出运） */
+    private Integer cancellableQty;
+    /** 已出库（出库中、已交货代、已出运）的数量 */
+    private Integer outboundQty;
     private String progressCode;
     private String progressName;
     private Long purchaserId;

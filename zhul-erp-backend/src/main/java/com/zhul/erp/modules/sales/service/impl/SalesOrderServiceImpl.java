@@ -23,6 +23,8 @@ import com.zhul.erp.modules.quotation.support.QuotationStore;
 import com.zhul.erp.modules.finance.dto.OrderCostVO;
 import com.zhul.erp.modules.sales.constants.SalesConstants;
 import com.zhul.erp.modules.sales.dto.ChainVO;
+import com.zhul.erp.modules.sales.dto.PartialCancelPreviewVO;
+import com.zhul.erp.modules.sales.dto.PartialCancelRequest;
 import com.zhul.erp.modules.sales.dto.PartyDTO;
 import com.zhul.erp.modules.sales.dto.PiFeeVO;
 import com.zhul.erp.modules.sales.dto.PiItemVO;
@@ -124,6 +126,13 @@ public class SalesOrderServiceImpl implements SalesOrderService {
     private final AttachmentService attachmentService;
     private final com.zhul.erp.modules.purchase.support.RequirementLifecycle requirementLifecycle;
     private final com.zhul.erp.modules.purchase.support.PurchaseLinks purchaseLinks;
+    private final com.zhul.erp.modules.finance.service.CreditUsageService creditUsage;
+    private final com.zhul.erp.modules.purchase.support.RequirementReduction requirementReduction;
+    private final com.zhul.erp.modules.purchase.support.OrderPurchaseProgress purchaseProgress;
+    private final com.zhul.erp.modules.logistics.support.LogisticsQty logisticsQty;
+    private final com.zhul.erp.modules.sales.support.PiSummary piSummary;
+    private final com.zhul.erp.modules.sales.repository.SalesOrderPartialCancelMapper partialCancelMapper;
+    private final com.zhul.erp.modules.system.service.DictItemService dictItemService;
 
     // ---------------------------------------------------------------- 转订单与取消
 
@@ -207,6 +216,7 @@ public class SalesOrderServiceImpl implements SalesOrderService {
             x.setTenantId(o.getTenantId());
             x.setSoId(o.getId());
             x.setFeeName(f.getFeeName());
+            x.setFeeType(f.getFeeType());
             x.setAmount(f.getAmount());
             x.setAmountCny(f.getAmountCny());
             x.setRemark(f.getRemark());
@@ -374,6 +384,8 @@ public class SalesOrderServiceImpl implements SalesOrderService {
             x.setLeadTime(0);
             x.setWarranty("");
             x.setQuantity(l.getQuantity());
+            x.setOriginalQuantity(l.getQuantity());
+            x.setCancelledQuantity(0);
             x.setUnitPrice(l.getUnitPrice().setScale(2, RoundingMode.HALF_UP));
             x.setAmount(x.getUnitPrice().multiply(BigDecimal.valueOf(l.getQuantity())).setScale(2, RoundingMode.HALF_UP));
             x.setAmountCny(x.getAmount().multiply(rate).setScale(2, RoundingMode.HALF_UP));
@@ -441,6 +453,8 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         x.setLeadTime(i.getLeadTime());
         x.setWarranty(i.getWarranty());
         x.setQuantity(i.getQuantity());
+        x.setOriginalQuantity(i.getQuantity());
+        x.setCancelledQuantity(0);
         x.setUnitPrice(i.getUnitPrice());
         x.setAmount(i.getAmount());
         x.setAmountCny(i.getAmountCny());
@@ -481,6 +495,8 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         // 没下单的采购需求关闭，已下单的标「订单已取消」交给采购员
         requirementLifecycle.onOrderCancelled(o, currentUserId());
         if (manual) {
+            // 手动订单上的余额抵扣随订单取消作废，释放余额
+            creditUsage.releaseOrder(o);
             logService.recordOperateLog(SalesConstants.MENU_SO, "取消销售订单", Map.of("soNo", o.getSoNo(), "status", "有效"),
                     Map.of("soNo", o.getSoNo(), "status", "已取消", "reason", o.getCancelReason(),
                             "received", o.getCurrencyCode() + " " + o.getReceivedAmount()));
@@ -488,6 +504,8 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         }
         pi.setStatus(SalesConstants.PI_SENT);
         piMapper.updateById(pi);
+        // 订单取消后 PI 的应收合计回到 PI 合计（部分取消过的订单收款状态、多收随之变化）
+        piSummary.refresh(pi);
 
         // 报价行仍在其他有效订单中的保持成交
         Set<Long> lines = orderItems(id).stream().map(SalesOrderItemDO::getQuotationItemId).collect(Collectors.toSet());
@@ -499,6 +517,233 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         logService.recordOperateLog(SalesConstants.MENU_SO, "取消销售订单", Map.of("soNo", o.getSoNo(), "status", "有效"),
                 Map.of("soNo", o.getSoNo(), "status", "已取消", "reason", o.getCancelReason(), "piNo", pi.getPiNo(),
                         "received", pi.getCurrencyCode() + " " + pi.getReceivedAmount()));
+        return detail(id);
+    }
+
+    // ---------------------------------------------------------------- 部分取消（spec sales/sales-order「按型号部分取消」）
+
+    private static final String DICT_PARTIAL_CANCEL = "partial_cancel_reason";
+
+    @Override
+    public Map<String, String> partialCancelReasons() {
+        Map<String, String> m = new LinkedHashMap<>();
+        dictItemService.listByDictType(DICT_PARTIAL_CANCEL).stream().filter(d -> Objects.equals(d.getStatus(), 1))
+                .forEach(d -> m.put(d.getItemCode(), d.getItemName()));
+        return m;
+    }
+
+    /** 一次部分取消的计算：每个型号的取消数量（已校验）、取消后的型号行与订单（未写库） */
+    private record CancelPlan(SalesOrderDO order, List<SalesOrderItemDO> items, Map<Long, Integer> cancel, BigDecimal totalBefore,
+                              BigDecimal itemAmountBefore, BigDecimal discountBefore) {
+    }
+
+    private CancelPlan planPartialCancel(SalesOrderDO o, PartialCancelRequest req) {
+        if (o.getStatus() != SalesConstants.SO_ACTIVE) {
+            throw new BizException("订单已取消");
+        }
+        if (SalesConstants.PROGRESS_COMPLETED.equals(o.getProgressCode())) {
+            throw new BizException("订单已完成，请走售后");
+        }
+        MigratedGuard.requireEditable(o.getMigrated());
+        String reason = req.getReason() == null ? "" : req.getReason().trim();
+        if (!partialCancelReasons().containsKey(reason)) {
+            throw new BizException("请选择取消原因");
+        }
+        if ("OTHER".equals(reason) && !StringUtils.hasText(req.getRemark())) {
+            throw new BizException("原因选「其他」时请填写说明");
+        }
+        List<SalesOrderItemDO> items = orderItems(o.getId());
+        Map<Long, SalesOrderItemDO> byId = new HashMap<>();
+        items.forEach(i -> byId.put(i.getId(), i));
+        Map<Long, Integer> cancel = new LinkedHashMap<>();
+        for (PartialCancelRequest.Line l : req.getItems()) {
+            if (l.getQuantity() == null || l.getQuantity() <= 0) {
+                continue;
+            }
+            if (!byId.containsKey(l.getItemId())) {
+                throw new BizException("型号不属于这张订单");
+            }
+            if (cancel.put(l.getItemId(), l.getQuantity()) != null) {
+                throw new BizException("同一个型号不能重复填写");
+            }
+        }
+        if (cancel.isEmpty()) {
+            throw new BizException("请填写要取消的型号和数量");
+        }
+        Map<Long, com.zhul.erp.modules.logistics.support.LogisticsQty.Qty> out = logisticsQty.bySoItem(cancel.keySet());
+        for (Map.Entry<Long, Integer> e : cancel.entrySet()) {
+            SalesOrderItemDO i = byId.get(e.getKey());
+            var q = out.getOrDefault(i.getId(), com.zhul.erp.modules.logistics.support.LogisticsQty.Qty.ZERO);
+            int max = Math.max(0, i.getQuantity() - q.occupied());
+            if (e.getValue() > max) {
+                throw new BizException(i.getModel() + " 最多还能取消 " + max + " 个" + outboundNote(q));
+            }
+        }
+        int remaining = items.stream().mapToInt(i -> i.getQuantity() - cancel.getOrDefault(i.getId(), 0)).sum();
+        if (remaining <= 0) {
+            throw new BizException("所有型号都要取消，请用「取消订单」");
+        }
+        BigDecimal totalBefore = o.getTotalAmount();
+        BigDecimal itemBefore = o.getItemAmount();
+        BigDecimal discountBefore = o.getDiscountAmount();
+        for (SalesOrderItemDO i : items) {
+            int n = cancel.getOrDefault(i.getId(), 0);
+            if (n > 0) {
+                i.setQuantity(i.getQuantity() - n);
+                i.setCancelledQuantity(Objects.requireNonNullElse(i.getCancelledQuantity(), 0) + n);
+                com.zhul.erp.modules.sales.support.OrderTotals.applyLine(i, o.getExchangeRate());
+            }
+        }
+        Integer discountType = null;
+        BigDecimal discountValue = null;
+        if (!Objects.equals(o.getSource(), SalesConstants.SO_MANUAL)) {
+            PiVersionDO v = piStore.version(o.getPiId(), o.getPiVersionNo());
+            if (v != null) {
+                discountType = v.getDiscountType();
+                discountValue = v.getDiscountValue();
+            }
+        }
+        com.zhul.erp.modules.sales.support.OrderTotals.applyTotals(o, items, discountType, discountValue);
+        return new CancelPlan(o, items, cancel, totalBefore, itemBefore, discountBefore);
+    }
+
+    /** 不能取消的部分：已交货代、已出运、出库中 */
+    private static String outboundNote(com.zhul.erp.modules.logistics.support.LogisticsQty.Qty q) {
+        List<String> parts = new ArrayList<>();
+        if (q.handed() > 0) {
+            parts.add("已交货代 " + q.handed() + " 个");
+        }
+        if (q.shipped() > 0) {
+            parts.add("已出运 " + q.shipped() + " 个");
+        }
+        int pending = q.occupied() - q.handed() - q.shipped();
+        if (pending > 0) {
+            parts.add("出库中 " + pending + " 个");
+        }
+        return parts.isEmpty() ? "" : "（" + String.join("、", parts) + "）";
+    }
+
+    /** 已到账 + 手续费差额（PI 转成的订单取 PI） */
+    private BigDecimal receivedOf(SalesOrderDO o) {
+        if (Objects.equals(o.getSource(), SalesConstants.SO_MANUAL)) {
+            return o.getReceivedAmount().add(o.getFeeDiffAmount());
+        }
+        ProformaInvoiceDO pi = piMapper.selectById(o.getPiId());
+        return pi.getReceivedAmount().add(pi.getFeeDiffAmount());
+    }
+
+    @Override
+    public PartialCancelPreviewVO partialCancelPreview(Long id, PartialCancelRequest req) {
+        SalesOrderDO o = visible(id);
+        Map<Long, Integer> before = new HashMap<>();
+        orderItems(id).forEach(i -> before.put(i.getId(), i.getQuantity()));
+        CancelPlan plan = planPartialCancel(o, req);
+        PartialCancelPreviewVO vo = new PartialCancelPreviewVO();
+        vo.setCurrencyCode(o.getCurrencyCode());
+        vo.setItemAmountBefore(plan.itemAmountBefore());
+        vo.setItemAmountAfter(o.getItemAmount());
+        vo.setDiscountBefore(plan.discountBefore());
+        vo.setDiscountAfter(o.getDiscountAmount());
+        vo.setTotalBefore(plan.totalBefore());
+        vo.setTotalAfter(o.getTotalAmount());
+        BigDecimal received = receivedOf(o);
+        vo.setReceived(received);
+        vo.setOverpaidAfter(received.subtract(o.getTotalAmount()).max(BigDecimal.ZERO));
+        List<PartialCancelPreviewVO.Line> lines = new ArrayList<>();
+        for (SalesOrderItemDO i : plan.items()) {
+            Integer n = plan.cancel().get(i.getId());
+            if (n == null) {
+                continue;
+            }
+            var r = requirementReduction.preview(i, n);
+            PartialCancelPreviewVO.Line x = new PartialCancelPreviewVO.Line();
+            x.setItemId(i.getId());
+            x.setModel(i.getModel());
+            x.setQuantity(n);
+            x.setQuantityBefore(before.get(i.getId()));
+            x.setQuantityAfter(i.getQuantity());
+            x.setAmount(i.getUnitPrice().multiply(BigDecimal.valueOf(n)).setScale(2, RoundingMode.HALF_UP));
+            x.setTracked(r.tracked());
+            x.setUnplaced(r.unplaced());
+            x.setDrafts(poQty(r.drafts()));
+            x.setHeld(r.held());
+            x.setOrdered(poQty(r.ordered()));
+            x.setUntracked(r.left());
+            lines.add(x);
+        }
+        vo.setItems(lines);
+        return vo;
+    }
+
+    private static List<PartialCancelPreviewVO.PoQty> poQty(List<com.zhul.erp.modules.purchase.support.RequirementReduction.PoQty> rows) {
+        return rows.stream().map(p -> {
+            PartialCancelPreviewVO.PoQty x = new PartialCancelPreviewVO.PoQty();
+            x.setPoId(p.poId());
+            x.setPoNo(p.poNo());
+            x.setQuantity(p.quantity());
+            return x;
+        }).toList();
+    }
+
+    /**
+     * 事务边界：型号行与订单合计、取消记录、采购需求扣减（草稿撤出、转闲置库存、采购单标记）、进度与收款状态在同一本地事务内；
+     * 锁顺序 PI → 订单 → 采购需求 → 采购订单，与取消订单、下单一致。
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public SalesOrderVO partialCancel(Long id, PartialCancelRequest req) {
+        SalesOrderDO o = visible(id);
+        boolean manual = Objects.equals(o.getSource(), SalesConstants.SO_MANUAL);
+        ProformaInvoiceDO pi = manual ? null : piStore.lockVisible(o.getPiId());
+        o = lockOrder(id);
+        Map<Long, Integer> before = new HashMap<>();
+        orderItems(id).forEach(i -> before.put(i.getId(), i.getQuantity()));
+        CancelPlan plan = planPartialCancel(o, req);
+        String reason = req.getReason().trim();
+        String remark = req.getRemark() == null ? "" : req.getRemark().trim();
+        Long operator = currentUserId();
+        List<String> text = new ArrayList<>();
+        for (SalesOrderItemDO i : plan.items()) {
+            Integer n = plan.cancel().get(i.getId());
+            if (n == null) {
+                continue;
+            }
+            orderItemMapper.updateById(i);
+            var r = requirementReduction.apply(o, i, n, operator);
+            com.zhul.erp.modules.sales.entity.SalesOrderPartialCancelDO c = new com.zhul.erp.modules.sales.entity.SalesOrderPartialCancelDO();
+            c.setTenantId(o.getTenantId());
+            c.setSoId(o.getId());
+            c.setSoItemId(i.getId());
+            c.setModel(i.getModel());
+            c.setQuantity(n);
+            c.setCurrencyCode(o.getCurrencyCode());
+            c.setUnitPrice(i.getUnitPrice());
+            c.setAmount(i.getUnitPrice().multiply(BigDecimal.valueOf(n)).setScale(2, RoundingMode.HALF_UP));
+            c.setAmountCny(c.getAmount().multiply(o.getExchangeRate()).setScale(2, RoundingMode.HALF_UP));
+            c.setTotalBefore(plan.totalBefore());
+            c.setTotalAfter(o.getTotalAmount());
+            c.setReason(reason);
+            c.setRemark(remark);
+            String summary = r.summary();
+            c.setResult(summary.length() > 500 ? summary.substring(0, 500) : summary);
+            c.setOperatorId(operator);
+            partialCancelMapper.insert(c);
+            text.add(i.getModel() + " " + before.get(i.getId()) + " → " + i.getQuantity() + "（" + summary + "）");
+        }
+        List<OrderProgress.Step> ordered = progress.ordered();
+        recompute(o, plan.items(), ordered);
+        purchaseProgress.sync(plan.cancel().keySet());
+        if (manual) {
+            piSummary.refreshOrder(orderMapper.selectById(id));
+        } else {
+            piSummary.refresh(pi);
+        }
+        Map<String, Object> after = new LinkedHashMap<>();
+        after.put("soNo", o.getSoNo());
+        after.put("items", text);
+        after.put("reason", partialCancelReasons().getOrDefault(reason, reason) + (remark.isEmpty() ? "" : "：" + remark));
+        after.put("total", o.getCurrencyCode() + " " + plan.totalBefore() + " → " + o.getTotalAmount());
+        logService.recordOperateLog(SalesConstants.MENU_SO, "部分取消", null, after);
         return detail(id);
     }
 
@@ -690,7 +935,7 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         List<OrderProgress.Step> ordered = progress.ordered();
         OrderProgress.Step last = OrderProgress.last(ordered);
         int lastRank = OrderProgress.rank(ordered, last.code());
-        long behind = orderItems(id).stream().filter(i -> OrderProgress.rank(ordered, i.getProgressCode()) < lastRank).count();
+        long behind = live(orderItems(id)).stream().filter(i -> OrderProgress.rank(ordered, i.getProgressCode()) < lastRank).count();
         if (behind > 0) {
             throw new BizException("还有 " + behind + " 个型号还没到「" + last.name() + "」，不能确认收货");
         }
@@ -716,6 +961,9 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         if (selected.size() != wanted.size()) {
             throw new BizException("型号不属于这张订单");
         }
+        selected.stream().filter(i -> i.getQuantity() == null || i.getQuantity() <= 0).findFirst().ifPresent(i -> {
+            throw new BizException(i.getModel() + " 已全部取消，不能修改");
+        });
         return new Tracking(o, all, selected);
     }
 
@@ -728,13 +976,19 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         }
     }
 
-    /** 订单级冗余：进度取最靠前的型号，任一型号期货即期货 */
-    private void recompute(SalesOrderDO o, List<SalesOrderItemDO> items, List<OrderProgress.Step> ordered) {
+    /** 订单级冗余：进度取最靠前的型号，任一型号期货即期货；全部取消的型号（数量为 0）不参与 */
+    private void recompute(SalesOrderDO o, List<SalesOrderItemDO> all, List<OrderProgress.Step> ordered) {
+        List<SalesOrderItemDO> items = live(all);
         o.setProgressCode(items.stream().min(Comparator.comparingInt(i -> OrderProgress.rank(ordered, i.getProgressCode())))
                 .map(SalesOrderItemDO::getProgressCode).orElse(SalesConstants.PROGRESS_PENDING));
         o.setStockType(items.stream().anyMatch(i -> Objects.equals(i.getStockType(), SalesConstants.STOCK_FUTURES))
                 ? SalesConstants.STOCK_FUTURES : SalesConstants.STOCK_SPOT);
         orderMapper.updateById(o);
+    }
+
+    /** 还有数量的型号（全部取消的型号保留显示，不再参与进度与货物状态） */
+    private static List<SalesOrderItemDO> live(List<SalesOrderItemDO> items) {
+        return items.stream().filter(i -> i.getQuantity() != null && i.getQuantity() > 0).toList();
     }
 
     /** 加锁取订单（修改类入口都经过这里）：历史迁移的订单只读 */
@@ -805,6 +1059,7 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         vo.setReceipts(pi != null ? piService.receipts(pi.getId())
                 : receiptViews.list(new LambdaQueryWrapper<PaymentReceiptDO>().eq(PaymentReceiptDO::getSoId, o.getId())));
         vo.setMethodTotals(methodTotals(vo.getReceipts(), o.getCurrencyCode()));
+        vo.setCredit(creditUsage.panel(o));
         QuotationRenderModels.Labels labels = quotationStore.labels();
         List<SalesOrderItemDO> items = orderItems(id);
         Map<Long, String> quotationNos = quotationNos(items.stream().map(SalesOrderItemDO::getQuotationId).toList());
@@ -821,9 +1076,16 @@ public class SalesOrderServiceImpl implements SalesOrderService {
                     : i.getPurchaserId() == null ? List.of() : List.of(i.getPurchaserId()));
         }
         Map<Long, String> purchaserNames = lookups.userNames(itemPurchasers.values().stream().flatMap(List::stream).toList());
+        Map<Long, com.zhul.erp.modules.logistics.support.LogisticsQty.Qty> outbound =
+                logisticsQty.bySoItem(items.stream().map(SalesOrderItemDO::getId).toList());
         vo.setItems(items.stream().map(i -> {
             SalesOrderItemVO x = new SalesOrderItemVO();
             x.setStockType(i.getStockType());
+            int out = outbound.getOrDefault(i.getId(), com.zhul.erp.modules.logistics.support.LogisticsQty.Qty.ZERO).occupied();
+            x.setOriginalQuantity(i.getOriginalQuantity());
+            x.setCancelledQuantity(Objects.requireNonNullElse(i.getCancelledQuantity(), 0));
+            x.setOutboundQty(out);
+            x.setCancellableQty(Math.max(0, i.getQuantity() - out));
             x.setProgressCode(i.getProgressCode());
             x.setProgressName(progressNames.getOrDefault(i.getProgressCode(), i.getProgressCode()));
             List<Long> who = itemPurchasers.get(i.getId());
@@ -901,6 +1163,7 @@ public class SalesOrderServiceImpl implements SalesOrderService {
                 .stream().map(f -> {
                     PiFeeVO x = new PiFeeVO();
                     x.setFeeName(f.getFeeName());
+                    x.setFeeType(f.getFeeType());
                     x.setAmount(f.getAmount());
                     x.setAmountCny(f.getAmountCny());
                     x.setRemark(f.getRemark());
@@ -916,8 +1179,11 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         // 历史迁移的订单只读：不能改跟单信息、确认收货
         boolean editable = active && !MigratedGuard.isMigrated(o.getMigrated());
         vo.setTrackable(editable && !completed);
+        vo.setPartialCancelable(editable);
+        vo.setPiTotalAmount(pi == null ? null : pi.getTotalAmount());
+        vo.setPartialCancels(partialCancelRecords(o.getId()));
         int lastRank = OrderProgress.rank(ordered, OrderProgress.last(ordered).code());
-        vo.setCompletable(editable && !completed && items.stream().allMatch(i -> OrderProgress.rank(ordered, i.getProgressCode()) >= lastRank));
+        vo.setCompletable(editable && !completed && live(items).stream().allMatch(i -> OrderProgress.rank(ordered, i.getProgressCode()) >= lastRank));
         vo.setSteps(ordered.stream().map(st -> {
             SalesOrderVO.Step x = new SalesOrderVO.Step();
             x.setCode(st.code());
@@ -926,7 +1192,7 @@ public class SalesOrderServiceImpl implements SalesOrderService {
             return x;
         }).toList());
         Map<Long, Integer> byPurchaser = new LinkedHashMap<>();
-        items.forEach(i -> {
+        live(items).forEach(i -> {
             List<Long> who = itemPurchasers.get(i.getId());
             if (who.isEmpty()) {
                 byPurchaser.merge(0L, 1, Integer::sum);
@@ -945,6 +1211,36 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         vo.setCost(cost);
         vo.setMargin(cost == null ? margin(o, items, rc) : marginOf(cost));
         return vo;
+    }
+
+    private List<SalesOrderVO.PartialCancelRecord> partialCancelRecords(Long soId) {
+        List<com.zhul.erp.modules.sales.entity.SalesOrderPartialCancelDO> rows = partialCancelMapper.selectList(
+                new LambdaQueryWrapper<com.zhul.erp.modules.sales.entity.SalesOrderPartialCancelDO>()
+                        .eq(com.zhul.erp.modules.sales.entity.SalesOrderPartialCancelDO::getSoId, soId)
+                        .isNull(com.zhul.erp.modules.sales.entity.SalesOrderPartialCancelDO::getDeletedAt)
+                        .orderByDesc(com.zhul.erp.modules.sales.entity.SalesOrderPartialCancelDO::getId));
+        if (rows.isEmpty()) {
+            return List.of();
+        }
+        Map<String, String> reasons = partialCancelReasons();
+        Map<Long, String> users = lookups.userNames(rows.stream().map(com.zhul.erp.modules.sales.entity.SalesOrderPartialCancelDO::getOperatorId).toList());
+        return rows.stream().map(c -> {
+            SalesOrderVO.PartialCancelRecord x = new SalesOrderVO.PartialCancelRecord();
+            x.setId(c.getId());
+            x.setItemId(c.getSoItemId());
+            x.setModel(c.getModel());
+            x.setQuantity(c.getQuantity());
+            x.setAmount(c.getAmount());
+            x.setTotalBefore(c.getTotalBefore());
+            x.setTotalAfter(c.getTotalAfter());
+            x.setReason(c.getReason());
+            x.setReasonName(reasons.getOrDefault(c.getReason(), c.getReason()));
+            x.setRemark(c.getRemark());
+            x.setResult(c.getResult());
+            x.setOperatorName(users.get(c.getOperatorId()));
+            x.setCreateTime(c.getCreateTime());
+            return x;
+        }).toList();
     }
 
     /** 收款汇总：PI 转成的订单取 PI，手动创建的订单取订单自己的 */
@@ -1390,7 +1686,7 @@ public class SalesOrderServiceImpl implements SalesOrderService {
     private Map<Long, SalesOrderListVO.Goods> goodsByOrder(List<SalesOrderDO> rows, List<SalesOrderItemDO> items) {
         Set<Long> active = rows.stream().filter(o -> o.getStatus() == SalesConstants.SO_ACTIVE).map(SalesOrderDO::getId)
                 .collect(Collectors.toSet());
-        List<SalesOrderItemDO> live = items.stream().filter(i -> active.contains(i.getSoId())).toList();
+        List<SalesOrderItemDO> live = items.stream().filter(i -> active.contains(i.getSoId()) && i.getQuantity() > 0).toList();
         Map<Long, com.zhul.erp.modules.purchase.support.PurchaseLinks.ItemPurchase> links =
                 purchaseLinks.forSoItems(live.stream().map(SalesOrderItemDO::getId).toList());
         Map<Long, SalesOrderListVO.Goods> out = new HashMap<>();

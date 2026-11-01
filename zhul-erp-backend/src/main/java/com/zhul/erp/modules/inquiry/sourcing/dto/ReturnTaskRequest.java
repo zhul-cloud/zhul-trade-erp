@@ -11,4 +11,6 @@ public class ReturnTaskRequest {
     private Integer reason;
     @Size(max = 300, message = "说明不能超过 300 字")
     private String note;
+    /** 除待询价型号外，要一起交出的无货或有价型号 */
+    private java.util.List<Long> itemIds;
 }

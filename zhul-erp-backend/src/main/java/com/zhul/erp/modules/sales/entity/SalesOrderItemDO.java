@@ -40,7 +40,12 @@ public class SalesOrderItemDO {
     @com.baomidou.mybatisplus.annotation.TableField(updateStrategy = com.baomidou.mybatisplus.annotation.FieldStrategy.ALWAYS)
     private Long purchaserId;
     private String warranty;
+    /** 剩余数量（部分取消后减少） */
     private Integer quantity;
+    /** 原数量（成交时） */
+    private Integer originalQuantity;
+    /** 已部分取消的数量 */
+    private Integer cancelledQuantity;
     private BigDecimal unitPrice;
     private BigDecimal amount;
     private BigDecimal amountCny;

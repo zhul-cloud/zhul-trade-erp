@@ -1,5 +1,5 @@
 import { SearchOutlined } from '@ant-design/icons';
-import { useAccess } from '@umijs/max';
+import { history, useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import {
   App,
@@ -9,6 +9,7 @@ import {
   InputNumber,
   Modal,
   Segmented,
+  Select,
   Space,
   Table,
 } from 'antd';
@@ -19,7 +20,13 @@ import { CARRIERS } from '@/pages/purchase/shipments/ShipmentDrawer';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
 import { usePageSize } from '@/utils/pageSize';
-import { HoldStatusPill, sub, WarehousePageTitle } from '../components';
+import {
+  HoldStatusPill,
+  Pill,
+  sub,
+  WAREHOUSE_PATHS,
+  WarehousePageTitle,
+} from '../components';
 import { type Hold, holdApi, readBizError } from '../service';
 
 const ACTIONS: Record<number, { label: string; hint: string }> = {
@@ -33,6 +40,7 @@ const Holds: React.FC = () => {
   const access = useAccess();
   const canHandle = !!access['warehouse:hold:handle'];
   const [status, setStatus] = useState<number | 'all'>(1);
+  const [source, setSource] = useState<number>();
   const [keyword, setKeyword] = useState('');
   const [query, setQuery] = useState<string>();
   const [page, setPage] = useState(1);
@@ -50,6 +58,7 @@ const Holds: React.FC = () => {
       const res = await holdApi.page({
         keyword: query,
         status: status === 'all' ? undefined : status,
+        sourceType: source,
         page,
         pageSize,
       });
@@ -60,7 +69,7 @@ const Holds: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [query, status, page, pageSize]);
+  }, [query, status, source, page, pageSize]);
   useEffect(() => {
     load();
   }, [load]);
@@ -96,16 +105,49 @@ const Holds: React.FC = () => {
     {
       title: '来源',
       dataIndex: 'poNo',
-      width: 200,
-      render: (v: string, r) => (
-        <div>
-          <span style={{ color: palette.link }}>{v}</span>
-          {sub(
-            palette.mute,
-            `${r.grNo ?? ''} · 多发 · ${r.supplierName ?? ''}`,
-          )}
-        </div>
-      ),
+      width: 260,
+      render: (v: string, r) =>
+        r.sourceType === 3 ? (
+          <div>
+            <Pill tone="violet">售后退货</Pill>{' '}
+            <a
+              onClick={() =>
+                history.push(`/warehouse/returns?id=${r.returnId}`)
+              }
+            >
+              {r.returnNo}
+            </a>
+            {sub(palette.mute, `${r.soNo ?? ''} · 合格品`)}
+          </div>
+        ) : r.sourceType === 2 ? (
+          <div>
+            <Pill tone="orange">订单部分取消</Pill>{' '}
+            {r.soId ? (
+              <a
+                onClick={() =>
+                  history.push(WAREHOUSE_PATHS.salesOrder(r.soId as number))
+                }
+              >
+                {r.soNo}
+              </a>
+            ) : null}
+            {sub(
+              palette.mute,
+              r.grNo
+                ? `到货超出订单 · ${r.grNo}${v ? ` · ${v}` : ''}`
+                : `取消时已在仓${v ? ` · ${v}` : ''}`,
+            )}
+          </div>
+        ) : (
+          <div>
+            <Pill tone="gray">到货差异</Pill>{' '}
+            <span style={{ color: palette.link }}>{v}</span>
+            {sub(
+              palette.mute,
+              `${r.grNo ?? ''} · 多发 · ${r.supplierName ?? ''}`,
+            )}
+          </div>
+        ),
     },
     {
       title: '位置',
@@ -159,7 +201,7 @@ const Holds: React.FC = () => {
 
   return (
     <div>
-      <WarehousePageTitle description="多发且没有退回的货：记下在哪、值多少；可以退回供应商、报废或转样品。" />
+      <WarehousePageTitle description="暂时用不上的货：到货多发的、订单部分取消后留在仓库的、客户退回的合格品。记下在哪、值多少；可以退回供应商、报废或转样品。" />
       <div
         style={{
           display: 'flex',
@@ -189,9 +231,25 @@ const Holds: React.FC = () => {
           value={keyword}
           onChange={(e) => setKeyword(e.target.value)}
           onPressEnter={apply}
-          placeholder="型号、来源采购订单"
+          placeholder="型号、来源单号"
           style={{ width: 280 }}
           aria-label="关键词"
+        />
+        <Select<number>
+          allowClear
+          placeholder="全部来源"
+          value={source}
+          onChange={(v) => {
+            setSource(v);
+            setPage(1);
+          }}
+          options={[
+            { value: 1, label: '到货差异' },
+            { value: 2, label: '订单部分取消' },
+            { value: 3, label: '售后退货' },
+          ]}
+          style={{ width: 150 }}
+          aria-label="来源"
         />
         <span style={{ flex: 1 }} />
         <Button type="primary" onClick={apply}>

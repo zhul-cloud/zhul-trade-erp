@@ -13,6 +13,9 @@ import java.util.List;
 public class ExpenseVO {
     private Long id;
     private String expenseNo;
+    /** 关联售后单 */
+    private Long afterSalesId;
+    private String asNo;
     private String name;
     /** 所属事业部；为空表示「公共」 */
     private Integer businessUnitId;

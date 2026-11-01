@@ -11,6 +11,8 @@ import {
 import { history, useAccess, useParams } from '@umijs/max';
 import { Button, Skeleton } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
+import EntriesDrawer from '@/pages/finance/credits/EntriesDrawer';
+import { type CreditAccount, creditApi } from '@/pages/finance/credits/service';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useCountries } from '@/pages/product/components/useCountries';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -186,6 +188,74 @@ const SideRow: React.FC<{ label: string; children: React.ReactNode }> = ({
         {children || '—'}
       </span>
     </div>
+  );
+};
+
+/** 客户余额（spec finance/customer-credit「余额管理页面」）：只读，点「流水」看明细 */
+const CreditCard: React.FC<{ customerId: number; customerName: string }> = ({
+  customerId,
+  customerName,
+}) => {
+  const { palette } = useAppTheme();
+  const [rows, setRows] = useState<CreditAccount[]>([]);
+  const [viewing, setViewing] = useState<CreditAccount>();
+  useEffect(() => {
+    creditApi
+      .ofCustomer(customerId)
+      .then(setRows)
+      .catch(() => setRows([]));
+  }, [customerId]);
+  if (rows.length === 0) return null;
+  return (
+    <SideCard title="客户余额">
+      {rows.map((a) => (
+        <div
+          key={`${a.currencyCode}-${a.businessUnitId ?? 0}`}
+          style={{
+            padding: '10px 12px',
+            borderRadius: 12,
+            background: palette.inset,
+          }}
+        >
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              fontSize: 12,
+              color: palette.mute,
+            }}
+          >
+            {a.currencyCode} 可用余额
+            {a.businessUnitName ? ` · ${a.businessUnitName}` : ''}
+            <a style={{ marginLeft: 'auto' }} onClick={() => setViewing(a)}>
+              流水
+            </a>
+          </div>
+          <div
+            style={{
+              fontSize: 18,
+              fontWeight: 700,
+              fontVariantNumeric: 'tabular-nums',
+              color: a.available > 0 ? palette.green : palette.mute,
+            }}
+          >
+            {formatAmount(a.available, a.currencyCode)}
+          </div>
+          {a.occupied > 0 && (
+            <div style={{ fontSize: 12, color: palette.mute }}>
+              另有 {formatAmount(a.occupied, a.currencyCode)} 被{' '}
+              {a.occupiers.map((o) => o.sourceNo).join('、')} 占用（未转订单）
+            </div>
+          )}
+        </div>
+      ))}
+      <EntriesDrawer
+        open={!!viewing}
+        account={viewing ? { ...viewing, customerName } : undefined}
+        onClose={() => setViewing(undefined)}
+        readOnly
+      />
+    </SideCard>
   );
 };
 
@@ -422,6 +492,9 @@ const CustomerDetailPage: React.FC = () => {
             gap: 20,
           }}
         >
+          {record && (
+            <CreditCard customerId={record.id} customerName={record.name} />
+          )}
           <SideCard title="负责与归属">
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <span

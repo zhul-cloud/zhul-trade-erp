@@ -17,9 +17,16 @@ public class StockHoldDO {
     @TableId(type = IdType.AUTO)
     private Long id;
     private Integer tenantId;
+    /** 来源（1-到货差异、2-订单部分取消） */
+    private Integer sourceType;
     private Long discrepancyId;
     private Long receiptId;
     private Long poId;
+    /** 来源销售订单（订单部分取消），否则 0 */
+    private Long soId;
+    private Long soItemId;
+    /** 来源退货单（售后退货），否则 0 */
+    private Long returnId;
     private String model;
     private String brand;
     private String category;

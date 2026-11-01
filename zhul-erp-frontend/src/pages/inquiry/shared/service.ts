@@ -137,6 +137,14 @@ export interface TaskBrief {
   assigneeNames: string[];
   returnReason: number;
   returnNote: string;
+  /** 待业务处理：距自动转给采购的分钟数 */
+  salesRemainingMinutes?: number;
+  /** 当前账号是询盘负责人且任务待业务处理 */
+  canTransfer?: boolean;
+  /** 可以转采购且能打开我的询价 */
+  canClaim?: boolean;
+  /** 业务员自询 */
+  selfSourcing?: boolean;
 }
 
 export interface InquiryDetail {
@@ -279,6 +287,8 @@ export interface BoardTask {
   returnReasonLabel?: string;
   returnNote?: string;
   returnedByName?: string;
+  /** 业务员自询的回价人 */
+  selfSourcedBy?: string;
   recommendedId?: number;
   recommendedName?: string;
   recommendReason?: string;
@@ -309,8 +319,23 @@ export interface Board {
     pendingReviewItems?: number;
     longestReviewMinutes?: number;
   };
+  /** 当前页签的任务总数 */
+  total: number;
+  /** 当前页签按品牌的汇总，覆盖全部页 */
+  brands: BrandGroup[];
+  /** 当前页的任务 */
   tasks: BoardTask[];
   purchasers: Purchaser[];
+}
+
+/** 品牌分组汇总（覆盖全部页），用于分页后的组头 */
+export interface BrandGroup {
+  brand: string;
+  total: number;
+  urgent: number;
+  timeout: number;
+  /** 待分配：最久已等分钟数；待认领：最早自动转给采购的剩余分钟数 */
+  minutes?: number;
 }
 
 export interface RulePreview {
@@ -361,6 +386,64 @@ export interface MyTask {
   /** 任务更新时间与本人最近一次保存回价时间的较晚者 */
   updateTime?: string;
   shared: boolean;
+  /** 业务员自询 */
+  selfSourcing?: boolean;
+  /** 最近一次退回 */
+  returnReasonLabel?: string;
+  returnNote?: string;
+  returnedByName?: string;
+}
+
+/** 接手人看到的上一轮记录；兼职看不到价格 */
+export interface PreviousQuote {
+  quotedByName?: string;
+  noStock: boolean;
+  channel: number;
+  shopName?: string;
+  note?: string;
+  unitPriceCny?: number;
+  currencyCode?: string;
+}
+
+/** 询盘负责人待认领的任务 */
+export interface SalesPendingTask {
+  id: number;
+  taskCode: string;
+  customerInquiryId: number;
+  inquiryCode: string;
+  level?: number;
+  customerName?: string;
+  quoteDeadline?: string;
+  urgent: boolean;
+  brand: string;
+  category: string;
+  itemCount: number;
+  remainingMinutes: number;
+}
+
+/** 待认领：当前页任务 + 全部页的品牌汇总 */
+export interface SalesPending {
+  total: number;
+  brands: BrandGroup[];
+  tasks: SalesPendingTask[];
+}
+
+/** 按型号退回前的预览 */
+export interface ReturnPreview {
+  pendingReview: boolean;
+  rows: {
+    itemId: number;
+    model: string;
+    quantity: number;
+    quoteStatus: number;
+    must: boolean;
+    locked: boolean;
+    lockedQuotationNo?: string;
+    checkedChannels: string;
+    unitPriceCny?: number;
+    currencyCode?: string;
+  }[];
+  drafts: { quotationNo: string; models: string[] }[];
 }
 
 export interface MyQuote {
@@ -405,6 +488,9 @@ export interface MyTaskItem {
   inquiryScript: string;
   searchKeywords: string[];
   quotes: MyQuote[];
+  quoteStatus?: number;
+  /** 上一轮记录 */
+  previous?: PreviousQuote[];
   /** 历史询价摘要：DEAL 最近成交、QUOTE 最近询价，没有时为空 */
   historyKind?: 'DEAL' | 'QUOTE';
   historyPrice?: number;
@@ -637,6 +723,14 @@ const saveBlob = async (p: Promise<unknown>, fallback: string) => {
 };
 
 export const inquiryApi = {
+  transferTasks: (taskIds: number[]) =>
+    send<void>(
+      'POST',
+      '/api/v1/inquiry/customer-inquiries/sourcing-tasks/transfer',
+      {
+        taskIds,
+      },
+    ),
   upload: (file: File) =>
     upload<UploadedFile>(`${INQ}/attachments`, 'file', [file]),
   opportunityOptions: (customerId: number) =>
@@ -703,7 +797,8 @@ export const inquiryApi = {
 };
 
 export const boardApi = {
-  board: (status?: number) => get<Board>(BOARD, { status }),
+  board: (status: number, page: number, pageSize: number) =>
+    get<Board>(BOARD, { status, page, pageSize }),
   purchasers: () => get<Purchaser[]>(`${BOARD}/purchasers`),
   taskDetail: (id: number) => get<BoardTaskDetail>(`${BOARD}/tasks/${id}`),
   itemHistory: (itemId: number) =>
@@ -851,8 +946,13 @@ export const myTaskApi = {
       archiveStatus: number;
       archiveStatusName?: string;
     }>('PUT', `${MY}/${id}/items/${itemId}/actual-model`, { actualModel }),
-  returnTask: (id: number, reason: number, note?: string) =>
-    send<void>('POST', `${MY}/${id}/return`, { reason, note }),
+  returnTask: (id: number, reason: number, note?: string, itemIds?: number[]) =>
+    send<void>('POST', `${MY}/${id}/return`, { reason, note, itemIds }),
+  returnPreview: (id: number) =>
+    get<ReturnPreview>(`${MY}/${id}/return-preview`),
+  salesPending: (page: number, pageSize: number) =>
+    get<SalesPending>(`${MY}/sales-pending`, { page, pageSize }),
+  claim: (taskIds: number[]) => send<void>('POST', `${MY}/claim`, { taskIds }),
   withdrawPreview: (id: number) =>
     get<WithdrawPreview>(`${MY}/${id}/withdraw-preview`),
   withdraw: (id: number) => send<void>('POST', `${MY}/${id}/withdraw`),

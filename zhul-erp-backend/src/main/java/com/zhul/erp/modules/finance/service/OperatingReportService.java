@@ -117,6 +117,8 @@ public class OperatingReportService {
         List<CustomerRefundDO> refunds = refundMapper.selectList(new LambdaQueryWrapper<CustomerRefundDO>()
                 .eq(CustomerRefundDO::getTenantId, PiStore.tenantId())
                 .eq(CustomerRefundDO::getStatus, FinanceConstants.RECORD_VALID)
+                // 只算售后退款（含转客户余额）；余额提现不影响利润（spec finance/operating-report）
+                .eq(CustomerRefundDO::getRefundType, FinanceConstants.REFUND_AFTER_SALES)
                 .isNull(CustomerRefundDO::getDeletedAt)
                 .ge(CustomerRefundDO::getRefundDate, from)
                 .le(CustomerRefundDO::getRefundDate, to));
@@ -125,6 +127,9 @@ public class OperatingReportService {
             if (unit == null || Objects.equals(refundUnits.get(f.getSoId()), unit)) {
                 Acc a = months[f.getRefundDate().getMonthValue()];
                 a.refund = a.refund.add(f.getAmountCny());
+                if (f.getMethod() == FinanceConstants.REFUND_TO_CREDIT) {
+                    a.refundToCredit = a.refundToCredit.add(f.getAmountCny());
+                }
             }
         }
         // 公共的其他收入与运营成本按月、按类别先汇总，再按比例分到事业部
@@ -277,6 +282,7 @@ public class OperatingReportService {
         r.setProfit(profit);
         r.setProfitRate(OrderCostCalc.rate(profit, revenue));
         r.setRefund(OrderCostCalc.money(a.refund));
+        r.setRefundToCredit(OrderCostCalc.money(a.refundToCredit));
         r.setOtherIncome(OrderCostCalc.money(a.other));
         Map<String, BigDecimal> opex = new LinkedHashMap<>();
         Map<String, BigDecimal> direct = new LinkedHashMap<>();
@@ -314,6 +320,7 @@ public class OperatingReportService {
         private BigDecimal revenue = BigDecimal.ZERO;
         private BigDecimal cost = BigDecimal.ZERO;
         private BigDecimal refund = BigDecimal.ZERO;
+        private BigDecimal refundToCredit = BigDecimal.ZERO;
         private BigDecimal other = BigDecimal.ZERO;
         private BigDecimal sharePercent;
         private final Map<String, BigDecimal> opexDirect = new LinkedHashMap<>();
@@ -325,6 +332,7 @@ public class OperatingReportService {
             revenue = revenue.add(o.revenue);
             cost = cost.add(o.cost);
             refund = refund.add(o.refund);
+            refundToCredit = refundToCredit.add(o.refundToCredit);
             other = other.add(o.other);
             o.opexDirect.forEach((k, v) -> opexDirect.merge(k, v, BigDecimal::add));
             o.opexShared.forEach((k, v) -> opexShared.merge(k, v, BigDecimal::add));

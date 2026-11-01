@@ -43,9 +43,13 @@ public class AttachmentController {
             Map.entry(AttachmentService.EXPENSE, List.of("/finance/expenses", "/finance/reimbursements")),
             Map.entry(AttachmentService.REIMBURSE, List.of("/finance/reimbursements", "/finance/payments")),
             Map.entry(AttachmentService.PO_INVOICE, List.of("/purchase/orders", "/finance/payables")),
-            Map.entry(AttachmentService.REFUND, List.of("/finance/refunds", "/sales/orders")),
+            Map.entry(AttachmentService.REFUND, List.of("/finance/refunds", "/finance/credits", "/finance/receipts", "/sales/orders")),
+            Map.entry(AttachmentService.CREDIT, List.of("/finance/credits")),
             Map.entry(AttachmentService.OTHER_INCOME, List.of("/finance/other-incomes")),
             Map.entry(AttachmentService.SALES_ORDER, List.of("/sales/orders")),
+            Map.entry(AttachmentService.AFTER_SALES, List.of("/sales/after-sales", "/sales/orders")),
+            Map.entry(AttachmentService.AFTER_SALES_LOG, List.of("/sales/after-sales", "/warehouse/returns", "/finance/refunds")),
+            Map.entry(AttachmentService.SALES_RETURN, List.of("/warehouse/returns")),
             Map.entry(AttachmentService.SOURCING_QUOTE, List.of("/inquiry/my-tasks", "/inquiry/sourcing-board",
                     "/inquiry/price-history", "/inquiry/customer-inquiries", "/quotation/quotations")));
 

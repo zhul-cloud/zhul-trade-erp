@@ -10,4 +10,6 @@ public class PiFeeVO {
     private BigDecimal amount;
     private BigDecimal amountCny;
     private String remark;
+    /** 1-普通费用、2-代收款 */
+    private Integer feeType;
 }

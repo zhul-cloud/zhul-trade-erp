@@ -12,8 +12,17 @@ import java.util.List;
 public class RefundVO {
     private Long id;
     private String refundNo;
+    /** 1-售后退款、2-余额提现 */
+    private Integer refundType;
+    private Long customerId;
+    private Integer businessUnitId;
     private Long soId;
     private String soNo;
+    /** 关联售后单与来源退款申请 */
+    private Long afterSalesId;
+    private String asNo;
+    private Long refundRequestId;
+    private String requestNo;
     private String customerName;
     private LocalDate refundDate;
     private String reason;
@@ -23,6 +32,8 @@ public class RefundVO {
     private BigDecimal exchangeRate;
     private BigDecimal amountCny;
     private Integer method;
+    private String methodName;
+    private String payeeAccount;
     private String remark;
     private Integer status;
     private String voidReason;

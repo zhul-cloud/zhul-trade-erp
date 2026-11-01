@@ -2,7 +2,6 @@ package com.zhul.erp.modules.finance.dto;
 
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
@@ -26,10 +25,13 @@ public class SaveRefundRequest {
     /** 实际退出人民币；为空时按订单平均到账汇率折算 */
     @DecimalMin(value = "0.01", message = "实际退出人民币须大于 0")
     private BigDecimal amountCny;
-    @NotNull(message = "请选择退款方式")
+    /** 去向：1-原路退回平台、2-银行汇款、3-转客户余额 */
+    @NotNull(message = "请选择退款去向")
     private Integer method;
     @Size(max = 500, message = "说明不能超过 500 个字符")
     private String remark;
-    @NotEmpty(message = "请上传退款凭证")
+    /** 凭证：去向为原路退回平台或银行汇款时必传，转客户余额时可不传 */
     private List<Long> attachmentIds;
+    /** 关联售后单（选填，须是这张订单的售后单） */
+    private Long afterSalesId;
 }

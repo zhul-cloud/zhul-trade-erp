@@ -40,6 +40,10 @@ public final class SalesConstants {
     public static final String DICT_PAYMENT_METHOD = "payment_method";
     public static final String METHOD_ONLINE = "ONLINE";
     public static final String PERM_RECEIPT_CONFIRM = "sales:pi:receipt-confirm";
+    /** 余额抵扣：系统内置付款方式，不在字典里，不能手选，既不算线上也不算线下（channel 为 0） */
+    public static final String METHOD_CREDIT = "CREDIT";
+    public static final String METHOD_CREDIT_NAME = "余额抵扣";
+    public static final int CHANNEL_NONE = 0;
     public static final int CHANNEL_OFFLINE = 1;
     public static final int CHANNEL_ONLINE = 2;
     public static final Map<Integer, String> RECEIPT_CHANNEL_NAMES = Map.of(CHANNEL_OFFLINE, "线下", CHANNEL_ONLINE, "线上");
@@ -51,6 +55,8 @@ public final class SalesConstants {
     public static final int RATE_ESTIMATE = 3;
     /** 外币到账已全部结汇 */
     public static final int RATE_SETTLED = 4;
+    /** 余额抵扣：人民币取余额流水锁定的价值，不参与结汇 */
+    public static final int RATE_CREDIT = 5;
     /** 结汇状态 */
     public static final int SETTLE_NA = 0;
     public static final int SETTLE_NONE = 1;
@@ -83,6 +89,10 @@ public final class SalesConstants {
     public static final String PROGRESS_CANCELLED = "CANCELLED";
     public static final String PERM_ORDER_CREATE = "sales:order:create";
     public static final String PERM_ORDER_PROGRESS = "sales:order:progress";
+
+    /** 费用类型：普通费用 / 代收款（客户请我们多做、收到后转回给客户，不计入销售额） */
+    public static final int FEE_NORMAL = 1;
+    public static final int FEE_COLLECTION = 2;
 
     /** 整单折扣方式 */
     public static final int DISCOUNT_NONE = 0;

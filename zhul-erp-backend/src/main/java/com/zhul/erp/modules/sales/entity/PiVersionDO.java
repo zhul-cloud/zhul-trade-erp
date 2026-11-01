@@ -49,6 +49,8 @@ public class PiVersionDO {
     private BigDecimal feeAmount;
     private BigDecimal totalAmount;
     private BigDecimal totalAmountCny;
+    /** 抵扣客户余额（原币），导出为 Less: Credit；应付 = 合计 − 抵扣 */
+    private BigDecimal creditAmount;
     @TableField(updateStrategy = FieldStrategy.ALWAYS)
     private BigDecimal netProfit;
     @TableField(updateStrategy = FieldStrategy.ALWAYS)

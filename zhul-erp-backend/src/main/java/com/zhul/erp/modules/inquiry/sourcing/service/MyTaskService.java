@@ -34,6 +34,9 @@ public interface MyTaskService {
 
     void returnTask(Long taskId, ReturnTaskRequest req);
 
+    /** 按型号退回前的预览 */
+    com.zhul.erp.modules.inquiry.sourcing.dto.ReturnPreviewVO returnPreview(Long taskId);
+
     /** 撤回回价前的预览 */
     com.zhul.erp.modules.inquiry.sourcing.dto.WithdrawPreviewVO withdrawPreview(Long taskId);
 

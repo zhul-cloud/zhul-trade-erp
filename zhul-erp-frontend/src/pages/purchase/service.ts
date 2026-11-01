@@ -250,6 +250,8 @@ export interface PoItem {
   bargainAmount?: number | null;
   bargainRate?: number | null;
   orderCancelled: boolean;
+  /** 来源订单部分取消后减少的数量（累计；采购数量不自动改） */
+  soReducedQuantity?: number;
   /** 已发数量（少发、退回的不算） */
   shippedQty: number;
   /** 合格入库数量（含折价接收） */

@@ -203,7 +203,8 @@ public class ProfitStatsService {
                     }
                 }))) {
             Long so = r.getPiId() != null && soByPi.containsKey(r.getPiId()) ? soByPi.get(r.getPiId()) : r.getSoId();
-            if (so == null) {
+            // 余额抵扣既不算线上也不算线下，不计入报税统计
+            if (so == null || SalesConstants.METHOD_CREDIT.equals(r.getPaymentMethod())) {
                 continue;
             }
             BigDecimal[] ch = out.computeIfAbsent(so, k -> new BigDecimal[]{BigDecimal.ZERO, BigDecimal.ZERO});

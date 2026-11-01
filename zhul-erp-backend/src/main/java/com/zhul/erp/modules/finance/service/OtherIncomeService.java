@@ -70,6 +70,7 @@ public class OtherIncomeService {
         if (x.getStatus() == FinanceConstants.RECORD_VOID) {
             throw new BizException("已作废，不能修改");
         }
+        requireManual(x);
         BigDecimal before = x.getAmount();
         fill(x, req);
         mapper.updateById(x);
@@ -94,6 +95,7 @@ public class OtherIncomeService {
         if (x.getStatus() == FinanceConstants.RECORD_VOID) {
             throw new BizException("已作废");
         }
+        requireManual(x);
         x.setStatus(FinanceConstants.RECORD_VOID);
         x.setVoidReason(why.length() > 200 ? why.substring(0, 200) : why);
         mapper.updateById(x);
@@ -131,10 +133,56 @@ public class OtherIncomeService {
         if (categoryNames().get(req.getCategory()) == null) {
             throw new BizException("类别不存在");
         }
+        if (FinanceConstants.INCOME_FX_GAIN.equals(req.getCategory())) {
+            throw new BizException("汇兑损益由余额提现自动生成，不能手动登记");
+        }
         x.setIncomeDate(req.getIncomeDate());
         x.setCategory(req.getCategory());
         x.setAmount(req.getAmount().setScale(2, RoundingMode.HALF_UP));
         x.setRemark(req.getRemark().trim());
+    }
+
+    /**
+     * 余额提现的汇兑损益（spec finance/other-income「系统生成的汇兑损益」）：金额 = 余额人民币价值 − 实际转出人民币，可为负数，
+     * 为 0 时不生成；与来源退款单在同一事务内生成，随它作废。
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public OtherIncomeDO createFxGain(java.time.LocalDate date, BigDecimal amount, Integer businessUnitId, Long refundId, String remark) {
+        BigDecimal v = amount.setScale(2, RoundingMode.HALF_UP);
+        if (v.signum() == 0) {
+            return null;
+        }
+        OtherIncomeDO x = new OtherIncomeDO();
+        x.setTenantId(PiStore.tenantId());
+        x.setIncomeNo(documentNumberService.next(DocumentType.OI));
+        x.setStatus(FinanceConstants.RECORD_VALID);
+        x.setVoidReason("");
+        x.setIncomeDate(date);
+        x.setCategory(FinanceConstants.INCOME_FX_GAIN);
+        x.setAmount(v);
+        x.setRemark(remark);
+        x.setBusinessUnitId(businessUnitId);
+        x.setSourceType(FinanceConstants.SRC_REFUND);
+        x.setSourceId(refundId);
+        mapper.insert(x);
+        return x;
+    }
+
+    /** 来源退款单作废时一起作废它生成的汇兑损益 */
+    @Transactional(rollbackFor = Exception.class)
+    public void voidBySource(Long refundId, String reason) {
+        mapper.update(null, new LambdaUpdateWrapper<OtherIncomeDO>()
+                .eq(OtherIncomeDO::getSourceType, FinanceConstants.SRC_REFUND)
+                .eq(OtherIncomeDO::getSourceId, refundId)
+                .eq(OtherIncomeDO::getStatus, FinanceConstants.RECORD_VALID)
+                .set(OtherIncomeDO::getStatus, FinanceConstants.RECORD_VOID)
+                .set(OtherIncomeDO::getVoidReason, reason));
+    }
+
+    private static void requireManual(OtherIncomeDO x) {
+        if (x.getSourceType() != null && !x.getSourceType().isEmpty()) {
+            throw new BizException("汇兑损益由余额提现自动生成，请作废来源退款单");
+        }
     }
 
     private OtherIncomeDO require(Long id) {
@@ -191,6 +239,8 @@ public class OtherIncomeService {
             vo.setRemark(x.getRemark());
             vo.setStatus(x.getStatus());
             vo.setVoidReason(x.getVoidReason());
+            vo.setSourceType(x.getSourceType());
+            vo.setSourceId(x.getSourceId());
             vo.setAttachments(PayableQueryService.refs(files.getOrDefault(x.getId(), List.of())));
             vo.setCreateTime(x.getCreateTime());
             vo.setCreateBy(x.getCreateBy());

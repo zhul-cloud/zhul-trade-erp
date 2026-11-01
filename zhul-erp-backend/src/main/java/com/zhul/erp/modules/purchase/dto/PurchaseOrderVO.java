@@ -109,6 +109,8 @@ public class PurchaseOrderVO implements ShipFields {
         private BigDecimal bargainRate;
         /** 来源订单已取消 */
         private Boolean orderCancelled;
+        /** 来源订单部分取消后减少的数量（累计；采购数量不自动改） */
+        private Integer soReducedQuantity;
         /** 已发数量（少发、退回的不算） */
         private Integer shippedQty;
         /** 合格入库数量（含折价接收） */

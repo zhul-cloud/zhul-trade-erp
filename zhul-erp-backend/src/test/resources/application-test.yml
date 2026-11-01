@@ -23,6 +23,8 @@ zhul:
   ai-task:
     # 测试里不需要超时扫描去动数据
     timeout-check-interval-ms: 3600000
+  inquiry:
+    sales-window-check-interval-ms: 3600000
 
 logging:
   level:

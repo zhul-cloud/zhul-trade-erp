@@ -52,6 +52,8 @@ public class InquiryItemDO {
     private String searchKeywords;
     private Integer priceSource;
     private Integer quoteStatus;
+    /** 询价轮次：按型号退回时加一，本轮有已提交记录才算回价 */
+    private Integer quoteRound;
     @TableField(updateStrategy = com.baomidou.mybatisplus.annotation.FieldStrategy.ALWAYS)
     private Long selectedQuoteId;
     /** 采购成本价是否由采购负责人手动指定 */

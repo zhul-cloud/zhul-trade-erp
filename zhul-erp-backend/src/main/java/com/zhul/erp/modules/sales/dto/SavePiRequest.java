@@ -46,6 +46,8 @@ public class SavePiRequest {
     @Size(max = 20, message = "费用行最多 20 行")
     @Valid
     private List<Fee> fees;
+    /** 抵扣客户余额（原币）；为空或 0 表示不抵扣 */
+    private BigDecimal creditAmount;
 
     @Data
     public static class Item {
@@ -81,5 +83,7 @@ public class SavePiRequest {
         private BigDecimal amount;
         @Size(max = 300, message = "备注不能超过 300 字")
         private String remark;
+        /** 1-普通费用（默认）、2-代收款 */
+        private Integer feeType;
     }
 }

@@ -70,6 +70,12 @@ public class OrderReceiptController {
         return Result.ok(service.voidOrderReceipt(id, receiptId, req.getReason()));
     }
 
+    @PostMapping("/{id}/credit")
+    @PreAuthorize("@perm.canAccessMenu('/sales/orders')")
+    public Result<SalesOrderVO> credit(@PathVariable Long id, @RequestBody java.util.Map<String, java.math.BigDecimal> body) {
+        return Result.ok(service.orderCredit(id, body.get("amount")));
+    }
+
     @PostMapping("/{id}/platform-receipts")
     @PreAuthorize("@perm.canAccessMenu('/sales/orders') and @perm.has('sales:pi:platform-receipt')")
     public Result<SalesOrderVO> platformReceipt(@PathVariable Long id, @Valid @RequestBody PlatformReceiptRequest req) {

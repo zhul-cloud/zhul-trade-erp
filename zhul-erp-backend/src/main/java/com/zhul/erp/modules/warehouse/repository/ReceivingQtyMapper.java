@@ -60,7 +60,10 @@ public interface ReceivingQtyMapper {
             + " GROUP BY si.so_item_id, s.id, s.sd_no, s.carrier, s.expected_arrival_date ORDER BY s.expected_arrival_date, s.id</script>")
     List<TransitRow> inTransitBySoItem(@Param("ids") Collection<Long> ids);
 
-    /** 订单型号行的合格入库数量，口径同上 */
+    /**
+     * 订单型号行的合格入库数量，口径同上；订单部分取消后转入闲置库存的数量不再属于订单，扣除
+     * （spec warehouse/stock-hold「闲置库存」）
+     */
     @Select("<script>SELECT x.id, SUM(x.q) AS qty FROM ("
             + "SELECT ri.so_item_id AS id, LEAST(ri.qualified_qty, ri.shipped_qty) AS q FROM purchase_receipt_item ri "
             + "JOIN purchase_receipt r ON r.id = ri.receipt_id "
@@ -68,6 +71,8 @@ public interface ReceivingQtyMapper {
             + " UNION ALL SELECT ri.so_item_id, d.quantity FROM receiving_discrepancy d "
             + "JOIN purchase_receipt_item ri ON ri.id = d.receipt_item_id "
             + "WHERE d.deleted_at IS NULL AND d.status = 2 AND d.resolution = 5 AND ri.so_item_id IN " + IDS
+            + " UNION ALL SELECT h.so_item_id, -h.quantity FROM stock_hold h "
+            + "WHERE h.deleted_at IS NULL AND h.source_type = 2 AND h.so_item_id IN " + IDS
             + ") x GROUP BY x.id</script>")
     List<IdQty> qualifiedBySoItem(@Param("ids") Collection<Long> ids);
 }
