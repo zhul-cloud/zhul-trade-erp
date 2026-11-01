@@ -3,12 +3,18 @@ import { Badge, Button, Tabs } from 'antd';
 import React, { useCallback, useState } from 'react';
 import { PageTitle } from '@/pages/inquiry/shared/components';
 import DeskTab from './DeskTab';
+import OverpaidTab from './OverpaidTab';
 import RecordsTab from './RecordsTab';
 import UnclaimedTab from './UnclaimedTab';
 
 /** 财务管理 → 收款单：待确认（水单）、未认领到账、收款记录（现阶段由总经理兼任财务） */
 const ReceiptManagement: React.FC = () => {
-  const [tab, setTab] = useState('desk');
+  // 订单详情「去处理」带 ?tab=overpaid 进来
+  const [tab, setTab] = useState(
+    () => new URLSearchParams(window.location.search).get('tab') ?? 'desk',
+  );
+  const [overpaidCount, setOverpaidCount] = useState<number>();
+  const onOverpaid = useCallback((n: number) => setOverpaidCount(n), []);
   const [deskCount, setDeskCount] = useState<number>();
   const [unclaimedCount, setUnclaimedCount] = useState<number>();
   const [registerSignal, setRegisterSignal] = useState(0);
@@ -59,6 +65,12 @@ const ReceiptManagement: React.FC = () => {
                 onCount={onUnclaimed}
               />
             ),
+          },
+          {
+            key: 'overpaid',
+            label: label('待处理多收', overpaidCount),
+            forceRender: true,
+            children: <OverpaidTab onCount={onOverpaid} />,
           },
           {
             key: 'records',

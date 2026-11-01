@@ -44,6 +44,12 @@ public class CustomerRefundController {
         return Result.ok(service.total(q));
     }
 
+    @GetMapping("/totals")
+    @PreAuthorize("@perm.canAccessMenu('/finance/refunds')")
+    public Result<com.zhul.erp.modules.finance.dto.RefundTotalsVO> totals(RefundQuery q) {
+        return Result.ok(service.totals(q));
+    }
+
     @GetMapping("/refundable/{soId}")
     @PreAuthorize(EDIT)
     public Result<RefundableVO> refundable(@PathVariable Long soId) {

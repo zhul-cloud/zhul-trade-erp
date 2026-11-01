@@ -56,6 +56,7 @@ public class PiClosing {
     private final CurrentUserResolver currentUser;
     private final LogService logService;
     private final PiStore store;
+    private final com.zhul.erp.modules.sales.repository.PaymentReceiptMapper receiptMapper;
 
     /** 关闭；返回给业务员的提示（如某张报价单还有其他有效 PI、未改为未成交） */
     public List<String> close(ProformaInvoiceDO pi, ClosePiRequest req) {
@@ -63,7 +64,14 @@ public class PiClosing {
             throw new BizException(pi.getStatus() == SalesConstants.PI_CLOSED ? "PI 已关闭"
                     : "只有已发送的 PI 可以关闭，当前为「" + SalesConstants.PI_STATUS_NAMES.get(pi.getStatus()) + "」");
         }
-        if (pi.getReceiptStatus() != SalesConstants.RECEIPT_NONE) {
+        // 余额抵扣不算到账记录：关闭时自动作废并释放余额（spec sales/proforma-invoice「关闭 PI」）
+        boolean paid = receiptMapper.selectCount(new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<
+                        com.zhul.erp.modules.sales.entity.PaymentReceiptDO>()
+                .eq(com.zhul.erp.modules.sales.entity.PaymentReceiptDO::getPiId, pi.getId())
+                .ne(com.zhul.erp.modules.sales.entity.PaymentReceiptDO::getPaymentMethod, SalesConstants.METHOD_CREDIT)
+                .eq(com.zhul.erp.modules.sales.entity.PaymentReceiptDO::getStatus, SalesConstants.RECORD_VALID)
+                .isNull(com.zhul.erp.modules.sales.entity.PaymentReceiptDO::getDeletedAt)) > 0;
+        if (paid) {
             throw new BizException("PI 已有水单或到账记录，不能关闭");
         }
         if (!StringUtils.hasText(req.getReason())) {

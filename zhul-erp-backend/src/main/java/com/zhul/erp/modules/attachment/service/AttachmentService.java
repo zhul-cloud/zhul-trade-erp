@@ -63,6 +63,8 @@ public class AttachmentService {
     /** 退款单与其他收入的凭证 */
     public static final String REFUND = "REFUND";
     public static final String OTHER_INCOME = "OTHER_INCOME";
+    /** 客户余额手工调整的凭证 */
+    public static final String CREDIT = "CREDIT";
     /** 询价回价的截图、报价单（图片或 PDF），挂在回价上，修改回价时搬到新版本 */
     public static final String SOURCING_QUOTE = "SOURCING_QUOTE";
     /** 验收入库的不良品照片（素材库「到货异常」） */
@@ -75,11 +77,11 @@ public class AttachmentService {
     public static final String SALES_ORDER = "SALES_ORDER";
     /** 只收图片或 PDF 的归属类型 */
     private static final Set<String> PROOF_TYPES = Set.of(PAYMENT, COURIER_PROOF, RETURN_PROOF, EXPENSE, REIMBURSE, PO_INVOICE, REFUND, OTHER_INCOME,
-            SOURCING_QUOTE);
+            SOURCING_QUOTE, CREDIT);
     public static final Map<String, Integer> MAX_PER_OWNER = Map.ofEntries(Map.entry(SHIPMENT, 20), Map.entry(RECEIPT, 20),
             Map.entry(SHOOT, 30), Map.entry(LOGISTICS, 10), Map.entry(PAYMENT, 10), Map.entry(COURIER_PROOF, 10),
             Map.entry(RETURN_PROOF, 10), Map.entry(EXPENSE, 10), Map.entry(REIMBURSE, 10), Map.entry(PO_INVOICE, 10),
-            Map.entry(REFUND, 10), Map.entry(OTHER_INCOME, 10), Map.entry(SOURCING_QUOTE, 5), Map.entry(RECEIPT_DEFECT, 20),
+            Map.entry(REFUND, 10), Map.entry(OTHER_INCOME, 10), Map.entry(CREDIT, 10), Map.entry(SOURCING_QUOTE, 5), Map.entry(RECEIPT_DEFECT, 20),
             Map.entry(PACKING, 20), Map.entry(NETWORK, 1), Map.entry(SALES_ORDER, 10));
     /** 只收图片的归属类型（不传视频） */
     private static final Set<String> IMAGE_ONLY_TYPES = Set.of(RECEIPT_DEFECT, PACKING, NETWORK);
@@ -100,7 +102,7 @@ public class AttachmentService {
             Map.entry(PAYMENT, StorageArea.FINANCE), Map.entry(COURIER_PROOF, StorageArea.FINANCE),
             Map.entry(RETURN_PROOF, StorageArea.FINANCE), Map.entry(EXPENSE, StorageArea.FINANCE),
             Map.entry(REIMBURSE, StorageArea.FINANCE), Map.entry(REFUND, StorageArea.FINANCE),
-            Map.entry(OTHER_INCOME, StorageArea.FINANCE), Map.entry(PO_INVOICE, StorageArea.PURCHASE),
+            Map.entry(OTHER_INCOME, StorageArea.FINANCE), Map.entry(CREDIT, StorageArea.FINANCE), Map.entry(PO_INVOICE, StorageArea.PURCHASE),
             Map.entry(SOURCING_QUOTE, StorageArea.SOURCING), Map.entry(RECEIPT_DEFECT, StorageArea.RECEIPT),
             Map.entry(PACKING, StorageArea.PACKING), Map.entry(NETWORK, StorageArea.MEDIA),
             Map.entry(SALES_ORDER, StorageArea.SALES));

@@ -103,4 +103,33 @@ public final class FinanceConstants {
     public static final int RECORD_VOID = 2;
     public static final int REFUND_PLATFORM = 1;
     public static final int REFUND_BANK = 2;
+    /** 退款去向：转客户余额（只用于售后退款）；其他转出方式（支付宝、微信等，只用于余额提现） */
+    public static final int REFUND_TO_CREDIT = 3;
+    public static final int REFUND_OTHER = 4;
+    public static final java.util.Map<Integer, String> REFUND_METHOD_NAMES = java.util.Map.of(REFUND_PLATFORM, "原路退回平台",
+            REFUND_BANK, "银行汇款", REFUND_TO_CREDIT, "转客户余额", REFUND_OTHER, "其他");
+    /** 退款单类型 */
+    public static final int REFUND_AFTER_SALES = 1;
+    public static final int REFUND_CREDIT_WITHDRAW = 2;
+
+    /** 客户余额（spec finance/customer-credit） */
+    public static final String MENU_CREDIT = "/finance/credits";
+    public static final String PERM_CREDIT_ADJUST = "finance:credit:adjust";
+    public static final int CREDIT_REFUND_IN = 1;
+    public static final int CREDIT_COLLECTION_IN = 2;
+    public static final int CREDIT_OVERPAID_IN = 3;
+    public static final int CREDIT_OCCUPY = 4;
+    public static final int CREDIT_RELEASE = 5;
+    public static final int CREDIT_WITHDRAW = 6;
+    public static final int CREDIT_ADJUST = 7;
+    public static final int CREDIT_REVERSE = 8;
+    public static final java.util.Map<Integer, String> CREDIT_TYPE_NAMES = java.util.Map.of(CREDIT_REFUND_IN, "售后退款转入",
+            CREDIT_COLLECTION_IN, "代收转入", CREDIT_OVERPAID_IN, "多收转入", CREDIT_OCCUPY, "抵扣占用", CREDIT_RELEASE, "抵扣释放",
+            CREDIT_WITHDRAW, "提现", CREDIT_ADJUST, "手工调整", CREDIT_REVERSE, "冲销");
+    public static final String SRC_REFUND = "REFUND";
+    public static final String SRC_PI = "PI";
+    public static final String SRC_SO = "SO";
+    public static final String SRC_MANUAL = "MANUAL";
+    /** 其他收入的系统类别：余额提现的汇兑损益 */
+    public static final String INCOME_FX_GAIN = "FX_GAIN";
 }

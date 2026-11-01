@@ -53,6 +53,8 @@ public class PiVO {
     private List<VersionBrief> versions;
     private List<SendLog> sendLogs;
     private List<ReceiptVO> receipts;
+    /** 余额：可用余额、代收状态、待处理多收 */
+    private CreditPanelVO credit;
     /** 有效销售订单 */
     private OrderBrief order;
     /** 来源报价单 */

@@ -16,4 +16,8 @@ public class RefundQuery {
     private LocalDate dateFrom;
     private LocalDate dateTo;
     private Boolean showVoid;
+    /** 1-售后退款、2-余额提现 */
+    private Integer refundType;
+    /** 去向 */
+    private Integer method;
 }

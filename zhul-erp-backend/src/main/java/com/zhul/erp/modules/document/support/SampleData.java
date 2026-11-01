@@ -97,6 +97,8 @@ public final class SampleData {
         h.put("pi.feeTotal", feeTotal);
         h.put("pi.discount", discount);
         h.put("pi.total", itemTotal.add(feeTotal).add(discount));
+        h.put("pi.credit", java.math.BigDecimal.ZERO);
+        h.put("pi.amountDue", itemTotal.add(feeTotal).add(discount));
         return new RenderModel(h, items, fees);
     }
 

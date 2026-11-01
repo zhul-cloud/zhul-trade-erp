@@ -30,6 +30,7 @@ public class PiSummary {
     private final PaymentReceiptMapper receiptMapper;
     private final PiStore store;
     private final SalesOrderMapper orderMapper;
+    private final com.zhul.erp.modules.finance.service.CreditReceiptSync creditSync;
 
     public void refresh(ProformaInvoiceDO pi) {
         PiVersionDO v = store.version(pi.getId(), pi.getCurrentVersionNo() != null && pi.getCurrentVersionNo() > 0
@@ -47,6 +48,8 @@ public class PiSummary {
         pi.setFeeDiffAmount(t.feeDiff());
         pi.setReceiptStatus(t.status());
         piMapper.updateById(pi);
+        // 代收收齐后转入客户余额、作废到账时撤回（spec sales/payment-receipt）
+        creditSync.afterReceipts(pi);
     }
 
     /** 手动创建的订单：收款记录直接挂在订单上，同样的规则算收款状态 */
@@ -56,6 +59,7 @@ public class PiSummary {
         o.setFeeDiffAmount(t.feeDiff());
         o.setReceiptStatus(t.status());
         orderMapper.updateById(o);
+        creditSync.afterReceipts(o);
     }
 
     public record Totals(BigDecimal received, BigDecimal feeDiff, int status) {

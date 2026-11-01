@@ -11,6 +11,8 @@ export interface OperatingRow {
   profit: number;
   profitRate?: number | null;
   refund: number;
+  /** 退款中转客户余额的部分 */
+  refundToCredit?: number;
   otherIncome: number;
   opex: Record<string, number>;
   opexTotal: number;

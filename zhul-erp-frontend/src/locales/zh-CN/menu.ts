@@ -37,6 +37,7 @@ export default {
   'menu.finance.expenses': '费用单',
   'menu.finance.profitStats': '利润统计',
   'menu.finance.refunds': '退款单',
+  'menu.finance.credits': '余额管理',
   'menu.finance.otherIncomes': '其他收入',
   'menu.finance.operatingReport': '经营统计',
   'menu.sales.pi': 'PI',

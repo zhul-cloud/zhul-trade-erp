@@ -1,10 +1,10 @@
+import { InfoCircleOutlined } from '@ant-design/icons';
 import {
   App,
   DatePicker,
   Input,
   InputNumber,
   Modal,
-  Segmented,
   Select,
   Space,
 } from 'antd';
@@ -20,9 +20,16 @@ import { ACCEPT_PROOF } from '../payables/components';
 import {
   DICT_REFUND_REASON,
   REFUND_METHODS,
+  REFUND_TO_CREDIT,
   type Refundable,
   refundApi,
 } from './service';
+
+const METHOD_HINTS: Record<number, string> = {
+  1: '退回客户付款的平台',
+  2: '填实际退出的人民币和回单',
+  3: '不退现金，留作下一单抵扣',
+};
 
 /** 登记退款（spec finance/customer-refund）：订单详情与退款单页共用 */
 const RefundModal: React.FC<{
@@ -58,7 +65,10 @@ const RefundModal: React.FC<{
     setInfo(undefined);
     refundApi
       .refundable(soId)
-      .then(setInfo)
+      .then((r) => {
+        setInfo(r);
+        setMethod(r.platformOnly ? 1 : 2);
+      })
       .catch((e) => message.error(readBizError(e).message));
   }, [open, soId, message]);
 
@@ -69,9 +79,17 @@ const RefundModal: React.FC<{
     }
   }, [amount, info, cnyTouched]);
 
+  const toCredit = method === REFUND_TO_CREDIT;
+  const lockedCny =
+    info && amount
+      ? Math.round(amount * Number(info.creditRate) * 100) / 100
+      : null;
+
   const submit = async () => {
-    if (!soId || !reason || !amount || files.length === 0) {
-      message.error('请填写原因、退款金额并上传凭证');
+    if (!soId || !reason || !amount || (!toCredit && files.length === 0)) {
+      message.error(
+        toCredit ? '请填写原因与退款金额' : '请填写原因、退款金额并上传凭证',
+      );
       return;
     }
     setSaving(true);
@@ -81,7 +99,7 @@ const RefundModal: React.FC<{
         refundDate: date.format('YYYY-MM-DD'),
         reason,
         amount,
-        amountCny: cny ?? undefined,
+        amountCny: toCredit ? undefined : (cny ?? undefined),
         method,
         remark: remark.trim() || undefined,
         attachmentIds: files.map((f) => f.id),
@@ -166,38 +184,122 @@ const RefundModal: React.FC<{
               aria-label="退款金额"
             />
           </div>
-          <div>
-            {label('实际退出人民币')}
-            <InputNumber<number>
-              min={0.01}
-              precision={2}
-              prefix="CNY"
-              value={cny}
-              onChange={(v) => {
-                setCny(v);
-                setCnyTouched(true);
+          {!toCredit && (
+            <div>
+              {label('实际退出人民币')}
+              <InputNumber<number>
+                min={0.01}
+                precision={2}
+                prefix="CNY"
+                value={cny}
+                onChange={(v) => {
+                  setCny(v);
+                  setCnyTouched(true);
+                }}
+                style={{ width: '100%' }}
+                aria-label="实际退出人民币"
+              />
+            </div>
+          )}
+        </div>
+        <div>
+          {label('去向')}
+          {info?.platformOnly && (
+            <div
+              style={{
+                display: 'flex',
+                gap: 8,
+                alignItems: 'center',
+                padding: '8px 12px',
+                borderRadius: 10,
+                marginBottom: 10,
+                background: palette.orangeSoft,
+                color: palette.orange,
+                fontSize: 12,
+                fontWeight: 600,
               }}
-              style={{ width: '100%' }}
-              aria-label="实际退出人民币"
-            />
+            >
+              <InfoCircleOutlined />
+              这张订单有平台收款，售后退款只能原路退回平台
+            </div>
+          )}
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+              gap: 10,
+            }}
+          >
+            {REFUND_METHODS.map((m) => {
+              const disabled = !!info?.platformOnly && m.value !== 1;
+              const on = method === m.value;
+              return (
+                <button
+                  key={m.value}
+                  type="button"
+                  aria-pressed={on}
+                  disabled={disabled}
+                  onClick={() => setMethod(m.value)}
+                  style={{
+                    textAlign: 'left',
+                    padding: '10px 12px',
+                    borderRadius: 12,
+                    cursor: disabled ? 'not-allowed' : 'pointer',
+                    opacity: disabled ? 0.45 : 1,
+                    background: on ? palette.accentSoft : palette.inset,
+                    border: `${on ? 1.5 : 1}px solid ${on ? palette.link : palette.hairline}`,
+                    color: palette.ink,
+                    font: 'inherit',
+                  }}
+                >
+                  <div style={{ fontWeight: 600 }}>{m.label}</div>
+                  <div style={{ fontSize: 12, color: palette.mute }}>
+                    {disabled ? '平台收款的订单不可用' : METHOD_HINTS[m.value]}
+                  </div>
+                </button>
+              );
+            })}
           </div>
         </div>
-        {info && (
-          <div style={{ fontSize: 12, color: palette.mute }}>
-            默认按这张订单的平均到账汇率 {Number(info.averageRate).toFixed(6)}{' '}
-            折算，按平台或银行实际扣款修改；退款会冲减这张订单的毛利。
-          </div>
-        )}
+        {info &&
+          (toCredit ? (
+            <div
+              style={{
+                padding: '12px 14px',
+                borderRadius: 12,
+                background: palette.accentSoft,
+                fontSize: 12,
+                color: palette.sub,
+                display: 'grid',
+                gap: 4,
+              }}
+            >
+              <div>
+                按订单现金收款的加权到账汇率{' '}
+                {Number(info.creditRate).toFixed(6)} 折算并锁定：
+                <b style={{ color: palette.ink }}>
+                  {lockedCny != null ? formatAmount(lockedCny, 'CNY') : '—'}
+                </b>
+              </div>
+              <div style={{ color: palette.link, fontWeight: 600 }}>
+                客户 {cur} 余额将增加 {amount ? formatAmount(amount, cur) : '—'}
+                ，可在下一张 PI 抵扣；仍冲减这张订单的毛利
+              </div>
+            </div>
+          ) : (
+            <div style={{ fontSize: 12, color: palette.mute }}>
+              默认按这张订单的平均到账汇率 {Number(info.averageRate).toFixed(6)}{' '}
+              折算，按平台或银行实际扣款修改；退款会冲减这张订单的毛利。
+            </div>
+          ))}
         <div>
-          {label('退款方式')}
-          <Segmented<number>
-            value={method}
-            onChange={setMethod}
-            options={REFUND_METHODS}
-          />
-        </div>
-        <div>
-          {label('凭证')}
+          {toCredit ? (
+            <div style={{ fontSize: 12, color: palette.sub, marginBottom: 6 }}>
+              凭证（选填）
+            </div>
+          ) : (
+            label('凭证')
+          )}
           <AttachmentWall
             ownerType="REFUND"
             value={files}

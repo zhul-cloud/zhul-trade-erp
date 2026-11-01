@@ -8,6 +8,7 @@ import {
   DatePicker,
   Input,
   Modal,
+  Segmented,
   Select,
   Table,
 } from 'antd';
@@ -31,9 +32,17 @@ import RefundModal from './RefundModal';
 import {
   DICT_REFUND_REASON,
   REFUND_METHODS,
+  REFUND_TO_CREDIT,
+  REFUND_TYPE_WITHDRAW,
   type Refund,
+  type RefundTotals,
   refundApi,
 } from './service';
+
+const METHOD_FILTERS = [
+  ...REFUND_METHODS,
+  { value: 4, label: '其他转出方式（支付宝等）' },
+];
 
 const num: React.CSSProperties = { fontVariantNumeric: 'tabular-nums' };
 
@@ -114,7 +123,9 @@ const RefundPage: React.FC = () => {
   const [pageSize, setPageSize] = usePageSize(20);
   const [rows, setRows] = useState<Refund[]>([]);
   const [total, setTotal] = useState(0);
-  const [sum, setSum] = useState(0);
+  const [refundType, setRefundType] = useState<number>(0);
+  const [method, setMethod] = useState<number>();
+  const [sum, setSum] = useState<RefundTotals>();
   const [loading, setLoading] = useState(true);
   const [picking, setPicking] = useState(false);
   const [soId, setSoId] = useState<number>();
@@ -128,11 +139,13 @@ const RefundPage: React.FC = () => {
       dateFrom: range?.[0].format('YYYY-MM-DD'),
       dateTo: range?.[1].format('YYYY-MM-DD'),
       showVoid: showVoid || undefined,
+      refundType: refundType || undefined,
+      method,
     };
     try {
       const [res, t] = await Promise.all([
         refundApi.page({ ...q, page, pageSize }),
-        refundApi.total(q),
+        refundApi.totals(q),
       ]);
       setRows(res.records);
       setTotal(res.total);
@@ -142,7 +155,17 @@ const RefundPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [query, reason, range, showVoid, page, pageSize, message]);
+  }, [
+    query,
+    reason,
+    range,
+    showVoid,
+    refundType,
+    method,
+    page,
+    pageSize,
+    message,
+  ]);
 
   useEffect(() => {
     load();
@@ -164,6 +187,17 @@ const RefundPage: React.FC = () => {
         </span>
       ),
     },
+    {
+      title: '类型',
+      dataIndex: 'refundType',
+      width: 110,
+      render: (v: number) =>
+        v === REFUND_TYPE_WITHDRAW ? (
+          <Pill tone="cyan">余额提现</Pill>
+        ) : (
+          <Pill tone="red">售后退款</Pill>
+        ),
+    },
     { title: '退款日期', dataIndex: 'refundDate', width: 110 },
     {
       title: '订单 · 客户',
@@ -171,9 +205,13 @@ const RefundPage: React.FC = () => {
       width: 240,
       render: (_, r) => (
         <div>
-          <a onClick={() => history.push(`/sales/orders/${r.soId}`)}>
-            {r.soNo}
-          </a>
+          {r.soId ? (
+            <a onClick={() => history.push(`/sales/orders/${r.soId}`)}>
+              {r.soNo}
+            </a>
+          ) : (
+            <span style={{ color: palette.mute }}>不挂订单</span>
+          )}
           <div style={{ fontSize: 12, color: palette.sub }}>
             {r.customerName}
           </div>
@@ -198,10 +236,22 @@ const RefundPage: React.FC = () => {
       render: (v: number) => <b style={num}>{formatAmount(v, 'CNY')}</b>,
     },
     {
-      title: '退款方式',
+      title: '去向',
       dataIndex: 'method',
-      width: 120,
-      render: (v: number) => REFUND_METHODS.find((m) => m.value === v)?.label,
+      width: 130,
+      render: (v: number, r) =>
+        v === REFUND_TO_CREDIT ? (
+          <Pill tone="accent">转客户余额</Pill>
+        ) : (
+          <div>
+            {r.methodName}
+            {r.payeeAccount && (
+              <div style={{ fontSize: 12, color: palette.mute }}>
+                {r.payeeAccount}
+              </div>
+            )}
+          </div>
+        ),
     },
     {
       title: '凭证',
@@ -245,7 +295,7 @@ const RefundPage: React.FC = () => {
   return (
     <div>
       <PageTitle
-        description="给客户的退款：关联订单，冲减订单毛利；经营统计按退款月份单列一行。"
+        description="退给客户的钱：售后退款冲减订单毛利，经营统计按退款月份单列；余额提现由余额管理生成，不影响利润。"
         actions={
           canEdit && (
             <Button
@@ -260,29 +310,52 @@ const RefundPage: React.FC = () => {
       />
       <div
         style={{
-          display: 'inline-block',
-          padding: '16px 18px',
-          borderRadius: 14,
-          background: palette.card,
-          border: `1px solid ${palette.hairline}`,
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+          gap: 16,
           marginBottom: 16,
-          minWidth: 240,
         }}
       >
-        <div style={{ fontSize: 13, color: palette.sub }}>
-          退款合计（人民币）
-        </div>
-        <div
-          style={{
-            ...num,
-            fontSize: 22,
-            fontWeight: 800,
+        {[
+          {
+            label: '售后退款（人民币）',
+            value: sum?.afterSales ?? 0,
+            hint: `${sum?.afterSalesCount ?? 0} 笔 · 其中转客户余额 ${formatAmount(sum?.toCredit ?? 0, 'CNY')}`,
             color: palette.orange,
-            marginTop: 4,
-          }}
-        >
-          {formatAmount(sum, 'CNY')}
-        </div>
+          },
+          {
+            label: '余额提现（人民币）',
+            value: sum?.withdraw ?? 0,
+            hint: `${sum?.withdrawCount ?? 0} 笔 · 不影响利润`,
+            color: palette.cyan,
+          },
+        ].map((c) => (
+          <div
+            key={c.label}
+            style={{
+              padding: '16px 18px',
+              borderRadius: 14,
+              background: palette.card,
+              border: `1px solid ${palette.hairline}`,
+            }}
+          >
+            <div style={{ fontSize: 13, color: palette.sub }}>{c.label}</div>
+            <div
+              style={{
+                ...num,
+                fontSize: 22,
+                fontWeight: 800,
+                color: c.color,
+                marginTop: 4,
+              }}
+            >
+              {formatAmount(c.value, 'CNY')}
+            </div>
+            <div style={{ fontSize: 12, color: palette.mute, marginTop: 2 }}>
+              {c.hint}
+            </div>
+          </div>
+        ))}
       </div>
       <Card>
         <div
@@ -294,6 +367,18 @@ const RefundPage: React.FC = () => {
             alignItems: 'center',
           }}
         >
+          <Segmented<number>
+            value={refundType}
+            onChange={(v) => {
+              setRefundType(v);
+              setPage(1);
+            }}
+            options={[
+              { value: 0, label: '全部' },
+              { value: 1, label: '售后退款' },
+              { value: REFUND_TYPE_WITHDRAW, label: '余额提现' },
+            ]}
+          />
           <Input
             allowClear
             placeholder="编号、订单号、客户"
@@ -322,6 +407,17 @@ const RefundPage: React.FC = () => {
               setPage(1);
             }}
             options={reasons.map((r) => ({ value: r.code, label: r.name }))}
+          />
+          <Select
+            allowClear
+            placeholder="去向"
+            style={{ width: 170 }}
+            value={method}
+            onChange={(v) => {
+              setMethod(v);
+              setPage(1);
+            }}
+            options={METHOD_FILTERS}
           />
           <Checkbox
             checked={showVoid}
@@ -374,7 +470,11 @@ const RefundPage: React.FC = () => {
       <ReasonModal
         open={!!voiding}
         title={`作废 ${voiding?.refundNo ?? ''}`}
-        description="作废后不再冲减订单毛利，也不再计入经营统计。"
+        description={
+          voiding?.refundType === REFUND_TYPE_WITHDRAW
+            ? '作废后客户余额恢复，自动生成的汇兑损益一起作废。'
+            : '作废后不再冲减订单毛利，也不再计入经营统计；转客户余额的会撤回这笔余额。'
+        }
         okText="作废"
         danger
         onCancel={() => setVoiding(undefined)}

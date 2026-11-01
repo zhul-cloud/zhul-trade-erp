@@ -37,6 +37,8 @@ public class OperatingReportVO {
         private BigDecimal profitRate;
         /** 退款：按退款日期归月 */
         private BigDecimal refund;
+        /** 退款中转客户余额的部分 */
+        private BigDecimal refundToCredit;
         private BigDecimal otherIncome;
         /** 运营成本：类别编码 → 分摊后的当月金额 */
         private Map<String, BigDecimal> opex;

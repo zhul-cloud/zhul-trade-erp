@@ -141,8 +141,17 @@ const OperatingReportPage: React.FC = () => {
       key: 'refund',
       width: 110,
       align: 'right',
-      render: (_, r) =>
-        link(r.refund, () => go('/finance/refunds', r), palette.orange),
+      render: (_, r) => (
+        <span
+          title={
+            r.refund
+              ? `售后退款 ${cny(r.refund)}：退出现金 ${cny(r.refund - (r.refundToCredit ?? 0))}，转客户余额 ${cny(r.refundToCredit ?? 0)}；余额提现不计入`
+              : undefined
+          }
+        >
+          {link(r.refund, () => go('/finance/refunds', r), palette.orange)}
+        </span>
+      ),
     },
     {
       title: '其他收入',

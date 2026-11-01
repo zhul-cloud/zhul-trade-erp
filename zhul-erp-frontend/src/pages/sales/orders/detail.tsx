@@ -37,6 +37,7 @@ import {
   ReceiptStatusPill,
   SalesPageTitle,
 } from '../components';
+import CreditInfo from '../pi/CreditInfo';
 import { ConfirmReceiptModal, ReasonModal, SlipModal } from '../pi/dialogs';
 import { ClaimReceiptModal, PlatformReceiptModal } from '../pi/receiptDialogs';
 import {
@@ -925,6 +926,16 @@ const OrderDetail: React.FC = () => {
           ? '手动创建的订单没有 PI，收款直接登记在订单上'
           : `收款登记在 PI ${o.piNo ?? ''} 上，这里只读显示`}
       </div>
+      <CreditInfo
+        credit={o.credit}
+        currency={o.currencyCode}
+        unpaid={o.remainingAmount}
+        onUseCredit={
+          manual && o.status === 1
+            ? async (amount) => setO(await orderApi.applyCredit(o.id, amount))
+            : undefined
+        }
+      />
       {o.receipts.length === 0 ? (
         <div style={{ color: palette.mute, fontSize: 13 }}>还没有收款记录</div>
       ) : (
@@ -953,11 +964,13 @@ const OrderDetail: React.FC = () => {
                   <b style={{ color: palette.ink }}>
                     {slip
                       ? '水单'
-                      : r.platformOrderNo
-                        ? '平台收款'
-                        : r.claimedAt
-                          ? '到账（认领）'
-                          : '到账'}
+                      : r.paymentMethod === 'CREDIT'
+                        ? '余额抵扣'
+                        : r.platformOrderNo
+                          ? '平台收款'
+                          : r.claimedAt
+                            ? '到账（认领）'
+                            : '到账'}
                   </b>
                   <b
                     style={{

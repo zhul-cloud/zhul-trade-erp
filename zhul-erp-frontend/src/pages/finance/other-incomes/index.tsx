@@ -141,10 +141,12 @@ const IncomeModal: React.FC<{
               value={category}
               onChange={setCategory}
               style={{ width: '100%' }}
-              options={categories.map((c) => ({
-                value: c.code,
-                label: c.name,
-              }))}
+              options={categories
+                .filter((c) => c.code !== 'FX_GAIN')
+                .map((c) => ({
+                  value: c.code,
+                  label: c.name,
+                }))}
             />
           </div>
           <div style={{ flex: '1 1 150px' }}>
@@ -317,6 +319,13 @@ const OtherIncomePage: React.FC = () => {
       render: (_, r) =>
         r.migrated ? (
           <MigratedPill migrated />
+        ) : r.sourceType ? (
+          <span
+            style={{ fontSize: 12, color: palette.mute }}
+            title="余额提现自动生成，作废来源退款单时一起作废"
+          >
+            系统生成
+          </span>
         ) : canEdit && r.status === 1 ? (
           <Space size={10}>
             <a onClick={() => setModal({ editing: r })}>修改</a>

@@ -127,6 +127,7 @@ public class PiServiceImpl implements PiService {
     private final InquiryLookups lookups;
     private final LogService logService;
     private final ObjectMapper objectMapper;
+    private final com.zhul.erp.modules.finance.service.CreditUsageService creditUsage;
 
     // ---------------------------------------------------------------- 候选报价单
 
@@ -534,6 +535,8 @@ public class PiServiceImpl implements PiService {
         }
         insertFees(fees);
         versionMapper.updateById(v);
+        // 抵扣客户余额：保存草稿即占用（spec sales/proforma-invoice「PI 抵扣客户余额」）
+        creditUsage.syncPi(pi);
         summary.refresh(pi);
         return detail(id, null);
     }
@@ -575,6 +578,8 @@ public class PiServiceImpl implements PiService {
             pi.setCurrentVersionNo(editing.getVersionNo());
             pi.setEditingVersionNo(null);
             pi.setSentAt(now);
+            piMapper.updateById(pi);
+            creditUsage.syncPi(pi);
             summary.refresh(pi);
             versionNo = editing.getVersionNo();
             logService.recordOperateLog(SalesConstants.MENU_PI, firstSend ? "发送 PI" : "发送 PI 新版本",
@@ -667,6 +672,7 @@ public class PiServiceImpl implements PiService {
         t.setFeeAmount(s.getFeeAmount());
         t.setTotalAmount(s.getTotalAmount());
         t.setTotalAmountCny(s.getTotalAmountCny());
+        t.setCreditAmount(s.getCreditAmount());
         t.setNetProfit(s.getNetProfit());
         t.setNetProfitCny(s.getNetProfitCny());
         t.setMarginRate(s.getMarginRate());
@@ -686,6 +692,8 @@ public class PiServiceImpl implements PiService {
         v.setStatus(SalesConstants.VERSION_ABANDONED);
         versionMapper.updateById(v);
         pi.setEditingVersionNo(null);
+        piMapper.updateById(pi);
+        creditUsage.syncPi(pi);
         summary.refresh(pi);
         logService.recordOperateLog(SalesConstants.MENU_PI, "放弃 PI 新版本", null,
                 Map.of("piNo", pi.getPiNo(), "version", "Rev." + v.getVersionNo()));
@@ -708,6 +716,8 @@ public class PiServiceImpl implements PiService {
         boolean hasReceipt = receiptMapper.selectCount(new LambdaQueryWrapper<PaymentReceiptDO>()
                 .eq(PaymentReceiptDO::getPiId, id)
                 .eq(PaymentReceiptDO::getKind, SalesConstants.KIND_RECEIPT)
+                // 余额抵扣不算到账记录，作废时自动释放
+                .ne(PaymentReceiptDO::getPaymentMethod, SalesConstants.METHOD_CREDIT)
                 .eq(PaymentReceiptDO::getStatus, SalesConstants.RECORD_VALID)
                 .isNull(PaymentReceiptDO::getDeletedAt)) > 0;
         if (hasReceipt) {
@@ -722,6 +732,7 @@ public class PiServiceImpl implements PiService {
         }
         pi.setStatus(SalesConstants.PI_VOID);
         piMapper.updateById(pi);
+        creditUsage.syncPi(pi);
         logService.recordOperateLog(SalesConstants.MENU_PI, "作废 PI", Map.of("piNo", pi.getPiNo(), "status", before),
                 Map.of("piNo", pi.getPiNo(), "status", "已作废"));
         return detail(id, null);
@@ -732,6 +743,7 @@ public class PiServiceImpl implements PiService {
     public PiVO close(Long id, ClosePiRequest req) {
         ProformaInvoiceDO pi = store.lockVisible(id);
         List<String> notices = closing.close(pi, req);
+        creditUsage.syncPi(piMapper.selectById(id));
         PiVO vo = detail(id, null);
         vo.setNotices(notices);
         return vo;
@@ -742,6 +754,8 @@ public class PiServiceImpl implements PiService {
     public PiVO reopen(Long id, ReopenPiRequest req) {
         ProformaInvoiceDO pi = store.lockVisible(id);
         closing.reopen(pi, req.getValidUntil());
+        // 按 PI 上的抵扣金额重新占用；可用余额不足时提示，需要先修改抵扣金额
+        creditUsage.syncPi(piMapper.selectById(id));
         return detail(id, null);
     }
 
@@ -788,6 +802,7 @@ public class PiServiceImpl implements PiService {
         }
         pi.setDeletedAt(LocalDateTime.now());
         piMapper.updateById(pi);
+        creditUsage.syncPi(pi);
         logService.recordOperateLog(SalesConstants.MENU_PI, "删除草稿 PI", Map.of("piNo", pi.getPiNo()), null);
     }
 
@@ -831,6 +846,7 @@ public class PiServiceImpl implements PiService {
         vo.setRemainingAmount(nz(pi.getTotalAmount()).subtract(nz(pi.getReceivedAmount())).subtract(nz(pi.getFeeDiffAmount())));
         vo.setCurrentVersionNo(pi.getCurrentVersionNo());
         vo.setEditingVersionNo(pi.getEditingVersionNo());
+        vo.setCredit(creditUsage.panel(pi));
         vo.setEditable(Objects.equals(v.getVersionNo(), pi.getEditingVersionNo())
                 && pi.getStatus() != SalesConstants.PI_CONVERTED && pi.getStatus() != SalesConstants.PI_VOID
                 && pi.getStatus() != SalesConstants.PI_CLOSED);
@@ -951,7 +967,16 @@ public class PiServiceImpl implements PiService {
             x.setRemark(i.getRemark());
             return x;
         }).toList());
-        vo.setFees(fees.stream().map(f -> fee(f.getFeeName(), f.getAmount(), f.getAmountCny(), f.getRemark())).toList());
+        vo.setFees(fees.stream().map(f -> {
+            PiFeeVO x = fee(f.getFeeName(), f.getAmount(), f.getAmountCny(), f.getRemark());
+            x.setFeeType(f.getFeeType());
+            return x;
+        }).toList());
+        BigDecimal credit = v.getCreditAmount() == null ? BigDecimal.ZERO : v.getCreditAmount();
+        vo.setCreditAmount(credit);
+        vo.setAmountDue(nz(v.getTotalAmount()).subtract(credit));
+        vo.setCollectionAmount(fees.stream().filter(f -> Objects.equals(f.getFeeType(), SalesConstants.FEE_COLLECTION))
+                .map(PiFeeDO::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add));
         return vo;
     }
 

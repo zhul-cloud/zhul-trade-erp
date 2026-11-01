@@ -75,6 +75,29 @@ export interface PiFee {
   amount: number;
   amountCny?: number;
   remark?: string;
+  /** 1-普通费用、2-代收款（客户请我们多做、收到后转回给客户，不计入销售额） */
+  feeType?: number;
+}
+
+/** 费用类型 */
+export const FEE_NORMAL = 1;
+export const FEE_COLLECTION = 2;
+
+/** 余额面板（spec sales/proforma-invoice「PI 抵扣客户余额」、sales/payment-receipt） */
+export interface CreditPanel {
+  /** 本币种、本事业部的可用余额（已扣除别处占用）与本单当前占用 */
+  available: number;
+  occupiedHere: number;
+  /** 其他事业部同币种的余额（不能用于本单） */
+  otherUnits: number;
+  creditReceived: number;
+  collection: number;
+  collectionFee: number;
+  collectionNet: number;
+  collectionTransferred: boolean;
+  collectionValue: number;
+  overpaid: number;
+  overpaidPending: number;
 }
 
 export interface PiVersion {
@@ -100,6 +123,10 @@ export interface PiVersion {
   feeAmount: number;
   totalAmount: number;
   totalAmountCny: number;
+  /** 抵扣客户余额与应付金额（合计 − 抵扣）、其中代收款 */
+  creditAmount?: number;
+  amountDue?: number;
+  collectionAmount?: number;
   netProfit?: number | null;
   netProfitCny?: number | null;
   marginRate?: number | null;
@@ -250,6 +277,7 @@ export interface Pi {
     sentAt: string;
   }[];
   receipts: Receipt[];
+  credit?: CreditPanel;
   order?: { id: number; soNo: string; status: number; createTime: string };
   quotations: { id: number; quotationNo: string; status: number }[];
   hasBankAccount: boolean;
@@ -409,7 +437,14 @@ export interface SavePi {
     originCountry?: string;
     remark?: string;
   }[];
-  fees: { feeName: string; amount: number; remark?: string }[];
+  fees: {
+    feeName: string;
+    amount: number;
+    remark?: string;
+    feeType?: number;
+  }[];
+  /** 抵扣客户余额（原币） */
+  creditAmount?: number;
 }
 
 export interface PreviewResult {
@@ -615,6 +650,7 @@ export interface Order {
   items: OrderItem[];
   fees: PiFee[];
   receipts: Receipt[];
+  credit?: CreditPanel;
   createTime: string;
 }
 
@@ -960,6 +996,9 @@ export const orderApi = {
     send<Order>('POST', `${SO}/${id}/receipts`, body),
   platformReceipt: (id: number, body: PlatformReceiptBody) =>
     send<Order>('POST', `${SO}/${id}/platform-receipts`, body),
+  /** 手动订单抵扣客户余额 */
+  applyCredit: (id: number, amount: number) =>
+    send<Order>('POST', `${SO}/${id}/credit`, { amount }),
   claimable: (id: number) =>
     get<ReceiptRow[]>(`${SO}/${id}/claimable-receipts`),
   claim: (id: number, receiptId: number, slipId?: number) =>
@@ -982,6 +1021,10 @@ export interface ReceiptOwner<T> {
   receivedAmount?: number;
   remainingAmount?: number;
   receipts: Receipt[];
+  credit?: CreditPanel;
+  customerId?: number;
+  /** 手动订单抵扣客户余额；PI 上的抵扣在编辑页填写 */
+  applyCredit?: (amount: number) => Promise<T>;
   uploadSlip: (
     files: File[],
     amount: number,
@@ -1004,6 +1047,8 @@ export const piReceiptOwner = (pi: Pi): ReceiptOwner<Pi> => ({
   receivedAmount: pi.receivedAmount,
   remainingAmount: pi.remainingAmount,
   receipts: pi.receipts,
+  credit: pi.credit,
+  customerId: pi.customerId,
   uploadSlip: (...a) => piApi.uploadSlip(pi.id, ...a),
   confirmReceipt: (body) => piApi.confirmReceipt(pi.id, body),
   platformReceipt: (body) => piApi.platformReceipt(pi.id, body),
@@ -1020,6 +1065,9 @@ export const orderReceiptOwner = (o: Order): ReceiptOwner<Order> => ({
   receivedAmount: o.receivedAmount,
   remainingAmount: o.remainingAmount,
   receipts: o.receipts,
+  credit: o.credit,
+  customerId: o.customerId,
+  applyCredit: (amount) => orderApi.applyCredit(o.id, amount),
   uploadSlip: (...a) => orderApi.uploadSlip(o.id, ...a),
   confirmReceipt: (body) => orderApi.confirmReceipt(o.id, body),
   platformReceipt: (body) => orderApi.platformReceipt(o.id, body),

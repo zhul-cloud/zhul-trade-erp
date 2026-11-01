@@ -54,6 +54,9 @@ public interface PaymentReceiptService {
 
     com.zhul.erp.modules.sales.dto.SalesOrderVO voidOrderReceipt(Long soId, Long receiptId, String reason);
 
+    /** 手动订单抵扣客户余额（spec sales/payment-receipt「手动订单抵扣客户余额」） */
+    com.zhul.erp.modules.sales.dto.SalesOrderVO orderCredit(Long soId, java.math.BigDecimal amount);
+
     com.zhul.erp.modules.sales.dto.SalesOrderVO orderPlatformReceipt(Long soId, com.zhul.erp.modules.sales.dto.PlatformReceiptRequest req);
 
     List<com.zhul.erp.modules.sales.dto.ReceiptRowVO> orderClaimable(Long soId);

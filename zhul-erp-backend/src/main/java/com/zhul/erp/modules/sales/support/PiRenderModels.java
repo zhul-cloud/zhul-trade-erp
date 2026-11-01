@@ -46,6 +46,10 @@ public final class PiRenderModels {
         BigDecimal discount = v.getDiscountAmount() == null ? BigDecimal.ZERO : v.getDiscountAmount();
         h.put("pi.discount", discount.negate());
         h.put("pi.total", v.getTotalAmount());
+        // 抵扣客户余额：大于 0 时合计行之后追加 Less: Credit 与 Amount Due（XlsxRenderer.appendCredit）
+        BigDecimal credit = v.getCreditAmount() == null ? BigDecimal.ZERO : v.getCreditAmount();
+        h.put("pi.credit", credit);
+        h.put("pi.amountDue", v.getTotalAmount() == null ? null : v.getTotalAmount().subtract(credit));
         h.put("customer.name", customer == null ? "" : nz(customer.getName()));
         party(h, "buyer", buyer);
         party(h, "consignee", consignee);

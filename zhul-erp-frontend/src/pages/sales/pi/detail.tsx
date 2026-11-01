@@ -93,6 +93,8 @@ import {
 } from '../components';
 import { ConvertOrderModal } from '../orders/dialogs';
 import {
+  FEE_COLLECTION,
+  FEE_NORMAL,
   type Party,
   type Pi,
   type PiItem,
@@ -104,6 +106,7 @@ import {
   type SavePi,
 } from '../service';
 import BargainDrawer from './BargainDrawer';
+import CreditInfo from './CreditInfo';
 import { calcPiLine, calcPiTotals } from './calc';
 import {
   AddItemsModal,
@@ -141,7 +144,11 @@ interface Draft {
     feeName: string;
     amount: number | null;
     remark: string;
+    /** 1-普通费用、2-代收款 */
+    feeType: number;
   }[];
+  /** 抵扣客户余额 */
+  creditAmount: number | null;
 }
 
 let feeSeq = 0;
@@ -178,7 +185,9 @@ const toDraft = (v: PiVersion): Draft => ({
     feeName: f.feeName,
     amount: f.amount,
     remark: f.remark ?? '',
+    feeType: f.feeType ?? FEE_NORMAL,
   })),
+  creditAmount: v.creditAmount ? v.creditAmount : null,
 });
 
 const toSave = (d: Draft): SavePi => ({
@@ -203,7 +212,9 @@ const toSave = (d: Draft): SavePi => ({
       feeName: f.feeName.trim(),
       amount: f.amount ?? 0,
       remark: f.remark.trim(),
+      feeType: f.feeType,
     })),
+  creditAmount: d.creditAmount ?? 0,
 });
 
 const readPref = () => {
@@ -1625,6 +1636,80 @@ const PiDetail: React.FC = () => {
 
   const fees = draft.fees;
   const setFees = (next: Draft['fees']) => setDraft({ ...draft, fees: next });
+  const collectionDraft = fees
+    .filter((f) => f.feeType === FEE_COLLECTION)
+    .reduce((s, f) => s + (f.amount ?? 0), 0);
+  // 本单可用 = 客户在本事业部的可用余额 + 本单已占用的部分
+  const creditAvailable =
+    (pi.credit?.available ?? 0) + (pi.credit?.occupiedHere ?? 0);
+  const creditLimit = Math.max(totals.totalAmount - collectionDraft, 0);
+  const creditError =
+    (draft.creditAmount ?? 0) > creditAvailable + 1e-9
+      ? `可用余额只有 ${formatAmount(creditAvailable, cur)}`
+      : (draft.creditAmount ?? 0) > creditLimit + 1e-9
+        ? `抵扣不能超过 ${formatAmount(creditLimit, cur)}（合计减去代收款）`
+        : undefined;
+  const creditCard = (creditAvailable > 0 || (draft.creditAmount ?? 0) > 0) && (
+    <div
+      style={{
+        marginTop: 12,
+        padding: '12px 14px',
+        borderRadius: 12,
+        border: `1px solid ${palette.accentLine}`,
+      }}
+    >
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          marginBottom: 10,
+        }}
+      >
+        <b style={{ color: palette.ink }}>用客户余额抵扣</b>
+        <span style={{ marginLeft: 'auto' }}>
+          <Pill tone="accent">可用 {formatAmount(creditAvailable, cur)}</Pill>
+        </span>
+      </div>
+      <div
+        style={{
+          display: 'flex',
+          gap: 12,
+          alignItems: 'center',
+          flexWrap: 'wrap',
+        }}
+      >
+        <InputNumber<number>
+          style={{ width: 200 }}
+          prefix={cur}
+          min={0}
+          precision={2}
+          value={draft.creditAmount}
+          status={creditError ? 'error' : undefined}
+          onChange={(x) => setDraft({ ...draft, creditAmount: x })}
+          aria-label="本次抵扣"
+        />
+        <a
+          onClick={() =>
+            setDraft({
+              ...draft,
+              creditAmount: Math.min(creditAvailable, creditLimit),
+            })
+          }
+        >
+          全部使用
+        </a>
+        <span style={{ fontSize: 12, color: palette.mute }}>
+          保存草稿即占用，别的 PI 不能再用；PI 关闭或作废时自动释放
+        </span>
+      </div>
+      {creditError && (
+        <div style={{ fontSize: 12, color: palette.red, marginTop: 6 }}>
+          {creditError}
+        </div>
+      )}
+    </div>
+  );
 
   const feesCard = editable ? (
     <Card style={{ padding: 20, flex: 1, minWidth: 0 }}>
@@ -1645,7 +1730,13 @@ const PiDetail: React.FC = () => {
           onClick={() =>
             setFees([
               ...fees,
-              { key: ++feeSeq, feeName: '', amount: null, remark: '' },
+              {
+                key: ++feeSeq,
+                feeName: '',
+                amount: null,
+                remark: '',
+                feeType: FEE_NORMAL,
+              },
             ])
           }
         >
@@ -1656,14 +1747,14 @@ const PiDetail: React.FC = () => {
         <div
           key={f.key}
           style={{
-            display: 'flex',
-            gap: 12,
+            display: 'grid',
+            gridTemplateColumns: 'minmax(120px, 1fr) 110px 140px 32px',
+            gap: 8,
             alignItems: 'center',
             marginBottom: 8,
           }}
         >
           <Input
-            style={{ flex: 1 }}
             value={f.feeName}
             maxLength={64}
             placeholder="Shipping Cost、Bank Charge"
@@ -1676,8 +1767,21 @@ const PiDetail: React.FC = () => {
             }
             aria-label="费用名称"
           />
+          <Select
+            value={f.feeType}
+            onChange={(x) =>
+              setFees(
+                fees.map((y) => (y.key === f.key ? { ...y, feeType: x } : y)),
+              )
+            }
+            options={[
+              { value: FEE_NORMAL, label: '普通费用' },
+              { value: FEE_COLLECTION, label: '代收款' },
+            ]}
+            aria-label="费用类型"
+          />
           <InputNumber
-            style={{ width: 160 }}
+            style={{ width: '100%' }}
             prefix={cur}
             min={0}
             precision={2}
@@ -1751,6 +1855,22 @@ const PiDetail: React.FC = () => {
           </span>
         )}
       </div>
+      {collectionDraft > 0 && (
+        <div
+          style={{
+            marginTop: 12,
+            padding: '10px 12px',
+            borderRadius: 12,
+            background: palette.violetSoft,
+            color: palette.violet,
+            fontSize: 12,
+          }}
+        >
+          代收款：客户请我们多做、收到后转回给客户的金额。导出时按填写的名称显示为普通费用行，不计入销售额和毛利；PI
+          收齐后扣除客户承担的平台手续费，自动转入客户余额。
+        </div>
+      )}
+      {creditCard}
     </Card>
   ) : (
     <Card style={{ padding: 20, flex: 1, minWidth: 0 }}>
@@ -1760,8 +1880,11 @@ const PiDetail: React.FC = () => {
       {v.fees.map((f) => (
         <Row
           key={f.feeName}
-          label={f.feeName}
+          label={
+            f.feeType === FEE_COLLECTION ? `${f.feeName}（代收）` : f.feeName
+          }
           value={formatAmount(f.amount, cur)}
+          color={f.feeType === FEE_COLLECTION ? palette.violet : undefined}
         />
       ))}
       {v.discountAmount > 0 && (
@@ -1786,6 +1909,12 @@ const PiDetail: React.FC = () => {
         netProfitCny: v.netProfitCny ?? null,
         marginRate: v.marginRate ?? null,
       };
+  const shownCredit = editable
+    ? (draft.creditAmount ?? 0)
+    : (v.creditAmount ?? 0);
+  const shownCollection = editable
+    ? collectionDraft
+    : (v.collectionAmount ?? 0);
   const belowCount = editable
     ? draft.items.filter((d) =>
         belowFloor(itemById.get(d.id), results.get(d.id)),
@@ -1828,6 +1957,36 @@ const PiDetail: React.FC = () => {
           ≈ {formatAmount(t.totalAmountCny, 'CNY')}（汇率{' '}
           {Number(rate).toFixed(6)}）
         </div>
+      )}
+      {shownCollection > 0 && (
+        <div style={{ fontSize: 12, color: palette.violet, marginTop: 4 }}>
+          其中代收 {formatAmount(shownCollection, cur)}，收齐后转入客户余额
+        </div>
+      )}
+      {shownCredit > 0 && (
+        <>
+          <Row
+            label="Less: Credit"
+            value={formatAmount(-shownCredit, cur)}
+            color={palette.green}
+          />
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'baseline',
+              padding: '10px 12px',
+              marginTop: 6,
+              borderRadius: 12,
+              background: palette.accentSoft,
+            }}
+          >
+            <b style={{ color: palette.ink }}>Amount Due 应付</b>
+            <b style={{ ...num, fontSize: 20, color: palette.ink }}>
+              {formatAmount(t.totalAmount - shownCredit, cur)}
+            </b>
+          </div>
+        </>
       )}
       <div
         style={{ height: 1, background: palette.hairline, margin: '12px 0' }}
@@ -1992,6 +2151,7 @@ const PiDetail: React.FC = () => {
       <div style={{ fontSize: 12, color: palette.mute, marginBottom: 12 }}>
         线下付款上传水单、由财务确认；钱先到账的由财务登记后认领；平台付款直接登记
       </div>
+      <CreditInfo credit={pi.credit} currency={cur} />
       {pi.receipts.length === 0 ? (
         <div style={{ color: palette.mute, fontSize: 13 }}>
           还没有收款记录。客户付款后让客户发来水单并上传。
@@ -2020,11 +2180,13 @@ const PiDetail: React.FC = () => {
                   <b style={{ color: palette.ink }}>
                     {slip
                       ? '水单'
-                      : r.platformOrderNo
-                        ? '平台收款'
-                        : r.claimedAt
-                          ? '到账（认领）'
-                          : '到账'}
+                      : r.paymentMethod === 'CREDIT'
+                        ? '余额抵扣'
+                        : r.platformOrderNo
+                          ? '平台收款'
+                          : r.claimedAt
+                            ? '到账（认领）'
+                            : '到账'}
                   </b>
 
                   <b
@@ -2110,7 +2272,9 @@ const PiDetail: React.FC = () => {
                 )}
                 {!voided &&
                   ((slip && canSlip && !r.matched) ||
-                    (!slip && (r.voidable ?? canConfirm))) && (
+                    (!slip &&
+                      r.paymentMethod !== 'CREDIT' &&
+                      (r.voidable ?? canConfirm))) && (
                     <div style={{ marginTop: 6 }}>
                       {slip ? (
                         <a

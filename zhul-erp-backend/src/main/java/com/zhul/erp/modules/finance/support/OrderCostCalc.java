@@ -20,8 +20,9 @@ import java.util.Set;
  *       采购订单行数量合计超过型号数量时按型号数量封顶；</li>
  *   <li>外币实际汇率 =（已付部分 × 已付汇率 + 未付部分 × 下单汇率）÷ 应付金额，人民币为 1；</li>
  *   <li>开票成本与其他费用按行货款比例分到行；折价（质量索赔）减、退货运费加；</li>
- *   <li>收入：已到账时 = Σ 毛额折人民币 + Σ 中转差额折人民币，否则 = 销售额折人民币；
- *       收款手续费 = Σ 平台手续费折人民币 + Σ 中转差额折人民币；两者按行金额分到行。</li>
+ *   <li>收入：已到账时 = Σ 毛额折人民币 + Σ 中转差额折人民币 − 代收与多收（deduction，spec finance/customer-credit），
+ *       否则 = 销售额折人民币（不含代收款）；余额抵扣作为一笔到账按锁定价值计入；
+ *       收款手续费 = Σ 平台手续费折人民币 + Σ 中转差额折人民币 − 代收承担的手续费（feeDeduction）；两者按行金额分到行。</li>
  * </ul>
  */
 public final class OrderCostCalc {
@@ -51,11 +52,17 @@ public final class OrderCostCalc {
     }
 
     /** refund：有效退款单的人民币合计，从收入中扣减（spec finance/customer-refund） */
+    /** deduction：已到账时从收入扣除的代收与多收（人民币）；feeDeduction：代收承担的平台手续费（人民币，由客户承担） */
     public record Input(boolean paid, BigDecimal salesAmountCny, List<Item> items, List<PoLine> lines, Map<Long, Po> pos,
-                        List<Receipt> receipts, BigDecimal refund) {
+                        List<Receipt> receipts, BigDecimal refund, BigDecimal deduction, BigDecimal feeDeduction) {
         public Input(boolean paid, BigDecimal salesAmountCny, List<Item> items, List<PoLine> lines, Map<Long, Po> pos,
                      List<Receipt> receipts) {
             this(paid, salesAmountCny, items, lines, pos, receipts, BigDecimal.ZERO);
+        }
+
+        public Input(boolean paid, BigDecimal salesAmountCny, List<Item> items, List<PoLine> lines, Map<Long, Po> pos,
+                     List<Receipt> receipts, BigDecimal refund) {
+            this(paid, salesAmountCny, items, lines, pos, receipts, refund, BigDecimal.ZERO, BigDecimal.ZERO);
         }
     }
 
@@ -135,8 +142,8 @@ public final class OrderCostCalc {
             fee = fee.add(nz(r.amountCny()).subtract(nz(r.netAmountCny()))).add(diffCny);
             unsettledFx |= r.settleStatus() == 1 || r.settleStatus() == 2;
         }
-        BigDecimal revenue = money(in.paid() ? gross : nz(in.salesAmountCny()));
-        BigDecimal receiptFee = money(fee);
+        BigDecimal revenue = money(in.paid() ? gross.subtract(nz(in.deduction())) : nz(in.salesAmountCny()));
+        BigDecimal receiptFee = money(fee.subtract(in.paid() ? nz(in.feeDeduction()) : BigDecimal.ZERO));
         Map<Long, BigDecimal> weights = new java.util.LinkedHashMap<>();
         in.items().forEach(i -> weights.put(i.id(), nz(i.amount())));
         Map<Long, BigDecimal> revenueByItem = split(revenue, weights);

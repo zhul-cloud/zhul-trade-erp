@@ -19,6 +19,8 @@ public class SalesOrderFeeDO {
     private Integer tenantId;
     private Long soId;
     private String feeName;
+    /** 1-普通费用、2-代收款 */
+    private Integer feeType;
     private BigDecimal amount;
     private BigDecimal amountCny;
     private String remark;
