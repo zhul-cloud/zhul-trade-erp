@@ -50,6 +50,8 @@ public class SourcingQuoteDO {
     private Long importId;
     /** 提交批次：同一次写入的记录相同 */
     private String submitBatch;
+    /** 写入时型号所在的询价轮次 */
+    private Integer quoteRound;
     /** 审核说明：退回原因或作废原因 */
     private String reviewNote;
     private Long reviewedBy;

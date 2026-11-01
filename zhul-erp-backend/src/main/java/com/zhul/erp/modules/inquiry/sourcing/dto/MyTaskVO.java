@@ -37,4 +37,10 @@ public class MyTaskVO {
     private LocalDateTime updateTime;
     /** 是否多人比价 */
     private Boolean shared;
+    /** 业务员自询 */
+    private Boolean selfSourcing;
+    /** 最近一次退回：原因、备注与退回人 */
+    private String returnReasonLabel;
+    private String returnNote;
+    private String returnedByName;
 }

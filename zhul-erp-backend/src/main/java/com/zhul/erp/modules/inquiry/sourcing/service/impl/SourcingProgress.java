@@ -68,6 +68,17 @@ public class SourcingProgress {
                     .eq(SourcingQuoteDO::getInquiryItemId, item.getId())
                     .eq(SourcingQuoteDO::getStatus, InquiryConstants.QUOTE_SUBMITTED)
                     .isNull(SourcingQuoteDO::getDeletedAt));
+            // 按型号退回后开始新一轮：本轮没有已提交的结果就是待询价，上一轮的价格和无货都先不算
+            int round = Objects.requireNonNullElse(item.getQuoteRound(), 0);
+            if (submitted.stream().noneMatch(q -> Objects.equals(Objects.requireNonNullElse(q.getQuoteRound(), 0), round))) {
+                if (round > 0) {
+                    item.setSelectedQuoteId(null);
+                    item.setCostManual(0);
+                    item.setQuoteStatus(InquiryConstants.ITEM_PENDING);
+                    itemMapper.updateById(item);
+                    continue;
+                }
+            }
             item.setSelectedQuoteId(costQuoteId(item, submitted));
             int status;
             if (item.getSelectedQuoteId() != null) {

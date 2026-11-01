@@ -21,6 +21,9 @@ import com.zhul.erp.modules.inquiry.sourcing.dto.BoardTaskItemVO;
 import com.zhul.erp.modules.inquiry.sourcing.dto.ItemHistoryEntryVO;
 import com.zhul.erp.modules.inquiry.sourcing.dto.BoardTaskVO;
 import com.zhul.erp.modules.inquiry.sourcing.dto.BoardVO;
+import com.zhul.erp.modules.inquiry.sourcing.dto.BrandGroupVO;
+import com.zhul.erp.modules.inquiry.sourcing.dto.SalesPendingTaskVO;
+import com.zhul.erp.modules.inquiry.sourcing.dto.SalesPendingVO;
 import com.zhul.erp.modules.inquiry.sourcing.dto.PurchaserVO;
 import com.zhul.erp.modules.inquiry.sourcing.dto.RulePreviewVO;
 import com.zhul.erp.modules.inquiry.sourcing.dto.SaveAssignRuleRequest;
@@ -61,15 +64,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class SourcingTaskServiceImpl implements SourcingTaskService {
 
-    /** 内置角色「兼职采购」 */
-    /** 「我的询价任务」菜单：有它的账号才是采购人员 */
-    static final int MY_TASKS_MENU_ID = 100055;
     static final String MY_TASKS_PATH = "/inquiry/my-tasks";
 
     private final SourcingTaskMapper taskMapper;
@@ -124,7 +125,15 @@ public class SourcingTaskServiceImpl implements SourcingTaskService {
             task.setCategory(root == null ? first.getCategory() : InquiryCategories.name(root));
             task.setItemCount(items.size());
             task.setUrgent(inquiry.getUrgent());
-            task.setStatus(InquiryConstants.TASK_UNASSIGNED);
+            LocalDateTime now = LocalDateTime.now();
+            int window = settings.salesWindowMinutes(inquiry.getTenantId(), Objects.equals(inquiry.getUrgent(), 1));
+            if (window > 0) {
+                task.setStatus(InquiryConstants.TASK_SALES);
+                task.setSalesDeadline(now.plusMinutes(window));
+            } else {
+                task.setStatus(InquiryConstants.TASK_UNASSIGNED);
+                task.setPoolEnteredAt(now);
+            }
             task.setReturnReason(0);
             task.setReturnNote("");
             taskMapper.insert(task);
@@ -134,12 +143,171 @@ public class SourcingTaskServiceImpl implements SourcingTaskService {
             }
             tasks.add(task);
         }
-        if (!tasks.isEmpty() && settings.autoAssign(inquiry.getTenantId())) {
-            Map<Long, Long> plan = rulePlan(tasks, null);
-            plan.forEach((taskId, assigneeId) -> {
-                SourcingTaskDO task = tasks.stream().filter(t -> t.getId().equals(taskId)).findFirst().orElseThrow();
-                assignOne(task, assigneeId, InquiryConstants.ASSIGN_RULE, 0L);
+        autoAssign(tasks.stream().filter(t -> t.getStatus() == InquiryConstants.TASK_UNASSIGNED).toList(), inquiry.getTenantId());
+        return tasks;
+    }
+
+    /** 任务进入待分配时，开启自动分配就按规则分配；待业务处理和被退回的任务不走这里 */
+    private void autoAssign(List<SourcingTaskDO> tasks, int tenantId) {
+        if (tasks.isEmpty() || !settings.autoAssign(tenantId)) {
+            return;
+        }
+        rulePlan(tasks, null).forEach((taskId, assigneeId) -> {
+            SourcingTaskDO task = tasks.stream().filter(t -> t.getId().equals(taskId)).findFirst().orElseThrow();
+            assignOne(task, assigneeId, InquiryConstants.ASSIGN_RULE, 0L);
+        });
+    }
+
+    // ---------------------------------------------------------------- 业务员优先
+
+    @Override
+    public SalesPendingVO salesPending(int page, int pageSize) {
+        page = Math.max(1, page);
+        pageSize = Math.min(Math.max(1, pageSize), InquiryConstants.MAX_PAGE_SIZE);
+        Long me = currentUser.resolve();
+        SalesPendingVO result = new SalesPendingVO();
+        result.setTotal(0L);
+        result.setBrands(List.of());
+        result.setTasks(List.of());
+        List<CustomerInquiryDO> mine = inquiryMapper.selectList(new LambdaQueryWrapper<CustomerInquiryDO>()
+                .select(CustomerInquiryDO::getId, CustomerInquiryDO::getInquiryCode)
+                .eq(CustomerInquiryDO::getTenantId, tenantId())
+                .eq(CustomerInquiryDO::getOwnerId, me)
+                .isNull(CustomerInquiryDO::getDeletedAt)
+                .inSql(CustomerInquiryDO::getId, "select customer_inquiry_id from sourcing_task where status = "
+                        + InquiryConstants.TASK_SALES + " and deleted_at is null"));
+        if (mine.isEmpty()) {
+            return result;
+        }
+        Map<Long, String> inquiryCodes = mine.stream().collect(Collectors.toMap(CustomerInquiryDO::getId, CustomerInquiryDO::getInquiryCode));
+        LocalDateTime now = LocalDateTime.now();
+        Function<SourcingTaskDO, Long> remaining = t -> t.getSalesDeadline() == null ? 0L
+                : Math.max(0, Duration.between(now, t.getSalesDeadline()).toMinutes());
+        // 紧急在前，再按剩余时间从少到多
+        List<SourcingTaskDO> all = taskMapper.selectList(new LambdaQueryWrapper<SourcingTaskDO>()
+                        .eq(SourcingTaskDO::getStatus, InquiryConstants.TASK_SALES)
+                        .in(SourcingTaskDO::getCustomerInquiryId, inquiryCodes.keySet())
+                        .isNull(SourcingTaskDO::getDeletedAt))
+                .stream().sorted(Comparator.comparing((SourcingTaskDO t) -> !Objects.equals(t.getUrgent(), 1))
+                        .thenComparing(SourcingTaskDO::getSalesDeadline, Comparator.nullsLast(Comparator.naturalOrder()))
+                        .thenComparing(SourcingTaskDO::getTaskCode))
+                .toList();
+        Map<String, BrandGroupVO> brands = new LinkedHashMap<>();
+        for (SourcingTaskDO t : all) {
+            BrandGroupVO g = brands.computeIfAbsent(t.getBrand(), b -> {
+                BrandGroupVO v = new BrandGroupVO();
+                v.setBrand(b);
+                v.setTotal(0);
+                v.setUrgent(0);
+                v.setTimeout(0);
+                return v;
             });
+            g.setTotal(g.getTotal() + 1);
+            g.setUrgent(g.getUrgent() + (Objects.equals(t.getUrgent(), 1) ? 1 : 0));
+            long left = remaining.apply(t);
+            g.setMinutes(g.getMinutes() == null ? left : Math.min(g.getMinutes(), left));
+        }
+        int from = Math.min((page - 1) * pageSize, all.size());
+        List<SourcingTaskDO> slice = all.subList(from, Math.min(from + pageSize, all.size()));
+        Map<Long, InquiryLookups.InquiryBrief> briefs = lookups.briefs(slice.stream().map(SourcingTaskDO::getCustomerInquiryId).toList(), false);
+        result.setTotal((long) all.size());
+        result.setBrands(List.copyOf(brands.values()));
+        result.setTasks(slice.stream().map(t -> {
+            InquiryLookups.InquiryBrief b = briefs.get(t.getCustomerInquiryId());
+            SalesPendingTaskVO vo = new SalesPendingTaskVO();
+            vo.setId(t.getId());
+            vo.setTaskCode(t.getTaskCode());
+            vo.setCustomerInquiryId(t.getCustomerInquiryId());
+            vo.setInquiryCode(inquiryCodes.get(t.getCustomerInquiryId()));
+            vo.setConfirmedAt(t.getCreateTime());
+            vo.setUrgent(Objects.equals(t.getUrgent(), 1));
+            vo.setBrand(t.getBrand());
+            vo.setCategory(t.getCategory());
+            vo.setItemCount(t.getItemCount());
+            vo.setSalesDeadline(t.getSalesDeadline());
+            vo.setRemainingMinutes(remaining.apply(t));
+            if (b != null) {
+                vo.setLevel(b.level());
+                vo.setCustomerName(b.customerName());
+                vo.setQuoteDeadline(b.quoteDeadline());
+            }
+            return vo;
+        }).toList());
+        return result;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void claim(List<Long> taskIds) {
+        Long me = currentUser.resolve();
+        LocalDateTime now = LocalDateTime.now();
+        for (SourcingTaskDO task : ownedSalesTasks(taskIds, me)) {
+            // 带状态条件更新：和超时流转同时发生时只有一方成功
+            int updated = taskMapper.update(null, new LambdaUpdateWrapper<SourcingTaskDO>()
+                    .eq(SourcingTaskDO::getId, task.getId())
+                    .eq(SourcingTaskDO::getStatus, InquiryConstants.TASK_SALES)
+                    .set(SourcingTaskDO::getStatus, InquiryConstants.TASK_SOURCING)
+                    .set(SourcingTaskDO::getSalesHandling, 1)
+                    .set(SourcingTaskDO::getFirstAssignedAt, now)
+                    .set(SourcingTaskDO::getUpdateTime, now));
+            if (updated == 0) {
+                throw new BizException("任务已转给采购");
+            }
+            insertAssignee(task, me, InquiryConstants.ASSIGN_SELF, me);
+        }
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void transferToPurchasing(List<Long> taskIds) {
+        for (SourcingTaskDO task : ownedSalesTasks(taskIds, currentUser.resolve())) {
+            if (!moveToPool(task)) {
+                throw new BizException("任务已转给采购");
+            }
+        }
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void moveToPoolIfDue(Long taskId) {
+        SourcingTaskDO task = taskMapper.selectById(taskId);
+        if (task != null && task.getStatus() == InquiryConstants.TASK_SALES && task.getSalesDeadline() != null
+                && !task.getSalesDeadline().isAfter(LocalDateTime.now())) {
+            moveToPool(task);
+        }
+    }
+
+    /** 待业务处理进入待分配，开启自动分配时同时按规则分配；状态已变化时返回 false */
+    private boolean moveToPool(SourcingTaskDO task) {
+        LocalDateTime now = LocalDateTime.now();
+        int updated = taskMapper.update(null, new LambdaUpdateWrapper<SourcingTaskDO>()
+                .eq(SourcingTaskDO::getId, task.getId())
+                .eq(SourcingTaskDO::getStatus, InquiryConstants.TASK_SALES)
+                .set(SourcingTaskDO::getStatus, InquiryConstants.TASK_UNASSIGNED)
+                .set(SourcingTaskDO::getPoolEnteredAt, now)
+                .set(SourcingTaskDO::getUpdateTime, now));
+        if (updated == 0) {
+            return false;
+        }
+        task.setStatus(InquiryConstants.TASK_UNASSIGNED);
+        task.setPoolEnteredAt(now);
+        autoAssign(List.of(task), task.getTenantId());
+        return true;
+    }
+
+    /** 只有询盘单当前负责人能处理；任务已不在待业务处理时提示已转走 */
+    private List<SourcingTaskDO> ownedSalesTasks(List<Long> taskIds, Long me) {
+        List<SourcingTaskDO> tasks = tasks(taskIds);
+        Map<Long, CustomerInquiryDO> inquiries = inquiryMapper.selectBatchIds(tasks.stream().map(SourcingTaskDO::getCustomerInquiryId).distinct().toList())
+                .stream().collect(Collectors.toMap(CustomerInquiryDO::getId, i -> i));
+        for (SourcingTaskDO t : tasks) {
+            CustomerInquiryDO inquiry = inquiries.get(t.getCustomerInquiryId());
+            if (me == null || inquiry == null || !me.equals(inquiry.getOwnerId())) {
+                throw new BizException("只有询盘负责人可以处理这个任务");
+            }
+            if (t.getStatus() != InquiryConstants.TASK_SALES) {
+                throw new BizException("任务已转给采购");
+            }
         }
         return tasks;
     }
@@ -163,10 +331,19 @@ public class SourcingTaskServiceImpl implements SourcingTaskService {
     public void syncUrgent(Long inquiryId, int urgent) {
         taskMapper.update(null, new LambdaUpdateWrapper<SourcingTaskDO>()
                 .eq(SourcingTaskDO::getCustomerInquiryId, inquiryId)
-                .in(SourcingTaskDO::getStatus, InquiryConstants.TASK_UNASSIGNED, InquiryConstants.TASK_SOURCING)
+                .in(SourcingTaskDO::getStatus, InquiryConstants.TASK_UNASSIGNED, InquiryConstants.TASK_SOURCING, InquiryConstants.TASK_SALES)
                 .isNull(SourcingTaskDO::getDeletedAt)
                 .set(SourcingTaskDO::getUrgent, urgent)
                 .set(SourcingTaskDO::getUpdateTime, LocalDateTime.now()));
+        // 待业务处理的任务按新的紧急标记，从生成时间重算流转时间；时限已过的由下一次流转检查转走
+        for (SourcingTaskDO t : taskMapper.selectList(new LambdaQueryWrapper<SourcingTaskDO>()
+                .eq(SourcingTaskDO::getCustomerInquiryId, inquiryId)
+                .eq(SourcingTaskDO::getStatus, InquiryConstants.TASK_SALES)
+                .isNull(SourcingTaskDO::getDeletedAt))) {
+            taskMapper.update(null, new LambdaUpdateWrapper<SourcingTaskDO>()
+                    .eq(SourcingTaskDO::getId, t.getId())
+                    .set(SourcingTaskDO::getSalesDeadline, t.getCreateTime().plusMinutes(settings.salesWindowMinutes(t.getTenantId(), urgent == 1))));
+        }
     }
 
     // ---------------------------------------------------------------- 工作台
@@ -238,12 +415,15 @@ public class SourcingTaskServiceImpl implements SourcingTaskService {
     }
 
     @Override
-    public BoardVO board(Integer status) {
+    public BoardVO board(Integer status, int page, int pageSize) {
+        page = Math.max(1, page);
+        pageSize = Math.min(Math.max(1, pageSize), InquiryConstants.MAX_PAGE_SIZE);
         int tenantId = tenantId();
         int status0 = status == null ? InquiryConstants.TASK_UNASSIGNED : status;
         List<SourcingTaskDO> open = taskMapper.selectList(new LambdaQueryWrapper<SourcingTaskDO>()
                 .eq(SourcingTaskDO::getTenantId, tenantId)
                 .in(SourcingTaskDO::getStatus, InquiryConstants.TASK_UNASSIGNED, InquiryConstants.TASK_SOURCING)
+                .eq(SourcingTaskDO::getSalesHandling, 0)
                 .isNull(SourcingTaskDO::getDeletedAt));
         // 已回价页签：任务已回齐、询盘单还在「询价中 / 可报价」（业务员没报价），回价与成本价仍可调整
         LambdaQueryWrapper<SourcingTaskDO> doneQuery = new LambdaQueryWrapper<SourcingTaskDO>()
@@ -270,23 +450,22 @@ public class SourcingTaskServiceImpl implements SourcingTaskService {
                         .isNull(SourcingTaskDO::getDeletedAt)));
             }
         }
+        // 负载与顶部统计按全部任务计算
         Map<Long, List<SourcingTaskAssigneeDO>> assignees = activeAssignees(open.stream().map(SourcingTaskDO::getId).toList());
         List<PurchaserVO> purchasers = purchasers(open, assignees);
-        Map<Long, PurchaserVO> purchaserById = purchasers.stream().collect(Collectors.toMap(PurchaserVO::getId, p -> p));
-        Map<String, Map<Long, Long>> familiarity = familiarity(tenantId);
-        Map<Long, InquiryLookups.InquiryBrief> briefs = lookups.briefs(open.stream().map(SourcingTaskDO::getCustomerInquiryId).toList(),
-                lookups.isPartTime(currentUser.resolve()));
-        Map<Long, String> names = lookups.userNames(open.stream().map(SourcingTaskDO::getReturnedBy).toList());
         LocalDateTime now = LocalDateTime.now();
         TaskTimeout limits = TaskTimeout.of(settings, tenantId());
 
-        List<BoardTaskVO> rows = new ArrayList<>();
+        List<SourcingTaskDO> listed = new ArrayList<>();
+        java.util.Set<Long> timeoutIds = new java.util.HashSet<>();
         BoardStatsVO stats = new BoardStatsVO();
         int unassigned = 0, sourcing = 0, multi = 0, timeout = 0, returned = 0, doubt = 0;
         long longest = 0;
         for (SourcingTaskDO t : open) {
             boolean isTimeout = t.getStatus() != InquiryConstants.TASK_DONE && limits.isTimeout(t, now);
-            List<SourcingTaskAssigneeDO> as = assignees.getOrDefault(t.getId(), List.of());
+            if (isTimeout) {
+                timeoutIds.add(t.getId());
+            }
             if (t.getStatus() == InquiryConstants.TASK_DONE) {
                 // 已回价的任务不计入待分配 / 询价中统计
             } else if (t.getStatus() == InquiryConstants.TASK_UNASSIGNED) {
@@ -301,7 +480,7 @@ public class SourcingTaskServiceImpl implements SourcingTaskService {
             } else if (!reviewByTask.containsKey(t.getId())) {
                 // 有待审核回价的任务归「待审核」页签，不重复计入询价中
                 sourcing++;
-                if (as.size() > 1) {
+                if (assignees.getOrDefault(t.getId(), List.of()).size() > 1) {
                     multi++;
                 }
                 if (isTimeout) {
@@ -309,11 +488,73 @@ public class SourcingTaskServiceImpl implements SourcingTaskService {
                 }
             }
             List<SourcingQuoteDO> pendingReview = reviewByTask.get(t.getId());
-            boolean listed = status0 == InquiryConstants.BOARD_TAB_REVIEW ? pendingReview != null
+            boolean isListed = status0 == InquiryConstants.BOARD_TAB_REVIEW ? pendingReview != null
                     : t.getStatus() == status0 && !(status0 == InquiryConstants.TASK_SOURCING && pendingReview != null);
-            if (!listed) {
-                continue;
+            if (isListed) {
+                listed.add(t);
             }
+        }
+
+        // 排序要用询盘等级，询盘信息只查列出的任务
+        Map<Long, InquiryLookups.InquiryBrief> briefs = lookups.briefs(listed.stream().map(SourcingTaskDO::getCustomerInquiryId).toList(),
+                lookups.isPartTime(currentUser.resolve()));
+        Function<SourcingTaskDO, Integer> level = t -> {
+            InquiryLookups.InquiryBrief b = briefs.get(t.getCustomerInquiryId());
+            return b == null ? null : b.level();
+        };
+        Function<SourcingTaskDO, Boolean> notUrgent = t -> !Objects.equals(t.getUrgent(), 1);
+        if (status0 == InquiryConstants.BOARD_TAB_REVIEW) {
+            // 紧急 → 询盘等级（S 最先）→ 最早提交的在前
+            Function<SourcingTaskDO, LocalDateTime> submitted = t -> reviewByTask.get(t.getId()).stream()
+                    .map(SourcingQuoteDO::getQuotedAt).filter(Objects::nonNull).min(Comparator.naturalOrder()).orElse(null);
+            listed.sort(Comparator.comparing(notUrgent)
+                    .thenComparing(level, Comparator.nullsLast(Comparator.naturalOrder()))
+                    .thenComparing(submitted, Comparator.nullsLast(Comparator.naturalOrder()))
+                    .thenComparing(SourcingTaskDO::getTaskCode));
+        } else {
+            // 超时 → 紧急 → 询盘等级（S 最先）→ 等得久的在前
+            Function<SourcingTaskDO, Long> waiting = t -> t.getStatus() == InquiryConstants.TASK_UNASSIGNED ? waitingMinutes(t, now) : null;
+            listed.sort(Comparator.comparing((SourcingTaskDO t) -> !timeoutIds.contains(t.getId()))
+                    .thenComparing(notUrgent)
+                    .thenComparing(level, Comparator.nullsLast(Comparator.naturalOrder()))
+                    .thenComparing(waiting, Comparator.nullsLast(Comparator.reverseOrder()))
+                    .thenComparing(SourcingTaskDO::getFirstAssignedAt, Comparator.nullsLast(Comparator.naturalOrder()))
+                    .thenComparing(SourcingTaskDO::getTaskCode));
+        }
+        Map<String, BrandGroupVO> brands = new LinkedHashMap<>();
+        for (SourcingTaskDO t : listed) {
+            BrandGroupVO g = brands.computeIfAbsent(t.getBrand(), b -> {
+                BrandGroupVO v = new BrandGroupVO();
+                v.setBrand(b);
+                v.setTotal(0);
+                v.setUrgent(0);
+                v.setTimeout(0);
+                v.setMinutes(0L);
+                return v;
+            });
+            g.setTotal(g.getTotal() + 1);
+            g.setUrgent(g.getUrgent() + (Objects.equals(t.getUrgent(), 1) ? 1 : 0));
+            g.setTimeout(g.getTimeout() + (timeoutIds.contains(t.getId()) ? 1 : 0));
+            if (t.getStatus() == InquiryConstants.TASK_UNASSIGNED) {
+                g.setMinutes(Math.max(g.getMinutes(), waitingMinutes(t, now)));
+            }
+        }
+
+        // 只给当前页的任务补齐推荐、回价数、退回人等明细
+        int from = Math.min((page - 1) * pageSize, listed.size());
+        List<SourcingTaskDO> slice = listed.subList(from, Math.min(from + pageSize, listed.size()));
+        List<Long> sliceIds = slice.stream().map(SourcingTaskDO::getId).toList();
+        Map<Long, Integer> priced = pricedCounts(sliceIds);
+        Map<Long, String> names = lookups.userNames(slice.stream().map(SourcingTaskDO::getReturnedBy).toList());
+        Map<Long, String> selfNames = lookups.userNames(sliceIds.stream().flatMap(id -> assignees.getOrDefault(id, List.of()).stream())
+                .filter(a -> Objects.equals(a.getAssignMode(), InquiryConstants.ASSIGN_SELF))
+                .map(SourcingTaskAssigneeDO::getAssigneeId).distinct().toList());
+        Map<String, Map<Long, Long>> familiarity = slice.stream().anyMatch(t -> t.getStatus() == InquiryConstants.TASK_UNASSIGNED)
+                ? familiarity(tenantId) : Map.of();
+        Map<Long, PurchaserVO> purchaserById = purchasers.stream().collect(Collectors.toMap(PurchaserVO::getId, p -> p));
+        List<BoardTaskVO> rows = new ArrayList<>(slice.size());
+        for (SourcingTaskDO t : slice) {
+            List<SourcingTaskAssigneeDO> as = assignees.getOrDefault(t.getId(), List.of());
             BoardTaskVO vo = new BoardTaskVO();
             vo.setId(t.getId());
             vo.setTaskCode(t.getTaskCode());
@@ -322,10 +563,10 @@ public class SourcingTaskServiceImpl implements SourcingTaskService {
             vo.setBrand(t.getBrand());
             vo.setCategory(t.getCategory());
             vo.setItemCount(t.getItemCount());
-            vo.setPricedCount(pricedCount(t.getId()));
+            vo.setPricedCount(priced.getOrDefault(t.getId(), 0));
             vo.setUrgent(Objects.equals(t.getUrgent(), 1));
             vo.setStatus(t.getStatus());
-            vo.setTimeout(isTimeout);
+            vo.setTimeout(timeoutIds.contains(t.getId()));
             vo.setWaitingMinutes(t.getStatus() == InquiryConstants.TASK_UNASSIGNED ? waitingMinutes(t, now) : null);
             vo.setFirstAssignedAt(t.getFirstAssignedAt());
             vo.setReturnReason(t.getReturnReason());
@@ -333,31 +574,21 @@ public class SourcingTaskServiceImpl implements SourcingTaskService {
             vo.setReturnNote(t.getReturnNote());
             vo.setReturnedByName(names.get(t.getReturnedBy()));
             vo.setAssignees(as.stream().map(a -> purchaserById.get(a.getAssigneeId())).filter(Objects::nonNull).toList());
-            Recommendation rec = recommend(t, purchasers, familiarity);
-            if (rec != null) {
-                vo.setRecommendedId(rec.purchaser.getId());
-                vo.setRecommendedName(rec.purchaser.getName());
-                vo.setRecommendReason(rec.reason);
+            as.stream().filter(a -> Objects.equals(a.getAssignMode(), InquiryConstants.ASSIGN_SELF)).findFirst()
+                    .ifPresent(a -> vo.setSelfSourcedBy(selfNames.get(a.getAssigneeId())));
+            if (t.getStatus() == InquiryConstants.TASK_UNASSIGNED) {
+                Recommendation rec = recommend(t, purchasers, familiarity);
+                if (rec != null) {
+                    vo.setRecommendedId(rec.purchaser.getId());
+                    vo.setRecommendedName(rec.purchaser.getName());
+                    vo.setRecommendReason(rec.reason);
+                }
             }
+            List<SourcingQuoteDO> pendingReview = reviewByTask.get(t.getId());
             if (pendingReview != null) {
                 applyReview(vo, pendingReview, now);
             }
             rows.add(vo);
-        }
-        if (status0 == InquiryConstants.BOARD_TAB_REVIEW) {
-            // 紧急 → 询盘等级（S 最先）→ 最早提交的在前
-            rows.sort(Comparator.comparing((BoardTaskVO r) -> !Boolean.TRUE.equals(r.getUrgent()))
-                    .thenComparing(BoardTaskVO::getLevel, Comparator.nullsLast(Comparator.naturalOrder()))
-                    .thenComparing(BoardTaskVO::getReviewSubmittedAt, Comparator.nullsLast(Comparator.naturalOrder()))
-                    .thenComparing(BoardTaskVO::getTaskCode));
-        } else {
-            // 超时 → 紧急 → 询盘等级（S 最先）→ 等得久的在前
-            rows.sort(Comparator.comparing((BoardTaskVO r) -> !Boolean.TRUE.equals(r.getTimeout()))
-                    .thenComparing(r -> !Boolean.TRUE.equals(r.getUrgent()))
-                    .thenComparing(BoardTaskVO::getLevel, Comparator.nullsLast(Comparator.naturalOrder()))
-                    .thenComparing(BoardTaskVO::getWaitingMinutes, Comparator.nullsLast(Comparator.reverseOrder()))
-                    .thenComparing(BoardTaskVO::getFirstAssignedAt, Comparator.nullsLast(Comparator.naturalOrder()))
-                    .thenComparing(BoardTaskVO::getTaskCode));
         }
         stats.setUnassigned(unassigned);
         stats.setLongestWaitingMinutes(longest);
@@ -378,6 +609,8 @@ public class SourcingTaskServiceImpl implements SourcingTaskService {
         stats.setAutoAssign(settings.autoAssign(tenantId));
         BoardVO vo = new BoardVO();
         vo.setStats(stats);
+        vo.setTotal((long) listed.size());
+        vo.setBrands(List.copyOf(brands.values()));
         vo.setTasks(rows);
         vo.setPurchasers(withSelf(purchasers, assignees));
         return vo;
@@ -388,6 +621,7 @@ public class SourcingTaskServiceImpl implements SourcingTaskService {
         List<SourcingTaskDO> open = taskMapper.selectList(new LambdaQueryWrapper<SourcingTaskDO>()
                 .eq(SourcingTaskDO::getTenantId, tenantId())
                 .eq(SourcingTaskDO::getStatus, InquiryConstants.TASK_SOURCING)
+                .eq(SourcingTaskDO::getSalesHandling, 0)
                 .isNull(SourcingTaskDO::getDeletedAt));
         Map<Long, List<SourcingTaskAssigneeDO>> assignees = activeAssignees(open.stream().map(SourcingTaskDO::getId).toList());
         return withSelf(purchasers(open, assignees), assignees);
@@ -417,10 +651,10 @@ public class SourcingTaskServiceImpl implements SourcingTaskService {
         return list;
     }
 
-    /** 采购人员：本租户启用的、角色带「我的询价任务」菜单的账号；负载按进行中的有效分配计算 */
+    /** 采购人员：本租户启用的、角色带「可接询价任务」权限的账号；负载按进行中的有效分配计算 */
     private List<PurchaserVO> purchasers(List<SourcingTaskDO> open, Map<Long, List<SourcingTaskAssigneeDO>> assignees) {
         Set<String> roles = roleResourceMapper.selectList(new LambdaQueryWrapper<RoleResourceDO>()
-                        .eq(RoleResourceDO::getResourceId, MY_TASKS_MENU_ID))
+                        .eq(RoleResourceDO::getResourceId, InquiryConstants.RESOURCE_ACCEPT_TASK))
                 .stream().map(RoleResourceDO::getRoleCode).collect(Collectors.toSet());
         if (roles.isEmpty()) {
             return List.of();
@@ -506,7 +740,7 @@ public class SourcingTaskServiceImpl implements SourcingTaskService {
         List<SourcingTaskDO> tasks = unassignedTasks(taskIds);
         List<PurchaserVO> purchasers = new ArrayList<>(purchasers());
         if (purchasers.isEmpty()) {
-            throw new BizException("还没有采购人员：请先给账号分配带「我的询价任务」菜单的角色");
+            throw new BizException("还没有采购人员：请先给账号的角色勾选「可接询价任务」权限");
         }
         Map<String, Map<Long, Long>> familiarity = familiarity(tenantId());
         Long me = currentUser.resolve();
@@ -598,7 +832,7 @@ public class SourcingTaskServiceImpl implements SourcingTaskService {
 
     private SourcingTaskDO sourcingTask(Long taskId) {
         SourcingTaskDO task = tasks(List.of(taskId)).get(0);
-        if (task.getStatus() != InquiryConstants.TASK_SOURCING) {
+        if (task.getStatus() != InquiryConstants.TASK_SOURCING || Objects.equals(task.getSalesHandling(), 1)) {
             throw new BizException("只有询价中的任务可以改派或追加比价");
         }
         return task;
@@ -861,6 +1095,19 @@ public class SourcingTaskServiceImpl implements SourcingTaskService {
                 .map(names::get).filter(Objects::nonNull).toList());
     }
 
+    /** 一次查出多个任务的已回价型号数 */
+    private Map<Long, Integer> pricedCounts(List<Long> taskIds) {
+        if (taskIds.isEmpty()) {
+            return Map.of();
+        }
+        return itemMapper.selectList(new LambdaQueryWrapper<InquiryItemDO>()
+                        .select(InquiryItemDO::getSourcingTaskId)
+                        .in(InquiryItemDO::getSourcingTaskId, taskIds)
+                        .ne(InquiryItemDO::getQuoteStatus, InquiryConstants.ITEM_PENDING)
+                        .isNull(InquiryItemDO::getDeletedAt))
+                .stream().collect(Collectors.groupingBy(InquiryItemDO::getSourcingTaskId, Collectors.summingInt(i -> 1)));
+    }
+
     private int pricedCount(Long taskId) {
         return Math.toIntExact(itemMapper.selectCount(new LambdaQueryWrapper<InquiryItemDO>()
                 .eq(InquiryItemDO::getSourcingTaskId, taskId)
@@ -869,7 +1116,8 @@ public class SourcingTaskServiceImpl implements SourcingTaskService {
     }
 
     private static long waitingMinutes(SourcingTaskDO t, LocalDateTime now) {
-        LocalDateTime since = t.getReturnedAt() != null ? t.getReturnedAt() : t.getCreateTime();
+        LocalDateTime since = t.getPoolEnteredAt() != null ? t.getPoolEnteredAt()
+                : t.getReturnedAt() != null ? t.getReturnedAt() : t.getCreateTime();
         return since == null ? 0 : Math.max(0, Duration.between(since, now).toMinutes());
     }
 

@@ -637,7 +637,7 @@ public class SourcingExcelServiceImpl implements SourcingExcelService {
 
     private SourcingTaskDO anyTask(Long taskId) {
         SourcingTaskDO task = downloadableTask(taskId);
-        if (task.getStatus() == InquiryConstants.TASK_UNASSIGNED) {
+        if (task.getStatus() == InquiryConstants.TASK_UNASSIGNED || task.getStatus() == InquiryConstants.TASK_SALES) {
             throw new BizException("该任务还没有分配给采购，请先分配再导入");
         }
         return task;

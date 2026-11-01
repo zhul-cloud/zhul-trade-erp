@@ -39,6 +39,7 @@ public abstract class InquiryContractSupport extends IntegrationTestBase {
     protected static final int MENU_BOARD = 100054;
     protected static final int MENU_MY_TASKS = 100055;
     protected static final int MENU_HISTORY = 100056;
+    protected static final int BTN_ACCEPT = 110219;
     protected static final int BTN_ASSIGN = 110171;
     protected static final int BTN_RULE = 110172;
     protected static final int BTN_PROXY = 110173;
@@ -53,7 +54,7 @@ public abstract class InquiryContractSupport extends IntegrationTestBase {
         cleanupInquiryData();
         // 询盘解析、追加型号会提交 AI 任务，需要平台租户已配置 AI
         seedAiConfig(0);
-        for (int id : new int[] {MENU_INQUIRY, MENU_MY_TASKS, MENU_HISTORY}) {
+        for (int id : new int[] {MENU_INQUIRY, MENU_MY_TASKS, MENU_HISTORY, BTN_ACCEPT}) {
             jdbc.update("insert into role_resource (role_code, resource_id, resource_code) values (?, ?, '')", BUYER_ROLE, id);
         }
         user(BUYER_LIN, "林熙", "it_lin", BUYER_ROLE);
@@ -73,7 +74,7 @@ public abstract class InquiryContractSupport extends IntegrationTestBase {
     }
 
     protected void cleanupInquiryData() {
-        for (String t : new String[] {"sourcing_import", "sourcing_quote", "sourcing_task_assignee", "sourcing_task", "sourcing_assign_rule",
+        for (String t : new String[] {"sourcing_item_handoff", "sourcing_import", "sourcing_quote", "sourcing_task_assignee", "sourcing_task", "sourcing_assign_rule",
                 "inquiry_item", "customer_inquiry_attachment", "customer_inquiry", "customer"}) {
             jdbc.update("delete from " + t + " where tenant_id = 0");
         }

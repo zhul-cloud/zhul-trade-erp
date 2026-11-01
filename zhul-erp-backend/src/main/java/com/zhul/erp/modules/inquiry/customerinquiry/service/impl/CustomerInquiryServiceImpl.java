@@ -151,6 +151,7 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
     private final PriceKeys priceKeys;
     private final CurrentUserResolver currentUser;
     private final DataScopeResolver dataScopeResolver;
+    private final com.zhul.erp.framework.security.PermissionChecker perm;
     private final InquiryLookups lookups;
     private final ObjectMapper objectMapper;
     private final DictItemService dictItemService;
@@ -419,7 +420,7 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
         Map<Long, String> taskCodes = tasks.stream().collect(Collectors.toMap(SourcingTaskDO::getId, SourcingTaskDO::getTaskCode));
         List<InquiryItemDO> items = items(id);
         vo.setItems(toItemVos(items, taskCodes));
-        vo.setTasks(toTaskBriefs(tasks, items, inquiry.getTenantId()));
+        vo.setTasks(toTaskBriefs(tasks, items, inquiry));
 
         OpportunityVO opp = inquiry.getOpportunityId() == null ? null : opportunityService.findVisible(inquiry.getOpportunityId());
         if (opp != null) {
@@ -486,7 +487,9 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
         return grouped.values().stream().flatMap(List::stream).toList();
     }
 
-    private List<TaskBriefVO> toTaskBriefs(List<SourcingTaskDO> tasks, List<InquiryItemDO> items, int tenantId) {
+    private List<TaskBriefVO> toTaskBriefs(List<SourcingTaskDO> tasks, List<InquiryItemDO> items, CustomerInquiryDO inquiry) {
+        int tenantId = inquiry.getTenantId();
+        boolean owner = Objects.equals(currentUser.resolve(), inquiry.getOwnerId());
         if (tasks.isEmpty()) {
             return List.of();
         }
@@ -514,6 +517,14 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
             vo.setAssigneeNames(active.getOrDefault(t.getId(), List.of()).stream().map(a -> names.get(a.getAssigneeId())).toList());
             vo.setReturnReason(t.getReturnReason());
             vo.setReturnNote(t.getReturnNote());
+            boolean salesStage = t.getStatus() == InquiryConstants.TASK_SALES;
+            if (salesStage && t.getSalesDeadline() != null) {
+                vo.setSalesRemainingMinutes(Math.max(0, java.time.Duration.between(now, t.getSalesDeadline()).toMinutes()));
+            }
+            vo.setCanTransfer(salesStage && owner);
+            vo.setCanClaim(salesStage && owner && perm.canAccessMenu(InquiryConstants.MENU_MY_TASKS));
+            vo.setSelfSourcing(active.getOrDefault(t.getId(), List.of()).stream()
+                    .anyMatch(a -> Objects.equals(a.getAssignMode(), InquiryConstants.ASSIGN_SELF)));
             list.add(vo);
         }
         return list;

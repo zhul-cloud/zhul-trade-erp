@@ -61,6 +61,8 @@ public final class InquiryConstants {
     public static final int TASK_SOURCING = 2;
     public static final int TASK_DONE = 3;
     public static final int TASK_CANCELLED = 4;
+    /** 待业务处理：询盘负责人可认领或转采购，到期自动进入待分配；采购负责人看不到。5 已被工作台页签占用 */
+    public static final int TASK_SALES = 6;
     /** 分配工作台「待审核」页签的查询值（不是任务状态：任务下有兼职回价待审核） */
     public static final int BOARD_TAB_REVIEW = 5;
 
@@ -70,6 +72,8 @@ public final class InquiryConstants {
     public static final int ASSIGN_RULE = 3;
     public static final int ASSIGN_EXTRA = 4;
     public static final int ASSIGN_REASSIGN = 5;
+    /** 业务员自询：不计入品牌熟悉度，统计里单独算 */
+    public static final int ASSIGN_SELF = 6;
 
     /** 退回原因 */
     public static final int RETURN_MODEL_DOUBT = 1;
@@ -89,6 +93,8 @@ public final class InquiryConstants {
     public static final String PERM_SUPPLIER_VIEW = "inquiry:supplier:view";
     /** 按钮权限：审核兼职回价 */
     public static final String PERM_QUOTE_REVIEW = "inquiry:quote:review";
+    /** 按钮「可接询价任务」的资源ID：有它的账号才是采购人员 */
+    public static final int RESOURCE_ACCEPT_TASK = 110219;
 
     /** 货况：全新原装（默认选价优先），其余码值见字典 inquiry_item_condition */
     public static final int CONDITION_NEW = 1;
@@ -122,6 +128,8 @@ public final class InquiryConstants {
 
     /** 推荐依据的统计窗口 */
     public static final int RECOMMEND_DAYS = 180;
+    /** 分配工作台、待认领每页最多任务数 */
+    public static final int MAX_PAGE_SIZE = 100;
 
     /** 本位币 */
     public static final String BASE_CURRENCY = "CNY";
@@ -140,6 +148,8 @@ public final class InquiryConstants {
     public static final String CONFIG_TIMEOUT_HOURS = "inquiry.sourcing.timeout-hours";
     public static final String CONFIG_URGENT_TIMEOUT_HOURS = "inquiry.sourcing.urgent-timeout-hours";
     public static final String CONFIG_AUTO_ASSIGN = "inquiry.sourcing.auto-assign";
+    public static final String CONFIG_SALES_WINDOW = "inquiry.sourcing.sales-window-minutes";
+    public static final String CONFIG_SALES_WINDOW_URGENT = "inquiry.sourcing.sales-window-urgent-minutes";
 
     /** 菜单路径（权限判断用） */
     public static final String MENU_CUSTOMER_INQUIRY = "/inquiry/customer-inquiries";

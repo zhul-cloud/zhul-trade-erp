@@ -41,6 +41,9 @@ public abstract class IntegrationTestBase {
     void assertUsingTestDatabase() {
         assertEquals(TEST_DB, jdbc.queryForObject("select database()", String.class),
                 "集成测试必须连 " + TEST_DB + "，当前连的不是测试库，已中止");
+        // 默认不经过业务员优先阶段，任务生成后直接进入待分配；测这个阶段的用例自己设时限
+        jdbc.update("update sys_config set config_value = '0' where tenant_id = 0"
+                + " and config_key in ('inquiry.sourcing.sales-window-minutes', 'inquiry.sourcing.sales-window-urgent-minutes')");
     }
 
     /**

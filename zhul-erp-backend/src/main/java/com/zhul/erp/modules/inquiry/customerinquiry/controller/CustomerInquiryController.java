@@ -47,6 +47,7 @@ public class CustomerInquiryController {
 
     private final CustomerInquiryService service;
     private final PriceHistoryService priceHistoryService;
+    private final com.zhul.erp.modules.inquiry.sourcing.service.SourcingTaskService sourcingTaskService;
 
     @PostMapping("/attachments")
     public Result<UploadedFileVO> upload(@RequestPart("file") MultipartFile file) {
@@ -166,6 +167,13 @@ public class CustomerInquiryController {
     @GetMapping("/{id}/downstream")
     public Result<List<InquiryDownstreamVO>> downstream(@PathVariable Long id) {
         return Result.ok(service.downstream(id));
+    }
+
+    /** 询盘负责人把待业务处理的任务转给采购 */
+    @PostMapping("/sourcing-tasks/transfer")
+    public Result<Void> transferTasks(@Valid @RequestBody com.zhul.erp.modules.inquiry.sourcing.dto.TaskIdsRequest req) {
+        sourcingTaskService.transferToPurchasing(req.getTaskIds());
+        return Result.ok();
     }
 
     @DeleteMapping("/{id}")

@@ -58,8 +58,10 @@ public class SourcingBoardController {
 
     @GetMapping
     @PreAuthorize(VIEW)
-    public Result<BoardVO> board(@RequestParam(required = false) Integer status) {
-        return Result.ok(taskService.board(status));
+    public Result<BoardVO> board(@RequestParam(required = false) Integer status,
+                                 @RequestParam(defaultValue = "1") int page,
+                                 @RequestParam(defaultValue = "20") int pageSize) {
+        return Result.ok(taskService.board(status, page, pageSize));
     }
 
     @GetMapping("/tasks/{id}")

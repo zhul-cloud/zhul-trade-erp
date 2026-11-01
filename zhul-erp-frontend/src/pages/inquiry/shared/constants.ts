@@ -70,6 +70,7 @@ export const TASK_STATUS_META: Record<number, { label: string; tone: Tone }> = {
   2: { label: '询价中', tone: 'accent' },
   3: { label: '已回价', tone: 'green' },
   4: { label: '已取消', tone: 'mute' },
+  6: { label: '待业务处理', tone: 'orange' },
 };
 
 /** 询价渠道码值：新报价默认淘宝；选供应商时从供应商主数据里选 */

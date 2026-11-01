@@ -28,6 +28,9 @@ public class MyTaskItemVO {
     private String inquiryScript;
     private List<String> searchKeywords;
     private List<MyQuoteVO> quotes;
+    private Integer quoteStatus;
+    /** 上一轮记录（其他处理人） */
+    private List<PreviousQuoteVO> previous;
     /** 历史询价摘要：最近一次成交（DEAL），没有时最近一次询价（QUOTE）；都没有时为空 */
     private String historyKind;
     private java.math.BigDecimal historyPrice;
