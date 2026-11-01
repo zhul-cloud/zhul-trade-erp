@@ -155,6 +155,9 @@ export interface Expense {
   migrated?: boolean;
   id: number;
   expenseNo: string;
+  /** 关联售后单 */
+  afterSalesId?: number | null;
+  asNo?: string;
   name: string;
   /** 所属事业部；为空表示「公共」 */
   businessUnitId?: number;
@@ -225,6 +228,8 @@ export interface SaveExpenseBody {
   remark?: string;
   attachmentIds: number[];
   allocations: { soItemId: number; amount: number }[];
+  /** 关联售后单（选填，须是分摊订单的售后单） */
+  afterSalesId?: number;
 }
 
 export interface ExpenseQuery {

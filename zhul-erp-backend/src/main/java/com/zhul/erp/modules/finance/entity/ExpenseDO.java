@@ -25,6 +25,9 @@ public class ExpenseDO {
     private String name;
     /** 费用类别（字典 expense_category 编码） */
     private String category;
+    /** 关联售后单（订单费用的补寄运费、维修费等）；为空表示不关联 */
+    @com.baomidou.mybatisplus.annotation.TableField(updateStrategy = com.baomidou.mybatisplus.annotation.FieldStrategy.ALWAYS)
+    private Long afterSalesId;
     /** 分摊月数（1–36） */
     private Integer amortizeMonths;
     private LocalDate occurDate;

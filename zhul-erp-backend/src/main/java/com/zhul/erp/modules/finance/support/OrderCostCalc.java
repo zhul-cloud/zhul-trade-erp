@@ -43,8 +43,18 @@ public final class OrderCostCalc {
     }
 
     /** 订单型号行：数量、行金额（原币，用于分收入）、采购成本价（CNY，可空）；运费与费用单为人民币 */
+    /**
+     * 订单型号行；salesReturnCredit 为售后退货去向冲减的成本（退回供应商的供应商退款 + 转闲置按原采购成本，正数为冲减），
+     * salesReturnFreight 为售后退货退回供应商的运费（计入「退货运费」）。
+     */
     public record Item(long id, int quantity, BigDecimal amount, BigDecimal costPrice, BigDecimal domesticFreight,
-                       BigDecimal internationalFreight, BigDecimal expense, boolean shipped, boolean freightReconciled) {
+                       BigDecimal internationalFreight, BigDecimal expense, boolean shipped, boolean freightReconciled,
+                       BigDecimal salesReturnCredit, BigDecimal salesReturnFreight) {
+        public Item(long id, int quantity, BigDecimal amount, BigDecimal costPrice, BigDecimal domesticFreight,
+                    BigDecimal internationalFreight, BigDecimal expense, boolean shipped, boolean freightReconciled) {
+            this(id, quantity, amount, costPrice, domesticFreight, internationalFreight, expense, shipped, freightReconciled,
+                    BigDecimal.ZERO, BigDecimal.ZERO);
+        }
     }
 
     /** 到账：毛额折人民币、实收折人民币、中转差额（原币）、到账汇率、结汇状态（0 不适用、1 未结汇、2 部分、3 已结汇） */
@@ -71,7 +81,7 @@ public final class OrderCostCalc {
                        BigDecimal expense, BigDecimal receiptFee, BigDecimal cost, BigDecimal revenue, BigDecimal refund,
                        BigDecimal profit,
                        BigDecimal profitRate, int unreceivedQty, int unorderedQty, boolean missingCostPrice,
-                       Set<Long> unpaidForeignPos) {
+                       Set<Long> unpaidForeignPos, BigDecimal salesReturnCredit) {
     }
 
     public record Result(BigDecimal revenue, BigDecimal refund, BigDecimal cost, BigDecimal receiptFee, BigDecimal profit,
@@ -218,15 +228,16 @@ public final class OrderCostCalc {
             BigDecimal inv = money(invoice);
             BigDecimal f = money(poFee);
             BigDecimal c = money(claim);
-            BigDecimal rt = money(returnFreight);
+            BigDecimal rt = money(returnFreight.add(nz(item.salesReturnFreight())));
+            BigDecimal sr = money(nz(item.salesReturnCredit()));
             BigDecimal dom = money(nz(item.domesticFreight()));
             BigDecimal intl = money(nz(item.internationalFreight()));
             BigDecimal ex = money(nz(item.expense()));
-            BigDecimal cost = p.add(inv).add(f).subtract(c).add(rt).add(dom).add(intl).add(ex).add(rf);
+            BigDecimal cost = p.add(inv).add(f).subtract(c).add(rt).add(dom).add(intl).add(ex).add(rf).subtract(sr);
             BigDecimal rf2 = refundByItem.getOrDefault(item.id(), BigDecimal.ZERO.setScale(2));
             BigDecimal profit = rev.subtract(rf2).subtract(cost);
             out.add(new Line(item.id(), p, unordered == 0 && unreceived == 0 && unpaidPos.isEmpty(), inv, f, c, rt, dom, intl, ex, rf,
-                    cost, rev, rf2, profit, rate(profit, rev.subtract(rf2)), unreceived, unordered, missingCost, unpaidPos));
+                    cost, rev, rf2, profit, rate(profit, rev.subtract(rf2)), unreceived, unordered, missingCost, unpaidPos, sr));
         }
         BigDecimal cost = out.stream().map(Line::cost).reduce(BigDecimal.ZERO, BigDecimal::add);
         BigDecimal profit = revenue.subtract(refund).subtract(cost);

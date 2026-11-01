@@ -26,6 +26,8 @@ export interface CostLine {
   poFee: number;
   claim: number;
   returnFreight: number;
+  /** 售后退货冲减（正数为冲减成本） */
+  salesReturnCredit?: number;
   domestic: number;
   international: number;
   internationalSettled: boolean;

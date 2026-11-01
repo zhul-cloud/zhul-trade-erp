@@ -55,6 +55,7 @@ import {
   ProofLinks,
 } from '../payables/components';
 import { METHOD, PAYEE } from '../payables/service';
+import { afterSalesOptions } from '../refunds/service';
 import {
   type Expense,
   type ExpenseQuery,
@@ -67,6 +68,7 @@ const num: React.CSSProperties = { fontVariantNumeric: 'tabular-nums' };
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
 interface AllocRow {
+  soId?: number;
   soItemId: number;
   soNo: string;
   model: string;
@@ -106,6 +108,31 @@ const ExpenseDrawer: React.FC<{
   const [options, setOptions] = useState<SoItemOption[]>([]);
   const [saving, setSaving] = useState(false);
   const locked = !!editing?.locked;
+  const [afterSalesId, setAfterSalesId] = useState<number>();
+  const [asOptions, setAsOptions] = useState<
+    { value: number; label: string }[]
+  >([]);
+  const allocSoIds = [
+    ...new Set(allocs.map((a) => a.soId).filter((x): x is number => !!x)),
+  ].join(',');
+  // 关联售后单：分摊订单的售后单（spec finance/expense「费用单关联售后单」）
+  useEffect(() => {
+    const ids = allocSoIds ? allocSoIds.split(',').map(Number) : [];
+    if (ids.length === 0) {
+      setAsOptions([]);
+      return;
+    }
+    Promise.all(ids.map((id) => afterSalesOptions(id).catch(() => [])))
+      .then((rows) =>
+        setAsOptions(
+          rows.flat().map((x) => ({
+            value: x.id,
+            label: `${x.asNo} · ${x.statusName} · ${x.symptom}`,
+          })),
+        ),
+      )
+      .catch(() => setAsOptions([]));
+  }, [allocSoIds]);
 
   useEffect(() => {
     if (!open) return;
@@ -129,8 +156,10 @@ const ExpenseDrawer: React.FC<{
       e ? (e.businessUnitId ?? PUBLIC_UNIT) : (bu.myUnitId ?? PUBLIC_UNIT),
     );
     setFiles((e?.attachments ?? []) as unknown as Attachment[]);
+    setAfterSalesId(e?.afterSalesId ?? undefined);
     setAllocs(
       (e?.allocations ?? []).map((a) => ({
+        soId: a.soId,
         soItemId: a.soItemId,
         soNo: a.soNo ?? '',
         model: a.model ?? '',
@@ -178,6 +207,7 @@ const ExpenseDrawer: React.FC<{
       allocations: allocs
         .filter((a) => a.amount)
         .map((a) => ({ soItemId: a.soItemId, amount: a.amount as number })),
+      afterSalesId,
     };
     setSaving(true);
     try {
@@ -444,6 +474,7 @@ const ExpenseDrawer: React.FC<{
                   setAllocs((l) => [
                     ...l,
                     {
+                      soId: o.soId,
                       soItemId: o.soItemId,
                       soNo: o.soNo,
                       model: o.model,
@@ -515,6 +546,17 @@ const ExpenseDrawer: React.FC<{
                 ? '= 费用金额'
                 : `≠ 费用金额 ${formatAmount(amount ?? 0, currency)}`}
             </div>
+          )}
+          {asOptions.length > 0 && (
+            <Select
+              allowClear
+              style={{ width: '100%', marginTop: 10 }}
+              placeholder="关联售后单（选填）：补寄运费、维修费等售后支出"
+              value={afterSalesId}
+              onChange={setAfterSalesId}
+              options={asOptions}
+              aria-label="关联售后单"
+            />
           )}
         </div>
         <div>

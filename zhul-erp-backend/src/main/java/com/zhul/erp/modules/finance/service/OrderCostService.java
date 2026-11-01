@@ -77,6 +77,8 @@ public class OrderCostService {
     private final LogisticsShipmentMapper shipmentMapper;
     private final CourierWaybillMapper waybillMapper;
     private final ExpenseAllocationMapper expenseAllocationMapper;
+    private final com.zhul.erp.modules.aftersales.repository.SalesReturnDispositionMapper dispositionMapper;
+    private final com.zhul.erp.modules.aftersales.repository.SalesReturnMapper salesReturnMapper;
     private final ExpenseMapper expenseMapper;
     private final CustomerRefundMapper refundMapper;
     private final DictItemService dictItemService;
@@ -168,6 +170,16 @@ public class OrderCostService {
                 .filter(e -> e.getDeletedAt() == null && Objects.equals(e.getStatus(), FinanceConstants.FE_VALID))
                 .collect(Collectors.toMap(ExpenseDO::getId, Function.identity()));
         expenseAllocs = expenseAllocs.stream().filter(a -> expenses.containsKey(a.getExpenseId())).toList();
+        // 售后退货去向（spec finance/order-cost「售后退货冲减订单成本」）
+        Map<Long, List<com.zhul.erp.modules.aftersales.entity.SalesReturnDispositionDO>> returnsByItem = itemIds.isEmpty() ? Map.of()
+                : dispositionMapper.selectList(new LambdaQueryWrapper<com.zhul.erp.modules.aftersales.entity.SalesReturnDispositionDO>()
+                        .in(com.zhul.erp.modules.aftersales.entity.SalesReturnDispositionDO::getSoItemId, itemIds)
+                        .isNull(com.zhul.erp.modules.aftersales.entity.SalesReturnDispositionDO::getDeletedAt))
+                .stream().collect(Collectors.groupingBy(com.zhul.erp.modules.aftersales.entity.SalesReturnDispositionDO::getSoItemId));
+        Map<Long, String> returnNos = returnsByItem.isEmpty() ? Map.of() : salesReturnMapper.selectBatchIds(returnsByItem.values().stream()
+                        .flatMap(List::stream).map(com.zhul.erp.modules.aftersales.entity.SalesReturnDispositionDO::getReturnId).distinct().toList())
+                .stream().collect(Collectors.toMap(com.zhul.erp.modules.aftersales.entity.SalesReturnDO::getId,
+                        com.zhul.erp.modules.aftersales.entity.SalesReturnDO::getReturnNo));
 
         // 收款：PI 转成的订单按 PI 的到账，手动订单按订单自己的
         Set<Long> piIds = active.stream().map(SalesOrderDO::getPiId).filter(Objects::nonNull).collect(Collectors.toSet());
@@ -228,8 +240,11 @@ public class OrderCostService {
                     return s != null && Objects.equals(s.getReconciled(), 1);
                 });
                 BigDecimal expense = sum(expenseByItem.getOrDefault(i.getId(), List.of()).stream().map(ExpenseAllocationDO::getAmountCny));
+                List<com.zhul.erp.modules.aftersales.entity.SalesReturnDispositionDO> rets = returnsByItem.getOrDefault(i.getId(), List.of());
                 calcItems.add(new OrderCostCalc.Item(i.getId(), Objects.requireNonNullElse(i.getQuantity(), 0), i.getAmount(), i.getCostPrice(),
-                        dom, sum(intl.stream().map(FreightAllocationDO::getAmount)), expense, !intl.isEmpty(), reconciled));
+                        dom, sum(intl.stream().map(FreightAllocationDO::getAmount)), expense, !intl.isEmpty(), reconciled,
+                        sum(rets.stream().map(com.zhul.erp.modules.aftersales.entity.SalesReturnDispositionDO::getCostCny)),
+                        sum(rets.stream().map(com.zhul.erp.modules.aftersales.entity.SalesReturnDispositionDO::getFreightCny))));
                 for (PurchaseOrderItemDO l : poLinesByItem.getOrDefault(i.getId(), List.of())) {
                     calcLines.add(new OrderCostCalc.PoLine(l.getId(), l.getPoId(), i.getId(), l.getQuantity(),
                             qualified.getOrDefault(l.getId(), 0), l.getUnitPrice(), discounts.get(l.getId()), returnFreight.get(l.getId())));
@@ -262,7 +277,8 @@ public class OrderCostService {
             OrderCostCalc.Result res = OrderCostCalc.compute(new OrderCostCalc.Input(paid,
                     nz(o.getTotalAmountCny()).subtract(collectionCny), calcItems, calcLines, calcPos, calcReceipts, refund, deduction,
                     feeDeduction));
-            OrderCostVO vo = toVo(o, mine, res, poLinesByItem, pos, qualified, freightByItem, shipments, waybills, expenseByItem, expenses);
+            OrderCostVO vo = toVo(o, mine, res, poLinesByItem, pos, qualified, freightByItem, shipments, waybills, expenseByItem, expenses,
+                    returnsByItem, returnNos);
             vo.setRefund(res.refund());
             vo.setRefunds(refunds.stream().map(f -> brief(f, reasonNames)).toList());
             vo.setCollectionCny(OrderCostCalc.money(collectionDeducted));
@@ -387,7 +403,9 @@ public class OrderCostService {
     private OrderCostVO toVo(SalesOrderDO o, List<SalesOrderItemDO> items, OrderCostCalc.Result res,
                              Map<Long, List<PurchaseOrderItemDO>> poLinesByItem, Map<Long, PurchaseOrderDO> pos, Map<Long, Integer> qualified,
                              Map<Long, List<FreightAllocationDO>> freightByItem, Map<Long, LogisticsShipmentDO> shipments,
-                             Map<Long, CourierWaybillDO> waybills, Map<Long, List<ExpenseAllocationDO>> expenseByItem, Map<Long, ExpenseDO> expenses) {
+                             Map<Long, CourierWaybillDO> waybills, Map<Long, List<ExpenseAllocationDO>> expenseByItem, Map<Long, ExpenseDO> expenses,
+                             Map<Long, List<com.zhul.erp.modules.aftersales.entity.SalesReturnDispositionDO>> returnsByItem,
+                             Map<Long, String> returnNos) {
         OrderCostVO vo = new OrderCostVO();
         vo.setSoId(o.getId());
         vo.setSalesAmountCny(o.getTotalAmountCny());
@@ -413,6 +431,7 @@ public class OrderCostService {
             x.setPoFee(l.poFee());
             x.setClaim(l.claim());
             x.setReturnFreight(l.returnFreight());
+            x.setSalesReturnCredit(l.salesReturnCredit());
             x.setDomestic(l.domestic());
             x.setInternational(l.international());
             List<FreightAllocationDO> fs = freightByItem.getOrDefault(l.soItemId(), List.of());
@@ -455,6 +474,11 @@ public class OrderCostService {
                 ExpenseDO e = expenses.get(a.getExpenseId());
                 return source("EXPENSE", e.getId(), e.getExpenseNo(), a.getAmountCny(), e.getName());
             }).toList());
+            sources.put("salesReturn", returnsByItem.getOrDefault(l.soItemId(), List.of()).stream()
+                    .filter(d -> d.getCostCny().signum() != 0 || d.getFreightCny().signum() != 0)
+                    .map(d -> source("RETURN", d.getReturnId(), returnNos.get(d.getReturnId()), d.getCostCny().negate(),
+                            com.zhul.erp.modules.aftersales.constants.AfterSalesConstants.DISP_NAMES.get(d.getDisposition()) + " × " + d.getQuantity()
+                                    + (d.getFreightCny().signum() > 0 ? "，退回运费 ¥" + d.getFreightCny() : ""))).toList());
             x.setSources(sources);
             return x;
         }).toList());

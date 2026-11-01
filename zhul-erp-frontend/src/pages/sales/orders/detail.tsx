@@ -2,6 +2,7 @@ import {
   BankOutlined,
   CheckCircleFilled,
   CheckOutlined,
+  CustomerServiceOutlined,
   EditOutlined,
   FileTextOutlined,
   InboxOutlined,
@@ -27,6 +28,17 @@ import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount, formatDateTime } from '@/utils/format';
 import { MenuLink } from '@/utils/menuName';
+import {
+  CreateAfterSalesModal,
+  RefundRequestModal,
+} from '../after-sales/dialogs';
+import {
+  type AfterSales,
+  AS_STATUS_TONE,
+  afterSalesApi,
+  LEVEL_TONE,
+  levelShort,
+} from '../after-sales/service';
 import {
   Card,
   ChainCard,
@@ -85,7 +97,9 @@ type Dialog =
   | 'platform'
   | 'claim'
   | 'notice'
-  | 'partialCancel';
+  | 'partialCancel'
+  | 'afterSales'
+  | 'refundRequest';
 
 const OrderDetail: React.FC = () => {
   const { id: idParam } = useParams<{ id: string }>();
@@ -104,6 +118,14 @@ const OrderDetail: React.FC = () => {
   const [voidId, setVoidId] = useState<number>();
   /** 订单刷新次数：销售出库单列表随之重新取 */
   const [version, setVersion] = useState(0);
+  const [afterSales, setAfterSales] = useState<AfterSales[]>([]);
+  useEffect(() => {
+    if (!access.salesAfterSales) return;
+    afterSalesApi
+      .ofOrder(id)
+      .then(setAfterSales)
+      .catch(() => setAfterSales([]));
+  }, [id, version, access.salesAfterSales]);
 
   const load = useCallback(async () => {
     setError(undefined);
@@ -1253,6 +1275,63 @@ const OrderDetail: React.FC = () => {
         / 期货可以随时改，改动写操作日志。
       </div>
       <PartialCancelRecords order={o} />
+      {afterSales.length > 0 && (
+        <Card style={{ padding: 20, marginTop: 16 }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              marginBottom: 12,
+            }}
+          >
+            <CustomerServiceOutlined style={{ color: palette.link }} />
+            <b style={{ color: palette.ink }}>售后单</b>
+            <span
+              style={{ marginLeft: 'auto', fontSize: 12, color: palette.mute }}
+            >
+              {afterSales.length} 张
+            </span>
+          </div>
+          <div style={{ display: 'grid', gap: 8 }}>
+            {afterSales.map((x) => (
+              <div
+                key={x.id}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 10,
+                  padding: '8px 12px',
+                  borderRadius: 10,
+                  background: palette.inset,
+                }}
+              >
+                <a onClick={() => history.push(`/sales/after-sales/${x.id}`)}>
+                  {x.asNo}
+                </a>
+                <Pill tone={LEVEL_TONE[x.levelCode] ?? 'gray'}>
+                  {levelShort(x.levelCode, x.levelName)}
+                </Pill>
+                <span
+                  style={{
+                    fontSize: 12,
+                    color: palette.sub,
+                    flex: 1,
+                    minWidth: 0,
+                  }}
+                >
+                  {[x.itemSummary, x.reasonName, x.solutionNames.join('、')]
+                    .filter(Boolean)
+                    .join(' · ')}
+                </span>
+                <Pill tone={AS_STATUS_TONE[x.status] ?? 'gray'}>
+                  {x.statusName}
+                </Pill>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
       {terms}
       <div style={{ marginTop: 16 }}>
         <ChainCard type="order" id={o.id} reloadKey={o.status} />
@@ -1295,6 +1374,24 @@ const OrderDetail: React.FC = () => {
         actions={
           (o.trackable || o.partialCancelable) && (
             <>
+              {access.salesAfterSales && (
+                <Button
+                  icon={<CustomerServiceOutlined />}
+                  onClick={() => setDialog('afterSales')}
+                >
+                  售后
+                </Button>
+              )}
+              {!access['finance:refund:edit'] &&
+                access.salesAfterSales &&
+                (o.receivedAmount ?? 0) > 0 && (
+                  <Button
+                    icon={<RollbackOutlined />}
+                    onClick={() => setDialog('refundRequest')}
+                  >
+                    申请退款
+                  </Button>
+                )}
               {o.trackable && (
                 <>
                   {access['sales:order:ship-notice'] && (
@@ -1381,6 +1478,23 @@ const OrderDetail: React.FC = () => {
         </div>
       </div>
 
+      <CreateAfterSalesModal
+        open={dialog === 'afterSales'}
+        order={o}
+        onClose={() => setDialog(undefined)}
+        onDone={(x) => {
+          setDialog(undefined);
+          history.push(`/sales/after-sales/${x.id}`);
+        }}
+      />
+      <RefundRequestModal
+        open={dialog === 'refundRequest'}
+        soId={o.id}
+        onClose={() => setDialog(undefined)}
+        onDone={() => {
+          setDialog(undefined);
+        }}
+      />
       <PartialCancelModal
         order={o}
         open={dialog === 'partialCancel'}

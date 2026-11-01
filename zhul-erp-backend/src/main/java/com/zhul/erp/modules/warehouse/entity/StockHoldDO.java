@@ -25,6 +25,8 @@ public class StockHoldDO {
     /** 来源销售订单（订单部分取消），否则 0 */
     private Long soId;
     private Long soItemId;
+    /** 来源退货单（售后退货），否则 0 */
+    private Long returnId;
     private String model;
     private String brand;
     private String category;

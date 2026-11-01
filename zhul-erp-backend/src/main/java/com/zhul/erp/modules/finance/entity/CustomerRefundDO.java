@@ -22,6 +22,10 @@ public class CustomerRefundDO {
     /** 1-售后退款（冲减订单收入）、2-余额提现（不挂订单、不影响利润） */
     private Integer refundType;
     private Long soId;
+    /** 关联售后单 */
+    private Long afterSalesId;
+    /** 来源退款申请 */
+    private Long refundRequestId;
     private Long customerId;
     private Integer businessUnitId;
     private LocalDate refundDate;

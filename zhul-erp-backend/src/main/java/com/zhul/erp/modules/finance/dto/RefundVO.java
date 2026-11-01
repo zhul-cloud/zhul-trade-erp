@@ -18,6 +18,11 @@ public class RefundVO {
     private Integer businessUnitId;
     private Long soId;
     private String soNo;
+    /** 关联售后单与来源退款申请 */
+    private Long afterSalesId;
+    private String asNo;
+    private Long refundRequestId;
+    private String requestNo;
     private String customerName;
     private LocalDate refundDate;
     private String reason;

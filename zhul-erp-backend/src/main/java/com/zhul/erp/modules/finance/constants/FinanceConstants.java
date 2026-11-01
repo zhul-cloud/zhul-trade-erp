@@ -126,6 +126,17 @@ public final class FinanceConstants {
     public static final java.util.Map<Integer, String> CREDIT_TYPE_NAMES = java.util.Map.of(CREDIT_REFUND_IN, "售后退款转入",
             CREDIT_COLLECTION_IN, "代收转入", CREDIT_OVERPAID_IN, "多收转入", CREDIT_OCCUPY, "抵扣占用", CREDIT_RELEASE, "抵扣释放",
             CREDIT_WITHDRAW, "提现", CREDIT_ADJUST, "手工调整", CREDIT_REVERSE, "冲销");
+    // ---------------------------------------------------------------- 退款申请（spec finance/refund-request）
+    public static final int RQ_PENDING_APPROVAL = 1;
+    public static final int RQ_PENDING_FINANCE = 2;
+    public static final int RQ_EXECUTED = 3;
+    public static final int RQ_REJECTED = 4;
+    public static final int RQ_WITHDRAWN = 5;
+    public static final java.util.Map<Integer, String> RQ_STATUS_NAMES = java.util.Map.of(RQ_PENDING_APPROVAL, "待审批",
+            RQ_PENDING_FINANCE, "待财务处理", RQ_EXECUTED, "已执行", RQ_REJECTED, "已驳回", RQ_WITHDRAWN, "已撤回");
+    public static final String CONFIG_REFUND_APPROVAL = "finance.refund-request.approval";
+    public static final String PERM_REFUND_REQUEST_APPROVE = "finance:refund-request:approve";
+
     public static final String SRC_REFUND = "REFUND";
     public static final String SRC_PI = "PI";
     public static final String SRC_SO = "SO";

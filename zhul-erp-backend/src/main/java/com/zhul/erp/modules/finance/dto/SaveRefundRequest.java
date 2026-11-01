@@ -32,4 +32,6 @@ public class SaveRefundRequest {
     private String remark;
     /** 凭证：去向为原路退回平台或银行汇款时必传，转客户余额时可不传 */
     private List<Long> attachmentIds;
+    /** 关联售后单（选填，须是这张订单的售后单） */
+    private Long afterSalesId;
 }
