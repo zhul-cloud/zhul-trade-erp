@@ -38,6 +38,28 @@ public class OrderCostVO {
     /** 快照的各项金额（historySnapshot 为 true 时有值） */
     private Snapshot snapshot;
 
+    /** 售后补发订单自己：成本计入的原订单（收入与毛利为空） */
+    private Long replacementOfId;
+    private String replacementOfNo;
+    /** 原订单：计入的售后补发成本合计与明细（已含在 cost 里） */
+    private BigDecimal replacementCost;
+    private List<Replacement> replacements;
+
+    @Data
+    public static class Replacement {
+        private Long soId;
+        private String soNo;
+        private Long afterSalesId;
+        private String afterSalesNo;
+        /** 采购货款（含开票成本、采购费用，扣质量索赔，加退货运费） */
+        private BigDecimal purchase;
+        /** 国内与国际运费 */
+        private BigDecimal freight;
+        private BigDecimal expense;
+        private BigDecimal cost;
+        private Boolean settled;
+    }
+
     @Data
     public static class Snapshot {
         private BigDecimal purchaseAmount;

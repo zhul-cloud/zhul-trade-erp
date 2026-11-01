@@ -33,6 +33,11 @@ public class SalesOrderVO {
     /** 收款按付款方式汇总（有效到账，线上在前） */
     private List<MethodTotal> methodTotals;
     private Margin margin;
+    /** 售后补发：来源售后单与原订单 */
+    private Long afterSalesId;
+    private String afterSalesNo;
+    private Long originalSoId;
+    private String originalSoNo;
     private Long piId;
     private String piNo;
     private Integer piVersionNo;

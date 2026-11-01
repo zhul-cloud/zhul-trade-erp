@@ -775,7 +775,7 @@ export const CloseModal: React.FC<{
           <b>已发生 {formatAmount(total, 'CNY')}</b>
         </div>
         <div style={{ fontSize: 12, color: palette.mute }}>
-          结案后只能添加跟进记录。有没处理完的退货单或待处理的退款申请时不能结案。
+          结案后只能添加跟进记录。有没处理完的退货单、待处理的退款申请或还没出运的补发订单时不能结案。
         </div>
       </Space>
     </Modal>
@@ -1109,6 +1109,298 @@ export const RefundRequestModal: React.FC<{
             ? '系统设置打开了审批：提交后先由审批人通过，再交财务处理。'
             : '提交后交财务在「退款管理 → 退款申请」执行。'}
         </div>
+      </Space>
+    </Modal>
+  );
+};
+
+// ---------------------------------------------------------------- 补发
+
+interface ReplacementRow {
+  key: string;
+  soItemId?: number;
+  model: string;
+  brand: string;
+  hint?: string;
+  checked: boolean;
+  quantity: number | null;
+  max?: number;
+  declaredPrice: number | null;
+  purchaserId?: number | null;
+}
+
+/** 发起补发（spec sales/after-sales「发起补发」）：生成 0 元的售后补发订单，成本计入原订单 */
+export const ReplacementModal: React.FC<{
+  open: boolean;
+  data: AfterSales;
+  onClose: () => void;
+  onDone: (next: AfterSales) => void;
+}> = ({ open, data, onClose, onDone }) => {
+  const { message } = App.useApp();
+  const { palette } = useAppTheme();
+  const users = useOwnerOptions();
+  const [order, setOrder] = useState<Order>();
+  const [rows, setRows] = useState<ReplacementRow[]>([]);
+  const [remark, setRemark] = useState('');
+  const [busy, setBusy] = useState(false);
+  const cur = order?.currencyCode ?? data.currencyCode ?? 'USD';
+  useEffect(() => {
+    if (!open || !data.soId) return;
+    setRemark('');
+    const picked = new Map(
+      (data.items ?? [])
+        .filter((i) => i.soItemId)
+        .map((i) => [i.soItemId as number, i.quantity]),
+    );
+    orderApi
+      .detail(data.soId)
+      .then((o) => {
+        setOrder(o);
+        setRows(
+          o.items
+            .filter((i) => i.quantity > 0)
+            .map((i) => ({
+              key: `so${i.id}`,
+              soItemId: i.id,
+              model: i.model,
+              brand: i.brand ?? '',
+              hint: `${i.brand ?? ''} · 订单 ${i.quantity} 个 · 原单价 ${formatAmount(i.declaredPrice ?? i.unitPrice, o.currencyCode)}`,
+              checked: picked.has(i.id),
+              quantity: picked.get(i.id) ?? 1,
+              max: i.quantity,
+              declaredPrice: Number(i.declaredPrice ?? i.unitPrice),
+              purchaserId: i.purchaserId ?? null,
+            })),
+        );
+      })
+      .catch((e) => message.error(readBizError(e).message));
+  }, [open, data, message]);
+
+  const patch = (key: string, p: Partial<ReplacementRow>) =>
+    setRows((rs) => rs.map((r) => (r.key === key ? { ...r, ...p } : r)));
+  const chosen = rows.filter((r) => r.checked);
+  const declaredTotal = chosen.reduce(
+    (s, r) => s + (r.quantity ?? 0) * (r.declaredPrice ?? 0),
+    0,
+  );
+
+  return (
+    <Modal
+      open={open}
+      onCancel={onClose}
+      width={860}
+      title={
+        <div>
+          <div>补发 · {data.asNo}</div>
+          <div style={{ fontSize: 12, color: palette.mute, fontWeight: 400 }}>
+            原订单 {data.soNo} · {data.customerName} · {cur}
+          </div>
+        </div>
+      }
+      okText="生成补发订单"
+      okButtonProps={{ loading: busy }}
+      onOk={async () => {
+        if (chosen.length === 0) {
+          message.error('请至少选择一个补发型号');
+          return;
+        }
+        setBusy(true);
+        try {
+          const next = await afterSalesApi.replace(
+            data.id,
+            chosen.map((r) => ({
+              soItemId: r.soItemId,
+              model: r.soItemId ? undefined : r.model.trim(),
+              brand: r.soItemId ? undefined : r.brand.trim(),
+              quantity: r.quantity ?? 0,
+              declaredPrice: r.declaredPrice ?? undefined,
+              purchaserId: r.purchaserId ?? undefined,
+            })),
+            remark.trim() || undefined,
+          );
+          message.success(
+            `已生成补发订单 ${next.replacements?.[0]?.soNo ?? ''}`,
+          );
+          onDone(next);
+        } catch (e) {
+          message.error(readBizError(e).message);
+        } finally {
+          setBusy(false);
+        }
+      }}
+      destroyOnHidden
+    >
+      <Space orientation="vertical" size={14} style={{ width: '100%' }}>
+        <div
+          style={{
+            padding: '10px 14px',
+            borderRadius: 12,
+            background: palette.accentSoft,
+            fontSize: 13,
+            color: palette.sub,
+          }}
+        >
+          <b style={{ color: palette.link }}>生成一张 0 元的售后补发订单</b>
+          <div>
+            客户、币种、事业部、业务员取原订单；不出 PI、不收款，照常生成采购需求走采购和出运。补发的成本计入原订单。
+          </div>
+        </div>
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: '24px 1fr 90px 130px 120px 24px',
+            gap: 10,
+            fontSize: 12,
+            color: palette.mute,
+          }}
+        >
+          <span />
+          <span>型号</span>
+          <span>数量</span>
+          <span>申报单价（{cur}）</span>
+          <span>采购员</span>
+          <span />
+        </div>
+        {rows.map((r) => (
+          <div
+            key={r.key}
+            style={{
+              display: 'grid',
+              gridTemplateColumns: '24px 1fr 90px 130px 120px 24px',
+              gap: 10,
+              alignItems: 'center',
+            }}
+          >
+            {r.soItemId ? (
+              <Checkbox
+                checked={r.checked}
+                onChange={(e) => patch(r.key, { checked: e.target.checked })}
+                aria-label={`补发 ${r.model}`}
+              />
+            ) : (
+              <span />
+            )}
+            {r.soItemId ? (
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontWeight: 600, color: palette.ink }}>
+                  {r.model}
+                </div>
+                <div style={{ fontSize: 12, color: palette.mute }}>
+                  {r.hint}
+                </div>
+              </div>
+            ) : (
+              <Space.Compact style={{ width: '100%' }}>
+                <Input
+                  value={r.model}
+                  maxLength={128}
+                  placeholder="配件型号"
+                  onChange={(e) => patch(r.key, { model: e.target.value })}
+                  aria-label="配件型号"
+                />
+                <Input
+                  value={r.brand}
+                  maxLength={64}
+                  placeholder="品牌"
+                  style={{ width: 110 }}
+                  onChange={(e) => patch(r.key, { brand: e.target.value })}
+                  aria-label="配件品牌"
+                />
+              </Space.Compact>
+            )}
+            <InputNumber<number>
+              min={1}
+              max={r.max}
+              precision={0}
+              disabled={!r.checked}
+              value={r.quantity}
+              onChange={(v) => patch(r.key, { quantity: v })}
+              style={{ width: '100%' }}
+              aria-label={`${r.model || '配件'} 补发数量`}
+            />
+            <InputNumber<number>
+              min={0.01}
+              precision={2}
+              disabled={!r.checked}
+              value={r.declaredPrice}
+              onChange={(v) => patch(r.key, { declaredPrice: v })}
+              style={{ width: '100%' }}
+              aria-label={`${r.model || '配件'} 申报单价`}
+            />
+            <Select
+              allowClear
+              showSearch={{ optionFilterProp: 'label' }}
+              disabled={!r.checked}
+              value={r.purchaserId ?? undefined}
+              options={users}
+              placeholder="采购员"
+              onChange={(v) => patch(r.key, { purchaserId: v ?? null })}
+              aria-label={`${r.model || '配件'} 采购员`}
+            />
+            {r.soItemId ? (
+              <span />
+            ) : (
+              <Button
+                type="text"
+                size="small"
+                icon={<DeleteOutlined />}
+                aria-label="删除配件"
+                onClick={() =>
+                  setRows((rs) => rs.filter((x) => x.key !== r.key))
+                }
+              />
+            )}
+          </div>
+        ))}
+        <Button
+          type="link"
+          icon={<PlusOutlined />}
+          style={{ padding: 0 }}
+          onClick={() =>
+            setRows((rs) => [
+              ...rs,
+              {
+                key: `m${Date.now()}`,
+                model: '',
+                brand: '',
+                checked: true,
+                quantity: 1,
+                declaredPrice: null,
+              },
+            ])
+          }
+        >
+          手填型号（补寄配件）
+        </Button>
+        <div
+          style={{
+            padding: '12px 14px',
+            borderRadius: 12,
+            background: palette.inset,
+            fontSize: 13,
+            display: 'grid',
+            gap: 4,
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+            <span style={{ color: palette.sub }}>订单金额</span>
+            <span>{formatAmount(0, cur)}（售后补发不收款）</span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+            <span style={{ color: palette.sub }}>申报货值（CI / PL 用）</span>
+            <b>{formatAmount(declaredTotal, cur)}</b>
+          </div>
+          <div style={{ color: palette.cyan, fontWeight: 600 }}>
+            出运单据注明 Free of charge replacement, no commercial value
+          </div>
+        </div>
+        <Input
+          value={remark}
+          maxLength={300}
+          onChange={(e) => setRemark(e.target.value)}
+          placeholder="说明（选填），如 换新 1 台伺服电机，随货补寄编码器线缆"
+          aria-label="补发说明"
+        />
       </Space>
     </Modal>
   );

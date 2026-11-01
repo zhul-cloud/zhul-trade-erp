@@ -34,8 +34,9 @@ public final class AfterSalesConstants {
     public static final String LOG_REFUND = "REFUND";
     public static final String LOG_EXPENSE = "EXPENSE";
     public static final String LOG_CREATE = "CREATE";
+    public static final String LOG_REPLACEMENT = "REPLACEMENT";
     public static final Map<String, String> LOG_TYPE_NAMES = Map.of(LOG_NOTE, "跟进", LOG_LEVEL, "等级", LOG_STATUS, "状态", LOG_PLAN, "处理",
-            LOG_RETURN, "退货", LOG_REFUND, "退款", LOG_EXPENSE, "费用", LOG_CREATE, "创建");
+            LOG_RETURN, "退货", LOG_REFUND, "退款", LOG_EXPENSE, "费用", LOG_CREATE, "创建", LOG_REPLACEMENT, "补发");
 
     /** 退货单状态 */
     public static final int RT_PENDING = 1;

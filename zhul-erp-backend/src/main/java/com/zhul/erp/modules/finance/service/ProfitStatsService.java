@@ -54,6 +54,7 @@ public class ProfitStatsService {
         LambdaQueryWrapper<SalesOrderDO> w = new LambdaQueryWrapper<SalesOrderDO>()
                 .eq(SalesOrderDO::getTenantId, PiStore.tenantId())
                 .eq(SalesOrderDO::getStatus, SalesConstants.SO_ACTIVE)
+                .ne(SalesOrderDO::getSource, SalesConstants.SO_REPLACEMENT)
                 .isNull(SalesOrderDO::getDeletedAt)
                 .ge(SalesOrderDO::getSalesDate, from)
                 .le(SalesOrderDO::getSalesDate, to)

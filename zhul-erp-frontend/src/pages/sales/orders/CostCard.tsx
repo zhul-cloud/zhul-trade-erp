@@ -250,6 +250,13 @@ const OrderCostCard: React.FC<{ cost: OrderCost }> = ({ cost }) => {
   if (cost.historySnapshot) {
     return <SnapshotCostCard cost={cost} />;
   }
+  // 售后补发订单：不算收入与毛利，只列成本
+  const own = cost.replacementOfId != null;
+  const shown = own
+    ? columns.filter(
+        (c) => !['refund', 'revenue', 'profit'].includes(String(c.key ?? (c as { dataIndex?: string }).dataIndex)),
+      )
+    : columns;
   return (
     <Card style={{ padding: 20, marginBottom: 16 }}>
       <div
@@ -262,6 +269,7 @@ const OrderCostCard: React.FC<{ cost: OrderCost }> = ({ cost }) => {
         }}
       >
         <b style={{ fontSize: 16, color: palette.ink }}>成本明细</b>
+        {own && <Pill tone="cyan">计入原订单 {cost.replacementOfNo}</Pill>}
         {cost.settled ? (
           <Pill tone="green">已结算</Pill>
         ) : (
@@ -280,7 +288,7 @@ const OrderCostCard: React.FC<{ cost: OrderCost }> = ({ cost }) => {
       <Table<CostLine>
         rowKey="soItemId"
         size="small"
-        columns={columns}
+        columns={shown}
         dataSource={cost.lines}
         pagination={false}
         scroll={{ x: 1600 }}
@@ -292,6 +300,8 @@ const OrderCostCard: React.FC<{ cost: OrderCost }> = ({ cost }) => {
             <Table.Summary.Cell index={10} align="right">
               <b style={num}>{formatAmount(cost.cost, 'CNY')}</b>
             </Table.Summary.Cell>
+            {!own && (
+              <>
             <Table.Summary.Cell index={11} align="right">
               {cost.refund ? (
                 <span style={{ ...num, color: palette.orange }}>
@@ -308,16 +318,63 @@ const OrderCostCard: React.FC<{ cost: OrderCost }> = ({ cost }) => {
               <b
                 style={{
                   ...num,
-                  color: cost.profit >= 0 ? palette.green : palette.red,
+                  color: (cost.profit ?? 0) >= 0 ? palette.green : palette.red,
                 }}
               >
-                {formatAmount(cost.profit, 'CNY')}
+                {formatAmount(cost.profit ?? 0, 'CNY')}
                 {cost.profitRate != null ? ` · ${cost.profitRate}%` : ''}
               </b>
             </Table.Summary.Cell>
+              </>
+            )}
           </Table.Summary.Row>
         )}
       />
+      {(cost.replacements ?? []).length > 0 && (
+        <div style={{ marginTop: 12, display: 'grid', gap: 6 }}>
+          {(cost.replacements ?? []).map((r) => (
+            <div
+              key={r.soId}
+              style={{
+                display: 'flex',
+                gap: 10,
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                fontSize: 13,
+              }}
+            >
+              <Pill tone="violet">售后补发</Pill>
+              <a onClick={() => history.push(`/sales/orders/${r.soId}`)}>
+                {r.soNo}
+              </a>
+              {r.afterSalesNo && (
+                <a
+                  onClick={() =>
+                    history.push(`/sales/after-sales/${r.afterSalesId}`)
+                  }
+                >
+                  {r.afterSalesNo}
+                </a>
+              )}
+              <span style={{ color: palette.sub }}>
+                采购 {formatAmount(r.purchase, 'CNY')} · 运费{' '}
+                {formatAmount(r.freight, 'CNY')} · 费用单{' '}
+                {formatAmount(r.expense, 'CNY')}
+              </span>
+              {!r.settled && <Pill tone="orange">未结算</Pill>}
+              <span style={{ flex: 1 }} />
+              <b style={{ ...num, color: palette.orange }}>
+                {formatAmount(r.cost, 'CNY')}
+              </b>
+            </div>
+          ))}
+          <div style={{ fontSize: 12, color: palette.mute }}>
+            合计实际成本已含售后补发{' '}
+            {formatAmount(cost.replacementCost ?? 0, 'CNY')}
+            ；补发订单取消后不再计入。
+          </div>
+        </div>
+      )}
       {cost.refunds.length > 0 && (
         <div style={{ marginTop: 12, display: 'grid', gap: 6 }}>
           {cost.refunds.map((r) => (
@@ -404,9 +461,9 @@ const SnapshotCostCard: React.FC<{ cost: OrderCost }> = ({ cost }) => {
         {item(
           '毛利',
           <span
-            style={{ color: cost.profit >= 0 ? palette.green : palette.red }}
+            style={{ color: (cost.profit ?? 0) >= 0 ? palette.green : palette.red }}
           >
-            {formatAmount(cost.profit, 'CNY')}
+            {formatAmount(cost.profit ?? 0, 'CNY')}
           </span>,
         )}
         {item('毛利率', cost.profitRate != null ? `${cost.profitRate}%` : '—')}

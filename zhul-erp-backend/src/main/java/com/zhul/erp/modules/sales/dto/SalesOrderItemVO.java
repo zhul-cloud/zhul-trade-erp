@@ -11,6 +11,8 @@ import lombok.ToString;
 public class SalesOrderItemVO extends PiItemVO {
     /** 1-现货、2-期货 */
     private Integer stockType;
+    /** 申报单价（原币，仅售后补发订单，CI/PL 用） */
+    private java.math.BigDecimal declaredPrice;
     /** 原数量（成交时）与已部分取消的数量；quantity 为剩余数量 */
     private Integer originalQuantity;
     private Integer cancelledQuantity;

@@ -136,6 +136,7 @@ export interface AfterSales {
     name: string;
     amountCny: number;
   }[];
+  replacements?: ReplacementBrief[];
   refundCny?: number;
   expenseCny?: number;
   returnCreditCny?: number;
@@ -144,6 +145,30 @@ export interface AfterSales {
   createBy?: string;
   updateTime?: string;
   updateBy?: string;
+}
+
+export interface ReplacementBrief {
+  soId: number;
+  soNo: string;
+  summary: string;
+  currencyCode: string;
+  declaredAmount: number;
+  /** 1-有效、2-已取消 */
+  status: number;
+  progressCode: string;
+  progressName: string;
+  shipped: boolean;
+  createBy?: string;
+  createTime?: string;
+}
+
+export interface ReplacementLine {
+  soItemId?: number;
+  model?: string;
+  brand?: string;
+  quantity: number;
+  declaredPrice?: number;
+  purchaserId?: number;
 }
 
 export interface AfterSalesQuery {
@@ -209,6 +234,8 @@ export const afterSalesApi = {
     send<AfterSales>('POST', `${AS}/${id}/close`, { reasonCode, result }),
   cancel: (id: number, reason: string) =>
     send<AfterSales>('POST', `${AS}/${id}/cancel`, { reason }),
+  replace: (id: number, items: ReplacementLine[], remark?: string) =>
+    send<AfterSales>('POST', `${AS}/${id}/replacement`, { items, remark }),
 };
 
 // ---------------------------------------------------------------- 退货单（spec warehouse/sales-return）
