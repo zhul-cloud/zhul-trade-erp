@@ -73,20 +73,14 @@ public class CreditUsageService {
         }
     }
 
-    /** 手动订单抵扣客户余额：生成「余额抵扣」收款记录，计入已到账 */
+    /** 手动订单抵扣客户余额：生成「余额抵扣」收款记录，计入已到账；调用方已确认是进行中的手动订单 */
     @Transactional(rollbackFor = Exception.class)
     public void useOnOrder(SalesOrderDO o, BigDecimal amount) {
-        if (!Objects.equals(o.getSource(), SalesConstants.SO_MANUAL)) {
-            throw new BizException("PI 转成的订单请在 PI 上抵扣余额");
-        }
-        if (o.getStatus() != SalesConstants.SO_ACTIVE) {
-            throw new BizException("订单已取消，不能登记收款");
-        }
         BigDecimal amt = amount == null ? BigDecimal.ZERO : amount.setScale(2, RoundingMode.HALF_UP);
         if (amt.signum() <= 0) {
             throw new BizException("抵扣金额须大于 0");
         }
-        BigDecimal unpaid = nz(o.getTotalAmount()).subtract(nz(o.getReceivedAmount())).subtract(nz(o.getFeeDiffAmount()));
+        BigDecimal unpaid = o.getTotalAmount().subtract(o.getReceivedAmount()).subtract(o.getFeeDiffAmount());
         if (amt.compareTo(unpaid) > 0) {
             throw new BizException("抵扣不能超过待付金额 " + o.getCurrencyCode() + " " + CustomerCreditLedger.fmt(unpaid.max(BigDecimal.ZERO)));
         }
@@ -96,12 +90,9 @@ public class CreditUsageService {
         summary.refreshOrder(o);
     }
 
-    /** 作废手动订单上的余额抵扣（登记人或有「登记到账」权限的用户），释放余额 */
+    /** 作废手动订单上的余额抵扣（登记人或有「登记到账」权限的用户），释放余额；PI 上的抵扣由调用方挡住 */
     @Transactional(rollbackFor = Exception.class)
     public void voidOrderCredit(SalesOrderDO o, PaymentReceiptDO r, String reason) {
-        if (r.getPiId() != null && r.getPiId() > 0) {
-            throw new BizException("PI 上的余额抵扣随 PI 自动处理，请修改 PI 的抵扣金额");
-        }
         voidReceipt(r, reason);
         if (r.getCreditEntryId() != null) {
             ledger.release(ledger.require(r.getCreditEntryId()), FinanceConstants.CREDIT_RELEASE, "作废订单 " + o.getSoNo() + " 的余额抵扣");
@@ -266,17 +257,14 @@ public class CreditUsageService {
                         .eq(CustomerCreditConsumptionDO::getOutEntryId, out.getId())
                         .isNull(CustomerCreditConsumptionDO::getDeletedAt))
                 .stream().map(CustomerCreditConsumptionDO::getInEntryId).distinct().toList();
-        if (ins.isEmpty()) {
-            return "";
-        }
-        String s = entryMapper.selectBatchIds(ins).stream().map(e -> e.getSourceNo().isEmpty()
+        // 占用至少消耗了一笔转入
+        return entryMapper.selectBatchIds(ins).stream().map(e -> e.getSourceNo().isEmpty()
                 ? FinanceConstants.CREDIT_TYPE_NAMES.get(e.getEntryType()) : e.getSourceNo()).distinct()
-                .reduce((x, y) -> x + "、" + y).orElse("");
-        return s.length() > 200 ? s.substring(0, 200) : s;
+                .collect(java.util.stream.Collectors.joining("、"));
     }
 
     private static BigDecimal credit(PiVersionDO v) {
-        return v == null || v.getCreditAmount() == null ? BigDecimal.ZERO : v.getCreditAmount();
+        return v == null ? BigDecimal.ZERO : v.getCreditAmount();
     }
 
     private static String statusName(ProformaInvoiceDO pi) {
@@ -289,9 +277,5 @@ public class CreditUsageService {
                 .eq(PaymentReceiptDO::getPaymentMethod, SalesConstants.METHOD_CREDIT)
                 .eq(PaymentReceiptDO::getStatus, SalesConstants.RECORD_VALID)
                 .isNull(PaymentReceiptDO::getDeletedAt);
-    }
-
-    private static BigDecimal nz(BigDecimal v) {
-        return v == null ? BigDecimal.ZERO : v;
     }
 }

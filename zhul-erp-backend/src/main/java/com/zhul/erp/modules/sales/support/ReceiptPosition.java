@@ -60,9 +60,21 @@ public class ReceiptPosition {
             return received.signum() > 0 && received.add(feeDiff).compareTo(total) >= 0;
         }
 
-        /** 现金收款的加权到账汇率；没有现金到账时为空 */
+        /**
+         * 现金收款的加权到账汇率（不含余额抵扣）；全部用余额抵扣付款时按余额抵扣的锁定价值加权；没有任何到账时为 1。
+         * 用于代收、多收转入余额与售后退款转余额时折算人民币。
+         */
         public BigDecimal cashRate() {
-            return cashGross.signum() > 0 ? cashGrossCny.divide(cashGross, 6, RoundingMode.HALF_UP) : null;
+            if (cashGross.signum() > 0) {
+                return cashGrossCny.divide(cashGross, 6, RoundingMode.HALF_UP);
+            }
+            BigDecimal gross = BigDecimal.ZERO;
+            BigDecimal cny = BigDecimal.ZERO;
+            for (PaymentReceiptDO r : receipts) {
+                gross = gross.add(r.getAmount());
+                cny = cny.add(r.getAmount().multiply(r.getExchangeRate(), MC));
+            }
+            return gross.signum() > 0 ? cny.divide(gross, 6, RoundingMode.HALF_UP) : BigDecimal.ONE;
         }
 
         /** 代收承担的平台手续费（原币，HALF_UP 两位） */
@@ -82,12 +94,13 @@ public class ReceiptPosition {
     public Position ofPi(ProformaInvoiceDO pi) {
         PiVersionDO v = store.version(pi.getId(), pi.getCurrentVersionNo() != null && pi.getCurrentVersionNo() > 0
                 ? pi.getCurrentVersionNo() : pi.getEditingVersionNo());
-        BigDecimal collection = v == null ? BigDecimal.ZERO : store.fees(v.getId()).stream()
+        // PI 至少有一个版本（草稿也有编辑中的版本）
+        BigDecimal collection = store.fees(v.getId()).stream()
                 .filter(f -> Objects.equals(f.getFeeType(), SalesConstants.FEE_COLLECTION))
                 .map(PiFeeDO::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
         List<PaymentReceiptDO> receipts = receiptMapper.selectList(valid().eq(PaymentReceiptDO::getPiId, pi.getId()));
         return build("PI", pi.getId(), pi.getPiNo(), pi.getCustomerId(), pi.getCurrencyCode(), pi.getBusinessUnitId(),
-                nz(pi.getTotalAmount()), collection, receipts);
+                pi.getTotalAmount(), collection, receipts);
     }
 
     /** 订单：PI 转成的取 PI 的收款，手动订单取订单自己的收款 */
@@ -108,7 +121,7 @@ public class ReceiptPosition {
                 .stream().map(SalesOrderFeeDO::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
         List<PaymentReceiptDO> receipts = receiptMapper.selectList(valid().eq(PaymentReceiptDO::getSoId, o.getId()));
         return build("SO", o.getId(), o.getSoNo(), o.getCustomerId(), o.getCurrencyCode(), o.getBusinessUnitId(),
-                nz(o.getTotalAmount()), collection, receipts);
+                o.getTotalAmount(), collection, receipts);
     }
 
     public static boolean isCredit(PaymentReceiptDO r) {
@@ -125,14 +138,14 @@ public class ReceiptPosition {
         BigDecimal cashCny = BigDecimal.ZERO;
         boolean online = false;
         for (PaymentReceiptDO r : receipts) {
-            received = received.add(nz(r.getAmount()));
-            feeDiff = feeDiff.add(nz(r.getFeeDiff()));
-            fee = fee.add(nz(r.getPlatformFee()));
+            received = received.add(r.getAmount());
+            feeDiff = feeDiff.add(r.getFeeDiff());
+            fee = fee.add(r.getPlatformFee());
             if (isCredit(r)) {
-                credit = credit.add(nz(r.getAmount()));
+                credit = credit.add(r.getAmount());
             } else {
-                cash = cash.add(nz(r.getAmount()));
-                cashCny = cashCny.add(nz(r.getAmount()).multiply(nz(r.getExchangeRate()), MC));
+                cash = cash.add(r.getAmount());
+                cashCny = cashCny.add(r.getAmount().multiply(r.getExchangeRate(), MC));
                 online |= Objects.equals(r.getChannel(), SalesConstants.CHANNEL_ONLINE);
             }
         }
@@ -145,9 +158,5 @@ public class ReceiptPosition {
                 .eq(PaymentReceiptDO::getKind, SalesConstants.KIND_RECEIPT)
                 .eq(PaymentReceiptDO::getStatus, SalesConstants.RECORD_VALID)
                 .isNull(PaymentReceiptDO::getDeletedAt);
-    }
-
-    private static BigDecimal nz(BigDecimal v) {
-        return v == null ? BigDecimal.ZERO : v;
     }
 }

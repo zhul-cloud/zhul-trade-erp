@@ -188,17 +188,13 @@ public class CustomerCreditLedger {
                 .eq(CustomerCreditConsumptionDO::getReleased, 0)
                 .isNull(CustomerCreditConsumptionDO::getDeletedAt)
                 .orderByAsc(CustomerCreditConsumptionDO::getId));
-        for (CustomerCreditConsumptionDO c : rows) {
-            CustomerCreditEntryDO out = entryMapper.selectById(c.getOutEntryId());
-            if (out != null && out.getEntryType() != FinanceConstants.CREDIT_REVERSE) {
-                return out.getSourceNo().isEmpty() ? FinanceConstants.CREDIT_TYPE_NAMES.get(out.getEntryType()) : out.getSourceNo();
-            }
-        }
-        return "其他单据";
+        // 调用前已确认有未释放的消耗（冲销只发生在没有消耗时），取第一条消耗它的转出
+        CustomerCreditEntryDO out = entryMapper.selectById(rows.get(0).getOutEntryId());
+        return out.getSourceNo().isEmpty() ? FinanceConstants.CREDIT_TYPE_NAMES.get(out.getEntryType()) : out.getSourceNo();
     }
 
     public CustomerCreditEntryDO require(Long id) {
-        CustomerCreditEntryDO e = id == null ? null : entryMapper.selectById(id);
+        CustomerCreditEntryDO e = entryMapper.selectById(id);
         if (e == null || e.getDeletedAt() != null || !Objects.equals(e.getTenantId(), PiStore.tenantId())) {
             throw new BizException("余额流水不存在");
         }
@@ -295,19 +291,19 @@ public class CustomerCreditLedger {
         e.setAmount(amount);
         e.setAmountCny(amountCny);
         e.setLotTime(lotTime);
-        e.setSourceType(s == null || s.type() == null ? "" : s.type());
-        e.setSourceId(s == null ? null : s.id());
-        e.setSourceNo(s == null || s.no() == null ? "" : s.no());
+        // 来源与说明由调用方给出：说明来自已校验长度的请求或系统生成的短文本
+        e.setSourceType(s.type());
+        e.setSourceId(s.id());
+        e.setSourceNo(s.no());
         e.setRelatedEntryId(related);
-        String r = remark == null ? "" : remark.trim();
-        e.setRemark(r.length() > 500 ? r.substring(0, 500) : r);
+        e.setRemark(remark.trim());
         e.setOperatorId(currentUser.resolve());
         entryMapper.insert(e);
         return e;
     }
 
     public static BigDecimal money(BigDecimal v) {
-        return (v == null ? BigDecimal.ZERO : v).setScale(2, RoundingMode.HALF_UP);
+        return v.setScale(2, RoundingMode.HALF_UP);
     }
 
     public static String fmt(BigDecimal v) {

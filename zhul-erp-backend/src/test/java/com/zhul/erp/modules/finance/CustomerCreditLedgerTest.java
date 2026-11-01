@@ -126,4 +126,28 @@ class CustomerCreditLedgerTest extends SalesContractSupport {
         in(usd, "1000000000000000.00", "7100000000000000.00");
         eq("-2366666666666666.64", occupy(usd, "333333333333333.33", "P").getAmountCny());
     }
+
+    @Test
+    void preferredLotFirst_otherwiseFifoStopsWhenEnough() {
+        in(usd, "100", "710");
+        CustomerCreditEntryDO second = in(usd, "100", "690");
+        // 只用第一笔就够：不再动第二笔
+        eq("-355.00", occupy(usd, "50", "P1").getAmountCny());
+        // 指定先用第二笔（退回多收时用刚转入的那笔）
+        eq("-345.00", ledger.consume(usd, FinanceConstants.CREDIT_WITHDRAW, d("50"), new Source("REFUND", 2L, "TK2"), "",
+                second.getId()).getAmountCny());
+        eq("100", ledger.balance(usd).amount());
+        eq("700.00", ledger.balance(usd).amountCny());
+    }
+
+    @Test
+    void usedByNamesTheConsumer_andGuardsUnknownRecords() {
+        CustomerCreditEntryDO refundIn = in(usd, "100", "710");
+        ledger.consume(usd, FinanceConstants.CREDIT_ADJUST, d("10"), new Source("MANUAL", null, ""), "更正");
+        BizException e = assertThrows(BizException.class, () -> ledger.reverse(refundIn, "作废"));
+        assertEquals("余额已被 手工调整 使用，请先处理该单据", e.getMessage());
+        assertEquals("余额流水不存在", assertThrows(BizException.class, () -> ledger.require(-1L)).getMessage());
+        Account nobody = new Account(-9L, "USD", null);
+        assertEquals("客户不存在", assertThrows(BizException.class, () -> in(nobody, "1", "7")).getMessage());
+    }
 }

@@ -118,7 +118,8 @@ public class CustomerCreditService {
         slice.forEach(a -> {
             CustomerDO c = customers.get(a.getCustomerId());
             a.setCustomerName(InquiryLookups.customerName(c));
-            a.setCustomerCountry(c == null ? null : c.getCountry());
+            // 客户只做软删除，按 ID 总能查到
+            a.setCustomerCountry(c.getCountry());
         });
         return PageResult.of((long) rows.size(), slice);
     }
@@ -234,10 +235,15 @@ public class CustomerCreditService {
         List<CustomerCreditEntryDO> rows = entryMapper.selectList(w);
         Map<Long, CustomerCreditEntryDO> byId = rows.stream().collect(Collectors.toMap(CustomerCreditEntryDO::getId, e -> e));
         Map<String, Map<String, Pair>> acc = new LinkedHashMap<>();
+        // 本月有流水的账户：即使进出相抵为 0 也要列出来，方便对账
+        java.util.Set<String> active = new java.util.HashSet<>();
         for (CustomerCreditEntryDO e : rows.stream().sorted(Comparator.comparing(CustomerCreditEntryDO::getId)).toList()) {
             Map<String, Pair> cols = acc.computeIfAbsent(key(e), k -> new HashMap<>());
-            String col = e.getCreateTime().isBefore(start) ? "opening" : column(e, byId);
-            add(cols, col, e.getAmount(), e.getAmountCny());
+            boolean before = e.getCreateTime().isBefore(start);
+            if (!before) {
+                active.add(key(e));
+            }
+            add(cols, before ? "opening" : column(e, byId), e.getAmount(), e.getAmountCny());
         }
         Map<Integer, String> buNames = businessUnitService.names();
         Map<Long, CustomerDO> customers = lookups.customers(acc.keySet().stream().map(k -> Long.valueOf(k.split("\\|")[0])).distinct().toList());
@@ -251,7 +257,7 @@ public class CustomerCreditService {
             Long customerId = Long.valueOf(k[0]);
             Integer bu = k[1].isEmpty() ? null : Integer.valueOf(k[1]);
             CreditReconVO.Row r = row(en.getValue());
-            if (isZero(r)) {
+            if (!active.contains(en.getKey()) && r.getOpening().getAmount().signum() == 0) {
                 continue;
             }
             r.setCustomerId(customerId);
@@ -404,14 +410,14 @@ public class CustomerCreditService {
         if (!refund && !"CREDIT".equals(req.getMode())) {
             throw new BizException("处理方式不正确");
         }
+        if (refund && (req.getWithdrawDate() == null || req.getMethod() == null || req.getActualCny() == null)) {
+            throw new BizException("请填写转出日期、转出方式与实际转出人民币");
+        }
         Account a = new Account(p.customerId(), p.currencyCode(), p.businessUnitId());
         CustomerCreditEntryDO in = ledger.credit(a, FinanceConstants.CREDIT_OVERPAID_IN, amount,
-                amount.multiply(CreditReceiptSync.rate(p), MC), new Source(p.ownerType(), p.ownerId(), p.ownerNo()),
+                amount.multiply(p.cashRate(), MC), new Source(p.ownerType(), p.ownerId(), p.ownerNo()),
                 StringUtils.hasText(req.getRemark()) ? req.getRemark() : "客户多付");
         if (refund) {
-            if (req.getWithdrawDate() == null || req.getMethod() == null || req.getActualCny() == null) {
-                throw new BizException("请填写转出日期、转出方式与实际转出人民币");
-            }
             withdraw(a, amount, req.getWithdrawDate(), req.getMethod(), req.getMethodName(), req.getPayeeAccount(),
                     req.getActualCny(), req.getAttachmentIds(), "退回多收 " + p.ownerNo(), in.getId());
         }
@@ -427,7 +433,8 @@ public class CustomerCreditService {
         if (date.isAfter(LocalDate.now())) {
             throw new BizException("转出日期不能晚于今天");
         }
-        if (method == null || (method != FinanceConstants.REFUND_BANK && method != FinanceConstants.REFUND_OTHER)) {
+        // 转出方式已由请求校验（转给客户）或上面的检查（退回多收）保证不为空
+        if (method != FinanceConstants.REFUND_BANK && method != FinanceConstants.REFUND_OTHER) {
             throw new BizException("转出方式不正确");
         }
         if (method == FinanceConstants.REFUND_OTHER && !StringUtils.hasText(methodName)) {
@@ -483,7 +490,7 @@ public class CustomerCreditService {
         v.setReceived(p.received().add(p.feeDiff()));
         v.setOverpaid(p.overpaid());
         BigDecimal pending = receiptSync.pendingOverpaid(p);
-        BigDecimal rate = CreditReceiptSync.rate(p);
+        BigDecimal rate = p.cashRate();
         v.setPending(pending);
         v.setRate(rate);
         v.setPendingCny(pending.multiply(rate).setScale(2, RoundingMode.HALF_UP));
@@ -598,13 +605,6 @@ public class CustomerCreditService {
         }
         r.setClosing(Pair.of(closing, closingCny));
         return r;
-    }
-
-    private static boolean isZero(CreditReconVO.Row r) {
-        return r.getOpening().getAmount().signum() == 0 && r.getClosing().getAmount().signum() == 0
-                && r.getRefundIn().getAmount().signum() == 0 && r.getCollectionIn().getAmount().signum() == 0
-                && r.getOverpaidIn().getAmount().signum() == 0 && r.getAdjust().getAmount().signum() == 0
-                && r.getDeduct().getAmount().signum() == 0 && r.getWithdraw().getAmount().signum() == 0;
     }
 
     /** negate：抵扣、提现以正数显示用掉的金额 */

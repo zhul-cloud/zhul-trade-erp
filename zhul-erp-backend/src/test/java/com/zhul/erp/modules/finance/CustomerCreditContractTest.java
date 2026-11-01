@@ -1,6 +1,11 @@
 package com.zhul.erp.modules.finance;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.zhul.erp.framework.tenant.TenantContext;
+import com.zhul.erp.modules.finance.constants.FinanceConstants;
+import com.zhul.erp.modules.finance.service.CustomerCreditLedger;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.springframework.beans.factory.annotation.Autowired;
 import com.zhul.erp.modules.sales.SalesContractSupport;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -14,6 +19,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -33,6 +39,9 @@ class CustomerCreditContractTest extends SalesContractSupport {
     private static final String REPORT = "/api/v1/finance/operating-report";
 
     private long customer;
+
+    @Autowired
+    private CustomerCreditLedger ledger;
 
     @BeforeEach
     void setUp() {
@@ -352,5 +361,282 @@ class CustomerCreditContractTest extends SalesContractSupport {
         JsonNode summary = ok(call(get(CREDIT + "/summary"), admin));
         money("400", summary.path("currencies").get(0).path("amount"));
         assertEquals(new BigDecimal("400").compareTo(summary.path("currencies").get(0).path("amount").decimalValue()), 0);
+    }
+
+    // ---------------------------------------------------------------- 覆盖补充
+
+    private void adjust(long c, String currency, String amount, String cny) throws Exception {
+        Map<String, Object> b = new HashMap<>();
+        b.put("customerId", c);
+        b.put("currencyCode", currency);
+        b.put("amount", amount);
+        b.put("amountCny", cny);
+        b.put("reason", "旧 ERP 余额迁移");
+        ok(call(json(post(CREDIT + "/adjust"), write(b)), admin));
+    }
+
+    private long manualOrder(String price) throws Exception {
+        Map<String, Object> line = new LinkedHashMap<>();
+        line.put("model", "6ES7214-1AG40-0XB0");
+        line.put("quantity", 1);
+        line.put("unitPrice", price);
+        Map<String, Object> b = new LinkedHashMap<>();
+        b.put("customerId", customer);
+        b.put("currencyCode", "USD");
+        b.put("items", List.of(line));
+        return ok(call(json(post(SO), write(b)), admin)).path("id").asLong();
+    }
+
+    private JsonNode orderReceipt(long so, String amount) throws Exception {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("amount", amount);
+        body.put("receiptDate", LocalDate.now().toString());
+        body.put("bankAccountId", jdbc.queryForObject("select min(id) from tenant_bank_account where tenant_id = 0", Integer.class));
+        body.put("feeDiff", false);
+        return ok(call(json(post(SO + "/" + so + "/receipts"), write(body)), admin));
+    }
+
+    @Test
+    void listFilters_summary_entriesAndReconciliationByUnit_export() throws Exception {
+        long other = customer("Pacific Controls Pty", "Australia");
+        long zero = customer("Wingrid Rocha", "Brazil");
+        adjust(customer, "USD", "100", "710");
+        adjust(other, "EUR", "50", "390");
+        adjust(zero, "USD", "10", "71");
+        adjust(zero, "USD", "-10", "1");
+        TenantContext.setTenantId(0);
+        ledger.credit(new CustomerCreditLedger.Account(customer, "USD", 777), FinanceConstants.CREDIT_ADJUST, new BigDecimal("30"),
+                new BigDecimal("213"), new CustomerCreditLedger.Source("MANUAL", null, ""), "事业部余额");
+        // 筛选：关键词、币种、事业部（0 表示没有事业部）、显示余额为 0 的、分页
+        assertEquals(2, ok(call(get(CREDIT).param("keyword", "acrobot"), admin)).path("total").asInt());
+        assertEquals("EUR", ok(call(get(CREDIT).param("currencyCode", "EUR"), admin)).path("records").get(0).path("currencyCode").asText());
+        assertEquals(2, ok(call(get(CREDIT).param("businessUnitId", "0"), admin)).path("total").asInt());
+        assertEquals(777, ok(call(get(CREDIT).param("businessUnitId", "777"), admin)).path("records").get(0).path("businessUnitId").asInt());
+        assertEquals(3, ok(call(get(CREDIT), admin)).path("total").asInt());
+        assertEquals(4, ok(call(get(CREDIT).param("showAll", "true"), admin)).path("total").asInt());
+        assertEquals(1, ok(call(get(CREDIT).param("page", "2").param("pageSize", "2"), admin)).path("records").size());
+        assertEquals(1, ok(call(get(CREDIT + "/entries").param("customerId", String.valueOf(customer)).param("currencyCode", "USD")
+                .param("businessUnitId", "777"), admin)).size());
+        // 草稿 PI 占用 → 汇总里「已被 PI 占用」
+        long q = quotation(customer, 2, "USD", null, l("6ES7214-1AG40-0XB0", 1, "5000", "500"));
+        JsonNode draft = ok(createPi(quotationItemIds(q)));
+        Map<String, Object> body = saveBody(draft);
+        ((List<?>) body.get("fees")).clear();
+        body.put("creditAmount", "40");
+        ok(savePi(draft.path("id").asLong(), body));
+        JsonNode summary = ok(call(get(CREDIT + "/summary"), admin));
+        money("40", summary.path("occupied").get(0).path("amount"));
+        assertEquals(1, summary.path("occupied").get(0).path("count").asInt());
+        // 余额为 0、本月没有变动的账户不出现在核对表：把 Wingrid 的流水挪到上个月
+        jdbc.update("update fin_customer_credit_entry set create_time = date_sub(create_time, interval 40 day) where customer_id = ?", zero);
+        String month = LocalDate.now().toString().substring(0, 7);
+        JsonNode all = ok(call(get(CREDIT + "/reconciliation").param("month", month).param("currencyCode", "USD"), admin));
+        assertEquals(2, all.path("rows").size());
+        assertTrue(all.path("balanced").asBoolean());
+        money("40", all.path("total").path("deduct").path("amount"));
+        assertEquals(1, ok(call(get(CREDIT + "/reconciliation").param("month", month).param("currencyCode", "USD")
+                .param("businessUnitId", "777"), admin)).path("rows").size());
+        assertEquals(1, ok(call(get(CREDIT + "/reconciliation").param("month", month).param("currencyCode", "USD")
+                .param("businessUnitId", "0"), admin)).path("rows").size());
+        // 不传月份与币种：默认上月、USD
+        JsonNode last = ok(call(get(CREDIT + "/reconciliation"), admin));
+        assertEquals(LocalDate.now().minusMonths(1).toString().substring(0, 7), last.path("month").asText());
+        assertEquals("USD", last.path("currencyCode").asText());
+        // 导出与页面一致
+        byte[] xlsx = perform(get(CREDIT + "/reconciliation/export").param("month", month).param("currencyCode", "USD"), admin)
+                .getContentAsByteArray();
+        try (XSSFWorkbook wb = new XSSFWorkbook(new java.io.ByteArrayInputStream(xlsx))) {
+            var sheet = wb.getSheetAt(0);
+            assertEquals("客户", sheet.getRow(0).getCell(0).getStringCellValue());
+            assertEquals("合计", sheet.getRow(sheet.getLastRowNum()).getCell(0).getStringCellValue());
+        }
+    }
+
+    @Test
+    void adjustAndWithdrawValidation_bankWithdraw_reverseColumnsInReconciliation() throws Exception {
+        Map<String, Object> b = new HashMap<>();
+        b.put("customerId", customer);
+        b.put("currencyCode", "USD");
+        b.put("amount", "0");
+        b.put("reason", "x");
+        assertEquals("调整金额不能为 0", fail(call(json(post(CREDIT + "/adjust"), write(b)), admin)).path("message").asText());
+        b.put("amount", "10");
+        assertEquals("请填写人民币价值", fail(call(json(post(CREDIT + "/adjust"), write(b)), admin)).path("message").asText());
+        adjust(customer, "USD", "100", "710");
+        Map<String, Object> w = withdraw("10", "70");
+        w.put("withdrawDate", LocalDate.now().plusDays(1).toString());
+        assertEquals("转出日期不能晚于今天", fail(call(json(post(CREDIT + "/withdraw"), write(w)), admin)).path("message").asText());
+        w = withdraw("10", "70");
+        w.put("method", 3);
+        assertEquals("转出方式不正确", fail(call(json(post(CREDIT + "/withdraw"), write(w)), admin)).path("message").asText());
+        w.put("method", 4);
+        w.put("methodName", " ");
+        assertEquals("请填写转出方式，如支付宝", fail(call(json(post(CREDIT + "/withdraw"), write(w)), admin)).path("message").asText());
+        w = withdraw("10", "70");
+        w.put("attachmentIds", List.of());
+        assertEquals("请上传转账凭证", fail(call(json(post(CREDIT + "/withdraw"), write(w)), admin)).path("message").asText());
+        // 银行汇款：转出方式显示「银行汇款」；作废后余额恢复，核对表里提现一进一出
+        w = withdraw("10", "71");
+        w.put("method", 2);
+        w.remove("methodName");
+        JsonNode tk = ok(call(json(post(CREDIT + "/withdraw"), write(w)), admin));
+        assertEquals("银行汇款", tk.path("methodName").asText());
+        ok(call(json(post(REFUND + "/" + tk.path("id").asLong() + "/void"), "{\"reason\":\"退回\"}"), admin));
+        JsonNode r = ok(call(get(CREDIT + "/reconciliation").param("month", LocalDate.now().toString().substring(0, 7))
+                .param("currencyCode", "USD"), admin)).path("total");
+        money("0", r.path("withdraw").path("amount"));
+        money("100", r.path("closing").path("amount"));
+        assertTrue(ok(call(get(INCOME).param("category", "FX_GAIN"), admin)).path("records").isEmpty());
+    }
+
+    @Test
+    void manualOrderOverpaid_processInParts_voidReceiptReversesProcessed() throws Exception {
+        long so = manualOrder("250");
+        orderReceipt(so, "300");
+        JsonNode row = ok(call(get(CREDIT + "/overpaid"), admin)).get(0);
+        assertEquals("SO", row.path("ownerType").asText());
+        money("50", row.path("pending"));
+        Map<String, Object> req = new HashMap<>();
+        req.put("ownerType", "SO");
+        req.put("ownerId", so);
+        req.put("amount", "20");
+        req.put("mode", "X");
+        assertEquals("处理方式不正确", fail(call(json(post(CREDIT + "/overpaid"), write(req)), admin)).path("message").asText());
+        req.put("mode", "REFUND");
+        assertEquals("请填写转出日期、转出方式与实际转出人民币",
+                fail(call(json(post(CREDIT + "/overpaid"), write(req)), admin)).path("message").asText());
+        req.put("mode", "CREDIT");
+        money("30", ok(call(json(post(CREDIT + "/overpaid"), write(req)), admin)).get(0).path("pending"));
+        req.put("ownerId", -1);
+        assertEquals("销售订单不存在", fail(call(json(post(CREDIT + "/overpaid"), write(req)), admin)).path("message").asText());
+        req.put("ownerType", "PI");
+        assertEquals("PI 不存在", fail(call(json(post(CREDIT + "/overpaid"), write(req)), admin)).path("message").asText());
+        money("30", ok(call(get(SO + "/" + so), admin)).path("credit").path("overpaidPending"));
+        money("20", balances().get(0).path("available"));
+        // 作废这笔到账：多收没了，已处理的 20 还没被用，自动撤回
+        long receipt = jdbc.queryForObject("select id from payment_receipt where so_id = ? and status = 1", Long.class, so);
+        ok(call(json(post(SO + "/" + so + "/receipts/" + receipt + "/void"), "{\"reason\":\"录错\"}"), admin));
+        money("0", balances().get(0).path("available"));
+        assertTrue(ok(call(get(CREDIT + "/overpaid"), admin)).isEmpty());
+    }
+
+    @Test
+    void voidReceiptBeforeWithdraw_reversesCollection() throws Exception {
+        long pi = pi("300", null);
+        platform(pi, "1300", "39");
+        money("291", balances().get(0).path("available"));
+        long receipt = jdbc.queryForObject("select id from payment_receipt where pi_id = ? and status = 1", Long.class, pi);
+        ok(call(json(post(PI + "/" + pi + "/receipts/" + receipt + "/void"), "{\"reason\":\"录错\"}"), admin));
+        money("0", balances().get(0).path("available"));
+        assertFalse(piDetail(pi).path("credit").path("collectionTransferred").asBoolean());
+    }
+
+    @Test
+    void newVersionRaisesCredit_receiptFollowsSentVersion_abandonRestores() throws Exception {
+        adjust(customer, "USD", "200", "1400");
+        long pi = pi(null, "100");
+        money("100", balances().get(0).path("available"));
+        ok(call(json(post(PI + "/" + pi + "/revise"), "{}"), admin));
+        Map<String, Object> body = saveBody(piDetail(pi));
+        ((List<?>) body.get("fees")).clear();
+        body.put("creditAmount", "150");
+        ok(savePi(pi, body));
+        // 编辑中的版本占用 150；已到账仍按已发送版本的 100，价值按占用比例 1,050 × 100 ÷ 150
+        money("50", balances().get(0).path("available"));
+        Map<String, Object> rcpt = jdbc.queryForMap(
+                "select amount, amount_cny from payment_receipt where pi_id = ? and payment_method = 'CREDIT' and status = 1", pi);
+        assertEquals(0, new BigDecimal("100").compareTo((BigDecimal) rcpt.get("amount")));
+        assertEquals(0, new BigDecimal("700.00").compareTo((BigDecimal) rcpt.get("amount_cny")));
+        ok(call(json(post(PI + "/" + pi + "/abandon"), "{}"), admin));
+        money("100", balances().get(0).path("available"));
+    }
+
+    @Test
+    void creditOnlyOrder_refundToCreditUsesLockedRate_orderCreditNeedsAmount() throws Exception {
+        adjust(customer, "USD", "100", "710");
+        long so = manualOrder("100");
+        assertEquals("抵扣金额须大于 0", fail(call(json(post(SO + "/" + so + "/credit"), "{}"), admin)).path("message").asText());
+        ok(call(json(post(SO + "/" + so + "/credit"), "{\"amount\":100}"), admin));
+        // 全部用余额付款：转余额的折算汇率取余额抵扣的锁定价值 7.10
+        JsonNode tk = ok(call(json(post(REFUND), write(refund(so, "50", 3))), admin));
+        money("355.00", tk.path("amountCny"));
+        money("50", balances().get(0).path("available"));
+    }
+
+    @Test
+    void pagingDefaults_unpaidOrderRate_deleteDraftReleases_salesViewScoped() throws Exception {
+        adjust(customer, "USD", "100", "710");
+        assertEquals(1, ok(call(get(CREDIT).param("page", "0").param("pageSize", "0"), admin)).path("records").size());
+        // 没有任何到账的订单：转余额折算汇率为 1（可退金额为 0，不会真的转）
+        long so = manualOrder("80");
+        money("1", ok(call(get(REFUND + "/refundable/" + so), admin)).path("creditRate"));
+        // 草稿 PI 占用后删除：释放
+        long q = quotation(customer, 2, "USD", null, l("6ES7214-1AG40-0XB0", 1, "5000", "500"));
+        JsonNode draft = ok(createPi(quotationItemIds(q)));
+        long pi = draft.path("id").asLong();
+        Map<String, Object> body = saveBody(draft);
+        ((List<?>) body.get("fees")).clear();
+        body.put("creditAmount", "60");
+        ok(savePi(pi, body));
+        money("40", balances().get(0).path("available"));
+        ok(call(delete(PI + "/" + pi), admin));
+        money("100", balances().get(0).path("available"));
+        // 没有余额管理菜单的业务员：只能看数据范围内的客户
+        jdbc.update("update customer set owner_id = 99000002 where id = ?", customer);
+        loginWithResources("it_sales_rep", MENU_PI);
+        String rep = token("it_sales_rep");
+        assertEquals("客户不存在", fail(call(get(CREDIT + "/customer/-1"), rep)).path("message").asText());
+        money("100", ok(call(get(CREDIT + "/customer/" + customer), rep)).get(0).path("available"));
+    }
+
+    @Test
+    void overpaidOnUnconvertedPi_remarkKept_refundNeedsProof_convertedPiNotOccupied() throws Exception {
+        adjust(customer, "USD", "30", "213");
+        long pi = pi(null, "30");
+        confirmReceipt(pi, "1000", null, false, admin);
+        JsonNode row = ok(call(get(CREDIT + "/overpaid"), admin)).get(0);
+        assertTrue(row.path("soId").isNull() || row.path("soId").isMissingNode());
+        money("30", row.path("pending"));
+        Map<String, Object> req = new HashMap<>();
+        req.put("ownerType", "PI");
+        req.put("ownerId", pi);
+        req.put("amount", "10");
+        req.put("mode", "REFUND");
+        req.put("withdrawDate", LocalDate.now().toString());
+        req.put("method", 4);
+        req.put("methodName", "支付宝");
+        req.put("actualCny", "70");
+        req.put("attachmentIds", List.of());
+        assertEquals("请上传转账凭证", fail(call(json(post(CREDIT + "/overpaid"), write(req)), admin)).path("message").asText());
+        req.put("mode", "CREDIT");
+        req.put("remark", "客户多付了运费");
+        ok(call(json(post(CREDIT + "/overpaid"), write(req)), admin));
+        JsonNode flows = ok(call(get(CREDIT + "/entries").param("customerId", String.valueOf(customer)).param("currencyCode", "USD"), admin));
+        assertEquals("客户多付了运费", flows.get(0).path("remark").asText());
+        // PI 还没转订单：抵扣算「占用中」；转订单后不再算
+        money("30", ok(call(get(CREDIT), admin)).path("records").get(0).path("occupied"));
+        convert(pi);
+        money("0", ok(call(get(CREDIT), admin)).path("records").get(0).path("occupied"));
+    }
+
+    @Test
+    void reconciliationPutsReversalsInTheirOwnColumns() throws Exception {
+        // 售后退款转余额后作废、代收转入后作废到账：冲销记在原来的列，净额为 0
+        long pi1 = pi(null, null);
+        confirmReceipt(pi1, "1000", null, false, admin);
+        long so = convert(pi1);
+        JsonNode tk = ok(call(json(post(REFUND), write(refund(so, "100", 3))), admin));
+        ok(call(json(post(REFUND + "/" + tk.path("id").asLong() + "/void"), "{\"reason\":\"录错\"}"), admin));
+        long pi2 = pi("300", null);
+        platform(pi2, "1300", "0");
+        long receipt = jdbc.queryForObject("select id from payment_receipt where pi_id = ? and status = 1", Long.class, pi2);
+        ok(call(json(post(PI + "/" + pi2 + "/receipts/" + receipt + "/void"), "{\"reason\":\"录错\"}"), admin));
+        JsonNode t = ok(call(get(CREDIT + "/reconciliation").param("month", LocalDate.now().toString().substring(0, 7))
+                .param("currencyCode", "USD"), admin));
+        assertEquals(1, t.path("rows").size());
+        money("0", t.path("total").path("refundIn").path("amount"));
+        money("0", t.path("total").path("collectionIn").path("amount"));
+        money("0", t.path("total").path("closing").path("amount"));
+        assertTrue(t.path("balanced").asBoolean());
     }
 }

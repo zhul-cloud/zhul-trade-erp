@@ -254,7 +254,7 @@ public class OrderCostService {
                 CreditReceiptSync.Deductions d = receiptSync.deductions(position);
                 collectionDeducted = d.collectionCny();
                 overpaidDeducted = d.overpaidCny();
-                feeDeduction = d.collectionFee().multiply(CreditReceiptSync.rate(position));
+                feeDeduction = d.collectionFee().multiply(position.cashRate());
                 // 客户付的毛额里：代收净额转入了余额，代收承担的手续费被平台扣走，两者都不是收入
                 deduction = collectionDeducted.add(overpaidDeducted).add(feeDeduction);
             }

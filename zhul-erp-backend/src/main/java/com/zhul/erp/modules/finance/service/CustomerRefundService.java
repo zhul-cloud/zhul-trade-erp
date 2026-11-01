@@ -282,7 +282,7 @@ public class CustomerRefundService {
         vo.setRefunded(refunded);
         vo.setRefundable(goodsReceived.subtract(refunded).max(BigDecimal.ZERO));
         vo.setAverageRate(average);
-        vo.setCreditRate(pos.cashRate() != null ? pos.cashRate() : average);
+        vo.setCreditRate(pos.cashRate());
         vo.setPlatformOnly(pos.hasOnline());
         return vo;
     }

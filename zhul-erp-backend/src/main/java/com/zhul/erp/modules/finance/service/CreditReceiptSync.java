@@ -20,7 +20,6 @@ import java.math.MathContext;
 import java.math.RoundingMode;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -49,12 +48,10 @@ public class CreditReceiptSync {
         sync(receiptPosition.ofPi(pi));
     }
 
-    /** 手动订单（PI 转成的订单收款在 PI 上，不在这里处理） */
+    /** 手动订单（只有手动订单的收款记在订单上，PiSummary.refreshOrder 只为它们调用） */
     @Transactional(rollbackFor = Exception.class)
     public void afterReceipts(SalesOrderDO o) {
-        if (Objects.equals(o.getSource(), com.zhul.erp.modules.sales.constants.SalesConstants.SO_MANUAL)) {
-            sync(receiptPosition.ofOrder(o));
-        }
+        sync(receiptPosition.ofOrder(o));
     }
 
     /** 订单收入要扣除的人民币：已转入的代收（锁定价值）与多收（已处理的锁定价值 + 待处理 × 现金加权到账汇率） */
@@ -68,7 +65,7 @@ public class CreditReceiptSync {
         List<CustomerCreditEntryDO> processed = active(p, FinanceConstants.CREDIT_OVERPAID_IN);
         BigDecimal processedAmount = processed.stream().map(CustomerCreditEntryDO::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
         BigDecimal pending = p.overpaid().subtract(processedAmount).max(BigDecimal.ZERO);
-        BigDecimal rate = rate(p);
+        BigDecimal rate = p.cashRate();
         BigDecimal overpaid = processed.stream().map(CustomerCreditEntryDO::getAmountCny).reduce(BigDecimal.ZERO, BigDecimal::add)
                 .add(pending.multiply(rate, MC));
         boolean transferred = !active(p, FinanceConstants.CREDIT_COLLECTION_IN).isEmpty();
@@ -81,16 +78,6 @@ public class CreditReceiptSync {
         BigDecimal processed = active(p, FinanceConstants.CREDIT_OVERPAID_IN).stream()
                 .map(CustomerCreditEntryDO::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
         return p.overpaid().subtract(processed).max(BigDecimal.ZERO);
-    }
-
-    /** 现金收款的加权到账汇率；没有现金到账时按全部收款加权 */
-    public static BigDecimal rate(Position p) {
-        if (p.cashRate() != null) {
-            return p.cashRate();
-        }
-        BigDecimal gross = p.receipts().stream().map(r -> r.getAmount()).reduce(BigDecimal.ZERO, BigDecimal::add);
-        BigDecimal cny = p.receipts().stream().map(r -> r.getAmount().multiply(r.getExchangeRate(), MC)).reduce(BigDecimal.ZERO, BigDecimal::add);
-        return gross.signum() > 0 ? cny.divide(gross, 6, RoundingMode.HALF_UP) : BigDecimal.ONE;
     }
 
     /** 来源单据上还有效（没被冲销）的某类转入，按生成先后 */
@@ -119,7 +106,7 @@ public class CreditReceiptSync {
         boolean shouldHave = p.paid() && p.collectionNet().signum() > 0;
         if (shouldHave && collection.isEmpty()) {
             BigDecimal net = p.collectionNet();
-            ledger.credit(account(p), FinanceConstants.CREDIT_COLLECTION_IN, net, net.multiply(rate(p), MC),
+            ledger.credit(account(p), FinanceConstants.CREDIT_COLLECTION_IN, net, net.multiply(p.cashRate(), MC),
                     new Source(p.ownerType(), p.ownerId(), p.ownerNo()),
                     "代收 " + p.currencyCode() + " " + CustomerCreditLedger.fmt(p.collection()) + " − 客户承担的平台手续费 "
                             + CustomerCreditLedger.fmt(p.collectionFee()));
