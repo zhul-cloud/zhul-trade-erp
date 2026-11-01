@@ -208,6 +208,13 @@ const PurchaseOrderDetail: React.FC = () => {
   const closeShipping = useCallback(() => setShipping(undefined), []);
 
   const isDraft = po?.status === PO_STATUS.DRAFT;
+  /** 来源订单部分取消后减少了数量的行（已取消的采购订单不提示） */
+  const reducedLines =
+    po && po.status !== PO_STATUS.CANCELLED
+      ? po.items.filter(
+          (i) => (i.soReducedQuantity ?? 0) > 0 && !i.orderCancelled,
+        )
+      : [];
   const editable =
     !!po && canEdit && po.status !== PO_STATUS.CANCELLED && editing;
 
@@ -349,6 +356,9 @@ const PurchaseOrderDetail: React.FC = () => {
             [r.brand, r.category].filter(Boolean).join(' · ') || '—',
           )}
           {r.orderCancelled && <Pill tone="red">来源订单已取消</Pill>}
+          {(r.soReducedQuantity ?? 0) > 0 && !r.orderCancelled && (
+            <Pill tone="orange">来源订单减少 {r.soReducedQuantity} 个</Pill>
+          )}
         </div>
       ),
     },
@@ -947,6 +957,15 @@ const PurchaseOrderDetail: React.FC = () => {
             </Space>
           )}
         </div>
+        {!isDraft && reducedLines.length > 0 && (
+          <Alert
+            style={{ marginBottom: 12 }}
+            type="warning"
+            showIcon
+            title={`来源订单减少：${reducedLines.length} 个型号共少 ${reducedLines.reduce((n, i) => n + (i.soReducedQuantity ?? 0), 0)} 个`}
+            description={`${[...new Set(reducedLines.map((i) => i.soNo))].join('、')} 部分取消了型号。请和供应商确认：能退就取消本采购订单后重新下单；保留的话，到货验收时超出订单需要的合格数量会自动转入闲置库存。`}
+          />
+        )}
         {isDraft && (
           <Alert
             style={{ marginBottom: 12 }}

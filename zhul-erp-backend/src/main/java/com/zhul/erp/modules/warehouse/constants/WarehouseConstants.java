@@ -47,6 +47,10 @@ public final class WarehouseConstants {
             DIFF_DEFECTIVE, java.util.Set.of(RES_RETURN_EXCHANGE, RES_RETURN_NO_RESEND, RES_DISCOUNT),
             DIFF_OVER, java.util.Set.of(RES_RETURN_OVER, RES_HOLD));
 
+    /** 闲置库存来源：到货差异（多发暂存）、订单部分取消 */
+    public static final int HOLD_SRC_DISCREPANCY = 1;
+    public static final int HOLD_SRC_PARTIAL_CANCEL = 2;
+    public static final Map<Integer, String> HOLD_SOURCE_NAMES = Map.of(HOLD_SRC_DISCREPANCY, "到货差异", HOLD_SRC_PARTIAL_CANCEL, "订单部分取消");
     public static final int HOLD_ACTIVE = 1;
     public static final int HOLD_RETURNED = 2;
     public static final int HOLD_SCRAPPED = 3;

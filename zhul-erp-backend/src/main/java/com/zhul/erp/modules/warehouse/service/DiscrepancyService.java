@@ -335,6 +335,7 @@ public class DiscrepancyService {
             d.setFreeOfCharge(free ? 1 : 0);
             StockHoldDO h = new StockHoldDO();
             h.setTenantId(d.getTenantId());
+            h.setSourceType(WarehouseConstants.HOLD_SRC_DISCREPANCY);
             h.setDiscrepancyId(d.getId());
             h.setReceiptId(d.getReceiptId());
             h.setPoId(d.getPoId());

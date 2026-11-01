@@ -243,7 +243,8 @@ public class OrderCostService {
             // 代收与多收不是收入（spec finance/order-cost）：只对有代收款或多收的已到账订单查余额流水
             BigDecimal collectionCny = collectionCnyBySo.getOrDefault(o.getId(), BigDecimal.ZERO);
             boolean paid = receiptStatus == SalesConstants.RECEIPT_PAID;
-            boolean overpaid = pi != null ? nz(pi.getReceivedAmount()).add(nz(pi.getFeeDiffAmount())).compareTo(nz(pi.getTotalAmount())) > 0
+            // PI 转成的订单按订单合计比较（部分取消后订单合计少于 PI 合计）
+            boolean overpaid = pi != null ? nz(pi.getReceivedAmount()).add(nz(pi.getFeeDiffAmount())).compareTo(nz(o.getTotalAmount())) > 0
                     : nz(o.getReceivedAmount()).add(nz(o.getFeeDiffAmount())).compareTo(nz(o.getTotalAmount())) > 0;
             BigDecimal deduction = BigDecimal.ZERO;
             BigDecimal feeDeduction = BigDecimal.ZERO;

@@ -86,6 +86,12 @@ public class PiStore {
         return "PI 已转成订单 " + (order == null ? "" : order.getSoNo()) + "，需要修改请先取消订单";
     }
 
+    /** PI 的应收合计：有有效订单时取订单合计（部分取消后少于 PI 合计），否则取 PI 合计 */
+    public java.math.BigDecimal receivable(ProformaInvoiceDO pi) {
+        SalesOrderDO o = activeOrder(pi.getId());
+        return o != null ? o.getTotalAmount() : pi.getTotalAmount();
+    }
+
     public SalesOrderDO activeOrder(Long piId) {
         return orderMapper.selectOne(new LambdaQueryWrapper<SalesOrderDO>()
                 .eq(SalesOrderDO::getPiId, piId)

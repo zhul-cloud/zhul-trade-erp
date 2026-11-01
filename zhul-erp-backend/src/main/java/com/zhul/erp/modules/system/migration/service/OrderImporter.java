@@ -240,6 +240,8 @@ public class OrderImporter {
             i.setPurchaserId(purchaser);
             int qty = Math.max(1, l.path("quantity").asInt(1));
             i.setQuantity(qty);
+            i.setOriginalQuantity(qty);
+            i.setCancelledQuantity(0);
             i.setUnitPrice(money(l, "unitPrice"));
             i.setAmount(money(l, "amount"));
             i.setAmountCny(i.getAmount().multiply(rate).setScale(2, RoundingMode.HALF_UP));

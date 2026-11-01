@@ -52,7 +52,9 @@ public class PurchaseLinks {
         public Goods goods(int quantity) {
             int inTransit = transits.stream().mapToInt(Transit::quantity).sum();
             int receivedQty = Math.min(received, quantity);
-            return new Goods(receivedQty, inTransit, Math.max(0, ordered - shipped), Math.max(0, quantity - ordered),
+            // 待发货不超过订单还需要的数量（部分取消后采购单上可能多挂着）
+            int pendingShip = Math.min(Math.max(0, ordered - shipped), Math.max(0, quantity - receivedQty - inTransit));
+            return new Goods(receivedQty, inTransit, pendingShip, Math.max(0, quantity - ordered),
                     shippedOut, handedOut, Math.max(0, receivedQty - handedOut - shippedOut));
         }
     }

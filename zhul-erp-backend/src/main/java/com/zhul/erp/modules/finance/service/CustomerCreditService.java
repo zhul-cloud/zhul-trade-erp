@@ -368,7 +368,9 @@ public class CustomerCreditService {
                 .eq(ProformaInvoiceDO::getTenantId, PiStore.tenantId())
                 .ne(ProformaInvoiceDO::getStatus, SalesConstants.PI_VOID)
                 .isNull(ProformaInvoiceDO::getDeletedAt)
-                .apply("received_amount + fee_diff_amount > total_amount"));
+                // 应收合计：有有效订单时取订单合计（部分取消后少于 PI 合计）
+                .apply("received_amount + fee_diff_amount > COALESCE((SELECT o.total_amount FROM sales_order o WHERE o.pi_id = proforma_invoice.id"
+                        + " AND o.status = 1 AND o.deleted_at IS NULL LIMIT 1), total_amount)"));
         List<SalesOrderDO> orders = orderMapper.selectList(new LambdaQueryWrapper<SalesOrderDO>()
                 .eq(SalesOrderDO::getTenantId, PiStore.tenantId())
                 .eq(SalesOrderDO::getSource, SalesConstants.SO_MANUAL)

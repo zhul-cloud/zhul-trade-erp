@@ -21,7 +21,7 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * PI 或手动订单的收款位置（spec sales/payment-receipt、finance/customer-credit）：合计、代收款、已到账（含余额抵扣）、
+ * PI 或手动订单的收款位置（spec sales/payment-receipt、finance/customer-credit）：合计（PI 有有效订单时为订单合计）、代收款、已到账（含余额抵扣）、
  * 多收、平台手续费与现金收款的加权到账汇率。收款记录属于 PI；PI 转成的订单取 PI 的位置。
  * <ul>
  *   <li>多收 = 已到账 + 手续费差额 − 合计（不小于 0）；</li>
@@ -100,7 +100,7 @@ public class ReceiptPosition {
                 .map(PiFeeDO::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
         List<PaymentReceiptDO> receipts = receiptMapper.selectList(valid().eq(PaymentReceiptDO::getPiId, pi.getId()));
         return build("PI", pi.getId(), pi.getPiNo(), pi.getCustomerId(), pi.getCurrencyCode(), pi.getBusinessUnitId(),
-                pi.getTotalAmount(), collection, receipts);
+                store.receivable(pi), collection, receipts);
     }
 
     /** 订单：PI 转成的取 PI 的收款，手动订单取订单自己的收款 */
