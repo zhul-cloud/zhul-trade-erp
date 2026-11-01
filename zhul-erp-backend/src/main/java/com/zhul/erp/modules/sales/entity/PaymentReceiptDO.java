@@ -56,6 +56,9 @@ public class PaymentReceiptDO {
     private Integer bankAccountId;
     @TableField(updateStrategy = FieldStrategy.ALWAYS)
     private Long slipId;
+    /** 余额抵扣（付款方式 CREDIT）对应的「抵扣占用」流水 */
+    @TableField(updateStrategy = FieldStrategy.ALWAYS)
+    private Long creditEntryId;
     private String fileKeys;
     private String note;
     private Integer status;

@@ -28,4 +28,7 @@ public class OtherIncomeVO {
     private String updateBy;
     /** 历史迁移的单据（只读） */
     private Boolean migrated;
+    /** 来源：空-手动登记、REFUND-余额提现自动生成的汇兑损益（不能修改、作废） */
+    private String sourceType;
+    private Long sourceId;
 }

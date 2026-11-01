@@ -28,7 +28,7 @@ public final class Placeholders {
     /** PI 表头：PI 信息、买方、收货人、卖方、收款账户 */
     public static final Set<String> PI_HEADER = Set.of(
             "pi.no", "pi.date", "pi.currency", "pi.currencySymbol", "pi.deliveryTime", "pi.paymentTerm", "pi.incoterm",
-            "pi.portOfShipment", "pi.remark", "pi.itemTotal", "pi.feeTotal", "pi.discount", "pi.total",
+            "pi.portOfShipment", "pi.remark", "pi.itemTotal", "pi.feeTotal", "pi.discount", "pi.total", "pi.credit", "pi.amountDue",
             "customer.name",
             "buyer.name", "buyer.address", "buyer.country", "buyer.taxId", "buyer.contact", "buyer.phone", "buyer.email",
             "consignee.name", "consignee.address", "consignee.country", "consignee.taxId", "consignee.contact", "consignee.phone",

@@ -124,6 +124,7 @@ public class SalesOrderServiceImpl implements SalesOrderService {
     private final AttachmentService attachmentService;
     private final com.zhul.erp.modules.purchase.support.RequirementLifecycle requirementLifecycle;
     private final com.zhul.erp.modules.purchase.support.PurchaseLinks purchaseLinks;
+    private final com.zhul.erp.modules.finance.service.CreditUsageService creditUsage;
 
     // ---------------------------------------------------------------- 转订单与取消
 
@@ -207,6 +208,7 @@ public class SalesOrderServiceImpl implements SalesOrderService {
             x.setTenantId(o.getTenantId());
             x.setSoId(o.getId());
             x.setFeeName(f.getFeeName());
+            x.setFeeType(f.getFeeType());
             x.setAmount(f.getAmount());
             x.setAmountCny(f.getAmountCny());
             x.setRemark(f.getRemark());
@@ -481,6 +483,8 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         // 没下单的采购需求关闭，已下单的标「订单已取消」交给采购员
         requirementLifecycle.onOrderCancelled(o, currentUserId());
         if (manual) {
+            // 手动订单上的余额抵扣随订单取消作废，释放余额
+            creditUsage.releaseOrder(o);
             logService.recordOperateLog(SalesConstants.MENU_SO, "取消销售订单", Map.of("soNo", o.getSoNo(), "status", "有效"),
                     Map.of("soNo", o.getSoNo(), "status", "已取消", "reason", o.getCancelReason(),
                             "received", o.getCurrencyCode() + " " + o.getReceivedAmount()));
@@ -805,6 +809,7 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         vo.setReceipts(pi != null ? piService.receipts(pi.getId())
                 : receiptViews.list(new LambdaQueryWrapper<PaymentReceiptDO>().eq(PaymentReceiptDO::getSoId, o.getId())));
         vo.setMethodTotals(methodTotals(vo.getReceipts(), o.getCurrencyCode()));
+        vo.setCredit(creditUsage.panel(o));
         QuotationRenderModels.Labels labels = quotationStore.labels();
         List<SalesOrderItemDO> items = orderItems(id);
         Map<Long, String> quotationNos = quotationNos(items.stream().map(SalesOrderItemDO::getQuotationId).toList());
@@ -901,6 +906,7 @@ public class SalesOrderServiceImpl implements SalesOrderService {
                 .stream().map(f -> {
                     PiFeeVO x = new PiFeeVO();
                     x.setFeeName(f.getFeeName());
+                    x.setFeeType(f.getFeeType());
                     x.setAmount(f.getAmount());
                     x.setAmountCny(f.getAmountCny());
                     x.setRemark(f.getRemark());

@@ -74,6 +74,9 @@ public final class XlsxRenderer {
             if (!boxColumns.isEmpty() && (feeRow < 0 || feeRow > itemRow)) {
                 mergeBoxes(sheet, itemRow, model.items(), boxColumns);
             }
+            int lastDetail = Math.max(itemRow + Math.max(model.items().size(), 1) - 1,
+                    feeRow < 0 ? -1 : (feeRow > itemRow ? feeRow + model.items().size() - 1 : feeRow) + Math.max(fees.size(), 1) - 1);
+            appendCredit(sheet, lastDetail, model.header());
             fillHeader(sheet, model.header());
             wb.setForceFormulaRecalculation(true);
             try {
@@ -86,6 +89,72 @@ public final class XlsxRenderer {
             return out.toByteArray();
         } catch (IOException e) {
             throw new BizException(typeName + "模版无法打开，请检查是否为有效的 Excel 文件", e);
+        }
+    }
+
+    /**
+     * PI 抵扣客户余额（spec sales/proforma-invoice「PI 抵扣客户余额」）：在明细与费用之后第一行带 SUM 公式的合计行下面插入两行，
+     * 「Less: Credit」为负数，「Amount Due」= 合计 + 抵扣（公式）；样式、行高、行内合并照合计行。模版里找不到合计行时不追加。
+     */
+    static void appendCredit(XSSFSheet sheet, int lastDetailRow, Map<String, Object> header) {
+        Object v = header.get(RenderModel.CREDIT);
+        if (!(v instanceof java.math.BigDecimal credit) || credit.signum() <= 0) {
+            return;
+        }
+        int totalIdx = -1;
+        int amountCol = -1;
+        for (int r = lastDetailRow + 1; r <= Math.min(lastDetailRow + 6, sheet.getLastRowNum()) && totalIdx < 0; r++) {
+            Row row = sheet.getRow(r);
+            if (row == null) {
+                continue;
+            }
+            for (Cell c : row) {
+                if (c.getCellType() == CellType.FORMULA && c.getCellFormula().toUpperCase().contains("SUM(")) {
+                    totalIdx = r;
+                    amountCol = c.getColumnIndex();
+                    break;
+                }
+            }
+        }
+        if (totalIdx < 0) {
+            return;
+        }
+        Row total = sheet.getRow(totalIdx);
+        int labelCol = -1;
+        for (Cell c : total) {
+            if (c.getCellType() == CellType.STRING && !c.getStringCellValue().isBlank()) {
+                labelCol = c.getColumnIndex();
+                break;
+            }
+        }
+        List<CellRangeAddress> merges = mergesInRow(sheet, totalIdx);
+        int last = sheet.getLastRowNum();
+        if (totalIdx < last) {
+            sheet.shiftRows(totalIdx + 1, last, 2, true, false);
+        }
+        shiftPictures(sheet, totalIdx, 2);
+        String amountRef = new org.apache.poi.ss.util.CellReference(totalIdx, amountCol).formatAsString();
+        for (int k = 1; k <= 2; k++) {
+            Row target = sheet.createRow(totalIdx + k);
+            target.setHeight(total.getHeight());
+            for (Cell c : total) {
+                target.createCell(c.getColumnIndex()).setCellStyle(c.getCellStyle());
+            }
+            for (CellRangeAddress m : merges) {
+                sheet.addMergedRegion(new CellRangeAddress(totalIdx + k, totalIdx + k, m.getFirstColumn(), m.getLastColumn()));
+            }
+            Object currency = header.getOrDefault("pi.currency", "");
+            if (labelCol >= 0) {
+                target.getCell(labelCol).setCellValue(k == 1 ? RenderModel.CREDIT_LABEL
+                        : RenderModel.AMOUNT_DUE_LABEL + " (" + currency + ")");
+            }
+            Cell amount = target.getCell(amountCol);
+            if (k == 1) {
+                amount.setCellValue(credit.negate().doubleValue());
+            } else {
+                String creditRef = new org.apache.poi.ss.util.CellReference(totalIdx + 1, amountCol).formatAsString();
+                amount.setCellFormula(amountRef + "+" + creditRef);
+            }
         }
     }
 

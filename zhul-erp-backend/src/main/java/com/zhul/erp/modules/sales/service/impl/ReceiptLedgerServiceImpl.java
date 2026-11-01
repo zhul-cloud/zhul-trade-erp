@@ -208,7 +208,9 @@ public class ReceiptLedgerServiceImpl implements ReceiptLedgerService {
     public ReceiptRecordPageVO records(ReceiptRecordQuery q) {
         int tenant = PiStore.tenantId();
         LambdaQueryWrapper<PaymentReceiptDO> w = base(tenant)
-                .and(x -> x.isNotNull(PaymentReceiptDO::getPiId).or().isNotNull(PaymentReceiptDO::getSoId));
+                .and(x -> x.isNotNull(PaymentReceiptDO::getPiId).or().isNotNull(PaymentReceiptDO::getSoId))
+                // 余额抵扣不是新到账的钱，不进收款记录与报税统计（在 PI 收款面板与客户余额流水中查看）
+                .ne(PaymentReceiptDO::getPaymentMethod, SalesConstants.METHOD_CREDIT);
         if (!Boolean.TRUE.equals(q.getIncludeVoid())) {
             w.eq(PaymentReceiptDO::getStatus, SalesConstants.RECORD_VALID);
         }

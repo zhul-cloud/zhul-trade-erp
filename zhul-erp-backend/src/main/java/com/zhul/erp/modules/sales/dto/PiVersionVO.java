@@ -28,6 +28,11 @@ public class PiVersionVO {
     private BigDecimal feeAmount;
     private BigDecimal totalAmount;
     private BigDecimal totalAmountCny;
+    /** 抵扣客户余额与应付金额（合计 − 抵扣） */
+    private BigDecimal creditAmount;
+    private BigDecimal amountDue;
+    /** 其中代收款 */
+    private BigDecimal collectionAmount;
     private BigDecimal netProfit;
     private BigDecimal netProfitCny;
     private BigDecimal marginRate;

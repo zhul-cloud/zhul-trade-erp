@@ -134,6 +134,47 @@ class PiRenderTest {
         assertThat(after).containsExactly(before.get(0), before.get(1) + 13, before.get(2) + 13);
     }
 
+    /** spec sales/proforma-invoice「PI 抵扣客户余额」：合计行之后多出 Less: Credit 与 Amount Due 两行，没有抵扣时不显示 */
+    @Test
+    void creditRowsAfterTotal_onlyWhenCredit() throws Exception {
+        byte[] v1 = resource("document-template/pi-v1.xlsx");
+        RenderModel sample = SampleData.pi();
+        java.util.Map<String, Object> header = new java.util.HashMap<>(sample.header());
+        header.put(RenderModel.CREDIT, new BigDecimal("200"));
+        byte[] out = XlsxRenderer.render(v1, DocTypes.PI, new RenderModel(header, sample.items(), sample.fees()));
+        try (XSSFWorkbook wb = new XSSFWorkbook(new ByteArrayInputStream(out))) {
+            XSSFFormulaEvaluator.evaluateAllFormulaCells(wb);
+            XSSFSheet sheet = wb.getSheetAt(0);
+            DataFormatter f = new DataFormatter();
+            int creditRow = -1;
+            for (Row r : sheet) {
+                for (var c : r) {
+                    if (c.getCellType() == org.apache.poi.ss.usermodel.CellType.STRING
+                            && RenderModel.CREDIT_LABEL.equals(c.getStringCellValue())) {
+                        creditRow = r.getRowNum();
+                    }
+                }
+            }
+            assertThat(creditRow).isGreaterThan(0);
+            Row total = sheet.getRow(creditRow - 1);
+            Row credit = sheet.getRow(creditRow);
+            Row due = sheet.getRow(creditRow + 1);
+            int amountCol = -1;
+            for (var c : total) {
+                if (c.getCellType() == org.apache.poi.ss.usermodel.CellType.FORMULA) {
+                    amountCol = c.getColumnIndex();
+                }
+            }
+            double totalValue = total.getCell(amountCol).getNumericCellValue();
+            assertThat(credit.getCell(amountCol).getNumericCellValue()).isEqualTo(-200d);
+            assertThat(due.getCell(amountCol).getNumericCellValue()).isEqualTo(totalValue - 200);
+            assertThat(f.formatCellValue(due.getCell(0)) + f.formatCellValue(due.getCell(1)) + f.formatCellValue(due.getCell(2)))
+                    .contains("Amount Due");
+        }
+        byte[] plain = XlsxRenderer.render(v1, DocTypes.PI, sample);
+        assertThat(sheetXml(plain)).doesNotContain(RenderModel.CREDIT_LABEL);
+    }
+
     @Test
     void builtinV1AndSampleRender_unknownPlaceholderRejected() throws Exception {
         byte[] v1 = resource("document-template/pi-v1.xlsx");

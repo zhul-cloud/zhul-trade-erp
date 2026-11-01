@@ -77,6 +77,8 @@ public class SalesOrderVO {
     private List<SalesOrderItemVO> items;
     private List<PiFeeVO> fees;
     private List<ReceiptVO> receipts;
+    /** 余额：可用余额、代收状态、待处理多收 */
+    private CreditPanelVO credit;
     private LocalDateTime createTime;
     private String createByName;
 

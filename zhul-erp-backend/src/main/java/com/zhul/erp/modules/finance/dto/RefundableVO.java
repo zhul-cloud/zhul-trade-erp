@@ -14,4 +14,8 @@ public class RefundableVO {
     private BigDecimal refunded;
     private BigDecimal refundable;
     private BigDecimal averageRate;
+    /** 转客户余额的折算汇率：现金收款的加权到账汇率 */
+    private BigDecimal creditRate;
+    /** 有平台收款：只能原路退回 */
+    private Boolean platformOnly;
 }

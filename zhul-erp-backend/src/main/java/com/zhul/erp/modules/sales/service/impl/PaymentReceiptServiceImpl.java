@@ -98,6 +98,7 @@ public class PaymentReceiptServiceImpl implements PaymentReceiptService {
     private final ReceiptRows receiptRows;
     private final PermissionChecker perm;
     private final SalesOrderService orderService;
+    private final com.zhul.erp.modules.finance.service.CreditUsageService creditUsage;
 
     // ---------------------------------------------------------------- 水单
 
@@ -313,6 +314,10 @@ public class PaymentReceiptServiceImpl implements PaymentReceiptService {
         if (r.getStatus() == SalesConstants.RECORD_VOID) {
             throw new BizException("这笔到账已作废");
         }
+        if (SalesConstants.METHOD_CREDIT.equals(r.getPaymentMethod())) {
+            voidCredit(o, r, reason);
+            return;
+        }
         // 没有「登记到账」权限时只能作废自己登记的平台收款
         if (!perm.has(SalesConstants.PERM_RECEIPT_CONFIRM)
                 && !(StringUtils.hasText(r.getPlatformOrderNo()) && Objects.equals(r.getOperatorId(), currentUserId()))) {
@@ -332,6 +337,34 @@ public class PaymentReceiptServiceImpl implements PaymentReceiptService {
         logService.recordOperateLog(o.menu(), "作废到账",
                 Map.of(o.noKey(), o.no(), "amount", o.currency() + " " + r.getAmount(), "status", "有效"),
                 Map.of(o.noKey(), o.no(), "status", "已作废", "reason", r.getVoidReason()));
+    }
+
+    /** 余额抵扣：PI 上的随 PI 自动处理；手动订单上的由登记人或有「登记到账」权限的用户作废，释放余额 */
+    private void voidCredit(Owner o, PaymentReceiptDO r, String reason) {
+        if (o.pi() != null) {
+            throw new BizException("PI 上的余额抵扣随 PI 自动处理，请修改 PI 的抵扣金额");
+        }
+        if (!perm.has(SalesConstants.PERM_RECEIPT_CONFIRM) && !Objects.equals(r.getOperatorId(), currentUserId())) {
+            throw new BizException("只能作废自己登记的余额抵扣");
+        }
+        String why = reason == null ? "" : reason.trim();
+        if (why.isEmpty()) {
+            throw new BizException("请填写作废原因");
+        }
+        creditUsage.voidOrderCredit(o.so(), r, trim(why, 200));
+        logService.recordOperateLog(o.menu(), "作废余额抵扣",
+                Map.of(o.noKey(), o.no(), "amount", o.currency() + " " + r.getAmount(), "status", "有效"),
+                Map.of(o.noKey(), o.no(), "status", "已作废", "reason", why));
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public SalesOrderVO orderCredit(Long soId, BigDecimal amount) {
+        SalesOrderDO so = requireOrder(soId, true);
+        creditUsage.useOnOrder(so, amount);
+        logService.recordOperateLog(SalesConstants.MENU_SO, "抵扣客户余额", null,
+                Map.of("soNo", so.getSoNo(), "amount", so.getCurrencyCode() + " " + amount));
+        return orderService.detail(soId);
     }
 
     // ---------------------------------------------------------------- 平台收款与认领
