@@ -54,6 +54,7 @@ export type OwnerType =
   | 'PO_INVOICE'
   | 'REFUND'
   | 'OTHER_INCOME'
+  | 'CREDIT'
   | 'SOURCING_QUOTE'
   | 'SALES_ORDER';
 

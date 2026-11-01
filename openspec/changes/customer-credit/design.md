@@ -29,14 +29,17 @@
 新表 `fin_customer_credit_entry`，每条流水一行；转出类流水（抵扣占用、提现、负数调整）另有消耗明细表 `fin_customer_credit_consumption`（转出流水 id、被消耗的转入流水 id、原币金额、人民币价值），用来记录先进先出消耗了哪几笔转入、各取多少锁定价值。释放、作废时按消耗明细原样退回。
 
 - 可用余额 = 转入合计 − 未释放的转出合计，按「租户 + 客户 + 币种 + 事业部」聚合查询，不落地余额字段，避免和流水不一致。
-- 并发：转出前按 `zhul:erp:lock:credit:{tenantId}:{customerId}:{currency}:{buId}` 加 Redisson 锁，锁内重新计算可用余额再写流水。
+- 并发：项目没有接入 Redisson，沿用现有做法用数据库行锁——转入、转出、释放、冲销前先 `SELECT … FROM customer WHERE id = ? FOR UPDATE` 锁客户行，锁内重新计算可用余额再写流水，同一客户的余额操作排队执行。
+- 释放：把消耗明细标为已释放，被消耗批次的剩余随之恢复（先进先出顺序与价值不变），另记一条「抵扣释放」流水使流水之和仍等于可用余额；冲销只在批次没有未释放的消耗时允许。
 - 备选「余额表 + 流水表」：读快，但要维护两处一致，回退和作废都要同步改；余额规模小（按客户），聚合足够，不采用。
 
 ### 2. 人民币价值在流水生成时锁定
 
 结汇会改变到账的人民币，但余额一旦转入就固定价值。这样核对表的人民币价值能平衡，提现时的汇差也有明确的口径（价值 − 实际转出 → 汇兑损益）。代价见风险 1。
 
-### 3. 余额抵扣是一条收款记录，付款方式 `CREDIT`
+### 3. 余额抵扣是一条收款记录，付款方式 `CREDIT`（不进付款方式字典）
+
+`CREDIT` 是系统内置码值，不写进「付款方式」字典：放进字典的话租户可以改名或停用，各处下拉还要把它过滤掉；不放进字典，「不能手选、不能停用」天然满足。收款记录上 `channel` 为 0（既不算线上也不算线下）。
 
 PI 抵扣和手动订单抵扣都落成 `payment_receipt` 里的一条记录，付款方式 `CREDIT`，同时带上它对应的「抵扣占用」流水。好处是收款状态、订单收款面板、订单收入的计算都沿用「遍历收款记录」的逻辑，只在三处特殊处理：不参与结汇、人民币取锁定价值、不计入报税统计和到账登记工作列表。
 
@@ -86,6 +89,6 @@ PI 抵扣和手动订单抵扣都落成 `payment_receipt` 里的一条记录，�
 
 ## Migration Plan
 
-1. 迁移：新建 `fin_customer_credit_entry`、`fin_customer_credit_consumption`；`proforma_invoice_fee`、`sales_order_fee` 加 `fee_type`，默认 `NORMAL`；`fin_customer_refund` 加 `refund_type`（存量设为 `AFTER_SALES`）、`destination`（按原退款方式映射）、`order_id` 改为可空；`fin_other_income` 加 `source_type`、`source_id`；字典新增付款方式「余额抵扣」、其他收入类别「汇兑损益」、菜单「余额管理」与按钮权限「调整客户余额」，授给财务角色。
+1. 迁移 `V1.4.1__customer_credit.sql`：新建 `fin_customer_credit_entry`、`fin_customer_credit_consumption`；`proforma_invoice_fee`、`sales_order_fee` 加 `fee_type`，默认 `NORMAL`；`fin_customer_refund` 加 `refund_type`（存量设为 `AFTER_SALES`）、`destination`（按原退款方式映射）、`order_id` 改为可空；`fin_other_income` 加 `source_type`、`source_id`；字典新增其他收入类别「汇兑损益」、菜单「余额管理」与按钮权限「调整客户余额」，授给财务角色。
 2. 上线前：运行多收影响清单脚本，确认影响范围。
 3. 回退：新表与新增字段不影响旧版本运行；回退前确认没有余额流水（有流水时先导出核对表留档），把 `order_id` 为空的余额提现退款单和系统生成的汇兑损益作废，再部署旧版本。`order_id` 改回非空需要先处理这些行，所以回退 SQL 只删除新增的表和字段，不恢复 `order_id` 的非空约束。

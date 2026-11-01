@@ -521,6 +521,13 @@ export default [
         component: './finance/refunds',
       },
       {
+        path: '/finance/credits',
+        name: 'credits',
+        icon: 'wallet',
+        access: 'financeCredits',
+        component: './finance/credits',
+      },
+      {
         path: '/finance/fx-settlements',
         name: 'fxSettlements',
         icon: 'swap',
