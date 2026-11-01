@@ -33,6 +33,12 @@ public class SourcingTaskDO {
     private String returnNote;
     private Long returnedBy;
     private LocalDateTime returnedAt;
+    /** 待业务处理的流转时间 */
+    private LocalDateTime salesDeadline;
+    /** 最近一次进入待分配的时间 */
+    private LocalDateTime poolEnteredAt;
+    /** 业务员自询中（0-否、1-是） */
+    private Integer salesHandling;
     /** 历史迁移（0-否、1-是）；迁移数据只读，见 MigratedGuard */
     private Integer migrated;
     private LocalDateTime deletedAt;

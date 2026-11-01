@@ -12,7 +12,7 @@ export interface MonthRow {
   unquotableRate?: number | null;
 }
 
-/** 按采购员（型号口径） */
+/** 按人员（型号口径） */
 export interface PurchaserRow {
   purchaserId: number;
   purchaserName: string;
@@ -21,12 +21,27 @@ export interface PurchaserRow {
   noStock: number;
   pending: number;
   pricedRate?: number | null;
+  /** 转出：交给别人继续找的型号，不计入有价、无货、待回价 */
+  transferred: number;
+  /** SALES-业务员、PURCHASER-采购、PART_TIME-兼职 */
+  role: 'SALES' | 'PURCHASER' | 'PART_TIME';
+}
+
+/** 询价工作量（型号口径，月份按询盘日期） */
+export interface WorkloadRow {
+  key: string;
+  label: string;
+  selfItems: number;
+  purchaseItems: number;
+  selfRate?: number | null;
 }
 
 export interface SourcingStats {
   months: MonthRow[];
   total: MonthRow;
   purchasers: PurchaserRow[];
+  workload: WorkloadRow[];
+  workloadTotal?: WorkloadRow;
 }
 
 export const sourcingStatsApi = {

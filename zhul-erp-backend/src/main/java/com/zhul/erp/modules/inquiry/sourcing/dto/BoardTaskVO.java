@@ -36,6 +36,8 @@ public class BoardTaskVO {
     private String returnReasonLabel;
     private String returnNote;
     private String returnedByName;
+    /** 业务员自询的回价人姓名；不是自询时为空 */
+    private String selfSourcedBy;
     private Long recommendedId;
     private String recommendedName;
     /** 推荐理由，如「Mitsubishi 询过 23 次 · 进行中 8」 */

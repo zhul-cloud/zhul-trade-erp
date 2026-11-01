@@ -22,8 +22,6 @@ import {
   Dropdown,
   Input,
   InputNumber,
-  Modal,
-  Radio,
   Segmented,
   Select,
   Skeleton,
@@ -62,7 +60,6 @@ import {
   formatMinutes,
   LIFECYCLE_DISCONTINUED,
   LIFECYCLE_UNKNOWN,
-  RETURN_REASONS,
   searchLinks,
 } from '../shared/constants';
 import ImportModal from '../shared/ImportModal';
@@ -74,6 +71,7 @@ import {
   myTaskApi,
   type QuoteEntry,
   readBizError,
+  type SalesPendingTask,
   type WithdrawPreview,
 } from '../shared/service';
 import { nextActiveTask } from './activeTask';
@@ -83,6 +81,8 @@ import QuoteAttachments, {
   QUOTE_ATTACH_WIDTH,
   QUOTE_MAX_FILES,
 } from './QuoteAttachments';
+import ReturnModal from './ReturnModal';
+import SalesPending from './SalesPending';
 import SupplierSelect from './SupplierSelect';
 import { buildTaskScript, pendingItems } from './taskScript';
 
@@ -183,9 +183,12 @@ const MyTasksPage: React.FC = () => {
   dirtyRef.current = Object.values(state).some((s) => s.dirty);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
-  const [returnOpen, setReturnOpen] = useState(false);
-  const [returnReason, setReturnReason] = useState(1);
-  const [returnNote, setReturnNote] = useState('');
+  const [returnTaskId, setReturnTaskId] = useState<number>();
+  const [returnSelf, setReturnSelf] = useState(false);
+  const [returnTitle, setReturnTitle] = useState('');
+  const [view, setView] = useState<'sales' | 'pending' | 'done'>('pending');
+  const [salesTasks, setSalesTasks] = useState<SalesPendingTask[] | null>(null);
+  const salesViewChecked = useRef(false);
   const [importOpen, setImportOpen] = useState(false);
   const [pasteOpen, setPasteOpen] = useState(false);
   const [counts, setCounts] = useState<{ pending: number; done: number }>({
@@ -196,10 +199,17 @@ const MyTasksPage: React.FC = () => {
   const loadList = useCallback(async () => {
     setError('');
     try {
-      const [pending, finished] = await Promise.all([
+      const [pending, finished, sales] = await Promise.all([
         myTaskApi.list(false, search),
         myTaskApi.list(true, search),
+        myTaskApi.salesPending(),
       ]);
+      setSalesTasks(sales);
+      // 打开页面时有待认领、没指定任务，先看待认领
+      if (!salesViewChecked.current) {
+        salesViewChecked.current = true;
+        if (sales.length > 0 && !activeIdRef.current) setView('sales');
+      }
       setCounts({ pending: pending.length, done: finished.length });
       const list = done ? finished : pending;
       setTasks(list);
@@ -405,6 +415,18 @@ const MyTasksPage: React.FC = () => {
     setBusy(true);
     try {
       await myTaskApi.save(detail.task.id, effective, submit);
+      const noStockCount = effective.filter((i) => i.noStock).length;
+      if (submit && !detail.reviewRequired && noStockCount > 0) {
+        const { task } = detail;
+        modal.confirm({
+          title: `有 ${noStockCount} 个型号没货，要转给别人继续找吗？`,
+          content:
+            '回价已提交。这些型号现在算「无货」，不转交的话会按无货给客户报价。',
+          okText: task.selfSourcing ? '转给采购继续找' : '退回继续找',
+          cancelText: '就按无货',
+          onOk: () => openReturn(task),
+        });
+      }
       message.success(
         !submit
           ? '草稿已保存'
@@ -518,6 +540,23 @@ const MyTasksPage: React.FC = () => {
   };
 
   const editable = detail?.task.editable !== false;
+  const openReturn = (task: MyTask) => {
+    setReturnSelf(!!task.selfSourcing);
+    setReturnTitle(
+      `${task.taskCode} · ${task.brand}${task.category ? ` · ${task.category}` : ''}`,
+    );
+    setReturnTaskId(task.id);
+  };
+  const closeReturn = useCallback(() => setReturnTaskId(undefined), []);
+  // 被转交过的任务：需要继续找的型号排前面
+  const handedOver = !!detail?.task.returnReasonLabel;
+  const sortedItems = detail
+    ? handedOver
+      ? [...detail.items].sort(
+          (a, b) => Number(b.quoteStatus === 1) - Number(a.quoteStatus === 1),
+        )
+      : detail.items
+    : [];
   const review = !!detail?.reviewRequired;
 
   /** 撤回回价：价格填错、要等供应商重新报价时用，撤回后业务员看不到，任务回到待处理 */
@@ -633,31 +672,49 @@ const MyTasksPage: React.FC = () => {
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: wide ? '340px minmax(0, 1fr)' : 'minmax(0, 1fr)',
+          gridTemplateColumns:
+            wide && view !== 'sales'
+              ? '340px minmax(0, 1fr)'
+              : 'minmax(0, 1fr)',
           gap: 20,
           alignItems: 'start',
         }}
       >
         <div style={{ display: 'grid', gap: 10 }}>
-          <Input.Search
-            allowClear
-            placeholder="搜任务编号、询盘单号、品牌、型号"
-            value={keyword}
-            onChange={(e) => {
-              setKeyword(e.target.value);
-              if (!e.target.value) setSearch('');
-            }}
-            onSearch={(v) => setSearch(v.trim())}
-          />
+          {view !== 'sales' && (
+            <Input.Search
+              allowClear
+              placeholder="搜任务编号、询盘单号、品牌、型号"
+              value={keyword}
+              onChange={(e) => {
+                setKeyword(e.target.value);
+                if (!e.target.value) setSearch('');
+              }}
+              onSearch={(v) => setSearch(v.trim())}
+            />
+          )}
           <Segmented
-            value={done ? 'done' : 'pending'}
-            onChange={(v) => setDone(v === 'done')}
+            value={view}
+            onChange={(v) => {
+              setView(v as typeof view);
+              setDone(v === 'done');
+            }}
             options={[
+              { value: 'sales', label: `待认领 ${salesTasks?.length ?? 0}` },
               { value: 'pending', label: `待处理 ${counts.pending}` },
               { value: 'done', label: `已回价 ${counts.done}` },
             ]}
           />
-          {!tasks ? (
+          {view === 'sales' ? (
+            <SalesPending
+              tasks={salesTasks}
+              onChanged={loadList}
+              onViewPending={() => {
+                setView('pending');
+                setDone(false);
+              }}
+            />
+          ) : !tasks ? (
             <Skeleton active />
           ) : tasks.length === 0 ? (
             <Card>
@@ -740,7 +797,7 @@ const MyTasksPage: React.FC = () => {
           )}
         </div>
 
-        {!detail ? (
+        {view === 'sales' ? null : !detail ? (
           tasks && tasks.length > 0 ? (
             <Skeleton active paragraph={{ rows: 10 }} />
           ) : null
@@ -823,14 +880,12 @@ const MyTasksPage: React.FC = () => {
                       </Dropdown>
                     </Space.Compact>
                   )}
-                  {!done && (
+                  {(!done || editable) && (
                     <Button
                       size="small"
                       icon={<RollbackOutlined />}
                       onClick={() => {
-                        setReturnReason(1);
-                        setReturnNote('');
-                        setReturnOpen(true);
+                        openReturn(detail.task);
                       }}
                     >
                       退回
@@ -889,7 +944,15 @@ const MyTasksPage: React.FC = () => {
                 title="回价只能查看：询盘已取消，或型号都已报给客户"
               />
             )}
-            {detail.items.map((it) => {
+            {detail.task.returnReasonLabel &&
+              detail.items.some((i) => i.quoteStatus === 1) && (
+                <Alert
+                  type="info"
+                  showIcon
+                  title={`${detail.task.returnedByName ?? ''}转来 · 原因：${detail.task.returnReasonLabel}${detail.task.returnNote ? ` · ${detail.task.returnNote}` : ''}`}
+                />
+              )}
+            {sortedItems.map((it) => {
               const s = state[it.id];
               if (!s) return null;
               // 型号已报给客户后只读，同一任务里其他型号仍可修改
@@ -931,6 +994,12 @@ const MyTasksPage: React.FC = () => {
                     </span>
                     {it.locked && (
                       <Pill tone="violet">已报给客户，回价只读</Pill>
+                    )}
+                    {handedOver && it.quoteStatus === 1 && (
+                      <Pill tone="orange">需要找</Pill>
+                    )}
+                    {handedOver && it.quoteStatus !== 1 && !it.locked && (
+                      <Pill tone="mute">不需要找，可补充报价</Pill>
                     )}
                     {it.archiveStatus === 3 && !s.actualModel.trim() && (
                       <Pill tone="orange">待回填真实型号</Pill>
@@ -1073,6 +1142,54 @@ const MyTasksPage: React.FC = () => {
                     >
                       {it.reviewedByName ? `${it.reviewedByName} ` : ''}
                       审核通过，业务员已能看到。修改后重新进入审核，审核通过前业务员仍看到当前价格。
+                    </div>
+                  )}
+                  {(it.previous?.length ?? 0) > 0 && (
+                    <div style={{ display: 'grid', gap: 4, marginTop: 10 }}>
+                      <span style={{ color: palette.sub, fontSize: 12 }}>
+                        上一轮记录
+                      </span>
+                      {it.previous?.map((p, i) => (
+                        <div
+                          // biome-ignore lint/suspicious/noArrayIndexKey: 只读列表，顺序不变
+                          key={i}
+                          style={{
+                            display: 'flex',
+                            flexWrap: 'wrap',
+                            alignItems: 'center',
+                            gap: 12,
+                            padding: '6px 10px',
+                            borderRadius: 8,
+                            background: palette.inset,
+                            color: palette.sub,
+                            fontSize: 12,
+                          }}
+                        >
+                          <span>{p.quotedByName ?? '—'}</span>
+                          {p.noStock ? (
+                            <Pill tone="red">无货</Pill>
+                          ) : (
+                            <Pill tone="green">有价</Pill>
+                          )}
+                          {!p.noStock && <span>{channelLabel(p.channel)}</span>}
+                          {p.shopName && <span>{p.shopName}</span>}
+                          {p.unitPriceCny != null && (
+                            <span
+                              style={{ fontVariantNumeric: 'tabular-nums' }}
+                            >
+                              {formatAmount(
+                                p.unitPriceCny,
+                                p.currencyCode ?? 'CNY',
+                              )}
+                            </span>
+                          )}
+                          {p.note && (
+                            <span style={{ color: palette.mute }}>
+                              {p.note}
+                            </span>
+                          )}
+                        </div>
+                      ))}
                     </div>
                   )}
                   {it.description && (
@@ -1667,64 +1784,17 @@ const MyTasksPage: React.FC = () => {
         )}
       </div>
 
-      <Modal
-        open={returnOpen}
-        title="退回任务"
-        okText="退回"
-        cancelText="取消"
-        confirmLoading={busy}
-        onCancel={() => setReturnOpen(false)}
-        onOk={() => {
-          if (!detail) return;
-          modal.confirm({
-            title: '确认退回？',
-            content:
-              '退回后任务回到待分配池，你将看不到它；已提交的价格会保留。',
-            okText: '退回',
-            cancelText: '再想想',
-            onOk: async () => {
-              setBusy(true);
-              try {
-                await myTaskApi.returnTask(
-                  detail.task.id,
-                  returnReason,
-                  returnNote,
-                );
-                message.success(
-                  returnReason === 1
-                    ? '已退回，并提醒业务员核实型号'
-                    : '已退回',
-                );
-                setReturnOpen(false);
-                setActiveId(undefined);
-                await loadList();
-              } catch (e) {
-                message.error(readBizError(e).message);
-              } finally {
-                setBusy(false);
-              }
-            },
-          });
+      <ReturnModal
+        taskId={returnTaskId}
+        title={returnTitle}
+        selfSourcing={returnSelf}
+        onClose={closeReturn}
+        onDone={async () => {
+          setReturnTaskId(undefined);
+          setActiveId(undefined);
+          await loadList();
         }}
-      >
-        <Radio.Group
-          value={returnReason}
-          onChange={(e) => setReturnReason(e.target.value)}
-          options={RETURN_REASONS}
-          optionType="button"
-        />
-        <Input.TextArea
-          style={{ marginTop: 12 }}
-          rows={3}
-          maxLength={300}
-          placeholder="说明一下原因，如：查不到这个型号，像是少写了后缀"
-          value={returnNote}
-          onChange={(e) => setReturnNote(e.target.value)}
-        />
-        <div style={{ color: palette.mute, fontSize: 12, marginTop: 8 }}>
-          选「型号存疑」会提醒业务员核实。
-        </div>
-      </Modal>
+      />
 
       {detail && (
         <PasteQuoteModal

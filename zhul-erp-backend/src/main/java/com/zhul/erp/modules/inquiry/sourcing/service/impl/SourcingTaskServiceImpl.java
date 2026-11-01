@@ -67,9 +67,6 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class SourcingTaskServiceImpl implements SourcingTaskService {
 
-    /** 内置角色「兼职采购」 */
-    /** 「我的询价任务」菜单：有它的账号才是采购人员 */
-    static final int MY_TASKS_MENU_ID = 100055;
     static final String MY_TASKS_PATH = "/inquiry/my-tasks";
 
     private final SourcingTaskMapper taskMapper;
@@ -124,7 +121,15 @@ public class SourcingTaskServiceImpl implements SourcingTaskService {
             task.setCategory(root == null ? first.getCategory() : InquiryCategories.name(root));
             task.setItemCount(items.size());
             task.setUrgent(inquiry.getUrgent());
-            task.setStatus(InquiryConstants.TASK_UNASSIGNED);
+            LocalDateTime now = LocalDateTime.now();
+            int window = settings.salesWindowMinutes(inquiry.getTenantId(), Objects.equals(inquiry.getUrgent(), 1));
+            if (window > 0) {
+                task.setStatus(InquiryConstants.TASK_SALES);
+                task.setSalesDeadline(now.plusMinutes(window));
+            } else {
+                task.setStatus(InquiryConstants.TASK_UNASSIGNED);
+                task.setPoolEnteredAt(now);
+            }
             task.setReturnReason(0);
             task.setReturnNote("");
             taskMapper.insert(task);
@@ -134,12 +139,141 @@ public class SourcingTaskServiceImpl implements SourcingTaskService {
             }
             tasks.add(task);
         }
-        if (!tasks.isEmpty() && settings.autoAssign(inquiry.getTenantId())) {
-            Map<Long, Long> plan = rulePlan(tasks, null);
-            plan.forEach((taskId, assigneeId) -> {
-                SourcingTaskDO task = tasks.stream().filter(t -> t.getId().equals(taskId)).findFirst().orElseThrow();
-                assignOne(task, assigneeId, InquiryConstants.ASSIGN_RULE, 0L);
-            });
+        autoAssign(tasks.stream().filter(t -> t.getStatus() == InquiryConstants.TASK_UNASSIGNED).toList(), inquiry.getTenantId());
+        return tasks;
+    }
+
+    /** 任务进入待分配时，开启自动分配就按规则分配；待业务处理和被退回的任务不走这里 */
+    private void autoAssign(List<SourcingTaskDO> tasks, int tenantId) {
+        if (tasks.isEmpty() || !settings.autoAssign(tenantId)) {
+            return;
+        }
+        rulePlan(tasks, null).forEach((taskId, assigneeId) -> {
+            SourcingTaskDO task = tasks.stream().filter(t -> t.getId().equals(taskId)).findFirst().orElseThrow();
+            assignOne(task, assigneeId, InquiryConstants.ASSIGN_RULE, 0L);
+        });
+    }
+
+    // ---------------------------------------------------------------- 业务员优先
+
+    @Override
+    public List<com.zhul.erp.modules.inquiry.sourcing.dto.SalesPendingTaskVO> salesPending() {
+        Long me = currentUser.resolve();
+        List<CustomerInquiryDO> mine = inquiryMapper.selectList(new LambdaQueryWrapper<CustomerInquiryDO>()
+                .eq(CustomerInquiryDO::getTenantId, tenantId())
+                .eq(CustomerInquiryDO::getOwnerId, me)
+                .isNull(CustomerInquiryDO::getDeletedAt)
+                .inSql(CustomerInquiryDO::getId, "select customer_inquiry_id from sourcing_task where status = "
+                        + InquiryConstants.TASK_SALES + " and deleted_at is null"));
+        if (mine.isEmpty()) {
+            return List.of();
+        }
+        Map<Long, CustomerInquiryDO> inquiries = mine.stream().collect(Collectors.toMap(CustomerInquiryDO::getId, i -> i));
+        Map<Long, InquiryLookups.InquiryBrief> briefs = lookups.briefs(List.copyOf(inquiries.keySet()), false);
+        LocalDateTime now = LocalDateTime.now();
+        return taskMapper.selectList(new LambdaQueryWrapper<SourcingTaskDO>()
+                        .eq(SourcingTaskDO::getStatus, InquiryConstants.TASK_SALES)
+                        .in(SourcingTaskDO::getCustomerInquiryId, inquiries.keySet())
+                        .isNull(SourcingTaskDO::getDeletedAt)
+                        .orderByAsc(SourcingTaskDO::getSalesDeadline)
+                        .orderByAsc(SourcingTaskDO::getTaskCode))
+                .stream().map(t -> {
+                    CustomerInquiryDO inquiry = inquiries.get(t.getCustomerInquiryId());
+                    InquiryLookups.InquiryBrief b = briefs.get(t.getCustomerInquiryId());
+                    com.zhul.erp.modules.inquiry.sourcing.dto.SalesPendingTaskVO vo = new com.zhul.erp.modules.inquiry.sourcing.dto.SalesPendingTaskVO();
+                    vo.setId(t.getId());
+                    vo.setTaskCode(t.getTaskCode());
+                    vo.setCustomerInquiryId(t.getCustomerInquiryId());
+                    vo.setInquiryCode(inquiry.getInquiryCode());
+                    vo.setConfirmedAt(t.getCreateTime());
+                    vo.setUrgent(Objects.equals(t.getUrgent(), 1));
+                    vo.setBrand(t.getBrand());
+                    vo.setCategory(t.getCategory());
+                    vo.setItemCount(t.getItemCount());
+                    vo.setSalesDeadline(t.getSalesDeadline());
+                    vo.setRemainingMinutes(t.getSalesDeadline() == null ? 0L
+                            : Math.max(0, Duration.between(now, t.getSalesDeadline()).toMinutes()));
+                    if (b != null) {
+                        vo.setLevel(b.level());
+                        vo.setCustomerName(b.customerName());
+                        vo.setQuoteDeadline(b.quoteDeadline());
+                    }
+                    return vo;
+                }).toList();
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void claim(List<Long> taskIds) {
+        Long me = currentUser.resolve();
+        LocalDateTime now = LocalDateTime.now();
+        for (SourcingTaskDO task : ownedSalesTasks(taskIds, me)) {
+            // 带状态条件更新：和超时流转同时发生时只有一方成功
+            int updated = taskMapper.update(null, new LambdaUpdateWrapper<SourcingTaskDO>()
+                    .eq(SourcingTaskDO::getId, task.getId())
+                    .eq(SourcingTaskDO::getStatus, InquiryConstants.TASK_SALES)
+                    .set(SourcingTaskDO::getStatus, InquiryConstants.TASK_SOURCING)
+                    .set(SourcingTaskDO::getSalesHandling, 1)
+                    .set(SourcingTaskDO::getFirstAssignedAt, now)
+                    .set(SourcingTaskDO::getUpdateTime, now));
+            if (updated == 0) {
+                throw new BizException("任务已转给采购");
+            }
+            insertAssignee(task, me, InquiryConstants.ASSIGN_SELF, me);
+        }
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void transferToPurchasing(List<Long> taskIds) {
+        for (SourcingTaskDO task : ownedSalesTasks(taskIds, currentUser.resolve())) {
+            if (!moveToPool(task)) {
+                throw new BizException("任务已转给采购");
+            }
+        }
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void moveToPoolIfDue(Long taskId) {
+        SourcingTaskDO task = taskMapper.selectById(taskId);
+        if (task != null && task.getStatus() == InquiryConstants.TASK_SALES && task.getSalesDeadline() != null
+                && !task.getSalesDeadline().isAfter(LocalDateTime.now())) {
+            moveToPool(task);
+        }
+    }
+
+    /** 待业务处理进入待分配，开启自动分配时同时按规则分配；状态已变化时返回 false */
+    private boolean moveToPool(SourcingTaskDO task) {
+        LocalDateTime now = LocalDateTime.now();
+        int updated = taskMapper.update(null, new LambdaUpdateWrapper<SourcingTaskDO>()
+                .eq(SourcingTaskDO::getId, task.getId())
+                .eq(SourcingTaskDO::getStatus, InquiryConstants.TASK_SALES)
+                .set(SourcingTaskDO::getStatus, InquiryConstants.TASK_UNASSIGNED)
+                .set(SourcingTaskDO::getPoolEnteredAt, now)
+                .set(SourcingTaskDO::getUpdateTime, now));
+        if (updated == 0) {
+            return false;
+        }
+        task.setStatus(InquiryConstants.TASK_UNASSIGNED);
+        task.setPoolEnteredAt(now);
+        autoAssign(List.of(task), task.getTenantId());
+        return true;
+    }
+
+    /** 只有询盘单当前负责人能处理；任务已不在待业务处理时提示已转走 */
+    private List<SourcingTaskDO> ownedSalesTasks(List<Long> taskIds, Long me) {
+        List<SourcingTaskDO> tasks = tasks(taskIds);
+        Map<Long, CustomerInquiryDO> inquiries = inquiryMapper.selectBatchIds(tasks.stream().map(SourcingTaskDO::getCustomerInquiryId).distinct().toList())
+                .stream().collect(Collectors.toMap(CustomerInquiryDO::getId, i -> i));
+        for (SourcingTaskDO t : tasks) {
+            CustomerInquiryDO inquiry = inquiries.get(t.getCustomerInquiryId());
+            if (me == null || inquiry == null || !me.equals(inquiry.getOwnerId())) {
+                throw new BizException("只有询盘负责人可以处理这个任务");
+            }
+            if (t.getStatus() != InquiryConstants.TASK_SALES) {
+                throw new BizException("任务已转给采购");
+            }
         }
         return tasks;
     }
@@ -163,10 +297,19 @@ public class SourcingTaskServiceImpl implements SourcingTaskService {
     public void syncUrgent(Long inquiryId, int urgent) {
         taskMapper.update(null, new LambdaUpdateWrapper<SourcingTaskDO>()
                 .eq(SourcingTaskDO::getCustomerInquiryId, inquiryId)
-                .in(SourcingTaskDO::getStatus, InquiryConstants.TASK_UNASSIGNED, InquiryConstants.TASK_SOURCING)
+                .in(SourcingTaskDO::getStatus, InquiryConstants.TASK_UNASSIGNED, InquiryConstants.TASK_SOURCING, InquiryConstants.TASK_SALES)
                 .isNull(SourcingTaskDO::getDeletedAt)
                 .set(SourcingTaskDO::getUrgent, urgent)
                 .set(SourcingTaskDO::getUpdateTime, LocalDateTime.now()));
+        // 待业务处理的任务按新的紧急标记，从生成时间重算流转时间；时限已过的由下一次流转检查转走
+        for (SourcingTaskDO t : taskMapper.selectList(new LambdaQueryWrapper<SourcingTaskDO>()
+                .eq(SourcingTaskDO::getCustomerInquiryId, inquiryId)
+                .eq(SourcingTaskDO::getStatus, InquiryConstants.TASK_SALES)
+                .isNull(SourcingTaskDO::getDeletedAt))) {
+            taskMapper.update(null, new LambdaUpdateWrapper<SourcingTaskDO>()
+                    .eq(SourcingTaskDO::getId, t.getId())
+                    .set(SourcingTaskDO::getSalesDeadline, t.getCreateTime().plusMinutes(settings.salesWindowMinutes(t.getTenantId(), urgent == 1))));
+        }
     }
 
     // ---------------------------------------------------------------- 工作台
@@ -244,6 +387,7 @@ public class SourcingTaskServiceImpl implements SourcingTaskService {
         List<SourcingTaskDO> open = taskMapper.selectList(new LambdaQueryWrapper<SourcingTaskDO>()
                 .eq(SourcingTaskDO::getTenantId, tenantId)
                 .in(SourcingTaskDO::getStatus, InquiryConstants.TASK_UNASSIGNED, InquiryConstants.TASK_SOURCING)
+                .eq(SourcingTaskDO::getSalesHandling, 0)
                 .isNull(SourcingTaskDO::getDeletedAt));
         // 已回价页签：任务已回齐、询盘单还在「询价中 / 可报价」（业务员没报价），回价与成本价仍可调整
         LambdaQueryWrapper<SourcingTaskDO> doneQuery = new LambdaQueryWrapper<SourcingTaskDO>()
@@ -277,6 +421,9 @@ public class SourcingTaskServiceImpl implements SourcingTaskService {
         Map<Long, InquiryLookups.InquiryBrief> briefs = lookups.briefs(open.stream().map(SourcingTaskDO::getCustomerInquiryId).toList(),
                 lookups.isPartTime(currentUser.resolve()));
         Map<Long, String> names = lookups.userNames(open.stream().map(SourcingTaskDO::getReturnedBy).toList());
+        Map<Long, String> selfNames = lookups.userNames(assignees.values().stream().flatMap(List::stream)
+                .filter(a -> Objects.equals(a.getAssignMode(), InquiryConstants.ASSIGN_SELF))
+                .map(SourcingTaskAssigneeDO::getAssigneeId).distinct().toList());
         LocalDateTime now = LocalDateTime.now();
         TaskTimeout limits = TaskTimeout.of(settings, tenantId());
 
@@ -333,6 +480,8 @@ public class SourcingTaskServiceImpl implements SourcingTaskService {
             vo.setReturnNote(t.getReturnNote());
             vo.setReturnedByName(names.get(t.getReturnedBy()));
             vo.setAssignees(as.stream().map(a -> purchaserById.get(a.getAssigneeId())).filter(Objects::nonNull).toList());
+            as.stream().filter(a -> Objects.equals(a.getAssignMode(), InquiryConstants.ASSIGN_SELF)).findFirst()
+                    .ifPresent(a -> vo.setSelfSourcedBy(selfNames.get(a.getAssigneeId())));
             Recommendation rec = recommend(t, purchasers, familiarity);
             if (rec != null) {
                 vo.setRecommendedId(rec.purchaser.getId());
@@ -388,6 +537,7 @@ public class SourcingTaskServiceImpl implements SourcingTaskService {
         List<SourcingTaskDO> open = taskMapper.selectList(new LambdaQueryWrapper<SourcingTaskDO>()
                 .eq(SourcingTaskDO::getTenantId, tenantId())
                 .eq(SourcingTaskDO::getStatus, InquiryConstants.TASK_SOURCING)
+                .eq(SourcingTaskDO::getSalesHandling, 0)
                 .isNull(SourcingTaskDO::getDeletedAt));
         Map<Long, List<SourcingTaskAssigneeDO>> assignees = activeAssignees(open.stream().map(SourcingTaskDO::getId).toList());
         return withSelf(purchasers(open, assignees), assignees);
@@ -417,10 +567,10 @@ public class SourcingTaskServiceImpl implements SourcingTaskService {
         return list;
     }
 
-    /** 采购人员：本租户启用的、角色带「我的询价任务」菜单的账号；负载按进行中的有效分配计算 */
+    /** 采购人员：本租户启用的、角色带「可接询价任务」权限的账号；负载按进行中的有效分配计算 */
     private List<PurchaserVO> purchasers(List<SourcingTaskDO> open, Map<Long, List<SourcingTaskAssigneeDO>> assignees) {
         Set<String> roles = roleResourceMapper.selectList(new LambdaQueryWrapper<RoleResourceDO>()
-                        .eq(RoleResourceDO::getResourceId, MY_TASKS_MENU_ID))
+                        .eq(RoleResourceDO::getResourceId, InquiryConstants.RESOURCE_ACCEPT_TASK))
                 .stream().map(RoleResourceDO::getRoleCode).collect(Collectors.toSet());
         if (roles.isEmpty()) {
             return List.of();
@@ -506,7 +656,7 @@ public class SourcingTaskServiceImpl implements SourcingTaskService {
         List<SourcingTaskDO> tasks = unassignedTasks(taskIds);
         List<PurchaserVO> purchasers = new ArrayList<>(purchasers());
         if (purchasers.isEmpty()) {
-            throw new BizException("还没有采购人员：请先给账号分配带「我的询价任务」菜单的角色");
+            throw new BizException("还没有采购人员：请先给账号的角色勾选「可接询价任务」权限");
         }
         Map<String, Map<Long, Long>> familiarity = familiarity(tenantId());
         Long me = currentUser.resolve();
@@ -598,7 +748,7 @@ public class SourcingTaskServiceImpl implements SourcingTaskService {
 
     private SourcingTaskDO sourcingTask(Long taskId) {
         SourcingTaskDO task = tasks(List.of(taskId)).get(0);
-        if (task.getStatus() != InquiryConstants.TASK_SOURCING) {
+        if (task.getStatus() != InquiryConstants.TASK_SOURCING || Objects.equals(task.getSalesHandling(), 1)) {
             throw new BizException("只有询价中的任务可以改派或追加比价");
         }
         return task;
@@ -869,7 +1019,8 @@ public class SourcingTaskServiceImpl implements SourcingTaskService {
     }
 
     private static long waitingMinutes(SourcingTaskDO t, LocalDateTime now) {
-        LocalDateTime since = t.getReturnedAt() != null ? t.getReturnedAt() : t.getCreateTime();
+        LocalDateTime since = t.getPoolEnteredAt() != null ? t.getPoolEnteredAt()
+                : t.getReturnedAt() != null ? t.getReturnedAt() : t.getCreateTime();
         return since == null ? 0 : Math.max(0, Duration.between(since, now).toMinutes());
     }
 

@@ -11,6 +11,9 @@ public class SourcingStatsVO {
     private List<MonthRow> months;
     private MonthRow total;
     private List<PurchaserRow> purchasers;
+    /** 询价工作量（型号口径，月份按询盘日期） */
+    private List<WorkloadRow> workload;
+    private WorkloadRow workloadTotal;
 
     @Data
     public static class MonthRow {
@@ -36,5 +39,18 @@ public class SourcingStatsVO {
         private int pending;
         /** 有价 ÷ 型号数（%） */
         private BigDecimal pricedRate;
+        /** 转出：交给别人继续找的型号，不计入有价、无货、待回价 */
+        private int transferred;
+        /** 身份：SALES-业务员、PURCHASER-采购、PART_TIME-兼职 */
+        private String role;
+    }
+
+    @Data
+    public static class WorkloadRow {
+        private String key;
+        private String label;
+        private int selfItems;
+        private int purchaseItems;
+        private BigDecimal selfRate;
     }
 }

@@ -27,6 +27,18 @@ public interface SourcingTaskService {
     /** 询盘改了紧急后，同步到还没完成的询价任务（采购待办的排序与超时按它算） */
     void syncUrgent(Long inquiryId, int urgent);
 
+    /** 当前账号负责的询盘里待业务处理的任务 */
+    List<com.zhul.erp.modules.inquiry.sourcing.dto.SalesPendingTaskVO> salesPending();
+
+    /** 询盘负责人认领：任务变为询价中，标记为业务员自询 */
+    void claim(List<Long> taskIds);
+
+    /** 询盘负责人转采购：任务立即进入待分配 */
+    void transferToPurchasing(List<Long> taskIds);
+
+    /** 超时流转：待业务处理且已到期时进入待分配；由定时任务逐个调用，每个任务独立事务 */
+    void moveToPoolIfDue(Long taskId);
+
     /** status 为空时返回待分配池，否则返回该状态的任务 */
     BoardVO board(Integer status);
 

@@ -20,4 +20,12 @@ public class TaskBriefVO {
     private List<String> assigneeNames;
     private Integer returnReason;
     private String returnNote;
+    /** 待业务处理：距自动转给采购的分钟数 */
+    private Long salesRemainingMinutes;
+    /** 当前账号是询盘负责人且任务待业务处理，可以转采购 */
+    private Boolean canTransfer;
+    /** 可以转采购且有「我的询价」菜单，可以认领 */
+    private Boolean canClaim;
+    /** 业务员自询 */
+    private Boolean selfSourcing;
 }

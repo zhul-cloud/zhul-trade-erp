@@ -501,6 +501,11 @@ const SourcingBoardPage: React.FC = () => {
                             {t.returnReason > 0 && t.status === UNASSIGNED && (
                               <Pill tone="orange">被退回</Pill>
                             )}
+                            {t.selfSourcedBy && (
+                              <Pill tone="violet">
+                                业务员自询 · {t.selfSourcedBy}
+                              </Pill>
+                            )}
                           </span>
                           <span style={{ color: palette.mute, fontSize: 12 }}>
                             {t.brand}
