@@ -691,6 +691,13 @@ export default [
         component: './system/transit-times',
       },
       {
+        path: '/system/country-profiles',
+        name: 'countryProfiles',
+        icon: 'global',
+        access: 'systemCountryProfiles',
+        component: './system/country-profiles',
+      },
+      {
         path: '/system/ai-settings',
         name: 'aiSettings',
         icon: 'robot',
