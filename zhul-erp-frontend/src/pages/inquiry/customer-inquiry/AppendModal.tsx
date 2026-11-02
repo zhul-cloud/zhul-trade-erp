@@ -10,6 +10,10 @@ import {
   MAX_ATTACHMENTS,
   PATHS,
 } from '../shared/constants';
+import NameplateUploader, {
+  type PickedPlate,
+  toRefs,
+} from '../shared/NameplateUploader';
 import { inquiryApi, readBizError, type UploadedFile } from '../shared/service';
 
 /** 追加型号（spec inquiry/inquiry-intake「追加型号」）：粘贴新内容或上传附件，AI 解析或手动录入 */
@@ -24,7 +28,10 @@ const AppendModal: React.FC<{
   const [content, setContent] = useState('');
   const [files, setFiles] = useState<UploadedFile[]>([]);
   const [uploading, setUploading] = useState(0);
+  const [plates, setPlates] = useState<PickedPlate[]>([]);
+  const [plateUploading, setPlateUploading] = useState(0);
   const [saving, setSaving] = useState(false);
+  const busy = uploading + plateUploading > 0;
 
   const beforeUpload = (file: File) => {
     if (files.length + uploading >= MAX_ATTACHMENTS) {
@@ -45,7 +52,12 @@ const AppendModal: React.FC<{
   };
 
   const start = async (manual: boolean) => {
-    if (!manual && !content.trim() && files.length === 0) {
+    if (
+      !manual &&
+      !content.trim() &&
+      files.length === 0 &&
+      plates.length === 0
+    ) {
       message.error('请粘贴追加的内容或上传附件');
       return;
     }
@@ -57,10 +69,12 @@ const AppendModal: React.FC<{
           fileKey: f.fileKey,
           fileName: f.fileName,
         })),
+        nameplates: toRefs(plates),
         manual,
       });
       setContent('');
       setFiles([]);
+      setPlates([]);
       onClose();
       if (manual) {
         history.push(`${PATHS.inquiries}/${inquiryId}/confirm?append=${a.id}`);
@@ -85,16 +99,13 @@ const AppendModal: React.FC<{
       footer={
         <Space>
           <Button onClick={onClose}>取消</Button>
-          <Button
-            disabled={saving || uploading > 0}
-            onClick={() => start(true)}
-          >
+          <Button disabled={saving || busy} onClick={() => start(true)}>
             手动录入
           </Button>
           <Button
             type="primary"
             loading={saving}
-            disabled={uploading > 0}
+            disabled={busy}
             onClick={() => start(false)}
           >
             AI 解析
@@ -162,6 +173,14 @@ const AppendModal: React.FC<{
           ))}
         </div>
       )}
+      <div style={{ marginTop: 12 }}>
+        <NameplateUploader
+          value={plates}
+          onChange={setPlates}
+          onUploadingChange={setPlateUploading}
+          hint="客户新发来的型号铭牌照片放这里，只对应这次追加的型号；采购在「我的询价」里能直接看到。不要放带客户信息的图片。"
+        />
+      </div>
     </Modal>
   );
 };

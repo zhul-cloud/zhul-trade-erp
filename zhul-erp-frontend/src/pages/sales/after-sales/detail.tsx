@@ -1,15 +1,21 @@
 import {
+  AlertOutlined,
   CheckCircleOutlined,
+  ClockCircleOutlined,
   DollarOutlined,
   EditOutlined,
   FileTextOutlined,
   HistoryOutlined,
   InboxOutlined,
+  MessageOutlined,
+  PauseCircleOutlined,
+  SendOutlined,
+  ShoppingCartOutlined,
   StopOutlined,
   WarningOutlined,
 } from '@ant-design/icons';
 import { history, useAccess, useParams } from '@umijs/max';
-import { App, Button, Input, Skeleton } from 'antd';
+import { App, Button, Checkbox, Input, Skeleton } from 'antd';
 import dayjs from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
 import ExpenseQuickModal from '@/pages/finance/expenses/AfterSalesExpense';
@@ -25,6 +31,7 @@ import {
   CloseModal,
   PlanModal,
   RefundRequestModal,
+  ReplacementModal,
   ReturnModal,
 } from './dialogs';
 import {
@@ -37,6 +44,7 @@ import {
   RT_STATUS_TONE,
   type Tone,
 } from './service';
+import { dueLeftText, SLA_TEXT, WORK_HOURS_TEXT } from './sla';
 
 const LOG_TONE: Record<string, Tone> = {
   NOTE: 'accent',
@@ -47,6 +55,7 @@ const LOG_TONE: Record<string, Tone> = {
   REFUND: 'red',
   EXPENSE: 'gray',
   CREATE: 'gray',
+  REPLACEMENT: 'violet',
 };
 const RQ_TONE: Record<number, Tone> = {
   1: 'accent',
@@ -56,7 +65,14 @@ const RQ_TONE: Record<number, Tone> = {
   5: 'mute',
 };
 
-type Dialog = 'plan' | 'close' | 'return' | 'refund' | 'expense' | 'cancel';
+type Dialog =
+  | 'plan'
+  | 'close'
+  | 'return'
+  | 'refund'
+  | 'expense'
+  | 'cancel'
+  | 'replacement';
 
 /** 售后单详情（spec sales/after-sales） */
 const AfterSalesDetail: React.FC = () => {
@@ -70,6 +86,7 @@ const AfterSalesDetail: React.FC = () => {
   const [dialog, setDialog] = useState<Dialog>();
   const [note, setNote] = useState('');
   const [noteFiles, setNoteFiles] = useState<Attachment[]>([]);
+  const [notified, setNotified] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
@@ -142,17 +159,133 @@ const AfterSalesDetail: React.FC = () => {
           a.id,
           note.trim(),
           noteFiles.map((f) => f.id),
+          notified,
         ),
       );
       setNote('');
       setNoteFiles([]);
-      message.success('已添加跟进');
+      setNotified(false);
+      message.success(
+        notified ? '已添加跟进，重新计算下次更新截止' : '已添加跟进',
+      );
     } catch (e) {
       message.error(readBizError(e).message);
     } finally {
       setSaving(false);
     }
   };
+
+  const writeNote = () => {
+    setNotified(true);
+    document.getElementById('after-sales-note')?.focus();
+  };
+  const bar = (
+    tone: 'red' | 'orange' | 'accent' | 'gray' | 'green',
+    icon: React.ReactNode,
+    title: string,
+    desc: string,
+    action?: boolean,
+  ) => {
+    const fg = {
+      red: palette.red,
+      orange: palette.orange,
+      accent: palette.link,
+      gray: palette.sub,
+      green: palette.green,
+    }[tone];
+    const bg = {
+      red: palette.redSoft,
+      orange: palette.orangeSoft,
+      accent: palette.accentSoft,
+      gray: palette.inset,
+      green: palette.greenSoft,
+    }[tone];
+    return (
+      <div
+        role="status"
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 14,
+          padding: '12px 16px',
+          borderRadius: 14,
+          background: bg,
+          border: `1px solid ${tone === 'gray' ? palette.hairline : fg}`,
+          marginBottom: 16,
+        }}
+      >
+        <span style={{ fontSize: 20, color: fg }}>{icon}</span>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontWeight: 700, fontSize: 15, color: fg }}>
+            {title}
+          </div>
+          <div style={{ fontSize: 12, color: palette.sub }}>{desc}</div>
+        </div>
+        {action && (
+          <Button type="primary" icon={<MessageOutlined />} onClick={writeNote}>
+            写跟进并告知客户
+          </Button>
+        )}
+      </div>
+    );
+  };
+  const dueTime = a.dueAt ? dayjs(a.dueAt).format('MM-DD HH:mm') : '';
+  const levelText = levelShort(a.levelCode, a.levelName);
+  const slaBar = (() => {
+    if (a.status === AS_STATUS.CLOSED) {
+      return bar(
+        'green',
+        <CheckCircleOutlined />,
+        '已结案 · 不再提醒',
+        a.respondedAt
+          ? `首次响应 ${formatDateTime(a.respondedAt).slice(5, 16)}`
+          : '没有记录「已告知客户」',
+      );
+    }
+    if (a.status === AS_STATUS.CANCELLED) return null;
+    if (!a.dueAt) {
+      return a.status === AS_STATUS.WAITING
+        ? bar(
+            'gray',
+            <PauseCircleOutlined />,
+            '待客户确认 · 暂停计时',
+            '等客户回复期间不按等级计时；填了下次更新时间时按它提醒。改回「处理中」后从那一刻重新起算。',
+          )
+        : null;
+    }
+    const late = a.dueState === 'OVERDUE';
+    const soon = a.dueState === 'SOON';
+    const tone = late ? 'red' : soon ? 'orange' : 'accent';
+    const icon = late ? <AlertOutlined /> : <ClockCircleOutlined />;
+    const left = dueLeftText(a);
+    if (a.dueType === 1) {
+      return bar(
+        tone,
+        icon,
+        `首次响应${late || soon ? left : `截止 ${dueTime}`}`,
+        `截止 ${dueTime}（${levelText}，从收到反馈 ${formatDateTime(a.receivedAt).slice(5, 16)} 起算）。写跟进并勾选「已告知客户」即完成首次响应。`,
+        late || soon,
+      );
+    }
+    if (a.dueType === 2) {
+      return bar(
+        tone,
+        icon,
+        `更新客户${late || soon ? left : `截止 ${dueTime}`}`,
+        `截止 ${dueTime}（${levelText}，从${a.status === AS_STATUS.OPEN && a.lastContactAt ? `上次告知客户 ${formatDateTime(a.lastContactAt).slice(5, 16)}` : '改回处理中'} 起算）。${a.nextAction ? `下一步：${a.nextAction}` : ''}`,
+        late || soon,
+      );
+    }
+    return bar(
+      tone,
+      icon,
+      `下次更新客户${late || soon ? left : `：${dueTime}`}（手填时间）`,
+      a.levelDueAt
+        ? `负责人填的下次更新时间早于等级截止 ${dayjs(a.levelDueAt).format('MM-DD HH:mm')}，以手填为准。`
+        : `截止 ${dueTime}，按负责人填的下次更新时间提醒。`,
+      late || soon,
+    );
+  })();
 
   const problem = (
     <Card style={{ padding: 20, marginBottom: 16 }}>
@@ -193,6 +326,7 @@ const AfterSalesDetail: React.FC = () => {
           }}
         >
           <Input.TextArea
+            id="after-sales-note"
             rows={2}
             maxLength={1000}
             value={note}
@@ -218,6 +352,15 @@ const AfterSalesDetail: React.FC = () => {
                 accept="image/*,video/mp4,video/quicktime,application/pdf"
               />
             </div>
+            {active && (
+              <Checkbox
+                checked={notified}
+                onChange={(e) => setNotified(e.target.checked)}
+                style={{ marginTop: 4 }}
+              >
+                已告知客户
+              </Checkbox>
+            )}
             <Button type="primary" loading={saving} onClick={saveNote}>
               保存跟进
             </Button>
@@ -244,6 +387,18 @@ const AfterSalesDetail: React.FC = () => {
               <div style={{ color: palette.sub, fontSize: 13 }}>
                 {l.content}
               </div>
+              {l.customerNotified && (
+                <div
+                  style={{
+                    marginTop: 4,
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: palette.green,
+                  }}
+                >
+                  <SendOutlined /> 已告知客户
+                </div>
+              )}
               {(l.attachments ?? []).length > 0 && (
                 <div style={{ marginTop: 6 }}>
                   <AttachmentWall
@@ -255,6 +410,61 @@ const AfterSalesDetail: React.FC = () => {
             </div>
           </div>
         ))}
+      </div>
+    </Card>
+  );
+
+  const replacements = (a.replacements ?? []).length > 0 && (
+    <Card style={{ padding: 20, marginBottom: 16 }}>
+      {section(
+        <ShoppingCartOutlined />,
+        '补发订单',
+        <span style={{ fontSize: 12, color: palette.mute }}>
+          {
+            (a.replacements ?? []).filter((r) => r.status === 1 && !r.shipped)
+              .length
+          }{' '}
+          张还没出运
+        </span>,
+      )}
+      <div style={{ display: 'grid', gap: 10 }}>
+        {(a.replacements ?? []).map((r) => (
+          <div
+            key={r.soId}
+            style={{
+              padding: '10px 12px',
+              borderRadius: 10,
+              background: palette.inset,
+              opacity: r.status === 1 ? 1 : 0.6,
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <a onClick={() => history.push(`/sales/orders/${r.soId}`)}>
+                {r.soNo}
+              </a>
+              <Pill
+                tone={r.status !== 1 ? 'mute' : r.shipped ? 'green' : 'orange'}
+              >
+                {r.progressName}
+              </Pill>
+              <span style={{ marginLeft: 'auto', textAlign: 'right' }}>
+                <b style={{ color: palette.ink }}>
+                  {formatAmount(r.declaredAmount, r.currencyCode)}
+                </b>
+                <span style={{ fontSize: 12, color: palette.mute }}>
+                  {' '}
+                  申报货值 · 订单金额 0
+                </span>
+              </span>
+            </div>
+            <div style={{ color: palette.sub, fontSize: 13, marginTop: 4 }}>
+              {r.summary}
+            </div>
+          </div>
+        ))}
+      </div>
+      <div style={{ fontSize: 12, color: palette.mute, marginTop: 10 }}>
+        补发订单没出运（也没取消）时不能结案；补发的采购、运费与费用计入原订单成本。
       </div>
     </Card>
   );
@@ -297,27 +507,58 @@ const AfterSalesDetail: React.FC = () => {
         ),
       )}
       {kv('负责人', a.ownerName)}
-      {active && (a.nextAction || a.nextUpdateAt) && (
+      {kv('下一步', a.nextAction)}
+      {active && (
         <div
           style={{
             padding: '10px 12px',
             borderRadius: 10,
-            background: a.overdue ? palette.redSoft : palette.inset,
+            background: palette.inset,
             marginTop: 4,
           }}
         >
-          <b style={{ color: palette.ink }}>下一步：{a.nextAction || '—'}</b>
-          {a.nextUpdateAt && (
-            <div
-              style={{
-                fontSize: 12,
-                color: a.overdue ? palette.red : palette.mute,
-              }}
-            >
-              下次更新客户 {dayjs(a.nextUpdateAt).format('MM-DD HH:mm')}
-              {a.overdue ? ' · 已过期' : ''}
-            </div>
-          )}
+          <b style={{ color: palette.ink, fontSize: 13 }}>
+            处理时限 · {levelShort(a.levelCode, a.levelName)}
+          </b>
+          <div style={{ marginTop: 8 }}>
+            {kv('收到反馈', formatDateTime(a.receivedAt).slice(0, 16))}
+            {kv(
+              '首次响应',
+              a.respondedAt ? (
+                <span style={{ color: palette.green }}>
+                  {formatDateTime(a.respondedAt).slice(5, 16)}
+                </span>
+              ) : (
+                '还没告知客户'
+              ),
+            )}
+            {kv(
+              '上次告知客户',
+              a.lastContactAt && formatDateTime(a.lastContactAt).slice(5, 16),
+            )}
+            {kv(
+              '等级截止',
+              a.levelDueAt ? (
+                dayjs(a.levelDueAt).format('MM-DD HH:mm')
+              ) : (
+                <span style={{ color: palette.mute }}>
+                  {a.status === AS_STATUS.WAITING
+                    ? '待客户确认，暂停'
+                    : a.levelCode === 'S5'
+                      ? '不按等级'
+                      : '下次告知客户后开始计时'}
+                </span>
+              ),
+            )}
+            {kv(
+              '手填下次更新',
+              a.nextUpdateAt && dayjs(a.nextUpdateAt).format('MM-DD HH:mm'),
+            )}
+          </div>
+          <div style={{ fontSize: 12, color: palette.mute }}>
+            {SLA_TEXT[a.levelCode] ?? SLA_TEXT.PENDING}
+            {WORK_HOURS_TEXT}
+          </div>
         </div>
       )}
       {active && (
@@ -444,7 +685,7 @@ const AfterSalesDetail: React.FC = () => {
         </div>
       )}
       <div style={{ fontSize: 12, color: palette.mute, marginTop: 8 }}>
-        退款冲减订单收入，费用计入订单成本；退货去向处理后，退回供应商或转闲置冲减订单成本。
+        退款冲减订单收入，费用计入订单成本；退货去向处理后，退回供应商或转闲置冲减订单成本；补发订单的成本计入原订单。
       </div>
     </Card>
   );
@@ -486,6 +727,12 @@ const AfterSalesDetail: React.FC = () => {
               {a.soId && (
                 <>
                   <Button
+                    icon={<ShoppingCartOutlined />}
+                    onClick={() => setDialog('replacement')}
+                  >
+                    补发
+                  </Button>
+                  <Button
                     icon={<InboxOutlined />}
                     onClick={() => setDialog('return')}
                   >
@@ -525,6 +772,7 @@ const AfterSalesDetail: React.FC = () => {
           )
         }
       />
+      {slaBar}
       <div
         style={{
           display: 'grid',
@@ -535,6 +783,7 @@ const AfterSalesDetail: React.FC = () => {
       >
         <div style={{ minWidth: 0 }}>
           {problem}
+          {replacements}
           {timeline}
         </div>
         <div style={{ minWidth: 0 }}>
@@ -554,6 +803,14 @@ const AfterSalesDetail: React.FC = () => {
         onClose={() => setDialog(undefined)}
         onDone={done}
       />
+      {a.soId && (
+        <ReplacementModal
+          open={dialog === 'replacement'}
+          data={a}
+          onClose={() => setDialog(undefined)}
+          onDone={done}
+        />
+      )}
       <ReturnModal
         open={dialog === 'return'}
         data={a}

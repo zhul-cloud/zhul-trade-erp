@@ -14,6 +14,10 @@ public class AppendRequest {
     @Valid
     @Size(max = 10, message = "附件最多 10 个")
     private List<AttachmentRef> attachments;
+    /** 铭牌图片（spec inquiry/inquiry-intake「铭牌图片」）：只收 JPG、PNG，采购能看到 */
+    @Valid
+    @Size(max = 20, message = "铭牌图片最多 20 张")
+    private List<AttachmentRef> nameplates;
     /** true 为手动录入（不调用 AI，直接进确认页） */
     private Boolean manual;
 }

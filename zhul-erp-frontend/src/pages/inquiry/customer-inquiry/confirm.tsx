@@ -48,6 +48,8 @@ import {
   PATHS,
   STATUS,
 } from '../shared/constants';
+import { FileTile, useFilePreview } from '../shared/FilePreview';
+import { movePlate, type PreviewFile, plateOwners } from '../shared/files';
 import QuoteExtras from '../shared/QuoteExtras';
 import {
   type ConfirmRow,
@@ -133,6 +135,25 @@ const ConfirmPage: React.FC = () => {
   const { message, modal } = App.useApp();
   const [draft, setDraft] = useState<Draft | null>(null);
   const [rows, setRows] = useState<Row[]>([]);
+  const preview = useFilePreview();
+  /** 铭牌图片 → 对应的行（一张图只给一行） */
+  const owners = useMemo(() => plateOwners(rows), [rows]);
+  const plates = draft?.nameplates ?? [];
+  const endpointOf = (f: PreviewFile) =>
+    inquiryApi.attachmentEndpoint(inquiryId, f.id);
+  const rowLabel = (key?: string) => {
+    const i = rows.findIndex((r) => r.key === key);
+    return i < 0
+      ? '未对应型号'
+      : `第 ${i + 1} 行${rows[i].confirmedModel ? ` · ${rows[i].confirmedModel}` : ''}`;
+  };
+  const openPlate = (list: PreviewFile[], f: PreviewFile) =>
+    preview.open(
+      list,
+      list.indexOf(f),
+      endpointOf,
+      (x) => `铭牌图片 · ${rowLabel(owners.get(x.id))}`,
+    );
   const [expanded, setExpanded] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -344,6 +365,28 @@ const ConfirmPage: React.FC = () => {
             onChange={(e) => patch(r.key, { orderCode: e.target.value })}
             aria-label="订货号"
           />
+          {(() => {
+            const mine = plates.filter((p) => owners.get(p.id) === r.key);
+            if (mine.length === 0) return null;
+            return (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                {mine.map((f) => (
+                  <FileTile
+                    key={f.id}
+                    file={f}
+                    endpoint={endpointOf(f)}
+                    width={40}
+                    height={30}
+                    showName={false}
+                    onOpen={() => openPlate(mine, f)}
+                  />
+                ))}
+                <span style={{ fontSize: 12, color: palette.link }}>
+                  {mine.length} 张铭牌
+                </span>
+              </div>
+            );
+          })()}
           {r.confidence === CONFIDENCE.CORRECTED && (
             <Pill tone="cyan">已纠正 · 原文 {r.originalModel}</Pill>
           )}
@@ -717,6 +760,69 @@ const ConfirmPage: React.FC = () => {
           </>
         }
       />
+      {plates.length > 0 && (
+        <Card style={{ padding: 16, marginBottom: 16 }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              marginBottom: 12,
+            }}
+          >
+            <b style={{ color: palette.ink }}>铭牌图片</b>
+            <Pill tone="green">
+              已对应 {plates.filter((p) => owners.has(p.id)).length}
+            </Pill>
+            {plates.some((p) => !owners.has(p.id)) && (
+              <Pill tone="orange">
+                未对应 {plates.filter((p) => !owners.has(p.id)).length}
+              </Pill>
+            )}
+            <span
+              style={{ marginLeft: 'auto', fontSize: 12, color: palette.mute }}
+            >
+              点图片预览；改对应的行用图片下面的下拉。删掉某行时，对应这行的图变为未对应
+            </span>
+          </div>
+          <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+            {plates.map((f) => {
+              const owner = owners.get(f.id);
+              return (
+                <div key={f.id} style={{ display: 'grid', gap: 8, width: 180 }}>
+                  <FileTile
+                    file={f}
+                    endpoint={endpointOf(f)}
+                    width={180}
+                    height={120}
+                    showName={false}
+                    active={!owner}
+                    onOpen={() => openPlate(plates, f)}
+                  />
+                  <Select
+                    size="small"
+                    style={{ width: 180 }}
+                    value={owner ?? ''}
+                    status={owner ? undefined : 'warning'}
+                    aria-label={`${f.fileName} 对应的行`}
+                    popupMatchSelectWidth={false}
+                    onChange={(key: string) =>
+                      setRows((prev) => movePlate(prev, f.id, key || undefined))
+                    }
+                    options={[
+                      ...rows.map((r, i) => ({
+                        value: r.key,
+                        label: `第 ${i + 1} 行${r.confirmedModel ? ` · ${r.confirmedModel}` : ''}`,
+                      })),
+                      { value: '', label: '未对应型号' },
+                    ]}
+                  />
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+      )}
       <div
         style={{
           display: 'flex',
@@ -845,25 +951,37 @@ const ConfirmPage: React.FC = () => {
               )}
             </div>
             {draft.attachments.length > 0 && (
-              <div style={{ display: 'grid', gap: 6, marginTop: 12 }}>
-                {draft.attachments.map((a) => (
-                  <a
+              <div
+                style={{
+                  display: 'flex',
+                  gap: 12,
+                  flexWrap: 'wrap',
+                  marginTop: 12,
+                }}
+              >
+                {draft.attachments.map((a, i) => (
+                  <FileTile
                     key={a.id}
-                    onClick={async () => {
-                      const url = await inquiryApi
-                        .attachmentBlobUrl(inquiryId, a.id)
-                        .catch(() => '');
-                      if (url) window.open(url, '_blank', 'noopener');
-                    }}
-                  >
-                    {a.fileName}
-                  </a>
+                    file={a}
+                    endpoint={endpointOf(a)}
+                    width={88}
+                    height={66}
+                    onOpen={() =>
+                      preview.open(
+                        draft.attachments,
+                        i,
+                        endpointOf,
+                        () => '询盘附件',
+                      )
+                    }
+                  />
                 ))}
               </div>
             )}
           </Card>
         </div>
       </div>
+      {preview.node}
     </div>
   );
 };

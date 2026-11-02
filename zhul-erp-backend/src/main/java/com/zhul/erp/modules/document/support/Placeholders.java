@@ -65,11 +65,11 @@ public final class Placeholders {
     static {
         Set<String> ci = new HashSet<>(PARTIES);
         ci.addAll(Set.of("ci.no", "ci.date", "ci.currency", "ci.currencySymbol", "ci.total", "ci.itemTotal", "ci.feeTotal", "ci.paymentRef",
-                "pi.no", "so.no", "shipment.no", "shipment.waybill"));
+                "pi.no", "so.no", "shipment.no", "shipment.waybill", "doc.note"));
         CI_HEADER = Set.copyOf(ci);
         Set<String> pl = new HashSet<>(PARTIES);
         pl.addAll(Set.of("pl.no", "pl.date", "pl.priceTerm", "pl.totalBoxes", "pl.totalQty", "pl.totalNetWeight", "pl.totalGrossWeight",
-                "pl.totalVolume", "ci.no", "pi.no", "so.no", "shipment.no", "shipment.waybill"));
+                "pl.totalVolume", "ci.no", "pi.no", "so.no", "shipment.no", "shipment.waybill", "doc.note"));
         PL_HEADER = Set.copyOf(pl);
     }
 

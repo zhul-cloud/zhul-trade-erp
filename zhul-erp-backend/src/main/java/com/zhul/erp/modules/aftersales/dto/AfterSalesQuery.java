@@ -14,4 +14,8 @@ public class AfterSalesQuery {
     private Long customerId;
     private String levelCode;
     private Long ownerId;
+    /** 只看逾期（处理中、待客户确认且已过截止时间） */
+    private Boolean overdue;
+    /** 已逾期或 1 小时内到期（工作台「售后要更新客户」进入） */
+    private Boolean dueSoon;
 }

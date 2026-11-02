@@ -48,4 +48,6 @@ public class ConfirmRowRequest {
     private List<String> searchKeywords;
     /** 复用的询价记录；为空表示需要询价 */
     private Long reuseQuoteId;
+    /** 这一行对应的铭牌图片（附件 ID），一张图只对应一行 */
+    private List<Long> nameplateIds;
 }

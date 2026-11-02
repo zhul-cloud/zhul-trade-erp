@@ -121,6 +121,7 @@ OUTPUT_SCHEMA = {
                                 "difficulty": {"type": "integer"},
                                 "inquiryScript": {"type": "string"},
                                 "searchKeywords": {"type": "array", "items": {"type": "string"}},
+                                "nameplates": {"type": "array", "items": {"type": "integer"}},
                             },
                             "required": ["originalModel", "confirmedModel", "confidence", "quantity", "unit"],
                         },
@@ -430,14 +431,26 @@ def _call_openai(cfg, system_prompt, text, attachments, schema, model, effort, w
     return _drop_nulls(json.loads(response.output_text))
 
 
-def call_parse(cfg: AiConfig, raw_content: str, file_paths=None, categories=None) -> dict:
+def _nameplate_hint(nos: list) -> str:
+    """说明哪几个附件是铭牌图片，让模型在每个型号的 nameplates 里填对应的编号"""
+    marks = [f"第 {i + 1} 个附件是铭牌图片 #{n}" for i, n in enumerate(nos) if n]
+    if not marks:
+        return ""
+    return ("\n\n附件按上面出现的顺序计数，" + "；".join(marks) + "。"
+            "铭牌图片是客户拍的型号铭牌，请从图上识别型号，并在对应型号的 nameplates 里填写它的编号（#n 的 n）。"
+            "一张铭牌图片只填给一个型号；看不清或对不上任何型号的不填；不是铭牌图片的附件不要填。")
+
+
+def call_parse(cfg: AiConfig, raw_content: str, file_paths=None, categories=None, nameplate_nos=None) -> dict:
     """raw_content 为正文（Excel/CSV 附件已由后端抽成文本拼在里面）；file_paths 为图片、PDF 附件（已读好的 (内容, 扩展名)，或临时链接、本地路径）；
-    categories 为后端带来的品类清单（没有时沿用 skill 里的品类枚举）。"""
+    categories 为后端带来的品类清单（没有时沿用 skill 里的品类枚举）；nameplate_nos 与 file_paths 一一对应，
+    铭牌图片为编号（从 1 开始），其他附件为 None。"""
     file_paths = file_paths or []
     if file_paths:
         text = (
             (f"询盘正文：\n{raw_content}\n\n" if raw_content else "这条询盘没有正文。\n")
             + "上面附有询盘附件（图片或 PDF）。请先识别附件中的型号、数量等询盘信息，与正文合并当成询盘原文，再按 skill 流程继续处理。"
+            + _nameplate_hint(nameplate_nos or [])
         )
     else:
         text = raw_content
@@ -533,6 +546,16 @@ def send_callback(callback_url: str, status: str, output=None, error=None):
         print(f"[ai-orchestrator] callback FAILED -> {callback_url}: {e}")
 
 
+def _nameplate_no(ref: dict):
+    """后端给铭牌图片标了 role=nameplate 与编号 no；旧版后端没有这两个字段"""
+    if ref.get("role") != "nameplate":
+        return None
+    try:
+        return int(ref.get("no"))
+    except (TypeError, ValueError):
+        return None
+
+
 def process_job(payload: dict, callback_url: str):
     key = _api_key_of(payload)
     try:
@@ -558,7 +581,8 @@ def process_job(payload: dict, callback_url: str):
         except Exception as e:  # noqa: BLE001 - 链接过期或网络问题都按附件读取失败回报
             send_callback(callback_url, "failed", error=f"附件下载失败: {str(e)[:200]}")
             return
-        output = call_parse(cfg, raw_content, loaded, input_data.get("categories") or [])
+        nos = [_nameplate_no(r) for r in refs] + [None] * len(paths)
+        output = call_parse(cfg, raw_content, loaded, input_data.get("categories") or [], nos)
         send_callback(callback_url, "success", output=output)
     except ConfigError as e:
         send_callback(callback_url, "failed", error=str(e))

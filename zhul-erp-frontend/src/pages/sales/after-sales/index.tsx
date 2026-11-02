@@ -5,9 +5,18 @@ import {
   PlusOutlined,
   SyncOutlined,
 } from '@ant-design/icons';
-import { history } from '@umijs/max';
+import { history, useSearchParams } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
-import { App, Button, Input, Segmented, Select, Table } from 'antd';
+import {
+  App,
+  Button,
+  Checkbox,
+  Input,
+  Segmented,
+  Select,
+  Table,
+  Tag,
+} from 'antd';
 import dayjs from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
 import { Card, PageTitle, Pill } from '@/pages/inquiry/shared/components';
@@ -26,6 +35,7 @@ import {
   LEVEL_TONE,
   levelShort,
 } from './service';
+import { DUE_TONE, dueLeftText } from './sla';
 
 /** 销售管理 → 售后管理（spec sales/after-sales） */
 const AfterSalesPage: React.FC = () => {
@@ -33,7 +43,15 @@ const AfterSalesPage: React.FC = () => {
   const { palette } = useAppTheme();
   const levels = useDictTexts(DICT_LEVEL);
   const owners = useOwnerOptions();
-  const [status, setStatus] = useState<number | 'all'>(AS_STATUS.OPEN);
+  const [search] = useSearchParams();
+  /** 工作台带过来：overdue=1 只看逾期，overdue=soon 已逾期或快到期 */
+  const [due, setDue] = useState<'overdue' | 'soon' | undefined>(() => {
+    const v = search.get('overdue');
+    return v === '1' ? 'overdue' : v === 'soon' ? 'soon' : undefined;
+  });
+  const [status, setStatus] = useState<number | 'all'>(() =>
+    search.get('overdue') ? 'all' : AS_STATUS.OPEN,
+  );
   const [keyword, setKeyword] = useState('');
   const [query, setQuery] = useState('');
   const [level, setLevel] = useState<string>();
@@ -47,6 +65,7 @@ const AfterSalesPage: React.FC = () => {
     open: number;
     waiting: number;
     overdue: number;
+    dueSoon: number;
     closedThisMonth: number;
   }>();
   const [creating, setCreating] = useState(false);
@@ -62,6 +81,8 @@ const AfterSalesPage: React.FC = () => {
           keyword: query || undefined,
           levelCode: level,
           ownerId,
+          overdue: due === 'overdue' || undefined,
+          dueSoon: due === 'soon' || undefined,
         }),
         afterSalesApi.counts(),
       ]);
@@ -73,7 +94,7 @@ const AfterSalesPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [page, pageSize, status, query, level, ownerId, message]);
+  }, [page, pageSize, status, query, level, ownerId, due, message]);
 
   useEffect(() => {
     load();
@@ -156,19 +177,35 @@ const AfterSalesPage: React.FC = () => {
     },
     { title: '负责人', dataIndex: 'ownerName', width: 90 },
     {
-      title: '下一步 · 下次更新',
+      title: '下一步 · 截止',
       key: 'next',
-      width: 210,
-      render: (_, r) => (
-        <div>
-          <div style={{ color: palette.sub }}>{r.nextAction || '—'}</div>
-          {r.nextUpdateAt &&
-            sub(
-              `${dayjs(r.nextUpdateAt).format('MM-DD HH:mm')}${r.overdue ? ' · 已过期' : ''}`,
-              r.overdue ? palette.red : undefined,
+      width: 250,
+      render: (_, r) => {
+        const tone = r.dueState ? DUE_TONE[r.dueState] : 'gray';
+        const color =
+          tone === 'red'
+            ? palette.red
+            : tone === 'orange'
+              ? palette.orange
+              : undefined;
+        return (
+          <div>
+            <div style={{ color: palette.sub }}>{r.nextAction || '—'}</div>
+            {r.dueAt ? (
+              <div style={{ marginTop: 2 }}>
+                <Pill tone={tone}>{r.dueTypeName}</Pill>
+                {sub(
+                  `${dayjs(r.dueAt).format('MM-DD HH:mm')}${r.dueState === 'NORMAL' ? '' : ` · ${dueLeftText(r)}`}`,
+                  color,
+                )}
+              </div>
+            ) : (
+              r.status === AS_STATUS.WAITING &&
+              sub('待客户确认 · 没有手填时间，不提醒')
             )}
-        </div>
-      ),
+          </div>
+        );
+      },
     },
     {
       title: '状态',
@@ -262,15 +299,33 @@ const AfterSalesPage: React.FC = () => {
           palette.violet,
           palette.violetSoft,
         )}
-        {stat(
-          <AlertOutlined />,
-          '需要更新客户',
-          counts?.overdue,
-          '下次更新时间已过',
-          palette.red,
-          palette.redSoft,
-          (counts?.overdue ?? 0) > 0 ? palette.red : undefined,
-        )}
+        <button
+          type="button"
+          aria-pressed={due === 'overdue'}
+          title="只看逾期"
+          style={{
+            all: 'unset',
+            display: 'block',
+            cursor: 'pointer',
+            borderRadius: 16,
+            outline: due === 'overdue' ? `1px solid ${palette.red}` : undefined,
+          }}
+          onClick={() => {
+            setDue(due === 'overdue' ? undefined : 'overdue');
+            setStatus('all');
+            setPage(1);
+          }}
+        >
+          {stat(
+            <AlertOutlined />,
+            '需要更新客户',
+            counts?.overdue,
+            `已过截止时间${counts?.dueSoon ? ` · 另有 ${counts.dueSoon} 张快到期` : ''}`,
+            palette.red,
+            palette.redSoft,
+            (counts?.overdue ?? 0) > 0 ? palette.red : undefined,
+          )}
+        </button>
         {stat(
           <CheckCircleOutlined />,
           '本月结案',
@@ -344,6 +399,27 @@ const AfterSalesPage: React.FC = () => {
             style={{ width: 150 }}
             aria-label="负责人"
           />
+          <Checkbox
+            checked={due === 'overdue'}
+            onChange={(e) => {
+              setDue(e.target.checked ? 'overdue' : undefined);
+              setPage(1);
+            }}
+          >
+            只看逾期
+          </Checkbox>
+          {due === 'soon' && (
+            <Tag
+              closable
+              color="orange"
+              onClose={() => {
+                setDue(undefined);
+                setPage(1);
+              }}
+            >
+              已逾期或 1 小时内到期
+            </Tag>
+          )}
         </div>
         <Table<AfterSales>
           rowKey="id"

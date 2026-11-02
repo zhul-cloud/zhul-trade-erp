@@ -106,7 +106,7 @@ public class ReceiptPosition {
     /** 订单：PI 转成的取 PI 的收款，手动订单取订单自己的收款 */
     public Position ofOrder(SalesOrderDO o) {
         // 手动订单的 pi_id 为空或 0，按来源判断
-        if (!Objects.equals(o.getSource(), SalesConstants.SO_MANUAL)) {
+        if (Objects.equals(o.getSource(), SalesConstants.SO_FROM_PI)) {
             // 财务按订单处理，不受 PI 创建人的数据范围限制
             ProformaInvoiceDO pi = piMapper.selectById(o.getPiId());
             Position p = ofPi(pi);

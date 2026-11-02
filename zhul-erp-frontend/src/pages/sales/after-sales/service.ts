@@ -68,6 +68,8 @@ export interface AfterSalesLog {
   logType: string;
   logTypeName: string;
   content: string;
+  /** 已告知客户（算首次响应 / 更新客户） */
+  customerNotified?: boolean;
   operatorName?: string;
   createTime: string;
   attachments?: Attachment[];
@@ -94,7 +96,18 @@ export interface AfterSales {
   ownerName?: string;
   nextAction?: string;
   nextUpdateAt?: string | null;
+  /** 已过截止时间 */
   overdue: boolean;
+  /** 处理时限（spec sales/after-sales「处理时限」） */
+  respondedAt?: string | null;
+  lastContactAt?: string | null;
+  /** 按等级算出的截止时间（不含手填） */
+  levelDueAt?: string | null;
+  dueAt?: string | null;
+  /** 0-无、1-首次响应、2-更新客户、3-手填时间 */
+  dueType?: number;
+  dueTypeName?: string | null;
+  dueState?: DueState | null;
   /** 1-处理中、2-待客户确认、3-已结案、4-已撤销 */
   status: number;
   statusName: string;
@@ -136,6 +149,7 @@ export interface AfterSales {
     name: string;
     amountCny: number;
   }[];
+  replacements?: ReplacementBrief[];
   refundCny?: number;
   expenseCny?: number;
   returnCreditCny?: number;
@@ -146,6 +160,32 @@ export interface AfterSales {
   updateBy?: string;
 }
 
+export interface ReplacementBrief {
+  soId: number;
+  soNo: string;
+  summary: string;
+  currencyCode: string;
+  declaredAmount: number;
+  /** 1-有效、2-已取消 */
+  status: number;
+  progressCode: string;
+  progressName: string;
+  shipped: boolean;
+  createBy?: string;
+  createTime?: string;
+}
+
+export interface ReplacementLine {
+  soItemId?: number;
+  model?: string;
+  brand?: string;
+  quantity: number;
+  declaredPrice?: number;
+  purchaserId?: number;
+}
+
+export type DueState = 'OVERDUE' | 'SOON' | 'NORMAL';
+
 export interface AfterSalesQuery {
   page: number;
   pageSize: number;
@@ -153,6 +193,10 @@ export interface AfterSalesQuery {
   keyword?: string;
   levelCode?: string;
   ownerId?: number;
+  /** 只看逾期 */
+  overdue?: boolean;
+  /** 已逾期或 1 小时内到期（工作台带过来） */
+  dueSoon?: boolean;
 }
 
 export interface SaveAfterSales {
@@ -192,6 +236,7 @@ export const afterSalesApi = {
       open: number;
       waiting: number;
       overdue: number;
+      dueSoon: number;
       closedThisMonth: number;
     }>(`${AS}/counts`),
   ofOrder: (soId: number) => get<AfterSales[]>(`${AS}/order/${soId}`),
@@ -199,8 +244,17 @@ export const afterSalesApi = {
   detail: (id: number) => get<AfterSales>(`${AS}/${id}`),
   returns: (id: number) => get<SalesReturn[]>(`${AS}/${id}/returns`),
   create: (body: SaveAfterSales) => send<AfterSales>('POST', AS, body),
-  note: (id: number, content: string, attachmentIds: number[]) =>
-    send<AfterSales>('POST', `${AS}/${id}/notes`, { content, attachmentIds }),
+  note: (
+    id: number,
+    content: string,
+    attachmentIds: number[],
+    customerNotified: boolean,
+  ) =>
+    send<AfterSales>('POST', `${AS}/${id}/notes`, {
+      content,
+      attachmentIds,
+      customerNotified,
+    }),
   plan: (id: number, body: PlanBody) =>
     send<AfterSales>('POST', `${AS}/${id}/plan`, body),
   status: (id: number, status: number) =>
@@ -209,6 +263,8 @@ export const afterSalesApi = {
     send<AfterSales>('POST', `${AS}/${id}/close`, { reasonCode, result }),
   cancel: (id: number, reason: string) =>
     send<AfterSales>('POST', `${AS}/${id}/cancel`, { reason }),
+  replace: (id: number, items: ReplacementLine[], remark?: string) =>
+    send<AfterSales>('POST', `${AS}/${id}/replacement`, { items, remark }),
 };
 
 // ---------------------------------------------------------------- 退货单（spec warehouse/sales-return）

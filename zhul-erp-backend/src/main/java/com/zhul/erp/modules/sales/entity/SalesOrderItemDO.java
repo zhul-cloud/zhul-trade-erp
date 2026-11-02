@@ -47,6 +47,8 @@ public class SalesOrderItemDO {
     /** 已部分取消的数量 */
     private Integer cancelledQuantity;
     private BigDecimal unitPrice;
+    /** 申报单价（原币，仅售后补发订单，CI/PL 用） */
+    private BigDecimal declaredPrice;
     private BigDecimal amount;
     private BigDecimal amountCny;
     private BigDecimal costPrice;

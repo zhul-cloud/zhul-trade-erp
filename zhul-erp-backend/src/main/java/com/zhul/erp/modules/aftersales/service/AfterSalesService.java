@@ -25,6 +25,7 @@ import com.zhul.erp.modules.aftersales.repository.SalesReturnDispositionMapper;
 import com.zhul.erp.modules.aftersales.repository.SalesReturnItemMapper;
 import com.zhul.erp.modules.aftersales.repository.SalesReturnMapper;
 import com.zhul.erp.modules.aftersales.support.AfterSalesLogs;
+import com.zhul.erp.modules.aftersales.support.AfterSalesSla;
 import com.zhul.erp.modules.attachment.dto.AttachmentVO;
 import com.zhul.erp.modules.attachment.service.AttachmentService;
 import com.zhul.erp.modules.finance.constants.FinanceConstants;
@@ -100,6 +101,7 @@ public class AfterSalesService {
     private final LogService logService;
     private final LogisticsQty logisticsQty;
     private final AfterSalesLogs logs;
+    private final com.zhul.erp.modules.aftersales.support.ReplacementOrders replacementOrders;
 
     // ---------------------------------------------------------------- 登记
 
@@ -179,6 +181,7 @@ public class AfterSalesService {
         a.setStatus(AfterSalesConstants.AS_OPEN);
         a.setResult("");
         a.setCancelReason("");
+        AfterSalesSla.refresh(a);
         mapper.insert(a);
         for (AfterSalesItemDO x : rows) {
             x.setAfterSalesId(a.getId());
@@ -202,9 +205,19 @@ public class AfterSalesService {
         x.setAfterSalesId(a.getId());
         x.setLogType(AfterSalesConstants.LOG_NOTE);
         x.setContent(req.getContent().trim());
+        boolean notified = Boolean.TRUE.equals(req.getCustomerNotified());
+        x.setCustomerNotified(notified);
         x.setOperatorId(me);
         logMapper.insert(x);
         attachments.attach(AttachmentService.AFTER_SALES_LOG, x.getId(), req.getAttachmentIds());
+        if (notified) {
+            LocalDateTime now = LocalDateTime.now();
+            if (a.getRespondedAt() == null) {
+                a.setRespondedAt(now);
+            }
+            a.setLastContactAt(now);
+            a.setSlaStartAt(now);
+        }
         touch(a);
         return detail(id);
     }
@@ -261,7 +274,7 @@ public class AfterSalesService {
         if (!changes.isEmpty()) {
             logs.add(a.getId(), AfterSalesConstants.LOG_PLAN, String.join("；", changes), me);
         }
-        mapper.updateById(a);
+        save(a);
         return detail(id);
     }
 
@@ -275,8 +288,11 @@ public class AfterSalesService {
         if (a.getStatus() != status) {
             logs.add(a.getId(), AfterSalesConstants.LOG_STATUS, AfterSalesConstants.AS_STATUS_NAMES.get(a.getStatus()) + " → "
                     + AfterSalesConstants.AS_STATUS_NAMES.get(status), currentUserId());
+            if (status == AfterSalesConstants.AS_OPEN && a.getRespondedAt() != null) {
+                a.setSlaStartAt(LocalDateTime.now());
+            }
             a.setStatus(status);
-            mapper.updateById(a);
+            save(a);
         }
         return detail(id);
     }
@@ -298,14 +314,33 @@ public class AfterSalesService {
                 throw new BizException("退款申请 " + q.getRequestNo() + " 还没处理完");
             }
         }
+        List<String> unshipped = replacementOrders.unshipped(id);
+        if (!unshipped.isEmpty()) {
+            throw new BizException("补发订单 " + String.join("、", unshipped) + " 还没出运");
+        }
         a.setReasonCode(reason);
         a.setResult(req.getResult().trim());
         a.setStatus(AfterSalesConstants.AS_CLOSED);
         a.setClosedAt(LocalDateTime.now());
-        mapper.updateById(a);
+        save(a);
         logs.add(a.getId(), AfterSalesConstants.LOG_STATUS, "结案：" + dictNames(AfterSalesConstants.DICT_REASON).get(reason) + "；" + a.getResult(),
                 currentUserId());
         logService.recordOperateLog(AfterSalesConstants.MENU, "售后单结案", null, Map.of("asNo", a.getAsNo(), "result", a.getResult()));
+        return detail(id);
+    }
+
+    /** 发起补发（spec sales/after-sales「发起补发」）：锁售后单 → 建 0 元补发订单与采购需求 → 写跟进记录，同一事务 */
+    @Transactional(rollbackFor = Exception.class)
+    public AfterSalesVO replace(Long id, com.zhul.erp.modules.aftersales.dto.ReplacementRequest req) {
+        AfterSalesDO a = lockEditable(id);
+        SalesOrderDO o = replacementOrders.create(a, req);
+        String summary = orderItemMapper.selectList(new LambdaQueryWrapper<SalesOrderItemDO>()
+                        .eq(SalesOrderItemDO::getSoId, o.getId())
+                        .orderByAsc(SalesOrderItemDO::getLineNo))
+                .stream().map(i -> i.getModel() + " × " + i.getQuantity()).collect(Collectors.joining("、"));
+        logs.add(a.getId(), AfterSalesConstants.LOG_REPLACEMENT, "补发订单 " + o.getSoNo() + "：" + summary, currentUserId());
+        touch(a);
+        logService.recordOperateLog(AfterSalesConstants.MENU, "售后补发", null, Map.of("asNo", a.getAsNo(), "soNo", o.getSoNo()));
         return detail(id);
     }
 
@@ -327,7 +362,7 @@ public class AfterSalesService {
         }
         a.setStatus(AfterSalesConstants.AS_CANCELLED);
         a.setCancelReason(why.length() > 200 ? why.substring(0, 200) : why);
-        mapper.updateById(a);
+        save(a);
         logs.add(a.getId(), AfterSalesConstants.LOG_STATUS, "撤销：" + a.getCancelReason(), currentUserId());
         logService.recordOperateLog(AfterSalesConstants.MENU, "撤销售后单", null, Map.of("asNo", a.getAsNo(), "reason", a.getCancelReason()));
         return detail(id);
@@ -348,6 +383,11 @@ public class AfterSalesService {
         }
         if (q.getOwnerId() != null) {
             w.eq(AfterSalesDO::getOwnerId, q.getOwnerId());
+        }
+        if (Boolean.TRUE.equals(q.getOverdue())) {
+            dueBefore(w, LocalDateTime.now());
+        } else if (Boolean.TRUE.equals(q.getDueSoon())) {
+            dueBefore(w, LocalDateTime.now().plusMinutes(AfterSalesConstants.DUE_SOON_MINUTES));
         }
         if (StringUtils.hasText(q.getKeyword())) {
             String kw = q.getKeyword().trim();
@@ -378,17 +418,42 @@ public class AfterSalesService {
         return PageResult.of(total, toVos(mapper.selectList(w)));
     }
 
-    /** 顶部卡片：处理中、待客户确认、需要更新客户（下次更新时间已过）、本月结案 */
+    /** 顶部卡片：处理中、待客户确认、需要更新客户（已过截止时间）与快到期、本月结案 */
     public Map<String, Long> counts() {
         LocalDateTime now = LocalDateTime.now();
         Map<String, Long> m = new LinkedHashMap<>();
         m.put("open", mapper.selectCount(scoped().eq(AfterSalesDO::getStatus, AfterSalesConstants.AS_OPEN)));
         m.put("waiting", mapper.selectCount(scoped().eq(AfterSalesDO::getStatus, AfterSalesConstants.AS_WAITING)));
-        m.put("overdue", mapper.selectCount(scoped().in(AfterSalesDO::getStatus, AfterSalesConstants.AS_OPEN, AfterSalesConstants.AS_WAITING)
-                .lt(AfterSalesDO::getNextUpdateAt, now)));
+        m.put("overdue", mapper.selectCount(dueBefore(scoped(), now)));
+        m.put("dueSoon", mapper.selectCount(dueBefore(scoped(), now.plusMinutes(AfterSalesConstants.DUE_SOON_MINUTES))
+                .ge(AfterSalesDO::getDueAt, now)));
         m.put("closedThisMonth", mapper.selectCount(scoped().eq(AfterSalesDO::getStatus, AfterSalesConstants.AS_CLOSED)
                 .ge(AfterSalesDO::getClosedAt, now.toLocalDate().withDayOfMonth(1).atStartOfDay())));
         return m;
+    }
+
+    /** 工作台「我的待办」：本人负责的已逾期或快到期售后单数 */
+    public long myDueCount() {
+        Long me = currentUserId();
+        if (me == null) {
+            return 0;
+        }
+        return mapper.selectCount(dueBefore(new LambdaQueryWrapper<AfterSalesDO>()
+                .eq(AfterSalesDO::getTenantId, PiStore.tenantId())
+                .isNull(AfterSalesDO::getDeletedAt)
+                .eq(AfterSalesDO::getOwnerId, me), LocalDateTime.now().plusMinutes(AfterSalesConstants.DUE_SOON_MINUTES)));
+    }
+
+    /** 工作台「待跟进」：数据范围内已逾期的售后单，最久的在前 */
+    public List<AfterSalesVO> overdueInScope() {
+        return toVos(mapper.selectList(dueBefore(scoped(), LocalDateTime.now()).orderByAsc(AfterSalesDO::getDueAt)));
+    }
+
+    /** 处理中、待客户确认且截止时间早于 t */
+    private static LambdaQueryWrapper<AfterSalesDO> dueBefore(LambdaQueryWrapper<AfterSalesDO> w, LocalDateTime t) {
+        return w.in(AfterSalesDO::getStatus, AfterSalesConstants.AS_OPEN, AfterSalesConstants.AS_WAITING)
+                .isNotNull(AfterSalesDO::getDueAt)
+                .lt(AfterSalesDO::getDueAt, t);
     }
 
     public AfterSalesVO detail(Long id) {
@@ -420,6 +485,7 @@ public class AfterSalesService {
             x.setLogType(l.getLogType());
             x.setLogTypeName(AfterSalesConstants.LOG_TYPE_NAMES.getOrDefault(l.getLogType(), l.getLogType()));
             x.setContent(l.getContent());
+            x.setCustomerNotified(Boolean.TRUE.equals(l.getCustomerNotified()));
             x.setOperatorName(users.get(l.getOperatorId()));
             x.setCreateTime(l.getCreateTime());
             x.setAttachments(files.getOrDefault(l.getId(), List.of()));
@@ -480,6 +546,7 @@ public class AfterSalesService {
             return x;
         }).toList());
         vo.setExpenseCny(expenses.stream().map(ExpenseDO::getAmountCny).reduce(BigDecimal.ZERO, BigDecimal::add));
+        vo.setReplacements(replacementOrders.briefs(id));
         return vo;
     }
 
@@ -557,7 +624,14 @@ public class AfterSalesService {
             v.setNextAction(a.getNextAction());
             v.setNextUpdateAt(a.getNextUpdateAt());
             boolean active = a.getStatus() == AfterSalesConstants.AS_OPEN || a.getStatus() == AfterSalesConstants.AS_WAITING;
-            v.setOverdue(active && a.getNextUpdateAt() != null && a.getNextUpdateAt().isBefore(now));
+            v.setRespondedAt(a.getRespondedAt());
+            v.setLastContactAt(a.getLastContactAt());
+            v.setLevelDueAt(AfterSalesSla.levelDue(a));
+            v.setDueAt(active ? a.getDueAt() : null);
+            v.setDueType(v.getDueAt() != null ? a.getDueType() : AfterSalesConstants.DUE_NONE);
+            v.setDueTypeName(AfterSalesConstants.DUE_TYPE_NAMES.get(v.getDueType()));
+            v.setDueState(AfterSalesSla.state(v.getDueAt(), now));
+            v.setOverdue("OVERDUE".equals(v.getDueState()));
             v.setEditable(active);
             v.setStatus(a.getStatus());
             v.setStatusName(AfterSalesConstants.AS_STATUS_NAMES.get(a.getStatus()));
@@ -666,6 +740,12 @@ public class AfterSalesService {
 
     /** 关联单据的动作让售后单出现在列表前面 */
     private void touch(AfterSalesDO a) {
+        save(a);
+    }
+
+    /** 保存前按等级、状态与手填时间重算截止时间（spec sales/after-sales「处理时限」） */
+    private void save(AfterSalesDO a) {
+        AfterSalesSla.refresh(a);
         mapper.updateById(a);
     }
 

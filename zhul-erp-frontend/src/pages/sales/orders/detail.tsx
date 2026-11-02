@@ -155,6 +155,8 @@ const OrderDetail: React.FC = () => {
   /** 历史迁移的订单只读（可以照常登记退款） */
   const editable = active && !o.migrated;
   const manual = o.source === 2;
+  /** 售后补发订单：0 元、不收款，成本计入原订单 */
+  const replacement = o.source === 3;
   const completed = o.progressCode === 'COMPLETED';
   const orderedModels = o.items.filter(
     (i) => (i.purchaseOrderedQty ?? 0) > 0,
@@ -546,6 +548,19 @@ const OrderDetail: React.FC = () => {
         <span style={num}>{formatAmount(r.unitPrice, cur)}</span>
       ),
     },
+    ...(replacement
+      ? [
+          {
+            title: '申报单价',
+            key: 'declared',
+            width: 120,
+            align: 'right' as const,
+            render: (_: unknown, r: OrderItem) => (
+              <b style={num}>{formatAmount(r.declaredPrice ?? 0, cur)}</b>
+            ),
+          },
+        ]
+      : []),
     {
       title: '小计',
       key: 'amount',
@@ -744,6 +759,7 @@ const OrderDetail: React.FC = () => {
 
   const piDiffers =
     !manual &&
+    !replacement &&
     o.piTotalAmount != null &&
     Number(o.piTotalAmount) !== Number(o.totalAmount);
 
@@ -802,13 +818,13 @@ const OrderDetail: React.FC = () => {
           display: 'grid',
           gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
           gap: 12,
-          marginBottom: manual ? 0 : 12,
+          marginBottom: manual || replacement ? 0 : 12,
         }}
       >
         {party('买方（Bill To）', o.buyer)}
         {party('收货人（Consignee）', o.consignee)}
       </div>
-      {!manual && (
+      {!manual && !replacement && (
         <div
           style={{
             display: 'flex',
@@ -1142,6 +1158,65 @@ const OrderDetail: React.FC = () => {
     </Card>
   );
 
+  const replacementCards = replacement && (
+    <>
+      <Card style={{ padding: 20 }}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            marginBottom: 12,
+          }}
+        >
+          <b style={{ fontSize: 16, color: palette.ink }}>收款</b>
+          <span style={{ marginLeft: 'auto' }}>
+            <ReceiptStatusPill status={o.receiptStatus} />
+          </span>
+        </div>
+        {line('订单金额', formatAmount(o.totalAmount, cur))}
+        <div style={{ fontSize: 12, color: palette.mute }}>
+          售后补发订单不出 PI，不能登记收款、余额抵扣和退款。
+        </div>
+      </Card>
+      {o.cost && (
+        <Card style={{ padding: 20, marginTop: 16 }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              marginBottom: 12,
+            }}
+          >
+            <b style={{ fontSize: 16, color: palette.ink }}>成本</b>
+            <span style={{ marginLeft: 'auto' }}>
+              <Pill tone="cyan">计入原订单</Pill>
+            </span>
+          </div>
+          <div
+            style={{ padding: 14, borderRadius: 12, background: palette.inset }}
+          >
+            {line('实际成本', formatAmount(o.cost.cost, 'CNY'))}
+            <div style={{ fontSize: 12, color: palette.mute }}>
+              {o.cost.settled
+                ? '成本已确定'
+                : `还差：${o.cost.pending.join(' · ')}；还没确定的部分按采购订单单价或采购成本价估算`}
+            </div>
+          </div>
+          <div style={{ fontSize: 12, color: palette.mute, marginTop: 10 }}>
+            不单独计算收入与毛利，成本计入原订单{' '}
+            {o.originalSoId && (
+              <a onClick={() => history.push(`/sales/orders/${o.originalSoId}`)}>
+                {o.originalSoNo}
+              </a>
+            )}
+          </div>
+        </Card>
+      )}
+    </>
+  );
+
   const m = o.margin;
   const marginCard = (
     <Card style={{ padding: 20, marginTop: 16 }}>
@@ -1350,12 +1425,24 @@ const OrderDetail: React.FC = () => {
             <ProgressPill code={o.progressCode} name={o.progressName} />
             <StockPill type={o.stockType} />
             <ReceiptStatusPill status={o.receiptStatus} />
+            {replacement && <Pill tone="violet">售后补发</Pill>}
           </>
         }
         description={
           <>
             {o.customerName} ·{' '}
-            {manual ? (
+            {replacement ? (
+              <>
+                售后单{' '}
+                <a onClick={() => history.push(`/sales/after-sales/${o.afterSalesId}`)}>
+                  {o.afterSalesNo}
+                </a>{' '}
+                · 原订单{' '}
+                <a onClick={() => history.push(`/sales/orders/${o.originalSoId}`)}>
+                  {o.originalSoNo}
+                </a>
+              </>
+            ) : manual ? (
               '手动创建'
             ) : (
               <>
@@ -1383,6 +1470,7 @@ const OrderDetail: React.FC = () => {
                 </Button>
               )}
               {!access['finance:refund:edit'] &&
+                !replacement &&
                 access.salesAfterSales &&
                 (o.receivedAmount ?? 0) > 0 && (
                   <Button
@@ -1473,8 +1561,14 @@ const OrderDetail: React.FC = () => {
           <OrderOutbounds soId={o.id} version={version} onChanged={load} />
         </div>
         <div style={{ minWidth: 0 }}>
-          {receipts}
-          {marginCard}
+          {replacement ? (
+            replacementCards
+          ) : (
+            <>
+              {receipts}
+              {marginCard}
+            </>
+          )}
         </div>
       </div>
 

@@ -75,6 +75,9 @@ public interface CustomerInquiryService {
     /** 修改询盘单：来源、日期、报价截止、紧急、关联商机、附件、备注 */
     void update(Long id, UpdateCustomerInquiryRequest req);
 
+    /** 改铭牌图片对应的型号，inquiryItemId 为 0 时改为未对应；写操作日志并重建素材索引 */
+    void linkNameplate(Long id, Long attachmentId, Long inquiryItemId);
+
     /** 业务员核实完被退回的存疑型号后清除提醒 */
     void markReviewed(Long id);
 

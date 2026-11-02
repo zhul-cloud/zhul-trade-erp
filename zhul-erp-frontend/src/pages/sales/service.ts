@@ -460,7 +460,7 @@ export interface OrderListItem {
   soNo: string;
   /** 历史迁移的订单（只读） */
   migrated?: boolean;
-  /** 1-PI 转成、2-手动创建 */
+  /** 1-PI 转成、2-手动创建、3-售后补发 */
   source: number;
   salesDate?: string;
   /** 1-现货、2-期货 */
@@ -490,6 +490,9 @@ export interface OrderListItem {
   piId?: number;
   piNo?: string;
   piVersionNo?: number;
+  /** 售后补发：原订单 */
+  originalSoId?: number;
+  originalSoNo?: string;
   ownerId: number;
   ownerName?: string;
   cancelReason?: string;
@@ -523,6 +526,8 @@ export interface GoodsSummary {
 export interface OrderItem extends PiItem {
   /** 1-现货、2-期货 */
   stockType: number;
+  /** 申报单价（原币，仅售后补发订单，CI/PL 用） */
+  declaredPrice?: number | null;
   /** 原数量（成交时）；quantity 为部分取消后的剩余数量 */
   originalQuantity?: number;
   /** 已部分取消的数量 */
@@ -637,7 +642,7 @@ export interface Order {
   soNo: string;
   /** 历史迁移的订单（只读） */
   migrated?: boolean;
-  /** 1-PI 转成、2-手动创建 */
+  /** 1-PI 转成、2-手动创建、3-售后补发 */
   source: number;
   salesDate?: string;
   /** 1-新客户、2-老客户 */
@@ -680,6 +685,11 @@ export interface Order {
     estimated: boolean;
     missingCostCount: number;
   };
+  /** 售后补发：来源售后单与原订单 */
+  afterSalesId?: number;
+  afterSalesNo?: string;
+  originalSoId?: number;
+  originalSoNo?: string;
   piId?: number;
   piNo?: string;
   piVersionNo?: number;
@@ -751,6 +761,8 @@ export interface OrderQuery {
   customerType?: number;
   currencyCode?: string;
   purchaserId?: number;
+  /** 1-PI 转成、2-手动创建、3-售后补发 */
+  source?: number;
   /** 表头排序：profit 按毛利 */
   sortField?: string;
   sortOrder?: 'ascend' | 'descend';

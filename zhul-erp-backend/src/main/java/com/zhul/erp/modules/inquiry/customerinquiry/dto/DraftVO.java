@@ -12,5 +12,7 @@ public class DraftVO {
     private Long appendId;
     private String rawContent;
     private List<AttachmentVO> attachments;
+    /** 这次录入或追加的铭牌图片 */
+    private List<AttachmentVO> nameplates;
     private List<DraftRowVO> rows;
 }

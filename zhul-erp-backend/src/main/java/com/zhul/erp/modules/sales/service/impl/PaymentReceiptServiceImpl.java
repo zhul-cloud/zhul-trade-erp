@@ -747,6 +747,9 @@ public class PaymentReceiptServiceImpl implements PaymentReceiptService {
         visibleOrder(soId);
         SalesOrderDO so = orderMapper.selectOne(new LambdaQueryWrapper<SalesOrderDO>().eq(SalesOrderDO::getId, soId).last("FOR UPDATE"));
         MigratedGuard.requireEditable(so.getMigrated());
+        if (Objects.equals(so.getSource(), SalesConstants.SO_REPLACEMENT)) {
+            throw new BizException("售后补发订单无需收款");
+        }
         if (!Objects.equals(so.getSource(), SalesConstants.SO_MANUAL)) {
             throw new BizException("这张订单由 PI 转成，收款请在 PI 上登记");
         }

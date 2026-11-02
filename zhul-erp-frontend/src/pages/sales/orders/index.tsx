@@ -22,6 +22,7 @@ import {
   Card,
   MigratedPill,
   PATHS,
+  Pill,
   RECEIPT_META,
   SalesPageTitle,
 } from '../components';
@@ -50,6 +51,8 @@ interface Filters {
   currencyCode?: string;
   purchaserId?: number;
   receiptStatus?: number;
+  /** 1-PI 转成、2-手动创建、3-售后补发 */
+  source?: number;
 }
 
 /** 默认本月；从销售统计跳转时用 URL 带的销售日期 */
@@ -101,6 +104,7 @@ const OrderList: React.FC = () => {
       currencyCode: filters.currencyCode,
       purchaserId: filters.purchaserId,
       receiptStatus: filters.receiptStatus,
+      source: filters.source,
       sortField: sort.order ? sort.field : undefined,
       sortOrder: sort.order ?? undefined,
       page,
@@ -136,6 +140,7 @@ const OrderList: React.FC = () => {
     !filters.currencyCode &&
     !filters.purchaserId &&
     !filters.receiptStatus &&
+    !filters.source &&
     !filters.range;
 
   const sub = (text: React.ReactNode, color: string = palette.mute) => (
@@ -156,7 +161,13 @@ const OrderList: React.FC = () => {
               <MigratedPill migrated />
             </div>
           )}
+          {r.source === 3 && (
+            <div style={{ marginTop: 4 }}>
+              <Pill tone="violet">售后补发</Pill>
+            </div>
+          )}
           {sub(r.salesDate ?? '—')}
+          {r.originalSoNo && sub(`原订单 ${r.originalSoNo}`)}
         </div>
       ),
     },
@@ -493,6 +504,17 @@ const OrderList: React.FC = () => {
                   value: Number(k),
                   label: v.label,
                 }))}
+              />
+            </Form.Item>
+            <Form.Item name="source" label="来源" style={{ marginBottom: 0 }}>
+              <Select
+                allowClear
+                placeholder="全部"
+                options={[
+                  { value: 1, label: 'PI 生成' },
+                  { value: 2, label: '手动建单' },
+                  { value: 3, label: '售后补发' },
+                ]}
               />
             </Form.Item>
             <Form.Item
