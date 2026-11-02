@@ -31,8 +31,19 @@ public class AfterSalesVO {
     private String ownerName;
     private String nextAction;
     private LocalDateTime nextUpdateAt;
-    /** 下次更新时间已过（处理中、待客户确认时） */
+    /** 已过截止时间（处理中、待客户确认时） */
     private Boolean overdue;
+    /** 处理时限（spec sales/after-sales「处理时限」） */
+    private LocalDateTime respondedAt;
+    private LocalDateTime lastContactAt;
+    /** 按等级算出的截止时间（不含手填时间） */
+    private LocalDateTime levelDueAt;
+    private LocalDateTime dueAt;
+    /** 0-无、1-首次响应、2-更新客户、3-手填时间 */
+    private Integer dueType;
+    private String dueTypeName;
+    /** OVERDUE-已逾期、SOON-快到期、NORMAL-正常；没有截止时间为空 */
+    private String dueState;
     private Integer status;
     private String statusName;
     private String result;
@@ -98,6 +109,7 @@ public class AfterSalesVO {
         private String logType;
         private String logTypeName;
         private String content;
+        private Boolean customerNotified;
         private String operatorName;
         private LocalDateTime createTime;
         private List<AttachmentVO> attachments;
