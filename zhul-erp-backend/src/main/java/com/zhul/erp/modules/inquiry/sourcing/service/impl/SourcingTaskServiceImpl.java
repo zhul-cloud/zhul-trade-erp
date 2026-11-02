@@ -93,6 +93,7 @@ public class SourcingTaskServiceImpl implements SourcingTaskService {
     private final com.zhul.erp.modules.system.repository.SysLogMapper sysLogMapper;
     private final QuotationLocks quotationLocks;
     private final com.zhul.erp.framework.security.PermissionChecker perm;
+    private final com.zhul.erp.modules.inquiry.support.TaskNameplates taskNameplates;
 
     // ---------------------------------------------------------------- 生成与取消
 
@@ -347,6 +348,24 @@ public class SourcingTaskServiceImpl implements SourcingTaskService {
     }
 
     // ---------------------------------------------------------------- 工作台
+
+    @Override
+    public com.zhul.erp.modules.inquiry.sourcing.dto.TaskNameplatesVO nameplates(Long taskId) {
+        return taskNameplates.of(boardTask(taskId));
+    }
+
+    @Override
+    public com.zhul.erp.framework.storage.FileStorageService.FileLink nameplateLink(Long taskId, Long attachmentId, boolean download) {
+        return taskNameplates.link(boardTask(taskId), attachmentId, download);
+    }
+
+    private SourcingTaskDO boardTask(Long taskId) {
+        SourcingTaskDO t = taskId == null ? null : taskMapper.selectById(taskId);
+        if (t == null || t.getDeletedAt() != null || !Objects.equals(t.getTenantId(), tenantId())) {
+            throw new BizException("询价任务不存在");
+        }
+        return t;
+    }
 
     @Override
     public BoardTaskDetailVO taskDetail(Long taskId) {

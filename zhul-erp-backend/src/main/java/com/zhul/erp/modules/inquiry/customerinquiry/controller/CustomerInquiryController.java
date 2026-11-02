@@ -14,6 +14,7 @@ import com.zhul.erp.modules.inquiry.customerinquiry.dto.InquiryDownstreamVO;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.DraftVO;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.PriceMatchVO;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.SubmitCustomerInquiryRequest;
+import com.zhul.erp.modules.inquiry.customerinquiry.dto.NameplateLinkRequest;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.UpdateCustomerInquiryRequest;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.UpdateInquiryLevelRequest;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.UploadedFileVO;
@@ -149,6 +150,14 @@ public class CustomerInquiryController {
     @PutMapping("/{id}")
     public Result<Void> update(@PathVariable Long id, @Valid @RequestBody UpdateCustomerInquiryRequest req) {
         service.update(id, req);
+        return Result.ok();
+    }
+
+    /** 改铭牌图片对应的型号（spec inquiry/inquiry-intake「铭牌图片」），权限同修改询盘 */
+    @PutMapping("/{id}/nameplates/{attachmentId}")
+    public Result<Void> linkNameplate(@PathVariable Long id, @PathVariable Long attachmentId,
+                                      @Valid @RequestBody NameplateLinkRequest req) {
+        service.linkNameplate(id, attachmentId, req.getInquiryItemId());
         return Result.ok();
     }
 

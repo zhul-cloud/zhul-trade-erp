@@ -33,6 +33,10 @@ import {
   LEVEL_DEFAULT,
   MAX_ATTACHMENTS,
 } from '../shared/constants';
+import NameplateUploader, {
+  type PickedPlate,
+  toRefs,
+} from '../shared/NameplateUploader';
 import {
   type CustomerInquiry,
   inquiryApi,
@@ -90,6 +94,8 @@ const NewInquiryModal: React.FC<{
   } | null>(null);
   const [files, setFiles] = useState<PickedFile[]>([]);
   const [uploading, setUploading] = useState(0);
+  const [plates, setPlates] = useState<PickedPlate[]>([]);
+  const [plateUploading, setPlateUploading] = useState(0);
   const [saving, setSaving] = useState(false);
   const [quickOpen, setQuickOpen] = useState(false);
   /** 客户进行中的商机；undefined 为还没选客户 */
@@ -193,6 +199,7 @@ const NewInquiryModal: React.FC<{
     if (!open) return;
     form.resetFields();
     setFiles([]);
+    setPlates([]);
     setTypeHint(null);
     setOpps(undefined);
     setOppId(NO_OPP);
@@ -234,7 +241,7 @@ const NewInquiryModal: React.FC<{
 
   const submit = async (startParse: boolean) => {
     const v = await form.validateFields();
-    if (!v.rawContent?.trim() && files.length === 0) {
+    if (!v.rawContent?.trim() && files.length === 0 && plates.length === 0) {
       form.setFields([
         { name: 'rawContent', errors: ['请粘贴询盘内容或上传附件'] },
       ]);
@@ -256,6 +263,7 @@ const NewInquiryModal: React.FC<{
           fileKey: f.fileKey,
           fileName: f.fileName,
         })),
+        nameplates: toRefs(plates),
       });
       onCreated(created, startParse);
     } catch (e) {
@@ -284,7 +292,7 @@ const NewInquiryModal: React.FC<{
             <Button
               onClick={() => submit(false)}
               loading={saving}
-              disabled={uploading > 0}
+              disabled={uploading + plateUploading > 0}
             >
               先保存
             </Button>
@@ -292,7 +300,7 @@ const NewInquiryModal: React.FC<{
               type="primary"
               onClick={() => submit(true)}
               loading={saving}
-              disabled={uploading > 0}
+              disabled={uploading + plateUploading > 0}
             >
               提交并开始 AI 解析
             </Button>
@@ -522,7 +530,8 @@ const NewInquiryModal: React.FC<{
                 : '把图片、Excel 或 PDF 拖到这里，或点击选择'}
             </p>
             <p style={{ margin: 0, color: palette.mute, fontSize: 12 }}>
-              支持 JPG、PNG、XLS、XLSX、CSV、PDF，单个不超过 10MB
+              支持 JPG、PNG、XLS、XLSX、CSV、PDF，单个不超过
+              10MB；采购看不到询盘附件
             </p>
           </Upload.Dragger>
           {files.some((f) => f.fromOpp) && (
@@ -569,6 +578,13 @@ const NewInquiryModal: React.FC<{
               ))}
             </div>
           )}
+          <div style={{ marginTop: 16 }}>
+            <NameplateUploader
+              value={plates}
+              onChange={setPlates}
+              onUploadingChange={setPlateUploading}
+            />
+          </div>
           <Form.Item
             name="remark"
             style={{ marginTop: 16, marginBottom: 0 }}

@@ -180,6 +180,18 @@ public class MediaIndexer {
 
     /** 客户询盘：图片附件标注询盘单当前的全部型号，归「客户来图」（Excel、PDF 询价清单不算素材） */
     public void indexInquiry(Long inquiryId, int tenantId, Collection<ModelRef> models) {
+        indexInquiry(inquiryId, tenantId, models, Map.of());
+    }
+
+    /**
+     * 客户询盘（按型号 ID 给出型号）：对应了型号的铭牌图片只标那个型号，
+     * 询盘附件与未对应型号的铭牌图片标注全部型号（spec product/media-library「素材来源与分类」）
+     */
+    public void indexInquiry(Long inquiryId, int tenantId, Map<Long, ModelRef> modelsByItem) {
+        indexInquiry(inquiryId, tenantId, modelsByItem.values(), modelsByItem);
+    }
+
+    private void indexInquiry(Long inquiryId, int tenantId, Collection<ModelRef> models, Map<Long, ModelRef> byItem) {
         List<CustomerInquiryAttachmentDO> all = inquiryAttachmentMapper.selectList(new LambdaQueryWrapper<CustomerInquiryAttachmentDO>()
                 .eq(CustomerInquiryAttachmentDO::getCustomerInquiryId, inquiryId)
                 .eq(CustomerInquiryAttachmentDO::getTenantId, tenantId));
@@ -189,6 +201,12 @@ public class MediaIndexer {
         List<Desired> desired = new ArrayList<>();
         for (CustomerInquiryAttachmentDO a : all) {
             if (a.getDeletedAt() != null || a.getContentType() == null || !a.getContentType().startsWith("image/")) {
+                continue;
+            }
+            ModelRef own = a.getInquiryItemId() == null || a.getInquiryItemId() == 0 ? null : byItem.get(a.getInquiryItemId());
+            if (own != null && own.model() != null && !own.model().isBlank()) {
+                ModelRef m = new ModelRef(own.brand() == null ? "" : own.brand().trim(), own.model().trim());
+                desired.add(new Desired(a.getId(), m.assetKey(), m.brand(), m.model(), MediaCategory.CUSTOMER_IMAGE, 1));
                 continue;
             }
             distinct.forEach((k, m) -> desired.add(new Desired(a.getId(), k, m.brand(), m.model(), MediaCategory.CUSTOMER_IMAGE, 1)));

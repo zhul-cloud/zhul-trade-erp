@@ -56,6 +56,7 @@ import {
   PRICE_SOURCE_HISTORY,
   STATUS,
 } from '../shared/constants';
+import { FileTile, useFilePreview } from '../shared/FilePreview';
 import QuoteExtras from '../shared/QuoteExtras';
 import {
   type InquiryAppend,
@@ -68,6 +69,7 @@ import {
 } from '../shared/service';
 import AppendModal from './AppendModal';
 import EditInquiryModal from './EditInquiryModal';
+import NameplateCard from './NameplateCard';
 
 const Meta: React.FC<{ label: string; children: React.ReactNode }> = ({
   label,
@@ -97,6 +99,7 @@ const CustomerInquiryDetailPage: React.FC = () => {
   const [appendOpen, setAppendOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [quotations, setQuotations] = useState<QuotationListItem[]>();
+  const preview = useFilePreview();
   const access = useAccess() as Record<string, boolean>;
   const canQuote = !!access.quotationList;
   const canDelete = !!access['inquiry:customer:delete'];
@@ -745,22 +748,30 @@ const CustomerInquiryDetailPage: React.FC = () => {
                   marginTop: 12,
                 }}
               >
-                {detail.attachments.map((a) => (
-                  <a
+                {detail.attachments.map((a, i) => (
+                  <FileTile
                     key={a.id}
-                    onClick={async () => {
-                      const url = await inquiryApi
-                        .attachmentBlobUrl(inquiryId, a.id)
-                        .catch(() => '');
-                      if (url) window.open(url, '_blank', 'noopener');
-                    }}
-                  >
-                    {a.fileName}
-                  </a>
+                    file={a}
+                    endpoint={inquiryApi.attachmentEndpoint(inquiryId, a.id)}
+                    onOpen={() =>
+                      preview.open(
+                        detail.attachments,
+                        i,
+                        (f) => inquiryApi.attachmentEndpoint(inquiryId, f.id),
+                        () => '询盘附件 · 采购看不到',
+                      )
+                    }
+                  />
                 ))}
               </div>
             )}
           </Card>
+          <NameplateCard
+            detail={detail}
+            editable={inq.status !== STATUS.CANCELLED && !inq.migrated}
+            onChanged={load}
+          />
+          {preview.node}
         </div>
         <div style={{ display: 'grid', gap: 12 }}>
           {canQuote && inq.status >= STATUS.SOURCING && (

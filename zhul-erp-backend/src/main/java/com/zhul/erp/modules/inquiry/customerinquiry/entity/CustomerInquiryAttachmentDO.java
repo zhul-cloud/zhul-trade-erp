@@ -19,6 +19,10 @@ public class CustomerInquiryAttachmentDO {
     private Long customerInquiryId;
     /** 追加批次ID，0 为录入询盘单时的附件 */
     private Long appendId;
+    /** 类别（1-询盘附件、2-铭牌图片） */
+    private Integer kind;
+    /** 铭牌图片对应的型号，关联 inquiry_item.id；0 为未对应 */
+    private Long inquiryItemId;
     private String fileName;
     private String fileKey;
     /** 存储方式（LOCAL-服务器目录、OSS-对象存储） */

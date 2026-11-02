@@ -21,6 +21,10 @@ import {
   ATTACHMENT_MAX_BYTES,
   MAX_ATTACHMENTS,
 } from '../shared/constants';
+import NameplateUploader, {
+  type PickedPlate,
+  toRefs,
+} from '../shared/NameplateUploader';
 import {
   type InquiryAttachment,
   type InquiryDetail,
@@ -58,6 +62,9 @@ const EditInquiryModal: React.FC<{
   const [kept, setKept] = useState<InquiryAttachment[]>([]);
   const [added, setAdded] = useState<UploadedFile[]>([]);
   const [uploading, setUploading] = useState(0);
+  const [keptPlates, setKeptPlates] = useState<InquiryAttachment[]>([]);
+  const [addedPlates, setAddedPlates] = useState<PickedPlate[]>([]);
+  const [plateUploading, setPlateUploading] = useState(0);
   const [saving, setSaving] = useState(false);
   const [opps, setOpps] = useState<OpportunityOption[]>([]);
 
@@ -65,6 +72,8 @@ const EditInquiryModal: React.FC<{
     if (!open) return;
     setKept(detail.attachments);
     setAdded([]);
+    setKeptPlates(detail.nameplates ?? []);
+    setAddedPlates([]);
     form.setFieldsValue({
       source: inq.source,
       inquiryDate: dayjs(inq.inquiryDate),
@@ -107,7 +116,8 @@ const EditInquiryModal: React.FC<{
         quoteDeadline: v.quoteDeadline.format('YYYY-MM-DD'),
         urgent: v.urgent,
         opportunityId: v.opportunityId || undefined,
-        keepAttachmentIds: kept.map((a) => a.id),
+        keepAttachmentIds: [...kept, ...keptPlates].map((a) => a.id),
+        nameplates: toRefs(addedPlates),
         attachments: added.map((f) => ({
           fileKey: f.fileKey,
           fileName: f.fileName,
@@ -199,7 +209,7 @@ const EditInquiryModal: React.FC<{
             type="primary"
             onClick={save}
             loading={saving}
-            disabled={uploading > 0}
+            disabled={uploading + plateUploading > 0}
           >
             保存
           </Button>
@@ -292,6 +302,21 @@ const EditInquiryModal: React.FC<{
             />
           </div>
         </Form.Item>
+        <div style={{ marginBottom: 16 }}>
+          <NameplateUploader
+            value={addedPlates}
+            onChange={setAddedPlates}
+            onUploadingChange={setPlateUploading}
+            existing={keptPlates}
+            existingEndpoint={(f) =>
+              inquiryApi.attachmentEndpoint(inq.id, f.id)
+            }
+            onRemoveExisting={(f) =>
+              setKeptPlates((prev) => prev.filter((p) => p.id !== f.id))
+            }
+            hint="补传的铭牌图片不解析，先放进「未对应型号」，保存后在详情里对应到型号。采购能看到铭牌图片，不要放带客户信息的图片。"
+          />
+        </div>
         <Form.Item
           name="remark"
           label="备注"

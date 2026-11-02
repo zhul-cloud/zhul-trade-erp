@@ -21,6 +21,8 @@ import com.zhul.erp.modules.inquiry.sourcing.service.MyTaskService;
 import com.zhul.erp.modules.inquiry.sourcing.service.SourcingExcelService;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
+import com.zhul.erp.modules.inquiry.sourcing.dto.TaskNameplatesVO;
+import com.zhul.erp.framework.storage.FileStorageService.FileLink;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import com.zhul.erp.modules.inquiry.sourcing.dto.WithdrawPreviewVO;
@@ -63,6 +65,19 @@ public class MyTaskController {
     @GetMapping("/{id}")
     public Result<MyTaskDetailVO> detail(@PathVariable Long id) {
         return Result.ok(myTaskService.detail(id));
+    }
+
+    /** 任务里能看到的铭牌图片 */
+    @GetMapping("/{id}/nameplates")
+    public Result<TaskNameplatesVO> nameplates(@PathVariable Long id) {
+        return Result.ok(myTaskService.nameplates(id));
+    }
+
+    /** 铭牌图片的临时访问链接：download=true 时强制下载，否则预览 */
+    @GetMapping("/{id}/nameplates/{attachmentId}/url")
+    public Result<FileLink> nameplateUrl(@PathVariable Long id, @PathVariable Long attachmentId,
+                                         @RequestParam(defaultValue = "false") boolean download) {
+        return Result.ok(myTaskService.nameplateLink(id, attachmentId, download));
     }
 
     @PutMapping("/{id}/quotes")

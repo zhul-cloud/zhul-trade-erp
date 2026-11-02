@@ -9,4 +9,8 @@ public class AttachmentVO {
     private String fileName;
     private String contentType;
     private Long fileSize;
+    /** 类别（1-询盘附件、2-铭牌图片） */
+    private Integer kind;
+    /** 铭牌图片对应的型号 ID，0 为未对应 */
+    private Long inquiryItemId;
 }

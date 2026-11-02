@@ -28,4 +28,6 @@ public class DraftRowVO {
     private String inquiryScript;
     private List<String> searchKeywords;
     private PriceMatchVO match;
+    /** AI 判断这一行对应的铭牌图片（附件 ID） */
+    private List<Long> nameplateIds;
 }

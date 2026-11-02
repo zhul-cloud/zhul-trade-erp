@@ -17,6 +17,16 @@ export interface InquiryAttachment {
   fileName: string;
   contentType: string;
   fileSize: number;
+  /** 1-询盘附件、2-铭牌图片 */
+  kind?: number;
+  /** 铭牌图片对应的型号 ID，0 为未对应 */
+  inquiryItemId?: number;
+}
+
+/** 询价任务能看到的铭牌图片：任务内型号对应的，以及同一询盘单未对应型号的 */
+export interface TaskNameplates {
+  items: { itemId: number; files: InquiryAttachment[] }[];
+  unmatched: InquiryAttachment[];
 }
 
 export interface CustomerInquiry {
@@ -153,6 +163,8 @@ export interface InquiryDetail {
   parseError: string;
   remark: string;
   attachments: InquiryAttachment[];
+  /** 铭牌图片（含追加的），inquiryItemId 为对应的型号 */
+  nameplates: InquiryAttachment[];
   items: InquiryItem[];
   tasks: TaskBrief[];
   /** 未完成的追加型号 */
@@ -191,6 +203,8 @@ export interface DraftRow {
   inquiryScript?: string;
   searchKeywords?: string[];
   match?: PriceMatch;
+  /** 这一行对应的铭牌图片（附件 ID） */
+  nameplateIds?: number[];
 }
 
 /** 未完成的追加型号：1-解析中、2-待确认、3-解析失败 */
@@ -210,6 +224,8 @@ export interface Draft {
   appendId?: number;
   rawContent: string;
   attachments: InquiryAttachment[];
+  /** 这次录入或追加的铭牌图片 */
+  nameplates: InquiryAttachment[];
   rows: DraftRow[];
 }
 
@@ -246,6 +262,8 @@ export interface SubmitPayload {
   urgent?: boolean;
   rawContent?: string;
   attachments?: { fileKey: string; fileName: string }[];
+  /** 铭牌图片：只收 JPG、PNG，采购能看到 */
+  nameplates?: { fileKey: string; fileName: string }[];
   opportunityId?: number;
   remark?: string;
 }
@@ -644,9 +662,11 @@ export interface UpdatePayload {
   quoteDeadline: string;
   urgent: boolean;
   opportunityId?: number;
-  /** 保留的已有附件，不在里面的删除 */
+  /** 保留的已有附件（含铭牌图片），不在里面的删除 */
   keepAttachmentIds: number[];
   attachments: { fileKey: string; fileName: string }[];
+  /** 补传的铭牌图片：不解析，先未对应型号 */
+  nameplates?: { fileKey: string; fileName: string }[];
   remark?: string;
 }
 
@@ -761,6 +781,14 @@ export const inquiryApi = {
   /** 附件的临时访问链接（10 分钟有效），可直接用于预览 */
   attachmentBlobUrl: (id: number, attachmentId: number) =>
     fileUrl(`${INQ}/${id}/attachments/${attachmentId}`),
+  /** 附件接口地址（不含 /url），给预览组件取签名链接 */
+  attachmentEndpoint: (id: number, attachmentId: number) =>
+    `${INQ}/${id}/attachments/${attachmentId}`,
+  /** 改铭牌图片对应的型号，0 为未对应 */
+  linkNameplate: (id: number, attachmentId: number, inquiryItemId: number) =>
+    send<void>('PUT', `${INQ}/${id}/nameplates/${attachmentId}`, {
+      inquiryItemId,
+    }),
   startParse: (id: number) =>
     send<CustomerInquiry>('POST', `${INQ}/${id}/start-parse`),
   retryParse: (id: number) =>
@@ -773,6 +801,7 @@ export const inquiryApi = {
     body: {
       rawContent?: string;
       attachments?: { fileKey: string; fileName: string }[];
+      nameplates?: { fileKey: string; fileName: string }[];
       manual?: boolean;
     },
   ) => send<InquiryAppend>('POST', `${INQ}/${id}/appends`, body),
@@ -801,6 +830,10 @@ export const boardApi = {
     get<Board>(BOARD, { status, page, pageSize }),
   purchasers: () => get<Purchaser[]>(`${BOARD}/purchasers`),
   taskDetail: (id: number) => get<BoardTaskDetail>(`${BOARD}/tasks/${id}`),
+  nameplates: (id: number) =>
+    get<TaskNameplates>(`${BOARD}/tasks/${id}/nameplates`),
+  nameplateEndpoint: (id: number, attachmentId: number) =>
+    `${BOARD}/tasks/${id}/nameplates/${attachmentId}`,
   itemHistory: (itemId: number) =>
     get<ItemHistoryEntry[]>(`${BOARD}/items/${itemId}/history`),
   reviewDetail: (taskId: number) =>
@@ -923,6 +956,9 @@ export interface ReviewApproveItem {
 }
 
 export const myTaskApi = {
+  nameplates: (id: number) => get<TaskNameplates>(`${MY}/${id}/nameplates`),
+  nameplateEndpoint: (id: number, attachmentId: number) =>
+    `${MY}/${id}/nameplates/${attachmentId}`,
   list: (done: boolean, keyword?: string) =>
     get<MyTask[]>(MY, { done, keyword: keyword || undefined }),
   history: (id: number, itemId: number) =>
