@@ -97,6 +97,7 @@ public class MyTaskServiceImpl implements MyTaskService {
     private final com.zhul.erp.modules.product.candidate.service.ProductArchiver productArchiver;
     private final AttachmentService attachmentService;
     private final MediaIndexer media;
+    private final com.zhul.erp.modules.inquiry.support.TaskNameplates taskNameplates;
     private final ItemPriceHistory priceHistory;
     private final com.zhul.erp.modules.inquiry.sourcing.repository.SourcingItemHandoffMapper handoffMapper;
 
@@ -1071,6 +1072,16 @@ public class MyTaskServiceImpl implements MyTaskService {
         backToSourcingIfOpen(task.getCustomerInquiryId());
         logService.recordOperateLog("我的询价", "撤回回价", null, Map.of("taskCode", task.getTaskCode(),
                 "items", open.size()));
+    }
+
+    @Override
+    public com.zhul.erp.modules.inquiry.sourcing.dto.TaskNameplatesVO nameplates(Long taskId) {
+        return taskNameplates.of(myTask(taskId));
+    }
+
+    @Override
+    public com.zhul.erp.framework.storage.FileStorageService.FileLink nameplateLink(Long taskId, Long attachmentId, boolean download) {
+        return taskNameplates.link(myTask(taskId), attachmentId, download);
     }
 
     @Override

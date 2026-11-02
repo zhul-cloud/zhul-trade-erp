@@ -37,6 +37,8 @@ const QUOTE_STATUS: Record<
   3: { label: '无货', tone: 'gray' },
 };
 
+import { useTaskNameplates } from '../shared/TaskNameplates';
+
 /**
  * 询价分配的任务详情：分配前看清型号、询盘等级和客户概况。
  * 不跳转询盘单（采购负责人看不到业务员的询盘），也不含联系方式与原始询盘内容。
@@ -58,6 +60,7 @@ const TaskDetailDrawer: React.FC<{
   const { message } = App.useApp();
   const access = useAccess() as Record<string, boolean>;
   const canPick = !!access['inquiry:task:assign'];
+  const plates = useTaskNameplates(taskId, 'board', { width: 64, height: 48 });
 
   const load = async (id: number) => {
     setData(null);
@@ -176,6 +179,7 @@ const TaskDetailDrawer: React.FC<{
           </div>
           <div style={{ display: 'grid', gap: 10 }}>
             <b style={{ color: palette.ink }}>型号（{data.items.length}）</b>
+            {plates.unmatched}
             {data.items.map((it) => {
               const qs = QUOTE_STATUS[it.quoteStatus];
               return (
@@ -229,6 +233,7 @@ const TaskDetailDrawer: React.FC<{
                       {it.description}
                     </span>
                   )}
+                  {plates.forItem(it.id, it.model)}
                   {it.quotes.some((q) => !q.noStock) && (
                     <div style={{ display: 'grid', gap: 4, marginTop: 4 }}>
                       <span
@@ -320,7 +325,7 @@ const TaskDetailDrawer: React.FC<{
             })}
           </div>
           <span style={{ color: palette.mute, fontSize: 12 }}>
-            客户联系方式与原始询盘内容不对采购开放；型号有疑问时，在「我的询价」中退回并选「型号存疑」，由业务员核实。
+            客户联系方式与原始询盘内容不对采购开放，铭牌图片除外；型号有疑问时，在「我的询价」中退回并选「型号存疑」，由业务员核实。
           </span>
         </div>
       )}
@@ -328,6 +333,7 @@ const TaskDetailDrawer: React.FC<{
         item={historyItem}
         onClose={() => setHistoryItem(undefined)}
       />
+      {plates.node}
     </Drawer>
   );
 };

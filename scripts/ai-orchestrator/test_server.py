@@ -191,7 +191,7 @@ class ClaudeSchemaRegressionTest(unittest.TestCase):
         self.assertEqual(set(item["properties"]), {
             "categoryCode", "originalModel", "confirmedModel", "orderCode", "confidence", "correctionNote", "description",
             "descriptionEn", "quantity", "unit", "remark", "lifecycle", "replacementModel", "difficulty",
-            "inquiryScript", "searchKeywords"})
+            "inquiryScript", "searchKeywords", "nameplates"})
         for obj in (schema, group, item):
             self.assertEqual(set(obj["required"]), set(obj["properties"]))
             self.assertIs(obj["additionalProperties"], False)
@@ -385,6 +385,21 @@ class OpenAITest(unittest.TestCase):
         self.assertEqual([b["type"] for b in content], ["input_image", "input_file", "input_text"])
         self.assertTrue(content[0]["image_url"].startswith("data:image/png;base64,"))
         self.assertTrue(content[1]["file_data"].startswith("data:application/pdf;base64,"))
+
+    def test_parse_marks_nameplates(self):
+        FakeOpenAI.response = openai_response(json.dumps(PARSE_RESULT))
+        _, call = self.call(self.server.call_parse, self.cfg, "询盘正文", [PDF, IMAGE, IMAGE], [], [None, 1, 2])
+        text = call["params"]["input"][0]["content"][-1]["text"]
+        self.assertIn("第 2 个附件是铭牌图片 #1；第 3 个附件是铭牌图片 #2", text)
+        self.assertIn("nameplates", text)
+        _, call = self.call(self.server.call_parse, self.cfg, "询盘正文", [IMAGE], [])
+        self.assertNotIn("铭牌图片", call["params"]["input"][0]["content"][-1]["text"])
+
+    def test_nameplate_no(self):
+        self.assertEqual(self.server._nameplate_no({"url": "u", "role": "nameplate", "no": "3"}), 3)
+        self.assertIsNone(self.server._nameplate_no({"url": "u", "role": "attachment"}))
+        self.assertIsNone(self.server._nameplate_no({"url": "u"}))
+        self.assertIsNone(self.server._nameplate_no({"url": "u", "role": "nameplate", "no": "x"}))
 
     def test_translate_request(self):
         cfg = self.server.parse_ai_config(ai(provider="openai", translate_effort="low"))

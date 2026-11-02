@@ -21,12 +21,16 @@ public class UpdateCustomerInquiryRequest {
     private Boolean urgent;
     /** 不传为不关联商机 */
     private Long opportunityId;
-    /** 保留的已有附件；不在里面的已有附件软删除 */
+    /** 保留的已有附件（含铭牌图片）；不在里面的已有附件软删除 */
     private List<Long> keepAttachmentIds;
     /** 补传的附件：只作为资料保存，不解析 */
     @Valid
     @Size(max = 10, message = "附件最多 10 个")
     private List<AttachmentRef> attachments;
+    /** 铭牌图片：补传的不解析，先放进「未对应型号」 */
+    @Valid
+    @Size(max = 20, message = "铭牌图片最多 20 张")
+    private List<AttachmentRef> nameplates;
     @Size(max = 500, message = "备注不能超过 500 字")
     private String remark;
 }

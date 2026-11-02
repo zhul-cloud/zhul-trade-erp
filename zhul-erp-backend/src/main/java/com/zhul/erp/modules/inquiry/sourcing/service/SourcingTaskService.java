@@ -47,6 +47,12 @@ public interface SourcingTaskService {
     /** 分配工作台打开的任务详情（本租户任务，不受业务员数据权限限制） */
     BoardTaskDetailVO taskDetail(Long taskId);
 
+    /** 任务里能看到的铭牌图片（spec inquiry/sourcing-task「询价分配查看铭牌图片」） */
+    com.zhul.erp.modules.inquiry.sourcing.dto.TaskNameplatesVO nameplates(Long taskId);
+
+    /** 铭牌图片的临时访问链接，只能读任务内型号对应的或同一询盘单未对应型号的 */
+    com.zhul.erp.framework.storage.FileStorageService.FileLink nameplateLink(Long taskId, Long attachmentId, boolean download);
+
     /** 采购负责人指定某型号的采购成本价（quoteId 为空时恢复自动），记操作日志 */
     void setCostQuote(Long itemId, Long quoteId);
 

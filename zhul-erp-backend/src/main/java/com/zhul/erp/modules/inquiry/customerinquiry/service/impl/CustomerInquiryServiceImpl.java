@@ -99,6 +99,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -230,7 +231,8 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
             throw new BizException("来源商机与客户不一致");
         }
         List<AttachmentRef> refs = req.getAttachments() == null ? List.of() : req.getAttachments();
-        if (!StringUtils.hasText(req.getRawContent()) && refs.isEmpty()) {
+        List<AttachmentRef> plates = nameplateRefs(req.getNameplates());
+        if (!StringUtils.hasText(req.getRawContent()) && refs.isEmpty() && plates.isEmpty()) {
             throw new BizException("请粘贴询盘内容或上传附件");
         }
         LocalDate inquiryDate = req.getInquiryDate() != null ? req.getInquiryDate() : LocalDate.now();
@@ -240,6 +242,9 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
         }
         dictItemService.requireEnabledValue(DictTypes.SOURCE_CHANNEL, req.getSource(), "来源渠道不正确");
         for (AttachmentRef ref : refs) {
+            fileStorage.locate(StorageArea.INQUIRY, ref.getFileKey(), tenantId);
+        }
+        for (AttachmentRef ref : plates) {
             fileStorage.locate(StorageArea.INQUIRY, ref.getFileKey(), tenantId);
         }
 
@@ -269,15 +274,19 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
         inquiry.setRemark(req.getRemark() == null ? "" : req.getRemark());
         insertWithRetry(inquiry);
 
-        saveAttachments(inquiry, refs, 0L);
+        saveAttachments(inquiry, refs, 0L, InquiryConstants.ATTACHMENT_KIND_FILE);
+        saveAttachments(inquiry, plates, 0L, InquiryConstants.ATTACHMENT_KIND_NAMEPLATE);
         if (req.getOpportunityId() != null) {
             opportunityService.onInquiryCreated(req.getOpportunityId(), inquiry.getInquiryCode());
         }
         return toVos(List.of(inquiry)).get(0);
     }
 
-    /** 保存询盘附件；appendId 为 0 时是录入询盘单时的附件，否则属于某次追加。排序接着已有附件 */
-    private void saveAttachments(CustomerInquiryDO inquiry, List<AttachmentRef> refs, long appendId) {
+    /**
+     * 保存询盘附件；appendId 为 0 时是录入询盘单时的附件，否则属于某次追加。排序接着已有附件。
+     * kind 为 1-询盘附件、2-铭牌图片（铭牌图片先未对应型号，确认时再对应）
+     */
+    private void saveAttachments(CustomerInquiryDO inquiry, List<AttachmentRef> refs, long appendId, int kind) {
         int sort = Math.toIntExact(attachmentMapper.selectCount(new LambdaQueryWrapper<CustomerInquiryAttachmentDO>()
                 .eq(CustomerInquiryAttachmentDO::getCustomerInquiryId, inquiry.getId())));
         for (AttachmentRef ref : refs) {
@@ -286,6 +295,8 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
             a.setTenantId(inquiry.getTenantId());
             a.setCustomerInquiryId(inquiry.getId());
             a.setAppendId(appendId);
+            a.setKind(kind);
+            a.setInquiryItemId(0L);
             a.setFileKey(ref.getFileKey());
             a.setStorage(storage);
             a.setFileName(UploadRules.cleanFileName(ref.getFileName(), UploadRules.extOf(ref.getFileKey())));
@@ -294,6 +305,22 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
             a.setSort(sort++);
             attachmentMapper.insert(a);
         }
+    }
+
+    /** 铭牌图片只收 JPG、PNG（上传时已按文件头校验，这里按存储键的扩展名再挡一次铭牌区的其他类型） */
+    private static List<AttachmentRef> nameplateRefs(List<AttachmentRef> refs) {
+        if (refs == null || refs.isEmpty()) {
+            return List.of();
+        }
+        if (refs.size() > InquiryConstants.NAMEPLATE_MAX) {
+            throw new BizException("铭牌图片最多 " + InquiryConstants.NAMEPLATE_MAX + " 张");
+        }
+        for (AttachmentRef ref : refs) {
+            if (!InquiryConstants.NAMEPLATE_EXTS.contains(UploadRules.extOf(ref.getFileKey()))) {
+                throw new BizException("铭牌图片只支持 JPG、PNG");
+            }
+        }
+        return refs;
     }
 
     private void insertWithRetry(CustomerInquiryDO inquiry) {
@@ -412,6 +439,7 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
         vo.setOpenAppend(open == null ? null : toAppendVo(open));
         vo.setRemark(inquiry.getRemark());
         vo.setAttachments(attachments(inquiry.getId()));
+        vo.setNameplates(nameplates(inquiry.getId(), null));
 
         List<SourcingTaskDO> tasks = taskMapper.selectList(new LambdaQueryWrapper<SourcingTaskDO>()
                 .eq(SourcingTaskDO::getCustomerInquiryId, id)
@@ -584,21 +612,35 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
         return attachments(inquiryId, null);
     }
 
-    /** appendId 为空时全部附件，否则只取该次追加（0 为录入时）的附件 */
+    /** 询盘附件（不含铭牌图片）：appendId 为空时全部，否则只取该次追加（0 为录入时）的 */
     private List<AttachmentVO> attachments(Long inquiryId, Long appendId) {
+        return attachmentRows(inquiryId, appendId, InquiryConstants.ATTACHMENT_KIND_FILE).stream().map(CustomerInquiryServiceImpl::toAttachmentVo).toList();
+    }
+
+    /** 铭牌图片：appendId 为空时全部，否则只取该次追加（0 为录入时）的 */
+    private List<AttachmentVO> nameplates(Long inquiryId, Long appendId) {
+        return attachmentRows(inquiryId, appendId, InquiryConstants.ATTACHMENT_KIND_NAMEPLATE).stream().map(CustomerInquiryServiceImpl::toAttachmentVo).toList();
+    }
+
+    private List<CustomerInquiryAttachmentDO> attachmentRows(Long inquiryId, Long appendId, int kind) {
         return attachmentMapper.selectList(new LambdaQueryWrapper<CustomerInquiryAttachmentDO>()
-                        .eq(CustomerInquiryAttachmentDO::getCustomerInquiryId, inquiryId)
-                        .eq(appendId != null, CustomerInquiryAttachmentDO::getAppendId, appendId)
-                        .isNull(CustomerInquiryAttachmentDO::getDeletedAt)
-                        .orderByAsc(CustomerInquiryAttachmentDO::getSort))
-                .stream().map(a -> {
-                    AttachmentVO vo = new AttachmentVO();
-                    vo.setId(a.getId());
-                    vo.setFileName(a.getFileName());
-                    vo.setContentType(a.getContentType());
-                    vo.setFileSize(a.getFileSize());
-                    return vo;
-                }).toList();
+                .eq(CustomerInquiryAttachmentDO::getCustomerInquiryId, inquiryId)
+                .eq(appendId != null, CustomerInquiryAttachmentDO::getAppendId, appendId)
+                .eq(CustomerInquiryAttachmentDO::getKind, kind)
+                .isNull(CustomerInquiryAttachmentDO::getDeletedAt)
+                .orderByAsc(CustomerInquiryAttachmentDO::getSort)
+                .orderByAsc(CustomerInquiryAttachmentDO::getId));
+    }
+
+    private static AttachmentVO toAttachmentVo(CustomerInquiryAttachmentDO a) {
+        AttachmentVO vo = new AttachmentVO();
+        vo.setId(a.getId());
+        vo.setFileName(a.getFileName());
+        vo.setContentType(a.getContentType());
+        vo.setFileSize(a.getFileSize());
+        vo.setKind(a.getKind());
+        vo.setInquiryItemId(a.getInquiryItemId());
+        return vo;
     }
 
     // ---------------------------------------------------------------- 解析
@@ -645,11 +687,7 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
     private String parseInput(CustomerInquiryDO inquiry, String rawContent, long appendId) {
         StringBuilder text = new StringBuilder(rawContent == null ? "" : rawContent);
         List<Map<String, String>> files = new ArrayList<>();
-        for (CustomerInquiryAttachmentDO a : attachmentMapper.selectList(new LambdaQueryWrapper<CustomerInquiryAttachmentDO>()
-                .eq(CustomerInquiryAttachmentDO::getCustomerInquiryId, inquiry.getId())
-                .eq(CustomerInquiryAttachmentDO::getAppendId, appendId)
-                .isNull(CustomerInquiryAttachmentDO::getDeletedAt)
-                .orderByAsc(CustomerInquiryAttachmentDO::getSort))) {
+        for (CustomerInquiryAttachmentDO a : attachmentRows(inquiry.getId(), appendId, InquiryConstants.ATTACHMENT_KIND_FILE)) {
             String ext = UploadRules.extOf(a.getFileKey());
             if (Set.of("xls", "xlsx", "csv").contains(ext)) {
                 Path tmp = fileStorage.download(a.getStorage(), a.getFileKey());
@@ -661,8 +699,15 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
                 }
             } else {
                 String url = fileStorage.link(a.getStorage(), a.getFileKey(), a.getFileName(), false, AI_LINK_TTL).url();
-                files.add(Map.of("url", url.startsWith("/") ? backendBaseUrl.replaceAll("/+$", "") + url : url, "ext", ext));
+                files.add(Map.of("url", absolute(url), "ext", ext, "role", "attachment"));
             }
+        }
+        // 铭牌图片从 1 编号，AI 按编号返回每个型号对应的图（spec inquiry/inquiry-intake「铭牌图片」）
+        int no = 0;
+        for (CustomerInquiryAttachmentDO a : attachmentRows(inquiry.getId(), appendId, InquiryConstants.ATTACHMENT_KIND_NAMEPLATE)) {
+            String url = fileStorage.link(a.getStorage(), a.getFileKey(), a.getFileName(), false, AI_LINK_TTL).url();
+            files.add(Map.of("url", absolute(url), "ext", UploadRules.extOf(a.getFileKey()), "role", "nameplate",
+                    "no", String.valueOf(++no)));
         }
         Map<String, Object> input = new HashMap<>();
         input.put("customerInquiryId", inquiry.getId());
@@ -670,6 +715,10 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
         input.put("attachments", files);
         input.put("categories", parseCategories());
         return writeJson(input);
+    }
+
+    private String absolute(String url) {
+        return url.startsWith("/") ? backendBaseUrl.replaceAll("/+$", "") + url : url;
     }
 
     /** 发给 AI 的品类清单：启用的一级品类按排序，每个一级后面跟着它的细分品类 */
@@ -759,19 +808,36 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
         if (inquiry.getStatus() == InquiryConstants.STATUS_PENDING_CONFIRM
                 && inquiry.getParseMode() == InquiryConstants.PARSE_MODE_AI && inquiry.getAiTaskId() != null) {
             AiParseOutputDTO output = parseOutput(aiTaskService.getById(inquiry.getAiTaskId()).getOutput());
-            List<ProductCategoryDO> categories = inquiryCategories.categories();
-            for (AiParseGroupDTO g : output.getGroups()) {
-                for (AiParseItemDTO it : g.getItems()) {
-                    rows.add(toDraftRow(g, it, categories));
-                }
-            }
+            rows.addAll(draftRows(output, nameplates(inquiry.getId(), 0L)));
         }
         DraftVO vo = new DraftVO();
         vo.setInquiry(toVos(List.of(inquiry)).get(0));
         vo.setRawContent(inquiry.getRawContent());
         vo.setAttachments(attachments(inquiry.getId()));
+        vo.setNameplates(nameplates(inquiry.getId(), 0L));
         vo.setRows(rows);
         return vo;
+    }
+
+    /** AI 输出转确认页的行；铭牌编号换成附件 ID，越界的忽略，一张图被多行引用时只给第一行 */
+    private List<DraftRowVO> draftRows(AiParseOutputDTO output, List<AttachmentVO> plates) {
+        List<ProductCategoryDO> categories = inquiryCategories.categories();
+        Set<Long> used = new HashSet<>();
+        List<DraftRowVO> rows = new ArrayList<>();
+        for (AiParseGroupDTO g : output.getGroups()) {
+            for (AiParseItemDTO it : g.getItems()) {
+                DraftRowVO row = toDraftRow(g, it, categories);
+                List<Long> ids = new ArrayList<>();
+                for (Integer no : it.getNameplates() == null ? List.<Integer>of() : it.getNameplates()) {
+                    if (no != null && no >= 1 && no <= plates.size() && used.add(plates.get(no - 1).getId())) {
+                        ids.add(plates.get(no - 1).getId());
+                    }
+                }
+                row.setNameplateIds(ids);
+                rows.add(row);
+            }
+        }
+        return rows;
     }
 
     private DraftRowVO toDraftRow(AiParseGroupDTO g, AiParseItemDTO it, List<ProductCategoryDO> categories) {
@@ -814,6 +880,7 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
             inquiry.setParseError("");
         }
         Batch b = insertRows(inquiry, req.getRows(), 0);
+        linkNameplates(inquiry.getId(), 0L, req.getRows(), b.ids());
         int taskCount = sourcingTaskService.createTasks(inquiry, b.pending()).size();
         inquiry.setTotalItemCount(b.count());
         inquiry.setTotalQuantity((int) Math.min(b.quantity(), Integer.MAX_VALUE));
@@ -905,6 +972,36 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
         return new Batch(line, quantity, priced, verify, pending, confirmedIds);
     }
 
+    /**
+     * 确认时保存铭牌图片对应的型号：只认这次录入或追加（appendId）的铭牌图片，一张图只给第一个引用它的行，
+     * 没被引用的为未对应。itemIds 与 rows 一一对应。
+     */
+    private void linkNameplates(Long inquiryId, long appendId, List<ConfirmRowRequest> rows, List<Long> itemIds) {
+        List<CustomerInquiryAttachmentDO> plates = attachmentRows(inquiryId, appendId, InquiryConstants.ATTACHMENT_KIND_NAMEPLATE);
+        if (plates.isEmpty()) {
+            return;
+        }
+        Map<Long, Long> target = new HashMap<>();
+        Set<Long> valid = plates.stream().map(CustomerInquiryAttachmentDO::getId).collect(Collectors.toSet());
+        for (int i = 0; i < rows.size(); i++) {
+            List<Long> ids = rows.get(i).getNameplateIds();
+            for (Long pid : ids == null ? List.<Long>of() : ids) {
+                if (pid != null && valid.contains(pid)) {
+                    target.putIfAbsent(pid, itemIds.get(i));
+                }
+            }
+        }
+        for (CustomerInquiryAttachmentDO a : plates) {
+            long itemId = target.getOrDefault(a.getId(), 0L);
+            if (!Objects.equals(a.getInquiryItemId(), itemId)) {
+                attachmentMapper.update(null, new LambdaUpdateWrapper<CustomerInquiryAttachmentDO>()
+                        .eq(CustomerInquiryAttachmentDO::getId, a.getId())
+                        .set(CustomerInquiryAttachmentDO::getInquiryItemId, itemId)
+                        .set(CustomerInquiryAttachmentDO::getUpdateTime, LocalDateTime.now()));
+            }
+        }
+    }
+
     /** 型号对上商品库优先；对不上时按订货号认（型号是建档编码，订货号辅助识别） */
     private Long matchProduct(String brand, String model, Long brandId, String orderCode) {
         try {
@@ -948,8 +1045,9 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
             throw new BizException("这张询盘单还有一次追加没有完成，请先确认或放弃");
         }
         List<AttachmentRef> refs = req.getAttachments() == null ? List.of() : req.getAttachments();
+        List<AttachmentRef> plates = nameplateRefs(req.getNameplates());
         boolean manual = Boolean.TRUE.equals(req.getManual());
-        if (!manual && !StringUtils.hasText(req.getRawContent()) && refs.isEmpty()) {
+        if (!manual && !StringUtils.hasText(req.getRawContent()) && refs.isEmpty() && plates.isEmpty()) {
             throw new BizException("请粘贴追加的内容或上传附件");
         }
         CustomerInquiryAppendDO a = new CustomerInquiryAppendDO();
@@ -961,7 +1059,8 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
         a.setParseError("");
         a.setItemCount(0);
         appendMapper.insert(a);
-        saveAttachments(inquiry, refs, a.getId());
+        saveAttachments(inquiry, refs, a.getId(), InquiryConstants.ATTACHMENT_KIND_FILE);
+        saveAttachments(inquiry, plates, a.getId(), InquiryConstants.ATTACHMENT_KIND_NAMEPLATE);
         if (!manual) {
             submitAppendParse(inquiry, a);
         }
@@ -976,7 +1075,8 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
         if (a.getStatus() != APPEND_PARSE_FAILED && a.getStatus() != APPEND_PENDING_CONFIRM) {
             throw new BizException("只有解析失败或待确认的追加可以重新解析");
         }
-        if (!StringUtils.hasText(a.getRawContent()) && attachments(inquiry.getId(), a.getId()).isEmpty()) {
+        if (!StringUtils.hasText(a.getRawContent()) && attachments(inquiry.getId(), a.getId()).isEmpty()
+                && nameplates(inquiry.getId(), a.getId()).isEmpty()) {
             throw new BizException("这次追加没有内容可以解析，请手动录入");
         }
         a.setParseError("");
@@ -1023,18 +1123,14 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
         List<DraftRowVO> rows = new ArrayList<>();
         if (a.getStatus() == APPEND_PENDING_CONFIRM && a.getParseMode() == InquiryConstants.PARSE_MODE_AI && a.getAiTaskId() != null) {
             AiParseOutputDTO output = parseOutput(aiTaskService.getById(a.getAiTaskId()).getOutput());
-            List<ProductCategoryDO> categories = inquiryCategories.categories();
-            for (AiParseGroupDTO g : output.getGroups()) {
-                for (AiParseItemDTO it : g.getItems()) {
-                    rows.add(toDraftRow(g, it, categories));
-                }
-            }
+            rows.addAll(draftRows(output, nameplates(inquiry.getId(), a.getId())));
         }
         DraftVO vo = new DraftVO();
         vo.setInquiry(toVos(List.of(inquiry)).get(0));
         vo.setAppendId(a.getId());
         vo.setRawContent(a.getRawContent());
         vo.setAttachments(attachments(inquiry.getId(), a.getId()));
+        vo.setNameplates(nameplates(inquiry.getId(), a.getId()));
         vo.setRows(rows);
         return vo;
     }
@@ -1062,6 +1158,7 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
                 .last("LIMIT 1"));
         int lineOffset = last == null || last.getLineNo() == null ? 0 : last.getLineNo();
         Batch b = insertRows(inquiry, req.getRows(), lineOffset);
+        linkNameplates(inquiry.getId(), a.getId(), req.getRows(), b.ids());
         long taskIndex = taskMapper.selectCount(new LambdaQueryWrapper<SourcingTaskDO>()
                 .eq(SourcingTaskDO::getCustomerInquiryId, inquiry.getId()));
         int taskCount = sourcingTaskService.createTasks(inquiry, b.pending(), (int) taskIndex).size();
@@ -1172,7 +1269,9 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
         Set<Long> keep = req.getKeepAttachmentIds() == null ? Set.of() : Set.copyOf(req.getKeepAttachmentIds());
         List<CustomerInquiryAttachmentDO> removed = current.stream().filter(a -> !keep.contains(a.getId())).toList();
         List<AttachmentRef> added = req.getAttachments() == null ? List.of() : req.getAttachments();
-        long baseCount = current.stream().filter(a -> a.getAppendId() == 0 && keep.contains(a.getId())).count();
+        List<AttachmentRef> addedPlates = nameplateRefs(req.getNameplates());
+        long baseCount = current.stream().filter(a -> a.getAppendId() == 0 && keep.contains(a.getId())
+                && !Objects.equals(a.getKind(), InquiryConstants.ATTACHMENT_KIND_NAMEPLATE)).count();
         if (baseCount + added.size() > MAX_ATTACHMENTS) {
             throw new BizException("附件最多 " + MAX_ATTACHMENTS + " 个");
         }
@@ -1190,11 +1289,21 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
         diff(before, after, "紧急", Objects.equals(inquiry.getUrgent(), 1) ? "是" : "否", urgent == 1 ? "是" : "否");
         diff(before, after, "关联商机", opportunityCode(inquiry.getOpportunityId()), opportunityCode(req.getOpportunityId()));
         diff(before, after, "备注", inquiry.getRemark(), remark);
-        if (!removed.isEmpty()) {
-            before.put("删除附件", removed.stream().map(CustomerInquiryAttachmentDO::getFileName).toList());
+        List<String> removedFiles = removed.stream().filter(a -> !Objects.equals(a.getKind(), InquiryConstants.ATTACHMENT_KIND_NAMEPLATE))
+                .map(CustomerInquiryAttachmentDO::getFileName).toList();
+        List<String> removedPlates = removed.stream().filter(a -> Objects.equals(a.getKind(), InquiryConstants.ATTACHMENT_KIND_NAMEPLATE))
+                .map(CustomerInquiryAttachmentDO::getFileName).toList();
+        if (!removedFiles.isEmpty()) {
+            before.put("删除附件", removedFiles);
+        }
+        if (!removedPlates.isEmpty()) {
+            before.put("删除铭牌图片", removedPlates);
         }
         if (!added.isEmpty()) {
             after.put("补传附件", added.stream().map(AttachmentRef::getFileName).toList());
+        }
+        if (!addedPlates.isEmpty()) {
+            after.put("补传铭牌图片", addedPlates.stream().map(AttachmentRef::getFileName).toList());
         }
         if (before.size() == 1 && after.size() == 1) {
             return;
@@ -1216,7 +1325,11 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
                     .set(CustomerInquiryAttachmentDO::getDeletedAt, now)
                     .set(CustomerInquiryAttachmentDO::getUpdateTime, now));
         }
-        saveAttachments(inquiry, added, 0L);
+        saveAttachments(inquiry, added, 0L, InquiryConstants.ATTACHMENT_KIND_FILE);
+        saveAttachments(inquiry, addedPlates, 0L, InquiryConstants.ATTACHMENT_KIND_NAMEPLATE);
+        if (!removed.isEmpty() || !added.isEmpty() || !addedPlates.isEmpty()) {
+            indexMedia(id);
+        }
         if (!Objects.equals(inquiry.getUrgent(), urgent)) {
             sourcingTaskService.syncUrgent(id, urgent);
         }
@@ -1224,6 +1337,44 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
             opportunityService.onInquiryCreated(req.getOpportunityId(), inquiry.getInquiryCode());
         }
         logService.recordOperateLog("询盘单", "修改询盘", before, after);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void linkNameplate(Long id, Long attachmentId, Long inquiryItemId) {
+        CustomerInquiryDO inquiry = getEditable(id);
+        if (InquiryConstants.STATUS_CANCELLED == inquiry.getStatus()) {
+            throw new BizException("已取消的询盘不能修改");
+        }
+        CustomerInquiryAttachmentDO a = attachmentId == null ? null : attachmentMapper.selectById(attachmentId);
+        if (a == null || a.getDeletedAt() != null || !Objects.equals(a.getCustomerInquiryId(), id)
+                || !Objects.equals(a.getKind(), InquiryConstants.ATTACHMENT_KIND_NAMEPLATE)) {
+            throw new BizException("铭牌图片不存在");
+        }
+        long target = inquiryItemId == null ? 0L : inquiryItemId;
+        InquiryItemDO item = null;
+        if (target != 0) {
+            item = itemMapper.selectById(target);
+            if (item == null || item.getDeletedAt() != null || !Objects.equals(item.getCustomerInquiryId(), id)) {
+                throw new BizException("型号不属于这张询盘单");
+            }
+        }
+        if (Objects.equals(a.getInquiryItemId(), target)) {
+            return;
+        }
+        InquiryItemDO from = a.getInquiryItemId() == null || a.getInquiryItemId() == 0 ? null : itemMapper.selectById(a.getInquiryItemId());
+        attachmentMapper.update(null, new LambdaUpdateWrapper<CustomerInquiryAttachmentDO>()
+                .eq(CustomerInquiryAttachmentDO::getId, a.getId())
+                .set(CustomerInquiryAttachmentDO::getInquiryItemId, target)
+                .set(CustomerInquiryAttachmentDO::getUpdateTime, LocalDateTime.now()));
+        logService.recordOperateLog("询盘单", "改铭牌图片对应型号",
+                Map.of("inquiryCode", inquiry.getInquiryCode(), "铭牌图片", a.getFileName(), "对应型号", lineLabel(from)),
+                Map.of("inquiryCode", inquiry.getInquiryCode(), "铭牌图片", a.getFileName(), "对应型号", lineLabel(item)));
+        indexMedia(id);
+    }
+
+    private static String lineLabel(InquiryItemDO item) {
+        return item == null ? "未对应型号" : item.getLineNo() + " · " + item.getConfirmedModel();
     }
 
     /** 只把改了的字段记进操作日志 */
@@ -1366,15 +1517,17 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
         return t == null ? 0 : t;
     }
 
-    /** 询盘的图片附件进素材库「客户来图」，标注询盘单当前的全部型号 */
+    /** 询盘的图片附件进素材库「客户来图」：对应了型号的铭牌图片只标那个型号，其余标注询盘单当前的全部型号 */
     private void indexMedia(Long inquiryId) {
         CustomerInquiryDO inquiry = inquiryMapper.selectById(inquiryId);
-        List<MediaIndexer.ModelRef> models = itemMapper.selectList(new LambdaQueryWrapper<InquiryItemDO>()
-                        .eq(InquiryItemDO::getCustomerInquiryId, inquiryId)
-                        .isNull(InquiryItemDO::getDeletedAt)).stream()
-                .map(i -> new MediaIndexer.ModelRef(i.getBrand(),
-                        StringUtils.hasText(i.getConfirmedModel()) ? i.getConfirmedModel() : i.getOriginalModel()))
-                .toList();
-        media.indexInquiry(inquiryId, inquiry.getTenantId(), models);
+        Map<Long, MediaIndexer.ModelRef> byItem = new LinkedHashMap<>();
+        for (InquiryItemDO i : itemMapper.selectList(new LambdaQueryWrapper<InquiryItemDO>()
+                .eq(InquiryItemDO::getCustomerInquiryId, inquiryId)
+                .isNull(InquiryItemDO::getDeletedAt)
+                .orderByAsc(InquiryItemDO::getLineNo))) {
+            byItem.put(i.getId(), new MediaIndexer.ModelRef(i.getBrand(),
+                    StringUtils.hasText(i.getConfirmedModel()) ? i.getConfirmedModel() : i.getOriginalModel()));
+        }
+        media.indexInquiry(inquiryId, inquiry.getTenantId(), byItem);
     }
 }

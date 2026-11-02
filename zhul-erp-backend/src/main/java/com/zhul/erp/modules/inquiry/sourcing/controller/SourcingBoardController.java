@@ -22,6 +22,8 @@ import com.zhul.erp.modules.inquiry.sourcing.service.SourcingExcelService;
 import com.zhul.erp.modules.inquiry.sourcing.service.SourcingTaskService;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
+import com.zhul.erp.modules.inquiry.sourcing.dto.TaskNameplatesVO;
+import com.zhul.erp.framework.storage.FileStorageService.FileLink;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -68,6 +70,21 @@ public class SourcingBoardController {
     @PreAuthorize(VIEW)
     public Result<BoardTaskDetailVO> taskDetail(@PathVariable Long id) {
         return Result.ok(taskService.taskDetail(id));
+    }
+
+    /** 任务里能看到的铭牌图片 */
+    @GetMapping("/tasks/{id}/nameplates")
+    @PreAuthorize(VIEW)
+    public Result<TaskNameplatesVO> nameplates(@PathVariable Long id) {
+        return Result.ok(taskService.nameplates(id));
+    }
+
+    /** 铭牌图片的临时访问链接：download=true 时强制下载，否则预览 */
+    @GetMapping("/tasks/{id}/nameplates/{attachmentId}/url")
+    @PreAuthorize(VIEW)
+    public Result<FileLink> nameplateUrl(@PathVariable Long id, @PathVariable Long attachmentId,
+                                         @RequestParam(defaultValue = "false") boolean download) {
+        return Result.ok(taskService.nameplateLink(id, attachmentId, download));
     }
 
     @PutMapping("/items/{itemId}/cost-quote")

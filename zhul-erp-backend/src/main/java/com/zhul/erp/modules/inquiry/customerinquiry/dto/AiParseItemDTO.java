@@ -28,4 +28,6 @@ public class AiParseItemDTO {
     private Integer difficulty;
     private String inquiryScript;
     private List<String> searchKeywords;
+    /** 对应的铭牌图片编号（从 1 开始，按输入里铭牌图片的顺序）；旧输出没有这个字段 */
+    private List<Integer> nameplates;
 }

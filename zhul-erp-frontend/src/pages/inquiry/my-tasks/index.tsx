@@ -73,6 +73,7 @@ import {
   readBizError,
   type WithdrawPreview,
 } from '../shared/service';
+import { useTaskNameplates } from '../shared/TaskNameplates';
 import { nextActiveTask } from './activeTask';
 import ItemHistory from './ItemHistory';
 import PasteQuoteModal, { type PasteFill } from './PasteQuoteModal';
@@ -175,6 +176,7 @@ const MyTasksPage: React.FC = () => {
     reviewRequired?: boolean;
   } | null>(null);
   const [state, setState] = useState<Record<number, ItemState>>({});
+  const plates = useTaskNameplates(detail?.task.id, 'my');
   // 列表刷新时要知道当前选中哪个任务、明细是否有没保存的改动
   const activeIdRef = useRef(activeId);
   activeIdRef.current = activeId;
@@ -951,6 +953,7 @@ const MyTasksPage: React.FC = () => {
                   title={`${detail.task.returnedByName ?? ''}转来 · 原因：${detail.task.returnReasonLabel}${detail.task.returnNote ? ` · ${detail.task.returnNote}` : ''}`}
                 />
               )}
+            {plates.unmatched}
             {sortedItems.map((it) => {
               const s = state[it.id];
               if (!s) return null;
@@ -1202,6 +1205,7 @@ const MyTasksPage: React.FC = () => {
                       {it.description}
                     </div>
                   )}
+                  {plates.forItem(it.id, it.model)}
                   {activeId && <ItemHistory taskId={activeId} item={it} />}
                   <div
                     style={{
@@ -1795,6 +1799,7 @@ const MyTasksPage: React.FC = () => {
         }}
       />
 
+      {plates.node}
       {detail && (
         <PasteQuoteModal
           open={pasteOpen}

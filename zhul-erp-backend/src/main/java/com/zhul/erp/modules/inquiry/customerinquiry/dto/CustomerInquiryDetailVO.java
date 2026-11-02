@@ -12,6 +12,8 @@ public class CustomerInquiryDetailVO {
     private String parseError;
     private String remark;
     private List<AttachmentVO> attachments;
+    /** 铭牌图片（含追加的），inquiryItemId 为对应的型号 */
+    private List<AttachmentVO> nameplates;
     private List<InquiryItemVO> items;
     private List<TaskBriefVO> tasks;
     /** 未完成的追加型号（解析中、待确认、解析失败），没有时为空 */

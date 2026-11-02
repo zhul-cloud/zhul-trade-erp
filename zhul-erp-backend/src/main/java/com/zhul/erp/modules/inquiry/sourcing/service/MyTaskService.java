@@ -52,6 +52,12 @@ public interface MyTaskService {
     /** 本人当前有效分配的任务，否则抛「询价任务不存在」 */
     SourcingTaskDO myTask(Long taskId);
 
+    /** 任务里能看到的铭牌图片（spec inquiry/sourcing-quote「采购查看铭牌图片」） */
+    com.zhul.erp.modules.inquiry.sourcing.dto.TaskNameplatesVO nameplates(Long taskId);
+
+    /** 铭牌图片的临时访问链接，只能读任务内型号对应的或同一询盘单未对应型号的 */
+    com.zhul.erp.framework.storage.FileStorageService.FileLink nameplateLink(Long taskId, Long attachmentId, boolean download);
+
     /** 把一个型号本次的结果写入询价记录（在线录入与导入共用）；submit 时由调用方负责重算进度 */
     void writeQuotes(SourcingTaskDO task, Long quotedBy, List<QuoteDraft> drafts, boolean submit, int entryMode, Long importId);
 
