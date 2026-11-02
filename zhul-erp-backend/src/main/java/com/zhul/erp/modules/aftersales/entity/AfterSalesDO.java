@@ -31,6 +31,17 @@ public class AfterSalesDO {
     private String nextAction;
     @TableField(updateStrategy = com.baomidou.mybatisplus.annotation.FieldStrategy.ALWAYS)
     private LocalDateTime nextUpdateAt;
+    /** 首次告知客户时间（首次响应） */
+    private LocalDateTime respondedAt;
+    /** 最近一次告知客户时间 */
+    private LocalDateTime lastContactAt;
+    /** 更新客户间隔的起算时间 */
+    private LocalDateTime slaStartAt;
+    /** 当前截止时间，为空不提醒 */
+    @TableField(updateStrategy = com.baomidou.mybatisplus.annotation.FieldStrategy.ALWAYS)
+    private LocalDateTime dueAt;
+    /** 截止事项（0-无、1-首次响应、2-更新客户、3-手填时间） */
+    private Integer dueType;
     private Integer status;
     private String result;
     private LocalDateTime closedAt;

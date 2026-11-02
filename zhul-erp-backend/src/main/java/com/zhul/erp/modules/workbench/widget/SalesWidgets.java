@@ -2,6 +2,8 @@ package com.zhul.erp.modules.workbench.widget;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.zhul.erp.framework.security.DataScopeResolver;
+import com.zhul.erp.modules.aftersales.dto.AfterSalesVO;
+import com.zhul.erp.modules.aftersales.service.AfterSalesService;
 import com.zhul.erp.framework.security.PermissionChecker;
 import com.zhul.erp.modules.crm.dto.OpportunityStatsVO;
 import com.zhul.erp.modules.crm.service.OpportunityService;
@@ -50,6 +52,7 @@ public class SalesWidgets {
     static final String STATS = "/sales/stats";
     static final String OPPORTUNITIES = "/crm/opportunities";
     static final String OPP_STATS = "/crm/opportunity-stats";
+    static final String AFTER_SALES = "/sales/after-sales";
 
     /** 采购已回价、超过这么久还没报价的询盘算待跟进 */
     static final long FOLLOW_UP_HOURS = 24;
@@ -58,8 +61,8 @@ public class SalesWidgets {
 
     @Bean
     public WorkbenchWidget myTodoWidget(PermissionChecker perm, DataScopeResolver scope, CustomerInquiryMapper inquiries,
-                                        ProformaInvoiceMapper pis, SalesOrderMapper orders) {
-        return W.widget("my-todo", List.of(INQUIRIES, PIS, ORDERS), () -> {
+                                        ProformaInvoiceMapper pis, SalesOrderMapper orders, AfterSalesService afterSales) {
+        return W.widget("my-todo", List.of(INQUIRIES, PIS, ORDERS, AFTER_SALES), () -> {
             List<WidgetData.Todo> todos = new ArrayList<>();
             if (perm.canAccessMenu(INQUIRIES)) {
                 todos.add(W.todo("inbox", "blue", "待确认的询盘", "AI 解析完成，等你核对型号",
@@ -82,8 +85,18 @@ public class SalesWidgets {
                 scope.current().apply(w, SalesOrderDO::getOwnerId);
                 todos.add(W.todo("ship", "violet", "订单待出运", "货已到齐，等安排交货代", orders.selectCount(w), false, ORDERS));
             }
+            if (perm.canAccessMenu(AFTER_SALES)) {
+                todos.add(W.todo("alarm-clock", "red", "售后要更新客户", "已逾期或 1 小时内到期的售后单", afterSales.myDueCount(), true,
+                        AFTER_SALES + "?overdue=soon"));
+            }
             return W.of(W.todos(todos));
         });
+    }
+
+    /** 逾期时长：不到 1 小时按分钟，不到 1 天按小时，否则按天 */
+    static String lateText(LocalDateTime due) {
+        long m = Math.max(0, Duration.between(due, LocalDateTime.now()).toMinutes());
+        return m < 60 ? m + " 分钟" : m < 24 * 60 ? m / 60 + " 小时" : m / (24 * 60) + " 天";
     }
 
     @Bean
@@ -133,8 +146,9 @@ public class SalesWidgets {
 
     @Bean
     public WorkbenchWidget followUpsWidget(PermissionChecker perm, DataScopeResolver scope, CustomerInquiryMapper inquiries,
-                                           CustomerMapper customers, UserBasicMapper users, PiService piService) {
-        return W.widget("follow-ups", List.of(INQUIRIES, PIS), () -> {
+                                           CustomerMapper customers, UserBasicMapper users, PiService piService,
+                                           AfterSalesService afterSales) {
+        return W.widget("follow-ups", List.of(INQUIRIES, PIS, AFTER_SALES), () -> {
             List<WidgetData.Todo> todos = new ArrayList<>();
             WidgetData.Block table = null;
             if (perm.canAccessMenu(INQUIRIES)) {
@@ -172,6 +186,16 @@ public class SalesWidgets {
                 OverduePiVO overdue = piService.overdue();
                 todos.add(W.todo("file-clock", "red", "过期未收款 PI", "已过有效期仍未收到款",
                         overdue.getCount() == null ? 0 : overdue.getCount(), true, PIS + "?expired=1"));
+            }
+            if (perm.canAccessMenu(AFTER_SALES)) {
+                List<AfterSalesVO> late = afterSales.overdueInScope();
+                String desc = "售后单都在时限内";
+                if (!late.isEmpty()) {
+                    AfterSalesVO a = late.get(0);
+                    desc = "最久的 " + a.getAsNo() + "（" + a.getLevelCode() + " · " + Objects.requireNonNullElse(a.getOwnerName(), "—")
+                            + "）已逾期 " + lateText(a.getDueAt());
+                }
+                todos.add(W.todo("alarm-clock", "red", "售后逾期", desc, late.size(), true, AFTER_SALES + "?overdue=1"));
             }
             return W.of(W.todos(todos), table);
         });

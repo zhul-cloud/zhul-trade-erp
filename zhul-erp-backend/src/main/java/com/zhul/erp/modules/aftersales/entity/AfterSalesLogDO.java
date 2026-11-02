@@ -21,6 +21,8 @@ public class AfterSalesLogDO {
     private Long afterSalesId;
     private String logType;
     private String content;
+    /** 已告知客户（仅跟进记录） */
+    private Boolean customerNotified;
     private Long operatorId;
     private LocalDateTime deletedAt;
     @TableField(fill = FieldFill.INSERT)

@@ -167,6 +167,38 @@ class WorkbenchContractTest extends TenantContractSupport {
         }
     }
 
+    /** spec system/workbench「业务员看板」「业务负责人看板」：售后要更新客户、售后逾期 */
+    @Test
+    void afterSalesTodos_mine_andTeamOverdue() throws Exception {
+        long me = 99000002L;
+        jdbc.update("insert into after_sales (tenant_id, as_no, customer_id, owner_id, level_code, status, due_at, due_type) values "
+                + "(?, 'IT-AS-1', 1, ?, 'S1', 1, now() - interval 3 hour, 1), (?, 'IT-AS-2', 1, ?, 'S2', 1, now() - interval 1 hour, 2), "
+                + "(?, 'IT-AS-3', 1, ?, 'S3', 1, now() + interval 30 minute, 2), (?, 'IT-AS-4', 1, ?, 'S3', 1, now() + interval 1 day, 2), "
+                + "(?, 'IT-AS-5', 1, ?, 'S2', 3, null, 0), (?, 'IT-AS-6', 1, 1, 'S1', 1, now() - interval 9 hour, 1)",
+                T, me, T, me, T, me, T, me, T, me, T);
+        try {
+            role(ROLE, "sales");
+            loginWithResources("it_wb_as", DASHBOARD, 100120);
+            JsonNode todos = ok(call(get(API + "/widgets/my-todo"), token("it_wb_as", T))).path("blocks").get(0).path("todos");
+            assertEquals(1, todos.size(), "只有售后管理权限：只给售后一项");
+            assertEquals("售后要更新客户", todos.get(0).path("title").asText());
+            assertEquals(3, todos.get(0).path("count").asInt(), "本人的已逾期 2 张 + 快到期 1 张；别人的、已结案的不算");
+            assertEquals("/sales/after-sales?overdue=soon", todos.get(0).path("link").asText());
+
+            jdbc.update("delete from role where code = ?", ROLE);
+            role(ROLE, "sales_lead");
+            loginWithResources("it_wb_as", DASHBOARD, 100120);
+            JsonNode lead = ok(call(get(API + "/widgets/follow-ups"), token("it_wb_as", T))).path("blocks").get(0).path("todos");
+            assertEquals(1, lead.size());
+            assertEquals("售后逾期", lead.get(0).path("title").asText());
+            assertEquals(2, lead.get(0).path("count").asInt(), "数据范围为本人：别人的不算");
+            assertTrue(lead.get(0).path("desc").asText().startsWith("最久的 IT-AS-1（S1 · "), lead.get(0).path("desc").asText());
+            assertTrue(lead.get(0).path("desc").asText().endsWith("已逾期 3 小时"), lead.get(0).path("desc").asText());
+        } finally {
+            jdbc.update("delete from after_sales where tenant_id = ? and as_no like 'IT-AS-%'", T);
+        }
+    }
+
     @Test
     void roleManagement_choosesTemplate() throws Exception {
         loginAsAdmin("it_wb_admin");
