@@ -144,6 +144,7 @@ public final class SampleData {
         h.put("ci.currency", "USD");
         h.put("ci.currencySymbol", "$");
         h.put("ci.paymentRef", "TT No.000126150063 dated 10.10.2026");
+        h.put("doc.note", "");
         h.put("pi.no", "PI20261006001");
         h.put("so.no", "SO20261008001");
         h.put("shipment.no", "SH20261014001");
@@ -167,6 +168,7 @@ public final class SampleData {
     public static RenderModel pl() {
         Map<String, Object> h = parties();
         h.put("pl.no", "PL20261014001");
+        h.put("doc.note", "");
         h.put("pl.date", "2026-10-14");
         h.put("pl.priceTerm", "DAP Dhaka");
         h.put("pl.totalBoxes", 2);

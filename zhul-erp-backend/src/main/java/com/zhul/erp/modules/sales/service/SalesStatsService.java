@@ -146,6 +146,7 @@ public class SalesStatsService {
                 .eq(unit != null, SalesOrderDO::getBusinessUnitId, unit)
                 .isNull(SalesOrderDO::getDeletedAt)
                 .eq(SalesOrderDO::getStatus, SalesConstants.SO_ACTIVE)
+                .ne(SalesOrderDO::getSource, SalesConstants.SO_REPLACEMENT)
                 .ge(SalesOrderDO::getSalesDate, from)
                 .le(SalesOrderDO::getSalesDate, to)
                 .orderByAsc(SalesOrderDO::getSalesDate)
@@ -324,6 +325,7 @@ public class SalesStatsService {
                         .select(SalesOrderDO::getCustomerId, SalesOrderDO::getSalesDate)
                         .eq(SalesOrderDO::getTenantId, PiStore.tenantId())
                         .eq(SalesOrderDO::getStatus, SalesConstants.SO_ACTIVE)
+                        .ne(SalesOrderDO::getSource, SalesConstants.SO_REPLACEMENT)
                         .isNull(SalesOrderDO::getDeletedAt)
                         .in(SalesOrderDO::getCustomerId, ids))
                 .forEach(o -> out.merge(o.getCustomerId(), o.getSalesDate(), (a, b) -> a.isBefore(b) ? a : b));

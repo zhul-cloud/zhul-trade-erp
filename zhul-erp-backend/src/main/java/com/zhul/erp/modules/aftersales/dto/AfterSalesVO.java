@@ -47,6 +47,8 @@ public class AfterSalesVO {
     private List<RequestBrief> requests;
     private List<RefundBrief> refunds;
     private List<ExpenseBrief> expenses;
+    /** 售后补发订单 */
+    private List<ReplacementBrief> replacements;
     /** 已发生的人民币：有效退款 + 有效费用 */
     private BigDecimal refundCny;
     private BigDecimal expenseCny;
@@ -59,6 +61,25 @@ public class AfterSalesVO {
     private String createBy;
     private LocalDateTime updateTime;
     private String updateBy;
+
+    @Data
+    public static class ReplacementBrief {
+        private Long soId;
+        private String soNo;
+        /** 型号摘要 */
+        private String summary;
+        private String currencyCode;
+        /** 申报货值合计（原币） */
+        private BigDecimal declaredAmount;
+        /** 1-有效、2-已取消 */
+        private Integer status;
+        private String progressCode;
+        private String progressName;
+        /** 已出运（或之后）且未取消 */
+        private Boolean shipped;
+        private String createBy;
+        private LocalDateTime createTime;
+    }
 
     @Data
     public static class Item {

@@ -86,6 +86,8 @@ public class OrderCostService {
     private final com.zhul.erp.modules.sales.repository.SalesOrderFeeMapper orderFeeMapper;
     private final com.zhul.erp.modules.sales.support.ReceiptPosition receiptPosition;
     private final CreditReceiptSync receiptSync;
+    private final com.zhul.erp.modules.sales.repository.SalesOrderMapper soMapper;
+    private final com.zhul.erp.modules.aftersales.repository.AfterSalesMapper afterSalesMapper;
 
     public OrderCostVO of(SalesOrderDO order) {
         return of(List.of(order)).get(order.getId());
@@ -103,7 +105,106 @@ public class OrderCostService {
         if (!migrated.isEmpty()) {
             out.putAll(fromSnapshots(migrated));
         }
+        attachReplacements(active, out);
         return out;
+    }
+
+    private static boolean replacement(SalesOrderDO o) {
+        return Objects.equals(o.getSource(), SalesConstants.SO_REPLACEMENT);
+    }
+
+    /**
+     * 售后补发（spec finance/order-cost「售后补发成本计入原订单」）：补发订单自己不算收入与毛利；
+     * 原订单的成本加上未取消补发订单的实际成本，补发订单未结算时原订单也未结算。
+     */
+    private void attachReplacements(List<SalesOrderDO> active, Map<Long, OrderCostVO> out) {
+        List<SalesOrderDO> own = active.stream().filter(OrderCostService::replacement).toList();
+        if (!own.isEmpty()) {
+            Map<Long, String> originalNos = soMapper.selectBatchIds(own.stream().map(SalesOrderDO::getOriginalSoId).distinct().toList())
+                    .stream().collect(Collectors.toMap(SalesOrderDO::getId, SalesOrderDO::getSoNo));
+            for (SalesOrderDO o : own) {
+                OrderCostVO vo = out.get(o.getId());
+                if (vo != null) {
+                    vo.setReplacementOfId(o.getOriginalSoId());
+                    vo.setReplacementOfNo(originalNos.get(o.getOriginalSoId()));
+                    vo.setProfit(null);
+                    vo.setProfitRate(null);
+                }
+            }
+        }
+        List<Long> originalIds = active.stream().filter(o -> !replacement(o) && out.containsKey(o.getId())).map(SalesOrderDO::getId).toList();
+        if (originalIds.isEmpty()) {
+            return;
+        }
+        List<SalesOrderDO> children = soMapper.selectList(new LambdaQueryWrapper<SalesOrderDO>()
+                .in(SalesOrderDO::getOriginalSoId, originalIds)
+                .eq(SalesOrderDO::getSource, SalesConstants.SO_REPLACEMENT)
+                .eq(SalesOrderDO::getStatus, SalesConstants.SO_ACTIVE)
+                .isNull(SalesOrderDO::getDeletedAt)
+                .orderByAsc(SalesOrderDO::getId));
+        if (children.isEmpty()) {
+            return;
+        }
+        Map<Long, OrderCostVO> childCost = new HashMap<>();
+        List<SalesOrderDO> missing = new ArrayList<>();
+        for (SalesOrderDO c : children) {
+            if (out.containsKey(c.getId())) {
+                childCost.put(c.getId(), out.get(c.getId()));
+            } else {
+                missing.add(c);
+            }
+        }
+        if (!missing.isEmpty()) {
+            childCost.putAll(computed(missing));
+        }
+        Map<Long, String> asNos = afterSalesMapper.selectBatchIds(children.stream().map(SalesOrderDO::getAfterSalesId).distinct().toList())
+                .stream().collect(Collectors.toMap(com.zhul.erp.modules.aftersales.entity.AfterSalesDO::getId,
+                        com.zhul.erp.modules.aftersales.entity.AfterSalesDO::getAsNo));
+        Map<Long, List<SalesOrderDO>> byOriginal = children.stream().collect(Collectors.groupingBy(SalesOrderDO::getOriginalSoId,
+                LinkedHashMap::new, Collectors.toList()));
+        byOriginal.forEach((originalId, list) -> {
+            OrderCostVO vo = out.get(originalId);
+            BigDecimal total = BigDecimal.ZERO;
+            List<OrderCostVO.Replacement> rows = new ArrayList<>(list.size());
+            List<String> pending = new ArrayList<>(vo.getPending() == null ? List.of() : vo.getPending());
+            boolean settled = Boolean.TRUE.equals(vo.getSettled());
+            for (SalesOrderDO c : list) {
+                OrderCostVO cc = childCost.get(c.getId());
+                OrderCostVO.Replacement r = new OrderCostVO.Replacement();
+                r.setSoId(c.getId());
+                r.setSoNo(c.getSoNo());
+                r.setAfterSalesId(c.getAfterSalesId());
+                r.setAfterSalesNo(asNos.get(c.getAfterSalesId()));
+                BigDecimal purchase = BigDecimal.ZERO;
+                BigDecimal freight = BigDecimal.ZERO;
+                BigDecimal expense = BigDecimal.ZERO;
+                for (OrderCostVO.Line l : cc.getLines()) {
+                    purchase = purchase.add(nz(l.getPurchase())).add(nz(l.getInvoice())).add(nz(l.getPoFee()))
+                            .subtract(nz(l.getClaim())).add(nz(l.getReturnFreight())).subtract(nz(l.getSalesReturnCredit()));
+                    freight = freight.add(nz(l.getDomestic())).add(nz(l.getInternational()));
+                    expense = expense.add(nz(l.getExpense()));
+                }
+                r.setPurchase(OrderCostCalc.money(purchase));
+                r.setFreight(OrderCostCalc.money(freight));
+                r.setExpense(OrderCostCalc.money(expense));
+                r.setCost(cc.getCost());
+                r.setSettled(cc.getSettled());
+                rows.add(r);
+                total = total.add(cc.getCost());
+                if (!Boolean.TRUE.equals(cc.getSettled())) {
+                    settled = false;
+                    pending.add("补发订单 " + c.getSoNo() + " 还没结算");
+                }
+            }
+            BigDecimal net = nz(vo.getRevenue()).subtract(nz(vo.getRefund()));
+            vo.setReplacementCost(OrderCostCalc.money(total));
+            vo.setReplacements(rows);
+            vo.setCost(nz(vo.getCost()).add(total));
+            vo.setProfit(net.subtract(vo.getCost()));
+            vo.setProfitRate(OrderCostCalc.rate(vo.getProfit(), net));
+            vo.setSettled(settled);
+            vo.setPending(pending);
+        });
     }
 
     /** 按实际单据推算（spec finance/order-cost「订单型号行实际成本」「收入、毛利与结算状态」） */
@@ -257,7 +358,8 @@ public class OrderCostService {
             BigDecimal refund = sum(refunds.stream().map(CustomerRefundDO::getAmountCny));
             // 代收与多收不是收入（spec finance/order-cost）：只对有代收款或多收的已到账订单查余额流水
             BigDecimal collectionCny = collectionCnyBySo.getOrDefault(o.getId(), BigDecimal.ZERO);
-            boolean paid = receiptStatus == SalesConstants.RECEIPT_PAID;
+            // 售后补发订单不收款：按已收齐处理（没有到账，收入为 0，结算不等货款）
+            boolean paid = receiptStatus == SalesConstants.RECEIPT_PAID || replacement(o);
             // PI 转成的订单按订单合计比较（部分取消后订单合计少于 PI 合计）
             boolean overpaid = pi != null ? nz(pi.getReceivedAmount()).add(nz(pi.getFeeDiffAmount())).compareTo(nz(o.getTotalAmount())) > 0
                     : nz(o.getReceivedAmount()).add(nz(o.getFeeDiffAmount())).compareTo(nz(o.getTotalAmount())) > 0;

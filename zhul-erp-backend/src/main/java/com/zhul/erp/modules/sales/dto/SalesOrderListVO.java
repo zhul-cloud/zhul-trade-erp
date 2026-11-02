@@ -37,6 +37,9 @@ public class SalesOrderListVO {
     private String statusName;
     private Long piId;
     private String piNo;
+    /** 售后补发：原订单 */
+    private Long originalSoId;
+    private String originalSoNo;
     private Integer piVersionNo;
     private Long ownerId;
     private String ownerName;

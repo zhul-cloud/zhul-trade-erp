@@ -74,6 +74,12 @@ public class AfterSalesController {
         return Result.ok(returns.ofAfterSales(id));
     }
 
+    @PostMapping("/{id}/replacement")
+    @PreAuthorize(MENU_OR_ORDER)
+    public Result<AfterSalesVO> replace(@PathVariable Long id, @Valid @RequestBody com.zhul.erp.modules.aftersales.dto.ReplacementRequest req) {
+        return Result.ok(service.replace(id, req));
+    }
+
     @PostMapping
     @PreAuthorize(MENU_OR_ORDER)
     public Result<AfterSalesVO> create(@Valid @RequestBody SaveAfterSalesRequest req) {

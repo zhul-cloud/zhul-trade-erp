@@ -100,6 +100,7 @@ public class AfterSalesService {
     private final LogService logService;
     private final LogisticsQty logisticsQty;
     private final AfterSalesLogs logs;
+    private final com.zhul.erp.modules.aftersales.support.ReplacementOrders replacementOrders;
 
     // ---------------------------------------------------------------- 登记
 
@@ -298,6 +299,10 @@ public class AfterSalesService {
                 throw new BizException("退款申请 " + q.getRequestNo() + " 还没处理完");
             }
         }
+        List<String> unshipped = replacementOrders.unshipped(id);
+        if (!unshipped.isEmpty()) {
+            throw new BizException("补发订单 " + String.join("、", unshipped) + " 还没出运");
+        }
         a.setReasonCode(reason);
         a.setResult(req.getResult().trim());
         a.setStatus(AfterSalesConstants.AS_CLOSED);
@@ -306,6 +311,21 @@ public class AfterSalesService {
         logs.add(a.getId(), AfterSalesConstants.LOG_STATUS, "结案：" + dictNames(AfterSalesConstants.DICT_REASON).get(reason) + "；" + a.getResult(),
                 currentUserId());
         logService.recordOperateLog(AfterSalesConstants.MENU, "售后单结案", null, Map.of("asNo", a.getAsNo(), "result", a.getResult()));
+        return detail(id);
+    }
+
+    /** 发起补发（spec sales/after-sales「发起补发」）：锁售后单 → 建 0 元补发订单与采购需求 → 写跟进记录，同一事务 */
+    @Transactional(rollbackFor = Exception.class)
+    public AfterSalesVO replace(Long id, com.zhul.erp.modules.aftersales.dto.ReplacementRequest req) {
+        AfterSalesDO a = lockEditable(id);
+        SalesOrderDO o = replacementOrders.create(a, req);
+        String summary = orderItemMapper.selectList(new LambdaQueryWrapper<SalesOrderItemDO>()
+                        .eq(SalesOrderItemDO::getSoId, o.getId())
+                        .orderByAsc(SalesOrderItemDO::getLineNo))
+                .stream().map(i -> i.getModel() + " × " + i.getQuantity()).collect(Collectors.joining("、"));
+        logs.add(a.getId(), AfterSalesConstants.LOG_REPLACEMENT, "补发订单 " + o.getSoNo() + "：" + summary, currentUserId());
+        touch(a);
+        logService.recordOperateLog(AfterSalesConstants.MENU, "售后补发", null, Map.of("asNo", a.getAsNo(), "soNo", o.getSoNo()));
         return detail(id);
     }
 
@@ -480,6 +500,7 @@ public class AfterSalesService {
             return x;
         }).toList());
         vo.setExpenseCny(expenses.stream().map(ExpenseDO::getAmountCny).reduce(BigDecimal.ZERO, BigDecimal::add));
+        vo.setReplacements(replacementOrders.briefs(id));
         return vo;
     }
 

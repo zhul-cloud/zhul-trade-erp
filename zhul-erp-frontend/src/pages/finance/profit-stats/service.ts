@@ -63,12 +63,29 @@ export interface OrderCost {
     amountCny: number;
   }[];
   /** 毛利 = 收入 − 退款 − 实际成本 */
-  profit: number;
+  /** 售后补发订单为空 */
+  profit: number | null;
   profitRate?: number | null;
   settled: boolean;
   pending: string[];
   missingCostCount: number;
   lines: CostLine[];
+  /** 售后补发订单自己：成本计入的原订单（收入与毛利为空） */
+  replacementOfId?: number;
+  replacementOfNo?: string;
+  /** 原订单：计入的售后补发成本（已含在 cost 里）与明细 */
+  replacementCost?: number;
+  replacements?: {
+    soId: number;
+    soNo: string;
+    afterSalesId?: number;
+    afterSalesNo?: string;
+    purchase: number;
+    freight: number;
+    expense: number;
+    cost: number;
+    settled: boolean;
+  }[];
   /** 历史迁移订单：收入、成本、毛利与结算状态取旧系统《成本核算》的快照 */
   historySnapshot?: boolean;
   snapshot?: {

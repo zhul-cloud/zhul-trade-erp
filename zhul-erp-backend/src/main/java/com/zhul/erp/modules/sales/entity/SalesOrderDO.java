@@ -24,6 +24,9 @@ public class SalesOrderDO {
     private java.time.LocalDate salesDate;
     private Long piId;
     private Integer piVersionNo;
+    /** 售后补发：来源售后单与原订单（其他订单为 0） */
+    private Long afterSalesId;
+    private Long originalSoId;
     private Long customerId;
     private Integer customerType;
     private Integer stockType;

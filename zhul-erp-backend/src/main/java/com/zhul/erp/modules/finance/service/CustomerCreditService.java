@@ -472,6 +472,9 @@ public class CustomerCreditService {
             return receiptPosition.ofPi(pi);
         }
         SalesOrderDO o = orderMapper.selectById(ownerId);
+        if (o != null && Objects.equals(o.getSource(), SalesConstants.SO_REPLACEMENT)) {
+            throw new BizException("售后补发订单无需收款");
+        }
         if (o == null || o.getDeletedAt() != null || !Objects.equals(o.getTenantId(), PiStore.tenantId()) || !Objects.equals(o.getSource(), SalesConstants.SO_MANUAL)) {
             throw new BizException("销售订单不存在");
         }

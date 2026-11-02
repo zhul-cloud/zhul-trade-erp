@@ -19,6 +19,8 @@ public class SalesOrderPageQuery {
     private String currencyCode;
     private Long purchaserId;
     private Integer receiptStatus;
+    /** 来源：1-PI 转成、2-手动创建、3-售后补发 */
+    private Integer source;
     private Long ownerId;
     private LocalDate createdFrom;
     private LocalDate createdTo;

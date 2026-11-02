@@ -90,6 +90,7 @@ import java.util.stream.Collectors;
 public class SalesOrderServiceImpl implements SalesOrderService {
 
     private final com.zhul.erp.modules.finance.service.OrderCostService orderCostService;
+    private final com.zhul.erp.modules.aftersales.repository.AfterSalesMapper afterSalesMapper;
 
     private static final int KEYWORD_LIMIT = 500;
     private static final Map<Integer, String> SO_STATUS_NAMES = Map.of(SalesConstants.SO_ACTIVE, "有效", SalesConstants.SO_CANCELLED, "已取消");
@@ -476,7 +477,7 @@ public class SalesOrderServiceImpl implements SalesOrderService {
             throw new BizException("请填写取消原因");
         }
         SalesOrderDO o = visible(id);
-        boolean manual = Objects.equals(o.getSource(), SalesConstants.SO_MANUAL);
+        boolean manual = !Objects.equals(o.getSource(), SalesConstants.SO_FROM_PI);
         ProformaInvoiceDO pi = manual ? null : piStore.lockVisible(o.getPiId());
         o = lockOrder(id);
         if (o.getStatus() != SalesConstants.SO_ACTIVE) {
@@ -596,7 +597,7 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         }
         Integer discountType = null;
         BigDecimal discountValue = null;
-        if (!Objects.equals(o.getSource(), SalesConstants.SO_MANUAL)) {
+        if (Objects.equals(o.getSource(), SalesConstants.SO_FROM_PI)) {
             PiVersionDO v = piStore.version(o.getPiId(), o.getPiVersionNo());
             if (v != null) {
                 discountType = v.getDiscountType();
@@ -625,7 +626,7 @@ public class SalesOrderServiceImpl implements SalesOrderService {
 
     /** 已到账 + 手续费差额（PI 转成的订单取 PI） */
     private BigDecimal receivedOf(SalesOrderDO o) {
-        if (Objects.equals(o.getSource(), SalesConstants.SO_MANUAL)) {
+        if (!Objects.equals(o.getSource(), SalesConstants.SO_FROM_PI)) {
             return o.getReceivedAmount().add(o.getFeeDiffAmount());
         }
         ProformaInvoiceDO pi = piMapper.selectById(o.getPiId());
@@ -693,7 +694,7 @@ public class SalesOrderServiceImpl implements SalesOrderService {
     @Transactional(rollbackFor = Exception.class)
     public SalesOrderVO partialCancel(Long id, PartialCancelRequest req) {
         SalesOrderDO o = visible(id);
-        boolean manual = Objects.equals(o.getSource(), SalesConstants.SO_MANUAL);
+        boolean manual = !Objects.equals(o.getSource(), SalesConstants.SO_FROM_PI);
         ProformaInvoiceDO pi = manual ? null : piStore.lockVisible(o.getPiId());
         o = lockOrder(id);
         Map<Long, Integer> before = new HashMap<>();
@@ -1019,6 +1020,13 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         vo.setCompletedAt(o.getCompletedAt());
         vo.setPiId(pi == null ? null : o.getPiId());
         vo.setPiNo(pi == null ? null : pi.getPiNo());
+        if (Objects.equals(o.getSource(), SalesConstants.SO_REPLACEMENT)) {
+            vo.setAfterSalesId(o.getAfterSalesId());
+            vo.setAfterSalesNo(afterSalesNoOf(o.getAfterSalesId()));
+            vo.setOriginalSoId(o.getOriginalSoId());
+            SalesOrderDO original = orderMapper.selectById(o.getOriginalSoId());
+            vo.setOriginalSoNo(original == null ? null : original.getSoNo());
+        }
         vo.setPiVersionNo(o.getPiVersionNo());
         vo.setPiStatus(pi == null ? null : pi.getStatus());
         vo.setCustomerId(o.getCustomerId());
@@ -1144,6 +1152,7 @@ public class SalesOrderServiceImpl implements SalesOrderService {
             x.setWarranty(i.getWarranty());
             x.setQuantity(i.getQuantity());
             x.setUnitPrice(i.getUnitPrice());
+            x.setDeclaredPrice(i.getDeclaredPrice());
             x.setAmount(i.getAmount());
             x.setAmountCny(i.getAmountCny());
             x.setCostPrice(i.getCostPrice());
@@ -1211,6 +1220,11 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         vo.setCost(cost);
         vo.setMargin(cost == null ? margin(o, items, rc) : marginOf(cost));
         return vo;
+    }
+
+    private String afterSalesNoOf(Long id) {
+        com.zhul.erp.modules.aftersales.entity.AfterSalesDO a = id == null || id == 0 ? null : afterSalesMapper.selectById(id);
+        return a == null ? null : a.getAsNo();
     }
 
     private List<SalesOrderVO.PartialCancelRecord> partialCancelRecords(Long soId) {
@@ -1351,11 +1365,14 @@ public class SalesOrderServiceImpl implements SalesOrderService {
                     .stream().map(ProformaInvoiceDO::getId).toList();
             // PI 转成的订单按 PI 的收款状态，手动创建的订单按订单自己的
             w.and(x -> {
-                x.and(m -> m.eq(SalesOrderDO::getSource, SalesConstants.SO_MANUAL).eq(SalesOrderDO::getReceiptStatus, q.getReceiptStatus()));
+                x.and(m -> m.ne(SalesOrderDO::getSource, SalesConstants.SO_FROM_PI).eq(SalesOrderDO::getReceiptStatus, q.getReceiptStatus()));
                 if (!piIds.isEmpty()) {
                     x.or().in(SalesOrderDO::getPiId, piIds);
                 }
             });
+        }
+        if (q.getSource() != null) {
+            w.eq(SalesOrderDO::getSource, q.getSource());
         }
         if (q.getSalesFrom() != null) {
             w.ge(SalesOrderDO::getSalesDate, q.getSalesFrom());
@@ -1456,7 +1473,7 @@ public class SalesOrderServiceImpl implements SalesOrderService {
                 .select(SalesOrderDO::getId, SalesOrderDO::getPiId, SalesOrderDO::getSource, SalesOrderDO::getSalesDate, SalesOrderDO::getProgressCode)
                 .eq(SalesOrderDO::getStatus, SalesConstants.SO_ACTIVE));
         SalesOrderStatsVO vo = new SalesOrderStatsVO();
-        vo.setMonthCount(active.stream().filter(o -> o.getSalesDate() != null && !o.getSalesDate().isBefore(first)
+        vo.setMonthCount(active.stream().filter(o -> !Objects.equals(o.getSource(), SalesConstants.SO_REPLACEMENT) && o.getSalesDate() != null && !o.getSalesDate().isBefore(first)
                 && !o.getSalesDate().isAfter(last)).count());
         List<SalesOrderDO> running = active.stream().filter(o -> !SalesConstants.PROGRESS_COMPLETED.equals(o.getProgressCode())).toList();
         vo.setInProgressCount((long) running.size());
@@ -1626,6 +1643,10 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         Map<Long, CustomerDO> customers = lookups.customers(rows.stream().map(SalesOrderDO::getCustomerId).toList());
         Map<Long, String> users = lookups.userNames(rows.stream().map(SalesOrderDO::getOwnerId).toList());
         Map<Long, SalesOrderListVO.Goods> goods = goodsByOrder(rows, allItems);
+        Set<Long> originalIds = rows.stream().filter(o -> Objects.equals(o.getSource(), SalesConstants.SO_REPLACEMENT))
+                .map(SalesOrderDO::getOriginalSoId).collect(Collectors.toSet());
+        Map<Long, String> originalNos = originalIds.isEmpty() ? Map.of() : orderMapper.selectBatchIds(originalIds).stream()
+                .collect(Collectors.toMap(SalesOrderDO::getId, SalesOrderDO::getSoNo));
         List<SalesOrderListVO> list = new ArrayList<>(rows.size());
         for (SalesOrderDO o : rows) {
             ProformaInvoiceDO pi = pis.get(o.getPiId());
@@ -1673,6 +1694,10 @@ public class SalesOrderServiceImpl implements SalesOrderService {
             vo.setOwnerName(users.get(o.getOwnerId()));
             vo.setCancelReason(StringUtils.hasText(o.getCancelReason()) ? o.getCancelReason() : null);
             vo.setGoods(goods.get(o.getId()));
+            if (Objects.equals(o.getSource(), SalesConstants.SO_REPLACEMENT)) {
+                vo.setOriginalSoId(o.getOriginalSoId());
+                vo.setOriginalSoNo(originalNos.get(o.getOriginalSoId()));
+            }
             vo.setCreateTime(o.getCreateTime());
             vo.setCreateBy(o.getCreateBy());
             vo.setUpdateTime(o.getUpdateTime());

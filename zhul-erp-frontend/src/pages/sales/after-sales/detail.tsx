@@ -5,6 +5,7 @@ import {
   FileTextOutlined,
   HistoryOutlined,
   InboxOutlined,
+  ShoppingCartOutlined,
   StopOutlined,
   WarningOutlined,
 } from '@ant-design/icons';
@@ -25,6 +26,7 @@ import {
   CloseModal,
   PlanModal,
   RefundRequestModal,
+  ReplacementModal,
   ReturnModal,
 } from './dialogs';
 import {
@@ -47,6 +49,7 @@ const LOG_TONE: Record<string, Tone> = {
   REFUND: 'red',
   EXPENSE: 'gray',
   CREATE: 'gray',
+  REPLACEMENT: 'violet',
 };
 const RQ_TONE: Record<number, Tone> = {
   1: 'accent',
@@ -56,7 +59,14 @@ const RQ_TONE: Record<number, Tone> = {
   5: 'mute',
 };
 
-type Dialog = 'plan' | 'close' | 'return' | 'refund' | 'expense' | 'cancel';
+type Dialog =
+  | 'plan'
+  | 'close'
+  | 'return'
+  | 'refund'
+  | 'expense'
+  | 'cancel'
+  | 'replacement';
 
 /** 售后单详情（spec sales/after-sales） */
 const AfterSalesDetail: React.FC = () => {
@@ -259,6 +269,63 @@ const AfterSalesDetail: React.FC = () => {
     </Card>
   );
 
+  const replacements = (a.replacements ?? []).length > 0 && (
+    <Card style={{ padding: 20, marginBottom: 16 }}>
+      {section(
+        <ShoppingCartOutlined />,
+        '补发订单',
+        <span style={{ fontSize: 12, color: palette.mute }}>
+          {
+            (a.replacements ?? []).filter((r) => r.status === 1 && !r.shipped)
+              .length
+          }{' '}
+          张还没出运
+        </span>,
+      )}
+      <div style={{ display: 'grid', gap: 10 }}>
+        {(a.replacements ?? []).map((r) => (
+          <div
+            key={r.soId}
+            style={{
+              padding: '10px 12px',
+              borderRadius: 10,
+              background: palette.inset,
+              opacity: r.status === 1 ? 1 : 0.6,
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <a onClick={() => history.push(`/sales/orders/${r.soId}`)}>
+                {r.soNo}
+              </a>
+              <Pill
+                tone={
+                  r.status !== 1 ? 'mute' : r.shipped ? 'green' : 'orange'
+                }
+              >
+                {r.progressName}
+              </Pill>
+              <span style={{ marginLeft: 'auto', textAlign: 'right' }}>
+                <b style={{ color: palette.ink }}>
+                  {formatAmount(r.declaredAmount, r.currencyCode)}
+                </b>
+                <span style={{ fontSize: 12, color: palette.mute }}>
+                  {' '}
+                  申报货值 · 订单金额 0
+                </span>
+              </span>
+            </div>
+            <div style={{ color: palette.sub, fontSize: 13, marginTop: 4 }}>
+              {r.summary}
+            </div>
+          </div>
+        ))}
+      </div>
+      <div style={{ fontSize: 12, color: palette.mute, marginTop: 10 }}>
+        补发订单没出运（也没取消）时不能结案；补发的采购、运费与费用计入原订单成本。
+      </div>
+    </Card>
+  );
+
   const plan = (
     <Card style={{ padding: 20, marginBottom: 16 }}>
       {section(
@@ -444,7 +511,7 @@ const AfterSalesDetail: React.FC = () => {
         </div>
       )}
       <div style={{ fontSize: 12, color: palette.mute, marginTop: 8 }}>
-        退款冲减订单收入，费用计入订单成本；退货去向处理后，退回供应商或转闲置冲减订单成本。
+        退款冲减订单收入，费用计入订单成本；退货去向处理后，退回供应商或转闲置冲减订单成本；补发订单的成本计入原订单。
       </div>
     </Card>
   );
@@ -485,6 +552,12 @@ const AfterSalesDetail: React.FC = () => {
             <>
               {a.soId && (
                 <>
+                  <Button
+                    icon={<ShoppingCartOutlined />}
+                    onClick={() => setDialog('replacement')}
+                  >
+                    补发
+                  </Button>
                   <Button
                     icon={<InboxOutlined />}
                     onClick={() => setDialog('return')}
@@ -535,6 +608,7 @@ const AfterSalesDetail: React.FC = () => {
       >
         <div style={{ minWidth: 0 }}>
           {problem}
+          {replacements}
           {timeline}
         </div>
         <div style={{ minWidth: 0 }}>
@@ -554,6 +628,14 @@ const AfterSalesDetail: React.FC = () => {
         onClose={() => setDialog(undefined)}
         onDone={done}
       />
+      {a.soId && (
+        <ReplacementModal
+          open={dialog === 'replacement'}
+          data={a}
+          onClose={() => setDialog(undefined)}
+          onDone={done}
+        />
+      )}
       <ReturnModal
         open={dialog === 'return'}
         data={a}

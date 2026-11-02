@@ -24,6 +24,7 @@ import com.zhul.erp.modules.logistics.support.LogisticsSupport;
 import com.zhul.erp.modules.quotation.support.QuotationRenderModels;
 import com.zhul.erp.modules.sales.dto.PartyDTO;
 import com.zhul.erp.modules.sales.entity.ProformaInvoiceDO;
+import com.zhul.erp.modules.sales.constants.SalesConstants;
 import com.zhul.erp.modules.sales.entity.SalesOrderDO;
 import com.zhul.erp.modules.sales.entity.SalesOrderFeeDO;
 import com.zhul.erp.modules.sales.entity.SalesOrderItemDO;
@@ -188,13 +189,13 @@ public class DocGroupService {
                 .sorted((a, b) -> compareLine(soItems.get(a.getKey()), soItems.get(b.getKey()))).toList();
         for (Map.Entry<Long, Integer> e : lines) {
             SalesOrderItemDO i = soItems.get(e.getKey());
-            BigDecimal price = i.getUnitPrice() == null ? BigDecimal.ZERO : i.getUnitPrice();
+            BigDecimal price = priceOf(i);
             BigDecimal amount = price.multiply(BigDecimal.valueOf(e.getValue())).setScale(2, RoundingMode.HALF_UP);
             Map<String, Object> m = new LinkedHashMap<>();
             m.put("item.no", no++);
             m.put("item.model", nz(i.getModel()));
             m.put("item.brand", nz(i.getBrand()));
-            m.put("item.description", QuotationRenderModels.customerDescription(i.getDescriptionEn(), i.getDescription()));
+            m.put("item.description", describe(i));
             m.put("item.hsCode", nz(i.getHsCode()));
             m.put("item.origin", nz(i.getOriginCountry()));
             m.put("item.qty", e.getValue());
@@ -224,10 +225,34 @@ public class DocGroupService {
         h.put("ci.currency", first.getCurrencyCode());
         h.put("ci.currencySymbol", QuotationRenderModels.symbol(first.getCurrencyCode()));
         h.put("ci.paymentRef", nz(g.getPaymentRef()));
+        h.put("doc.note", replacementNote(orders.values()));
         h.put("ci.itemTotal", itemTotal);
         h.put("ci.feeTotal", feeTotal);
         h.put("ci.total", itemTotal.add(feeTotal));
         return new RenderModel(h, items, fees).withBrands(brandResolver::displayNames);
+    }
+
+    /** CI 单价：售后补发的型号按申报单价（订单单价为 0），其余按订单单价；金额 = 单价 × 数量，HALF_UP 两位 */
+    static BigDecimal priceOf(SalesOrderItemDO i) {
+        if (i.getDeclaredPrice() != null) {
+            return i.getDeclaredPrice();
+        }
+        return i.getUnitPrice() == null ? BigDecimal.ZERO : i.getUnitPrice();
+    }
+
+    /** 型号描述；售后补发的型号注明免费更换（spec logistics/shipping-documents「补发订单的申报货值」） */
+    static String describe(SalesOrderItemDO i) {
+        String d = QuotationRenderModels.customerDescription(i.getDescriptionEn(), i.getDescription());
+        if (i.getDeclaredPrice() == null) {
+            return d;
+        }
+        return d == null || d.isBlank() ? SalesConstants.REPLACEMENT_DOC_NOTE : d + " (" + SalesConstants.REPLACEMENT_DOC_NOTE + ")";
+    }
+
+    /** 单证组含售后补发订单时的单据说明，否则为空 */
+    static String replacementNote(java.util.Collection<SalesOrderDO> orders) {
+        return orders.stream().anyMatch(o -> Objects.equals(o.getSource(), SalesConstants.SO_REPLACEMENT))
+                ? SalesConstants.REPLACEMENT_DOC_NOTE : "";
     }
 
     /** 这几张订单里，已经在别的（有效、未作废）出运单的单证组上出过费用行的 */
@@ -290,7 +315,7 @@ public class DocGroupService {
                 m.put("item.no", row++);
                 m.put("item.model", oi == null ? "" : nz(oi.getModel()));
                 m.put("item.brand", oi == null ? "" : nz(oi.getBrand()));
-                m.put("item.description", si == null ? "" : QuotationRenderModels.customerDescription(si.getDescriptionEn(), si.getDescription()));
+                m.put("item.description", si == null ? "" : describe(si));
                 m.put("item.qty", c.getQuantity());
                 m.put("box.no", firstRow ? boxNo : "");
                 m.put("box.netWeight", firstRow ? nw : "");
@@ -303,6 +328,7 @@ public class DocGroupService {
             }
         }
         h.put("pl.no", g.getPlNo());
+        h.put("doc.note", replacementNote(orders.values()));
         h.put("pl.date", date(sh));
         h.put("pl.priceTerm", join(first.getIncoterm(), first.getIncotermPlace()));
         h.put("pl.totalBoxes", boxNo);

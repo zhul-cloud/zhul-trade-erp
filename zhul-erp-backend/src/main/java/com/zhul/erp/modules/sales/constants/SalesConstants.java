@@ -29,8 +29,10 @@ public final class SalesConstants {
     public static final int RECEIPT_SLIP_ONLY = 2;
     public static final int RECEIPT_PARTIAL = 3;
     public static final int RECEIPT_PAID = 4;
+    /** 售后补发订单：不收款 */
+    public static final int RECEIPT_FREE = 5;
     public static final Map<Integer, String> RECEIPT_STATUS_NAMES = Map.of(RECEIPT_NONE, "未付款", RECEIPT_SLIP_ONLY, "待到账",
-            RECEIPT_PARTIAL, "部分到账", RECEIPT_PAID, "已到账");
+            RECEIPT_PARTIAL, "部分到账", RECEIPT_PAID, "已到账", RECEIPT_FREE, "无需收款");
 
     /** 收款记录类型与状态 */
     public static final int KIND_SLIP = 1;
@@ -68,9 +70,12 @@ public final class SalesConstants {
     /** 销售订单状态 */
     public static final int SO_ACTIVE = 1;
     public static final int SO_CANCELLED = 2;
-    /** 订单来源：PI 转成 / 手动创建 */
+    /** 订单来源：PI 转成 / 手动创建 / 售后补发 */
     public static final int SO_FROM_PI = 1;
     public static final int SO_MANUAL = 2;
+    public static final int SO_REPLACEMENT = 3;
+    /** 免费补发在 CI/PL 上的说明 */
+    public static final String REPLACEMENT_DOC_NOTE = "Free of charge replacement, no commercial value";
     /** 现货 / 期货 */
     public static final int STOCK_SPOT = 1;
     public static final int STOCK_FUTURES = 2;
