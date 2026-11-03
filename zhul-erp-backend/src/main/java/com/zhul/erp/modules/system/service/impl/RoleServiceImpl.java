@@ -39,6 +39,8 @@ import java.util.stream.Collectors;
 public class RoleServiceImpl implements RoleService {
 
     private static final int MAX_SAMPLE_USER_NAMES = 4;
+    /** 数据权限范围：仅本人（DataScopeResolver 对 0 和未设置同样按仅本人处理） */
+    private static final int SCOPE_SELF = 3;
 
     private final RoleMapper roleMapper;
     private final WorkbenchService workbenchService;
@@ -125,7 +127,7 @@ public class RoleServiceImpl implements RoleService {
         role.setTenantId(tenantId);
         role.setCode("R" + (System.currentTimeMillis() % 100000000));
         role.setName(request.getName());
-        role.setPermissionScope(request.getPermissionScope() != null ? request.getPermissionScope() : 0);
+        role.setPermissionScope(request.getPermissionScope() != null ? request.getPermissionScope() : SCOPE_SELF);
         role.setWorkbenchTemplate(workbenchTemplate(request.getWorkbenchTemplate()));
         role.setStatus(request.getStatus() != null ? request.getStatus() : 1);
         role.setIsBuiltIn(0);
@@ -162,9 +164,12 @@ public class RoleServiceImpl implements RoleService {
         }
         roleMapper.update(new RoleDO(), wrapper);
 
-        Integer effectiveScope = request.getPermissionScope() != null
-                ? request.getPermissionScope() : role.getPermissionScope();
-        assignRoleDepts(role.getCode(), effectiveScope, request.getDeptIds());
+        // 只改名称、状态等（如列表上的启用/禁用）时不动自定义部门；传了范围或部门才按新的范围重建
+        if (request.getPermissionScope() != null || request.getDeptIds() != null) {
+            Integer effectiveScope = request.getPermissionScope() != null
+                    ? request.getPermissionScope() : role.getPermissionScope();
+            assignRoleDepts(role.getCode(), effectiveScope, request.getDeptIds());
+        }
     }
 
     private void assignRoleDepts(String roleCode, Integer permissionScope, List<Integer> deptIds) {
