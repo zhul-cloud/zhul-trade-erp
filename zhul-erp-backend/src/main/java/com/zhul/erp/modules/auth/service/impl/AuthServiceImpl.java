@@ -28,6 +28,7 @@ import com.zhul.erp.modules.system.repository.AccountAccessTokenMapper;
 import com.zhul.erp.modules.system.repository.AccountLocalAuthMapper;
 import com.zhul.erp.modules.system.repository.AccountMapper;
 import com.zhul.erp.modules.system.repository.UserBasicMapper;
+import com.zhul.erp.modules.system.service.AccountSessionService;
 import com.zhul.erp.modules.system.service.LogService;
 import com.zhul.erp.modules.system.service.UserService;
 import com.zhul.erp.modules.tenant.entity.TenantDO;
@@ -68,6 +69,7 @@ public class AuthServiceImpl implements AuthService {
     private final ObjectMapper objectMapper;
     private final LoginFailureTracker loginFailureTracker;
     private final MailService mailService;
+    private final AccountSessionService accountSessionService;
 
     private static final long EXPIRES_NORMAL = 7200L;
     private static final long EXPIRES_REMEMBER = 604800L;
@@ -199,7 +201,7 @@ public class AuthServiceImpl implements AuthService {
 
         log.info("用户登录成功，username={}, tenantId={}", account.getUsername(), account.getTenantId());
         logService.recordLoginLog(account.getTenantId(), account.getId(), account.getUsername(), 1,
-                clientIp, httpRequest.getHeader("User-Agent"), token, null);
+                clientIp, httpRequest.getHeader("User-Agent"), tokenRow.getId(), null);
 
         LoginResponse response = LoginResponse.builder()
             .accessToken(token)
@@ -471,6 +473,11 @@ public class AuthServiceImpl implements AuthService {
                 .set(AccountLocalAuthDO::getUnlockAt, null));
 
         redisTemplate.delete(redisKey);
+        // 找回密码多因忘记或怀疑泄露，旧会话（含「记住我」）一并失效
+        AccountDO account = accountMapper.selectById(localAuth.getAccountId());
+        if (account != null) {
+            accountSessionService.revokeAllOfUser(account.getUserId());
+        }
         log.info("密码重置成功，accountId={}", accountIdStr);
     }
 

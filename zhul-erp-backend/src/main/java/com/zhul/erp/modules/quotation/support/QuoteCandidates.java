@@ -21,14 +21,13 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * 型号明细的「可报价」判断：有采购成本价（选定的询价记录）或结果为无货才能报；
+ * 型号明细的「可报价」判断：有采购成本价（选定的询价记录）或结果为无货的可以直接报（按询盘报价时自动带入）；
+ * 还在询价的型号也能手动选，带入后按无货报（spec quotation/quotation「新建报价单与报价形式」）。
  * 同时给出采购成本价、是否已报出、是否已在草稿报价单中。
  */
 @Component
 @RequiredArgsConstructor
 public class QuoteCandidates {
-
-    public static final String PENDING_REASON = "还在询价，回价后才能报价";
 
     private final InquiryItemMapper itemMapper;
     private final SourcingQuoteMapper quoteMapper;
@@ -36,8 +35,14 @@ public class QuoteCandidates {
 
     /** 一个型号明细的报价依据 */
     public record Candidate(InquiryItemDO item, SourcingQuoteDO costQuote, boolean noStock, boolean quoted, String draftNo) {
+        /** 已回价（有采购成本价或无货），按询盘报价时自动带入 */
         public boolean pickable() {
             return costQuote != null || noStock;
+        }
+
+        /** 还在询价：手动选时带入为无货行 */
+        public boolean pendingAsNoStock() {
+            return !pickable();
         }
 
         public BigDecimal costPrice() {

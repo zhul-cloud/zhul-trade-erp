@@ -24,4 +24,8 @@ public interface CustomerMapper extends BaseMapper<CustomerDO> {
             + "<foreach collection='ids' item='id' open='(' separator=',' close=')'>#{id}</foreach>"
             + "</script>")
     List<Long> selectReferencedCustomerIds(@Param("ids") Collection<Long> ids);
+
+    /** 行锁：同一客户的背调发起串行执行（同时只能一份背调中） */
+    @Select("SELECT id FROM customer WHERE id = #{id} FOR UPDATE")
+    Long lockById(@Param("id") Long id);
 }

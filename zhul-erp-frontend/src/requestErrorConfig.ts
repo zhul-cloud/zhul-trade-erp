@@ -74,13 +74,21 @@ function getRefreshedAccessToken(): Promise<string | null> {
   return refreshingPromise;
 }
 
-function redirectToLoginExpired() {
+let redirectingToLogin = false;
+
+/** 登录过期：跳登录页。返回 true 表示已开始跳转 */
+function redirectToLoginExpired(): boolean {
   clearToken();
   localStorage.removeItem('zhul_user');
   const { pathname, search, hash } = window.location;
   // 已经在登录页（如刚退出登录，之前发出的请求才返回未登录）：不再跳转，否则登录后会跳回登录页
-  if (isAuthPath(pathname)) return;
-  window.location.href = `/login?redirect=${encodeURIComponent(pathname + search + hash)}&reason=token_expired`;
+  if (isAuthPath(pathname)) return false;
+  // 同时过期的多个请求只跳一次
+  if (!redirectingToLogin) {
+    redirectingToLogin = true;
+    window.location.href = `/login?redirect=${encodeURIComponent(pathname + search + hash)}&reason=token_expired`;
+  }
+  return true;
 }
 
 /**
@@ -206,7 +214,8 @@ export const errorConfig: RequestConfig = {
               }
             }
           }
-          redirectToLoginExpired();
+          // 正在跳登录页：请求不再返回（既不成功也不报错），页面不会闪出「加载失败」之类的提示
+          if (redirectToLoginExpired()) return new Promise<never>(() => {});
           return response;
         }
         if (data.code !== 0) {

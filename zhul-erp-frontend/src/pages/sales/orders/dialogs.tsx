@@ -4,6 +4,7 @@ import {
   Alert,
   App,
   Button,
+  Checkbox,
   DatePicker,
   Drawer,
   Input,
@@ -20,7 +21,7 @@ import type { Attachment } from '@/pages/warehouse/service';
 import { searchCustomers } from '@/services/zhul/masterdata';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
-import { KIND, Pill, ReceiptStatusPill } from '../components';
+import { KIND, Pill, RECEIPT_STATUS, ReceiptStatusPill } from '../components';
 import {
   type CreateOrderLine,
   type Order,
@@ -81,9 +82,15 @@ export const ConvertOrderModal: React.FC<{
   const { palette } = useAppTheme();
   const [date, setDate] = useState<dayjs.Dayjs | null>(dayjs());
   const [busy, setBusy] = useState(false);
+  const [payLater, setPayLater] = useState(false);
+  const [reason, setReason] = useState('');
 
   useEffect(() => {
-    if (open && pi) setDate(defaultSalesDate(pi));
+    if (open && pi) {
+      setDate(defaultSalesDate(pi));
+      setPayLater(false);
+      setReason('');
+    }
   }, [open, pi]);
 
   if (!pi) return null;
@@ -91,12 +98,21 @@ export const ConvertOrderModal: React.FC<{
   const slips = pi.receipts.filter(
     (r) => r.kind === KIND.SLIP && r.status === 1,
   );
+  // 没有水单也没有到账：要先采购须勾选「先采购后收款」并写原因
+  const unpaid = pi.receiptStatus === RECEIPT_STATUS.NONE;
+  const ready = !!date && (!unpaid || (payLater && !!reason.trim()));
 
   const submit = async () => {
     if (!date) return;
     setBusy(true);
     try {
-      onDone(await piApi.convert(pi.id, date.format('YYYY-MM-DD')));
+      onDone(
+        await piApi.convert(
+          pi.id,
+          date.format('YYYY-MM-DD'),
+          unpaid ? { reason: reason.trim() } : undefined,
+        ),
+      );
     } catch (e) {
       message.error(readBizError(e).message);
     } finally {
@@ -111,7 +127,7 @@ export const ConvertOrderModal: React.FC<{
       width={560}
       title={`转成订单 · ${pi.piNo}`}
       okText="转成订单"
-      okButtonProps={{ disabled: !date, loading: busy }}
+      okButtonProps={{ disabled: !ready, loading: busy }}
       onOk={submit}
     >
       <div
@@ -146,7 +162,47 @@ export const ConvertOrderModal: React.FC<{
             </b>
           </div>
         ))}
+        {unpaid && (
+          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+            <span style={{ color: palette.sub }}>水单</span>
+            <b>无</b>
+          </div>
+        )}
       </div>
+      {unpaid && (
+        <div style={{ marginBottom: 16 }}>
+          <Alert
+            type="warning"
+            showIcon
+            title="客户还没有付款。要先帮客户采购，请勾选「先采购后收款」并写明原因。"
+            style={{ marginBottom: 12 }}
+          />
+          <Checkbox
+            checked={payLater}
+            onChange={(e) => setPayLater(e.target.checked)}
+          >
+            先采购后收款
+          </Checkbox>
+          {payLater && (
+            <div style={{ marginTop: 10 }}>
+              <div
+                style={{ marginBottom: 6, fontSize: 13, color: palette.sub }}
+              >
+                原因 <span style={{ color: palette.red }}>*</span>{' '}
+                <span style={{ color: palette.mute }}>200 字以内</span>
+              </div>
+              <Input.TextArea
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                maxLength={200}
+                autoSize={{ minRows: 2, maxRows: 4 }}
+                placeholder="如：老客户，月底前付款；客户产线停机着急要货"
+                aria-label="先采购后收款的原因"
+              />
+            </div>
+          )}
+        </div>
+      )}
       <div style={{ marginBottom: 6, fontSize: 13, color: palette.sub }}>
         销售日期 <span style={{ color: palette.red }}>*</span>
       </div>
@@ -158,9 +214,11 @@ export const ConvertOrderModal: React.FC<{
         aria-label="销售日期"
       />
       <div style={{ fontSize: 12, color: palette.mute, margin: '6px 0 14px' }}>
-        默认取最早的水单付款日期或到账日期；统计按销售日期
+        默认取最早的水单付款日期或到账日期，都没有时取当天；统计按销售日期
       </div>
       <div style={{ fontSize: 13, color: palette.sub, lineHeight: 1.8 }}>
+        {unpaid &&
+          '订单收款状态「未付款」并标「先采购后收款」，采购需求照常生成。'}
         转成订单后：型号按货期带出现货 /
         期货，采购员取被选为采购成本价的那条回价的询价人；订单状态「待采购」；PI
         锁定，来源报价单按成交的型号推进。成交内容不能改，只能取消订单。

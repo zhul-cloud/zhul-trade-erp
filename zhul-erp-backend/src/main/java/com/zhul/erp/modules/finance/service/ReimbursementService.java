@@ -10,6 +10,7 @@ import com.zhul.erp.modules.attachment.dto.AttachmentVO;
 import com.zhul.erp.modules.attachment.service.AttachmentService;
 import com.zhul.erp.modules.finance.constants.FinanceConstants;
 import com.zhul.erp.modules.finance.dto.AdvanceItemVO;
+import com.zhul.erp.modules.finance.dto.BatchPayReimbursementRequest;
 import com.zhul.erp.modules.finance.dto.PayReimbursementRequest;
 import com.zhul.erp.modules.finance.dto.ProofRequest;
 import com.zhul.erp.modules.finance.dto.RefundReminderVO;
@@ -41,6 +42,8 @@ import com.zhul.erp.modules.sales.support.PiStore;
 import com.zhul.erp.modules.system.constants.DocumentType;
 import com.zhul.erp.modules.system.entity.BankAccountDO;
 import com.zhul.erp.modules.system.repository.BankAccountMapper;
+import com.zhul.erp.modules.system.repository.UserBasicMapper;
+import com.zhul.erp.modules.system.entity.UserBasicDO;
 import com.zhul.erp.modules.system.service.DocumentNumberService;
 import com.zhul.erp.modules.system.service.LogService;
 import com.zhul.erp.modules.warehouse.constants.WarehouseConstants;
@@ -97,6 +100,7 @@ public class ReimbursementService {
     private final CurrentUserResolver currentUser;
     private final InquiryLookups lookups;
     private final PermissionChecker perm;
+    private final UserBasicMapper userBasicMapper;
     private final LogService logService;
 
     private record Me(Long id, String username) {
@@ -113,8 +117,16 @@ public class ReimbursementService {
     // ---------------------------------------------------------------- 待报销
 
     public List<AdvanceItemVO> pending() {
+        return pending(false);
+    }
+
+    /**
+     * 待报销：默认只看本人的垫付；allPeople 为 true 且有「报销付款」权限时看所有人的（管理员、财务），
+     * 没有权限时仍只看本人的。
+     */
+    public List<AdvanceItemVO> pending(boolean allPeople) {
         Me me = me();
-        List<AdvanceItemVO> all = collect(me);
+        List<AdvanceItemVO> all = collect(me, allPeople && perm.has(FinanceConstants.PERM_REIMBURSE_PAY));
         Set<String> claimed = activeKeys(all);
         return all.stream().filter(i -> !claimed.contains(key(i.getSourceType(), i.getSourceId())))
                 .sorted(Comparator.comparing((AdvanceItemVO i) -> i.getOccurDate() == null ? LocalDate.MIN : i.getOccurDate())
@@ -122,14 +134,21 @@ public class ReimbursementService {
                 .toList();
     }
 
-    /** 本人五种来源的全部有效垫付（不管是否已报销） */
-    private List<AdvanceItemVO> collect(Me me) {
+    /** 五种来源的全部有效垫付（不管是否已报销）：everyone 为 false 时只要本人的 */
+    private List<AdvanceItemVO> collect(Me me, boolean everyone) {
         int tenant = PiStore.tenantId();
+        List<AdvanceItemVO> out = collectRaw(me, everyone, tenant);
+        fillAdvanceUsers(out, me);
+        return out;
+    }
+
+    private List<AdvanceItemVO> collectRaw(Me me, boolean everyone, int tenant) {
         List<AdvanceItemVO> out = new ArrayList<>();
         List<PaymentDO> pays = paymentMapper.selectList(new LambdaQueryWrapper<PaymentDO>()
                 .eq(PaymentDO::getTenantId, tenant)
                 .eq(PaymentDO::getMethod, FinanceConstants.METHOD_ADVANCE)
-                .eq(PaymentDO::getAdvanceUser, me.username())
+                .eq(!everyone, PaymentDO::getAdvanceUser, me.username())
+                .ne(everyone, PaymentDO::getAdvanceUser, "")
                 .in(PaymentDO::getKind, FinanceConstants.KIND_PAYMENT, FinanceConstants.KIND_REFUND)
                 .isNull(PaymentDO::getVoidAt)
                 .isNull(PaymentDO::getDeletedAt));
@@ -141,11 +160,13 @@ public class ReimbursementService {
                     p.getPayDate(), (refund ? "收到退款 · " : "") + p.getPayeeName() + sourceText(paySources.get(p.getId())),
                     refund ? p.getAmountCny().negate() : p.getAmountCny());
             proof(i, AttachmentService.PAYMENT, p.getId(), payFiles, false);
+            i.setAdvanceUserName(p.getAdvanceUser());
             out.add(i);
         }
         List<CourierWaybillDO> waybills = waybillMapper.selectList(new LambdaQueryWrapper<CourierWaybillDO>()
                 .eq(CourierWaybillDO::getTenantId, tenant)
-                .eq(CourierWaybillDO::getPayerId, me.id())
+                .eq(!everyone, CourierWaybillDO::getPayerId, me.id())
+                .isNotNull(everyone, CourierWaybillDO::getPayerId)
                 .eq(CourierWaybillDO::getStatus, LogisticsConstants.WAYBILL_VALID)
                 .gt(CourierWaybillDO::getFreight, BigDecimal.ZERO)
                 .isNull(CourierWaybillDO::getDeletedAt));
@@ -158,11 +179,13 @@ public class ReimbursementService {
                             + (forwarders.get(w.getForwarderId()) == null ? "" : " · 发" + forwarders.get(w.getForwarderId())),
                     w.getFreight());
             proof(i, AttachmentService.COURIER_PROOF, w.getId(), wbFiles, true);
+            i.setAdvanceUserId(w.getPayerId());
             out.add(i);
         }
         List<ReceivingDiscrepancyDO> diffs = discrepancyMapper.selectList(new LambdaQueryWrapper<ReceivingDiscrepancyDO>()
                 .eq(ReceivingDiscrepancyDO::getTenantId, tenant)
-                .eq(ReceivingDiscrepancyDO::getReturnPayerId, me.id())
+                .eq(!everyone, ReceivingDiscrepancyDO::getReturnPayerId, me.id())
+                .isNotNull(everyone, ReceivingDiscrepancyDO::getReturnPayerId)
                 .eq(ReceivingDiscrepancyDO::getStatus, WarehouseConstants.DIFF_HANDLED)
                 .gt(ReceivingDiscrepancyDO::getReturnFreight, BigDecimal.ZERO)
                 .isNull(ReceivingDiscrepancyDO::getDeletedAt));
@@ -178,12 +201,14 @@ public class ReimbursementService {
                             + (StringUtils.hasText(d.getReturnTrackingNo()) ? " · " + nz(d.getReturnCarrier()) + " " + d.getReturnTrackingNo() : ""),
                     d.getReturnFreight());
             proof(i, AttachmentService.RETURN_PROOF, d.getId(), diffFiles, true);
+            i.setAdvanceUserId(d.getReturnPayerId());
             out.add(i);
         }
         List<ExpenseDO> expenses = expenseMapper.selectList(new LambdaQueryWrapper<ExpenseDO>()
                 .eq(ExpenseDO::getTenantId, tenant)
                 .eq(ExpenseDO::getMethod, FinanceConstants.METHOD_ADVANCE)
-                .eq(ExpenseDO::getAdvanceUserId, me.id())
+                .eq(!everyone, ExpenseDO::getAdvanceUserId, me.id())
+                .isNotNull(everyone, ExpenseDO::getAdvanceUserId)
                 .eq(ExpenseDO::getStatus, FinanceConstants.FE_VALID)
                 .isNull(ExpenseDO::getDeletedAt));
         Map<Long, List<AttachmentVO>> feFiles = attachments.list(AttachmentService.EXPENSE, expenses.stream().map(ExpenseDO::getId).toList());
@@ -191,9 +216,34 @@ public class ReimbursementService {
             AdvanceItemVO i = item(FinanceConstants.ITEM_EXPENSE, e.getId(), e.getExpenseNo(), e.getOccurDate(),
                     "费用单 · " + e.getName() + " · " + e.getPayeeName(), e.getAmountCny());
             proof(i, AttachmentService.EXPENSE, e.getId(), feFiles, false);
+            i.setAdvanceUserId(e.getAdvanceUserId());
             out.add(i);
         }
         return out;
+    }
+
+    /** 补齐垫付人：付款单记的是账号，换成用户 ID；再统一取姓名，标出本人的 */
+    private void fillAdvanceUsers(List<AdvanceItemVO> items, Me me) {
+        Set<String> usernames = items.stream().filter(i -> i.getAdvanceUserId() == null && StringUtils.hasText(i.getAdvanceUserName()))
+                .map(AdvanceItemVO::getAdvanceUserName).collect(Collectors.toSet());
+        Map<String, Long> idByUsername = usernames.isEmpty() ? Map.of()
+                : userBasicMapper.selectList(new LambdaQueryWrapper<UserBasicDO>()
+                        .select(UserBasicDO::getId, UserBasicDO::getUsername)
+                        .in(UserBasicDO::getUsername, usernames))
+                .stream().collect(Collectors.toMap(UserBasicDO::getUsername, u -> u.getId().longValue(), (a, b) -> a));
+        for (AdvanceItemVO i : items) {
+            if (i.getAdvanceUserId() == null && i.getAdvanceUserName() != null) {
+                i.setAdvanceUserId(idByUsername.get(i.getAdvanceUserName()));
+            }
+        }
+        Map<Long, String> names = lookups.userNames(items.stream().map(AdvanceItemVO::getAdvanceUserId)
+                .filter(Objects::nonNull).distinct().toList());
+        for (AdvanceItemVO i : items) {
+            if (i.getAdvanceUserId() != null) {
+                i.setAdvanceUserName(names.getOrDefault(i.getAdvanceUserId(), nz(i.getAdvanceUserName())));
+            }
+            i.setMine(Objects.equals(i.getAdvanceUserId(), me.id()));
+        }
     }
 
     /** 付款核销到的来源单号（采购订单号），用于说明 */
@@ -259,30 +309,35 @@ public class ReimbursementService {
         return out;
     }
 
-    /** 补传截图：只能给本人的快递、退货运费补传 */
+    /** 补传截图：给本人的快递、退货运费补传；有「报销付款」权限的人可以给任何人补传 */
     @Transactional(rollbackFor = Exception.class)
     public AdvanceItemVO addProof(ProofRequest req) {
         Me me = me();
-        AdvanceItemVO target = collect(me).stream()
+        boolean everyone = perm.has(FinanceConstants.PERM_REIMBURSE_PAY);
+        AdvanceItemVO target = collect(me, everyone).stream()
                 .filter(i -> i.getSourceType().equals(req.getSourceType()) && i.getSourceId().equals(req.getSourceId()))
                 .findFirst().orElseThrow(() -> new BizException("不是你的待报销项"));
         if (!target.isProofUploadable()) {
             throw new BizException("这一项的截图在原单据上");
         }
         attachments.attach(target.getProofOwnerType(), target.getSourceId(), req.getAttachmentIds());
-        return collect(me).stream()
+        return collect(me, everyone).stream()
                 .filter(i -> i.getSourceType().equals(req.getSourceType()) && i.getSourceId().equals(req.getSourceId()))
                 .findFirst().orElse(target);
     }
 
     // ---------------------------------------------------------------- 提交与撤回
 
+    /**
+     * 提交报销单。有「报销付款」权限的人（管理员、财务）可以代别人提交：勾选的项按垫付人拆开，
+     * 每人一张报销单，报销人是垫付人本人，提交人记在创建人上。没有权限的只能提交本人的。
+     */
     @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
-    public ReimbursementVO submit(SubmitReimbursementRequest req) {
+    public List<ReimbursementVO> submit(SubmitReimbursementRequest req) {
         Me me = me();
-        Map<String, AdvanceItemVO> pending = pending().stream()
+        Map<String, AdvanceItemVO> pending = pending(true).stream()
                 .collect(Collectors.toMap(i -> key(i.getSourceType(), i.getSourceId()), Function.identity()));
-        List<AdvanceItemVO> chosen = new ArrayList<>();
+        Map<Long, List<AdvanceItemVO>> byPerson = new LinkedHashMap<>();
         Set<String> seen = new HashSet<>();
         for (SubmitReimbursementRequest.Item it : req.getItems()) {
             String k = key(it.getSourceType(), it.getSourceId());
@@ -293,20 +348,37 @@ public class ReimbursementService {
             if (i == null) {
                 throw new BizException("有的项已经在其他报销单里或不是你的待报销项，请刷新");
             }
+            if (i.getAdvanceUserId() == null) {
+                throw new BizException(i.getDescription() + " 找不到垫付人的账号，不能报销");
+            }
             if (i.getProofs().isEmpty()) {
                 throw new BizException(i.getDescription() + " 没有截图，请补传");
             }
-            chosen.add(i);
+            byPerson.computeIfAbsent(i.getAdvanceUserId(), x -> new ArrayList<>()).add(i);
         }
+        if (byPerson.isEmpty()) {
+            throw new BizException("请选择要报销的项");
+        }
+        for (List<AdvanceItemVO> chosen : byPerson.values()) {
+            BigDecimal total = chosen.stream().map(AdvanceItemVO::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+            if (total.signum() <= 0) {
+                throw new BizException((chosen.get(0).isMine() ? "" : chosen.get(0).getAdvanceUserName() + " 的") + "报销合计须大于 0");
+            }
+        }
+        List<ReimbursementVO> out = new ArrayList<>(byPerson.size());
+        for (Map.Entry<Long, List<AdvanceItemVO>> e : byPerson.entrySet()) {
+            out.add(submitFor(e.getKey(), e.getValue(), me));
+        }
+        return out;
+    }
+
+    private ReimbursementVO submitFor(Long applicantId, List<AdvanceItemVO> chosen, Me me) {
         BigDecimal total = chosen.stream().map(AdvanceItemVO::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
-        if (total.signum() <= 0) {
-            throw new BizException("报销合计须大于 0");
-        }
         ReimbursementDO bx = new ReimbursementDO();
         bx.setTenantId(PiStore.tenantId());
         bx.setReimburseNo(documentNumberService.next(DocumentType.BX));
-        bx.setApplicantId(me.id());
-        bx.setApplicantName(lookups.userNames(List.of(me.id())).getOrDefault(me.id(), me.username()));
+        bx.setApplicantId(applicantId);
+        bx.setApplicantName(chosen.get(0).getAdvanceUserName());
         bx.setSubmittedAt(LocalDateTime.now());
         bx.setLineCount(chosen.size());
         bx.setTotalAmount(total);
@@ -333,8 +405,15 @@ public class ReimbursementService {
             throw new BizException("有的项已经在其他报销单里，请刷新", e);
         }
         markPayments(chosen, FinanceConstants.REIMBURSE_CLAIMED);
-        logService.recordOperateLog(MENU, "提交报销单", null, Map.of("reimburseNo", bx.getReimburseNo(), "items", chosen.size(),
-                "total", "CNY " + total));
+        Map<String, Object> log = new LinkedHashMap<>();
+        log.put("reimburseNo", bx.getReimburseNo());
+        log.put("items", chosen.size());
+        log.put("total", "CNY " + total);
+        if (!Objects.equals(applicantId, me.id())) {
+            log.put("applicant", bx.getApplicantName());
+            log.put("submittedFor", "代提交");
+        }
+        logService.recordOperateLog(MENU, "提交报销单", null, log);
         return detail(bx.getId());
     }
 
@@ -342,8 +421,9 @@ public class ReimbursementService {
     public ReimbursementVO withdraw(Long id, String reason) {
         Me me = me();
         ReimbursementDO bx = lock(id);
-        if (!Objects.equals(bx.getApplicantId(), me.id())) {
-            throw new BizException("只有提交人可以撤回");
+        // 报销人本人，或代提交的人（记在创建人上）可以撤回
+        if (!Objects.equals(bx.getApplicantId(), me.id()) && !Objects.equals(bx.getCreateBy(), me.username())) {
+            throw new BizException("只有报销人或提交人可以撤回");
         }
         if (bx.getStatus() != FinanceConstants.BX_PENDING) {
             throw new BizException(bx.getStatus() == FinanceConstants.BX_PAID ? "已报销，不能撤回" : "报销单已撤回");
@@ -384,6 +464,47 @@ public class ReimbursementService {
         if (bx.getStatus() != FinanceConstants.BX_PENDING) {
             throw new BizException(bx.getStatus() == FinanceConstants.BX_PAID ? "已登记过已付" : "报销单已撤回");
         }
+        PayPlan plan = payPlan(req);
+        settle(bx, req, plan, null);
+        return detail(id);
+    }
+
+    /**
+     * 批量登记已付：一次填写的付款信息用于每张报销单，每张各生成一张报销付款单、共用转账截图；
+     * 按 ID 升序逐张加锁，任一张不是待付款时整批回滚。
+     */
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
+    public List<ReimbursementVO> batchPay(BatchPayReimbursementRequest req) {
+        requirePayer();
+        List<Long> ids = req.getIds().stream().filter(Objects::nonNull).distinct().sorted().toList();
+        if (ids.isEmpty() || ids.size() > MAX_BATCH_PAY) {
+            throw new BizException("一次可登记 1 到 " + MAX_BATCH_PAY + " 张报销单");
+        }
+        PayPlan plan = payPlan(req);
+        List<ReimbursementVO> done = new ArrayList<>(ids.size());
+        Long first = null;
+        for (Long id : ids) {
+            ReimbursementDO bx = lock(id);
+            if (bx.getStatus() != FinanceConstants.BX_PENDING) {
+                throw new BizException(bx.getReimburseNo() + " 已不是待付款，请刷新后重新勾选");
+            }
+            // 截图挂到第一张，其余各复制一份
+            settle(bx, req, plan, first);
+            first = first == null ? id : first;
+        }
+        for (Long id : ids) {
+            done.add(detail(id));
+        }
+        return done;
+    }
+
+    private static final int MAX_BATCH_PAY = 50;
+
+    /** 付款方式、付款账户与私对私的付款人账户：单张与批量共用的校验 */
+    private record PayPlan(int method, Long accountId, String payer) {
+    }
+
+    private PayPlan payPlan(PayReimbursementRequest req) {
         if (req.getPayDate().isAfter(LocalDate.now())) {
             throw new BizException("付款日期不能晚于今天");
         }
@@ -399,9 +520,19 @@ public class ReimbursementService {
         if (personal != FinanceConstants.isPrivateAccount(account)) {
             throw new BizException(personal ? "私对私请选择对私账户" : "公司对公请选择对公账户");
         }
-        String payer = personal ? PaymentService.accountLabel(account) : "";
-        Long accountId = req.getBankAccountId();
-        attachments.attach(AttachmentService.REIMBURSE, bx.getId(), req.getAttachmentIds());
+        return new PayPlan(method, req.getBankAccountId(), personal ? PaymentService.accountLabel(account) : "");
+    }
+
+    /** 已加锁、待付款的报销单登记已付：生成报销付款单、挂截图（shareFrom 不为空时从那张报销单复制）、写日志 */
+    private void settle(ReimbursementDO bx, PayReimbursementRequest req, PayPlan plan, Long shareFrom) {
+        int method = plan.method();
+        String payer = plan.payer();
+        Long accountId = plan.accountId();
+        if (shareFrom == null) {
+            attachments.attach(AttachmentService.REIMBURSE, bx.getId(), req.getAttachmentIds());
+        } else {
+            attachments.copy(AttachmentService.REIMBURSE, shareFrom, bx.getId(), req.getAttachmentIds());
+        }
         PaymentDO p = new PaymentDO();
         p.setTenantId(bx.getTenantId());
         p.setPaymentNo(documentNumberService.next(DocumentType.PY));
@@ -436,7 +567,6 @@ public class ReimbursementService {
         reimbursementMapper.updateById(bx);
         logService.recordOperateLog(MENU, "登记报销已付", null, Map.of("reimburseNo", bx.getReimburseNo(), "paymentNo", p.getPaymentNo(),
                 "total", "CNY " + bx.getTotalAmount()));
-        return detail(id);
     }
 
     @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
@@ -628,7 +758,9 @@ public class ReimbursementService {
         vo.setPaidAt(bx.getPaidAt());
         vo.setPayRemark(bx.getPayRemark());
         Long me = currentUser.resolve();
-        vo.setCanWithdraw(bx.getStatus() == FinanceConstants.BX_PENDING && Objects.equals(bx.getApplicantId(), me));
+        // 报销人本人或代提交的人可以撤回
+        vo.setCanWithdraw(bx.getStatus() == FinanceConstants.BX_PENDING && (Objects.equals(bx.getApplicantId(), me)
+                || Objects.equals(bx.getCreateBy(), SecurityUtils.getCurrentUsername())));
         vo.setCreateTime(bx.getCreateTime());
         vo.setCreateBy(bx.getCreateBy());
         vo.setUpdateTime(bx.getUpdateTime());

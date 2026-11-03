@@ -421,6 +421,8 @@ public class PayableQueryService {
             l.setAccountName(accounts.get(pay.getBankAccountId()));
             l.setAdvanceUser(pay.getAdvanceUser());
             l.setPayerAccount(pay.getPayerAccount());
+            l.setPayeeAccount(pay.getPayeeAccount());
+            l.setPayeeAccount(pay.getPayeeAccount());
             l.setPayDate(pay.getPayDate());
             l.setAmount(a.getAmount());
             l.setAmountCny(a.getAmountCny());

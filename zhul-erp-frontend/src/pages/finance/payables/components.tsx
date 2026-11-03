@@ -1,5 +1,5 @@
-import { PlusOutlined, WalletOutlined } from '@ant-design/icons';
-import { useAccess } from '@umijs/max';
+import { CopyOutlined, PlusOutlined, WalletOutlined } from '@ant-design/icons';
+import { Link, useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import {
   Alert,
@@ -12,6 +12,7 @@ import {
   Input,
   InputNumber,
   Modal,
+  Radio,
   Segmented,
   Select,
   Space,
@@ -37,6 +38,7 @@ import {
   PAY_STATUS,
   PAYEE,
   type Payable,
+  type PayeeAccount,
   type PayeeOption,
   type PaymentLine,
   payableApi,
@@ -117,6 +119,142 @@ const autoFill = (rows: Payable[], total: number) => {
   return out;
 };
 
+/** 账号每 4 位空一格，方便对着转账 */
+const groupNo = (no: string) =>
+  no.replace(/\s+/g, '').replace(/(.{4})(?=.)/g, '$1 ');
+
+/** 对方收款账户：供应商资料里的收款账户，单选，可取消；账号完整显示、可复制 */
+const PayeeAccountPicker: React.FC<{
+  method: number;
+  accounts: PayeeAccount[];
+  value?: number;
+  onChange: (id?: number) => void;
+  supplierId?: number;
+}> = ({ method, accounts, value, onChange, supplierId }) => {
+  const { message } = App.useApp();
+  const { palette } = useAppTheme();
+  const want =
+    method === METHOD.ADVANCE ? 0 : method === METHOD.PRIVATE ? 2 : 1;
+  const list = want ? accounts.filter((a) => a.accountType === want) : accounts;
+  const others = accounts.length - list.length;
+  const copy = (no: string) =>
+    navigator.clipboard
+      .writeText(no.replace(/\s+/g, ''))
+      .then(() => message.success('已复制账号'))
+      .catch(() => message.error('复制失败，请手动选择复制'));
+  if (list.length === 0) {
+    return (
+      <div
+        style={{
+          padding: '10px 14px',
+          borderRadius: 10,
+          border: `1px dashed ${palette.hairline}`,
+          fontSize: 13,
+        }}
+      >
+        <span style={{ color: palette.orange }}>
+          这个供应商还没有{want === 2 ? '对私' : want === 1 ? '对公' : ''}
+          收款账户
+        </span>
+        {supplierId && (
+          <Link
+            to={`/supplier/list/${supplierId}`}
+            target="_blank"
+            style={{ marginLeft: 8 }}
+          >
+            去供应商资料添加
+          </Link>
+        )}
+        <div style={{ fontSize: 12, color: palette.mute, marginTop: 4 }}>
+          可以先付款（不选账户），付款单上账户留空
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div style={{ display: 'grid', gap: 8 }}>
+      {list.map((a) => {
+        const on = a.id === value;
+        return (
+          <Radio
+            key={a.id}
+            checked={on}
+            onChange={() => onChange(a.id)}
+            style={{
+              display: 'flex',
+              alignItems: 'flex-start',
+              margin: 0,
+              padding: '12px 14px',
+              borderRadius: 10,
+              border: `${on ? 1.5 : 1}px solid ${on ? palette.link : palette.hairline}`,
+              background: on ? palette.inset : palette.card,
+            }}
+          >
+            <div style={{ display: 'grid', gap: 4 }}>
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                <Pill tone={a.accountType === 2 ? 'orange' : 'accent'}>
+                  {a.accountType === 2 ? '对私' : '对公'}
+                </Pill>
+                <b>{a.accountName}</b>
+                {a.defaultAccount && <Pill tone="gray">默认</Pill>}
+              </div>
+              <div style={{ fontSize: 12.5, color: palette.sub }}>
+                {a.bankName}
+              </div>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <span
+                  style={{
+                    fontFamily:
+                      'ui-monospace, SFMono-Regular, Menlo, monospace',
+                    fontWeight: 600,
+                    fontSize: 14,
+                  }}
+                >
+                  {groupNo(a.accountNo)}
+                </span>
+                <Button
+                  type="link"
+                  size="small"
+                  icon={<CopyOutlined />}
+                  onClick={(e) => {
+                    // 按钮在 Radio 的 label 里：不触发选中
+                    e.preventDefault();
+                    e.stopPropagation();
+                    copy(a.accountNo);
+                  }}
+                >
+                  复制
+                </Button>
+              </div>
+              {a.payeePhoneMasked && (
+                <div style={{ fontSize: 12, color: palette.mute }}>
+                  手机 {a.payeePhoneMasked}
+                </div>
+              )}
+            </div>
+          </Radio>
+        );
+      })}
+      {value && (
+        <Button
+          type="link"
+          size="small"
+          style={{ justifySelf: 'start', padding: 0 }}
+          onClick={() => onChange(undefined)}
+        >
+          不选对方账户
+        </Button>
+      )}
+      {others > 0 && (
+        <div style={{ fontSize: 12, color: palette.mute }}>
+          另有 {others} 个{want === 1 ? '对私' : '对公'}账户，切换到「
+          {want === 1 ? '私对私' : '公司对公'}」查看
+        </div>
+      )}
+    </div>
+  );
+};
+
 /**
  * 登记付款：选收款方（或从入口带出）→ 列出同一收款方、同一币种有未付或欠款的应付单 → 按到期先后自动分配，可以改。
  * 公司对公需要「付款登记」权限，员工垫付需要「垫付登记」权限（或付款登记）。
@@ -142,6 +280,8 @@ export const RegisterPaymentDrawer: React.FC<{
   const [method, setMethod] = useState<number>(METHOD.COMPANY);
   const [accounts, setAccounts] = useState<BankOption[]>([]);
   const [accountId, setAccountId] = useState<number>();
+  const [payeeAccounts, setPayeeAccounts] = useState<PayeeAccount[]>([]);
+  const [payeeAccountId, setPayeeAccountId] = useState<number>();
   const [payDate, setPayDate] = useState<Dayjs>(dayjs());
   const [amount, setAmount] = useState<number | null>(null);
   const [amountCny, setAmountCny] = useState<number | null>(null);
@@ -209,6 +349,16 @@ export const RegisterPaymentDrawer: React.FC<{
     if (open && anchor) load(anchor);
   }, [open, anchor, load]);
 
+  useEffect(() => {
+    setPayeeAccounts([]);
+    setPayeeAccountId(undefined);
+    if (!open || !anchor) return;
+    paymentApi
+      .payeeAccounts(anchor)
+      .then(setPayeeAccounts)
+      .catch(() => setPayeeAccounts([]));
+  }, [open, anchor]);
+
   const currency = rows[0]?.currencyCode ?? 'CNY';
   const foreign = currency !== 'CNY';
   const creditRows = rows.filter((r) => r.creditAmount > 0);
@@ -230,6 +380,20 @@ export const RegisterPaymentDrawer: React.FC<{
       ),
     [accounts, currency, method],
   );
+
+  // 对方账户按付款方式过滤：换方式后原选择不在范围内时改选默认账户
+  useEffect(() => {
+    const want =
+      method === METHOD.ADVANCE ? 0 : method === METHOD.PRIVATE ? 2 : 1;
+    const list = want
+      ? payeeAccounts.filter((a) => a.accountType === want)
+      : payeeAccounts;
+    setPayeeAccountId((cur) =>
+      cur && list.some((a) => a.id === cur)
+        ? cur
+        : (list.find((a) => a.defaultAccount) ?? list[0])?.id,
+    );
+  }, [method, payeeAccounts]);
 
   useEffect(() => {
     if (method === METHOD.ADVANCE) return;
@@ -254,7 +418,7 @@ export const RegisterPaymentDrawer: React.FC<{
       return;
     }
     if (method !== METHOD.ADVANCE && !accountId) {
-      message.error('请选择付款账户');
+      message.error('请选择我方付款账户');
       return;
     }
     setSaving(true);
@@ -262,6 +426,7 @@ export const RegisterPaymentDrawer: React.FC<{
       await paymentApi.register({
         method,
         bankAccountId: method !== METHOD.ADVANCE ? accountId : undefined,
+        payeeAccountId,
         payDate: payDate.format('YYYY-MM-DD'),
         amount: amount ?? 0,
         amountCny: foreign ? (amountCny ?? undefined) : undefined,
@@ -435,11 +600,36 @@ export const RegisterPaymentDrawer: React.FC<{
             </div>
           )}
         </Field>
+        {rows.length > 0 &&
+          (rows[0].payeeType === PAYEE.SUPPLIER ||
+            rows[0].payeeType === PAYEE.FORWARDER) && (
+            <Field label="对方收款账户">
+              <div
+                style={{
+                  fontSize: 12,
+                  color: palette.mute,
+                  marginTop: -2,
+                  marginBottom: 6,
+                }}
+              >
+                选中的账户记在付款单上
+              </div>
+              <PayeeAccountPicker
+                method={method}
+                accounts={payeeAccounts}
+                value={payeeAccountId}
+                onChange={setPayeeAccountId}
+                supplierId={rows[0].supplierId}
+              />
+            </Field>
+          )}
         <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
           {method !== METHOD.ADVANCE && (
             <Field
               label={
-                method === METHOD.PRIVATE ? '付款账户（对私）' : '付款账户'
+                method === METHOD.PRIVATE
+                  ? '我方付款账户（对私）'
+                  : '我方付款账户'
               }
               required
               flex
@@ -922,22 +1112,30 @@ export const PayableBody: React.FC<{
               {
                 title: '付款方式 · 账户 / 垫付人',
                 key: 'm',
-                render: (_, l) =>
-                  l.kind === 2 ? (
-                    (l.accountName ?? '—')
-                  ) : l.method === METHOD.ADVANCE ? (
-                    <span>
-                      <Pill tone="violet">员工垫付</Pill> {l.advanceUser}
-                    </span>
-                  ) : l.method === METHOD.PRIVATE ? (
-                    <span>
-                      <Pill tone="orange">私对私</Pill> {l.payerAccount}
-                    </span>
-                  ) : (
-                    <span>
-                      <Pill tone="accent">公司对公</Pill> {l.accountName}
-                    </span>
-                  ),
+                render: (_, l) => (
+                  <div>
+                    {l.kind === 2 ? (
+                      (l.accountName ?? '—')
+                    ) : l.method === METHOD.ADVANCE ? (
+                      <span>
+                        <Pill tone="violet">员工垫付</Pill> {l.advanceUser}
+                      </span>
+                    ) : l.method === METHOD.PRIVATE ? (
+                      <span>
+                        <Pill tone="orange">私对私</Pill> {l.payerAccount}
+                      </span>
+                    ) : (
+                      <span>
+                        <Pill tone="accent">公司对公</Pill> {l.accountName}
+                      </span>
+                    )}
+                    {l.payeeAccount && (
+                      <div style={{ fontSize: 12, color: palette.mute }}>
+                        付至 {l.payeeAccount}
+                      </div>
+                    )}
+                  </div>
+                ),
               },
               {
                 title: '金额',

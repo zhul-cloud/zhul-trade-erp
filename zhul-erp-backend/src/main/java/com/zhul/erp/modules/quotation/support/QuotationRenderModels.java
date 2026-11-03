@@ -1,5 +1,7 @@
 package com.zhul.erp.modules.quotation.support;
 
+import java.util.Locale;
+import com.zhul.erp.modules.quotation.constants.QuotationConstants;
 import com.zhul.erp.modules.document.support.RenderModel;
 import com.zhul.erp.modules.masterdata.entity.CustomerDO;
 import com.zhul.erp.modules.quotation.entity.QuotationDO;
@@ -51,7 +53,7 @@ public final class QuotationRenderModels {
         h.put("customer.address", customer == null ? "" : nz(customer.getAddress()));
         h.put("customer.email", customer == null ? "" : nz(customer.getContactEmail()));
         h.put("customer.phone", customer == null ? "" : nz(customer.getContactPhone()));
-        h.put("seller.name", owner == null ? "" : nz(owner.getName()));
+        h.put("seller.name", sellerName(owner));
         h.put("seller.email", owner == null ? "" : nz(owner.getEmail()));
         h.put("seller.phone", owner == null ? "" : nz(owner.getPhone()));
         List<Map<String, Object>> rows = new ArrayList<>(items.size());
@@ -73,16 +75,16 @@ public final class QuotationRenderModels {
             m.put("item.unitPriceShort", shortPrice(i.getUnitPrice()));
             m.put("item.amount", i.getAmount());
             if (isNoStockLine(i)) {
-                // 无货行：单价写 No stock、小计留空；有替代型号时描述后追加
-                String replacement = nz(i.getReplacementModel()).trim();
+                // 无货行：单价位置写无货原因、小计留空；停产有替代型号时描述后追加替代型号
+                NoStockText t = noStockText(i);
                 m.put(RenderModel.NO_STOCK, true);
-                m.put(RenderModel.NO_STOCK_TEXT, "no stock" + (replacement.isEmpty() ? "" : ", discontinued, replacement: " + replacement));
-                m.put("item.unitPrice", NO_STOCK_LABEL);
-                m.put("item.unitPriceShort", NO_STOCK_LABEL);
+                m.put(RenderModel.NO_STOCK_TEXT, t.chat());
+                m.put("item.unitPrice", t.label());
+                m.put("item.unitPriceShort", t.label());
                 m.put("item.amount", null);
-                if (!replacement.isEmpty()) {
+                if (!t.replacement().isEmpty()) {
                     String desc = customerDescription(i.getDescriptionEn(), i.getDescription()).trim();
-                    m.put("item.description", (desc.isEmpty() ? "" : desc + " · ") + "Discontinued, replacement: " + replacement);
+                    m.put("item.description", (desc.isEmpty() ? "" : desc + " · ") + "Discontinued, replacement: " + t.replacement());
                 }
             }
             rows.add(m);
@@ -98,6 +100,35 @@ public final class QuotationRenderModels {
     }
 
     private static final String NO_STOCK_LABEL = "No stock";
+    private static final String DISCONTINUED_LABEL = "Discontinued";
+
+    /** 无货行给客户看的文字：label 写在导出的单价位置，chat 用于文字报价（小写），replacement 非空时导出描述后追加 */
+    record NoStockText(String label, String chat, String replacement) {
+    }
+
+    /**
+     * 按无货原因输出（spec quotation/quotation「文字报价」「正式报价单导出」）：
+     * 暂时缺货 No stock；已停产 Discontinued；停产有替代型号 No stock + 替代型号；其他为业务员填写的说明。
+     * 原因未设置（0）的按是否有替代型号判断，与上线前一致；「停产有替代型号」没填替代型号的按暂时缺货输出。
+     */
+    static NoStockText noStockText(QuotationItemDO i) {
+        String replacement = nz(i.getReplacementModel()).trim();
+        int reason = i.getNoStockReason() == null ? QuotationConstants.NO_STOCK_NONE : i.getNoStockReason();
+        if (reason == QuotationConstants.NO_STOCK_NONE) {
+            reason = replacement.isEmpty() ? QuotationConstants.NO_STOCK_OUT : QuotationConstants.NO_STOCK_REPLACEMENT;
+        }
+        String note = nz(i.getNoStockNote()).trim();
+        if (reason == QuotationConstants.NO_STOCK_OTHER && !note.isEmpty()) {
+            return new NoStockText(note, note.toLowerCase(Locale.ROOT), "");
+        }
+        if (reason == QuotationConstants.NO_STOCK_DISCONTINUED) {
+            return new NoStockText(DISCONTINUED_LABEL, "discontinued", "");
+        }
+        if (reason == QuotationConstants.NO_STOCK_REPLACEMENT && !replacement.isEmpty()) {
+            return new NoStockText(NO_STOCK_LABEL, "no stock, discontinued, replacement: " + replacement, replacement);
+        }
+        return new NoStockText(NO_STOCK_LABEL, "no stock", "");
+    }
 
     /** 无货行：询价结果无货且没有填售价（填了售价就按正常报价） */
     public static boolean isNoStockLine(QuotationItemDO i) {
@@ -107,6 +138,15 @@ public final class QuotationRenderModels {
     /** 发给客户的描述：英文描述，没有时退回中文描述 */
     public static String customerDescription(String en, String zh) {
         return en != null && !en.isBlank() ? en.trim() : nz(zh);
+    }
+
+    /** 发给客户的单据上的业务员：用昵称（一般是英文名），没填昵称才用姓名 */
+    public static String sellerName(UserBasicDO owner) {
+        if (owner == null) {
+            return "";
+        }
+        String nick = owner.getNickname();
+        return nick != null && !nick.isBlank() ? nick.trim() : nz(owner.getName());
     }
 
     public static String symbol(String currency) {
@@ -124,6 +164,11 @@ public final class QuotationRenderModels {
     private static String en(Map<Integer, String> en, Map<Integer, String> zh, Integer code) {
         String v = en.get(code);
         return v != null ? v : zh.getOrDefault(code, "");
+    }
+
+    /** 贸易术语 + 地点，如 DAP Guatemala */
+    public static String incoterm(String incoterm, String place) {
+        return join(incoterm, place);
     }
 
     private static String join(String a, String b) {

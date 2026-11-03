@@ -15,7 +15,17 @@ public class CustomerPageQuery {
     private String contactName;
     private String country;
     private Integer customerRole;
-    private Integer customerGrade;
+    /** 经营等级（0-未成交、1-S、2-A、3-B、4-C） */
+    private Integer bizGrade;
+    private Integer potentialRating;
+    /** 建档状态：done-已建档、pending-待完善 */
+    private String profileStatus;
+    /** 缺的模块（1–5），多选时要全部都缺 */
+    private java.util.List<Integer> missingModules;
+    /** 排序字段：updateTime（默认）、bizGrade、potentialRating */
+    private String sortField;
+    /** asc / desc，默认 desc */
+    private String sortOrder;
     private Integer sourceChannel;
     private Long ownerId;
     private Integer status;

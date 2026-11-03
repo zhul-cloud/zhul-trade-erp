@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -38,7 +39,7 @@ class SalesOrderContractTest extends SalesContractSupport {
         long c = customer("ACROBOT", "India");
         long q = quotation(c, 2, "USD", "60", FOUR);
         long pi = sentPi(quotationItemIds(q), 5);
-        assertEquals("请先上传客户的付款水单，或等财务登记到账", fail(convert(pi)).path("message").asText());
+        assertEquals("客户还没有付款，要先采购请选择「先采购后收款」并填写原因", fail(convert(pi)).path("message").asText());
         ok(uploadSlip(pi, "667.00", "2026-10-07", admin));
         JsonNode so = ok(convert(pi));
         assertEquals("SO" + TODAY + "001", so.path("soNo").asText(), "内部单据不带前缀");
@@ -50,6 +51,48 @@ class SalesOrderContractTest extends SalesContractSupport {
         assertEquals(3, quotationStatus(q), "全部型号成交 → 已成交");
         assertEquals(8, inquiryStatus(inquiryOf(q)), "成交推进询盘");
         assertEquals("PI 已转成订单 SO" + TODAY + "001", fail(convert(pi)).path("message").asText());
+    }
+
+    @Test
+    void payLater_unpaidPiConverts_withReason_flagAndFilter() throws Exception {
+        long c = customer("ACROBOT", "India");
+        long q = quotation(c, 2, "USD", null, FOUR);
+        long pi = sentPi(quotationItemIds(q), null);
+        String noReason = "客户还没有付款，要先采购请选择「先采购后收款」并填写原因";
+        assertEquals(noReason, fail(call(json(post(PI + "/" + pi + "/convert"), write(Map.of("payLater", false))), admin)).path("message").asText());
+        assertEquals(noReason, fail(call(json(post(PI + "/" + pi + "/convert"), write(Map.of("payLater", true, "payLaterReason", "  "))), admin))
+                .path("message").asText());
+        assertTrue(fail(call(json(post(PI + "/" + pi + "/convert"), write(Map.of("payLater", true, "payLaterReason", "x".repeat(201)))), admin))
+                .path("message").asText().contains("不能超过 200"));
+
+        JsonNode so = ok(call(json(post(PI + "/" + pi + "/convert"), write(Map.of("payLater", true, "payLaterReason", "老客户，月底前付款"))), admin));
+        long id = so.path("id").asLong();
+        assertTrue(so.path("payLater").asBoolean());
+        assertEquals("老客户，月底前付款", so.path("payLaterReason").asText());
+        assertFalse(so.path("payLaterByName").asText("").isEmpty(), "记录操作人");
+        assertFalse(so.path("payLaterAt").isNull());
+        assertEquals("未付款", so.path("receiptStatusName").asText());
+        assertEquals(java.time.LocalDate.now().toString(), so.path("salesDate").asText(), "没有水单与到账时销售日期取当天");
+        assertEquals(4, jdbc.queryForObject("select count(*) from purchase_requirement where so_id = ?", Integer.class, id), "采购需求照常生成");
+
+        // 列表标记与「先采购后收款未收款」筛选
+        JsonNode open = ok(call(json(post(SO + "/page"), write(Map.of("payLaterOpen", true))), admin));
+        assertEquals(1, open.path("total").asInt());
+        assertTrue(open.path("records").get(0).path("payLater").asBoolean());
+        // 有了水单后不再算未收款，标记保留
+        ok(uploadSlip(pi, "500.00", java.time.LocalDate.now().toString(), admin));
+        assertEquals(0, ok(call(json(post(SO + "/page"), write(Map.of("payLaterOpen", true))), admin)).path("total").asInt());
+        JsonNode after = ok(call(get(SO + "/" + id), admin));
+        assertTrue(after.path("payLater").asBoolean());
+        assertEquals("待到账", after.path("receiptStatusName").asText());
+
+        // 有水单的 PI 转订单时忽略先采购后收款
+        long q2 = quotation(c, 2, "USD", null, FOUR);
+        long pi2 = sentPi(quotationItemIds(q2), null);
+        ok(uploadSlip(pi2, "100.00", java.time.LocalDate.now().toString(), admin));
+        JsonNode so2 = ok(call(json(post(PI + "/" + pi2 + "/convert"), write(Map.of("payLater", true, "payLaterReason", "不该记"))), admin));
+        assertFalse(so2.path("payLater").asBoolean());
+        assertEquals("", jdbc.queryForObject("select pay_later_reason from sales_order where id = ?", String.class, so2.path("id").asLong()));
     }
 
     @Test

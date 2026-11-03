@@ -6,6 +6,7 @@ import com.zhul.erp.modules.inquiry.customerinquiry.dto.AppendRequest;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.AppendVO;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.ConfirmRequest;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.CustomerInquiryDetailVO;
+import com.zhul.erp.modules.inquiry.customerinquiry.dto.InquiryModelLineVO;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.CustomerInquiryPageQuery;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.CustomerInquiryVO;
 import com.zhul.erp.modules.crm.dto.OpportunityDetailVO;
@@ -90,6 +91,12 @@ public class CustomerInquiryController {
     @GetMapping("/{id}")
     public Result<CustomerInquiryDetailVO> detail(@PathVariable Long id) {
         return Result.ok(service.detail(id));
+    }
+
+    /** 列表「查看」弹窗：询盘的全部型号 */
+    @GetMapping("/{id}/models")
+    public Result<List<InquiryModelLineVO>> models(@PathVariable Long id) {
+        return Result.ok(service.models(id));
     }
 
     /** 附件的临时访问链接：download=true 时强制下载，否则预览 */

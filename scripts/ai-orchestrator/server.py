@@ -51,6 +51,7 @@ import os
 import re
 import sys
 import threading
+import urllib.parse
 import urllib.request
 import uuid
 from dataclasses import dataclass
@@ -133,6 +134,26 @@ OUTPUT_SCHEMA = {
     },
     "required": ["groups"],
 }
+
+
+# 一个任务在一个线程里跑完：用线程变量累加这次任务内所有 API 调用的用量，回调时带回（不含 Key 与请求内容）
+_usage = threading.local()
+
+
+def _record_usage(model: str, input_tokens, output_tokens, searches):
+    u = getattr(_usage, "value", None) or {"model": "", "inputTokens": 0, "outputTokens": 0, "webSearches": 0}
+    u["model"] = model or u["model"]
+    u["inputTokens"] += int(input_tokens or 0)
+    u["outputTokens"] += int(output_tokens or 0)
+    u["webSearches"] += int(searches or 0)
+    _usage.value = u
+
+
+def _take_usage():
+    """取出并清空当前线程累计的用量；订阅方式拿不到用量时为 None"""
+    u = getattr(_usage, "value", None)
+    _usage.value = None
+    return u
 
 
 def mask_key(key: str) -> str:
@@ -269,13 +290,13 @@ def _category_rules(categories: list) -> str:
 """
 
 
-def _read_attachment(ref) -> tuple:
-    """附件内容与扩展名：ref 为本地路径（旧版后端，共享磁盘）或 {"url", "ext"}（后端签发的临时链接）"""
-    if isinstance(ref, dict):
-        with urllib.request.urlopen(ref["url"], timeout=120) as resp:
-            return resp.read(), "." + ref.get("ext", "").lower().lstrip(".")
-    with open(ref, "rb") as f:
-        return f.read(), os.path.splitext(ref)[1].lower()
+def _read_attachment(ref: dict) -> tuple:
+    """附件内容与扩展名：ref 为后端签发的临时链接 {"url", "ext"}。只接受 http(s)，不读本地文件（audit AI-003）"""
+    url = ref["url"]
+    if urllib.parse.urlsplit(url).scheme not in ("http", "https"):
+        raise ValueError("附件链接只支持 http / https")
+    with urllib.request.urlopen(url, timeout=120) as resp:
+        return resp.read(), "." + ref.get("ext", "").lower().lstrip(".")
 
 
 def _attachment_data(ref) -> tuple:
@@ -354,6 +375,7 @@ def _call_claude(cfg, system_prompt, text, attachments, schema, model, effort, w
     searches = getattr(getattr(usage, "server_tool_use", None), "web_search_requests", 0) or 0
     print(f"[ai-orchestrator] API 调用完成 model={response.model}，输入 {usage.input_tokens} tokens，"
           f"输出 {usage.output_tokens} tokens，联网搜索 {searches} 次，request_id={request_id}")
+    _record_usage(response.model, usage.input_tokens, usage.output_tokens, searches)
     result = _drop_nulls(json.loads(texts[-1]))
     try:
         jsonschema.validate(result, schema)
@@ -428,6 +450,7 @@ def _call_openai(cfg, system_prompt, text, attachments, schema, model, effort, w
     searches = sum(1 for item in response.output if item.type == "web_search_call")
     print(f"[ai-orchestrator] API 调用完成 model={response.model}，输入 {usage.input_tokens} tokens，"
           f"输出 {usage.output_tokens} tokens，联网搜索 {searches} 次，response_id={response.id}")
+    _record_usage(response.model, usage.input_tokens, usage.output_tokens, searches)
     return _drop_nulls(json.loads(response.output_text))
 
 
@@ -531,8 +554,114 @@ def process_translate(payload: dict, callback_url: str, prompt: str = TRANSLATE_
         send_callback(callback_url, "failed", error=message[:500])
 
 
+BACKGROUND_SKILL = "customer-background"
+
+BACKGROUND_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "conclusion": {
+            "type": "object",
+            "properties": {
+                "priority": {"type": "integer"},
+                "score": {"type": "integer"},
+                "mainConflict": {"type": "string"},
+                "firstAction": {"type": "string"},
+                "identity": {"type": "string"},
+                "supply": {"type": "string"},
+                "keyFinding": {"type": "string"},
+                "obstacle": {"type": "string"},
+            },
+            "required": ["priority", "score", "mainConflict", "firstAction", "identity", "supply", "keyFinding",
+                         "obstacle"],
+        },
+        "reportMarkdown": {"type": "string"},
+        "suggestions": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "module": {"type": "integer"},
+                    "field": {"type": "string"},
+                    "value": {"type": "string"},
+                    "evidence": {"type": "string"},
+                    "sourceUrl": {"type": "string"},
+                    "contact": {
+                        "type": "object",
+                        "properties": {
+                            "name": {"type": "string"},
+                            "email": {"type": "string"},
+                            "title": {"type": "string"},
+                        },
+                        "required": ["name", "email", "title"],
+                    },
+                },
+                "required": ["module", "field", "value", "evidence"],
+            },
+        },
+    },
+    "required": ["conclusion", "reportMarkdown", "suggestions"],
+}
+
+# 上传报告文字的长度上限，与后端一致
+MAX_REPORT_CHARS = 60000
+
+
+def build_background_text(input_data: dict) -> str:
+    """把后端组装的输入写成给模型看的文字：模式、允许的字段，以及客户资料或上传的报告"""
+    mode = input_data.get("mode")
+    head = (f"mode={mode}\n\n允许的字段（fields）：\n"
+            + json.dumps(input_data.get("fields") or [], ensure_ascii=False) + "\n\n")
+    if mode == "extract":
+        return head + "上传的背调报告文字如下（不要联网，只从中提取）：\n\n" + (input_data.get("reportText") or "")
+    return (head + "系统里这个客户的资料：\n" + json.dumps(input_data.get("customer") or {}, ensure_ascii=False, indent=1)
+            + "\n\n最近的询盘原文：\n" + json.dumps(input_data.get("inquiries") or [], ensure_ascii=False, indent=1))
+
+
+def call_background(cfg: AiConfig, input_data: dict) -> dict:
+    """research 联网背调；extract 只从上传的报告提取，不联网。用询盘解析的模型与思考强度"""
+    research = input_data.get("mode") == "research"
+    structured = call_api(cfg, _read_skill(BACKGROUND_SKILL), build_background_text(input_data), [],
+                          BACKGROUND_SCHEMA, model=cfg.parse_model, effort=cfg.parse_effort, web_search=research)
+    if "conclusion" not in structured:
+        raise RuntimeError("AI 未返回符合 schema 的背调结果")
+    structured.setdefault("suggestions", [])
+    if not research:
+        structured["reportMarkdown"] = ""
+    return structured
+
+
+def process_background(payload: dict, callback_url: str):
+    key = _api_key_of(payload)
+    try:
+        cfg = parse_ai_config(payload.get("ai"))
+        input_data = payload.get("input") or {}
+        mode = input_data.get("mode")
+        if mode not in ("research", "extract"):
+            send_callback(callback_url, "failed", error=f"背调模式 {mode} 不支持")
+            return
+        if mode == "extract" and not (input_data.get("reportText") or "").strip():
+            send_callback(callback_url, "failed", error="上传的报告没有文字")
+            return
+        if mode == "extract" and len(input_data["reportText"]) > MAX_REPORT_CHARS:
+            input_data = {**input_data, "reportText": input_data["reportText"][:MAX_REPORT_CHARS]}
+        send_callback(callback_url, "success", output=call_background(cfg, input_data))
+    except ConfigError as e:
+        send_callback(callback_url, "failed", error=str(e))
+    except (anthropic.APITimeoutError, openai.APITimeoutError):
+        send_callback(callback_url, "failed", error=f"AI 处理超过 {TIMEOUT_SECONDS} 秒未完成")
+    except Exception as e:
+        message = scrub(str(e), key)
+        print(f"[ai-orchestrator] background failed: {message}")
+        send_callback(callback_url, "failed", error=message[:500])
+
+
 def send_callback(callback_url: str, status: str, output=None, error=None):
-    body = json.dumps({"status": status, "output": output, "error": error}).encode("utf-8")
+    """回调带上本线程累计的用量（spec ai-platform/task-orchestration「记录 AI 调用用量」）；旧版后端忽略 usage"""
+    body = {"status": status, "output": output, "error": error}
+    usage = _take_usage()
+    if usage:
+        body["usage"] = usage
+    body = json.dumps(body).encode("utf-8")
     req = urllib.request.Request(
         callback_url,
         data=body,
@@ -563,25 +692,17 @@ def process_job(payload: dict, callback_url: str):
         input_data = payload.get("input") or {}
         raw_content = (input_data.get("rawContent") or "").strip()
         # Excel/CSV 附件已由后端抽成文本拼进 rawContent；图片、PDF 通过 attachments 传后端签发的临时链接
-        # （[{"url", "ext"}]，本服务下载后发给模型）。旧版后端传本地路径 attachmentPaths / rawAttachmentPath，这里一并兼容。
+        # （[{"url", "ext"}]，本服务下载后发给模型）。旧版的本地路径 attachmentPaths / rawAttachmentPath 不再接受。
         refs = [a for a in (input_data.get("attachments") or []) if a and a.get("url")]
-        paths = [p.strip() for p in (input_data.get("attachmentPaths") or []) if p and p.strip()]
-        legacy = (input_data.get("rawAttachmentPath") or "").strip()
-        if legacy and legacy not in paths:
-            paths.append(legacy)
-        if not raw_content and not refs and not paths:
+        if not raw_content and not refs:
             send_callback(callback_url, "failed", error="询盘既没有正文也没有可读的附件，无法解析")
             return
-        missing = [p for p in paths if not os.path.isfile(p)]
-        if missing:
-            send_callback(callback_url, "failed", error=f"附件文件不存在: {missing[0]}")
-            return
         try:
-            loaded = [_read_attachment(r) for r in refs + paths]
+            loaded = [_read_attachment(r) for r in refs]
         except Exception as e:  # noqa: BLE001 - 链接过期或网络问题都按附件读取失败回报
             send_callback(callback_url, "failed", error=f"附件下载失败: {str(e)[:200]}")
             return
-        nos = [_nameplate_no(r) for r in refs] + [None] * len(paths)
+        nos = [_nameplate_no(r) for r in refs]
         output = call_parse(cfg, raw_content, loaded, input_data.get("categories") or [], nos)
         send_callback(callback_url, "success", output=output)
     except ConfigError as e:
@@ -739,6 +860,11 @@ class Handler(BaseHTTPRequestHandler):
             prompt = NAME_PROMPT if skill_id == NAME_SKILL else TRANSLATE_PROMPT
             if callback_url:
                 threading.Thread(target=process_translate, args=(payload, callback_url, prompt), daemon=True).start()
+            return
+
+        if skill_id == BACKGROUND_SKILL:
+            if callback_url:
+                threading.Thread(target=process_background, args=(payload, callback_url), daemon=True).start()
             return
 
         if skill_id != "inquiry-parse-and-split":

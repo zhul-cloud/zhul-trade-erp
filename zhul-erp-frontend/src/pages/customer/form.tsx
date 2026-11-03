@@ -17,7 +17,6 @@ import {
   Input,
   InputNumber,
   Radio,
-  Segmented,
   Select,
   Skeleton,
   Space,
@@ -45,7 +44,6 @@ import {
   CURRENCY_OPTIONS,
   CUSTOMER_CODE_PATTERN,
   ENGLISH_ONLY_MESSAGE,
-  GRADE_OPTIONS,
   INCOTERMS,
   INDUSTRY_OPTIONS,
   MAX_PARTIES,
@@ -110,7 +108,6 @@ const toFormState = (d: CustomerDetail): FormState => ({
   customerRole: d.customerRole || undefined,
   industry: d.industry || undefined,
   website: d.website,
-  customerGrade: d.customerGrade,
   sourceChannel: d.sourceChannel || undefined,
   aliLevel: d.aliLevel || undefined,
   externalRef: d.externalRef,
@@ -123,6 +120,7 @@ const toFormState = (d: CustomerDetail): FormState => ({
   taxId: d.taxId,
   timezone: d.timezone || undefined,
   contactName: d.contactName,
+  contactNameCn: d.contactNameCn,
   contactTitle: d.contactTitle,
   contactEmail: d.contactEmail,
   contactPhone: d.contactPhone,
@@ -164,7 +162,6 @@ const toPayload = (
   customerRole: v.customerRole,
   industry: v.industry ?? 0,
   website: text(v.website),
-  customerGrade: v.customerGrade ?? 0,
   sourceChannel: v.sourceChannel ?? 0,
   aliLevel: v.aliLevel,
   externalRef: text(v.externalRef),
@@ -177,6 +174,7 @@ const toPayload = (
   taxId: text(v.taxId),
   timezone: v.timezone ?? '',
   contactName: text(v.contactName),
+  contactNameCn: text(v.contactNameCn),
   contactTitle: text(v.contactTitle),
   contactEmail: text(v.contactEmail),
   contactPhone: text(v.contactPhone),
@@ -519,7 +517,7 @@ const CustomerFormPage: React.FC = () => {
           form={form}
           layout="vertical"
           validateTrigger="onBlur"
-          initialValues={{ status: 1, currency: 'USD', customerGrade: 0 }}
+          initialValues={{ status: 1, currency: 'USD' }}
           onFinish={submit}
           onFinishFailed={onFinishFailed}
           onValuesChange={(changed) => {
@@ -642,13 +640,6 @@ const CustomerFormPage: React.FC = () => {
                 ]}
               >
                 <Input placeholder="https://" maxLength={200} />
-              </Form.Item>
-              <Form.Item
-                name="customerGrade"
-                label="客户等级"
-                extra="当前手工标记：A 年采购额 > 100 万美元，B 50–100 万，C < 50 万或新客户"
-              >
-                <Segmented block options={GRADE_OPTIONS} />
               </Form.Item>
               <Form.Item name="sourceChannel" label="客户来源">
                 <Select
@@ -817,6 +808,14 @@ const CustomerFormPage: React.FC = () => {
                 rules={[{ max: 100 }]}
               >
                 <Input placeholder="Full name" maxLength={100} />
+              </Form.Item>
+              <Form.Item
+                name="contactNameCn"
+                label="中文名"
+                rules={[{ max: 100 }]}
+                extra="留空保存后由 AI 翻译填入，只在系统内显示"
+              >
+                <Input placeholder="留空自动翻译" maxLength={100} />
               </Form.Item>
               <Form.Item name="contactTitle" label="职位" rules={[{ max: 50 }]}>
                 <Input placeholder="如 Purchasing Manager" maxLength={50} />

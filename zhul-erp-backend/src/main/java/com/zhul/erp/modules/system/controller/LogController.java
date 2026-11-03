@@ -37,6 +37,8 @@ import java.util.List;
 @RequiredArgsConstructor
 public class LogController {
 
+    private static final String LOGIN_LOG_MENU = "@perm.canAccessMenu('/system/log/login')";
+
     private final LogService logService;
 
     @GetMapping("/operate")
@@ -61,6 +63,7 @@ public class LogController {
         writeWorkbook(workbook, filename, response);
     }
 
+    @PreAuthorize(LOGIN_LOG_MENU)
     @GetMapping("/login")
     public Result<PageResult<LoginLogVO>> listLoginLogs(LoginLogQuery query) {
         return Result.ok(logService.listLoginLogs(query));
@@ -70,9 +73,10 @@ public class LogController {
     @PostMapping("/login/force-logout")
     public Result<ForceLogoutResultVO> forceLogout(@Valid @RequestBody ForceLogoutRequest req,
                                                      HttpServletRequest request) {
-        return Result.ok(logService.forceLogout(req.getTokenIds(), request));
+        return Result.ok(logService.forceLogout(req.getSessionIds(), request));
     }
 
+    @PreAuthorize(LOGIN_LOG_MENU)
     @GetMapping("/login/export")
     public void exportLoginLogs(LoginLogQuery query, HttpServletResponse response) throws IOException {
         Workbook workbook = logService.exportLoginLogs(query);

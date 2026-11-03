@@ -99,7 +99,7 @@ export async function resetPassword(
 ): Promise<void> {
   return request(`/api/v1/system/users/${userId}/password`, {
     method: 'PUT',
-    params: { newPassword },
+    data: { newPassword },
   });
 }
 

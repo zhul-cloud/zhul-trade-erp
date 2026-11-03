@@ -328,7 +328,7 @@ const NewInquiryModal: React.FC<{
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: '1fr 200px',
+              gridTemplateColumns: 'minmax(0, 1fr) 200px',
               gap: 16,
             }}
           >

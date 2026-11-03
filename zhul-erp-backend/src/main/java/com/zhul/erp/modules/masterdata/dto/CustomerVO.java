@@ -18,12 +18,25 @@ public class CustomerVO {
     private String shortName;
     private String country;
     private Integer customerRole;
-    private Integer customerGrade;
+    /** 潜力评级 1–5，0 为未评 */
+    private Integer potentialRating;
+    /** 最终经营等级（0-未成交、1-S、2-A、3-B、4-C） */
+    private Integer bizGrade;
+    private Integer bizGradeCalc;
+    /** 人工调整：-1、0、1 */
+    private Integer bizGradeAdjust;
+    /** 调整原因与调整人，列表悬停显示 */
+    private String bizGradeAdjustReason;
+    private String bizGradeAdjustByName;
+    private java.math.BigDecimal bizGradeScore;
+    /** 已完成的档案模块（位） */
+    private Integer profileMask;
     private Integer sourceChannel;
     private String aliLevel;
     private Long ownerId;
     private String ownerName;
     private String contactName;
+    private String contactNameCn;
     private String contactPhone;
     private String contactEmail;
     private Integer status;

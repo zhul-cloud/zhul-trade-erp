@@ -9,7 +9,7 @@ import {
   SearchOutlined,
   SyncOutlined,
 } from '@ant-design/icons';
-import { history, useSearchParams } from '@umijs/max';
+import { history, useModel, useSearchParams } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import {
   App,
@@ -31,6 +31,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
 import { getUserList } from '@/pages/system/user/service';
 import { useAppTheme } from '@/theme/AppTheme';
+import { recentRange } from '@/utils/dateRange';
 import { DICT_SOURCE_CHANNEL, useDictOptions } from '@/utils/dict';
 import { formatDateTime } from '@/utils/format';
 import { usePageSize } from '@/utils/pageSize';
@@ -53,6 +54,7 @@ import {
   inquiryApi,
   readBizError,
 } from '../shared/service';
+import { ModelCell, ModelsModal, TagList } from './ModelCells';
 import NewInquiryModal from './NewInquiryModal';
 
 interface Filters {
@@ -100,12 +102,12 @@ const RangeInput: React.FC<{
   </Space.Compact>
 );
 
-/** 从询价统计跳转时 URL 带的询盘日期 */
-const urlFilters = (): Filters => {
+/** 进页面时的筛选：询盘日期默认最近 3 个月；从询价统计跳转时用 URL 带的日期 */
+const initialFilters = (): Filters => {
   const p = new URLSearchParams(window.location.search);
   const from = p.get('dateFrom');
   const to = p.get('dateTo');
-  return from && to ? { range: [dayjs(from), dayjs(to)] } : {};
+  return { range: from && to ? [dayjs(from), dayjs(to)] : recentRange() };
 };
 
 const toQuery = (
@@ -216,7 +218,12 @@ const CustomerInquiryPage: React.FC = () => {
   const { message } = App.useApp();
   const [searchParams, setSearchParams] = useSearchParams();
   const [form] = Form.useForm<Filters>();
-  const [filters, setFilters] = useState<Filters>(urlFilters);
+  const { initialState } = useModel('@@initialState');
+  const [filters, setFilters] = useState<Filters>(initialFilters);
+  /** 当前用户的负责人 ID：负责人筛选默认选自己，清空即看全部 */
+  const [myId, setMyId] = useState<number>();
+  /** 负责人默认值确定后才查询，避免先查全部再切成自己 */
+  const [ready, setReady] = useState(false);
   const [urgentOnly, setUrgentOnly] = useState(false);
   const [timeoutOnly, setTimeoutOnly] = useState(false);
   const [page, setPage] = useState(1);
@@ -232,8 +239,10 @@ const CustomerInquiryPage: React.FC = () => {
   const [newOpen, setNewOpen] = useState(false);
   const [presetCustomer, setPresetCustomer] = useState<number>();
   const [busyId, setBusyId] = useState<number>();
+  const [viewing, setViewing] = useState<CustomerInquiry>();
 
   const load = useCallback(async () => {
+    if (!ready) return;
     setLoading(true);
     setError('');
     try {
@@ -249,7 +258,7 @@ const CustomerInquiryPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [filters, urgentOnly, timeoutOnly, sort, page, pageSize]);
+  }, [ready, filters, urgentOnly, timeoutOnly, sort, page, pageSize]);
 
   const loadStats = useCallback(async () => {
     const count = (q: InquiryQuery) =>
@@ -283,12 +292,21 @@ const CustomerInquiryPage: React.FC = () => {
   useEffect(() => {
     loadStats();
     getUserList({ current: 1, pageSize: 200 })
-      .then((res) =>
+      .then((res) => {
         setOwners(
           res.data.records.map((u) => ({ value: u.id, label: u.name })),
-        ),
-      )
-      .catch(() => setOwners([]));
+        );
+        const me = res.data.records.find(
+          (u) => u.username === initialState?.currentUser?.userid,
+        )?.id;
+        if (me) {
+          setMyId(me);
+          form.setFieldValue('ownerId', me);
+          setFilters((f) => ({ ...f, ownerId: me }));
+        }
+      })
+      .catch(() => setOwners([]))
+      .finally(() => setReady(true));
     // 从商机查重提示跳过来（?newForCustomer=客户ID）：直接打开新建弹窗并选好客户
     const preset = Number(searchParams.get('newForCustomer'));
     if (preset) {
@@ -388,31 +406,47 @@ const CustomerInquiryPage: React.FC = () => {
     },
     {
       title: (
-        <Tooltip title="询盘里有几个不同的型号，不是件数，也不是询价任务数（一个询价任务可能包含多个型号）">
+        <Tooltip title="显示第一个型号；「共 N 个」是询盘里有几个不同的型号，不是件数，也不是询价任务数（一个询价任务可能包含多个型号）">
           <span style={{ whiteSpace: 'nowrap' }}>
-            型号数 <QuestionCircleOutlined style={{ color: palette.mute }} />
+            型号 <QuestionCircleOutlined style={{ color: palette.mute }} />
           </span>
         </Tooltip>
       ),
       dataIndex: 'totalItemCount',
-      width: 110,
-      render: (v, r) => {
-        // 未解析、解析失败，或没录型号就取消的询盘没有型号数
-        if (r.status <= STATUS.PARSE_FAILED || !v) return '—';
-        if (r.status === STATUS.PENDING_CONFIRM)
-          return (
-            <span style={{ display: 'inline-flex', flexDirection: 'column' }}>
-              <span>{v} 个</span>
+      width: 220,
+      render: (_, r) => {
+        // 未解析、解析失败，或没录型号就取消的询盘没有型号
+        if (
+          r.status <= STATUS.PARSE_FAILED &&
+          r.status !== STATUS.PENDING_CONFIRM
+        )
+          return '—';
+        return (
+          <span style={{ display: 'inline-flex', flexDirection: 'column' }}>
+            <ModelCell r={r} onView={setViewing} />
+            {r.status === STATUS.PENDING_CONFIRM && r.firstModel && (
               <span style={{ color: palette.mute, fontSize: 12 }}>
                 AI 识别，待确认
               </span>
-            </span>
-          );
-        return `${v} 个`;
+            )}
+          </span>
+        );
       },
       sorter: true,
       sortDirections: ['descend', 'ascend'],
       sortOrder: sortOrderOf('totalItemCount'),
+    },
+    {
+      title: '品牌',
+      key: 'brands',
+      width: 190,
+      render: (_, r) => <TagList values={r.brands} label="品牌" />,
+    },
+    {
+      title: '品类',
+      key: 'categories',
+      width: 190,
+      render: (_, r) => <TagList values={r.categories} label="品类" />,
     },
     {
       title: (
@@ -676,7 +710,7 @@ const CustomerInquiryPage: React.FC = () => {
           form={form}
           layout="vertical"
           onFinish={applyFilters}
-          initialValues={urlFilters()}
+          initialValues={initialFilters()}
         >
           <div
             style={{
@@ -769,12 +803,18 @@ const CustomerInquiryPage: React.FC = () => {
             >
               <Button
                 onClick={() => {
+                  // 恢复默认：负责人为自己、最近 3 个月
+                  const defaults: Filters = {
+                    range: recentRange(),
+                    ownerId: myId,
+                  };
                   form.resetFields();
+                  form.setFieldsValue(defaults);
                   setUrgentOnly(false);
                   setTimeoutOnly(false);
                   setPage(1);
                   setSort({});
-                  setFilters({});
+                  setFilters(defaults);
                 }}
               >
                 重置
@@ -844,8 +884,10 @@ const CustomerInquiryPage: React.FC = () => {
           columns={columns}
           dataSource={rows}
           loading={loading}
-          scroll={{ x: 1610 }}
-          onChange={(_, __, sorter) => {
+          scroll={{ x: 2100 }}
+          onChange={(_, __, sorter, extra) => {
+            // 翻页也会触发 onChange：只处理排序，否则会把页码重置回 1
+            if (extra.action !== 'sort') return;
             const s = Array.isArray(sorter) ? sorter[0] : sorter;
             const field = s?.order ? (s.field as Sort['field']) : undefined;
             setSort(
@@ -870,6 +912,7 @@ const CustomerInquiryPage: React.FC = () => {
         />
       )}
 
+      <ModelsModal target={viewing} onClose={() => setViewing(undefined)} />
       <NewInquiryModal
         open={newOpen}
         presetCustomerId={presetCustomer}

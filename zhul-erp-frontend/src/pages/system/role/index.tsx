@@ -27,6 +27,7 @@ import {
   Input,
   Radio,
   Space,
+  Spin,
   Tag,
   Tree,
 } from 'antd';
@@ -62,8 +63,9 @@ import {
   updateRole,
 } from './service';
 
+/** 0 是早期缺省值，后端按「仅本人」执行（DataScopeResolver），显示与编辑回填都按仅本人 */
 const PERMISSION_SCOPE_MAP: Record<number, string> = {
-  0: '无',
+  0: '仅本人数据',
   1: '全部数据',
   2: '自定义部门',
   3: '仅本人数据',
@@ -160,6 +162,11 @@ const RolePage: React.FC = () => {
   const [rawMenuTree, setRawMenuTree] = useState<MenuItem[]>([]);
   const [menuKeyword, setMenuKeyword] = useState('');
   const [expandedKeys, setExpandedKeys] = useState<number[]>([]);
+  const [permLoading, setPermLoading] = useState(false);
+  /** 分配权限的加载序号：先后打开两个角色时，丢弃先发出、后返回的旧响应 */
+  const permSeq = useRef(0);
+  /** 编辑角色的加载序号：先后点两个角色的编辑时，丢弃先发出、后返回的部门数据 */
+  const editSeq = useRef(0);
 
   const canAdd = !!(access as Record<string, unknown>)['system:role:add'];
   const canEdit = !!(access as Record<string, unknown>)['system:role:edit'];
@@ -206,6 +213,7 @@ const RolePage: React.FC = () => {
   const isEdit = drawerMode === 'edit';
 
   const openCreate = () => {
+    editSeq.current++;
     setDrawerMode('create');
     setEditingRole(null);
     setEditingDeptIds([]);
@@ -213,29 +221,50 @@ const RolePage: React.FC = () => {
   };
 
   const openEdit = async (record: RoleItem) => {
+    const seq = ++editSeq.current;
+    let deptIds: number[] = [];
+    if (record.permissionScope === 2) {
+      try {
+        deptIds = await getRoleDeptIds(record.code);
+      } catch {
+        if (seq === editSeq.current) message.error('角色部门加载失败，请重试');
+        return;
+      }
+    }
+    if (seq !== editSeq.current) return;
     setDrawerMode('edit');
     setEditingRole(record);
-    if (record.permissionScope === 2) {
-      setEditingDeptIds(await getRoleDeptIds(record.code));
-    } else {
-      setEditingDeptIds([]);
-    }
+    setEditingDeptIds(deptIds);
     setDrawerOpen(true);
   };
 
   const openAssign = async (record: RoleItem) => {
+    const seq = ++permSeq.current;
     setPermRole(record);
     setMenuKeyword('');
+    // 清掉上一个角色的勾选，加载完成前不能保存：保存是整体替换，空的或旧的勾选会改掉当前角色的权限
+    setCheckedKeys([]);
+    setRawMenuTree([]);
+    setExpandedKeys([]);
+    setPermLoading(true);
     setPermOpen(true);
-    const [tree, ids] = await Promise.all([
-      getMenuTree(),
-      getRoleMenuIds(record.code),
-    ]);
-    setRawMenuTree(tree);
-    setExpandedKeys(flattenParentKeys(tree));
-    // 只保留当前账号能看到的菜单，看不到的保存时服务端会拒绝
-    const visible = new Set(flattenAllKeys(tree));
-    setCheckedKeys((ids as number[]).filter((id) => visible.has(id)));
+    try {
+      const [tree, ids] = await Promise.all([
+        getMenuTree(),
+        getRoleMenuIds(record.code),
+      ]);
+      if (seq !== permSeq.current) return;
+      setRawMenuTree(tree);
+      setExpandedKeys(flattenParentKeys(tree));
+      // 只保留当前账号能看到的菜单，看不到的保存时服务端会拒绝
+      const visible = new Set(flattenAllKeys(tree));
+      setCheckedKeys((ids as number[]).filter((id) => visible.has(id)));
+      setPermLoading(false);
+    } catch {
+      if (seq !== permSeq.current) return;
+      message.error('权限加载失败，请重新打开');
+      setPermOpen(false);
+    }
   };
 
   const handleSubmit = async (
@@ -665,8 +694,9 @@ const RolePage: React.FC = () => {
             <Button
               key="save"
               type="primary"
+              disabled={permLoading}
               onClick={async () => {
-                if (!permRole) return;
+                if (!permRole || permLoading) return;
                 try {
                   await assignRoleMenus(permRole.code, checkedKeys);
                   message.success('权限保存成功');
@@ -706,19 +736,21 @@ const RolePage: React.FC = () => {
           value={menuKeyword}
           onChange={(e) => setMenuKeyword(e.target.value)}
         />
-        <Tree
-          checkable
-          checkStrictly
-          checkedKeys={splitChecked(menuIndex, checkedKeys)}
-          expandedKeys={expandedKeys}
-          onExpand={(keys) => setExpandedKeys(keys as number[])}
-          onCheck={(_, e) =>
-            setCheckedKeys((prev) =>
-              toggleMenuKey(menuIndex, prev, e.node.key as number, e.checked),
-            )
-          }
-          treeData={antdMenuTree}
-        />
+        <Spin spinning={permLoading}>
+          <Tree
+            checkable
+            checkStrictly
+            checkedKeys={splitChecked(menuIndex, checkedKeys)}
+            expandedKeys={expandedKeys}
+            onExpand={(keys) => setExpandedKeys(keys as number[])}
+            onCheck={(_, e) =>
+              setCheckedKeys((prev) =>
+                toggleMenuKey(menuIndex, prev, e.node.key as number, e.checked),
+              )
+            }
+            treeData={antdMenuTree}
+          />
+        </Spin>
         <div style={{ marginTop: 16, color: p.mute }}>
           已选 {permCheckedCount} 个权限
         </div>

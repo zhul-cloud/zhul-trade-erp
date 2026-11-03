@@ -34,6 +34,7 @@ public class CustomerDO {
     private Integer customerRole;
     private Integer industry;
     private String website;
+    /** 已停用：原手工客户等级，由经营等级 bizGrade 代替 */
     private Integer customerGrade;
     private Integer sourceChannel;
     /** 阿里等级（L0、L1、L1+、L2、L3、L4，空表示未填） */
@@ -50,6 +51,8 @@ public class CustomerDO {
     private String taxId;
     private String timezone;
     private String contactName;
+    /** 主联系人中文名，随主联系人同步 */
+    private String contactNameCn;
     private String contactTitle;
     private String contactPhone;
     private String contactEmail;
@@ -74,6 +77,52 @@ public class CustomerDO {
     private Integer shippingMethod;
     private String destinationPort;
     private String remark;
+    // ---------------------------------------------------------------- 客户画像（openspec customer-profile）
+    private String linkedin;
+    private String socialUrl;
+    @TableField(updateStrategy = FieldStrategy.ALWAYS)
+    private Integer foundedYear;
+    private Integer companySize;
+    /** 潜力评级 1–5，0 为未评 */
+    private Integer potentialRating;
+    private String mainProducts;
+    private String cnSuppliers;
+    /** 年度采购量估算（美元），与 estPurchaseCurrency 成对，只是估算 */
+    @TableField(updateStrategy = FieldStrategy.ALWAYS)
+    private BigDecimal estAnnualPurchase;
+    private String estPurchaseCurrency;
+    private Integer qualityReq;
+    private Integer priceSensitivity;
+    private Integer customsAbility;
+    /** JSON：[{brandId, name}] */
+    private String currentBrands;
+    private Integer designAbility;
+    /** JSON：字典码值数组 */
+    private String protocols;
+    private String voltages;
+    private String certifications;
+    private Integer repairAbility;
+    /** 经营等级计算值（0-未成交、1-S、2-A、3-B、4-C） */
+    private Integer bizGradeCalc;
+    /** 最终经营等级（计算值加人工调整） */
+    private Integer bizGrade;
+    @TableField(updateStrategy = FieldStrategy.ALWAYS)
+    private BigDecimal bizGradeScore;
+    /** JSON：RFM 明细 */
+    private String rfmJson;
+    @TableField(updateStrategy = FieldStrategy.ALWAYS)
+    private LocalDateTime rfmCalcAt;
+    /** 人工调整：-1 下调一级、0 不调整、1 上调一级 */
+    private Integer bizGradeAdjust;
+    private String bizGradeAdjustReason;
+    private Long bizGradeAdjustBy;
+    @TableField(updateStrategy = FieldStrategy.ALWAYS)
+    private LocalDateTime bizGradeAdjustAt;
+    /** 已完成的档案模块（位：1-基础画像、2-商业能力、4-技术偏好、8-决策人、16-宏观背景） */
+    private Integer profileMask;
+    /** 档案补齐（完整度变为 5/5）的时间与操作人，降到 5 以下时清空；只由 ProfileFacts 按条件更新 */
+    private LocalDateTime profileDoneAt;
+    private Long profileDoneBy;
     /** 状态（0-禁用、1-启用） */
     private Integer status;
     private LocalDateTime deletedAt;

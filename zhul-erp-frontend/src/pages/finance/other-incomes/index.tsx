@@ -34,6 +34,7 @@ import {
   unitOrPublic,
   useBusinessUnits,
 } from '@/utils/businessUnit';
+import { recentRange } from '@/utils/dateRange';
 import { useDictTexts } from '@/utils/dict';
 import { formatAmount } from '@/utils/format';
 import { usePageSize } from '@/utils/pageSize';
@@ -42,12 +43,12 @@ import { DICT_INCOME_CATEGORY, incomeApi, type OtherIncome } from './service';
 
 const num: React.CSSProperties = { fontVariantNumeric: 'tabular-nums' };
 
-/** 经营统计跳转时 URL 带的日期范围 */
+/** 日期范围：默认最近 3 个月（清空看全部）；经营统计跳转时用 URL 带的日期 */
 const rangeFromUrl = (): [Dayjs, Dayjs] | null => {
   const p = new URLSearchParams(window.location.search);
   const from = p.get('dateFrom');
   const to = p.get('dateTo');
-  return from && to ? [dayjs(from), dayjs(to)] : null;
+  return from && to ? [dayjs(from), dayjs(to)] : recentRange();
 };
 
 const IncomeModal: React.FC<{

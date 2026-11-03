@@ -25,7 +25,6 @@ import { MenuLink, useMenu } from '@/utils/menuName';
 import {
   CJK_PATTERN,
   ENGLISH_ONLY_MESSAGE,
-  GRADE_TONE,
   labelOf,
   PARTY_TYPES,
   PHONE_PATTERN,
@@ -82,16 +81,6 @@ export const RolePill: React.FC<{ value?: number }> = ({ value }) => (
     {labelOf(ROLE_OPTIONS, value) ?? '未设置'}
   </Pill>
 );
-
-export const GradePill: React.FC<{ value?: number }> = ({ value }) => {
-  const label =
-    value === 1 ? 'A' : value === 2 ? 'B' : value === 3 ? 'C' : undefined;
-  return (
-    <Pill tone={GRADE_TONE[value ?? 0] ?? 'gray'}>
-      {label ? `${label} 类` : '未分级'}
-    </Pill>
-  );
-};
 
 export const StatusPill: React.FC<{ status?: number }> = ({ status }) => (
   <Pill tone={status === 1 ? 'green' : 'gray'}>

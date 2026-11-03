@@ -11,13 +11,26 @@ export interface CustomerListItem {
   shortName: string;
   country: string;
   customerRole: number;
-  customerGrade: number;
+  /** 潜力评级 1–5，0 为未评 */
+  potentialRating: number;
+  /** 最终经营等级（0-未成交、1-S、2-A、3-B、4-C） */
+  bizGrade: number;
+  bizGradeCalc: number;
+  /** 人工调整：1 上调、-1 下调、0 未调整 */
+  bizGradeAdjust: number;
+  bizGradeAdjustReason?: string;
+  bizGradeAdjustByName?: string;
+  bizGradeScore?: number;
+  /** 已完成的档案模块（位） */
+  profileMask: number;
   sourceChannel: number;
   /** 阿里等级（来源为阿里巴巴国际站时），空串为未填 */
   aliLevel?: string;
   ownerId: number;
   ownerName?: string;
   contactName: string;
+  /** 主联系人中文名（系统内显示，空时由 AI 翻译回填） */
+  contactNameCn?: string;
   contactPhone: string;
   contactEmail: string;
   status: number;
@@ -86,7 +99,6 @@ export interface CustomerPayload {
   customerRole?: number;
   industry?: number;
   website?: string;
-  customerGrade?: number;
   sourceChannel?: number;
   aliLevel?: string;
   externalRef?: string;
@@ -99,6 +111,7 @@ export interface CustomerPayload {
   taxId?: string;
   timezone?: string;
   contactName?: string;
+  contactNameCn?: string;
   contactTitle?: string;
   contactEmail?: string;
   contactPhone?: string;
@@ -126,10 +139,19 @@ export interface CustomerQuery {
   contactName?: string;
   country?: string;
   customerRole?: number;
-  customerGrade?: number;
+  /** 经营等级（0-未成交、1-S、2-A、3-B、4-C） */
+  bizGrade?: number;
+  potentialRating?: number;
+  /** 建档状态：done-已建档、pending-待完善 */
+  profileStatus?: 'done' | 'pending';
+  /** 缺的模块（1–5），逗号分隔，多选时要全部都缺 */
+  missingModules?: string;
   sourceChannel?: number;
   ownerId?: number;
   status?: number;
+  /** 排序：updateTime（默认）、bizGrade、potentialRating */
+  sortField?: 'updateTime' | 'bizGrade' | 'potentialRating';
+  sortOrder?: 'asc' | 'desc';
 }
 
 export interface OwnerOption {

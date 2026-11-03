@@ -11,6 +11,7 @@ import {
   FieldLabel,
   PayoutFields,
   type PayoutValue,
+  PlatformRefundFields,
   payoutBody,
 } from '../credits/CreditModals';
 import { creditApi, type Overpaid } from '../credits/service';
@@ -192,16 +193,24 @@ const ProcessModal: React.FC<{
     if (target) {
       setMode(target.mode);
       setAmount(target.row.pending);
-      setPayout(emptyPayout());
+      // 原路退回时实际退出人民币默认带出账面价值
+      setPayout(
+        target.row.platformReceipts?.length
+          ? { ...emptyPayout(), actualCny: target.row.pendingCny }
+          : emptyPayout(),
+      );
     }
   }, [target]);
 
   if (!target) return null;
   const r = target.row;
   const cur = r.currencyCode;
-  const bookValue = amount
-    ? Math.round(amount * Number(r.rate) * 100) / 100
-    : undefined;
+  const bookOf = (v: number | null) =>
+    v ? Math.round(v * Number(r.rate) * 100) / 100 : undefined;
+  const bookValue = bookOf(amount);
+  // 有平台收款时只能原路退回平台（与售后退款规则一致）
+  const platform = r.platformReceipts ?? [];
+  const viaPlatform = platform.length > 0;
 
   const submit = async () => {
     if (!amount || amount > r.pending) {
@@ -219,9 +228,19 @@ const ProcessModal: React.FC<{
         ownerId: r.ownerId,
         amount,
         mode,
-        ...(mode === 'REFUND' ? payoutBody(payout) : {}),
+        ...(mode === 'REFUND'
+          ? viaPlatform
+            ? { ...payoutBody(payout), method: 1, methodName: undefined }
+            : payoutBody(payout)
+          : {}),
       });
-      message.success(mode === 'REFUND' ? '已退回客户' : '已转客户余额');
+      message.success(
+        mode === 'REFUND'
+          ? viaPlatform
+            ? '已原路退回平台'
+            : '已退回客户'
+          : '已转客户余额',
+      );
       onDone(list);
       onClose();
     } catch (e) {
@@ -275,21 +294,91 @@ const ProcessModal: React.FC<{
             max={r.pending}
             precision={2}
             value={amount}
-            onChange={setAmount}
+            onChange={(v) => {
+              setAmount(v);
+              if (viaPlatform)
+                setPayout((p) => ({ ...p, actualCny: bookOf(v) ?? null }));
+            }}
             style={{ width: '100%' }}
             aria-label="金额"
           />
         </div>
         {mode === 'REFUND' && (
-          <PayoutFields
-            value={payout}
-            onChange={setPayout}
-            bookValue={bookValue}
-          />
+          <div>
+            <FieldLabel text="退回方式" required />
+            <Segmented
+              value={viaPlatform ? 'PLATFORM' : 'OFFLINE'}
+              options={[
+                {
+                  value: 'PLATFORM',
+                  label: '原路退回平台',
+                  disabled: !viaPlatform,
+                },
+                {
+                  value: 'OFFLINE',
+                  label: '银行、支付宝等线下转出',
+                  disabled: viaPlatform,
+                },
+              ]}
+            />
+            <div style={{ fontSize: 12, color: palette.mute, marginTop: 6 }}>
+              {viaPlatform
+                ? '这张单有平台收款，只能原路退回'
+                : '这张单没有平台收款，不能原路退回'}
+            </div>
+          </div>
         )}
+        {mode === 'REFUND' && viaPlatform && (
+          <div
+            style={{
+              padding: '10px 14px',
+              borderRadius: 10,
+              background: palette.inset,
+              display: 'grid',
+              gap: 4,
+            }}
+          >
+            <div style={{ fontSize: 12, color: palette.link, fontWeight: 600 }}>
+              原平台收款
+            </div>
+            {platform.map((p) => (
+              <div
+                key={`${p.platform}-${p.platformOrderNo ?? ''}-${p.receiptDate}`}
+                style={{ display: 'flex', gap: '2px 12px', flexWrap: 'wrap' }}
+              >
+                <b>{p.platform}</b>
+                {p.platformOrderNo && (
+                  <span style={{ color: palette.sub }}>
+                    平台订单号 {p.platformOrderNo}
+                  </span>
+                )}
+                <span style={{ color: palette.sub, ...num }}>
+                  {formatAmount(p.amount, cur)} · {p.receiptDate} 到账
+                </span>
+              </div>
+            ))}
+            <div style={{ fontSize: 12, color: palette.mute }}>
+              退款单自动记平台名称与平台订单号
+            </div>
+          </div>
+        )}
+        {mode === 'REFUND' &&
+          (viaPlatform ? (
+            <PlatformRefundFields
+              value={payout}
+              onChange={setPayout}
+              bookValue={bookValue}
+            />
+          ) : (
+            <PayoutFields
+              value={payout}
+              onChange={setPayout}
+              bookValue={bookValue}
+            />
+          ))}
         <div style={{ fontSize: 12, color: palette.mute }}>
           {mode === 'REFUND'
-            ? '「退回客户」会依次生成「多收转入」和「提现」两条余额流水，余额一进一出、核对时能对平。'
+            ? `「退回客户」会依次生成「多收转入」和「提现」两条余额流水，余额一进一出、核对时能对平${viaPlatform ? '；退款单去向为「原路退回平台」' : ''}。`
             : '转入后可在下一张 PI 抵扣，或之后在「余额管理」转给客户。'}
         </div>
       </div>

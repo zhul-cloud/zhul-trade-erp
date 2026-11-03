@@ -71,3 +71,42 @@ describe('非 2xx 响应统一显示后端的中文原因', () => {
     expect(message.error).toHaveBeenCalledWith('服务器没有响应，请稍后重试');
   });
 });
+
+describe('登录过期', () => {
+  const onFulfilled = (
+    errorConfig.responseInterceptors?.[0] as unknown as [
+      (r: unknown) => Promise<unknown>,
+    ]
+  )[0];
+  const expired = (url: string) => ({
+    config: { url },
+    data: { code: 401, message: '未登录或登录已过期' },
+  });
+  const settledWithin = (p: Promise<unknown>, ms: number) =>
+    Promise.race([
+      p.then(
+        () => true,
+        () => true,
+      ),
+      new Promise((r) => setTimeout(() => r(false), ms)),
+    ]);
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    const { refreshToken } = jest.requireMock('@/services/zhul/auth');
+    refreshToken.mockResolvedValue({ code: 401 });
+  });
+
+  it('刷新失败时跳登录页，请求不再返回，页面不会提示加载失败', async () => {
+    window.history.pushState({}, '', '/sales/orders');
+    const p = onFulfilled(expired('/api/v1/sales-orders'));
+    expect(await settledWithin(p, 50)).toBe(false);
+    expect(message.error).not.toHaveBeenCalled();
+  });
+
+  it('已在登录页时照常返回响应，不跳转', async () => {
+    window.history.pushState({}, '', '/login');
+    const res = expired('/api/v1/auth/menus');
+    await expect(onFulfilled(res)).resolves.toBe(res);
+  });
+});

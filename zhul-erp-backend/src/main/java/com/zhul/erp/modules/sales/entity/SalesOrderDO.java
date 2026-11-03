@@ -54,6 +54,12 @@ public class SalesOrderDO {
     private String progressCode;
     private LocalDateTime completedAt;
     private Integer receiptStatus;
+    /** 先采购后收款（0-否、1-是）：PI 没有水单也没有到账时转成的订单 */
+    private Integer payLater;
+    private String payLaterReason;
+    /** 选「先采购后收款」的用户 ID */
+    private Long payLaterBy;
+    private LocalDateTime payLaterAt;
     private BigDecimal receivedAmount;
     private BigDecimal feeDiffAmount;
     private String cancelReason;

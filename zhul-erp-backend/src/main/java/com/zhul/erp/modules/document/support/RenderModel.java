@@ -31,6 +31,12 @@ public record RenderModel(Map<String, Object> header, List<Map<String, Object>> 
         return v.toString();
     }
 
+    /** 覆盖一个表头字段 */
+    public RenderModel withHeader(String key, Object value) {
+        header.put(key, value);
+        return this;
+    }
+
     /** 发给客户的单据：明细行品牌按 brands（原文 → 输出名）替换，如「西门子」→ Siemens */
     public RenderModel withBrands(java.util.function.Function<java.util.Collection<String>, Map<String, String>> brands) {
         List<String> names = items.stream().map(r -> r.get("item.brand")).filter(String.class::isInstance).map(String.class::cast).toList();

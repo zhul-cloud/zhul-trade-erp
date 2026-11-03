@@ -39,7 +39,7 @@ public class SalesOrderController {
 
     @PostMapping("/pis/{piId}/convert")
     @PreAuthorize("@perm.canAccessMenu('/sales/pi')")
-    public Result<SalesOrderVO> convert(@PathVariable Long piId, @RequestBody(required = false) ConvertOrderRequest req) {
+    public Result<SalesOrderVO> convert(@PathVariable Long piId, @Valid @RequestBody(required = false) ConvertOrderRequest req) {
         return Result.ok(service.convert(piId, req));
     }
 

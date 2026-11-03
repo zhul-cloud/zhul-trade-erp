@@ -14,6 +14,7 @@ import com.zhul.erp.modules.inquiry.support.InquiryLookups;
 import com.zhul.erp.modules.masterdata.entity.CustomerDO;
 import com.zhul.erp.modules.masterdata.repository.CustomerMapper;
 import com.zhul.erp.modules.quotation.dto.PreviewVO;
+import com.zhul.erp.modules.quotation.support.QuotationRenderModels;
 import com.zhul.erp.modules.quotation.support.QuotationStore;
 import com.zhul.erp.modules.sales.dto.BankSnapshotDTO;
 import com.zhul.erp.modules.sales.dto.PartyDTO;
@@ -66,6 +67,7 @@ public class PiDocumentServiceImpl implements PiDocumentService {
     private final CurrentUserResolver currentUser;
     private final ObjectMapper objectMapper;
     private final com.zhul.erp.modules.product.support.BrandResolver brandResolver;
+    private final com.zhul.erp.modules.document.support.PlaceNames placeNames;
 
     /** 每个用户最新一次预览请求的序号：排队中的旧请求在拿到转换机会时直接放弃 */
     private final Map<Long, AtomicLong> previewSeq = new ConcurrentHashMap<>();
@@ -171,7 +173,8 @@ public class PiDocumentServiceImpl implements PiDocumentService {
         return PiRenderModels.build(pi, v, items, fees, store.fromJson(v.getBuyerJson(), PartyDTO.class),
                 store.fromJson(v.getConsigneeJson(), PartyDTO.class), store.fromJson(v.getBankAccountJson(), BankSnapshotDTO.class),
                 customer, owner, quotationStore.labels(), date)
-                .withBrands(brandResolver::displayNames);
+                .withBrands(brandResolver::displayNames)
+                .withHeader("pi.incoterm", QuotationRenderModels.incoterm(v.getIncoterm(), placeNames.english(v.getIncotermPlace())));
     }
 
     /** 文件名：PI 编号_客户简称或名称 */

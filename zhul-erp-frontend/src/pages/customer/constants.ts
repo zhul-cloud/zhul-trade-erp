@@ -27,13 +27,6 @@ export const INDUSTRY_OPTIONS: Option[] = [
   '其他',
 ].map((label, i) => ({ value: i + 1, label }));
 
-export const GRADE_OPTIONS: Option[] = [
-  { value: 1, label: 'A' },
-  { value: 2, label: 'B' },
-  { value: 3, label: 'C' },
-  { value: 0, label: '未分级' },
-];
-
 export const PAYMENT_OPTIONS: Option[] = [
   'T/T 全额预付',
   'T/T 定金 + 发货前付尾款',
@@ -99,12 +92,6 @@ export const ROLE_TONE: Record<number, Tone> = {
   4: 'orange',
   5: 'green',
 };
-export const GRADE_TONE: Record<number, Tone> = {
-  1: 'green',
-  2: 'accent',
-  3: 'orange',
-};
-
 /** 电话 / WhatsApp：+ 数字 空格 - 括号，最多 30 位 */
 export const PHONE_PATTERN = /^[+0-9 ()-]{0,30}$/;
 export const CUSTOMER_CODE_PATTERN = /^[A-Za-z0-9]{1,20}$/;

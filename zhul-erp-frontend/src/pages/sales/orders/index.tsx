@@ -16,6 +16,7 @@ import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
 import { auditColumns } from '@/pages/purchase/components';
 import { CURRENCIES } from '@/pages/quotation/components';
 import { useAppTheme } from '@/theme/AppTheme';
+import { recentRange } from '@/utils/dateRange';
 import { formatAmount } from '@/utils/format';
 import { usePageSize } from '@/utils/pageSize';
 import {
@@ -55,16 +56,16 @@ interface Filters {
   source?: number;
 }
 
-/** 默认本月；从销售统计跳转时用 URL 带的销售日期 */
+/** 收款状态筛选里的「先采购后收款未收款」 */
+const PAY_LATER_OPEN = -1;
+
+/** 默认最近 3 个月（清空日期看全部）；从销售统计跳转时用 URL 带的销售日期 */
 const initial = (): Filters => {
   const p = new URLSearchParams(window.location.search);
   const from = p.get('dateFrom');
   const to = p.get('dateTo');
   return {
-    range:
-      from && to
-        ? [dayjs(from), dayjs(to)]
-        : [dayjs().startOf('month'), dayjs().endOf('month')],
+    range: from && to ? [dayjs(from), dayjs(to)] : recentRange(),
   };
 };
 
@@ -103,7 +104,11 @@ const OrderList: React.FC = () => {
       customerType: filters.customerType,
       currencyCode: filters.currencyCode,
       purchaserId: filters.purchaserId,
-      receiptStatus: filters.receiptStatus,
+      receiptStatus:
+        filters.receiptStatus === PAY_LATER_OPEN
+          ? undefined
+          : filters.receiptStatus,
+      payLaterOpen: filters.receiptStatus === PAY_LATER_OPEN || undefined,
       source: filters.source,
       sortField: sort.order ? sort.field : undefined,
       sortOrder: sort.order ?? undefined,
@@ -242,11 +247,18 @@ const OrderList: React.FC = () => {
       key: 'receipt',
       width: 180,
       render: (_, r) => (
-        <ReceiptProgress
-          received={r.receivedAmount ?? 0}
-          total={r.totalAmount}
-          status={r.receiptStatus}
-        />
+        <div>
+          <ReceiptProgress
+            received={r.receivedAmount ?? 0}
+            total={r.totalAmount}
+            status={r.receiptStatus}
+          />
+          {r.payLater && (
+            <span style={{ display: 'inline-block', marginTop: 4 }}>
+              <Pill tone="orange">先采购后收款</Pill>
+            </span>
+          )}
+        </div>
       ),
     },
     {
@@ -500,10 +512,13 @@ const OrderList: React.FC = () => {
               <Select
                 allowClear
                 placeholder="全部"
-                options={Object.entries(RECEIPT_META).map(([k, v]) => ({
-                  value: Number(k),
-                  label: v.label,
-                }))}
+                options={[
+                  ...Object.entries(RECEIPT_META).map(([k, v]) => ({
+                    value: Number(k),
+                    label: v.label,
+                  })),
+                  { value: PAY_LATER_OPEN, label: '先采购后收款未收款' },
+                ]}
               />
             </Form.Item>
             <Form.Item name="source" label="来源" style={{ marginBottom: 0 }}>
@@ -606,7 +621,9 @@ const OrderList: React.FC = () => {
           loading={loading}
           scroll={{ x: 2550 }}
           locale={{ emptyText: '没有符合条件的订单，换个筛选条件试试' }}
-          onChange={(_, __, sorter) => {
+          onChange={(_, __, sorter, extra) => {
+            // 翻页也会触发 onChange：只处理排序，否则会把页码重置回 1
+            if (extra.action !== 'sort') return;
             const s = Array.isArray(sorter) ? sorter[0] : sorter;
             setSort({
               field: s?.columnKey as string | undefined,
@@ -628,8 +645,9 @@ const OrderList: React.FC = () => {
         />
       )}
       <div style={{ marginTop: 12, fontSize: 12, color: palette.mute }}>
-        默认列出本月销售的订单，按销售日期倒序；毛利 = 收入（毛额 × 结汇汇率）−
-        实际成本，点表头可按毛利排序；收款进度 = 已到账（毛额）÷
+        默认列出最近 3
+        个月销售的订单（清空销售日期看全部），按销售日期倒序；毛利 = 收入（毛额
+        × 结汇汇率）− 实际成本，点表头可按毛利排序；收款进度 = 已到账（毛额）÷
         合计；订单状态取所有型号中最靠前的进度。
       </div>
       <NewOrderDrawer

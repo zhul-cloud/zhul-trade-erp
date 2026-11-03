@@ -1,7 +1,7 @@
 import { SearchOutlined } from '@ant-design/icons';
 import type { TableColumnsType } from 'antd';
 import { App, Button, Checkbox, DatePicker, Input, Select, Table } from 'antd';
-import dayjs, { type Dayjs } from 'dayjs';
+import type { Dayjs } from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
 import { Card, PageTitle, Pill } from '@/pages/inquiry/shared/components';
 import { auditColumns } from '@/pages/purchase/components';
@@ -9,6 +9,7 @@ import { CURRENCIES } from '@/pages/quotation/components';
 import { readBizError } from '@/pages/sales/service';
 import { ReasonModal } from '@/pages/warehouse/components';
 import { useAppTheme } from '@/theme/AppTheme';
+import { recentRange } from '@/utils/dateRange';
 import { formatAmount } from '@/utils/format';
 import { usePageSize } from '@/utils/pageSize';
 import { ProofLinks } from '../payables/components';
@@ -34,7 +35,8 @@ interface Filters {
 
 const initial = (): Filters => ({
   keyword: '',
-  range: [dayjs().startOf('month'), dayjs().endOf('month')],
+  // 默认最近 3 个月，清空日期看全部
+  range: recentRange(),
   advanceUser: '',
   showVoid: false,
 });
@@ -142,7 +144,21 @@ const PaymentRecords: React.FC = () => {
         ),
     },
     { title: '日期', dataIndex: 'payDate', width: 110 },
-    { title: '收款方', dataIndex: 'payeeName', width: 180, ellipsis: true },
+    {
+      title: '收款方',
+      key: 'payee',
+      width: 240,
+      render: (_, r) => (
+        <div>
+          <div>{r.payeeName}</div>
+          {r.payeeAccount && (
+            <div style={{ fontSize: 12, color: palette.mute }}>
+              {r.payeeAccount}
+            </div>
+          )}
+        </div>
+      ),
+    },
     {
       title: '付款方式',
       key: 'method',
