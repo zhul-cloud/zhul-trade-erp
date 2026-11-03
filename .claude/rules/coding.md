@@ -31,6 +31,8 @@ PRIMARY KEY (`id`)
 
 基础表（用户、权限、字典、资源等）只用 `status`，不加 `deleted_at`。
 
+带 `tenant_id` 的新表，必须同时在 `framework/tenant/TenantTables` 里归类（启用拦截器或写明排除理由），否则 `TenantIsolationContractTest` 失败，详见下文「多租户规范」。
+
 ### 建表风格
 
 - 统一使用反引号 + NOT NULL DEFAULT 风格（参考 resource 表）

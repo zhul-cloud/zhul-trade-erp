@@ -280,6 +280,44 @@ public class AttachmentService {
     }
 
     /**
+     * 把已挂在 fromOwnerId 上的附件复制一份挂到 toOwnerId（共用同一个存储文件，各自一条附件记录），
+     * 用于一次上传、多张单据共用的截图；附件只做软删除，删除其中一条不影响其他单据
+     */
+    public void copy(String ownerType, Long fromOwnerId, Long toOwnerId, Collection<Long> ids) {
+        List<Long> keys = ids == null ? List.of() : ids.stream().filter(Objects::nonNull).distinct().toList();
+        if (keys.isEmpty()) {
+            return;
+        }
+        List<BizAttachmentDO> rows = mapper.selectBatchIds(keys);
+        if (rows.size() != keys.size()) {
+            throw new BizException("附件不存在，请重新上传");
+        }
+        for (BizAttachmentDO a : rows) {
+            if (a.getDeletedAt() != null || !Objects.equals(a.getTenantId(), PiStore.tenantId()) || !ownerType.equals(a.getOwnerType())
+                    || !Objects.equals(a.getOwnerId(), fromOwnerId)) {
+                throw new BizException("附件不存在，请重新上传");
+            }
+            BizAttachmentDO c = new BizAttachmentDO();
+            c.setTenantId(a.getTenantId());
+            c.setOwnerType(ownerType);
+            c.setOwnerId(toOwnerId);
+            c.setKind(a.getKind());
+            c.setStorage(a.getStorage());
+            c.setFileKey(a.getFileKey());
+            c.setUrl(a.getUrl());
+            c.setFileName(a.getFileName());
+            c.setFileSize(a.getFileSize());
+            c.setContentType(a.getContentType());
+            c.setProcessingStatus(a.getProcessingStatus());
+            c.setUploadedBy(a.getUploadedBy());
+            mapper.insert(c);
+        }
+        if (mapper.selectCount(owned(ownerType, List.of(toOwnerId))) > MAX_PER_OWNER.getOrDefault(ownerType, 20)) {
+            throw new BizException("每张单据最多 " + MAX_PER_OWNER.getOrDefault(ownerType, 20) + " 个附件");
+        }
+    }
+
+    /**
      * 把附件挂到新的归属上：还没挂的，或原来挂在 fromOwners 之一上的（如被新版本替换掉的旧回价），其余拒绝；校验数量上限
      */
     public void reassign(String ownerType, Collection<Long> ids, Collection<Long> fromOwners, Long toOwner) {

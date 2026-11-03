@@ -56,6 +56,11 @@ public class SaveQuotationRequest {
         /** 替代型号（无货行可改、可清空） */
         @Size(max = 128, message = "替代型号不能超过 128 个字符")
         private String replacementModel;
+        /** 无货原因（1-暂时缺货、2-已停产、3-停产有替代型号、4-其他）；不传时保持原值 */
+        private Integer noStockReason;
+        /** 原因为「其他」时给客户看的英文说明 */
+        @Size(max = 100, message = "无货说明不能超过 100 个字符")
+        private String noStockNote;
     }
 
     @Data

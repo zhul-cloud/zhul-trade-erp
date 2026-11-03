@@ -72,6 +72,11 @@ public class SalesOrderVO {
     private Integer status;
     private String statusName;
     private String cancelReason;
+    /** 先采购后收款 */
+    private Boolean payLater;
+    private String payLaterReason;
+    private String payLaterByName;
+    private java.time.LocalDateTime payLaterAt;
     private String cancelledByName;
     private LocalDateTime cancelledAt;
     private Integer receiptStatus;

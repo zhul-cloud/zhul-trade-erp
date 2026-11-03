@@ -107,6 +107,57 @@ export const FxDiff: React.FC<{ value?: number; actual?: number | null }> = ({
   );
 };
 
+/** 多收原路退回平台：日期、实际退出人民币、平台退款截图（平台名称与订单号由后端按原收款记录） */
+export const PlatformRefundFields: React.FC<{
+  value: PayoutValue;
+  onChange: (v: PayoutValue) => void;
+  bookValue?: number;
+}> = ({ value, onChange, bookValue }) => (
+  <>
+    <div
+      style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+        gap: 12,
+      }}
+    >
+      <div>
+        <FieldLabel text="退回日期" required />
+        <DatePicker
+          value={value.date}
+          allowClear={false}
+          disabledDate={(d) => d.isAfter(dayjs(), 'day')}
+          onChange={(d) => d && onChange({ ...value, date: d })}
+          style={{ width: '100%' }}
+        />
+      </div>
+      <div>
+        <FieldLabel text="实际退出人民币" required />
+        <InputNumber<number>
+          min={0.01}
+          precision={2}
+          prefix="¥"
+          value={value.actualCny}
+          onChange={(v) => onChange({ ...value, actualCny: v })}
+          style={{ width: '100%' }}
+          aria-label="实际退出人民币"
+        />
+      </div>
+    </div>
+    <FxDiff value={bookValue} actual={value.actualCny} />
+    <div>
+      <FieldLabel text="凭证（平台退款截图）" required />
+      <AttachmentWall
+        ownerType="REFUND"
+        value={value.files}
+        onChange={(files) => onChange({ ...value, files })}
+        max={10}
+        accept={ACCEPT_PROOF}
+      />
+    </div>
+  </>
+);
+
 /** 转出方式与收款账户、实际转出人民币、凭证（转给客户与退回多收共用） */
 export interface PayoutValue {
   date: Dayjs;

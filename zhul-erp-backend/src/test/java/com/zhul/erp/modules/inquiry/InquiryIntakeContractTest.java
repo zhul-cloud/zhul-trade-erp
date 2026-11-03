@@ -17,6 +17,7 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -226,6 +227,42 @@ class InquiryIntakeContractTest extends InquiryContractSupport {
     }
 
     @Test
+    void list_showsFirstModelBrandsCategories_andModelsPopup() throws Exception {
+        loginAsAdmin("it_inq_admin");
+        String admin = token("it_inq_admin");
+        long bulk = submit(admin, customer("Model Buyer", "Germany"), "");
+        ok(call(json(post(INQ + "/" + bulk + "/confirm"), write(Map.of("rows", List.of(
+                row("Delta", "HMI", "DOP-110WS", 2, null), row("Omron", "传感器", "E3Z-D61", 10, null),
+                row("Omron", "传感器", "E3Z-D62", 5, null))))), admin));
+        long pending = submit(admin, customer("Raw Buyer", "Germany"), "");
+
+        JsonNode records = ok(call(json(post(INQ + "/page"), "{}"), admin)).path("records");
+        JsonNode b = null;
+        JsonNode p = null;
+        for (JsonNode r : records) {
+            if (r.path("id").asLong() == bulk) {
+                b = r;
+            } else if (r.path("id").asLong() == pending) {
+                p = r;
+            }
+        }
+        assertNotNull(b);
+        JsonNode models = ok(call(get(INQ + "/" + bulk + "/models"), admin));
+        assertEquals(3, models.size(), models.toString());
+        assertEquals(models.get(0).path("model").asText(), b.path("firstModel").asText(), "列表显示第一个型号");
+        assertEquals("Omron", b.path("brands").get(0).asText(), "型号多的品牌排前面");
+        assertEquals("Delta", b.path("brands").get(1).asText());
+        assertEquals(2, b.path("categories").size());
+        assertEquals(17, java.util.stream.StreamSupport.stream(models.spliterator(), false)
+                .mapToInt(m -> m.path("quantity").asInt()).sum());
+        // 还没解析的询盘没有型号
+        assertNotNull(p);
+        assertTrue(p.path("firstModel").isNull() || p.path("firstModel").isMissingNode());
+        assertEquals(0, p.path("brands").size());
+        assertEquals(0, ok(call(get(INQ + "/" + pending + "/models"), admin)).size());
+    }
+
+    @Test
     void level_defaultValidateUpdateWithLogAndFilter() throws Exception {
         loginAsAdmin("it_inq_admin");
         String admin = token("it_inq_admin");
@@ -357,6 +394,9 @@ class InquiryIntakeContractTest extends InquiryContractSupport {
         assertEquals("2043103", draft.path("rows").get(1).path("confirmedModel").asText(), "确认型号缺失时用原始型号");
         assertEquals(3, draft.path("rows").get(1).path("lifecycle").asInt(), "生命周期缺失时为待查");
         assertEquals(1, draft.path("inquiry").path("pendingVerifyCount").asInt());
+        assertEquals("20905", draft.path("inquiry").path("firstModel").asText(), "待确认时型号摘要取 AI 识别结果");
+        JsonNode aiModels = ok(call(get(INQ + "/" + id + "/models"), admin));
+        assertEquals(List.of("20905", "2043103"), List.of(aiModels.get(0).path("model").asText(), aiModels.get(1).path("model").asText()));
 
         long failed = submit(admin, customer("Erik Larsson", "Sweden"), "");
         jdbc.update("update customer_inquiry set status = 2, ai_task_id = ? where id = ?", task + 1000, failed);

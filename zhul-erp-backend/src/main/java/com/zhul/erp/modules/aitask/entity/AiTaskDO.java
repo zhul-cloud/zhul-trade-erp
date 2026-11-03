@@ -28,6 +28,11 @@ public class AiTaskDO {
     @TableField("`output`")
     private String output;
     private String errorMessage;
+    /** 用量（spec ai-platform/task-orchestration「记录 AI 调用用量」）：空为无记录 */
+    private String model;
+    private Integer inputTokens;
+    private Integer outputTokens;
+    private Integer webSearches;
     private Long requestedBy;
     private LocalDateTime startedAt;
     private LocalDateTime completedAt;

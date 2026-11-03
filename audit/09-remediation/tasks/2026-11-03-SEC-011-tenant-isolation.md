@@ -142,6 +142,22 @@
 - `HistoryMigrationService` 撤销迁移时，候选来源（`product_candidate_source`）的查询与软删除补上 `tenant_id = 批次租户`。原来只靠来自带租户条件迁移记录的 ID，现在改为纵深防御。
 - **验证**：`HistoryMigrationContractTest`、`HistoryMigrationReadOnlyContractTest`、`TenantIsolationContractTest` 通过；前一分支全量 1224 个 0 失败。
 
+## 合入 develop 新提交（2026-11-03）
+
+`develop` 新增 22 个提交，含 v1.6.0 发版，在 `fix/tenant-rules-doc` 上合入。新代码按租户规则做了以下适配：
+
+- 新建的 5 张表 `customer_contact`、`customer_field_source`、`customer_dup_dismiss`、`customer_background_report`、`country_profile` 都由代码按本租户读写，归为私有。合入后 `everyTenantTableIsClassified` 先报出这 5 张未归类，归类后通过。累计启用 123 张。
+- **凌晨定时任务 `CustomerNightlyJob.run`**：没有租户上下文，第一句查询就被拦截器拒绝，整个任务失败。现改为在平台范围查出租户后逐个处理。测试由直接调 `recompute` 改为走 `run()`。缺陷见证：撤掉修复时 `CustomerProfileContractTest` 报「缺少租户上下文」，恢复后通过。
+- `CustomerMergeService.countBy` 是 JdbcTemplate，补上 `tenant_id` 条件。客户 ID 本来就来自本租户，这是纵深防御。
+- 联系人中文名翻译的测试直接调 `handle`，改为在任务所属租户下调用，与生产中回调的 `runAs` 一致。
+- 规则可见性：
+  - `AGENTS.md` 的 ALWAYS 清单加一行租户规则（用户 2026-11-03 同意）。
+  - 编码规范「建表规范」补一句「新表须在 `TenantTables` 归类」。
+- **验证**：
+  - 后端全量 1296 个，0 失败，7 个环境跳过。
+  - 统计报告（`*.txt`、`*.xml`、`*-output.txt`）中「缺少租户上下文」0 次，SQL 语法错误与 JSqlParser 异常 0 次。此前几轮只统计了 `*-output.txt`，这类异常其实写在 `*.txt` 报告里，所以口径不全；本轮已补全。本轮是合并后的最终代码，结论覆盖此前各分支。
+- 复核 develop 新提交的其他发现见 [2026-11-03-BUS-025](2026-11-03-BUS-025-develop-merge-review.md)。
+
 ## 合并、部署与逐 ID 验收
 
 | ID | 修复 / 验收范围 | 部署与目标环境验收证据 | 验收人 / 日期 | 结论与剩余项 |
@@ -167,3 +183,4 @@
 | 2026-11-03 / Claude | `fix/tenant-modules-trade` 提交 `a052e0b0`；从它拉 `fix/tenant-modules-supply`，启用供应链 27 张表 | 启用商品库与其余平台表 |
 | 2026-11-03 / Claude | `fix/tenant-modules-supply` 提交 `da3bf8f7`；从它拉 `fix/tenant-modules-platform`，144 张表归类完毕（启用 118、排除 26），修资料核对跨公司同步 | 拉最后一个分支同步编码规范「多租户规范」 |
 | 2026-11-03 / Claude | `fix/tenant-modules-platform` 提交 `10d5ed74`；从它拉 `fix/tenant-rules-doc`，同步编码规范，补迁移撤销的租户条件；SEC-011 改为待合并 | 等用户确认合并到 `develop` |
+| 2026-11-03 / Claude | 合入 `origin/develop`（含 v1.6.0），适配 Kevin 新增的表与定时任务，全量通过；准备 PR 到 `develop` | 用户已要求创建 PR 并合并 |

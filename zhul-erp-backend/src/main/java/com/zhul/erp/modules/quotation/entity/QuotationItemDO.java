@@ -40,6 +40,10 @@ public class QuotationItemDO {
     private Integer noStock;
     /** 替代型号（无货行：询价时标停产记录的替代型号） */
     private String replacementModel;
+    /** 无货原因（0-非无货行、1-暂时缺货、2-已停产、3-停产有替代型号、4-其他） */
+    private Integer noStockReason;
+    /** 无货原因为「其他」时给客户看的英文说明 */
+    private String noStockNote;
     private BigDecimal costPrice;
     /** 定价方式，见 QuotationPricing.MODE_* */
     private Integer pricingMode;

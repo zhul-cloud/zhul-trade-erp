@@ -17,6 +17,8 @@ import com.zhul.erp.modules.masterdata.dto.SupplierPageQuery;
 import com.zhul.erp.modules.masterdata.dto.SupplierProductScopeRequest;
 import com.zhul.erp.modules.masterdata.dto.SupplierVO;
 import com.zhul.erp.modules.masterdata.dto.UpdateSupplierRequest;
+import com.zhul.erp.modules.masterdata.support.SupplierRenamedEvent;
+import org.springframework.context.ApplicationEventPublisher;
 import com.zhul.erp.modules.masterdata.entity.SupplierDO;
 import com.zhul.erp.modules.masterdata.repository.SupplierMapper;
 import com.zhul.erp.modules.masterdata.service.impl.SupplierAttachmentSync;
@@ -75,12 +77,14 @@ class SupplierServiceImplTest {
     private SupplierAttachmentSync attachmentSync;
     @Mock
     private FileStorageService fileStorage;
+    @Mock
+    private ApplicationEventPublisher events;
 
     private SupplierServiceImpl supplierService;
 
     @BeforeEach
     void setUp() {
-        supplierService = new SupplierServiceImpl(supplierMapper, scopeSync, accountSync, attachmentSync, fileStorage);
+        supplierService = new SupplierServiceImpl(supplierMapper, scopeSync, accountSync, attachmentSync, fileStorage, events);
         TenantContext.setTenantId(1);
     }
 
@@ -253,6 +257,38 @@ class SupplierServiceImplTest {
 
         verify(scopeSync, never()).normalize(any());
         verify(scopeSync, never()).replace(any(), any(), any());
+    }
+
+    @Test
+    void update_renamed_publishesEventWithDisplayName() {
+        SupplierDO supplier = new SupplierDO();
+        supplier.setId(1L);
+        supplier.setTenantId(1);
+        supplier.setName("Old Name");
+        when(supplierMapper.selectById(1L)).thenReturn(supplier);
+        when(supplierMapper.selectOne(any())).thenReturn(null);
+        UpdateSupplierRequest req = new UpdateSupplierRequest();
+        req.setName("New Name");
+
+        supplierService.update(1L, req);
+
+        verify(events).publishEvent(new SupplierRenamedEvent(1, 1L, "New Name"));
+    }
+
+    @Test
+    void update_sameName_publishesNothing() {
+        SupplierDO supplier = new SupplierDO();
+        supplier.setId(1L);
+        supplier.setTenantId(1);
+        supplier.setName("A");
+        when(supplierMapper.selectById(1L)).thenReturn(supplier);
+        when(supplierMapper.selectOne(any())).thenReturn(null);
+        UpdateSupplierRequest req = new UpdateSupplierRequest();
+        req.setName("A");
+
+        supplierService.update(1L, req);
+
+        verify(events, never()).publishEvent(any());
     }
 
     @Test

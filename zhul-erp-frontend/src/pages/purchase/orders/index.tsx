@@ -16,6 +16,7 @@ import { PAY_STATUS } from '@/pages/finance/payables/service';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
 import { StockPill, useUserOptions } from '@/pages/sales/orders/dialogs';
 import { useAppTheme } from '@/theme/AppTheme';
+import { recentRange } from '@/utils/dateRange';
 import { formatAmount } from '@/utils/format';
 import { usePageSize } from '@/utils/pageSize';
 import {
@@ -61,7 +62,9 @@ const PurchaseOrderList: React.FC = () => {
   const { palette } = useAppTheme();
   const users = useUserOptions();
   const [form] = Form.useForm<Filters>();
-  const [filters, setFilters] = useState<Filters>({});
+  // 下单日期默认最近 3 个月，清空日期看全部
+  const [defaults] = useState<Filters>(() => ({ range: recentRange() }));
+  const [filters, setFilters] = useState<Filters>(defaults);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = usePageSize(20);
   const [sort, setSort] = useState<Sort>({});
@@ -452,7 +455,12 @@ const PurchaseOrderList: React.FC = () => {
       )}
 
       <Card style={{ marginBottom: 16, padding: 20 }}>
-        <Form form={form} layout="vertical" onFinish={applyFilters}>
+        <Form
+          form={form}
+          layout="vertical"
+          initialValues={defaults}
+          onFinish={applyFilters}
+        >
           <div
             style={{
               display: 'grid',
@@ -573,7 +581,7 @@ const PurchaseOrderList: React.FC = () => {
               <Button
                 onClick={() => {
                   form.resetFields();
-                  applyFilters({});
+                  applyFilters(defaults);
                 }}
               >
                 重置

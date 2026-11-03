@@ -21,6 +21,8 @@ public class PaymentVO {
     private String accountName;
     /** 私对私时的付款个人账户 */
     private String payerAccount;
+    /** 对方收款账户快照（只含后四位） */
+    private String payeeAccount;
     private String advanceUser;
     private Integer reimburseStatus;
     private LocalDate payDate;

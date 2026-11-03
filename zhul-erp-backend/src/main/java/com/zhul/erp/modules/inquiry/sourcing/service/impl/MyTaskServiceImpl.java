@@ -7,6 +7,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhul.erp.common.exception.BizException;
+import com.zhul.erp.common.result.PageResult;
 import com.zhul.erp.common.utils.MigratedGuard;
 import com.zhul.erp.framework.tenant.TenantContext;
 import com.zhul.erp.modules.attachment.service.AttachmentService;
@@ -142,6 +143,14 @@ public class MyTaskServiceImpl implements MyTaskService {
                 .thenComparing(v -> !Boolean.TRUE.equals(v.getUrgent()))
                 .thenComparing(latest));
         return list;
+    }
+
+    @Override
+    public PageResult<MyTaskVO> doneTasks(String keyword, int page, int pageSize) {
+        int size = Math.min(Math.max(pageSize, 1), 100);
+        List<MyTaskVO> all = myTasks(true, keyword);
+        int from = Math.min((Math.max(page, 1) - 1) * size, all.size());
+        return PageResult.of((long) all.size(), all.subList(from, Math.min(from + size, all.size())));
     }
 
     /** 关键词匹配任务编号、品牌、品类、询盘单编号，或任务下型号（确认型号、原始型号，忽略大小写与分隔符） */

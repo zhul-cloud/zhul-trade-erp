@@ -24,4 +24,9 @@ public class AdvanceItemVO {
     private List<PayableVO.AttachmentRef> proofs = new ArrayList<>();
     /** 截图可以在这里补传（国内快递、退货运费） */
     private boolean proofUploadable;
+    /** 垫付人（用户 ID、姓名）；看「全部人员」时用来区分，提交时按它拆成每人一张报销单 */
+    private Long advanceUserId;
+    private String advanceUserName;
+    /** 是当前用户本人的垫付 */
+    private boolean mine;
 }

@@ -47,6 +47,7 @@ import {
   PATHS,
   Pill,
   partyAddress,
+  RECEIPT_STATUS,
   ReceiptStatusPill,
   SalesPageTitle,
 } from '../components';
@@ -1207,7 +1208,9 @@ const OrderDetail: React.FC = () => {
           <div style={{ fontSize: 12, color: palette.mute, marginTop: 10 }}>
             不单独计算收入与毛利，成本计入原订单{' '}
             {o.originalSoId && (
-              <a onClick={() => history.push(`/sales/orders/${o.originalSoId}`)}>
+              <a
+                onClick={() => history.push(`/sales/orders/${o.originalSoId}`)}
+              >
                 {o.originalSoNo}
               </a>
             )}
@@ -1315,6 +1318,21 @@ const OrderDetail: React.FC = () => {
           showIcon
           style={{ marginBottom: 16 }}
           title={`订单已取消${o.cancelledByName ? `（${o.cancelledByName} ${formatDateTime(o.cancelledAt).slice(0, 16)}）` : ''}：${o.cancelReason ?? ''}`}
+        />
+      )}
+      {active && o.payLater && o.receiptStatus === RECEIPT_STATUS.NONE && (
+        <Alert
+          type="warning"
+          showIcon
+          style={{ marginBottom: 16 }}
+          title={`客户还没有付款（先采购后收款：${o.payLaterReason ?? ''}${o.payLaterByName ? ` · ${o.payLaterByName}` : ''} ${formatDateTime(o.payLaterAt).slice(5, 10)}），请跟进收款`}
+          action={
+            o.piId ? (
+              <a onClick={() => history.push(PATHS.pi(o.piId as number))}>
+                去 PI 上传水单
+              </a>
+            ) : undefined
+          }
         />
       )}
       {completed && (
@@ -1426,6 +1444,7 @@ const OrderDetail: React.FC = () => {
             <StockPill type={o.stockType} />
             <ReceiptStatusPill status={o.receiptStatus} />
             {replacement && <Pill tone="violet">售后补发</Pill>}
+            {o.payLater && <Pill tone="orange">先采购后收款</Pill>}
           </>
         }
         description={
@@ -1434,11 +1453,19 @@ const OrderDetail: React.FC = () => {
             {replacement ? (
               <>
                 售后单{' '}
-                <a onClick={() => history.push(`/sales/after-sales/${o.afterSalesId}`)}>
+                <a
+                  onClick={() =>
+                    history.push(`/sales/after-sales/${o.afterSalesId}`)
+                  }
+                >
                   {o.afterSalesNo}
                 </a>{' '}
                 · 原订单{' '}
-                <a onClick={() => history.push(`/sales/orders/${o.originalSoId}`)}>
+                <a
+                  onClick={() =>
+                    history.push(`/sales/orders/${o.originalSoId}`)
+                  }
+                >
                   {o.originalSoNo}
                 </a>
               </>

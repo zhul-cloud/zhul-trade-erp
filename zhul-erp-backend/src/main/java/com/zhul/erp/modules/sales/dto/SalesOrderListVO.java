@@ -44,6 +44,8 @@ public class SalesOrderListVO {
     private Long ownerId;
     private String ownerName;
     private String cancelReason;
+    /** 先采购后收款 */
+    private Boolean payLater;
     /** 货物状态（件数，不含系统外采购的型号）；已取消的订单为空 */
     private Goods goods;
     private LocalDateTime createTime;

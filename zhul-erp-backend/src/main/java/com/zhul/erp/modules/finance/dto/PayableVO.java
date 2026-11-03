@@ -78,6 +78,8 @@ public class PayableVO {
         private String advanceUser;
         /** 私对私时的付款个人账户 */
         private String payerAccount;
+        /** 对方收款账户快照（如 对公 · 招商银行 · 户名 ****8901），未选为空 */
+        private String payeeAccount;
         private LocalDate payDate;
         private BigDecimal amount;
         private BigDecimal amountCny;

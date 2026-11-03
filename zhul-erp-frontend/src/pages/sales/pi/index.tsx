@@ -28,6 +28,7 @@ import { Stat, useWide } from '@/pages/inquiry/shared/components';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
 import { getUserList } from '@/pages/system/user/service';
 import { useAppTheme } from '@/theme/AppTheme';
+import { recentRange } from '@/utils/dateRange';
 import { formatAmount, formatDateTime } from '@/utils/format';
 import { usePageSize } from '@/utils/pageSize';
 import {
@@ -67,8 +68,10 @@ const PiList: React.FC = () => {
   const wide = useWide();
   const [form] = Form.useForm<Filters>();
   const [search] = useSearchParams();
+  // 创建日期默认最近 3 个月，清空日期看全部；从「已过期未付款」跳来时看全部
+  const [defaults] = useState<Filters>(() => ({ range: recentRange() }));
   const [filters, setFilters] = useState<Filters>(() =>
-    search.get('expired') === '1' ? { expiredUnpaid: true } : {},
+    search.get('expired') === '1' ? { expiredUnpaid: true } : defaults,
   );
   const [overdueCount, setOverdueCount] = useState<number>();
   const [page, setPage] = useState(1);
@@ -438,6 +441,7 @@ const PiList: React.FC = () => {
         <Form
           form={form}
           layout="vertical"
+          initialValues={{ range: filters.range }}
           onFinish={(v) => {
             setFilters({ ...v, expiredUnpaid: filters.expiredUnpaid });
             setPage(1);
@@ -513,7 +517,8 @@ const PiList: React.FC = () => {
               <Button
                 onClick={() => {
                   form.resetFields();
-                  setFilters({});
+                  form.setFieldsValue(defaults);
+                  setFilters(defaults);
                   setPage(1);
                 }}
               >

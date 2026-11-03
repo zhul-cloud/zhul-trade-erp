@@ -185,6 +185,12 @@ export default [
         access: 'customerList',
         component: './customer/detail',
       },
+      {
+        path: '/customer/list/:id/background/:reportId',
+        hideInMenu: true,
+        access: 'customerList',
+        component: './customer/background/detail',
+      },
     ],
   },
   {
@@ -689,6 +695,13 @@ export default [
         icon: 'clockCircle',
         access: 'systemTransitTimes',
         component: './system/transit-times',
+      },
+      {
+        path: '/system/country-profiles',
+        name: 'countryProfiles',
+        icon: 'global',
+        access: 'systemCountryProfiles',
+        component: './system/country-profiles',
       },
       {
         path: '/system/ai-settings',

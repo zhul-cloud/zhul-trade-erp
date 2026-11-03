@@ -285,8 +285,9 @@ public class QuoteCandidateServiceImpl implements QuoteCandidateService {
         vo.setQuantity(i.getQuantity());
         vo.setCostPrice(c.costPrice());
         vo.setNoStock(c.noStock());
-        vo.setPickable(c.pickable());
-        vo.setDisabledReason(c.pickable() ? null : QuoteCandidates.PENDING_REASON);
+        vo.setPickable(true);
+        vo.setPendingAsNoStock(c.pendingAsNoStock());
+        vo.setDisabledReason(null);
         vo.setQuoted(c.quoted());
         vo.setDraftQuotationNo(c.draftNo());
         return vo;

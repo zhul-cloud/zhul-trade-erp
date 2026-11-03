@@ -49,6 +49,11 @@ export interface CustomerInquiry {
   totalItemCount: number;
   /** 所有型号数量之和（不区分单位）；待确认时为 AI 识别结果 */
   totalQuantity: number;
+  /** 第一个型号；未解析、解析中、解析失败时为空 */
+  firstModel?: string;
+  /** 品牌、一级品类，按型号数从多到少 */
+  brands?: string[];
+  categories?: string[];
   pricedItemCount: number;
   taskCount: number;
   timeoutTaskCount: number;
@@ -742,6 +747,15 @@ const saveBlob = async (p: Promise<unknown>, fallback: string) => {
   window.setTimeout(() => window.URL.revokeObjectURL(url), 1000);
 };
 
+/** 列表「查看」弹窗的一行型号 */
+export interface InquiryModelLine {
+  brand: string;
+  model: string;
+  category: string;
+  quantity?: number;
+  unit?: string;
+}
+
 export const inquiryApi = {
   transferTasks: (taskIds: number[]) =>
     send<void>(
@@ -778,6 +792,7 @@ export const inquiryApi = {
       query,
     ),
   detail: (id: number) => get<InquiryDetail>(`${INQ}/${id}`),
+  models: (id: number) => get<InquiryModelLine[]>(`${INQ}/${id}/models`),
   /** 附件的临时访问链接（10 分钟有效），可直接用于预览 */
   attachmentBlobUrl: (id: number, attachmentId: number) =>
     fileUrl(`${INQ}/${id}/attachments/${attachmentId}`),
@@ -961,6 +976,13 @@ export const myTaskApi = {
     `${MY}/${id}/nameplates/${attachmentId}`,
   list: (done: boolean, keyword?: string) =>
     get<MyTask[]>(MY, { done, keyword: keyword || undefined }),
+  /** 已回价：分页 */
+  donePage: (page: number, pageSize: number, keyword?: string) =>
+    get<{ total: number; records: MyTask[] }>(`${MY}/done`, {
+      page,
+      pageSize,
+      keyword: keyword || undefined,
+    }),
   history: (id: number, itemId: number) =>
     get<ItemHistoryDetail>(`${MY}/${id}/items/${itemId}/history`),
   detail: (id: number) =>

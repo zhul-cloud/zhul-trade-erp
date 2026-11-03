@@ -56,6 +56,11 @@ public final class TenantTables {
             // 客户、商机（商机阶段由平台统一定义，租户只读）
             Map.entry("customer", Policy.PRIVATE),
             Map.entry("customer_party", Policy.PRIVATE),
+            Map.entry("customer_contact", Policy.PRIVATE),
+            Map.entry("customer_field_source", Policy.PRIVATE),
+            Map.entry("customer_dup_dismiss", Policy.PRIVATE),
+            Map.entry("customer_background_report", Policy.PRIVATE),
+            Map.entry("country_profile", Policy.PRIVATE),
             Map.entry("opportunity", Policy.PRIVATE),
             Map.entry("opportunity_attachment", Policy.PRIVATE),
             Map.entry("opportunity_stage", Policy.SHARED_READ),

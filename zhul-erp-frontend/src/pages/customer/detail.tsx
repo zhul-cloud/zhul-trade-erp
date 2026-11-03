@@ -5,7 +5,6 @@ import {
   FileTextOutlined,
   InfoCircleOutlined,
   SwapOutlined,
-  UserOutlined,
   WalletOutlined,
 } from '@ant-design/icons';
 import { history, useAccess, useParams } from '@umijs/max';
@@ -19,7 +18,11 @@ import { useAppTheme } from '@/theme/AppTheme';
 import { DICT_SOURCE_CHANNEL, useDictOptions } from '@/utils/dict';
 import { formatAmount, formatDateTime } from '@/utils/format';
 import {
-  GradePill,
+  BackgroundActions,
+  BackgroundCard,
+  useBackgroundReports,
+} from './background/components';
+import {
   LIST_PATH,
   PageTitle,
   PartyGroups,
@@ -31,11 +34,17 @@ import {
 } from './components';
 import {
   CURRENCY_OPTIONS,
-  INDUSTRY_OPTIONS,
   labelOf,
   PAYMENT_OPTIONS,
   SHIPPING_OPTIONS,
 } from './constants';
+import CompletenessCard from './profile/CompletenessCard';
+import ContactsCard from './profile/ContactsCard';
+import GradeCard from './profile/GradeCard';
+import ModuleEditModal from './profile/ModuleEditModal';
+import ProfileModules from './profile/ProfileModules';
+import { type Profile, profileApi } from './profile/service';
+import { GradeBadge, Stars } from './profile/ui';
 import { type CustomerDetail, customerApi, readBizError } from './service';
 import { localTimeInfo, zoneLabel } from './time';
 
@@ -269,6 +278,9 @@ const CustomerDetailPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>();
   const [transferOpen, setTransferOpen] = useState(false);
+  const [profile, setProfile] = useState<Profile>();
+  const [editModule, setEditModule] = useState<number>();
+  const bg = useBackgroundReports(Number(id));
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -284,17 +296,22 @@ const CustomerDetailPage: React.FC = () => {
     }
   }, [id]);
 
+  // 档案单独加载：失败不影响客户基本信息展示
+  const loadProfile = useCallback(() => {
+    profileApi
+      .get(Number(id))
+      .then(setProfile)
+      .catch(() => setProfile(undefined));
+  }, [id]);
+
   useEffect(() => {
     load();
-  }, [load]);
+    loadProfile();
+  }, [load, loadProfile]);
 
   const back = () => history.push(LIST_PATH);
-  const link = (href: string, value?: string) =>
-    value ? (
-      <a href={href} target="_blank" rel="noreferrer">
-        {value}
-      </a>
-    ) : undefined;
+  const canEdit = !!access['partner:customer:edit'];
+  const canBackground = !!access['partner:customer:background'];
 
   let body: React.ReactNode;
   let title: React.ReactNode = '客户详情';
@@ -334,7 +351,9 @@ const CustomerDetailPage: React.FC = () => {
         <span style={{ wordBreak: 'break-word' }}>{r.displayName}</span>
         {r.nameMissing && <Pill tone="orange">未填客户名称</Pill>}
         <RolePill value={r.customerRole} />
-        <GradePill value={r.customerGrade} />
+        {profile && profile.grade.finalGrade > 0 && (
+          <GradeBadge value={profile.grade.finalGrade} />
+        )}
         <StatusPill status={r.status} />
       </>
     );
@@ -348,9 +367,27 @@ const CustomerDetailPage: React.FC = () => {
             转移
           </Button>
         )}
-        {access['partner:customer:edit'] && (
+        {canBackground && (
+          <BackgroundActions
+            customerId={r.id}
+            customerName={r.displayName}
+            running={bg.running}
+            onStarted={bg.reload}
+          />
+        )}
+        {canEdit && profile && (
           <Button
-            type="primary"
+            icon={<EditOutlined />}
+            onClick={() =>
+              setEditModule(profile.completeness.missing[0]?.module ?? 1)
+            }
+          >
+            编辑档案
+          </Button>
+        )}
+        {canEdit && (
+          <Button
+            type={canBackground ? 'default' : 'primary'}
             icon={<EditOutlined />}
             onClick={() =>
               history.push(`${LIST_PATH}/${r.id}/edit?from=detail`)
@@ -376,182 +413,235 @@ const CustomerDetailPage: React.FC = () => {
     ]
       .filter(Boolean)
       .join(' · ');
+    const cp = profile?.countryProfile;
     body = (
-      <div
-        style={{
-          display: 'flex',
-          gap: 20,
-          alignItems: 'flex-start',
-          flexWrap: 'wrap',
-        }}
-      >
-        <div style={{ flex: '1 1 440px', minWidth: 0 }}>
-          <SectionCard icon={<InfoCircleOutlined />} title="基本信息">
-            <Grid>
-              <Field label="客户编码" mono>
-                {r.customerCode}
-              </Field>
-              <Field label="客户简称">{r.shortName}</Field>
-              <Field label="中文名称">{r.nameCn}</Field>
-              <Field label="官网">{link(r.website, r.website)}</Field>
-              <Field label="应用行业">
-                {labelOf(INDUSTRY_OPTIONS, r.industry)}
-              </Field>
-              <Field label="小满客户编号">{r.externalRef}</Field>
-              <Field label="备注" full>
-                {r.remark}
-              </Field>
-            </Grid>
-          </SectionCard>
-          <SectionCard icon={<EnvironmentOutlined />} title="注册地址与税务">
-            <Grid>
-              <Field label="国家/地区">{countryLabel(r.country)}</Field>
-              <Field label="州/省">{r.state}</Field>
-              <Field label="城市">{r.city}</Field>
-              <Field label="邮编">{r.postcode}</Field>
-              <Field label="详细地址（英文）" full>
-                {r.address}
-              </Field>
-              <Field label="税号" mono>
-                {r.taxId}
-              </Field>
-              <Field label="时区">{r.timezone && zoneLabel(r.timezone)}</Field>
-            </Grid>
-          </SectionCard>
-          <SectionCard icon={<UserOutlined />} title="主联系人">
-            <Grid>
-              <Field label="联系人姓名">{r.contactName}</Field>
-              <Field label="职位">{r.contactTitle}</Field>
-              <Field label="邮箱">
-                {link(`mailto:${r.contactEmail}`, r.contactEmail)}
-              </Field>
-              <Field label="电话">
-                {link(
-                  `tel:${r.contactPhone.replace(/[^+\d]/g, '')}`,
-                  r.contactPhone,
-                )}
-              </Field>
-              <Field label="WhatsApp">
-                {link(
-                  `https://wa.me/${r.whatsapp.replace(/\D/g, '')}`,
-                  r.whatsapp,
-                )}
-              </Field>
-              <Field label="其他联系方式">{r.otherIm}</Field>
-            </Grid>
-          </SectionCard>
-          <SectionCard icon={<WalletOutlined />} title="默认交易条件">
-            <div
-              style={{
-                padding: '14px 16px',
-                marginBottom: 20,
-                borderRadius: 12,
-                fontSize: 16,
-                fontWeight: 600,
-                background: palette.accentSoft,
-                border: `1px solid ${palette.accentLine}`,
-              }}
-            >
-              {summary}
-            </div>
-            <Grid>
-              <Field label="默认币种">
-                {CURRENCY_OPTIONS.find((c) => c.value === r.currency)?.label}
-              </Field>
-              <Field label="贸易术语">
-                {r.incoterm && `${r.incoterm} ${r.incotermPlace}`}
-              </Field>
-              <Field label="付款方式">{payment}</Field>
-              {r.depositRatio != null && (
-                <Field label="定金比例">{`${r.depositRatio}%`}</Field>
-              )}
-              {r.paymentDays != null && (
-                <Field label="账期">{`${r.paymentDays} 天`}</Field>
-              )}
-              <Field label="信用额度" mono>
-                {r.creditLimit != null &&
-                  formatAmount(r.creditLimit, r.creditCurrency)}
-              </Field>
-              <Field label="运输方式">
-                {labelOf(SHIPPING_OPTIONS, r.shippingMethod)}
-              </Field>
-              <Field label="目的港">{r.destinationPort}</Field>
-            </Grid>
-          </SectionCard>
-          <SectionCard icon={<FileTextOutlined />} title="收货与单证信息">
-            <PartyGroups parties={r.parties} countryLabel={countryLabel} />
-          </SectionCard>
-        </div>
-        <aside
-          aria-label="负责人与系统信息"
+      <>
+        {profile && <CompletenessCard profile={profile} />}
+        {profile && (
+          <GradeCard
+            customerId={r.id}
+            customerName={r.displayName}
+            grade={profile.grade}
+            potential={profile.potentialRating}
+            canAdjust={canEdit}
+            onChanged={loadProfile}
+          />
+        )}
+        {cp?.fxControl === 3 && (
+          <div
+            role="alert"
+            style={{
+              marginBottom: 16,
+              padding: '10px 16px',
+              borderRadius: 12,
+              fontSize: 13,
+              color: palette.ink,
+              background: palette.orangeSoft,
+            }}
+          >
+            <b style={{ color: palette.orange }}>
+              {zhOf(r.country)}外汇管制严格
+            </b>
+            ，注意收款方式{cp.fxNote ? `：${cp.fxNote}` : ''}
+          </div>
+        )}
+        <div
           style={{
-            flex: '0 0 320px',
-            maxWidth: '100%',
             display: 'flex',
-            flexDirection: 'column',
             gap: 20,
+            alignItems: 'flex-start',
+            flexWrap: 'wrap',
           }}
         >
-          {record && (
-            <CreditCard customerId={record.id} customerName={record.name} />
-          )}
-          <SideCard title="负责与归属">
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <span
+          <div style={{ flex: '1 1 440px', minWidth: 0 }}>
+            {profile && (
+              <ProfileModules
+                profile={profile}
+                canEditCountry={!!access.systemCountryProfiles}
+                onEdit={canEdit ? setEditModule : undefined}
+              />
+            )}
+            <SectionCard icon={<InfoCircleOutlined />} title="基本信息">
+              <Grid>
+                <Field label="客户编码" mono>
+                  {r.customerCode}
+                </Field>
+                <Field label="客户简称">{r.shortName}</Field>
+                <Field label="中文名称">{r.nameCn}</Field>
+                <Field label="小满客户编号">{r.externalRef}</Field>
+                <Field label="备注" full>
+                  {r.remark}
+                </Field>
+              </Grid>
+            </SectionCard>
+            <SectionCard icon={<EnvironmentOutlined />} title="注册地址与税务">
+              <Grid>
+                <Field label="国家/地区">{countryLabel(r.country)}</Field>
+                <Field label="州/省">{r.state}</Field>
+                <Field label="城市">{r.city}</Field>
+                <Field label="邮编">{r.postcode}</Field>
+                <Field label="详细地址（英文）" full>
+                  {r.address}
+                </Field>
+                <Field label="税号" mono>
+                  {r.taxId}
+                </Field>
+                <Field label="时区">
+                  {r.timezone && zoneLabel(r.timezone)}
+                </Field>
+              </Grid>
+            </SectionCard>
+            <SectionCard icon={<WalletOutlined />} title="默认交易条件">
+              <div
                 style={{
-                  width: 36,
-                  height: 36,
-                  borderRadius: 18,
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontWeight: 700,
-                  color: palette.link,
+                  padding: '14px 16px',
+                  marginBottom: 20,
+                  borderRadius: 12,
+                  fontSize: 16,
+                  fontWeight: 600,
                   background: palette.accentSoft,
+                  border: `1px solid ${palette.accentLine}`,
                 }}
               >
-                {(r.ownerName || '?').slice(0, 1)}
-              </span>
-              <div>
-                <div style={{ fontWeight: 600, color: palette.ink }}>
-                  {r.ownerName || '未分配'}
-                </div>
-                <div style={{ fontSize: 12, color: palette.mute }}>
-                  负责业务员{r.ownerDeptName ? ` · ${r.ownerDeptName}` : ''}
+                {summary}
+              </div>
+              <Grid>
+                <Field label="默认币种">
+                  {CURRENCY_OPTIONS.find((c) => c.value === r.currency)?.label}
+                </Field>
+                <Field label="贸易术语">
+                  {r.incoterm && `${r.incoterm} ${r.incotermPlace}`}
+                </Field>
+                <Field label="付款方式">{payment}</Field>
+                {r.depositRatio != null && (
+                  <Field label="定金比例">{`${r.depositRatio}%`}</Field>
+                )}
+                {r.paymentDays != null && (
+                  <Field label="账期">{`${r.paymentDays} 天`}</Field>
+                )}
+                <Field label="信用额度" mono>
+                  {r.creditLimit != null &&
+                    formatAmount(r.creditLimit, r.creditCurrency)}
+                </Field>
+                <Field label="运输方式">
+                  {labelOf(SHIPPING_OPTIONS, r.shippingMethod)}
+                </Field>
+                <Field label="目的港">{r.destinationPort}</Field>
+              </Grid>
+            </SectionCard>
+            <SectionCard icon={<FileTextOutlined />} title="收货与单证信息">
+              <PartyGroups parties={r.parties} countryLabel={countryLabel} />
+            </SectionCard>
+          </div>
+          <aside
+            aria-label="负责人与系统信息"
+            style={{
+              flex: '0 0 320px',
+              maxWidth: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 20,
+            }}
+          >
+            {bg.reports && (
+              <BackgroundCard customerId={r.id} reports={bg.reports} />
+            )}
+            {profile && (
+              <ContactsCard
+                customerId={r.id}
+                customerName={r.displayName}
+                contacts={profile.contacts}
+                missing={
+                  profile.completeness.missing.find((m) => m.module === 4)
+                    ?.labels ?? []
+                }
+                canEdit={canEdit}
+                onChanged={() => {
+                  loadProfile();
+                  load();
+                }}
+              />
+            )}
+            {record && (
+              <CreditCard customerId={record.id} customerName={record.name} />
+            )}
+            <SideCard title="负责与归属">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <span
+                  style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: 18,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontWeight: 700,
+                    color: palette.link,
+                    background: palette.accentSoft,
+                  }}
+                >
+                  {(r.ownerName || '?').slice(0, 1)}
+                </span>
+                <div>
+                  <div style={{ fontWeight: 600, color: palette.ink }}>
+                    {r.ownerName || '未分配'}
+                  </div>
+                  <div style={{ fontSize: 12, color: palette.mute }}>
+                    负责业务员{r.ownerDeptName ? ` · ${r.ownerDeptName}` : ''}
+                  </div>
                 </div>
               </div>
-            </div>
-            <SideRow label="客户来源">
-              {sourceLabel(r.sourceChannel)}
-              {r.aliLevel ? ` · ${r.aliLevel}` : ''}
-            </SideRow>
-            <SideRow label="客户等级">
-              <GradePill value={r.customerGrade} />
-            </SideRow>
-            <SideRow label="所在国家">{zhOf(r.country)}</SideRow>
-          </SideCard>
-          <LocalTimeCard timezone={r.timezone} />
-          <SideCard title="系统信息">
-            <SideRow label="创建人">{r.createBy}</SideRow>
-            <SideRow label="创建时间">
-              <span className="num">{formatDateTime(r.createTime)}</span>
-            </SideRow>
-            <SideRow label="最后修改人">{r.updateBy}</SideRow>
-            <SideRow label="最后修改时间">
-              <span className="num">{formatDateTime(r.updateTime)}</span>
-            </SideRow>
-          </SideCard>
-        </aside>
-        <TransferModal
-          open={transferOpen}
-          customers={[r]}
-          onClose={() => setTransferOpen(false)}
-          onDone={() => {
-            setTransferOpen(false);
-            back();
-          }}
-        />
-      </div>
+              <SideRow label="客户来源">
+                {sourceLabel(r.sourceChannel)}
+                {r.aliLevel ? ` · ${r.aliLevel}` : ''}
+              </SideRow>
+              <SideRow label="潜力评级">
+                <Stars value={profile?.potentialRating} />
+              </SideRow>
+              <SideRow label="经营等级">
+                <GradeBadge
+                  value={profile?.grade.finalGrade}
+                  adjusted={!!profile?.grade.adjust}
+                />
+              </SideRow>
+              <SideRow label="所在国家">{zhOf(r.country)}</SideRow>
+            </SideCard>
+            <LocalTimeCard timezone={r.timezone} />
+            <SideCard title="系统信息">
+              <SideRow label="创建人">{r.createBy}</SideRow>
+              <SideRow label="创建时间">
+                <span className="num">{formatDateTime(r.createTime)}</span>
+              </SideRow>
+              <SideRow label="最后修改人">{r.updateBy}</SideRow>
+              <SideRow label="最后修改时间">
+                <span className="num">{formatDateTime(r.updateTime)}</span>
+              </SideRow>
+            </SideCard>
+          </aside>
+          <TransferModal
+            open={transferOpen}
+            customers={[r]}
+            onClose={() => setTransferOpen(false)}
+            onDone={() => {
+              setTransferOpen(false);
+              back();
+            }}
+          />
+          {profile && (
+            <ModuleEditModal
+              open={editModule != null}
+              module={editModule ?? 1}
+              profile={profile}
+              onClose={() => setEditModule(undefined)}
+              onDone={() => {
+                setEditModule(undefined);
+                loadProfile();
+                load();
+              }}
+            />
+          )}
+        </div>
+      </>
     );
   }
 

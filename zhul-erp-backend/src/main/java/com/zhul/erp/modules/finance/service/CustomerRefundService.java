@@ -442,8 +442,14 @@ public class CustomerRefundService {
             vo.setExchangeRate(f.getExchangeRate());
             vo.setAmountCny(f.getAmountCny());
             vo.setMethod(f.getMethod());
-            vo.setMethodName(f.getMethod() == FinanceConstants.REFUND_OTHER && StringUtils.hasText(f.getMethodName())
-                    ? f.getMethodName() : FinanceConstants.REFUND_METHOD_NAMES.get(f.getMethod()));
+            String methodName = FinanceConstants.REFUND_METHOD_NAMES.get(f.getMethod());
+            if (f.getMethod() == FinanceConstants.REFUND_OTHER && StringUtils.hasText(f.getMethodName())) {
+                methodName = f.getMethodName();
+            } else if (f.getMethod() == FinanceConstants.REFUND_PLATFORM && StringUtils.hasText(f.getMethodName())) {
+                // 多收原路退回时记了平台名称
+                methodName = methodName + "（" + f.getMethodName() + "）";
+            }
+            vo.setMethodName(methodName);
             vo.setPayeeAccount(f.getPayeeAccount());
             vo.setRemark(f.getRemark());
             vo.setStatus(f.getStatus());
