@@ -212,11 +212,18 @@ class CustomerBackgroundContractTest extends IntegrationTestBase {
     void research_remindsWithin24HoursAndProceedsAfterConfirm() throws Exception {
         long id = customer();
         long first = ok(research(id, false)).path("id").asLong();
-        jdbc.update("update customer_background_report set status = 2, create_time = date_sub(now(), interval 3 hour) where id = ?", first);
+        jdbc.update("update customer_background_report set status = 2, priority = 1, score = 4, input_tokens = 128000, web_searches = 18,"
+                + " create_time = date_sub(now(), interval 3 hour) where id = ?", first);
 
         JsonNode remind = research(id, false);
         assertEquals("BACKGROUND_RECENT", remind.path("data").path("errorCode").asText(), remind.toString());
         assertEquals("这个客户 3 小时前由IT背调过，仍要再背调吗？", remind.path("message").asText());
+        JsonNode last = remind.path("data").path("detail");
+        assertEquals(first, last.path("reportId").asLong(), "提醒里带上次报告，供「先看上次的报告」");
+        assertEquals(1, last.path("priority").asInt());
+        assertEquals(4, last.path("score").asInt());
+        assertEquals(128000, last.path("inputTokens").asInt());
+        assertEquals(18, last.path("webSearches").asInt());
         assertEquals(1, jdbc.queryForObject("select count(*) from customer_background_report where customer_id = ?", Integer.class, id),
                 "取消则不发起");
 
@@ -387,6 +394,7 @@ class CustomerBackgroundContractTest extends IntegrationTestBase {
         assertEquals("先发西门子 S7-1200 现货清单", d.path("firstAction").asText());
         assertEquals("悉尼的系统集成商，23 人", d.path("identityNote").asText());
         assertEquals("# Pacific Controls 背调报告\n\n正文", d.path("reportMarkdown").asText());
+        assertEquals("<h1>Pacific Controls 背调报告</h1>\n<p>正文</p>\n", d.path("reportHtml").asText(), "页面直接展示渲染好的正文");
         assertEquals("claude-sonnet-5-5", d.path("model").asText());
         assertEquals(42000, d.path("inputTokens").asInt());
         assertEquals(6100, d.path("outputTokens").asInt());

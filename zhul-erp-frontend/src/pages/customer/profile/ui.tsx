@@ -1,4 +1,5 @@
 import { StarFilled } from '@ant-design/icons';
+import { history } from '@umijs/max';
 import { Tooltip } from 'antd';
 import React from 'react';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -100,10 +101,12 @@ export const doneOf = (mask?: number) =>
   [0, 1, 2, 3, 4].filter((i) => (mask ?? 0) & (1 << i)).length;
 
 /** 字段来源小标签：人工 · 谁 / 背调报告 / 系统 / 迁移，悬停看时间 */
-export const SourceTag: React.FC<{ source?: FieldSource; system?: string }> = ({
-  source,
-  system,
-}) => {
+export const SourceTag: React.FC<{
+  source?: FieldSource;
+  system?: string;
+  /** 传了客户 ID，背调来源可点开报告 */
+  customerId?: number;
+}> = ({ source, system, customerId }) => {
   const { palette } = useAppTheme();
   if (!source && !system) return null;
   const s = source?.source;
@@ -112,7 +115,9 @@ export const SourceTag: React.FC<{ source?: FieldSource; system?: string }> = ({
     (s === SOURCE.SYSTEM
       ? '系统'
       : s === SOURCE.REPORT
-        ? '背调报告'
+        ? source?.reportNo
+          ? `背调 ${source.reportNo}${source.reportDeleted ? '（已删除）' : ''}`
+          : '背调报告'
         : s === SOURCE.MIGRATED
           ? '迁移'
           : `人工${source?.operatorName ? ` · ${source.operatorName}` : ''}`);
@@ -122,12 +127,36 @@ export const SourceTag: React.FC<{ source?: FieldSource; system?: string }> = ({
       : s === SOURCE.REPORT
         ? palette.violet
         : palette.mute;
-  const tip = source?.updateTime
-    ? `${text} · ${formatDateTime(source.updateTime)}`
-    : text;
+  const tip = [
+    text,
+    s === SOURCE.REPORT && source?.operatorName && `${source.operatorName}采纳`,
+    source?.updateTime && formatDateTime(source.updateTime),
+  ]
+    .filter(Boolean)
+    .join(' · ');
+  const link =
+    s === SOURCE.REPORT &&
+    customerId &&
+    source?.reportId &&
+    !source.reportDeleted;
   return (
     <Tooltip title={tip}>
-      <span style={{ fontSize: 11, color, whiteSpace: 'nowrap' }}>{text}</span>
+      {link ? (
+        <a
+          onClick={() =>
+            history.push(
+              `/customer/list/${customerId}/background/${source?.reportId}`,
+            )
+          }
+          style={{ fontSize: 11, color, whiteSpace: 'nowrap' }}
+        >
+          {text}
+        </a>
+      ) : (
+        <span style={{ fontSize: 11, color, whiteSpace: 'nowrap' }}>
+          {text}
+        </span>
+      )}
     </Tooltip>
   );
 };

@@ -286,6 +286,7 @@ public class ProfileCompletionService {
         }
         BackgroundReportDetailVO vo = backgroundService.detail(customerId, r.getId());
         vo.setReportMarkdown(null);
+        vo.setReportHtml(null);
         return vo;
     }
 

@@ -185,6 +185,12 @@ export default [
         access: 'customerList',
         component: './customer/detail',
       },
+      {
+        path: '/customer/list/:id/background/:reportId',
+        hideInMenu: true,
+        access: 'customerList',
+        component: './customer/background/detail',
+      },
     ],
   },
   {

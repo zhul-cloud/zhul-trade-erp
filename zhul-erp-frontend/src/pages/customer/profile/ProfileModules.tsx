@@ -126,7 +126,9 @@ const ProfileModules: React.FC<{
   const { zhOf } = useCountries();
   const missing = (m: number) =>
     p.completeness.missing.find((x) => x.module === m)?.labels ?? [];
-  const src = (key: string) => <SourceTag source={p.sources[key]} />;
+  const src = (key: string) => (
+    <SourceTag source={p.sources[key]} customerId={p.customerId} />
+  );
   const sys = <SourceTag system="系统" />;
   const multi = (codes: number[], labelOf: (v?: number) => string) =>
     codes.length

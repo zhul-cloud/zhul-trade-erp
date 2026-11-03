@@ -199,7 +199,13 @@ public class CustomerBackgroundService {
         String ago = minutes < 60 ? "不到 1 小时前" : " " + (minutes / 60) + " 小时前";
         String who = nameOf(last.getRequestedBy());
         Map<String, Object> detail = new LinkedHashMap<>();
+        detail.put("reportId", last.getId());
         detail.put("reportNo", last.getReportNo());
+        detail.put("priority", last.getPriority());
+        detail.put("score", last.getScore());
+        detail.put("inputTokens", last.getInputTokens());
+        detail.put("outputTokens", last.getOutputTokens());
+        detail.put("webSearches", last.getWebSearches());
         detail.put("hoursAgo", minutes / 60);
         detail.put("requestedByName", who);
         detail.put("createTime", last.getCreateTime());
@@ -230,6 +236,7 @@ public class CustomerBackgroundService {
         BackgroundReportDetailVO vo = new BackgroundReportDetailVO();
         copy(r, vo, names(Set.of(r.getRequestedBy())));
         vo.setReportMarkdown(r.getReportMarkdown() == null ? "" : r.getReportMarkdown());
+        vo.setReportHtml(BackgroundReportHtml.markdownToHtml(vo.getReportMarkdown()));
         vo.setSuggestions(withCurrent(r));
         vo.setModel(r.getModel());
         vo.setInputTokens(r.getInputTokens());

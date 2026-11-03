@@ -289,6 +289,7 @@ export default function access(initialState: {
     'partner:customer:transfer': can('partner:customer:transfer'),
     'partner:customer:export': can('partner:customer:export'),
     'partner:customer:merge': can('partner:customer:merge'),
+    'partner:customer:background': can('partner:customer:background'),
     'partner:supplier:add': can('partner:supplier:add'),
     'partner:supplier:edit': can('partner:supplier:edit'),
     'partner:supplier:delete': can('partner:supplier:delete'),
