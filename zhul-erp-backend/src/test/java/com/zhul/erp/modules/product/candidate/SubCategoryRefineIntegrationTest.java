@@ -1,5 +1,6 @@
 package com.zhul.erp.modules.product.candidate;
 
+import com.zhul.erp.framework.tenant.TenantContext;
 import com.zhul.erp.modules.product.candidate.service.ProductArchiver;
 import com.zhul.erp.support.IntegrationTestBase;
 import org.junit.jupiter.api.AfterEach;
@@ -58,6 +59,8 @@ class SubCategoryRefineIntegrationTest extends IntegrationTestBase {
         long archived = candidate("ITR-4", "仝丙驱动器", 2, top);
         long rejected = candidate("ITR-5", "仝丙驱动器", 4, top);
 
+        // 生产里由启动回填任务在平台范围内调用
+        TenantContext.setTenantId(0);
         archiver.resuggestCategories();
 
         assertEquals(drive, categoryOf(refinable), "能确定细分品类的细化");

@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhul.erp.common.constants.RedisKeyConstants;
 import com.zhul.erp.common.utils.JwtUtils;
+import com.zhul.erp.framework.tenant.TenantContext;
 import com.zhul.erp.modules.aitask.constants.AiTaskStatus;
 import com.zhul.erp.modules.aitask.entity.AiTaskDO;
 import com.zhul.erp.modules.aitask.translation.ContactNameTranslations;
@@ -193,7 +194,8 @@ class OpportunityApiContractTest extends IntegrationTestBase {
         task.setStatus(AiTaskStatus.COMPLETED);
         task.setOutput("{\"items\":[{\"key\":\"" + johnCustomer + "\",\"text\":\"约翰\"},{\"key\":\"" + annaCustomer
                 + "\",\"text\":\"安娜\"}]}");
-        contactNameTranslations.handle(task);
+        // 真实回调按任务所属租户处理（AiTaskServiceImpl.handleCallback）
+        TenantContext.runAs(task.getTenantId(), () -> contactNameTranslations.handle(task));
         assertEquals("约翰", jdbc.queryForObject("select name_cn from customer where id = ?", String.class, johnCustomer));
         assertEquals("安娜手填", jdbc.queryForObject("select name_cn from customer where id = ?", String.class, annaCustomer));
     }

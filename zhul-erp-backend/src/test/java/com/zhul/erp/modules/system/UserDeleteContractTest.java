@@ -3,6 +3,7 @@ package com.zhul.erp.modules.system;
 import cn.hutool.crypto.digest.BCrypt;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.zhul.erp.common.exception.BizException;
 import com.zhul.erp.common.result.ResultCode;
 import com.zhul.erp.framework.tenant.TenantContext;
 import com.zhul.erp.modules.system.dto.UserPageQuery;
@@ -22,6 +23,7 @@ import java.util.Map;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 
 /** 删除用户是软删除：列表和统计不再显示、不能登录，启用停用租户也不会把人恢复；停用要同步到登录账号 */
@@ -74,6 +76,8 @@ class UserDeleteContractTest extends IntegrationTestBase {
         JsonNode res = objectMapper.readTree(mvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON).content(body))
                 .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8));
+        // MockMvc 请求结束时会清掉租户上下文，直接调用服务前按真实请求补上
+        TenantContext.setTenantId(TENANT_ID);
         return res.path("code").asInt();
     }
 
@@ -111,7 +115,8 @@ class UserDeleteContractTest extends IntegrationTestBase {
     void deletedUserStaysDeletedWhenStatusOrTenantChanges() {
         userService.deleteUser(USER_ID);
 
-        userService.updateUserStatus(USER_ID, 1);
+        // 已删除的用户不能再启用（按不存在拒绝，不当成成功）
+        assertEquals("用户不存在", assertThrows(BizException.class, () -> userService.updateUserStatus(USER_ID, 1)).getMessage());
         TenantContext.setTenantId(0);
         tenantService.updateStatus(TENANT_ID, 0);
         tenantService.updateStatus(TENANT_ID, 1);

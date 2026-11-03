@@ -5,7 +5,9 @@ import com.baomidou.mybatisplus.core.handlers.MetaObjectHandler;
 import com.baomidou.mybatisplus.extension.plugins.MybatisPlusInterceptor;
 import com.baomidou.mybatisplus.extension.plugins.inner.PaginationInnerInterceptor;
 import com.zhul.erp.framework.security.SecurityUtils;
+import com.zhul.erp.framework.tenant.TenantInterceptor;
 import org.apache.ibatis.reflection.MetaObject;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import java.time.LocalDateTime;
@@ -13,9 +15,11 @@ import java.time.LocalDateTime;
 @Configuration
 public class MybatisPlusConfig {
 
+    /** 租户拦截器须在分页拦截器之前，分页的 count 语句才会带上租户条件 */
     @Bean
-    public MybatisPlusInterceptor mybatisPlusInterceptor() {
+    public MybatisPlusInterceptor mybatisPlusInterceptor(@Value("${zhul.tenant.enforce:true}") boolean tenantEnforce) {
         MybatisPlusInterceptor interceptor = new MybatisPlusInterceptor();
+        interceptor.addInnerInterceptor(new TenantInterceptor(tenantEnforce));
         interceptor.addInnerInterceptor(new PaginationInnerInterceptor(DbType.MYSQL));
         return interceptor;
     }

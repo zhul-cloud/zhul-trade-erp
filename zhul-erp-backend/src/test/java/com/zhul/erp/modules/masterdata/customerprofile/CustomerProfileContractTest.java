@@ -133,7 +133,8 @@ class CustomerProfileContractTest extends IntegrationTestBase {
         task.setSkillId(ContactNameTranslations.SKILL_ID);
         task.setStatus(AiTaskStatus.COMPLETED);
         task.setOutput("{\"items\":[{\"key\":\"" + key + "\",\"text\":\"" + text + "\"}]}");
-        contactNameTranslations.handle(task);
+        // 生产中由 AI 回调按任务所属租户执行（AiTaskServiceImpl.handleCallback 的 runAs）
+        TenantContext.runAs(task.getTenantId(), () -> contactNameTranslations.handle(task));
     }
 
     @Test
@@ -303,12 +304,9 @@ class CustomerProfileContractTest extends IntegrationTestBase {
         assertEquals(2, jdbc.queryForObject("select biz_grade from customer where id = ?", Integer.class, small), "B 上调为 A");
 
         jdbc.update("update sales_order set sales_date = ? where so_no = 'ITCPS1'", today.minusDays(400));
-        TenantContext.setTenantId(0);
-        try {
-            nightlyJob.recompute(0);
-        } finally {
-            TenantContext.clear();
-        }
+        // 走定时任务入口：没有租户上下文，由任务自己按租户逐个重算（audit SEC-011）
+        TenantContext.clear();
+        nightlyJob.run();
         assertEquals(4, jdbc.queryForObject("select biz_grade_calc from customer where id = ?", Integer.class, small), "重算为 C");
         assertEquals(3, jdbc.queryForObject("select biz_grade from customer where id = ?", Integer.class, small), "调整方向保留，最终 B");
 

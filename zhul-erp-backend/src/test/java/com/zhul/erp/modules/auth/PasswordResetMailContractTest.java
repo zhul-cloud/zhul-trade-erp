@@ -3,6 +3,7 @@ package com.zhul.erp.modules.auth;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhul.erp.common.constants.RedisKeyConstants;
+import com.zhul.erp.framework.tenant.TenantContext;
 import com.zhul.erp.modules.system.dto.UpdateUserRequest;
 import com.zhul.erp.modules.system.service.UserService;
 import com.zhul.erp.support.IntegrationTestBase;
@@ -123,6 +124,7 @@ class PasswordResetMailContractTest {
         void sendsToEmailChangedInUserManagement() throws Exception {
             UpdateUserRequest req = new UpdateUserRequest();
             req.setEmail("li.na@fouwell.com");
+            TenantContext.setTenantId(0);
             userService.updateUser((int) ACCOUNT_ID, req);
 
             assertEquals(0, sendCode("li.na@fouwell.com").path("code").asInt());

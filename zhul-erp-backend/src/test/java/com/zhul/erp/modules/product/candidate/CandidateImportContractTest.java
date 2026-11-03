@@ -2,6 +2,7 @@ package com.zhul.erp.modules.product.candidate;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.zhul.erp.common.constants.RedisKeyConstants;
+import com.zhul.erp.framework.tenant.TenantContext;
 import com.zhul.erp.modules.inquiry.InquiryContractSupport;
 import com.zhul.erp.modules.product.candidate.service.ProductArchiver;
 import org.junit.jupiter.api.AfterEach;
@@ -211,6 +212,8 @@ class CandidateImportContractTest extends InquiryContractSupport {
         long acsItem = jdbc.queryForObject("select id from inquiry_item where customer_inquiry_id = ? and confirmed_model = ?",
                 Long.class, inq, "ACS580-01-12A7-4");
         jdbc.update("update inquiry_item set actual_model = 'ACS580-01-17A0-4', actual_model_key = 'acs5800117a04' where id = ?", acsItem);
+        // MockMvc 请求结束时会清掉租户上下文，直接调用服务前按真实请求补上
+        TenantContext.setTenantId(0);
         new TransactionTemplate(transactionManager).executeWithoutResult(t -> archiver.sync(List.of(acsItem)));
         assertEquals(1, jdbc.queryForObject("select count(*) from product_candidate where id = ? and deleted_at is null",
                 Integer.class, pool), "导入来源还在，候选不删除");

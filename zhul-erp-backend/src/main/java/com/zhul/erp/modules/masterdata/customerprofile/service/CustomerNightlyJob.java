@@ -3,6 +3,7 @@ package com.zhul.erp.modules.masterdata.customerprofile.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.zhul.erp.framework.tenant.TenantContext;
+import com.zhul.erp.framework.tenant.TenantScope;
 import com.zhul.erp.modules.masterdata.customerprofile.support.ProfileFacts;
 import com.zhul.erp.modules.masterdata.entity.CustomerDO;
 import com.zhul.erp.modules.masterdata.repository.CustomerMapper;
@@ -25,7 +26,10 @@ public class CustomerNightlyJob {
 
     @Scheduled(cron = "${zhul.customer.nightly-cron:0 30 2 * * *}", zone = "Asia/Shanghai")
     public void run() {
-        for (Object t : customerMapper.selectObjs(new QueryWrapper<CustomerDO>().select("DISTINCT tenant_id").isNull("deleted_at"))) {
+        // 定时任务没有租户上下文：在平台范围查出有客户的租户，再逐个按租户重算
+        List<Object> tenants = TenantScope.platform(() -> customerMapper.selectObjs(
+                new QueryWrapper<CustomerDO>().select("DISTINCT tenant_id").isNull("deleted_at")));
+        for (Object t : tenants) {
             int tenantId = ((Number) t).intValue();
             TenantContext.setTenantId(tenantId);
             try {

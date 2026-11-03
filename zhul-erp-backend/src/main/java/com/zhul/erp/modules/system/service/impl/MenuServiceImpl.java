@@ -261,6 +261,12 @@ public class MenuServiceImpl implements MenuService {
                 throw new BizException("包含当前账号无权分配的菜单");
             }
         }
+        // 授权按角色编码整体替换（role_resource 没有租户字段）：删除旧授权前确认目标是本租户的角色
+        RoleDO role = roleMapper.selectOne(new LambdaQueryWrapper<RoleDO>().eq(RoleDO::getCode, roleCode).last("LIMIT 1"));
+        if (role == null) {
+            throw new BizException("角色不存在");
+        }
+        RoleServiceImpl.requireOwned(role);
         roleResourceMapper.delete(
             new LambdaQueryWrapper<RoleResourceDO>().eq(RoleResourceDO::getRoleCode, roleCode)
         );

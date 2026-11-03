@@ -41,6 +41,7 @@ import java.util.TreeSet;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /** 疑似重复客户与合并（spec master-data/customer-merge） */
 @Service
@@ -156,6 +157,11 @@ public class CustomerMergeService {
     /** 被合并客户的单据改挂到保留客户、联系人搬过去、空字段补上，被合并客户软删除；一个事务 */
     @Transactional(rollbackFor = Exception.class)
     public void merge(Long targetId, Long sourceId) {
+        // 两个客户按 ID 顺序加行锁再校验：同时提交「A 并入 B」和「B 并入 A」时，后到的看到对方已删除而失败
+        if (targetId != null && sourceId != null) {
+            customerMapper.lockById(Math.min(targetId, sourceId));
+            customerMapper.lockById(Math.max(targetId, sourceId));
+        }
         MergePreviewVO preview = preview(targetId, sourceId);
         if (preview.getBlocked() != null) {
             throw new BizException(preview.getBlocked());
@@ -290,12 +296,13 @@ public class CustomerMergeService {
 
     private Map<Long, Long> countBy(String table, Collection<Long> ids) {
         Map<Long, Long> out = new HashMap<>();
+        int tenantId = tenantId();
         for (List<Long> part : partition(new ArrayList<>(ids))) {
             String marks = part.stream().map(x -> "?").collect(Collectors.joining(","));
-            jdbc.query("SELECT customer_id, COUNT(*) FROM `" + table + "` WHERE deleted_at IS NULL AND customer_id IN (" + marks
-                    + ") GROUP BY customer_id", rs -> {
+            jdbc.query("SELECT customer_id, COUNT(*) FROM `" + table + "` WHERE deleted_at IS NULL AND tenant_id = ? AND customer_id IN ("
+                    + marks + ") GROUP BY customer_id", rs -> {
                 out.put(rs.getLong(1), rs.getLong(2));
-            }, part.toArray());
+            }, Stream.concat(Stream.of((Object) tenantId), part.stream()).toArray());
         }
         return out;
     }

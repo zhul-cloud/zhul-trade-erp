@@ -229,6 +229,7 @@ class HistoryMigrationContractTest extends TenantContractSupport {
         Integer buyer = jdbc.queryForObject("select id from user_basic where tenant_id = ? and name = '测试采购'", Integer.class, tenantId);
         assertEquals(1, jdbc.queryForObject("select count(*) from account a join account_local_auth l on l.account_id = a.id where a.user_id = ? and a.status = 1",
                 Integer.class, buyer));
+        TenantContext.setTenantId(tenantId);
         userService.resetPassword(buyer, "Init@2026");
         assertTrue(BCrypt.checkpw("Init@2026", jdbc.queryForObject("select l.password from account a join account_local_auth l on l.account_id = a.id where a.user_id = ?",
                 String.class, buyer)));

@@ -81,18 +81,20 @@ class TenantServiceIntegrationTest extends IntegrationTestBase {
     }
 
     @Test
-    void disableThenEnableCascadesAccountAndUserStatus() {
+    void disableThenEnableKeepsEmployeesOwnStatus() {
         TenantCreateResultVO created = tenantService.create(
                 request("级联状态测试", "cascade-" + System.nanoTime() + "@example.com", "13800002222"));
         Integer tenantId = created.getTenant().getId();
+        // 停用公司前已单独停用的员工
+        jdbc.update("update account set status = 0 where tenant_id = ?", tenantId);
+        jdbc.update("update user_basic set status = 0 where tenant_id = ?", tenantId);
 
+        // 公司状态与员工状态分开保存（audit SEC-007）：启停公司不改员工状态，恢复后单独停用的员工仍是停用
         tenantService.updateStatus(tenantId, 0);
+        tenantService.updateStatus(tenantId, 1);
         assertEquals(0, jdbc.queryForObject("select status from account where tenant_id = ?", Integer.class, tenantId));
         assertEquals(0, jdbc.queryForObject("select status from user_basic where tenant_id = ?", Integer.class, tenantId));
-
-        tenantService.updateStatus(tenantId, 1);
-        assertEquals(1, jdbc.queryForObject("select status from account where tenant_id = ?", Integer.class, tenantId));
-        assertEquals(1, jdbc.queryForObject("select status from user_basic where tenant_id = ?", Integer.class, tenantId));
+        assertEquals(1, jdbc.queryForObject("select status from tenant where id = ?", Integer.class, tenantId));
     }
 
     @Test

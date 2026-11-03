@@ -52,6 +52,7 @@ class SessionSecurityContractTest extends IntegrationTestBase {
     @Autowired private JwtUtils jwtUtils;
     @Autowired private StringRedisTemplate redis;
     @Autowired private UserService userService;
+    @Autowired private com.zhul.erp.modules.tenant.service.TenantService tenantService;
 
     @BeforeEach
     void user() {
@@ -67,6 +68,7 @@ class SessionSecurityContractTest extends IntegrationTestBase {
 
     @AfterEach
     void cleanup() {
+        jdbc.update("delete from tenant where id = ?", OTHER_TENANT);
         for (int id : new int[]{USER_ID, OTHER_ID}) {
             jdbc.queryForList("select access_token, refresh_token from account_access_token where account_id = ?", id)
                     .forEach(r -> {
@@ -83,6 +85,17 @@ class SessionSecurityContractTest extends IntegrationTestBase {
         }
     }
 
+    /** 以指定用户名、密码、幂等键登录，返回原始响应 */
+    private JsonNode loginAs(String username, String password, String idempotencyKey) throws Exception {
+        String body = objectMapper.writeValueAsString(Map.of("username", username, "password", password,
+                "idempotencyKey", idempotencyKey));
+        JsonNode res = objectMapper.readTree(mvc.perform(post("/api/v1/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8));
+        TenantContext.setTenantId(0);
+        return res;
+    }
+
     /** 被测用户真实登录，返回 AccessToken */
     private String login(String password) throws Exception {
         String body = objectMapper.writeValueAsString(Map.of("username", USERNAME, "password", password,
@@ -91,6 +104,8 @@ class SessionSecurityContractTest extends IntegrationTestBase {
                         .contentType(MediaType.APPLICATION_JSON).content(body))
                 .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8));
         assertEquals(0, res.path("code").asInt(), res.toString());
+        // MockMvc 请求结束时会清掉租户上下文，直接调用服务前按真实请求补上
+        TenantContext.setTenantId(0);
         return res.path("data").path("accessToken").asText();
     }
 
@@ -218,6 +233,49 @@ class SessionSecurityContractTest extends IntegrationTestBase {
                 .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8));
         assertEquals(0, res.path("code").asInt(), res.toString());
         assertFalse(alive(accessToken), "邮箱找回密码后旧会话失效");
+    }
+
+    @Test
+    void loginIdempotencyBoundToVerifiedAccount() throws Exception {
+        String key = UUID.randomUUID().toString();
+        JsonNode first = loginAs(USERNAME, PASSWORD, key);
+        assertEquals(0, first.path("code").asInt(), first.toString());
+        // 同一账号重复提交：返回上一次的结果
+        assertEquals(first.path("data").path("accessToken").asText(),
+                loginAs(USERNAME, PASSWORD, key).path("data").path("accessToken").asText());
+        // 别人拿同一个幂等键：密码错误照样失败，拿不到被测账号的登录结果（audit SEC-006）
+        jdbc.update("insert into account (id, tenant_id, user_id, username, admin_flag, status) values (?, 0, ?, 'it_session_other', 0, 1)",
+                OTHER_ID, OTHER_ID);
+        jdbc.update("insert into user_basic (id, tenant_id, name, username, status) values (?, 0, '另一人', 'it_session_other', 1)", OTHER_ID);
+        jdbc.update("insert into account_local_auth (account_id, username, password, salt) values (?, 'it_session_other', ?, '')",
+                OTHER_ID, BCrypt.hashpw("Other@123456", BCrypt.gensalt()));
+        JsonNode wrong = loginAs("it_session_other", "wrong-pass-1", key);
+        assertTrue(wrong.path("code").asInt() != 0, wrong.toString());
+        assertTrue(wrong.path("data").path("accessToken").isMissingNode() || wrong.path("data").isNull());
+        JsonNode other = loginAs("it_session_other", "Other@123456", key);
+        assertEquals(0, other.path("code").asInt(), other.toString());
+        assertTrue(!first.path("data").path("accessToken").asText().equals(other.path("data").path("accessToken").asText()),
+                "不同账号得到各自的令牌");
+    }
+
+    @Test
+    void disabledCompanyBlocksLoginAndRevokesSessions_withoutTouchingEmployeeStatus() throws Exception {
+        jdbc.update("insert into tenant (id, name, status) values (?, '会话测试公司', 1)", OTHER_TENANT);
+        jdbc.update("update account set tenant_id = ? where id = ?", OTHER_TENANT, USER_ID);
+        jdbc.update("update user_basic set tenant_id = ? where id = ?", OTHER_TENANT, USER_ID);
+        String accessToken = login(PASSWORD);
+
+        loginAsAdmin("it_session_platform");
+        TenantContext.setTenantId(0);
+        tenantService.updateStatus(OTHER_TENANT, 0);
+        assertFalse(alive(accessToken), "停用公司后已登录的员工立即失效");
+        assertEquals(1, jdbc.queryForObject("select status from account where id = ?", Integer.class, USER_ID),
+                "员工自己的状态不被公司状态改写（audit SEC-007）");
+        assertEquals(1005, loginAs(USERNAME, PASSWORD, UUID.randomUUID().toString()).path("code").asInt(), "公司停用时不能登录");
+
+        TenantContext.setTenantId(0);
+        tenantService.updateStatus(OTHER_TENANT, 1);
+        assertEquals(0, loginAs(USERNAME, PASSWORD, UUID.randomUUID().toString()).path("code").asInt(), "恢复公司后照常登录");
     }
 
     @Test

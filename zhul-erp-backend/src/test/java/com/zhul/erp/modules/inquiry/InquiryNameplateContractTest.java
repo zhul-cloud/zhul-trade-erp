@@ -1,6 +1,7 @@
 package com.zhul.erp.modules.inquiry;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.zhul.erp.framework.tenant.TenantContext;
 import com.zhul.erp.modules.aitask.service.AiOrchestratorClient;
 import com.zhul.erp.modules.inquiry.customerinquiry.service.CustomerInquiryService;
 import org.junit.jupiter.api.AfterEach;
@@ -98,6 +99,8 @@ class InquiryNameplateContractTest extends InquiryContractSupport {
         jdbc.update("insert into ai_task (tenant_id, skill_id, status, output, requested_by) values (0, 'inquiry-parse-and-split', 3, ?, ?)", output, ADMIN_ID);
         long task = jdbc.queryForObject("select max(id) from ai_task", Long.class);
         jdbc.update("update customer_inquiry set status = 2, ai_task_id = ? where id = ?", task, id);
+        // 真实回调按任务所属租户处理（AiTaskServiceImpl.handleCallback）
+        TenantContext.setTenantId(0);
         inquiryService.applyParseSuccess(task, output);
         return id;
     }

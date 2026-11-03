@@ -3,6 +3,7 @@ package com.zhul.erp.modules.aitask.service.impl;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhul.erp.common.exception.BizException;
 import com.zhul.erp.framework.tenant.TenantContext;
+import com.zhul.erp.framework.tenant.TenantScope;
 import com.zhul.erp.modules.aitask.constants.AiTaskStatus;
 import com.zhul.erp.modules.aitask.dto.AiCallConfig;
 import com.zhul.erp.modules.aitask.dto.AiTaskCallbackRequest;
@@ -105,7 +106,8 @@ public class AiTaskServiceImpl implements AiTaskService {
 
     private void doSubmit(AiTaskDO task, String inputJson, AiCallConfig ai) {
         orchestratorClient.submit(task.getSkillId(), task.getId(), inputJson, ai)
-                .thenAccept(result -> {
+                // 异步线程没有租户上下文：按任务所属租户更新状态、通知发起方
+                .thenAccept(result -> TenantContext.runAs(task.getTenantId(), () -> {
                     LocalDateTime now = LocalDateTime.now();
                     if (result.isAccepted()) {
                         markStatus(task.getId(), AiTaskStatus.PROCESSING, null, null, now, null);
@@ -123,16 +125,22 @@ public class AiTaskServiceImpl implements AiTaskService {
                         failed.setCompletedAt(now);
                         resultDispatcher.dispatch(failed);
                     }
-                });
+                }));
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void handleCallback(Long taskId, AiTaskCallbackRequest req) {
-        AiTaskDO task = aiTaskMapper.selectById(taskId);
+        // 回调不带用户令牌、没有租户上下文：按任务 ID 找到任务后，按任务所属租户处理结果
+        AiTaskDO task = TenantScope.platform(() -> aiTaskMapper.selectById(taskId));
         if (task == null || task.getDeletedAt() != null) {
             throw new BizException("AI任务不存在: " + taskId);
         }
+        TenantContext.runAs(task.getTenantId(), () -> applyCallback(task, req));
+    }
+
+    private void applyCallback(AiTaskDO task, AiTaskCallbackRequest req) {
+        Long taskId = task.getId();
         LocalDateTime now = LocalDateTime.now();
         if (req.isSuccess()) {
             String outputJson = writeJsonSafely(req.getOutput());

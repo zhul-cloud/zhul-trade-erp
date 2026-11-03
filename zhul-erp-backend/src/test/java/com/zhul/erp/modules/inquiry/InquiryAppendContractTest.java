@@ -1,6 +1,7 @@
 package com.zhul.erp.modules.inquiry;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.zhul.erp.framework.tenant.TenantContext;
 import com.zhul.erp.modules.inquiry.customerinquiry.service.CustomerInquiryService;
 import com.zhul.erp.modules.inquiry.support.PriceKeys;
 import org.junit.jupiter.api.AfterEach;
@@ -41,6 +42,7 @@ class InquiryAppendContractTest extends InquiryContractSupport {
     }
 
     private long quote(String brand, String model, String price) {
+        TenantContext.setTenantId(0);
         jdbc.update("insert into sourcing_quote (tenant_id, brand, brand_key, model, model_key, channel, shop_name, currency_code, unit_price, "
                         + "exchange_rate, unit_price_cny, item_condition, quoted_by, quoted_at, status) "
                         + "values (0, ?, ?, ?, ?, 2, '明和电气', 'CNY', ?, 1, ?, 1, ?, NOW(), 2)",
@@ -91,6 +93,8 @@ class InquiryAppendContractTest extends InquiryContractSupport {
                 output, ADMIN_ID);
         long task = jdbc.queryForObject("select max(id) from ai_task", Long.class);
         jdbc.update("update customer_inquiry_append set status = 1, ai_task_id = ? where id = ?", task, appendId);
+        // 真实回调按任务所属租户处理（AiTaskServiceImpl.handleCallback）
+        TenantContext.setTenantId(0);
         inquiryService.applyParseSuccess(task, output);
         assertEquals(5, status(id), "回调只改追加批次");
 
@@ -140,6 +144,8 @@ class InquiryAppendContractTest extends InquiryContractSupport {
         jdbc.update("insert into ai_task (tenant_id, skill_id, status, requested_by) values (0, 'inquiry-parse-and-split', 4, ?)", ADMIN_ID);
         long task = jdbc.queryForObject("select max(id) from ai_task", Long.class);
         jdbc.update("update customer_inquiry_append set status = 1, ai_task_id = ? where id = ?", task, failed);
+        // 真实回调按任务所属租户处理（AiTaskServiceImpl.handleCallback）
+        TenantContext.setTenantId(0);
         inquiryService.applyParseFailure(task, "图片看不清");
         JsonNode open = ok(call(get(INQ + "/" + id), admin)).path("openAppend");
         assertEquals(3, open.path("status").asInt());

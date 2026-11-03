@@ -10,4 +10,7 @@ public interface AccountSessionService {
 
     /** 撤销用户的全部会话：停用、删除、管理员重置密码后旧登录立即失效 */
     void revokeAllOfUser(Integer userId);
+
+    /** 撤销公司全部账号的会话：平台停用公司后，已登录的员工立即失效 */
+    void revokeAllOfTenant(Integer tenantId);
 }

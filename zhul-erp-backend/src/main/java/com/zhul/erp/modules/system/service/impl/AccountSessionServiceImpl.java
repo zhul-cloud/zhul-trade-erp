@@ -3,7 +3,9 @@ package com.zhul.erp.modules.system.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.zhul.erp.common.constants.RedisKeyConstants;
 import com.zhul.erp.modules.system.entity.AccountAccessTokenDO;
+import com.zhul.erp.modules.system.entity.AccountDO;
 import com.zhul.erp.modules.system.repository.AccountAccessTokenMapper;
+import com.zhul.erp.modules.system.repository.AccountMapper;
 import com.zhul.erp.modules.system.service.AccountSessionService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -20,6 +22,7 @@ import java.util.List;
 public class AccountSessionServiceImpl implements AccountSessionService {
 
     private final AccountAccessTokenMapper accountAccessTokenMapper;
+    private final AccountMapper accountMapper;
     private final StringRedisTemplate redisTemplate;
 
     @Override
@@ -32,6 +35,24 @@ public class AccountSessionServiceImpl implements AccountSessionService {
         session.setStatus(0);
         session.setDeletedAt(LocalDateTime.now());
         accountAccessTokenMapper.updateById(session);
+    }
+
+    @Override
+    public void revokeAllOfTenant(Integer tenantId) {
+        // 会话表没有租户字段：按公司的账号找会话；平台停用公司时在平台范围内调用
+        List<Integer> accountIds = accountMapper.selectList(new LambdaQueryWrapper<AccountDO>()
+                        .select(AccountDO::getId)
+                        .eq(AccountDO::getTenantId, tenantId))
+                .stream().map(AccountDO::getId).toList();
+        if (accountIds.isEmpty()) {
+            return;
+        }
+        List<AccountAccessTokenDO> sessions = accountAccessTokenMapper.selectList(
+                new LambdaQueryWrapper<AccountAccessTokenDO>()
+                        .in(AccountAccessTokenDO::getAccountId, accountIds)
+                        .isNull(AccountAccessTokenDO::getDeletedAt));
+        sessions.forEach(this::revoke);
+        log.info("撤销公司全部登录会话，tenantId={}, count={}", tenantId, sessions.size());
     }
 
     @Override
