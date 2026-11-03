@@ -6,8 +6,13 @@ import com.zhul.erp.common.constants.RedisKeyConstants;
 import com.zhul.erp.common.utils.JwtUtils;
 import com.zhul.erp.modules.aitask.constants.AiConfigConstants;
 import com.zhul.erp.modules.aitask.service.AiOrchestratorClient;
+import com.zhul.erp.modules.document.support.DocumentConverter;
+import com.zhul.erp.modules.masterdata.customerbackground.support.BackgroundReportHtml;
 import com.zhul.erp.support.IntegrationTestBase;
+import org.apache.pdfbox.Loader;
+import org.apache.pdfbox.text.PDFTextStripper;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -51,7 +56,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 
 /**
  * spec crm/customer-background：「一键 AI 背调」（输入组装、同时只能一份背调中、24 小时提醒、权限、AI 未配置）、
- * 「上传背调报告」（PDF、粘贴文字、扫描件）、「背调报告」（回调保存、查询、详情、删除）、「字段建议与采纳」。
+ * 「上传背调报告」（PDF、粘贴文字、扫描件）、「背调报告」（回调保存、查询、详情、删除、导出 PDF）、「字段建议与采纳」。
  */
 @AutoConfigureMockMvc
 class CustomerBackgroundContractTest extends IntegrationTestBase {
@@ -65,6 +70,7 @@ class CustomerBackgroundContractTest extends IntegrationTestBase {
     @Autowired private StringRedisTemplate redis;
     @Autowired private ObjectMapper objectMapper;
     @MockBean private AiOrchestratorClient orchestrator;
+    @Autowired private DocumentConverter converter;
     @Value("${zhul.ai-task.callback-token}") private String callbackToken;
 
     private String admin;
@@ -607,5 +613,46 @@ class CustomerBackgroundContractTest extends IntegrationTestBase {
         loginWithResources("it_bg_noedit", MENU_CUSTOMER, BTN_BACKGROUND);
         assertEquals(403, perform(json(post(BASE + "/" + id + "/background-reports/" + reportId + "/suggestions/adopt"),
                 "{\"indexes\":[0]}"), token("it_bg_noedit")).getStatus(), "采纳需要「编辑客户」");
+    }
+
+    // ---------------------------------------------------------------- 导出 PDF（4.6）
+
+    @Test
+    void export_pdfContainsReportNumberAndAdoption() throws Exception {
+        Assumptions.assumeTrue(converter.available(), "本机未安装 LibreOffice");
+        long[] x = doneReport();
+        ok(adopt(x[0], x[1], "[0]"));
+        String reportNo = jdbc.queryForObject("select report_no from customer_background_report where id = ?", String.class, x[1]);
+
+        MockHttpServletResponse res = perform(get(BASE + "/" + x[0] + "/background-reports/" + x[1] + "/export"), admin);
+        assertEquals(200, res.getStatus(), res.getContentAsString(StandardCharsets.UTF_8));
+        assertEquals("application/pdf", res.getContentType());
+        assertTrue(res.getHeader("Content-Disposition").contains(
+                java.net.URLEncoder.encode("Pacific Controls Pty Ltd_" + reportNo + ".pdf", StandardCharsets.UTF_8).replace("+", "%20")),
+                res.getHeader("Content-Disposition"));
+        byte[] body = res.getContentAsByteArray();
+        assertEquals("%PDF", new String(body, 0, 4, StandardCharsets.US_ASCII), "导出文件是 PDF");
+        try (var doc = Loader.loadPDF(body)) {
+            String text = new PDFTextStripper().getText(doc);
+            assertTrue(text.contains(reportNo), "包含报告编号：" + text);
+            assertTrue(text.contains("Pacific Controls Pty Ltd"));
+        }
+    }
+
+    @Test
+    void export_requiresDoneReport() throws Exception {
+        long id = customer();
+        long reportId = ok(research(id, false)).path("id").asLong();
+        JsonNode res = call(get(BASE + "/" + id + "/background-reports/" + reportId + "/export"), admin);
+        assertEquals("报告还没有完成，不能导出", res.path("message").asText());
+    }
+
+    @Test
+    void exportHtml_escapesRawHtmlAndRendersTables() {
+        String html = BackgroundReportHtml.markdownToHtml("# 标题\n\n<script>alert(1)</script>\n\n| a | b |\n|---|---|\n| 1 | 2 |\n\n[x](javascript:alert(1))");
+        assertFalse(html.contains("<script>"), html);
+        assertTrue(html.contains("&lt;script&gt;"));
+        assertTrue(html.contains("<table width"), "支持表格");
+        assertFalse(html.contains("javascript:"), "链接只保留安全协议");
     }
 }

@@ -10,7 +10,10 @@ import com.zhul.erp.modules.masterdata.customerbackground.service.BackgroundAdop
 import com.zhul.erp.modules.masterdata.customerbackground.service.CustomerBackgroundService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -23,6 +26,7 @@ import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 /**
@@ -50,6 +54,17 @@ public class CustomerBackgroundController {
     @GetMapping("/{reportId}")
     public Result<BackgroundReportDetailVO> detail(@PathVariable Long id, @PathVariable Long reportId) {
         return Result.ok(backgroundService.detail(id, reportId));
+    }
+
+    /** 导出 PDF：核心结论、报告正文和字段采纳情况 */
+    @GetMapping("/{reportId}/export")
+    public ResponseEntity<byte[]> export(@PathVariable Long id, @PathVariable Long reportId) {
+        CustomerBackgroundService.ExportedPdf pdf = backgroundService.exportPdf(id, reportId);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment()
+                        .filename(pdf.fileName(), StandardCharsets.UTF_8).build().toString())
+                .contentType(MediaType.APPLICATION_PDF)
+                .body(pdf.body());
     }
 
     /** 上传的 PDF 原件下载链接 */

@@ -22,6 +22,8 @@ import com.zhul.erp.modules.masterdata.customerbackground.repository.CustomerBac
 import com.zhul.erp.modules.masterdata.customerbackground.support.BackgroundAdoption;
 import com.zhul.erp.modules.masterdata.customerbackground.support.BackgroundFields;
 import com.zhul.erp.modules.masterdata.customerbackground.support.BackgroundInput;
+import com.zhul.erp.modules.masterdata.customerbackground.support.BackgroundReportHtml;
+import com.zhul.erp.modules.document.support.DocumentConverter;
 import com.zhul.erp.modules.masterdata.customerbackground.support.PdfText;
 import com.zhul.erp.modules.masterdata.customerprofile.entity.CustomerContactDO;
 import com.zhul.erp.modules.masterdata.customerprofile.support.ProfileFacts;
@@ -63,6 +65,7 @@ import static com.zhul.erp.modules.masterdata.customerbackground.constants.Backg
 import static com.zhul.erp.modules.masterdata.customerbackground.constants.BackgroundConstants.SKILL;
 import static com.zhul.erp.modules.masterdata.customerbackground.constants.BackgroundConstants.SOURCE_AI;
 import static com.zhul.erp.modules.masterdata.customerbackground.constants.BackgroundConstants.SOURCE_UPLOAD;
+import static com.zhul.erp.modules.masterdata.customerbackground.constants.BackgroundConstants.STATUS_DONE;
 import static com.zhul.erp.modules.masterdata.customerbackground.constants.BackgroundConstants.STATUS_FAILED;
 import static com.zhul.erp.modules.masterdata.customerbackground.constants.BackgroundConstants.STATUS_RUNNING;
 
@@ -86,6 +89,7 @@ public class CustomerBackgroundService {
     private final AiTaskService aiTaskService;
     private final DocumentNumberService documentNumberService;
     private final FileStorageService fileStorageService;
+    private final DocumentConverter converter;
     private final UserBasicMapper userBasicMapper;
     private final CurrentUserResolver currentUser;
     private final DataScopeResolver dataScopeResolver;
@@ -262,6 +266,23 @@ public class CustomerBackgroundService {
             s.setDefaultChecked(BackgroundSuggestion.PENDING.equals(s.getState()) && v.ok() && s.getCurrentValue() == null);
         }
         return list;
+    }
+
+    /** 导出的 PDF：文件名「{客户名称}_{报告编号}.pdf」 */
+    public record ExportedPdf(String fileName, byte[] body) {
+    }
+
+    /** 导出 PDF：核心结论、正文与字段采纳情况；HTML 交给 LibreOffice 转换，与 PI、报价单共用转换队列 */
+    public ExportedPdf exportPdf(Long customerId, Long reportId) {
+        BackgroundReportDetailVO vo = detail(customerId, reportId);
+        if (vo.getStatus() != STATUS_DONE) {
+            throw new BizException("报告还没有完成，不能导出");
+        }
+        CustomerDO c = customerService.requireInScope(customerId);
+        String html = BackgroundReportHtml.render(c.getName(), vo);
+        byte[] pdf = converter.htmlToPdf(html.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        String name = (c.getName() + "_" + vo.getReportNo()).replaceAll("[\\\\/:*?\"<>|]+", "_").strip() + ".pdf";
+        return new ExportedPdf(name, pdf);
     }
 
     /** 上传的 PDF 原件：私有存储的临时下载链接 */
