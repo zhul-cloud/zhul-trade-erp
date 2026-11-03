@@ -5,6 +5,7 @@ import com.zhul.erp.modules.inquiry.sourcing.dto.SalesPendingVO;
 import com.zhul.erp.modules.inquiry.sourcing.dto.TaskIdsRequest;
 import com.zhul.erp.modules.inquiry.sourcing.service.SourcingTaskService;
 
+import com.zhul.erp.common.result.PageResult;
 import com.zhul.erp.common.result.Result;
 import com.zhul.erp.modules.inquiry.sourcing.dto.ActualModelRequest;
 import com.zhul.erp.modules.inquiry.sourcing.dto.ImportConfirmRequest;
@@ -55,6 +56,14 @@ public class MyTaskController {
     public Result<List<MyTaskVO>> list(@RequestParam(defaultValue = "false") boolean done,
                                        @RequestParam(required = false) String keyword) {
         return Result.ok(myTaskService.myTasks(done, keyword));
+    }
+
+    /** 已回价：分页 */
+    @GetMapping("/done")
+    public Result<PageResult<MyTaskVO>> done(@RequestParam(required = false) String keyword,
+                                             @RequestParam(defaultValue = "1") int page,
+                                             @RequestParam(defaultValue = "20") int pageSize) {
+        return Result.ok(myTaskService.doneTasks(keyword, page, pageSize));
     }
 
     @GetMapping("/{id}/items/{itemId}/history")

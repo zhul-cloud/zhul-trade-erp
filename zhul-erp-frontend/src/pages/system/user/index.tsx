@@ -175,7 +175,8 @@ const UserPage: React.FC = () => {
   );
 
   // 按业务属性分组：基础信息 / 组织信息 / 账号设置
-  // maxLength 对齐 user_basic 表字段长度：name(16) username(20) phone(16) email(100) nickname(64)
+  // maxLength 对齐表字段长度：name(16) phone(16) email(100) nickname(64)；
+  // username 记入各表的创建人 / 更新人（varchar(32)），最长 32
   const renderFormItems = (isCreate: boolean) => (
     <>
       <ProForm.Group title={groupTitle(<UserOutlined />, '基础信息')}>
@@ -185,7 +186,7 @@ const UserPage: React.FC = () => {
             label="用户名"
             placeholder="请输入用户名"
             colProps={{ span: 12 }}
-            fieldProps={{ maxLength: 20 }}
+            fieldProps={{ maxLength: 32 }}
             rules={[{ required: true, message: '请输入用户名' }]}
           />
         )}

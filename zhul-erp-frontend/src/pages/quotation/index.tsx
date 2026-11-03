@@ -27,6 +27,7 @@ import { Stat, useWide } from '@/pages/inquiry/shared/components';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
 import { getUserList } from '@/pages/system/user/service';
 import { useAppTheme } from '@/theme/AppTheme';
+import { recentRange } from '@/utils/dateRange';
 import { formatAmount, formatDateTime } from '@/utils/format';
 import { usePageSize } from '@/utils/pageSize';
 import { formatMargin } from './calc';
@@ -62,7 +63,9 @@ const QuotationList: React.FC = () => {
   const { palette } = useAppTheme();
   const wide = useWide();
   const [form] = Form.useForm<Filters>();
-  const [filters, setFilters] = useState<Filters>({});
+  // 创建日期默认最近 3 个月，清空日期看全部
+  const [defaults] = useState<Filters>(() => ({ range: recentRange() }));
+  const [filters, setFilters] = useState<Filters>(defaults);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = usePageSize(20);
   const [rows, setRows] = useState<QuotationListItem[]>([]);
@@ -386,6 +389,7 @@ const QuotationList: React.FC = () => {
         <Form
           form={form}
           layout="vertical"
+          initialValues={defaults}
           onFinish={(v) => {
             setFilters(v);
             setPage(1);
@@ -454,7 +458,7 @@ const QuotationList: React.FC = () => {
               <Button
                 onClick={() => {
                   form.resetFields();
-                  setFilters({});
+                  setFilters(defaults);
                   setPage(1);
                 }}
               >

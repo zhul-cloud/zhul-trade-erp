@@ -24,6 +24,7 @@ import { auditColumns } from '@/pages/purchase/components';
 import { orderApi, readBizError } from '@/pages/sales/service';
 import { ReasonModal } from '@/pages/warehouse/components';
 import { useAppTheme } from '@/theme/AppTheme';
+import { recentRange } from '@/utils/dateRange';
 import { useDictTexts } from '@/utils/dict';
 import { formatAmount } from '@/utils/format';
 import { usePageSize } from '@/utils/pageSize';
@@ -48,12 +49,12 @@ const METHOD_FILTERS = [
 
 const num: React.CSSProperties = { fontVariantNumeric: 'tabular-nums' };
 
-/** 经营统计跳转时 URL 带的日期范围 */
+/** 日期范围：默认最近 3 个月（清空看全部）；经营统计跳转时用 URL 带的日期 */
 const rangeFromUrl = (): [Dayjs, Dayjs] | null => {
   const p = new URLSearchParams(window.location.search);
   const from = p.get('dateFrom');
   const to = p.get('dateTo');
-  return from && to ? [dayjs(from), dayjs(to)] : null;
+  return from && to ? [dayjs(from), dayjs(to)] : recentRange();
 };
 
 /** 先选订单再登记退款 */

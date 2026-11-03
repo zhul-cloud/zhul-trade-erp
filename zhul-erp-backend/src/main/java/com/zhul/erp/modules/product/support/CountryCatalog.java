@@ -29,6 +29,7 @@ public class CountryCatalog {
 
     private List<CountryVO> countries = List.of();
     private final Map<String, String> byLowerName = new HashMap<>(512);
+    private final Map<String, String> enByZh = new HashMap<>(512);
 
     @PostConstruct
     public void load() throws IOException {
@@ -38,11 +39,19 @@ public class CountryCatalog {
         }
         for (CountryVO country : countries) {
             byLowerName.put(country.getNameEn().toLowerCase(Locale.ROOT), country.getNameEn());
+            if (country.getNameZh() != null) {
+                enByZh.put(country.getNameZh(), country.getNameEn());
+            }
         }
     }
 
     public List<CountryVO> all() {
         return countries;
+    }
+
+    /** 中文国家名对应的英文名，如 危地马拉 → Guatemala；不在清单内返回 null */
+    public String englishOf(String nameZh) {
+        return nameZh == null ? null : enByZh.get(nameZh.trim());
     }
 
     /** 返回清单里的规范英文名；不在清单内返回 null */

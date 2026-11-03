@@ -46,6 +46,7 @@ import {
   unitOrPublic,
   useBusinessUnits,
 } from '@/utils/businessUnit';
+import { recentRange } from '@/utils/dateRange';
 import { useDictTexts } from '@/utils/dict';
 import { formatAmount } from '@/utils/format';
 import { usePageSize } from '@/utils/pageSize';
@@ -594,7 +595,7 @@ interface Filters {
   unit?: number;
 }
 
-/** 初始筛选：经营统计跳转时带 dateFrom、dateTo、category、linked */
+/** 初始筛选：日期默认最近 3 个月（清空看全部）；经营统计跳转时带 dateFrom、dateTo、category、linked */
 const initial = (): Filters => {
   const p = new URLSearchParams(window.location.search);
   const from = p.get('dateFrom');
@@ -603,7 +604,7 @@ const initial = (): Filters => {
   return {
     keyword: '',
     soNo: '',
-    range: from && to ? [dayjs(from), dayjs(to)] : null,
+    range: from && to ? [dayjs(from), dayjs(to)] : recentRange(),
     category: p.get('category') ?? undefined,
     linked: linked == null ? undefined : linked === 'true',
     showVoid: false,

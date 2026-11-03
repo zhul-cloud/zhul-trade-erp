@@ -132,6 +132,12 @@ class SourcingQuoteEnhancementsContractTest extends InquiryContractSupport {
         // 搜索：按型号（忽略分隔符）、询盘单编号；待处理与已回价都能搜
         assertEquals(1, ok(call(get(MY).param("keyword", "6es72141ag40"), lin)).size());
         assertEquals(1, ok(call(get(MY).param("done", "true").param("keyword", "6ES7214"), lin)).size());
+        // 已回价分页：总数、当页、超出页为空，关键词同样生效
+        JsonNode donePage = ok(call(get(MY + "/done").param("page", "1").param("pageSize", "1"), lin));
+        assertEquals(1, donePage.path("total").asInt());
+        assertEquals(t1, donePage.path("records").get(0).path("id").asLong());
+        assertEquals(0, ok(call(get(MY + "/done").param("page", "2").param("pageSize", "1"), lin)).path("records").size());
+        assertEquals(0, ok(call(get(MY + "/done").param("keyword", "nothing-like-this"), lin)).path("total").asInt());
         String code = jdbc.queryForObject("select inquiry_code from customer_inquiry where id = ?", String.class, second);
         assertEquals(t2, ok(call(get(MY).param("keyword", code), lin)).get(0).path("id").asLong());
         assertEquals(0, ok(call(get(MY).param("keyword", "nothing-like-this"), lin)).size());

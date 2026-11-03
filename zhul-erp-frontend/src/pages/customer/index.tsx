@@ -326,6 +326,12 @@ const CustomerListPage: React.FC = () => {
       render: (v: string) => zhOf(v) || '—',
     },
     {
+      title: '主联系人',
+      key: 'contact',
+      width: 210,
+      render: (_, r) => stacked(r.contactName || '—', r.contactEmail),
+    },
+    {
       title: '客户角色',
       dataIndex: 'customerRole',
       width: 110,
@@ -414,12 +420,6 @@ const CustomerListPage: React.FC = () => {
           },
         ]
       : []),
-    {
-      title: '主联系人',
-      key: 'contact',
-      width: 210,
-      render: (_, r) => stacked(r.contactName || '—', r.contactEmail),
-    },
     {
       title: '状态',
       dataIndex: 'status',

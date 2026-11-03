@@ -23,6 +23,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.math.BigDecimal;
@@ -42,8 +43,9 @@ public class ReimbursementController {
 
     @GetMapping("/pending")
     @PreAuthorize(MENU)
-    public Result<List<AdvanceItemVO>> pending() {
-        return Result.ok(service.pending());
+    public Result<List<AdvanceItemVO>> pending(@RequestParam(defaultValue = "false") boolean all) {
+        // all=true：有「报销付款」权限的人看所有人的待报销，没有权限时仍只返回本人的
+        return Result.ok(service.pending(all));
     }
 
     @GetMapping("/reminders")
@@ -66,7 +68,7 @@ public class ReimbursementController {
 
     @PostMapping
     @PreAuthorize(MENU)
-    public Result<ReimbursementVO> submit(@Valid @RequestBody SubmitReimbursementRequest req) {
+    public Result<List<ReimbursementVO>> submit(@Valid @RequestBody SubmitReimbursementRequest req) {
         return Result.ok(service.submit(req));
     }
 

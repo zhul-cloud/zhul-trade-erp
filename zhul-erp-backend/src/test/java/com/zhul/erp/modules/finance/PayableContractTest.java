@@ -22,6 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 
 /**
  * spec finance/accounts-payable、finance/supplier-payment，与 purchase/purchase-order「付款条件」「采购订单的付款」、
@@ -126,6 +127,16 @@ class PayableContractTest extends SalesContractSupport {
     }
 
     // ---------------------------------------------------------------- 生成与付款计划
+
+    @Test
+    void supplierRenamed_payablePayeeFollows() throws Exception {
+        long sup = supplier("旧名工控", null);
+        long poId = orderedPo(sup, "R-1", 1, "100", List.of(term(100, 1, 0))).path("id").asLong();
+        assertEquals("旧名工控", bySource(poId, admin).path("payeeName").asText());
+
+        ok(call(json(put("/api/v1/masterdata/suppliers/" + sup), write(Map.of("name", "新名工控", "status", 1, "supplierType", 1))), admin));
+        assertEquals("新名工控", bySource(poId, admin).path("payeeName").asText(), "按供应商关联，改名后收款方跟着变");
+    }
 
     @Test
     void confirmCreatesPayable_installments_companyPayment_dueAfterReceipt() throws Exception {

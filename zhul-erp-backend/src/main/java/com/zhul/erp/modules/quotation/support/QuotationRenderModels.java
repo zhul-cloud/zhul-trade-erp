@@ -51,7 +51,7 @@ public final class QuotationRenderModels {
         h.put("customer.address", customer == null ? "" : nz(customer.getAddress()));
         h.put("customer.email", customer == null ? "" : nz(customer.getContactEmail()));
         h.put("customer.phone", customer == null ? "" : nz(customer.getContactPhone()));
-        h.put("seller.name", owner == null ? "" : nz(owner.getName()));
+        h.put("seller.name", sellerName(owner));
         h.put("seller.email", owner == null ? "" : nz(owner.getEmail()));
         h.put("seller.phone", owner == null ? "" : nz(owner.getPhone()));
         List<Map<String, Object>> rows = new ArrayList<>(items.size());
@@ -109,6 +109,15 @@ public final class QuotationRenderModels {
         return en != null && !en.isBlank() ? en.trim() : nz(zh);
     }
 
+    /** 发给客户的单据上的业务员：用昵称（一般是英文名），没填昵称才用姓名 */
+    public static String sellerName(UserBasicDO owner) {
+        if (owner == null) {
+            return "";
+        }
+        String nick = owner.getNickname();
+        return nick != null && !nick.isBlank() ? nick.trim() : nz(owner.getName());
+    }
+
     public static String symbol(String currency) {
         return SYMBOLS.getOrDefault(currency, currency == null ? "" : currency + " ");
     }
@@ -124,6 +133,11 @@ public final class QuotationRenderModels {
     private static String en(Map<Integer, String> en, Map<Integer, String> zh, Integer code) {
         String v = en.get(code);
         return v != null ? v : zh.getOrDefault(code, "");
+    }
+
+    /** 贸易术语 + 地点，如 DAP Guatemala */
+    public static String incoterm(String incoterm, String place) {
+        return join(incoterm, place);
     }
 
     private static String join(String a, String b) {

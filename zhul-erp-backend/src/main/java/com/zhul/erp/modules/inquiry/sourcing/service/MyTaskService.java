@@ -8,6 +8,8 @@ import com.zhul.erp.modules.inquiry.sourcing.dto.ReturnTaskRequest;
 import com.zhul.erp.modules.inquiry.sourcing.dto.SaveQuotesRequest;
 import com.zhul.erp.modules.inquiry.sourcing.entity.SourcingTaskDO;
 
+import com.zhul.erp.common.result.PageResult;
+
 import java.util.List;
 
 /** 采购（含兼职采购）处理自己的询价任务；返回内容一律不含客户信息 */
@@ -18,6 +20,9 @@ public interface MyTaskService {
 
     /** 按关键词（任务编号、询盘单编号、品牌、品类、型号）搜索本人的任务 */
     List<MyTaskVO> myTasks(boolean done, String keyword);
+
+    /** 已回价任务分页（更新时间倒序） */
+    PageResult<MyTaskVO> doneTasks(String keyword, int page, int pageSize);
 
     MyTaskDetailVO detail(Long taskId);
 

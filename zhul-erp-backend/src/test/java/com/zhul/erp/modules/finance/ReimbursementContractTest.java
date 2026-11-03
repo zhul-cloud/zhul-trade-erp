@@ -12,6 +12,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -169,7 +170,7 @@ class ReimbursementContractTest extends SalesContractSupport {
         ok(call(json(post(BX + "/proofs"), write(Map.of("sourceType", 3, "sourceId", diff,
                 "attachmentIds", List.of(upload("RETURN_PROOF", lin))))), lin));
         pending = ok(call(get(BX + "/pending"), lin));
-        JsonNode bx = ok(submit(lin, find(pending, 1), find(pending, 2), find(pending, 3)));
+        JsonNode bx = ok(submit(lin, find(pending, 1), find(pending, 2), find(pending, 3))).get(0);
         assertEquals("BX" + TODAY + "001", bx.path("reimburseNo").asText());
         money("958.00", bx.path("totalAmount"));
         assertEquals(1, bx.path("status").asInt());
@@ -195,11 +196,54 @@ class ReimbursementContractTest extends SalesContractSupport {
     }
 
     @Test
+    void adminSeesEveryone_submitsOnBehalf_splitByPerson() throws Exception {
+        long linWb = courier(BUYER_LIN, "80.00");
+        long jiangWb = courier(BUYER_JIANG, "50.00");
+        for (long[] w : new long[][] {{linWb}, {jiangWb}}) {
+            // 有「报销付款」权限的人可以给别人补传截图
+            ok(call(json(post(BX + "/proofs"), write(Map.of("sourceType", 2, "sourceId", w[0],
+                    "attachmentIds", List.of(upload("COURIER_PROOF", admin))))), admin));
+        }
+        // 没有权限的人带 all=true 仍只看本人的
+        JsonNode linAll = ok(call(get(BX + "/pending").param("all", "true"), lin));
+        assertEquals(1, linAll.size(), linAll.toString());
+        assertTrue(linAll.get(0).path("mine").asBoolean());
+        assertEquals(0, ok(call(get(BX + "/pending"), admin)).size(), "默认只看本人的");
+
+        JsonNode all = ok(call(get(BX + "/pending").param("all", "true"), admin));
+        assertEquals(2, all.size(), all.toString());
+        Map<Long, JsonNode> byUser = new HashMap<>();
+        all.forEach(i -> byUser.put(i.path("advanceUserId").asLong(), i));
+        assertEquals(Set.of(BUYER_LIN, BUYER_JIANG), byUser.keySet());
+        assertFalse(byUser.get(BUYER_LIN).path("mine").asBoolean());
+        assertFalse(byUser.get(BUYER_LIN).path("advanceUserName").asText().isEmpty());
+
+        // 代提交：两人的垫付各生成一张报销单，报销人是垫付本人
+        JsonNode bxs = ok(submit(admin, byUser.get(BUYER_LIN), byUser.get(BUYER_JIANG)));
+        assertEquals(2, bxs.size(), bxs.toString());
+        Map<Long, JsonNode> bxByApplicant = new HashMap<>();
+        bxs.forEach(b -> bxByApplicant.put(b.path("applicantId").asLong(), b));
+        money("80.00", bxByApplicant.get(BUYER_LIN).path("totalAmount"));
+        money("50.00", bxByApplicant.get(BUYER_JIANG).path("totalAmount"));
+        assertEquals(1, ok(call(get(BX), lin)).path("total").asInt(), "报销人本人能看到");
+        assertTrue(bxByApplicant.get(BUYER_LIN).path("canWithdraw").asBoolean(), "代提交的人能撤回");
+
+        // 报销人本人和代提交的人都能撤回，别人不能
+        long linBx = bxByApplicant.get(BUYER_LIN).path("id").asLong();
+        long jiangBx = bxByApplicant.get(BUYER_JIANG).path("id").asLong();
+        assertEquals("只有报销人或提交人可以撤回", fail(call(json(post(BX + "/" + linBx + "/withdraw"),
+                write(Map.of("reason", "x"))), jiang)).path("message").asText());
+        ok(call(json(post(BX + "/" + linBx + "/withdraw"), write(Map.of("reason", "代提交错了"))), admin));
+        ok(call(json(post(BX + "/" + jiangBx + "/withdraw"), write(Map.of("reason", "漏了一笔"))), jiang));
+        assertEquals(2, ok(call(get(BX + "/pending").param("all", "true"), admin)).size());
+    }
+
+    @Test
     void financePays_unpays_scope_and_paymentStats() throws Exception {
         long wb = courier(BUYER_LIN, "80.00");
         ok(call(json(post(BX + "/proofs"), write(Map.of("sourceType", 2, "sourceId", wb,
                 "attachmentIds", List.of(upload("COURIER_PROOF", lin))))), lin));
-        JsonNode bx = ok(submit(lin, find(ok(call(get(BX + "/pending"), lin)), 2)));
+        JsonNode bx = ok(submit(lin, find(ok(call(get(BX + "/pending"), lin)), 2))).get(0);
         long id = bx.path("id").asLong();
         courier(BUYER_JIANG, "50.00");
 

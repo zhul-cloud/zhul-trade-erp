@@ -961,6 +961,13 @@ export const myTaskApi = {
     `${MY}/${id}/nameplates/${attachmentId}`,
   list: (done: boolean, keyword?: string) =>
     get<MyTask[]>(MY, { done, keyword: keyword || undefined }),
+  /** 已回价：分页 */
+  donePage: (page: number, pageSize: number, keyword?: string) =>
+    get<{ total: number; records: MyTask[] }>(`${MY}/done`, {
+      page,
+      pageSize,
+      keyword: keyword || undefined,
+    }),
   history: (id: number, itemId: number) =>
     get<ItemHistoryDetail>(`${MY}/${id}/items/${itemId}/history`),
   detail: (id: number) =>

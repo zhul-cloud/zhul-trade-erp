@@ -68,6 +68,7 @@ import com.zhul.erp.modules.inquiry.support.GeneratedInquiryCode;
 import com.zhul.erp.modules.inquiry.support.InquiryCodeGenerator;
 import com.zhul.erp.modules.inquiry.support.InquiryCategories;
 import com.zhul.erp.modules.inquiry.support.InquiryLookups;
+import com.zhul.erp.modules.inquiry.support.ParsedItemMerger;
 import com.zhul.erp.modules.inquiry.support.PriceKeys;
 import com.zhul.erp.modules.inquiry.support.SourcingSettings;
 import com.zhul.erp.modules.inquiry.support.SpreadsheetText;
@@ -1481,7 +1482,8 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
             return new AiParseOutputDTO();
         }
         try {
-            return objectMapper.readValue(json, AiParseOutputDTO.class);
+            // 同一型号出现多次时合并数量；询盘统计、确认页、追加确认都读这里，结果一致
+            return ParsedItemMerger.merge(objectMapper.readValue(json, AiParseOutputDTO.class));
         } catch (JsonProcessingException e) {
             throw new BizException("AI 解析结果格式异常，请改为手动录入或重新解析", e);
         }

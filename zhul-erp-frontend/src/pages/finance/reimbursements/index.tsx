@@ -188,6 +188,11 @@ const PendingTab: React.FC<{
 }> = ({ onSubmitted, onCount }) => {
   const { message } = App.useApp();
   const { palette } = useAppTheme();
+  const access = useAccess() as Record<string, boolean>;
+  // 有「报销付款」权限（管理员、财务）的可以看所有人的垫付，并代别人提交
+  const canAll = !!access['finance:reimburse:pay'];
+  const [scope, setScope] = useState<'mine' | 'all'>('mine');
+  const [person, setPerson] = useState<number>();
   const [items, setItems] = useState<AdvanceItem[]>([]);
   const [reminders, setReminders] = useState<RefundReminder[]>([]);
   const [selected, setSelected] = useState<string[]>([]);
@@ -199,38 +204,58 @@ const PendingTab: React.FC<{
     setLoading(true);
     try {
       const [list, rem] = await Promise.all([
-        reimburseApi.pending(),
+        reimburseApi.pending(scope === 'all'),
         reimburseApi.reminders(),
       ]);
       setItems(list);
       setReminders(rem);
-      onCount(list.length);
+      // 标签上的数字只算本人的
+      onCount(list.filter((i) => i.mine).length);
       setSelected((s) => s.filter((k) => list.some((i) => keyOf(i) === k)));
     } catch (e) {
       message.error(readBizError(e).message);
     } finally {
       setLoading(false);
     }
-  }, [message, onCount]);
+  }, [message, onCount, scope]);
 
   useEffect(() => {
     load();
   }, [load]);
 
+  const people = useMemo(() => {
+    const m = new Map<number, string>();
+    for (const i of items) {
+      if (i.advanceUserId != null && !m.has(i.advanceUserId)) {
+        m.set(i.advanceUserId, i.advanceUserName || '—');
+      }
+    }
+    return [...m].map(([value, label]) => ({ value, label }));
+  }, [items]);
+  const shown = useMemo(
+    () =>
+      scope === 'all' && person != null
+        ? items.filter((i) => i.advanceUserId === person)
+        : items,
+    [items, scope, person],
+  );
   const chosen = useMemo(
     () => items.filter((i) => selected.includes(keyOf(i))),
     [items, selected],
   );
+  const chosenPeople = new Set(chosen.map((i) => i.advanceUserId)).size;
   const total = chosen.reduce((s, i) => s + i.amount, 0);
   const missing = chosen.filter((i) => i.proofs.length === 0).length;
 
   const submit = async () => {
     setSaving(true);
     try {
-      const bx = await reimburseApi.submit(
+      const list = await reimburseApi.submit(
         chosen.map((i) => ({ sourceType: i.sourceType, sourceId: i.sourceId })),
       );
-      message.success(`已提交报销单 ${bx.reimburseNo}`);
+      message.success(
+        `已提交报销单 ${list.map((b) => b.reimburseNo).join('、')}`,
+      );
       setSelected([]);
       load();
       onSubmitted();
@@ -242,6 +267,21 @@ const PendingTab: React.FC<{
   };
 
   const columns: TableColumnsType<AdvanceItem> = [
+    ...(scope === 'all'
+      ? [
+          {
+            title: '垫付人',
+            key: 'person',
+            width: 120,
+            render: (_: unknown, i: AdvanceItem) => (
+              <span style={{ whiteSpace: 'nowrap' }}>
+                {i.advanceUserName || '—'}
+                {i.mine && <span style={{ color: palette.mute }}>（我）</span>}
+              </span>
+            ),
+          },
+        ]
+      : []),
     {
       title: '来源',
       dataIndex: 'sourceType',
@@ -328,11 +368,51 @@ const PendingTab: React.FC<{
         />
       )}
       <Card>
+        {canAll && (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              marginBottom: 14,
+              flexWrap: 'wrap',
+            }}
+          >
+            <Segmented<'mine' | 'all'>
+              value={scope}
+              onChange={(v) => {
+                setScope(v);
+                setPerson(undefined);
+                setSelected([]);
+              }}
+              options={[
+                { value: 'mine', label: '我的' },
+                { value: 'all', label: '全部人员' },
+              ]}
+            />
+            {scope === 'all' && (
+              <Select
+                allowClear
+                showSearch={{ optionFilterProp: 'label' }}
+                placeholder="垫付人"
+                style={{ width: 160 }}
+                value={person}
+                onChange={setPerson}
+                options={people}
+              />
+            )}
+            {scope === 'all' && (
+              <span style={{ color: palette.mute, fontSize: 12 }}>
+                可以代别人提交：勾选多人的垫付时，每人生成一张报销单，报销人是垫付本人
+              </span>
+            )}
+          </div>
+        )}
         <Table<AdvanceItem>
           rowKey={keyOf}
           loading={loading}
           columns={columns}
-          dataSource={items}
+          dataSource={shown}
           pagination={false}
           rowSelection={{
             selectedRowKeys: selected,
@@ -351,7 +431,10 @@ const PendingTab: React.FC<{
           }}
         >
           <span>
-            已选 {chosen.length} 项，合计{' '}
+            已选 {chosen.length} 项
+            {chosenPeople > 1 &&
+              `（${chosenPeople} 人，将生成 ${chosenPeople} 张报销单）`}
+            ，合计{' '}
             <b style={{ ...num, fontSize: 18 }}>{formatAmount(total, 'CNY')}</b>
           </span>
           {missing > 0 && (
