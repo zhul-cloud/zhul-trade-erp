@@ -9,7 +9,7 @@
 | 目标与影响范围 | 附件访问链接跟随所属单据的数据范围；登录幂等缓存在身份验证之后并绑定账号；公司状态与员工状态分开保存。涉及 `AttachmentController`、新增 `AttachmentOwnerScope`、`AuthServiceImpl`、`TenantServiceImpl`、`AccountSessionService` |
 | 起点 commit / 工作分支 | `fix/tenant-isolation-core` `2c440cb2`；`fix/tenant-object-guards`（链式分支，见 [SEC-011 任务](2026-11-03-SEC-011-tenant-isolation.md)） |
 | OpenSpec | 不适用：安全缺陷修复 |
-| PR / 目标分支 | 未创建（按用户要求，租户相关链式分支全部完成后统一确认合并到 `develop`） |
+| PR / 目标分支 | [zhul-cloud/zhul-trade-erp#137](https://github.com/zhul-cloud/zhul-trade-erp/pull/137)：`fix/tenant-rules-doc` → `develop`，merge commit `df2355b797fe811518732408010de3a69b9f0555`（2026-11-03）；未发布 |
 | 合并证据 | 未合并 |
 | 目标版本 / 环境 | 待定 / 生产 |
 
@@ -32,9 +32,9 @@
 
 | ID | 修复 / 验收范围 | 部署与目标环境验收证据 | 验收人 / 日期 | 结论与剩余项 |
 | --- | --- | --- | --- | --- |
-| SEC-005 | 看不到单据的人拿不到附件链接；能看的人正常；未挂接附件只限上传人 | 未部署 | — | 待合并 |
-| SEC-006 | 同账号重复提交幂等；他人复用幂等键拿不到该账号结果 | 未部署 | — | 待合并 |
-| SEC-007 | 公司停用拒绝登录与刷新并撤销会话；恢复不改员工状态 | 未部署 | — | 待合并 |
+| SEC-005 | 看不到单据的人拿不到附件链接；能看的人正常；未挂接附件只限上传人 | 未部署 | — | 已合并待发布 |
+| SEC-006 | 同账号重复提交幂等；他人复用幂等键拿不到该账号结果 | 未部署 | — | 已合并待发布 |
+| SEC-007 | 公司停用拒绝登录与刷新并撤销会话；恢复不改员工状态 | 未部署 | — | 已合并待发布 |
 
 ## 阻塞与下一步
 
@@ -45,3 +45,4 @@
 | 日期 / 作者 | 事件与证据 | 下一步 / 交接 |
 | --- | --- | --- |
 | 2026-11-03 / Claude | 在 `fix/tenant-object-guards` 实施 SEC-005/006/007 并完成上表验证 | 拉下一个分支启用其余模块 |
+| 2026-11-03 / Claude | [zhul-cloud/zhul-trade-erp#137](https://github.com/zhul-cloud/zhul-trade-erp/pull/137) 合并到 `develop`（merge commit `df2355b7`），链式分支已删除；台账改为「已合并待发布」 | 随下一版发布后验收 |
