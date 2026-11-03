@@ -19,6 +19,8 @@ import org.apache.ibatis.session.RowBounds;
 
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * 按表的隔离方式（{@link TenantTables}）自动追加租户条件：私有表 {@code tenant_id = 当前租户}；
@@ -28,6 +30,10 @@ import java.sql.SQLException;
 public class TenantInterceptor extends TenantLineInnerInterceptor {
 
     private static final ThreadLocal<Boolean> WRITING = ThreadLocal.withInitial(() -> false);
+
+    /** 语句末尾的加锁子句（MySQL 只允许出现在末尾） */
+    private static final Pattern LOCK_SUFFIX = Pattern.compile(
+            "(?is)\\s+(FOR\\s+UPDATE|FOR\\s+SHARE|LOCK\\s+IN\\s+SHARE\\s+MODE)(\\s+(NOWAIT|SKIP\\s+LOCKED))?\\s*$");
 
     private final boolean enabled;
 
@@ -44,9 +50,30 @@ public class TenantInterceptor extends TenantLineInnerInterceptor {
     @Override
     public void beforeQuery(Executor executor, MappedStatement ms, Object parameter, RowBounds rowBounds,
                             ResultHandler resultHandler, BoundSql boundSql) throws SQLException {
-        if (applies(boundSql.getSql())) {
-            super.beforeQuery(executor, ms, parameter, rowBounds, resultHandler, boundSql);
+        String sql = boundSql.getSql();
+        if (!applies(sql)) {
+            return;
         }
+        // JSqlParser 4.9 重新拼接时会把 ORDER BY / LIMIT 之后的加锁子句挪到它们前面（FOR UPDATE ORDER BY ...），
+        // MySQL 报语法错误。加锁子句只能在语句末尾：改写前截下，改写后原样接回
+        Matcher lock = LOCK_SUFFIX.matcher(sql);
+        if (!lock.find()) {
+            super.beforeQuery(executor, ms, parameter, rowBounds, resultHandler, boundSql);
+            return;
+        }
+        PluginUtils.MPBoundSql mpBs = PluginUtils.mpBoundSql(boundSql);
+        mpBs.sql(sql.substring(0, lock.start()));
+        super.beforeQuery(executor, ms, parameter, rowBounds, resultHandler, boundSql);
+        mpBs.sql(mpBs.sql() + lock.group());
+    }
+
+    /** 测试用：与 beforeQuery 相同的改写（截下加锁子句、改写、接回），不执行 */
+    String rewriteQuery(String sql) {
+        Matcher lock = LOCK_SUFFIX.matcher(sql);
+        if (!lock.find()) {
+            return parserSingle(sql, null);
+        }
+        return parserSingle(sql.substring(0, lock.start()), null) + lock.group();
     }
 
     @Override

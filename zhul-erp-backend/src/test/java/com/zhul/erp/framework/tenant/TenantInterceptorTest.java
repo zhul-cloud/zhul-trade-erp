@@ -60,6 +60,23 @@ class TenantInterceptorTest {
     }
 
     @Test
+    void lockClauseStaysAtTheEnd() {
+        TenantContext.setTenantId(7);
+        String sql = on.rewriteQuery("SELECT id FROM user_basic WHERE status = ? ORDER BY id DESC LIMIT 1 FOR UPDATE");
+        assertThat(sql).contains("tenant_id = 7").endsWith("ORDER BY id DESC LIMIT 1 FOR UPDATE");
+        assertThat(on.rewriteQuery("SELECT id FROM user_basic WHERE id IN (?, ?) ORDER BY id FOR UPDATE"))
+                .endsWith("ORDER BY id FOR UPDATE");
+        assertThat(on.rewriteQuery("SELECT id FROM user_basic WHERE id = ? LOCK IN SHARE MODE")).endsWith("LOCK IN SHARE MODE");
+    }
+
+    @Test
+    void reservedWordOutputNeedsBackticks() {
+        TenantContext.setTenantId(7);
+        assertThrows(Exception.class, () -> on.parserMulti("UPDATE user_basic SET output = ? WHERE id = ?", null));
+        assertThat(on.parserMulti("UPDATE user_basic SET `output` = ? WHERE id = ?", null)).contains("tenant_id = 7");
+    }
+
+    @Test
     void missingTenantContextFailsClosed() {
         assertThrows(Exception.class, () -> on.parserMulti("SELECT id FROM user_basic WHERE id = ?", null));
     }

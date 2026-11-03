@@ -23,7 +23,9 @@ public class AiTaskDO {
     private String skillId;
     /** 状态（1-排队中、2-处理中、3-已完成、4-失败） */
     private Integer status;
-    /** 处理结果（AI服务回传的结构化JSON，原样存取，不在此层解析业务字段） */
+    /** 处理结果（AI服务回传的结构化JSON，原样存取，不在此层解析业务字段）。
+     * output 是 JSqlParser 的保留字，不加反引号时租户拦截器解析 SQL 会失败 */
+    @TableField("`output`")
     private String output;
     private String errorMessage;
     private Long requestedBy;

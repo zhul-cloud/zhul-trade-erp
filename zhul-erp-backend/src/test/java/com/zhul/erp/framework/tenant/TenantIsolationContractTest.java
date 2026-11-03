@@ -217,6 +217,15 @@ class TenantIsolationContractTest extends IntegrationTestBase {
     }
 
     @Test
+    void everyEnforcedTableExistsWithTenantColumn() {
+        // 表名写错时拦截器会悄悄不处理那张表：清单里的每张表都必须真实存在并有 tenant_id
+        for (String table : TenantTables.enforced().keySet()) {
+            assertEquals(1, jdbc.queryForObject("select count(*) from information_schema.columns where table_schema = database() "
+                    + "and table_name = ? and column_name = 'tenant_id'", Integer.class, table), table);
+        }
+    }
+
+    @Test
     void missingTenantContextFailsClosed() {
         TenantContext.clear();
         assertThrows(Exception.class, () -> userBasicMapper.selectById(USER_A));

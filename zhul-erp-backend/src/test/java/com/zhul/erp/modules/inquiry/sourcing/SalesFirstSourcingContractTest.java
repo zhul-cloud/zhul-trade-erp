@@ -212,6 +212,7 @@ class SalesFirstSourcingContractTest extends InquiryContractSupport {
 
         long other = inquiry(false, row("ABB", "变频器", "A4b"));
         long o = task(other, "ABB");
+        TenantContext.setTenantId(0);
         taskService.cancelByInquiry(other);
         assertEquals(4, status(o), "询盘取消时一并取消");
     }

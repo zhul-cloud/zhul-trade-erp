@@ -95,6 +95,18 @@
 - **transit**：transit_time
 - **user**：user_basic*
 
+## 第三个分支 `fix/tenant-modules-trade`：交易链路启用（2026-11-03）
+
+从 `fix/tenant-object-guards` `4e0f2aac` 拉出。
+
+- **JSqlParser 加锁子句（已处理）**：`TenantInterceptor.beforeQuery` 改写前截下语句末尾的 `FOR UPDATE` / `FOR SHARE` / `LOCK IN SHARE MODE`（含 `NOWAIT`、`SKIP LOCKED`），改写后原样接回，不再交给 JSqlParser 重新拼接。单元测试覆盖 `ORDER BY … LIMIT 1 FOR UPDATE`、`ORDER BY id FOR UPDATE`、`LOCK IN SHARE MODE`。
+- **`ai_task.output` 保留字（已处理）**：`AiTaskDO.output` 加 `@TableField("`output`")`；单元测试确认不加反引号会解析失败、加了能正常改写。
+- **拼接一致性演练**：临时探针在全量测试中，对每条实际执行的 SQL 截下加锁子句、解析再拼回，与原文比较（去掉空白、反引号、大小写后比较）。2084 条不同 SQL 全部一致，0 条解析失败；探针已还原。
+- **启用的表**：财务 15 张、客户与商机 6 张（`opportunity_stage` 共享只读）、询盘与询价 15 张、报价 / PI / 销售订单 / 收款 / 售后 19 张（`pricing_amount_tier`、`pricing_condition_margin` 共享只读：平台默认值 + 租户自己的规则），共 55 张；累计启用 68 张。
+- **AI 回调与异步线程**：回调接口不带用户令牌，`AiTaskServiceImpl.handleCallback` 改为在平台范围内按任务 ID 找到任务，再用 `TenantContext.runAs(任务所属租户)` 处理结果；提交任务后的异步结果处理（编排服务拒收时通知发起方失败）同样按任务租户执行。不修的话，回调接口返回 500，询盘永远收不到解析结果（已用新测试在撤掉修复时见证）。
+- **测试**：新增 `AiCallbackTenantContractTest`（走真实回调接口）；`TenantIsolationContractTest` 新增「启用清单里的每张表都存在并有 `tenant_id`」，防止表名写错导致悄悄不生效；若干测试在直接调用服务前补上租户上下文。
+- **验证**：后端全量 1222 个，0 失败，6 个环境跳过；测试日志中「缺少租户上下文」0 次、SQL 语法错误 0 次。
+
 ## 合并、部署与逐 ID 验收
 
 | ID | 修复 / 验收范围 | 部署与目标环境验收证据 | 验收人 / 日期 | 结论与剩余项 |
@@ -116,3 +128,4 @@
 | --- | --- | --- |
 | 2026-11-03 / Claude | 用户选定方案 C；完成 SQL 静态解析与运行时改写演练；新编 SEC-011；在 `fix/tenant-isolation-core` 实施并验证（见上表） | 拉下一个分支继续 |
 | 2026-11-03 / Claude | `fix/tenant-isolation-core` 提交 `2c440cb2` 并推送（未建 PR、未合并）；从它拉 `fix/tenant-object-guards` 处理 SEC-005/006/007，见 [2026-11-03-SEC-005](2026-11-03-SEC-005-object-guards.md) | 之后按模块逐个启用其余表 |
+| 2026-11-03 / Claude | `fix/tenant-object-guards` 提交 `4e0f2aac`；从它拉 `fix/tenant-modules-trade`，处理 JSqlParser 加锁子句与 `output` 保留字，启用交易链路 55 张表并修 AI 回调租户 | 继续启用采购、仓储物流、商品库等其余表 |
