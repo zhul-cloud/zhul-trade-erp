@@ -236,9 +236,20 @@ PRIMARY KEY (`id`)
 
 - tenant_id 从 JWT Token 解析，存入 ThreadLocal（TenantContext）
 - 所有业务表必须有 tenant_id 字段，且加索引
-- Repository 层查询必须自动注入 tenant_id 过滤（MyBatis 拦截器或 JPA @Filter）
+- 经 MyBatis 的查询由租户拦截器（`framework/tenant/TenantInterceptor`）自动追加租户条件，按 `TenantTables` 里每张表的隔离方式处理：
+  - 私有（PRIVATE）：`tenant_id = 当前租户`
+  - 共享只读（SHARED_READ）：查询为 `tenant_id IN (0, 当前租户)`，可读平台数据；更新、删除仍为 `= 当前租户`
+  - 共享可写（SHARED_WRITE）：全部为 `IN (0, 当前租户)`
+  - 没有租户上下文时直接报错，不放行
+- 新建带 tenant_id 的表，必须加进 `TenantTables` 的启用清单，或加进排除清单 `EXCLUDED` 并写明理由（`TenantIsolationContractTest` 检查）。排除的表由代码显式带租户条件或归属校验，如全局商品库按 `owner_tenant_id` 由 `ProductWriteGuard` 校验
 - 禁止在业务代码中手动传递 tenant_id 参数，统一从 TenantContext 获取
-- 超级管理员（platform admin）可跨租户查询，需显式标注
+- 跨租户操作须显式标注：
+  - 平台入口、后台任务用 `TenantScope.platform(...)`，绕过拦截器，代码自己带租户条件
+  - 按某条数据所属租户处理（AI 回调、异步线程、跨公司同步）用 `TenantContext.runAs(tenantId, ...)`
+- JdbcTemplate 与手写 SQL 不经过拦截器，必须手写租户条件
+- 拦截器用 JSqlParser 改写 SQL，注意两点：
+  - 列名是 JSqlParser 保留字时（如 `output`）要加反引号，`@TableField("`output`")`
+  - 末尾的 `FOR UPDATE` 等加锁子句由拦截器先摘下再拼回，不要放在 `ORDER BY … LIMIT` 前
 
 ## 前端规范
 

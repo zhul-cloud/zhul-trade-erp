@@ -315,10 +315,12 @@ public class HistoryMigrationService {
                 Set<Long> candidates = new java.util.HashSet<>();
                 for (List<Long> chunk : chunks(items)) {
                     String in = chunk.stream().map(x -> "?").collect(Collectors.joining(","));
-                    candidates.addAll(jdbc.queryForList("SELECT DISTINCT candidate_id FROM product_candidate_source WHERE deleted_at IS NULL AND inquiry_item_id IN (" + in + ")",
-                            Long.class, chunk.toArray()));
-                    jdbc.update("UPDATE product_candidate_source SET deleted_at = ? WHERE deleted_at IS NULL AND inquiry_item_id IN (" + in + ")",
-                            Stream.concat(Stream.of(now), chunk.stream()).toArray());
+                    candidates.addAll(jdbc.queryForList("SELECT DISTINCT candidate_id FROM product_candidate_source "
+                                    + "WHERE deleted_at IS NULL AND tenant_id = ? AND inquiry_item_id IN (" + in + ")",
+                            Long.class, Stream.concat(Stream.of(batch.getTenantId()), chunk.stream()).toArray()));
+                    jdbc.update("UPDATE product_candidate_source SET deleted_at = ? "
+                                    + "WHERE deleted_at IS NULL AND tenant_id = ? AND inquiry_item_id IN (" + in + ")",
+                            Stream.concat(Stream.of(now, batch.getTenantId()), chunk.stream()).toArray());
                 }
                 candidates.forEach(archiver::refresh);
                 idMapMapper.update(null, new com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<MigrationIdMapDO>()

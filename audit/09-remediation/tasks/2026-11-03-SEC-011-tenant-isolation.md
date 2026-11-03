@@ -128,11 +128,25 @@
 - **测试调整**：MockMvc 请求结束会清掉租户上下文，所以询盘报价与子类目重分测试在请求后直接调服务前补设租户。
 - **验证**：后端全量 1224 个，0 失败，6 个环境跳过；测试日志中「缺少租户上下文」0 次，SQL 语法错误与 JSqlParser 解析异常 0 次。
 
+## 第六个分支 `fix/tenant-rules-doc`：编码规范同步（2026-11-03）
+
+从 `fix/tenant-modules-platform` `10d5ed74` 拉出。
+
+- `.claude/rules/coding.md`「多租户规范」改为与实现一致，内容包括：
+  - 分类拦截器与三种隔离方式
+  - 没有租户上下文时报错
+  - 新表必须归类
+  - `TenantScope.platform` 与 `TenantContext.runAs` 的用法
+  - JdbcTemplate 须手写租户条件
+  - JSqlParser 保留字与加锁子句的注意事项
+- `HistoryMigrationService` 撤销迁移时，候选来源（`product_candidate_source`）的查询与软删除补上 `tenant_id = 批次租户`。原来只靠来自带租户条件迁移记录的 ID，现在改为纵深防御。
+- **验证**：`HistoryMigrationContractTest`、`HistoryMigrationReadOnlyContractTest`、`TenantIsolationContractTest` 通过；前一分支全量 1224 个 0 失败。
+
 ## 合并、部署与逐 ID 验收
 
 | ID | 修复 / 验收范围 | 部署与目标环境验收证据 | 验收人 / 日期 | 结论与剩余项 |
 | --- | --- | --- | --- | --- |
-| SEC-011 | 拦截器基础设施；144 张带 tenant_id 的表全部归类（启用 118、排除 26），新表漏分类由测试拦截 | 未部署 | — | 处理中：编码规范待同步 |
+| SEC-011 | 拦截器基础设施；144 张带 tenant_id 的表全部归类（启用 118、排除 26），新表漏分类由测试拦截；编码规范已同步 | 未部署 | — | 待合并：六个链式分支待用户确认合并到 `develop` |
 | SEC-002 | A 对 B 的启停、编辑、删除、重置均拒绝且数据不变；引用他租户部门被拒；用户名全局唯一 | 未部署 | — | 待合并 |
 | SEC-003 | 他租户角色、部门拒绝；平台角色只读；旧关联在拒绝时保留 | 未部署 | — | 待合并 |
 | SEC-009 | 他租户供应商详情读不到，编辑、启停、删除拒绝 | 未部署 | — | 待合并 |
@@ -141,7 +155,7 @@
 
 ## 阻塞与下一步
 
-- 从 `fix/tenant-modules-platform` 拉最后一个分支，同步 `.claude/rules/coding.md`「多租户规范」；全部完成后由用户确认合并到 `develop`。
+- 链式分支全部完成，等待用户确认合并到 `develop`。合并 `fix/tenant-rules-doc` 即包含前面五个分支的全部提交。
 
 ## 事件记录
 
@@ -152,3 +166,4 @@
 | 2026-11-03 / Claude | `fix/tenant-object-guards` 提交 `4e0f2aac`；从它拉 `fix/tenant-modules-trade`，处理 JSqlParser 加锁子句与 `output` 保留字，启用交易链路 55 张表并修 AI 回调租户 | 继续启用采购、仓储物流、商品库等其余表 |
 | 2026-11-03 / Claude | `fix/tenant-modules-trade` 提交 `a052e0b0`；从它拉 `fix/tenant-modules-supply`，启用供应链 27 张表 | 启用商品库与其余平台表 |
 | 2026-11-03 / Claude | `fix/tenant-modules-supply` 提交 `da3bf8f7`；从它拉 `fix/tenant-modules-platform`，144 张表归类完毕（启用 118、排除 26），修资料核对跨公司同步 | 拉最后一个分支同步编码规范「多租户规范」 |
+| 2026-11-03 / Claude | `fix/tenant-modules-platform` 提交 `10d5ed74`；从它拉 `fix/tenant-rules-doc`，同步编码规范，补迁移撤销的租户条件；SEC-011 改为待合并 | 等用户确认合并到 `develop` |

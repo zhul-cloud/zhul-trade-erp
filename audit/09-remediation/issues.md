@@ -98,7 +98,7 @@
 | [SEC-008](../07-security/03-全量平台与商品代码审查.md) | 管理员重置密码将新密码放入URL查询串 | P1 | 已合并待发布 | Claude | [2026-11-03-SEC-001](tasks/2026-11-03-SEC-001-session-ai-input-hotfix.md) | 2026-11-03 |
 | [SEC-009](../01-business/05-全量业务代码审查.md) | 供应商单条对象入口缺少租户归属隔离 | P1 | 待合并 | Claude | [2026-11-03-SEC-011](tasks/2026-11-03-SEC-011-tenant-isolation.md) | 2026-11-03 |
 | [SEC-010](../07-security/03-全量平台与商品代码审查.md) | 配置与字典按ID维护缺少目标归属校验 | P1 | 待合并 | Claude | [2026-11-03-SEC-011](tasks/2026-11-03-SEC-011-tenant-isolation.md) | 2026-11-03 |
-| [SEC-011](../07-security/02-身份会话与对象权限.md) | 没有自动租户过滤，租户隔离全靠逐条手写条件 | P1 | 处理中 | Claude | [2026-11-03-SEC-011](tasks/2026-11-03-SEC-011-tenant-isolation.md) | 2026-11-03 |
+| [SEC-011](../07-security/02-身份会话与对象权限.md) | 没有自动租户过滤，租户隔离全靠逐条手写条件 | P1 | 待合并 | Claude | [2026-11-03-SEC-011](tasks/2026-11-03-SEC-011-tenant-isolation.md) | 2026-11-03 |
 
 ## 运行与迁移
 
