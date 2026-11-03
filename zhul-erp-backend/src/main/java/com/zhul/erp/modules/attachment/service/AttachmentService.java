@@ -8,6 +8,7 @@ import com.zhul.erp.framework.storage.FileStorageService.FileLink;
 import com.zhul.erp.framework.storage.StorageArea;
 import com.zhul.erp.framework.storage.UploadRules;
 import com.zhul.erp.framework.storage.VideoTranscoder;
+import com.zhul.erp.framework.tenant.TenantContext;
 import com.zhul.erp.framework.tenant.TenantScope;
 import com.zhul.erp.modules.attachment.dto.AttachmentVO;
 import com.zhul.erp.modules.attachment.dto.ModelTagVO;
@@ -217,10 +218,11 @@ public class AttachmentService {
         return toVos(List.of(a)).get(0);
     }
 
-    /** 视频后台转码：完成后换成转好的文件，失败时保留原视频 */
+    /** 视频后台转码：完成后换成转好的文件，失败时保留原视频。回调在转码线程里执行，没有租户上下文，按附件所属租户写回 */
     private void transcode(BizAttachmentDO a) {
         Long id = a.getId();
-        transcoder.submit(a.getStorage(), a.getFileKey(), false, done -> {
+        Integer tenantId = a.getTenantId();
+        transcoder.submit(a.getStorage(), a.getFileKey(), false, done -> TenantContext.runAs(tenantId, () -> {
             BizAttachmentDO upd = new BizAttachmentDO();
             upd.setId(id);
             upd.setFileKey(done.key());
@@ -229,12 +231,12 @@ public class AttachmentService {
             upd.setFileName(UploadRules.withExt(a.getFileName(), "mp4"));
             upd.setProcessingStatus(VideoTranscoder.DONE);
             mapper.updateById(upd);
-        }, () -> {
+        }), () -> TenantContext.runAs(tenantId, () -> {
             BizAttachmentDO upd = new BizAttachmentDO();
             upd.setId(id);
             upd.setProcessingStatus(VideoTranscoder.FAILED);
             mapper.updateById(upd);
-        });
+        }));
     }
 
     /** 服务重启时仍在转码中的视频重新排队 */
