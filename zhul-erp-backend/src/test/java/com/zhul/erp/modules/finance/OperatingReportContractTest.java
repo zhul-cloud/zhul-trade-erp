@@ -13,6 +13,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import static com.zhul.erp.support.TestDates.today;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -99,7 +100,7 @@ class OperatingReportContractTest extends SalesContractSupport {
         noProof.put("attachmentIds", List.of());
         assertEquals("请上传退款凭证", fail(call(json(post(REFUND), write(noProof)), admin)).path("message").asText());
         JsonNode refund = ok(call(json(post(REFUND), write(refundBody(so, "50"))), admin));
-        assertEquals("TK" + TODAY + "001", refund.path("refundNo").asText());
+        assertEquals("TK" + today() + "001", refund.path("refundNo").asText());
         money("357.50", refund.path("amountCny"));
         assertEquals("质量问题", refund.path("reasonName").asText());
         money("259.19", ok(call(get(REFUND + "/refundable/" + so), admin)).path("refundable"));
@@ -118,7 +119,7 @@ class OperatingReportContractTest extends SalesContractSupport {
         inc.put("amount", "600");
         inc.put("remark", "信保 9 月返点");
         JsonNode income = ok(call(json(post(INCOME), write(inc)), admin));
-        assertEquals("OI" + TODAY + "001", income.path("incomeNo").asText());
+        assertEquals("OI" + today() + "001", income.path("incomeNo").asText());
         inc.put("amount", "666.66");
         ok(call(json(put(INCOME + "/" + income.path("id").asLong()), write(inc)), admin));
         inc.put("category", "NOPE");

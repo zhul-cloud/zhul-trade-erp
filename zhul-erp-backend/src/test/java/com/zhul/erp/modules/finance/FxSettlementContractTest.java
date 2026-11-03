@@ -11,6 +11,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
 
+import static com.zhul.erp.support.TestDates.today;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -91,7 +92,7 @@ class FxSettlementContractTest extends SalesContractSupport {
         // 第一批：USD 2,500 → ¥17,000，汇率 6.8
         Map<String, Object> first = settleBody("2500", "17000");
         JsonNode s1 = ok(call(json(post(FX), write(first)), admin));
-        assertEquals("JH" + TODAY + "001", s1.path("settleNo").asText());
+        assertEquals("JH" + today() + "001", s1.path("settleNo").asText());
         money("6.800000", s1.path("exchangeRate"));
         assertEquals(2, s1.path("allocations").size());
         assertEquals(s1.path("id").asLong(), ok(call(json(post(FX), write(first)), admin)).path("id").asLong(), "幂等");

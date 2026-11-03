@@ -57,15 +57,29 @@ jobs:
           distribution: temurin
           java-version: '17'
           cache: maven
+      # 视频转码测试要 ffmpeg，没有时这些用例会被跳过
+      - name: 安装 ffmpeg
+        run: command -v ffmpeg || (sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends ffmpeg)
       - name: mvn test
         working-directory: zhul-erp-backend
-        run: mvn -B -ntp test
+        run: mvn -B -ntp test 2>&1 | tee ../mvn-test.log
+      # 兜底：任务自己捕获异常只写日志时测试照样通过，日志里出现这些就判失败（audit SEC-011）
+      - name: 检查日志里的租户与 SQL 错误
+        run: |
+          pattern='缺少租户上下文|BadSqlGrammarException|SQLSyntaxErrorException|JSQLParserException'
+          if grep -qE "$pattern" mvn-test.log; then
+            grep -nE "$pattern" mvn-test.log | head -20 || true
+            echo "::error::测试日志里出现缺少租户上下文或 SQL 语法错误，见上方行号"
+            exit 1
+          fi
       - name: 上传测试报告
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: surefire-reports
-          path: zhul-erp-backend/target/surefire-reports/
+          path: |
+            zhul-erp-backend/target/surefire-reports/
+            mvn-test.log
           retention-days: 7
 
   frontend:
