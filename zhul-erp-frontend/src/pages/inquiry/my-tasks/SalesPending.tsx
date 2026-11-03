@@ -8,12 +8,13 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
 import { readBizError } from '@/pages/sales/service';
 import { useAppTheme } from '@/theme/AppTheme';
-import { usePageSize } from '@/utils/pageSize';
 import {
   BrandGroupHeader,
   FoldToggle,
+  fetchFirst,
   groupByBrand,
-  TaskPager,
+  LOAD_STEP,
+  LoadMore,
   useFold,
 } from '../shared/BrandGroups';
 import { Card, LevelPill, Pill } from '../shared/components';
@@ -29,7 +30,7 @@ const SOON_MINUTES = 30;
 
 /**
  * 我的询价 → 待认领：询盘负责人决定每个任务自己找还是转给采购，到期自动转给采购。
- * 结构与「询价分配 · 待分配」一致：按品牌分组、组头可全选本页、批量操作条、底部分页。
+ * 结构与「询价分配 · 待分配」一致：按品牌分组、组头可全选已加载的任务、批量操作条、底部「加载更多」。
  */
 const SalesPending: React.FC<{
   /** 认领或转采购后通知外层刷新页签计数 */
@@ -40,8 +41,9 @@ const SalesPending: React.FC<{
   const { message } = App.useApp();
   const [data, setData] = useState<Data | null>(null);
   const [error, setError] = useState('');
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = usePageSize(20, 'sales');
+  /** 先显示 20 个，底部「加载更多」 */
+  const [limit, setLimit] = useState(LOAD_STEP);
+  const [more, setMore] = useState(false);
   const [selected, setSelected] = useState<number[]>([]);
   const [busy, setBusy] = useState(false);
   const fold = useFold();
@@ -49,20 +51,17 @@ const SalesPending: React.FC<{
   const load = useCallback(async () => {
     setError('');
     try {
-      const d = await myTaskApi.salesPending(page, pageSize);
-      // 认领后最后一页可能空了，退回到还有任务的最后一页
-      if (d.tasks.length === 0 && page > 1 && d.total > 0) {
-        setPage(Math.ceil(d.total / pageSize));
-        return;
-      }
-      setData(d);
+      const pages = await fetchFirst(limit, myTaskApi.salesPending);
+      setData({ ...pages[0], tasks: pages.flatMap((x) => x.tasks) });
     } catch (e) {
       setError(readBizError(e).message);
+    } finally {
+      setMore(false);
     }
-  }, [page, pageSize]);
+  }, [limit]);
 
+  // 加载更多时保留已勾选的任务；认领、转采购后由操作本身清空勾选
   useEffect(() => {
-    setSelected([]);
     load();
   }, [load]);
 
@@ -285,13 +284,13 @@ const SalesPending: React.FC<{
         );
       })}
 
-      <TaskPager
+      <LoadMore
+        shown={data.tasks.length}
         total={data.total}
-        page={page}
-        pageSize={pageSize}
-        onChange={(p, size) => {
-          setPage(size === pageSize ? p : 1);
-          setPageSize(size);
+        loading={more}
+        onMore={() => {
+          setMore(true);
+          setLimit((n) => n + LOAD_STEP);
         }}
       />
     </div>

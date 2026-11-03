@@ -2,6 +2,7 @@ import {
   DeleteOutlined,
   DownloadOutlined,
   PlusOutlined,
+  QuestionCircleOutlined,
   SwapOutlined,
   UploadOutlined,
 } from '@ant-design/icons';
@@ -266,6 +267,18 @@ const CustomerListPage: React.FC = () => {
     });
   };
 
+  const headerTip = (text: string, tip: string) => (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+      {text}
+      <Tooltip title={tip}>
+        <QuestionCircleOutlined
+          aria-label={`${text}说明`}
+          style={{ color: palette.mute, cursor: 'help' }}
+        />
+      </Tooltip>
+    </span>
+  );
+
   const stacked = (
     top: React.ReactNode,
     bottom: React.ReactNode,
@@ -329,38 +342,21 @@ const CustomerListPage: React.FC = () => {
       title: '主联系人',
       key: 'contact',
       width: 210,
-      render: (_, r) => stacked(r.contactName || '—', r.contactEmail),
+      render: (_, r) =>
+        stacked(
+          [r.contactName, r.contactNameCn].filter(Boolean).join(' · ') || '—',
+          r.contactEmail,
+        ),
     },
     {
-      title: '主联系人中文名',
-      dataIndex: 'contactNameCn',
-      width: 140,
-      render: (v?: string) => v || '—',
-    },
-    {
-      title: '客户角色',
-      dataIndex: 'customerRole',
-      width: 110,
-      render: (v: number) => <RolePill value={v} />,
-    },
-    {
-      title: '潜力',
-      dataIndex: 'potentialRating',
-      width: 100,
-      sorter: true,
-      sortOrder:
-        sort.sortField === 'potentialRating'
-          ? sort.sortOrder === 'asc'
-            ? 'ascend'
-            : 'descend'
-          : null,
-      render: (v: number) => <Stars value={v} />,
-    },
-    {
-      title: '经营等级',
+      title: headerTip(
+        '经营等级',
+        '按近 12 个月的成交（最近一次下单、下单次数、金额）每天凌晨算出 S / A / B / C，S 最好；没有成交过的显示「未成交」。业务员可以上调或下调一级',
+      ),
       dataIndex: 'bizGrade',
-      width: 110,
+      width: 130,
       sorter: true,
+      showSorterTooltip: false,
       sortOrder:
         sort.sortField === 'bizGrade'
           ? sort.sortOrder === 'asc'
@@ -379,6 +375,23 @@ const CustomerListPage: React.FC = () => {
         ) : (
           <GradeBadge value={v} />
         ),
+    },
+    {
+      title: headerTip(
+        '潜力等级',
+        '1–5 星，表示这个客户值不值得投入精力跟，所有客户都能评，也可以采纳背调报告的评分；没评的显示「未评」',
+      ),
+      dataIndex: 'potentialRating',
+      width: 130,
+      sorter: true,
+      showSorterTooltip: false,
+      sortOrder:
+        sort.sortField === 'potentialRating'
+          ? sort.sortOrder === 'asc'
+            ? 'ascend'
+            : 'descend'
+          : null,
+      render: (v: number) => <Stars value={v} />,
     },
     {
       title: '档案完整度',
@@ -408,6 +421,12 @@ const CustomerListPage: React.FC = () => {
           </Tooltip>
         );
       },
+    },
+    {
+      title: '客户角色',
+      dataIndex: 'customerRole',
+      width: 110,
+      render: (v: number) => <RolePill value={v} />,
     },
     {
       title: '客户来源',
@@ -488,7 +507,7 @@ const CustomerListPage: React.FC = () => {
     },
   ];
 
-  // 潜力、经营等级可以排序；取消排序回到按更新时间倒序
+  // 潜力等级、经营等级可以排序；取消排序回到默认（经营等级 S→C，再按潜力等级）
   const onTableChange: TableProps<CustomerListItem>['onChange'] = (
     _p,
     _f,
@@ -752,7 +771,7 @@ const CustomerListPage: React.FC = () => {
                 dataSource={rows}
                 loading={loading}
                 sticky
-                scroll={{ x: showOwner ? 2170 : 2070 }}
+                scroll={{ x: showOwner ? 2080 : 1980 }}
                 onChange={onTableChange}
                 rowSelection={{
                   selectedRowKeys: selected,
