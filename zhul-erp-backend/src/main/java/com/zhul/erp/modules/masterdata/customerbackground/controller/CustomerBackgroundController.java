@@ -5,7 +5,10 @@ import com.zhul.erp.framework.storage.FileStorageService.FileLink;
 import com.zhul.erp.modules.masterdata.customerbackground.dto.BackgroundReportDetailVO;
 import com.zhul.erp.modules.masterdata.customerbackground.dto.BackgroundReportVO;
 import com.zhul.erp.modules.masterdata.customerbackground.dto.BackgroundResearchRequest;
+import com.zhul.erp.modules.masterdata.customerbackground.dto.SuggestionIndexesRequest;
+import com.zhul.erp.modules.masterdata.customerbackground.service.BackgroundAdoptService;
 import com.zhul.erp.modules.masterdata.customerbackground.service.CustomerBackgroundService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -33,8 +36,11 @@ import java.util.List;
 public class CustomerBackgroundController {
 
     private static final String BACKGROUND = "@perm.has('partner:customer:background')";
+    /** 采纳会改客户档案，与修改画像一样需要「编辑客户」 */
+    private static final String EDIT = "@perm.has('partner:customer:edit')";
 
     private final CustomerBackgroundService backgroundService;
+    private final BackgroundAdoptService adoptService;
 
     @GetMapping
     public Result<List<BackgroundReportVO>> list(@PathVariable Long id) {
@@ -66,6 +72,21 @@ public class CustomerBackgroundController {
                                              @RequestPart(value = "file", required = false) MultipartFile file,
                                              @RequestParam(value = "text", required = false) String text) {
         return Result.ok(backgroundService.upload(id, file, text));
+    }
+
+    /** 采纳勾选的字段建议，写入客户档案，来源记为这份报告 */
+    @PostMapping("/{reportId}/suggestions/adopt")
+    @PreAuthorize(EDIT)
+    public Result<Void> adopt(@PathVariable Long id, @PathVariable Long reportId, @Valid @RequestBody SuggestionIndexesRequest req) {
+        adoptService.adopt(id, reportId, req.getIndexes());
+        return Result.ok();
+    }
+
+    @PostMapping("/{reportId}/suggestions/ignore")
+    @PreAuthorize(EDIT)
+    public Result<Void> ignore(@PathVariable Long id, @PathVariable Long reportId, @Valid @RequestBody SuggestionIndexesRequest req) {
+        adoptService.ignore(id, reportId, req.getIndexes());
+        return Result.ok();
     }
 
     @DeleteMapping("/{reportId}")

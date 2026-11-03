@@ -19,8 +19,12 @@ import com.zhul.erp.modules.masterdata.customerbackground.dto.BackgroundReportVO
 import com.zhul.erp.modules.masterdata.customerbackground.dto.BackgroundSuggestion;
 import com.zhul.erp.modules.masterdata.customerbackground.entity.CustomerBackgroundReportDO;
 import com.zhul.erp.modules.masterdata.customerbackground.repository.CustomerBackgroundReportMapper;
+import com.zhul.erp.modules.masterdata.customerbackground.support.BackgroundAdoption;
+import com.zhul.erp.modules.masterdata.customerbackground.support.BackgroundFields;
 import com.zhul.erp.modules.masterdata.customerbackground.support.BackgroundInput;
 import com.zhul.erp.modules.masterdata.customerbackground.support.PdfText;
+import com.zhul.erp.modules.masterdata.customerprofile.entity.CustomerContactDO;
+import com.zhul.erp.modules.masterdata.customerprofile.support.ProfileFacts;
 import com.zhul.erp.modules.masterdata.entity.CustomerDO;
 import com.zhul.erp.modules.masterdata.repository.CustomerMapper;
 import com.zhul.erp.modules.masterdata.service.CustomerService;
@@ -77,6 +81,8 @@ public class CustomerBackgroundService {
     private final CustomerMapper customerMapper;
     private final CustomerBackgroundReportMapper reportMapper;
     private final BackgroundInput input;
+    private final BackgroundAdoption adoption;
+    private final ProfileFacts facts;
     private final AiTaskService aiTaskService;
     private final DocumentNumberService documentNumberService;
     private final FileStorageService fileStorageService;
@@ -220,7 +226,7 @@ public class CustomerBackgroundService {
         BackgroundReportDetailVO vo = new BackgroundReportDetailVO();
         copy(r, vo, names(Set.of(r.getRequestedBy())));
         vo.setReportMarkdown(r.getReportMarkdown() == null ? "" : r.getReportMarkdown());
-        vo.setSuggestions(suggestions(r));
+        vo.setSuggestions(withCurrent(r));
         vo.setModel(r.getModel());
         vo.setInputTokens(r.getInputTokens());
         vo.setOutputTokens(r.getOutputTokens());
@@ -229,6 +235,33 @@ public class CustomerBackgroundService {
         vo.setUploadFileName(StringUtils.hasText(r.getUploadFileKey()) ? r.getUploadFileName() : null);
         vo.setCanDelete(canDelete(r));
         return vo;
+    }
+
+    /** 字段建议附上中文名、档案当前值、能否采纳与默认勾选（当前值为空、能采纳的待处理建议默认勾选） */
+    private List<BackgroundSuggestion> withCurrent(CustomerBackgroundReportDO r) {
+        List<BackgroundSuggestion> list = suggestions(r);
+        if (list.isEmpty()) {
+            return list;
+        }
+        CustomerDO c = customerService.requireInScope(r.getCustomerId());
+        List<CustomerContactDO> contacts = facts.contacts(c.getId());
+        Map<Long, String> names = names(list.stream().map(BackgroundSuggestion::getOperatorId)
+                .filter(Objects::nonNull).collect(Collectors.toSet()));
+        for (BackgroundSuggestion s : list) {
+            s.setLabel(BackgroundFields.label(s.getField()));
+            s.setCurrentValue(adoption.current(c, contacts, s));
+            if (s.getOperatorId() != null) {
+                s.setOperatorName(names.get(s.getOperatorId()));
+            }
+            if (BackgroundSuggestion.ADOPTED.equals(s.getState())) {
+                s.setDefaultChecked(false);
+                continue;
+            }
+            BackgroundAdoption.Resolved v = adoption.resolve(s, contacts);
+            s.setUnavailableReason(v.reason());
+            s.setDefaultChecked(BackgroundSuggestion.PENDING.equals(s.getState()) && v.ok() && s.getCurrentValue() == null);
+        }
+        return list;
     }
 
     /** 上传的 PDF 原件：私有存储的临时下载链接 */
@@ -273,7 +306,7 @@ public class CustomerBackgroundService {
     }
 
     /** 报告属于这个客户、客户在数据范围内、报告未删除 */
-    private CustomerBackgroundReportDO require(Long customerId, Long reportId) {
+    CustomerBackgroundReportDO require(Long customerId, Long reportId) {
         CustomerDO c = customerService.requireInScope(customerId);
         CustomerBackgroundReportDO r = reportMapper.selectById(reportId);
         if (r == null || r.getDeletedAt() != null || !Objects.equals(r.getCustomerId(), c.getId())
@@ -291,7 +324,7 @@ public class CustomerBackgroundService {
                 .isNull(CustomerBackgroundReportDO::getDeletedAt);
     }
 
-    private List<BackgroundSuggestion> suggestions(CustomerBackgroundReportDO r) {
+    List<BackgroundSuggestion> suggestions(CustomerBackgroundReportDO r) {
         if (!StringUtils.hasText(r.getSuggestions())) {
             return List.of();
         }

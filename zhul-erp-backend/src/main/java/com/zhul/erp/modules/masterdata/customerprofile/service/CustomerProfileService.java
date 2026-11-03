@@ -4,6 +4,8 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.zhul.erp.common.exception.BizException;
 import com.zhul.erp.modules.inquiry.support.CurrentUserResolver;
 import com.zhul.erp.modules.masterdata.constants.CustomerConstants;
+import com.zhul.erp.modules.masterdata.customerbackground.entity.CustomerBackgroundReportDO;
+import com.zhul.erp.modules.masterdata.customerbackground.repository.CustomerBackgroundReportMapper;
 import com.zhul.erp.modules.masterdata.customerprofile.dto.CustomerProfileVO;
 import com.zhul.erp.modules.masterdata.customerprofile.dto.ProfileUpdateRequest;
 import com.zhul.erp.modules.masterdata.customerprofile.dto.RfmDetailVO;
@@ -63,6 +65,7 @@ public class CustomerProfileService {
     private final CountryProfileService countryService;
     private final DictItemService dictItemService;
     private final UserBasicMapper userBasicMapper;
+    private final CustomerBackgroundReportMapper reportMapper;
     private final CurrentUserResolver currentUser;
     private final LogService logService;
 
@@ -128,6 +131,12 @@ public class CustomerProfileService {
     /** 按字段修改画像：只改 fields 里列出的字段，记来源（人工）并重算完整度 */
     @Transactional(rollbackFor = Exception.class)
     public void update(Long customerId, ProfileUpdateRequest req) {
+        update(customerId, req, FieldSources.MANUAL, 0L, "修改客户画像");
+    }
+
+    /** 同上，来源可以是背调报告（采纳字段建议时 source=REPORT、reportId=报告ID） */
+    @Transactional(rollbackFor = Exception.class)
+    public void update(Long customerId, ProfileUpdateRequest req, int source, long reportId, String operation) {
         CustomerDO c = customerService.requireInScope(customerId);
         Map<String, Object> before = new LinkedHashMap<>();
         Map<String, Object> after = new LinkedHashMap<>();
@@ -150,11 +159,11 @@ public class CustomerProfileService {
             return;
         }
         customerMapper.updateById(c);
-        sources.record(c.getTenantId(), customerId, changed, FieldSources.MANUAL, 0L, currentUser.resolve());
+        sources.record(c.getTenantId(), customerId, changed, source, reportId, currentUser.resolve());
         facts.refresh(c);
         before.put("customerCode", c.getCustomerCode());
         after.put("customerCode", c.getCustomerCode());
-        logService.recordOperateLog("客户管理", "修改客户画像", before, after);
+        logService.recordOperateLog("客户管理", operation, before, after);
     }
 
     /** 补全向导「已经问了，等回复」：按字段记录或取消 */
@@ -362,11 +371,20 @@ public class CustomerProfileService {
         userIds.remove(null);
         Map<Long, String> names = userIds.isEmpty() ? Map.of() : userBasicMapper.selectBatchIds(userIds).stream()
                 .collect(Collectors.toMap(u -> Long.valueOf(u.getId()), UserBasicDO::getName, (a, b) -> a));
+        Set<Long> reportIds = rows.stream().map(CustomerFieldSourceDO::getReportId)
+                .filter(id -> id != null && id != 0).collect(Collectors.toSet());
+        Map<Long, CustomerBackgroundReportDO> reports = reportIds.isEmpty() ? Map.of() : reportMapper.selectBatchIds(reportIds).stream()
+                .collect(Collectors.toMap(CustomerBackgroundReportDO::getId, x -> x));
         Map<String, CustomerProfileVO.Source> out = new HashMap<>();
         for (CustomerFieldSourceDO r : rows) {
             CustomerProfileVO.Source s = new CustomerProfileVO.Source();
             s.setSource(r.getSource());
             s.setReportId(r.getReportId() == null || r.getReportId() == 0 ? null : r.getReportId());
+            CustomerBackgroundReportDO report = s.getReportId() == null ? null : reports.get(s.getReportId());
+            if (report != null) {
+                s.setReportNo(report.getReportNo());
+                s.setReportDeleted(report.getDeletedAt() != null);
+            }
             s.setOperatorName(names.get(r.getOperatorId()));
             s.setUpdateTime(r.getUpdateTime());
             s.setAskedAt(r.getAskedAt());

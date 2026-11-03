@@ -51,7 +51,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 
 /**
  * spec crm/customer-background：「一键 AI 背调」（输入组装、同时只能一份背调中、24 小时提醒、权限、AI 未配置）、
- * 「上传背调报告」（PDF、粘贴文字、扫描件）、「背调报告」（回调保存、查询、详情、删除）。
+ * 「上传背调报告」（PDF、粘贴文字、扫描件）、「背调报告」（回调保存、查询、详情、删除）、「字段建议与采纳」。
  */
 @AutoConfigureMockMvc
 class CustomerBackgroundContractTest extends IntegrationTestBase {
@@ -473,5 +473,139 @@ class CustomerBackgroundContractTest extends IntegrationTestBase {
         assertEquals(1, jdbc.queryForObject("select status from customer_background_report where id = ?", Integer.class, reportId),
                 "删除后回来的结果不再写入");
         ok(research(id, false));
+    }
+
+    // ---------------------------------------------------------------- 字段建议与采纳（4.5）
+
+    private static final String ADOPT_RESULT = """
+            {"status":"success","output":{"conclusion":{"priority":2,"score":4,"mainConflict":"m","firstAction":"f",
+               "identity":"i","supply":"s","keyFinding":"k","obstacle":"o"},"reportMarkdown":"正文",
+             "suggestions":[
+              {"module":1,"field":"companySize","value":"10–50 人","evidence":"LinkedIn 显示 23 名员工","sourceUrl":"https://linkedin.com/company/pc"},
+              {"module":1,"field":"industry","value":"包装印刷","evidence":"官网案例都是包装线"},
+              {"module":3,"field":"protocols","value":"Modbus、Profinet IRT","evidence":"招聘启事"},
+              {"module":4,"field":"jobRole","value":"采购","evidence":"LinkedIn 职位",
+               "contact":{"name":"Anna Lee","email":"ANNA@pacificcontrols.com.au","title":"Purchasing Manager"}},
+              {"module":4,"field":"decisionRole","value":"拍板人","evidence":"官网写明是创始人",
+               "contact":{"name":"Bob Smith","email":"bob@pacificcontrols.com.au","title":"Managing Director"}},
+              {"module":4,"field":"jobRole","value":"工程师","evidence":"没有姓名的联系人",
+               "contact":{"name":"","email":"eng@pacificcontrols.com.au","title":"Engineer"}},
+              {"module":2,"field":"paymentMethod","value":"T/T 定金 + 发货前付尾款","evidence":"行业惯例"}]}}""";
+
+    /** 客户行业已是「食品饮料」，联系人 Anna Lee；报告完成，返回报告 ID */
+    private long[] doneReport() throws Exception {
+        long id = customer();
+        ok(call(json(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put(BASE + "/" + id + "/profile"),
+                "{\"fields\":[\"industry\"],\"industry\":3}"), admin));
+        ok(call(json(post(BASE + "/" + id + "/contacts"), "{\"name\":\"Anna Lee\",\"email\":\"anna@pacificcontrols.com.au\"}"), admin));
+        long reportId = ok(research(id, false)).path("id").asLong();
+        callback(taskOf(reportId), ADOPT_RESULT);
+        return new long[] {id, reportId};
+    }
+
+    private JsonNode suggestionsOf(long id, long reportId) throws Exception {
+        return ok(call(get(BASE + "/" + id + "/background-reports/" + reportId), admin)).path("suggestions");
+    }
+
+    private JsonNode adopt(long id, long reportId, String indexes) throws Exception {
+        return call(json(post(BASE + "/" + id + "/background-reports/" + reportId + "/suggestions/adopt"), "{\"indexes\":" + indexes + "}"), admin);
+    }
+
+    @Test
+    void detail_marksCurrentValueDefaultCheckAndUnavailable() throws Exception {
+        long[] x = doneReport();
+        JsonNode s = suggestionsOf(x[0], x[1]);
+        assertEquals(8, s.size(), "七条建议 + 综合评分作为潜力评级");
+        assertEquals("公司规模", s.path(0).path("label").asText());
+        assertTrue(s.path(0).path("defaultChecked").asBoolean(), "当前值为空的默认勾选");
+        assertTrue(s.path(0).path("currentValue").isMissingNode() || s.path(0).path("currentValue").isNull());
+        assertEquals("食品饮料", s.path(1).path("currentValue").asText());
+        assertFalse(s.path(1).path("defaultChecked").asBoolean(), "已有值的不默认覆盖");
+        assertEquals("无法采纳：选项不存在", s.path(2).path("unavailableReason").asText());
+        assertFalse(s.path(2).path("defaultChecked").asBoolean());
+        assertTrue(s.path(3).path("defaultChecked").asBoolean(), "匹配到 Anna Lee，职位类别为空");
+        assertTrue(s.path(4).path("unavailableReason").isMissingNode(), "新联系人有姓名，可以采纳");
+        assertEquals("无法采纳：联系人没有姓名", s.path(5).path("unavailableReason").asText());
+        assertTrue(s.path(6).path("unavailableReason").asText().contains("定金比例或账期"));
+        assertEquals("potentialRating", s.path(7).path("field").asText());
+    }
+
+    @Test
+    void adopt_writesProfileAndContactsWithReportSource() throws Exception {
+        long[] x = doneReport();
+        long id = x[0];
+        String reportNo = jdbc.queryForObject("select report_no from customer_background_report where id = ?", String.class, x[1]);
+        ok(adopt(id, x[1], "[0,1,3,4,7]"));
+
+        Map<String, Object> c = jdbc.queryForMap("select company_size, industry, potential_rating, profile_mask from customer where id = ?", id);
+        assertEquals(2, ((Number) c.get("company_size")).intValue(), "公司规模为「10–50 人」");
+        assertEquals(4, ((Number) c.get("industry")).intValue(), "勾选后覆盖为包装印刷");
+        assertEquals(4, ((Number) c.get("potential_rating")).intValue());
+        assertEquals(1, ((Number) c.get("profile_mask")).intValue() & 1, "完整度随之更新：基础画像已完成");
+
+        JsonNode src = ok(call(get(BASE + "/" + id + "/profile"), admin)).path("sources").path("companySize");
+        assertEquals(2, src.path("source").asInt(), "来源为背调报告");
+        assertEquals(reportNo, src.path("reportNo").asText());
+        assertEquals("IT", src.path("operatorName").asText());
+        assertFalse(src.path("reportDeleted").asBoolean());
+
+        assertEquals(1, jdbc.queryForObject("select job_role from customer_contact where customer_id = ? and name = 'Anna Lee' and deleted_at is null",
+                Integer.class, id), "按邮箱（忽略大小写）匹配已有联系人并更新");
+        Map<String, Object> bob = jdbc.queryForMap("select decision_role, title, email from customer_contact where customer_id = ? and name = 'Bob Smith'", id);
+        assertEquals(1, ((Number) bob.get("decision_role")).intValue(), "找不到就新建联系人");
+        assertEquals("Managing Director", bob.get("title"));
+        assertEquals(1, jdbc.queryForObject("select count(*) from customer_contact where customer_id = ? and name = 'Anna Lee' and deleted_at is null",
+                Integer.class, id), "不重复建联系人");
+
+        JsonNode s = suggestionsOf(id, x[1]);
+        assertEquals("adopted", s.path(0).path("state").asText());
+        assertEquals("IT", s.path(0).path("operatorName").asText());
+        assertFalse(s.path(0).path("at").isMissingNode());
+        assertEquals("pending", s.path(2).path("state").asText());
+        assertTrue(jdbc.queryForObject("select count(*) from sys_log where operation = '采纳背调建议' and operate_time >= date_sub(now(), interval 5 minute)", Integer.class) > 0, "写操作日志");
+
+        assertEquals("「公司规模」已经采纳过", adopt(id, x[1], "[0]").path("message").asText());
+
+        // 删除报告后，字段来源仍显示原报告编号，并标「报告已删除」
+        ok(call(delete(BASE + "/" + id + "/background-reports/" + x[1]), admin));
+        JsonNode after = ok(call(get(BASE + "/" + id + "/profile"), admin)).path("sources").path("companySize");
+        assertEquals(reportNo, after.path("reportNo").asText());
+        assertTrue(after.path("reportDeleted").asBoolean());
+        assertEquals(2, jdbc.queryForObject("select company_size from customer where id = ?", Integer.class, id), "已采纳的字段不受影响");
+    }
+
+    @Test
+    void adopt_unavailableRejectsWholeBatch() throws Exception {
+        long[] x = doneReport();
+        JsonNode res = adopt(x[0], x[1], "[0,2]");
+        assertEquals("「常用通讯协议」无法采纳：选项不存在", res.path("message").asText(), res.toString());
+        assertEquals(0, jdbc.queryForObject("select company_size from customer where id = ?", Integer.class, x[0]), "整批不写入");
+        assertEquals("「职位类别」无法采纳：联系人没有姓名", adopt(x[0], x[1], "[5]").path("message").asText());
+        assertEquals("建议不存在，请刷新后重试", adopt(x[0], x[1], "[99]").path("message").asText());
+    }
+
+    @Test
+    void ignore_marksIgnoredAndCannotIgnoreAdopted() throws Exception {
+        long[] x = doneReport();
+        String url = BASE + "/" + x[0] + "/background-reports/" + x[1] + "/suggestions/ignore";
+        ok(call(json(post(url), "{\"indexes\":[2,6]}"), admin));
+        JsonNode s = suggestionsOf(x[0], x[1]);
+        assertEquals("ignored", s.path(2).path("state").asText());
+        assertEquals("ignored", s.path(6).path("state").asText());
+
+        ok(adopt(x[0], x[1], "[0]"));
+        assertEquals("「公司规模」已经采纳，不能忽略", call(json(post(url), "{\"indexes\":[0]}"), admin).path("message").asText());
+    }
+
+    @Test
+    void adopt_requiresDoneReportAndEditPermission() throws Exception {
+        long id = customer();
+        long reportId = ok(research(id, false)).path("id").asLong();
+        assertEquals("报告还没有完成，不能处理字段建议", adopt(id, reportId, "[0]").path("message").asText());
+
+        callback(taskOf(reportId), ADOPT_RESULT);
+        loginWithResources("it_bg_noedit", MENU_CUSTOMER, BTN_BACKGROUND);
+        assertEquals(403, perform(json(post(BASE + "/" + id + "/background-reports/" + reportId + "/suggestions/adopt"),
+                "{\"indexes\":[0]}"), token("it_bg_noedit")).getStatus(), "采纳需要「编辑客户」");
     }
 }

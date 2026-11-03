@@ -89,6 +89,23 @@ public class BackgroundFields {
         return out;
     }
 
+    /** 多选字段：常用通讯协议、电源电压、认证要求 */
+    public static boolean isMultiple(String key) {
+        return ProfileField.PROTOCOLS.key().equals(key) || ProfileField.VOLTAGES.key().equals(key)
+                || ProfileField.CERTIFICATIONS.key().equals(key);
+    }
+
+    /** 按选项中文名找码值（忽略首尾空白与大小写），找不到返回 null */
+    public static Integer codeOf(Map<Integer, String> options, String name) {
+        String n = name == null ? "" : name.trim();
+        for (Map.Entry<Integer, String> e : options.entrySet()) {
+            if (e.getValue() != null && e.getValue().trim().equalsIgnoreCase(n)) {
+                return e.getKey();
+            }
+        }
+        return null;
+    }
+
     /** 交给 AI 的字段清单：key、中文名、模块、是否联系人字段、选项（选项型字段） */
     public List<Map<String, Object>> catalog() {
         List<Map<String, Object>> out = new ArrayList<>(FIELDS.size());
@@ -102,12 +119,19 @@ public class BackgroundFields {
             if (options != null) {
                 f.put("options", new ArrayList<>(options.values()));
             }
-            if (ProfileField.PROTOCOLS.key().equals(key) || ProfileField.VOLTAGES.key().equals(key)
-                    || ProfileField.CERTIFICATIONS.key().equals(key)) {
+            if (isMultiple(key)) {
                 f.put("multiple", true);
             }
             out.add(f);
         });
         return out;
+    }
+
+    /** 字段中文名；潜力评级不在交给 AI 的清单里，但作为综合评分的建议出现 */
+    public static String label(String key) {
+        if (FIELDS.containsKey(key)) {
+            return (String) FIELDS.get(key)[0];
+        }
+        return ProfileField.of(key).map(ProfileField::label).orElse(key);
     }
 }
