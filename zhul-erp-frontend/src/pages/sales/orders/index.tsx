@@ -56,6 +56,9 @@ interface Filters {
   source?: number;
 }
 
+/** 收款状态筛选里的「先采购后收款未收款」 */
+const PAY_LATER_OPEN = -1;
+
 /** 默认最近 3 个月（清空日期看全部）；从销售统计跳转时用 URL 带的销售日期 */
 const initial = (): Filters => {
   const p = new URLSearchParams(window.location.search);
@@ -101,7 +104,11 @@ const OrderList: React.FC = () => {
       customerType: filters.customerType,
       currencyCode: filters.currencyCode,
       purchaserId: filters.purchaserId,
-      receiptStatus: filters.receiptStatus,
+      receiptStatus:
+        filters.receiptStatus === PAY_LATER_OPEN
+          ? undefined
+          : filters.receiptStatus,
+      payLaterOpen: filters.receiptStatus === PAY_LATER_OPEN || undefined,
       source: filters.source,
       sortField: sort.order ? sort.field : undefined,
       sortOrder: sort.order ?? undefined,
@@ -240,11 +247,18 @@ const OrderList: React.FC = () => {
       key: 'receipt',
       width: 180,
       render: (_, r) => (
-        <ReceiptProgress
-          received={r.receivedAmount ?? 0}
-          total={r.totalAmount}
-          status={r.receiptStatus}
-        />
+        <div>
+          <ReceiptProgress
+            received={r.receivedAmount ?? 0}
+            total={r.totalAmount}
+            status={r.receiptStatus}
+          />
+          {r.payLater && (
+            <span style={{ display: 'inline-block', marginTop: 4 }}>
+              <Pill tone="orange">先采购后收款</Pill>
+            </span>
+          )}
+        </div>
       ),
     },
     {
@@ -498,10 +512,13 @@ const OrderList: React.FC = () => {
               <Select
                 allowClear
                 placeholder="全部"
-                options={Object.entries(RECEIPT_META).map(([k, v]) => ({
-                  value: Number(k),
-                  label: v.label,
-                }))}
+                options={[
+                  ...Object.entries(RECEIPT_META).map(([k, v]) => ({
+                    value: Number(k),
+                    label: v.label,
+                  })),
+                  { value: PAY_LATER_OPEN, label: '先采购后收款未收款' },
+                ]}
               />
             </Form.Item>
             <Form.Item name="source" label="来源" style={{ marginBottom: 0 }}>

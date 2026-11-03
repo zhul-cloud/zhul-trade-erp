@@ -152,8 +152,11 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         if (pi.getEditingVersionNo() != null) {
             throw new BizException("PI 有未发送的新版本 Rev." + pi.getEditingVersionNo() + "，请先发送或放弃后再转成订单");
         }
-        if (pi.getReceiptStatus() == SalesConstants.RECEIPT_NONE) {
-            throw new BizException("请先上传客户的付款水单，或等财务登记到账");
+        // 没有水单也没有到账：只能选「先采购后收款」并填写原因（spec sales/sales-order「由 PI 转成销售订单」）
+        boolean payLater = pi.getReceiptStatus() == SalesConstants.RECEIPT_NONE;
+        String payLaterReason = req == null || req.getPayLaterReason() == null ? "" : req.getPayLaterReason().trim();
+        if (payLater && (req == null || !Boolean.TRUE.equals(req.getPayLater()) || payLaterReason.isEmpty())) {
+            throw new BizException("客户还没有付款，要先采购请选择「先采购后收款」并填写原因");
         }
         PiVersionDO v = piStore.version(piId, pi.getCurrentVersionNo());
         List<PiItemDO> items = piStore.items(v.getId());
@@ -175,6 +178,10 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         o.setReceiptStatus(SalesConstants.RECEIPT_NONE);
         o.setReceivedAmount(BigDecimal.ZERO);
         o.setFeeDiffAmount(BigDecimal.ZERO);
+        o.setPayLater(payLater ? 1 : 0);
+        o.setPayLaterReason(payLater ? payLaterReason : "");
+        o.setPayLaterBy(payLater ? currentUserId() : null);
+        o.setPayLaterAt(payLater ? LocalDateTime.now() : null);
         o.setPiId(piId);
         o.setPiVersionNo(v.getVersionNo());
         o.setCustomerId(pi.getCustomerId());
@@ -240,6 +247,9 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         after.put("salesDate", salesDate.toString());
         after.put("total", o.getCurrencyCode() + " " + o.getTotalAmount());
         after.put("receiptStatus", SalesConstants.RECEIPT_STATUS_NAMES.get(pi.getReceiptStatus()));
+        if (payLater) {
+            after.put("先采购后收款", payLaterReason);
+        }
         logService.recordOperateLog(SalesConstants.MENU_SO, "PI 转成销售订单", null, after);
         return detail(o.getId());
     }
@@ -1008,7 +1018,8 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         SalesOrderDO o = visible(id);
         ProformaInvoiceDO pi = piMapper.selectById(o.getPiId());
         CustomerDO customer = customerMapper.selectById(o.getCustomerId());
-        Map<Long, String> users = lookups.userNames(List.of(o.getOwnerId(), o.getCancelledBy() == null ? 0L : o.getCancelledBy()));
+        Map<Long, String> users = lookups.userNames(List.of(o.getOwnerId(), o.getCancelledBy() == null ? 0L : o.getCancelledBy(),
+                o.getPayLaterBy() == null ? 0L : o.getPayLaterBy()));
         SalesOrderVO vo = new SalesOrderVO();
         vo.setMigrated(MigratedGuard.isMigrated(o.getMigrated()));
         vo.setId(o.getId());
@@ -1058,6 +1069,10 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         vo.setCancelReason(StringUtils.hasText(o.getCancelReason()) ? o.getCancelReason() : null);
         vo.setCancelledByName(o.getCancelledBy() == null ? null : users.get(o.getCancelledBy()));
         vo.setCancelledAt(o.getCancelledAt());
+        vo.setPayLater(Objects.equals(o.getPayLater(), 1));
+        vo.setPayLaterReason(Objects.equals(o.getPayLater(), 1) ? o.getPayLaterReason() : null);
+        vo.setPayLaterByName(o.getPayLaterBy() == null ? null : users.get(o.getPayLaterBy()));
+        vo.setPayLaterAt(o.getPayLaterAt());
         Receipts rc = receiptsOf(o, pi);
         vo.setReceiptStatus(rc.status());
         vo.setReceiptStatusName(SalesConstants.RECEIPT_STATUS_NAMES.get(rc.status()));
@@ -1356,6 +1371,20 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         }
         if (q.getCreatedTo() != null) {
             w.lt(SalesOrderDO::getCreateTime, q.getCreatedTo().plusDays(1).atStartOfDay());
+        }
+        if (Boolean.TRUE.equals(q.getPayLaterOpen())) {
+            // 先采购后收款都是 PI 转成的订单，收款状态看 PI
+            List<Long> unpaid = piMapper.selectList(new LambdaQueryWrapper<ProformaInvoiceDO>()
+                            .select(ProformaInvoiceDO::getId)
+                            .eq(ProformaInvoiceDO::getTenantId, tenant)
+                            .eq(ProformaInvoiceDO::getReceiptStatus, SalesConstants.RECEIPT_NONE))
+                    .stream().map(ProformaInvoiceDO::getId).toList();
+            w.eq(SalesOrderDO::getPayLater, 1);
+            if (unpaid.isEmpty()) {
+                w.isNull(SalesOrderDO::getId);
+            } else {
+                w.in(SalesOrderDO::getPiId, unpaid);
+            }
         }
         if (q.getReceiptStatus() != null) {
             List<Long> piIds = piMapper.selectList(new LambdaQueryWrapper<ProformaInvoiceDO>()
@@ -1688,6 +1717,7 @@ public class SalesOrderServiceImpl implements SalesOrderService {
             }
             vo.setStatus(o.getStatus());
             vo.setStatusName(SO_STATUS_NAMES.get(o.getStatus()));
+            vo.setPayLater(Objects.equals(o.getPayLater(), 1));
             vo.setPiId(pi == null ? null : o.getPiId());
             vo.setPiVersionNo(pi == null ? null : o.getPiVersionNo());
             vo.setOwnerId(o.getOwnerId());

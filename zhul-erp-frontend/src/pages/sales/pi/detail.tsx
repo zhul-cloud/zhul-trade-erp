@@ -674,10 +674,7 @@ const PiDetail: React.FC = () => {
     viewVersion !== (pi.editingVersionNo ?? pi.currentVersionNo);
   const compact = editable && previewOpen && wide;
   const canConvert =
-    pi.status === PI_STATUS.SENT &&
-    !pi.editingVersionNo &&
-    pi.receiptStatus !== RECEIPT_STATUS.NONE &&
-    !historical;
+    pi.status === PI_STATUS.SENT && !pi.editingVersionNo && !historical;
 
   // ---------------------------------------------------------------- 操作
 
@@ -839,7 +836,13 @@ const PiDetail: React.FC = () => {
               关闭
             </Button>
           )}
-          <Tooltip title={canConvert ? '' : '有水单或到账后才能转成订单'}>
+          <Tooltip
+            title={
+              canConvert && pi.receiptStatus === RECEIPT_STATUS.NONE
+                ? '客户还没付款也能转：勾选「先采购后收款」并写原因'
+                : ''
+            }
+          >
             <Button
               type="primary"
               icon={<FileDoneOutlined />}
@@ -2375,7 +2378,9 @@ const PiDetail: React.FC = () => {
           : pi.status === PI_STATUS.CONVERTED
             ? '已转成订单；需要修改请先取消订单'
             : pi.status === PI_STATUS.SENT
-              ? '有水单或到账即可转成订单'
+              ? pi.receiptStatus === RECEIPT_STATUS.NONE
+                ? '客户还没付款时转订单需选「先采购后收款」'
+                : '有水单或到账即可转成订单'
               : ''}
       </span>
     </div>
