@@ -236,7 +236,6 @@ public class CustomerBackgroundService {
         BackgroundReportDetailVO vo = new BackgroundReportDetailVO();
         copy(r, vo, names(Set.of(r.getRequestedBy())));
         vo.setReportMarkdown(r.getReportMarkdown() == null ? "" : r.getReportMarkdown());
-        vo.setReportHtml(BackgroundReportHtml.markdownToHtml(vo.getReportMarkdown()));
         vo.setSuggestions(withCurrent(r));
         vo.setModel(r.getModel());
         vo.setInputTokens(r.getInputTokens());

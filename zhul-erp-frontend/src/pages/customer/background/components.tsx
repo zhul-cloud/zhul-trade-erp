@@ -10,7 +10,7 @@ import {
 } from '@ant-design/icons';
 import { history } from '@umijs/max';
 import { App, Button, Input, Modal, Segmented, Upload } from 'antd';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatDateTime } from '@/utils/format';
 import { readBizError } from '../service';
@@ -173,16 +173,31 @@ export const ConclusionBox: React.FC<{
   );
 };
 
-/** 客户的历次背调；有「背调中」的每 5 秒刷新一次，完成后停 */
+/** 客户的历次背调；有「背调中」的每 5 秒刷新一次，完成后停并提示「背调完成」 */
 export const useBackgroundReports = (customerId?: number) => {
+  const { message } = App.useApp();
   const [reports, setReports] = useState<BackgroundReport[]>();
+  const runningIds = useRef<number[]>([]);
   const load = useCallback(() => {
     if (!customerId) return;
     backgroundApi
       .list(customerId)
-      .then(setReports)
+      .then((rows) => {
+        for (const r of rows) {
+          if (!runningIds.current.includes(r.id)) continue;
+          if (r.status === STATUS.DONE) {
+            message.success(`背调完成：${r.reportNo}，结论在右侧「背调报告」`);
+          } else if (r.status === STATUS.FAILED) {
+            message.warning(`背调失败：${r.failReason || r.reportNo}`);
+          }
+        }
+        runningIds.current = rows
+          .filter((r) => r.status === STATUS.RUNNING)
+          .map((r) => r.id);
+        setReports(rows);
+      })
       .catch(() => setReports([]));
-  }, [customerId]);
+  }, [customerId, message]);
   useEffect(load, [load]);
   const running = reports?.some((r) => r.status === STATUS.RUNNING);
   useEffect(() => {

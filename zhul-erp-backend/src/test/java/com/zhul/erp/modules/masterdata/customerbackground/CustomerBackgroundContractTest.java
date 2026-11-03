@@ -394,7 +394,6 @@ class CustomerBackgroundContractTest extends IntegrationTestBase {
         assertEquals("先发西门子 S7-1200 现货清单", d.path("firstAction").asText());
         assertEquals("悉尼的系统集成商，23 人", d.path("identityNote").asText());
         assertEquals("# Pacific Controls 背调报告\n\n正文", d.path("reportMarkdown").asText());
-        assertEquals("<h1>Pacific Controls 背调报告</h1>\n<p>正文</p>\n", d.path("reportHtml").asText(), "页面直接展示渲染好的正文");
         assertEquals("claude-sonnet-5-5", d.path("model").asText());
         assertEquals(42000, d.path("inputTokens").asInt());
         assertEquals(6100, d.path("outputTokens").asInt());

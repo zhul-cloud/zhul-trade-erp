@@ -286,7 +286,6 @@ public class ProfileCompletionService {
         }
         BackgroundReportDetailVO vo = backgroundService.detail(customerId, r.getId());
         vo.setReportMarkdown(null);
-        vo.setReportHtml(null);
         return vo;
     }
 
@@ -301,10 +300,25 @@ public class ProfileCompletionService {
                 .sorted(Comparator.comparing(SysConfigDO::getTenantId))
                 .forEach(x -> {
                     if (StringUtils.hasText(x.getConfigValue())) {
-                        out.put(x.getConfigKey().substring(ASK_PREFIX.length()), x.getConfigValue().trim());
+                        out.put(fieldKey(x.getConfigKey().substring(ASK_PREFIX.length())), x.getConfigValue().trim());
                     }
                 });
         return out;
+    }
+
+    /** 配置键按命名规则用连字符（customs-ability），换回画像字段键（customsAbility） */
+    static String fieldKey(String suffix) {
+        StringBuilder b = new StringBuilder(suffix.length());
+        boolean upper = false;
+        for (char ch : suffix.toCharArray()) {
+            if (ch == '-') {
+                upper = true;
+            } else {
+                b.append(upper ? Character.toUpperCase(ch) : ch);
+                upper = false;
+            }
+        }
+        return b.toString();
     }
 
     private Map<Long, String> names(Set<Long> ids) {

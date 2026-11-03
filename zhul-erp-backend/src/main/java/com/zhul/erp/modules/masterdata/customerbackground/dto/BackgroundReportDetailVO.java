@@ -12,8 +12,6 @@ import java.util.List;
 @ToString(callSuper = true)
 public class BackgroundReportDetailVO extends BackgroundReportVO {
     private String reportMarkdown;
-    /** 正文渲染成的 HTML（原始 HTML 已转义、链接已清理），页面直接展示 */
-    private String reportHtml;
     private List<BackgroundSuggestion> suggestions;
     /** 用量：为空表示无记录 */
     private String model;

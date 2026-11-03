@@ -56,8 +56,6 @@ export interface Suggestion {
 
 export interface BackgroundReportDetail extends BackgroundReport {
   reportMarkdown?: string;
-  /** 后端渲染好的正文（原始 HTML 已转义、链接已清理） */
-  reportHtml?: string;
   suggestions: Suggestion[];
   model?: string;
   inputTokens?: number;

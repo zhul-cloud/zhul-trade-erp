@@ -77,23 +77,23 @@ WHERE x.`resource_id` = 110142
 INSERT INTO `sys_config` (`tenant_id`, `config_key`, `config_name`, `config_value`, `config_type`, `is_builtin`, `config_group`, `remark`, `create_by`, `update_by`)
 SELECT 0, k.config_key, k.config_name, k.config_value, 'STRING', 1, 'customer', '档案补全「只能问客户」显示的英文问法，可按公司习惯修改', 'sys', 'sys'
 FROM (
-              SELECT 'customer.ask.customsAbility' AS config_key, '问法：清关能力' AS config_name,
+              SELECT 'customer.ask.customs-ability' AS config_key, '问法：清关能力' AS config_name,
                      'Do you usually handle import customs clearance yourselves, or do you work with a forwarder / customs broker?' AS config_value
-    UNION ALL SELECT 'customer.ask.paymentMethod', '问法：付款习惯',
+    UNION ALL SELECT 'customer.ask.payment-method', '问法：付款习惯',
                      'What payment terms do you usually use with your suppliers (e.g. T/T in advance, deposit + balance, L/C)?'
-    UNION ALL SELECT 'customer.ask.currentBrands', '问法：现有使用品牌',
+    UNION ALL SELECT 'customer.ask.current-brands', '问法：现有使用品牌',
                      'Which automation brands are you mainly using at the moment (e.g. Siemens, Schneider, ABB, Omron)?'
-    UNION ALL SELECT 'customer.ask.designAbility', '问法：设计能力',
+    UNION ALL SELECT 'customer.ask.design-ability', '问法：设计能力',
                      'Do you have your own engineers for programming and system design, or would technical support from us be helpful?'
     UNION ALL SELECT 'customer.ask.protocols', '问法：常用通讯协议',
                      'Which communication protocols do your systems mainly use (Modbus, Profinet, EtherCAT, EtherNet/IP, etc.)?'
     UNION ALL SELECT 'customer.ask.voltages', '问法：电源电压',
                      'What supply voltage and frequency do you use on site (e.g. 230V / 400V, 50Hz or 60Hz)?'
-    UNION ALL SELECT 'customer.ask.repairAbility', '问法：售后维修能力',
+    UNION ALL SELECT 'customer.ask.repair-ability', '问法：售后维修能力',
                      'When a unit fails, do you usually repair it yourselves, replace it directly, or send it back for repair?'
     UNION ALL SELECT 'customer.ask.certifications', '问法：认证要求',
                      'Are there any certifications the products must have for your market or projects (CE, UL, RoHS, etc.)?'
-    UNION ALL SELECT 'customer.ask.decisionRole', '问法：决策权重',
+    UNION ALL SELECT 'customer.ask.decision-role', '问法：决策权重',
                      'Besides you, who else is usually involved in deciding on a new supplier or approving the order?'
 ) k
 WHERE NOT EXISTS (SELECT 1 FROM `sys_config` c WHERE c.`tenant_id` = 0 AND c.`config_key` = k.config_key);

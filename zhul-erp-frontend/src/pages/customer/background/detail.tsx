@@ -7,7 +7,9 @@ import {
   LoadingOutlined,
   PaperClipOutlined,
 } from '@ant-design/icons';
+import XMarkdown from '@ant-design/x-markdown';
 import { history, useAccess, useParams } from '@umijs/max';
+import '@ant-design/x-markdown/es/XMarkdown/index.css';
 import { App, Button, Skeleton } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
@@ -134,7 +136,7 @@ const BackgroundReportPage: React.FC = () => {
     modal.confirm({
       title: `删除报告 ${r.reportNo}？`,
       content:
-        '删除后报告不再显示；已经采纳进档案的字段保留，来源显示「报告已删除」。',
+        '删除后报告不再显示；已经采纳进档案的字段保留，来源显示「背调 编号（已删除）」。',
       okText: '删除',
       okButtonProps: { danger: true },
       onOk: () =>
@@ -309,10 +311,12 @@ const BackgroundReportPage: React.FC = () => {
                   color: palette.ink,
                   overflowX: 'auto',
                 }}
-                // 后端 commonmark 渲染：原始 HTML 已转义，链接只保留安全协议
-                // biome-ignore lint/security/noDangerouslySetInnerHtml: 内容已在后端转义
-                dangerouslySetInnerHTML={{ __html: r.reportHtml ?? '' }}
-              />
+              >
+                {/* 报告来自 AI 或上传的文字：原始 HTML 一律当文字显示 */}
+                <XMarkdown escapeRawHtml openLinksInNewTab>
+                  {r.reportMarkdown ?? ''}
+                </XMarkdown>
+              </div>
               <style>{`
                 .bg-report-body h1,.bg-report-body h2,.bg-report-body h3{font-size:14px;font-weight:700;margin:14px 0 6px;color:${palette.ink}}
                 .bg-report-body p{margin:6px 0}

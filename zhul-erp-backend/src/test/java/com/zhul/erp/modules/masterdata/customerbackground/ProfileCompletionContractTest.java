@@ -151,6 +151,9 @@ class ProfileCompletionContractTest extends IntegrationTestBase {
         assertTrue(asks.containsAll(List.of("designAbility", "protocols", "customsAbility", "paymentMethod", "decisionRole")), asks.toString());
         assertFalse(asks.contains("voltages"), "国家资料给出了电压");
         assertTrue(item(ask, "designAbility").path("question").asText().startsWith("Do you have your own engineers"));
+        for (String k : asks) {
+            assertFalse(item(ask, k).path("question").asText().isBlank(), "配置键用连字符（如 decision-role），也要对上字段：" + k);
+        }
         long contactId = w.path("contactId").asLong();
         assertEquals("contact." + contactId + ".decisionRole", item(ask, "decisionRole").path("sourceKey").asText());
         assertTrue(ask.path("copyAll").asText().contains("Which communication protocols"));
