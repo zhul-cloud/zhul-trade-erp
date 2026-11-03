@@ -7,6 +7,7 @@ import com.zhul.erp.modules.document.dto.TemplateFile;
 import com.zhul.erp.modules.document.service.DocumentTemplateService;
 import com.zhul.erp.modules.document.support.DocumentConverter;
 import com.zhul.erp.modules.document.support.RenderModel;
+import com.zhul.erp.modules.document.support.DocFileNames;
 import com.zhul.erp.modules.document.support.XlsxRenderer;
 import com.zhul.erp.modules.logistics.constants.LogisticsConstants;
 import com.zhul.erp.modules.logistics.dto.GenerateDocsRequest;
@@ -84,6 +85,7 @@ public class DocGroupService {
     private final PiStore piStore;
     private final LogService logService;
     private final com.zhul.erp.modules.product.support.BrandResolver brandResolver;
+    private final DocFileNames fileNames;
 
     @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public LogisticsVO generate(Long logisticsId, GenerateDocsRequest req) {
@@ -162,9 +164,8 @@ public class DocGroupService {
         int docType = ci ? DocTypes.CI : DocTypes.PL;
         RenderModel model = ci ? ciModel(sh, g) : plModel(sh, g);
         byte[] xlsx = XlsxRenderer.render(templateService.resolveDefault(docType).file(), docType, model);
-        String customer = support.customerNames(List.of(sh.getCustomerId())).getOrDefault(sh.getCustomerId(), "");
-        String clean = customer == null ? "" : customer.replaceAll("[\\\\/:*?\"<>|\\r\\n]+", " ").trim();
-        String base = (ci ? g.getCiNo() : g.getPlNo()) + (clean.isEmpty() ? "" : "_" + (clean.length() > 60 ? clean.substring(0, 60).trim() : clean));
+        String base = fileNames.of(g.getTenantId(), ci ? DocFileNames.CI : DocFileNames.PL, support.customer(sh.getCustomerId()),
+                ci ? g.getCiNo() : g.getPlNo());
         return "pdf".equals(f) ? new TemplateFile(base + ".pdf", "application/pdf", converter.toPdf(xlsx))
                 : new TemplateFile(base + ".xlsx", XLSX, xlsx);
     }

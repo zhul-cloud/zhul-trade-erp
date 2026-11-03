@@ -122,6 +122,25 @@ class CustomerProfileContractTest extends IntegrationTestBase {
                 + "total_amount_cny, status) values (0, ?, 2, ?, ?, 99000002, ?, ?, ?, ?)", no, date, customerId, currency, amount, cny, status);
     }
 
+    @Test
+    void listDefaultSort_dealtByGradeThenPotential() throws Exception {
+        long c = customer("Sort C", "Australia", null, null);
+        long s = customer("Sort S", "Australia", null, null);
+        long none = customer("Sort Unrated", "Australia", null, null);
+        long p5 = customer("Sort Potential5", "Australia", null, null);
+        long p2 = customer("Sort Potential2", "Australia", null, null);
+        jdbc.update("update customer set biz_grade = 4 where id = ?", c);
+        jdbc.update("update customer set biz_grade = 1 where id = ?", s);
+        jdbc.update("update customer set potential_rating = 5 where id = ?", p5);
+        jdbc.update("update customer set potential_rating = 2 where id = ?", p2);
+        // 最后改的排在更新时间倒序的最前面，默认排序不受影响
+        jdbc.update("update customer set update_time = now() + interval 1 day where id = ?", none);
+        JsonNode rows = ok(call(get(BASE + "/page").param("pageSize", "20").param("name", "Sort "), admin)).path("records");
+        List<Long> ids = new ArrayList<>();
+        rows.forEach(r -> ids.add(r.path("id").asLong()));
+        assertEquals(List.of(s, c, p5, p2, none), ids);
+    }
+
     private int translateTasks() {
         return jdbc.queryForObject("select count(*) from ai_task where tenant_id = 0 and skill_id = ?", Integer.class,
                 ContactNameTranslations.SKILL_ID);

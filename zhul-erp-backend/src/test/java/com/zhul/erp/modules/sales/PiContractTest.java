@@ -293,7 +293,7 @@ class PiContractTest extends SalesContractSupport {
 
         MockHttpServletResponse res = perform(get(PI + "/" + id + "/export").param("format", "pdf"), admin);
         assertEquals(200, res.getStatus());
-        assertTrue(res.getHeader("Content-Disposition").contains(pi.path("piNo").asText() + "_ACROBOT.pdf"));
+        assertTrue(res.getHeader("Content-Disposition").contains("Invoice%20-%20ACROBOT%20-%20" + pi.path("piNo").asText() + ".pdf"));
         String text;
         try (PDDocument doc = Loader.loadPDF(res.getContentAsByteArray())) {
             text = new PDFTextStripper().getText(doc);

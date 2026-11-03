@@ -4,7 +4,7 @@ import {
   RightOutlined,
   ShrinkOutlined,
 } from '@ant-design/icons';
-import { Checkbox, Pagination, Segmented } from 'antd';
+import { Button, Checkbox, Pagination, Segmented } from 'antd';
 import React, { useCallback, useState } from 'react';
 import { useAppTheme } from '@/theme/AppTheme';
 import { Pill } from './components';
@@ -176,6 +176,54 @@ export const TaskPager: React.FC<{
         pageSizeOptions={[10, 20, 50, 100]}
         onChange={onChange}
       />
+    </div>
+  );
+};
+
+/** 「加载更多」每次多加载的任务数 */
+export const LOAD_STEP = 20;
+
+/** 按每页 LOAD_STEP 取前 limit 条（接口每页最多 100 条，所以分几页并行取再拼起来） */
+export const fetchFirst = async <T,>(
+  limit: number,
+  fetchPage: (page: number, pageSize: number) => Promise<T>,
+): Promise<T[]> =>
+  Promise.all(
+    Array.from({ length: Math.ceil(limit / LOAD_STEP) }, (_, i) =>
+      fetchPage(i + 1, LOAD_STEP),
+    ),
+  );
+
+/** 底部：已显示几个 / 共几个任务，还有没显示的时候点「加载更多」 */
+export const LoadMore: React.FC<{
+  shown: number;
+  total: number;
+  loading?: boolean;
+  onMore: () => void;
+}> = ({ shown, total, loading, onMore }) => {
+  const { palette } = useAppTheme();
+  // 切换页签、列表还没加载回来时不显示
+  if (total === 0 || shown === 0) return null;
+  return (
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: 8,
+        padding: '4px 0 8px',
+      }}
+    >
+      {shown < total && (
+        <Button block loading={loading} onClick={onMore}>
+          加载更多
+        </Button>
+      )}
+      <span style={{ color: palette.mute, fontSize: 12 }}>
+        {shown < total
+          ? `已显示 ${shown} / 共 ${total} 个任务`
+          : `共 ${total} 个任务，已全部显示`}
+      </span>
     </div>
   );
 };
