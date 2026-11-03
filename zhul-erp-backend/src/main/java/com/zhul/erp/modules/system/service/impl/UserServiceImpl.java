@@ -24,6 +24,7 @@ import com.zhul.erp.modules.system.repository.DepartmentMapper;
 import com.zhul.erp.modules.system.repository.PositionMapper;
 import com.zhul.erp.modules.system.repository.RoleMapper;
 import com.zhul.erp.modules.system.repository.UserBasicMapper;
+import com.zhul.erp.modules.system.service.AccountSessionService;
 import com.zhul.erp.modules.system.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -44,6 +45,7 @@ public class UserServiceImpl implements UserService {
     private final RoleMapper roleMapper;
     private final AccountMapper accountMapper;
     private final AccountLocalAuthMapper accountLocalAuthMapper;
+    private final AccountSessionService accountSessionService;
 
     @Override
     public PageResult<UserVO> listUsers(UserPageQuery query) {
@@ -156,6 +158,10 @@ public class UserServiceImpl implements UserService {
                 .eq(AccountDO::getUserId, userId)
                 .ne(AccountDO::getStatus, STATUS_DELETED)
                 .set(AccountDO::getStatus, status));
+        // 认证过滤器只看会话是否存在，不查账号状态：停用后要撤销已有会话才能立即生效
+        if (status != STATUS_ENABLED) {
+            accountSessionService.revokeAllOfUser(userId);
+        }
     }
 
     @Override
@@ -256,6 +262,7 @@ public class UserServiceImpl implements UserService {
                 .eq(AccountDO::getUserId, userId)
                 .set(AccountDO::getStatus, STATUS_DELETED);
         accountMapper.update(new AccountDO(), accountWrapper);
+        accountSessionService.revokeAllOfUser(userId);
     }
 
     @Override
@@ -270,5 +277,7 @@ public class UserServiceImpl implements UserService {
                 .eq(AccountLocalAuthDO::getAccountId, account.getId())
                 .set(AccountLocalAuthDO::getPassword, BCrypt.hashpw(newPassword, BCrypt.gensalt()));
         accountLocalAuthMapper.update(new AccountLocalAuthDO(), wrapper);
+        // 管理员重置密码多因账号可能泄露，旧会话一并失效，需用新密码重新登录
+        accountSessionService.revokeAllOfUser(userId);
     }
 }

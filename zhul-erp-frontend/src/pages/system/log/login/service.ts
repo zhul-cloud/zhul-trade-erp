@@ -10,7 +10,8 @@ export interface LoginLogItem {
   result: 0 | 1;
   online: boolean;
   checkable: boolean;
-  tokenId: string | null;
+  /** 会话记录 ID，用于强制下线；不是登录凭据 */
+  sessionId: number | null;
   operateTime: string;
 }
 
@@ -51,10 +52,10 @@ export interface ForceLogoutResult {
   failCount: number;
 }
 
-export const forceLogout = (tokenIds: string[]): Promise<ForceLogoutResult> =>
+export const forceLogout = (sessionIds: number[]): Promise<ForceLogoutResult> =>
   request('/api/v1/system/logs/login/force-logout', {
     method: 'POST',
-    data: { tokenIds },
+    data: { sessionIds },
   }).then((r) => r.data);
 
 export async function exportLoginLogs(

@@ -59,10 +59,10 @@ const LoginLogPage: React.FC = () => {
       onOk: async () => {
         setForceLogoutLoading(true);
         try {
-          const tokenIds = selectedRows
-            .map((r) => r.tokenId)
-            .filter((t): t is string => !!t);
-          const result = await forceLogout(tokenIds);
+          const sessionIds = selectedRows
+            .map((r) => r.sessionId)
+            .filter((id): id is number => id != null);
+          const result = await forceLogout(sessionIds);
           if (result.failCount === 0) {
             message.success(`已成功强制下线 ${result.successCount} 名用户`);
           } else if (result.successCount > 0) {

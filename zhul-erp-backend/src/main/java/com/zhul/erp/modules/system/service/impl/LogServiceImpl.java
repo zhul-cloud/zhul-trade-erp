@@ -23,6 +23,7 @@ import com.zhul.erp.modules.system.entity.SysLogDO;
 import com.zhul.erp.modules.system.repository.AccountAccessTokenMapper;
 import com.zhul.erp.modules.system.repository.AccountMapper;
 import com.zhul.erp.modules.system.repository.SysLogMapper;
+import com.zhul.erp.modules.system.service.AccountSessionService;
 import com.zhul.erp.modules.system.service.LogService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
@@ -48,6 +49,9 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -63,6 +67,7 @@ public class LogServiceImpl implements LogService {
     private final AccountAccessTokenMapper accountAccessTokenMapper;
     private final ObjectMapper objectMapper;
     private final StringRedisTemplate redisTemplate;
+    private final AccountSessionService accountSessionService;
 
     // ==================== 操作日志 ====================
 
@@ -209,46 +214,42 @@ public class LogServiceImpl implements LogService {
         LambdaQueryWrapper<SysLogDO> wrapper = buildLoginWrapper(query);
         Page<SysLogDO> pageParam = new Page<>(query.getPage(), query.getPageSize());
         Page<SysLogDO> pageResult = sysLogMapper.selectPage(pageParam, wrapper);
+        Map<Integer, AccountAccessTokenDO> sessions = loadSessions(pageResult.getRecords());
         List<LoginLogVO> records = new ArrayList<>(pageResult.getRecords().size());
         for (SysLogDO log : pageResult.getRecords()) {
-            records.add(toLoginVo(log));
+            records.add(toLoginVo(log, sessions));
         }
         return PageResult.of(pageResult.getTotal(), records);
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public ForceLogoutResultVO forceLogout(List<String> tokenIds, HttpServletRequest request) {
+    public ForceLogoutResultVO forceLogout(List<Integer> sessionIds, HttpServletRequest request) {
+        List<AccountAccessTokenDO> rows = accountAccessTokenMapper.selectList(
+                new LambdaQueryWrapper<AccountAccessTokenDO>()
+                        .in(AccountAccessTokenDO::getId, sessionIds)
+                        .isNull(AccountAccessTokenDO::getDeletedAt));
         String currentToken = extractCurrentToken(request);
-        if (currentToken != null && tokenIds.contains(currentToken)) {
+        if (currentToken != null && rows.stream().anyMatch(r -> currentToken.equals(r.getAccessToken()))) {
             throw new BizException("不能强制下线当前登录账号");
         }
+        // 会话 ID 是自增数字，必须校验归属：只能下线当前租户账号的会话
+        Set<Integer> accountIds = rows.stream().map(AccountAccessTokenDO::getAccountId).collect(Collectors.toSet());
+        Set<Integer> ownAccounts = accountIds.isEmpty() ? Set.of() : accountMapper.selectList(
+                        new LambdaQueryWrapper<AccountDO>()
+                                .select(AccountDO::getId)
+                                .in(AccountDO::getId, accountIds)
+                                .eq(AccountDO::getTenantId, effectiveTenantId()))
+                .stream().map(AccountDO::getId).collect(Collectors.toSet());
 
         int success = 0;
-        int fail = 0;
-        for (String tokenId : tokenIds) {
-            try {
-                redisTemplate.delete(RedisKeyConstants.TOKEN_PREFIX + tokenId);
-                // 同时失效 RefreshToken 与持久化会话记录，否则"记住我"会话仍可通过 /auth/refresh 静默续期，
-                // 强制下线形同虚设
-                AccountAccessTokenDO row = accountAccessTokenMapper.selectOne(
-                        new LambdaQueryWrapper<AccountAccessTokenDO>()
-                                .eq(AccountAccessTokenDO::getAccessToken, tokenId)
-                                .isNull(AccountAccessTokenDO::getDeletedAt)
-                                .last("LIMIT 1"));
-                if (row != null) {
-                    if (StringUtils.hasText(row.getRefreshToken())) {
-                        redisTemplate.delete(RedisKeyConstants.REFRESH_TOKEN_PREFIX + row.getRefreshToken());
-                    }
-                    row.setStatus(0);
-                    row.setDeletedAt(LocalDateTime.now());
-                    accountAccessTokenMapper.updateById(row);
-                }
+        for (AccountAccessTokenDO row : rows) {
+            if (ownAccounts.contains(row.getAccountId())) {
+                accountSessionService.revoke(row);
                 success++;
-            } catch (Exception e) {
-                fail++;
             }
         }
+        int fail = sessionIds.size() - success;
 
         if (success > 0) {
             recordForceLogoutOperateLog(success, request);
@@ -277,7 +278,7 @@ public class LogServiceImpl implements LogService {
         int rowIdx = 1;
         int seq = 1;
         for (SysLogDO log : logs) {
-            LoginLogVO vo = toLoginVo(log);
+            LoginLogVO vo = toLoginVo(log, Map.of());
             Row row = sheet.createRow(rowIdx++);
             Cell seqCell = row.createCell(0);
             seqCell.setCellValue(seq++);
@@ -298,7 +299,7 @@ public class LogServiceImpl implements LogService {
     @Override
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void recordLoginLog(Integer tenantId, Integer accountId, String username, Integer result,
-                                String ip, String userAgent, String tokenId, String failReason) {
+                                String ip, String userAgent, Integer sessionId, String failReason) {
         SysLogDO log = new SysLogDO();
         log.setTenantId(tenantId != null ? tenantId : 0);
         log.setType(TYPE_LOGIN);
@@ -331,7 +332,7 @@ public class LogServiceImpl implements LogService {
         content.put("browser", browser);
         content.put("os", os);
         content.put("location", "未知");
-        content.put("token_id", success ? tokenId : null);
+        content.put("session_id", success ? sessionId : null);
         content.put("is_online", success);
         content.put("fail_reason", success ? null : failReason);
         try {
@@ -414,7 +415,32 @@ public class LogServiceImpl implements LogService {
         return wrapper;
     }
 
-    private LoginLogVO toLoginVo(SysLogDO log) {
+    /** 本页登录成功记录对应的有效会话，按会话 ID 一次查出 */
+    private Map<Integer, AccountAccessTokenDO> loadSessions(List<SysLogDO> logs) {
+        Set<Integer> ids = logs.stream().map(this::sessionIdOf).filter(Objects::nonNull).collect(Collectors.toSet());
+        if (ids.isEmpty()) {
+            return Map.of();
+        }
+        return accountAccessTokenMapper.selectList(new LambdaQueryWrapper<AccountAccessTokenDO>()
+                        .in(AccountAccessTokenDO::getId, ids)
+                        .isNull(AccountAccessTokenDO::getDeletedAt))
+                .stream().collect(Collectors.toMap(AccountAccessTokenDO::getId, r -> r));
+    }
+
+    /** 登录日志里记的会话 ID；旧日志存的是 Token（token_id），不再读取，视为已下线 */
+    private Integer sessionIdOf(SysLogDO log) {
+        if (log.getResult() == null || log.getResult() != 1 || !StringUtils.hasText(log.getContent())) {
+            return null;
+        }
+        try {
+            JsonNode node = objectMapper.readTree(log.getContent()).get("session_id");
+            return node != null && node.canConvertToInt() ? node.asInt() : null;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private LoginLogVO toLoginVo(SysLogDO log, Map<Integer, AccountAccessTokenDO> sessions) {
         LoginLogVO vo = new LoginLogVO();
         vo.setId(log.getId());
         vo.setOperatorName(log.getOperatorName());
@@ -425,7 +451,6 @@ public class LogServiceImpl implements LogService {
         String location = "未知";
         String browser = "未知";
         String os = "未知";
-        String tokenId = null;
 
         String content = log.getContent();
         if (StringUtils.hasText(content)) {
@@ -434,9 +459,6 @@ public class LogServiceImpl implements LogService {
                 location = textOrDefault(node, "location", "未知");
                 browser = textOrDefault(node, "browser", "未知");
                 os = textOrDefault(node, "os", "未知");
-                if (node.has("token_id") && !node.get("token_id").isNull()) {
-                    tokenId = node.get("token_id").asText();
-                }
             } catch (Exception ignored) {
                 // content 损坏，展示字段保持“未知”
             }
@@ -445,11 +467,12 @@ public class LogServiceImpl implements LogService {
         vo.setBrowser(browser);
         vo.setOs(os);
 
-        boolean online = log.getResult() != null && log.getResult() == 1
-                && tokenId != null && isOnline(tokenId);
+        Integer sessionId = sessionIdOf(log);
+        AccountAccessTokenDO session = sessionId == null ? null : sessions.get(sessionId);
+        boolean online = session != null && isOnline(session);
         vo.setOnline(online);
         vo.setCheckable(online);
-        vo.setTokenId(online ? tokenId : null);
+        vo.setSessionId(online ? sessionId : null);
         return vo;
     }
 
@@ -461,9 +484,10 @@ public class LogServiceImpl implements LogService {
         return def;
     }
 
-    private boolean isOnline(String tokenId) {
+    /** 会话记录里是最新的 AccessToken（刷新后会更新），Redis 里还在即在线 */
+    private boolean isOnline(AccountAccessTokenDO session) {
         try {
-            return Boolean.TRUE.equals(redisTemplate.hasKey(RedisKeyConstants.TOKEN_PREFIX + tokenId));
+            return Boolean.TRUE.equals(redisTemplate.hasKey(RedisKeyConstants.TOKEN_PREFIX + session.getAccessToken()));
         } catch (Exception e) {
             return false;
         }

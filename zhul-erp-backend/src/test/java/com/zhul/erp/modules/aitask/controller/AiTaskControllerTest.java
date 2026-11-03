@@ -1,6 +1,5 @@
 package com.zhul.erp.modules.aitask.controller;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhul.erp.common.result.Result;
 import com.zhul.erp.modules.aitask.dto.AiTaskCallbackRequest;
 import com.zhul.erp.modules.aitask.service.AiTaskService;
@@ -36,7 +35,7 @@ class AiTaskControllerTest {
 
     @BeforeEach
     void setUp() {
-        controller = new AiTaskController(aiTaskService, new ObjectMapper());
+        controller = new AiTaskController(aiTaskService);
         ReflectionTestUtils.setField(controller, "callbackToken", CONFIGURED_TOKEN);
     }
 

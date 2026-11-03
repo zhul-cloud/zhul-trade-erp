@@ -17,7 +17,7 @@ public class LoginLogVO {
     private Boolean online;
     /** 强制下线可勾选：result=1 且 online=true */
     private Boolean checkable;
-    /** 用于强制下线的 Token 标识；result=0 或已下线时为 null */
-    private String tokenId;
+    /** 用于强制下线的会话记录 ID（不是 Token）；result=0 或已下线时为 null */
+    private Integer sessionId;
     private LocalDateTime operateTime;
 }

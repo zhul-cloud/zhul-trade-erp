@@ -34,6 +34,7 @@ class LogServiceOperateLogTest {
     @Mock private AccountMapper accountMapper;
     @Mock private AccountAccessTokenMapper accountAccessTokenMapper;
     @Mock private StringRedisTemplate redisTemplate;
+    @Mock private AccountSessionService accountSessionService;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -46,7 +47,7 @@ class LogServiceOperateLogTest {
     @Test
     void recordOperateLog_writesOperatorMenuOperationAndBeforeAfter() throws Exception {
         LogServiceImpl service = new LogServiceImpl(sysLogMapper, accountMapper, accountAccessTokenMapper,
-                objectMapper, redisTemplate);
+                objectMapper, redisTemplate, accountSessionService);
         TenantContext.setTenantId(7);
         SecurityContextHolder.getContext().setAuthentication(
                 new UsernamePasswordAuthenticationToken("wangqiang", null, List.of()));

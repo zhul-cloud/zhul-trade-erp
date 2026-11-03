@@ -8,5 +8,5 @@ import java.util.List;
 @Data
 public class ForceLogoutRequest {
     @NotEmpty(message = "请选择要强制下线的用户")
-    private List<String> tokenIds;
+    private List<Integer> sessionIds;
 }
