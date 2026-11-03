@@ -3,7 +3,7 @@ package com.zhul.erp.modules.system.controller;
 import com.zhul.erp.common.result.PageResult;
 import com.zhul.erp.common.result.Result;
 import com.zhul.erp.modules.system.dto.CreateUserRequest;
-import com.zhul.erp.modules.system.dto.ResetPasswordRequest;
+import com.zhul.erp.modules.system.dto.AdminResetPasswordRequest;
 import com.zhul.erp.modules.system.dto.UpdateUserRequest;
 import com.zhul.erp.modules.system.dto.UserPageQuery;
 import com.zhul.erp.modules.system.dto.UserStatsVO;
@@ -81,7 +81,7 @@ public class UserController {
     @PreAuthorize("@perm.has('system:user:resetPwd')")
     @PutMapping("/{userId}/password")
     public Result<Void> resetPassword(@PathVariable Integer userId,
-                                      @Valid @RequestBody ResetPasswordRequest req) {
+                                      @Valid @RequestBody AdminResetPasswordRequest req) {
         userService.resetPassword(userId, req.getNewPassword());
         return Result.ok();
     }

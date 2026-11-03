@@ -33,7 +33,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 
 /**
  * 登录会话安全（audit 批次 A）：登录日志不暴露 Token（SEC-001）；停用、删除、重置密码撤销旧会话（SEC-004）；
- * 重置密码不走 URL（SEC-008）；通用 AI 任务创建接口已关闭（AI-003）
+ * 重置密码不走 URL（SEC-008）；邮箱找回密码同样撤销旧会话；通用 AI 任务创建接口已关闭（AI-003）
  */
 @AutoConfigureMockMvc
 class SessionSecurityContractTest extends IntegrationTestBase {
@@ -204,6 +204,20 @@ class SessionSecurityContractTest extends IntegrationTestBase {
         String third = login(newPassword);
         userService.deleteUser(USER_ID);
         assertFalse(alive(third), "删除后旧会话失效");
+    }
+
+    @Test
+    void emailPasswordResetRevokesSessions() throws Exception {
+        String accessToken = login(PASSWORD);
+        String verifyToken = "it-reset-" + UUID.randomUUID();
+        redis.opsForValue().set(RedisKeyConstants.RESET_VERIFY_TOKEN_PREFIX + verifyToken, String.valueOf(USER_ID));
+        String body = objectMapper.writeValueAsString(Map.of("verifyToken", verifyToken,
+                "newPassword", "Mail@654321", "confirmPassword", "Mail@654321"));
+        JsonNode res = objectMapper.readTree(mvc.perform(post("/api/v1/auth/password/reset")
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8));
+        assertEquals(0, res.path("code").asInt(), res.toString());
+        assertFalse(alive(accessToken), "邮箱找回密码后旧会话失效");
     }
 
     @Test
