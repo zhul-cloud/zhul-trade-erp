@@ -14,6 +14,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import static com.zhul.erp.support.TestDates.today;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -311,7 +312,7 @@ class SalesOrderTrackingContractTest extends SalesContractSupport {
         money("700.00", so.path("methodTotals").get(1).path("amount"));
 
         JsonNode records = ok(call(json(post(FIN + "/records"), "{}"), admin)).path("records");
-        assertEquals("SO" + TODAY + "001", records.get(0).path("soNo").asText());
+        assertEquals("SO" + today() + "001", records.get(0).path("soNo").asText());
 
         assertEquals("这笔到账不是认领来的，不能取消认领", fail(call(json(post(FIN + "/" + so.path("receipts").get(0).path("id").asLong() + "/unclaim"),
                 "{\"reason\":\"x\"}"), admin)).path("message").asText());

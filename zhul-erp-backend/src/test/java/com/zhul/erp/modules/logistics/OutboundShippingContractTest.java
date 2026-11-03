@@ -18,6 +18,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import static com.zhul.erp.support.TestDates.today;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -180,7 +181,7 @@ class OutboundShippingContractTest extends SalesContractSupport {
         assertEquals(403, perform(get(OB + "/notice-form").param("soId", String.valueOf(soId)), keeper).getStatus(), "仓库不能发通知");
 
         JsonNode ob1 = ok(notice(soId, 6));
-        assertEquals("OB" + TODAY + "001", ob1.path("obNo").asText());
+        assertEquals("OB" + today() + "001", ob1.path("obNo").asText());
         assertEquals("待打包", ob1.path("statusName").asText());
         assertEquals("A-1 最多可以出库 4 个", fail(notice(soId, 5)).path("message").asText(), "已出库的占用可出库数量");
         JsonNode ob2 = ok(notice(soId, 4));
@@ -244,7 +245,7 @@ class OutboundShippingContractTest extends SalesContractSupport {
         long customerId = pending.get(0).path("customerId").asLong();
         JsonNode sh = ok(call(json(post(SH), write(Map.of("customerId", customerId, "forwarderId", forwarder,
                 "outboundIds", List.of(ob.path("id").asLong())))), admin));
-        assertEquals("SH" + TODAY + "001", sh.path("shNo").asText());
+        assertEquals("SH" + today() + "001", sh.path("shNo").asText());
         assertEquals("待出运", sh.path("statusName").asText());
         assertEquals(0, ok(call(get(SH + "/pending"), admin)).size(), "放进出运单后不在待出运里");
         long shId = sh.path("id").asLong();

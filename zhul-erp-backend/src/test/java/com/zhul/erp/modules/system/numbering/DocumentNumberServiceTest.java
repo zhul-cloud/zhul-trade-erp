@@ -10,8 +10,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
-import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -23,6 +21,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
+import static com.zhul.erp.support.TestDates.today;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -30,7 +29,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class DocumentNumberServiceTest extends IntegrationTestBase {
 
     private static final int TENANT = 99301;
-    private static final String TODAY = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
 
     @Autowired private DocumentNumberService service;
 
@@ -53,19 +51,19 @@ class DocumentNumberServiceTest extends IntegrationTestBase {
 
     @Test
     void firstOfDay_prefixOnlyOnExternalDocuments() {
-        assertThat(service.next(DocumentType.PI)).isEqualTo("PI" + TODAY + "001");
+        assertThat(service.next(DocumentType.PI)).isEqualTo("PI" + today() + "001");
         service.savePrefix("FW");
-        assertThat(service.next(DocumentType.PI)).isEqualTo("FWPI" + TODAY + "002");
-        assertThat(service.next(DocumentType.QT)).isEqualTo("FWQT" + TODAY + "001");
-        assertThat(service.next(DocumentType.SO)).isEqualTo("SO" + TODAY + "001");
-        assertThat(service.next(DocumentType.IQ)).isEqualTo("IQ" + TODAY + "001");
+        assertThat(service.next(DocumentType.PI)).isEqualTo("FWPI" + today() + "002");
+        assertThat(service.next(DocumentType.QT)).isEqualTo("FWQT" + today() + "001");
+        assertThat(service.next(DocumentType.SO)).isEqualTo("SO" + today() + "001");
+        assertThat(service.next(DocumentType.IQ)).isEqualTo("IQ" + today() + "001");
     }
 
     @Test
     void moreThan999Becomes4Digits() {
         service.next(DocumentType.PI);
         jdbc.update("update document_sequence set last_no = 999 where tenant_id = ? and doc_type = 'PI'", TENANT);
-        assertThat(service.next(DocumentType.PI)).isEqualTo("PI" + TODAY + "1000");
+        assertThat(service.next(DocumentType.PI)).isEqualTo("PI" + today() + "1000");
     }
 
     @Test
@@ -107,6 +105,6 @@ class DocumentNumberServiceTest extends IntegrationTestBase {
             pool.shutdown();
         }
         assertThat(numbers).hasSize(20);
-        assertThat(numbers).contains("PI" + TODAY + "001", "PI" + TODAY + "020");
+        assertThat(numbers).contains("PI" + today() + "001", "PI" + today() + "020");
     }
 }

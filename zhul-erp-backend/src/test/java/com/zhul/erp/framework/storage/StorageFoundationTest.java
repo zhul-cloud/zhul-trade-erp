@@ -1,6 +1,8 @@
 package com.zhul.erp.framework.storage;
 
 import com.zhul.erp.common.exception.BizException;
+import com.zhul.erp.support.TestDates;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -11,21 +13,24 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
-import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.Map;
 
+import static com.zhul.erp.support.TestDates.thisMonth;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /** 存储配置、文件键规则、本地存储与签名链接 */
 class StorageFoundationTest {
 
-    private static final String MONTH = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMM"));
-
     @TempDir
     Path tmp;
+
+    /** 离午夜太近先等过零点：存储路径带月份，月底跨零点时断言会对不上（audit DOC-007） */
+    @BeforeEach
+    void notAtDayEnd() {
+        TestDates.awayFromDayEnd();
+    }
 
     // ---------- 配置 ----------
 
@@ -70,15 +75,15 @@ class StorageFoundationTest {
     @Test
     void keys_followDirectoryTable() {
         assertThat(StorageKeys.newKey(StorageArea.FINANCE, 1005, "png"))
-                .matches("tenant/1005/finance/" + MONTH + "/[0-9a-f]{32}\\.png");
-        assertThat(StorageKeys.newKey(StorageArea.INQUIRY, 1005, "pdf")).startsWith("tenant/1005/inquiry/" + MONTH + "/");
+                .matches("tenant/1005/finance/" + thisMonth() + "/[0-9a-f]{32}\\.png");
+        assertThat(StorageKeys.newKey(StorageArea.INQUIRY, 1005, "pdf")).startsWith("tenant/1005/inquiry/" + thisMonth() + "/");
         assertThat(StorageKeys.newKey(StorageArea.SYSTEM, 0, "jpg")).matches("tenant/0/system/[0-9a-f]{32}\\.jpg");
-        assertThat(StorageKeys.newKey(StorageArea.PACKING, 1005, "jpg")).matches("tenant/1005/packing/" + MONTH + "/[0-9a-f]{32}\\.jpg");
+        assertThat(StorageKeys.newKey(StorageArea.PACKING, 1005, "jpg")).matches("tenant/1005/packing/" + thisMonth() + "/[0-9a-f]{32}\\.jpg");
         assertThat(StorageKeys.modelKey(StorageArea.MEDIA, 1005, "Siemens", "6ES7214-1AG40-0XB0", "jpg"))
                 .matches("tenant/1005/media/siemens/6es7214-1ag40-0xb0/[0-9a-f]{32}\\.jpg");
         assertThat(StorageKeys.modelKey(StorageArea.PRODUCT, 0, "Allen-Bradley", "1756-L71", "webp"))
                 .startsWith("shared/product/allen-bradley/1756-l71/");
-        assertThat(StorageKeys.newKey(StorageArea.MEDIA, 1, "jpg")).startsWith("tenant/1/media/unsorted/" + MONTH + "/");
+        assertThat(StorageKeys.newKey(StorageArea.MEDIA, 1, "jpg")).startsWith("tenant/1/media/unsorted/" + thisMonth() + "/");
         assertThrows(IllegalArgumentException.class, () -> StorageKeys.newKey(StorageArea.PRODUCT, 1, "jpg"));
     }
 

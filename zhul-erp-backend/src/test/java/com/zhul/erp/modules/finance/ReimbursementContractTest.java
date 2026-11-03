@@ -16,6 +16,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
+import static com.zhul.erp.support.TestDates.today;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -172,7 +173,7 @@ class ReimbursementContractTest extends SalesContractSupport {
                 "attachmentIds", List.of(upload("RETURN_PROOF", lin))))), lin));
         pending = ok(call(get(BX + "/pending"), lin));
         JsonNode bx = ok(submit(lin, find(pending, 1), find(pending, 2), find(pending, 3))).get(0);
-        assertEquals("BX" + TODAY + "001", bx.path("reimburseNo").asText());
+        assertEquals("BX" + today() + "001", bx.path("reimburseNo").asText());
         money("958.00", bx.path("totalAmount"));
         assertEquals(1, bx.path("status").asInt());
         assertEquals(0, ok(call(get(BX + "/pending"), lin)).size());
@@ -415,7 +416,7 @@ class ReimbursementContractTest extends SalesContractSupport {
         assertEquals("分摊合计须等于费用金额", fail(call(json(post(FE), write(body)), admin)).path("message").asText());
         body.put("allocations", List.of(Map.of("soItemId", soItems.get(0), "amount", 80), Map.of("soItemId", soItems.get(1), "amount", 40)));
         JsonNode fe = ok(call(json(post(FE), write(body)), admin));
-        assertEquals("FE" + TODAY + "001", fe.path("expenseNo").asText());
+        assertEquals("FE" + today() + "001", fe.path("expenseNo").asText());
         assertEquals(2, fe.path("allocations").size());
         JsonNode ap = ok(call(get(AP + "/by-source").param("sourceType", "3").param("sourceId", fe.path("id").asText()), admin));
         assertEquals(4, ap.path("payeeType").asInt());

@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import static com.zhul.erp.support.TestDates.today;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -195,7 +196,7 @@ class PayableContractTest extends SalesContractSupport {
         long poId = po.path("id").asLong();
 
         JsonNode ap = bySource(poId, lin);
-        assertEquals("AP" + TODAY + "001", ap.path("payableNo").asText(), "内部单据不带前缀");
+        assertEquals("AP" + today() + "001", ap.path("payableNo").asText(), "内部单据不带前缀");
         assertEquals("深圳工控", ap.path("payeeName").asText());
         assertEquals(1, ap.path("payeeType").asInt());
         money("10000.00", ap.path("amount"));
@@ -210,7 +211,7 @@ class PayableContractTest extends SalesContractSupport {
 
         // 财务登记预付：核销第 1 期
         JsonNode paid = ok(pay(payBody(1, "3000.00", Map.of(apId, "3000.00"), admin), admin));
-        assertEquals("PY" + TODAY + "001", paid.path("paymentNo").asText());
+        assertEquals("PY" + today() + "001", paid.path("paymentNo").asText());
         ap = bySource(poId, admin);
         assertEquals(2, ap.path("status").asInt());
         assertEquals(3, ap.path("installments").get(0).path("status").asInt());

@@ -186,7 +186,12 @@
   - 修复：提交转码时记下附件所属租户，成功与失败回调都用 `TenantContext.runAs` 执行。
   - 缺陷见证：新增 `AttachmentTranscodeTenantContractTest`，用模拟转码器在另一个线程执行回调。修复前报「缺少租户上下文」、状态未更新；修复后通过。
 - **#142 合并**：附件转码修复与 DOC-007 随 [#142](https://github.com/zhul-cloud/zhul-trade-erp/pull/142) 合并到 `develop`（`a2f40187`），PR 上 CI 三项通过。
-- **DOC-007 补充**：推送到 `develop` 的 CI（`0db2d13b`，run 41668735741）恰在北京时间 00:00 运行，`SalesOrderContractTest` 两个用例失败（期望 `SO20261103…`，实际 `SO20261104…`）。原因是 `SalesContractSupport.TODAY` 在类加载时算好日期，跨过午夜后与后端生成的单号日期不一致。同属测试跨时间边界，不是代码缺陷，待修。
+- **DOC-007 补充**：推送到 `develop` 的 CI（`0db2d13b`，run 41668735741）恰在北京时间 00:00 运行，`SalesOrderContractTest` 两个用例失败（期望 `SO20261103…`，实际 `SO20261104…`）。原因是 `SalesContractSupport.TODAY` 在类加载时算好日期，跨过午夜后与后端生成的单号日期不一致。同属测试跨时间边界，不是代码缺陷。
+- **DOC-007 修复（2026-11-04，`fix/test-time-boundary`）**：
+  - 新增 `support/TestDates`。3 个类里类加载时固定的 `TODAY`、`MONTH` 改为断言时现取的 `today()`、`thisMonth()`，共 14 个测试类、31 处单号断言。
+  - `IntegrationTestBase` 和 `StorageFoundationTest` 在每个用例开始前调用 `awayFromDayEnd()`：离午夜不到 30 秒时，先等过零点再开始，保证一个用例内造数据和断言落在同一天。这一条同时覆盖与 `LocalDate.now()` 比较的其余断言（销售日期、到期日、报价截止等）。
+  - 后端直接用 `LocalDate.now()` 生成单号，没有可注入的时钟，所以没有写确定性的跨零点复现测试；是否有效依据上述机制和 CI 的零点运行观察。
+  - 受影响的 14 个类共 102 个用例通过。
 - **DOC-007（P3，新发现）**：本轮全量测试中，`AfterSalesSlaContractTest` 偶发失败，期望 `22:41:05`、实际 `22:41:04`。原因是建数据和断言各调一次 `now()`，两次调用跨了秒。改为共用同一个时刻。只是测试问题，与租户改动无关。
 - **建议后续改进（本次未改，不会报错）**：4 个任务在平台范围内循环、逐个设置租户后处理数据：`AiTaskTimeoutWatchdog`、`SalesWindowJob`、`PayableBackfill`、`ListingTaskBackfill`。因为平台范围仍然有效，循环里拦截器不生效，只靠手写的租户条件，与启用前一样。可以改为只在查询要处理的租户时用平台范围，逐个处理时用 `runAs`，与 `CustomerNightlyJob`、`ListingTaskSync` 一致。
 
