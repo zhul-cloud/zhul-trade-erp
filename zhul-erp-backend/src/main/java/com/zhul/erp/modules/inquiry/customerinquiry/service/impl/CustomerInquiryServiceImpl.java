@@ -668,10 +668,7 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
         return submitParseTask(inquiry);
     }
 
-    /**
-     * 拼 AI 解析输入：正文 + Excel / CSV 抽出的文本；图片和 PDF 以本地绝对路径交给编排服务自己读。
-     * {@code rawAttachmentPath} 保留第一个图片 / PDF，兼容只认单个附件的旧版编排服务。
-     */
+    /** 提交 AI 解析任务：输入见 {@link #parseInput}（图片和 PDF 以临时链接交给编排服务下载） */
     private CustomerInquiryVO submitParseTask(CustomerInquiryDO inquiry) {
         AiTaskVO task = aiTaskService.createAndSubmit(PARSE_SKILL_ID, parseInput(inquiry, inquiry.getRawContent(), 0L), currentUser.resolve());
         inquiry.setAiTaskId(task.getId());

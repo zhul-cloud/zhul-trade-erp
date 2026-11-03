@@ -19,15 +19,17 @@ public interface LogService {
     Workbook exportOperateLogs(OperateLogQuery query);
 
     PageResult<LoginLogVO> listLoginLogs(LoginLogQuery query);
-    ForceLogoutResultVO forceLogout(List<String> tokenIds, HttpServletRequest request);
+    /** 按会话记录 ID 强制下线，只能下线当前租户的会话 */
+    ForceLogoutResultVO forceLogout(List<Integer> sessionIds, HttpServletRequest request);
     Workbook exportLoginLogs(LoginLogQuery query);
 
     /**
      * 记录一条登录日志（登录成功/失败均可），使用独立事务，
      * 确保登录失败时日志不会随认证失败的外层事务一起回滚。
+     * sessionId 是会话记录（account_access_token）的 ID，日志里不存 Token 本身。
      */
     void recordLoginLog(Integer tenantId, Integer accountId, String username, Integer result,
-                         String ip, String userAgent, String tokenId, String failReason);
+                         String ip, String userAgent, Integer sessionId, String failReason);
 
     /**
      * 记录一条操作日志，操作人取当前登录账号，IP 取当前请求（不在请求上下文中时为空）。
