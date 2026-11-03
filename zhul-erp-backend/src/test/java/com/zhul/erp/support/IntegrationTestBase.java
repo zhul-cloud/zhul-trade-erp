@@ -44,6 +44,8 @@ public abstract class IntegrationTestBase {
 
     @BeforeEach
     void assertUsingTestDatabase() {
+        // 离午夜太近先等过零点，用例中途跨天时单号日期会与断言对不上（audit DOC-007）
+        TestDates.awayFromDayEnd();
         assertEquals(TEST_DB, jdbc.queryForObject("select database()", String.class),
                 "集成测试必须连 " + TEST_DB + "，当前连的不是测试库，已中止");
         // 默认不经过业务员优先阶段，任务生成后直接进入待分配；测这个阶段的用例自己设时限

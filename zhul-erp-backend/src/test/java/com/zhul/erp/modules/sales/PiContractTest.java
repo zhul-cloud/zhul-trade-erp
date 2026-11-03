@@ -13,6 +13,7 @@ import org.springframework.mock.web.MockHttpServletResponse;
 import java.util.List;
 import java.util.Map;
 
+import static com.zhul.erp.support.TestDates.today;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -51,11 +52,11 @@ class PiContractTest extends SalesContractSupport {
         long q = quotation(c, 2, "USD", "60", FOUR);
         List<Long> ids = quotationItemIds(q);
         JsonNode pi = ok(createPi(ids.subList(0, 3)));
-        assertEquals("FWPI" + TODAY + "001", pi.path("piNo").asText());
+        assertEquals("FWPI" + today() + "001", pi.path("piNo").asText());
         assertEquals(1, pi.path("status").asInt());
         JsonNode v = pi.path("version");
         assertEquals(3, v.path("items").size());
-        assertEquals("FWQT" + TODAY + "001", v.path("items").get(0).path("quotationNo").asText());
+        assertEquals("FWQT" + today() + "001", v.path("items").get(0).path("quotationNo").asText());
         assertEquals(1, v.path("fees").size());
         assertEquals("Shipping Cost", v.path("fees").get(0).path("feeName").asText());
         money("60", v.path("fees").get(0).path("amount"));

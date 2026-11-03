@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 import java.util.Map;
 
+import static com.zhul.erp.support.TestDates.today;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -42,7 +43,7 @@ class SalesOrderContractTest extends SalesContractSupport {
         assertEquals("客户还没有付款，要先采购请选择「先采购后收款」并填写原因", fail(convert(pi)).path("message").asText());
         ok(uploadSlip(pi, "667.00", "2026-10-07", admin));
         JsonNode so = ok(convert(pi));
-        assertEquals("SO" + TODAY + "001", so.path("soNo").asText(), "内部单据不带前缀");
+        assertEquals("SO" + today() + "001", so.path("soNo").asText(), "内部单据不带前缀");
         assertEquals("待到账", so.path("receiptStatusName").asText());
         assertEquals(4, so.path("items").size());
         money("1333.65", so.path("totalAmount"));
@@ -50,7 +51,7 @@ class SalesOrderContractTest extends SalesContractSupport {
         assertEquals(3, ok(call(get(PI + "/" + pi), admin)).path("status").asInt(), "PI 已转订单");
         assertEquals(3, quotationStatus(q), "全部型号成交 → 已成交");
         assertEquals(8, inquiryStatus(inquiryOf(q)), "成交推进询盘");
-        assertEquals("PI 已转成订单 SO" + TODAY + "001", fail(convert(pi)).path("message").asText());
+        assertEquals("PI 已转成订单 SO" + today() + "001", fail(convert(pi)).path("message").asText());
     }
 
     @Test
@@ -136,7 +137,7 @@ class SalesOrderContractTest extends SalesContractSupport {
         ok(call(json(post(PI + "/" + pi + "/items"), write(Map.of("items", List.of(Map.of("quotationItemId", lines.get(3)))))), admin));
         ok(send(pi));
         JsonNode so2 = ok(convert(pi));
-        assertEquals("SO" + TODAY + "002", so2.path("soNo").asText());
+        assertEquals("SO" + today() + "002", so2.path("soNo").asText());
         assertEquals(4, so2.path("items").size());
         assertEquals(2, so2.path("piVersionNo").asInt());
         assertEquals(1, so2.path("receipts").size(), "取消前登记的到账仍在");
@@ -145,7 +146,7 @@ class SalesOrderContractTest extends SalesContractSupport {
 
         // 从询盘看到报价单 → PI → 订单
         JsonNode chain = ok(call(get("/api/v1/sales/chain").param("type", "inquiry").param("id", String.valueOf(inquiryOf(q))), admin));
-        assertEquals("FWQT" + TODAY + "001", chain.path("quotations").get(0).path("no").asText());
+        assertEquals("FWQT" + today() + "001", chain.path("quotations").get(0).path("no").asText());
         assertEquals(1, chain.path("pis").size());
         assertEquals(2, chain.path("orders").size());
         assertTrue(chain.path("inquiries").get(0).path("current").asBoolean());

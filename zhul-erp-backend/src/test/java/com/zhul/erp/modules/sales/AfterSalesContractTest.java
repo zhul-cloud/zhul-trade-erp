@@ -12,6 +12,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import static com.zhul.erp.support.TestDates.today;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -126,7 +127,7 @@ class AfterSalesContractTest extends SalesContractSupport {
         assertEquals("A-1 最多 10 个", fail(create(so, 11, "S2")).path("message").asText());
         JsonNode a = ok(create(so, 2, "S2"));
         long asId = a.path("id").asLong();
-        assertEquals("AS" + TODAY + "001", a.path("asNo").asText());
+        assertEquals("AS" + today() + "001", a.path("asNo").asText());
         assertEquals("处理中", a.path("statusName").asText());
         assertEquals(ADMIN_USER, a.path("ownerId").asLong());
         assertTrue(a.path("overdue").asBoolean());
@@ -147,7 +148,7 @@ class AfterSalesContractTest extends SalesContractSupport {
         // 退货：可退 = 已出运 − 其他退货单
         JsonNode r = ok(newReturn(asId, item, 2));
         long rid = r.path("id").asLong();
-        assertEquals("TH" + TODAY + "001", r.path("returnNo").asText());
+        assertEquals("TH" + today() + "001", r.path("returnNo").asText());
         assertEquals("A-1 最多还能退 8 个", fail(newReturn(asId, item, 9)).path("message").asText());
         assertEquals("退货单 " + r.path("returnNo").asText() + " 还没处理完", fail(call(json(post(AS + "/" + asId + "/close"),
                 write(Map.of("reasonCode", "QUALITY", "result", "换新"))), admin)).path("message").asText());

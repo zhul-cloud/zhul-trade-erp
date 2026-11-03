@@ -12,6 +12,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+import static com.zhul.erp.support.TestDates.today;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -102,7 +103,7 @@ class PurchaseContractTest extends SalesContractSupport {
         jdbc.update("update purchase_order_item set unit_price = null where po_id = ?", d.get(0));
         assertEquals("还有 1 行没填单价", fail(confirmPo(d.get(0), admin)).path("message").asText());
         JsonNode confirmed = priceAndConfirm(d.get(0), "800", admin);
-        assertEquals("FWPO" + TODAY + "001", confirmed.path("poNo").asText());
+        assertEquals("FWPO" + today() + "001", confirmed.path("poNo").asText());
         assertEquals("已下单", order(so1.path("id").asLong()).path("progressName").asText());
         assertEquals("待采购", order(so2.path("id").asLong()).path("progressName").asText(), "C-1 还在需求池");
 
