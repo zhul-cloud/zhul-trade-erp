@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhul.erp.framework.storage.FileStorageService;
 import com.zhul.erp.framework.storage.FileStorages;
 import com.zhul.erp.framework.storage.OssFileStorage;
+import com.zhul.erp.framework.tenant.TenantScope;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -48,29 +49,32 @@ public class StorageMigrationRunner implements ApplicationRunner {
 
     @Override
     public void run(ApplicationArguments args) {
-        if (migrate.isBlank() && cleanup.isBlank()) {
-            return;
-        }
-        FileStorages storages = files.storages();
-        OssFileStorage oss = storages.oss().orElse(null);
-        int code;
-        if (oss == null) {
-            log.error("迁移与清理需要先配置完整的 OSS（OSS_ENDPOINT、OSS_ACCESS_KEY_ID、OSS_ACCESS_KEY_SECRET、OSS_PRIVATE_BUCKET、OSS_PUBLIC_BUCKET）");
-            code = 2;
-        } else if (!migrate.isBlank()) {
-            boolean dry = !"run".equalsIgnoreCase(migrate);
-            log.info("开始{}历史文件迁移", dry ? "预演" : "");
-            code = print(new StorageMigration(jdbc, storages.local(), oss, files.workDir(), objectMapper, dry).migrate(),
-                    dry ? "迁移预演" : "迁移");
-        } else {
-            boolean dry = !"run".equalsIgnoreCase(cleanup);
-            log.info("开始{}清理本地文件", dry ? "预演" : "");
-            code = print(new StorageMigration(jdbc, storages.local(), oss, files.workDir(), objectMapper, dry)
-                            .cleanup(Path.of(privateDir).toAbsolutePath().normalize(), Path.of(publicDir).toAbsolutePath().normalize()),
-                    dry ? "清理预演" : "清理");
-        }
-        int exit = code;
-        System.exit(SpringApplication.exit(context, () -> exit));
+        // 跨租户的后台任务：按各行自己的租户处理，不由租户拦截器追加当前租户条件
+        TenantScope.platform(() -> {
+            if (migrate.isBlank() && cleanup.isBlank()) {
+                return;
+            }
+            FileStorages storages = files.storages();
+            OssFileStorage oss = storages.oss().orElse(null);
+            int code;
+            if (oss == null) {
+                log.error("迁移与清理需要先配置完整的 OSS（OSS_ENDPOINT、OSS_ACCESS_KEY_ID、OSS_ACCESS_KEY_SECRET、OSS_PRIVATE_BUCKET、OSS_PUBLIC_BUCKET）");
+                code = 2;
+            } else if (!migrate.isBlank()) {
+                boolean dry = !"run".equalsIgnoreCase(migrate);
+                log.info("开始{}历史文件迁移", dry ? "预演" : "");
+                code = print(new StorageMigration(jdbc, storages.local(), oss, files.workDir(), objectMapper, dry).migrate(),
+                        dry ? "迁移预演" : "迁移");
+            } else {
+                boolean dry = !"run".equalsIgnoreCase(cleanup);
+                log.info("开始{}清理本地文件", dry ? "预演" : "");
+                code = print(new StorageMigration(jdbc, storages.local(), oss, files.workDir(), objectMapper, dry)
+                                .cleanup(Path.of(privateDir).toAbsolutePath().normalize(), Path.of(publicDir).toAbsolutePath().normalize()),
+                        dry ? "清理预演" : "清理");
+            }
+            int exit = code;
+            System.exit(SpringApplication.exit(context, () -> exit));
+        });
     }
 
     private static int print(Map<String, StorageMigration.Stat> report, String title) {

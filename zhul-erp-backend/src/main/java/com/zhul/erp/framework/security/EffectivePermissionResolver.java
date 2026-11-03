@@ -3,6 +3,7 @@ package com.zhul.erp.framework.security;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.zhul.erp.framework.tenant.TenantScope;
 import com.zhul.erp.modules.system.entity.AccountDO;
 import com.zhul.erp.modules.system.entity.RoleResourceDO;
 import com.zhul.erp.modules.system.entity.UserBasicDO;
@@ -50,25 +51,28 @@ public class EffectivePermissionResolver {
 
     /** 返回 null 表示不受限；返回具体集合（可能为空集合）表示只能访问这些 resource id */
     public Set<Integer> resolveAllowedResourceIds(String username) {
-        AccountDO account = accountMapper.selectOne(
-                new LambdaQueryWrapper<AccountDO>().eq(AccountDO::getUsername, username).last("LIMIT 1"));
-        if (account == null) {
-            return Collections.emptySet();
-        }
+        // 按全局唯一的用户名解析账号，再按账号自己的租户与角色计算权限
+        return TenantScope.platform(() -> {
+            AccountDO account = accountMapper.selectOne(
+                    new LambdaQueryWrapper<AccountDO>().eq(AccountDO::getUsername, username).last("LIMIT 1"));
+            if (account == null) {
+                return Collections.emptySet();
+            }
 
-        boolean isAdmin = account.getAdminFlag() != null && account.getAdminFlag() == 1;
-        boolean isPlatformScoped = account.getTenantId() == null || account.getTenantId() == 0;
+            boolean isAdmin = account.getAdminFlag() != null && account.getAdminFlag() == 1;
+            boolean isPlatformScoped = account.getTenantId() == null || account.getTenantId() == 0;
 
-        if (isPlatformScoped) {
-            return isAdmin ? null : resolveByRole(username);
-        }
+            if (isPlatformScoped) {
+                return isAdmin ? null : resolveByRole(username);
+            }
 
-        Set<Integer> packageIds = resolvePackageResourceIds(account.getTenantId());
-        if (isAdmin) {
+            Set<Integer> packageIds = resolvePackageResourceIds(account.getTenantId());
+            if (isAdmin) {
+                return packageIds;
+            }
+            packageIds.retainAll(resolveByRole(username));
             return packageIds;
-        }
-        packageIds.retainAll(resolveByRole(username));
-        return packageIds;
+        });
     }
 
     private Set<Integer> resolveByRole(String username) {

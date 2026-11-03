@@ -8,6 +8,8 @@ import com.zhul.erp.framework.storage.FileStorageService.FileLink;
 import com.zhul.erp.framework.storage.StorageArea;
 import com.zhul.erp.framework.storage.UploadRules;
 import com.zhul.erp.framework.storage.VideoTranscoder;
+import com.zhul.erp.framework.tenant.TenantContext;
+import com.zhul.erp.framework.tenant.TenantScope;
 import com.zhul.erp.modules.attachment.dto.AttachmentVO;
 import com.zhul.erp.modules.attachment.dto.ModelTagVO;
 import com.zhul.erp.modules.attachment.entity.BizAttachmentDO;
@@ -216,10 +218,11 @@ public class AttachmentService {
         return toVos(List.of(a)).get(0);
     }
 
-    /** 视频后台转码：完成后换成转好的文件，失败时保留原视频 */
+    /** 视频后台转码：完成后换成转好的文件，失败时保留原视频。回调在转码线程里执行，没有租户上下文，按附件所属租户写回 */
     private void transcode(BizAttachmentDO a) {
         Long id = a.getId();
-        transcoder.submit(a.getStorage(), a.getFileKey(), false, done -> {
+        Integer tenantId = a.getTenantId();
+        transcoder.submit(a.getStorage(), a.getFileKey(), false, done -> TenantContext.runAs(tenantId, () -> {
             BizAttachmentDO upd = new BizAttachmentDO();
             upd.setId(id);
             upd.setFileKey(done.key());
@@ -228,24 +231,27 @@ public class AttachmentService {
             upd.setFileName(UploadRules.withExt(a.getFileName(), "mp4"));
             upd.setProcessingStatus(VideoTranscoder.DONE);
             mapper.updateById(upd);
-        }, () -> {
+        }), () -> TenantContext.runAs(tenantId, () -> {
             BizAttachmentDO upd = new BizAttachmentDO();
             upd.setId(id);
             upd.setProcessingStatus(VideoTranscoder.FAILED);
             mapper.updateById(upd);
-        });
+        }));
     }
 
     /** 服务重启时仍在转码中的视频重新排队 */
     @EventListener(ApplicationReadyEvent.class)
     public void resumeTranscoding() {
-        List<BizAttachmentDO> pending = mapper.selectList(new LambdaQueryWrapper<BizAttachmentDO>()
-                .eq(BizAttachmentDO::getProcessingStatus, VideoTranscoder.PROCESSING)
-                .isNull(BizAttachmentDO::getDeletedAt));
-        if (!pending.isEmpty()) {
-            log.info("重新排队转码的视频 {} 个", pending.size());
-            pending.forEach(this::transcode);
-        }
+        // 跨租户的后台任务：按各行自己的租户处理，不由租户拦截器追加当前租户条件
+        TenantScope.platform(() -> {
+            List<BizAttachmentDO> pending = mapper.selectList(new LambdaQueryWrapper<BizAttachmentDO>()
+                    .eq(BizAttachmentDO::getProcessingStatus, VideoTranscoder.PROCESSING)
+                    .isNull(BizAttachmentDO::getDeletedAt));
+            if (!pending.isEmpty()) {
+                log.info("重新排队转码的视频 {} 个", pending.size());
+                pending.forEach(this::transcode);
+            }
+        });
     }
 
     /** 把上传好的附件挂到单据上（还没挂的或已挂在这张单据上的），校验数量上限 */
@@ -407,11 +413,14 @@ public class AttachmentService {
     /** 上传后 24 小时还没挂到单据上的附件软删除 */
     @Scheduled(fixedDelay = 3_600_000L, initialDelay = 600_000L)
     public void cleanupOrphans() {
-        mapper.update(null, new LambdaUpdateWrapper<BizAttachmentDO>()
-                .set(BizAttachmentDO::getDeletedAt, LocalDateTime.now())
-                .eq(BizAttachmentDO::getOwnerId, 0L)
-                .isNull(BizAttachmentDO::getDeletedAt)
-                .lt(BizAttachmentDO::getCreateTime, LocalDateTime.now().minusHours(24)));
+        // 跨租户的后台任务：按各行自己的租户处理，不由租户拦截器追加当前租户条件
+        TenantScope.platform(() -> {
+            mapper.update(null, new LambdaUpdateWrapper<BizAttachmentDO>()
+                    .set(BizAttachmentDO::getDeletedAt, LocalDateTime.now())
+                    .eq(BizAttachmentDO::getOwnerId, 0L)
+                    .isNull(BizAttachmentDO::getDeletedAt)
+                    .lt(BizAttachmentDO::getCreateTime, LocalDateTime.now().minusHours(24)));
+        });
     }
 
     private LambdaQueryWrapper<BizAttachmentDO> owned(String ownerType, Collection<Long> ownerIds) {

@@ -7,6 +7,7 @@ import com.zhul.erp.common.result.PageResult;
 import com.zhul.erp.common.result.ResultCode;
 import com.zhul.erp.common.utils.AesUtils;
 import com.zhul.erp.framework.tenant.TenantContext;
+import com.zhul.erp.framework.tenant.TenantScope;
 import com.zhul.erp.modules.system.dto.AppearanceVO;
 import com.zhul.erp.modules.system.dto.ConfigGroupCountVO;
 import com.zhul.erp.modules.system.dto.ConfigVO;
@@ -261,6 +262,10 @@ public class ConfigServiceImpl implements ConfigService {
         if (config.getIsBuiltin() != null && config.getIsBuiltin() == 1) {
             throw new BizException("系统内置配置不可删除");
         }
+        // 平台配置对各公司可见但只读，只能删除本租户自己的配置
+        if (config.getTenantId() == null || config.getTenantId() != effectiveTenantId()) {
+            throw new BizException("平台配置不能删除");
+        }
         config.setDeletedAt(LocalDateTime.now());
         sysConfigMapper.updateById(config);
     }
@@ -286,26 +291,29 @@ public class ConfigServiceImpl implements ConfigService {
 
     @Override
     public AppearanceVO getPublicAppearance() {
-        // 登录页在鉴权前访问，暂不支持按租户子域名解析（见登录PRD默认假设1，架构待定），
-        // 统一读取平台级模板（tenant_id=0）配置
-        List<SysConfigDO> rows = sysConfigMapper.selectList(new LambdaQueryWrapper<SysConfigDO>()
-                .eq(SysConfigDO::getTenantId, 0)
-                .in(SysConfigDO::getConfigKey, APPEARANCE_KEYS)
-                .isNull(SysConfigDO::getDeletedAt));
-        Map<String, String> map = new LinkedHashMap<>();
-        for (SysConfigDO row : rows) {
-            if (StringUtils.hasText(row.getConfigValue())) {
-                map.put(row.getConfigKey(), row.getConfigValue().trim());
+        // 登录页在鉴权前访问，固定读平台（tenant_id=0）的外观配置
+        return TenantScope.platform(() -> {
+            // 登录页在鉴权前访问，暂不支持按租户子域名解析（见登录PRD默认假设1，架构待定），
+            // 统一读取平台级模板（tenant_id=0）配置
+            List<SysConfigDO> rows = sysConfigMapper.selectList(new LambdaQueryWrapper<SysConfigDO>()
+                    .eq(SysConfigDO::getTenantId, 0)
+                    .in(SysConfigDO::getConfigKey, APPEARANCE_KEYS)
+                    .isNull(SysConfigDO::getDeletedAt));
+            Map<String, String> map = new LinkedHashMap<>();
+            for (SysConfigDO row : rows) {
+                if (StringUtils.hasText(row.getConfigValue())) {
+                    map.put(row.getConfigKey(), row.getConfigValue().trim());
+                }
             }
-        }
 
-        AppearanceVO vo = new AppearanceVO();
-        vo.setSiteName(map.getOrDefault("sys.site.name", DEFAULT_SITE_NAME));
-        vo.setSiteSubtitle(map.getOrDefault("sys.site.subtitle", DEFAULT_SITE_SUBTITLE));
-        vo.setLogoUrl(map.get("sys.site.logo"));
-        vo.setLoginBackgroundUrl(map.get("sys.login.background"));
-        vo.setLoginFooter(map.getOrDefault("sys.login.footer", DEFAULT_LOGIN_FOOTER));
-        return vo;
+            AppearanceVO vo = new AppearanceVO();
+            vo.setSiteName(map.getOrDefault("sys.site.name", DEFAULT_SITE_NAME));
+            vo.setSiteSubtitle(map.getOrDefault("sys.site.subtitle", DEFAULT_SITE_SUBTITLE));
+            vo.setLogoUrl(map.get("sys.site.logo"));
+            vo.setLoginBackgroundUrl(map.get("sys.login.background"));
+            vo.setLoginFooter(map.getOrDefault("sys.login.footer", DEFAULT_LOGIN_FOOTER));
+            return vo;
+        });
     }
 
     private List<ConfigVO> toVoList(List<SysConfigDO> list) {

@@ -1,6 +1,7 @@
 package com.zhul.erp.modules.product.candidate.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.zhul.erp.framework.tenant.TenantScope;
 import com.zhul.erp.modules.inquiry.constants.InquiryConstants;
 import com.zhul.erp.modules.inquiry.item.entity.InquiryItemDO;
 import com.zhul.erp.modules.inquiry.item.repository.InquiryItemMapper;
@@ -33,40 +34,43 @@ public class CandidateBackfill implements ApplicationRunner {
 
     @Override
     public void run(ApplicationArguments args) {
-        long lastId = 0;
-        int done = 0;
-        while (true) {
-            List<Long> ids = itemMapper.selectList(new LambdaQueryWrapper<InquiryItemDO>()
-                            .select(InquiryItemDO::getId)
-                            .eq(InquiryItemDO::getArchiveStatus, CandidateConstants.ARCHIVE_NONE)
-                            .gt(InquiryItemDO::getId, lastId)
-                            .isNull(InquiryItemDO::getDeletedAt)
-                            .inSql(InquiryItemDO::getCustomerInquiryId, "SELECT id FROM customer_inquiry WHERE deleted_at IS NULL AND status IN ("
-                                    + String.join(",", CONFIRMED.stream().map(String::valueOf).toList()) + ")")
-                            .orderByAsc(InquiryItemDO::getId)
-                            .last("LIMIT " + BATCH))
-                    .stream().map(InquiryItemDO::getId).toList();
-            if (ids.isEmpty()) {
-                break;
+        // 跨租户的后台任务：按各行自己的租户处理，不由租户拦截器追加当前租户条件
+        TenantScope.platform(() -> {
+            long lastId = 0;
+            int done = 0;
+            while (true) {
+                List<Long> ids = itemMapper.selectList(new LambdaQueryWrapper<InquiryItemDO>()
+                                .select(InquiryItemDO::getId)
+                                .eq(InquiryItemDO::getArchiveStatus, CandidateConstants.ARCHIVE_NONE)
+                                .gt(InquiryItemDO::getId, lastId)
+                                .isNull(InquiryItemDO::getDeletedAt)
+                                .inSql(InquiryItemDO::getCustomerInquiryId, "SELECT id FROM customer_inquiry WHERE deleted_at IS NULL AND status IN ("
+                                        + String.join(",", CONFIRMED.stream().map(String::valueOf).toList()) + ")")
+                                .orderByAsc(InquiryItemDO::getId)
+                                .last("LIMIT " + BATCH))
+                        .stream().map(InquiryItemDO::getId).toList();
+                if (ids.isEmpty()) {
+                    break;
+                }
+                lastId = ids.get(ids.size() - 1);
+                try {
+                    tx.executeWithoutResult(s -> archiver.sync(ids));
+                    done += ids.size();
+                } catch (RuntimeException e) {
+                    log.warn("商品候选历史补齐失败，下次启动重试，lastId={}", lastId, e);
+                }
             }
-            lastId = ids.get(ids.size() - 1);
+            if (done > 0) {
+                log.info("商品候选历史补齐完成，询盘型号 {} 个", done);
+            }
             try {
-                tx.executeWithoutResult(s -> archiver.sync(ids));
-                done += ids.size();
+                int suggested = archiver.resuggestCategories();
+                if (suggested > 0) {
+                    log.info("待审核候选补齐或细化建议品类 {} 个", suggested);
+                }
             } catch (RuntimeException e) {
-                log.warn("商品候选历史补齐失败，下次启动重试，lastId={}", lastId, e);
+                log.warn("待审核候选补齐建议品类失败，下次启动重试", e);
             }
-        }
-        if (done > 0) {
-            log.info("商品候选历史补齐完成，询盘型号 {} 个", done);
-        }
-        try {
-            int suggested = archiver.resuggestCategories();
-            if (suggested > 0) {
-                log.info("待审核候选补齐或细化建议品类 {} 个", suggested);
-            }
-        } catch (RuntimeException e) {
-            log.warn("待审核候选补齐建议品类失败，下次启动重试", e);
-        }
+        });
     }
 }

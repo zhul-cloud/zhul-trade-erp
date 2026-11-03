@@ -11,6 +11,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.context.ActiveProfiles;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -35,7 +36,11 @@ public abstract class IntegrationTestBase {
     @Autowired
     private AesUtils aesUtils;
 
-    private boolean categoriesSnapshotted;
+    private static final String SNAPSHOT_PREFIX = "it_snapshot_";
+    /** 本用例存过快照、结束时要恢复的表，按存快照的顺序 */
+    private final List<String> snapshots = new ArrayList<>();
+    /** loginWithResources 建的账号与用户所属租户，默认平台；非 0 时该租户须有套餐（权限 = 套餐 ∩ 角色） */
+    protected int testUserTenant = 0;
 
     @BeforeEach
     void assertUsingTestDatabase() {
@@ -51,20 +56,40 @@ public abstract class IntegrationTestBase {
      * 询盘、询价等用例依赖种子品类，不恢复的话结果取决于测试执行顺序。
      */
     protected void snapshotCategories() {
-        jdbc.update("drop table if exists it_category_snapshot");
-        jdbc.update("create table it_category_snapshot as select * from product_category");
-        categoriesSnapshotted = true;
+        snapshotTables("product_category");
     }
 
-    @AfterEach
-    void restoreCategories() {
-        if (!categoriesSnapshotted) {
-            return;
+    /**
+     * 整表清空（delete from，不带条件）。清空前先存下每张表的快照（含迁移写入的种子数据），
+     * 用例结束时自动恢复，后面的用例不受执行顺序影响（audit DOC-004）。同一用例里重复清空只存第一次的快照。
+     */
+    protected void wipeTables(String... tables) {
+        snapshotTables(tables);
+        for (String t : tables) {
+            jdbc.update("delete from `" + t + "`");
         }
-        jdbc.update("delete from product_category");
-        jdbc.update("insert into product_category select * from it_category_snapshot");
-        jdbc.update("drop table it_category_snapshot");
-        categoriesSnapshotted = false;
+    }
+
+    private void snapshotTables(String... tables) {
+        for (String t : tables) {
+            if (snapshots.contains(t)) {
+                continue;
+            }
+            jdbc.update("drop table if exists `" + SNAPSHOT_PREFIX + t + "`");
+            jdbc.update("create table `" + SNAPSHOT_PREFIX + t + "` as select * from `" + t + "`");
+            snapshots.add(t);
+        }
+    }
+
+    /** 子类的 @AfterEach 先执行（可能再次清表），这里最后恢复 */
+    @AfterEach
+    void restoreSnapshots() {
+        for (String t : snapshots) {
+            jdbc.update("delete from `" + t + "`");
+            jdbc.update("insert into `" + t + "` select * from `" + SNAPSHOT_PREFIX + t + "`");
+            jdbc.update("drop table `" + SNAPSHOT_PREFIX + t + "`");
+        }
+        snapshots.clear();
     }
 
     @AfterEach
@@ -89,10 +114,10 @@ public abstract class IntegrationTestBase {
 
     private void loginAccount(String username, int adminFlag, int... resourceIds) {
         removeTestAccount();
-        jdbc.update("insert into account (id, tenant_id, user_id, username, admin_flag) values (?, 0, ?, ?, ?)",
-                TEST_ACCOUNT_ID, TEST_ACCOUNT_ID, username, adminFlag);
-        jdbc.update("insert into user_basic (id, tenant_id, name, username, role_code) values (?, 0, 'IT', ?, ?)",
-                TEST_ACCOUNT_ID, username, TEST_ROLE);
+        jdbc.update("insert into account (id, tenant_id, user_id, username, admin_flag) values (?, ?, ?, ?, ?)",
+                TEST_ACCOUNT_ID, testUserTenant, TEST_ACCOUNT_ID, username, adminFlag);
+        jdbc.update("insert into user_basic (id, tenant_id, name, username, role_code) values (?, ?, 'IT', ?, ?)",
+                TEST_ACCOUNT_ID, testUserTenant, username, TEST_ROLE);
         for (int resourceId : resourceIds) {
             jdbc.update("insert into role_resource (role_code, resource_id, resource_code) values (?, ?, '')",
                     TEST_ROLE, resourceId);

@@ -1,6 +1,7 @@
 package com.zhul.erp.modules.listing.service;
 
 import com.zhul.erp.framework.tenant.TenantContext;
+import com.zhul.erp.framework.tenant.TenantScope;
 import com.zhul.erp.modules.listing.repository.ListingTaskMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -25,20 +26,23 @@ public class ListingTaskBackfill implements ApplicationRunner {
 
     @Override
     public void run(ApplicationArguments args) {
-        int changed = 0;
-        for (Integer tenantId : taskMapper.tenantsWithContent()) {
-            try {
-                TenantContext.setTenantId(tenantId);
-                Integer n = tx.execute(s -> sync.syncAll(tenantId));
-                changed += n == null ? 0 : n;
-            } catch (RuntimeException e) {
-                log.warn("发品任务补齐失败，下次启动重试，tenantId={}", tenantId, e);
-            } finally {
-                TenantContext.clear();
+        // 跨租户的后台任务：按各行自己的租户处理，不由租户拦截器追加当前租户条件
+        TenantScope.platform(() -> {
+            int changed = 0;
+            for (Integer tenantId : taskMapper.tenantsWithContent()) {
+                try {
+                    TenantContext.setTenantId(tenantId);
+                    Integer n = tx.execute(s -> sync.syncAll(tenantId));
+                    changed += n == null ? 0 : n;
+                } catch (RuntimeException e) {
+                    log.warn("发品任务补齐失败，下次启动重试，tenantId={}", tenantId, e);
+                } finally {
+                    TenantContext.clear();
+                }
             }
-        }
-        if (changed > 0) {
-            log.info("发品任务补齐完成：新建、取消或恢复 {} 个任务", changed);
-        }
+            if (changed > 0) {
+                log.info("发品任务补齐完成：新建、取消或恢复 {} 个任务", changed);
+            }
+        });
     }
 }

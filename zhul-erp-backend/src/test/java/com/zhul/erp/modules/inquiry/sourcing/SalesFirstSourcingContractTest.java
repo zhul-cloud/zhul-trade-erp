@@ -1,6 +1,7 @@
 package com.zhul.erp.modules.inquiry.sourcing;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.zhul.erp.framework.tenant.TenantContext;
 import com.zhul.erp.modules.inquiry.InquiryContractSupport;
 import com.zhul.erp.modules.inquiry.sourcing.service.impl.SalesWindowJob;
 import org.junit.jupiter.api.AfterEach;
@@ -203,12 +204,15 @@ class SalesFirstSourcingContractTest extends InquiryContractSupport {
         long inq = inquiry(false, row("Lenze", "变频器", "A4"));
         long t = task(inq, "Lenze");
         jdbc.update("update sourcing_task set create_time = date_sub(now(), interval 40 minute) where id = ?", t);
+        // MockMvc 请求结束时会清掉租户上下文，直接调用服务前按真实请求补上
+        TenantContext.setTenantId(0);
         taskService.syncUrgent(inq, 1);
         job.moveDueTasks();
         assertEquals(TASK_UNASSIGNED, status(t), "标记紧急后已超过 30 分钟，流转到待分配");
 
         long other = inquiry(false, row("ABB", "变频器", "A4b"));
         long o = task(other, "ABB");
+        TenantContext.setTenantId(0);
         taskService.cancelByInquiry(other);
         assertEquals(4, status(o), "询盘取消时一并取消");
     }

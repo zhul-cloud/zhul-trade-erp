@@ -1,6 +1,7 @@
 package com.zhul.erp.modules.inquiry;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.zhul.erp.framework.tenant.TenantContext;
 import com.zhul.erp.modules.inquiry.customerinquiry.service.CustomerInquiryService;
 import com.zhul.erp.modules.inquiry.support.PriceKeys;
 import org.junit.jupiter.api.Test;
@@ -50,6 +51,7 @@ class InquiryIntakeContractTest extends InquiryContractSupport {
 
     /** 插一条已提交的询价记录（询价记录） */
     private long quote(String brand, String model, String price, int condition, String quotedAt) {
+        TenantContext.setTenantId(0);
         jdbc.update("insert into sourcing_quote (tenant_id, brand, brand_key, model, model_key, channel, shop_name, currency_code, unit_price, "
                         + "exchange_rate, unit_price_cny, item_condition, quoted_by, quoted_at, status) values (0, ?, ?, ?, ?, 2, '明和电气', 'CNY', ?, 1, ?, ?, ?, ?, 2)",
                 brand, priceKeys.brand(brand).brandKey(), model, PriceKeys.model(model), price, price, condition, BUYER_LIN, quotedAt);
@@ -340,6 +342,8 @@ class InquiryIntakeContractTest extends InquiryContractSupport {
         jdbc.update("insert into ai_task (tenant_id, skill_id, status, output, requested_by) values (0, 'inquiry-parse-and-split', 3, ?, ?)", output, ADMIN_ID);
         long task = jdbc.queryForObject("select max(id) from ai_task", Long.class);
         jdbc.update("update customer_inquiry set status = 2, ai_task_id = ? where id = ?", task, id);
+        // 真实回调按任务所属租户处理（AiTaskServiceImpl.handleCallback）
+        TenantContext.setTenantId(0);
         inquiryService.applyParseSuccess(task, output);
 
         JsonNode rows = ok(call(get(INQ + "/" + id + "/draft"), admin)).path("rows");
@@ -377,6 +381,8 @@ class InquiryIntakeContractTest extends InquiryContractSupport {
         long task = jdbc.queryForObject("select max(id) from ai_task", Long.class);
         jdbc.update("update customer_inquiry set status = 2, ai_task_id = ? where id = ?", task, id);
 
+        // 真实回调按任务所属租户处理（AiTaskServiceImpl.handleCallback）
+        TenantContext.setTenantId(0);
         inquiryService.applyParseSuccess(task, output);
         JsonNode draft = ok(call(get(INQ + "/" + id + "/draft"), admin));
         assertEquals(3, draft.path("inquiry").path("status").asInt());
@@ -394,6 +400,8 @@ class InquiryIntakeContractTest extends InquiryContractSupport {
 
         long failed = submit(admin, customer("Erik Larsson", "Sweden"), "");
         jdbc.update("update customer_inquiry set status = 2, ai_task_id = ? where id = ?", task + 1000, failed);
+        // 真实回调按任务所属租户处理（AiTaskServiceImpl.handleCallback）
+        TenantContext.setTenantId(0);
         inquiryService.applyParseFailure(task + 1000, "AI 超时未返回结果");
         JsonNode d = ok(call(get(INQ + "/" + failed), admin));
         assertEquals(4, d.path("inquiry").path("status").asInt());

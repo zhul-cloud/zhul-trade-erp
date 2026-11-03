@@ -54,13 +54,15 @@ class AfterSalesSlaContractTest extends SalesContractSupport {
     @Test
     void firstResponse_notify_levelChange_waitingPause_listFilter() throws Exception {
         // S1 收到 3 小时前 → 首次响应已逾期
-        long s1 = create("S1", now().minusHours(3), null);
+        // 收到时间与断言共用一个时刻：两次取 now() 可能跨秒（audit DOC-007）
+        LocalDateTime s1Received = now().minusHours(3);
+        long s1 = create("S1", s1Received, null);
         JsonNode a = detail(s1);
         assertEquals(1, a.path("dueType").asInt());
         assertEquals("首次响应", a.path("dueTypeName").asText());
         assertEquals("OVERDUE", a.path("dueState").asText());
         assertTrue(a.path("overdue").asBoolean());
-        assertEquals(now().minusHours(2), at(a.path("dueAt")).truncatedTo(ChronoUnit.SECONDS));
+        assertEquals(s1Received.plusHours(1), at(a.path("dueAt")).truncatedTo(ChronoUnit.SECONDS));
 
         // 内部备注不算告知客户
         a = note(s1, false);

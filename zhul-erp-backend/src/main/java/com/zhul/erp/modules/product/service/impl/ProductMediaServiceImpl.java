@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.zhul.erp.common.exception.BizException;
 import com.zhul.erp.framework.security.SecurityUtils;
+import com.zhul.erp.framework.tenant.TenantScope;
 import com.zhul.erp.modules.product.constants.ProductConstants;
 import com.zhul.erp.modules.product.constants.ProductErrorCodes;
 import com.zhul.erp.modules.product.dto.MediaVO;
@@ -171,10 +172,13 @@ public class ProductMediaServiceImpl implements ProductMediaService {
     /** 服务重启时仍在转码中的商品视频重新排队 */
     @EventListener(ApplicationReadyEvent.class)
     public void resumeTranscoding() {
-        mediaMapper.selectList(new LambdaQueryWrapper<ProductMediaDO>()
-                        .eq(ProductMediaDO::getProcessingStatus, VideoTranscoder.PROCESSING)
-                        .isNull(ProductMediaDO::getDeletedAt))
-                .forEach(this::transcode);
+        // 跨租户的后台任务：按各行自己的租户处理，不由租户拦截器追加当前租户条件
+        TenantScope.platform(() -> {
+            mediaMapper.selectList(new LambdaQueryWrapper<ProductMediaDO>()
+                            .eq(ProductMediaDO::getProcessingStatus, VideoTranscoder.PROCESSING)
+                            .isNull(ProductMediaDO::getDeletedAt))
+                    .forEach(this::transcode);
+        });
     }
 
     @Override

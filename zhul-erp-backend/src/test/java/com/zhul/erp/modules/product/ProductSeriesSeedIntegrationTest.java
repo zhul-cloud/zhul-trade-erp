@@ -26,7 +26,7 @@ class ProductSeriesSeedIntegrationTest extends IntegrationTestBase {
 
     private static final String BRANDS = "db/migration/V1.2.48__seed_product_brands.sql";
     private static final String SCRIPT = "db/migration/V1.3.9__seed_subcategory_desc_and_series.sql";
-    /** 其他测试会清空品类表，这里先写入定稿品类，结束后把品类表恢复原样 */
+    /** 先清空品类表再写入定稿品类；被清空的表在用例结束后由基类恢复原样 */
     private static final List<String> CATEGORIES = List.of("db/migration/V1.2.45__seed_product_categories.sql",
             "db/migration/V1.2.46__other_category.sql", "db/migration/V1.2.50__seed_category_descriptions.sql");
 
@@ -35,8 +35,7 @@ class ProductSeriesSeedIntegrationTest extends IntegrationTestBase {
 
     @BeforeEach
     void setUp() throws Exception {
-        jdbc.update("drop table if exists it_v139_category_snapshot");
-        jdbc.update("create table it_v139_category_snapshot as select * from product_category");
+        wipeTables("product_category");
         wipe();
         for (String script : CATEGORIES) {
             run(script);
@@ -47,15 +46,10 @@ class ProductSeriesSeedIntegrationTest extends IntegrationTestBase {
     @AfterEach
     void tearDown() {
         wipe();
-        jdbc.update("delete from product_category");
-        jdbc.update("insert into product_category select * from it_v139_category_snapshot");
-        jdbc.update("drop table it_v139_category_snapshot");
     }
 
     private void wipe() {
-        for (String t : List.of("product", "product_series", "product_brand_alias", "product_brand")) {
-            jdbc.update("delete from " + t);
-        }
+        wipeTables("product", "product_series", "product_brand_alias", "product_brand");
         jdbc.update("drop table if exists bak_v139_category_desc");
         jdbc.update("drop table if exists bak_v139_product_series");
     }

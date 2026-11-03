@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhul.erp.common.exception.BizException;
 import com.zhul.erp.framework.tenant.TenantContext;
+import com.zhul.erp.framework.tenant.TenantScope;
 import com.zhul.erp.modules.product.constants.ProductConstants;
 import com.zhul.erp.modules.product.entity.ProductBrandDO;
 import com.zhul.erp.modules.product.entity.ProductCategoryDO;
@@ -103,39 +104,42 @@ public class TenantDataInitService {
 
     @Transactional(rollbackFor = Exception.class)
     public TenantInitResultVO initialize(Integer tenantId) {
-        Integer caller = TenantContext.getTenantId();
-        if (caller == null || caller != PLATFORM) {
-            throw new BizException("仅平台账号可以执行数据初始化");
-        }
-        TenantDO tenant = tenantId == null || tenantId == PLATFORM ? null : tenantMapper.selectById(tenantId);
-        if (tenant == null) {
-            throw new BizException("租户不存在");
-        }
-        Preset preset = loadPreset();
-        TenantInitResultVO result = new TenantInitResultVO();
-        result.setTenantId(tenantId);
-        result.setTenantName(tenant.getName());
-        TenantContext.setTenantId(tenantId);
-        try {
-            Map<String, DepartmentDO> depts = new HashMap<>();
-            result.getItems().add(initDepartments(tenant, preset, depts));
-            result.getItems().add(initPositions(tenantId, preset));
-            result.getItems().add(initRoles(tenantId, preset, depts));
-            assignAdminDept(tenantId, depts.get(preset.adminDept()));
-            result.getItems().add(initExchangeRates(tenantId));
-        } finally {
-            TenantContext.setTenantId(caller);
-        }
-        fillProductScope(tenant, result);
-        result.getTodos().add("业务设置 → 收款账户：填写公司收款账户");
-        result.getTodos().add("用户管理：创建员工账号，分配部门、岗位与角色");
-        result.getTodos().add("导入历史数据后，在部门管理里调整事业部的开始核算月份");
-        if (result.getIndustryCode() == null) {
-            result.getTodos().add(0, "编辑租户：选择行业，租户才能看到对应行业的品牌、品类、系列");
-        }
-        logService.recordOperateLog("租户列表", "数据初始化（" + tenant.getName() + "）", null, result);
-        log.info("租户数据初始化完成，tenantId={}，items={}", tenantId, result.getItems());
-        return result;
+        // 平台的租户管理：操作指定租户的账号、用户与初始数据，SQL 显式带目标租户
+        return TenantScope.platform(() -> {
+            Integer caller = TenantContext.getTenantId();
+            if (caller == null || caller != PLATFORM) {
+                throw new BizException("仅平台账号可以执行数据初始化");
+            }
+            TenantDO tenant = tenantId == null || tenantId == PLATFORM ? null : tenantMapper.selectById(tenantId);
+            if (tenant == null) {
+                throw new BizException("租户不存在");
+            }
+            Preset preset = loadPreset();
+            TenantInitResultVO result = new TenantInitResultVO();
+            result.setTenantId(tenantId);
+            result.setTenantName(tenant.getName());
+            TenantContext.setTenantId(tenantId);
+            try {
+                Map<String, DepartmentDO> depts = new HashMap<>();
+                result.getItems().add(initDepartments(tenant, preset, depts));
+                result.getItems().add(initPositions(tenantId, preset));
+                result.getItems().add(initRoles(tenantId, preset, depts));
+                assignAdminDept(tenantId, depts.get(preset.adminDept()));
+                result.getItems().add(initExchangeRates(tenantId));
+            } finally {
+                TenantContext.setTenantId(caller);
+            }
+            fillProductScope(tenant, result);
+            result.getTodos().add("业务设置 → 收款账户：填写公司收款账户");
+            result.getTodos().add("用户管理：创建员工账号，分配部门、岗位与角色");
+            result.getTodos().add("导入历史数据后，在部门管理里调整事业部的开始核算月份");
+            if (result.getIndustryCode() == null) {
+                result.getTodos().add(0, "编辑租户：选择行业，租户才能看到对应行业的品牌、品类、系列");
+            }
+            logService.recordOperateLog("租户列表", "数据初始化（" + tenant.getName() + "）", null, result);
+            log.info("租户数据初始化完成，tenantId={}，items={}", tenantId, result.getItems());
+            return result;
+        });
     }
 
     // ---------------------------------------------------------------- 部门

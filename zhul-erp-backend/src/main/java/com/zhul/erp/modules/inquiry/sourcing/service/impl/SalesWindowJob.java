@@ -2,6 +2,7 @@ package com.zhul.erp.modules.inquiry.sourcing.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.zhul.erp.framework.tenant.TenantContext;
+import com.zhul.erp.framework.tenant.TenantScope;
 import com.zhul.erp.modules.inquiry.constants.InquiryConstants;
 import com.zhul.erp.modules.inquiry.sourcing.entity.SourcingTaskDO;
 import com.zhul.erp.modules.inquiry.sourcing.repository.SourcingTaskMapper;
@@ -24,19 +25,22 @@ public class SalesWindowJob {
 
     @Scheduled(fixedDelayString = "${zhul.inquiry.sales-window-check-interval-ms:60000}")
     public void moveDueTasks() {
-        for (SourcingTaskDO task : taskMapper.selectList(new LambdaQueryWrapper<SourcingTaskDO>()
-                .select(SourcingTaskDO::getId, SourcingTaskDO::getTenantId)
-                .eq(SourcingTaskDO::getStatus, InquiryConstants.TASK_SALES)
-                .le(SourcingTaskDO::getSalesDeadline, LocalDateTime.now())
-                .isNull(SourcingTaskDO::getDeletedAt))) {
-            TenantContext.setTenantId(task.getTenantId());
-            try {
-                taskService.moveToPoolIfDue(task.getId());
-            } catch (RuntimeException e) {
-                log.error("询价任务超时流转失败，taskId={}", task.getId(), e);
-            } finally {
-                TenantContext.clear();
+        // 跨租户的后台任务：按各行自己的租户处理，不由租户拦截器追加当前租户条件
+        TenantScope.platform(() -> {
+            for (SourcingTaskDO task : taskMapper.selectList(new LambdaQueryWrapper<SourcingTaskDO>()
+                    .select(SourcingTaskDO::getId, SourcingTaskDO::getTenantId)
+                    .eq(SourcingTaskDO::getStatus, InquiryConstants.TASK_SALES)
+                    .le(SourcingTaskDO::getSalesDeadline, LocalDateTime.now())
+                    .isNull(SourcingTaskDO::getDeletedAt))) {
+                TenantContext.setTenantId(task.getTenantId());
+                try {
+                    taskService.moveToPoolIfDue(task.getId());
+                } catch (RuntimeException e) {
+                    log.error("询价任务超时流转失败，taskId={}", task.getId(), e);
+                } finally {
+                    TenantContext.clear();
+                }
             }
-        }
+        });
     }
 }

@@ -1,0 +1,48 @@
+# SEC-005 附件链接、登录幂等与公司停用（批次 B 第二部分）
+
+## 范围与负责人
+
+| 字段 | 内容 |
+| --- | --- |
+| 负责人 / 协作者 | Claude（实施与验证）；用户 Ezio 决定合并、发布与验收 |
+| 关联 ID / 原专题 | [SEC-005](../../07-security/02-身份会话与对象权限.md)、[SEC-006](../../07-security/02-身份会话与对象权限.md)、[SEC-007](../../07-security/02-身份会话与对象权限.md) |
+| 目标与影响范围 | 附件访问链接跟随所属单据的数据范围；登录幂等缓存在身份验证之后并绑定账号；公司状态与员工状态分开保存。涉及 `AttachmentController`、新增 `AttachmentOwnerScope`、`AuthServiceImpl`、`TenantServiceImpl`、`AccountSessionService` |
+| 起点 commit / 工作分支 | `fix/tenant-isolation-core` `2c440cb2`；`fix/tenant-object-guards`（链式分支，见 [SEC-011 任务](2026-11-03-SEC-011-tenant-isolation.md)） |
+| OpenSpec | 不适用：安全缺陷修复 |
+| PR / 目标分支 | [zhul-cloud/zhul-trade-erp#137](https://github.com/zhul-cloud/zhul-trade-erp/pull/137)：`fix/tenant-rules-doc` → `develop`，merge commit `df2355b797fe811518732408010de3a69b9f0555`（2026-11-03）；未发布 |
+| 合并证据 | 未合并 |
+| 目标版本 / 环境 | 待定 / 生产 |
+
+## 实施与验证结果
+
+开工前在当前源码核对三项仍成立。生产只读统计：只有 1 个租户且为启用状态，不存在以前「停用公司时级联停用员工」留下的数据，不需要迁移。
+
+- **SEC-005**：`AttachmentOwnerScope` 在签发链接前按附件类型检查所属单据：销售订单附件按订单负责人；售后、售后记录附件按售后单或关联订单负责人（有退货、退款菜单的仓库、财务人员不受限）；退款附件财务菜单不受限，销售侧按订单或客户负责人；余额附件余额菜单不受限，否则按客户负责人；采购发票附件应付菜单不受限，否则按采购员；未挂接（`owner_id = 0`）的附件只有上传人（`uploaded_by`）能看。仓库、物流、付款、报销等模块本身不按负责人限制，保持租户校验。
+- **SEC-006**：登录先校验账号、公司状态、密码，再查幂等缓存；缓存键改为 `前缀 + 账号ID + : + 幂等键`。
+- **SEC-007**：停用、恢复公司只改公司状态，不再改员工的账号、用户状态；停用时撤销公司全部账号的会话（新增 `AccountSessionService.revokeAllOfTenant`）；登录与刷新 Token 时检查公司状态，停用返回 `TENANT_DISABLED`（1005，「租户已禁用」）。前端租户管理的停用确认文案「所有用户将无法登录」与新行为一致，未改。
+
+| 命令 / 操作与证据 | 环境、commit / 版本 | 预期 | 实际 | 结论 |
+| --- | --- | --- | --- | --- |
+| `AttachmentOwnerScopeContractTest`、`SessionSecurityContractTest`、`TenantServiceIntegrationTest`（新增或改写的用例） | 本机；临时检出修复前 `2c440cb2` | 失败 | 4 个失败：别人订单的附件能拿到链接；同一幂等键加错误密码拿到了另一个账号的令牌；停用公司后会话仍有效；恢复公司后单独停用的员工也被启用 | 缺陷见证成立 |
+| 同上 | 本机；`fix/tenant-object-guards` 工作区 | 通过 | 全部通过 | 通过 |
+| `mvn test`（后端全量） | 本机 Docker MySQL/Redis；工作区 | 无失败 | 1218 个，0 失败，6 个环境跳过 | 通过 |
+| 浏览器 / 生产 | — | — | 未执行 | 合并发布后验收 |
+
+## 合并、部署与逐 ID 验收
+
+| ID | 修复 / 验收范围 | 部署与目标环境验收证据 | 验收人 / 日期 | 结论与剩余项 |
+| --- | --- | --- | --- | --- |
+| SEC-005 | 看不到单据的人拿不到附件链接；能看的人正常；未挂接附件只限上传人 | 未部署 | — | 已合并待发布 |
+| SEC-006 | 同账号重复提交幂等；他人复用幂等键拿不到该账号结果 | 未部署 | — | 已合并待发布 |
+| SEC-007 | 公司停用拒绝登录与刷新并撤销会话；恢复不改员工状态 | 未部署 | — | 已合并待发布 |
+
+## 阻塞与下一步
+
+- 从本分支继续拉分支，按模块逐个启用其余表的租户拦截器（SEC-011）；启用前先处理 JSqlParser 重新拼接 `FOR UPDATE` 的问题和 `ai_task.output` 保留字问题。
+
+## 事件记录
+
+| 日期 / 作者 | 事件与证据 | 下一步 / 交接 |
+| --- | --- | --- |
+| 2026-11-03 / Claude | 在 `fix/tenant-object-guards` 实施 SEC-005/006/007 并完成上表验证 | 拉下一个分支启用其余模块 |
+| 2026-11-03 / Claude | [zhul-cloud/zhul-trade-erp#137](https://github.com/zhul-cloud/zhul-trade-erp/pull/137) 合并到 `develop`（merge commit `df2355b7`），链式分支已删除；台账改为「已合并待发布」 | 随下一版发布后验收 |

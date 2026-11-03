@@ -75,6 +75,8 @@ public class CustomerRefundService {
     private final com.zhul.erp.modules.aftersales.support.AfterSalesLogs afterSalesLogs;
     private final com.zhul.erp.modules.aftersales.repository.AfterSalesMapper afterSalesMapper;
     private final com.zhul.erp.modules.finance.repository.RefundRequestMapper requestMapper;
+    private final com.zhul.erp.framework.security.PermissionChecker perm;
+    private final com.zhul.erp.framework.security.DataScopeResolver dataScopeResolver;
 
     /** 订单的可退金额、平均到账汇率与可选去向 */
     public RefundableVO refundable(Long soId) {
@@ -245,12 +247,16 @@ public class CustomerRefundService {
     }
 
     public RefundVO detail(Long id) {
-        return toVos(List.of(require(id))).get(0);
+        CustomerRefundDO f = require(id);
+        requireSalesScope(f.getSoId());
+        return toVos(List.of(f)).get(0);
     }
 
     /** 订单的有效售后退款单（订单成本明细用） */
     public List<RefundVO> ofOrder(Long soId) {
+        requireSalesScope(soId);
         return toVos(refundMapper.selectList(new LambdaQueryWrapper<CustomerRefundDO>()
+                .eq(CustomerRefundDO::getTenantId, PiStore.tenantId())
                 .eq(CustomerRefundDO::getSoId, soId)
                 .eq(CustomerRefundDO::getRefundType, FinanceConstants.REFUND_AFTER_SALES)
                 .eq(CustomerRefundDO::getStatus, FinanceConstants.RECORD_VALID)
@@ -314,6 +320,21 @@ public class CustomerRefundService {
         vo.setCreditRate(pos.cashRate());
         vo.setPlatformOnly(pos.hasOnline());
         return vo;
+    }
+
+    /**
+     * 只有销售订单菜单（没有退款管理菜单）的人从订单详情查看退款时，订单须在自己的数据范围内（audit BUS-002）；
+     * 退款管理菜单按财务授权查看本租户全部退款
+     */
+    private void requireSalesScope(Long soId) {
+        if (perm.canAccessMenu("/finance/refunds")) {
+            return;
+        }
+        SalesOrderDO o = soId == null ? null : orderMapper.selectById(soId);
+        if (o == null || o.getDeletedAt() != null || !Objects.equals(o.getTenantId(), PiStore.tenantId())
+                || !dataScopeResolver.current().canSee(o.getOwnerId())) {
+            throw new BizException("销售订单不存在");
+        }
     }
 
     private SalesOrderDO requireOrder(Long soId, boolean lock) {
