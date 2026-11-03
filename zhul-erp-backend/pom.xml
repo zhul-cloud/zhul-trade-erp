@@ -157,6 +157,18 @@
             <version>3.0.3</version>
         </dependency>
 
+        <!-- commonmark，背调报告 Markdown 转 HTML 后交给 LibreOffice 导出 PDF -->
+        <dependency>
+            <groupId>org.commonmark</groupId>
+            <artifactId>commonmark</artifactId>
+            <version>0.24.0</version>
+        </dependency>
+        <dependency>
+            <groupId>org.commonmark</groupId>
+            <artifactId>commonmark-ext-gfm-tables</artifactId>
+            <version>0.24.0</version>
+        </dependency>
+
         <!-- MapStruct 对象转换 -->
         <dependency>
             <groupId>org.mapstruct</groupId>

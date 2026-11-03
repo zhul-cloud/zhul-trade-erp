@@ -41,6 +41,8 @@ public class DocumentConverter {
     public static final String UNAVAILABLE = "PDF / 图片暂时无法生成，可以先下载 Excel";
     private static final String PDF_FILTER = "pdf:calc_pdf_Export:{\"ReduceImageResolution\":{\"type\":\"boolean\",\"value\":\"true\"},"
             + "\"MaxImageResolution\":{\"type\":\"long\",\"value\":\"150\"},\"Quality\":{\"type\":\"long\",\"value\":\"80\"}}";
+    /** 背调报告等 HTML 文档用 Writer/Web 导出 */
+    private static final String HTML_PDF_FILTER = "pdf:writer_web_pdf_Export";
     private static final int TIMEOUT_SECONDS = 30;
     private static final int PREVIEW_CACHE_SIZE = 50;
     /** 预览图分辨率：放大查看时 A4 宽约 1240 像素，高分屏上文字仍清晰 */
@@ -107,6 +109,21 @@ public class DocumentConverter {
         }
     }
 
+    /** HTML → PDF（背调报告导出），与 Excel 导出共用同一个转换队列 */
+    public byte[] htmlToPdf(byte[] html) {
+        waitingExports.incrementAndGet();
+        try {
+            lock.lock();
+        } finally {
+            waitingExports.decrementAndGet();
+        }
+        try {
+            return convert(html, "document.html", HTML_PDF_FILTER);
+        } finally {
+            lock.unlock();
+        }
+    }
+
     /**
      * 预览：返回逐页 JPG（96 dpi、质量 0.7）。同样内容命中缓存不再转换；
      * 拿到转换机会时若 {@code stillWanted} 已不成立（用户又改了内容），直接放弃。
@@ -146,6 +163,10 @@ public class DocumentConverter {
     }
 
     private byte[] convert(byte[] xlsx) {
+        return convert(xlsx, "document.xlsx", PDF_FILTER);
+    }
+
+    private byte[] convert(byte[] content, String fileName, String filter) {
         String bin = soffice();
         if (bin == null) {
             throw BizException.of("CONVERTER_UNAVAILABLE", UNAVAILABLE);
@@ -154,11 +175,11 @@ public class DocumentConverter {
         try {
             Files.createDirectories(workDir);
             dir = Files.createTempDirectory(workDir, "job-");
-            Path in = dir.resolve("document.xlsx");
-            Files.write(in, xlsx);
+            Path in = dir.resolve(fileName);
+            Files.write(in, content);
             Path profile = workDir.resolve("profile");
             ProcessBuilder pb = new ProcessBuilder(bin, "--headless", "--norestore", "--nolockcheck",
-                    "-env:UserInstallation=" + profile.toUri(), "--convert-to", PDF_FILTER, "--outdir", dir.toString(), in.toString());
+                    "-env:UserInstallation=" + profile.toUri(), "--convert-to", filter, "--outdir", dir.toString(), in.toString());
             pb.redirectErrorStream(true);
             pb.redirectOutput(dir.resolve("soffice.log").toFile());
             Process process = pb.start();

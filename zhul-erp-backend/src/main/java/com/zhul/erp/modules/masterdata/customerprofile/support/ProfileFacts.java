@@ -16,6 +16,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
@@ -38,6 +39,7 @@ public class ProfileFacts {
     private final CountryProfileMapper countryMapper;
     private final CustomerInquiryMapper inquiryMapper;
     private final CustomerMapper customerMapper;
+    private final com.zhul.erp.modules.inquiry.support.CurrentUserResolver currentUser;
     private final com.zhul.erp.modules.masterdata.customerprofile.repository.CustomerStatsMapper statsMapper;
 
     public List<CustomerContactDO> contacts(Long customerId) {
@@ -135,9 +137,23 @@ public class ProfileFacts {
         if (Objects.equals(c.getProfileMask(), mask)) {
             return false;
         }
-        customerMapper.update(null, new LambdaUpdateWrapper<CustomerDO>()
+        LambdaUpdateWrapper<CustomerDO> w = new LambdaUpdateWrapper<CustomerDO>()
                 .eq(CustomerDO::getId, c.getId())
-                .set(CustomerDO::getProfileMask, mask));
+                .set(CustomerDO::getProfileMask, mask);
+        // 档案补全「今天已补完」：变为 5/5 时记下时间和操作人，降到 5 以下时清空
+        boolean done = mask == ProfileField.ALL_DONE;
+        boolean wasDone = Objects.equals(c.getProfileMask(), ProfileField.ALL_DONE);
+        if (done && !wasDone) {
+            Long me = currentUser.resolve();
+            c.setProfileDoneAt(LocalDateTime.now());
+            c.setProfileDoneBy(me == null ? 0L : me);
+            w.set(CustomerDO::getProfileDoneAt, c.getProfileDoneAt()).set(CustomerDO::getProfileDoneBy, c.getProfileDoneBy());
+        } else if (!done && wasDone) {
+            c.setProfileDoneAt(null);
+            c.setProfileDoneBy(0L);
+            w.set(CustomerDO::getProfileDoneAt, null).set(CustomerDO::getProfileDoneBy, 0L);
+        }
+        customerMapper.update(null, w);
         c.setProfileMask(mask);
         return true;
     }

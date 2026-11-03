@@ -225,6 +225,56 @@ class AiTaskServiceImplTest {
         verify(resultDispatcher, times(1)).dispatch(any(AiTaskDO.class));
     }
 
+    /** spec ai-platform/task-orchestration「记录 AI 调用用量」：询盘解析记录用量 */
+    @Test
+    void handleCallback_withUsage_savesUsageOnTask() {
+        AiTaskDO existing = new AiTaskDO();
+        existing.setId(3L);
+        existing.setSkillId("inquiry-parse-and-split");
+        when(aiTaskMapper.selectById(3L)).thenReturn(existing);
+        AiTaskCallbackRequest req = new AiTaskCallbackRequest();
+        req.setStatus("success");
+        req.setOutput(java.util.Map.of("groups", java.util.List.of()));
+        AiTaskCallbackRequest.Usage usage = new AiTaskCallbackRequest.Usage();
+        usage.setModel("claude-sonnet-5-5");
+        usage.setInputTokens(12000);
+        usage.setOutputTokens(3500);
+        usage.setWebSearches(4);
+        req.setUsage(usage);
+
+        aiTaskService.handleCallback(3L, req);
+
+        ArgumentCaptor<AiTaskDO> captor = ArgumentCaptor.forClass(AiTaskDO.class);
+        verify(aiTaskMapper, times(2)).updateById(captor.capture());
+        AiTaskDO saved = captor.getAllValues().get(1);
+        assertThat(saved.getModel()).isEqualTo("claude-sonnet-5-5");
+        assertThat(saved.getInputTokens()).isEqualTo(12000);
+        assertThat(saved.getOutputTokens()).isEqualTo(3500);
+        assertThat(saved.getWebSearches()).isEqualTo(4);
+        ArgumentCaptor<AiTaskDO> dispatched = ArgumentCaptor.forClass(AiTaskDO.class);
+        verify(resultDispatcher, times(1)).dispatch(dispatched.capture());
+        assertThat(dispatched.getValue().getInputTokens()).isEqualTo(12000);
+    }
+
+    /** 旧回调没有用量：任务照常完成，用量为空（只有一次状态更新） */
+    @Test
+    void handleCallback_withoutUsage_leavesUsageEmpty() {
+        AiTaskDO existing = new AiTaskDO();
+        existing.setId(4L);
+        existing.setSkillId("inquiry-parse-and-split");
+        when(aiTaskMapper.selectById(4L)).thenReturn(existing);
+        AiTaskCallbackRequest req = new AiTaskCallbackRequest();
+        req.setStatus("success");
+        req.setOutput(java.util.Map.of("groups", java.util.List.of()));
+
+        aiTaskService.handleCallback(4L, req);
+
+        ArgumentCaptor<AiTaskDO> captor = ArgumentCaptor.forClass(AiTaskDO.class);
+        verify(aiTaskMapper, times(1)).updateById(captor.capture());
+        assertThat(captor.getValue().getStatus()).isEqualTo(AiTaskStatus.COMPLETED);
+        assertThat(captor.getValue().getInputTokens()).isNull();
+    }
+
     @Test
     void handleCallback_taskNotFound_throwsBizException() {
         when(aiTaskMapper.selectById(999L)).thenReturn(null);

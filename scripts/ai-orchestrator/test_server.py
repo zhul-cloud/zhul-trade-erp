@@ -602,6 +602,100 @@ class SubscriptionRoutingTest(unittest.TestCase):
         self.assertEqual(sent[0][0][1], "failed")
         self.assertIn("未登录", sent[0][1]["error"])
 
+BACKGROUND_RESULT = {
+    "conclusion": {"priority": 1, "score": 4, "mainConflict": "交期", "firstAction": "24 小时内报价", "identity": "系统集成商",
+                   "supply": "现货", "keyFinding": "水厂项目", "obstacle": "本地代理"},
+    "reportMarkdown": "# Pacific Controls",
+    "suggestions": [{"module": 1, "field": "companySize", "value": "10–50 人", "evidence": "LinkedIn 23 人", "sourceUrl": ""},
+                    {"module": 4, "field": "jobRole", "value": "采购", "evidence": "LinkedIn",
+                     "contact": {"name": "James Walker", "email": "", "title": "Procurement Manager"}}],
+}
+
+
+class UsageTest(unittest.TestCase):
+    """spec ai-platform/task-orchestration「记录 AI 调用用量」"""
+
+    def setUp(self):
+        FakeClaude.calls = []
+        FakeOpenAI.calls = []
+        self.server = load_server()
+
+    def sent_body(self, **kwargs):
+        captured = {}
+
+        def fake_urlopen(req, timeout=None):
+            captured["body"] = json.loads(req.data)
+            return mock.MagicMock(__enter__=lambda s: SimpleNamespace(status=200), __exit__=lambda s, *a: False)
+
+        with mock.patch.object(self.server.urllib.request, "urlopen", fake_urlopen):
+            self.server.send_callback("http://cb", "success", output={}, **kwargs)
+        return captured["body"]
+
+    def test_usage_accumulates_within_task_and_is_cleared(self):
+        cfg = self.server.parse_ai_config(ai())
+        FakeClaude.reply = '{"items": [{"key": "1", "text": "x"}]}'
+        with mock.patch.object(self.server.anthropic, "Anthropic", FakeClaude):
+            self.server.call_translate(cfg, [{"key": "1", "text": "x"}])
+            self.server.call_translate(cfg, [{"key": "1", "text": "x"}])
+        body = self.sent_body()
+        self.assertEqual(body["usage"], {"model": "claude-haiku-5-5", "inputTokens": 2, "outputTokens": 2, "webSearches": 0})
+        self.assertNotIn(KEY, json.dumps(body))
+        self.assertNotIn("usage", self.sent_body(), "取出后清空，下一个任务从零开始")
+
+    def test_openai_counts_web_searches(self):
+        cfg = self.server.parse_ai_config(ai(provider="openai"))
+        FakeOpenAI.response = openai_response(json.dumps(PARSE_RESULT))
+        with mock.patch.object(self.server.openai, "OpenAI", FakeOpenAI):
+            self.server.call_parse(cfg, "询盘正文", [], [])
+        self.assertEqual(self.sent_body()["usage"], {"model": "gpt-test", "inputTokens": 1, "outputTokens": 1, "webSearches": 1})
+
+    def test_no_api_call_no_usage(self):
+        self.assertNotIn("usage", self.sent_body())
+
+
+class BackgroundTest(unittest.TestCase):
+    """系统版客户背调技能：research 联网、extract 不联网，共用一个输出结构"""
+
+    def setUp(self):
+        FakeClaude.calls = []
+        self.server = load_server()
+        self.cfg = self.server.parse_ai_config(ai())
+
+    def run_mode(self, input_data):
+        FakeClaude.reply = json.dumps(BACKGROUND_RESULT)
+        with mock.patch.object(self.server.anthropic, "Anthropic", FakeClaude):
+            result = self.server.call_background(self.cfg, input_data)
+        return result, FakeClaude.calls[-1]["params"]
+
+    def test_research_searches_the_web(self):
+        result, p = self.run_mode({"mode": "research", "fields": [{"key": "companySize", "label": "公司规模"}],
+                                   "customer": {"name": "Pacific Controls Pty Ltd"}, "inquiries": ["Need 6ES7"]})
+        self.assertEqual(result, BACKGROUND_RESULT)
+        self.assertEqual(p["tools"][0]["name"], "web_search")
+        self.assertEqual(p["model"], "claude-opus-5-5")
+        text = p["messages"][0]["content"][-1]["text"]
+        self.assertIn("mode=research", text)
+        self.assertIn("Pacific Controls Pty Ltd", text)
+        self.assertIn("companySize", text)
+        self.assertIn("烛龙客户背调", p["system"], "系统提示词来自 customer-background 技能，注明了原版来源")
+        self.assertNotIn("reportlab", p["system"])
+
+    def test_extract_does_not_search_and_returns_empty_markdown(self):
+        result, p = self.run_mode({"mode": "extract", "fields": [], "reportText": "Pacific Controls 背调报告……"})
+        self.assertNotIn("tools", p)
+        self.assertEqual(result["reportMarkdown"], "")
+        self.assertEqual(result["conclusion"]["score"], 4)
+        self.assertIn("Pacific Controls 背调报告", p["messages"][0]["content"][-1]["text"])
+
+    def test_invalid_input_fails_task(self):
+        for data, message in (({"mode": "guess"}, "不支持"), ({"mode": "extract", "reportText": " "}, "没有文字")):
+            sent = []
+            with mock.patch.object(self.server, "send_callback",
+                                   lambda url, status, output=None, error=None: sent.append((status, error))):
+                self.server.process_background({"input": data, "ai": ai()}, "http://cb")
+            self.assertEqual(sent[-1][0], "failed")
+            self.assertIn(message, sent[-1][1])
+
 
 if __name__ == "__main__":
     unittest.main()

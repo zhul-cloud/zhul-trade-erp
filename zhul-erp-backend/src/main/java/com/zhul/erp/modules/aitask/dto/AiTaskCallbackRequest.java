@@ -14,6 +14,16 @@ public class AiTaskCallbackRequest {
     private String status;
     private Object output;
     private String error;
+    /** 这次处理调用模型的用量；旧版编排服务、订阅方式没有 */
+    private Usage usage;
+
+    @Data
+    public static class Usage {
+        private String model;
+        private Integer inputTokens;
+        private Integer outputTokens;
+        private Integer webSearches;
+    }
 
     public boolean isSuccess() {
         return "success".equalsIgnoreCase(status);
