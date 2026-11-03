@@ -112,6 +112,9 @@ public class CustomerProfileVO {
         /** 1-人工、2-背调报告、3-迁移、9-系统 */
         private Integer source;
         private Long reportId;
+        /** 来源为背调报告时的报告编号；报告删除后仍显示，并标 reportDeleted */
+        private String reportNo;
+        private Boolean reportDeleted;
         private String operatorName;
         private LocalDateTime updateTime;
         private LocalDateTime askedAt;

@@ -46,6 +46,12 @@ public class CustomerContactService {
 
     @Transactional(rollbackFor = Exception.class)
     public ContactVO create(Long customerId, ContactRequest req) {
+        return create(customerId, req, FieldSources.MANUAL, 0L);
+    }
+
+    /** 新增联系人，画像字段的来源可以是背调报告（采纳联系人建议） */
+    @Transactional(rollbackFor = Exception.class)
+    public ContactVO create(Long customerId, ContactRequest req, int source, long reportId) {
         CustomerDO c = customerService.requireInScope(customerId);
         List<CustomerContactDO> existing = facts.contacts(customerId);
         CustomerContactDO x = new CustomerContactDO();
@@ -58,7 +64,7 @@ public class CustomerContactService {
         if (primary) {
             makePrimary(customerId, x);
         }
-        sources.record(c.getTenantId(), customerId, keys(x.getId(), changed), FieldSources.MANUAL, 0L, currentUser.resolve());
+        sources.record(c.getTenantId(), customerId, keys(x.getId(), changed), source, reportId, currentUser.resolve());
         facts.refresh(c);
         logService.recordOperateLog("客户管理", "新增联系人", null, Map.of("customerCode", c.getCustomerCode(), "联系人", x.getName()));
         return toVo(x);
@@ -66,6 +72,12 @@ public class CustomerContactService {
 
     @Transactional(rollbackFor = Exception.class)
     public ContactVO update(Long customerId, Long contactId, ContactRequest req) {
+        return update(customerId, contactId, req, FieldSources.MANUAL, 0L);
+    }
+
+    /** 修改联系人（整体替换），画像字段的来源可以是背调报告（采纳联系人建议） */
+    @Transactional(rollbackFor = Exception.class)
+    public ContactVO update(Long customerId, Long contactId, ContactRequest req, int source, long reportId) {
         CustomerDO c = customerService.requireInScope(customerId);
         CustomerContactDO x = require(customerId, contactId);
         List<String> changed = apply(x, req);
@@ -75,7 +87,7 @@ public class CustomerContactService {
         } else if (isPrimary(x)) {
             primarySync.toCustomer(customerId, x);
         }
-        sources.record(c.getTenantId(), customerId, keys(contactId, changed), FieldSources.MANUAL, 0L, currentUser.resolve());
+        sources.record(c.getTenantId(), customerId, keys(contactId, changed), source, reportId, currentUser.resolve());
         facts.refresh(c);
         logService.recordOperateLog("客户管理", "修改联系人", null, Map.of("customerCode", c.getCustomerCode(), "联系人", x.getName()));
         return toVo(x);

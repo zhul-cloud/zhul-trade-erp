@@ -50,6 +50,9 @@ export interface BrandRef {
 export interface FieldSource {
   source: number;
   reportId?: number;
+  /** 背调报告编号；reportDeleted 为报告已删除 */
+  reportNo?: string;
+  reportDeleted?: boolean;
   operatorName?: string;
   updateTime?: string;
   askedAt?: string;

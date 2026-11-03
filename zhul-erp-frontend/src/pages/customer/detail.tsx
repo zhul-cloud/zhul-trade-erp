@@ -18,6 +18,11 @@ import { useAppTheme } from '@/theme/AppTheme';
 import { DICT_SOURCE_CHANNEL, useDictOptions } from '@/utils/dict';
 import { formatAmount, formatDateTime } from '@/utils/format';
 import {
+  BackgroundActions,
+  BackgroundCard,
+  useBackgroundReports,
+} from './background/components';
+import {
   LIST_PATH,
   PageTitle,
   PartyGroups,
@@ -275,6 +280,7 @@ const CustomerDetailPage: React.FC = () => {
   const [transferOpen, setTransferOpen] = useState(false);
   const [profile, setProfile] = useState<Profile>();
   const [editModule, setEditModule] = useState<number>();
+  const bg = useBackgroundReports(Number(id));
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -305,6 +311,7 @@ const CustomerDetailPage: React.FC = () => {
 
   const back = () => history.push(LIST_PATH);
   const canEdit = !!access['partner:customer:edit'];
+  const canBackground = !!access['partner:customer:background'];
 
   let body: React.ReactNode;
   let title: React.ReactNode = '客户详情';
@@ -360,6 +367,14 @@ const CustomerDetailPage: React.FC = () => {
             转移
           </Button>
         )}
+        {canBackground && (
+          <BackgroundActions
+            customerId={r.id}
+            customerName={r.displayName}
+            running={bg.running}
+            onStarted={bg.reload}
+          />
+        )}
         {canEdit && profile && (
           <Button
             icon={<EditOutlined />}
@@ -372,7 +387,7 @@ const CustomerDetailPage: React.FC = () => {
         )}
         {canEdit && (
           <Button
-            type="primary"
+            type={canBackground ? 'default' : 'primary'}
             icon={<EditOutlined />}
             onClick={() =>
               history.push(`${LIST_PATH}/${r.id}/edit?from=detail`)
@@ -528,6 +543,9 @@ const CustomerDetailPage: React.FC = () => {
               gap: 20,
             }}
           >
+            {bg.reports && (
+              <BackgroundCard customerId={r.id} reports={bg.reports} />
+            )}
             {profile && (
               <ContactsCard
                 customerId={r.id}

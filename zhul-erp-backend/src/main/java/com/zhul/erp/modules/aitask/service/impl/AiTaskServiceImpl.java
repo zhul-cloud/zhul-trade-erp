@@ -145,7 +145,26 @@ public class AiTaskServiceImpl implements AiTaskService {
             task.setErrorMessage(req.getError());
         }
         task.setCompletedAt(now);
+        saveUsage(task, req.getUsage());
         resultDispatcher.dispatch(task);
+    }
+
+    /** 回调带回的用量写入任务（所有技能都记）；旧版编排服务、订阅方式没有用量，保持为空 */
+    private void saveUsage(AiTaskDO task, AiTaskCallbackRequest.Usage usage) {
+        if (usage == null) {
+            return;
+        }
+        AiTaskDO update = new AiTaskDO();
+        update.setId(task.getId());
+        update.setModel(usage.getModel() == null ? "" : usage.getModel());
+        update.setInputTokens(usage.getInputTokens());
+        update.setOutputTokens(usage.getOutputTokens());
+        update.setWebSearches(usage.getWebSearches());
+        aiTaskMapper.updateById(update);
+        task.setModel(update.getModel());
+        task.setInputTokens(update.getInputTokens());
+        task.setOutputTokens(update.getOutputTokens());
+        task.setWebSearches(update.getWebSearches());
     }
 
     /**

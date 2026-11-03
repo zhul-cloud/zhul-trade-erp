@@ -34,6 +34,7 @@ import {
   TransferModal,
 } from './components';
 import { DISABLE_CONFIRM_TEXT, ROLE_OPTIONS } from './constants';
+import CompletionTab from './profile/CompletionTab';
 import DuplicatesTab from './profile/DuplicatesTab';
 import { GRADE_NAMES, MODULE_SHORT, profileApi } from './profile/service';
 import { doneOf, GradeBadge, Progress5, Stars } from './profile/ui';
@@ -93,7 +94,7 @@ const CustomerListPage: React.FC = () => {
   const canTransfer = !!access['partner:customer:transfer'];
   const canExport = !!access['partner:customer:export'];
   const canMerge = !!access['partner:customer:merge'];
-  const [tab, setTab] = useState<'all' | 'dups'>('all');
+  const [tab, setTab] = useState<'all' | 'fill' | 'dups'>('all');
   const [dupCount, setDupCount] = useState<number>();
   const [sort, setSort] = useState<
     Pick<CustomerQuery, 'sortField' | 'sortOrder'>
@@ -514,20 +515,23 @@ const CustomerListPage: React.FC = () => {
       <PageTitle description="档案完整度 5/5 为已建档；先补有成交的客户。报价单、PI、CI 从这里带出客户信息。" />
       <Segmented
         value={tab}
-        onChange={(v) => setTab(v as 'all' | 'dups')}
+        onChange={(v) => setTab(v as 'all' | 'fill' | 'dups')}
         style={{ marginBottom: 16 }}
         options={[
           {
             value: 'all',
             label: `全部客户${tab === 'all' ? ` ${total}` : ''}`,
           },
+          { value: 'fill', label: '档案补全' },
           {
             value: 'dups',
             label: `疑似重复${dupCount ? ` ${dupCount}` : ''}`,
           },
         ]}
       />
-      {tab === 'dups' ? (
+      {tab === 'fill' ? (
+        <CompletionTab />
+      ) : tab === 'dups' ? (
         <DuplicatesTab
           canMerge={canMerge}
           onCount={setDupCount}

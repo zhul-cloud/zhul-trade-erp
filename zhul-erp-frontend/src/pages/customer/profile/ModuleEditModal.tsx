@@ -62,7 +62,8 @@ const TAB_FIELDS: Record<number, string[]> = {
   ],
   5: ['city', 'timezone'],
 };
-const ALL_FIELDS = Object.values(TAB_FIELDS).flat();
+/** 编辑弹窗能改的画像字段 */
+export const ALL_FIELDS = Object.values(TAB_FIELDS).flat();
 
 type FormState = Record<string, unknown> & {
   currentBrands: string[];

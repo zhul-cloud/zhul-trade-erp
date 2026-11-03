@@ -118,6 +118,9 @@ public class CustomerDO {
     private LocalDateTime bizGradeAdjustAt;
     /** 已完成的档案模块（位：1-基础画像、2-商业能力、4-技术偏好、8-决策人、16-宏观背景） */
     private Integer profileMask;
+    /** 档案补齐（完整度变为 5/5）的时间与操作人，降到 5 以下时清空；只由 ProfileFacts 按条件更新 */
+    private LocalDateTime profileDoneAt;
+    private Long profileDoneBy;
     /** 状态（0-禁用、1-启用） */
     private Integer status;
     private LocalDateTime deletedAt;
