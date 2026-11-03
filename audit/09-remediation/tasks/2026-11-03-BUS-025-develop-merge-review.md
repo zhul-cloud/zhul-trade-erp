@@ -27,7 +27,7 @@
 
 | ID | 修复 / 验收范围 | 部署与目标环境验收证据 | 验收人 / 日期 | 结论与剩余项 |
 | --- | --- | --- | --- | --- |
-| BUS-025 | 同一对客户反向并发合并时，后到的请求失败，数据不被拆散 | 未部署 | — | 已合并待发布 |
+| BUS-025 | 同一对客户反向并发合并时，后到的请求失败，数据不被拆散 | v1.7.0 已部署（[生产发版](https://github.com/zhul-cloud/zhul-trade-erp/actions/runs/41688042076)，2026-11-04 01:56 部署成功，容器健康、日志无错误） | — | 已发布待验收 |
 | BUS-026 | — | — | — | 待认领 |
 
 ## 事件记录
@@ -36,3 +36,4 @@
 | --- | --- | --- |
 | 2026-11-03 / Claude | 合入 `origin/develop`；复核 22 个提交；修 BUS-025，登记 BUS-026。后端全量 1296 个，0 失败，7 个环境跳过 | 随 SEC-011 的 PR 合并 |
 | 2026-11-03 / Claude | [zhul-cloud/zhul-trade-erp#137](https://github.com/zhul-cloud/zhul-trade-erp/pull/137) 合并到 `develop`（merge commit `df2355b7`），链式分支已删除；台账改为「已合并待发布」 | 随下一版发布后验收 |
+| 2026-11-04 / Claude | 随 v1.7.0 发布（[#143](https://github.com/zhul-cloud/zhul-trade-erp/pull/143)，merge commit `c5621e1b`），生产部署成功；台账改为「已发布待验收」 | 待线上业务验收 |
