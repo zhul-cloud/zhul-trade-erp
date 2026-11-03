@@ -165,6 +165,8 @@ const RolePage: React.FC = () => {
   const [permLoading, setPermLoading] = useState(false);
   /** 分配权限的加载序号：先后打开两个角色时，丢弃先发出、后返回的旧响应 */
   const permSeq = useRef(0);
+  /** 编辑角色的加载序号：先后点两个角色的编辑时，丢弃先发出、后返回的部门数据 */
+  const editSeq = useRef(0);
 
   const canAdd = !!(access as Record<string, unknown>)['system:role:add'];
   const canEdit = !!(access as Record<string, unknown>)['system:role:edit'];
@@ -211,6 +213,7 @@ const RolePage: React.FC = () => {
   const isEdit = drawerMode === 'edit';
 
   const openCreate = () => {
+    editSeq.current++;
     setDrawerMode('create');
     setEditingRole(null);
     setEditingDeptIds([]);
@@ -218,13 +221,20 @@ const RolePage: React.FC = () => {
   };
 
   const openEdit = async (record: RoleItem) => {
+    const seq = ++editSeq.current;
+    let deptIds: number[] = [];
+    if (record.permissionScope === 2) {
+      try {
+        deptIds = await getRoleDeptIds(record.code);
+      } catch {
+        if (seq === editSeq.current) message.error('角色部门加载失败，请重试');
+        return;
+      }
+    }
+    if (seq !== editSeq.current) return;
     setDrawerMode('edit');
     setEditingRole(record);
-    if (record.permissionScope === 2) {
-      setEditingDeptIds(await getRoleDeptIds(record.code));
-    } else {
-      setEditingDeptIds([]);
-    }
+    setEditingDeptIds(deptIds);
     setDrawerOpen(true);
   };
 
