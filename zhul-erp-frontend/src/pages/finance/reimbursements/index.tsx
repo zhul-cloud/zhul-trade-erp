@@ -464,11 +464,25 @@ const PendingTab: React.FC<{
 
 /** 财务登记报销已付 */
 const PayModal: React.FC<{
-  target?: Reimbursement;
+  /** 一张为单张登记，多张为批量登记 */
+  targets?: Reimbursement[];
   onClose: () => void;
   onDone: () => void;
-}> = ({ target, onClose, onDone }) => {
+}> = ({ targets, onClose, onDone }) => {
   const { message } = App.useApp();
+  const { palette } = useAppTheme();
+  const target = targets?.length ? targets : undefined;
+  const batch = (target?.length ?? 0) > 1;
+  const sum = (target ?? []).reduce((s, r) => s + r.totalAmount, 0);
+  // 按报销人分组，组内按编号
+  const groups = useMemo(() => {
+    const m = new Map<string, Reimbursement[]>();
+    for (const r of target ?? []) {
+      const k = r.applicantName;
+      m.set(k, [...(m.get(k) ?? []), r]);
+    }
+    return [...m.entries()];
+  }, [target]);
   const [accounts, setAccounts] = useState<BankOption[]>([]);
   const [accountId, setAccountId] = useState<number>();
   /** 1-公司对公、3-私对私（法人等个人账户付给员工） */
@@ -504,14 +518,23 @@ const PayModal: React.FC<{
     }
     setSaving(true);
     try {
-      await reimburseApi.pay(target.id, {
+      const body = {
         method,
         bankAccountId: accountId,
         payDate: date.format('YYYY-MM-DD'),
         attachmentIds: files.map((f) => f.id),
         remark: remark.trim() || undefined,
-      });
-      message.success('已登记已付');
+      };
+      if (batch) {
+        await reimburseApi.batchPay({
+          ...body,
+          ids: target.map((r) => r.id),
+        });
+        message.success(`已登记 ${target.length} 张报销单已付`);
+      } else {
+        await reimburseApi.pay(target[0].id, body);
+        message.success('已登记已付');
+      }
       onDone();
       onClose();
     } catch (e) {
@@ -523,14 +546,55 @@ const PayModal: React.FC<{
   return (
     <Modal
       open={!!target}
-      title={`登记已付 · ${target?.reimburseNo ?? ''} · ${formatAmount(target?.totalAmount, 'CNY')}`}
-      okText="确认已付"
+      title={
+        batch
+          ? `批量登记已付 · ${target?.length} 张 · ${formatAmount(sum, 'CNY')}`
+          : `登记已付 · ${target?.[0].reimburseNo ?? ''} · ${formatAmount(target?.[0].totalAmount, 'CNY')}`
+      }
+      okText={batch ? `确认已付（${target?.length} 张）` : '确认已付'}
       confirmLoading={saving}
       onOk={submit}
       onCancel={onClose}
       destroyOnHidden
     >
       <Space orientation="vertical" size={12} style={{ width: '100%' }}>
+        {batch && (
+          <div
+            style={{
+              padding: '6px 14px',
+              borderRadius: 10,
+              background: palette.inset,
+              maxHeight: 220,
+              overflowY: 'auto',
+            }}
+          >
+            {groups.map(([who, list]) => (
+              <div key={who} style={{ padding: '8px 0' }}>
+                <div
+                  style={{ display: 'flex', justifyContent: 'space-between' }}
+                >
+                  <b>
+                    {who} · {list.length} 张
+                  </b>
+                  <b style={num}>
+                    {formatAmount(
+                      list.reduce((s, r) => s + r.totalAmount, 0),
+                      'CNY',
+                    )}
+                  </b>
+                </div>
+                {list.map((r) => (
+                  <div
+                    key={r.id}
+                    style={{ ...num, fontSize: 12, color: palette.sub }}
+                  >
+                    {r.reimburseNo} {formatAmount(r.totalAmount, 'CNY')}
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+        )}
         <Segmented<number>
           value={method}
           onChange={(m) => {
@@ -573,6 +637,11 @@ const PayModal: React.FC<{
           max={10}
           accept={ACCEPT_PROOF}
         />
+        {batch && (
+          <div style={{ fontSize: 12, color: palette.mute }}>
+            截图会挂到每张报销单上；确认后每张报销单各生成一张报销付款单
+          </div>
+        )}
         <Input
           placeholder="说明（选填）"
           value={remark}
@@ -601,7 +670,8 @@ const ListTab: React.FC<{ refreshSignal: number }> = ({ refreshSignal }) => {
   const [loading, setLoading] = useState(true);
   const [detail, setDetail] = useState<Reimbursement>();
   const [detailLoading, setDetailLoading] = useState(false);
-  const [paying, setPaying] = useState<Reimbursement>();
+  const [paying, setPaying] = useState<Reimbursement[]>();
+  const [picked, setPicked] = useState<Reimbursement[]>([]);
   const [reason, setReason] = useState<{
     kind: 'withdraw' | 'unpay';
     bx: Reimbursement;
@@ -694,7 +764,7 @@ const ListTab: React.FC<{ refreshSignal: number }> = ({ refreshSignal }) => {
       render: (_, r) => (
         <Space size={10}>
           {canPay && r.status === BX_STATUS.PENDING && (
-            <a onClick={() => setPaying(r)}>登记已付</a>
+            <a onClick={() => setPaying([r])}>登记已付</a>
           )}
           {r.canWithdraw && (
             <a onClick={() => setReason({ kind: 'withdraw', bx: r })}>撤回</a>
@@ -781,6 +851,18 @@ const ListTab: React.FC<{ refreshSignal: number }> = ({ refreshSignal }) => {
           loading={loading}
           columns={columns}
           dataSource={rows}
+          rowSelection={
+            canPay
+              ? {
+                  selectedRowKeys: picked.map((r) => r.id),
+                  preserveSelectedRowKeys: true,
+                  getCheckboxProps: (r) => ({
+                    disabled: r.status !== BX_STATUS.PENDING,
+                  }),
+                  onChange: (_, list) => setPicked(list.filter(Boolean)),
+                }
+              : undefined
+          }
           scroll={{ x: 1400 }}
           pagination={{
             current: page,
@@ -794,6 +876,45 @@ const ListTab: React.FC<{ refreshSignal: number }> = ({ refreshSignal }) => {
             },
           }}
         />
+        {picked.length > 0 && (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 12,
+              marginTop: 14,
+              padding: '12px 18px',
+              borderRadius: 12,
+              background: palette.inset,
+              flexWrap: 'wrap',
+            }}
+          >
+            <span>
+              已选 {picked.length} 张（
+              {new Set(picked.map((r) => r.applicantId)).size} 人），合计{' '}
+              <b style={{ ...num, fontSize: 18 }}>
+                {formatAmount(
+                  picked.reduce((s, r) => s + r.totalAmount, 0),
+                  'CNY',
+                )}
+              </b>
+            </span>
+            {picked.length > 50 && (
+              <span style={{ color: palette.orange, fontSize: 12 }}>
+                一次最多 50 张
+              </span>
+            )}
+            <span style={{ flex: 1 }} />
+            <Button onClick={() => setPicked([])}>取消选择</Button>
+            <Button
+              type="primary"
+              disabled={picked.length > 50}
+              onClick={() => setPaying(picked)}
+            >
+              批量登记已付
+            </Button>
+          </div>
+        )}
       </Card>
       <Drawer
         open={detailLoading || !!detail}
@@ -821,7 +942,7 @@ const ListTab: React.FC<{ refreshSignal: number }> = ({ refreshSignal }) => {
                 </Button>
               )}
               {canPay && detail.status === BX_STATUS.PENDING && (
-                <Button type="primary" onClick={() => setPaying(detail)}>
+                <Button type="primary" onClick={() => setPaying([detail])}>
                   登记已付
                 </Button>
               )}
@@ -901,9 +1022,12 @@ const ListTab: React.FC<{ refreshSignal: number }> = ({ refreshSignal }) => {
         )}
       </Drawer>
       <PayModal
-        target={paying}
+        targets={paying}
         onClose={() => setPaying(undefined)}
-        onDone={refresh}
+        onDone={() => {
+          setPicked([]);
+          refresh();
+        }}
       />
       <ReasonModal
         open={!!reason}

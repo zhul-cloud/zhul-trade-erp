@@ -4,6 +4,7 @@ import com.zhul.erp.common.result.PageResult;
 import com.zhul.erp.common.result.Result;
 import com.zhul.erp.framework.security.SecurityUtils;
 import com.zhul.erp.modules.finance.dto.AdvanceItemVO;
+import com.zhul.erp.modules.finance.dto.BatchPayReimbursementRequest;
 import com.zhul.erp.modules.finance.dto.PayReimbursementRequest;
 import com.zhul.erp.modules.finance.dto.PaymentVO;
 import com.zhul.erp.modules.finance.dto.ProofRequest;
@@ -94,6 +95,12 @@ public class ReimbursementController {
     @PreAuthorize(MENU)
     public Result<ReimbursementVO> withdraw(@PathVariable Long id, @Valid @RequestBody VoidPaymentRequest req) {
         return Result.ok(service.withdraw(id, req.getReason()));
+    }
+
+    @PostMapping("/batch-pay")
+    @PreAuthorize(PAY)
+    public Result<List<ReimbursementVO>> batchPay(@Valid @RequestBody BatchPayReimbursementRequest req) {
+        return Result.ok(service.batchPay(req));
     }
 
     @PostMapping("/{id}/pay")

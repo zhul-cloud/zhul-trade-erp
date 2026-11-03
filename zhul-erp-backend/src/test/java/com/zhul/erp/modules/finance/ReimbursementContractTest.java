@@ -10,6 +10,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -286,6 +287,70 @@ class ReimbursementContractTest extends SalesContractSupport {
         JsonNode py = ok(call(get(PY).param("kind", "3"), admin)).path("records").get(0);
         assertEquals(3, py.path("method").asInt());
         assertEquals("招商银行 · 张总 ****1234", py.path("payerAccount").asText());
+    }
+
+    /** 某人登记一笔快递费垫付、补截图并提交成一张报销单 */
+    private long submittedBx(long buyer, String token, String freight) throws Exception {
+        long wb = courier(buyer, freight);
+        ok(call(json(post(BX + "/proofs"), write(Map.of("sourceType", 2, "sourceId", wb,
+                "attachmentIds", List.of(upload("COURIER_PROOF", token))))), token));
+        JsonNode item = null;
+        for (JsonNode i : ok(call(get(BX + "/pending"), token))) {
+            if (i.path("sourceType").asInt() == 2 && i.path("sourceId").asLong() == wb) {
+                item = i;
+            }
+        }
+        return ok(submit(token, item)).get(0).path("id").asLong();
+    }
+
+    @Test
+    void batchPay_eachGetsOwnPayment_sharedProof_allOrNothing() throws Exception {
+        long a = submittedBx(BUYER_LIN, lin, "300.00");
+        long b = submittedBx(BUYER_LIN, lin, "120.00");
+        long c = submittedBx(BUYER_JIANG, jiang, "80.00");
+        Map<String, Object> body = new HashMap<>();
+        body.put("ids", List.of(c, a, b, a));
+        body.put("bankAccountId", account);
+        body.put("payDate", LocalDate.now().toString());
+        body.put("attachmentIds", List.of(upload("REIMBURSE", admin)));
+        body.put("remark", "11 月第一批");
+
+        // 没有报销付款权限
+        assertFalse(call(json(post(BX + "/batch-pay"), write(body)), lin).path("code").asInt() == 0);
+
+        JsonNode done = ok(call(json(post(BX + "/batch-pay"), write(body)), admin));
+        assertEquals(3, done.size(), "重复的 ID 只算一次");
+        Set<String> nos = new HashSet<>();
+        for (long id : new long[] {a, b, c}) {
+            JsonNode d = ok(call(get(BX + "/" + id), admin));
+            assertEquals(2, d.path("status").asInt());
+            assertEquals(1, d.path("payProofs").size(), "每张报销单都能看到截图");
+            assertEquals("11 月第一批", d.path("payRemark").asText());
+            nos.add(d.path("paymentNo").asText());
+        }
+        assertEquals(3, nos.size(), "每张报销单各一张付款单");
+        money("500.00", ok(call(get(PY + "/stats"), admin)).path("reimburse"));
+        // 仍按单张撤销已付，不影响其他两张
+        assertEquals(1, ok(call(json(post(BX + "/" + b + "/unpay"), write(Map.of("reason", "金额核对"))), admin)).path("status").asInt());
+        assertEquals(1, ok(call(get(BX + "/" + a), admin)).path("payProofs").size());
+
+        // 其中一张已撤回：整批不登记
+        long d = submittedBx(BUYER_LIN, lin, "45.00");
+        long e = submittedBx(BUYER_LIN, lin, "15.00");
+        ok(call(json(post(BX + "/" + e + "/withdraw"), write(Map.of("reason", "填错"))), lin));
+        String eNo = ok(call(get(BX + "/" + e), admin)).path("reimburseNo").asText();
+        body.put("ids", List.of(d, e));
+        body.put("attachmentIds", List.of(upload("REIMBURSE", admin)));
+        assertEquals(eNo + " 已不是待付款，请刷新后重新勾选", fail(call(json(post(BX + "/batch-pay"), write(body)), admin))
+                .path("message").asText());
+        assertEquals(1, ok(call(get(BX + "/" + d), admin)).path("status").asInt(), "整批回滚");
+
+        List<Long> many = new ArrayList<>();
+        for (long i = 1; i <= 51; i++) {
+            many.add(i);
+        }
+        body.put("ids", many);
+        assertEquals("一次可登记 1 到 50 张报销单", fail(call(json(post(BX + "/batch-pay"), write(body)), admin)).path("message").asText());
     }
 
     @Test

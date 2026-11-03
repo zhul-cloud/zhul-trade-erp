@@ -10,6 +10,7 @@ import com.zhul.erp.modules.attachment.dto.AttachmentVO;
 import com.zhul.erp.modules.attachment.service.AttachmentService;
 import com.zhul.erp.modules.finance.constants.FinanceConstants;
 import com.zhul.erp.modules.finance.dto.AdvanceItemVO;
+import com.zhul.erp.modules.finance.dto.BatchPayReimbursementRequest;
 import com.zhul.erp.modules.finance.dto.PayReimbursementRequest;
 import com.zhul.erp.modules.finance.dto.ProofRequest;
 import com.zhul.erp.modules.finance.dto.RefundReminderVO;
@@ -463,6 +464,47 @@ public class ReimbursementService {
         if (bx.getStatus() != FinanceConstants.BX_PENDING) {
             throw new BizException(bx.getStatus() == FinanceConstants.BX_PAID ? "已登记过已付" : "报销单已撤回");
         }
+        PayPlan plan = payPlan(req);
+        settle(bx, req, plan, null);
+        return detail(id);
+    }
+
+    /**
+     * 批量登记已付：一次填写的付款信息用于每张报销单，每张各生成一张报销付款单、共用转账截图；
+     * 按 ID 升序逐张加锁，任一张不是待付款时整批回滚。
+     */
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
+    public List<ReimbursementVO> batchPay(BatchPayReimbursementRequest req) {
+        requirePayer();
+        List<Long> ids = req.getIds().stream().filter(Objects::nonNull).distinct().sorted().toList();
+        if (ids.isEmpty() || ids.size() > MAX_BATCH_PAY) {
+            throw new BizException("一次可登记 1 到 " + MAX_BATCH_PAY + " 张报销单");
+        }
+        PayPlan plan = payPlan(req);
+        List<ReimbursementVO> done = new ArrayList<>(ids.size());
+        Long first = null;
+        for (Long id : ids) {
+            ReimbursementDO bx = lock(id);
+            if (bx.getStatus() != FinanceConstants.BX_PENDING) {
+                throw new BizException(bx.getReimburseNo() + " 已不是待付款，请刷新后重新勾选");
+            }
+            // 截图挂到第一张，其余各复制一份
+            settle(bx, req, plan, first);
+            first = first == null ? id : first;
+        }
+        for (Long id : ids) {
+            done.add(detail(id));
+        }
+        return done;
+    }
+
+    private static final int MAX_BATCH_PAY = 50;
+
+    /** 付款方式、付款账户与私对私的付款人账户：单张与批量共用的校验 */
+    private record PayPlan(int method, Long accountId, String payer) {
+    }
+
+    private PayPlan payPlan(PayReimbursementRequest req) {
         if (req.getPayDate().isAfter(LocalDate.now())) {
             throw new BizException("付款日期不能晚于今天");
         }
@@ -478,9 +520,19 @@ public class ReimbursementService {
         if (personal != FinanceConstants.isPrivateAccount(account)) {
             throw new BizException(personal ? "私对私请选择对私账户" : "公司对公请选择对公账户");
         }
-        String payer = personal ? PaymentService.accountLabel(account) : "";
-        Long accountId = req.getBankAccountId();
-        attachments.attach(AttachmentService.REIMBURSE, bx.getId(), req.getAttachmentIds());
+        return new PayPlan(method, req.getBankAccountId(), personal ? PaymentService.accountLabel(account) : "");
+    }
+
+    /** 已加锁、待付款的报销单登记已付：生成报销付款单、挂截图（shareFrom 不为空时从那张报销单复制）、写日志 */
+    private void settle(ReimbursementDO bx, PayReimbursementRequest req, PayPlan plan, Long shareFrom) {
+        int method = plan.method();
+        String payer = plan.payer();
+        Long accountId = plan.accountId();
+        if (shareFrom == null) {
+            attachments.attach(AttachmentService.REIMBURSE, bx.getId(), req.getAttachmentIds());
+        } else {
+            attachments.copy(AttachmentService.REIMBURSE, shareFrom, bx.getId(), req.getAttachmentIds());
+        }
         PaymentDO p = new PaymentDO();
         p.setTenantId(bx.getTenantId());
         p.setPaymentNo(documentNumberService.next(DocumentType.PY));
@@ -515,7 +567,6 @@ public class ReimbursementService {
         reimbursementMapper.updateById(bx);
         logService.recordOperateLog(MENU, "登记报销已付", null, Map.of("reimburseNo", bx.getReimburseNo(), "paymentNo", p.getPaymentNo(),
                 "total", "CNY " + bx.getTotalAmount()));
-        return detail(id);
     }
 
     @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)

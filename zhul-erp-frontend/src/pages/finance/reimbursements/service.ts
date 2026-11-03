@@ -141,6 +141,15 @@ export const reimburseApi = {
       remark?: string;
     },
   ) => send<Reimbursement>('POST', `${BX}/${id}/pay`, body),
+  /** 批量登记已付：每张报销单各生成一张报销付款单，共用截图；任一张不是待付款时整批不登记 */
+  batchPay: (body: {
+    ids: number[];
+    method?: number;
+    bankAccountId?: number;
+    payDate: string;
+    attachmentIds: number[];
+    remark?: string;
+  }) => send<Reimbursement[]>('POST', `${BX}/batch-pay`, body),
   unpay: (id: number, reason: string) =>
     send<Reimbursement>('POST', `${BX}/${id}/unpay`, { reason }),
 };
