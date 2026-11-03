@@ -51,6 +51,7 @@ import os
 import re
 import sys
 import threading
+import urllib.parse
 import urllib.request
 import uuid
 from dataclasses import dataclass
@@ -269,13 +270,13 @@ def _category_rules(categories: list) -> str:
 """
 
 
-def _read_attachment(ref) -> tuple:
-    """附件内容与扩展名：ref 为本地路径（旧版后端，共享磁盘）或 {"url", "ext"}（后端签发的临时链接）"""
-    if isinstance(ref, dict):
-        with urllib.request.urlopen(ref["url"], timeout=120) as resp:
-            return resp.read(), "." + ref.get("ext", "").lower().lstrip(".")
-    with open(ref, "rb") as f:
-        return f.read(), os.path.splitext(ref)[1].lower()
+def _read_attachment(ref: dict) -> tuple:
+    """附件内容与扩展名：ref 为后端签发的临时链接 {"url", "ext"}。只接受 http(s)，不读本地文件（audit AI-003）"""
+    url = ref["url"]
+    if urllib.parse.urlsplit(url).scheme not in ("http", "https"):
+        raise ValueError("附件链接只支持 http / https")
+    with urllib.request.urlopen(url, timeout=120) as resp:
+        return resp.read(), "." + ref.get("ext", "").lower().lstrip(".")
 
 
 def _attachment_data(ref) -> tuple:
@@ -563,25 +564,17 @@ def process_job(payload: dict, callback_url: str):
         input_data = payload.get("input") or {}
         raw_content = (input_data.get("rawContent") or "").strip()
         # Excel/CSV 附件已由后端抽成文本拼进 rawContent；图片、PDF 通过 attachments 传后端签发的临时链接
-        # （[{"url", "ext"}]，本服务下载后发给模型）。旧版后端传本地路径 attachmentPaths / rawAttachmentPath，这里一并兼容。
+        # （[{"url", "ext"}]，本服务下载后发给模型）。旧版的本地路径 attachmentPaths / rawAttachmentPath 不再接受。
         refs = [a for a in (input_data.get("attachments") or []) if a and a.get("url")]
-        paths = [p.strip() for p in (input_data.get("attachmentPaths") or []) if p and p.strip()]
-        legacy = (input_data.get("rawAttachmentPath") or "").strip()
-        if legacy and legacy not in paths:
-            paths.append(legacy)
-        if not raw_content and not refs and not paths:
+        if not raw_content and not refs:
             send_callback(callback_url, "failed", error="询盘既没有正文也没有可读的附件，无法解析")
             return
-        missing = [p for p in paths if not os.path.isfile(p)]
-        if missing:
-            send_callback(callback_url, "failed", error=f"附件文件不存在: {missing[0]}")
-            return
         try:
-            loaded = [_read_attachment(r) for r in refs + paths]
+            loaded = [_read_attachment(r) for r in refs]
         except Exception as e:  # noqa: BLE001 - 链接过期或网络问题都按附件读取失败回报
             send_callback(callback_url, "failed", error=f"附件下载失败: {str(e)[:200]}")
             return
-        nos = [_nameplate_no(r) for r in refs] + [None] * len(paths)
+        nos = [_nameplate_no(r) for r in refs]
         output = call_parse(cfg, raw_content, loaded, input_data.get("categories") or [], nos)
         send_callback(callback_url, "success", output=output)
     except ConfigError as e:

@@ -1,11 +1,8 @@
 package com.zhul.erp.modules.aitask.controller;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhul.erp.common.result.Result;
 import com.zhul.erp.common.result.ResultCode;
 import com.zhul.erp.modules.aitask.dto.AiTaskCallbackRequest;
-import com.zhul.erp.modules.aitask.dto.AiTaskVO;
-import com.zhul.erp.modules.aitask.dto.CreateAiTaskRequest;
 import com.zhul.erp.modules.aitask.service.AiTaskService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -21,9 +18,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 通用 AI 任务：创建接口供站内其他模块（如询盘解析）直接调用 AiTaskService 即可，
- * 本 Controller 主要面向的是 webhook 回调——AI 编排服务处理完成后调这个地址，
- * 见 SecurityConfig 白名单与 design.md 决策3。
+ * AI 任务的 webhook 回调：AI 编排服务处理完成后调这个地址，见 SecurityConfig 白名单与 design.md 决策3。
+ * 创建任务只由业务模块（如询盘解析）在服务端拼好输入后调用 AiTaskService，不对外开放通用创建接口：
+ * 客户端自拼的输入可让编排服务读取任意链接或本地文件（audit AI-003）。
  */
 @Slf4j
 @RestController
@@ -34,18 +31,9 @@ public class AiTaskController {
     private static final String CALLBACK_TOKEN_HEADER = "X-AI-Callback-Token";
 
     private final AiTaskService aiTaskService;
-    private final ObjectMapper objectMapper;
 
     @Value("${zhul.ai-task.callback-token}")
     private String callbackToken;
-
-    @PostMapping
-    public Result<AiTaskVO> create(@Valid @RequestBody CreateAiTaskRequest req) throws Exception {
-        String inputJson = req.getInput() == null ? null : objectMapper.writeValueAsString(req.getInput());
-        // requestedBy 留空（0）：登录用户上下文由具体业务 Controller（如询盘解析入口）传入，
-        // 这个通用创建接口主要用于联调/测试场景直接调用。
-        return Result.ok(aiTaskService.createAndSubmit(req.getSkillId(), inputJson, 0L));
-    }
 
     /**
      * webhook 回调不使用用户态 JWT 鉴权（该端点已加入 SecurityConfig 白名单），
