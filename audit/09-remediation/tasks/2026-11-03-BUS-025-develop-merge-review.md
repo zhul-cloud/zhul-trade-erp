@@ -9,7 +9,7 @@
 | 目标与影响范围 | 租户修复分支合入 `develop` 的 22 个新提交（客户档案、AI 背调、反馈批次、v1.6.0 发版）。按权限与数据范围、财务规则、AI 回调与附件、并发、租户隔离检查后端改动 |
 | 起点 commit / 工作分支 | `origin/develop` `6685d808`，合入 `fix/tenant-rules-doc` |
 | OpenSpec | 不适用：缺陷修复 |
-| PR / 目标分支 | `fix/tenant-rules-doc` → `develop`（与 SEC-011 同一 PR） |
+| PR / 目标分支 | [zhul-cloud/zhul-trade-erp#137](https://github.com/zhul-cloud/zhul-trade-erp/pull/137)：`fix/tenant-rules-doc` → `develop`，merge commit `df2355b797fe811518732408010de3a69b9f0555`（2026-11-03）；未发布 |
 
 ## 复核结论
 
@@ -27,7 +27,7 @@
 
 | ID | 修复 / 验收范围 | 部署与目标环境验收证据 | 验收人 / 日期 | 结论与剩余项 |
 | --- | --- | --- | --- | --- |
-| BUS-025 | 同一对客户反向并发合并时，后到的请求失败，数据不被拆散 | 未部署 | — | 待合并 |
+| BUS-025 | 同一对客户反向并发合并时，后到的请求失败，数据不被拆散 | 未部署 | — | 已合并待发布 |
 | BUS-026 | — | — | — | 待认领 |
 
 ## 事件记录
@@ -35,3 +35,4 @@
 | 日期 / 作者 | 事件与证据 | 下一步 / 交接 |
 | --- | --- | --- |
 | 2026-11-03 / Claude | 合入 `origin/develop`；复核 22 个提交；修 BUS-025，登记 BUS-026。后端全量 1296 个，0 失败，7 个环境跳过 | 随 SEC-011 的 PR 合并 |
+| 2026-11-03 / Claude | [zhul-cloud/zhul-trade-erp#137](https://github.com/zhul-cloud/zhul-trade-erp/pull/137) 合并到 `develop`（merge commit `df2355b7`），链式分支已删除；台账改为「已合并待发布」 | 随下一版发布后验收 |
