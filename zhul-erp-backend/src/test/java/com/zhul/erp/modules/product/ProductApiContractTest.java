@@ -52,12 +52,9 @@ class ProductApiContractTest extends IntegrationTestBase {
 
     @BeforeEach
     void cleanData() {
-        snapshotCategories();
-        for (String table : List.of("product_reference_price", "product_customs", "product_logistics", "product_media",
+        wipeTables("product_reference_price", "product_customs", "product_logistics", "product_media",
                 "product_faq", "product_application", "product_document", "product_relationship",
-                "product_specification", "product", "product_series", "product_category", "product_brand")) {
-            jdbc.update("delete from " + table);
-        }
+                "product_specification", "product", "product_series", "product_category", "product_brand_alias", "product_brand");
         redis.delete(redis.keys("zhul:erp:limit:product:upload:*"));
         redis.delete(redis.keys("zhul:erp:list:0:*"));
     }
