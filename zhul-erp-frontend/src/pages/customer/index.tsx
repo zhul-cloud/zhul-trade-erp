@@ -332,6 +332,12 @@ const CustomerListPage: React.FC = () => {
       render: (_, r) => stacked(r.contactName || '—', r.contactEmail),
     },
     {
+      title: '主联系人中文名',
+      dataIndex: 'contactNameCn',
+      width: 140,
+      render: (v?: string) => v || '—',
+    },
+    {
       title: '客户角色',
       dataIndex: 'customerRole',
       width: 110,
@@ -746,7 +752,7 @@ const CustomerListPage: React.FC = () => {
                 dataSource={rows}
                 loading={loading}
                 sticky
-                scroll={{ x: showOwner ? 2030 : 1930 }}
+                scroll={{ x: showOwner ? 2170 : 2070 }}
                 onChange={onTableChange}
                 rowSelection={{
                   selectedRowKeys: selected,

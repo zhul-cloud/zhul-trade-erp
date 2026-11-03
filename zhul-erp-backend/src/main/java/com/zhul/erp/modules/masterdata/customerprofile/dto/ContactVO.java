@@ -10,6 +10,7 @@ public class ContactVO {
     private Long id;
     private Boolean primary;
     private String name;
+    private String nameCn;
     private String title;
     private String email;
     private String phone;

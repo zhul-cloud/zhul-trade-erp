@@ -65,6 +65,9 @@ public abstract class AbstractCustomerRequest {
 
     @Size(max = 100, message = "联系人姓名不能超过100个字符")
     private String contactName;
+    /** 主联系人中文名；不传时保持原值 */
+    @Size(max = 100, message = "联系人中文名不能超过100个字符")
+    private String contactNameCn;
     @Size(max = 50, message = "职位不能超过50个字符")
     private String contactTitle;
     @Email(message = "请输入正确的邮箱格式")

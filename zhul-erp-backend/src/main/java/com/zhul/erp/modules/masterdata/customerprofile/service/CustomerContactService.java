@@ -3,6 +3,7 @@ package com.zhul.erp.modules.masterdata.customerprofile.service;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.zhul.erp.common.exception.BizException;
 import com.zhul.erp.modules.inquiry.support.CurrentUserResolver;
+import com.zhul.erp.modules.aitask.translation.ContactNameTranslations;
 import com.zhul.erp.modules.masterdata.customerprofile.dto.ContactRequest;
 import com.zhul.erp.modules.masterdata.customerprofile.dto.ContactVO;
 import com.zhul.erp.modules.masterdata.customerprofile.entity.CustomerContactDO;
@@ -17,6 +18,7 @@ import com.zhul.erp.modules.system.service.DictItemService;
 import com.zhul.erp.modules.system.service.LogService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
@@ -38,6 +40,7 @@ public class CustomerContactService {
     private final DictItemService dictItemService;
     private final CurrentUserResolver currentUser;
     private final LogService logService;
+    private final ContactNameTranslations contactNames;
 
     public List<ContactVO> list(Long customerId) {
         customerService.requireInScope(customerId);
@@ -66,6 +69,7 @@ public class CustomerContactService {
         }
         sources.record(c.getTenantId(), customerId, keys(x.getId(), changed), source, reportId, currentUser.resolve());
         facts.refresh(c);
+        contactNames.submitContact(x.getId(), x.getName(), x.getNameCn(), currentUser.resolve());
         logService.recordOperateLog("客户管理", "新增联系人", null, Map.of("customerCode", c.getCustomerCode(), "联系人", x.getName()));
         return toVo(x);
     }
@@ -80,6 +84,8 @@ public class CustomerContactService {
     public ContactVO update(Long customerId, Long contactId, ContactRequest req, int source, long reportId) {
         CustomerDO c = customerService.requireInScope(customerId);
         CustomerContactDO x = require(customerId, contactId);
+        String oldName = x.getName();
+        boolean hadCn = StringUtils.hasText(x.getNameCn());
         List<String> changed = apply(x, req);
         contactMapper.updateById(x);
         if (Boolean.TRUE.equals(req.getPrimary()) && !isPrimary(x)) {
@@ -89,6 +95,10 @@ public class CustomerContactService {
         }
         sources.record(c.getTenantId(), customerId, keys(contactId, changed), source, reportId, currentUser.resolve());
         facts.refresh(c);
+        // 改了英文名、或清空了中文名（想重新翻译）时才提交翻译
+        if (!x.getName().equals(oldName) || hadCn) {
+            contactNames.submitContact(x.getId(), x.getName(), x.getNameCn(), currentUser.resolve());
+        }
         logService.recordOperateLog("客户管理", "修改联系人", null, Map.of("customerCode", c.getCustomerCode(), "联系人", x.getName()));
         return toVo(x);
     }
@@ -137,6 +147,9 @@ public class CustomerContactService {
     /** 写入请求的值，返回改了的画像字段（用于记来源）；选项型字段校验字典（沿用原值时不校验） */
     private List<String> apply(CustomerContactDO x, ContactRequest req) {
         x.setName(text(req.getName()));
+        if (req.getNameCn() != null || x.getNameCn() == null) {
+            x.setNameCn(text(req.getNameCn()));
+        }
         x.setTitle(text(req.getTitle()));
         x.setEmail(text(req.getEmail()));
         x.setPhone(text(req.getPhone()));
@@ -195,6 +208,7 @@ public class CustomerContactService {
         vo.setId(x.getId());
         vo.setPrimary(isPrimary(x));
         vo.setName(x.getName());
+        vo.setNameCn(x.getNameCn());
         vo.setTitle(x.getTitle());
         vo.setEmail(x.getEmail());
         vo.setPhone(x.getPhone());

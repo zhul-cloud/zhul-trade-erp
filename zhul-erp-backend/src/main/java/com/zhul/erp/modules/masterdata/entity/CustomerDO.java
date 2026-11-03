@@ -51,6 +51,8 @@ public class CustomerDO {
     private String taxId;
     private String timezone;
     private String contactName;
+    /** 主联系人中文名，随主联系人同步 */
+    private String contactNameCn;
     private String contactTitle;
     private String contactPhone;
     private String contactEmail;

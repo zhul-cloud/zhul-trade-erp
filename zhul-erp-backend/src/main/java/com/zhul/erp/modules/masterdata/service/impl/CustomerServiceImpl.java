@@ -371,6 +371,9 @@ public class CustomerServiceImpl implements CustomerService {
         c.setTaxId(text(req.getTaxId()));
         c.setTimezone(req.getTimezone());
         c.setContactName(text(req.getContactName()));
+        if (req.getContactNameCn() != null) {
+            c.setContactNameCn(text(req.getContactNameCn()));
+        }
         c.setContactTitle(text(req.getContactTitle()));
         c.setContactEmail(text(req.getContactEmail()));
         c.setContactPhone(text(req.getContactPhone()));
@@ -891,6 +894,7 @@ public class CustomerServiceImpl implements CustomerService {
         vo.setOwnerId(c.getOwnerId());
         vo.setOwnerName(owners.get(c.getOwnerId()));
         vo.setContactName(c.getContactName());
+        vo.setContactNameCn(c.getContactNameCn());
         vo.setContactPhone(c.getContactPhone());
         vo.setContactEmail(c.getContactEmail());
         vo.setStatus(c.getStatus());

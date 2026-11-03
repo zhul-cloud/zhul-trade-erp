@@ -36,6 +36,7 @@ public class CustomerVO {
     private Long ownerId;
     private String ownerName;
     private String contactName;
+    private String contactNameCn;
     private String contactPhone;
     private String contactEmail;
     private Integer status;

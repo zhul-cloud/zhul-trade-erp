@@ -120,6 +120,7 @@ const toFormState = (d: CustomerDetail): FormState => ({
   taxId: d.taxId,
   timezone: d.timezone || undefined,
   contactName: d.contactName,
+  contactNameCn: d.contactNameCn,
   contactTitle: d.contactTitle,
   contactEmail: d.contactEmail,
   contactPhone: d.contactPhone,
@@ -173,6 +174,7 @@ const toPayload = (
   taxId: text(v.taxId),
   timezone: v.timezone ?? '',
   contactName: text(v.contactName),
+  contactNameCn: text(v.contactNameCn),
   contactTitle: text(v.contactTitle),
   contactEmail: text(v.contactEmail),
   contactPhone: text(v.contactPhone),
@@ -806,6 +808,14 @@ const CustomerFormPage: React.FC = () => {
                 rules={[{ max: 100 }]}
               >
                 <Input placeholder="Full name" maxLength={100} />
+              </Form.Item>
+              <Form.Item
+                name="contactNameCn"
+                label="中文名"
+                rules={[{ max: 100 }]}
+                extra="留空保存后由 AI 翻译填入，只在系统内显示"
+              >
+                <Input placeholder="留空自动翻译" maxLength={100} />
               </Form.Item>
               <Form.Item name="contactTitle" label="职位" rules={[{ max: 50 }]}>
                 <Input placeholder="如 Purchasing Manager" maxLength={50} />

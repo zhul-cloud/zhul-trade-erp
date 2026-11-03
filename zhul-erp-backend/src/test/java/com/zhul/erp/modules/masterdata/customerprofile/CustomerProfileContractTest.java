@@ -5,6 +5,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhul.erp.common.constants.RedisKeyConstants;
 import com.zhul.erp.common.utils.JwtUtils;
 import com.zhul.erp.framework.tenant.TenantContext;
+import com.zhul.erp.modules.aitask.constants.AiTaskStatus;
+import com.zhul.erp.modules.aitask.entity.AiTaskDO;
+import com.zhul.erp.modules.aitask.translation.ContactNameTranslations;
 import com.zhul.erp.modules.masterdata.customerprofile.service.CustomerNightlyJob;
 import com.zhul.erp.support.IntegrationTestBase;
 import org.junit.jupiter.api.AfterEach;
@@ -47,6 +50,7 @@ class CustomerProfileContractTest extends IntegrationTestBase {
     @Autowired private StringRedisTemplate redis;
     @Autowired private ObjectMapper objectMapper;
     @Autowired private CustomerNightlyJob nightlyJob;
+    @Autowired private ContactNameTranslations contactNameTranslations;
 
     private String admin;
 
@@ -74,6 +78,8 @@ class CustomerProfileContractTest extends IntegrationTestBase {
         jdbc.update("delete from customer_party where tenant_id = 0");
         jdbc.update("delete from customer where tenant_id = 0");
         jdbc.update("delete from exchange_rate where tenant_id = 0 and currency_code = 'USD'");
+        jdbc.update("delete from ai_task where tenant_id = 0 and skill_id = ?", ContactNameTranslations.SKILL_ID);
+        removeAiConfig(0);
     }
 
     private String token(String username) {
@@ -114,6 +120,61 @@ class CustomerProfileContractTest extends IntegrationTestBase {
     private void order(long customerId, String no, LocalDate date, String currency, String amount, String cny, int status) {
         jdbc.update("insert into sales_order (tenant_id, so_no, source, sales_date, customer_id, owner_id, currency_code, total_amount, "
                 + "total_amount_cny, status) values (0, ?, 2, ?, ?, 99000002, ?, ?, ?, ?)", no, date, customerId, currency, amount, cny, status);
+    }
+
+    private int translateTasks() {
+        return jdbc.queryForObject("select count(*) from ai_task where tenant_id = 0 and skill_id = ?", Integer.class,
+                ContactNameTranslations.SKILL_ID);
+    }
+
+    private void translated(String key, String text) {
+        AiTaskDO task = new AiTaskDO();
+        task.setTenantId(0);
+        task.setSkillId(ContactNameTranslations.SKILL_ID);
+        task.setStatus(AiTaskStatus.COMPLETED);
+        task.setOutput("{\"items\":[{\"key\":\"" + key + "\",\"text\":\"" + text + "\"}]}");
+        contactNameTranslations.handle(task);
+    }
+
+    @Test
+    void contactNameCn_manualKept_emptyTranslated_primarySynced() throws Exception {
+        seedAiConfig(0);
+        long id = customer("Pacific Controls Pty Ltd", "Australia", "James Walker", null);
+        long james = ok(call(get(BASE + "/" + id + "/contacts"), admin)).path(0).path("id").asLong();
+        assertEquals(1, translateTasks(), "主联系人中文名为空时提交翻译");
+
+        // 回调：联系人中文名回填，主联系人同步到客户；再次回调不覆盖
+        translated("contact:" + james, "詹姆斯");
+        assertEquals("詹姆斯", ok(call(get(BASE + "/" + id + "/contacts"), admin)).path(0).path("nameCn").asText());
+        assertEquals("詹姆斯", ok(call(get(BASE + "/" + id + "/detail"), admin)).path("contactNameCn").asText());
+        translated("contact:" + james, "杰姆斯");
+        assertEquals("詹姆斯", jdbc.queryForObject("select name_cn from customer_contact where id = ?", String.class, james));
+
+        // 手填中文名：不提交翻译，回调也不覆盖；不传 nameCn 时保持原值
+        long anna = ok(call(json(post(BASE + "/" + id + "/contacts"), "{\"name\":\"Anna Lee\",\"nameCn\":\"李安娜\"}"), admin))
+                .path("id").asLong();
+        assertEquals(1, translateTasks(), "已手填中文名不提交翻译");
+        translated("contact:" + anna, "安娜");
+        ok(call(json(put(BASE + "/" + id + "/contacts/" + anna), "{\"name\":\"Anna Lee\",\"title\":\"Buyer\"}"), admin));
+        assertEquals("李安娜", jdbc.queryForObject("select name_cn from customer_contact where id = ?", String.class, anna));
+        assertEquals("詹姆斯", jdbc.queryForObject("select contact_name_cn from customer where id = ?", String.class, id),
+                "非主联系人不写客户");
+
+        // 设为主联系人后客户的主联系人中文名跟着变；客户表单改中文名同步到主联系人
+        ok(call(put(BASE + "/" + id + "/contacts/" + anna + "/primary"), admin));
+        assertEquals("李安娜", jdbc.queryForObject("select contact_name_cn from customer where id = ?", String.class, id));
+        assertTrue(call(json(put(BASE + "/" + id), "{\"name\":\"Pacific Controls Pty Ltd\",\"country\":\"Australia\","
+                + "\"customerRole\":2,\"status\":1,\"currency\":\"USD\",\"contactName\":\"Anna Lee\",\"contactNameCn\":"
+                + "\"" + "x".repeat(101) + "\"}"), admin).path("message").asText().contains("联系人中文名不能超过100个字符"), "中文名超长被拒");
+        ok(call(json(put(BASE + "/" + id), "{\"name\":\"Pacific Controls Pty Ltd\",\"country\":\"Australia\","
+                + "\"customerRole\":2,\"status\":1,\"currency\":\"USD\",\"contactName\":\"Anna Lee\",\"contactNameCn\":\"李安娜娜\"}"), admin));
+        assertEquals("李安娜娜", jdbc.queryForObject("select name_cn from customer_contact where id = ?", String.class, anna));
+        assertEquals(1, translateTasks(), "英文名没变不重复提交");
+
+        // 清空中文名保存 = 重新翻译
+        ok(call(json(put(BASE + "/" + id + "/contacts/" + anna), "{\"name\":\"Anna Lee\",\"nameCn\":\"\"}"), admin));
+        assertEquals(2, translateTasks(), "清空中文名后重新提交翻译");
+        assertEquals("", jdbc.queryForObject("select contact_name_cn from customer where id = ?", String.class, id), "主联系人同步清空");
     }
 
     @Test

@@ -34,6 +34,7 @@ const phoneRule = {
 
 const EMPTY: ContactPayload = {
   name: '',
+  nameCn: '',
   title: '',
   email: '',
   phone: '',
@@ -163,6 +164,14 @@ export const ContactModal: React.FC<{
             ]}
           >
             <Input placeholder="例如 Liam Chen" />
+          </Form.Item>
+          <Form.Item
+            name="nameCn"
+            label="中文名"
+            rules={[{ max: 100 }]}
+            extra="保存后由 AI 翻译填入，不覆盖你手填的；想重新翻译就清空后保存"
+          >
+            <Input placeholder="留空自动翻译" />
           </Form.Item>
           <Form.Item
             name="title"
@@ -339,6 +348,7 @@ const ContactsCard: React.FC<{
             }}
           >
             <b style={{ color: palette.ink }}>{c.name}</b>
+            {c.nameCn && <span style={{ color: palette.sub }}>{c.nameCn}</span>}
             {c.primary && tag('主联系人', 'accent')}
             {!!c.jobRole && tag(d.job.labelOf(c.jobRole))}
             {canEdit && (
