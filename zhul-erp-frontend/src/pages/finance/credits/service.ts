@@ -110,6 +110,13 @@ export interface Overpaid {
   rate: number;
   pendingCny: number;
   salesName?: string;
+  /** 原平台收款；不为空时退回客户只能原路退回平台 */
+  platformReceipts?: {
+    platform: string;
+    platformOrderNo?: string;
+    amount: number;
+    receiptDate: string;
+  }[];
 }
 
 export interface CreditQuery {

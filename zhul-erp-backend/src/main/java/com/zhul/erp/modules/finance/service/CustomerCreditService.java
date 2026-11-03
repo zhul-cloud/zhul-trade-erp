@@ -29,6 +29,7 @@ import com.zhul.erp.modules.finance.service.CustomerCreditLedger.Source;
 import com.zhul.erp.modules.inquiry.support.InquiryLookups;
 import com.zhul.erp.modules.masterdata.entity.CustomerDO;
 import com.zhul.erp.modules.sales.constants.SalesConstants;
+import com.zhul.erp.modules.sales.entity.PaymentReceiptDO;
 import com.zhul.erp.modules.sales.entity.ProformaInvoiceDO;
 import com.zhul.erp.modules.sales.entity.SalesOrderDO;
 import com.zhul.erp.modules.sales.repository.ProformaInvoiceMapper;
@@ -357,7 +358,7 @@ public class CustomerCreditService {
     public RefundVO withdraw(WithdrawCreditRequest req) {
         Account a = new Account(req.getCustomerId(), req.getCurrencyCode(), req.getBusinessUnitId());
         return withdraw(a, req.getAmount(), req.getWithdrawDate(), req.getMethod(), req.getMethodName(), req.getPayeeAccount(),
-                req.getActualCny(), req.getAttachmentIds(), req.getRemark(), null);
+                req.getActualCny(), req.getAttachmentIds(), req.getRemark(), null, false);
     }
 
     // ---------------------------------------------------------------- 多收
@@ -415,15 +416,31 @@ public class CustomerCreditService {
         if (refund && (req.getWithdrawDate() == null || req.getMethod() == null || req.getActualCny() == null)) {
             throw new BizException("请填写转出日期、转出方式与实际转出人民币");
         }
+        // 原路退回规则与售后退款一致：有平台收款只能原路退回，没有平台收款不能选
+        List<PaymentReceiptDO> platform = platformReceipts(p);
+        boolean viaPlatform = refund && req.getMethod() == FinanceConstants.REFUND_PLATFORM;
+        if (refund && !platform.isEmpty() && !viaPlatform) {
+            throw new BizException("这张单有平台收款，只能原路退回平台");
+        }
+        if (viaPlatform && platform.isEmpty()) {
+            throw new BizException("这张单没有平台收款，不能原路退回");
+        }
         Account a = new Account(p.customerId(), p.currencyCode(), p.businessUnitId());
         CustomerCreditEntryDO in = ledger.credit(a, FinanceConstants.CREDIT_OVERPAID_IN, amount,
                 amount.multiply(p.cashRate(), MC), new Source(p.ownerType(), p.ownerId(), p.ownerNo()),
                 StringUtils.hasText(req.getRemark()) ? req.getRemark() : "客户多付");
-        if (refund) {
+        if (viaPlatform) {
+            // 退款单记平台名称与平台订单号，多笔用顿号连接
+            String names = String.join("、", platform.stream().map(CustomerCreditService::platformName).distinct().toList());
+            String orderNos = String.join("、", platform.stream().map(PaymentReceiptDO::getPlatformOrderNo)
+                    .filter(StringUtils::hasText).distinct().toList());
+            withdraw(a, amount, req.getWithdrawDate(), FinanceConstants.REFUND_PLATFORM, cut(names, 32), cut(orderNos, 128),
+                    req.getActualCny(), req.getAttachmentIds(), "原路退回多收 " + p.ownerNo(), in.getId(), true);
+        } else if (refund) {
             withdraw(a, amount, req.getWithdrawDate(), req.getMethod(), req.getMethodName(), req.getPayeeAccount(),
-                    req.getActualCny(), req.getAttachmentIds(), "退回多收 " + p.ownerNo(), in.getId());
+                    req.getActualCny(), req.getAttachmentIds(), "退回多收 " + p.ownerNo(), in.getId(), false);
         }
-        logService.recordOperateLog("收款管理", refund ? "多收退回客户" : "多收转客户余额", null,
+        logService.recordOperateLog("收款管理", viaPlatform ? "多收原路退回平台" : refund ? "多收退回客户" : "多收转客户余额", null,
                 Map.of("no", p.ownerNo(), "amount", p.currencyCode() + " " + amount));
         return overpaid();
     }
@@ -431,12 +448,13 @@ public class CustomerCreditService {
     // ---------------------------------------------------------------- 内部
 
     private RefundVO withdraw(Account a, BigDecimal amount, LocalDate date, Integer method, String methodName, String payeeAccount,
-                              BigDecimal actualCny, List<Long> attachmentIds, String remark, Long preferredLotId) {
+                              BigDecimal actualCny, List<Long> attachmentIds, String remark, Long preferredLotId,
+                              boolean viaPlatform) {
         if (date.isAfter(LocalDate.now())) {
             throw new BizException("转出日期不能晚于今天");
         }
-        // 转出方式已由请求校验（转给客户）或上面的检查（退回多收）保证不为空
-        if (method != FinanceConstants.REFUND_BANK && method != FinanceConstants.REFUND_OTHER) {
+        // 转出方式已由请求校验（转给客户）或上面的检查（退回多收）保证不为空；原路退回平台只在处理多收时由调用方指定
+        if (!viaPlatform && method != FinanceConstants.REFUND_BANK && method != FinanceConstants.REFUND_OTHER) {
             throw new BizException("转出方式不正确");
         }
         if (method == FinanceConstants.REFUND_OTHER && !StringUtils.hasText(methodName)) {
@@ -461,6 +479,19 @@ public class CustomerCreditService {
         logService.recordOperateLog(MENU, "转给客户", null, Map.of("refundNo", f.getRefundNo(),
                 "amount", a.currencyCode() + " " + amt, "actualCny", actual.toPlainString(), "value", value.toPlainString()));
         return refundService.detail(f.getId());
+    }
+
+    /** 有效的平台（线上）收款，余额抵扣不算 */
+    private static List<PaymentReceiptDO> platformReceipts(Position p) {
+        return p.receipts().stream().filter(r -> Objects.equals(r.getChannel(), SalesConstants.CHANNEL_ONLINE)).toList();
+    }
+
+    private static String platformName(PaymentReceiptDO r) {
+        return StringUtils.hasText(r.getPaymentMethodName()) ? r.getPaymentMethodName() : r.getPaymentMethod();
+    }
+
+    private static String cut(String s, int max) {
+        return s.length() > max ? s.substring(0, max) : s;
     }
 
     private Position position(String ownerType, Long ownerId) {
@@ -500,6 +531,14 @@ public class CustomerCreditService {
         v.setRate(rate);
         v.setPendingCny(pending.multiply(rate).setScale(2, RoundingMode.HALF_UP));
         v.setSalesId(salesId);
+        v.setPlatformReceipts(platformReceipts(p).stream().map(r -> {
+            OverpaidVO.PlatformReceipt x = new OverpaidVO.PlatformReceipt();
+            x.setPlatform(platformName(r));
+            x.setPlatformOrderNo(r.getPlatformOrderNo());
+            x.setAmount(r.getAmount());
+            x.setReceiptDate(r.getReceiptDate());
+            return x;
+        }).toList());
         return v;
     }
 
