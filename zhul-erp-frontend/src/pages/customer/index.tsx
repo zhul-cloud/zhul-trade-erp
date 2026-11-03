@@ -6,12 +6,13 @@ import {
   UploadOutlined,
 } from '@ant-design/icons';
 import { history, useAccess } from '@umijs/max';
-import type { CheckboxProps, TableColumnsType } from 'antd';
+import type { CheckboxProps, TableColumnsType, TableProps } from 'antd';
 import {
   App,
   Button,
   Form,
   Input,
+  Segmented,
   Select,
   Skeleton,
   Switch,
@@ -26,14 +27,16 @@ import { DICT_SOURCE_CHANNEL, useDictOptions } from '@/utils/dict';
 import { formatDateTime } from '@/utils/format';
 import { usePageSize } from '@/utils/pageSize';
 import {
-  GradePill,
   LIST_PATH,
   PageTitle,
   Pill,
   RolePill,
   TransferModal,
 } from './components';
-import { DISABLE_CONFIRM_TEXT, GRADE_OPTIONS, ROLE_OPTIONS } from './constants';
+import { DISABLE_CONFIRM_TEXT, ROLE_OPTIONS } from './constants';
+import DuplicatesTab from './profile/DuplicatesTab';
+import { GRADE_NAMES, MODULE_SHORT, profileApi } from './profile/service';
+import { doneOf, GradeBadge, Progress5, Stars } from './profile/ui';
 import {
   type AssignableOwners,
   type CustomerListItem,
@@ -47,9 +50,31 @@ const STATUS_OPTIONS = [
   { value: 0, label: '禁用' },
 ];
 
-const compact = (q: CustomerQuery): CustomerQuery =>
+const BIZ_GRADE_OPTIONS = [1, 2, 3, 4, 0].map((v) => ({
+  value: v,
+  label: GRADE_NAMES[v],
+}));
+const PROFILE_STATUS_OPTIONS = [
+  { value: 'done', label: '已建档（5/5）' },
+  { value: 'pending', label: '待完善' },
+];
+const MODULE_OPTIONS = MODULE_SHORT.map((label, i) => ({
+  value: i + 1,
+  label: `${'①②③④⑤'[i]} ${label}`,
+}));
+
+type FilterForm = Omit<CustomerQuery, 'missingModules'> & {
+  missingModules?: number[];
+};
+
+const compact = (q: FilterForm): CustomerQuery =>
   Object.fromEntries(
-    Object.entries(q).filter(([, v]) => v !== undefined && v !== ''),
+    Object.entries({
+      ...q,
+      missingModules: q.missingModules?.length
+        ? q.missingModules.join(',')
+        : undefined,
+    }).filter(([, v]) => v !== undefined && v !== ''),
   ) as CustomerQuery;
 
 const CustomerListPage: React.FC = () => {
@@ -58,7 +83,7 @@ const CustomerListPage: React.FC = () => {
   const { message, modal } = App.useApp();
   const access = useAccess() as Record<string, boolean>;
   const { palette } = useAppTheme();
-  const [form] = Form.useForm<CustomerQuery>();
+  const [form] = Form.useForm<FilterForm>();
   const { options: countryOptions, zhOf } = useCountries();
 
   const canAdd = !!access['partner:customer:add'];
@@ -67,6 +92,12 @@ const CustomerListPage: React.FC = () => {
   const canStatus = !!access['partner:customer:status'];
   const canTransfer = !!access['partner:customer:transfer'];
   const canExport = !!access['partner:customer:export'];
+  const canMerge = !!access['partner:customer:merge'];
+  const [tab, setTab] = useState<'all' | 'dups'>('all');
+  const [dupCount, setDupCount] = useState<number>();
+  const [sort, setSort] = useState<
+    Pick<CustomerQuery, 'sortField' | 'sortOrder'>
+  >({});
 
   const [query, setQuery] = useState<CustomerQuery>({});
   const [page, setPage] = useState(1);
@@ -93,13 +124,22 @@ const CustomerListPage: React.FC = () => {
       .assignableOwners()
       .then(setOwners)
       .catch(() => undefined);
+    profileApi
+      .duplicates()
+      .then((g) => setDupCount(g.length))
+      .catch(() => undefined);
   }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(undefined);
     try {
-      const data = await customerApi.page({ ...query, page, pageSize });
+      const data = await customerApi.page({
+        ...query,
+        ...sort,
+        page,
+        pageSize,
+      });
       if (data.records.length === 0 && data.total > 0 && page > 1) {
         setPage(page - 1);
         return;
@@ -112,7 +152,7 @@ const CustomerListPage: React.FC = () => {
       setLoading(false);
       setFirstLoad(false);
     }
-  }, [query, page, pageSize]);
+  }, [query, sort, page, pageSize]);
 
   useEffect(() => {
     load();
@@ -291,10 +331,70 @@ const CustomerListPage: React.FC = () => {
       render: (v: number) => <RolePill value={v} />,
     },
     {
-      title: '等级',
-      dataIndex: 'customerGrade',
-      width: 80,
-      render: (v: number) => <GradePill value={v} />,
+      title: '潜力',
+      dataIndex: 'potentialRating',
+      width: 100,
+      sorter: true,
+      sortOrder:
+        sort.sortField === 'potentialRating'
+          ? sort.sortOrder === 'asc'
+            ? 'ascend'
+            : 'descend'
+          : null,
+      render: (v: number) => <Stars value={v} />,
+    },
+    {
+      title: '经营等级',
+      dataIndex: 'bizGrade',
+      width: 110,
+      sorter: true,
+      sortOrder:
+        sort.sortField === 'bizGrade'
+          ? sort.sortOrder === 'asc'
+            ? 'ascend'
+            : 'descend'
+          : null,
+      render: (v: number, r) =>
+        r.bizGradeAdjust ? (
+          <Tooltip
+            title={`计算等级 ${GRADE_NAMES[r.bizGradeCalc]}，${r.bizGradeAdjust > 0 ? '上调' : '下调'}一级：${r.bizGradeAdjustReason || '—'}${r.bizGradeAdjustByName ? ` · ${r.bizGradeAdjustByName}` : ''}`}
+          >
+            <span>
+              <GradeBadge value={v} adjusted />
+            </span>
+          </Tooltip>
+        ) : (
+          <GradeBadge value={v} />
+        ),
+    },
+    {
+      title: '档案完整度',
+      dataIndex: 'profileMask',
+      width: 150,
+      render: (mask: number) => {
+        const done = doneOf(mask);
+        const missing = MODULE_SHORT.filter((_, i) => !(mask & (1 << i)));
+        return (
+          <Tooltip
+            title={missing.length ? `缺：${missing.join('、')}` : '已建档'}
+          >
+            <span
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}
+            >
+              <span
+                className="num"
+                style={{
+                  fontWeight: 600,
+                  color: done === 5 ? palette.green : palette.orange,
+                }}
+              >
+                {done}/5
+              </span>
+              <Progress5 mask={mask} />
+            </span>
+          </Tooltip>
+        );
+      },
     },
     {
       title: '客户来源',
@@ -381,6 +481,26 @@ const CustomerListPage: React.FC = () => {
     },
   ];
 
+  // 潜力、经营等级可以排序；取消排序回到按更新时间倒序
+  const onTableChange: TableProps<CustomerListItem>['onChange'] = (
+    _p,
+    _f,
+    sorter,
+    extra,
+  ) => {
+    if (extra.action !== 'sort' || Array.isArray(sorter)) return;
+    const field = sorter.field as CustomerQuery['sortField'];
+    setSort(
+      sorter.order
+        ? {
+            sortField: field,
+            sortOrder: sorter.order === 'ascend' ? 'asc' : 'desc',
+          }
+        : {},
+    );
+    setPage(1);
+  };
+
   const label = (text: string) => (
     <span style={{ fontSize: 13, color: palette.sub }}>{text}</span>
   );
@@ -391,233 +511,282 @@ const CustomerListPage: React.FC = () => {
       <a className="zhul-skip" href="#customer-main">
         跳到主要内容
       </a>
-      <PageTitle description="维护成交客户与重点跟进客户的档案，报价单、PI、CI 从这里带出客户信息。" />
+      <PageTitle description="档案完整度 5/5 为已建档；先补有成交的客户。报价单、PI、CI 从这里带出客户信息。" />
+      <Segmented
+        value={tab}
+        onChange={(v) => setTab(v as 'all' | 'dups')}
+        style={{ marginBottom: 16 }}
+        options={[
+          {
+            value: 'all',
+            label: `全部客户${tab === 'all' ? ` ${total}` : ''}`,
+          },
+          {
+            value: 'dups',
+            label: `疑似重复${dupCount ? ` ${dupCount}` : ''}`,
+          },
+        ]}
+      />
+      {tab === 'dups' ? (
+        <DuplicatesTab
+          canMerge={canMerge}
+          onCount={setDupCount}
+          onMerged={load}
+        />
+      ) : (
+        <>
+          <Form
+            form={form}
+            layout="vertical"
+            onFinish={search}
+            style={{
+              background: palette.card,
+              border: `1px solid ${palette.hairline}`,
+              borderRadius: 16,
+              padding: '20px 24px 4px',
+              marginBottom: 20,
+            }}
+          >
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
+                columnGap: 24,
+              }}
+            >
+              <Form.Item name="customerCode" label={label('客户编码')}>
+                <Input placeholder="请输入客户编码" allowClear />
+              </Form.Item>
+              <Form.Item name="name" label={label('客户名称')}>
+                <Input placeholder="英文名、中文名或简称" allowClear />
+              </Form.Item>
+              <Form.Item name="contactName" label={label('主要联系人')}>
+                <Input placeholder="联系人姓名" allowClear />
+              </Form.Item>
+              <Form.Item name="country" label={label('国家/地区')}>
+                <Select
+                  placeholder="全部"
+                  allowClear
+                  showSearch={{ optionFilterProp: 'label' }}
+                  options={countryOptions}
+                />
+              </Form.Item>
+              <Form.Item name="customerRole" label={label('客户角色')}>
+                <Select placeholder="全部" allowClear options={ROLE_OPTIONS} />
+              </Form.Item>
+              <Form.Item name="bizGrade" label={label('经营等级')}>
+                <Select
+                  placeholder="全部"
+                  allowClear
+                  options={BIZ_GRADE_OPTIONS}
+                />
+              </Form.Item>
+              <Form.Item name="profileStatus" label={label('建档状态')}>
+                <Select
+                  placeholder="全部"
+                  allowClear
+                  options={PROFILE_STATUS_OPTIONS}
+                />
+              </Form.Item>
+              <Form.Item name="missingModules" label={label('缺的模块')}>
+                <Select
+                  mode="multiple"
+                  placeholder="全部"
+                  allowClear
+                  maxTagCount="responsive"
+                  options={MODULE_OPTIONS}
+                />
+              </Form.Item>
+              <Form.Item name="sourceChannel" label={label('客户来源')}>
+                <Select placeholder="全部" allowClear options={sourceOptions} />
+              </Form.Item>
+              {showOwner && (
+                <Form.Item name="ownerId" label={label('负责业务员')}>
+                  <Select
+                    placeholder="全部"
+                    allowClear
+                    showSearch={{ optionFilterProp: 'label' }}
+                    options={owners?.owners.map((o) => ({
+                      value: o.id,
+                      label: o.name,
+                    }))}
+                  />
+                </Form.Item>
+              )}
+              <Form.Item name="status" label={label('状态')}>
+                <Select
+                  placeholder="全部"
+                  allowClear
+                  options={STATUS_OPTIONS}
+                />
+              </Form.Item>
+            </div>
+            <div
+              style={{
+                display: 'flex',
+                gap: 12,
+                justifyContent: 'flex-end',
+                marginBottom: 16,
+              }}
+            >
+              <Button onClick={reset}>重置</Button>
+              <Button type="primary" htmlType="submit">
+                查询
+              </Button>
+            </div>
+          </Form>
 
-      <Form
-        form={form}
-        layout="vertical"
-        onFinish={search}
-        style={{
-          background: palette.card,
-          border: `1px solid ${palette.hairline}`,
-          borderRadius: 16,
-          padding: '20px 24px 4px',
-          marginBottom: 20,
-        }}
-      >
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
-            columnGap: 24,
-          }}
-        >
-          <Form.Item name="customerCode" label={label('客户编码')}>
-            <Input placeholder="请输入客户编码" allowClear />
-          </Form.Item>
-          <Form.Item name="name" label={label('客户名称')}>
-            <Input placeholder="英文名、中文名或简称" allowClear />
-          </Form.Item>
-          <Form.Item name="contactName" label={label('主要联系人')}>
-            <Input placeholder="联系人姓名" allowClear />
-          </Form.Item>
-          <Form.Item name="country" label={label('国家/地区')}>
-            <Select
-              placeholder="全部"
-              allowClear
-              showSearch={{ optionFilterProp: 'label' }}
-              options={countryOptions}
-            />
-          </Form.Item>
-          <Form.Item name="customerRole" label={label('客户角色')}>
-            <Select placeholder="全部" allowClear options={ROLE_OPTIONS} />
-          </Form.Item>
-          <Form.Item name="customerGrade" label={label('客户等级')}>
-            <Select placeholder="全部" allowClear options={GRADE_OPTIONS} />
-          </Form.Item>
-          <Form.Item name="sourceChannel" label={label('客户来源')}>
-            <Select placeholder="全部" allowClear options={sourceOptions} />
-          </Form.Item>
-          {showOwner && (
-            <Form.Item name="ownerId" label={label('负责业务员')}>
-              <Select
-                placeholder="全部"
-                allowClear
-                showSearch={{ optionFilterProp: 'label' }}
-                options={owners?.owners.map((o) => ({
-                  value: o.id,
-                  label: o.name,
-                }))}
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              gap: 12,
+              marginBottom: 12,
+              flexWrap: 'wrap',
+            }}
+          >
+            <span style={{ color: palette.sub, fontSize: 14 }}>
+              共 <span className="num">{total}</span> 条记录
+            </span>
+            <div style={{ display: 'flex', gap: 12 }}>
+              {canAdd && (
+                <Button
+                  type="primary"
+                  icon={<PlusOutlined />}
+                  onClick={() => history.push(`${LIST_PATH}/new`)}
+                >
+                  新增客户
+                </Button>
+              )}
+              <Tooltip title="批量导入即将上线">
+                <Button icon={<UploadOutlined />} disabled>
+                  导入
+                </Button>
+              </Tooltip>
+              {canExport && (
+                <Button
+                  icon={<DownloadOutlined />}
+                  loading={exporting}
+                  disabled={total === 0}
+                  onClick={confirmExport}
+                >
+                  导出
+                </Button>
+              )}
+            </div>
+          </div>
+
+          {selected.length > 0 && (
+            <div
+              role="toolbar"
+              aria-label="批量操作"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 12,
+                padding: '10px 16px',
+                marginBottom: 12,
+                borderRadius: 12,
+                background: palette.accentSoft,
+                border: `1px solid ${palette.accentLine}`,
+              }}
+            >
+              <span style={{ fontWeight: 600, color: palette.link }}>
+                已选 <span className="num">{selected.length}</span> 条
+              </span>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <Button type="link" onClick={() => setSelected([])}>
+                  取消选择
+                </Button>
+                {canTransfer && (
+                  <Button
+                    icon={<SwapOutlined />}
+                    onClick={() => setTransferTargets(selectedRows)}
+                  >
+                    批量转移
+                  </Button>
+                )}
+                {canDelete && (
+                  <Button
+                    danger
+                    icon={<DeleteOutlined />}
+                    onClick={confirmBatchDelete}
+                  >
+                    批量删除
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
+
+          <div
+            style={{
+              background: palette.card,
+              borderRadius: 16,
+              border: `1px solid ${palette.hairline}`,
+              overflow: 'hidden',
+            }}
+          >
+            {error ? (
+              <ErrorHint message={error} onRetry={load} />
+            ) : firstLoad ? (
+              <div style={{ padding: 24 }}>
+                <Skeleton active paragraph={{ rows: 6 }} />
+              </div>
+            ) : (
+              <Table<CustomerListItem>
+                rowKey="id"
+                columns={columns}
+                dataSource={rows}
+                loading={loading}
+                sticky
+                scroll={{ x: showOwner ? 2030 : 1930 }}
+                onChange={onTableChange}
+                rowSelection={{
+                  selectedRowKeys: selected,
+                  onChange: setSelected,
+                  // antd 的类型里没有 aria-label，但会透传给复选框；读屏靠它知道选的是哪一行
+                  getCheckboxProps: (r: CustomerListItem) =>
+                    ({
+                      'aria-label': `选择 ${r.displayName}`,
+                    }) as unknown as Partial<CheckboxProps>,
+                }}
+                pagination={{
+                  current: page,
+                  pageSize,
+                  total,
+                  showSizeChanger: true,
+                  pageSizeOptions: [10, 20, 50],
+                  showTotal: (t) => `共 ${t} 条，每页 ${pageSize} 条`,
+                  onChange: (p, s) => {
+                    setPage(p);
+                    setPageSize(s);
+                    setSelected([]);
+                  },
+                }}
+                locale={{
+                  emptyText: hasCondition ? (
+                    <EmptyHint
+                      title="没有找到匹配的客户"
+                      secondaryText="清空筛选"
+                      onSecondary={reset}
+                    />
+                  ) : (
+                    <EmptyHint
+                      title="还没有客户档案"
+                      description="成交或需要做单的客户建档后，报价单和 PI 会自动带出客户信息。"
+                      actionText={canAdd ? '新增客户' : undefined}
+                      onAction={() => history.push(`${LIST_PATH}/new`)}
+                    />
+                  ),
+                }}
               />
-            </Form.Item>
-          )}
-          <Form.Item name="status" label={label('状态')}>
-            <Select placeholder="全部" allowClear options={STATUS_OPTIONS} />
-          </Form.Item>
-        </div>
-        <div
-          style={{
-            display: 'flex',
-            gap: 12,
-            justifyContent: 'flex-end',
-            marginBottom: 16,
-          }}
-        >
-          <Button onClick={reset}>重置</Button>
-          <Button type="primary" htmlType="submit">
-            查询
-          </Button>
-        </div>
-      </Form>
-
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          gap: 12,
-          marginBottom: 12,
-          flexWrap: 'wrap',
-        }}
-      >
-        <span style={{ color: palette.sub, fontSize: 14 }}>
-          共 <span className="num">{total}</span> 条记录
-        </span>
-        <div style={{ display: 'flex', gap: 12 }}>
-          {canAdd && (
-            <Button
-              type="primary"
-              icon={<PlusOutlined />}
-              onClick={() => history.push(`${LIST_PATH}/new`)}
-            >
-              新增客户
-            </Button>
-          )}
-          <Tooltip title="批量导入即将上线">
-            <Button icon={<UploadOutlined />} disabled>
-              导入
-            </Button>
-          </Tooltip>
-          {canExport && (
-            <Button
-              icon={<DownloadOutlined />}
-              loading={exporting}
-              disabled={total === 0}
-              onClick={confirmExport}
-            >
-              导出
-            </Button>
-          )}
-        </div>
-      </div>
-
-      {selected.length > 0 && (
-        <div
-          role="toolbar"
-          aria-label="批量操作"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: 12,
-            padding: '10px 16px',
-            marginBottom: 12,
-            borderRadius: 12,
-            background: palette.accentSoft,
-            border: `1px solid ${palette.accentLine}`,
-          }}
-        >
-          <span style={{ fontWeight: 600, color: palette.link }}>
-            已选 <span className="num">{selected.length}</span> 条
-          </span>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <Button type="link" onClick={() => setSelected([])}>
-              取消选择
-            </Button>
-            {canTransfer && (
-              <Button
-                icon={<SwapOutlined />}
-                onClick={() => setTransferTargets(selectedRows)}
-              >
-                批量转移
-              </Button>
-            )}
-            {canDelete && (
-              <Button
-                danger
-                icon={<DeleteOutlined />}
-                onClick={confirmBatchDelete}
-              >
-                批量删除
-              </Button>
             )}
           </div>
-        </div>
+        </>
       )}
-
-      <div
-        style={{
-          background: palette.card,
-          borderRadius: 16,
-          border: `1px solid ${palette.hairline}`,
-          overflow: 'hidden',
-        }}
-      >
-        {error ? (
-          <ErrorHint message={error} onRetry={load} />
-        ) : firstLoad ? (
-          <div style={{ padding: 24 }}>
-            <Skeleton active paragraph={{ rows: 6 }} />
-          </div>
-        ) : (
-          <Table<CustomerListItem>
-            rowKey="id"
-            columns={columns}
-            dataSource={rows}
-            loading={loading}
-            sticky
-            scroll={{ x: showOwner ? 1750 : 1650 }}
-            rowSelection={{
-              selectedRowKeys: selected,
-              onChange: setSelected,
-              // antd 的类型里没有 aria-label，但会透传给复选框；读屏靠它知道选的是哪一行
-              getCheckboxProps: (r: CustomerListItem) =>
-                ({
-                  'aria-label': `选择 ${r.displayName}`,
-                }) as unknown as Partial<CheckboxProps>,
-            }}
-            pagination={{
-              current: page,
-              pageSize,
-              total,
-              showSizeChanger: true,
-              pageSizeOptions: [10, 20, 50],
-              showTotal: (t) => `共 ${t} 条，每页 ${pageSize} 条`,
-              onChange: (p, s) => {
-                setPage(p);
-                setPageSize(s);
-                setSelected([]);
-              },
-            }}
-            locale={{
-              emptyText: hasCondition ? (
-                <EmptyHint
-                  title="没有找到匹配的客户"
-                  secondaryText="清空筛选"
-                  onSecondary={reset}
-                />
-              ) : (
-                <EmptyHint
-                  title="还没有客户档案"
-                  description="成交或需要做单的客户建档后，报价单和 PI 会自动带出客户信息。"
-                  actionText={canAdd ? '新增客户' : undefined}
-                  onAction={() => history.push(`${LIST_PATH}/new`)}
-                />
-              ),
-            }}
-          />
-        )}
-      </div>
 
       <TransferModal
         open={transferTargets.length > 0}

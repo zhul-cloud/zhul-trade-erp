@@ -24,6 +24,7 @@ import com.zhul.erp.modules.masterdata.dto.CustomerVO;
 import com.zhul.erp.modules.masterdata.dto.SaveCustomerRequest;
 import com.zhul.erp.modules.masterdata.dto.UpdateCustomerRequest;
 import com.zhul.erp.modules.masterdata.entity.CustomerDO;
+import com.zhul.erp.modules.masterdata.customerprofile.support.CustomerProfileBits;
 import com.zhul.erp.modules.masterdata.entity.CustomerPartyDO;
 import com.zhul.erp.modules.masterdata.repository.CustomerMapper;
 import com.zhul.erp.modules.masterdata.support.AliLevels;
@@ -71,7 +72,7 @@ public class CustomerServiceImpl implements CustomerService {
     private static final Pattern CJK = Pattern.compile("[\\p{IsHan}\\p{IsHiragana}\\p{IsKatakana}\\p{IsHangul}]");
     private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
     private static final String[] EXPORT_HEADERS = {
-        "客户编码", "客户名称（英文）", "中文名称", "简称", "客户角色", "应用行业", "客户等级", "客户来源", "负责业务员",
+        "客户编码", "客户名称（英文）", "中文名称", "简称", "客户角色", "应用行业", "经营等级", "客户来源", "负责业务员",
         "小满客户编号", "国家/地区", "州/省", "城市", "邮编", "详细地址", "税号", "时区", "联系人", "职位", "邮箱",
         "电话", "WhatsApp", "默认币种", "贸易术语", "术语地点", "付款方式", "定金比例(%)", "账期(天)", "信用额度",
         "信用额度币种", "运输方式", "目的港", "状态", "备注", "创建时间", "创建人", "更新时间", "更新人"
@@ -86,6 +87,7 @@ public class CustomerServiceImpl implements CustomerService {
     private final LogService logService;
     private final DictItemService dictItemService;
     private final BusinessUnitService businessUnitService;
+    private final com.zhul.erp.modules.masterdata.customerprofile.support.PrimaryContactSync primaryContacts;
 
     // ---------------------------------------------------------------- 新增 / 更新
 
@@ -128,6 +130,7 @@ public class CustomerServiceImpl implements CustomerService {
         if (req.getParties() != null) {
             partySync.sync(tenantId, customer.getId(), req.getParties());
         }
+        primaryContacts.fromCustomer(customer);
         return toVo(customer, ownerNames(List.of(customer)));
     }
 
@@ -148,6 +151,7 @@ public class CustomerServiceImpl implements CustomerService {
         if (req.getParties() != null) {
             partySync.sync(customer.getTenantId(), id, req.getParties());
         }
+        primaryContacts.fromCustomer(customer);
     }
 
     @Override
@@ -203,6 +207,7 @@ public class CustomerServiceImpl implements CustomerService {
         customerMapper.insert(customer);
         customer.setCustomerCode(generateCode(tenantId, customer.getId()));
         customerMapper.updateById(customer);
+        primaryContacts.fromCustomer(customer);
         return customer.getId();
     }
 
@@ -349,7 +354,6 @@ public class CustomerServiceImpl implements CustomerService {
         c.setShortName(text(req.getShortName()));
         c.setIndustry(orUnset(req.getIndustry()));
         c.setWebsite(text(req.getWebsite()));
-        c.setCustomerGrade(orUnset(req.getCustomerGrade()));
         Integer source = orUnset(req.getSourceChannel());
         // 未设置（0）或沿用原值时不校验，原值所在字典项停用后编辑其他字段不受影响
         if (source != 0 && !Objects.equals(source, c.getSourceChannel())) {
@@ -531,7 +535,8 @@ public class CustomerServiceImpl implements CustomerService {
                 .like(StringUtils.hasText(q.getContactName()), CustomerDO::getContactName, text(q.getContactName()))
                 .eq(StringUtils.hasText(q.getCountry()), CustomerDO::getCountry, q.getCountry())
                 .eq(q.getCustomerRole() != null, CustomerDO::getCustomerRole, q.getCustomerRole())
-                .eq(q.getCustomerGrade() != null, CustomerDO::getCustomerGrade, q.getCustomerGrade())
+                .eq(q.getBizGrade() != null, CustomerDO::getBizGrade, q.getBizGrade())
+                .eq(q.getPotentialRating() != null, CustomerDO::getPotentialRating, q.getPotentialRating())
                 .eq(q.getSourceChannel() != null, CustomerDO::getSourceChannel, q.getSourceChannel())
                 .eq(q.getOwnerId() != null, CustomerDO::getOwnerId, q.getOwnerId())
                 .eq(q.getStatus() != null, CustomerDO::getStatus, q.getStatus());
@@ -541,8 +546,31 @@ public class CustomerServiceImpl implements CustomerService {
             w.and(x -> x.like(CustomerDO::getName, name).or().like(CustomerDO::getNameCn, name)
                     .or().like(CustomerDO::getShortName, name));
         }
+        // 建档状态与缺的模块（spec master-data/customer-profile「客户档案完整度」），按 profile_mask 的位判断
+        if ("done".equals(q.getProfileStatus())) {
+            w.eq(CustomerDO::getProfileMask, CustomerProfileBits.ALL_DONE);
+        } else if ("pending".equals(q.getProfileStatus())) {
+            w.lt(CustomerDO::getProfileMask, CustomerProfileBits.ALL_DONE);
+        }
+        if (q.getMissingModules() != null) {
+            for (Integer m : q.getMissingModules()) {
+                if (m != null && m >= 1 && m <= 5) {
+                    w.apply("(profile_mask & {0}) = 0", 1 << (m - 1));
+                }
+            }
+        }
         dataScopeResolver.current().apply(w, CustomerDO::getOwnerId);
-        return w.orderByDesc(CustomerDO::getUpdateTime);
+        boolean asc = "asc".equalsIgnoreCase(q.getSortOrder());
+        // 经营等级按 S、A、B、C（同级综合分数高的在前），潜力按星数；未成交、未评的排在最后
+        if ("bizGrade".equals(q.getSortField())) {
+            return w.last(asc ? "ORDER BY (biz_grade = 0), biz_grade ASC, biz_grade_score DESC, update_time DESC"
+                    : "ORDER BY (biz_grade = 0), biz_grade DESC, biz_grade_score ASC, update_time DESC");
+        }
+        if ("potentialRating".equals(q.getSortField())) {
+            return w.last(asc ? "ORDER BY (potential_rating = 0), potential_rating ASC, update_time DESC"
+                    : "ORDER BY (potential_rating = 0), potential_rating DESC, update_time DESC");
+        }
+        return asc ? w.orderByAsc(CustomerDO::getUpdateTime) : w.orderByDesc(CustomerDO::getUpdateTime);
     }
 
     // ---------------------------------------------------------------- 删除 / 转移
@@ -696,7 +724,7 @@ public class CustomerServiceImpl implements CustomerService {
                 c.getCustomerCode(), c.getName(), c.getNameCn(), c.getShortName(),
                 label(CustomerConstants.ROLE_LABELS, c.getCustomerRole(), "未设置"),
                 label(CustomerConstants.INDUSTRY_LABELS, c.getIndustry(), ""),
-                label(CustomerConstants.GRADE_LABELS, c.getCustomerGrade(), "未分级"),
+                CustomerProfileBits.GRADE_NAMES.get(c.getBizGrade() == null ? 0 : c.getBizGrade()),
                 label(sourceLabels, c.getSourceChannel(), ""),
                 owners.getOrDefault(c.getOwnerId(), ""), c.getExternalRef(),
                 c.getCountry(), c.getState(), c.getCity(), c.getPostcode(), c.getAddress(), c.getTaxId(), c.getTimezone(),
@@ -734,6 +762,11 @@ public class CustomerServiceImpl implements CustomerService {
                     .eq(CustomerDO::getId, c.getId()));
         }
         return rows.size();
+    }
+
+    @Override
+    public CustomerDO requireInScope(Long id) {
+        return getActiveInScope(id, dataScopeResolver.current());
     }
 
     // ---------------------------------------------------------------- 工具
@@ -776,12 +809,15 @@ public class CustomerServiceImpl implements CustomerService {
         }
     }
 
-    /** 负责人 ID → 姓名 */
+    /** 负责人、经营等级调整人的用户 ID → 姓名 */
     private Map<Long, String> ownerNames(Collection<CustomerDO> customers) {
         Set<Integer> ids = new HashSet<>();
         for (CustomerDO c : customers) {
             if (c.getOwnerId() != null && c.getOwnerId() > 0) {
                 ids.add(c.getOwnerId().intValue());
+            }
+            if (c.getBizGradeAdjustBy() != null && c.getBizGradeAdjustBy() > 0) {
+                ids.add(c.getBizGradeAdjustBy().intValue());
             }
         }
         Map<Long, String> names = new HashMap<>(ids.size() * 2);
@@ -842,7 +878,14 @@ public class CustomerServiceImpl implements CustomerService {
         vo.setShortName(c.getShortName());
         vo.setCountry(c.getCountry());
         vo.setCustomerRole(c.getCustomerRole());
-        vo.setCustomerGrade(c.getCustomerGrade());
+        vo.setPotentialRating(c.getPotentialRating());
+        vo.setBizGrade(c.getBizGrade());
+        vo.setBizGradeCalc(c.getBizGradeCalc());
+        vo.setBizGradeAdjust(c.getBizGradeAdjust());
+        vo.setBizGradeAdjustReason(c.getBizGradeAdjustReason());
+        vo.setBizGradeAdjustByName(owners.get(c.getBizGradeAdjustBy()));
+        vo.setBizGradeScore(c.getBizGradeScore());
+        vo.setProfileMask(c.getProfileMask());
         vo.setSourceChannel(c.getSourceChannel());
         vo.setAliLevel(c.getAliLevel());
         vo.setOwnerId(c.getOwnerId());

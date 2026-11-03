@@ -39,6 +39,9 @@ public interface CustomerService {
     /** 详情 / 编辑取数，数据范围外或已删除时抛「客户不存在或无权查看」 */
     CustomerDetailVO getDetail(Long id);
 
+    /** 当前用户数据范围内、未删除的客户；不在范围内时提示「客户不存在或无权查看」 */
+    com.zhul.erp.modules.masterdata.entity.CustomerDO requireInScope(Long id);
+
     PageResult<CustomerVO> page(CustomerPageQuery query);
 
     void update(Long id, UpdateCustomerRequest req);

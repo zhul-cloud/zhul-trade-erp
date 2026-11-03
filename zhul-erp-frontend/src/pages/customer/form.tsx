@@ -17,7 +17,6 @@ import {
   Input,
   InputNumber,
   Radio,
-  Segmented,
   Select,
   Skeleton,
   Space,
@@ -45,7 +44,6 @@ import {
   CURRENCY_OPTIONS,
   CUSTOMER_CODE_PATTERN,
   ENGLISH_ONLY_MESSAGE,
-  GRADE_OPTIONS,
   INCOTERMS,
   INDUSTRY_OPTIONS,
   MAX_PARTIES,
@@ -110,7 +108,6 @@ const toFormState = (d: CustomerDetail): FormState => ({
   customerRole: d.customerRole || undefined,
   industry: d.industry || undefined,
   website: d.website,
-  customerGrade: d.customerGrade,
   sourceChannel: d.sourceChannel || undefined,
   aliLevel: d.aliLevel || undefined,
   externalRef: d.externalRef,
@@ -164,7 +161,6 @@ const toPayload = (
   customerRole: v.customerRole,
   industry: v.industry ?? 0,
   website: text(v.website),
-  customerGrade: v.customerGrade ?? 0,
   sourceChannel: v.sourceChannel ?? 0,
   aliLevel: v.aliLevel,
   externalRef: text(v.externalRef),
@@ -519,7 +515,7 @@ const CustomerFormPage: React.FC = () => {
           form={form}
           layout="vertical"
           validateTrigger="onBlur"
-          initialValues={{ status: 1, currency: 'USD', customerGrade: 0 }}
+          initialValues={{ status: 1, currency: 'USD' }}
           onFinish={submit}
           onFinishFailed={onFinishFailed}
           onValuesChange={(changed) => {
@@ -642,13 +638,6 @@ const CustomerFormPage: React.FC = () => {
                 ]}
               >
                 <Input placeholder="https://" maxLength={200} />
-              </Form.Item>
-              <Form.Item
-                name="customerGrade"
-                label="客户等级"
-                extra="当前手工标记：A 年采购额 > 100 万美元，B 50–100 万，C < 50 万或新客户"
-              >
-                <Segmented block options={GRADE_OPTIONS} />
               </Form.Item>
               <Form.Item name="sourceChannel" label="客户来源">
                 <Select
