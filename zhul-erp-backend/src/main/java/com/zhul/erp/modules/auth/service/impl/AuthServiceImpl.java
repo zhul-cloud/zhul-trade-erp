@@ -199,7 +199,7 @@ public class AuthServiceImpl implements AuthService {
 
         log.info("用户登录成功，username={}, tenantId={}", account.getUsername(), account.getTenantId());
         logService.recordLoginLog(account.getTenantId(), account.getId(), account.getUsername(), 1,
-                clientIp, httpRequest.getHeader("User-Agent"), token, null);
+                clientIp, httpRequest.getHeader("User-Agent"), tokenRow.getId(), null);
 
         LoginResponse response = LoginResponse.builder()
             .accessToken(token)

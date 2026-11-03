@@ -603,5 +603,45 @@ class SubscriptionRoutingTest(unittest.TestCase):
         self.assertIn("未登录", sent[0][1]["error"])
 
 
+class AttachmentSourceTest(unittest.TestCase):
+    """附件只接受后端签发的 http(s) 临时链接，不读本地文件（audit AI-003）"""
+
+    def setUp(self):
+        self.server = load_server()
+
+    def parse(self, input_data):
+        sent = []
+        with mock.patch.object(self.server, "send_callback",
+                               lambda url, status, output=None, error=None: sent.append((status, error))), \
+                mock.patch.object(self.server, "call_parse") as call_parse, \
+                mock.patch("builtins.open", side_effect=AssertionError("不应读本地文件")):
+            self.server.process_job({"ai": ai(), "input": input_data}, "http://cb")
+        return sent[-1], call_parse
+
+    def test_non_http_links_rejected_before_reading(self):
+        for url in ("file:///etc/passwd", "ftp://host/a.pdf", "/data/files/a.pdf"):
+            with mock.patch.object(self.server.urllib.request, "urlopen") as urlopen:
+                (status, error), call_parse = self.parse({"attachments": [{"url": url, "ext": "pdf"}]})
+            self.assertEqual(status, "failed", url)
+            self.assertIn("http / https", error)
+            urlopen.assert_not_called()
+            call_parse.assert_not_called()
+
+    def test_legacy_local_paths_ignored(self):
+        (status, error), call_parse = self.parse({"attachmentPaths": ["/etc/hosts"], "rawAttachmentPath": "/etc/hosts"})
+        self.assertEqual(status, "failed")
+        self.assertIn("没有正文也没有可读的附件", error)
+        call_parse.assert_not_called()
+
+    def test_https_link_still_downloaded(self):
+        response = mock.MagicMock()
+        response.__enter__.return_value.read.return_value = PDF[0]
+        with mock.patch.object(self.server.urllib.request, "urlopen", return_value=response) as urlopen:
+            (status, _), call_parse = self.parse({"attachments": [{"url": "https://files.example/a?sig=1", "ext": "pdf"}]})
+        self.assertEqual(status, "success")
+        urlopen.assert_called_once()
+        self.assertEqual(call_parse.call_args[0][2], [PDF])
+
+
 if __name__ == "__main__":
     unittest.main()
