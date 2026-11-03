@@ -138,6 +138,56 @@ class PayableContractTest extends SalesContractSupport {
         assertEquals("新名工控", bySource(poId, admin).path("payeeName").asText(), "按供应商关联，改名后收款方跟着变");
     }
 
+    private long supplierAccount(long sup, int type, String name, String bank, String no, String phone, int isDefault) {
+        jdbc.update("insert into supplier_bank_account (tenant_id, supplier_id, account_type, account_name, bank_name, account_no, "
+                + "payee_phone, payee_id_no, is_default) values (0, ?, ?, ?, ?, ?, ?, 'cipher-not-returned', ?)",
+                sup, type, name, bank, no, phone, isDefault);
+        return jdbc.queryForObject("select max(id) from supplier_bank_account where supplier_id = ?", Long.class, sup);
+    }
+
+    @Test
+    void payeeAccounts_listedForPayment_recordedAsSnapshot_typeChecked() throws Exception {
+        long sup = supplier("深圳捷运", null);
+        long other = supplier("别家供应商", null);
+        long pub2 = supplierAccount(sup, 1, "深圳捷运", "中国工商银行深圳南山支行", "4000021309100123456", "", 0);
+        long pub = supplierAccount(sup, 1, "深圳捷运", "招商银行深圳分行科技园支行", "755912345678901", "", 1);
+        long priv = supplierAccount(sup, 2, "王建国", "中国农业银行义乌稠城支行", "6228480408123456789", "13812345678", 0);
+        long foreign = supplierAccount(other, 1, "别家", "建设银行", "6217000011112222", "", 1);
+        long poId = orderedPo(sup, "PA-1", 1, "300", List.of(term(100, 1, 0))).path("id").asLong();
+        long apId = bySource(poId, admin).path("id").asLong();
+
+        JsonNode list = ok(call(get(PY + "/payee-accounts").param("payableId", String.valueOf(apId)), admin));
+        assertEquals(3, list.size(), list.toString());
+        assertEquals(pub, list.get(0).path("id").asLong(), "默认账户在前");
+        assertEquals("755912345678901", list.get(0).path("accountNo").asText(), "登记付款时给完整账号");
+        assertEquals(pub2, list.get(1).path("id").asLong());
+        JsonNode p = list.get(2);
+        assertEquals(2, p.path("accountType").asInt());
+        assertEquals("138****5678", p.path("payeePhoneMasked").asText());
+        assertFalse(p.toString().contains("cipher"), "不返回身份证号");
+        // 垫付登记权限也能看
+        assertEquals(3, ok(call(get(PY + "/payee-accounts").param("payableId", String.valueOf(apId)), lin)).size());
+
+        Map<String, Object> body = payBody(1, "100.00", Map.of(apId, "100.00"), admin);
+        body.put("payeeAccountId", priv);
+        assertEquals("公司对公请选择对方的对公账户", fail(pay(body, admin)).path("message").asText());
+        body.put("payeeAccountId", foreign);
+        assertEquals("对方收款账户不存在，请刷新后重试", fail(pay(body, admin)).path("message").asText());
+        body.put("payeeAccountId", pub);
+        JsonNode paid = ok(pay(body, admin));
+        assertEquals("对公 · 招商银行深圳分行科技园支行 · 深圳捷运 ****8901", paid.path("payeeAccount").asText());
+        // 改了供应商资料，已登记的付款单不变
+        jdbc.update("update supplier_bank_account set bank_name = '改过的银行' where id = ?", pub);
+        JsonNode rec = ok(call(get(PY).param("keyword", paid.path("paymentNo").asText()), admin)).path("records").get(0);
+        assertEquals("对公 · 招商银行深圳分行科技园支行 · 深圳捷运 ****8901", rec.path("payeeAccount").asText());
+
+        // 员工垫付不限类型；不选也可以
+        Map<String, Object> adv = payBody(2, "100.00", Map.of(apId, "100.00"), lin);
+        adv.put("payeeAccountId", priv);
+        assertEquals("对私 · 中国农业银行义乌稠城支行 · 王建国 ****6789", ok(pay(adv, lin)).path("payeeAccount").asText());
+        assertEquals("", ok(pay(payBody(1, "100.00", Map.of(apId, "100.00"), admin), admin)).path("payeeAccount").asText());
+    }
+
     @Test
     void confirmCreatesPayable_installments_companyPayment_dueAfterReceipt() throws Exception {
         long sup = supplier("深圳工控", null);

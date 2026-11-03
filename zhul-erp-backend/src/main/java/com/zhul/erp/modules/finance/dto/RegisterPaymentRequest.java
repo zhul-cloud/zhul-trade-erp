@@ -20,6 +20,8 @@ public class RegisterPaymentRequest {
     private Integer method;
     /** 公司对公选对公账户，私对私选对私账户 */
     private Long bankAccountId;
+    /** 对方收款账户（供应商资料的收款账户），可不选 */
+    private Long payeeAccountId;
     @NotNull(message = "请填写付款日期")
     private LocalDate payDate;
     /** 付款金额（原币，可以为 0：全部用欠款抵扣时） */

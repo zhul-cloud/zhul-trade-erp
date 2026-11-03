@@ -144,7 +144,21 @@ const PaymentRecords: React.FC = () => {
         ),
     },
     { title: '日期', dataIndex: 'payDate', width: 110 },
-    { title: '收款方', dataIndex: 'payeeName', width: 180, ellipsis: true },
+    {
+      title: '收款方',
+      key: 'payee',
+      width: 240,
+      render: (_, r) => (
+        <div>
+          <div>{r.payeeName}</div>
+          {r.payeeAccount && (
+            <div style={{ fontSize: 12, color: palette.mute }}>
+              {r.payeeAccount}
+            </div>
+          )}
+        </div>
+      ),
+    },
     {
       title: '付款方式',
       key: 'method',
