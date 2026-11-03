@@ -158,6 +158,36 @@
   - 统计报告（`*.txt`、`*.xml`、`*-output.txt`）中「缺少租户上下文」0 次，SQL 语法错误与 JSqlParser 异常 0 次。此前几轮只统计了 `*-output.txt`，这类异常其实写在 `*.txt` 报告里，所以口径不全；本轮已补全。本轮是合并后的最终代码，结论覆盖此前各分支。
 - 复核 develop 新提交的其他发现见 [2026-11-03-BUS-025](2026-11-03-BUS-025-develop-merge-review.md)。
 
+## 发版前复核：生产数据分布与无登录入口（2026-11-04）
+
+**生产库只读核查**：用户授权。只用 SELECT，在 `START TRANSACTION READ ONLY` 中执行。
+
+- 生产只有租户 TN1000（1000）和平台（0）；带 `tenant_id` 的表 149 张，与 `TenantTables` 启用加排除的数量一致，没有未归类的表。
+- **私有表**：
+  - 56 张有数据，全部属于 TN1000；40 张为空。
+  - 14 张有少量 tenant 0 的行，逐行核对都是平台自己的数据：初始化的平台管理员、部门、岗位；`zhul.platform` 在 10-22 到 10-29 建的测试客户、询盘、商机、AI 任务；平台日志与登录前的匿名日志。没有 TN1000 的数据被错标为 0。
+- **共享表**：13 张为平台数据与 TN1000 自有数据并存。其中 `exchange_rate`、`sys_ai_config`、`sys_ai_provider_config`、`transit_time` 两边各有数据，相关查询都显式带 `tenant_id = 当前租户`，`selectOne` 不会取到两行。
+- **排除表**：商品库各表全部是 tenant 0，候选来源与迁移记录属于 TN1000，与排除理由一致。
+
+**无登录入口逐个盘点**。上次按 `@Scheduled`、`ApplicationRunner` 等搜索，漏掉了 `ApplicationReadyEvent`、线程池回调和 `@PostConstruct`，本次补全：
+
+| 入口 | 结论 |
+| --- | --- |
+| 定时任务：`AiTaskTimeoutWatchdog`、`SalesWindowJob`、`CustomerNightlyJob`、`AttachmentService.cleanupOrphans` | 已有平台范围或按租户执行 |
+| 启动任务：`PayableBackfill`、`CandidateBackfill`、`ListingTaskBackfill`、`StorageMigrationRunner`、`CustomerNameKeyBackfill`、`SupplierProductScopeBackfill`、两处 `resumeTranscoding`、`HistoryMigrationService.markInterrupted`、ffmpeg 检测 | 已有平台范围或不访问数据库 |
+| 线程：历史迁移线程池、AI 提交的异步回调 | 已有平台范围或 `runAs` |
+| **附件视频转码回调（`VideoTranscoder` 线程池）** | **缺陷，已修**，见下 |
+| 商品视频转码回调 | `product_media` 已排除，不受影响 |
+| `@PostConstruct`（国家、时区、地区目录） | 只读类路径文件 |
+| 免登录接口：登录、刷新、找回密码三接口、外观、AI 回调、退出、健康检查、本地文件 | 已有平台范围，或不访问纳管表（令牌表没有 `tenant_id`） |
+| `parallelStream`、`@Async`、自建 Executor | 无 |
+
+- **附件视频转码回调缺陷**：转码在 `VideoTranscoder` 线程池中完成，回调线程没有租户上下文，更新 `biz_attachment` 时被拦截器拒绝。失败回调同样会抛错，导致视频一直停在「转码中」，每次重启都重新排队转码；原视频保留，数据不丢。之前没测出来，是因为本机没有 ffmpeg，`VideoTranscoderTest` 相关用例被跳过。
+  - 修复：提交转码时记下附件所属租户，成功与失败回调都用 `TenantContext.runAs` 执行。
+  - 缺陷见证：新增 `AttachmentTranscodeTenantContractTest`，用模拟转码器在另一个线程执行回调。修复前报「缺少租户上下文」、状态未更新；修复后通过。
+- **DOC-007（P3，新发现）**：本轮全量测试中，`AfterSalesSlaContractTest` 偶发失败，期望 `22:41:05`、实际 `22:41:04`。原因是建数据和断言各调一次 `now()`，两次调用跨了秒。改为共用同一个时刻。只是测试问题，与租户改动无关。
+- **建议后续改进（本次未改，不会报错）**：4 个任务在平台范围内循环、逐个设置租户后处理数据：`AiTaskTimeoutWatchdog`、`SalesWindowJob`、`PayableBackfill`、`ListingTaskBackfill`。因为平台范围仍然有效，循环里拦截器不生效，只靠手写的租户条件，与启用前一样。可以改为只在查询要处理的租户时用平台范围，逐个处理时用 `runAs`，与 `CustomerNightlyJob`、`ListingTaskSync` 一致。
+
 ## 合并、部署与逐 ID 验收
 
 | ID | 修复 / 验收范围 | 部署与目标环境验收证据 | 验收人 / 日期 | 结论与剩余项 |
@@ -185,3 +215,4 @@
 | 2026-11-03 / Claude | `fix/tenant-modules-platform` 提交 `10d5ed74`；从它拉 `fix/tenant-rules-doc`，同步编码规范，补迁移撤销的租户条件；SEC-011 改为待合并 | 等用户确认合并到 `develop` |
 | 2026-11-03 / Claude | 合入 `origin/develop`（含 v1.6.0），适配 Kevin 新增的表与定时任务，全量通过；准备 PR 到 `develop` | 用户已要求创建 PR 并合并 |
 | 2026-11-03 / Claude | [zhul-cloud/zhul-trade-erp#137](https://github.com/zhul-cloud/zhul-trade-erp/pull/137) 合并到 `develop`（merge commit `df2355b7`），链式分支已删除；台账改为「已合并待发布」 | 随下一版发布后验收 |
+| 2026-11-04 / Claude | 发版前复核：生产只读核查分布一致；补全无登录入口盘点，修附件视频转码回调缺少租户上下文（`fix/transcode-tenant-context`） | PR 到 `develop` |
