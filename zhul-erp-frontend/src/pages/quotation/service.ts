@@ -48,6 +48,8 @@ export interface PickItem {
   costPrice?: number | null;
   noStock: boolean;
   pickable: boolean;
+  /** 还在询价：可以选，带入后按无货报，默认不勾 */
+  pendingAsNoStock?: boolean;
   disabledReason?: string;
   quoted: boolean;
   draftQuotationNo?: string;
@@ -82,6 +84,12 @@ export interface QuotationItem {
   noStockLine?: boolean;
   /** 替代型号（无货行） */
   replacementModel?: string;
+  /** 无货原因：1-暂时缺货、2-已停产、3-停产有替代型号、4-其他 */
+  noStockReason?: number;
+  /** 原因为「其他」时给客户看的英文说明 */
+  noStockNote?: string;
+  /** 带入时还在询价，按无货报 */
+  pendingAsNoStock?: boolean;
   /** 发给客户的单据上的品牌（英文名；品牌资料里没有时与原文相同） */
   brandEn?: string;
   costPrice?: number | null;
@@ -249,7 +257,24 @@ export interface SaveQuotationItem {
   markupAmount?: number | null;
   unitPrice?: number | null;
   replacementModel?: string;
+  noStockReason?: number;
+  noStockNote?: string;
 }
+
+/** 无货原因：决定发给客户的文字与导出里写什么 */
+export const NO_STOCK_REASON = {
+  OUT: 1,
+  DISCONTINUED: 2,
+  REPLACEMENT: 3,
+  OTHER: 4,
+} as const;
+
+export const NO_STOCK_REASON_OPTIONS = [
+  { value: 1, label: '暂时缺货', customer: 'No stock' },
+  { value: 2, label: '已停产', customer: 'Discontinued' },
+  { value: 3, label: '停产有替代型号', customer: 'No stock + replacement' },
+  { value: 4, label: '其他', customer: '自己填英文说明' },
+];
 
 export interface PriceHistory {
   itemId: number;

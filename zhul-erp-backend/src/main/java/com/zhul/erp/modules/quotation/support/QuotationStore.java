@@ -284,6 +284,15 @@ public class QuotationStore {
             if (r.getReplacementModel() != null) {
                 item.setReplacementModel(r.getReplacementModel().trim());
             }
+            if (r.getNoStockReason() != null && Objects.equals(item.getNoStock(), 1)) {
+                if (r.getNoStockReason() < QuotationConstants.NO_STOCK_OUT || r.getNoStockReason() > QuotationConstants.NO_STOCK_OTHER) {
+                    throw new BizException(label + "：无货原因不存在");
+                }
+                item.setNoStockReason(r.getNoStockReason());
+            }
+            if (r.getNoStockNote() != null) {
+                item.setNoStockNote(r.getNoStockNote().trim());
+            }
             int mode = item.getCostPrice() == null ? QuotationPricing.MODE_PRICE : r.getPricingMode();
             item.setPricingMode(mode);
             item.setMarginRate(r.getMarginRate());
@@ -301,6 +310,7 @@ public class QuotationStore {
             } catch (BizException e) {
                 throw new BizException(label + "：" + e.getMessage(), e);
             }
+            requireNoStockDetail(item, label);
             items.add(item);
         }
         List<QuotationItemDO> removed = existing.stream().filter(i -> !seen.contains(i.getId())).toList();
@@ -325,6 +335,26 @@ public class QuotationStore {
         }
         QuotationCalculator.applyTotals(q, items, fees);
         return new Applied(items, removed, fees);
+    }
+
+    /** 无货行：选「停产有替代型号」要填替代型号，选「其他」要填英文说明 */
+    private static void requireNoStockDetail(QuotationItemDO item, String label) {
+        if (!QuotationRenderModels.isNoStockLine(item)) {
+            return;
+        }
+        Integer reason = item.getNoStockReason();
+        if (Objects.equals(reason, QuotationConstants.NO_STOCK_REPLACEMENT) && trim(item.getReplacementModel()).isEmpty()) {
+            throw new BizException(label + "：无货原因为「停产有替代型号」，请填写替代型号");
+        }
+        if (Objects.equals(reason, QuotationConstants.NO_STOCK_OTHER)) {
+            String note = trim(item.getNoStockNote());
+            if (note.isEmpty()) {
+                throw new BizException(label + "：无货原因为「其他」，请填写给客户看的英文说明");
+            }
+            if (note.codePoints().anyMatch(c -> c >= 0x4E00 && c <= 0x9FFF)) {
+                throw new BizException(label + "：无货说明会发给客户，请用英文填写");
+            }
+        }
     }
 
     private static String trim(String s) {

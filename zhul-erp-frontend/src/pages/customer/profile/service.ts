@@ -63,6 +63,8 @@ export interface Contact {
   id: number;
   primary: boolean;
   name: string;
+  /** 中文名（系统内显示）；空时保存后由 AI 翻译回填 */
+  nameCn: string;
   title: string;
   email: string;
   phone: string;

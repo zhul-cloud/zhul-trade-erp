@@ -2,6 +2,8 @@ package com.zhul.erp.modules.masterdata.customerprofile.support;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.zhul.erp.modules.aitask.translation.ContactNameTranslations;
+import com.zhul.erp.modules.inquiry.support.CurrentUserResolver;
 import com.zhul.erp.modules.masterdata.customerprofile.entity.CustomerContactDO;
 import com.zhul.erp.modules.masterdata.customerprofile.repository.CustomerContactMapper;
 import com.zhul.erp.modules.masterdata.entity.CustomerDO;
@@ -21,6 +23,8 @@ public class PrimaryContactSync {
 
     private final CustomerContactMapper contactMapper;
     private final CustomerMapper customerMapper;
+    private final ContactNameTranslations contactNames;
+    private final CurrentUserResolver currentUser;
 
     /** 客户表单或商机登记保存后：把主联系人字段写到主联系人（没有主联系人且字段不全空时新建） */
     public void fromCustomer(CustomerDO c) {
@@ -41,7 +45,11 @@ public class PrimaryContactSync {
             primary.setCustomerId(c.getId());
             primary.setIsPrimary(1);
         }
+        // 新建、改了英文名、或清空了中文名（想重新翻译）时才提交翻译，避免每次保存客户都重复翻译
+        boolean renamed = primary.getId() == null || !text(c.getContactName()).equals(primary.getName())
+                || StringUtils.hasText(primary.getNameCn()) && !StringUtils.hasText(c.getContactNameCn());
         primary.setName(text(c.getContactName()));
+        primary.setNameCn(text(c.getContactNameCn()));
         primary.setTitle(text(c.getContactTitle()));
         primary.setEmail(text(c.getContactEmail()));
         primary.setPhone(text(c.getContactPhone()));
@@ -53,6 +61,9 @@ public class PrimaryContactSync {
         } else {
             contactMapper.updateById(primary);
         }
+        if (renamed) {
+            contactNames.submitContact(primary.getId(), primary.getName(), primary.getNameCn(), currentUser.resolve());
+        }
     }
 
     /** 联系人列表改了主联系人（或删掉了最后一个联系人，primary 为 null）后写回客户表 */
@@ -61,6 +72,7 @@ public class PrimaryContactSync {
         customerMapper.update(null, new LambdaUpdateWrapper<CustomerDO>()
                 .eq(CustomerDO::getId, customerId)
                 .set(CustomerDO::getContactName, text(p.getName()))
+                .set(CustomerDO::getContactNameCn, text(p.getNameCn()))
                 .set(CustomerDO::getContactTitle, text(p.getTitle()))
                 .set(CustomerDO::getContactEmail, text(p.getEmail()))
                 .set(CustomerDO::getContactPhone, text(p.getPhone()))

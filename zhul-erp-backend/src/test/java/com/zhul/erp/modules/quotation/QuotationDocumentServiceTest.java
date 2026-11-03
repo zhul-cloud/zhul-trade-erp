@@ -36,7 +36,8 @@ class QuotationDocumentServiceTest {
     private final DocumentConverter converter = new DocumentConverter("/nonexistent/soffice", System.getProperty("java.io.tmpdir"));
     private final QuotationDocumentServiceImpl service = new QuotationDocumentServiceImpl(store, mock(CustomerMapper.class),
             mock(UserBasicMapper.class), templates, converter, mock(CurrentUserResolver.class), new ObjectMapper(),
-            mock(com.zhul.erp.modules.product.support.BrandResolver.class));
+            mock(com.zhul.erp.modules.product.support.BrandResolver.class),
+            mock(com.zhul.erp.modules.document.support.PlaceNames.class));
 
     private QuotationDO quotation() throws Exception {
         QuotationDO q = new QuotationDO();

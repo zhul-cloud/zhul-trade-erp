@@ -6,12 +6,13 @@ import type { ThemeMode } from './palette';
 const KEY = 'zhul_theme';
 const LEGACY_KEY = 'zhul_product_theme';
 
+// 默认浅色；用户自己切到深色的保留深色
 const read = (): ThemeMode => {
   try {
     const v = localStorage.getItem(KEY) ?? localStorage.getItem(LEGACY_KEY);
-    return v === 'light' ? 'light' : 'dark';
+    return v === 'dark' ? 'dark' : 'light';
   } catch {
-    return 'dark';
+    return 'light';
   }
 };
 

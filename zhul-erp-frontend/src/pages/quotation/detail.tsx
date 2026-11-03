@@ -97,6 +97,8 @@ import {
 } from './dialogs';
 import StrategyDrawer, { type StrategyRow } from './StrategyDrawer';
 import {
+  NO_STOCK_REASON,
+  NO_STOCK_REASON_OPTIONS,
   type PreviewResult,
   type Quotation,
   type QuotationItem,
@@ -138,6 +140,8 @@ const toDraft = (q: Quotation): Draft => ({
     markupAmount: i.markupAmount ?? null,
     unitPrice: i.unitPrice,
     replacementModel: i.replacementModel ?? '',
+    noStockReason: i.noStockReason || undefined,
+    noStockNote: i.noStockNote ?? '',
   })),
   fees: q.fees.map((f) => ({
     key: ++feeSeq,
@@ -861,6 +865,90 @@ const QuotationDetail: React.FC = () => {
     );
   };
 
+  /** 无货行：选原因（决定客户看到的英文），停产有替代型号填替代型号，其他填英文说明 */
+  const noStockEditor = (d: SaveQuotationItem) => {
+    const reason = d.noStockReason ?? NO_STOCK_REASON.OUT;
+    const customerSees =
+      reason === NO_STOCK_REASON.DISCONTINUED
+        ? 'Discontinued'
+        : reason === NO_STOCK_REASON.REPLACEMENT
+          ? `No stock, Discontinued, replacement: ${d.replacementModel?.trim() || '…'}`
+          : reason === NO_STOCK_REASON.OTHER
+            ? d.noStockNote?.trim() || '…'
+            : 'No stock';
+    return (
+      <div style={{ marginTop: 6, display: 'grid', gap: 4 }}>
+        <Select
+          size="small"
+          value={reason}
+          aria-label="无货原因"
+          onChange={(v) => updateItem(d.id, { noStockReason: v })}
+          options={NO_STOCK_REASON_OPTIONS.map((o) => ({
+            value: o.value,
+            label: o.label,
+            customer: o.customer,
+          }))}
+          optionRender={(o) => (
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                gap: 12,
+              }}
+            >
+              <span>{o.label}</span>
+              <span style={{ color: palette.mute }}>{o.data.customer}</span>
+            </div>
+          )}
+          popupMatchSelectWidth={300}
+        />
+        {reason === NO_STOCK_REASON.REPLACEMENT && (
+          <Input
+            size="small"
+            placeholder="替代型号（必填）"
+            value={d.replacementModel}
+            maxLength={128}
+            status={d.replacementModel?.trim() ? undefined : 'warning'}
+            onChange={(e) =>
+              updateItem(d.id, { replacementModel: e.target.value })
+            }
+            aria-label="替代型号"
+          />
+        )}
+        {reason === NO_STOCK_REASON.OTHER && (
+          <Input
+            size="small"
+            placeholder="给客户看的英文说明（必填）"
+            value={d.noStockNote}
+            maxLength={100}
+            status={d.noStockNote?.trim() ? undefined : 'warning'}
+            onChange={(e) => updateItem(d.id, { noStockNote: e.target.value })}
+            aria-label="无货说明"
+          />
+        )}
+        <span style={{ fontSize: 12, color: palette.mute }}>
+          客户看到：{customerSees}
+        </span>
+      </div>
+    );
+  };
+
+  /** 只读时无货行的原因 */
+  const noStockSummary = (src: QuotationItem) => {
+    const reason =
+      src.noStockReason ||
+      (src.replacementModel
+        ? NO_STOCK_REASON.REPLACEMENT
+        : NO_STOCK_REASON.OUT);
+    if (reason === NO_STOCK_REASON.REPLACEMENT && src.replacementModel) {
+      return `停产，替代型号：${src.replacementModel}`;
+    }
+    if (reason === NO_STOCK_REASON.OTHER && src.noStockNote) {
+      return `其他：${src.noStockNote}`;
+    }
+    return reason === NO_STOCK_REASON.DISCONTINUED ? '已停产' : '暂时缺货';
+  };
+
   const modelCell = (src: QuotationItem, d?: SaveQuotationItem) => (
     <div style={{ minWidth: 0 }}>
       <div
@@ -890,30 +978,18 @@ const QuotationDetail: React.FC = () => {
           订货号 {src.orderCode}
         </div>
       )}
+      {src.pendingAsNoStock &&
+        (d ? isNoStockLine(src, d) : src.noStockLine) && (
+          <div style={{ fontSize: 12, color: palette.orange }}>
+            未回价，按无货报
+          </div>
+        )}
       {src.noStock &&
         (d
-          ? isNoStockLine(src, d) && (
-              <Input
-                size="small"
-                style={{ marginTop: 4 }}
-                prefix={
-                  <span style={{ color: palette.orange, fontSize: 12 }}>
-                    替代型号
-                  </span>
-                }
-                placeholder="停产时填写，没有可留空"
-                value={d.replacementModel}
-                maxLength={128}
-                onChange={(e) =>
-                  updateItem(d.id, { replacementModel: e.target.value })
-                }
-                aria-label="替代型号"
-              />
-            )
-          : src.noStockLine &&
-            src.replacementModel && (
+          ? isNoStockLine(src, d) && noStockEditor(d)
+          : src.noStockLine && (
               <div style={{ fontSize: 12, color: palette.orange }}>
-                停产，替代型号：{src.replacementModel}
+                {noStockSummary(src)}
               </div>
             ))}
       {src.hints.map((h) => (

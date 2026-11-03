@@ -35,6 +35,7 @@ import {
   unitFilterOptions,
   useBusinessUnits,
 } from '@/utils/businessUnit';
+import { recentRange } from '@/utils/dateRange';
 import { formatAmount } from '@/utils/format';
 import { usePageSize } from '@/utils/pageSize';
 import { type FxPending, type FxSettlement, fxApi } from './service';
@@ -374,7 +375,8 @@ const FxSettlementPage: React.FC = () => {
   const [bu] = useBusinessUnits();
   const [unitFilter, setUnitFilter] = useState<number>();
   const [currency, setCurrency] = useState<string>();
-  const [range, setRange] = useState<[Dayjs, Dayjs] | null>(null);
+  // 结汇日期默认最近 3 个月，清空看全部
+  const [range, setRange] = useState<[Dayjs, Dayjs] | null>(recentRange);
   const [includeVoid, setIncludeVoid] = useState(false);
   const [loading, setLoading] = useState(true);
   const [registering, setRegistering] = useState(false);

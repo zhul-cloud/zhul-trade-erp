@@ -181,8 +181,8 @@ class OpportunityApiContractTest extends IntegrationTestBase {
         long annaCustomer0 = jdbc.queryForObject("select customer_id from opportunity where id = ?", Long.class, social);
         assertEquals("", jdbc.queryForObject("select ali_level from customer where id = ?", String.class, annaCustomer0), "非阿里渠道不写");
 
-        // 登记时提交了联系人名称翻译；回调只填仍为空的中文名称
-        assertEquals(2, jdbc.queryForObject("select count(*) from ai_task where tenant_id = 0 and skill_id = ?", Integer.class,
+        // 登记时提交了联系人名称翻译（客户中文名称、主联系人中文名各一个）；回调只填仍为空的中文名称
+        assertEquals(4, jdbc.queryForObject("select count(*) from ai_task where tenant_id = 0 and skill_id = ?", Integer.class,
                 ContactNameTranslations.SKILL_ID));
         long johnCustomer = jdbc.queryForObject("select customer_id from opportunity where id = ?", Long.class, ali);
         long annaCustomer = jdbc.queryForObject("select customer_id from opportunity where id = ?", Long.class, social);

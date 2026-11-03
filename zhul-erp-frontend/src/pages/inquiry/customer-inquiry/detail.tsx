@@ -1,4 +1,5 @@
 import {
+  CopyOutlined,
   ExclamationCircleOutlined,
   FileTextOutlined,
   UserOutlined,
@@ -48,6 +49,8 @@ import {
   useWide,
 } from '../shared/components';
 import {
+  CHANNEL_SUPPLIER,
+  channelLabel,
   formatMinutes,
   ITEM_NO_STOCK,
   ITEM_PENDING,
@@ -69,6 +72,7 @@ import {
 } from '../shared/service';
 import AppendModal from './AppendModal';
 import EditInquiryModal from './EditInquiryModal';
+import GoQuoteModal from './GoQuoteModal';
 import NameplateCard from './NameplateCard';
 
 const Meta: React.FC<{ label: string; children: React.ReactNode }> = ({
@@ -96,6 +100,7 @@ const CustomerInquiryDetailPage: React.FC = () => {
   const [detail, setDetail] = useState<InquiryDetail | null>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [goQuoteOpen, setGoQuoteOpen] = useState(false);
   const [appendOpen, setAppendOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [quotations, setQuotations] = useState<QuotationListItem[]>();
@@ -103,6 +108,13 @@ const CustomerInquiryDetailPage: React.FC = () => {
   const access = useAccess() as Record<string, boolean>;
   const canQuote = !!access.quotationList;
   const canDelete = !!access['inquiry:customer:delete'];
+  // 货源店铺属于供应链内部信息：有「查看货源信息」权限才显示这一列
+  const canSeeShop = !!access['inquiry:supplier:view'];
+  const copyShop = (name: string) =>
+    navigator.clipboard
+      .writeText(name)
+      .then(() => message.success('已复制'))
+      .catch(() => message.error('复制失败，请手动选择复制'));
 
   const load = async () => {
     setError('');
@@ -119,11 +131,19 @@ const CustomerInquiryDetailPage: React.FC = () => {
     }
   };
 
-  /** 去报价：直接按询盘报价，带入这个询盘全部已回价的型号 */
-  const goQuote = async () => {
+  /**
+   * 去报价：型号都已回价时直接按询盘报价；有型号还在询价时先选型号（还在询价的可以按无货报）
+   */
+  const goQuote = async (itemIds?: number[]) => {
+    if (!itemIds && detail?.items.some((i) => i.quoteStatus === ITEM_PENDING)) {
+      setGoQuoteOpen(true);
+      return;
+    }
     setBusy(true);
     try {
-      const q = await quotationApi.create({ inquiryIds: [inquiryId] });
+      const q = await quotationApi.create(
+        itemIds ? { itemIds } : { inquiryIds: [inquiryId] },
+      );
       if (q.pendingItemCount) {
         message.info(`还有 ${q.pendingItemCount} 个型号在询价，回价后可以再报`);
       }
@@ -390,6 +410,59 @@ const CustomerInquiryDetailPage: React.FC = () => {
         );
       },
     },
+    ...(canSeeShop
+      ? [
+          {
+            title: (
+              <Tooltip title="采购成本价那条回价的渠道与店铺（供应商渠道为供应商名称），方便自己找店铺问细节">
+                <span>货源店铺</span>
+              </Tooltip>
+            ),
+            key: 'shop',
+            width: 220,
+            render: (_: unknown, r: InquiryItem) => {
+              const q = r.selectedQuote;
+              if (!q || q.channel == null) {
+                return <span style={{ color: palette.mute }}>—</span>;
+              }
+              return (
+                <span
+                  style={{
+                    display: 'inline-flex',
+                    flexDirection: 'column',
+                    alignItems: 'flex-start',
+                    gap: 2,
+                  }}
+                >
+                  <span style={{ display: 'inline-flex', gap: 6 }}>
+                    <Pill
+                      tone={
+                        q.channel === CHANNEL_SUPPLIER ? 'accent' : 'orange'
+                      }
+                    >
+                      {channelLabel(q.channel)}
+                    </Pill>
+                    <span style={{ fontWeight: 600, wordBreak: 'break-all' }}>
+                      {q.shopName || '—'}
+                    </span>
+                  </span>
+                  {q.shopName && (
+                    <Button
+                      type="link"
+                      size="small"
+                      icon={<CopyOutlined />}
+                      style={{ padding: 0, height: 'auto' }}
+                      onClick={() => copyShop(q.shopName as string)}
+                    >
+                      复制店铺名
+                    </Button>
+                  )}
+                </span>
+              );
+            },
+          },
+        ]
+      : []),
     {
       title: (
         <Tooltip title="确认询盘时自动建档：商品库已有的直接关联；没有的进商品候选；写的不是型号的等采购回填真实型号">
@@ -525,18 +598,16 @@ const CustomerInquiryDetailPage: React.FC = () => {
               inq.status !== STATUS.CANCELLED && (
                 <Tooltip
                   title={
-                    pricedCount === 0
-                      ? '还没有回价的型号，回价后才能报价'
-                      : inq.status === STATUS.SOURCING
-                        ? '先报已回价的型号，其余回价后可以再报'
-                        : undefined
+                    detail.items.some((i) => i.quoteStatus === ITEM_PENDING)
+                      ? '还在询价的型号可以按无货报，也可以回价后再报'
+                      : undefined
                   }
                 >
                   <Button
                     type="primary"
                     icon={<FileTextOutlined />}
-                    disabled={busy || pricedCount === 0}
-                    onClick={goQuote}
+                    disabled={busy || detail.items.length === 0}
+                    onClick={() => goQuote()}
                   >
                     {inq.status >= STATUS.QUOTED ? '再报一张' : '去报价'}
                   </Button>
@@ -670,6 +741,14 @@ const CustomerInquiryDetailPage: React.FC = () => {
           load();
         }}
       />
+      <GoQuoteModal
+        open={goQuoteOpen}
+        title={`去报价 · ${inq.inquiryCode}`}
+        items={detail.items}
+        busy={busy}
+        onCancel={() => setGoQuoteOpen(false)}
+        onOk={(ids) => goQuote(ids)}
+      />
       <AppendModal
         inquiryId={inquiryId}
         open={appendOpen}
@@ -715,7 +794,7 @@ const CustomerInquiryDetailPage: React.FC = () => {
           <Table<InquiryItem>
             rowKey="id"
             size="middle"
-            scroll={{ x: 1340 }}
+            scroll={{ x: canSeeShop ? 1560 : 1340 }}
             columns={columns}
             dataSource={detail.items}
             pagination={false}

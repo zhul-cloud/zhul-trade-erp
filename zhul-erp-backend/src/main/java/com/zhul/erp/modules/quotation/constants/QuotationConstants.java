@@ -3,6 +3,13 @@ package com.zhul.erp.modules.quotation.constants;
 /** 报价中心常量 */
 public final class QuotationConstants {
 
+    /** 无货原因（spec quotation/quotation「报价单内容与定价」）：0-非无货行、1-暂时缺货、2-已停产、3-停产有替代型号、4-其他 */
+    public static final int NO_STOCK_NONE = 0;
+    public static final int NO_STOCK_OUT = 1;
+    public static final int NO_STOCK_DISCONTINUED = 2;
+    public static final int NO_STOCK_REPLACEMENT = 3;
+    public static final int NO_STOCK_OTHER = 4;
+
     public static final String DICT_CONDITION = "inquiry_item_condition";
     public static final String DICT_LEAD_TIME = "inquiry_lead_time";
     public static final String DICT_LOST_REASON = "quotation_lost_reason";

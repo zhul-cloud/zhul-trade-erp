@@ -12,6 +12,9 @@ public class ContactRequest {
     @NotBlank(message = "请填写联系人姓名")
     @Size(max = 100, message = "姓名不能超过 100 字")
     private String name;
+    /** 中文名；不传时保持原值，传空字符串为清空（保存后重新翻译） */
+    @Size(max = 100, message = "中文名不能超过 100 字")
+    private String nameCn;
     @Size(max = 50, message = "职位不能超过 50 字")
     private String title;
     @Email(message = "邮箱格式不正确")

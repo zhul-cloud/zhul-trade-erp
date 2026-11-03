@@ -2,7 +2,7 @@ import { SearchOutlined } from '@ant-design/icons';
 import { history } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { App, Button, Checkbox, DatePicker, Input, Select, Table } from 'antd';
-import dayjs, { type Dayjs } from 'dayjs';
+import type { Dayjs } from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
 import { CURRENCIES } from '@/pages/quotation/components';
 import { Card, PATHS, Pill } from '@/pages/sales/components';
@@ -13,6 +13,7 @@ import {
   unitFilterOptions,
   useBusinessUnits,
 } from '@/utils/businessUnit';
+import { recentRange } from '@/utils/dateRange';
 import { usePaymentMethods } from '@/utils/dict';
 import { formatAmount } from '@/utils/format';
 import { usePageSize } from '@/utils/pageSize';
@@ -38,7 +39,8 @@ interface Filters {
 
 const initial = (): Filters => ({
   keyword: '',
-  range: [dayjs().startOf('month'), dayjs().endOf('month')],
+  // 默认最近 3 个月，清空日期看全部
+  range: recentRange(),
   includeVoid: false,
 });
 

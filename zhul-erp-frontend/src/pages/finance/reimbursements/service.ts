@@ -45,6 +45,11 @@ export interface AdvanceItem {
   proofs: FileRef[];
   /** 截图可以在这里补传 */
   proofUploadable: boolean;
+  /** 垫付人；看「全部人员」时区分，提交时按它拆成每人一张报销单 */
+  advanceUserId?: number;
+  advanceUserName?: string;
+  /** 是当前用户本人的垫付 */
+  mine: boolean;
 }
 
 export interface RefundReminder {
@@ -97,7 +102,9 @@ export interface ReimbursementQuery {
 }
 
 export const reimburseApi = {
-  pending: () => get<AdvanceItem[]>(`${BX}/pending`),
+  /** all：有「报销付款」权限时看所有人的待报销 */
+  pending: (all?: boolean) =>
+    get<AdvanceItem[]>(`${BX}/pending`, all ? { all: true } : undefined),
   reminders: () => get<RefundReminder[]>(`${BX}/reminders`),
   addProof: (sourceType: number, sourceId: number, attachmentIds: number[]) =>
     send<AdvanceItem>('POST', `${BX}/proofs`, {
@@ -115,7 +122,7 @@ export const reimburseApi = {
     idempotencyKey: string;
   }) => send<Payment>('POST', `${BX}/refunds`, body),
   submit: (items: { sourceType: number; sourceId: number }[]) =>
-    send<Reimbursement>('POST', BX, { items }),
+    send<Reimbursement[]>('POST', BX, { items }),
   page: (q: ReimbursementQuery) =>
     get<{ total: number; records: Reimbursement[] }>(BX, q),
   pendingTotal: () => get<number>(`${BX}/pending-total`),
@@ -134,6 +141,15 @@ export const reimburseApi = {
       remark?: string;
     },
   ) => send<Reimbursement>('POST', `${BX}/${id}/pay`, body),
+  /** 批量登记已付：每张报销单各生成一张报销付款单，共用截图；任一张不是待付款时整批不登记 */
+  batchPay: (body: {
+    ids: number[];
+    method?: number;
+    bankAccountId?: number;
+    payDate: string;
+    attachmentIds: number[];
+    remark?: string;
+  }) => send<Reimbursement[]>('POST', `${BX}/batch-pay`, body),
   unpay: (id: number, reason: string) =>
     send<Reimbursement>('POST', `${BX}/${id}/unpay`, { reason }),
 };

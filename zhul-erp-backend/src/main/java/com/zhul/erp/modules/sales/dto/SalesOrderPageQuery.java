@@ -19,6 +19,8 @@ public class SalesOrderPageQuery {
     private String currencyCode;
     private Long purchaserId;
     private Integer receiptStatus;
+    /** true：只看先采购后收款、还没有水单也没有到账的订单 */
+    private Boolean payLaterOpen;
     /** 来源：1-PI 转成、2-手动创建、3-售后补发 */
     private Integer source;
     private Long ownerId;

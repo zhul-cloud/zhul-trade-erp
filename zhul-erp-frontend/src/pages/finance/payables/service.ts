@@ -69,6 +69,8 @@ export interface PaymentLine {
   advanceUser?: string;
   /** 私对私时的付款个人账户 */
   payerAccount?: string;
+  /** 对方收款账户快照，只有后四位；未选为空 */
+  payeeAccount?: string;
   payDate: string;
   amount: number;
   amountCny: number;
@@ -161,6 +163,8 @@ export interface Payment {
   advanceUser?: string;
   /** 私对私时的付款个人账户 */
   payerAccount?: string;
+  /** 对方收款账户快照，只有后四位；未选为空 */
+  payeeAccount?: string;
   reimburseStatus: number;
   payDate: string;
   currencyCode: string;
@@ -218,6 +222,8 @@ export interface RegisterPaymentBody {
   bankAccountId?: number;
   /** 私对私必填 */
   payerAccount?: string;
+  /** 对方收款账户（供应商资料的收款账户），选填 */
+  payeeAccountId?: number;
   payDate: string;
   amount: number;
   amountCny?: number;
@@ -226,6 +232,18 @@ export interface RegisterPaymentBody {
   allocations: { payableId: number; amount: number }[];
   credits?: { payableId: number; amount: number }[];
   idempotencyKey: string;
+}
+
+/** 供应商资料里的收款账户：登记付款时选择对方账户用，账号为完整账号 */
+export interface PayeeAccount {
+  id: number;
+  /** 1-对公、2-对私 */
+  accountType: number;
+  accountName: string;
+  bankName: string;
+  accountNo: string;
+  payeePhoneMasked?: string;
+  defaultAccount: boolean;
 }
 
 export interface RefundBody {
@@ -257,6 +275,9 @@ export const paymentApi = {
   stats: (q: Omit<PaymentQuery, 'page' | 'pageSize'>) =>
     get<PaymentStats>(`${PY}/stats`, q),
   register: (body: RegisterPaymentBody) => send<Payment>(PY, body),
+  /** 这张应付单收款方（供应商、货代）的收款账户，默认账户在前 */
+  payeeAccounts: (payableId: number) =>
+    get<PayeeAccount[]>(`${PY}/payee-accounts`, { payableId }),
   refund: (body: RefundBody) => send<Payment>(`${PY}/refunds`, body),
   voidPayment: (id: number, reason: string) =>
     send<Payment>(`${PY}/${id}/void`, { reason }),

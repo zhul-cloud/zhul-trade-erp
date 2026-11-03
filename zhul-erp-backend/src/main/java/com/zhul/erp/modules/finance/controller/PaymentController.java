@@ -4,6 +4,7 @@ import com.zhul.erp.common.result.PageResult;
 import com.zhul.erp.common.result.Result;
 import com.zhul.erp.modules.finance.dto.PaymentQuery;
 import com.zhul.erp.modules.finance.dto.PaymentStatsVO;
+import com.zhul.erp.modules.finance.dto.PayeeAccountVO;
 import com.zhul.erp.modules.finance.dto.PaymentVO;
 import com.zhul.erp.modules.finance.dto.RefundRequest;
 import com.zhul.erp.modules.finance.dto.RegisterPaymentRequest;
@@ -17,9 +18,12 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /** 付款单（spec finance/supplier-payment）：公司对公由财务登记，员工垫付由本人登记，权限细分在服务里校验 */
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/v1/finance/payments")
 @RequiredArgsConstructor
@@ -40,6 +44,13 @@ public class PaymentController {
     @PreAuthorize(MENU)
     public Result<PaymentStatsVO> stats(PaymentQuery q) {
         return Result.ok(service.stats(q));
+    }
+
+    /** 登记付款时可选的对方收款账户（完整账号，只给付款登记或垫付登记权限） */
+    @GetMapping("/payee-accounts")
+    @PreAuthorize(PAYER)
+    public Result<List<PayeeAccountVO>> payeeAccounts(@RequestParam Long payableId) {
+        return Result.ok(service.payeeAccounts(payableId));
     }
 
     @PostMapping

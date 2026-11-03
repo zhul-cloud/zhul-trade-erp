@@ -40,6 +40,8 @@ import com.zhul.erp.modules.inquiry.customerinquiry.dto.CustomerInquiryVO;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.CustomerTypeVO;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.InquiryDownstreamVO;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.DraftRowVO;
+import com.zhul.erp.modules.inquiry.support.InquiryModelSummary;
+import com.zhul.erp.modules.inquiry.customerinquiry.dto.InquiryModelLineVO;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.DraftVO;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.InquiryItemVO;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.PriceRecordVO;
@@ -68,6 +70,7 @@ import com.zhul.erp.modules.inquiry.support.GeneratedInquiryCode;
 import com.zhul.erp.modules.inquiry.support.InquiryCodeGenerator;
 import com.zhul.erp.modules.inquiry.support.InquiryCategories;
 import com.zhul.erp.modules.inquiry.support.InquiryLookups;
+import com.zhul.erp.modules.inquiry.support.ParsedItemMerger;
 import com.zhul.erp.modules.inquiry.support.PriceKeys;
 import com.zhul.erp.modules.inquiry.support.SourcingSettings;
 import com.zhul.erp.modules.inquiry.support.SpreadsheetText;
@@ -573,6 +576,7 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
         LocalDateTime now = LocalDateTime.now();
         Map<Long, Long> timeouts = sourcing.stream().filter(t -> limits.isTimeout(t, now))
                 .collect(Collectors.groupingBy(SourcingTaskDO::getCustomerInquiryId, Collectors.counting()));
+        Map<Long, List<InquiryModelLineVO>> models = modelLines(inquiries);
         List<CustomerInquiryVO> list = new ArrayList<>(inquiries.size());
         for (CustomerInquiryDO i : inquiries) {
             CustomerInquiryVO vo = new CustomerInquiryVO();
@@ -593,6 +597,10 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
             vo.setParseMode(i.getParseMode());
             vo.setTotalItemCount(i.getTotalItemCount());
             vo.setTotalQuantity(i.getTotalQuantity());
+            List<InquiryModelLineVO> lines = models.getOrDefault(i.getId(), List.of());
+            vo.setFirstModel(InquiryModelSummary.firstModel(lines));
+            vo.setBrands(InquiryModelSummary.brands(lines));
+            vo.setCategories(InquiryModelSummary.categories(lines));
             vo.setPricedItemCount(i.getPricedItemCount());
             vo.setTaskCount(i.getTotalOrderCount());
             vo.setTimeoutTaskCount(timeouts.getOrDefault(i.getId(), 0L).intValue());
@@ -1445,6 +1453,89 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
 
     // ---------------------------------------------------------------- 工具
 
+    @Override
+    public List<InquiryModelLineVO> models(Long id) {
+        CustomerInquiryDO inquiry = getVisible(id);
+        return modelLines(List.of(inquiry)).getOrDefault(inquiry.getId(), List.of());
+    }
+
+    /**
+     * 各询盘的型号行：待确认的取 AI 解析结果，已确认的取型号明细；未解析、解析中、解析失败的没有型号。
+     * 品类统一换成一级品类。
+     */
+    private Map<Long, List<InquiryModelLineVO>> modelLines(List<CustomerInquiryDO> inquiries) {
+        Map<Long, List<InquiryModelLineVO>> out = new HashMap<>();
+        List<ProductCategoryDO> categories = null;
+        List<Long> confirmed = new ArrayList<>();
+        for (CustomerInquiryDO i : inquiries) {
+            int st = i.getStatus() == null ? 0 : i.getStatus();
+            if (st == InquiryConstants.STATUS_PENDING_CONFIRM) {
+                if (i.getParseMode() == null || i.getParseMode() != InquiryConstants.PARSE_MODE_AI || i.getAiTaskId() == null) {
+                    continue;
+                }
+                if (categories == null) {
+                    categories = inquiryCategories.categories();
+                }
+                var task = aiTaskService.getById(i.getAiTaskId());
+                AiParseOutputDTO output;
+                try {
+                    output = parseOutput(task == null ? null : task.getOutput());
+                } catch (BizException e) {
+                    // AI 结果格式异常时列表照常显示，只是没有型号摘要
+                    log.warn("询盘 AI 解析结果无法读取，inquiryId={}", i.getId());
+                    continue;
+                }
+                List<InquiryModelLineVO> lines = new ArrayList<>();
+                for (AiParseGroupDTO g : output.getGroups()) {
+                    for (AiParseItemDTO it : g.getItems()) {
+                        DraftRowVO row = toDraftRow(g, it, categories);
+                        lines.add(modelLine(row.getBrand(), row.getConfirmedModel(), row.getOriginalModel(),
+                                rootCategory(row.getCategoryId(), row.getCategory(), categories), row.getQuantity(), row.getUnit()));
+                    }
+                }
+                out.put(i.getId(), lines);
+            } else if (st > InquiryConstants.STATUS_PARSE_FAILED) {
+                confirmed.add(i.getId());
+            }
+        }
+        if (!confirmed.isEmpty()) {
+            if (categories == null) {
+                categories = inquiryCategories.categories();
+            }
+            List<InquiryItemDO> rows = itemMapper.selectList(new LambdaQueryWrapper<InquiryItemDO>()
+                    .select(InquiryItemDO::getCustomerInquiryId, InquiryItemDO::getBrand, InquiryItemDO::getConfirmedModel,
+                            InquiryItemDO::getOriginalModel, InquiryItemDO::getCategoryId, InquiryItemDO::getCategory,
+                            InquiryItemDO::getQuantity, InquiryItemDO::getUnit)
+                    .in(InquiryItemDO::getCustomerInquiryId, confirmed)
+                    .isNull(InquiryItemDO::getDeletedAt)
+                    .orderByAsc(InquiryItemDO::getLineNo)
+                    .orderByAsc(InquiryItemDO::getId));
+            for (InquiryItemDO r : rows) {
+                out.computeIfAbsent(r.getCustomerInquiryId(), k -> new ArrayList<>()).add(modelLine(r.getBrand(),
+                        r.getConfirmedModel(), r.getOriginalModel(), rootCategory(r.getCategoryId(), r.getCategory(), categories),
+                        r.getQuantity(), r.getUnit()));
+            }
+        }
+        return out;
+    }
+
+    private static InquiryModelLineVO modelLine(String brand, String confirmedModel, String originalModel, String category,
+                                                Integer quantity, String unit) {
+        InquiryModelLineVO l = new InquiryModelLineVO();
+        l.setBrand(brand == null ? "" : brand.trim());
+        l.setModel(StringUtils.hasText(confirmedModel) ? confirmedModel.trim() : originalModel == null ? "" : originalModel.trim());
+        l.setCategory(category);
+        l.setQuantity(quantity);
+        l.setUnit(unit);
+        return l;
+    }
+
+    /** 一级品类名；关联不上品类库时用原文 */
+    private static String rootCategory(Long categoryId, String text, List<ProductCategoryDO> categories) {
+        ProductCategoryDO root = InquiryCategories.root(categoryId, categories);
+        return root != null ? InquiryCategories.name(root) : text == null ? "" : text.trim();
+    }
+
     private List<InquiryItemDO> items(Long inquiryId) {
         return itemMapper.selectList(new LambdaQueryWrapper<InquiryItemDO>()
                 .eq(InquiryItemDO::getCustomerInquiryId, inquiryId)
@@ -1481,7 +1572,8 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
             return new AiParseOutputDTO();
         }
         try {
-            return objectMapper.readValue(json, AiParseOutputDTO.class);
+            // 同一型号出现多次时合并数量；询盘统计、确认页、追加确认都读这里，结果一致
+            return ParsedItemMerger.merge(objectMapper.readValue(json, AiParseOutputDTO.class));
         } catch (JsonProcessingException e) {
             throw new BizException("AI 解析结果格式异常，请改为手动录入或重新解析", e);
         }

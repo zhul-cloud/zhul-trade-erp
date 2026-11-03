@@ -496,6 +496,8 @@ export interface OrderListItem {
   ownerId: number;
   ownerName?: string;
   cancelReason?: string;
+  /** 先采购后收款 */
+  payLater?: boolean;
   /** 货物状态（件数，不含系统外采购的型号）；已取消的订单为空 */
   goods?: GoodsSummary;
   createTime: string;
@@ -724,6 +726,11 @@ export interface Order {
   statusName: string;
   cancelReason?: string;
   cancelledByName?: string;
+  /** 先采购后收款：原因、操作人与时间 */
+  payLater?: boolean;
+  payLaterReason?: string;
+  payLaterByName?: string;
+  payLaterAt?: string;
   cancelledAt?: string;
   receiptStatus?: number;
   receiptStatusName?: string;
@@ -748,6 +755,8 @@ export interface OrderStats {
 }
 
 export interface OrderQuery {
+  /** 只看先采购后收款、还没有水单也没有到账的 */
+  payLaterOpen?: boolean;
   keyword?: string;
   status?: number;
   receiptStatus?: number;
@@ -969,8 +978,13 @@ export const piApi = {
     send<Pi>('POST', `${PI}/${id}/receipts/${receiptId}/void`, { reason }),
   receiptSettings: () =>
     get<{ feeTolerance: number }>(`${PI}/receipt-settings`),
-  convert: (id: number, salesDate?: string) =>
-    send<Order>('POST', `${PI}/${id}/convert`, { salesDate }),
+  /** 没有水单也没有到账时须 payLater 并填原因（先采购后收款） */
+  convert: (id: number, salesDate?: string, payLater?: { reason: string }) =>
+    send<Order>('POST', `${PI}/${id}/convert`, {
+      salesDate,
+      payLater: !!payLater,
+      payLaterReason: payLater?.reason,
+    }),
   /** 财务管理 → 收款单（待确认） */
   receiptDesk: (q: ReceiptDeskQuery) =>
     send<{ total: number; records: ReceiptDeskRow[] }>(

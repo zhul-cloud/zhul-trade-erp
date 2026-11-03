@@ -6,6 +6,7 @@ import com.zhul.erp.modules.inquiry.customerinquiry.dto.AppendRequest;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.AppendVO;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.ConfirmRequest;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.CustomerInquiryDetailVO;
+import com.zhul.erp.modules.inquiry.customerinquiry.dto.InquiryModelLineVO;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.CustomerInquiryPageQuery;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.CustomerInquiryVO;
 import com.zhul.erp.modules.crm.dto.OpportunityDetailVO;
@@ -35,6 +36,9 @@ public interface CustomerInquiryService {
     PageResult<CustomerInquiryVO> page(CustomerInquiryPageQuery query);
 
     CustomerInquiryDetailVO detail(Long id);
+
+    /** 询盘的全部型号（列表「查看」弹窗）：待确认时为 AI 识别结果 */
+    List<InquiryModelLineVO> models(Long id);
 
     /** 附件的临时访问链接：download=true 时强制下载，否则预览 */
     FileLink attachmentLink(Long id, Long attachmentId, boolean download);

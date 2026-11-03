@@ -1,6 +1,7 @@
 package com.zhul.erp.modules.finance.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.zhul.erp.modules.finance.constants.FinanceConstants;
 import com.zhul.erp.modules.finance.entity.ExpenseDO;
 import com.zhul.erp.modules.finance.entity.PayableDO;
@@ -16,6 +17,7 @@ import com.zhul.erp.modules.logistics.repository.ForwarderStatementMapper;
 import com.zhul.erp.modules.masterdata.entity.SupplierDO;
 import com.zhul.erp.modules.masterdata.repository.SupplierMapper;
 import com.zhul.erp.modules.masterdata.support.PaymentTerms;
+import com.zhul.erp.modules.masterdata.support.SupplierRenamedEvent;
 import com.zhul.erp.modules.purchase.constants.PurchaseConstants;
 import com.zhul.erp.modules.purchase.entity.PurchaseOrderDO;
 import com.zhul.erp.modules.purchase.entity.PurchaseOrderItemDO;
@@ -31,6 +33,7 @@ import com.zhul.erp.modules.warehouse.repository.PurchaseReceiptMapper;
 import com.zhul.erp.modules.warehouse.repository.ReceivingDiscrepancyMapper;
 import com.zhul.erp.modules.warehouse.support.ShipProgress;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -288,11 +291,19 @@ public class PayableSyncService {
 
     private String supplierName(Long id) {
         SupplierDO s = id == null ? null : supplierMapper.selectById(id);
-        if (s == null) {
-            return "";
-        }
-        String name = s.getShortName() != null && !s.getShortName().isBlank() ? s.getShortName() : s.getName();
-        return name.length() > 128 ? name.substring(0, 128) : name;
+        return s == null ? "" : SupplierRenamedEvent.displayName(s);
+    }
+
+    /** 供应商改名：引用它的应付（供应商、货代）收款方跟着改，与改名同一事务 */
+    @EventListener
+    public void onSupplierRenamed(SupplierRenamedEvent e) {
+        payableMapper.update(null, new LambdaUpdateWrapper<PayableDO>()
+                .eq(PayableDO::getTenantId, e.tenantId())
+                .eq(PayableDO::getSupplierId, e.supplierId())
+                .in(PayableDO::getPayeeType, FinanceConstants.PAYEE_SUPPLIER, FinanceConstants.PAYEE_FORWARDER)
+                .isNull(PayableDO::getDeletedAt)
+                .set(PayableDO::getPayeeName, e.displayName())
+                .set(PayableDO::getUpdateTime, LocalDateTime.now()));
     }
 
     /** 已处理的「折价接收」差异的折价合计 */

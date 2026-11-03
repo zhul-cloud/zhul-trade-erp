@@ -32,6 +32,11 @@ public class QuotationItemVO {
     private Boolean noStockLine;
     /** 替代型号（无货行） */
     private String replacementModel;
+    /** 无货原因（0-非无货行、1-暂时缺货、2-已停产、3-停产有替代型号、4-其他） */
+    private Integer noStockReason;
+    private String noStockNote;
+    /** 带入时还在询价（未回价），按无货报 */
+    private Boolean pendingAsNoStock;
     /** 发给客户的单据上的品牌（英文名；品牌资料里匹配不到时与原文相同） */
     private String brandEn;
     private BigDecimal costPrice;

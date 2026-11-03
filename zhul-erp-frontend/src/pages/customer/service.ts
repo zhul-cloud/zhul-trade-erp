@@ -29,6 +29,8 @@ export interface CustomerListItem {
   ownerId: number;
   ownerName?: string;
   contactName: string;
+  /** 主联系人中文名（系统内显示，空时由 AI 翻译回填） */
+  contactNameCn?: string;
   contactPhone: string;
   contactEmail: string;
   status: number;
@@ -109,6 +111,7 @@ export interface CustomerPayload {
   taxId?: string;
   timezone?: string;
   contactName?: string;
+  contactNameCn?: string;
   contactTitle?: string;
   contactEmail?: string;
   contactPhone?: string;

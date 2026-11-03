@@ -20,6 +20,8 @@ public class CustomerContactDO {
     /** 是否主联系人（0-否、1-是） */
     private Integer isPrimary;
     private String name;
+    /** 中文名（系统内显示用），空时保存后由 AI 翻译回填 */
+    private String nameCn;
     private String title;
     private String email;
     private String phone;

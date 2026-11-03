@@ -22,6 +22,7 @@ import com.zhul.erp.modules.masterdata.dto.UpdateSupplierRequest;
 import com.zhul.erp.modules.masterdata.entity.SupplierAttachmentDO;
 import com.zhul.erp.modules.masterdata.entity.SupplierDO;
 import com.zhul.erp.modules.masterdata.repository.SupplierMapper;
+import com.zhul.erp.modules.masterdata.support.SupplierRenamedEvent;
 import com.zhul.erp.modules.masterdata.service.SupplierService;
 import com.zhul.erp.modules.masterdata.support.PaymentTerms;
 import lombok.RequiredArgsConstructor;
@@ -29,6 +30,7 @@ import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -65,6 +67,7 @@ public class SupplierServiceImpl implements SupplierService {
     private final SupplierBankAccountSync accountSync;
     private final SupplierAttachmentSync attachmentSync;
     private final FileStorageService fileStorage;
+    private final ApplicationEventPublisher events;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -253,6 +256,7 @@ public class SupplierServiceImpl implements SupplierService {
     @Transactional(rollbackFor = Exception.class)
     public void update(Long id, UpdateSupplierRequest req) {
         SupplierDO supplier = getActiveOrThrow(id);
+        String oldName = SupplierRenamedEvent.displayName(supplier);
         SupplierDO duplicate = findActiveByName(supplier.getTenantId(), req.getName());
         if (duplicate != null && !duplicate.getId().equals(id)) {
             throw new BizException("该名称已存在");
@@ -271,6 +275,10 @@ public class SupplierServiceImpl implements SupplierService {
             supplier.setStatus(req.getStatus());
         }
         supplierMapper.updateById(supplier);
+        String newName = SupplierRenamedEvent.displayName(supplier);
+        if (!newName.equals(oldName)) {
+            events.publishEvent(new SupplierRenamedEvent(supplier.getTenantId(), id, newName));
+        }
         if (scopes != null) {
             scopeSync.replace(supplier.getTenantId(), id, scopes);
         }

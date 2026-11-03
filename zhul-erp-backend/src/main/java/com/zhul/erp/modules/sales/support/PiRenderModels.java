@@ -53,7 +53,7 @@ public final class PiRenderModels {
         h.put("customer.name", customer == null ? "" : nz(customer.getName()));
         party(h, "buyer", buyer);
         party(h, "consignee", consignee);
-        h.put("seller.name", owner == null ? "" : nz(owner.getName()));
+        h.put("seller.name", QuotationRenderModels.sellerName(owner));
         h.put("seller.email", owner == null ? "" : nz(owner.getEmail()));
         h.put("seller.phone", owner == null ? "" : nz(owner.getPhone()));
         h.put("bank.name", bank == null ? "" : nz(bank.getBankName()));

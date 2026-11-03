@@ -14,6 +14,10 @@ import com.zhul.erp.modules.finance.constants.FinanceConstants;
 import com.zhul.erp.modules.finance.dto.PaymentQuery;
 import com.zhul.erp.modules.finance.dto.PaymentStatsVO;
 import com.zhul.erp.modules.finance.dto.PaymentVO;
+import com.zhul.erp.common.utils.SensitiveDataMasker;
+import com.zhul.erp.modules.finance.dto.PayeeAccountVO;
+import com.zhul.erp.modules.masterdata.repository.SupplierBankAccountMapper;
+import com.zhul.erp.modules.masterdata.entity.SupplierBankAccountDO;
 import com.zhul.erp.modules.finance.dto.ReceivedRefundRequest;
 import com.zhul.erp.modules.finance.dto.RefundRequest;
 import com.zhul.erp.modules.finance.dto.RegisterPaymentRequest;
@@ -70,6 +74,7 @@ public class PaymentService {
     private final PayableSyncService sync;
     private final PayableQueryService query;
     private final BankAccountMapper bankAccountMapper;
+    private final SupplierBankAccountMapper supplierAccountMapper;
     private final DocumentNumberService documentNumberService;
     private final AttachmentService attachments;
     private final PermissionChecker perm;
@@ -154,6 +159,9 @@ public class PaymentService {
         pay.setPayerAccount(method == FinanceConstants.METHOD_PRIVATE
                 ? accountLabel(bankAccountMapper.selectById(req.getBankAccountId())) : "");
         pay.setAdvanceUser(method == FinanceConstants.METHOD_ADVANCE ? SecurityUtils.getCurrentUsername() : "");
+        SupplierBankAccountDO payeeAccount = payeeAccount(anchor, method, req.getPayeeAccountId());
+        pay.setPayeeAccountId(payeeAccount == null ? null : payeeAccount.getId());
+        pay.setPayeeAccount(payeeAccountLabel(payeeAccount));
         pay.setPayDate(req.getPayDate());
         pay.setCurrencyCode(anchor.getCurrencyCode());
         pay.setAmount(amount);
@@ -499,6 +507,72 @@ public class PaymentService {
     }
 
     /** 付款账户的文字快照：银行 · 户名 尾号 */
+    /** 登记付款可选的对方收款账户：收款方为供应商或货代时取供应商资料的收款账户，默认账户在前 */
+    public List<PayeeAccountVO> payeeAccounts(Long payableId) {
+        PayableDO p = payableId == null ? null : payableMapper.selectById(payableId);
+        if (p == null || p.getDeletedAt() != null || !Objects.equals(p.getTenantId(), PiStore.tenantId())) {
+            throw new BizException("应付单不存在");
+        }
+        if (!hasSupplierAccounts(p)) {
+            return List.of();
+        }
+        return supplierAccountMapper.selectList(new LambdaQueryWrapper<SupplierBankAccountDO>()
+                        .eq(SupplierBankAccountDO::getTenantId, p.getTenantId())
+                        .eq(SupplierBankAccountDO::getSupplierId, p.getSupplierId())
+                        .isNull(SupplierBankAccountDO::getDeletedAt)
+                        .orderByDesc(SupplierBankAccountDO::getIsDefault)
+                        .orderByAsc(SupplierBankAccountDO::getSortOrder)
+                        .orderByAsc(SupplierBankAccountDO::getId))
+                .stream().map(a -> {
+                    PayeeAccountVO vo = new PayeeAccountVO();
+                    vo.setId(a.getId());
+                    vo.setAccountType(a.getAccountType());
+                    vo.setAccountName(a.getAccountName());
+                    vo.setBankName(a.getBankName());
+                    vo.setAccountNo(a.getAccountNo());
+                    vo.setPayeePhoneMasked(StringUtils.hasText(a.getPayeePhone()) ? SensitiveDataMasker.maskPhone(a.getPayeePhone()) : "");
+                    vo.setDefaultAccount(Objects.equals(a.getIsDefault(), 1));
+                    return vo;
+                }).toList();
+    }
+
+    private static boolean hasSupplierAccounts(PayableDO p) {
+        return p.getSupplierId() != null && (p.getPayeeType() == FinanceConstants.PAYEE_SUPPLIER
+                || p.getPayeeType() == FinanceConstants.PAYEE_FORWARDER);
+    }
+
+    /** 校验对方收款账户：属于这个收款方；公司对公只能选对公、私对私只能选对私，员工垫付不限 */
+    private SupplierBankAccountDO payeeAccount(PayableDO anchor, int method, Long accountId) {
+        if (accountId == null) {
+            return null;
+        }
+        SupplierBankAccountDO a = supplierAccountMapper.selectById(accountId);
+        if (a == null || a.getDeletedAt() != null || !hasSupplierAccounts(anchor)
+                || !Objects.equals(a.getTenantId(), anchor.getTenantId()) || !Objects.equals(a.getSupplierId(), anchor.getSupplierId())) {
+            throw new BizException("对方收款账户不存在，请刷新后重试");
+        }
+        boolean personal = Objects.equals(a.getAccountType(), 2);
+        if (method == FinanceConstants.METHOD_COMPANY && personal) {
+            throw new BizException("公司对公请选择对方的对公账户");
+        }
+        if (method == FinanceConstants.METHOD_PRIVATE && !personal) {
+            throw new BizException("私对私请选择对方的对私账户");
+        }
+        return a;
+    }
+
+    /** 对方账户快照：类型 · 开户行 · 户名 ****后四位 */
+    static String payeeAccountLabel(SupplierBankAccountDO a) {
+        if (a == null) {
+            return "";
+        }
+        String no = a.getAccountNo() == null ? "" : a.getAccountNo().replace(" ", "");
+        String tail = no.length() > 4 ? no.substring(no.length() - 4) : no;
+        String s = (Objects.equals(a.getAccountType(), 2) ? "对私" : "对公") + " · " + a.getBankName() + " · " + a.getAccountName()
+                + (tail.isEmpty() ? "" : " ****" + tail);
+        return s.length() > 200 ? s.substring(0, 200) : s;
+    }
+
     static String accountLabel(BankAccountDO b) {
         return b == null ? "" : (b.getBankName() + " · " + b.getAccountName() + " " + BankAccountService.mask(b.getAccountNo())).trim();
     }
@@ -602,6 +676,7 @@ public class PaymentService {
             vo.setBankAccountId(p.getBankAccountId());
             vo.setAccountName(accounts.get(p.getBankAccountId()));
             vo.setPayerAccount(p.getPayerAccount());
+            vo.setPayeeAccount(p.getPayeeAccount());
             vo.setAdvanceUser(p.getAdvanceUser());
             vo.setReimburseStatus(p.getReimburseStatus());
             vo.setPayDate(p.getPayDate());

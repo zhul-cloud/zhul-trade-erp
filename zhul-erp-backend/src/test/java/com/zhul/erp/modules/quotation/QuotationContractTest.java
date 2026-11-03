@@ -149,6 +149,9 @@ class QuotationContractTest extends InquiryContractSupport {
             m.put("marginRate", i.path("marginRate").isMissingNode() || i.path("marginRate").isNull() ? null : i.path("marginRate").decimalValue());
             m.put("markupAmount", i.path("markupAmount").isMissingNode() || i.path("markupAmount").isNull() ? null : i.path("markupAmount").decimalValue());
             m.put("unitPrice", i.path("unitPrice").decimalValue());
+            m.put("replacementModel", i.path("replacementModel").asText(""));
+            m.put("noStockReason", i.path("noStockReason").asInt());
+            m.put("noStockNote", i.path("noStockNote").asText(""));
             items.add(m);
         }
         body.put("items", items);
@@ -392,11 +395,8 @@ class QuotationContractTest extends InquiryContractSupport {
                 }
             }
         }
-        assertFalse(pendingItem.path("pickable").asBoolean());
-        assertEquals("还在询价，回价后才能报价", pendingItem.path("disabledReason").asText());
-
-        assertTrue(fail(create(write(Map.of("itemIds", List.of(pendingItem.path("itemId").asLong()))))).path("message").asText()
-                .contains("还在询价，回价后才能报价"));
+        assertTrue(pendingItem.path("pickable").asBoolean(), "还在询价的型号也能选");
+        assertTrue(pendingItem.path("pendingAsNoStock").asBoolean(), "标「未回价 · 按无货报」");
         List<Long> first = itemIds(ready.get(0));
         List<Long> second = itemIds(ready.get(1));
         JsonNode q = ok(create(write(Map.of("itemIds", List.of(first.get(0), first.get(1), second.get(0))))));
@@ -654,16 +654,91 @@ class QuotationContractTest extends InquiryContractSupport {
         JsonNode candidate = ok(call(get("/api/v1/sales/pis/candidates/quotations/" + id), admin));
         assertEquals(1, candidate.path("items").size(), "无货行不能开 PI");
 
-        // 填了售价就按正常报价
+        // 填了售价就按正常报价，清空售价回到无货行
         long inq2 = seedInquiry(c, 6, "2026-10-04", m("6ES7-ALL-NOSTOCK", "NOSTOCK"));
         JsonNode allNoStock = byInquiries(inq2);
-        assertEquals("报价单的型号都是无货，至少要有一个报价的型号才能发送",
-                fail(call(json(post(QT + "/" + allNoStock.path("id").asLong() + "/send"), "{\"channel\":1}"), admin)).path("message").asText());
+        long allId = allNoStock.path("id").asLong();
+        assertEquals(1, allNoStock.path("items").get(0).path("noStockReason").asInt(), "没有替代型号默认「暂时缺货」");
         Map<String, Object> priced = saveBody(allNoStock);
         line(priced, 0).put("unitPrice", new BigDecimal("120.00"));
-        JsonNode after = ok(save(allNoStock.path("id").asLong(), priced));
+        JsonNode after = ok(save(allId, priced));
         assertFalse(after.path("items").get(0).path("noStockLine").asBoolean());
         money("120.00", after.path("itemAmount"));
+        line(priced, 0).put("unitPrice", BigDecimal.ZERO);
+        assertTrue(ok(save(allId, priced)).path("items").get(0).path("noStockLine").asBoolean());
+
+        // 整单都是无货也能发送，合计为 0
+        JsonNode sentAll = ok(call(json(post(QT + "/" + allId + "/send"), "{\"channel\":1}"), admin));
+        assertEquals(2, sentAll.path("status").asInt());
+        money("0.00", sentAll.path("totalAmount"));
+    }
+
+    @Test
+    void noStockReason_pendingPickedAsNoStock_reasonsRenderedAndValidated() throws Exception {
+        long c = customer("Andes Industrial", "Chile");
+        long inq = seedInquiry(c, 5, "2026-11-01", m("1756-L61", "3850"), m("6ES7315-2AG10-0AB0", null), m("1769-L33ER", "NOSTOCK"),
+                m("6AV2124-0GC01-0AX0", "NOSTOCK"));
+        jdbc.update("update inquiry_item set lifecycle = 2, replacement_model = '6AV2124-0GC01-0AX1' where customer_inquiry_id = ? and line_no = 4", inq);
+        List<Long> ids = itemIds(inq);
+        // 按询盘报价只带入已回价的，还在询价的提示数量
+        JsonNode auto = byInquiries(inq);
+        assertEquals(3, auto.path("items").size());
+        assertEquals(1, auto.path("pendingItemCount").asInt());
+
+        // 手动勾选还在询价的型号：带入为无货行，原因默认「暂时缺货」，不计入合计；询价任务不受影响
+        JsonNode q = ok(create(write(Map.of("itemIds", ids))));
+        assertEquals(4, q.path("items").size());
+        JsonNode pending = q.path("items").get(1);
+        assertTrue(pending.path("noStockLine").asBoolean());
+        assertTrue(pending.path("pendingAsNoStock").asBoolean());
+        assertEquals(1, pending.path("noStockReason").asInt());
+        assertEquals(3, q.path("items").get(3).path("noStockReason").asInt(), "停产有替代型号默认原因 3");
+        money(q.path("items").get(0).path("amount").asText(), q.path("itemAmount"));
+        assertEquals(1, jdbc.queryForObject("select quote_status from inquiry_item where id = ?", Integer.class, ids.get(1)));
+
+        long id = q.path("id").asLong();
+        Map<String, Object> body = saveBody(q);
+        line(body, 0).put("pricingMode", 3);
+        line(body, 0).put("unitPrice", new BigDecimal("612.00"));
+        // 停产有替代型号必须填替代型号；其他必须填英文说明
+        line(body, 1).put("noStockReason", 3);
+        line(body, 1).put("replacementModel", "");
+        assertTrue(fail(save(id, body)).path("message").asText().contains("请填写替代型号"));
+        line(body, 1).put("noStockReason", 4);
+        line(body, 1).put("noStockNote", "");
+        assertTrue(fail(save(id, body)).path("message").asText().contains("请填写给客户看的英文说明"));
+        line(body, 1).put("noStockNote", "十二周交期");
+        assertTrue(fail(save(id, body)).path("message").asText().contains("请用英文填写"));
+        line(body, 1).put("noStockNote", "Lead time 12 weeks, please confirm");
+        line(body, 2).put("noStockReason", 2);
+        line(body, 3).put("noStockReason", 9);
+        assertTrue(fail(save(id, body)).path("message").asText().contains("无货原因不存在"));
+        line(body, 3).put("noStockReason", 3);
+        JsonNode saved = ok(save(id, body));
+        assertEquals("Lead time 12 weeks, please confirm", saved.path("items").get(1).path("noStockNote").asText());
+
+        String text = ok(call(get(QT + "/" + id + "/text"), admin)).path("text").asText();
+        assertTrue(text.contains("6ES7315-2AG10-0AB0 Siemens 1 lead time 12 weeks, please confirm"), text);
+        assertTrue(text.contains("1769-L33ER Siemens 1 discontinued"), text);
+        assertTrue(text.contains("6AV2124-0GC01-0AX0 Siemens 1 no stock, discontinued, replacement: 6AV2124-0GC01-0AX1"), text);
+
+        MockHttpServletResponse xlsx = perform(get(QT + "/" + id + "/export").param("format", "xlsx"), admin);
+        StringBuilder all = new StringBuilder();
+        try (XSSFWorkbook wb = new XSSFWorkbook(new ByteArrayInputStream(xlsx.getContentAsByteArray()))) {
+            DataFormatter fmt = new DataFormatter();
+            for (Row row : wb.getSheetAt(0)) {
+                row.forEach(cell -> all.append(fmt.formatCellValue(cell)).append('|'));
+            }
+        }
+        assertTrue(all.toString().contains("|Lead time 12 weeks, please confirm|"), all.toString());
+        assertTrue(all.toString().contains("|Discontinued|"), all.toString());
+        assertTrue(all.toString().contains("Discontinued, replacement: 6AV2124-0GC01-0AX1"), all.toString());
+
+        // 新版本保留原因与「按无货报」标记
+        ok(call(json(post(QT + "/" + id + "/send"), "{\"channel\":1}"), admin));
+        JsonNode rev = ok(call(post(QT + "/" + id + "/revise"), admin));
+        assertEquals(4, rev.path("items").get(1).path("noStockReason").asInt());
+        assertTrue(rev.path("items").get(1).path("pendingAsNoStock").asBoolean());
     }
 
     @Test

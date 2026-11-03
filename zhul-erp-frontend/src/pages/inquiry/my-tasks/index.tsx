@@ -36,6 +36,8 @@ import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
 import type { Attachment } from '@/pages/warehouse/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
+import { usePageSize } from '@/utils/pageSize';
+import { TaskPager } from '../shared/BrandGroups';
 import {
   Card,
   ConditionPill,
@@ -164,6 +166,9 @@ const MyTasksPage: React.FC = () => {
   const [done, setDone] = useState(false);
   const [keyword, setKeyword] = useState('');
   const [search, setSearch] = useState('');
+  /** 已回价页签分页 */
+  const [donePage, setDonePage] = useState(1);
+  const [donePageSize, setDonePageSize] = usePageSize(20, 'done');
   const [tasks, setTasks] = useState<MyTask[] | null>(null);
   // 从工作台采购员看板点进来时带 ?task=任务ID，直接打开该任务
   const [activeId, setActiveId] = useState<number | undefined>(() => {
@@ -202,7 +207,7 @@ const MyTasksPage: React.FC = () => {
     try {
       const [pending, finished, sales] = await Promise.all([
         myTaskApi.list(false, search),
-        myTaskApi.list(true, search),
+        myTaskApi.donePage(donePage, donePageSize, search),
         // 这里只要待认领的数量，列表由待认领页签自己分页加载
         myTaskApi.salesPending(1, 1),
       ]);
@@ -212,8 +217,8 @@ const MyTasksPage: React.FC = () => {
         salesViewChecked.current = true;
         if (sales.total > 0 && !activeIdRef.current) setView('sales');
       }
-      setCounts({ pending: pending.length, done: finished.length });
-      const list = done ? finished : pending;
+      setCounts({ pending: pending.length, done: finished.total });
+      const list = done ? finished.records : pending;
       setTasks(list);
       const next = nextActiveTask(activeIdRef.current, list);
       setActiveId(next.id);
@@ -222,7 +227,7 @@ const MyTasksPage: React.FC = () => {
       setError(readBizError(e).message);
       return undefined;
     }
-  }, [done, search]);
+  }, [done, search, donePage, donePageSize]);
 
   const loadDetail = useCallback(async (id?: number) => {
     if (!id) {
@@ -690,9 +695,15 @@ const MyTasksPage: React.FC = () => {
               value={keyword}
               onChange={(e) => {
                 setKeyword(e.target.value);
-                if (!e.target.value) setSearch('');
+                if (!e.target.value) {
+                  setSearch('');
+                  setDonePage(1);
+                }
               }}
-              onSearch={(v) => setSearch(v.trim())}
+              onSearch={(v) => {
+                setSearch(v.trim());
+                setDonePage(1);
+              }}
             />
           )}
           <Segmented
@@ -795,6 +806,17 @@ const MyTasksPage: React.FC = () => {
                 )}
               </button>
             ))
+          )}
+          {view === 'done' && tasks && (
+            <TaskPager
+              total={counts.done}
+              page={donePage}
+              pageSize={donePageSize}
+              onChange={(p, size) => {
+                setDonePage(size === donePageSize ? p : 1);
+                setDonePageSize(size);
+              }}
+            />
           )}
         </div>
 

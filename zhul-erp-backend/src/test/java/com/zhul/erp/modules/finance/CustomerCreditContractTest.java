@@ -294,6 +294,59 @@ class CustomerCreditContractTest extends SalesContractSupport {
     }
 
     @Test
+    void overpaidFromPlatform_onlyBackToPlatform_offlineCannot() throws Exception {
+        long pi = pi(null, null);
+        platform(pi, "1050", "0");
+        convert(pi);
+        JsonNode row = ok(call(get(CREDIT + "/overpaid"), admin)).get(0);
+        money("50", row.path("pending"));
+        JsonNode orig = row.path("platformReceipts");
+        assertEquals(1, orig.size(), row.toString());
+        String orderNo = orig.get(0).path("platformOrderNo").asText();
+        assertFalse(orig.get(0).path("platform").asText().isEmpty());
+
+        Map<String, Object> req = new HashMap<>();
+        req.put("ownerType", "PI");
+        req.put("ownerId", pi);
+        req.put("amount", "50");
+        req.put("mode", "REFUND");
+        req.put("withdrawDate", LocalDate.now().toString());
+        req.put("method", 2);
+        req.put("actualCny", "355");
+        req.put("attachmentIds", List.of(upload("REFUND")));
+        assertEquals("这张单有平台收款，只能原路退回平台", fail(call(json(post(CREDIT + "/overpaid"), write(req)), admin))
+                .path("message").asText());
+        req.put("method", 1);
+        assertTrue(ok(call(json(post(CREDIT + "/overpaid"), write(req)), admin)).isEmpty());
+        JsonNode tk = ok(call(get(REFUND).param("refundType", "2"), admin)).path("records").get(0);
+        assertEquals(1, tk.path("method").asInt(), tk.toString());
+        assertEquals("原路退回平台（" + orig.get(0).path("platform").asText() + "）", tk.path("methodName").asText());
+        assertEquals(orderNo, tk.path("payeeAccount").asText());
+        money("0", balances().get(0).path("available"));
+        // 汇兑损益 = 账面价值 357.50 − 实际 355.00；作废退款单后余额恢复、汇兑损益作废
+        money("2.50", ok(call(get(INCOME).param("category", "FX_GAIN"), admin)).path("records").get(0).path("amount"));
+        ok(call(json(post(REFUND + "/" + tk.path("id").asLong() + "/void"), "{\"reason\":\"平台退款失败\"}"), admin));
+        money("50", balances().get(0).path("available"));
+
+        // 线下到账的多收不能原路退回
+        long offline = pi(null, null);
+        confirmReceipt(offline, "1050", null, false, admin);
+        convert(offline);
+        req.put("ownerId", offline);
+        req.put("attachmentIds", List.of(upload("REFUND")));
+        assertEquals("这张单没有平台收款，不能原路退回", fail(call(json(post(CREDIT + "/overpaid"), write(req)), admin))
+                .path("message").asText());
+        JsonNode offRow = ok(call(get(CREDIT + "/overpaid"), admin)).get(0);
+        assertEquals(0, offRow.path("platformReceipts").size());
+        // 余额管理的转给客户不能选原路退回
+        req.put("mode", "CREDIT");
+        ok(call(json(post(CREDIT + "/overpaid"), write(req)), admin));
+        Map<String, Object> w = withdraw("50", "355");
+        w.put("method", 1);
+        assertEquals("转出方式不正确", fail(call(json(post(CREDIT + "/withdraw"), write(w)), admin)).path("message").asText());
+    }
+
+    @Test
     void manualOrderUsesCredit_voidAndCancelRelease_withdrawLossIsNegativeIncome() throws Exception {
         Map<String, Object> adj = new HashMap<>();
         adj.put("customerId", customer);

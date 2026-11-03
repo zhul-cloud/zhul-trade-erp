@@ -119,6 +119,9 @@ public class QuotationServiceImpl implements QuotationService {
     private final DocumentNumberService documentNumberService;
     private final com.zhul.erp.modules.product.support.BrandResolver brandResolver;
 
+    /** 带入时还在询价、按无货报的行，记在建议依据上（随版本复制） */
+    private static final String PENDING_AS_NO_STOCK = "未回价，按无货报";
+
     // ---------------------------------------------------------------- 新建
 
     @Override
@@ -154,12 +157,9 @@ public class QuotationServiceImpl implements QuotationService {
             Long customerId = sameCustomer(inquiries.values());
             Map<Long, QuoteCandidates.Candidate> evaluated = candidates.evaluate(items, customerId, null);
             picked = new ArrayList<>();
+            // 还在询价的型号也能选，带入后按无货报
             for (InquiryItemDO item : items) {
-                QuoteCandidates.Candidate c = evaluated.get(item.getId());
-                if (!c.pickable()) {
-                    throw new BizException("型号 " + modelOf(item) + " " + QuoteCandidates.PENDING_REASON);
-                }
-                picked.add(c);
+                picked.add(evaluated.get(item.getId()));
             }
         }
         picked.sort((a, b) -> {
@@ -236,11 +236,7 @@ public class QuotationServiceImpl implements QuotationService {
         Map<Long, QuoteCandidates.Candidate> evaluated = candidates.evaluate(items, q.getCustomerId(), id);
         List<QuoteCandidates.Candidate> picked = new ArrayList<>();
         for (InquiryItemDO item : items) {
-            QuoteCandidates.Candidate c = evaluated.get(item.getId());
-            if (!c.pickable()) {
-                throw new BizException("型号 " + modelOf(item) + " " + QuoteCandidates.PENDING_REASON);
-            }
-            picked.add(c);
+            picked.add(evaluated.get(item.getId()));
         }
         int next = existing.stream().mapToInt(i -> nz(i.getLineNo())).max().orElse(0) + 1;
         List<QuotationItemDO> lines = newLines(q, picked, inquiries, next, e.versionNo(), e.current());
@@ -289,13 +285,19 @@ public class QuotationServiceImpl implements QuotationService {
             line.setLeadTime(c.costQuote() == null ? 0 : nz(c.costQuote().getLeadTime()));
             line.setWarranty(QuotationConstants.DEFAULT_WARRANTY);
             line.setQuantity(src.getQuantity() == null || src.getQuantity() < 1 ? 1 : src.getQuantity());
-            line.setNoStock(c.noStock() ? 1 : 0);
+            boolean noStock = c.noStock() || c.pendingAsNoStock();
+            line.setNoStock(noStock ? 1 : 0);
             line.setReplacementModel(c.noStock() && Objects.equals(src.getLifecycle(), InquiryConstants.LIFECYCLE_DISCONTINUED)
                     ? nz(src.getReplacementModel()).trim() : "");
+            // 默认原因：采购标了停产且有替代型号的为「停产有替代型号」，其余（含按无货报的未回价型号）为「暂时缺货」
+            line.setNoStockReason(!noStock ? QuotationConstants.NO_STOCK_NONE
+                    : line.getReplacementModel().isEmpty() ? QuotationConstants.NO_STOCK_OUT : QuotationConstants.NO_STOCK_REPLACEMENT);
+            line.setNoStockNote("");
             line.setCostPrice(c.costPrice());
             QuotationPricing.Suggestion s = QuotationPricing.suggest(line.getItemCondition(), line.getCostPrice(), strategy, conditionNames);
             if (line.getCostPrice() == null) {
-                s = new QuotationPricing.Suggestion(null, null, c.noStock() ? "无货" : s.basis());
+                s = new QuotationPricing.Suggestion(null, null,
+                        c.pendingAsNoStock() ? PENDING_AS_NO_STOCK : noStock ? "无货" : s.basis());
             }
             line.setSuggestedMargin(s.marginRate());
             line.setSuggestBasis(s.basis());
@@ -455,9 +457,7 @@ public class QuotationServiceImpl implements QuotationService {
         if (items.isEmpty()) {
             throw new BizException("报价单没有型号，不能发送");
         }
-        if (items.stream().allMatch(QuotationRenderModels::isNoStockLine)) {
-            throw new BizException("报价单的型号都是无货，至少要有一个报价的型号才能发送");
-        }
+        // 整单都是无货行也能发送，作为给客户的无货说明（合计为 0）
         for (QuotationItemDO i : items) {
             // 无货行不报价，发送时不要求售价
             if (QuotationRenderModels.isNoStockLine(i)) {
@@ -690,6 +690,8 @@ public class QuotationServiceImpl implements QuotationService {
         l.setQuantity(s.getQuantity());
         l.setNoStock(s.getNoStock());
         l.setReplacementModel(s.getReplacementModel());
+        l.setNoStockReason(s.getNoStockReason());
+        l.setNoStockNote(s.getNoStockNote());
         l.setCostPrice(s.getCostPrice());
         l.setPricingMode(s.getPricingMode());
         l.setMarginRate(s.getMarginRate());
@@ -944,6 +946,9 @@ public class QuotationServiceImpl implements QuotationService {
         vo.setNoStock(Objects.equals(i.getNoStock(), 1));
         vo.setNoStockLine(QuotationRenderModels.isNoStockLine(i));
         vo.setReplacementModel(i.getReplacementModel());
+        vo.setNoStockReason(i.getNoStockReason());
+        vo.setNoStockNote(i.getNoStockNote());
+        vo.setPendingAsNoStock(PENDING_AS_NO_STOCK.equals(i.getSuggestBasis()));
         vo.setCostPrice(i.getCostPrice());
         vo.setPricingMode(i.getPricingMode());
         vo.setMarginRate(i.getMarginRate());

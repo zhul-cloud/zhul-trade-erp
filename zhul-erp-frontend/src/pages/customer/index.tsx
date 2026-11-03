@@ -326,6 +326,18 @@ const CustomerListPage: React.FC = () => {
       render: (v: string) => zhOf(v) || '—',
     },
     {
+      title: '主联系人',
+      key: 'contact',
+      width: 210,
+      render: (_, r) => stacked(r.contactName || '—', r.contactEmail),
+    },
+    {
+      title: '主联系人中文名',
+      dataIndex: 'contactNameCn',
+      width: 140,
+      render: (v?: string) => v || '—',
+    },
+    {
       title: '客户角色',
       dataIndex: 'customerRole',
       width: 110,
@@ -414,12 +426,6 @@ const CustomerListPage: React.FC = () => {
           },
         ]
       : []),
-    {
-      title: '主联系人',
-      key: 'contact',
-      width: 210,
-      render: (_, r) => stacked(r.contactName || '—', r.contactEmail),
-    },
     {
       title: '状态',
       dataIndex: 'status',
@@ -746,7 +752,7 @@ const CustomerListPage: React.FC = () => {
                 dataSource={rows}
                 loading={loading}
                 sticky
-                scroll={{ x: showOwner ? 2030 : 1930 }}
+                scroll={{ x: showOwner ? 2170 : 2070 }}
                 onChange={onTableChange}
                 rowSelection={{
                   selectedRowKeys: selected,
