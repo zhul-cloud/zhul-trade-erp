@@ -7,7 +7,7 @@ import {
   getRoleMenuIds,
 } from '@/pages/system/menu/service';
 import RolePage from './index';
-import { getRoleList, updateRole } from './service';
+import { getRoleDeptIds, getRoleList, updateRole } from './service';
 
 jest.mock('@umijs/max', () => ({
   useAccess: () => ({ 'system:role:assign': true, 'system:role:edit': true }),
@@ -36,7 +36,10 @@ jest.mock('@/pages/system/menu/service', () => ({
 }));
 
 jest.mock('@/pages/system/user/service', () => ({
-  getDeptTreeOptions: jest.fn().mockResolvedValue([]),
+  getDeptTreeOptions: jest.fn().mockResolvedValue([
+    { value: 1, title: '审查一部' },
+    { value: 2, title: '审查二部' },
+  ]),
 }));
 
 jest.mock('@/pages/dashboard/service', () => ({
@@ -97,6 +100,7 @@ const mocked = {
   getRoleMenuIds: getRoleMenuIds as jest.Mock,
   assignRoleMenus: assignRoleMenus as jest.Mock,
   updateRole: updateRole as jest.Mock,
+  getRoleDeptIds: getRoleDeptIds as jest.Mock,
 };
 
 const renderPage = () =>
@@ -171,5 +175,36 @@ describe('RolePage 数据权限（audit UI-013）', () => {
     renderPage();
     expect(await screen.findByText('仅本人数据')).toBeTruthy();
     expect(screen.queryByText('无')).toBeNull();
+  });
+});
+
+describe('RolePage 编辑角色（audit UI-037）', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mocked.getRoleList.mockResolvedValue({
+      data: [role(1, 'RA', '角色甲', 2), role(2, 'RB', '角色乙', 3)],
+      total: 2,
+      success: true,
+    });
+  });
+
+  it('先点的角色部门晚返回时，不会在关闭后重新弹出编辑抽屉', async () => {
+    const slowA = deferred<number[]>();
+    mocked.getRoleDeptIds.mockImplementation(() => slowA.promise);
+    renderPage();
+    const edits = await screen.findAllByText('编辑');
+    fireEvent.click(edits[0]);
+    fireEvent.click(edits[1]);
+    expect(await screen.findByText('编辑角色 - 角色乙')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /取\s?消/ }));
+    await waitFor(() =>
+      expect(screen.queryByText('编辑角色 - 角色乙')).toBeNull(),
+    );
+
+    slowA.resolve([1]);
+    await slowA.promise;
+    // 留出足够时间让迟到的回包走完（修复前抽屉会在这段时间里重新弹出）
+    await new Promise((r) => setTimeout(r, 500));
+    expect(screen.queryByText(/编辑角色 - /)).toBeNull();
   });
 });
