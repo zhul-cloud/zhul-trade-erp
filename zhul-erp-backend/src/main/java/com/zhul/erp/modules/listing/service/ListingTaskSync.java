@@ -3,6 +3,8 @@ package com.zhul.erp.modules.listing.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.zhul.erp.framework.security.SecurityUtils;
+import com.zhul.erp.framework.tenant.TenantContext;
+import com.zhul.erp.framework.tenant.TenantScope;
 import com.zhul.erp.modules.listing.constants.ListingConstants;
 import com.zhul.erp.modules.listing.entity.ListingTaskDO;
 import com.zhul.erp.modules.listing.repository.ListingTaskMapper;
@@ -63,9 +65,9 @@ public class ListingTaskSync {
             if (e.productIds() == null || e.productIds().isEmpty()) {
                 return;
             }
-            // 资料核对是共享操作：显式跨公司，查出有这个商品营销任务的公司逐个处理
-            for (Integer tenantId : taskMapper.tenantsOf(e.productIds())) {
-                sync(tenantId, e.productIds());
+            // 资料核对是共享操作：显式跨公司，查出有这个商品营销任务的公司，按各自的租户逐个处理
+            for (Integer tenantId : TenantScope.platform(() -> taskMapper.tenantsOf(e.productIds()))) {
+                TenantContext.runAs(tenantId, () -> sync(tenantId, e.productIds()));
             }
             return;
         }

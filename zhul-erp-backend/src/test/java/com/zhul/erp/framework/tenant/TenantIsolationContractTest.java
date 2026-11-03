@@ -226,6 +226,16 @@ class TenantIsolationContractTest extends IntegrationTestBase {
     }
 
     @Test
+    void everyTenantTableIsClassified() {
+        // 新建带 tenant_id 的表必须归类：纳入拦截器，或写明理由排除
+        List<String> tables = jdbc.queryForList("select table_name from information_schema.columns where table_schema = database() "
+                + "and column_name = 'tenant_id' and table_name not like 'it\\_%' and table_name not like 'bak\\_%'", String.class);
+        List<String> missing = tables.stream()
+                .filter(t -> !TenantTables.enforced().containsKey(t) && !TenantTables.excluded().containsKey(t)).toList();
+        assertTrue(missing.isEmpty(), "未归类的带 tenant_id 的表：" + missing);
+    }
+
+    @Test
     void missingTenantContextFailsClosed() {
         TenantContext.clear();
         assertThrows(Exception.class, () -> userBasicMapper.selectById(USER_A));

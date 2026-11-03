@@ -130,7 +130,67 @@ public final class TenantTables {
             Map.entry("biz_attachment", Policy.PRIVATE),
             Map.entry("biz_attachment_model", Policy.PRIVATE),
             Map.entry("media_asset", Policy.PRIVATE),
-            Map.entry("media_item", Policy.PRIVATE)
+            Map.entry("media_item", Policy.PRIVATE),
+            // 商品内容与营销：按租户维护
+            Map.entry("product_content_task", Policy.PRIVATE),
+            Map.entry("product_keyword", Policy.PRIVATE),
+            Map.entry("product_keyword_use", Policy.PRIVATE),
+            Map.entry("product_marketing_skip", Policy.PRIVATE),
+            Map.entry("product_platform_content", Policy.PRIVATE),
+            Map.entry("product_platform_keyword", Policy.PRIVATE),
+            Map.entry("product_seo", Policy.PRIVATE),
+            Map.entry("product_seo_faq", Policy.PRIVATE),
+            Map.entry("listing_task", Policy.PRIVATE),
+            // AI：平台订阅设置供获授权的公司读取
+            Map.entry("ai_task", Policy.PRIVATE),
+            Map.entry("sys_ai_config", Policy.SHARED_READ),
+            Map.entry("sys_ai_provider_config", Policy.SHARED_READ),
+            // 其他系统数据
+            Map.entry("sys_log", Policy.PRIVATE),
+            Map.entry("document_sequence", Policy.PRIVATE),
+            Map.entry("document_template", Policy.SHARED_READ),
+            Map.entry("document_template_version", Policy.SHARED_READ),
+            Map.entry("exchange_rate", Policy.SHARED_READ),
+            Map.entry("exchange_rate_log", Policy.PRIVATE),
+            Map.entry("tenant_bank_account", Policy.PRIVATE),
+            Map.entry("transit_time", Policy.SHARED_READ)
+    );
+
+    /**
+     * 有 tenant_id 但不由拦截器管辖的表及理由。它们本来就跨租户，代码里显式带租户条件；
+     * 新建带 tenant_id 的表须加进上面的清单或这里（TenantIsolationContractTest 检查）。
+     */
+    private static final String PRODUCT_LIBRARY = "全局商品库：数据一律存平台（tenant 0），"
+            + "租户能否修改看商品的所属租户（owner_tenant_id），由 ProductWriteGuard / PlatformScopeGuard 校验";
+
+    private static final Map<String, String> EXCLUDED = Map.ofEntries(
+            Map.entry("product_candidate", "平台候选池：由各公司的询盘与导入汇入平台（tenant 0），各公司查看自己的来源"),
+            Map.entry("product_candidate_source", "候选来源：记录来自哪家公司，平台按来源归并候选"),
+            Map.entry("migration_batch", "历史迁移是平台工具：平台账号查看、执行各公司的迁移批次"),
+            Map.entry("migration_id_map", "历史迁移的 ID 对照：迁移在平台范围内按目标公司执行"),
+            Map.entry("resource", "全局菜单与按钮定义，全部属于平台（tenant 0）；写操作在 MenuService 校验平台身份，权限计算按全局菜单进行"),
+            Map.entry("product_content_import", "上传记录：资料包写入全局商品库，各公司都能看到（不显示其他公司的确认人）；"
+                    + "营销包只看本公司的，ContentImportRecordService 显式带租户条件"),
+            Map.entry("product", PRODUCT_LIBRARY),
+            Map.entry("product_application", PRODUCT_LIBRARY),
+            Map.entry("product_brand", PRODUCT_LIBRARY),
+            Map.entry("product_brand_alias", PRODUCT_LIBRARY),
+            Map.entry("product_category", PRODUCT_LIBRARY),
+            Map.entry("product_customs", PRODUCT_LIBRARY),
+            Map.entry("product_document", PRODUCT_LIBRARY),
+            Map.entry("product_fact_note", PRODUCT_LIBRARY),
+            Map.entry("product_fact_task", PRODUCT_LIBRARY),
+            Map.entry("product_faq", PRODUCT_LIBRARY),
+            Map.entry("product_listing_price", PRODUCT_LIBRARY),
+            Map.entry("product_locale", PRODUCT_LIBRARY),
+            Map.entry("product_logistics", PRODUCT_LIBRARY),
+            Map.entry("product_media", PRODUCT_LIBRARY),
+            Map.entry("product_order_code", PRODUCT_LIBRARY),
+            Map.entry("product_reference_price", PRODUCT_LIBRARY),
+            Map.entry("product_relationship", PRODUCT_LIBRARY),
+            Map.entry("product_relationship_note", PRODUCT_LIBRARY),
+            Map.entry("product_series", PRODUCT_LIBRARY),
+            Map.entry("product_specification", PRODUCT_LIBRARY)
     );
 
     /** SQL 里是否出现已纳入管辖的表名（整词匹配，{@code account} 不匹配 {@code account_access_token}） */
@@ -152,6 +212,10 @@ public final class TenantTables {
 
     static Map<String, Policy> enforced() {
         return ENFORCED;
+    }
+
+    static Map<String, String> excluded() {
+        return EXCLUDED;
     }
 
     private static String normalize(String table) {

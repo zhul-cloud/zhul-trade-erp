@@ -50,6 +50,7 @@ class InquiryIntakeContractTest extends InquiryContractSupport {
 
     /** 插一条已提交的询价记录（询价记录） */
     private long quote(String brand, String model, String price, int condition, String quotedAt) {
+        TenantContext.setTenantId(0);
         jdbc.update("insert into sourcing_quote (tenant_id, brand, brand_key, model, model_key, channel, shop_name, currency_code, unit_price, "
                         + "exchange_rate, unit_price_cny, item_condition, quoted_by, quoted_at, status) values (0, ?, ?, ?, ?, 2, '明和电气', 'CNY', ?, 1, ?, ?, ?, ?, 2)",
                 brand, priceKeys.brand(brand).brandKey(), model, PriceKeys.model(model), price, price, condition, BUYER_LIN, quotedAt);
