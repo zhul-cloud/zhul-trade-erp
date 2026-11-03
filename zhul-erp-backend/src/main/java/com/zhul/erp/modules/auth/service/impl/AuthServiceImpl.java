@@ -88,17 +88,6 @@ public class AuthServiceImpl implements AuthService {
     public LoginResponse login(LoginRequest request, HttpServletRequest httpRequest, HttpServletResponse httpResponse) {
         // 登录前还不知道租户：按全局唯一的用户名找账号，之后的查询都显式带账号自己的租户
         return TenantScope.platform(() -> {
-            // 0. 幂等键去重：命中缓存直接返回上一次的成功结果
-            String idemKey = RedisKeyConstants.LOGIN_IDEMPOTENCY_PREFIX + request.getIdempotencyKey();
-            String cached = redisTemplate.opsForValue().get(idemKey);
-            if (StringUtils.hasText(cached)) {
-                try {
-                    return objectMapper.readValue(cached, LoginResponse.class);
-                } catch (Exception ignored) {
-                    // 缓存内容异常时忽略，按正常流程重新处理
-                }
-            }
-
             // 1. 查账号
             AccountDO account = accountMapper.selectOne(
                 new LambdaQueryWrapper<AccountDO>()
@@ -113,6 +102,11 @@ public class AuthServiceImpl implements AuthService {
             if (account.getStatus() != UserService.STATUS_ENABLED) {
                 recordLoginFailure(account, httpRequest, account.getStatus() == UserService.STATUS_DELETED ? "账号已删除" : "账号已禁用");
                 throw new BizException(ResultCode.ACCOUNT_DISABLED);
+            }
+            // 公司停用时员工不能登录；员工自己的启停状态与公司状态分开保存（audit SEC-007）
+            if (!tenantEnabled(account.getTenantId())) {
+                recordLoginFailure(account, httpRequest, "公司已停用");
+                throw new BizException(ResultCode.TENANT_DISABLED);
             }
 
             // 2. 锁定状态判断
@@ -144,6 +138,18 @@ public class AuthServiceImpl implements AuthService {
                 handlePasswordFailure(account, localAuth, httpRequest);
                 // handlePasswordFailure 内部必定抛出异常，此处不会执行到
                 throw new BizException(ResultCode.INVALID_CREDENTIALS);
+            }
+
+            // 幂等去重放在身份验证之后，并按账号区分：同一账号重复提交时返回上一次的成功结果，
+            // 别人拿到同一个幂等键也取不到这个账号的登录结果（audit SEC-006）
+            String idemKey = RedisKeyConstants.LOGIN_IDEMPOTENCY_PREFIX + account.getId() + ":" + request.getIdempotencyKey();
+            String cached = redisTemplate.opsForValue().get(idemKey);
+            if (StringUtils.hasText(cached)) {
+                try {
+                    return objectMapper.readValue(cached, LoginResponse.class);
+                } catch (Exception ignored) {
+                    // 缓存内容异常时忽略，按正常流程重新处理
+                }
             }
 
             // 4. 登录成功：清除失败计数
@@ -275,7 +281,7 @@ public class AuthServiceImpl implements AuthService {
                 throw new BizException(ResultCode.REFRESH_TOKEN_INVALID);
             }
             AccountDO account = accountMapper.selectById(tokenRow.getAccountId());
-            if (account == null || account.getStatus() != UserService.STATUS_ENABLED) {
+            if (account == null || account.getStatus() != UserService.STATUS_ENABLED || !tenantEnabled(account.getTenantId())) {
                 throw new BizException(ResultCode.REFRESH_TOKEN_INVALID);
             }
 
@@ -500,6 +506,15 @@ public class AuthServiceImpl implements AuthService {
     private void recordLoginFailure(AccountDO account, HttpServletRequest httpRequest, String failReason) {
         logService.recordLoginLog(account.getTenantId(), account.getId(), account.getUsername(), 0,
                 IpUtils.getClientIp(httpRequest), httpRequest.getHeader("User-Agent"), null, failReason);
+    }
+
+    /** 账号所属公司是否启用；平台账号（tenant_id=0）没有对应的 tenant 行，视为启用 */
+    private boolean tenantEnabled(Integer tenantId) {
+        if (tenantId == null || tenantId == 0) {
+            return true;
+        }
+        TenantDO tenant = tenantMapper.selectById(tenantId);
+        return tenant != null && Integer.valueOf(1).equals(tenant.getStatus());
     }
 
     /** tenantId=0 是平台级账号，没有对应的 tenant 行，固定展示"平台管理" */

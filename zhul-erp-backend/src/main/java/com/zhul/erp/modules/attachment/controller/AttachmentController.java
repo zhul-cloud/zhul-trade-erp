@@ -5,6 +5,7 @@ import com.zhul.erp.framework.security.PermissionChecker;
 import com.zhul.erp.framework.storage.FileStorageService.FileLink;
 import com.zhul.erp.modules.attachment.dto.AttachmentVO;
 import com.zhul.erp.modules.attachment.entity.BizAttachmentDO;
+import com.zhul.erp.modules.attachment.service.AttachmentOwnerScope;
 import com.zhul.erp.modules.attachment.service.AttachmentService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -55,6 +56,7 @@ public class AttachmentController {
 
     private final AttachmentService service;
     private final PermissionChecker perm;
+    private final AttachmentOwnerScope ownerScope;
 
     /** ownerId 选填：实拍任务传入时，素材直接放到该型号的目录 */
     @PostMapping
@@ -69,6 +71,9 @@ public class AttachmentController {
     public Result<FileLink> url(@PathVariable Long id, @RequestParam(defaultValue = "false") boolean download) {
         BizAttachmentDO a = service.require(id);
         requireMenu(a.getOwnerType());
+        if (!ownerScope.canSee(a)) {
+            throw new org.springframework.security.access.AccessDeniedException("没有权限访问这个附件");
+        }
         return Result.ok(service.link(a, download));
     }
 

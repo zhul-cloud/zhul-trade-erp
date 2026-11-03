@@ -115,3 +115,4 @@
 | 日期 / 作者 | 事件与证据 | 下一步 / 交接 |
 | --- | --- | --- |
 | 2026-11-03 / Claude | 用户选定方案 C；完成 SQL 静态解析与运行时改写演练；新编 SEC-011；在 `fix/tenant-isolation-core` 实施并验证（见上表） | 拉下一个分支继续 |
+| 2026-11-03 / Claude | `fix/tenant-isolation-core` 提交 `2c440cb2` 并推送（未建 PR、未合并）；从它拉 `fix/tenant-object-guards` 处理 SEC-005/006/007，见 [2026-11-03-SEC-005](2026-11-03-SEC-005-object-guards.md) | 之后按模块逐个启用其余表 |

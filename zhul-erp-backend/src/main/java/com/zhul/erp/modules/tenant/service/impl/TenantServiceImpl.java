@@ -14,7 +14,7 @@ import com.zhul.erp.modules.system.entity.UserBasicDO;
 import com.zhul.erp.modules.system.repository.AccountLocalAuthMapper;
 import com.zhul.erp.modules.system.repository.AccountMapper;
 import com.zhul.erp.modules.system.repository.UserBasicMapper;
-import com.zhul.erp.modules.system.service.UserService;
+import com.zhul.erp.modules.system.service.AccountSessionService;
 import com.zhul.erp.modules.product.support.IndustryScope;
 import com.zhul.erp.modules.tenant.dto.PackageOptionVO;
 import com.zhul.erp.modules.tenant.dto.RenewTenantRequest;
@@ -71,6 +71,7 @@ public class TenantServiceImpl implements TenantService {
     private final AccountMapper accountMapper;
     private final AccountLocalAuthMapper accountLocalAuthMapper;
     private final IndustryScope industryScope;
+    private final AccountSessionService accountSessionService;
 
     @Override
     public PageResult<TenantVO> page(TenantQuery query) {
@@ -221,14 +222,12 @@ public class TenantServiceImpl implements TenantService {
             change.setStatus(status);
             tenantMapper.updateById(change);
 
-            // 登录只看 account.status（见 AuthServiceImpl），级联同步才能真正拦住/放开该租户下的用户登录；
-            // user_basic.status 一起同步只是为了跟用户管理页面展示的状态保持一致；已删除的用户不受影响
-            accountMapper.update(new AccountDO(), new LambdaUpdateWrapper<AccountDO>()
-                    .eq(AccountDO::getTenantId, id).ne(AccountDO::getStatus, UserService.STATUS_DELETED)
-                    .set(AccountDO::getStatus, status));
-            userBasicMapper.update(new UserBasicDO(), new LambdaUpdateWrapper<UserBasicDO>()
-                    .eq(UserBasicDO::getTenantId, id).ne(UserBasicDO::getStatus, UserService.STATUS_DELETED)
-                    .set(UserBasicDO::getStatus, status));
+            // 公司状态与员工自己的启停状态分开保存（audit SEC-007）：登录和刷新 Token 时同时检查公司状态，
+            // 不再把公司的状态写到每个员工身上，恢复公司时不会把单独停用的员工也启用。
+            // 认证过滤器只看会话是否存在：停用公司时撤销全部会话，已登录的员工立即失效
+            if (!Integer.valueOf(1).equals(status)) {
+                accountSessionService.revokeAllOfTenant(id);
+            }
         });
     }
 
