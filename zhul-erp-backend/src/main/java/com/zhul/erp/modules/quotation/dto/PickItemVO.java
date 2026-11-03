@@ -18,6 +18,8 @@ public class PickItemVO {
     private Boolean noStock;
     /** 能否选：有采购成本价或无货 */
     private Boolean pickable;
+    /** 还在询价（没有采购成本价也没有无货结果）：可以选，带入后按无货报，默认不勾 */
+    private Boolean pendingAsNoStock;
     /** 不能选的原因 */
     private String disabledReason;
     /** 已出现在已发送（及之后）的报价单中 */
