@@ -36,6 +36,8 @@ public abstract class IntegrationTestBase {
     private AesUtils aesUtils;
 
     private boolean categoriesSnapshotted;
+    /** loginWithResources 建的账号与用户所属租户，默认平台；非 0 时该租户须有套餐（权限 = 套餐 ∩ 角色） */
+    protected int testUserTenant = 0;
 
     @BeforeEach
     void assertUsingTestDatabase() {
@@ -89,10 +91,10 @@ public abstract class IntegrationTestBase {
 
     private void loginAccount(String username, int adminFlag, int... resourceIds) {
         removeTestAccount();
-        jdbc.update("insert into account (id, tenant_id, user_id, username, admin_flag) values (?, 0, ?, ?, ?)",
-                TEST_ACCOUNT_ID, TEST_ACCOUNT_ID, username, adminFlag);
-        jdbc.update("insert into user_basic (id, tenant_id, name, username, role_code) values (?, 0, 'IT', ?, ?)",
-                TEST_ACCOUNT_ID, username, TEST_ROLE);
+        jdbc.update("insert into account (id, tenant_id, user_id, username, admin_flag) values (?, ?, ?, ?, ?)",
+                TEST_ACCOUNT_ID, testUserTenant, TEST_ACCOUNT_ID, username, adminFlag);
+        jdbc.update("insert into user_basic (id, tenant_id, name, username, role_code) values (?, ?, 'IT', ?, ?)",
+                TEST_ACCOUNT_ID, testUserTenant, username, TEST_ROLE);
         for (int resourceId : resourceIds) {
             jdbc.update("insert into role_resource (role_code, resource_id, resource_code) values (?, ?, '')",
                     TEST_ROLE, resourceId);

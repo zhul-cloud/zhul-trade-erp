@@ -1,6 +1,7 @@
 package com.zhul.erp.modules.system;
 
 import com.zhul.erp.common.exception.BizException;
+import com.zhul.erp.framework.tenant.TenantContext;
 import com.zhul.erp.modules.system.dto.MenuVO;
 import com.zhul.erp.modules.system.service.MenuService;
 import com.zhul.erp.support.IntegrationTestBase;
@@ -70,6 +71,7 @@ class MenuPermissionIntegrationTest extends IntegrationTestBase {
 
     @Test
     void tenantAdmin_menuTreeOnlyShowsPackage_andCannotAssignOthers() {
+        TenantContext.setTenantId(TENANT);
         SecurityContextHolder.getContext().setAuthentication(
                 new UsernamePasswordAuthenticationToken(TENANT_ADMIN, null, List.of()));
         List<Integer> visible = ids(menuService.getMenuTree());

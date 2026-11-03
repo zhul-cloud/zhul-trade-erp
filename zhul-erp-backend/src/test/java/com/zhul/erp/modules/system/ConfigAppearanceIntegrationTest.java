@@ -39,6 +39,7 @@ class ConfigAppearanceIntegrationTest extends IntegrationTestBase {
 
     @BeforeEach
     void rememberValues() {
+        TenantContext.setTenantId(0);
         for (String key : KEYS) {
             original.put(key, jdbc.queryForObject(
                     "select config_value from sys_config where tenant_id = 0 and config_key = ? and deleted_at is null",

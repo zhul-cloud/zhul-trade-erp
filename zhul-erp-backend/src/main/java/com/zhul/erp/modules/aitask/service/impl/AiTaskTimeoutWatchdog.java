@@ -2,6 +2,7 @@ package com.zhul.erp.modules.aitask.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.zhul.erp.framework.tenant.TenantContext;
+import com.zhul.erp.framework.tenant.TenantScope;
 import com.zhul.erp.modules.aitask.constants.AiTaskStatus;
 import com.zhul.erp.modules.aitask.entity.AiTaskDO;
 import com.zhul.erp.modules.aitask.repository.AiTaskMapper;
@@ -39,36 +40,39 @@ public class AiTaskTimeoutWatchdog {
 
     @Scheduled(fixedDelayString = "${zhul.ai-task.timeout-check-interval-ms:60000}")
     public void checkTimeouts() {
-        LocalDateTime deadline = LocalDateTime.now().minusMinutes(timeoutMinutes);
-        List<AiTaskDO> staleTasks = aiTaskMapper.selectList(new LambdaQueryWrapper<AiTaskDO>()
-                .in(AiTaskDO::getStatus, AiTaskStatus.QUEUED, AiTaskStatus.PROCESSING)
-                .lt(AiTaskDO::getCreateTime, deadline)
-                .isNull(AiTaskDO::getDeletedAt));
+        // 跨租户的后台任务：按各行自己的租户处理，不由租户拦截器追加当前租户条件
+        TenantScope.platform(() -> {
+            LocalDateTime deadline = LocalDateTime.now().minusMinutes(timeoutMinutes);
+            List<AiTaskDO> staleTasks = aiTaskMapper.selectList(new LambdaQueryWrapper<AiTaskDO>()
+                    .in(AiTaskDO::getStatus, AiTaskStatus.QUEUED, AiTaskStatus.PROCESSING)
+                    .lt(AiTaskDO::getCreateTime, deadline)
+                    .isNull(AiTaskDO::getDeletedAt));
 
-        for (AiTaskDO task : staleTasks) {
-            String message = "处理超时：超过" + timeoutMinutes + "分钟未收到AI编排服务的处理结果";
-            log.warn("ai_task id={} skillId={} 处理超时，标记为失败并转人工：{}", task.getId(), task.getSkillId(), message);
+            for (AiTaskDO task : staleTasks) {
+                String message = "处理超时：超过" + timeoutMinutes + "分钟未收到AI编排服务的处理结果";
+                log.warn("ai_task id={} skillId={} 处理超时，标记为失败并转人工：{}", task.getId(), task.getSkillId(), message);
 
-            LocalDateTime now = LocalDateTime.now();
-            AiTaskDO update = new AiTaskDO();
-            update.setId(task.getId());
-            update.setStatus(AiTaskStatus.FAILED);
-            update.setErrorMessage(message);
-            update.setCompletedAt(now);
-            aiTaskMapper.updateById(update);
+                LocalDateTime now = LocalDateTime.now();
+                AiTaskDO update = new AiTaskDO();
+                update.setId(task.getId());
+                update.setStatus(AiTaskStatus.FAILED);
+                update.setErrorMessage(message);
+                update.setCompletedAt(now);
+                aiTaskMapper.updateById(update);
 
-            AiTaskDO failed = new AiTaskDO();
-            failed.setId(task.getId());
-            failed.setSkillId(task.getSkillId());
-            failed.setStatus(AiTaskStatus.FAILED);
-            failed.setErrorMessage(message);
-            failed.setCompletedAt(now);
-            TenantContext.setTenantId(task.getTenantId());
-            try {
-                resultDispatcher.dispatch(failed);
-            } finally {
-                TenantContext.clear();
+                AiTaskDO failed = new AiTaskDO();
+                failed.setId(task.getId());
+                failed.setSkillId(task.getSkillId());
+                failed.setStatus(AiTaskStatus.FAILED);
+                failed.setErrorMessage(message);
+                failed.setCompletedAt(now);
+                TenantContext.setTenantId(task.getTenantId());
+                try {
+                    resultDispatcher.dispatch(failed);
+                } finally {
+                    TenantContext.clear();
+                }
             }
-        }
+        });
     }
 }

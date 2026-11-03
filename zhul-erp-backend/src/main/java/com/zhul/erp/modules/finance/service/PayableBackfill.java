@@ -2,6 +2,7 @@ package com.zhul.erp.modules.finance.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.zhul.erp.framework.tenant.TenantContext;
+import com.zhul.erp.framework.tenant.TenantScope;
 import com.zhul.erp.modules.logistics.constants.LogisticsConstants;
 import com.zhul.erp.modules.logistics.entity.ForwarderStatementDO;
 import com.zhul.erp.modules.logistics.repository.ForwarderStatementMapper;
@@ -37,21 +38,24 @@ public class PayableBackfill implements ApplicationRunner {
 
     @Override
     public void run(ApplicationArguments args) {
-        List<PurchaseOrderDO> orders = orderMapper.selectList(new LambdaQueryWrapper<PurchaseOrderDO>()
-                .select(PurchaseOrderDO::getId, PurchaseOrderDO::getTenantId)
-                .eq(PurchaseOrderDO::getStatus, PurchaseConstants.PO_ORDERED)
-                .isNull(PurchaseOrderDO::getDeletedAt)
-                .notExists(String.format(NO_PAYABLE, 1, "purchase_order")));
-        int po = each(orders.stream().map(o -> new Item(o.getId(), o.getTenantId())).toList(), sync::syncPurchaseOrder);
-        List<ForwarderStatementDO> statements = statementMapper.selectList(new LambdaQueryWrapper<ForwarderStatementDO>()
-                .select(ForwarderStatementDO::getId, ForwarderStatementDO::getTenantId)
-                .eq(ForwarderStatementDO::getStatus, LogisticsConstants.STATEMENT_CONFIRMED)
-                .isNull(ForwarderStatementDO::getDeletedAt)
-                .notExists(String.format(NO_PAYABLE, 2, "forwarder_statement")));
-        int st = each(statements.stream().map(s -> new Item(s.getId(), s.getTenantId())).toList(), sync::createForStatement);
-        if (po + st > 0) {
-            log.info("应付存量补齐完成：采购订单 {} 张，运费账单 {} 张", po, st);
-        }
+        // 跨租户的后台任务：按各行自己的租户处理，不由租户拦截器追加当前租户条件
+        TenantScope.platform(() -> {
+            List<PurchaseOrderDO> orders = orderMapper.selectList(new LambdaQueryWrapper<PurchaseOrderDO>()
+                    .select(PurchaseOrderDO::getId, PurchaseOrderDO::getTenantId)
+                    .eq(PurchaseOrderDO::getStatus, PurchaseConstants.PO_ORDERED)
+                    .isNull(PurchaseOrderDO::getDeletedAt)
+                    .notExists(String.format(NO_PAYABLE, 1, "purchase_order")));
+            int po = each(orders.stream().map(o -> new Item(o.getId(), o.getTenantId())).toList(), sync::syncPurchaseOrder);
+            List<ForwarderStatementDO> statements = statementMapper.selectList(new LambdaQueryWrapper<ForwarderStatementDO>()
+                    .select(ForwarderStatementDO::getId, ForwarderStatementDO::getTenantId)
+                    .eq(ForwarderStatementDO::getStatus, LogisticsConstants.STATEMENT_CONFIRMED)
+                    .isNull(ForwarderStatementDO::getDeletedAt)
+                    .notExists(String.format(NO_PAYABLE, 2, "forwarder_statement")));
+            int st = each(statements.stream().map(s -> new Item(s.getId(), s.getTenantId())).toList(), sync::createForStatement);
+            if (po + st > 0) {
+                log.info("应付存量补齐完成：采购订单 {} 张，运费账单 {} 张", po, st);
+            }
+        });
     }
 
     private record Item(Long id, Integer tenantId) {

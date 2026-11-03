@@ -12,6 +12,7 @@ import com.zhul.erp.common.result.ResultCode;
 import com.zhul.erp.common.utils.IpUtils;
 import com.zhul.erp.common.utils.JwtUtils;
 import com.zhul.erp.framework.mail.MailService;
+import com.zhul.erp.framework.tenant.TenantScope;
 import com.zhul.erp.modules.auth.dto.LoginRequest;
 import com.zhul.erp.modules.auth.dto.LoginResponse;
 import com.zhul.erp.modules.auth.dto.RefreshTokenResponse;
@@ -85,140 +86,143 @@ public class AuthServiceImpl implements AuthService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public LoginResponse login(LoginRequest request, HttpServletRequest httpRequest, HttpServletResponse httpResponse) {
-        // 0. 幂等键去重：命中缓存直接返回上一次的成功结果
-        String idemKey = RedisKeyConstants.LOGIN_IDEMPOTENCY_PREFIX + request.getIdempotencyKey();
-        String cached = redisTemplate.opsForValue().get(idemKey);
-        if (StringUtils.hasText(cached)) {
-            try {
-                return objectMapper.readValue(cached, LoginResponse.class);
-            } catch (Exception ignored) {
-                // 缓存内容异常时忽略，按正常流程重新处理
+        // 登录前还不知道租户：按全局唯一的用户名找账号，之后的查询都显式带账号自己的租户
+        return TenantScope.platform(() -> {
+            // 0. 幂等键去重：命中缓存直接返回上一次的成功结果
+            String idemKey = RedisKeyConstants.LOGIN_IDEMPOTENCY_PREFIX + request.getIdempotencyKey();
+            String cached = redisTemplate.opsForValue().get(idemKey);
+            if (StringUtils.hasText(cached)) {
+                try {
+                    return objectMapper.readValue(cached, LoginResponse.class);
+                } catch (Exception ignored) {
+                    // 缓存内容异常时忽略，按正常流程重新处理
+                }
             }
-        }
 
-        // 1. 查账号
-        AccountDO account = accountMapper.selectOne(
-            new LambdaQueryWrapper<AccountDO>()
-                .eq(AccountDO::getUsername, request.getUsername())
-                .last("LIMIT 1")
-        );
-        if (account == null) {
-            // 账号不存在时无法确定 tenant_id，登录日志按租户隔离要求不予记录；
-            // 对外统一返回“用户名或密码错误”，避免暴露账号是否存在
-            throw new BizException(ResultCode.INVALID_CREDENTIALS);
-        }
-        if (account.getStatus() != UserService.STATUS_ENABLED) {
-            recordLoginFailure(account, httpRequest, account.getStatus() == UserService.STATUS_DELETED ? "账号已删除" : "账号已禁用");
-            throw new BizException(ResultCode.ACCOUNT_DISABLED);
-        }
-
-        // 2. 锁定状态判断
-        AccountLocalAuthDO localAuth = accountLocalAuthMapper.selectOne(
-            new LambdaQueryWrapper<AccountLocalAuthDO>()
-                .eq(AccountLocalAuthDO::getAccountId, account.getId())
-                .last("LIMIT 1")
-        );
-        LocalDateTime now = LocalDateTime.now();
-        // 在自动解锁的原地重置修改 localAuth 之前，先记录“重置前”的失败状态，
-        // 否则第 4 步的持久化判断会读到已被清零的内存对象，误判为“无需写库”。
-        boolean hadFailureState = localAuth != null
-                && ((localAuth.getFailCount() != null && localAuth.getFailCount() > 0) || localAuth.getUnlockAt() != null);
-        if (localAuth != null && localAuth.getUnlockAt() != null) {
-            if (localAuth.getUnlockAt().isAfter(now)) {
-                recordLoginFailure(account, httpRequest, "账号已锁定");
-                throw new BizException(ResultCode.ACCOUNT_LOCKED,
-                        String.format("账号已被锁定，请于 %s 后重试或联系管理员", localAuth.getUnlockAt().format(HHMM)));
-            }
-            // 锁定已到期：自动解锁（内存态先清零，供后续密码校验使用正确的 fail_count 基数）
-            if (localAuth.getFailCount() != null && localAuth.getFailCount() >= MAX_FAIL_COUNT) {
-                localAuth.setFailCount(0);
-                localAuth.setUnlockAt(null);
-            }
-        }
-
-        // 3. 验证密码
-        if (localAuth == null || !BCrypt.checkpw(request.getPassword(), localAuth.getPassword())) {
-            handlePasswordFailure(account, localAuth, httpRequest);
-            // handlePasswordFailure 内部必定抛出异常，此处不会执行到
-            throw new BizException(ResultCode.INVALID_CREDENTIALS);
-        }
-
-        // 4. 登录成功：清除失败计数
-        if (hadFailureState) {
-            accountLocalAuthMapper.update(null, new LambdaUpdateWrapper<AccountLocalAuthDO>()
-                    .eq(AccountLocalAuthDO::getId, localAuth.getId())
-                    .set(AccountLocalAuthDO::getFailCount, 0)
-                    .set(AccountLocalAuthDO::getUnlockAt, null));
-        }
-
-        // 5. 生成 JWT AccessToken
-        long expiresIn = EXPIRES_NORMAL;
-        Map<String, Object> claims = new HashMap<>();
-        claims.put("accountId", account.getId());
-        claims.put("userId", account.getUserId());
-        claims.put("tenantId", account.getTenantId());
-        String token = jwtUtils.generateToken(claims, account.getUsername(), expiresIn);
-        redisTemplate.opsForValue().set(
-            RedisKeyConstants.TOKEN_PREFIX + token,
-            String.valueOf(account.getId()),
-            expiresIn, TimeUnit.SECONDS
-        );
-
-        // 6. remember_me：签发 RefreshToken，写入 HttpOnly Cookie
-        String refreshToken = null;
-        if (Boolean.TRUE.equals(request.getRememberMe())) {
-            refreshToken = UUID.randomUUID().toString().replace("-", "");
-            redisTemplate.opsForValue().set(
-                RedisKeyConstants.REFRESH_TOKEN_PREFIX + refreshToken,
-                String.valueOf(account.getId()),
-                EXPIRES_REMEMBER, TimeUnit.SECONDS
+            // 1. 查账号
+            AccountDO account = accountMapper.selectOne(
+                new LambdaQueryWrapper<AccountDO>()
+                    .eq(AccountDO::getUsername, request.getUsername())
+                    .last("LIMIT 1")
             );
-            setRefreshCookie(httpResponse, refreshToken, httpRequest.isSecure());
-        }
+            if (account == null) {
+                // 账号不存在时无法确定 tenant_id，登录日志按租户隔离要求不予记录；
+                // 对外统一返回“用户名或密码错误”，避免暴露账号是否存在
+                throw new BizException(ResultCode.INVALID_CREDENTIALS);
+            }
+            if (account.getStatus() != UserService.STATUS_ENABLED) {
+                recordLoginFailure(account, httpRequest, account.getStatus() == UserService.STATUS_DELETED ? "账号已删除" : "账号已禁用");
+                throw new BizException(ResultCode.ACCOUNT_DISABLED);
+            }
 
-        String deviceInfo = summarizeUserAgent(httpRequest.getHeader("User-Agent"));
-        String clientIp = IpUtils.getClientIp(httpRequest);
-        AccountAccessTokenDO tokenRow = new AccountAccessTokenDO();
-        tokenRow.setUserId(account.getUserId());
-        tokenRow.setAccountId(account.getId());
-        tokenRow.setAccessToken(token);
-        tokenRow.setRefreshToken(refreshToken);
-        tokenRow.setDeviceInfo(deviceInfo);
-        tokenRow.setLoginIp(clientIp);
-        tokenRow.setStatus(1);
-        tokenRow.setExpiryTime(now.plusSeconds(expiresIn));
-        accountAccessTokenMapper.insert(tokenRow);
+            // 2. 锁定状态判断
+            AccountLocalAuthDO localAuth = accountLocalAuthMapper.selectOne(
+                new LambdaQueryWrapper<AccountLocalAuthDO>()
+                    .eq(AccountLocalAuthDO::getAccountId, account.getId())
+                    .last("LIMIT 1")
+            );
+            LocalDateTime now = LocalDateTime.now();
+            // 在自动解锁的原地重置修改 localAuth 之前，先记录“重置前”的失败状态，
+            // 否则第 4 步的持久化判断会读到已被清零的内存对象，误判为“无需写库”。
+            boolean hadFailureState = localAuth != null
+                    && ((localAuth.getFailCount() != null && localAuth.getFailCount() > 0) || localAuth.getUnlockAt() != null);
+            if (localAuth != null && localAuth.getUnlockAt() != null) {
+                if (localAuth.getUnlockAt().isAfter(now)) {
+                    recordLoginFailure(account, httpRequest, "账号已锁定");
+                    throw new BizException(ResultCode.ACCOUNT_LOCKED,
+                            String.format("账号已被锁定，请于 %s 后重试或联系管理员", localAuth.getUnlockAt().format(HHMM)));
+                }
+                // 锁定已到期：自动解锁（内存态先清零，供后续密码校验使用正确的 fail_count 基数）
+                if (localAuth.getFailCount() != null && localAuth.getFailCount() >= MAX_FAIL_COUNT) {
+                    localAuth.setFailCount(0);
+                    localAuth.setUnlockAt(null);
+                }
+            }
 
-        // 7. 更新登录状态
-        accountMapper.update(null, new LambdaUpdateWrapper<AccountDO>()
-            .eq(AccountDO::getId, account.getId())
-            .set(AccountDO::getLastLoginTime, now.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")))
-            .set(AccountDO::getLoginStatus, 1)
-        );
+            // 3. 验证密码
+            if (localAuth == null || !BCrypt.checkpw(request.getPassword(), localAuth.getPassword())) {
+                handlePasswordFailure(account, localAuth, httpRequest);
+                // handlePasswordFailure 内部必定抛出异常，此处不会执行到
+                throw new BizException(ResultCode.INVALID_CREDENTIALS);
+            }
 
-        // 8. 查用户信息
-        UserBasicDO userBasic = userBasicMapper.selectById(account.getUserId());
+            // 4. 登录成功：清除失败计数
+            if (hadFailureState) {
+                accountLocalAuthMapper.update(null, new LambdaUpdateWrapper<AccountLocalAuthDO>()
+                        .eq(AccountLocalAuthDO::getId, localAuth.getId())
+                        .set(AccountLocalAuthDO::getFailCount, 0)
+                        .set(AccountLocalAuthDO::getUnlockAt, null));
+            }
 
-        log.info("用户登录成功，username={}, tenantId={}", account.getUsername(), account.getTenantId());
-        logService.recordLoginLog(account.getTenantId(), account.getId(), account.getUsername(), 1,
-                clientIp, httpRequest.getHeader("User-Agent"), tokenRow.getId(), null);
+            // 5. 生成 JWT AccessToken
+            long expiresIn = EXPIRES_NORMAL;
+            Map<String, Object> claims = new HashMap<>();
+            claims.put("accountId", account.getId());
+            claims.put("userId", account.getUserId());
+            claims.put("tenantId", account.getTenantId());
+            String token = jwtUtils.generateToken(claims, account.getUsername(), expiresIn);
+            redisTemplate.opsForValue().set(
+                RedisKeyConstants.TOKEN_PREFIX + token,
+                String.valueOf(account.getId()),
+                expiresIn, TimeUnit.SECONDS
+            );
 
-        LoginResponse response = LoginResponse.builder()
-            .accessToken(token)
-            .expiresIn(expiresIn)
-            .username(account.getUsername())
-            .nickname(userBasic != null ? userBasic.getNickname() : account.getUsername())
-            .avatarUrl(userBasic != null ? userBasic.getAvatarUrl() : "")
-            .isAdmin(account.getAdminFlag() != null && account.getAdminFlag() == 1)
-            .tenantName(resolveTenantName(account.getTenantId()))
-            .build();
+            // 6. remember_me：签发 RefreshToken，写入 HttpOnly Cookie
+            String refreshToken = null;
+            if (Boolean.TRUE.equals(request.getRememberMe())) {
+                refreshToken = UUID.randomUUID().toString().replace("-", "");
+                redisTemplate.opsForValue().set(
+                    RedisKeyConstants.REFRESH_TOKEN_PREFIX + refreshToken,
+                    String.valueOf(account.getId()),
+                    EXPIRES_REMEMBER, TimeUnit.SECONDS
+                );
+                setRefreshCookie(httpResponse, refreshToken, httpRequest.isSecure());
+            }
 
-        try {
-            redisTemplate.opsForValue().set(idemKey, objectMapper.writeValueAsString(response), 10, TimeUnit.SECONDS);
-        } catch (Exception e) {
-            log.warn("登录幂等结果缓存失败", e);
-        }
-        return response;
+            String deviceInfo = summarizeUserAgent(httpRequest.getHeader("User-Agent"));
+            String clientIp = IpUtils.getClientIp(httpRequest);
+            AccountAccessTokenDO tokenRow = new AccountAccessTokenDO();
+            tokenRow.setUserId(account.getUserId());
+            tokenRow.setAccountId(account.getId());
+            tokenRow.setAccessToken(token);
+            tokenRow.setRefreshToken(refreshToken);
+            tokenRow.setDeviceInfo(deviceInfo);
+            tokenRow.setLoginIp(clientIp);
+            tokenRow.setStatus(1);
+            tokenRow.setExpiryTime(now.plusSeconds(expiresIn));
+            accountAccessTokenMapper.insert(tokenRow);
+
+            // 7. 更新登录状态
+            accountMapper.update(null, new LambdaUpdateWrapper<AccountDO>()
+                .eq(AccountDO::getId, account.getId())
+                .set(AccountDO::getLastLoginTime, now.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")))
+                .set(AccountDO::getLoginStatus, 1)
+            );
+
+            // 8. 查用户信息
+            UserBasicDO userBasic = userBasicMapper.selectById(account.getUserId());
+
+            log.info("用户登录成功，username={}, tenantId={}", account.getUsername(), account.getTenantId());
+            logService.recordLoginLog(account.getTenantId(), account.getId(), account.getUsername(), 1,
+                    clientIp, httpRequest.getHeader("User-Agent"), tokenRow.getId(), null);
+
+            LoginResponse response = LoginResponse.builder()
+                .accessToken(token)
+                .expiresIn(expiresIn)
+                .username(account.getUsername())
+                .nickname(userBasic != null ? userBasic.getNickname() : account.getUsername())
+                .avatarUrl(userBasic != null ? userBasic.getAvatarUrl() : "")
+                .isAdmin(account.getAdminFlag() != null && account.getAdminFlag() == 1)
+                .tenantName(resolveTenantName(account.getTenantId()))
+                .build();
+
+            try {
+                redisTemplate.opsForValue().set(idemKey, objectMapper.writeValueAsString(response), 10, TimeUnit.SECONDS);
+            } catch (Exception e) {
+                log.warn("登录幂等结果缓存失败", e);
+            }
+            return response;
+        });
     }
 
     /**
@@ -252,46 +256,49 @@ public class AuthServiceImpl implements AuthService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public RefreshTokenResponse refresh(HttpServletRequest httpRequest, HttpServletResponse httpResponse) {
-        String refreshToken = extractCookie(httpRequest, REFRESH_COOKIE_NAME);
-        if (!StringUtils.hasText(refreshToken)) {
-            throw new BizException(ResultCode.REFRESH_TOKEN_INVALID);
-        }
-        String accountIdStr = redisTemplate.opsForValue().get(RedisKeyConstants.REFRESH_TOKEN_PREFIX + refreshToken);
-        if (accountIdStr == null) {
-            throw new BizException(ResultCode.REFRESH_TOKEN_INVALID);
-        }
-        AccountAccessTokenDO tokenRow = accountAccessTokenMapper.selectOne(
-                new LambdaQueryWrapper<AccountAccessTokenDO>()
-                        .eq(AccountAccessTokenDO::getRefreshToken, refreshToken)
-                        .isNull(AccountAccessTokenDO::getDeletedAt)
-                        .last("LIMIT 1"));
-        if (tokenRow == null) {
-            throw new BizException(ResultCode.REFRESH_TOKEN_INVALID);
-        }
-        AccountDO account = accountMapper.selectById(tokenRow.getAccountId());
-        if (account == null || account.getStatus() != UserService.STATUS_ENABLED) {
-            throw new BizException(ResultCode.REFRESH_TOKEN_INVALID);
-        }
+        // 刷新 Token 时还没有租户上下文：按 RefreshToken 找会话与账号
+        return TenantScope.platform(() -> {
+            String refreshToken = extractCookie(httpRequest, REFRESH_COOKIE_NAME);
+            if (!StringUtils.hasText(refreshToken)) {
+                throw new BizException(ResultCode.REFRESH_TOKEN_INVALID);
+            }
+            String accountIdStr = redisTemplate.opsForValue().get(RedisKeyConstants.REFRESH_TOKEN_PREFIX + refreshToken);
+            if (accountIdStr == null) {
+                throw new BizException(ResultCode.REFRESH_TOKEN_INVALID);
+            }
+            AccountAccessTokenDO tokenRow = accountAccessTokenMapper.selectOne(
+                    new LambdaQueryWrapper<AccountAccessTokenDO>()
+                            .eq(AccountAccessTokenDO::getRefreshToken, refreshToken)
+                            .isNull(AccountAccessTokenDO::getDeletedAt)
+                            .last("LIMIT 1"));
+            if (tokenRow == null) {
+                throw new BizException(ResultCode.REFRESH_TOKEN_INVALID);
+            }
+            AccountDO account = accountMapper.selectById(tokenRow.getAccountId());
+            if (account == null || account.getStatus() != UserService.STATUS_ENABLED) {
+                throw new BizException(ResultCode.REFRESH_TOKEN_INVALID);
+            }
 
-        Map<String, Object> claims = new HashMap<>();
-        claims.put("accountId", account.getId());
-        claims.put("userId", account.getUserId());
-        claims.put("tenantId", account.getTenantId());
-        String newToken = jwtUtils.generateToken(claims, account.getUsername(), EXPIRES_NORMAL);
+            Map<String, Object> claims = new HashMap<>();
+            claims.put("accountId", account.getId());
+            claims.put("userId", account.getUserId());
+            claims.put("tenantId", account.getTenantId());
+            String newToken = jwtUtils.generateToken(claims, account.getUsername(), EXPIRES_NORMAL);
 
-        redisTemplate.delete(RedisKeyConstants.TOKEN_PREFIX + tokenRow.getAccessToken());
-        redisTemplate.opsForValue().set(
-                RedisKeyConstants.TOKEN_PREFIX + newToken,
-                String.valueOf(account.getId()),
-                EXPIRES_NORMAL, TimeUnit.SECONDS
-        );
+            redisTemplate.delete(RedisKeyConstants.TOKEN_PREFIX + tokenRow.getAccessToken());
+            redisTemplate.opsForValue().set(
+                    RedisKeyConstants.TOKEN_PREFIX + newToken,
+                    String.valueOf(account.getId()),
+                    EXPIRES_NORMAL, TimeUnit.SECONDS
+            );
 
-        tokenRow.setAccessToken(newToken);
-        tokenRow.setExpiryTime(LocalDateTime.now().plusSeconds(EXPIRES_NORMAL));
-        accountAccessTokenMapper.updateById(tokenRow);
+            tokenRow.setAccessToken(newToken);
+            tokenRow.setExpiryTime(LocalDateTime.now().plusSeconds(EXPIRES_NORMAL));
+            accountAccessTokenMapper.updateById(tokenRow);
 
-        log.info("Token 刷新成功，accountId={}", account.getId());
-        return RefreshTokenResponse.builder().accessToken(newToken).expiresIn(EXPIRES_NORMAL).build();
+            log.info("Token 刷新成功，accountId={}", account.getId());
+            return RefreshTokenResponse.builder().accessToken(newToken).expiresIn(EXPIRES_NORMAL).build();
+        });
     }
 
     @Override
@@ -319,60 +326,63 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public void sendResetCode(SendResetCodeRequest request) {
-        // 没配置发信邮箱时直接提示（放在查账号之前，不暴露账号是否存在）；本地开发与测试可只写日志
-        if (!mailService.configured() && !mailService.logOnly()) {
-            throw new BizException(ResultCode.MAIL_NOT_CONFIGURED);
-        }
-        String cooldownKey = RedisKeyConstants.RESET_CODE_COOLDOWN_PREFIX + request.getUsername();
-        Long ttl = redisTemplate.getExpire(cooldownKey, TimeUnit.SECONDS);
-        if (ttl != null && ttl > 0) {
-            throw new BizException(ResultCode.SEND_TOO_FREQUENT, "发送过于频繁，请 " + ttl + " 秒后再试");
-        }
-
-        AccountDO account = accountMapper.selectOne(
-                new LambdaQueryWrapper<AccountDO>()
-                        .eq(AccountDO::getUsername, request.getUsername())
-                        .last("LIMIT 1"));
-        if (account == null) {
-            // 防止账号枚举：账号不存在时静默返回，不设置冷却（不消耗真实发送额度）
-            return;
-        }
-        if (!StringUtils.hasText(account.getEmail())) {
-            throw new BizException(ResultCode.NO_EMAIL_BOUND);
-        }
-        if (!account.getEmail().equalsIgnoreCase(request.getEmail().trim())) {
-            // 邮箱不匹配：同样静默返回，防止枚举正确邮箱
-            return;
-        }
-
-        AccountLocalAuthDO localAuth = accountLocalAuthMapper.selectOne(
-                new LambdaQueryWrapper<AccountLocalAuthDO>()
-                        .eq(AccountLocalAuthDO::getAccountId, account.getId())
-                        .last("LIMIT 1"));
-        if (localAuth == null) {
-            return;
-        }
-
-        String code = String.format("%06d", SECURE_RANDOM.nextInt(1_000_000));
-        accountLocalAuthMapper.update(null, new LambdaUpdateWrapper<AccountLocalAuthDO>()
-                .eq(AccountLocalAuthDO::getId, localAuth.getId())
-                .set(AccountLocalAuthDO::getResetToken, code)
-                .set(AccountLocalAuthDO::getResetTokenExpiresAt, LocalDateTime.now().plusMinutes(RESET_CODE_TTL_MINUTES))
-                .set(AccountLocalAuthDO::getResetFailCount, 0));
-
-        if (mailService.configured()) {
-            try {
-                mailService.sendHtml(account.getEmail(), "【烛龙ERP】找回密码验证码", resetCodeMail(account.getUsername(), code));
-            } catch (MailService.MailSendException e) {
-                // 没发出去不进入冷却，用户可以马上重试
-                throw new BizException(ResultCode.MAIL_SEND_FAILED, e);
+        // 找回密码在登录前：按用户名找账号
+        TenantScope.platform(() -> {
+            // 没配置发信邮箱时直接提示（放在查账号之前，不暴露账号是否存在）；本地开发与测试可只写日志
+            if (!mailService.configured() && !mailService.logOnly()) {
+                throw new BizException(ResultCode.MAIL_NOT_CONFIGURED);
             }
-        } else {
-            // 只用于本地开发与测试（zhul.mail.log-only）：验证码写日志
-            log.info("[未配置发信邮箱，仅写日志] 找回密码验证码 username={}, email={}, code={}, {}分钟内有效",
-                    account.getUsername(), MailService.mask(account.getEmail()), code, RESET_CODE_TTL_MINUTES);
-        }
-        redisTemplate.opsForValue().set(cooldownKey, "1", RESET_CODE_COOLDOWN_SECONDS, TimeUnit.SECONDS);
+            String cooldownKey = RedisKeyConstants.RESET_CODE_COOLDOWN_PREFIX + request.getUsername();
+            Long ttl = redisTemplate.getExpire(cooldownKey, TimeUnit.SECONDS);
+            if (ttl != null && ttl > 0) {
+                throw new BizException(ResultCode.SEND_TOO_FREQUENT, "发送过于频繁，请 " + ttl + " 秒后再试");
+            }
+
+            AccountDO account = accountMapper.selectOne(
+                    new LambdaQueryWrapper<AccountDO>()
+                            .eq(AccountDO::getUsername, request.getUsername())
+                            .last("LIMIT 1"));
+            if (account == null) {
+                // 防止账号枚举：账号不存在时静默返回，不设置冷却（不消耗真实发送额度）
+                return;
+            }
+            if (!StringUtils.hasText(account.getEmail())) {
+                throw new BizException(ResultCode.NO_EMAIL_BOUND);
+            }
+            if (!account.getEmail().equalsIgnoreCase(request.getEmail().trim())) {
+                // 邮箱不匹配：同样静默返回，防止枚举正确邮箱
+                return;
+            }
+
+            AccountLocalAuthDO localAuth = accountLocalAuthMapper.selectOne(
+                    new LambdaQueryWrapper<AccountLocalAuthDO>()
+                            .eq(AccountLocalAuthDO::getAccountId, account.getId())
+                            .last("LIMIT 1"));
+            if (localAuth == null) {
+                return;
+            }
+
+            String code = String.format("%06d", SECURE_RANDOM.nextInt(1_000_000));
+            accountLocalAuthMapper.update(null, new LambdaUpdateWrapper<AccountLocalAuthDO>()
+                    .eq(AccountLocalAuthDO::getId, localAuth.getId())
+                    .set(AccountLocalAuthDO::getResetToken, code)
+                    .set(AccountLocalAuthDO::getResetTokenExpiresAt, LocalDateTime.now().plusMinutes(RESET_CODE_TTL_MINUTES))
+                    .set(AccountLocalAuthDO::getResetFailCount, 0));
+
+            if (mailService.configured()) {
+                try {
+                    mailService.sendHtml(account.getEmail(), "【烛龙ERP】找回密码验证码", resetCodeMail(account.getUsername(), code));
+                } catch (MailService.MailSendException e) {
+                    // 没发出去不进入冷却，用户可以马上重试
+                    throw new BizException(ResultCode.MAIL_SEND_FAILED, e);
+                }
+            } else {
+                // 只用于本地开发与测试（zhul.mail.log-only）：验证码写日志
+                log.info("[未配置发信邮箱，仅写日志] 找回密码验证码 username={}, email={}, code={}, {}分钟内有效",
+                        account.getUsername(), MailService.mask(account.getEmail()), code, RESET_CODE_TTL_MINUTES);
+            }
+            redisTemplate.opsForValue().set(cooldownKey, "1", RESET_CODE_COOLDOWN_SECONDS, TimeUnit.SECONDS);
+        });
     }
 
     /** 找回密码验证码邮件（系统内邮件用中文） */
@@ -394,91 +404,97 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public VerifyResetCodeResponse verifyResetCode(VerifyResetCodeRequest request) {
-        AccountDO account = accountMapper.selectOne(
-                new LambdaQueryWrapper<AccountDO>()
-                        .eq(AccountDO::getUsername, request.getUsername())
-                        .last("LIMIT 1"));
-        if (account == null) {
-            throw new BizException(ResultCode.RESET_CODE_INVALID);
-        }
-        AccountLocalAuthDO localAuth = accountLocalAuthMapper.selectOne(
-                new LambdaQueryWrapper<AccountLocalAuthDO>()
-                        .eq(AccountLocalAuthDO::getAccountId, account.getId())
-                        .last("LIMIT 1"));
-        if (localAuth == null || !StringUtils.hasText(localAuth.getResetToken())
-                || localAuth.getResetTokenExpiresAt() == null
-                || localAuth.getResetTokenExpiresAt().isBefore(LocalDateTime.now())) {
-            throw new BizException(ResultCode.RESET_TOKEN_EXPIRED);
-        }
+        // 找回密码在登录前：按用户名找账号
+        return TenantScope.platform(() -> {
+            AccountDO account = accountMapper.selectOne(
+                    new LambdaQueryWrapper<AccountDO>()
+                            .eq(AccountDO::getUsername, request.getUsername())
+                            .last("LIMIT 1"));
+            if (account == null) {
+                throw new BizException(ResultCode.RESET_CODE_INVALID);
+            }
+            AccountLocalAuthDO localAuth = accountLocalAuthMapper.selectOne(
+                    new LambdaQueryWrapper<AccountLocalAuthDO>()
+                            .eq(AccountLocalAuthDO::getAccountId, account.getId())
+                            .last("LIMIT 1"));
+            if (localAuth == null || !StringUtils.hasText(localAuth.getResetToken())
+                    || localAuth.getResetTokenExpiresAt() == null
+                    || localAuth.getResetTokenExpiresAt().isBefore(LocalDateTime.now())) {
+                throw new BizException(ResultCode.RESET_TOKEN_EXPIRED);
+            }
 
-        if (!localAuth.getResetToken().equals(request.getCode().trim())) {
-            int newFailCount = (localAuth.getResetFailCount() == null ? 0 : localAuth.getResetFailCount()) + 1;
-            if (newFailCount >= RESET_CODE_MAX_FAIL) {
+            if (!localAuth.getResetToken().equals(request.getCode().trim())) {
+                int newFailCount = (localAuth.getResetFailCount() == null ? 0 : localAuth.getResetFailCount()) + 1;
+                if (newFailCount >= RESET_CODE_MAX_FAIL) {
+                    accountLocalAuthMapper.update(null, new LambdaUpdateWrapper<AccountLocalAuthDO>()
+                            .eq(AccountLocalAuthDO::getId, localAuth.getId())
+                            .set(AccountLocalAuthDO::getResetToken, null)
+                            .set(AccountLocalAuthDO::getResetTokenExpiresAt, null)
+                            .set(AccountLocalAuthDO::getResetFailCount, 0));
+                    throw new BizException(ResultCode.RESET_CODE_FAIL_LIMIT);
+                }
                 accountLocalAuthMapper.update(null, new LambdaUpdateWrapper<AccountLocalAuthDO>()
                         .eq(AccountLocalAuthDO::getId, localAuth.getId())
-                        .set(AccountLocalAuthDO::getResetToken, null)
-                        .set(AccountLocalAuthDO::getResetTokenExpiresAt, null)
-                        .set(AccountLocalAuthDO::getResetFailCount, 0));
-                throw new BizException(ResultCode.RESET_CODE_FAIL_LIMIT);
+                        .set(AccountLocalAuthDO::getResetFailCount, newFailCount));
+                throw new BizException(ResultCode.RESET_CODE_INVALID);
             }
+
+            // 校验通过：验证码一次性使用，作废并签发短期 verify_token
             accountLocalAuthMapper.update(null, new LambdaUpdateWrapper<AccountLocalAuthDO>()
                     .eq(AccountLocalAuthDO::getId, localAuth.getId())
-                    .set(AccountLocalAuthDO::getResetFailCount, newFailCount));
-            throw new BizException(ResultCode.RESET_CODE_INVALID);
-        }
+                    .set(AccountLocalAuthDO::getResetToken, null)
+                    .set(AccountLocalAuthDO::getResetTokenExpiresAt, null)
+                    .set(AccountLocalAuthDO::getResetFailCount, 0));
 
-        // 校验通过：验证码一次性使用，作废并签发短期 verify_token
-        accountLocalAuthMapper.update(null, new LambdaUpdateWrapper<AccountLocalAuthDO>()
-                .eq(AccountLocalAuthDO::getId, localAuth.getId())
-                .set(AccountLocalAuthDO::getResetToken, null)
-                .set(AccountLocalAuthDO::getResetTokenExpiresAt, null)
-                .set(AccountLocalAuthDO::getResetFailCount, 0));
-
-        String verifyToken = UUID.randomUUID().toString().replace("-", "");
-        redisTemplate.opsForValue().set(
-                RedisKeyConstants.RESET_VERIFY_TOKEN_PREFIX + verifyToken,
-                String.valueOf(account.getId()),
-                RESET_CODE_TTL_MINUTES, TimeUnit.MINUTES
-        );
-        return new VerifyResetCodeResponse(verifyToken);
+            String verifyToken = UUID.randomUUID().toString().replace("-", "");
+            redisTemplate.opsForValue().set(
+                    RedisKeyConstants.RESET_VERIFY_TOKEN_PREFIX + verifyToken,
+                    String.valueOf(account.getId()),
+                    RESET_CODE_TTL_MINUTES, TimeUnit.MINUTES
+            );
+            return new VerifyResetCodeResponse(verifyToken);
+        });
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void resetPassword(ResetPasswordRequest request) {
-        if (!request.getNewPassword().equals(request.getConfirmPassword())) {
-            throw new BizException("两次输入的密码不一致");
-        }
-        String redisKey = RedisKeyConstants.RESET_VERIFY_TOKEN_PREFIX + request.getVerifyToken();
-        String accountIdStr = redisTemplate.opsForValue().get(redisKey);
-        if (accountIdStr == null) {
-            throw new BizException(ResultCode.RESET_TOKEN_EXPIRED, "重置凭证已失效，请重新发起找回密码");
-        }
+        // 找回密码在登录前：按重置凭证找账号
+        TenantScope.platform(() -> {
+            if (!request.getNewPassword().equals(request.getConfirmPassword())) {
+                throw new BizException("两次输入的密码不一致");
+            }
+            String redisKey = RedisKeyConstants.RESET_VERIFY_TOKEN_PREFIX + request.getVerifyToken();
+            String accountIdStr = redisTemplate.opsForValue().get(redisKey);
+            if (accountIdStr == null) {
+                throw new BizException(ResultCode.RESET_TOKEN_EXPIRED, "重置凭证已失效，请重新发起找回密码");
+            }
 
-        AccountLocalAuthDO localAuth = accountLocalAuthMapper.selectOne(
-                new LambdaQueryWrapper<AccountLocalAuthDO>()
-                        .eq(AccountLocalAuthDO::getAccountId, Integer.valueOf(accountIdStr))
-                        .last("LIMIT 1"));
-        if (localAuth == null) {
-            throw new BizException(ResultCode.RESET_TOKEN_EXPIRED, "重置凭证已失效，请重新发起找回密码");
-        }
-        if (BCrypt.checkpw(request.getNewPassword(), localAuth.getPassword())) {
-            throw new BizException(ResultCode.SAME_AS_OLD_PASSWORD);
-        }
+            AccountLocalAuthDO localAuth = accountLocalAuthMapper.selectOne(
+                    new LambdaQueryWrapper<AccountLocalAuthDO>()
+                            .eq(AccountLocalAuthDO::getAccountId, Integer.valueOf(accountIdStr))
+                            .last("LIMIT 1"));
+            if (localAuth == null) {
+                throw new BizException(ResultCode.RESET_TOKEN_EXPIRED, "重置凭证已失效，请重新发起找回密码");
+            }
+            if (BCrypt.checkpw(request.getNewPassword(), localAuth.getPassword())) {
+                throw new BizException(ResultCode.SAME_AS_OLD_PASSWORD);
+            }
 
-        accountLocalAuthMapper.update(null, new LambdaUpdateWrapper<AccountLocalAuthDO>()
-                .eq(AccountLocalAuthDO::getId, localAuth.getId())
-                .set(AccountLocalAuthDO::getPassword, BCrypt.hashpw(request.getNewPassword()))
-                .set(AccountLocalAuthDO::getFailCount, 0)
-                .set(AccountLocalAuthDO::getUnlockAt, null));
+            accountLocalAuthMapper.update(null, new LambdaUpdateWrapper<AccountLocalAuthDO>()
+                    .eq(AccountLocalAuthDO::getId, localAuth.getId())
+                    .set(AccountLocalAuthDO::getPassword, BCrypt.hashpw(request.getNewPassword()))
+                    .set(AccountLocalAuthDO::getFailCount, 0)
+                    .set(AccountLocalAuthDO::getUnlockAt, null));
 
-        redisTemplate.delete(redisKey);
-        // 找回密码多因忘记或怀疑泄露，旧会话（含「记住我」）一并失效
-        AccountDO account = accountMapper.selectById(localAuth.getAccountId());
-        if (account != null) {
-            accountSessionService.revokeAllOfUser(account.getUserId());
-        }
-        log.info("密码重置成功，accountId={}", accountIdStr);
+            redisTemplate.delete(redisKey);
+            // 找回密码多因忘记或怀疑泄露，旧会话（含「记住我」）一并失效
+            AccountDO account = accountMapper.selectById(localAuth.getAccountId());
+            if (account != null) {
+                accountSessionService.revokeAllOfUser(account.getUserId());
+            }
+            log.info("密码重置成功，accountId={}", accountIdStr);
+        });
     }
 
     private void recordLoginFailure(AccountDO account, HttpServletRequest httpRequest, String failReason) {

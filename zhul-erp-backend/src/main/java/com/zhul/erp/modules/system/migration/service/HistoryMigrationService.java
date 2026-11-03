@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhul.erp.common.exception.BizException;
 import com.zhul.erp.framework.tenant.TenantContext;
+import com.zhul.erp.framework.tenant.TenantScope;
 import com.zhul.erp.modules.product.candidate.service.ProductArchiver;
 import com.zhul.erp.modules.system.migration.dto.MigrationBatchVO;
 import com.zhul.erp.modules.system.migration.dto.MigrationBundleVO;
@@ -142,7 +143,8 @@ public class HistoryMigrationService {
             pool.execute(() -> {
                 SecurityContextHolder.setContext(caller);
                 try {
-                    job.run();
+                    // 迁移在后台线程按批次指定的租户执行，SQL 显式带租户条件
+                    TenantScope.platform(job);
                 } catch (RuntimeException e) {
                     log.error("历史数据迁移后台任务出错", e);
                 } finally {
@@ -208,14 +210,17 @@ public class HistoryMigrationService {
     /** 后端重启时还停在「运行中」的批次已经中断：标为失败，已提交的阶段可以按批次回滚 */
     @EventListener(ApplicationReadyEvent.class)
     public void markInterrupted() {
-        MigrationBatchDO p = new MigrationBatchDO();
-        p.setStatus(3);
-        p.setErrorText("后端重启，执行中断；已提交的阶段保留，可以按批次回滚后重新执行");
-        p.setFinishedAt(LocalDateTime.now());
-        int n = batchMapper.update(p, new LambdaQueryWrapper<MigrationBatchDO>().eq(MigrationBatchDO::getStatus, 1));
-        if (n > 0) {
-            log.warn("历史数据迁移：{} 个批次因后端重启中断，已标为失败", n);
-        }
+        // 跨租户的后台任务：按各行自己的租户处理，不由租户拦截器追加当前租户条件
+        TenantScope.platform(() -> {
+            MigrationBatchDO p = new MigrationBatchDO();
+            p.setStatus(3);
+            p.setErrorText("后端重启，执行中断；已提交的阶段保留，可以按批次回滚后重新执行");
+            p.setFinishedAt(LocalDateTime.now());
+            int n = batchMapper.update(p, new LambdaQueryWrapper<MigrationBatchDO>().eq(MigrationBatchDO::getStatus, 1));
+            if (n > 0) {
+                log.warn("历史数据迁移：{} 个批次因后端重启中断，已标为失败", n);
+            }
+        });
     }
 
     private void stages(MigrationRun r) {

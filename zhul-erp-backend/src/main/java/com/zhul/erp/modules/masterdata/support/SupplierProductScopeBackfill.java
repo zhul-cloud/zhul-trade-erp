@@ -1,5 +1,6 @@
 package com.zhul.erp.modules.masterdata.support;
 
+import com.zhul.erp.framework.tenant.TenantScope;
 import com.zhul.erp.modules.masterdata.service.SupplierService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -20,9 +21,12 @@ public class SupplierProductScopeBackfill {
 
     @EventListener(ApplicationReadyEvent.class)
     public void backfill() {
-        int count = supplierService.backfillProductScopes();
-        if (count > 0) {
-            log.info("供应商主营品牌迁移完成，count={}", count);
-        }
+        // 跨租户的后台任务：按各行自己的租户处理，不由租户拦截器追加当前租户条件
+        TenantScope.platform(() -> {
+            int count = supplierService.backfillProductScopes();
+            if (count > 0) {
+                log.info("供应商主营品牌迁移完成，count={}", count);
+            }
+        });
     }
 }

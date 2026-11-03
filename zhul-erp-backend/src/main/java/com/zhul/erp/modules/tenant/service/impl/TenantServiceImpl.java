@@ -7,6 +7,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.zhul.erp.common.exception.BizException;
 import com.zhul.erp.common.result.PageResult;
 import com.zhul.erp.framework.tenant.TenantContext;
+import com.zhul.erp.framework.tenant.TenantScope;
 import com.zhul.erp.modules.system.entity.AccountDO;
 import com.zhul.erp.modules.system.entity.AccountLocalAuthDO;
 import com.zhul.erp.modules.system.entity.UserBasicDO;
@@ -73,211 +74,229 @@ public class TenantServiceImpl implements TenantService {
 
     @Override
     public PageResult<TenantVO> page(TenantQuery query) {
-        requirePlatform();
-        LambdaQueryWrapper<TenantDO> wrapper = new LambdaQueryWrapper<>();
-        if (StringUtils.hasText(query.getName())) {
-            wrapper.like(TenantDO::getName, query.getName());
-        }
-        if (query.getStatus() != null) {
-            wrapper.eq(TenantDO::getStatus, query.getStatus());
-        }
-        if (StringUtils.hasText(query.getIndustryCode())) {
-            wrapper.eq(TenantDO::getIndustryCode, query.getIndustryCode().trim());
-        }
-        if (query.getExpireDateFrom() != null) {
-            wrapper.ge(TenantDO::getExpireTime, query.getExpireDateFrom().atStartOfDay());
-        }
-        if (query.getExpireDateTo() != null) {
-            wrapper.le(TenantDO::getExpireTime, query.getExpireDateTo().atTime(END_OF_DAY));
-        }
-        // PRD 默认假设 7：列表默认按创建时间降序，最新创建排最前
-        wrapper.orderByDesc(TenantDO::getCreateTime);
+        // 平台的租户管理：操作指定租户的账号、用户与初始数据，SQL 显式带目标租户
+        return TenantScope.platform(() -> {
+            requirePlatform();
+            LambdaQueryWrapper<TenantDO> wrapper = new LambdaQueryWrapper<>();
+            if (StringUtils.hasText(query.getName())) {
+                wrapper.like(TenantDO::getName, query.getName());
+            }
+            if (query.getStatus() != null) {
+                wrapper.eq(TenantDO::getStatus, query.getStatus());
+            }
+            if (StringUtils.hasText(query.getIndustryCode())) {
+                wrapper.eq(TenantDO::getIndustryCode, query.getIndustryCode().trim());
+            }
+            if (query.getExpireDateFrom() != null) {
+                wrapper.ge(TenantDO::getExpireTime, query.getExpireDateFrom().atStartOfDay());
+            }
+            if (query.getExpireDateTo() != null) {
+                wrapper.le(TenantDO::getExpireTime, query.getExpireDateTo().atTime(END_OF_DAY));
+            }
+            // PRD 默认假设 7：列表默认按创建时间降序，最新创建排最前
+            wrapper.orderByDesc(TenantDO::getCreateTime);
 
-        Page<TenantDO> pageParam = new Page<>(query.getPage(), query.getPageSize());
-        Page<TenantDO> pageResult = tenantMapper.selectPage(pageParam, wrapper);
-        return PageResult.of(pageResult.getTotal(), toVoList(pageResult.getRecords()));
+            Page<TenantDO> pageParam = new Page<>(query.getPage(), query.getPageSize());
+            Page<TenantDO> pageResult = tenantMapper.selectPage(pageParam, wrapper);
+            return PageResult.of(pageResult.getTotal(), toVoList(pageResult.getRecords()));
+        });
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public TenantCreateResultVO create(SaveTenantRequest req) {
-        requirePlatform();
-        assertNameFree(req.getName(), null);
-        assertPhoneFree(req.getContactPhone(), null);
-        assertEmailFree(req.getContactEmail(), null);
-        TenantPackageDO pkg = requireEnabledPackage(req.getPackageId());
-        requireFutureDate(req.getExpireDate());
+        // 平台的租户管理：操作指定租户的账号、用户与初始数据，SQL 显式带目标租户
+        return TenantScope.platform(() -> {
+            requirePlatform();
+            assertNameFree(req.getName(), null);
+            assertPhoneFree(req.getContactPhone(), null);
+            assertEmailFree(req.getContactEmail(), null);
+            TenantPackageDO pkg = requireEnabledPackage(req.getPackageId());
+            requireFutureDate(req.getExpireDate());
 
-        TenantDO tenant = new TenantDO();
-        tenant.setCode("");
-        tenant.setName(req.getName());
-        tenant.setPackageId(pkg.getId());
-        tenant.setIndustryCode(industryScope.industryOrDefault(req.getIndustryCode()));
-        tenant.setContactName(req.getContactName());
-        tenant.setContactPhone(req.getContactPhone());
-        tenant.setExpireTime(req.getExpireDate().atTime(END_OF_DAY));
-        tenant.setStatus(1);
-        tenant.setRemark(req.getRemark() == null ? "" : req.getRemark());
-        tenantMapper.insert(tenant);
+            TenantDO tenant = new TenantDO();
+            tenant.setCode("");
+            tenant.setName(req.getName());
+            tenant.setPackageId(pkg.getId());
+            tenant.setIndustryCode(industryScope.industryOrDefault(req.getIndustryCode()));
+            tenant.setContactName(req.getContactName());
+            tenant.setContactPhone(req.getContactPhone());
+            tenant.setExpireTime(req.getExpireDate().atTime(END_OF_DAY));
+            tenant.setStatus(1);
+            tenant.setRemark(req.getRemark() == null ? "" : req.getRemark());
+            tenantMapper.insert(tenant);
 
-        // 编码依赖自增主键生成，先插入再回填，跟菜单管理的 code 生成方式一致
-        TenantDO codeChange = new TenantDO();
-        codeChange.setId(tenant.getId());
-        codeChange.setCode("TN" + tenant.getId());
-        tenantMapper.updateById(codeChange);
-        tenant.setCode(codeChange.getCode());
+            // 编码依赖自增主键生成，先插入再回填，跟菜单管理的 code 生成方式一致
+            TenantDO codeChange = new TenantDO();
+            codeChange.setId(tenant.getId());
+            codeChange.setCode("TN" + tenant.getId());
+            tenantMapper.updateById(codeChange);
+            tenant.setCode(codeChange.getCode());
 
-        String tempPassword = generateTempPassword();
-        createAdminAccount(tenant.getId(), req.getContactName(), req.getContactPhone(), req.getContactEmail(), tempPassword);
+            String tempPassword = generateTempPassword();
+            createAdminAccount(tenant.getId(), req.getContactName(), req.getContactPhone(), req.getContactEmail(), tempPassword);
 
-        TenantCreateResultVO result = new TenantCreateResultVO();
-        result.setTenant(toVO(tenant, pkg.getName(), req.getContactEmail()));
-        result.setAdminEmail(req.getContactEmail());
-        result.setTempPassword(tempPassword);
-        return result;
+            TenantCreateResultVO result = new TenantCreateResultVO();
+            result.setTenant(toVO(tenant, pkg.getName(), req.getContactEmail()));
+            result.setAdminEmail(req.getContactEmail());
+            result.setTempPassword(tempPassword);
+            return result;
+        });
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public TenantVO update(Integer id, SaveTenantRequest req) {
-        requirePlatform();
-        TenantDO current = getOrThrow(id);
-        assertNameFree(req.getName(), id);
-        assertPhoneFree(req.getContactPhone(), id);
+        // 平台的租户管理：操作指定租户的账号、用户与初始数据，SQL 显式带目标租户
+        return TenantScope.platform(() -> {
+            requirePlatform();
+            TenantDO current = getOrThrow(id);
+            assertNameFree(req.getName(), id);
+            assertPhoneFree(req.getContactPhone(), id);
 
-        UserBasicDO adminUser = findAdminUser(id);
-        AccountDO adminAccount = adminUser == null ? null : findAccountByUserId(adminUser.getId());
-        String currentEmail = adminAccount == null ? "" : adminAccount.getEmail();
-        if (!req.getContactEmail().equalsIgnoreCase(currentEmail)) {
-            assertEmailFree(req.getContactEmail(), id);
-        }
+            UserBasicDO adminUser = findAdminUser(id);
+            AccountDO adminAccount = adminUser == null ? null : findAccountByUserId(adminUser.getId());
+            String currentEmail = adminAccount == null ? "" : adminAccount.getEmail();
+            if (!req.getContactEmail().equalsIgnoreCase(currentEmail)) {
+                assertEmailFree(req.getContactEmail(), id);
+            }
 
-        // 套餐已被禁用时，保持原套餐不算错误；只有"改成"一个已禁用的套餐才拦截（PRD 默认假设 3）
-        TenantPackageDO pkg;
-        if (req.getPackageId().equals(current.getPackageId())) {
-            pkg = packageMapper.selectById(current.getPackageId());
-        } else {
-            pkg = requireEnabledPackage(req.getPackageId());
-        }
-        requireFutureDate(req.getExpireDate());
+            // 套餐已被禁用时，保持原套餐不算错误；只有"改成"一个已禁用的套餐才拦截（PRD 默认假设 3）
+            TenantPackageDO pkg;
+            if (req.getPackageId().equals(current.getPackageId())) {
+                pkg = packageMapper.selectById(current.getPackageId());
+            } else {
+                pkg = requireEnabledPackage(req.getPackageId());
+            }
+            requireFutureDate(req.getExpireDate());
 
-        TenantDO change = new TenantDO();
-        change.setId(id);
-        change.setName(req.getName());
-        change.setPackageId(req.getPackageId());
-        if (StringUtils.hasText(req.getIndustryCode())) {
-            change.setIndustryCode(industryScope.requireIndustry(req.getIndustryCode()));
-        }
-        change.setContactName(req.getContactName());
-        change.setContactPhone(req.getContactPhone());
-        change.setExpireTime(req.getExpireDate().atTime(END_OF_DAY));
-        change.setRemark(req.getRemark() == null ? "" : req.getRemark());
-        tenantMapper.updateById(change);
+            TenantDO change = new TenantDO();
+            change.setId(id);
+            change.setName(req.getName());
+            change.setPackageId(req.getPackageId());
+            if (StringUtils.hasText(req.getIndustryCode())) {
+                change.setIndustryCode(industryScope.requireIndustry(req.getIndustryCode()));
+            }
+            change.setContactName(req.getContactName());
+            change.setContactPhone(req.getContactPhone());
+            change.setExpireTime(req.getExpireDate().atTime(END_OF_DAY));
+            change.setRemark(req.getRemark() == null ? "" : req.getRemark());
+            tenantMapper.updateById(change);
 
-        if (adminUser != null && adminAccount != null) {
-            LambdaUpdateWrapper<UserBasicDO> userWrapper = new LambdaUpdateWrapper<UserBasicDO>()
-                    .eq(UserBasicDO::getId, adminUser.getId())
-                    .set(UserBasicDO::getName, req.getContactName())
-                    .set(UserBasicDO::getPhone, req.getContactPhone())
-                    .set(UserBasicDO::getEmail, req.getContactEmail())
-                    .set(UserBasicDO::getUsername, req.getContactEmail());
-            userBasicMapper.update(new UserBasicDO(), userWrapper);
+            if (adminUser != null && adminAccount != null) {
+                LambdaUpdateWrapper<UserBasicDO> userWrapper = new LambdaUpdateWrapper<UserBasicDO>()
+                        .eq(UserBasicDO::getId, adminUser.getId())
+                        .set(UserBasicDO::getName, req.getContactName())
+                        .set(UserBasicDO::getPhone, req.getContactPhone())
+                        .set(UserBasicDO::getEmail, req.getContactEmail())
+                        .set(UserBasicDO::getUsername, req.getContactEmail());
+                userBasicMapper.update(new UserBasicDO(), userWrapper);
 
-            LambdaUpdateWrapper<AccountDO> accountWrapper = new LambdaUpdateWrapper<AccountDO>()
-                    .eq(AccountDO::getId, adminAccount.getId())
-                    .set(AccountDO::getPhone, req.getContactPhone())
-                    .set(AccountDO::getEmail, req.getContactEmail())
-                    .set(AccountDO::getUsername, req.getContactEmail());
-            accountMapper.update(new AccountDO(), accountWrapper);
+                LambdaUpdateWrapper<AccountDO> accountWrapper = new LambdaUpdateWrapper<AccountDO>()
+                        .eq(AccountDO::getId, adminAccount.getId())
+                        .set(AccountDO::getPhone, req.getContactPhone())
+                        .set(AccountDO::getEmail, req.getContactEmail())
+                        .set(AccountDO::getUsername, req.getContactEmail());
+                accountMapper.update(new AccountDO(), accountWrapper);
 
-            accountLocalAuthMapper.update(new AccountLocalAuthDO(), new LambdaUpdateWrapper<AccountLocalAuthDO>()
-                    .eq(AccountLocalAuthDO::getAccountId, adminAccount.getId())
-                    .set(AccountLocalAuthDO::getUsername, req.getContactEmail()));
-        }
+                accountLocalAuthMapper.update(new AccountLocalAuthDO(), new LambdaUpdateWrapper<AccountLocalAuthDO>()
+                        .eq(AccountLocalAuthDO::getAccountId, adminAccount.getId())
+                        .set(AccountLocalAuthDO::getUsername, req.getContactEmail()));
+            }
 
-        TenantDO updated = getOrThrow(id);
-        return toVO(updated, pkg == null ? "" : pkg.getName(), req.getContactEmail());
+            TenantDO updated = getOrThrow(id);
+            return toVO(updated, pkg == null ? "" : pkg.getName(), req.getContactEmail());
+        });
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void updateStatus(Integer id, Integer status) {
-        requirePlatform();
-        getOrThrow(id);
-        TenantDO change = new TenantDO();
-        change.setId(id);
-        change.setStatus(status);
-        tenantMapper.updateById(change);
+        // 平台的租户管理：操作指定租户的账号、用户与初始数据，SQL 显式带目标租户
+        TenantScope.platform(() -> {
+            requirePlatform();
+            getOrThrow(id);
+            TenantDO change = new TenantDO();
+            change.setId(id);
+            change.setStatus(status);
+            tenantMapper.updateById(change);
 
-        // 登录只看 account.status（见 AuthServiceImpl），级联同步才能真正拦住/放开该租户下的用户登录；
-        // user_basic.status 一起同步只是为了跟用户管理页面展示的状态保持一致；已删除的用户不受影响
-        accountMapper.update(new AccountDO(), new LambdaUpdateWrapper<AccountDO>()
-                .eq(AccountDO::getTenantId, id).ne(AccountDO::getStatus, UserService.STATUS_DELETED)
-                .set(AccountDO::getStatus, status));
-        userBasicMapper.update(new UserBasicDO(), new LambdaUpdateWrapper<UserBasicDO>()
-                .eq(UserBasicDO::getTenantId, id).ne(UserBasicDO::getStatus, UserService.STATUS_DELETED)
-                .set(UserBasicDO::getStatus, status));
+            // 登录只看 account.status（见 AuthServiceImpl），级联同步才能真正拦住/放开该租户下的用户登录；
+            // user_basic.status 一起同步只是为了跟用户管理页面展示的状态保持一致；已删除的用户不受影响
+            accountMapper.update(new AccountDO(), new LambdaUpdateWrapper<AccountDO>()
+                    .eq(AccountDO::getTenantId, id).ne(AccountDO::getStatus, UserService.STATUS_DELETED)
+                    .set(AccountDO::getStatus, status));
+            userBasicMapper.update(new UserBasicDO(), new LambdaUpdateWrapper<UserBasicDO>()
+                    .eq(UserBasicDO::getTenantId, id).ne(UserBasicDO::getStatus, UserService.STATUS_DELETED)
+                    .set(UserBasicDO::getStatus, status));
+        });
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public TenantVO renew(Integer id, RenewTenantRequest req) {
-        requirePlatform();
-        TenantDO tenant = getOrThrow(id);
-        LocalDateTime newExpireTime;
-        if ("DURATION".equalsIgnoreCase(req.getMode())) {
-            if (req.getMonths() == null || !RENEW_MONTHS_OPTIONS.contains(req.getMonths())) {
-                throw new BizException("续期时长不合法，只能是 1/3/6/12 个月");
+        // 平台的租户管理：操作指定租户的账号、用户与初始数据，SQL 显式带目标租户
+        return TenantScope.platform(() -> {
+            requirePlatform();
+            TenantDO tenant = getOrThrow(id);
+            LocalDateTime newExpireTime;
+            if ("DURATION".equalsIgnoreCase(req.getMode())) {
+                if (req.getMonths() == null || !RENEW_MONTHS_OPTIONS.contains(req.getMonths())) {
+                    throw new BizException("续期时长不合法，只能是 1/3/6/12 个月");
+                }
+                newExpireTime = tenant.getExpireTime().plusMonths(req.getMonths());
+            } else if ("DATE".equalsIgnoreCase(req.getMode())) {
+                if (req.getExpireDate() == null) {
+                    throw new BizException("请选择到期日期");
+                }
+                LocalDateTime candidate = req.getExpireDate().atTime(END_OF_DAY);
+                if (candidate.isBefore(tenant.getExpireTime())) {
+                    throw new BizException("指定日期不可早于当前到期时间");
+                }
+                newExpireTime = candidate;
+            } else {
+                throw new BizException("续期方式不合法");
             }
-            newExpireTime = tenant.getExpireTime().plusMonths(req.getMonths());
-        } else if ("DATE".equalsIgnoreCase(req.getMode())) {
-            if (req.getExpireDate() == null) {
-                throw new BizException("请选择到期日期");
-            }
-            LocalDateTime candidate = req.getExpireDate().atTime(END_OF_DAY);
-            if (candidate.isBefore(tenant.getExpireTime())) {
-                throw new BizException("指定日期不可早于当前到期时间");
-            }
-            newExpireTime = candidate;
-        } else {
-            throw new BizException("续期方式不合法");
-        }
 
-        TenantDO change = new TenantDO();
-        change.setId(id);
-        change.setExpireTime(newExpireTime);
-        tenantMapper.updateById(change);
+            TenantDO change = new TenantDO();
+            change.setId(id);
+            change.setExpireTime(newExpireTime);
+            tenantMapper.updateById(change);
 
-        TenantDO updated = getOrThrow(id);
-        TenantPackageDO pkg = packageMapper.selectById(updated.getPackageId());
-        return toVO(updated, pkg == null ? "" : pkg.getName(), resolveAdminEmail(id));
+            TenantDO updated = getOrThrow(id);
+            TenantPackageDO pkg = packageMapper.selectById(updated.getPackageId());
+            return toVO(updated, pkg == null ? "" : pkg.getName(), resolveAdminEmail(id));
+        });
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public ResetPasswordResultVO resetPassword(Integer id) {
-        requirePlatform();
-        getOrThrow(id);
-        UserBasicDO adminUser = findAdminUser(id);
-        if (adminUser == null) {
-            throw new BizException("该租户的管理员账号不存在");
-        }
-        AccountDO account = findAccountByUserId(adminUser.getId());
-        if (account == null) {
-            throw new BizException("该租户的管理员账号不存在");
-        }
+        // 平台的租户管理：操作指定租户的账号、用户与初始数据，SQL 显式带目标租户
+        return TenantScope.platform(() -> {
+            requirePlatform();
+            getOrThrow(id);
+            UserBasicDO adminUser = findAdminUser(id);
+            if (adminUser == null) {
+                throw new BizException("该租户的管理员账号不存在");
+            }
+            AccountDO account = findAccountByUserId(adminUser.getId());
+            if (account == null) {
+                throw new BizException("该租户的管理员账号不存在");
+            }
 
-        String tempPassword = generateTempPassword();
-        accountLocalAuthMapper.update(new AccountLocalAuthDO(), new LambdaUpdateWrapper<AccountLocalAuthDO>()
-                .eq(AccountLocalAuthDO::getAccountId, account.getId())
-                .set(AccountLocalAuthDO::getPassword, BCrypt.hashpw(tempPassword, BCrypt.gensalt()))
-                .set(AccountLocalAuthDO::getFailCount, 0)
-                .set(AccountLocalAuthDO::getUnlockAt, null));
+            String tempPassword = generateTempPassword();
+            accountLocalAuthMapper.update(new AccountLocalAuthDO(), new LambdaUpdateWrapper<AccountLocalAuthDO>()
+                    .eq(AccountLocalAuthDO::getAccountId, account.getId())
+                    .set(AccountLocalAuthDO::getPassword, BCrypt.hashpw(tempPassword, BCrypt.gensalt()))
+                    .set(AccountLocalAuthDO::getFailCount, 0)
+                    .set(AccountLocalAuthDO::getUnlockAt, null));
 
-        ResetPasswordResultVO result = new ResetPasswordResultVO();
-        result.setAdminEmail(account.getEmail());
-        result.setTempPassword(tempPassword);
-        return result;
+            ResetPasswordResultVO result = new ResetPasswordResultVO();
+            result.setAdminEmail(account.getEmail());
+            result.setTempPassword(tempPassword);
+            return result;
+        });
     }
 
     @Override

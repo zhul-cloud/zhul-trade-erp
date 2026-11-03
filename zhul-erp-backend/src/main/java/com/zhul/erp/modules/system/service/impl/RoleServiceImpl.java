@@ -6,6 +6,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.zhul.erp.common.exception.BizException;
 import com.zhul.erp.common.result.PageResult;
 import com.zhul.erp.framework.tenant.TenantContext;
+import com.zhul.erp.framework.tenant.TenantScope;
 import com.zhul.erp.modules.system.dto.RoleDeleteCheckVO;
 import com.zhul.erp.modules.system.dto.RoleStatsVO;
 import com.zhul.erp.modules.system.dto.RoleVO;
@@ -144,6 +145,7 @@ public class RoleServiceImpl implements RoleService {
         if (role == null) {
             throw new BizException("角色不存在");
         }
+        requireOwned(role);
 
         LambdaUpdateWrapper<RoleDO> wrapper = new LambdaUpdateWrapper<RoleDO>()
                 .eq(RoleDO::getId, roleId);
@@ -223,12 +225,14 @@ public class RoleServiceImpl implements RoleService {
         if (role == null) {
             throw new BizException("角色不存在");
         }
+        requireOwned(role);
         if (role.getIsBuiltIn() != null && role.getIsBuiltIn() == 1) {
             throw new BizException("内置角色不可删除");
         }
-        Long usedCount = userBasicMapper.selectCount(
+        // 平台角色会被各公司的用户引用，在用人数要统计全部租户
+        Long usedCount = TenantScope.platform(() -> userBasicMapper.selectCount(
                 new LambdaQueryWrapper<UserBasicDO>().eq(UserBasicDO::getRoleCode, role.getCode())
-                        .ne(UserBasicDO::getStatus, UserService.STATUS_DELETED));
+                        .ne(UserBasicDO::getStatus, UserService.STATUS_DELETED)));
         if (usedCount > 0) {
             throw new BizException("该角色已有用户使用，无法删除");
         }
@@ -290,5 +294,12 @@ public class RoleServiceImpl implements RoleService {
             voList.add(vo);
         }
         return voList;
+    }
+
+    /** 平台内置角色对各公司只读（可以引用，不能修改、删除、改授权）；只能维护本租户的角色 */
+    static void requireOwned(RoleDO role) {
+        if (!java.util.Objects.equals(role.getTenantId(), TenantContext.getTenantId())) {
+            throw new BizException("平台内置角色不能修改");
+        }
     }
 }

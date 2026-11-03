@@ -7,6 +7,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.zhul.erp.common.exception.BizException;
 import com.zhul.erp.common.result.PageResult;
 import com.zhul.erp.framework.tenant.TenantContext;
+import com.zhul.erp.framework.tenant.TenantScope;
 import com.zhul.erp.modules.system.dto.CreateUserRequest;
 import com.zhul.erp.modules.system.dto.UpdateUserRequest;
 import com.zhul.erp.modules.system.dto.UserPageQuery;
@@ -144,6 +145,7 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void updateUserStatus(Integer userId, Integer status) {
+        requireUser(userId);
         LambdaUpdateWrapper<UserBasicDO> wrapper = new LambdaUpdateWrapper<>();
         wrapper.eq(UserBasicDO::getId, userId)
                .ne(UserBasicDO::getStatus, STATUS_DELETED)
@@ -167,13 +169,15 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void createUser(CreateUserRequest request) {
-        Long count = accountMapper.selectCount(
-                new LambdaQueryWrapper<AccountDO>().eq(AccountDO::getUsername, request.getUsername()));
+        // 用户名全局唯一（登录按用户名找账号），要查全部租户
+        Long count = TenantScope.platform(() -> accountMapper.selectCount(
+                new LambdaQueryWrapper<AccountDO>().eq(AccountDO::getUsername, request.getUsername())));
         if (count > 0) {
             throw new BizException("用户名已存在");
         }
 
         Integer tenantId = TenantContext.getTenantId() != null ? TenantContext.getTenantId() : 0;
+        requireRefs(request.getDeptId(), request.getPositionId(), request.getRoleCode());
 
         UserBasicDO user = new UserBasicDO();
         user.setTenantId(tenantId);
@@ -209,6 +213,9 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void updateUser(Integer userId, UpdateUserRequest request) {
+        requireUser(userId);
+        requireRefs(request.getDeptId(), request.getPositionId(),
+                StringUtils.hasText(request.getRoleCode()) ? request.getRoleCode() : null);
         LambdaUpdateWrapper<UserBasicDO> wrapper = new LambdaUpdateWrapper<UserBasicDO>()
                 .eq(UserBasicDO::getId, userId)
                 .ne(UserBasicDO::getStatus, STATUS_DELETED);
@@ -252,6 +259,7 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void deleteUser(Integer userId) {
+        requireUser(userId);
         // 软删除：记录保留，历史单据上的创建人、负责人照常显示；用户名不释放，避免和已删除的账号重名
         LambdaUpdateWrapper<UserBasicDO> userWrapper = new LambdaUpdateWrapper<UserBasicDO>()
                 .eq(UserBasicDO::getId, userId)
@@ -268,6 +276,7 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void resetPassword(Integer userId, String newPassword) {
+        requireUser(userId);
         AccountDO account = accountMapper.selectOne(
                 new LambdaQueryWrapper<AccountDO>().eq(AccountDO::getUserId, userId));
         if (account == null) {
@@ -279,5 +288,26 @@ public class UserServiceImpl implements UserService {
         accountLocalAuthMapper.update(new AccountLocalAuthDO(), wrapper);
         // 管理员重置密码多因账号可能泄露，旧会话一并失效，需用新密码重新登录
         accountSessionService.revokeAllOfUser(userId);
+    }
+
+    /** 目标用户须是本租户未删除的用户（租户拦截器只让本租户的行可见），否则拒绝，不把影响 0 行当成功 */
+    private void requireUser(Integer userId) {
+        UserBasicDO user = userId == null ? null : userBasicMapper.selectById(userId);
+        if (user == null || Integer.valueOf(STATUS_DELETED).equals(user.getStatus())) {
+            throw new BizException("用户不存在");
+        }
+    }
+
+    /** 引用的部门、岗位须是本租户的；角色可以是本租户的或平台内置的 */
+    private void requireRefs(Integer deptId, Integer positionId, String roleCode) {
+        if (deptId != null && departmentMapper.selectById(deptId) == null) {
+            throw new BizException("部门不存在");
+        }
+        if (positionId != null && positionMapper.selectById(positionId) == null) {
+            throw new BizException("岗位不存在");
+        }
+        if (roleCode != null && roleMapper.selectCount(new LambdaQueryWrapper<RoleDO>().eq(RoleDO::getCode, roleCode)) == 0) {
+            throw new BizException("角色不存在");
+        }
     }
 }

@@ -34,10 +34,16 @@ class WorkbenchContractTest extends TenantContractSupport {
     @BeforeEach
     void seed() {
         cleanup();
+        // 账号、用户属于令牌所在的公司（看板按当前租户查账号与角色）；套餐包含全部菜单，权限只由角色决定
+        jdbc.update("insert into tenant_package (id, name, menu_ids) select ?, 'IT工作台套餐', JSON_ARRAYAGG(id) from resource", T);
+        jdbc.update("insert into tenant (id, name, package_id) values (?, 'IT工作台租户', ?)", T, T);
+        testUserTenant = T;
     }
 
     @AfterEach
     void cleanup() {
+        jdbc.update("delete from tenant where id = ?", T);
+        jdbc.update("delete from tenant_package where id = ?", T);
         jdbc.update("delete from role where code in (?, 'IT_ROLE2') or name like 'IT工作台%'", ROLE);
         jdbc.update("delete from account_role where role_code in (?, 'IT_ROLE2')", ROLE);
     }

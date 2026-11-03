@@ -91,6 +91,8 @@ class SessionSecurityContractTest extends IntegrationTestBase {
                         .contentType(MediaType.APPLICATION_JSON).content(body))
                 .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8));
         assertEquals(0, res.path("code").asInt(), res.toString());
+        // MockMvc 请求结束时会清掉租户上下文，直接调用服务前按真实请求补上
+        TenantContext.setTenantId(0);
         return res.path("data").path("accessToken").asText();
     }
 

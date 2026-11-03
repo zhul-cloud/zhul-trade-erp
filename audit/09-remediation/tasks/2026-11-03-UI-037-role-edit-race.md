@@ -9,8 +9,8 @@
 | 目标与影响范围 | 角色页 `openEdit`：只让最后一次点击生效；点新增或换角色后迟到回包不再打开抽屉；部门加载失败给出提示。只改前端 `system/role/index.tsx` |
 | 起点 commit / 工作分支 | `develop` `ec3e24bfca3aa3c86ba3d61993abf4cc52b8ba58`；`fix/role-edit-race` |
 | OpenSpec | 不适用：缺陷修复 |
-| PR / 目标分支 | 未创建；计划 `fix/role-edit-race` → `develop` |
-| 合并证据 | 未合并 |
+| PR / 目标分支 | [zhul-cloud/zhul-trade-erp#132](https://github.com/zhul-cloud/zhul-trade-erp/pull/132)：`fix/role-edit-race` → `develop` |
+| 合并证据 | #132 合并到 `develop`，merge commit `f705aaeec3bae53a4eb38e8992ac99fb4ebeeee7`（2026-11-03）；未发布 |
 | 目标版本 / 环境 | v1.6.0 / 生产 |
 
 ## 实施与验证结果
@@ -28,7 +28,7 @@
 
 | ID | 修复 / 验收范围 | 部署与目标环境验收证据 | 验收人 / 日期 | 结论与剩余项 |
 | --- | --- | --- | --- | --- |
-| UI-037 | 关闭后不再弹出；只显示最后打开角色的数据；加载失败有提示 | 未部署 | — | 待合并 |
+| UI-037 | 关闭后不再弹出；只显示最后打开角色的数据；加载失败有提示 | 未部署 | — | 已合并待发布 |
 
 ## 阻塞与下一步
 
@@ -40,3 +40,4 @@
 | --- | --- | --- |
 | 2026-11-03 / Claude | 修 UI-014 时发现，按用户要求「审查没列的问题一并处理」新编 UI-037；在 `fix/role-edit-race` 实施并验证 | 发 PR 到 `develop` |
 | 2026-11-03 / Claude | 前端全量：`npm run lint` 通过、`npx antd lint ./src` 389 文件无问题、`npx jest` 22 套件 162 个通过 | 发 PR 到 `develop` |
+| 2026-11-03 / Claude | #132 合并到 `develop`（`f705aaee`）；台账改为「已合并待发布」 | 随 v1.6.0 发布后验收 |
