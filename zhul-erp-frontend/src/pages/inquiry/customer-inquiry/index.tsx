@@ -54,6 +54,7 @@ import {
   inquiryApi,
   readBizError,
 } from '../shared/service';
+import { ModelCell, ModelsModal, TagList } from './ModelCells';
 import NewInquiryModal from './NewInquiryModal';
 
 interface Filters {
@@ -238,6 +239,7 @@ const CustomerInquiryPage: React.FC = () => {
   const [newOpen, setNewOpen] = useState(false);
   const [presetCustomer, setPresetCustomer] = useState<number>();
   const [busyId, setBusyId] = useState<number>();
+  const [viewing, setViewing] = useState<CustomerInquiry>();
 
   const load = useCallback(async () => {
     if (!ready) return;
@@ -404,31 +406,47 @@ const CustomerInquiryPage: React.FC = () => {
     },
     {
       title: (
-        <Tooltip title="询盘里有几个不同的型号，不是件数，也不是询价任务数（一个询价任务可能包含多个型号）">
+        <Tooltip title="显示第一个型号；「共 N 个」是询盘里有几个不同的型号，不是件数，也不是询价任务数（一个询价任务可能包含多个型号）">
           <span style={{ whiteSpace: 'nowrap' }}>
-            型号数 <QuestionCircleOutlined style={{ color: palette.mute }} />
+            型号 <QuestionCircleOutlined style={{ color: palette.mute }} />
           </span>
         </Tooltip>
       ),
       dataIndex: 'totalItemCount',
-      width: 110,
-      render: (v, r) => {
-        // 未解析、解析失败，或没录型号就取消的询盘没有型号数
-        if (r.status <= STATUS.PARSE_FAILED || !v) return '—';
-        if (r.status === STATUS.PENDING_CONFIRM)
-          return (
-            <span style={{ display: 'inline-flex', flexDirection: 'column' }}>
-              <span>{v} 个</span>
+      width: 220,
+      render: (_, r) => {
+        // 未解析、解析失败，或没录型号就取消的询盘没有型号
+        if (
+          r.status <= STATUS.PARSE_FAILED &&
+          r.status !== STATUS.PENDING_CONFIRM
+        )
+          return '—';
+        return (
+          <span style={{ display: 'inline-flex', flexDirection: 'column' }}>
+            <ModelCell r={r} onView={setViewing} />
+            {r.status === STATUS.PENDING_CONFIRM && r.firstModel && (
               <span style={{ color: palette.mute, fontSize: 12 }}>
                 AI 识别，待确认
               </span>
-            </span>
-          );
-        return `${v} 个`;
+            )}
+          </span>
+        );
       },
       sorter: true,
       sortDirections: ['descend', 'ascend'],
       sortOrder: sortOrderOf('totalItemCount'),
+    },
+    {
+      title: '品牌',
+      key: 'brands',
+      width: 190,
+      render: (_, r) => <TagList values={r.brands} label="品牌" />,
+    },
+    {
+      title: '品类',
+      key: 'categories',
+      width: 190,
+      render: (_, r) => <TagList values={r.categories} label="品类" />,
     },
     {
       title: (
@@ -866,7 +884,7 @@ const CustomerInquiryPage: React.FC = () => {
           columns={columns}
           dataSource={rows}
           loading={loading}
-          scroll={{ x: 1610 }}
+          scroll={{ x: 2100 }}
           onChange={(_, __, sorter, extra) => {
             // 翻页也会触发 onChange：只处理排序，否则会把页码重置回 1
             if (extra.action !== 'sort') return;
@@ -894,6 +912,7 @@ const CustomerInquiryPage: React.FC = () => {
         />
       )}
 
+      <ModelsModal target={viewing} onClose={() => setViewing(undefined)} />
       <NewInquiryModal
         open={newOpen}
         presetCustomerId={presetCustomer}
