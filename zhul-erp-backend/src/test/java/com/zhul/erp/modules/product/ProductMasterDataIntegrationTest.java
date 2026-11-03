@@ -73,10 +73,7 @@ class ProductMasterDataIntegrationTest extends IntegrationTestBase {
 
     @BeforeEach
     void cleanData() {
-        snapshotCategories();
-        for (String table : List.of("product", "product_series", "product_category", "product_brand")) {
-            jdbc.update("delete from " + table);
-        }
+        wipeTables("product", "product_series", "product_category", "product_brand_alias", "product_brand");
         redis.delete(ProductConstants.CACHE_KEY_BRAND_OPTIONS);
         redis.delete(ProductConstants.CACHE_KEY_CATEGORY_OPTIONS);
         TenantContext.setTenantId(0);

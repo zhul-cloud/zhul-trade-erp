@@ -29,9 +29,7 @@ class ProductBrandSeedIntegrationTest extends IntegrationTestBase {
     @BeforeEach
     @AfterEach
     void wipe() {
-        for (String t : List.of("product", "product_series", "product_brand_alias", "product_brand")) {
-            jdbc.update("delete from " + t);
-        }
+        wipeTables("product", "product_series", "product_brand_alias", "product_brand");
         jdbc.update("delete from inquiry_item where confirmed_model like 'ITBS-%'");
     }
 

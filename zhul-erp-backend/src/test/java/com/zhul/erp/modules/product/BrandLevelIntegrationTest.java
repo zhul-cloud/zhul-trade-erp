@@ -30,9 +30,7 @@ class BrandLevelIntegrationTest extends IntegrationTestBase {
 
     @BeforeEach
     void clean() {
-        for (String table : List.of("product", "product_series", "product_brand_alias", "product_brand")) {
-            jdbc.update("delete from " + table);
-        }
+        wipeTables("product", "product_series", "product_brand_alias", "product_brand");
         redis.delete(ProductConstants.CACHE_KEY_BRAND_OPTIONS);
         loginAsAdmin("it_brand_level");
         TenantContext.setTenantId(0);

@@ -87,11 +87,8 @@ class ProductCoreIntegrationTest extends IntegrationTestBase {
 
     @BeforeEach
     void setUp() {
-        snapshotCategories();
-        for (String table : List.of("product_relationship", "product_specification", "product", "product_series",
-                "product_category", "product_brand")) {
-            jdbc.update("delete from " + table);
-        }
+        wipeTables("product_relationship", "product_specification", "product", "product_series",
+                "product_category", "product_brand_alias", "product_brand");
         USAGE.set(0);
         TenantContext.setTenantId(0);
         siemens = brand("Siemens");
