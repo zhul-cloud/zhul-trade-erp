@@ -100,7 +100,37 @@ public final class TenantTables {
             Map.entry("after_sales_log", Policy.PRIVATE),
             Map.entry("sales_return", Policy.PRIVATE),
             Map.entry("sales_return_disposition", Policy.PRIVATE),
-            Map.entry("sales_return_item", Policy.PRIVATE)
+            Map.entry("sales_return_item", Policy.PRIVATE),
+            // 采购与收货
+            Map.entry("purchase_order", Policy.PRIVATE),
+            Map.entry("purchase_order_attachment", Policy.PRIVATE),
+            Map.entry("purchase_order_fee", Policy.PRIVATE),
+            Map.entry("purchase_order_item", Policy.PRIVATE),
+            Map.entry("purchase_order_log", Policy.PRIVATE),
+            Map.entry("purchase_receipt", Policy.PRIVATE),
+            Map.entry("purchase_receipt_item", Policy.PRIVATE),
+            Map.entry("purchase_requirement", Policy.PRIVATE),
+            Map.entry("receiving_discrepancy", Policy.PRIVATE),
+            Map.entry("supplier_shipment", Policy.PRIVATE),
+            Map.entry("supplier_shipment_item", Policy.PRIVATE),
+            // 仓储、出库与物流
+            Map.entry("stock_hold", Policy.PRIVATE),
+            Map.entry("outbound_box", Policy.PRIVATE),
+            Map.entry("outbound_box_item", Policy.PRIVATE),
+            Map.entry("outbound_order", Policy.PRIVATE),
+            Map.entry("outbound_order_item", Policy.PRIVATE),
+            Map.entry("courier_waybill", Policy.PRIVATE),
+            Map.entry("logistics_shipment", Policy.PRIVATE),
+            Map.entry("shipment_doc_group", Policy.PRIVATE),
+            Map.entry("freight_allocation", Policy.PRIVATE),
+            Map.entry("forwarder_statement", Policy.PRIVATE),
+            Map.entry("forwarder_statement_line", Policy.PRIVATE),
+            Map.entry("shoot_task", Policy.PRIVATE),
+            // 附件与素材
+            Map.entry("biz_attachment", Policy.PRIVATE),
+            Map.entry("biz_attachment_model", Policy.PRIVATE),
+            Map.entry("media_asset", Policy.PRIVATE),
+            Map.entry("media_item", Policy.PRIVATE)
     );
 
     /** SQL 里是否出现已纳入管辖的表名（整词匹配，{@code account} 不匹配 {@code account_access_token}） */

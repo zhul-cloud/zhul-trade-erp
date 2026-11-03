@@ -107,6 +107,12 @@
 - **测试**：新增 `AiCallbackTenantContractTest`（走真实回调接口）；`TenantIsolationContractTest` 新增「启用清单里的每张表都存在并有 `tenant_id`」，防止表名写错导致悄悄不生效；若干测试在直接调用服务前补上租户上下文。
 - **验证**：后端全量 1222 个，0 失败，6 个环境跳过；测试日志中「缺少租户上下文」0 次、SQL 语法错误 0 次。
 
+## 第四个分支 `fix/tenant-modules-supply`：供应链启用（2026-11-03）
+
+从 `fix/tenant-modules-trade` `a052e0b0` 拉出。启用采购与收货 11 张、仓储出库与物流 12 张、附件与素材 4 张，共 27 张，全部私有；累计启用 95 张。采购模块的 `FOR UPDATE` 语句由上一分支的加锁子句处理覆盖（拼接一致性演练包含全部表的 SQL）。
+
+- **验证**：后端全量 1222 个，0 失败；测试日志中「缺少租户上下文」0 次、SQL 语法错误 0 次。`TenantInterceptorTest` 里「未启用的表」示例由 `purchase_order` 换成全局表 `tenant_package`。
+
 ## 合并、部署与逐 ID 验收
 
 | ID | 修复 / 验收范围 | 部署与目标环境验收证据 | 验收人 / 日期 | 结论与剩余项 |
@@ -129,3 +135,4 @@
 | 2026-11-03 / Claude | 用户选定方案 C；完成 SQL 静态解析与运行时改写演练；新编 SEC-011；在 `fix/tenant-isolation-core` 实施并验证（见上表） | 拉下一个分支继续 |
 | 2026-11-03 / Claude | `fix/tenant-isolation-core` 提交 `2c440cb2` 并推送（未建 PR、未合并）；从它拉 `fix/tenant-object-guards` 处理 SEC-005/006/007，见 [2026-11-03-SEC-005](2026-11-03-SEC-005-object-guards.md) | 之后按模块逐个启用其余表 |
 | 2026-11-03 / Claude | `fix/tenant-object-guards` 提交 `4e0f2aac`；从它拉 `fix/tenant-modules-trade`，处理 JSqlParser 加锁子句与 `output` 保留字，启用交易链路 55 张表并修 AI 回调租户 | 继续启用采购、仓储物流、商品库等其余表 |
+| 2026-11-03 / Claude | `fix/tenant-modules-trade` 提交 `a052e0b0`；从它拉 `fix/tenant-modules-supply`，启用供应链 27 张表 | 启用商品库与其余平台表 |

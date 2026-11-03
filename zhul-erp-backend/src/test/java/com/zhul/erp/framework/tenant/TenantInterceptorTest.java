@@ -49,7 +49,7 @@ class TenantInterceptorTest {
 
     @Test
     void untouchedOutsideEnforcedTablesOrPlatformScope() {
-        assertThat(TenantTables.mentions("SELECT id FROM purchase_order ORDER BY id LIMIT 1 FOR UPDATE")).isFalse();
+        assertThat(TenantTables.mentions("SELECT id FROM tenant_package ORDER BY id LIMIT 1 FOR UPDATE")).isFalse();
         assertThat(TenantTables.mentions("SELECT id FROM account_access_token WHERE id = ?")).isFalse();
         assertThat(TenantTables.mentions("SELECT `id` FROM `account` WHERE id = ?")).isTrue();
         TenantContext.setTenantId(7);
