@@ -10,6 +10,8 @@ public enum StorageArea {
     OPPORTUNITY("opportunity", false, "opportunity"),
     SOURCING("sourcing", false, "sourcing-import"),
     SUPPLIER("supplier", false, "supplier"),
+    /** 客户资料：上传的背调报告原件等 */
+    CUSTOMER("customer", false, null),
     /** 销售订单附件：PI、合同、客户 PO 等 */
     SALES("sales", false, null),
     PURCHASE("purchase", false, "purchase"),

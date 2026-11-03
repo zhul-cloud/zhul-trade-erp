@@ -47,6 +47,15 @@ public class BackgroundInput {
         return in;
     }
 
+    /** extract 模式的输入：只给上传的报告文字，不联网 */
+    public Map<String, Object> extract(String reportText) {
+        Map<String, Object> in = new LinkedHashMap<>();
+        in.put("mode", "extract");
+        in.put("fields", fields.catalog());
+        in.put("reportText", reportText);
+        return in;
+    }
+
     private Map<String, Object> customer(CustomerDO c) {
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("name", c.getName());

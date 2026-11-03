@@ -19,6 +19,10 @@ public final class BackgroundConstants {
     /** 24 小时内已有背调时提醒（只提醒不拦截） */
     public static final int REMIND_HOURS = 24;
 
+    /** 上传：PDF 不超过 10MB，报告文字不超过 60000 字（与编排服务一致） */
+    public static final long MAX_PDF_BYTES = 10L * 1024 * 1024;
+    public static final int MAX_TEXT_CHARS = 60000;
+
     public static final String ERR_RUNNING = "BACKGROUND_RUNNING";
     public static final String ERR_RECENT = "BACKGROUND_RECENT";
 

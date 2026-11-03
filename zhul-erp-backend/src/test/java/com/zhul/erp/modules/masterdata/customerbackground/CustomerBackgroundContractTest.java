@@ -11,15 +11,24 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.pdmodel.PDPage;
+import org.apache.pdfbox.pdmodel.PDPageContentStream;
+import org.apache.pdfbox.pdmodel.font.PDType1Font;
+import org.apache.pdfbox.pdmodel.font.Standard14Fonts;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -35,9 +44,15 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 
-/** spec crm/customer-background「一键 AI 背调」：输入组装、同时只能一份背调中、24 小时提醒、权限、AI 未配置 */
+/**
+ * spec crm/customer-background：「一键 AI 背调」（输入组装、同时只能一份背调中、24 小时提醒、权限、AI 未配置）、
+ * 「上传背调报告」（PDF、粘贴文字、扫描件）、「背调报告」（回调保存、查询、详情、删除）。
+ */
 @AutoConfigureMockMvc
 class CustomerBackgroundContractTest extends IntegrationTestBase {
 
@@ -50,6 +65,7 @@ class CustomerBackgroundContractTest extends IntegrationTestBase {
     @Autowired private StringRedisTemplate redis;
     @Autowired private ObjectMapper objectMapper;
     @MockBean private AiOrchestratorClient orchestrator;
+    @Value("${zhul.ai-task.callback-token}") private String callbackToken;
 
     private String admin;
 
@@ -231,5 +247,231 @@ class CustomerBackgroundContractTest extends IntegrationTestBase {
         JsonNode res = research(id, false);
         assertEquals(AiConfigConstants.NOT_CONFIGURED_MESSAGE, res.path("message").asText(), res.toString());
         assertEquals(0, jdbc.queryForObject("select count(*) from customer_background_report where customer_id = ?", Integer.class, id));
+    }
+
+    // ---------------------------------------------------------------- 上传报告（4.3）
+
+    private static byte[] pdf(String... lines) throws IOException {
+        try (PDDocument doc = new PDDocument(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            PDPage page = new PDPage();
+            doc.addPage(page);
+            if (lines.length > 0) {
+                try (PDPageContentStream cs = new PDPageContentStream(doc, page)) {
+                    cs.beginText();
+                    cs.setFont(new PDType1Font(Standard14Fonts.FontName.HELVETICA), 11);
+                    cs.newLineAtOffset(50, 700);
+                    for (String line : lines) {
+                        cs.showText(line);
+                        cs.newLineAtOffset(0, -16);
+                    }
+                    cs.endText();
+                }
+            }
+            doc.save(out);
+            return out.toByteArray();
+        }
+    }
+
+    private JsonNode upload(long id, MockMultipartFile file, String text) throws Exception {
+        var b = multipart(BASE + "/" + id + "/background-reports/upload");
+        if (file != null) {
+            b.file(file);
+        }
+        if (text != null) {
+            b.param("text", text);
+        }
+        return call(b, admin);
+    }
+
+    private long reportCount(long id) {
+        return jdbc.queryForObject("select count(*) from customer_background_report where customer_id = ?", Long.class, id);
+    }
+
+    @Test
+    void upload_pdfExtractsTextWithoutWebAndKeepsOriginal() throws Exception {
+        long id = customer();
+        byte[] bytes = pdf("Pacific Controls Pty Ltd - Background Report", "Score: 4 / 5. Employees: 23 on LinkedIn.");
+        JsonNode r = ok(upload(id, new MockMultipartFile("file", "Pacific Controls_20261103_4分.pdf", "application/pdf", bytes), null));
+        assertEquals(2, r.path("source").asInt(), "来源为上传");
+        assertEquals(1, r.path("status").asInt());
+
+        ArgumentCaptor<String> captured = ArgumentCaptor.forClass(String.class);
+        verify(orchestrator, timeout(5000)).submit(eq("customer-background"), anyLong(), captured.capture(), any());
+        JsonNode in = objectMapper.readTree(captured.getValue());
+        assertEquals("extract", in.path("mode").asText(), "只提取，不联网");
+        assertTrue(in.path("reportText").asText().contains("Employees: 23 on LinkedIn."));
+        assertTrue(in.path("customer").isMissingNode(), "提取模式不需要客户资料");
+
+        JsonNode detail = ok(call(get(BASE + "/" + id + "/background-reports/" + r.path("id").asLong()), admin));
+        assertTrue(detail.path("reportMarkdown").asText().startsWith("Pacific Controls Pty Ltd - Background Report"), "正文为上传的文字");
+        assertEquals("Pacific Controls_20261103_4分.pdf", detail.path("uploadFileName").asText());
+        JsonNode link = ok(call(get(BASE + "/" + id + "/background-reports/" + r.path("id").asLong() + "/file-url"), admin));
+        assertFalse(link.path("url").asText().isEmpty(), "可以下载原 PDF");
+    }
+
+    @Test
+    void upload_scannedPdfIsRejected() throws Exception {
+        long id = customer();
+        JsonNode res = upload(id, new MockMultipartFile("file", "scan.pdf", "application/pdf", pdf()), null);
+        assertEquals("这个 PDF 没有可读文字，请粘贴报告文字", res.path("message").asText(), res.toString());
+        assertEquals(0, reportCount(id));
+    }
+
+    @Test
+    void upload_checksFileTypeAndTextLength() throws Exception {
+        long id = customer();
+        byte[] png = {(byte) 0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A, 0, 0, 0, 0};
+        assertEquals("只支持 PDF 文件", upload(id, new MockMultipartFile("file", "fake.pdf", "application/pdf", png), null)
+                .path("message").asText(), "按文件头校验");
+        assertEquals("请上传一个 PDF，或粘贴报告文字", upload(id, null, null).path("message").asText());
+        assertEquals("报告文字不能超过 60000 字", upload(id, null, "字".repeat(60001)).path("message").asText());
+        assertEquals(0, reportCount(id));
+
+        JsonNode r = ok(upload(id, null, "  Pacific Controls is a system integrator in Sydney.  "));
+        assertEquals(2, r.path("source").asInt());
+        assertEquals("Pacific Controls is a system integrator in Sydney.",
+                jdbc.queryForObject("select report_markdown from customer_background_report where id = ?", String.class, r.path("id").asLong()));
+    }
+
+    @Test
+    void upload_alsoOneRunningAtATime() throws Exception {
+        long id = customer();
+        ok(research(id, false));
+        JsonNode res = upload(id, null, "some report text for the customer");
+        assertEquals("BACKGROUND_RUNNING", res.path("data").path("errorCode").asText(), res.toString());
+    }
+
+    // ---------------------------------------------------------------- 回调保存、查询、详情、删除（4.4）
+
+    private long taskOf(long reportId) {
+        return jdbc.queryForObject("select ai_task_id from customer_background_report where id = ?", Long.class, reportId);
+    }
+
+    private void callback(long taskId, String body) throws Exception {
+        int status = mvc.perform(post("/api/v1/ai-tasks/" + taskId + "/callback")
+                        .header("X-AI-Callback-Token", callbackToken)
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andReturn().getResponse().getStatus();
+        assertEquals(200, status);
+    }
+
+    private static final String RESULT = """
+            {"status":"success","usage":{"model":"claude-sonnet-5-5","inputTokens":42000,"outputTokens":6100,"webSearches":9},
+             "output":{"conclusion":{"priority":1,"score":4,"mainConflict":"有真实项目但已有稳定供应商","firstAction":"先发西门子 S7-1200 现货清单",
+               "identity":"悉尼的系统集成商，23 人","supply":"主要从本地代理拿货","keyFinding":"官网有 3 个包装线改造案例","obstacle":"账期要求 30 天"},
+              "reportMarkdown":"# Pacific Controls 背调报告\\n\\n正文",
+              "suggestions":[
+                {"module":1,"field":"companySize","value":"11-50人","evidence":"LinkedIn 显示 23 名员工","sourceUrl":"https://linkedin.com/company/pc"},
+                {"module":1,"field":"companySize","value":"51-200人","evidence":"重复的字段","sourceUrl":""},
+                {"module":1,"field":"potentialRating","value":"5","evidence":"AI 自己给的潜力不用"},
+                {"module":4,"field":"phone","value":"+61 2 9999 8888","evidence":"不允许的字段"},
+                {"module":4,"field":"jobRole","value":"采购","evidence":"LinkedIn 职位","sourceUrl":"",
+                 "contact":{"name":"Anna Lee","email":"anna@pacificcontrols.com.au","title":"Purchasing Manager"}}]}}""";
+
+    @Test
+    void callback_savesConclusionSuggestionsAndUsage() throws Exception {
+        long id = customer();
+        long reportId = ok(research(id, false)).path("id").asLong();
+        callback(taskOf(reportId), RESULT);
+
+        JsonNode d = ok(call(get(BASE + "/" + id + "/background-reports/" + reportId), admin));
+        assertEquals(2, d.path("status").asInt(), "已完成");
+        assertEquals(1, d.path("priority").asInt());
+        assertEquals(4, d.path("score").asInt());
+        assertEquals("先发西门子 S7-1200 现货清单", d.path("firstAction").asText());
+        assertEquals("悉尼的系统集成商，23 人", d.path("identityNote").asText());
+        assertEquals("# Pacific Controls 背调报告\n\n正文", d.path("reportMarkdown").asText());
+        assertEquals("claude-sonnet-5-5", d.path("model").asText());
+        assertEquals(42000, d.path("inputTokens").asInt());
+        assertEquals(6100, d.path("outputTokens").asInt());
+        assertEquals(9, d.path("webSearches").asInt());
+        assertTrue(d.path("durationSeconds").isInt());
+        assertFalse(d.path("completedAt").isNull());
+
+        JsonNode s = d.path("suggestions");
+        assertEquals(3, s.size(), "去掉重复字段、AI 给的潜力评级和不允许的字段，加上综合评分：" + s);
+        assertEquals("companySize", s.path(0).path("field").asText());
+        assertEquals("11-50人", s.path(0).path("value").asText(), "同一字段只留第一条");
+        assertEquals("pending", s.path(0).path("state").asText());
+        assertEquals("jobRole", s.path(1).path("field").asText());
+        assertEquals(4, s.path(1).path("module").asInt());
+        assertEquals("Anna Lee", s.path(1).path("contact").path("name").asText());
+        assertEquals("potentialRating", s.path(2).path("field").asText(), "综合评分同时作为潜力评级的建议");
+        assertEquals("4", s.path(2).path("value").asText());
+        assertEquals(3, d.path("suggestionCount").asInt());
+    }
+
+    @Test
+    void callback_uploadKeepsOriginalTextAndRecordsZeroSearches() throws Exception {
+        long id = customer();
+        long reportId = ok(upload(id, null, "Original uploaded report text")).path("id").asLong();
+        callback(taskOf(reportId), RESULT.replace("\"webSearches\":9", "\"webSearches\":0"));
+        Map<String, Object> row = jdbc.queryForMap("select status, report_markdown, web_searches from customer_background_report where id = ?", reportId);
+        assertEquals(2, ((Number) row.get("status")).intValue());
+        assertEquals("Original uploaded report text", row.get("report_markdown"), "上传的报告正文保持原文");
+        assertEquals(0, ((Number) row.get("web_searches")).intValue(), "联网次数为 0");
+    }
+
+    @Test
+    void callback_failureMarksReportFailedAndAllowsRetry() throws Exception {
+        long id = customer();
+        long reportId = ok(research(id, false)).path("id").asLong();
+        callback(taskOf(reportId), "{\"status\":\"failed\",\"error\":\"AI 处理超过 600 秒未完成\"}");
+        Map<String, Object> row = jdbc.queryForMap("select status, fail_reason from customer_background_report where id = ?", reportId);
+        assertEquals(3, ((Number) row.get("status")).intValue(), "失败");
+        assertEquals("AI 处理超过 600 秒未完成", row.get("fail_reason"));
+        ok(research(id, false));
+    }
+
+    @Test
+    void callback_unreadableOutputMarksFailed() throws Exception {
+        long id = customer();
+        long reportId = ok(research(id, false)).path("id").asLong();
+        callback(taskOf(reportId), "{\"status\":\"success\",\"output\":{\"foo\":1}}");
+        assertEquals(3, jdbc.queryForObject("select status from customer_background_report where id = ?", Integer.class, reportId));
+    }
+
+    @Test
+    void list_newestFirstAndOnlyThisCustomer() throws Exception {
+        long id = customer();
+        long first = ok(research(id, false)).path("id").asLong();
+        callback(taskOf(first), RESULT);
+        jdbc.update("update customer_background_report set create_time = date_sub(now(), interval 2 day) where id = ?", first);
+        long second = ok(research(id, false)).path("id").asLong();
+
+        JsonNode list = ok(call(get(BASE + "/" + id + "/background-reports"), admin));
+        assertEquals(2, list.size());
+        assertEquals(second, list.path(0).path("id").asLong(), "按时间倒序");
+        assertEquals("IT", list.path(0).path("requestedByName").asText());
+        assertEquals(4, list.path(1).path("score").asInt());
+
+        long other = ok(call(json(post(BASE), "{\"name\":\"Other Co\",\"country\":\"Brazil\",\"customerRole\":1,\"currency\":\"USD\"}"), admin))
+                .path("id").asLong();
+        assertEquals("背调报告不存在或已删除",
+                call(get(BASE + "/" + other + "/background-reports/" + first), admin).path("message").asText(), "报告不属于这个客户");
+    }
+
+    @Test
+    void delete_byRequesterOrManagerOnly_andLateResultIgnored() throws Exception {
+        long id = customer();
+        long reportId = ok(research(id, false)).path("id").asLong();
+
+        // 只有查看客户权限、数据范围只有自己的业务员不能删别人的报告
+        jdbc.update("update customer_background_report set requested_by = 99000077 where id = ?", reportId);
+        jdbc.update("update customer set owner_id = 99000002 where id = ?", id);
+        loginWithResources("it_bg_viewer", MENU_CUSTOMER);
+        String viewer = token("it_bg_viewer");
+        JsonNode denied = call(delete(BASE + "/" + id + "/background-reports/" + reportId), viewer);
+        assertEquals("只有发起人或管理者可以删除这份报告", denied.path("message").asText(), denied.toString());
+
+        loginAsAdmin("it_bg_admin");
+        ok(call(delete(BASE + "/" + id + "/background-reports/" + reportId), admin));
+        assertEquals(0, ok(call(get(BASE + "/" + id + "/background-reports"), admin)).size());
+        assertEquals(1, reportCount(id), "软删除");
+
+        callback(taskOf(reportId), RESULT);
+        assertEquals(1, jdbc.queryForObject("select status from customer_background_report where id = ?", Integer.class, reportId),
+                "删除后回来的结果不再写入");
+        ok(research(id, false));
     }
 }
