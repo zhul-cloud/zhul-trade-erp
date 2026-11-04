@@ -41,7 +41,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -200,10 +199,11 @@ public class FxSettlementService {
         s.setVoidedBy(SecurityUtils.getCurrentUsername());
         s.setVoidedAt(now);
         settlementMapper.updateById(s);
-        // 作废后估算汇率回到上一张有效结汇单（或系统汇率）
-        Set<PaymentReceiptDO> all = new LinkedHashSet<>(receipts.values());
-        all.addAll(lockOpen(s.getBusinessUnitId(), s.getCurrencyCode()));
-        refresh(all, fxRates.estimate(s.getBusinessUnitId(), s.getCurrencyCode()));
+        // 作废后估算汇率回到上一张有效结汇单（或系统汇率）。按主键合并：已扣减的到账以内存里这份为准，
+        // 不能被 lockOpen 查出的数据库旧版本覆盖（实体按全字段比较相等，放进 Set 会两份都留下，audit BUS-008）
+        Map<Long, PaymentReceiptDO> all = new LinkedHashMap<>(receipts);
+        lockOpen(s.getBusinessUnitId(), s.getCurrencyCode()).forEach(r -> all.putIfAbsent(r.getId(), r));
+        refresh(all.values(), fxRates.estimate(s.getBusinessUnitId(), s.getCurrencyCode()));
         logService.recordOperateLog(MENU, "作废结汇单", Map.of("settleNo", s.getSettleNo(), "status", "有效"),
                 Map.of("settleNo", s.getSettleNo(), "status", "已作废", "reason", s.getVoidReason()));
         return detail(id);
