@@ -47,6 +47,8 @@ public class AfterSalesVO {
     private Integer status;
     private String statusName;
     private String result;
+    /** 案例沉淀 */
+    private String caseNote;
     private LocalDateTime closedAt;
     private String cancelReason;
     /** 型号摘要（列表用） */

@@ -58,6 +58,7 @@ public class ShootService {
     private final CurrentUserResolver currentUser;
     private final InquiryLookups lookups;
     private final LogService logService;
+    private final com.zhul.erp.modules.crm.followup.support.FollowupHooks followupHooks;
 
     /** 采购入库确认时调用（调用方事务内）：还没有营销实拍、也没有待拍摄任务的合格入库型号，每个型号一条任务 */
     void createForReceipt(PurchaseReceiptDO receipt, List<PurchaseReceiptItemDO> items, Map<Long, Long> soIdByPoItem) {
@@ -247,6 +248,7 @@ public class ShootService {
         attachments.attach(AttachmentService.SHOOT, t.getId(), List.of(a.getId()));
         media.indexShoot(t.getId(), t.getTenantId(), t.getBrand(), t.getModel());
         refreshStatus(t);
+        followupHooks.orderChanged(t.getSoId());
         return detail(id);
     }
 
@@ -258,6 +260,7 @@ public class ShootService {
         attachments.remove(AttachmentService.SHOOT, t.getId(), attachmentId);
         media.indexShoot(t.getId(), t.getTenantId(), t.getBrand(), t.getModel());
         refreshStatus(t);
+        followupHooks.orderChanged(t.getSoId());
         return detail(id);
     }
 

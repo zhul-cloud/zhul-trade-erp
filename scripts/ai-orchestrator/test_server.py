@@ -762,6 +762,34 @@ class FollowupTest(unittest.TestCase):
         self.assertEqual(result["nextActions"][1]["days"], 60)
         self.assertEqual(result["profileSuggestions"], [], "只能取可补的档案字段，空值去掉")
 
+    def test_extract_stage_answers_only_for_current_stage(self):
+        base = {"summary": "x", "situation": [], "blocker": "", "nextActions": [], "profileSuggestions": []}
+        answers = {"receiptAnswer": 2, "useAnswer": 1, "issueTypes": ["破损", "其他"], "satisfaction": 1, "reviewStatus": 2,
+                   "etaDate": "2026-11-12"}
+        FakeClaude.reply = json.dumps({**base, **answers})
+        with mock.patch.object(self.server.anthropic, "Anthropic", FakeClaude):
+            a1 = self.server.call_followup_extract(self.cfg, {**FOLLOWUP_INPUT, "stage": {"code": "A1", "board": 4},
+                                                              "rawContent": "got it, one screen cracked"})
+            s5 = self.server.call_followup_extract(self.cfg, {**FOLLOWUP_INPUT, "rawContent": "thanks"})
+            f6 = self.server.call_followup_extract(self.cfg, {**FOLLOWUP_INPUT, "stage": {"code": "F6", "board": 3},
+                                                              "rawContent": "when will it arrive?"})
+        self.assertEqual(a1["receiptAnswer"], 2)
+        self.assertEqual(a1["issueTypes"], ["破损", "其他"])
+        self.assertEqual(a1["etaDate"], "2026-11-12")
+        self.assertNotIn("useAnswer", a1, "A1 不输出 A2 的答案")
+        self.assertNotIn("satisfaction", a1)
+        for k in answers:
+            self.assertNotIn(k, s5, "商机成交阶段不输出订单阶段的答案")
+        self.assertEqual(set(f6) - set(base) - {"truncated"}, {"etaDate"})
+
+    def test_extract_stage_answers_drop_bad_date(self):
+        FakeClaude.reply = json.dumps({"summary": "x", "situation": [], "blocker": "", "nextActions": [], "profileSuggestions": [],
+                                       "receiptAnswer": 3, "etaDate": "next week"})
+        with mock.patch.object(self.server.anthropic, "Anthropic", FakeClaude):
+            result = self.server.call_followup_extract(self.cfg, {**FOLLOWUP_INPUT, "stage": {"code": "A1"}, "rawContent": "not yet"})
+        self.assertEqual(result["receiptAnswer"], 3)
+        self.assertNotIn("etaDate", result)
+
     def test_extract_keeps_last_20000_chars(self):
         raw = "OLD" + "x" * 20000 + "NEWEST"
         result, p = self.extract({"summary": "x", "situation": [], "blocker": "", "nextActions": [], "profileSuggestions": []},
@@ -791,6 +819,18 @@ class FollowupTest(unittest.TestCase):
         self.assertEqual(result["intent"], "问客户目标价，不直接降价")
         self.assertIn("烛龙英文回复", p["system"], "系统提示词注明了原版来源")
         self.assertIn("问目标价", p["messages"][0]["content"][-1]["text"])
+
+    def test_reply_passes_intent_and_order(self):
+        FakeClaude.reply = json.dumps({"reply": "Your order has been shipped by DHL, tracking 1234567890.", "intent": "告诉客户运单号"})
+        with mock.patch.object(self.server.anthropic, "Anthropic", FakeClaude):
+            self.server.call_followup_reply(self.cfg, {**FOLLOWUP_INPUT, "intent": "logistics_update",
+                                                       "order": {"soNo": "SO20261025004", "etaDate": "2026-11-09"}})
+        p = FakeClaude.calls[-1]["params"]
+        self.assertIn("logistics_update", p["system"], "提示词里有物流更新的写法")
+        self.assertIn("review_invite", p["system"], "提示词里有评价邀请的写法")
+        sent = json.loads(p["messages"][0]["content"][-1]["text"])
+        self.assertEqual(sent["intent"], "logistics_update")
+        self.assertEqual(sent["order"]["soNo"], "SO20261025004")
 
     def test_reply_empty_fails(self):
         FakeClaude.reply = json.dumps({"reply": " ", "intent": ""})

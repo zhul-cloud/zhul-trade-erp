@@ -1,15 +1,24 @@
 package com.zhul.erp.modules.crm.followup.support;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.zhul.erp.modules.aftersales.entity.AfterSalesDO;
 import com.zhul.erp.modules.crm.followup.constants.FollowupConstants;
 import com.zhul.erp.modules.crm.service.OpportunityService;
 import com.zhul.erp.modules.inquiry.customerinquiry.entity.CustomerInquiryDO;
+import com.zhul.erp.modules.purchase.entity.PurchaseOrderItemDO;
+import com.zhul.erp.modules.purchase.repository.PurchaseOrderItemMapper;
 import com.zhul.erp.modules.quotation.entity.QuotationDO;
 import com.zhul.erp.modules.sales.entity.ProformaInvoiceDO;
+import com.zhul.erp.modules.sales.entity.SalesOrderDO;
+import com.zhul.erp.modules.sales.repository.SalesOrderMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
+import java.util.Collection;
+import java.util.List;
+import java.util.Objects;
 
 /**
  * 单据事件 → 客户跟进（spec crm/customer-followup「跟进对象自动生成」、crm/opportunity 自动推进与自动赢单）。
@@ -24,6 +33,8 @@ public class FollowupHooks {
 
     private final FollowupSync sync;
     private final OpportunityService opportunityService;
+    private final SalesOrderMapper orderMapper;
+    private final PurchaseOrderItemMapper poItemMapper;
 
     /** 老客户登记询盘（从商机创建的询盘由商机推进带动同步） */
     public void inquiryCreated(CustomerInquiryDO inq) {
@@ -40,6 +51,70 @@ public class FollowupHooks {
     /** 报价单、PI 的其他状态变化（未成交、作废、关闭、重新打开、收款作废等） */
     public void customerChanged(Long customerId) {
         sync.customerChanged(customerId);
+    }
+
+    /**
+     * 销售订单及其下游单据变化（第二期 design D3）：按订单所属客户重新推导订单履约、售后评价。
+     * 订单创建、取消、部分取消、客户已收货，实拍任务、销售出库单、售后单都走这里。
+     */
+    public void orderChanged(Long soId) {
+        if (soId != null) {
+            ordersChanged(List.of(soId));
+        }
+    }
+
+    public void ordersChanged(Collection<Long> soIds) {
+        List<Long> ids = soIds == null ? List.of() : soIds.stream().filter(Objects::nonNull).distinct().toList();
+        if (ids.isEmpty()) {
+            return;
+        }
+        List<Long> customers;
+        try {
+            customers = orderMapper.selectList(new LambdaQueryWrapper<SalesOrderDO>()
+                            .select(SalesOrderDO::getId, SalesOrderDO::getCustomerId).in(SalesOrderDO::getId, ids))
+                    .stream().map(SalesOrderDO::getCustomerId).filter(Objects::nonNull).distinct().toList();
+        } catch (RuntimeException e) {
+            log.warn("查询订单所属客户失败，soIds={}", ids, e);
+            return;
+        }
+        customers.forEach(sync::customerChanged);
+    }
+
+    /** 采购单及其到货登记、入库、到货差异变化：按采购行关联的销售订单重新推导 */
+    public void purchaseChanged(Long poId) {
+        if (poId == null) {
+            return;
+        }
+        List<Long> soIds;
+        try {
+            soIds = poItemMapper.selectList(new LambdaQueryWrapper<PurchaseOrderItemDO>()
+                            .select(PurchaseOrderItemDO::getSoId).eq(PurchaseOrderItemDO::getPoId, poId))
+                    .stream().map(PurchaseOrderItemDO::getSoId).toList();
+        } catch (RuntimeException e) {
+            log.warn("查询采购单关联订单失败，poId={}", poId, e);
+            return;
+        }
+        ordersChanged(soIds);
+    }
+
+    /** 售后单新建、修改下一步、改状态、补发、撤销：按客户重新推导（售后单可能没有关联订单） */
+    public void afterSalesChanged(AfterSalesDO a) {
+        sync.customerChanged(a.getCustomerId());
+    }
+
+    /** 售后单结案：重新推导后写一条「售后单结案」节点，案例沉淀作为节点正文（spec sales/after-sales「结案时案例沉淀」） */
+    public void afterSalesClosed(AfterSalesDO a) {
+        sync.customerChanged(a.getCustomerId());
+        if (a.getCustomerId() == null) {
+            return;
+        }
+        try {
+            String note = a.getCaseNote() == null || a.getCaseNote().isBlank() ? null : "案例沉淀：" + a.getCaseNote();
+            sync.writeSystemRecord(a.getCustomerId(), FollowupConstants.TARGET_ORDER, a.getSoId() == null || a.getSoId() == 0 ? null
+                    : a.getSoId(), "售后单 " + a.getAsNo() + " 结案 · " + a.getResult(), note);
+        } catch (RuntimeException e) {
+            log.warn("写入售后结案的跟进时间线失败，asNo={}", a.getAsNo(), e);
+        }
     }
 
     /** PI 发送：第一次发送时把客户进行中的商机推进到 S7 */

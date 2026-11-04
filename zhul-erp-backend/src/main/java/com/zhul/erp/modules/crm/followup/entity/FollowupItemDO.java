@@ -30,6 +30,8 @@ public class FollowupItemDO {
     private Long ownerId;
     private String stageCode;
     private Integer stageGroup;
+    @TableField(updateStrategy = FieldStrategy.ALWAYS)
+    private LocalDateTime stageSince;
     private String currencyCode;
     private BigDecimal amount;
     private BigDecimal receivedAmount;
@@ -43,6 +45,31 @@ public class FollowupItemDO {
     @TableField(updateStrategy = FieldStrategy.ALWAYS)
     private LocalDate nextActionDate;
     private Integer nextActionSource;
+    private String situationText;
+    private Integer partCount;
+    private String nodeCode;
+    @TableField(updateStrategy = FieldStrategy.ALWAYS)
+    private LocalDate nodeDate;
+    private Integer exceptionFlags;
+    @TableField(updateStrategy = FieldStrategy.ALWAYS)
+    private LocalDate exceptionSince;
+    @TableField(updateStrategy = FieldStrategy.ALWAYS)
+    private LocalDate etaDate;
+    private Integer etaSource;
+    @TableField(updateStrategy = FieldStrategy.ALWAYS)
+    private LocalDate etaFirst;
+    private String etaNote;
+    @TableField(updateStrategy = FieldStrategy.ALWAYS)
+    private LocalDate signedDate;
+    private Integer usedOk;
+    private Integer satisfaction;
+    private String dissatisfiedReason;
+    private Integer reviewStatus;
+    private String reviewPlatform;
+    @TableField(updateStrategy = FieldStrategy.ALWAYS)
+    private LocalDate reviewInvitedAt;
+    private Integer reviewRemindCount;
+    private Long afterSalesId;
     private Integer snoozeCount;
     @TableField(updateStrategy = FieldStrategy.ALWAYS)
     private LocalDate expectedPayDate;

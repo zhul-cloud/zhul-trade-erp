@@ -94,6 +94,7 @@ public class ReceiptService {
     private final InquiryLookups lookups;
     private final LogService logService;
     private final com.zhul.erp.modules.warehouse.support.PartialCancelHolds partialCancelHolds;
+    private final com.zhul.erp.modules.crm.followup.support.FollowupHooks followupHooks;
 
     // ---------------------------------------------------------------- 列表与详情
 
@@ -287,6 +288,7 @@ public class ReceiptService {
         }
         PurchaseReceiptDO r = receive(p, s, req.getReceivedDate(), req.getNote(), lines,
                 new Files(req.getAttachmentIds(), req.getDefectAttachmentIds(), req.getAttachmentModels()), true);
+        followupHooks.purchaseChanged(r.getPoId());
         return detail(r.getId());
     }
 
@@ -379,6 +381,7 @@ public class ReceiptService {
         logs.add(p.getId(), "仓库补登发货", s.getSdNo() + "：" + String.join("、", text) + "（仓库直接收货）", currentUser.resolve());
         PurchaseReceiptDO r = receive(p, s, req.getReceivedDate(), req.getNote(), lines,
                 new Files(req.getAttachmentIds(), req.getDefectAttachmentIds(), req.getAttachmentModels()), true);
+        followupHooks.purchaseChanged(r.getPoId());
         return detail(r.getId());
     }
 
@@ -508,6 +511,7 @@ public class ReceiptService {
         logService.recordOperateLog(WarehouseConstants.MENU_RECEIPT, "冲销入库", Map.of("grNo", r.getGrNo(), "status", "有效"),
                 Map.of("grNo", r.getGrNo(), "status", "已冲销", "reason", why));
         payables.syncPurchaseOrder(p.getId());
+        followupHooks.purchaseChanged(p.getId());
         return detail(id);
     }
 

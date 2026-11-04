@@ -58,6 +58,7 @@ import urllib.request
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
+from datetime import date
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import anthropic
@@ -721,6 +722,16 @@ FOLLOWUP_REPLY_SKILL = "followup-reply"
 # 粘贴原文只取最后这么多字交给 AI（与后端 FollowupConstants.RAW_MAX 一致）
 FOLLOWUP_RAW_MAX = 20000
 FOLLOWUP_SITUATIONS = ("feedback", "negotiating", "no_reply")
+# 订单履约、售后评价阶段的答案建议（第二期 design D13）：只在对应阶段输出，取值与后端 FollowupConstants 一致
+FOLLOWUP_ISSUE_TYPES = ("少件", "破损", "型号不对", "其他")
+FOLLOWUP_REVIEW_STATUSES = (1, 2, 3, 4, 6)
+FOLLOWUP_STAGE_FIELDS = {
+    "F6": ("etaDate",),
+    "A1": ("receiptAnswer", "issueTypes", "etaDate"),
+    "A2": ("useAnswer", "issueTypes"),
+    "A5": ("satisfaction", "reviewStatus"),
+    "A6": ("reviewStatus",),
+}
 
 FOLLOWUP_EXTRACT_SCHEMA = {
     "type": "object",
@@ -744,6 +755,12 @@ FOLLOWUP_EXTRACT_SCHEMA = {
                 "required": ["field", "value", "evidence"],
             },
         },
+        "receiptAnswer": {"type": "integer", "enum": [1, 2, 3]},
+        "useAnswer": {"type": "integer", "enum": [1, 2, 3]},
+        "issueTypes": {"type": "array", "items": {"type": "string", "enum": list(FOLLOWUP_ISSUE_TYPES)}},
+        "satisfaction": {"type": "integer", "enum": [1, 2, 3]},
+        "reviewStatus": {"type": "integer", "enum": list(FOLLOWUP_REVIEW_STATUSES)},
+        "etaDate": {"type": "string"},
     },
     "required": ["summary", "situation", "blocker", "nextActions", "profileSuggestions"],
 }
@@ -781,7 +798,7 @@ def sanitize_followup_extract(structured: dict, input_data: dict) -> dict:
         if sug.get("field") in fields and value:
             suggestions.append({"field": sug["field"], "value": value[:500],
                                 "evidence": str(sug.get("evidence") or "")[:200]})
-    return {
+    out = {
         "summary": str(structured.get("summary") or "").strip()[:1000],
         "situation": situation,
         "blocker": blocker if blocker in blockers else "",
@@ -789,6 +806,31 @@ def sanitize_followup_extract(structured: dict, input_data: dict) -> dict:
         "profileSuggestions": suggestions,
         "truncated": bool(input_data.get("truncated")),
     }
+    out.update(stage_answers(structured, input_data))
+    return out
+
+
+def stage_answers(structured: dict, input_data: dict) -> dict:
+    """订单履约、售后评价阶段的答案建议：只保留当前阶段的字段和合法取值"""
+    stage = (input_data.get("stage") or {}).get("code") or ""
+    out = {}
+    for field in FOLLOWUP_STAGE_FIELDS.get(stage, ()):
+        value = structured.get(field)
+        if field == "issueTypes":
+            picked = [x for x in FOLLOWUP_ISSUE_TYPES if x in (value or [])]
+            if picked:
+                out[field] = picked
+        elif field == "etaDate":
+            try:
+                out[field] = date.fromisoformat(str(value or "").strip()).isoformat()
+            except ValueError:
+                pass
+        elif field == "reviewStatus":
+            if value in FOLLOWUP_REVIEW_STATUSES:
+                out[field] = value
+        elif value in (1, 2, 3):
+            out[field] = value
+    return out
 
 
 def call_followup_extract(cfg: AiConfig, input_data: dict) -> dict:

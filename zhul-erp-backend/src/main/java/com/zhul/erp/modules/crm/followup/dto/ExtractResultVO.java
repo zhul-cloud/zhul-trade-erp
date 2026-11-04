@@ -26,6 +26,18 @@ public class ExtractResultVO {
         private String blockerName;
         private List<NextAction> nextActions = new ArrayList<>();
         private List<ProfileSuggestion> profileSuggestions = new ArrayList<>();
+        /** 订单履约、售后评价阶段的答案建议（只在对应阶段给出，前端只预填与当前阶段匹配的）：A1 客户收到了吗 */
+        private Integer receiptAnswer;
+        /** A2 用得好吗 */
+        private Integer useAnswer;
+        /** A1、A2 有问题时的问题类型 */
+        private List<String> issueTypes = new ArrayList<>();
+        /** A5 满意度 */
+        private Integer satisfaction;
+        /** A5、A6 评价状态 */
+        private Integer reviewStatus;
+        /** F6 新的预计送达、A1 还没收到时的新日期 */
+        private LocalDate etaDate;
         /** 原文超过 20,000 字已截断 */
         private Boolean truncated;
     }

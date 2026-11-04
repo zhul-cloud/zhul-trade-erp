@@ -64,4 +64,33 @@ public class FollowupItemVO {
     private Long ownerId;
     private String ownerName;
     private Long opportunityId;
+
+    // ---- 订单履约、售后评价（第二期）
+    /** 现在的情况（系统带出） */
+    private String situationText;
+    /** 订单分几部分（按采购单 + 库存直发），2 以上可展开 */
+    private Integer partCount;
+    /** 履约异常位掩码：1-采购超期未到仓、2-有到货差异待处理、4-出库单已撤回 */
+    private Integer exceptionFlags;
+    private String exceptionText;
+    private LocalDate exceptionSince;
+    private LocalDate etaDate;
+    /** 0-未出运、1-系统估算、2-业务员改的 */
+    private Integer etaSource;
+    /** 预计送达依据，如「DHL · 按 5 天估算」 */
+    private String etaNote;
+    private LocalDate signedDate;
+    /** 签收第几天 */
+    private Integer signedDays;
+    private Integer satisfaction;
+    private String satisfactionName;
+    private Integer reviewStatus;
+    private String reviewStatusName;
+    private String reviewPlatform;
+    /** A3、A4 对应的售后单 */
+    private Long afterSalesId;
+    private String afterSalesNo;
+    private String afterSalesStatusName;
+    /** 进入当前阶段的时间 */
+    private LocalDateTime stageSince;
 }

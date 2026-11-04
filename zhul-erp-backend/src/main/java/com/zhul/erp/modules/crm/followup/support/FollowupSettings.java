@@ -45,6 +45,47 @@ public class FollowupSettings {
         }
     }
 
+    /** 订单履约、售后评价的参数：快递承运商（大写）、快递 / 其他运输天数、评价提醒间隔与次数 */
+    public record OrderParams(List<String> expressCarriers, int expressDays, int otherDays, int reviewDays, int reviewTimes) {
+
+        public static OrderParams defaults() {
+            return new OrderParams(List.of("DHL", "FEDEX", "UPS", "TNT", "EMS", "ARAMEX"), 5, 10, 7, 2);
+        }
+
+        /** 承运商去掉空格、转大写后以清单中任一项开头的算快递 */
+        public boolean express(String carrier) {
+            if (carrier == null) {
+                return false;
+            }
+            String c = carrier.replaceAll("\\s+", "").toUpperCase(java.util.Locale.ROOT);
+            return !c.isEmpty() && expressCarriers.stream().anyMatch(c::startsWith);
+        }
+
+        public int transitDays(String carrier) {
+            return express(carrier) ? expressDays : otherDays;
+        }
+    }
+
+    public OrderParams orderParams(int tenantId) {
+        Map<String, String> v = values(tenantId);
+        OrderParams d = OrderParams.defaults();
+        return new OrderParams(carriers(v.get(FollowupConstants.CFG_EXPRESS_CARRIERS), d.expressCarriers()),
+                positive(v.get(FollowupConstants.CFG_EXPRESS_DAYS), d.expressDays()),
+                positive(v.get(FollowupConstants.CFG_OTHER_DAYS), d.otherDays()),
+                positive(v.get(FollowupConstants.CFG_REVIEW_DAYS), d.reviewDays()),
+                positive(v.get(FollowupConstants.CFG_REVIEW_TIMES), d.reviewTimes()));
+    }
+
+    static List<String> carriers(String csv, List<String> fallback) {
+        if (!StringUtils.hasText(csv)) {
+            return fallback;
+        }
+        List<String> out = java.util.Arrays.stream(csv.split(","))
+                .map(x -> x.replaceAll("\\s+", "").toUpperCase(java.util.Locale.ROOT))
+                .filter(StringUtils::hasText).toList();
+        return out.isEmpty() ? fallback : out;
+    }
+
     public Params params(int tenantId) {
         Map<String, String> v = values(tenantId);
         Params d = Params.defaults();

@@ -25,6 +25,8 @@ public class FollowupOverviewVO {
         private Integer overdue;
         private Integer total;
         private Integer nurture;
+        /** 订单履约：有异常的跟进对象数 */
+        private Integer exceptions;
         private List<Group> groups = new ArrayList<>();
     }
 

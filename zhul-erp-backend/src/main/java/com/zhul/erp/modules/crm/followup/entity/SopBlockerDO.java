@@ -17,6 +17,7 @@ public class SopBlockerDO {
     @TableId(type = IdType.AUTO)
     private Integer id;
     private Integer tenantId;
+    private Integer board;
     private String code;
     private String name;
     /** 对应的商机输单原因码，0 为不对应 */

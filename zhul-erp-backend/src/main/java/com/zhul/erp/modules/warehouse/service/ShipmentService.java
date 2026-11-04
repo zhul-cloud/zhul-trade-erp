@@ -71,6 +71,7 @@ public class ShipmentService {
     private final LogService logService;
     private final TransitTimeService transitTimes;
     private final com.zhul.erp.modules.logistics.support.LogisticsSupport logisticsSupport;
+    private final com.zhul.erp.modules.crm.followup.support.FollowupHooks followupHooks;
 
     // ---------------------------------------------------------------- 列表
 
@@ -301,6 +302,7 @@ public class ShipmentService {
         logs.add(p.getId(), "登记发货", s.getSdNo() + "：" + text + trackingText(s), currentUser.resolve());
         logService.recordOperateLog(WarehouseConstants.MENU_SHIPMENT, "登记发货", null,
                 Map.of("sdNo", s.getSdNo(), "poNo", p.getPoNo(), "items", text));
+        followupHooks.purchaseChanged(p.getId());
         return detail(s.getId(), true);
     }
 
@@ -333,6 +335,7 @@ public class ShipmentService {
         logs.add(p.getId(), "修改发货", s.getSdNo() + "：" + before + " → " + after, currentUser.resolve());
         logService.recordOperateLog(WarehouseConstants.MENU_SHIPMENT, "修改发货", Map.of("sdNo", s.getSdNo(), "items", before),
                 Map.of("sdNo", s.getSdNo(), "items", after));
+        followupHooks.purchaseChanged(p.getId());
         return detail(id, true);
     }
 
@@ -363,6 +366,7 @@ public class ShipmentService {
         logService.recordOperateLog(WarehouseConstants.MENU_SHIPMENT, "作废发货", Map.of("sdNo", s.getSdNo(), "status", "在途"),
                 Map.of("sdNo", s.getSdNo(), "status", "已作废", "reason", why));
         media.retireDocument(AttachmentService.SHIPMENT, id, s.getTenantId());
+        followupHooks.purchaseChanged(p.getId());
         return detail(id, true);
     }
 

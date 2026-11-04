@@ -44,6 +44,8 @@ public class AfterSalesDO {
     private Integer dueType;
     private Integer status;
     private String result;
+    /** 案例沉淀：结案时选填 */
+    private String caseNote;
     private LocalDateTime closedAt;
     private String cancelReason;
     private LocalDateTime deletedAt;

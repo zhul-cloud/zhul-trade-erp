@@ -30,6 +30,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -226,5 +227,85 @@ class FollowupAiContractTest extends IntegrationTestBase {
         }).when(orchestrator).submit(eq("followup-reply"), anyLong(), any(), any());
         JsonNode res = call(json(post(BASE + "/reply-draft"), "{\"customerId\":" + C1 + "}"));
         assertEquals("AI_FAILED", res.path("data").path("errorCode").asText(), res.toString());
+    }
+
+    // ---------------------------------------------------------------- 订单履约、售后评价（第二期 tasks 5.7，design D13）
+
+    /** 售后评价 A1 的跟进对象：DHL 预计 11-09 送达 */
+    private long afterSalesItem(String stage) {
+        jdbc.update("insert into followup_item (tenant_id, board, target_type, target_id, customer_id, owner_id, doc_no, stage_code,"
+                + " stage_group, eta_date, eta_note, situation_text, review_platform) values (0, 4, 5, 99410001, ?, ?, 'SO20261025004', ?, 7,"
+                + " '2026-11-09', 'DHL · 按 5 天估算', '预计 11-09 送达，还没确认收到', '阿里国际站')", C1, SELF, stage);
+        return jdbc.queryForObject("select id from followup_item where tenant_id = 0 and target_id = 99410001", Long.class);
+    }
+
+    @Test
+    void extract_afterSalesStage_answersPassThroughLegalValues() throws Exception {
+        long itemId = afterSalesItem("A1");
+        long taskId = ok(call(json(post(BASE + "/extract"), objectMapper.writeValueAsString(Map.of("customerId", C1, "itemId", itemId,
+                "rawContent", "customer: got the parcel, one HMI screen is cracked")))))
+                .path("taskId").asLong();
+        ArgumentCaptor<String> input = ArgumentCaptor.forClass(String.class);
+        verify(orchestrator, timeout(5000)).submit(eq("followup-extract"), eq(taskId), input.capture(), any());
+        JsonNode sent = objectMapper.readTree(input.getValue());
+        assertEquals(4, sent.path("stage").path("board").asInt());
+        assertEquals("A1", sent.path("stage").path("code").asText());
+        assertNotEquals("A1", sent.path("stage").path("name").asText(), "订单阶段名取 SOP");
+        assertEquals("SO20261025004", sent.path("order").path("soNo").asText());
+        assertEquals(1, sent.path("blockers").size(), "卡点取售后评价板块的");
+
+        callback(taskId, """
+                {"status":"success","output":{"summary":"客户收到了，有一块 HMI 屏幕碎了","situation":["feedback"],"blocker":"REVIEW_INVITE",
+                 "nextActions":[{"text":"登记售后单，安排补发","days":0}],"profileSuggestions":[],
+                 "receiptAnswer":2,"issueTypes":["破损","受潮","破损"],"useAnswer":7,"satisfaction":9,"reviewStatus":5,
+                 "etaDate":"next week","truncated":false}}""");
+        JsonNode res = ok(call(get(BASE + "/extract/" + taskId))).path("result");
+        assertEquals(2, res.path("receiptAnswer").asInt());
+        assertEquals("[\"破损\"]", res.path("issueTypes").toString(), "问题类型只取四个固定值，去重");
+        assertTrue(res.path("useAnswer").isMissingNode() || res.path("useAnswer").isNull(), "超出取值范围的丢弃");
+        assertTrue(res.path("satisfaction").isMissingNode() || res.path("satisfaction").isNull());
+        assertTrue(res.path("reviewStatus").isMissingNode() || res.path("reviewStatus").isNull(), "「未评价」只能由系统记");
+        assertTrue(res.path("etaDate").isMissingNode() || res.path("etaDate").isNull(), "不是日期的丢弃");
+        assertEquals("REVIEW_INVITE", res.path("blockerCode").asText(), "其他板块的卡点也认");
+        assertEquals("怎么邀请不招人烦", res.path("blockerName").asText());
+
+        long second = ok(call(json(post(BASE + "/extract"), objectMapper.writeValueAsString(Map.of("customerId", C1, "itemId", itemId,
+                "rawContent", "not arrived yet, maybe 11-12"))))).path("taskId").asLong();
+        callback(second, """
+                {"status":"success","output":{"summary":"还没收到","situation":["feedback"],"blocker":"","nextActions":[],
+                 "profileSuggestions":[],"receiptAnswer":3,"etaDate":"2026-11-12","truncated":false}}""");
+        JsonNode res2 = ok(call(get(BASE + "/extract/" + second))).path("result");
+        assertEquals(3, res2.path("receiptAnswer").asInt());
+        assertEquals("2026-11-12", res2.path("etaDate").asText());
+    }
+
+    @Test
+    void replyDraft_logisticsAndReviewIntents() throws Exception {
+        long itemId = afterSalesItem("A6");
+        doAnswer(inv -> {
+            long taskId = inv.getArgument(1);
+            new Thread(() -> {
+                AiTaskCallbackRequest req = new AiTaskCallbackRequest();
+                req.setStatus("success");
+                req.setOutput(Map.of("reply", "Would you mind leaving a short review?", "intent", "邀请客户在阿里国际站评价"));
+                aiTaskService.handleCallback(taskId, req);
+            }).start();
+            return new CompletableFuture<>();
+        }).when(orchestrator).submit(eq("followup-reply"), anyLong(), any(), any());
+
+        JsonNode r = ok(call(json(post(BASE + "/reply-draft"), "{\"customerId\":" + C1 + ",\"itemId\":" + itemId
+                + ",\"intent\":\"review_invite\"}")));
+        assertEquals("Would you mind leaving a short review?", r.path("reply").asText());
+        ArgumentCaptor<String> input = ArgumentCaptor.forClass(String.class);
+        verify(orchestrator).submit(eq("followup-reply"), anyLong(), input.capture(), any());
+        JsonNode sent = objectMapper.readTree(input.getValue());
+        assertEquals("review_invite", sent.path("intent").asText());
+        assertEquals("阿里国际站", sent.path("order").path("reviewPlatform").asText());
+        assertEquals("2026-11-09", sent.path("order").path("etaDate").asText());
+        assertEquals("DHL · 按 5 天估算", sent.path("order").path("etaNote").asText());
+
+        ok(call(json(post(BASE + "/reply-draft"), "{\"customerId\":" + C1 + ",\"itemId\":" + itemId + ",\"intent\":\"logistics_update\"}")));
+        assertEquals("回复意图不正确", call(json(post(BASE + "/reply-draft"), "{\"customerId\":" + C1 + ",\"intent\":\"discount\"}"))
+                .path("message").asText());
     }
 }
