@@ -12,16 +12,21 @@ const EllipsisText: React.FC<{
   style?: React.CSSProperties;
 }> = ({ text, tip, style }) => {
   const ref = useRef<HTMLSpanElement>(null);
-  const [cut, setCut] = useState(false);
+  const [open, setOpen] = useState(false);
   if (text === undefined || text === null || text === '') return <>—</>;
   return (
-    <Tooltip title={cut ? (tip ?? text) : undefined} placement="topLeft">
+    <Tooltip
+      title={tip ?? text}
+      placement="topLeft"
+      open={open}
+      // 每次要打开时再量一次：没被截断就不弹
+      onOpenChange={(next) => {
+        const el = ref.current;
+        setOpen(next && !!el && el.scrollWidth > el.clientWidth);
+      }}
+    >
       <span
         ref={ref}
-        onMouseEnter={() => {
-          const el = ref.current;
-          setCut(!!el && el.scrollWidth > el.clientWidth);
-        }}
         style={{
           display: 'block',
           maxWidth: '100%',
