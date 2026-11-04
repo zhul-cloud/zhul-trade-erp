@@ -18,7 +18,7 @@ pip install -r scripts/ai-orchestrator/requirements.txt
 python scripts/ai-orchestrator/server.py
 ```
 
-监听端口默认 `8899`（`AI_STUB_PORT`）；共享令牌 `AI_TASK_CALLBACK_TOKEN` 必须与后端一致，不能将服务端口公开到互联网。`AI_ORCHESTRATOR_TIMEOUT_SECONDS` 为单次调用超时，默认 900 秒。
+监听端口默认 `8899`（`AI_STUB_PORT`）；共享令牌 `AI_TASK_CALLBACK_TOKEN` 必须与后端一致，不能将服务端口公开到互联网。`AI_ORCHESTRATOR_TIMEOUT_SECONDS` 为每个任务的总期限，默认 900 秒：下载附件、排队、每轮模型请求与续传共用这一个期限，到期不再发起下一步请求；须比后端超时扫描（`AI_TASK_TIMEOUT_MINUTES`，默认 20 分钟）短至少 3 分钟。结果回调投递失败（连不上、超时、后端 5xx）时，按 5、15、45 秒重投同一结果，不重新调用模型。
 
 模型默认值（API 与订阅相同，后端也会先补全）：Claude 为 `claude-opus-5-5` / `claude-haiku-5-5`，OpenAI 为 `gpt-6.1-sol` / `gpt-6-luna`；思考强度可选 `low/medium/high/xhigh/max`，默认 `medium`；单次解析最大搜索次数 1–100，默认 20。任务携带的配置不合法（如不支持的服务商、思考强度，API 方式缺 Key）时只让该任务回调失败，不影响其他任务。
 
