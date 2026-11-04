@@ -529,6 +529,11 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
 
         // 换采购对象统一走「改到其他供应商」（同步需求的渠道、合并到已有草稿），保存不改采购对象
         String currency = req.getCurrencyCode().trim().toUpperCase(Locale.ROOT);
+        // 已有付款、欠款抵扣或退款的不能改币种：已付金额按原币记账，换币后无法对应（audit BUS-004）
+        if (ordered && !currency.equals(p.getCurrencyCode())
+                && payables.hasMoneyMovement(FinanceConstants.SOURCE_PURCHASE_ORDER, id)) {
+            throw new BizException("这张采购订单已有付款、欠款抵扣或退款，不能修改币种；如需修改，请先作废相关付款");
+        }
         if (!currency.equals(p.getCurrencyCode()) || !PurchaseConstants.CNY.equals(currency)) {
             BigDecimal rate = PurchaseConstants.CNY.equals(currency) ? BigDecimal.ONE : exchangeRateService.require(currency).rate();
             p.setCurrencyCode(currency);
