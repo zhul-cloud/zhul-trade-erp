@@ -4,6 +4,7 @@ import type { TableColumnsType } from 'antd';
 import { App, Button, Progress, Select, Space, Table } from 'antd';
 import dayjs from 'dayjs';
 import React, { useEffect, useState } from 'react';
+import { Stars } from '@/pages/customer/profile/ui';
 import { RECEIPT_META } from '@/pages/sales/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
@@ -21,6 +22,7 @@ import { PartsPanel, ProgressCell } from './OrderParts';
 import {
   BOARD_ACCOUNT,
   BOARD_AFTER_SALES,
+  BOARD_DEVELOP,
   BOARD_FULFIL,
   BOARD_SALES,
   type CurrencyAmount,
@@ -30,6 +32,7 @@ import {
   NEXT_AFTER_SALES,
   NEXT_USER,
   type OverviewBoard,
+  REPORT_PRIORITY,
   readBizError,
 } from './service';
 
@@ -54,10 +57,13 @@ export const StageBar: React.FC<{
   onChange: (v: StageFilter) => void;
   blocker?: string;
   onBlocker: (v?: string) => void;
-}> = ({ boardNo, board, value, onChange, blocker, onBlocker }) => {
+  /** 右侧的额外操作（主动开发：国家筛选、新建开发对象） */
+  extra?: React.ReactNode;
+}> = ({ boardNo, board, value, onChange, blocker, onBlocker, extra }) => {
   const { palette } = useAppTheme();
   const blockers = useBlockers(boardNo);
-  const sales = boardNo === BOARD_SALES;
+  // 商机成交、主动开发：阶段上方标分组名，可点分组
+  const sales = boardNo === BOARD_SALES || boardNo === BOARD_DEVELOP;
   const chip = (
     key: string,
     content: React.ReactNode,
@@ -114,7 +120,9 @@ export const StageBar: React.FC<{
     !value.nurture &&
     !value.exception &&
     !value.dormant;
-  const total = board ? board.total - (sales ? board.nurture : 0) : 0;
+  const total = board
+    ? board.total - (boardNo === BOARD_SALES ? board.nurture : 0)
+    : 0;
   const groups = board?.groups ?? [];
   const items: React.ReactNode[] = [];
   groups.forEach((g, gi) => {
@@ -255,7 +263,8 @@ export const StageBar: React.FC<{
         </>
       )}
       <span style={{ flex: 1 }} />
-      {sales && (
+      {extra}
+      {boardNo === BOARD_SALES && (
         <Select
           allowClear
           style={{ width: 150 }}
@@ -280,7 +289,9 @@ const NextCell: React.FC<{ item: FollowupItem }> = ({ item }) => {
       <span style={{ color: palette.ink }}>
         {item.suggestNurture ? (
           <span style={{ color: palette.orange }}>
-            建议转培育，发一封收尾邮件
+            {item.board === BOARD_DEVELOP
+              ? '建议转培育或停止开发'
+              : '建议转培育，发一封收尾邮件'}
           </span>
         ) : (
           item.nextAction || '—'
@@ -376,6 +387,26 @@ const AdviceCell: React.FC<{ item: FollowupItem }> = ({ item }) => {
   );
 };
 
+/** 主动开发「开发阶段」下的一行说明 */
+const developSub = (r: FollowupItem) => {
+  switch (r.stageCode) {
+    case 'D3':
+      return '找到联系人后进 D4';
+    case 'D4':
+      return '联系人已找到';
+    case 'D5':
+      return r.suggestNurture
+        ? `序列已发完 · 第 ${r.sequenceDay} 天后`
+        : `已触达 ${r.touchCount ?? 0} 次${r.sequenceDay ? ` · 下一封第 ${r.sequenceDay} 天` : ''}`;
+    case 'D6':
+      return '客户回复过';
+    case 'D7':
+      return r.signalText || '出现采购信号';
+    default:
+      return '';
+  }
+};
+
 const BlockerCell: React.FC<{ item: FollowupItem }> = ({ item }) =>
   item.blockerName ? <Pill tone="orange">{item.blockerName}</Pill> : <>—</>;
 
@@ -400,6 +431,8 @@ export const FollowupTable: React.FC<{
   onMore: () => void;
   /** 客户经营「建询盘」 */
   onNewInquiry?: (customerId: number) => void;
+  /** 主动开发「转为商机」 */
+  onConvert?: (item: FollowupItem) => void;
 }> = ({
   boardNo,
   filter,
@@ -416,10 +449,12 @@ export const FollowupTable: React.FC<{
   onChanged,
   onMore,
   onNewInquiry,
+  onConvert,
 }) => {
   const { palette } = useAppTheme();
   const { message } = App.useApp();
   const sales = boardNo === BOARD_SALES;
+  const develop = boardNo === BOARD_DEVELOP;
   const account = boardNo === BOARD_ACCOUNT;
   const afterQuote =
     sales && !filter.nurture && filter.group === GROUP.AFTER_QUOTE;
@@ -526,7 +561,7 @@ export const FollowupTable: React.FC<{
             </Button>
           ) : (
             <Space size={6}>
-              {r.suggestNurture && sales ? (
+              {r.suggestNurture && (sales || develop) ? (
                 <Button
                   size="small"
                   disabled={!canRecord}
@@ -541,7 +576,27 @@ export const FollowupTable: React.FC<{
                   onDone={onChanged}
                 />
               )}
-              {account && r.accountNeed === 1 ? (
+              {develop && r.stageCode === 'D7' ? (
+                <>
+                  <Button
+                    size="small"
+                    type="primary"
+                    disabled={!canRecord}
+                    onClick={() => onConvert?.(r)}
+                  >
+                    转为商机
+                  </Button>
+                  <Button
+                    size="small"
+                    type="link"
+                    disabled={!canRecord}
+                    onClick={() => onRecord(r)}
+                    style={{ padding: 0 }}
+                  >
+                    记跟进
+                  </Button>
+                </>
+              ) : account && r.accountNeed === 1 ? (
                 <>
                   <Button
                     size="small"
@@ -747,7 +802,7 @@ export const FollowupTable: React.FC<{
     columns = [
       customerCol,
       valueCol,
-      ...(account ? [] : [docCol]),
+      ...(account || develop ? [] : [docCol]),
       {
         title: '培育原因',
         key: 'reason',
@@ -765,6 +820,93 @@ export const FollowupTable: React.FC<{
         key: 'last',
         render: (_, r) => <LastCell item={r} />,
       },
+      actionCol,
+    ];
+  } else if (develop) {
+    columns = [
+      {
+        title: '公司 / 联系人',
+        key: 'customer',
+        width: 220,
+        render: (_, r) => (
+          <div style={{ display: 'grid', gap: 4 }}>
+            <CustomerLink item={r} />
+            <span style={muted}>
+              {[
+                r.country,
+                r.contactName
+                  ? `${r.contactName}${r.contactTitle ? `（${r.contactTitle}）` : ''}`
+                  : r.contactEmail
+                    ? `只有 ${r.contactEmail}`
+                    : '还没有联系人',
+                showOwner ? r.ownerName : undefined,
+              ]
+                .filter(Boolean)
+                .join(' · ')}
+            </span>
+          </div>
+        ),
+      },
+      {
+        title: '价值',
+        key: 'value',
+        width: 160,
+        render: (_, r) => {
+          const p = r.reportPriority
+            ? REPORT_PRIORITY[r.reportPriority]
+            : undefined;
+          return (
+            <span
+              style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}
+            >
+              <Pill tone={p?.tone ?? 'mute'}>{p?.label ?? '未出结论'}</Pill>
+              <Stars value={r.potentialRating} />
+            </span>
+          );
+        },
+      },
+      {
+        title: '开发阶段',
+        key: 'stage',
+        width: 150,
+        render: (_, r) => (
+          <div style={{ display: 'grid', gap: 2 }}>
+            <span>
+              <Pill tone="violet">{r.stageCode}</Pill>{' '}
+              <b style={{ fontWeight: 600 }}>{r.stageName}</b>
+            </span>
+            <span style={muted}>{developSub(r)}</span>
+          </div>
+        ),
+      },
+      {
+        title: '为什么值得开发',
+        key: 'reason',
+        width: 220,
+        render: (_, r) => (
+          <div style={{ display: 'grid', gap: 2, maxWidth: 220 }}>
+            <span style={{ color: palette.ink }}>
+              {r.prospectReason || '—'}
+            </span>
+            {r.prospectSourceName && (
+              <span style={muted}>{r.prospectSourceName}</span>
+            )}
+          </div>
+        ),
+      },
+      {
+        title: '触达',
+        key: 'touch',
+        width: 70,
+        render: (_, r) => `${r.touchCount ?? 0} 次`,
+      },
+      {
+        title: '上次触达',
+        key: 'last',
+        width: 200,
+        render: (_, r) => <LastCell item={r} />,
+      },
+      nextCol,
       actionCol,
     ];
   } else if (account) {
@@ -975,7 +1117,9 @@ export const FollowupTable: React.FC<{
               ? '没有履约异常的订单'
               : filter.dormant
                 ? '没有沉睡的客户'
-                : '这一段没有要跟进的客户',
+                : develop
+                  ? '这一段没有开发对象，点右上角「新建开发对象」'
+                  : '这一段没有要跟进的客户',
         }}
       />
       {records.length > 0 && (

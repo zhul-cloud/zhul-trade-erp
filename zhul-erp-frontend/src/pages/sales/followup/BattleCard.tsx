@@ -8,8 +8,15 @@ import { formatAmount } from '@/utils/format';
 import { AccountPanel } from './AccountPanel';
 import { Card, fmtDate } from './components';
 import {
+  DevelopActions,
+  DevelopInfo,
+  DevelopSequence,
+  useDevelopCard,
+} from './DevelopPanel';
+import {
   BOARD_ACCOUNT,
   BOARD_AFTER_SALES,
+  BOARD_DEVELOP,
   BOARD_FULFIL,
   type FollowupItem,
   followupApi,
@@ -58,7 +65,17 @@ const BattleCard: React.FC<{
   canRecord?: boolean;
   onNewInquiry?: (customerId: number) => void;
   onChanged?: () => void;
-}> = ({ item, canRecord = false, onNewInquiry, onChanged }) => {
+  /** 主动开发：转为商机、停止开发 */
+  onConvert?: (item: FollowupItem) => void;
+  onStop?: (item: FollowupItem) => void;
+}> = ({
+  item,
+  canRecord = false,
+  onNewInquiry,
+  onChanged,
+  onConvert,
+  onStop,
+}) => {
   const { palette } = useAppTheme();
   const { message } = App.useApp();
   const [sop, setSop] = useState<SopCard>();
@@ -73,6 +90,11 @@ const BattleCard: React.FC<{
 
   const stage = item?.stageCode;
   const board = item?.board;
+  // 行数据变化（记跟进后阶段、触达次数变了）时重新取开发记录
+  const developCard = useDevelopCard(
+    board === BOARD_DEVELOP ? item?.customerId : undefined,
+    `${item?.id}-${stage}-${item?.touchCount}`,
+  );
   useEffect(() => {
     if (!stage || !board) return;
     let alive = true;
@@ -138,8 +160,12 @@ const BattleCard: React.FC<{
   const blockerCode = blockerFor(item);
   const blocker = sop.blockers.find((b) => b.code === blockerCode);
   const account = item.board === BOARD_ACCOUNT;
+  const develop = item.board === BOARD_DEVELOP;
   const sales =
-    item.board !== BOARD_FULFIL && item.board !== BOARD_AFTER_SALES && !account;
+    item.board !== BOARD_FULFIL &&
+    item.board !== BOARD_AFTER_SALES &&
+    !account &&
+    !develop;
   const intent =
     item.board === BOARD_FULFIL
       ? INTENT.LOGISTICS
@@ -147,7 +173,9 @@ const BattleCard: React.FC<{
         ? INTENT.REVIEW
         : account
           ? INTENT.ACCOUNT
-          : undefined;
+          : develop
+            ? INTENT.COLD
+            : undefined;
   const writeLabel =
     intent === INTENT.LOGISTICS
       ? 'AI 写一条物流更新'
@@ -155,9 +183,11 @@ const BattleCard: React.FC<{
         ? 'AI 写一条评价邀请'
         : intent === INTENT.ACCOUNT
           ? 'AI 写触达消息'
-          : isPi
-            ? 'AI 写一条催款消息'
-            : 'AI 写一条英文回复';
+          : intent === INTENT.COLD
+            ? 'AI 写这一封开发信'
+            : isPi
+              ? 'AI 写一条催款消息'
+              : 'AI 写一条英文回复';
   const payOverdue =
     isPi &&
     item.expectedPayDate &&
@@ -226,9 +256,11 @@ const BattleCard: React.FC<{
         </>
       )}
 
+      {develop && <DevelopInfo card={developCard} />}
+
       {sop.checklist.length > 0 && (
         <>
-          <Title>该做的事</Title>
+          <Title>{develop ? '该做的（可勾选，不强制）' : '该做的事'}</Title>
           <div style={{ display: 'grid', gap: 4 }}>
             {sop.checklist.map((c, i) => (
               <Checkbox
@@ -265,7 +297,9 @@ const BattleCard: React.FC<{
         />
       )}
 
-      {!account && (
+      {develop && <DevelopSequence card={developCard} />}
+
+      {!account && !develop && (
         <Title>
           {blocker
             ? `${sales ? '卡点' : ''}「${blocker.name}」怎么应对`
@@ -276,7 +310,7 @@ const BattleCard: React.FC<{
                 : '常见卡点怎么应对'}
         </Title>
       )}
-      {account ? null : blocker ? (
+      {account || develop ? null : blocker ? (
         <ol style={{ margin: 0, paddingLeft: 18, color: palette.sub }}>
           {blocker.playbook.map((p) => (
             <li key={p} style={{ fontSize: 13, marginBottom: 2 }}>
@@ -355,7 +389,16 @@ const BattleCard: React.FC<{
         )}
       </div>
 
-      {(sop.gateText || sop.autoHint) && (
+      {develop && (
+        <DevelopActions
+          card={developCard}
+          canRecord={canRecord}
+          onConvert={() => onConvert?.(item)}
+          onStop={() => onStop?.(item)}
+        />
+      )}
+
+      {!develop && (sop.gateText || sop.autoHint) && (
         <>
           <Title>{sales ? '推进条件' : '下一阶段（系统自动）'}</Title>
           {sop.gateText && (

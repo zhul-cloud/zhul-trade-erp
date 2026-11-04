@@ -13,6 +13,7 @@ import { Card, Pill } from './components';
 import {
   BOARD_ACCOUNT,
   BOARD_AFTER_SALES,
+  BOARD_DEVELOP,
   BOARD_FULFIL,
   BOARD_SALES,
   followupApi,
@@ -41,10 +42,11 @@ const PERIODS = [
 ];
 const BOARD_COLS = ['主动开发', '商机成交', '订单履约', '售后评价', '客户经营'];
 const STAGE_ROWS = [
+  { board: BOARD_DEVELOP, name: '主动开发' },
   { board: BOARD_SALES, name: '商机成交' },
   { board: BOARD_FULFIL, name: '订单履约' },
   { board: BOARD_AFTER_SALES, name: '售后评价' },
-  { board: BOARD_ACCOUNT, name: '客户经营' },
+  // 客户经营按联系间隔提醒，没有参考停留天数，不进「卡在哪一步」
 ];
 const EX_TONE: Record<string, 'red' | 'orange' | 'violet'> = {
   OVERDUE: 'red',
@@ -241,6 +243,39 @@ const TeamView: React.FC<{ onJump: (j: TeamJump) => void }> = ({ onJump }) => {
       sub: `本期激活 ${r.activated}`,
       color: palette.orange,
     },
+    {
+      label: '主动开发 · 新增对象',
+      value: r.developNew,
+      sub: '本期新建或加入',
+      color: palette.violet,
+    },
+    {
+      label: '首次触达',
+      value: r.developTouched,
+      sub: '首次触达日在本期',
+      color: palette.violet,
+    },
+    {
+      label: '回复',
+      value: r.developReplied,
+      sub:
+        r.developReplyPercent != null
+          ? `回复率 ${r.developReplyPercent}%（${r.developReplied} ÷ ${r.developTouched}）`
+          : '本期还没有首次触达',
+      color: palette.violet,
+    },
+    {
+      label: '转为商机',
+      value: r.developConverted,
+      sub: '进入商机成交',
+      color: palette.violet,
+    },
+    {
+      label: '停止开发',
+      value: r.developStopped,
+      sub: '可在客户详情重新开发',
+      color: palette.violet,
+    },
   ];
 
   const owner = (o: TeamOwner, extra: Partial<TeamJump> = {}) =>
@@ -268,6 +303,7 @@ const TeamView: React.FC<{ onJump: (j: TeamJump) => void }> = ({ onJump }) => {
       render: (_: unknown, o: TeamOwner) => {
         const board = i + 1;
         const open = [
+          BOARD_DEVELOP,
           BOARD_SALES,
           BOARD_FULFIL,
           BOARD_AFTER_SALES,
@@ -409,32 +445,40 @@ const TeamView: React.FC<{ onJump: (j: TeamJump) => void }> = ({ onJump }) => {
   return (
     <>
       {toolbar}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
-          gap: 10,
-          marginBottom: 16,
-        }}
-      >
-        {tiles.map((t) => (
-          <Card key={t.label} style={{ padding: 16 }}>
-            <div style={{ fontSize: 12, color: palette.mute }}>{t.label}</div>
-            <div
-              style={{
-                fontSize: 24,
-                fontWeight: 700,
-                color: t.color,
-                margin: '4px 0 2px',
-                fontVariantNumeric: 'tabular-nums',
-              }}
-            >
-              {t.value}
-            </div>
-            <div style={{ fontSize: 12, color: palette.sub }}>{t.sub}</div>
-          </Card>
-        ))}
-      </div>
+      {/* 三行：商机到售后、客户经营、主动开发（K16） */}
+      {[tiles.slice(0, 7), tiles.slice(7, 10), tiles.slice(10)].map(
+        (row, ri) => (
+          <div
+            key={row[0]?.label ?? ri}
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+              gap: 10,
+              marginBottom: ri === 2 ? 16 : 10,
+            }}
+          >
+            {row.map((t) => (
+              <Card key={t.label} style={{ padding: 16 }}>
+                <div style={{ fontSize: 12, color: palette.mute }}>
+                  {t.label}
+                </div>
+                <div
+                  style={{
+                    fontSize: 24,
+                    fontWeight: 700,
+                    color: t.color,
+                    margin: '4px 0 2px',
+                    fontVariantNumeric: 'tabular-nums',
+                  }}
+                >
+                  {t.value}
+                </div>
+                <div style={{ fontSize: 12, color: palette.sub }}>{t.sub}</div>
+              </Card>
+            ))}
+          </div>
+        ),
+      )}
       <div
         style={{
           display: 'grid',

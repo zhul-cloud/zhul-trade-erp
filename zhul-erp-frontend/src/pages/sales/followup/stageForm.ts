@@ -3,6 +3,7 @@ import {
   ACCOUNT_ANSWER,
   ANSWER,
   BOARD_ACCOUNT,
+  BOARD_DEVELOP,
   BOARD_FULFIL,
   type ExtractResult,
   type FollowupItem,
@@ -10,6 +11,7 @@ import {
   type RecordRequest,
   SATISFACTION,
   SITUATION,
+  TOUCH,
 } from './service';
 
 /**
@@ -23,6 +25,7 @@ export type StageKind =
   | 'satisfaction'
   | 'review'
   | 'account'
+  | 'develop'
   | 'general';
 
 export interface StageAnswers {
@@ -41,6 +44,9 @@ export interface StageAnswers {
   crossCategory: string;
   noNeedReason?: string;
   quarterReview: boolean;
+  /** 主动开发：触达结果单选、采购信号（型号、数量、时间） */
+  touchResult?: number;
+  signalText: string;
 }
 
 export const emptyAnswers = (): StageAnswers => ({
@@ -49,7 +55,10 @@ export const emptyAnswers = (): StageAnswers => ({
   reviewPlatform: '',
   crossCategory: '',
   quarterReview: false,
+  signalText: '',
 });
+
+export const SIGNAL_MAX = 200;
 
 export const CROSS_CATEGORY_MAX = 50;
 
@@ -57,6 +66,7 @@ export const stageKind = (item?: FollowupItem): StageKind => {
   if (!item) return 'general';
   if (item.board === BOARD_FULFIL) return 'fulfil';
   if (item.board === BOARD_ACCOUNT) return 'account';
+  if (item.board === BOARD_DEVELOP) return 'develop';
   switch (item.stageCode) {
     case 'A1':
       return 'receipt';
@@ -112,6 +122,13 @@ export const validateStage = (
       if (a.crossCategory.trim().length > CROSS_CATEGORY_MAX)
         return '品类不能超过50个字';
       return undefined;
+    case 'develop':
+      if (!a.touchResult) return '请选择触达结果';
+      if (a.touchResult === TOUCH.SIGNAL && !a.signalText.trim())
+        return '请写客户问到的型号、数量或时间';
+      if (a.signalText.trim().length > SIGNAL_MAX)
+        return '采购信号不能超过200个字';
+      return undefined;
     default:
       return undefined;
   }
@@ -164,6 +181,12 @@ export const stagePayload = (
             ? a.noNeedReason
             : undefined,
         quarterReview: a.quarterReview || undefined,
+      };
+    case 'develop':
+      return {
+        touchResult: a.touchResult,
+        signalText:
+          a.touchResult === TOUCH.SIGNAL ? a.signalText.trim() : undefined,
       };
     default:
       return {};
@@ -231,6 +254,27 @@ export const stageEffect = (
           return undefined;
       }
     }
+    case 'develop': {
+      const count = (item?.touchCount ?? 0) + 1;
+      switch (a.touchResult) {
+        case TOUCH.SENT:
+          return item?.stageCode === 'D5' ||
+            item?.stageCode === 'D6' ||
+            item?.stageCode === 'D7'
+            ? `触达次数为 ${count}`
+            : `触达次数为 ${count}，进入 D5 多轮跟进，按第 1 / 4 / 9 / 16 天提醒`;
+        case TOUCH.REPLIED:
+          return `触达次数为 ${count}，进入 D6 建立连接`;
+        case TOUCH.SIGNAL:
+          return '进入 D7 需求发现，可以转为商机';
+        case TOUCH.NO_REPLY:
+          return '阶段不变，按序列下一封提醒';
+        case TOUCH.REFUSED:
+          return '接着打开停止开发，原因预选「明确拒绝」；取消停止时这次跟进照样已保存';
+        default:
+          return undefined;
+      }
+    }
     default:
       return undefined;
   }
@@ -275,6 +319,14 @@ export const applyAiAnswers = (
     next.reviewStatus = r.reviewStatus;
   if (kind === 'fulfil' && stageCode === 'F6' && !a.etaDate && r.etaDate)
     next.etaDate = r.etaDate;
+  if (kind === 'develop' && !a.touchResult) {
+    if (r.touchAnswer) {
+      next.touchResult = r.touchAnswer;
+      if (r.touchAnswer === TOUCH.SIGNAL && r.signalText)
+        next.signalText = r.signalText.slice(0, SIGNAL_MAX);
+    } else if ((r.situation ?? 0) & SITUATION.NO_REPLY)
+      next.touchResult = TOUCH.NO_REPLY;
+  }
   if (kind === 'account' && !a.accountAnswer) {
     if (r.accountAnswer) next.accountAnswer = r.accountAnswer;
     else if ((r.situation ?? 0) & SITUATION.NO_REPLY)

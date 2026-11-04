@@ -15,9 +15,11 @@ import {
   REVIEW_OPTIONS_A5,
   REVIEW_OPTIONS_A6,
   SATISFACTION,
+  TOUCH,
 } from './service';
 import {
   CROSS_CATEGORY_MAX,
+  SIGNAL_MAX,
   type StageAnswers,
   type StageKind,
 } from './stageForm';
@@ -453,6 +455,62 @@ const StageQuestions: React.FC<{
             </span>
           </Checkbox>
         )}
+      </>
+    );
+  }
+
+  if (kind === 'develop') {
+    const pick = (touchResult: number) => set({ touchResult });
+    const seq = item.sequenceDay
+      ? `序列下一封第 ${item.sequenceDay} 天 · `
+      : '';
+    return (
+      <>
+        <Label hint="单选">触达结果</Label>
+        <div style={{ fontSize: 12, color: palette.mute, marginBottom: 6 }}>
+          {seq}已触达 {item.touchCount ?? 0} 次
+          {item.firstTouchDate && ` · 首次触达 ${fmtDate(item.firstTouchDate)}`}
+        </div>
+        <div style={{ display: 'grid', gap: 8 }}>
+          <Choice
+            active={a.touchResult === TOUCH.SENT}
+            title="已发出触达"
+            desc="触达次数 +1，下方「方式」选这次用的渠道"
+            onClick={() => pick(TOUCH.SENT)}
+          />
+          <Choice
+            active={a.touchResult === TOUCH.REPLIED}
+            title="客户回复了"
+            desc="进入 D6 建立连接"
+            onClick={() => pick(TOUCH.REPLIED)}
+          />
+          <Choice
+            active={a.touchResult === TOUCH.SIGNAL}
+            title="出现采购信号"
+            desc="填型号、数量、时间；进入 D7，可以转为商机"
+            onClick={() => pick(TOUCH.SIGNAL)}
+          >
+            <Input
+              maxLength={SIGNAL_MAX}
+              placeholder="例如：6ES7 214-1AG40 ×6，下月采购"
+              value={a.signalText}
+              onChange={(e) => set({ signalText: e.target.value })}
+            />
+          </Choice>
+          <Choice
+            active={a.touchResult === TOUCH.NO_REPLY}
+            title="没回复"
+            desc="阶段不变，按序列下一封提醒"
+            onClick={() => pick(TOUCH.NO_REPLY)}
+          />
+          <Choice
+            active={a.touchResult === TOUCH.REFUSED}
+            danger
+            title="明确拒绝"
+            desc="保存后接着打开停止开发，原因预选「明确拒绝」"
+            onClick={() => pick(TOUCH.REFUSED)}
+          />
+        </div>
       </>
     );
   }
