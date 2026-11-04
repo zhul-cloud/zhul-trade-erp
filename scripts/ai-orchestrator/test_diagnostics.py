@@ -80,7 +80,9 @@ class SubscriptionTestConnectionTest(unittest.TestCase):
     def test_timeout_message_differs_from_logged_out(self):
         result, _ = self.run_test("openai", {"codex": subprocess.TimeoutExpired("codex", 20), "claude": "{}"})
         self.assertFalse(result["ok"])
-        self.assertEqual(result["items"][0]["message"], "检查登录状态超时，请稍后重试")
+        self.assertEqual(result["items"][0]["message"], "未能检查登录状态（超时或找不到 CLI），请稍后重试")
+        result, _ = self.run_test("openai", {"codex": FileNotFoundError("codex"), "claude": "{}"})
+        self.assertEqual(result["items"][0]["message"], "未能检查登录状态（超时或找不到 CLI），请稍后重试")
         result, _ = self.run_test("openai", {"codex": "Logged in using an API key", "claude": "{}"})
         self.assertEqual(result["items"][0]["message"], "未登录，请在容器内执行登录命令")
 
@@ -129,6 +131,7 @@ class ApiTestConnectionTest(unittest.TestCase):
                 self.assertEqual(key["name"], "API Key")
                 self.assertFalse(key["ok"], "没收到服务商的回应，不能说 Key 有效")
                 self.assertTrue(key["message"].startswith("无法确认："), key["message"])
+                self.assertNotIn("Error code", key["message"], "不把 SDK 的原始报错给用户看")
                 self.assertFalse(result["ok"])
                 self.assertNotIn(KEY, json.dumps(result, ensure_ascii=False))
 
@@ -142,6 +145,12 @@ class ApiTestConnectionTest(unittest.TestCase):
                 result, _ = self.run_test(errors)
                 self.assertEqual(result["items"][0], {"name": "API Key", "ok": True, "message": "有效"})
                 self.assertFalse(result["ok"])
+
+    def test_provider_5xx_and_rate_limit_have_readable_messages(self):
+        result, _ = self.run_test({"p-model": self.status_error("InternalServerError", 529),
+                                   "t-model": self.status_error("RateLimitError", 429)})
+        self.assertEqual(result["items"][0]["message"], "无法确认：服务商暂时不可用（HTTP 529）")
+        self.assertEqual([i["message"] for i in result["items"][1:]], ["服务商暂时不可用（HTTP 529）", "服务商限流，请稍后重试"])
 
     def test_invalid_key_is_reported_once(self):
         denied = self.status_error("AuthenticationError", 401)
