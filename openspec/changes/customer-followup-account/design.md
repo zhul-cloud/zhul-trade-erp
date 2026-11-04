@@ -94,8 +94,9 @@
 在 `FollowupTeamService` 的结果区块新增经营指标，口径见 spec。实现方式：
 - 应联系 / 按时：本期内 `next_action_date` 落在期间的 board 5 对象，用「到期日」与该对象下一条用户跟进记录的时间比较。为了不在每次请求里回放历史，记跟进时在跟进记录上写 `due_date`（记录当时对象的下一步日期），按时 = `create_time::date <= due_date`；应联系 = 期间内到期的对象数（含没跟的）。
 - 老客户新询盘：本期 `customer_inquiry.create_time` 在期间内且客户 `biz_grade > 0`；
-- 老客户成交：本期到账（`receipt_status` 变为已到账的时间，沿用第一期「到账成交」的口径），且下单时客户已有更早的订单；
-- 沉睡 / 激活：见 D5。
+- 老客户成交：直接用第二期已有的「复购」指标（本期新建、未取消、不含售后补发，且客户在这之前已有已完成的订单），与团队视图其他成交指标同一口径，不另算；
+- 应联系里还没跟的部分只算到今天为止已到期的（本期后几天的到期不提前计入）；
+- 沉睡 / 激活：见 D5。激活记录标题为「沉睡激活：距上一单 n 天后有了新动向」，n 按激活前的最近一单算。
 
 ### D10 AI
 - `followup-reply` 新增意图 `account_touch`：输入加 `reason`、`pattern`、`lastOrder`（品牌、型号、数量）、`crossSell`；技能文件补充「不只问 Any new inquiry，围绕上次项目给一个具体理由」。
@@ -120,13 +121,14 @@
 ## Migration Plan
 
 1. `V1.5.11__customer_followup_account.sql`：
-   - `followup_item` 新增 `pattern_cycle_days`、`pattern_next_date`、`pattern_text`、`pattern_brands`、`account_reason`、`account_need`、`account_cross`、`dormant_since`；
+   - `followup_item` 新增 `pattern_cycle_days`、`pattern_next_date`、`pattern_text`、`pattern_brands`、`account_reason`、`account_need`、`account_cross`、`dormant_since`，
+     以及列表和作战卡直接读的 `recent_order_count`（近 12 个月单数）、`last_order_date`（最近一单日期）、`cross_category`（记跟进填的新品类）；
    - `customer_followup` 新增 `account_answer`、`cross_category`、`no_need_reason`、`quarter_review`、`due_date`；
    - `customer` 新增 `is_strategic`、`strategic_at`、`last_review_date`；
    - 新建 `customer_annual_plan`；
    - 系统参数 `sales.followup.account.ahead-days`=30、`dormant-days`=180、`dormant-quiet-days`=90、`dormant-interval-days`=60、`review-days`=90；
    - 回退语句写在脚本末尾。
-2. `V1.5.12__sop_account_content.sql`：导入 G4–G7 的 `sop_stage` 行（board 5），`ref_days` 为空（客户经营不按停留天数判断卡住）。回退：删除 board 5 的行。
+2. `V1.5.12__sop_account_content.sql`：导入 G4–G7 的 `sop_stage` 行（board 5），`ref_days` 为 0（客户经营不按停留天数判断卡住）。回退：删除 board 5 的行。
 3. 上线后首次启动的核对任务为全部成交客户生成客户经营对象，提醒从当天起算（沿用 `bootstrap`）。
 
 回退：执行脚本末尾的回退语句，代码回到第二期即可；客户经营对象和年度计划会被删除。
