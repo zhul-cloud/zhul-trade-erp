@@ -11,6 +11,7 @@ import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
 import { Card, Pill } from './components';
 import {
+  BOARD_ACCOUNT,
   BOARD_AFTER_SALES,
   BOARD_FULFIL,
   BOARD_SALES,
@@ -43,6 +44,7 @@ const STAGE_ROWS = [
   { board: BOARD_SALES, name: '商机成交' },
   { board: BOARD_FULFIL, name: '订单履约' },
   { board: BOARD_AFTER_SALES, name: '售后评价' },
+  { board: BOARD_ACCOUNT, name: '客户经营' },
 ];
 const EX_TONE: Record<string, 'red' | 'orange' | 'violet'> = {
   OVERDUE: 'red',
@@ -213,10 +215,31 @@ const TeamView: React.FC<{ onJump: (j: TeamJump) => void }> = ({ onJump }) => {
       color: palette.red,
     },
     {
-      label: '复购',
+      label: '老客户成交',
       value: `${r.repeat.count} 单`,
       sub: formatAmount(r.repeat.amountCny ?? 0, 'CNY'),
       color: palette.green,
+    },
+    {
+      label: '老客户按时联系',
+      value:
+        r.accountOnTimePercent != null ? `${r.accountOnTimePercent}%` : '—',
+      sub: r.accountDue
+        ? `应联系 ${r.accountDue} · 按时 ${r.accountOnTime}`
+        : '这段时间没有应联系的老客户',
+      color: palette.green,
+    },
+    {
+      label: '老客户新询盘',
+      value: r.accountInquiries.value,
+      sub: `${prevLabel} ${r.accountInquiries.prev}`,
+      color: palette.green,
+    },
+    {
+      label: '沉睡客户',
+      value: r.dormant,
+      sub: `本期激活 ${r.activated}`,
+      color: palette.orange,
     },
   ];
 
@@ -244,9 +267,12 @@ const TeamView: React.FC<{ onJump: (j: TeamJump) => void }> = ({ onJump }) => {
       width: 80,
       render: (_: unknown, o: TeamOwner) => {
         const board = i + 1;
-        const open = [BOARD_SALES, BOARD_FULFIL, BOARD_AFTER_SALES].includes(
-          board,
-        );
+        const open = [
+          BOARD_SALES,
+          BOARD_FULFIL,
+          BOARD_AFTER_SALES,
+          BOARD_ACCOUNT,
+        ].includes(board);
         const v = o.boards[i] ?? 0;
         return open ? (
           <NumButton value={v} onClick={() => owner(o, { board })} />

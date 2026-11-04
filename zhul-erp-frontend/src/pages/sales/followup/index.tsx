@@ -5,6 +5,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useWide } from '@/pages/inquiry/shared/components';
 import { getUserList } from '@/pages/system/user/service';
 import { SalesPageTitle } from '../components';
+import { AccountInquiryModal } from './AccountPanel';
 import BattleCard from './BattleCard';
 import { VIEW_TODAY } from './boardStyle';
 import { Card, NurtureModal, TodayList } from './components';
@@ -53,6 +54,8 @@ const FollowupPage: React.FC = () => {
   const [recordTarget, setRecordTarget] = useState<RecordTarget>();
   const [recordOpen, setRecordOpen] = useState(false);
   const [nurtureItem, setNurtureItem] = useState<FollowupItem>();
+  /** 客户经营「建询盘」的客户 */
+  const [inquiryCustomer, setInquiryCustomer] = useState<number>();
   const reqRef = useRef(0);
 
   useEffect(() => {
@@ -268,10 +271,16 @@ const FollowupPage: React.FC = () => {
                   onNurture={setNurtureItem}
                   onChanged={refresh}
                   onMore={() => loadList(page + 1)}
+                  onNewInquiry={setInquiryCustomer}
                 />
               </Card>
               <div style={wide ? { position: 'sticky', top: 16 } : undefined}>
-                <BattleCard item={selected} />
+                <BattleCard
+                  item={selected}
+                  canRecord={canRecord}
+                  onNewInquiry={setInquiryCustomer}
+                  onChanged={refresh}
+                />
               </div>
             </div>
           )}
@@ -281,10 +290,16 @@ const FollowupPage: React.FC = () => {
         open={recordOpen}
         target={recordTarget}
         onClose={() => setRecordOpen(false)}
-        onDone={() => {
+        onDone={(_, newInquiryCustomerId) => {
           setRecordOpen(false);
           refresh();
+          if (newInquiryCustomerId) setInquiryCustomer(newInquiryCustomerId);
         }}
+      />
+      <AccountInquiryModal
+        customerId={inquiryCustomer}
+        onClose={() => setInquiryCustomer(undefined)}
+        onCreated={refresh}
       />
       <NurtureModal
         item={nurtureItem}

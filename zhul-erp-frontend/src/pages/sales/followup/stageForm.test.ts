@@ -251,3 +251,103 @@ describe('applyAiAnswers', () => {
     expect(applyAiAnswers('review', emptyAnswers(), res).reviewStatus).toBe(3);
   });
 });
+
+describe('客户经营', () => {
+  const g4 = item(5, 'G4');
+  const base = () => ({ ...emptyAnswers(), crossCategory: '' });
+
+  it('板块 5 为客户经营表单', () => {
+    expect(stageKind(g4)).toBe('account');
+  });
+
+  it('校验：必选客户情况，没有需求要选原因，品类不超过 50 字', () => {
+    expect(validateStage('account', base(), TODAY)).toBe('请选择客户情况');
+    expect(
+      validateStage('account', { ...base(), accountAnswer: 3 }, TODAY),
+    ).toBe('请选择没有需求的原因');
+    expect(
+      validateStage(
+        'account',
+        { ...base(), accountAnswer: 3, noNeedReason: 'NO_BUDGET' },
+        TODAY,
+      ),
+    ).toBeUndefined();
+    expect(
+      validateStage(
+        'account',
+        { ...base(), accountAnswer: 2, crossCategory: 'x'.repeat(51) },
+        TODAY,
+      ),
+    ).toBe('品类不能超过50个字');
+    expect(
+      validateStage(
+        'account',
+        { ...base(), accountAnswer: 2, crossCategory: 'x'.repeat(50) },
+        TODAY,
+      ),
+    ).toBeUndefined();
+  });
+
+  it('提交：只带当前答案对应的字段', () => {
+    const a = {
+      ...base(),
+      crossCategory: ' HMI ',
+      noNeedReason: 'NO_BUDGET',
+      quarterReview: true,
+    };
+    expect(stagePayload('account', { ...a, accountAnswer: 2 })).toEqual({
+      accountAnswer: 2,
+      crossCategory: 'HMI',
+      noNeedReason: undefined,
+      quarterReview: true,
+    });
+    expect(
+      stagePayload('account', { ...a, accountAnswer: 3, quarterReview: false }),
+    ).toEqual({
+      accountAnswer: 3,
+      crossCategory: undefined,
+      noNeedReason: 'NO_BUDGET',
+      quarterReview: undefined,
+    });
+  });
+
+  it('保存后的阶段说明', () => {
+    expect(stageEffect('account', { ...base(), accountAnswer: 1 }, g4)).toMatch(
+      /G5.*新建询盘/,
+    );
+    expect(stageEffect('account', { ...base(), accountAnswer: 2 }, g4)).toBe(
+      '进入 G6 交叉销售',
+    );
+    expect(stageEffect('account', { ...base(), accountAnswer: 3 }, g4)).toBe(
+      '回到 G4 需求挖掘',
+    );
+    const g7 = { ...item(5, 'G7'), strategic: true } as FollowupItem;
+    expect(
+      stageEffect(
+        'account',
+        { ...base(), accountAnswer: 3, quarterReview: true },
+        g7,
+      ),
+    ).toMatch(/^留在 G7 长期合作；回顾日期/);
+    expect(stageEffect('account', base(), g4)).toBeUndefined();
+  });
+
+  it('AI 建议：有答案用答案，只有没回复时选没回复，已选的不覆盖', () => {
+    expect(
+      applyAiAnswers('account', base(), { accountAnswer: 2 } as never, 'G4')
+        .accountAnswer,
+    ).toBe(2);
+    expect(
+      applyAiAnswers('account', base(), { situation: 4 } as never, 'G4')
+        .accountAnswer,
+    ).toBe(4);
+    expect(
+      applyAiAnswers(
+        'account',
+        { ...base(), accountAnswer: 1 },
+        { accountAnswer: 3 } as never,
+        'G4',
+      ).accountAnswer,
+    ).toBe(1);
+  });
+});

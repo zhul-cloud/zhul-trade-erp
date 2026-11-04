@@ -7,8 +7,14 @@ export { readBizError } from '@/pages/crm/opportunity/service';
 export const BOARD_SALES = 2;
 export const BOARD_FULFIL = 3;
 export const BOARD_AFTER_SALES = 4;
+export const BOARD_ACCOUNT = 5;
 /** 已上线、可以进入的板块 */
-export const OPEN_BOARDS = [BOARD_SALES, BOARD_FULFIL, BOARD_AFTER_SALES];
+export const OPEN_BOARDS = [
+  BOARD_SALES,
+  BOARD_FULFIL,
+  BOARD_AFTER_SALES,
+  BOARD_ACCOUNT,
+];
 export const GROUP = { BEFORE_QUOTE: 1, AFTER_QUOTE: 2, AFTER_PI: 3 } as const;
 export const TARGET = {
   OPPORTUNITY: 1,
@@ -16,6 +22,7 @@ export const TARGET = {
   QUOTATION: 3,
   PI: 4,
   ORDER: 5,
+  CUSTOMER: 6,
 };
 export const NEXT_SYSTEM = 1;
 export const NEXT_USER = 2;
@@ -78,7 +85,22 @@ export const REVIEW_OPTIONS_A6 = [
 export const INTENT = {
   LOGISTICS: 'logistics_update',
   REVIEW: 'review_invite',
+  ACCOUNT: 'account_touch',
 } as const;
+
+/** 客户经营「客户情况」单选：1-有新需求、2-聊了新品类、3-当前没有需求、4-没回复 */
+export const ACCOUNT_ANSWER = {
+  NEW_NEED: 1,
+  CROSS: 2,
+  NO_NEED: 3,
+  NO_REPLY: 4,
+} as const;
+export const NO_NEED_REASONS = [
+  { value: 'NO_PROJECT', label: '近期没有项目' },
+  { value: 'NO_BUDGET', label: '预算没下来' },
+  { value: 'NOT_RELEVANT', label: '暂不相关' },
+  { value: 'OTHER', label: '其他' },
+];
 export const RECORD_USER = 1;
 
 /** 客户情况位掩码 */
@@ -172,6 +194,65 @@ export interface FollowupItem {
   afterSalesNo?: string;
   afterSalesStatusName?: string;
   stageSince?: string;
+  // ---- 客户经营
+  patternText?: string;
+  patternBrands?: string;
+  patternNextDate?: string;
+  recentOrderCount?: number;
+  lastOrderDate?: string;
+  /** 经营建议（触达理由） */
+  accountReason?: string;
+  /** 1：记跟进选了「客户有新需求」还没建询盘 */
+  accountNeed?: number;
+  crossCategory?: string;
+  dormantSince?: string;
+  dormantDays?: number;
+  strategic?: boolean;
+  /** 该等级的联系间隔（天） */
+  followDays?: number;
+  lastContactDate?: string;
+  /** 上次联系已超过等级间隔 */
+  contactOverdue?: boolean;
+}
+
+/** 客户经营作战卡（G1–G3 结果、交叉销售、战略客户与年度计划） */
+export interface AccountCard {
+  customerId: number;
+  bizGrade?: string;
+  bizGradeScore?: number;
+  followDays?: number;
+  profileDone: number;
+  profileTotal: number;
+  patternText?: string;
+  patternCycleDays?: number;
+  patternNextDate?: string;
+  patternBrands?: string;
+  currencyCode: string;
+  recentAmount?: number;
+  recentOrderCount?: number;
+  lastOrderDate?: string;
+  lastOrderItems?: string;
+  reason?: string;
+  dormantSince?: string;
+  dormantDays?: number;
+  crossCategory?: string;
+  crossSell: { category: string; customers: number }[];
+  strategic: boolean;
+  strategicAt?: string;
+  suggestStrategic: boolean;
+  lastReviewDate?: string;
+  nextReviewDate?: string;
+  plan?: AnnualPlan;
+}
+export interface AnnualPlan {
+  planYear: number;
+  currencyCode: string;
+  targetAmount?: number;
+  focus?: string;
+  note?: string;
+  dealtAmount: number;
+  /** 完成比例（HALF_UP 整数），没有目标时为空 */
+  percent?: number;
 }
 
 export interface OverviewStage {
@@ -196,6 +277,8 @@ export interface OverviewBoard {
   nurture: number;
   /** 订单履约：有异常的跟进对象数 */
   exceptions?: number;
+  /** 客户经营：沉睡客户数 */
+  dormant?: number;
   groups: OverviewGroup[];
 }
 export interface Overview {
@@ -232,6 +315,8 @@ export interface ItemQuery {
   keyword?: string;
   /** 订单履约：只看有异常的 */
   exception?: boolean;
+  /** 客户经营：只看沉睡 */
+  dormant?: boolean;
   page?: number;
   pageSize?: number;
 }
@@ -325,6 +410,11 @@ export interface RecordRequest {
   dissatisfiedReason?: string;
   reviewStatus?: number;
   reviewPlatform?: string;
+  // ---- 客户经营
+  accountAnswer?: number;
+  crossCategory?: string;
+  noNeedReason?: string;
+  quarterReview?: boolean;
 }
 
 export interface RecordResult {
@@ -363,6 +453,8 @@ export interface ExtractResult {
     satisfaction?: number;
     reviewStatus?: number;
     etaDate?: string;
+    /** 客户经营的客户情况建议 */
+    accountAnswer?: number;
   };
 }
 
@@ -458,6 +550,13 @@ export interface Team {
     invited: number;
     declined: number;
     repeat: TeamMoney;
+    /** 客户经营：应联系、按时、按时率（应联系为 0 时为空） */
+    accountDue: number;
+    accountOnTime: number;
+    accountOnTimePercent?: number;
+    accountInquiries: TeamCompare;
+    dormant: number;
+    activated: number;
   };
   owners: TeamOwner[];
   stages: TeamStage[];
@@ -522,6 +621,23 @@ export const followupApi = {
     request<Resp<CustomerFollowup>>(
       `${BASE}/customers/${customerId}/summary`,
     ).then((r) => r.data),
+  account: (customerId: number) =>
+    request<Resp<AccountCard>>(`${BASE}/accounts/${customerId}`).then(
+      (r) => r.data,
+    ),
+  setStrategic: (customerId: number, strategic: boolean) =>
+    request(`${BASE}/accounts/${customerId}/strategic`, {
+      method: 'PUT',
+      data: { strategic },
+    }),
+  savePlan: (
+    customerId: number,
+    data: { targetAmount: number; focus?: string; note?: string },
+  ) =>
+    request<Resp<AnnualPlan>>(`${BASE}/accounts/${customerId}/plan`, {
+      method: 'PUT',
+      data,
+    }).then((r) => r.data),
   extract: (data: {
     customerId: number;
     itemId?: number;

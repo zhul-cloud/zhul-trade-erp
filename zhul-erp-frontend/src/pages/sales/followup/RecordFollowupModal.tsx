@@ -25,8 +25,10 @@ import { formatAmount } from '@/utils/format';
 import { fmtDate, iso, StageTag, useBlockers } from './components';
 import StageQuestions from './StageQuestions';
 import {
+  ACCOUNT_ANSWER,
   AI_NOT_CONFIGURED,
   AI_STATUS,
+  BOARD_ACCOUNT,
   BOARD_SALES,
   CHANNEL_OPTIONS,
   type ExtractResult,
@@ -102,7 +104,8 @@ const RecordFollowupModal: React.FC<{
   open: boolean;
   target?: RecordTarget;
   onClose: () => void;
-  onDone: (r: RecordResult) => void;
+  /** newInquiryCustomerId：客户经营答「有新需求」时，记完接着建询盘 */
+  onDone: (r: RecordResult, newInquiryCustomerId?: number) => void;
 }> = ({ open, target, onClose, onDone }) => {
   const { palette } = useAppTheme();
   const { message } = App.useApp();
@@ -398,7 +401,14 @@ const RecordFollowupModal: React.FC<{
           soId: item.targetId,
           symptom: answers.issueTypes.join('、'),
         });
-      onDone(r);
+      onDone(
+        r,
+        kind === 'account' &&
+          answers.accountAnswer === ACCOUNT_ANSWER.NEW_NEED &&
+          item
+          ? item.customerId
+          : undefined,
+      );
     } catch (e) {
       message.error(readBizError(e).message);
     } finally {
@@ -426,19 +436,26 @@ const RecordFollowupModal: React.FC<{
   });
 
   const orderLine =
-    item && item.board !== BOARD_SALES
+    item && item.board === BOARD_ACCOUNT
       ? [
-          item.docNo && `订单 ${item.docNo}`,
-          item.afterSalesNo && `售后单 ${item.afterSalesNo}`,
-          item.etaDate &&
-            (item.signedDate
-              ? `${fmtDate(item.signedDate)} 签收`
-              : `预计 ${fmtDate(item.etaDate)} 送达`),
-          item.etaNote,
+          item.accountReason && `触达理由：${item.accountReason}`,
+          item.strategic && '战略客户',
         ]
           .filter(Boolean)
           .join(' · ')
-      : undefined;
+      : item && item.board !== BOARD_SALES
+        ? [
+            item.docNo && `订单 ${item.docNo}`,
+            item.afterSalesNo && `售后单 ${item.afterSalesNo}`,
+            item.etaDate &&
+              (item.signedDate
+                ? `${fmtDate(item.signedDate)} 签收`
+                : `预计 ${fmtDate(item.etaDate)} 送达`),
+            item.etaNote,
+          ]
+            .filter(Boolean)
+            .join(' · ')
+        : undefined;
 
   return (
     <>
@@ -616,7 +633,18 @@ const RecordFollowupModal: React.FC<{
             kind={kind}
             item={item}
             value={answers}
-            onChange={setAnswers}
+            onChange={(a) => {
+              // 客户经营答「当前没有需求」：下一步默认按等级间隔再联系
+              if (
+                kind === 'account' &&
+                a.accountAnswer === ACCOUNT_ANSWER.NO_NEED &&
+                answers.accountAnswer !== ACCOUNT_ANSWER.NO_NEED &&
+                !nextDate &&
+                item.followDays
+              )
+                setNextDate(dayjs().add(item.followDays, 'day'));
+              setAnswers(a);
+            }}
           />
         )}
 

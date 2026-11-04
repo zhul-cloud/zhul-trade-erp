@@ -137,6 +137,7 @@ const BoardCard: React.FC<{
             <span style={{ fontSize: 12, color: palette.sub }}>位客户</span>
             <span style={{ flex: 1 }} />
             {b.overdue > 0 && <Pill tone="red">逾期 {b.overdue}</Pill>}
+            {!!b.dormant && <Pill tone="orange">沉睡 {b.dormant}</Pill>}
           </div>
           <div
             style={{

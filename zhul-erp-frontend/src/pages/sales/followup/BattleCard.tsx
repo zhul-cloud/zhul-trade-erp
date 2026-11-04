@@ -5,8 +5,10 @@ import dayjs from 'dayjs';
 import React, { useEffect, useState } from 'react';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
+import { AccountPanel } from './AccountPanel';
 import { Card, fmtDate } from './components';
 import {
+  BOARD_ACCOUNT,
   BOARD_AFTER_SALES,
   BOARD_FULFIL,
   type FollowupItem,
@@ -50,8 +52,13 @@ const Title: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   );
 };
 
-/** 作战卡：跟随选中行显示所在阶段的 SOP（K2、K3 右栏） */
-const BattleCard: React.FC<{ item?: FollowupItem }> = ({ item }) => {
+/** 作战卡：跟随选中行显示所在阶段的 SOP（K2、K3 右栏；客户经营见 K14） */
+const BattleCard: React.FC<{
+  item?: FollowupItem;
+  canRecord?: boolean;
+  onNewInquiry?: (customerId: number) => void;
+  onChanged?: () => void;
+}> = ({ item, canRecord = false, onNewInquiry, onChanged }) => {
   const { palette } = useAppTheme();
   const { message } = App.useApp();
   const [sop, setSop] = useState<SopCard>();
@@ -130,21 +137,27 @@ const BattleCard: React.FC<{ item?: FollowupItem }> = ({ item }) => {
   const isPi = item.stageGroup === GROUP.AFTER_PI;
   const blockerCode = blockerFor(item);
   const blocker = sop.blockers.find((b) => b.code === blockerCode);
-  const sales = item.board !== BOARD_FULFIL && item.board !== BOARD_AFTER_SALES;
+  const account = item.board === BOARD_ACCOUNT;
+  const sales =
+    item.board !== BOARD_FULFIL && item.board !== BOARD_AFTER_SALES && !account;
   const intent =
     item.board === BOARD_FULFIL
       ? INTENT.LOGISTICS
       : item.stageCode === 'A6'
         ? INTENT.REVIEW
-        : undefined;
+        : account
+          ? INTENT.ACCOUNT
+          : undefined;
   const writeLabel =
     intent === INTENT.LOGISTICS
       ? 'AI 写一条物流更新'
       : intent === INTENT.REVIEW
         ? 'AI 写一条评价邀请'
-        : isPi
-          ? 'AI 写一条催款消息'
-          : 'AI 写一条英文回复';
+        : intent === INTENT.ACCOUNT
+          ? 'AI 写触达消息'
+          : isPi
+            ? 'AI 写一条催款消息'
+            : 'AI 写一条英文回复';
   const payOverdue =
     isPi &&
     item.expectedPayDate &&
@@ -186,7 +199,7 @@ const BattleCard: React.FC<{ item?: FollowupItem }> = ({ item }) => {
       </div>
       <div style={{ fontSize: 12, color: palette.mute, marginTop: 2 }}>
         {item.customerName}
-        {item.docNo && ` · ${item.docNo}`}
+        {item.docNo && !account && ` · ${item.docNo}`}
       </div>
 
       {payOverdue && (
@@ -243,16 +256,27 @@ const BattleCard: React.FC<{ item?: FollowupItem }> = ({ item }) => {
         </>
       )}
 
-      <Title>
-        {blocker
-          ? `${sales ? '卡点' : ''}「${blocker.name}」怎么应对`
-          : item.board === BOARD_FULFIL
-            ? '常见异常怎么应对'
-            : item.board === BOARD_AFTER_SALES
-              ? '常见问题怎么应对'
-              : '常见卡点怎么应对'}
-      </Title>
-      {blocker ? (
+      {account && (
+        <AccountPanel
+          item={item}
+          canRecord={canRecord}
+          onNewInquiry={(id) => onNewInquiry?.(id)}
+          onChanged={() => onChanged?.()}
+        />
+      )}
+
+      {!account && (
+        <Title>
+          {blocker
+            ? `${sales ? '卡点' : ''}「${blocker.name}」怎么应对`
+            : item.board === BOARD_FULFIL
+              ? '常见异常怎么应对'
+              : item.board === BOARD_AFTER_SALES
+                ? '常见问题怎么应对'
+                : '常见卡点怎么应对'}
+        </Title>
+      )}
+      {account ? null : blocker ? (
         <ol style={{ margin: 0, paddingLeft: 18, color: palette.sub }}>
           {blocker.playbook.map((p) => (
             <li key={p} style={{ fontSize: 13, marginBottom: 2 }}>
