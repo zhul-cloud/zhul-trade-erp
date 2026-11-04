@@ -1,5 +1,6 @@
 package com.zhul.erp.modules.logistics.support;
 
+import com.zhul.erp.modules.logistics.constants.LogisticsConstants;
 import com.zhul.erp.modules.logistics.dto.OutboundQtyRow;
 import com.zhul.erp.modules.logistics.repository.LogisticsQtyMapper;
 import lombok.RequiredArgsConstructor;
@@ -33,10 +34,19 @@ public class LogisticsQty {
         return out;
     }
 
-    /** 占用这些订单型号行的未撤回销售出库单编号 */
+    /** 占用这些订单型号行的未撤回销售出库单编号（待打包、已打包、已交货代） */
     public List<String> activeObNos(Collection<Long> ids) {
+        return obNos(ids, List.of(LogisticsConstants.OB_PENDING, LogisticsConstants.OB_PACKED, LogisticsConstants.OB_HANDED));
+    }
+
+    /** 还在仓库里的销售出库单编号（待打包、已打包） */
+    public List<String> inWarehouseObNos(Collection<Long> ids) {
+        return obNos(ids, List.of(LogisticsConstants.OB_PENDING, LogisticsConstants.OB_PACKED));
+    }
+
+    private List<String> obNos(Collection<Long> ids, List<Integer> statuses) {
         List<Long> keys = ids == null ? List.of() : ids.stream().filter(Objects::nonNull).distinct().toList();
-        return keys.isEmpty() ? List.of() : mapper.activeObNos(keys);
+        return keys.isEmpty() ? List.of() : mapper.obNos(keys, statuses);
     }
 
     private static int nz(Integer v) {

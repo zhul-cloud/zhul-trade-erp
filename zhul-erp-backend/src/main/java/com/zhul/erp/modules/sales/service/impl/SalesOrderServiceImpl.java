@@ -496,6 +496,12 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         if (SalesConstants.PROGRESS_COMPLETED.equals(o.getProgressCode())) {
             throw new BizException("订单已完成，不能取消");
         }
+        // 货还在仓库（待打包、已打包）的出库单要先撤回，否则挂在已取消的订单上；已交货代、已出运的不拦，
+        // 重转时随货改挂到新订单（RequirementLifecycle，audit BUS-027）
+        List<String> obNos = logisticsQty.inWarehouseObNos(orderItems(id).stream().map(SalesOrderItemDO::getId).toList());
+        if (!obNos.isEmpty()) {
+            throw new BizException("订单还有未交货代的销售出库单 " + String.join("、", obNos) + "，请先撤回后再取消");
+        }
         o.setStatus(SalesConstants.SO_CANCELLED);
         o.setCancelReason(why.length() > 200 ? why.substring(0, 200) : why);
         o.setCancelledBy(currentUserId());

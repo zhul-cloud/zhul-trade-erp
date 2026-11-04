@@ -27,9 +27,10 @@ public interface LogisticsQtyMapper {
             + "GROUP BY oi.so_item_id</script>")
     List<OutboundQtyRow> bySoItem(@Param("ids") Collection<Long> ids);
 
-    /** 占用这些订单型号行的未撤回销售出库单编号（待打包、已打包、已交货代） */
+    /** 占用这些订单型号行的销售出库单编号，限定状态（1-待打包、2-已打包、3-已交货代） */
     @Select("<script>SELECT DISTINCT o.ob_no FROM outbound_order_item oi JOIN outbound_order o ON o.id = oi.outbound_id "
-            + "WHERE oi.deleted_at IS NULL AND o.deleted_at IS NULL AND o.status IN (1, 2, 3) AND oi.so_item_id IN "
+            + "WHERE oi.deleted_at IS NULL AND o.deleted_at IS NULL AND o.status IN "
+            + "<foreach collection='statuses' item='s' open='(' separator=',' close=')'>#{s}</foreach> AND oi.so_item_id IN "
             + "<foreach collection='ids' item='x' open='(' separator=',' close=')'>#{x}</foreach> ORDER BY o.ob_no</script>")
-    List<String> activeObNos(@Param("ids") Collection<Long> ids);
+    List<String> obNos(@Param("ids") Collection<Long> ids, @Param("statuses") Collection<Integer> statuses);
 }
