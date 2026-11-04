@@ -36,8 +36,7 @@ import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
 import type { Attachment } from '@/pages/warehouse/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
-import { usePageSize } from '@/utils/pageSize';
-import { TaskPager } from '../shared/BrandGroups';
+import { fetchFirst, LOAD_STEP, LoadMore } from '../shared/BrandGroups';
 import {
   Card,
   ConditionPill,
@@ -166,9 +165,9 @@ const MyTasksPage: React.FC = () => {
   const [done, setDone] = useState(false);
   const [keyword, setKeyword] = useState('');
   const [search, setSearch] = useState('');
-  /** 已回价页签分页 */
-  const [donePage, setDonePage] = useState(1);
-  const [donePageSize, setDonePageSize] = usePageSize(20, 'done');
+  /** 已回价页签：先显示 20 个，底部「加载更多」 */
+  const [doneLimit, setDoneLimit] = useState(LOAD_STEP);
+  const [doneMore, setDoneMore] = useState(false);
   const [tasks, setTasks] = useState<MyTask[] | null>(null);
   // 从工作台采购员看板点进来时带 ?task=任务ID，直接打开该任务
   const [activeId, setActiveId] = useState<number | undefined>(() => {
@@ -207,7 +206,12 @@ const MyTasksPage: React.FC = () => {
     try {
       const [pending, finished, sales] = await Promise.all([
         myTaskApi.list(false, search),
-        myTaskApi.donePage(donePage, donePageSize, search),
+        fetchFirst(doneLimit, (p, size) =>
+          myTaskApi.donePage(p, size, search),
+        ).then((pages) => ({
+          total: pages[0]?.total ?? 0,
+          records: pages.flatMap((x) => x.records),
+        })),
         // 这里只要待认领的数量，列表由待认领页签自己分页加载
         myTaskApi.salesPending(1, 1),
       ]);
@@ -226,8 +230,10 @@ const MyTasksPage: React.FC = () => {
     } catch (e) {
       setError(readBizError(e).message);
       return undefined;
+    } finally {
+      setDoneMore(false);
     }
-  }, [done, search, donePage, donePageSize]);
+  }, [done, search, doneLimit]);
 
   const loadDetail = useCallback(async (id?: number) => {
     if (!id) {
@@ -697,12 +703,12 @@ const MyTasksPage: React.FC = () => {
                 setKeyword(e.target.value);
                 if (!e.target.value) {
                   setSearch('');
-                  setDonePage(1);
+                  setDoneLimit(LOAD_STEP);
                 }
               }}
               onSearch={(v) => {
                 setSearch(v.trim());
-                setDonePage(1);
+                setDoneLimit(LOAD_STEP);
               }}
             />
           )}
@@ -808,13 +814,13 @@ const MyTasksPage: React.FC = () => {
             ))
           )}
           {view === 'done' && tasks && (
-            <TaskPager
+            <LoadMore
+              shown={tasks.length}
               total={counts.done}
-              page={donePage}
-              pageSize={donePageSize}
-              onChange={(p, size) => {
-                setDonePage(size === donePageSize ? p : 1);
-                setDonePageSize(size);
+              loading={doneMore}
+              onMore={() => {
+                setDoneMore(true);
+                setDoneLimit((n) => n + LOAD_STEP);
               }}
             />
           )}

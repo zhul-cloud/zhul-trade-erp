@@ -6,6 +6,7 @@ import com.zhul.erp.common.exception.BizException;
 import com.zhul.erp.modules.document.constants.DocTypes;
 import com.zhul.erp.modules.document.dto.TemplateFile;
 import com.zhul.erp.modules.document.service.DocumentTemplateService;
+import com.zhul.erp.modules.document.support.DocFileNames;
 import com.zhul.erp.modules.document.support.DocumentConverter;
 import com.zhul.erp.modules.document.support.RenderModel;
 import com.zhul.erp.modules.document.support.TextTemplateEngine;
@@ -59,6 +60,7 @@ public class QuotationDocumentServiceImpl implements QuotationDocumentService {
     private final ObjectMapper objectMapper;
     private final com.zhul.erp.modules.product.support.BrandResolver brandResolver;
     private final com.zhul.erp.modules.document.support.PlaceNames placeNames;
+    private final DocFileNames fileNames;
 
     /** 每个用户最新一次预览请求的序号：排队中的旧请求在拿到转换机会时直接放弃 */
     private final Map<Long, AtomicLong> previewSeq = new ConcurrentHashMap<>();
@@ -156,13 +158,7 @@ public class QuotationDocumentServiceImpl implements QuotationDocumentService {
 
     /** 文件名：报价单编号_客户简称或名称 */
     private String fileBase(QuotationDO q) {
-        CustomerDO c = customerMapper.selectById(q.getCustomerId());
-        String name = c == null ? "" : (c.getShortName() != null && !c.getShortName().isBlank() ? c.getShortName() : c.getName());
-        String clean = name == null ? "" : name.replaceAll("[\\\\/:*?\"<>|\\r\\n]+", " ").trim();
-        if (clean.length() > 60) {
-            clean = clean.substring(0, 60).trim();
-        }
-        return clean.isEmpty() ? q.getQuotationNo() : q.getQuotationNo() + "_" + clean;
+        return fileNames.of(q.getTenantId(), DocFileNames.QUOTATION, customerMapper.selectById(q.getCustomerId()), q.getQuotationNo());
     }
 
     private String cacheKey(Long versionId, RenderModel model) {

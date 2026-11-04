@@ -573,7 +573,12 @@ public class CustomerServiceImpl implements CustomerService {
             return w.last(asc ? "ORDER BY (potential_rating = 0), potential_rating ASC, update_time DESC"
                     : "ORDER BY (potential_rating = 0), potential_rating DESC, update_time DESC");
         }
-        return asc ? w.orderByAsc(CustomerDO::getUpdateTime) : w.orderByDesc(CustomerDO::getUpdateTime);
+        if ("updateTime".equals(q.getSortField())) {
+            return asc ? w.orderByAsc(CustomerDO::getUpdateTime) : w.orderByDesc(CustomerDO::getUpdateTime);
+        }
+        // 默认：成交客户按经营等级 S→C 排在前面，同级按潜力评级、综合分数；未成交的按潜力评级，未评的最后
+        return w.last("ORDER BY (biz_grade = 0), biz_grade ASC, (potential_rating = 0), potential_rating DESC, "
+                + "biz_grade_score DESC, update_time DESC");
     }
 
     // ---------------------------------------------------------------- 删除 / 转移

@@ -37,7 +37,8 @@ class QuotationDocumentServiceTest {
     private final QuotationDocumentServiceImpl service = new QuotationDocumentServiceImpl(store, mock(CustomerMapper.class),
             mock(UserBasicMapper.class), templates, converter, mock(CurrentUserResolver.class), new ObjectMapper(),
             mock(com.zhul.erp.modules.product.support.BrandResolver.class),
-            mock(com.zhul.erp.modules.document.support.PlaceNames.class));
+            mock(com.zhul.erp.modules.document.support.PlaceNames.class),
+            new com.zhul.erp.modules.document.support.DocFileNames(mock(com.zhul.erp.modules.system.repository.SysConfigMapper.class)));
 
     private QuotationDO quotation() throws Exception {
         QuotationDO q = new QuotationDO();
@@ -86,6 +87,6 @@ class QuotationDocumentServiceTest {
                 .hasMessage("PDF / 图片暂时无法生成，可以先下载 Excel");
         assertThatThrownBy(() -> service.export(1L, "jpg", null)).hasMessage("PDF / 图片暂时无法生成，可以先下载 Excel");
         assertThat(service.export(1L, "xlsx", null).content()).isNotEmpty();
-        assertThat(service.export(1L, "xlsx", null).fileName()).isEqualTo("QT20261004001.xlsx");
+        assertThat(service.export(1L, "xlsx", null).fileName()).isEqualTo("Quotation - QT20261004001.xlsx");
     }
 }
