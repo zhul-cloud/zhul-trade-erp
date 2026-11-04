@@ -442,4 +442,33 @@ class PayableContractTest extends SalesContractSupport {
         assertEquals(0, ok(call(get(AP), other)).path("total").asInt());
         assertTrue(blank(ok(call(get(AP + "/by-source").param("sourceType", "1").param("sourceId", String.valueOf(poId)), other))));
     }
+
+    /** audit BUS-009：付款形成的欠款已抵扣到另一应付时，不能直接作废原付款；先作废抵扣再作废原付款可以 */
+    @Test
+    void voidPaymentWhoseCreditIsUsed_rejectedUntilOffsetVoided() throws Exception {
+        long sup = supplier("依赖链工控", null);
+        long poA = orderedPo(sup, "DEP-1", 1, "100", List.of(term(100, 1, 0))).path("id").asLong();
+        long apA = bySource(poA, admin).path("id").asLong();
+        JsonNode cash = ok(pay(payBody(1, "100.00", Map.of(apA, "100.00"), admin), admin));
+        ok(call(json(post(PO + "/" + poA + "/cancel"), "{\"reason\":\"供应商缺货\"}"), admin));
+        money("100.00", bySource(poA, admin).path("creditAmount"));
+
+        long poB = orderedPo(sup, "DEP-2", 1, "100", List.of(term(100, 1, 0))).path("id").asLong();
+        long apB = bySource(poB, admin).path("id").asLong();
+        Map<String, Object> body = payBody(1, "0.00", Map.of(apB, "100.00"), admin);
+        body.put("credits", List.of(Map.of("payableId", apA, "amount", new BigDecimal("100.00"))));
+        JsonNode offset = ok(pay(body, admin));
+        assertEquals(3, bySource(poB, admin).path("status").asInt(), "B 已用欠款付清");
+
+        assertEquals("这笔付款形成的欠款已被 " + offset.path("paymentNo").asText() + " 使用，请先作废这些单据",
+                fail(call(json(post(PY + "/" + cash.path("id").asLong() + "/void"), write(Map.of("reason", "x"))), admin))
+                        .path("message").asText());
+        assertEquals(3, bySource(poB, admin).path("status").asInt(), "拒绝时不改任何数据");
+
+        ok(call(json(post(PY + "/" + offset.path("id").asLong() + "/void"), write(Map.of("reason", "先撤抵扣"))), admin));
+        ok(call(json(post(PY + "/" + cash.path("id").asLong() + "/void"), write(Map.of("reason", "再撤原付款"))), admin));
+        money("0.00", bySource(poA, admin).path("creditAmount"));
+        money("0.00", bySource(poA, admin).path("paidAmount"));
+        money("0.00", bySource(poB, admin).path("paidAmount"));
+    }
 }
