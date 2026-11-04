@@ -49,6 +49,7 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -304,14 +305,26 @@ public class OrderCostService {
                         .isNull(SalesOrderFeeDO::getDeletedAt))
                 .stream().collect(Collectors.groupingBy(SalesOrderFeeDO::getSoId,
                         Collectors.reducing(BigDecimal.ZERO, SalesOrderFeeDO::getAmountCny, BigDecimal::add)));
-        Map<Long, List<CustomerRefundDO>> refundsBySo = refundMapper.selectList(
+        // 退款：与到账一致，PI 转成的订单按 PI 归集，取消重转前旧订单上的退款也算在当前订单上（audit BUS-003）
+        Map<Long, Long> piOfSo = new HashMap<>();
+        Set<Long> refundSoIds = new HashSet<>(soIds);
+        if (!piIds.isEmpty()) {
+            soMapper.selectList(new LambdaQueryWrapper<SalesOrderDO>()
+                            .select(SalesOrderDO::getId, SalesOrderDO::getPiId)
+                            .in(SalesOrderDO::getPiId, piIds))
+                    .forEach(x -> {
+                        piOfSo.put(x.getId(), x.getPiId());
+                        refundSoIds.add(x.getId());
+                    });
+        }
+        Map<String, List<CustomerRefundDO>> refundsBySo = refundMapper.selectList(
                         new LambdaQueryWrapper<CustomerRefundDO>()
-                                .in(CustomerRefundDO::getSoId, soIds)
+                                .in(CustomerRefundDO::getSoId, refundSoIds)
                                 .eq(CustomerRefundDO::getRefundType, FinanceConstants.REFUND_AFTER_SALES)
                                 .eq(CustomerRefundDO::getStatus, FinanceConstants.RECORD_VALID)
                                 .isNull(CustomerRefundDO::getDeletedAt)
                                 .orderByAsc(CustomerRefundDO::getRefundDate))
-                .stream().collect(Collectors.groupingBy(CustomerRefundDO::getSoId));
+                .stream().collect(Collectors.groupingBy(f -> refundKey(f.getSoId(), piOfSo.get(f.getSoId()))));
         Map<String, String> reasonNames = new HashMap<>();
         if (!refundsBySo.isEmpty()) {
             dictItemService.listByDictType(FinanceConstants.DICT_REFUND_REASON).forEach(d -> reasonNames.put(d.getItemCode(), d.getItemName()));
@@ -354,7 +367,7 @@ public class OrderCostService {
             }
             List<OrderCostCalc.Receipt> calcReceipts = myReceipts.stream().map(r -> new OrderCostCalc.Receipt(r.getAmountCny(),
                     r.getNetAmountCny(), r.getFeeDiff(), r.getExchangeRate(), Objects.requireNonNullElse(r.getSettleStatus(), 0))).toList();
-            List<CustomerRefundDO> refunds = refundsBySo.getOrDefault(o.getId(), List.of());
+            List<CustomerRefundDO> refunds = refundsBySo.getOrDefault(refundKey(o.getId(), o.getPiId()), List.of());
             BigDecimal refund = sum(refunds.stream().map(CustomerRefundDO::getAmountCny));
             // 代收与多收不是收入（spec finance/order-cost）：只对有代收款或多收的已到账订单查余额流水
             BigDecimal collectionCny = collectionCnyBySo.getOrDefault(o.getId(), BigDecimal.ZERO);
@@ -389,6 +402,11 @@ public class OrderCostService {
             out.put(o.getId(), vo);
         }
         return out;
+    }
+
+    /** 退款归集键：PI 转成的订单按 PI，手动订单按订单 */
+    private static String refundKey(Long soId, Long piId) {
+        return piId != null ? "PI" + piId : "SO" + soId;
     }
 
     /**
