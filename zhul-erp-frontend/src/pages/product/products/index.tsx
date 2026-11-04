@@ -478,6 +478,7 @@ const ProductListInner: React.FC = () => {
       ? ([
           {
             title: '操作',
+            fixed: 'right',
             key: 'op',
             width: 80,
             render: (_: unknown, r: Product) =>

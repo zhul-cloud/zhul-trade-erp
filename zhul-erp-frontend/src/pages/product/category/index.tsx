@@ -12,6 +12,7 @@ import {
 import { useAccess } from '@umijs/max';
 import { App, Button, Tooltip } from 'antd';
 import React, { useRef, useState } from 'react';
+import { ellipsisRender } from '@/components/EllipsisText';
 import { useIndustryOptions } from '@/utils/dict';
 import { formatDateTime } from '@/utils/format';
 import { usePagination } from '@/utils/pageSize';
@@ -213,7 +214,8 @@ const CategoryPage: React.FC = () => {
       title: '创建人',
       dataIndex: 'createBy',
       search: false,
-      width: 90,
+      width: 150,
+      render: ellipsisRender,
     },
     {
       title: '更新时间',
@@ -228,10 +230,12 @@ const CategoryPage: React.FC = () => {
       title: '更新人',
       dataIndex: 'updateBy',
       search: false,
-      width: 90,
+      width: 150,
+      render: ellipsisRender,
     },
     {
       title: '操作',
+      fixed: 'right',
       valueType: 'option',
       width: 210,
       render: (_, row) => [

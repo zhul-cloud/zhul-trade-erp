@@ -192,6 +192,7 @@ const AssignRulesPage: React.FC = () => {
     },
     {
       title: '操作',
+      fixed: 'right',
       width: 120,
       render: (_, r) =>
         canEdit ? (
@@ -289,6 +290,7 @@ const AssignRulesPage: React.FC = () => {
         </div>
       </Card>
       <Table<AssignRule>
+        scroll={{ x: 'max-content' }}
         rowKey="id"
         columns={columns}
         dataSource={rules ?? []}

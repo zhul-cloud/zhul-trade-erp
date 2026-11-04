@@ -351,6 +351,7 @@ const BankAccountPage: React.FC = () => {
     },
     {
       title: '操作',
+      fixed: 'right',
       key: 'actions',
       width: 120,
       hidden: !canEdit,

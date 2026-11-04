@@ -10,6 +10,7 @@ import {
 import { useAccess } from '@umijs/max';
 import { App, Badge, Button, Input, Popconfirm } from 'antd';
 import React, { useRef, useState } from 'react';
+import { ellipsisRender } from '@/components/EllipsisText';
 import { useAppTheme } from '@/theme/AppTheme';
 import { usePagination } from '@/utils/pageSize';
 import type { PositionItem } from './service';
@@ -149,7 +150,8 @@ const PositionPage: React.FC = () => {
     {
       title: '创建人',
       dataIndex: 'createBy',
-      width: 90,
+      width: 150,
+      render: ellipsisRender,
       search: false,
     },
     {
@@ -162,11 +164,13 @@ const PositionPage: React.FC = () => {
     {
       title: '更新人',
       dataIndex: 'updateBy',
-      width: 90,
+      width: 150,
+      render: ellipsisRender,
       search: false,
     },
     {
       title: '操作',
+      fixed: 'right',
       valueType: 'option',
       width: 160,
       render: (_, record) => [
@@ -219,6 +223,7 @@ const PositionPage: React.FC = () => {
   return (
     <>
       <ProTable<PositionItem>
+        scroll={{ x: 'max-content' }}
         headerTitle="岗位列表"
         actionRef={actionRef}
         rowKey="id"

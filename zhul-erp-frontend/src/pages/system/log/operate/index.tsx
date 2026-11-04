@@ -176,6 +176,7 @@ const OperateLogPage: React.FC = () => {
     { title: 'IP地址', dataIndex: 'ip', width: 140, search: false },
     {
       title: '操作',
+      fixed: 'right',
       valueType: 'option',
       width: 80,
       align: 'center',
@@ -195,6 +196,7 @@ const OperateLogPage: React.FC = () => {
         />
       )}
       <ProTable<OperateLogItem>
+        scroll={{ x: 'max-content' }}
         headerTitle={menu?.name}
         actionRef={actionRef}
         rowKey="id"

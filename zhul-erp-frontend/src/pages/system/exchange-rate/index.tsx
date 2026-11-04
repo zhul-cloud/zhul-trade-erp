@@ -123,6 +123,7 @@ const ExchangeRatePage: React.FC = () => {
               <Skeleton active style={{ padding: 24 }} />
             ) : (
               <Table<ExchangeRate>
+                scroll={{ x: 'max-content' }}
                 rowKey="currencyCode"
                 pagination={false}
                 dataSource={rows}
@@ -173,6 +174,7 @@ const ExchangeRatePage: React.FC = () => {
                   },
                   {
                     title: '操作',
+                    fixed: 'right',
                     key: 'actions',
                     width: 150,
                     render: (_, r) => (

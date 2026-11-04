@@ -8,6 +8,7 @@ import {
 import type { TableColumnsType } from 'antd';
 import { Button, Input, InputNumber, Segmented, Select, Space } from 'antd';
 import React, { useEffect, useRef, useState } from 'react';
+import { ellipsisRender } from '@/components/EllipsisText';
 import {
   Card,
   MigratedPill,
@@ -503,7 +504,7 @@ export const SourceCell: React.FC<{
   );
 };
 
-/** 列表页统一规范：创建时间 → 创建人 → 更新时间 → 更新人 */
+/** 列表页统一规范：创建时间 → 创建人 → 更新时间 → 更新人；人名多为邮箱，单行省略、悬停看全（audit UI-041） */
 export const auditColumns = <
   T extends {
     createTime?: string;
@@ -518,12 +519,22 @@ export const auditColumns = <
     width: 170,
     render: (v?: string) => formatDateTime(v),
   },
-  { title: '创建人', dataIndex: 'createBy', width: 90 },
+  {
+    title: '创建人',
+    dataIndex: 'createBy',
+    width: 150,
+    render: ellipsisRender,
+  },
   {
     title: '更新时间',
     dataIndex: 'updateTime',
     width: 170,
     render: (v?: string) => formatDateTime(v),
   },
-  { title: '更新人', dataIndex: 'updateBy', width: 90 },
+  {
+    title: '更新人',
+    dataIndex: 'updateBy',
+    width: 150,
+    render: ellipsisRender,
+  },
 ];

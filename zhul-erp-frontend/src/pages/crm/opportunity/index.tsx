@@ -310,11 +310,18 @@ const OpportunityPage: React.FC = () => {
           )
         }
       />
-      <div style={{ display: 'grid', gap: 20 }}>
+      {/* 列宽写成 minmax(0, 1fr)：不写时网格列按内容撑开，宽表格会把整页撑出横向滚动（audit UI-041） */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'minmax(0, 1fr)',
+          gap: 20,
+        }}
+      >
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(4, 1fr)',
+            gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
             gap: 16,
           }}
         >

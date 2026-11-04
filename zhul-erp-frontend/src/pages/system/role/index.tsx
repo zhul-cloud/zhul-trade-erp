@@ -32,6 +32,7 @@ import {
   Tree,
 } from 'antd';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { ellipsisRender } from '@/components/EllipsisText';
 import {
   type WorkbenchTemplate,
   workbenchApi,
@@ -427,7 +428,8 @@ const RolePage: React.FC = () => {
       title: '创建人',
       dataIndex: 'createBy',
       search: false,
-      width: 90,
+      width: 150,
+      render: ellipsisRender,
     },
     {
       title: '更新时间',
@@ -440,10 +442,12 @@ const RolePage: React.FC = () => {
       title: '更新人',
       dataIndex: 'updateBy',
       search: false,
-      width: 90,
+      width: 150,
+      render: ellipsisRender,
     },
     {
       title: '操作',
+      fixed: 'right',
       valueType: 'option',
       width: 220,
       render: (_, record) => (
@@ -551,6 +555,7 @@ const RolePage: React.FC = () => {
       </div>
 
       <ProTable<RoleItem>
+        scroll={{ x: 'max-content' }}
         headerTitle="角色列表"
         actionRef={actionRef}
         rowKey="id"

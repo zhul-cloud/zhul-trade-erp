@@ -191,6 +191,7 @@ const LoginLogPage: React.FC = () => {
         />
       )}
       <ProTable<LoginLogItem>
+        scroll={{ x: 'max-content' }}
         headerTitle={menu?.name}
         actionRef={actionRef}
         rowKey="id"

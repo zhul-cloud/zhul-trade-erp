@@ -10,6 +10,7 @@ import {
 import { useAccess } from '@umijs/max';
 import { App, Button, Tooltip } from 'antd';
 import React, { useRef, useState } from 'react';
+import { ellipsisRender } from '@/components/EllipsisText';
 import { formatDateTime } from '@/utils/format';
 import { usePagination } from '@/utils/pageSize';
 import { Pill } from '../components/Pills';
@@ -134,7 +135,8 @@ const SeriesPage: React.FC = () => {
       title: '创建人',
       dataIndex: 'createBy',
       search: false,
-      width: 90,
+      width: 150,
+      render: ellipsisRender,
     },
     {
       title: '更新时间',
@@ -149,10 +151,12 @@ const SeriesPage: React.FC = () => {
       title: '更新人',
       dataIndex: 'updateBy',
       search: false,
-      width: 90,
+      width: 150,
+      render: ellipsisRender,
     },
     {
       title: '操作',
+      fixed: 'right',
       valueType: 'option',
       render: (_, row) => [
         access['product:series:edit'] && (
@@ -205,6 +209,7 @@ const SeriesPage: React.FC = () => {
         }
       />
       <ProTable<Series>
+        scroll={{ x: 'max-content' }}
         rowKey="id"
         actionRef={actionRef}
         columns={columns}

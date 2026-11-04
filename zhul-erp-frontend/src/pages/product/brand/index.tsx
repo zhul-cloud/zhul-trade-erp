@@ -27,6 +27,7 @@ import {
   Tooltip,
 } from 'antd';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { ellipsisRender } from '@/components/EllipsisText';
 import { useIndustryOptions } from '@/utils/dict';
 import { formatDateTime } from '@/utils/format';
 import { usePagination } from '@/utils/pageSize';
@@ -307,7 +308,12 @@ const BrandPage: React.FC = () => {
         <span className="num">{formatDateTime(r.createTime)}</span>
       ),
     },
-    { title: '创建人', dataIndex: 'createBy', width: 90 },
+    {
+      title: '创建人',
+      dataIndex: 'createBy',
+      width: 150,
+      render: ellipsisRender,
+    },
     {
       title: '更新时间',
       dataIndex: 'updateTime',
@@ -316,7 +322,12 @@ const BrandPage: React.FC = () => {
         <span className="num">{formatDateTime(r.updateTime)}</span>
       ),
     },
-    { title: '更新人', dataIndex: 'updateBy', width: 90 },
+    {
+      title: '更新人',
+      dataIndex: 'updateBy',
+      width: 150,
+      render: ellipsisRender,
+    },
     {
       title: '操作',
       valueType: 'option',
