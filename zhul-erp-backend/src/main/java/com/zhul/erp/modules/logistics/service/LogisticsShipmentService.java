@@ -430,6 +430,10 @@ public class LogisticsShipmentService {
         shipmentMapper.lockById(id);
         LogisticsShipmentDO sh = shipmentMapper.selectById(id);
         MigratedGuard.requireEditable(sh.getMigrated());
+        if (Objects.equals(sh.getReconciled(), 1)) {
+            // 同一出运单不能被两张账单各确认一次、生成两笔运费应付（audit BUS-007）
+            throw new BizException("出运单 " + sh.getShNo() + " 已在别的运费账单上确认过");
+        }
         if (amount != null && (sh.getFreight() == null || sh.getFreight().compareTo(amount) != 0)) {
             sh.setFreight(amount);
             freight.allocateInternational(id, amount, outboundsOf(id).stream().map(OutboundOrderDO::getId).toList(), support.divisorOf(sh.getForwarderId()));
