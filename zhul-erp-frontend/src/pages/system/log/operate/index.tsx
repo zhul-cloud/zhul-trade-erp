@@ -4,9 +4,11 @@ import { ProTable } from '@ant-design/pro-components';
 import { Alert, App, Button, Descriptions, Modal, Tag } from 'antd';
 import dayjs from 'dayjs';
 import React, { useRef, useState } from 'react';
+import { ellipsisRender } from '@/components/EllipsisText';
 import { useAppTheme } from '@/theme/AppTheme';
 import { useMenu } from '@/utils/menuName';
 import { usePagination } from '@/utils/pageSize';
+import { tableScrollX } from '@/utils/tableScroll';
 import type { OperateLogDetail, OperateLogItem } from './service';
 import {
   exportOperateLogs,
@@ -105,7 +107,8 @@ const OperateLogPage: React.FC = () => {
     {
       title: '操作人',
       dataIndex: 'operatorName',
-      width: 110,
+      width: 160,
+      render: ellipsisRender,
       fieldProps: { placeholder: '请输入操作人姓名', maxLength: 50 },
     },
     {
@@ -151,6 +154,7 @@ const OperateLogPage: React.FC = () => {
     },
     {
       title: '操作时间',
+      width: 170,
       dataIndex: 'operateTimeRange',
       valueType: 'dateTimeRange',
       hideInTable: true,
@@ -176,6 +180,7 @@ const OperateLogPage: React.FC = () => {
     { title: 'IP地址', dataIndex: 'ip', width: 140, search: false },
     {
       title: '操作',
+      fixed: 'right',
       valueType: 'option',
       width: 80,
       align: 'center',
@@ -195,6 +200,7 @@ const OperateLogPage: React.FC = () => {
         />
       )}
       <ProTable<OperateLogItem>
+        scroll={{ x: tableScrollX(columns) }}
         headerTitle={menu?.name}
         actionRef={actionRef}
         rowKey="id"

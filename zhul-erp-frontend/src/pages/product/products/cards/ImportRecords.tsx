@@ -1,5 +1,6 @@
 import { DownloadOutlined, FileTextOutlined } from '@ant-design/icons';
 import XMarkdown from '@ant-design/x-markdown';
+import { tableScrollX } from '@/utils/tableScroll';
 import '@ant-design/x-markdown/es/XMarkdown/index.css';
 import type { TableColumnsType } from 'antd';
 import { App, Button, Drawer, Segmented, Space, Table } from 'antd';
@@ -220,6 +221,7 @@ export const ImportRecordList: React.FC<{
     },
     {
       title: '写入摘要',
+      width: 240,
       dataIndex: 'summary',
       ellipsis: true,
       render: (v?: string) => v || '—',
@@ -270,7 +272,7 @@ export const ImportRecordList: React.FC<{
             ? { pageSize: 10, showSizeChanger: false }
             : false
         }
-        scroll={{ x: 820 }}
+        scroll={{ x: tableScrollX(columns) }}
         locale={{ emptyText: '还没有上传记录' }}
       />
       <div style={{ marginTop: 8, fontSize: 12, color: palette.sub }}>

@@ -19,11 +19,13 @@ import {
 } from 'antd';
 import dayjs from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
+import { ellipsisRender } from '@/components/EllipsisText';
 import { Card, PageTitle, Pill } from '@/pages/inquiry/shared/components';
 import { auditColumns } from '@/pages/purchase/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { useDictTexts } from '@/utils/dict';
 import { usePageSize } from '@/utils/pageSize';
+import { tableScrollX } from '@/utils/tableScroll';
 import { readBizError } from '../service';
 import { CreateAfterSalesModal, useOwnerOptions } from './dialogs';
 import {
@@ -175,7 +177,12 @@ const AfterSalesPage: React.FC = () => {
         </div>
       ),
     },
-    { title: '负责人', dataIndex: 'ownerName', width: 90 },
+    {
+      title: '负责人',
+      dataIndex: 'ownerName',
+      width: 90,
+      render: ellipsisRender,
+    },
     {
       title: '下一步 · 截止',
       key: 'next',
@@ -427,7 +434,7 @@ const AfterSalesPage: React.FC = () => {
           loading={loading}
           columns={columns}
           dataSource={rows}
-          scroll={{ x: 1800 }}
+          scroll={{ x: tableScrollX(columns) }}
           locale={{
             emptyText:
               status === AS_STATUS.OPEN

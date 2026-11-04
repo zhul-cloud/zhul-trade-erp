@@ -53,6 +53,7 @@ import {
   IncotermInput,
   PreviewPages,
 } from '@/components/DocFields';
+import { ellipsisRender } from '@/components/EllipsisText';
 import { type DiffRow, VersionPanel } from '@/components/VersionPanel';
 import {
   ConditionPill,
@@ -68,6 +69,7 @@ import { useAppTheme } from '@/theme/AppTheme';
 import { DICT_WARRANTY } from '@/utils/dict';
 import { formatAmount, formatDateTime } from '@/utils/format';
 import { MenuLink } from '@/utils/menuName';
+import { tableScrollX } from '@/utils/tableScroll';
 import {
   calcLine,
   calcTotals,
@@ -1228,7 +1230,13 @@ const QuotationDetail: React.FC = () => {
       width: 220,
       render: (_, r) => modelCell(r),
     },
-    { title: '描述', dataIndex: 'description', ellipsis: true },
+    {
+      title: '描述',
+      width: 240,
+      render: ellipsisRender,
+      dataIndex: 'description',
+      ellipsis: true,
+    },
     {
       title: '货况',
       key: 'cond',
@@ -1842,7 +1850,7 @@ const QuotationDetail: React.FC = () => {
           columns={viewColumns}
           dataSource={q.items}
           pagination={false}
-          scroll={{ x: 1300 }}
+          scroll={{ x: tableScrollX(viewColumns) }}
         />
       )}
     </div>

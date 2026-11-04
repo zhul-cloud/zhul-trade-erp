@@ -32,6 +32,7 @@ import {
   Tree,
 } from 'antd';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import EllipsisText, { ellipsisRender } from '@/components/EllipsisText';
 import {
   type WorkbenchTemplate,
   workbenchApi,
@@ -52,6 +53,7 @@ import { getDeptTreeOptions } from '@/pages/system/user/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatDateTime } from '@/utils/format';
 import { usePagination } from '@/utils/pageSize';
+import { tableScrollX } from '@/utils/tableScroll';
 import type { RoleItem, RoleStats } from './service';
 import {
   createRole,
@@ -377,10 +379,10 @@ const RolePage: React.FC = () => {
       dataIndex: 'name',
       width: 160,
       render: (_, record) => (
-        <Space size={6}>
-          {record.name}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <EllipsisText text={record.name} />
           {record.isBuiltIn === 1 && <Tag color="default">内置</Tag>}
-        </Space>
+        </div>
       ),
     },
     { title: '角色编码', dataIndex: 'code', width: 140 },
@@ -427,7 +429,8 @@ const RolePage: React.FC = () => {
       title: '创建人',
       dataIndex: 'createBy',
       search: false,
-      width: 90,
+      width: 150,
+      render: ellipsisRender,
     },
     {
       title: '更新时间',
@@ -440,10 +443,12 @@ const RolePage: React.FC = () => {
       title: '更新人',
       dataIndex: 'updateBy',
       search: false,
-      width: 90,
+      width: 150,
+      render: ellipsisRender,
     },
     {
       title: '操作',
+      fixed: 'right',
       valueType: 'option',
       width: 220,
       render: (_, record) => (
@@ -551,6 +556,7 @@ const RolePage: React.FC = () => {
       </div>
 
       <ProTable<RoleItem>
+        scroll={{ x: tableScrollX(columns) }}
         headerTitle="角色列表"
         actionRef={actionRef}
         rowKey="id"

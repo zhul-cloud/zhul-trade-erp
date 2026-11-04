@@ -396,6 +396,7 @@ const DocumentTemplatePage: React.FC = () => {
               <Skeleton active style={{ padding: 24 }} />
             ) : (
               <Table<TemplateVersion>
+                scroll={{ x: 'max-content' }}
                 rowKey="id"
                 pagination={false}
                 dataSource={versions}
@@ -426,6 +427,7 @@ const DocumentTemplatePage: React.FC = () => {
                   },
                   {
                     title: '版本说明',
+                    width: 240,
                     key: 'n',
                     render: (_, v) => (
                       <span
@@ -454,6 +456,7 @@ const DocumentTemplatePage: React.FC = () => {
                   },
                   {
                     title: '操作',
+                    fixed: 'right',
                     key: 'a',
                     width: 260,
                     render: (_, v) => (

@@ -21,6 +21,7 @@ import {
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
+import { ellipsisRender } from '@/components/EllipsisText';
 import {
   Card,
   MigratedPill,
@@ -50,6 +51,7 @@ import { recentRange } from '@/utils/dateRange';
 import { useDictTexts } from '@/utils/dict';
 import { formatAmount } from '@/utils/format';
 import { usePageSize } from '@/utils/pageSize';
+import { tableScrollX } from '@/utils/tableScroll';
 import {
   ACCEPT_PROOF,
   PayStatusPill,
@@ -65,7 +67,11 @@ import {
   type SoItemOption,
 } from '../reimbursements/service';
 
-const num: React.CSSProperties = { fontVariantNumeric: 'tabular-nums' };
+// 金额不折行（audit UI-041）
+const num: React.CSSProperties = {
+  fontVariantNumeric: 'tabular-nums',
+  whiteSpace: 'nowrap',
+};
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
 interface AllocRow {
@@ -492,8 +498,8 @@ const ExpenseDrawer: React.FC<{
             dataSource={allocs}
             locale={{ emptyText: '没有关联订单型号' }}
             columns={[
-              { title: '销售订单', dataIndex: 'soNo' },
-              { title: '型号', dataIndex: 'model' },
+              { title: '销售订单', width: 160, dataIndex: 'soNo' },
+              { title: '型号', width: 160, dataIndex: 'model' },
               {
                 title: '分摊金额',
                 key: 'amount',
@@ -690,7 +696,7 @@ const ExpensePage: React.FC = () => {
       ),
     },
     { title: '发生日期', dataIndex: 'occurDate', width: 110 },
-    { title: '名称', dataIndex: 'name', width: 160 },
+    { title: '名称', dataIndex: 'name', width: 160, render: ellipsisRender },
     ...(bu.enabled
       ? [
           {
@@ -948,7 +954,7 @@ const ExpensePage: React.FC = () => {
           loading={loading}
           columns={columns}
           dataSource={rows}
-          scroll={{ x: 2220 }}
+          scroll={{ x: tableScrollX(columns) }}
           pagination={{
             current: page,
             pageSize,

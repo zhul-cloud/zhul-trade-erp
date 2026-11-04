@@ -31,8 +31,10 @@ import {
   Tag,
 } from 'antd';
 import React, { useEffect, useRef, useState } from 'react';
+import { ellipsisRender } from '@/components/EllipsisText';
 import { useAppTheme } from '@/theme/AppTheme';
 import { usePagination } from '@/utils/pageSize';
+import { tableScrollX } from '@/utils/tableScroll';
 import type { UserItem, UserStats } from './service';
 import {
   createUser,
@@ -350,7 +352,8 @@ const UserPage: React.FC = () => {
     {
       title: '创建人',
       dataIndex: 'createBy',
-      width: 90,
+      width: 150,
+      render: ellipsisRender,
       search: false,
     },
     {
@@ -363,11 +366,13 @@ const UserPage: React.FC = () => {
     {
       title: '更新人',
       dataIndex: 'updateBy',
-      width: 90,
+      width: 150,
+      render: ellipsisRender,
       search: false,
     },
     {
       title: '操作',
+      fixed: 'right',
       valueType: 'option',
       width: 220,
       render: (_, record) => (
@@ -486,6 +491,7 @@ const UserPage: React.FC = () => {
       </div>
 
       <ProTable<UserItem>
+        scroll={{ x: tableScrollX(columns) }}
         headerTitle="用户列表"
         actionRef={actionRef}
         rowKey="id"

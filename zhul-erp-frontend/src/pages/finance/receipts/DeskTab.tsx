@@ -29,6 +29,7 @@ import {
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
 import { usePageSize } from '@/utils/pageSize';
+import { tableScrollX } from '@/utils/tableScroll';
 
 interface Filters {
   keyword?: string;
@@ -305,7 +306,7 @@ const DeskTab: React.FC<{ onTotal?: (n: number) => void }> = ({ onTotal }) => {
           columns={columns}
           dataSource={rows}
           loading={loading}
-          scroll={{ x: 1420 }}
+          scroll={{ x: tableScrollX(columns) }}
           locale={{
             emptyText: all
               ? '没有符合条件的 PI'

@@ -12,9 +12,11 @@ import {
 import { useAccess } from '@umijs/max';
 import { App, Button, Tooltip } from 'antd';
 import React, { useRef, useState } from 'react';
+import EllipsisText, { ellipsisRender } from '@/components/EllipsisText';
 import { useIndustryOptions } from '@/utils/dict';
 import { formatDateTime } from '@/utils/format';
 import { usePagination } from '@/utils/pageSize';
+import { tableScrollX } from '@/utils/tableScroll';
 import { Pill } from '../components/Pills';
 import { DESCRIPTION_MAX } from '../constants';
 import { type Category, categoryApi, readBizError } from '../service';
@@ -127,14 +129,19 @@ const CategoryPage: React.FC = () => {
       width: 240,
       render: (_, r) =>
         r.categoryNameZh ? (
-          <span>
-            {r.categoryNameZh}
-            <span style={{ opacity: 0.6, marginLeft: 8 }}>
-              {r.categoryName}
-            </span>
-          </span>
+          <EllipsisText
+            tip={`${r.categoryNameZh} ${r.categoryName}`}
+            text={
+              <>
+                {r.categoryNameZh}
+                <span style={{ opacity: 0.6, marginLeft: 8 }}>
+                  {r.categoryName}
+                </span>
+              </>
+            }
+          />
         ) : (
-          r.categoryName
+          <EllipsisText text={r.categoryName} />
         ),
     },
     {
@@ -179,6 +186,7 @@ const CategoryPage: React.FC = () => {
       title: '排序',
       dataIndex: 'sortOrder',
       search: false,
+      width: 90,
       align: 'right',
       render: (_, r) => <span className="num">{r.sortOrder}</span>,
     },
@@ -186,6 +194,7 @@ const CategoryPage: React.FC = () => {
       title: '商品数',
       dataIndex: 'productCount',
       search: false,
+      width: 90,
       align: 'right',
       render: (_, r) => <span className="num">{r.productCount}</span>,
     },
@@ -193,6 +202,7 @@ const CategoryPage: React.FC = () => {
       title: '状态',
       dataIndex: 'status',
       search: false,
+      width: 90,
       render: (_, r) =>
         r.status === 1 ? (
           <Pill tone="green">启用</Pill>
@@ -213,7 +223,8 @@ const CategoryPage: React.FC = () => {
       title: '创建人',
       dataIndex: 'createBy',
       search: false,
-      width: 90,
+      width: 150,
+      render: ellipsisRender,
     },
     {
       title: '更新时间',
@@ -228,10 +239,12 @@ const CategoryPage: React.FC = () => {
       title: '更新人',
       dataIndex: 'updateBy',
       search: false,
-      width: 90,
+      width: 150,
+      render: ellipsisRender,
     },
     {
       title: '操作',
+      fixed: 'right',
       valueType: 'option',
       width: 210,
       render: (_, row) => [
@@ -334,7 +347,7 @@ const CategoryPage: React.FC = () => {
           return { data, total: data.length, success: true };
         }}
         expandable={{ defaultExpandAllRows: false }}
-        scroll={{ x: 'max-content' }}
+        scroll={{ x: tableScrollX(columns) }}
         pagination={{ ...pager, showTotal: (t) => `共 ${t} 条记录` }}
         locale={{
           emptyText: '还没有品类。先新增一个，新建商品时才能选择品类。',

@@ -10,6 +10,7 @@ import { readBizError } from '@/pages/sales/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import { StatsUnitSwitch, useBusinessUnits } from '@/utils/businessUnit';
 import { formatAmount } from '@/utils/format';
+import { tableScrollX } from '@/utils/tableScroll';
 import {
   type ProfitGroup,
   type ProfitOrderRow,
@@ -398,7 +399,7 @@ const ProfitStatsPage: React.FC = () => {
           columns={columns}
           dataSource={groups}
           pagination={false}
-          scroll={{ x: 1400 }}
+          scroll={{ x: tableScrollX(columns) }}
           locale={{ emptyText: '这段时间没有订单' }}
           expandable={{
             expandRowByClick: true,
@@ -409,7 +410,7 @@ const ProfitStatsPage: React.FC = () => {
                 columns={orderColumns}
                 dataSource={g.orders}
                 pagination={false}
-                scroll={{ x: 1300 }}
+                scroll={{ x: tableScrollX(orderColumns) }}
               />
             ),
           }}

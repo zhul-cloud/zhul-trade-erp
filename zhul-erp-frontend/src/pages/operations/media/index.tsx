@@ -4,10 +4,12 @@ import type { TableColumnsType } from 'antd';
 import { Button, Input, Segmented, Space, Table } from 'antd';
 import dayjs from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
+import EllipsisText, { ellipsisRender } from '@/components/EllipsisText';
 import { PageTitle, Pill } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useAppTheme } from '@/theme/AppTheme';
 import { usePageSize } from '@/utils/pageSize';
+import { tableScrollX } from '@/utils/tableScroll';
 import MediaDrawer from './MediaDrawer';
 import { type MediaModel, mediaApi, readBizError } from './service';
 
@@ -103,12 +105,12 @@ const MediaLibraryPage: React.FC = () => {
         </div>
       ),
     },
-    { title: '品牌', dataIndex: 'brand', width: 110 },
+    { title: '品牌', dataIndex: 'brand', width: 110, render: ellipsisRender },
     {
       title: '品类',
       dataIndex: 'category',
       width: 120,
-      render: (v?: string) => v || '—',
+      render: (v?: string) => <EllipsisText text={v || '—'} />,
     },
     {
       title: '状态',
@@ -219,7 +221,7 @@ const MediaLibraryPage: React.FC = () => {
           columns={columns}
           dataSource={rows}
           loading={loading}
-          scroll={{ x: 1100 }}
+          scroll={{ x: tableScrollX(columns) }}
           locale={{
             emptyText: query
               ? '没有找到这个型号的素材'

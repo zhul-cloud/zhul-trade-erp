@@ -17,6 +17,7 @@ import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { auditColumns } from '@/pages/purchase/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { usePageSize } from '@/utils/pageSize';
+import { tableScrollX } from '@/utils/tableScroll';
 import {
   ACCEPT_IMAGE,
   MediaTile,
@@ -226,7 +227,7 @@ const Shoots: React.FC = () => {
           columns={columns}
           dataSource={rows}
           loading={loading}
-          scroll={{ x: 1700 }}
+          scroll={{ x: tableScrollX(columns) }}
           locale={{
             emptyText:
               status === 1

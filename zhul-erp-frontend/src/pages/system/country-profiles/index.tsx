@@ -29,6 +29,7 @@ import { useCountries } from '@/pages/product/components/useCountries';
 import { auditColumns } from '@/pages/purchase/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { usePagination } from '@/utils/pageSize';
+import { tableScrollX } from '@/utils/tableScroll';
 
 type Filter = 'all' | 'unmaintained' | 'strict';
 type FormState = Omit<CountryProfile, 'id' | 'customerCount'>;
@@ -291,6 +292,7 @@ const CountryProfilesPage: React.FC = () => {
     },
     {
       title: '重大节假日',
+      width: 240,
       dataIndex: 'holidays',
       ellipsis: true,
       render: (v?: string) => v || dash,
@@ -372,7 +374,7 @@ const CountryProfilesPage: React.FC = () => {
             columns={columns}
             dataSource={shown}
             loading={loading}
-            scroll={{ x: 1400 }}
+            scroll={{ x: tableScrollX(columns) }}
             pagination={pager}
             locale={{
               emptyText:

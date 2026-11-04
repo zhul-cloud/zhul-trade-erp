@@ -11,12 +11,14 @@ import type { TableColumnsType } from 'antd';
 import { Button, DatePicker, Form, Input, Select, Skeleton, Table } from 'antd';
 import type { Dayjs } from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
+import EllipsisText from '@/components/EllipsisText';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
 import { auditColumns } from '@/pages/purchase/components';
 import { getUserList } from '@/pages/system/user/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import { DICT_SOURCE_CHANNEL, useDictOptions } from '@/utils/dict';
 import { usePageSize } from '@/utils/pageSize';
+import { tableScrollX } from '@/utils/tableScroll';
 import { Card, MigratedPill, PageTitle, Pill, StagePill } from './components';
 import { CATEGORY_ACTIVE, LIST_PATH } from './constants';
 import RegisterDrawer from './RegisterDrawer';
@@ -165,8 +167,13 @@ const OpportunityPage: React.FC = () => {
       title: '来源渠道',
       dataIndex: 'sourceChannel',
       width: 160,
-      render: (v: number, r) =>
-        r.aliLevel ? `${sourceLabel(v)} · ${r.aliLevel}` : sourceLabel(v),
+      render: (v: number, r) => (
+        <EllipsisText
+          text={
+            r.aliLevel ? `${sourceLabel(v)} · ${r.aliLevel}` : sourceLabel(v)
+          }
+        />
+      ),
     },
     {
       title: '首次接触',
@@ -190,15 +197,14 @@ const OpportunityPage: React.FC = () => {
     {
       title: '需求摘要',
       dataIndex: 'demandSummary',
-      ellipsis: { showTitle: true },
-      render: (v: string) =>
-        v || <span style={{ color: palette.mute }}>—</span>,
+      width: 260,
+      render: (v: string) => <EllipsisText text={v} />,
     },
     {
       title: '负责人',
       dataIndex: 'ownerName',
       width: 100,
-      render: (v?: string) => v || '未分配',
+      render: (v?: string) => <EllipsisText text={v || '未分配'} />,
     },
     ...auditColumns<OpportunityItem>(),
     {
@@ -273,7 +279,7 @@ const OpportunityPage: React.FC = () => {
         loading={loading}
         columns={columns}
         dataSource={rows}
-        scroll={{ x: 1750 }}
+        scroll={{ x: tableScrollX(columns) }}
         locale={{ emptyText: '没有符合条件的商机，换个筛选条件试试' }}
         onRow={(r) => ({
           style: { cursor: 'pointer' },
@@ -310,11 +316,18 @@ const OpportunityPage: React.FC = () => {
           )
         }
       />
-      <div style={{ display: 'grid', gap: 20 }}>
+      {/* 列宽写成 minmax(0, 1fr)：不写时网格列按内容撑开，宽表格会把整页撑出横向滚动（audit UI-041） */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'minmax(0, 1fr)',
+          gap: 20,
+        }}
+      >
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(4, 1fr)',
+            gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
             gap: 16,
           }}
         >

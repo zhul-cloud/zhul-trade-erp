@@ -9,7 +9,6 @@ import {
   type InputRef,
   Select,
   Skeleton,
-  Space,
   Switch,
   Table,
   Tooltip,
@@ -23,8 +22,10 @@ import React, {
   useRef,
   useState,
 } from 'react';
+import EllipsisText from '@/components/EllipsisText';
 import { auditColumns } from '@/pages/purchase/components';
 import { usePageSize } from '@/utils/pageSize';
+import { tableScrollX } from '@/utils/tableScroll';
 import { CompletenessBar } from '../components/CompletenessBar';
 import { EmptyHint, ErrorHint } from '../components/EmptyHint';
 import { BrandMark, LifecyclePill, Pill } from '../components/Pills';
@@ -376,10 +377,12 @@ const ProductListInner: React.FC = () => {
       dataIndex: 'brandName',
       width: 150,
       render: (_, r) => (
-        <Space size={8}>
+        <div
+          style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}
+        >
           <BrandMark name={r.brandName} size={22} />
-          <span>{r.brandName}</span>
-        </Space>
+          <EllipsisText text={r.brandName} />
+        </div>
       ),
     },
     {
@@ -401,7 +404,7 @@ const ProductListInner: React.FC = () => {
     ...(['inquiryCount', 'dealCount'] as const).map((key) => ({
       title: key === 'inquiryCount' ? '询盘次数' : '成交次数',
       key,
-      width: 100,
+      width: 120,
       sorter: true,
       sortDirections: ['descend' as const],
       sortOrder: heatSort === key ? ('descend' as const) : null,
@@ -478,6 +481,7 @@ const ProductListInner: React.FC = () => {
       ? ([
           {
             title: '操作',
+            fixed: 'right',
             key: 'op',
             width: 80,
             render: (_: unknown, r: Product) =>
@@ -768,7 +772,7 @@ const ProductListInner: React.FC = () => {
             dataSource={rows}
             loading={loading}
             sticky
-            scroll={{ x: 1600 }}
+            scroll={{ x: tableScrollX(columns) }}
             rowSelection={
               platform
                 ? {

@@ -29,6 +29,7 @@ import {
 } from '@/pages/warehouse/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import { usePagination } from '@/utils/pageSize';
+import { tableScrollX } from '@/utils/tableScroll';
 
 type Editing = Partial<TransitTime> & { open: true };
 
@@ -260,7 +261,7 @@ const TransitTimes: React.FC = () => {
           columns={columns}
           dataSource={rows}
           loading={loading}
-          scroll={{ x: 1300 }}
+          scroll={{ x: tableScrollX(columns) }}
           pagination={{ ...pager, showTotal: (t) => `共 ${t} 条` }}
           locale={{ emptyText: '没有规则；估算时按默认运输天数' }}
         />

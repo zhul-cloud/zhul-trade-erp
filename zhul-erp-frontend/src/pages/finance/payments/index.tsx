@@ -12,6 +12,7 @@ import { useAppTheme } from '@/theme/AppTheme';
 import { recentRange } from '@/utils/dateRange';
 import { formatAmount } from '@/utils/format';
 import { usePageSize } from '@/utils/pageSize';
+import { tableScrollX } from '@/utils/tableScroll';
 import { ProofLinks } from '../payables/components';
 import {
   METHOD,
@@ -368,7 +369,7 @@ const PaymentRecords: React.FC = () => {
           loading={loading}
           columns={columns}
           dataSource={rows}
-          scroll={{ x: 2200 }}
+          scroll={{ x: tableScrollX(columns) }}
           pagination={{
             current: page,
             pageSize,

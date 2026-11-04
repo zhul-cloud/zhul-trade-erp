@@ -3,6 +3,7 @@ import { Link, useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { App, Button, Input, Segmented, Table } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
+import { ellipsisRender } from '@/components/EllipsisText';
 import { kg, LOGISTICS_PATHS } from '@/pages/logistics/components';
 import {
   type Outbound,
@@ -14,6 +15,7 @@ import { auditColumns } from '@/pages/purchase/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount, formatDateTime } from '@/utils/format';
 import { usePageSize } from '@/utils/pageSize';
+import { tableScrollX } from '@/utils/tableScroll';
 import { Card, ReasonModal, sub, WarehousePageTitle } from '../components';
 import { HandOverModal, OutboundView, PackDrawer } from './dialogs';
 
@@ -115,7 +117,12 @@ const Outbounds: React.FC = () => {
             render: (v?: string) =>
               v || <span style={{ color: palette.mute }}>—</span>,
           },
-          { title: '业务员', dataIndex: 'ownerName', width: 90 },
+          {
+            title: '业务员',
+            dataIndex: 'ownerName',
+            width: 90,
+            render: ellipsisRender,
+          },
           ...auditColumns<Outbound>(),
           {
             title: '操作',
@@ -301,7 +308,7 @@ const Outbounds: React.FC = () => {
             columns={columns}
             dataSource={rows}
             loading={loading}
-            scroll={{ x: 1700 }}
+            scroll={{ x: tableScrollX(columns) }}
             rowSelection={
               tab === 'packed' && canPack
                 ? {

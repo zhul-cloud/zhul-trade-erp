@@ -38,6 +38,7 @@ import {
 import { recentRange } from '@/utils/dateRange';
 import { formatAmount } from '@/utils/format';
 import { usePageSize } from '@/utils/pageSize';
+import { tableScrollX } from '@/utils/tableScroll';
 import { type FxPending, type FxSettlement, fxApi } from './service';
 
 const num: React.CSSProperties = { fontVariantNumeric: 'tabular-nums' };
@@ -686,7 +687,7 @@ const FxSettlementPage: React.FC = () => {
                   loading={loading}
                   columns={columns}
                   dataSource={rows}
-                  scroll={{ x: 1800 }}
+                  scroll={{ x: tableScrollX(columns) }}
                   pagination={{
                     current: page,
                     pageSize,
@@ -763,7 +764,7 @@ const FxSettlementPage: React.FC = () => {
                           columns={pendingColumns}
                           dataSource={p.receipts}
                           pagination={false}
-                          scroll={{ x: 950 }}
+                          scroll={{ x: tableScrollX(pendingColumns) }}
                         />
                       </Card>
                     </div>
@@ -820,6 +821,7 @@ const FxSettlementPage: React.FC = () => {
                 },
                 {
                   title: 'PI · 客户',
+                  width: 200,
                   key: 'pi',
                   render: (_, a) =>
                     a.receipt ? <ReceiptWho r={a.receipt} /> : '—',

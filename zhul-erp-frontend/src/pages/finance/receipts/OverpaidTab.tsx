@@ -6,6 +6,7 @@ import { Card } from '@/pages/inquiry/shared/components';
 import { readBizError } from '@/pages/sales/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
+import { tableScrollX } from '@/utils/tableScroll';
 import {
   emptyPayout,
   FieldLabel,
@@ -159,7 +160,7 @@ const OverpaidTab: React.FC<{ onCount?: (n: number) => void }> = ({
         columns={columns}
         dataSource={rows ?? []}
         pagination={false}
-        scroll={{ x: 1100 }}
+        scroll={{ x: tableScrollX(columns) }}
         locale={{ emptyText: '没有待处理的多收' }}
       />
       <div style={{ fontSize: 12, color: palette.mute, marginTop: 8 }}>

@@ -10,6 +10,7 @@ import { readBizError } from '@/pages/sales/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import { StatsUnitSwitch, useBusinessUnits } from '@/utils/businessUnit';
 import { formatAmount } from '@/utils/format';
+import { tableScrollX } from '@/utils/tableScroll';
 import {
   type CustomerRow,
   type Rate,
@@ -418,7 +419,7 @@ const SalesStatsPage: React.FC = () => {
             loading={loading}
             columns={customerColumns}
             dataSource={data?.customers ?? []}
-            scroll={{ x: 900 }}
+            scroll={{ x: tableScrollX(customerColumns) }}
             pagination={{ pageSize: 50, showTotal: (t) => `共 ${t} 个客户` }}
             locale={{ emptyText: '期间内没有成交客户' }}
           />
@@ -429,7 +430,7 @@ const SalesStatsPage: React.FC = () => {
             columns={columns}
             dataSource={data?.rows ?? []}
             pagination={false}
-            scroll={{ x: 2100 }}
+            scroll={{ x: tableScrollX(columns) }}
             locale={{ emptyText: '期间内没有数据' }}
             summary={() =>
               total ? (

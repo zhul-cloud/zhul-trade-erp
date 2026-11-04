@@ -20,6 +20,7 @@ import {
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { ellipsisRender } from '@/components/EllipsisText';
 import { Card, PageTitle, Pill } from '@/pages/inquiry/shared/components';
 import type { Tone } from '@/pages/inquiry/shared/constants';
 import { auditColumns } from '@/pages/purchase/components';
@@ -37,6 +38,7 @@ import type { Attachment } from '@/pages/warehouse/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount, formatDateTime } from '@/utils/format';
 import { usePageSize } from '@/utils/pageSize';
+import { tableScrollX } from '@/utils/tableScroll';
 import { ACCEPT_PROOF, ProofLinks } from '../payables/components';
 import {
   type AdvanceItem,
@@ -290,7 +292,12 @@ const PendingTab: React.FC<{
     },
     { title: '单据', dataIndex: 'sourceNo', width: 170 },
     { title: '日期', dataIndex: 'occurDate', width: 110 },
-    { title: '说明', dataIndex: 'description' },
+    {
+      title: '说明',
+      width: 240,
+      render: ellipsisRender,
+      dataIndex: 'description',
+    },
     {
       title: '金额（CNY）',
       dataIndex: 'amount',
@@ -419,7 +426,7 @@ const PendingTab: React.FC<{
             onChange: (keys) => setSelected(keys as string[]),
           }}
           locale={{ emptyText: '没有待报销的垫付' }}
-          scroll={{ x: 900 }}
+          scroll={{ x: tableScrollX(columns) }}
         />
         <div
           style={{
@@ -863,7 +870,7 @@ const ListTab: React.FC<{ refreshSignal: number }> = ({ refreshSignal }) => {
                 }
               : undefined
           }
-          scroll={{ x: 1400 }}
+          scroll={{ x: tableScrollX(columns) }}
           pagination={{
             current: page,
             pageSize,
@@ -987,7 +994,12 @@ const ListTab: React.FC<{ refreshSignal: number }> = ({ refreshSignal }) => {
                   ),
                 },
                 { title: '单据', dataIndex: 'sourceNo', width: 160 },
-                { title: '说明', dataIndex: 'description' },
+                {
+                  title: '说明',
+                  width: 240,
+                  render: ellipsisRender,
+                  dataIndex: 'description',
+                },
                 {
                   title: '金额',
                   dataIndex: 'amount',

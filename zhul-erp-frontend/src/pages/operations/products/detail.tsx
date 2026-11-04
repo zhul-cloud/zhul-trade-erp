@@ -26,6 +26,7 @@ import {
 } from '@/pages/product/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import { MenuLink, MenuName } from '@/utils/menuName';
+import { tableScrollX } from '@/utils/tableScroll';
 
 type Tab = 'keywords' | MarketingPlatform | 'records';
 type LibraryKeyword = NonNullable<ProductContent['keywordLibrary']>[number];
@@ -54,6 +55,7 @@ const KeywordLibrary: React.FC<{ data: ProductContent }> = ({ data }) => {
     },
     {
       title: '关键词',
+      width: 240,
       dataIndex: 'keyword',
       render: (v: string, k) => (
         <span>
@@ -132,7 +134,7 @@ const KeywordLibrary: React.FC<{ data: ProductContent }> = ({ data }) => {
         columns={columns}
         dataSource={rows}
         pagination={rows.length > 50 ? { pageSize: 50 } : false}
-        scroll={{ x: 900 }}
+        scroll={{ x: tableScrollX(columns) }}
       />
       <div style={{ marginTop: 8, fontSize: 12, color: palette.mute }}>
         总库按公司、按型号一份，导入含关键词库的营销包时整份替换；选用平台只算本公司启用的平台。搜索量未实测，档位是语义建议。

@@ -29,10 +29,12 @@ import {
   Upload,
 } from 'antd';
 import React, { useEffect, useRef, useState } from 'react';
+import { ellipsisRender } from '@/components/EllipsisText';
 import { useAppTheme } from '@/theme/AppTheme';
 import { APPEARANCE_IMAGE_KEYS } from '@/utils/appearance';
 import { formatDateTime } from '@/utils/format';
 import { usePagination } from '@/utils/pageSize';
+import { tableScrollX } from '@/utils/tableScroll';
 import { CONFIG_KEY_MESSAGE, CONFIG_KEY_PATTERN } from './configKey';
 import { GROUP_OPTIONS, groupLabel } from './groupLabel';
 import type { ConfigGroupCount, ConfigItem, ConfigType } from './service';
@@ -315,7 +317,12 @@ const ConfigPage: React.FC = () => {
         </Tooltip>
       ),
     },
-    { title: '配置名称', dataIndex: 'configName', width: 150 },
+    {
+      title: '配置名称',
+      dataIndex: 'configName',
+      width: 150,
+      render: ellipsisRender,
+    },
     {
       title: '类型',
       dataIndex: 'configType',
@@ -350,7 +357,8 @@ const ConfigPage: React.FC = () => {
     {
       title: '创建人',
       dataIndex: 'createBy',
-      width: 90,
+      width: 150,
+      render: ellipsisRender,
     },
     {
       title: '更新时间',
@@ -361,10 +369,12 @@ const ConfigPage: React.FC = () => {
     {
       title: '更新人',
       dataIndex: 'updateBy',
-      width: 90,
+      width: 150,
+      render: ellipsisRender,
     },
     {
       title: '操作',
+      fixed: 'right',
       valueType: 'option',
       width: 120,
       render: (_, record) => (
@@ -455,6 +465,7 @@ const ConfigPage: React.FC = () => {
   return (
     <>
       <ProTable<ConfigItem>
+        scroll={{ x: tableScrollX(columns) }}
         headerTitle="配置列表"
         actionRef={actionRef}
         rowKey="id"

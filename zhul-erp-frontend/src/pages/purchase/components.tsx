@@ -8,6 +8,7 @@ import {
 import type { TableColumnsType } from 'antd';
 import { Button, Input, InputNumber, Segmented, Select, Space } from 'antd';
 import React, { useEffect, useRef, useState } from 'react';
+import EllipsisText, { ellipsisRender } from '@/components/EllipsisText';
 import {
   Card,
   MigratedPill,
@@ -470,10 +471,16 @@ export const SourceCell: React.FC<{
   if (supplierName) {
     return (
       <div>
-        <div style={{ color: palette.ink }}>
-          <ShopOutlined style={{ color: palette.link, marginRight: 6 }} />
-          {supplierName}
-        </div>
+        <EllipsisText
+          style={{ color: palette.ink }}
+          tip={supplierName}
+          text={
+            <>
+              <ShopOutlined style={{ color: palette.link, marginRight: 6 }} />
+              {supplierName}
+            </>
+          }
+        />
         <div style={{ fontSize: 12, color: palette.mute }}>老供应商</div>
       </div>
     );
@@ -481,11 +488,19 @@ export const SourceCell: React.FC<{
   if (shopName) {
     return (
       <div>
-        <div style={{ color: palette.ink }}>
-          <ShoppingOutlined style={{ color: palette.orange, marginRight: 6 }} />
-          {channelName ? `${channelName} · ` : ''}
-          {shopName}
-        </div>
+        <EllipsisText
+          style={{ color: palette.ink }}
+          tip={`${channelName ? `${channelName} · ` : ''}${shopName}`}
+          text={
+            <>
+              <ShoppingOutlined
+                style={{ color: palette.orange, marginRight: 6 }}
+              />
+              {channelName ? `${channelName} · ` : ''}
+              {shopName}
+            </>
+          }
+        />
         <div style={{ fontSize: 12, color: palette.mute }}>线上店铺</div>
       </div>
     );
@@ -503,7 +518,7 @@ export const SourceCell: React.FC<{
   );
 };
 
-/** 列表页统一规范：创建时间 → 创建人 → 更新时间 → 更新人 */
+/** 列表页统一规范：创建时间 → 创建人 → 更新时间 → 更新人；人名多为邮箱，单行省略、悬停看全（audit UI-041） */
 export const auditColumns = <
   T extends {
     createTime?: string;
@@ -518,12 +533,22 @@ export const auditColumns = <
     width: 170,
     render: (v?: string) => formatDateTime(v),
   },
-  { title: '创建人', dataIndex: 'createBy', width: 90 },
+  {
+    title: '创建人',
+    dataIndex: 'createBy',
+    width: 150,
+    render: ellipsisRender,
+  },
   {
     title: '更新时间',
     dataIndex: 'updateTime',
     width: 170,
     render: (v?: string) => formatDateTime(v),
   },
-  { title: '更新人', dataIndex: 'updateBy', width: 90 },
+  {
+    title: '更新人',
+    dataIndex: 'updateBy',
+    width: 150,
+    render: ellipsisRender,
+  },
 ];

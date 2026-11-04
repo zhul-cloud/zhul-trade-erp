@@ -20,6 +20,7 @@ import { readBizError } from '@/pages/sales/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
 import { usePageSize } from '@/utils/pageSize';
+import { tableScrollX } from '@/utils/tableScroll';
 import {
   DueTag,
   PayableBody,
@@ -38,7 +39,11 @@ import {
   SOURCE,
 } from './service';
 
-const num: React.CSSProperties = { fontVariantNumeric: 'tabular-nums' };
+// 金额不折行（audit UI-041）
+const num: React.CSSProperties = {
+  fontVariantNumeric: 'tabular-nums',
+  whiteSpace: 'nowrap',
+};
 
 interface Filters {
   keyword: string;
@@ -413,7 +418,7 @@ const PayableManagement: React.FC = () => {
           loading={loading}
           columns={columns}
           dataSource={rows}
-          scroll={{ x: 1900 }}
+          scroll={{ x: tableScrollX(columns) }}
           pagination={{
             current: page,
             pageSize,

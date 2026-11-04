@@ -7,6 +7,7 @@ import StatsRangeFilter, { presetRange } from '@/components/StatsRangeFilter';
 import { Card, PageTitle, Pill } from '@/pages/inquiry/shared/components';
 import { readBizError } from '@/pages/sales/service';
 import { useAppTheme } from '@/theme/AppTheme';
+import { tableScrollX } from '@/utils/tableScroll';
 import {
   type MonthRow,
   type PurchaserRow,
@@ -347,7 +348,7 @@ const SourcingStatsPage: React.FC = () => {
               columns={monthColumns}
               dataSource={data?.months ?? []}
               pagination={false}
-              scroll={{ x: 650 }}
+              scroll={{ x: tableScrollX(monthColumns) }}
               locale={{ emptyText: '期间内没有进入询价的询盘单' }}
               summary={() =>
                 total && total.total > 0 ? (
@@ -397,7 +398,7 @@ const SourcingStatsPage: React.FC = () => {
               columns={purchaserColumns}
               dataSource={data?.purchasers ?? []}
               pagination={false}
-              scroll={{ x: 620 }}
+              scroll={{ x: tableScrollX(purchaserColumns) }}
               locale={{ emptyText: '期间内没有分配出去的型号' }}
             />
             <div style={{ color: palette.mute, fontSize: 12, marginTop: 8 }}>

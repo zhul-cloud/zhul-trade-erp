@@ -28,6 +28,7 @@ import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount, formatDateTime } from '@/utils/format';
 import { MenuLink } from '@/utils/menuName';
+import { tableScrollX } from '@/utils/tableScroll';
 import {
   CreateAfterSalesModal,
   RefundRequestModal,
@@ -87,7 +88,11 @@ import {
 } from './parts';
 import { OrderOutbounds, ShipNoticeModal } from './shipNotice';
 
-const num: React.CSSProperties = { fontVariantNumeric: 'tabular-nums' };
+// 金额不折行（audit UI-041）
+const num: React.CSSProperties = {
+  fontVariantNumeric: 'tabular-nums',
+  whiteSpace: 'nowrap',
+};
 
 type Dialog =
   | 'progress'
@@ -1352,7 +1357,7 @@ const OrderDetail: React.FC = () => {
         columns={columns}
         dataSource={o.items}
         pagination={false}
-        scroll={{ x: 960 }}
+        scroll={{ x: tableScrollX(columns) }}
         rowSelection={
           o.trackable
             ? {
