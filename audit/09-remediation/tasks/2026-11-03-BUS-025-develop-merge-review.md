@@ -37,3 +37,4 @@
 | 2026-11-03 / Claude | 合入 `origin/develop`；复核 22 个提交；修 BUS-025，登记 BUS-026。后端全量 1296 个，0 失败，7 个环境跳过 | 随 SEC-011 的 PR 合并 |
 | 2026-11-03 / Claude | [zhul-cloud/zhul-trade-erp#137](https://github.com/zhul-cloud/zhul-trade-erp/pull/137) 合并到 `develop`（merge commit `df2355b7`），链式分支已删除；台账改为「已合并待发布」 | 随下一版发布后验收 |
 | 2026-11-04 / Claude | 随 v1.7.0 发布（[#143](https://github.com/zhul-cloud/zhul-trade-erp/pull/143)，merge commit `c5621e1b`），生产部署成功；台账改为「已发布待验收」 | 待线上业务验收 |
+| 2026-11-04 / Claude | BUS-025 在本机用生产备份的脱敏副本跑 `v1.7.1` 验收通过，证据见 [本机验收记录](2026-11-04-ACCEPT-local-v171.md)；不是生产环境验证 | 用户决定是否据此关闭 |

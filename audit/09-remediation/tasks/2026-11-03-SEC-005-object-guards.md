@@ -47,3 +47,4 @@
 | 2026-11-03 / Claude | 在 `fix/tenant-object-guards` 实施 SEC-005/006/007 并完成上表验证 | 拉下一个分支启用其余模块 |
 | 2026-11-03 / Claude | [zhul-cloud/zhul-trade-erp#137](https://github.com/zhul-cloud/zhul-trade-erp/pull/137) 合并到 `develop`（merge commit `df2355b7`），链式分支已删除；台账改为「已合并待发布」 | 随下一版发布后验收 |
 | 2026-11-04 / Claude | 随 v1.7.0 发布（[#143](https://github.com/zhul-cloud/zhul-trade-erp/pull/143)，merge commit `c5621e1b`），生产部署成功；台账改为「已发布待验收」 | 待线上业务验收 |
+| 2026-11-04 / Claude | SEC-005、006、007 在本机用生产备份的脱敏副本跑 `v1.7.1` 验收通过，证据见 [本机验收记录](2026-11-04-ACCEPT-local-v171.md)；不是生产环境验证 | 用户决定是否据此关闭 |

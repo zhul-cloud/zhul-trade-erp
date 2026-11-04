@@ -241,3 +241,4 @@
 | 2026-11-04 / Claude | 随 v1.7.0 发布（[#143](https://github.com/zhul-cloud/zhul-trade-erp/pull/143)，merge commit `c5621e1b`），生产部署成功；台账改为「已发布待验收」 | 待线上业务验收 |
 | 2026-11-04 / Claude | DOC-007 修复随 [#145](https://github.com/zhul-cloud/zhul-trade-erp/pull/145) 合并到 `develop`（`c6c0027e`），PR 上 CI 三项通过；只改测试，不需要发布，台账改为「已合并待发布」 | 等用户确认关闭 DOC-007 |
 | 2026-11-04 / Claude | 用户确认 DOC-007 关闭（验收人 Ezio）：跨秒（#142）、跨午夜（#145）均已修复并合并，只改测试，部署与环境验收为 N/A | — |
+| 2026-11-04 / Claude | BUS-002、SEC-002、003、009、010、011 在本机用生产备份的脱敏副本跑 `v1.7.1` 验收通过，证据见 [本机验收记录](2026-11-04-ACCEPT-local-v171.md)；不是生产环境验证 | 用户决定是否据此关闭 |

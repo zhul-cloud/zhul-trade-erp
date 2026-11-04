@@ -12,7 +12,7 @@
 | [BUS-002](../01-business/02-销售与财务.md) | 按订单读取退款绕过租户与订单数据范围 | P1 | 已发布待验收 | Claude | [2026-11-03-SEC-011](tasks/2026-11-03-SEC-011-tenant-isolation.md) | 2026-11-04 |
 | [BUS-003](../01-business/02-销售与财务.md) | PI 取消重转订单后已退款不占用新订单额度 | P1 | 已合并待发布 | Claude | [2026-11-04-BUS-003](tasks/2026-11-04-BUS-003-funds-batch-d.md) | 2026-11-04 |
 | [BUS-004](../01-business/02-销售与财务.md) | 已生成应付的采购订单换币后，应付保留旧币种 | P1 | 已合并待发布 | Claude | [2026-11-04-BUS-003](tasks/2026-11-04-BUS-003-funds-batch-d.md) | 2026-11-04 |
-| [BUS-005](../01-business/03-采购仓储与物流.md) | 订单重转只接回采购行，已发/入库记录仍属于旧订单行 | P1 | 待合并 | Claude | [2026-11-04-BUS-005](tasks/2026-11-04-BUS-005-fulfillment-batch-e.md) | 2026-11-04 |
+| [BUS-005](../01-business/03-采购仓储与物流.md) | 订单重转只接回采购行，已发/入库记录仍属于旧订单行 | P1 | 已合并待发布 | Claude | [2026-11-04-BUS-005](tasks/2026-11-04-BUS-005-fulfillment-batch-e.md) | 2026-11-04 |
 | [BUS-006](../01-business/03-采购仓储与物流.md) | 编辑发货通知把旧数量释放两次，允许超量出库 | P1 | 已合并待发布 | Claude | [2026-11-04-BUS-005](tasks/2026-11-04-BUS-005-fulfillment-batch-e.md) | 2026-11-04 |
 | [BUS-007](../01-business/03-采购仓储与物流.md) | 并发新建货代账单可重复纳入同一出运单并生成两笔应付 | P1 | 已合并待发布 | Claude | [2026-11-04-BUS-005](tasks/2026-11-04-BUS-005-fulfillment-batch-e.md) | 2026-11-04 |
 | [BUS-008](../01-business/02-销售与财务.md) | 作废部分结汇后恢复了旧已结汇额，分摊与到账余额不一致 | P1 | 已合并待发布 | Claude | [2026-11-04-BUS-003](tasks/2026-11-04-BUS-003-funds-batch-d.md) | 2026-11-04 |
@@ -34,7 +34,7 @@
 | [BUS-024](tasks/2026-11-03-UI-038-feedback-batch-bugs.md) | PI 导出的贸易术语地点与业务员显示中文 | P2 | 待验证 | Claude | [2026-11-03-UI-038](tasks/2026-11-03-UI-038-feedback-batch-bugs.md) | 2026-11-03 |
 | [BUS-025](tasks/2026-11-03-BUS-025-develop-merge-review.md) | 客户合并不加锁，反向并发合并会把两个客户都删掉 | P2 | 已发布待验收 | Claude | [2026-11-03-BUS-025](tasks/2026-11-03-BUS-025-develop-merge-review.md) | 2026-11-04 |
 | [BUS-026](tasks/2026-11-03-BUS-025-develop-merge-review.md) | 「先采购后收款」筛选把租户全部未收款 PI 的 ID 拼进 IN 列表 | P3 | 待认领 | — | [2026-11-03-BUS-025](tasks/2026-11-03-BUS-025-develop-merge-review.md) | 2026-11-03 |
-| [BUS-027](tasks/2026-11-04-BUS-005-fulfillment-batch-e.md) | 订单还有在仓库的出库单时仍可取消，重转后已发出的货会被重复算成可出库 | P2 | 待合并 | Claude | [2026-11-04-BUS-005](tasks/2026-11-04-BUS-005-fulfillment-batch-e.md) | 2026-11-04 |
+| [BUS-027](tasks/2026-11-04-BUS-005-fulfillment-batch-e.md) | 订单还有在仓库的出库单时仍可取消，重转后已发出的货会被重复算成可出库 | P2 | 已合并待发布 | Claude | [2026-11-04-BUS-005](tasks/2026-11-04-BUS-005-fulfillment-batch-e.md) | 2026-11-04 |
 
 ## 前端
 
@@ -107,6 +107,7 @@
 | [SEC-009](../01-business/05-全量业务代码审查.md) | 供应商单条对象入口缺少租户归属隔离 | P1 | 已发布待验收 | Claude | [2026-11-03-SEC-011](tasks/2026-11-03-SEC-011-tenant-isolation.md) | 2026-11-04 |
 | [SEC-010](../07-security/03-全量平台与商品代码审查.md) | 配置与字典按ID维护缺少目标归属校验 | P1 | 已发布待验收 | Claude | [2026-11-03-SEC-011](tasks/2026-11-03-SEC-011-tenant-isolation.md) | 2026-11-04 |
 | [SEC-011](../07-security/02-身份会话与对象权限.md) | 没有自动租户过滤，租户隔离全靠逐条手写条件 | P1 | 已发布待验收 | Claude | [2026-11-03-SEC-011](tasks/2026-11-03-SEC-011-tenant-isolation.md) | 2026-11-04 |
+| [SEC-012](../07-security/02-身份会话与对象权限.md) | 用户启停接口不校验状态值，可借它删除用户或写入非法状态 | P3 | 待合并 | Claude | [2026-11-04-ACCEPT](tasks/2026-11-04-ACCEPT-local-v171.md) | 2026-11-04 |
 
 ## 运行与迁移
 
