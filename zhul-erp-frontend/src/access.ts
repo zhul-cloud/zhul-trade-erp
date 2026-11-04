@@ -52,7 +52,15 @@ export default function access(initialState: {
     quotationPricing: can('/quotation/pricing'),
     'quotation:pricing:edit': can('quotation:pricing:edit'),
     // 销售管理
-    salesMenu: any('/sales/pi', '/sales/orders', '/sales/stats'),
+    salesMenu: any(
+      '/sales/followup',
+      '/sales/pi',
+      '/sales/orders',
+      '/sales/stats',
+    ),
+    salesFollowup: can('/sales/followup'),
+    'crm:followup:record': can('crm:followup:record'),
+    'crm:followup:team': can('crm:followup:team'),
     // 采购订单
     purchaseMenu: any(
       '/purchase/requirements',

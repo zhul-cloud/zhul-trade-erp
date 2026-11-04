@@ -118,6 +118,7 @@ public class QuotationServiceImpl implements QuotationService {
     private final LogService logService;
     private final DocumentNumberService documentNumberService;
     private final com.zhul.erp.modules.product.support.BrandResolver brandResolver;
+    private final com.zhul.erp.modules.crm.followup.support.FollowupHooks followupHooks;
 
     /** 带入时还在询价、按无货报的行，记在建议依据上（随版本复制） */
     private static final String PENDING_AS_NO_STOCK = "未回价，按无货报";
@@ -435,10 +436,12 @@ public class QuotationServiceImpl implements QuotationService {
             quotationMapper.updateById(q);
             insertSentVersion(q);
             statusSync.sync(inquiryIds);
+            followupHooks.quotationSent(q, false);
             logService.recordOperateLog(QuotationConstants.MENU, "标为已发送", Map.of("quotationNo", q.getQuotationNo(), "status", "草稿"),
                     Map.of("quotationNo", q.getQuotationNo(), "status", "已发送", "channel", QuotationConstants.CHANNEL_NAMES.get(channel)));
         } else if (q.getStatus() == QuotationConstants.STATUS_SENT && q.getEditingVersionNo() != null) {
             q = sendRevision(q, channel);
+            followupHooks.quotationSent(q, true);
         } else if (q.getStatus() != QuotationConstants.STATUS_SENT) {
             throw new BizException("报价单已" + QuotationConstants.STATUS_NAMES.get(q.getStatus()) + "，不能再标为已发送");
         }
@@ -746,6 +749,7 @@ public class QuotationServiceImpl implements QuotationService {
         }
         quotationMapper.updateById(q);
         statusSync.sync(inquiryIds);
+        followupHooks.customerChanged(q.getCustomerId());
         Map<String, Object> after = new LinkedHashMap<>();
         after.put("quotationNo", q.getQuotationNo());
         after.put("status", QuotationConstants.STATUS_NAMES.get(target));

@@ -40,7 +40,13 @@ export const FX_OPTIONS = [
 ];
 
 /** 来源：1-人工、2-背调报告、3-迁移、9-系统 */
-export const SOURCE = { MANUAL: 1, REPORT: 2, MIGRATED: 3, SYSTEM: 9 };
+export const SOURCE = {
+  MANUAL: 1,
+  REPORT: 2,
+  MIGRATED: 3,
+  FOLLOWUP: 4,
+  SYSTEM: 9,
+};
 
 export interface BrandRef {
   brandId?: number | null;
@@ -53,6 +59,8 @@ export interface FieldSource {
   /** 背调报告编号；reportDeleted 为报告已删除 */
   reportNo?: string;
   reportDeleted?: boolean;
+  /** 来源为跟进记录时的跟进记录 ID */
+  followupId?: number;
   operatorName?: string;
   updateTime?: string;
   askedAt?: string;

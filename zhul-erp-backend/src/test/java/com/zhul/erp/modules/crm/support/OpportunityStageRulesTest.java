@@ -66,10 +66,21 @@ class OpportunityStageRulesTest {
     }
 
     @Test
-    void won_onlyFromLastActiveStage() {
-        assertDoesNotThrow(() -> STAGES.checkClose("S7", "WON", null));
-        assertThat(message(() -> STAGES.checkClose("S5", "WON", null))).isEqualTo("请先推进到 S7 成交推进");
-        assertThat(message(() -> STAGES.checkClose("S7", "S3", null))).isEqualTo("只能标记为赢单、输单或无效");
+    void lost_acceptsSopBlockerReasons() {
+        // 新增的 SOP 卡点输单原因：技术、付款、信任、预算、内部审批、项目延期、无回复
+        for (int reason : new int[] {16, 17, 18, 20, 21, 22, 23}) {
+            assertDoesNotThrow(() -> STAGES.checkClose("S6", "LOST", reason));
+        }
+        assertThat(OpportunityStageRules.Stages.reasonLabel(23)).isEqualTo("无回复");
+        assertThat(OpportunityStageRules.Stages.reasonLabel(15)).isEqualTo("选择了竞争对手");
+    }
+
+    @Test
+    void won_neverManual_onlyByReceipt() {
+        // 取消手动赢单：任何阶段都拒绝，赢单只由收款到账自动触发（openspec customer-followup）
+        assertThat(message(() -> STAGES.checkClose("S7", "WON", null))).isEqualTo("收款到账后系统自动赢单");
+        assertThat(message(() -> STAGES.checkClose("S5", "WON", null))).isEqualTo("收款到账后系统自动赢单");
+        assertThat(message(() -> STAGES.checkClose("S7", "S3", null))).isEqualTo("只能标记为输单或无效");
         assertThat(message(() -> STAGES.checkClose("WON", "LOST", 11))).isEqualTo("商机已结束，请先重新打开");
     }
 

@@ -91,7 +91,8 @@ class CustomerServiceImplTest {
     void setUp() {
         service = new CustomerServiceImpl(customerMapper, new CustomerPartySync(partyMapper), dataScopeResolver,
                 countryCatalog, userBasicMapper, departmentMapper, logService, dictItemService, businessUnitService,
-                org.mockito.Mockito.mock(com.zhul.erp.modules.masterdata.customerprofile.support.PrimaryContactSync.class));
+                org.mockito.Mockito.mock(com.zhul.erp.modules.masterdata.customerprofile.support.PrimaryContactSync.class),
+                org.mockito.Mockito.mock(com.zhul.erp.modules.crm.followup.support.FollowupSync.class));
         TenantContext.setTenantId(1);
         when(dataScopeResolver.current()).thenReturn(new DataScope(DataScope.Type.SELF, SELF, Set.of(SELF)));
         when(countryCatalog.canonicalName(anyString())).thenAnswer(inv -> {

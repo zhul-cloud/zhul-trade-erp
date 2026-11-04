@@ -361,6 +361,13 @@ export default [
     routes: [
       { path: '/sales', redirect: '/sales/pi' },
       {
+        path: '/sales/followup',
+        name: 'followup',
+        icon: 'schedule',
+        access: 'salesFollowup',
+        component: './sales/followup',
+      },
+      {
         path: '/sales/pi',
         name: 'pi',
         icon: 'fileDone',
