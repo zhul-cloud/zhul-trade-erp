@@ -515,6 +515,32 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
 
     // ---------------------------------------------------------------- 保存
 
+    /**
+     * 数量校验按需求汇总：同一需求在本单可能有多行，各行的增减合并后不能超过需求可下单数量，
+     * 不能每行各自用同一份剩余量（audit BUS-016）。调用方已锁住这些需求。
+     */
+    private void requireWithinRequirements(List<PurchaseOrderItemDO> lines, Map<Long, SavePurchaseOrderRequest.Line> wanted,
+                                           Map<Long, PurchaseRequirementDO> reqs, Map<Long, RequirementQty.Qty> q) {
+        Map<Long, List<PurchaseOrderItemDO>> changedByReq = new LinkedHashMap<>();
+        for (PurchaseOrderItemDO i : lines) {
+            if (wanted.get(i.getId()).getQuantity() != i.getQuantity()) {
+                changedByReq.computeIfAbsent(i.getRequirementId(), k -> new ArrayList<>()).add(i);
+            }
+        }
+        for (Map.Entry<Long, List<PurchaseOrderItemDO>> e : changedByReq.entrySet()) {
+            PurchaseRequirementDO r = reqs.get(e.getKey());
+            int available = r == null || r.getStatus() != PurchaseConstants.REQ_ACTIVE ? 0
+                    : RequirementQty.available(r, q.getOrDefault(r.getId(), RequirementQty.Qty.ZERO));
+            int increase = e.getValue().stream().mapToInt(i -> wanted.get(i.getId()).getQuantity() - i.getQuantity()).sum();
+            if (increase <= available) {
+                continue;
+            }
+            PurchaseOrderItemDO first = e.getValue().get(0);
+            throw new BizException(e.getValue().size() == 1 ? first.getModel() + " 最多 " + (available + first.getQuantity()) + " 个"
+                    : first.getModel() + " 同一需求的几行合计最多还能增加 " + Math.max(available, 0) + " 个");
+        }
+    }
+
     @Override
     @Transactional(rollbackFor = Exception.class)
     public PurchaseOrderVO save(Long id, SavePurchaseOrderRequest req) {
@@ -575,19 +601,13 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
                 : requirementMapper.selectBatchIds(reqIds).stream().collect(Collectors.toMap(PurchaseRequirementDO::getId, r -> r));
         Map<Long, RequirementQty.Qty> q = qty.byRequirement(reqIds);
         Map<Long, Integer> shipped = receivingQty.shippedByPoItem(lines.stream().map(PurchaseOrderItemDO::getId).toList());
+        requireWithinRequirements(lines, wanted, reqs, q);
         List<Long> qtyChanged = new ArrayList<>();
         for (PurchaseOrderItemDO i : lines) {
             SavePurchaseOrderRequest.Line l = wanted.get(i.getId());
             int newQty = l.getQuantity();
             if (newQty != i.getQuantity()) {
                 qtyChanged.add(i.getRequirementId());
-                PurchaseRequirementDO r = reqs.get(i.getRequirementId());
-                int available = r == null || r.getStatus() != PurchaseConstants.REQ_ACTIVE ? 0
-                        : RequirementQty.available(r, q.getOrDefault(r.getId(), RequirementQty.Qty.ZERO));
-                int max = available + i.getQuantity();
-                if (newQty > max) {
-                    throw new BizException(i.getModel() + " 最多 " + max + " 个");
-                }
                 int sent = shipped.getOrDefault(i.getId(), 0);
                 if (newQty < sent) {
                     throw new BizException(i.getModel() + " 已发 " + sent + " 个，数量不能小于 " + sent);
