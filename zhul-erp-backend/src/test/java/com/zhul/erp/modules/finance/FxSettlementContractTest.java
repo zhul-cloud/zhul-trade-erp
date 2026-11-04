@@ -159,4 +159,21 @@ class FxSettlementContractTest extends SalesContractSupport {
         eq("680.00", receipt(later).get("net_amount_cny"));
         assertEquals(3, ((Number) receipt(later).get("rate_source")).intValue());
     }
+
+    /** audit BUS-008：部分结汇的到账在作废后，已结汇额必须回到有效分摊合计，不被数据库旧版本覆盖 */
+    @Test
+    void voidPartialSettlement_restoresSettledAmountToValidAllocations() throws Exception {
+        long a = unclaimed("100", 1, "Siam Automation");
+        JsonNode s = ok(settle("50", "350"));
+        eq("50", receipt(a).get("settled_amount"));
+        assertEquals(2, ((Number) receipt(a).get("settle_status")).intValue(), "部分结汇");
+
+        ok(call(json(post(FX + "/" + s.path("id").asLong() + "/void"), write(Map.of("reason", "金额填错"))), admin));
+        java.math.BigDecimal allocated = jdbc.queryForObject("select coalesce(sum(amount), 0) from fin_fx_settlement_allocation "
+                + "where receipt_id = ? and deleted_at is null", java.math.BigDecimal.class, a);
+        eq("0", allocated);
+        eq("0", receipt(a).get("settled_amount"));
+        assertEquals(1, ((Number) receipt(a).get("settle_status")).intValue(), "回到未结汇");
+        money("100.00", ok(call(get(FX + "/pending"), admin)).get(0).path("balance"));
+    }
 }
