@@ -25,11 +25,11 @@
 ## 4. 前端
 
 - [ ] 4.1 `FlowCards`、`StageBar` 开放主动开发。本地目测计数与接口一致
-- [ ] 4.2 `FollowupTable` board 1 列配置与操作；`NewProspectModal`（含查重）。对照原型 K18、K19 走查
-- [ ] 4.3 `DevelopCard` 作战卡、`ConvertOpportunityModal`、`StopDevelopModal`。对照 K18、K19 走查
+- [ ] 4.2 `FollowupTable` board 1 列配置与操作；`NewProspectModal`（含查重）。对照原型 K17、K18 走查
+- [ ] 4.3 `DevelopCard` 作战卡、`ConvertOpportunityModal`、`StopDevelopModal`。对照 K17、K18 走查
 - [ ] 4.4 `RecordFollowupModal` 主动开发版，「明确拒绝」保存后打开停止开发。Jest 覆盖必填校验
 - [ ] 4.5 客户详情跟进分区的「加入主动开发 / 重新开发 / 开发阶段」。本地目测
-- [ ] 4.6 `TeamView` 开发指标。对照 K17 走查
+- [ ] 4.6 `TeamView` 开发指标。对照 K16 走查
 - [ ] 4.7 `npm run lint`、`npx antd lint ./src`、`npm test` 全部通过
 
 ## 5. 验证与收尾
