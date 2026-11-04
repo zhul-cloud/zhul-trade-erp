@@ -65,7 +65,7 @@ public class OtherIncomeService {
 
     @Transactional(rollbackFor = Exception.class)
     public OtherIncomeVO update(Long id, SaveOtherIncomeRequest req) {
-        OtherIncomeDO x = require(id);
+        OtherIncomeDO x = lock(id);
         MigratedGuard.requireEditable(x.getMigrated());
         if (x.getStatus() == FinanceConstants.RECORD_VOID) {
             throw new BizException("已作废，不能修改");
@@ -90,7 +90,7 @@ public class OtherIncomeService {
         if (why.isEmpty()) {
             throw new BizException("请填写作废原因");
         }
-        OtherIncomeDO x = require(id);
+        OtherIncomeDO x = lock(id);
         MigratedGuard.requireEditable(x.getMigrated());
         if (x.getStatus() == FinanceConstants.RECORD_VOID) {
             throw new BizException("已作废");
@@ -183,6 +183,17 @@ public class OtherIncomeService {
         if (x.getSourceType() != null && !x.getSourceType().isEmpty()) {
             throw new BizException("汇兑损益由余额提现自动生成，请作废来源退款单");
         }
+    }
+
+    /** 修改与作废先锁行再判断状态：两个请求交错时，后到的读到最新状态，旧的编辑不会把已作废记录写回有效（audit BUS-012） */
+    private OtherIncomeDO lock(Long id) {
+        OtherIncomeDO x = id == null ? null : mapper.selectOne(new LambdaQueryWrapper<OtherIncomeDO>()
+                .eq(OtherIncomeDO::getId, id)
+                .last("FOR UPDATE"));
+        if (x == null || x.getDeletedAt() != null || !Objects.equals(x.getTenantId(), PiStore.tenantId())) {
+            throw new BizException("其他收入不存在");
+        }
+        return x;
     }
 
     private OtherIncomeDO require(Long id) {
