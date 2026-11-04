@@ -809,6 +809,10 @@ def _provider_error(e: Exception, key: str) -> str:
         return "连接服务商超时"
     if isinstance(e, (anthropic.APIConnectionError, openai.APIConnectionError)):
         return "无法连接服务商"
+    if isinstance(e, (anthropic.APIStatusError, openai.APIStatusError)) and e.status_code >= 500:
+        return f"服务商暂时不可用（HTTP {e.status_code}）"
+    if isinstance(e, (anthropic.RateLimitError, openai.RateLimitError)):
+        return "服务商限流，请稍后重试"
     return scrub(str(e), key)[:200]
 
 
@@ -841,7 +845,7 @@ def test_connection(raw) -> dict:
         cli = "codex" if cfg.provider == "openai" else "claude"
         name = "Codex 登录" if cli == "codex" else "Claude 登录"
         logged_in = login_status(QUICK_TIMEOUT_SECONDS, providers=(cli,))[cli]
-        message = {True: "已登录", False: "未登录，请在容器内执行登录命令"}.get(logged_in, "检查登录状态超时，请稍后重试")
+        message = {True: "已登录", False: "未登录，请在容器内执行登录命令"}.get(logged_in, "未能检查登录状态（超时或找不到 CLI），请稍后重试")
         return {"ok": bool(logged_in), "items": [{"name": name, "ok": bool(logged_in), "message": message}]}
     if not cfg.api_key:
         return {"ok": False, "items": [{"name": "API Key", "ok": False, "message": "未填写 API Key"}]}
