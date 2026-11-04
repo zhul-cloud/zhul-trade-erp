@@ -201,17 +201,23 @@ export const errorConfig: RequestConfig = {
           if (!isAuthEndpoint) {
             const newToken = await getRefreshedAccessToken();
             if (newToken) {
-              try {
-                return await axios({
-                  ...response.config,
-                  headers: {
-                    ...response.config?.headers,
-                    Authorization: `Bearer ${newToken}`,
-                  },
-                });
-              } catch {
-                // 重放请求失败，走下方统一的过期跳转
+              // 重放用裸 axios，不经过本拦截器：在这里做同样的业务码校验，业务失败按真实原因拒绝，
+              // 不能当成功返回；重放的 HTTP 错误按原错误抛出，不当成登录过期（audit UI-002）
+              const replayed = await axios({
+                ...response.config,
+                headers: {
+                  ...response.config?.headers,
+                  Authorization: `Bearer ${newToken}`,
+                },
+              });
+              const body = replayed.data as any;
+              if (!body || typeof body.code !== 'number' || body.code === 0) {
+                return replayed;
               }
+              if (body.code !== 401) {
+                throw buildBizError(body.code, body.message, body.data);
+              }
+              // 新令牌仍被拒：按登录过期处理
             }
           }
           // 正在跳登录页：请求不再返回（既不成功也不报错），页面不会闪出「加载失败」之类的提示
