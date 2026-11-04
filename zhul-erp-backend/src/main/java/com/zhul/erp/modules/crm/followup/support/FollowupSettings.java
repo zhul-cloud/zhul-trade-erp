@@ -85,6 +85,13 @@ public class FollowupSettings {
                 positive(v.get(FollowupConstants.CFG_STRATEGIC_REVIEW), d.reviewDays()));
     }
 
+    /** 主动开发触达序列：首次触达日为第 1 天，之后第几天提醒再跟（第四期 design D5） */
+    public static final List<Integer> DEFAULT_DEVELOP_SEQUENCE = List.of(1, 4, 9, 16);
+
+    public List<Integer> developSequence(int tenantId) {
+        return ascending(values(tenantId).get(FollowupConstants.CFG_DEVELOP_SEQUENCE), DEFAULT_DEVELOP_SEQUENCE);
+    }
+
     public OrderParams orderParams(int tenantId) {
         Map<String, String> v = values(tenantId);
         OrderParams d = OrderParams.defaults();

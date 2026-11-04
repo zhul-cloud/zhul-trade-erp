@@ -48,6 +48,11 @@ public class FollowupHooks {
         sync.event(q.getCustomerId(), FollowupConstants.TARGET_QUOTATION, q.getId(), title);
     }
 
+    /** 客户档案（潜力星级、联系人）、背调有变化：推导主动开发阶段（第四期 design D4） */
+    public void prospectChanged(Long customerId) {
+        sync.prospectChanged(customerId);
+    }
+
     /** 报价单、PI 的其他状态变化（未成交、作废、关闭、重新打开、收款作废等） */
     public void customerChanged(Long customerId) {
         sync.customerChanged(customerId);

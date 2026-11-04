@@ -483,7 +483,7 @@ public class OrderFollowupSync {
     public Map<String, Map<String, String>> defaultActions() {
         List<SopStageDO> rows = sopStageMapper.selectList(new LambdaQueryWrapper<SopStageDO>()
                 .in(SopStageDO::getBoard, FollowupConstants.BOARD_FULFIL, FollowupConstants.BOARD_AFTER_SALES,
-                        FollowupConstants.BOARD_ACCOUNT)
+                        FollowupConstants.BOARD_ACCOUNT, FollowupConstants.BOARD_DEVELOP)
                 .eq(SopStageDO::getStatus, 1));
         rows.sort(Comparator.comparing(SopStageDO::getTenantId));
         Map<String, Map<String, String>> out = new HashMap<>(16);

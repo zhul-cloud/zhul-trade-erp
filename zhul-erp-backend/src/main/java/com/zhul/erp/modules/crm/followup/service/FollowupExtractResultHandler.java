@@ -36,6 +36,8 @@ public class FollowupExtractResultHandler implements AiTaskResultHandler {
     private static final Set<String> SITUATIONS = Set.of("feedback", "negotiating", "no_reply");
     /** 客户经营：有新需求、聊了新品类、当前没有需求（第三期 design D10） */
     private static final Set<String> ACCOUNT_SITUATIONS = Set.of("new_need", "cross_sell", "no_need");
+    /** 主动开发：客户回复了、出现采购信号、明确拒绝（第四期 design D11），与客户经营的取值一样是单选 */
+    private static final Set<String> DEVELOP_SITUATIONS = Set.of("replied", "buying_signal", "refused");
     /** AI 可建议的评价状态：这次先不邀请、已邀请、已评价、婉拒、还没评 */
     private static final Set<Integer> REVIEW_STATUSES = Set.of(FollowupConstants.REVIEW_SKIP, FollowupConstants.REVIEW_INVITED,
             FollowupConstants.REVIEW_DONE, FollowupConstants.REVIEW_DECLINED, FollowupConstants.REVIEW_NOT_YET);
@@ -80,10 +82,10 @@ public class FollowupExtractResultHandler implements AiTaskResultHandler {
         for (JsonNode s : in.path("situation")) {
             replied |= "feedback".equals(s.asText()) || "negotiating".equals(s.asText());
         }
-        // 客户经营的三个取值（编排服务只在客户经营板块输出）是单选：有就只留第一个
+        // 客户经营、主动开发的取值（编排服务只在对应板块输出）是单选：有就只留第一个
         String account = null;
         for (JsonNode s : in.path("situation")) {
-            if (ACCOUNT_SITUATIONS.contains(s.asText())) {
+            if (ACCOUNT_SITUATIONS.contains(s.asText()) || DEVELOP_SITUATIONS.contains(s.asText())) {
                 account = s.asText();
                 break;
             }
@@ -96,6 +98,11 @@ public class FollowupExtractResultHandler implements AiTaskResultHandler {
             if (account == null && SITUATIONS.contains(v) && !(replied && "no_reply".equals(v))) {
                 situation.add(v);
             }
+        }
+        if ("buying_signal".equals(account)) {
+            String signal = in.path("signalText").asText("").trim();
+            out.put("signalText", signal.length() > FollowupConstants.PROSPECT_TEXT_MAX
+                    ? signal.substring(0, FollowupConstants.PROSPECT_TEXT_MAX) : signal);
         }
         String blocker = in.path("blocker").asText("");
         out.put("blocker", blockers.contains(blocker) ? blocker : "");

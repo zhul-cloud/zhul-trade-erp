@@ -792,6 +792,28 @@ class FollowupTest(unittest.TestCase):
         self.assertEqual(g4["situation"], ["new_need"], "客户经营单选，有新需求优先")
         self.assertEqual(s5["situation"], ["feedback"], "其他板块丢掉客户经营的取值")
 
+    def test_extract_develop_situation_only_on_board_1(self):
+        FakeClaude.reply = json.dumps({"summary": "x", "situation": ["feedback", "replied", "buying_signal"], "blocker": "",
+                                       "nextActions": [], "profileSuggestions": [], "signalText": "ABB ACS580 5 台，下月" + "长" * 300})
+        with mock.patch.object(self.server.anthropic, "Anthropic", FakeClaude):
+            d6 = self.server.call_followup_extract(self.cfg, {**FOLLOWUP_INPUT, "stage": {"code": "D6", "board": 1},
+                                                              "rawContent": "we need 5 pcs ACS580 next month"})
+            s5 = self.server.call_followup_extract(self.cfg, {**FOLLOWUP_INPUT, "rawContent": "we need 5 pcs ACS580 next month"})
+        self.assertEqual(d6["situation"], ["buying_signal"], "主动开发单选，采购信号优先")
+        self.assertTrue(d6["signalText"].startswith("ABB ACS580"))
+        self.assertEqual(len(d6["signalText"]), 200, "采购信号最多 200 字")
+        self.assertEqual(s5["situation"], ["feedback"], "其他板块丢掉主动开发的取值")
+        self.assertNotIn("signalText", s5)
+
+    def test_extract_develop_refused_has_no_signal_text(self):
+        FakeClaude.reply = json.dumps({"summary": "x", "situation": ["refused"], "blocker": "", "nextActions": [],
+                                       "profileSuggestions": [], "signalText": "should be dropped"})
+        with mock.patch.object(self.server.anthropic, "Anthropic", FakeClaude):
+            d5 = self.server.call_followup_extract(self.cfg, {**FOLLOWUP_INPUT, "stage": {"code": "D5", "board": 1},
+                                                              "rawContent": "please remove us from your list"})
+        self.assertEqual(d5["situation"], ["refused"])
+        self.assertNotIn("signalText", d5)
+
     def test_extract_stage_answers_drop_bad_date(self):
         FakeClaude.reply = json.dumps({"summary": "x", "situation": [], "blocker": "", "nextActions": [], "profileSuggestions": [],
                                        "receiptAnswer": 3, "etaDate": "next week"})

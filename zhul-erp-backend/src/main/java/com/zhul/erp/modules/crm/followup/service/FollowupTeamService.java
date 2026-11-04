@@ -59,8 +59,8 @@ public class FollowupTeamService {
     private static final Map<String, String> TYPE_NAMES = Map.of("OVERDUE", "逾期", "SNOOZED", "多次延后", "FULFIL", "履约异常",
             "ISSUE_LONG", "售后处理久", "DISSATISFIED", "不满意");
     /** 卡在哪一步统计的板块 */
-    private static final List<Integer> STAGE_BOARDS = List.of(FollowupConstants.BOARD_SALES, FollowupConstants.BOARD_FULFIL,
-            FollowupConstants.BOARD_AFTER_SALES);
+    private static final List<Integer> STAGE_BOARDS = List.of(FollowupConstants.BOARD_DEVELOP, FollowupConstants.BOARD_SALES,
+            FollowupConstants.BOARD_FULFIL, FollowupConstants.BOARD_AFTER_SALES);
 
     private final FollowupItemMapper itemMapper;
     private final FollowupTeamMapper teamMapper;
@@ -177,6 +177,19 @@ public class FollowupTeamService {
         r.setInvited(reviews.getOrDefault(FollowupConstants.REVIEW_INVITED, 0));
         r.setDeclined(reviews.getOrDefault(FollowupConstants.REVIEW_DECLINED, 0));
         accountResults(r, owners, range, LocalDate.now());
+        Map<String, Object> dev = teamMapper.develop(owners, from, to);
+        r.setDevelopNew(num(dev.get("created")));
+        r.setDevelopTouched(num(dev.get("touched")));
+        r.setDevelopReplied(num(dev.get("replied")));
+        r.setDevelopReplyPercent(replyPercent(r.getDevelopReplied(), r.getDevelopTouched()));
+        r.setDevelopConverted(num(dev.get("converted")));
+        r.setDevelopStopped(num(dev.get("stopped")));
+    }
+
+    /** 回复率：回复 ÷ 首次触达，HALF_UP 保留整数百分比；首次触达为 0 时为 null */
+    static Integer replyPercent(int replied, int touched) {
+        return touched == 0 ? null : BigDecimal.valueOf(replied * 100L)
+                .divide(BigDecimal.valueOf(touched), 0, RoundingMode.HALF_UP).intValue();
     }
 
     /** 客户经营指标（第三期 spec「团队视图的客户经营指标」）；还没跟的只算到今天为止已到期的 */
@@ -219,6 +232,11 @@ public class FollowupTeamService {
         r.getAccountInquiries().setPrev(0L);
         r.setDormant(0);
         r.setActivated(0);
+        r.setDevelopNew(0);
+        r.setDevelopTouched(0);
+        r.setDevelopReplied(0);
+        r.setDevelopConverted(0);
+        r.setDevelopStopped(0);
     }
 
     private static void money(FollowupTeamVO.Money m, Map<String, Object> row) {

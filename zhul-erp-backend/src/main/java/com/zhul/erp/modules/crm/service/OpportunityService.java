@@ -82,6 +82,14 @@ public interface OpportunityService {
      */
     Long autoWin(Long customerId, String piNo);
 
+    /**
+     * 从主动开发转商机（第四期 design D7）：为已有客户新建商机，不新建客户、不做登记查重；来源渠道「主动开发」，阶段 S1，
+     * 负责人为传入的 ownerId（须在数据范围内），不传为客户负责人（没有时为当前用户）。客户已有进行中的商机时抛 OPPORTUNITY_ALREADY_ACTIVE。
+     * 不单独开事务，在调用方事务内执行；跟进对象由调用方重新推导。返回新商机。
+     */
+    com.zhul.erp.modules.crm.entity.OpportunityDO createForCustomer(Long customerId, LocalDate firstContactDate,
+                                                                   String demandSummary, Long ownerId);
+
     /** 新建询盘时可关联的商机：这个客户进行中、数据权限内的商机，最近更新的在前，带附件 */
     List<OpportunityDetailVO> activeOfCustomer(Long customerId);
 

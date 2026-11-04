@@ -21,6 +21,8 @@ public class FollowupQuery {
     private Boolean dormant;
     /** 客户名称、客户编码或单据编号 */
     private String keyword;
+    /** 客户国家，精确匹配 */
+    private String country;
     private Integer page;
     private Integer pageSize;
 }

@@ -40,6 +40,10 @@ public class ExtractResultVO {
         private LocalDate etaDate;
         /** 客户经营的客户情况建议（单选）：1-有新需求、2-聊了新品类、3-当前没有需求、4-没回复；其他板块为空 */
         private Integer accountAnswer;
+        /** 主动开发的触达结果建议：2-客户回复了、3-出现采购信号、5-明确拒绝；其他板块为空 */
+        private Integer touchAnswer;
+        /** 出现采购信号时的型号、数量、时间 */
+        private String signalText;
         /** 原文超过 20,000 字已截断 */
         private Boolean truncated;
     }

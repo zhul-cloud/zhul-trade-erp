@@ -44,12 +44,17 @@ public final class FollowupConstants {
     public static final int GROUP_REPEAT = 12;
     public static final int GROUP_CROSS = 13;
     public static final int GROUP_LONG_TERM = 14;
+    /** 主动开发：找客户（D1–D2）、找人触达（D3–D5）、挖需求（D6–D7） */
+    public static final int GROUP_FIND = 15;
+    public static final int GROUP_REACH = 16;
+    public static final int GROUP_DISCOVER = 17;
     public static final Map<Integer, String> GROUP_NAMES = Map.ofEntries(
             Map.entry(GROUP_BEFORE_QUOTE, "报价前"), Map.entry(GROUP_AFTER_QUOTE, "报价后"), Map.entry(GROUP_AFTER_PI, "PI 后"),
             Map.entry(GROUP_PURCHASING, "采购中"), Map.entry(GROUP_SHIPPING, "验收发货"), Map.entry(GROUP_IN_TRANSIT, "在途"),
             Map.entry(GROUP_SIGN, "签收"), Map.entry(GROUP_USE, "使用"), Map.entry(GROUP_ISSUE, "问题"),
             Map.entry(GROUP_REVIEW, "满意评价"), Map.entry(GROUP_NEED, "需求挖掘"), Map.entry(GROUP_REPEAT, "复购机会"),
-            Map.entry(GROUP_CROSS, "交叉销售"), Map.entry(GROUP_LONG_TERM, "长期合作"));
+            Map.entry(GROUP_CROSS, "交叉销售"), Map.entry(GROUP_LONG_TERM, "长期合作"), Map.entry(GROUP_FIND, "找客户"),
+            Map.entry(GROUP_REACH, "找人触达"), Map.entry(GROUP_DISCOVER, "挖需求"));
 
     /** 下一步来源 */
     public static final int NEXT_SYSTEM = 1;
@@ -67,6 +72,10 @@ public final class FollowupConstants {
     public static final int CLOSE_DOC_GONE = 4;
     public static final int CLOSE_AFTER_SALES = 5;
     public static final int CLOSE_NOT_CUSTOMER = 6;
+    /** 主动开发：转商机、停止开发、已进入商机成交（客户自己有了询盘、报价、PI、商机或订单） */
+    public static final int CLOSE_CONVERTED = 7;
+    public static final int CLOSE_STOPPED = 8;
+    public static final int CLOSE_ENTERED_SALES = 9;
 
     /** 记录类型 */
     public static final int RECORD_USER = 1;
@@ -80,9 +89,13 @@ public final class FollowupConstants {
     public static final int SITUATION_NEW_NEED = 8;
     public static final int SITUATION_CROSS = 16;
     public static final int SITUATION_NO_NEED = 32;
+    /** 主动开发（第四期）：客户回复了、出现采购信号、明确拒绝 */
+    public static final int SITUATION_REPLIED = 64;
+    public static final int SITUATION_SIGNAL = 128;
+    public static final int SITUATION_REFUSED = 256;
 
     /** 方式 */
-    public static final Map<Integer, String> CHANNEL_NAMES = Map.of(1, "WhatsApp", 2, "邮件", 3, "电话", 4, "其他");
+    public static final Map<Integer, String> CHANNEL_NAMES = Map.of(1, "WhatsApp", 2, "邮件", 3, "电话", 4, "其他", 5, "LinkedIn");
 
     /** 商机成交板块的阶段编码 */
     public static final String S1 = "S1";
@@ -102,6 +115,31 @@ public final class FollowupConstants {
     public static final String G7 = "G7";
     public static final Map<String, Integer> ACCOUNT_GROUPS = Map.of(G4, GROUP_NEED, G5, GROUP_REPEAT, G6, GROUP_CROSS,
             G7, GROUP_LONG_TERM);
+
+    /** 主动开发的阶段编码与分组 */
+    public static final List<String> DEVELOP_STAGES = List.of("D1", "D2", "D3", "D4", "D5", "D6", "D7");
+    public static final Map<String, Integer> DEVELOP_GROUPS = Map.of("D1", GROUP_FIND, "D2", GROUP_FIND, "D3", GROUP_REACH,
+            "D4", GROUP_REACH, "D5", GROUP_REACH, "D6", GROUP_DISCOVER, "D7", GROUP_DISCOVER);
+    /** 主动开发记跟进的触达结果（单选） */
+    public static final int TOUCH_SENT = 1;
+    public static final int TOUCH_REPLIED = 2;
+    public static final int TOUCH_SIGNAL = 3;
+    public static final int TOUCH_NO_REPLY = 4;
+    public static final int TOUCH_REFUSED = 5;
+    public static final Map<Integer, String> TOUCH_NAMES = Map.of(TOUCH_SENT, "已发出触达", TOUCH_REPLIED, "客户回复了",
+            TOUCH_SIGNAL, "出现采购信号", TOUCH_NO_REPLY, "没回复", TOUCH_REFUSED, "明确拒绝");
+    /** 开发对象从哪里找到的 */
+    public static final Map<Integer, String> PROSPECT_SOURCES = Map.of(1, "Google", 2, "LinkedIn", 3, "展会名录",
+            4, "海关数据", 5, "老客户介绍", 6, "其他");
+    /** 停止开发的原因 */
+    public static final String STOP_REFUSED = "REFUSED";
+    public static final String STOP_OTHER = "OTHER";
+    public static final Map<String, String> STOP_REASONS = Map.of(STOP_REFUSED, "明确拒绝", "MISMATCH", "明显不匹配",
+            "UNREACHABLE", "联系不上", "NO_REPLY", "序列发完仍没回复", STOP_OTHER, "其他");
+    /** 为什么值得开发、采购信号、停止说明的长度上限 */
+    public static final int PROSPECT_TEXT_MAX = 200;
+    /** 客户来源渠道「主动开发」（customer.source_channel） */
+    public static final int SOURCE_CHANNEL_DEVELOP = 7;
 
     /** 客户经营记跟进的客户情况（单选） */
     public static final int ACCOUNT_NEW_NEED = 1;
@@ -199,6 +237,7 @@ public final class FollowupConstants {
     public static final String CFG_DORMANT_QUIET = "sales.followup.account.dormant-quiet-days";
     public static final String CFG_DORMANT_INTERVAL = "sales.followup.account.dormant-interval-days";
     public static final String CFG_STRATEGIC_REVIEW = "sales.followup.account.review-days";
+    public static final String CFG_DEVELOP_SEQUENCE = "sales.followup.develop.sequence-days";
 
     /** 多次延后：连续延后达到这个次数，主管查看团队时标出 */
     public static final int SNOOZE_WARN_TIMES = 3;
@@ -226,7 +265,9 @@ public final class FollowupConstants {
     public static final String INTENT_REVIEW = "review_invite";
     /** 客户经营的触达消息（第三期 design D10） */
     public static final String INTENT_ACCOUNT = "account_touch";
-    public static final Set<String> REPLY_INTENTS = Set.of(INTENT_LOGISTICS, INTENT_REVIEW, INTENT_ACCOUNT);
+    /** 主动开发的开发信（第四期 design D11） */
+    public static final String INTENT_COLD = "cold_outreach";
+    public static final Set<String> REPLY_INTENTS = Set.of(INTENT_LOGISTICS, INTENT_REVIEW, INTENT_ACCOUNT, INTENT_COLD);
     /** 英文回复同步等待的上限 */
     public static final int REPLY_TIMEOUT_SECONDS = 30;
     public static final String ERROR_AI_NOT_CONFIGURED = "AI_NOT_CONFIGURED";

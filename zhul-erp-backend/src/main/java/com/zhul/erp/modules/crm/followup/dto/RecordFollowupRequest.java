@@ -58,6 +58,10 @@ public class RecordFollowupRequest {
     @Size(max = 16, message = "原因不正确")
     private String noNeedReason;
     private Boolean quarterReview;
+    /** 主动开发（第四期 design D6）：1-已发出触达、2-客户回复了、3-出现采购信号、4-没回复、5-明确拒绝 */
+    private Integer touchResult;
+    @Size(max = 200, message = "型号和数量不能超过200个字")
+    private String signalText;
     /** 前端每次打开弹窗生成一个，防重复提交 */
     @NotBlank(message = "缺少幂等键，请刷新后重试")
     @Size(max = 64, message = "幂等键过长")

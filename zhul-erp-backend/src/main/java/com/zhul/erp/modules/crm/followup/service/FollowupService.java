@@ -40,6 +40,11 @@ import com.zhul.erp.modules.crm.followup.repository.SopBlockerMapper;
 import com.zhul.erp.modules.crm.followup.repository.SopStageMapper;
 import com.zhul.erp.modules.crm.followup.support.AccountStageRecorder;
 import com.zhul.erp.modules.crm.followup.support.Cadence;
+import com.zhul.erp.modules.crm.followup.support.DevelopStageRecorder;
+import com.zhul.erp.modules.crm.followup.support.DevelopCadence;
+import com.zhul.erp.modules.crm.followup.support.DevelopStageDeriver;
+import com.zhul.erp.modules.masterdata.customerbackground.entity.CustomerBackgroundReportDO;
+import com.zhul.erp.modules.masterdata.customerbackground.repository.CustomerBackgroundReportMapper;
 import com.zhul.erp.modules.crm.followup.support.FollowupSettings;
 import com.zhul.erp.modules.crm.followup.support.FollowupSync;
 import com.zhul.erp.modules.crm.followup.support.FulfilDeriver;
@@ -125,6 +130,7 @@ public class FollowupService {
     private final PermissionChecker perm;
     private final CurrentUserResolver currentUser;
     private final ObjectMapper objectMapper;
+    private final CustomerBackgroundReportMapper reportMapper;
 
     // ---------------------------------------------------------------- 链路卡片
 
@@ -154,14 +160,15 @@ public class FollowupService {
             card.setBoard(board);
             card.setStep(board);
             card.setName(FollowupConstants.BOARD_NAMES.get(board - 1));
-            card.setAvailable(board == FollowupConstants.BOARD_SALES || board == FollowupConstants.BOARD_FULFIL
-                    || board == FollowupConstants.BOARD_AFTER_SALES || board == FollowupConstants.BOARD_ACCOUNT);
+            card.setAvailable(board >= FollowupConstants.BOARD_DEVELOP && board <= FollowupConstants.BOARD_ACCOUNT);
             List<FollowupItemDO> in = active.stream().filter(r -> r.getBoard() == board).toList();
             card.setCustomers((int) in.stream().map(FollowupItemDO::getCustomerId).distinct().count());
             card.setTotal(in.size());
             card.setOverdue((int) in.stream().filter(r -> due(r) && r.getNextActionDate().isBefore(today)).count());
             card.setNurture((int) rows.stream().filter(r -> r.getBoard() == board && r.getNurtureUntil() != null).count());
-            if (board == FollowupConstants.BOARD_SALES) {
+            if (board == FollowupConstants.BOARD_DEVELOP) {
+                card.setGroups(groups(in, DEVELOP_GROUPS, c -> orderStages.getOrDefault(c, c)));
+            } else if (board == FollowupConstants.BOARD_SALES) {
                 card.setGroups(groups(in, SALES_GROUPS, stages::nameOf));
             } else if (board == FollowupConstants.BOARD_FULFIL) {
                 card.setGroups(groups(in, FULFIL_GROUPS, c -> orderStages.getOrDefault(c, c)));
@@ -177,6 +184,10 @@ public class FollowupService {
         return vo;
     }
 
+    /** 主动开发：找客户（D1–D2）、找人触达（D3–D5）、挖需求（D6–D7） */
+    private static final Map<Integer, List<String>> DEVELOP_GROUPS = orderedGroups(
+            FollowupConstants.GROUP_FIND, List.of("D1", "D2"), FollowupConstants.GROUP_REACH, List.of("D3", "D4", "D5"),
+            FollowupConstants.GROUP_DISCOVER, List.of("D6", "D7"));
     private static final Map<Integer, List<String>> SALES_GROUPS = orderedGroups(
             FollowupConstants.GROUP_BEFORE_QUOTE, List.of("S1", "S2", "S3"),
             FollowupConstants.GROUP_AFTER_QUOTE, List.of(FollowupConstants.S4, FollowupConstants.S5, FollowupConstants.S6),
@@ -250,6 +261,7 @@ public class FollowupService {
         f.setBlocker(StringUtils.hasText(q.getBlocker()) ? q.getBlocker() : null);
         f.setExceptionOnly(Boolean.TRUE.equals(q.getException()) && f.getBoard() == FollowupConstants.BOARD_FULFIL);
         f.setDormantOnly(Boolean.TRUE.equals(q.getDormant()) && f.getBoard() == FollowupConstants.BOARD_ACCOUNT);
+        f.setCountry(StringUtils.hasText(q.getCountry()) ? q.getCountry().trim() : null);
         // LIKE 的通配符按普通字符查
         f.setKeyword(StringUtils.hasText(q.getKeyword())
                 ? q.getKeyword().trim().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") : null);
@@ -265,7 +277,8 @@ public class FollowupService {
         }
         f.setOffset((page - 1) * size);
         f.setSize(size);
-        vo.setRecords(toVos(byRank(itemMapper.rankedIds(f)), today, owners == null || owners.size() > 1));
+        List<Long> ids = f.getBoard() == FollowupConstants.BOARD_DEVELOP ? itemMapper.rankedDevelopIds(f) : itemMapper.rankedIds(f);
+        vo.setRecords(toVos(byRank(ids), today, owners == null || owners.size() > 1));
         return vo;
     }
 
@@ -469,6 +482,11 @@ public class FollowupService {
         if (account) {
             situation = AccountStageRecorder.situation(req);
         }
+        boolean develop = DevelopStageRecorder.handles(item);
+        DevelopStageRecorder.validate(req, item, channel);
+        if (develop) {
+            situation = DevelopStageRecorder.situation(req);
+        }
         Long me = currentUser.resolve();
 
         // 1. 跟进记录
@@ -498,6 +516,7 @@ public class FollowupService {
         r.setIdempotencyKey(req.getIdempotencyKey().trim());
         OrderStageRecorder.fill(r, req);
         AccountStageRecorder.fill(r, req);
+        DevelopStageRecorder.fill(r, req);
         r.setDueDate(item == null ? null : item.getNextActionDate());
         try {
             recordMapper.insert(r);
@@ -542,6 +561,9 @@ public class FollowupService {
                     item.setNoReplyStreak(0);
                 }
             }
+            if (develop) {
+                DevelopStageRecorder.applyToItem(item, req, today);
+            }
             // 3. 阶段：报价后勾「给了反馈」→ S5，「在谈条件」→ S6，只进不退
             String target = (situation & FollowupConstants.SITUATION_NEGOTIATING) != 0 ? FollowupConstants.S6
                     : (situation & FollowupConstants.SITUATION_FEEDBACK) != 0 ? FollowupConstants.S5 : null;
@@ -564,6 +586,12 @@ public class FollowupService {
                             .set(CustomerDO::getLastReviewDate, today)
                             .set(CustomerDO::getUpdateTime, LocalDateTime.now()));
                 }
+                sync.resync(customer.getId(), today, false);
+                FollowupItemDO fresh = itemMapper.selectById(item.getId());
+                after = fresh == null ? before : fresh.getStageCode();
+            }
+            if (develop) {
+                // 主动开发：阶段按触达次数、回复、采购信号重新推导（只进不退）
                 sync.resync(customer.getId(), today, false);
                 FollowupItemDO fresh = itemMapper.selectById(item.getId());
                 after = fresh == null ? before : fresh.getStageCode();
@@ -927,6 +955,10 @@ public class FollowupService {
         int[] followDays = anyAccount ? gradeSettings.params(TenantContext.getTenantId()).followDays() : null;
         Map<Long, LocalDate> contacts = anyAccount ? lastContacts(rows.stream().filter(AccountStageRecorder::handles)
                 .map(FollowupItemDO::getCustomerId).collect(Collectors.toSet())) : Map.of();
+        boolean anyDevelop = rows.stream().anyMatch(DevelopStageRecorder::handles);
+        List<Integer> sequence = anyDevelop ? settings.developSequence(TenantContext.getTenantId()) : List.of();
+        Map<Long, Integer> priorities = anyDevelop ? reportPriorities(rows.stream().filter(DevelopStageRecorder::handles)
+                .map(FollowupItemDO::getCustomerId).collect(Collectors.toSet())) : Map.of();
         List<FollowupItemVO> out = new ArrayList<>(rows.size());
         for (FollowupItemDO i : rows) {
             FollowupItemVO vo = new FollowupItemVO();
@@ -944,7 +976,8 @@ public class FollowupService {
                 vo.setPotentialRating(nz(c.getPotentialRating()));
             }
             vo.setStageCode(i.getStageCode());
-            vo.setStageName(OrderStageRecorder.handles(i) || AccountStageRecorder.handles(i) ? orderStages.getOrDefault(i.getStageCode(), i.getStageCode())
+            vo.setStageName(OrderStageRecorder.handles(i) || AccountStageRecorder.handles(i) || DevelopStageRecorder.handles(i)
+                    ? orderStages.getOrDefault(i.getStageCode(), i.getStageCode())
                     : stages.nameOf(i.getStageCode()));
             vo.setStageGroup(i.getStageGroup());
             vo.setCurrencyCode(i.getCurrencyCode());
@@ -997,6 +1030,14 @@ public class FollowupService {
             }
             if (AccountStageRecorder.handles(i)) {
                 fillAccount(vo, i, c, today, followDays, contacts);
+            }
+            if (DevelopStageRecorder.handles(i)) {
+                fillDevelop(vo, i, today, sequence, priorities);
+                if (c != null) {
+                    vo.setContactName(c.getContactName());
+                    vo.setContactTitle(c.getContactTitle());
+                    vo.setContactEmail(c.getContactEmail());
+                }
             }
             out.add(vo);
         }
@@ -1058,6 +1099,43 @@ public class FollowupService {
         vo.setContactOverdue(days != null && last != null && ChronoUnit.DAYS.between(last, today) > days);
     }
 
+    /** 主动开发行的列（第四期 design D9）：为什么开发、触达次数、序列第几天、采购信号、背调优先级 */
+    private static void fillDevelop(FollowupItemVO vo, FollowupItemDO i, LocalDate today, List<Integer> sequence,
+                                    Map<Long, Integer> priorities) {
+        vo.setProspectReason(i.getProspectReason());
+        vo.setProspectSourceName(FollowupConstants.PROSPECT_SOURCES.getOrDefault(nz(i.getProspectSource()), ""));
+        vo.setTouchCount(nz(i.getTouchCount()));
+        vo.setFirstTouchDate(i.getFirstTouchDate());
+        vo.setSignalText(i.getSignalText());
+        vo.setReportPriority(priorities.get(i.getCustomerId()));
+        vo.setSequenceDay(0);
+        if ("D5".equals(i.getStageCode()) && i.getFirstTouchDate() != null) {
+            DevelopCadence.Reminder r = DevelopCadence.of(
+                    new DevelopCadence.Input("D5", false, null, i.getFirstTouchDate(), sequence, null), today);
+            vo.setSequenceDay(r.day());
+            vo.setSuggestNurture(i.getNurtureUntil() == null && r.suggestNurture());
+        } else {
+            vo.setSuggestNurture(false);
+        }
+    }
+
+    /** 每个客户最近一份已完成背调的跟进优先级（1-立即重点跟进 … 4-不建议跟进） */
+    private Map<Long, Integer> reportPriorities(Set<Long> customerIds) {
+        if (customerIds.isEmpty()) {
+            return Map.of();
+        }
+        Map<Long, Integer> out = new HashMap<>(customerIds.size() * 2);
+        reportMapper.selectList(new LambdaQueryWrapper<CustomerBackgroundReportDO>()
+                        .select(CustomerBackgroundReportDO::getCustomerId, CustomerBackgroundReportDO::getPriority)
+                        .in(CustomerBackgroundReportDO::getCustomerId, customerIds)
+                        .eq(CustomerBackgroundReportDO::getStatus, DevelopStageDeriver.REPORT_DONE)
+                        .between(CustomerBackgroundReportDO::getPriority, 1, 4)
+                        .isNull(CustomerBackgroundReportDO::getDeletedAt)
+                        .orderByDesc(CustomerBackgroundReportDO::getId))
+                .forEach(r -> out.putIfAbsent(r.getCustomerId(), r.getPriority()));
+        return out;
+    }
+
     /** 每个客户最近一条跟进记录的日期（任意板块，含系统记录） */
     private Map<Long, LocalDate> lastContacts(Set<Long> customerIds) {
         if (customerIds.isEmpty()) {
@@ -1081,8 +1159,8 @@ public class FollowupService {
     private Map<String, String> orderStageNames() {
         Map<String, String> out = new HashMap<>(16);
         sopStageMapper.selectList(new LambdaQueryWrapper<SopStageDO>()
-                        .in(SopStageDO::getBoard, FollowupConstants.BOARD_FULFIL, FollowupConstants.BOARD_AFTER_SALES,
-                                FollowupConstants.BOARD_ACCOUNT)
+                        .in(SopStageDO::getBoard, FollowupConstants.BOARD_DEVELOP, FollowupConstants.BOARD_FULFIL,
+                                FollowupConstants.BOARD_AFTER_SALES, FollowupConstants.BOARD_ACCOUNT)
                         .eq(SopStageDO::getStatus, 1)).stream()
                 .sorted(Comparator.comparing(SopStageDO::getTenantId))
                 .forEach(st -> out.put(st.getStageCode(), st.getName()));

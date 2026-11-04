@@ -150,6 +150,52 @@ public class OpportunityServiceImpl implements OpportunityService {
     }
 
     @Override
+    public OpportunityDO createForCustomer(Long customerId, LocalDate firstContactDate, String demandSummary, Long ownerId) {
+        int tenantId = currentTenantId();
+        CustomerDO c = customerMapper.selectById(customerId);
+        if (c == null || c.getDeletedAt() != null) {
+            throw new BizException("客户不存在或已删除");
+        }
+        OpportunityDO active = opportunityMapper.selectOne(new LambdaQueryWrapper<OpportunityDO>()
+                .eq(OpportunityDO::getCustomerId, customerId)
+                .isNull(OpportunityDO::getClosedAt)
+                .isNull(OpportunityDO::getDeletedAt)
+                .last("LIMIT 1"));
+        if (active != null) {
+            java.util.Map<String, Object> detail = new java.util.LinkedHashMap<>();
+            detail.put("opportunityId", active.getId());
+            detail.put("opportunityCode", active.getOpportunityCode());
+            throw BizException.of(OpportunityConstants.ERROR_ALREADY_ACTIVE,
+                    "这个客户已有进行中的商机 " + active.getOpportunityCode() + "，请打开已有商机", detail);
+        }
+        OpportunityStageRules.Stages stages = stageRules.load();
+        DataScope scope = dataScopeResolver.current();
+        OpportunityDO o = new OpportunityDO();
+        o.setTenantId(tenantId);
+        o.setOpportunityCode(nextCode(tenantId));
+        o.setCustomerId(customerId);
+        o.setBusinessUnitId(businessUnitService.unitOfCustomer(customerId));
+        o.setSourceChannel(OpportunityConstants.SOURCE_DEVELOP);
+        o.setAliLevel("");
+        o.setFirstContactDate(firstContactDate == null ? LocalDate.now() : firstContactDate);
+        if (ownerId != null && ownerId > 0 && !scope.canSee(ownerId)) {
+            throw new BizException("负责人不在你的数据范围内");
+        }
+        o.setOwnerId(ownerId != null && ownerId > 0 ? ownerId : c.getOwnerId() != null && c.getOwnerId() > 0 ? c.getOwnerId()
+                : scope.selfId() != null ? scope.selfId() : 0L);
+        o.setStageCode(stages.first());
+        o.setStageChangedAt(LocalDateTime.now());
+        o.setReopenStageCode("");
+        o.setCloseReason(0);
+        o.setCloseNote("");
+        o.setReachedValid(stages.countsAsValid(stages.first()) ? 1 : 0);
+        o.setDemandSummary(text(demandSummary));
+        opportunityMapper.insert(o);
+        log(o, "", o.getStageCode(), OpportunityConstants.ACTION_REGISTER, 0, "登记商机（来自主动开发）");
+        return o;
+    }
+
+    @Override
     @Transactional(rollbackFor = Exception.class)
     public void update(Long id, UpdateOpportunityRequest req) {
         OpportunityDO o = getInScope(id);
