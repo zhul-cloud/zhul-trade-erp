@@ -1,5 +1,6 @@
 package com.zhul.erp.modules.aitask.service.impl;
 
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhul.erp.common.exception.BizException;
 import com.zhul.erp.framework.tenant.TenantContext;
@@ -22,10 +23,14 @@ import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Slf4j
 @Service
 public class AiTaskServiceImpl implements AiTaskService {
+
+    private static final List<Integer> OPEN = AiTaskStatus.OPEN;
+    private static final List<Integer> QUEUED_ONLY = List.of(AiTaskStatus.QUEUED);
 
     private final AiTaskMapper aiTaskMapper;
     private final AiOrchestratorClient orchestratorClient;
@@ -110,13 +115,16 @@ public class AiTaskServiceImpl implements AiTaskService {
                 .thenAccept(result -> TenantContext.runAs(task.getTenantId(), () -> {
                     LocalDateTime now = LocalDateTime.now();
                     if (result.isAccepted()) {
-                        markStatus(task.getId(), AiTaskStatus.PROCESSING, null, null, now, null);
+                        // 只从排队中推进：回调可能已先落库，晚到的受理结果不能把结束的任务改回处理中（audit AI-001）
+                        markStatus(task.getId(), AiTaskStatus.PROCESSING, null, null, now, null, QUEUED_ONLY);
                     } else {
                         // 提交阶段就失败（如连不上AI编排服务）——这不是走 webhook 回调的路径，
                         // 之前这里只更新了 ai_task 自身状态，没有像 handleCallback() 一样调用
                         // resultDispatcher，导致发起方（如 customer_inquiry）永远收不到失败通知、
                         // 一直卡在"解析中"。这里补上同样的分发，让提交失败和回调失败走统一路径。
-                        markStatus(task.getId(), AiTaskStatus.FAILED, null, result.getErrorMessage(), null, now);
+                        if (!markStatus(task.getId(), AiTaskStatus.FAILED, null, result.getErrorMessage(), null, now, OPEN)) {
+                            return;
+                        }
                         AiTaskDO failed = new AiTaskDO();
                         failed.setId(task.getId());
                         failed.setSkillId(task.getSkillId());
@@ -142,18 +150,26 @@ public class AiTaskServiceImpl implements AiTaskService {
     private void applyCallback(AiTaskDO task, AiTaskCallbackRequest req) {
         Long taskId = task.getId();
         LocalDateTime now = LocalDateTime.now();
+        Integer before = task.getStatus();
+        boolean applied;
         if (req.isSuccess()) {
             String outputJson = writeJsonSafely(req.getOutput());
-            markStatus(taskId, AiTaskStatus.COMPLETED, outputJson, null, null, now);
+            applied = markStatus(taskId, AiTaskStatus.COMPLETED, outputJson, null, null, now, OPEN);
             task.setStatus(AiTaskStatus.COMPLETED);
             task.setOutput(outputJson);
         } else {
-            markStatus(taskId, AiTaskStatus.FAILED, null, req.getError(), null, now);
+            applied = markStatus(taskId, AiTaskStatus.FAILED, null, req.getError(), null, now, OPEN);
             task.setStatus(AiTaskStatus.FAILED);
             task.setErrorMessage(req.getError());
         }
         task.setCompletedAt(now);
+        // 用量是真实发生的调用费用，迟到或重复的回调也照记
         saveUsage(task, req.getUsage());
+        if (!applied) {
+            // 任务已结束（超时判失败、或同一结果重投）：丢弃，不改状态、不再通知业务（audit AI-001，用户 2026-11-04 确认）
+            log.info("ai_task id={} 已结束（回调前状态 {}），忽略迟到或重复的回调 status={}", taskId, before, req.getStatus());
+            return;
+        }
         resultDispatcher.dispatch(task);
     }
 
@@ -176,13 +192,13 @@ public class AiTaskServiceImpl implements AiTaskService {
     }
 
     /**
-     * 单行状态更新，直接走 Mapper 而不复用其他 @Transactional service 方法——
+     * 单行条件状态更新，返回是否真的改到了（当前状态在 fromStatuses 里）；直接走 Mapper 而不复用其他 @Transactional service 方法——
      * 这个方法本身会被 submit() 里的异步回调线程调用，若通过 this.xxx() 调用会绕过
      * Spring AOP 代理导致 @Transactional 失效（自调用问题），单条 UPDATE 语句本身
      * 已经是原子操作，不需要额外声明事务。
      */
-    private void markStatus(Long taskId, int status, String output, String errorMessage,
-                              LocalDateTime startedAt, LocalDateTime completedAt) {
+    private boolean markStatus(Long taskId, int status, String output, String errorMessage,
+                               LocalDateTime startedAt, LocalDateTime completedAt, List<Integer> fromStatuses) {
         AiTaskDO update = new AiTaskDO();
         update.setId(taskId);
         update.setStatus(status);
@@ -198,7 +214,10 @@ public class AiTaskServiceImpl implements AiTaskService {
         if (completedAt != null) {
             update.setCompletedAt(completedAt);
         }
-        aiTaskMapper.updateById(update);
+        // 带旧状态条件：只有抢到更新的一方继续通知业务，结束的任务不会被改回
+        return aiTaskMapper.update(update, new LambdaUpdateWrapper<AiTaskDO>()
+                .eq(AiTaskDO::getId, taskId)
+                .in(AiTaskDO::getStatus, fromStatuses)) > 0;
     }
 
     private String writeJsonSafely(Object output) {

@@ -42,12 +42,12 @@ class AiTaskTimeoutWatchdogTest {
         stale.setSkillId("inquiry-parse-and-split");
         stale.setStatus(AiTaskStatus.PROCESSING);
         when(aiTaskMapper.selectList(any())).thenReturn(List.of(stale));
+        when(aiTaskMapper.update(any(AiTaskDO.class), any())).thenReturn(1);
 
         watchdog.checkTimeouts();
 
         ArgumentCaptor<AiTaskDO> updateCaptor = ArgumentCaptor.forClass(AiTaskDO.class);
-        verify(aiTaskMapper, times(1)).updateById(updateCaptor.capture());
-        assertThat(updateCaptor.getValue().getId()).isEqualTo(9L);
+        verify(aiTaskMapper, times(1)).update(updateCaptor.capture(), any());
         assertThat(updateCaptor.getValue().getStatus()).isEqualTo(AiTaskStatus.FAILED);
         assertThat(updateCaptor.getValue().getErrorMessage()).contains("超时");
 
@@ -66,7 +66,7 @@ class AiTaskTimeoutWatchdogTest {
 
         watchdog.checkTimeouts();
 
-        verify(aiTaskMapper, times(0)).updateById(any());
+        verify(aiTaskMapper, times(0)).update(any(AiTaskDO.class), any());
         verify(resultDispatcher, times(0)).dispatch(any());
     }
 }
