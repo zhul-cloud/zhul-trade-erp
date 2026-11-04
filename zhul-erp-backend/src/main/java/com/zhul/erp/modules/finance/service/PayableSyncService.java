@@ -91,8 +91,19 @@ public class PayableSyncService {
         p.setSourceNo(po.getPoNo());
         // 线上店铺转为供应商后，收款方随之更新
         fillPayee(p, po);
+        // 币种随采购订单（有资金往来时采购订单不允许改币种，见 hasMoneyMovement；audit BUS-004）
+        p.setCurrencyCode(po.getCurrencyCode());
         p.setExchangeRate(po.getExchangeRate() == null ? BigDecimal.ONE : po.getExchangeRate());
         apply(p, amount, InstallmentPlanner.plan(amount, terms, dates), cancelled);
+    }
+
+    /** 来源单据的应付是否已有资金往来：有效的付款、退款核销，或作为欠款来源被抵扣（作废的付款核销已软删除，不算） */
+    public boolean hasMoneyMovement(int sourceType, Long sourceId) {
+        PayableDO p = lockBySource(sourceType, sourceId);
+        return p != null && allocationMapper.selectCount(new LambdaQueryWrapper<PaymentAllocationDO>()
+                .isNull(PaymentAllocationDO::getDeletedAt)
+                .and(w -> w.eq(PaymentAllocationDO::getPayableId, p.getId())
+                        .or().eq(PaymentAllocationDO::getCreditPayableId, p.getId()))) > 0;
     }
 
     /** 运费账单确认：生成一期应付，确认当天到期；已有的不再生成 */
