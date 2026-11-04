@@ -445,4 +445,73 @@ class OutboundShippingContractTest extends SalesContractSupport {
         ok(notice(so2, 4));
         ok(call(json(post(GR + "/" + gr6 + "/reverse"), "{\"reason\":\"录错\"}"), admin));
     }
+
+    /** 取消订单后用同一 PI 重新转订单；newQty 不为空时先把 PI 改成这个数量。返回新订单的响应 */
+    private JsonNode reconvert(long soId, Integer newQty) throws Exception {
+        long pi = jdbc.queryForObject("select pi_id from sales_order where id = ?", Long.class, soId);
+        ok(call(json(post(SO + "/" + soId + "/cancel"), write(Map.of("reason", "客户改单"))), admin));
+        if (newQty != null) {
+            JsonNode rev = ok(call(post(PI + "/" + pi + "/revise"), admin));
+            Map<String, Object> b = saveBody(rev);
+            item(b, 0).put("quantity", newQty);
+            ok(savePi(pi, b));
+            ok(send(pi));
+        }
+        return call(json(post(PI + "/" + pi + "/convert"), "{}"), admin);
+    }
+
+    /** audit BUS-005：订单取消重转后，原采购行上已入库的货跟着到新订单，新订单可以按实收出库 */
+    @Test
+    void reconvertedOrder_takesReceivedGoods() throws Exception {
+        // 全部入库后重转：新订单可以出库 10 个
+        JsonNode po = orderedPo(supplier("重转全入库工控", null), 10);
+        receive(po, 10);
+        long soB = ok(reconvert(soOf(po), null)).path("id").asLong();
+        ok(notice(soB, 10));
+        assertEquals(10, jdbc.queryForObject("select sum(qualified_qty) from purchase_receipt_item where so_item_id = ? and deleted_at is null",
+                Integer.class, soItem(soB)), "入库行跟着到新订单");
+
+        // 已入库 4 个，新订单只要 6 个：带货的采购行给新订单，剩余 4 个留在原需求
+        JsonNode po2 = orderedPo(supplier("重转减量工控", null), 10);
+        receive(po2, 4);
+        long so2 = ok(reconvert(soOf(po2), 6)).path("id").asLong();
+        assertEquals("A-1 最多可以出库 4 个", fail(notice(so2, 5)).path("message").asText());
+        ok(notice(so2, 4));
+        assertEquals(6, jdbc.queryForObject("select quantity from purchase_order_item where so_item_id = ? and deleted_at is null",
+                Integer.class, soItem(so2)));
+
+        // 已入库 8 个，新订单只要 6 个：多出的货无法自动分配，提示先处理
+        JsonNode po3 = orderedPo(supplier("重转超量工控", null), 10);
+        receive(po3, 8);
+        String msg = fail(reconvert(soOf(po3), 6)).path("message").asText();
+        assertTrue(msg.contains("已发货 8 个，新订单只要 6 个"), msg);
+    }
+
+    /** audit BUS-027：订单还有在仓库的销售出库单（待打包、已打包）时不能取消；撤回后可以取消 */
+    @Test
+    void cancelOrder_blockedWhileOutboundActive() throws Exception {
+        JsonNode po = orderedPo(supplier("取消有出库工控", null), 3);
+        long soId = soOf(po);
+        receive(po, 3);
+        JsonNode ob = ok(notice(soId, 3));
+        assertEquals("订单还有未交货代的销售出库单 " + ob.path("obNo").asText() + "，请先撤回后再取消",
+                fail(call(json(post(SO + "/" + soId + "/cancel"), write(Map.of("reason", "客户改单"))), admin)).path("message").asText());
+        ok(call(json(post(OB + "/" + ob.path("id").asLong() + "/withdraw"), write(Map.of("reason", "改单"))), admin));
+        ok(call(json(post(SO + "/" + soId + "/cancel"), write(Map.of("reason", "客户改单"))), admin));
+    }
+
+    /** audit BUS-027：已交货代的出库不拦取消；重转时随货改挂到新订单，新订单不会把已发出的货再算成可出库 */
+    @Test
+    void reconvertAfterHandOver_handedGoodsNotOutboundAgain() throws Exception {
+        JsonNode po = orderedPo(supplier("交货代后重转工控", null), 10);
+        long soA = soOf(po);
+        receive(po, 10);
+        JsonNode ob = ok(notice(soA, 4));
+        ok(pack(ob, new int[] {40, 30, 20, 500, 4}));
+        ok(handOver(List.of(ob.path("id").asLong()), "20"));
+        long soB = ok(reconvert(soA, null)).path("id").asLong();
+        assertEquals("A-1 最多可以出库 6 个", fail(notice(soB, 7)).path("message").asText());
+        ok(notice(soB, 6));
+        assertEquals(4, order(soB).path("items").get(0).path("goodsHanded").asInt(), "已交货代的 4 个算在新订单上");
+    }
 }

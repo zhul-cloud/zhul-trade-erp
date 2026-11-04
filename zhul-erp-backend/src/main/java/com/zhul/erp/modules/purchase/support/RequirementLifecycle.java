@@ -1,10 +1,15 @@
 package com.zhul.erp.modules.purchase.support;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.zhul.erp.common.exception.BizException;
 import com.zhul.erp.modules.inquiry.sourcing.entity.SourcingQuoteDO;
 import com.zhul.erp.modules.inquiry.sourcing.repository.SourcingQuoteMapper;
 import com.zhul.erp.modules.masterdata.entity.SupplierDO;
 import com.zhul.erp.modules.masterdata.repository.SupplierMapper;
+import com.zhul.erp.modules.logistics.constants.LogisticsConstants;
+import com.zhul.erp.modules.logistics.entity.OutboundOrderItemDO;
+import com.zhul.erp.modules.logistics.repository.OutboundOrderItemMapper;
 import com.zhul.erp.modules.purchase.constants.PurchaseConstants;
 import com.zhul.erp.modules.purchase.entity.PurchaseOrderDO;
 import com.zhul.erp.modules.purchase.entity.PurchaseOrderItemDO;
@@ -17,6 +22,13 @@ import com.zhul.erp.modules.quotation.repository.QuotationItemMapper;
 import com.zhul.erp.modules.sales.entity.SalesOrderDO;
 import com.zhul.erp.modules.sales.entity.SalesOrderItemDO;
 import com.zhul.erp.modules.sales.support.PiStore;
+import com.zhul.erp.modules.warehouse.entity.PurchaseReceiptItemDO;
+import com.zhul.erp.modules.warehouse.entity.ShootTaskDO;
+import com.zhul.erp.modules.warehouse.entity.SupplierShipmentItemDO;
+import com.zhul.erp.modules.warehouse.repository.PurchaseReceiptItemMapper;
+import com.zhul.erp.modules.warehouse.repository.ShootTaskMapper;
+import com.zhul.erp.modules.warehouse.repository.SupplierShipmentItemMapper;
+import com.zhul.erp.modules.warehouse.support.ReceivingQty;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -50,6 +62,11 @@ public class RequirementLifecycle {
     private final PurchaseLogs logs;
     private final OrderPurchaseProgress progress;
     private final RequirementTouch touch;
+    private final ReceivingQty receivingQty;
+    private final SupplierShipmentItemMapper shipmentItemMapper;
+    private final PurchaseReceiptItemMapper receiptItemMapper;
+    private final ShootTaskMapper shootTaskMapper;
+    private final OutboundOrderItemMapper outboundItemMapper;
 
     // ---------------------------------------------------------------- 订单生成
 
@@ -150,12 +167,14 @@ public class RequirementLifecycle {
                         break;
                     }
                     int take = Math.min(need, i.getQuantity());
+                    int shipped = receivingQty.shippedByPoItem(List.of(i.getId())).getOrDefault(i.getId(), 0);
                     if (take == i.getQuantity()) {
                         i.setRequirementId(r.getId());
                         i.setSoId(r.getSoId());
                         i.setSoItemId(r.getSoItemId());
                         itemMapper.updateById(i);
-                    } else {
+                        moveGoods(i.getId(), r);
+                    } else if (shipped == 0) {
                         i.setQuantity(i.getQuantity() - take);
                         itemMapper.updateById(i);
                         PurchaseOrderItemDO x = copyOf(i);
@@ -164,6 +183,23 @@ public class RequirementLifecycle {
                         x.setSoItemId(r.getSoItemId());
                         x.setQuantity(take);
                         itemMapper.insert(x);
+                    } else if (shipped <= take) {
+                        // 已发货的行整行（连同货）给新订单，剩下的数量拆成新行留在原需求上，不拆分发货与入库记录
+                        PurchaseOrderItemDO rest = copyOf(i);
+                        rest.setRequirementId(i.getRequirementId());
+                        rest.setSoId(i.getSoId());
+                        rest.setSoItemId(i.getSoItemId());
+                        rest.setQuantity(i.getQuantity() - take);
+                        itemMapper.insert(rest);
+                        i.setQuantity(take);
+                        i.setRequirementId(r.getId());
+                        i.setSoId(r.getSoId());
+                        i.setSoItemId(r.getSoItemId());
+                        itemMapper.updateById(i);
+                        moveGoods(i.getId(), r);
+                    } else {
+                        throw new BizException(i.getModel() + " 已发货 " + shipped + " 个，新订单只要 " + take
+                                + " 个，系统无法自动分配多出的货；请先在原订单上处理多出的数量后再转订单");
                     }
                     PurchaseOrderDO po = orderMapper.selectById(i.getPoId());
                     drafts.recalc(po);
@@ -171,6 +207,9 @@ public class RequirementLifecycle {
                     logs.add(po.getId(), "接回订单", i.getModel() + " × " + take + " 接回重新转出的订单 " + o.getSoNo(), null);
                     need -= take;
                     moved += take;
+                }
+                if (moved > 0) {
+                    moveHandedOutbound(old.getSoItemId(), r.getSoItemId());
                 }
                 old.setQuantity(old.getQuantity() - moved);
                 if (old.getQuantity() <= 0) {
@@ -197,6 +236,47 @@ public class RequirementLifecycle {
             }
         }
         return out;
+    }
+
+    /**
+     * 采购行接回新订单时，已发、入库与实拍记录跟着改挂到新订单的型号行：新订单能看到已入库数量并按实收出库，
+     * 库存不重复计算（audit BUS-005）。差异挂在采购行上，随采购行一起走。
+     */
+    private void moveGoods(Long poItemId, PurchaseRequirementDO r) {
+        shipmentItemMapper.update(null, new LambdaUpdateWrapper<SupplierShipmentItemDO>()
+                .set(SupplierShipmentItemDO::getRequirementId, r.getId())
+                .set(SupplierShipmentItemDO::getSoItemId, r.getSoItemId())
+                .eq(SupplierShipmentItemDO::getPoItemId, poItemId));
+        List<Long> receiptItems = receiptItemMapper.selectList(new LambdaQueryWrapper<PurchaseReceiptItemDO>()
+                        .select(PurchaseReceiptItemDO::getId)
+                        .eq(PurchaseReceiptItemDO::getPoItemId, poItemId))
+                .stream().map(PurchaseReceiptItemDO::getId).toList();
+        if (receiptItems.isEmpty()) {
+            return;
+        }
+        receiptItemMapper.update(null, new LambdaUpdateWrapper<PurchaseReceiptItemDO>()
+                .set(PurchaseReceiptItemDO::getRequirementId, r.getId())
+                .set(PurchaseReceiptItemDO::getSoItemId, r.getSoItemId())
+                .in(PurchaseReceiptItemDO::getId, receiptItems));
+        shootTaskMapper.update(null, new LambdaUpdateWrapper<ShootTaskDO>()
+                .set(ShootTaskDO::getSoId, r.getSoId())
+                .in(ShootTaskDO::getReceiptItemId, receiptItems));
+    }
+
+    /**
+     * 原订单型号行上已交货代、已出运的出库明细跟着改挂到新订单：新订单的出库占用含这部分，
+     * 不会把已发出的货再算成可出库（audit BUS-027）。待打包、已打包的在取消订单时已要求先撤回。
+     */
+    private void moveHandedOutbound(Long fromSoItemId, Long toSoItemId) {
+        if (fromSoItemId == null || toSoItemId == null || fromSoItemId.equals(toSoItemId)) {
+            return;
+        }
+        outboundItemMapper.update(null, new LambdaUpdateWrapper<OutboundOrderItemDO>()
+                .set(OutboundOrderItemDO::getSoItemId, toSoItemId)
+                .eq(OutboundOrderItemDO::getSoItemId, fromSoItemId)
+                .isNull(OutboundOrderItemDO::getDeletedAt)
+                .inSql(OutboundOrderItemDO::getOutboundId, "SELECT id FROM outbound_order WHERE status = "
+                        + LogisticsConstants.OB_HANDED + " AND deleted_at IS NULL"));
     }
 
     private static PurchaseOrderItemDO copyOf(PurchaseOrderItemDO i) {
