@@ -33,6 +33,12 @@ public class LogisticsQty {
         return out;
     }
 
+    /** 占用这些订单型号行的未撤回销售出库单编号 */
+    public List<String> activeObNos(Collection<Long> ids) {
+        List<Long> keys = ids == null ? List.of() : ids.stream().filter(Objects::nonNull).distinct().toList();
+        return keys.isEmpty() ? List.of() : mapper.activeObNos(keys);
+    }
+
     private static int nz(Integer v) {
         return v == null ? 0 : v;
     }
