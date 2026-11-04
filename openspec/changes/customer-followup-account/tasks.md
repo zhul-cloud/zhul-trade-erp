@@ -26,9 +26,9 @@
 
 - [ ] 4.1 `FlowCards`、`StageBar` 开放客户经营（G4–G7、沉睡、培育中、全部老客户）。本地目测计数与接口一致
 - [ ] 4.2 `FollowupTable` 增加 board 5 列配置和「建询盘」操作。对照原型 K14 走查
-- [ ] 4.3 作战卡：G1–G3 结果、触达理由、交叉销售建议、战略客户与 `AnnualPlanModal`。对照 K14、K16 走查
+- [ ] 4.3 作战卡：G1–G3 结果、触达理由、交叉销售建议、战略客户与 `AnnualPlanModal`。对照 K14、K15 走查
 - [ ] 4.4 `RecordFollowupModal` 客户经营版问题，「有新需求」保存后打开 `NewInquiryModal`。对照 K15 走查；Jest 覆盖必填校验
-- [ ] 4.5 `TeamView` 经营指标与按负责人一列。对照 K17 走查
+- [ ] 4.5 `TeamView` 经营指标与按负责人一列。对照 K16 走查
 - [ ] 4.6 `npm run lint`、`npx antd lint ./src`、`npm test` 全部通过
 
 ## 5. 验证与收尾
