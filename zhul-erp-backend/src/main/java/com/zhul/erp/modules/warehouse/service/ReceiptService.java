@@ -1,6 +1,9 @@
 package com.zhul.erp.modules.warehouse.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.zhul.erp.modules.logistics.support.LogisticsQty;
+import com.zhul.erp.modules.sales.entity.SalesOrderDO;
+import com.zhul.erp.modules.sales.entity.SalesOrderItemDO;
 import com.zhul.erp.common.exception.BizException;
 import com.zhul.erp.common.utils.MigratedGuard;
 import com.zhul.erp.common.result.PageResult;
@@ -73,6 +76,9 @@ public class ReceiptService {
     private final SupplierShipmentItemMapper shipmentItemMapper;
     private final ReceivingDiscrepancyMapper discrepancyMapper;
     private final PurchaseOrderMapper orderMapper;
+    private final com.zhul.erp.modules.sales.repository.SalesOrderMapper soMapper;
+    private final com.zhul.erp.modules.sales.repository.SalesOrderItemMapper soItemMapper;
+    private final LogisticsQty logisticsQty;
     private final ShipmentService shipments;
     private final ShootService shoots;
     private final DiscrepancyService discrepancies;
@@ -482,6 +488,7 @@ public class ReceiptService {
         if (!shoots.notStarted(id)) {
             throw new BizException("实拍任务已经开始，不能冲销");
         }
+        requireNotUsedByOutbound(itemsOf(List.of(id)).getOrDefault(id, List.of()));
         String why = reason.trim();
         r.setStatus(WarehouseConstants.GR_REVERSED);
         r.setReverseReason(why);
@@ -502,6 +509,35 @@ public class ReceiptService {
                 Map.of("grNo", r.getGrNo(), "status", "已冲销", "reason", why));
         payables.syncPurchaseOrder(p.getId());
         return detail(id);
+    }
+
+    /**
+     * 冲销后合格数不能少于已被销售出库单占用的数量（待打包、已打包、已交货代、已出运）：否则出库失去入库来源，
+     * 要先撤回出库（audit BUS-010）。先按 ID 锁住相关销售订单：建发货通知也先锁订单再查可出库数，两边互斥。
+     */
+    private void requireNotUsedByOutbound(List<PurchaseReceiptItemDO> items) {
+        Map<Long, Integer> mine = new HashMap<>();
+        items.stream().filter(i -> i.getSoItemId() != null && i.getQualifiedQty() != null && i.getQualifiedQty() > 0)
+                .forEach(i -> mine.merge(i.getSoItemId(), i.getQualifiedQty(), Integer::sum));
+        if (mine.isEmpty()) {
+            return;
+        }
+        soItemMapper.selectBatchIds(mine.keySet()).stream().map(SalesOrderItemDO::getSoId).distinct().sorted()
+                .forEach(soId -> soMapper.selectOne(new LambdaQueryWrapper<SalesOrderDO>()
+                        .select(SalesOrderDO::getId).eq(SalesOrderDO::getId, soId).last("FOR UPDATE")));
+        Map<Long, Integer> qualified = receivingQty.qualifiedBySoItem(mine.keySet());
+        Map<Long, LogisticsQty.Qty> out = logisticsQty.bySoItem(mine.keySet());
+        List<Long> shortItems = mine.entrySet().stream()
+                .filter(e -> {
+                    int occupied = out.getOrDefault(e.getKey(), LogisticsQty.Qty.ZERO).occupied();
+                    // 部分取消转闲置后按型号行汇总的合格数可能少于本单，剩余按 0 计；没有出库占用的不拦
+                    return occupied > 0 && occupied > Math.max(0, qualified.getOrDefault(e.getKey(), 0) - e.getValue());
+                })
+                .map(Map.Entry::getKey).toList();
+        if (!shortItems.isEmpty()) {
+            throw new BizException("货物已被销售出库单 " + String.join("、", logisticsQty.activeObNos(shortItems))
+                    + " 占用，不能冲销；请先撤回或撤销这些出库");
+        }
     }
 
     private boolean reversible(Long receiptId) {

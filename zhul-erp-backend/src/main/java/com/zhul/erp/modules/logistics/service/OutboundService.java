@@ -139,7 +139,7 @@ public class OutboundService {
         SalesOrderDO o = lockOrder(req.getSoId());
         support.requireForwarder(req.getForwarderId());
         // 先校验数量再取号，校验不过不占编号
-        List<OutboundOrderItemDO> lines = buildItems(o, req.getItems(), Map.of());
+        List<OutboundOrderItemDO> lines = buildItems(o, req.getItems());
         OutboundOrderDO ob = new OutboundOrderDO();
         ob.setTenantId(PiStore.tenantId());
         ob.setObNo(documentNumberService.next(DocumentType.OB));
@@ -167,7 +167,7 @@ public class OutboundService {
         }
         support.requireForwarder(req.getForwarderId());
         List<OutboundOrderItemDO> old = itemsOf(List.of(id)).getOrDefault(id, List.of());
-        Map<Long, Integer> own = old.stream().collect(Collectors.toMap(OutboundOrderItemDO::getSoItemId, OutboundOrderItemDO::getQuantity, Integer::sum));
+        // 旧行先软删除，下面按占用（已不含本单）重新校验；不能再把旧数量加回去，否则会多放出一份（audit BUS-006）
         old.forEach(i -> {
             i.setDeletedAt(LocalDateTime.now());
             itemMapper.updateById(i);
@@ -175,7 +175,7 @@ public class OutboundService {
         ob.setForwarderId(req.getForwarderId());
         ob.setNote(trim(req.getNote()));
         outboundMapper.updateById(ob);
-        String text = saveItems(ob, buildItems(o, req.getItems(), own));
+        String text = saveItems(ob, buildItems(o, req.getItems()));
         logService.recordOperateLog("销售订单", "修改发货通知", null, Map.of("soNo", o.getSoNo(), "obNo", ob.getObNo(), "items", text));
         return detail(id, true);
     }
@@ -207,7 +207,7 @@ public class OutboundService {
     }
 
     /** 销售出库单行（未落库）：有采购需求的不超过 合格入库 − 已出库；系统外采购的不超过 型号数量 − 已出库（own 为本单原数量） */
-    private List<OutboundOrderItemDO> buildItems(SalesOrderDO o, List<SaveNoticeRequest.Line> lines, Map<Long, Integer> own) {
+    private List<OutboundOrderItemDO> buildItems(SalesOrderDO o, List<SaveNoticeRequest.Line> lines) {
         Map<Long, SalesOrderItemDO> soItems = soItems(o.getId()).stream().collect(Collectors.toMap(SalesOrderItemDO::getId, i -> i));
         Map<Long, Integer> wanted = new LinkedHashMap<>();
         for (SaveNoticeRequest.Line l : lines) {
@@ -233,7 +233,7 @@ public class OutboundService {
             PurchaseLinks.ItemPurchase lp = links.get(i.getId());
             boolean tracked = lp != null && lp.tracked();
             int base = tracked ? Math.min(lp.received(), i.getQuantity()) : i.getQuantity();
-            int max = Math.max(0, base - out.getOrDefault(i.getId(), LogisticsQty.Qty.ZERO).occupied()) + own.getOrDefault(i.getId(), 0);
+            int max = Math.max(0, base - out.getOrDefault(i.getId(), LogisticsQty.Qty.ZERO).occupied());
             if (e.getValue() > max) {
                 throw new BizException(max == 0 ? i.getModel() + " 还没有可以出库的数量" : i.getModel() + " 最多可以出库 " + max + " 个");
             }
