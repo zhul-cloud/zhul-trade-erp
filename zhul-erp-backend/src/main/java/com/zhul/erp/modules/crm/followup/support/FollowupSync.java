@@ -83,6 +83,7 @@ public class FollowupSync {
     private final FollowupSettings settings;
     private final ObjectMapper objectMapper;
     private final OrderFollowupSync orderSync;
+    private final AccountFollowupSync accountSync;
 
     // ---------------------------------------------------------------- 单据事件入口（不影响原单据）
 
@@ -299,6 +300,8 @@ public class FollowupSync {
         }
         // 订单履约、售后评价（第二期）
         changes += orderSync.resync(customerId, today);
+        // 客户经营（第三期）：要读前面几个板块的结果，必须最后执行
+        changes += accountSync.resync(customerId, today, bootstrap);
         return changes;
     }
 

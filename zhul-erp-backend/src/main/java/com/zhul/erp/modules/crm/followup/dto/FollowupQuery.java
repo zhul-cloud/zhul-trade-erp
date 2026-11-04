@@ -17,6 +17,8 @@ public class FollowupQuery {
     private String blocker;
     /** 订单履约：只看有异常的 */
     private Boolean exception;
+    /** 客户经营：只看沉睡客户 */
+    private Boolean dormant;
     /** 客户名称、客户编码或单据编号 */
     private String keyword;
     private Integer page;

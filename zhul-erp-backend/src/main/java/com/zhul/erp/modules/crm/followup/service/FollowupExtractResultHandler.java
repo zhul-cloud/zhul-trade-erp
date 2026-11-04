@@ -24,7 +24,7 @@ import java.util.stream.Collectors;
 
 /**
  * skill_id=followup-extract / followup-reply 的结果处理器（design D11）。
- * 整理结果只写回 ai_task 的结果，不改业务数据：卡点只留 SOP 卡点码、档案建议只留可补字段、客户情况只留三个取值、下一步最多 2 条。
+ * 整理结果只写回 ai_task 的结果，不改业务数据：卡点只留 SOP 卡点码、档案建议只留可补字段、客户情况只留合法取值、下一步最多 2 条。
  * 英文回复由发起请求同步读取结果，这里不需要后续动作。
  * 回调没有租户上下文，由 {@code AiTaskServiceImpl.handleCallback} 按任务所属租户执行（卡点字典按租户读取）。
  */
@@ -34,6 +34,8 @@ import java.util.stream.Collectors;
 public class FollowupExtractResultHandler implements AiTaskResultHandler {
 
     private static final Set<String> SITUATIONS = Set.of("feedback", "negotiating", "no_reply");
+    /** 客户经营：有新需求、聊了新品类、当前没有需求（第三期 design D10） */
+    private static final Set<String> ACCOUNT_SITUATIONS = Set.of("new_need", "cross_sell", "no_need");
     /** AI 可建议的评价状态：这次先不邀请、已邀请、已评价、婉拒、还没评 */
     private static final Set<Integer> REVIEW_STATUSES = Set.of(FollowupConstants.REVIEW_SKIP, FollowupConstants.REVIEW_INVITED,
             FollowupConstants.REVIEW_DONE, FollowupConstants.REVIEW_DECLINED, FollowupConstants.REVIEW_NOT_YET);
@@ -78,9 +80,20 @@ public class FollowupExtractResultHandler implements AiTaskResultHandler {
         for (JsonNode s : in.path("situation")) {
             replied |= "feedback".equals(s.asText()) || "negotiating".equals(s.asText());
         }
+        // 客户经营的三个取值（编排服务只在客户经营板块输出）是单选：有就只留第一个
+        String account = null;
+        for (JsonNode s : in.path("situation")) {
+            if (ACCOUNT_SITUATIONS.contains(s.asText())) {
+                account = s.asText();
+                break;
+            }
+        }
+        if (account != null) {
+            situation.add(account);
+        }
         for (JsonNode s : in.path("situation")) {
             String v = s.asText();
-            if (SITUATIONS.contains(v) && !(replied && "no_reply".equals(v))) {
+            if (account == null && SITUATIONS.contains(v) && !(replied && "no_reply".equals(v))) {
                 situation.add(v);
             }
         }

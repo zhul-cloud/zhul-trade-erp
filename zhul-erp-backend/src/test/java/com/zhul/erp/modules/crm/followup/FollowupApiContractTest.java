@@ -862,9 +862,9 @@ class FollowupApiContractTest extends IntegrationTestBase {
         assertEquals("补发出运后告诉客户运单号", a3.path("nextAction").asText());
         assertEquals(4, a3.path("nextActionSource").asInt());
 
-        // 客户详情：链路卡片标出订单履约和售后评价
+        // 客户详情：链路卡片标出订单履约和售后评价；成交客户同时在客户经营（第三期，其他板块在跟时暂停提醒）
         JsonNode summary = ok(call(get(BASE + "/customers/" + C1 + "/summary"), staff));
-        assertEquals("[3,4]", summary.path("boards").toString());
+        assertEquals("[3,4,5]", summary.path("boards").toString());
 
         // 今日待办不重复列出跟着售后单走的 A3
         JsonNode today = ok(call(get(BASE + "/today"), staff));

@@ -10,6 +10,7 @@ import com.zhul.erp.modules.aitask.exception.AiNotConfiguredException;
 import com.zhul.erp.modules.aitask.exception.AiUnavailableException;
 import com.zhul.erp.modules.aitask.service.AiTaskService;
 import com.zhul.erp.modules.crm.followup.constants.FollowupConstants;
+import com.zhul.erp.modules.crm.followup.dto.AccountCardVO;
 import com.zhul.erp.modules.crm.followup.dto.ExtractRequest;
 import com.zhul.erp.modules.crm.followup.dto.ExtractResultVO;
 import com.zhul.erp.modules.crm.followup.dto.ReplyDraftRequest;
@@ -18,6 +19,7 @@ import com.zhul.erp.modules.crm.followup.dto.SopCardVO;
 import com.zhul.erp.modules.crm.followup.entity.CustomerFollowupDO;
 import com.zhul.erp.modules.crm.followup.entity.FollowupItemDO;
 import com.zhul.erp.modules.crm.followup.repository.CustomerFollowupMapper;
+import com.zhul.erp.modules.crm.followup.support.AccountStageRecorder;
 import com.zhul.erp.modules.crm.followup.support.OrderStageRecorder;
 import com.zhul.erp.modules.crm.support.OpportunityStageRules;
 import com.zhul.erp.modules.inquiry.support.CurrentUserResolver;
@@ -47,6 +49,8 @@ import java.util.Set;
 public class FollowupAiService {
 
     private static final long POLL_MILLIS = 500;
+    private static final Map<String, Integer> ACCOUNT_ANSWER_OF = Map.of("new_need", FollowupConstants.ACCOUNT_NEW_NEED,
+            "cross_sell", FollowupConstants.ACCOUNT_CROSS, "no_need", FollowupConstants.ACCOUNT_NO_NEED);
 
     private final AiTaskService aiTaskService;
     private final FollowupService followupService;
@@ -54,6 +58,7 @@ public class FollowupAiService {
     private final CustomerProfileService profileService;
     private final CustomerFollowupMapper recordMapper;
     private final OpportunityStageRules stageRules;
+    private final FollowupAccountService accountService;
     private final CurrentUserResolver currentUser;
     private final ObjectMapper objectMapper;
 
@@ -99,8 +104,16 @@ public class FollowupAiService {
                 case "feedback" -> FollowupConstants.SITUATION_FEEDBACK;
                 case "negotiating" -> FollowupConstants.SITUATION_NEGOTIATING;
                 case "no_reply" -> FollowupConstants.SITUATION_NO_REPLY;
+                case "new_need" -> FollowupConstants.SITUATION_NEW_NEED;
+                case "cross_sell" -> FollowupConstants.SITUATION_CROSS;
+                case "no_need" -> FollowupConstants.SITUATION_NO_NEED;
                 default -> 0;
             };
+            // 处理器只在客户经营板块输出这三个值，且只留一个
+            Integer answer = ACCOUNT_ANSWER_OF.get(s.asText());
+            if (answer != null && r.getAccountAnswer() == null) {
+                r.setAccountAnswer(answer);
+            }
         }
         r.setSituation(mask);
         String blocker = n.path("blocker").asText("");
@@ -205,7 +218,7 @@ public class FollowupAiService {
             try {
                 SopCardVO sop = followupService.sop(item.getBoard(), item.getStageCode());
                 stage.put("goal", sop.getGoal());
-                if (OrderStageRecorder.handles(item)) {
+                if (OrderStageRecorder.handles(item) || AccountStageRecorder.handles(item)) {
                     stage.put("name", sop.getName());
                 }
             } catch (BizException e) {
@@ -216,7 +229,9 @@ public class FollowupAiService {
             if (OrderStageRecorder.handles(item)) {
                 input.put("order", orderContext(item));
             }
-            if (StringUtils.hasText(item.getDocNo()) && item.getTargetType() != FollowupConstants.TARGET_OPPORTUNITY) {
+            if (AccountStageRecorder.handles(item)) {
+                input.put("account", accountContext(accountService.card(c.getId())));
+            } else if (StringUtils.hasText(item.getDocNo()) && item.getTargetType() != FollowupConstants.TARGET_OPPORTUNITY) {
                 Map<String, Object> doc = new LinkedHashMap<>();
                 doc.put("docNo", item.getDocNo());
                 doc.put("currencyCode", nz(item.getCurrencyCode()));
@@ -226,6 +241,18 @@ public class FollowupAiService {
             }
         }
         return input;
+    }
+
+    /** 客户经营的上下文（第三期 design D10）：触达理由、采购规律、常买品牌品类、最近一单、交叉销售建议 */
+    private static Map<String, Object> accountContext(AccountCardVO card) {
+        Map<String, Object> a = new LinkedHashMap<>();
+        a.put("reason", nz(card.getReason()));
+        a.put("pattern", nz(card.getPatternText()));
+        a.put("brands", nz(card.getPatternBrands()));
+        a.put("lastOrder", Map.of("date", card.getLastOrderDate() == null ? "" : card.getLastOrderDate().toString(),
+                "items", nz(card.getLastOrderItems())));
+        a.put("crossSell", card.getCrossSell().stream().map(AccountCardVO.CrossSell::getCategory).toList());
+        return a;
     }
 
     /** 订单履约、售后评价的上下文：订单号、现在的情况、预计送达和依据、签收日期、评价平台 */

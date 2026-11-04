@@ -722,6 +722,9 @@ FOLLOWUP_REPLY_SKILL = "followup-reply"
 # 粘贴原文只取最后这么多字交给 AI（与后端 FollowupConstants.RAW_MAX 一致）
 FOLLOWUP_RAW_MAX = 20000
 FOLLOWUP_SITUATIONS = ("feedback", "negotiating", "no_reply")
+# 客户经营（board 5）的客户情况是单选（第三期 design D10），按这个先后只留一个；其他板块丢掉这三个值
+FOLLOWUP_ACCOUNT_SITUATIONS = ("new_need", "cross_sell", "no_need")
+FOLLOWUP_ACCOUNT_BOARD = 5
 # 订单履约、售后评价阶段的答案建议（第二期 design D13）：只在对应阶段输出，取值与后端 FollowupConstants 一致
 FOLLOWUP_ISSUE_TYPES = ("少件", "破损", "型号不对", "其他")
 FOLLOWUP_REVIEW_STATUSES = (1, 2, 3, 4, 6)
@@ -737,7 +740,8 @@ FOLLOWUP_EXTRACT_SCHEMA = {
     "type": "object",
     "properties": {
         "summary": {"type": "string"},
-        "situation": {"type": "array", "items": {"type": "string", "enum": list(FOLLOWUP_SITUATIONS)}},
+        "situation": {"type": "array", "items": {"type": "string",
+                                                  "enum": list(FOLLOWUP_SITUATIONS + FOLLOWUP_ACCOUNT_SITUATIONS)}},
         "blocker": {"type": "string"},
         "nextActions": {
             "type": "array",
@@ -783,9 +787,13 @@ def sanitize_followup_extract(structured: dict, input_data: dict) -> dict:
     """只保留合法取值：客户情况只取三个固定值，卡点只取输入的卡点码，档案字段只取输入的可补字段，下一步最多 2 条"""
     blockers = {b.get("code") for b in input_data.get("blockers") or [] if isinstance(b, dict)}
     fields = {f.get("field") for f in input_data.get("profileFields") or [] if isinstance(f, dict)}
-    situation = [x for x in FOLLOWUP_SITUATIONS if x in (structured.get("situation") or [])]
-    if "no_reply" in situation and len(situation) > 1:
-        situation = [x for x in situation if x != "no_reply"]
+    raw_situation = structured.get("situation") or []
+    if (input_data.get("stage") or {}).get("board") == FOLLOWUP_ACCOUNT_BOARD:
+        situation = [x for x in FOLLOWUP_ACCOUNT_SITUATIONS + ("no_reply",) if x in raw_situation][:1]
+    else:
+        situation = [x for x in FOLLOWUP_SITUATIONS if x in raw_situation]
+        if "no_reply" in situation and len(situation) > 1:
+            situation = [x for x in situation if x != "no_reply"]
     blocker = structured.get("blocker") or ""
     actions = []
     for a in structured.get("nextActions") or []:

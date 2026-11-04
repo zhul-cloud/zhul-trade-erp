@@ -2,6 +2,8 @@ package com.zhul.erp.modules.crm.followup.controller;
 
 import com.zhul.erp.common.result.Result;
 import com.zhul.erp.modules.crm.followup.constants.FollowupConstants;
+import com.zhul.erp.modules.crm.followup.dto.AccountCardVO;
+import com.zhul.erp.modules.crm.followup.dto.AnnualPlanRequest;
 import com.zhul.erp.modules.crm.followup.dto.CustomerFollowupVO;
 import com.zhul.erp.modules.crm.followup.dto.ExtractRequest;
 import com.zhul.erp.modules.crm.followup.dto.ExtractResultVO;
@@ -18,6 +20,8 @@ import com.zhul.erp.modules.crm.followup.dto.ReplyDraftRequest;
 import com.zhul.erp.modules.crm.followup.dto.ReplyDraftVO;
 import com.zhul.erp.modules.crm.followup.dto.SnoozeRequest;
 import com.zhul.erp.modules.crm.followup.dto.SopCardVO;
+import com.zhul.erp.modules.crm.followup.dto.StrategicRequest;
+import com.zhul.erp.modules.crm.followup.service.FollowupAccountService;
 import com.zhul.erp.modules.crm.followup.service.FollowupAiService;
 import com.zhul.erp.modules.crm.followup.service.FollowupService;
 import com.zhul.erp.modules.crm.followup.service.FollowupTeamService;
@@ -27,6 +31,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -49,6 +54,7 @@ public class FollowupController {
     private final FollowupService followupService;
     private final FollowupAiService followupAiService;
     private final FollowupTeamService followupTeamService;
+    private final FollowupAccountService followupAccountService;
 
     @GetMapping("/overview")
     @PreAuthorize(VIEW)
@@ -111,6 +117,26 @@ public class FollowupController {
     @PreAuthorize(RECORD)
     public Result<RecordResultVO> record(@Valid @RequestBody RecordFollowupRequest req) {
         return Result.ok(followupService.record(req));
+    }
+
+    /** 客户经营作战卡顶部：G1–G3、触达理由、交叉销售、战略客户与年度计划（第三期） */
+    @GetMapping("/accounts/{customerId}")
+    @PreAuthorize(VIEW)
+    public Result<AccountCardVO> account(@PathVariable Long customerId) {
+        return Result.ok(followupAccountService.card(customerId));
+    }
+
+    @PutMapping("/accounts/{customerId}/strategic")
+    @PreAuthorize(VIEW + " and " + RECORD)
+    public Result<Void> strategic(@PathVariable Long customerId, @Valid @RequestBody StrategicRequest req) {
+        followupAccountService.setStrategic(customerId, req.getStrategic());
+        return Result.ok();
+    }
+
+    @PutMapping("/accounts/{customerId}/plan")
+    @PreAuthorize(VIEW + " and " + RECORD)
+    public Result<AccountCardVO.Plan> plan(@PathVariable Long customerId, @Valid @RequestBody AnnualPlanRequest req) {
+        return Result.ok(followupAccountService.savePlan(customerId, req));
     }
 
     @GetMapping("/sop/{board}/{stage}")

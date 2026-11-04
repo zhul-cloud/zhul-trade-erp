@@ -74,6 +74,50 @@ public interface FollowupTeamMapper {
     List<Map<String, Object>> reviews(@Param("owners") Collection<Long> owners, @Param("from") LocalDateTime from,
                                       @Param("to") LocalDateTime to);
 
+    /**
+     * 客户经营 · 已跟的到期（第三期 design D9）：业务员记的跟进里，记录当时对象的下一步日期（due_date）落在区间内的，
+     * 按（对象, 到期日）去重；在到期日（含）之前记的算按时
+     */
+    @Select("<script>SELECT COUNT(DISTINCT r.followup_item_id, r.due_date) AS total,"
+            + " COUNT(DISTINCT CASE WHEN DATE(r.create_time) &lt;= r.due_date THEN CONCAT(r.followup_item_id, '-', r.due_date) END) AS onTime"
+            + " FROM customer_followup r JOIN followup_item fi ON fi.id = r.followup_item_id"
+            + " WHERE r.deleted_at IS NULL AND r.record_type = 1 AND fi.board = 5"
+            + " AND r.due_date &gt;= #{from} AND r.due_date &lt; #{to}"
+            + "<if test='owners != null'> AND fi.owner_id IN"
+            + "<foreach collection='owners' item='o' open='(' separator=',' close=')'>#{o}</foreach></if>" + "</script>")
+    Map<String, Object> accountTouched(@Param("owners") Collection<Long> owners, @Param("from") LocalDate from, @Param("to") LocalDate to);
+
+    /** 客户经营 · 还没跟的到期：进行中、不在培育、下一步日期在 [from, to) 内的对象 */
+    @Select("<script>SELECT COUNT(*) FROM followup_item fi WHERE fi.deleted_at IS NULL AND fi.closed_at IS NULL"
+            + " AND fi.board = 5 AND fi.nurture_until IS NULL AND fi.next_action_date &gt;= #{from} AND fi.next_action_date &lt; #{to}"
+            + "<if test='owners != null'> AND fi.owner_id IN"
+            + "<foreach collection='owners' item='o' open='(' separator=',' close=')'>#{o}</foreach></if>" + "</script>")
+    long accountPending(@Param("owners") Collection<Long> owners, @Param("from") LocalDate from, @Param("to") LocalDate to);
+
+    /** 老客户新询盘：区间内新建（不含迁移）、客户经营等级不为「未成交」的询盘，按询盘负责人 */
+    @Select("<script>SELECT COUNT(*) FROM customer_inquiry ci JOIN customer c ON c.id = ci.customer_id"
+            + " WHERE ci.deleted_at IS NULL AND (ci.migrated IS NULL OR ci.migrated = 0) AND c.biz_grade &gt; 0"
+            + " AND ci.create_time &gt;= #{from} AND ci.create_time &lt; #{to}"
+            + "<if test='owners != null'> AND ci.owner_id IN"
+            + "<foreach collection='owners' item='o' open='(' separator=',' close=')'>#{o}</foreach></if></script>")
+    long accountInquiries(@Param("owners") Collection<Long> owners, @Param("from") LocalDateTime from, @Param("to") LocalDateTime to);
+
+    /** 沉睡：当前沉睡的客户经营对象 */
+    @Select("<script>SELECT COUNT(*) FROM followup_item fi WHERE fi.deleted_at IS NULL AND fi.closed_at IS NULL"
+            + " AND fi.board = 5 AND fi.dormant_since IS NOT NULL"
+            + "<if test='owners != null'> AND fi.owner_id IN"
+            + "<foreach collection='owners' item='o' open='(' separator=',' close=')'>#{o}</foreach></if>" + "</script>")
+    long dormant(@Param("owners") Collection<Long> owners);
+
+    /** 激活：区间内取消沉睡时写的系统记录（标题前缀「沉睡激活」） */
+    @Select("<script>SELECT COUNT(*) FROM customer_followup r JOIN followup_item fi ON fi.id = r.followup_item_id"
+            + " WHERE r.deleted_at IS NULL AND r.record_type = 2 AND fi.board = 5 AND r.title LIKE CONCAT(#{prefix}, '%')"
+            + " AND r.create_time &gt;= #{from} AND r.create_time &lt; #{to}"
+            + "<if test='owners != null'> AND fi.owner_id IN"
+            + "<foreach collection='owners' item='o' open='(' separator=',' close=')'>#{o}</foreach></if>" + "</script>")
+    long activated(@Param("owners") Collection<Long> owners, @Param("prefix") String prefix, @Param("from") LocalDateTime from,
+                   @Param("to") LocalDateTime to);
+
     /** 记跟进次数：业务员自己记的跟进（不含系统事件），按记录人 */
     @Select("<script>SELECT r.operator_id AS ownerId, COUNT(*) AS cnt FROM customer_followup r"
             + " WHERE r.deleted_at IS NULL AND r.record_type = 1 AND r.create_time &gt;= #{from} AND r.create_time &lt; #{to}"

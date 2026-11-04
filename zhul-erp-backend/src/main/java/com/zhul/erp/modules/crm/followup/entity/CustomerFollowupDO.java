@@ -45,6 +45,11 @@ public class CustomerFollowupDO {
     private String dissatisfiedReason;
     private Integer reviewStatus;
     private String reviewPlatform;
+    private Integer accountAnswer;
+    private String crossCategory;
+    private String noNeedReason;
+    private Integer quarterReview;
+    private LocalDate dueDate;
     /** 写入档案的字段，JSON 数组：field、label、value */
     private String profileFields;
     private Long operatorId;

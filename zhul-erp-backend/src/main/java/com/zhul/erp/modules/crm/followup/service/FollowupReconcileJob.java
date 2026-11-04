@@ -37,7 +37,7 @@ import java.util.Set;
 import java.util.TreeSet;
 
 /**
- * 跟进对象每晚核对（第一期 design D1；第二期 tasks 3.3 加订单履约、售后评价）：按单据全量重新推导，补上遗漏、移出已结束的、激活到期的培育、刷新系统节奏。
+ * 跟进对象每晚核对（第一期 design D1；第二期 tasks 3.3 加订单履约、售后评价；第三期加客户经营）：按单据全量重新推导，补上遗漏、移出已结束的、激活到期的培育、刷新系统节奏。
  * 每晚 02:40（客户等级重算之后）运行；应用启动完成后也运行一次，上线时由它生成存量单据的跟进对象，
  * 补生成的对象提醒节奏从当天起算。
  * <p>
@@ -101,7 +101,8 @@ public class FollowupReconcileJob {
 
     /**
      * 可能有跟进对象的客户：未结束的跟进对象、在跟的报价单 / PI、未报价的询盘、进行中的商机，
-     * 以及未完成的销售订单和未结案的售后单（订单履约、售后评价；上线补生成规则在 {@code OrderFollowupSync} 里）
+     * 以及未完成的销售订单和未结案的售后单（订单履约、售后评价；上线补生成规则在 {@code OrderFollowupSync} 里），
+     * 和全部成交客户（客户经营）
      */
     private Set<Long> candidates() {
         Set<Long> out = new TreeSet<>();
@@ -121,6 +122,9 @@ public class FollowupReconcileJob {
                 .isNull("deleted_at")));
         add(out, afterSalesMapper.selectObjs(new QueryWrapper<AfterSalesDO>().select("DISTINCT customer_id")
                 .in("status", AfterSalesConstants.AS_OPEN, AfterSalesConstants.AS_WAITING).isNull("deleted_at")));
+        // 客户经营（第三期）：所有成交客户（经营等级 S–C）；等级没了的由上面「未结束的跟进对象」带出来移出
+        add(out, customerMapper.selectObjs(new QueryWrapper<CustomerDO>().select("id")
+                .between("biz_grade", 1, 4).isNull("deleted_at")));
         return out;
     }
 

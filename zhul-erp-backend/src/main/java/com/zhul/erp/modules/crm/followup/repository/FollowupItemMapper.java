@@ -38,6 +38,7 @@ public interface FollowupItemMapper extends BaseMapper<FollowupItemDO> {
             + " OR c.name_cn LIKE CONCAT('%', #{f.keyword}, '%') OR c.customer_code LIKE CONCAT('%', #{f.keyword}, '%')"
             + " OR fi.doc_no LIKE CONCAT('%', #{f.keyword}, '%'))</if>"
             + "<if test='f.exceptionOnly != null and f.exceptionOnly'> AND fi.exception_flags &gt; 0</if>"
+            + "<if test='f.dormantOnly != null and f.dormantOnly'> AND fi.dormant_since IS NOT NULL</if>"
             + "<if test='f.excludeAfterSalesNext != null and f.excludeAfterSalesNext'> AND fi.next_action_source &lt;&gt; 4</if>"
             + "<if test='f.dueFrom != null'> AND fi.next_action_date &gt;= #{f.dueFrom}</if>"
             + "<if test='f.dueTo != null'> AND fi.next_action_date &lt;= #{f.dueTo}</if>"

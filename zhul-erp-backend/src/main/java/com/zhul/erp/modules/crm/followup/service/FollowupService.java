@@ -1,6 +1,8 @@
 package com.zhul.erp.modules.crm.followup.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -36,6 +38,7 @@ import com.zhul.erp.modules.crm.followup.repository.FollowupItemFilter;
 import com.zhul.erp.modules.crm.followup.repository.FollowupItemMapper;
 import com.zhul.erp.modules.crm.followup.repository.SopBlockerMapper;
 import com.zhul.erp.modules.crm.followup.repository.SopStageMapper;
+import com.zhul.erp.modules.crm.followup.support.AccountStageRecorder;
 import com.zhul.erp.modules.crm.followup.support.Cadence;
 import com.zhul.erp.modules.crm.followup.support.FollowupSettings;
 import com.zhul.erp.modules.crm.followup.support.FollowupSync;
@@ -47,6 +50,7 @@ import com.zhul.erp.modules.crm.service.OpportunityService;
 import com.zhul.erp.modules.crm.support.OpportunityStageRules;
 import com.zhul.erp.modules.inquiry.support.CurrentUserResolver;
 import com.zhul.erp.modules.masterdata.customerprofile.service.CustomerProfileService;
+import com.zhul.erp.modules.masterdata.customerprofile.support.CustomerGradeSettings;
 import com.zhul.erp.modules.masterdata.entity.CustomerDO;
 import com.zhul.erp.modules.masterdata.repository.CustomerMapper;
 import com.zhul.erp.modules.masterdata.service.CustomerService;
@@ -116,6 +120,7 @@ public class FollowupService {
     private final OrderStageRecorder orderStageRecorder;
     private final OrderFollowupSync orderSync;
     private final FollowupSettings settings;
+    private final CustomerGradeSettings gradeSettings;
     private final DataScopeResolver dataScopeResolver;
     private final PermissionChecker perm;
     private final CurrentUserResolver currentUser;
@@ -131,7 +136,8 @@ public class FollowupService {
                 : itemMapper.selectList(new LambdaQueryWrapper<FollowupItemDO>()
                 .select(FollowupItemDO::getId, FollowupItemDO::getCustomerId, FollowupItemDO::getBoard,
                         FollowupItemDO::getStageGroup, FollowupItemDO::getStageCode, FollowupItemDO::getNextActionDate,
-                        FollowupItemDO::getNurtureUntil, FollowupItemDO::getNextActionSource, FollowupItemDO::getExceptionFlags)
+                        FollowupItemDO::getNurtureUntil, FollowupItemDO::getNextActionSource, FollowupItemDO::getExceptionFlags,
+                        FollowupItemDO::getDormantSince)
                 .isNull(FollowupItemDO::getClosedAt)
                 .isNull(FollowupItemDO::getDeletedAt)
                 .in(owners != null, FollowupItemDO::getOwnerId, owners));
@@ -149,7 +155,7 @@ public class FollowupService {
             card.setStep(board);
             card.setName(FollowupConstants.BOARD_NAMES.get(board - 1));
             card.setAvailable(board == FollowupConstants.BOARD_SALES || board == FollowupConstants.BOARD_FULFIL
-                    || board == FollowupConstants.BOARD_AFTER_SALES);
+                    || board == FollowupConstants.BOARD_AFTER_SALES || board == FollowupConstants.BOARD_ACCOUNT);
             List<FollowupItemDO> in = active.stream().filter(r -> r.getBoard() == board).toList();
             card.setCustomers((int) in.stream().map(FollowupItemDO::getCustomerId).distinct().count());
             card.setTotal(in.size());
@@ -162,6 +168,9 @@ public class FollowupService {
                 card.setExceptions((int) in.stream().filter(r -> nz(r.getExceptionFlags()) > 0).count());
             } else if (board == FollowupConstants.BOARD_AFTER_SALES) {
                 card.setGroups(groups(in, AFTER_SALES_GROUPS, c -> orderStages.getOrDefault(c, c)));
+            } else if (board == FollowupConstants.BOARD_ACCOUNT) {
+                card.setGroups(groups(in, ACCOUNT_GROUPS, c -> orderStages.getOrDefault(c, c)));
+                card.setDormant((int) in.stream().filter(r -> r.getDormantSince() != null).count());
             }
             vo.getBoards().add(card);
         }
@@ -181,6 +190,11 @@ public class FollowupService {
     private static final Map<Integer, List<String>> AFTER_SALES_GROUPS = orderedGroups(
             FollowupConstants.GROUP_SIGN, List.of("A1"), FollowupConstants.GROUP_USE, List.of("A2"),
             FollowupConstants.GROUP_ISSUE, List.of("A3", "A4"), FollowupConstants.GROUP_REVIEW, List.of("A5", "A6"));
+
+    /** 客户经营：需求挖掘（G4）、复购机会（G5）、交叉销售（G6）、长期合作（G7） */
+    private static final Map<Integer, List<String>> ACCOUNT_GROUPS = orderedGroups(
+            FollowupConstants.GROUP_NEED, List.of(FollowupConstants.G4), FollowupConstants.GROUP_REPEAT, List.of(FollowupConstants.G5),
+            FollowupConstants.GROUP_CROSS, List.of(FollowupConstants.G6), FollowupConstants.GROUP_LONG_TERM, List.of(FollowupConstants.G7));
 
     private static Map<Integer, List<String>> orderedGroups(Object... kv) {
         Map<Integer, List<String>> out = new LinkedHashMap<>(8);
@@ -235,6 +249,7 @@ public class FollowupService {
         }
         f.setBlocker(StringUtils.hasText(q.getBlocker()) ? q.getBlocker() : null);
         f.setExceptionOnly(Boolean.TRUE.equals(q.getException()) && f.getBoard() == FollowupConstants.BOARD_FULFIL);
+        f.setDormantOnly(Boolean.TRUE.equals(q.getDormant()) && f.getBoard() == FollowupConstants.BOARD_ACCOUNT);
         // LIKE 的通配符按普通字符查
         f.setKeyword(StringUtils.hasText(q.getKeyword())
                 ? q.getKeyword().trim().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") : null);
@@ -449,6 +464,11 @@ public class FollowupService {
         }
         OrderStageRecorder.validate(req, item, today);
         boolean orderStage = OrderStageRecorder.handles(item);
+        boolean account = AccountStageRecorder.handles(item);
+        AccountStageRecorder.validate(req, item, nz(customer.getStrategic()) == 1);
+        if (account) {
+            situation = AccountStageRecorder.situation(req);
+        }
         Long me = currentUser.resolve();
 
         // 1. 跟进记录
@@ -477,6 +497,8 @@ public class FollowupService {
         r.setOperatorId(me == null ? 0L : me);
         r.setIdempotencyKey(req.getIdempotencyKey().trim());
         OrderStageRecorder.fill(r, req);
+        AccountStageRecorder.fill(r, req);
+        r.setDueDate(item == null ? null : item.getNextActionDate());
         try {
             recordMapper.insert(r);
         } catch (DuplicateKeyException e) {
@@ -514,6 +536,12 @@ public class FollowupService {
             if (orderStage && OrderStageRecorder.applyToItem(item, req, today) && !replied) {
                 item.setNoReplyStreak(nz(item.getNoReplyStreak()) + 1);
             }
+            if (account) {
+                AccountStageRecorder.applyToItem(item, req);
+                if (situation != FollowupConstants.SITUATION_NO_REPLY) {
+                    item.setNoReplyStreak(0);
+                }
+            }
             // 3. 阶段：报价后勾「给了反馈」→ S5，「在谈条件」→ S6，只进不退
             String target = (situation & FollowupConstants.SITUATION_NEGOTIATING) != 0 ? FollowupConstants.S6
                     : (situation & FollowupConstants.SITUATION_FEEDBACK) != 0 ? FollowupConstants.S5 : null;
@@ -528,6 +556,18 @@ public class FollowupService {
                 }
             }
             itemMapper.updateById(item);
+            if (account) {
+                // 客户经营：季度回顾更新回顾日期；阶段按新标记重新推导（G5 / G6 / G4 / G7）
+                if (Boolean.TRUE.equals(req.getQuarterReview())) {
+                    customerMapper.update(null, new LambdaUpdateWrapper<CustomerDO>()
+                            .eq(CustomerDO::getId, customer.getId())
+                            .set(CustomerDO::getLastReviewDate, today)
+                            .set(CustomerDO::getUpdateTime, LocalDateTime.now()));
+                }
+                sync.resync(customer.getId(), today, false);
+                FollowupItemDO fresh = itemMapper.selectById(item.getId());
+                after = fresh == null ? before : fresh.getStageCode();
+            }
             if (orderStage) {
                 // 订单履约、售后评价：阶段由单据和答案重新推导（进入 A2、A5、A6 或售后结束）
                 orderCompleted = orderStageRecorder.afterSave(item, req, today);
@@ -883,6 +923,10 @@ public class FollowupService {
         Map<String, Map<String, String>> actions = new HashMap<>(sync.defaultActions());
         actions.putAll(orderSync.defaultActions());
         FollowupSettings.Params params = settings.params(TenantContext.getTenantId());
+        boolean anyAccount = rows.stream().anyMatch(AccountStageRecorder::handles);
+        int[] followDays = anyAccount ? gradeSettings.params(TenantContext.getTenantId()).followDays() : null;
+        Map<Long, LocalDate> contacts = anyAccount ? lastContacts(rows.stream().filter(AccountStageRecorder::handles)
+                .map(FollowupItemDO::getCustomerId).collect(Collectors.toSet())) : Map.of();
         List<FollowupItemVO> out = new ArrayList<>(rows.size());
         for (FollowupItemDO i : rows) {
             FollowupItemVO vo = new FollowupItemVO();
@@ -900,7 +944,7 @@ public class FollowupService {
                 vo.setPotentialRating(nz(c.getPotentialRating()));
             }
             vo.setStageCode(i.getStageCode());
-            vo.setStageName(OrderStageRecorder.handles(i) ? orderStages.getOrDefault(i.getStageCode(), i.getStageCode())
+            vo.setStageName(OrderStageRecorder.handles(i) || AccountStageRecorder.handles(i) ? orderStages.getOrDefault(i.getStageCode(), i.getStageCode())
                     : stages.nameOf(i.getStageCode()));
             vo.setStageGroup(i.getStageGroup());
             vo.setCurrencyCode(i.getCurrencyCode());
@@ -951,6 +995,9 @@ public class FollowupService {
             if (OrderStageRecorder.handles(i)) {
                 fillOrder(vo, i, today, orderStages, afterSales);
             }
+            if (AccountStageRecorder.handles(i)) {
+                fillAccount(vo, i, c, today, followDays, contacts);
+            }
             out.add(vo);
         }
         return out;
@@ -985,11 +1032,57 @@ public class FollowupService {
         vo.setStageSince(i.getStageSince());
     }
 
-    /** 订单履约、售后评价的阶段名（F1–F6、A1–A6，租户自己的覆盖平台的） */
+    /** 客户经营行的列（第三期 spec「客户经营列表与作战卡」）：上次联系超过等级间隔时标红 */
+    private static void fillAccount(FollowupItemVO vo, FollowupItemDO i, CustomerDO c, LocalDate today, int[] followDays,
+                                    Map<Long, LocalDate> contacts) {
+        vo.setPatternText(i.getPatternText());
+        vo.setPatternBrands(i.getPatternBrands());
+        vo.setPatternNextDate(i.getPatternNextDate());
+        vo.setRecentOrderCount(nz(i.getRecentOrderCount()));
+        vo.setLastOrderDate(i.getLastOrderDate());
+        vo.setAccountReason(i.getAccountReason());
+        vo.setAccountNeed(nz(i.getAccountNeed()));
+        vo.setCrossCategory(i.getCrossCategory());
+        vo.setDormantSince(i.getDormantSince());
+        vo.setDormantDays(i.getDormantSince() == null || i.getLastOrderDate() == null ? null
+                : (int) ChronoUnit.DAYS.between(i.getLastOrderDate(), today));
+        int grade = c == null ? 0 : nz(c.getBizGrade());
+        vo.setStrategic(c != null && nz(c.getStrategic()) == 1);
+        Integer days = grade >= 1 && grade <= 4 && followDays != null && followDays.length >= grade ? followDays[grade - 1] : null;
+        vo.setFollowDays(days);
+        LocalDate last = contacts.get(i.getCustomerId());
+        if (last == null || (i.getLastOrderDate() != null && i.getLastOrderDate().isAfter(last))) {
+            last = i.getLastOrderDate();
+        }
+        vo.setLastContactDate(last);
+        vo.setContactOverdue(days != null && last != null && ChronoUnit.DAYS.between(last, today) > days);
+    }
+
+    /** 每个客户最近一条跟进记录的日期（任意板块，含系统记录） */
+    private Map<Long, LocalDate> lastContacts(Set<Long> customerIds) {
+        if (customerIds.isEmpty()) {
+            return Map.of();
+        }
+        Map<Long, LocalDate> out = new HashMap<>(customerIds.size() * 2);
+        for (Map<String, Object> m : recordMapper.selectMaps(new QueryWrapper<CustomerFollowupDO>()
+                .select("customer_id AS customerId", "MAX(create_time) AS lastAt")
+                .in("customer_id", customerIds).isNull("deleted_at").groupBy("customer_id"))) {
+            Object t = m.get("lastAt");
+            LocalDate d = t instanceof LocalDateTime ldt ? ldt.toLocalDate()
+                    : t instanceof java.sql.Timestamp ts ? ts.toLocalDateTime().toLocalDate() : null;
+            if (d != null && m.get("customerId") instanceof Number n) {
+                out.put(n.longValue(), d);
+            }
+        }
+        return out;
+    }
+
+    /** 订单履约、售后评价、客户经营的阶段名（F1–F6、A1–A6、G4–G7，租户自己的覆盖平台的） */
     private Map<String, String> orderStageNames() {
         Map<String, String> out = new HashMap<>(16);
         sopStageMapper.selectList(new LambdaQueryWrapper<SopStageDO>()
-                        .in(SopStageDO::getBoard, FollowupConstants.BOARD_FULFIL, FollowupConstants.BOARD_AFTER_SALES)
+                        .in(SopStageDO::getBoard, FollowupConstants.BOARD_FULFIL, FollowupConstants.BOARD_AFTER_SALES,
+                                FollowupConstants.BOARD_ACCOUNT)
                         .eq(SopStageDO::getStatus, 1)).stream()
                 .sorted(Comparator.comparing(SopStageDO::getTenantId))
                 .forEach(st -> out.put(st.getStageCode(), st.getName()));

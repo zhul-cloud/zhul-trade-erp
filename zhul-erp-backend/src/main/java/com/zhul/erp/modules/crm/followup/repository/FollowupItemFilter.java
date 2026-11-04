@@ -22,6 +22,8 @@ public class FollowupItemFilter {
     private String keyword;
     /** true 只看有履约异常的（订单履约末尾的「有异常」） */
     private Boolean exceptionOnly;
+    /** 客户经营：只看沉睡 */
+    private Boolean dormantOnly;
     /** true 不含下一步跟着售后单走的（A3、A4，今日待办不重复列出） */
     private Boolean excludeAfterSalesNext;
     private LocalDate dueFrom;

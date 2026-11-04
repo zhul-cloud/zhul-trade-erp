@@ -70,6 +70,20 @@ public class FollowupItemDO {
     private LocalDate reviewInvitedAt;
     private Integer reviewRemindCount;
     private Long afterSalesId;
+    private Integer patternCycleDays;
+    @TableField(updateStrategy = FieldStrategy.ALWAYS)
+    private LocalDate patternNextDate;
+    private String patternText;
+    private String patternBrands;
+    private Integer recentOrderCount;
+    @TableField(updateStrategy = FieldStrategy.ALWAYS)
+    private LocalDate lastOrderDate;
+    private String accountReason;
+    private Integer accountNeed;
+    private Integer accountCross;
+    private String crossCategory;
+    @TableField(updateStrategy = FieldStrategy.ALWAYS)
+    private LocalDate dormantSince;
     private Integer snoozeCount;
     @TableField(updateStrategy = FieldStrategy.ALWAYS)
     private LocalDate expectedPayDate;

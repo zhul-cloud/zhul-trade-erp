@@ -66,6 +66,25 @@ public class FollowupSettings {
         }
     }
 
+    /** 客户经营的参数（第三期 design D4、D5）：预计采购提前天数、沉睡天数、安静天数、沉睡激活间隔、季度回顾间隔 */
+    public record AccountParams(int aheadDays, int dormantDays, int dormantQuietDays, int dormantIntervalDays,
+                                int reviewDays) {
+
+        public static AccountParams defaults() {
+            return new AccountParams(30, 180, 90, 60, 90);
+        }
+    }
+
+    public AccountParams accountParams(int tenantId) {
+        Map<String, String> v = values(tenantId);
+        AccountParams d = AccountParams.defaults();
+        return new AccountParams(positive(v.get(FollowupConstants.CFG_ACCOUNT_AHEAD), d.aheadDays()),
+                positive(v.get(FollowupConstants.CFG_DORMANT_DAYS), d.dormantDays()),
+                positive(v.get(FollowupConstants.CFG_DORMANT_QUIET), d.dormantQuietDays()),
+                positive(v.get(FollowupConstants.CFG_DORMANT_INTERVAL), d.dormantIntervalDays()),
+                positive(v.get(FollowupConstants.CFG_STRATEGIC_REVIEW), d.reviewDays()));
+    }
+
     public OrderParams orderParams(int tenantId) {
         Map<String, String> v = values(tenantId);
         OrderParams d = OrderParams.defaults();

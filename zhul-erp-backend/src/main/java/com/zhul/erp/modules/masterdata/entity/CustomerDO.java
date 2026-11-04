@@ -123,6 +123,11 @@ public class CustomerDO {
     /** 档案补齐（完整度变为 5/5）的时间与操作人，降到 5 以下时清空；只由 ProfileFacts 按条件更新 */
     private LocalDateTime profileDoneAt;
     private Long profileDoneBy;
+    /** 战略客户（0-否、1-是），只由客户跟进的「设为 / 取消战略客户」修改 */
+    @TableField("is_strategic")
+    private Integer strategic;
+    private LocalDateTime strategicAt;
+    private java.time.LocalDate lastReviewDate;
     /** 状态（0-禁用、1-启用） */
     private Integer status;
     private LocalDateTime deletedAt;

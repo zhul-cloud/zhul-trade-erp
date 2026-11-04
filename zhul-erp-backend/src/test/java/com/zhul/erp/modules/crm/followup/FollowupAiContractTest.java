@@ -85,6 +85,8 @@ class FollowupAiContractTest extends IntegrationTestBase {
     private void cleanup() {
         jdbc.update("delete from ai_task where tenant_id = 0 and skill_id like 'followup-%'");
         jdbc.update("delete from followup_item where tenant_id = 0");
+        jdbc.update("delete from sales_order_item where tenant_id = 0");
+        jdbc.update("delete from sales_order where tenant_id = 0");
         jdbc.update("delete from customer where tenant_id = 0");
     }
 
@@ -307,5 +309,62 @@ class FollowupAiContractTest extends IntegrationTestBase {
         ok(call(json(post(BASE + "/reply-draft"), "{\"customerId\":" + C1 + ",\"itemId\":" + itemId + ",\"intent\":\"logistics_update\"}")));
         assertEquals("回复意图不正确", call(json(post(BASE + "/reply-draft"), "{\"customerId\":" + C1 + ",\"intent\":\"discount\"}"))
                 .path("message").asText());
+    }
+
+    // ---------------------------------------------------------------- 客户经营（第三期 tasks 3.7，design D10）
+
+    /** 客户经营 G4 的跟进对象：预计 1 月采购，最近一单 Siemens 6ES7515 ×10 */
+    private long accountItem() {
+        jdbc.update("insert into followup_item (tenant_id, board, target_type, target_id, customer_id, owner_id, doc_no, stage_code,"
+                + " stage_group, account_reason, pattern_text, pattern_brands, last_order_date) values (0, 5, 6, ?, ?, ?, 'CUAI', 'G4', 11,"
+                + " '预计 1 月采购，提前问计划', '约每 90 天一次，下次约 1 月', 'Siemens · PLC', '2026-10-01')", C1, C1, SELF);
+        jdbc.update("insert into sales_order (id, tenant_id, so_no, customer_id, owner_id, currency_code, total_amount, total_amount_cny,"
+                + " status, progress_code, sales_date, migrated) values (99430001, 0, 'SOAI', ?, ?, 'USD', 1, 7000, 1, 'COMPLETED',"
+                + " '2026-10-01', 1)", C1, SELF);
+        jdbc.update("insert into sales_order_item (tenant_id, so_id, brand, model, quantity, category, amount_cny)"
+                + " values (0, 99430001, 'Siemens', '6ES7515-2AM02', 10, 'PLC', 7000)");
+        return jdbc.queryForObject("select id from followup_item where tenant_id = 0 and board = 5 and target_id = ?", Long.class, C1);
+    }
+
+    @Test
+    void replyDraft_accountTouch_sendsReasonPatternAndLastOrder() throws Exception {
+        long itemId = accountItem();
+        doAnswer(inv -> {
+            long taskId = inv.getArgument(1);
+            new Thread(() -> {
+                AiTaskCallbackRequest req = new AiTaskCallbackRequest();
+                req.setStatus("success");
+                req.setOutput(Map.of("reply", "Are you planning any maintenance in the next 1-2 months?", "intent", "问未来两个月的备件计划"));
+                aiTaskService.handleCallback(taskId, req);
+            }).start();
+            return new CompletableFuture<>();
+        }).when(orchestrator).submit(eq("followup-reply"), anyLong(), any(), any());
+
+        ok(call(json(post(BASE + "/reply-draft"), "{\"customerId\":" + C1 + ",\"itemId\":" + itemId + ",\"intent\":\"account_touch\"}")));
+        ArgumentCaptor<String> input = ArgumentCaptor.forClass(String.class);
+        verify(orchestrator).submit(eq("followup-reply"), anyLong(), input.capture(), any());
+        JsonNode sent = objectMapper.readTree(input.getValue());
+        assertEquals("account_touch", sent.path("intent").asText());
+        assertEquals("需求挖掘", sent.path("stage").path("name").asText(), "客户经营阶段名取 SOP");
+        assertEquals("预计 1 月采购，提前问计划", sent.path("account").path("reason").asText());
+        assertEquals("约每 90 天一次，下次约 1 月", sent.path("account").path("pattern").asText());
+        assertEquals("Siemens · PLC", sent.path("account").path("brands").asText());
+        assertEquals("2026-10-01", sent.path("account").path("lastOrder").path("date").asText());
+        assertEquals("Siemens 6ES7515-2AM02 ×10", sent.path("account").path("lastOrder").path("items").asText());
+        assertTrue(sent.path("account").path("crossSell").isArray());
+        assertTrue(sent.path("document").isMissingNode(), "客户经营不带单据概要");
+    }
+
+    @Test
+    void extract_accountStage_mapsSituationToAnswer() throws Exception {
+        long itemId = accountItem();
+        long taskId = ok(call(json(post(BASE + "/extract"), objectMapper.writeValueAsString(Map.of("customerId", C1, "itemId", itemId,
+                "rawContent", "customer: no project this quarter, budget frozen"))))).path("taskId").asLong();
+        callback(taskId, """
+                {"status":"success","output":{"summary":"客户这季度没有项目","situation":["no_need"],"blocker":"","nextActions":[],
+                 "profileSuggestions":[],"truncated":false}}""");
+        JsonNode res = ok(call(get(BASE + "/extract/" + taskId))).path("result");
+        assertEquals(32, res.path("situation").asInt());
+        assertEquals(3, res.path("accountAnswer").asInt(), "预选「当前没有需求」");
     }
 }
