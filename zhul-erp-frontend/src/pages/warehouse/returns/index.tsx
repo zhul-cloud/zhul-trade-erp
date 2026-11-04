@@ -30,6 +30,7 @@ import { readBizError } from '@/pages/sales/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
 import { usePageSize } from '@/utils/pageSize';
+import { tableScrollX } from '@/utils/tableScroll';
 import { AttachmentWall, ReasonModal, WarehousePageTitle } from '../components';
 import type { Attachment } from '../service';
 
@@ -634,7 +635,7 @@ const ReturnsPage: React.FC = () => {
           loading={loading}
           columns={columns}
           dataSource={rows}
-          scroll={{ x: 1650 }}
+          scroll={{ x: tableScrollX(columns) }}
           locale={{
             emptyText:
               status === RT_STATUS.PENDING
@@ -705,7 +706,7 @@ const ReturnsPage: React.FC = () => {
               pagination={false}
               dataSource={viewing.items}
               columns={[
-                { title: '型号', dataIndex: 'model' },
+                { title: '型号', width: 160, dataIndex: 'model' },
                 { title: '退货', dataIndex: 'quantity', width: 70 },
                 {
                   title: '实收',

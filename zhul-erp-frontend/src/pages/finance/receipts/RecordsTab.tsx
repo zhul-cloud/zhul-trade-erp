@@ -4,6 +4,7 @@ import type { TableColumnsType } from 'antd';
 import { App, Button, Checkbox, DatePicker, Input, Select, Table } from 'antd';
 import type { Dayjs } from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
+import { ellipsisRender } from '@/components/EllipsisText';
 import { CURRENCIES } from '@/pages/quotation/components';
 import { Card, PATHS, Pill } from '@/pages/sales/components';
 import { type ReceiptRow, readBizError } from '@/pages/sales/service';
@@ -17,6 +18,7 @@ import { recentRange } from '@/utils/dateRange';
 import { usePaymentMethods } from '@/utils/dict';
 import { formatAmount } from '@/utils/format';
 import { usePageSize } from '@/utils/pageSize';
+import { tableScrollX } from '@/utils/tableScroll';
 import { ledgerApi, type ReceiptMoney, type ReceiptSummary } from './service';
 import { MethodCell, NetCnyCell } from './UnclaimedTab';
 
@@ -154,7 +156,13 @@ const RecordsTab: React.FC = () => {
           '—'
         ),
     },
-    { title: '客户', dataIndex: 'customerName', ellipsis: true },
+    {
+      title: '客户',
+      width: 180,
+      render: ellipsisRender,
+      dataIndex: 'customerName',
+      ellipsis: true,
+    },
     ...(bu.enabled
       ? [
           {
@@ -373,7 +381,7 @@ const RecordsTab: React.FC = () => {
         columns={columns}
         dataSource={rows}
         loading={loading}
-        scroll={{ x: 1460 }}
+        scroll={{ x: tableScrollX(columns) }}
         locale={{ emptyText: '没有符合条件的收款记录' }}
         pagination={{
           current: page,

@@ -11,6 +11,7 @@ import type { TableColumnsType, TableProps } from 'antd';
 import { Button, DatePicker, Form, Input, Select, Table } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
+import { ellipsisRender } from '@/components/EllipsisText';
 import { PayStatusPill } from '@/pages/finance/payables/components';
 import { PAY_STATUS } from '@/pages/finance/payables/service';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
@@ -19,6 +20,7 @@ import { useAppTheme } from '@/theme/AppTheme';
 import { recentRange } from '@/utils/dateRange';
 import { formatAmount } from '@/utils/format';
 import { usePageSize } from '@/utils/pageSize';
+import { tableScrollX } from '@/utils/tableScroll';
 import {
   auditColumns,
   BargainText,
@@ -305,7 +307,12 @@ const PurchaseOrderList: React.FC = () => {
         </div>
       ),
     },
-    { title: '采购员', dataIndex: 'purchaserName', width: 90 },
+    {
+      title: '采购员',
+      dataIndex: 'purchaserName',
+      width: 90,
+      render: ellipsisRender,
+    },
     {
       title: '状态 · 发货进度',
       dataIndex: 'status',
@@ -611,7 +618,7 @@ const PurchaseOrderList: React.FC = () => {
           columns={columns}
           dataSource={rows}
           loading={loading}
-          scroll={{ x: 2430 }}
+          scroll={{ x: tableScrollX(columns) }}
           onChange={onTableChange}
           locale={{ emptyText: '没有符合条件的采购订单，换个筛选条件试试' }}
           pagination={{

@@ -14,6 +14,7 @@ import {
 import { auditColumns } from '@/pages/purchase/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { usePageSize } from '@/utils/pageSize';
+import { tableScrollX } from '@/utils/tableScroll';
 import { PlatformTaskChip, TABS } from './components';
 import {
   type ListingProduct,
@@ -244,7 +245,7 @@ const ListingTasksPage: React.FC = () => {
             columns={columns}
             dataSource={rows}
             loading={loading}
-            scroll={{ x: 1500 }}
+            scroll={{ x: tableScrollX(columns) }}
             locale={{
               emptyText: TABS.find((t) => t.key === tab)?.empty ?? '没有记录',
             }}

@@ -21,6 +21,7 @@ import {
   Tooltip,
 } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
+import EllipsisText from '@/components/EllipsisText';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useCountries } from '@/pages/product/components/useCountries';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -432,16 +433,21 @@ const CustomerListPage: React.FC = () => {
       title: '客户来源',
       dataIndex: 'sourceChannel',
       width: 150,
-      render: (v: number, r) =>
-        r.aliLevel ? `${sourceLabel(v)} · ${r.aliLevel}` : sourceLabel(v),
+      render: (v: number, r) => (
+        <EllipsisText
+          text={
+            r.aliLevel ? `${sourceLabel(v)} · ${r.aliLevel}` : sourceLabel(v)
+          }
+        />
+      ),
     },
     ...(showOwner
       ? [
           {
             title: '负责业务员',
             dataIndex: 'ownerName',
-            width: 100,
-            render: (v?: string) => v || '未分配',
+            width: 110,
+            render: (v?: string) => <EllipsisText text={v || '未分配'} />,
           },
         ]
       : []),

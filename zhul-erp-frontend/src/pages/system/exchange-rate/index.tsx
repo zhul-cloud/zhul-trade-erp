@@ -159,6 +159,7 @@ const ExchangeRatePage: React.FC = () => {
                   },
                   {
                     title: '更新',
+                    width: 220,
                     key: 'updated',
                     render: (_, r) =>
                       r.rate == null ? (

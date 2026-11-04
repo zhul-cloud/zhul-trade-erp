@@ -28,6 +28,7 @@ import {
   useBusinessUnits,
 } from '@/utils/businessUnit';
 import { formatAmount } from '@/utils/format';
+import { tableScrollX } from '@/utils/tableScroll';
 import { ledgerApi } from './service';
 
 const num: React.CSSProperties = { fontVariantNumeric: 'tabular-nums' };
@@ -309,6 +310,7 @@ const UnclaimedTab: React.FC<{
     },
     {
       title: '付款人',
+      width: 180,
       dataIndex: 'payer',
       render: (v?: string) =>
         v || <span style={{ color: palette.mute }}>未填</span>,
@@ -371,7 +373,12 @@ const UnclaimedTab: React.FC<{
         <span style={num}>{formatAmount(r.amount, r.currencyCode)}</span>
       ),
     },
-    { title: '付款人', dataIndex: 'payer', render: (v?: string) => v || '—' },
+    {
+      title: '付款人',
+      width: 180,
+      dataIndex: 'payer',
+      render: (v?: string) => v || '—',
+    },
     {
       title: '认领到',
       key: 'pi',
@@ -471,7 +478,7 @@ const UnclaimedTab: React.FC<{
         dataSource={data?.unclaimed}
         loading={loading}
         pagination={false}
-        scroll={{ x: 1100 }}
+        scroll={{ x: tableScrollX(columns) }}
         locale={{ emptyText: '没有未认领的到账' }}
       />
       <div
@@ -485,7 +492,7 @@ const UnclaimedTab: React.FC<{
         dataSource={data?.recentClaimed}
         loading={loading}
         pagination={false}
-        scroll={{ x: 900 }}
+        scroll={{ x: tableScrollX(claimedColumns) }}
         locale={{ emptyText: '还没有认领记录' }}
       />
       <RegisterModal

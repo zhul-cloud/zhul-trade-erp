@@ -22,6 +22,7 @@ import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatDateTime } from '@/utils/format';
 import { usePageSize } from '@/utils/pageSize';
+import { tableScrollX } from '@/utils/tableScroll';
 import { LIST_PATH, PageTitle, SupplierTypePill } from './components';
 import { DISABLE_CONFIRM_TEXT, SUPPLIER_TYPE_OPTIONS } from './constants';
 import {
@@ -532,7 +533,7 @@ const SupplierListPage: React.FC = () => {
             dataSource={rows}
             loading={loading}
             sticky
-            scroll={{ x: 1720 }}
+            scroll={{ x: tableScrollX(columns) }}
             rowSelection={{
               selectedRowKeys: selected,
               onChange: setSelected,

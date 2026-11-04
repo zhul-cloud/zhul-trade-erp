@@ -280,7 +280,7 @@ const ShipmentDetail: React.FC = () => {
           pagination={false}
           dataSource={boxes}
           locale={{ emptyText: '还没有箱子；直发货确认实收后出现' }}
-          scroll={{ x: 900 }}
+          scroll={{ x: 'max-content' }}
           columns={[
             {
               title: '来源',
@@ -321,7 +321,7 @@ const ShipmentDetail: React.FC = () => {
               width: 90,
               render: (v: number) => <b>{Number(v).toFixed(2)}</b>,
             },
-            { title: '箱内型号', dataIndex: 'items' },
+            { title: '箱内型号', width: 220, dataIndex: 'items' },
             {
               title: '国际运费分摊',
               dataIndex: 'freight',

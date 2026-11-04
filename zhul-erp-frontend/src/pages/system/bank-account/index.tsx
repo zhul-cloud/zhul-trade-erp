@@ -19,6 +19,7 @@ import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { CURRENCIES } from '@/pages/quotation/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { UnitPill, UnitSelect, useBusinessUnits } from '@/utils/businessUnit';
+import { tableScrollX } from '@/utils/tableScroll';
 import {
   ACCOUNT_TYPE,
   type BankAccount,
@@ -428,7 +429,7 @@ const BankAccountPage: React.FC = () => {
           dataSource={sorted}
           loading={!rows}
           pagination={false}
-          scroll={{ x: 1120 }}
+          scroll={{ x: tableScrollX(columns) }}
           locale={{
             emptyText: '还没有收款账户：添加后开 PI 时会按币种自动带出',
           }}

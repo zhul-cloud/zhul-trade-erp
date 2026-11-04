@@ -34,6 +34,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { ellipsisRender } from '@/components/EllipsisText';
 import { useAppTheme } from '@/theme/AppTheme';
 import { usePagination } from '@/utils/pageSize';
+import { tableScrollX } from '@/utils/tableScroll';
 import type { UserItem, UserStats } from './service';
 import {
   createUser,
@@ -490,7 +491,7 @@ const UserPage: React.FC = () => {
       </div>
 
       <ProTable<UserItem>
-        scroll={{ x: 'max-content' }}
+        scroll={{ x: tableScrollX(columns) }}
         headerTitle="用户列表"
         actionRef={actionRef}
         rowKey="id"

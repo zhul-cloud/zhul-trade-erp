@@ -23,6 +23,7 @@ import {
 import type { Dayjs } from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
 import { CustomerCell } from '@/components/DocFields';
+import { ellipsisRender } from '@/components/EllipsisText';
 import { Stat, useWide } from '@/pages/inquiry/shared/components';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
 import { getUserList } from '@/pages/system/user/service';
@@ -30,6 +31,7 @@ import { useAppTheme } from '@/theme/AppTheme';
 import { recentRange } from '@/utils/dateRange';
 import { formatAmount, formatDateTime } from '@/utils/format';
 import { usePageSize } from '@/utils/pageSize';
+import { tableScrollX } from '@/utils/tableScroll';
 import { formatMargin } from './calc';
 import {
   Card,
@@ -246,7 +248,12 @@ const QuotationList: React.FC = () => {
             ? v[0]
             : `${v[0]} 等 ${v.length} 个`,
     },
-    { title: '创建人', dataIndex: 'ownerName', width: 100 },
+    {
+      title: '创建人',
+      dataIndex: 'ownerName',
+      width: 150,
+      render: ellipsisRender,
+    },
     {
       title: '创建时间',
       dataIndex: 'createTime',
@@ -498,7 +505,7 @@ const QuotationList: React.FC = () => {
           columns={columns}
           dataSource={rows}
           loading={loading}
-          scroll={{ x: 1830 }}
+          scroll={{ x: tableScrollX(columns) }}
           locale={{ emptyText: '没有符合条件的报价单，换个筛选条件试试' }}
           pagination={{
             current: page,

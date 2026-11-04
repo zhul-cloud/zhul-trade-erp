@@ -12,6 +12,7 @@ import { App, Button, DatePicker, Form, Input, Select, Table } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
 import { CustomerCell } from '@/components/DocFields';
+import { ellipsisRender } from '@/components/EllipsisText';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
 import { auditColumns } from '@/pages/purchase/components';
 import { CURRENCIES } from '@/pages/quotation/components';
@@ -19,6 +20,7 @@ import { useAppTheme } from '@/theme/AppTheme';
 import { recentRange } from '@/utils/dateRange';
 import { formatAmount } from '@/utils/format';
 import { usePageSize } from '@/utils/pageSize';
+import { tableScrollX } from '@/utils/tableScroll';
 import {
   Card,
   MigratedPill,
@@ -344,7 +346,12 @@ const OrderList: React.FC = () => {
           <span style={{ color: palette.sub }}>手动创建</span>
         ),
     },
-    { title: '业务员', dataIndex: 'ownerName', width: 90 },
+    {
+      title: '业务员',
+      dataIndex: 'ownerName',
+      width: 90,
+      render: ellipsisRender,
+    },
     ...auditColumns<OrderListItem>(),
     {
       title: '操作',
@@ -619,7 +626,7 @@ const OrderList: React.FC = () => {
           columns={columns}
           dataSource={rows}
           loading={loading}
-          scroll={{ x: 2550 }}
+          scroll={{ x: tableScrollX(columns) }}
           locale={{ emptyText: '没有符合条件的订单，换个筛选条件试试' }}
           onChange={(_, __, sorter, extra) => {
             // 翻页也会触发 onChange：只处理排序，否则会把页码重置回 1

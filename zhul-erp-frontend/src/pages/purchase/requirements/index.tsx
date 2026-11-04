@@ -35,6 +35,7 @@ import { StockPill, useUserOptions } from '@/pages/sales/orders/dialogs';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
 import { usePageSize } from '@/utils/pageSize';
+import { tableScrollX } from '@/utils/tableScroll';
 import {
   auditColumns,
   Card,
@@ -613,7 +614,7 @@ const RequirementList: React.FC = () => {
                       columns={lineColumns}
                       dataSource={o.lines}
                       pagination={false}
-                      scroll={{ x: 1560 }}
+                      scroll={{ x: tableScrollX(lineColumns) }}
                       rowSelection={rowSelection(o.lines)}
                     />
                   </div>
@@ -674,7 +675,7 @@ const RequirementList: React.FC = () => {
           ]}
           dataSource={rows}
           loading={loading}
-          scroll={{ x: 1780 }}
+          scroll={{ x: 'max-content' }}
           rowSelection={rowSelection(rows)}
           pagination={{
             current: page,

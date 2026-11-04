@@ -10,6 +10,7 @@ import { useUserOptions } from '@/pages/sales/orders/dialogs';
 import { readBizError } from '@/pages/sales/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
+import { tableScrollX } from '@/utils/tableScroll';
 import {
   type BargainGroup,
   type BargainGroupBy,
@@ -368,7 +369,7 @@ const BargainStatsPage: React.FC = () => {
           columns={columns}
           dataSource={groups}
           pagination={false}
-          scroll={{ x: 1100 }}
+          scroll={{ x: tableScrollX(columns) }}
           locale={{ emptyText: '这段时间没有已下单的采购订单' }}
           expandable={{
             expandRowByClick: true,
@@ -384,7 +385,7 @@ const BargainStatsPage: React.FC = () => {
                   size: 'small',
                   showTotal: (total) => `共 ${total} 行`,
                 }}
-                scroll={{ x: 1400 }}
+                scroll={{ x: tableScrollX(lineColumns) }}
               />
             ),
           }}

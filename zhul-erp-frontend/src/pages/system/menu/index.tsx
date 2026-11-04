@@ -32,6 +32,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { ellipsisRender } from '@/components/EllipsisText';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatDateTime } from '@/utils/format';
+import { tableScrollX } from '@/utils/tableScroll';
 import type { MenuItem } from './service';
 import {
   createMenu,
@@ -767,7 +768,7 @@ const MenuPage: React.FC = () => {
 
       <Card>
         <ProTable<MenuItem>
-          scroll={{ x: 'max-content' }}
+          scroll={{ x: tableScrollX(columns) }}
           rowKey="id"
           columns={columns}
           dataSource={displayTree}

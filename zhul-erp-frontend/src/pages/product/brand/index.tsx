@@ -31,6 +31,7 @@ import { ellipsisRender } from '@/components/EllipsisText';
 import { useIndustryOptions } from '@/utils/dict';
 import { formatDateTime } from '@/utils/format';
 import { usePagination } from '@/utils/pageSize';
+import { tableScrollX } from '@/utils/tableScroll';
 import BrandColorInput from '../components/BrandColorInput';
 import { BrandMark, Pill } from '../components/Pills';
 import { useCountries } from '../components/useCountries';
@@ -428,6 +429,7 @@ const BrandPage: React.FC = () => {
             {
               title: '待确认名称',
               dataIndex: 'name',
+              width: 220,
               render: (v: string) => (
                 <span style={{ fontWeight: 600 }}>{v}</span>
               ),
@@ -540,7 +542,7 @@ const BrandPage: React.FC = () => {
             search={false}
             options={false}
             toolBarRender={false}
-            scroll={{ x: 1740 }}
+            scroll={{ x: tableScrollX(columns) }}
             request={async (params) => {
               const [res, counts] = await Promise.all([
                 brandApi.page({

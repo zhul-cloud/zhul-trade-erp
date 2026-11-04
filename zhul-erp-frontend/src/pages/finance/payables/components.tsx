@@ -453,6 +453,7 @@ export const RegisterPaymentDrawer: React.FC<{
   const columns: TableColumnsType<Payable> = [
     {
       title: '应付单 · 来源',
+      width: 200,
       key: 'no',
       render: (_, r) => (
         <div>
@@ -463,6 +464,7 @@ export const RegisterPaymentDrawer: React.FC<{
     },
     {
       title: '期次',
+      width: 80,
       key: 'inst',
       render: (_, r) => {
         const open = r.installments.filter((i) => i.amount > i.paidAmount);
@@ -1041,17 +1043,20 @@ export const PayableBody: React.FC<{
             },
             {
               title: '比例 · 时点',
+              width: 140,
               key: 't',
               render: (_, i) => `${i.ratio}% · ${i.triggerName}`,
             },
             {
               title: '金额',
+              width: 130,
               dataIndex: 'amount',
               align: 'right',
               render: (v: number) => formatAmount(v, c),
             },
             {
               title: '到期日',
+              width: 120,
               key: 'due',
               render: (_, i) => (
                 <DueTag date={i.dueDate} state={i.dueState} days={i.dueDays} />
@@ -1059,6 +1064,7 @@ export const PayableBody: React.FC<{
             },
             {
               title: '已付',
+              width: 130,
               dataIndex: 'paidAmount',
               align: 'right',
               render: (v: number) => formatAmount(v, c),
@@ -1089,7 +1095,7 @@ export const PayableBody: React.FC<{
             size="small"
             pagination={false}
             dataSource={lines}
-            scroll={{ x: 820 }}
+            scroll={{ x: 'max-content' }}
             columns={[
               { title: '编号', dataIndex: 'paymentNo', width: 150 },
               { title: '日期', dataIndex: 'payDate', width: 110 },
@@ -1111,6 +1117,7 @@ export const PayableBody: React.FC<{
               },
               {
                 title: '付款方式 · 账户 / 垫付人',
+                width: 220,
                 key: 'm',
                 render: (_, l) => (
                   <div>

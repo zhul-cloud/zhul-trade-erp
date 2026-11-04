@@ -8,7 +8,7 @@ import {
 import type { TableColumnsType } from 'antd';
 import { Button, Input, InputNumber, Segmented, Select, Space } from 'antd';
 import React, { useEffect, useRef, useState } from 'react';
-import { ellipsisRender } from '@/components/EllipsisText';
+import EllipsisText, { ellipsisRender } from '@/components/EllipsisText';
 import {
   Card,
   MigratedPill,
@@ -471,10 +471,16 @@ export const SourceCell: React.FC<{
   if (supplierName) {
     return (
       <div>
-        <div style={{ color: palette.ink }}>
-          <ShopOutlined style={{ color: palette.link, marginRight: 6 }} />
-          {supplierName}
-        </div>
+        <EllipsisText
+          style={{ color: palette.ink }}
+          tip={supplierName}
+          text={
+            <>
+              <ShopOutlined style={{ color: palette.link, marginRight: 6 }} />
+              {supplierName}
+            </>
+          }
+        />
         <div style={{ fontSize: 12, color: palette.mute }}>老供应商</div>
       </div>
     );
@@ -482,11 +488,19 @@ export const SourceCell: React.FC<{
   if (shopName) {
     return (
       <div>
-        <div style={{ color: palette.ink }}>
-          <ShoppingOutlined style={{ color: palette.orange, marginRight: 6 }} />
-          {channelName ? `${channelName} · ` : ''}
-          {shopName}
-        </div>
+        <EllipsisText
+          style={{ color: palette.ink }}
+          tip={`${channelName ? `${channelName} · ` : ''}${shopName}`}
+          text={
+            <>
+              <ShoppingOutlined
+                style={{ color: palette.orange, marginRight: 6 }}
+              />
+              {channelName ? `${channelName} · ` : ''}
+              {shopName}
+            </>
+          }
+        />
         <div style={{ fontSize: 12, color: palette.mute }}>线上店铺</div>
       </div>
     );

@@ -293,7 +293,7 @@ const PasteQuoteModal: React.FC<{
             size="small"
             pagination={false}
             dataSource={rows}
-            scroll={{ x: 1060, y: 420 }}
+            scroll={{ x: 'max-content', y: 420 }}
             locale={{ emptyText: '没有认出带型号或价格的行' }}
             columns={[
               {

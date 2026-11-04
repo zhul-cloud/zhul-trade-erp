@@ -32,7 +32,7 @@ import {
   Tree,
 } from 'antd';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ellipsisRender } from '@/components/EllipsisText';
+import EllipsisText, { ellipsisRender } from '@/components/EllipsisText';
 import {
   type WorkbenchTemplate,
   workbenchApi,
@@ -53,6 +53,7 @@ import { getDeptTreeOptions } from '@/pages/system/user/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatDateTime } from '@/utils/format';
 import { usePagination } from '@/utils/pageSize';
+import { tableScrollX } from '@/utils/tableScroll';
 import type { RoleItem, RoleStats } from './service';
 import {
   createRole,
@@ -378,10 +379,10 @@ const RolePage: React.FC = () => {
       dataIndex: 'name',
       width: 160,
       render: (_, record) => (
-        <Space size={6}>
-          {record.name}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <EllipsisText text={record.name} />
           {record.isBuiltIn === 1 && <Tag color="default">内置</Tag>}
-        </Space>
+        </div>
       ),
     },
     { title: '角色编码', dataIndex: 'code', width: 140 },
@@ -555,7 +556,7 @@ const RolePage: React.FC = () => {
       </div>
 
       <ProTable<RoleItem>
-        scroll={{ x: 'max-content' }}
+        scroll={{ x: tableScrollX(columns) }}
         headerTitle="角色列表"
         actionRef={actionRef}
         rowKey="id"

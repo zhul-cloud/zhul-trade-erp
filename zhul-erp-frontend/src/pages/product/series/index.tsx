@@ -10,9 +10,10 @@ import {
 import { useAccess } from '@umijs/max';
 import { App, Button, Tooltip } from 'antd';
 import React, { useRef, useState } from 'react';
-import { ellipsisRender } from '@/components/EllipsisText';
+import EllipsisText, { ellipsisRender } from '@/components/EllipsisText';
 import { formatDateTime } from '@/utils/format';
 import { usePagination } from '@/utils/pageSize';
+import { tableScrollX } from '@/utils/tableScroll';
 import { Pill } from '../components/Pills';
 import { brandApi, type Series, seriesApi } from '../service';
 import { PageHeader, ProductThemeProvider } from '../theme';
@@ -94,20 +95,30 @@ const SeriesPage: React.FC = () => {
       title: '系列名称',
       dataIndex: 'seriesName',
       search: false,
-      render: (_, r) => <span style={{ fontWeight: 600 }}>{r.seriesName}</span>,
+      width: 200,
+      render: (_, r) => (
+        <EllipsisText text={r.seriesName} style={{ fontWeight: 600 }} />
+      ),
     },
-    { title: '品牌', dataIndex: 'brandName', search: false },
+    {
+      title: '品牌',
+      dataIndex: 'brandName',
+      search: false,
+      width: 160,
+      render: ellipsisRender,
+    },
     {
       title: '简介',
       dataIndex: 'description',
       search: false,
-      ellipsis: true,
-      render: (_, r) => r.description || '—',
+      width: 280,
+      render: (_, r) => <EllipsisText text={r.description} />,
     },
     {
       title: '商品数',
       dataIndex: 'productCount',
       search: false,
+      width: 90,
       align: 'right',
       render: (_, r) => <span className="num">{r.productCount}</span>,
     },
@@ -115,6 +126,7 @@ const SeriesPage: React.FC = () => {
       title: '状态',
       dataIndex: 'status',
       search: false,
+      width: 90,
       render: (_, r) =>
         r.status === 1 ? (
           <Pill tone="green">启用</Pill>
@@ -158,6 +170,7 @@ const SeriesPage: React.FC = () => {
       title: '操作',
       fixed: 'right',
       valueType: 'option',
+      width: 140,
       render: (_, row) => [
         access['product:series:edit'] && (
           <a key="edit" onClick={() => openForm(row)}>
@@ -209,7 +222,7 @@ const SeriesPage: React.FC = () => {
         }
       />
       <ProTable<Series>
-        scroll={{ x: 'max-content' }}
+        scroll={{ x: tableScrollX(columns) }}
         rowKey="id"
         actionRef={actionRef}
         columns={columns}

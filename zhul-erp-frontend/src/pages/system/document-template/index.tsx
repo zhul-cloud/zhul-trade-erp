@@ -427,6 +427,7 @@ const DocumentTemplatePage: React.FC = () => {
                   },
                   {
                     title: '版本说明',
+                    width: 240,
                     key: 'n',
                     render: (_, v) => (
                       <span

@@ -13,6 +13,7 @@ import React, { useRef, useState } from 'react';
 import { ellipsisRender } from '@/components/EllipsisText';
 import { useAppTheme } from '@/theme/AppTheme';
 import { usePagination } from '@/utils/pageSize';
+import { tableScrollX } from '@/utils/tableScroll';
 import type { PositionItem } from './service';
 import {
   createPosition,
@@ -223,7 +224,7 @@ const PositionPage: React.FC = () => {
   return (
     <>
       <ProTable<PositionItem>
-        scroll={{ x: 'max-content' }}
+        scroll={{ x: tableScrollX(columns) }}
         headerTitle="岗位列表"
         actionRef={actionRef}
         rowKey="id"

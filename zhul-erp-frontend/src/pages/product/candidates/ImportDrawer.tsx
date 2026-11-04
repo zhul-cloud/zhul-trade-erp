@@ -11,6 +11,7 @@ import { App, Button, Drawer, Segmented, Table, Tooltip, Upload } from 'antd';
 import React, { useState } from 'react';
 import { Pill } from '@/pages/inquiry/shared/components';
 import { useAppTheme } from '@/theme/AppTheme';
+import { tableScrollX } from '@/utils/tableScroll';
 import {
   candidateApi,
   type ImportFile,
@@ -368,7 +369,7 @@ export const ImportDrawer: React.FC<{
                 ? { pageSize: 50, showSizeChanger: false }
                 : false
             }
-            scroll={{ x: 1000 }}
+            scroll={{ x: tableScrollX(columns) }}
           />
           <div style={{ marginTop: 8, fontSize: 12, color: palette.mute }}>
             建议品类由系统按文件里的品类自动匹配，没匹配上的留给审核时选择。

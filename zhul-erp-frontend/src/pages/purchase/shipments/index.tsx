@@ -13,6 +13,7 @@ import {
   Table,
 } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
+import { ellipsisRender } from '@/components/EllipsisText';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { auditColumns } from '@/pages/purchase/components';
 import {
@@ -39,6 +40,7 @@ import {
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
 import { usePageSize } from '@/utils/pageSize';
+import { tableScrollX } from '@/utils/tableScroll';
 import HandleDiscrepancyModal from './HandleDiscrepancyModal';
 import ShipmentDrawer from './ShipmentDrawer';
 
@@ -196,7 +198,7 @@ const ShipmentsTab: React.FC = () => {
     {
       title: '来源',
       dataIndex: 'sourceName',
-      width: 100,
+      width: 120,
       render: (v: string, r) => (
         <div>
           <span
@@ -221,7 +223,12 @@ const ShipmentsTab: React.FC = () => {
         </div>
       ),
     },
-    { title: '采购员', dataIndex: 'purchaserName', width: 90 },
+    {
+      title: '采购员',
+      dataIndex: 'purchaserName',
+      width: 90,
+      render: ellipsisRender,
+    },
     ...auditColumns<Shipment>(),
     {
       title: '操作',
@@ -301,7 +308,7 @@ const ShipmentsTab: React.FC = () => {
           columns={columns}
           dataSource={rows}
           loading={loading}
-          scroll={{ x: 2000 }}
+          scroll={{ x: tableScrollX(columns) }}
           locale={{
             emptyText: '还没有发货记录；在采购订单详情点「登记发货」',
           }}
@@ -419,6 +426,7 @@ export const ShipmentView: React.FC<{
             columns={[
               {
                 title: '型号',
+                width: 160,
                 dataIndex: 'model',
                 render: (v: string, r) => (
                   <div>
@@ -580,7 +588,12 @@ const DiffsTab: React.FC<{ onChanged: () => void }> = ({ onChanged }) => {
           <span style={{ color: palette.mute }}>—</span>
         ),
     },
-    { title: '采购员', dataIndex: 'purchaserName', width: 90 },
+    {
+      title: '采购员',
+      dataIndex: 'purchaserName',
+      width: 90,
+      render: ellipsisRender,
+    },
     ...auditColumns<Discrepancy>(),
     {
       title: '操作',
@@ -676,7 +689,7 @@ const DiffsTab: React.FC<{ onChanged: () => void }> = ({ onChanged }) => {
           columns={columns}
           dataSource={rows}
           loading={loading}
-          scroll={{ x: 1900 }}
+          scroll={{ x: tableScrollX(columns) }}
           locale={{
             emptyText:
               query.status === 1

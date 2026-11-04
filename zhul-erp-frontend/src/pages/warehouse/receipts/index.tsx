@@ -3,10 +3,12 @@ import { useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { Button, Input, Segmented, Table } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
+import { ellipsisRender } from '@/components/EllipsisText';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { auditColumns } from '@/pages/purchase/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { usePageSize } from '@/utils/pageSize';
+import { tableScrollX } from '@/utils/tableScroll';
 import {
   ArrivalCell,
   Card,
@@ -141,7 +143,12 @@ const Receipts: React.FC = () => {
         </div>
       ),
     },
-    { title: '采购员', dataIndex: 'purchaserName', width: 90 },
+    {
+      title: '采购员',
+      dataIndex: 'purchaserName',
+      width: 90,
+      render: ellipsisRender,
+    },
     {
       title: '附件',
       dataIndex: 'attachmentCount',
@@ -310,7 +317,7 @@ const Receipts: React.FC = () => {
             columns={shipColumns}
             dataSource={ships}
             loading={loading}
-            scroll={{ x: 1300 }}
+            scroll={{ x: tableScrollX(shipColumns) }}
             locale={{
               emptyText: query
                 ? '没有匹配的在途发货单；货到了但没有发货单，点右上角「直接收货」'
@@ -325,7 +332,7 @@ const Receipts: React.FC = () => {
           columns={receiptColumns}
           dataSource={receipts}
           loading={loading}
-          scroll={{ x: 1800 }}
+          scroll={{ x: tableScrollX(receiptColumns) }}
           locale={{ emptyText: '还没有采购入库单' }}
           pagination={pagination}
         />
