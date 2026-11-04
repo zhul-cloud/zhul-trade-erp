@@ -80,7 +80,7 @@
 | [UI-038](tasks/2026-11-03-UI-038-feedback-batch-bugs.md) | 询盘管理、销售订单列表点第 2 页无效 | P2 | 待验证 | Claude | [2026-11-03-UI-038](tasks/2026-11-03-UI-038-feedback-batch-bugs.md) | 2026-11-03 |
 | [UI-039](tasks/2026-11-03-UI-038-feedback-batch-bugs.md) | 新建询盘时客户名称过长把「来源」挤出对话框 | P3 | 待验证 | Claude | [2026-11-03-UI-038](tasks/2026-11-03-UI-038-feedback-batch-bugs.md) | 2026-11-03 |
 | [UI-040](tasks/2026-11-03-UI-038-feedback-batch-bugs.md) | 登录过期后页面先提示加载失败再跳登录页 | P2 | 待验证 | Claude | [2026-11-03-UI-038](tasks/2026-11-03-UI-038-feedback-batch-bugs.md) | 2026-11-03 |
-| [UI-041](../02-frontend/07-全量前端代码与页面审查.md) | 表格与列表在电脑低分辨率下布局失效 | P2 | 待认领 | — | — | 2026-11-04 |
+| [UI-041](../02-frontend/07-全量前端代码与页面审查.md) | 表格与列表在电脑低分辨率下布局失效 | P2 | 处理中 | Claude | [2026-11-04-UI-041](tasks/2026-11-04-UI-041-low-res-layout.md) | 2026-11-04 |
 
 ## AI 可靠性
 
