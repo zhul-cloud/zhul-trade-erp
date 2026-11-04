@@ -7,7 +7,7 @@ import {
   PlusOutlined,
 } from '@ant-design/icons';
 import { App, Checkbox, Input, Modal, Spin, Upload } from 'antd';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Card, PageTitle, Pill } from '@/pages/inquiry/shared/components';
 import type { Tone } from '@/pages/inquiry/shared/constants';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -300,6 +300,37 @@ export const MediaTile: React.FC<{
   );
 };
 
+/**
+ * 附件列表的增删总是基于最新的列表：一次选多份时各份上传先后完成，删除也可能发生在上传期间，
+ * 不能各自拿渲染时的旧列表覆盖（audit UI-001）。组件卸载后迟到的上传结果不再写回
+ */
+export const useAttachmentList = (
+  value: Attachment[],
+  onChange?: (list: Attachment[]) => void,
+) => {
+  const latest = useRef(value);
+  latest.current = value;
+  const alive = useRef(true);
+  useEffect(() => {
+    alive.current = true;
+    return () => {
+      alive.current = false;
+    };
+  }, []);
+  const set = (next: Attachment[]) => {
+    latest.current = next;
+    onChange?.(next);
+  };
+  return {
+    add: (a: Attachment) => {
+      if (alive.current && !latest.current.some((x) => x.id === a.id)) {
+        set([...latest.current, a]);
+      }
+    },
+    remove: (id: number) => set(latest.current.filter((x) => x.id !== id)),
+  };
+};
+
 /** 上传按钮：选文件后逐个上传，成功一个回调一个 */
 export const UploadTile: React.FC<{
   ownerType: OwnerType;
@@ -312,6 +343,8 @@ export const UploadTile: React.FC<{
   /** 按钮文字，默认「上传」；传空字符串只显示图标 */
   label?: string;
   disabled?: boolean;
+  /** 还能再加几份：一次选多份时超出的不上传 */
+  remaining?: number;
   onUploaded: (a: Attachment) => void | Promise<void>;
 }> = ({
   ownerType,
@@ -321,23 +354,33 @@ export const UploadTile: React.FC<{
   width,
   label = '上传',
   disabled,
+  remaining,
   onUploaded,
 }) => {
   const { palette } = useAppTheme();
   const { message } = App.useApp();
   const [busy, setBusy] = useState(0);
+  // 正在上传的份数：同一批文件的 beforeUpload 先后执行时，state 还来不及更新
+  const inFlight = useRef(0);
   return (
     <Upload
       accept={accept}
       multiple
       showUploadList={false}
       disabled={disabled}
-      beforeUpload={(file) => {
+      beforeUpload={(file, batch) => {
         const bad = checkSize(file);
         if (bad) {
           message.error(`${file.name}：${bad}`);
           return Upload.LIST_IGNORE;
         }
+        if (remaining !== undefined && inFlight.current >= remaining) {
+          if (file === batch[batch.length - 1]) {
+            message.warning(`最多还能添加 ${remaining} 份，多选的没有上传`);
+          }
+          return Upload.LIST_IGNORE;
+        }
+        inFlight.current += 1;
         setBusy((n) => n + 1);
         attachmentApi
           .upload(ownerType, file, ownerId)
@@ -345,7 +388,10 @@ export const UploadTile: React.FC<{
           .catch((e) =>
             message.error(`${file.name}：${readBizError(e).message}`),
           )
-          .finally(() => setBusy((n) => n - 1));
+          .finally(() => {
+            inFlight.current -= 1;
+            setBusy((n) => n - 1);
+          });
         return false;
       }}
     >
@@ -392,6 +438,7 @@ export const AttachmentWall: React.FC<{
 }> = ({ ownerType, value, onChange, max = 20, empty = '没有附件', accept }) => {
   const { palette } = useAppTheme();
   const preview = usePreview();
+  const list = useAttachmentList(value, onChange);
   return (
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
       {value.map((a) => (
@@ -399,18 +446,15 @@ export const AttachmentWall: React.FC<{
           key={a.id}
           attachment={a}
           onOpen={() => preview.open(a)}
-          onRemove={
-            onChange
-              ? () => onChange(value.filter((x) => x.id !== a.id))
-              : undefined
-          }
+          onRemove={onChange ? () => list.remove(a.id) : undefined}
         />
       ))}
       {onChange && value.length < max && (
         <UploadTile
           ownerType={ownerType}
           accept={accept}
-          onUploaded={(a) => onChange([...value, a])}
+          remaining={max - value.length}
+          onUploaded={list.add}
         />
       )}
       {!onChange && value.length === 0 && (
