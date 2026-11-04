@@ -93,21 +93,33 @@ public class StatementService {
         }
         support.requireForwarder(req.getForwarderId());
         YearMonth ym = YearMonth.parse(req.getPeriod());
-        Set<Long> taken = lineMapper.selectList(new LambdaQueryWrapper<ForwarderStatementLineDO>()
-                        .select(ForwarderStatementLineDO::getLogisticsId)
-                        .eq(ForwarderStatementLineDO::getTenantId, PiStore.tenantId())
-                        .isNull(ForwarderStatementLineDO::getDeletedAt))
-                .stream().map(ForwarderStatementLineDO::getLogisticsId).collect(Collectors.toSet());
-        List<LogisticsShipmentDO> candidates = shipmentMapper.selectList(new LambdaQueryWrapper<LogisticsShipmentDO>()
+        // 先按 ID 锁住本月候选出运单，再查哪些已在别的账单上：两个请求同时新建时，后到的读到先到的账单行，
+        // 同一出运单只进一张账单（audit BUS-007）
+        List<Long> ids = shipmentMapper.selectList(new LambdaQueryWrapper<LogisticsShipmentDO>()
+                        .select(LogisticsShipmentDO::getId)
                         .eq(LogisticsShipmentDO::getTenantId, PiStore.tenantId())
                         .eq(LogisticsShipmentDO::getForwarderId, req.getForwarderId())
                         .eq(LogisticsShipmentDO::getStatus, LogisticsConstants.SH_SHIPPED)
                         .eq(LogisticsShipmentDO::getReconciled, 0)
                         .ge(LogisticsShipmentDO::getShippedDate, ym.atDay(1))
                         .le(LogisticsShipmentDO::getShippedDate, ym.atEndOfMonth())
-                        .isNull(LogisticsShipmentDO::getDeletedAt)
-                        .orderByAsc(LogisticsShipmentDO::getShippedDate, LogisticsShipmentDO::getId))
-                .stream().filter(s -> !taken.contains(s.getId())).toList();
+                        .isNull(LogisticsShipmentDO::getDeletedAt))
+                .stream().map(LogisticsShipmentDO::getId).sorted().toList();
+        List<LogisticsShipmentDO> locked = ids.isEmpty() ? List.of() : shipmentMapper.selectList(new LambdaQueryWrapper<LogisticsShipmentDO>()
+                .in(LogisticsShipmentDO::getId, ids)
+                .orderByAsc(LogisticsShipmentDO::getId)
+                .last("FOR UPDATE"));
+        Set<Long> taken = ids.isEmpty() ? Set.of() : lineMapper.selectList(new LambdaQueryWrapper<ForwarderStatementLineDO>()
+                        .select(ForwarderStatementLineDO::getLogisticsId)
+                        .eq(ForwarderStatementLineDO::getTenantId, PiStore.tenantId())
+                        .in(ForwarderStatementLineDO::getLogisticsId, ids)
+                        .isNull(ForwarderStatementLineDO::getDeletedAt))
+                .stream().map(ForwarderStatementLineDO::getLogisticsId).collect(Collectors.toSet());
+        List<LogisticsShipmentDO> candidates = locked.stream()
+                .filter(s -> !taken.contains(s.getId()) && Objects.equals(s.getReconciled(), 0)
+                        && s.getStatus() == LogisticsConstants.SH_SHIPPED && s.getDeletedAt() == null)
+                .sorted(java.util.Comparator.comparing(LogisticsShipmentDO::getShippedDate).thenComparing(LogisticsShipmentDO::getId))
+                .toList();
         if (candidates.isEmpty()) {
             throw new BizException("这个月没有要对账的出运单");
         }
