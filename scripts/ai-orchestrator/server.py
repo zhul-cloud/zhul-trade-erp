@@ -56,6 +56,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
@@ -814,40 +815,53 @@ def _provider_error(e: Exception, key: str) -> str:
 def _retrieve_model(cfg: AiConfig, model: str):
     """查询单个模型信息（不产生调用费用）"""
     if cfg.provider == "openai":
-        openai.OpenAI(api_key=cfg.api_key, timeout=QUICK_TIMEOUT_SECONDS).models.retrieve(model)
+        openai.OpenAI(api_key=cfg.api_key, timeout=QUICK_TIMEOUT_SECONDS, max_retries=0).models.retrieve(model)
     else:
-        anthropic.Anthropic(api_key=cfg.api_key, timeout=QUICK_TIMEOUT_SECONDS).models.retrieve(model)
+        anthropic.Anthropic(api_key=cfg.api_key, timeout=QUICK_TIMEOUT_SECONDS, max_retries=0).models.retrieve(model)
+
+
+def _check_model(cfg: AiConfig, model: str):
+    """查询一个模型，成功返回 None，失败返回服务商异常"""
+    try:
+        _retrieve_model(cfg, model)
+        return None
+    except (anthropic.APIError, openai.APIError) as e:
+        return e
 
 
 def test_connection(raw) -> dict:
-    """测试连接：API 方式查询 Key 与两个模型，订阅方式检查对应 CLI 是否登录"""
+    """测试连接：API 方式查询 Key 与两个模型，订阅方式检查对应 CLI 是否登录。
+    各项并行检查，快速检查不让 SDK 自动重试，整次诊断在后端 30 秒期限内返回（audit AI-004）"""
     try:
         cfg = parse_ai_config(raw, require_key=False)
     except ConfigError as e:
         return {"ok": False, "items": [{"name": "配置", "ok": False, "message": str(e)}]}
     if cfg.mode == "subscription":
-        name = "Codex 登录" if cfg.provider == "openai" else "Claude 登录"
-        logged_in = login_status(QUICK_TIMEOUT_SECONDS)["codex" if cfg.provider == "openai" else "claude"]
-        return {"ok": logged_in, "items": [{"name": name, "ok": logged_in,
-                                            "message": "已登录" if logged_in else "未登录，请在容器内执行登录命令"}]}
+        # 只检查所选服务商，不等另一家的 CLI
+        cli = "codex" if cfg.provider == "openai" else "claude"
+        name = "Codex 登录" if cli == "codex" else "Claude 登录"
+        logged_in = login_status(QUICK_TIMEOUT_SECONDS, providers=(cli,))[cli]
+        message = {True: "已登录", False: "未登录，请在容器内执行登录命令"}.get(logged_in, "检查登录状态超时，请稍后重试")
+        return {"ok": bool(logged_in), "items": [{"name": name, "ok": bool(logged_in), "message": message}]}
     if not cfg.api_key:
         return {"ok": False, "items": [{"name": "API Key", "ok": False, "message": "未填写 API Key"}]}
-    items = []
     models = [("解析模型", cfg.parse_model), ("翻译模型", cfg.translate_model)]
-    for i, (label, model) in enumerate(models):
-        try:
-            _retrieve_model(cfg, model)
-            if i == 0:
-                items.append({"name": "API Key", "ok": True, "message": "有效"})
-            items.append({"name": f"{label} {model}", "ok": True, "message": "可用"})
-        except (anthropic.AuthenticationError, openai.AuthenticationError,
-                anthropic.PermissionDeniedError, openai.PermissionDeniedError) as e:
-            items.append({"name": "API Key", "ok": False, "message": _provider_error(e, cfg.api_key)})
-            break
-        except (anthropic.APIError, openai.APIError) as e:
-            if i == 0:
-                items.append({"name": "API Key", "ok": True, "message": "有效"})
-            items.append({"name": f"{label} {model}", "ok": False, "message": _provider_error(e, cfg.api_key)})
+    with ThreadPoolExecutor(max_workers=len(models)) as pool:
+        errors = list(pool.map(lambda m: _check_model(cfg, m[1]), models))
+    denied = next((e for e in errors if isinstance(e, (anthropic.AuthenticationError, openai.AuthenticationError,
+                                                       anthropic.PermissionDeniedError, openai.PermissionDeniedError))), None)
+    if denied is not None:
+        return {"ok": False, "items": [{"name": "API Key", "ok": False, "message": _provider_error(denied, cfg.api_key)}]}
+    # 只有服务商实际回应了（查到模型，或回复模型不存在）才能确认 Key 有效；连不上、超时、5xx 无法确认（audit AI-006）
+    verified = any(e is None or isinstance(e, (anthropic.NotFoundError, openai.NotFoundError)) for e in errors)
+    if verified:
+        key_item = {"name": "API Key", "ok": True, "message": "有效"}
+    else:
+        key_item = {"name": "API Key", "ok": False,
+                    "message": "无法确认：" + _provider_error(next(e for e in errors if e is not None), cfg.api_key)}
+    items = [key_item] + [{"name": f"{label} {model}", "ok": e is None,
+                           "message": "可用" if e is None else _provider_error(e, cfg.api_key)}
+                          for (label, model), e in zip(models, errors)]
     return {"ok": all(item["ok"] for item in items), "items": items}
 
 
@@ -871,10 +885,12 @@ def list_models(raw) -> dict:
         if not cfg.api_key:
             return {"models": fallback, "source": "defaults", "error": None}
         if cfg.provider == "openai":
-            ids = [m.id for m in openai.OpenAI(api_key=cfg.api_key, timeout=QUICK_TIMEOUT_SECONDS).models.list()]
+            ids = [m.id for m in openai.OpenAI(api_key=cfg.api_key, timeout=QUICK_TIMEOUT_SECONDS,
+                                               max_retries=0).models.list()]
             ids = sorted(i for i in ids if not any(marker in i for marker in NON_CHAT_MARKERS))
         else:
-            ids = [m.id for m in anthropic.Anthropic(api_key=cfg.api_key, timeout=QUICK_TIMEOUT_SECONDS).models.list()]
+            ids = [m.id for m in anthropic.Anthropic(api_key=cfg.api_key, timeout=QUICK_TIMEOUT_SECONDS,
+                                                     max_retries=0).models.list()]
         return {"models": [{"id": i, "default": False} for i in ids], "source": "provider", "error": None}
     except (anthropic.APIError, openai.APIError) as e:
         return {"models": fallback, "source": "defaults", "error": _provider_error(e, cfg.api_key)}
@@ -914,8 +930,9 @@ class Handler(BaseHTTPRequestHandler):
         if self.path != "/status":
             self._send_json(404, {"error": "not found"})
             return
+        # 两家并行检查；超时按未登录返回，后端约定不变
         status = login_status(QUICK_TIMEOUT_SECONDS)
-        self._send_json(200, {"codex": {"logged_in": status["codex"]}, "claude": {"logged_in": status["claude"]}})
+        self._send_json(200, {"codex": {"logged_in": bool(status["codex"])}, "claude": {"logged_in": bool(status["claude"])}})
 
     def do_POST(self):
         if not self._authorized():

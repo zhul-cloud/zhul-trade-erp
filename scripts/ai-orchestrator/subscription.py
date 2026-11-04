@@ -1,4 +1,5 @@
 """个人订阅适配：凭据仅由官方 CLI 管理；每次任务使用隔离的工作目录和进程组。"""
+from concurrent.futures import ThreadPoolExecutor
 import base64
 import io
 import json
@@ -130,25 +131,40 @@ def call_subscription(provider, system_prompt, text, attachments, schema, *, mod
         _SLOT.release()
 
 
-def login_status(timeout=10):
-    """两个官方 CLI 是否已用个人订阅登录；只返回是否登录，不返回账号信息。"""
-    env = subscription_env()
-    status = {"codex": False, "claude": False}
+def _codex_logged_in(env, timeout):
+    """Codex 是否用 ChatGPT 订阅登录；检查超时或命令不可用时返回 None（未能检查）"""
     try:
         result = subprocess.run(["codex", "login", "status"], env=env, capture_output=True, text=True,
                                 encoding="utf-8", timeout=timeout)
-        # API Key 登录也会显示 Logged in，订阅只认 ChatGPT 登录
-        status["codex"] = result.returncode == 0 and "chatgpt" in (result.stdout + result.stderr).lower()
     except (OSError, subprocess.TimeoutExpired):
-        pass
+        return None
+    # API Key 登录也会显示 Logged in，订阅只认 ChatGPT 登录
+    return result.returncode == 0 and "chatgpt" in (result.stdout + result.stderr).lower()
+
+
+def _claude_logged_in(env, timeout):
+    """Claude 是否用 claude.ai 订阅登录；检查超时或命令不可用时返回 None（未能检查）"""
     try:
         result = subprocess.run(["claude", "auth", "status"], env=env, capture_output=True, text=True,
                                 encoding="utf-8", timeout=timeout)
         data = json.loads(result.stdout or "{}")
-        status["claude"] = bool(data.get("loggedIn")) and data.get("authMethod") == "claude.ai"
-    except (OSError, subprocess.TimeoutExpired, json.JSONDecodeError):
-        pass
-    return status
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    except json.JSONDecodeError:
+        return False
+    return bool(data.get("loggedIn")) and data.get("authMethod") == "claude.ai"
+
+
+_LOGIN_CHECKS = {"codex": _codex_logged_in, "claude": _claude_logged_in}
+
+
+def login_status(timeout=10, providers=("codex", "claude")):
+    """官方 CLI 是否已用个人订阅登录；只返回是否登录，不返回账号信息。
+    各家并行检查，总耗时不超过单项的 timeout（audit AI-004）；值为 None 表示检查超时或命令不可用。"""
+    env = subscription_env()
+    with ThreadPoolExecutor(max_workers=len(providers)) as pool:
+        futures = {name: pool.submit(_LOGIN_CHECKS[name], env, timeout) for name in providers}
+    return {name: future.result() for name, future in futures.items()}
 
 
 def codex_models(timeout=30):
