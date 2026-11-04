@@ -22,6 +22,8 @@ import static com.zhul.erp.support.TestDates.today;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.Mockito.doAnswer;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
@@ -32,6 +34,9 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
  * logistics/forwarder-statement 与 sales/sales-order「订单进度」的出库、出运联动。
  */
 class OutboundShippingContractTest extends SalesContractSupport {
+
+    @org.springframework.boot.test.mock.mockito.SpyBean
+    private com.zhul.erp.modules.warehouse.service.ShipmentService shipments;
 
     private static final String SHIP = "/api/v1/purchase/shipments";
     private static final String GR = "/api/v1/warehouse/receipts";
@@ -299,6 +304,61 @@ class OutboundShippingContractTest extends SalesContractSupport {
         assertEquals("已对账的出运单不能改运费", fail(call(json(put(SH + "/" + shId + "/shipping"), write(Map.of("carrier", "DHL", "waybillNo", "1234567890",
                 "shippedDate", LocalDate.now().toString(), "freight", "100"))), admin)).path("message").asText());
         assertEquals(200, perform(get(ST + "/" + st.path("id").asLong() + "/export"), admin).getStatus());
+    }
+
+    /** audit BUS-018：同一直发货并发加入两张出运单，只能一张成功，另一张提示已在别的出运单上，不能静默改归属 */
+    @Test
+    void directShipment_concurrentAttach_onlyOneWins() throws Exception {
+        JsonNode po = orderedPo(supplier("直发竞态电子", null), 2);
+        long poItem = po.path("items").get(0).path("id").asLong();
+        Map<String, Object> body = new HashMap<>();
+        body.put("poId", po.path("id").asLong());
+        body.put("directForwarderId", forwarder);
+        body.put("shipDate", LocalDate.now().toString());
+        body.put("items", List.of(Map.of("poItemId", poItem, "quantity", 2)));
+        long sid = ok(call(json(post(SHIP), write(body)), lin)).path("shipment").path("id").asLong();
+        long customerId = ok(call(get(SH + "/pending"), admin)).get(0).path("customerId").asLong();
+        String create = write(Map.of("customerId", customerId, "forwarderId", forwarder, "directShipmentIds", List.of(sid)));
+
+        java.util.concurrent.CountDownLatch read = new java.util.concurrent.CountDownLatch(1);
+        java.util.concurrent.CountDownLatch resume = new java.util.concurrent.CountDownLatch(1);
+        java.util.concurrent.atomic.AtomicReference<Thread> first = new java.util.concurrent.atomic.AtomicReference<>();
+        doAnswer(inv -> {
+            if (Thread.currentThread() == first.get()) {
+                read.countDown();
+                resume.await(10, java.util.concurrent.TimeUnit.SECONDS);
+            }
+            return inv.callRealMethod();
+        }).when(shipments).directCustomers(anyList());
+
+        java.util.concurrent.CompletableFuture<JsonNode> a = java.util.concurrent.CompletableFuture.supplyAsync(() -> {
+            first.set(Thread.currentThread());
+            try {
+                return call(json(post(SH), create), admin);
+            } catch (Exception e) {
+                throw new IllegalStateException(e);
+            }
+        });
+        assertTrue(read.await(10, java.util.concurrent.TimeUnit.SECONDS), "第一张已读到直发货");
+        java.util.concurrent.CompletableFuture<JsonNode> b = java.util.concurrent.CompletableFuture.supplyAsync(() -> {
+            try {
+                return call(json(post(SH), create), admin);
+            } catch (Exception e) {
+                throw new IllegalStateException(e);
+            }
+        });
+        try {
+            b.get(1500, java.util.concurrent.TimeUnit.MILLISECONDS);
+        } catch (java.util.concurrent.TimeoutException waiting) {
+            // 修复后第二张在等直发货行锁
+        }
+        resume.countDown();
+        long shA = ok(a.get(15, java.util.concurrent.TimeUnit.SECONDS)).path("id").asLong();
+        JsonNode rb = b.get(15, java.util.concurrent.TimeUnit.SECONDS);
+        assertTrue(rb.path("code").asInt() != 0, "第二张应被拒绝：" + rb);
+        assertTrue(rb.path("message").asText().contains("已在别的出运单上"), rb.toString());
+        assertEquals(shA, jdbc.queryForObject("select logistics_id from supplier_shipment where id = ?", Long.class, sid),
+                "直发货归属第一张出运单");
     }
 
     // ---------------------------------------------------------------- 直发货代

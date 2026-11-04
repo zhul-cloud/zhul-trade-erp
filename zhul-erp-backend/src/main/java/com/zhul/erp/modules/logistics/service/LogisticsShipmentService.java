@@ -233,6 +233,8 @@ public class LogisticsShipmentService {
             ownerFrom(sh, ob.getOwnerId());
         }
         for (Long dId : dIds) {
+            // 先锁直发货再查归属：两张出运单同时加同一票时，后到的读到已归属而被拒绝，不会覆盖（audit BUS-018）
+            supplierShipmentMapper.lockById(dId);
             SupplierShipmentDO s = supplierShipmentMapper.selectById(dId);
             if (s == null || s.getDeletedAt() != null || !Objects.equals(s.getTenantId(), PiStore.tenantId()) || s.getDirectForwarderId() == null) {
                 throw new BizException("直发货不存在");
