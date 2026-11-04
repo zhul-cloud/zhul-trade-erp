@@ -125,17 +125,17 @@
 
 | ID / 原专题 | 简短标题 | 优先级 | 状态 | 负责人 | 任务记录 | 最后更新 |
 | --- | --- | --- | --- | --- | --- | --- |
-| [DEP-001](../03-dependencies/01-security-findings.md) | POI 5.2.5 读取上传 OOXML，命中已确认公告 | P1 | 待认领 | — | — | 2026-11-01 |
-| [DEP-002](../03-dependencies/01-security-findings.md) | Tomcat 10.1.20 的 multipart 解析存在已公开 DoS 修复缺口 | P1 | 待认领 | — | — | 2026-11-01 |
-| [DEP-003](../03-dependencies/01-security-findings.md) | axios 0.27.2 被业务代码使用，却只由 dev 链间接提供 | P1 | 待认领 | — | — | 2026-11-01 |
-| [DEP-004](../03-dependencies/01-security-findings.md) | DOMPurify 3.4.2 位于生产 Markdown/Mermaid 链，需按实际模式验证 | P2 | 待认领 | — | — | 2026-11-01 |
-| [DEP-005](../03-dependencies/01-security-findings.md) | Umi 开发与构建链累计漏洞，按启用能力整改 | P2 | 待认领 | — | — | 2026-11-01 |
-| [DEP-006](../03-dependencies/01-security-findings.md) | 后端传递依赖与 Spring 条件型公告需随 BOM 更新核验 | P2 | 待认领 | — | — | 2026-11-01 |
-| [DEP-007](../03-dependencies/02-upgrade-and-compatibility.md) | Boot 3.2.5 基线滞后，应将 BOM 与生态组合升级 | P1 | 待认领 | — | — | 2026-11-01 |
-| [DEP-008](../03-dependencies/02-upgrade-and-compatibility.md) | Node >=20 声明不满足锁定工具链 | P2 | 待认领 | — | — | 2026-11-01 |
-| [DEP-009](../03-dependencies/02-upgrade-and-compatibility.md) | Umi 升级必须和 @utoo/pack 本地补丁同步验收 | P2 | 待认领 | — | — | 2026-11-01 |
-| [DEP-010](../03-dependencies/02-upgrade-and-compatibility.md) | Python 顶层精确 pin 仍不足以重现传递依赖与二进制 | P2 | 待认领 | — | — | 2026-11-01 |
-| [DEP-011](../03-dependencies/02-upgrade-and-compatibility.md) | 镜像与供应链构建输入未完整固定 | P2 | 待认领 | — | — | 2026-11-01 |
+| [DEP-001](../03-dependencies/01-security-findings.md) | POI 5.2.5 读取上传 OOXML，命中已确认公告 | P1 | 暂缓 | Ezio（决定） | [2026-11-04-DEP-001](tasks/2026-11-04-DEP-001-dependency-deferred.md) | 2026-11-04 |
+| [DEP-002](../03-dependencies/01-security-findings.md) | Tomcat 10.1.20 的 multipart 解析存在已公开 DoS 修复缺口 | P1 | 暂缓 | Ezio（决定） | [2026-11-04-DEP-001](tasks/2026-11-04-DEP-001-dependency-deferred.md) | 2026-11-04 |
+| [DEP-003](../03-dependencies/01-security-findings.md) | axios 0.27.2 被业务代码使用，却只由 dev 链间接提供 | P1 | 暂缓 | Ezio（决定） | [2026-11-04-DEP-001](tasks/2026-11-04-DEP-001-dependency-deferred.md) | 2026-11-04 |
+| [DEP-004](../03-dependencies/01-security-findings.md) | DOMPurify 3.4.2 位于生产 Markdown/Mermaid 链，需按实际模式验证 | P2 | 暂缓 | Ezio（决定） | [2026-11-04-DEP-001](tasks/2026-11-04-DEP-001-dependency-deferred.md) | 2026-11-04 |
+| [DEP-005](../03-dependencies/01-security-findings.md) | Umi 开发与构建链累计漏洞，按启用能力整改 | P2 | 暂缓 | Ezio（决定） | [2026-11-04-DEP-001](tasks/2026-11-04-DEP-001-dependency-deferred.md) | 2026-11-04 |
+| [DEP-006](../03-dependencies/01-security-findings.md) | 后端传递依赖与 Spring 条件型公告需随 BOM 更新核验 | P2 | 暂缓 | Ezio（决定） | [2026-11-04-DEP-001](tasks/2026-11-04-DEP-001-dependency-deferred.md) | 2026-11-04 |
+| [DEP-007](../03-dependencies/02-upgrade-and-compatibility.md) | Boot 3.2.5 基线滞后，应将 BOM 与生态组合升级 | P1 | 暂缓 | Ezio（决定） | [2026-11-04-DEP-001](tasks/2026-11-04-DEP-001-dependency-deferred.md) | 2026-11-04 |
+| [DEP-008](../03-dependencies/02-upgrade-and-compatibility.md) | Node >=20 声明不满足锁定工具链 | P2 | 暂缓 | Ezio（决定） | [2026-11-04-DEP-001](tasks/2026-11-04-DEP-001-dependency-deferred.md) | 2026-11-04 |
+| [DEP-009](../03-dependencies/02-upgrade-and-compatibility.md) | Umi 升级必须和 @utoo/pack 本地补丁同步验收 | P2 | 暂缓 | Ezio（决定） | [2026-11-04-DEP-001](tasks/2026-11-04-DEP-001-dependency-deferred.md) | 2026-11-04 |
+| [DEP-010](../03-dependencies/02-upgrade-and-compatibility.md) | Python 顶层精确 pin 仍不足以重现传递依赖与二进制 | P2 | 暂缓 | Ezio（决定） | [2026-11-04-DEP-001](tasks/2026-11-04-DEP-001-dependency-deferred.md) | 2026-11-04 |
+| [DEP-011](../03-dependencies/02-upgrade-and-compatibility.md) | 镜像与供应链构建输入未完整固定 | P2 | 暂缓 | Ezio（决定） | [2026-11-04-DEP-001](tasks/2026-11-04-DEP-001-dependency-deferred.md) | 2026-11-04 |
 
 ## 文档与测试保障
 
