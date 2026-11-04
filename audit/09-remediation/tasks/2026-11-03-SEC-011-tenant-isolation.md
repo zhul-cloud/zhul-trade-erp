@@ -239,3 +239,5 @@
 | 2026-11-03 / Claude | [zhul-cloud/zhul-trade-erp#137](https://github.com/zhul-cloud/zhul-trade-erp/pull/137) 合并到 `develop`（merge commit `df2355b7`），链式分支已删除；台账改为「已合并待发布」 | 随下一版发布后验收 |
 | 2026-11-04 / Claude | 发版前复核：生产只读核查分布一致；补全无登录入口盘点，修附件视频转码回调缺少租户上下文（`fix/transcode-tenant-context`） | PR 到 `develop` |
 | 2026-11-04 / Claude | 随 v1.7.0 发布（[#143](https://github.com/zhul-cloud/zhul-trade-erp/pull/143)，merge commit `c5621e1b`），生产部署成功；台账改为「已发布待验收」 | 待线上业务验收 |
+| 2026-11-04 / Claude | DOC-007 修复随 [#145](https://github.com/zhul-cloud/zhul-trade-erp/pull/145) 合并到 `develop`（`c6c0027e`），PR 上 CI 三项通过；只改测试，不需要发布，台账改为「已合并待发布」 | 等用户确认关闭 DOC-007 |
+| 2026-11-04 / Claude | 用户确认 DOC-007 关闭（验收人 Ezio）：跨秒（#142）、跨午夜（#145）均已修复并合并，只改测试，部署与环境验收为 N/A | — |
