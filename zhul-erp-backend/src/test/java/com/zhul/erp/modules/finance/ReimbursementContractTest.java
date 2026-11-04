@@ -1,9 +1,13 @@
 package com.zhul.erp.modules.finance;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.zhul.erp.modules.finance.constants.FinanceConstants;
 import com.zhul.erp.modules.sales.SalesContractSupport;
+import com.zhul.erp.modules.system.constants.DocumentType;
+import com.zhul.erp.modules.system.service.DocumentNumberService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.test.mock.mockito.SpyBean;
 import org.springframework.mock.web.MockMultipartFile;
 
 import java.math.BigDecimal;
@@ -15,11 +19,20 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static com.zhul.erp.support.TestDates.today;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -38,6 +51,9 @@ class ReimbursementContractTest extends SalesContractSupport {
     private static final int MENU_PO = 100088;
     private static final int MENU_BX = 100105;
     private static final int[] BUYER_BUTTONS = {110189, 110190, 110191, 110192, 110205};
+
+    @SpyBean
+    private DocumentNumberService numbers;
 
     private String lin;
     private String jiang;
@@ -498,5 +514,105 @@ class ReimbursementContractTest extends SalesContractSupport {
         // 重新打开后不再是待报销
         ok(call(json(post("/api/v1/purchase/discrepancies/" + diff + "/reopen"), "{}"), lin));
         assertFalse(types(ok(call(get(BX + "/pending"), lin))).contains("3:18.00"));
+    }
+
+    // ---------------------------------------------------------------- 提交与来源作废交错（audit BUS-011）
+
+    /**
+     * 林熙提交报销时停在取报销编号处（已读到待报销项、还没写明细），同时执行 undo（作废 / 撤销 / 重新打开来源）。
+     * 两者只能成功一个：提交成功时 undo 必须被拒绝，提示里含 rejected。
+     */
+    private void raceSubmitWith(List<Integer> types, Callable<JsonNode> undo, String rejected) throws Exception {
+        CountDownLatch read = new CountDownLatch(1);
+        CountDownLatch resume = new CountDownLatch(1);
+        AtomicReference<Thread> submitter = new AtomicReference<>();
+        doAnswer(inv -> {
+            if (Thread.currentThread() == submitter.get()) {
+                read.countDown();
+                resume.await(10, TimeUnit.SECONDS);
+            }
+            return inv.callRealMethod();
+        }).when(numbers).next(eq(DocumentType.BX));
+        JsonNode pending = ok(call(get(BX + "/pending"), lin));
+        JsonNode[] chosen = types.stream().map(t -> find(pending, t)).toArray(JsonNode[]::new);
+
+        CompletableFuture<JsonNode> submit = CompletableFuture.supplyAsync(() -> {
+            submitter.set(Thread.currentThread());
+            return unchecked(() -> submit(lin, chosen));
+        });
+        assertTrue(read.await(10, TimeUnit.SECONDS), "提交应已读到待报销项");
+        CompletableFuture<JsonNode> other = CompletableFuture.supplyAsync(() -> unchecked(undo));
+        try {
+            other.get(1500, TimeUnit.MILLISECONDS);
+        } catch (TimeoutException waiting) {
+            // 修复后来源操作在等提交释放行锁，放行提交后再看结果
+        }
+        resume.countDown();
+        ok(submit.get(15, TimeUnit.SECONDS));
+        JsonNode r = other.get(15, TimeUnit.SECONDS);
+        assertTrue(r.path("code").asInt() != 0, "来源已进报销单，操作应被拒绝：" + r);
+        assertTrue(r.path("message").asText().contains(rejected), r.toString());
+    }
+
+    private static JsonNode unchecked(Callable<JsonNode> c) {
+        try {
+            return c.call();
+        } catch (Exception e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
+    @Test
+    void race_advancePaymentVoid() throws Exception {
+        JsonNode po = orderedPo(supplier("垫付竞态", null), "R-1", 1, "300");
+        long pay = advance(payableOf(po.path("id").asLong()), "300.00").path("id").asLong();
+        raceSubmitWith(List.of(FinanceConstants.ITEM_PAYMENT),
+                () -> call(json(post(PY + "/" + pay + "/void"), write(Map.of("reason", "x"))), admin),
+                "这笔垫付已进入报销单，不能作废");
+        assertNull(jdbc.queryForObject("select void_at from fin_payment where id = ?", java.time.LocalDateTime.class, pay));
+    }
+
+    @Test
+    void race_receivedRefundVoid() throws Exception {
+        long wb = courier(BUYER_LIN, "80.00");
+        ok(call(json(post(BX + "/proofs"), write(Map.of("sourceType", 2, "sourceId", wb,
+                "attachmentIds", List.of(upload("COURIER_PROOF", lin))))), lin));
+        jdbc.update("insert into fin_payment (tenant_id, payment_no, kind, payee_type, payee_name, method, pay_date, amount, amount_cny, "
+                + "advance_user, create_by) values (0, 'ITPY-RF', ?, 1, '退款供应商', ?, ?, 20.00, 20.00, 'it_lin', 'it_lin')",
+                FinanceConstants.KIND_REFUND, FinanceConstants.METHOD_ADVANCE, LocalDate.now());
+        long refund = jdbc.queryForObject("select id from fin_payment where payment_no = 'ITPY-RF'", Long.class);
+        jdbc.update("insert into biz_attachment (tenant_id, owner_type, owner_id, kind, storage, file_key, url, file_name, file_size, "
+                + "content_type, processing_status, uploaded_by) values (0, 'PAYMENT', ?, 1, 'LOCAL', 'it/bx/rf.png', '', 'rf.png', 10, "
+                + "'image/png', 0, ?)", refund, BUYER_LIN);
+        raceSubmitWith(List.of(FinanceConstants.ITEM_COURIER, FinanceConstants.ITEM_REFUND),
+                () -> call(json(post(PY + "/" + refund + "/void"), write(Map.of("reason", "x"))), admin),
+                "这笔垫付已进入报销单，不能作废");
+        assertNull(jdbc.queryForObject("select void_at from fin_payment where id = ?", java.time.LocalDateTime.class, refund));
+    }
+
+    @Test
+    void race_courierUndoHandOver() throws Exception {
+        long wb = courier(BUYER_LIN, "80.00");
+        ok(call(json(post(BX + "/proofs"), write(Map.of("sourceType", 2, "sourceId", wb,
+                "attachmentIds", List.of(upload("COURIER_PROOF", lin))))), lin));
+        jdbc.update("insert into outbound_order (tenant_id, ob_no, source, status, courier_waybill_id) values (0, 'ITOB-RACE', 1, 3, ?)", wb);
+        long ob = jdbc.queryForObject("select id from outbound_order where ob_no = 'ITOB-RACE'", Long.class);
+        raceSubmitWith(List.of(FinanceConstants.ITEM_COURIER),
+                () -> call(json(post("/api/v1/logistics/outbounds/" + ob + "/undo-hand-over"), write(Map.of("reason", "x"))), admin),
+                "这票快递的运费已在报销单");
+        assertEquals(1, jdbc.queryForObject("select status from courier_waybill where id = ?", Integer.class, wb), "快递仍有效");
+        assertEquals(3, jdbc.queryForObject("select status from outbound_order where id = ?", Integer.class, ob), "出库单仍是已交货代");
+    }
+
+    @Test
+    void race_returnFreightReopen() throws Exception {
+        JsonNode po = orderedPo(supplier("退货运费竞态", null), "R-2", 1, "300");
+        long diff = returnFreight(po.path("id").asLong(), BUYER_LIN, "18.00");
+        ok(call(json(post(BX + "/proofs"), write(Map.of("sourceType", 3, "sourceId", diff,
+                "attachmentIds", List.of(upload("RETURN_PROOF", lin))))), lin));
+        raceSubmitWith(List.of(FinanceConstants.ITEM_RETURN_FREIGHT),
+                () -> call(json(post("/api/v1/purchase/discrepancies/" + diff + "/reopen"), "{}"), admin),
+                "这笔退货运费已在报销单");
+        assertEquals(2, jdbc.queryForObject("select status from receiving_discrepancy where id = ?", Integer.class, diff), "差异仍是已处理");
     }
 }
