@@ -23,6 +23,8 @@ public class CustomerFieldSourceDO {
     /** 来源（1-人工、2-背调报告、3-迁移） */
     private Integer source;
     private Long reportId;
+    /** 来源跟进记录 ID（来源为 4-跟进记录时），0 为无 */
+    private Long followupId;
     private Long operatorId;
     /** 已问客户、等回复：提问人，0 为没有在等 */
     private Long askedBy;

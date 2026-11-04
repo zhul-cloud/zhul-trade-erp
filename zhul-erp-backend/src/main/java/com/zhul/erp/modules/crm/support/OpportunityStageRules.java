@@ -19,7 +19,7 @@ import java.util.Objects;
  * <ul>
  *   <li>进行中阶段之间可任意前进 / 回退</li>
  *   <li>未计为有效的进行中阶段（S1、S2）可标记无效；计为有效的（S3 起）可标记输单</li>
- *   <li>只有最后一个进行中阶段（S7）可标记赢单</li>
+ *   <li>不能手动赢单：赢单只由收款到账自动触发，见 openspec customer-followup</li>
  *   <li>结束状态可重新打开，回到结束前的阶段</li>
  * </ul>
  */
@@ -77,6 +77,23 @@ public class OpportunityStageRules {
             return active().get(0).getCode();
         }
 
+        /** 最后一个进行中阶段（默认 S7）：自动赢单前先补推进到这里 */
+        public String lastCode() {
+            return last().getCode();
+        }
+
+        /** 第一个赢单类结束状态（默认 WON） */
+        public String wonCode() {
+            return byCode.values().stream().filter(s -> s.getCategory() == OpportunityConstants.CATEGORY_WON)
+                    .findFirst().map(OpportunityStageDO::getCode).orElse(OpportunityConstants.STAGE_WON);
+        }
+
+        /** 按配置的排序比较阶段先后；非进行中阶段排在最后 */
+        public int orderOf(String code) {
+            OpportunityStageDO s = code == null ? null : byCode.get(code);
+            return s == null || s.getCategory() != OpportunityConstants.CATEGORY_ACTIVE ? Integer.MAX_VALUE : s.getSortOrder();
+        }
+
         private OpportunityStageDO last() {
             List<OpportunityStageDO> a = active();
             return a.get(a.size() - 1);
@@ -85,10 +102,6 @@ public class OpportunityStageRules {
         /** 第一个计为有效的进行中阶段（默认 S3） */
         public OpportunityStageDO firstValid() {
             return active().stream().filter(s -> Objects.equals(s.getCountsAsValid(), 1)).findFirst().orElse(last());
-        }
-
-        private static String label(OpportunityStageDO s) {
-            return s.getCode() + " " + s.getName();
         }
 
         /** 进行中阶段之间变更 */
@@ -123,12 +136,9 @@ public class OpportunityStageRules {
                     }
                     requireReason(reason, OpportunityConstants.LOST_REASONS, "请选择输单原因");
                 }
-                case OpportunityConstants.CATEGORY_WON -> {
-                    if (!from.equals(last().getCode())) {
-                        throw new BizException("请先推进到 " + label(last()));
-                    }
-                }
-                default -> throw new BizException("只能标记为赢单、输单或无效");
+                // 赢单只由收款到账自动触发（OpportunityService.autoWin），手动关闭一律拒绝
+                case OpportunityConstants.CATEGORY_WON -> throw new BizException(OpportunityConstants.AUTO_WIN_MESSAGE);
+                default -> throw new BizException("只能标记为输单或无效");
             }
         }
 

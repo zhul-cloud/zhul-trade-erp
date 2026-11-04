@@ -1,6 +1,7 @@
 import { StarFilled } from '@ant-design/icons';
 import { history } from '@umijs/max';
 import { Tooltip } from 'antd';
+import dayjs from 'dayjs';
 import React from 'react';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatDateTime } from '@/utils/format';
@@ -120,17 +121,25 @@ export const SourceTag: React.FC<{
           : '背调报告'
         : s === SOURCE.MIGRATED
           ? '迁移'
-          : `人工${source?.operatorName ? ` · ${source.operatorName}` : ''}`);
+          : s === SOURCE.FOLLOWUP
+            ? '跟进记录'
+            : `人工${source?.operatorName ? ` · ${source.operatorName}` : ''}`);
   const color =
     system || s === SOURCE.SYSTEM
       ? palette.cyan
       : s === SOURCE.REPORT
         ? palette.violet
-        : palette.mute;
+        : s === SOURCE.FOLLOWUP
+          ? palette.link
+          : palette.mute;
   const tip = [
     text,
     s === SOURCE.REPORT && source?.operatorName && `${source.operatorName}采纳`,
-    source?.updateTime && formatDateTime(source.updateTime),
+    s === SOURCE.FOLLOWUP && source?.operatorName,
+    source?.updateTime &&
+      (s === SOURCE.FOLLOWUP
+        ? dayjs(source.updateTime).format('YYYY-MM-DD')
+        : formatDateTime(source.updateTime)),
   ]
     .filter(Boolean)
     .join(' · ');

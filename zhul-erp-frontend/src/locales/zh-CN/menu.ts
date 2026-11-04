@@ -41,6 +41,7 @@ export default {
   'menu.finance.credits': '余额管理',
   'menu.finance.otherIncomes': '其他收入',
   'menu.finance.operatingReport': '经营统计',
+  'menu.sales.followup': '客户跟进',
   'menu.sales.pi': 'PI',
   'menu.sales.orders': '销售订单',
   'menu.sales.afterSales': '售后管理',

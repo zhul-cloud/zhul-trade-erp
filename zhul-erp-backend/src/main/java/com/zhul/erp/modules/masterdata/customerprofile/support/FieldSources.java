@@ -22,6 +22,8 @@ public class FieldSources {
     public static final int MANUAL = 1;
     public static final int REPORT = 2;
     public static final int MIGRATED = 3;
+    /** 记一次跟进时勾选写入档案（openspec customer-followup） */
+    public static final int FOLLOWUP = 4;
     /** 只在返回给前端时使用：系统推导或国家资料 */
     public static final int SYSTEM = 9;
 
@@ -29,6 +31,12 @@ public class FieldSources {
 
     /** 记录这些字段的来源；填写了字段同时清除「已问、等回复」 */
     public void record(int tenantId, Long customerId, Collection<String> keys, int source, long reportId, Long operatorId) {
+        record(tenantId, customerId, keys, source, reportId, 0L, operatorId);
+    }
+
+    /** 同上，来源为跟进记录时带跟进记录 ID */
+    public void record(int tenantId, Long customerId, Collection<String> keys, int source, long reportId, long followupId,
+                       Long operatorId) {
         if (keys.isEmpty()) {
             return;
         }
@@ -43,6 +51,7 @@ public class FieldSources {
             }
             row.setSource(source);
             row.setReportId(reportId);
+            row.setFollowupId(followupId);
             row.setOperatorId(operatorId == null ? 0L : operatorId);
             row.setAskedBy(0L);
             row.setAskedAt(null);
@@ -70,6 +79,7 @@ public class FieldSources {
                 row.setFieldKey(key);
                 row.setSource(MANUAL);
                 row.setReportId(0L);
+                row.setFollowupId(0L);
                 row.setOperatorId(0L);
             }
             row.setAskedBy(asked ? operatorId : 0L);

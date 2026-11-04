@@ -166,6 +166,64 @@ public class CustomerProfileService {
         logService.recordOperateLog("客户管理", operation, before, after);
     }
 
+    /** 记一次跟进可以顺手补充的画像字段：自由文本字段，AI 建议与业务员勾选都只限这些 */
+    public static final Set<String> FOLLOWUP_FIELDS = Set.of("mainProducts", "cnSuppliers", "city", "website", "linkedin",
+            "socialUrl");
+
+    /** 记一次跟进可以补充、且这位客户目前为空的字段（AI 整理只建议这些，可见范围跟随客户） */
+    public List<String> blankFollowupFields(Long customerId) {
+        CustomerDO c = customerService.requireInScope(customerId);
+        return FOLLOWUP_FIELDS.stream().sorted()
+                .filter(k -> !(valueOf(c, k) instanceof String s && !s.isBlank())).toList();
+    }
+
+    /**
+     * 记一次跟进时写入勾选的档案字段（spec master-data/customer-profile「记跟进时补充的字段」）：
+     * 只补空值，已有值不覆盖；来源记为跟进记录（带跟进记录 ID）。与记一次跟进在同一事务内，校验不通过即抛出。
+     *
+     * @return 实际写入的字段键 → 值
+     */
+    public Map<String, String> applyFollowup(Long customerId, Map<String, String> values, long followupId) {
+        if (values == null || values.isEmpty()) {
+            return Map.of();
+        }
+        CustomerDO c = customerService.requireInScope(customerId);
+        ProfileUpdateRequest req = new ProfileUpdateRequest();
+        List<String> keys = new ArrayList<>();
+        Map<String, String> applied = new LinkedHashMap<>();
+        for (Map.Entry<String, String> e : values.entrySet()) {
+            String key = e.getKey();
+            String v = text(e.getValue());
+            if (!FOLLOWUP_FIELDS.contains(key)) {
+                throw new BizException("「" + key + "」不能在记跟进时写入档案");
+            }
+            Object old = valueOf(c, key);
+            if (v.isEmpty() || (old instanceof String s && !s.isBlank())) {
+                continue;
+            }
+            switch (key) {
+                case "mainProducts" -> req.setMainProducts(v);
+                case "cnSuppliers" -> req.setCnSuppliers(v);
+                case "city" -> req.setCity(v);
+                case "website" -> req.setWebsite(v);
+                case "linkedin" -> req.setLinkedin(v);
+                default -> req.setSocialUrl(v);
+            }
+            keys.add(key);
+            applied.put(key, v);
+        }
+        if (keys.isEmpty()) {
+            return Map.of();
+        }
+        for (String key : keys) {
+            apply(c, key, req);
+        }
+        customerMapper.updateById(c);
+        sources.record(c.getTenantId(), customerId, keys, FieldSources.FOLLOWUP, 0L, followupId, currentUser.resolve());
+        facts.refresh(c);
+        return applied;
+    }
+
     /** 补全向导「已经问了，等回复」：按字段记录或取消 */
     @Transactional(rollbackFor = Exception.class)
     public void markAsked(Long customerId, Collection<String> keys, boolean asked) {
@@ -380,6 +438,7 @@ public class CustomerProfileService {
             CustomerProfileVO.Source s = new CustomerProfileVO.Source();
             s.setSource(r.getSource());
             s.setReportId(r.getReportId() == null || r.getReportId() == 0 ? null : r.getReportId());
+            s.setFollowupId(r.getFollowupId() == null || r.getFollowupId() == 0 ? null : r.getFollowupId());
             CustomerBackgroundReportDO report = s.getReportId() == null ? null : reports.get(s.getReportId());
             if (report != null) {
                 s.setReportNo(report.getReportNo());

@@ -6,6 +6,7 @@ import {
 import { history } from '@umijs/max';
 import {
   App,
+  Checkbox,
   DatePicker,
   Form,
   Input,
@@ -15,10 +16,11 @@ import {
   Upload,
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useLevels } from '@/pages/inquiry/shared/components';
 import { LEVEL_DEFAULT } from '@/pages/inquiry/shared/constants';
 import { inquiryApi } from '@/pages/inquiry/shared/service';
+import { followupApi } from '@/pages/sales/followup/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import { DICT_SOURCE_CHANNEL, useDictOptions } from '@/utils/dict';
 import { FileChip, fileMeta, iconButton } from './components';
@@ -30,6 +32,7 @@ import {
   INVALID_REASONS,
   LOST_REASONS,
   MAX_ATTACHMENTS,
+  NURTURE_DEFAULT_DAYS,
 } from './constants';
 import {
   type OpportunityDetail,
@@ -50,8 +53,48 @@ export const CloseModal: React.FC<{
   const [reason, setReason] = useState<number>();
   const [note, setNote] = useState('');
   const [saving, setSaving] = useState(false);
+  const [nurture, setNurture] = useState(true);
+  const [recommend, setRecommend] = useState<{
+    reasons: number[];
+    names: string[];
+    date?: string;
+  }>();
   const invalid = kind === 'INVALID';
   const reasons = invalid ? INVALID_REASONS : LOST_REASONS;
+
+  // 输单：按最近一次跟进的卡点推荐原因
+  useEffect(() => {
+    if (kind !== 'LOST') return;
+    let alive = true;
+    Promise.all([
+      followupApi.blockers(),
+      followupApi.customerRecords(detail.customerId, {
+        blockerOnly: true,
+        page: 1,
+        pageSize: 1,
+      }),
+    ])
+      .then(([blockers, recs]) => {
+        if (!alive) return;
+        const latest = recs.records[0];
+        const codes = [latest?.blockerCode, recs.current?.blockerCode].filter(
+          (c, i, a): c is string => !!c && a.indexOf(c) === i,
+        );
+        const hits = codes
+          .map((c) => blockers.find((b) => b.code === c))
+          .filter((b) => b?.lostReason);
+        if (hits.length === 0) return;
+        setRecommend({
+          reasons: hits.map((b) => b?.lostReason as number),
+          names: hits.map((b) => b?.name as string),
+          date: latest?.createTime,
+        });
+      })
+      .catch(() => alive && setRecommend(undefined));
+    return () => {
+      alive = false;
+    };
+  }, [kind, detail.customerId]);
 
   return (
     <Modal
@@ -65,6 +108,8 @@ export const CloseModal: React.FC<{
       afterClose={() => {
         setReason(undefined);
         setNote('');
+        setNurture(true);
+        setRecommend(undefined);
       }}
       onCancel={onClose}
       onOk={async () => {
@@ -75,6 +120,7 @@ export const CloseModal: React.FC<{
             kind as string,
             reason,
             note.trim(),
+            invalid ? undefined : nurture,
           );
           message.success(invalid ? '已标记为无效' : '已标记为输单');
           onDone();
@@ -98,8 +144,30 @@ export const CloseModal: React.FC<{
         onChange={(e) => setReason(e.target.value)}
         optionType="button"
         options={reasons}
-        style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}
+        style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}
       />
+      {!invalid && recommend && (
+        <div
+          style={{
+            marginBottom: 16,
+            padding: '8px 12px',
+            borderRadius: 8,
+            fontSize: 12,
+            color: palette.link,
+            background: palette.accentSoft,
+          }}
+        >
+          按最近跟进推荐：
+          {recommend.reasons.map((r, i) => (
+            <React.Fragment key={r}>
+              {i > 0 && '、'}
+              <a onClick={() => setReason(r)}>{recommend.names[i]}</a>
+            </React.Fragment>
+          ))}
+          {recommend.date &&
+            `（${dayjs(recommend.date).format('MM-DD')} 卡点）`}
+        </div>
+      )}
       <div style={{ marginBottom: 8 }}>
         说明 <span style={{ fontSize: 12, color: palette.mute }}>选填</span>
       </div>
@@ -110,6 +178,15 @@ export const CloseModal: React.FC<{
         value={note}
         onChange={(e) => setNote(e.target.value)}
       />
+      {!invalid && (
+        <Checkbox
+          style={{ marginTop: 12 }}
+          checked={nurture}
+          onChange={(e) => setNurture(e.target.checked)}
+        >
+          转入培育，{NURTURE_DEFAULT_DAYS} 天后提醒重新激活
+        </Checkbox>
+      )}
     </Modal>
   );
 };

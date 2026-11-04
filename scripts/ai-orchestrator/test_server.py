@@ -711,6 +711,94 @@ class BackgroundTest(unittest.TestCase):
             self.assertIn(message, sent[-1][1])
 
 
+FOLLOWUP_INPUT = {
+    "customer": {"name": "ADORA", "country": "Germany"},
+    "stage": {"code": "S5", "name": "报价反馈"},
+    "document": {"docNo": "QT20261101003", "currencyCode": "USD", "amount": "8100.00"},
+    "blockers": [{"code": "PRICE", "name": "价格"}, {"code": "DELIVERY", "name": "交期"}],
+    "profileFields": [{"field": "mainProducts", "label": "主营产品"}],
+}
+
+
+class FollowupTest(unittest.TestCase):
+    """客户跟进的两个技能：followup-extract 整理跟进内容（只保留合法取值、截断原文），followup-reply 写英文回复"""
+
+    def setUp(self):
+        FakeClaude.calls = []
+        self.server = load_server()
+        self.cfg = self.server.parse_ai_config(ai())
+
+    def extract(self, reply, raw="customer: competitor quoted USD 760, refurbished. We take 10 new at USD 780, 15 days?"):
+        FakeClaude.reply = json.dumps(reply)
+        with mock.patch.object(self.server.anthropic, "Anthropic", FakeClaude):
+            result = self.server.call_followup_extract(self.cfg, {**FOLLOWUP_INPUT, "rawContent": raw})
+        return result, FakeClaude.calls[-1]["params"]
+
+    def test_extract_output_structure(self):
+        result, p = self.extract({
+            "summary": "客户说竞争对手报 USD 760 是翻新件，愿意按 USD 780 拿 10 台全新，要求 15 天交货",
+            "situation": ["feedback", "negotiating"], "blocker": "PRICE",
+            "nextActions": [{"text": "向采购确认 15 天交期", "days": 0}, {"text": "回复 USD 780 成交方案并更新报价", "days": 1}],
+            "profileSuggestions": [{"field": "mainProducts", "value": "PLC 备件", "evidence": "we sell PLC spares"}]})
+        self.assertEqual(result["situation"], ["feedback", "negotiating"])
+        self.assertEqual(result["blocker"], "PRICE")
+        self.assertEqual(len(result["nextActions"]), 2)
+        self.assertEqual(result["profileSuggestions"][0]["field"], "mainProducts")
+        self.assertFalse(result["truncated"])
+        self.assertEqual(p["model"], "claude-haiku-5-5", "用翻译的轻量模型")
+        self.assertNotIn("tools", p, "不联网")
+        self.assertIn("followup-extract", p["system"])
+        self.assertIn("USD 780", p["messages"][0]["content"][-1]["text"])
+
+    def test_extract_drops_illegal_values(self):
+        result, _ = self.extract({
+            "summary": "x", "situation": ["no_reply", "feedback"], "blocker": "WEATHER",
+            "nextActions": [{"text": "a", "days": 1}, {"text": "b", "days": 99}, {"text": "c", "days": 2}],
+            "profileSuggestions": [{"field": "currency", "value": "EUR", "evidence": ""},
+                                   {"field": "mainProducts", "value": " ", "evidence": ""}]})
+        self.assertEqual(result["situation"], ["feedback"], "没回复不和有反馈同时出现")
+        self.assertEqual(result["blocker"], "", "卡点只能取输入的卡点码")
+        self.assertEqual([a["text"] for a in result["nextActions"]], ["a", "b"], "最多 2 条")
+        self.assertEqual(result["nextActions"][1]["days"], 60)
+        self.assertEqual(result["profileSuggestions"], [], "只能取可补的档案字段，空值去掉")
+
+    def test_extract_keeps_last_20000_chars(self):
+        raw = "OLD" + "x" * 20000 + "NEWEST"
+        result, p = self.extract({"summary": "x", "situation": [], "blocker": "", "nextActions": [], "profileSuggestions": []},
+                                 raw=raw)
+        sent = json.loads(p["messages"][0]["content"][-1]["text"])
+        self.assertEqual(len(sent["rawContent"]), 20000)
+        self.assertTrue(sent["rawContent"].endswith("NEWEST"))
+        self.assertNotIn("OLD", sent["rawContent"])
+        self.assertTrue(result["truncated"])
+
+    def test_extract_without_content_fails(self):
+        sent = []
+        with mock.patch.object(self.server, "send_callback",
+                               lambda url, status, output=None, error=None: sent.append((status, error))):
+            self.server.process_followup({"input": {**FOLLOWUP_INPUT, "rawContent": "  "}, "ai": ai()}, "http://cb",
+                                         "followup-extract")
+        self.assertEqual(sent[-1], ("failed", "没有需要整理的内容"))
+
+    def test_reply_returns_english_draft(self):
+        FakeClaude.reply = json.dumps({"reply": " Hi Mark, thanks for the feedback... Could you share your target price? ",
+                                       "intent": "问客户目标价，不直接降价"})
+        with mock.patch.object(self.server.anthropic, "Anthropic", FakeClaude):
+            result = self.server.call_followup_reply(self.cfg, {**FOLLOWUP_INPUT, "blocker": {
+                "name": "价格", "playbook": ["先确认对方报价条件是否相同", "问目标价"]}})
+        p = FakeClaude.calls[-1]["params"]
+        self.assertTrue(result["reply"].startswith("Hi Mark"))
+        self.assertEqual(result["intent"], "问客户目标价，不直接降价")
+        self.assertIn("烛龙英文回复", p["system"], "系统提示词注明了原版来源")
+        self.assertIn("问目标价", p["messages"][0]["content"][-1]["text"])
+
+    def test_reply_empty_fails(self):
+        FakeClaude.reply = json.dumps({"reply": " ", "intent": ""})
+        with mock.patch.object(self.server.anthropic, "Anthropic", FakeClaude):
+            with self.assertRaises(RuntimeError):
+                self.server.call_followup_reply(self.cfg, FOLLOWUP_INPUT)
+
+
 class AttachmentSourceTest(unittest.TestCase):
     """附件只接受后端签发的 http(s) 临时链接，不读本地文件（audit AI-003）"""
 

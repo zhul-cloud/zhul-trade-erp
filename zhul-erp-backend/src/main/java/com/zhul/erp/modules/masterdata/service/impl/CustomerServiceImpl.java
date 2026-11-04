@@ -88,6 +88,7 @@ public class CustomerServiceImpl implements CustomerService {
     private final DictItemService dictItemService;
     private final BusinessUnitService businessUnitService;
     private final com.zhul.erp.modules.masterdata.customerprofile.support.PrimaryContactSync primaryContacts;
+    private final com.zhul.erp.modules.crm.followup.support.FollowupSync followupSync;
 
     // ---------------------------------------------------------------- 新增 / 更新
 
@@ -663,6 +664,8 @@ public class CustomerServiceImpl implements CustomerService {
                 c.setBusinessUnitId(newUnit);
             }
             customerMapper.updateById(c);
+            // 未结束的跟进对象随客户转给新负责人（已有单据的归属不变）
+            followupSync.ownerChanged(c.getId(), req.getOwnerId());
             logService.recordOperateLog("客户管理", "转移客户", before, after);
         }
     }

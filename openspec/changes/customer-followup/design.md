@@ -55,6 +55,7 @@
 维护方式：
 - 报价单发送、作废、成交或未成交，PI 发送、关闭、作废、收款确认，询盘创建和生成报价，商机阶段变化时，都调用 `FollowupSync.onXxx(...)`，在原事务内 upsert 或关闭对应行。
 - 每晚 02:40（客户等级重算之后）的 `FollowupReconcileJob` 按单据全量核对一遍：修正遗漏、移出已结束的、到期的培育重新激活、按系统节奏刷新下一步。
+- 核对任务在应用启动完成后也跑一次，上线时由它生成存量单据的跟进对象，迁移 SQL 不重复实现生成规则。核对任务补生成的跟进对象，`cadence_from` 取补生成当天，提醒节奏从这天起算；单据事件生成的取发送或创建日期。
 
 备选方案：每次查询时用 UNION 实时从报价单、PI、询盘拼。不采用，原因：
 - S5/S6、卡点、下一步、培育这些状态本来就要有地方存；
@@ -84,17 +85,18 @@ PI 发送时，明细 `quotation_id` 指向的报价单的跟进对象关闭，�
 
 ### D6 提醒节奏
 `next_action_source = 1`（系统）时，系统按节奏计算 `next_action_date`：
-- 报价后：发送日 + 1、3、7、14 天中下一个未过去的节点；14 天之后不再生成系统节点，改为「建议转培育」。
-- PI 后：有预计付款日（`expected_pay_date`，记跟进时填写，存在跟进对象上）时，用这个日期；过期后每次按 + 2 天顺延。没有预计付款日时，发送日 + 2 天，之后每 2 天。
+- 报价后：以 `cadence_from` 为起点，取 + 1、3、7、14 天中已经到达的最后一个节点（都没到时取第一个节点）；没处理的节点逾期显示，下一个节点到了就换成新节点；14 天之后不再生成新节点，改为「建议转培育」。
+- PI 后：有预计付款日（`expected_pay_date`，记跟进时填写，存在跟进对象上）时，用这个日期；过了还没到账就保持逾期显示，直到业务员处理（记跟进或延后）。没有预计付款日时，以 `cadence_from` 起每 2 天一个节点，取已到达的最后一个节点。
+- 报价前：新询盘或新商机当天（`cadence_from`）提醒首次回复。
 
 业务员记跟进后，`next_action_source = 2`，按业务员的日期提醒。
 
 节奏参数放 `sys_config`，platform 行加租户覆盖（与现有读取方式一致）：
-- `followup.quote.days = 1,3,7,14`
-- `followup.pi.interval-days = 2`
-- `followup.nurture.default-days = 60`
-- `followup.nurture.quote-days = 14`
-- `followup.nurture.no-reply-times = 3`
+- `sales.followup.quote.days = 1,3,7,14`
+- `sales.followup.pi.interval-days = 2`
+- `sales.followup.nurture.default-days = 60`
+- `sales.followup.nurture.quote-days = 14`
+- `sales.followup.nurture.no-reply-times = 3`
 
 系统提醒的文字按阶段和节点取 SOP 的默认动作（`sop_stage.default_actions`）。
 
@@ -111,7 +113,7 @@ PI 发送时，明细 `quotation_id` 指向的报价单的跟进对象关闭，�
 - 报价单：`total_amount_cny`；
 - 询盘：Σ(明细数量 × 已有采购报价的最低单价，按采购报价币种的汇率折成人民币)，没有报价的明细不计。
 
-分档阈值 20 万、5 万、1 万也放系统参数 `followup.amount-tiers`。客户等级每晚变化后，不需要回写跟进对象，排序时 JOIN `customer` 读取（单表加客户一张，不超过 3 张表）。
+分档阈值 20 万、5 万、1 万也放系统参数 `sales.followup.amount-tiers`。客户等级每晚变化后，不需要回写跟进对象，排序时 JOIN `customer` 读取（单表加客户一张，不超过 3 张表）。
 
 精度：金额档只用于比较，不做舍入存储；`amount_cny` 为 DECIMAL(18,2)，沿用单据的本位币金额，不重新换算。
 
@@ -184,7 +186,7 @@ PI 发送时，明细 `quotation_id` 指向的报价单的跟进对象关闭，�
 | --- | --- | --- |
 | GET | `/overview` | 链路卡片计数 |
 | GET | `/today` | 今日待办 |
-| GET | `/items` | 列表：`board`、`group`、`stage`、`nurture`、`ownerScope`、`page`、`page_size` |
+| GET | `/items` | 列表：`board`、`group`、`stage`、`nurture`、`ownerScope`、`blocker`（卡点）、`keyword`（客户名称、客户编码或单号）、`page`、`page_size` |
 | POST | `/items/{id}/snooze` | 延后 |
 | POST | `/items/{id}/nurture` | 转培育 |
 | POST | `/items/{id}/activate` | 激活培育 |
