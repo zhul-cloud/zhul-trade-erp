@@ -109,7 +109,7 @@ public class FollowupSettings {
 
     private Map<String, String> values(int tenantId) {
         List<SysConfigDO> rows = sysConfigMapper.selectList(new LambdaQueryWrapper<SysConfigDO>()
-                .likeRight(SysConfigDO::getConfigKey, "followup.")
+                .likeRight(SysConfigDO::getConfigKey, "sales.followup.")
                 .in(SysConfigDO::getTenantId, List.of(0, tenantId))
                 .isNull(SysConfigDO::getDeletedAt));
         return rows.stream().collect(Collectors.groupingBy(SysConfigDO::getConfigKey,
