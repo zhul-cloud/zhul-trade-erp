@@ -346,6 +346,25 @@ class OutboundShippingContractTest extends SalesContractSupport {
         assertFalse(order(soId).path("items").get(0).path("progressName").asText().equals("已出运"));
     }
 
+    /** audit BUS-006：编辑发货通知只按一次本单旧数量放行，不能超过合格可用量 */
+    @Test
+    void editNotice_cannotExceedQualifiedQuantity() throws Exception {
+        JsonNode po = orderedPo(supplier("通知改量工控", null), 10);
+        long soId = soOf(po);
+        receive(po, 10);
+        long ob = ok(notice(soId, 10)).path("id").asLong();
+        String url = OB + "/notice/" + ob;
+        java.util.function.Function<Integer, Map<String, Object>> body = qty -> Map.of("forwarderId", forwarder,
+                "items", List.of(Map.of("soItemId", soItem(soId), "quantity", qty)));
+        assertEquals("A-1 最多可以出库 10 个", fail(call(json(put(url), write(body.apply(20))), admin)).path("message").asText());
+        ok(call(json(put(url), write(body.apply(10))), admin));
+        ok(call(json(put(url), write(body.apply(6))), admin));
+        assertEquals("A-1 最多可以出库 10 个", fail(call(json(put(url), write(body.apply(11))), admin)).path("message").asText(),
+                "减量后再增量，上限仍是 10");
+        assertEquals(6, jdbc.queryForObject("select coalesce(sum(quantity), 0) from outbound_order_item where outbound_id = ? "
+                + "and deleted_at is null", Integer.class, ob));
+    }
+
     /** audit BUS-010：入库的货已被出库占用时不能冲销入库；其他入库仍够占用时可以冲销 */
     @Test
     void reverseReceipt_blockedWhileOutboundUsesTheGoods() throws Exception {
