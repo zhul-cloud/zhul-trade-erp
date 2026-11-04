@@ -51,6 +51,8 @@ import os
 import re
 import sys
 import threading
+import time
+import urllib.error
 import urllib.parse
 import urllib.request
 import uuid
@@ -82,6 +84,10 @@ TIMEOUT_SECONDS = int(os.environ.get("AI_ORCHESTRATOR_TIMEOUT_SECONDS") or "900"
 QUICK_TIMEOUT_SECONDS = 20
 # pause_turn 最多续传几次，防止异常情况下无限循环
 MAX_CONTINUATIONS = 5
+# 模型请求遇到可恢复的错误（连不上、限流、服务商 5xx）时的重试间隔；SDK 自带的重试不知道整任务期限，已关掉
+API_RETRY_DELAYS = (2, 5)
+# 结果回调投递失败（连不上、超时、后端 5xx）时的重投间隔，合计约 1 分钟（audit AI-002）
+CALLBACK_RETRY_DELAYS = (5, 15, 45)
 FALLBACK_BETA = "server-side-fallback-2026-07-01"
 IMAGE_TYPES = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".gif": "image/gif", ".webp": "image/webp"}
 
@@ -138,6 +144,53 @@ OUTPUT_SCHEMA = {
 
 # 一个任务在一个线程里跑完：用线程变量累加这次任务内所有 API 调用的用量，回调时带回（不含 Key 与请求内容）
 _usage = threading.local()
+
+
+class JobTimeout(Exception):
+    """整个任务超过 AI_ORCHESTRATOR_TIMEOUT_SECONDS（audit AI-005）"""
+
+
+_JOB = threading.local()
+
+
+def start_job():
+    """任务开始计时：下载附件、排队、每轮模型请求和续传共用这一个期限，
+    保证编排服务在后端超时扫描（默认 20 分钟）判失败之前就停下（audit AI-005）"""
+    _JOB.deadline = time.monotonic() + TIMEOUT_SECONDS
+
+
+def remaining() -> float:
+    """本任务还剩多少秒；已到期时抛 JobTimeout，不再发起下一步请求"""
+    deadline = getattr(_JOB, "deadline", None)
+    if deadline is None:
+        return float(TIMEOUT_SECONDS)
+    left = deadline - time.monotonic()
+    if left <= 0:
+        raise JobTimeout()
+    return left
+
+
+def _retryable(e: Exception) -> bool:
+    """连不上、限流、服务商 5xx 可以重试；超时、鉴权、参数错误不重试"""
+    if isinstance(e, (anthropic.APITimeoutError, openai.APITimeoutError)):
+        return False
+    if isinstance(e, (anthropic.APIConnectionError, openai.APIConnectionError)):
+        return True
+    if isinstance(e, (anthropic.APIStatusError, openai.APIStatusError)):
+        return e.status_code in (408, 409, 429) or e.status_code >= 500
+    return False
+
+
+def _with_retries(request):
+    """request(timeout) 发起一次模型请求；在本任务剩余时间内重试可恢复的错误"""
+    for delay in API_RETRY_DELAYS + (None,):
+        try:
+            return request(remaining())
+        except (anthropic.APIError, openai.APIError) as e:
+            if delay is None or not _retryable(e) or remaining() <= delay:
+                raise
+            print(f"[ai-orchestrator] 模型请求失败，{delay} 秒后重试：{type(e).__name__}")
+            time.sleep(delay)
 
 
 def _record_usage(model: str, input_tokens, output_tokens, searches):
@@ -295,7 +348,7 @@ def _read_attachment(ref: dict) -> tuple:
     url = ref["url"]
     if urllib.parse.urlsplit(url).scheme not in ("http", "https"):
         raise ValueError("附件链接只支持 http / https")
-    with urllib.request.urlopen(url, timeout=120) as resp:
+    with urllib.request.urlopen(url, timeout=min(120, remaining())) as resp:
         return resp.read(), "." + ref.get("ext", "").lower().lstrip(".")
 
 
@@ -330,7 +383,7 @@ def call_api(cfg: AiConfig, system_prompt: str, text: str, attachments: list, sc
         wire_schema = _required_nullable_schema(schema) if cfg.provider == "openai" else schema
         result = call_subscription(cfg.provider, system_prompt, text, attachments, wire_schema, model=model,
                                    effort=effort, web_search=web_search, max_web_searches=cfg.max_web_searches,
-                                   timeout=TIMEOUT_SECONDS)
+                                   timeout=max(1, int(remaining())))
         return _drop_nulls(result)
     call = _call_openai if cfg.provider == "openai" else _call_claude
     return call(cfg, system_prompt, text, attachments, schema, model, effort, web_search)
@@ -338,7 +391,7 @@ def call_api(cfg: AiConfig, system_prompt: str, text: str, attachments: list, sc
 
 def _call_claude(cfg, system_prompt, text, attachments, schema, model, effort, web_search) -> dict:
     """调用 Anthropic API；pause_turn 时原样续传"""
-    client = anthropic.Anthropic(api_key=cfg.api_key, timeout=TIMEOUT_SECONDS)
+    client = anthropic.Anthropic(api_key=cfg.api_key, timeout=TIMEOUT_SECONDS, max_retries=0)
     content = [_attachment_block(a) for a in attachments] + [{"type": "text", "text": text}]
     messages = [{"role": "user", "content": content}]
     params = {
@@ -354,10 +407,15 @@ def _call_claude(cfg, system_prompt, text, attachments, schema, model, effort, w
         params["fallbacks"] = "default"
     if web_search:
         params["tools"] = [{"type": "web_search_20260209", "name": "web_search", "max_uses": cfg.max_web_searches}]
+    def one_round(timeout):
+        # 流式输出时只要一直有数据就不会触发单请求超时，所以每收到一段都核对整任务期限
+        with client.beta.messages.stream(messages=messages, timeout=timeout, **params) as stream:
+            for _ in stream:
+                remaining()
+            return stream.get_final_message(), stream.request_id
+
     for _ in range(MAX_CONTINUATIONS + 1):
-        with client.beta.messages.stream(messages=messages, **params) as stream:
-            response = stream.get_final_message()
-            request_id = stream.request_id
+        response, request_id = _with_retries(one_round)
         if response.stop_reason != "pause_turn":
             break
         messages = [messages[0], {"role": "assistant", "content": response.content}]
@@ -417,7 +475,7 @@ def _drop_nulls(value):
 
 def _call_openai(cfg, system_prompt, text, attachments, schema, model, effort, web_search) -> dict:
     """调用 OpenAI Responses API"""
-    client = openai.OpenAI(api_key=cfg.api_key, timeout=TIMEOUT_SECONDS)
+    client = openai.OpenAI(api_key=cfg.api_key, timeout=TIMEOUT_SECONDS, max_retries=0)
     content = [_openai_attachment_block(a) for a in attachments] + [{"type": "input_text", "text": text}]
     params = {
         "model": model,
@@ -432,7 +490,7 @@ def _call_openai(cfg, system_prompt, text, attachments, schema, model, effort, w
         # max_tool_calls 统计全部托管工具调用（搜索、打开网页、页内查找），不只是搜索
         params["tools"] = [{"type": "web_search"}]
         params["max_tool_calls"] = cfg.max_web_searches
-    response = client.responses.create(**params)
+    response = _with_retries(lambda timeout: client.responses.create(timeout=timeout, **params))
 
     if response.status == "incomplete":
         reason = getattr(response.incomplete_details, "reason", None)
@@ -536,6 +594,7 @@ def _api_key_of(payload: dict) -> str:
 
 
 def process_translate(payload: dict, callback_url: str, prompt: str = TRANSLATE_PROMPT):
+    start_job()
     key = _api_key_of(payload)
     try:
         cfg = parse_ai_config(payload.get("ai"))
@@ -546,7 +605,7 @@ def process_translate(payload: dict, callback_url: str, prompt: str = TRANSLATE_
         send_callback(callback_url, "success", output=call_translate(cfg, items, prompt))
     except ConfigError as e:
         send_callback(callback_url, "failed", error=str(e))
-    except (anthropic.APITimeoutError, openai.APITimeoutError):
+    except (JobTimeout, anthropic.APITimeoutError, openai.APITimeoutError):
         send_callback(callback_url, "failed", error=f"AI 处理超过 {TIMEOUT_SECONDS} 秒未完成")
     except Exception as e:
         message = scrub(str(e), key)
@@ -631,6 +690,7 @@ def call_background(cfg: AiConfig, input_data: dict) -> dict:
 
 
 def process_background(payload: dict, callback_url: str):
+    start_job()
     key = _api_key_of(payload)
     try:
         cfg = parse_ai_config(payload.get("ai"))
@@ -647,7 +707,7 @@ def process_background(payload: dict, callback_url: str):
         send_callback(callback_url, "success", output=call_background(cfg, input_data))
     except ConfigError as e:
         send_callback(callback_url, "failed", error=str(e))
-    except (anthropic.APITimeoutError, openai.APITimeoutError):
+    except (JobTimeout, anthropic.APITimeoutError, openai.APITimeoutError):
         send_callback(callback_url, "failed", error=f"AI 处理超过 {TIMEOUT_SECONDS} 秒未完成")
     except Exception as e:
         message = scrub(str(e), key)
@@ -655,8 +715,10 @@ def process_background(payload: dict, callback_url: str):
         send_callback(callback_url, "failed", error=message[:500])
 
 
-def send_callback(callback_url: str, status: str, output=None, error=None):
-    """回调带上本线程累计的用量（spec ai-platform/task-orchestration「记录 AI 调用用量」）；旧版后端忽略 usage"""
+def send_callback(callback_url: str, status: str, output=None, error=None) -> bool:
+    """回调带上本线程累计的用量（spec ai-platform/task-orchestration「记录 AI 调用用量」）；旧版后端忽略 usage。
+    投递失败（连不上、超时、后端 5xx）按 CALLBACK_RETRY_DELAYS 重投同一结果，不重新调用模型；
+    后端按任务幂等接收，重复的回调不会重复处理（audit AI-002）。返回是否投递成功"""
     body = {"status": status, "output": output, "error": error}
     usage = _take_usage()
     if usage:
@@ -668,11 +730,29 @@ def send_callback(callback_url: str, status: str, output=None, error=None):
         method="POST",
         headers={"Content-Type": "application/json", "X-AI-Callback-Token": CALLBACK_TOKEN},
     )
-    try:
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            print(f"[ai-orchestrator] callback -> {callback_url} status={resp.status}")
-    except Exception as e:
-        print(f"[ai-orchestrator] callback FAILED -> {callback_url}: {e}")
+    for attempt, delay in enumerate(CALLBACK_RETRY_DELAYS + (None,), 1):
+        try:
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                print(f"[ai-orchestrator] callback -> {callback_url} status={resp.status}")
+                return True
+        except urllib.error.HTTPError as e:
+            if e.code < 500 and e.code != 429:
+                # 令牌不对、任务不存在等，重投也不会成功
+                print(f"[ai-orchestrator] callback REJECTED -> {callback_url}: HTTP {e.code}")
+                return False
+            reason = f"HTTP {e.code}"
+        except (urllib.error.URLError, OSError) as e:
+            reason = str(e)
+        except ValueError as e:
+            print(f"[ai-orchestrator] callback FAILED -> {callback_url}: {e}")
+            return False
+        if delay is None:
+            break
+        print(f"[ai-orchestrator] callback FAILED -> {callback_url}（第 {attempt} 次）: {reason}，{delay} 秒后重投")
+        time.sleep(delay)
+    print(f"[ai-orchestrator] callback GAVE UP -> {callback_url}: 重投 {len(CALLBACK_RETRY_DELAYS)} 次仍失败，"
+          f"任务将由后端超时扫描判为失败")
+    return False
 
 
 def _nameplate_no(ref: dict):
@@ -686,6 +766,7 @@ def _nameplate_no(ref: dict):
 
 
 def process_job(payload: dict, callback_url: str):
+    start_job()
     key = _api_key_of(payload)
     try:
         cfg = parse_ai_config(payload.get("ai"))
@@ -707,7 +788,7 @@ def process_job(payload: dict, callback_url: str):
         send_callback(callback_url, "success", output=output)
     except ConfigError as e:
         send_callback(callback_url, "failed", error=str(e))
-    except (anthropic.APITimeoutError, openai.APITimeoutError):
+    except (JobTimeout, anthropic.APITimeoutError, openai.APITimeoutError):
         send_callback(callback_url, "failed", error=f"AI 处理超过 {TIMEOUT_SECONDS} 秒未完成")
     except Exception as e:
         message = scrub(str(e), key)

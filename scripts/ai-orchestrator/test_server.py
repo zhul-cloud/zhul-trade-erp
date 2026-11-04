@@ -39,6 +39,20 @@ def ai(**overrides):
     return raw
 
 
+class FakeStream:
+    """messages.stream 的上下文对象：可逐段迭代（没有分段），最后取完整消息"""
+
+    def __init__(self, message):
+        self.message = message
+        self.request_id = "req_test"
+
+    def __iter__(self):
+        return iter(())
+
+    def get_final_message(self):
+        return self.message
+
+
 class FakeClaude:
     """记录 messages.stream 的参数，返回给定的 JSON 文本"""
     calls = []
@@ -54,7 +68,7 @@ class FakeClaude:
             stop_reason="end_turn", model=params["model"],
             content=[SimpleNamespace(type="text", text=FakeClaude.reply)],
             usage=SimpleNamespace(input_tokens=1, output_tokens=1, server_tool_use=None))
-        return mock.MagicMock(__enter__=lambda s: SimpleNamespace(get_final_message=lambda: message, request_id="req_test"),
+        return mock.MagicMock(__enter__=lambda s: FakeStream(message),
                               __exit__=lambda s, *a: False)
 
 
