@@ -443,6 +443,31 @@ class PayableContractTest extends SalesContractSupport {
         assertTrue(blank(ok(call(get(AP + "/by-source").param("sourceType", "1").param("sourceId", String.valueOf(poId)), other))));
     }
 
+    /** audit BUS-004：没有资金往来时改币种，应付跟着改；有付款后不能再改币种 */
+    @Test
+    void currencyChange_followsPayableUntilMoneyMoves() throws Exception {
+        long sup = supplier("币种工控", null);
+        long poId = orderedPo(sup, "CUR-1", 1, "100", List.of(term(100, 1, 0))).path("id").asLong();
+        Map<String, Object> body = poBody(po(poId, admin), null);
+        body.put("currencyCode", "USD");
+        ok(savePo(poId, body, admin));
+        Map<String, Object> ap = jdbc.queryForMap("select id, currency_code, amount, exchange_rate, amount_cny from fin_payable "
+                + "where source_type = 1 and source_id = ?", poId);
+        assertEquals("USD", ap.get("currency_code"), "应付币种随采购订单");
+        money("100.00", new com.fasterxml.jackson.databind.node.DecimalNode((BigDecimal) ap.get("amount")));
+        money("715.00", new com.fasterxml.jackson.databind.node.DecimalNode((BigDecimal) ap.get("amount_cny")));
+
+        long apId = ((Number) ap.get("id")).longValue();
+        Map<String, Object> pay = payBody(1, "40.00", Map.of(apId, "40.00"), admin);
+        pay.put("amountCny", new BigDecimal("286.00"));
+        ok(pay(pay, admin));
+        body.put("currencyCode", "CNY");
+        assertEquals("这张采购订单已有付款、欠款抵扣或退款，不能修改币种；如需修改，请先作废相关付款",
+                fail(savePo(poId, body, admin)).path("message").asText());
+        assertEquals("USD", jdbc.queryForObject("select currency_code from purchase_order where id = ?", String.class, poId));
+        assertEquals("USD", jdbc.queryForObject("select currency_code from fin_payable where id = ?", String.class, apId));
+    }
+
     /** audit BUS-009：付款形成的欠款已抵扣到另一应付时，不能直接作废原付款；先作废抵扣再作废原付款可以 */
     @Test
     void voidPaymentWhoseCreditIsUsed_rejectedUntilOffsetVoided() throws Exception {

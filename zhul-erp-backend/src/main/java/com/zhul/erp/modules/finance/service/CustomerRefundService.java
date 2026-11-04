@@ -296,8 +296,14 @@ public class CustomerRefundService {
     }
 
     private RefundableVO refundableOf(SalesOrderDO o, ReceiptPosition.Position pos) {
+        // PI 转成的订单按 PI 的到账算可退，已退的也按同一 PI 下所有订单（含取消重转前的旧订单）算（audit BUS-003）
+        List<Long> soIds = o.getPiId() == null ? List.of(o.getId())
+                : orderMapper.selectList(new LambdaQueryWrapper<SalesOrderDO>()
+                                .select(SalesOrderDO::getId)
+                                .eq(SalesOrderDO::getPiId, o.getPiId()))
+                        .stream().map(SalesOrderDO::getId).toList();
         BigDecimal refunded = refundMapper.selectList(new LambdaQueryWrapper<CustomerRefundDO>()
-                        .eq(CustomerRefundDO::getSoId, o.getId())
+                        .in(CustomerRefundDO::getSoId, soIds)
                         .eq(CustomerRefundDO::getRefundType, FinanceConstants.REFUND_AFTER_SALES)
                         .eq(CustomerRefundDO::getStatus, FinanceConstants.RECORD_VALID)
                         .isNull(CustomerRefundDO::getDeletedAt))
