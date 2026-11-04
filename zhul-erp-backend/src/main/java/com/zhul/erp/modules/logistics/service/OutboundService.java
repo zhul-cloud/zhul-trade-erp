@@ -389,13 +389,14 @@ public class OutboundService {
         }
         Long waybillId = ob.getCourierWaybillId();
         if (waybillId != null) {
+            // 先锁快递再查报销：与报销提交（先锁来源再写明细）互斥，不会在提交途中撤销已报销的快递（audit BUS-011）
+            waybillMapper.lockById(waybillId);
             reimburseGuard.requireNotClaimed(FinanceConstants.ITEM_COURIER, waybillId, "这票快递的运费");
         }
         ob.setStatus(LogisticsConstants.OB_PACKED);
         ob.setCourierWaybillId(null);
         outboundMapper.updateById(ob);
         if (waybillId != null) {
-            waybillMapper.lockById(waybillId);
             CourierWaybillDO w = waybillMapper.selectById(waybillId);
             List<Long> rest = outboundMapper.selectList(new LambdaQueryWrapper<OutboundOrderDO>()
                             .select(OutboundOrderDO::getId)
