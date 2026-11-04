@@ -496,4 +496,32 @@ class PayableContractTest extends SalesContractSupport {
         money("0.00", bySource(poA, admin).path("paidAmount"));
         money("0.00", bySource(poB, admin).path("paidAmount"));
     }
+
+    /** audit BUS-019：外币欠款抵扣把来源的实付人民币按实付汇率转到目标，目标采购成本不会变成 0 */
+    @Test
+    void usdCreditOffset_carriesActualCnyToTarget() throws Exception {
+        long sup = supplier("Omron Credit HK", null);
+        long poA = orderedPo(sup, "UC-1", 1, "100", List.of(term(100, 1, 0))).path("id").asLong();
+        long poB = orderedPo(sup, "UC-2", 1, "100", List.of(term(100, 1, 0))).path("id").asLong();
+        for (long po : new long[] {poA, poB}) {
+            // 直接改库模拟美元下单（汇率 7.15）
+            jdbc.update("update purchase_order set currency_code = 'USD', exchange_rate = 7.150000 where id = ?", po);
+            jdbc.update("update fin_payable set currency_code = 'USD', exchange_rate = 7.150000 where source_id = ? and source_type = 1", po);
+        }
+        long apA = bySource(poA, admin).path("id").asLong();
+        long apB = bySource(poB, admin).path("id").asLong();
+        Map<String, Object> cash = payBody(1, "100.00", Map.of(apA, "100.00"), admin);
+        cash.put("amountCny", new BigDecimal("710.00"));
+        ok(pay(cash, admin));
+        ok(call(json(post(PO + "/" + poA + "/cancel"), "{\"reason\":\"供应商缺货\"}"), admin));
+
+        Map<String, Object> body = payBody(1, "0.00", Map.of(apB, "100.00"), admin);
+        body.put("credits", List.of(Map.of("payableId", apA, "amount", new BigDecimal("100.00"))));
+        ok(pay(body, admin));
+        money("100.00", bySource(poB, admin).path("paidAmount"));
+        money("710.00", bySource(poB, admin).path("paidCny"));
+        money("0.00", bySource(poA, admin).path("paidCny"));
+        assertEquals(0, jdbc.queryForObject("select count(*) from fin_payment_allocation where payable_id = ? and from_credit = 1 "
+                + "and amount_cny <> 0 and deleted_at is null", Integer.class, apB), "抵扣行的现金流仍为 0");
+    }
 }
