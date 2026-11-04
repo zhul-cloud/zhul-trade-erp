@@ -19,12 +19,15 @@ import {
 import dayjs, { type Dayjs } from 'dayjs';
 import React, { useEffect, useRef, useState } from 'react';
 import { customerApi } from '@/pages/customer/service';
+import { CreateAfterSalesModal } from '@/pages/sales/after-sales/dialogs';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
-import { fmtDate, iso, useBlockers } from './components';
+import { fmtDate, iso, StageTag, useBlockers } from './components';
+import StageQuestions from './StageQuestions';
 import {
   AI_NOT_CONFIGURED,
   AI_STATUS,
+  BOARD_SALES,
   CHANNEL_OPTIONS,
   type ExtractResult,
   type FollowupItem,
@@ -37,6 +40,16 @@ import {
   SITUATION_OPTIONS,
   TARGET,
 } from './service';
+import {
+  applyAiAnswers,
+  emptyAnswers,
+  needsAfterSales,
+  type StageAnswers,
+  stageEffect,
+  stageKind,
+  stagePayload,
+  validateStage,
+} from './stageForm';
 
 const POLL_MS = 2000;
 const POLL_TIMEOUT_MS = 60000;
@@ -93,7 +106,6 @@ const RecordFollowupModal: React.FC<{
 }> = ({ open, target, onClose, onDone }) => {
   const { palette } = useAppTheme();
   const { message } = App.useApp();
-  const blockers = useBlockers();
 
   const [customerId, setCustomerId] = useState<number>();
   const [customerName, setCustomerName] = useState<string>();
@@ -101,6 +113,14 @@ const RecordFollowupModal: React.FC<{
     { value: number; label: string }[]
   >([]);
   const [item, setItem] = useState<FollowupItem>();
+  const blockers = useBlockers(item?.board ?? BOARD_SALES);
+  const kind = stageKind(item);
+  const [answers, setAnswers] = useState<StageAnswers>(emptyAnswers);
+  // 「有问题」保存后打开新建售后单
+  const [afterSales, setAfterSales] = useState<{
+    soId?: number;
+    symptom?: string;
+  }>();
 
   const [raw, setRaw] = useState('');
   const [situation, setSituation] = useState(0);
@@ -153,6 +173,7 @@ const RecordFollowupModal: React.FC<{
     setNextOptions([]);
     setSuggestions([]);
     setTruncated(false);
+    setAnswers(emptyAnswers());
     setCustomerId(target?.customerId);
     setCustomerName(target?.customerName ?? target?.item?.customerName);
     setItem(target?.item);
@@ -180,6 +201,9 @@ const RecordFollowupModal: React.FC<{
     };
   }, [open, customerId, target]);
 
+  // 换了跟进对象：阶段答案重来
+  useEffect(() => setAnswers(emptyAnswers()), [item?.id]);
+
   const searchCustomer = (keyword: string) => {
     customerApi
       .page({ name: keyword || undefined, page: 1, pageSize: 20 })
@@ -202,6 +226,7 @@ const RecordFollowupModal: React.FC<{
     setNextOptions(res.nextActions ?? []);
     setSuggestions(res.profileSuggestions ?? []);
     setTruncated(!!res.truncated);
+    setAnswers((a) => applyAiAnswers(kind, a, res, item?.stageCode));
     const first = res.nextActions?.[0];
     if (first && !nextAction.trim()) {
       setNextAction(first.text.slice(0, NEXT_MAX));
@@ -312,6 +337,8 @@ const RecordFollowupModal: React.FC<{
       parts.push(
         `${nextDate.isSame(dayjs(), 'day') ? '今天' : fmtDate(nextDate)} 提醒你：${nextAction.trim()}`,
       );
+    const stage = stageEffect(kind, answers, item);
+    if (stage) parts.unshift(stage);
     if (suggestions.some((s) => s.checked))
       parts.push(
         `补 ${suggestions.filter((s) => s.checked).length} 项到客户档案`,
@@ -332,6 +359,11 @@ const RecordFollowupModal: React.FC<{
       message.warning('请选择什么时候做下一步');
       return;
     }
+    const stageError = validateStage(kind, answers, iso(dayjs()));
+    if (stageError) {
+      message.warning(stageError);
+      return;
+    }
     const profile: Record<string, string> = {};
     for (const s of suggestions) if (s.checked) profile[s.field] = s.value;
     setSaving(true);
@@ -350,12 +382,22 @@ const RecordFollowupModal: React.FC<{
         expectedPayDate: isPi && payDate ? iso(payDate) : undefined,
         profile: Object.keys(profile).length ? profile : undefined,
         idempotencyKey: keyRef.current,
+        ...stagePayload(kind, answers, item?.stageCode),
       });
       message.success(
-        r.stageAfter && r.stageAfter !== r.stageBefore
-          ? `已记录，阶段推进到 ${r.stageAfter}`
-          : '已记录这次跟进',
+        r.ended
+          ? '已记录，售后结束'
+          : r.stageAfter && r.stageAfter !== r.stageBefore
+            ? `已记录，阶段推进到 ${r.stageAfter}`
+            : '已记录这次跟进',
       );
+      if (r.orderCompleted === false)
+        message.warning('订单还有型号没出运，没有标为已收货');
+      if (item && needsAfterSales(kind, answers))
+        setAfterSales({
+          soId: item.targetId,
+          symptom: answers.issueTypes.join('、'),
+        });
       onDone(r);
     } catch (e) {
       message.error(readBizError(e).message);
@@ -383,319 +425,365 @@ const RecordFollowupModal: React.FC<{
     color: active ? palette.link : palette.sub,
   });
 
+  const orderLine =
+    item && item.board !== BOARD_SALES
+      ? [
+          item.docNo && `订单 ${item.docNo}`,
+          item.afterSalesNo && `售后单 ${item.afterSalesNo}`,
+          item.etaDate &&
+            (item.signedDate
+              ? `${fmtDate(item.signedDate)} 签收`
+              : `预计 ${fmtDate(item.etaDate)} 送达`),
+          item.etaNote,
+        ]
+          .filter(Boolean)
+          .join(' · ')
+      : undefined;
+
   return (
-    <Modal
-      title="记一次跟进"
-      open={open}
-      width={720}
-      onCancel={onClose}
-      destroyOnHidden
-      footer={
+    <>
+      <Modal
+        title="记一次跟进"
+        open={open}
+        width={720}
+        onCancel={onClose}
+        destroyOnHidden
+        footer={
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 12,
+              justifyContent: 'space-between',
+            }}
+          >
+            <span
+              style={{ fontSize: 12, color: palette.sub, textAlign: 'left' }}
+            >
+              {effect}
+            </span>
+            <Space>
+              <Button onClick={onClose}>取消</Button>
+              <Button type="primary" loading={saving} onClick={submit}>
+                保存
+              </Button>
+            </Space>
+          </div>
+        }
+      >
+        {/* 客户与单据 */}
         <div
           style={{
             display: 'flex',
+            gap: 8,
             alignItems: 'center',
-            gap: 12,
-            justifyContent: 'space-between',
+            flexWrap: 'wrap',
           }}
         >
-          <span style={{ fontSize: 12, color: palette.sub, textAlign: 'left' }}>
-            {effect}
-          </span>
-          <Space>
-            <Button onClick={onClose}>取消</Button>
-            <Button type="primary" loading={saving} onClick={submit}>
-              保存
-            </Button>
-          </Space>
+          {target?.customerId || target?.item ? (
+            <b style={{ color: palette.ink }}>{customerName}</b>
+          ) : (
+            <Select
+              showSearch={{ filterOption: false, onSearch: searchCustomer }}
+              placeholder="搜索客户名称"
+              style={{ width: 320 }}
+              value={customerId}
+              options={customerOptions}
+              onFocus={() => customerOptions.length || searchCustomer('')}
+              onChange={(v, opt) => {
+                setCustomerId(v);
+                setCustomerName((opt as { label: string }).label);
+                setItem(undefined);
+              }}
+            />
+          )}
+          {item && item.board !== BOARD_SALES && <StageTag item={item} />}
+          {item && item.board === BOARD_SALES && (
+            <Tag variant="filled" color="blue">
+              {item.stageCode} {item.stageName}
+              {item.docNo && ` · ${item.docNo}`}
+              {item.amount != null &&
+                !!item.currencyCode &&
+                ` · ${formatAmount(item.amount, item.currencyCode)}`}
+            </Tag>
+          )}
         </div>
-      }
-    >
-      {/* 客户与单据 */}
-      <div
-        style={{
-          display: 'flex',
-          gap: 8,
-          alignItems: 'center',
-          flexWrap: 'wrap',
-        }}
-      >
-        {target?.customerId || target?.item ? (
-          <b style={{ color: palette.ink }}>{customerName}</b>
-        ) : (
-          <Select
-            showSearch={{ filterOption: false, onSearch: searchCustomer }}
-            placeholder="搜索客户名称"
-            style={{ width: 320 }}
-            value={customerId}
-            options={customerOptions}
-            onFocus={() => customerOptions.length || searchCustomer('')}
-            onChange={(v, opt) => {
-              setCustomerId(v);
-              setCustomerName((opt as { label: string }).label);
-              setItem(undefined);
-            }}
+        {orderLine && (
+          <div style={{ fontSize: 12, color: palette.sub, marginTop: 6 }}>
+            {orderLine}
+          </div>
+        )}
+
+        {/* 粘贴区 */}
+        <SectionLabel>粘贴聊天或邮件（选填，粘贴后 AI 自动整理）</SectionLabel>
+        <Input.TextArea
+          rows={4}
+          value={raw}
+          placeholder="把和客户的 WhatsApp 聊天或邮件直接粘贴进来"
+          onChange={(e) => setRaw(e.target.value)}
+          onPaste={(e) => {
+            const el = e.currentTarget;
+            // 等输入框更新后再整理
+            window.setTimeout(() => runAi(el.value), 0);
+          }}
+        />
+        <div
+          style={{
+            display: 'flex',
+            gap: 8,
+            alignItems: 'center',
+            marginTop: 8,
+            flexWrap: 'wrap',
+          }}
+        >
+          {!raw && (!item || item.board === BOARD_SALES) && (
+            <>
+              <span style={{ fontSize: 12, color: palette.mute }}>
+                没有聊天可贴：
+              </span>
+              <Button size="small" onClick={() => quick('noReply')}>
+                没回复
+              </Button>
+              <Button size="small" onClick={() => quick('sent')}>
+                已发资料
+              </Button>
+              <Button size="small" onClick={() => quick('compare')}>
+                客户在比价
+              </Button>
+            </>
+          )}
+          {raw && (
+            <Button
+              size="small"
+              icon={<RobotOutlined />}
+              loading={aiState === 'running'}
+              disabled={!customerId}
+              onClick={() => runAi(raw)}
+            >
+              {aiState === 'running'
+                ? 'AI 正在整理…'
+                : aiState === 'done'
+                  ? '重新整理'
+                  : 'AI 整理'}
+            </Button>
+          )}
+          {raw.length > RAW_MAX && (
+            <span style={{ fontSize: 12, color: palette.orange }}>
+              内容超过 20,000 字，只取最后 20,000 字整理
+            </span>
+          )}
+        </div>
+        {aiState === 'running' && (
+          <div style={{ marginTop: 8, fontSize: 12, color: palette.sub }}>
+            <LoadingOutlined /> AI 正在整理，通常 10–20 秒；也可以先手工填写
+          </div>
+        )}
+        {aiState === 'failed' && aiHint && (
+          <Alert
+            style={{ marginTop: 8 }}
+            type="warning"
+            showIcon
+            title={aiHint}
           />
         )}
-        {item && (
-          <Tag variant="filled" color="blue">
-            {item.stageCode} {item.stageName}
-            {item.docNo && ` · ${item.docNo}`}
-            {item.amount != null &&
-              !!item.currencyCode &&
-              ` · ${formatAmount(item.amount, item.currencyCode)}`}
-          </Tag>
+        {aiState === 'done' && (
+          <div
+            style={{
+              marginTop: 10,
+              padding: '10px 12px',
+              borderRadius: 10,
+              background: palette.violetSoft,
+            }}
+          >
+            <div
+              style={{ fontSize: 12, color: palette.violet, marginBottom: 4 }}
+            >
+              <RobotOutlined /> AI 摘要（可修改）
+              {truncated && '　· 原文过长，只整理了最后 20,000 字'}
+            </div>
+            <Input.TextArea
+              autoSize={{ minRows: 1, maxRows: 4 }}
+              variant="borderless"
+              value={summary}
+              onChange={(e) => setSummary(e.target.value)}
+              style={{ padding: 0, color: palette.ink }}
+            />
+          </div>
         )}
-      </div>
 
-      {/* 粘贴区 */}
-      <SectionLabel>粘贴聊天或邮件（选填，粘贴后 AI 自动整理）</SectionLabel>
-      <Input.TextArea
-        rows={4}
-        value={raw}
-        placeholder="把和客户的 WhatsApp 聊天或邮件直接粘贴进来"
-        onChange={(e) => setRaw(e.target.value)}
-        onPaste={(e) => {
-          const el = e.currentTarget;
-          // 等输入框更新后再整理
-          window.setTimeout(() => runAi(el.value), 0);
-        }}
-      />
-      <div
-        style={{
-          display: 'flex',
-          gap: 8,
-          alignItems: 'center',
-          marginTop: 8,
-          flexWrap: 'wrap',
-        }}
-      >
-        {!raw && (
+        {item && kind !== 'general' && (
+          <StageQuestions
+            kind={kind}
+            item={item}
+            value={answers}
+            onChange={setAnswers}
+          />
+        )}
+
+        {kind === 'general' && (
           <>
-            <span style={{ fontSize: 12, color: palette.mute }}>
-              没有聊天可贴：
-            </span>
-            <Button size="small" onClick={() => quick('noReply')}>
-              没回复
-            </Button>
-            <Button size="small" onClick={() => quick('sent')}>
-              已发资料
-            </Button>
-            <Button size="small" onClick={() => quick('compare')}>
-              客户在比价
-            </Button>
+            {/* 客户情况 */}
+            <SectionLabel>客户情况</SectionLabel>
+            <Checkbox.Group
+              value={SITUATION_OPTIONS.filter((o) => situation & o.value).map(
+                (o) => o.value,
+              )}
+              options={SITUATION_OPTIONS}
+              onChange={(vals) =>
+                setSituation((vals as number[]).reduce((a, b) => a | b, 0))
+              }
+            />
+
+            {/* 卡点 */}
+            <SectionLabel>主要卡点（单选，可不选）</SectionLabel>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              {blockers.map((b) => (
+                <Tag.CheckableTag
+                  key={b.code}
+                  checked={blocker === b.code}
+                  onChange={(c) => setBlocker(c ? b.code : undefined)}
+                  style={chip(blocker === b.code)}
+                >
+                  {b.name}
+                </Tag.CheckableTag>
+              ))}
+            </div>
           </>
         )}
-        {raw && (
-          <Button
-            size="small"
-            icon={<RobotOutlined />}
-            loading={aiState === 'running'}
-            disabled={!customerId}
-            onClick={() => runAi(raw)}
-          >
-            {aiState === 'running'
-              ? 'AI 正在整理…'
-              : aiState === 'done'
-                ? '重新整理'
-                : 'AI 整理'}
-          </Button>
-        )}
-        {raw.length > RAW_MAX && (
-          <span style={{ fontSize: 12, color: palette.orange }}>
-            内容超过 20,000 字，只取最后 20,000 字整理
-          </span>
-        )}
-      </div>
-      {aiState === 'running' && (
-        <div style={{ marginTop: 8, fontSize: 12, color: palette.sub }}>
-          <LoadingOutlined /> AI 正在整理，通常 10–20 秒；也可以先手工填写
-        </div>
-      )}
-      {aiState === 'failed' && aiHint && (
-        <Alert
-          style={{ marginTop: 8 }}
-          type="warning"
-          showIcon
-          title={aiHint}
-        />
-      )}
-      {aiState === 'done' && (
-        <div
-          style={{
-            marginTop: 10,
-            padding: '10px 12px',
-            borderRadius: 10,
-            background: palette.violetSoft,
-          }}
-        >
-          <div style={{ fontSize: 12, color: palette.violet, marginBottom: 4 }}>
-            <RobotOutlined /> AI 摘要（可修改）
-            {truncated && '　· 原文过长，只整理了最后 20,000 字'}
-          </div>
-          <Input.TextArea
-            autoSize={{ minRows: 1, maxRows: 4 }}
-            variant="borderless"
-            value={summary}
-            onChange={(e) => setSummary(e.target.value)}
-            style={{ padding: 0, color: palette.ink }}
-          />
-        </div>
-      )}
 
-      {/* 客户情况 */}
-      <SectionLabel>客户情况</SectionLabel>
-      <Checkbox.Group
-        value={SITUATION_OPTIONS.filter((o) => situation & o.value).map(
-          (o) => o.value,
-        )}
-        options={SITUATION_OPTIONS}
-        onChange={(vals) =>
-          setSituation((vals as number[]).reduce((a, b) => a | b, 0))
-        }
-      />
-
-      {/* 卡点 */}
-      <SectionLabel>主要卡点（单选，可不选）</SectionLabel>
-      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-        {blockers.map((b) => (
-          <Tag.CheckableTag
-            key={b.code}
-            checked={blocker === b.code}
-            onChange={(c) => setBlocker(c ? b.code : undefined)}
-            style={chip(blocker === b.code)}
+        {/* 下一步 */}
+        <SectionLabel required>下一步要做什么</SectionLabel>
+        {nextOptions.length > 0 && (
+          <div
+            style={{
+              display: 'flex',
+              gap: 6,
+              flexWrap: 'wrap',
+              marginBottom: 6,
+            }}
           >
-            {b.name}
-          </Tag.CheckableTag>
-        ))}
-      </div>
-
-      {/* 下一步 */}
-      <SectionLabel required>下一步要做什么</SectionLabel>
-      {nextOptions.length > 0 && (
-        <div
-          style={{
-            display: 'flex',
-            gap: 6,
-            flexWrap: 'wrap',
-            marginBottom: 6,
-          }}
-        >
-          <span
-            style={{ fontSize: 12, color: palette.mute, lineHeight: '24px' }}
-          >
-            AI 建议：
-          </span>
-          {nextOptions.map((n) => (
-            <Tag.CheckableTag
-              key={n.text}
-              checked={nextAction === n.text}
-              style={chip(nextAction === n.text)}
-              onChange={() => {
-                setNextAction(n.text.slice(0, NEXT_MAX));
-                if (n.date) setNextDate(dayjs(n.date));
-                setNextError(false);
-              }}
+            <span
+              style={{ fontSize: 12, color: palette.mute, lineHeight: '24px' }}
             >
-              {n.text}
-            </Tag.CheckableTag>
-          ))}
-        </div>
-      )}
-      <Input
-        value={nextAction}
-        maxLength={NEXT_MAX}
-        status={nextError ? 'error' : undefined}
-        placeholder="例如：发替代型号对比，问客户能否接受"
-        onChange={(e) => {
-          setNextAction(e.target.value);
-          if (e.target.value.trim()) setNextError(false);
-        }}
-      />
-      {nextError && (
-        <div style={{ fontSize: 12, color: palette.red, marginTop: 4 }}>
-          请写下一步要做什么
-        </div>
-      )}
-      {!nextError && vague && (
-        <div style={{ fontSize: 12, color: palette.orange, marginTop: 4 }}>
-          <BulbOutlined />{' '}
-          写清楚要做什么、要客户给什么，例如：发替代型号对比，问客户能否接受
-        </div>
-      )}
-
-      <SectionLabel required>什么时候</SectionLabel>
-      <Space wrap>
-        {dateShortcuts.map((d) => (
-          <Button
-            key={d.label}
-            size="small"
-            type={nextDate?.isSame(d.value, 'day') ? 'primary' : 'default'}
-            onClick={() => setNextDate(d.value)}
-          >
-            {d.label}
-          </Button>
-        ))}
-        <DatePicker
-          size="small"
-          value={nextDate}
-          placeholder="选日期"
-          onChange={setNextDate}
-          disabledDate={(d) => d.isBefore(today)}
-        />
-      </Space>
-
-      <SectionLabel>方式</SectionLabel>
-      <Segmented
-        value={channel}
-        options={CHANNEL_OPTIONS}
-        onChange={(v) => setChannel(v as number)}
-      />
-
-      {isPi && (
-        <>
-          <SectionLabel>客户说哪天付（选填）</SectionLabel>
-          <DatePicker
-            value={payDate}
-            onChange={setPayDate}
-            disabledDate={(d) => d.isBefore(today)}
-          />
-        </>
-      )}
-
-      {suggestions.length > 0 && (
-        <>
-          <SectionLabel>顺手补到客户档案</SectionLabel>
-          <div style={{ display: 'grid', gap: 6 }}>
-            {suggestions.map((s, i) => (
-              <Checkbox
-                key={s.field}
-                checked={!!s.checked}
-                onChange={(e) =>
-                  setSuggestions((list) =>
-                    list.map((x, j) =>
-                      j === i ? { ...x, checked: e.target.checked } : x,
-                    ),
-                  )
-                }
+              AI 建议：
+            </span>
+            {nextOptions.map((n) => (
+              <Tag.CheckableTag
+                key={n.text}
+                checked={nextAction === n.text}
+                style={chip(nextAction === n.text)}
+                onChange={() => {
+                  setNextAction(n.text.slice(0, NEXT_MAX));
+                  if (n.date) setNextDate(dayjs(n.date));
+                  setNextError(false);
+                }}
               >
-                <span style={{ color: palette.mute }}>{s.label}：</span>
-                {s.value}
-                {s.evidence && (
-                  <span style={{ fontSize: 12, color: palette.mute }}>
-                    {' '}
-                    （{s.evidence}）
-                  </span>
-                )}
-              </Checkbox>
+                {n.text}
+              </Tag.CheckableTag>
             ))}
           </div>
-          <div style={{ fontSize: 12, color: palette.mute, marginTop: 4 }}>
-            档案里已有值的不会被覆盖
+        )}
+        <Input
+          value={nextAction}
+          maxLength={NEXT_MAX}
+          status={nextError ? 'error' : undefined}
+          placeholder="例如：发替代型号对比，问客户能否接受"
+          onChange={(e) => {
+            setNextAction(e.target.value);
+            if (e.target.value.trim()) setNextError(false);
+          }}
+        />
+        {nextError && (
+          <div style={{ fontSize: 12, color: palette.red, marginTop: 4 }}>
+            请写下一步要做什么
           </div>
-        </>
-      )}
-    </Modal>
+        )}
+        {!nextError && vague && (
+          <div style={{ fontSize: 12, color: palette.orange, marginTop: 4 }}>
+            <BulbOutlined />{' '}
+            写清楚要做什么、要客户给什么，例如：发替代型号对比，问客户能否接受
+          </div>
+        )}
+
+        <SectionLabel required>什么时候</SectionLabel>
+        <Space wrap>
+          {dateShortcuts.map((d) => (
+            <Button
+              key={d.label}
+              size="small"
+              type={nextDate?.isSame(d.value, 'day') ? 'primary' : 'default'}
+              onClick={() => setNextDate(d.value)}
+            >
+              {d.label}
+            </Button>
+          ))}
+          <DatePicker
+            size="small"
+            value={nextDate}
+            placeholder="选日期"
+            onChange={setNextDate}
+            disabledDate={(d) => d.isBefore(today)}
+          />
+        </Space>
+
+        <SectionLabel>方式</SectionLabel>
+        <Segmented
+          value={channel}
+          options={CHANNEL_OPTIONS}
+          onChange={(v) => setChannel(v as number)}
+        />
+
+        {isPi && (
+          <>
+            <SectionLabel>客户说哪天付（选填）</SectionLabel>
+            <DatePicker
+              value={payDate}
+              onChange={setPayDate}
+              disabledDate={(d) => d.isBefore(today)}
+            />
+          </>
+        )}
+
+        {suggestions.length > 0 && (
+          <>
+            <SectionLabel>顺手补到客户档案</SectionLabel>
+            <div style={{ display: 'grid', gap: 6 }}>
+              {suggestions.map((s, i) => (
+                <Checkbox
+                  key={s.field}
+                  checked={!!s.checked}
+                  onChange={(e) =>
+                    setSuggestions((list) =>
+                      list.map((x, j) =>
+                        j === i ? { ...x, checked: e.target.checked } : x,
+                      ),
+                    )
+                  }
+                >
+                  <span style={{ color: palette.mute }}>{s.label}：</span>
+                  {s.value}
+                  {s.evidence && (
+                    <span style={{ fontSize: 12, color: palette.mute }}>
+                      {' '}
+                      （{s.evidence}）
+                    </span>
+                  )}
+                </Checkbox>
+              ))}
+            </div>
+            <div style={{ fontSize: 12, color: palette.mute, marginTop: 4 }}>
+              档案里已有值的不会被覆盖
+            </div>
+          </>
+        )}
+      </Modal>
+      <CreateAfterSalesModal
+        open={!!afterSales}
+        defaults={afterSales}
+        onClose={() => setAfterSales(undefined)}
+        onDone={() => setAfterSales(undefined)}
+      />
+    </>
   );
 };
 

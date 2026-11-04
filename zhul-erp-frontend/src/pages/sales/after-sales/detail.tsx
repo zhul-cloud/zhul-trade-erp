@@ -309,6 +309,9 @@ const AfterSalesDetail: React.FC = () => {
       )}
       {a.status === AS_STATUS.CLOSED &&
         kv('处理结果', <b style={{ color: palette.green }}>{a.result}</b>)}
+      {a.status === AS_STATUS.CLOSED &&
+        !!a.caseNote &&
+        kv('案例沉淀', a.caseNote)}
       {a.status === AS_STATUS.CANCELLED && kv('撤销原因', a.cancelReason)}
     </Card>
   );
