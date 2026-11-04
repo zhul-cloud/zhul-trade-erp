@@ -65,6 +65,8 @@ class AiTaskServiceImplTest {
         aiTaskService = new AiTaskServiceImpl(aiTaskMapper, orchestratorClient, resultDispatcher, new ObjectMapper(),
                 aiConfigService);
         lenient().when(aiConfigService.resolveForCurrentTenant()).thenReturn(CONFIG);
+        // 状态改为带旧状态条件的更新（audit AI-001）：默认视为任务尚未结束，更新成功
+        lenient().when(aiTaskMapper.update(any(AiTaskDO.class), any())).thenReturn(1);
         TenantContext.setTenantId(1);
     }
 
@@ -104,7 +106,7 @@ class AiTaskServiceImplTest {
         // 手动完成 future，模拟 AI 编排服务稍后受理成功，任务应转为处理中
         pending.complete(AiOrchestratorSubmitResult.accepted("job-1"));
         ArgumentCaptor<AiTaskDO> captor = ArgumentCaptor.forClass(AiTaskDO.class);
-        verify(aiTaskMapper, times(1)).updateById(captor.capture());
+        verify(aiTaskMapper, times(1)).update(captor.capture(), any());
         assertThat(captor.getValue().getStatus()).isEqualTo(AiTaskStatus.PROCESSING);
     }
 
@@ -158,7 +160,7 @@ class AiTaskServiceImplTest {
         pending.complete(AiOrchestratorSubmitResult.rejected("java.net.ConnectException"));
 
         ArgumentCaptor<AiTaskDO> updateCaptor = ArgumentCaptor.forClass(AiTaskDO.class);
-        verify(aiTaskMapper, times(1)).updateById(updateCaptor.capture());
+        verify(aiTaskMapper, times(1)).update(updateCaptor.capture(), any());
         assertThat(updateCaptor.getValue().getStatus()).isEqualTo(AiTaskStatus.FAILED);
         assertThat(updateCaptor.getValue().getErrorMessage()).isEqualTo("java.net.ConnectException");
 
@@ -195,7 +197,7 @@ class AiTaskServiceImplTest {
         aiTaskService.handleCallback(1L, req);
 
         ArgumentCaptor<AiTaskDO> captor = ArgumentCaptor.forClass(AiTaskDO.class);
-        verify(aiTaskMapper, times(1)).updateById(captor.capture());
+        verify(aiTaskMapper, times(1)).update(captor.capture(), any());
         assertThat(captor.getValue().getStatus()).isEqualTo(AiTaskStatus.COMPLETED);
         assertThat(captor.getValue().getOutput()).contains("groups");
 
@@ -219,7 +221,7 @@ class AiTaskServiceImplTest {
         aiTaskService.handleCallback(2L, req);
 
         ArgumentCaptor<AiTaskDO> captor = ArgumentCaptor.forClass(AiTaskDO.class);
-        verify(aiTaskMapper, times(1)).updateById(captor.capture());
+        verify(aiTaskMapper, times(1)).update(captor.capture(), any());
         assertThat(captor.getValue().getStatus()).isEqualTo(AiTaskStatus.FAILED);
         assertThat(captor.getValue().getErrorMessage()).isEqualTo("联网搜索超时");
         verify(resultDispatcher, times(1)).dispatch(any(AiTaskDO.class));
@@ -245,8 +247,9 @@ class AiTaskServiceImplTest {
         aiTaskService.handleCallback(3L, req);
 
         ArgumentCaptor<AiTaskDO> captor = ArgumentCaptor.forClass(AiTaskDO.class);
-        verify(aiTaskMapper, times(2)).updateById(captor.capture());
-        AiTaskDO saved = captor.getAllValues().get(1);
+        verify(aiTaskMapper, times(1)).update(any(AiTaskDO.class), any());
+        verify(aiTaskMapper, times(1)).updateById(captor.capture());
+        AiTaskDO saved = captor.getValue();
         assertThat(saved.getModel()).isEqualTo("claude-sonnet-5-5");
         assertThat(saved.getInputTokens()).isEqualTo(12000);
         assertThat(saved.getOutputTokens()).isEqualTo(3500);
@@ -270,7 +273,7 @@ class AiTaskServiceImplTest {
         aiTaskService.handleCallback(4L, req);
 
         ArgumentCaptor<AiTaskDO> captor = ArgumentCaptor.forClass(AiTaskDO.class);
-        verify(aiTaskMapper, times(1)).updateById(captor.capture());
+        verify(aiTaskMapper, times(1)).update(captor.capture(), any());
         assertThat(captor.getValue().getStatus()).isEqualTo(AiTaskStatus.COMPLETED);
         assertThat(captor.getValue().getInputTokens()).isNull();
     }
