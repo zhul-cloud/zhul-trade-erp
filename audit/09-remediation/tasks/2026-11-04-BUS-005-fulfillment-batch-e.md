@@ -28,8 +28,8 @@
 | BUS-018 | 直发货加入出运单时先 `lockById` 锁住再查归属 | `OutboundShippingContractTest.directShipment_concurrentAttach_onlyOneWins`（SpyBean 让第一个请求停在读完直发货之后）：修复前两张出运单都创建成功 → 修复后第二张被拒绝，直发货归属第一张 | [#160](https://github.com/zhul-cloud/zhul-trade-erp/pull/160) `8db356c0` |
 | BUS-016 | 保存采购单时按需求汇总校验：同一需求各行增减合并后不超过可下单数量 | `PurchaseContractTest.twoLinesOfSameRequirement_shareRemainingQuantity`：需求 10、两行各 3，修复前两行都改 7 被允许（合计 14）→ 修复后被拒绝，两行各 5 可以保存 | [#161](https://github.com/zhul-cloud/zhul-trade-erp/pull/161) `17ec57d3` |
 | BUS-007 | 新建运费账单先按 ID 锁住本月候选出运单，再查已占用并在锁内复核；确认对账时出运单已对账则拒绝。没有加唯一约束（账单行软删除，草稿要能重建） | `StatementConcurrencyContractTest`（SpyBean 让第一个请求停在写完账单行、提交之前）：修复前第二张账单也纳入同一出运单 → 修复后第二个请求被拒绝；历史重复草稿后确认被拒绝，只有一笔运费应付 | [#162](https://github.com/zhul-cloud/zhul-trade-erp/pull/162) `44b96c23` |
-| BUS-005 | 接回采购行时调用 `moveGoods`，把发货行、入库行改挂到新需求与新型号行，实拍任务改挂到新订单。拆行时：未发货的按原逻辑拆；已发货且发货量不超过新订单所需时，带货的原行整行给新订单，剩余数量拆成新行留在原需求；发货量超过新订单所需时，拒绝转订单并提示先处理多出的货 | `OutboundShippingContractTest.reconvertedOrder_takesReceivedGoods`：修复前重转后新订单报「A-1 还没有可以出库的数量」→ 修复后全入库 10 件可出库 10；入库 4、新订单要 6 时可出库 4；入库 8、新订单要 6 时转订单被拒绝 | `fix/bus-005-reconvert-goods` |
-| BUS-027 | 取消订单时，有待打包或已打包的出库单则拒绝；重转接回时，旧型号行上已交货代、已出运的出库明细改挂到新型号行 | `OutboundShippingContractTest.cancelOrder_blockedWhileOutboundActive`：修复前有待打包通知时取消被允许 → 修复后被拒绝，撤回后可以取消。`reconvertAfterHandOver_handedGoodsNotOutboundAgain`：交货代 4 件后取消重转；不改挂出库明细时新订单可出库 7 件（重复计算）→ 修复后最多 6 件，新订单显示已交货代 4 件 | `fix/bus-005-reconvert-goods` |
+| BUS-005 | 接回采购行时调用 `moveGoods`，把发货行、入库行改挂到新需求与新型号行，实拍任务改挂到新订单。拆行时：未发货的按原逻辑拆；已发货且发货量不超过新订单所需时，带货的原行整行给新订单，剩余数量拆成新行留在原需求；发货量超过新订单所需时，拒绝转订单并提示先处理多出的货 | `OutboundShippingContractTest.reconvertedOrder_takesReceivedGoods`：修复前重转后新订单报「A-1 还没有可以出库的数量」→ 修复后全入库 10 件可出库 10；入库 4、新订单要 6 时可出库 4；入库 8、新订单要 6 时转订单被拒绝 | [#163](https://github.com/zhul-cloud/zhul-trade-erp/pull/163) `9bcb1b79` |
+| BUS-027 | 取消订单时，有待打包或已打包的出库单则拒绝；重转接回时，旧型号行上已交货代、已出运的出库明细改挂到新型号行 | `OutboundShippingContractTest.cancelOrder_blockedWhileOutboundActive`：修复前有待打包通知时取消被允许 → 修复后被拒绝，撤回后可以取消。`reconvertAfterHandOver_handedGoodsNotOutboundAgain`：交货代 4 件后取消重转；不改挂出库明细时新订单可出库 7 件（重复计算）→ 修复后最多 6 件，新订单显示已交货代 4 件 | [#163](https://github.com/zhul-cloud/zhul-trade-erp/pull/163) `9bcb1b79` |
 
 - **合并冲突处理**：#158、#159 都在 `OutboundShippingContractTest` 末尾追加用例，#158 还与 `develop` 的台账冲突，所以将 #158 并入 #159、关闭 #158。之后各项的测试改放在新测试类或文件中段，审查记录在批次末统一回写。
 - **回归**：BUS-005/027 合并 `develop` 后，以下测试类通过：`OutboundShippingContractTest`（11 个）、`PurchaseContractTest`、`SalesOrderContractTest`、`SalesOrderPartialCancelContractTest`、`ReceivingContractTest`、`AfterSalesContractTest`、`AfterSalesReplacementContractTest`、`SalesOrderTrackingContractTest`、`PayableContractTest`、`OrderCostContractTest`、`OperatingReportContractTest`、`PiContractTest`。
@@ -39,13 +39,13 @@
 
 | ID | 修复 / 验收范围 | 部署与目标环境验收证据 | 验收人 / 日期 | 结论与剩余项 |
 | --- | --- | --- | --- | --- |
-| BUS-005 | 重转后新订单按真实合格数出库 | 未部署 | — | 待合并 |
+| BUS-005 | 重转后新订单按真实合格数出库 | 未部署 | — | 已合并待发布 |
 | BUS-006 | 编辑通知不超过合格可用量 | 未部署 | — | 已合并待发布 |
 | BUS-007 | 同一出运单只进一张账单、只有一笔应付 | 未部署 | — | 已合并待发布 |
 | BUS-010 | 有出库占用时拒绝冲销入库 | 未部署 | — | 已合并待发布 |
 | BUS-016 | 同一需求多行合计不超量 | 未部署 | — | 已合并待发布 |
 | BUS-018 | 同一直发货只能进一张出运单 | 未部署 | — | 已合并待发布 |
-| BUS-027 | 在仓库的出库拦取消；已交货代的随货改挂 | 未部署 | — | 待合并 |
+| BUS-027 | 在仓库的出库拦取消；已交货代的随货改挂 | 未部署 | — | 已合并待发布 |
 
 ## 事件记录
 
@@ -54,3 +54,4 @@
 | 2026-11-04 / Claude | 认领批次 E 共 6 项；BUS-005、010 的规则经用户确认；完成 BUS-006 的缺陷见证与修复验证 | 逐项实施，每项单独提 PR |
 | 2026-11-04 / Claude | BUS-006/010（#159）、018（#160）、016（#161）、007（#162）合并到 `develop` | 实施 BUS-005 |
 | 2026-11-04 / Claude | 实施 BUS-005 时发现取消订单不检查出库单，新编 BUS-027；用户选方案 A；与 BUS-005 一起实施并验证 | 随 v1.8.0 发布后验收 |
+| 2026-11-04 / Claude | BUS-005、027（[#163](https://github.com/zhul-cloud/zhul-trade-erp/pull/163)）合并到 `develop`，merge commit `9bcb1b79`；批次 E 全部 7 项已合并 | 随 v1.8.0 发布后验收 |
