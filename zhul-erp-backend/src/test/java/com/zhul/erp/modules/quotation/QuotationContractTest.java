@@ -670,6 +670,46 @@ class QuotationContractTest extends InquiryContractSupport {
     }
 
     @Test
+    void pricedDiscontinuedLine_replacementShownInTextAndExport_clearable() throws Exception {
+        long c = customer("Replacement Co", "Kenya");
+        long inq = seedInquiry(c, 6, "2026-10-05", m("6ES7315-2AH14-0AB0", "9800"), m("6ES7214-1AG40-0XB0", "2640"));
+        jdbc.update("update inquiry_item set lifecycle = 2, replacement_model = '6ES7315-2EH14-0AB0' where customer_inquiry_id = ? and line_no = 1", inq);
+        JsonNode q = byInquiries(inq);
+        JsonNode first = q.path("items").get(0);
+        assertFalse(first.path("noStockLine").asBoolean(), "有回价，不是无货行");
+        assertEquals("6ES7315-2EH14-0AB0", first.path("replacementModel").asText(), "停产替代型号带到有价格的行");
+        assertEquals("", q.path("items").get(1).path("replacementModel").asText());
+        long id = q.path("id").asLong();
+        Map<String, Object> body = saveBody(q);
+        line(body, 0).put("pricingMode", 3);
+        line(body, 0).put("unitPrice", new BigDecimal("1420.00"));
+        line(body, 1).put("pricingMode", 3);
+        line(body, 1).put("unitPrice", new BigDecimal("286.00"));
+        ok(save(id, body));
+        String text = ok(call(get(QT + "/" + id + "/text"), admin)).path("text").asText();
+        String[] lines = text.split("\n");
+        String l1 = java.util.Arrays.stream(lines).filter(x -> x.startsWith("6ES7315-2AH14-0AB0")).findFirst().orElse("");
+        assertTrue(l1.endsWith(" (discontinued, replaced by 6ES7315-2EH14-0AB0)"), text);
+        assertTrue(l1.contains("1420"), l1);
+        assertFalse(java.util.Arrays.stream(lines).filter(x -> x.startsWith("6ES7214")).findFirst().orElse("").contains("discontinued"));
+
+        MockHttpServletResponse xlsx = perform(get(QT + "/" + id + "/export").param("format", "xlsx"), admin);
+        StringBuilder all = new StringBuilder();
+        try (XSSFWorkbook wb = new XSSFWorkbook(new ByteArrayInputStream(xlsx.getContentAsByteArray()))) {
+            DataFormatter fmt = new DataFormatter();
+            for (Row row : wb.getSheetAt(0)) {
+                row.forEach(cell -> all.append(fmt.formatCellValue(cell)).append('|'));
+            }
+        }
+        assertTrue(all.toString().contains("Discontinued, replaced by 6ES7315-2EH14-0AB0"), all.toString());
+
+        // 清空替代型号后不再提示
+        line(body, 0).put("replacementModel", "");
+        assertEquals("", ok(save(id, body)).path("items").get(0).path("replacementModel").asText());
+        assertFalse(ok(call(get(QT + "/" + id + "/text"), admin)).path("text").asText().contains("discontinued"));
+    }
+
+    @Test
     void noStockLine_byInquiry_replacement_textExport_sendable_notInPi() throws Exception {
         long c = customer("Pacific Controls", "Australia");
         long inq = seedInquiry(c, 6, "2026-10-03", m("6ES7214-1AG40-0XB0", "2640"), m("6ES7313-6CE01-0AB0", "NOSTOCK"));

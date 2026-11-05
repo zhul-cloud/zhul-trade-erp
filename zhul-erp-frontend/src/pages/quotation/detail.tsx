@@ -993,6 +993,40 @@ const QuotationDetail: React.FC = () => {
                 {noStockSummary(src)}
               </div>
             ))}
+      {/* 有价格的停产替代行：采购标了停产并给了替代型号，客户单据会提示（清空后保存即不再提示） */}
+      {d
+        ? !isNoStockLine(src, d) &&
+          (src.replacementModel || d.replacementModel) && (
+            <div
+              style={{
+                marginTop: 6,
+                display: 'flex',
+                gap: 6,
+                alignItems: 'center',
+              }}
+            >
+              <Pill tone="orange">停产</Pill>
+              <Input
+                size="small"
+                prefix="替代"
+                placeholder="清空后不提示客户"
+                value={d.replacementModel}
+                maxLength={128}
+                allowClear
+                style={{ maxWidth: 260 }}
+                onChange={(e) =>
+                  updateItem(d.id, { replacementModel: e.target.value })
+                }
+                aria-label="替代型号"
+              />
+            </div>
+          )
+        : !src.noStockLine &&
+          src.replacementModel && (
+            <div style={{ fontSize: 12, color: palette.orange }}>
+              停产 · 替代 {src.replacementModel}
+            </div>
+          )}
       {src.hints.map((h) => (
         <span key={h} style={{ display: 'inline-block', marginTop: 4 }}>
           <Pill tone="orange">{h}</Pill>

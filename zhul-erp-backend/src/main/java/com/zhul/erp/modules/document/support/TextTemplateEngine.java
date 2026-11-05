@@ -74,7 +74,13 @@ public final class TextTemplateEngine {
                 // 无货行不套模版的行格式（避免「$」后面跟空单价），固定输出一行说明
                 String line = Boolean.TRUE.equals(row.get(RenderModel.NO_STOCK))
                         ? RenderModel.NO_STOCK_LINE + (body.endsWith("\n") ? "\n" : "") : body;
-                out.append(fill(fill(line, row), model.header()));
+                String filled = fill(fill(line, row), model.header());
+                if (row.get(RenderModel.REPLACEMENT_NOTE) instanceof String note && !note.isEmpty()) {
+                    // 有价格的停产替代行：行尾（换行前）追加说明
+                    boolean nl = filled.endsWith("\n");
+                    filled = (nl ? filled.substring(0, filled.length() - 1) : filled) + " (" + note + ")" + (nl ? "\n" : "");
+                }
+                out.append(filled);
             }
             last = m.end();
             if (last < template.length() && template.charAt(last) == '\n' && out.length() > 0 && out.charAt(out.length() - 1) == '\n') {

@@ -19,6 +19,8 @@ public record RenderModel(Map<String, Object> header, List<Map<String, Object>> 
     /** PL 明细行所属的箱（同一箱的行连续）；箱字段 ${box.*} 只在箱内第一行有值，渲染后按箱合并单元格 */
     public static final String BOX_GROUP = "box.group";
     public static final String NO_STOCK_TEXT = "item.noStockText";
+    /** 明细行标记：有价格的停产替代行的说明，文字报价在该行末尾追加「 (说明)」，模版不需要占位符 */
+    public static final String REPLACEMENT_NOTE = "item.replacementNote";
     static final String NO_STOCK_LINE = "${item.model} ${item.brand} ${item.qty} ${" + NO_STOCK_TEXT + "}";
 
     public static String text(Object v) {
