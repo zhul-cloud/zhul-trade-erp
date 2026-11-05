@@ -871,9 +871,7 @@ const OrderDetail: React.FC = () => {
               color: palette.mute,
             }}
           >
-            {!manual ? (
-              '费用以 PI 为准，要修改请取消订单后在 PI 出新版本'
-            ) : completed ? (
+            {completed ? (
               '订单已完成，不能修改费用'
             ) : (
               <Button
