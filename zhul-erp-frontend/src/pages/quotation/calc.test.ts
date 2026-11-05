@@ -93,7 +93,7 @@ describe('calcLine（与后端 QuotationPricing 同一口径）', () => {
         mode: MODE_MARGIN,
         marginRate: 100,
       }).error,
-    ).toBeTruthy();
+    ).toContain('成本翻倍请填 50%');
     expect(
       calcLine({
         costPrice: 100,

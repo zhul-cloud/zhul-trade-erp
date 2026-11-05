@@ -6,6 +6,7 @@ import com.zhul.erp.common.result.PageResult;
 import com.zhul.erp.modules.inquiry.support.CurrentUserResolver;
 import com.zhul.erp.framework.security.DataScope;
 import com.zhul.erp.framework.security.DataScopeResolver;
+import com.zhul.erp.framework.security.PermissionChecker;
 import com.zhul.erp.modules.inquiry.support.InquiryLookups;
 import com.zhul.erp.modules.masterdata.entity.CustomerDO;
 import com.zhul.erp.modules.masterdata.entity.SupplierDO;
@@ -61,6 +62,7 @@ import java.util.stream.Stream;
 public class PurchaseRequirementServiceImpl implements PurchaseRequirementService {
 
     private static final int KEYWORD_LIMIT = 500;
+    private static final String PERM_ASSIGN = "purchase:requirement:assign";
     /** 需求在已下单（2）或草稿 + 已下单（1, 2）采购订单上的数量 */
     private static final String PLACED_SQL = "(SELECT COALESCE(SUM(pi.quantity), 0) FROM purchase_order_item pi "
             + "JOIN purchase_order po ON po.id = pi.po_id WHERE pi.requirement_id = purchase_requirement.id "
@@ -77,6 +79,7 @@ public class PurchaseRequirementServiceImpl implements PurchaseRequirementServic
     private final PurchaseDrafts drafts;
     private final RequirementLifecycle lifecycle;
     private final DataScopeResolver dataScopeResolver;
+    private final PermissionChecker perm;
     private final CurrentUserResolver currentUser;
     private final InquiryLookups lookups;
     private final LogService logService;
@@ -229,7 +232,7 @@ public class PurchaseRequirementServiceImpl implements PurchaseRequirementServic
                 .eq(PurchaseRequirementDO::getSuggestedShopName, "")));
         vo.setInDraft(vo.getOpen() - vo.getNeed());
         DataScope scope = dataScopeResolver.current();
-        vo.setUnassigned(scope.isAll() && !mine ? requirementMapper.selectCount(base.need()
+        vo.setUnassigned((scope.isAll() || canAssign()) && !mine ? requirementMapper.selectCount(base.need()
                 .isNull(PurchaseRequirementDO::getPurchaserId)) : 0L);
         LambdaQueryWrapper<PurchaseOrderDO> d = new LambdaQueryWrapper<PurchaseOrderDO>()
                 .eq(PurchaseOrderDO::getTenantId, PiStore.tenantId())
@@ -626,11 +629,26 @@ public class PurchaseRequirementServiceImpl implements PurchaseRequirementServic
         LambdaQueryWrapper<PurchaseRequirementDO> w = new LambdaQueryWrapper<PurchaseRequirementDO>()
                 .eq(PurchaseRequirementDO::getTenantId, PiStore.tenantId())
                 .isNull(PurchaseRequirementDO::getDeletedAt);
-        dataScopeResolver.current().apply(w, PurchaseRequirementDO::getPurchaserId);
+        DataScope scope = dataScopeResolver.current();
+        if (!scope.isAll() && canAssign()) {
+            // 有指派权限的人（如供应链主管）还要看到没有采购员的需求，才能统一分配
+            if (scope.ownerIds().isEmpty()) {
+                w.isNull(PurchaseRequirementDO::getPurchaserId);
+            } else {
+                w.and(x -> x.in(PurchaseRequirementDO::getPurchaserId, scope.ownerIds())
+                        .or().isNull(PurchaseRequirementDO::getPurchaserId));
+            }
+        } else {
+            scope.apply(w, PurchaseRequirementDO::getPurchaserId);
+        }
         return w;
     }
 
-    /** 当前用户数据范围内的需求（加锁，按传入顺序）；没有采购员的只有数据权限为全部时可见 */
+    private boolean canAssign() {
+        return perm.has(PERM_ASSIGN);
+    }
+
+    /** 当前用户数据范围内的需求（加锁，按传入顺序）；没有采购员的只有数据权限为全部或有指派权限时可见 */
     private List<PurchaseRequirementDO> lockVisible(List<Long> ids) {
         List<Long> keys = ids.stream().filter(Objects::nonNull).distinct().toList();
         if (keys.isEmpty()) {

@@ -55,7 +55,7 @@ import java.util.concurrent.atomic.AtomicLong;
 public class PiDocumentServiceImpl implements PiDocumentService {
 
     private static final String XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-    private static final int IMAGE_MAX_WIDTH = 1600;
+    private static final int IMAGE_MAX_WIDTH = 2000;
     private static final String PREVIEW_UNAVAILABLE = "预览暂时不可用，不影响编辑与导出 Excel";
 
     private final PiStore store;

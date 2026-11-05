@@ -826,7 +826,6 @@ const QuotationDetail: React.FC = () => {
             size="small"
             suffix="%"
             min={0}
-            max={99.99}
             precision={2}
             value={shownMargin}
             status={below || r.error ? 'error' : undefined}

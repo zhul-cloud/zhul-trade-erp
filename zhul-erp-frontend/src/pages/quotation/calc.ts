@@ -54,7 +54,8 @@ export const calcLine = (input: LineInput): LineResult => {
     if (m == null) {
       error = '请填写毛利率';
     } else if (m < 0 || m >= 100) {
-      error = '毛利率需要在 0–100% 之间';
+      // 毛利率按售价算，100% 不成立；业务员说的「100%」通常是成本翻倍（= 50%）
+      error = '毛利率按售价算，需小于 100%；成本翻倍请填 50%，或改用「加价」';
     } else {
       priceCny = cost / (1 - m / 100);
       unitPrice = round2(priceCny / rate);
