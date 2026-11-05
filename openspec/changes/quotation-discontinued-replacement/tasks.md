@@ -6,7 +6,7 @@
 ## 2. 前端
 
 - [x] 2.1 报价单编辑页型号下的「停产 · 替代 XXX」与替代型号编辑（design D2）
-- [ ] 2.2 `npm run lint`、`npx antd lint ./src`、`npm test` 通过
+- [x] 2.2 `npm run lint`、`npx antd lint ./src`、`npm test` 通过
 
 ## 3. 验证
 

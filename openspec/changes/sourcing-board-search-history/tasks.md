@@ -7,7 +7,7 @@
 
 - [x] 2.1 搜索框与采购员下拉
 - [x] 2.2 「全部」页签表格（列表页统一规范：更新时间倒序、四个审计列、记住每页条数），点行打开任务详情
-- [ ] 2.3 `npm run lint`、`npx antd lint ./src`、`npm test` 通过
+- [x] 2.3 `npm run lint`、`npx antd lint ./src`、`npm test` 通过
 
 ## 3. 验证
 
