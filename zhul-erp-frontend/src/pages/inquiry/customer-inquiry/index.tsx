@@ -261,30 +261,40 @@ const CustomerInquiryPage: React.FC = () => {
     }
   }, [ready, filters, urgentOnly, timeoutOnly, sort, page, pageSize]);
 
+  // 统计跟当前筛选条件走；状态、只看超时由各卡片自己定，否则点了一张卡片其余都变 0
   const loadStats = useCallback(async () => {
+    if (!ready) return;
+    const base = toQuery({ ...filters, status: undefined }, urgentOnly, false);
     const count = (q: InquiryQuery) =>
-      inquiryApi.page({ ...q, page: 1, pageSize: 1 }).then((r) => r.total);
+      inquiryApi
+        .page({ ...base, ...q, page: 1, pageSize: 1 })
+        .then((r) => r.total);
     const today = dayjs().format('YYYY-MM-DD');
     try {
-      const [sourcing, sourcingTimeout, ready, pendingConfirm, todayCount] =
-        await Promise.all([
-          count({ statusList: [STATUS.SOURCING] }),
-          count({ statusList: [STATUS.SOURCING], timeoutOnly: true }),
-          count({ statusList: [STATUS.READY] }),
-          count({ statusList: [STATUS.PENDING_CONFIRM] }),
-          count({ inquiryDateFrom: today, inquiryDateTo: today }),
-        ]);
+      const [
+        sourcing,
+        sourcingTimeout,
+        readyCount,
+        pendingConfirm,
+        todayCount,
+      ] = await Promise.all([
+        count({ statusList: [STATUS.SOURCING] }),
+        count({ statusList: [STATUS.SOURCING], timeoutOnly: true }),
+        count({ statusList: [STATUS.READY] }),
+        count({ statusList: [STATUS.PENDING_CONFIRM] }),
+        count({ inquiryDateFrom: today, inquiryDateTo: today }),
+      ]);
       setStats({
         sourcing,
         sourcingTimeout,
-        ready,
+        ready: readyCount,
         pendingConfirm,
         today: todayCount,
       });
     } catch {
       setStats(null);
     }
-  }, []);
+  }, [ready, filters, urgentOnly]);
 
   useEffect(() => {
     load();
@@ -292,6 +302,9 @@ const CustomerInquiryPage: React.FC = () => {
 
   useEffect(() => {
     loadStats();
+  }, [loadStats]);
+
+  useEffect(() => {
     getUserList({ current: 1, pageSize: 200 })
       .then((res) => {
         setOwners(
