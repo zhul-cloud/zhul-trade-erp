@@ -148,6 +148,7 @@ export default function access(initialState: {
     'sales:order:create': can('sales:order:create'),
     'sales:order:progress': can('sales:order:progress'),
     'sales:order:attachment': can('sales:order:attachment'),
+    'sales:order:fee-edit': can('sales:order:fee-edit'),
     systemGroup: any(
       '/system/user',
       '/system/role',

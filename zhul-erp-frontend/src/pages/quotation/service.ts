@@ -361,6 +361,20 @@ const download = async (url: string, params: object, fallback: string) => {
   window.setTimeout(() => window.URL.revokeObjectURL(href), 1000);
 };
 
+export type BatchCreateResult = {
+  created: {
+    quotationId: number;
+    quotationNo: string;
+    inquiryId: number;
+    inquiryCode: string;
+    itemCount: number;
+    totalAmount: number;
+    currencyCode: string;
+    pendingCount?: number;
+  }[];
+  skipped: { inquiryId: number; inquiryCode: string; reason: string }[];
+};
+
 export const quotationApi = {
   priceHistory: (id: number, version?: number) =>
     get<PriceHistory[]>(`${QT}/${id}/price-history`, { version }),
@@ -383,6 +397,9 @@ export const quotationApi = {
   abandon: (id: number) => send<Quotation>('POST', `${QT}/${id}/abandon`),
   create: (body: { inquiryIds?: number[]; itemIds?: number[] }) =>
     send<Quotation>('POST', QT, body),
+  /** 每个询盘各生成一张报价单（同一客户，最多 20 个） */
+  batchCreate: (inquiryIds: number[]) =>
+    send<BatchCreateResult>('POST', `${QT}/batch`, { inquiryIds }),
   save: (id: number, body: SaveQuotation) =>
     send<Quotation>('PUT', `${QT}/${id}`, body),
   addItems: (id: number, itemIds: number[]) =>
@@ -432,6 +449,9 @@ export const quotationApi = {
     page: number;
     pageSize: number;
   }) => send<QuoteInquiryPage>('POST', `${QT}/candidates/inquiries`, q),
+  /** 某客户可报价、没有草稿的全部询盘 */
+  readyInquiries: (customerId: number) =>
+    get<QuoteInquiry[]>(`${QT}/candidates/ready-inquiries`, { customerId }),
   pickCustomers: (keyword?: string) =>
     get<PickCustomer[]>(`${QT}/candidates/customers`, { keyword }),
   pickInquiries: (q: {

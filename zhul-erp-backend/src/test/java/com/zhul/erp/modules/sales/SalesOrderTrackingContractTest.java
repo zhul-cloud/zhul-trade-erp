@@ -22,6 +22,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 
 /** spec sales/sales-order：销售日期、手动建单、型号进度与采购员、现货 / 期货、订单毛利；sales/payment-receipt：手动订单的收款 */
 class SalesOrderTrackingContractTest extends SalesContractSupport {
@@ -218,6 +219,63 @@ class SalesOrderTrackingContractTest extends SalesContractSupport {
         assertTrue(jdbc.queryForObject("select count(*) from sys_log where tenant_id = 0 and content like ?", Integer.class,
                 "%A-1 采购员 张三 → 李四%") > 0, "改采购员写操作日志");
         assertEquals(0, ok(call(get(SO + "/stats"), admin)).path("unassignedCount").asInt());
+    }
+
+    /** 反馈 11-05 第 15 条：手动订单建单时可填费用，有权限的人事后可修改费用 */
+    @Test
+    void manualOrderFees_createAndEdit_recalcReceipt_guarded() throws Exception {
+        bankAccount("USD");
+        long c = customer("Fee Edit Co", "Kenya");
+        Map<String, Object> b = new LinkedHashMap<>();
+        b.put("customerId", c);
+        b.put("items", List.of(line("6ES7321-1FH00-0AA0", 2, "59.81", null, null, null)));
+        b.put("fees", List.of(Map.of("feeName", "Shipping Cost", "amount", "35")));
+        JsonNode so = ok(call(json(post(SO), write(b)), admin));
+        money("154.62", so.path("totalAmount"));
+        money("35.00", so.path("feeAmount"));
+        assertEquals("Shipping Cost", so.path("fees").get(0).path("feeName").asText());
+        long id = so.path("id").asLong();
+
+        // 收齐 154.62 后补一行银行费，变为部分到账
+        Map<String, Object> rc = new LinkedHashMap<>();
+        rc.put("amount", "154.62");
+        rc.put("receiptDate", LocalDate.now().toString());
+        rc.put("bankAccountId", jdbc.queryForObject("select min(id) from tenant_bank_account where tenant_id = 0", Integer.class));
+        rc.put("feeDiff", false);
+        ok(call(json(post(SO + "/" + id + "/receipts"), write(rc)), admin));
+        assertEquals("已到账", order(id).path("receiptStatusName").asText());
+
+        Map<String, Object> edit = new LinkedHashMap<>();
+        edit.put("fees", List.of(Map.of("feeName", "Shipping Cost", "amount", "35"), Map.of("feeName", "Bank Charge", "amount", "20")));
+        edit.put("reason", "业务员漏填银行费");
+        edit.put("expectedTotal", "154.62");
+        JsonNode after = ok(call(json(put(SO + "/" + id + "/fees"), write(edit)), admin));
+        money("174.62", after.path("totalAmount"));
+        money("1248.53", after.path("totalAmountCny"));
+        assertEquals("部分到账", after.path("receiptStatusName").asText());
+        assertEquals(2, after.path("fees").size());
+        String log = jdbc.queryForObject("select content from sys_log where operation = '修改订单费用' order by id desc limit 1", String.class);
+        assertTrue(log.contains("业务员漏填银行费") && log.contains("Bank Charge"), log);
+
+        // 改少：多收
+        edit.put("fees", List.of(Map.of("feeName", "Shipping Cost", "amount", "15")));
+        edit.put("expectedTotal", "174.62");
+        JsonNode less = ok(call(json(put(SO + "/" + id + "/fees"), write(edit)), admin));
+        money("134.62", less.path("totalAmount"));
+        assertEquals("已到账", less.path("receiptStatusName").asText());
+
+        // 原合计对不上、没原因、没变化
+        assertEquals("订单已被修改，请刷新后重试", fail(call(json(put(SO + "/" + id + "/fees"), write(edit)), admin)).path("message").asText());
+        edit.put("expectedTotal", "134.62");
+        assertEquals("费用没有变化", fail(call(json(put(SO + "/" + id + "/fees"), write(edit)), admin)).path("message").asText());
+        edit.put("reason", " ");
+        assertTrue(fail(call(json(put(SO + "/" + id + "/fees"), write(edit)), admin)).path("message").asText().contains("原因"));
+
+        // 已取消的订单不能改
+        ok(call(json(post(SO + "/" + id + "/cancel"), "{\"reason\":\"测试\"}"), admin));
+        edit.put("reason", "x");
+        edit.put("fees", List.of());
+        assertEquals("订单已取消，不能修改费用", fail(call(json(put(SO + "/" + id + "/fees"), write(edit)), admin)).path("message").asText());
     }
 
     @Test

@@ -123,6 +123,8 @@ public class PurchaseOrderVO implements ShipFields {
     public static class Fee {
         private Long id;
         private String feeName;
+        /** 1-费用、2-优惠 */
+        private Integer feeType;
         private BigDecimal amount;
     }
 

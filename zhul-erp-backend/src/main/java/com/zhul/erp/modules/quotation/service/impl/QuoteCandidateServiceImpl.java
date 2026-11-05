@@ -57,6 +57,8 @@ public class QuoteCandidateServiceImpl implements QuoteCandidateService {
     private final CustomerInquiryMapper inquiryMapper;
     private final CustomerMapper customerMapper;
     private final DataScopeResolver dataScopeResolver;
+    private static final int READY_LIMIT = 200;
+
     private final InquiryLookups lookups;
     private final QuoteCandidates candidates;
     private final QuotationLocks locks;
@@ -257,6 +259,24 @@ public class QuoteCandidateServiceImpl implements QuoteCandidateService {
             list.add(vo);
         }
         return list;
+    }
+
+    @Override
+    public List<QuoteInquiryVO> readyInquiries(Long customerId) {
+        if (customerId == null) {
+            return List.of();
+        }
+        List<CustomerInquiryDO> rows = inquiryMapper.selectList(base(dataScopeResolver.current())
+                .eq(CustomerInquiryDO::getCustomerId, customerId)
+                .eq(CustomerInquiryDO::getStatus, InquiryConstants.STATUS_READY_TO_QUOTE)
+                .orderByDesc(CustomerInquiryDO::getInquiryDate).orderByDesc(CustomerInquiryDO::getId)
+                .last("LIMIT " + READY_LIMIT));
+        return toCards(rows).stream().filter(c -> c.getDraftQuotationId() == null).toList();
+    }
+
+    @Override
+    public Map<Long, QuotationDO> draftsByInquiry(List<Long> inquiryIds) {
+        return inquiryIds == null || inquiryIds.isEmpty() ? Map.of() : drafts(inquiryIds);
     }
 
     /** 询盘 → 包含其型号的草稿报价单 */

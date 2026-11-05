@@ -19,6 +19,9 @@ public interface SalesOrderService {
 
     SalesOrderVO updateSalesDate(Long id, java.time.LocalDate salesDate);
 
+    /** 修改手动订单的费用（「修改订单费用」权限） */
+    SalesOrderVO updateFees(Long id, com.zhul.erp.modules.sales.dto.UpdateOrderFeesRequest req);
+
     SalesOrderVO updateProgress(Long id, com.zhul.erp.modules.sales.dto.OrderItemsRequest req);
 
     SalesOrderVO updatePurchaser(Long id, com.zhul.erp.modules.sales.dto.OrderItemsRequest req);

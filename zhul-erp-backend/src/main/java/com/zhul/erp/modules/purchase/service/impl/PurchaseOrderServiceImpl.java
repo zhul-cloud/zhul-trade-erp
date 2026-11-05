@@ -487,6 +487,7 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
             PurchaseOrderVO.Fee x = new PurchaseOrderVO.Fee();
             x.setId(f.getId());
             x.setFeeName(f.getFeeName());
+            x.setFeeType(f.getFeeType());
             x.setAmount(f.getAmount());
             return x;
         }).toList());
@@ -626,7 +627,7 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
 
         // 其他费用整体替换
         List<PurchaseOrderFeeDO> oldFees = drafts.fees(id);
-        String feesBefore = feesText(oldFees.stream().map(f -> f.getFeeName() + " " + f.getAmount()).toList());
+        String feesBefore = feesText(oldFees.stream().map(PurchaseOrderServiceImpl::feeText).toList());
         oldFees.forEach(f -> {
             f.setDeletedAt(LocalDateTime.now());
             feeMapper.updateById(f);
@@ -638,16 +639,18 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
             x.setTenantId(p.getTenantId());
             x.setPoId(id);
             x.setFeeName(f.getFeeName().trim());
+            x.setFeeType(f.getFeeType() == null ? PurchaseConstants.FEE_CHARGE : f.getFeeType());
             x.setAmount(PurchaseCalc.money(f.getAmount()));
             x.setSortOrder(sort++);
             feeMapper.insert(x);
-            newFeeText.add(x.getFeeName() + " " + x.getAmount());
+            newFeeText.add(feeText(x));
         }
         String feesAfter = feesText(newFeeText);
         if (!feesBefore.equals(feesAfter)) {
             changes.add("其他费用 " + feesBefore + " → " + feesAfter);
         }
         drafts.recalc(p);
+        drafts.requireDiscountWithin(p);
         touch.touch(qtyChanged);
         Snapshot after = snapshot(p);
         changes.addAll(before.diff(after));
@@ -787,6 +790,43 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
 
     private static String moneyText(String currency, BigDecimal v) {
         return v == null ? "未填" : currency + " " + v.toPlainString();
+    }
+
+    /** 操作日志里的费用行：优惠前加「优惠」 */
+    private static String feeText(PurchaseOrderFeeDO f) {
+        return (Objects.equals(f.getFeeType(), PurchaseConstants.FEE_DISCOUNT) ? "优惠 " : "") + f.getFeeName() + " " + f.getAmount();
+    }
+
+    /**
+     * 付款时登记供应商优惠：给已下单的采购订单加一行优惠，重算合计与应付。
+     * 由付款登记在同一事务内调用；付款权限已在付款登记校验，这里不按采购数据范围限制。
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void addDiscountOnPayment(Long poId, String name, BigDecimal amount) {
+        PurchaseOrderDO p = orderMapper.selectById(poId);
+        if (p == null || p.getDeletedAt() != null) {
+            throw new BizException("采购订单不存在");
+        }
+        if (p.getStatus() != PurchaseConstants.PO_ORDERED) {
+            throw new BizException("只有已下单的采购订单可以登记优惠");
+        }
+        String feeName = name == null || name.isBlank() ? "平台优惠" : name.trim();
+        PurchaseOrderFeeDO x = new PurchaseOrderFeeDO();
+        x.setTenantId(p.getTenantId());
+        x.setPoId(poId);
+        x.setFeeName(feeName);
+        x.setFeeType(PurchaseConstants.FEE_DISCOUNT);
+        x.setAmount(PurchaseCalc.money(amount));
+        x.setSortOrder(drafts.fees(poId).size() + 1);
+        feeMapper.insert(x);
+        drafts.recalc(p);
+        drafts.requireDiscountWithin(p);
+        String content = "添加优惠 " + feeName + " " + moneyText(p.getCurrencyCode(), x.getAmount());
+        logs.add(poId, "付款时登记优惠", content, currentUser.resolve());
+        logService.recordOperateLog(PurchaseConstants.MENU_ORDER, "付款时登记优惠", null, Map.of("poNo", p.getPoNo(), "changes", content));
+        payables.syncPurchaseOrder(poId);
+        followupHooks.purchaseChanged(poId);
     }
 
     private static String feesText(List<String> parts) {

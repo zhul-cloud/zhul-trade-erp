@@ -213,6 +213,27 @@ public class PurchaseDrafts {
     }
 
     /** 按单头的汇率重算各行人民币单价、小计、砍价，以及开票成本、单头合计、目标金额与砍价合计 */
+    /** 费用行按类型带符号：优惠为负 */
+    public static BigDecimal signed(PurchaseOrderFeeDO f) {
+        return Objects.equals(f.getFeeType(), PurchaseConstants.FEE_DISCOUNT) ? f.getAmount().negate() : f.getAmount();
+    }
+
+    /** 优惠合计不能超过货款与费用之和（保存与付款登记优惠时校验） */
+    public void requireDiscountWithin(PurchaseOrderDO po) {
+        BigDecimal discount = BigDecimal.ZERO;
+        BigDecimal charge = BigDecimal.ZERO;
+        for (PurchaseOrderFeeDO f : fees(po.getId())) {
+            if (Objects.equals(f.getFeeType(), PurchaseConstants.FEE_DISCOUNT)) {
+                discount = discount.add(f.getAmount());
+            } else {
+                charge = charge.add(f.getAmount());
+            }
+        }
+        if (discount.compareTo(po.getItemAmount().add(charge)) > 0) {
+            throw new BizException("优惠不能超过货款加费用");
+        }
+    }
+
     public void recalc(PurchaseOrderDO po) {
         BigDecimal items = BigDecimal.ZERO;
         BigDecimal target = BigDecimal.ZERO;
@@ -232,7 +253,8 @@ public class PurchaseDrafts {
                 target = target.add(PurchaseCalc.targetAmount(i.getTargetPrice(), i.getQuantity()));
             }
         }
-        BigDecimal fees = fees(po.getId()).stream().map(PurchaseOrderFeeDO::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+        // 费用净额 = 费用 − 优惠
+        BigDecimal fees = fees(po.getId()).stream().map(PurchaseDrafts::signed).reduce(BigDecimal.ZERO, BigDecimal::add);
         po.setItemAmount(items);
         po.setFeeAmount(fees);
         boolean invoice = Objects.equals(po.getInvoiceRequired(), 1);

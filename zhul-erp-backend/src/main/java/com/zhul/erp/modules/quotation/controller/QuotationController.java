@@ -116,6 +116,17 @@ public class QuotationController {
         return Result.ok(service.create(req));
     }
 
+    @PostMapping("/batch")
+    public Result<com.zhul.erp.modules.quotation.dto.BatchCreateQuotationVO> batchCreate(
+            @Valid @RequestBody com.zhul.erp.modules.quotation.dto.BatchCreateQuotationRequest req) {
+        return Result.ok(service.batchCreate(req));
+    }
+
+    @GetMapping("/candidates/ready-inquiries")
+    public Result<List<com.zhul.erp.modules.quotation.dto.QuoteInquiryVO>> readyInquiries(@RequestParam Long customerId) {
+        return Result.ok(candidateService.readyInquiries(customerId));
+    }
+
     @GetMapping("/{id}")
     public Result<QuotationVO> detail(@PathVariable Long id, @RequestParam(required = false) Integer version) {
         return Result.ok(service.detail(id, version));

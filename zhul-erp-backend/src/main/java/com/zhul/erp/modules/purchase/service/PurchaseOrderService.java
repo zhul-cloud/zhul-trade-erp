@@ -51,4 +51,7 @@ public interface PurchaseOrderService {
 
     /** 撤销已开票，回到待开票 */
     PurchaseOrderVO revokeInvoice(Long id, String reason);
+
+    /** 付款时登记供应商优惠（付款登记同一事务内调用） */
+    void addDiscountOnPayment(Long poId, String name, java.math.BigDecimal amount);
 }

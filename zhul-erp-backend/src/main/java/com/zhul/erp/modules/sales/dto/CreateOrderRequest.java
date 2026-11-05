@@ -23,6 +23,10 @@ public class CreateOrderRequest {
     /** PI、合同、客户 PO 等附件：先上传拿到 ID */
     @Size(max = 10, message = "附件最多 10 个")
     private List<Long> attachmentIds;
+    /** 费用行（选填，如运费、银行手续费），最多 10 行 */
+    @Valid
+    @Size(max = 10, message = "费用最多 10 行")
+    private List<OrderFeeLine> fees;
     @Valid
     private List<Line> items;
 

@@ -66,6 +66,8 @@ public final class QuotationConstants {
     public static final String DEFAULT_CURRENCY = "USD";
     public static final String LOST_REASON_OTHER = "OTHER";
     public static final int MAX_ITEMS = 300;
+    /** 一次批量生成报价单的上限 */
+    public static final int BATCH_LIMIT = 20;
     public static final int MAX_FEES = 20;
     public static final String MENU = "报价单";
 

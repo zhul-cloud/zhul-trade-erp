@@ -20,6 +20,8 @@ import com.zhul.erp.modules.masterdata.entity.CustomerDO;
 import com.zhul.erp.modules.masterdata.repository.CustomerMapper;
 import com.zhul.erp.modules.quotation.constants.QuotationConstants;
 import com.zhul.erp.modules.quotation.dto.AddQuotationItemsRequest;
+import com.zhul.erp.modules.quotation.dto.BatchCreateQuotationRequest;
+import com.zhul.erp.modules.quotation.dto.BatchCreateQuotationVO;
 import com.zhul.erp.modules.quotation.dto.CreateQuotationRequest;
 import com.zhul.erp.modules.quotation.dto.MarkLostRequest;
 import com.zhul.erp.modules.quotation.dto.QuotationFeeVO;
@@ -119,6 +121,7 @@ public class QuotationServiceImpl implements QuotationService {
     private final DocumentNumberService documentNumberService;
     private final com.zhul.erp.modules.product.support.BrandResolver brandResolver;
     private final com.zhul.erp.modules.crm.followup.support.FollowupHooks followupHooks;
+    private final com.zhul.erp.modules.quotation.service.QuoteCandidateService candidateService;
 
     /** 带入时还在询价、按无货报的行，记在建议依据上（随版本复制） */
     private static final String PENDING_AS_NO_STOCK = "未回价，按无货报";
@@ -212,6 +215,77 @@ public class QuotationServiceImpl implements QuotationService {
         QuotationVO vo = detail(q.getId());
         vo.setPendingItemCount(pending);
         return vo;
+    }
+
+    /**
+     * 按询盘批量生成：每个询盘调用一次单张生成，整个批量一个事务。
+     * 已报过价、已有草稿、不在数据范围或没有可报型号的询盘跳过（这些校验都在写入之前），全部跳过时报错。
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public BatchCreateQuotationVO batchCreate(BatchCreateQuotationRequest req) {
+        List<Long> ids = new ArrayList<>(new LinkedHashSet<>(req.getInquiryIds()));
+        if (ids.size() > QuotationConstants.BATCH_LIMIT) {
+            throw new BizException("一次最多生成 " + QuotationConstants.BATCH_LIMIT + " 张，请分批生成");
+        }
+        DataScope scope = dataScopeResolver.current();
+        BatchCreateQuotationVO vo = new BatchCreateQuotationVO();
+        Map<Long, CustomerInquiryDO> found = new LinkedHashMap<>();
+        for (Long id : ids) {
+            CustomerInquiryDO i = id == null ? null : inquiryMapper.selectById(id);
+            if (i == null || i.getDeletedAt() != null || !Objects.equals(i.getTenantId(), tenantId()) || !scope.canSee(i.getOwnerId())) {
+                skip(vo, id, i == null ? "" : i.getInquiryCode(), "询盘单不存在或不在你的数据范围");
+                continue;
+            }
+            found.put(id, i);
+        }
+        if (found.values().stream().map(CustomerInquiryDO::getCustomerId).distinct().count() > 1) {
+            throw new BizException("不同客户需要分开报价");
+        }
+        Map<Long, QuotationDO> drafts = candidateService.draftsByInquiry(new ArrayList<>(found.keySet()));
+        for (CustomerInquiryDO i : found.values()) {
+            QuotationDO draft = drafts.get(i.getId());
+            if (Objects.equals(i.getStatus(), InquiryConstants.STATUS_QUOTED)) {
+                skip(vo, i.getId(), i.getInquiryCode(), "已报过价");
+            } else if (!CREATABLE_INQUIRY_STATUSES.contains(i.getStatus())) {
+                skip(vo, i.getId(), i.getInquiryCode(), "当前状态不能报价");
+            } else if (draft != null) {
+                skip(vo, i.getId(), i.getInquiryCode(), "已在报价单 " + draft.getQuotationNo() + " 草稿中");
+            } else {
+                CreateQuotationRequest one = new CreateQuotationRequest();
+                one.setInquiryIds(List.of(i.getId()));
+                try {
+                    QuotationVO q = create(one);
+                    BatchCreateQuotationVO.Created c = new BatchCreateQuotationVO.Created();
+                    c.setQuotationId(q.getId());
+                    c.setQuotationNo(q.getQuotationNo());
+                    c.setInquiryId(i.getId());
+                    c.setInquiryCode(i.getInquiryCode());
+                    c.setItemCount(q.getItems() == null ? 0 : q.getItems().size());
+                    c.setTotalAmount(q.getTotalAmount());
+                    c.setCurrencyCode(q.getCurrencyCode());
+                    c.setPendingCount(q.getPendingItemCount());
+                    vo.getCreated().add(c);
+                } catch (BizException e) {
+                    // 单张生成在写入前校验（没有已回价型号、型号过多等），跳过不影响其他询盘
+                    skip(vo, i.getId(), i.getInquiryCode(), e.getMessage());
+                }
+            }
+        }
+        if (vo.getCreated().isEmpty()) {
+            throw new BizException("没有可以生成的报价单：" + vo.getSkipped().stream()
+                    .map(x -> x.getInquiryCode() + " " + x.getReason()).collect(Collectors.joining("；")));
+        }
+        log.info("批量新建报价单，created={}, skipped={}", vo.getCreated().size(), vo.getSkipped().size());
+        return vo;
+    }
+
+    private static void skip(BatchCreateQuotationVO vo, Long inquiryId, String code, String reason) {
+        BatchCreateQuotationVO.Skipped s = new BatchCreateQuotationVO.Skipped();
+        s.setInquiryId(inquiryId);
+        s.setInquiryCode(code);
+        s.setReason(reason);
+        vo.getSkipped().add(s);
     }
 
     @Override

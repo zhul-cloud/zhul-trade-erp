@@ -57,6 +57,10 @@ public class SavePurchaseOrderRequest {
         @NotBlank(message = "请填写费用名称")
         @Size(max = 64, message = "费用名称不能超过 64 个字符")
         private String feeName;
+        /** 1-费用（默认）、2-优惠 */
+        @jakarta.validation.constraints.Min(value = 1, message = "费用类型无效")
+        @jakarta.validation.constraints.Max(value = 2, message = "费用类型无效")
+        private Integer feeType;
         @NotNull(message = "请填写费用金额")
         @DecimalMin(value = "0", message = "费用金额不能为负")
         private BigDecimal amount;
