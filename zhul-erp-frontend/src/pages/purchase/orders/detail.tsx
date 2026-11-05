@@ -81,6 +81,7 @@ import {
 } from '../components';
 import {
   type CounterpartyValue,
+  FEE_TYPE,
   type PaymentTerm,
   type PoItem,
   type PoReceiptRef,
@@ -105,7 +106,12 @@ interface Draft {
   contractAmount: number | null;
   expectedShipDate: string | null;
   items: Record<number, { quantity: number; unitPrice: number | null }>;
-  fees: { key: number; feeName: string; amount: number | null }[];
+  fees: {
+    key: number;
+    feeName: string;
+    feeType: number;
+    amount: number | null;
+  }[];
 }
 
 let feeKey = 0;
@@ -137,6 +143,7 @@ const toDraft = (po: PurchaseOrder): Draft => {
     fees: po.fees.map((f) => ({
       key: ++feeKey,
       feeName: f.feeName,
+      feeType: f.feeType ?? FEE_TYPE.CHARGE,
       amount: Number(f.amount),
     })),
   };
@@ -159,7 +166,11 @@ const toBody = (po: PurchaseOrder, d: Draft): SavePoBody => ({
   })),
   fees: d.fees
     .filter((f) => f.feeName.trim() && f.amount != null)
-    .map((f) => ({ feeName: f.feeName.trim(), amount: f.amount as number })),
+    .map((f) => ({
+      feeName: f.feeName.trim(),
+      feeType: f.feeType,
+      amount: f.amount as number,
+    })),
 });
 
 const PurchaseOrderDetail: React.FC = () => {
@@ -246,7 +257,12 @@ const PurchaseOrderDetail: React.FC = () => {
       }
       lines.set(i.id, { net: net == null ? null : round2(net), bargain: b });
     }
-    const fees = draft.fees.reduce((s, f) => s + (f.amount ?? 0), 0);
+    // 费用净额：优惠为负
+    const fees = draft.fees.reduce(
+      (s, f) =>
+        s + (f.feeType === FEE_TYPE.DISCOUNT ? -1 : 1) * (f.amount ?? 0),
+      0,
+    );
     const invoiceCost = draft.invoiceRequired
       ? invoiceCostOf(draft.invoiceAmount ?? round2(goods), draft.taxPoint)
       : 0;
@@ -678,7 +694,7 @@ const PurchaseOrderDetail: React.FC = () => {
           hint={
             preview.missing > 0
               ? `${preview.missing} 行未填单价`
-              : `货款 ${formatAmount(preview.goods, draft.currencyCode)} + 费用 ${formatAmount(preview.fees, draft.currencyCode)}${preview.invoiceCost ? ` + 开票成本 ${formatAmount(preview.invoiceCost, draft.currencyCode)}` : ''}`
+              : `货款 ${formatAmount(preview.goods, draft.currencyCode)} ${preview.fees < 0 ? '− 优惠净额 ' : '+ 费用 '}${formatAmount(Math.abs(preview.fees), draft.currencyCode)}${preview.invoiceCost ? ` + 开票成本 ${formatAmount(preview.invoiceCost, draft.currencyCode)}` : ''}`
           }
           hintColor={preview.missing > 0 ? palette.orange : undefined}
         />
@@ -992,16 +1008,41 @@ const PurchaseOrderDetail: React.FC = () => {
           }
         />
         <div style={{ marginTop: 14, display: 'grid', gap: 8 }}>
-          <b style={{ color: palette.ink }}>其他费用</b>
+          <b style={{ color: palette.ink }}>其他费用与优惠</b>
           {draft.fees.length === 0 && !editable && (
             <span style={{ color: palette.mute }}>无</span>
           )}
           {draft.fees.map((f) =>
             editable ? (
               <Space key={f.key}>
+                <Select
+                  value={f.feeType}
+                  style={{ width: 90 }}
+                  options={[
+                    { value: FEE_TYPE.CHARGE, label: '费用' },
+                    { value: FEE_TYPE.DISCOUNT, label: '优惠' },
+                  ]}
+                  onChange={(v) =>
+                    setDraft((d) =>
+                      d
+                        ? {
+                            ...d,
+                            fees: d.fees.map((x) =>
+                              x.key === f.key ? { ...x, feeType: v } : x,
+                            ),
+                          }
+                        : d,
+                    )
+                  }
+                  aria-label="费用类型"
+                />
                 <Input
                   value={f.feeName}
-                  placeholder="如运费、包装费"
+                  placeholder={
+                    f.feeType === FEE_TYPE.DISCOUNT
+                      ? '如平台优惠、供应商减免'
+                      : '如运费、包装费'
+                  }
                   maxLength={64}
                   style={{ width: 220 }}
                   onChange={(e) =>
@@ -1054,8 +1095,18 @@ const PurchaseOrderDetail: React.FC = () => {
                 />
               </Space>
             ) : (
-              <span key={f.key} style={{ color: palette.sub }}>
-                {f.feeName} {formatAmount(f.amount ?? 0, po.currencyCode)}
+              <span
+                key={f.key}
+                style={{
+                  color:
+                    f.feeType === FEE_TYPE.DISCOUNT
+                      ? palette.green
+                      : palette.sub,
+                }}
+              >
+                {f.feeType === FEE_TYPE.DISCOUNT ? '优惠 · ' : ''}
+                {f.feeName} {f.feeType === FEE_TYPE.DISCOUNT ? '−' : ''}
+                {formatAmount(f.amount ?? 0, po.currencyCode)}
               </span>
             ),
           )}
@@ -1072,18 +1123,23 @@ const PurchaseOrderDetail: React.FC = () => {
                         ...d,
                         fees: [
                           ...d.fees,
-                          { key: ++feeKey, feeName: '', amount: null },
+                          {
+                            key: ++feeKey,
+                            feeName: '',
+                            feeType: FEE_TYPE.CHARGE,
+                            amount: null,
+                          },
                         ],
                       }
                     : d,
                 )
               }
             >
-              添加费用
+              添加费用或优惠
             </Button>
           )}
           <span style={{ fontSize: 12, color: palette.mute }}>
-            其他费用计入合计，不参与砍价
+            费用计入合计、优惠从合计中减去（填正数），都不参与砍价；优惠不能超过货款加费用
           </span>
         </div>
       </Card>

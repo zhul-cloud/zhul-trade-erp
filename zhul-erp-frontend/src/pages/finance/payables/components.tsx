@@ -43,6 +43,7 @@ import {
   type PaymentLine,
   payableApi,
   paymentApi,
+  SOURCE,
 } from './service';
 
 export const ACCEPT_PROOF = 'image/jpeg,image/png,image/webp,application/pdf';
@@ -265,9 +266,11 @@ export const RegisterPaymentDrawer: React.FC<{
   anchorId?: number;
   /** 默认付款方式 */
   defaultMethod?: number;
+  /** 从采购订单付款面板打开：付款少于未付时可以把剩下的登记为供应商优惠 */
+  allowDiscount?: boolean;
   onClose: () => void;
   onDone: () => void;
-}> = ({ open, anchorId, defaultMethod, onClose, onDone }) => {
+}> = ({ open, anchorId, defaultMethod, allowDiscount, onClose, onDone }) => {
   const { message } = App.useApp();
   const { palette } = useAppTheme();
   const access = useAccess() as Record<string, boolean>;
@@ -289,6 +292,8 @@ export const RegisterPaymentDrawer: React.FC<{
   const [credits, setCredits] = useState<Record<number, number>>({});
   const [files, setFiles] = useState<Attachment[]>([]);
   const [remark, setRemark] = useState('');
+  const [discountOn, setDiscountOn] = useState(false);
+  const [discountName, setDiscountName] = useState('平台优惠');
   const [key, setKey] = useState(newKey);
   const [saving, setSaving] = useState(false);
 
@@ -304,6 +309,8 @@ export const RegisterPaymentDrawer: React.FC<{
     setCredits({});
     setFiles([]);
     setRemark('');
+    setDiscountOn(false);
+    setDiscountName('平台优惠');
     setRows([]);
     if (!anchorId) {
       payableApi
@@ -369,6 +376,19 @@ export const RegisterPaymentDrawer: React.FC<{
     Object.values(alloc).reduce((s, v) => s + (v || 0), 0),
   );
   const target = round2((amount ?? 0) + creditTotal);
+  // 只核销本采购订单、不用欠款抵扣、付款少于未付时，剩下的可以登记为优惠
+  const own = rows.find((r) => r.id === anchor);
+  const allocated = Object.entries(alloc).filter(([, v]) => v > 0);
+  const discountAmount =
+    allowDiscount &&
+    own &&
+    own.sourceType === SOURCE.PO &&
+    creditTotal === 0 &&
+    allocated.length === 1 &&
+    Number(allocated[0][0]) === own.id
+      ? round2(own.unpaidAmount - allocated[0][1])
+      : 0;
+  const withDiscount = discountOn && discountAmount > 0;
   const balanced = allocTotal === target && target > 0;
   // 公司对公选对公账户，私对私选对私账户（收款账户里的账户类型）
   const currencyAccounts = useMemo(
@@ -438,9 +458,16 @@ export const RegisterPaymentDrawer: React.FC<{
         credits: Object.entries(credits)
           .filter(([, v]) => v > 0)
           .map(([k, v]) => ({ payableId: Number(k), amount: v })),
+        discount: withDiscount
+          ? { name: discountName.trim() || undefined }
+          : undefined,
         idempotencyKey: key,
       });
-      message.success('付款已登记');
+      message.success(
+        withDiscount
+          ? `付款已登记，采购订单已记优惠 ${formatAmount(discountAmount, currency)}`
+          : '付款已登记',
+      );
       onDone();
       onClose();
     } catch (e) {
@@ -689,6 +716,42 @@ export const RegisterPaymentDrawer: React.FC<{
             </Field>
           )}
         </div>
+        {discountAmount > 0 && (
+          <div
+            style={{
+              padding: '10px 14px',
+              borderRadius: 12,
+              background: discountOn ? palette.greenSoft : palette.inset,
+              border: `1px solid ${discountOn ? palette.green : palette.hairline}`,
+            }}
+          >
+            <Checkbox
+              checked={discountOn}
+              onChange={(e) => setDiscountOn(e.target.checked)}
+            >
+              <b>
+                剩下的 {formatAmount(discountAmount, currency)} 是供应商优惠
+              </b>
+            </Checkbox>
+            {discountOn && (
+              <div style={{ marginTop: 8, display: 'grid', gap: 6 }}>
+                <Input
+                  value={discountName}
+                  maxLength={50}
+                  placeholder="优惠名称，如平台优惠"
+                  onChange={(e) => setDiscountName(e.target.value)}
+                  aria-label="优惠名称"
+                  style={{ maxWidth: 320 }}
+                />
+                <span style={{ fontSize: 12, color: palette.sub }}>
+                  保存后采购订单自动加一行优惠{' '}
+                  {formatAmount(discountAmount, currency)}
+                  ，合计与应付减少，这笔付款后应付「已付清」。记错了到采购订单上修改这行优惠。
+                </span>
+              </div>
+            )}
+          </div>
+        )}
         {creditRows.length > 0 && (
           <Alert
             type="info"
@@ -1263,6 +1326,7 @@ export const PayablePanel: React.FC<{
         open={!!drawer}
         anchorId={data.id}
         defaultMethod={drawer}
+        allowDiscount={data.sourceType === SOURCE.PO}
         onClose={() => setDrawer(undefined)}
         onDone={load}
       />

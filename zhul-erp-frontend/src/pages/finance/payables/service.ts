@@ -231,6 +231,8 @@ export interface RegisterPaymentBody {
   attachmentIds: number[];
   allocations: { payableId: number; amount: number }[];
   credits?: { payableId: number; amount: number }[];
+  /** 剩下的未付是供应商优惠：只在单张采购订单付款时使用，同时给采购订单加一行优惠 */
+  discount?: { name?: string };
   idempotencyKey: string;
 }
 

@@ -29,6 +29,10 @@ public final class PurchaseConstants {
     public static final String REQ_VIEW_ORDER_CANCELLED = "订单已取消";
 
     /** 采购订单状态 */
+    /** 采购订单其他费用类型：1-费用、2-优惠 */
+    public static final int FEE_CHARGE = 1;
+    public static final int FEE_DISCOUNT = 2;
+
     public static final int PO_DRAFT = 1;
     public static final int PO_ORDERED = 2;
     public static final int PO_CANCELLED = 3;

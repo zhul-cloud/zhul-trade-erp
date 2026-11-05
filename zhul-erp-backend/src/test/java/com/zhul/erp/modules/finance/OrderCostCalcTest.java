@@ -57,6 +57,19 @@ class OrderCostCalcTest {
     }
 
     @Test
+    void poDiscountReducesCostByLineShare() {
+        // F × 10 货款 480、G × 20 货款 960，同一张采购订单优惠 60（费用净额 −60），都已入库
+        Input in = new Input(true, d("3000"), List.of(item(5, 10, "1000", null, "0", "0", "0"), item(6, 20, "2000", null, "0", "0", "0")),
+                List.of(new PoLine(51, 500, 5, 10, 10, d("48"), null, null), new PoLine(52, 500, 6, 20, 20, d("48"), null, null)),
+                Map.of(500L, cnyPo(500, "1440", "-60", "0")), List.of(settled("3000", "3000", "1")));
+        Result r = OrderCostCalc.compute(in);
+        eq("-20.00", r.lines().get(0).poFee());
+        eq("-40.00", r.lines().get(1).poFee());
+        eq("460.00", r.lines().get(0).cost());
+        eq("920.00", r.lines().get(1).cost());
+    }
+
+    @Test
     void foreignPoUsesPaidCny() {
         Po usd = new Po(200, "USD", d("7.10"), d("1000"), BigDecimal.ZERO, BigDecimal.ZERO, d("1000"), d("600"), d("4290"));
         eq("7.130000", OrderCostCalc.actualRate(usd));

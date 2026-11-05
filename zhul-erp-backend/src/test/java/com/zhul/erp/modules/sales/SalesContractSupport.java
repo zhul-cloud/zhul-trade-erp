@@ -108,7 +108,8 @@ public abstract class SalesContractSupport extends InquiryContractSupport {
         });
         b.put("items", items);
         List<Map<String, Object>> fees = new ArrayList<>();
-        po.path("fees").forEach(f -> fees.add(Map.of("feeName", f.path("feeName").asText(), "amount", f.path("amount").decimalValue())));
+        po.path("fees").forEach(f -> fees.add(Map.of("feeName", f.path("feeName").asText(), "feeType", f.path("feeType").asInt(1),
+                "amount", f.path("amount").decimalValue())));
         b.put("fees", fees);
         return b;
     }

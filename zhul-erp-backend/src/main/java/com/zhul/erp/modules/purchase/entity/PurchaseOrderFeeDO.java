@@ -19,6 +19,8 @@ public class PurchaseOrderFeeDO {
     private Integer tenantId;
     private Long poId;
     private String feeName;
+    /** 1-费用、2-优惠（金额为正数，合计里减去） */
+    private Integer feeType;
     private BigDecimal amount;
     private Integer sortOrder;
     private LocalDateTime deletedAt;
