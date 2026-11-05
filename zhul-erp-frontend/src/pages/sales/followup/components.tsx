@@ -1,8 +1,9 @@
 import {
-  ArrowRightOutlined,
+  BellOutlined,
+  BulbOutlined,
   CheckCircleOutlined,
-  ClockCircleOutlined,
   DownOutlined,
+  UserOutlined,
 } from '@ant-design/icons';
 import { history } from '@umijs/max';
 import {
@@ -13,7 +14,6 @@ import {
   Form,
   Input,
   Modal,
-  Segmented,
   Select,
   Skeleton,
 } from 'antd';
@@ -23,13 +23,12 @@ import { Card, Pill } from '@/pages/crm/opportunity/components';
 import { GRADE_NAMES } from '@/pages/customer/profile/service';
 import { GradeBadge, Stars } from '@/pages/customer/profile/ui';
 import { useAppTheme } from '@/theme/AppTheme';
+import { styleOf, TODAY_COLOR } from './boardStyle';
 import {
   type Blocker,
   type FollowupItem,
   followupApi,
-  GROUP,
   NEXT_USER,
-  type Overview,
   readBizError,
   type Today,
 } from './service';
@@ -73,12 +72,34 @@ export const ValueCell: React.FC<{ item: FollowupItem }> = ({ item }) => {
   );
 };
 
-/** 板块 · 阶段 */
-export const StageTag: React.FC<{ item: FollowupItem }> = ({ item }) => (
-  <Pill tone={item.stageGroup === GROUP.AFTER_PI ? 'green' : 'accent'}>
-    商机成交 · {item.stageCode} {item.stageName}
-  </Pill>
-);
+const BOARD_LABEL: Record<number, string> = {
+  1: '主动开发',
+  2: '商机成交',
+  3: '订单履约',
+  4: '售后评价',
+  5: '客户经营',
+};
+
+/** 板块 · 阶段，用板块颜色（K1） */
+export const StageTag: React.FC<{ item: FollowupItem }> = ({ item }) => {
+  const s = styleOf(item.board);
+  return (
+    <span
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        padding: '1px 8px',
+        borderRadius: 6,
+        fontSize: 12,
+        color: s.color,
+        background: `${s.color}14`,
+        whiteSpace: 'nowrap',
+      }}
+    >
+      {BOARD_LABEL[item.board] ?? '商机成交'} · {item.stageName}
+    </span>
+  );
+};
 
 /** 客户名称：点击进客户详情 */
 export const CustomerLink: React.FC<{ item: FollowupItem }> = ({ item }) => {
@@ -174,17 +195,25 @@ export const SnoozeButton: React.FC<{
 
 // ---------------------------------------------------------------- 转培育
 
-let blockerCache: Promise<Blocker[]> | undefined;
-/** 卡点字典（整页共用一份） */
-export const useBlockers = () => {
+const blockerCache = new Map<number, Promise<Blocker[]>>();
+/** 卡点字典（按板块，整页共用一份）；默认商机成交 */
+export const useBlockers = (board = 2) => {
   const [list, setList] = useState<Blocker[]>([]);
   useEffect(() => {
-    blockerCache ??= followupApi.blockers().catch((e) => {
-      blockerCache = undefined;
-      throw e;
-    });
-    blockerCache.then(setList).catch(() => setList([]));
-  }, []);
+    let cached = blockerCache.get(board);
+    if (!cached) {
+      cached = followupApi.blockers(board).catch((e) => {
+        blockerCache.delete(board);
+        throw e;
+      });
+      blockerCache.set(board, cached);
+    }
+    let alive = true;
+    cached.then((l) => alive && setList(l)).catch(() => alive && setList([]));
+    return () => {
+      alive = false;
+    };
+  }, [board]);
   return list;
 };
 
@@ -266,133 +295,18 @@ export const NurtureModal: React.FC<{
   );
 };
 
-// ---------------------------------------------------------------- 链路卡片
-
-/** 今日待办 + 五个板块（K1 顶部） */
-export const FlowCards: React.FC<{ overview?: Overview }> = ({ overview }) => {
-  const { palette } = useAppTheme();
-  if (!overview)
-    return (
-      <Card style={{ padding: 20, marginBottom: 16 }}>
-        <Skeleton active paragraph={{ rows: 2 }} />
-      </Card>
-    );
-  return (
-    <div
-      style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(6, minmax(132px, 1fr))',
-        gap: 10,
-        marginBottom: 16,
-        alignItems: 'stretch',
-        overflowX: 'auto',
-      }}
-    >
-      <Card
-        style={{
-          padding: 16,
-          background: palette.violetSoft,
-          border: `1px solid ${palette.violet}`,
-        }}
-      >
-        <div style={{ color: palette.violet, fontWeight: 600 }}>
-          <ClockCircleOutlined /> 今日待办
-        </div>
-        <div
-          style={{
-            fontSize: 28,
-            fontWeight: 700,
-            color: palette.ink,
-            margin: '6px 0 2px',
-          }}
-        >
-          {overview.todayOverdue + overview.todayDue}
-        </div>
-        <div style={{ fontSize: 12, color: palette.sub }}>
-          <span style={{ color: palette.red }}>
-            逾期 {overview.todayOverdue}
-          </span>
-          {' · '}今天 {overview.todayDue}
-        </div>
-      </Card>
-      {overview.boards.map((b, i) => (
-        <div
-          key={b.board}
-          style={{ display: 'flex', alignItems: 'stretch', gap: 6 }}
-        >
-          {i > 0 && (
-            <ArrowRightOutlined
-              style={{ color: palette.faint, alignSelf: 'center' }}
-            />
-          )}
-          <Card
-            style={{
-              padding: 16,
-              flex: 1,
-              opacity: b.available ? 1 : 0.55,
-              border: b.available
-                ? `1px solid ${palette.accentLine}`
-                : undefined,
-            }}
-          >
-            <div style={{ fontSize: 12, color: palette.mute }}>
-              第 {b.step} 步
-            </div>
-            <div style={{ fontWeight: 600, color: palette.ink }}>
-              {b.name}
-              {b.available && b.overdue > 0 && (
-                <span style={{ marginLeft: 6 }}>
-                  <Pill tone="red">逾期 {b.overdue}</Pill>
-                </span>
-              )}
-            </div>
-            {b.available ? (
-              <>
-                <div
-                  style={{
-                    fontSize: 22,
-                    fontWeight: 700,
-                    color: palette.ink,
-                    marginTop: 4,
-                  }}
-                >
-                  {b.customers}
-                  <span
-                    style={{
-                      fontSize: 12,
-                      color: palette.mute,
-                      fontWeight: 400,
-                    }}
-                  >
-                    {' '}
-                    个客户
-                  </span>
-                </div>
-                <div style={{ fontSize: 12, color: palette.sub }}>
-                  {b.groups.map((g) => `${g.name} ${g.count}`).join(' · ')}
-                  {b.nurture > 0 && ` · 培育中 ${b.nurture}`}
-                </div>
-              </>
-            ) : (
-              <div style={{ fontSize: 12, color: palette.mute, marginTop: 8 }}>
-                后续上线
-              </div>
-            )}
-          </Card>
-        </div>
-      ))}
-    </div>
-  );
-};
-
 // ---------------------------------------------------------------- 今日待办
 
+const TODAY_FOLD = 8;
+
+/** 一条待办（K1）：左侧色条区分逾期 / 今天；系统提醒或我定的下一步；SOP 建议 */
 const TodayRow: React.FC<{
   item: FollowupItem;
+  overdue: boolean;
   canRecord: boolean;
   onRecord: (item: FollowupItem) => void;
   onChanged: () => void;
-}> = ({ item, canRecord, onRecord, onChanged }) => {
+}> = ({ item, overdue, canRecord, onRecord, onChanged }) => {
   const { palette } = useAppTheme();
   const mine = item.nextActionSource === NEXT_USER;
   const [hover, setHover] = useState(false);
@@ -404,14 +318,25 @@ const TodayRow: React.FC<{
         display: 'flex',
         gap: 16,
         alignItems: 'center',
-        padding: '12px 8px',
-        margin: '0 -8px',
-        borderRadius: 10,
-        borderTop: `1px solid ${hover ? 'transparent' : palette.hairline}`,
-        background: hover ? palette.hover : undefined,
-        transition: 'background .15s',
+        padding: '12px 16px 12px 18px',
+        borderRadius: 12,
+        border: `1px solid ${hover ? palette.accentLine : palette.hairline}`,
+        background: hover ? palette.hover : palette.card,
+        position: 'relative',
+        transition: 'background .15s, border-color .15s',
       }}
     >
+      <span
+        style={{
+          position: 'absolute',
+          left: 8,
+          top: 12,
+          bottom: 12,
+          width: 3,
+          borderRadius: 2,
+          background: overdue ? palette.red : TODAY_COLOR,
+        }}
+      />
       <div style={{ flex: 1, minWidth: 0, display: 'grid', gap: 4 }}>
         <div
           style={{
@@ -437,111 +362,171 @@ const TodayRow: React.FC<{
           {item.manySnoozes && <Pill tone="orange">多次延后</Pill>}
         </div>
         <div style={{ color: palette.ink, fontSize: 13 }}>
-          <span style={{ color: palette.mute }}>
+          <span style={{ color: palette.orange, marginRight: 6 }}>
+            {mine ? <UserOutlined /> : <BellOutlined />}
+          </span>
+          <span style={{ color: palette.sub }}>
             {mine ? '我定的下一步：' : '系统提醒：'}
           </span>
           {item.nextAction || '—'}
         </div>
         {item.sopHint && (
-          <div style={{ fontSize: 12, color: palette.sub }}>
+          <div style={{ fontSize: 12, color: palette.link }}>
+            <BulbOutlined style={{ marginRight: 6 }} />
             SOP 建议：{item.sopHint}
           </div>
         )}
       </div>
-      <div style={{ textAlign: 'right', minWidth: 72 }}>
+      <div style={{ display: 'grid', gap: 8, justifyItems: 'end' }}>
         <DueText item={item} />
+        <span style={{ display: 'inline-flex', gap: 8 }}>
+          <SnoozeButton item={item} disabled={!canRecord} onDone={onChanged} />
+          <Button
+            type="primary"
+            size="small"
+            disabled={!canRecord}
+            onClick={() => onRecord(item)}
+          >
+            记跟进
+          </Button>
+        </span>
       </div>
-      <SnoozeButton item={item} disabled={!canRecord} onDone={onChanged} />
-      <Button
-        type="primary"
-        size="small"
-        disabled={!canRecord}
-        onClick={() => onRecord(item)}
-      >
-        记跟进
-      </Button>
     </div>
   );
 };
 
+/** 今日待办（K1）：已逾期、今天两段，按客户价值排；超过 8 条折叠 */
 export const TodayList: React.FC<{
   today?: Today;
   canRecord: boolean;
   onRecord: (item: FollowupItem) => void;
   onChanged: () => void;
-}> = ({ today, canRecord, onRecord, onChanged }) => {
+  onBrowse: () => void;
+}> = ({ today, canRecord, onRecord, onChanged, onBrowse }) => {
   const { palette } = useAppTheme();
-  const [tab, setTab] = useState<'overdue' | 'today'>('overdue');
-  useEffect(() => {
-    if (today && today.overdue.length === 0 && today.today.length > 0)
-      setTab('today');
-  }, [today]);
+  const [only, setOnly] = useState<'overdue' | 'today'>();
+  const [all, setAll] = useState(false);
   if (!today)
     return (
-      <Card style={{ padding: 20, marginBottom: 16 }}>
+      <Card style={{ padding: 20 }}>
         <Skeleton active />
       </Card>
     );
-  const list = tab === 'overdue' ? today.overdue : today.today;
   const empty = today.overdue.length === 0 && today.today.length === 0;
+  if (empty)
+    return (
+      <Card style={{ padding: '32px 20px', textAlign: 'center' }}>
+        <CheckCircleOutlined
+          style={{ fontSize: 28, color: palette.green, marginBottom: 8 }}
+        />
+        <div style={{ fontWeight: 600, color: palette.ink }}>
+          今天的跟进都处理完了
+        </div>
+        <div style={{ fontSize: 12, color: palette.sub, margin: '4px 0 12px' }}>
+          明天有 {today.tomorrow} 项，可以先看看本周还有哪些客户该联系
+        </div>
+        <Button onClick={onBrowse}>看各板块的客户</Button>
+      </Card>
+    );
+  const sections = [
+    { key: 'overdue' as const, title: '已逾期', rows: today.overdue },
+    { key: 'today' as const, title: '今天', rows: today.today },
+  ].filter((x) => !only || x.key === only);
+  let budget = all ? Number.POSITIVE_INFINITY : TODAY_FOLD;
+  const shown = sections.map((x) => {
+    const rows = x.rows.slice(0, Math.max(0, budget));
+    budget -= rows.length;
+    return { ...x, rows };
+  });
+  const totalRows = sections.reduce((n, x) => n + x.rows.length, 0);
+  const shownRows = shown.reduce((n, x) => n + x.rows.length, 0);
+  const chip = (
+    key: 'overdue' | 'today' | undefined,
+    label: string,
+    fg: string,
+    bg: string,
+  ) => (
+    <button
+      type="button"
+      key={label}
+      onClick={() => setOnly(key && only === key ? undefined : key)}
+      style={{
+        all: 'unset',
+        cursor: key ? 'pointer' : 'default',
+        padding: '4px 12px',
+        borderRadius: 8,
+        fontSize: 13,
+        fontWeight: key && only === key ? 600 : 400,
+        color: fg,
+        background: bg,
+        outline: key && only === key ? `1px solid ${fg}` : undefined,
+      }}
+    >
+      {label}
+    </button>
+  );
   return (
-    <Card style={{ padding: '16px 20px', marginBottom: 16 }}>
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 12,
-          flexWrap: 'wrap',
-          marginBottom: 8,
-        }}
-      >
-        <b style={{ color: palette.ink, fontSize: 16 }}>今日待办</b>
-        {!empty && (
-          <Segmented
-            value={tab}
-            onChange={(v) => setTab(v as 'overdue' | 'today')}
-            options={[
-              { value: 'overdue', label: `已逾期 ${today.overdue.length}` },
-              { value: 'today', label: `今天 ${today.today.length}` },
-            ]}
-          />
+    <Card style={{ padding: '16px 20px' }}>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        {chip(
+          'overdue',
+          `已逾期 ${today.overdue.length}`,
+          palette.red,
+          palette.redSoft,
         )}
-        <span style={{ fontSize: 12, color: palette.mute }}>
-          本周还有 {today.weekRemaining} 个 · 明天 {today.tomorrow} 个
-        </span>
+        {chip(
+          'today',
+          `今天 ${today.today.length}`,
+          palette.link,
+          palette.accentSoft,
+        )}
+        {chip(
+          undefined,
+          `本周还有 ${today.weekRemaining}`,
+          palette.sub,
+          palette.inset,
+        )}
       </div>
-      {empty ? (
-        <div
-          style={{
-            textAlign: 'center',
-            padding: '24px 0',
-            color: palette.sub,
-          }}
-        >
-          <CheckCircleOutlined
-            style={{ fontSize: 28, color: palette.green, marginBottom: 8 }}
-          />
-          <div style={{ fontWeight: 600, color: palette.ink }}>
-            今天的跟进都处理完了
-          </div>
-          <div style={{ fontSize: 12 }}>
-            明天有 {today.tomorrow} 个，可以先看看下面报价后、PI 后的客户
-          </div>
-        </div>
-      ) : list.length === 0 ? (
+      {shown.map(
+        (x) =>
+          x.rows.length > 0 && (
+            <div key={x.key}>
+              <div
+                style={{
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: x.key === 'overdue' ? palette.red : palette.link,
+                  margin: '16px 0 8px',
+                }}
+              >
+                {x.title}
+              </div>
+              <div style={{ display: 'grid', gap: 10 }}>
+                {x.rows.map((it) => (
+                  <TodayRow
+                    key={it.id}
+                    item={it}
+                    overdue={x.key === 'overdue'}
+                    canRecord={canRecord}
+                    onRecord={onRecord}
+                    onChanged={onChanged}
+                  />
+                ))}
+              </div>
+            </div>
+          ),
+      )}
+      {sections.every((x) => x.rows.length === 0) && (
         <div style={{ padding: '16px 0', color: palette.mute }}>
-          {tab === 'overdue' ? '没有逾期的跟进' : '今天到期的都处理完了'}
+          {only === 'overdue' ? '没有逾期的跟进' : '今天到期的都处理完了'}
         </div>
-      ) : (
-        list.map((it) => (
-          <TodayRow
-            key={it.id}
-            item={it}
-            canRecord={canRecord}
-            onRecord={onRecord}
-            onChanged={onChanged}
-          />
-        ))
+      )}
+      {shownRows < totalRows && (
+        <div style={{ textAlign: 'center', marginTop: 12 }}>
+          <Button type="link" onClick={() => setAll(true)}>
+            还有 {totalRows - shownRows} 项 · 展开
+          </Button>
+        </div>
       )}
     </Card>
   );

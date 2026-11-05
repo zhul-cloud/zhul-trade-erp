@@ -16,6 +16,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
+import java.util.HashSet;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -31,6 +34,9 @@ import java.util.stream.Collectors;
 public class FollowupExtractResultHandler implements AiTaskResultHandler {
 
     private static final Set<String> SITUATIONS = Set.of("feedback", "negotiating", "no_reply");
+    /** AI 可建议的评价状态：这次先不邀请、已邀请、已评价、婉拒、还没评 */
+    private static final Set<Integer> REVIEW_STATUSES = Set.of(FollowupConstants.REVIEW_SKIP, FollowupConstants.REVIEW_INVITED,
+            FollowupConstants.REVIEW_DONE, FollowupConstants.REVIEW_DECLINED, FollowupConstants.REVIEW_NOT_YET);
 
     private final FollowupService followupService;
     private final AiTaskMapper aiTaskMapper;
@@ -63,7 +69,7 @@ public class FollowupExtractResultHandler implements AiTaskResultHandler {
             log.warn("跟进整理结果不是 JSON，已清空：{}", e.getOriginalMessage());
             in = objectMapper.createObjectNode();
         }
-        Set<String> blockers = followupService.blockerVos().stream().map(SopCardVO.Blocker::getCode).collect(Collectors.toSet());
+        Set<String> blockers = followupService.blockerVos(null).stream().map(SopCardVO.Blocker::getCode).collect(Collectors.toSet());
         ObjectNode out = objectMapper.createObjectNode();
         String summary = in.path("summary").asText("");
         out.put("summary", summary.length() > 1000 ? summary.substring(0, 1000) : summary);
@@ -100,7 +106,37 @@ public class FollowupExtractResultHandler implements AiTaskResultHandler {
                 x.put("evidence", s.path("evidence").asText(""));
             }
         }
+        // 订单履约、售后评价阶段的答案建议（编排服务已按阶段过滤）：只保留合法取值，原样透传
+        putRange(out, in, "receiptAnswer", 1, 3);
+        putRange(out, in, "useAnswer", 1, 3);
+        putRange(out, in, "satisfaction", 1, 3);
+        int review = in.path("reviewStatus").asInt(-1);
+        if (in.path("reviewStatus").canConvertToInt() && REVIEW_STATUSES.contains(review)) {
+            out.put("reviewStatus", review);
+        }
+        ArrayNode issues = out.putArray("issueTypes");
+        Set<String> seen = new HashSet<>(4);
+        for (JsonNode x : in.path("issueTypes")) {
+            if (FollowupConstants.ISSUE_TYPES.contains(x.asText()) && seen.add(x.asText())) {
+                issues.add(x.asText());
+            }
+        }
+        String eta = in.path("etaDate").asText("");
+        if (!eta.isEmpty()) {
+            try {
+                out.put("etaDate", LocalDate.parse(eta).toString());
+            } catch (DateTimeParseException e) {
+                log.warn("跟进整理结果的预计送达不是日期，已忽略：{}", eta);
+            }
+        }
         out.put("truncated", in.path("truncated").asBoolean(false));
         return out.toString();
+    }
+
+    private static void putRange(ObjectNode out, JsonNode in, String field, int min, int max) {
+        JsonNode v = in.path(field);
+        if (v.canConvertToInt() && v.asInt() >= min && v.asInt() <= max) {
+            out.put(field, v.asInt());
+        }
     }
 }

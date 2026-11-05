@@ -14,6 +14,8 @@ public class CustomerFollowupVO {
     private FollowupItemVO current;
     /** 五个板块里，这位客户走到第几步（1–5），0 为还没进入 */
     private Integer step;
+    /** 这位客户有在跟进对象的板块（第二期：链路卡片上逐个标出），按板块顺序 */
+    private List<Integer> boards = new ArrayList<>();
     private LocalDateTime lastContactAt;
     private String lastChannelName;
     private Integer recent30;

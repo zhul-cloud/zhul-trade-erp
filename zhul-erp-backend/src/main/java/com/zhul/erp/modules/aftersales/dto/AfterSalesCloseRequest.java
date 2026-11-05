@@ -12,4 +12,7 @@ public class AfterSalesCloseRequest {
     @NotBlank(message = "请填写处理结果")
     @Size(max = 1000, message = "处理结果不能超过 1000 字")
     private String result;
+    /** 案例沉淀：选填，这次问题的经验和以后怎么避免 */
+    @Size(max = 500, message = "案例沉淀不能超过 500 字")
+    private String caseNote;
 }

@@ -82,6 +82,7 @@ public class FollowupSync {
     private final PiItemMapper piItemMapper;
     private final FollowupSettings settings;
     private final ObjectMapper objectMapper;
+    private final OrderFollowupSync orderSync;
 
     // ---------------------------------------------------------------- 单据事件入口（不影响原单据）
 
@@ -113,10 +114,18 @@ public class FollowupSync {
 
     /** 写一条系统事件（创建询盘、发送报价、发送 PI、收款到账、自动赢单） */
     public void writeSystemRecord(Long customerId, int targetType, Long targetId, String title) {
-        FollowupItemDO item = targetId == null ? null : itemMapper.selectOne(new LambdaQueryWrapper<FollowupItemDO>()
-                .eq(FollowupItemDO::getTargetType, targetType)
-                .eq(FollowupItemDO::getTargetId, targetId)
-                .isNull(FollowupItemDO::getDeletedAt));
+        writeSystemRecord(customerId, targetType, targetId, title, null);
+    }
+
+    /** @param content 附带的正文（如售后结案的案例沉淀），在时间线节点下显示；null 表示没有 */
+    public void writeSystemRecord(Long customerId, int targetType, Long targetId, String title, String content) {
+        // 同一张销售订单在订单履约、售后评价各有一行：取进行中的，都结束了取最新的
+        FollowupItemDO item = targetId == null ? null : itemMapper.selectList(new LambdaQueryWrapper<FollowupItemDO>()
+                        .eq(FollowupItemDO::getTargetType, targetType)
+                        .eq(FollowupItemDO::getTargetId, targetId)
+                        .isNull(FollowupItemDO::getDeletedAt)).stream()
+                .max(Comparator.comparing((FollowupItemDO r) -> r.getClosedAt() == null).thenComparing(FollowupItemDO::getId))
+                .orElse(null);
         CustomerFollowupDO r = new CustomerFollowupDO();
         r.setTenantId(TenantContext.getTenantId());
         r.setRecordType(FollowupConstants.RECORD_SYSTEM);
@@ -136,6 +145,9 @@ public class FollowupSync {
         r.setStageBefore(stage);
         r.setStageAfter(stage);
         r.setOperatorId(0L);
+        if (content != null && !content.isBlank()) {
+            r.setRawContent(content);
+        }
         recordMapper.insert(r);
     }
 
@@ -257,7 +269,11 @@ public class FollowupSync {
                 changes++;
             }
             snapshot(row, t, opp);
-            row.setStageCode(stageOf(t, row, opp, stages));
+            String stage = stageOf(t, row, opp, stages);
+            if (!stage.equals(row.getStageCode()) || row.getStageSince() == null) {
+                row.setStageSince(LocalDateTime.now());
+            }
+            row.setStageCode(stage);
             refreshCadence(row, today, params, actions);
             if (fresh) {
                 itemMapper.insert(row);
@@ -281,6 +297,8 @@ public class FollowupSync {
                 changes++;
             }
         }
+        // 订单履约、售后评价（第二期）
+        changes += orderSync.resync(customerId, today);
         return changes;
     }
 

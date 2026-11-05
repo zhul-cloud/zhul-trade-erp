@@ -204,7 +204,12 @@ const RecordRow: React.FC<{ r: FollowupRecord; last: boolean }> = ({
             {r.profileFields.map((f) => `${f.label} ${f.value}`).join('；')}
           </div>
         )}
-        {r.rawContent && (
+        {!user && r.rawContent && (
+          <div style={{ marginTop: 4, color: palette.sub, fontSize: 13 }}>
+            {r.rawContent}
+          </div>
+        )}
+        {user && r.rawContent && (
           <div style={{ marginTop: 6 }}>
             <Button
               type="link"
@@ -569,19 +574,21 @@ const SideCard: React.FC<{ title: string; children: React.ReactNode }> = ({
   );
 };
 
-/** 右栏「这位客户的跟进链路」：五个板块第几步、当前进度 */
+/** 右栏「这位客户的跟进链路」：五个板块第几步；同时在多个板块（如一张订单履约、一张售后）时逐个标出 */
 export const FollowupChainCard: React.FC<{ data?: CustomerFollowup }> = ({
   data,
 }) => {
   const { palette } = useAppTheme();
   const step = data?.step ?? 0;
   const cur = data?.current;
+  const inBoards = data?.boards?.length ? data.boards : step ? [step] : [];
+  const first = inBoards.length ? Math.min(...inBoards) : 0;
   return (
     <SideCard title="这位客户的跟进链路">
       {BOARDS.map((name, i) => {
         const n = i + 1;
-        const active = n === step;
-        const done = step > 0 && n < step;
+        const active = inBoards.includes(n);
+        const done = first > 0 && n < first;
         return (
           <div key={name} style={{ display: 'flex', gap: 10 }}>
             <span
@@ -614,9 +621,10 @@ export const FollowupChainCard: React.FC<{ data?: CustomerFollowup }> = ({
               >
                 第 {n} 步 · {name}
               </div>
-              {active && cur && (
+              {active && (
                 <div style={{ fontSize: 12, color: palette.link }}>
-                  进行中 · {cur.stageCode} {cur.stageName}
+                  进行中
+                  {cur?.board === n && ` · ${cur.stageCode} ${cur.stageName}`}
                 </div>
               )}
               {done && (
@@ -636,17 +644,18 @@ export const SopStageCard: React.FC<{ data?: CustomerFollowup }> = ({
 }) => {
   const { palette } = useAppTheme();
   const stage = data?.current?.stageCode;
+  const board = data?.current?.board;
   const [sop, setSop] = useState<SopCard>();
   const [checked, setChecked] = useState<number[]>([]);
   useEffect(() => {
     setSop(undefined);
     setChecked([]);
-    if (!stage) return;
+    if (!stage || !board) return;
     followupApi
-      .sop(stage)
+      .sop(board, stage)
       .then(setSop)
       .catch(() => setSop(undefined));
-  }, [stage]);
+  }, [board, stage]);
   if (!stage || !sop || sop.checklist.length === 0) return null;
   return (
     <SideCard title="SOP 本阶段要拿到">

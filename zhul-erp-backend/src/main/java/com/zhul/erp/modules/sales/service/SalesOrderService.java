@@ -28,6 +28,9 @@ public interface SalesOrderService {
     /** 客户已收货：订单置为已完成 */
     SalesOrderVO complete(Long id);
 
+    /** 跟进记录确认客户已收货：条件不满足返回 false，不抛异常；订单已完成返回 true */
+    boolean confirmReceivedByFollowup(Long id);
+
     com.zhul.erp.modules.sales.dto.SalesOrderStatsVO stats();
 
     /** 新建销售订单「按 PI 创建」的候选 PI */

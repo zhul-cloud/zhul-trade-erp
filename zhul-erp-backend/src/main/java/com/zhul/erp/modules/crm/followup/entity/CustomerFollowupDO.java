@@ -36,6 +36,15 @@ public class CustomerFollowupDO {
     private String stageBefore;
     private String stageAfter;
     private LocalDate expectedPayDate;
+    private Integer noticeMask;
+    private LocalDate etaDate;
+    private Integer receiptAnswer;
+    private Integer useAnswer;
+    private String issueTypes;
+    private Integer satisfaction;
+    private String dissatisfiedReason;
+    private Integer reviewStatus;
+    private String reviewPlatform;
     /** 写入档案的字段，JSON 数组：field、label、value */
     private String profileFields;
     private Long operatorId;

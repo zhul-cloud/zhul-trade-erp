@@ -28,6 +28,7 @@ public class SopStageDO {
     /** JSON 对象：提醒节点 → 默认动作 */
     private String defaultActions;
     private String exampleDialog;
+    private Integer refDays;
     private Integer sortOrder;
     private Integer status;
     @TableField(fill = FieldFill.INSERT)

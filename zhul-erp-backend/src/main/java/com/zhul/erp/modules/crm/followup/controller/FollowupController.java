@@ -1,22 +1,26 @@
 package com.zhul.erp.modules.crm.followup.controller;
 
 import com.zhul.erp.common.result.Result;
+import com.zhul.erp.modules.crm.followup.constants.FollowupConstants;
 import com.zhul.erp.modules.crm.followup.dto.CustomerFollowupVO;
+import com.zhul.erp.modules.crm.followup.dto.ExtractRequest;
+import com.zhul.erp.modules.crm.followup.dto.ExtractResultVO;
 import com.zhul.erp.modules.crm.followup.dto.FollowupListVO;
 import com.zhul.erp.modules.crm.followup.dto.FollowupOverviewVO;
 import com.zhul.erp.modules.crm.followup.dto.FollowupQuery;
+import com.zhul.erp.modules.crm.followup.dto.FollowupTeamVO;
 import com.zhul.erp.modules.crm.followup.dto.FollowupTodayVO;
 import com.zhul.erp.modules.crm.followup.dto.NurtureRequest;
+import com.zhul.erp.modules.crm.followup.dto.OrderPartsVO;
 import com.zhul.erp.modules.crm.followup.dto.RecordFollowupRequest;
 import com.zhul.erp.modules.crm.followup.dto.RecordResultVO;
-import com.zhul.erp.modules.crm.followup.dto.SnoozeRequest;
-import com.zhul.erp.modules.crm.followup.dto.SopCardVO;
-import com.zhul.erp.modules.crm.followup.dto.ExtractRequest;
-import com.zhul.erp.modules.crm.followup.dto.ExtractResultVO;
 import com.zhul.erp.modules.crm.followup.dto.ReplyDraftRequest;
 import com.zhul.erp.modules.crm.followup.dto.ReplyDraftVO;
+import com.zhul.erp.modules.crm.followup.dto.SnoozeRequest;
+import com.zhul.erp.modules.crm.followup.dto.SopCardVO;
 import com.zhul.erp.modules.crm.followup.service.FollowupAiService;
 import com.zhul.erp.modules.crm.followup.service.FollowupService;
+import com.zhul.erp.modules.crm.followup.service.FollowupTeamService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -44,11 +48,23 @@ public class FollowupController {
 
     private final FollowupService followupService;
     private final FollowupAiService followupAiService;
+    private final FollowupTeamService followupTeamService;
 
     @GetMapping("/overview")
     @PreAuthorize(VIEW)
     public Result<FollowupOverviewVO> overview(@RequestParam(required = false) String ownerScope) {
         return Result.ok(followupService.overview(ownerScope));
+    }
+
+    /**
+     * 团队视图（第二期 design D10）：period 为 week / last-week / month，deptId 可选，exceptions=all 返回全部异常条目。
+     * 需要「查看团队」权限，没有时返回 403。
+     */
+    @GetMapping("/team")
+    @PreAuthorize(VIEW + " and @perm.has('crm:followup:team')")
+    public Result<FollowupTeamVO> team(@RequestParam(required = false) String period, @RequestParam(required = false) Integer deptId,
+                                       @RequestParam(required = false) String exceptions) {
+        return Result.ok(followupTeamService.team(period, deptId, exceptions));
     }
 
     @GetMapping("/today")
@@ -61,6 +77,13 @@ public class FollowupController {
     @PreAuthorize(VIEW)
     public Result<FollowupListVO> items(FollowupQuery query) {
         return Result.ok(followupService.items(query));
+    }
+
+    /** 订单履约行展开：分部分进度 */
+    @GetMapping("/items/{id}/parts")
+    @PreAuthorize(VIEW)
+    public Result<OrderPartsVO> parts(@PathVariable Long id) {
+        return Result.ok(followupService.parts(id));
     }
 
     @PostMapping("/items/{id}/snooze")
@@ -95,9 +118,10 @@ public class FollowupController {
         return Result.ok(followupService.sop(board, stage));
     }
 
+    /** 卡点字典；board 不传为商机成交 */
     @GetMapping("/sop/blockers")
-    public Result<List<SopCardVO.Blocker>> blockers() {
-        return Result.ok(followupService.blockerVos());
+    public Result<List<SopCardVO.Blocker>> blockers(@RequestParam(required = false) Integer board) {
+        return Result.ok(followupService.blockerVos(board == null ? FollowupConstants.BOARD_SALES : board));
     }
 
     @GetMapping("/customers/{customerId}/records")

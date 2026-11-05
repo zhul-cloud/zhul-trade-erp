@@ -11,6 +11,9 @@ import com.zhul.erp.framework.security.DataScope;
 import com.zhul.erp.framework.security.DataScopeResolver;
 import com.zhul.erp.framework.security.PermissionChecker;
 import com.zhul.erp.framework.tenant.TenantContext;
+import com.zhul.erp.modules.aftersales.constants.AfterSalesConstants;
+import com.zhul.erp.modules.aftersales.entity.AfterSalesDO;
+import com.zhul.erp.modules.aftersales.repository.AfterSalesMapper;
 import com.zhul.erp.modules.crm.followup.constants.FollowupConstants;
 import com.zhul.erp.modules.crm.followup.dto.CustomerFollowupVO;
 import com.zhul.erp.modules.crm.followup.dto.FollowupItemVO;
@@ -20,6 +23,7 @@ import com.zhul.erp.modules.crm.followup.dto.FollowupQuery;
 import com.zhul.erp.modules.crm.followup.dto.FollowupRecordVO;
 import com.zhul.erp.modules.crm.followup.dto.FollowupTodayVO;
 import com.zhul.erp.modules.crm.followup.dto.NurtureRequest;
+import com.zhul.erp.modules.crm.followup.dto.OrderPartsVO;
 import com.zhul.erp.modules.crm.followup.dto.RecordFollowupRequest;
 import com.zhul.erp.modules.crm.followup.dto.RecordResultVO;
 import com.zhul.erp.modules.crm.followup.dto.SopCardVO;
@@ -35,6 +39,10 @@ import com.zhul.erp.modules.crm.followup.repository.SopStageMapper;
 import com.zhul.erp.modules.crm.followup.support.Cadence;
 import com.zhul.erp.modules.crm.followup.support.FollowupSettings;
 import com.zhul.erp.modules.crm.followup.support.FollowupSync;
+import com.zhul.erp.modules.crm.followup.support.FulfilDeriver;
+import com.zhul.erp.modules.crm.followup.support.OrderFacts;
+import com.zhul.erp.modules.crm.followup.support.OrderFollowupSync;
+import com.zhul.erp.modules.crm.followup.support.OrderStageRecorder;
 import com.zhul.erp.modules.crm.service.OpportunityService;
 import com.zhul.erp.modules.crm.support.OpportunityStageRules;
 import com.zhul.erp.modules.inquiry.support.CurrentUserResolver;
@@ -95,6 +103,7 @@ public class FollowupService {
     private final CustomerFollowupMapper recordMapper;
     private final SopStageMapper sopStageMapper;
     private final SopBlockerMapper sopBlockerMapper;
+    private final AfterSalesMapper afterSalesMapper;
     private final CustomerMapper customerMapper;
     private final QuotationMapper quotationMapper;
     private final ProformaInvoiceMapper piMapper;
@@ -104,6 +113,8 @@ public class FollowupService {
     private final OpportunityService opportunityService;
     private final OpportunityStageRules stageRules;
     private final FollowupSync sync;
+    private final OrderStageRecorder orderStageRecorder;
+    private final OrderFollowupSync orderSync;
     private final FollowupSettings settings;
     private final DataScopeResolver dataScopeResolver;
     private final PermissionChecker perm;
@@ -120,40 +131,70 @@ public class FollowupService {
                 : itemMapper.selectList(new LambdaQueryWrapper<FollowupItemDO>()
                 .select(FollowupItemDO::getId, FollowupItemDO::getCustomerId, FollowupItemDO::getBoard,
                         FollowupItemDO::getStageGroup, FollowupItemDO::getStageCode, FollowupItemDO::getNextActionDate,
-                        FollowupItemDO::getNurtureUntil)
+                        FollowupItemDO::getNurtureUntil, FollowupItemDO::getNextActionSource, FollowupItemDO::getExceptionFlags)
                 .isNull(FollowupItemDO::getClosedAt)
                 .isNull(FollowupItemDO::getDeletedAt)
                 .in(owners != null, FollowupItemDO::getOwnerId, owners));
         FollowupOverviewVO vo = new FollowupOverviewVO();
         List<FollowupItemDO> active = rows.stream().filter(r -> r.getNurtureUntil() == null).toList();
-        vo.setTodayOverdue((int) active.stream().filter(r -> due(r) && r.getNextActionDate().isBefore(today)).count());
-        vo.setTodayDue((int) active.stream().filter(r -> today.equals(r.getNextActionDate())).count());
+        // 今日待办不含下一步跟着售后单走的（A3、A4）
+        List<FollowupItemDO> todo = active.stream().filter(r -> nz(r.getNextActionSource()) != FollowupConstants.NEXT_AFTER_SALES).toList();
+        vo.setTodayOverdue((int) todo.stream().filter(r -> due(r) && r.getNextActionDate().isBefore(today)).count());
+        vo.setTodayDue((int) todo.stream().filter(r -> today.equals(r.getNextActionDate())).count());
+        Map<String, String> orderStages = orderStageNames();
         for (int b = 1; b <= FollowupConstants.BOARD_NAMES.size(); b++) {
             int board = b;
             FollowupOverviewVO.Board card = new FollowupOverviewVO.Board();
             card.setBoard(board);
             card.setStep(board);
             card.setName(FollowupConstants.BOARD_NAMES.get(board - 1));
-            card.setAvailable(board == FollowupConstants.BOARD_SALES);
+            card.setAvailable(board == FollowupConstants.BOARD_SALES || board == FollowupConstants.BOARD_FULFIL
+                    || board == FollowupConstants.BOARD_AFTER_SALES);
             List<FollowupItemDO> in = active.stream().filter(r -> r.getBoard() == board).toList();
             card.setCustomers((int) in.stream().map(FollowupItemDO::getCustomerId).distinct().count());
             card.setTotal(in.size());
             card.setOverdue((int) in.stream().filter(r -> due(r) && r.getNextActionDate().isBefore(today)).count());
             card.setNurture((int) rows.stream().filter(r -> r.getBoard() == board && r.getNurtureUntil() != null).count());
             if (board == FollowupConstants.BOARD_SALES) {
-                card.setGroups(salesGroups(in, stages));
+                card.setGroups(groups(in, SALES_GROUPS, stages::nameOf));
+            } else if (board == FollowupConstants.BOARD_FULFIL) {
+                card.setGroups(groups(in, FULFIL_GROUPS, c -> orderStages.getOrDefault(c, c)));
+                card.setExceptions((int) in.stream().filter(r -> nz(r.getExceptionFlags()) > 0).count());
+            } else if (board == FollowupConstants.BOARD_AFTER_SALES) {
+                card.setGroups(groups(in, AFTER_SALES_GROUPS, c -> orderStages.getOrDefault(c, c)));
             }
             vo.getBoards().add(card);
         }
         return vo;
     }
 
-    private static List<FollowupOverviewVO.Group> salesGroups(List<FollowupItemDO> in, OpportunityStageRules.Stages stages) {
-        Map<Integer, List<String>> byGroup = new LinkedHashMap<>(4);
-        byGroup.put(FollowupConstants.GROUP_BEFORE_QUOTE, List.of("S1", "S2", "S3"));
-        byGroup.put(FollowupConstants.GROUP_AFTER_QUOTE, List.of(FollowupConstants.S4, FollowupConstants.S5, FollowupConstants.S6));
-        byGroup.put(FollowupConstants.GROUP_AFTER_PI, List.of(FollowupConstants.S7));
-        List<FollowupOverviewVO.Group> out = new ArrayList<>(3);
+    private static final Map<Integer, List<String>> SALES_GROUPS = orderedGroups(
+            FollowupConstants.GROUP_BEFORE_QUOTE, List.of("S1", "S2", "S3"),
+            FollowupConstants.GROUP_AFTER_QUOTE, List.of(FollowupConstants.S4, FollowupConstants.S5, FollowupConstants.S6),
+            FollowupConstants.GROUP_AFTER_PI, List.of(FollowupConstants.S7));
+    /** 订单履约：采购中（F1–F3）、验收发货（F4–F5）、在途（F6） */
+    private static final Map<Integer, List<String>> FULFIL_GROUPS = orderedGroups(
+            FollowupConstants.GROUP_PURCHASING, List.of("F1", "F2", "F3"),
+            FollowupConstants.GROUP_SHIPPING, List.of("F4", "F5"),
+            FollowupConstants.GROUP_IN_TRANSIT, List.of("F6"));
+    /** 售后评价：签收（A1）、使用（A2）、问题（A3–A4）、满意评价（A5–A6） */
+    private static final Map<Integer, List<String>> AFTER_SALES_GROUPS = orderedGroups(
+            FollowupConstants.GROUP_SIGN, List.of("A1"), FollowupConstants.GROUP_USE, List.of("A2"),
+            FollowupConstants.GROUP_ISSUE, List.of("A3", "A4"), FollowupConstants.GROUP_REVIEW, List.of("A5", "A6"));
+
+    private static Map<Integer, List<String>> orderedGroups(Object... kv) {
+        Map<Integer, List<String>> out = new LinkedHashMap<>(8);
+        for (int i = 0; i < kv.length; i += 2) {
+            @SuppressWarnings("unchecked")
+            List<String> codes = (List<String>) kv[i + 1];
+            out.put((Integer) kv[i], codes);
+        }
+        return out;
+    }
+
+    private static List<FollowupOverviewVO.Group> groups(List<FollowupItemDO> in, Map<Integer, List<String>> byGroup,
+                                                         Function<String, String> nameOf) {
+        List<FollowupOverviewVO.Group> out = new ArrayList<>(byGroup.size());
         for (Map.Entry<Integer, List<String>> e : byGroup.entrySet()) {
             FollowupOverviewVO.Group g = new FollowupOverviewVO.Group();
             g.setGroup(e.getKey());
@@ -162,7 +203,7 @@ public class FollowupService {
             for (String code : e.getValue()) {
                 FollowupOverviewVO.Stage s = new FollowupOverviewVO.Stage();
                 s.setCode(code);
-                s.setName(stages.nameOf(code));
+                s.setName(nameOf.apply(code));
                 s.setCount((int) in.stream().filter(r -> Objects.equals(r.getStageGroup(), e.getKey())
                         && code.equals(r.getStageCode())).count());
                 g.getStages().add(s);
@@ -193,6 +234,7 @@ public class FollowupService {
             f.setStage(StringUtils.hasText(q.getStage()) ? q.getStage() : null);
         }
         f.setBlocker(StringUtils.hasText(q.getBlocker()) ? q.getBlocker() : null);
+        f.setExceptionOnly(Boolean.TRUE.equals(q.getException()) && f.getBoard() == FollowupConstants.BOARD_FULFIL);
         // LIKE 的通配符按普通字符查
         f.setKeyword(StringUtils.hasText(q.getKeyword())
                 ? q.getKeyword().trim().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") : null);
@@ -212,6 +254,75 @@ public class FollowupService {
         return vo;
     }
 
+    // ---------------------------------------------------------------- 订单履约分部分进度
+
+    /** 订单履约行展开：按采购单分部分的进度、已告诉客户的节点、每批出运的预计送达（第二期 tasks 5.5） */
+    public OrderPartsVO parts(Long id) {
+        FollowupItemDO item = requireOpen(id);
+        if (!Objects.equals(item.getBoard(), FollowupConstants.BOARD_FULFIL)) {
+            throw new BizException("只有订单履约可以查看分部分进度");
+        }
+        OrderFacts f = orderSync.facts(item.getTargetId());
+        OrderPartsVO vo = new OrderPartsVO();
+        if (f == null) {
+            return vo;
+        }
+        LocalDate today = LocalDate.now();
+        Map<String, String> names = orderStageNames();
+        Map<String, Map<String, String>> actions = orderSync.defaultActions();
+        for (FulfilDeriver.Part p : FulfilDeriver.parts(f, today)) {
+            OrderPartsVO.Part v = new OrderPartsVO.Part();
+            v.setLabel(p.label());
+            v.setGoods(p.goods());
+            v.setPoId(p.poId());
+            v.setPoNo(p.poNo());
+            v.setSupplier(p.supplier());
+            v.setStageCode(p.stage());
+            v.setStageName(names.getOrDefault(p.stage(), p.stage()));
+            v.setExpectedShipDate(p.expectedShipDate());
+            v.setArrival(p.arrival());
+            v.setSituation(p.situation());
+            v.setTell(actions.getOrDefault(p.stage(), Map.of()).getOrDefault("default", ""));
+            vo.getParts().add(v);
+        }
+        for (CustomerFollowupDO r : recordMapper.selectList(new LambdaQueryWrapper<CustomerFollowupDO>()
+                .select(CustomerFollowupDO::getId, CustomerFollowupDO::getCreateTime, CustomerFollowupDO::getNoticeMask,
+                        CustomerFollowupDO::getAiSummary, CustomerFollowupDO::getNextAction, CustomerFollowupDO::getChannel)
+                .eq(CustomerFollowupDO::getCustomerId, item.getCustomerId())
+                .eq(CustomerFollowupDO::getTargetType, FollowupConstants.TARGET_ORDER)
+                .eq(CustomerFollowupDO::getTargetId, item.getTargetId())
+                .eq(CustomerFollowupDO::getRecordType, FollowupConstants.RECORD_USER)
+                .isNull(CustomerFollowupDO::getDeletedAt)
+                .orderByDesc(CustomerFollowupDO::getId))) {
+            int mask = nz(r.getNoticeMask());
+            String node = FollowupConstants.NOTICE_TOLD_NAMES.entrySet().stream().filter(e -> (mask & e.getKey()) != 0)
+                    .sorted(Map.Entry.comparingByKey()).map(Map.Entry::getValue).collect(Collectors.joining("、"));
+            if (node.isEmpty()) {
+                continue;
+            }
+            OrderPartsVO.Told t = new OrderPartsVO.Told();
+            t.setDate(r.getCreateTime());
+            t.setNode(node);
+            t.setContent(StringUtils.hasText(r.getAiSummary()) ? r.getAiSummary() : "");
+            t.setChannelName(FollowupConstants.CHANNEL_NAMES.getOrDefault(nz(r.getChannel()), ""));
+            vo.getTold().add(t);
+        }
+        FollowupSettings.OrderParams p = settings.orderParams(TenantContext.getTenantId());
+        f.shipments().stream().filter(s -> s.shippedDate() != null)
+                .sorted(Comparator.comparing(OrderFacts.Shipment::shippedDate).thenComparing(OrderFacts.Shipment::id))
+                .forEach(s -> {
+                    OrderPartsVO.Batch b = new OrderPartsVO.Batch();
+                    b.setShipmentId(s.id());
+                    b.setShNo(s.shNo());
+                    b.setCarrier(s.carrier());
+                    b.setWaybillNo(s.waybillNo());
+                    b.setShippedDate(s.shippedDate());
+                    b.setEtaDate(s.shippedDate().plusDays(p.transitDays(s.carrier())));
+                    vo.getBatches().add(b);
+                });
+        return vo;
+    }
+
     // ---------------------------------------------------------------- 今日待办
 
     public FollowupTodayVO today(String ownerScope) {
@@ -226,6 +337,7 @@ public class FollowupService {
         boolean team = !isMe(ownerScope);
         FollowupItemFilter f = filter(owners, today);
         f.setNurture(false);
+        f.setExcludeAfterSalesNext(true);
         f.setOffset(0);
         f.setSize(TODAY_LIMIT);
         f.setDueTo(today.minusDays(1));
@@ -323,10 +435,6 @@ public class FollowupService {
         if (req.getNextActionDate() == null || req.getNextActionDate().isBefore(today)) {
             throw new BizException("下一步日期不能早于今天");
         }
-        String blocker = req.getBlockerCode() == null ? "" : req.getBlockerCode().trim();
-        if (!blocker.isEmpty() && !blockers().containsKey(blocker)) {
-            throw new BizException("卡点不存在，请重新选择");
-        }
         int channel = req.getChannel() == null ? 0 : req.getChannel();
         if (channel != 0 && !FollowupConstants.CHANNEL_NAMES.containsKey(channel)) {
             throw new BizException("跟进方式不正确");
@@ -335,6 +443,12 @@ public class FollowupService {
                 & (FollowupConstants.SITUATION_FEEDBACK | FollowupConstants.SITUATION_NEGOTIATING
                 | FollowupConstants.SITUATION_NO_REPLY);
         FollowupItemDO item = resolveItem(customer.getId(), req.getItemId());
+        String blocker = req.getBlockerCode() == null ? "" : req.getBlockerCode().trim();
+        if (!blocker.isEmpty() && !blockers(item == null ? FollowupConstants.BOARD_SALES : item.getBoard()).containsKey(blocker)) {
+            throw new BizException("卡点不存在，请重新选择");
+        }
+        OrderStageRecorder.validate(req, item, today);
+        boolean orderStage = OrderStageRecorder.handles(item);
         Long me = currentUser.resolve();
 
         // 1. 跟进记录
@@ -362,6 +476,7 @@ public class FollowupService {
         r.setExpectedPayDate(pi ? req.getExpectedPayDate() : null);
         r.setOperatorId(me == null ? 0L : me);
         r.setIdempotencyKey(req.getIdempotencyKey().trim());
+        OrderStageRecorder.fill(r, req);
         try {
             recordMapper.insert(r);
         } catch (DuplicateKeyException e) {
@@ -375,6 +490,8 @@ public class FollowupService {
 
         boolean advanced = false;
         String after = before;
+        Boolean orderCompleted = null;
+        boolean ended = false;
         if (item != null) {
             // 2. 跟进对象：卡点、下一步、上次跟进；当前待办随之关闭（下一步日期换成业务员定的）
             item.setBlockerCode(blocker);
@@ -394,6 +511,9 @@ public class FollowupService {
             if (pi && req.getExpectedPayDate() != null) {
                 item.setExpectedPayDate(req.getExpectedPayDate());
             }
+            if (orderStage && OrderStageRecorder.applyToItem(item, req, today) && !replied) {
+                item.setNoReplyStreak(nz(item.getNoReplyStreak()) + 1);
+            }
             // 3. 阶段：报价后勾「给了反馈」→ S5，「在谈条件」→ S6，只进不退
             String target = (situation & FollowupConstants.SITUATION_NEGOTIATING) != 0 ? FollowupConstants.S6
                     : (situation & FollowupConstants.SITUATION_FEEDBACK) != 0 ? FollowupConstants.S5 : null;
@@ -408,6 +528,28 @@ public class FollowupService {
                 }
             }
             itemMapper.updateById(item);
+            if (orderStage) {
+                // 订单履约、售后评价：阶段由单据和答案重新推导（进入 A2、A5、A6 或售后结束）
+                orderCompleted = orderStageRecorder.afterSave(item, req, today);
+                FollowupItemDO fresh = itemMapper.selectById(item.getId());
+                after = fresh == null ? before : fresh.getStageCode();
+                boolean closed = fresh != null && fresh.getClosedAt() != null;
+                if (closed && Objects.equals(item.getBoard(), FollowupConstants.BOARD_FULFIL)) {
+                    // 履约行关闭是转入售后评价（如改预计送达到今天），不是售后结束：阶段记为新的售后行
+                    FollowupItemDO next = itemMapper.selectOne(new LambdaQueryWrapper<FollowupItemDO>()
+                            .select(FollowupItemDO::getStageCode)
+                            .eq(FollowupItemDO::getBoard, FollowupConstants.BOARD_AFTER_SALES)
+                            .eq(FollowupItemDO::getTargetId, item.getTargetId())
+                            .isNull(FollowupItemDO::getClosedAt)
+                            .isNull(FollowupItemDO::getDeletedAt)
+                            .last("LIMIT 1"));
+                    if (next != null) {
+                        after = next.getStageCode();
+                    }
+                } else {
+                    ended = closed;
+                }
+            }
             if (target != null && hasOpportunity && Objects.equals(item.getStageGroup(), FollowupConstants.GROUP_AFTER_QUOTE)) {
                 advanced = opportunityService.autoAdvance(customer.getId(), target, FollowupConstants.S4,
                         "记跟进，自动推进") != null;
@@ -431,6 +573,8 @@ public class FollowupService {
         vo.setStageBefore(before);
         vo.setStageAfter(after);
         vo.setOpportunityAdvanced(advanced);
+        vo.setOrderCompleted(orderCompleted);
+        vo.setEnded(ended);
         vo.setDuplicate(false);
         log.info("记一次跟进，customerId={}, itemId={}, recordId={}, stage={}→{}", customer.getId(),
                 item == null ? null : item.getId(), r.getId(), before, after);
@@ -509,12 +653,15 @@ public class FollowupService {
         vo.setGateText(s.getGateText());
         vo.setAutoHint(s.getAutoHint());
         vo.setExampleDialog(s.getExampleDialog());
-        vo.setBlockers(blockerVos());
+        vo.setBlockers(blockerVos(board));
         return vo;
     }
 
-    public List<SopCardVO.Blocker> blockerVos() {
-        return blockers().values().stream().map(b -> {
+    /** 商机成交的卡点字典（输单原因、记跟进的卡点选项） */
+    /** 某个板块的卡点（履约异常、售后问题的应对办法也在这里） */
+    /** @param board null 时取全部板块 */
+    public List<SopCardVO.Blocker> blockerVos(Integer board) {
+        return blockers(board).values().stream().map(b -> {
             SopCardVO.Blocker x = new SopCardVO.Blocker();
             x.setCode(b.getCode());
             x.setName(b.getName());
@@ -524,9 +671,15 @@ public class FollowupService {
         }).toList();
     }
 
-    /** 卡点字典：编码 → 卡点（租户自己的覆盖平台的），按排序 */
+    /** 商机成交的卡点字典：编码 → 卡点（租户自己的覆盖平台的），按排序 */
     private Map<String, SopBlockerDO> blockers() {
+        return blockers(FollowupConstants.BOARD_SALES);
+    }
+
+    /** board 为 null 时取全部板块（翻译记录、列表上的卡点名称用） */
+    private Map<String, SopBlockerDO> blockers(Integer board) {
         List<SopBlockerDO> rows = sopBlockerMapper.selectList(new LambdaQueryWrapper<SopBlockerDO>()
+                .eq(board != null, SopBlockerDO::getBoard, board)
                 .eq(SopBlockerDO::getStatus, 1));
         Map<String, SopBlockerDO> byCode = new HashMap<>(16);
         rows.stream().sorted(Comparator.comparing(SopBlockerDO::getTenantId)).forEach(b -> byCode.put(b.getCode(), b));
@@ -584,7 +737,8 @@ public class FollowupService {
         } else {
             vo.setNoReplyStreak(0);
         }
-        vo.setStep(open.isEmpty() ? 0 : FollowupConstants.BOARD_SALES);
+        vo.setStep(open.isEmpty() ? 0 : open.get(0).getBoard());
+        vo.setBoards(open.stream().map(FollowupItemDO::getBoard).distinct().sorted().toList());
         vo.setQuoteCount((int) open.stream().filter(i -> i.getTargetType() == FollowupConstants.TARGET_QUOTATION).count());
         vo.setPiCount((int) open.stream().filter(i -> i.getTargetType() == FollowupConstants.TARGET_PI).count());
         Map<String, BigDecimal> amounts = new TreeMap<>();
@@ -623,7 +777,7 @@ public class FollowupService {
         if (rows.isEmpty()) {
             return new ArrayList<>();
         }
-        Map<String, SopBlockerDO> blockers = blockers();
+        Map<String, SopBlockerDO> blockers = blockers(null);
         Map<Long, String> names = userNames(rows.stream().map(CustomerFollowupDO::getOperatorId).toList());
         Map<Long, String> docNos = new HashMap<>(rows.size() * 2);
         Set<Long> itemIds = rows.stream().map(CustomerFollowupDO::getFollowupItemId).filter(i -> i != null && i > 0)
@@ -720,9 +874,14 @@ public class FollowupService {
                 : recordMapper.selectBatchIds(lastIds).stream()
                 .collect(Collectors.toMap(CustomerFollowupDO::getId, Function.identity()));
         Map<Long, String> owners = withOwner ? userNames(rows.stream().map(FollowupItemDO::getOwnerId).toList()) : Map.of();
-        Map<String, SopBlockerDO> blockers = blockers();
+        Map<String, SopBlockerDO> blockers = blockers(null);
         OpportunityStageRules.Stages stages = stageRules.load();
-        Map<String, Map<String, String>> actions = sync.defaultActions();
+        Map<String, String> orderStages = orderStageNames();
+        Set<Long> asIds = rows.stream().map(FollowupItemDO::getAfterSalesId).filter(x -> x != null && x > 0).collect(Collectors.toSet());
+        Map<Long, AfterSalesDO> afterSales = asIds.isEmpty() ? Map.of() : afterSalesMapper.selectBatchIds(asIds).stream()
+                .collect(Collectors.toMap(AfterSalesDO::getId, Function.identity()));
+        Map<String, Map<String, String>> actions = new HashMap<>(sync.defaultActions());
+        actions.putAll(orderSync.defaultActions());
         FollowupSettings.Params params = settings.params(TenantContext.getTenantId());
         List<FollowupItemVO> out = new ArrayList<>(rows.size());
         for (FollowupItemDO i : rows) {
@@ -741,7 +900,8 @@ public class FollowupService {
                 vo.setPotentialRating(nz(c.getPotentialRating()));
             }
             vo.setStageCode(i.getStageCode());
-            vo.setStageName(stages.nameOf(i.getStageCode()));
+            vo.setStageName(OrderStageRecorder.handles(i) ? orderStages.getOrDefault(i.getStageCode(), i.getStageCode())
+                    : stages.nameOf(i.getStageCode()));
             vo.setStageGroup(i.getStageGroup());
             vo.setCurrencyCode(i.getCurrencyCode());
             vo.setAmount(i.getAmount());
@@ -788,8 +948,51 @@ public class FollowupService {
             vo.setOwnerId(i.getOwnerId());
             vo.setOwnerName(owners.getOrDefault(i.getOwnerId(), ""));
             vo.setOpportunityId(i.getOpportunityId());
+            if (OrderStageRecorder.handles(i)) {
+                fillOrder(vo, i, today, orderStages, afterSales);
+            }
             out.add(vo);
         }
+        return out;
+    }
+
+    /** 订单履约、售后评价行的列（第二期 spec「订单履约列表与分部分进度」「售后评价跟进对象与阶段」） */
+    private static void fillOrder(FollowupItemVO vo, FollowupItemDO i, LocalDate today, Map<String, String> orderStages,
+                                  Map<Long, AfterSalesDO> afterSales) {
+        vo.setSituationText(i.getSituationText());
+        vo.setPartCount(nz(i.getPartCount()));
+        int ex = nz(i.getExceptionFlags());
+        vo.setExceptionFlags(ex);
+        vo.setExceptionText(FollowupConstants.EXCEPTION_NAMES.entrySet().stream().filter(e -> (ex & e.getKey()) != 0)
+                .sorted(Map.Entry.comparingByKey()).map(Map.Entry::getValue).collect(Collectors.joining("、")));
+        vo.setExceptionSince(i.getExceptionSince());
+        vo.setEtaDate(i.getEtaDate());
+        vo.setEtaSource(nz(i.getEtaSource()));
+        vo.setEtaNote(i.getEtaNote());
+        vo.setSignedDate(i.getSignedDate());
+        vo.setSignedDays(i.getSignedDate() == null ? null : (int) ChronoUnit.DAYS.between(i.getSignedDate(), today));
+        vo.setSatisfaction(nz(i.getSatisfaction()));
+        vo.setSatisfactionName(FollowupConstants.SATISFACTION_NAMES.getOrDefault(nz(i.getSatisfaction()), ""));
+        vo.setReviewStatus(nz(i.getReviewStatus()));
+        vo.setReviewStatusName(FollowupConstants.REVIEW_NAMES.getOrDefault(nz(i.getReviewStatus()), ""));
+        vo.setReviewPlatform(i.getReviewPlatform());
+        AfterSalesDO a = afterSales.get(i.getAfterSalesId());
+        if (a != null) {
+            vo.setAfterSalesId(a.getId());
+            vo.setAfterSalesNo(a.getAsNo());
+            vo.setAfterSalesStatusName(AfterSalesConstants.AS_STATUS_NAMES.getOrDefault(a.getStatus(), ""));
+        }
+        vo.setStageSince(i.getStageSince());
+    }
+
+    /** 订单履约、售后评价的阶段名（F1–F6、A1–A6，租户自己的覆盖平台的） */
+    private Map<String, String> orderStageNames() {
+        Map<String, String> out = new HashMap<>(16);
+        sopStageMapper.selectList(new LambdaQueryWrapper<SopStageDO>()
+                        .in(SopStageDO::getBoard, FollowupConstants.BOARD_FULFIL, FollowupConstants.BOARD_AFTER_SALES)
+                        .eq(SopStageDO::getStatus, 1)).stream()
+                .sorted(Comparator.comparing(SopStageDO::getTenantId))
+                .forEach(st -> out.put(st.getStageCode(), st.getName()));
         return out;
     }
 

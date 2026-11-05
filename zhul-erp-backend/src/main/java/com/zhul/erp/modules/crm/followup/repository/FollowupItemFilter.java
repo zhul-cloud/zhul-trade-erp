@@ -20,6 +20,10 @@ public class FollowupItemFilter {
     private String blocker;
     /** 客户英文名 / 中文名、客户编码或单据编号包含 */
     private String keyword;
+    /** true 只看有履约异常的（订单履约末尾的「有异常」） */
+    private Boolean exceptionOnly;
+    /** true 不含下一步跟着售后单走的（A3、A4，今日待办不重复列出） */
+    private Boolean excludeAfterSalesNext;
     private LocalDate dueFrom;
     private LocalDate dueTo;
     /** 算逾期天数用的今天 */

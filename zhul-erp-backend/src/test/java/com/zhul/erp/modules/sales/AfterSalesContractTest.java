@@ -263,9 +263,15 @@ class AfterSalesContractTest extends SalesContractSupport {
                 write(Map.of("reasonCode", "INVESTIGATING", "result", "换新"))), admin)).path("message").asText());
         assertEquals("已有退货单，不能撤销", fail(call(json(post(AS + "/" + asId + "/cancel"), "{\"reason\":\"误建\"}"), admin))
                 .path("message").asText());
+        // 案例沉淀选填，最多 500 字；结案后显示在详情和客户跟进时间线（第二期 tasks 4.4）
+        assertEquals("案例沉淀不能超过 500 字", fail(call(json(post(AS + "/" + asId + "/close"), write(Map.of("reasonCode", "QUALITY",
+                "result", "换新", "caseNote", "长".repeat(501)))), admin)).path("message").asText());
         JsonNode closed = ok(call(json(post(AS + "/" + asId + "/close"), write(Map.of("reasonCode", "QUALITY",
-                "result", "供应商换新，客户确认正常"))), admin));
+                "result", "供应商换新，客户确认正常", "caseNote", " 该型号运输需加泡沫护角 "))), admin));
         assertEquals("已结案", closed.path("statusName").asText());
+        assertEquals("该型号运输需加泡沫护角", closed.path("caseNote").asText());
+        assertEquals(1, jdbc.queryForObject("select count(*) from customer_followup where record_type = 2 and title like ?"
+                + " and raw_content = '案例沉淀：该型号运输需加泡沫护角'", Integer.class, "售后单 % 结案 · 供应商换新，客户确认正常"));
         assertFalse(closed.path("overdue").asBoolean());
         assertEquals("售后单已结案，只能添加跟进记录", fail(plan(asId, Map.of("reasonCode", "TRANSPORT"))).path("message").asText());
         ok(call(json(post(AS + "/" + asId + "/notes"), write(Map.of("content", "客户回访正常"))), admin));

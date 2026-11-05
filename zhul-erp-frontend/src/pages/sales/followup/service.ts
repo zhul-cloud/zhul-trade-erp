@@ -5,10 +5,80 @@ export { readBizError } from '@/pages/crm/opportunity/service';
 // ---------------------------------------------------------------- 码值（与后端 FollowupConstants 一致）
 
 export const BOARD_SALES = 2;
+export const BOARD_FULFIL = 3;
+export const BOARD_AFTER_SALES = 4;
+/** 已上线、可以进入的板块 */
+export const OPEN_BOARDS = [BOARD_SALES, BOARD_FULFIL, BOARD_AFTER_SALES];
 export const GROUP = { BEFORE_QUOTE: 1, AFTER_QUOTE: 2, AFTER_PI: 3 } as const;
-export const TARGET = { OPPORTUNITY: 1, INQUIRY: 2, QUOTATION: 3, PI: 4 };
+export const TARGET = {
+  OPPORTUNITY: 1,
+  INQUIRY: 2,
+  QUOTATION: 3,
+  PI: 4,
+  ORDER: 5,
+};
 export const NEXT_SYSTEM = 1;
 export const NEXT_USER = 2;
+/** 来自售后单的下一步（A3、A4）：只读，不进今日待办 */
+export const NEXT_AFTER_SALES = 4;
+/** 预计送达来源：0-未出运、1-系统估算、2-业务员改的 */
+export const ETA_USER = 2;
+
+/** 履约「沟通了什么」位掩码 */
+export const NOTICE = {
+  WAYBILL: 1,
+  NEW_DATE: 2,
+  NEED_CUSTOMER: 4,
+  NO_REPLY: 8,
+} as const;
+export const NOTICE_OPTIONS = [
+  { value: NOTICE.WAYBILL, label: '已把运单号和发货照片发给客户' },
+  { value: NOTICE.NEW_DATE, label: '已告诉客户新的交期 / 送达日' },
+  {
+    value: NOTICE.NEED_CUSTOMER,
+    label: '客户要我们配合（资料、改地址、税号）',
+  },
+  { value: NOTICE.NO_REPLY, label: '客户没回复' },
+];
+/** A1 客户收到了吗、A2 用得好吗：1-没问题、2-有问题、3-还没 */
+export const ANSWER = { OK: 1, ISSUE: 2, NOT_YET: 3 } as const;
+export const ISSUE_TYPES = ['少件', '破损', '型号不对', '其他'];
+export const SATISFACTION = {
+  SATISFIED: 1,
+  NEUTRAL: 2,
+  DISSATISFIED: 3,
+} as const;
+export const DISSATISFIED_REASONS = [
+  { value: 'QUALITY', label: '产品质量' },
+  { value: 'DELIVERY', label: '交期' },
+  { value: 'COMMUNICATION', label: '沟通' },
+  { value: 'PRICE', label: '价格' },
+  { value: 'OTHER', label: '其他' },
+];
+/** 评价状态：1-这次先不邀请、2-已邀请、3-已评价、4-婉拒、6-还没评（只在跟进记录上） */
+export const REVIEW = {
+  SKIP: 1,
+  INVITED: 2,
+  DONE: 3,
+  DECLINED: 4,
+  NOT_YET: 6,
+} as const;
+export const REVIEW_OPTIONS_A5 = [
+  { value: REVIEW.SKIP, label: '这次先不邀请' },
+  { value: REVIEW.INVITED, label: '已邀请' },
+  { value: REVIEW.DONE, label: '客户已评价' },
+  { value: REVIEW.DECLINED, label: '客户婉拒' },
+];
+export const REVIEW_OPTIONS_A6 = [
+  { value: REVIEW.DONE, label: '已评价' },
+  { value: REVIEW.DECLINED, label: '婉拒' },
+  { value: REVIEW.NOT_YET, label: '还没评' },
+];
+/** 「AI 写一条」的意图 */
+export const INTENT = {
+  LOGISTICS: 'logistics_update',
+  REVIEW: 'review_invite',
+} as const;
 export const RECORD_USER = 1;
 
 /** 客户情况位掩码 */
@@ -80,6 +150,28 @@ export interface FollowupItem {
   ownerId?: number;
   ownerName?: string;
   opportunityId?: number;
+  // ---- 订单履约、售后评价
+  /** 现在的情况（系统带出） */
+  situationText?: string;
+  partCount?: number;
+  /** 履约异常位：1-采购超期未到仓、2-有到货差异待处理、4-出库单已撤回 */
+  exceptionFlags?: number;
+  exceptionText?: string;
+  exceptionSince?: string;
+  etaDate?: string;
+  etaSource?: number;
+  etaNote?: string;
+  signedDate?: string;
+  signedDays?: number;
+  satisfaction?: number;
+  satisfactionName?: string;
+  reviewStatus?: number;
+  reviewStatusName?: string;
+  reviewPlatform?: string;
+  afterSalesId?: number;
+  afterSalesNo?: string;
+  afterSalesStatusName?: string;
+  stageSince?: string;
 }
 
 export interface OverviewStage {
@@ -102,6 +194,8 @@ export interface OverviewBoard {
   overdue: number;
   total: number;
   nurture: number;
+  /** 订单履约：有异常的跟进对象数 */
+  exceptions?: number;
   groups: OverviewGroup[];
 }
 export interface Overview {
@@ -136,6 +230,8 @@ export interface ItemQuery {
   ownerScope?: string;
   blocker?: string;
   keyword?: string;
+  /** 订单履约：只看有异常的 */
+  exception?: boolean;
   page?: number;
   pageSize?: number;
 }
@@ -196,6 +292,8 @@ export interface CustomerFollowup {
   lastChannelName?: string;
   recent30?: number;
   noReplyStreak?: number;
+  /** 这位客户有在跟进对象的板块 */
+  boards?: number[];
   quoteCount?: number;
   piCount?: number;
   openAmounts: CurrencyAmount[];
@@ -217,6 +315,16 @@ export interface RecordRequest {
   expectedPayDate?: string;
   profile?: Record<string, string>;
   idempotencyKey: string;
+  // ---- 订单履约、售后评价（只能在对应阶段提交）
+  noticeMask?: number;
+  etaDate?: string;
+  receiptAnswer?: number;
+  useAnswer?: number;
+  issueTypes?: string[];
+  satisfaction?: number;
+  dissatisfiedReason?: string;
+  reviewStatus?: number;
+  reviewPlatform?: string;
 }
 
 export interface RecordResult {
@@ -225,6 +333,10 @@ export interface RecordResult {
   stageAfter?: string;
   opportunityAdvanced?: boolean;
   duplicate?: boolean;
+  /** A1 已收到无问题时订单是否确认为客户已收货 */
+  orderCompleted?: boolean;
+  /** 跟进对象是否已结束（售后结束） */
+  ended?: boolean;
 }
 
 export interface ExtractResult {
@@ -245,7 +357,111 @@ export interface ExtractResult {
       checked?: boolean;
     }[];
     truncated?: boolean;
+    receiptAnswer?: number;
+    useAnswer?: number;
+    issueTypes?: string[];
+    satisfaction?: number;
+    reviewStatus?: number;
+    etaDate?: string;
   };
+}
+
+/** 订单履约行展开的分部分进度 */
+export interface OrderParts {
+  parts: {
+    label: string;
+    goods?: string;
+    poId?: number;
+    poNo?: string;
+    supplier?: string;
+    stageCode: string;
+    stageName: string;
+    expectedShipDate?: string;
+    arrival?: string;
+    situation?: string;
+    tell?: string;
+  }[];
+  told: {
+    date: string;
+    node: string;
+    content?: string;
+    channelName?: string;
+  }[];
+  batches: {
+    shipmentId: number;
+    shNo: string;
+    carrier?: string;
+    waybillNo?: string;
+    shippedDate?: string;
+    etaDate?: string;
+  }[];
+}
+
+export interface TeamCompare {
+  value: number;
+  prev: number;
+}
+export interface TeamMoney {
+  count: number;
+  amountCny?: number;
+}
+export interface TeamOwner {
+  ownerId: number;
+  ownerName: string;
+  /** 五个板块的跟进对象数 */
+  boards: number[];
+  todayDue: number;
+  overdue: number;
+  manySnoozes: number;
+  records: number;
+  prevRecords: number;
+  attention: boolean;
+}
+export interface TeamStage {
+  board: number;
+  stageCode: string;
+  stageName: string;
+  count: number;
+  avgDays?: number;
+  refDays?: number;
+  over?: boolean;
+}
+export interface TeamException {
+  type: string;
+  typeName: string;
+  itemId: number;
+  board: number;
+  customerId: number;
+  customerName: string;
+  stageCode: string;
+  stageName: string;
+  ownerId?: number;
+  ownerName?: string;
+  currencyCode?: string;
+  amount?: number;
+  text?: string;
+}
+export interface Team {
+  period: string;
+  from: string;
+  to: string;
+  prevFrom: string;
+  prevTo: string;
+  results: {
+    newOpportunities: TeamCompare;
+    quotationsSent: TeamCompare;
+    pisSent: TeamCompare;
+    orders: TeamMoney;
+    onTime: number;
+    delivered: number;
+    reviewed: number;
+    invited: number;
+    declined: number;
+    repeat: TeamMoney;
+  };
+  owners: TeamOwner[];
+  stages: TeamStage[];
+  exceptions: { total: number; items: TeamException[] };
 }
 
 interface Resp<T> {
@@ -278,12 +494,17 @@ export const followupApi = {
       method: 'POST',
       data,
     }).then((r) => r.data),
-  sop: (stage: string) =>
-    request<Resp<SopCard>>(`${BASE}/sop/${BOARD_SALES}/${stage}`).then(
-      (r) => r.data,
-    ),
-  blockers: () =>
-    request<Resp<Blocker[]>>(`${BASE}/sop/blockers`).then((r) => r.data),
+  parts: (id: number) =>
+    request<Resp<OrderParts>>(`${BASE}/items/${id}/parts`).then((r) => r.data),
+  team: (params: { period?: string; deptId?: number; exceptions?: 'all' }) =>
+    request<Resp<Team>>(`${BASE}/team`, { params }).then((r) => r.data),
+  sop: (board: number, stage: string) =>
+    request<Resp<SopCard>>(`${BASE}/sop/${board}/${stage}`).then((r) => r.data),
+  /** board 为空时返回全部板块的卡点 */
+  blockers: (board?: number) =>
+    request<Resp<Blocker[]>>(`${BASE}/sop/blockers`, {
+      params: { board },
+    }).then((r) => r.data),
   customerRecords: (
     customerId: number,
     params: {
@@ -319,6 +540,7 @@ export const followupApi = {
     itemId?: number;
     blockerCode?: string;
     note?: string;
+    intent?: string;
   }) =>
     request<Resp<{ reply: string; intent?: string }>>(`${BASE}/reply-draft`, {
       method: 'POST',

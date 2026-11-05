@@ -13,4 +13,6 @@ public class ReplyDraftRequest {
     private String blockerCode;
     @Size(max = 500, message = "补充说明不能超过500个字")
     private String note;
+    /** 意图：空为按卡点写跟进，logistics_update-物流更新、review_invite-评价邀请 */
+    private String intent;
 }

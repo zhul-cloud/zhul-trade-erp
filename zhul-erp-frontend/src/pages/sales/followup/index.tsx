@@ -1,12 +1,14 @@
 import { EditOutlined, SearchOutlined } from '@ant-design/icons';
 import { useAccess } from '@umijs/max';
-import { Button, Input, Select } from 'antd';
+import { Button, Input, Segmented, Select } from 'antd';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useWide } from '@/pages/inquiry/shared/components';
 import { getUserList } from '@/pages/system/user/service';
 import { SalesPageTitle } from '../components';
 import BattleCard from './BattleCard';
-import { Card, FlowCards, NurtureModal, TodayList } from './components';
+import { VIEW_TODAY } from './boardStyle';
+import { Card, NurtureModal, TodayList } from './components';
+import { FlowChain } from './FlowChain';
 import { FollowupTable, StageBar, type StageFilter } from './FollowupTable';
 import RecordFollowupModal, { type RecordTarget } from './RecordFollowupModal';
 import {
@@ -19,6 +21,7 @@ import {
   PERM_TEAM,
   type Today,
 } from './service';
+import TeamView, { type TeamJump } from './TeamView';
 
 const PAGE_SIZE = 20;
 
@@ -28,6 +31,9 @@ const FollowupPage: React.FC = () => {
   const canTeam = !!access[PERM_TEAM];
   const wide = useWide();
 
+  const [view, setView] = useState<'mine' | 'team'>('mine');
+  /** 下方显示什么：今日待办（默认）或某个板块 */
+  const [boardNo, setBoardNo] = useState(VIEW_TODAY);
   const [ownerScope, setOwnerScope] = useState('me');
   const [owners, setOwners] = useState<{ value: string; label: string }[]>([]);
   const [overview, setOverview] = useState<Overview>();
@@ -35,6 +41,7 @@ const FollowupPage: React.FC = () => {
   const [filter, setFilter] = useState<StageFilter>({});
   const [blocker, setBlocker] = useState<string>();
   const [keyword, setKeyword] = useState('');
+  const [keywordInput, setKeywordInput] = useState('');
   const [list, setList] = useState<ItemList>({
     total: 0,
     records: [],
@@ -81,7 +88,7 @@ const FollowupPage: React.FC = () => {
       setLoading(true);
       followupApi
         .items({
-          board: BOARD_SALES,
+          board: boardNo,
           ...filter,
           blocker,
           keyword: keyword.trim() || undefined,
@@ -106,15 +113,19 @@ const FollowupPage: React.FC = () => {
         })
         .finally(() => req === reqRef.current && setLoading(false));
     },
-    [filter, blocker, keyword, ownerScope],
+    [boardNo, filter, blocker, keyword, ownerScope],
   );
 
-  useEffect(loadTop, [loadTop]);
-  useEffect(() => loadList(1), [loadList]);
+  useEffect(() => {
+    if (view === 'mine') loadTop();
+  }, [loadTop, view]);
+  useEffect(() => {
+    if (view === 'mine' && boardNo !== VIEW_TODAY) loadList(1);
+  }, [loadList, view, boardNo]);
 
   const refresh = () => {
     loadTop();
-    loadList(1);
+    if (boardNo !== VIEW_TODAY) loadList(1);
   };
 
   const openRecord = (item?: FollowupItem) => {
@@ -122,23 +133,65 @@ const FollowupPage: React.FC = () => {
     setRecordOpen(true);
   };
 
-  const board = overview?.boards.find((b) => b.board === BOARD_SALES);
+  const board = overview?.boards.find((b) => b.board === boardNo);
+
+  const switchBoard = (b: number, stage?: string) => {
+    setBoardNo(b);
+    setFilter(stage ? { stage } : {});
+    setBlocker(undefined);
+    setSelected(undefined);
+  };
+
+  /** 团队视图点数字：回到「我的」视图，负责人筛选为该人（或全部） */
+  const jump = (j: TeamJump) => {
+    const scope = j.ownerId ? String(j.ownerId) : 'all';
+    if (j.ownerId && !owners.some((o) => o.value === scope))
+      setOwners((l) => [...l, { value: scope, label: j.ownerName ?? scope }]);
+    setOwnerScope(scope);
+    if (j.today) switchBoard(VIEW_TODAY);
+    else switchBoard(j.board ?? BOARD_SALES, j.stage);
+    setKeywordInput(j.keyword ?? '');
+    setKeyword(j.keyword ?? '');
+    setView('mine');
+  };
 
   return (
     <div>
       <SalesPageTitle
-        description="今天该跟谁、跟到哪一步、下一步做什么"
+        description={
+          view === 'team'
+            ? '哪里卡住了、谁需要帮一把'
+            : '今天该跟谁、跟到哪一步、下一步做什么'
+        }
         actions={
           <>
-            <Input
-              allowClear
-              prefix={<SearchOutlined />}
-              placeholder="搜索客户、单号"
-              style={{ width: 220 }}
-              onPressEnter={(e) => setKeyword(e.currentTarget.value)}
-              onClear={() => setKeyword('')}
-            />
             {canTeam && (
+              <Segmented
+                value={view}
+                onChange={(v) => setView(v as 'mine' | 'team')}
+                options={[
+                  { value: 'mine', label: '我的' },
+                  { value: 'team', label: '团队' },
+                ]}
+              />
+            )}
+            {view === 'mine' && (
+              <Input
+                allowClear
+                prefix={<SearchOutlined />}
+                placeholder="搜索客户、单号"
+                style={{ width: 220 }}
+                value={keywordInput}
+                onChange={(e) => setKeywordInput(e.target.value)}
+                onPressEnter={(e) => {
+                  setKeyword(e.currentTarget.value);
+                  // 在今日待办里搜索时切到商机成交列表
+                  if (boardNo === VIEW_TODAY) switchBoard(BOARD_SALES);
+                }}
+                onClear={() => setKeyword('')}
+              />
+            )}
+            {view === 'mine' && canTeam && (
               <Select
                 style={{ width: 160 }}
                 value={ownerScope}
@@ -151,7 +204,7 @@ const FollowupPage: React.FC = () => {
                 ]}
               />
             )}
-            {canRecord && (
+            {view === 'mine' && canRecord && (
               <Button
                 type="primary"
                 icon={<EditOutlined />}
@@ -163,49 +216,67 @@ const FollowupPage: React.FC = () => {
           </>
         }
       />
-      <FlowCards overview={overview} />
-      <TodayList
-        today={today}
-        canRecord={canRecord}
-        onRecord={openRecord}
-        onChanged={refresh}
-      />
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: wide ? 'minmax(0, 1fr) 360px' : 'minmax(0, 1fr)',
-          gap: 16,
-          alignItems: 'start',
-        }}
-      >
-        <Card style={{ padding: '16px 20px' }}>
-          <StageBar
-            board={board}
-            value={filter}
-            onChange={setFilter}
-            blocker={blocker}
-            onBlocker={setBlocker}
+      {view === 'team' ? (
+        <TeamView onJump={jump} />
+      ) : (
+        <>
+          <FlowChain
+            overview={overview}
+            active={boardNo}
+            onSelect={(b) => b !== boardNo && switchBoard(b)}
           />
-          <FollowupTable
-            filter={filter}
-            records={list.records}
-            total={list.total}
-            unpaid={list.unpaid}
-            loading={loading}
-            selectedId={selected?.id}
-            canRecord={canRecord}
-            showOwner={ownerScope !== 'me'}
-            onSelect={setSelected}
-            onRecord={openRecord}
-            onNurture={setNurtureItem}
-            onChanged={refresh}
-            onMore={() => loadList(page + 1)}
-          />
-        </Card>
-        <div style={wide ? { position: 'sticky', top: 16 } : undefined}>
-          <BattleCard item={selected} />
-        </div>
-      </div>
+          {boardNo === VIEW_TODAY ? (
+            <TodayList
+              today={today}
+              canRecord={canRecord}
+              onRecord={openRecord}
+              onChanged={refresh}
+              onBrowse={() => switchBoard(BOARD_SALES)}
+            />
+          ) : (
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: wide
+                  ? 'minmax(0, 1fr) 360px'
+                  : 'minmax(0, 1fr)',
+                gap: 16,
+                alignItems: 'start',
+              }}
+            >
+              <Card style={{ padding: '16px 20px' }}>
+                <StageBar
+                  boardNo={boardNo}
+                  board={board}
+                  value={filter}
+                  onChange={setFilter}
+                  blocker={blocker}
+                  onBlocker={setBlocker}
+                />
+                <FollowupTable
+                  boardNo={boardNo}
+                  filter={filter}
+                  records={list.records}
+                  total={list.total}
+                  unpaid={list.unpaid}
+                  loading={loading}
+                  selectedId={selected?.id}
+                  canRecord={canRecord}
+                  showOwner={ownerScope !== 'me'}
+                  onSelect={setSelected}
+                  onRecord={openRecord}
+                  onNurture={setNurtureItem}
+                  onChanged={refresh}
+                  onMore={() => loadList(page + 1)}
+                />
+              </Card>
+              <div style={wide ? { position: 'sticky', top: 16 } : undefined}>
+                <BattleCard item={selected} />
+              </div>
+            </div>
+          )}
+        </>
+      )}
       <RecordFollowupModal
         open={recordOpen}
         target={recordTarget}

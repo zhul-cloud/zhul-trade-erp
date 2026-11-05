@@ -89,6 +89,7 @@ public class OutboundService {
     private final LogService logService;
     private final AttachmentService attachments;
     private final MediaIndexer media;
+    private final com.zhul.erp.modules.crm.followup.support.FollowupHooks followupHooks;
 
     // ---------------------------------------------------------------- 发货通知
 
@@ -154,6 +155,7 @@ public class OutboundService {
         outboundMapper.insert(ob);
         String text = saveItems(ob, lines);
         logService.recordOperateLog("销售订单", "发货通知", null, Map.of("soNo", o.getSoNo(), "obNo", ob.getObNo(), "items", text));
+        followupHooks.orderChanged(ob.getSoId());
         return detail(ob.getId(), true);
     }
 
@@ -177,6 +179,7 @@ public class OutboundService {
         outboundMapper.updateById(ob);
         String text = saveItems(ob, buildItems(o, req.getItems()));
         logService.recordOperateLog("销售订单", "修改发货通知", null, Map.of("soNo", o.getSoNo(), "obNo", ob.getObNo(), "items", text));
+        followupHooks.orderChanged(ob.getSoId());
         return detail(id, true);
     }
 
@@ -192,6 +195,7 @@ public class OutboundService {
         ob.setWithdrawReason(reason.trim());
         outboundMapper.updateById(ob);
         logService.recordOperateLog("销售订单", "撤回发货通知", Map.of("obNo", ob.getObNo()), Map.of("obNo", ob.getObNo(), "reason", ob.getWithdrawReason()));
+        followupHooks.orderChanged(ob.getSoId());
         return detail(id, true);
     }
 
@@ -266,6 +270,7 @@ public class OutboundService {
         ob.setPackedAt(LocalDateTime.now());
         outboundMapper.updateById(ob);
         logService.recordOperateLog(LogisticsConstants.MENU_OUTBOUND, "打包", null, Map.of("obNo", ob.getObNo(), "boxes", req.getBoxes().size()));
+        followupHooks.orderChanged(ob.getSoId());
         return detail(id, false);
     }
 
@@ -374,6 +379,7 @@ public class OutboundService {
         logService.recordOperateLog(LogisticsConstants.MENU_OUTBOUND, "交国内快递", null, Map.of("outbounds",
                 obs.stream().map(OutboundOrderDO::getObNo).toList(), "tracking", (w.getCarrier() + " " + w.getTrackingNo()).trim(),
                 "freight", "CNY " + w.getFreight()));
+        followupHooks.ordersChanged(obs.stream().map(OutboundOrderDO::getSoId).toList());
         return ids.stream().map(id -> detail(id, false)).toList();
     }
 
@@ -415,6 +421,7 @@ public class OutboundService {
         progress.sync(soItemIds(List.of(id)));
         logService.recordOperateLog(LogisticsConstants.MENU_OUTBOUND, "撤销交货代", Map.of("obNo", ob.getObNo(), "status", "已交货代"),
                 Map.of("obNo", ob.getObNo(), "status", "已打包", "reason", reason.trim()));
+        followupHooks.orderChanged(ob.getSoId());
         return detail(id, false);
     }
 

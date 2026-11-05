@@ -18,6 +18,7 @@ import com.zhul.erp.modules.crm.followup.dto.SopCardVO;
 import com.zhul.erp.modules.crm.followup.entity.CustomerFollowupDO;
 import com.zhul.erp.modules.crm.followup.entity.FollowupItemDO;
 import com.zhul.erp.modules.crm.followup.repository.CustomerFollowupMapper;
+import com.zhul.erp.modules.crm.followup.support.OrderStageRecorder;
 import com.zhul.erp.modules.crm.support.OpportunityStageRules;
 import com.zhul.erp.modules.inquiry.support.CurrentUserResolver;
 import com.zhul.erp.modules.masterdata.customerprofile.service.CustomerProfileService;
@@ -62,7 +63,7 @@ public class FollowupAiService {
         CustomerDO c = customerService.requireInScope(req.getCustomerId());
         FollowupItemDO item = followupService.resolveItem(c.getId(), req.getItemId());
         Map<String, Object> input = context(c, item);
-        input.put("blockers", followupService.blockerVos().stream()
+        input.put("blockers", followupService.blockerVos(item == null ? FollowupConstants.BOARD_SALES : item.getBoard()).stream()
                 .map(b -> Map.of("code", b.getCode(), "name", b.getName())).toList());
         input.put("profileFields", profileService.blankFollowupFields(c.getId()).stream()
                 .map(f -> Map.of("field", f, "label", FollowupConstants.PROFILE_LABELS.getOrDefault(f, f))).toList());
@@ -104,7 +105,7 @@ public class FollowupAiService {
         r.setSituation(mask);
         String blocker = n.path("blocker").asText("");
         r.setBlockerCode(blocker);
-        r.setBlockerName(followupService.blockerVos().stream().filter(b -> b.getCode().equals(blocker))
+        r.setBlockerName(followupService.blockerVos(null).stream().filter(b -> b.getCode().equals(blocker))
                 .map(SopCardVO.Blocker::getName).findFirst().orElse(""));
         LocalDate today = LocalDate.now();
         for (JsonNode a : n.path("nextActions")) {
@@ -121,6 +122,12 @@ public class FollowupAiService {
             x.setEvidence(s.path("evidence").asText(""));
             r.getProfileSuggestions().add(x);
         }
+        r.setReceiptAnswer(optInt(n, "receiptAnswer"));
+        r.setUseAnswer(optInt(n, "useAnswer"));
+        n.path("issueTypes").forEach(x -> r.getIssueTypes().add(x.asText()));
+        r.setSatisfaction(optInt(n, "satisfaction"));
+        r.setReviewStatus(optInt(n, "reviewStatus"));
+        r.setEtaDate(n.hasNonNull("etaDate") ? LocalDate.parse(n.path("etaDate").asText()) : null);
         r.setTruncated(n.path("truncated").asBoolean(false));
         return r;
     }
@@ -140,10 +147,15 @@ public class FollowupAiService {
     public ReplyDraftVO replyDraft(ReplyDraftRequest req) {
         CustomerDO c = customerService.requireInScope(req.getCustomerId());
         FollowupItemDO item = followupService.resolveItem(c.getId(), req.getItemId());
+        String intent = req.getIntent() == null ? "" : req.getIntent().trim();
+        if (!intent.isEmpty() && !FollowupConstants.REPLY_INTENTS.contains(intent)) {
+            throw new BizException("回复意图不正确");
+        }
         Map<String, Object> input = context(c, item);
+        input.put("intent", intent);
         String code = StringUtils.hasText(req.getBlockerCode()) ? req.getBlockerCode()
                 : item == null ? "" : item.getBlockerCode();
-        followupService.blockerVos().stream().filter(b -> b.getCode().equals(code)).findFirst()
+        followupService.blockerVos(null).stream().filter(b -> b.getCode().equals(code)).findFirst()
                 .ifPresent(b -> input.put("blocker", Map.of("name", b.getName(), "playbook", b.getPlaybook())));
         if (item != null && item.getLastFollowupId() != null && item.getLastFollowupId() > 0) {
             CustomerFollowupDO last = recordMapper.selectById(item.getLastFollowupId());
@@ -188,14 +200,22 @@ public class FollowupAiService {
         if (item != null) {
             Map<String, Object> stage = new LinkedHashMap<>();
             stage.put("code", item.getStageCode());
+            stage.put("board", item.getBoard());
             stage.put("name", stageRules.load().nameOf(item.getStageCode()));
             try {
-                stage.put("goal", followupService.sop(item.getBoard(), item.getStageCode()).getGoal());
+                SopCardVO sop = followupService.sop(item.getBoard(), item.getStageCode());
+                stage.put("goal", sop.getGoal());
+                if (OrderStageRecorder.handles(item)) {
+                    stage.put("name", sop.getName());
+                }
             } catch (BizException e) {
                 // 这个阶段还没有作战卡：不带目标
                 stage.put("goal", "");
             }
             input.put("stage", stage);
+            if (OrderStageRecorder.handles(item)) {
+                input.put("order", orderContext(item));
+            }
             if (StringUtils.hasText(item.getDocNo()) && item.getTargetType() != FollowupConstants.TARGET_OPPORTUNITY) {
                 Map<String, Object> doc = new LinkedHashMap<>();
                 doc.put("docNo", item.getDocNo());
@@ -206,6 +226,22 @@ public class FollowupAiService {
             }
         }
         return input;
+    }
+
+    /** 订单履约、售后评价的上下文：订单号、现在的情况、预计送达和依据、签收日期、评价平台 */
+    private static Map<String, Object> orderContext(FollowupItemDO item) {
+        Map<String, Object> order = new LinkedHashMap<>();
+        order.put("soNo", nz(item.getDocNo()));
+        order.put("situation", nz(item.getSituationText()));
+        order.put("etaDate", item.getEtaDate() == null ? "" : item.getEtaDate().toString());
+        order.put("etaNote", nz(item.getEtaNote()));
+        order.put("signedDate", item.getSignedDate() == null ? "" : item.getSignedDate().toString());
+        order.put("reviewPlatform", nz(item.getReviewPlatform()));
+        return order;
+    }
+
+    private static Integer optInt(JsonNode n, String field) {
+        return n.hasNonNull(field) && n.path(field).canConvertToInt() ? n.path(field).asInt() : null;
     }
 
     /** 提交任务；没配置 AI、订阅不可用都换成明确的错误码，前端据此置灰按钮 */

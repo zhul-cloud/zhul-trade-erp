@@ -1,4 +1,5 @@
 import { CopyOutlined, RobotOutlined } from '@ant-design/icons';
+import { history } from '@umijs/max';
 import { Alert, App, Button, Checkbox, Input, Skeleton } from 'antd';
 import dayjs from 'dayjs';
 import React, { useEffect, useState } from 'react';
@@ -6,12 +7,32 @@ import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
 import { Card, fmtDate } from './components';
 import {
+  BOARD_AFTER_SALES,
+  BOARD_FULFIL,
   type FollowupItem,
   followupApi,
   GROUP,
+  INTENT,
   readBizError,
   type SopCard,
 } from './service';
+
+/** 履约异常位 → 作战卡里对应的应对（SOP 卡点编码） */
+const EXCEPTION_BLOCKER: [number, string][] = [
+  [1, 'SUPPLY_DELAY'],
+  [2, 'DISCREPANCY'],
+  [4, 'LOGISTICS'],
+];
+
+/** 这一行该看哪条应对：手选的卡点 → 履约异常 → A6 邀请评价 */
+const blockerFor = (item: FollowupItem) => {
+  if (item.blockerCode) return item.blockerCode;
+  const hit = EXCEPTION_BLOCKER.find(
+    ([bit]) => (item.exceptionFlags ?? 0) & bit,
+  );
+  if (hit) return hit[1];
+  return item.stageCode === 'A6' ? 'REVIEW_INVITE' : undefined;
+};
 
 const Title: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { palette } = useAppTheme();
@@ -41,17 +62,42 @@ const BattleCard: React.FC<{ item?: FollowupItem }> = ({ item }) => {
   const [reply, setReply] = useState<string>();
   const [replying, setReplying] = useState(false);
   const [replyError, setReplyError] = useState<string>();
+  const [shipmentId, setShipmentId] = useState<number>();
 
   const stage = item?.stageCode;
+  const board = item?.board;
   useEffect(() => {
-    if (!stage) return;
+    if (!stage || !board) return;
+    let alive = true;
     setSop(undefined);
     setFailed(false);
     followupApi
-      .sop(stage)
-      .then(setSop)
-      .catch(() => setFailed(true));
-  }, [stage]);
+      .sop(board, stage)
+      .then((c) => alive && setSop(c))
+      .catch(() => alive && setFailed(true));
+    return () => {
+      alive = false;
+    };
+  }, [board, stage]);
+
+  // 订单履约「查看出运单」：取最后一批出运单
+  const itemId = item?.id;
+  const fulfil = board === BOARD_FULFIL;
+  useEffect(() => {
+    setShipmentId(undefined);
+    if (!itemId || !fulfil) return;
+    let alive = true;
+    followupApi
+      .parts(itemId)
+      .then(
+        (p) =>
+          alive && setShipmentId(p.batches[p.batches.length - 1]?.shipmentId),
+      )
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, [itemId, fulfil]);
 
   // 换一行：勾选、AI 回复都清空（勾选只在本页面临时有效）
   useEffect(() => {
@@ -82,7 +128,23 @@ const BattleCard: React.FC<{ item?: FollowupItem }> = ({ item }) => {
     );
 
   const isPi = item.stageGroup === GROUP.AFTER_PI;
-  const blocker = sop.blockers.find((b) => b.code === item.blockerCode);
+  const blockerCode = blockerFor(item);
+  const blocker = sop.blockers.find((b) => b.code === blockerCode);
+  const sales = item.board !== BOARD_FULFIL && item.board !== BOARD_AFTER_SALES;
+  const intent =
+    item.board === BOARD_FULFIL
+      ? INTENT.LOGISTICS
+      : item.stageCode === 'A6'
+        ? INTENT.REVIEW
+        : undefined;
+  const writeLabel =
+    intent === INTENT.LOGISTICS
+      ? 'AI 写一条物流更新'
+      : intent === INTENT.REVIEW
+        ? 'AI 写一条评价邀请'
+        : isPi
+          ? 'AI 写一条催款消息'
+          : 'AI 写一条英文回复';
   const payOverdue =
     isPi &&
     item.expectedPayDate &&
@@ -98,6 +160,7 @@ const BattleCard: React.FC<{ item?: FollowupItem }> = ({ item }) => {
         itemId: item.id,
         blockerCode: item.blockerCode || undefined,
         note: note.trim() || undefined,
+        intent,
       });
       setReply(r.reply);
     } catch (e) {
@@ -181,7 +244,13 @@ const BattleCard: React.FC<{ item?: FollowupItem }> = ({ item }) => {
       )}
 
       <Title>
-        {blocker ? `卡点「${blocker.name}」怎么应对` : '常见卡点怎么应对'}
+        {blocker
+          ? `${sales ? '卡点' : ''}「${blocker.name}」怎么应对`
+          : item.board === BOARD_FULFIL
+            ? '常见异常怎么应对'
+            : item.board === BOARD_AFTER_SALES
+              ? '常见问题怎么应对'
+              : '常见卡点怎么应对'}
       </Title>
       {blocker ? (
         <ol style={{ margin: 0, paddingLeft: 18, color: palette.sub }}>
@@ -224,11 +293,7 @@ const BattleCard: React.FC<{ item?: FollowupItem }> = ({ item }) => {
           onClick={writeReply}
           block
         >
-          {replying
-            ? 'AI 正在写，最多 30 秒…'
-            : isPi
-              ? 'AI 写一条催款消息'
-              : 'AI 写一条英文回复'}
+          {replying ? 'AI 正在写，最多 30 秒…' : writeLabel}
         </Button>
         {replyError && (
           <Alert
@@ -268,7 +333,7 @@ const BattleCard: React.FC<{ item?: FollowupItem }> = ({ item }) => {
 
       {(sop.gateText || sop.autoHint) && (
         <>
-          <Title>推进条件</Title>
+          <Title>{sales ? '推进条件' : '下一阶段（系统自动）'}</Title>
           {sop.gateText && (
             <div style={{ fontSize: 13, color: palette.sub }}>
               {sop.gateText}
@@ -280,6 +345,16 @@ const BattleCard: React.FC<{ item?: FollowupItem }> = ({ item }) => {
             </div>
           )}
         </>
+      )}
+
+      {shipmentId && (
+        <Button
+          type="link"
+          style={{ paddingLeft: 0, marginTop: 8, display: 'block' }}
+          onClick={() => history.push(`/logistics/shipments/${shipmentId}`)}
+        >
+          查看出运单 ›
+        </Button>
       )}
 
       {sop.exampleDialog && (
