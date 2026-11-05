@@ -38,6 +38,8 @@ public class ExtractResultVO {
         private Integer reviewStatus;
         /** F6 新的预计送达、A1 还没收到时的新日期 */
         private LocalDate etaDate;
+        /** 客户经营的客户情况建议（单选）：1-有新需求、2-聊了新品类、3-当前没有需求、4-没回复；其他板块为空 */
+        private Integer accountAnswer;
         /** 原文超过 20,000 字已截断 */
         private Boolean truncated;
     }

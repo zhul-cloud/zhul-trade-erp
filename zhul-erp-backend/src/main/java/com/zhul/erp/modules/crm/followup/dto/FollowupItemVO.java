@@ -93,4 +93,23 @@ public class FollowupItemVO {
     private String afterSalesStatusName;
     /** 进入当前阶段的时间 */
     private LocalDateTime stageSince;
+    /** 客户经营（第三期 spec「客户经营列表与作战卡」）：采购规律（系统推测）、近 12 个月成交（本位币，amountCny）、上次联系与等级间隔 */
+    private String patternText;
+    private String patternBrands;
+    private LocalDate patternNextDate;
+    private Integer recentOrderCount;
+    private LocalDate lastOrderDate;
+    private String accountReason;
+    /** 1：记跟进选了「客户有新需求」还没建询盘，操作为「建询盘」 */
+    private Integer accountNeed;
+    private String crossCategory;
+    private LocalDate dormantSince;
+    private Integer dormantDays;
+    private Boolean strategic;
+    /** 该等级的联系间隔（天） */
+    private Integer followDays;
+    /** 上次联系日期（任意板块最近一条跟进记录，没有时为最近一单日期） */
+    private LocalDate lastContactDate;
+    /** 上次联系已超过等级间隔 */
+    private Boolean contactOverdue;
 }

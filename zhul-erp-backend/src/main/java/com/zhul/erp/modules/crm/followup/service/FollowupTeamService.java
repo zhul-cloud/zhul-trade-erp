@@ -176,6 +176,27 @@ public class FollowupTeamService {
         r.setReviewed(reviews.getOrDefault(FollowupConstants.REVIEW_DONE, 0));
         r.setInvited(reviews.getOrDefault(FollowupConstants.REVIEW_INVITED, 0));
         r.setDeclined(reviews.getOrDefault(FollowupConstants.REVIEW_DECLINED, 0));
+        accountResults(r, owners, range, LocalDate.now());
+    }
+
+    /** 客户经营指标（第三期 spec「团队视图的客户经营指标」）；还没跟的只算到今天为止已到期的 */
+    private void accountResults(FollowupTeamVO.Results r, Collection<Long> owners, LocalDate[] range, LocalDate today) {
+        LocalDate to = range[1].plusDays(1);
+        Map<String, Object> touched = teamMapper.accountTouched(owners, range[0], to);
+        LocalDate pendingTo = today.plusDays(1).isBefore(to) ? today.plusDays(1) : to;
+        long pending = pendingTo.isAfter(range[0]) ? teamMapper.accountPending(owners, range[0], pendingTo) : 0;
+        int due = num(touched.get("total")) + (int) pending;
+        int onTime = num(touched.get("onTime"));
+        r.setAccountDue(due);
+        r.setAccountOnTime(onTime);
+        r.setAccountOnTimePercent(due == 0 ? null : BigDecimal.valueOf(onTime * 100L)
+                .divide(BigDecimal.valueOf(due), 0, RoundingMode.HALF_UP).intValue());
+        r.getAccountInquiries().setValue(teamMapper.accountInquiries(owners, range[0].atStartOfDay(), to.atStartOfDay()));
+        r.getAccountInquiries().setPrev(teamMapper.accountInquiries(owners, range[2].atStartOfDay(),
+                range[3].plusDays(1).atStartOfDay()));
+        r.setDormant((int) teamMapper.dormant(owners));
+        r.setActivated((int) teamMapper.activated(owners, FollowupConstants.ACTIVATED_PREFIX, range[0].atStartOfDay(),
+                to.atStartOfDay()));
     }
 
     private static void zeroResults(FollowupTeamVO.Results r) {
@@ -192,6 +213,12 @@ public class FollowupTeamService {
         r.setReviewed(0);
         r.setInvited(0);
         r.setDeclined(0);
+        r.setAccountDue(0);
+        r.setAccountOnTime(0);
+        r.getAccountInquiries().setValue(0L);
+        r.getAccountInquiries().setPrev(0L);
+        r.setDormant(0);
+        r.setActivated(0);
     }
 
     private static void money(FollowupTeamVO.Money m, Map<String, Object> row) {

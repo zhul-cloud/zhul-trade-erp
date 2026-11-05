@@ -482,7 +482,8 @@ public class OrderFollowupSync {
     /** 订单履约、售后评价各阶段的默认动作：阶段编码 → 场景 → 动作 */
     public Map<String, Map<String, String>> defaultActions() {
         List<SopStageDO> rows = sopStageMapper.selectList(new LambdaQueryWrapper<SopStageDO>()
-                .in(SopStageDO::getBoard, FollowupConstants.BOARD_FULFIL, FollowupConstants.BOARD_AFTER_SALES)
+                .in(SopStageDO::getBoard, FollowupConstants.BOARD_FULFIL, FollowupConstants.BOARD_AFTER_SALES,
+                        FollowupConstants.BOARD_ACCOUNT)
                 .eq(SopStageDO::getStatus, 1));
         rows.sort(Comparator.comparing(SopStageDO::getTenantId));
         Map<String, Map<String, String>> out = new HashMap<>(16);

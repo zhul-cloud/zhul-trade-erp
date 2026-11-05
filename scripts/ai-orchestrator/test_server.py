@@ -782,6 +782,16 @@ class FollowupTest(unittest.TestCase):
             self.assertNotIn(k, s5, "商机成交阶段不输出订单阶段的答案")
         self.assertEqual(set(f6) - set(base) - {"truncated"}, {"etaDate"})
 
+    def test_extract_account_situation_only_on_board_5(self):
+        FakeClaude.reply = json.dumps({"summary": "x", "situation": ["feedback", "no_need", "new_need"], "blocker": "",
+                                       "nextActions": [], "profileSuggestions": []})
+        with mock.patch.object(self.server.anthropic, "Anthropic", FakeClaude):
+            g4 = self.server.call_followup_extract(self.cfg, {**FOLLOWUP_INPUT, "stage": {"code": "G4", "board": 5},
+                                                              "rawContent": "we need 10 more next month"})
+            s5 = self.server.call_followup_extract(self.cfg, {**FOLLOWUP_INPUT, "rawContent": "we need 10 more next month"})
+        self.assertEqual(g4["situation"], ["new_need"], "客户经营单选，有新需求优先")
+        self.assertEqual(s5["situation"], ["feedback"], "其他板块丢掉客户经营的取值")
+
     def test_extract_stage_answers_drop_bad_date(self):
         FakeClaude.reply = json.dumps({"summary": "x", "situation": [], "blocker": "", "nextActions": [], "profileSuggestions": [],
                                        "receiptAnswer": 3, "etaDate": "next week"})

@@ -5,16 +5,22 @@ import React from 'react';
 import { useAppTheme } from '@/theme/AppTheme';
 import { fmtDate } from './components';
 import {
+  ACCOUNT_ANSWER,
   ANSWER,
   DISSATISFIED_REASONS,
   type FollowupItem,
   ISSUE_TYPES,
+  NO_NEED_REASONS,
   NOTICE_OPTIONS,
   REVIEW_OPTIONS_A5,
   REVIEW_OPTIONS_A6,
   SATISFACTION,
 } from './service';
-import type { StageAnswers, StageKind } from './stageForm';
+import {
+  CROSS_CATEGORY_MAX,
+  type StageAnswers,
+  type StageKind,
+} from './stageForm';
 
 const Label: React.FC<{ children: React.ReactNode; hint?: string }> = ({
   children,
@@ -381,6 +387,75 @@ const StageQuestions: React.FC<{
         </div>
       </>
     );
+
+  if (kind === 'account') {
+    const pick = (accountAnswer: number) =>
+      set({ accountAnswer, noNeedReason: undefined });
+    return (
+      <>
+        <Label hint="单选">客户情况</Label>
+        <div style={{ display: 'grid', gap: 8 }}>
+          <Choice
+            active={a.accountAnswer === ACCOUNT_ANSWER.NEW_NEED}
+            title="客户有新需求"
+            desc="保存后打开新建询盘，客户已带好；这笔需求进入「商机成交」"
+            onClick={() => pick(ACCOUNT_ANSWER.NEW_NEED)}
+          />
+          <Choice
+            active={a.accountAnswer === ACCOUNT_ANSWER.CROSS}
+            title="聊了新品类"
+            desc="进入 G6 交叉销售"
+            onClick={() => pick(ACCOUNT_ANSWER.CROSS)}
+          >
+            <Input
+              style={{ width: 240 }}
+              maxLength={CROSS_CATEGORY_MAX}
+              placeholder="品类，例如 HMI"
+              value={a.crossCategory}
+              onChange={(e) => set({ crossCategory: e.target.value })}
+            />
+          </Choice>
+          <Choice
+            active={a.accountAnswer === ACCOUNT_ANSWER.NO_NEED}
+            title="当前没有需求"
+            desc={`选原因；下次联系默认按等级间隔${item.followDays ? `（${item.bizGrade ?? ''} 级 ${item.followDays} 天）` : ''}，可改`}
+            onClick={() => pick(ACCOUNT_ANSWER.NO_NEED)}
+          >
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              {NO_NEED_REASONS.map((r) => (
+                <Tag.CheckableTag
+                  key={r.value}
+                  checked={a.noNeedReason === r.value}
+                  onChange={(c) =>
+                    set({ noNeedReason: c ? r.value : undefined })
+                  }
+                >
+                  {r.label}
+                </Tag.CheckableTag>
+              ))}
+            </div>
+          </Choice>
+          <Choice
+            active={a.accountAnswer === ACCOUNT_ANSWER.NO_REPLY}
+            title="没回复"
+            desc="阶段不变，连续 3 次没回复建议转培育"
+            onClick={() => pick(ACCOUNT_ANSWER.NO_REPLY)}
+          />
+        </div>
+        {item.strategic && (
+          <Checkbox
+            style={{ marginTop: 10 }}
+            checked={a.quarterReview}
+            onChange={(e) => set({ quarterReview: e.target.checked })}
+          >
+            <span style={{ color: palette.sub }}>
+              这次是季度回顾（回顾日期更新为今天，90 天后再提醒）
+            </span>
+          </Checkbox>
+        )}
+      </>
+    );
+  }
 
   return null;
 };

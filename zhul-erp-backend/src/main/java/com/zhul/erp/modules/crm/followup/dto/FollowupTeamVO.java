@@ -42,6 +42,15 @@ public class FollowupTeamVO {
         private Integer declined;
         /** 客户之前已有已完成订单的新订单 */
         private Money repeat = new Money();
+        /** 客户经营（第三期）：应联系、其中按时联系的数量，按时率 = 按时 / 应联系（HALF_UP 整数百分比，应联系为 0 时为 null） */
+        private Integer accountDue;
+        private Integer accountOnTime;
+        private Integer accountOnTimePercent;
+        /** 老客户新询盘（老客户成交见 repeat） */
+        private Compare accountInquiries = new Compare();
+        /** 当前沉睡客户数、本期激活数 */
+        private Integer dormant;
+        private Integer activated;
     }
 
     @Data

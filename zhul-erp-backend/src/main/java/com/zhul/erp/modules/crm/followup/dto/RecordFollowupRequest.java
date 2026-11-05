@@ -18,6 +18,7 @@ import java.util.Map;
  * noticeMask（F1–F6，1-运单照片、2-新交期、4-客户要配合、8-没回复）、etaDate（F6 改预计送达、A1 还没收到）、
  * receiptAnswer（A1，1-已收到无问题、2-有问题、3-还没收到）、useAnswer（A2，1-正常、2-有问题、3-还没开始用）、
  * issueTypes（A1、A2 有问题）、satisfaction / dissatisfiedReason / reviewStatus / reviewPlatform（A5、A6）。
+ * 客户经营（第三期）：accountAnswer 必填，crossCategory、noNeedReason、quarterReview 按答案提交，其他板块提交报同样的错。
  */
 @Data
 public class RecordFollowupRequest {
@@ -50,6 +51,13 @@ public class RecordFollowupRequest {
     private Integer reviewStatus;
     @Size(max = 32, message = "评价平台不能超过32个字")
     private String reviewPlatform;
+    /** 客户经营（第三期 design D8）：1-客户有新需求、2-聊了新品类、3-当前没有需求、4-没回复 */
+    private Integer accountAnswer;
+    @Size(max = 50, message = "品类不能超过50个字")
+    private String crossCategory;
+    @Size(max = 16, message = "原因不正确")
+    private String noNeedReason;
+    private Boolean quarterReview;
     /** 前端每次打开弹窗生成一个，防重复提交 */
     @NotBlank(message = "缺少幂等键，请刷新后重试")
     @Size(max = 64, message = "幂等键过长")

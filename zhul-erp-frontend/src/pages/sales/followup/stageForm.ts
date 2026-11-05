@@ -1,16 +1,19 @@
 import dayjs from 'dayjs';
 import {
+  ACCOUNT_ANSWER,
   ANSWER,
+  BOARD_ACCOUNT,
   BOARD_FULFIL,
   type ExtractResult,
   type FollowupItem,
   REVIEW,
   type RecordRequest,
   SATISFACTION,
+  SITUATION,
 } from './service';
 
 /**
- * 订单履约、售后评价阶段「记一次跟进」中间区块（K12，spec「履约和售后阶段的记一次跟进」）：
+ * 订单履约、售后评价、客户经营阶段「记一次跟进」中间区块（K12、K15）：
  * 按阶段决定问什么、怎么校验、提交哪些字段、底部提示保存后会发生什么。纯函数，便于单测。
  */
 export type StageKind =
@@ -19,6 +22,7 @@ export type StageKind =
   | 'use'
   | 'satisfaction'
   | 'review'
+  | 'account'
   | 'general';
 
 export interface StageAnswers {
@@ -32,17 +36,27 @@ export interface StageAnswers {
   dissatisfiedReason?: string;
   reviewStatus?: number;
   reviewPlatform: string;
+  /** 客户经营：客户情况单选、新品类、没有需求的原因、季度回顾 */
+  accountAnswer?: number;
+  crossCategory: string;
+  noNeedReason?: string;
+  quarterReview: boolean;
 }
 
 export const emptyAnswers = (): StageAnswers => ({
   noticeMask: 0,
   issueTypes: [],
   reviewPlatform: '',
+  crossCategory: '',
+  quarterReview: false,
 });
+
+export const CROSS_CATEGORY_MAX = 50;
 
 export const stageKind = (item?: FollowupItem): StageKind => {
   if (!item) return 'general';
   if (item.board === BOARD_FULFIL) return 'fulfil';
+  if (item.board === BOARD_ACCOUNT) return 'account';
   switch (item.stageCode) {
     case 'A1':
       return 'receipt';
@@ -91,6 +105,13 @@ export const validateStage = (
         : `请选择${a.satisfaction === SATISFACTION.NEUTRAL ? '一般' : '不满意'}的原因`;
     case 'review':
       return a.reviewStatus ? undefined : '请选择评价状态';
+    case 'account':
+      if (!a.accountAnswer) return '请选择客户情况';
+      if (a.accountAnswer === ACCOUNT_ANSWER.NO_NEED && !a.noNeedReason)
+        return '请选择没有需求的原因';
+      if (a.crossCategory.trim().length > CROSS_CATEGORY_MAX)
+        return '品类不能超过50个字';
+      return undefined;
     default:
       return undefined;
   }
@@ -131,6 +152,19 @@ export const stagePayload = (
     }
     case 'review':
       return { reviewStatus: a.reviewStatus, reviewPlatform: platform };
+    case 'account':
+      return {
+        accountAnswer: a.accountAnswer,
+        crossCategory:
+          a.accountAnswer === ACCOUNT_ANSWER.CROSS
+            ? a.crossCategory.trim() || undefined
+            : undefined,
+        noNeedReason:
+          a.accountAnswer === ACCOUNT_ANSWER.NO_NEED
+            ? a.noNeedReason
+            : undefined,
+        quarterReview: a.quarterReview || undefined,
+      };
     default:
       return {};
   }
@@ -178,6 +212,25 @@ export const stageEffect = (
     case 'review':
       if (a.reviewStatus === REVIEW.NOT_YET) return '仍在 A6，按提醒规则继续';
       return a.reviewStatus ? '售后结束，客户移到「客户经营」' : undefined;
+    case 'account': {
+      const review = a.quarterReview
+        ? '；回顾日期更新为今天，90 天后再提醒'
+        : '';
+      switch (a.accountAnswer) {
+        case ACCOUNT_ANSWER.NEW_NEED:
+          return `进入 G5 复购机会，接着打开新建询盘（客户已带好）${review}`;
+        case ACCOUNT_ANSWER.CROSS:
+          return `进入 G6 交叉销售${review}`;
+        case ACCOUNT_ANSWER.NO_NEED:
+          return item?.strategic
+            ? `留在 G7 长期合作${review}`
+            : `回到 G4 需求挖掘${review}`;
+        case ACCOUNT_ANSWER.NO_REPLY:
+          return `阶段不变，连续 3 次没回复会建议转培育${review}`;
+        default:
+          return undefined;
+      }
+    }
     default:
       return undefined;
   }
@@ -222,5 +275,10 @@ export const applyAiAnswers = (
     next.reviewStatus = r.reviewStatus;
   if (kind === 'fulfil' && stageCode === 'F6' && !a.etaDate && r.etaDate)
     next.etaDate = r.etaDate;
+  if (kind === 'account' && !a.accountAnswer) {
+    if (r.accountAnswer) next.accountAnswer = r.accountAnswer;
+    else if ((r.situation ?? 0) & SITUATION.NO_REPLY)
+      next.accountAnswer = ACCOUNT_ANSWER.NO_REPLY;
+  }
   return next;
 };

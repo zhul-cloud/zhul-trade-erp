@@ -22,8 +22,9 @@ description: 客户跟进作战卡上的「AI 写一条英文回复」——按�
 - `blocker`：主要卡点（名称）以及 SOP 给出的应对要点 `playbook`，可能为空；
 - `lastFollowup`：上次跟进的中文摘要和定下的下一步，可能为空；
 - `note`：业务员补充的这次想表达的意思（中文），可能为空。有 `note` 时以它为准；
-- `intent`：这条消息的意图，空为按卡点写跟进，另有 `logistics_update`（物流更新）、`review_invite`（评价邀请），写法见下文；
+- `intent`：这条消息的意图，空为按卡点写跟进，另有 `logistics_update`（物流更新）、`review_invite`（评价邀请）、`account_touch`（老客户经营触达），写法见下文；
 - `order`：订单履约、售后评价阶段才有：订单号 `soNo`、现在的情况、预计送达日 `etaDate` 和依据、签收日期、评价平台 `reviewPlatform`。
+- `account`：客户经营阶段才有：触达理由 `reason`、采购规律 `pattern`（系统推测）、常买品牌品类 `brands`、最近一单 `lastOrder`（日期和「品牌 型号 ×数量」）、交叉销售建议 `crossSell`（品类，可能为空）。
 
 # 输出（只输出 JSON）
 
@@ -45,6 +46,7 @@ description: 客户跟进作战卡上的「AI 写一条英文回复」——按�
   运单号等输入里没有的用 `[请填写]` 标出。结尾请客户收到后确认数量和外观。
 - `review_invite`（评价邀请）：客户已确认满意后，感谢客户并邀请在 `order.reviewPlatform`（为空时写 `[请填写平台]`）留一条简短评价，
   说明写什么（产品、交期、沟通）即可，不承诺返利或折扣，不施压；客户之前婉拒过就不要再写这类消息。
+- `account_touch`（老客户经营触达）：围绕 `account.reason` 给客户一个具体的联系理由，不要只问「Any new inquiry?」「Do you have any requirement?」。例如理由是预计采购，就围绕最近一单的品牌型号问未来 1–2 个月的备件或项目计划；理由是沉睡激活，就说有同品类的现货或新到货，问近期计划；有 `crossSell` 时可以顺带问一句客户是否也负责这个品类的采购，只问一个，不推销。结尾请客户回复一个具体信息（项目时间、数量或型号）。
 - 空：按 `blocker` 和 `stage` 写跟进。
 
 # 常用表达

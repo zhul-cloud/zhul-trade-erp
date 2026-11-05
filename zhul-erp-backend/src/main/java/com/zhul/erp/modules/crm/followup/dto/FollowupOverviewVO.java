@@ -27,6 +27,8 @@ public class FollowupOverviewVO {
         private Integer nurture;
         /** 订单履约：有异常的跟进对象数 */
         private Integer exceptions;
+        /** 客户经营：沉睡客户数 */
+        private Integer dormant;
         private List<Group> groups = new ArrayList<>();
     }
 

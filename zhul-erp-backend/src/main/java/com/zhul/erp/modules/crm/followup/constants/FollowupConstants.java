@@ -23,6 +23,8 @@ public final class FollowupConstants {
     public static final int TARGET_QUOTATION = 3;
     public static final int TARGET_PI = 4;
     public static final int TARGET_ORDER = 5;
+    /** 客户经营（board 5）：一个客户一行，target_id = customer_id */
+    public static final int TARGET_CUSTOMER = 6;
 
     /** 阶段分组 */
     public static final int GROUP_BEFORE_QUOTE = 1;
@@ -37,10 +39,17 @@ public final class FollowupConstants {
     public static final int GROUP_USE = 8;
     public static final int GROUP_ISSUE = 9;
     public static final int GROUP_REVIEW = 10;
-    public static final Map<Integer, String> GROUP_NAMES = Map.of(
-            GROUP_BEFORE_QUOTE, "报价前", GROUP_AFTER_QUOTE, "报价后", GROUP_AFTER_PI, "PI 后",
-            GROUP_PURCHASING, "采购中", GROUP_SHIPPING, "验收发货", GROUP_IN_TRANSIT, "在途",
-            GROUP_SIGN, "签收", GROUP_USE, "使用", GROUP_ISSUE, "问题", GROUP_REVIEW, "满意评价");
+    /** 客户经营：一个阶段一组（G4–G7） */
+    public static final int GROUP_NEED = 11;
+    public static final int GROUP_REPEAT = 12;
+    public static final int GROUP_CROSS = 13;
+    public static final int GROUP_LONG_TERM = 14;
+    public static final Map<Integer, String> GROUP_NAMES = Map.ofEntries(
+            Map.entry(GROUP_BEFORE_QUOTE, "报价前"), Map.entry(GROUP_AFTER_QUOTE, "报价后"), Map.entry(GROUP_AFTER_PI, "PI 后"),
+            Map.entry(GROUP_PURCHASING, "采购中"), Map.entry(GROUP_SHIPPING, "验收发货"), Map.entry(GROUP_IN_TRANSIT, "在途"),
+            Map.entry(GROUP_SIGN, "签收"), Map.entry(GROUP_USE, "使用"), Map.entry(GROUP_ISSUE, "问题"),
+            Map.entry(GROUP_REVIEW, "满意评价"), Map.entry(GROUP_NEED, "需求挖掘"), Map.entry(GROUP_REPEAT, "复购机会"),
+            Map.entry(GROUP_CROSS, "交叉销售"), Map.entry(GROUP_LONG_TERM, "长期合作"));
 
     /** 下一步来源 */
     public static final int NEXT_SYSTEM = 1;
@@ -57,6 +66,7 @@ public final class FollowupConstants {
     public static final int CLOSE_OPPORTUNITY = 3;
     public static final int CLOSE_DOC_GONE = 4;
     public static final int CLOSE_AFTER_SALES = 5;
+    public static final int CLOSE_NOT_CUSTOMER = 6;
 
     /** 记录类型 */
     public static final int RECORD_USER = 1;
@@ -66,6 +76,10 @@ public final class FollowupConstants {
     public static final int SITUATION_FEEDBACK = 1;
     public static final int SITUATION_NEGOTIATING = 2;
     public static final int SITUATION_NO_REPLY = 4;
+    /** 客户经营（第三期 design D8） */
+    public static final int SITUATION_NEW_NEED = 8;
+    public static final int SITUATION_CROSS = 16;
+    public static final int SITUATION_NO_NEED = 32;
 
     /** 方式 */
     public static final Map<Integer, String> CHANNEL_NAMES = Map.of(1, "WhatsApp", 2, "邮件", 3, "电话", 4, "其他");
@@ -81,6 +95,29 @@ public final class FollowupConstants {
     /** 订单履约、售后评价的阶段编码 */
     public static final List<String> FULFIL_STAGES = List.of("F1", "F2", "F3", "F4", "F5", "F6");
     public static final List<String> AFTER_SALES_STAGES = List.of("A1", "A2", "A3", "A4", "A5", "A6");
+    /** 客户经营的阶段编码与分组 */
+    public static final String G4 = "G4";
+    public static final String G5 = "G5";
+    public static final String G6 = "G6";
+    public static final String G7 = "G7";
+    public static final Map<String, Integer> ACCOUNT_GROUPS = Map.of(G4, GROUP_NEED, G5, GROUP_REPEAT, G6, GROUP_CROSS,
+            G7, GROUP_LONG_TERM);
+
+    /** 客户经营记跟进的客户情况（单选） */
+    public static final int ACCOUNT_NEW_NEED = 1;
+    public static final int ACCOUNT_CROSS = 2;
+    public static final int ACCOUNT_NO_NEED = 3;
+    public static final int ACCOUNT_NO_REPLY = 4;
+    public static final Map<Integer, String> ACCOUNT_ANSWER_NAMES = Map.of(ACCOUNT_NEW_NEED, "客户有新需求",
+            ACCOUNT_CROSS, "聊了新品类", ACCOUNT_NO_NEED, "当前没有需求", ACCOUNT_NO_REPLY, "没回复");
+    /** 当前没有需求的原因 */
+    public static final String NO_NEED_NOT_RELEVANT = "NOT_RELEVANT";
+    public static final Map<String, String> NO_NEED_REASONS = Map.of("NO_PROJECT", "近期没有项目",
+            NO_NEED_NOT_RELEVANT, "暂不相关", "NO_BUDGET", "预算没下来", "OTHER", "其他");
+    /** 聊了新品类：品类最长 */
+    public static final int CROSS_CATEGORY_MAX = 50;
+    /** 沉睡激活的系统记录标题前缀（团队视图按它计「激活」） */
+    public static final String ACTIVATED_PREFIX = "沉睡激活";
 
     /** 订单履约节点（node_code） */
     public static final String NODE_CREATED = "created";
@@ -142,7 +179,7 @@ public final class FollowupConstants {
     /** 上线补生成售后评价 A1：预计送达在这么多天之内 */
     public static final int BOOTSTRAP_A1_DAYS = 30;
 
-    /** 五个板块，链路卡片顺序；商机成交、订单履约、售后评价已上线 */
+    /** 五个板块，链路卡片顺序；商机成交、订单履约、售后评价、客户经营已上线 */
     public static final List<String> BOARD_NAMES = List.of("主动开发", "商机成交", "订单履约", "售后评价", "客户经营");
 
     /** 系统参数键（design D6、D7） */
@@ -157,6 +194,11 @@ public final class FollowupConstants {
     public static final String CFG_OTHER_DAYS = "sales.followup.transit.other-days";
     public static final String CFG_REVIEW_DAYS = "sales.followup.review.remind-days";
     public static final String CFG_REVIEW_TIMES = "sales.followup.review.remind-times";
+    public static final String CFG_ACCOUNT_AHEAD = "sales.followup.account.ahead-days";
+    public static final String CFG_DORMANT_DAYS = "sales.followup.account.dormant-days";
+    public static final String CFG_DORMANT_QUIET = "sales.followup.account.dormant-quiet-days";
+    public static final String CFG_DORMANT_INTERVAL = "sales.followup.account.dormant-interval-days";
+    public static final String CFG_STRATEGIC_REVIEW = "sales.followup.account.review-days";
 
     /** 多次延后：连续延后达到这个次数，主管查看团队时标出 */
     public static final int SNOOZE_WARN_TIMES = 3;
@@ -182,7 +224,9 @@ public final class FollowupConstants {
     /** 「AI 写一条」的意图（第二期 design D13）：空为按卡点写跟进，另有物流更新、评价邀请 */
     public static final String INTENT_LOGISTICS = "logistics_update";
     public static final String INTENT_REVIEW = "review_invite";
-    public static final Set<String> REPLY_INTENTS = Set.of(INTENT_LOGISTICS, INTENT_REVIEW);
+    /** 客户经营的触达消息（第三期 design D10） */
+    public static final String INTENT_ACCOUNT = "account_touch";
+    public static final Set<String> REPLY_INTENTS = Set.of(INTENT_LOGISTICS, INTENT_REVIEW, INTENT_ACCOUNT);
     /** 英文回复同步等待的上限 */
     public static final int REPLY_TIMEOUT_SECONDS = 30;
     public static final String ERROR_AI_NOT_CONFIGURED = "AI_NOT_CONFIGURED";
