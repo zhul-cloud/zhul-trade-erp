@@ -17,6 +17,9 @@ public interface QuotationService {
 
     QuotationVO create(CreateQuotationRequest req);
 
+    /** 按询盘批量生成，每个询盘一张；不能报的询盘跳过并说明原因 */
+    com.zhul.erp.modules.quotation.dto.BatchCreateQuotationVO batchCreate(com.zhul.erp.modules.quotation.dto.BatchCreateQuotationRequest req);
+
     QuotationVO addItems(Long id, AddQuotationItemsRequest req);
 
     QuotationVO detail(Long id);

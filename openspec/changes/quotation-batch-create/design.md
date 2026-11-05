@@ -16,12 +16,12 @@
 请求 `{inquiryIds: [..]}`（1–20 个，同一客户），响应 `{created: [{quotationId, quotationNo, inquiryNo, itemCount, totalAmount, currencyCode, pendingCount}], skipped: [{inquiryId, inquiryNo, reason}]}`。不改原接口，避免影响「合并成一张」和「去报价」。
 
 ### D2 复用单张生成
-把 `create` 中「校验 + 建单」抽成按单个询盘调用的内部方法，批量逐个调用；校验失败（`BizException` 的已报价、已有草稿、不在数据范围）收集到 `skipped`，其他异常照常抛出回滚。整个批量在 `create` 所在服务的一个 `@Transactional` 内，编号由编号服务依次分配。
+批量对每个询盘调用一次现有的 `create`（同一个 bean 内自调用，加入批量的事务）；`create` 的业务校验都在写入之前，校验失败（`BizException` 的已报价、已有草稿、不在数据范围）收集到 `skipped`，其他异常照常抛出回滚。整个批量在 `create` 所在服务的一个 `@Transactional` 内，编号由编号服务依次分配。
 
 **事务边界**：一个批量 = 一个事务。生成报价单、询盘状态同步（`InquiryStatusSync`）都在这个事务内；跳过的询盘不产生任何写入。全部跳过时抛出业务异常，前端显示原因。
 
 ### D3 「全选该客户可报价询盘」
-候选接口加参数 `customerId` + `onlyReadyNoDraft=true` 返回 id 列表（不分页，上限 200），前端合并进勾选集合，不需要先滚动加载。
+新接口 `GET /api/v1/quotations/candidates/ready-inquiries?customerId=` 返回该客户数据范围内可报价、没有草稿的询盘卡片（不分页，上限 200），前端合并进勾选集合，不需要先滚动加载；返回卡片而不是 id，是为了底部摘要能算出型号数。
 
 ### D4 前端
 - 勾选 ≥2 个询盘时底部出现分段选择「每个询盘一张 / 合并成一张」，默认前者；勾选 1 个时不显示。
