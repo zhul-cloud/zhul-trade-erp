@@ -643,6 +643,12 @@ export interface OrderStep {
   enabled: boolean;
 }
 
+/** 手动订单的费用行 */
+export interface OrderFeeInput {
+  feeName: string;
+  amount: number;
+}
+
 export interface Order {
   id: number;
   soNo: string;
@@ -1054,7 +1060,14 @@ export const orderApi = {
     remark?: string;
     /** PI、合同、客户 PO 等附件：先上传拿到 ID */
     attachmentIds?: number[];
+    /** 费用行（选填，如运费） */
+    fees?: OrderFeeInput[];
   }) => send<Order>('POST', SO, body),
+  /** 修改手动订单的费用（「修改订单费用」权限）；expectedTotal 为页面上看到的原合计 */
+  updateFees: (
+    id: number,
+    body: { fees: OrderFeeInput[]; reason: string; expectedTotal: number },
+  ) => send<Order>('PUT', `${SO}/${id}/fees`, body),
   addAttachments: (id: number, attachmentIds: number[]) =>
     send<Order>('POST', `${SO}/${id}/attachments`, { attachmentIds }),
   removeAttachment: (id: number, attachmentId: number) =>

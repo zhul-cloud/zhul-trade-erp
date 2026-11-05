@@ -67,6 +67,7 @@ import {
 } from '../service';
 import OrderCostCard from './CostCard';
 import {
+  EditFeesModal,
   manualSteps,
   ProgressModal,
   PurchaserModal,
@@ -121,6 +122,7 @@ const OrderDetail: React.FC = () => {
   const [selected, setSelected] = useState<number[]>([]);
   const [dialog, setDialog] = useState<Dialog>();
   const [cancelOpen, setCancelOpen] = useState(false);
+  const [feesOpen, setFeesOpen] = useState(false);
   const [refundOpen, setRefundOpen] = useState(false);
   const [voidId, setVoidId] = useState<number>();
   /** 订单刷新次数：销售出库单列表随之重新取 */
@@ -859,6 +861,31 @@ const OrderDetail: React.FC = () => {
           marginLeft: 'auto',
         }}
       >
+        {access['sales:order:fee-edit'] && editable && (
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'flex-end',
+              marginBottom: 6,
+              fontSize: 12,
+              color: palette.mute,
+            }}
+          >
+            {!manual ? (
+              '费用以 PI 为准，要修改请取消订单后在 PI 出新版本'
+            ) : completed ? (
+              '订单已完成，不能修改费用'
+            ) : (
+              <Button
+                size="small"
+                icon={<EditOutlined />}
+                onClick={() => setFeesOpen(true)}
+              >
+                修改费用
+              </Button>
+            )}
+          </div>
+        )}
         {line('小计', formatAmount(o.itemAmount, cur))}
         {o.fees.map((f) => line(f.feeName, formatAmount(f.amount, cur)))}
         {o.discountAmount > 0 &&
@@ -1370,7 +1397,7 @@ const OrderDetail: React.FC = () => {
         }
       />
       <div style={{ fontSize: 12, color: palette.mute, marginTop: 10 }}>
-        成交内容（型号、单价、费用）不能直接改：减少型号数量用「部分取消」，其他变更请取消订单；全部取消的型号保留显示，不再参与进度与货物状态。销售日期、进度、采购员、现货
+        成交内容（型号、单价、费用）不能直接改：减少型号数量用「部分取消」，其他变更请取消订单（手动创建的订单，有「修改订单费用」权限的人可以改费用）；全部取消的型号保留显示，不再参与进度与货物状态。销售日期、进度、采购员、现货
         / 期货可以随时改，改动写操作日志。
       </div>
       <PartialCancelRecords order={o} />
@@ -1654,6 +1681,16 @@ const OrderDetail: React.FC = () => {
         onClose={() => setDialog(undefined)}
         onDone={done}
       />
+      {feesOpen && (
+        <EditFeesModal
+          order={o}
+          onClose={() => setFeesOpen(false)}
+          onDone={(next) => {
+            setFeesOpen(false);
+            done(next);
+          }}
+        />
+      )}
       <SalesDateModal
         order={o}
         open={dialog === 'salesDate'}

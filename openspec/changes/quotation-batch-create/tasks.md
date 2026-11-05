@@ -9,7 +9,7 @@
 - [x] 2.1 `NewQuotationModal` 按询盘模式：生成方式选择、按钮文案「生成 N 张报价单」、上限提示
 - [x] 2.2 「全选该客户可报价询盘（k 个）」
 - [x] 2.3 结果清单（生成的报价单、跳过的询盘与原因），点击进入编辑
-- [ ] 2.4 `npm run lint`、`npx antd lint ./src`、`npm test` 通过
+- [x] 2.4 `npm run lint`、`npx antd lint ./src`、`npm test` 通过
 
 ## 3. 验证
 

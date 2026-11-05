@@ -17,16 +17,16 @@
 PI 转成的订单的收款属于 PI、按 PI 合计计算，改订单费用会让订单合计与收款基数不一致，而且客户手里的 PI 不变。保持「取消 → PI 出新版本 → 重新转」，不在这期解决。
 
 ### D2 接口 `PUT /api/v1/sales/orders/{id}/fees`
-请求 `{fees: [{id?, feeName, amount}], reason, expectedTotal}`，整组替换：带 id 的更新、没带的新增、缺少的软删除。`expectedTotal` 为前端看到的原合计，不一致时拒绝「订单已被修改，请刷新」，防止两人同时改。`@PreAuthorize("@perm.has('sales:order:fee-edit')")`，并校验订单在数据范围内。
+请求 `{fees: [{feeName, amount}], reason, expectedTotal}`，整组替换：原有费用行全部软删除，按请求重新插入；费用没有变化时拒绝。`expectedTotal` 为前端看到的原合计，不一致时拒绝「订单已被修改，请刷新」，防止两人同时改。`@PreAuthorize("@perm.has('sales:order:fee-edit')")`，并校验订单在数据范围内。
 
 ### D3 重算（同一事务）
 1. 校验：手动订单、状态非已取消 / 已完成、非历史迁移；金额 > 0；≤ 10 行；原因非空。
 2. 写费用行：`amount_cny = amount × 订单汇率`，HALF_UP 两位小数。
 3. 订单 `fee_amount`、`total_amount = 型号小计 + 费用 − 折扣`、`total_amount_cny = total_amount × 汇率` HALF_UP 两位小数。
 4. 按 `ReceiptPosition.ofOrder` 重算并回写订单的收款状态字段（与登记到账后的刷新路径相同）。
-5. 写操作日志（每行变化 + 合计变化 + 原因）。
+5. 写系统操作日志（修改前后的费用、合计与原因）。
 
-毛利由 `OrderCostService` 实时计算，不需要额外回写。**事务边界**：费用行、订单合计、收款状态、操作日志在同一事务；跨模块只读收款记录，不改收款、应收凭证。若该订单已生成财务凭证且凭证已锁定，拒绝修改并提示「订单已有锁定的凭证，不能修改费用」（遵守不修改已结算凭证的规定）。
+毛利由 `OrderCostService` 实时计算，不需要额外回写。**事务边界**：费用行、订单合计、收款状态、操作日志在同一事务；跨模块只读收款记录，不改收款。系统目前没有销售订单的财务凭证（查过代码，没有凭证表），所以不涉及「已锁定凭证不能改」；以后加凭证时这里要补校验。
 
 ### D4 手动建单的费用
 `CreateOrderRequest` 增加 `fees`（可选，≤ 10 行，金额 > 0），类型固定普通费用，合计计算同 D3 第 3 步。
