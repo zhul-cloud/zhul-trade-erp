@@ -220,8 +220,10 @@ export type ContactPayload = Omit<Contact, 'id' | 'primary' | 'updateTime'> & {
 };
 
 export interface DupGroup {
-  groupKey: string;
-  reason: 'NAME' | 'EMAIL' | 'PHONE';
+  /** 手动合并（MANUAL）时为空 */
+  groupKey?: string;
+  /** MANUAL：手动合并选客户，第一个成员是当前客户 */
+  reason: 'NAME' | 'EMAIL' | 'PHONE' | 'MANUAL';
   reasonText: string;
   members: {
     id: number;
@@ -233,6 +235,8 @@ export interface DupGroup {
     profileDone: number;
     inquiryCount: number;
     orderCount: number;
+    /** 手动合并选客户时与当前客户相同或相近之处 */
+    hint?: string;
   }[];
 }
 
@@ -275,6 +279,8 @@ export const profileApi = {
   duplicates: () => get<DupGroup[]>(`${BASE}/duplicates`),
   dismiss: (groupKey: string) =>
     send<void>('POST', `${BASE}/duplicates/dismiss`, { groupKey }),
+  mergeCandidates: (targetId: number, keyword: string) =>
+    get<DupGroup>(`${BASE}/merge-candidates`, { targetId, keyword }),
   mergePreview: (targetId: number, sourceId: number) =>
     get<MergePreview>(`${BASE}/merge-preview`, { targetId, sourceId }),
   merge: (targetId: number, sourceId: number) =>

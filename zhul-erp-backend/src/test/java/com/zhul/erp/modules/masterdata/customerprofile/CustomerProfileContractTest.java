@@ -382,4 +382,32 @@ class CustomerProfileContractTest extends IntegrationTestBase {
         assertTrue(jdbc.queryForObject("select remark from customer where id = ?", String.class, dup).contains("已并入"));
         assertEquals(0, ok(call(get(BASE + "/duplicates"), admin)).size());
     }
+
+    /** 2026-11-05 用户反馈：从客户详情手动选另一个客户合并（不在疑似重复里的也能合并） */
+    @Test
+    void manualMerge_candidatesSearchThenMerge() throws Exception {
+        long keep = customer("Omega Automation", "Brazil", "Ana", "+55 11 4000 1000");
+        long other = customer("Omega Automação Ltda", "Brazil", "Joao", "+55 11 4000 2000");
+        long similar = customer("Omega Automation Brasil", "Brazil", "Rui", "+55 11 4000 3000");
+        customer("Sigma Trading", "Brazil", "Leo", "+55 11 4000 4000");
+        assertEquals(0, ok(call(get(BASE + "/duplicates"), admin)).size(), "互相不算疑似重复");
+
+        JsonNode none = ok(call(get(BASE + "/merge-candidates").param("targetId", String.valueOf(keep)).param("keyword", "O"), admin));
+        assertEquals(1, none.path("members").size(), "少于 2 个字只返回当前客户");
+        assertEquals(keep, none.path("members").get(0).path("id").asLong());
+
+        JsonNode c = ok(call(get(BASE + "/merge-candidates").param("targetId", String.valueOf(keep)).param("keyword", "omega"), admin));
+        assertEquals("MANUAL", c.path("reason").asText());
+        assertEquals(3, c.path("members").size(), "当前客户 + 两个候选，不含 Sigma");
+        assertEquals(keep, c.path("members").get(0).path("id").asLong(), "第一个是当前客户");
+        assertEquals(similar, c.path("members").get(1).path("id").asLong(), "相近的排在前面");
+        assertEquals("名称相近", c.path("members").get(1).path("hint").asText());
+        assertTrue(c.path("members").get(2).path("hint").isNull() || c.path("members").get(2).path("hint").isMissingNode());
+        assertEquals(0, c.path("members").get(2).path("orderCount").asLong(), "带出询盘 / 订单数等摘要");
+
+        ok(call(json(post(BASE + "/merge"), "{\"targetId\":" + keep + ",\"sourceId\":" + other + "}"), admin));
+        assertTrue(jdbc.queryForObject("select remark from customer where id = ?", String.class, other).contains("已并入"));
+        assertEquals(2, ok(call(get(BASE + "/merge-candidates").param("targetId", String.valueOf(keep)).param("keyword", "omega"), admin))
+                .path("members").size(), "并掉的客户不再出现");
+    }
 }

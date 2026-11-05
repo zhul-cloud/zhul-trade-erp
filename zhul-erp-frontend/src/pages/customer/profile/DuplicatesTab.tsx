@@ -15,14 +15,20 @@ import { type DupGroup, type MergePreview, profileApi } from './service';
 
 type Member = DupGroup['members'][number];
 
-/** 合并客户（原型 C6）：保留 ← 被合并，可以对调；先看预览再确认，合并后不能撤销 */
+/**
+ * 合并客户（原型 C6）：保留 ← 被合并，可以对调；先看预览再确认，合并后不能撤销。
+ * 手动合并（原型 M2，group.reason = MANUAL）：第一个成员（当前客户）默认保留，左下是「上一步」。
+ */
 export const MergeModal: React.FC<{
   group?: DupGroup;
   index: number;
   onClose: () => void;
-  onDone: () => void;
-  onDismiss: (g: DupGroup) => void;
-}> = ({ group, index, onClose, onDone, onDismiss }) => {
+  /** keepId：保留下来的客户 */
+  onDone: (keepId: number) => void;
+  onDismiss?: (g: DupGroup) => void;
+  onBack?: () => void;
+}> = ({ group, index, onClose, onDone, onDismiss, onBack }) => {
+  const manual = group?.reason === 'MANUAL';
   const { message } = App.useApp();
   const { palette } = useAppTheme();
   const [pair, setPair] = useState<[Member, Member]>();
@@ -32,6 +38,10 @@ export const MergeModal: React.FC<{
 
   useEffect(() => {
     if (!group) return;
+    if (group.reason === 'MANUAL') {
+      setPair([group.members[0], group.members[1]]);
+      return;
+    }
     // 默认保留订单多、档案全的那个
     const sorted = [...group.members].sort(
       (a, b) =>
@@ -58,7 +68,7 @@ export const MergeModal: React.FC<{
     try {
       await profileApi.merge(pair[0].id, pair[1].id);
       message.success(`已把 ${pair[1].name} 并入 ${pair[0].name}`);
-      onDone();
+      onDone(pair[0].id);
     } catch (e) {
       message.error(readBizError(e).message);
     } finally {
@@ -141,7 +151,9 @@ export const MergeModal: React.FC<{
         <div>
           合并客户
           <div style={{ fontSize: 12, fontWeight: 400, color: palette.mute }}>
-            疑似重复 · 第 {index + 1} 组 · 原因：{group?.reasonText}
+            {manual
+              ? '从客户详情发起 · 第 2 步，共 2 步：确认合并'
+              : `疑似重复 · 第 ${index + 1} 组 · 原因：${group?.reasonText}`}
           </div>
         </div>
       }
@@ -150,12 +162,18 @@ export const MergeModal: React.FC<{
       destroyOnHidden
       footer={
         <div style={{ display: 'flex', gap: 8 }}>
-          <Button
-            style={{ marginRight: 'auto' }}
-            onClick={() => group && onDismiss(group)}
-          >
-            不是重复
-          </Button>
+          {manual ? (
+            <Button style={{ marginRight: 'auto' }} onClick={onBack}>
+              上一步
+            </Button>
+          ) : (
+            <Button
+              style={{ marginRight: 'auto' }}
+              onClick={() => group && onDismiss?.(group)}
+            >
+              不是重复
+            </Button>
+          )}
           <Button onClick={onClose}>取消</Button>
           <Button
             type="primary"
@@ -177,7 +195,13 @@ export const MergeModal: React.FC<{
           fontSize: 13,
         }}
       >
-        <b style={{ color: palette.orange }}>{group?.reasonText}</b>
+        <b style={{ color: palette.orange }}>
+          {manual
+            ? group?.members[1]?.hint
+              ? `这两个客户${group.members[1].hint}`
+              : '这两个客户不在「疑似重复」里：名称、邮箱、WhatsApp 都不同'
+            : group?.reasonText}
+        </b>
         <div style={{ color: palette.sub }}>
           确认是同一家公司后再合并，合并后不能撤销。
         </div>
@@ -195,7 +219,7 @@ export const MergeModal: React.FC<{
           {card(pair[1], false)}
         </div>
       )}
-      {group && group.members.length > 2 && pair && (
+      {group && !manual && group.members.length > 2 && pair && (
         <div style={{ marginTop: 10, fontSize: 12, color: palette.mute }}>
           这一组有 {group.members.length} 个客户，一次合并两个。被合并的换成：
           {group.members
@@ -297,7 +321,7 @@ const DuplicatesTab: React.FC<{
       cancelText: '取消',
       onOk: async () => {
         try {
-          await profileApi.dismiss(g.groupKey);
+          await profileApi.dismiss(g.groupKey ?? '');
           message.success('已标为不是重复');
           setMerging(undefined);
           load();
