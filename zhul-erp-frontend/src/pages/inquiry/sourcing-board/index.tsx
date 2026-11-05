@@ -17,8 +17,10 @@ import {
   Button,
   Checkbox,
   Dropdown,
+  Input,
   Modal,
   Segmented,
+  Select,
   Skeleton,
   Tooltip,
 } from 'antd';
@@ -54,6 +56,7 @@ import {
   type RulePreview,
   readBizError,
 } from '../shared/service';
+import AllTasksTable from './AllTasksTable';
 import ReviewDrawer from './ReviewDrawer';
 import TaskDetailDrawer from './TaskDetailDrawer';
 
@@ -63,6 +66,8 @@ const SOURCING = 2;
 const DONE = 3;
 /** 待审核：任务下有兼职回价等采购负责人审核（不是任务状态，与后端 BOARD_TAB_REVIEW 一致） */
 const REVIEW = 5;
+/** 全部：全部询价任务（含已报价、已关闭），只在前端使用，走 /all 接口 */
+const ALL = 9;
 
 const TAB_HINT: Record<number, string> = {
   [REVIEW]:
@@ -91,12 +96,22 @@ const SourcingBoardPage: React.FC = () => {
   const [reviewId, setReviewId] = useState<number>();
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = usePageSize(20);
+  const [keyword, setKeyword] = useState('');
+  const [search, setSearch] = useState('');
+  const [purchaserId, setPurchaserId] = useState<number>();
   const fold = useFold();
 
   const load = useCallback(async () => {
     setError('');
     try {
-      const b = await boardApi.board(tab, page, pageSize);
+      // 「全部」页签只用这次请求取统计、页签数字与采购名单，表格由 AllTasksTable 自己查
+      const all = tab === ALL;
+      const b = await boardApi.board(
+        all ? UNASSIGNED : tab,
+        all ? 1 : page,
+        all ? 1 : pageSize,
+        { keyword: search || undefined, purchaserId },
+      );
       // 分配后最后一页可能空了，退回到还有任务的最后一页
       if (b.tasks.length === 0 && page > 1 && b.total > 0) {
         setPage(Math.ceil(b.total / pageSize));
@@ -106,11 +121,14 @@ const SourcingBoardPage: React.FC = () => {
     } catch (e) {
       setError(readBizError(e).message);
     }
-  }, [tab, page, pageSize]);
+  }, [tab, page, pageSize, search, purchaserId]);
 
   useEffect(() => {
     setBoard(null);
   }, [tab]);
+
+  // 搜索条件变化时回到第一页
+  useEffect(() => setPage(1), [search, purchaserId]);
 
   useEffect(() => {
     setSelected([]);
@@ -131,7 +149,10 @@ const SourcingBoardPage: React.FC = () => {
     }
   };
 
-  const groups = useMemo(() => groupByBrand(board?.tasks ?? []), [board]);
+  const groups = useMemo(
+    () => (tab === ALL ? [] : groupByBrand(board?.tasks ?? [])),
+    [board, tab],
+  );
   const brandSummary = useMemo(
     () => new Map((board?.brands ?? []).map((b) => [b.brand, b])),
     [board],
@@ -286,6 +307,45 @@ const SourcingBoardPage: React.FC = () => {
             }}
           >
             <div style={{ display: 'grid', gap: 12 }}>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 12,
+                  flexWrap: 'wrap',
+                }}
+              >
+                <Input.Search
+                  allowClear
+                  placeholder="搜任务编号、询盘单号、品牌、型号"
+                  style={{ width: 320 }}
+                  value={keyword}
+                  onChange={(e) => {
+                    setKeyword(e.target.value);
+                    if (!e.target.value) setSearch('');
+                  }}
+                  onSearch={(v) => setSearch(v.trim())}
+                  aria-label="搜索询价任务"
+                />
+                <Select
+                  allowClear
+                  showSearch={{ optionFilterProp: 'label' }}
+                  placeholder="采购员：全部"
+                  style={{ width: 180 }}
+                  value={purchaserId}
+                  onChange={setPurchaserId}
+                  options={(board?.purchasers ?? []).map((p) => ({
+                    value: p.id,
+                    label: p.name,
+                  }))}
+                  aria-label="按采购员筛选"
+                />
+                {(search || purchaserId) && (
+                  <span style={{ color: palette.mute, fontSize: 12 }}>
+                    页签数字按搜索条件统计；顶部卡片仍是全部任务
+                  </span>
+                )}
+              </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <Segmented
                   value={tab}
@@ -294,10 +354,23 @@ const SourcingBoardPage: React.FC = () => {
                     setPage(1);
                   }}
                   options={[
-                    { value: UNASSIGNED, label: `待分配 ${s.unassigned}` },
-                    { value: SOURCING, label: `询价中 ${s.sourcing}` },
-                    { value: REVIEW, label: `待审核 ${s.pendingReview ?? 0}` },
-                    { value: DONE, label: `已回价 ${s.done ?? 0}` },
+                    {
+                      value: UNASSIGNED,
+                      label: `待分配 ${board.tabs?.unassigned ?? s.unassigned}`,
+                    },
+                    {
+                      value: SOURCING,
+                      label: `询价中 ${board.tabs?.sourcing ?? s.sourcing}`,
+                    },
+                    {
+                      value: REVIEW,
+                      label: `待审核 ${board.tabs?.review ?? s.pendingReview ?? 0}`,
+                    },
+                    {
+                      value: DONE,
+                      label: `已回价 ${board.tabs?.done ?? s.done ?? 0}`,
+                    },
+                    { value: ALL, label: '全部' },
                   ]}
                 />
                 {TAB_HINT[tab] && (
@@ -313,7 +386,7 @@ const SourcingBoardPage: React.FC = () => {
                   </span>
                 )}
                 <span style={{ marginLeft: 'auto' }} />
-                {tab !== REVIEW && (
+                {tab !== REVIEW && tab !== ALL && (
                   <FoldToggle mode={fold.mode} onChange={fold.setAll} />
                 )}
                 <span
@@ -406,7 +479,14 @@ const SourcingBoardPage: React.FC = () => {
                   onOpenTask={setDetailId}
                 />
               )}
-              {tab !== REVIEW && groups.length === 0 && (
+              {tab === ALL && (
+                <AllTasksTable
+                  keyword={search}
+                  purchaserId={purchaserId}
+                  onOpen={setDetailId}
+                />
+              )}
+              {tab !== REVIEW && tab !== ALL && groups.length === 0 && (
                 <Card>
                   <EmptyHint
                     title={
@@ -737,15 +817,17 @@ const SourcingBoardPage: React.FC = () => {
                       ))}
                   </Card>
                 ))}
-              <TaskPager
-                total={board.total}
-                page={page}
-                pageSize={pageSize}
-                onChange={(p, size) => {
-                  setPage(size === pageSize ? p : 1);
-                  setPageSize(size);
-                }}
-              />
+              {tab !== ALL && (
+                <TaskPager
+                  total={board.total}
+                  page={page}
+                  pageSize={pageSize}
+                  onChange={(p, size) => {
+                    setPage(size === pageSize ? p : 1);
+                    setPageSize(size);
+                  }}
+                />
+              )}
             </div>
 
             <div style={{ display: 'grid', gap: 12 }}>

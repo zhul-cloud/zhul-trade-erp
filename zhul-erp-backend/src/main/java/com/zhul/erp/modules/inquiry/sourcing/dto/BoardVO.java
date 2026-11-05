@@ -15,4 +15,14 @@ public class BoardVO {
     /** 当前页的任务 */
     private List<BoardTaskVO> tasks;
     private List<PurchaserVO> purchasers;
+    /** 页签数字：按搜索与采购员筛选后统计（顶部 stats 不受筛选影响） */
+    private TabCounts tabs;
+
+    @Data
+    public static class TabCounts {
+        private Integer unassigned;
+        private Integer sourcing;
+        private Integer review;
+        private Integer done;
+    }
 }
