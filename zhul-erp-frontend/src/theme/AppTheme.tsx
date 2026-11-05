@@ -25,6 +25,8 @@ const globalCss = (p: Palette) => `
     .map(([k, v]) => `--z-${k}: ${v};`)
     .join(' ')} }
   body { background: ${p.canvas}; }
+  /* 深色模式下让滚动条等浏览器原生控件也用深色 */
+  :root[data-theme='dark'] { color-scheme: dark; }
   .ant-btn-primary:not(:disabled):not(.ant-btn-dangerous):not(.ant-btn-background-ghost) {
     background: ${PRIMARY_GRADIENT};
     border: none;

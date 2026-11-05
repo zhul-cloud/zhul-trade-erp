@@ -34,6 +34,7 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 import java.util.stream.Collectors;
 
 /**
@@ -82,7 +83,7 @@ public class BossWidgets {
                 OverduePiVO overdue = piService.overdue();
                 String overdueText = overdue.getTotals() == null || overdue.getTotals().isEmpty() ? "没有过期未收款的 PI"
                         : "其中过期未收款 " + overdue.getTotals().stream()
-                        .map(t -> t.getCurrencyCode() + " " + t.getAmount().setScale(2, RoundingMode.HALF_UP).toPlainString())
+                        .map(t -> t.getCurrencyCode() + " " + money(t.getAmount()))
                         .collect(Collectors.joining("、"));
                 items.add(W.link(W.tone(W.metric("应收未收", outstanding.setScale(2, RoundingMode.HALF_UP), "money", overdueText),
                         overdue.getTotals() == null || overdue.getTotals().isEmpty() ? null : "red"), SalesWidgets.PIS));
@@ -90,7 +91,7 @@ public class BossWidgets {
             if (perm.canAccessMenu(PurchaseLeadWidgets.PAYABLES)) {
                 PayableStatsVO s = payables.stats();
                 items.add(W.link(W.tone(W.metric("本月到期应付", s.getMonthDue(), "money",
-                        "已逾期 " + s.getOverdue().setScale(2, RoundingMode.HALF_UP).toPlainString() + " 元"),
+                        "已逾期 CNY " + money(s.getOverdue())),
                         s.getOverdueCount() > 0 ? "orange" : null), PurchaseLeadWidgets.PAYABLES));
             }
             WidgetData.Block tags = null;
@@ -242,5 +243,10 @@ public class BossWidgets {
 
     private static String rateText(OperatingReportVO.Row r) {
         return r == null || r.getProfitRate() == null ? "—" : r.getProfitRate().toPlainString() + "%";
+    }
+
+    /** 卡片副标题里的金额：两位小数（HALF_UP）并加千分位，与前端 formatAmount 一致 */
+    static String money(BigDecimal v) {
+        return String.format(Locale.ROOT, "%,.2f", v.setScale(2, RoundingMode.HALF_UP));
     }
 }

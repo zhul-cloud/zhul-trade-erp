@@ -338,7 +338,6 @@ const ShipmentDetail: React.FC = () => {
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))',
           gap: 16,
-          alignItems: 'start',
         }}
       >
         <Card style={{ padding: 20 }}>

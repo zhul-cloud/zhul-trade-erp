@@ -168,6 +168,8 @@ const SeriesPage: React.FC = () => {
     },
     {
       title: '操作',
+      hideInTable:
+        !access['product:series:edit'] && !access['product:series:delete'],
       fixed: 'right',
       valueType: 'option',
       width: 140,
