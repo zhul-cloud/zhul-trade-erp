@@ -118,6 +118,24 @@ public interface FollowupTeamMapper {
     long activated(@Param("owners") Collection<Long> owners, @Param("prefix") String prefix, @Param("from") LocalDateTime from,
                    @Param("to") LocalDateTime to);
 
+    /**
+     * 主动开发指标（第四期 spec「团队视图的主动开发指标」）：区间内新增、首次触达、第一次回复、转商机、停止的开发记录数。
+     * 区间为 [from, to)，日期字段按天比较。
+     */
+    @Select("<script>SELECT"
+            + " COALESCE(SUM(CASE WHEN fi.create_time &gt;= #{from} AND fi.create_time &lt; #{to} THEN 1 ELSE 0 END), 0) AS created,"
+            + " COALESCE(SUM(CASE WHEN fi.first_touch_date &gt;= #{from} AND fi.first_touch_date &lt; #{to} THEN 1 ELSE 0 END), 0) AS touched,"
+            + " COALESCE(SUM(CASE WHEN fi.replied_at &gt;= #{from} AND fi.replied_at &lt; #{to} THEN 1 ELSE 0 END), 0) AS replied,"
+            + " COALESCE(SUM(CASE WHEN fi.close_reason = 7 AND fi.closed_at &gt;= #{from} AND fi.closed_at &lt; #{to} THEN 1 ELSE 0 END), 0)"
+            + " AS converted,"
+            + " COALESCE(SUM(CASE WHEN fi.close_reason = 8 AND fi.closed_at &gt;= #{from} AND fi.closed_at &lt; #{to} THEN 1 ELSE 0 END), 0)"
+            + " AS stopped"
+            + " FROM followup_item fi WHERE fi.deleted_at IS NULL AND fi.board = 1"
+            + "<if test='owners != null'> AND fi.owner_id IN"
+            + "<foreach collection='owners' item='o' open='(' separator=',' close=')'>#{o}</foreach></if>" + "</script>")
+    Map<String, Object> develop(@Param("owners") Collection<Long> owners, @Param("from") LocalDateTime from,
+                                @Param("to") LocalDateTime to);
+
     /** 记跟进次数：业务员自己记的跟进（不含系统事件），按记录人 */
     @Select("<script>SELECT r.operator_id AS ownerId, COUNT(*) AS cnt FROM customer_followup r"
             + " WHERE r.deleted_at IS NULL AND r.record_type = 1 AND r.create_time &gt;= #{from} AND r.create_time &lt; #{to}"

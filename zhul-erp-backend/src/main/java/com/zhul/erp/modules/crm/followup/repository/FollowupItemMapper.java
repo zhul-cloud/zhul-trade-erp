@@ -25,8 +25,15 @@ public interface FollowupItemMapper extends BaseMapper<FollowupItemDO> {
             + " WHERE i.customer_inquiry_id = #{inquiryId} AND i.deleted_at IS NULL")
     BigDecimal inquiryEstimateCny(@Param("inquiryId") Long inquiryId);
 
-    String FROM = " FROM followup_item fi JOIN customer c ON c.id = fi.customer_id"
-            + " WHERE fi.deleted_at IS NULL AND fi.closed_at IS NULL AND c.deleted_at IS NULL"
+    String TABLES = " FROM followup_item fi JOIN customer c ON c.id = fi.customer_id";
+
+    /** 主动开发排序用：每个客户最近一份已完成背调的跟进优先级 */
+    String DEVELOP_TABLES = TABLES
+            + " LEFT JOIN (SELECT r.customer_id, CAST(SUBSTRING_INDEX(GROUP_CONCAT(r.priority ORDER BY r.id DESC), ',', 1)"
+            + " AS UNSIGNED) AS pr FROM customer_background_report r WHERE r.deleted_at IS NULL AND r.status = 2"
+            + " AND r.priority BETWEEN 1 AND 4 GROUP BY r.customer_id) rp ON rp.customer_id = fi.customer_id";
+
+    String WHERE = " WHERE fi.deleted_at IS NULL AND fi.closed_at IS NULL AND c.deleted_at IS NULL"
             + "<if test='f.board != null'> AND fi.board = #{f.board}</if>"
             + "<if test='f.group != null'> AND fi.stage_group = #{f.group}</if>"
             + "<if test='f.stage != null'> AND fi.stage_code = #{f.stage}</if>"
@@ -37,6 +44,7 @@ public interface FollowupItemMapper extends BaseMapper<FollowupItemDO> {
             + "<if test='f.keyword != null'> AND (c.name LIKE CONCAT('%', #{f.keyword}, '%')"
             + " OR c.name_cn LIKE CONCAT('%', #{f.keyword}, '%') OR c.customer_code LIKE CONCAT('%', #{f.keyword}, '%')"
             + " OR fi.doc_no LIKE CONCAT('%', #{f.keyword}, '%'))</if>"
+            + "<if test='f.country != null'> AND c.country = #{f.country}</if>"
             + "<if test='f.exceptionOnly != null and f.exceptionOnly'> AND fi.exception_flags &gt; 0</if>"
             + "<if test='f.dormantOnly != null and f.dormantOnly'> AND fi.dormant_since IS NOT NULL</if>"
             + "<if test='f.excludeAfterSalesNext != null and f.excludeAfterSalesNext'> AND fi.next_action_source &lt;&gt; 4</if>"
@@ -44,6 +52,7 @@ public interface FollowupItemMapper extends BaseMapper<FollowupItemDO> {
             + "<if test='f.dueTo != null'> AND fi.next_action_date &lt;= #{f.dueTo}</if>"
             + "<if test='f.ownerIds != null'> AND fi.owner_id IN"
             + "<foreach collection='f.ownerIds' item='o' open='(' separator=',' close=')'>#{o}</foreach></if>";
+    String FROM = TABLES + WHERE;
 
     /**
      * 客户价值排序（design D7）：经营等级 S→C、未成交最后 → 潜力 5→1、未评最后 → 金额档高→低
@@ -59,6 +68,18 @@ public interface FollowupItemMapper extends BaseMapper<FollowupItemDO> {
             + " fi.next_action_date, fi.id"
             + "<if test='f.size != null'> LIMIT #{f.offset}, #{f.size}</if></script>")
     List<Long> rankedIds(@Param("f") FollowupItemFilter f);
+
+    /**
+     * 主动开发排序（第四期 design D9）：潜力 5→1、未评最后 → 背调优先级 1、2、未出结论、3、4
+     * → 逾期天数多→少 → 下一步日期早→晚（没有日期的在最后）。
+     */
+    @Select("<script>SELECT fi.id" + DEVELOP_TABLES + WHERE
+            + " ORDER BY CASE WHEN c.potential_rating BETWEEN 1 AND 5 THEN 6 - c.potential_rating ELSE 9 END,"
+            + " CASE WHEN rp.pr IN (1, 2) THEN rp.pr WHEN rp.pr IS NULL THEN 3 ELSE rp.pr + 1 END,"
+            + " CASE WHEN fi.next_action_date &lt; #{f.today} THEN DATEDIFF(#{f.today}, fi.next_action_date) ELSE 0 END DESC,"
+            + " CASE WHEN fi.next_action_date IS NULL THEN 1 ELSE 0 END, fi.next_action_date, fi.id"
+            + "<if test='f.size != null'> LIMIT #{f.offset}, #{f.size}</if></script>")
+    List<Long> rankedDevelopIds(@Param("f") FollowupItemFilter f);
 
     @Select("<script>SELECT COUNT(*)" + FROM + "</script>")
     long countBy(@Param("f") FollowupItemFilter f);

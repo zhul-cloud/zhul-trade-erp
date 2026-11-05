@@ -4,12 +4,14 @@ export { readBizError } from '@/pages/crm/opportunity/service';
 
 // ---------------------------------------------------------------- 码值（与后端 FollowupConstants 一致）
 
+export const BOARD_DEVELOP = 1;
 export const BOARD_SALES = 2;
 export const BOARD_FULFIL = 3;
 export const BOARD_AFTER_SALES = 4;
 export const BOARD_ACCOUNT = 5;
 /** 已上线、可以进入的板块 */
 export const OPEN_BOARDS = [
+  BOARD_DEVELOP,
   BOARD_SALES,
   BOARD_FULFIL,
   BOARD_AFTER_SALES,
@@ -86,7 +88,55 @@ export const INTENT = {
   LOGISTICS: 'logistics_update',
   REVIEW: 'review_invite',
   ACCOUNT: 'account_touch',
+  COLD: 'cold_outreach',
 } as const;
+
+/** 主动开发「触达结果」单选（与后端 FollowupConstants.TOUCH_* 一致） */
+export const TOUCH = {
+  SENT: 1,
+  REPLIED: 2,
+  SIGNAL: 3,
+  NO_REPLY: 4,
+  REFUSED: 5,
+} as const;
+export const TOUCH_OPTIONS = [
+  { value: TOUCH.SENT, label: '已发出触达' },
+  { value: TOUCH.REPLIED, label: '客户回复了' },
+  { value: TOUCH.SIGNAL, label: '出现采购信号' },
+  { value: TOUCH.NO_REPLY, label: '没回复' },
+  { value: TOUCH.REFUSED, label: '明确拒绝' },
+];
+/** 开发对象的来源方式 */
+export const PROSPECT_SOURCES = [
+  { value: 1, label: 'Google' },
+  { value: 2, label: 'LinkedIn' },
+  { value: 3, label: '展会名录' },
+  { value: 4, label: '海关数据' },
+  { value: 5, label: '老客户介绍' },
+  { value: 6, label: '其他' },
+];
+/** 停止开发的原因：明确拒绝 / 没有进展（三种）/ 其他（必须写说明） */
+export const STOP = {
+  REFUSED: 'REFUSED',
+  MISMATCH: 'MISMATCH',
+  NO_REPLY: 'NO_REPLY',
+  UNREACHABLE: 'UNREACHABLE',
+  OTHER: 'OTHER',
+} as const;
+/** 背调跟进优先级 */
+export const REPORT_PRIORITY: Record<
+  number,
+  { label: string; tone: 'accent' | 'gray' | 'mute' | 'red' }
+> = {
+  1: { label: '重点跟进', tone: 'accent' },
+  2: { label: '正常跟进', tone: 'gray' },
+  3: { label: '低优先级', tone: 'mute' },
+  4: { label: '不建议跟进', tone: 'red' },
+};
+export const ERROR_NOT_ELIGIBLE = 'DEVELOP_NOT_ELIGIBLE';
+export const ERROR_OPPORTUNITY_ACTIVE = 'OPPORTUNITY_ALREADY_ACTIVE';
+export const ERROR_CUSTOMER_DUPLICATE = 'CUSTOMER_DUPLICATE';
+export const PERM_OPPORTUNITY_ADD = 'crm:opportunity:add';
 
 /** 客户经营「客户情况」单选：1-有新需求、2-聊了新品类、3-当前没有需求、4-没回复 */
 export const ACCOUNT_ANSWER = {
@@ -116,6 +166,7 @@ export const CHANNEL_OPTIONS = [
   { value: 2, label: '邮件' },
   { value: 3, label: '电话' },
   { value: 4, label: '其他' },
+  { value: 5, label: 'LinkedIn' },
 ];
 
 /** AI 任务状态 */
@@ -213,6 +264,71 @@ export interface FollowupItem {
   lastContactDate?: string;
   /** 上次联系已超过等级间隔 */
   contactOverdue?: boolean;
+  // ---- 主动开发
+  prospectReason?: string;
+  prospectSourceName?: string;
+  contactName?: string;
+  contactTitle?: string;
+  contactEmail?: string;
+  touchCount?: number;
+  firstTouchDate?: string;
+  /** 序列当前节点（第几天），未开始触达为 0 */
+  sequenceDay?: number;
+  signalText?: string;
+  /** 背调跟进优先级 1–4，未出结论为空 */
+  reportPriority?: number;
+}
+
+/** 主动开发作战卡 / 客户详情的开发状态 */
+export interface DevelopCard {
+  customerId: number;
+  /** open-开发中、stopped-已停止可重新开发、eligible-可以加入、none-不能加入 */
+  state: 'open' | 'stopped' | 'eligible' | 'none';
+  reason?: string;
+  itemId?: number;
+  stageCode?: string;
+  stageName?: string;
+  prospectReason?: string;
+  prospectSource?: number;
+  prospectSourceName?: string;
+  potentialRating?: number;
+  touchCount?: number;
+  firstTouchDate?: string;
+  sequence?: number[];
+  currentDay?: number;
+  signalText?: string;
+  stopReason?: string;
+  stopReasonName?: string;
+  stopNote?: string;
+  canConvert?: boolean;
+  report?: {
+    id: number;
+    status: number;
+    priority?: number;
+    score?: number;
+    keyFinding?: string;
+    firstAction?: string;
+  };
+  contacts: {
+    name?: string;
+    title?: string;
+    email?: string;
+    whatsapp?: string;
+    phone?: string;
+    primary?: boolean;
+  }[];
+}
+
+export interface ProspectRequest {
+  name: string;
+  country: string;
+  website?: string;
+  reason: string;
+  source?: number;
+  contactName?: string;
+  email?: string;
+  whatsapp?: string;
+  businessUnitId?: number;
 }
 
 /** 客户经营作战卡（G1–G3 结果、交叉销售、战略客户与年度计划） */
@@ -317,6 +433,8 @@ export interface ItemQuery {
   exception?: boolean;
   /** 客户经营：只看沉睡 */
   dormant?: boolean;
+  /** 客户国家 */
+  country?: string;
   page?: number;
   pageSize?: number;
 }
@@ -415,6 +533,9 @@ export interface RecordRequest {
   crossCategory?: string;
   noNeedReason?: string;
   quarterReview?: boolean;
+  // ---- 主动开发
+  touchResult?: number;
+  signalText?: string;
 }
 
 export interface RecordResult {
@@ -455,6 +576,9 @@ export interface ExtractResult {
     etaDate?: string;
     /** 客户经营的客户情况建议 */
     accountAnswer?: number;
+    /** 主动开发的触达结果建议 */
+    touchAnswer?: number;
+    signalText?: string;
   };
 }
 
@@ -557,6 +681,13 @@ export interface Team {
     accountInquiries: TeamCompare;
     dormant: number;
     activated: number;
+    /** 主动开发：新增、首次触达、回复、回复率（首次触达为 0 时为空）、转商机、停止 */
+    developNew: number;
+    developTouched: number;
+    developReplied: number;
+    developReplyPercent?: number;
+    developConverted: number;
+    developStopped: number;
   };
   owners: TeamOwner[];
   stages: TeamStage[];
@@ -638,6 +769,41 @@ export const followupApi = {
       method: 'PUT',
       data,
     }).then((r) => r.data),
+  develop: (customerId: number) =>
+    request<Resp<DevelopCard>>(`${BASE}/develop/${customerId}`).then(
+      (r) => r.data,
+    ),
+  createProspect: (data: ProspectRequest) =>
+    request<Resp<DevelopCard>>(`${BASE}/develop`, {
+      method: 'POST',
+      data,
+    }).then((r) => r.data),
+  joinDevelop: (
+    customerId: number,
+    data: { reason: string; source?: number },
+  ) =>
+    request<Resp<DevelopCard>>(`${BASE}/develop/${customerId}/join`, {
+      method: 'POST',
+      data,
+    }).then((r) => r.data),
+  reopenDevelop: (customerId: number) =>
+    request<Resp<DevelopCard>>(`${BASE}/develop/${customerId}/reopen`, {
+      method: 'POST',
+    }).then((r) => r.data),
+  convert: (
+    itemId: number,
+    data: {
+      demandSummary?: string;
+      firstContactDate?: string;
+      ownerId?: number;
+    },
+  ) =>
+    request<Resp<DevelopCard>>(`${BASE}/items/${itemId}/convert`, {
+      method: 'POST',
+      data,
+    }).then((r) => r.data),
+  stopDevelop: (itemId: number, data: { reason: string; note?: string }) =>
+    request(`${BASE}/items/${itemId}/stop`, { method: 'POST', data }),
   extract: (data: {
     customerId: number;
     itemId?: number;

@@ -51,6 +51,13 @@ public class FollowupTeamVO {
         /** 当前沉睡客户数、本期激活数 */
         private Integer dormant;
         private Integer activated;
+        /** 主动开发（第四期）：新增、首次触达、回复、转商机、停止；回复率 = 回复 / 首次触达（HALF_UP 整数百分比，首次触达为 0 时为 null） */
+        private Integer developNew;
+        private Integer developTouched;
+        private Integer developReplied;
+        private Integer developReplyPercent;
+        private Integer developConverted;
+        private Integer developStopped;
     }
 
     @Data

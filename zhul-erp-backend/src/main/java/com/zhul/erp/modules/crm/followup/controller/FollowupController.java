@@ -4,7 +4,9 @@ import com.zhul.erp.common.result.Result;
 import com.zhul.erp.modules.crm.followup.constants.FollowupConstants;
 import com.zhul.erp.modules.crm.followup.dto.AccountCardVO;
 import com.zhul.erp.modules.crm.followup.dto.AnnualPlanRequest;
+import com.zhul.erp.modules.crm.followup.dto.ConvertRequest;
 import com.zhul.erp.modules.crm.followup.dto.CustomerFollowupVO;
+import com.zhul.erp.modules.crm.followup.dto.DevelopCardVO;
 import com.zhul.erp.modules.crm.followup.dto.ExtractRequest;
 import com.zhul.erp.modules.crm.followup.dto.ExtractResultVO;
 import com.zhul.erp.modules.crm.followup.dto.FollowupListVO;
@@ -12,17 +14,21 @@ import com.zhul.erp.modules.crm.followup.dto.FollowupOverviewVO;
 import com.zhul.erp.modules.crm.followup.dto.FollowupQuery;
 import com.zhul.erp.modules.crm.followup.dto.FollowupTeamVO;
 import com.zhul.erp.modules.crm.followup.dto.FollowupTodayVO;
+import com.zhul.erp.modules.crm.followup.dto.JoinDevelopRequest;
 import com.zhul.erp.modules.crm.followup.dto.NurtureRequest;
 import com.zhul.erp.modules.crm.followup.dto.OrderPartsVO;
+import com.zhul.erp.modules.crm.followup.dto.ProspectRequest;
 import com.zhul.erp.modules.crm.followup.dto.RecordFollowupRequest;
 import com.zhul.erp.modules.crm.followup.dto.RecordResultVO;
 import com.zhul.erp.modules.crm.followup.dto.ReplyDraftRequest;
 import com.zhul.erp.modules.crm.followup.dto.ReplyDraftVO;
 import com.zhul.erp.modules.crm.followup.dto.SnoozeRequest;
 import com.zhul.erp.modules.crm.followup.dto.SopCardVO;
+import com.zhul.erp.modules.crm.followup.dto.StopDevelopRequest;
 import com.zhul.erp.modules.crm.followup.dto.StrategicRequest;
 import com.zhul.erp.modules.crm.followup.service.FollowupAccountService;
 import com.zhul.erp.modules.crm.followup.service.FollowupAiService;
+import com.zhul.erp.modules.crm.followup.service.FollowupDevelopService;
 import com.zhul.erp.modules.crm.followup.service.FollowupService;
 import com.zhul.erp.modules.crm.followup.service.FollowupTeamService;
 import jakarta.validation.Valid;
@@ -55,6 +61,7 @@ public class FollowupController {
     private final FollowupAiService followupAiService;
     private final FollowupTeamService followupTeamService;
     private final FollowupAccountService followupAccountService;
+    private final FollowupDevelopService followupDevelopService;
 
     @GetMapping("/overview")
     @PreAuthorize(VIEW)
@@ -137,6 +144,44 @@ public class FollowupController {
     @PreAuthorize(VIEW + " and " + RECORD)
     public Result<AccountCardVO.Plan> plan(@PathVariable Long customerId, @Valid @RequestBody AnnualPlanRequest req) {
         return Result.ok(followupAccountService.savePlan(customerId, req));
+    }
+
+    /** 新建开发对象：建客户（来源主动开发）并加入主动开发（第四期） */
+    @PostMapping("/develop")
+    @PreAuthorize(VIEW + " and " + RECORD)
+    public Result<DevelopCardVO> createProspect(@Valid @RequestBody ProspectRequest req) {
+        return Result.ok(followupDevelopService.create(req));
+    }
+
+    @GetMapping("/develop/{customerId}")
+    @PreAuthorize(VIEW)
+    public Result<DevelopCardVO> develop(@PathVariable Long customerId) {
+        return Result.ok(followupDevelopService.card(customerId));
+    }
+
+    @PostMapping("/develop/{customerId}/join")
+    @PreAuthorize(VIEW + " and " + RECORD)
+    public Result<DevelopCardVO> joinDevelop(@PathVariable Long customerId, @Valid @RequestBody JoinDevelopRequest req) {
+        return Result.ok(followupDevelopService.join(customerId, req));
+    }
+
+    @PostMapping("/develop/{customerId}/reopen")
+    @PreAuthorize(VIEW + " and " + RECORD)
+    public Result<DevelopCardVO> reopenDevelop(@PathVariable Long customerId) {
+        return Result.ok(followupDevelopService.reopen(customerId));
+    }
+
+    @PostMapping("/items/{id}/convert")
+    @PreAuthorize(VIEW + " and " + RECORD + " and @perm.has('crm:opportunity:add')")
+    public Result<DevelopCardVO> convert(@PathVariable Long id, @Valid @RequestBody ConvertRequest req) {
+        return Result.ok(followupDevelopService.convert(id, req));
+    }
+
+    @PostMapping("/items/{id}/stop")
+    @PreAuthorize(VIEW + " and " + RECORD)
+    public Result<Void> stopDevelop(@PathVariable Long id, @Valid @RequestBody StopDevelopRequest req) {
+        followupDevelopService.stop(id, req);
+        return Result.ok();
     }
 
     @GetMapping("/sop/{board}/{stage}")

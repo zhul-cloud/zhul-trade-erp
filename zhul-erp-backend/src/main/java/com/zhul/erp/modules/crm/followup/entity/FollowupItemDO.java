@@ -84,6 +84,16 @@ public class FollowupItemDO {
     private String crossCategory;
     @TableField(updateStrategy = FieldStrategy.ALWAYS)
     private LocalDate dormantSince;
+    /** 主动开发（第四期 design D1） */
+    private String prospectReason;
+    private Integer prospectSource;
+    private Integer touchCount;
+    private LocalDate firstTouchDate;
+    private LocalDateTime repliedAt;
+    private String signalText;
+    private LocalDateTime signalAt;
+    private String stopReason;
+    private String stopNote;
     private Integer snoozeCount;
     @TableField(updateStrategy = FieldStrategy.ALWAYS)
     private LocalDate expectedPayDate;

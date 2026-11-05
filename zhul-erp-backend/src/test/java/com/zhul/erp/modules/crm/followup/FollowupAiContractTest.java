@@ -85,6 +85,9 @@ class FollowupAiContractTest extends IntegrationTestBase {
     private void cleanup() {
         jdbc.update("delete from ai_task where tenant_id = 0 and skill_id like 'followup-%'");
         jdbc.update("delete from followup_item where tenant_id = 0");
+        jdbc.update("delete from customer_followup where tenant_id = 0");
+        jdbc.update("delete from customer_contact where tenant_id = 0");
+        jdbc.update("delete from customer_background_report where tenant_id = 0");
         jdbc.update("delete from sales_order_item where tenant_id = 0");
         jdbc.update("delete from sales_order where tenant_id = 0");
         jdbc.update("delete from customer where tenant_id = 0");
@@ -366,5 +369,66 @@ class FollowupAiContractTest extends IntegrationTestBase {
         JsonNode res = ok(call(get(BASE + "/extract/" + taskId))).path("result");
         assertEquals(32, res.path("situation").asInt());
         assertEquals(3, res.path("accountAnswer").asInt(), "预选「当前没有需求」");
+    }
+
+    /** 主动开发对象：有背调结论和联系人，已首次触达（今天），提醒在序列第 4 天 */
+    private long developItem() throws Exception {
+        jdbc.update("update customer set potential_rating = 4 where id = ?", C1);
+        jdbc.update("insert into customer_contact (tenant_id, customer_id, is_primary, name, title, email)"
+                + " values (0, ?, 1, 'Hans', 'Maintenance Manager', 'hans@example.com')", C1);
+        jdbc.update("insert into customer_background_report (tenant_id, customer_id, status, priority, key_finding)"
+                + " values (0, ?, 2, 1, '产线在用 ABB ACS580')", C1);
+        ok(call(json(post(BASE + "/develop/" + C1 + "/join"), "{\"reason\":\"在用 ABB 变频器，有备件需求\"}")));
+        long itemId = jdbc.queryForObject("select id from followup_item where tenant_id = 0 and board = 1 and customer_id = ?",
+                Long.class, C1);
+        ok(call(json(post(BASE + "/records"), "{\"customerId\":" + C1 + ",\"itemId\":" + itemId + ",\"situation\":0,"
+                + "\"nextAction\":\"x\",\"nextActionDate\":\"" + java.time.LocalDate.now().plusDays(3) + "\",\"channel\":1,"
+                + "\"touchResult\":1,\"idempotencyKey\":\"" + java.util.UUID.randomUUID() + "\"}")));
+        return itemId;
+    }
+
+    @Test
+    void replyDraft_coldOutreach_sendsProspectContext() throws Exception {
+        long itemId = developItem();
+        doAnswer(inv -> {
+            long taskId = inv.getArgument(1);
+            new Thread(() -> {
+                AiTaskCallbackRequest req = new AiTaskCallbackRequest();
+                req.setStatus("success");
+                req.setOutput(Map.of("reply", "We keep discontinued ABB drive spares in stock.", "intent", "分享停产备件供应能力"));
+                aiTaskService.handleCallback(taskId, req);
+            }).start();
+            return new CompletableFuture<>();
+        }).when(orchestrator).submit(eq("followup-reply"), anyLong(), any(), any());
+
+        ok(call(json(post(BASE + "/reply-draft"), "{\"customerId\":" + C1 + ",\"itemId\":" + itemId + ",\"intent\":\"cold_outreach\"}")));
+        ArgumentCaptor<String> input = ArgumentCaptor.forClass(String.class);
+        verify(orchestrator).submit(eq("followup-reply"), anyLong(), input.capture(), any());
+        JsonNode sent = objectMapper.readTree(input.getValue());
+        assertEquals("cold_outreach", sent.path("intent").asText());
+        assertEquals(1, sent.path("stage").path("board").asInt());
+        assertEquals("D5", sent.path("stage").path("code").asText());
+        JsonNode p = sent.path("prospect");
+        assertEquals("在用 ABB 变频器，有备件需求", p.path("prospectReason").asText());
+        assertEquals("产线在用 ABB ACS580", p.path("keyFinding").asText());
+        assertEquals("Maintenance Manager", p.path("contactTitle").asText());
+        assertEquals(4, p.path("sequenceDay").asInt());
+        assertEquals("第 4 天：分享紧缺或停产备件的供应能力（换新价值）", p.path("nodeHint").asText());
+        assertFalse(p.path("lastNode").asBoolean());
+        assertTrue(sent.path("document").isMissingNode(), "主动开发不带单据概要");
+    }
+
+    @Test
+    void extract_developStage_mapsSituationToTouchResult() throws Exception {
+        long itemId = developItem();
+        long taskId = ok(call(json(post(BASE + "/extract"), objectMapper.writeValueAsString(Map.of("customerId", C1, "itemId", itemId,
+                "rawContent", "customer: we need 5 pcs ACS580 next month, please quote"))))).path("taskId").asLong();
+        callback(taskId, """
+                {"status":"success","output":{"summary":"客户要 5 台 ACS580","situation":["buying_signal","replied","feedback"],
+                 "signalText":"ACS580 5 台，下月","blocker":"","nextActions":[],"profileSuggestions":[],"truncated":false}}""");
+        JsonNode res = ok(call(get(BASE + "/extract/" + taskId))).path("result");
+        assertEquals(3, res.path("touchAnswer").asInt(), "预选「出现采购信号」");
+        assertEquals("ACS580 5 台，下月", res.path("signalText").asText());
+        assertEquals(0, res.path("situation").asInt(), "单选：其他取值丢掉");
     }
 }

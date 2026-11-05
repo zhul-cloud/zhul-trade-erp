@@ -11,6 +11,7 @@ import com.zhul.erp.modules.aitask.exception.AiUnavailableException;
 import com.zhul.erp.modules.aitask.service.AiTaskService;
 import com.zhul.erp.modules.crm.followup.constants.FollowupConstants;
 import com.zhul.erp.modules.crm.followup.dto.AccountCardVO;
+import com.zhul.erp.modules.crm.followup.dto.DevelopCardVO;
 import com.zhul.erp.modules.crm.followup.dto.ExtractRequest;
 import com.zhul.erp.modules.crm.followup.dto.ExtractResultVO;
 import com.zhul.erp.modules.crm.followup.dto.ReplyDraftRequest;
@@ -20,6 +21,8 @@ import com.zhul.erp.modules.crm.followup.entity.CustomerFollowupDO;
 import com.zhul.erp.modules.crm.followup.entity.FollowupItemDO;
 import com.zhul.erp.modules.crm.followup.repository.CustomerFollowupMapper;
 import com.zhul.erp.modules.crm.followup.support.AccountStageRecorder;
+import com.zhul.erp.modules.crm.followup.support.DevelopStageRecorder;
+import com.zhul.erp.modules.crm.followup.support.OrderFollowupSync;
 import com.zhul.erp.modules.crm.followup.support.OrderStageRecorder;
 import com.zhul.erp.modules.crm.support.OpportunityStageRules;
 import com.zhul.erp.modules.inquiry.support.CurrentUserResolver;
@@ -51,6 +54,9 @@ public class FollowupAiService {
     private static final long POLL_MILLIS = 500;
     private static final Map<String, Integer> ACCOUNT_ANSWER_OF = Map.of("new_need", FollowupConstants.ACCOUNT_NEW_NEED,
             "cross_sell", FollowupConstants.ACCOUNT_CROSS, "no_need", FollowupConstants.ACCOUNT_NO_NEED);
+    /** 主动开发的触达结果建议（第四期 design D11） */
+    private static final Map<String, Integer> TOUCH_ANSWER_OF = Map.of("replied", FollowupConstants.TOUCH_REPLIED,
+            "buying_signal", FollowupConstants.TOUCH_SIGNAL, "refused", FollowupConstants.TOUCH_REFUSED);
 
     private final AiTaskService aiTaskService;
     private final FollowupService followupService;
@@ -59,6 +65,8 @@ public class FollowupAiService {
     private final CustomerFollowupMapper recordMapper;
     private final OpportunityStageRules stageRules;
     private final FollowupAccountService accountService;
+    private final FollowupDevelopService developService;
+    private final OrderFollowupSync orderSync;
     private final CurrentUserResolver currentUser;
     private final ObjectMapper objectMapper;
 
@@ -114,6 +122,10 @@ public class FollowupAiService {
             if (answer != null && r.getAccountAnswer() == null) {
                 r.setAccountAnswer(answer);
             }
+            Integer touch = TOUCH_ANSWER_OF.get(s.asText());
+            if (touch != null && r.getTouchAnswer() == null) {
+                r.setTouchAnswer(touch);
+            }
         }
         r.setSituation(mask);
         String blocker = n.path("blocker").asText("");
@@ -141,6 +153,7 @@ public class FollowupAiService {
         r.setSatisfaction(optInt(n, "satisfaction"));
         r.setReviewStatus(optInt(n, "reviewStatus"));
         r.setEtaDate(n.hasNonNull("etaDate") ? LocalDate.parse(n.path("etaDate").asText()) : null);
+        r.setSignalText(n.path("signalText").asText(""));
         r.setTruncated(n.path("truncated").asBoolean(false));
         return r;
     }
@@ -218,7 +231,7 @@ public class FollowupAiService {
             try {
                 SopCardVO sop = followupService.sop(item.getBoard(), item.getStageCode());
                 stage.put("goal", sop.getGoal());
-                if (OrderStageRecorder.handles(item) || AccountStageRecorder.handles(item)) {
+                if (OrderStageRecorder.handles(item) || AccountStageRecorder.handles(item) || DevelopStageRecorder.handles(item)) {
                     stage.put("name", sop.getName());
                 }
             } catch (BizException e) {
@@ -231,6 +244,8 @@ public class FollowupAiService {
             }
             if (AccountStageRecorder.handles(item)) {
                 input.put("account", accountContext(accountService.card(c.getId())));
+            } else if (DevelopStageRecorder.handles(item)) {
+                input.put("prospect", prospectContext(developService.card(c.getId())));
             } else if (StringUtils.hasText(item.getDocNo()) && item.getTargetType() != FollowupConstants.TARGET_OPPORTUNITY) {
                 Map<String, Object> doc = new LinkedHashMap<>();
                 doc.put("docNo", item.getDocNo());
@@ -241,6 +256,25 @@ public class FollowupAiService {
             }
         }
         return input;
+    }
+
+    /**
+     * 主动开发的上下文（第四期 design D11）：为什么值得开发、背调关键发现、联系人职位、序列第几天和该节点的建议。
+     * 还没开始触达时 sequenceDay 为 0（写首封）。
+     */
+    private Map<String, Object> prospectContext(DevelopCardVO card) {
+        Map<String, Object> p = new LinkedHashMap<>();
+        p.put("prospectReason", nz(card.getProspectReason()));
+        p.put("keyFinding", card.getReport() == null ? "" : nz(card.getReport().getKeyFinding()));
+        p.put("contactTitle", card.getContacts() == null || card.getContacts().isEmpty() ? ""
+                : nz(card.getContacts().get(0).getTitle()));
+        int day = card.getCurrentDay() == null ? 0 : card.getCurrentDay();
+        p.put("sequenceDay", day);
+        Map<String, String> d5 = orderSync.defaultActions().getOrDefault("D5", Map.of());
+        p.put("nodeHint", day > 0 ? nz(d5.getOrDefault("d" + day, d5.getOrDefault("default", ""))) : "");
+        p.put("lastNode", day > 0 && card.getSequence() != null && !card.getSequence().isEmpty()
+                && day == card.getSequence().get(card.getSequence().size() - 1));
+        return p;
     }
 
     /** 客户经营的上下文（第三期 design D10）：触达理由、采购规律、常买品牌品类、最近一单、交叉销售建议 */

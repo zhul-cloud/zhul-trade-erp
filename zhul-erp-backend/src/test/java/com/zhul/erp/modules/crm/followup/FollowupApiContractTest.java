@@ -384,7 +384,9 @@ class FollowupApiContractTest extends IntegrationTestBase {
         JsonNode overview = ok(call(get(BASE + "/overview"), staff));
         JsonNode sales = overview.path("boards").get(1);
         assertTrue(sales.path("available").asBoolean());
-        assertFalse(overview.path("boards").get(0).path("available").asBoolean(), "未上线的板块");
+        for (JsonNode b : overview.path("boards")) {
+            assertTrue(b.path("available").asBoolean(), "第四期起五个板块全部上线：" + b);
+        }
         assertEquals(4, sales.path("customers").asInt());
         assertEquals(4, sales.path("groups").get(1).path("count").asInt());
 
@@ -1030,7 +1032,7 @@ class FollowupApiContractTest extends IntegrationTestBase {
         assertEquals(15, f6.path("avgDays").asInt());
         assertEquals(10, f6.path("refDays").asInt());
         assertTrue(f6.path("over").asBoolean());
-        assertEquals(19, t.path("stages").size(), "三个板块共 19 个阶段");
+        assertEquals(26, t.path("stages").size(), "主动开发、商机成交、订单履约、售后评价共 26 个阶段");
 
         // 需要主管看一眼：3 逾期 + 3 多次延后 + 1 不满意；默认前 5 条，按客户价值（Müller 等级 S 在前）
         JsonNode ex = t.path("exceptions");

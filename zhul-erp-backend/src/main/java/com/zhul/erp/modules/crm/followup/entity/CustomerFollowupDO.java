@@ -50,6 +50,9 @@ public class CustomerFollowupDO {
     private String noNeedReason;
     private Integer quarterReview;
     private LocalDate dueDate;
+    /** 主动开发的触达结果与采购信号（第四期 design D6） */
+    private Integer touchResult;
+    private String signalText;
     /** 写入档案的字段，JSON 数组：field、label、value */
     private String profileFields;
     private Long operatorId;

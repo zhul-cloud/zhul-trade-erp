@@ -112,4 +112,20 @@ public class FollowupItemVO {
     private LocalDate lastContactDate;
     /** 上次联系已超过等级间隔 */
     private Boolean contactOverdue;
+
+    // ---- 主动开发（第四期）
+    /** 为什么值得开发 */
+    private String prospectReason;
+    /** 主联系人（取自客户的主联系人字段）：姓名、职位、邮箱 */
+    private String contactName;
+    private String contactTitle;
+    private String contactEmail;
+    private String prospectSourceName;
+    private Integer touchCount;
+    private LocalDate firstTouchDate;
+    /** 序列当前节点（第几天），未开始触达为 0 */
+    private Integer sequenceDay;
+    private String signalText;
+    /** 最近一份已完成背调的跟进优先级：1-立即重点跟进、2-正常跟进、3-低优先级、4-不建议跟进；未出结论为空 */
+    private Integer reportPriority;
 }

@@ -1,18 +1,25 @@
-import { EditOutlined, SearchOutlined } from '@ant-design/icons';
+import { EditOutlined, PlusOutlined, SearchOutlined } from '@ant-design/icons';
 import { useAccess } from '@umijs/max';
 import { Button, Input, Segmented, Select } from 'antd';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useWide } from '@/pages/inquiry/shared/components';
+import { useCountries } from '@/pages/product/components/useCountries';
 import { getUserList } from '@/pages/system/user/service';
 import { SalesPageTitle } from '../components';
 import { AccountInquiryModal } from './AccountPanel';
 import BattleCard from './BattleCard';
 import { VIEW_TODAY } from './boardStyle';
 import { Card, NurtureModal, TodayList } from './components';
+import {
+  ConvertOpportunityModal,
+  NewProspectModal,
+  StopDevelopModal,
+} from './DevelopPanel';
 import { FlowChain } from './FlowChain';
 import { FollowupTable, StageBar, type StageFilter } from './FollowupTable';
 import RecordFollowupModal, { type RecordTarget } from './RecordFollowupModal';
 import {
+  BOARD_DEVELOP,
   BOARD_SALES,
   type FollowupItem,
   followupApi,
@@ -56,6 +63,12 @@ const FollowupPage: React.FC = () => {
   const [nurtureItem, setNurtureItem] = useState<FollowupItem>();
   /** 客户经营「建询盘」的客户 */
   const [inquiryCustomer, setInquiryCustomer] = useState<number>();
+  /** 主动开发：转为商机、停止开发（preset 为预选原因）、新建开发对象、国家筛选 */
+  const [convertItem, setConvertItem] = useState<FollowupItem>();
+  const [stop, setStop] = useState<{ item: FollowupItem; preset?: string }>();
+  const [prospectOpen, setProspectOpen] = useState(false);
+  const [country, setCountry] = useState<string>();
+  const { options: countryOptions } = useCountries();
   const reqRef = useRef(0);
 
   useEffect(() => {
@@ -94,6 +107,7 @@ const FollowupPage: React.FC = () => {
           board: boardNo,
           ...filter,
           blocker,
+          country: boardNo === BOARD_DEVELOP ? country : undefined,
           keyword: keyword.trim() || undefined,
           ownerScope,
           page: p,
@@ -116,7 +130,7 @@ const FollowupPage: React.FC = () => {
         })
         .finally(() => req === reqRef.current && setLoading(false));
     },
-    [boardNo, filter, blocker, keyword, ownerScope],
+    [boardNo, filter, blocker, country, keyword, ownerScope],
   );
 
   useEffect(() => {
@@ -255,6 +269,30 @@ const FollowupPage: React.FC = () => {
                   onChange={setFilter}
                   blocker={blocker}
                   onBlocker={setBlocker}
+                  extra={
+                    boardNo === BOARD_DEVELOP && (
+                      <>
+                        <Select
+                          allowClear
+                          style={{ width: 170 }}
+                          placeholder="国家：全部"
+                          value={country}
+                          onChange={setCountry}
+                          showSearch={{ optionFilterProp: 'label' }}
+                          options={countryOptions}
+                        />
+                        {canRecord && (
+                          <Button
+                            type="primary"
+                            icon={<PlusOutlined />}
+                            onClick={() => setProspectOpen(true)}
+                          >
+                            新建开发对象
+                          </Button>
+                        )}
+                      </>
+                    )
+                  }
                 />
                 <FollowupTable
                   boardNo={boardNo}
@@ -272,6 +310,7 @@ const FollowupPage: React.FC = () => {
                   onChanged={refresh}
                   onMore={() => loadList(page + 1)}
                   onNewInquiry={setInquiryCustomer}
+                  onConvert={setConvertItem}
                 />
               </Card>
               <div style={wide ? { position: 'sticky', top: 16 } : undefined}>
@@ -280,6 +319,8 @@ const FollowupPage: React.FC = () => {
                   canRecord={canRecord}
                   onNewInquiry={setInquiryCustomer}
                   onChanged={refresh}
+                  onConvert={setConvertItem}
+                  onStop={(item) => setStop({ item })}
                 />
               </div>
             </div>
@@ -290,10 +331,37 @@ const FollowupPage: React.FC = () => {
         open={recordOpen}
         target={recordTarget}
         onClose={() => setRecordOpen(false)}
-        onDone={(_, newInquiryCustomerId) => {
+        onDone={(_, newInquiryCustomerId, refusedItem) => {
           setRecordOpen(false);
           refresh();
           if (newInquiryCustomerId) setInquiryCustomer(newInquiryCustomerId);
+          // 主动开发选了「明确拒绝」：接着打开停止开发，原因预选「明确拒绝」
+          if (refusedItem) setStop({ item: refusedItem, preset: 'REFUSED' });
+        }}
+      />
+      <ConvertOpportunityModal
+        item={convertItem}
+        onClose={() => setConvertItem(undefined)}
+        onDone={() => {
+          setConvertItem(undefined);
+          refresh();
+        }}
+      />
+      <StopDevelopModal
+        item={stop?.item}
+        preset={stop?.preset}
+        onClose={() => setStop(undefined)}
+        onDone={() => {
+          setStop(undefined);
+          refresh();
+        }}
+      />
+      <NewProspectModal
+        open={prospectOpen}
+        onClose={() => setProspectOpen(false)}
+        onDone={() => {
+          setProspectOpen(false);
+          refresh();
         }}
       />
       <AccountInquiryModal

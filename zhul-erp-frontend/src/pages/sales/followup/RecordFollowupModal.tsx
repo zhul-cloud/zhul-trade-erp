@@ -29,6 +29,7 @@ import {
   AI_NOT_CONFIGURED,
   AI_STATUS,
   BOARD_ACCOUNT,
+  BOARD_DEVELOP,
   BOARD_SALES,
   CHANNEL_OPTIONS,
   type ExtractResult,
@@ -41,6 +42,7 @@ import {
   SITUATION,
   SITUATION_OPTIONS,
   TARGET,
+  TOUCH,
 } from './service';
 import {
   applyAiAnswers,
@@ -104,8 +106,15 @@ const RecordFollowupModal: React.FC<{
   open: boolean;
   target?: RecordTarget;
   onClose: () => void;
-  /** newInquiryCustomerId：客户经营答「有新需求」时，记完接着建询盘 */
-  onDone: (r: RecordResult, newInquiryCustomerId?: number) => void;
+  /**
+   * newInquiryCustomerId：客户经营答「有新需求」时，记完接着建询盘；
+   * refusedItem：主动开发选「明确拒绝」时，记完接着打开停止开发
+   */
+  onDone: (
+    r: RecordResult,
+    newInquiryCustomerId?: number,
+    refusedItem?: FollowupItem,
+  ) => void;
 }> = ({ open, target, onClose, onDone }) => {
   const { palette } = useAppTheme();
   const { message } = App.useApp();
@@ -408,6 +417,9 @@ const RecordFollowupModal: React.FC<{
           item
           ? item.customerId
           : undefined,
+        kind === 'develop' && answers.touchResult === TOUCH.REFUSED
+          ? item
+          : undefined,
       );
     } catch (e) {
       message.error(readBizError(e).message);
@@ -436,26 +448,30 @@ const RecordFollowupModal: React.FC<{
   });
 
   const orderLine =
-    item && item.board === BOARD_ACCOUNT
-      ? [
-          item.accountReason && `触达理由：${item.accountReason}`,
-          item.strategic && '战略客户',
-        ]
+    item && item.board === BOARD_DEVELOP
+      ? [item.prospectReason && `为什么值得开发：${item.prospectReason}`]
           .filter(Boolean)
           .join(' · ')
-      : item && item.board !== BOARD_SALES
+      : item && item.board === BOARD_ACCOUNT
         ? [
-            item.docNo && `订单 ${item.docNo}`,
-            item.afterSalesNo && `售后单 ${item.afterSalesNo}`,
-            item.etaDate &&
-              (item.signedDate
-                ? `${fmtDate(item.signedDate)} 签收`
-                : `预计 ${fmtDate(item.etaDate)} 送达`),
-            item.etaNote,
+            item.accountReason && `触达理由：${item.accountReason}`,
+            item.strategic && '战略客户',
           ]
             .filter(Boolean)
             .join(' · ')
-        : undefined;
+        : item && item.board !== BOARD_SALES
+          ? [
+              item.docNo && `订单 ${item.docNo}`,
+              item.afterSalesNo && `售后单 ${item.afterSalesNo}`,
+              item.etaDate &&
+                (item.signedDate
+                  ? `${fmtDate(item.signedDate)} 签收`
+                  : `预计 ${fmtDate(item.etaDate)} 送达`),
+              item.etaNote,
+            ]
+              .filter(Boolean)
+              .join(' · ')
+          : undefined;
 
   return (
     <>

@@ -13,7 +13,7 @@ import {
   UserOutlined,
 } from '@ant-design/icons';
 import { history } from '@umijs/max';
-import { Button, Checkbox, Segmented, Skeleton } from 'antd';
+import { App, Button, Checkbox, Segmented, Skeleton } from 'antd';
 import dayjs from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
@@ -23,12 +23,19 @@ import {
   StageTag,
   ValueCell,
 } from '@/pages/sales/followup/components';
+import {
+  JoinDevelopModal,
+  StopDevelopModal,
+  useDevelopCard,
+} from '@/pages/sales/followup/DevelopPanel';
 import RecordFollowupModal from '@/pages/sales/followup/RecordFollowupModal';
 import {
   type CustomerFollowup,
+  type FollowupItem,
   type FollowupRecord,
   followupApi,
   RECORD_USER,
+  readBizError,
   type SopCard,
 } from '@/pages/sales/followup/service';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -349,6 +356,25 @@ export const FollowupSection: React.FC<{
   const [collapsed, setCollapsed] = useState(readCollapsed);
   const [recording, setRecording] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
+  const [joining, setJoining] = useState(false);
+  /** 主动开发记跟进选了「明确拒绝」：接着打开停止开发 */
+  const [refused, setRefused] = useState<FollowupItem>();
+  const { message } = App.useApp();
+  // 主动开发状态：开发中 / 已停止可重新开发 / 可以加入（第四期 K17）
+  const develop = useDevelopCard(
+    customerId,
+    `${reloadKey}-${data?.current?.id}`,
+  );
+  const reopen = async () => {
+    try {
+      await followupApi.reopenDevelop(customerId);
+      message.success('已重新开发，阶段重新推导，触达次数保留');
+      setReloadKey((k) => k + 1);
+      onChanged();
+    } catch (e) {
+      message.error(readBizError(e).message);
+    }
+  };
   const toggle = () => {
     setCollapsed((v) => {
       saveCollapsed(!v);
@@ -485,6 +511,52 @@ export const FollowupSection: React.FC<{
               )}
             </div>
           )}
+          {develop && develop.state !== 'none' && (
+            <div
+              style={{
+                marginTop: 14,
+                padding: '10px 14px',
+                borderRadius: 10,
+                background: palette.violetSoft,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 10,
+                flexWrap: 'wrap',
+                fontSize: 13,
+              }}
+            >
+              <b style={{ color: palette.violet }}>主动开发</b>
+              <span style={{ color: palette.ink, flex: 1, minWidth: 0 }}>
+                {develop.state === 'open'
+                  ? `${develop.stageCode} ${develop.stageName} · 已触达 ${develop.touchCount ?? 0} 次${develop.prospectReason ? ` · ${develop.prospectReason}` : ''}`
+                  : develop.state === 'stopped'
+                    ? `已停止开发（${develop.stopReasonName || '—'}${develop.stopNote ? `：${develop.stopNote}` : ''}），触达 ${develop.touchCount ?? 0} 次`
+                    : '还没成交、也没有进行中的询盘和单据，可以加入主动开发'}
+              </span>
+              {develop.state === 'open' && (
+                <Button
+                  size="small"
+                  onClick={() => history.push(FOLLOWUP_PATH)}
+                >
+                  去开发
+                </Button>
+              )}
+              {develop.state === 'stopped' && canRecord && (
+                <Button size="small" onClick={reopen}>
+                  重新开发
+                </Button>
+              )}
+              {develop.state === 'eligible' && canRecord && (
+                <Button
+                  size="small"
+                  type="primary"
+                  onClick={() => setJoining(true)}
+                >
+                  加入主动开发
+                </Button>
+              )}
+            </div>
+          )}
           <div
             style={{
               marginTop: 14,
@@ -537,8 +609,29 @@ export const FollowupSection: React.FC<{
         open={recording}
         target={{ customerId, customerName, item: cur }}
         onClose={() => setRecording(false)}
-        onDone={() => {
+        onDone={(_, _newInquiry, refusedItem) => {
           setRecording(false);
+          setReloadKey((k) => k + 1);
+          onChanged();
+          if (refusedItem) setRefused(refusedItem);
+        }}
+      />
+      <StopDevelopModal
+        item={refused}
+        preset="REFUSED"
+        onClose={() => setRefused(undefined)}
+        onDone={() => {
+          setRefused(undefined);
+          setReloadKey((k) => k + 1);
+          onChanged();
+        }}
+      />
+      <JoinDevelopModal
+        customerId={joining ? customerId : undefined}
+        customerName={customerName}
+        onClose={() => setJoining(false)}
+        onDone={() => {
+          setJoining(false);
           setReloadKey((k) => k + 1);
           onChanged();
         }}

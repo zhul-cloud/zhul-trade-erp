@@ -725,6 +725,10 @@ FOLLOWUP_SITUATIONS = ("feedback", "negotiating", "no_reply")
 # 客户经营（board 5）的客户情况是单选（第三期 design D10），按这个先后只留一个；其他板块丢掉这三个值
 FOLLOWUP_ACCOUNT_SITUATIONS = ("new_need", "cross_sell", "no_need")
 FOLLOWUP_ACCOUNT_BOARD = 5
+# 主动开发（board 1）的触达结果是单选（第四期 design D11）：回复了、采购信号、明确拒绝，另可只是没回复；采购信号另输出 signalText
+FOLLOWUP_DEVELOP_SITUATIONS = ("buying_signal", "refused", "replied")
+FOLLOWUP_DEVELOP_BOARD = 1
+FOLLOWUP_SIGNAL_MAX = 200
 # 订单履约、售后评价阶段的答案建议（第二期 design D13）：只在对应阶段输出，取值与后端 FollowupConstants 一致
 FOLLOWUP_ISSUE_TYPES = ("少件", "破损", "型号不对", "其他")
 FOLLOWUP_REVIEW_STATUSES = (1, 2, 3, 4, 6)
@@ -741,7 +745,9 @@ FOLLOWUP_EXTRACT_SCHEMA = {
     "properties": {
         "summary": {"type": "string"},
         "situation": {"type": "array", "items": {"type": "string",
-                                                  "enum": list(FOLLOWUP_SITUATIONS + FOLLOWUP_ACCOUNT_SITUATIONS)}},
+                                                  "enum": list(FOLLOWUP_SITUATIONS + FOLLOWUP_ACCOUNT_SITUATIONS
+                                                               + FOLLOWUP_DEVELOP_SITUATIONS)}},
+        "signalText": {"type": "string"},
         "blocker": {"type": "string"},
         "nextActions": {
             "type": "array",
@@ -788,8 +794,11 @@ def sanitize_followup_extract(structured: dict, input_data: dict) -> dict:
     blockers = {b.get("code") for b in input_data.get("blockers") or [] if isinstance(b, dict)}
     fields = {f.get("field") for f in input_data.get("profileFields") or [] if isinstance(f, dict)}
     raw_situation = structured.get("situation") or []
-    if (input_data.get("stage") or {}).get("board") == FOLLOWUP_ACCOUNT_BOARD:
+    board = (input_data.get("stage") or {}).get("board")
+    if board == FOLLOWUP_ACCOUNT_BOARD:
         situation = [x for x in FOLLOWUP_ACCOUNT_SITUATIONS + ("no_reply",) if x in raw_situation][:1]
+    elif board == FOLLOWUP_DEVELOP_BOARD:
+        situation = [x for x in FOLLOWUP_DEVELOP_SITUATIONS + ("no_reply",) if x in raw_situation][:1]
     else:
         situation = [x for x in FOLLOWUP_SITUATIONS if x in raw_situation]
         if "no_reply" in situation and len(situation) > 1:
@@ -814,6 +823,8 @@ def sanitize_followup_extract(structured: dict, input_data: dict) -> dict:
         "profileSuggestions": suggestions,
         "truncated": bool(input_data.get("truncated")),
     }
+    if situation == ["buying_signal"]:
+        out["signalText"] = str(structured.get("signalText") or "").strip()[:FOLLOWUP_SIGNAL_MAX]
     out.update(stage_answers(structured, input_data))
     return out
 

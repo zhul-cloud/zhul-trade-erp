@@ -20,6 +20,8 @@ public class FollowupItemFilter {
     private String blocker;
     /** 客户英文名 / 中文名、客户编码或单据编号包含 */
     private String keyword;
+    /** 客户国家，精确匹配 */
+    private String country;
     /** true 只看有履约异常的（订单履约末尾的「有异常」） */
     private Boolean exceptionOnly;
     /** 客户经营：只看沉睡 */

@@ -78,4 +78,8 @@ public final class OpportunityConstants {
     public static final int CHANNEL_ALIBABA = com.zhul.erp.modules.masterdata.constants.CustomerConstants.CHANNEL_ALIBABA;
 
     public static final String ERROR_EXISTS = "OPPORTUNITY_EXISTS";
+    /** 从主动开发转商机：客户已有进行中的商机 */
+    public static final String ERROR_ALREADY_ACTIVE = "OPPORTUNITY_ALREADY_ACTIVE";
+    /** 来源渠道「主动开发」（字典 source_channel） */
+    public static final int SOURCE_DEVELOP = 7;
 }

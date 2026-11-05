@@ -173,6 +173,11 @@ class FollowupHooksTest {
             "aftersales/service/AfterSalesService, close",
             "aftersales/service/AfterSalesService, replace",
             "aftersales/service/AfterSalesService, cancel",
+            // 主动开发（第四期）：背调与客户资料变化时重新推导开发阶段
+            "masterdata/customerbackground/service/CustomerBackgroundService, research",
+            "masterdata/customerbackground/service/CustomerBackgroundService, upload",
+            "masterdata/customerbackground/service/BackgroundResultService, apply",
+            "masterdata/customerprofile/support/ProfileFacts, refresh",
     })
     void entryCallsHook(String file, String method) throws IOException {
         String src = Files.readString(Path.of("src/main/java/com/zhul/erp/modules", file + ".java"));

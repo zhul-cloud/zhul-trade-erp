@@ -1,4 +1,4 @@
-import type { FollowupItem } from './service';
+import { type FollowupItem, SITUATION } from './service';
 import {
   applyAiAnswers,
   emptyAnswers,
@@ -348,6 +348,97 @@ describe('客户经营', () => {
         { accountAnswer: 3 } as never,
         'G4',
       ).accountAnswer,
+    ).toBe(1);
+  });
+});
+
+describe('主动开发', () => {
+  const dev = (stageCode: string, touchCount = 0) =>
+    ({ id: 1, board: 1, stageCode, touchCount }) as FollowupItem;
+
+  const AI_BASE = { nextActions: [], profileSuggestions: [] };
+
+  it('板块 1 都按开发阶段处理', () => {
+    expect(stageKind(dev('D1'))).toBe('develop');
+    expect(stageKind(dev('D7'))).toBe('develop');
+  });
+
+  it('必选触达结果；出现采购信号要写内容且不超过 200 字', () => {
+    const a = emptyAnswers();
+    expect(validateStage('develop', a, TODAY)).toBe('请选择触达结果');
+    expect(validateStage('develop', { ...a, touchResult: 3 }, TODAY)).toBe(
+      '请写客户问到的型号、数量或时间',
+    );
+    expect(
+      validateStage(
+        'develop',
+        { ...a, touchResult: 3, signalText: 'x'.repeat(201) },
+        TODAY,
+      ),
+    ).toBe('采购信号不能超过200个字');
+    expect(
+      validateStage(
+        'develop',
+        { ...a, touchResult: 3, signalText: '问 6ES7 现货' },
+        TODAY,
+      ),
+    ).toBeUndefined();
+    expect(
+      validateStage('develop', { ...a, touchResult: 1 }, TODAY),
+    ).toBeUndefined();
+  });
+
+  it('提交内容：只有采购信号才带信号文字', () => {
+    const a = { ...emptyAnswers(), signalText: ' 问价 ' };
+    expect(stagePayload('develop', { ...a, touchResult: 3 })).toMatchObject({
+      touchResult: 3,
+      signalText: '问价',
+    });
+    expect(
+      stagePayload('develop', { ...a, touchResult: 2 }).signalText,
+    ).toBeUndefined();
+  });
+
+  it('提示文字：首封进入 D5，回复进入 D6，信号进入 D7', () => {
+    expect(
+      stageEffect('develop', { ...emptyAnswers(), touchResult: 1 }, dev('D4')),
+    ).toContain('进入 D5');
+    expect(
+      stageEffect(
+        'develop',
+        { ...emptyAnswers(), touchResult: 1 },
+        dev('D5', 2),
+      ),
+    ).toBe('触达次数为 3');
+    expect(
+      stageEffect('develop', { ...emptyAnswers(), touchResult: 2 }, dev('D5')),
+    ).toContain('D6');
+    expect(
+      stageEffect('develop', { ...emptyAnswers(), touchResult: 3 }, dev('D6')),
+    ).toContain('D7');
+  });
+
+  it('AI 预填：用触达答案，没有时按「没回复」情况推断，已选的不覆盖', () => {
+    const a = emptyAnswers();
+    const signal = applyAiAnswers('develop', a, {
+      ...AI_BASE,
+      touchAnswer: 3,
+      signalText: 'y'.repeat(250),
+    });
+    expect(signal.touchResult).toBe(3);
+    expect(signal.signalText).toHaveLength(200);
+    expect(
+      applyAiAnswers('develop', a, {
+        ...AI_BASE,
+        situation: SITUATION.NO_REPLY,
+      }).touchResult,
+    ).toBe(4);
+    expect(
+      applyAiAnswers(
+        'develop',
+        { ...a, touchResult: 1 },
+        { ...AI_BASE, touchAnswer: 5 },
+      ).touchResult,
     ).toBe(1);
   });
 });

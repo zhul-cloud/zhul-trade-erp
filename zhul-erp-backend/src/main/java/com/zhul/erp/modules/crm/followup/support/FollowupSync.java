@@ -84,8 +84,20 @@ public class FollowupSync {
     private final ObjectMapper objectMapper;
     private final OrderFollowupSync orderSync;
     private final AccountFollowupSync accountSync;
+    private final DevelopFollowupSync developSync;
 
     // ---------------------------------------------------------------- 单据事件入口（不影响原单据）
+
+    /** 客户档案、联系人或背调有变化：只有进行中的主动开发对象需要重新推导（第四期 design D4） */
+    public void prospectChanged(Long customerId) {
+        if (customerId == null) {
+            return;
+        }
+        FollowupItemDO row = developSync.find(customerId);
+        if (row != null && row.getClosedAt() == null) {
+            customerChanged(customerId);
+        }
+    }
 
     /** 客户的单据有变化：重新推导该客户的跟进对象；出错只记 WARN */
     public void customerChanged(Long customerId) {
@@ -298,6 +310,8 @@ public class FollowupSync {
                 changes++;
             }
         }
+        // 主动开发（第四期）：读商机成交的结果判断是否已进入商机成交，在订单履约和客户经营之前
+        changes += developSync.resync(customerId, today, orderSync.defaultActions());
         // 订单履约、售后评价（第二期）
         changes += orderSync.resync(customerId, today);
         // 客户经营（第三期）：要读前面几个板块的结果，必须最后执行

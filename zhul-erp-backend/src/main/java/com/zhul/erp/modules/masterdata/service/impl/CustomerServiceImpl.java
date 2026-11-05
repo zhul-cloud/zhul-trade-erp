@@ -153,6 +153,8 @@ public class CustomerServiceImpl implements CustomerService {
             partySync.sync(customer.getTenantId(), id, req.getParties());
         }
         primaryContacts.fromCustomer(customer);
+        // 主联系人的联系方式变化：主动开发阶段随之推导
+        followupSync.prospectChanged(id);
     }
 
     @Override

@@ -39,6 +39,7 @@ public class ProfileFacts {
     private final CountryProfileMapper countryMapper;
     private final CustomerInquiryMapper inquiryMapper;
     private final CustomerMapper customerMapper;
+    private final com.zhul.erp.modules.crm.followup.support.FollowupHooks followupHooks;
     private final com.zhul.erp.modules.inquiry.support.CurrentUserResolver currentUser;
     private final com.zhul.erp.modules.masterdata.customerprofile.repository.CustomerStatsMapper statsMapper;
 
@@ -94,6 +95,8 @@ public class ProfileFacts {
     public ProfileCompleteness.Result refresh(CustomerDO c) {
         ProfileCompleteness.Result r = evaluate(c);
         saveMask(c, r.mask());
+        // 档案、联系人变化：主动开发阶段随之推导（潜力星级、可联系的联系人）
+        followupHooks.prospectChanged(c.getId());
         return r;
     }
 

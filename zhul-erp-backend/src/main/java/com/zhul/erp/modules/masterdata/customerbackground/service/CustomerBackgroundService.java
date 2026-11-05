@@ -96,6 +96,7 @@ public class CustomerBackgroundService {
     private final PermissionChecker perm;
     private final LogService logService;
     private final ObjectMapper objectMapper;
+    private final com.zhul.erp.modules.crm.followup.support.FollowupHooks followupHooks;
 
     // ---------------------------------------------------------------- 发起与上传
 
@@ -113,6 +114,7 @@ public class CustomerBackgroundService {
         AiTaskVO task = aiTaskService.createAndSubmit(SKILL, json(input.research(c)), me);
         CustomerBackgroundReportDO r = newReport(c, SOURCE_AI, task.getId(), me);
         reportMapper.insert(r);
+        followupHooks.prospectChanged(c.getId());
         log.info("发起客户背调，customerId={}, reportNo={}, aiTaskId={}", c.getId(), r.getReportNo(), task.getId());
         operateLog(c, "发起 AI 背调", r);
         return toVo(reportMapper.selectById(r.getId()));
@@ -156,6 +158,7 @@ public class CustomerBackgroundService {
             r.setUploadFileName(stored.fileName());
         }
         reportMapper.insert(r);
+        followupHooks.prospectChanged(c.getId());
         log.info("上传背调报告，customerId={}, reportNo={}, aiTaskId={}", c.getId(), r.getReportNo(), task.getId());
         operateLog(c, "上传背调报告", r);
         BackgroundReportVO vo = toVo(reportMapper.selectById(r.getId()));
