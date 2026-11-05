@@ -56,6 +56,8 @@ public class CustomerMergeService {
     /** 有这些记录时不能合并：属于财务记录，不在合并里改 */
     static final List<String> FINANCE = List.of("fin_customer_credit_entry", "fin_customer_refund");
 
+    private static final int CANDIDATE_LIMIT = 20;
+
     private final CustomerService customerService;
     private final CustomerMapper customerMapper;
     private final CustomerContactMapper contactMapper;
@@ -109,6 +111,72 @@ public class CustomerMergeService {
         collect(out, seenMembers, dismissed, phone, "PHONE", "WhatsApp 或电话相同");
         fillMembers(out, byId);
         return out;
+    }
+
+    /**
+     * 手动合并选客户：数据范围内、不含当前客户，按名称 / 编号 / 联系人 / 邮箱 / WhatsApp 搜索，最多 20 个。
+     * 返回的第一个成员是当前客户；与当前客户相同或相近的标出原因并排在前面。关键词少于 2 个字时只返回当前客户。
+     */
+    public DupGroupVO candidates(Long targetId, String keyword) {
+        CustomerDO target = customerService.requireInScope(targetId);
+        DupGroupVO g = new DupGroupVO();
+        g.setReason("MANUAL");
+        g.setReasonText("手动合并");
+        Map<Long, CustomerDO> byId = new LinkedHashMap<>();
+        byId.put(target.getId(), target);
+        String k = keyword == null ? "" : keyword.trim();
+        List<CustomerDO> found = List.of();
+        if (k.length() >= 2) {
+            LambdaQueryWrapper<CustomerDO> w = new LambdaQueryWrapper<CustomerDO>()
+                    .eq(CustomerDO::getTenantId, tenantId())
+                    .isNull(CustomerDO::getDeletedAt)
+                    .ne(CustomerDO::getId, target.getId())
+                    .and(x -> x.like(CustomerDO::getName, k).or().like(CustomerDO::getCustomerCode, k)
+                            .or().like(CustomerDO::getContactName, k).or().like(CustomerDO::getContactEmail, k)
+                            .or().like(CustomerDO::getWhatsapp, k))
+                    .orderByDesc(CustomerDO::getUpdateTime)
+                    .last("LIMIT 100");
+            dataScopeResolver.current().apply(w, CustomerDO::getOwnerId);
+            found = customerMapper.selectList(w);
+        }
+        Map<Long, String> hints = new HashMap<>();
+        for (CustomerDO c : found) {
+            String h = hint(target, c);
+            if (h != null) {
+                hints.put(c.getId(), h);
+            }
+        }
+        found.stream().sorted((a, b) -> Boolean.compare(hints.containsKey(b.getId()), hints.containsKey(a.getId())))
+                .limit(CANDIDATE_LIMIT).forEach(c -> byId.put(c.getId(), c));
+        byId.keySet().forEach(id -> {
+            DupGroupVO.Member m = new DupGroupVO.Member();
+            m.setId(id);
+            m.setHint(hints.get(id));
+            g.getMembers().add(m);
+        });
+        fillMembers(List.of(g), byId);
+        return g;
+    }
+
+    /** 与当前客户相同或相近之处（只看客户主档上的名称、邮箱、WhatsApp / 电话） */
+    private static String hint(CustomerDO t, CustomerDO c) {
+        if (StringUtils.hasText(t.getNameKey()) && Objects.equals(t.getNameKey(), c.getNameKey())) {
+            return "名称相同";
+        }
+        if (StringUtils.hasText(t.getEmailKey()) && Objects.equals(t.getEmailKey(), c.getEmailKey())) {
+            return "邮箱相同";
+        }
+        if (StringUtils.hasText(t.getWhatsappKey()) && Objects.equals(t.getWhatsappKey(), c.getWhatsappKey())
+                || StringUtils.hasText(t.getPhoneKey()) && Objects.equals(t.getPhoneKey(), c.getPhoneKey())) {
+            return "WhatsApp 或电话相同";
+        }
+        String a = t.getNameKey();
+        String b = c.getNameKey();
+        if (StringUtils.hasText(a) && StringUtils.hasText(b) && Math.min(a.length(), b.length()) >= 4
+                && (a.contains(b) || b.contains(a))) {
+            return "名称相近";
+        }
+        return null;
     }
 
     @Transactional(rollbackFor = Exception.class)
