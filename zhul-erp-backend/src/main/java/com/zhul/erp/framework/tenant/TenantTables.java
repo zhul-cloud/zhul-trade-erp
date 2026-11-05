@@ -65,6 +65,11 @@ public final class TenantTables {
             Map.entry("opportunity_attachment", Policy.PRIVATE),
             Map.entry("opportunity_stage", Policy.SHARED_READ),
             Map.entry("opportunity_stage_log", Policy.PRIVATE),
+            Map.entry("followup_item", Policy.PRIVATE),
+            Map.entry("customer_followup", Policy.PRIVATE),
+            Map.entry("customer_annual_plan", Policy.PRIVATE),
+            Map.entry("sop_stage", Policy.SHARED_READ),
+            Map.entry("sop_blocker", Policy.SHARED_READ),
             // 询盘与询价
             Map.entry("customer_inquiry", Policy.PRIVATE),
             Map.entry("customer_inquiry_append", Policy.PRIVATE),

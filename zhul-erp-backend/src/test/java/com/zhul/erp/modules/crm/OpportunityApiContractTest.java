@@ -54,6 +54,7 @@ class OpportunityApiContractTest extends IntegrationTestBase {
     @Autowired private StringRedisTemplate redis;
     @Autowired private ObjectMapper objectMapper;
     @Autowired private ContactNameTranslations contactNameTranslations;
+    @Autowired private com.zhul.erp.modules.crm.service.OpportunityService opportunityService;
 
     @BeforeEach
     void setUp() {
@@ -216,7 +217,7 @@ class OpportunityApiContractTest extends IntegrationTestBase {
         ok(call(json(post(BASE + "/" + b + "/stage"), "{\"toStage\":\"S4\"}"), admin));
         assertEquals("S3 及以后请标记为输单",
                 call(json(post(BASE + "/" + b + "/close"), "{\"result\":\"INVALID\",\"reason\":1}"), admin).path("message").asText());
-        assertEquals("请先推进到 S7 成交推进",
+        assertEquals("收款到账后系统自动赢单",
                 call(json(post(BASE + "/" + b + "/close"), "{\"result\":\"WON\"}"), admin).path("message").asText());
         ok(call(json(post(BASE + "/" + b + "/close"), "{\"result\":\"LOST\",\"reason\":15}"), admin));
         ok(call(post(BASE + "/" + b + "/reopen"), admin));
@@ -224,9 +225,17 @@ class OpportunityApiContractTest extends IntegrationTestBase {
         assertEquals("S4", bd.path("stageCode").asText());
         assertEquals(4, bd.path("stageLogs").size(), "登记、推进、输单、重新打开");
         ok(call(json(post(BASE + "/" + b + "/close"), "{\"result\":\"LOST\",\"reason\":11}"), admin));
-        // C：推进到 S7 赢单
+        // C：S7 也不能手动赢单；收款到账自动赢单（PaymentReceiptServiceImpl.confirm 调用 autoWin）
         ok(call(json(post(BASE + "/" + c + "/stage"), "{\"toStage\":\"S7\"}"), admin));
-        ok(call(json(post(BASE + "/" + c + "/close"), "{\"result\":\"WON\"}"), admin));
+        assertEquals("收款到账后系统自动赢单",
+                call(json(post(BASE + "/" + c + "/close"), "{\"result\":\"WON\"}"), admin).path("message").asText());
+        Map<String, Object> cRow = jdbc.queryForMap("select tenant_id, customer_id from opportunity where id = ?", c);
+        TenantContext.runAs(((Number) cRow.get("tenant_id")).intValue(),
+                () -> opportunityService.autoWin(((Number) cRow.get("customer_id")).longValue(), "FWPI-IT-0001"));
+        JsonNode cd = ok(call(get(BASE + "/" + c), admin));
+        assertEquals("WON", cd.path("stageCode").asText());
+        assertEquals("PI FWPI-IT-0001 收款到账，自动赢单",
+                cd.path("stageLogs").get(0).path("note").asText(), "阶段记录最新的在前");
 
         JsonNode stats = ok(call(get(BASE + "/stats").param("from", day).param("to", day).param("groupBy", "channel"), admin));
         JsonNode mic = stats.path("rows").get(0);

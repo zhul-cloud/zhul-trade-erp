@@ -15,6 +15,7 @@ import { Alert, App, Button, Dropdown, Skeleton } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
 import { StatusPill } from '@/pages/inquiry/shared/components';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
+import RecordFollowupModal from '@/pages/sales/followup/RecordFollowupModal';
 import { useAppTheme } from '@/theme/AppTheme';
 import { DICT_SOURCE_CHANNEL, useDictOptions } from '@/utils/dict';
 import { formatDateTime } from '@/utils/format';
@@ -50,6 +51,8 @@ const OpportunityDetailPage: React.FC = () => {
   const { message, modal } = App.useApp();
   const access = useAccess() as Record<string, boolean>;
   const canEdit = !!access['crm:opportunity:edit'];
+  const canRecord = !!access['crm:followup:record'];
+  const [recording, setRecording] = useState(false);
   const canDelete = !!access['crm:opportunity:delete'];
 
   const [detail, setDetail] = useState<OpportunityDetail | null>();
@@ -240,9 +243,8 @@ const OpportunityDetailPage: React.FC = () => {
               调整阶段 <DownOutlined />
             </Button>
           </Dropdown>
-          {next ? (
+          {next && (
             <Button
-              type="primary"
               icon={<ArrowRightOutlined />}
               loading={busy}
               onClick={() =>
@@ -254,26 +256,14 @@ const OpportunityDetailPage: React.FC = () => {
             >
               推进到 {next.code} {next.name}
             </Button>
-          ) : (
+          )}
+          {canRecord && (
             <Button
               type="primary"
-              icon={<TrophyOutlined />}
-              loading={busy}
-              onClick={() =>
-                modal.confirm({
-                  title: '确认赢单？',
-                  content: '赢单后商机结束，计入赢单统计。之后仍可重新打开。',
-                  okText: '确认赢单',
-                  cancelText: '取消',
-                  onOk: () =>
-                    run(
-                      () => opportunityApi.close(d.id, 'WON'),
-                      '恭喜，已赢单',
-                    ),
-                })
-              }
+              icon={<EditOutlined />}
+              onClick={() => setRecording(true)}
             >
-              标记赢单
+              记一次跟进
             </Button>
           )}
         </>
@@ -439,10 +429,27 @@ const OpportunityDetailPage: React.FC = () => {
             );
           })}
         </div>
-        <div style={{ marginTop: 12, fontSize: 12, color: palette.mute }}>
-          可以前进或退回到任一阶段；S1、S2 可标记无效，S3
-          起没做成请标记输单，推进到{' '}
-          {last ? `${last.code} ${last.name}` : '最后阶段'} 后才能标记赢单。
+        {isActive && (
+          <div
+            style={{
+              marginTop: 12,
+              padding: '8px 12px',
+              borderRadius: 8,
+              fontSize: 13,
+              color: palette.sub,
+              background: palette.greenSoft,
+            }}
+          >
+            <TrophyOutlined style={{ color: palette.green }} />{' '}
+            <b style={{ color: palette.green }}>
+              收款到账后系统自动赢单，不用手动标记。
+            </b>{' '}
+            发 PI 后自动推进到 {last ? `${last.code} ${last.name}` : '最后阶段'}
+            ；记跟进勾选「客户给了反馈 / 在谈条件」自动推进到 S5 / S6。
+          </div>
+        )}
+        <div style={{ marginTop: 8, fontSize: 12, color: palette.mute }}>
+          可以前进或退回到任一阶段；S1、S2 没做成标记无效，S3 起标记输单。
         </div>
       </Card>
 
@@ -668,6 +675,15 @@ const OpportunityDetailPage: React.FC = () => {
         </Card>
       </div>
 
+      <RecordFollowupModal
+        open={recording}
+        target={{ customerId: d.customerId, customerName: d.customerName }}
+        onClose={() => setRecording(false)}
+        onDone={() => {
+          setRecording(false);
+          load();
+        }}
+      />
       <CloseModal
         detail={d}
         kind={closeKind}

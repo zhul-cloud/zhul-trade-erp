@@ -58,6 +58,7 @@ import urllib.request
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
+from datetime import date
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import anthropic
@@ -716,6 +717,184 @@ def process_background(payload: dict, callback_url: str):
         send_callback(callback_url, "failed", error=message[:500])
 
 
+FOLLOWUP_EXTRACT_SKILL = "followup-extract"
+FOLLOWUP_REPLY_SKILL = "followup-reply"
+# 粘贴原文只取最后这么多字交给 AI（与后端 FollowupConstants.RAW_MAX 一致）
+FOLLOWUP_RAW_MAX = 20000
+FOLLOWUP_SITUATIONS = ("feedback", "negotiating", "no_reply")
+# 客户经营（board 5）的客户情况是单选（第三期 design D10），按这个先后只留一个；其他板块丢掉这三个值
+FOLLOWUP_ACCOUNT_SITUATIONS = ("new_need", "cross_sell", "no_need")
+FOLLOWUP_ACCOUNT_BOARD = 5
+# 主动开发（board 1）的触达结果是单选（第四期 design D11）：回复了、采购信号、明确拒绝，另可只是没回复；采购信号另输出 signalText
+FOLLOWUP_DEVELOP_SITUATIONS = ("buying_signal", "refused", "replied")
+FOLLOWUP_DEVELOP_BOARD = 1
+FOLLOWUP_SIGNAL_MAX = 200
+# 订单履约、售后评价阶段的答案建议（第二期 design D13）：只在对应阶段输出，取值与后端 FollowupConstants 一致
+FOLLOWUP_ISSUE_TYPES = ("少件", "破损", "型号不对", "其他")
+FOLLOWUP_REVIEW_STATUSES = (1, 2, 3, 4, 6)
+FOLLOWUP_STAGE_FIELDS = {
+    "F6": ("etaDate",),
+    "A1": ("receiptAnswer", "issueTypes", "etaDate"),
+    "A2": ("useAnswer", "issueTypes"),
+    "A5": ("satisfaction", "reviewStatus"),
+    "A6": ("reviewStatus",),
+}
+
+FOLLOWUP_EXTRACT_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "summary": {"type": "string"},
+        "situation": {"type": "array", "items": {"type": "string",
+                                                  "enum": list(FOLLOWUP_SITUATIONS + FOLLOWUP_ACCOUNT_SITUATIONS
+                                                               + FOLLOWUP_DEVELOP_SITUATIONS)}},
+        "signalText": {"type": "string"},
+        "blocker": {"type": "string"},
+        "nextActions": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {"text": {"type": "string"}, "days": {"type": "integer"}},
+                "required": ["text", "days"],
+            },
+        },
+        "profileSuggestions": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {"field": {"type": "string"}, "value": {"type": "string"}, "evidence": {"type": "string"}},
+                "required": ["field", "value", "evidence"],
+            },
+        },
+        "receiptAnswer": {"type": "integer", "enum": [1, 2, 3]},
+        "useAnswer": {"type": "integer", "enum": [1, 2, 3]},
+        "issueTypes": {"type": "array", "items": {"type": "string", "enum": list(FOLLOWUP_ISSUE_TYPES)}},
+        "satisfaction": {"type": "integer", "enum": [1, 2, 3]},
+        "reviewStatus": {"type": "integer", "enum": list(FOLLOWUP_REVIEW_STATUSES)},
+        "etaDate": {"type": "string"},
+    },
+    "required": ["summary", "situation", "blocker", "nextActions", "profileSuggestions"],
+}
+
+FOLLOWUP_REPLY_SCHEMA = {
+    "type": "object",
+    "properties": {"reply": {"type": "string"}, "intent": {"type": "string"}},
+    "required": ["reply", "intent"],
+}
+
+
+def followup_extract_input(input_data: dict) -> dict:
+    """原文只保留最后 FOLLOWUP_RAW_MAX 字（最新的消息在最后），并标出是否截断"""
+    raw = (input_data.get("rawContent") or "").strip()
+    truncated = len(raw) > FOLLOWUP_RAW_MAX
+    return {**input_data, "rawContent": raw[-FOLLOWUP_RAW_MAX:] if truncated else raw, "truncated": truncated}
+
+
+def sanitize_followup_extract(structured: dict, input_data: dict) -> dict:
+    """只保留合法取值：客户情况只取三个固定值，卡点只取输入的卡点码，档案字段只取输入的可补字段，下一步最多 2 条"""
+    blockers = {b.get("code") for b in input_data.get("blockers") or [] if isinstance(b, dict)}
+    fields = {f.get("field") for f in input_data.get("profileFields") or [] if isinstance(f, dict)}
+    raw_situation = structured.get("situation") or []
+    board = (input_data.get("stage") or {}).get("board")
+    if board == FOLLOWUP_ACCOUNT_BOARD:
+        situation = [x for x in FOLLOWUP_ACCOUNT_SITUATIONS + ("no_reply",) if x in raw_situation][:1]
+    elif board == FOLLOWUP_DEVELOP_BOARD:
+        situation = [x for x in FOLLOWUP_DEVELOP_SITUATIONS + ("no_reply",) if x in raw_situation][:1]
+    else:
+        situation = [x for x in FOLLOWUP_SITUATIONS if x in raw_situation]
+        if "no_reply" in situation and len(situation) > 1:
+            situation = [x for x in situation if x != "no_reply"]
+    blocker = structured.get("blocker") or ""
+    actions = []
+    for a in structured.get("nextActions") or []:
+        text = str(a.get("text") or "").strip()
+        if text:
+            actions.append({"text": text[:200], "days": max(0, min(int(a.get("days") or 0), 60))})
+    suggestions = []
+    for sug in structured.get("profileSuggestions") or []:
+        value = str(sug.get("value") or "").strip()
+        if sug.get("field") in fields and value:
+            suggestions.append({"field": sug["field"], "value": value[:500],
+                                "evidence": str(sug.get("evidence") or "")[:200]})
+    out = {
+        "summary": str(structured.get("summary") or "").strip()[:1000],
+        "situation": situation,
+        "blocker": blocker if blocker in blockers else "",
+        "nextActions": actions[:2],
+        "profileSuggestions": suggestions,
+        "truncated": bool(input_data.get("truncated")),
+    }
+    if situation == ["buying_signal"]:
+        out["signalText"] = str(structured.get("signalText") or "").strip()[:FOLLOWUP_SIGNAL_MAX]
+    out.update(stage_answers(structured, input_data))
+    return out
+
+
+def stage_answers(structured: dict, input_data: dict) -> dict:
+    """订单履约、售后评价阶段的答案建议：只保留当前阶段的字段和合法取值"""
+    stage = (input_data.get("stage") or {}).get("code") or ""
+    out = {}
+    for field in FOLLOWUP_STAGE_FIELDS.get(stage, ()):
+        value = structured.get(field)
+        if field == "issueTypes":
+            picked = [x for x in FOLLOWUP_ISSUE_TYPES if x in (value or [])]
+            if picked:
+                out[field] = picked
+        elif field == "etaDate":
+            try:
+                out[field] = date.fromisoformat(str(value or "").strip()).isoformat()
+            except ValueError:
+                pass
+        elif field == "reviewStatus":
+            if value in FOLLOWUP_REVIEW_STATUSES:
+                out[field] = value
+        elif value in (1, 2, 3):
+            out[field] = value
+    return out
+
+
+def call_followup_extract(cfg: AiConfig, input_data: dict) -> dict:
+    """整理一次跟进；不联网，用翻译的模型与思考强度（轻量、快）"""
+    prepared = followup_extract_input(input_data)
+    structured = call_api(cfg, _read_skill(FOLLOWUP_EXTRACT_SKILL), json.dumps(prepared, ensure_ascii=False, indent=1), [],
+                          FOLLOWUP_EXTRACT_SCHEMA, model=cfg.translate_model, effort=cfg.translate_effort)
+    if "summary" not in structured:
+        raise RuntimeError("AI 未返回符合 schema 的跟进整理结果")
+    return sanitize_followup_extract(structured, prepared)
+
+
+def call_followup_reply(cfg: AiConfig, input_data: dict) -> dict:
+    """按客户上下文和卡点写一条英文跟进消息"""
+    structured = call_api(cfg, _read_skill(FOLLOWUP_REPLY_SKILL), json.dumps(input_data, ensure_ascii=False, indent=1), [],
+                          FOLLOWUP_REPLY_SCHEMA, model=cfg.translate_model, effort=cfg.translate_effort)
+    if not (structured.get("reply") or "").strip():
+        raise RuntimeError("AI 未返回英文回复")
+    return {"reply": structured["reply"].strip(), "intent": str(structured.get("intent") or "").strip()[:200]}
+
+
+def process_followup(payload: dict, callback_url: str, skill_id: str):
+    start_job()
+    key = _api_key_of(payload)
+    try:
+        cfg = parse_ai_config(payload.get("ai"))
+        input_data = payload.get("input") or {}
+        if skill_id == FOLLOWUP_EXTRACT_SKILL:
+            if not (input_data.get("rawContent") or "").strip():
+                send_callback(callback_url, "failed", error="没有需要整理的内容")
+                return
+            output = call_followup_extract(cfg, input_data)
+        else:
+            output = call_followup_reply(cfg, input_data)
+        send_callback(callback_url, "success", output=output)
+    except ConfigError as e:
+        send_callback(callback_url, "failed", error=str(e))
+    except (JobTimeout, anthropic.APITimeoutError, openai.APITimeoutError):
+        send_callback(callback_url, "failed", error=f"AI 处理超过 {TIMEOUT_SECONDS} 秒未完成")
+    except Exception as e:
+        message = scrub(str(e), key)
+        print(f"[ai-orchestrator] {skill_id} failed: {message}")
+        send_callback(callback_url, "failed", error=message[:500])
+
+
 def send_callback(callback_url: str, status: str, output=None, error=None) -> bool:
     """回调带上本线程累计的用量（spec ai-platform/task-orchestration「记录 AI 调用用量」）；旧版后端忽略 usage。
     投递失败（连不上、超时、后端 5xx）按 CALLBACK_RETRY_DELAYS 重投同一结果，不重新调用模型；
@@ -962,6 +1141,11 @@ class Handler(BaseHTTPRequestHandler):
             prompt = NAME_PROMPT if skill_id == NAME_SKILL else TRANSLATE_PROMPT
             if callback_url:
                 threading.Thread(target=process_translate, args=(payload, callback_url, prompt), daemon=True).start()
+            return
+
+        if skill_id in (FOLLOWUP_EXTRACT_SKILL, FOLLOWUP_REPLY_SKILL):
+            if callback_url:
+                threading.Thread(target=process_followup, args=(payload, callback_url, skill_id), daemon=True).start()
             return
 
         if skill_id == BACKGROUND_SKILL:

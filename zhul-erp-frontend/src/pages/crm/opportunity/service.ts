@@ -215,8 +215,13 @@ export const opportunityApi = {
     request(`${BASE}/${id}`, { method: 'PUT', data, ...quiet }),
   changeStage: (id: number, toStage: string, note?: string) =>
     post<void>(`${BASE}/${id}/stage`, { toStage, note }),
-  close: (id: number, result: string, reason?: number, note?: string) =>
-    post<void>(`${BASE}/${id}/close`, { result, reason, note }),
+  close: (
+    id: number,
+    result: string,
+    reason?: number,
+    note?: string,
+    nurture?: boolean,
+  ) => post<void>(`${BASE}/${id}/close`, { result, reason, note, nurture }),
   reopen: (id: number) => post<void>(`${BASE}/${id}/reopen`),
   remove: (id: number) =>
     request(`${BASE}/${id}`, { method: 'DELETE', ...quiet }),

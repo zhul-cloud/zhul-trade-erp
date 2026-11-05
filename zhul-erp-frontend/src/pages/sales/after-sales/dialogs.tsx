@@ -94,9 +94,11 @@ type Line = {
 export const CreateAfterSalesModal: React.FC<{
   open: boolean;
   order?: Order;
+  /** 从客户跟进「有问题」打开时带入：订单按 soId 加载，问题现象预填 */
+  defaults?: { soId?: number; symptom?: string };
   onClose: () => void;
   onDone: (a: AfterSales) => void;
-}> = ({ open, order, onClose, onDone }) => {
+}> = ({ open, order, defaults, onClose, onDone }) => {
   const { message } = App.useApp();
   const { palette } = useAppTheme();
   const owners = useOwnerOptions();
@@ -150,7 +152,26 @@ export const CreateAfterSalesModal: React.FC<{
     setNextUpdate(null);
     setFiles([]);
     applyOrder(order);
-  }, [open, order]);
+    if (defaults?.symptom) setSymptom(defaults.symptom);
+    if (!order && defaults?.soId) {
+      let alive = true;
+      orderApi
+        .detail(defaults.soId)
+        .then((o) => {
+          if (!alive) return;
+          // 下拉框要有这一项才显示单号，否则只显示 id
+          setOrderOptions([
+            { value: o.id, label: `${o.soNo} · ${o.customerName ?? ''}` },
+          ]);
+          applyOrder(o);
+        })
+        .catch(() => undefined);
+      return () => {
+        alive = false;
+      };
+    }
+    return undefined;
+  }, [open, order, defaults]);
 
   const searchOrders = async (kw: string) => {
     try {
@@ -696,6 +717,7 @@ export const CloseModal: React.FC<{
   const reasons = useDictTexts(DICT_REASON);
   const [reason, setReason] = useState<string>();
   const [result, setResult] = useState('');
+  const [caseNote, setCaseNote] = useState('');
   const [busy, setBusy] = useState(false);
   useEffect(() => {
     if (open) {
@@ -703,6 +725,7 @@ export const CloseModal: React.FC<{
         data.reasonCode === 'INVESTIGATING' ? undefined : data.reasonCode,
       );
       setResult('');
+      setCaseNote('');
     }
   }, [open, data]);
   const total =
@@ -721,7 +744,14 @@ export const CloseModal: React.FC<{
         if (!reason) return;
         setBusy(true);
         try {
-          onDone(await afterSalesApi.close(data.id, reason, result.trim()));
+          onDone(
+            await afterSalesApi.close(
+              data.id,
+              reason,
+              result.trim(),
+              caseNote.trim() || undefined,
+            ),
+          );
           message.success('已结案');
         } catch (e) {
           message.error(readBizError(e).message);
@@ -753,6 +783,18 @@ export const CloseModal: React.FC<{
             onChange={(e) => setResult(e.target.value)}
             placeholder="如 供应商检测确认编码器故障，换新发出；客户确认运行正常"
             aria-label="处理结果"
+          />
+        </div>
+        <div>
+          <Label text="案例沉淀（选填）" />
+          <Input.TextArea
+            rows={2}
+            maxLength={500}
+            showCount
+            value={caseNote}
+            onChange={(e) => setCaseNote(e.target.value)}
+            placeholder="这次问题的原因和下次怎么避免，会记进客户的跟进时间线"
+            aria-label="案例沉淀"
           />
         </div>
         <div
@@ -1242,7 +1284,8 @@ export const ReplacementModal: React.FC<{
         >
           <b style={{ color: palette.link }}>生成一张 0 元的售后补发订单</b>
           <div>
-            客户、币种、事业部、业务员取原订单；不出 PI、不收款，照常生成采购需求走采购和出运。补发的成本计入原订单。
+            客户、币种、事业部、业务员取原订单；不出
+            PI、不收款，照常生成采购需求走采购和出运。补发的成本计入原订单。
           </div>
         </div>
         <div

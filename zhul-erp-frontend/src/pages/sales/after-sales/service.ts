@@ -112,6 +112,8 @@ export interface AfterSales {
   status: number;
   statusName: string;
   result?: string;
+  /** 结案时选填的案例沉淀 */
+  caseNote?: string;
   closedAt?: string;
   cancelReason?: string;
   itemSummary?: string;
@@ -259,8 +261,12 @@ export const afterSalesApi = {
     send<AfterSales>('POST', `${AS}/${id}/plan`, body),
   status: (id: number, status: number) =>
     send<AfterSales>('POST', `${AS}/${id}/status`, { status }),
-  close: (id: number, reasonCode: string, result: string) =>
-    send<AfterSales>('POST', `${AS}/${id}/close`, { reasonCode, result }),
+  close: (id: number, reasonCode: string, result: string, caseNote?: string) =>
+    send<AfterSales>('POST', `${AS}/${id}/close`, {
+      reasonCode,
+      result,
+      caseNote,
+    }),
   cancel: (id: number, reason: string) =>
     send<AfterSales>('POST', `${AS}/${id}/cancel`, { reason }),
   replace: (id: number, items: ReplacementLine[], remark?: string) =>

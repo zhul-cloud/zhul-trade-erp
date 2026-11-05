@@ -70,6 +70,26 @@ public interface OpportunityService {
      */
     void onQuoted(Long opportunityId, String quotationNo);
 
+    /**
+     * 自动推进客户进行中的商机（记跟进勾选、PI 发送）：只前进不回退；from 不为空时只在 from 及以后推进。
+     * 不单独开事务，在调用方事务内执行。返回推进后的阶段；没有推进返回 null。
+     */
+    String autoAdvance(Long customerId, String toStage, String from, String note);
+
+    /**
+     * 收款到账自动赢单（按客户关联，design D10）：客户进行中的商机标记赢单，不在最后一个进行中阶段时先补一条推进记录。
+     * 不单独开事务，在调用方事务内执行。返回赢单的商机 ID；没有进行中商机返回 null。
+     */
+    Long autoWin(Long customerId, String piNo);
+
+    /**
+     * 从主动开发转商机（第四期 design D7）：为已有客户新建商机，不新建客户、不做登记查重；来源渠道「主动开发」，阶段 S1，
+     * 负责人为传入的 ownerId（须在数据范围内），不传为客户负责人（没有时为当前用户）。客户已有进行中的商机时抛 OPPORTUNITY_ALREADY_ACTIVE。
+     * 不单独开事务，在调用方事务内执行；跟进对象由调用方重新推导。返回新商机。
+     */
+    com.zhul.erp.modules.crm.entity.OpportunityDO createForCustomer(Long customerId, LocalDate firstContactDate,
+                                                                   String demandSummary, Long ownerId);
+
     /** 新建询盘时可关联的商机：这个客户进行中、数据权限内的商机，最近更新的在前，带附件 */
     List<OpportunityDetailVO> activeOfCustomer(Long customerId);
 

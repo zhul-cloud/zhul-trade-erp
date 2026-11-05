@@ -109,9 +109,11 @@ public class CustomerProfileVO {
 
     @Data
     public static class Source {
-        /** 1-人工、2-背调报告、3-迁移、9-系统 */
+        /** 1-人工、2-背调报告、3-迁移、4-跟进记录、9-系统 */
         private Integer source;
         private Long reportId;
+        /** 来源为跟进记录时的跟进记录 ID */
+        private Long followupId;
         /** 来源为背调报告时的报告编号；报告删除后仍显示，并标 reportDeleted */
         private String reportNo;
         private Boolean reportDeleted;

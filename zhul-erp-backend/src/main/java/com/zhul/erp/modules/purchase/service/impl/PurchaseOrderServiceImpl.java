@@ -112,6 +112,7 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
     private final PurchaseLogs logs;
     private final RequirementQty qty;
     private final OrderPurchaseProgress progress;
+    private final com.zhul.erp.modules.crm.followup.support.FollowupHooks followupHooks;
     private final FileStorageService fileStorage;
     private final DocumentNumberService documentNumberService;
     private final ExchangeRateService exchangeRateService;
@@ -660,6 +661,7 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
             }
         }
         payables.syncPurchaseOrder(id);
+        followupHooks.purchaseChanged(id);
         return detail(id);
     }
 
@@ -961,6 +963,7 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
         after.put("bargain", "CNY " + p.getBargainAmount());
         logService.recordOperateLog(PurchaseConstants.MENU_ORDER, "确认下单", null, after);
         payables.syncPurchaseOrder(id);
+        followupHooks.purchaseChanged(id);
         return detail(id);
     }
 
@@ -988,6 +991,7 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
         logService.recordOperateLog(PurchaseConstants.MENU_ORDER, "取消采购订单", Map.of("poNo", p.getPoNo(), "status", "已下单"),
                 Map.of("poNo", p.getPoNo(), "status", "已取消", "reason", why));
         payables.syncPurchaseOrder(id);
+        followupHooks.purchaseChanged(id);
         return detail(id);
     }
 

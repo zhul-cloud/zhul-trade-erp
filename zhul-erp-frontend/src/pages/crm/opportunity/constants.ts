@@ -12,14 +12,25 @@ export const INVALID_REASONS = [
   { value: 9, label: '其他' },
 ];
 
+/** 输单原因：按 SOP 卡点字典排列，加无货源、客户取消、其他（与后端 OpportunityConstants.LOST_REASONS 一致） */
 export const LOST_REASONS = [
   { value: 11, label: '价格' },
+  { value: 16, label: '技术' },
+  { value: 17, label: '付款' },
   { value: 12, label: '交期' },
+  { value: 18, label: '信任' },
+  { value: 20, label: '预算' },
+  { value: 15, label: '选择了竞争对手' },
+  { value: 21, label: '内部审批' },
+  { value: 22, label: '项目延期' },
+  { value: 23, label: '无回复' },
   { value: 13, label: '无货源' },
   { value: 14, label: '客户取消' },
-  { value: 15, label: '选择了竞争对手' },
   { value: 19, label: '其他' },
 ];
+
+/** 输单后转入培育的默认天数（与系统参数 sales.followup.nurture.default-days 默认值一致） */
+export const NURTURE_DEFAULT_DAYS = 60;
 
 /** 需求附件：图片与 Excel，单个 ≤10MB，每条商机 ≤10 个 */
 export const ATTACHMENT_ACCEPT =

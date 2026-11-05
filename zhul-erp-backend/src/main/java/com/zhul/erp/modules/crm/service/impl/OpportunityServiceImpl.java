@@ -93,6 +93,7 @@ public class OpportunityServiceImpl implements OpportunityService {
     private final FileStorageService fileStorage;
     private final DictItemService dictItemService;
     private final ContactNameTranslations contactNameTranslations;
+    private final com.zhul.erp.modules.crm.followup.support.FollowupSync followupSync;
 
     // ---------------------------------------------------------------- 阶段配置
 
@@ -144,7 +145,54 @@ public class OpportunityServiceImpl implements OpportunityService {
             mergeAttachments(o, req.getAttachments());
         }
         contactNameTranslations.submit(customerId, req.getContactName(), scope.selfId());
+        followupSync.customerChanged(customerId);
         return o.getId();
+    }
+
+    @Override
+    public OpportunityDO createForCustomer(Long customerId, LocalDate firstContactDate, String demandSummary, Long ownerId) {
+        int tenantId = currentTenantId();
+        CustomerDO c = customerMapper.selectById(customerId);
+        if (c == null || c.getDeletedAt() != null) {
+            throw new BizException("客户不存在或已删除");
+        }
+        OpportunityDO active = opportunityMapper.selectOne(new LambdaQueryWrapper<OpportunityDO>()
+                .eq(OpportunityDO::getCustomerId, customerId)
+                .isNull(OpportunityDO::getClosedAt)
+                .isNull(OpportunityDO::getDeletedAt)
+                .last("LIMIT 1"));
+        if (active != null) {
+            java.util.Map<String, Object> detail = new java.util.LinkedHashMap<>();
+            detail.put("opportunityId", active.getId());
+            detail.put("opportunityCode", active.getOpportunityCode());
+            throw BizException.of(OpportunityConstants.ERROR_ALREADY_ACTIVE,
+                    "这个客户已有进行中的商机 " + active.getOpportunityCode() + "，请打开已有商机", detail);
+        }
+        OpportunityStageRules.Stages stages = stageRules.load();
+        DataScope scope = dataScopeResolver.current();
+        OpportunityDO o = new OpportunityDO();
+        o.setTenantId(tenantId);
+        o.setOpportunityCode(nextCode(tenantId));
+        o.setCustomerId(customerId);
+        o.setBusinessUnitId(businessUnitService.unitOfCustomer(customerId));
+        o.setSourceChannel(OpportunityConstants.SOURCE_DEVELOP);
+        o.setAliLevel("");
+        o.setFirstContactDate(firstContactDate == null ? LocalDate.now() : firstContactDate);
+        if (ownerId != null && ownerId > 0 && !scope.canSee(ownerId)) {
+            throw new BizException("负责人不在你的数据范围内");
+        }
+        o.setOwnerId(ownerId != null && ownerId > 0 ? ownerId : c.getOwnerId() != null && c.getOwnerId() > 0 ? c.getOwnerId()
+                : scope.selfId() != null ? scope.selfId() : 0L);
+        o.setStageCode(stages.first());
+        o.setStageChangedAt(LocalDateTime.now());
+        o.setReopenStageCode("");
+        o.setCloseReason(0);
+        o.setCloseNote("");
+        o.setReachedValid(stages.countsAsValid(stages.first()) ? 1 : 0);
+        o.setDemandSummary(text(demandSummary));
+        opportunityMapper.insert(o);
+        log(o, "", o.getStageCode(), OpportunityConstants.ACTION_REGISTER, 0, "登记商机（来自主动开发）");
+        return o;
     }
 
     @Override
@@ -197,6 +245,7 @@ public class OpportunityServiceImpl implements OpportunityService {
         moveTo(o, to, stages);
         opportunityMapper.updateById(o);
         log(o, from, to, OpportunityConstants.ACTION_CHANGE, 0, text(req.getNote()));
+        followupSync.customerChanged(o.getCustomerId());
     }
 
     @Override
@@ -208,8 +257,7 @@ public class OpportunityServiceImpl implements OpportunityService {
         String result = req.getResult().trim();
         stages.checkClose(o.getStageCode(), result, req.getReason());
         String from = o.getStageCode();
-        int reason = stages.get(result).getCategory() == OpportunityConstants.CATEGORY_WON || req.getReason() == null
-                ? 0 : req.getReason();
+        int reason = req.getReason() == null ? 0 : req.getReason();
         o.setReopenStageCode(from);
         o.setCloseReason(reason);
         o.setCloseNote(text(req.getNote()));
@@ -217,6 +265,10 @@ public class OpportunityServiceImpl implements OpportunityService {
         moveTo(o, result, stages);
         opportunityMapper.updateById(o);
         log(o, from, result, OpportunityConstants.ACTION_CLOSE, reason, o.getCloseNote());
+        // 结束商机是业务员的主动操作：跟进对象的处理与结束在同一事务内，出错整体回滚
+        boolean lost = stages.get(result).getCategory() == OpportunityConstants.CATEGORY_LOST;
+        followupSync.onOpportunityClosed(o.getCustomerId(), lost && Boolean.TRUE.equals(req.getNurture()), reason,
+                req.getNurtureUntil(), o.getCloseNote());
     }
 
     @Override
@@ -252,6 +304,7 @@ public class OpportunityServiceImpl implements OpportunityService {
         moveTo(o, to, stages);
         opportunityMapper.updateById(o);
         log(o, from, to, OpportunityConstants.ACTION_REOPEN, 0, "");
+        followupSync.customerChanged(o.getCustomerId());
     }
 
     /**
@@ -277,7 +330,16 @@ public class OpportunityServiceImpl implements OpportunityService {
     }
 
     private void log(OpportunityDO o, String from, String to, int action, int reason, String note) {
+        log(o, from, to, action, reason, note, false);
+    }
+
+    /** system 为 true 时记为系统自动推进（操作人显示「系统」） */
+    private void log(OpportunityDO o, String from, String to, int action, int reason, String note, boolean system) {
         OpportunityStageLogDO row = new OpportunityStageLogDO();
+        if (system) {
+            row.setCreateBy(OpportunityConstants.OPERATOR_SYSTEM);
+            row.setUpdateBy(OpportunityConstants.OPERATOR_SYSTEM);
+        }
         row.setTenantId(o.getTenantId());
         row.setOpportunityId(o.getId());
         row.setFromStage(from);
@@ -528,7 +590,8 @@ public class OpportunityServiceImpl implements OpportunityService {
         String to = stages.firstValid().getCode();
         moveTo(o, to, stages);
         opportunityMapper.updateById(o);
-        log(o, from, to, OpportunityConstants.ACTION_CHANGE, 0, "创建询盘单 " + inquiryCode + "，自动推进");
+        log(o, from, to, OpportunityConstants.ACTION_CHANGE, 0, "创建询盘单 " + inquiryCode + "，自动推进", true);
+        followupSync.customerChanged(o.getCustomerId());
     }
 
     @Override
@@ -548,7 +611,64 @@ public class OpportunityServiceImpl implements OpportunityService {
         String from = o.getStageCode();
         moveTo(o, quoted.getCode(), stages);
         opportunityMapper.updateById(o);
-        log(o, from, quoted.getCode(), OpportunityConstants.ACTION_CHANGE, 0, "生成报价单 " + quotationNo + "，自动推进");
+        log(o, from, quoted.getCode(), OpportunityConstants.ACTION_CHANGE, 0, "生成报价单 " + quotationNo + "，自动推进", true);
+        followupSync.customerChanged(o.getCustomerId());
+    }
+
+    @Override
+    public String autoAdvance(Long customerId, String toStage, String from, String note) {
+        OpportunityStageRules.Stages stages = stageRules.load();
+        OpportunityDO o = activeOf(customerId, stages);
+        if (o == null || !stages.isActive(toStage)) {
+            return null;
+        }
+        int cur = stages.orderOf(o.getStageCode());
+        if (cur >= stages.orderOf(toStage) || (from != null && cur < stages.orderOf(from))) {
+            return null;
+        }
+        String before = o.getStageCode();
+        o.setMigrated(0);
+        moveTo(o, toStage, stages);
+        opportunityMapper.updateById(o);
+        log(o, before, toStage, OpportunityConstants.ACTION_CHANGE, 0, note, true);
+        return toStage;
+    }
+
+    @Override
+    public Long autoWin(Long customerId, String piNo) {
+        OpportunityStageRules.Stages stages = stageRules.load();
+        OpportunityDO o = activeOf(customerId, stages);
+        if (o == null) {
+            return null;
+        }
+        o.setMigrated(0);
+        String last = stages.lastCode();
+        if (!last.equals(o.getStageCode())) {
+            String before = o.getStageCode();
+            moveTo(o, last, stages);
+            log(o, before, last, OpportunityConstants.ACTION_CHANGE, 0, "PI " + piNo + " 收款到账，补记推进", true);
+        }
+        String won = stages.wonCode();
+        o.setReopenStageCode(last);
+        o.setCloseReason(0);
+        o.setCloseNote("");
+        o.setClosedAt(LocalDateTime.now());
+        moveTo(o, won, stages);
+        opportunityMapper.updateById(o);
+        log(o, last, won, OpportunityConstants.ACTION_CLOSE, 0, "PI " + piNo + " 收款到账，自动赢单", true);
+        return o.getId();
+    }
+
+    /** 客户进行中的商机（一个客户最多一条）；不按数据权限过滤，自动推进由单据事件触发 */
+    private OpportunityDO activeOf(Long customerId, OpportunityStageRules.Stages stages) {
+        if (customerId == null) {
+            return null;
+        }
+        return opportunityMapper.selectList(new LambdaQueryWrapper<OpportunityDO>()
+                        .eq(OpportunityDO::getCustomerId, customerId)
+                        .isNull(OpportunityDO::getDeletedAt)).stream()
+                .filter(x -> stages.isActive(x.getStageCode()))
+                .max(java.util.Comparator.comparing(OpportunityDO::getId)).orElse(null);
     }
 
     @Override

@@ -102,6 +102,7 @@ public class AfterSalesService {
     private final LogisticsQty logisticsQty;
     private final AfterSalesLogs logs;
     private final com.zhul.erp.modules.aftersales.support.ReplacementOrders replacementOrders;
+    private final com.zhul.erp.modules.crm.followup.support.FollowupHooks followupHooks;
 
     // ---------------------------------------------------------------- 登记
 
@@ -191,6 +192,7 @@ public class AfterSalesService {
         logs.add(a.getId(), AfterSalesConstants.LOG_CREATE, "登记售后单" + (order == null ? "" : "（订单 " + order.getSoNo() + "）"), me);
         logService.recordOperateLog(AfterSalesConstants.MENU, "登记售后单", null, Map.of("asNo", a.getAsNo(),
                 "customer", InquiryLookups.customerName(customer), "soNo", order == null ? "" : order.getSoNo(), "symptom", a.getSymptom()));
+        followupHooks.afterSalesChanged(a);
         return detail(a.getId());
     }
 
@@ -275,6 +277,7 @@ public class AfterSalesService {
             logs.add(a.getId(), AfterSalesConstants.LOG_PLAN, String.join("；", changes), me);
         }
         save(a);
+        followupHooks.afterSalesChanged(a);
         return detail(id);
     }
 
@@ -294,6 +297,7 @@ public class AfterSalesService {
             a.setStatus(status);
             save(a);
         }
+        followupHooks.afterSalesChanged(a);
         return detail(id);
     }
 
@@ -320,12 +324,14 @@ public class AfterSalesService {
         }
         a.setReasonCode(reason);
         a.setResult(req.getResult().trim());
+        a.setCaseNote(req.getCaseNote() == null ? "" : req.getCaseNote().trim());
         a.setStatus(AfterSalesConstants.AS_CLOSED);
         a.setClosedAt(LocalDateTime.now());
         save(a);
         logs.add(a.getId(), AfterSalesConstants.LOG_STATUS, "结案：" + dictNames(AfterSalesConstants.DICT_REASON).get(reason) + "；" + a.getResult(),
                 currentUserId());
         logService.recordOperateLog(AfterSalesConstants.MENU, "售后单结案", null, Map.of("asNo", a.getAsNo(), "result", a.getResult()));
+        followupHooks.afterSalesClosed(a);
         return detail(id);
     }
 
@@ -341,6 +347,7 @@ public class AfterSalesService {
         logs.add(a.getId(), AfterSalesConstants.LOG_REPLACEMENT, "补发订单 " + o.getSoNo() + "：" + summary, currentUserId());
         touch(a);
         logService.recordOperateLog(AfterSalesConstants.MENU, "售后补发", null, Map.of("asNo", a.getAsNo(), "soNo", o.getSoNo()));
+        followupHooks.afterSalesChanged(a);
         return detail(id);
     }
 
@@ -365,6 +372,7 @@ public class AfterSalesService {
         save(a);
         logs.add(a.getId(), AfterSalesConstants.LOG_STATUS, "撤销：" + a.getCancelReason(), currentUserId());
         logService.recordOperateLog(AfterSalesConstants.MENU, "撤销售后单", null, Map.of("asNo", a.getAsNo(), "reason", a.getCancelReason()));
+        followupHooks.afterSalesChanged(a);
         return detail(id);
     }
 
@@ -636,6 +644,7 @@ public class AfterSalesService {
             v.setStatus(a.getStatus());
             v.setStatusName(AfterSalesConstants.AS_STATUS_NAMES.get(a.getStatus()));
             v.setResult(a.getResult());
+            v.setCaseNote(a.getCaseNote());
             v.setClosedAt(a.getClosedAt());
             v.setCancelReason(a.getCancelReason());
             v.setItemSummary(items.getOrDefault(a.getId(), List.of()).stream().map(i -> i.getModel() + " × " + i.getQuantity())

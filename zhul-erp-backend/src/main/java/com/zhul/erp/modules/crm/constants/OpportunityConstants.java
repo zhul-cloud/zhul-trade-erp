@@ -33,9 +33,35 @@ public final class OpportunityConstants {
     /** 无效原因 */
     public static final Map<Integer, String> INVALID_REASONS = Map.of(
             1, "同行套价", 2, "垃圾询盘", 3, "联系不上", 4, "需求不符", 9, "其他");
-    /** 输单原因 */
-    public static final Map<Integer, String> LOST_REASONS = Map.of(
-            11, "价格", 12, "交期", 13, "无货源", 14, "客户取消", 15, "选择了竞争对手", 19, "其他");
+    /**
+     * 输单原因：按 SOP 卡点字典（sop_blocker.lost_reason），加无货源、客户取消、其他。
+     * 原有码值 11–15、19 的文字不变；16、17、18、20–23 为客户跟进新增（openspec customer-followup）。按弹窗显示顺序排列。
+     */
+    public static final Map<Integer, String> LOST_REASONS = lostReasons();
+
+    private static Map<Integer, String> lostReasons() {
+        Map<Integer, String> m = new java.util.LinkedHashMap<>(16);
+        m.put(11, "价格");
+        m.put(16, "技术");
+        m.put(17, "付款");
+        m.put(12, "交期");
+        m.put(18, "信任");
+        m.put(20, "预算");
+        m.put(15, "选择了竞争对手");
+        m.put(21, "内部审批");
+        m.put(22, "项目延期");
+        m.put(23, "无回复");
+        m.put(13, "无货源");
+        m.put(14, "客户取消");
+        m.put(19, "其他");
+        return java.util.Collections.unmodifiableMap(m);
+    }
+
+    /** 自动推进、自动赢单的阶段记录操作人 */
+    public static final String OPERATOR_SYSTEM = "系统";
+
+    /** 手动赢单被拒绝时的提示：赢单只由收款到账自动触发 */
+    public static final String AUTO_WIN_MESSAGE = "收款到账后系统自动赢单";
 
     /** 需求附件：图片与 Excel，单个 ≤10MB，每条商机 ≤10 个 */
     public static final Set<String> ATTACHMENT_EXTS = Set.of("jpg", "png", "xlsx", "xls", "csv");
@@ -52,4 +78,8 @@ public final class OpportunityConstants {
     public static final int CHANNEL_ALIBABA = com.zhul.erp.modules.masterdata.constants.CustomerConstants.CHANNEL_ALIBABA;
 
     public static final String ERROR_EXISTS = "OPPORTUNITY_EXISTS";
+    /** 从主动开发转商机：客户已有进行中的商机 */
+    public static final String ERROR_ALREADY_ACTIVE = "OPPORTUNITY_ALREADY_ACTIVE";
+    /** 来源渠道「主动开发」（字典 source_channel） */
+    public static final int SOURCE_DEVELOP = 7;
 }
