@@ -479,6 +479,10 @@ export interface OrderListItem {
   /** 全部型号数量之和 */
   totalQuantity?: number;
   itemCount: number;
+  /** 第一个型号；品牌、品类去重 */
+  firstModel?: string;
+  brands?: string[];
+  categories?: string[];
   currencyCode: string;
   totalAmount: number;
   receiptStatus?: number;

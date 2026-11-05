@@ -20,6 +20,8 @@ public class BoardTaskVO {
     private Integer customerType;
     /** 客户名称；兼职采购看不到，为空 */
     private String customerName;
+    /** 业务员在询盘单上写的备注（分配时参考；兼职采购不返回） */
+    private String inquiryRemark;
     /** 询盘单的报价截止日期 */
     private java.time.LocalDate quoteDeadline;
     private String brand;

@@ -73,7 +73,7 @@ mybatis-plus:
 jwt:
   secret: ${JWT_SECRET:zhul-erp-secret-key-must-be-at-least-256-bits-long}
   expiration: 7200
-  remember-me-expiration: 604800
+  remember-me-expiration: 2592000
 
 zhul:
   # 构建时由 Maven 资源过滤替换为 pom 里的版本号，不要手改

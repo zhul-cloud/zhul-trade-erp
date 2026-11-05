@@ -294,6 +294,8 @@ export interface BoardTask {
   customerType?: number;
   /** 兼职采购看不到，为空 */
   customerName?: string;
+  /** 业务员在询盘单上写的备注；兼职采购没有 */
+  inquiryRemark?: string;
   quoteDeadline?: string;
   /** 回价是否还能修改（业务员报价后为 false） */
   editable?: boolean;
@@ -420,6 +422,8 @@ export interface MyTask {
 /** 接手人看到的上一轮记录；兼职看不到价格 */
 export interface PreviousQuote {
   quotedByName?: string;
+  /** 改派前只保存、没有提交的记录 */
+  draft?: boolean;
   noStock: boolean;
   channel: number;
   shopName?: string;

@@ -35,6 +35,9 @@
 | [BUS-025](tasks/2026-11-03-BUS-025-develop-merge-review.md) | 客户合并不加锁，反向并发合并会把两个客户都删掉 | P2 | 已关闭 | Claude | [2026-11-03-BUS-025](tasks/2026-11-03-BUS-025-develop-merge-review.md) | 2026-11-04 |
 | [BUS-026](tasks/2026-11-03-BUS-025-develop-merge-review.md) | 「先采购后收款」筛选把租户全部未收款 PI 的 ID 拼进 IN 列表 | P3 | 待认领 | — | [2026-11-03-BUS-025](tasks/2026-11-03-BUS-025-develop-merge-review.md) | 2026-11-03 |
 | [BUS-027](tasks/2026-11-04-BUS-005-fulfillment-batch-e.md) | 订单还有在仓库的出库单时仍可取消，重转后已发出的货会被重复算成可出库 | P2 | 已发布待验收 | Claude | [2026-11-04-BUS-005](tasks/2026-11-04-BUS-005-fulfillment-batch-e.md) | 2026-11-05 |
+| [BUS-028](tasks/2026-11-05-BUS-028-user-feedback-defects.md) | 报价按毛利率定价填 100% 时售价变成成本的 1 万倍 | P2 | 待合并 | Claude | [2026-11-05-BUS-028](tasks/2026-11-05-BUS-028-user-feedback-defects.md) | 2026-11-05 |
+| [BUS-029](tasks/2026-11-05-BUS-028-user-feedback-defects.md) | 采购员未指定的需求，非「全部」数据权限的供应链主管看不到、无法统一分配 | P2 | 待合并 | Claude | [2026-11-05-BUS-028](tasks/2026-11-05-BUS-028-user-feedback-defects.md) | 2026-11-05 |
+| [BUS-030](tasks/2026-11-05-BUS-028-user-feedback-defects.md) | 询价任务改派后，接手人看不到原采购已找到的报价 | P2 | 待合并 | Claude | [2026-11-05-BUS-028](tasks/2026-11-05-BUS-028-user-feedback-defects.md) | 2026-11-05 |
 
 ## 前端
 
@@ -81,6 +84,7 @@
 | [UI-039](tasks/2026-11-03-UI-038-feedback-batch-bugs.md) | 新建询盘时客户名称过长把「来源」挤出对话框 | P3 | 待验证 | Claude | [2026-11-03-UI-038](tasks/2026-11-03-UI-038-feedback-batch-bugs.md) | 2026-11-03 |
 | [UI-040](tasks/2026-11-03-UI-038-feedback-batch-bugs.md) | 登录过期后页面先提示加载失败再跳登录页 | P2 | 待验证 | Claude | [2026-11-03-UI-038](tasks/2026-11-03-UI-038-feedback-batch-bugs.md) | 2026-11-03 |
 | [UI-041](../02-frontend/07-全量前端代码与页面审查.md) | 表格与列表在电脑低分辨率下布局失效 | P2 | 处理中 | Claude | [2026-11-04-UI-041](tasks/2026-11-04-UI-041-low-res-layout.md) | 2026-11-05 |
+| [UI-042](tasks/2026-11-05-BUS-028-user-feedback-defects.md) | 单据导出图片模糊，且下方大片空白 | P2 | 待合并 | Claude | [2026-11-05-BUS-028](tasks/2026-11-05-BUS-028-user-feedback-defects.md) | 2026-11-05 |
 
 ## AI 可靠性
 
