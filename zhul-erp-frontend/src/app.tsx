@@ -82,6 +82,8 @@ export async function getInitialState(): Promise<{
   menuTree?: MenuItem[];
   /** 外观（系统名称、Logo 等，平台统一），侧栏与浏览器标签使用 */
   appearance?: AppearanceInfo;
+  /** 侧边栏是否收起：顶栏左侧的按钮切换（audit UI-041） */
+  collapsed?: boolean;
 }> {
   const fetchUserInfo = async () => {
     try {
@@ -142,9 +144,16 @@ export async function getInitialState(): Promise<{
 }
 
 // ProLayout 支持的api https://procomponents.ant.design/components/layout
-export const layout: RunTimeLayoutConfig = ({ initialState }) => {
+export const layout: RunTimeLayoutConfig = ({
+  initialState,
+  setInitialState,
+}) => {
   return {
     siderWidth: 240,
+    // 收起按钮放在顶栏左侧（TopBar）；ProLayout 自带的浮动圆钮压在侧栏边线和顶栏上，不用
+    collapsed: initialState?.collapsed,
+    onCollapse: (collapsed) => setInitialState((s) => ({ ...s, collapsed })),
+    collapsedButtonRender: false,
     // 侧边栏菜单树完全由「菜单管理」的数据 + 当前用户的有效权限决定，不再从 umi 由
     // routes.ts 派生出的 menuData 上打补丁（那棵树里混着重定向占位节点，容易把只用
     // 于路由跳转、本该隐藏的节点误当成真实菜单项渲染出来），也直接忽略传入的
