@@ -158,4 +158,4 @@
 | 2026-11-04 / Claude | 用户反馈低分辨率显示问题，定最低 1366×768；全站实测、分两轮修复、复测；新增共用组件与规范 | 提 PR；剩余项继续处理 |
 | 2026-11-05 / Claude | 随 v1.8.0 发布到生产：[#181](https://github.com/zhul-cloud/zhul-trade-erp/pull/181) 合并到 `main`（`75c325bd`），生产发版运行 41950405348 构建与部署（含健康检查）成功；合回 develop 见 [#182](https://github.com/zhul-cloud/zhul-trade-erp/pull/182) | 生产验收；UI-041 剩余项继续处理 |
 | 2026-11-05 / Claude | 第三轮逐页复查：外壳与看板（`4fe84da7`）、逐页修复（`af873765`），检测与截图复测通过，已合入最新 develop | 提 PR 发往 `develop`；剩余项：抽屉与弹窗、深色模式逐页检查 |
-| 2026-11-05 / Claude | 第三轮 [#185](https://github.com/zhul-cloud/zhul-trade-erp/pull/185) 已合并到 `develop`。第四轮完成抽屉弹窗、深色模式、租户页与其余详情页检查和修复（`16940921`），已合入最新 develop | 提 PR 发往 `develop`；合并后随下一版发布验收 |
+| 2026-11-05 / Claude | 第三轮 [#185](https://github.com/zhul-cloud/zhul-trade-erp/pull/185) 已合并到 `develop`（`5fce16f9`）。第四轮完成抽屉弹窗、深色模式、租户页与其余详情页检查和修复（`16940921`），已合入最新 develop | 提 PR 发往 `develop`；合并后随下一版发布验收 |
