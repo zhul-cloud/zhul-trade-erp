@@ -9,6 +9,7 @@ import {
 import { useAccess } from '@umijs/max';
 import { Alert, App, Badge, Button, Space, Tree } from 'antd';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import EllipsisText from '@/components/EllipsisText';
 import {
   indexMenuTree,
   splitChecked,
@@ -20,6 +21,7 @@ import { useAppTheme } from '@/theme/AppTheme';
 import { formatDateTime } from '@/utils/format';
 import { useMenu } from '@/utils/menuName';
 import { usePagination } from '@/utils/pageSize';
+import { tableScrollX } from '@/utils/tableScroll';
 import type { SaveTenantPackagePayload, TenantPackageItem } from './service';
 import {
   createPackage,
@@ -249,14 +251,38 @@ const TenantPackagePage: React.FC = () => {
       title: '创建时间',
       dataIndex: 'createTime',
       search: false,
-      width: 160,
+      width: 170,
       render: (_, r) => (
         <span className="num">{formatDateTime(r.createTime)}</span>
       ),
     },
     {
+      title: '创建人',
+      dataIndex: 'createBy',
+      search: false,
+      width: 150,
+      render: (_, r) => <EllipsisText text={r.createBy} />,
+    },
+    {
+      title: '更新时间',
+      dataIndex: 'updateTime',
+      search: false,
+      width: 170,
+      render: (_, r) => (
+        <span className="num">{formatDateTime(r.updateTime)}</span>
+      ),
+    },
+    {
+      title: '更新人',
+      dataIndex: 'updateBy',
+      search: false,
+      width: 150,
+      render: (_, r) => <EllipsisText text={r.updateBy} />,
+    },
+    {
       title: '操作',
       valueType: 'option',
+      fixed: 'right',
       width: 160,
       render: (_, row) => [
         access['tenant:package:edit'] && (
@@ -297,6 +323,7 @@ const TenantPackagePage: React.FC = () => {
         rowKey="id"
         actionRef={actionRef}
         columns={columns}
+        scroll={{ x: tableScrollX(columns) }}
         search={{ labelWidth: 'auto', defaultCollapsed: false }}
         options={false}
         request={async (params) => {

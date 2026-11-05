@@ -244,6 +244,10 @@ const CategoryPage: React.FC = () => {
     },
     {
       title: '操作',
+      hideInTable:
+        !access['product:category:add'] &&
+        !access['product:category:edit'] &&
+        !access['product:category:delete'],
       fixed: 'right',
       valueType: 'option',
       width: 210,

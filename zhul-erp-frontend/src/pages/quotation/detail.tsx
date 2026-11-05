@@ -1010,7 +1010,7 @@ const QuotationDetail: React.FC = () => {
   const editColumns: TableColumnsType<SaveQuotationItem> = [
     { title: '#', key: 'no', width: 44, render: (_, __, i) => i + 1 },
     {
-      title: '型号 / 品牌 · 品类 · 来源',
+      title: compact ? '型号' : '型号 / 品牌·品类·来源',
       key: 'model',
       width: compact ? 170 : 240,
       render: (_, d) => modelCell(itemById.get(d.id) as QuotationItem, d),
@@ -2055,7 +2055,6 @@ const QuotationDetail: React.FC = () => {
           gap: 16,
           marginTop: 16,
           flexWrap: compact ? 'wrap' : 'nowrap',
-          alignItems: 'flex-start',
         }}
       >
         {feesCard}

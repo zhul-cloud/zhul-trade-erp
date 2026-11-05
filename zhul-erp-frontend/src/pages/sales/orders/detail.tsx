@@ -22,6 +22,7 @@ import type { TableColumnsType } from 'antd';
 import { Alert, App, Button, Dropdown, Skeleton, Table } from 'antd';
 import dayjs from 'dayjs';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import EllipsisText from '@/components/EllipsisText';
 import RefundModal from '@/pages/finance/refunds/RefundModal';
 import { useWide } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
@@ -588,7 +589,7 @@ const OrderDetail: React.FC = () => {
         r.quantity === 0 ? (
           <span style={{ color: palette.mute }}>—</span>
         ) : r.purchaserNames?.length ? (
-          r.purchaserNames.join('、')
+          <EllipsisText text={r.purchaserNames.join('、')} />
         ) : (
           (v ?? <span style={{ color: palette.orange }}>未指定</span>)
         ),

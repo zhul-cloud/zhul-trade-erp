@@ -331,6 +331,8 @@ const BrandPage: React.FC = () => {
     },
     {
       title: '操作',
+      hideInTable:
+        !access['product:brand:edit'] && !access['product:brand:delete'],
       valueType: 'option',
       fixed: 'right',
       width: 140,
