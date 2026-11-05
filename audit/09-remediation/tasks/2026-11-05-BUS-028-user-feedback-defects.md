@@ -9,7 +9,7 @@
 | 目标与影响范围 | 报价毛利率输入、采购需求可见范围、询价任务改派后的上一轮记录、报价单 / PI 图片导出；不改数据库结构 |
 | 起点 commit / 工作分支 | `ec30d75c9214076a1bc5dbb1617682f24dce2642`（develop）/ `fix/feedback-1105` |
 | OpenSpec | 缺陷修复，不新开提案 |
-| PR / 目标分支 | 待创建 → develop |
+| PR / 目标分支 | [#184](https://github.com/zhul-cloud/zhul-trade-erp/pull/184)：fix/feedback-1105 → develop |
 | 合并证据 | 未合并 |
 | 目标版本 / 环境 | 下一个发布版本；生产 |
 
@@ -28,7 +28,9 @@
 | `SourcingContractTest#reassign_newAssigneeSeesFormerRecords` | 本机 | 林熙保存未提交一条后改派给江晓晞，江看到 1 条之前记录、标未提交、价格 320，另一型号无记录，原记录保留 | 一致；`SourcingContractTest`、`SalesFirstSourcingContractTest` 全部通过 | 通过 |
 | `DocumentRenderTest`（含新增 `trim_keepsContentDropsFooter`，30 行报价单图片宽 > 1600 且高宽比 < 1、≤ 800KB） | 本机，LibreOffice 已安装 | 通过 | 通过；样图 556KB，目测无页边和底部空白、文字清晰 | 通过 |
 
-未覆盖：后端全量测试交给 PR CI；未在浏览器里走查毛利率提示与改派后的页面。
+| PR #184 CI（[run 42008132774](https://github.com/zhul-cloud/zhul-trade-erp/actions/runs/42008132774)）：后端全量、前端检查、AI 编排服务测试 | GitHub Actions | 全部通过 | 全部通过 | 通过 |
+
+未覆盖：未在浏览器里走查毛利率提示与改派后的页面。
 
 ## 合并、部署与逐 ID 验收
 
@@ -41,10 +43,11 @@
 
 ## 阻塞与下一步
 
-创建 PR 到 develop，CI 通过后合并；随下一版发布后在生产验收。
+PR #184 CI 已通过，待用户确认合并到 develop；随下一版发布后在生产验收。
 
 ## 事件记录
 
 | 日期 / 作者 | 事件与证据 | 下一步 / 交接 |
 | --- | --- | --- |
 | 2026-11-05 / Claude | 用户反馈第 14、6、10、11 条确认为缺陷，登记 BUS-028–030、UI-042；实施并通过上述测试 | 创建 PR |
+| 2026-11-05 / Claude | 创建 PR #184，CI 全部通过 | 待合并 |
