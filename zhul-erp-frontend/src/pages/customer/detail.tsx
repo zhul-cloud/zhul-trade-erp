@@ -38,6 +38,12 @@ import {
   PAYMENT_OPTIONS,
   SHIPPING_OPTIONS,
 } from './constants';
+import {
+  FollowupChainCard,
+  FollowupSection,
+  SopStageCard,
+  useCustomerFollowup,
+} from './FollowupSection';
 import CompletenessCard from './profile/CompletenessCard';
 import ContactsCard from './profile/ContactsCard';
 import GradeCard from './profile/GradeCard';
@@ -281,6 +287,9 @@ const CustomerDetailPage: React.FC = () => {
   const [profile, setProfile] = useState<Profile>();
   const [editModule, setEditModule] = useState<number>();
   const bg = useBackgroundReports(Number(id));
+  // 「跟进」分区：有客户跟进菜单权限才显示（openspec customer-followup）
+  const showFollowup = !!access.salesFollowup;
+  const followup = useCustomerFollowup(Number(id), showFollowup);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -416,35 +425,6 @@ const CustomerDetailPage: React.FC = () => {
     const cp = profile?.countryProfile;
     body = (
       <>
-        {profile && <CompletenessCard profile={profile} />}
-        {profile && (
-          <GradeCard
-            customerId={r.id}
-            customerName={r.displayName}
-            grade={profile.grade}
-            potential={profile.potentialRating}
-            canAdjust={canEdit}
-            onChanged={loadProfile}
-          />
-        )}
-        {cp?.fxControl === 3 && (
-          <div
-            role="alert"
-            style={{
-              marginBottom: 16,
-              padding: '10px 16px',
-              borderRadius: 12,
-              fontSize: 13,
-              color: palette.ink,
-              background: palette.orangeSoft,
-            }}
-          >
-            <b style={{ color: palette.orange }}>
-              {zhOf(r.country)}外汇管制严格
-            </b>
-            ，注意收款方式{cp.fxNote ? `：${cp.fxNote}` : ''}
-          </div>
-        )}
         <div
           style={{
             display: 'flex',
@@ -454,6 +434,45 @@ const CustomerDetailPage: React.FC = () => {
           }}
         >
           <div style={{ flex: '1 1 440px', minWidth: 0 }}>
+            {showFollowup && (
+              <FollowupSection
+                customerId={r.id}
+                customerName={r.displayName}
+                canRecord={!!access['crm:followup:record']}
+                data={followup.data}
+                failed={followup.failed}
+                onChanged={followup.reload}
+              />
+            )}
+            {profile && <CompletenessCard profile={profile} />}
+            {profile && (
+              <GradeCard
+                customerId={r.id}
+                customerName={r.displayName}
+                grade={profile.grade}
+                potential={profile.potentialRating}
+                canAdjust={canEdit}
+                onChanged={loadProfile}
+              />
+            )}
+            {cp?.fxControl === 3 && (
+              <div
+                role="alert"
+                style={{
+                  marginBottom: 16,
+                  padding: '10px 16px',
+                  borderRadius: 12,
+                  fontSize: 13,
+                  color: palette.ink,
+                  background: palette.orangeSoft,
+                }}
+              >
+                <b style={{ color: palette.orange }}>
+                  {zhOf(r.country)}外汇管制严格
+                </b>
+                ，注意收款方式{cp.fxNote ? `：${cp.fxNote}` : ''}
+              </div>
+            )}
             {profile && (
               <ProfileModules
                 profile={profile}
@@ -543,6 +562,8 @@ const CustomerDetailPage: React.FC = () => {
               gap: 20,
             }}
           >
+            {showFollowup && <FollowupChainCard data={followup.data} />}
+            {showFollowup && <SopStageCard data={followup.data} />}
             {bg.reports && (
               <BackgroundCard customerId={r.id} reports={bg.reports} />
             )}

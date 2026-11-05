@@ -9,39 +9,40 @@
 | ID / 原专题 | 简短标题 | 优先级 | 状态 | 负责人 | 任务记录 | 最后更新 |
 | --- | --- | --- | --- | --- | --- | --- |
 | [BUS-001](../01-business/01-客户与商机.md) | 已有手动销售订单的客户仍可删除 | P2 | 待认领 | — | — | 2026-11-01 |
-| [BUS-002](../01-business/02-销售与财务.md) | 按订单读取退款绕过租户与订单数据范围 | P1 | 已合并待发布 | Claude | [2026-11-03-SEC-011](tasks/2026-11-03-SEC-011-tenant-isolation.md) | 2026-11-03 |
-| [BUS-003](../01-business/02-销售与财务.md) | PI 取消重转订单后已退款不占用新订单额度 | P1 | 待认领 | — | — | 2026-11-01 |
-| [BUS-004](../01-business/02-销售与财务.md) | 已生成应付的采购订单换币后，应付保留旧币种 | P1 | 待认领 | — | — | 2026-11-01 |
-| [BUS-005](../01-business/03-采购仓储与物流.md) | 订单重转只接回采购行，已发/入库记录仍属于旧订单行 | P1 | 待认领 | — | — | 2026-11-01 |
-| [BUS-006](../01-business/03-采购仓储与物流.md) | 编辑发货通知把旧数量释放两次，允许超量出库 | P1 | 待认领 | — | — | 2026-11-01 |
-| [BUS-007](../01-business/03-采购仓储与物流.md) | 并发新建货代账单可重复纳入同一出运单并生成两笔应付 | P1 | 待认领 | — | — | 2026-11-01 |
-| [BUS-008](../01-business/02-销售与财务.md) | 作废部分结汇后恢复了旧已结汇额，分摊与到账余额不一致 | P1 | 待认领 | — | — | 2026-11-01 |
-| [BUS-009](../01-business/02-销售与财务.md) | 欠款已抵扣另一应付后，作废原付款仍保留目标“已付” | P1 | 待认领 | — | — | 2026-11-01 |
-| [BUS-010](../01-business/03-采购仓储与物流.md) | 已有打包出库时仍允许冲销原采购入库 | P1 | 待认领 | — | — | 2026-11-01 |
-| [BUS-011](../01-business/04-业务边界与接口契约补查.md) | 报销提交未与费用来源互斥，可将刚作废的费用纳入待付款报销单 | P2 | 待认领 | — | — | 2026-11-01 |
-| [BUS-012](../01-business/04-业务边界与接口契约补查.md) | 其他收入编辑与作废交错，旧编辑实体可把已作废记录恢复有效 | P2 | 待认领 | — | — | 2026-11-01 |
+| [BUS-002](../01-business/02-销售与财务.md) | 按订单读取退款绕过租户与订单数据范围 | P1 | 已关闭 | Claude | [2026-11-03-SEC-011](tasks/2026-11-03-SEC-011-tenant-isolation.md) | 2026-11-04 |
+| [BUS-003](../01-business/02-销售与财务.md) | PI 取消重转订单后已退款不占用新订单额度 | P1 | 已合并待发布 | Claude | [2026-11-04-BUS-003](tasks/2026-11-04-BUS-003-funds-batch-d.md) | 2026-11-04 |
+| [BUS-004](../01-business/02-销售与财务.md) | 已生成应付的采购订单换币后，应付保留旧币种 | P1 | 已合并待发布 | Claude | [2026-11-04-BUS-003](tasks/2026-11-04-BUS-003-funds-batch-d.md) | 2026-11-04 |
+| [BUS-005](../01-business/03-采购仓储与物流.md) | 订单重转只接回采购行，已发/入库记录仍属于旧订单行 | P1 | 已合并待发布 | Claude | [2026-11-04-BUS-005](tasks/2026-11-04-BUS-005-fulfillment-batch-e.md) | 2026-11-04 |
+| [BUS-006](../01-business/03-采购仓储与物流.md) | 编辑发货通知把旧数量释放两次，允许超量出库 | P1 | 已合并待发布 | Claude | [2026-11-04-BUS-005](tasks/2026-11-04-BUS-005-fulfillment-batch-e.md) | 2026-11-04 |
+| [BUS-007](../01-business/03-采购仓储与物流.md) | 并发新建货代账单可重复纳入同一出运单并生成两笔应付 | P1 | 已合并待发布 | Claude | [2026-11-04-BUS-005](tasks/2026-11-04-BUS-005-fulfillment-batch-e.md) | 2026-11-04 |
+| [BUS-008](../01-business/02-销售与财务.md) | 作废部分结汇后恢复了旧已结汇额，分摊与到账余额不一致 | P1 | 已合并待发布 | Claude | [2026-11-04-BUS-003](tasks/2026-11-04-BUS-003-funds-batch-d.md) | 2026-11-04 |
+| [BUS-009](../01-business/02-销售与财务.md) | 欠款已抵扣另一应付后，作废原付款仍保留目标“已付” | P1 | 已合并待发布 | Claude | [2026-11-04-BUS-003](tasks/2026-11-04-BUS-003-funds-batch-d.md) | 2026-11-04 |
+| [BUS-010](../01-business/03-采购仓储与物流.md) | 已有打包出库时仍允许冲销原采购入库 | P1 | 已合并待发布 | Claude | [2026-11-04-BUS-005](tasks/2026-11-04-BUS-005-fulfillment-batch-e.md) | 2026-11-04 |
+| [BUS-011](../01-business/04-业务边界与接口契约补查.md) | 报销提交未与费用来源互斥，可将刚作废的费用纳入待付款报销单 | P2 | 已合并待发布 | Claude | [2026-11-04-BUS-003](tasks/2026-11-04-BUS-003-funds-batch-d.md) | 2026-11-04 |
+| [BUS-012](../01-business/04-业务边界与接口契约补查.md) | 其他收入编辑与作废交错，旧编辑实体可把已作废记录恢复有效 | P2 | 已合并待发布 | Claude | [2026-11-04-BUS-003](tasks/2026-11-04-BUS-003-funds-batch-d.md) | 2026-11-04 |
 | [BUS-013](../01-business/05-全量业务代码审查.md) | 商机基本信息编辑可并发覆盖阶段及结束信息 | P2 | 待认领 | — | — | 2026-11-01 |
 | [BUS-014](../01-business/05-全量业务代码审查.md) | 普通询价分配缺少原子状态检查，同一待分配任务可被同时分给两人 | P2 | 待认领 | — | — | 2026-11-01 |
 | [BUS-015](../01-business/05-全量业务代码审查.md) | Excel 导入回价绕过已报客户型号的只读锁 | P2 | 待认领 | — | — | 2026-11-01 |
-| [BUS-016](../01-business/05-全量业务代码审查.md) | 同一采购需求在采购单多行时，批量改量重复占用剩余数量 | P2 | 待认领 | — | — | 2026-11-01 |
+| [BUS-016](../01-business/05-全量业务代码审查.md) | 同一采购需求在采购单多行时，批量改量重复占用剩余数量 | P2 | 已合并待发布 | Claude | [2026-11-04-BUS-005](tasks/2026-11-04-BUS-005-fulfillment-batch-e.md) | 2026-11-04 |
 | [BUS-017](../01-business/05-全量业务代码审查.md) | 工作台在途与逾期统计仅计算第一页 100 条 | P2 | 待认领 | — | — | 2026-11-01 |
-| [BUS-018](../01-business/05-全量业务代码审查.md) | 同一直发货可被并发加入不同出运单，后写覆盖归属 | P2 | 待认领 | — | — | 2026-11-01 |
-| [BUS-019](../01-business/05-全量业务代码审查.md) | 外币欠款抵扣未转移成本人民币基数，订单可按零采购成本结算 | P2 | 待认领 | — | — | 2026-11-01 |
+| [BUS-018](../01-business/05-全量业务代码审查.md) | 同一直发货可被并发加入不同出运单，后写覆盖归属 | P2 | 已合并待发布 | Claude | [2026-11-04-BUS-005](tasks/2026-11-04-BUS-005-fulfillment-batch-e.md) | 2026-11-04 |
+| [BUS-019](../01-business/05-全量业务代码审查.md) | 外币欠款抵扣未转移成本人民币基数，订单可按零采购成本结算 | P2 | 已合并待发布 | Claude | [2026-11-04-BUS-003](tasks/2026-11-04-BUS-003-funds-batch-d.md) | 2026-11-04 |
 | [BUS-020](../07-security/03-全量平台与商品代码审查.md) | 普通部门维护绕过事业部非嵌套约束 | P2 | 待认领 | — | — | 2026-11-01 |
 | [BUS-021](../01-business/05-全量业务代码审查.md) | 兼容关系说明的主表与中文说明表读写不一致 | P2 | 待认领 | — | — | 2026-11-01 |
 | [BUS-022](../01-business/05-全量业务代码审查.md) | 候选批量审核在行锁后继续使用待审核旧快照 | P2 | 待认领 | — | — | 2026-11-01 |
 | [BUS-023](tasks/2026-11-03-UI-038-feedback-batch-bugs.md) | 应付的收款方不随供应商改名刷新 | P2 | 待验证 | Claude | [2026-11-03-UI-038](tasks/2026-11-03-UI-038-feedback-batch-bugs.md) | 2026-11-03 |
 | [BUS-024](tasks/2026-11-03-UI-038-feedback-batch-bugs.md) | PI 导出的贸易术语地点与业务员显示中文 | P2 | 待验证 | Claude | [2026-11-03-UI-038](tasks/2026-11-03-UI-038-feedback-batch-bugs.md) | 2026-11-03 |
-| [BUS-025](tasks/2026-11-03-BUS-025-develop-merge-review.md) | 客户合并不加锁，反向并发合并会把两个客户都删掉 | P2 | 已合并待发布 | Claude | [2026-11-03-BUS-025](tasks/2026-11-03-BUS-025-develop-merge-review.md) | 2026-11-03 |
+| [BUS-025](tasks/2026-11-03-BUS-025-develop-merge-review.md) | 客户合并不加锁，反向并发合并会把两个客户都删掉 | P2 | 已关闭 | Claude | [2026-11-03-BUS-025](tasks/2026-11-03-BUS-025-develop-merge-review.md) | 2026-11-04 |
 | [BUS-026](tasks/2026-11-03-BUS-025-develop-merge-review.md) | 「先采购后收款」筛选把租户全部未收款 PI 的 ID 拼进 IN 列表 | P3 | 待认领 | — | [2026-11-03-BUS-025](tasks/2026-11-03-BUS-025-develop-merge-review.md) | 2026-11-03 |
+| [BUS-027](tasks/2026-11-04-BUS-005-fulfillment-batch-e.md) | 订单还有在仓库的出库单时仍可取消，重转后已发出的货会被重复算成可出库 | P2 | 已合并待发布 | Claude | [2026-11-04-BUS-005](tasks/2026-11-04-BUS-005-fulfillment-batch-e.md) | 2026-11-04 |
 
 ## 前端
 
 | ID / 原专题 | 简短标题 | 优先级 | 状态 | 负责人 | 任务记录 | 最后更新 |
 | --- | --- | --- | --- | --- | --- | --- |
-| [UI-001](../02-frontend/01-接口重放与附件上传.md) | 多选上传的附件被后完成的上传覆盖 | P1 | 待认领 | — | — | 2026-11-01 |
-| [UI-002](../02-frontend/01-接口重放与附件上传.md) | 令牌刷新后的请求重放绕过业务错误校验 | P1 | 待认领 | — | — | 2026-11-01 |
-| [UI-003](../02-frontend/02-表单草稿与页面切换.md) | 我的询价切换任务直接丢失未保存回价 | P1 | 待认领 | — | — | 2026-11-01 |
+| [UI-001](../02-frontend/01-接口重放与附件上传.md) | 多选上传的附件被后完成的上传覆盖 | P1 | 已合并待发布 | Claude | [2026-11-04-UI-001](tasks/2026-11-04-UI-001-frontend-p1-batch-g.md) | 2026-11-04 |
+| [UI-002](../02-frontend/01-接口重放与附件上传.md) | 令牌刷新后的请求重放绕过业务错误校验 | P1 | 已合并待发布 | Claude | [2026-11-04-UI-001](tasks/2026-11-04-UI-001-frontend-p1-batch-g.md) | 2026-11-04 |
+| [UI-003](../02-frontend/02-表单草稿与页面切换.md) | 我的询价切换任务直接丢失未保存回价 | P1 | 已合并待发布 | Claude | [2026-11-04-UI-001](tasks/2026-11-04-UI-001-frontend-p1-batch-g.md) | 2026-11-04 |
 | [UI-004](../02-frontend/02-表单草稿与页面切换.md) | 报价单和 PI 的未保存保护遗漏站内导航 | P2 | 待认领 | — | — | 2026-11-01 |
 | [UI-005](../02-frontend/02-表单草稿与页面切换.md) | 商品向导宣称自动保存，但补充资料离开即丢失 | P2 | 待认领 | — | — | 2026-11-01 |
 | [UI-006](../02-frontend/03-错误恢复字典与列表一致性.md) | 错误页“重试”不能恢复成功页面 | P2 | 待认领 | — | — | 2026-11-01 |
@@ -50,9 +51,9 @@
 | [UI-009](../02-frontend/03-错误恢复字典与列表一致性.md) | 商品新建向导只加载前 100 个一级品类 | P2 | 待认领 | — | — | 2026-11-01 |
 | [UI-010](../05-code-and-docs/02-前端冗余与约定.md) | 菜单标题解析仍按旧 status 规则，和当前侧栏约定冲突 | P2 | 待认领 | — | — | 2026-11-01 |
 | [UI-011](../05-code-and-docs/02-前端冗余与约定.md) | 旧工作台静态演示数据与当前动态看板并存 | P3 | 待认领 | — | — | 2026-11-01 |
-| [UI-012](../02-frontend/02-表单草稿与页面切换.md) | 角色列表启停重置数据权限并清空自定义部门 | P1 | 已发布待验收 | Claude | [2026-11-03-UI-012](tasks/2026-11-03-UI-012-role-permission-guard.md) | 2026-11-03 |
-| [UI-013](../02-frontend/02-表单草稿与页面切换.md) | 角色 scope0 的显示、回填与后端语义不一致 | P2 | 已发布待验收 | Claude | [2026-11-03-UI-012](tasks/2026-11-03-UI-012-role-permission-guard.md) | 2026-11-03 |
-| [UI-014](../02-frontend/02-表单草稿与页面切换.md) | 角色权限尚未加载就能保存，可能清空或串用上一角色权限 | P1 | 已发布待验收 | Claude | [2026-11-03-UI-012](tasks/2026-11-03-UI-012-role-permission-guard.md) | 2026-11-03 |
+| [UI-012](../02-frontend/02-表单草稿与页面切换.md) | 角色列表启停重置数据权限并清空自定义部门 | P1 | 已关闭 | Claude | [2026-11-03-UI-012](tasks/2026-11-03-UI-012-role-permission-guard.md) | 2026-11-04 |
+| [UI-013](../02-frontend/02-表单草稿与页面切换.md) | 角色 scope0 的显示、回填与后端语义不一致 | P2 | 已关闭 | Claude | [2026-11-03-UI-012](tasks/2026-11-03-UI-012-role-permission-guard.md) | 2026-11-04 |
+| [UI-014](../02-frontend/02-表单草稿与页面切换.md) | 角色权限尚未加载就能保存，可能清空或串用上一角色权限 | P1 | 已关闭 | Claude | [2026-11-03-UI-012](tasks/2026-11-03-UI-012-role-permission-guard.md) | 2026-11-04 |
 | [UI-015](../02-frontend/03-错误恢复字典与列表一致性.md) | 销售统计下钻丢失业务员/事业部维度，列表与统计数对不上 | P2 | 待认领 | — | — | 2026-11-01 |
 | [UI-016](../02-frontend/03-错误恢复字典与列表一致性.md) | 客户当地时间的跨日时差被折回，早晚方向显示错误 | P2 | 待认领 | — | — | 2026-11-01 |
 | [UI-017](../02-frontend/05-供应链与财务交互补查.md) | 关闭后旧详情回包覆盖新出库单，完成打包提交旧单 | P2 | 待认领 | — | — | 2026-11-01 |
@@ -75,37 +76,39 @@
 | [UI-034](../02-frontend/07-全量前端代码与页面审查.md) | 首次多图上传将主图状态回填为重置条件，后续失败文件失去重试入口 | P2 | 待认领 | — | — | 2026-11-01 |
 | [UI-035](../02-frontend/07-全量前端代码与页面审查.md) | 物流出运页在窄屏下整页横溢出，创建入口与详情卡片越出可视区 | P3 | 待认领 | — | — | 2026-11-01 |
 | [UI-036](../02-frontend/07-全量前端代码与页面审查.md) | 三处人民币运费输入仍用货币符号，偏离统一币种代码规范 | P3 | 待认领 | — | — | 2026-11-01 |
-| [UI-037](../02-frontend/02-表单草稿与页面切换.md) | 编辑角色的部门数据晚返回时，关闭后又弹出编辑抽屉 | P3 | 已发布待验收 | Claude | [2026-11-03-UI-037](tasks/2026-11-03-UI-037-role-edit-race.md) | 2026-11-03 |
+| [UI-037](../02-frontend/02-表单草稿与页面切换.md) | 编辑角色的部门数据晚返回时，关闭后又弹出编辑抽屉 | P3 | 已关闭 | Claude | [2026-11-03-UI-037](tasks/2026-11-03-UI-037-role-edit-race.md) | 2026-11-04 |
 | [UI-038](tasks/2026-11-03-UI-038-feedback-batch-bugs.md) | 询盘管理、销售订单列表点第 2 页无效 | P2 | 待验证 | Claude | [2026-11-03-UI-038](tasks/2026-11-03-UI-038-feedback-batch-bugs.md) | 2026-11-03 |
 | [UI-039](tasks/2026-11-03-UI-038-feedback-batch-bugs.md) | 新建询盘时客户名称过长把「来源」挤出对话框 | P3 | 待验证 | Claude | [2026-11-03-UI-038](tasks/2026-11-03-UI-038-feedback-batch-bugs.md) | 2026-11-03 |
 | [UI-040](tasks/2026-11-03-UI-038-feedback-batch-bugs.md) | 登录过期后页面先提示加载失败再跳登录页 | P2 | 待验证 | Claude | [2026-11-03-UI-038](tasks/2026-11-03-UI-038-feedback-batch-bugs.md) | 2026-11-03 |
+| [UI-041](../02-frontend/07-全量前端代码与页面审查.md) | 表格与列表在电脑低分辨率下布局失效 | P2 | 处理中 | Claude | [2026-11-04-UI-041](tasks/2026-11-04-UI-041-low-res-layout.md) | 2026-11-04 |
 
 ## AI 可靠性
 
 | ID / 原专题 | 简短标题 | 优先级 | 状态 | 负责人 | 任务记录 | 最后更新 |
 | --- | --- | --- | --- | --- | --- | --- |
-| [AI-001](../04-ai-and-operations/01-AI任务可靠性与诊断.md) | 受理、回调与超时扫描无条件更新，终态可回退且与询盘状态分叉 | P1 | 待认领 | — | — | 2026-11-01 |
-| [AI-002](../04-ai-and-operations/01-AI任务可靠性与诊断.md) | 结果回调一次失败后被吞掉，已完成 AI 结果没有可靠投递路径 | P1 | 待认领 | — | — | 2026-11-01 |
-| [AI-003](../04-ai-and-operations/02-AI附件入口与权限.md) | 普通认证用户可通过通用 AI 入口指定 URL / 本地附件路径 | P1 | 已发布待验收 | Claude | [2026-11-03-SEC-001](tasks/2026-11-03-SEC-001-session-ai-input-hotfix.md) | 2026-11-03 |
-| [AI-004](../04-ai-and-operations/01-AI任务可靠性与诊断.md) | 串行诊断的总超时预算超过 Java 的 30 秒请求期限 | P2 | 待认领 | — | — | 2026-11-01 |
-| [AI-005](../04-ai-and-operations/01-AI任务可靠性与诊断.md) | Claude 续传按单请求计时，整任务可超过 watchdog 期限而继续运行 | P1 | 待认领 | — | — | 2026-11-01 |
-| [AI-006](../04-ai-and-operations/03-全量运行脚本与配置审查.md) | 未连接到模型服务商时仍把API Key标为有效 | P2 | 待认领 | — | — | 2026-11-01 |
+| [AI-001](../04-ai-and-operations/01-AI任务可靠性与诊断.md) | 受理、回调与超时扫描无条件更新，终态可回退且与询盘状态分叉 | P1 | 已合并待发布 | Claude | [2026-11-04-AI-001](tasks/2026-11-04-AI-001-task-reliability-batch-f.md) | 2026-11-04 |
+| [AI-002](../04-ai-and-operations/01-AI任务可靠性与诊断.md) | 结果回调一次失败后被吞掉，已完成 AI 结果没有可靠投递路径 | P1 | 已合并待发布 | Claude | [2026-11-04-AI-001](tasks/2026-11-04-AI-001-task-reliability-batch-f.md) | 2026-11-04 |
+| [AI-003](../04-ai-and-operations/02-AI附件入口与权限.md) | 普通认证用户可通过通用 AI 入口指定 URL / 本地附件路径 | P1 | 已关闭 | Claude | [2026-11-03-SEC-001](tasks/2026-11-03-SEC-001-session-ai-input-hotfix.md) | 2026-11-04 |
+| [AI-004](../04-ai-and-operations/01-AI任务可靠性与诊断.md) | 串行诊断的总超时预算超过 Java 的 30 秒请求期限 | P2 | 已合并待发布 | Claude | [2026-11-04-AI-001](tasks/2026-11-04-AI-001-task-reliability-batch-f.md) | 2026-11-04 |
+| [AI-005](../04-ai-and-operations/01-AI任务可靠性与诊断.md) | Claude 续传按单请求计时，整任务可超过 watchdog 期限而继续运行 | P1 | 已合并待发布 | Claude | [2026-11-04-AI-001](tasks/2026-11-04-AI-001-task-reliability-batch-f.md) | 2026-11-04 |
+| [AI-006](../04-ai-and-operations/03-全量运行脚本与配置审查.md) | 未连接到模型服务商时仍把API Key标为有效 | P2 | 已合并待发布 | Claude | [2026-11-04-AI-001](tasks/2026-11-04-AI-001-task-reliability-batch-f.md) | 2026-11-04 |
 
 ## 身份与对象权限
 
 | ID / 原专题 | 简短标题 | 优先级 | 状态 | 负责人 | 任务记录 | 最后更新 |
 | --- | --- | --- | --- | --- | --- | --- |
-| [SEC-001](../07-security/02-身份会话与对象权限.md) | 登录日志将在线访问凭据返回给同租户普通登录用户 | P1 | 已发布待验收 | Claude | [2026-11-03-SEC-001](tasks/2026-11-03-SEC-001-session-ai-input-hotfix.md) | 2026-11-03 |
-| [SEC-002](../07-security/02-身份会话与对象权限.md) | 用户管理写操作缺少目标租户约束 | P1 | 已合并待发布 | Claude | [2026-11-03-SEC-011](tasks/2026-11-03-SEC-011-tenant-isolation.md) | 2026-11-03 |
-| [SEC-003](../07-security/02-身份会话与对象权限.md) | 角色、部门、岗位及角色授权缺少对象归属校验 | P1 | 已合并待发布 | Claude | [2026-11-03-SEC-011](tasks/2026-11-03-SEC-011-tenant-isolation.md) | 2026-11-03 |
-| [SEC-004](../07-security/02-身份会话与对象权限.md) | 禁用、删除或管理员重置密码未撤销已有会话 | P1 | 已发布待验收 | Claude | [2026-11-03-SEC-001](tasks/2026-11-03-SEC-001-session-ai-input-hotfix.md) | 2026-11-03 |
-| [SEC-005](../07-security/02-身份会话与对象权限.md) | 附件链接未继承所属单据的数据可见范围 | P1 | 已合并待发布 | Claude | [2026-11-03-SEC-005](tasks/2026-11-03-SEC-005-object-guards.md) | 2026-11-03 |
-| [SEC-006](../07-security/02-身份会话与对象权限.md) | 登录幂等缓存先于身份验证，且未绑定账号 | P2 | 已合并待发布 | Claude | [2026-11-03-SEC-005](tasks/2026-11-03-SEC-005-object-guards.md) | 2026-11-03 |
-| [SEC-007](../07-security/02-身份会话与对象权限.md) | 恢复租户会同时重新启用此前单独停用的用户 | P1 | 已合并待发布 | Claude | [2026-11-03-SEC-005](tasks/2026-11-03-SEC-005-object-guards.md) | 2026-11-03 |
-| [SEC-008](../07-security/03-全量平台与商品代码审查.md) | 管理员重置密码将新密码放入URL查询串 | P1 | 已发布待验收 | Claude | [2026-11-03-SEC-001](tasks/2026-11-03-SEC-001-session-ai-input-hotfix.md) | 2026-11-03 |
-| [SEC-009](../01-business/05-全量业务代码审查.md) | 供应商单条对象入口缺少租户归属隔离 | P1 | 已合并待发布 | Claude | [2026-11-03-SEC-011](tasks/2026-11-03-SEC-011-tenant-isolation.md) | 2026-11-03 |
-| [SEC-010](../07-security/03-全量平台与商品代码审查.md) | 配置与字典按ID维护缺少目标归属校验 | P1 | 已合并待发布 | Claude | [2026-11-03-SEC-011](tasks/2026-11-03-SEC-011-tenant-isolation.md) | 2026-11-03 |
-| [SEC-011](../07-security/02-身份会话与对象权限.md) | 没有自动租户过滤，租户隔离全靠逐条手写条件 | P1 | 已合并待发布 | Claude | [2026-11-03-SEC-011](tasks/2026-11-03-SEC-011-tenant-isolation.md) | 2026-11-03 |
+| [SEC-001](../07-security/02-身份会话与对象权限.md) | 登录日志将在线访问凭据返回给同租户普通登录用户 | P1 | 已关闭 | Claude | [2026-11-03-SEC-001](tasks/2026-11-03-SEC-001-session-ai-input-hotfix.md) | 2026-11-04 |
+| [SEC-002](../07-security/02-身份会话与对象权限.md) | 用户管理写操作缺少目标租户约束 | P1 | 已关闭 | Claude | [2026-11-03-SEC-011](tasks/2026-11-03-SEC-011-tenant-isolation.md) | 2026-11-04 |
+| [SEC-003](../07-security/02-身份会话与对象权限.md) | 角色、部门、岗位及角色授权缺少对象归属校验 | P1 | 已关闭 | Claude | [2026-11-03-SEC-011](tasks/2026-11-03-SEC-011-tenant-isolation.md) | 2026-11-04 |
+| [SEC-004](../07-security/02-身份会话与对象权限.md) | 禁用、删除或管理员重置密码未撤销已有会话 | P1 | 已关闭 | Claude | [2026-11-03-SEC-001](tasks/2026-11-03-SEC-001-session-ai-input-hotfix.md) | 2026-11-04 |
+| [SEC-005](../07-security/02-身份会话与对象权限.md) | 附件链接未继承所属单据的数据可见范围 | P1 | 已关闭 | Claude | [2026-11-03-SEC-005](tasks/2026-11-03-SEC-005-object-guards.md) | 2026-11-04 |
+| [SEC-006](../07-security/02-身份会话与对象权限.md) | 登录幂等缓存先于身份验证，且未绑定账号 | P2 | 已关闭 | Claude | [2026-11-03-SEC-005](tasks/2026-11-03-SEC-005-object-guards.md) | 2026-11-04 |
+| [SEC-007](../07-security/02-身份会话与对象权限.md) | 恢复租户会同时重新启用此前单独停用的用户 | P1 | 已关闭 | Claude | [2026-11-03-SEC-005](tasks/2026-11-03-SEC-005-object-guards.md) | 2026-11-04 |
+| [SEC-008](../07-security/03-全量平台与商品代码审查.md) | 管理员重置密码将新密码放入URL查询串 | P1 | 已关闭 | Claude | [2026-11-03-SEC-001](tasks/2026-11-03-SEC-001-session-ai-input-hotfix.md) | 2026-11-04 |
+| [SEC-009](../01-business/05-全量业务代码审查.md) | 供应商单条对象入口缺少租户归属隔离 | P1 | 已关闭 | Claude | [2026-11-03-SEC-011](tasks/2026-11-03-SEC-011-tenant-isolation.md) | 2026-11-04 |
+| [SEC-010](../07-security/03-全量平台与商品代码审查.md) | 配置与字典按ID维护缺少目标归属校验 | P1 | 已关闭 | Claude | [2026-11-03-SEC-011](tasks/2026-11-03-SEC-011-tenant-isolation.md) | 2026-11-04 |
+| [SEC-011](../07-security/02-身份会话与对象权限.md) | 没有自动租户过滤，租户隔离全靠逐条手写条件 | P1 | 已关闭 | Claude | [2026-11-03-SEC-011](tasks/2026-11-03-SEC-011-tenant-isolation.md) | 2026-11-04 |
+| [SEC-012](../07-security/02-身份会话与对象权限.md) | 用户启停接口不校验状态值，可借它删除用户或写入非法状态 | P3 | 已合并待发布 | Claude | [2026-11-04-ACCEPT](tasks/2026-11-04-ACCEPT-local-v171.md) | 2026-11-04 |
 
 ## 运行与迁移
 
@@ -123,17 +126,17 @@
 
 | ID / 原专题 | 简短标题 | 优先级 | 状态 | 负责人 | 任务记录 | 最后更新 |
 | --- | --- | --- | --- | --- | --- | --- |
-| [DEP-001](../03-dependencies/01-security-findings.md) | POI 5.2.5 读取上传 OOXML，命中已确认公告 | P1 | 待认领 | — | — | 2026-11-01 |
-| [DEP-002](../03-dependencies/01-security-findings.md) | Tomcat 10.1.20 的 multipart 解析存在已公开 DoS 修复缺口 | P1 | 待认领 | — | — | 2026-11-01 |
-| [DEP-003](../03-dependencies/01-security-findings.md) | axios 0.27.2 被业务代码使用，却只由 dev 链间接提供 | P1 | 待认领 | — | — | 2026-11-01 |
-| [DEP-004](../03-dependencies/01-security-findings.md) | DOMPurify 3.4.2 位于生产 Markdown/Mermaid 链，需按实际模式验证 | P2 | 待认领 | — | — | 2026-11-01 |
-| [DEP-005](../03-dependencies/01-security-findings.md) | Umi 开发与构建链累计漏洞，按启用能力整改 | P2 | 待认领 | — | — | 2026-11-01 |
-| [DEP-006](../03-dependencies/01-security-findings.md) | 后端传递依赖与 Spring 条件型公告需随 BOM 更新核验 | P2 | 待认领 | — | — | 2026-11-01 |
-| [DEP-007](../03-dependencies/02-upgrade-and-compatibility.md) | Boot 3.2.5 基线滞后，应将 BOM 与生态组合升级 | P1 | 待认领 | — | — | 2026-11-01 |
-| [DEP-008](../03-dependencies/02-upgrade-and-compatibility.md) | Node >=20 声明不满足锁定工具链 | P2 | 待认领 | — | — | 2026-11-01 |
-| [DEP-009](../03-dependencies/02-upgrade-and-compatibility.md) | Umi 升级必须和 @utoo/pack 本地补丁同步验收 | P2 | 待认领 | — | — | 2026-11-01 |
-| [DEP-010](../03-dependencies/02-upgrade-and-compatibility.md) | Python 顶层精确 pin 仍不足以重现传递依赖与二进制 | P2 | 待认领 | — | — | 2026-11-01 |
-| [DEP-011](../03-dependencies/02-upgrade-and-compatibility.md) | 镜像与供应链构建输入未完整固定 | P2 | 待认领 | — | — | 2026-11-01 |
+| [DEP-001](../03-dependencies/01-security-findings.md) | POI 5.2.5 读取上传 OOXML，命中已确认公告 | P1 | 暂缓 | Ezio（决定） | [2026-11-04-DEP-001](tasks/2026-11-04-DEP-001-dependency-deferred.md) | 2026-11-04 |
+| [DEP-002](../03-dependencies/01-security-findings.md) | Tomcat 10.1.20 的 multipart 解析存在已公开 DoS 修复缺口 | P1 | 暂缓 | Ezio（决定） | [2026-11-04-DEP-001](tasks/2026-11-04-DEP-001-dependency-deferred.md) | 2026-11-04 |
+| [DEP-003](../03-dependencies/01-security-findings.md) | axios 0.27.2 被业务代码使用，却只由 dev 链间接提供 | P1 | 暂缓 | Ezio（决定） | [2026-11-04-DEP-001](tasks/2026-11-04-DEP-001-dependency-deferred.md) | 2026-11-04 |
+| [DEP-004](../03-dependencies/01-security-findings.md) | DOMPurify 3.4.2 位于生产 Markdown/Mermaid 链，需按实际模式验证 | P2 | 暂缓 | Ezio（决定） | [2026-11-04-DEP-001](tasks/2026-11-04-DEP-001-dependency-deferred.md) | 2026-11-04 |
+| [DEP-005](../03-dependencies/01-security-findings.md) | Umi 开发与构建链累计漏洞，按启用能力整改 | P2 | 暂缓 | Ezio（决定） | [2026-11-04-DEP-001](tasks/2026-11-04-DEP-001-dependency-deferred.md) | 2026-11-04 |
+| [DEP-006](../03-dependencies/01-security-findings.md) | 后端传递依赖与 Spring 条件型公告需随 BOM 更新核验 | P2 | 暂缓 | Ezio（决定） | [2026-11-04-DEP-001](tasks/2026-11-04-DEP-001-dependency-deferred.md) | 2026-11-04 |
+| [DEP-007](../03-dependencies/02-upgrade-and-compatibility.md) | Boot 3.2.5 基线滞后，应将 BOM 与生态组合升级 | P1 | 暂缓 | Ezio（决定） | [2026-11-04-DEP-001](tasks/2026-11-04-DEP-001-dependency-deferred.md) | 2026-11-04 |
+| [DEP-008](../03-dependencies/02-upgrade-and-compatibility.md) | Node >=20 声明不满足锁定工具链 | P2 | 暂缓 | Ezio（决定） | [2026-11-04-DEP-001](tasks/2026-11-04-DEP-001-dependency-deferred.md) | 2026-11-04 |
+| [DEP-009](../03-dependencies/02-upgrade-and-compatibility.md) | Umi 升级必须和 @utoo/pack 本地补丁同步验收 | P2 | 暂缓 | Ezio（决定） | [2026-11-04-DEP-001](tasks/2026-11-04-DEP-001-dependency-deferred.md) | 2026-11-04 |
+| [DEP-010](../03-dependencies/02-upgrade-and-compatibility.md) | Python 顶层精确 pin 仍不足以重现传递依赖与二进制 | P2 | 暂缓 | Ezio（决定） | [2026-11-04-DEP-001](tasks/2026-11-04-DEP-001-dependency-deferred.md) | 2026-11-04 |
+| [DEP-011](../03-dependencies/02-upgrade-and-compatibility.md) | 镜像与供应链构建输入未完整固定 | P2 | 暂缓 | Ezio（决定） | [2026-11-04-DEP-001](tasks/2026-11-04-DEP-001-dependency-deferred.md) | 2026-11-04 |
 
 ## 文档与测试保障
 
@@ -143,6 +146,6 @@
 | [DOC-002](../05-code-and-docs/01-文档与测试一致性.md) | 部署注释与一次性迁移指引混入旧上线流程 | P3 | 待认领 | — | — | 2026-11-01 |
 | [DOC-003](../05-code-and-docs/01-文档与测试一致性.md) | AI 任务注释仍描述未实现状态并引用已归档旧路径 | P3 | 待认领 | — | — | 2026-11-01 |
 | [DOC-004](../05-code-and-docs/01-文档与测试一致性.md) | 种子迁移集成测试清空关联表但只恢复品类快照 | P2 | 已关闭 | Claude | [2026-11-03-DOC-005](tasks/2026-11-03-DOC-005-ci-pipeline.md) | 2026-11-04 |
-| [DOC-005](../05-code-and-docs/01-文档与测试一致性.md) | 发布仓库缺少规范所要求的自动测试入口 | P2 | 暂缓 | Claude | [2026-11-03-DOC-005](tasks/2026-11-03-DOC-005-ci-pipeline.md) | 2026-11-04 |
+| [DOC-005](../05-code-and-docs/01-文档与测试一致性.md) | 发布仓库缺少规范所要求的自动测试入口 | P2 | 已关闭 | Claude | [2026-11-03-DOC-005](tasks/2026-11-03-DOC-005-ci-pipeline.md) | 2026-11-04 |
 | [DOC-006](../05-code-and-docs/01-文档与测试一致性.md) | 当前历史迁移规范与实现对入库、付款和源变化的约定不一致 | P2 | 待认领 | — | — | 2026-11-01 |
-| [DOC-007](tasks/2026-11-03-SEC-011-tenant-isolation.md) | 售后时效测试两次取当前时间，跨秒时偶发失败 | P3 | 待合并 | Claude | [2026-11-03-SEC-011](tasks/2026-11-03-SEC-011-tenant-isolation.md) | 2026-11-04 |
+| [DOC-007](tasks/2026-11-03-SEC-011-tenant-isolation.md) | 售后时效测试两次取当前时间，跨秒时偶发失败 | P3 | 已关闭 | Claude | [2026-11-03-SEC-011](tasks/2026-11-03-SEC-011-tenant-isolation.md) | 2026-11-04 |

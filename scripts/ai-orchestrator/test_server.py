@@ -39,6 +39,20 @@ def ai(**overrides):
     return raw
 
 
+class FakeStream:
+    """messages.stream 的上下文对象：可逐段迭代（没有分段），最后取完整消息"""
+
+    def __init__(self, message):
+        self.message = message
+        self.request_id = "req_test"
+
+    def __iter__(self):
+        return iter(())
+
+    def get_final_message(self):
+        return self.message
+
+
 class FakeClaude:
     """记录 messages.stream 的参数，返回给定的 JSON 文本"""
     calls = []
@@ -54,7 +68,7 @@ class FakeClaude:
             stop_reason="end_turn", model=params["model"],
             content=[SimpleNamespace(type="text", text=FakeClaude.reply)],
             usage=SimpleNamespace(input_tokens=1, output_tokens=1, server_tool_use=None))
-        return mock.MagicMock(__enter__=lambda s: SimpleNamespace(get_final_message=lambda: message, request_id="req_test"),
+        return mock.MagicMock(__enter__=lambda s: FakeStream(message),
                               __exit__=lambda s, *a: False)
 
 
@@ -695,6 +709,166 @@ class BackgroundTest(unittest.TestCase):
                 self.server.process_background({"input": data, "ai": ai()}, "http://cb")
             self.assertEqual(sent[-1][0], "failed")
             self.assertIn(message, sent[-1][1])
+
+
+FOLLOWUP_INPUT = {
+    "customer": {"name": "ADORA", "country": "Germany"},
+    "stage": {"code": "S5", "name": "报价反馈"},
+    "document": {"docNo": "QT20261101003", "currencyCode": "USD", "amount": "8100.00"},
+    "blockers": [{"code": "PRICE", "name": "价格"}, {"code": "DELIVERY", "name": "交期"}],
+    "profileFields": [{"field": "mainProducts", "label": "主营产品"}],
+}
+
+
+class FollowupTest(unittest.TestCase):
+    """客户跟进的两个技能：followup-extract 整理跟进内容（只保留合法取值、截断原文），followup-reply 写英文回复"""
+
+    def setUp(self):
+        FakeClaude.calls = []
+        self.server = load_server()
+        self.cfg = self.server.parse_ai_config(ai())
+
+    def extract(self, reply, raw="customer: competitor quoted USD 760, refurbished. We take 10 new at USD 780, 15 days?"):
+        FakeClaude.reply = json.dumps(reply)
+        with mock.patch.object(self.server.anthropic, "Anthropic", FakeClaude):
+            result = self.server.call_followup_extract(self.cfg, {**FOLLOWUP_INPUT, "rawContent": raw})
+        return result, FakeClaude.calls[-1]["params"]
+
+    def test_extract_output_structure(self):
+        result, p = self.extract({
+            "summary": "客户说竞争对手报 USD 760 是翻新件，愿意按 USD 780 拿 10 台全新，要求 15 天交货",
+            "situation": ["feedback", "negotiating"], "blocker": "PRICE",
+            "nextActions": [{"text": "向采购确认 15 天交期", "days": 0}, {"text": "回复 USD 780 成交方案并更新报价", "days": 1}],
+            "profileSuggestions": [{"field": "mainProducts", "value": "PLC 备件", "evidence": "we sell PLC spares"}]})
+        self.assertEqual(result["situation"], ["feedback", "negotiating"])
+        self.assertEqual(result["blocker"], "PRICE")
+        self.assertEqual(len(result["nextActions"]), 2)
+        self.assertEqual(result["profileSuggestions"][0]["field"], "mainProducts")
+        self.assertFalse(result["truncated"])
+        self.assertEqual(p["model"], "claude-haiku-5-5", "用翻译的轻量模型")
+        self.assertNotIn("tools", p, "不联网")
+        self.assertIn("followup-extract", p["system"])
+        self.assertIn("USD 780", p["messages"][0]["content"][-1]["text"])
+
+    def test_extract_drops_illegal_values(self):
+        result, _ = self.extract({
+            "summary": "x", "situation": ["no_reply", "feedback"], "blocker": "WEATHER",
+            "nextActions": [{"text": "a", "days": 1}, {"text": "b", "days": 99}, {"text": "c", "days": 2}],
+            "profileSuggestions": [{"field": "currency", "value": "EUR", "evidence": ""},
+                                   {"field": "mainProducts", "value": " ", "evidence": ""}]})
+        self.assertEqual(result["situation"], ["feedback"], "没回复不和有反馈同时出现")
+        self.assertEqual(result["blocker"], "", "卡点只能取输入的卡点码")
+        self.assertEqual([a["text"] for a in result["nextActions"]], ["a", "b"], "最多 2 条")
+        self.assertEqual(result["nextActions"][1]["days"], 60)
+        self.assertEqual(result["profileSuggestions"], [], "只能取可补的档案字段，空值去掉")
+
+    def test_extract_stage_answers_only_for_current_stage(self):
+        base = {"summary": "x", "situation": [], "blocker": "", "nextActions": [], "profileSuggestions": []}
+        answers = {"receiptAnswer": 2, "useAnswer": 1, "issueTypes": ["破损", "其他"], "satisfaction": 1, "reviewStatus": 2,
+                   "etaDate": "2026-11-12"}
+        FakeClaude.reply = json.dumps({**base, **answers})
+        with mock.patch.object(self.server.anthropic, "Anthropic", FakeClaude):
+            a1 = self.server.call_followup_extract(self.cfg, {**FOLLOWUP_INPUT, "stage": {"code": "A1", "board": 4},
+                                                              "rawContent": "got it, one screen cracked"})
+            s5 = self.server.call_followup_extract(self.cfg, {**FOLLOWUP_INPUT, "rawContent": "thanks"})
+            f6 = self.server.call_followup_extract(self.cfg, {**FOLLOWUP_INPUT, "stage": {"code": "F6", "board": 3},
+                                                              "rawContent": "when will it arrive?"})
+        self.assertEqual(a1["receiptAnswer"], 2)
+        self.assertEqual(a1["issueTypes"], ["破损", "其他"])
+        self.assertEqual(a1["etaDate"], "2026-11-12")
+        self.assertNotIn("useAnswer", a1, "A1 不输出 A2 的答案")
+        self.assertNotIn("satisfaction", a1)
+        for k in answers:
+            self.assertNotIn(k, s5, "商机成交阶段不输出订单阶段的答案")
+        self.assertEqual(set(f6) - set(base) - {"truncated"}, {"etaDate"})
+
+    def test_extract_account_situation_only_on_board_5(self):
+        FakeClaude.reply = json.dumps({"summary": "x", "situation": ["feedback", "no_need", "new_need"], "blocker": "",
+                                       "nextActions": [], "profileSuggestions": []})
+        with mock.patch.object(self.server.anthropic, "Anthropic", FakeClaude):
+            g4 = self.server.call_followup_extract(self.cfg, {**FOLLOWUP_INPUT, "stage": {"code": "G4", "board": 5},
+                                                              "rawContent": "we need 10 more next month"})
+            s5 = self.server.call_followup_extract(self.cfg, {**FOLLOWUP_INPUT, "rawContent": "we need 10 more next month"})
+        self.assertEqual(g4["situation"], ["new_need"], "客户经营单选，有新需求优先")
+        self.assertEqual(s5["situation"], ["feedback"], "其他板块丢掉客户经营的取值")
+
+    def test_extract_develop_situation_only_on_board_1(self):
+        FakeClaude.reply = json.dumps({"summary": "x", "situation": ["feedback", "replied", "buying_signal"], "blocker": "",
+                                       "nextActions": [], "profileSuggestions": [], "signalText": "ABB ACS580 5 台，下月" + "长" * 300})
+        with mock.patch.object(self.server.anthropic, "Anthropic", FakeClaude):
+            d6 = self.server.call_followup_extract(self.cfg, {**FOLLOWUP_INPUT, "stage": {"code": "D6", "board": 1},
+                                                              "rawContent": "we need 5 pcs ACS580 next month"})
+            s5 = self.server.call_followup_extract(self.cfg, {**FOLLOWUP_INPUT, "rawContent": "we need 5 pcs ACS580 next month"})
+        self.assertEqual(d6["situation"], ["buying_signal"], "主动开发单选，采购信号优先")
+        self.assertTrue(d6["signalText"].startswith("ABB ACS580"))
+        self.assertEqual(len(d6["signalText"]), 200, "采购信号最多 200 字")
+        self.assertEqual(s5["situation"], ["feedback"], "其他板块丢掉主动开发的取值")
+        self.assertNotIn("signalText", s5)
+
+    def test_extract_develop_refused_has_no_signal_text(self):
+        FakeClaude.reply = json.dumps({"summary": "x", "situation": ["refused"], "blocker": "", "nextActions": [],
+                                       "profileSuggestions": [], "signalText": "should be dropped"})
+        with mock.patch.object(self.server.anthropic, "Anthropic", FakeClaude):
+            d5 = self.server.call_followup_extract(self.cfg, {**FOLLOWUP_INPUT, "stage": {"code": "D5", "board": 1},
+                                                              "rawContent": "please remove us from your list"})
+        self.assertEqual(d5["situation"], ["refused"])
+        self.assertNotIn("signalText", d5)
+
+    def test_extract_stage_answers_drop_bad_date(self):
+        FakeClaude.reply = json.dumps({"summary": "x", "situation": [], "blocker": "", "nextActions": [], "profileSuggestions": [],
+                                       "receiptAnswer": 3, "etaDate": "next week"})
+        with mock.patch.object(self.server.anthropic, "Anthropic", FakeClaude):
+            result = self.server.call_followup_extract(self.cfg, {**FOLLOWUP_INPUT, "stage": {"code": "A1"}, "rawContent": "not yet"})
+        self.assertEqual(result["receiptAnswer"], 3)
+        self.assertNotIn("etaDate", result)
+
+    def test_extract_keeps_last_20000_chars(self):
+        raw = "OLD" + "x" * 20000 + "NEWEST"
+        result, p = self.extract({"summary": "x", "situation": [], "blocker": "", "nextActions": [], "profileSuggestions": []},
+                                 raw=raw)
+        sent = json.loads(p["messages"][0]["content"][-1]["text"])
+        self.assertEqual(len(sent["rawContent"]), 20000)
+        self.assertTrue(sent["rawContent"].endswith("NEWEST"))
+        self.assertNotIn("OLD", sent["rawContent"])
+        self.assertTrue(result["truncated"])
+
+    def test_extract_without_content_fails(self):
+        sent = []
+        with mock.patch.object(self.server, "send_callback",
+                               lambda url, status, output=None, error=None: sent.append((status, error))):
+            self.server.process_followup({"input": {**FOLLOWUP_INPUT, "rawContent": "  "}, "ai": ai()}, "http://cb",
+                                         "followup-extract")
+        self.assertEqual(sent[-1], ("failed", "没有需要整理的内容"))
+
+    def test_reply_returns_english_draft(self):
+        FakeClaude.reply = json.dumps({"reply": " Hi Mark, thanks for the feedback... Could you share your target price? ",
+                                       "intent": "问客户目标价，不直接降价"})
+        with mock.patch.object(self.server.anthropic, "Anthropic", FakeClaude):
+            result = self.server.call_followup_reply(self.cfg, {**FOLLOWUP_INPUT, "blocker": {
+                "name": "价格", "playbook": ["先确认对方报价条件是否相同", "问目标价"]}})
+        p = FakeClaude.calls[-1]["params"]
+        self.assertTrue(result["reply"].startswith("Hi Mark"))
+        self.assertEqual(result["intent"], "问客户目标价，不直接降价")
+        self.assertIn("烛龙英文回复", p["system"], "系统提示词注明了原版来源")
+        self.assertIn("问目标价", p["messages"][0]["content"][-1]["text"])
+
+    def test_reply_passes_intent_and_order(self):
+        FakeClaude.reply = json.dumps({"reply": "Your order has been shipped by DHL, tracking 1234567890.", "intent": "告诉客户运单号"})
+        with mock.patch.object(self.server.anthropic, "Anthropic", FakeClaude):
+            self.server.call_followup_reply(self.cfg, {**FOLLOWUP_INPUT, "intent": "logistics_update",
+                                                       "order": {"soNo": "SO20261025004", "etaDate": "2026-11-09"}})
+        p = FakeClaude.calls[-1]["params"]
+        self.assertIn("logistics_update", p["system"], "提示词里有物流更新的写法")
+        self.assertIn("review_invite", p["system"], "提示词里有评价邀请的写法")
+        sent = json.loads(p["messages"][0]["content"][-1]["text"])
+        self.assertEqual(sent["intent"], "logistics_update")
+        self.assertEqual(sent["order"]["soNo"], "SO20261025004")
+
+    def test_reply_empty_fails(self):
+        FakeClaude.reply = json.dumps({"reply": " ", "intent": ""})
+        with mock.patch.object(self.server.anthropic, "Anthropic", FakeClaude):
+            with self.assertRaises(RuntimeError):
+                self.server.call_followup_reply(self.cfg, FOLLOWUP_INPUT)
 
 
 class AttachmentSourceTest(unittest.TestCase):

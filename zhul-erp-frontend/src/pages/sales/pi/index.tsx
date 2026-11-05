@@ -24,6 +24,7 @@ import {
 import type { Dayjs } from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
 import { CustomerCell } from '@/components/DocFields';
+import { ellipsisRender } from '@/components/EllipsisText';
 import { Stat, useWide } from '@/pages/inquiry/shared/components';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
 import { getUserList } from '@/pages/system/user/service';
@@ -31,6 +32,7 @@ import { useAppTheme } from '@/theme/AppTheme';
 import { recentRange } from '@/utils/dateRange';
 import { formatAmount, formatDateTime } from '@/utils/format';
 import { usePageSize } from '@/utils/pageSize';
+import { tableScrollX } from '@/utils/tableScroll';
 import {
   Card,
   PATHS,
@@ -299,7 +301,12 @@ const PiList: React.FC = () => {
           '—'
         ),
     },
-    { title: '业务员', dataIndex: 'ownerName', width: 100 },
+    {
+      title: '业务员',
+      dataIndex: 'ownerName',
+      width: 100,
+      render: ellipsisRender,
+    },
     {
       title: '创建时间',
       dataIndex: 'createTime',
@@ -581,7 +588,7 @@ const PiList: React.FC = () => {
           columns={columns}
           dataSource={rows}
           loading={loading}
-          scroll={{ x: 1970 }}
+          scroll={{ x: tableScrollX(columns) }}
           locale={{ emptyText: '没有符合条件的 PI，换个筛选条件试试' }}
           pagination={{
             current: page,

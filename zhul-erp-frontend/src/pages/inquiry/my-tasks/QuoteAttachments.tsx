@@ -3,6 +3,7 @@ import { ACCEPT_PROOF } from '@/pages/finance/payables/components';
 import {
   MediaTile,
   UploadTile,
+  useAttachmentList,
   usePreview,
 } from '@/pages/warehouse/components';
 import type { Attachment } from '@/pages/warehouse/service';
@@ -21,6 +22,7 @@ const QuoteAttachments: React.FC<{
   onChange: (list: Attachment[]) => void;
 }> = ({ value, onChange }) => {
   const preview = usePreview();
+  const list = useAttachmentList(value, onChange);
   const upload = (label: string, width?: number) => (
     <UploadTile
       ownerType="SOURCING_QUOTE"
@@ -28,7 +30,8 @@ const QuoteAttachments: React.FC<{
       size={QUOTE_TILE}
       width={width}
       label={label}
-      onUploaded={(a) => onChange([...value, a])}
+      remaining={QUOTE_MAX_FILES - value.length}
+      onUploaded={list.add}
     />
   );
   return (
@@ -46,7 +49,7 @@ const QuoteAttachments: React.FC<{
           attachment={a}
           size={QUOTE_TILE}
           onOpen={() => preview.open(a)}
-          onRemove={() => onChange(value.filter((x) => x.id !== a.id))}
+          onRemove={() => list.remove(a.id)}
         />
       ))}
       {value.length === 0 ? (

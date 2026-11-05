@@ -93,6 +93,7 @@ public class LogisticsShipmentService {
     private final DocumentNumberService documentNumberService;
     private final CurrentUserResolver currentUser;
     private final LogService logService;
+    private final com.zhul.erp.modules.crm.followup.support.FollowupHooks followupHooks;
 
     // ---------------------------------------------------------------- 待出运的货
 
@@ -166,6 +167,7 @@ public class LogisticsShipmentService {
         shipmentMapper.insert(sh);
         attach(sh, req.getOutboundIds(), req.getDirectShipmentIds());
         logService.recordOperateLog(LogisticsConstants.MENU_SHIPMENT, "新建出运单", null, Map.of("shNo", sh.getShNo()));
+        followupHooks.customerChanged(sh.getCustomerId());
         return detail(sh.getId());
     }
 
@@ -206,6 +208,7 @@ public class LogisticsShipmentService {
         if (outboundsOf(id).isEmpty() && directsOf(id).isEmpty()) {
             throw new BizException("出运单里至少要有一张销售出库单或直发货；不要了请作废");
         }
+        followupHooks.customerChanged(sh.getCustomerId());
         return detail(id);
     }
 
@@ -233,6 +236,8 @@ public class LogisticsShipmentService {
             ownerFrom(sh, ob.getOwnerId());
         }
         for (Long dId : dIds) {
+            // 先锁直发货再查归属：两张出运单同时加同一票时，后到的读到已归属而被拒绝，不会覆盖（audit BUS-018）
+            supplierShipmentMapper.lockById(dId);
             SupplierShipmentDO s = supplierShipmentMapper.selectById(dId);
             if (s == null || s.getDeletedAt() != null || !Objects.equals(s.getTenantId(), PiStore.tenantId()) || s.getDirectForwarderId() == null) {
                 throw new BizException("直发货不存在");
@@ -289,6 +294,7 @@ public class LogisticsShipmentService {
         shipmentMapper.updateById(sh);
         logService.recordOperateLog(LogisticsConstants.MENU_SHIPMENT, "作废出运单", Map.of("shNo", sh.getShNo(), "status", "待出运"),
                 Map.of("shNo", sh.getShNo(), "status", "已作废", "reason", sh.getVoidReason()));
+        followupHooks.customerChanged(sh.getCustomerId());
         return detail(id);
     }
 
@@ -374,6 +380,7 @@ public class LogisticsShipmentService {
         progress.sync(items.stream().map(OutboundOrderItemDO::getSoItemId).toList());
         logService.recordOperateLog(LogisticsConstants.MENU_SHIPMENT, "确认直发货", null, Map.of("shNo", sh.getShNo(), "sdNo", s.getSdNo(),
                 "obNo", ob.getObNo(), "received", receiptItems.size()));
+        followupHooks.customerChanged(sh.getCustomerId());
         return detail(id);
     }
 
@@ -397,6 +404,7 @@ public class LogisticsShipmentService {
         progress.sync(outbounds.soItemIds(obs.stream().map(OutboundOrderDO::getId).toList()));
         logService.recordOperateLog(LogisticsConstants.MENU_SHIPMENT, "登记出运", null, Map.of("shNo", sh.getShNo(),
                 "waybill", sh.getCarrier() + " " + sh.getWaybillNo(), "freight", "CNY " + sh.getFreight()));
+        followupHooks.customerChanged(sh.getCustomerId());
         return detail(id);
     }
 
@@ -422,6 +430,7 @@ public class LogisticsShipmentService {
         }
         logService.recordOperateLog(LogisticsConstants.MENU_SHIPMENT, "修改运单", Map.of("shNo", sh.getShNo(), "freight", String.valueOf(before)),
                 Map.of("shNo", sh.getShNo(), "waybill", sh.getCarrier() + " " + sh.getWaybillNo(), "freight", String.valueOf(after)));
+        followupHooks.customerChanged(sh.getCustomerId());
         return detail(id);
     }
 
@@ -430,6 +439,10 @@ public class LogisticsShipmentService {
         shipmentMapper.lockById(id);
         LogisticsShipmentDO sh = shipmentMapper.selectById(id);
         MigratedGuard.requireEditable(sh.getMigrated());
+        if (Objects.equals(sh.getReconciled(), 1)) {
+            // 同一出运单不能被两张账单各确认一次、生成两笔运费应付（audit BUS-007）
+            throw new BizException("出运单 " + sh.getShNo() + " 已在别的运费账单上确认过");
+        }
         if (amount != null && (sh.getFreight() == null || sh.getFreight().compareTo(amount) != 0)) {
             sh.setFreight(amount);
             freight.allocateInternational(id, amount, outboundsOf(id).stream().map(OutboundOrderDO::getId).toList(), support.divisorOf(sh.getForwarderId()));

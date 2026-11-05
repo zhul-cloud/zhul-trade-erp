@@ -31,6 +31,7 @@ import { auditColumns } from '@/pages/purchase/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount, formatDateTime } from '@/utils/format';
 import { usePageSize } from '@/utils/pageSize';
+import { tableScrollX } from '@/utils/tableScroll';
 import { LOGISTICS_PATHS, StatementStatusPill } from '../components';
 import {
   type Forwarder,
@@ -301,6 +302,7 @@ const StatementDrawer: React.FC<{
     },
     {
       title: '说明',
+      width: 240,
       key: 'note',
       render: (_, l) =>
         draft ? (
@@ -652,7 +654,7 @@ const Statements: React.FC = () => {
             columns={columns}
             dataSource={rows}
             loading={loading}
-            scroll={{ x: 1600 }}
+            scroll={{ x: tableScrollX(columns) }}
             locale={{
               emptyText: '还没有运费账单；月底收到货代账单后点「新建运费账单」',
             }}

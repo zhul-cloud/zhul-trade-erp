@@ -13,6 +13,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import static com.zhul.erp.support.TestDates.today;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -99,7 +100,7 @@ class OperatingReportContractTest extends SalesContractSupport {
         noProof.put("attachmentIds", List.of());
         assertEquals("请上传退款凭证", fail(call(json(post(REFUND), write(noProof)), admin)).path("message").asText());
         JsonNode refund = ok(call(json(post(REFUND), write(refundBody(so, "50"))), admin));
-        assertEquals("TK" + TODAY + "001", refund.path("refundNo").asText());
+        assertEquals("TK" + today() + "001", refund.path("refundNo").asText());
         money("357.50", refund.path("amountCny"));
         assertEquals("质量问题", refund.path("reasonName").asText());
         money("259.19", ok(call(get(REFUND + "/refundable/" + so), admin)).path("refundable"));
@@ -118,7 +119,7 @@ class OperatingReportContractTest extends SalesContractSupport {
         inc.put("amount", "600");
         inc.put("remark", "信保 9 月返点");
         JsonNode income = ok(call(json(post(INCOME), write(inc)), admin));
-        assertEquals("OI" + TODAY + "001", income.path("incomeNo").asText());
+        assertEquals("OI" + today() + "001", income.path("incomeNo").asText());
         inc.put("amount", "666.66");
         ok(call(json(put(INCOME + "/" + income.path("id").asLong()), write(inc)), admin));
         inc.put("category", "NOPE");
@@ -163,5 +164,22 @@ class OperatingReportContractTest extends SalesContractSupport {
         // 已取消的订单不能登记退款
         ok(call(json(post(SO + "/" + so + "/cancel"), write(Map.of("reason", "客户不要了"))), admin));
         assertEquals("订单已取消，不能登记退款", fail(call(json(post(REFUND), write(refundBody(so, "10"))), admin)).path("message").asText());
+    }
+
+    /** audit BUS-003：同一 PI 取消重转后，旧订单上的退款继续占用到账额度，并计入新订单的毛利 */
+    @Test
+    void refundOnCancelledOrder_countsAgainstReconvertedOrder() throws Exception {
+        long so1 = paidOrder();
+        long pi = jdbc.queryForObject("select pi_id from sales_order where id = ?", Long.class, so1);
+        JsonNode first = ok(call(json(post(REFUND), write(refundBody(so1, "100"))), admin));
+        ok(call(json(post(SO + "/" + so1 + "/cancel"), write(Map.of("reason", "客户改单"))), admin));
+        long so2 = ok(call(json(post(PI + "/" + pi + "/convert"), "{}"), admin)).path("id").asLong();
+
+        money("209.19", ok(call(get(REFUND + "/refundable/" + so2), admin)).path("refundable"));
+        money(first.path("amountCny").decimalValue().toPlainString(),
+                ok(call(get(SO + "/" + so2), admin)).path("cost").path("refund"));
+        assertEquals("最多还能退 USD 209.19", fail(call(json(post(REFUND), write(refundBody(so2, "209.20"))), admin)).path("message").asText());
+        ok(call(json(post(REFUND), write(refundBody(so2, "209.19"))), admin));
+        assertEquals("最多还能退 USD 0.00", fail(call(json(post(REFUND), write(refundBody(so2, "0.01"))), admin)).path("message").asText());
     }
 }

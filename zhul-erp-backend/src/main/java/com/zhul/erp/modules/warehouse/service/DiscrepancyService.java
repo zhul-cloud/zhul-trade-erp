@@ -84,6 +84,7 @@ public class DiscrepancyService {
     private final LogService logService;
     private final AttachmentService attachments;
     private final com.zhul.erp.modules.warehouse.repository.PurchaseReceiptItemMapper receiptItemMapper;
+    private final com.zhul.erp.modules.crm.followup.support.FollowupHooks followupHooks;
 
     // ---------------------------------------------------------------- 生成与作废（采购入库单事务内）
 
@@ -366,6 +367,7 @@ public class DiscrepancyService {
         logs.add(p.getId(), "处理到货差异", text, operator);
         logService.recordOperateLog(WarehouseConstants.MENU_SHIPMENT, "处理到货差异", null, Map.of("poNo", p.getPoNo(), "content", text));
         payables.syncPurchaseOrder(p.getId());
+        followupHooks.purchaseChanged(p.getId());
         return toVos(List.of(d)).get(0);
     }
 
@@ -435,6 +437,7 @@ public class DiscrepancyService {
         logs.add(p.getId(), "重新打开差异", text, currentUser.resolve());
         logService.recordOperateLog(WarehouseConstants.MENU_SHIPMENT, "重新打开到货差异", null, Map.of("poNo", p.getPoNo(), "content", text));
         payables.syncPurchaseOrder(p.getId());
+        followupHooks.purchaseChanged(p.getId());
         return toVos(List.of(d)).get(0);
     }
 

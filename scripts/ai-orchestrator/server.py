@@ -51,10 +51,14 @@ import os
 import re
 import sys
 import threading
+import time
+import urllib.error
 import urllib.parse
 import urllib.request
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
+from datetime import date
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import anthropic
@@ -82,6 +86,10 @@ TIMEOUT_SECONDS = int(os.environ.get("AI_ORCHESTRATOR_TIMEOUT_SECONDS") or "900"
 QUICK_TIMEOUT_SECONDS = 20
 # pause_turn 最多续传几次，防止异常情况下无限循环
 MAX_CONTINUATIONS = 5
+# 模型请求遇到可恢复的错误（连不上、限流、服务商 5xx）时的重试间隔；SDK 自带的重试不知道整任务期限，已关掉
+API_RETRY_DELAYS = (2, 5)
+# 结果回调投递失败（连不上、超时、后端 5xx）时的重投间隔，合计约 1 分钟（audit AI-002）
+CALLBACK_RETRY_DELAYS = (5, 15, 45)
 FALLBACK_BETA = "server-side-fallback-2026-07-01"
 IMAGE_TYPES = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".gif": "image/gif", ".webp": "image/webp"}
 
@@ -138,6 +146,53 @@ OUTPUT_SCHEMA = {
 
 # 一个任务在一个线程里跑完：用线程变量累加这次任务内所有 API 调用的用量，回调时带回（不含 Key 与请求内容）
 _usage = threading.local()
+
+
+class JobTimeout(Exception):
+    """整个任务超过 AI_ORCHESTRATOR_TIMEOUT_SECONDS（audit AI-005）"""
+
+
+_JOB = threading.local()
+
+
+def start_job():
+    """任务开始计时：下载附件、排队、每轮模型请求和续传共用这一个期限，
+    保证编排服务在后端超时扫描（默认 20 分钟）判失败之前就停下（audit AI-005）"""
+    _JOB.deadline = time.monotonic() + TIMEOUT_SECONDS
+
+
+def remaining() -> float:
+    """本任务还剩多少秒；已到期时抛 JobTimeout，不再发起下一步请求"""
+    deadline = getattr(_JOB, "deadline", None)
+    if deadline is None:
+        return float(TIMEOUT_SECONDS)
+    left = deadline - time.monotonic()
+    if left <= 0:
+        raise JobTimeout()
+    return left
+
+
+def _retryable(e: Exception) -> bool:
+    """连不上、限流、服务商 5xx 可以重试；超时、鉴权、参数错误不重试"""
+    if isinstance(e, (anthropic.APITimeoutError, openai.APITimeoutError)):
+        return False
+    if isinstance(e, (anthropic.APIConnectionError, openai.APIConnectionError)):
+        return True
+    if isinstance(e, (anthropic.APIStatusError, openai.APIStatusError)):
+        return e.status_code in (408, 409, 429) or e.status_code >= 500
+    return False
+
+
+def _with_retries(request):
+    """request(timeout) 发起一次模型请求；在本任务剩余时间内重试可恢复的错误"""
+    for delay in API_RETRY_DELAYS + (None,):
+        try:
+            return request(remaining())
+        except (anthropic.APIError, openai.APIError) as e:
+            if delay is None or not _retryable(e) or remaining() <= delay:
+                raise
+            print(f"[ai-orchestrator] 模型请求失败，{delay} 秒后重试：{type(e).__name__}")
+            time.sleep(delay)
 
 
 def _record_usage(model: str, input_tokens, output_tokens, searches):
@@ -295,7 +350,7 @@ def _read_attachment(ref: dict) -> tuple:
     url = ref["url"]
     if urllib.parse.urlsplit(url).scheme not in ("http", "https"):
         raise ValueError("附件链接只支持 http / https")
-    with urllib.request.urlopen(url, timeout=120) as resp:
+    with urllib.request.urlopen(url, timeout=min(120, remaining())) as resp:
         return resp.read(), "." + ref.get("ext", "").lower().lstrip(".")
 
 
@@ -330,7 +385,7 @@ def call_api(cfg: AiConfig, system_prompt: str, text: str, attachments: list, sc
         wire_schema = _required_nullable_schema(schema) if cfg.provider == "openai" else schema
         result = call_subscription(cfg.provider, system_prompt, text, attachments, wire_schema, model=model,
                                    effort=effort, web_search=web_search, max_web_searches=cfg.max_web_searches,
-                                   timeout=TIMEOUT_SECONDS)
+                                   timeout=max(1, int(remaining())))
         return _drop_nulls(result)
     call = _call_openai if cfg.provider == "openai" else _call_claude
     return call(cfg, system_prompt, text, attachments, schema, model, effort, web_search)
@@ -338,7 +393,7 @@ def call_api(cfg: AiConfig, system_prompt: str, text: str, attachments: list, sc
 
 def _call_claude(cfg, system_prompt, text, attachments, schema, model, effort, web_search) -> dict:
     """调用 Anthropic API；pause_turn 时原样续传"""
-    client = anthropic.Anthropic(api_key=cfg.api_key, timeout=TIMEOUT_SECONDS)
+    client = anthropic.Anthropic(api_key=cfg.api_key, timeout=TIMEOUT_SECONDS, max_retries=0)
     content = [_attachment_block(a) for a in attachments] + [{"type": "text", "text": text}]
     messages = [{"role": "user", "content": content}]
     params = {
@@ -354,10 +409,15 @@ def _call_claude(cfg, system_prompt, text, attachments, schema, model, effort, w
         params["fallbacks"] = "default"
     if web_search:
         params["tools"] = [{"type": "web_search_20260209", "name": "web_search", "max_uses": cfg.max_web_searches}]
+    def one_round(timeout):
+        # 流式输出时只要一直有数据就不会触发单请求超时，所以每收到一段都核对整任务期限
+        with client.beta.messages.stream(messages=messages, timeout=timeout, **params) as stream:
+            for _ in stream:
+                remaining()
+            return stream.get_final_message(), stream.request_id
+
     for _ in range(MAX_CONTINUATIONS + 1):
-        with client.beta.messages.stream(messages=messages, **params) as stream:
-            response = stream.get_final_message()
-            request_id = stream.request_id
+        response, request_id = _with_retries(one_round)
         if response.stop_reason != "pause_turn":
             break
         messages = [messages[0], {"role": "assistant", "content": response.content}]
@@ -417,7 +477,7 @@ def _drop_nulls(value):
 
 def _call_openai(cfg, system_prompt, text, attachments, schema, model, effort, web_search) -> dict:
     """调用 OpenAI Responses API"""
-    client = openai.OpenAI(api_key=cfg.api_key, timeout=TIMEOUT_SECONDS)
+    client = openai.OpenAI(api_key=cfg.api_key, timeout=TIMEOUT_SECONDS, max_retries=0)
     content = [_openai_attachment_block(a) for a in attachments] + [{"type": "input_text", "text": text}]
     params = {
         "model": model,
@@ -432,7 +492,7 @@ def _call_openai(cfg, system_prompt, text, attachments, schema, model, effort, w
         # max_tool_calls 统计全部托管工具调用（搜索、打开网页、页内查找），不只是搜索
         params["tools"] = [{"type": "web_search"}]
         params["max_tool_calls"] = cfg.max_web_searches
-    response = client.responses.create(**params)
+    response = _with_retries(lambda timeout: client.responses.create(timeout=timeout, **params))
 
     if response.status == "incomplete":
         reason = getattr(response.incomplete_details, "reason", None)
@@ -536,6 +596,7 @@ def _api_key_of(payload: dict) -> str:
 
 
 def process_translate(payload: dict, callback_url: str, prompt: str = TRANSLATE_PROMPT):
+    start_job()
     key = _api_key_of(payload)
     try:
         cfg = parse_ai_config(payload.get("ai"))
@@ -546,7 +607,7 @@ def process_translate(payload: dict, callback_url: str, prompt: str = TRANSLATE_
         send_callback(callback_url, "success", output=call_translate(cfg, items, prompt))
     except ConfigError as e:
         send_callback(callback_url, "failed", error=str(e))
-    except (anthropic.APITimeoutError, openai.APITimeoutError):
+    except (JobTimeout, anthropic.APITimeoutError, openai.APITimeoutError):
         send_callback(callback_url, "failed", error=f"AI 处理超过 {TIMEOUT_SECONDS} 秒未完成")
     except Exception as e:
         message = scrub(str(e), key)
@@ -631,6 +692,7 @@ def call_background(cfg: AiConfig, input_data: dict) -> dict:
 
 
 def process_background(payload: dict, callback_url: str):
+    start_job()
     key = _api_key_of(payload)
     try:
         cfg = parse_ai_config(payload.get("ai"))
@@ -647,7 +709,7 @@ def process_background(payload: dict, callback_url: str):
         send_callback(callback_url, "success", output=call_background(cfg, input_data))
     except ConfigError as e:
         send_callback(callback_url, "failed", error=str(e))
-    except (anthropic.APITimeoutError, openai.APITimeoutError):
+    except (JobTimeout, anthropic.APITimeoutError, openai.APITimeoutError):
         send_callback(callback_url, "failed", error=f"AI 处理超过 {TIMEOUT_SECONDS} 秒未完成")
     except Exception as e:
         message = scrub(str(e), key)
@@ -655,8 +717,188 @@ def process_background(payload: dict, callback_url: str):
         send_callback(callback_url, "failed", error=message[:500])
 
 
-def send_callback(callback_url: str, status: str, output=None, error=None):
-    """回调带上本线程累计的用量（spec ai-platform/task-orchestration「记录 AI 调用用量」）；旧版后端忽略 usage"""
+FOLLOWUP_EXTRACT_SKILL = "followup-extract"
+FOLLOWUP_REPLY_SKILL = "followup-reply"
+# 粘贴原文只取最后这么多字交给 AI（与后端 FollowupConstants.RAW_MAX 一致）
+FOLLOWUP_RAW_MAX = 20000
+FOLLOWUP_SITUATIONS = ("feedback", "negotiating", "no_reply")
+# 客户经营（board 5）的客户情况是单选（第三期 design D10），按这个先后只留一个；其他板块丢掉这三个值
+FOLLOWUP_ACCOUNT_SITUATIONS = ("new_need", "cross_sell", "no_need")
+FOLLOWUP_ACCOUNT_BOARD = 5
+# 主动开发（board 1）的触达结果是单选（第四期 design D11）：回复了、采购信号、明确拒绝，另可只是没回复；采购信号另输出 signalText
+FOLLOWUP_DEVELOP_SITUATIONS = ("buying_signal", "refused", "replied")
+FOLLOWUP_DEVELOP_BOARD = 1
+FOLLOWUP_SIGNAL_MAX = 200
+# 订单履约、售后评价阶段的答案建议（第二期 design D13）：只在对应阶段输出，取值与后端 FollowupConstants 一致
+FOLLOWUP_ISSUE_TYPES = ("少件", "破损", "型号不对", "其他")
+FOLLOWUP_REVIEW_STATUSES = (1, 2, 3, 4, 6)
+FOLLOWUP_STAGE_FIELDS = {
+    "F6": ("etaDate",),
+    "A1": ("receiptAnswer", "issueTypes", "etaDate"),
+    "A2": ("useAnswer", "issueTypes"),
+    "A5": ("satisfaction", "reviewStatus"),
+    "A6": ("reviewStatus",),
+}
+
+FOLLOWUP_EXTRACT_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "summary": {"type": "string"},
+        "situation": {"type": "array", "items": {"type": "string",
+                                                  "enum": list(FOLLOWUP_SITUATIONS + FOLLOWUP_ACCOUNT_SITUATIONS
+                                                               + FOLLOWUP_DEVELOP_SITUATIONS)}},
+        "signalText": {"type": "string"},
+        "blocker": {"type": "string"},
+        "nextActions": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {"text": {"type": "string"}, "days": {"type": "integer"}},
+                "required": ["text", "days"],
+            },
+        },
+        "profileSuggestions": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {"field": {"type": "string"}, "value": {"type": "string"}, "evidence": {"type": "string"}},
+                "required": ["field", "value", "evidence"],
+            },
+        },
+        "receiptAnswer": {"type": "integer", "enum": [1, 2, 3]},
+        "useAnswer": {"type": "integer", "enum": [1, 2, 3]},
+        "issueTypes": {"type": "array", "items": {"type": "string", "enum": list(FOLLOWUP_ISSUE_TYPES)}},
+        "satisfaction": {"type": "integer", "enum": [1, 2, 3]},
+        "reviewStatus": {"type": "integer", "enum": list(FOLLOWUP_REVIEW_STATUSES)},
+        "etaDate": {"type": "string"},
+    },
+    "required": ["summary", "situation", "blocker", "nextActions", "profileSuggestions"],
+}
+
+FOLLOWUP_REPLY_SCHEMA = {
+    "type": "object",
+    "properties": {"reply": {"type": "string"}, "intent": {"type": "string"}},
+    "required": ["reply", "intent"],
+}
+
+
+def followup_extract_input(input_data: dict) -> dict:
+    """原文只保留最后 FOLLOWUP_RAW_MAX 字（最新的消息在最后），并标出是否截断"""
+    raw = (input_data.get("rawContent") or "").strip()
+    truncated = len(raw) > FOLLOWUP_RAW_MAX
+    return {**input_data, "rawContent": raw[-FOLLOWUP_RAW_MAX:] if truncated else raw, "truncated": truncated}
+
+
+def sanitize_followup_extract(structured: dict, input_data: dict) -> dict:
+    """只保留合法取值：客户情况只取三个固定值，卡点只取输入的卡点码，档案字段只取输入的可补字段，下一步最多 2 条"""
+    blockers = {b.get("code") for b in input_data.get("blockers") or [] if isinstance(b, dict)}
+    fields = {f.get("field") for f in input_data.get("profileFields") or [] if isinstance(f, dict)}
+    raw_situation = structured.get("situation") or []
+    board = (input_data.get("stage") or {}).get("board")
+    if board == FOLLOWUP_ACCOUNT_BOARD:
+        situation = [x for x in FOLLOWUP_ACCOUNT_SITUATIONS + ("no_reply",) if x in raw_situation][:1]
+    elif board == FOLLOWUP_DEVELOP_BOARD:
+        situation = [x for x in FOLLOWUP_DEVELOP_SITUATIONS + ("no_reply",) if x in raw_situation][:1]
+    else:
+        situation = [x for x in FOLLOWUP_SITUATIONS if x in raw_situation]
+        if "no_reply" in situation and len(situation) > 1:
+            situation = [x for x in situation if x != "no_reply"]
+    blocker = structured.get("blocker") or ""
+    actions = []
+    for a in structured.get("nextActions") or []:
+        text = str(a.get("text") or "").strip()
+        if text:
+            actions.append({"text": text[:200], "days": max(0, min(int(a.get("days") or 0), 60))})
+    suggestions = []
+    for sug in structured.get("profileSuggestions") or []:
+        value = str(sug.get("value") or "").strip()
+        if sug.get("field") in fields and value:
+            suggestions.append({"field": sug["field"], "value": value[:500],
+                                "evidence": str(sug.get("evidence") or "")[:200]})
+    out = {
+        "summary": str(structured.get("summary") or "").strip()[:1000],
+        "situation": situation,
+        "blocker": blocker if blocker in blockers else "",
+        "nextActions": actions[:2],
+        "profileSuggestions": suggestions,
+        "truncated": bool(input_data.get("truncated")),
+    }
+    if situation == ["buying_signal"]:
+        out["signalText"] = str(structured.get("signalText") or "").strip()[:FOLLOWUP_SIGNAL_MAX]
+    out.update(stage_answers(structured, input_data))
+    return out
+
+
+def stage_answers(structured: dict, input_data: dict) -> dict:
+    """订单履约、售后评价阶段的答案建议：只保留当前阶段的字段和合法取值"""
+    stage = (input_data.get("stage") or {}).get("code") or ""
+    out = {}
+    for field in FOLLOWUP_STAGE_FIELDS.get(stage, ()):
+        value = structured.get(field)
+        if field == "issueTypes":
+            picked = [x for x in FOLLOWUP_ISSUE_TYPES if x in (value or [])]
+            if picked:
+                out[field] = picked
+        elif field == "etaDate":
+            try:
+                out[field] = date.fromisoformat(str(value or "").strip()).isoformat()
+            except ValueError:
+                pass
+        elif field == "reviewStatus":
+            if value in FOLLOWUP_REVIEW_STATUSES:
+                out[field] = value
+        elif value in (1, 2, 3):
+            out[field] = value
+    return out
+
+
+def call_followup_extract(cfg: AiConfig, input_data: dict) -> dict:
+    """整理一次跟进；不联网，用翻译的模型与思考强度（轻量、快）"""
+    prepared = followup_extract_input(input_data)
+    structured = call_api(cfg, _read_skill(FOLLOWUP_EXTRACT_SKILL), json.dumps(prepared, ensure_ascii=False, indent=1), [],
+                          FOLLOWUP_EXTRACT_SCHEMA, model=cfg.translate_model, effort=cfg.translate_effort)
+    if "summary" not in structured:
+        raise RuntimeError("AI 未返回符合 schema 的跟进整理结果")
+    return sanitize_followup_extract(structured, prepared)
+
+
+def call_followup_reply(cfg: AiConfig, input_data: dict) -> dict:
+    """按客户上下文和卡点写一条英文跟进消息"""
+    structured = call_api(cfg, _read_skill(FOLLOWUP_REPLY_SKILL), json.dumps(input_data, ensure_ascii=False, indent=1), [],
+                          FOLLOWUP_REPLY_SCHEMA, model=cfg.translate_model, effort=cfg.translate_effort)
+    if not (structured.get("reply") or "").strip():
+        raise RuntimeError("AI 未返回英文回复")
+    return {"reply": structured["reply"].strip(), "intent": str(structured.get("intent") or "").strip()[:200]}
+
+
+def process_followup(payload: dict, callback_url: str, skill_id: str):
+    start_job()
+    key = _api_key_of(payload)
+    try:
+        cfg = parse_ai_config(payload.get("ai"))
+        input_data = payload.get("input") or {}
+        if skill_id == FOLLOWUP_EXTRACT_SKILL:
+            if not (input_data.get("rawContent") or "").strip():
+                send_callback(callback_url, "failed", error="没有需要整理的内容")
+                return
+            output = call_followup_extract(cfg, input_data)
+        else:
+            output = call_followup_reply(cfg, input_data)
+        send_callback(callback_url, "success", output=output)
+    except ConfigError as e:
+        send_callback(callback_url, "failed", error=str(e))
+    except (JobTimeout, anthropic.APITimeoutError, openai.APITimeoutError):
+        send_callback(callback_url, "failed", error=f"AI 处理超过 {TIMEOUT_SECONDS} 秒未完成")
+    except Exception as e:
+        message = scrub(str(e), key)
+        print(f"[ai-orchestrator] {skill_id} failed: {message}")
+        send_callback(callback_url, "failed", error=message[:500])
+
+
+def send_callback(callback_url: str, status: str, output=None, error=None) -> bool:
+    """回调带上本线程累计的用量（spec ai-platform/task-orchestration「记录 AI 调用用量」）；旧版后端忽略 usage。
+    投递失败（连不上、超时、后端 5xx）按 CALLBACK_RETRY_DELAYS 重投同一结果，不重新调用模型；
+    后端按任务幂等接收，重复的回调不会重复处理（audit AI-002）。返回是否投递成功"""
     body = {"status": status, "output": output, "error": error}
     usage = _take_usage()
     if usage:
@@ -668,11 +910,29 @@ def send_callback(callback_url: str, status: str, output=None, error=None):
         method="POST",
         headers={"Content-Type": "application/json", "X-AI-Callback-Token": CALLBACK_TOKEN},
     )
-    try:
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            print(f"[ai-orchestrator] callback -> {callback_url} status={resp.status}")
-    except Exception as e:
-        print(f"[ai-orchestrator] callback FAILED -> {callback_url}: {e}")
+    for attempt, delay in enumerate(CALLBACK_RETRY_DELAYS + (None,), 1):
+        try:
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                print(f"[ai-orchestrator] callback -> {callback_url} status={resp.status}")
+                return True
+        except urllib.error.HTTPError as e:
+            if e.code < 500 and e.code != 429:
+                # 令牌不对、任务不存在等，重投也不会成功
+                print(f"[ai-orchestrator] callback REJECTED -> {callback_url}: HTTP {e.code}")
+                return False
+            reason = f"HTTP {e.code}"
+        except (urllib.error.URLError, OSError) as e:
+            reason = str(e)
+        except ValueError as e:
+            print(f"[ai-orchestrator] callback FAILED -> {callback_url}: {e}")
+            return False
+        if delay is None:
+            break
+        print(f"[ai-orchestrator] callback FAILED -> {callback_url}（第 {attempt} 次）: {reason}，{delay} 秒后重投")
+        time.sleep(delay)
+    print(f"[ai-orchestrator] callback GAVE UP -> {callback_url}: 重投 {len(CALLBACK_RETRY_DELAYS)} 次仍失败，"
+          f"任务将由后端超时扫描判为失败")
+    return False
 
 
 def _nameplate_no(ref: dict):
@@ -686,6 +946,7 @@ def _nameplate_no(ref: dict):
 
 
 def process_job(payload: dict, callback_url: str):
+    start_job()
     key = _api_key_of(payload)
     try:
         cfg = parse_ai_config(payload.get("ai"))
@@ -707,7 +968,7 @@ def process_job(payload: dict, callback_url: str):
         send_callback(callback_url, "success", output=output)
     except ConfigError as e:
         send_callback(callback_url, "failed", error=str(e))
-    except (anthropic.APITimeoutError, openai.APITimeoutError):
+    except (JobTimeout, anthropic.APITimeoutError, openai.APITimeoutError):
         send_callback(callback_url, "failed", error=f"AI 处理超过 {TIMEOUT_SECONDS} 秒未完成")
     except Exception as e:
         message = scrub(str(e), key)
@@ -727,46 +988,63 @@ def _provider_error(e: Exception, key: str) -> str:
         return "连接服务商超时"
     if isinstance(e, (anthropic.APIConnectionError, openai.APIConnectionError)):
         return "无法连接服务商"
+    if isinstance(e, (anthropic.APIStatusError, openai.APIStatusError)) and e.status_code >= 500:
+        return f"服务商暂时不可用（HTTP {e.status_code}）"
+    if isinstance(e, (anthropic.RateLimitError, openai.RateLimitError)):
+        return "服务商限流，请稍后重试"
     return scrub(str(e), key)[:200]
 
 
 def _retrieve_model(cfg: AiConfig, model: str):
     """查询单个模型信息（不产生调用费用）"""
     if cfg.provider == "openai":
-        openai.OpenAI(api_key=cfg.api_key, timeout=QUICK_TIMEOUT_SECONDS).models.retrieve(model)
+        openai.OpenAI(api_key=cfg.api_key, timeout=QUICK_TIMEOUT_SECONDS, max_retries=0).models.retrieve(model)
     else:
-        anthropic.Anthropic(api_key=cfg.api_key, timeout=QUICK_TIMEOUT_SECONDS).models.retrieve(model)
+        anthropic.Anthropic(api_key=cfg.api_key, timeout=QUICK_TIMEOUT_SECONDS, max_retries=0).models.retrieve(model)
+
+
+def _check_model(cfg: AiConfig, model: str):
+    """查询一个模型，成功返回 None，失败返回服务商异常"""
+    try:
+        _retrieve_model(cfg, model)
+        return None
+    except (anthropic.APIError, openai.APIError) as e:
+        return e
 
 
 def test_connection(raw) -> dict:
-    """测试连接：API 方式查询 Key 与两个模型，订阅方式检查对应 CLI 是否登录"""
+    """测试连接：API 方式查询 Key 与两个模型，订阅方式检查对应 CLI 是否登录。
+    各项并行检查，快速检查不让 SDK 自动重试，整次诊断在后端 30 秒期限内返回（audit AI-004）"""
     try:
         cfg = parse_ai_config(raw, require_key=False)
     except ConfigError as e:
         return {"ok": False, "items": [{"name": "配置", "ok": False, "message": str(e)}]}
     if cfg.mode == "subscription":
-        name = "Codex 登录" if cfg.provider == "openai" else "Claude 登录"
-        logged_in = login_status(QUICK_TIMEOUT_SECONDS)["codex" if cfg.provider == "openai" else "claude"]
-        return {"ok": logged_in, "items": [{"name": name, "ok": logged_in,
-                                            "message": "已登录" if logged_in else "未登录，请在容器内执行登录命令"}]}
+        # 只检查所选服务商，不等另一家的 CLI
+        cli = "codex" if cfg.provider == "openai" else "claude"
+        name = "Codex 登录" if cli == "codex" else "Claude 登录"
+        logged_in = login_status(QUICK_TIMEOUT_SECONDS, providers=(cli,))[cli]
+        message = {True: "已登录", False: "未登录，请在容器内执行登录命令"}.get(logged_in, "未能检查登录状态（超时或找不到 CLI），请稍后重试")
+        return {"ok": bool(logged_in), "items": [{"name": name, "ok": bool(logged_in), "message": message}]}
     if not cfg.api_key:
         return {"ok": False, "items": [{"name": "API Key", "ok": False, "message": "未填写 API Key"}]}
-    items = []
     models = [("解析模型", cfg.parse_model), ("翻译模型", cfg.translate_model)]
-    for i, (label, model) in enumerate(models):
-        try:
-            _retrieve_model(cfg, model)
-            if i == 0:
-                items.append({"name": "API Key", "ok": True, "message": "有效"})
-            items.append({"name": f"{label} {model}", "ok": True, "message": "可用"})
-        except (anthropic.AuthenticationError, openai.AuthenticationError,
-                anthropic.PermissionDeniedError, openai.PermissionDeniedError) as e:
-            items.append({"name": "API Key", "ok": False, "message": _provider_error(e, cfg.api_key)})
-            break
-        except (anthropic.APIError, openai.APIError) as e:
-            if i == 0:
-                items.append({"name": "API Key", "ok": True, "message": "有效"})
-            items.append({"name": f"{label} {model}", "ok": False, "message": _provider_error(e, cfg.api_key)})
+    with ThreadPoolExecutor(max_workers=len(models)) as pool:
+        errors = list(pool.map(lambda m: _check_model(cfg, m[1]), models))
+    denied = next((e for e in errors if isinstance(e, (anthropic.AuthenticationError, openai.AuthenticationError,
+                                                       anthropic.PermissionDeniedError, openai.PermissionDeniedError))), None)
+    if denied is not None:
+        return {"ok": False, "items": [{"name": "API Key", "ok": False, "message": _provider_error(denied, cfg.api_key)}]}
+    # 只有服务商实际回应了（查到模型，或回复模型不存在）才能确认 Key 有效；连不上、超时、5xx 无法确认（audit AI-006）
+    verified = any(e is None or isinstance(e, (anthropic.NotFoundError, openai.NotFoundError)) for e in errors)
+    if verified:
+        key_item = {"name": "API Key", "ok": True, "message": "有效"}
+    else:
+        key_item = {"name": "API Key", "ok": False,
+                    "message": "无法确认：" + _provider_error(next(e for e in errors if e is not None), cfg.api_key)}
+    items = [key_item] + [{"name": f"{label} {model}", "ok": e is None,
+                           "message": "可用" if e is None else _provider_error(e, cfg.api_key)}
+                          for (label, model), e in zip(models, errors)]
     return {"ok": all(item["ok"] for item in items), "items": items}
 
 
@@ -790,10 +1068,12 @@ def list_models(raw) -> dict:
         if not cfg.api_key:
             return {"models": fallback, "source": "defaults", "error": None}
         if cfg.provider == "openai":
-            ids = [m.id for m in openai.OpenAI(api_key=cfg.api_key, timeout=QUICK_TIMEOUT_SECONDS).models.list()]
+            ids = [m.id for m in openai.OpenAI(api_key=cfg.api_key, timeout=QUICK_TIMEOUT_SECONDS,
+                                               max_retries=0).models.list()]
             ids = sorted(i for i in ids if not any(marker in i for marker in NON_CHAT_MARKERS))
         else:
-            ids = [m.id for m in anthropic.Anthropic(api_key=cfg.api_key, timeout=QUICK_TIMEOUT_SECONDS).models.list()]
+            ids = [m.id for m in anthropic.Anthropic(api_key=cfg.api_key, timeout=QUICK_TIMEOUT_SECONDS,
+                                                     max_retries=0).models.list()]
         return {"models": [{"id": i, "default": False} for i in ids], "source": "provider", "error": None}
     except (anthropic.APIError, openai.APIError) as e:
         return {"models": fallback, "source": "defaults", "error": _provider_error(e, cfg.api_key)}
@@ -833,8 +1113,9 @@ class Handler(BaseHTTPRequestHandler):
         if self.path != "/status":
             self._send_json(404, {"error": "not found"})
             return
+        # 两家并行检查；超时按未登录返回，后端约定不变
         status = login_status(QUICK_TIMEOUT_SECONDS)
-        self._send_json(200, {"codex": {"logged_in": status["codex"]}, "claude": {"logged_in": status["claude"]}})
+        self._send_json(200, {"codex": {"logged_in": bool(status["codex"])}, "claude": {"logged_in": bool(status["claude"])}})
 
     def do_POST(self):
         if not self._authorized():
@@ -860,6 +1141,11 @@ class Handler(BaseHTTPRequestHandler):
             prompt = NAME_PROMPT if skill_id == NAME_SKILL else TRANSLATE_PROMPT
             if callback_url:
                 threading.Thread(target=process_translate, args=(payload, callback_url, prompt), daemon=True).start()
+            return
+
+        if skill_id in (FOLLOWUP_EXTRACT_SKILL, FOLLOWUP_REPLY_SKILL):
+            if callback_url:
+                threading.Thread(target=process_followup, args=(payload, callback_url, skill_id), daemon=True).start()
             return
 
         if skill_id == BACKGROUND_SKILL:

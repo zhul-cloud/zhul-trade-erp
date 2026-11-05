@@ -49,7 +49,7 @@ const globalCss = (p: Palette) => `
   html body .ant-tag.ant-tag-warning, html body .ant-tag.ant-tag-orange { color: ${p.orange} !important; background: ${p.orangeSoft} !important; border-color: transparent !important; }
   html body .ant-tag.ant-tag-error, html body .ant-tag.ant-tag-red { color: ${p.red} !important; background: ${p.redSoft} !important; border-color: transparent !important; }
   html body .ant-tag.ant-tag-processing, html body .ant-tag.ant-tag-blue { color: ${p.link} !important; background: ${p.accentSoft} !important; border-color: transparent !important; }
-  .num { font-variant-numeric: tabular-nums; }
+  .num { font-variant-numeric: tabular-nums; white-space: nowrap; }
   .zhul-skip {
     position: absolute; left: 16px; top: 12px; z-index: 1100; padding: 8px 16px; border-radius: 10px;
     background: ${p.card}; color: ${p.link}; border: 2px solid ${p.link};

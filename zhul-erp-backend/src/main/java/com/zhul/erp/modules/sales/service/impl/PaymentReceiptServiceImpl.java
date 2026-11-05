@@ -99,6 +99,7 @@ public class PaymentReceiptServiceImpl implements PaymentReceiptService {
     private final PermissionChecker perm;
     private final SalesOrderService orderService;
     private final com.zhul.erp.modules.finance.service.CreditUsageService creditUsage;
+    private final com.zhul.erp.modules.crm.followup.support.FollowupHooks followupHooks;
 
     // ---------------------------------------------------------------- 水单
 
@@ -227,6 +228,7 @@ public class PaymentReceiptServiceImpl implements PaymentReceiptService {
     @Transactional(rollbackFor = Exception.class)
     public PiVO confirm(Long piId, ConfirmReceiptRequest req) {
         doConfirm(Owner.of(requireReceivable(piId)), req);
+        followupHooks.receiptConfirmed(piMapper.selectById(piId), req.getAmount());
         return piService.detail(piId, null);
     }
 
@@ -298,7 +300,9 @@ public class PaymentReceiptServiceImpl implements PaymentReceiptService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public PiVO voidReceipt(Long piId, Long receiptId, String reason) {
-        doVoid(Owner.of(store.lockVisible(piId)), receiptId, reason);
+        ProformaInvoiceDO voided = store.lockVisible(piId);
+        doVoid(Owner.of(voided), receiptId, reason);
+        followupHooks.customerChanged(voided.getCustomerId());
         return piService.detail(piId, null);
     }
 

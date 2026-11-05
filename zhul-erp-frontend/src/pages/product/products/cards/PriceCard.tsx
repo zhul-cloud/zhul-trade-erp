@@ -302,6 +302,7 @@ export const PriceCard: React.FC<{
               { title: '来源原价', dataIndex: 'sourcePrice', width: 120 },
               {
                 title: '来源链接',
+                width: 220,
                 dataIndex: 'linkUrl',
                 render: (v: string, r) =>
                   v ? (
@@ -313,7 +314,7 @@ export const PriceCard: React.FC<{
                   ),
               },
             ]}
-            scroll={{ x: 720 }}
+            scroll={{ x: 'max-content' }}
           />
         </div>
       )}

@@ -29,6 +29,7 @@ import { useAppTheme } from '@/theme/AppTheme';
 import { useBusinessUnits } from '@/utils/businessUnit';
 import { formatAmount } from '@/utils/format';
 import { usePageSize } from '@/utils/pageSize';
+import { tableScrollX } from '@/utils/tableScroll';
 import { AdjustModal, WithdrawModal } from './CreditModals';
 import EntriesDrawer from './EntriesDrawer';
 import {
@@ -400,7 +401,7 @@ const CreditPage: React.FC = () => {
               loading={rows === null}
               columns={columns}
               dataSource={rows ?? []}
-              scroll={{ x: 1100 }}
+              scroll={{ x: tableScrollX(columns) }}
               onRow={(a) => ({ onDoubleClick: () => setViewing(a) })}
               pagination={{
                 current: page,
@@ -606,7 +607,7 @@ const ReconTab: React.FC<{
         columns={columns}
         dataSource={data?.rows ?? []}
         pagination={false}
-        scroll={{ x: 1200 }}
+        scroll={{ x: tableScrollX(columns) }}
         locale={{
           emptyText: `${month.format('YYYY 年 M 月')}没有 ${currency} 余额变动`,
         }}

@@ -133,6 +133,7 @@ public class SalesOrderServiceImpl implements SalesOrderService {
     private final com.zhul.erp.modules.logistics.support.LogisticsQty logisticsQty;
     private final com.zhul.erp.modules.sales.support.PiSummary piSummary;
     private final com.zhul.erp.modules.sales.repository.SalesOrderPartialCancelMapper partialCancelMapper;
+    private final com.zhul.erp.modules.crm.followup.support.FollowupHooks followupHooks;
     private final com.zhul.erp.modules.system.service.DictItemService dictItemService;
 
     // ---------------------------------------------------------------- 转订单与取消
@@ -251,6 +252,7 @@ public class SalesOrderServiceImpl implements SalesOrderService {
             after.put("先采购后收款", payLaterReason);
         }
         logService.recordOperateLog(SalesConstants.MENU_SO, "PI 转成销售订单", null, after);
+        followupHooks.orderChanged(o.getId());
         return detail(o.getId());
     }
 
@@ -430,6 +432,7 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         after.put("total", currency + " " + total);
         after.put("items", rows.size());
         logService.recordOperateLog(SalesConstants.MENU_SO, "手动创建销售订单", null, after);
+        followupHooks.orderChanged(o.getId());
         return detail(o.getId());
     }
 
@@ -496,6 +499,12 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         if (SalesConstants.PROGRESS_COMPLETED.equals(o.getProgressCode())) {
             throw new BizException("订单已完成，不能取消");
         }
+        // 货还在仓库（待打包、已打包）的出库单要先撤回，否则挂在已取消的订单上；已交货代、已出运的不拦，
+        // 重转时随货改挂到新订单（RequirementLifecycle，audit BUS-027）
+        List<String> obNos = logisticsQty.inWarehouseObNos(orderItems(id).stream().map(SalesOrderItemDO::getId).toList());
+        if (!obNos.isEmpty()) {
+            throw new BizException("订单还有未交货代的销售出库单 " + String.join("、", obNos) + "，请先撤回后再取消");
+        }
         o.setStatus(SalesConstants.SO_CANCELLED);
         o.setCancelReason(why.length() > 200 ? why.substring(0, 200) : why);
         o.setCancelledBy(currentUserId());
@@ -511,6 +520,7 @@ public class SalesOrderServiceImpl implements SalesOrderService {
             logService.recordOperateLog(SalesConstants.MENU_SO, "取消销售订单", Map.of("soNo", o.getSoNo(), "status", "有效"),
                     Map.of("soNo", o.getSoNo(), "status", "已取消", "reason", o.getCancelReason(),
                             "received", o.getCurrencyCode() + " " + o.getReceivedAmount()));
+            followupHooks.orderChanged(id);
             return detail(id);
         }
         pi.setStatus(SalesConstants.PI_SENT);
@@ -528,6 +538,7 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         logService.recordOperateLog(SalesConstants.MENU_SO, "取消销售订单", Map.of("soNo", o.getSoNo(), "status", "有效"),
                 Map.of("soNo", o.getSoNo(), "status", "已取消", "reason", o.getCancelReason(), "piNo", pi.getPiNo(),
                         "received", pi.getCurrencyCode() + " " + pi.getReceivedAmount()));
+        followupHooks.orderChanged(id);
         return detail(id);
     }
 
@@ -755,6 +766,7 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         after.put("reason", partialCancelReasons().getOrDefault(reason, reason) + (remark.isEmpty() ? "" : "：" + remark));
         after.put("total", o.getCurrencyCode() + " " + plan.totalBefore() + " → " + o.getTotalAmount());
         logService.recordOperateLog(SalesConstants.MENU_SO, "部分取消", null, after);
+        followupHooks.orderChanged(id);
         return detail(id);
     }
 
@@ -888,6 +900,7 @@ public class SalesOrderServiceImpl implements SalesOrderService {
             after.put("note", req.getNote().trim());
         }
         logService.recordOperateLog(SalesConstants.MENU_SO, "更新订单进度", null, after);
+        followupHooks.orderChanged(id);
         return detail(id);
     }
 
@@ -934,6 +947,7 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         }
         recompute(t.order(), t.all(), progress.ordered());
         logService.recordOperateLog(SalesConstants.MENU_SO, "修改现货 / 期货", null, Map.of("soNo", t.order().getSoNo(), "items", changes));
+        followupHooks.orderChanged(id);
         return detail(id);
     }
 
@@ -945,17 +959,50 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         requireTrackable(o);
         List<OrderProgress.Step> ordered = progress.ordered();
         OrderProgress.Step last = OrderProgress.last(ordered);
-        int lastRank = OrderProgress.rank(ordered, last.code());
-        long behind = live(orderItems(id)).stream().filter(i -> OrderProgress.rank(ordered, i.getProgressCode()) < lastRank).count();
+        long behind = behind(id, ordered, last);
         if (behind > 0) {
             throw new BizException("还有 " + behind + " 个型号还没到「" + last.name() + "」，不能确认收货");
         }
+        markCompleted(o, last, "客户已收货");
+        followupHooks.orderChanged(id);
+        return detail(id);
+    }
+
+    /**
+     * 跟进记录里 A1 选「已收到，数量外观没问题」时确认客户已收货（第二期 design D8）：校验同 {@link #complete}，
+     * 条件不满足时不抛异常、返回 false；订单已完成时返回 true。跟进对象由调用方随后重新推导，这里不调钩子。
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public boolean confirmReceivedByFollowup(Long id) {
+        SalesOrderDO o = lockOrder(id);
+        if (SalesConstants.PROGRESS_COMPLETED.equals(o.getProgressCode())) {
+            return true;
+        }
+        if (o.getStatus() != SalesConstants.SO_ACTIVE) {
+            return false;
+        }
+        List<OrderProgress.Step> ordered = progress.ordered();
+        OrderProgress.Step last = OrderProgress.last(ordered);
+        if (behind(id, ordered, last) > 0) {
+            return false;
+        }
+        markCompleted(o, last, "客户已收货（来自跟进记录）");
+        return true;
+    }
+
+    /** 还没到最后一个进行中步骤的型号数（全部取消的不算） */
+    private long behind(Long id, List<OrderProgress.Step> ordered, OrderProgress.Step last) {
+        int lastRank = OrderProgress.rank(ordered, last.code());
+        return live(orderItems(id)).stream().filter(i -> OrderProgress.rank(ordered, i.getProgressCode()) < lastRank).count();
+    }
+
+    private void markCompleted(SalesOrderDO o, OrderProgress.Step last, String action) {
         o.setProgressCode(SalesConstants.PROGRESS_COMPLETED);
         o.setCompletedAt(LocalDateTime.now());
         orderMapper.updateById(o);
-        logService.recordOperateLog(SalesConstants.MENU_SO, "客户已收货", Map.of("soNo", o.getSoNo(), "status", last.name()),
+        logService.recordOperateLog(SalesConstants.MENU_SO, action, Map.of("soNo", o.getSoNo(), "status", last.name()),
                 Map.of("soNo", o.getSoNo(), "status", progress.names().get(SalesConstants.PROGRESS_COMPLETED)));
-        return detail(id);
     }
 
     private record Tracking(SalesOrderDO order, List<SalesOrderItemDO> all, List<SalesOrderItemDO> selected) {

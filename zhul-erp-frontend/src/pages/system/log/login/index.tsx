@@ -5,9 +5,11 @@ import { useAccess } from '@umijs/max';
 import { Alert, App, Button, Tag, Tooltip } from 'antd';
 import dayjs from 'dayjs';
 import React, { useRef, useState } from 'react';
+import { ellipsisRender } from '@/components/EllipsisText';
 import { useAppTheme } from '@/theme/AppTheme';
 import { useMenu } from '@/utils/menuName';
 import { usePagination } from '@/utils/pageSize';
+import { tableScrollX } from '@/utils/tableScroll';
 import type { LoginLogItem } from './service';
 import { exportLoginLogs, forceLogout, getLoginLogList } from './service';
 
@@ -89,7 +91,8 @@ const LoginLogPage: React.FC = () => {
     {
       title: '用户名',
       dataIndex: 'operatorName',
-      width: 110,
+      width: 180,
+      render: ellipsisRender,
       fieldProps: { placeholder: '请输入用户名', maxLength: 50 },
     },
     {
@@ -115,6 +118,7 @@ const LoginLogPage: React.FC = () => {
     },
     {
       title: 'IP地址',
+      width: 140,
       dataIndex: 'ip',
       hideInTable: true,
       fieldProps: {
@@ -124,6 +128,7 @@ const LoginLogPage: React.FC = () => {
     },
     {
       title: '登录时间',
+      width: 170,
       dataIndex: 'operateTimeRange',
       valueType: 'dateTimeRange',
       hideInTable: true,
@@ -169,6 +174,7 @@ const LoginLogPage: React.FC = () => {
       dataIndex: 'os',
       width: 130,
       search: false,
+      render: ellipsisRender,
     },
     {
       title: '登录时间',
@@ -191,6 +197,7 @@ const LoginLogPage: React.FC = () => {
         />
       )}
       <ProTable<LoginLogItem>
+        scroll={{ x: tableScrollX(columns) }}
         headerTitle={menu?.name}
         actionRef={actionRef}
         rowKey="id"

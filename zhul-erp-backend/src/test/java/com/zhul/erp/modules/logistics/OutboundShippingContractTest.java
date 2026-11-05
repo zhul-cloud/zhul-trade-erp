@@ -18,9 +18,12 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import static com.zhul.erp.support.TestDates.today;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.Mockito.doAnswer;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
@@ -31,6 +34,9 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
  * logistics/forwarder-statement 与 sales/sales-order「订单进度」的出库、出运联动。
  */
 class OutboundShippingContractTest extends SalesContractSupport {
+
+    @org.springframework.boot.test.mock.mockito.SpyBean
+    private com.zhul.erp.modules.warehouse.service.ShipmentService shipments;
 
     private static final String SHIP = "/api/v1/purchase/shipments";
     private static final String GR = "/api/v1/warehouse/receipts";
@@ -180,7 +186,7 @@ class OutboundShippingContractTest extends SalesContractSupport {
         assertEquals(403, perform(get(OB + "/notice-form").param("soId", String.valueOf(soId)), keeper).getStatus(), "仓库不能发通知");
 
         JsonNode ob1 = ok(notice(soId, 6));
-        assertEquals("OB" + TODAY + "001", ob1.path("obNo").asText());
+        assertEquals("OB" + today() + "001", ob1.path("obNo").asText());
         assertEquals("待打包", ob1.path("statusName").asText());
         assertEquals("A-1 最多可以出库 4 个", fail(notice(soId, 5)).path("message").asText(), "已出库的占用可出库数量");
         JsonNode ob2 = ok(notice(soId, 4));
@@ -244,7 +250,7 @@ class OutboundShippingContractTest extends SalesContractSupport {
         long customerId = pending.get(0).path("customerId").asLong();
         JsonNode sh = ok(call(json(post(SH), write(Map.of("customerId", customerId, "forwarderId", forwarder,
                 "outboundIds", List.of(ob.path("id").asLong())))), admin));
-        assertEquals("SH" + TODAY + "001", sh.path("shNo").asText());
+        assertEquals("SH" + today() + "001", sh.path("shNo").asText());
         assertEquals("待出运", sh.path("statusName").asText());
         assertEquals(0, ok(call(get(SH + "/pending"), admin)).size(), "放进出运单后不在待出运里");
         long shId = sh.path("id").asLong();
@@ -300,6 +306,61 @@ class OutboundShippingContractTest extends SalesContractSupport {
         assertEquals(200, perform(get(ST + "/" + st.path("id").asLong() + "/export"), admin).getStatus());
     }
 
+    /** audit BUS-018：同一直发货并发加入两张出运单，只能一张成功，另一张提示已在别的出运单上，不能静默改归属 */
+    @Test
+    void directShipment_concurrentAttach_onlyOneWins() throws Exception {
+        JsonNode po = orderedPo(supplier("直发竞态电子", null), 2);
+        long poItem = po.path("items").get(0).path("id").asLong();
+        Map<String, Object> body = new HashMap<>();
+        body.put("poId", po.path("id").asLong());
+        body.put("directForwarderId", forwarder);
+        body.put("shipDate", LocalDate.now().toString());
+        body.put("items", List.of(Map.of("poItemId", poItem, "quantity", 2)));
+        long sid = ok(call(json(post(SHIP), write(body)), lin)).path("shipment").path("id").asLong();
+        long customerId = ok(call(get(SH + "/pending"), admin)).get(0).path("customerId").asLong();
+        String create = write(Map.of("customerId", customerId, "forwarderId", forwarder, "directShipmentIds", List.of(sid)));
+
+        java.util.concurrent.CountDownLatch read = new java.util.concurrent.CountDownLatch(1);
+        java.util.concurrent.CountDownLatch resume = new java.util.concurrent.CountDownLatch(1);
+        java.util.concurrent.atomic.AtomicReference<Thread> first = new java.util.concurrent.atomic.AtomicReference<>();
+        doAnswer(inv -> {
+            if (Thread.currentThread() == first.get()) {
+                read.countDown();
+                resume.await(10, java.util.concurrent.TimeUnit.SECONDS);
+            }
+            return inv.callRealMethod();
+        }).when(shipments).directCustomers(anyList());
+
+        java.util.concurrent.CompletableFuture<JsonNode> a = java.util.concurrent.CompletableFuture.supplyAsync(() -> {
+            first.set(Thread.currentThread());
+            try {
+                return call(json(post(SH), create), admin);
+            } catch (Exception e) {
+                throw new IllegalStateException(e);
+            }
+        });
+        assertTrue(read.await(10, java.util.concurrent.TimeUnit.SECONDS), "第一张已读到直发货");
+        java.util.concurrent.CompletableFuture<JsonNode> b = java.util.concurrent.CompletableFuture.supplyAsync(() -> {
+            try {
+                return call(json(post(SH), create), admin);
+            } catch (Exception e) {
+                throw new IllegalStateException(e);
+            }
+        });
+        try {
+            b.get(1500, java.util.concurrent.TimeUnit.MILLISECONDS);
+        } catch (java.util.concurrent.TimeoutException waiting) {
+            // 修复后第二张在等直发货行锁
+        }
+        resume.countDown();
+        long shA = ok(a.get(15, java.util.concurrent.TimeUnit.SECONDS)).path("id").asLong();
+        JsonNode rb = b.get(15, java.util.concurrent.TimeUnit.SECONDS);
+        assertTrue(rb.path("code").asInt() != 0, "第二张应被拒绝：" + rb);
+        assertTrue(rb.path("message").asText().contains("已在别的出运单上"), rb.toString());
+        assertEquals(shA, jdbc.queryForObject("select logistics_id from supplier_shipment where id = ?", Long.class, sid),
+                "直发货归属第一张出运单");
+    }
+
     // ---------------------------------------------------------------- 直发货代
 
     @Test
@@ -343,5 +404,114 @@ class OutboundShippingContractTest extends SalesContractSupport {
                 "shippedDate", LocalDate.now().toString(), "freight", "10"))), admin));
         assertEquals(4, order(soId).path("items").get(0).path("goodsShipped").asInt());
         assertFalse(order(soId).path("items").get(0).path("progressName").asText().equals("已出运"));
+    }
+
+    /** audit BUS-006：编辑发货通知只按一次本单旧数量放行，不能超过合格可用量 */
+    @Test
+    void editNotice_cannotExceedQualifiedQuantity() throws Exception {
+        JsonNode po = orderedPo(supplier("通知改量工控", null), 10);
+        long soId = soOf(po);
+        receive(po, 10);
+        long ob = ok(notice(soId, 10)).path("id").asLong();
+        String url = OB + "/notice/" + ob;
+        java.util.function.Function<Integer, Map<String, Object>> body = qty -> Map.of("forwarderId", forwarder,
+                "items", List.of(Map.of("soItemId", soItem(soId), "quantity", qty)));
+        assertEquals("A-1 最多可以出库 10 个", fail(call(json(put(url), write(body.apply(20))), admin)).path("message").asText());
+        ok(call(json(put(url), write(body.apply(10))), admin));
+        ok(call(json(put(url), write(body.apply(6))), admin));
+        assertEquals("A-1 最多可以出库 10 个", fail(call(json(put(url), write(body.apply(11))), admin)).path("message").asText(),
+                "减量后再增量，上限仍是 10");
+        assertEquals(6, jdbc.queryForObject("select coalesce(sum(quantity), 0) from outbound_order_item where outbound_id = ? "
+                + "and deleted_at is null", Integer.class, ob));
+    }
+
+    /** audit BUS-010：入库的货已被出库占用时不能冲销入库；其他入库仍够占用时可以冲销 */
+    @Test
+    void reverseReceipt_blockedWhileOutboundUsesTheGoods() throws Exception {
+        JsonNode po = orderedPo(supplier("冲销占用工控", null), 10);
+        long soId = soOf(po);
+        long gr = jdbc.queryForObject("select id from purchase_receipt where shipment_id = ?", Long.class, receive(po, 10));
+        JsonNode ob = ok(notice(soId, 10));
+        ok(pack(ob, new int[] {40, 30, 20, 500, 10}));
+        String msg = fail(call(json(post(GR + "/" + gr + "/reverse"), "{\"reason\":\"录错\"}"), admin)).path("message").asText();
+        assertEquals("货物已被销售出库单 " + ob.path("obNo").asText() + " 占用，不能冲销；请先撤回或撤销这些出库", msg);
+        assertEquals(1, jdbc.queryForObject("select status from purchase_receipt where id = ?", Integer.class, gr), "入库仍有效");
+
+        // 两次入库 6 + 4，出库只占 4：冲销 6 件那张后仍够占用，可以冲销
+        JsonNode po2 = orderedPo(supplier("分批入库工控", null), 10);
+        long so2 = soOf(po2);
+        long gr6 = jdbc.queryForObject("select id from purchase_receipt where shipment_id = ?", Long.class, receive(po2, 6));
+        receive(po2, 4);
+        ok(notice(so2, 4));
+        ok(call(json(post(GR + "/" + gr6 + "/reverse"), "{\"reason\":\"录错\"}"), admin));
+    }
+
+    /** 取消订单后用同一 PI 重新转订单；newQty 不为空时先把 PI 改成这个数量。返回新订单的响应 */
+    private JsonNode reconvert(long soId, Integer newQty) throws Exception {
+        long pi = jdbc.queryForObject("select pi_id from sales_order where id = ?", Long.class, soId);
+        ok(call(json(post(SO + "/" + soId + "/cancel"), write(Map.of("reason", "客户改单"))), admin));
+        if (newQty != null) {
+            JsonNode rev = ok(call(post(PI + "/" + pi + "/revise"), admin));
+            Map<String, Object> b = saveBody(rev);
+            item(b, 0).put("quantity", newQty);
+            ok(savePi(pi, b));
+            ok(send(pi));
+        }
+        return call(json(post(PI + "/" + pi + "/convert"), "{}"), admin);
+    }
+
+    /** audit BUS-005：订单取消重转后，原采购行上已入库的货跟着到新订单，新订单可以按实收出库 */
+    @Test
+    void reconvertedOrder_takesReceivedGoods() throws Exception {
+        // 全部入库后重转：新订单可以出库 10 个
+        JsonNode po = orderedPo(supplier("重转全入库工控", null), 10);
+        receive(po, 10);
+        long soB = ok(reconvert(soOf(po), null)).path("id").asLong();
+        ok(notice(soB, 10));
+        assertEquals(10, jdbc.queryForObject("select sum(qualified_qty) from purchase_receipt_item where so_item_id = ? and deleted_at is null",
+                Integer.class, soItem(soB)), "入库行跟着到新订单");
+
+        // 已入库 4 个，新订单只要 6 个：带货的采购行给新订单，剩余 4 个留在原需求
+        JsonNode po2 = orderedPo(supplier("重转减量工控", null), 10);
+        receive(po2, 4);
+        long so2 = ok(reconvert(soOf(po2), 6)).path("id").asLong();
+        assertEquals("A-1 最多可以出库 4 个", fail(notice(so2, 5)).path("message").asText());
+        ok(notice(so2, 4));
+        assertEquals(6, jdbc.queryForObject("select quantity from purchase_order_item where so_item_id = ? and deleted_at is null",
+                Integer.class, soItem(so2)));
+
+        // 已入库 8 个，新订单只要 6 个：多出的货无法自动分配，提示先处理
+        JsonNode po3 = orderedPo(supplier("重转超量工控", null), 10);
+        receive(po3, 8);
+        String msg = fail(reconvert(soOf(po3), 6)).path("message").asText();
+        assertTrue(msg.contains("已发货 8 个，新订单只要 6 个"), msg);
+    }
+
+    /** audit BUS-027：订单还有在仓库的销售出库单（待打包、已打包）时不能取消；撤回后可以取消 */
+    @Test
+    void cancelOrder_blockedWhileOutboundActive() throws Exception {
+        JsonNode po = orderedPo(supplier("取消有出库工控", null), 3);
+        long soId = soOf(po);
+        receive(po, 3);
+        JsonNode ob = ok(notice(soId, 3));
+        assertEquals("订单还有未交货代的销售出库单 " + ob.path("obNo").asText() + "，请先撤回后再取消",
+                fail(call(json(post(SO + "/" + soId + "/cancel"), write(Map.of("reason", "客户改单"))), admin)).path("message").asText());
+        ok(call(json(post(OB + "/" + ob.path("id").asLong() + "/withdraw"), write(Map.of("reason", "改单"))), admin));
+        ok(call(json(post(SO + "/" + soId + "/cancel"), write(Map.of("reason", "客户改单"))), admin));
+    }
+
+    /** audit BUS-027：已交货代的出库不拦取消；重转时随货改挂到新订单，新订单不会把已发出的货再算成可出库 */
+    @Test
+    void reconvertAfterHandOver_handedGoodsNotOutboundAgain() throws Exception {
+        JsonNode po = orderedPo(supplier("交货代后重转工控", null), 10);
+        long soA = soOf(po);
+        receive(po, 10);
+        JsonNode ob = ok(notice(soA, 4));
+        ok(pack(ob, new int[] {40, 30, 20, 500, 4}));
+        ok(handOver(List.of(ob.path("id").asLong()), "20"));
+        long soB = ok(reconvert(soA, null)).path("id").asLong();
+        assertEquals("A-1 最多可以出库 6 个", fail(notice(soB, 7)).path("message").asText());
+        ok(notice(soB, 6));
+        assertEquals(4, order(soB).path("items").get(0).path("goodsHanded").asInt(), "已交货代的 4 个算在新订单上");
     }
 }

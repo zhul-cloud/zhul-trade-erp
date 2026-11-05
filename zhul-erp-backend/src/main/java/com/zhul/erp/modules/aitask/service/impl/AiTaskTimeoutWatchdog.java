@@ -1,6 +1,7 @@
 package com.zhul.erp.modules.aitask.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.zhul.erp.framework.tenant.TenantContext;
 import com.zhul.erp.framework.tenant.TenantScope;
 import com.zhul.erp.modules.aitask.constants.AiTaskStatus;
@@ -54,11 +55,17 @@ public class AiTaskTimeoutWatchdog {
 
                 LocalDateTime now = LocalDateTime.now();
                 AiTaskDO update = new AiTaskDO();
-                update.setId(task.getId());
                 update.setStatus(AiTaskStatus.FAILED);
                 update.setErrorMessage(message);
                 update.setCompletedAt(now);
-                aiTaskMapper.updateById(update);
+                // 查到之后回调可能已先落库：只在任务仍未结束时改为失败，抢到才通知业务（audit AI-001）
+                int changed = aiTaskMapper.update(update, new LambdaUpdateWrapper<AiTaskDO>()
+                        .eq(AiTaskDO::getId, task.getId())
+                        .in(AiTaskDO::getStatus, AiTaskStatus.OPEN));
+                if (changed == 0) {
+                    log.info("ai_task id={} 在超时扫描期间已结束，跳过", task.getId());
+                    continue;
+                }
 
                 AiTaskDO failed = new AiTaskDO();
                 failed.setId(task.getId());

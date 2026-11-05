@@ -12,6 +12,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+import static com.zhul.erp.support.TestDates.today;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -102,7 +103,7 @@ class PurchaseContractTest extends SalesContractSupport {
         jdbc.update("update purchase_order_item set unit_price = null where po_id = ?", d.get(0));
         assertEquals("还有 1 行没填单价", fail(confirmPo(d.get(0), admin)).path("message").asText());
         JsonNode confirmed = priceAndConfirm(d.get(0), "800", admin);
-        assertEquals("FWPO" + TODAY + "001", confirmed.path("poNo").asText());
+        assertEquals("FWPO" + today() + "001", confirmed.path("poNo").asText());
         assertEquals("已下单", order(so1.path("id").asLong()).path("progressName").asText());
         assertEquals("待采购", order(so2.path("id").asLong()).path("progressName").asText(), "C-1 还在需求池");
 
@@ -561,5 +562,36 @@ class PurchaseContractTest extends SalesContractSupport {
                 Long.class, BUYER_JIANG);
         assertEquals("采购订单不存在", fail(call(get(PO + "/" + jiangDraft), lin)).path("message").asText());
         assertEquals(2, ok(call(json(post(REQ + "/page"), "{}"), admin)).path("total").asInt(), "数据权限为全部可见全部");
+    }
+
+    /** audit BUS-016：同一需求在采购单上有两行时，两行合计不能超过需求可下单数量 */
+    @Test
+    void twoLinesOfSameRequirement_shareRemainingQuantity() throws Exception {
+        long sup = supplier("同需求两行工控", null);
+        orderFrom(sup, l("DUP-1", 10, "100", "20"));
+        long id = drafts(sup).get(0);
+        Map<String, Object> body = poBody(po(id, admin), "20");
+        setQty(body, 3);
+        ok(savePo(id, body, admin));
+        // 需求池再生成剩余数量时会在同一草稿追加一行：直接复制一行模拟（需求 10，两行各 3，余 4）
+        String cols = String.join(", ", jdbc.queryForList("select column_name from information_schema.columns where table_schema = database() "
+                + "and table_name = 'purchase_order_item' and column_name <> 'id' order by ordinal_position", String.class));
+        jdbc.update("insert into purchase_order_item (" + cols + ") select " + cols + " from purchase_order_item "
+                + "where po_id = ? and deleted_at is null", id);
+
+        Map<String, Object> both = poBody(po(id, admin), "20");
+        setQty(both, 7);
+        assertEquals("DUP-1 同一需求的几行合计最多还能增加 4 个", fail(savePo(id, both, admin)).path("message").asText());
+        setQty(both, 5);
+        ok(savePo(id, both, admin));
+        assertEquals(10, jdbc.queryForObject("select sum(quantity) from purchase_order_item where po_id = ? and deleted_at is null",
+                Integer.class, id));
+    }
+
+    @SuppressWarnings("unchecked")
+    private static void setQty(Map<String, Object> body, int qty) {
+        for (Map<String, Object> item : (List<Map<String, Object>>) body.get("items")) {
+            item.put("quantity", qty);
+        }
     }
 }

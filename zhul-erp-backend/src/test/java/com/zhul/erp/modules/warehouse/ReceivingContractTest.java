@@ -15,6 +15,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import static com.zhul.erp.support.TestDates.today;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -162,7 +163,7 @@ class ReceivingContractTest extends SalesContractSupport {
         long a = item(po, 0);
         long cc = item(po, 1);
         JsonNode s1 = ok(ship(draft, Map.of(a, 40), lin));
-        assertEquals("SD" + TODAY + "001", s1.path("shipment").path("sdNo").asText(), "内部单据不带前缀");
+        assertEquals("SD" + today() + "001", s1.path("shipment").path("sdNo").asText(), "内部单据不带前缀");
         assertEquals("采购员登记", s1.path("shipment").path("sourceName").asText());
         assertEquals("在途", s1.path("shipment").path("statusName").asText());
 
@@ -255,7 +256,7 @@ class ReceivingContractTest extends SalesContractSupport {
         assertEquals(403, perform(get(GR + "/orders"), lin).getStatus(), "采购员没有验收入库权限");
         assertEquals("A-1：合格数量不能多于实收", fail(accept(sid, List.of(new int[] {2, 3, 0}), keeper)).path("message").asText());
         JsonNode gr = ok(accept(sid, List.of(new int[] {2, 2, 0}), keeper));
-        assertEquals("GR" + TODAY + "001", gr.path("receipt").path("grNo").asText());
+        assertEquals("GR" + today() + "001", gr.path("receipt").path("grNo").asText());
         assertEquals(0, gr.path("discrepancies").size(), "全部合格没有差异");
         assertTrue(gr.path("reversible").asBoolean());
         assertEquals("这张发货单已经验收入库了", fail(accept(sid, List.of(new int[] {2, 2, 0}), keeper)).path("message").asText());

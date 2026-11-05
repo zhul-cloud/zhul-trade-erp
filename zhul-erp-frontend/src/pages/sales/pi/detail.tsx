@@ -76,6 +76,7 @@ import {
 } from '@/utils/dict';
 import { formatAmount, formatDateTime } from '@/utils/format';
 import { MenuLink } from '@/utils/menuName';
+import { tableScrollX } from '@/utils/tableScroll';
 import {
   Card,
   CHANNEL,
@@ -1626,7 +1627,7 @@ const PiDetail: React.FC = () => {
           columns={viewColumns}
           dataSource={v.items}
           pagination={false}
-          scroll={{ x: 1000 }}
+          scroll={{ x: tableScrollX(viewColumns) }}
           onRow={(r) =>
             r.belowFloor ? { style: { background: palette.redSoft } } : {}
           }

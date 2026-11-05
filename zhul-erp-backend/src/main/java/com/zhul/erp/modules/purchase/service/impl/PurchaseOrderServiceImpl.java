@@ -112,6 +112,7 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
     private final PurchaseLogs logs;
     private final RequirementQty qty;
     private final OrderPurchaseProgress progress;
+    private final com.zhul.erp.modules.crm.followup.support.FollowupHooks followupHooks;
     private final FileStorageService fileStorage;
     private final DocumentNumberService documentNumberService;
     private final ExchangeRateService exchangeRateService;
@@ -515,6 +516,32 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
 
     // ---------------------------------------------------------------- 保存
 
+    /**
+     * 数量校验按需求汇总：同一需求在本单可能有多行，各行的增减合并后不能超过需求可下单数量，
+     * 不能每行各自用同一份剩余量（audit BUS-016）。调用方已锁住这些需求。
+     */
+    private void requireWithinRequirements(List<PurchaseOrderItemDO> lines, Map<Long, SavePurchaseOrderRequest.Line> wanted,
+                                           Map<Long, PurchaseRequirementDO> reqs, Map<Long, RequirementQty.Qty> q) {
+        Map<Long, List<PurchaseOrderItemDO>> changedByReq = new LinkedHashMap<>();
+        for (PurchaseOrderItemDO i : lines) {
+            if (wanted.get(i.getId()).getQuantity() != i.getQuantity()) {
+                changedByReq.computeIfAbsent(i.getRequirementId(), k -> new ArrayList<>()).add(i);
+            }
+        }
+        for (Map.Entry<Long, List<PurchaseOrderItemDO>> e : changedByReq.entrySet()) {
+            PurchaseRequirementDO r = reqs.get(e.getKey());
+            int available = r == null || r.getStatus() != PurchaseConstants.REQ_ACTIVE ? 0
+                    : RequirementQty.available(r, q.getOrDefault(r.getId(), RequirementQty.Qty.ZERO));
+            int increase = e.getValue().stream().mapToInt(i -> wanted.get(i.getId()).getQuantity() - i.getQuantity()).sum();
+            if (increase <= available) {
+                continue;
+            }
+            PurchaseOrderItemDO first = e.getValue().get(0);
+            throw new BizException(e.getValue().size() == 1 ? first.getModel() + " 最多 " + (available + first.getQuantity()) + " 个"
+                    : first.getModel() + " 同一需求的几行合计最多还能增加 " + Math.max(available, 0) + " 个");
+        }
+    }
+
     @Override
     @Transactional(rollbackFor = Exception.class)
     public PurchaseOrderVO save(Long id, SavePurchaseOrderRequest req) {
@@ -529,6 +556,11 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
 
         // 换采购对象统一走「改到其他供应商」（同步需求的渠道、合并到已有草稿），保存不改采购对象
         String currency = req.getCurrencyCode().trim().toUpperCase(Locale.ROOT);
+        // 已有付款、欠款抵扣或退款的不能改币种：已付金额按原币记账，换币后无法对应（audit BUS-004）
+        if (ordered && !currency.equals(p.getCurrencyCode())
+                && payables.hasMoneyMovement(FinanceConstants.SOURCE_PURCHASE_ORDER, id)) {
+            throw new BizException("这张采购订单已有付款、欠款抵扣或退款，不能修改币种；如需修改，请先作废相关付款");
+        }
         if (!currency.equals(p.getCurrencyCode()) || !PurchaseConstants.CNY.equals(currency)) {
             BigDecimal rate = PurchaseConstants.CNY.equals(currency) ? BigDecimal.ONE : exchangeRateService.require(currency).rate();
             p.setCurrencyCode(currency);
@@ -570,19 +602,13 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
                 : requirementMapper.selectBatchIds(reqIds).stream().collect(Collectors.toMap(PurchaseRequirementDO::getId, r -> r));
         Map<Long, RequirementQty.Qty> q = qty.byRequirement(reqIds);
         Map<Long, Integer> shipped = receivingQty.shippedByPoItem(lines.stream().map(PurchaseOrderItemDO::getId).toList());
+        requireWithinRequirements(lines, wanted, reqs, q);
         List<Long> qtyChanged = new ArrayList<>();
         for (PurchaseOrderItemDO i : lines) {
             SavePurchaseOrderRequest.Line l = wanted.get(i.getId());
             int newQty = l.getQuantity();
             if (newQty != i.getQuantity()) {
                 qtyChanged.add(i.getRequirementId());
-                PurchaseRequirementDO r = reqs.get(i.getRequirementId());
-                int available = r == null || r.getStatus() != PurchaseConstants.REQ_ACTIVE ? 0
-                        : RequirementQty.available(r, q.getOrDefault(r.getId(), RequirementQty.Qty.ZERO));
-                int max = available + i.getQuantity();
-                if (newQty > max) {
-                    throw new BizException(i.getModel() + " 最多 " + max + " 个");
-                }
                 int sent = shipped.getOrDefault(i.getId(), 0);
                 if (newQty < sent) {
                     throw new BizException(i.getModel() + " 已发 " + sent + " 个，数量不能小于 " + sent);
@@ -635,6 +661,7 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
             }
         }
         payables.syncPurchaseOrder(id);
+        followupHooks.purchaseChanged(id);
         return detail(id);
     }
 
@@ -936,6 +963,7 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
         after.put("bargain", "CNY " + p.getBargainAmount());
         logService.recordOperateLog(PurchaseConstants.MENU_ORDER, "确认下单", null, after);
         payables.syncPurchaseOrder(id);
+        followupHooks.purchaseChanged(id);
         return detail(id);
     }
 
@@ -963,6 +991,7 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
         logService.recordOperateLog(PurchaseConstants.MENU_ORDER, "取消采购订单", Map.of("poNo", p.getPoNo(), "status", "已下单"),
                 Map.of("poNo", p.getPoNo(), "status", "已取消", "reason", why));
         payables.syncPurchaseOrder(id);
+        followupHooks.purchaseChanged(id);
         return detail(id);
     }
 

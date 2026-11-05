@@ -7,12 +7,12 @@ import org.junit.jupiter.api.BeforeEach;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import static com.zhul.erp.support.TestDates.today;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -25,7 +25,6 @@ public abstract class SalesContractSupport extends InquiryContractSupport {
     protected static final String PI = "/api/v1/sales/pis";
     protected static final String SO = "/api/v1/sales/orders";
     protected static final long ADMIN_USER = 99000002L;
-    protected static final String TODAY = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
     private static final String[] SALES_TABLES = {"after_sales_log", "after_sales_item", "sales_return_disposition", "sales_return_item", "sales_return", "fin_refund_request", "after_sales", "fin_customer_credit_consumption", "fin_customer_credit_entry", "fin_customer_refund", "fin_other_income", "fin_fx_settlement_allocation", "fin_fx_settlement", "fin_reimbursement_line", "fin_reimbursement", "fin_expense_allocation", "fin_expense", "fin_payment_allocation", "fin_payment", "fin_payable_installment", "fin_payable", "forwarder_statement_line", "forwarder_statement", "freight_allocation", "shipment_doc_group",
             "logistics_shipment", "courier_waybill", "outbound_box_item", "outbound_box", "outbound_order_item", "outbound_order", "transit_time", "biz_attachment", "biz_attachment_model", "media_item", "media_asset", "shoot_task", "stock_hold", "receiving_discrepancy",
             "purchase_receipt_item", "purchase_receipt", "supplier_shipment_item", "supplier_shipment", "purchase_order_log", "purchase_order_attachment", "purchase_order_fee",
@@ -143,7 +142,7 @@ public abstract class SalesContractSupport extends InquiryContractSupport {
                 + "total_item_count, priced_item_count, customer_type) values (0, ?, ?, CURDATE(), CURDATE(), 7, ?, ?, ?, 1)",
                 code, customer, ADMIN_USER, lines.length, lines.length);
         long inquiryId = jdbc.queryForObject("select id from customer_inquiry where inquiry_code = ?", Long.class, code);
-        String no = "FWQT" + TODAY + String.format("%03d", quotationSeq);
+        String no = "FWQT" + today() + String.format("%03d", quotationSeq);
         BigDecimal rate = new BigDecimal("USD".equals(currency) ? "7.15" : "7.80");
         jdbc.update("insert into quotation (tenant_id, quotation_no, customer_id, owner_id, currency_code, exchange_rate, incoterm, status, sent_at) "
                 + "values (0, ?, ?, ?, ?, ?, 'FOB', ?, NOW() - INTERVAL ? MINUTE)", no, customer, ADMIN_USER, currency, rate, status, 100 - quotationSeq);

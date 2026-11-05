@@ -53,6 +53,7 @@ import { type Attachment, shipmentApi } from '@/pages/warehouse/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
 import { MenuLink } from '@/utils/menuName';
+import { tableScrollX } from '@/utils/tableScroll';
 import {
   bargainOf,
   defaultPrice,
@@ -980,7 +981,7 @@ const PurchaseOrderDetail: React.FC = () => {
           columns={columns}
           dataSource={po.items}
           pagination={false}
-          scroll={{ x: 1100 }}
+          scroll={{ x: tableScrollX(columns) }}
           rowSelection={
             isDraft && editable
               ? {
@@ -1613,7 +1614,7 @@ const ShipmentsCard: React.FC<{
         columns={columns}
         dataSource={rows}
         pagination={false}
-        scroll={{ x: 1000 }}
+        scroll={{ x: tableScrollX(columns) }}
         locale={{ emptyText: '供应商还没发货；发货后点右上角「登记发货」' }}
       />
       <ShipmentView

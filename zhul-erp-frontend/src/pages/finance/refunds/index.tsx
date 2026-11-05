@@ -28,6 +28,7 @@ import { recentRange } from '@/utils/dateRange';
 import { useDictTexts } from '@/utils/dict';
 import { formatAmount } from '@/utils/format';
 import { usePageSize } from '@/utils/pageSize';
+import { tableScrollX } from '@/utils/tableScroll';
 import { ProofLinks } from '../payables/components';
 import RefundModal from './RefundModal';
 import RequestsTab from './RequestsTab';
@@ -47,7 +48,11 @@ const METHOD_FILTERS = [
   { value: 4, label: '其他转出方式（支付宝等）' },
 ];
 
-const num: React.CSSProperties = { fontVariantNumeric: 'tabular-nums' };
+// 金额不折行（audit UI-041）
+const num: React.CSSProperties = {
+  fontVariantNumeric: 'tabular-nums',
+  whiteSpace: 'nowrap',
+};
 
 /** 日期范围：默认最近 3 个月（清空看全部）；经营统计跳转时用 URL 带的日期 */
 const rangeFromUrl = (): [Dayjs, Dayjs] | null => {
@@ -483,7 +488,7 @@ const RefundPage: React.FC = () => {
               loading={loading}
               columns={columns}
               dataSource={rows}
-              scroll={{ x: 1800 }}
+              scroll={{ x: tableScrollX(columns) }}
               pagination={{
                 current: page,
                 pageSize,

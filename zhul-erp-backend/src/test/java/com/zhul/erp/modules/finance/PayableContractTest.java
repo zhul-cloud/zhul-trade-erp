@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import static com.zhul.erp.support.TestDates.today;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -195,7 +196,7 @@ class PayableContractTest extends SalesContractSupport {
         long poId = po.path("id").asLong();
 
         JsonNode ap = bySource(poId, lin);
-        assertEquals("AP" + TODAY + "001", ap.path("payableNo").asText(), "内部单据不带前缀");
+        assertEquals("AP" + today() + "001", ap.path("payableNo").asText(), "内部单据不带前缀");
         assertEquals("深圳工控", ap.path("payeeName").asText());
         assertEquals(1, ap.path("payeeType").asInt());
         money("10000.00", ap.path("amount"));
@@ -210,7 +211,7 @@ class PayableContractTest extends SalesContractSupport {
 
         // 财务登记预付：核销第 1 期
         JsonNode paid = ok(pay(payBody(1, "3000.00", Map.of(apId, "3000.00"), admin), admin));
-        assertEquals("PY" + TODAY + "001", paid.path("paymentNo").asText());
+        assertEquals("PY" + today() + "001", paid.path("paymentNo").asText());
         ap = bySource(poId, admin);
         assertEquals(2, ap.path("status").asInt());
         assertEquals(3, ap.path("installments").get(0).path("status").asInt());
@@ -440,5 +441,87 @@ class PayableContractTest extends SalesContractSupport {
         redis.opsForValue().set(com.zhul.erp.common.constants.RedisKeyConstants.TOKEN_PREFIX + other, "1");
         assertEquals(0, ok(call(get(AP), other)).path("total").asInt());
         assertTrue(blank(ok(call(get(AP + "/by-source").param("sourceType", "1").param("sourceId", String.valueOf(poId)), other))));
+    }
+
+    /** audit BUS-004：没有资金往来时改币种，应付跟着改；有付款后不能再改币种 */
+    @Test
+    void currencyChange_followsPayableUntilMoneyMoves() throws Exception {
+        long sup = supplier("币种工控", null);
+        long poId = orderedPo(sup, "CUR-1", 1, "100", List.of(term(100, 1, 0))).path("id").asLong();
+        Map<String, Object> body = poBody(po(poId, admin), null);
+        body.put("currencyCode", "USD");
+        ok(savePo(poId, body, admin));
+        Map<String, Object> ap = jdbc.queryForMap("select id, currency_code, amount, exchange_rate, amount_cny from fin_payable "
+                + "where source_type = 1 and source_id = ?", poId);
+        assertEquals("USD", ap.get("currency_code"), "应付币种随采购订单");
+        money("100.00", new com.fasterxml.jackson.databind.node.DecimalNode((BigDecimal) ap.get("amount")));
+        money("715.00", new com.fasterxml.jackson.databind.node.DecimalNode((BigDecimal) ap.get("amount_cny")));
+
+        long apId = ((Number) ap.get("id")).longValue();
+        Map<String, Object> pay = payBody(1, "40.00", Map.of(apId, "40.00"), admin);
+        pay.put("amountCny", new BigDecimal("286.00"));
+        ok(pay(pay, admin));
+        body.put("currencyCode", "CNY");
+        assertEquals("这张采购订单已有付款、欠款抵扣或退款，不能修改币种；如需修改，请先作废相关付款",
+                fail(savePo(poId, body, admin)).path("message").asText());
+        assertEquals("USD", jdbc.queryForObject("select currency_code from purchase_order where id = ?", String.class, poId));
+        assertEquals("USD", jdbc.queryForObject("select currency_code from fin_payable where id = ?", String.class, apId));
+    }
+
+    /** audit BUS-009：付款形成的欠款已抵扣到另一应付时，不能直接作废原付款；先作废抵扣再作废原付款可以 */
+    @Test
+    void voidPaymentWhoseCreditIsUsed_rejectedUntilOffsetVoided() throws Exception {
+        long sup = supplier("依赖链工控", null);
+        long poA = orderedPo(sup, "DEP-1", 1, "100", List.of(term(100, 1, 0))).path("id").asLong();
+        long apA = bySource(poA, admin).path("id").asLong();
+        JsonNode cash = ok(pay(payBody(1, "100.00", Map.of(apA, "100.00"), admin), admin));
+        ok(call(json(post(PO + "/" + poA + "/cancel"), "{\"reason\":\"供应商缺货\"}"), admin));
+        money("100.00", bySource(poA, admin).path("creditAmount"));
+
+        long poB = orderedPo(sup, "DEP-2", 1, "100", List.of(term(100, 1, 0))).path("id").asLong();
+        long apB = bySource(poB, admin).path("id").asLong();
+        Map<String, Object> body = payBody(1, "0.00", Map.of(apB, "100.00"), admin);
+        body.put("credits", List.of(Map.of("payableId", apA, "amount", new BigDecimal("100.00"))));
+        JsonNode offset = ok(pay(body, admin));
+        assertEquals(3, bySource(poB, admin).path("status").asInt(), "B 已用欠款付清");
+
+        assertEquals("这笔付款形成的欠款已被 " + offset.path("paymentNo").asText() + " 使用，请先作废这些单据",
+                fail(call(json(post(PY + "/" + cash.path("id").asLong() + "/void"), write(Map.of("reason", "x"))), admin))
+                        .path("message").asText());
+        assertEquals(3, bySource(poB, admin).path("status").asInt(), "拒绝时不改任何数据");
+
+        ok(call(json(post(PY + "/" + offset.path("id").asLong() + "/void"), write(Map.of("reason", "先撤抵扣"))), admin));
+        ok(call(json(post(PY + "/" + cash.path("id").asLong() + "/void"), write(Map.of("reason", "再撤原付款"))), admin));
+        money("0.00", bySource(poA, admin).path("creditAmount"));
+        money("0.00", bySource(poA, admin).path("paidAmount"));
+        money("0.00", bySource(poB, admin).path("paidAmount"));
+    }
+
+    /** audit BUS-019：外币欠款抵扣把来源的实付人民币按实付汇率转到目标，目标采购成本不会变成 0 */
+    @Test
+    void usdCreditOffset_carriesActualCnyToTarget() throws Exception {
+        long sup = supplier("Omron Credit HK", null);
+        long poA = orderedPo(sup, "UC-1", 1, "100", List.of(term(100, 1, 0))).path("id").asLong();
+        long poB = orderedPo(sup, "UC-2", 1, "100", List.of(term(100, 1, 0))).path("id").asLong();
+        for (long po : new long[] {poA, poB}) {
+            // 直接改库模拟美元下单（汇率 7.15）
+            jdbc.update("update purchase_order set currency_code = 'USD', exchange_rate = 7.150000 where id = ?", po);
+            jdbc.update("update fin_payable set currency_code = 'USD', exchange_rate = 7.150000 where source_id = ? and source_type = 1", po);
+        }
+        long apA = bySource(poA, admin).path("id").asLong();
+        long apB = bySource(poB, admin).path("id").asLong();
+        Map<String, Object> cash = payBody(1, "100.00", Map.of(apA, "100.00"), admin);
+        cash.put("amountCny", new BigDecimal("710.00"));
+        ok(pay(cash, admin));
+        ok(call(json(post(PO + "/" + poA + "/cancel"), "{\"reason\":\"供应商缺货\"}"), admin));
+
+        Map<String, Object> body = payBody(1, "0.00", Map.of(apB, "100.00"), admin);
+        body.put("credits", List.of(Map.of("payableId", apA, "amount", new BigDecimal("100.00"))));
+        ok(pay(body, admin));
+        money("100.00", bySource(poB, admin).path("paidAmount"));
+        money("710.00", bySource(poB, admin).path("paidCny"));
+        money("0.00", bySource(poA, admin).path("paidCny"));
+        assertEquals(0, jdbc.queryForObject("select count(*) from fin_payment_allocation where payable_id = ? and from_credit = 1 "
+                + "and amount_cny <> 0 and deleted_at is null", Integer.class, apB), "抵扣行的现金流仍为 0");
     }
 }

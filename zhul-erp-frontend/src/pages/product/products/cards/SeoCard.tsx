@@ -455,7 +455,7 @@ const FactNotes: React.FC<{ notes: FactNote[] }> = ({ notes }) => {
         pagination={false}
         rowKey={(n) => `${n.kind}-${n.item}`}
         dataSource={notes}
-        scroll={{ x: 760 }}
+        scroll={{ x: 'max-content' }}
         columns={[
           {
             title: '类型',
@@ -477,6 +477,7 @@ const FactNotes: React.FC<{ notes: FactNote[] }> = ({ notes }) => {
           },
           {
             title: '影响 / 说明',
+            width: 240,
             dataIndex: 'impact',
             render: (v?: string) => (
               <span style={{ color: palette.sub }}>{v || '—'}</span>

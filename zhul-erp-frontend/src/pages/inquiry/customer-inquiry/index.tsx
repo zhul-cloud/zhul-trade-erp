@@ -35,6 +35,7 @@ import { recentRange } from '@/utils/dateRange';
 import { DICT_SOURCE_CHANNEL, useDictOptions } from '@/utils/dict';
 import { formatDateTime } from '@/utils/format';
 import { usePageSize } from '@/utils/pageSize';
+import { tableScrollX } from '@/utils/tableScroll';
 import {
   Card,
   CustomerTypePill,
@@ -884,7 +885,7 @@ const CustomerInquiryPage: React.FC = () => {
           columns={columns}
           dataSource={rows}
           loading={loading}
-          scroll={{ x: 2100 }}
+          scroll={{ x: tableScrollX(columns) }}
           onChange={(_, __, sorter, extra) => {
             // 翻页也会触发 onChange：只处理排序，否则会把页码重置回 1
             if (extra.action !== 'sort') return;

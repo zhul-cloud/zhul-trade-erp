@@ -42,6 +42,7 @@ public class BackgroundResultService {
 
     private final CustomerBackgroundReportMapper reportMapper;
     private final ObjectMapper objectMapper;
+    private final com.zhul.erp.modules.crm.followup.support.FollowupHooks followupHooks;
 
     @Transactional(rollbackFor = Exception.class)
     public void apply(AiTaskDO task) {
@@ -76,6 +77,8 @@ public class BackgroundResultService {
                     ? "AI 处理失败" : task.getErrorMessage(), TEXT_MAX));
         }
         reportMapper.updateById(u);
+        // 背调出结果：主动开发阶段随之推导（D2 → D3 / D4，或资格不足）
+        followupHooks.prospectChanged(r.getCustomerId());
         log.info("背调结束，reportNo={}, status={}", r.getReportNo(), u.getStatus());
     }
 

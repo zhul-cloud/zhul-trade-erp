@@ -248,6 +248,7 @@ PRIMARY KEY (`id`)
 - 跨租户操作须显式标注：
   - 平台入口、后台任务用 `TenantScope.platform(...)`，绕过拦截器，代码自己带租户条件
   - 按某条数据所属租户处理（AI 回调、异步线程、跨公司同步）用 `TenantContext.runAs(tenantId, ...)`
+  - 定时任务、启动任务、启动完成事件由 `BackgroundEntryTenantContractTest` 自动发现并在没有租户上下文时逐个执行检查；线程池回调、`CompletableFuture` 回调等反射找不到的入口，必须单独写测试，在另一个线程里执行回调（参考 `AttachmentTranscodeTenantContractTest`）
 - JdbcTemplate 与手写 SQL 不经过拦截器，必须手写租户条件
 - 拦截器用 JSqlParser 改写 SQL，注意两点：
   - 列名是 JSqlParser 保留字时（如 `output`）要加反引号，`@TableField("`output`")`

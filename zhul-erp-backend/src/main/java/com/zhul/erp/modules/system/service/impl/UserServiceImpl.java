@@ -145,6 +145,10 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void updateUserStatus(Integer userId, Integer status) {
+        // 启停只能在启用、停用之间切换；删除走 deleteUser（另有权限码），其他值会让账号既不能登录也不在列表里（audit SEC-012）
+        if (status == null || (status != STATUS_ENABLED && status != STATUS_DISABLED)) {
+            throw new BizException("用户状态只能是启用或停用");
+        }
         requireUser(userId);
         LambdaUpdateWrapper<UserBasicDO> wrapper = new LambdaUpdateWrapper<>();
         wrapper.eq(UserBasicDO::getId, userId)

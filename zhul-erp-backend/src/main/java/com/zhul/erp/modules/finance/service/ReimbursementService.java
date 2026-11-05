@@ -69,6 +69,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -335,6 +336,7 @@ public class ReimbursementService {
     @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public List<ReimbursementVO> submit(SubmitReimbursementRequest req) {
         Me me = me();
+        lockSources(req.getItems());
         Map<String, AdvanceItemVO> pending = pending(true).stream()
                 .collect(Collectors.toMap(i -> key(i.getSourceType(), i.getSourceId()), Function.identity()));
         Map<Long, List<AdvanceItemVO>> byPerson = new LinkedHashMap<>();
@@ -370,6 +372,38 @@ public class ReimbursementService {
             out.add(submitFor(e.getKey(), e.getValue(), me));
         }
         return out;
+    }
+
+    /**
+     * 先按固定顺序锁住所选来源行，再读取待报销项并校验：与来源的作废、改金额（同样先锁行）互斥，
+     * 不会把刚作废的来源或旧金额写进报销单（audit BUS-011）。顺序：付款单（含退款）、快递、退货运费、费用单，各自按 ID 升序。
+     */
+    private void lockSources(List<SubmitReimbursementRequest.Item> items) {
+        if (items == null || items.isEmpty()) {
+            return;
+        }
+        Map<Integer, List<Long>> ids = new HashMap<>();
+        for (SubmitReimbursementRequest.Item it : items) {
+            if (it.getSourceType() != null && it.getSourceId() != null) {
+                int type = it.getSourceType() == FinanceConstants.ITEM_REFUND ? FinanceConstants.ITEM_PAYMENT : it.getSourceType();
+                ids.computeIfAbsent(type, k -> new ArrayList<>()).add(it.getSourceId());
+            }
+        }
+        lock(ids.get(FinanceConstants.ITEM_PAYMENT), list -> paymentMapper.selectList(new LambdaQueryWrapper<PaymentDO>()
+                .select(PaymentDO::getId).in(PaymentDO::getId, list).orderByAsc(PaymentDO::getId).last("FOR UPDATE")));
+        lock(ids.get(FinanceConstants.ITEM_COURIER), list -> waybillMapper.selectList(new LambdaQueryWrapper<CourierWaybillDO>()
+                .select(CourierWaybillDO::getId).in(CourierWaybillDO::getId, list).orderByAsc(CourierWaybillDO::getId).last("FOR UPDATE")));
+        lock(ids.get(FinanceConstants.ITEM_RETURN_FREIGHT), list -> discrepancyMapper.selectList(
+                new LambdaQueryWrapper<ReceivingDiscrepancyDO>().select(ReceivingDiscrepancyDO::getId)
+                        .in(ReceivingDiscrepancyDO::getId, list).orderByAsc(ReceivingDiscrepancyDO::getId).last("FOR UPDATE")));
+        lock(ids.get(FinanceConstants.ITEM_EXPENSE), list -> expenseMapper.selectList(new LambdaQueryWrapper<ExpenseDO>()
+                .select(ExpenseDO::getId).in(ExpenseDO::getId, list).orderByAsc(ExpenseDO::getId).last("FOR UPDATE")));
+    }
+
+    private static void lock(List<Long> ids, Consumer<List<Long>> select) {
+        if (ids != null && !ids.isEmpty()) {
+            select.accept(ids.stream().distinct().sorted().toList());
+        }
     }
 
     private ReimbursementVO submitFor(Long applicantId, List<AdvanceItemVO> chosen, Me me) {

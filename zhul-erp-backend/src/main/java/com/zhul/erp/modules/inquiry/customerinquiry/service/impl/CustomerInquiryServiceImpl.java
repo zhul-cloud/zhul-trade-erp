@@ -165,6 +165,7 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
     private final com.zhul.erp.modules.product.candidate.service.ProductArchiver productArchiver;
     private final InquiryCategories inquiryCategories;
     private final CustomerInquiryAppendMapper appendMapper;
+    private final com.zhul.erp.modules.crm.followup.support.FollowupHooks followupHooks;
 
     // ---------------------------------------------------------------- 附件
 
@@ -335,6 +336,7 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
             inquiry.setInquiryCode(generated.getCode());
             try {
                 inquiryMapper.insert(inquiry);
+                followupHooks.inquiryCreated(inquiry);
                 return;
             } catch (DuplicateKeyException e) {
                 if (attempt == MAX_CODE_INSERT_ATTEMPTS) {

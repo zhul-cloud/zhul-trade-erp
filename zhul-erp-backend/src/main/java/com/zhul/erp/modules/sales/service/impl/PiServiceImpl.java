@@ -128,6 +128,7 @@ public class PiServiceImpl implements PiService {
     private final LogService logService;
     private final ObjectMapper objectMapper;
     private final com.zhul.erp.modules.finance.service.CreditUsageService creditUsage;
+    private final com.zhul.erp.modules.crm.followup.support.FollowupHooks followupHooks;
 
     // ---------------------------------------------------------------- 候选报价单
 
@@ -581,6 +582,7 @@ public class PiServiceImpl implements PiService {
             piMapper.updateById(pi);
             creditUsage.syncPi(pi);
             summary.refresh(pi);
+            followupHooks.piSent(pi, firstSend);
             versionNo = editing.getVersionNo();
             logService.recordOperateLog(SalesConstants.MENU_PI, firstSend ? "发送 PI" : "发送 PI 新版本",
                     Map.of("piNo", pi.getPiNo()), Map.of("piNo", pi.getPiNo(), "version", "Rev." + versionNo,
@@ -733,6 +735,7 @@ public class PiServiceImpl implements PiService {
         pi.setStatus(SalesConstants.PI_VOID);
         piMapper.updateById(pi);
         creditUsage.syncPi(pi);
+        followupHooks.customerChanged(pi.getCustomerId());
         logService.recordOperateLog(SalesConstants.MENU_PI, "作废 PI", Map.of("piNo", pi.getPiNo(), "status", before),
                 Map.of("piNo", pi.getPiNo(), "status", "已作废"));
         return detail(id, null);
@@ -744,6 +747,7 @@ public class PiServiceImpl implements PiService {
         ProformaInvoiceDO pi = store.lockVisible(id);
         List<String> notices = closing.close(pi, req);
         creditUsage.syncPi(piMapper.selectById(id));
+        followupHooks.customerChanged(pi.getCustomerId());
         PiVO vo = detail(id, null);
         vo.setNotices(notices);
         return vo;
@@ -756,6 +760,7 @@ public class PiServiceImpl implements PiService {
         closing.reopen(pi, req.getValidUntil());
         // 按 PI 上的抵扣金额重新占用；可用余额不足时提示，需要先修改抵扣金额
         creditUsage.syncPi(piMapper.selectById(id));
+        followupHooks.customerChanged(pi.getCustomerId());
         return detail(id, null);
     }
 

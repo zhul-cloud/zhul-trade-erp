@@ -91,8 +91,19 @@ public class PayableSyncService {
         p.setSourceNo(po.getPoNo());
         // 线上店铺转为供应商后，收款方随之更新
         fillPayee(p, po);
+        // 币种随采购订单（有资金往来时采购订单不允许改币种，见 hasMoneyMovement；audit BUS-004）
+        p.setCurrencyCode(po.getCurrencyCode());
         p.setExchangeRate(po.getExchangeRate() == null ? BigDecimal.ONE : po.getExchangeRate());
         apply(p, amount, InstallmentPlanner.plan(amount, terms, dates), cancelled);
+    }
+
+    /** 来源单据的应付是否已有资金往来：有效的付款、退款核销，或作为欠款来源被抵扣（作废的付款核销已软删除，不算） */
+    public boolean hasMoneyMovement(int sourceType, Long sourceId) {
+        PayableDO p = lockBySource(sourceType, sourceId);
+        return p != null && allocationMapper.selectCount(new LambdaQueryWrapper<PaymentAllocationDO>()
+                .isNull(PaymentAllocationDO::getDeletedAt)
+                .and(w -> w.eq(PaymentAllocationDO::getPayableId, p.getId())
+                        .or().eq(PaymentAllocationDO::getCreditPayableId, p.getId()))) > 0;
     }
 
     /** 运费账单确认：生成一期应付，确认当天到期；已有的不再生成 */
@@ -218,13 +229,18 @@ public class PayableSyncService {
                 .orderByAsc(PayableInstallmentDO::getSeq));
     }
 
-    /** 净已付 = 核销进来的（实付 + 欠款抵扣）− 抵扣出去的 − 退款冲减；已付人民币只算实付减退款 */
+    /**
+     * 净已付 = 核销进来的（实付 + 欠款抵扣）− 抵扣出去的 − 退款冲减。
+     * 已付人民币 = 实付 − 退款，加上抵扣带来的成本人民币：抵扣原币 × 来源应付的实付汇率，转入目标、来源相应减少
+     * （audit BUS-019，成本口径；抵扣行的现金流 amount_cny 仍为 0）。
+     */
     public record Totals(BigDecimal paid, BigDecimal paidCny) {
     }
 
     public Totals totals(Long payableId) {
         BigDecimal paid = BigDecimal.ZERO;
         BigDecimal cny = BigDecimal.ZERO;
+        Map<Long, BigDecimal[]> cashOf = new java.util.HashMap<>();
         for (PaymentAllocationDO a : allocationMapper.selectList(new LambdaQueryWrapper<PaymentAllocationDO>()
                 .and(w -> w.eq(PaymentAllocationDO::getPayableId, payableId).or()
                         .eq(PaymentAllocationDO::getCreditPayableId, payableId))
@@ -236,15 +252,42 @@ public class PayableSyncService {
                 cny = cny.add(nz(a.getAmountCny()));
             } else if (into && kind == 1) {
                 paid = paid.add(a.getAmount());
+                cny = cny.add(creditCny(a, cashOf));
             } else if (into && kind == 2) {
                 paid = paid.subtract(a.getAmount());
                 cny = cny.subtract(nz(a.getAmountCny()));
             }
             if (kind == 1 && payableId.equals(a.getCreditPayableId())) {
                 paid = paid.subtract(a.getAmount());
+                cny = cny.subtract(creditCny(a, cashOf));
             }
         }
         return new Totals(paid, cny);
+    }
+
+    /**
+     * 抵扣的成本人民币：抵扣原币 × 来源实付人民币 ÷ 来源实付原币（只算实付行，不舍入中间汇率），结果四舍五入到 2 位（HALF_UP）；
+     * 来源没有实付时按来源应付的汇率
+     */
+    private BigDecimal creditCny(PaymentAllocationDO a, Map<Long, BigDecimal[]> cashOf) {
+        BigDecimal[] cash = cashOf.computeIfAbsent(a.getCreditPayableId(), id -> {
+            BigDecimal amt = BigDecimal.ZERO;
+            BigDecimal amtCny = BigDecimal.ZERO;
+            for (PaymentAllocationDO c : allocationMapper.selectList(new LambdaQueryWrapper<PaymentAllocationDO>()
+                    .eq(PaymentAllocationDO::getPayableId, id)
+                    .eq(PaymentAllocationDO::getFromCredit, 0)
+                    .isNull(PaymentAllocationDO::getDeletedAt))) {
+                amt = amt.add(c.getAmount());
+                amtCny = amtCny.add(nz(c.getAmountCny()));
+            }
+            if (amt.signum() > 0) {
+                return new BigDecimal[] {amt, amtCny};
+            }
+            PayableDO source = payableMapper.selectById(id);
+            BigDecimal rate = source == null || source.getExchangeRate() == null ? BigDecimal.ONE : source.getExchangeRate();
+            return new BigDecimal[] {BigDecimal.ONE, rate};
+        });
+        return a.getAmount().multiply(cash[1]).divide(cash[0], 2, RoundingMode.HALF_UP);
     }
 
     public PayableDO lockBySource(int sourceType, Long sourceId) {

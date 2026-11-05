@@ -20,6 +20,7 @@ import {
   Table,
 } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
+import EllipsisText from '@/components/EllipsisText';
 import { Card, PageTitle, Pill } from '@/pages/inquiry/shared/components';
 import { groupedCategoryOptions } from '@/pages/product/components/categoryOptions';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
@@ -27,6 +28,7 @@ import { auditColumns } from '@/pages/purchase/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatDateTime } from '@/utils/format';
 import { usePageSize } from '@/utils/pageSize';
+import { tableScrollX } from '@/utils/tableScroll';
 import { LIFECYCLE_OPTIONS } from '../constants';
 import {
   type BrandOption,
@@ -1027,7 +1029,7 @@ const Candidates: React.FC = () => {
       dataIndex: 'productName',
       width: 240,
       render: (v?: string) => (
-        <span style={{ fontSize: 12, color: palette.sub }}>{v || '—'}</span>
+        <EllipsisText text={v} style={{ fontSize: 12, color: palette.sub }} />
       ),
     },
     {
@@ -1206,7 +1208,7 @@ const Candidates: React.FC = () => {
             columns={columns}
             dataSource={rows}
             loading={loading}
-            scroll={{ x: 1700 }}
+            scroll={{ x: tableScrollX(columns) }}
             rowSelection={
               tab === 1 && canReview
                 ? {

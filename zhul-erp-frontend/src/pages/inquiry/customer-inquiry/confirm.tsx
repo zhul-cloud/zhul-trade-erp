@@ -29,6 +29,7 @@ import { useAppTheme } from '@/theme/AppTheme';
 import { DICT_SOURCE_CHANNEL, useDictOptions } from '@/utils/dict';
 import { formatAmount } from '@/utils/format';
 import { MenuLink } from '@/utils/menuName';
+import { tableScrollX } from '@/utils/tableScroll';
 import {
   AgeText,
   Card,
@@ -863,7 +864,7 @@ const ConfirmPage: React.FC = () => {
         <Table<Row>
           rowKey="key"
           size="middle"
-          scroll={{ x: 1330 }}
+          scroll={{ x: tableScrollX(columns) }}
           columns={columns}
           dataSource={rows}
           pagination={false}

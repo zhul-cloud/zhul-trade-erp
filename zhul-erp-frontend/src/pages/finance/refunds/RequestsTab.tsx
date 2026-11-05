@@ -9,6 +9,7 @@ import { ReasonModal } from '@/pages/warehouse/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
 import { usePageSize } from '@/utils/pageSize';
+import { tableScrollX } from '@/utils/tableScroll';
 import RefundModal from './RefundModal';
 import { type RefundRequest, RQ_STATUS, refundRequestApi } from './service';
 
@@ -297,7 +298,7 @@ const RequestsTab: React.FC<{ onChanged?: () => void }> = ({ onChanged }) => {
         loading={loading}
         columns={columns}
         dataSource={rows}
-        scroll={{ x: 1700 }}
+        scroll={{ x: tableScrollX(columns) }}
         locale={{
           emptyText:
             status === RQ_STATUS.PENDING_FINANCE

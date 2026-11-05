@@ -12,6 +12,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import static com.zhul.erp.support.TestDates.today;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -126,7 +127,7 @@ class AfterSalesContractTest extends SalesContractSupport {
         assertEquals("A-1 最多 10 个", fail(create(so, 11, "S2")).path("message").asText());
         JsonNode a = ok(create(so, 2, "S2"));
         long asId = a.path("id").asLong();
-        assertEquals("AS" + TODAY + "001", a.path("asNo").asText());
+        assertEquals("AS" + today() + "001", a.path("asNo").asText());
         assertEquals("处理中", a.path("statusName").asText());
         assertEquals(ADMIN_USER, a.path("ownerId").asLong());
         assertTrue(a.path("overdue").asBoolean());
@@ -147,7 +148,7 @@ class AfterSalesContractTest extends SalesContractSupport {
         // 退货：可退 = 已出运 − 其他退货单
         JsonNode r = ok(newReturn(asId, item, 2));
         long rid = r.path("id").asLong();
-        assertEquals("TH" + TODAY + "001", r.path("returnNo").asText());
+        assertEquals("TH" + today() + "001", r.path("returnNo").asText());
         assertEquals("A-1 最多还能退 8 个", fail(newReturn(asId, item, 9)).path("message").asText());
         assertEquals("退货单 " + r.path("returnNo").asText() + " 还没处理完", fail(call(json(post(AS + "/" + asId + "/close"),
                 write(Map.of("reasonCode", "QUALITY", "result", "换新"))), admin)).path("message").asText());
@@ -262,9 +263,15 @@ class AfterSalesContractTest extends SalesContractSupport {
                 write(Map.of("reasonCode", "INVESTIGATING", "result", "换新"))), admin)).path("message").asText());
         assertEquals("已有退货单，不能撤销", fail(call(json(post(AS + "/" + asId + "/cancel"), "{\"reason\":\"误建\"}"), admin))
                 .path("message").asText());
+        // 案例沉淀选填，最多 500 字；结案后显示在详情和客户跟进时间线（第二期 tasks 4.4）
+        assertEquals("案例沉淀不能超过 500 字", fail(call(json(post(AS + "/" + asId + "/close"), write(Map.of("reasonCode", "QUALITY",
+                "result", "换新", "caseNote", "长".repeat(501)))), admin)).path("message").asText());
         JsonNode closed = ok(call(json(post(AS + "/" + asId + "/close"), write(Map.of("reasonCode", "QUALITY",
-                "result", "供应商换新，客户确认正常"))), admin));
+                "result", "供应商换新，客户确认正常", "caseNote", " 该型号运输需加泡沫护角 "))), admin));
         assertEquals("已结案", closed.path("statusName").asText());
+        assertEquals("该型号运输需加泡沫护角", closed.path("caseNote").asText());
+        assertEquals(1, jdbc.queryForObject("select count(*) from customer_followup where record_type = 2 and title like ?"
+                + " and raw_content = '案例沉淀：该型号运输需加泡沫护角'", Integer.class, "售后单 % 结案 · 供应商换新，客户确认正常"));
         assertFalse(closed.path("overdue").asBoolean());
         assertEquals("售后单已结案，只能添加跟进记录", fail(plan(asId, Map.of("reasonCode", "TRANSPORT"))).path("message").asText());
         ok(call(json(post(AS + "/" + asId + "/notes"), write(Map.of("content", "客户回访正常"))), admin));

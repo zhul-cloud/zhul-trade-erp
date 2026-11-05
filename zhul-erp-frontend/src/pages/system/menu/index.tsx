@@ -29,8 +29,10 @@ import {
 import { useAccess } from '@umijs/max';
 import { App, Button, Card, Input, Popconfirm, Space, Tag } from 'antd';
 import React, { useEffect, useMemo, useState } from 'react';
+import { ellipsisRender } from '@/components/EllipsisText';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatDateTime } from '@/utils/format';
+import { tableScrollX } from '@/utils/tableScroll';
 import type { MenuItem } from './service';
 import {
   createMenu,
@@ -498,7 +500,8 @@ const MenuPage: React.FC = () => {
     {
       title: '创建人',
       dataIndex: 'createBy',
-      width: 90,
+      width: 150,
+      render: ellipsisRender,
     },
     {
       title: '更新时间',
@@ -509,10 +512,12 @@ const MenuPage: React.FC = () => {
     {
       title: '更新人',
       dataIndex: 'updateBy',
-      width: 90,
+      width: 150,
+      render: ellipsisRender,
     },
     {
       title: '操作',
+      fixed: 'right',
       valueType: 'option',
       width: 220,
       render: (_, record) => (
@@ -763,6 +768,7 @@ const MenuPage: React.FC = () => {
 
       <Card>
         <ProTable<MenuItem>
+          scroll={{ x: tableScrollX(columns) }}
           rowKey="id"
           columns={columns}
           dataSource={displayTree}

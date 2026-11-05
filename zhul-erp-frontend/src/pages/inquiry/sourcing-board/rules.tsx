@@ -12,6 +12,7 @@ import BrandCategoryPicker from '@/components/BrandCategoryPicker';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useAppTheme } from '@/theme/AppTheme';
 import { MenuLink } from '@/utils/menuName';
+import { tableScrollX } from '@/utils/tableScroll';
 import { Card, PageTitle, Pill } from '../shared/components';
 import { PATHS } from '../shared/constants';
 import {
@@ -148,6 +149,7 @@ const AssignRulesPage: React.FC = () => {
     },
     {
       title: '匹配',
+      width: 240,
       render: (_, r) => (
         <span>
           {r.matchType === 1 ? '品牌' : '品类'} = {r.matchValues.join('、')}
@@ -192,6 +194,7 @@ const AssignRulesPage: React.FC = () => {
     },
     {
       title: '操作',
+      fixed: 'right',
       width: 120,
       render: (_, r) =>
         canEdit ? (
@@ -289,6 +292,7 @@ const AssignRulesPage: React.FC = () => {
         </div>
       </Card>
       <Table<AssignRule>
+        scroll={{ x: tableScrollX(columns) }}
         rowKey="id"
         columns={columns}
         dataSource={rules ?? []}

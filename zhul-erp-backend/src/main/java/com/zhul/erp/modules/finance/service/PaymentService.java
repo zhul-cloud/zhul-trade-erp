@@ -51,6 +51,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.TreeSet;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -359,6 +360,7 @@ public class PaymentService {
         if (Objects.equals(pay.getReimburseStatus(), FinanceConstants.REIMBURSE_CLAIMED)) {
             throw new BizException("这笔垫付已进入报销单，不能作废");
         }
+        requireCreditUnused(id, allocs);
         LocalDateTime now = LocalDateTime.now();
         pay.setVoidAt(now);
         pay.setVoidBy(SecurityUtils.getCurrentUsername());
@@ -374,6 +376,38 @@ public class PaymentService {
         logService.recordOperateLog(MENU, "作废付款", Map.of("paymentNo", pay.getPaymentNo(), "status", "有效"),
                 Map.of("paymentNo", pay.getPaymentNo(), "status", "已作废", "reason", reason.trim()));
         return toVo(pay);
+    }
+
+    /**
+     * 这笔付款实付进去的应付若已形成欠款并被其他有效单据使用（抵扣到别的应付，或收到供应商退款），不能直接作废：
+     * 作废会让来源少了这笔钱，后续抵扣却仍算已付。需先作废那些单据（audit BUS-009）。调用方已锁住相关应付。
+     */
+    private void requireCreditUnused(Long paymentId, List<PaymentAllocationDO> allocs) {
+        Set<Long> paidInto = allocs.stream()
+                .filter(a -> a.getFromCredit() == null || a.getFromCredit() == 0)
+                .map(PaymentAllocationDO::getPayableId)
+                .collect(Collectors.toCollection(TreeSet::new));
+        if (paidInto.isEmpty()) {
+            return;
+        }
+        List<Long> users = allocationMapper.selectList(new LambdaQueryWrapper<PaymentAllocationDO>()
+                        .select(PaymentAllocationDO::getPaymentId)
+                        .ne(PaymentAllocationDO::getPaymentId, paymentId)
+                        .isNull(PaymentAllocationDO::getDeletedAt)
+                        .and(w -> w.nested(x -> x.eq(PaymentAllocationDO::getFromCredit, 1)
+                                        .in(PaymentAllocationDO::getCreditPayableId, paidInto))
+                                .or().nested(x -> x.eq(PaymentAllocationDO::getFromCredit, 2)
+                                        .in(PaymentAllocationDO::getPayableId, paidInto))))
+                .stream().map(PaymentAllocationDO::getPaymentId).distinct().toList();
+        if (users.isEmpty()) {
+            return;
+        }
+        List<String> nos = paymentMapper.selectBatchIds(users).stream()
+                .filter(p -> p.getVoidAt() == null && p.getDeletedAt() == null)
+                .map(PaymentDO::getPaymentNo).sorted().toList();
+        if (!nos.isEmpty()) {
+            throw new BizException("这笔付款形成的欠款已被 " + String.join("、", nos) + " 使用，请先作废这些单据");
+        }
     }
 
     public PageResult<PaymentVO> page(PaymentQuery q) {

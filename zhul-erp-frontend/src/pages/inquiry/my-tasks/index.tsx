@@ -399,12 +399,13 @@ const MyTasksPage: React.FC = () => {
     return { items, invalid };
   };
 
-  const save = async (submit: boolean) => {
-    if (!detail) return;
+  /** 返回是否已保存到后端 */
+  const save = async (submit: boolean): Promise<boolean> => {
+    if (!detail) return false;
     const { items, invalid } = collect(submit);
     if (invalid) {
       message.error(invalid);
-      return;
+      return false;
     }
     // 提交时只改了生产状态的型号也一并带上，不影响回价进度
     const effective = submit
@@ -423,7 +424,7 @@ const MyTasksPage: React.FC = () => {
             ? '还没有填写任何价格或无货'
             : '没有需要保存的改动',
       );
-      return;
+      return false;
     }
     setBusy(true);
     try {
@@ -448,12 +449,70 @@ const MyTasksPage: React.FC = () => {
             : `已提交 ${effective.length} 个型号的回价`,
       );
       await Promise.all([loadDetail(detail.task.id), loadList()]);
+      return true;
     } catch (e) {
       message.error(readBizError(e).message);
+      return false;
     } finally {
       setBusy(false);
     }
   };
+
+  /**
+   * 离开当前任务（点别的任务、搜索、切页签）前，有没保存的回价先问：保存草稿 / 放弃修改 / 取消。
+   * 保存失败时留在原任务；放弃只丢掉当前任务的修改（audit UI-003）
+   */
+  const leave = (go: () => void) => {
+    if (!dirtyRef.current) {
+      go();
+      return;
+    }
+    const discard = () => {
+      dirtyRef.current = false;
+      setState((prev) =>
+        Object.fromEntries(
+          Object.entries(prev).map(([k, v]) => [k, { ...v, dirty: false }]),
+        ),
+      );
+      go();
+    };
+    const dialog = modal.confirm({
+      title: '回价还没保存',
+      content:
+        '这个任务里填写的价格、店铺、备注还没保存，离开前要先保存草稿吗？',
+      okText: '保存草稿',
+      cancelText: '取消',
+      onOk: async () => {
+        if (await save(false)) go();
+      },
+      footer: (_, { OkBtn, CancelBtn }) => (
+        <>
+          <CancelBtn />
+          <Button
+            danger
+            onClick={() => {
+              dialog.destroy();
+              discard();
+            }}
+          >
+            放弃修改
+          </Button>
+          <OkBtn />
+        </>
+      ),
+    });
+  };
+
+  // 有没保存的回价时，关闭或刷新页面前浏览器会提示
+  const dirty = Object.values(state).some((x) => x.dirty);
+  useEffect(() => {
+    if (!dirty) return undefined;
+    const warn = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+    };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [dirty]);
 
   /**
    * 粘贴报价填入草稿：同一渠道 + 店铺（供应商按 ID）已有的草稿覆盖，否则追加；同一批里同一型号的后几行追加，不互相覆盖。
@@ -702,22 +761,28 @@ const MyTasksPage: React.FC = () => {
               onChange={(e) => {
                 setKeyword(e.target.value);
                 if (!e.target.value) {
-                  setSearch('');
-                  setDoneLimit(LOAD_STEP);
+                  leave(() => {
+                    setSearch('');
+                    setDoneLimit(LOAD_STEP);
+                  });
                 }
               }}
-              onSearch={(v) => {
-                setSearch(v.trim());
-                setDoneLimit(LOAD_STEP);
-              }}
+              onSearch={(v) =>
+                leave(() => {
+                  setSearch(v.trim());
+                  setDoneLimit(LOAD_STEP);
+                })
+              }
             />
           )}
           <Segmented
             value={view}
-            onChange={(v) => {
-              setView(v as typeof view);
-              setDone(v === 'done');
-            }}
+            onChange={(v) =>
+              leave(() => {
+                setView(v as typeof view);
+                setDone(v === 'done');
+              })
+            }
             options={[
               { value: 'sales', label: `待认领 ${salesTotal}` },
               { value: 'pending', label: `待处理 ${counts.pending}` },
@@ -754,7 +819,9 @@ const MyTasksPage: React.FC = () => {
               <button
                 type="button"
                 key={t.id}
-                onClick={() => setActiveId(t.id)}
+                onClick={() =>
+                  t.id !== activeId && leave(() => setActiveId(t.id))
+                }
                 style={{
                   textAlign: 'left',
                   cursor: 'pointer',

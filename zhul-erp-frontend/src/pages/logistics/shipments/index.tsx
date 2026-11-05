@@ -3,6 +3,7 @@ import { history, Link, useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { App, Button, Checkbox, Input, Select, Table } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
+import { ellipsisRender } from '@/components/EllipsisText';
 import {
   Card,
   MigratedPill,
@@ -14,6 +15,7 @@ import { auditColumns } from '@/pages/purchase/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
 import { usePageSize } from '@/utils/pageSize';
+import { tableScrollX } from '@/utils/tableScroll';
 import { kg, LOGISTICS_PATHS, ShStatusPill } from '../components';
 import {
   type Forwarder,
@@ -295,7 +297,12 @@ const Shipments: React.FC = () => {
       ),
     },
     { title: '客户', dataIndex: 'customerName', width: 200 },
-    { title: '货代', dataIndex: 'forwarderName', width: 120 },
+    {
+      title: '货代',
+      dataIndex: 'forwarderName',
+      width: 120,
+      render: ellipsisRender,
+    },
     {
       title: '销售出库单 · 订单',
       key: 'orders',
@@ -317,7 +324,7 @@ const Shipments: React.FC = () => {
     {
       title: '箱数 · 计费重',
       key: 'boxes',
-      width: 120,
+      width: 140,
       render: (_, r) => (
         <div>
           <b style={{ color: palette.ink }}>{r.boxCount} 箱</b>
@@ -374,7 +381,12 @@ const Shipments: React.FC = () => {
         <ShStatusPill value={v}>{r.statusName}</ShStatusPill>
       ),
     },
-    { title: '业务员', dataIndex: 'ownerName', width: 90 },
+    {
+      title: '业务员',
+      dataIndex: 'ownerName',
+      width: 90,
+      render: ellipsisRender,
+    },
     ...auditColumns<Logistics>(),
     {
       title: '操作',
@@ -450,7 +462,7 @@ const Shipments: React.FC = () => {
             columns={columns}
             dataSource={rows}
             loading={loading}
-            scroll={{ x: 2100 }}
+            scroll={{ x: tableScrollX(columns) }}
             locale={{
               emptyText:
                 '还没有出运单；货交到货代后，在上面「待出运的货」里新建',
