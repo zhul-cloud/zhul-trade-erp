@@ -9,6 +9,7 @@ import {
   UploadOutlined,
 } from '@ant-design/icons';
 import { useAccess } from '@umijs/max';
+import type { TableColumnsType } from 'antd';
 import {
   Alert,
   App,
@@ -22,6 +23,7 @@ import {
   Tooltip,
 } from 'antd';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import EllipsisText from '@/components/EllipsisText';
 import { readBizError } from '@/pages/crm/opportunity/service';
 import {
   Card,
@@ -32,6 +34,7 @@ import {
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatDateTime } from '@/utils/format';
+import { tableScrollX } from '@/utils/tableScroll';
 import {
   TEXT_QUOTE,
   type TemplateType,
@@ -301,6 +304,114 @@ const DocumentTemplatePage: React.FC = () => {
     }
   };
 
+  const versionColumns: TableColumnsType<TemplateVersion> = [
+    {
+      title: '版本',
+      key: 'v',
+      width: 64,
+      render: (_, v) => <b>V{v.versionNo}</b>,
+    },
+    {
+      title: '状态',
+      key: 's',
+      width: 84,
+      render: (_, v) =>
+        v.isDefault ? (
+          <Pill tone="green" dot>
+            默认
+          </Pill>
+        ) : !v.enabled ? (
+          <Pill tone="mute">已停用</Pill>
+        ) : null,
+    },
+    {
+      title: '版本说明',
+      width: 196,
+      key: 'n',
+      render: (_, v) => (
+        <span
+          title={[v.note, v.builtin ? '' : v.fileName]
+            .filter(Boolean)
+            .join(' · ')}
+          style={{
+            display: 'block',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+            color: v.enabled ? palette.ink : palette.sub,
+          }}
+        >
+          {v.note}
+          {v.fileName && !v.builtin && (
+            <span style={{ color: palette.mute, fontSize: 12 }}>
+              {' '}
+              · {v.fileName}
+            </span>
+          )}
+        </span>
+      ),
+    },
+    {
+      title: '上传',
+      key: 'u',
+      width: 190,
+      render: (_, v) => (
+        <>
+          <EllipsisText
+            text={v.uploadedByName ?? '—'}
+            style={{ color: palette.sub }}
+          />
+          <div
+            style={{ fontSize: 12, color: palette.mute, whiteSpace: 'nowrap' }}
+          >
+            {formatDateTime(v.createTime).slice(0, 16)}
+          </div>
+        </>
+      ),
+    },
+    {
+      title: '操作',
+      fixed: 'right',
+      key: 'a',
+      width: 240,
+      render: (_, v) => (
+        <Space size={12}>
+          {current?.generatable ? (
+            <a onClick={() => preview(v)}>预览导出</a>
+          ) : (
+            <Tooltip title="生成功能随发货模块上线，暂时只能下载模版查看">
+              <span style={{ color: palette.mute }}>预览导出</span>
+            </Tooltip>
+          )}
+          <a
+            onClick={() =>
+              isText
+                ? setTextPreview(v.content ?? '')
+                : templateApi
+                    .download(v.id)
+                    .catch((e) => message.error(e.message))
+            }
+          >
+            {isText ? '查看' : '下载'}
+          </a>
+          {canEdit && !v.isDefault && v.enabled && (
+            <a onClick={() => setDefault(v)}>设为默认</a>
+          )}
+          {canEdit && !v.isDefault && (
+            <a
+              style={{
+                color: v.enabled ? palette.sub : palette.link,
+              }}
+              onClick={() => toggle(v)}
+            >
+              {v.enabled ? '停用' : '启用'}
+            </a>
+          )}
+        </Space>
+      ),
+    },
+  ];
+
   if (error) return <ErrorHint message={error} onRetry={refresh} />;
 
   const builtin = versions?.find((v) => v.builtin);
@@ -341,7 +452,7 @@ const DocumentTemplatePage: React.FC = () => {
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: wide ? '320px minmax(0, 1fr)' : 'minmax(0, 1fr)',
+          gridTemplateColumns: wide ? '260px minmax(0, 1fr)' : 'minmax(0, 1fr)',
           gap: 16,
           alignItems: 'start',
         }}
@@ -396,7 +507,7 @@ const DocumentTemplatePage: React.FC = () => {
               <Skeleton active style={{ padding: 24 }} />
             ) : (
               <Table<TemplateVersion>
-                scroll={{ x: 'max-content' }}
+                scroll={{ x: tableScrollX(versionColumns) }}
                 rowKey="id"
                 pagination={false}
                 dataSource={versions}
@@ -405,99 +516,7 @@ const DocumentTemplatePage: React.FC = () => {
                     ? { style: { background: palette.accentSoft } }
                     : {}
                 }
-                columns={[
-                  {
-                    title: '版本',
-                    key: 'v',
-                    width: 70,
-                    render: (_, v) => <b>V{v.versionNo}</b>,
-                  },
-                  {
-                    title: '状态',
-                    key: 's',
-                    width: 90,
-                    render: (_, v) =>
-                      v.isDefault ? (
-                        <Pill tone="green" dot>
-                          默认
-                        </Pill>
-                      ) : !v.enabled ? (
-                        <Pill tone="mute">已停用</Pill>
-                      ) : null,
-                  },
-                  {
-                    title: '版本说明',
-                    width: 240,
-                    key: 'n',
-                    render: (_, v) => (
-                      <span
-                        style={{ color: v.enabled ? palette.ink : palette.sub }}
-                      >
-                        {v.note}
-                        {v.fileName && !v.builtin && (
-                          <span style={{ color: palette.mute, fontSize: 12 }}>
-                            {' '}
-                            · {v.fileName}
-                          </span>
-                        )}
-                      </span>
-                    ),
-                  },
-                  {
-                    title: '上传',
-                    key: 'u',
-                    width: 220,
-                    render: (_, v) => (
-                      <span style={{ color: palette.sub }}>
-                        {v.uploadedByName ?? '—'} ·{' '}
-                        {formatDateTime(v.createTime).slice(0, 16)}
-                      </span>
-                    ),
-                  },
-                  {
-                    title: '操作',
-                    fixed: 'right',
-                    key: 'a',
-                    width: 260,
-                    render: (_, v) => (
-                      <Space size={12}>
-                        {current?.generatable ? (
-                          <a onClick={() => preview(v)}>预览导出</a>
-                        ) : (
-                          <Tooltip title="生成功能随发货模块上线，暂时只能下载模版查看">
-                            <span style={{ color: palette.mute }}>
-                              预览导出
-                            </span>
-                          </Tooltip>
-                        )}
-                        <a
-                          onClick={() =>
-                            isText
-                              ? setTextPreview(v.content ?? '')
-                              : templateApi
-                                  .download(v.id)
-                                  .catch((e) => message.error(e.message))
-                          }
-                        >
-                          {isText ? '查看' : '下载'}
-                        </a>
-                        {canEdit && !v.isDefault && v.enabled && (
-                          <a onClick={() => setDefault(v)}>设为默认</a>
-                        )}
-                        {canEdit && !v.isDefault && (
-                          <a
-                            style={{
-                              color: v.enabled ? palette.sub : palette.link,
-                            }}
-                            onClick={() => toggle(v)}
-                          >
-                            {v.enabled ? '停用' : '启用'}
-                          </a>
-                        )}
-                      </Space>
-                    ),
-                  },
-                ]}
+                columns={versionColumns}
               />
             )}
           </Card>

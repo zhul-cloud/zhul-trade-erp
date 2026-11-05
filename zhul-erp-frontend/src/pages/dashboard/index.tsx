@@ -155,7 +155,7 @@ const Dashboard: React.FC = () => {
                 ? 'repeat(2, minmax(0, 1fr))'
                 : 'minmax(0, 1fr)',
               gap: 16,
-              alignItems: 'start',
+              // 同一行的卡片等高（默认拉伸），不按各自内容高度参差排列（audit UI-041）
             }}
           >
             {widgets.map((w) => {
@@ -163,9 +163,10 @@ const Dashboard: React.FC = () => {
               return (
                 <div
                   key={w.key}
-                  style={
-                    w.size === 'full' ? { gridColumn: '1 / -1' } : undefined
-                  }
+                  style={{
+                    minWidth: 0,
+                    ...(w.size === 'full' ? { gridColumn: '1 / -1' } : {}),
+                  }}
                 >
                   <Widget />
                 </div>

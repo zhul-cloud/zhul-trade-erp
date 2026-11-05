@@ -1,6 +1,7 @@
 import { ReloadOutlined } from '@ant-design/icons';
 import { Button, Skeleton } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
+import FitText from '@/components/FitText';
 import { readBizError } from '@/pages/crm/opportunity/service';
 import { Card } from '@/pages/inquiry/shared/components';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -82,7 +83,15 @@ export const WidgetCard: React.FC<{
 }> = ({ icon, tone, title, sub, extra, loading, error, onRetry, children }) => {
   const { palette } = useAppTheme();
   return (
-    <Card style={{ padding: 20, height: '100%' }}>
+    // 纵向弹性布局：同一行卡片被拉成等高时，内容区（如图表）跟着长高，不在下方留空（audit UI-041）
+    <Card
+      style={{
+        padding: 20,
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+      }}
+    >
       <div
         style={{
           display: 'flex',
@@ -115,7 +124,16 @@ export const WidgetCard: React.FC<{
       ) : loading ? (
         <Skeleton active paragraph={{ rows: 3 }} />
       ) : (
-        children
+        <div
+          style={{
+            flex: 1,
+            minHeight: 0,
+            display: 'flex',
+            flexDirection: 'column',
+          }}
+        >
+          {children}
+        </div>
       )}
     </Card>
   );
@@ -133,18 +151,19 @@ export const Metric: React.FC<{
   const body = (
     <>
       <div style={{ fontSize: 13, color: palette.sub }}>{label}</div>
-      <div
+      {/* 卡片变窄时自动缩小字号，金额不溢出、不截断 */}
+      <FitText
+        size={26}
+        min={16}
         style={{
-          fontSize: 26,
           fontWeight: 700,
           color: palette.ink,
           fontVariantNumeric: 'tabular-nums',
           margin: '6px 0 4px',
-          whiteSpace: 'nowrap',
         }}
       >
         {value}
-      </div>
+      </FitText>
       {hint !== undefined && (
         <div style={{ fontSize: 12, color: hintColor ?? palette.mute }}>
           {hint}

@@ -1530,7 +1530,7 @@ const PiDetail: React.FC = () => {
           columns={editColumns}
           dataSource={draft.items}
           pagination={false}
-          scroll={{ x: compact ? 800 : 1240 }}
+          scroll={{ x: tableScrollX(editColumns) }}
           onRow={(d) =>
             belowFloor(itemById.get(d.id), results.get(d.id))
               ? { style: { background: palette.redSoft } }
