@@ -294,6 +294,8 @@ export interface BoardTask {
   customerType?: number;
   /** 兼职采购看不到，为空 */
   customerName?: string;
+  /** 业务员在询盘单上写的备注；兼职采购没有 */
+  inquiryRemark?: string;
   quoteDeadline?: string;
   /** 回价是否还能修改（业务员报价后为 false） */
   editable?: boolean;

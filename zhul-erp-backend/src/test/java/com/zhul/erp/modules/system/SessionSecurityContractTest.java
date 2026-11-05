@@ -278,6 +278,27 @@ class SessionSecurityContractTest extends IntegrationTestBase {
         assertEquals(0, loginAs(USERNAME, PASSWORD, UUID.randomUUID().toString()).path("code").asInt(), "恢复公司后照常登录");
     }
 
+    /** 记住我：RefreshToken 与 Cookie 30 天，每次刷新重新计时（2026-11-05 用户反馈） */
+    @Test
+    void rememberMeLasts30DaysAndSlidesOnRefresh() throws Exception {
+        String body = objectMapper.writeValueAsString(Map.of("username", USERNAME, "password", PASSWORD,
+                "idempotencyKey", UUID.randomUUID().toString(), "rememberMe", true));
+        MockHttpServletResponse login = mvc.perform(post("/api/v1/auth/login")
+                .contentType(MediaType.APPLICATION_JSON).content(body)).andReturn().getResponse();
+        jakarta.servlet.http.Cookie cookie = login.getCookie("rft");
+        assertNotNull(cookie, login.getHeader("Set-Cookie"));
+        assertEquals(2592000, cookie.getMaxAge());
+        String key = RedisKeyConstants.REFRESH_TOKEN_PREFIX + cookie.getValue();
+        assertTrue(redis.getExpire(key) > 2592000 - 60);
+
+        redis.expire(key, java.time.Duration.ofDays(1));
+        MockHttpServletResponse refreshed = mvc.perform(post("/api/v1/auth/refresh").cookie(cookie)).andReturn().getResponse();
+        assertEquals(0, objectMapper.readTree(refreshed.getContentAsString(StandardCharsets.UTF_8)).path("code").asInt());
+        assertTrue(redis.getExpire(key) > 2592000 - 60, "刷新后重新计满 30 天");
+        assertEquals(2592000, refreshed.getCookie("rft").getMaxAge());
+        TenantContext.setTenantId(0);
+    }
+
     @Test
     void genericAiTaskCreateEndpointClosed() throws Exception {
         loginAsAdmin("it_session_ai");

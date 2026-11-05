@@ -13,9 +13,11 @@ import dayjs, { type Dayjs } from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
 import { CustomerCell } from '@/components/DocFields';
 import { ellipsisRender } from '@/components/EllipsisText';
+import { TagList } from '@/pages/inquiry/customer-inquiry/ModelCells';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
 import { auditColumns } from '@/pages/purchase/components';
 import { CURRENCIES } from '@/pages/quotation/components';
+import { getUserList } from '@/pages/system/user/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import { recentRange } from '@/utils/dateRange';
 import { formatAmount } from '@/utils/format';
@@ -53,6 +55,7 @@ interface Filters {
   customerType?: number;
   currencyCode?: string;
   purchaserId?: number;
+  ownerId?: number;
   receiptStatus?: number;
   /** 1-PI 转成、2-手动创建、3-售后补发 */
   source?: number;
@@ -93,6 +96,7 @@ const OrderList: React.FC = () => {
   const canFromPi = !!access.salesPi;
   const canManual = !!access['sales:order:create'];
   const users = useUserOptions();
+  const [owners, setOwners] = useState<{ value: number; label: string }[]>([]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -106,6 +110,7 @@ const OrderList: React.FC = () => {
       customerType: filters.customerType,
       currencyCode: filters.currencyCode,
       purchaserId: filters.purchaserId,
+      ownerId: filters.ownerId,
       receiptStatus:
         filters.receiptStatus === PAY_LATER_OPEN
           ? undefined
@@ -137,6 +142,13 @@ const OrderList: React.FC = () => {
       .stats()
       .then(setStats)
       .catch(() => setStats(undefined));
+    getUserList({ current: 1, pageSize: 200 })
+      .then((res) =>
+        setOwners(
+          res.data.records.map((u) => ({ value: u.id, label: u.name })),
+        ),
+      )
+      .catch(() => setOwners([]));
   }, []);
 
   const noFilter =
@@ -146,6 +158,7 @@ const OrderList: React.FC = () => {
     !filters.customerType &&
     !filters.currencyCode &&
     !filters.purchaserId &&
+    !filters.ownerId &&
     !filters.receiptStatus &&
     !filters.source &&
     !filters.range;
@@ -199,13 +212,29 @@ const OrderList: React.FC = () => {
     {
       title: '型号 · 数量',
       key: 'qty',
-      width: 110,
+      width: 190,
       render: (_, r) => (
         <div>
-          <div>{r.itemCount} 个型号</div>
-          {sub(`共 ${r.totalQuantity ?? 0} 件`)}
+          <div style={{ fontFamily: 'monospace', whiteSpace: 'nowrap' }}>
+            {r.firstModel ?? '—'}
+          </div>
+          {sub(
+            `${r.itemCount > 1 ? `共 ${r.itemCount} 个型号 · ` : ''}${r.totalQuantity ?? 0} 件`,
+          )}
         </div>
       ),
+    },
+    {
+      title: '品牌',
+      key: 'brands',
+      width: 170,
+      render: (_, r) => <TagList values={r.brands} label="品牌" />,
+    },
+    {
+      title: '品类',
+      key: 'categories',
+      width: 170,
+      render: (_, r) => <TagList values={r.categories} label="品类" />,
     },
     {
       title: '合计',
@@ -576,6 +605,18 @@ const OrderList: React.FC = () => {
                 allowClear
                 placeholder="全部"
                 options={CURRENCIES.map((c) => ({ value: c, label: c }))}
+              />
+            </Form.Item>
+            <Form.Item
+              name="ownerId"
+              label="业务员"
+              style={{ marginBottom: 0 }}
+            >
+              <Select
+                allowClear
+                placeholder="全部"
+                options={owners}
+                showSearch={{ optionFilterProp: 'label' }}
               />
             </Form.Item>
             <Form.Item

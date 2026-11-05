@@ -177,6 +177,24 @@ const TaskDetailDrawer: React.FC<{
                 `${t.returnReasonLabel ?? ''}${t.returnedByName ? ` · ${t.returnedByName}` : ''}${t.returnNote ? ` · ${t.returnNote}` : ''}`,
               )}
           </div>
+          {t.inquiryRemark && (
+            <div
+              style={{
+                padding: '10px 14px',
+                borderRadius: 12,
+                border: `1px solid ${palette.hairline}`,
+                whiteSpace: 'pre-wrap',
+                color: palette.ink,
+              }}
+            >
+              <div
+                style={{ color: palette.mute, fontSize: 12, marginBottom: 4 }}
+              >
+                业务员备注
+              </div>
+              {t.inquiryRemark}
+            </div>
+          )}
           <div style={{ display: 'grid', gap: 10 }}>
             <b style={{ color: palette.ink }}>型号（{data.items.length}）</b>
             {plates.unmatched}

@@ -1687,6 +1687,11 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         }).toList();
     }
 
+    /** 型号行上去重后的非空文本（按行号顺序），列表的品牌、品类用 */
+    private static List<String> distinctTexts(List<SalesOrderItemDO> items, java.util.function.Function<SalesOrderItemDO, String> f) {
+        return items.stream().map(f).filter(StringUtils::hasText).map(String::trim).distinct().toList();
+    }
+
     private List<SalesOrderListVO> toListVos(List<SalesOrderDO> rows) {
         List<Long> ids = rows.stream().map(SalesOrderDO::getId).toList();
         Map<Long, OrderCostVO> costs = orderCostService.of(rows);
@@ -1696,7 +1701,8 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         Map<Long, Integer> unassigned = new HashMap<>();
         List<SalesOrderItemDO> allItems = new ArrayList<>();
         for (SalesOrderItemDO i : orderItemMapper.selectList(new LambdaQueryWrapper<SalesOrderItemDO>()
-                .select(SalesOrderItemDO::getId, SalesOrderItemDO::getSoId, SalesOrderItemDO::getQuantity, SalesOrderItemDO::getPurchaserId)
+                .select(SalesOrderItemDO::getId, SalesOrderItemDO::getSoId, SalesOrderItemDO::getQuantity, SalesOrderItemDO::getPurchaserId,
+                        SalesOrderItemDO::getModel, SalesOrderItemDO::getBrand, SalesOrderItemDO::getCategory)
                 .in(SalesOrderItemDO::getSoId, ids)
                 .isNull(SalesOrderItemDO::getDeletedAt)
                 .orderByAsc(SalesOrderItemDO::getLineNo))) {
@@ -1723,6 +1729,7 @@ public class SalesOrderServiceImpl implements SalesOrderService {
                 .map(SalesOrderDO::getOriginalSoId).collect(Collectors.toSet());
         Map<Long, String> originalNos = originalIds.isEmpty() ? Map.of() : orderMapper.selectBatchIds(originalIds).stream()
                 .collect(Collectors.toMap(SalesOrderDO::getId, SalesOrderDO::getSoNo));
+        Map<Long, List<SalesOrderItemDO>> itemsByOrder = allItems.stream().collect(Collectors.groupingBy(SalesOrderItemDO::getSoId));
         List<SalesOrderListVO> list = new ArrayList<>(rows.size());
         for (SalesOrderDO o : rows) {
             ProformaInvoiceDO pi = pis.get(o.getPiId());
@@ -1750,6 +1757,10 @@ public class SalesOrderServiceImpl implements SalesOrderService {
             vo.setUnassignedCount(unassigned.getOrDefault(o.getId(), 0));
             vo.setTotalQuantity(quantities.getOrDefault(o.getId(), 0));
             vo.setItemCount(counts.getOrDefault(o.getId(), 0));
+            List<SalesOrderItemDO> own = itemsByOrder.getOrDefault(o.getId(), List.of());
+            vo.setFirstModel(own.isEmpty() ? null : own.get(0).getModel());
+            vo.setBrands(distinctTexts(own, SalesOrderItemDO::getBrand));
+            vo.setCategories(distinctTexts(own, SalesOrderItemDO::getCategory));
             vo.setCurrencyCode(o.getCurrencyCode());
             vo.setTotalAmount(o.getTotalAmount());
             if (pi != null) {

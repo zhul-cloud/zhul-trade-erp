@@ -20,6 +20,7 @@ import {
   Modal,
   Segmented,
   Skeleton,
+  Tooltip,
 } from 'antd';
 import dayjs from 'dayjs';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
@@ -557,6 +558,21 @@ const SourcingBoardPage: React.FC = () => {
                               customerType={t.customerType}
                               customerName={t.customerName}
                             />
+                            {t.inquiryRemark && (
+                              <Tooltip title={t.inquiryRemark}>
+                                <span
+                                  style={{
+                                    color: palette.sub,
+                                    fontSize: 12,
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    whiteSpace: 'nowrap',
+                                  }}
+                                >
+                                  备注：{t.inquiryRemark}
+                                </span>
+                              </Tooltip>
+                            )}
                           </div>
                           {tab === UNASSIGNED ? (
                             <div style={{ display: 'grid', gap: 2 }}>
