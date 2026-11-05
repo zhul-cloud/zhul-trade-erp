@@ -167,6 +167,10 @@ class SourcingContractTest extends InquiryContractSupport {
         assertEquals(2, detail.path("items").get(0).path("quantity").asInt());
         assertEquals("Wingrid Rocha", detail.path("task").path("customerName").asText());
         assertTrue(detail.toString().indexOf("rawContent") < 0, "任务详情不含原始询盘内容");
+        // 2026-11-05 用户反馈：分配时看得到业务员在询盘单上写的备注
+        jdbc.update("update customer_inquiry set remark = '客户要原装，拒收翻新' where id = ?", important);
+        assertEquals("客户要原装，拒收翻新", ok(call(get(BOARD + "/tasks/" + sTask), admin)).path("task").path("inquiryRemark").asText());
+        assertEquals("客户要原装，拒收翻新", ok(call(get(BOARD), admin)).path("tasks").get(0).path("inquiryRemark").asText());
 
         assign(sTask, BUYER_LIN);
         assign(nTask, PART_TIMER);

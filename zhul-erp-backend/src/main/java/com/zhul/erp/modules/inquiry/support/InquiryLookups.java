@@ -106,7 +106,7 @@ public class InquiryLookups {
 
     /** 采购看到的询盘摘要：所属业务员、询盘等级、新老客户；客户名称对兼职采购不返回（为 null） */
     public record InquiryBrief(Long salesId, String salesName, Integer level, Integer customerType, String customerName,
-                               java.time.LocalDate quoteDeadline, Integer inquiryStatus) {
+                               java.time.LocalDate quoteDeadline, Integer inquiryStatus, String remark) {
     }
 
     /** 询盘单 ID → 采购看到的摘要；hideCustomerName 为真时不带客户名称 */
@@ -119,14 +119,16 @@ public class InquiryLookups {
         List<CustomerInquiryDO> inquiries = customerInquiryMapper.selectList(new LambdaQueryWrapper<CustomerInquiryDO>()
                 .select(CustomerInquiryDO::getId, CustomerInquiryDO::getOwnerId, CustomerInquiryDO::getLevel,
                         CustomerInquiryDO::getCustomerType, CustomerInquiryDO::getCustomerId, CustomerInquiryDO::getQuoteDeadline,
-                        CustomerInquiryDO::getStatus)
+                        CustomerInquiryDO::getStatus, CustomerInquiryDO::getRemark)
                 .in(CustomerInquiryDO::getId, keys));
         Map<Long, String> sales = userNames(inquiries.stream().map(CustomerInquiryDO::getOwnerId).toList());
         Map<Long, CustomerDO> customers = hideCustomerName ? Map.of()
                 : customers(inquiries.stream().map(CustomerInquiryDO::getCustomerId).toList());
         for (CustomerInquiryDO i : inquiries) {
             map.put(i.getId(), new InquiryBrief(i.getOwnerId(), sales.get(i.getOwnerId()), i.getLevel(), i.getCustomerType(),
-                    hideCustomerName ? null : customerName(customers.get(i.getCustomerId())), i.getQuoteDeadline(), i.getStatus()));
+                    hideCustomerName ? null : customerName(customers.get(i.getCustomerId())), i.getQuoteDeadline(), i.getStatus(),
+                    // 业务员的询盘备注可能写客户信息，兼职采购同样不返回
+                    hideCustomerName ? null : i.getRemark()));
         }
         return map;
     }

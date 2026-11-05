@@ -141,7 +141,7 @@ const LoginPage: React.FC = () => {
         form={form}
         layout="vertical"
         onFinish={handleSubmit}
-        initialValues={{ rememberMe: false }}
+        initialValues={{ rememberMe: true }}
         disabled={loading}
       >
         <Form.Item
@@ -182,7 +182,7 @@ const LoginPage: React.FC = () => {
         <Form.Item style={{ marginBottom: 24 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
             <Form.Item name="rememberMe" valuePropName="checked" noStyle>
-              <Checkbox>记住我（7天）</Checkbox>
+              <Checkbox>记住我（30 天内免登录）</Checkbox>
             </Form.Item>
             <a onClick={() => history.push('/forget-password/step1')}>
               忘记密码?

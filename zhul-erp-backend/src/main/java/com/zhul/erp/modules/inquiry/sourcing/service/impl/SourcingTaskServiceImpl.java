@@ -1298,5 +1298,6 @@ public class SourcingTaskServiceImpl implements SourcingTaskService {
         vo.setCustomerType(b.customerType());
         vo.setCustomerName(b.customerName());
         vo.setQuoteDeadline(b.quoteDeadline());
+        vo.setInquiryRemark(org.springframework.util.StringUtils.hasText(b.remark()) ? b.remark().trim() : null);
     }
 }

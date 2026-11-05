@@ -126,6 +126,14 @@ class SalesOrderTrackingContractTest extends SalesContractSupport {
         JsonNode page = ok(call(json(post(SO + "/page"), write(Map.of("purchaserId", LI))), admin));
         assertEquals(1, page.path("total").asInt());
         assertEquals(List.of("张三", "李四"), objectMapper.convertValue(page.path("records").get(0).path("purchaserNames"), List.class));
+        // 2026-11-05 用户反馈：列表像询盘单一样显示第一个型号、品牌、品类，并能按业务员筛选
+        JsonNode rec = page.path("records").get(0);
+        assertEquals("2198-E4020-ERS", rec.path("firstModel").asText());
+        assertEquals(List.of("Siemens"), objectMapper.convertValue(rec.path("brands"), List.class), "品牌去重");
+        assertEquals(List.of("PLC"), objectMapper.convertValue(rec.path("categories"), List.class));
+        long owner = rec.path("ownerId").asLong();
+        assertEquals(1, ok(call(json(post(SO + "/page"), write(Map.of("ownerId", owner))), admin)).path("total").asInt());
+        assertEquals(0, ok(call(json(post(SO + "/page"), write(Map.of("ownerId", 123456789L))), admin)).path("total").asInt(), "按业务员筛选");
         assertEquals(0, ok(call(json(post(SO + "/page"), write(Map.of("salesFrom", "2026-10-08", "salesTo", "2026-10-08"))), admin))
                 .path("total").asInt(), "按销售日期筛选");
     }
