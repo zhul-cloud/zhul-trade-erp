@@ -134,7 +134,7 @@ const PaymentRecords: React.FC = () => {
     {
       title: '类型',
       dataIndex: 'kind',
-      width: 80,
+      width: 110,
       render: (v: number) =>
         v === 2 ? (
           <Pill tone="orange">退款</Pill>

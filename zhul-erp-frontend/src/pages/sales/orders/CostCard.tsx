@@ -10,6 +10,7 @@ import type {
 import { Card, Pill } from '@/pages/inquiry/shared/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
+import { tableScrollX } from '@/utils/tableScroll';
 
 const num: React.CSSProperties = { fontVariantNumeric: 'tabular-nums' };
 
@@ -291,7 +292,7 @@ const OrderCostCard: React.FC<{ cost: OrderCost }> = ({ cost }) => {
         columns={shown}
         dataSource={cost.lines}
         pagination={false}
-        scroll={{ x: 1600 }}
+        scroll={{ x: tableScrollX(shown) }}
         summary={() => (
           <Table.Summary.Row>
             <Table.Summary.Cell index={0} colSpan={10}>

@@ -107,7 +107,7 @@ const SalesStatsPage: React.FC = () => {
     {
       title: view === 'OWNER' ? '业务员' : '月份',
       dataIndex: 'label',
-      width: 110,
+      width: 130,
       fixed: 'left',
       render: (v: string) => <b style={{ color: palette.ink }}>{v}</b>,
     },
@@ -128,7 +128,7 @@ const SalesStatsPage: React.FC = () => {
     {
       title: '询盘转化 新',
       key: 'inquiryRate',
-      width: 100,
+      width: 120,
       align: 'right',
       render: (_, r) => rate(r.inquiryRate, r.inquiryRateNew),
     },
@@ -197,7 +197,7 @@ const SalesStatsPage: React.FC = () => {
     {
       title: '成交客户 新/老',
       key: 'customers',
-      width: 120,
+      width: 140,
       align: 'right',
       render: (_, r) => split(r.customers),
     },

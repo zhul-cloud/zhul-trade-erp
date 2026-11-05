@@ -31,7 +31,7 @@ import {
   Tag,
 } from 'antd';
 import React, { useEffect, useRef, useState } from 'react';
-import { ellipsisRender } from '@/components/EllipsisText';
+import EllipsisText, { ellipsisRender } from '@/components/EllipsisText';
 import { useAppTheme } from '@/theme/AppTheme';
 import { usePagination } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
@@ -276,9 +276,9 @@ const UserPage: React.FC = () => {
     {
       title: '用户',
       dataIndex: 'name',
-      width: 180,
+      width: 220,
       render: (_, record, index) => (
-        <Space>
+        <Space style={{ maxWidth: '100%' }} styles={{ item: { minWidth: 0 } }}>
           <Avatar
             style={{
               backgroundColor: AVATAR_COLORS[index % AVATAR_COLORS.length],
@@ -286,9 +286,12 @@ const UserPage: React.FC = () => {
           >
             {(record.nickname || record.name || '?').charAt(0)}
           </Avatar>
-          <div>
-            <div style={{ fontWeight: 600 }}>{record.name}</div>
-            <div style={{ fontSize: 12, color: p.mute }}>{record.username}</div>
+          <div style={{ minWidth: 0 }}>
+            <EllipsisText text={record.name} style={{ fontWeight: 600 }} />
+            <EllipsisText
+              text={record.username}
+              style={{ fontSize: 12, color: p.mute }}
+            />
           </div>
         </Space>
       ),
@@ -318,8 +321,12 @@ const UserPage: React.FC = () => {
       search: false,
       render: (_, record) =>
         record.roleName ? (
-          <Tag color="processing" variant="filled">
-            {record.roleName}
+          <Tag
+            color="processing"
+            variant="filled"
+            style={{ maxWidth: '100%', marginInlineEnd: 0 }}
+          >
+            <EllipsisText text={record.roleName} />
           </Tag>
         ) : (
           '-'

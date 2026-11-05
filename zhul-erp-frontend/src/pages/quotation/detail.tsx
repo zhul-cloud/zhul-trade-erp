@@ -1764,7 +1764,7 @@ const QuotationDetail: React.FC = () => {
           columns={editColumns}
           dataSource={draft.items}
           pagination={false}
-          scroll={{ x: compact ? 900 : 1460 }}
+          scroll={{ x: tableScrollX(editColumns) }}
           rowClassName={() => ''}
           onRow={(d) => {
             const src = itemById.get(d.id);

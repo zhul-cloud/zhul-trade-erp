@@ -16,6 +16,7 @@ import { auditColumns } from '@/pages/purchase/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatDateTime } from '@/utils/format';
 import { usePageSize } from '@/utils/pageSize';
+import { tableScrollX } from '@/utils/tableScroll';
 import { ImportRecordsDrawer } from '../products/cards/ImportRecords';
 import {
   factsVerified,
@@ -231,7 +232,7 @@ export const TaskList: React.FC<{ entry: PackageType }> = ({ entry }) => {
     {
       title: '商品',
       key: 'product',
-      width: 260,
+      width: 300,
       fixed: 'left',
       render: (_, t) => (
         <div>
@@ -244,7 +245,17 @@ export const TaskList: React.FC<{ entry: PackageType }> = ({ entry }) => {
           >
             <b>{label(t)}</b>
           </Link>
-          <div style={{ fontSize: 12, color: palette.mute }}>
+          <div
+            title={t.productName}
+            style={{
+              fontSize: 12,
+              color: palette.mute,
+              display: '-webkit-box',
+              WebkitBoxOrient: 'vertical',
+              WebkitLineClamp: 2,
+              overflow: 'hidden',
+            }}
+          >
             {t.productName || '—'}
           </div>
         </div>
@@ -310,7 +321,7 @@ export const TaskList: React.FC<{ entry: PackageType }> = ({ entry }) => {
     {
       title: '操作',
       key: 'actions',
-      width: 300,
+      width: facts ? 360 : 320,
       fixed: 'right',
       render: (_, t) => (
         <span
@@ -456,43 +467,45 @@ export const TaskList: React.FC<{ entry: PackageType }> = ({ entry }) => {
                 : t.label,
           }))}
         />
-        <Input
-          allowClear
-          prefix={<SearchOutlined />}
-          value={keyword}
-          onChange={(e) => setKeyword(e.target.value)}
-          onPressEnter={apply}
-          placeholder="型号、名称"
-          style={{ width: 220 }}
-          aria-label="关键词"
-        />
-        <Select
-          allowClear
-          showSearch={{ optionFilterProp: 'label' }}
-          value={brandId}
-          onChange={setBrandId}
-          placeholder="全部品牌"
-          options={brands.map((b) => ({ value: b.id, label: b.brandName }))}
-          style={{ width: 160 }}
-          aria-label="品牌"
-        />
-        <Select
-          allowClear
-          showSearch={{ optionFilterProp: 'label' }}
-          value={categoryId}
-          onChange={setCategoryId}
-          placeholder="全部品类"
-          options={categories.map((c) => ({
-            value: c.id,
-            label: c.categoryNameZh || c.categoryName,
-          }))}
-          style={{ width: 160 }}
-          aria-label="品类"
-        />
-        <span style={{ flex: 1 }} />
-        <Button type="primary" onClick={apply}>
-          查询
-        </Button>
+        <span style={{ display: 'flex', gap: 12, flex: 1, minWidth: 0 }}>
+          <Input
+            allowClear
+            prefix={<SearchOutlined />}
+            value={keyword}
+            onChange={(e) => setKeyword(e.target.value)}
+            onPressEnter={apply}
+            placeholder="型号、名称"
+            style={{ width: 220 }}
+            aria-label="关键词"
+          />
+          <Select
+            allowClear
+            showSearch={{ optionFilterProp: 'label' }}
+            value={brandId}
+            onChange={setBrandId}
+            placeholder="全部品牌"
+            options={brands.map((b) => ({ value: b.id, label: b.brandName }))}
+            style={{ width: 160 }}
+            aria-label="品牌"
+          />
+          <Select
+            allowClear
+            showSearch={{ optionFilterProp: 'label' }}
+            value={categoryId}
+            onChange={setCategoryId}
+            placeholder="全部品类"
+            options={categories.map((c) => ({
+              value: c.id,
+              label: c.categoryNameZh || c.categoryName,
+            }))}
+            style={{ width: 160 }}
+            aria-label="品类"
+          />
+          <span style={{ flex: 1 }} />
+          <Button type="primary" onClick={apply}>
+            查询
+          </Button>
+        </span>
       </div>
       {error ? (
         <ErrorHint message={error} onRetry={load} />
@@ -503,7 +516,7 @@ export const TaskList: React.FC<{ entry: PackageType }> = ({ entry }) => {
             columns={columns}
             dataSource={rows}
             loading={loading}
-            scroll={{ x: facts ? 1900 : 2100 }}
+            scroll={{ x: tableScrollX(columns) }}
             rowSelection={{
               selectedRowKeys: selected,
               onChange: (keys) => setSelected(keys as number[]),

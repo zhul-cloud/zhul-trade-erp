@@ -147,8 +147,9 @@ const LoginLogPage: React.FC = () => {
     {
       title: '登录IP',
       dataIndex: 'ip',
-      width: 140,
+      width: 150,
       search: false,
+      render: ellipsisRender,
     },
     {
       title: '登录地点',
