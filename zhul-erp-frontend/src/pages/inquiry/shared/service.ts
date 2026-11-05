@@ -420,6 +420,8 @@ export interface MyTask {
 /** 接手人看到的上一轮记录；兼职看不到价格 */
 export interface PreviousQuote {
   quotedByName?: string;
+  /** 改派前只保存、没有提交的记录 */
+  draft?: boolean;
   noStock: boolean;
   channel: number;
   shopName?: string;

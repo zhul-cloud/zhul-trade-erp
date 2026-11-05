@@ -146,6 +146,29 @@ class SourcingContractTest extends InquiryContractSupport {
         assertEquals(1, ok(call(get(BOARD), admin)).path("stats").path("multiAssigned").asInt());
     }
 
+    /** audit BUS-030：多型号任务只找了一个就被改派，接手人看到原采购的记录（含只保存未提交的），原记录保留 */
+    @Test
+    void reassign_newAssigneeSeesFormerRecords() throws Exception {
+        login();
+        long inq = inquiry(false, row("Omron", "传感器", "R-1", 1), row("Omron", "传感器", "R-2", 1));
+        long task = taskId(inq, "Omron");
+        List<Long> items = itemIds(task);
+        assign(task, BUYER_LIN);
+        ok(call(json(put(MY + "/" + task + "/quotes"), quotes(false, items.get(0), false, null,
+                List.of(entry(2, "华南工控", "320", 1, 1)))), token("it_lin")));
+
+        ok(call(json(post(BOARD + "/tasks/" + task + "/reassign"), "{\"assigneeId\":" + BUYER_JIANG + "}"), admin));
+        JsonNode detail = ok(call(get(MY + "/" + task), token("it_jiang")));
+        JsonNode prev = detail.path("items").get(0).path("previous");
+        assertEquals(1, prev.size(), detail.toString());
+        assertEquals("林熙", prev.get(0).path("quotedByName").asText());
+        assertTrue(prev.get(0).path("draft").asBoolean(), "只保存未提交的标出来");
+        assertEquals(0, new BigDecimal("320").compareTo(prev.get(0).path("unitPriceCny").decimalValue()));
+        assertTrue(detail.path("items").get(1).path("previous").isEmpty(), "没找的型号没有记录");
+        assertEquals(1, jdbc.queryForObject("select count(*) from sourcing_quote where task_id = ? and quoted_by = ? and deleted_at is null",
+                Integer.class, task, BUYER_LIN), "原记录保留");
+    }
+
     @Test
     void purchasersSeeLevelSalesAndCustomer_partTimerNoCustomerName() throws Exception {
         login();

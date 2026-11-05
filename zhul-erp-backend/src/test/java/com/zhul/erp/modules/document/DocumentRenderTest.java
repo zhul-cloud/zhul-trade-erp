@@ -143,7 +143,7 @@ class DocumentRenderTest {
         }
     }
 
-    /** 30 行明细：PDF ≤ 500KB，图片 ≤ 800KB 且宽度 ≤ 1600px；本机没有 LibreOffice 时跳过 */
+    /** 30 行明细：PDF ≤ 500KB，图片 ≤ 800KB 且宽度 ≤ 2000px；本机没有 LibreOffice 时跳过 */
     @Test
     void pdfAndImageStayWithinSizeLimits() throws IOException {
         DocumentConverter converter = new DocumentConverter("", System.getProperty("java.io.tmpdir") + "/zhul-document-test");
@@ -151,15 +151,42 @@ class DocumentRenderTest {
         byte[] xlsx = XlsxRenderer.render(builtin("quotation-v1.xlsx"), withItems(30));
         byte[] pdf = converter.toPdf(xlsx);
         assertThat(pdf.length).isLessThanOrEqualTo(500 * 1024);
-        byte[] jpg = converter.toJpeg(pdf, 1600);
+        byte[] jpg = converter.toJpeg(pdf, 2000);
         assertThat(jpg.length).isLessThanOrEqualTo(800 * 1024);
-        assertThat(javax.imageio.ImageIO.read(new ByteArrayInputStream(jpg)).getWidth()).isLessThanOrEqualTo(1600);
+        java.awt.image.BufferedImage img = javax.imageio.ImageIO.read(new ByteArrayInputStream(jpg));
+        assertThat(img.getWidth()).isLessThanOrEqualTo(2000);
+        // audit UI-042：裁掉页边与底部空白，图片只留内容（A4 是 1:1.414，30 行内容裁完明显更扁）
+        assertThat(img.getWidth()).isGreaterThan(1600);
+        assertThat((double) img.getHeight() / img.getWidth()).isLessThan(1.0);
         String dir = System.getProperty("zhul.render.out");
         if (dir != null) {
             java.nio.file.Files.write(java.nio.file.Path.of(dir, "sample.xlsx"), xlsx);
             java.nio.file.Files.write(java.nio.file.Path.of(dir, "sample.pdf"), pdf);
             java.nio.file.Files.write(java.nio.file.Path.of(dir, "sample.jpg"), jpg);
         }
+    }
+
+    /** audit UI-042：裁到内容，底部隔着大片空白的页码行去掉；整页空白原样返回 */
+    @Test
+    void trim_keepsContentDropsFooter() {
+        java.awt.image.BufferedImage page = new java.awt.image.BufferedImage(1000, 1414, java.awt.image.BufferedImage.TYPE_INT_RGB);
+        java.awt.Graphics2D g = page.createGraphics();
+        g.setColor(java.awt.Color.WHITE);
+        g.fillRect(0, 0, 1000, 1414);
+        g.setColor(java.awt.Color.BLACK);
+        g.fillRect(100, 100, 800, 400);
+        g.fillRect(480, 1380, 40, 10);
+        g.dispose();
+        java.awt.image.BufferedImage t = DocumentConverter.trim(page);
+        assertThat(t.getWidth()).isEqualTo(800 + 2 * 20);
+        assertThat(t.getHeight()).isEqualTo(400 + 2 * 20);
+
+        java.awt.image.BufferedImage blank = new java.awt.image.BufferedImage(10, 10, java.awt.image.BufferedImage.TYPE_INT_RGB);
+        java.awt.Graphics2D b = blank.createGraphics();
+        b.setColor(java.awt.Color.WHITE);
+        b.fillRect(0, 0, 10, 10);
+        b.dispose();
+        assertThat(DocumentConverter.trim(blank)).isSameAs(blank);
     }
 
     /** 80 行明细分 2 页，第 2 页重复表头，页码为 Page 2 / 2 */

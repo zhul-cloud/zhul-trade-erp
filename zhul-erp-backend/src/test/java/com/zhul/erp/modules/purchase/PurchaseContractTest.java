@@ -564,6 +564,29 @@ class PurchaseContractTest extends SalesContractSupport {
         assertEquals(2, ok(call(json(post(REQ + "/page"), "{}"), admin)).path("total").asInt(), "数据权限为全部可见全部");
     }
 
+    /** audit BUS-029：采购员未指定的需求，有「指派采购员」权限的人（不是全部数据权限）也能看到并分配 */
+    @Test
+    void unassignedRequirements_visibleToAssigners() throws Exception {
+        long sup = supplier("未指定工控", null);
+        orderFrom(sup, l("A-1", 1, "100", "20"), l("U-1", 1, "100", "20"));
+        jdbc.update("update purchase_requirement set purchaser_id = null where tenant_id = 0 and model = 'U-1'");
+        // 未指定采购员的需求不会自动进草稿：把它从自动生成的草稿里移出，回到待分配
+        jdbc.update("update purchase_order_item set deleted_at = now() where requirement_id = "
+                + "(select id from purchase_requirement where tenant_id = 0 and model = 'U-1')");
+
+        JsonNode before = ok(call(json(post(REQ + "/page"), "{}"), lin));
+        assertEquals(1, before.path("total").asInt(), "没有指派权限只看到自己的");
+        assertEquals(0, ok(call(get(REQ + "/stats"), lin)).path("unassigned").asInt());
+
+        jdbc.update("insert into role_resource (role_code, resource_id, resource_code) values (?, ?, '')", BUYER_ROLE, BUTTONS[1]);
+        String assigner = token("it_lin");
+        assertEquals(2, ok(call(json(post(REQ + "/page"), "{}"), assigner)).path("total").asInt(), "有指派权限还能看到未指定的");
+        assertEquals(1, ok(call(get(REQ + "/stats"), assigner)).path("unassigned").asInt());
+        long u = jdbc.queryForObject("select id from purchase_requirement where tenant_id = 0 and model = 'U-1'", Long.class);
+        ok(call(json(post(REQ + "/assign"), write(Map.of("ids", List.of(u), "purchaserId", BUYER_LIN))), assigner));
+        assertEquals(BUYER_LIN, jdbc.queryForObject("select purchaser_id from purchase_requirement where id = ?", Long.class, u));
+    }
+
     /** audit BUS-016：同一需求在采购单上有两行时，两行合计不能超过需求可下单数量 */
     @Test
     void twoLinesOfSameRequirement_shareRemainingQuantity() throws Exception {

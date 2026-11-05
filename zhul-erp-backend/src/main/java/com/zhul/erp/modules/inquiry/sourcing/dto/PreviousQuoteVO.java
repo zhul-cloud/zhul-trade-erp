@@ -8,6 +8,8 @@ import java.math.BigDecimal;
 @Data
 public class PreviousQuoteVO {
     private String quotedByName;
+    /** 改派前只保存、没有提交的记录 */
+    private Boolean draft;
     private Boolean noStock;
     private Integer channel;
     private String shopName;
