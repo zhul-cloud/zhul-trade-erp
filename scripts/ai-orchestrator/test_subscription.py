@@ -7,6 +7,7 @@ from pathlib import Path
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 import unittest
 from unittest import mock
@@ -132,13 +133,40 @@ class WorkerTest(unittest.TestCase):
                 with self.assertRaisesRegex(RuntimeError, "约定结构"):
                     self.call()
 
-    def test_busy_subscription_fails_without_subprocess(self):
-        subscription._SLOT.acquire()
-        try:
-            with self.assertRaisesRegex(RuntimeError, "其他任务"):
-                self.call()
-        finally:
-            subscription._SLOT.release()
+    def test_concurrent_tasks_run_in_parallel_with_own_workdir(self):
+        """audit AI-007：与 API 方式一致，多个订阅任务同时执行，不因另一任务在跑而失败。"""
+        barrier = threading.Barrier(2, timeout=5)
+        cwds = []
+
+        def fake_popen(args, **kwargs):
+            cwds.append(kwargs["cwd"])
+            process = mock.Mock(returncode=0, pid=123)
+
+            def communicate(*_args, **_kwargs):
+                barrier.wait()  # 两个任务都进入 CLI 调用后才返回，串行执行会在这里超时
+                return (json.dumps({"items": []}), "")
+
+            process.communicate.side_effect = communicate
+            return process
+
+        results, errors = [], []
+
+        def run():
+            try:
+                results.append(self.call())
+            except Exception as exc:  # 记录后由断言报告，不吞掉
+                errors.append(exc)
+
+        with mock.patch.object(subscription.subprocess, "Popen", side_effect=fake_popen), \
+                mock.patch.object(subscription.os, "killpg", create=True):
+            threads = [threading.Thread(target=run) for _ in range(2)]
+            for t in threads:
+                t.start()
+            for t in threads:
+                t.join(10)
+        self.assertEqual(errors, [])
+        self.assertEqual(results, [{"items": []}, {"items": []}])
+        self.assertEqual(len(set(cwds)), 2, "每个任务使用独立的临时工作目录")
 
     def test_timeout_terminates_worker(self):
         process = mock.Mock(pid=123)
