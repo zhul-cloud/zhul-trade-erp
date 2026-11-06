@@ -86,6 +86,12 @@ public final class QuotationRenderModels {
                     String desc = customerDescription(i.getDescriptionEn(), i.getDescription()).trim();
                     m.put("item.description", (desc.isEmpty() ? "" : desc + " · ") + "Discontinued, replacement: " + t.replacement());
                 }
+            } else if (!nz(i.getReplacementModel()).trim().isEmpty()) {
+                // 有价格的停产替代行：描述后追加，文字报价行尾追加（spec quotation/quotation「停产替代型号提示」）
+                String replacement = i.getReplacementModel().trim();
+                String desc = customerDescription(i.getDescriptionEn(), i.getDescription()).trim();
+                m.put("item.description", (desc.isEmpty() ? "" : desc + " · ") + "Discontinued, replaced by " + replacement);
+                m.put(RenderModel.REPLACEMENT_NOTE, "discontinued, replaced by " + replacement);
             }
             rows.add(m);
         }

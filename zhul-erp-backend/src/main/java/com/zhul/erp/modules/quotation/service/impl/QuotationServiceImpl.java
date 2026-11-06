@@ -362,7 +362,8 @@ public class QuotationServiceImpl implements QuotationService {
             line.setQuantity(src.getQuantity() == null || src.getQuantity() < 1 ? 1 : src.getQuantity());
             boolean noStock = c.noStock() || c.pendingAsNoStock();
             line.setNoStock(noStock ? 1 : 0);
-            line.setReplacementModel(c.noStock() && Objects.equals(src.getLifecycle(), InquiryConstants.LIFECYCLE_DISCONTINUED)
+            // 采购标了停产且有替代型号：不论有没有价格都带上（有价格时客户单据提示停产与替代型号）
+            line.setReplacementModel(Objects.equals(src.getLifecycle(), InquiryConstants.LIFECYCLE_DISCONTINUED)
                     ? nz(src.getReplacementModel()).trim() : "");
             // 默认原因：采购标了停产且有替代型号的为「停产有替代型号」，其余（含按无货报的未回价型号）为「暂时缺货」
             line.setNoStockReason(!noStock ? QuotationConstants.NO_STOCK_NONE

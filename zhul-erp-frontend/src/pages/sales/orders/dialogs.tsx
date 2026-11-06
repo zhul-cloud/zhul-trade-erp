@@ -24,6 +24,7 @@ import { formatAmount } from '@/utils/format';
 import { KIND, Pill, RECEIPT_STATUS, ReceiptStatusPill } from '../components';
 import {
   type CreateOrderLine,
+  FEE_COLLECTION,
   type Order,
   type OrderCandidatePi,
   type Order as OrderDetail,
@@ -1244,7 +1245,10 @@ const FeeRowsEditor: React.FC<{
   );
 };
 
-/** 修改手动订单的费用：必须填原因，确认前显示合计与收款状态的变化 */
+/**
+ * 修改订单费用：必须填原因，确认前显示合计与收款状态的变化。
+ * PI 转成的订单只改普通费用，代收款以 PI 为准、只读显示。
+ */
 export const EditFeesModal: React.FC<{
   order?: OrderDetail;
   onClose: () => void;
@@ -1260,25 +1264,30 @@ export const EditFeesModal: React.FC<{
     if (!order) return;
     setReason('');
     setRows(
-      order.fees.map((f) => ({
-        key: ++feeSeq,
-        feeName: f.feeName,
-        amount: Number(f.amount),
-      })),
+      order.fees
+        .filter((f) => f.feeType !== FEE_COLLECTION)
+        .map((f) => ({
+          key: ++feeSeq,
+          feeName: f.feeName,
+          amount: Number(f.amount),
+        })),
     );
   }, [order]);
 
   if (!order) return null;
   const cur = order.currencyCode;
+  const collected = order.fees.filter((f) => f.feeType === FEE_COLLECTION);
   const newTotal =
     Math.round(
       (order.totalAmount -
         feeTotal(
-          order.fees.map((f) => ({
-            key: 0,
-            feeName: '',
-            amount: Number(f.amount),
-          })),
+          order.fees
+            .filter((f) => f.feeType !== FEE_COLLECTION)
+            .map((f) => ({
+              key: 0,
+              feeName: '',
+              amount: Number(f.amount),
+            })),
         ) +
         feeTotal(rows)) *
         100,
@@ -1324,7 +1333,10 @@ export const EditFeesModal: React.FC<{
         <div>
           修改订单费用
           <div style={{ fontSize: 12, fontWeight: 400, color: palette.mute }}>
-            {order.soNo} · 手动创建 · 只能改费用，型号、数量、单价不能改
+            {order.soNo} ·{' '}
+            {order.piId
+              ? 'PI 转成 · 只改普通费用，PI 本身不变，收款按订单合计计算'
+              : '手动创建 · 只能改费用，型号、数量、单价不能改'}
           </div>
         </div>
       }
@@ -1337,6 +1349,14 @@ export const EditFeesModal: React.FC<{
       destroyOnHidden
     >
       <FeeRowsEditor rows={rows} currency={cur} onChange={setRows} />
+      {collected.length > 0 && (
+        <div style={{ marginTop: 8, fontSize: 12, color: palette.mute }}>
+          代收款以 PI 为准，不在这里改：
+          {collected
+            .map((f) => `${f.feeName} ${formatAmount(Number(f.amount), cur)}`)
+            .join('、')}
+        </div>
+      )}
       <div
         style={{
           margin: '12px 0',

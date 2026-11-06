@@ -476,19 +476,19 @@ public class SalesOrderServiceImpl implements SalesOrderService {
     }
 
     /**
-     * 修改手动订单的费用：整组替换，同一事务重算订单合计、收款状态（手动订单的收款按订单合计计算），写操作日志。
-     * PI 转成的订单费用以 PI 为准，不能在这里改。
+     * 修改订单费用：普通费用整组替换，同一事务重算订单合计、收款状态，写操作日志。
+     * PI 转成的订单：代收费用以 PI 为准原样保留，折扣按 PI 版本重算，收款按订单合计重算 PI 的收款状态（PI 本身不变）。
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
     public SalesOrderVO updateFees(Long id, com.zhul.erp.modules.sales.dto.UpdateOrderFeesRequest req) {
-        visible(id);
-        SalesOrderDO o = lockOrder(id);
+        SalesOrderDO o = visible(id);
+        boolean manual = !Objects.equals(o.getSource(), SalesConstants.SO_FROM_PI);
+        // 锁顺序 PI → 订单，与部分取消、取消订单一致
+        ProformaInvoiceDO pi = manual ? null : piStore.lockVisible(o.getPiId());
+        o = lockOrder(id);
         if (o.getStatus() != SalesConstants.SO_ACTIVE) {
             throw new BizException("订单已取消，不能修改费用");
-        }
-        if (!Objects.equals(o.getSource(), SalesConstants.SO_MANUAL)) {
-            throw new BizException("费用以 PI 为准，要修改请取消订单后在 PI 出新版本");
         }
         if (SalesConstants.PROGRESS_COMPLETED.equals(o.getProgressCode())) {
             throw new BizException("订单已完成，不能修改费用");
@@ -505,6 +505,12 @@ public class SalesOrderServiceImpl implements SalesOrderService {
                 .eq(SalesOrderFeeDO::getSoId, id)
                 .isNull(SalesOrderFeeDO::getDeletedAt)
                 .orderByAsc(SalesOrderFeeDO::getSortOrder));
+        // 只换普通费用；代收费用（PI 订单才有）以 PI 为准，原样保留
+        old = old.stream().filter(f -> !Objects.equals(f.getFeeType(), SalesConstants.FEE_COLLECTION)).toList();
+        List<SalesOrderFeeDO> kept = orderFeeMapper.selectList(new LambdaQueryWrapper<SalesOrderFeeDO>()
+                .eq(SalesOrderFeeDO::getSoId, id)
+                .eq(SalesOrderFeeDO::getFeeType, SalesConstants.FEE_COLLECTION)
+                .isNull(SalesOrderFeeDO::getDeletedAt));
         List<SalesOrderFeeDO> rows = feeRows(o.getTenantId(), req.getFees(), o.getExchangeRate());
         String before = feesText(o.getCurrencyCode(), old);
         String after = feesText(o.getCurrencyCode(), rows);
@@ -516,19 +522,37 @@ public class SalesOrderServiceImpl implements SalesOrderService {
             f.setDeletedAt(now);
             orderFeeMapper.updateById(f);
         }
+        int sort = kept.stream().map(SalesOrderFeeDO::getSortOrder).filter(Objects::nonNull).max(Integer::compare).orElse(0);
         for (SalesOrderFeeDO f : rows) {
             f.setSoId(id);
+            if (!kept.isEmpty()) {
+                f.setSortOrder(++sort);
+            }
             orderFeeMapper.insert(f);
         }
         BigDecimal totalBefore = o.getTotalAmount();
-        o.setFeeAmount(rows.stream().map(SalesOrderFeeDO::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add));
+        o.setFeeAmount(java.util.stream.Stream.concat(kept.stream(), rows.stream())
+                .map(SalesOrderFeeDO::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add));
         List<SalesOrderItemDO> items = orderItemMapper.selectList(new LambdaQueryWrapper<SalesOrderItemDO>()
                 .eq(SalesOrderItemDO::getSoId, id)
                 .isNull(SalesOrderItemDO::getDeletedAt));
-        com.zhul.erp.modules.sales.support.OrderTotals.applyTotals(o, items, null, null);
+        Integer discountType = null;
+        BigDecimal discountValue = null;
+        if (!manual) {
+            PiVersionDO v = piStore.version(o.getPiId(), o.getPiVersionNo());
+            if (v != null) {
+                discountType = v.getDiscountType();
+                discountValue = v.getDiscountValue();
+            }
+        }
+        com.zhul.erp.modules.sales.support.OrderTotals.applyTotals(o, items, discountType, discountValue);
         orderMapper.updateById(o);
-        // 收款状态与多收按新合计重算
-        piSummary.refreshOrder(o);
+        // 收款状态与多收按新合计重算：手动订单算在订单上，PI 订单算在 PI 上（应收取订单合计）
+        if (pi != null) {
+            piSummary.refresh(pi);
+        } else {
+            piSummary.refreshOrder(o);
+        }
         Map<String, Object> beforeLog = new LinkedHashMap<>();
         beforeLog.put("soNo", o.getSoNo());
         beforeLog.put("fees", before);

@@ -44,6 +44,13 @@ public interface SourcingTaskService {
     /** 分配工作台：统计按全部任务计算，任务列表只返回当前页 */
     BoardVO board(Integer status, int page, int pageSize);
 
+    /** 分配工作台，按关键词（任务编号、询盘单号、品牌、型号）与采购员筛选列出的任务与页签数字 */
+    BoardVO board(Integer status, int page, int pageSize, String keyword, Long purchaserId);
+
+    /** 「全部」页签：全部询价任务（含已报价、已关闭），按更新时间倒序分页；日期按任务创建日期，都不传时为最近 30 天 */
+    com.zhul.erp.common.result.PageResult<com.zhul.erp.modules.inquiry.sourcing.dto.BoardHistoryRowVO> history(
+            String keyword, Long purchaserId, Integer state, java.time.LocalDate dateFrom, java.time.LocalDate dateTo, int page, int pageSize);
+
     /** 分配工作台打开的任务详情（本租户任务，不受业务员数据权限限制） */
     BoardTaskDetailVO taskDetail(Long taskId);
 

@@ -59,7 +59,6 @@ import java.math.RoundingMode;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.Locale;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -89,6 +88,7 @@ public class MyTaskServiceImpl implements MyTaskService {
     private final SourcingProgress progress;
     private final SourcingSettings settings;
     private final CurrentUserResolver currentUser;
+    private final TaskKeywordMatcher keywordMatcher;
     private final ObjectMapper objectMapper;
     private final QuoteDicts quoteDicts;
     private final InquiryLookups lookups;
@@ -125,7 +125,7 @@ public class MyTaskServiceImpl implements MyTaskService {
                 .eq(SourcingTaskDO::getStatus, done ? InquiryConstants.TASK_DONE : InquiryConstants.TASK_SOURCING)
                 .isNull(SourcingTaskDO::getDeletedAt));
         if (StringUtils.hasText(keyword)) {
-            tasks = matching(tasks, keyword.trim());
+            tasks = keywordMatcher.matching(tasks, keyword);
         }
         TaskTimeout limits = TaskTimeout.of(settings, tenantId());
         LocalDateTime now = LocalDateTime.now();
@@ -151,34 +151,6 @@ public class MyTaskServiceImpl implements MyTaskService {
         List<MyTaskVO> all = myTasks(true, keyword);
         int from = Math.min((Math.max(page, 1) - 1) * size, all.size());
         return PageResult.of((long) all.size(), all.subList(from, Math.min(from + size, all.size())));
-    }
-
-    /** 关键词匹配任务编号、品牌、品类、询盘单编号，或任务下型号（确认型号、原始型号，忽略大小写与分隔符） */
-    private List<SourcingTaskDO> matching(List<SourcingTaskDO> tasks, String keyword) {
-        if (tasks.isEmpty()) {
-            return tasks;
-        }
-        String lower = keyword.toLowerCase(Locale.ROOT);
-        String key = PriceKeys.model(keyword);
-        Set<Long> inquiryHits = inquiryMapper.selectList(new LambdaQueryWrapper<CustomerInquiryDO>()
-                        .select(CustomerInquiryDO::getId)
-                        .in(CustomerInquiryDO::getId, tasks.stream().map(SourcingTaskDO::getCustomerInquiryId).distinct().toList())
-                        .like(CustomerInquiryDO::getInquiryCode, keyword))
-                .stream().map(CustomerInquiryDO::getId).collect(Collectors.toSet());
-        Set<Long> itemHits = itemMapper.selectList(new LambdaQueryWrapper<InquiryItemDO>()
-                        .select(InquiryItemDO::getSourcingTaskId, InquiryItemDO::getConfirmedModel, InquiryItemDO::getOriginalModel,
-                                InquiryItemDO::getModelKey)
-                        .in(InquiryItemDO::getSourcingTaskId, tasks.stream().map(SourcingTaskDO::getId).toList())
-                        .isNull(InquiryItemDO::getDeletedAt))
-                .stream().filter(i -> contains(i.getConfirmedModel(), lower) || contains(i.getOriginalModel(), lower)
-                        || (StringUtils.hasText(key) && i.getModelKey() != null && i.getModelKey().contains(key)))
-                .map(InquiryItemDO::getSourcingTaskId).collect(Collectors.toSet());
-        return tasks.stream().filter(t -> contains(t.getTaskCode(), lower) || contains(t.getBrand(), lower) || contains(t.getCategory(), lower)
-                || inquiryHits.contains(t.getCustomerInquiryId()) || itemHits.contains(t.getId())).toList();
-    }
-
-    private static boolean contains(String text, String lowerKeyword) {
-        return text != null && text.toLowerCase(Locale.ROOT).contains(lowerKeyword);
     }
 
     @Override

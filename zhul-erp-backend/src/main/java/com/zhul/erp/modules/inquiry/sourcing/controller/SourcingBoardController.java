@@ -62,8 +62,24 @@ public class SourcingBoardController {
     @PreAuthorize(VIEW)
     public Result<BoardVO> board(@RequestParam(required = false) Integer status,
                                  @RequestParam(defaultValue = "1") int page,
-                                 @RequestParam(defaultValue = "20") int pageSize) {
-        return Result.ok(taskService.board(status, page, pageSize));
+                                 @RequestParam(defaultValue = "20") int pageSize,
+                                 @RequestParam(required = false) String keyword,
+                                 @RequestParam(required = false) Long purchaserId) {
+        return Result.ok(taskService.board(status, page, pageSize, keyword, purchaserId));
+    }
+
+    /** 「全部」页签：全部询价任务，含已报价、已关闭 */
+    @GetMapping("/all")
+    @PreAuthorize(VIEW)
+    public Result<com.zhul.erp.common.result.PageResult<com.zhul.erp.modules.inquiry.sourcing.dto.BoardHistoryRowVO>> history(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) Long purchaserId,
+            @RequestParam(required = false) Integer state,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate dateFrom,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate dateTo,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int pageSize) {
+        return Result.ok(taskService.history(keyword, purchaserId, state, dateFrom, dateTo, page, pageSize));
     }
 
     @GetMapping("/tasks/{id}")

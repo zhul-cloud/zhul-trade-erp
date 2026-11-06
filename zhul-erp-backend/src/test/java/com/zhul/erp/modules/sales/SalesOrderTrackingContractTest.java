@@ -279,6 +279,50 @@ class SalesOrderTrackingContractTest extends SalesContractSupport {
     }
 
     @Test
+    void piOrderFees_addShippingLater_collectionKept_piReceiptRecalc() throws Exception {
+        long c = customer("PI Fee Co", "Kenya");
+        if (jdbc.queryForObject("select count(*) from tenant_bank_account where tenant_id = 0", Integer.class) == 0) {
+            bankAccount("USD");
+        }
+        // PI：2 × 200 = 400，九折 −40，代收费 30，合计 390
+        JsonNode draft = ok(createPi(quotationItemIds(quotation(c, 2, "USD", null, l("PF-1", 2, "100", "200")))));
+        long pi = draft.path("id").asLong();
+        Map<String, Object> body = saveBody(draft);
+        body.put("bankAccountId", jdbc.queryForObject("select min(id) from tenant_bank_account where tenant_id = 0", Integer.class));
+        body.put("discountType", 1);
+        body.put("discountValue", 10);
+        body.put("fees", List.of(new LinkedHashMap<>(Map.of("feeName", "Collected Charge", "amount", "30", "feeType", 2))));
+        ok(savePi(pi, body));
+        ok(send(pi));
+        ok(confirmReceipt(pi, "390", null, false, admin));
+        JsonNode so = ok(convert(pi, null));
+        long id = so.path("id").asLong();
+        money("390.00", so.path("totalAmount"));
+        assertEquals("已到账", order(id).path("receiptStatusName").asText());
+
+        // 出货时补运费：代收费保留，折扣仍按 PI 的 10%，PI 收款变部分到账
+        Map<String, Object> edit = new LinkedHashMap<>();
+        edit.put("fees", List.of(Map.of("feeName", "Shipping Cost", "amount", "50")));
+        edit.put("reason", "实际运费");
+        edit.put("expectedTotal", "390.00");
+        JsonNode after = ok(call(json(put(SO + "/" + id + "/fees"), write(edit)), admin));
+        money("440.00", after.path("totalAmount"));
+        money("40.00", after.path("discountAmount"));
+        money("80.00", after.path("feeAmount"));
+        assertEquals(2, after.path("fees").size());
+        assertEquals("部分到账", after.path("receiptStatusName").asText());
+        assertEquals(3, jdbc.queryForObject("select receipt_status from proforma_invoice where id = ?", Integer.class, pi), "PI 部分到账");
+        assertEquals(1, jdbc.queryForObject("select count(*) from sales_order_fee where so_id = ? and fee_type = 2 and deleted_at is null",
+                Integer.class, id));
+
+        // 再次修改只换普通费用，代收费仍是 1 行
+        edit.put("fees", List.of());
+        edit.put("expectedTotal", "440.00");
+        money("390.00", ok(call(json(put(SO + "/" + id + "/fees"), write(edit)), admin)).path("totalAmount"));
+        assertEquals(1, jdbc.queryForObject("select count(*) from sales_order_fee where so_id = ? and deleted_at is null", Integer.class, id));
+    }
+
+    @Test
     void manualCreate_requiredOnly_rate_customerType() throws Exception {
         long c = customer("Hoorain HTF", "Pakistan");
         assertEquals("请至少添加一个型号", fail(manual(c, null, List.of())).path("message").asText());
