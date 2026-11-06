@@ -9,8 +9,8 @@
 | 目标与影响范围 | `.github/workflows/ci.yml` 与报价单测试 `QuotationContractTest`。不改产品代码、数据库、配置 |
 | 起点 commit / 工作分支 | develop `026e1879`；分支 `fix/doc-008-ci-pipefail-speed` |
 | OpenSpec | 不适用：CI 与测试修复 |
-| PR / 目标分支 | 见下文，发往 `develop` |
-| 合并证据 | 未合并 |
+| PR / 目标分支 | [#198](https://github.com/zhul-cloud/zhul-trade-erp/pull/198)，发往 `develop`；随 `release/1.9.1`（[#197](https://github.com/zhul-cloud/zhul-trade-erp/pull/197)）进入 `main` |
+| 合并证据 | `develop`：#198 `51ca42ac`；`main`：#197 `e5487fbd`（v1.9.1） |
 | 目标版本 / 环境 | CI；进行中的 `release/1.9.1` 需要合入本修复，后端测试才能真正通过 |
 
 ## 实施与验证结果
@@ -31,18 +31,19 @@
 | `mvn -o test -Dtest=QuotationContractTest` | 本机 MySQL 测试库，修复前 / 修复后 | 修复后通过 | 修复前 `expected: <3> but was: <4>`；修复后 20 个用例通过、跳过 1 个 | 通过（缺陷已复现并修复） |
 | `mvn -o test -Dsurefire.excludesFile=<只保留 workbench>` | 本机 | 只运行未被排除的测试 | 只运行了 `WorkbenchContractTest`、`BossWidgetsMoneyTest` | 通过 |
 | 本 PR 首次 CI（run 42203433362） | GitHub Actions | 两组都通过 | 第 1 组 219 个用例通过，`mvn test` 309 秒，步骤 shell 已是 `bash -e -o pipefail`；第 2 组在「安装 ffmpeg」卡住 27 分钟，已手动取消 | 第 2 组未运行，已加安装限时 |
-| 本 PR 修正后的 CI | GitHub Actions | 两组都通过，「后端测试」汇总通过，耗时下降 | 待 CI 运行后补充 | 待验证 |
+| 本 PR 修正后的 CI（run 42207094281） | GitHub Actions | 两组都通过，「后端测试」汇总通过，耗时下降 | 第 1 组 219 个、第 2 组 1310 个用例通过，合计 1529 个、跳过 5 个，与改前单任务一致；ffmpeg 27 秒装好；全程 6.6 分钟（原 8～10 分钟） | 通过 |
+| `release/1.9.1` 发版 PR #197 的 CI（run 42209593293） | GitHub Actions | 修复后真实通过 | 两组 `BUILD SUCCESS`，报价翻译用例通过；随后生产发版成功 | 通过 |
 
 ## 合并、部署与逐 ID 验收
 
 | ID | 修复 / 验收范围 | 部署与目标环境验收证据 | 验收人 / 日期 | 结论与剩余项 |
 | --- | --- | --- | --- | --- |
-| DOC-008 | 测试失败时 CI 失败；报价翻译用例通过；后端分组并行；只改文档的 PR 跳过测试 | N/A：只涉及 CI，以 GitHub Actions 运行结果为准 | — | 处理中 |
+| DOC-008 | 测试失败时 CI 失败；报价翻译用例通过；后端分组并行；只改文档的 PR 跳过测试 | N/A：只涉及 CI，以 GitHub Actions 运行结果为准 | Ezio / 2026-11-06（确认 CI 结果后同意按计划继续） | 已关闭：测试失败已能让 CI 失败；后端两组并行、用例无遗漏；部署 N/A（只涉及 CI） |
 
 ## 阻塞与下一步
 
-- 本 PR 合并后，把 develop 合入 `release/1.9.1`，[#197](https://github.com/zhul-cloud/zhul-trade-erp/pull/197) 的后端测试才会真正通过；#197 的自动合并已先暂停，等真实结果再开。
-- 合并后观察几次 CI 的实际耗时，按需要调整两组的模块分配。
+- 已完成：develop 合入 `release/1.9.1`，#197 的后端测试真实通过后合并，v1.9.1 发布成功。
+- 可选：第 1 组比第 2 组慢约 40 秒，可把 warehouse 移到第 2 组再省约半分钟；多跑几次看实际耗时再定。
 
 ## 事件记录
 
@@ -50,3 +51,4 @@
 | --- | --- | --- |
 | 2026-11-06 / Claude | 用户反映 CI 太慢。排查耗时时发现后端测试失败被管道掩盖，失败用例已随 v1.9.0 上线；暂停 #197 自动合并；修复用例并加 pipefail，同时拆分后端测试、只改文档时跳过测试 | 提 PR 发往 `develop`，用 CI 结果验证 |
 | 2026-11-06 / Claude | 首次 CI：第 1 组通过（5 分钟）；第 2 组 apt 安装 ffmpeg 卡 27 分钟（用户发现），取消该次运行，给安装步骤加 5 分钟时限并允许失败后继续 | 观察修正后的 CI |
+| 2026-11-06 / Claude | #198 合并（`51ca42ac`）；修正后的 CI 两组通过、用例合计与改前一致、全程 6.6 分钟；develop 合入 `release/1.9.1`，#197 真实通过后合并发布 v1.9.1。用户确认结果，关闭 | 可选：调整分组平衡 |
