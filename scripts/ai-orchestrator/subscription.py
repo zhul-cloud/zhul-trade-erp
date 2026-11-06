@@ -9,7 +9,6 @@ import signal
 import subprocess
 import sys
 import tempfile
-import threading
 
 import jsonschema
 
@@ -17,7 +16,6 @@ MAX_ATTACHMENT_BYTES = 25 * 1024 * 1024
 MAX_IMAGES = 20
 MAX_PDF_PAGES = 20
 MAX_IMAGE_EDGE = 2000
-_SLOT = threading.BoundedSemaphore(1)
 
 
 def subscription_env():
@@ -90,45 +88,40 @@ def prepare_images(attachments, directory):
 
 def call_subscription(provider, system_prompt, text, attachments, schema, *, model, effort,
                       web_search, max_web_searches, timeout):
-    if not _SLOT.acquire(blocking=False):
-        raise RuntimeError("个人订阅正在处理其他任务，请稍后重试")
-    try:
-        with tempfile.TemporaryDirectory(prefix="zhul-ai-task-") as directory:
-            images = prepare_images(attachments, directory)
-            request = {"provider": provider, "system_prompt": system_prompt, "text": text, "schema": schema,
-                       "model": model, "effort": effort, "web_search": web_search,
-                       "max_web_searches": max_web_searches, "images": images}
-            process = subprocess.Popen(
-                [sys.executable, str(Path(__file__).resolve()), "worker"], cwd=directory,
-                env=subscription_env(), stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                text=True, encoding="utf-8", start_new_session=os.name != "nt")
-            try:
-                stdout, _ = process.communicate(json.dumps(request, ensure_ascii=False), timeout=timeout)
-            except subprocess.TimeoutExpired as exc:
-                stop_process(process)
-                raise RuntimeError(f"AI 处理超过 {timeout} 秒未完成，已终止订阅进程") from exc
-            finally:
-                # 即使 worker 已退出，仍按原进程组清理 CLI wrapper 派生的子进程。
-                if os.name != "nt":
-                    try:
-                        os.killpg(process.pid, signal.SIGKILL)
-                    except ProcessLookupError:
-                        pass
-            if process.returncode:
-                # 只接受 worker 自己生成的安全错误码，不把 CLI stderr/认证信息带入回调。
-                errors = {"auth": "未登录个人订阅；请在专用容器内运行官方 CLI 登录命令",
-                          "search_limit": "联网搜索操作达到订阅模式上限，任务已终止，请拆分询盘后重试",
-                          "invalid": "订阅 CLI 未返回符合约定结构的完整结果",
-                          "runtime": "订阅 CLI 调用失败；请检查登录、订阅额度、模型与容器运行环境"}
-                raise RuntimeError(errors.get(stdout.strip(), errors["runtime"]))
-            try:
-                result = json.loads(stdout)
-                jsonschema.validate(result, schema)
-            except (json.JSONDecodeError, jsonschema.ValidationError) as exc:
-                raise RuntimeError("订阅 CLI 未返回符合约定结构的完整结果") from exc
-            return result
-    finally:
-        _SLOT.release()
+    with tempfile.TemporaryDirectory(prefix="zhul-ai-task-") as directory:
+        images = prepare_images(attachments, directory)
+        request = {"provider": provider, "system_prompt": system_prompt, "text": text, "schema": schema,
+                   "model": model, "effort": effort, "web_search": web_search,
+                   "max_web_searches": max_web_searches, "images": images}
+        process = subprocess.Popen(
+            [sys.executable, str(Path(__file__).resolve()), "worker"], cwd=directory,
+            env=subscription_env(), stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            text=True, encoding="utf-8", start_new_session=os.name != "nt")
+        try:
+            stdout, _ = process.communicate(json.dumps(request, ensure_ascii=False), timeout=timeout)
+        except subprocess.TimeoutExpired as exc:
+            stop_process(process)
+            raise RuntimeError(f"AI 处理超过 {timeout} 秒未完成，已终止订阅进程") from exc
+        finally:
+            # 即使 worker 已退出，仍按原进程组清理 CLI wrapper 派生的子进程。
+            if os.name != "nt":
+                try:
+                    os.killpg(process.pid, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+        if process.returncode:
+            # 只接受 worker 自己生成的安全错误码，不把 CLI stderr/认证信息带入回调。
+            errors = {"auth": "未登录个人订阅；请在专用容器内运行官方 CLI 登录命令",
+                      "search_limit": "联网搜索操作达到订阅模式上限，任务已终止，请拆分询盘后重试",
+                      "invalid": "订阅 CLI 未返回符合约定结构的完整结果",
+                      "runtime": "订阅 CLI 调用失败；请检查登录、订阅额度、模型与容器运行环境"}
+            raise RuntimeError(errors.get(stdout.strip(), errors["runtime"]))
+        try:
+            result = json.loads(stdout)
+            jsonschema.validate(result, schema)
+        except (json.JSONDecodeError, jsonschema.ValidationError) as exc:
+            raise RuntimeError("订阅 CLI 未返回符合约定结构的完整结果") from exc
+        return result
 
 
 def _codex_logged_in(env, timeout):
