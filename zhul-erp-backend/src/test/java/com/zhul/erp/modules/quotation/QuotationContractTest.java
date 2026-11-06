@@ -1,6 +1,7 @@
 package com.zhul.erp.modules.quotation;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.zhul.erp.modules.aitask.service.AiOrchestratorClient;
 import com.zhul.erp.modules.document.support.DocumentConverter;
 import com.zhul.erp.modules.inquiry.InquiryContractSupport;
 import com.zhul.erp.modules.inquiry.support.PriceKeys;
@@ -12,6 +13,7 @@ import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.mock.web.MockHttpServletResponse;
 
 import java.io.ByteArrayInputStream;
@@ -20,11 +22,15 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -43,6 +49,8 @@ class QuotationContractTest extends InquiryContractSupport {
 
     @Autowired private DocumentConverter converter;
     @Autowired private com.zhul.erp.modules.aitask.service.AiTaskService aiTaskService;
+    /** 不连真实 AI 编排服务：提交后任务停在排队中，等测试手动回调（否则提交失败，任务先变失败，回调不再改终态，见 audit AI-001） */
+    @MockBean private AiOrchestratorClient orchestrator;
 
     private String admin;
     private int codeSeq;
@@ -52,6 +60,7 @@ class QuotationContractTest extends InquiryContractSupport {
         cleanupQuotation();
         // 型号描述翻译会提交 AI 任务，需要平台租户已配置 AI
         seedAiConfig(0);
+        when(orchestrator.submit(any(), anyLong(), any(), any())).thenAnswer(inv -> new CompletableFuture<>());
         jdbc.update("insert into exchange_rate (tenant_id, currency_code, rate) values (0, 'USD', 7.150000)");
         loginAsAdmin("it_qt_admin");
         admin = token("it_qt_admin");
@@ -966,9 +975,6 @@ class QuotationContractTest extends InquiryContractSupport {
         item.put("inquiryItemId", inquiryItem2);
         long task = ok(call(json(post("/api/v1/translations/item-descriptions"), write(Map.of("items", List.of(item)))), admin))
                 .path("taskId").asLong();
-        for (int i = 0; i < 30 && jdbc.queryForObject("select status from ai_task where id = ?", Integer.class, task) <= 2; i++) {
-            Thread.sleep(100);
-        }
         com.zhul.erp.modules.aitask.dto.AiTaskCallbackRequest cb = new com.zhul.erp.modules.aitask.dto.AiTaskCallbackRequest();
         cb.setStatus("success");
         cb.setOutput(Map.of("items", List.of(Map.of("key", inquiryItem2 + "#" + lineId, "text", "Analog input module"))));
