@@ -4,6 +4,7 @@
 """
 import copy
 import importlib
+import io
 import json
 import os
 import subprocess
@@ -534,6 +535,49 @@ class TestAndModelsTest(unittest.TestCase):
         self.assertEqual(result["source"], "defaults")
         self.assertEqual(result["error"], "Key 无效或已失效")
         self.assertNotIn(KEY, json.dumps(result, ensure_ascii=False))
+
+
+class RejectDrainTest(unittest.TestCase):
+    """audit AI-008：拒绝请求前读完请求体。不读完就关连接，Windows 会发 RST，客户端读响应时报 WinError 10053。"""
+
+    def handle(self, path, token, body, length=None):
+        server = load_server()
+        handler = server.Handler.__new__(server.Handler)
+        handler.rfile, handler.wfile = io.BytesIO(body), io.BytesIO()
+        handler.headers = {"Content-Length": str(len(body) if length is None else length)}
+        if token is not None:
+            handler.headers["X-AI-Callback-Token"] = token
+        handler.path, handler.command = path, "POST"
+        handler.request_version, handler.requestline = "HTTP/1.1", f"POST {path} HTTP/1.1"
+        handler.close_connection = False
+        with mock.patch.object(server.Handler, "log_message"):
+            handler.do_POST()
+        return handler
+
+    @staticmethod
+    def status(handler):
+        return int(handler.wfile.getvalue().split(b" ", 2)[1])
+
+    def test_wrong_token_consumes_body_before_401(self):
+        body = json.dumps({"ai": ai(), "pad": "x" * 4000}).encode()
+        for token in (None, "wrong-token"):
+            handler = self.handle("/test", token, body)
+            self.assertEqual(self.status(handler), 401)
+            self.assertEqual(handler.rfile.tell(), len(body), "401 前读完请求体")
+
+    def test_unknown_path_consumes_body_before_404(self):
+        body = b'{"x": 1}'
+        handler = self.handle("/nope", TOKEN, body)
+        self.assertEqual(self.status(handler), 404)
+        self.assertEqual(handler.rfile.tell(), len(body))
+
+    def test_oversized_unauthorized_body_not_read_and_connection_closed(self):
+        """未授权请求不读超大请求体（避免被用来占用服务），改为明确关闭连接"""
+        handler = self.handle("/test", "wrong-token", b"x" * 16, length=10 * 1024 * 1024)
+        self.assertEqual(self.status(handler), 401)
+        self.assertEqual(handler.rfile.tell(), 0)
+        self.assertTrue(handler.close_connection)
+        self.assertIn(b"Connection: close", handler.wfile.getvalue())
 
 
 class HttpTokenTest(unittest.TestCase):

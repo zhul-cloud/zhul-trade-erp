@@ -86,6 +86,8 @@ TIMEOUT_SECONDS = int(os.environ.get("AI_ORCHESTRATOR_TIMEOUT_SECONDS") or "900"
 QUICK_TIMEOUT_SECONDS = 20
 # pause_turn 最多续传几次，防止异常情况下无限循环
 MAX_CONTINUATIONS = 5
+# 被拒绝的请求最多读这么多请求体再回应；更大的不读，直接关闭连接
+MAX_REJECT_DRAIN_BYTES = 1024 * 1024
 # 模型请求遇到可恢复的错误（连不上、限流、服务商 5xx）时的重试间隔；SDK 自带的重试不知道整任务期限，已关掉
 API_RETRY_DELAYS = (2, 5)
 # 结果回调投递失败（连不上、超时、后端 5xx）时的重投间隔，合计约 1 分钟（audit AI-002）
@@ -1087,8 +1089,29 @@ class Handler(BaseHTTPRequestHandler):
         token = self.headers.get("X-AI-Callback-Token") or ""
         if hmac.compare_digest(token.encode("utf-8"), CALLBACK_TOKEN.encode("utf-8")):
             return True
-        self._send_json(401, {"error": "unauthorized"})
+        self._reject(401, "unauthorized")
         return False
+
+    def _reject(self, status: int, error: str):
+        """拒绝前读完请求体：带着未读数据关闭连接时，Windows 会发 RST，客户端读响应报 WinError 10053（audit AI-008）。
+        请求体超过上限时不读，改为明确关闭连接，避免未授权请求占用服务。"""
+        try:
+            length = int(self.headers.get("Content-Length", 0))
+        except ValueError:
+            length = -1
+        if 0 <= length <= MAX_REJECT_DRAIN_BYTES:
+            if length:
+                self.rfile.read(length)
+        else:
+            self.close_connection = True
+        self.send_response(status)
+        if self.close_connection:
+            self.send_header("Connection", "close")
+        data = json.dumps({"error": error}).encode("utf-8")
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(data)))
+        self.end_headers()
+        self.wfile.write(data)
 
     def _send_json(self, status: int, body: dict):
         data = json.dumps(body, ensure_ascii=False).encode("utf-8")
@@ -1126,7 +1149,7 @@ class Handler(BaseHTTPRequestHandler):
             return
         match = re.fullmatch(r"/skills/([^/]+)/run", self.path)
         if not match:
-            self._send_json(404, {"error": "not found"})
+            self._reject(404, "not found")
             return
         skill_id = match.group(1)
         payload = self._read_json()
