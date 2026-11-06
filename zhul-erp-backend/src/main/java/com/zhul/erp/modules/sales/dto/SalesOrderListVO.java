@@ -28,6 +28,11 @@ public class SalesOrderListVO {
     /** 总数量：全部型号数量之和 */
     private Integer totalQuantity;
     private Integer itemCount;
+    /** 第一个型号（按行号），与询盘列表一致：显示第一个 + 共 N 个 */
+    private String firstModel;
+    /** 去重后的品牌、品类 */
+    private java.util.List<String> brands;
+    private java.util.List<String> categories;
     private String currencyCode;
     private BigDecimal totalAmount;
     private Integer receiptStatus;

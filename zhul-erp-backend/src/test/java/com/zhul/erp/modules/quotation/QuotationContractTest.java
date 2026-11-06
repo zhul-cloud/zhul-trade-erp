@@ -271,6 +271,57 @@ class QuotationContractTest extends InquiryContractSupport {
         assertEquals("不同客户需要分开报价", fail(create(write(Map.of("inquiryIds", List.of(a, other))))).path("message").asText());
     }
 
+    @Test
+    void batchCreate_onePerInquiry_skipsDraftAndUnpriced_limitAndCustomer() throws Exception {
+        long c = customer("Akij Group", "Bangladesh");
+        long a = seedInquiry(c, 6, "2026-11-05", m("1756-L83E", "6000"), m("1756-IB16", "800"));
+        long b = seedInquiry(c, 6, "2026-11-04", m("6ES7214-1AG40-0XB0", "2640"));
+        long s = seedInquiry(c, 5, "2026-11-03", m("6AV2123-2GB03-0AX0", "1500"), m("6SL3210-1KE21-3UF1", null));
+        long d = seedInquiry(c, 6, "2026-11-02", m("3RT2016-1AP01", "90"));
+        long none = seedInquiry(c, 5, "2026-11-01", m("6ES7315-2AG10-0AB0", null));
+        JsonNode draft = byInquiries(d);
+
+        // 全选该客户可报价询盘：可报价且没有草稿的
+        JsonNode ready = ok(call(get(QT + "/candidates/ready-inquiries?customerId=" + c), admin));
+        List<Long> readyIds = new java.util.ArrayList<>();
+        ready.forEach(n -> readyIds.add(n.path("inquiryId").asLong()));
+        assertEquals(List.of(a, b), readyIds, "询价中和已有草稿的不在内");
+
+        JsonNode res = ok(call(json(post(QT + "/batch"), write(Map.of("inquiryIds", List.of(a, b, s, d, none)))), admin));
+        JsonNode created = res.path("created");
+        assertEquals(3, created.size(), "a、b、s 各生成一张：" + res);
+        assertEquals(2, created.get(0).path("itemCount").asInt());
+        assertEquals(1, created.get(1).path("itemCount").asInt());
+        assertEquals(1, created.get(2).path("itemCount").asInt(), "询价中只带已回价的型号");
+        assertEquals(1, created.get(2).path("pendingCount").asInt());
+        assertEquals("USD", created.get(0).path("currencyCode").asText());
+        java.util.Set<String> nos = new java.util.HashSet<>();
+        created.forEach(n -> nos.add(n.path("quotationNo").asText()));
+        assertEquals(3, nos.size(), "编号各不相同");
+        JsonNode skipped = res.path("skipped");
+        assertEquals(2, skipped.size());
+        assertEquals("已在报价单 " + draft.path("quotationNo").asText() + " 草稿中", skipped.get(0).path("reason").asText());
+        assertEquals(inquiryCode(none), skipped.get(1).path("inquiryCode").asText());
+
+        // 全部跳过：报错且不写入
+        int before = jdbc.queryForObject("select count(*) from quotation where tenant_id = 0", Integer.class);
+        JsonNode allSkipped = fail(call(json(post(QT + "/batch"), write(Map.of("inquiryIds", List.of(a, none)))), admin));
+        assertTrue(allSkipped.path("message").asText().startsWith("没有可以生成的报价单"), allSkipped.toString());
+        assertEquals(before, (int) jdbc.queryForObject("select count(*) from quotation where tenant_id = 0", Integer.class));
+
+        // 不同客户、超过 20 个
+        long other = seedInquiry(customer("Pacific Controls", "Australia"), 6, "2026-11-05", m("1769-L33ER", "5000"));
+        long b2 = seedInquiry(c, 6, "2026-11-05", m("1756-OB16E", "700"));
+        assertEquals("不同客户需要分开报价",
+                fail(call(json(post(QT + "/batch"), write(Map.of("inquiryIds", List.of(b2, other)))), admin)).path("message").asText());
+        List<Long> many = new java.util.ArrayList<>();
+        for (long i = 1; i <= 21; i++) {
+            many.add(i);
+        }
+        assertTrue(fail(call(json(post(QT + "/batch"), write(Map.of("inquiryIds", many))), admin)).path("message").asText()
+                .contains("一次最多生成 20 张"));
+    }
+
     // ---------------------------------------------------------------- 定价与编辑
 
     @Test
@@ -616,6 +667,46 @@ class QuotationContractTest extends InquiryContractSupport {
         assertEquals(4, lost.path("status").asInt());
         assertTrue(lost.path("editingVersionNo").isNull() || lost.path("editingVersionNo").isMissingNode());
         assertEquals(2, lost.path("items").size());
+    }
+
+    @Test
+    void pricedDiscontinuedLine_replacementShownInTextAndExport_clearable() throws Exception {
+        long c = customer("Replacement Co", "Kenya");
+        long inq = seedInquiry(c, 6, "2026-10-05", m("6ES7315-2AH14-0AB0", "9800"), m("6ES7214-1AG40-0XB0", "2640"));
+        jdbc.update("update inquiry_item set lifecycle = 2, replacement_model = '6ES7315-2EH14-0AB0' where customer_inquiry_id = ? and line_no = 1", inq);
+        JsonNode q = byInquiries(inq);
+        JsonNode first = q.path("items").get(0);
+        assertFalse(first.path("noStockLine").asBoolean(), "有回价，不是无货行");
+        assertEquals("6ES7315-2EH14-0AB0", first.path("replacementModel").asText(), "停产替代型号带到有价格的行");
+        assertEquals("", q.path("items").get(1).path("replacementModel").asText());
+        long id = q.path("id").asLong();
+        Map<String, Object> body = saveBody(q);
+        line(body, 0).put("pricingMode", 3);
+        line(body, 0).put("unitPrice", new BigDecimal("1420.00"));
+        line(body, 1).put("pricingMode", 3);
+        line(body, 1).put("unitPrice", new BigDecimal("286.00"));
+        ok(save(id, body));
+        String text = ok(call(get(QT + "/" + id + "/text"), admin)).path("text").asText();
+        String[] lines = text.split("\n");
+        String l1 = java.util.Arrays.stream(lines).filter(x -> x.startsWith("6ES7315-2AH14-0AB0")).findFirst().orElse("");
+        assertTrue(l1.endsWith(" (discontinued, replaced by 6ES7315-2EH14-0AB0)"), text);
+        assertTrue(l1.contains("1420"), l1);
+        assertFalse(java.util.Arrays.stream(lines).filter(x -> x.startsWith("6ES7214")).findFirst().orElse("").contains("discontinued"));
+
+        MockHttpServletResponse xlsx = perform(get(QT + "/" + id + "/export").param("format", "xlsx"), admin);
+        StringBuilder all = new StringBuilder();
+        try (XSSFWorkbook wb = new XSSFWorkbook(new ByteArrayInputStream(xlsx.getContentAsByteArray()))) {
+            DataFormatter fmt = new DataFormatter();
+            for (Row row : wb.getSheetAt(0)) {
+                row.forEach(cell -> all.append(fmt.formatCellValue(cell)).append('|'));
+            }
+        }
+        assertTrue(all.toString().contains("Discontinued, replaced by 6ES7315-2EH14-0AB0"), all.toString());
+
+        // 清空替代型号后不再提示
+        line(body, 0).put("replacementModel", "");
+        assertEquals("", ok(save(id, body)).path("items").get(0).path("replacementModel").asText());
+        assertFalse(ok(call(get(QT + "/" + id + "/text"), admin)).path("text").asText().contains("discontinued"));
     }
 
     @Test

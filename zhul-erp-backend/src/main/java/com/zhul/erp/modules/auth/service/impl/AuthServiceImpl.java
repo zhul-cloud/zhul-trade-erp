@@ -73,7 +73,8 @@ public class AuthServiceImpl implements AuthService {
     private final AccountSessionService accountSessionService;
 
     private static final long EXPIRES_NORMAL = 7200L;
-    private static final long EXPIRES_REMEMBER = 604800L;
+    /** 记住我：30 天；每次刷新令牌重新计时，30 天内用过就一直保持登录 */
+    private static final long EXPIRES_REMEMBER = 2592000L;
     private static final int MAX_FAIL_COUNT = 5;
     private static final int LOCK_MINUTES = 30;
     private static final int RESET_CODE_TTL_MINUTES = 10;
@@ -301,6 +302,9 @@ public class AuthServiceImpl implements AuthService {
             tokenRow.setAccessToken(newToken);
             tokenRow.setExpiryTime(LocalDateTime.now().plusSeconds(EXPIRES_NORMAL));
             accountAccessTokenMapper.updateById(tokenRow);
+            // 记住我续期：RefreshToken 与 Cookie 重新计时
+            redisTemplate.expire(RedisKeyConstants.REFRESH_TOKEN_PREFIX + refreshToken, EXPIRES_REMEMBER, TimeUnit.SECONDS);
+            setRefreshCookie(httpResponse, refreshToken, httpRequest.isSecure());
 
             log.info("Token 刷新成功，accountId={}", account.getId());
             return RefreshTokenResponse.builder().accessToken(newToken).expiresIn(EXPIRES_NORMAL).build();

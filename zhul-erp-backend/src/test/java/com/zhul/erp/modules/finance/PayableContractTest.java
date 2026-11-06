@@ -468,6 +468,58 @@ class PayableContractTest extends SalesContractSupport {
         assertEquals("USD", jdbc.queryForObject("select currency_code from fin_payable where id = ?", String.class, apId));
     }
 
+    /** 反馈 11-05 第 13 条：采购订单记优惠，应付按实付结清；付款时可以顺手登记优惠 */
+    @Test
+    void discountRow_reducesPayable_andDiscountRegisteredOnPayment() throws Exception {
+        long sup = supplier("优惠工控", null);
+        long poId = orderedPo(sup, "DIS-1", 15, "96", List.of(term(100, 1, 0))).path("id").asLong();
+        long apId = jdbc.queryForObject("select id from fin_payable where source_type = 1 and source_id = ?", Long.class, poId);
+        money("1440.00", new com.fasterxml.jackson.databind.node.DecimalNode(
+                jdbc.queryForObject("select amount from fin_payable where id = ?", BigDecimal.class, apId)));
+
+        // 采购订单上加优惠：合计与应付同步减少，写操作日志
+        Map<String, Object> body = poBody(po(poId, admin), null);
+        body.put("fees", List.of(Map.of("feeName", "运费", "feeType", 1, "amount", new BigDecimal("30")),
+                Map.of("feeName", "平台优惠", "feeType", 2, "amount", new BigDecimal("90"))));
+        JsonNode saved = ok(savePo(poId, body, admin));
+        money("1380.00", saved.path("totalAmount"));
+        assertEquals(2, saved.path("fees").get(1).path("feeType").asInt());
+        money("1380.00", new com.fasterxml.jackson.databind.node.DecimalNode(
+                jdbc.queryForObject("select amount from fin_payable where id = ?", BigDecimal.class, apId)));
+        assertTrue(jdbc.queryForObject("select content from purchase_order_log where po_id = ? order by id desc limit 1", String.class, poId)
+                .contains("优惠 平台优惠 90.00"));
+
+        // 优惠超过货款加费用
+        body.put("fees", List.of(Map.of("feeName", "平台优惠", "feeType", 2, "amount", new BigDecimal("1441"))));
+        assertEquals("优惠不能超过货款加费用", fail(savePo(poId, body, admin)).path("message").asText());
+
+        // 去掉费用和优惠，回到 1440；付款时登记优惠 60
+        body.put("fees", List.of());
+        ok(savePo(poId, body, admin));
+        Map<String, Object> equal = payBody(2, "1440.00", Map.of(apId, "1440.00"), lin);
+        equal.put("discount", Map.of("name", "平台优惠"));
+        assertEquals("付款金额已等于未付金额，不需要登记优惠", fail(pay(equal, lin)).path("message").asText());
+
+        Map<String, Object> p = payBody(2, "1380.00", Map.of(apId, "1380.00"), lin);
+        p.put("discount", Map.of("name", "淘宝优惠券"));
+        ok(pay(p, lin));
+        Map<String, Object> ap = jdbc.queryForMap("select amount, paid_amount, status from fin_payable where id = ?", apId);
+        money("1380.00", new com.fasterxml.jackson.databind.node.DecimalNode((BigDecimal) ap.get("amount")));
+        money("1380.00", new com.fasterxml.jackson.databind.node.DecimalNode((BigDecimal) ap.get("paid_amount")));
+        assertEquals(3, ((Number) ap.get("status")).intValue(), "已付清");
+        JsonNode after = po(poId, admin);
+        money("1380.00", after.path("totalAmount"));
+        assertEquals("淘宝优惠券", after.path("fees").get(0).path("feeName").asText());
+        assertEquals(2, after.path("fees").get(0).path("feeType").asInt());
+        money("60.00", after.path("fees").get(0).path("amount"));
+
+        // 优惠记错：改成 50 后应付回到部分付款
+        Map<String, Object> fix = poBody(after, null);
+        fix.put("fees", List.of(Map.of("feeName", "淘宝优惠券", "feeType", 2, "amount", new BigDecimal("50"))));
+        ok(savePo(poId, fix, admin));
+        assertEquals(2, (int) jdbc.queryForObject("select status from fin_payable where id = ?", Integer.class, apId), "部分付款");
+    }
+
     /** audit BUS-009：付款形成的欠款已抵扣到另一应付时，不能直接作废原付款；先作废抵扣再作废原付款可以 */
     @Test
     void voidPaymentWhoseCreditIsUsed_rejectedUntilOffsetVoided() throws Exception {

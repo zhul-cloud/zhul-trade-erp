@@ -25,6 +25,8 @@ const globalCss = (p: Palette) => `
     .map(([k, v]) => `--z-${k}: ${v};`)
     .join(' ')} }
   body { background: ${p.canvas}; }
+  /* 深色模式下让滚动条等浏览器原生控件也用深色 */
+  :root[data-theme='dark'] { color-scheme: dark; }
   .ant-btn-primary:not(:disabled):not(.ant-btn-dangerous):not(.ant-btn-background-ghost) {
     background: ${PRIMARY_GRADIENT};
     border: none;
@@ -50,6 +52,13 @@ const globalCss = (p: Palette) => `
   html body .ant-tag.ant-tag-error, html body .ant-tag.ant-tag-red { color: ${p.red} !important; background: ${p.redSoft} !important; border-color: transparent !important; }
   html body .ant-tag.ant-tag-processing, html body .ant-tag.ant-tag-blue { color: ${p.link} !important; background: ${p.accentSoft} !important; border-color: transparent !important; }
   .num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  /* 浏览器自动填充（账号、密码）会给输入框加浅蓝底：改回主题的输入框底色与文字色，深色模式下不再出现亮色块 */
+  input:-webkit-autofill, input:-webkit-autofill:hover, input:-webkit-autofill:focus, input:-webkit-autofill:active {
+    -webkit-box-shadow: 0 0 0 1000px ${p.card} inset !important;
+    -webkit-text-fill-color: ${p.ink} !important;
+    caret-color: ${p.ink};
+    transition: background-color 9999s ease-out 0s;
+  }
   .zhul-skip {
     position: absolute; left: 16px; top: 12px; z-index: 1100; padding: 8px 16px; border-radius: 10px;
     background: ${p.card}; color: ${p.link}; border: 2px solid ${p.link};

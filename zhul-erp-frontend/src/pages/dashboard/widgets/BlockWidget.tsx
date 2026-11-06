@@ -298,14 +298,16 @@ const BlockView: React.FC<{ block: Block }> = ({ block: b }) => {
       const bars = b.bars as BarsData;
       const max = Math.max(1, ...bars.values.map(Number));
       return (
-        <div>
+        // 柱状图随卡片高度伸展（最少 140），等高的卡片里不在图下方留空
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
           {title}
           <div
             style={{
               display: 'flex',
               alignItems: 'flex-end',
               gap: 6,
-              height: 140,
+              flex: 1,
+              minHeight: 140,
             }}
           >
             {bars.values.map((v, i) => {
@@ -566,7 +568,9 @@ export const blockWidget = (opts: {
         error={error}
         onRetry={reload}
       >
-        <div style={{ display: 'grid', gap: 14 }}>
+        <div
+          style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 14 }}
+        >
           {data?.blocks.map((b, i) => (
             // biome-ignore lint/suspicious/noArrayIndexKey: 块按顺序固定
             <BlockView key={i} block={b} />

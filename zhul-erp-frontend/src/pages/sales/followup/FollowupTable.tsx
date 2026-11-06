@@ -19,6 +19,7 @@ import {
   ValueCell,
 } from './components';
 import { PartsPanel, ProgressCell } from './OrderParts';
+import QuotationPreviewDrawer from './QuotationPreviewDrawer';
 import {
   BOARD_ACCOUNT,
   BOARD_AFTER_SALES,
@@ -34,6 +35,7 @@ import {
   type OverviewBoard,
   REPORT_PRIORITY,
   readBizError,
+  TARGET,
 } from './service';
 
 /** 当前看哪一段：全部 / 某个分组 / 某个阶段 / 培育中 / 有异常（订单履约） / 沉睡（客户经营） */
@@ -460,6 +462,10 @@ export const FollowupTable: React.FC<{
     sales && !filter.nurture && filter.group === GROUP.AFTER_QUOTE;
   const afterPi = sales && !filter.nurture && filter.group === GROUP.AFTER_PI;
   const [expanded, setExpanded] = useState<number[]>([]);
+  const [quotePreview, setQuotePreview] = useState<{
+    id: number;
+    versionNo?: number;
+  }>();
   // 换板块或换筛选时收起展开的行
   useEffect(() => setExpanded([]), [boardNo, filter]);
   const toggle = (id: number) =>
@@ -516,7 +522,19 @@ export const FollowupTable: React.FC<{
     render: (_, r) => (
       <div style={{ display: 'grid', gap: 2 }}>
         <span style={{ fontVariantNumeric: 'tabular-nums' }}>
-          {r.docNo || '—'}
+          {r.docNo && r.targetType === TARGET.QUOTATION ? (
+            // 点报价单号打开预览，不切换选中行、不展开行
+            <a
+              onClick={(e) => {
+                e.stopPropagation();
+                setQuotePreview({ id: r.targetId, versionNo: r.versionNo });
+              }}
+            >
+              {r.docNo}
+            </a>
+          ) : (
+            r.docNo || '—'
+          )}
           {afterQuote && r.versionNo && r.versionNo > 1 && (
             <span style={{ color: palette.mute, fontSize: 12 }}>
               {' '}
@@ -1153,6 +1171,10 @@ export const FollowupTable: React.FC<{
           )}
         </div>
       )}
+      <QuotationPreviewDrawer
+        target={quotePreview}
+        onClose={() => setQuotePreview(undefined)}
+      />
     </>
   );
 };

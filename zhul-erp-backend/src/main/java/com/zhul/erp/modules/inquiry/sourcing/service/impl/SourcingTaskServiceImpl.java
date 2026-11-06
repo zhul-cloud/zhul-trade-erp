@@ -94,6 +94,7 @@ public class SourcingTaskServiceImpl implements SourcingTaskService {
     private final QuotationLocks quotationLocks;
     private final com.zhul.erp.framework.security.PermissionChecker perm;
     private final com.zhul.erp.modules.inquiry.support.TaskNameplates taskNameplates;
+    private final TaskKeywordMatcher keywordMatcher;
 
     // ---------------------------------------------------------------- 生成与取消
 
@@ -435,6 +436,15 @@ public class SourcingTaskServiceImpl implements SourcingTaskService {
 
     @Override
     public BoardVO board(Integer status, int page, int pageSize) {
+        return board(status, page, pageSize, null, null);
+    }
+
+    /**
+     * 分配工作台。keyword / purchaserId 只筛选列出的任务与页签数字，顶部统计仍按全部任务
+     * （spec inquiry/sourcing-task「分配工作台搜索与筛选」）。
+     */
+    @Override
+    public BoardVO board(Integer status, int page, int pageSize, String keyword, Long purchaserId) {
         page = Math.max(1, page);
         pageSize = Math.min(Math.max(1, pageSize), InquiryConstants.MAX_PAGE_SIZE);
         int tenantId = tenantId();
@@ -451,12 +461,15 @@ public class SourcingTaskServiceImpl implements SourcingTaskService {
                 .isNull(SourcingTaskDO::getDeletedAt)
                 .inSql(SourcingTaskDO::getCustomerInquiryId, "select id from customer_inquiry where status in ("
                         + InquiryConstants.STATUS_SOURCING + "," + InquiryConstants.STATUS_READY_TO_QUOTE + ") and deleted_at is null");
-        long doneCount = taskMapper.selectCount(doneQuery);
+        List<SourcingTaskDO> doneTasks = taskMapper.selectList(doneQuery);
+        long doneCount = doneTasks.size();
         if (status0 == InquiryConstants.TASK_DONE) {
             open = new ArrayList<>(open);
-            open.addAll(taskMapper.selectList(doneQuery));
+            open.addAll(doneTasks);
         }
         Map<Long, List<SourcingQuoteDO>> reviewByTask = pendingReviewByTask(tenantId);
+        java.util.Set<Long> matched = matchedTasks(open, doneTasks, reviewByTask.keySet(), keyword, purchaserId);
+        java.util.function.LongPredicate pass = id -> matched == null || matched.contains(id);
         if (status0 == InquiryConstants.BOARD_TAB_REVIEW) {
             // 多人比价时正式采购可能已回齐（任务已回价），兼职那份仍在审核
             java.util.Set<Long> loaded = open.stream().map(SourcingTaskDO::getId).collect(Collectors.toSet());
@@ -509,10 +522,16 @@ public class SourcingTaskServiceImpl implements SourcingTaskService {
             List<SourcingQuoteDO> pendingReview = reviewByTask.get(t.getId());
             boolean isListed = status0 == InquiryConstants.BOARD_TAB_REVIEW ? pendingReview != null
                     : t.getStatus() == status0 && !(status0 == InquiryConstants.TASK_SOURCING && pendingReview != null);
-            if (isListed) {
+            if (isListed && pass.test(t.getId())) {
                 listed.add(t);
             }
         }
+        BoardVO.TabCounts tabs = new BoardVO.TabCounts();
+        tabs.setUnassigned((int) open.stream().filter(t -> t.getStatus() == InquiryConstants.TASK_UNASSIGNED && pass.test(t.getId())).count());
+        tabs.setSourcing((int) open.stream().filter(t -> t.getStatus() == InquiryConstants.TASK_SOURCING
+                && !reviewByTask.containsKey(t.getId()) && pass.test(t.getId())).count());
+        tabs.setReview((int) reviewByTask.keySet().stream().filter(pass::test).count());
+        tabs.setDone((int) doneTasks.stream().filter(t -> pass.test(t.getId())).count());
 
         // 排序要用询盘等级，询盘信息只查列出的任务
         Map<Long, InquiryLookups.InquiryBrief> briefs = lookups.briefs(listed.stream().map(SourcingTaskDO::getCustomerInquiryId).toList(),
@@ -628,11 +647,148 @@ public class SourcingTaskServiceImpl implements SourcingTaskService {
         stats.setAutoAssign(settings.autoAssign(tenantId));
         BoardVO vo = new BoardVO();
         vo.setStats(stats);
+        vo.setTabs(tabs);
         vo.setTotal((long) listed.size());
         vo.setBrands(List.copyOf(brands.values()));
         vo.setTasks(rows);
         vo.setPurchasers(withSelf(purchasers, assignees));
         return vo;
+    }
+
+    private static final int HISTORY_DEFAULT_DAYS = 30;
+    private static final Map<Integer, String> HISTORY_STATES = Map.of(1, "待分配", 2, "询价中", 3, "已回价", 4, "已报价", 5, "已关闭");
+
+    @Override
+    public com.zhul.erp.common.result.PageResult<com.zhul.erp.modules.inquiry.sourcing.dto.BoardHistoryRowVO> history(
+            String keyword, Long purchaserId, Integer state, java.time.LocalDate dateFrom, java.time.LocalDate dateTo, int page, int pageSize) {
+        page = Math.max(1, page);
+        pageSize = Math.min(Math.max(1, pageSize), InquiryConstants.MAX_PAGE_SIZE);
+        int tenantId = tenantId();
+        java.time.LocalDate to = dateTo != null ? dateTo : java.time.LocalDate.now();
+        java.time.LocalDate from = dateFrom != null ? dateFrom : to.minusDays(HISTORY_DEFAULT_DAYS - 1L);
+        String closedInquiries = "select id from customer_inquiry where tenant_id = " + tenantId + " and status = " + InquiryConstants.STATUS_CANCELLED;
+        LambdaQueryWrapper<SourcingTaskDO> w = new LambdaQueryWrapper<SourcingTaskDO>()
+                .eq(SourcingTaskDO::getTenantId, tenantId)
+                .isNull(SourcingTaskDO::getDeletedAt)
+                .ge(SourcingTaskDO::getCreateTime, from.atStartOfDay())
+                .lt(SourcingTaskDO::getCreateTime, to.plusDays(1).atStartOfDay());
+        if (StringUtils.hasText(keyword)) {
+            String trimmed = keyword.trim();
+            String kw = trimmed.length() > 64 ? trimmed.substring(0, 64) : trimmed;
+            String like = "%" + kw.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%";
+            String key = PriceKeys.model(kw);
+            String keyLike = StringUtils.hasText(key) ? "%" + key + "%" : like;
+            w.and(x -> x.like(SourcingTaskDO::getTaskCode, kw).or().like(SourcingTaskDO::getBrand, kw).or().like(SourcingTaskDO::getCategory, kw)
+                    .or().apply("customer_inquiry_id in (select id from customer_inquiry where tenant_id = {0} and inquiry_code like {1})",
+                            tenantId, like)
+                    .or().apply("id in (select sourcing_task_id from inquiry_item where tenant_id = {0} and deleted_at is null"
+                            + " and (confirmed_model like {1} or original_model like {1} or model_key like {2}))", tenantId, like, keyLike));
+        }
+        if (purchaserId != null) {
+            // 曾经分配过的都算（含被改派掉的）
+            w.apply("id in (select task_id from sourcing_task_assignee where tenant_id = {0} and assignee_id = {1} and deleted_at is null)",
+                    tenantId, purchaserId);
+        }
+        if (state != null) {
+            switch (state) {
+                case 1 -> w.in(SourcingTaskDO::getStatus, InquiryConstants.TASK_UNASSIGNED, InquiryConstants.TASK_SALES)
+                        .notInSql(SourcingTaskDO::getCustomerInquiryId, closedInquiries);
+                case 2 -> w.eq(SourcingTaskDO::getStatus, InquiryConstants.TASK_SOURCING)
+                        .notInSql(SourcingTaskDO::getCustomerInquiryId, closedInquiries);
+                case 3 -> w.eq(SourcingTaskDO::getStatus, InquiryConstants.TASK_DONE)
+                        .inSql(SourcingTaskDO::getCustomerInquiryId, "select id from customer_inquiry where tenant_id = " + tenantId
+                                + " and status in (" + InquiryConstants.STATUS_SOURCING + "," + InquiryConstants.STATUS_READY_TO_QUOTE + ")");
+                case 4 -> w.eq(SourcingTaskDO::getStatus, InquiryConstants.TASK_DONE)
+                        .inSql(SourcingTaskDO::getCustomerInquiryId, "select id from customer_inquiry where tenant_id = " + tenantId
+                                + " and status in (" + InquiryConstants.STATUS_QUOTED + "," + InquiryConstants.STATUS_WON + ","
+                                + InquiryConstants.STATUS_LOST + ")");
+                case 5 -> w.and(x -> x.eq(SourcingTaskDO::getStatus, InquiryConstants.TASK_CANCELLED)
+                        .or().inSql(SourcingTaskDO::getCustomerInquiryId, closedInquiries));
+                default -> throw new BizException("状态不存在");
+            }
+        }
+        w.orderByDesc(SourcingTaskDO::getUpdateTime).orderByDesc(SourcingTaskDO::getId);
+        com.baomidou.mybatisplus.extension.plugins.pagination.Page<SourcingTaskDO> p =
+                taskMapper.selectPage(new com.baomidou.mybatisplus.extension.plugins.pagination.Page<>(page, pageSize), w);
+        List<SourcingTaskDO> tasks = p.getRecords();
+        List<Long> ids = tasks.stream().map(SourcingTaskDO::getId).toList();
+        Map<Long, CustomerInquiryDO> inquiries = tasks.isEmpty() ? Map.of() : inquiryMapper.selectList(new LambdaQueryWrapper<CustomerInquiryDO>()
+                        .select(CustomerInquiryDO::getId, CustomerInquiryDO::getInquiryCode, CustomerInquiryDO::getStatus)
+                        .in(CustomerInquiryDO::getId, tasks.stream().map(SourcingTaskDO::getCustomerInquiryId).distinct().toList()))
+                .stream().collect(Collectors.toMap(CustomerInquiryDO::getId, i -> i));
+        List<SourcingTaskAssigneeDO> as = ids.isEmpty() ? List.of() : assigneeMapper.selectList(new LambdaQueryWrapper<SourcingTaskAssigneeDO>()
+                .in(SourcingTaskAssigneeDO::getTaskId, ids)
+                .isNull(SourcingTaskAssigneeDO::getDeletedAt));
+        Map<Long, String> names = lookups.userNames(as.stream().map(SourcingTaskAssigneeDO::getAssigneeId).distinct().toList());
+        List<com.zhul.erp.modules.inquiry.sourcing.dto.BoardHistoryRowVO> rows = new ArrayList<>(tasks.size());
+        for (SourcingTaskDO t : tasks) {
+            CustomerInquiryDO inq = inquiries.get(t.getCustomerInquiryId());
+            var vo = new com.zhul.erp.modules.inquiry.sourcing.dto.BoardHistoryRowVO();
+            vo.setId(t.getId());
+            vo.setTaskCode(t.getTaskCode());
+            vo.setCustomerInquiryId(t.getCustomerInquiryId());
+            vo.setInquiryCode(inq == null ? null : inq.getInquiryCode());
+            vo.setBrand(t.getBrand());
+            vo.setItemCount(t.getItemCount());
+            vo.setUrgent(Objects.equals(t.getUrgent(), 1));
+            vo.setPurchaserNames(as.stream().filter(a -> a.getTaskId().equals(t.getId()))
+                    .sorted(Comparator.comparing((SourcingTaskAssigneeDO a) -> !Objects.equals(a.getActive(), 1)))
+                    .map(a -> names.get(a.getAssigneeId())).filter(Objects::nonNull).distinct().toList());
+            int st = historyState(t, inq);
+            vo.setState(st);
+            vo.setStateName(HISTORY_STATES.get(st));
+            vo.setSalesHandling(Objects.equals(t.getSalesHandling(), 1) || Objects.equals(t.getStatus(), InquiryConstants.TASK_SALES));
+            vo.setCompletedAt(t.getCompletedAt());
+            vo.setCreateTime(t.getCreateTime());
+            vo.setCreateBy(t.getCreateBy());
+            vo.setUpdateTime(t.getUpdateTime());
+            vo.setUpdateBy(t.getUpdateBy());
+            rows.add(vo);
+        }
+        return com.zhul.erp.common.result.PageResult.of(p.getTotal(), rows);
+    }
+
+    /** 显示状态：任务作废或询盘取消为已关闭；已回价按询盘是否已报价分为已回价 / 已报价 */
+    private static int historyState(SourcingTaskDO t, CustomerInquiryDO inq) {
+        int inquiryStatus = inq == null || inq.getStatus() == null ? 0 : inq.getStatus();
+        if (t.getStatus() == InquiryConstants.TASK_CANCELLED || inquiryStatus == InquiryConstants.STATUS_CANCELLED) {
+            return 5;
+        }
+        if (t.getStatus() == InquiryConstants.TASK_SOURCING) {
+            return 2;
+        }
+        if (t.getStatus() == InquiryConstants.TASK_DONE) {
+            return inquiryStatus == InquiryConstants.STATUS_QUOTED || inquiryStatus == InquiryConstants.STATUS_WON
+                    || inquiryStatus == InquiryConstants.STATUS_LOST ? 4 : 3;
+        }
+        return 1;
+    }
+
+    /** 关键词与采购员筛选命中的任务 ID；都没填时返回 null（不筛选）。采购员按当前在办（有效分配）判断 */
+    private java.util.Set<Long> matchedTasks(List<SourcingTaskDO> open, List<SourcingTaskDO> done, java.util.Set<Long> reviewIds,
+                                             String keyword, Long purchaserId) {
+        if (!StringUtils.hasText(keyword) && purchaserId == null) {
+            return null;
+        }
+        Map<Long, SourcingTaskDO> all = new LinkedHashMap<>();
+        open.forEach(t -> all.put(t.getId(), t));
+        done.forEach(t -> all.putIfAbsent(t.getId(), t));
+        List<Long> missing = reviewIds.stream().filter(id -> !all.containsKey(id)).toList();
+        if (!missing.isEmpty()) {
+            taskMapper.selectBatchIds(missing).forEach(t -> all.putIfAbsent(t.getId(), t));
+        }
+        List<SourcingTaskDO> hits = keywordMatcher.matching(new ArrayList<>(all.values()), keyword);
+        if (purchaserId != null && !hits.isEmpty()) {
+            java.util.Set<Long> mine = assigneeMapper.selectList(new LambdaQueryWrapper<SourcingTaskAssigneeDO>()
+                            .select(SourcingTaskAssigneeDO::getTaskId)
+                            .in(SourcingTaskAssigneeDO::getTaskId, hits.stream().map(SourcingTaskDO::getId).toList())
+                            .eq(SourcingTaskAssigneeDO::getAssigneeId, purchaserId)
+                            .eq(SourcingTaskAssigneeDO::getActive, 1)
+                            .isNull(SourcingTaskAssigneeDO::getDeletedAt))
+                    .stream().map(SourcingTaskAssigneeDO::getTaskId).collect(Collectors.toSet());
+            hits = hits.stream().filter(t -> mine.contains(t.getId())).toList();
+        }
+        return hits.stream().map(SourcingTaskDO::getId).collect(Collectors.toSet());
     }
 
     @Override
@@ -1298,5 +1454,6 @@ public class SourcingTaskServiceImpl implements SourcingTaskService {
         vo.setCustomerType(b.customerType());
         vo.setCustomerName(b.customerName());
         vo.setQuoteDeadline(b.quoteDeadline());
+        vo.setInquiryRemark(org.springframework.util.StringUtils.hasText(b.remark()) ? b.remark().trim() : null);
     }
 }

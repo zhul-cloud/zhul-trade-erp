@@ -345,7 +345,8 @@ export interface PurchaseOrder {
   cancelledAt?: string;
   editable: boolean;
   items: PoItem[];
-  fees: { id: number; feeName: string; amount: number }[];
+  /** feeType：1-费用、2-优惠（金额为正数，合计里减去） */
+  fees: { id: number; feeName: string; feeType?: number; amount: number }[];
   attachments: {
     id: number;
     fileName: string;
@@ -366,6 +367,9 @@ export interface PurchaseOrder {
   hasShipments: boolean;
 }
 
+/** 采购订单其他费用类型 */
+export const FEE_TYPE = { CHARGE: 1, DISCOUNT: 2 } as const;
+
 export interface SavePoBody {
   currencyCode: string;
   invoiceRequired: boolean;
@@ -376,7 +380,7 @@ export interface SavePoBody {
   contractNo?: string;
   contractAmount?: number | null;
   items: { id: number; quantity: number; unitPrice?: number | null }[];
-  fees: { feeName: string; amount: number }[];
+  fees: { feeName: string; feeType: number; amount: number }[];
   expectedShipDate?: string | null;
 }
 

@@ -59,7 +59,6 @@ import java.math.RoundingMode;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.Locale;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -89,6 +88,7 @@ public class MyTaskServiceImpl implements MyTaskService {
     private final SourcingProgress progress;
     private final SourcingSettings settings;
     private final CurrentUserResolver currentUser;
+    private final TaskKeywordMatcher keywordMatcher;
     private final ObjectMapper objectMapper;
     private final QuoteDicts quoteDicts;
     private final InquiryLookups lookups;
@@ -125,7 +125,7 @@ public class MyTaskServiceImpl implements MyTaskService {
                 .eq(SourcingTaskDO::getStatus, done ? InquiryConstants.TASK_DONE : InquiryConstants.TASK_SOURCING)
                 .isNull(SourcingTaskDO::getDeletedAt));
         if (StringUtils.hasText(keyword)) {
-            tasks = matching(tasks, keyword.trim());
+            tasks = keywordMatcher.matching(tasks, keyword);
         }
         TaskTimeout limits = TaskTimeout.of(settings, tenantId());
         LocalDateTime now = LocalDateTime.now();
@@ -151,34 +151,6 @@ public class MyTaskServiceImpl implements MyTaskService {
         List<MyTaskVO> all = myTasks(true, keyword);
         int from = Math.min((Math.max(page, 1) - 1) * size, all.size());
         return PageResult.of((long) all.size(), all.subList(from, Math.min(from + size, all.size())));
-    }
-
-    /** 关键词匹配任务编号、品牌、品类、询盘单编号，或任务下型号（确认型号、原始型号，忽略大小写与分隔符） */
-    private List<SourcingTaskDO> matching(List<SourcingTaskDO> tasks, String keyword) {
-        if (tasks.isEmpty()) {
-            return tasks;
-        }
-        String lower = keyword.toLowerCase(Locale.ROOT);
-        String key = PriceKeys.model(keyword);
-        Set<Long> inquiryHits = inquiryMapper.selectList(new LambdaQueryWrapper<CustomerInquiryDO>()
-                        .select(CustomerInquiryDO::getId)
-                        .in(CustomerInquiryDO::getId, tasks.stream().map(SourcingTaskDO::getCustomerInquiryId).distinct().toList())
-                        .like(CustomerInquiryDO::getInquiryCode, keyword))
-                .stream().map(CustomerInquiryDO::getId).collect(Collectors.toSet());
-        Set<Long> itemHits = itemMapper.selectList(new LambdaQueryWrapper<InquiryItemDO>()
-                        .select(InquiryItemDO::getSourcingTaskId, InquiryItemDO::getConfirmedModel, InquiryItemDO::getOriginalModel,
-                                InquiryItemDO::getModelKey)
-                        .in(InquiryItemDO::getSourcingTaskId, tasks.stream().map(SourcingTaskDO::getId).toList())
-                        .isNull(InquiryItemDO::getDeletedAt))
-                .stream().filter(i -> contains(i.getConfirmedModel(), lower) || contains(i.getOriginalModel(), lower)
-                        || (StringUtils.hasText(key) && i.getModelKey() != null && i.getModelKey().contains(key)))
-                .map(InquiryItemDO::getSourcingTaskId).collect(Collectors.toSet());
-        return tasks.stream().filter(t -> contains(t.getTaskCode(), lower) || contains(t.getBrand(), lower) || contains(t.getCategory(), lower)
-                || inquiryHits.contains(t.getCustomerInquiryId()) || itemHits.contains(t.getId())).toList();
-    }
-
-    private static boolean contains(String text, String lowerKeyword) {
-        return text != null && text.toLowerCase(Locale.ROOT).contains(lowerKeyword);
     }
 
     @Override
@@ -385,29 +357,33 @@ public class MyTaskServiceImpl implements MyTaskService {
     }
 
     /**
-     * 接手人看到的上一轮记录：型号上一轮的已提交记录，以及退回人留在其他型号上的记录。
-     * 没被退回过的任务没有，多人比价仍各自录入。兼职采购不返回价格。
+     * 接手人看到的上一轮记录：型号上一轮的已提交记录、退回人留在其他型号上的记录，
+     * 以及改派前的采购留下的记录（含只保存未提交的，audit BUS-030）。
+     * 没被退回、改派过的任务没有，多人比价仍各自录入。兼职采购不返回价格。
      */
     private Map<Long, List<PreviousQuoteVO>> previousQuotes(SourcingTaskDO task, List<InquiryItemDO> items, Long me) {
         Map<Long, Integer> rounds = items.stream().collect(Collectors.toMap(InquiryItemDO::getId,
                 i -> Objects.requireNonNullElse(i.getQuoteRound(), 0)));
-        if (task.getReturnedBy() == null && rounds.values().stream().allMatch(r -> r == 0)) {
+        Set<Long> former = formerAssignees(task.getId());
+        if (task.getReturnedBy() == null && former.isEmpty() && rounds.values().stream().allMatch(r -> r == 0)) {
             return Map.of();
         }
         List<SourcingQuoteDO> quotes = quoteMapper.selectList(new LambdaQueryWrapper<SourcingQuoteDO>()
                         .eq(SourcingQuoteDO::getTaskId, task.getId())
-                        .eq(SourcingQuoteDO::getStatus, InquiryConstants.QUOTE_SUBMITTED)
+                        .in(SourcingQuoteDO::getStatus, InquiryConstants.QUOTE_SUBMITTED, InquiryConstants.QUOTE_DRAFT)
                         .ne(SourcingQuoteDO::getQuotedBy, me)
                         .isNull(SourcingQuoteDO::getDeletedAt)
                         .orderByAsc(SourcingQuoteDO::getId))
-                .stream().filter(q -> rounds.containsKey(q.getInquiryItemId())
+                .stream().filter(q -> rounds.containsKey(q.getInquiryItemId()) && (former.contains(q.getQuotedBy())
+                        || q.getStatus() == InquiryConstants.QUOTE_SUBMITTED
                         && (Objects.requireNonNullElse(q.getQuoteRound(), 0) < rounds.get(q.getInquiryItemId())
-                        || Objects.equals(q.getQuotedBy(), task.getReturnedBy()))).toList();
+                        || Objects.equals(q.getQuotedBy(), task.getReturnedBy())))).toList();
         Map<Long, String> names = lookups.userNames(quotes.stream().map(SourcingQuoteDO::getQuotedBy).distinct().toList());
         boolean hidePrice = lookups.isPartTime(me);
         return quotes.stream().collect(Collectors.groupingBy(SourcingQuoteDO::getInquiryItemId, Collectors.mapping(q -> {
             PreviousQuoteVO vo = new PreviousQuoteVO();
             vo.setQuotedByName(names.get(q.getQuotedBy()));
+            vo.setDraft(q.getStatus() == InquiryConstants.QUOTE_DRAFT);
             vo.setNoStock(Objects.equals(q.getNoStock(), 1));
             vo.setChannel(q.getChannel());
             vo.setShopName(q.getShopName());
@@ -418,6 +394,17 @@ public class MyTaskServiceImpl implements MyTaskService {
             }
             return vo;
         }, Collectors.toList())));
+    }
+
+    /** 被改派掉的采购：分配过这个任务、现在已不在任务上的人 */
+    private Set<Long> formerAssignees(Long taskId) {
+        List<SourcingTaskAssigneeDO> all = assigneeMapper.selectList(new LambdaQueryWrapper<SourcingTaskAssigneeDO>()
+                .select(SourcingTaskAssigneeDO::getAssigneeId, SourcingTaskAssigneeDO::getActive)
+                .eq(SourcingTaskAssigneeDO::getTaskId, taskId));
+        Set<Long> active = all.stream().filter(a -> Objects.equals(a.getActive(), 1))
+                .map(SourcingTaskAssigneeDO::getAssigneeId).collect(Collectors.toSet());
+        return all.stream().map(SourcingTaskAssigneeDO::getAssigneeId)
+                .filter(id -> id != null && !active.contains(id)).collect(Collectors.toSet());
     }
 
     /**

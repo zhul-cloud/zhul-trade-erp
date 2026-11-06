@@ -1244,7 +1244,7 @@ const MyTasksPage: React.FC = () => {
                   {(it.previous?.length ?? 0) > 0 && (
                     <div style={{ display: 'grid', gap: 4, marginTop: 10 }}>
                       <span style={{ color: palette.sub, fontSize: 12 }}>
-                        上一轮记录
+                        之前的记录
                       </span>
                       {it.previous?.map((p, i) => (
                         <div
@@ -1263,6 +1263,7 @@ const MyTasksPage: React.FC = () => {
                           }}
                         >
                           <span>{p.quotedByName ?? '—'}</span>
+                          {p.draft && <Pill tone="orange">未提交</Pill>}
                           {p.noStock ? (
                             <Pill tone="red">无货</Pill>
                           ) : (

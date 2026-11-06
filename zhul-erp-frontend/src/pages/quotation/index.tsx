@@ -524,6 +524,7 @@ const QuotationList: React.FC = () => {
       <NewQuotationModal
         open={newOpen}
         onClose={() => setNewOpen(false)}
+        onBatchDone={load}
         onCreated={(q) => {
           setNewOpen(false);
           history.push(PATHS.detail(q.id));

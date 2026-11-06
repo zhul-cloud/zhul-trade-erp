@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -114,6 +115,13 @@ public class SalesOrderController {
     @PreAuthorize(EDIT_ATTACHMENT)
     public Result<SalesOrderVO> removeAttachment(@PathVariable Long id, @PathVariable Long attachmentId) {
         return Result.ok(service.removeAttachment(id, attachmentId));
+    }
+
+    @PutMapping("/orders/{id}/fees")
+    @PreAuthorize("@perm.canAccessMenu('/sales/orders') and @perm.has('sales:order:fee-edit')")
+    public Result<SalesOrderVO> updateFees(@PathVariable Long id,
+                                          @Valid @RequestBody com.zhul.erp.modules.sales.dto.UpdateOrderFeesRequest req) {
+        return Result.ok(service.updateFees(id, req));
     }
 
     @PostMapping("/orders/{id}/remark")

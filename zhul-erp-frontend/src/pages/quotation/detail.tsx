@@ -826,7 +826,6 @@ const QuotationDetail: React.FC = () => {
             size="small"
             suffix="%"
             min={0}
-            max={99.99}
             precision={2}
             value={shownMargin}
             status={below || r.error ? 'error' : undefined}
@@ -994,6 +993,40 @@ const QuotationDetail: React.FC = () => {
                 {noStockSummary(src)}
               </div>
             ))}
+      {/* 有价格的停产替代行：采购标了停产并给了替代型号，客户单据会提示（清空后保存即不再提示） */}
+      {d
+        ? !isNoStockLine(src, d) &&
+          (src.replacementModel || d.replacementModel) && (
+            <div
+              style={{
+                marginTop: 6,
+                display: 'flex',
+                gap: 6,
+                alignItems: 'center',
+              }}
+            >
+              <Pill tone="orange">停产</Pill>
+              <Input
+                size="small"
+                prefix="替代"
+                placeholder="清空后不提示客户"
+                value={d.replacementModel}
+                maxLength={128}
+                allowClear
+                style={{ maxWidth: 260 }}
+                onChange={(e) =>
+                  updateItem(d.id, { replacementModel: e.target.value })
+                }
+                aria-label="替代型号"
+              />
+            </div>
+          )
+        : !src.noStockLine &&
+          src.replacementModel && (
+            <div style={{ fontSize: 12, color: palette.orange }}>
+              停产 · 替代 {src.replacementModel}
+            </div>
+          )}
       {src.hints.map((h) => (
         <span key={h} style={{ display: 'inline-block', marginTop: 4 }}>
           <Pill tone="orange">{h}</Pill>
@@ -1010,7 +1043,7 @@ const QuotationDetail: React.FC = () => {
   const editColumns: TableColumnsType<SaveQuotationItem> = [
     { title: '#', key: 'no', width: 44, render: (_, __, i) => i + 1 },
     {
-      title: '型号 / 品牌 · 品类 · 来源',
+      title: compact ? '型号' : '型号 / 品牌·品类·来源',
       key: 'model',
       width: compact ? 170 : 240,
       render: (_, d) => modelCell(itemById.get(d.id) as QuotationItem, d),
@@ -1764,7 +1797,7 @@ const QuotationDetail: React.FC = () => {
           columns={editColumns}
           dataSource={draft.items}
           pagination={false}
-          scroll={{ x: compact ? 900 : 1460 }}
+          scroll={{ x: tableScrollX(editColumns) }}
           rowClassName={() => ''}
           onRow={(d) => {
             const src = itemById.get(d.id);
@@ -2055,7 +2088,6 @@ const QuotationDetail: React.FC = () => {
           gap: 16,
           marginTop: 16,
           flexWrap: compact ? 'wrap' : 'nowrap',
-          alignItems: 'flex-start',
         }}
       >
         {feesCard}

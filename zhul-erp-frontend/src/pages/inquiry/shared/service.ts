@@ -294,6 +294,8 @@ export interface BoardTask {
   customerType?: number;
   /** 兼职采购看不到，为空 */
   customerName?: string;
+  /** 业务员在询盘单上写的备注；兼职采购没有 */
+  inquiryRemark?: string;
   quoteDeadline?: string;
   /** 回价是否还能修改（业务员报价后为 false） */
   editable?: boolean;
@@ -349,6 +351,40 @@ export interface Board {
   /** 当前页的任务 */
   tasks: BoardTask[];
   purchasers: Purchaser[];
+  /** 页签数字：按搜索与采购员筛选后统计（stats 不受筛选影响） */
+  tabs?: { unassigned: number; sourcing: number; review: number; done: number };
+}
+
+/** 询价分配「全部」页签的一行 */
+export interface BoardHistoryRow {
+  id: number;
+  taskCode: string;
+  customerInquiryId: number;
+  inquiryCode?: string;
+  brand: string;
+  itemCount: number;
+  urgent?: boolean;
+  /** 当前在办的在前，被改派掉的在后 */
+  purchaserNames: string[];
+  /** 1-待分配、2-询价中、3-已回价、4-已报价、5-已关闭 */
+  state: number;
+  stateName: string;
+  salesHandling?: boolean;
+  completedAt?: string;
+  createTime?: string;
+  createBy?: string;
+  updateTime?: string;
+  updateBy?: string;
+}
+
+export interface BoardHistoryQuery {
+  keyword?: string;
+  purchaserId?: number;
+  state?: number;
+  dateFrom?: string;
+  dateTo?: string;
+  page: number;
+  pageSize: number;
 }
 
 /** 品牌分组汇总（覆盖全部页），用于分页后的组头 */
@@ -420,6 +456,8 @@ export interface MyTask {
 /** 接手人看到的上一轮记录；兼职看不到价格 */
 export interface PreviousQuote {
   quotedByName?: string;
+  /** 改派前只保存、没有提交的记录 */
+  draft?: boolean;
   noStock: boolean;
   channel: number;
   shopName?: string;
@@ -841,8 +879,15 @@ export const inquiryApi = {
 };
 
 export const boardApi = {
-  board: (status: number, page: number, pageSize: number) =>
-    get<Board>(BOARD, { status, page, pageSize }),
+  board: (
+    status: number,
+    page: number,
+    pageSize: number,
+    filter: { keyword?: string; purchaserId?: number } = {},
+  ) => get<Board>(BOARD, { status, page, pageSize, ...filter }),
+  /** 「全部」页签：全部询价任务，含已报价、已关闭 */
+  history: (q: BoardHistoryQuery) =>
+    get<{ total: number; records: BoardHistoryRow[] }>(`${BOARD}/all`, q),
   purchasers: () => get<Purchaser[]>(`${BOARD}/purchasers`),
   taskDetail: (id: number) => get<BoardTaskDetail>(`${BOARD}/tasks/${id}`),
   nameplates: (id: number) =>

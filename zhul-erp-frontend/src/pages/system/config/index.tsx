@@ -25,11 +25,10 @@ import {
   Space,
   Tabs,
   Tag,
-  Tooltip,
   Upload,
 } from 'antd';
 import React, { useEffect, useRef, useState } from 'react';
-import { ellipsisRender } from '@/components/EllipsisText';
+import EllipsisText, { ellipsisRender } from '@/components/EllipsisText';
 import { useAppTheme } from '@/theme/AppTheme';
 import { APPEARANCE_IMAGE_KEYS } from '@/utils/appearance';
 import { formatDateTime } from '@/utils/format';
@@ -276,21 +275,10 @@ const ConfigPage: React.FC = () => {
       );
     }
     return (
-      <Tooltip title={record.configValue}>
-        <span
-          style={{
-            fontFamily: 'monospace',
-            display: 'inline-block',
-            maxWidth: 220,
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-            verticalAlign: 'bottom',
-          }}
-        >
-          {record.configValue}
-        </span>
-      </Tooltip>
+      <EllipsisText
+        text={record.configValue}
+        style={{ fontFamily: 'monospace' }}
+      />
     );
   };
 
@@ -300,21 +288,7 @@ const ConfigPage: React.FC = () => {
       dataIndex: 'configKey',
       width: 220,
       render: (_, r) => (
-        <Tooltip title={r.configKey}>
-          <span
-            style={{
-              fontFamily: 'monospace',
-              display: 'inline-block',
-              maxWidth: 200,
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-              verticalAlign: 'bottom',
-            }}
-          >
-            {r.configKey}
-          </span>
-        </Tooltip>
+        <EllipsisText text={r.configKey} style={{ fontFamily: 'monospace' }} />
       ),
     },
     {

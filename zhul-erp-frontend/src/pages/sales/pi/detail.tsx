@@ -1530,7 +1530,7 @@ const PiDetail: React.FC = () => {
           columns={editColumns}
           dataSource={draft.items}
           pagination={false}
-          scroll={{ x: compact ? 800 : 1240 }}
+          scroll={{ x: tableScrollX(editColumns) }}
           onRow={(d) =>
             belowFloor(itemById.get(d.id), results.get(d.id))
               ? { style: { background: palette.redSoft } }
@@ -1878,6 +1878,9 @@ const PiDetail: React.FC = () => {
     </Card>
   ) : (
     <Card style={{ padding: 20, flex: 1, minWidth: 0 }}>
+      <b style={{ display: 'block', color: palette.ink, marginBottom: 12 }}>
+        费用与折扣
+      </b>
       {v.fees.length === 0 && v.discountAmount === 0 && (
         <div style={{ color: palette.mute, fontSize: 13 }}>没有费用与折扣</div>
       )}
@@ -2467,7 +2470,6 @@ const PiDetail: React.FC = () => {
           gap: 16,
           marginTop: 16,
           flexWrap: compact ? 'wrap' : 'nowrap',
-          alignItems: 'flex-start',
         }}
       >
         {feesCard}

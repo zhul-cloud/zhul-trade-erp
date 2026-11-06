@@ -4,6 +4,7 @@ import {
   EnvironmentOutlined,
   FileTextOutlined,
   InfoCircleOutlined,
+  MergeOutlined,
   SwapOutlined,
   WalletOutlined,
 } from '@ant-design/icons';
@@ -47,6 +48,7 @@ import {
 import CompletenessCard from './profile/CompletenessCard';
 import ContactsCard from './profile/ContactsCard';
 import GradeCard from './profile/GradeCard';
+import ManualMergeModal from './profile/ManualMergeModal';
 import ModuleEditModal from './profile/ModuleEditModal';
 import ProfileModules from './profile/ProfileModules';
 import { type Profile, profileApi } from './profile/service';
@@ -284,6 +286,7 @@ const CustomerDetailPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>();
   const [transferOpen, setTransferOpen] = useState(false);
+  const [mergeOpen, setMergeOpen] = useState(false);
   const [profile, setProfile] = useState<Profile>();
   const [editModule, setEditModule] = useState<number>();
   const bg = useBackgroundReports(Number(id));
@@ -374,6 +377,11 @@ const CustomerDetailPage: React.FC = () => {
         {access['partner:customer:transfer'] && (
           <Button icon={<SwapOutlined />} onClick={() => setTransferOpen(true)}>
             转移
+          </Button>
+        )}
+        {access['partner:customer:merge'] && (
+          <Button icon={<MergeOutlined />} onClick={() => setMergeOpen(true)}>
+            合并
           </Button>
         )}
         {canBackground && (
@@ -639,6 +647,20 @@ const CustomerDetailPage: React.FC = () => {
               </SideRow>
             </SideCard>
           </aside>
+          <ManualMergeModal
+            open={mergeOpen}
+            customerId={r.id}
+            onClose={() => setMergeOpen(false)}
+            onDone={(keepId) => {
+              setMergeOpen(false);
+              if (keepId === r.id) {
+                load();
+                loadProfile();
+              } else {
+                history.push(`${LIST_PATH}/${keepId}`);
+              }
+            }}
+          />
           <TransferModal
             open={transferOpen}
             customers={[r]}

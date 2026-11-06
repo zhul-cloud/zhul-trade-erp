@@ -10,6 +10,7 @@ import type {
 import { Card, Pill } from '@/pages/inquiry/shared/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
+import { tableScrollX } from '@/utils/tableScroll';
 
 const num: React.CSSProperties = { fontVariantNumeric: 'tabular-nums' };
 
@@ -254,7 +255,10 @@ const OrderCostCard: React.FC<{ cost: OrderCost }> = ({ cost }) => {
   const own = cost.replacementOfId != null;
   const shown = own
     ? columns.filter(
-        (c) => !['refund', 'revenue', 'profit'].includes(String(c.key ?? (c as { dataIndex?: string }).dataIndex)),
+        (c) =>
+          !['refund', 'revenue', 'profit'].includes(
+            String(c.key ?? (c as { dataIndex?: string }).dataIndex),
+          ),
       )
     : columns;
   return (
@@ -291,7 +295,7 @@ const OrderCostCard: React.FC<{ cost: OrderCost }> = ({ cost }) => {
         columns={shown}
         dataSource={cost.lines}
         pagination={false}
-        scroll={{ x: 1600 }}
+        scroll={{ x: tableScrollX(shown) }}
         summary={() => (
           <Table.Summary.Row>
             <Table.Summary.Cell index={0} colSpan={10}>
@@ -302,29 +306,30 @@ const OrderCostCard: React.FC<{ cost: OrderCost }> = ({ cost }) => {
             </Table.Summary.Cell>
             {!own && (
               <>
-            <Table.Summary.Cell index={11} align="right">
-              {cost.refund ? (
-                <span style={{ ...num, color: palette.orange }}>
-                  −{formatAmount(cost.refund, 'CNY')}
-                </span>
-              ) : (
-                <span style={{ color: palette.mute }}>—</span>
-              )}
-            </Table.Summary.Cell>
-            <Table.Summary.Cell index={12} align="right">
-              <span style={num}>{formatAmount(cost.revenue, 'CNY')}</span>
-            </Table.Summary.Cell>
-            <Table.Summary.Cell index={13} align="right">
-              <b
-                style={{
-                  ...num,
-                  color: (cost.profit ?? 0) >= 0 ? palette.green : palette.red,
-                }}
-              >
-                {formatAmount(cost.profit ?? 0, 'CNY')}
-                {cost.profitRate != null ? ` · ${cost.profitRate}%` : ''}
-              </b>
-            </Table.Summary.Cell>
+                <Table.Summary.Cell index={11} align="right">
+                  {cost.refund ? (
+                    <span style={{ ...num, color: palette.orange }}>
+                      −{formatAmount(cost.refund, 'CNY')}
+                    </span>
+                  ) : (
+                    <span style={{ color: palette.mute }}>—</span>
+                  )}
+                </Table.Summary.Cell>
+                <Table.Summary.Cell index={12} align="right">
+                  <span style={num}>{formatAmount(cost.revenue, 'CNY')}</span>
+                </Table.Summary.Cell>
+                <Table.Summary.Cell index={13} align="right">
+                  <b
+                    style={{
+                      ...num,
+                      color:
+                        (cost.profit ?? 0) >= 0 ? palette.green : palette.red,
+                    }}
+                  >
+                    {formatAmount(cost.profit ?? 0, 'CNY')}
+                    {cost.profitRate != null ? ` · ${cost.profitRate}%` : ''}
+                  </b>
+                </Table.Summary.Cell>
               </>
             )}
           </Table.Summary.Row>
@@ -461,7 +466,9 @@ const SnapshotCostCard: React.FC<{ cost: OrderCost }> = ({ cost }) => {
         {item(
           '毛利',
           <span
-            style={{ color: (cost.profit ?? 0) >= 0 ? palette.green : palette.red }}
+            style={{
+              color: (cost.profit ?? 0) >= 0 ? palette.green : palette.red,
+            }}
           >
             {formatAmount(cost.profit ?? 0, 'CNY')}
           </span>,

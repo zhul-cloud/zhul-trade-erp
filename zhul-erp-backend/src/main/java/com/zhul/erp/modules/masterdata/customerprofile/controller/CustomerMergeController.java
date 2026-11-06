@@ -41,6 +41,13 @@ public class CustomerMergeController {
         return Result.ok();
     }
 
+    /** 手动合并选客户：第一个成员是当前客户 */
+    @GetMapping("/merge-candidates")
+    @PreAuthorize(MERGE)
+    public Result<DupGroupVO> candidates(@RequestParam Long targetId, @RequestParam(required = false) String keyword) {
+        return Result.ok(service.candidates(targetId, keyword));
+    }
+
     @GetMapping("/merge-preview")
     @PreAuthorize(MERGE)
     public Result<MergePreviewVO> preview(@RequestParam Long targetId, @RequestParam Long sourceId) {

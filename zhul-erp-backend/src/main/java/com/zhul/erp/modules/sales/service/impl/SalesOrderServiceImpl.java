@@ -100,6 +100,8 @@ public class SalesOrderServiceImpl implements SalesOrderService {
     private final com.zhul.erp.modules.product.candidate.service.ProductArchiver productArchiver;
     private final BusinessUnitService businessUnitService;
     private final SalesOrderMapper orderMapper;
+    private static final int MAX_ORDER_FEES = 10;
+
     private final SalesOrderItemMapper orderItemMapper;
     private final SalesOrderFeeMapper orderFeeMapper;
     private final ProformaInvoiceMapper piMapper;
@@ -412,9 +414,12 @@ public class SalesOrderServiceImpl implements SalesOrderService {
             total = total.add(x.getAmount());
             rows.add(x);
         }
+        List<SalesOrderFeeDO> feeRows = feeRows(tenant, req.getFees(), rate);
+        BigDecimal feeTotal = feeRows.stream().map(SalesOrderFeeDO::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+        o.setFeeAmount(feeTotal);
         o.setItemAmount(total);
-        o.setTotalAmount(total);
-        o.setTotalAmountCny(total.multiply(rate).setScale(2, RoundingMode.HALF_UP));
+        o.setTotalAmount(total.add(feeTotal));
+        o.setTotalAmountCny(o.getTotalAmount().multiply(rate).setScale(2, RoundingMode.HALF_UP));
         o.setBusinessUnitId(businessUnitService.unitOfCustomer(o.getCustomerId()));
         o.setStockType(rows.stream().anyMatch(x -> x.getStockType() == SalesConstants.STOCK_FUTURES)
                 ? SalesConstants.STOCK_FUTURES : SalesConstants.STOCK_SPOT);
@@ -423,17 +428,148 @@ public class SalesOrderServiceImpl implements SalesOrderService {
             x.setSoId(o.getId());
             orderItemMapper.insert(x);
         }
+        for (SalesOrderFeeDO f : feeRows) {
+            f.setSoId(o.getId());
+            orderFeeMapper.insert(f);
+        }
         requirementLifecycle.onOrderCreated(o, rows);
         attachmentService.attach(AttachmentService.SALES_ORDER, o.getId(), req.getAttachmentIds());
         Map<String, Object> after = new LinkedHashMap<>();
         after.put("soNo", o.getSoNo());
         after.put("customer", InquiryLookups.customerName(customer));
         after.put("salesDate", salesDate.toString());
-        after.put("total", currency + " " + total);
+        after.put("total", currency + " " + o.getTotalAmount());
         after.put("items", rows.size());
         logService.recordOperateLog(SalesConstants.MENU_SO, "手动创建销售订单", null, after);
         followupHooks.orderChanged(o.getId());
         return detail(o.getId());
+    }
+
+    /** 手动订单的费用行：普通费用，人民币 = 原币 × 订单汇率（HALF_UP 两位小数） */
+    private static List<SalesOrderFeeDO> feeRows(int tenant, List<com.zhul.erp.modules.sales.dto.OrderFeeLine> fees, BigDecimal rate) {
+        List<SalesOrderFeeDO> rows = new ArrayList<>(10);
+        if (fees == null) {
+            return rows;
+        }
+        int sort = 1;
+        for (com.zhul.erp.modules.sales.dto.OrderFeeLine f : fees) {
+            if (f == null || !StringUtils.hasText(f.getFeeName()) || f.getAmount() == null) {
+                continue;
+            }
+            if (f.getAmount().signum() <= 0) {
+                throw new BizException("费用金额需要大于 0");
+            }
+            SalesOrderFeeDO x = new SalesOrderFeeDO();
+            x.setTenantId(tenant);
+            x.setFeeName(f.getFeeName().trim());
+            x.setFeeType(SalesConstants.FEE_NORMAL);
+            x.setAmount(f.getAmount().setScale(2, RoundingMode.HALF_UP));
+            x.setAmountCny(x.getAmount().multiply(rate).setScale(2, RoundingMode.HALF_UP));
+            x.setRemark("");
+            x.setSortOrder(sort++);
+            rows.add(x);
+        }
+        if (rows.size() > MAX_ORDER_FEES) {
+            throw new BizException("费用最多 " + MAX_ORDER_FEES + " 行");
+        }
+        return rows;
+    }
+
+    /**
+     * 修改订单费用：普通费用整组替换，同一事务重算订单合计、收款状态，写操作日志。
+     * PI 转成的订单：代收费用以 PI 为准原样保留，折扣按 PI 版本重算，收款按订单合计重算 PI 的收款状态（PI 本身不变）。
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public SalesOrderVO updateFees(Long id, com.zhul.erp.modules.sales.dto.UpdateOrderFeesRequest req) {
+        SalesOrderDO o = visible(id);
+        boolean manual = !Objects.equals(o.getSource(), SalesConstants.SO_FROM_PI);
+        // 锁顺序 PI → 订单，与部分取消、取消订单一致
+        ProformaInvoiceDO pi = manual ? null : piStore.lockVisible(o.getPiId());
+        o = lockOrder(id);
+        if (o.getStatus() != SalesConstants.SO_ACTIVE) {
+            throw new BizException("订单已取消，不能修改费用");
+        }
+        if (SalesConstants.PROGRESS_COMPLETED.equals(o.getProgressCode())) {
+            throw new BizException("订单已完成，不能修改费用");
+        }
+        MigratedGuard.requireEditable(o.getMigrated());
+        if (o.getTotalAmount().compareTo(req.getExpectedTotal()) != 0) {
+            throw new BizException("订单已被修改，请刷新后重试");
+        }
+        String reason = req.getReason().trim();
+        if (reason.isEmpty()) {
+            throw new BizException("请填写修改原因");
+        }
+        List<SalesOrderFeeDO> old = orderFeeMapper.selectList(new LambdaQueryWrapper<SalesOrderFeeDO>()
+                .eq(SalesOrderFeeDO::getSoId, id)
+                .isNull(SalesOrderFeeDO::getDeletedAt)
+                .orderByAsc(SalesOrderFeeDO::getSortOrder));
+        // 只换普通费用；代收费用（PI 订单才有）以 PI 为准，原样保留
+        old = old.stream().filter(f -> !Objects.equals(f.getFeeType(), SalesConstants.FEE_COLLECTION)).toList();
+        List<SalesOrderFeeDO> kept = orderFeeMapper.selectList(new LambdaQueryWrapper<SalesOrderFeeDO>()
+                .eq(SalesOrderFeeDO::getSoId, id)
+                .eq(SalesOrderFeeDO::getFeeType, SalesConstants.FEE_COLLECTION)
+                .isNull(SalesOrderFeeDO::getDeletedAt));
+        List<SalesOrderFeeDO> rows = feeRows(o.getTenantId(), req.getFees(), o.getExchangeRate());
+        String before = feesText(o.getCurrencyCode(), old);
+        String after = feesText(o.getCurrencyCode(), rows);
+        if (before.equals(after)) {
+            throw new BizException("费用没有变化");
+        }
+        LocalDateTime now = LocalDateTime.now();
+        for (SalesOrderFeeDO f : old) {
+            f.setDeletedAt(now);
+            orderFeeMapper.updateById(f);
+        }
+        int sort = kept.stream().map(SalesOrderFeeDO::getSortOrder).filter(Objects::nonNull).max(Integer::compare).orElse(0);
+        for (SalesOrderFeeDO f : rows) {
+            f.setSoId(id);
+            if (!kept.isEmpty()) {
+                f.setSortOrder(++sort);
+            }
+            orderFeeMapper.insert(f);
+        }
+        BigDecimal totalBefore = o.getTotalAmount();
+        o.setFeeAmount(java.util.stream.Stream.concat(kept.stream(), rows.stream())
+                .map(SalesOrderFeeDO::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add));
+        List<SalesOrderItemDO> items = orderItemMapper.selectList(new LambdaQueryWrapper<SalesOrderItemDO>()
+                .eq(SalesOrderItemDO::getSoId, id)
+                .isNull(SalesOrderItemDO::getDeletedAt));
+        Integer discountType = null;
+        BigDecimal discountValue = null;
+        if (!manual) {
+            PiVersionDO v = piStore.version(o.getPiId(), o.getPiVersionNo());
+            if (v != null) {
+                discountType = v.getDiscountType();
+                discountValue = v.getDiscountValue();
+            }
+        }
+        com.zhul.erp.modules.sales.support.OrderTotals.applyTotals(o, items, discountType, discountValue);
+        orderMapper.updateById(o);
+        // 收款状态与多收按新合计重算：手动订单算在订单上，PI 订单算在 PI 上（应收取订单合计）
+        if (pi != null) {
+            piSummary.refresh(pi);
+        } else {
+            piSummary.refreshOrder(o);
+        }
+        Map<String, Object> beforeLog = new LinkedHashMap<>();
+        beforeLog.put("soNo", o.getSoNo());
+        beforeLog.put("fees", before);
+        beforeLog.put("total", o.getCurrencyCode() + " " + totalBefore);
+        Map<String, Object> afterLog = new LinkedHashMap<>();
+        afterLog.put("soNo", o.getSoNo());
+        afterLog.put("fees", after);
+        afterLog.put("total", o.getCurrencyCode() + " " + o.getTotalAmount());
+        afterLog.put("reason", reason);
+        logService.recordOperateLog(SalesConstants.MENU_SO, "修改订单费用", beforeLog, afterLog);
+        followupHooks.orderChanged(id);
+        return detail(id);
+    }
+
+    private static String feesText(String currency, List<SalesOrderFeeDO> fees) {
+        return fees.isEmpty() ? "无" : fees.stream().map(f -> f.getFeeName() + " " + currency + " " + f.getAmount().setScale(2, RoundingMode.HALF_UP))
+                .collect(Collectors.joining("、"));
     }
 
     private void requireUsers(Set<Long> ids) {
@@ -1687,6 +1823,11 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         }).toList();
     }
 
+    /** 型号行上去重后的非空文本（按行号顺序），列表的品牌、品类用 */
+    private static List<String> distinctTexts(List<SalesOrderItemDO> items, java.util.function.Function<SalesOrderItemDO, String> f) {
+        return items.stream().map(f).filter(StringUtils::hasText).map(String::trim).distinct().toList();
+    }
+
     private List<SalesOrderListVO> toListVos(List<SalesOrderDO> rows) {
         List<Long> ids = rows.stream().map(SalesOrderDO::getId).toList();
         Map<Long, OrderCostVO> costs = orderCostService.of(rows);
@@ -1696,7 +1837,8 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         Map<Long, Integer> unassigned = new HashMap<>();
         List<SalesOrderItemDO> allItems = new ArrayList<>();
         for (SalesOrderItemDO i : orderItemMapper.selectList(new LambdaQueryWrapper<SalesOrderItemDO>()
-                .select(SalesOrderItemDO::getId, SalesOrderItemDO::getSoId, SalesOrderItemDO::getQuantity, SalesOrderItemDO::getPurchaserId)
+                .select(SalesOrderItemDO::getId, SalesOrderItemDO::getSoId, SalesOrderItemDO::getQuantity, SalesOrderItemDO::getPurchaserId,
+                        SalesOrderItemDO::getModel, SalesOrderItemDO::getBrand, SalesOrderItemDO::getCategory)
                 .in(SalesOrderItemDO::getSoId, ids)
                 .isNull(SalesOrderItemDO::getDeletedAt)
                 .orderByAsc(SalesOrderItemDO::getLineNo))) {
@@ -1723,6 +1865,7 @@ public class SalesOrderServiceImpl implements SalesOrderService {
                 .map(SalesOrderDO::getOriginalSoId).collect(Collectors.toSet());
         Map<Long, String> originalNos = originalIds.isEmpty() ? Map.of() : orderMapper.selectBatchIds(originalIds).stream()
                 .collect(Collectors.toMap(SalesOrderDO::getId, SalesOrderDO::getSoNo));
+        Map<Long, List<SalesOrderItemDO>> itemsByOrder = allItems.stream().collect(Collectors.groupingBy(SalesOrderItemDO::getSoId));
         List<SalesOrderListVO> list = new ArrayList<>(rows.size());
         for (SalesOrderDO o : rows) {
             ProformaInvoiceDO pi = pis.get(o.getPiId());
@@ -1750,6 +1893,10 @@ public class SalesOrderServiceImpl implements SalesOrderService {
             vo.setUnassignedCount(unassigned.getOrDefault(o.getId(), 0));
             vo.setTotalQuantity(quantities.getOrDefault(o.getId(), 0));
             vo.setItemCount(counts.getOrDefault(o.getId(), 0));
+            List<SalesOrderItemDO> own = itemsByOrder.getOrDefault(o.getId(), List.of());
+            vo.setFirstModel(own.isEmpty() ? null : own.get(0).getModel());
+            vo.setBrands(distinctTexts(own, SalesOrderItemDO::getBrand));
+            vo.setCategories(distinctTexts(own, SalesOrderItemDO::getCategory));
             vo.setCurrencyCode(o.getCurrencyCode());
             vo.setTotalAmount(o.getTotalAmount());
             if (pi != null) {

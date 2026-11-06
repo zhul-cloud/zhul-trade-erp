@@ -39,7 +39,7 @@
 |--------|----------|------|------|------|
 | 用户名 | `username` | String | 是 | 长度4-50字符，支持字母、数字、下划线、@符号 |
 | 密码 | `password` | String | 是 | 长度6-32字符，前端明文传输，HTTPS加密 |
-| 记住我 | `remember_me` | Boolean | 否 | 默认false；true时服务端生成7天有效期RefreshToken |
+| 记住我 | `remember_me` | Boolean | 否 | 默认true（2026-11-05 起）；true时服务端生成30天有效期RefreshToken，每次刷新令牌重新计时 |
 | 幂等键 | `idempotency_key` | String | 是 | 前端生成UUID，防重复提交 |
 
 ### 2.2 Token 相关（account_access_token 表）
@@ -49,7 +49,7 @@
 | 主键 | `id` | BIGINT | 是 | 自增主键 |
 | 账号ID | `account_id` | BIGINT | 是 | 关联 account.id |
 | Access Token | `access_token` | VARCHAR(512) | 是 | JWT，有效期2小时，存Redis |
-| Refresh Token | `refresh_token` | VARCHAR(512) | 否 | 有效期7天，remember_me=true时生成 |
+| Refresh Token | `refresh_token` | VARCHAR(512) | 否 | 有效期30天，每次刷新重新计时，remember_me=true时生成 |
 | 设备信息 | `device_info` | VARCHAR(200) | 否 | User-Agent摘要 |
 | IP地址 | `login_ip` | VARCHAR(45) | 是 | 支持IPv6 |
 | 过期时间 | `expires_at` | DATETIME | 是 | UTC时间 |
@@ -255,7 +255,7 @@ POST /auth/logout  关闭对话框
 │  │  │ 🔒  请输入密码                        [👁显示] │ │  │
 │  │  └────────────────────────────────────────────────┘ │  │
 │  │                                              (mb8)   │  │
-│  │  □ 记住我（7天）          忘记密码?（右对齐）(mb24) │  │
+│  │  ☑ 记住我（30 天内免登录）     忘记密码?（右对齐）(mb24) │  │
 │  │  ┌────────────────────────────────────────────────┐ │  │
 │  │  │                  登  录                         │ │  │
 │  │  └────────────────────────────────────────────────┘ │  │
@@ -274,7 +274,7 @@ POST /auth/logout  关闭对话框
 | 卡片标题 | Title | "欢迎登录"；font-size:24px；font-weight:600；color:#262626；text-align:center；margin-bottom:24px |
 | 用户名输入框 | Input | prefix=\<UserOutlined/>；placeholder="请输入用户名"；size="large"（高40px）；maxLength=50；autoFocus=true；autoComplete="username" |
 | 密码输入框 | Input.Password | prefix=\<LockOutlined/>；placeholder="请输入密码"；size="large"（高40px）；maxLength=32；autoComplete="current-password"；visibilityToggle=true |
-| 记住我 | Checkbox | label="记住我（7天）"；默认unchecked；font-size:14px；color:#595959 |
+| 记住我 | Checkbox | label="记住我（30 天内免登录）"；默认checked；font-size:14px；color:#595959 |
 | 忘记密码 | Button(link) | 文字"忘记密码?"；color:#1890ff；float:right；font-size:14px；无下划线 |
 | 登录按钮 | Button | type="primary"；block=true；size="large"（高40px）；htmlType="submit"；文字"登  录"（两字中间加空格）；loading时文字"登录中..."；背景#1890ff；hover背景#40a9ff |
 | 错误Alert | Alert | type="error"；showIcon=true；margin-bottom:16px；closable=false；在输入框上方、标题下方插入 |

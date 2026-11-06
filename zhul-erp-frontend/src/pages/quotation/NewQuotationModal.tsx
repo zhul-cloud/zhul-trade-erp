@@ -1,5 +1,6 @@
 import {
   ArrowRightOutlined,
+  CheckCircleFilled,
   CheckOutlined,
   DownOutlined,
   FormOutlined,
@@ -37,6 +38,7 @@ import {
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
 import {
+  type BatchCreateResult,
   type PickCustomer,
   type PickInquiry,
   type PickItem,
@@ -199,6 +201,24 @@ const ByInquiryPanel: React.FC<{
   }, more);
 
   const customerId = selected[0]?.customerId;
+  const [ready, setReady] = useState<QuoteInquiry[]>();
+  useEffect(() => {
+    setReady(undefined);
+    if (customerId == null) return;
+    let alive = true;
+    quotationApi
+      .readyInquiries(customerId)
+      .then((r) => alive && setReady(r))
+      .catch(() => alive && setReady([]));
+    return () => {
+      alive = false;
+    };
+  }, [customerId]);
+  const selectAll = () => {
+    if (!ready) return;
+    const have = new Set(selected.map((s) => s.inquiryId));
+    onChange([...selected, ...ready.filter((r) => !have.has(r.inquiryId))]);
+  };
   const toggle = (r: QuoteInquiry) => {
     if (selected.some((s) => s.inquiryId === r.inquiryId)) {
       onChange(selected.filter((s) => s.inquiryId !== r.inquiryId));
@@ -241,6 +261,32 @@ const ByInquiryPanel: React.FC<{
             : ''}
         </span>
       </div>
+
+      {customerId != null && ready && ready.length > 0 && (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            flexWrap: 'wrap',
+            marginTop: 12,
+            padding: '10px 14px',
+            borderRadius: 12,
+            background: palette.accentSoft,
+            fontSize: 13,
+          }}
+        >
+          <b style={{ color: palette.ink }}>
+            已选 {selected[0].customerName} 的询盘
+          </b>
+          <a onClick={selectAll} style={{ fontWeight: 600 }}>
+            全选该客户可报价询盘（{ready.length} 个）
+          </a>
+          <span style={{ color: palette.mute, fontSize: 12 }}>
+            询价中、已有草稿的不自动勾选
+          </span>
+        </div>
+      )}
 
       {error && (
         <div style={{ color: palette.red, margin: '16px 0' }}>
@@ -951,11 +997,123 @@ const ModeCard: React.FC<{
 
 // ---------------------------------------------------------------- 抽屉
 
+const BATCH_LIMIT = 20;
+
+/** 批量生成结果：生成的报价单（点击进入编辑）与跳过的询盘 */
+const BatchResult: React.FC<{
+  result: BatchCreateResult;
+  onOpen: (quotationId: number) => void;
+}> = ({ result, onOpen }) => {
+  const { palette } = useAppTheme();
+  return (
+    <div style={{ display: 'grid', gap: 12 }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          padding: '10px 14px',
+          borderRadius: 12,
+          background: palette.greenSoft,
+          color: palette.ink,
+          fontWeight: 600,
+        }}
+      >
+        <CheckCircleFilled style={{ color: palette.green }} />
+        已生成 {result.created.length} 张报价单
+        {result.skipped.length > 0
+          ? `，跳过 ${result.skipped.length} 个询盘`
+          : ''}
+        <span style={{ fontWeight: 400, fontSize: 12, color: palette.sub }}>
+          都是草稿，点击进入编辑后再发送
+        </span>
+      </div>
+      <div
+        style={{
+          borderRadius: 12,
+          border: `1px solid ${palette.hairline}`,
+          overflow: 'hidden',
+        }}
+      >
+        {result.created.map((c, i) => (
+          <button
+            type="button"
+            key={c.quotationId}
+            onClick={() => onOpen(c.quotationId)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 16,
+              width: '100%',
+              padding: '12px 16px',
+              border: 'none',
+              borderTop: i ? `1px solid ${palette.hairline}` : 'none',
+              background: 'transparent',
+              font: 'inherit',
+              textAlign: 'left',
+              cursor: 'pointer',
+              color: palette.ink,
+            }}
+          >
+            <span style={{ width: 160, fontWeight: 600, color: palette.link }}>
+              {c.quotationNo}
+            </span>
+            <span style={{ width: 170, color: palette.sub }}>
+              来源 {c.inquiryCode}
+            </span>
+            <span style={{ width: 80 }}>{c.itemCount} 个型号</span>
+            <span
+              style={{
+                width: 140,
+                fontWeight: 600,
+                fontVariantNumeric: 'tabular-nums',
+              }}
+            >
+              {formatAmount(c.totalAmount, c.currencyCode)}
+            </span>
+            {c.pendingCount ? (
+              <Pill tone="orange">
+                还有 {c.pendingCount} 个型号在询价，回价后可以再报
+              </Pill>
+            ) : null}
+            <RightOutlined
+              style={{ marginLeft: 'auto', color: palette.mute }}
+            />
+          </button>
+        ))}
+      </div>
+      {result.skipped.length > 0 && (
+        <>
+          <div style={{ fontSize: 12, color: palette.mute }}>已跳过</div>
+          {result.skipped.map((s) => (
+            <div
+              key={s.inquiryId}
+              style={{
+                display: 'flex',
+                gap: 16,
+                padding: '10px 16px',
+                borderRadius: 12,
+                background: palette.inset,
+                fontSize: 13,
+              }}
+            >
+              <b style={{ width: 160 }}>{s.inquiryCode}</b>
+              <span style={{ color: palette.sub }}>{s.reason}</span>
+            </div>
+          ))}
+        </>
+      )}
+    </div>
+  );
+};
+
 const NewQuotationModal: React.FC<{
   open: boolean;
   onClose: () => void;
   onCreated: (q: Quotation) => void;
-}> = ({ open, onClose, onCreated }) => {
+  /** 批量生成完成并关闭时（刷新列表） */
+  onBatchDone?: () => void;
+}> = ({ open, onClose, onCreated, onBatchDone }) => {
   const { message, modal } = App.useApp();
   const { palette } = useAppTheme();
   const wide = useWide();
@@ -965,9 +1123,14 @@ const NewQuotationModal: React.FC<{
   const [customer, setCustomer] = useState<PickCustomer>();
   const [items, setItems] = useState<Map<number, number>>(new Map());
   const [submitting, setSubmitting] = useState(false);
+  /** 勾选多个询盘时：true 每个询盘一张，false 合并成一张 */
+  const [split, setSplit] = useState(true);
+  const [result, setResult] = useState<BatchCreateResult>();
 
   useEffect(() => {
     if (open) {
+      setSplit(true);
+      setResult(undefined);
       setStep('choose');
       setMode('inquiry');
       setInquiries([]);
@@ -1019,9 +1182,23 @@ const NewQuotationModal: React.FC<{
     };
   }, [mode, inquiries, items]);
 
+  const batch = mode === 'inquiry' && split && inquiries.length > 1;
+  const overLimit = batch && inquiries.length > BATCH_LIMIT;
+  const finishBatch = () => {
+    onClose();
+    onBatchDone?.();
+  };
+
   const create = async () => {
     setSubmitting(true);
     try {
+      if (batch) {
+        const r = await quotationApi.batchCreate(
+          inquiries.map((i) => i.inquiryId),
+        );
+        setResult(r);
+        return;
+      }
       const q = await quotationApi.create(
         mode === 'inquiry'
           ? { inquiryIds: inquiries.map((i) => i.inquiryId) }
@@ -1077,7 +1254,13 @@ const NewQuotationModal: React.FC<{
         </div>
       }
       footer={
-        step === 'choose' ? (
+        result ? (
+          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <Button type="primary" onClick={finishBatch}>
+              完成
+            </Button>
+          </div>
+        ) : step === 'choose' ? (
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <span style={{ fontSize: 12, color: palette.mute }}>
               从询盘单详情点「去报价」时不经过这一步，直接按询盘报价（有型号还在询价时先选型号）
@@ -1102,7 +1285,12 @@ const NewQuotationModal: React.FC<{
                     ? '勾选要报价的询盘（同一客户可以多选）'
                     : '先选客户，再勾选要报价的型号')}
               </div>
-              {summary?.hint && (
+              {overLimit && (
+                <div style={{ fontSize: 12, color: palette.red, marginTop: 2 }}>
+                  一次最多生成 {BATCH_LIMIT} 张，请分批生成
+                </div>
+              )}
+              {!overLimit && summary?.hint && (
                 <div
                   style={{
                     fontSize: 12,
@@ -1114,23 +1302,48 @@ const NewQuotationModal: React.FC<{
                 </div>
               )}
             </div>
-            <span style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
+            <span
+              style={{
+                marginLeft: 'auto',
+                display: 'flex',
+                gap: 8,
+                alignItems: 'center',
+              }}
+            >
+              {mode === 'inquiry' && inquiries.length > 1 && (
+                <Segmented<'split' | 'merge'>
+                  value={split ? 'split' : 'merge'}
+                  onChange={(v) => setSplit(v === 'split')}
+                  options={[
+                    { value: 'split', label: '每个询盘一张' },
+                    { value: 'merge', label: '合并成一张' },
+                  ]}
+                />
+              )}
               <Button onClick={onClose}>取消</Button>
               <Button
                 type="primary"
                 icon={<ArrowRightOutlined />}
-                disabled={!summary}
+                disabled={!summary || overLimit}
                 loading={submitting}
                 onClick={create}
               >
-                生成报价单
+                {batch ? `生成 ${inquiries.length} 张报价单` : '生成报价单'}
               </Button>
             </span>
           </div>
         )
       }
     >
-      {step === 'choose' ? (
+      {result ? (
+        <BatchResult
+          result={result}
+          onOpen={(qid) => {
+            finishBatch();
+            history.push(`/quotation/quotations/${qid}`);
+          }}
+        />
+      ) : step === 'choose' ? (
         <div style={{ display: 'grid', gap: 16 }}>
           <ModeCard
             active={mode === 'inquiry'}
@@ -1139,7 +1352,7 @@ const NewQuotationModal: React.FC<{
             description="从还没报价的询盘里选，带入询盘里全部已回价的型号。适合把待报价的询盘一个个报掉。"
             points={[
               '可报价的询盘排在最前，其次是询价中',
-              '可以勾选同一客户的多个询盘合并成一张',
+              '同一客户的多个询盘可以一次各生成一张，也可以合并成一张',
               '询价中的询盘先报已回价的型号，其余回价后再报',
             ]}
             onClick={() => setMode('inquiry')}

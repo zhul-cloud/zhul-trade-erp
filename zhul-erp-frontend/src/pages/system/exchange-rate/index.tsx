@@ -4,13 +4,16 @@ import {
   WarningOutlined,
 } from '@ant-design/icons';
 import { useAccess } from '@umijs/max';
+import type { TableColumnsType } from 'antd';
 import { App, InputNumber, Modal, Skeleton, Table } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
+import EllipsisText from '@/components/EllipsisText';
 import { readBizError } from '@/pages/crm/opportunity/service';
 import { Card, PageTitle, useWide } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatDateTime } from '@/utils/format';
+import { tableScrollX } from '@/utils/tableScroll';
 import {
   type ExchangeRate,
   type ExchangeRateLog,
@@ -101,6 +104,72 @@ const ExchangeRatePage: React.FC = () => {
       setBusy(false);
     }
   };
+  const rateColumns: TableColumnsType<ExchangeRate> = [
+    {
+      title: '币种',
+      dataIndex: 'currencyCode',
+      width: 90,
+      render: (v: string) => <b>{v}</b>,
+    },
+    {
+      title: '1 外币 = 人民币',
+      dataIndex: 'rate',
+      width: 140,
+      render: (v?: number) =>
+        v == null ? (
+          <b style={{ color: palette.orange }}>未设置</b>
+        ) : (
+          <b style={{ ...num, fontSize: 16 }}>{fmt(v)}</b>
+        ),
+    },
+    {
+      title: '来源',
+      dataIndex: 'sourceName',
+      width: 100,
+      render: (v?: string) => v ?? '—',
+    },
+    {
+      title: '更新',
+      width: 220,
+      key: 'updated',
+      render: (_, r) =>
+        r.rate == null ? (
+          <span style={{ color: palette.orange }}>
+            {r.currencyCode} 客户暂时不能新建报价单
+          </span>
+        ) : (
+          <span
+            style={{
+              display: 'flex',
+              gap: 6,
+              color: palette.sub,
+              whiteSpace: 'nowrap',
+            }}
+          >
+            <EllipsisText text={r.updatedByName ?? '—'} />·
+            <span style={num}>{formatDateTime(r.rateTime).slice(0, 16)}</span>
+          </span>
+        ),
+    },
+    {
+      title: '操作',
+      fixed: 'right',
+      key: 'actions',
+      width: 130,
+      render: (_, r) => (
+        <span style={{ display: 'inline-flex', gap: 12 }}>
+          {canEdit && (
+            <a onClick={() => openEdit(r)}>
+              {r.rate == null ? '设置' : '修改'}
+            </a>
+          )}
+          {r.rate != null && (
+            <a onClick={() => setLogCurrency(r.currencyCode)}>变更记录</a>
+          )}
+        </span>
+      ),
+    },
+  ];
 
   if (error) return <ErrorHint message={error} onRetry={load} />;
 
@@ -123,7 +192,7 @@ const ExchangeRatePage: React.FC = () => {
               <Skeleton active style={{ padding: 24 }} />
             ) : (
               <Table<ExchangeRate>
-                scroll={{ x: 'max-content' }}
+                scroll={{ x: tableScrollX(rateColumns) }}
                 rowKey="currencyCode"
                 pagination={false}
                 dataSource={rows}
@@ -133,67 +202,7 @@ const ExchangeRatePage: React.FC = () => {
                       ? { background: palette.accentSoft }
                       : undefined,
                 })}
-                columns={[
-                  {
-                    title: '币种',
-                    dataIndex: 'currencyCode',
-                    width: 90,
-                    render: (v: string) => <b>{v}</b>,
-                  },
-                  {
-                    title: '1 外币 = 人民币',
-                    dataIndex: 'rate',
-                    width: 160,
-                    render: (v?: number) =>
-                      v == null ? (
-                        <b style={{ color: palette.orange }}>未设置</b>
-                      ) : (
-                        <b style={{ ...num, fontSize: 16 }}>{fmt(v)}</b>
-                      ),
-                  },
-                  {
-                    title: '来源',
-                    dataIndex: 'sourceName',
-                    width: 100,
-                    render: (v?: string) => v ?? '—',
-                  },
-                  {
-                    title: '更新',
-                    width: 220,
-                    key: 'updated',
-                    render: (_, r) =>
-                      r.rate == null ? (
-                        <span style={{ color: palette.orange }}>
-                          {r.currencyCode} 客户暂时不能新建报价单
-                        </span>
-                      ) : (
-                        <span style={{ color: palette.sub }}>
-                          {r.updatedByName ?? '—'} ·{' '}
-                          {formatDateTime(r.rateTime).slice(0, 16)}
-                        </span>
-                      ),
-                  },
-                  {
-                    title: '操作',
-                    fixed: 'right',
-                    key: 'actions',
-                    width: 150,
-                    render: (_, r) => (
-                      <span style={{ display: 'inline-flex', gap: 12 }}>
-                        {canEdit && (
-                          <a onClick={() => openEdit(r)}>
-                            {r.rate == null ? '设置' : '修改'}
-                          </a>
-                        )}
-                        {r.rate != null && (
-                          <a onClick={() => setLogCurrency(r.currencyCode)}>
-                            变更记录
-                          </a>
-                        )}
-                      </span>
-                    ),
-                  },
-                ]}
+                columns={rateColumns}
               />
             )}
           </Card>
@@ -232,18 +241,47 @@ const ExchangeRatePage: React.FC = () => {
                     fontSize: 13,
                   }}
                 >
-                  <span style={{ ...num, color: palette.mute }}>
-                    {l.oldRate == null ? '—' : fmt(l.oldRate)}
+                  <span
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 10,
+                      flexShrink: 0,
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    <span style={{ ...num, color: palette.mute }}>
+                      {l.oldRate == null ? '—' : fmt(l.oldRate)}
+                    </span>
+                    <ArrowRightOutlined
+                      style={{ color: palette.mute, fontSize: 11 }}
+                    />
+                    <b style={{ ...num, color: palette.ink }}>
+                      {fmt(l.newRate)}
+                    </b>
                   </span>
-                  <ArrowRightOutlined
-                    style={{ color: palette.mute, fontSize: 11 }}
-                  />
-                  <b style={{ ...num, color: palette.ink }}>{fmt(l.newRate)}</b>
-                  <span style={{ marginLeft: 'auto', color: palette.sub }}>
-                    {l.operatorName ?? '—'}
-                  </span>
-                  <span style={{ ...num, color: palette.mute, fontSize: 12 }}>
-                    {formatDateTime(l.operatedAt).slice(0, 16)}
+                  <span
+                    style={{
+                      marginLeft: 'auto',
+                      minWidth: 0,
+                      textAlign: 'right',
+                    }}
+                  >
+                    <EllipsisText
+                      text={l.operatorName ?? '—'}
+                      style={{ color: palette.sub }}
+                    />
+                    <span
+                      style={{
+                        ...num,
+                        display: 'block',
+                        color: palette.mute,
+                        fontSize: 12,
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {formatDateTime(l.operatedAt).slice(0, 16)}
+                    </span>
                   </span>
                 </div>
               ))}

@@ -44,6 +44,16 @@ public class RegisterPaymentRequest {
     @Size(max = 64)
     private String idempotencyKey;
 
+    /** 剩下的未付是供应商优惠：只在单张采购订单付款时使用，同一事务给采购订单加一行优惠 */
+    @Valid
+    private Discount discount;
+
+    @Data
+    public static class Discount {
+        @Size(max = 50, message = "优惠名称不能超过 50 字")
+        private String name;
+    }
+
     @Data
     public static class Line {
         @NotNull

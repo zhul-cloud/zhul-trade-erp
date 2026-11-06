@@ -24,8 +24,11 @@ import { formatAmount } from '@/utils/format';
 import { KIND, Pill, RECEIPT_STATUS, ReceiptStatusPill } from '../components';
 import {
   type CreateOrderLine,
+  FEE_COLLECTION,
   type Order,
   type OrderCandidatePi,
+  type Order as OrderDetail,
+  type OrderFeeInput,
   orderApi,
   type Pi,
   piApi,
@@ -257,10 +260,12 @@ export const CreateOrderDrawer: React.FC<{
   const [lines, setLines] = useState<Line[]>([newLine()]);
   const [files, setFiles] = useState<Attachment[]>([]);
   const [remark, setRemark] = useState('');
+  const [fees, setFees] = useState<FeeRow[]>([]);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     if (!open) return;
+    setFees([]);
     setCustomerId(undefined);
     setCurrency('USD');
     setDate(dayjs());
@@ -290,7 +295,7 @@ export const CreateOrderDrawer: React.FC<{
 
   const amountOf = (l: Line) =>
     Math.round((l.unitPrice ?? 0) * (l.quantity ?? 0) * 100) / 100;
-  const total = lines.reduce((s, l) => s + amountOf(l), 0);
+  const total = lines.reduce((s, l) => s + amountOf(l), 0) + feeTotal(fees);
   const filled = lines.filter((l) => l.model?.trim());
   const ready =
     !!customerId &&
@@ -317,6 +322,7 @@ export const CreateOrderDrawer: React.FC<{
         })),
         remark: remark.trim() || undefined,
         attachmentIds: files.map((f) => f.id),
+        fees: toFeeInputs(fees),
       });
       message.success(`已创建销售订单 ${order.soNo}`);
       onDone(order);
@@ -521,6 +527,13 @@ export const CreateOrderDrawer: React.FC<{
       >
         添加型号
       </Button>
+      <div style={{ marginTop: 16 }}>
+        <b style={{ display: 'block' }}>费用</b>
+        <div style={{ fontSize: 12, color: palette.mute, margin: '4px 0 8px' }}>
+          选填，如运费、银行手续费，计入订单合计
+        </div>
+        <FeeRowsEditor rows={fees} currency={currency} onChange={setFees} />
+      </div>
       <div style={{ marginTop: 16 }}>
         <b style={{ display: 'block' }}>附件</b>
         <div style={{ fontSize: 12, color: palette.mute, margin: '4px 0 8px' }}>
@@ -1158,5 +1171,235 @@ export const NewOrderDrawer: React.FC<{
         onDone={onDone}
       />
     </>
+  );
+};
+
+// ---------------------------------------------------------------- 手动订单的费用
+
+type FeeRow = { key: number; feeName: string; amount: number | null };
+let feeSeq = 0;
+const MAX_FEES = 10;
+
+const feeTotal = (rows: FeeRow[]) =>
+  Math.round(rows.reduce((s, r) => s + (r.amount ?? 0), 0) * 100) / 100;
+
+const toFeeInputs = (rows: FeeRow[]): OrderFeeInput[] =>
+  rows
+    .filter((r) => r.feeName.trim() && (r.amount ?? 0) > 0)
+    .map((r) => ({ feeName: r.feeName.trim(), amount: r.amount as number }));
+
+/** 费用行编辑：名称 + 金额，最多 10 行 */
+const FeeRowsEditor: React.FC<{
+  rows: FeeRow[];
+  currency: string;
+  onChange: (rows: FeeRow[]) => void;
+}> = ({ rows, currency, onChange }) => {
+  const patch = (key: number, v: Partial<FeeRow>) =>
+    onChange(rows.map((r) => (r.key === key ? { ...r, ...v } : r)));
+  return (
+    <div style={{ display: 'grid', gap: 8 }}>
+      {rows.map((r) => (
+        <div
+          key={r.key}
+          style={{ display: 'flex', gap: 8, alignItems: 'center' }}
+        >
+          <Input
+            value={r.feeName}
+            maxLength={64}
+            placeholder="如 Shipping Cost"
+            style={{ width: 260 }}
+            onChange={(e) => patch(r.key, { feeName: e.target.value })}
+            aria-label="费用名称"
+          />
+          <InputNumber<number>
+            min={0.01}
+            precision={2}
+            value={r.amount}
+            prefix={currency}
+            style={{ width: 180 }}
+            onChange={(v) => patch(r.key, { amount: v })}
+            aria-label="费用金额"
+          />
+          <Button
+            type="text"
+            size="small"
+            icon={<DeleteOutlined />}
+            onClick={() => onChange(rows.filter((x) => x.key !== r.key))}
+            aria-label="删除费用"
+          />
+        </div>
+      ))}
+      {rows.length < MAX_FEES && (
+        <Button
+          type="link"
+          icon={<PlusOutlined />}
+          style={{ paddingLeft: 0, width: 'fit-content' }}
+          onClick={() =>
+            onChange([...rows, { key: ++feeSeq, feeName: '', amount: null }])
+          }
+        >
+          添加费用
+        </Button>
+      )}
+    </div>
+  );
+};
+
+/**
+ * 修改订单费用：必须填原因，确认前显示合计与收款状态的变化。
+ * PI 转成的订单只改普通费用，代收款以 PI 为准、只读显示。
+ */
+export const EditFeesModal: React.FC<{
+  order?: OrderDetail;
+  onClose: () => void;
+  onDone: (o: OrderDetail) => void;
+}> = ({ order, onClose, onDone }) => {
+  const { message } = App.useApp();
+  const { palette } = useAppTheme();
+  const [rows, setRows] = useState<FeeRow[]>([]);
+  const [reason, setReason] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (!order) return;
+    setReason('');
+    setRows(
+      order.fees
+        .filter((f) => f.feeType !== FEE_COLLECTION)
+        .map((f) => ({
+          key: ++feeSeq,
+          feeName: f.feeName,
+          amount: Number(f.amount),
+        })),
+    );
+  }, [order]);
+
+  if (!order) return null;
+  const cur = order.currencyCode;
+  const collected = order.fees.filter((f) => f.feeType === FEE_COLLECTION);
+  const newTotal =
+    Math.round(
+      (order.totalAmount -
+        feeTotal(
+          order.fees
+            .filter((f) => f.feeType !== FEE_COLLECTION)
+            .map((f) => ({
+              key: 0,
+              feeName: '',
+              amount: Number(f.amount),
+            })),
+        ) +
+        feeTotal(rows)) *
+        100,
+    ) / 100;
+  const paid =
+    Math.round(
+      ((order.receivedAmount ?? 0) + (order.feeDiffAmount ?? 0)) * 100,
+    ) / 100;
+  const receiptAfter =
+    (order.receivedAmount ?? 0) <= 0
+      ? order.receiptStatusName
+      : paid >= newTotal
+        ? '已到账'
+        : '部分到账';
+  const over = Math.round((paid - newTotal) * 100) / 100;
+  const changed = newTotal !== order.totalAmount;
+
+  const submit = async () => {
+    if (!reason.trim()) {
+      message.error('请填写修改原因');
+      return;
+    }
+    setBusy(true);
+    try {
+      const next = await orderApi.updateFees(order.id, {
+        fees: toFeeInputs(rows),
+        reason: reason.trim(),
+        expectedTotal: order.totalAmount,
+      });
+      message.success('费用已修改');
+      onDone(next);
+    } catch (e) {
+      message.error(readBizError(e).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Modal
+      open
+      title={
+        <div>
+          修改订单费用
+          <div style={{ fontSize: 12, fontWeight: 400, color: palette.mute }}>
+            {order.soNo} ·{' '}
+            {order.piId
+              ? 'PI 转成 · 只改普通费用，PI 本身不变，收款按订单合计计算'
+              : '手动创建 · 只能改费用，型号、数量、单价不能改'}
+          </div>
+        </div>
+      }
+      onCancel={onClose}
+      onOk={submit}
+      okText="确认修改"
+      okButtonProps={{ loading: busy, disabled: !reason.trim() }}
+      cancelText="取消"
+      width={640}
+      destroyOnHidden
+    >
+      <FeeRowsEditor rows={rows} currency={cur} onChange={setRows} />
+      {collected.length > 0 && (
+        <div style={{ marginTop: 8, fontSize: 12, color: palette.mute }}>
+          代收款以 PI 为准，不在这里改：
+          {collected
+            .map((f) => `${f.feeName} ${formatAmount(Number(f.amount), cur)}`)
+            .join('、')}
+        </div>
+      )}
+      <div
+        style={{
+          margin: '12px 0',
+          padding: '10px 14px',
+          borderRadius: 12,
+          background: changed ? palette.orangeSoft : palette.inset,
+          display: 'grid',
+          gap: 4,
+          fontSize: 13,
+        }}
+      >
+        <div>
+          <span style={{ color: palette.sub, marginRight: 12 }}>合计</span>
+          <b style={{ color: changed ? palette.orange : palette.ink }}>
+            {formatAmount(order.totalAmount, cur)}
+            {changed ? ` → ${formatAmount(newTotal, cur)}` : ''}
+          </b>
+        </div>
+        {changed && (
+          <div>
+            <span style={{ color: palette.sub, marginRight: 12 }}>
+              收款状态
+            </span>
+            {order.receiptStatusName} → {receiptAfter}
+            {over > 0 && `（将产生待处理多收 ${formatAmount(over, cur)}）`}
+          </div>
+        )}
+        {changed && (
+          <div style={{ color: palette.sub }}>订单毛利按新合计重新计算</div>
+        )}
+      </div>
+      <b style={{ display: 'block', marginBottom: 6 }}>
+        修改原因 <span style={{ color: palette.red }}>*</span>
+      </b>
+      <Input.TextArea
+        rows={2}
+        maxLength={200}
+        showCount
+        placeholder="如 业务员漏填运费"
+        value={reason}
+        onChange={(e) => setReason(e.target.value)}
+        aria-label="修改原因"
+      />
+    </Modal>
   );
 };

@@ -80,6 +80,7 @@ public class PaymentService {
     private final AttachmentService attachments;
     private final PermissionChecker perm;
     private final LogService logService;
+    private final com.zhul.erp.modules.purchase.service.PurchaseOrderService purchaseOrders;
 
     @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public PaymentVO register(RegisterPaymentRequest req) {
@@ -119,6 +120,9 @@ public class PaymentService {
             if (!samePayee(anchor, p)) {
                 throw new BizException("只能核销同一收款方、同一币种的应付单");
             }
+        }
+        if (req.getDiscount() != null) {
+            registerDiscount(req, targets, credits, locked);
         }
         BigDecimal amount = scale(req.getAmount());
         BigDecimal creditTotal = BigDecimal.ZERO;
@@ -180,6 +184,28 @@ public class PaymentService {
         logService.recordOperateLog(MENU, "登记付款", null, Map.of("paymentNo", pay.getPaymentNo(), "payee", pay.getPayeeName(),
                 "amount", pay.getCurrencyCode() + " " + amount, "method", FinanceConstants.METHOD_NAMES.get(method)));
         return toVo(paymentMapper.selectById(pay.getId()));
+    }
+
+    /**
+     * 付款时登记供应商优惠：未付 − 本次核销 = 优惠金额，加到采购订单上并重算应付（同一事务，应付单已加锁）。
+     * 只支持单张采购订单的应付单、不用欠款抵扣。
+     */
+    private void registerDiscount(RegisterPaymentRequest req, List<RegisterPaymentRequest.Line> targets,
+                                  List<RegisterPaymentRequest.Line> credits, Map<Long, PayableDO> locked) {
+        if (targets.size() != 1 || !credits.isEmpty()) {
+            throw new BizException("只有单张采购订单付款时可以登记优惠");
+        }
+        PayableDO p = locked.get(targets.get(0).getPayableId());
+        if (!Objects.equals(p.getSourceType(), FinanceConstants.SOURCE_PURCHASE_ORDER)) {
+            throw new BizException("只有采购订单的应付单可以登记优惠");
+        }
+        BigDecimal unpaid = p.getAmount().subtract(p.getPaidAmount()).max(BigDecimal.ZERO);
+        BigDecimal discount = unpaid.subtract(scale(targets.get(0).getAmount()));
+        if (discount.signum() <= 0) {
+            throw new BizException("付款金额已等于未付金额，不需要登记优惠");
+        }
+        purchaseOrders.addDiscountOnPayment(p.getSourceId(), req.getDiscount().getName(), discount);
+        locked.put(p.getId(), payableMapper.selectById(p.getId()));
     }
 
     /** 按顺序把「实付 + 各笔欠款抵扣」填到各应付单；实付部分按实际汇率折人民币，尾差给最后一笔 */

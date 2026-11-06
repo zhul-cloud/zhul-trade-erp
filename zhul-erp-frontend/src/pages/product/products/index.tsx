@@ -389,11 +389,8 @@ const ProductListInner: React.FC = () => {
       title: '品类',
       dataIndex: 'categoryName',
       width: 130,
-      render: (v, r) => (
-        <span style={{ whiteSpace: 'nowrap' }}>
-          {r.categoryNameZh || v || '—'}
-        </span>
-      ),
+      // 单行省略：长品类名不压到右边的生命周期标签上
+      render: (v, r) => <EllipsisText text={r.categoryNameZh || v} />,
     },
     {
       title: '生命周期',
@@ -477,7 +474,8 @@ const ProductListInner: React.FC = () => {
         ),
     },
     ...auditColumns<Product>(),
-    ...(canEdit
+    // 操作列只有「恢复」（已删除的商品）：列表里没有已删除的商品时不显示这一整列空白（audit UI-041）
+    ...(canEdit && rows.some((r) => r.deleted)
       ? ([
           {
             title: '操作',

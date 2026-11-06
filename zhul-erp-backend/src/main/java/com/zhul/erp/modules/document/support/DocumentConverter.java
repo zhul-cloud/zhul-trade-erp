@@ -14,6 +14,7 @@ import javax.imageio.ImageIO;
 import javax.imageio.ImageWriteParam;
 import javax.imageio.ImageWriter;
 import javax.imageio.stream.ImageOutputStream;
+import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
@@ -47,6 +48,14 @@ public class DocumentConverter {
     private static final int PREVIEW_CACHE_SIZE = 50;
     /** 预览图分辨率：放大查看时 A4 宽约 1240 像素，高分屏上文字仍清晰 */
     private static final int PREVIEW_DPI = 150;
+    /** 图片导出分辨率：裁掉页边后 A4 正文宽约 2000 像素 */
+    private static final int IMAGE_DPI = 240;
+    /** 比这个更亮的像素算空白（0–255，取 RGB 最暗的通道） */
+    private static final int INK_THRESHOLD = 240;
+    /** 页脚块最大高度、与正文之间的最小空白（占页高比例）；裁边后四周留白（占页宽比例） */
+    private static final double FOOTER_MAX_RATIO = 0.03;
+    private static final double FOOTER_GAP_RATIO = 0.05;
+    private static final float TRIM_PAD_RATIO = 0.02f;
 
     private final String configuredPath;
     private final Path workDir;
@@ -205,13 +214,16 @@ public class DocumentConverter {
         }
     }
 
-    /** 图片导出：每页 120 dpi 渲染、纵向拼成一张，宽度不超过 maxWidth，JPG 质量 0.8 */
+    /**
+     * 图片导出：每页 240 dpi 渲染、裁掉四周空白（最后一页底部单独的页码行一并去掉），纵向拼成一张，
+     * 宽度不超过 maxWidth，JPG 质量 0.9。图片用于聊天工具里直接发给客户，只留内容，放大也清晰。
+     */
     public byte[] toJpeg(byte[] pdf, int maxWidth) {
         List<BufferedImage> pages = new ArrayList<>();
         try (PDDocument doc = Loader.loadPDF(pdf)) {
             PDFRenderer renderer = new PDFRenderer(doc);
             for (int i = 0; i < doc.getNumberOfPages(); i++) {
-                pages.add(renderer.renderImageWithDPI(i, PREVIEW_DPI, ImageType.RGB));
+                pages.add(trim(renderer.renderImageWithDPI(i, IMAGE_DPI, ImageType.RGB)));
             }
         } catch (IOException e) {
             throw new BizException("图片生成失败，可以先下载 Excel", e);
@@ -223,6 +235,8 @@ public class DocumentConverter {
         int h = (int) Math.round(height * scale);
         BufferedImage out = new BufferedImage(w, Math.max(h, 1), BufferedImage.TYPE_INT_RGB);
         Graphics2D g = out.createGraphics();
+        g.setColor(Color.WHITE);
+        g.fillRect(0, 0, w, Math.max(h, 1));
         g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
         g.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
         int y = 0;
@@ -232,7 +246,76 @@ public class DocumentConverter {
             y += ph;
         }
         g.dispose();
-        return jpeg(out, 0.8f);
+        return jpeg(out, 0.9f);
+    }
+
+    /**
+     * 裁到内容区域，四周各留一点边。页面最底部单独的一小块（页码）与正文之间隔着大片空白时视为页脚去掉。
+     * 整页空白时原样返回。
+     */
+    public static BufferedImage trim(BufferedImage page) {
+        int pw = page.getWidth();
+        int ph = page.getHeight();
+        boolean[] inkRow = new boolean[ph];
+        int left = pw;
+        int right = -1;
+        for (int y = 0; y < ph; y++) {
+            for (int x = 0; x < pw; x++) {
+                if (isInk(page.getRGB(x, y))) {
+                    inkRow[y] = true;
+                    left = Math.min(left, x);
+                    right = Math.max(right, x);
+                }
+            }
+        }
+        int top = 0;
+        while (top < ph && !inkRow[top]) {
+            top++;
+        }
+        if (top == ph) {
+            return page;
+        }
+        int bottom = ph - 1;
+        while (!inkRow[bottom]) {
+            bottom--;
+        }
+        // 最底部的一块：高度很小、上方空白很大 → 页脚（页码），去掉后重新计算左右边界
+        int blockTop = bottom;
+        while (blockTop > top && inkRow[blockTop - 1]) {
+            blockTop--;
+        }
+        int gapTop = blockTop - 1;
+        while (gapTop > top && !inkRow[gapTop]) {
+            gapTop--;
+        }
+        boolean footer = blockTop > top && bottom - blockTop + 1 < ph * FOOTER_MAX_RATIO
+                && blockTop - gapTop - 1 > ph * FOOTER_GAP_RATIO;
+        if (footer) {
+            bottom = gapTop;
+            left = pw;
+            right = -1;
+            for (int y = top; y <= bottom; y++) {
+                for (int x = 0; x < pw; x++) {
+                    if (isInk(page.getRGB(x, y))) {
+                        left = Math.min(left, x);
+                        right = Math.max(right, x);
+                    }
+                }
+            }
+        }
+        int pad = Math.round(pw * TRIM_PAD_RATIO);
+        int x0 = Math.max(0, left - pad);
+        int y0 = Math.max(0, top - pad);
+        int x1 = Math.min(pw, right + 1 + pad);
+        int y1 = Math.min(ph, bottom + 1 + pad);
+        return page.getSubimage(x0, y0, x1 - x0, y1 - y0);
+    }
+
+    private static boolean isInk(int rgb) {
+        int r = (rgb >> 16) & 0xFF;
+        int g = (rgb >> 8) & 0xFF;
+        int b = rgb & 0xFF;
+        return Math.min(r, Math.min(g, b)) < INK_THRESHOLD;
     }
 
     private List<byte[]> renderPages(byte[] pdf, int dpi, float quality) {

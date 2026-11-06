@@ -3,6 +3,7 @@ import type { TableColumnsType } from 'antd';
 import { App, Segmented, Select, Table } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
+import FitText from '@/components/FitText';
 import StatsRangeFilter, { presetRange } from '@/components/StatsRangeFilter';
 import { Card, PageTitle, Pill } from '@/pages/inquiry/shared/components';
 import { useUserOptions } from '@/pages/sales/orders/dialogs';
@@ -20,6 +21,7 @@ import {
 } from './service';
 
 const num: React.CSSProperties = { fontVariantNumeric: 'tabular-nums' };
+const nowrap: React.CSSProperties = { whiteSpace: 'nowrap' };
 const cny = (v?: number | null) => formatAmount(v ?? 0, 'CNY');
 const rateText = (v?: number | null) => (v == null ? '—' : `${v}%`);
 
@@ -81,7 +83,8 @@ const ProfitStatsPage: React.FC = () => {
   ) => (
     <div
       style={{
-        flex: '1 1 200px',
+        flex: '1 1 160px',
+        minWidth: 0,
         padding: '16px 18px',
         borderRadius: 14,
         background: palette.card,
@@ -89,17 +92,18 @@ const ProfitStatsPage: React.FC = () => {
       }}
     >
       <div style={{ fontSize: 13, color: palette.sub }}>{label}</div>
-      <div
+      <FitText
+        size={22}
+        min={15}
         style={{
           ...num,
-          fontSize: 22,
           fontWeight: 800,
           color: color ?? palette.ink,
           marginTop: 4,
         }}
       >
         {value}
-      </div>
+      </FitText>
       {sub && (
         <div style={{ fontSize: 12, color: palette.mute, marginTop: 2 }}>
           {sub}
@@ -152,9 +156,10 @@ const ProfitStatsPage: React.FC = () => {
       width: 200,
       align: 'right',
       render: (_, g) => (
-        <span style={{ ...num, color: palette.sub }}>
-          {cny(g.totals.newRevenue)} / {cny(g.totals.oldRevenue)}
-        </span>
+        <div style={{ ...num, ...nowrap, color: palette.sub }}>
+          <div>新 {cny(g.totals.newRevenue)}</div>
+          <div>老 {cny(g.totals.oldRevenue)}</div>
+        </div>
       ),
     },
     {
@@ -163,8 +168,9 @@ const ProfitStatsPage: React.FC = () => {
       width: 210,
       align: 'right',
       render: (_, g) => (
-        <div style={{ ...num, color: palette.sub }}>
-          {cny(g.totals.onlineRevenue)} / {cny(g.totals.offlineRevenue)}
+        <div style={{ ...num, ...nowrap, color: palette.sub }}>
+          <div>线上 {cny(g.totals.onlineRevenue)}</div>
+          <div>线下 {cny(g.totals.offlineRevenue)}</div>
           {g.totals.unreceivedRevenue > 0 && (
             <div style={{ fontSize: 12, color: palette.mute }}>
               未到账 {cny(g.totals.unreceivedRevenue)}
@@ -351,7 +357,10 @@ const ProfitStatsPage: React.FC = () => {
           {stat(
             '收入',
             cny(summary.revenue),
-            `线上 ${cny(summary.onlineRevenue)} · 线下 ${cny(summary.offlineRevenue)}`,
+            <>
+              <div style={nowrap}>线上 {cny(summary.onlineRevenue)}</div>
+              <div style={nowrap}>线下 {cny(summary.offlineRevenue)}</div>
+            </>,
           )}
           {stat('实际成本', cny(summary.cost))}
           {stat(
