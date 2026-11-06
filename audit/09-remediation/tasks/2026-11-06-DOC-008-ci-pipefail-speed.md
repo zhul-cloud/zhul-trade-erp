@@ -23,13 +23,15 @@
   - **汇总检查：** 新增汇总任务，名字仍是分支规则要求的「后端测试」，两组都通过才算通过，分支规则不用改。
   - **只改文档时跳过：** 改动只涉及 `audit/`、`docs/`、`openspec/`、`.claude/` 或根目录 `*.md` 时，后端、前端、AI 三项测试都跳过；被跳过的必选检查在 GitHub 上算通过。`scripts/ai-orchestrator/skills/*.md` 是提示词，不算文档，照常测试。
   - **ffmpeg 只在第 2 组安装：** 视频转码测试在第 2 组。MySQL 改为先在后台启动，装 Java、ffmpeg 的同时等它就绪。
+  - **ffmpeg 安装限时：** 本 PR 首次 CI 中，第 2 组的 `apt-get` 卡了 27 分钟仍未结束。安装步骤改为限时 5 分钟、非交互、apt 锁最多等 60 秒；装不上时 CI 给出警告并继续，只跳过视频转码测试。
 
 | 命令 / 操作与证据 | 环境、commit / 版本 | 预期 | 实际 | 结论 |
 | --- | --- | --- | --- | --- |
 | 检查最近 13 次「后端测试」显示通过的 CI 日志 | GitHub Actions | — | 全部是 `BUILD FAILURE`，失败用例都是 `QuotationContractTest.bilingualDescriptions_confirmQuotationPiExport_andTranslation`；步骤 shell 为 `/usr/bin/bash -e {0}` | 缺陷确认 |
 | `mvn -o test -Dtest=QuotationContractTest` | 本机 MySQL 测试库，修复前 / 修复后 | 修复后通过 | 修复前 `expected: <3> but was: <4>`；修复后 20 个用例通过、跳过 1 个 | 通过（缺陷已复现并修复） |
 | `mvn -o test -Dsurefire.excludesFile=<只保留 workbench>` | 本机 | 只运行未被排除的测试 | 只运行了 `WorkbenchContractTest`、`BossWidgetsMoneyTest` | 通过 |
-| 本 PR 的 CI | GitHub Actions | 两组都通过，「后端测试」汇总通过，耗时下降 | 待 CI 运行后补充 | 待验证 |
+| 本 PR 首次 CI（run 42203433362） | GitHub Actions | 两组都通过 | 第 1 组 219 个用例通过，`mvn test` 309 秒，步骤 shell 已是 `bash -e -o pipefail`；第 2 组在「安装 ffmpeg」卡住 27 分钟，已手动取消 | 第 2 组未运行，已加安装限时 |
+| 本 PR 修正后的 CI | GitHub Actions | 两组都通过，「后端测试」汇总通过，耗时下降 | 待 CI 运行后补充 | 待验证 |
 
 ## 合并、部署与逐 ID 验收
 
@@ -47,3 +49,4 @@
 | 日期 / 作者 | 事件与证据 | 下一步 / 交接 |
 | --- | --- | --- |
 | 2026-11-06 / Claude | 用户反映 CI 太慢。排查耗时时发现后端测试失败被管道掩盖，失败用例已随 v1.9.0 上线；暂停 #197 自动合并；修复用例并加 pipefail，同时拆分后端测试、只改文档时跳过测试 | 提 PR 发往 `develop`，用 CI 结果验证 |
+| 2026-11-06 / Claude | 首次 CI：第 1 组通过（5 分钟）；第 2 组 apt 安装 ffmpeg 卡 27 分钟（用户发现），取消该次运行，给安装步骤加 5 分钟时限并允许失败后继续 | 观察修正后的 CI |

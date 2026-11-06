@@ -95,10 +95,21 @@ jobs:
           distribution: temurin
           java-version: '17'
           cache: maven
-      # 视频转码测试（framework.storage，在第 2 组）要 ffmpeg，没有时这些用例会被跳过
+      # 视频转码测试（framework.storage，在第 2 组）要 ffmpeg，没有时这些用例会被跳过。
+      # apt 偶尔会卡住（曾卡 27 分钟直到整个任务超时）：限时 5 分钟，装不上就提示并继续，不拖住整个 CI
       - name: 安装 ffmpeg
         if: matrix.shard == 2
-        run: command -v ffmpeg || (sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends ffmpeg)
+        timeout-minutes: 5
+        continue-on-error: true
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          command -v ffmpeg && exit 0
+          sudo -E apt-get -o Acquire::Retries=3 -o DPkg::Lock::Timeout=60 update -qq
+          sudo -E apt-get -o DPkg::Lock::Timeout=60 install -y -qq --no-install-recommends ffmpeg
+      - name: ffmpeg 未安装时提示
+        if: matrix.shard == 2
+        run: command -v ffmpeg >/dev/null || echo "::warning::ffmpeg 没装上，本次跳过视频转码测试"
       - name: 等待 MySQL 就绪
         run: |
           for i in $(seq 1 60); do
