@@ -4,6 +4,8 @@ import com.zhul.erp.common.result.PageResult;
 import com.zhul.erp.common.result.Result;
 import com.zhul.erp.modules.product.candidate.dto.ApproveCandidateRequest;
 import com.zhul.erp.modules.product.candidate.dto.BatchApproveRequest;
+import com.zhul.erp.modules.product.candidate.dto.CandidateAiFillRequest;
+import com.zhul.erp.modules.product.candidate.dto.CandidateAiFillVO;
 import com.zhul.erp.modules.product.candidate.dto.BatchApproveVO;
 import com.zhul.erp.modules.product.candidate.dto.CandidateImportPreviewVO;
 import com.zhul.erp.modules.product.candidate.dto.CandidateImportRequest;
@@ -12,6 +14,7 @@ import com.zhul.erp.modules.product.candidate.dto.CandidatePageQuery;
 import com.zhul.erp.modules.product.candidate.dto.CandidateVO;
 import com.zhul.erp.modules.product.candidate.dto.MergeCandidateRequest;
 import com.zhul.erp.modules.product.candidate.dto.RejectCandidateRequest;
+import com.zhul.erp.modules.product.candidate.service.CandidateAiFill;
 import com.zhul.erp.modules.product.candidate.service.CandidateImportService;
 import com.zhul.erp.modules.product.candidate.service.ProductCandidateService;
 import jakarta.validation.Valid;
@@ -38,6 +41,7 @@ public class ProductCandidateController {
 
     private final ProductCandidateService service;
     private final CandidateImportService importService;
+    private final CandidateAiFill aiFill;
 
     /** 上传商品文件导入候选：有商品候选菜单即可，建档仍需审核权限 */
     @PostMapping("/import/preview")
@@ -75,6 +79,19 @@ public class ProductCandidateController {
     @PreAuthorize(REVIEW)
     public Result<BatchApproveVO> batchApprove(@Valid @RequestBody BatchApproveRequest req) {
         return Result.ok(service.batchApprove(req.getIds()));
+    }
+
+    /** 批量 AI 解析品类或品牌：写入候选，审核时可改 */
+    @PostMapping("/ai-fill")
+    @PreAuthorize(REVIEW)
+    public Result<CandidateAiFillVO> aiFill(@Valid @RequestBody CandidateAiFillRequest req) {
+        return Result.ok(aiFill.submit(req));
+    }
+
+    @GetMapping("/ai-fill/{taskId}")
+    @PreAuthorize(REVIEW)
+    public Result<CandidateAiFillVO> aiFillStatus(@PathVariable Long taskId) {
+        return Result.ok(aiFill.status(taskId));
     }
 
     @PostMapping("/{id}/merge")

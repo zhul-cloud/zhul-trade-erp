@@ -20,6 +20,12 @@ public class CandidateVO {
     private Long categoryId;
     private String categoryName;
     private String categoryText;
+    /** 品类是否 AI 建议（0-否、1-是） */
+    private Integer aiCategory;
+    /** 品牌 AI 解析结果（0-未解析、1-匹配到已有品牌、2-未识别） */
+    private Integer aiBrand;
+    /** AI 给出的品牌名（未识别时供审核参考） */
+    private String aiBrandName;
     private String productName;
     private String description;
     private String descriptionEn;
