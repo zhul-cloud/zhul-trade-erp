@@ -87,12 +87,16 @@ export const ConvertOrderModal: React.FC<{
   const [busy, setBusy] = useState(false);
   const [payLater, setPayLater] = useState(false);
   const [reason, setReason] = useState('');
+  const [files, setFiles] = useState<Attachment[]>([]);
+  const [remark, setRemark] = useState('');
 
   useEffect(() => {
     if (open && pi) {
       setDate(defaultSalesDate(pi));
       setPayLater(false);
       setReason('');
+      setFiles([]);
+      setRemark(pi.version.remark ?? '');
     }
   }, [open, pi]);
 
@@ -114,6 +118,7 @@ export const ConvertOrderModal: React.FC<{
           pi.id,
           date.format('YYYY-MM-DD'),
           unpaid ? { reason: reason.trim() } : undefined,
+          { remark: remark.trim(), attachmentIds: files.map((f) => f.id) },
         ),
       );
     } catch (e) {
@@ -219,6 +224,41 @@ export const ConvertOrderModal: React.FC<{
       <div style={{ fontSize: 12, color: palette.mute, margin: '6px 0 14px' }}>
         默认取最早的水单付款日期或到账日期，都没有时取当天；统计按销售日期
       </div>
+      <div style={{ marginBottom: 6, fontSize: 13, color: palette.sub }}>
+        附件
+      </div>
+      <div style={{ display: 'grid', gap: 8, marginBottom: 14 }}>
+        <OrderFileList
+          files={files}
+          onRemove={(a) =>
+            setFiles((prev) => prev.filter((f) => f.id !== a.id))
+          }
+        />
+        {files.length < ORDER_FILE_MAX && (
+          <OrderFileUpload
+            dragger
+            count={files.length}
+            onUploaded={(a) => setFiles((prev) => [...prev, a])}
+          />
+        )}
+      </div>
+      <div style={{ marginBottom: 6, fontSize: 13, color: palette.sub }}>
+        备注{' '}
+        {pi.version.remark && (
+          <span style={{ fontSize: 12, color: palette.mute }}>
+            已带出 PI 备注，可修改
+          </span>
+        )}
+      </div>
+      <Input.TextArea
+        rows={2}
+        maxLength={500}
+        showCount
+        value={remark}
+        onChange={(e) => setRemark(e.target.value)}
+        aria-label="备注"
+        style={{ marginBottom: 20 }}
+      />
       <div style={{ fontSize: 13, color: palette.sub, lineHeight: 1.8 }}>
         {unpaid &&
           '订单收款状态「未付款」并标「先采购后收款」，采购需求照常生成。'}

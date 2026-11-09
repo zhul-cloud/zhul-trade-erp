@@ -74,6 +74,7 @@ import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -483,6 +484,17 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
             x.setUnshippedQty(Math.max(0, i.getQuantity() - x.getShippedQty()));
             return x;
         }).toList());
+        vo.setSalesRemarks(orders.values().stream()
+                .filter(o -> StringUtils.hasText(o.getRemark()))
+                .sorted(Comparator.comparing(SalesOrderDO::getSoNo))
+                .map(o -> {
+                    PurchaseOrderVO.SalesRemark x = new PurchaseOrderVO.SalesRemark();
+                    x.setSoId(o.getId());
+                    x.setSoNo(o.getSoNo());
+                    x.setCustomerName(InquiryLookups.customerName(customers.get(o.getCustomerId())));
+                    x.setRemark(o.getRemark().trim());
+                    return x;
+                }).toList());
         vo.setFees(drafts.fees(id).stream().map(f -> {
             PurchaseOrderVO.Fee x = new PurchaseOrderVO.Fee();
             x.setId(f.getId());

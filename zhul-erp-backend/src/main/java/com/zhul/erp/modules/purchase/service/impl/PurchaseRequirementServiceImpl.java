@@ -210,6 +210,7 @@ public class PurchaseRequirementServiceImpl implements PurchaseRequirementServic
                 vo.setStockType(o.getStockType());
                 vo.setSource(o.getSource());
                 vo.setOwnerName(owners.get(o.getOwnerId()));
+                vo.setSalesRemark(o.getRemark() == null ? "" : o.getRemark());
             }
             vo.setOrderedCount((int) ls.stream().filter(x -> "ordered".equals(x.getStatus())).count());
             vo.setPartialCount((int) ls.stream().filter(x -> "partial".equals(x.getStatus())).count());

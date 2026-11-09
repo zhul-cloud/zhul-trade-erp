@@ -77,6 +77,8 @@ public class PurchaseOrderVO implements ShipFields {
     private List<Item> items;
     private List<Fee> fees;
     private List<Attachment> attachments;
+    /** 来源销售订单的备注（只含有备注的，按订单编号排序），只在系统内显示 */
+    private List<SalesRemark> salesRemarks;
     private List<Log> logs;
     /** 发货单（含作废的） */
     private List<ShipmentRef> shipments;
@@ -117,6 +119,14 @@ public class PurchaseOrderVO implements ShipFields {
         private Integer receivedQty;
         /** 未发数量 = 订购 − 已发 */
         private Integer unshippedQty;
+    }
+
+    @Data
+    public static class SalesRemark {
+        private Long soId;
+        private String soNo;
+        private String customerName;
+        private String remark;
     }
 
     @Data

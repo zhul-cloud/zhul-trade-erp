@@ -199,7 +199,7 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         o.setIncoterm(v.getIncoterm());
         o.setIncotermPlace(v.getIncotermPlace());
         o.setPortOfShipment(v.getPortOfShipment());
-        o.setRemark(v.getRemark());
+        o.setRemark(req == null || req.getRemark() == null ? v.getRemark() : req.getRemark().trim());
         o.setDiscountAmount(v.getDiscountAmount());
         o.setDiscountAmountCny(v.getDiscountAmountCny());
         o.setItemAmount(v.getItemAmount());
@@ -233,6 +233,9 @@ public class SalesOrderServiceImpl implements SalesOrderService {
             x.setRemark(f.getRemark());
             x.setSortOrder(sort++);
             orderFeeMapper.insert(x);
+        }
+        if (req != null) {
+            attachmentService.attach(AttachmentService.SALES_ORDER, o.getId(), req.getAttachmentIds());
         }
         pi.setStatus(SalesConstants.PI_CONVERTED);
         piMapper.updateById(pi);

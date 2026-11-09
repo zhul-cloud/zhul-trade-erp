@@ -988,12 +988,18 @@ export const piApi = {
     send<Pi>('POST', `${PI}/${id}/receipts/${receiptId}/void`, { reason }),
   receiptSettings: () =>
     get<{ feeTolerance: number }>(`${PI}/receipt-settings`),
-  /** 没有水单也没有到账时须 payLater 并填原因（先采购后收款） */
-  convert: (id: number, salesDate?: string, payLater?: { reason: string }) =>
+  /** 没有水单也没有到账时须 payLater 并填原因（先采购后收款）；备注不传时沿用 PI 备注 */
+  convert: (
+    id: number,
+    salesDate?: string,
+    payLater?: { reason: string },
+    extra?: { remark: string; attachmentIds: number[] },
+  ) =>
     send<Order>('POST', `${PI}/${id}/convert`, {
       salesDate,
       payLater: !!payLater,
       payLaterReason: payLater?.reason,
+      ...extra,
     }),
   /** 财务管理 → 收款单（待确认） */
   receiptDesk: (q: ReceiptDeskQuery) =>

@@ -39,6 +39,7 @@ import { recentRange } from '@/utils/dateRange';
 import { formatAmount } from '@/utils/format';
 import { usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
+import { settleCny, settleRate } from './calc';
 import { type FxPending, type FxSettlement, fxApi } from './service';
 
 const num: React.CSSProperties = { fontVariantNumeric: 'tabular-nums' };
@@ -88,7 +89,10 @@ const RegisterModal: React.FC<{
   const [date, setDate] = useState<Dayjs>(dayjs());
   const [currency, setCurrency] = useState<string>();
   const [amount, setAmount] = useState<number | null>(null);
+  const [rate, setRate] = useState<number | null>(null);
   const [cny, setCny] = useState<number | null>(null);
+  /** 人民币按银行入账手动改过：不再随金额、汇率自动重算，直到点「按汇率重算」或再改金额 / 汇率 */
+  const [manual, setManual] = useState(false);
   const [accounts, setAccounts] = useState<BankOption[]>([]);
   const [accountId, setAccountId] = useState<number>();
   const [remark, setRemark] = useState('');
@@ -120,7 +124,9 @@ const RegisterModal: React.FC<{
     if (!open) return;
     setDate(dayjs());
     setAmount(null);
+    setRate(null);
     setCny(null);
+    setManual(false);
     setRemark('');
     setKey(newKey());
     bankOptionsApi
@@ -133,7 +139,11 @@ const RegisterModal: React.FC<{
   }, [open, pending]);
 
   const pool = pools.find((p) => p.currencyCode === currency);
-  const rate = amount && cny ? cny / amount : undefined;
+  /** 改金额或汇率时按「金额 × 汇率」重算人民币 */
+  const recalc = (a: number | null, r: number | null) => {
+    setManual(false);
+    setCny(a && r ? settleCny(a, r) : null);
+  };
   const preview = useMemo(() => {
     let left = amount ?? 0;
     return (pool?.receipts ?? []).map((r) => {
@@ -146,8 +156,8 @@ const RegisterModal: React.FC<{
   }, [pool, amount]);
 
   const submit = async () => {
-    if (!currency || !amount || !cny || !accountId) {
-      message.error('请填写币种、结汇金额、实际入账人民币与入账账户');
+    if (!currency || !amount || !rate || !cny || !accountId) {
+      message.error('请填写币种、结汇金额、结汇汇率、实际入账人民币与入账账户');
       return;
     }
     setSaving(true);
@@ -243,10 +253,27 @@ const RegisterModal: React.FC<{
                 max={pool?.balance}
                 precision={2}
                 value={amount}
-                onChange={setAmount}
+                onChange={(v) => {
+                  setAmount(v);
+                  recalc(v, rate);
+                }}
                 prefix={currency}
                 style={{ width: '100%' }}
                 aria-label="结汇金额"
+              />
+            </div>
+            <div>
+              {label('结汇汇率')}
+              <InputNumber<number>
+                min={0.000001}
+                precision={6}
+                value={rate}
+                onChange={(v) => {
+                  setRate(v);
+                  recalc(amount, v);
+                }}
+                style={{ width: '100%' }}
+                aria-label="结汇汇率"
               />
             </div>
             <div>
@@ -255,11 +282,38 @@ const RegisterModal: React.FC<{
                 min={0.01}
                 precision={2}
                 value={cny}
-                onChange={setCny}
+                onChange={(v) => {
+                  setCny(v);
+                  setManual(true);
+                }}
                 prefix="CNY"
                 style={{ width: '100%' }}
                 aria-label="实际入账人民币"
               />
+              {manual && amount && cny ? (
+                <div
+                  style={{ fontSize: 12, color: palette.orange, marginTop: 4 }}
+                >
+                  已按银行入账修改，实际汇率{' '}
+                  {settleRate(amount, cny).toFixed(6)}
+                  {rate ? (
+                    <Button
+                      type="link"
+                      size="small"
+                      style={{ padding: '0 0 0 6px', height: 'auto' }}
+                      onClick={() => recalc(amount, rate)}
+                    >
+                      按汇率重算
+                    </Button>
+                  ) : null}
+                </div>
+              ) : amount && rate ? (
+                <div
+                  style={{ fontSize: 12, color: palette.mute, marginTop: 4 }}
+                >
+                  自动计算，与银行入账不一致时可直接修改
+                </div>
+              ) : null}
             </div>
           </div>
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
@@ -290,11 +344,7 @@ const RegisterModal: React.FC<{
             </div>
           </div>
           <div style={{ color: palette.sub }}>
-            结汇汇率{' '}
-            <b style={{ ...num, fontSize: 16, color: palette.ink }}>
-              {rate ? rate.toFixed(6) : '—'}
-            </b>
-            <span style={{ marginLeft: 12 }}>
+            <span>
               {bu.enabled
                 ? `${bu.units.find((u) => u.id === unit)?.name ?? ''}可结汇的 `
                 : ''}
