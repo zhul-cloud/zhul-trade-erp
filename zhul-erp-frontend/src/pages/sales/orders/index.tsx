@@ -12,7 +12,7 @@ import { App, Button, DatePicker, Form, Input, Select, Table } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
 import { CustomerCell } from '@/components/DocFields';
-import { ellipsisRender } from '@/components/EllipsisText';
+import EllipsisText, { ellipsisRender } from '@/components/EllipsisText';
 import { TagList } from '@/pages/inquiry/customer-inquiry/ModelCells';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
 import { auditColumns } from '@/pages/purchase/components';
@@ -215,9 +215,10 @@ const OrderList: React.FC = () => {
       width: 190,
       render: (_, r) => (
         <div>
-          <div style={{ fontFamily: 'monospace', whiteSpace: 'nowrap' }}>
-            {r.firstModel ?? '—'}
-          </div>
+          <EllipsisText
+            text={r.firstModel}
+            style={{ fontFamily: 'monospace' }}
+          />
           {sub(
             `${r.itemCount > 1 ? `共 ${r.itemCount} 个型号 · ` : ''}${r.totalQuantity ?? 0} 件`,
           )}

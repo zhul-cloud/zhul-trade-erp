@@ -92,7 +92,7 @@ public class QuotationDocumentServiceImpl implements QuotationDocumentService {
         byte[] xlsx = XlsxRenderer.render(tpl.file(), model(q, items, v.fees()));
         String base = fileBase(q);
         return switch (f) {
-            case "pdf" -> new TemplateFile(base + ".pdf", "application/pdf", converter.toPdf(xlsx));
+            case "pdf" -> new TemplateFile(base + ".pdf", "application/pdf", converter.toTrimmedPdf(xlsx));
             case "jpg" -> new TemplateFile(base + ".jpg", "image/jpeg", converter.toJpeg(converter.toPdf(xlsx), IMAGE_MAX_WIDTH));
             default -> new TemplateFile(base + ".xlsx", XLSX, xlsx);
         };
