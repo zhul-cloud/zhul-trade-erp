@@ -4,7 +4,11 @@ import com.zhul.erp.common.result.Result;
 import com.zhul.erp.modules.crm.followup.constants.FollowupConstants;
 import com.zhul.erp.modules.crm.followup.dto.AccountCardVO;
 import com.zhul.erp.modules.crm.followup.dto.AnnualPlanRequest;
+import com.zhul.erp.modules.crm.followup.dto.BatchFollowupRequest;
+import com.zhul.erp.modules.crm.followup.dto.BatchResultVO;
+import com.zhul.erp.modules.crm.followup.dto.BatchSnoozeRequest;
 import com.zhul.erp.modules.crm.followup.dto.ConvertRequest;
+import com.zhul.erp.modules.crm.followup.dto.CustomerGroupListVO;
 import com.zhul.erp.modules.crm.followup.dto.CustomerFollowupVO;
 import com.zhul.erp.modules.crm.followup.dto.DevelopCardVO;
 import com.zhul.erp.modules.crm.followup.dto.ExtractRequest;
@@ -28,6 +32,7 @@ import com.zhul.erp.modules.crm.followup.dto.StopDevelopRequest;
 import com.zhul.erp.modules.crm.followup.dto.StrategicRequest;
 import com.zhul.erp.modules.crm.followup.service.FollowupAccountService;
 import com.zhul.erp.modules.crm.followup.service.FollowupAiService;
+import com.zhul.erp.modules.crm.followup.service.FollowupBatchService;
 import com.zhul.erp.modules.crm.followup.service.FollowupDevelopService;
 import com.zhul.erp.modules.crm.followup.service.FollowupService;
 import com.zhul.erp.modules.crm.followup.service.FollowupTeamService;
@@ -58,6 +63,7 @@ public class FollowupController {
     private static final String RECORD = "@perm.has('crm:followup:record')";
 
     private final FollowupService followupService;
+    private final FollowupBatchService batchService;
     private final FollowupAiService followupAiService;
     private final FollowupTeamService followupTeamService;
     private final FollowupAccountService followupAccountService;
@@ -93,6 +99,13 @@ public class FollowupController {
     }
 
     /** 订单履约行展开：分部分进度 */
+    /** 按客户分组的跟进列表（商机成交、订单履约、售后评价） */
+    @GetMapping("/groups")
+    @PreAuthorize(VIEW)
+    public Result<CustomerGroupListVO> groups(FollowupQuery query) {
+        return Result.ok(followupService.groups(query));
+    }
+
     @GetMapping("/items/{id}/parts")
     @PreAuthorize(VIEW)
     public Result<OrderPartsVO> parts(@PathVariable Long id) {
@@ -104,6 +117,20 @@ public class FollowupController {
     public Result<Void> snooze(@PathVariable Long id, @Valid @RequestBody SnoozeRequest req) {
         followupService.snooze(id, req.getDate());
         return Result.ok();
+    }
+
+    /** 批量跟进：每个客户各写一条跟进记录，逐个客户处理，返回成功数和跳过原因 */
+    @PostMapping("/batch-record")
+    @PreAuthorize(RECORD)
+    public Result<BatchResultVO> batchRecord(@Valid @RequestBody BatchFollowupRequest req) {
+        return Result.ok(batchService.record(req));
+    }
+
+    /** 批量延后（今日待办客户卡片的「延后」也走这里，只传一个客户） */
+    @PostMapping("/batch-snooze")
+    @PreAuthorize(RECORD)
+    public Result<BatchResultVO> batchSnooze(@Valid @RequestBody BatchSnoozeRequest req) {
+        return Result.ok(batchService.snooze(req));
     }
 
     @PostMapping("/items/{id}/nurture")

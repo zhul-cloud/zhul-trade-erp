@@ -298,7 +298,7 @@ export const FlowChain: React.FC<{
           </b>
           <span>
             <span style={{ fontSize: 28, fontWeight: 700 }}>{total}</span>
-            <span style={{ fontSize: 12, marginLeft: 4 }}>项</span>
+            <span style={{ fontSize: 12, marginLeft: 4 }}>位客户</span>
           </span>
           <span
             style={{

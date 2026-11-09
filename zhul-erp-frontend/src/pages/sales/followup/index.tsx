@@ -7,22 +7,31 @@ import { useCountries } from '@/pages/product/components/useCountries';
 import { getUserList } from '@/pages/system/user/service';
 import { SalesPageTitle } from '../components';
 import { AccountInquiryModal } from './AccountPanel';
+import { BatchBar, BatchFollowupModal, type Picked, usePicks } from './Batch';
 import BattleCard from './BattleCard';
 import { VIEW_TODAY } from './boardStyle';
-import { Card, NurtureModal, TodayList } from './components';
+import { Card, NurtureModal } from './components';
 import {
   ConvertOpportunityModal,
   NewProspectModal,
   StopDevelopModal,
 } from './DevelopPanel';
 import { FlowChain } from './FlowChain';
-import { FollowupTable, StageBar, type StageFilter } from './FollowupTable';
+import {
+  FollowupTable,
+  StageBar,
+  type StageFilter,
+  stageItem,
+} from './FollowupTable';
 import RecordFollowupModal, { type RecordTarget } from './RecordFollowupModal';
 import {
+  ANSWER_STAGES,
   BOARD_DEVELOP,
   BOARD_SALES,
   type FollowupItem,
   followupApi,
+  GROUPED_BOARDS,
+  type GroupList,
   type ItemList,
   type Overview,
   PERM_RECORD,
@@ -30,6 +39,7 @@ import {
   type Today,
 } from './service';
 import TeamView, { type TeamJump } from './TeamView';
+import { TodayList } from './TodayList';
 
 const PAGE_SIZE = 20;
 
@@ -57,7 +67,13 @@ const FollowupPage: React.FC = () => {
   });
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
+  /** 按客户分组的板块（商机成交、订单履约、售后评价）的列表 */
+  const [groupList, setGroupList] = useState<GroupList>();
   const [selected, setSelected] = useState<FollowupItem>();
+  /** 选中的行：客户行 c{客户}、单据行 i{单据} */
+  const [selectedKey, setSelectedKey] = useState<string>();
+  const picks = usePicks();
+  const [batchOpen, setBatchOpen] = useState(false);
   const [recordTarget, setRecordTarget] = useState<RecordTarget>();
   const [recordOpen, setRecordOpen] = useState(false);
   const [nurtureItem, setNurtureItem] = useState<FollowupItem>();
@@ -94,7 +110,13 @@ const FollowupPage: React.FC = () => {
       .today(ownerScope)
       .then(setToday)
       .catch(() =>
-        setToday({ overdue: [], today: [], weekRemaining: 0, tomorrow: 0 }),
+        setToday({
+          overdue: [],
+          today: [],
+          handled: [],
+          weekRemaining: 0,
+          tomorrow: 0,
+        }),
       );
   }, [ownerScope]);
 
@@ -102,31 +124,64 @@ const FollowupPage: React.FC = () => {
     (p: number) => {
       const req = ++reqRef.current;
       setLoading(true);
-      followupApi
-        .items({
-          board: boardNo,
-          ...filter,
-          blocker,
-          country: boardNo === BOARD_DEVELOP ? country : undefined,
-          keyword: keyword.trim() || undefined,
-          ownerScope,
-          page: p,
-          pageSize: PAGE_SIZE,
-        })
-        .then((r) => {
-          if (req !== reqRef.current) return;
-          setPage(p);
-          setList((old) =>
-            p === 1 ? r : { ...r, records: [...old.records, ...r.records] },
-          );
-          if (p === 1)
-            setSelected(
-              (s) => r.records.find((x) => x.id === s?.id) ?? r.records[0],
+      const params = {
+        board: boardNo,
+        ...filter,
+        blocker,
+        country: boardNo === BOARD_DEVELOP ? country : undefined,
+        keyword: keyword.trim() || undefined,
+        ownerScope,
+        page: p,
+        pageSize: PAGE_SIZE,
+      };
+      const grouped = GROUPED_BOARDS.includes(boardNo);
+      const done = grouped
+        ? followupApi.groups(params).then((r) => {
+            if (req !== reqRef.current) return;
+            setPage(p);
+            setGroupList((old) =>
+              p === 1 || !old
+                ? r
+                : { ...r, records: [...old.records, ...r.records] },
             );
-        })
+            if (p === 1) {
+              const first = r.records[0];
+              setSelectedKey((k) => {
+                const keep = r.records.some(
+                  (g) =>
+                    k === `c${g.customerId}` ||
+                    g.items.some((i) => k === `i${i.id}`),
+                );
+                if (keep) return k;
+                setSelected(first && stageItem(first));
+                return first && `c${first.customerId}`;
+              });
+            }
+          })
+        : followupApi.items(params).then((r) => {
+            if (req !== reqRef.current) return;
+            setGroupList(undefined);
+            setPage(p);
+            setList((old) =>
+              p === 1 ? r : { ...r, records: [...old.records, ...r.records] },
+            );
+            if (p === 1)
+              setSelected((s) => {
+                const next =
+                  r.records.find((x) => x.id === s?.id) ?? r.records[0];
+                setSelectedKey(next && `i${next.id}`);
+                return next;
+              });
+          });
+      done
         .catch(() => {
-          if (req === reqRef.current && p === 1)
-            setList({ total: 0, records: [], unpaid: [] });
+          if (req !== reqRef.current || p !== 1) return;
+          setList({ total: 0, records: [], unpaid: [] });
+          setGroupList(
+            grouped
+              ? { total: 0, docTotal: 0, records: [], unpaid: [] }
+              : undefined,
+          );
         })
         .finally(() => req === reqRef.current && setLoading(false));
     },
@@ -141,6 +196,7 @@ const FollowupPage: React.FC = () => {
   }, [loadList, view, boardNo]);
 
   const refresh = () => {
+    picks.clear();
     loadTop();
     if (boardNo !== VIEW_TODAY) loadList(1);
   };
@@ -149,14 +205,41 @@ const FollowupPage: React.FC = () => {
     setRecordTarget(item ? { item, customerId: item.customerId } : {});
     setRecordOpen(true);
   };
+  const openTarget = (t: RecordTarget) => {
+    setRecordTarget(t);
+    setRecordOpen(true);
+  };
+  /** 批量跟进被跳过的客户单独记：带入跳过的那个板块的单据 */
+  const recordPicked = (p: Picked) => {
+    const lead =
+      p.items.find((i) => ANSWER_STAGES.includes(i.stageCode)) ?? p.items[0];
+    openTarget({
+      customerId: p.customerId,
+      customerName: p.customerName,
+      item: lead,
+      items: p.items.filter((i) => i.board === lead?.board),
+    });
+  };
 
   const board = overview?.boards.find((b) => b.board === boardNo);
+  const batchBar = (
+    <BatchBar
+      picked={picks.list}
+      canRecord={canRecord}
+      onClear={picks.clear}
+      onRecord={() => setBatchOpen(true)}
+      onChanged={refresh}
+    />
+  );
 
   const switchBoard = (b: number, stage?: string) => {
     setBoardNo(b);
     setFilter(stage ? { stage } : {});
     setBlocker(undefined);
     setSelected(undefined);
+    setSelectedKey(undefined);
+    setGroupList(undefined);
+    picks.clear();
   };
 
   /** 团队视图点数字：回到「我的」视图，负责人筛选为该人（或全部） */
@@ -246,7 +329,10 @@ const FollowupPage: React.FC = () => {
             <TodayList
               today={today}
               canRecord={canRecord}
-              onRecord={openRecord}
+              picked={picks.picked}
+              onPick={picks.toggle}
+              batchBar={batchBar}
+              onRecord={openTarget}
               onChanged={refresh}
               onBrowse={() => switchBoard(BOARD_SALES)}
             />
@@ -298,14 +384,23 @@ const FollowupPage: React.FC = () => {
                   boardNo={boardNo}
                   filter={filter}
                   records={list.records}
-                  total={list.total}
-                  unpaid={list.unpaid}
+                  total={groupList?.total ?? list.total}
+                  unpaid={groupList?.unpaid ?? list.unpaid}
+                  groups={groupList?.records}
+                  docTotal={groupList?.docTotal}
                   loading={loading}
-                  selectedId={selected?.id}
+                  selectedKey={selectedKey}
                   canRecord={canRecord}
                   showOwner={ownerScope !== 'me'}
-                  onSelect={setSelected}
+                  onSelect={(item, key) => {
+                    setSelected(item);
+                    setSelectedKey(key);
+                  }}
                   onRecord={openRecord}
+                  onRecordTarget={openTarget}
+                  picked={picks.picked}
+                  onPick={picks.toggle}
+                  batchBar={batchBar}
                   onNurture={setNurtureItem}
                   onChanged={refresh}
                   onMore={() => loadList(page + 1)}
@@ -338,6 +433,13 @@ const FollowupPage: React.FC = () => {
           // 主动开发选了「明确拒绝」：接着打开停止开发，原因预选「明确拒绝」
           if (refusedItem) setStop({ item: refusedItem, preset: 'REFUSED' });
         }}
+      />
+      <BatchFollowupModal
+        open={batchOpen}
+        picked={picks.list}
+        onClose={() => setBatchOpen(false)}
+        onDone={refresh}
+        onRecordOne={recordPicked}
       />
       <ConvertOpportunityModal
         item={convertItem}

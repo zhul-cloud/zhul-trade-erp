@@ -22,12 +22,13 @@ import { customerApi } from '@/pages/customer/service';
 import { CreateAfterSalesModal } from '@/pages/sales/after-sales/dialogs';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
-import { fmtDate, iso, StageTag, useBlockers } from './components';
+import { DueText, fmtDate, iso, StageTag, useBlockers } from './components';
 import StageQuestions from './StageQuestions';
 import {
   ACCOUNT_ANSWER,
   AI_NOT_CONFIGURED,
   AI_STATUS,
+  ANSWER_STAGES,
   BOARD_ACCOUNT,
   BOARD_DEVELOP,
   BOARD_SALES,
@@ -95,11 +96,112 @@ const SectionLabel: React.FC<{
   );
 };
 
+/** 单据超过这个数时默认只显示前几张 */
+const DOC_FOLD = 5;
+
+/** 这次跟进涉及的单据：默认全选，可取消，至少一张 */
+const DocChecklist: React.FC<{
+  docs: FollowupItem[];
+  checked: number[];
+  all: boolean;
+  onShowAll: () => void;
+  onChange: (ids: number[]) => void;
+}> = ({ docs, checked, all, onShowAll, onChange }) => {
+  const { palette } = useAppTheme();
+  const shown = all ? docs : docs.slice(0, DOC_FOLD);
+  const full = checked.length === docs.length;
+  return (
+    <div
+      style={{
+        marginTop: 12,
+        padding: '10px 14px',
+        borderRadius: 10,
+        background: palette.inset,
+        display: 'grid',
+        gap: 6,
+      }}
+    >
+      <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+        <b style={{ fontSize: 13, color: palette.ink }}>这次跟进涉及的单据</b>
+        <span style={{ fontSize: 12, color: palette.link, flex: 1 }}>
+          已选 {checked.length} / {docs.length}
+        </span>
+        <Checkbox
+          checked={full}
+          indeterminate={!full && checked.length > 0}
+          onChange={(e) =>
+            onChange(e.target.checked ? docs.map((d) => d.id) : [])
+          }
+        >
+          全选
+        </Checkbox>
+      </div>
+      <div
+        style={{
+          display: 'grid',
+          gap: 4,
+          maxHeight: all ? 280 : undefined,
+          overflowY: all ? 'auto' : undefined,
+        }}
+      >
+        {shown.map((d) => {
+          const on = checked.includes(d.id);
+          return (
+            <div
+              key={d.id}
+              style={{
+                display: 'flex',
+                gap: 10,
+                alignItems: 'center',
+                fontSize: 13,
+                opacity: on ? 1 : 0.55,
+              }}
+            >
+              <Checkbox
+                checked={on}
+                onChange={(e) =>
+                  onChange(
+                    e.target.checked
+                      ? [...checked, d.id]
+                      : checked.filter((x) => x !== d.id),
+                  )
+                }
+              >
+                <span style={{ color: palette.ink }}>
+                  {d.docNo ?? d.customerName}
+                </span>
+              </Checkbox>
+              <Tag variant="filled" style={{ margin: 0 }}>
+                {d.stageCode} {d.stageName}
+              </Tag>
+              <span style={{ marginLeft: 'auto', fontSize: 12 }}>
+                <DueText item={d} />
+              </span>
+            </div>
+          );
+        })}
+      </div>
+      {docs.length > shown.length && (
+        <Button
+          type="link"
+          size="small"
+          style={{ justifySelf: 'start', padding: 0 }}
+          onClick={onShowAll}
+        >
+          还有 {docs.length - shown.length} 张 · 展开
+        </Button>
+      )}
+    </div>
+  );
+};
+
 export interface RecordTarget {
   customerId?: number;
   customerName?: string;
   /** 已知的跟进对象（列表 / 待办打开时带入）；不传时按客户取最需要跟进的一条 */
   item?: FollowupItem;
+  /** 这次跟进涉及的单据（客户行、待办卡片带入），默认全选；不传时只有 item 一张 */
+  items?: FollowupItem[];
 }
 
 const RecordFollowupModal: React.FC<{
@@ -124,9 +226,24 @@ const RecordFollowupModal: React.FC<{
   const [customerOptions, setCustomerOptions] = useState<
     { value: number; label: string }[]
   >([]);
-  const [item, setItem] = useState<FollowupItem>();
+  /** 可选的单据与勾选的单据 */
+  const [docs, setDocs] = useState<FollowupItem[]>([]);
+  const [checked, setChecked] = useState<number[]>([]);
+  const [allDocs, setAllDocs] = useState(false);
+  const selected = docs.filter((d) => checked.includes(d.id));
+  /** 主单据：带入的那张仍勾选时用它，否则用勾选的第一张；决定阶段问题、卡点字典 */
+  const item = selected.find((d) => d.id === target?.item?.id) ?? selected[0];
+  /** 所选单据阶段不同：只填通用内容 */
+  const mixed = new Set(selected.map((d) => d.stageCode)).size > 1;
+  const mixedBlocked =
+    mixed && selected.some((d) => ANSWER_STAGES.includes(d.stageCode));
   const blockers = useBlockers(item?.board ?? BOARD_SALES);
-  const kind = stageKind(item);
+  const kind = mixed ? 'general' : stageKind(item);
+  const pickDocs = (list: FollowupItem[]) => {
+    setDocs(list);
+    setChecked(list.map((d) => d.id));
+    setAllDocs(false);
+  };
   const [answers, setAnswers] = useState<StageAnswers>(emptyAnswers);
   // 「有问题」保存后打开新建售后单
   const [afterSales, setAfterSales] = useState<{
@@ -188,7 +305,7 @@ const RecordFollowupModal: React.FC<{
     setAnswers(emptyAnswers());
     setCustomerId(target?.customerId);
     setCustomerName(target?.customerName ?? target?.item?.customerName);
-    setItem(target?.item);
+    pickDocs(target?.items ?? (target?.item ? [target.item] : []));
     if (target?.item?.expectedPayDate)
       setPayDate(dayjs(target.item.expectedPayDate));
     if (target?.item?.blockerCode) setBlocker(target.item.blockerCode);
@@ -202,19 +319,19 @@ const RecordFollowupModal: React.FC<{
       .customerSummary(customerId)
       .then((s) => {
         if (!alive) return;
-        setItem(s.current);
+        pickDocs(s.currentItems ?? (s.current ? [s.current] : []));
         if (s.current?.blockerCode) setBlocker(s.current.blockerCode);
         if (s.current?.expectedPayDate)
           setPayDate(dayjs(s.current.expectedPayDate));
       })
-      .catch(() => alive && setItem(undefined));
+      .catch(() => alive && pickDocs([]));
     return () => {
       alive = false;
     };
   }, [open, customerId, target]);
 
-  // 换了跟进对象：阶段答案重来
-  useEffect(() => setAnswers(emptyAnswers()), [item?.id]);
+  // 换了主单据或阶段是否相同变了：阶段答案重来
+  useEffect(() => setAnswers(emptyAnswers()), [item?.id, mixed]);
 
   const searchCustomer = (keyword: string) => {
     customerApi
@@ -330,24 +447,38 @@ const RecordFollowupModal: React.FC<{
 
   // ------------------------------------------------------------ 保存
 
-  const isPi = item?.targetType === TARGET.PI;
+  const isPi =
+    selected.length > 0 && selected.every((d) => d.targetType === TARGET.PI);
   const vague = VAGUE.test(nextAction.replace(/[\s，。,.!！?？]/g, ''));
 
   const effect = (() => {
     const parts: string[] = [];
-    if (item && item.stageGroup === GROUP.AFTER_QUOTE) {
-      const target =
-        situation & SITUATION.NEGOTIATING
-          ? 'S6 商务谈判'
-          : situation & SITUATION.FEEDBACK
-            ? 'S5 报价反馈'
-            : undefined;
-      if (target && target.slice(0, 2) > item.stageCode)
-        parts.push(`推进到 ${target}`);
-    }
-    if (nextDate && nextAction.trim())
+    const advance =
+      situation & SITUATION.NEGOTIATING
+        ? 'S6 商务谈判'
+        : situation & SITUATION.FEEDBACK
+          ? 'S5 报价反馈'
+          : undefined;
+    const moved = advance
+      ? selected.filter(
+          (d) =>
+            d.stageGroup === GROUP.AFTER_QUOTE &&
+            advance.slice(0, 2) > d.stageCode,
+        )
+      : [];
+    if (moved.length === 1 && selected.length > 1)
+      parts.push(`${moved[0].docNo ?? '单据'} 推进到 ${advance}`);
+    else if (moved.length === 1) parts.push(`推进到 ${advance}`);
+    else if (moved.length > 1)
+      parts.push(`${moved.length} 张单据推进到 ${advance}`);
+    const when =
+      nextDate &&
+      (nextDate.isSame(dayjs(), 'day') ? '今天' : fmtDate(nextDate));
+    if (when && nextAction.trim())
       parts.push(
-        `${nextDate.isSame(dayjs(), 'day') ? '今天' : fmtDate(nextDate)} 提醒你：${nextAction.trim()}`,
+        selected.length > 1
+          ? `${selected.length} 张单据的下一步改到 ${when}`
+          : `${when} 提醒你：${nextAction.trim()}`,
       );
     const stage = stageEffect(kind, answers, item);
     if (stage) parts.unshift(stage);
@@ -361,6 +492,14 @@ const RecordFollowupModal: React.FC<{
   const submit = async () => {
     if (!customerId) {
       message.warning('请先选择客户');
+      return;
+    }
+    if (docs.length > 0 && selected.length === 0) {
+      message.warning('请至少选一张单据');
+      return;
+    }
+    if (mixedBlocked) {
+      message.warning('要回答阶段问题，请只选同一阶段的单据');
       return;
     }
     if (!nextAction.trim()) {
@@ -383,6 +522,7 @@ const RecordFollowupModal: React.FC<{
       const r = await followupApi.record({
         customerId,
         itemId: item?.id,
+        itemIds: docs.length > 1 ? selected.map((d) => d.id) : undefined,
         situation,
         blockerCode: blocker,
         nextAction: nextAction.trim(),
@@ -394,7 +534,7 @@ const RecordFollowupModal: React.FC<{
         expectedPayDate: isPi && payDate ? iso(payDate) : undefined,
         profile: Object.keys(profile).length ? profile : undefined,
         idempotencyKey: keyRef.current,
-        ...stagePayload(kind, answers, item?.stageCode),
+        ...(mixed ? {} : stagePayload(kind, answers, item?.stageCode)),
       });
       message.success(
         r.ended
@@ -476,7 +616,7 @@ const RecordFollowupModal: React.FC<{
   return (
     <>
       <Modal
-        title="记一次跟进"
+        title={customerName ? `记一次跟进 · ${customerName}` : '记一次跟进'}
         open={open}
         width={720}
         onCancel={onClose}
@@ -497,7 +637,12 @@ const RecordFollowupModal: React.FC<{
             </span>
             <Space>
               <Button onClick={onClose}>取消</Button>
-              <Button type="primary" loading={saving} onClick={submit}>
+              <Button
+                type="primary"
+                loading={saving}
+                disabled={mixedBlocked}
+                onClick={submit}
+              >
                 保存
               </Button>
             </Space>
@@ -513,9 +658,7 @@ const RecordFollowupModal: React.FC<{
             flexWrap: 'wrap',
           }}
         >
-          {target?.customerId || target?.item ? (
-            <b style={{ color: palette.ink }}>{customerName}</b>
-          ) : (
+          {!target?.customerId && !target?.item && (
             <Select
               showSearch={{ filterOption: false, onSearch: searchCustomer }}
               placeholder="搜索客户名称"
@@ -526,12 +669,14 @@ const RecordFollowupModal: React.FC<{
               onChange={(v, opt) => {
                 setCustomerId(v);
                 setCustomerName((opt as { label: string }).label);
-                setItem(undefined);
+                pickDocs([]);
               }}
             />
           )}
-          {item && item.board !== BOARD_SALES && <StageTag item={item} />}
-          {item && item.board === BOARD_SALES && (
+          {item && docs.length <= 1 && item.board !== BOARD_SALES && (
+            <StageTag item={item} />
+          )}
+          {item && docs.length <= 1 && item.board === BOARD_SALES && (
             <Tag variant="filled" color="blue">
               {item.stageCode} {item.stageName}
               {item.docNo && ` · ${item.docNo}`}
@@ -541,10 +686,31 @@ const RecordFollowupModal: React.FC<{
             </Tag>
           )}
         </div>
-        {orderLine && (
+        {orderLine && docs.length <= 1 && (
           <div style={{ fontSize: 12, color: palette.sub, marginTop: 6 }}>
             {orderLine}
           </div>
+        )}
+        {docs.length > 1 && (
+          <DocChecklist
+            docs={docs}
+            checked={checked}
+            all={allDocs}
+            onShowAll={() => setAllDocs(true)}
+            onChange={setChecked}
+          />
+        )}
+        {mixed && item && item.board !== BOARD_SALES && (
+          <Alert
+            style={{ marginTop: 12 }}
+            type="warning"
+            showIcon
+            title={
+              mixedBlocked
+                ? '所选单据阶段不同，不能一起回答阶段问题。请只选同一阶段的单据'
+                : '所选单据阶段不同，只填通用内容。要回答阶段问题，请只选同一阶段的单据'
+            }
+          />
         )}
 
         {/* 粘贴区 */}
@@ -664,7 +830,7 @@ const RecordFollowupModal: React.FC<{
           />
         )}
 
-        {kind === 'general' && (
+        {kind === 'general' && (!mixed || item?.board === BOARD_SALES) && (
           <>
             {/* 客户情况 */}
             <SectionLabel>客户情况</SectionLabel>
