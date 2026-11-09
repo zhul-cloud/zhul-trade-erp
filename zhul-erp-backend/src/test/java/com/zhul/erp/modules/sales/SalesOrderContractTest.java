@@ -58,6 +58,26 @@ class SalesOrderContractTest extends SalesContractSupport {
         assertEquals("PI 已转成订单 SO" + today() + "001", fail(convert(pi)).path("message").asText());
     }
 
+    /** spec sales/sales-order「订单列表查看全部型号」：分页，顺序与明细一致，带币种；看不到的订单不能查 */
+    @Test
+    void orderModels_paged_scoped() throws Exception {
+        long c = customer("ACROBOT", "India");
+        long pi = sentPi(quotationItemIds(quotation(c, 2, "USD", "60", FOUR)), 5);
+        ok(uploadSlip(pi, "667.00", "2026-10-07", admin));
+        JsonNode so = ok(convert(pi));
+        long id = so.path("id").asLong();
+        JsonNode p1 = ok(call(get(SO + "/" + id + "/models").param("page", "1").param("pageSize", "3"), admin));
+        assertEquals(4, p1.path("total").asInt());
+        assertEquals(3, p1.path("records").size());
+        assertEquals(so.path("items").get(0).path("model").asText(), p1.path("records").get(0).path("model").asText());
+        assertEquals("USD", p1.path("records").get(0).path("currencyCode").asText());
+        JsonNode p2 = ok(call(get(SO + "/" + id + "/models").param("page", "2").param("pageSize", "3"), admin));
+        assertEquals(so.path("items").get(3).path("model").asText(), p2.path("records").get(0).path("model").asText());
+        jdbc.update("update sales_order set owner_id = ? where id = ?", BUYER_LIN, id);
+        loginWithResources("it_so_staff", MENU_SO);
+        assertEquals("销售订单不存在", call(get(SO + "/" + id + "/models"), token("it_so_staff")).path("message").asText());
+    }
+
     /** 已发送、有水单、PI 当前版本备注为 remark 的 PI */
     private long paidPiWithRemark(long customer, String remark) throws Exception {
         long pi = sentPi(quotationItemIds(quotation(customer, 2, "USD", null, FOUR[0])), null);

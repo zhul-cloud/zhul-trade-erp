@@ -13,7 +13,11 @@ import dayjs, { type Dayjs } from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
 import { CustomerCell } from '@/components/DocFields';
 import EllipsisText, { ellipsisRender } from '@/components/EllipsisText';
-import { TagList } from '@/pages/inquiry/customer-inquiry/ModelCells';
+import {
+  ModalTitle,
+  PagedModelsModal,
+  TagList,
+} from '@/pages/inquiry/customer-inquiry/ModelCells';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
 import { auditColumns } from '@/pages/purchase/components';
 import { CURRENCIES } from '@/pages/quotation/components';
@@ -32,6 +36,7 @@ import {
   SalesPageTitle,
 } from '../components';
 import {
+  allOrderModels,
   type OrderListItem,
   type OrderQuery,
   type OrderStats,
@@ -93,6 +98,7 @@ const OrderList: React.FC = () => {
   const [error, setError] = useState<string>();
   const [createOpen, setCreateOpen] = useState(false);
   const [newOpen, setNewOpen] = useState(false);
+  const [viewing, setViewing] = useState<OrderListItem>();
   const canFromPi = !!access.salesPi;
   const canManual = !!access['sales:order:create'];
   const users = useUserOptions();
@@ -220,7 +226,14 @@ const OrderList: React.FC = () => {
             style={{ fontFamily: 'monospace' }}
           />
           {sub(
-            `${r.itemCount > 1 ? `共 ${r.itemCount} 个型号 · ` : ''}${r.totalQuantity ?? 0} 件`,
+            r.itemCount > 1 ? (
+              <>
+                共 {r.itemCount} 个型号 · {r.totalQuantity ?? 0} 件 ·{' '}
+                <a onClick={() => setViewing(r)}>查看</a>
+              </>
+            ) : (
+              `${r.totalQuantity ?? 0} 件`
+            ),
           )}
         </div>
       ),
@@ -699,6 +712,21 @@ const OrderList: React.FC = () => {
         × 结汇汇率）− 实际成本，点表头可按毛利排序；收款进度 = 已到账（毛额）÷
         合计；订单状态取所有型号中最靠前的进度。
       </div>
+      <PagedModelsModal
+        openId={viewing?.id}
+        showPrice
+        title={
+          <ModalTitle
+            count={viewing?.itemCount}
+            sub={`${viewing?.soNo ?? ''} · ${viewing?.customerName ?? ''}`}
+          />
+        }
+        note="按订单明细的顺序"
+        fetchPage={(p, s) => orderApi.models(viewing?.id as number, p, s)}
+        fetchAll={() => allOrderModels(viewing?.id as number)}
+        onOpenDetail={() => viewing && history.push(PATHS.order(viewing.id))}
+        onClose={() => setViewing(undefined)}
+      />
       <NewOrderDrawer
         open={newOpen}
         canFromPi={canFromPi}

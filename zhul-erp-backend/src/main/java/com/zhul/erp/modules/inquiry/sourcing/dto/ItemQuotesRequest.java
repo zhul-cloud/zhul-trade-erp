@@ -15,6 +15,9 @@ public class ItemQuotesRequest {
     private Boolean noStock;
     @Size(max = 300, message = "无货说明不能超过 300 字")
     private String noStockNote;
+    /** 无货时的附件（代理商回复、停产通知等），与有货报价同样最多 5 个 */
+    @Size(max = 5, message = "无货附件最多 5 个")
+    private List<Long> noStockAttachmentIds;
     @Valid
     @Size(max = 20, message = "每个型号最多 20 条报价")
     private List<QuoteEntryRequest> quotes;

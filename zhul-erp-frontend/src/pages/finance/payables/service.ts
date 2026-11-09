@@ -237,6 +237,20 @@ export interface RegisterPaymentBody {
 }
 
 /** 供应商资料里的收款账户：登记付款时选择对方账户用，账号为完整账号 */
+export interface BatchPaymentBody {
+  method: number;
+  payDate: string;
+  idempotencyKey: string;
+  groups: {
+    bankAccountId: number;
+    payeeAccountId?: number;
+    amount: number;
+    amountCny?: number;
+    attachmentIds: number[];
+    payableIds: number[];
+  }[];
+}
+
 export interface PayeeAccount {
   id: number;
   /** 1-对公、2-对私 */
@@ -277,6 +291,8 @@ export const paymentApi = {
   stats: (q: Omit<PaymentQuery, 'page' | 'pageSize'>) =>
     get<PaymentStats>(`${PY}/stats`, q),
   register: (body: RegisterPaymentBody) => send<Payment>(PY, body),
+  /** 批量付款：每组一个收款方 + 币种，生成一笔付款单，整批同一事务 */
+  batch: (body: BatchPaymentBody) => send<Payment[]>(`${PY}/batch`, body),
   /** 这张应付单收款方（供应商、货代）的收款账户，默认账户在前 */
   payeeAccounts: (payableId: number) =>
     get<PayeeAccount[]>(`${PY}/payee-accounts`, { payableId }),
