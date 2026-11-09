@@ -579,6 +579,19 @@ public class FollowupSync {
         return out;
     }
 
+    /** SOP 参考停留天数：阶段 → 天数，全部板块；租户自己的覆盖平台的 */
+    public Map<String, Integer> refDays() {
+        List<SopStageDO> rows = sopStageMapper.selectList(new LambdaQueryWrapper<SopStageDO>()
+                .select(SopStageDO::getTenantId, SopStageDO::getStageCode, SopStageDO::getRefDays)
+                .eq(SopStageDO::getStatus, 1));
+        rows.sort(Comparator.comparing(SopStageDO::getTenantId));
+        Map<String, Integer> out = new HashMap<>(64);
+        for (SopStageDO s : rows) {
+            out.put(s.getStageCode(), s.getRefDays());
+        }
+        return out;
+    }
+
     private Map<String, String> parseActions(String json) {
         if (json == null || json.isBlank()) {
             return Map.of();

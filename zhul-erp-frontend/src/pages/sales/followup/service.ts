@@ -158,6 +158,27 @@ export const NO_NEED_REASONS = [
   { value: 'OTHER', label: '其他' },
 ];
 export const RECORD_USER = 1;
+/** 跟进记录类型：调整阶段 */
+export const RECORD_STAGE = 3;
+
+/** 可以手动调整的判断段：同一段内可前进或后退 */
+export const ADJUST_SEGMENTS = [
+  ['S1', 'S2'],
+  ['S4', 'S5', 'S6'],
+  ['D4', 'D5', 'D6'],
+];
+export const adjustSegment = (stage?: string) =>
+  ADJUST_SEGMENTS.find((s) => !!stage && s.includes(stage));
+export const ADJUST_REASONS = [
+  { value: 'HISTORY', label: '历史数据阶段不对' },
+  { value: 'LAGGING', label: '系统判断滞后' },
+  { value: 'CHANGED', label: '客户情况变化' },
+  { value: 'OTHER', label: '其他' },
+];
+/** 快速记录的实际沟通日期最多往前选几天 */
+export const CONTACT_BACK_DAYS = 30;
+/** 今日待办每次加载的客户数 */
+export const TODAY_PAGE = 20;
 
 /** 客户情况位掩码 */
 export const SITUATION = { FEEDBACK: 1, NEGOTIATING: 2, NO_REPLY: 4 } as const;
@@ -225,6 +246,9 @@ export interface FollowupItem {
   nurtureReason?: string;
   nurtureReasonName?: string;
   suggestNurture?: boolean;
+  /** 记跟进「什么时候」的推荐日期与理由 */
+  suggestDate?: string;
+  suggestReason?: string;
   sopHint?: string;
   ownerId?: number;
   ownerName?: string;
@@ -557,6 +581,10 @@ export interface FollowupRecord {
   docNo?: string;
   /** 一次跟进涉及多张单据时的单号 */
   docNos?: string[];
+  /** 快速记录：只选了结果，下一步由系统按阶段填 */
+  quick?: boolean;
+  /** 快速记录的实际沟通日期 */
+  contactDate?: string;
   createTime: string;
 }
 
@@ -706,6 +734,8 @@ export interface TeamOwner {
   overdue: number;
   manySnoozes: number;
   records: number;
+  /** 本期跟进中的快速记录次数 */
+  quickRecords?: number;
   prevRecords: number;
   attention: boolean;
 }
@@ -770,6 +800,18 @@ export interface Team {
   exceptions: { total: number; items: TeamException[] };
 }
 
+/** 快速跟进结果：dateRule 为 NORMAL / TOMORROW / NO_REPLY */
+export interface QuickResult {
+  code: string;
+  label: string;
+  advanceTo?: string;
+  dateRule: 'NORMAL' | 'TOMORROW' | 'NO_REPLY';
+}
+
+export interface QuickEntry extends BatchEntry {
+  result: string;
+}
+
 interface Resp<T> {
   data: T;
 }
@@ -808,6 +850,34 @@ export const followupApi = {
     request<Resp<BatchResult>>(`${BASE}/batch-snooze`, {
       method: 'POST',
       data: { entries, date },
+    }).then((r) => r.data),
+  /** 各阶段可选的快速跟进结果：阶段 → 结果 */
+  quickResults: () =>
+    request<Resp<Record<string, QuickResult[]>>>(`${BASE}/quick-results`).then(
+      (r) => r.data,
+    ),
+  quick: (
+    data: QuickEntry & { contactDate?: string; idempotencyKey: string },
+  ) =>
+    request<Resp<number>>(`${BASE}/quick`, { method: 'POST', data }).then(
+      (r) => r.data,
+    ),
+  quickBatch: (data: {
+    entries: QuickEntry[];
+    contactDate?: string;
+    idempotencyKey: string;
+  }) =>
+    request<Resp<BatchResult>>(`${BASE}/quick-batch`, {
+      method: 'POST',
+      data,
+    }).then((r) => r.data),
+  adjustStage: (
+    id: number,
+    data: { toStage: string; reason: string; note?: string },
+  ) =>
+    request<Resp<string>>(`${BASE}/items/${id}/stage`, {
+      method: 'POST',
+      data,
     }).then((r) => r.data),
   snooze: (id: number, date: string) =>
     request(`${BASE}/items/${id}/snooze`, { method: 'POST', data: { date } }),

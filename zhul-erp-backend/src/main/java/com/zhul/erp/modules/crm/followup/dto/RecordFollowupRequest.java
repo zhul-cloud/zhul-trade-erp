@@ -40,6 +40,10 @@ public class RecordFollowupRequest {
     @Size(max = 1000, message = "摘要不能超过1000个字")
     private String summary;
     private Long aiTaskId;
+    /** 快速记录：由快速跟进生成，不在弹窗里填写 */
+    private Boolean quick;
+    /** 实际沟通日期：不能晚于今天、不能早于 30 天前，只在快速记录时有效 */
+    private LocalDate contactDate;
     private LocalDate expectedPayDate;
     private Map<String, String> profile;
     private Integer noticeMask;

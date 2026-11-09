@@ -10,7 +10,7 @@ import {
 import { Button, Checkbox, Skeleton } from 'antd';
 import React, { useState } from 'react';
 import { useAppTheme } from '@/theme/AppTheme';
-import type { Picked } from './Batch';
+import type { Picked, SelectAll } from './Batch';
 import { TODAY_COLOR } from './boardStyle';
 import {
   Card,
@@ -21,16 +21,17 @@ import {
   StageTag,
   ValueCell,
 } from './components';
+import { QuickButton, StageAdjust } from './QuickActions';
 import type { RecordTarget } from './RecordFollowupModal';
 import {
   type FollowupItem,
   NEXT_USER,
+  TODAY_PAGE,
   type Today,
   type TodayBoard,
   type TodayCustomer,
 } from './service';
 
-const TODAY_FOLD = 8;
 /** 卡片展开后默认显示的到期单据数 */
 const DOC_FOLD = 4;
 
@@ -154,7 +155,7 @@ const boardTarget = (c: TodayCustomer, b: TodayBoard): RecordTarget => ({
   items: b.items,
 });
 
-/** 板块的延后、记跟进：作用于这个客户在该板块的到期单据 */
+/** 板块的延后、已跟进、记跟进：作用于这个客户在该板块的到期单据 */
 const BoardActions: React.FC<{
   c: TodayCustomer;
   b: TodayBoard;
@@ -168,6 +169,13 @@ const BoardActions: React.FC<{
         { customerId: c.customerId, itemIds: b.items.map((i) => i.id) },
       ]}
       disabled={!canRecord}
+      onDone={onChanged}
+    />
+    <QuickButton
+      customerId={c.customerId}
+      items={b.items}
+      disabled={!canRecord}
+      onRecord={() => onRecord(boardTarget(c, b))}
       onDone={onChanged}
     />
     <Button
@@ -247,6 +255,13 @@ const TodayCard: React.FC<{
           />
         )}
         {single && <StageTag item={tagOf(single)} withCode />}
+        {single && (
+          <StageAdjust
+            item={single.lead}
+            canRecord={canRecord}
+            onDone={onChanged}
+          />
+        )}
         <CustomerLink item={c} />
         <ValueCell item={c} />
         {c.country && (
@@ -308,6 +323,11 @@ const TodayCard: React.FC<{
           >
             <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
               <StageTag item={tagOf(b)} withCode />
+              <StageAdjust
+                item={b.lead}
+                canRecord={canRecord}
+                onDone={onChanged}
+              />
               <div style={{ flex: 1, minWidth: 0, display: 'grid', gap: 4 }}>
                 <Reminder item={b.lead} />
                 <Sop item={b.lead} />
@@ -342,13 +362,15 @@ export const pickOfToday = (c: TodayCustomer): Picked => ({
   items: c.boards.flatMap((b) => b.items),
 });
 
-/** 今日待办（K1）：按客户，已逾期、今天两段，今天已跟进收在底部；超过 8 个客户折叠 */
+/** 今日待办（K1）：按客户，已逾期、今天两段，今天已跟进收在底部；每次加载 20 个客户 */
 export const TodayList: React.FC<{
   today?: Today;
   canRecord: boolean;
   picked: Record<number, Picked>;
   onPick: (p: Picked, on: boolean) => void;
-  batchBar?: React.ReactNode;
+  /** 全选：换成已加载的客户；取消时清空 */
+  onPickAll: (list: Picked[]) => void;
+  batchBar: (selectAll: SelectAll) => React.ReactNode;
   onRecord: (t: RecordTarget) => void;
   onChanged: () => void;
   onBrowse: () => void;
@@ -357,6 +379,7 @@ export const TodayList: React.FC<{
   canRecord,
   picked,
   onPick,
+  onPickAll,
   batchBar,
   onRecord,
   onChanged,
@@ -364,7 +387,7 @@ export const TodayList: React.FC<{
 }) => {
   const { palette } = useAppTheme();
   const [only, setOnly] = useState<Section>();
-  const [all, setAll] = useState(false);
+  const [limit, setLimit] = useState(TODAY_PAGE);
   const [showHandled, setShowHandled] = useState(false);
   if (!today)
     return (
@@ -378,7 +401,7 @@ export const TodayList: React.FC<{
     { key: 'overdue' as const, title: '已逾期', rows: today.overdue },
     { key: 'today' as const, title: '今天', rows: today.today },
   ].filter((x) => !only || x.key === only);
-  let budget = all ? Number.POSITIVE_INFINITY : TODAY_FOLD;
+  let budget = limit;
   const shown = sections.map((x) => {
     const rows = x.rows.slice(0, Math.max(0, budget));
     budget -= rows.length;
@@ -386,6 +409,13 @@ export const TodayList: React.FC<{
   });
   const totalRows = sections.reduce((n, x) => n + x.rows.length, 0);
   const shownRows = shown.reduce((n, x) => n + x.rows.length, 0);
+  const loaded = shown.flatMap((x) => x.rows);
+  const pickedLoaded = loaded.filter((c) => picked[c.customerId]).length;
+  const selectAll: SelectAll = {
+    checked: pickedLoaded > 0 && pickedLoaded === loaded.length,
+    indeterminate: pickedLoaded > 0 && pickedLoaded < loaded.length,
+    onChange: (on) => onPickAll(on ? loaded.map(pickOfToday) : []),
+  };
   const card = (c: TodayCustomer, section: Section | 'handled') => (
     <TodayCard
       key={c.customerId}
@@ -407,7 +437,10 @@ export const TodayList: React.FC<{
     <button
       type="button"
       key={label}
-      onClick={() => setOnly(key && only === key ? undefined : key)}
+      onClick={() => {
+        setOnly(key && only === key ? undefined : key);
+        setLimit(TODAY_PAGE);
+      }}
       style={{
         all: 'unset',
         cursor: key ? 'pointer' : 'default',
@@ -495,7 +528,7 @@ export const TodayList: React.FC<{
           palette.inset,
         )}
       </div>
-      {batchBar}
+      {batchBar(selectAll)}
       {shown.map(
         (x) =>
           x.rows.length > 0 && (
@@ -523,8 +556,12 @@ export const TodayList: React.FC<{
       )}
       {shownRows < totalRows && (
         <div style={{ textAlign: 'center', marginTop: 12 }}>
-          <Button type="link" onClick={() => setAll(true)}>
-            还有 {totalRows - shownRows} 个客户 · 展开
+          <Button type="link" onClick={() => setLimit((n) => n + TODAY_PAGE)}>
+            再加载 {Math.min(TODAY_PAGE, totalRows - shownRows)} 个
+            <span style={{ color: palette.mute }}>
+              {' '}
+              · 还有 {totalRows - shownRows} 个 <DownOutlined />
+            </span>
           </Button>
         </div>
       )}
