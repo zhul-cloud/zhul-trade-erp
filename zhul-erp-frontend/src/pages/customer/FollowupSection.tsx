@@ -34,6 +34,7 @@ import {
   type FollowupItem,
   type FollowupRecord,
   followupApi,
+  RECORD_STAGE,
   RECORD_USER,
   readBizError,
   type SopCard,
@@ -103,10 +104,19 @@ const RecordRow: React.FC<{ r: FollowupRecord; last: boolean }> = ({
   const [raw, setRaw] = useState(false);
   const t = dayjs(r.createTime);
   const user = r.recordType === RECORD_USER;
-  const moved = r.stageAfter && r.stageBefore !== r.stageAfter;
-  const title = user
-    ? [r.channelName, r.situationLabels.join('、')].filter(Boolean).join(' · ')
-    : r.title;
+  /** 业务员手动调整阶段：摘要为「理由：说明」 */
+  const adjust = r.recordType === RECORD_STAGE;
+  const [reason, ...rest] = adjust ? (r.summary ?? '').split('：') : [];
+  const quick = user && r.quick;
+  const moved = !adjust && r.stageAfter && r.stageBefore !== r.stageAfter;
+  const title = quick
+    ? r.summary
+    : user
+      ? [r.channelName, r.situationLabels.join('、')]
+          .filter(Boolean)
+          .join(' · ')
+      : r.title;
+  const summary = quick ? undefined : adjust ? rest.join('：') : r.summary;
   return (
     <div style={{ display: 'flex', gap: 12 }}>
       <div style={{ width: 84, flexShrink: 0, fontSize: 12 }}>
@@ -159,6 +169,8 @@ const RecordRow: React.FC<{ r: FollowupRecord; last: boolean }> = ({
           >
             {title || '跟进'}
           </span>
+          {quick && <Pill tone="orange">快速记录</Pill>}
+          {adjust && reason && <Pill tone="gray">{reason}</Pill>}
           {moved && (
             <Pill tone="green">
               <RiseOutlined /> {r.stageBefore || '—'} → {r.stageAfter}
@@ -173,12 +185,14 @@ const RecordRow: React.FC<{ r: FollowupRecord; last: boolean }> = ({
           )}
           <span style={{ flex: 1 }} />
           <span style={{ fontSize: 12, color: palette.mute }}>
-            {user ? `${r.operatorName ?? ''} 记录` : '系统'}
+            {user || adjust
+              ? `${r.operatorName ?? ''} ${adjust ? '调整' : '记录'}`
+              : '系统'}
           </span>
         </div>
-        {r.summary && (
+        {summary && (
           <div style={{ marginTop: 4, color: palette.sub, fontSize: 13 }}>
-            {r.summary}
+            {summary}
           </div>
         )}
         {user && (r.blockerName || r.nextAction) && (
@@ -200,6 +214,9 @@ const RecordRow: React.FC<{ r: FollowupRecord; last: boolean }> = ({
             )}
             {r.nextAction && (
               <span>
+                {quick &&
+                  r.contactDate &&
+                  `实际沟通 ${dayjs(r.contactDate).format('MM-DD')} · `}
                 下一步 {r.nextAction}
                 {r.nextActionDate &&
                   ` · ${dayjs(r.nextActionDate).format('MM-DD')}`}

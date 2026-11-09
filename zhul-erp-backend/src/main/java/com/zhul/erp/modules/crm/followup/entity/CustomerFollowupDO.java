@@ -19,6 +19,10 @@ public class CustomerFollowupDO {
     private Long id;
     private Integer tenantId;
     private Integer recordType;
+    /** 是否快速记录（0-否、1-是） */
+    private Integer quick;
+    /** 实际沟通日期，快速记录时填写 */
+    private LocalDate contactDate;
     private Long customerId;
     private Long followupItemId;
     private Integer targetType;

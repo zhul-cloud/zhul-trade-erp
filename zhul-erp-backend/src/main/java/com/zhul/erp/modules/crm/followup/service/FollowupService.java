@@ -44,6 +44,7 @@ import com.zhul.erp.modules.crm.followup.repository.SopBlockerMapper;
 import com.zhul.erp.modules.crm.followup.repository.SopStageMapper;
 import com.zhul.erp.modules.crm.followup.support.AccountStageRecorder;
 import com.zhul.erp.modules.crm.followup.support.Cadence;
+import com.zhul.erp.modules.crm.followup.support.NextDateSuggest;
 import com.zhul.erp.modules.crm.followup.support.CustomerRollup;
 import com.zhul.erp.modules.crm.followup.support.DevelopStageRecorder;
 import com.zhul.erp.modules.crm.followup.support.DevelopCadence;
@@ -708,6 +709,12 @@ public class FollowupService {
         if (channel != 0 && !FollowupConstants.CHANNEL_NAMES.containsKey(channel)) {
             throw new BizException("跟进方式不正确");
         }
+        boolean quick = Boolean.TRUE.equals(req.getQuick());
+        LocalDate contactDate = quick && req.getContactDate() != null ? req.getContactDate() : null;
+        if (contactDate != null && (contactDate.isAfter(today)
+                || contactDate.isBefore(today.minusDays(FollowupConstants.CONTACT_BACK_DAYS)))) {
+            throw new BizException("实际沟通日期只能选今天和之前 " + FollowupConstants.CONTACT_BACK_DAYS + " 天内");
+        }
         int situation = req.getSituation() == null ? 0 : req.getSituation()
                 & (FollowupConstants.SITUATION_FEEDBACK | FollowupConstants.SITUATION_NEGOTIATING
                 | FollowupConstants.SITUATION_NO_REPLY);
@@ -739,6 +746,8 @@ public class FollowupService {
         CustomerFollowupDO r = new CustomerFollowupDO();
         r.setTenantId(TenantContext.getTenantId());
         r.setRecordType(FollowupConstants.RECORD_USER);
+        r.setQuick(quick ? 1 : 0);
+        r.setContactDate(quick ? (contactDate == null ? today : contactDate) : null);
         r.setCustomerId(customer.getId());
         r.setFollowupItemId(item == null ? 0L : item.getId());
         r.setTargetType(item == null ? 0 : item.getTargetType());
@@ -1210,6 +1219,8 @@ public class FollowupService {
             FollowupRecordVO vo = new FollowupRecordVO();
             vo.setId(r.getId());
             vo.setRecordType(r.getRecordType());
+            vo.setQuick(nz(r.getQuick()) == 1);
+            vo.setContactDate(r.getContactDate());
             vo.setTitle(r.getTitle());
             vo.setSituation(r.getSituation());
             int s = nz(r.getSituation());
@@ -1271,6 +1282,45 @@ public class FollowupService {
 
     // ---------------------------------------------------------------- 行数据
 
+    /** 几张单据一起记时的推荐日期：取各单据推荐日期中最早的一个（spec「下一步日期推荐」） */
+    NextDateSuggest.Suggestion suggestFor(List<FollowupItemDO> rows, LocalDate today) {
+        FollowupSettings.Params params = settings.params(TenantContext.getTenantId());
+        Map<String, Integer> refDays = sync.refDays();
+        List<Integer> sequence = rows.stream().anyMatch(DevelopStageRecorder::handles)
+                ? settings.developSequence(TenantContext.getTenantId()) : List.of();
+        int[] followDays = rows.stream().anyMatch(AccountStageRecorder::handles)
+                ? gradeSettings.params(TenantContext.getTenantId()).followDays() : null;
+        Map<Long, CustomerDO> customers = followDays == null ? Map.of()
+                : customerMapper.selectBatchIds(rows.stream().map(FollowupItemDO::getCustomerId).collect(Collectors.toSet()))
+                .stream().collect(Collectors.toMap(CustomerDO::getId, Function.identity()));
+        NextDateSuggest.Suggestion best = null;
+        for (FollowupItemDO i : rows) {
+            CustomerDO c = customers.get(i.getCustomerId());
+            int grade = c == null ? 0 : nz(c.getBizGrade());
+            NextDateSuggest.Suggestion s = NextDateSuggest.of(i, today, params.quoteDays(), params.piIntervalDays(), sequence,
+                    refDays.get(i.getStageCode()),
+                    followDays != null && grade >= 1 && grade <= followDays.length ? followDays[grade - 1] : null);
+            if (best == null || s.date().isBefore(best.date())) {
+                best = s;
+            }
+        }
+        return best;
+    }
+
+    /** SOP 默认动作：阶段 → 默认下一步文字，全部板块 */
+    Map<String, String> defaultActionTexts() {
+        Map<String, Map<String, String>> actions = new HashMap<>(sync.defaultActions());
+        actions.putAll(orderSync.defaultActions());
+        Map<String, String> out = new HashMap<>(actions.size() * 2);
+        actions.forEach((stage, m) -> {
+            String text = m.get("default");
+            if (StringUtils.hasText(text)) {
+                out.put(stage, text);
+            }
+        });
+        return out;
+    }
+
     private List<FollowupItemVO> toVos(List<FollowupItemDO> rows, LocalDate today, boolean withOwner) {
         if (rows.isEmpty()) {
             return new ArrayList<>();
@@ -1307,6 +1357,7 @@ public class FollowupService {
         List<Integer> sequence = anyDevelop ? settings.developSequence(TenantContext.getTenantId()) : List.of();
         Map<Long, Integer> priorities = anyDevelop ? reportPriorities(rows.stream().filter(DevelopStageRecorder::handles)
                 .map(FollowupItemDO::getCustomerId).collect(Collectors.toSet())) : Map.of();
+        Map<String, Integer> refDays = sync.refDays();
         List<FollowupItemVO> out = new ArrayList<>(rows.size());
         for (FollowupItemDO i : rows) {
             FollowupItemVO vo = new FollowupItemVO();
@@ -1357,6 +1408,12 @@ public class FollowupService {
             vo.setNextAction(i.getNextAction());
             vo.setNextActionDate(i.getNextActionDate());
             vo.setNextActionSource(i.getNextActionSource());
+            int grade = c == null ? 0 : nz(c.getBizGrade());
+            NextDateSuggest.Suggestion sg = NextDateSuggest.of(i, today, params.quoteDays(), params.piIntervalDays(),
+                    sequence, refDays.get(i.getStageCode()),
+                    followDays != null && grade >= 1 && grade <= followDays.length ? followDays[grade - 1] : null);
+            vo.setSuggestDate(sg.date());
+            vo.setSuggestReason(sg.reason());
             vo.setOverdueDays(due(i) && i.getNextActionDate().isBefore(today)
                     ? (int) ChronoUnit.DAYS.between(i.getNextActionDate(), today) : 0);
             vo.setSnoozeCount(nz(i.getSnoozeCount()));
@@ -1586,7 +1643,7 @@ public class FollowupService {
     }
 
     /** 未结束、在可见范围内（自己负责的，或有「查看团队」权限且在数据权限内的） */
-    private FollowupItemDO requireOpen(Long id) {
+    FollowupItemDO requireOpen(Long id) {
         FollowupItemDO item = id == null ? null : itemMapper.selectById(id);
         if (item == null || item.getDeletedAt() != null) {
             throw new BizException("跟进对象不存在");

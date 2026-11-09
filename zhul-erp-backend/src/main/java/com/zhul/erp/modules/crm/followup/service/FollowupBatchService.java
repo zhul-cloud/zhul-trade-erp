@@ -5,6 +5,8 @@ import com.zhul.erp.modules.crm.followup.constants.FollowupConstants;
 import com.zhul.erp.modules.crm.followup.dto.BatchFollowupRequest;
 import com.zhul.erp.modules.crm.followup.dto.BatchResultVO;
 import com.zhul.erp.modules.crm.followup.dto.BatchSnoozeRequest;
+import com.zhul.erp.modules.crm.followup.dto.QuickBatchRequest;
+import com.zhul.erp.modules.crm.followup.dto.QuickFollowupRequest;
 import com.zhul.erp.modules.crm.followup.dto.RecordFollowupRequest;
 import com.zhul.erp.modules.crm.followup.entity.FollowupItemDO;
 import com.zhul.erp.modules.crm.followup.repository.FollowupItemMapper;
@@ -33,6 +35,7 @@ import java.util.stream.Collectors;
 public class FollowupBatchService {
 
     private final FollowupService followupService;
+    private final FollowupQuickService quickService;
     private final FollowupItemMapper itemMapper;
     private final CustomerMapper customerMapper;
 
@@ -103,6 +106,32 @@ public class FollowupBatchService {
         }
         vo.setSuccess(success);
         vo.setItems(items);
+        return vo;
+    }
+
+    /** 批量快速跟进（spec「快速跟进」）：每个客户各带自己的结果，共用实际沟通日期 */
+    public BatchResultVO quick(QuickBatchRequest req) {
+        BatchResultVO vo = new BatchResultVO();
+        Map<Long, String> names = customerNames(req.getEntries().stream().map(QuickBatchRequest.Entry::getCustomerId).toList());
+        int success = 0;
+        int items = 0;
+        for (QuickBatchRequest.Entry e : req.getEntries()) {
+            QuickFollowupRequest q = new QuickFollowupRequest();
+            q.setCustomerId(e.getCustomerId());
+            q.setItemIds(e.getItemIds());
+            q.setResult(e.getResult());
+            q.setContactDate(req.getContactDate());
+            q.setIdempotencyKey(req.getIdempotencyKey().trim() + "-" + e.getCustomerId());
+            try {
+                items += quickService.quick(q);
+                success++;
+            } catch (BizException ex) {
+                fail(vo, e.getCustomerId(), names, ex.getMessage());
+            }
+        }
+        vo.setSuccess(success);
+        vo.setItems(items);
+        log.info("批量快速跟进，客户 {} 个，成功 {} 个", req.getEntries().size(), success);
         return vo;
     }
 
