@@ -3,6 +3,7 @@ import {
   CloseOutlined,
   MergeCellsOutlined,
   PlusOutlined,
+  RobotOutlined,
   SearchOutlined,
 } from '@ant-design/icons';
 import { Link, useAccess } from '@umijs/max';
@@ -17,6 +18,7 @@ import {
   Segmented,
   Select,
   Skeleton,
+  Spin,
   Table,
 } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
@@ -42,11 +44,57 @@ import {
 } from '../service';
 import { ImportDrawer } from './ImportDrawer';
 import {
+  type AiFill,
+  type AiFillMode,
   type ApproveBody,
   type Candidate,
   candidateApi,
   readBizError,
 } from './service';
+
+/** 批量 AI 解析每次最多条数 */
+const AI_FILL_MAX = 200;
+const AI_FILL_KEY = 'zhul:candidate:ai-fill';
+const AI_MODE_NAME: Record<AiFillMode, string> = {
+  category: '品类',
+  brand: '品牌',
+};
+
+/** 运行中的批量 AI 解析存在浏览器里，离开页面再回来继续看进度 */
+const readAiJob = (): AiFill | null => {
+  try {
+    const raw = localStorage.getItem(AI_FILL_KEY);
+    return raw ? (JSON.parse(raw) as AiFill) : null;
+  } catch {
+    return null;
+  }
+};
+const writeAiJob = (job: AiFill | null) => {
+  try {
+    if (job) localStorage.setItem(AI_FILL_KEY, JSON.stringify(job));
+    else localStorage.removeItem(AI_FILL_KEY);
+  } catch {
+    // 浏览器禁用存储时只是离开页面后看不到进度，不影响解析结果
+  }
+};
+
+/** AI 写入的品类、品牌标记 */
+const AiTag: React.FC<{ text?: string }> = ({ text = 'AI 建议' }) => (
+  <Pill tone="violet">
+    <RobotOutlined /> {text}
+  </Pill>
+);
+
+/** 跑完的结果提示 */
+const aiSummary = (j: AiFill) => {
+  const skipped = j.skipped ? `，跳过 ${j.skipped} 个` : '';
+  const unchanged = j.unchanged
+    ? `，${j.unchanged} 个没写入（AI 判断不出或期间已被修改）`
+    : '';
+  return j.mode === 'brand'
+    ? `AI 解析品牌完成：匹配 ${j.matched ?? 0} 个、未识别 ${j.unmatched ?? 0} 个${skipped}${unchanged}`
+    : `AI 解析品类完成：填了 ${j.filled ?? 0} 个${skipped}${unchanged}`;
+};
 
 type Tab = 1 | 2 | 3 | 4;
 type TabCounts = Awaited<ReturnType<typeof candidateApi.counts>>;
@@ -208,7 +256,7 @@ const ReviewDrawer: React.FC<{
         setForm({
           brandMode: d.brandId ? 'EXISTING' : 'NEW',
           brandId: d.brandId ?? undefined,
-          brandName: d.brandId ? undefined : d.brandText,
+          brandName: d.brandId ? undefined : d.aiBrandName || d.brandText,
           categoryId: d.categoryId ?? undefined,
           mpnRaw: d.mpnRaw,
           mpnDisplay: d.mpnRaw,
@@ -394,6 +442,11 @@ const ReviewDrawer: React.FC<{
             <>
               <div>
                 <Label required>品牌</Label>
+                {c.aiBrand === 1 && form.brandId === c.brandId && (
+                  <div style={{ marginBottom: 6 }}>
+                    <AiTag /> {c.brandText ? `原文「${c.brandText}」` : ''}
+                  </div>
+                )}
                 {c.brandId ? (
                   <Select
                     value={form.brandId}
@@ -427,6 +480,12 @@ const ReviewDrawer: React.FC<{
                         待确认品牌：{c.brandText || '（空）'}
                       </Pill>{' '}
                       品牌库里没有，也不是任何品牌的别名
+                      {c.aiBrand === 2 && c.aiBrandName && (
+                        <div style={{ marginTop: 6 }}>
+                          <AiTag text={`AI 未识别：${c.aiBrandName}`} />{' '}
+                          新建品牌时已按这个名称预填，可修改
+                        </div>
+                      )}
                     </div>
                     <Radio.Group
                       value={form.brandMode}
@@ -435,7 +494,9 @@ const ReviewDrawer: React.FC<{
                           brandMode: e.target.value,
                           brandId: undefined,
                           brandName:
-                            e.target.value === 'NEW' ? c.brandText : undefined,
+                            e.target.value === 'NEW'
+                              ? c.aiBrandName || c.brandText
+                              : undefined,
                           seriesId: undefined,
                         })
                       }
@@ -507,6 +568,11 @@ const ReviewDrawer: React.FC<{
               >
                 <div>
                   <Label required>品类</Label>
+                  {c.aiCategory === 1 && form.categoryId === c.categoryId && (
+                    <div style={{ marginBottom: 6 }}>
+                      <AiTag />
+                    </div>
+                  )}
                   <Select
                     value={form.categoryId}
                     showSearch={{ optionFilterProp: 'label' }}
@@ -869,6 +935,8 @@ const Candidates: React.FC = () => {
   const [selected, setSelected] = useState<Candidate[]>([]);
   const [viewing, setViewing] = useState<number>();
   const [busy, setBusy] = useState(false);
+  const [aiJob, setAiJob] = useState<AiFill | null>(readAiJob);
+  const [aiDone, setAiDone] = useState<AiFill | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -906,6 +974,61 @@ const Candidates: React.FC = () => {
     setSelected([]);
     load();
     refreshCount();
+  };
+
+  // 轮询运行中的批量 AI 解析；跑完提示结果并刷新列表
+  useEffect(() => {
+    if (!aiJob?.taskId) return;
+    const taskId = aiJob.taskId;
+    const timer = setInterval(async () => {
+      try {
+        const r = await candidateApi.aiFillStatus(taskId);
+        if (r.status !== 3 && r.status !== 4) return;
+        setAiJob(null);
+        writeAiJob(null);
+        if (r.status === 4) {
+          message.error(
+            `AI 解析失败：${r.errorMessage || '未知原因'}，候选没有变化`,
+          );
+          return;
+        }
+        setAiDone({ ...r, skipped: aiJob.skipped });
+        changed();
+      } catch {
+        // 任务查不到（如换了账号）：不再轮询
+        setAiJob(null);
+        writeAiJob(null);
+      }
+    }, 3000);
+    return () => clearInterval(timer);
+  }, [aiJob?.taskId]);
+
+  const aiFill = async (mode: AiFillMode) => {
+    if (selected.length > AI_FILL_MAX) {
+      message.warning(`每次最多 ${AI_FILL_MAX} 条，已选 ${selected.length} 条`);
+      return;
+    }
+    try {
+      const r = await candidateApi.aiFill(
+        mode,
+        selected.map((c) => c.id),
+      );
+      setAiDone(null);
+      if (!r.taskId) {
+        message.info(
+          mode === 'brand'
+            ? '选中的候选品牌都已确认，没有需要解析的'
+            : '选中的候选都已选了细分品类，没有需要解析的',
+        );
+        return;
+      }
+      const job = { ...r, mode };
+      setAiJob(job);
+      writeAiJob(job);
+      setSelected([]);
+    } catch (e) {
+      message.error(readBizError(e).message);
+    }
   };
 
   /** 批量通过前提示：没选品类（或品牌待确认）的会被跳过 */
@@ -994,7 +1117,16 @@ const Candidates: React.FC = () => {
           {c.brandName} · {c.mpnRaw}
         </b>
         <div style={{ fontSize: 12, color: palette.mute }}>
-          {c.originalModel ? `回填自「${c.originalModel}」` : '品牌 ✓'}
+          {c.aiBrand === 1 && (
+            <>
+              <AiTag /> {c.brandText ? `原文「${c.brandText}」 ` : ''}
+            </>
+          )}
+          {c.originalModel
+            ? `回填自「${c.originalModel}」`
+            : c.aiBrand === 1
+              ? ''
+              : '品牌 ✓'}
           {c.orderCode ? ` · 订货号 ${c.orderCode}` : ''}
         </div>
       </div>
@@ -1004,7 +1136,12 @@ const Candidates: React.FC = () => {
           待确认品牌：{c.brandText || '（空）'} · {c.mpnRaw}
         </b>
         <div style={{ fontSize: 12, color: palette.mute }}>
-          品牌未识别{c.orderCode ? ` · 订货号 ${c.orderCode}` : ''}
+          {c.aiBrand === 2 && c.aiBrandName ? (
+            <AiTag text={`AI 未识别：${c.aiBrandName}`} />
+          ) : (
+            '品牌未识别'
+          )}
+          {c.orderCode ? ` · 订货号 ${c.orderCode}` : ''}
         </div>
       </div>
     );
@@ -1022,7 +1159,14 @@ const Candidates: React.FC = () => {
       key: 'category',
       width: 130,
       render: (_, c) =>
-        c.categoryName ?? <span style={{ color: palette.mute }}>— 请选择</span>,
+        c.categoryName ? (
+          <div style={{ display: 'grid', gap: 4, justifyItems: 'start' }}>
+            {c.categoryName}
+            {c.aiCategory === 1 && <AiTag />}
+          </div>
+        ) : (
+          <span style={{ color: palette.mute }}>— 请选择</span>
+        ),
     },
     {
       title: '名称',
@@ -1109,6 +1253,26 @@ const Candidates: React.FC = () => {
             <Button icon={<PlusOutlined />} onClick={() => setImportOpen(true)}>
               添加候选
             </Button>
+            {tab === 1 &&
+              canReview &&
+              (['category', 'brand'] as AiFillMode[]).map((mode) => (
+                <Button
+                  key={mode}
+                  icon={<RobotOutlined />}
+                  disabled={!aiJob && selected.length === 0}
+                  loading={aiJob?.mode === mode}
+                  onClick={() => (aiJob ? undefined : aiFill(mode))}
+                  title={
+                    aiJob
+                      ? '上一次 AI 解析跑完后才能再提交'
+                      : `勾选候选后由 AI 补全${AI_MODE_NAME[mode]}，每次最多 ${AI_FILL_MAX} 条`
+                  }
+                >
+                  {aiJob?.mode === mode
+                    ? `AI 解析${AI_MODE_NAME[mode]}中…`
+                    : `AI 解析${AI_MODE_NAME[mode]}${selected.length ? ` · ${selected.length}` : ''}`}
+                </Button>
+              ))}
             {tab === 1 && canReview && (
               <Button
                 type="primary"
@@ -1199,6 +1363,55 @@ const Candidates: React.FC = () => {
           查询
         </Button>
       </div>
+      {aiJob?.taskId && (
+        <Card style={{ marginBottom: 16 }}>
+          <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+            <Spin size="small" />
+            <b style={{ color: palette.ink }}>
+              AI 正在解析{AI_MODE_NAME[aiJob.mode ?? 'category']} · 共{' '}
+              {aiJob.total} 个
+            </b>
+            <span style={{ color: palette.mute, fontSize: 12 }}>
+              {aiJob.skipped ? `跳过 ${aiJob.skipped} 个 · ` : ''}
+              可以离开页面，跑完会刷新列表并提示结果
+            </span>
+          </div>
+        </Card>
+      )}
+      {aiDone && (
+        <Card style={{ marginBottom: 16 }}>
+          <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+            <CheckOutlined style={{ color: palette.green }} />
+            <span style={{ display: 'grid', gap: 2 }}>
+              <b style={{ color: palette.ink }}>{aiSummary(aiDone)}</b>
+              <span style={{ color: palette.mute, fontSize: 12 }}>
+                {aiDone.mode === 'brand'
+                  ? '未识别的保留原文，审核时可新建品牌或设为已有品牌的别名'
+                  : 'AI 填的品类标「AI 建议」，审核时可以改'}
+              </span>
+            </span>
+            <span style={{ flex: 1 }} />
+            {aiDone.mode === 'brand' && !!aiDone.unmatched && (
+              <a
+                onClick={() => {
+                  setBrandState(2);
+                  setQuery((q) => ({ ...q, brandState: 2 }));
+                  setPage(1);
+                }}
+              >
+                只看待确认品牌
+              </a>
+            )}
+            <Button
+              type="text"
+              size="small"
+              icon={<CloseOutlined />}
+              onClick={() => setAiDone(null)}
+              aria-label="关闭结果提示"
+            />
+          </div>
+        </Card>
+      )}
       {error ? (
         <ErrorHint message={error} onRetry={load} />
       ) : (

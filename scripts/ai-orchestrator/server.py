@@ -617,6 +617,88 @@ def process_translate(payload: dict, callback_url: str, prompt: str = TRANSLATE_
         send_callback(callback_url, "failed", error=message[:500])
 
 
+CANDIDATE_SKILL = "candidate-classify"
+
+# 一次调用的条数：品类清单较长，分批调用控制单次输入和输出长度
+CANDIDATE_BATCH = 50
+
+CANDIDATE_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "items": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {"key": {"type": "string"}, "categoryId": {"type": "integer"}, "brand": {"type": "string"}},
+                "required": ["key", "categoryId", "brand"],
+            },
+        }
+    },
+    "required": ["items"],
+}
+
+CANDIDATE_CATEGORY_PROMPT = """你是工控自动化产品的商品运营。根据每个商品候选的品牌、型号、名称、描述和来源品类文字，判断它属于下面品类清单里的哪个品类：
+- 只能从清单里选，categoryId 填清单里的 ID；优先选细分品类，判断不出细分时选一级品类
+- 实在判断不出时 categoryId 填 0，不要猜
+- brand 一律填空字符串
+- key 原样返回，每条输入都要有对应输出
+只输出 JSON。
+
+品类清单（ID：一级品类 / 细分品类）：
+{categories}"""
+
+CANDIDATE_BRAND_PROMPT = """你是工控自动化产品的商品运营。根据每个商品候选的品牌原文、型号、名称和描述，判断它的品牌（制造商）：
+- brand 填品牌的通用英文名，如 Siemens、Mitsubishi、Omron、Allen-Bradley、Schneider Electric；不要带公司后缀（Co.、Ltd.、GmbH 等）
+- 品牌原文是缩写、别称或拼写有误的，改成通用名称；原文为空的，按型号规则判断
+- 实在判断不出时 brand 填空字符串，不要猜
+- categoryId 一律填 0
+- key 原样返回，每条输入都要有对应输出
+只输出 JSON。"""
+
+
+def _candidate_prompt(input_data: dict) -> str:
+    if input_data.get("mode") == "brand":
+        return CANDIDATE_BRAND_PROMPT
+    lines = [f"{c.get('id')}：{c.get('name')}" for c in input_data.get("categories") or []]
+    return CANDIDATE_CATEGORY_PROMPT.replace("{categories}", "\n".join(lines))
+
+
+def call_candidate_classify(cfg: AiConfig, input_data: dict) -> dict:
+    """按 50 条一批判断商品候选的品类或品牌，合并后一次返回；不联网搜索。"""
+    items = input_data.get("items") or []
+    prompt = _candidate_prompt(input_data)
+    results = []
+    for i in range(0, len(items), CANDIDATE_BATCH):
+        batch = items[i:i + CANDIDATE_BATCH]
+        structured = call_api(cfg, prompt, json.dumps({"items": batch}, ensure_ascii=False), [], CANDIDATE_SCHEMA,
+                              model=cfg.parse_model, effort=cfg.parse_effort)
+        if "items" not in structured:
+            raise RuntimeError("AI 未返回符合 schema 的结果")
+        results.extend(structured["items"])
+    print(f"[ai-orchestrator] 商品候选{('品牌' if input_data.get('mode') == 'brand' else '品类')}解析完成 {len(items)} 条")
+    return {"items": results}
+
+
+def process_candidate(payload: dict, callback_url: str):
+    start_job()
+    key = _api_key_of(payload)
+    try:
+        cfg = parse_ai_config(payload.get("ai"))
+        input_data = payload.get("input") or {}
+        if not input_data.get("items"):
+            send_callback(callback_url, "failed", error="没有需要解析的候选")
+            return
+        send_callback(callback_url, "success", output=call_candidate_classify(cfg, input_data))
+    except ConfigError as e:
+        send_callback(callback_url, "failed", error=str(e))
+    except (JobTimeout, anthropic.APITimeoutError, openai.APITimeoutError):
+        send_callback(callback_url, "failed", error=f"AI 处理超过 {TIMEOUT_SECONDS} 秒未完成")
+    except Exception as e:
+        message = scrub(str(e), key)
+        print(f"[ai-orchestrator] candidate-classify failed: {message}")
+        send_callback(callback_url, "failed", error=message[:500])
+
+
 BACKGROUND_SKILL = "customer-background"
 
 BACKGROUND_SCHEMA = {
@@ -1169,6 +1251,11 @@ class Handler(BaseHTTPRequestHandler):
         if skill_id in (FOLLOWUP_EXTRACT_SKILL, FOLLOWUP_REPLY_SKILL):
             if callback_url:
                 threading.Thread(target=process_followup, args=(payload, callback_url, skill_id), daemon=True).start()
+            return
+
+        if skill_id == CANDIDATE_SKILL:
+            if callback_url:
+                threading.Thread(target=process_candidate, args=(payload, callback_url), daemon=True).start()
             return
 
         if skill_id == BACKGROUND_SKILL:

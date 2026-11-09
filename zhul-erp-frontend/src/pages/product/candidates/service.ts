@@ -28,6 +28,12 @@ export interface Candidate {
   categoryId?: number | null;
   categoryName?: string;
   categoryText?: string;
+  /** 品类是否 AI 建议（0-否、1-是） */
+  aiCategory?: number;
+  /** 品牌 AI 解析结果（0-未解析、1-匹配到已有品牌、2-未识别） */
+  aiBrand?: number;
+  /** AI 给出的品牌名（未识别时供审核参考） */
+  aiBrandName?: string;
   productName?: string;
   description?: string;
   descriptionEn?: string;
@@ -113,6 +119,11 @@ export const candidateApi = {
       approved: number;
       skipped: { id: number; label: string; reason: string }[];
     }>('POST', `${C}/batch-approve`, { ids }),
+  /** 批量 AI 解析品类或品牌；全部跳过时不产生任务，taskId 为空 */
+  aiFill: (mode: AiFillMode, ids: number[]) =>
+    send<AiFill>('POST', `${C}/ai-fill`, { mode, ids }),
+  aiFillStatus: (taskId: number) =>
+    send<AiFill>('GET', `${C}/ai-fill/${taskId}`),
   merge: (id: number, productId: number) =>
     send<Candidate>('POST', `${C}/${id}/merge`, { productId }),
   reject: (id: number, reason: number, note?: string) =>
@@ -124,6 +135,23 @@ export const candidateApi = {
   importConfirm: (files: ImportFile[]) =>
     send<ImportResult>('POST', `${C}/import/confirm`, { files }),
 };
+
+export type AiFillMode = 'category' | 'brand';
+
+/** 批量 AI 解析的进度与结果 */
+export interface AiFill {
+  taskId?: number | null;
+  mode?: AiFillMode;
+  /** 1-排队中、2-处理中、3-已完成、4-失败 */
+  status?: number;
+  total?: number;
+  skipped?: number;
+  filled?: number;
+  matched?: number;
+  unmatched?: number;
+  unchanged?: number;
+  errorMessage?: string;
+}
 
 export interface ImportFile {
   fileName: string;
