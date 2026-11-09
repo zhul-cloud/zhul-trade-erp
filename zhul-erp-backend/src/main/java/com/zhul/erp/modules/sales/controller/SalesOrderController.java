@@ -105,6 +105,14 @@ public class SalesOrderController {
         return Result.ok(service.detail(id));
     }
 
+    /** 列表「查看」弹窗：分页列出订单全部型号 */
+    @GetMapping("/orders/{id}/models")
+    @PreAuthorize("@perm.canAccessMenu('/sales/orders') or @perm.canAccessMenu('/sales/pi')")
+    public Result<PageResult<com.zhul.erp.modules.sales.dto.SalesOrderModelVO>> models(@PathVariable Long id,
+            @RequestParam(defaultValue = "1") int page, @RequestParam(defaultValue = "20") int pageSize) {
+        return Result.ok(service.models(id, page, pageSize));
+    }
+
     @PostMapping("/orders/{id}/attachments")
     @PreAuthorize(EDIT_ATTACHMENT)
     public Result<SalesOrderVO> addAttachments(@PathVariable Long id, @Valid @RequestBody OrderAttachmentsRequest req) {

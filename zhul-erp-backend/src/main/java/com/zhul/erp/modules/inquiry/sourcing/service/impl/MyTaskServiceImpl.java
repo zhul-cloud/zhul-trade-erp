@@ -493,7 +493,8 @@ public class MyTaskServiceImpl implements MyTaskService {
         for (ItemQuotesRequest item : req.getItems()) {
             if (Boolean.TRUE.equals(item.getNoStock())) {
                 drafts.add(new QuoteDraft(item.getItemId(), true, InquiryConstants.CHANNEL_OTHER, "", null, null, false, null, 0, 0,
-                        item.getNoStockNote(), false));
+                        item.getNoStockNote(), false, true,
+                        item.getNoStockAttachmentIds() == null ? List.of() : item.getNoStockAttachmentIds()));
                 continue;
             }
             for (QuoteEntryRequest q : item.getQuotes() == null ? List.<QuoteEntryRequest>of() : item.getQuotes()) {
@@ -688,7 +689,7 @@ public class MyTaskServiceImpl implements MyTaskService {
             q.setSubmitBatch(batch);
             q.setQuoteRound(Objects.requireNonNullElse(item.getQuoteRound(), 0));
             quoteMapper.insert(q);
-            if (!d.noStock() && !d.attachmentIds().isEmpty()) {
+            if (!d.attachmentIds().isEmpty()) {
                 attachmentService.reassign(AttachmentService.SOURCING_QUOTE, d.attachmentIds(), ownQuoteIds, q.getId());
             }
             // 回价图片进素材库「供方实拍」；被替换的旧回价上的图片随之移走

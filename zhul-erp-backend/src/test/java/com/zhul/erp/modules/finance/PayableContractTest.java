@@ -372,6 +372,58 @@ class PayableContractTest extends SalesContractSupport {
                 fail(call(json(post(PY + "/" + first.path("id").asLong() + "/void"), write(Map.of("reason", "x"))), admin)).path("message").asText());
     }
 
+    private Map<String, Object> group(String amount, String cny, List<Long> payables) throws Exception {
+        Map<String, Object> g = new HashMap<>();
+        g.put("bankAccountId", account);
+        g.put("amount", new BigDecimal(amount));
+        if (cny != null) {
+            g.put("amountCny", new BigDecimal(cny));
+        }
+        g.put("attachmentIds", List.of(screenshot(admin)));
+        g.put("payableIds", payables);
+        return g;
+    }
+
+    private JsonNode batch(String key, List<Map<String, Object>> groups) throws Exception {
+        return call(json(post(PY + "/batch"), write(Map.of("method", 1, "payDate", LocalDate.now().toString(),
+                "idempotencyKey", key, "groups", groups))), admin);
+    }
+
+    /** spec「批量付款」：跨收款方每组一笔；金额改小按到期日核销；一组失败整批回滚；重复提交不重复生成 */
+    @Test
+    void batchPayment_perPayeeGroup_dueDateOrder_allOrNothing() throws Exception {
+        long a = supplier("华强电子", null);
+        long b = supplier("工控之家", null);
+        long a1 = bySource(orderedPo(a, "B-1", 1, "2400", List.of(term(100, 1, 0))).path("id").asLong(), admin).path("id").asLong();
+        long a2 = bySource(orderedPo(a, "B-2", 1, "1260", List.of(term(100, 1, 0))).path("id").asLong(), admin).path("id").asLong();
+        long b1 = bySource(orderedPo(b, "B-3", 1, "1200", List.of(term(100, 1, 0))).path("id").asLong(), admin).path("id").asLong();
+        // a2 先到期：金额改小时先核销 a2
+        jdbc.update("update fin_payable set next_due_date = ? where id = ?", LocalDate.now().plusDays(3), a1);
+        jdbc.update("update fin_payable set next_due_date = ? where id = ?", LocalDate.now().plusDays(1), a2);
+
+        // 超过未付合计：整批不保存，提示是哪一组
+        JsonNode bad = fail(batch("b-over", List.of(group("1200.00", null, List.of(b1)), group("9999.00", null, List.of(a1, a2)))));
+        assertTrue(bad.path("message").asText().startsWith("华强电子（CNY）：付款金额超过未付合计"), bad.toString());
+        assertEquals(0, jdbc.queryForObject("select count(*) from fin_payment where idempotency_key like 'b-over%'", Integer.class));
+        // 同一张应付单不能出现在两组
+        assertEquals("同一张应付单不能重复付款",
+                fail(batch("b-dup", List.of(group("1200.00", null, List.of(b1)), group("100.00", null, List.of(b1))))).path("message").asText());
+
+        List<Map<String, Object>> groups = List.of(group("3000.00", null, List.of(a1, a2)), group("1200.00", null, List.of(b1)));
+        JsonNode done = ok(batch("b-ok", groups));
+        assertEquals(2, done.size());
+        assertEquals(0, new BigDecimal("1260.00").compareTo(
+                jdbc.queryForObject("select amount from fin_payment_allocation where payable_id = ?", BigDecimal.class, a2)));
+        assertEquals(0, new BigDecimal("1740.00").compareTo(
+                jdbc.queryForObject("select amount from fin_payment_allocation where payable_id = ?", BigDecimal.class, a1)));
+        assertEquals(3, jdbc.queryForObject("select status from fin_payable where id = ?", Integer.class, a2));
+        assertEquals(2, jdbc.queryForObject("select status from fin_payable where id = ?", Integer.class, a1));
+        assertEquals(3, jdbc.queryForObject("select status from fin_payable where id = ?", Integer.class, b1));
+        // 同一批次重复提交：不重复生成
+        ok(batch("b-ok", groups));
+        assertEquals(2, jdbc.queryForObject("select count(*) from fin_payment where idempotency_key like 'b-ok%'", Integer.class));
+    }
+
     @Test
     void usdPaymentRecordsActualRate() throws Exception {
         long sup = supplier("Omron HK", null);

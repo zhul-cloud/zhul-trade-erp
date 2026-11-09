@@ -100,7 +100,7 @@ export const DueTag: React.FC<{
   return <span style={{ fontVariantNumeric: 'tabular-nums' }}>{d}</span>;
 };
 
-const newKey = () =>
+export const newKey = () =>
   typeof crypto !== 'undefined' && 'randomUUID' in crypto
     ? crypto.randomUUID()
     : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -125,7 +125,7 @@ const groupNo = (no: string) =>
   no.replace(/\s+/g, '').replace(/(.{4})(?=.)/g, '$1 ');
 
 /** 对方收款账户：供应商资料里的收款账户，单选，可取消；账号完整显示、可复制 */
-const PayeeAccountPicker: React.FC<{
+export const PayeeAccountPicker: React.FC<{
   method: number;
   accounts: PayeeAccount[];
   value?: number;
@@ -852,7 +852,7 @@ export const RegisterPaymentDrawer: React.FC<{
   );
 };
 
-const Field: React.FC<{
+export const Field: React.FC<{
   label: string;
   required?: boolean;
   flex?: boolean;

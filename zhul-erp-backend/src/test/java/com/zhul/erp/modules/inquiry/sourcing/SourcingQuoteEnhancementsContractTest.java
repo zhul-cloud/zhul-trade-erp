@@ -115,6 +115,32 @@ class SourcingQuoteEnhancementsContractTest extends InquiryContractSupport {
         assertTrue(ok(call(get(MY + "/" + task), lin)).path("items").get(0).path("quotes").get(0).path("freeShipping").asBoolean());
     }
 
+    /** spec「无货回价附件」：无货也能带附件，回显在回价上；超过 5 个报错 */
+    @Test
+    void noStockQuote_keepsAttachments() throws Exception {
+        loginAsAdmin("it_sqe_admin");
+        admin = token("it_sqe_admin");
+        long task = task(inquiry(MODEL));
+        long item = item(task);
+        String lin = token("it_lin");
+        long a = upload(lin);
+        long b = upload(lin);
+        Map<String, Object> row = new LinkedHashMap<>();
+        row.put("itemId", item);
+        row.put("noStock", true);
+        row.put("noStockNote", "代理商要 8 周");
+        row.put("noStockAttachmentIds", List.of(a, b));
+        ok(call(json(put(MY + "/" + task + "/quotes"), write(Map.of("submit", true, "items", List.of(row)))), lin));
+        JsonNode q = ok(call(get(MY + "/" + task), lin)).path("items").get(0).path("quotes").get(0);
+        assertTrue(q.path("noStock").asBoolean());
+        assertEquals(2, q.path("attachments").size());
+        assertEquals(q.path("id").asLong(), jdbc.queryForObject("select owner_id from biz_attachment where id = ?", Long.class, a));
+
+        row.put("noStockAttachmentIds", List.of(a, b, 3L, 4L, 5L, 6L));
+        JsonNode bad = call(json(put(MY + "/" + task + "/quotes"), write(Map.of("submit", true, "items", List.of(row)))), lin);
+        assertTrue(bad.path("message").asText().contains("无货附件最多 5 个"), bad.toString());
+    }
+
     @Test
     void searchMyTasks_andItemHistoryPrefersDeal() throws Exception {
         loginAsAdmin("it_sqe_admin");
