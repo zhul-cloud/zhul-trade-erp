@@ -2092,6 +2092,31 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         return n;
     }
 
+    @Override
+    public PageResult<com.zhul.erp.modules.sales.dto.SalesOrderModelVO> models(Long id, int page, int pageSize) {
+        SalesOrderDO o = visible(id);
+        com.baomidou.mybatisplus.extension.plugins.pagination.Page<SalesOrderItemDO> rows = orderItemMapper.selectPage(
+                new com.baomidou.mybatisplus.extension.plugins.pagination.Page<>(Math.max(page, 1), Math.min(Math.max(pageSize, 1), 100)),
+                new LambdaQueryWrapper<SalesOrderItemDO>()
+                        .select(SalesOrderItemDO::getId, SalesOrderItemDO::getBrand, SalesOrderItemDO::getModel,
+                                SalesOrderItemDO::getCategory, SalesOrderItemDO::getQuantity, SalesOrderItemDO::getUnitPrice)
+                        .eq(SalesOrderItemDO::getSoId, o.getId())
+                        .isNull(SalesOrderItemDO::getDeletedAt)
+                        .orderByAsc(SalesOrderItemDO::getLineNo)
+                        .orderByAsc(SalesOrderItemDO::getId));
+        return PageResult.of(rows.getTotal(), rows.getRecords().stream().map(i -> {
+            com.zhul.erp.modules.sales.dto.SalesOrderModelVO vo = new com.zhul.erp.modules.sales.dto.SalesOrderModelVO();
+            vo.setId(i.getId());
+            vo.setBrand(i.getBrand());
+            vo.setModel(i.getModel());
+            vo.setCategory(i.getCategory());
+            vo.setQuantity(i.getQuantity());
+            vo.setUnitPrice(i.getUnitPrice());
+            vo.setCurrencyCode(o.getCurrencyCode());
+            return vo;
+        }).toList());
+    }
+
     // ---------------------------------------------------------------- 内部
 
     private SalesOrderDO visible(Long id) {

@@ -11,6 +11,7 @@ import com.zhul.erp.framework.security.SecurityUtils;
 import com.zhul.erp.modules.attachment.dto.AttachmentVO;
 import com.zhul.erp.modules.attachment.service.AttachmentService;
 import com.zhul.erp.modules.finance.constants.FinanceConstants;
+import com.zhul.erp.modules.finance.dto.BatchPaymentRequest;
 import com.zhul.erp.modules.finance.dto.PaymentQuery;
 import com.zhul.erp.modules.finance.dto.PaymentStatsVO;
 import com.zhul.erp.modules.finance.dto.PaymentVO;
@@ -184,6 +185,98 @@ public class PaymentService {
         logService.recordOperateLog(MENU, "登记付款", null, Map.of("paymentNo", pay.getPaymentNo(), "payee", pay.getPayeeName(),
                 "amount", pay.getCurrencyCode() + " " + amount, "method", FinanceConstants.METHOD_NAMES.get(method)));
         return toVo(paymentMapper.selectById(pay.getId()));
+    }
+
+    /** 批量付款一次最多核销的应付单数 */
+    static final int MAX_BATCH_PAYABLES = 50;
+
+    /**
+     * 批量付款（spec「批量付款」）：每组一笔付款单，逐组复用 {@link #register}；整批同一事务，任一组失败整批回滚。
+     * 组内付款金额按到期日从早到晚（无到期日排最后）、再按编号依次核销；幂等键为「批次键-组序号」。
+     */
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
+    public List<PaymentVO> batchRegister(BatchPaymentRequest req) {
+        if (req.getMethod() != FinanceConstants.METHOD_COMPANY && req.getMethod() != FinanceConstants.METHOD_PRIVATE) {
+            throw new BizException("批量付款只支持公司对公和私对私");
+        }
+        String key = req.getIdempotencyKey().trim();
+        if (byKey(key + "-0") != null) {
+            // 同一批次重复提交：返回已生成的付款单，不再按当前未付重新分配
+            List<PaymentVO> done = new ArrayList<>(req.getGroups().size());
+            for (int i = 0; i < req.getGroups().size(); i++) {
+                PaymentDO p = byKey(key + "-" + i);
+                if (p != null) {
+                    done.add(toVo(p));
+                }
+            }
+            return done;
+        }
+        TreeSet<Long> all = new TreeSet<>();
+        int count = 0;
+        for (BatchPaymentRequest.Group g : req.getGroups()) {
+            for (Long id : g.getPayableIds()) {
+                count++;
+                if (id == null || !all.add(id)) {
+                    throw new BizException("同一张应付单不能重复付款");
+                }
+            }
+        }
+        if (count > MAX_BATCH_PAYABLES) {
+            throw new BizException("一次最多付 " + MAX_BATCH_PAYABLES + " 张应付单");
+        }
+        Map<Long, PayableDO> locked = lock(all);
+        List<PaymentVO> out = new ArrayList<>(req.getGroups().size());
+        for (int i = 0; i < req.getGroups().size(); i++) {
+            BatchPaymentRequest.Group g = req.getGroups().get(i);
+            List<PayableDO> rows = g.getPayableIds().stream().map(locked::get)
+                    .sorted(java.util.Comparator.comparing(PayableDO::getNextDueDate,
+                                    java.util.Comparator.nullsLast(java.util.Comparator.naturalOrder()))
+                            .thenComparing(PayableDO::getPayableNo))
+                    .toList();
+            String who = rows.get(0).getPayeeName() + "（" + rows.get(0).getCurrencyCode() + "）";
+            try {
+                out.add(register(groupRequest(req, g, rows, i)));
+            } catch (BizException e) {
+                throw new BizException(who + "：" + e.getMessage(), e);
+            }
+        }
+        logService.recordOperateLog(MENU, "批量付款", null, Map.of("payments", out.size(), "payables", count));
+        return out;
+    }
+
+    /** 一组的单笔登记请求：付款金额按到期日依次核销，不能超过未付合计 */
+    private static RegisterPaymentRequest groupRequest(BatchPaymentRequest req, BatchPaymentRequest.Group g, List<PayableDO> rows, int index) {
+        BigDecimal left = scale(g.getAmount());
+        BigDecimal unpaidTotal = BigDecimal.ZERO;
+        List<RegisterPaymentRequest.Line> lines = new ArrayList<>(rows.size());
+        for (PayableDO p : rows) {
+            BigDecimal unpaid = p.getAmount().subtract(p.getPaidAmount()).max(BigDecimal.ZERO);
+            unpaidTotal = unpaidTotal.add(unpaid);
+            BigDecimal take = left.min(unpaid);
+            if (take.signum() > 0) {
+                RegisterPaymentRequest.Line l = new RegisterPaymentRequest.Line();
+                l.setPayableId(p.getId());
+                l.setAmount(take);
+                lines.add(l);
+                left = left.subtract(take);
+            }
+        }
+        if (left.signum() > 0) {
+            throw new BizException("付款金额超过未付合计 " + unpaidTotal);
+        }
+        RegisterPaymentRequest r = new RegisterPaymentRequest();
+        r.setMethod(req.getMethod());
+        r.setBankAccountId(g.getBankAccountId());
+        r.setPayeeAccountId(g.getPayeeAccountId());
+        r.setPayDate(req.getPayDate());
+        r.setAmount(scale(g.getAmount()));
+        r.setAmountCny(g.getAmountCny());
+        r.setAttachmentIds(g.getAttachmentIds());
+        r.setAllocations(lines);
+        r.setCredits(List.of());
+        r.setRemark("");
+        r.setIdempotencyKey(req.getIdempotencyKey().trim() + "-" + index);
+        return r;
     }
 
     /**

@@ -99,6 +99,13 @@ public class CustomerInquiryController {
         return Result.ok(service.models(id));
     }
 
+    /** 列表「查看」弹窗分页：每页默认 20 个型号 */
+    @GetMapping("/{id}/models/page")
+    public Result<PageResult<InquiryModelLineVO>> modelsPage(@PathVariable Long id,
+            @RequestParam(defaultValue = "1") int page, @RequestParam(defaultValue = "20") int pageSize) {
+        return Result.ok(service.modelsPage(id, page, pageSize));
+    }
+
     /** 附件的临时访问链接：download=true 时强制下载，否则预览 */
     @GetMapping("/{id}/attachments/{attachmentId}/url")
     public Result<FileLink> attachmentUrl(@PathVariable Long id, @PathVariable Long attachmentId,
