@@ -9,7 +9,7 @@
 | 目标与影响范围 | 询价任务完结判断（`SourcingProgress`）、报价单状态同步（`InquiryStatusSync`）；一次性数据修正迁移 V1.5.19；不改表结构、不改前端 |
 | 起点 commit / 工作分支 | `aebe1d31`（origin/develop，v1.10.0 合回后）/ `fix/inquiry-task-quoted-items` |
 | OpenSpec | 缺陷修复，不新开提案 |
-| PR / 目标分支 | 待创建：fix/inquiry-task-quoted-items → develop |
+| PR / 目标分支 | [#205](https://github.com/zhul-cloud/zhul-trade-erp/pull/205)：fix/inquiry-task-quoted-items → develop（未合并） |
 | 合并证据 | — |
 | 目标版本 / 环境 | 下一个发布版本；生产 |
 
@@ -44,7 +44,7 @@
 
 ## 阻塞与下一步
 
-提交并创建 PR 发往 develop，用户确认后合并，随下次发版上线并在生产验收。
+已创建 PR #205 发往 develop，用户确认后合并，随下次发版上线并在生产验收。
 
 ## 事件记录
 
