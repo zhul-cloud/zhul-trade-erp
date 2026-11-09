@@ -86,6 +86,8 @@
 | [UI-041](../02-frontend/07-全量前端代码与页面审查.md) | 表格与列表在电脑低分辨率下布局失效 | P2 | 处理中 | Claude | [2026-11-04-UI-041](tasks/2026-11-04-UI-041-low-res-layout.md) | 2026-11-05 |
 | [UI-042](tasks/2026-11-05-BUS-028-user-feedback-defects.md) | 单据导出图片模糊，且下方大片空白 | P2 | 已合并待发布 | Claude | [2026-11-05-BUS-028](tasks/2026-11-05-BUS-028-user-feedback-defects.md) | 2026-11-05 |
 | [UI-043](tasks/2026-11-05-UI-043-inquiry-stats-filters.md) | 询盘管理顶部统计不随搜索条件变化，与列表对不上 | P2 | 已合并待发布 | Claude / Codex | [2026-11-05-UI-043](tasks/2026-11-05-UI-043-inquiry-stats-filters.md) | 2026-11-06 |
+| [UI-044](tasks/2026-11-09-UI-044-user-feedback-1109.md) | 报价单 / PI 预览模糊、PDF 页边和底部大片空白 | P2 | 待验证 | Claude | [2026-11-09-UI-044](tasks/2026-11-09-UI-044-user-feedback-1109.md) | 2026-11-09 |
+| [UI-045](tasks/2026-11-09-UI-044-user-feedback-1109.md) | 列表「型号 · 数量」列型号过长时盖住相邻的品牌列 | P3 | 待验证 | Claude | [2026-11-09-UI-044](tasks/2026-11-09-UI-044-user-feedback-1109.md) | 2026-11-09 |
 
 ## AI 可靠性
 
@@ -97,8 +99,8 @@
 | [AI-004](../04-ai-and-operations/01-AI任务可靠性与诊断.md) | 串行诊断的总超时预算超过 Java 的 30 秒请求期限 | P2 | 已发布待验收 | Claude | [2026-11-04-AI-001](tasks/2026-11-04-AI-001-task-reliability-batch-f.md) | 2026-11-05 |
 | [AI-005](../04-ai-and-operations/01-AI任务可靠性与诊断.md) | Claude 续传按单请求计时，整任务可超过 watchdog 期限而继续运行 | P1 | 已发布待验收 | Claude | [2026-11-04-AI-001](tasks/2026-11-04-AI-001-task-reliability-batch-f.md) | 2026-11-05 |
 | [AI-006](../04-ai-and-operations/03-全量运行脚本与配置审查.md) | 未连接到模型服务商时仍把API Key标为有效 | P2 | 已发布待验收 | Claude | [2026-11-04-AI-001](tasks/2026-11-04-AI-001-task-reliability-batch-f.md) | 2026-11-05 |
-| [AI-007](../04-ai-and-operations/01-AI任务可靠性与诊断.md) | 个人订阅方式同时只能执行一个任务，其他任务立即失败 | P2 | 已合并待发布 | Claude | [2026-11-06-AI-007](tasks/2026-11-06-AI-007-subscription-concurrency.md) | 2026-11-06 |
-| [AI-008](../04-ai-and-operations/01-AI任务可靠性与诊断.md) | 编排服务拒绝请求时不读请求体，Windows 下客户端偶发连接被中止 | P3 | 已合并待发布 | Claude | [2026-11-06-AI-008](tasks/2026-11-06-AI-008-token-reject-drain.md) | 2026-11-06 |
+| [AI-007](../04-ai-and-operations/01-AI任务可靠性与诊断.md) | 个人订阅方式同时只能执行一个任务，其他任务立即失败 | P2 | 已发布待验收 | Claude | [2026-11-06-AI-007](tasks/2026-11-06-AI-007-subscription-concurrency.md) | 2026-11-06 |
+| [AI-008](../04-ai-and-operations/01-AI任务可靠性与诊断.md) | 编排服务拒绝请求时不读请求体，Windows 下客户端偶发连接被中止 | P3 | 已发布待验收 | Claude | [2026-11-06-AI-008](tasks/2026-11-06-AI-008-token-reject-drain.md) | 2026-11-06 |
 
 ## 身份与对象权限
 
@@ -156,4 +158,4 @@
 | [DOC-005](../05-code-and-docs/01-文档与测试一致性.md) | 发布仓库缺少规范所要求的自动测试入口 | P2 | 已关闭 | Claude | [2026-11-03-DOC-005](tasks/2026-11-03-DOC-005-ci-pipeline.md) | 2026-11-04 |
 | [DOC-006](../05-code-and-docs/01-文档与测试一致性.md) | 当前历史迁移规范与实现对入库、付款和源变化的约定不一致 | P2 | 待认领 | — | — | 2026-11-01 |
 | [DOC-007](tasks/2026-11-03-SEC-011-tenant-isolation.md) | 售后时效测试两次取当前时间，跨秒时偶发失败 | P3 | 已关闭 | Claude | [2026-11-03-SEC-011](tasks/2026-11-03-SEC-011-tenant-isolation.md) | 2026-11-04 |
-| [DOC-008](../05-code-and-docs/01-文档与测试一致性.md) | CI 后端测试失败被管道掩盖，失败用例已随版本合入 | P1 | 处理中 | Claude | [2026-11-06-DOC-008](tasks/2026-11-06-DOC-008-ci-pipefail-speed.md) | 2026-11-06 |
+| [DOC-008](../05-code-and-docs/01-文档与测试一致性.md) | CI 后端测试失败被管道掩盖，失败用例已随版本合入 | P1 | 已关闭 | Claude | [2026-11-06-DOC-008](tasks/2026-11-06-DOC-008-ci-pipefail-speed.md) | 2026-11-06 |

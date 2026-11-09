@@ -2,6 +2,7 @@ import { history } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { App, Button, Modal, Table, Tooltip } from 'antd';
 import React, { useEffect, useState } from 'react';
+import EllipsisText from '@/components/EllipsisText';
 import { useAppTheme } from '@/theme/AppTheme';
 import { Pill } from '../shared/components';
 import { PATHS } from '../shared/constants';
@@ -55,10 +56,8 @@ export const ModelCell: React.FC<{
   const { palette } = useAppTheme();
   if (!r.firstModel) return <span style={{ color: palette.mute }}>—</span>;
   return (
-    <span style={{ display: 'inline-flex', flexDirection: 'column' }}>
-      <span style={{ fontFamily: 'monospace', whiteSpace: 'nowrap' }}>
-        {r.firstModel}
-      </span>
+    <span style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+      <EllipsisText text={r.firstModel} style={{ fontFamily: 'monospace' }} />
       {r.totalItemCount > 1 && (
         <span style={{ fontSize: 12, color: palette.mute }}>
           共 {r.totalItemCount} 个 · <a onClick={() => onView(r)}>查看</a>

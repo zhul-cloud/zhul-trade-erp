@@ -36,6 +36,15 @@ public class FollowupItemFilter {
     private BigDecimal tier1;
     private BigDecimal tier2;
     private BigDecimal tier3;
+    /** 只看这些客户（按客户分组的列表取页内客户的单据） */
+    private Collection<Long> customerIds;
+    /** 按客户分组：客户所处阶段（名下单据最靠后的阶段）的序号在这些里面，见 CustomerRollup.rank */
+    private Collection<Integer> stageRanks;
+    /** 按客户分组：名下有单据满足的条件（卡点、关键字、有异常、沉睡） */
+    private String matchBlocker;
+    private String matchKeyword;
+    private Boolean matchException;
+    private Boolean matchDormant;
     private Integer offset;
     private Integer size;
 }

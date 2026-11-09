@@ -83,7 +83,7 @@ class FollowupApiContractTest extends IntegrationTestBase {
     private void cleanup() {
         for (String t : new String[]{"quotation_version", "after_sales", "logistics_shipment", "outbound_order_item", "outbound_order", "purchase_order_item", "purchase_order",
                 "purchase_requirement", "sales_order_item",
-                "sales_order", "sourcing_quote", "inquiry_item", "followup_item", "customer_followup", "customer_field_source", "proforma_invoice_item",
+                "sales_order", "sourcing_quote", "inquiry_item", "followup_item", "customer_followup", "customer_followup_item", "customer_field_source", "proforma_invoice_item",
                 "proforma_invoice", "quotation_item", "quotation", "customer_inquiry", "opportunity_stage_log", "opportunity"}) {
             jdbc.update("delete from " + t + " where tenant_id = 0");
         }
@@ -396,7 +396,8 @@ class FollowupApiContractTest extends IntegrationTestBase {
         JsonNode today = ok(call(get(BASE + "/today"), staff));
         assertEquals(1, today.path("overdue").size());
         assertEquals(2, today.path("overdue").get(0).path("overdueDays").asInt());
-        assertFalse(today.path("overdue").get(0).path("manySnoozes").asBoolean(), "只有主管查看团队时标出");
+        assertFalse(today.path("overdue").get(0).path("boards").get(0).path("lead").path("manySnoozes").asBoolean(),
+                "只有主管查看团队时标出");
         assertEquals(1, today.path("today").size());
 
         loginAsAdmin("fu_admin");
@@ -405,7 +406,7 @@ class FollowupApiContractTest extends IntegrationTestBase {
         assertEquals(5, all.path("total").asInt());
         assertEquals(1, ok(call(get(BASE + "/items").param("ownerScope", String.valueOf(OTHER)), admin)).path("total").asInt());
         assertTrue(ok(call(get(BASE + "/today").param("ownerScope", "all"), admin)).path("overdue").get(0)
-                .path("manySnoozes").asBoolean(), "主管查看团队时标多次延后");
+                .path("boards").get(0).path("lead").path("manySnoozes").asBoolean(), "主管查看团队时标多次延后");
     }
 
     @Test
@@ -832,9 +833,11 @@ class FollowupApiContractTest extends IntegrationTestBase {
         assertTrue(fulfil.path("available").asBoolean());
         assertTrue(after.path("available").asBoolean());
         assertEquals(2, fulfil.path("total").asInt());
+        assertEquals(1, fulfil.path("customers").asInt());
         assertEquals(1, fulfil.path("exceptions").asInt());
         assertEquals("采购中", fulfil.path("groups").get(0).path("name").asText());
-        assertEquals(1, fulfil.path("groups").get(0).path("count").asInt());
+        // 按客户计：同一客户的 F3、F6 两张订单只算在最靠后的 F6（在途）
+        assertEquals(0, fulfil.path("groups").get(0).path("count").asInt());
         assertEquals(1, fulfil.path("groups").get(2).path("count").asInt(), "在途");
         assertEquals("物流跟踪", fulfil.path("groups").get(2).path("stages").get(0).path("name").asText());
         assertEquals(1, after.path("groups").get(2).path("count").asInt(), "问题");
@@ -870,11 +873,14 @@ class FollowupApiContractTest extends IntegrationTestBase {
 
         // 今日待办不重复列出跟着售后单走的 A3
         JsonNode today = ok(call(get(BASE + "/today"), staff));
-        for (JsonNode r : today.path("today")) {
-            assertNotEquals("A3", r.path("stageCode").asText());
-        }
-        for (JsonNode r : today.path("overdue")) {
-            assertNotEquals("A3", r.path("stageCode").asText());
+        for (String group : new String[]{"today", "overdue", "handled"}) {
+            for (JsonNode c : today.path(group)) {
+                for (JsonNode b : c.path("boards")) {
+                    for (JsonNode r : b.path("items")) {
+                        assertNotEquals("A3", r.path("stageCode").asText());
+                    }
+                }
+            }
         }
     }
 
@@ -1011,8 +1017,9 @@ class FollowupApiContractTest extends IntegrationTestBase {
         // 按负责人：李娜逾期 3、多次延后 3 → 需要关注，排在前面
         JsonNode lina = t.path("owners").get(0);
         assertEquals(OTHER, lina.path("ownerId").asLong());
-        assertEquals(3, lina.path("boards").get(1).asInt());
-        assertEquals(3, lina.path("overdue").asInt());
+        // 跟进数、逾期按客户计（3 张报价单同一个客户）；多次延后仍按单据计
+        assertEquals(1, lina.path("boards").get(1).asInt());
+        assertEquals(1, lina.path("overdue").asInt());
         assertEquals(3, lina.path("manySnoozes").asInt());
         assertTrue(lina.path("attention").asBoolean());
         JsonNode me = t.path("owners").get(1);
@@ -1057,5 +1064,232 @@ class FollowupApiContractTest extends IntegrationTestBase {
             assertNotEquals(OTHER, o.path("ownerId").asLong());
         }
         assertEquals("时间范围不正确", call(get(BASE + "/team").param("period", "year"), token("fu_staff")).path("message").asText());
+    }
+
+    // ---------------------------------------------------------------- 按客户分组（change followup-group-by-customer）
+
+    private long itemId(int targetType, long targetId) {
+        return ((Number) item(targetType, targetId).get("id")).longValue();
+    }
+
+    private static String ids(long... ids) {
+        StringBuilder b = new StringBuilder("[");
+        for (int i = 0; i < ids.length; i++) {
+            b.append(i == 0 ? "" : ",").append(ids[i]);
+        }
+        return b.append("]").toString();
+    }
+
+    @Test
+    void groupedCounts_furthestStageOnly_andGroupsList() throws Exception {
+        customer(C1, "ADORA", 2, 4);
+        customer(C2, "ANDES", 0, 3);
+        LocalDateTime sent = LocalDateTime.now().minusDays(1);
+        inquiry(9501, C1, null);
+        inquiry(9502, C1, null);
+        quote(9511, C1, "100", "710", sent, SELF);
+        quote(9512, C1, "200", "1420", sent, SELF);
+        pi(9521, C1, 9512, "200.00", "0.00", 1);
+        quote(9513, C2, "300", "2130", sent, SELF);
+        sync(C1);
+        sync(C2);
+        loginWithResources("fu_staff", MENU, RES_RECORD);
+        String staff = token("fu_staff");
+
+        // 一个客户只算在最靠后的阶段：ADORA 有询盘（报价前）、报价单（报价后）和 PI，只算在 PI 后；各分组之和等于客户数
+        JsonNode sales = ok(call(get(BASE + "/overview"), staff)).path("boards").get(1);
+        assertEquals(2, sales.path("customers").asInt());
+        assertEquals(0, sales.path("groups").get(0).path("count").asInt(), "报价前");
+        assertEquals(1, sales.path("groups").get(1).path("count").asInt(), "报价后");
+        assertEquals(1, sales.path("groups").get(2).path("count").asInt(), "PI 后");
+        assertEquals(1, sales.path("groups").get(2).path("stages").get(0).path("count").asInt(), "S7");
+
+        JsonNode all = ok(call(get(BASE + "/groups").param("board", "2"), staff));
+        assertEquals(2, all.path("total").asInt());
+        assertEquals(5, all.path("docTotal").asInt());
+        assertEquals("ADORA", all.path("records").get(0).path("customerName").asText(), "有等级的排在前");
+
+        JsonNode afterPi = ok(call(get(BASE + "/groups").param("board", "2").param("group", "3"), staff));
+        assertEquals(1, afterPi.path("total").asInt());
+        JsonNode adora = afterPi.path("records").get(0);
+        assertEquals(C1, adora.path("customerId").asLong());
+        assertEquals("S7", adora.path("stageCode").asText());
+        assertEquals(4, adora.path("docCount").asInt());
+        assertEquals(4, adora.path("items").size(), "展开后列出本板块的全部单据");
+        assertEquals(2, adora.path("typeCounts").path("2").asInt(), "询盘");
+        assertEquals(1, adora.path("typeCounts").path("4").asInt(), "PI");
+        assertEquals(1, adora.path("inScope").size(), "只有 PI 在筛选范围内，其余标灰");
+        assertEquals(itemId(4, 9521), adora.path("inScope").get(0).asLong());
+
+        JsonNode before = ok(call(get(BASE + "/groups").param("board", "2").param("group", "1"), staff));
+        assertEquals(0, before.path("total").asInt(), "ADORA 所处阶段是 S7，不在报价前");
+        JsonNode s4 = ok(call(get(BASE + "/groups").param("board", "2").param("stage", "S4"), staff));
+        assertEquals(1, s4.path("total").asInt());
+        assertEquals("ANDES", s4.path("records").get(0).path("customerName").asText());
+        JsonNode byDoc = ok(call(get(BASE + "/groups").param("board", "2").param("keyword", "QT9511"), staff));
+        assertEquals(1, byDoc.path("total").asInt(), "按单号搜到客户");
+        assertEquals(4, byDoc.path("records").get(0).path("docCount").asInt(), "仍列出客户的全部单据");
+        assertEquals("这个板块不按客户分组", call(get(BASE + "/groups").param("board", "5"), staff).path("message").asText());
+    }
+
+    @Test
+    void customerRecord_coversSelectedItems_todayByCustomer_handledToday() throws Exception {
+        customer(C1, "ADORA", 2, 4);
+        customer(C2, "ANDES", 0, 3);
+        LocalDateTime sent = LocalDateTime.now().minusDays(1);
+        quote(9531, C1, "100", "710", sent, SELF);
+        quote(9532, C1, "100", "710", sent, SELF);
+        quote(9533, C1, "100", "710", sent, SELF);
+        quote(9534, C2, "100", "710", sent, SELF);
+        sync(C1);
+        sync(C2);
+        // 成交客户同时在客户经营：只让商机成交的单据到期
+        jdbc.update("update followup_item set next_action_date = ? where customer_id in (?, ?)", LocalDate.now().plusDays(30), C1, C2);
+        jdbc.update("update followup_item set next_action_date = ? where customer_id = ? and board = 2", LocalDate.now(), C1);
+        jdbc.update("update followup_item set next_action_date = ? where customer_id = ? and board = 2", LocalDate.now().minusDays(1), C2);
+        loginWithResources("fu_staff", MENU, RES_RECORD);
+        String staff = token("fu_staff");
+        long i1 = itemId(3, 9531);
+        long i2 = itemId(3, 9532);
+        long i3 = itemId(3, 9533);
+
+        // 今日待办按客户：ADORA 三张单据今天到期只算 1 个客户
+        JsonNode today = ok(call(get(BASE + "/today"), staff));
+        assertEquals(1, today.path("overdue").size());
+        assertEquals(1, today.path("today").size());
+        JsonNode card = today.path("today").get(0);
+        assertEquals(C1, card.path("customerId").asLong());
+        assertEquals(1, card.path("boards").size());
+        assertEquals(3, card.path("boards").get(0).path("items").size());
+        JsonNode overview = ok(call(get(BASE + "/overview"), staff));
+        assertEquals(1, overview.path("todayOverdue").asInt());
+        assertEquals(1, overview.path("todayDue").asInt());
+
+        // 对客户记一次跟进，取消勾选一张：选中的两张推进到 S5，下一步仍是今天；没选的那张不变
+        JsonNode res = objectMapper.readTree(call(json(post(BASE + "/records"), "{\"customerId\":" + C1 + ",\"itemIds\":" + ids(i1, i2)
+                + ",\"situation\":1,\"nextAction\":\"今天内统一回复\",\"nextActionDate\":\"" + LocalDate.now()
+                + "\",\"channel\":1,\"idempotencyKey\":\"" + UUID.randomUUID() + "\"}"), staff).toString());
+        long recordId = ok(res).path("recordId").asLong();
+        assertEquals("S5", item(3, 9531).get("stage_code"));
+        assertEquals("S5", item(3, 9532).get("stage_code"));
+        assertEquals("S4", item(3, 9533).get("stage_code"));
+        assertEquals(1, jdbc.queryForObject("select count(*) from customer_followup where customer_id = ?", Integer.class, C1));
+        assertEquals(2, jdbc.queryForObject("select count(*) from customer_followup_item where followup_id = ?", Integer.class, recordId));
+        assertEquals(recordId, ((Number) item(3, 9532).get("last_followup_id")).longValue());
+        // 还有一张没跟进的今天到期，ADORA 仍在「今天」
+        today = ok(call(get(BASE + "/today"), staff));
+        assertEquals(1, today.path("today").size());
+        assertEquals(1, today.path("today").get(0).path("boards").get(0).path("items").size());
+
+        // 最后一张改到明天：ADORA 只剩今天已跟进的单据，移到「今天已跟进」，不计入待办
+        ok(call(json(post(BASE + "/records"), "{\"customerId\":" + C1 + ",\"itemIds\":" + ids(i3)
+                + ",\"nextAction\":\"明天再问\",\"nextActionDate\":\"" + LocalDate.now().plusDays(1)
+                + "\",\"idempotencyKey\":\"" + UUID.randomUUID() + "\"}"), staff));
+        today = ok(call(get(BASE + "/today"), staff));
+        assertEquals(0, today.path("today").size());
+        assertEquals(1, today.path("handled").size());
+        assertEquals(2, today.path("handled").get(0).path("boards").get(0).path("items").size());
+        overview = ok(call(get(BASE + "/overview"), staff));
+        assertEquals(0, overview.path("todayDue").asInt());
+        assertEquals(1, overview.path("todayOverdue").asInt());
+
+        // 客户时间线：一次跟进只显示一条，列出涉及的单号
+        JsonNode records = ok(call(get(BASE + "/customers/" + C1 + "/records"), staff)).path("records");
+        JsonNode multi = null;
+        for (JsonNode r : records) {
+            if (r.path("id").asLong() == recordId) {
+                multi = r;
+            }
+        }
+        assertNotNull(multi);
+        assertEquals("[\"QT9531\",\"QT9532\"]", multi.path("docNos").toString());
+
+        // 别的客户的单据、不同板块的单据不能混在一次跟进里
+        assertEquals("有单据已结束，请刷新后重试", call(json(post(BASE + "/records"), "{\"customerId\":" + C1 + ",\"itemIds\":"
+                + ids(i1, itemId(3, 9534)) + ",\"nextAction\":\"x\",\"nextActionDate\":\"" + LocalDate.now()
+                + "\",\"idempotencyKey\":\"" + UUID.randomUUID() + "\"}"), staff).path("message").asText());
+    }
+
+    private long afterSalesItem(long targetId, String stage) {
+        jdbc.update("insert into followup_item (tenant_id, board, target_type, target_id, doc_no, customer_id, owner_id, stage_code,"
+                + " stage_group, next_action, next_action_date, next_action_source) values (0, 4, 5, ?, ?, ?, ?, ?, 7, '问客户', ?, 1)",
+                targetId, "SO" + targetId, C1, SELF, stage, LocalDate.now());
+        return jdbc.queryForObject("select id from followup_item where target_id = ? and board = 4", Long.class, targetId);
+    }
+
+    @Test
+    void mixedStagesNeedSameStage_batchRecordSkipsAnswerStages_batchSnooze() throws Exception {
+        customer(C1, "Gulf Pumps", 2, 3);
+        customer(C2, "ANDES", 0, 3);
+        quote(9541, C2, "100", "710", LocalDateTime.now().minusDays(1), SELF);
+        sync(C2);
+        long a1 = afterSalesItem(99399101L, "A1");
+        long a2 = afterSalesItem(99399102L, "A2");
+        long q = itemId(3, 9541);
+        loginWithResources("fu_staff", MENU, RES_RECORD);
+        String staff = token("fu_staff");
+
+        // 阶段不同、又有必答阶段（A1、A2）：不能一起记跟进
+        JsonNode mixed = call(json(post(BASE + "/records"), "{\"customerId\":" + C1 + ",\"itemIds\":" + ids(a1, a2)
+                + ",\"nextAction\":\"问客户\",\"nextActionDate\":\"" + LocalDate.now().plusDays(1)
+                + "\",\"idempotencyKey\":\"" + UUID.randomUUID() + "\"}"), staff);
+        assertEquals("要回答阶段问题，请只选同一阶段的单据", fail(mixed));
+        assertEquals(0, jdbc.queryForObject("select count(*) from customer_followup where customer_id = ?", Integer.class, C1));
+
+        // 批量跟进：ANDES 成功；Gulf Pumps 的单据在 A1，跳过并说明原因
+        JsonNode batch = ok(call(json(post(BASE + "/batch-record"), "{\"entries\":[{\"customerId\":" + C2 + ",\"itemIds\":" + ids(q)
+                + "},{\"customerId\":" + C1 + ",\"itemIds\":" + ids(a1) + "}],\"situation\":4,\"nextAction\":\"3 天后再发一次报价提醒\","
+                + "\"nextActionDate\":\"" + LocalDate.now().plusDays(3) + "\",\"channel\":2,\"note\":\"群发库存清单\","
+                + "\"idempotencyKey\":\"" + UUID.randomUUID() + "\"}"), staff));
+        assertEquals(1, batch.path("success").asInt());
+        assertEquals(1, batch.path("items").asInt());
+        assertEquals(1, batch.path("failures").size());
+        assertEquals(C1, batch.path("failures").get(0).path("customerId").asLong());
+        assertEquals("Gulf Pumps", batch.path("failures").get(0).path("customerName").asText());
+        assertTrue(batch.path("failures").get(0).path("reason").asText().contains("A1"));
+        Map<String, Object> qi = item(3, 9541);
+        assertEquals(LocalDate.now().plusDays(3), ((java.sql.Date) qi.get("next_action_date")).toLocalDate());
+        assertEquals(1, ((Number) qi.get("no_reply_streak")).intValue(), "批量记「没回复」");
+        assertEquals("群发库存清单", jdbc.queryForObject("select ai_summary from customer_followup where customer_id = ?", String.class, C2));
+
+        // 批量延后：Gulf Pumps 的两张单据一起延后，不写跟进记录
+        JsonNode snooze = ok(call(json(post(BASE + "/batch-snooze"), "{\"entries\":[{\"customerId\":" + C1 + ",\"itemIds\":"
+                + ids(a1, a2) + "}],\"date\":\"" + LocalDate.now().plusDays(3) + "\"}"), staff));
+        assertEquals(1, snooze.path("success").asInt());
+        assertEquals(2, snooze.path("items").asInt());
+        assertEquals(2, jdbc.queryForObject("select count(*) from followup_item where customer_id = ? and board = 4"
+                + " and next_action_date = ? and snooze_count = 1", Integer.class, C1, LocalDate.now().plusDays(3)));
+        assertEquals(0, jdbc.queryForObject("select count(*) from customer_followup where customer_id = ?", Integer.class, C1));
+    }
+
+    @Test
+    void batchRecordSplitsBoards_summaryCarriesBoardItems() throws Exception {
+        customer(C1, "Gulf Pumps", 2, 3);
+        quote(9551, C1, "100", "710", LocalDateTime.now().minusDays(1), SELF);
+        quote(9552, C1, "200", "1420", LocalDateTime.now().minusDays(2), SELF);
+        sync(C1);
+        long q1 = itemId(3, 9551);
+        long q2 = itemId(3, 9552);
+        long a3 = afterSalesItem(99399201L, "A3");
+        loginWithResources("fu_staff", MENU, RES_RECORD);
+        String staff = token("fu_staff");
+
+        // 客户详情 / 右上角记跟进：带入最紧急板块的全部单据
+        JsonNode summary = ok(call(get(BASE + "/customers/" + C1 + "/summary"), staff));
+        int board = summary.path("current").path("board").asInt();
+        int same = board == 2 ? 2 : 1;
+        assertEquals(same, summary.path("currentItems").size());
+
+        // 今日待办里一个客户在两个板块都有到期单据：每个板块各记一条
+        JsonNode batch = ok(call(json(post(BASE + "/batch-record"), "{\"entries\":[{\"customerId\":" + C1 + ",\"itemIds\":"
+                + ids(q1, q2, a3) + "}],\"nextAction\":\"统一回复交期\",\"nextActionDate\":\"" + LocalDate.now().plusDays(2)
+                + "\",\"idempotencyKey\":\"" + UUID.randomUUID() + "\"}"), staff));
+        assertEquals(1, batch.path("success").asInt());
+        assertEquals(3, batch.path("items").asInt());
+        assertEquals(0, batch.path("failures").size());
+        assertEquals(2, jdbc.queryForObject("select count(*) from customer_followup where customer_id = ? and record_type = 1",
+                Integer.class, C1));
+        assertEquals(3, jdbc.queryForObject("select count(*) from customer_followup_item where followup_item_id in (?, ?, ?)",
+                Integer.class, q1, q2, a3));
     }
 }

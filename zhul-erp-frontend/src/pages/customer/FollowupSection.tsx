@@ -13,7 +13,7 @@ import {
   UserOutlined,
 } from '@ant-design/icons';
 import { history } from '@umijs/max';
-import { App, Button, Checkbox, Segmented, Skeleton } from 'antd';
+import { App, Button, Checkbox, Segmented, Skeleton, Tooltip } from 'antd';
 import dayjs from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
@@ -163,6 +163,13 @@ const RecordRow: React.FC<{ r: FollowupRecord; last: boolean }> = ({
             <Pill tone="green">
               <RiseOutlined /> {r.stageBefore || '—'} → {r.stageAfter}
             </Pill>
+          )}
+          {(r.docNos?.length ?? 0) > 1 && (
+            <Tooltip title={r.docNos?.join('、')}>
+              <span>
+                <Pill tone="gray">涉及 {r.docNos?.length} 张单据</Pill>
+              </span>
+            </Tooltip>
           )}
           <span style={{ flex: 1 }} />
           <span style={{ fontSize: 12, color: palette.mute }}>

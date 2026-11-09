@@ -606,6 +606,28 @@ const RequirementList: React.FC = () => {
             {orders.map((o) => (
               <Card key={o.soId} style={{ padding: 0, overflow: 'hidden' }}>
                 {orderHead(o)}
+                {o.salesRemark && (
+                  <div
+                    style={{
+                      display: 'flex',
+                      gap: 10,
+                      alignItems: 'baseline',
+                      padding: '10px 18px 10px 56px',
+                      background: palette.accentSoft,
+                      borderTop: `1px solid ${palette.accentLine}`,
+                      borderBottom: `1px solid ${palette.accentLine}`,
+                    }}
+                  >
+                    <b style={{ color: palette.link, whiteSpace: 'nowrap' }}>
+                      <FileTextOutlined /> 销售备注
+                    </b>
+                    <span
+                      style={{ color: palette.ink, whiteSpace: 'pre-wrap' }}
+                    >
+                      {o.salesRemark}
+                    </span>
+                  </div>
+                )}
                 {!collapsed.has(o.soId) && (
                   <div style={{ padding: '0 12px 12px' }}>
                     <Table<Requirement>

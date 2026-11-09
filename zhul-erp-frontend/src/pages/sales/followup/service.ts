@@ -26,6 +26,12 @@ export const TARGET = {
   ORDER: 5,
   CUSTOMER: 6,
 };
+/** 按客户分组显示的板块 */
+export const GROUPED_BOARDS = [BOARD_SALES, BOARD_FULFIL, BOARD_AFTER_SALES];
+/** 记跟进必须回答阶段问题的阶段：不能批量跟进，选多张单据时阶段必须相同 */
+export const ANSWER_STAGES = ['A1', 'A2', 'A5', 'A6'];
+/** 批量操作一次最多的客户数 */
+export const BATCH_MAX = 50;
 export const NEXT_SYSTEM = 1;
 export const NEXT_USER = 2;
 /** 来自售后单的下一步（A3、A4）：只读，不进今日待办 */
@@ -403,11 +409,75 @@ export interface Overview {
   boards: OverviewBoard[];
 }
 
+/** 今日待办的一个板块：客户在这个板块所处的阶段、最紧急的到期单据和全部到期单据 */
+export interface TodayBoard {
+  board: number;
+  stageCode: string;
+  stageName: string;
+  lead: FollowupItem;
+  items: FollowupItem[];
+}
+
+/** 今日待办的一个客户：在多个板块都有到期单据时每个板块一行 */
+export interface TodayCustomer {
+  customerId: number;
+  customerName: string;
+  country?: string;
+  bizGrade?: string;
+  potentialRating?: number;
+  ownerName?: string;
+  overdueDays: number;
+  boards: TodayBoard[];
+}
+
+/** 今日待办按客户：数字都是客户数 */
 export interface Today {
-  overdue: FollowupItem[];
-  today: FollowupItem[];
+  overdue: TodayCustomer[];
+  today: TodayCustomer[];
+  /** 今天已经记过跟进、下一步仍是今天的客户，不计入待办 */
+  handled: TodayCustomer[];
   weekRemaining: number;
   tomorrow: number;
+}
+
+/** 按客户分组的一行：所处阶段为名下单据最靠后的阶段 */
+export interface CustomerGroup {
+  customerId: number;
+  customerName: string;
+  country?: string;
+  bizGrade?: string;
+  potentialRating?: number;
+  ownerName?: string;
+  stageCode: string;
+  stageName: string;
+  stageGroup?: number;
+  docCount: number;
+  /** targetType → 张数 */
+  typeCounts: Record<string, number>;
+  overdueDays: number;
+  lead: FollowupItem;
+  items: FollowupItem[];
+  /** 按阶段筛选时在范围内的单据，其余标灰；没有筛选时为空 */
+  inScope?: number[];
+}
+
+export interface GroupList {
+  total: number;
+  docTotal: number;
+  records: CustomerGroup[];
+  unpaid: CurrencyAmount[];
+}
+
+/** 批量跟进 / 批量延后的一个客户 */
+export interface BatchEntry {
+  customerId: number;
+  itemIds: number[];
+}
+
+export interface BatchResult {
+  success: number;
+  items: number;
+  failures: { customerId: number; customerName: string; reason: string }[];
 }
 
 export interface CurrencyAmount {
@@ -485,11 +555,15 @@ export interface FollowupRecord {
   operatorName?: string;
   targetType?: number;
   docNo?: string;
+  /** 一次跟进涉及多张单据时的单号 */
+  docNos?: string[];
   createTime: string;
 }
 
 export interface CustomerFollowup {
   current?: FollowupItem;
+  /** 当前跟进对象所在板块的全部单据，记一次跟进时默认全选 */
+  currentItems?: FollowupItem[];
   step?: number;
   lastContactAt?: string;
   lastChannelName?: string;
@@ -507,6 +581,8 @@ export interface CustomerFollowup {
 export interface RecordRequest {
   customerId: number;
   itemId?: number;
+  /** 这次跟进涉及的单据（同一客户、同一板块）；传了就忽略 itemId */
+  itemIds?: number[];
   situation?: number;
   blockerCode?: string;
   nextAction: string;
@@ -711,6 +787,28 @@ export const followupApi = {
     ),
   items: (params: ItemQuery) =>
     request<Resp<ItemList>>(`${BASE}/items`, { params }).then((r) => r.data),
+  /** 按客户分组的列表（商机成交、订单履约、售后评价） */
+  groups: (params: ItemQuery) =>
+    request<Resp<GroupList>>(`${BASE}/groups`, { params }).then((r) => r.data),
+  batchRecord: (data: {
+    entries: BatchEntry[];
+    situation?: number;
+    nextAction: string;
+    nextActionDate: string;
+    channel?: number;
+    note?: string;
+    idempotencyKey: string;
+  }) =>
+    request<Resp<BatchResult>>(`${BASE}/batch-record`, {
+      method: 'POST',
+      data,
+    }).then((r) => r.data),
+  /** 批量延后；今日待办客户卡片的「延后」也走这里 */
+  batchSnooze: (entries: BatchEntry[], date: string) =>
+    request<Resp<BatchResult>>(`${BASE}/batch-snooze`, {
+      method: 'POST',
+      data: { entries, date },
+    }).then((r) => r.data),
   snooze: (id: number, date: string) =>
     request(`${BASE}/items/${id}/snooze`, { method: 'POST', data: { date } }),
   nurture: (
