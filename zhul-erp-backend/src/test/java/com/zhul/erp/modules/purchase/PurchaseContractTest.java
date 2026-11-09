@@ -270,6 +270,32 @@ class PurchaseContractTest extends SalesContractSupport {
         assertEquals(2, ok(call(json(post(REQ + "/orders/page"), write(Map.of("mine", true, "view", "all"))), lin)).path("total").asInt());
     }
 
+    /** spec purchase/purchase-requirement「采购需求列表」、purchase/purchase-order「采购订单列表与详情」：销售备注实时显示给采购（feedback-1109） */
+    @Test
+    void salesRemark_shownOnRequirementsAndPoDetail_followsEdits() throws Exception {
+        long sup = supplier("华控自动化", null);
+        JsonNode so1 = orderFrom(sup, l("A-1", 1, "100", "20"));
+        JsonNode so2 = orderFrom(sup, l("C-1", 1, "100", "20"));
+        long id1 = so1.path("id").asLong();
+        ok(call(json(post(SO + "/" + id1 + "/remark"), write(Map.of("remark", "客户要原装新品，采购时确认生产日期"))), admin));
+        ok(call(json(post(SO + "/" + so2.path("id").asLong() + "/remark"), write(Map.of("remark", ""))), admin));
+
+        Map<String, String> remarks = new java.util.HashMap<>();
+        ok(call(json(post(REQ + "/orders/page"), "{}"), admin)).path("records")
+                .forEach(r -> remarks.put(r.path("soNo").asText(), r.path("salesRemark").asText()));
+        assertEquals("客户要原装新品，采购时确认生产日期", remarks.get(so1.path("soNo").asText()));
+        assertEquals("", remarks.get(so2.path("soNo").asText()), "没有备注的订单为空");
+
+        long draft = drafts(sup).get(0);
+        JsonNode list = po(draft, admin).path("salesRemarks");
+        assertEquals(1, list.size(), "只列有备注的来源订单");
+        assertEquals(so1.path("soNo").asText(), list.get(0).path("soNo").asText());
+        assertEquals("客户要原装新品，采购时确认生产日期", list.get(0).path("remark").asText());
+
+        ok(call(json(post(SO + "/" + id1 + "/remark"), write(Map.of("remark", "客户改为接受翻新件"))), admin));
+        assertEquals("客户改为接受翻新件", po(draft, admin).path("salesRemarks").get(0).path("remark").asText(), "业务员改了备注采购同步看到");
+    }
+
     @Test
     void poList_defaultsToUpdateTimeDesc_withAuditFields() throws Exception {
         long a = supplier("甲", null);
