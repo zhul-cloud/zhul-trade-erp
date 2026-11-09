@@ -13,7 +13,7 @@ import {
   Table,
 } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
-import { ellipsisRender } from '@/components/EllipsisText';
+import EllipsisText, { ellipsisRender } from '@/components/EllipsisText';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { auditColumns } from '@/pages/purchase/components';
 import {
@@ -172,9 +172,7 @@ const ShipmentsTab: React.FC = () => {
       render: (_, r) => (
         <div style={{ fontSize: 13 }}>
           {r.items.slice(0, 3).map((i) => (
-            <div key={i.id}>
-              {i.model} × {i.quantity}
-            </div>
+            <EllipsisText key={i.id} text={`${i.model} × ${i.quantity}`} />
           ))}
           {r.items.length > 3 &&
             sub(

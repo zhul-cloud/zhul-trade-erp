@@ -189,6 +189,54 @@ class DocumentRenderTest {
         assertThat(DocumentConverter.trim(blank)).isSameAs(blank);
     }
 
+    /** 报价预览与 PDF：每页上下按自己的内容裁，左右取所有页的并集，各页同宽；空白页保留整页 */
+    @Test
+    void alignedBoxes_sameWidthAcrossPages() {
+        java.awt.image.BufferedImage p1 = page(1000, 1414, new java.awt.Rectangle(100, 100, 800, 1200));
+        java.awt.image.BufferedImage p2 = page(1000, 1414, new java.awt.Rectangle(300, 100, 400, 200));
+        java.awt.image.BufferedImage blank = page(1000, 1414, null);
+        java.util.List<java.awt.Rectangle> boxes = DocumentConverter.alignedBoxes(java.util.List.of(p1, p2, blank));
+        assertThat(boxes.get(0)).isEqualTo(new java.awt.Rectangle(80, 80, 840, 1240));
+        assertThat(boxes.get(1)).isEqualTo(new java.awt.Rectangle(80, 80, 840, 240));
+        assertThat(boxes.get(2)).isEqualTo(new java.awt.Rectangle(0, 0, 1000, 1414));
+    }
+
+    private static java.awt.image.BufferedImage page(int w, int h, java.awt.Rectangle ink) {
+        java.awt.image.BufferedImage img = new java.awt.image.BufferedImage(w, h, java.awt.image.BufferedImage.TYPE_INT_RGB);
+        java.awt.Graphics2D g = img.createGraphics();
+        g.setColor(java.awt.Color.WHITE);
+        g.fillRect(0, 0, w, h);
+        if (ink != null) {
+            g.setColor(java.awt.Color.BLACK);
+            g.fill(ink);
+        }
+        g.dispose();
+        return img;
+    }
+
+    /** 报价单 PDF 裁到正文：30 行一页，比 A4 矮、窄，文字不丢；80 行两页同宽 */
+    @Test
+    void trimmedPdf_keepsOnlyContent() throws IOException {
+        DocumentConverter converter = new DocumentConverter("", System.getProperty("java.io.tmpdir") + "/zhul-document-test");
+        Assumptions.assumeTrue(converter.available(), "本机未安装 LibreOffice");
+        byte[] pdf = converter.toTrimmedPdf(XlsxRenderer.render(builtin("quotation-v1.xlsx"), withItems(30)));
+        try (org.apache.pdfbox.pdmodel.PDDocument doc = org.apache.pdfbox.Loader.loadPDF(pdf)) {
+            org.apache.pdfbox.pdmodel.common.PDRectangle box = doc.getPage(0).getCropBox();
+            assertThat(box.getWidth()).isLessThan(org.apache.pdfbox.pdmodel.common.PDRectangle.A4.getWidth());
+            assertThat(box.getHeight() / box.getWidth()).isLessThan(1.0f);
+            assertThat(new org.apache.pdfbox.text.PDFTextStripper().getText(doc)).contains("Model", "Brand");
+        }
+        byte[] two = converter.toTrimmedPdf(XlsxRenderer.render(builtin("quotation-v1.xlsx"), withItems(80)));
+        try (org.apache.pdfbox.pdmodel.PDDocument doc = org.apache.pdfbox.Loader.loadPDF(two)) {
+            assertThat(doc.getNumberOfPages()).isEqualTo(2);
+            assertThat(doc.getPage(1).getCropBox().getWidth()).isEqualTo(doc.getPage(0).getCropBox().getWidth());
+        }
+        String dir = System.getProperty("zhul.render.out");
+        if (dir != null) {
+            java.nio.file.Files.write(java.nio.file.Path.of(dir, "trimmed.pdf"), pdf);
+        }
+    }
+
     /** 80 行明细分 2 页，第 2 页重复表头，页码为 Page 2 / 2 */
     @Test
     void longQuotationPaginatesWithRepeatedHeader() throws IOException {

@@ -16,6 +16,7 @@ import {
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
+import { ellipsisRender } from '@/components/EllipsisText';
 import { Card, Pill } from '@/pages/inquiry/shared/components';
 import { auditColumns, SupplierPicker } from '@/pages/purchase/components';
 import {
@@ -528,7 +529,12 @@ const ReturnsPage: React.FC = () => {
       ),
     },
     { title: '客户', dataIndex: 'customerName', width: 180 },
-    { title: '型号 · 数量', dataIndex: 'itemSummary', width: 220 },
+    {
+      title: '型号 · 数量',
+      dataIndex: 'itemSummary',
+      width: 220,
+      render: ellipsisRender,
+    },
     {
       title: '快递',
       key: 'express',

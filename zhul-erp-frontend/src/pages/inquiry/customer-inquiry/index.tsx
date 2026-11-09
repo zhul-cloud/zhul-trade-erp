@@ -436,7 +436,9 @@ const CustomerInquiryPage: React.FC = () => {
         )
           return '—';
         return (
-          <span style={{ display: 'inline-flex', flexDirection: 'column' }}>
+          <span
+            style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}
+          >
             <ModelCell r={r} onView={setViewing} />
             {r.status === STATUS.PENDING_CONFIRM && r.firstModel && (
               <span style={{ color: palette.mute, fontSize: 12 }}>
