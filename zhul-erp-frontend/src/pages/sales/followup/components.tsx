@@ -1,10 +1,4 @@
-import {
-  BellOutlined,
-  BulbOutlined,
-  CheckCircleOutlined,
-  DownOutlined,
-  UserOutlined,
-} from '@ant-design/icons';
+import { DownOutlined } from '@ant-design/icons';
 import { history } from '@umijs/max';
 import {
   App,
@@ -15,7 +9,6 @@ import {
   Input,
   Modal,
   Select,
-  Skeleton,
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import React, { useEffect, useState } from 'react';
@@ -23,14 +16,13 @@ import { Card, Pill } from '@/pages/crm/opportunity/components';
 import { GRADE_NAMES } from '@/pages/customer/profile/service';
 import { GradeBadge, Stars } from '@/pages/customer/profile/ui';
 import { useAppTheme } from '@/theme/AppTheme';
-import { styleOf, TODAY_COLOR } from './boardStyle';
+import { styleOf } from './boardStyle';
 import {
+  type BatchEntry,
   type Blocker,
   type FollowupItem,
   followupApi,
-  NEXT_USER,
   readBizError,
-  type Today,
 } from './service';
 
 export { Card, Pill };
@@ -43,7 +35,9 @@ export const fmtDate = (d?: string | Dayjs) =>
 export const iso = (d: Dayjs) => d.format('YYYY-MM-DD');
 
 /** 下一步的日期：逾期标红、今天标橙 */
-export const DueText: React.FC<{ item: FollowupItem }> = ({ item }) => {
+export const DueText: React.FC<{
+  item: Pick<FollowupItem, 'nextActionDate'>;
+}> = ({ item }) => {
   const { palette } = useAppTheme();
   if (!item.nextActionDate)
     return <span style={{ color: palette.mute }}>—</span>;
@@ -62,7 +56,9 @@ export const DueText: React.FC<{ item: FollowupItem }> = ({ item }) => {
 };
 
 /** 经营等级 + 潜力等级 */
-export const ValueCell: React.FC<{ item: FollowupItem }> = ({ item }) => {
+export const ValueCell: React.FC<{
+  item: Pick<FollowupItem, 'bizGrade' | 'potentialRating'>;
+}> = ({ item }) => {
   const g = item.bizGrade ? GRADE_NAMES.indexOf(item.bizGrade) : 0;
   return (
     <span style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}>
@@ -72,7 +68,7 @@ export const ValueCell: React.FC<{ item: FollowupItem }> = ({ item }) => {
   );
 };
 
-const BOARD_LABEL: Record<number, string> = {
+export const BOARD_LABEL: Record<number, string> = {
   1: '主动开发',
   2: '商机成交',
   3: '订单履约',
@@ -81,7 +77,11 @@ const BOARD_LABEL: Record<number, string> = {
 };
 
 /** 板块 · 阶段，用板块颜色（K1） */
-export const StageTag: React.FC<{ item: FollowupItem }> = ({ item }) => {
+export const StageTag: React.FC<{
+  item: Pick<FollowupItem, 'board' | 'stageName'> & { stageCode?: string };
+  /** 阶段名前带阶段码，如「S4 已报价」 */
+  withCode?: boolean;
+}> = ({ item, withCode }) => {
   const s = styleOf(item.board);
   return (
     <span
@@ -96,13 +96,17 @@ export const StageTag: React.FC<{ item: FollowupItem }> = ({ item }) => {
         whiteSpace: 'nowrap',
       }}
     >
-      {BOARD_LABEL[item.board] ?? '商机成交'} · {item.stageName}
+      {BOARD_LABEL[item.board] ?? '商机成交'} ·{' '}
+      {withCode && item.stageCode ? `${item.stageCode} ` : ''}
+      {item.stageName}
     </span>
   );
 };
 
 /** 客户名称：点击进客户详情 */
-export const CustomerLink: React.FC<{ item: FollowupItem }> = ({ item }) => {
+export const CustomerLink: React.FC<{
+  item: Pick<FollowupItem, 'customerId' | 'customerName'>;
+}> = ({ item }) => {
   const { palette } = useAppTheme();
   return (
     <button
@@ -122,21 +126,38 @@ export const CustomerLink: React.FC<{ item: FollowupItem }> = ({ item }) => {
 
 // ---------------------------------------------------------------- 延后
 
-/** 延后：明天 / 3 天后 / 下周一 / 选日期 */
+/**
+ * 延后：明天 / 3 天后 / 下周一 / 选日期。
+ * 传 item 延后这一张；传 entries 按客户一起延后（今日待办的客户卡片、批量延后）
+ */
 export const SnoozeButton: React.FC<{
-  item: FollowupItem;
+  item?: FollowupItem;
+  entries?: BatchEntry[];
+  label?: string;
   disabled?: boolean;
   onDone: () => void;
-}> = ({ item, disabled, onDone }) => {
-  const { message } = App.useApp();
+}> = ({ item, entries, label = '延后', disabled, onDone }) => {
+  const { message, modal } = App.useApp();
   const [picking, setPicking] = useState(false);
   const [date, setDate] = useState<Dayjs | null>(null);
   const [saving, setSaving] = useState(false);
   const submit = async (d: Dayjs) => {
     setSaving(true);
     try {
-      await followupApi.snooze(item.id, iso(d));
-      message.success(`已延后到 ${fmtDate(d)}`);
+      if (entries) {
+        const r = await followupApi.batchSnooze(entries, iso(d));
+        if (r.failures.length)
+          modal.warning({
+            title: `已延后 ${r.success} 个客户，${r.failures.length} 个没有延后`,
+            content: r.failures
+              .map((f) => `${f.customerName}：${f.reason}`)
+              .join('\n'),
+          });
+        else message.success(`已延后到 ${fmtDate(d)}`);
+      } else if (item) {
+        await followupApi.snooze(item.id, iso(d));
+        message.success(`已延后到 ${fmtDate(d)}`);
+      }
       setPicking(false);
       onDone();
     } catch (e) {
@@ -170,7 +191,7 @@ export const SnoozeButton: React.FC<{
         }}
       >
         <Button size="small" loading={saving && !picking}>
-          延后 <DownOutlined />
+          {label} <DownOutlined />
         </Button>
       </Dropdown>
       <Modal
@@ -292,242 +313,5 @@ export const NurtureModal: React.FC<{
         </Form.Item>
       </Form>
     </Modal>
-  );
-};
-
-// ---------------------------------------------------------------- 今日待办
-
-const TODAY_FOLD = 8;
-
-/** 一条待办（K1）：左侧色条区分逾期 / 今天；系统提醒或我定的下一步；SOP 建议 */
-const TodayRow: React.FC<{
-  item: FollowupItem;
-  overdue: boolean;
-  canRecord: boolean;
-  onRecord: (item: FollowupItem) => void;
-  onChanged: () => void;
-}> = ({ item, overdue, canRecord, onRecord, onChanged }) => {
-  const { palette } = useAppTheme();
-  const mine = item.nextActionSource === NEXT_USER;
-  const [hover, setHover] = useState(false);
-  return (
-    <div
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
-      style={{
-        display: 'flex',
-        gap: 16,
-        alignItems: 'center',
-        padding: '12px 16px 12px 18px',
-        borderRadius: 12,
-        border: `1px solid ${hover ? palette.accentLine : palette.hairline}`,
-        background: hover ? palette.hover : palette.card,
-        position: 'relative',
-        transition: 'background .15s, border-color .15s',
-      }}
-    >
-      <span
-        style={{
-          position: 'absolute',
-          left: 8,
-          top: 12,
-          bottom: 12,
-          width: 3,
-          borderRadius: 2,
-          background: overdue ? palette.red : TODAY_COLOR,
-        }}
-      />
-      <div style={{ flex: 1, minWidth: 0, display: 'grid', gap: 4 }}>
-        <div
-          style={{
-            display: 'flex',
-            gap: 8,
-            alignItems: 'center',
-            flexWrap: 'wrap',
-          }}
-        >
-          <StageTag item={item} />
-          <CustomerLink item={item} />
-          <ValueCell item={item} />
-          {item.country && (
-            <span style={{ fontSize: 12, color: palette.mute }}>
-              {item.country}
-            </span>
-          )}
-          {item.ownerName && (
-            <span style={{ fontSize: 12, color: palette.mute }}>
-              · {item.ownerName}
-            </span>
-          )}
-          {item.manySnoozes && <Pill tone="orange">多次延后</Pill>}
-        </div>
-        <div style={{ color: palette.ink, fontSize: 13 }}>
-          <span style={{ color: palette.orange, marginRight: 6 }}>
-            {mine ? <UserOutlined /> : <BellOutlined />}
-          </span>
-          <span style={{ color: palette.sub }}>
-            {mine ? '我定的下一步：' : '系统提醒：'}
-          </span>
-          {item.nextAction || '—'}
-        </div>
-        {item.sopHint && (
-          <div style={{ fontSize: 12, color: palette.link }}>
-            <BulbOutlined style={{ marginRight: 6 }} />
-            SOP 建议：{item.sopHint}
-          </div>
-        )}
-      </div>
-      <div style={{ display: 'grid', gap: 8, justifyItems: 'end' }}>
-        <DueText item={item} />
-        <span style={{ display: 'inline-flex', gap: 8 }}>
-          <SnoozeButton item={item} disabled={!canRecord} onDone={onChanged} />
-          <Button
-            type="primary"
-            size="small"
-            disabled={!canRecord}
-            onClick={() => onRecord(item)}
-          >
-            记跟进
-          </Button>
-        </span>
-      </div>
-    </div>
-  );
-};
-
-/** 今日待办（K1）：已逾期、今天两段，按客户价值排；超过 8 条折叠 */
-export const TodayList: React.FC<{
-  today?: Today;
-  canRecord: boolean;
-  onRecord: (item: FollowupItem) => void;
-  onChanged: () => void;
-  onBrowse: () => void;
-}> = ({ today, canRecord, onRecord, onChanged, onBrowse }) => {
-  const { palette } = useAppTheme();
-  const [only, setOnly] = useState<'overdue' | 'today'>();
-  const [all, setAll] = useState(false);
-  if (!today)
-    return (
-      <Card style={{ padding: 20 }}>
-        <Skeleton active />
-      </Card>
-    );
-  const empty = today.overdue.length === 0 && today.today.length === 0;
-  if (empty)
-    return (
-      <Card style={{ padding: '32px 20px', textAlign: 'center' }}>
-        <CheckCircleOutlined
-          style={{ fontSize: 28, color: palette.green, marginBottom: 8 }}
-        />
-        <div style={{ fontWeight: 600, color: palette.ink }}>
-          今天的跟进都处理完了
-        </div>
-        <div style={{ fontSize: 12, color: palette.sub, margin: '4px 0 12px' }}>
-          明天有 {today.tomorrow} 项，可以先看看本周还有哪些客户该联系
-        </div>
-        <Button onClick={onBrowse}>看各板块的客户</Button>
-      </Card>
-    );
-  const sections = [
-    { key: 'overdue' as const, title: '已逾期', rows: today.overdue },
-    { key: 'today' as const, title: '今天', rows: today.today },
-  ].filter((x) => !only || x.key === only);
-  let budget = all ? Number.POSITIVE_INFINITY : TODAY_FOLD;
-  const shown = sections.map((x) => {
-    const rows = x.rows.slice(0, Math.max(0, budget));
-    budget -= rows.length;
-    return { ...x, rows };
-  });
-  const totalRows = sections.reduce((n, x) => n + x.rows.length, 0);
-  const shownRows = shown.reduce((n, x) => n + x.rows.length, 0);
-  const chip = (
-    key: 'overdue' | 'today' | undefined,
-    label: string,
-    fg: string,
-    bg: string,
-  ) => (
-    <button
-      type="button"
-      key={label}
-      onClick={() => setOnly(key && only === key ? undefined : key)}
-      style={{
-        all: 'unset',
-        cursor: key ? 'pointer' : 'default',
-        padding: '4px 12px',
-        borderRadius: 8,
-        fontSize: 13,
-        fontWeight: key && only === key ? 600 : 400,
-        color: fg,
-        background: bg,
-        outline: key && only === key ? `1px solid ${fg}` : undefined,
-      }}
-    >
-      {label}
-    </button>
-  );
-  return (
-    <Card style={{ padding: '16px 20px' }}>
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        {chip(
-          'overdue',
-          `已逾期 ${today.overdue.length}`,
-          palette.red,
-          palette.redSoft,
-        )}
-        {chip(
-          'today',
-          `今天 ${today.today.length}`,
-          palette.link,
-          palette.accentSoft,
-        )}
-        {chip(
-          undefined,
-          `本周还有 ${today.weekRemaining}`,
-          palette.sub,
-          palette.inset,
-        )}
-      </div>
-      {shown.map(
-        (x) =>
-          x.rows.length > 0 && (
-            <div key={x.key}>
-              <div
-                style={{
-                  fontSize: 13,
-                  fontWeight: 600,
-                  color: x.key === 'overdue' ? palette.red : palette.link,
-                  margin: '16px 0 8px',
-                }}
-              >
-                {x.title}
-              </div>
-              <div style={{ display: 'grid', gap: 10 }}>
-                {x.rows.map((it) => (
-                  <TodayRow
-                    key={it.id}
-                    item={it}
-                    overdue={x.key === 'overdue'}
-                    canRecord={canRecord}
-                    onRecord={onRecord}
-                    onChanged={onChanged}
-                  />
-                ))}
-              </div>
-            </div>
-          ),
-      )}
-      {sections.every((x) => x.rows.length === 0) && (
-        <div style={{ padding: '16px 0', color: palette.mute }}>
-          {only === 'overdue' ? '没有逾期的跟进' : '今天到期的都处理完了'}
-        </div>
-      )}
-      {shownRows < totalRows && (
-        <div style={{ textAlign: 'center', marginTop: 12 }}>
-          <Button type="link" onClick={() => setAll(true)}>
-            还有 {totalRows - shownRows} 项 · 展开
-          </Button>
-        </div>
-      )}
-    </Card>
   );
 };

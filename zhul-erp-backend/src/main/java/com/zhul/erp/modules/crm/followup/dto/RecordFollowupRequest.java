@@ -25,6 +25,9 @@ public class RecordFollowupRequest {
     @NotNull(message = "请选择客户")
     private Long customerId;
     private Long itemId;
+    /** 这次跟进涉及的单据（同一客户、同一板块，第一张为主单据）；传了就忽略 itemId */
+    @Size(max = 500, message = "一次跟进最多选 500 张单据")
+    private List<Long> itemIds;
     private Integer situation;
     private String blockerCode;
     @NotBlank(message = "请写下一步要做什么")

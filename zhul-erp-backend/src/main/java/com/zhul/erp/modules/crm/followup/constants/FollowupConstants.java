@@ -243,6 +243,10 @@ public final class FollowupConstants {
     public static final int SNOOZE_WARN_TIMES = 3;
     /** 列表每次加载条数 */
     public static final int PAGE_SIZE = 20;
+    /** 一次跟进最多涉及的单据数 */
+    public static final int RECORD_ITEMS_MAX = 500;
+    /** 批量跟进、批量延后一次最多的客户数 */
+    public static final int BATCH_CUSTOMERS_MAX = 50;
     /** 下一步最长 */
     public static final int NEXT_ACTION_MAX = 200;
     /** 粘贴原文最多保留的字数（AI 整理也只取最后这么多字） */
