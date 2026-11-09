@@ -13,6 +13,7 @@ import {
   DevelopSequence,
   useDevelopCard,
 } from './DevelopPanel';
+import { StageAdjust } from './QuickActions';
 import {
   BOARD_ACCOUNT,
   BOARD_AFTER_SALES,
@@ -224,8 +225,22 @@ const BattleCard: React.FC<{
 
   return (
     <Card style={{ padding: 20 }}>
-      <div style={{ fontWeight: 700, fontSize: 16, color: palette.ink }}>
-        作战卡 · {sop.stageCode} {sop.name}
+      <div
+        style={{
+          display: 'flex',
+          gap: 10,
+          alignItems: 'baseline',
+          flexWrap: 'wrap',
+        }}
+      >
+        <span style={{ fontWeight: 700, fontSize: 16, color: palette.ink }}>
+          作战卡 · {sop.stageCode} {sop.name}
+        </span>
+        <StageAdjust
+          item={item}
+          canRecord={canRecord}
+          onDone={() => onChanged?.()}
+        />
       </div>
       <div style={{ fontSize: 12, color: palette.mute, marginTop: 2 }}>
         {item.customerName}

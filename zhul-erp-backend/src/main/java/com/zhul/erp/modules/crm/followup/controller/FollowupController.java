@@ -3,6 +3,7 @@ package com.zhul.erp.modules.crm.followup.controller;
 import com.zhul.erp.common.result.Result;
 import com.zhul.erp.modules.crm.followup.constants.FollowupConstants;
 import com.zhul.erp.modules.crm.followup.dto.AccountCardVO;
+import com.zhul.erp.modules.crm.followup.dto.AdjustStageRequest;
 import com.zhul.erp.modules.crm.followup.dto.AnnualPlanRequest;
 import com.zhul.erp.modules.crm.followup.dto.BatchFollowupRequest;
 import com.zhul.erp.modules.crm.followup.dto.BatchResultVO;
@@ -22,6 +23,9 @@ import com.zhul.erp.modules.crm.followup.dto.JoinDevelopRequest;
 import com.zhul.erp.modules.crm.followup.dto.NurtureRequest;
 import com.zhul.erp.modules.crm.followup.dto.OrderPartsVO;
 import com.zhul.erp.modules.crm.followup.dto.ProspectRequest;
+import com.zhul.erp.modules.crm.followup.dto.QuickBatchRequest;
+import com.zhul.erp.modules.crm.followup.dto.QuickFollowupRequest;
+import com.zhul.erp.modules.crm.followup.dto.QuickResultVO;
 import com.zhul.erp.modules.crm.followup.dto.RecordFollowupRequest;
 import com.zhul.erp.modules.crm.followup.dto.RecordResultVO;
 import com.zhul.erp.modules.crm.followup.dto.ReplyDraftRequest;
@@ -34,7 +38,9 @@ import com.zhul.erp.modules.crm.followup.service.FollowupAccountService;
 import com.zhul.erp.modules.crm.followup.service.FollowupAiService;
 import com.zhul.erp.modules.crm.followup.service.FollowupBatchService;
 import com.zhul.erp.modules.crm.followup.service.FollowupDevelopService;
+import com.zhul.erp.modules.crm.followup.service.FollowupQuickService;
 import com.zhul.erp.modules.crm.followup.service.FollowupService;
+import com.zhul.erp.modules.crm.followup.service.FollowupStageService;
 import com.zhul.erp.modules.crm.followup.service.FollowupTeamService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -49,6 +55,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * 客户跟进（design D14）。查看类接口要求能访问「客户跟进」菜单；记跟进、延后、转培育、激活要求「记跟进」按钮权限。
@@ -68,6 +75,8 @@ public class FollowupController {
     private final FollowupTeamService followupTeamService;
     private final FollowupAccountService followupAccountService;
     private final FollowupDevelopService followupDevelopService;
+    private final FollowupStageService followupStageService;
+    private final FollowupQuickService followupQuickService;
 
     @GetMapping("/overview")
     @PreAuthorize(VIEW)
@@ -131,6 +140,34 @@ public class FollowupController {
     @PreAuthorize(RECORD)
     public Result<BatchResultVO> batchSnooze(@Valid @RequestBody BatchSnoozeRequest req) {
         return Result.ok(batchService.snooze(req));
+    }
+
+    /** 手动调整阶段：只能在同一判断段内前进或后退，写一条「调整阶段」记录；返回调整后的阶段 */
+    @PostMapping("/items/{id}/stage")
+    @PreAuthorize(RECORD)
+    public Result<String> adjustStage(@PathVariable Long id, @Valid @RequestBody AdjustStageRequest req) {
+        return Result.ok(followupStageService.adjust(id, req));
+    }
+
+    /** 各阶段可选的快速跟进结果：阶段 → 结果列表 */
+    @GetMapping("/quick-results")
+    @PreAuthorize(VIEW)
+    public Result<Map<String, List<QuickResultVO>>> quickResults() {
+        return Result.ok(followupQuickService.results());
+    }
+
+    /** 快速跟进一个客户：返回涉及的单据数 */
+    @PostMapping("/quick")
+    @PreAuthorize(RECORD)
+    public Result<Integer> quick(@Valid @RequestBody QuickFollowupRequest req) {
+        return Result.ok(followupQuickService.quick(req));
+    }
+
+    /** 批量快速跟进：逐个客户处理，返回成功数和失败原因 */
+    @PostMapping("/quick-batch")
+    @PreAuthorize(RECORD)
+    public Result<BatchResultVO> quickBatch(@Valid @RequestBody QuickBatchRequest req) {
+        return Result.ok(batchService.quick(req));
     }
 
     @PostMapping("/items/{id}/nurture")

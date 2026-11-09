@@ -1,7 +1,9 @@
 import {
   BulbOutlined,
+  HourglassOutlined,
   LoadingOutlined,
   RobotOutlined,
+  ThunderboltOutlined,
 } from '@ant-design/icons';
 import {
   Alert,
@@ -23,6 +25,12 @@ import { CreateAfterSalesModal } from '@/pages/sales/after-sales/dialogs';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
 import { DueText, fmtDate, iso, StageTag, useBlockers } from './components';
+import {
+  adjustSuggest,
+  nurtureCandidate,
+  dateShortcuts as shortcutsOf,
+  suggestOf,
+} from './nextDate';
 import StageQuestions from './StageQuestions';
 import {
   ACCOUNT_ANSWER,
@@ -217,7 +225,9 @@ const RecordFollowupModal: React.FC<{
     newInquiryCustomerId?: number,
     refusedItem?: FollowupItem,
   ) => void;
-}> = ({ open, target, onClose, onDone }) => {
+  /** 选了 30 天以后：改为转培育这张报价单，激活日期带入所选日期 */
+  onNurture?: (item: FollowupItem, days: number) => void;
+}> = ({ open, target, onClose, onDone, onNurture }) => {
   const { palette } = useAppTheme();
   const { message } = App.useApp();
 
@@ -256,6 +266,12 @@ const RecordFollowupModal: React.FC<{
   const [blocker, setBlocker] = useState<string>();
   const [nextAction, setNextAction] = useState('');
   const [nextDate, setNextDate] = useState<Dayjs | null>(null);
+  /** 手动选过日期后不再跟着推荐变 */
+  const [dateTouched, setDateTouched] = useState(false);
+  const pickDate = (d: Dayjs | null) => {
+    setNextDate(d);
+    setDateTouched(true);
+  };
   const [channel, setChannel] = useState(1);
   const [payDate, setPayDate] = useState<Dayjs | null>(null);
   const [nextError, setNextError] = useState(false);
@@ -292,6 +308,7 @@ const RecordFollowupModal: React.FC<{
     setBlocker(undefined);
     setNextAction('');
     setNextDate(null);
+    setDateTouched(false);
     setChannel(1);
     setPayDate(null);
     setNextError(false);
@@ -333,6 +350,17 @@ const RecordFollowupModal: React.FC<{
   // 换了主单据或阶段是否相同变了：阶段答案重来
   useEffect(() => setAnswers(emptyAnswers()), [item?.id, mixed]);
 
+  // 推荐日期：按所选单据取最早的，再按客户情况修正；手动选过就不再变
+  const suggest = adjustSuggest(
+    suggestOf(selected, dayjs().startOf('day')),
+    situation,
+    dayjs().startOf('day'),
+  );
+  const suggestDay = iso(suggest.date);
+  useEffect(() => {
+    if (open && !dateTouched) setNextDate(dayjs(suggestDay));
+  }, [open, dateTouched, suggestDay]);
+
   const searchCustomer = (keyword: string) => {
     customerApi
       .page({ name: keyword || undefined, page: 1, pageSize: 20 })
@@ -359,7 +387,7 @@ const RecordFollowupModal: React.FC<{
     const first = res.nextActions?.[0];
     if (first && !nextAction.trim()) {
       setNextAction(first.text.slice(0, NEXT_MAX));
-      if (first.date && !nextDate) setNextDate(dayjs(first.date));
+      if (first.date && !dateTouched) pickDate(dayjs(first.date));
     }
   };
 
@@ -432,11 +460,10 @@ const RecordFollowupModal: React.FC<{
         setNextAction(
           fallback.replace(/^第\s*\d+\s*天[：:]\s*/, '').slice(0, NEXT_MAX),
         );
-      if (!nextDate) setNextDate(dayjs().add(3, 'day'));
     } else if (kind === 'sent') {
       setSummary((s) => s || '已发资料给客户');
       if (!nextAction.trim()) setNextAction('问客户资料是否收到，有没有疑问');
-      if (!nextDate) setNextDate(dayjs().add(1, 'day'));
+      if (!dateTouched) pickDate(dayjs().startOf('day').add(1, 'day'));
     } else {
       setSituation((s) => s | SITUATION.FEEDBACK);
       setBlocker('PRICE');
@@ -569,13 +596,10 @@ const RecordFollowupModal: React.FC<{
   };
 
   const today = dayjs().startOf('day');
-  const nextMonday = today.add((8 - today.day()) % 7 || 7, 'day');
-  const dateShortcuts: { label: string; value: Dayjs }[] = [
-    { label: '今天', value: today },
-    { label: '明天', value: today.add(1, 'day') },
-    { label: '3 天后', value: today.add(3, 'day') },
-    { label: '下周', value: nextMonday },
-  ];
+  const dateShortcuts = shortcutsOf(today);
+  const nurtureItem = onNurture
+    ? nurtureCandidate(selected, nextDate, today)
+    : undefined;
 
   const chip = (active: boolean) => ({
     cursor: 'pointer',
@@ -821,10 +845,10 @@ const RecordFollowupModal: React.FC<{
                 kind === 'account' &&
                 a.accountAnswer === ACCOUNT_ANSWER.NO_NEED &&
                 answers.accountAnswer !== ACCOUNT_ANSWER.NO_NEED &&
-                !nextDate &&
+                !dateTouched &&
                 item.followDays
               )
-                setNextDate(dayjs().add(item.followDays, 'day'));
+                pickDate(dayjs().startOf('day').add(item.followDays, 'day'));
               setAnswers(a);
             }}
           />
@@ -884,7 +908,7 @@ const RecordFollowupModal: React.FC<{
                 style={chip(nextAction === n.text)}
                 onChange={() => {
                   setNextAction(n.text.slice(0, NEXT_MAX));
-                  if (n.date) setNextDate(dayjs(n.date));
+                  if (n.date) pickDate(dayjs(n.date));
                   setNextError(false);
                 }}
               >
@@ -922,7 +946,7 @@ const RecordFollowupModal: React.FC<{
               key={d.label}
               size="small"
               type={nextDate?.isSame(d.value, 'day') ? 'primary' : 'default'}
-              onClick={() => setNextDate(d.value)}
+              onClick={() => pickDate(d.value)}
             >
               {d.label}
             </Button>
@@ -931,10 +955,45 @@ const RecordFollowupModal: React.FC<{
             size="small"
             value={nextDate}
             placeholder="选日期"
-            onChange={setNextDate}
+            onChange={pickDate}
             disabledDate={(d) => d.isBefore(today)}
           />
+          {nextDate?.isSame(suggest.date, 'day') && suggest.reason && (
+            <span style={{ fontSize: 12, color: palette.link }}>
+              <ThunderboltOutlined /> 推荐：{suggest.reason}
+            </span>
+          )}
         </Space>
+        {nurtureItem && nextDate && (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              marginTop: 10,
+              padding: '8px 12px',
+              borderRadius: 10,
+              fontSize: 12,
+              color: palette.link,
+              background: palette.accentSoft,
+            }}
+          >
+            <HourglassOutlined />
+            <span style={{ flex: 1 }}>
+              隔这么久再跟，可以直接转培育，不占用待办和阶段停留
+            </span>
+            <Button
+              type="link"
+              size="small"
+              style={{ padding: 0 }}
+              onClick={() =>
+                onNurture?.(nurtureItem, nextDate.diff(today, 'day'))
+              }
+            >
+              改为转培育
+            </Button>
+          </div>
+        )}
 
         <SectionLabel>方式</SectionLabel>
         <Segmented

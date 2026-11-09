@@ -7,7 +7,13 @@ import { useCountries } from '@/pages/product/components/useCountries';
 import { getUserList } from '@/pages/system/user/service';
 import { SalesPageTitle } from '../components';
 import { AccountInquiryModal } from './AccountPanel';
-import { BatchBar, BatchFollowupModal, type Picked, usePicks } from './Batch';
+import {
+  BatchBar,
+  BatchFollowupModal,
+  type Picked,
+  type SelectAll,
+  usePicks,
+} from './Batch';
 import BattleCard from './BattleCard';
 import { VIEW_TODAY } from './boardStyle';
 import { Card, NurtureModal } from './components';
@@ -23,6 +29,7 @@ import {
   type StageFilter,
   stageItem,
 } from './FollowupTable';
+import { QuickBatchModal } from './QuickActions';
 import RecordFollowupModal, { type RecordTarget } from './RecordFollowupModal';
 import {
   ANSWER_STAGES,
@@ -74,9 +81,12 @@ const FollowupPage: React.FC = () => {
   const [selectedKey, setSelectedKey] = useState<string>();
   const picks = usePicks();
   const [batchOpen, setBatchOpen] = useState(false);
+  const [quickOpen, setQuickOpen] = useState(false);
   const [recordTarget, setRecordTarget] = useState<RecordTarget>();
   const [recordOpen, setRecordOpen] = useState(false);
   const [nurtureItem, setNurtureItem] = useState<FollowupItem>();
+  /** 从记跟进改为转培育时带入的天数；列表里转培育用默认 */
+  const [nurtureDays, setNurtureDays] = useState<number>();
   /** 客户经营「建询盘」的客户 */
   const [inquiryCustomer, setInquiryCustomer] = useState<number>();
   /** 主动开发：转为商机、停止开发（preset 为预选原因）、新建开发对象、国家筛选 */
@@ -222,15 +232,18 @@ const FollowupPage: React.FC = () => {
   };
 
   const board = overview?.boards.find((b) => b.board === boardNo);
-  const batchBar = (
+  const renderBatchBar = (selectAll?: SelectAll) => (
     <BatchBar
       picked={picks.list}
       canRecord={canRecord}
+      selectAll={selectAll}
       onClear={picks.clear}
       onRecord={() => setBatchOpen(true)}
+      onQuick={() => setQuickOpen(true)}
       onChanged={refresh}
     />
   );
+  const batchBar = renderBatchBar();
 
   const switchBoard = (b: number, stage?: string) => {
     setBoardNo(b);
@@ -331,7 +344,8 @@ const FollowupPage: React.FC = () => {
               canRecord={canRecord}
               picked={picks.picked}
               onPick={picks.toggle}
-              batchBar={batchBar}
+              onPickAll={picks.replace}
+              batchBar={renderBatchBar}
               onRecord={openTarget}
               onChanged={refresh}
               onBrowse={() => switchBoard(BOARD_SALES)}
@@ -401,7 +415,10 @@ const FollowupPage: React.FC = () => {
                   picked={picks.picked}
                   onPick={picks.toggle}
                   batchBar={batchBar}
-                  onNurture={setNurtureItem}
+                  onNurture={(i) => {
+                    setNurtureDays(undefined);
+                    setNurtureItem(i);
+                  }}
                   onChanged={refresh}
                   onMore={() => loadList(page + 1)}
                   onNewInquiry={setInquiryCustomer}
@@ -433,6 +450,11 @@ const FollowupPage: React.FC = () => {
           // 主动开发选了「明确拒绝」：接着打开停止开发，原因预选「明确拒绝」
           if (refusedItem) setStop({ item: refusedItem, preset: 'REFUSED' });
         }}
+        onNurture={(i, days) => {
+          setRecordOpen(false);
+          setNurtureDays(days);
+          setNurtureItem(i);
+        }}
       />
       <BatchFollowupModal
         open={batchOpen}
@@ -440,6 +462,12 @@ const FollowupPage: React.FC = () => {
         onClose={() => setBatchOpen(false)}
         onDone={refresh}
         onRecordOne={recordPicked}
+      />
+      <QuickBatchModal
+        open={quickOpen}
+        picked={picks.list}
+        onClose={() => setQuickOpen(false)}
+        onDone={refresh}
       />
       <ConvertOpportunityModal
         item={convertItem}
@@ -473,6 +501,7 @@ const FollowupPage: React.FC = () => {
       />
       <NurtureModal
         item={nurtureItem}
+        defaultDays={nurtureDays}
         onClose={() => setNurtureItem(undefined)}
         onDone={() => {
           setNurtureItem(undefined);

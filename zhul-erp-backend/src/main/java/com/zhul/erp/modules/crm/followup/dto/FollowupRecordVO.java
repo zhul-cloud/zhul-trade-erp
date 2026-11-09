@@ -13,6 +13,10 @@ public class FollowupRecordVO {
     private Long id;
     /** 1-业务员跟进、2-系统事件 */
     private Integer recordType;
+    /** 快速记录 */
+    private Boolean quick;
+    /** 实际沟通日期，快速记录时有 */
+    private LocalDate contactDate;
     private String title;
     private Integer situation;
     private List<String> situationLabels = new ArrayList<>();

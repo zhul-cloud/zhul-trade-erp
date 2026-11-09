@@ -136,8 +136,9 @@ public interface FollowupTeamMapper {
     Map<String, Object> develop(@Param("owners") Collection<Long> owners, @Param("from") LocalDateTime from,
                                 @Param("to") LocalDateTime to);
 
-    /** 记跟进次数：业务员自己记的跟进（不含系统事件），按记录人 */
-    @Select("<script>SELECT r.operator_id AS ownerId, COUNT(*) AS cnt FROM customer_followup r"
+    /** 记跟进次数：业务员自己记的跟进（不含系统事件、调整阶段），按记录人；quickCnt 为其中的快速记录 */
+    @Select("<script>SELECT r.operator_id AS ownerId, COUNT(*) AS cnt,"
+            + " COALESCE(SUM(CASE WHEN r.quick = 1 THEN 1 ELSE 0 END), 0) AS quickCnt FROM customer_followup r"
             + " WHERE r.deleted_at IS NULL AND r.record_type = 1 AND r.create_time &gt;= #{from} AND r.create_time &lt; #{to}"
             + "<if test='owners != null'> AND r.operator_id IN"
             + "<foreach collection='owners' item='o' open='(' separator=',' close=')'>#{o}</foreach></if>"

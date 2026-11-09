@@ -48,6 +48,9 @@ public class FollowupItemVO {
     private LocalDate nextActionDate;
     /** 1-系统提醒、2-我定的下一步、3-系统一次性提醒 */
     private Integer nextActionSource;
+    /** 记跟进时「什么时候」推荐的日期与理由（spec「下一步日期推荐」） */
+    private LocalDate suggestDate;
+    private String suggestReason;
     /** 逾期天数，0 为没逾期 */
     private Integer overdueDays;
     private Integer snoozeCount;

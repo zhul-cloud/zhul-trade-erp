@@ -364,7 +364,24 @@ const TeamView: React.FC<{ onJump: (j: TeamJump) => void }> = ({ onJump }) => {
         const diff = o.records - o.prevRecords;
         return (
           <div style={{ display: 'grid', gap: 2 }}>
-            <b style={{ color: palette.ink }}>{o.records}</b>
+            <span>
+              <b style={{ color: palette.ink }}>{o.records}</b>
+              {!!o.quickRecords && (
+                <span
+                  style={{
+                    fontSize: 12,
+                    marginLeft: 6,
+                    // 快速记录超过一半时提醒主管留意
+                    color:
+                      o.quickRecords * 2 > o.records
+                        ? palette.orange
+                        : palette.mute,
+                  }}
+                >
+                  （快速 {o.quickRecords}）
+                </span>
+              )}
+            </span>
             <span style={{ fontSize: 12, color: palette.mute }}>
               {diff === 0
                 ? `与${prevLabel}持平`

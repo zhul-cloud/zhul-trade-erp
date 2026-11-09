@@ -2,6 +2,7 @@ import {
   CheckCircleOutlined,
   ExclamationCircleOutlined,
   InfoCircleOutlined,
+  ThunderboltOutlined,
 } from '@ant-design/icons';
 import {
   Alert,
@@ -18,6 +19,7 @@ import dayjs, { type Dayjs } from 'dayjs';
 import React, { useEffect, useRef, useState } from 'react';
 import { useAppTheme } from '@/theme/AppTheme';
 import { BOARD_LABEL, Card, fmtDate, iso, SnoozeButton } from './components';
+import { adjustSuggest, dateShortcuts, suggestOf } from './nextDate';
 import {
   ANSWER_STAGES,
   BATCH_MAX,
@@ -71,16 +73,45 @@ const byBoard = (items: FollowupItem[]) => {
   return m;
 };
 
-/** 已选 n 个客户：批量延后、批量跟进、取消选择 */
+/** 今日待办的「全选」：已加载的客户全部选中时勾上，部分选中时半选 */
+export interface SelectAll {
+  checked: boolean;
+  indeterminate: boolean;
+  onChange: (on: boolean) => void;
+}
+
+/** 已选 n 个客户：批量延后、批量跟进、快速跟进、取消选择；今日待办左侧带「全选」 */
 export const BatchBar: React.FC<{
   picked: Picked[];
   canRecord: boolean;
+  selectAll?: SelectAll;
   onClear: () => void;
   onRecord: () => void;
+  onQuick: () => void;
   onChanged: () => void;
-}> = ({ picked, canRecord, onClear, onRecord, onChanged }) => {
+}> = ({
+  picked,
+  canRecord,
+  selectAll,
+  onClear,
+  onRecord,
+  onQuick,
+  onChanged,
+}) => {
   const { palette } = useAppTheme();
-  if (!picked.length) return null;
+  if (!picked.length && !selectAll) return null;
+  if (!picked.length && selectAll)
+    return (
+      <div style={{ margin: '12px 0 0', padding: '0 16px' }}>
+        <Checkbox
+          checked={false}
+          disabled={!canRecord}
+          onChange={() => selectAll.onChange(true)}
+        >
+          全选
+        </Checkbox>
+      </div>
+    );
   const entries: BatchEntry[] = picked
     .map((p) => ({
       customerId: p.customerId,
@@ -99,8 +130,20 @@ export const BatchBar: React.FC<{
         background: palette.accentSoft,
       }}
     >
-      <Checkbox indeterminate checked={false} onChange={onClear} />
-      <b style={{ color: palette.ink, flex: 1 }}>已选 {picked.length} 个客户</b>
+      {selectAll ? (
+        <Checkbox
+          checked={selectAll.checked}
+          indeterminate={selectAll.indeterminate}
+          onChange={(e) => selectAll.onChange(e.target.checked)}
+        >
+          <b style={{ color: palette.ink }}>全选</b>
+        </Checkbox>
+      ) : (
+        <Checkbox indeterminate checked={false} onChange={onClear} />
+      )}
+      <span style={{ color: palette.ink, flex: 1 }}>
+        已选 {picked.length} 个客户
+      </span>
       <SnoozeButton
         label="批量延后"
         entries={entries}
@@ -110,13 +153,16 @@ export const BatchBar: React.FC<{
           onChanged();
         }}
       />
+      <Button size="small" disabled={!canRecord} onClick={onRecord}>
+        批量跟进
+      </Button>
       <Button
         type="primary"
         size="small"
         disabled={!canRecord}
-        onClick={onRecord}
+        onClick={onQuick}
       >
-        批量跟进
+        快速跟进
       </Button>
       <Button type="link" size="small" onClick={onClear}>
         取消选择
@@ -141,10 +187,21 @@ export const usePicks = () => {
       }
       return { ...old, [p.customerId]: p };
     });
+  /** 全选：换成这些客户，最多 BATCH_MAX 个 */
+  const replace = (list: Picked[]) => {
+    if (list.length > BATCH_MAX)
+      message.warning(`一次最多选 ${BATCH_MAX} 个客户，已选前 ${BATCH_MAX} 个`);
+    setPicked(
+      Object.fromEntries(
+        list.slice(0, BATCH_MAX).map((p) => [p.customerId, p]),
+      ),
+    );
+  };
   return {
     picked,
     list: Object.values(picked),
     toggle,
+    replace,
     clear: () => setPicked({}),
   };
 };
@@ -163,6 +220,12 @@ export const BatchFollowupModal: React.FC<{
   const [situation, setSituation] = useState(0);
   const [nextAction, setNextAction] = useState('');
   const [nextDate, setNextDate] = useState<Dayjs | null>(null);
+  /** 手动选过日期后不再跟着推荐变 */
+  const [dateTouched, setDateTouched] = useState(false);
+  const pickDate = (d: Dayjs | null) => {
+    setNextDate(d);
+    setDateTouched(true);
+  };
   const [channel, setChannel] = useState(1);
   const [note, setNote] = useState('');
   const [nextError, setNextError] = useState(false);
@@ -178,6 +241,7 @@ export const BatchFollowupModal: React.FC<{
     setSituation(0);
     setNextAction('');
     setNextDate(null);
+    setDateTouched(false);
     setChannel(1);
     setNote('');
     setNextError(false);
@@ -199,6 +263,20 @@ export const BatchFollowupModal: React.FC<{
     if (ok) saveCount += 1;
   }
   const docTotal = picked.reduce((n, p) => n + p.items.length, 0);
+  const today = dayjs().startOf('day');
+  // 推荐日期：全部单据中最早的，再按客户情况修正
+  const suggest = adjustSuggest(
+    suggestOf(
+      picked.flatMap((p) => p.items),
+      today,
+    ),
+    hasSales ? situation : 0,
+    today,
+  );
+  const suggestDay = iso(suggest.date);
+  useEffect(() => {
+    if (open && !dateTouched) setNextDate(dayjs(suggestDay));
+  }, [open, dateTouched, suggestDay]);
 
   const submit = async () => {
     if (!nextAction.trim()) {
@@ -233,14 +311,7 @@ export const BatchFollowupModal: React.FC<{
     }
   };
 
-  const today = dayjs().startOf('day');
-  const nextMonday = today.add((8 - today.day()) % 7 || 7, 'day');
-  const shortcuts = [
-    { label: '今天', value: today },
-    { label: '明天', value: today.add(1, 'day') },
-    { label: '3 天后', value: today.add(3, 'day') },
-    { label: '下周', value: nextMonday },
-  ];
+  const shortcuts = dateShortcuts(today);
   const label = (text: string, required?: boolean) => (
     <div
       style={{
@@ -359,7 +430,7 @@ export const BatchFollowupModal: React.FC<{
               key={d.label}
               size="small"
               type={nextDate?.isSame(d.value, 'day') ? 'primary' : 'default'}
-              onClick={() => setNextDate(d.value)}
+              onClick={() => pickDate(d.value)}
             >
               {d.label}
             </Button>
@@ -368,9 +439,14 @@ export const BatchFollowupModal: React.FC<{
             size="small"
             value={nextDate}
             placeholder="选日期"
-            onChange={setNextDate}
+            onChange={pickDate}
             disabledDate={(d) => d.isBefore(today)}
           />
+          {nextDate?.isSame(suggest.date, 'day') && suggest.reason && (
+            <span style={{ fontSize: 12, color: palette.link }}>
+              <ThunderboltOutlined /> 推荐：{suggest.reason}
+            </span>
+          )}
         </Space>
         {label('方式')}
         <Segmented

@@ -20,6 +20,7 @@ import {
   ValueCell,
 } from './components';
 import { PartsPanel, ProgressCell } from './OrderParts';
+import { QuickButton } from './QuickActions';
 import QuotationPreviewDrawer from './QuotationPreviewDrawer';
 import type { RecordTarget } from './RecordFollowupModal';
 import {
@@ -727,6 +728,13 @@ export const FollowupTable: React.FC<{
                   onDone={onChanged}
                 />
               )}
+              <QuickButton
+                customerId={r.customerId}
+                items={[r]}
+                disabled={!canRecord}
+                onRecord={() => onRecord(r)}
+                onDone={onChanged}
+              />
               {develop && r.stageCode === 'D7' ? (
                 <>
                   <Button
@@ -1278,6 +1286,20 @@ export const FollowupTable: React.FC<{
           <SnoozeButton
             entries={[{ customerId: g.customerId, itemIds: due }]}
             disabled={!canRecord || due.length === 0}
+            onDone={onChanged}
+          />
+          <QuickButton
+            customerId={g.customerId}
+            items={g.items}
+            disabled={!canRecord}
+            onRecord={() =>
+              onRecordTarget?.({
+                customerId: g.customerId,
+                customerName: g.customerName,
+                item: g.lead,
+                items: g.items,
+              })
+            }
             onDone={onChanged}
           />
           <Button

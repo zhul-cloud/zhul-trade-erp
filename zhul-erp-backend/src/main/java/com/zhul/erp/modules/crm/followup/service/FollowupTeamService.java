@@ -251,8 +251,8 @@ public class FollowupTeamService {
     // ---------------------------------------------------------------- 按负责人
 
     private void ownerRows(FollowupTeamVO vo, List<FollowupItemDO> open, Collection<Long> owners, LocalDate[] range, LocalDate today) {
-        Map<Long, Integer> records = recordCounts(owners, range[0], range[1]);
-        Map<Long, Integer> prevRecords = recordCounts(owners, range[2], range[3]);
+        Map<Long, int[]> records = recordCounts(owners, range[0], range[1]);
+        Map<Long, int[]> prevRecords = recordCounts(owners, range[2], range[3]);
         Set<Long> ids = new TreeSet<>();
         open.forEach(i -> ids.add(i.getOwnerId()));
         ids.addAll(records.keySet());
@@ -275,8 +275,10 @@ public class FollowupTeamService {
             o.setTodayDue(todo[CustomerRollup.TODAY]);
             o.setOverdue(todo[CustomerRollup.OVERDUE]);
             o.setManySnoozes((int) mine.stream().filter(i -> nz(i.getSnoozeCount()) >= FollowupConstants.SNOOZE_WARN_TIMES).count());
-            o.setRecords(records.getOrDefault(id, 0));
-            o.setPrevRecords(prevRecords.getOrDefault(id, 0));
+            int[] cnt = records.getOrDefault(id, new int[2]);
+            o.setRecords(cnt[0]);
+            o.setQuickRecords(cnt[1]);
+            o.setPrevRecords(prevRecords.getOrDefault(id, new int[2])[0]);
             o.setAttention(o.getOverdue() >= ATTENTION || o.getManySnoozes() >= ATTENTION);
             vo.getOwners().add(o);
         }
@@ -286,10 +288,11 @@ public class FollowupTeamService {
                 .thenComparing(FollowupTeamVO.Owner::getOwnerId));
     }
 
-    private Map<Long, Integer> recordCounts(Collection<Long> owners, LocalDate from, LocalDate to) {
-        Map<Long, Integer> out = new HashMap<>(16);
+    /** 记跟进次数：记录人 → [全部, 其中快速记录] */
+    private Map<Long, int[]> recordCounts(Collection<Long> owners, LocalDate from, LocalDate to) {
+        Map<Long, int[]> out = new HashMap<>(16);
         for (Map<String, Object> row : teamMapper.recordsByOperator(owners, from.atStartOfDay(), to.plusDays(1).atStartOfDay())) {
-            out.put(((Number) row.get("ownerId")).longValue(), num(row.get("cnt")));
+            out.put(((Number) row.get("ownerId")).longValue(), new int[]{num(row.get("cnt")), num(row.get("quickCnt"))});
         }
         return out;
     }

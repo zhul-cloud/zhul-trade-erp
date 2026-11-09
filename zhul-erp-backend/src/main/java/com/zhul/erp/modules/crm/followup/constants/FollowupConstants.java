@@ -80,6 +80,25 @@ public final class FollowupConstants {
     /** 记录类型 */
     public static final int RECORD_USER = 1;
     public static final int RECORD_SYSTEM = 2;
+    /** 业务员手动调整阶段，不算一次跟进 */
+    public static final int RECORD_STAGE = 3;
+    /** 快速记录的实际沟通日期最多往前的天数 */
+    public static final int CONTACT_BACK_DAYS = 30;
+
+    /**
+     * 可以手动调整的阶段段（spec「手动调整阶段」）：段内全靠业务员判断，没有单据作依据，可以互相前进或后退。
+     * 售后 A1–A2 由签收日期、客户经营 G4/G6 由客户情况推导，用快速跟进的答案推进，不放进来。
+     */
+    public static final List<List<String>> ADJUST_SEGMENTS = List.of(List.of("S1", "S2"), List.of("S4", "S5", "S6"),
+            List.of("D4", "D5", "D6"));
+    public static final Map<String, String> ADJUST_REASONS = Map.of("HISTORY", "历史数据阶段不对", "LAGGING", "系统判断滞后",
+            "CHANGED", "客户情况变化", "OTHER", "其他");
+    public static final String ADJUST_REASON_OTHER = "OTHER";
+
+    /** 阶段所在的可调整段，不能调整时为空列表 */
+    public static List<String> adjustSegment(String stage) {
+        return ADJUST_SEGMENTS.stream().filter(s -> s.contains(stage)).findFirst().orElse(List.of());
+    }
 
     /** 客户情况位掩码 */
     public static final int SITUATION_FEEDBACK = 1;
@@ -96,6 +115,7 @@ public final class FollowupConstants {
 
     /** 方式 */
     public static final Map<Integer, String> CHANNEL_NAMES = Map.of(1, "WhatsApp", 2, "邮件", 3, "电话", 4, "其他", 5, "LinkedIn");
+    public static final int CHANNEL_OTHER = 4;
 
     /** 商机成交板块的阶段编码 */
     public static final String S1 = "S1";
