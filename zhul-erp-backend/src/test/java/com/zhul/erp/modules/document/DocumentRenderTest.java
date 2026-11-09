@@ -8,6 +8,9 @@ import com.zhul.erp.modules.document.support.TemplateProblem;
 import com.zhul.erp.modules.document.support.TextTemplateEngine;
 import com.zhul.erp.modules.document.support.XlsxRenderer;
 import com.zhul.erp.modules.document.support.XlsxTemplateInspector;
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.CellStyle;
+import org.apache.poi.ss.usermodel.DataFormatter;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -72,6 +75,44 @@ class DocumentRenderTest {
             // 6120 + 268.5×2 + 85.9×4 + 65 = 7065.6
             assertThat(all).contains("7065.6");
             assertThat(sheet.getRepeatingRows()).isNotNull();
+        }
+    }
+
+    @Test
+    void swapSymbol_replacesHardcodedCurrencyInNumberFormats() {
+        assertThat(XlsxRenderer.swapSymbol("\\$#,##0.00_);[Red]\\(\\$#,##0.00\\)", "₽"))
+                .isEqualTo("\"₽\"#,##0.00_);[Red]\\(\"₽\"#,##0.00\\)");
+        assertThat(XlsxRenderer.swapSymbol("[$$-409]#,##0.00", "₽")).isEqualTo("\"₽\"#,##0.00");
+        assertThat(XlsxRenderer.swapSymbol("_ \"￥\"* #,##0.00_ ", "$")).isEqualTo("_ \"$\"* #,##0.00_ ");
+        assertThat(XlsxRenderer.swapSymbol("#,##0.00_ ;[Red]\\-#,##0.00\\ ", "₽")).isNull();
+        assertThat(XlsxRenderer.swapSymbol("General", "₽")).isNull();
+        assertThat(XlsxRenderer.swapSymbol("\"$\"#,##0.00", "$")).isNull();
+    }
+
+    /** 模版金额格式写死 $（福唯报价/PI/CI 模版即如此）：卢布单据导出后显示 ₽ */
+    @Test
+    void rubDocumentReplacesDollarFormatFromTemplate() throws IOException {
+        byte[] template;
+        try (XSSFWorkbook wb = new XSSFWorkbook(new ByteArrayInputStream(builtin("quotation-v1.xlsx")));
+             ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            CellStyle dollar = wb.createCellStyle();
+            dollar.setDataFormat(wb.createDataFormat().getFormat("\\$#,##0.00;\\-\\$#,##0.00"));
+            Cell cell = wb.getSheetAt(0).createRow(wb.getSheetAt(0).getLastRowNum() + 2).createCell(0);
+            cell.setCellValue(12.5);
+            cell.setCellStyle(dollar);
+            wb.write(out);
+            template = out.toByteArray();
+        }
+        RenderModel sample = SampleData.quotation();
+        Map<String, Object> header = new LinkedHashMap<>(sample.header());
+        header.put("quotation.currency", "RUB");
+        header.put("quotation.currencySymbol", "₽");
+        byte[] out = XlsxRenderer.render(template, new RenderModel(header, sample.items(), sample.fees()));
+        try (XSSFWorkbook wb = new XSSFWorkbook(new ByteArrayInputStream(out))) {
+            XSSFSheet sheet = wb.getSheetAt(0);
+            String fmt = sheet.getRow(sheet.getLastRowNum()).getCell(0).getCellStyle().getDataFormatString();
+            assertThat(fmt).isEqualTo("\"₽\"#,##0.00;\\-\"₽\"#,##0.00");
+            assertThat(new DataFormatter().formatCellValue(sheet.getRow(sheet.getLastRowNum()).getCell(0))).isEqualTo("₽12.50");
         }
     }
 
