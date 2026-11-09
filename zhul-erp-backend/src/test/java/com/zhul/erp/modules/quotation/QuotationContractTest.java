@@ -26,6 +26,7 @@ import java.util.concurrent.CompletableFuture;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -1043,6 +1044,43 @@ class QuotationContractTest extends InquiryContractSupport {
         assertTrue(detail.path("task").path("editable").asBoolean());
         assertTrue(detail.path("items").get(0).path("locked").asBoolean());
         assertFalse(detail.path("items").get(1).path("locked").asBoolean());
+    }
+
+    @Test
+    void remainingModelsQuotedAsNoStock_completeTask_voidReopens() throws Exception {
+        // BUS-031：采购报了一部分，剩下的业务员直接按无货报给客户 → 任务完结；报价单作废后剩下的回到待询价，任务回到询价中
+        long c = customer("Pacific Controls", "Australia");
+        long inq = ok(call(json(post(INQ), "{\"customerId\":" + c + ",\"source\":1,\"urgent\":false,\"rawContent\":\"rfq\"}"), admin))
+                .path("id").asLong();
+        List<Map<String, Object>> rows = new ArrayList<>();
+        for (String model : List.of("HG-SN202BJ", "HG-KN43J-S100", "HG-KN73J-S100")) {
+            rows.add(Map.of("brand", "Mitsubishi", "category", "伺服电机", "confirmedModel", model, "quantity", 1));
+        }
+        ok(call(json(post(INQ + "/" + inq + "/confirm"), write(Map.of("rows", rows))), admin));
+        long task = jdbc.queryForObject("select id from sourcing_task where customer_inquiry_id = ?", Long.class, inq);
+        ok(call(json(post(BOARD + "/assign"), "{\"taskIds\":[" + task + "],\"assigneeId\":" + BUYER_LIN + "}"), admin));
+        List<Long> items = itemIds(inq);
+        String lin = token("it_lin");
+        ok(call(json(put(MY + "/" + task + "/quotes"), quotesBody(items.get(0), "2640")), lin));
+        assertEquals(2, taskStatus(task), "还有两个型号待询价");
+
+        // 业务员把三个型号都报出：没价格的两个带入为无货行
+        JsonNode q = ok(create(write(Map.of("itemIds", items))));
+        long id = q.path("id").asLong();
+        assertEquals(2, taskStatus(task), "草稿不算报出");
+        ok(call(json(post(QT + "/" + id + "/send"), "{\"channel\":1}"), admin));
+        assertEquals(3, taskStatus(task), "剩下的型号已报给客户，任务完结");
+        assertNotNull(jdbc.queryForObject("select completed_at from sourcing_task where id = ?", java.time.LocalDateTime.class, task));
+        assertEquals("没有可以交出的型号",
+                call(json(post(MY + "/" + task + "/return"), "{\"reason\":2}"), lin).path("message").asText());
+
+        ok(call(post(QT + "/" + id + "/void"), admin));
+        assertEquals(2, taskStatus(task), "作废视为没报过：剩下的型号回到待询价");
+        assertNull(jdbc.queryForObject("select completed_at from sourcing_task where id = ?", java.time.LocalDateTime.class, task));
+    }
+
+    private int taskStatus(long task) {
+        return jdbc.queryForObject("select status from sourcing_task where id = ?", Integer.class, task);
     }
 
     private String quotesBody(long itemId, String price) throws Exception {
