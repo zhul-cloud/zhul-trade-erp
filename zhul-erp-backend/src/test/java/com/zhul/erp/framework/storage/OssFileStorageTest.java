@@ -111,7 +111,7 @@ class OssFileStorageTest {
 
         when(client.generatePresignedUrl(any(GeneratePresignedUrlRequest.class))).thenReturn(new URL("https://signed.example/part"));
         Instant exp = Instant.parse("2026-11-10T08:15:00Z");
-        assertThat(s.presignPart("tmp/0/a.pdf", "up-1", 3, exp)).isEqualTo("https://signed.example/part");
+        assertThat(s.presignPart("tmp/0/a.pdf", "up-1", 3, 1024, exp)).isEqualTo("https://signed.example/part");
         ArgumentCaptor<GeneratePresignedUrlRequest> pr = ArgumentCaptor.forClass(GeneratePresignedUrlRequest.class);
         verify(client).generatePresignedUrl(pr.capture());
         assertThat(pr.getValue().getMethod()).isEqualTo(HttpMethod.PUT);

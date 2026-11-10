@@ -82,7 +82,16 @@ class OssLiveIT {
             HttpClient http = HttpClient.newHttpClient();
             for (int n = 1; n <= 2; n++) {
                 byte[] chunk = java.util.Arrays.copyOfRange(data, (n - 1) * part, Math.min(data.length, n * part));
-                String url = s.presignPart(tmpKey, uploadId, n, Instant.now().plusSeconds(600));
+                String url = s.presignPart(tmpKey, uploadId, n, chunk.length, Instant.now().plusSeconds(600));
+                // 签名锁定了分片大小：多传 1 个字节、少传 1 个字节都被 OSS 拒绝
+                byte[] longer = java.util.Arrays.copyOf(chunk, chunk.length + 1);
+                HttpResponse<String> tooLong = http.send(HttpRequest.newBuilder(URI.create(url))
+                        .PUT(HttpRequest.BodyPublishers.ofByteArray(longer)).build(), HttpResponse.BodyHandlers.ofString());
+                assertThat(tooLong.statusCode()).as(tooLong.body()).isEqualTo(403);
+                byte[] shorter = java.util.Arrays.copyOf(chunk, chunk.length - 1);
+                HttpResponse<String> tooShort = http.send(HttpRequest.newBuilder(URI.create(url))
+                        .PUT(HttpRequest.BodyPublishers.ofByteArray(shorter)).build(), HttpResponse.BodyHandlers.ofString());
+                assertThat(tooShort.statusCode()).as(tooShort.body()).isEqualTo(403);
                 HttpResponse<String> res = http.send(HttpRequest.newBuilder(URI.create(url))
                         .PUT(HttpRequest.BodyPublishers.ofByteArray(chunk)).build(), HttpResponse.BodyHandlers.ofString());
                 assertThat(res.statusCode()).as(res.body()).isEqualTo(200);

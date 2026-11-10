@@ -109,6 +109,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import com.zhul.erp.modules.media.service.MediaIndexer;
 import com.zhul.erp.modules.system.service.BusinessUnitService;
+import com.zhul.erp.modules.upload.service.DirectUploadService;
 
 @Slf4j
 @Service
@@ -145,6 +146,7 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
     private static final Duration AI_LINK_TTL = Duration.ofMinutes(60);
 
     private final FileStorageService fileStorage;
+    private final DirectUploadService directUpload;
 
     /** 后端对外可达地址：本地存储方式下的附件链接是相对地址，发给 AI 编排服务时拼上它 */
     @Value("${zhul.ai-task.callback-base-url}")
@@ -242,7 +244,7 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
             throw new BizException("报价截止不能早于询盘日期");
         }
         dictItemService.requireEnabledValue(DictTypes.SOURCE_CHANNEL, req.getSource(), "来源渠道不正确");
-        checkAttachmentTotal(0L, refs, tenantId);
+        refs = claimAttachments(0L, refs, tenantId);
         for (AttachmentRef ref : plates) {
             fileStorage.locate(StorageArea.INQUIRY, ref.getFileKey(), tenantId);
         }
@@ -309,16 +311,33 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
     /**
      * 询盘附件合计不超过 2GB、不限个数（spec inquiry/inquiry-intake「询盘大附件」）：existing 为保留的已有附件大小，
      * 新增附件按存储里的实际大小计算，不信任前端；同时校验文件键属于本租户、询盘环节且文件存在。铭牌图片不计入。
+     * 合计通过后认领直传的临时文件（转到正式位置），返回改成正式文件键的附件列表；其他附件原样返回。
      */
-    private void checkAttachmentTotal(long existing, List<AttachmentRef> added, int tenantId) {
+    private List<AttachmentRef> claimAttachments(long existing, List<AttachmentRef> added, int tenantId) {
         long total = existing;
         for (AttachmentRef ref : added) {
+            if (DirectUploadService.isPending(ref.getFileKey())) {
+                total += directUpload.pendingSize(ref.getFileKey(), InquiryConstants.UPLOAD_SCENE_ATTACHMENT);
+                continue;
+            }
             String storage = fileStorage.locate(StorageArea.INQUIRY, ref.getFileKey(), tenantId);
             total += Math.max(0, fileStorage.storages().of(storage).size(false, ref.getFileKey()));
         }
         if (total > InquiryConstants.ATTACHMENT_TOTAL_BYTES) {
             throw new BizException(InquiryConstants.ATTACHMENT_TOTAL_MESSAGE);
         }
+        List<AttachmentRef> claimed = new ArrayList<>(added.size());
+        for (AttachmentRef ref : added) {
+            if (!DirectUploadService.isPending(ref.getFileKey())) {
+                claimed.add(ref);
+                continue;
+            }
+            AttachmentRef c = new AttachmentRef();
+            c.setFileKey(directUpload.claim(ref.getFileKey(), InquiryConstants.UPLOAD_SCENE_ATTACHMENT));
+            c.setFileName(ref.getFileName());
+            claimed.add(c);
+        }
+        return claimed;
     }
 
     /** 询盘附件（不含铭牌图片）的大小合计 */
@@ -1094,7 +1113,7 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
         if (!manual && !StringUtils.hasText(req.getRawContent()) && refs.isEmpty() && plates.isEmpty()) {
             throw new BizException("请粘贴追加的内容或上传附件");
         }
-        checkAttachmentTotal(fileBytes(attachmentMapper.selectList(new LambdaQueryWrapper<CustomerInquiryAttachmentDO>()
+        refs = claimAttachments(fileBytes(attachmentMapper.selectList(new LambdaQueryWrapper<CustomerInquiryAttachmentDO>()
                 .eq(CustomerInquiryAttachmentDO::getCustomerInquiryId, inquiry.getId())
                 .isNull(CustomerInquiryAttachmentDO::getDeletedAt))), refs, inquiry.getTenantId());
         CustomerInquiryAppendDO a = new CustomerInquiryAppendDO();
@@ -1320,7 +1339,7 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
         List<CustomerInquiryAttachmentDO> removed = current.stream().filter(a -> !keep.contains(a.getId())).toList();
         List<AttachmentRef> added = req.getAttachments() == null ? List.of() : req.getAttachments();
         List<AttachmentRef> addedPlates = nameplateRefs(req.getNameplates());
-        checkAttachmentTotal(fileBytes(current.stream().filter(a -> keep.contains(a.getId())).toList()), added,
+        added = claimAttachments(fileBytes(current.stream().filter(a -> keep.contains(a.getId())).toList()), added,
                 inquiry.getTenantId());
         int urgent = Boolean.TRUE.equals(req.getUrgent()) ? 1 : 0;
         String remark = req.getRemark() == null ? "" : req.getRemark().trim();

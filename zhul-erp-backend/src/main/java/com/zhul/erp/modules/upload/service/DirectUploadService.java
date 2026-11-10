@@ -46,11 +46,14 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * 大文件分片直传（spec system/file-attachment「大文件分片直传」等）：
  * 存储方式为 OSS 时浏览器把分片直接 PUT 到签名地址；为本地时 PUT 到后端分片接口，按流写入临时文件的对应位置。
- * 完成后按实际大小与文件内容校验，再放到正式文件键，业务单据照常凭文件键保存。
+ * 完成后按实际大小与文件内容校验，校验通过的文件仍留在临时位置；业务单据保存时凭返回的临时文件键认领，
+ * 才转到正式文件键。传完却没保存到单据的文件和其他未完成的上传一样，1 天后由 OSS 生命周期规则或本地清理任务删除。
  */
 @Slf4j
 @Service
@@ -67,6 +70,9 @@ public class DirectUploadService {
     private static final int HEAD_BYTES = 512;
     private static final String KEY_PREFIX = "zhul:erp:upload:";
     private static final String UPLOAD_API = "/api/v1/uploads/";
+    private static final String TMP_PREFIX = "tmp/";
+    /** 临时文件键：tmp/{租户}/{会话ID}.{扩展名} */
+    private static final Pattern TMP_KEY = Pattern.compile("tmp/(\\d+)/([0-9a-f]{32})\\.([a-z0-9]{1,8})");
     private static final SecureRandom RANDOM = new SecureRandom();
 
     private final Map<String, UploadScene> scenes = new LinkedHashMap<>();
@@ -114,7 +120,7 @@ public class DirectUploadService {
         s.setSize(size);
         s.setPartSize(PART_SIZE);
         s.setPartCount((int) ((size + PART_SIZE - 1) / PART_SIZE));
-        s.setTmpKey("tmp/" + s.getTenantId() + "/" + s.getId() + "." + ext);
+        s.setTmpKey(TMP_PREFIX + s.getTenantId() + "/" + s.getId() + "." + ext);
         FileStorage current = storages.current();
         if (current instanceof OssFileStorage oss) {
             s.setStorage(FileStorage.OSS);
@@ -148,7 +154,7 @@ public class DirectUploadService {
         }
         checkPartNumber(s, n);
         long offset = (n - 1L) * s.getPartSize();
-        long expected = Math.min(s.getPartSize(), s.getSize() - offset);
+        long expected = partLength(s, n);
         Path tmp = local().privatePath(s.getTmpKey());
         long written = 0;
         byte[] buf = new byte[64 * 1024];
@@ -200,13 +206,78 @@ public class DirectUploadService {
             }
         }
         try {
-            UploadedFileVO done = finish(s, scene, oss);
-            log.info("直传完成，uploadId={}，fileKey={}，size={}", s.getId(), done.fileKey(), done.fileSize());
-            return done;
-        } finally {
+            verify(s, scene, oss);
+        } catch (RuntimeException e) {
+            // 校验没通过：删除文件与会话，这次上传作废
             removeTmp(s, oss);
             redis.delete(List.of(sessionKey(s.getTenantId(), s.getId()), partsKey(s)));
+            throw e;
         }
+        redis.delete(partsKey(s));
+        save(s);
+        log.info("直传完成，待保存单据时认领，uploadId={}，size={}", s.getId(), s.getFileSize());
+        return new UploadedFileVO(s.getStorage(), s.getTmpKey(), s.getFileName(), s.getFileSize(), s.getContentType());
+    }
+
+    // ---------------------------------------------------------------- 认领
+
+    /** 文件键是否为直传完成、还没认领的临时文件 */
+    public static boolean isPending(String fileKey) {
+        return fileKey != null && fileKey.startsWith(TMP_PREFIX);
+    }
+
+    /** 待认领文件的实际大小（用于保存前的合计校验）；不是本租户、本人在该场景上传并通过校验的文件时拒绝 */
+    public long pendingSize(String fileKey, String sceneKey) {
+        return pending(fileKey, sceneKey).getFileSize();
+    }
+
+    /**
+     * 业务单据保存时认领：把临时文件转到正式文件键并返回它。同一文件再次认领（如保存失败后重试）返回同一个键；
+     * 临时文件已被清理（超过 1 天）时提示重新上传。
+     */
+    public String claim(String fileKey, String sceneKey) {
+        UploadSession s = pending(fileKey, sceneKey);
+        if (s.getClaimedKey() != null) {
+            return s.getClaimedKey();
+        }
+        UploadScene scene = scene(s.getScene());
+        String key = StorageKeys.newKey(scene.area(), s.getTenantId(), s.getExt());
+        if (FileStorage.OSS.equals(s.getStorage())) {
+            OssFileStorage oss = ossStorage();
+            if (oss.size(false, s.getTmpKey()) < 0) {
+                throw new BizException("附件「" + s.getFileName() + "」上传已过期，请重新上传");
+            }
+            oss.copy(false, s.getTmpKey(), key);
+            removeTmp(s, true);
+        } else {
+            Path source = local().privatePath(s.getTmpKey());
+            Path target = local().privatePath(key);
+            try {
+                if (!Files.exists(source)) {
+                    throw new BizException("附件「" + s.getFileName() + "」上传已过期，请重新上传");
+                }
+                Files.createDirectories(target.getParent());
+                Files.move(source, target, StandardCopyOption.ATOMIC_MOVE);
+            } catch (IOException e) {
+                throw new UncheckedIOException("保存文件失败", e);
+            }
+        }
+        s.setClaimedKey(key);
+        save(s);
+        log.info("认领直传文件，uploadId={}，fileKey={}", s.getId(), key);
+        return key;
+    }
+
+    private UploadSession pending(String fileKey, String sceneKey) {
+        Matcher m = fileKey == null ? null : TMP_KEY.matcher(fileKey);
+        if (m == null || !m.matches() || Integer.parseInt(m.group(1)) != tenantId()) {
+            throw new BizException("附件不存在或已过期，请重新上传");
+        }
+        UploadSession s = mine(m.group(2));
+        if (!s.isVerified() || !fileKey.equals(s.getTmpKey()) || !s.getScene().equals(sceneKey)) {
+            throw new BizException("附件不存在或已过期，请重新上传");
+        }
+        return s;
     }
 
     /** 取消：中止分片上传、删除临时文件与会话 */
@@ -222,8 +293,11 @@ public class DirectUploadService {
 
     // ---------------------------------------------------------------- 内部
 
-    /** 核对实际大小与文件内容，再放到正式文件键；图片照常压缩（spec system/file-attachment「上传压缩」） */
-    private UploadedFileVO finish(UploadSession s, UploadScene scene, boolean oss) {
+    /**
+     * 核对实际大小与文件内容；图片照常压缩（spec system/file-attachment「上传压缩」），压缩后的文件写回临时位置。
+     * 通过后在会话里记下实际大小与类型，文件留在临时位置等认领。
+     */
+    private void verify(UploadSession s, UploadScene scene, boolean oss) {
         long actual = oss ? ossStorage().size(false, s.getTmpKey()) : localSize(s);
         if (actual != s.getSize() || actual > scene.maxBytes()) {
             throw new BizException("文件大小与声明不一致，已删除，请重新上传");
@@ -233,19 +307,24 @@ public class DirectUploadService {
         if (ext == null || !scene.exts().contains(ext)) {
             throw new BizException(scene.typeMessage() + "，文件已删除");
         }
-        int tenantId = s.getTenantId();
-        FileStorage fs = oss ? ossStorage() : local();
+        long size = actual;
         if (UploadRules.isImage(ext)) {
             Path raw = fileStorage.download(s.getStorage(), s.getTmpKey());
             Path compressed = null;
             try {
                 ImageCompressor.Result r = ImageCompressor.compress(raw, ext, fileStorage.workDir());
                 compressed = r.file();
-                String key = StorageKeys.newKey(scene.area(), tenantId, r.ext());
-                String ct = UploadRules.contentTypeOf(r.ext());
-                fs.put(false, key, r.file(), ct);
-                String name = r.ext().equals(ext) ? s.getFileName() : UploadRules.withExt(s.getFileName(), r.ext());
-                return new UploadedFileVO(fs.code(), key, name, Files.size(r.file()), ct);
+                String key = TMP_PREFIX + s.getTenantId() + "/" + s.getId() + "." + r.ext();
+                (oss ? ossStorage() : local()).put(false, key, r.file(), UploadRules.contentTypeOf(r.ext()));
+                if (!key.equals(s.getTmpKey())) {
+                    removeTmp(s, oss);
+                    s.setTmpKey(key);
+                }
+                if (!r.ext().equals(ext)) {
+                    s.setFileName(UploadRules.withExt(s.getFileName(), r.ext()));
+                }
+                ext = r.ext();
+                size = Files.size(r.file());
             } catch (IOException e) {
                 throw new UncheckedIOException("处理图片失败", e);
             } finally {
@@ -253,19 +332,10 @@ public class DirectUploadService {
                 FileStorageService.deleteTemp(compressed);
             }
         }
-        String key = StorageKeys.newKey(scene.area(), tenantId, ext);
-        if (oss) {
-            fs.copy(false, s.getTmpKey(), key);
-        } else {
-            Path target = local().privatePath(key);
-            try {
-                Files.createDirectories(target.getParent());
-                Files.move(local().privatePath(s.getTmpKey()), target, StandardCopyOption.ATOMIC_MOVE);
-            } catch (IOException e) {
-                throw new UncheckedIOException("保存文件失败", e);
-            }
-        }
-        return new UploadedFileVO(fs.code(), key, s.getFileName(), actual, UploadRules.contentTypeOf(ext));
+        s.setExt(ext);
+        s.setFileSize(size);
+        s.setContentType(UploadRules.contentTypeOf(ext));
+        s.setVerified(true);
     }
 
     private List<PartUrlVO> urls(UploadSession s, int from, int count) {
@@ -273,7 +343,7 @@ public class DirectUploadService {
         Instant exp = Instant.now().plus(PRESIGN_TTL);
         for (int n = Math.max(1, from); n < from + count && n <= s.getPartCount(); n++) {
             String url = FileStorage.OSS.equals(s.getStorage())
-                    ? ossStorage().presignPart(s.getTmpKey(), s.getOssUploadId(), n, exp)
+                    ? ossStorage().presignPart(s.getTmpKey(), s.getOssUploadId(), n, partLength(s, n), exp)
                     : UPLOAD_API + s.getId() + "/parts/" + n + "?t=" + s.getToken();
             list.add(new PartUrlVO(n, url));
         }
@@ -321,6 +391,11 @@ public class DirectUploadService {
             // 残留的临时文件由 OSS 生命周期规则或本地清理任务删除
             log.warn("删除直传临时文件失败，uploadId={}：{}", s.getId(), e.toString());
         }
+    }
+
+    /** 第 n 片的字节数：最后一片是余下的部分 */
+    static long partLength(UploadSession s, int n) {
+        return Math.min(s.getPartSize(), s.getSize() - (n - 1L) * s.getPartSize());
     }
 
     private void checkPartNumber(UploadSession s, int n) {

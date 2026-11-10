@@ -23,4 +23,11 @@ public class UploadSession {
     private String ossUploadId;
     /** 本地分片接口的令牌 */
     private String token;
+    /** 完成时已核对大小与内容，文件留在临时位置等业务单据保存时认领 */
+    private boolean verified;
+    /** 核对后（图片压缩后）的实际大小与类型 */
+    private long fileSize;
+    private String contentType;
+    /** 认领后的正式文件键；同一文件重复认领时返回它 */
+    private String claimedKey;
 }

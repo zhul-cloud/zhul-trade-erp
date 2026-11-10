@@ -96,7 +96,7 @@ class DirectUploadContractTest extends InquiryContractSupport {
     }
 
     @Test
-    void outOfOrderAndRepeatedParts_completeToInquiryKey_thenSubmitInquiry() throws Exception {
+    void outOfOrderAndRepeatedParts_staysInTmp_untilInquirySaveClaimsIt() throws Exception {
         byte[] data = pdf(PART + 1024 * 1024);
         JsonNode prep = ok(prepare("设备清单.pdf", data.length, null, admin));
         assertEquals("local", prep.path("mode").asText());
@@ -108,10 +108,9 @@ class DirectUploadContractTest extends InquiryContractSupport {
         JsonNode file = ok(complete(id, 2, admin));
 
         String key = file.path("fileKey").asText();
-        assertTrue(key.matches("tenant/0/inquiry/\\d{6}/[0-9a-f]{32}\\.pdf"), key);
+        assertEquals("tmp/0/" + id + ".pdf", key, "校验通过后仍在临时位置，等保存单据时认领");
         assertEquals(data.length, file.path("fileSize").asLong());
         assertTrue(Arrays.equals(data, Files.readAllBytes(privatePath(key))), "分片按位置拼回原文件");
-        assertFalse(Files.exists(privatePath("tmp/0/" + id + ".pdf")), "临时文件已挪走");
 
         long c = customer("Acme", "Germany");
         Map<String, Object> body = new LinkedHashMap<>();
@@ -121,6 +120,33 @@ class DirectUploadContractTest extends InquiryContractSupport {
         long inquiry = ok(call(json(post(INQ), write(body)), admin)).path("id").asLong();
         JsonNode detail = ok(call(get(INQ + "/" + inquiry), admin));
         assertEquals(data.length, detail.path("attachments").get(0).path("fileSize").asLong());
+        String saved = jdbc.queryForObject("select file_key from customer_inquiry_attachment where customer_inquiry_id = ?",
+                String.class, inquiry);
+        assertTrue(saved.matches("tenant/0/inquiry/\\d{6}/[0-9a-f]{32}\\.pdf"), saved);
+        assertTrue(Arrays.equals(data, Files.readAllBytes(privatePath(saved))), "保存时转到正式位置");
+        assertFalse(Files.exists(privatePath(key)), "临时文件已挪走");
+    }
+
+    @Test
+    void pendingFile_canOnlyBeClaimedByUploader_inSameTenantAndScene() throws Exception {
+        String key = upload("a.pdf", pdf(1000)).path("fileKey").asText();
+        long c = customer("Gamma", "Spain");
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("customerId", c);
+        body.put("source", 1);
+
+        body.put("attachments", List.of(Map.of("fileKey", key, "fileName", "a.pdf")));
+        assertNotEquals(0, call(json(post(INQ), write(body)), token("it_lin")).path("code").asInt(), "别人传的文件不能认领");
+        body.put("attachments", List.of(Map.of("fileKey", key.replace("tmp/0/", "tmp/1/"), "fileName", "a.pdf")));
+        assertEquals("附件不存在或已过期，请重新上传", call(json(post(INQ), write(body)), admin).path("message").asText(),
+                "改了租户的临时文件键不认");
+        body.put("attachments", List.of(Map.of("fileKey", "tmp/0/" + "0".repeat(32) + ".pdf", "fileName", "a.pdf")));
+        assertEquals("上传已过期，请重新上传", call(json(post(INQ), write(body)), admin).path("message").asText());
+        assertTrue(Files.exists(privatePath(key)), "没保存的文件留在临时位置，由 1 天的清理任务删除");
+
+        body.put("attachments", List.of(Map.of("fileKey", key, "fileName", "a.pdf")));
+        ok(call(json(post(INQ), write(body)), admin));
+        assertFalse(Files.exists(privatePath(key)));
     }
 
     @Test

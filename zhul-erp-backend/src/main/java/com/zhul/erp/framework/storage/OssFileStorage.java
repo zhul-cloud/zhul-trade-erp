@@ -141,10 +141,15 @@ public class OssFileStorage implements FileStorage, DisposableBean {
                 .getUploadId();
     }
 
-    /** 某个分片的签名上传地址（PUT），浏览器直接上传；只对这个文件、这次上传、这一片有效 */
-    public String presignPart(String key, String uploadId, int partNumber, Instant expiresAt) {
+    /**
+     * 某个分片的签名上传地址（PUT），浏览器直接上传；只对这个文件、这次上传、这一片有效。
+     * Content-Length 一并签名：上传的字节数与 length 不同时 OSS 直接拒绝，不能借一个分片地址传超大内容。
+     */
+    public String presignPart(String key, String uploadId, int partNumber, long length, Instant expiresAt) {
         GeneratePresignedUrlRequest req = new GeneratePresignedUrlRequest(cfg.getPrivateBucket(), prefix + key, HttpMethod.PUT);
         req.setExpiration(Date.from(expiresAt));
+        req.addHeader("Content-Length", String.valueOf(length));
+        req.addAdditionalHeaderName("content-length");
         req.addQueryParameter("partNumber", String.valueOf(partNumber));
         req.addQueryParameter("uploadId", uploadId);
         return client.generatePresignedUrl(req).toString();
