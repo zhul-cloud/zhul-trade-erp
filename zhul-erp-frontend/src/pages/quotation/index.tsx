@@ -177,6 +177,7 @@ const QuotationList: React.FC = () => {
         <CustomerCell
           name={v}
           country={r.customerCountry}
+          contact={r.customerContact}
           type={r.customerType}
         />
       ),

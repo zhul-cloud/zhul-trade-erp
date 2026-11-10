@@ -588,6 +588,7 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
             vo.setInquiryCode(i.getInquiryCode());
             vo.setCustomerId(i.getCustomerId());
             vo.setCustomerName(InquiryLookups.customerName(c));
+            vo.setCustomerContact(InquiryLookups.contactName(c));
             vo.setCustomerCountry(c == null ? "" : c.getCountry());
             vo.setCustomerType(i.getCustomerType());
             vo.setSource(i.getSource());

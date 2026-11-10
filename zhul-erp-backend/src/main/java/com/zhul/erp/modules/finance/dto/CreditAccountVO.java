@@ -11,6 +11,8 @@ import java.util.List;
 public class CreditAccountVO {
     private Long customerId;
     private String customerName;
+    /** 客户主联系人姓名（客户档案中的主联系人，实时读取） */
+    private String customerContact;
     private String customerCountry;
     private String currencyCode;
     private Integer businessUnitId;

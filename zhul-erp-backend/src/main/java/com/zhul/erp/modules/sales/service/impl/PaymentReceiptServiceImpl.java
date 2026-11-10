@@ -224,6 +224,85 @@ public class PaymentReceiptServiceImpl implements PaymentReceiptService {
         return fileStorage.link(f.getStorage(), f.getFileKey(), f.getFileName(), false);
     }
 
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public ReceiptRowVO addUnclaimedFiles(Long receiptId, List<MultipartFile> files) {
+        PaymentReceiptDO r = receiptId == null ? null : receiptMapper.selectOne(new LambdaQueryWrapper<PaymentReceiptDO>()
+                .eq(PaymentReceiptDO::getId, receiptId).last("FOR UPDATE"));
+        if (r == null || r.getDeletedAt() != null || !Objects.equals(r.getTenantId(), PiStore.tenantId())
+                || r.getKind() != SalesConstants.KIND_RECEIPT) {
+            throw new BizException("到账记录不存在");
+        }
+        if (r.getPiId() != null || r.getSoId() != null || r.getStatus() != SalesConstants.RECORD_VALID) {
+            throw new BizException("只有有效的未认领到账可以上传附件");
+        }
+        List<MultipartFile> list = files == null ? List.of() : files.stream().filter(f -> f != null && !f.isEmpty()).toList();
+        if (list.isEmpty()) {
+            throw new BizException("请选择要上传的附件");
+        }
+        List<ReceiptVO.SlipFile> stored = new ArrayList<>(fromJson(r.getFileKeys()));
+        if (stored.size() + list.size() > SalesConstants.MAX_SLIP_FILES) {
+            throw new BizException("一笔到账最多上传 " + SalesConstants.MAX_SLIP_FILES + " 个附件");
+        }
+        for (MultipartFile f : list) {
+            FileStorageService.StoredFile s = fileStorage.store(StorageArea.FINANCE, r.getTenantId(), f, SLIP_TYPES,
+                    SalesConstants.MAX_SLIP_BYTES, "附件只支持 JPG、PNG、PDF");
+            ReceiptVO.SlipFile sf = new ReceiptVO.SlipFile();
+            sf.setFileKey(s.fileKey());
+            sf.setStorage(s.storage());
+            sf.setFileName(s.fileName());
+            stored.add(sf);
+        }
+        r.setFileKeys(toJson(stored));
+        receiptMapper.updateById(r);
+        logService.recordOperateLog(SalesConstants.MENU_RECEIPTS, "上传未认领到账附件", null,
+                Map.of("amount", r.getCurrencyCode() + " " + r.getAmount(), "files", list.size()));
+        return receiptRows.of(List.of(r)).get(0);
+    }
+
+    @Override
+    public FileLink receiptFileLink(Long receiptId, int index) {
+        PaymentReceiptDO r = receiptId == null ? null : receiptMapper.selectById(receiptId);
+        if (r == null || r.getDeletedAt() != null || !Objects.equals(r.getTenantId(), PiStore.tenantId())
+                || r.getKind() != SalesConstants.KIND_RECEIPT) {
+            throw new BizException("到账记录不存在");
+        }
+        return fileLinkOf(r, index);
+    }
+
+    @Override
+    public FileLink claimableFileLink(Long piId, Long receiptId, int index) {
+        return claimableLinkOf(Owner.of(store.visible(piId)), receiptId, index);
+    }
+
+    @Override
+    public FileLink orderClaimableFileLink(Long soId, Long receiptId, int index) {
+        return claimableLinkOf(Owner.of(visibleOrder(soId)), receiptId, index);
+    }
+
+    /** 只能看自己能认领的到账：未认领、有效、同币种 */
+    private FileLink claimableLinkOf(Owner o, Long receiptId, int index) {
+        PaymentReceiptDO r = receiptId == null ? null : receiptMapper.selectById(receiptId);
+        if (r == null || r.getDeletedAt() != null || !Objects.equals(r.getTenantId(), o.tenantId())
+                || r.getKind() != SalesConstants.KIND_RECEIPT || r.getPiId() != null || r.getSoId() != null
+                || r.getStatus() != SalesConstants.RECORD_VALID || !Objects.equals(r.getCurrencyCode(), o.currency())) {
+            throw new BizException("到账记录不存在");
+        }
+        return fileLinkOf(r, index);
+    }
+
+    private FileLink fileLinkOf(PaymentReceiptDO r, int index) {
+        List<ReceiptVO.SlipFile> files = fromJson(r.getFileKeys());
+        if (index < 0 || index >= files.size()) {
+            throw new BizException("附件不存在");
+        }
+        ReceiptVO.SlipFile f = files.get(index);
+        if (!StorageKeys.owned(StorageArea.FINANCE, f.getFileKey(), r.getTenantId())) {
+            throw new BizException("附件不存在");
+        }
+        return fileStorage.link(f.getStorage(), f.getFileKey(), f.getFileName(), false);
+    }
+
     // ---------------------------------------------------------------- 到账
 
     @Override
@@ -572,7 +651,7 @@ public class PaymentReceiptServiceImpl implements PaymentReceiptService {
         // 手动创建的有效订单：收款记在订单上，同样出现在待确认
         LambdaQueryWrapper<SalesOrderDO> ow = new LambdaQueryWrapper<SalesOrderDO>()
                 .eq(SalesOrderDO::getTenantId, tenant)
-                .eq(SalesOrderDO::getSource, SalesConstants.SO_MANUAL)
+                .in(SalesOrderDO::getSource, SalesConstants.ORDER_RECEIPT_SOURCES)
                 .eq(SalesOrderDO::getStatus, SalesConstants.SO_ACTIVE)
                 .isNull(SalesOrderDO::getDeletedAt);
         dataScopeResolver.current().apply(ow, SalesOrderDO::getOwnerId);
@@ -655,6 +734,7 @@ public class PaymentReceiptServiceImpl implements PaymentReceiptService {
             vo.setPiStatus(p == null ? null : p.getStatus());
             vo.setCustomerId(r.customerId());
             vo.setCustomerName(InquiryLookups.customerName(customers.get(r.customerId())));
+            vo.setCustomerContact(InquiryLookups.contactName(customers.get(r.customerId())));
             vo.setOwnerId(r.ownerId());
             vo.setOwnerName(users.get(r.ownerId()));
             vo.setCurrencyCode(p == null ? r.so().getCurrencyCode() : p.getCurrencyCode());
@@ -764,7 +844,7 @@ public class PaymentReceiptServiceImpl implements PaymentReceiptService {
         if (Objects.equals(so.getSource(), SalesConstants.SO_REPLACEMENT)) {
             throw new BizException("售后补发订单无需收款");
         }
-        if (!Objects.equals(so.getSource(), SalesConstants.SO_MANUAL)) {
+        if (!SalesConstants.ordersOwnReceipts(so.getSource())) {
             throw new BizException("这张订单由 PI 转成，收款请在 PI 上登记");
         }
         if (receivable && so.getStatus() != SalesConstants.SO_ACTIVE) {

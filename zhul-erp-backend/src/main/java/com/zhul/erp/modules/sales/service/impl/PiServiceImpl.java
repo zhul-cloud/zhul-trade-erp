@@ -1202,6 +1202,7 @@ public class PiServiceImpl implements PiService {
             vo.setPiNo(p.getPiNo());
             vo.setCustomerId(p.getCustomerId());
             vo.setCustomerName(InquiryLookups.customerName(customers.get(p.getCustomerId())));
+            vo.setCustomerContact(InquiryLookups.contactName(customers.get(p.getCustomerId())));
             vo.setCustomerCountry(customers.get(p.getCustomerId()) == null ? null : customers.get(p.getCustomerId()).getCountry());
             vo.setCustomerType(customerTypes.get(p.getId()));
             vo.setTotalQuantity(quantities.getOrDefault(p.getId(), 0));

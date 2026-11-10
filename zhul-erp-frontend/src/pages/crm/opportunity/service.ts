@@ -20,6 +20,7 @@ export interface OpportunityItem {
   customerName: string;
   customerNameMissing: boolean;
   country: string;
+  customerContact?: string;
   sourceChannel: number;
   /** 阿里等级（仅阿里巴巴国际站），空串为未填 */
   aliLevel?: string;

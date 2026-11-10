@@ -22,6 +22,7 @@ import {
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
+import { CustomerSub } from '@/components/DocFields';
 import { Card, PageTitle, Pill, Stat } from '@/pages/inquiry/shared/components';
 import { EmptyHint } from '@/pages/product/components/EmptyHint';
 import { readBizError } from '@/pages/sales/service';
@@ -131,6 +132,12 @@ const CreditPage: React.FC = () => {
           )}
           <div style={{ fontSize: 12, color: palette.mute }}>
             {[a.customerCountry, a.currencyCode].filter(Boolean).join(' · ')}
+            {a.customerContact && (
+              <>
+                {' · '}
+                <CustomerSub contact={a.customerContact} />
+              </>
+            )}
           </div>
         </div>
       ),

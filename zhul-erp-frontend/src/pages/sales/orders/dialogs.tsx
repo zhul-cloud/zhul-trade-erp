@@ -1443,3 +1443,159 @@ export const EditFeesModal: React.FC<{
     </Modal>
   );
 };
+
+/**
+ * 新建费用订单（spec sales/sales-order「费用订单」）：只有费用行，客户、币种、事业部、业务员取原订单；
+ * 不走采购与出运，收款到账后自动完成。
+ */
+export const CreateFeeOrderModal: React.FC<{
+  order?: OrderDetail;
+  open: boolean;
+  onClose: () => void;
+  onDone: (o: Order) => void;
+}> = ({ order, open, onClose, onDone }) => {
+  const { message } = App.useApp();
+  const { palette } = useAppTheme();
+  const [rows, setRows] = useState<FeeRow[]>([]);
+  const [date, setDate] = useState<dayjs.Dayjs | null>(dayjs());
+  const [remark, setRemark] = useState('');
+  const [files, setFiles] = useState<Attachment[]>([]);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    setRows([{ key: ++feeSeq, feeName: 'Shipping Cost', amount: null }]);
+    setDate(dayjs());
+    setRemark('');
+    setFiles([]);
+  }, [open]);
+
+  if (!order) return null;
+  const cur = order.currencyCode;
+  const fees = toFeeInputs(rows);
+  const total = feeTotal(rows);
+  const rate = Number(order.exchangeRate);
+
+  const submit = async () => {
+    if (!date || fees.length === 0) return;
+    setBusy(true);
+    try {
+      const created = await orderApi.createFeeOrder(order.id, {
+        salesDate: date.format('YYYY-MM-DD'),
+        fees,
+        remark: remark.trim() || undefined,
+        attachmentIds: files.map((f) => f.id),
+      });
+      message.success(`已创建费用订单 ${created.soNo}`);
+      onDone(created);
+    } catch (e) {
+      message.error(readBizError(e).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const label = (text: string, required = false) => (
+    <div style={{ fontSize: 13, color: palette.sub, margin: '16px 0 8px' }}>
+      {text}
+      {required && <span style={{ color: palette.red }}> *</span>}
+    </div>
+  );
+
+  return (
+    <Modal
+      open={open}
+      title="新建费用订单"
+      onCancel={onClose}
+      onOk={submit}
+      okText="创建费用订单"
+      okButtonProps={{ loading: busy, disabled: !date || fees.length === 0 }}
+      width={560}
+      destroyOnHidden
+    >
+      <div
+        style={{
+          padding: '10px 14px',
+          borderRadius: 12,
+          background: palette.inset,
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <b style={{ color: palette.ink }}>{order.soNo}</b>
+          <ReceiptStatusPill status={order.receiptStatus} />
+        </div>
+        <div style={{ fontSize: 12, color: palette.mute }}>
+          {[
+            order.customerName,
+            cur,
+            order.ownerName && `业务员 ${order.ownerName}`,
+          ]
+            .filter(Boolean)
+            .join(' · ')}
+        </div>
+      </div>
+      {label('费用', true)}
+      <FeeRowsEditor rows={rows} currency={cur} onChange={setRows} />
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'baseline',
+          gap: 8,
+          marginTop: 12,
+          padding: '12px 14px',
+          borderRadius: 12,
+          background: palette.accentSoft,
+        }}
+      >
+        <span style={{ color: palette.sub }}>合计</span>
+        <b
+          style={{
+            marginLeft: 'auto',
+            fontSize: 18,
+            color: palette.ink,
+            fontVariantNumeric: 'tabular-nums',
+          }}
+        >
+          {formatAmount(total, cur)}
+        </b>
+        {cur !== 'CNY' && rate > 0 && (
+          <span style={{ fontSize: 12, color: palette.mute }}>
+            ≈ {formatAmount(Math.round(total * rate * 100) / 100, 'CNY')}
+          </span>
+        )}
+      </div>
+      {label('销售日期', true)}
+      <DatePicker
+        style={{ width: '100%' }}
+        value={date}
+        onChange={setDate}
+        allowClear={false}
+        aria-label="销售日期"
+      />
+      {label('备注')}
+      <Input
+        value={remark}
+        maxLength={500}
+        placeholder="如 客户改用我们的货代，运费另收"
+        onChange={(e) => setRemark(e.target.value)}
+        aria-label="备注"
+      />
+      {label('附件')}
+      <div style={{ display: 'grid', gap: 8 }}>
+        <OrderFileList
+          files={files}
+          onRemove={(a) =>
+            setFiles((prev) => prev.filter((f) => f.id !== a.id))
+          }
+        />
+        {files.length < ORDER_FILE_MAX && (
+          <OrderFileUpload
+            dragger
+            count={files.length}
+            onUploaded={(a) => setFiles((prev) => [...prev, a])}
+          />
+        )}
+      </div>
+    </Modal>
+  );
+};

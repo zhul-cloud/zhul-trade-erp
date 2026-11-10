@@ -8,7 +8,13 @@ import com.zhul.erp.modules.sales.dto.UnclaimReceiptRequest;
 import com.zhul.erp.modules.sales.dto.UnclaimedListVO;
 import com.zhul.erp.modules.sales.dto.UnclaimedReceiptRequest;
 import com.zhul.erp.modules.sales.dto.VoidReceiptRequest;
+import com.zhul.erp.framework.storage.FileStorageService.FileLink;
+import com.zhul.erp.modules.sales.service.PaymentReceiptService;
 import com.zhul.erp.modules.sales.service.ReceiptLedgerService;
+import org.springframework.web.bind.annotation.RequestPart;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.util.List;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -28,6 +34,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class ReceiptLedgerController {
 
     private final ReceiptLedgerService service;
+    private final PaymentReceiptService receipts;
 
     @GetMapping("/unclaimed")
     public Result<UnclaimedListVO> unclaimed(@RequestParam(required = false) String keyword,
@@ -39,6 +46,18 @@ public class ReceiptLedgerController {
     @PostMapping("/unclaimed")
     public Result<ReceiptRowVO> registerUnclaimed(@Valid @RequestBody UnclaimedReceiptRequest req) {
         return Result.ok(service.registerUnclaimed(req));
+    }
+
+    /** 未认领到账追加附件（银行回单等） */
+    @PostMapping("/unclaimed/{id}/files")
+    public Result<ReceiptRowVO> addUnclaimedFiles(@PathVariable Long id,
+                                                  @RequestPart(value = "files", required = false) List<MultipartFile> files) {
+        return Result.ok(receipts.addUnclaimedFiles(id, files));
+    }
+
+    @GetMapping("/{id}/files/{index}/url")
+    public Result<FileLink> receiptFile(@PathVariable Long id, @PathVariable int index) {
+        return Result.ok(receipts.receiptFileLink(id, index));
     }
 
     @PostMapping("/{id}/unclaim")

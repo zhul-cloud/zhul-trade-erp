@@ -139,6 +139,7 @@ export interface RefundRequest {
   soId: number;
   soNo?: string;
   customerName?: string;
+  customerContact?: string;
   currencyCode: string;
   amount: number;
   reason: string;

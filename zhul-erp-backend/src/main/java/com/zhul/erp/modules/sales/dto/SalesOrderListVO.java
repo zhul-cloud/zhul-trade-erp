@@ -21,6 +21,8 @@ public class SalesOrderListVO {
     private Integer unassignedCount;
     private Long customerId;
     private String customerName;
+    /** 客户主联系人姓名（客户档案中的主联系人，实时读取） */
+    private String customerContact;
     /** 客户国家 */
     private String customerCountry;
     /** 1-新客户、2-老客户（按来源询盘单判断） */
@@ -45,6 +47,8 @@ public class SalesOrderListVO {
     /** 售后补发：原订单 */
     private Long originalSoId;
     private String originalSoNo;
+    /** 这张订单上的有效费用订单数 */
+    private Integer feeOrderCount;
     private Integer piVersionNo;
     private Long ownerId;
     private String ownerName;
