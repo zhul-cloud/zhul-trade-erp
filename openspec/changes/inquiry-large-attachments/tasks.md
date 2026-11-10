@@ -55,11 +55,16 @@
 
 ## 6. 后端：进度与超时
 
-- [ ] 6.1 迁移：给 `ai_task` 增加进度和最后一次进度报告时间，并写回滚脚本。验证：Flyway 在测试库迁移成功；回滚脚本在本机执行成功。
-- [ ] 6.2 回调接收进度：只在任务未结束时更新进度，不改变状态，任务结束后忽略。验证：`AiTaskStateRaceContractTest` 覆盖结束后到达的进度报告被忽略。
-- [ ] 6.3 超时扫描按最近一次回调或进度报告计时，并加最长处理时长 `AI_TASK_MAX_MINUTES`（默认 180），写进 `.env.example`。验证：契约测试覆盖 50 分钟仍在报告进度的任务不超时、181 分钟的任务判为超时、20 分钟无进度判为超时，三种情况都会分发结果。
-- [ ] 6.4 后端不再把 Excel 转文字放进 `rawContent`，改为以链接传给编排服务；询盘解析结果保存并返回 `unparsed`（D8、D9）。验证：现有带 Excel 的解析契约测试改断言为 Excel 以链接传出；新增测试覆盖 `unparsed` 在确认页接口返回。
+- [x] 6.1 迁移：给 `ai_task` 增加进度和最后一次进度报告时间，并写回滚脚本。验证：Flyway 在测试库迁移成功；回滚脚本在本机执行成功。
+  完成：`V1.5.23__ai_task_progress.sql` 增加 `progress_done`、`progress_total`、`last_progress_at`；回滚脚本 `sql/build/rollback/V1.5.23__ai_task_progress_rollback.sql` 已在本机测试库执行成功，删除迁移记录后重新迁移通过。
+- [x] 6.2 回调接收进度：只在任务未结束时更新进度，不改变状态，任务结束后忽略。验证：`AiTaskStateRaceContractTest` 覆盖结束后到达的进度报告被忽略。
+  完成：`AiTaskStateRaceContractTest.progressWhileRunning_updatesProgressOnly`、`progressAfterFinish_isIgnored`。
+- [x] 6.3 超时扫描按最近一次回调或进度报告计时，并加最长处理时长 `AI_TASK_MAX_MINUTES`（默认 180），写进 `.env.example`。验证：契约测试覆盖 50 分钟仍在报告进度的任务不超时、181 分钟的任务判为超时、20 分钟无进度判为超时，三种情况都会分发结果。
+  完成：`AiTaskStateRaceContractTest.timeout_countsFromLatestProgress_andHasMaxDuration` 覆盖 50 分钟仍在报告进度不超时、最近进度 25 分钟前判超时、无进度 30 分钟判超时、181 分钟判超时，超时的都分发失败结果；`AI_TASK_MAX_MINUTES` 已写进 `.env.example`、`docker-compose.yaml`、`application.yml`。更新前按同样条件再判断一次，避免查询后刚收到进度的任务被误判。
+- [x] 6.4 后端不再把 Excel 转文字放进 `rawContent`，改为以链接传给编排服务；询盘解析结果保存并返回 `unparsed`（D8、D9）。验证：现有带 Excel 的解析契约测试改断言为 Excel 以链接传出；新增测试覆盖 `unparsed` 在确认页接口返回。
+  完成：所有附件（含 Excel、CSV）以临时链接传出，带文件名与大小；删除不再使用的 `SpreadsheetText` 及其测试（编排服务用同样格式转文字）。`InquiryNameplateContractTest.parse_sendsSpreadsheetAsLinkWithNameAndSize`、`draft_returnsUnparsedParts`；`unparsed` 随 AI 任务结果保存，确认页与追加确认页接口都返回。
 - [ ] 6.5 询盘详情返回解析进度，确认页显示未解析部分（按确认的原型）。验证：前端组件测试覆盖「已解析 5 / 12」和「《清单.pdf》第 15 页无法读取」。
+  后端已完成：询盘列表与详情返回 `parseProgressDone` / `parseProgressTotal`（`InquiryNameplateContractTest.detail_showsParseProgressWhileParsing`）；前端待做。
 - [ ] 6.6 AI 设置页「最大搜索次数」旁的说明改为「每次调用最多搜索几次；大文件分批解析时每批各自计算」。验证：组件测试断言说明文字。
 
 ## 7. 集成验收

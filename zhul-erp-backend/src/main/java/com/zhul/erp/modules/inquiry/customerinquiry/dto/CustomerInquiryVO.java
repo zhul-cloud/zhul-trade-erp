@@ -22,6 +22,9 @@ public class CustomerInquiryVO {
     private Integer level;
     private Integer status;
     private Integer parseMode;
+    /** 解析中且分批解析时的进度：已解析批数 / 总批数；不分批或不在解析中时为空 */
+    private Integer parseProgressDone;
+    private Integer parseProgressTotal;
     private Integer totalItemCount;
     private Integer totalQuantity;
     /** 第一个型号；未解析、解析中、解析失败时为空 */

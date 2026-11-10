@@ -73,7 +73,6 @@ import com.zhul.erp.modules.inquiry.support.InquiryLookups;
 import com.zhul.erp.modules.inquiry.support.ParsedItemMerger;
 import com.zhul.erp.modules.inquiry.support.PriceKeys;
 import com.zhul.erp.modules.inquiry.support.SourcingSettings;
-import com.zhul.erp.modules.inquiry.support.SpreadsheetText;
 import com.zhul.erp.modules.inquiry.support.TaskTimeout;
 import com.zhul.erp.modules.masterdata.entity.CustomerDO;
 import com.zhul.erp.modules.masterdata.repository.CustomerMapper;
@@ -95,7 +94,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.nio.file.Path;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -597,6 +595,7 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
         Map<Long, Long> timeouts = sourcing.stream().filter(t -> limits.isTimeout(t, now))
                 .collect(Collectors.groupingBy(SourcingTaskDO::getCustomerInquiryId, Collectors.counting()));
         Map<Long, List<InquiryModelLineVO>> models = modelLines(inquiries);
+        Map<Long, AiTaskVO> parsing = parseProgress(inquiries);
         List<CustomerInquiryVO> list = new ArrayList<>(inquiries.size());
         for (CustomerInquiryDO i : inquiries) {
             CustomerInquiryVO vo = new CustomerInquiryVO();
@@ -615,6 +614,12 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
             vo.setLevel(i.getLevel());
             vo.setStatus(i.getStatus());
             vo.setParseMode(i.getParseMode());
+            AiTaskVO p = parsing.get(i.getAiTaskId());
+            if (i.getStatus() == InquiryConstants.STATUS_PARSING && p != null && p.getProgressTotal() != null
+                    && p.getProgressTotal() > 0) {
+                vo.setParseProgressDone(p.getProgressDone());
+                vo.setParseProgressTotal(p.getProgressTotal());
+            }
             vo.setTotalItemCount(i.getTotalItemCount());
             vo.setTotalQuantity(i.getTotalQuantity());
             List<InquiryModelLineVO> lines = models.getOrDefault(i.getId(), List.of());
@@ -634,6 +639,14 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
             list.add(vo);
         }
         return list;
+    }
+
+    /** 解析中询盘的 AI 任务进度，按任务 ID */
+    private Map<Long, AiTaskVO> parseProgress(List<CustomerInquiryDO> inquiries) {
+        List<Long> taskIds = inquiries.stream()
+                .filter(i -> i.getStatus() == InquiryConstants.STATUS_PARSING && i.getAiTaskId() != null)
+                .map(CustomerInquiryDO::getAiTaskId).toList();
+        return aiTaskService.listProgress(taskIds).stream().collect(Collectors.toMap(AiTaskVO::getId, t -> t));
     }
 
     private List<AttachmentVO> attachments(Long inquiryId) {
@@ -706,40 +719,43 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
     }
 
     /**
-     * 解析输入：只取这次的内容与附件（appendId 为 0 时是录入询盘单时的）。Excel、CSV 抽成文本拼进正文；
-     * 图片、PDF 给 AI 编排服务签发 60 分钟的临时链接（任务可能排队），由它下载后发给模型。
+     * 解析输入：只取这次的内容与附件（appendId 为 0 时是录入询盘单时的）。所有附件（含 Excel、CSV）都给 AI 编排服务
+     * 签发 60 分钟的临时链接（任务可能排队），带上文件名与大小，由它流式下载、预处理，放不进一次请求时分批解析
+     * （OpenSpec inquiry-large-attachments D8、D9）。
      */
     private String parseInput(CustomerInquiryDO inquiry, String rawContent, long appendId) {
-        StringBuilder text = new StringBuilder(rawContent == null ? "" : rawContent);
-        List<Map<String, String>> files = new ArrayList<>();
+        List<Map<String, Object>> files = new ArrayList<>();
         for (CustomerInquiryAttachmentDO a : attachmentRows(inquiry.getId(), appendId, InquiryConstants.ATTACHMENT_KIND_FILE)) {
-            String ext = UploadRules.extOf(a.getFileKey());
-            if (Set.of("xls", "xlsx", "csv").contains(ext)) {
-                Path tmp = fileStorage.download(a.getStorage(), a.getFileKey());
-                try {
-                    text.append(text.isEmpty() ? "" : "\n\n").append("附件《").append(a.getFileName()).append("》：\n")
-                            .append(SpreadsheetText.extract(tmp));
-                } finally {
-                    FileStorageService.deleteTemp(tmp);
-                }
-            } else {
-                String url = fileStorage.link(a.getStorage(), a.getFileKey(), a.getFileName(), false, AI_LINK_TTL).url();
-                files.add(Map.of("url", absolute(url), "ext", ext, "role", "attachment"));
-            }
+            files.add(aiFileRef(a, "attachment", null));
         }
         // 铭牌图片从 1 编号，AI 按编号返回每个型号对应的图（spec inquiry/inquiry-intake「铭牌图片」）
         int no = 0;
         for (CustomerInquiryAttachmentDO a : attachmentRows(inquiry.getId(), appendId, InquiryConstants.ATTACHMENT_KIND_NAMEPLATE)) {
-            String url = fileStorage.link(a.getStorage(), a.getFileKey(), a.getFileName(), false, AI_LINK_TTL).url();
-            files.add(Map.of("url", absolute(url), "ext", UploadRules.extOf(a.getFileKey()), "role", "nameplate",
-                    "no", String.valueOf(++no)));
+            files.add(aiFileRef(a, "nameplate", String.valueOf(++no)));
         }
         Map<String, Object> input = new HashMap<>();
         input.put("customerInquiryId", inquiry.getId());
-        input.put("rawContent", text.toString());
+        input.put("rawContent", rawContent == null ? "" : rawContent);
         input.put("attachments", files);
         input.put("categories", parseCategories());
         return writeJson(input);
+    }
+
+    /** 发给编排服务的附件：临时链接、扩展名、文件名、字节数（用于判断是否需要分批）、用途；铭牌图片带编号 */
+    private Map<String, Object> aiFileRef(CustomerInquiryAttachmentDO a, String role, String no) {
+        String url = fileStorage.link(a.getStorage(), a.getFileKey(), a.getFileName(), false, AI_LINK_TTL).url();
+        Map<String, Object> ref = new LinkedHashMap<>();
+        ref.put("url", absolute(url));
+        ref.put("ext", UploadRules.extOf(a.getFileKey()));
+        ref.put("name", a.getFileName() == null ? "" : a.getFileName());
+        if (a.getFileSize() != null) {
+            ref.put("size", a.getFileSize());
+        }
+        ref.put("role", role);
+        if (no != null) {
+            ref.put("no", no);
+        }
+        return ref;
     }
 
     private String absolute(String url) {
@@ -829,11 +845,13 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
             throw new BizException("只有待解析、解析失败或待确认的询盘可以录入型号");
         }
         List<DraftRowVO> rows = new ArrayList<>();
+        List<AiParseOutputDTO.Unparsed> unparsed = List.of();
         // 只有待确认的 AI 解析结果才预填；待解析 / 解析失败时手动录入，从空表开始
         if (inquiry.getStatus() == InquiryConstants.STATUS_PENDING_CONFIRM
                 && inquiry.getParseMode() == InquiryConstants.PARSE_MODE_AI && inquiry.getAiTaskId() != null) {
             AiParseOutputDTO output = parseOutput(aiTaskService.getById(inquiry.getAiTaskId()).getOutput());
             rows.addAll(draftRows(output, nameplates(inquiry.getId(), 0L)));
+            unparsed = output.getUnparsed();
         }
         DraftVO vo = new DraftVO();
         vo.setInquiry(toVos(List.of(inquiry)).get(0));
@@ -841,6 +859,7 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
         vo.setAttachments(attachments(inquiry.getId()));
         vo.setNameplates(nameplates(inquiry.getId(), 0L));
         vo.setRows(rows);
+        vo.setUnparsed(unparsed == null ? List.of() : unparsed);
         return vo;
     }
 
@@ -1149,9 +1168,11 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
             throw new BizException(a.getStatus() == APPEND_PARSING ? "追加的内容还在解析，请稍后再试" : "这次追加已经结束");
         }
         List<DraftRowVO> rows = new ArrayList<>();
+        List<AiParseOutputDTO.Unparsed> unparsed = List.of();
         if (a.getStatus() == APPEND_PENDING_CONFIRM && a.getParseMode() == InquiryConstants.PARSE_MODE_AI && a.getAiTaskId() != null) {
             AiParseOutputDTO output = parseOutput(aiTaskService.getById(a.getAiTaskId()).getOutput());
             rows.addAll(draftRows(output, nameplates(inquiry.getId(), a.getId())));
+            unparsed = output.getUnparsed();
         }
         DraftVO vo = new DraftVO();
         vo.setInquiry(toVos(List.of(inquiry)).get(0));
@@ -1160,6 +1181,7 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
         vo.setAttachments(attachments(inquiry.getId(), a.getId()));
         vo.setNameplates(nameplates(inquiry.getId(), a.getId()));
         vo.setRows(rows);
+        vo.setUnparsed(unparsed == null ? List.of() : unparsed);
         return vo;
     }
 

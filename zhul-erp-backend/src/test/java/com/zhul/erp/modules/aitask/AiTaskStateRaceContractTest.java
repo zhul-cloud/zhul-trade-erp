@@ -190,4 +190,70 @@ class AiTaskStateRaceContractTest extends IntegrationTestBase {
         assertEquals(0, dispatched(task, AiTaskStatus.FAILED));
         assertEquals(List.of(), jdbc.queryForList("select id from ai_task where id = ? and error_message <> ''", Long.class, task));
     }
+
+    private static AiTaskCallbackRequest progress(int done, int total) {
+        AiTaskCallbackRequest req = new AiTaskCallbackRequest();
+        req.setStatus("progress");
+        req.setOutput(Map.of("done", done, "total", total));
+        return req;
+    }
+
+    /** 插入一个处理中的任务：创建于 createdAgo 分钟前，最近一次进度报告在 progressAgo 分钟前（null 表示没有报告过） */
+    private long runningTask(int createdAgo, Integer progressAgo) {
+        jdbc.update("insert into ai_task (tenant_id, skill_id, status, create_time, last_progress_at, progress_done, progress_total) "
+                        + "values (?, ?, 2, now() - interval ? minute, "
+                        + "if(? is null, null, now() - interval ? minute), 1, 9)",
+                TENANT, NOOP_SKILL, createdAgo, progressAgo, progressAgo == null ? 0 : progressAgo);
+        return jdbc.queryForObject("select max(id) from ai_task where tenant_id = ?", Long.class, TENANT);
+    }
+
+    @Test
+    void progressWhileRunning_updatesProgressOnly() {
+        long task = runningTask(5, null);
+        clearInvocations(resultDispatcher);
+
+        aiTaskService.handleCallback(task, progress(3, 9));
+
+        Map<String, Object> row = jdbc.queryForMap(
+                "select status, progress_done, progress_total, last_progress_at from ai_task where id = ?", task);
+        assertEquals(AiTaskStatus.PROCESSING, ((Number) row.get("status")).intValue(), "进度报告不改变状态");
+        assertEquals(3, ((Number) row.get("progress_done")).intValue());
+        assertEquals(9, ((Number) row.get("progress_total")).intValue());
+        assertTrue(row.get("last_progress_at") != null);
+        assertEquals(0, dispatched(task, AiTaskStatus.COMPLETED) + dispatched(task, AiTaskStatus.FAILED), "进度不通知业务");
+    }
+
+    @Test
+    void progressAfterFinish_isIgnored() {
+        long task = runningTask(5, null);
+        aiTaskService.handleCallback(task, success());
+
+        aiTaskService.handleCallback(task, progress(8, 9));
+
+        assertEquals(AiTaskStatus.COMPLETED, status(task));
+        assertEquals(1, jdbc.queryForObject("select progress_done from ai_task where id = ?", Integer.class, task),
+                "任务结束后到达的进度报告忽略");
+    }
+
+    @Test
+    void timeout_countsFromLatestProgress_andHasMaxDuration() {
+        long reporting = runningTask(50, 3);
+        long silent = runningTask(50, 25);
+        long noProgress = runningTask(30, null);
+        long overMax = runningTask(181, 1);
+        clearInvocations(resultDispatcher);
+
+        watchdog.checkTimeouts();
+
+        assertEquals(AiTaskStatus.PROCESSING, status(reporting), "运行 50 分钟但 3 分钟前还在报告进度，不算超时");
+        assertEquals(AiTaskStatus.FAILED, status(silent), "最近一次进度在 25 分钟前，超过 20 分钟判超时");
+        assertEquals(AiTaskStatus.FAILED, status(noProgress), "没有任何进度报告时从创建时间算起");
+        assertEquals(AiTaskStatus.FAILED, status(overMax), "超过最长处理时长 180 分钟，即使还在报告进度也判超时");
+        assertTrue(jdbc.queryForObject("select error_message from ai_task where id = ?", String.class, overMax)
+                .contains("最长处理时长180分钟"));
+        for (long task : List.of(silent, noProgress, overMax)) {
+            assertEquals(1, dispatched(task, AiTaskStatus.FAILED), "超时的任务都会分发失败结果");
+        }
+        assertEquals(0, dispatched(reporting, AiTaskStatus.FAILED));
+    }
 }

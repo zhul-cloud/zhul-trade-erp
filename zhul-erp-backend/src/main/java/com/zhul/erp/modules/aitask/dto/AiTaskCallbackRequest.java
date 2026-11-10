@@ -28,4 +28,9 @@ public class AiTaskCallbackRequest {
     public boolean isSuccess() {
         return "success".equalsIgnoreCase(status);
     }
+
+    /** 分批解析的进度报告：output 为 {"done": 已完成批数, "total": 总批数}，不是最终结果 */
+    public boolean isProgress() {
+        return "progress".equalsIgnoreCase(status);
+    }
 }

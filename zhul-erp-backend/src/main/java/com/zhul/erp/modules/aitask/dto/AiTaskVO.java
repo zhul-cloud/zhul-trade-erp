@@ -15,4 +15,7 @@ public class AiTaskVO {
     private LocalDateTime startedAt;
     private LocalDateTime completedAt;
     private LocalDateTime createTime;
+    /** 分批解析进度：已完成批数 / 总批数，总批数为 0 表示没有分批或还没开始报告 */
+    private Integer progressDone;
+    private Integer progressTotal;
 }

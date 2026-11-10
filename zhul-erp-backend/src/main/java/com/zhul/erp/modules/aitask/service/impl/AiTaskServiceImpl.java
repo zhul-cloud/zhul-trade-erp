@@ -1,5 +1,6 @@
 package com.zhul.erp.modules.aitask.service.impl;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhul.erp.common.exception.BizException;
@@ -23,7 +24,9 @@ import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @Service
@@ -148,6 +151,10 @@ public class AiTaskServiceImpl implements AiTaskService {
     }
 
     private void applyCallback(AiTaskDO task, AiTaskCallbackRequest req) {
+        if (req.isProgress()) {
+            saveProgress(task.getId(), req.getOutput());
+            return;
+        }
         Long taskId = task.getId();
         LocalDateTime now = LocalDateTime.now();
         Integer before = task.getStatus();
@@ -171,6 +178,36 @@ public class AiTaskServiceImpl implements AiTaskService {
             return;
         }
         resultDispatcher.dispatch(task);
+    }
+
+    /**
+     * 分批解析的进度报告：只在任务未结束时更新进度与报告时间，不改状态、不通知业务；
+     * 任务已结束（完成、失败、超时）后到达的进度报告忽略（spec「解析进度报告」）
+     */
+    private void saveProgress(Long taskId, Object output) {
+        Integer done = progressNumber(output, "done");
+        Integer total = progressNumber(output, "total");
+        if (done == null || total == null || done < 0 || total < done) {
+            log.warn("ai_task id={} 进度报告格式不对，忽略", taskId);
+            return;
+        }
+        AiTaskDO update = new AiTaskDO();
+        update.setProgressDone(done);
+        update.setProgressTotal(total);
+        update.setLastProgressAt(LocalDateTime.now());
+        int changed = aiTaskMapper.update(update, new LambdaUpdateWrapper<AiTaskDO>()
+                .eq(AiTaskDO::getId, taskId)
+                .in(AiTaskDO::getStatus, OPEN));
+        if (changed == 0) {
+            log.info("ai_task id={} 已结束，忽略进度报告 {}/{}", taskId, done, total);
+        }
+    }
+
+    private static Integer progressNumber(Object output, String key) {
+        if (output instanceof Map<?, ?> map && map.get(key) instanceof Number n) {
+            return n.intValue();
+        }
+        return null;
     }
 
     /** 回调带回的用量写入任务（所有技能都记）；旧版编排服务、订阅方式没有用量，保持为空 */
@@ -246,6 +283,23 @@ public class AiTaskServiceImpl implements AiTaskService {
         return toVo(task);
     }
 
+    @Override
+    public List<AiTaskVO> listProgress(Collection<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return List.of();
+        }
+        return aiTaskMapper.selectList(new LambdaQueryWrapper<AiTaskDO>()
+                        .select(AiTaskDO::getId, AiTaskDO::getProgressDone, AiTaskDO::getProgressTotal)
+                        .in(AiTaskDO::getId, ids))
+                .stream().map(t -> {
+                    AiTaskVO vo = new AiTaskVO();
+                    vo.setId(t.getId());
+                    vo.setProgressDone(t.getProgressDone());
+                    vo.setProgressTotal(t.getProgressTotal());
+                    return vo;
+                }).toList();
+    }
+
     private AiTaskVO toVo(AiTaskDO task) {
         AiTaskVO vo = new AiTaskVO();
         vo.setId(task.getId());
@@ -257,6 +311,8 @@ public class AiTaskServiceImpl implements AiTaskService {
         vo.setStartedAt(task.getStartedAt());
         vo.setCompletedAt(task.getCompletedAt());
         vo.setCreateTime(task.getCreateTime());
+        vo.setProgressDone(task.getProgressDone());
+        vo.setProgressTotal(task.getProgressTotal());
         return vo;
     }
 }
