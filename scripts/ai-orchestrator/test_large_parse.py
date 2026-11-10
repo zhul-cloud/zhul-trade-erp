@@ -342,7 +342,7 @@ class ParseLargeTest(unittest.TestCase):
     def models(self, output):
         return {it["confirmedModel"]: it for g in output["groups"] for it in g["items"]}
 
-    def test_duplicates_merged_and_120_models_verified_in_3_batches(self):
+    def test_duplicates_merged_and_120_models_verified_in_batches(self):
         files = {
             "a.pdf": ([text_unit(f"《a.pdf》第 {p} 页", *[(f"M{p * 10 + i}", 1) for i in range(10)])
                        for p in range(1, 7)] + [text_unit("《a.pdf》第 7 页", ("M11", 4))], []),
@@ -356,7 +356,9 @@ class ParseLargeTest(unittest.TestCase):
         self.assertEqual(len(got), 120)
         self.assertEqual(got["M11"]["quantity"], 5)
         self.assertIn("《a.pdf》第 1 页、《a.pdf》第 7 页", got["M11"]["correctionNote"])
-        self.assertEqual(sorted(model.verify_sizes), [20, 50, 50])
+        self.assertEqual(len(model.verify_sizes), -(-120 // lp.VERIFY_BATCH))
+        self.assertTrue(all(n <= lp.VERIFY_BATCH for n in model.verify_sizes))
+        self.assertEqual(sum(model.verify_sizes), 120)
         self.assertTrue(all(it["description"] == "已核验" for it in got.values()))
         self.assertNotIn("unparsed", output)
         for d in self.work_dirs:

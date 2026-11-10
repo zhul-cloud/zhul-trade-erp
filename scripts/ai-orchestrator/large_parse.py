@@ -39,7 +39,9 @@ EXCEL_ROWS_PER_UNIT = 200
 
 EXTRACT_WORKERS = 3
 EXTRACT_RETRIES = 2
-VERIFY_BATCH = 50
+# 每批核验的型号数：每个型号至少搜一次，须明显小于每次调用的搜索上限（默认 20）。
+# 实测（2026-11-10，Codex 订阅）每批 50 个必然达到搜索上限或超过单次调用期限，改为 10 个
+VERIFY_BATCH = 10
 HEARTBEAT_SECONDS = 60
 
 CONFIDENCE_PENDING_VERIFY = 3

@@ -58,8 +58,8 @@
   完成：`PreprocessTest` 覆盖混合 PDF、加密 PDF、损坏 PDF、单页损坏、大图片缩放（5000×4000 随机像素，约 60MB 原始数据）、多工作表 xlsx、GBK 编码 csv、与后端一致的表格文字格式。xls 只做了读取实现，没有测试：生成 xls 需要额外的 xlwt 库，测试环境未引入。
 - [x] 5.3 分批：按每批的图片数、文字量、数据量上限切分；只需一批时沿用现有的单次请求（D9）。验证：单元测试覆盖边界（20 张、21 张、6 万字），以及只需一批时调用参数与改前一致的回归用例。
   完成：`PackTest` 按 `BATCH_MAX_IMAGES` / `BATCH_MAX_CHARS` 覆盖边界（2026-11-10 实测后上限改为 8 张图、2 万字，见 7.1）、18MB 与单个超限单元；`test_small_inquiry_keeps_single_call` 与原有 `test_claude_stream`、`test_https_link_still_downloaded` 覆盖只需一批时仍是单次调用、参数与改前一致。
-- [x] 5.4 多批提取并行（同时 3 批、失败重试 2 次），合并去重（数量相加、单位不同时标待核实、记录出现位置），核验时每批 50 个型号，每批各自适用最大搜索次数（D9）。验证：单元测试用 fake 模型覆盖跨批重复型号的数量相加与位置、单位不同、120 个型号分 3 个核验批且每批不超过上限。
-  完成：`MergeTest` 与 `ParseLargeTest.test_duplicates_merged_and_120_models_verified_in_3_batches`（120 个型号分 50、50、20 三个核验批，跨批重复型号数量相加并注明位置）。
+- [x] 5.4 多批提取并行（同时 3 批、失败重试 2 次），合并去重（数量相加、单位不同时标待核实、记录出现位置），核验时每批 10 个型号（原定 50 个，实测后调整，见 7.1），每批各自适用最大搜索次数（D9）。验证：单元测试用 fake 模型覆盖跨批重复型号的数量相加与位置、单位不同、120 个型号按每批上限分核验批且每批不超过上限。
+  完成：`MergeTest` 与 `ParseLargeTest.test_duplicates_merged_and_120_models_verified_in_batches`（120 个型号按每批 10 个分 12 个核验批，跨批重复型号数量相加并注明位置）。
 - [x] 5.5 逐项容错（D10）：附件、页、提取批、核验批各自失败互不影响，只有全部都提取不出型号时任务才失败；订阅方式达到搜索阈值时同一批改为不联网重新提取。验证：单元测试覆盖一个附件下载失败、某页损坏、某提取批始终失败、某核验批达到上限、全部失败五种情况的回调内容。
   完成：`test_partial_failures_do_not_fail_the_task`（附件下载失败、某页损坏、某提取批重试用尽、某核验批达到搜索上限）与 `test_everything_failing_fails_the_task`、`test_no_models_extracted_fails_the_task`。
 - [x] 5.6 订阅方式按同样的批次多次调用，去掉「超过 25MiB / 20 页即失败」。验证：`test_subscription.py` 覆盖 300 页扫描件分成每批不超过 20 页。
