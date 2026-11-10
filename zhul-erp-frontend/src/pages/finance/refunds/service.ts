@@ -140,6 +140,7 @@ export interface RefundRequest {
   soNo?: string;
   customerName?: string;
   customerContact?: string;
+  customerCountry?: string;
   currencyCode: string;
   amount: number;
   reason: string;

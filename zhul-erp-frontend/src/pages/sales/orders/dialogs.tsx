@@ -1,5 +1,5 @@
 import { DeleteOutlined, PlusOutlined } from '@ant-design/icons';
-import { request } from '@umijs/max';
+import { request, useAccess } from '@umijs/max';
 import {
   Alert,
   App,
@@ -16,6 +16,7 @@ import {
 } from 'antd';
 import dayjs from 'dayjs';
 import React, { useEffect, useMemo, useState } from 'react';
+import { ProductSelect } from '@/pages/product/components/ProductSelect';
 import { CURRENCIES } from '@/pages/quotation/components';
 import type { Attachment } from '@/pages/warehouse/service';
 import { searchCustomers } from '@/services/zhul/masterdata';
@@ -274,6 +275,9 @@ export const ConvertOrderModal: React.FC<{
 
 interface Line extends Partial<CreateOrderLine> {
   key: number;
+  /** 选中商品档案后带出，只读显示 */
+  brand?: string;
+  category?: string;
 }
 
 let lineSeq = 0;
@@ -290,6 +294,7 @@ export const CreateOrderDrawer: React.FC<{
 }> = ({ open, onClose, onDone }) => {
   const { message } = App.useApp();
   const { palette } = useAppTheme();
+  const access = useAccess() as Record<string, boolean>;
   const users = useUserOptions();
   const [customerId, setCustomerId] = useState<number>();
   const [customerOptions, setCustomerOptions] = useState<
@@ -336,7 +341,7 @@ export const CreateOrderDrawer: React.FC<{
   const amountOf = (l: Line) =>
     Math.round((l.unitPrice ?? 0) * (l.quantity ?? 0) * 100) / 100;
   const total = lines.reduce((s, l) => s + amountOf(l), 0) + feeTotal(fees);
-  const filled = lines.filter((l) => l.model?.trim());
+  const filled = lines.filter((l) => l.productId);
   const ready =
     !!customerId &&
     !!date &&
@@ -352,8 +357,7 @@ export const CreateOrderDrawer: React.FC<{
         currencyCode: currency,
         salesDate: date.format('YYYY-MM-DD'),
         items: filled.map((l) => ({
-          model: (l.model ?? '').trim(),
-          brand: l.brand?.trim() || undefined,
+          productId: l.productId as number,
           quantity: l.quantity ?? 1,
           unitPrice: l.unitPrice ?? 0,
           costPrice: l.costPrice ?? null,
@@ -384,7 +388,7 @@ export const CreateOrderDrawer: React.FC<{
     <Drawer
       open={open}
       onClose={onClose}
-      size="min(1040px, 96vw)"
+      size="min(1240px, 96vw)"
       title="手动创建订单"
       footer={
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -463,11 +467,17 @@ export const CreateOrderDrawer: React.FC<{
       </b>
       <div style={{ display: 'flex', gap: 8, marginBottom: 6 }}>
         <div
-          style={{ flex: 1, minWidth: 0, fontSize: 12, color: palette.mute }}
+          style={{
+            flex: '1 1 0',
+            minWidth: 220,
+            fontSize: 12,
+            color: palette.mute,
+          }}
         >
           型号<span style={{ color: palette.red }}> *</span>
         </div>
         {head('品牌', 110)}
+        {head('品类', 110)}
         {head('数量', 80, true)}
         {head(`单价（${currency}）`, 120, true)}
         {head('采购成本价（CNY）', 130)}
@@ -482,19 +492,75 @@ export const CreateOrderDrawer: React.FC<{
             key={l.key}
             style={{ display: 'flex', gap: 8, alignItems: 'center' }}
           >
-            <Input
-              style={{ flex: 1, minWidth: 0 }}
-              placeholder="输入型号"
-              value={l.model}
-              onChange={(e) => patch(l.key, { model: e.target.value })}
+            <ProductSelect
+              style={{ flex: '1 1 0', minWidth: 220 }}
+              modelOnly
+              placeholder="输入型号搜索商品档案"
+              value={l.productId}
+              onChange={(id, o) =>
+                patch(l.key, {
+                  productId: id,
+                  model: o?.mpnDisplay,
+                  brand: o?.brandName,
+                  category: o?.categoryName,
+                })
+              }
+              footer={(kw) => (
+                <div
+                  style={{
+                    borderTop: `1px solid ${palette.hairline}`,
+                    padding: '8px 12px 4px',
+                    fontSize: 12,
+                    color: palette.mute,
+                  }}
+                >
+                  {access['product:product:add'] ? (
+                    <>
+                      找不到？
+                      <a
+                        href={`/product/products/new${kw ? `?mpn=${encodeURIComponent(kw)}` : ''}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        style={{ marginLeft: 4 }}
+                      >
+                        <PlusOutlined /> 去商品档案新建
+                      </a>
+                    </>
+                  ) : (
+                    '搜不到这个型号，请联系有商品档案权限的同事建档'
+                  )}
+                </div>
+              )}
               aria-label="型号"
             />
-            <Input
-              style={{ width: 110 }}
-              placeholder="选填"
-              value={l.brand}
-              onChange={(e) => patch(l.key, { brand: e.target.value })}
-            />
+            <span
+              style={{
+                width: 110,
+                flexShrink: 0,
+                color: palette.sub,
+                fontSize: 13,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
+              title={l.brand}
+            >
+              {l.brand || '—'}
+            </span>
+            <span
+              style={{
+                width: 110,
+                flexShrink: 0,
+                color: palette.sub,
+                fontSize: 13,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
+              title={l.category}
+            >
+              {l.category || '—'}
+            </span>
             <InputNumber
               style={{ width: 80 }}
               min={1}

@@ -42,6 +42,8 @@ public class InquiryItemVO {
     private PriceRecordVO selectedQuote;
     /** 无货时的说明 */
     private String noStockNote;
+    /** 内部无货原因名称；没有填原因时为空串 */
+    private String noStockReasonName;
     /** 已报给客户：出现在已发送（及之后成交 / 未成交）的报价单中 */
     private Boolean quoted;
 }

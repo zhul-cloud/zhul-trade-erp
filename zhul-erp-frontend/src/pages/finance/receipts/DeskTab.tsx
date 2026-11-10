@@ -127,7 +127,12 @@ const DeskTab: React.FC<{ onTotal?: (n: number) => void }> = ({ onTotal }) => {
             {r.customerName}
           </div>
           <div style={{ fontSize: 12, color: palette.mute }}>
-            <CustomerSub country={r.ownerName} contact={r.customerContact} />
+            <CustomerSub
+              country={r.customerCountry}
+              contact={r.customerContact}
+              empty={null}
+            />
+            {r.ownerName && <div>业务员 {r.ownerName}</div>}
           </div>
         </div>
       ),

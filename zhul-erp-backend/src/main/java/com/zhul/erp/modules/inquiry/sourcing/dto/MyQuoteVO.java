@@ -20,6 +20,10 @@ public class MyQuoteVO {
     private String note;
     private Boolean recommended;
     private Boolean noStock;
+    /** 内部无货原因（字典值）；没有填时为空 */
+    private Integer noStockReason;
+    /** 内部无货原因名称；没有填时为空串 */
+    private String noStockReasonName;
     private Boolean freeShipping;
     private java.util.List<com.zhul.erp.modules.attachment.dto.AttachmentVO> attachments;
     /** 1-草稿、2-已提交、3-待审核、4-已作废 */

@@ -106,7 +106,7 @@ class FeeOrderContractTest extends SalesContractSupport {
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("customerId", customer);
         m.put("currencyCode", "USD");
-        m.put("items", List.of(Map.of("model", "A-1", "quantity", 2, "unitPrice", "100", "costPrice", "300")));
+        m.put("items", List.of(Map.of("productId", manualProduct("A-1"), "quantity", 2, "unitPrice", "100", "costPrice", "300")));
         return ok(call(json(post(SO), write(m)), admin)).path("id").asLong();
     }
 

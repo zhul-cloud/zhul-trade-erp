@@ -84,9 +84,12 @@ const OverpaidTab: React.FC<{ onCount?: (n: number) => void }> = ({
       render: (v: string, r) => (
         <div>
           <b style={{ color: palette.ink }}>{v}</b>
-          {r.customerContact && (
+          {(r.customerCountry || r.customerContact) && (
             <div style={{ fontSize: 12, color: palette.mute }}>
-              <CustomerSub contact={r.customerContact} />
+              <CustomerSub
+                country={r.customerCountry}
+                contact={r.customerContact}
+              />
             </div>
           )}
         </div>

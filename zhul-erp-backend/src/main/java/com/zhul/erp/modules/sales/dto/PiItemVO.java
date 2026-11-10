@@ -17,6 +17,10 @@ public class PiItemVO {
     private String model;
     private String brand;
     private String category;
+    /** 订货号（取来源询盘型号），系统内显示 */
+    private String orderCode;
+    /** 对应的商品档案；没有时为空 */
+    private Long productId;
     private String description;
     /** 英文描述（给客户看的单据用；系统内显示中文 description） */
     private String descriptionEn;

@@ -112,6 +112,54 @@ public class ProductLookupServiceImpl implements ProductLookupService {
         return result;
     }
 
+    @Override
+    public ProductOptionVO selectable(Long id) {
+        if (id == null) {
+            return null;
+        }
+        ProductDO product = productMapper.selectOne(selectable().eq(ProductDO::getId, id));
+        return product == null ? null : toOptions(List.of(product)).get(0);
+    }
+
+    @Override
+    public java.util.Map<String, Long> matchAll(java.util.Collection<String[]> brandModels) {
+        java.util.Map<String, String> brandsByKey = new java.util.HashMap<>();
+        java.util.Set<String> mpns = new java.util.HashSet<>();
+        for (String[] bm : brandModels) {
+            if (StringUtils.hasText(bm[0]) && StringUtils.hasText(bm[1])) {
+                brandsByKey.put(bm[0].trim().toLowerCase(java.util.Locale.ROOT), bm[0].trim());
+                String n = MpnNormalizer.normalize(bm[1]);
+                if (!n.isEmpty()) {
+                    mpns.add(n);
+                }
+            }
+        }
+        if (brandsByKey.isEmpty() || mpns.isEmpty()) {
+            return java.util.Map.of();
+        }
+        // 品牌名比较忽略大小写（数据库排序规则），结果按小写归并
+        List<ProductBrandDO> brands = brandMapper.selectList(new LambdaQueryWrapper<ProductBrandDO>()
+                .select(ProductBrandDO::getId, ProductBrandDO::getBrandName)
+                .eq(ProductBrandDO::getTenantId, ProductConstants.PLATFORM_TENANT_ID)
+                .isNull(ProductBrandDO::getDeletedAt)
+                .in(ProductBrandDO::getBrandName, brandsByKey.values()));
+        if (brands.isEmpty()) {
+            return java.util.Map.of();
+        }
+        java.util.Map<Long, String> brandKeys = new java.util.HashMap<>();
+        brands.forEach(b -> brandKeys.put(b.getId(), b.getBrandName().trim().toLowerCase(java.util.Locale.ROOT)));
+        java.util.Map<String, Long> result = new java.util.HashMap<>();
+        productMapper.selectList(new LambdaQueryWrapper<ProductDO>()
+                        .select(ProductDO::getId, ProductDO::getBrandId, ProductDO::getMpnNormalized)
+                        .eq(ProductDO::getTenantId, ProductConstants.PLATFORM_TENANT_ID)
+                        .isNull(ProductDO::getDeletedAt)
+                        .in(ProductDO::getBrandId, brandKeys.keySet())
+                        .in(ProductDO::getMpnNormalized, mpns)
+                        .orderByAsc(ProductDO::getId))
+                .forEach(p -> result.putIfAbsent(brandKeys.get(p.getBrandId()) + "|" + p.getMpnNormalized(), p.getId()));
+        return result;
+    }
+
     /** 只有启用且未删除的商品才能被业务单据选用 */
     private LambdaQueryWrapper<ProductDO> selectable() {
         LambdaQueryWrapper<ProductDO> wrapper = new LambdaQueryWrapper<ProductDO>()

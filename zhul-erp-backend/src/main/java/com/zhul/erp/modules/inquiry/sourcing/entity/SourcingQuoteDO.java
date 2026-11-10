@@ -29,6 +29,8 @@ public class SourcingQuoteDO {
     /** 渠道为供应商时关联的供应商 */
     private Long supplierId;
     private Integer noStock;
+    /** 内部无货原因（字典 inquiry_no_stock_reason 的字典值）；导入与历史数据为空 */
+    private Integer noStockReason;
     private String currencyCode;
     private BigDecimal unitPrice;
     private BigDecimal exchangeRate;

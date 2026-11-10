@@ -54,6 +54,7 @@ public class PriceHistoryServiceImpl implements PriceHistoryService {
     private final PermissionChecker perm;
     private final AttachmentService attachmentService;
     private final ProductOrderCodes orderCodes;
+    private final com.zhul.erp.modules.inquiry.support.QuoteDicts quoteDicts;
 
     @Override
     public PriceMatchVO match(String brand, String model) {
@@ -167,6 +168,8 @@ public class PriceHistoryServiceImpl implements PriceHistoryService {
                 ? attachmentService.list(AttachmentService.SOURCING_QUOTE, quotes.stream().map(SourcingQuoteDO::getId).toList())
                 : Map.of();
         Map<Long, PriceRecordVO> map = new LinkedHashMap<>(quotes.size() * 2);
+        com.zhul.erp.modules.inquiry.support.QuoteDictSnapshot.Dict reasons =
+                quotes.stream().anyMatch(q -> Objects.equals(q.getNoStock(), 1)) ? quoteDicts.noStockReasons() : null;
         for (SourcingQuoteDO q : quotes) {
             PriceRecordVO vo = new PriceRecordVO();
             vo.setId(q.getId());
@@ -175,6 +178,10 @@ public class PriceHistoryServiceImpl implements PriceHistoryService {
             vo.setChannel(supplierVisible ? q.getChannel() : null);
             vo.setShopName(supplierVisible ? q.getShopName() : null);
             vo.setNoStock(Objects.equals(q.getNoStock(), 1));
+            if (reasons != null && Objects.equals(q.getNoStock(), 1)) {
+                vo.setNoStockReason(q.getNoStockReason());
+                vo.setNoStockReasonName(reasons.label(q.getNoStockReason()));
+            }
             vo.setFreeShipping(!Objects.equals(q.getFreeShipping(), 0));
             vo.setAttachments(files.getOrDefault(q.getId(), List.of()));
             vo.setCurrencyCode(q.getCurrencyCode());

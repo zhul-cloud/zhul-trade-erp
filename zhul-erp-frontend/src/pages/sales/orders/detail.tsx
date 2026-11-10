@@ -23,6 +23,10 @@ import type { TableColumnsType } from 'antd';
 import { Alert, App, Button, Dropdown, Skeleton, Table } from 'antd';
 import dayjs from 'dayjs';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import DocModelCell, {
+  docBrandColumns,
+  docInquiryColumn,
+} from '@/components/DocFields/DocModelCell';
 import EllipsisText from '@/components/EllipsisText';
 import RefundModal from '@/pages/finance/refunds/RefundModal';
 import { useWide } from '@/pages/inquiry/shared/components';
@@ -518,37 +522,29 @@ const OrderDetail: React.FC = () => {
 
   const columns: TableColumnsType<OrderItem> = [
     { title: '#', key: 'no', width: 44, render: (_, __, i) => i + 1 },
+    ...docBrandColumns<OrderItem>((r) => r),
     {
-      title: '型号 / 品牌',
+      title: '型号',
       key: 'model',
-      width: 260,
+      width: 220,
       render: (_, r) => (
-        <div>
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              flexWrap: 'wrap',
-            }}
-          >
-            <span
-              style={{
-                fontWeight: 600,
-                color: r.quantity > 0 ? palette.ink : palette.mute,
-                textDecoration: r.quantity > 0 ? undefined : 'line-through',
-              }}
-            >
-              {r.model}
-            </span>
-            {r.quantity === 0 && <Pill tone="mute">已全部取消</Pill>}
-          </div>
-          <div style={{ fontSize: 12, color: palette.mute }}>
-            {[r.brand, r.category, r.quotationNo].filter(Boolean).join(' · ')}
-          </div>
-        </div>
+        <DocModelCell
+          model={r.model}
+          brand={r.brand}
+          orderCode={r.orderCode}
+          productId={r.productId}
+          from={{ path: PATHS.order(o.id), label: `销售订单 ${o.soNo}` }}
+          suffix={
+            r.quantity === 0 && (
+              <span style={{ marginLeft: 8 }}>
+                <Pill tone="mute">已全部取消</Pill>
+              </span>
+            )
+          }
+        />
       ),
     },
+    docInquiryColumn<OrderItem>((r) => r),
     {
       title: '数量',
       dataIndex: 'quantity',

@@ -158,9 +158,12 @@ const RequestsTab: React.FC<{ onChanged?: () => void }> = ({ onChanged }) => {
       render: (v: string, r) => (
         <div>
           {v}
-          {r.customerContact && (
+          {(r.customerCountry || r.customerContact) && (
             <div style={{ fontSize: 12, color: palette.mute }}>
-              <CustomerSub contact={r.customerContact} />
+              <CustomerSub
+                country={r.customerCountry}
+                contact={r.customerContact}
+              />
             </div>
           )}
         </div>

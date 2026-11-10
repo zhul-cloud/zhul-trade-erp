@@ -735,6 +735,8 @@ public class PaymentReceiptServiceImpl implements PaymentReceiptService {
             vo.setCustomerId(r.customerId());
             vo.setCustomerName(InquiryLookups.customerName(customers.get(r.customerId())));
             vo.setCustomerContact(InquiryLookups.contactName(customers.get(r.customerId())));
+            CustomerDO customer = customers.get(r.customerId());
+            vo.setCustomerCountry(customer == null ? null : customer.getCountry());
             vo.setOwnerId(r.ownerId());
             vo.setOwnerName(users.get(r.ownerId()));
             vo.setCurrencyCode(p == null ? r.so().getCurrencyCode() : p.getCurrencyCode());

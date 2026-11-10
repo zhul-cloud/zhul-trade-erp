@@ -165,9 +165,12 @@ const RecordsTab: React.FC = () => {
       render: (v: string, r: ReceiptRow) => (
         <div style={{ minWidth: 0 }}>
           {ellipsisRender(v)}
-          {r.customerContact && (
+          {(r.customerCountry || r.customerContact) && (
             <div style={{ fontSize: 12, color: palette.mute }}>
-              <CustomerSub contact={r.customerContact} />
+              <CustomerSub
+                country={r.customerCountry}
+                contact={r.customerContact}
+              />
             </div>
           )}
         </div>

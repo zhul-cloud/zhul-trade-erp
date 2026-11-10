@@ -127,9 +127,12 @@ const AfterSalesPage: React.FC = () => {
           <div style={{ fontWeight: 600, color: palette.ink }}>
             {r.customerName}
           </div>
-          {r.customerContact && (
+          {(r.customerCountry || r.customerContact) && (
             <div style={{ fontSize: 12, color: palette.mute }}>
-              <CustomerSub contact={r.customerContact} />
+              <CustomerSub
+                country={r.customerCountry}
+                contact={r.customerContact}
+              />
             </div>
           )}
           {r.soId ? (

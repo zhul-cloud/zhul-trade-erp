@@ -132,13 +132,12 @@ const CreditPage: React.FC = () => {
           )}
           <div style={{ fontSize: 12, color: palette.mute }}>
             {[a.customerCountry, a.currencyCode].filter(Boolean).join(' · ')}
-            {a.customerContact && (
-              <>
-                {' · '}
-                <CustomerSub contact={a.customerContact} />
-              </>
-            )}
           </div>
+          {a.customerContact && (
+            <div style={{ fontSize: 12, color: palette.mute }}>
+              <CustomerSub contact={a.customerContact} />
+            </div>
+          )}
         </div>
       ),
     },
