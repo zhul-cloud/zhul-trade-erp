@@ -74,6 +74,7 @@ import AppendModal from './AppendModal';
 import EditInquiryModal from './EditInquiryModal';
 import GoQuoteModal from './GoQuoteModal';
 import NameplateCard from './NameplateCard';
+import { ParseProgressCard } from './ParseProgress';
 
 const Meta: React.FC<{ label: string; children: React.ReactNode }> = ({
   label,
@@ -752,15 +753,25 @@ const CustomerInquiryDetailPage: React.FC = () => {
       <AppendModal
         inquiryId={inquiryId}
         open={appendOpen}
+        existingBytes={detail.attachments.reduce(
+          (sum, f) => sum + f.fileSize,
+          0,
+        )}
         onClose={() => setAppendOpen(false)}
         onStarted={load}
       />
-      {inq.status === STATUS.PARSING && (
+      {inq.status === STATUS.PARSING && !inq.parseProgressTotal && (
         <Alert
           type="info"
           showIcon
           style={{ marginBottom: 16 }}
           title="AI 正在解析，通常需要几十秒到几分钟，完成后页面会自动刷新"
+        />
+      )}
+      {inq.status === STATUS.PARSING && !!inq.parseProgressTotal && (
+        <ParseProgressCard
+          done={inq.parseProgressDone ?? 0}
+          total={inq.parseProgressTotal}
         />
       )}
 

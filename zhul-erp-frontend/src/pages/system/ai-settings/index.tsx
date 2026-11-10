@@ -1002,7 +1002,7 @@ const AiSettingsPage: React.FC = () => {
         ['翻译思考强度', '', effortLabel(values?.translateEffort)],
         [
           '每次解析最多搜索',
-          '联网查型号资料的上限',
+          '每次调用的上限，大文件分批解析时每批各自计算',
           `${values?.maxWebSearches ?? 20} 次`,
         ],
       ].map(([k, d, v], i) => (
@@ -1078,7 +1078,7 @@ const AiSettingsPage: React.FC = () => {
             每次解析最多搜索
           </div>
           <div style={{ fontSize: 12, color: palette.mute, marginTop: 4 }}>
-            解析询盘时联网查型号资料的上限，越多越准、费用越高，可填{' '}
+            每次调用最多搜索几次；大文件分批解析时每批各自计算。越多越准、费用越高，可填{' '}
             <span style={{ whiteSpace: 'nowrap' }}>1–100</span>
           </div>
         </div>

@@ -46,6 +46,9 @@ export interface CustomerInquiry {
   level: number;
   status: number;
   parseMode: number;
+  /** 解析中且分批解析时：已解析批数 / 总批数；不分批时没有 */
+  parseProgressDone?: number;
+  parseProgressTotal?: number;
   totalItemCount: number;
   /** 所有型号数量之和（不区分单位）；待确认时为 AI 识别结果 */
   totalQuantity: number;
@@ -232,6 +235,15 @@ export interface Draft {
   /** 这次录入或追加的铭牌图片 */
   nameplates: InquiryAttachment[];
   rows: DraftRow[];
+  /** AI 没能解析的部分（大附件分批解析时）；手动录入或没有时为空 */
+  unparsed?: UnparsedPart[];
+}
+
+/** 未解析的部分：文件名、范围（如「第 15 页」，整个文件时为空）、原因 */
+export interface UnparsedPart {
+  file: string;
+  range?: string;
+  reason: string;
 }
 
 export interface ConfirmRow extends Omit<DraftRow, 'match'> {

@@ -26,14 +26,17 @@
 
 ## 3. 前端：通用分片上传组件
 
-- [ ] 3.1 按确认的原型实现分片上传：16MB 分片、同时传 4 片、每片重试 3 次、续签、取消、断网后继续（D3）。验证：Jest 用 mock 接口覆盖进度计算、某片失败后重试成功、重试用尽后继续上传只传剩余分片、取消时调用后端取消接口。
-- [ ] 3.2 接入 `UploadTile` / 附件墙，按场景显示类型、大小提示，跨域失败时显示「上传服务未配置好」。验证：组件测试覆盖超限、类型不符、跨域失败三种提示；`npm run lint`、`npx antd lint ./src` 通过。
+- [x] 3.1 按确认的原型实现分片上传：16MB 分片、同时传 4 片、每片重试 3 次、续签、取消、断网后继续（D3）。验证：Jest 用 mock 接口覆盖进度计算、某片失败后重试成功、重试用尽后继续上传只传剩余分片、取消时调用后端取消接口。
+  完成：`src/utils/chunkUpload.ts`（分片大小由后端给，16MB）；`chunkUpload.test.ts` 8 个用例覆盖进度、重试成功、重试用尽后继续上传只传剩余分片、签名过期续签、取消调用后端取消、准备与完成时被拒、本地存储带登录信息。
+- [x] 3.2 接入 `UploadTile` / 附件墙，按场景显示类型、大小提示，跨域失败时显示「上传服务未配置好」。验证：组件测试覆盖超限、类型不符、跨域失败三种提示；`npm run lint`、`npx antd lint ./src` 通过。
+  完成：通用组件 `src/components/ChunkUploadList`（`useChunkUploads` + 文件行）；询盘附件墙是自建的上传区，没有用 `UploadTile`，直接接入这个组件。`ChunkUploadList/index.test.tsx` 覆盖超限、类型不符、上传服务不可用三种提示与「还没传完」计数；`npm run lint`、`npx antd lint ./src` 通过。
 
 ## 4. 询盘附件改用直传
 
 - [x] 4.1 登记询盘附件场景：JPG、PNG、PDF、xls、xlsx、csv，单个 500MB，新建、追加、修改分别校验对应权限；保存时凭会话认领文件，取代现有的 fileKey 校验；去掉每单 10 个的限制，改为每单合计不超过 2GB（准备上传时和保存时都要校验）；从商机带入附件按合计上限处理，商机自己的规则不动；铭牌图片保持原样。验证：`CustomerInquiry*ContractTest` 覆盖 300MB 声明通过、650MB 拒绝、ZIP 拒绝、伪造或他租户的会话被拒、25 个附件合计 600MB 通过、合计超过 2GB 被拒、带入商机附件超过合计时只带入部分并提示；`Opportunity*ContractTest` 原有附件上限用例不变。
   完成：`DirectUploadContractTest` 覆盖 25 个附件通过、合计超过 2GB 被拒、删掉大附件后可以补传；`InquiryIntakeContractTest`、`InquiryAppendContractTest`、`InquiryNameplateContractTest` 回归通过。请求里附件个数改为 1000 的技术兜底（见 design 风险）。从商机带入的附件合计判断在前端，保存时后端按合计再校验一次。
 - [ ] 4.2 询盘新建、追加型号、修改三处前端换用分片上传组件，附件没传完时不能提交。验证：组件测试覆盖「还有附件没有上传完」；本机本地存储模式下上传 300MB 的 PDF 并提交成功。
+  前端已完成：新建、追加型号、修改三处换用分片上传，没传完时按钮不可用并提示「还有 n 个附件没传完」，关闭弹窗先确认；从商机带入附件改按 2GB 合计。组件测试见 3.2。本机上传 300MB 并提交的实测待做（见 7.1）。
 - [ ] 4.3 更新 `docs/05-使用手册/` 的询价管理手册：附件上限、上传进度和失败处理。验证：手册中的数字与规格一致。
 
 ## 5. AI 编排服务：预处理与分批解析
@@ -64,8 +67,9 @@
 - [x] 6.4 后端不再把 Excel 转文字放进 `rawContent`，改为以链接传给编排服务；询盘解析结果保存并返回 `unparsed`（D8、D9）。验证：现有带 Excel 的解析契约测试改断言为 Excel 以链接传出；新增测试覆盖 `unparsed` 在确认页接口返回。
   完成：所有附件（含 Excel、CSV）以临时链接传出，带文件名与大小；删除不再使用的 `SpreadsheetText` 及其测试（编排服务用同样格式转文字）。`InquiryNameplateContractTest.parse_sendsSpreadsheetAsLinkWithNameAndSize`、`draft_returnsUnparsedParts`；`unparsed` 随 AI 任务结果保存，确认页与追加确认页接口都返回。
 - [ ] 6.5 询盘详情返回解析进度，确认页显示未解析部分（按确认的原型）。验证：前端组件测试覆盖「已解析 5 / 12」和「《清单.pdf》第 15 页无法读取」。
-  后端已完成：询盘列表与详情返回 `parseProgressDone` / `parseProgressTotal`（`InquiryNameplateContractTest.detail_showsParseProgressWhileParsing`）；前端待做。
-- [ ] 6.6 AI 设置页「最大搜索次数」旁的说明改为「每次调用最多搜索几次；大文件分批解析时每批各自计算」。验证：组件测试断言说明文字。
+  已实现：后端询盘列表与详情返回 `parseProgressDone` / `parseProgressTotal`（`InquiryNameplateContractTest.detail_showsParseProgressWhileParsing`）；前端详情页显示「已解析 x / y 批」进度卡，确认页顶部列出未解析部分（`ParseProgress.test.tsx`）。原型里「读取附件 / 提取型号 / 合并去重 / 联网核验」四个阶段没有做：编排服务只报告批数，不区分阶段；是否需要补做待用户确认，确认前本项不标完成。
+- [x] 6.6 AI 设置页「最大搜索次数」旁的说明改为「每次调用最多搜索几次；大文件分批解析时每批各自计算」。验证：组件测试断言说明文字。
+  完成：编辑处与只读摘要的说明都已改；`ai-settings/index.test.tsx` 断言说明文字。
 
 ## 7. 集成验收
 
