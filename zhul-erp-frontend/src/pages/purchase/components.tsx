@@ -349,10 +349,19 @@ export const StatCard: React.FC<{
   value: React.ReactNode;
   hint: React.ReactNode;
   hintColor?: string;
-}> = ({ icon, color, label, value, hint, hintColor }) => {
+  /** 可点击筛选时传入；active 为当前已按它筛选 */
+  onClick?: () => void;
+  active?: boolean;
+}> = ({ icon, color, label, value, hint, hintColor, onClick, active }) => {
   const { palette } = useAppTheme();
-  return (
-    <Card style={{ padding: 18 }}>
+  const card = (
+    <Card
+      style={{
+        padding: 18,
+        height: '100%',
+        borderColor: active ? color : undefined,
+      }}
+    >
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <span style={{ color, fontSize: 16 }}>{icon}</span>
         <span style={{ color: palette.sub, fontSize: 13 }}>{label}</span>
@@ -372,6 +381,24 @@ export const StatCard: React.FC<{
         {hint}
       </div>
     </Card>
+  );
+  return onClick ? (
+    <button
+      type="button"
+      aria-pressed={active}
+      onClick={onClick}
+      style={{
+        padding: 0,
+        border: 0,
+        textAlign: 'left',
+        background: 'transparent',
+        cursor: 'pointer',
+      }}
+    >
+      {card}
+    </button>
+  ) : (
+    card
   );
 };
 

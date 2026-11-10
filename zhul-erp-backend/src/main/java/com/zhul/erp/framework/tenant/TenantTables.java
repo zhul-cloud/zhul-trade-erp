@@ -164,7 +164,10 @@ public final class TenantTables {
             Map.entry("exchange_rate", Policy.SHARED_READ),
             Map.entry("exchange_rate_log", Policy.PRIVATE),
             Map.entry("tenant_bank_account", Policy.PRIVATE),
-            Map.entry("transit_time", Policy.SHARED_READ)
+            Map.entry("transit_time", Policy.SHARED_READ),
+            // 系统通知
+            Map.entry("notification", Policy.PRIVATE),
+            Map.entry("notification_receiver", Policy.PRIVATE)
     );
 
     /**

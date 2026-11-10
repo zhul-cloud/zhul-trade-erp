@@ -704,6 +704,13 @@ export default [
         component: './system/transit-times',
       },
       {
+        path: '/system/notification-receivers',
+        name: 'notificationReceivers',
+        icon: 'bell',
+        access: 'systemNotificationReceivers',
+        component: './system/notification-receivers',
+      },
+      {
         path: '/system/country-profiles',
         name: 'countryProfiles',
         icon: 'global',

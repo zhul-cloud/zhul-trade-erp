@@ -74,6 +74,7 @@ public class SourcingTaskServiceImpl implements SourcingTaskService {
     static final String MY_TASKS_PATH = "/inquiry/my-tasks";
 
     private final SourcingTaskMapper taskMapper;
+    private final com.zhul.erp.modules.inquiry.sourcing.support.SourcingNotices notices;
     private final SourcingTaskAssigneeMapper assigneeMapper;
     private final SourcingAssignRuleMapper ruleMapper;
     private final InquiryCategories inquiryCategories;
@@ -145,7 +146,11 @@ public class SourcingTaskServiceImpl implements SourcingTaskService {
             }
             tasks.add(task);
         }
-        autoAssign(tasks.stream().filter(t -> t.getStatus() == InquiryConstants.TASK_UNASSIGNED).toList(), inquiry.getTenantId());
+        List<SourcingTaskDO> pooled = tasks.stream().filter(t -> t.getStatus() == InquiryConstants.TASK_UNASSIGNED).toList();
+        autoAssign(pooled, inquiry.getTenantId());
+        if (!pooled.isEmpty()) {
+            notices.pool(inquiry.getId());
+        }
         return tasks;
     }
 
@@ -294,6 +299,7 @@ public class SourcingTaskServiceImpl implements SourcingTaskService {
         task.setStatus(InquiryConstants.TASK_UNASSIGNED);
         task.setPoolEnteredAt(now);
         autoAssign(List.of(task), task.getTenantId());
+        notices.pool(task.getCustomerInquiryId());
         return true;
     }
 
@@ -969,6 +975,7 @@ public class SourcingTaskServiceImpl implements SourcingTaskService {
         a.setAssignMode(mode);
         a.setActive(1);
         assigneeMapper.insert(a);
+        notices.assigned(task, assigneeId);
     }
 
     void deactivateAssignees(Long taskId) {

@@ -16,7 +16,13 @@ import {
   OfflineBanner,
 } from '@/components';
 import PasteToUpload from '@/components/PasteToUpload';
-import { AppLogo, SidebarUser, ThemeToggle, TopBar } from '@/components/Shell';
+import {
+  AppLogo,
+  NotificationBell,
+  SidebarUser,
+  ThemeToggle,
+  TopBar,
+} from '@/components/Shell';
 import { SiteFavicon } from '@/components/Shell/BrandLogo';
 import { getMenuTree, type MenuItem } from '@/pages/system/menu/service';
 import type { CurrentUser } from '@/services/zhul/auth';
@@ -236,6 +242,7 @@ export const layout: RunTimeLayoutConfig = ({
           logoUrl={initialState?.appearance?.logoUrl}
         />
         <TopBar>
+          <NotificationBell />
           <ThemeToggle />
           <DocLink />
           <LangDropdown />
