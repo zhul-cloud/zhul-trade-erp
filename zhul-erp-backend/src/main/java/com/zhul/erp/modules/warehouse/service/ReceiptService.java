@@ -70,6 +70,7 @@ import java.util.stream.Collectors;
 public class ReceiptService {
 
     private final PurchaseReceiptMapper receiptMapper;
+    private final com.zhul.erp.modules.warehouse.support.WarehouseNotices notices;
     private final PayableSyncService payables;
     private final PurchaseReceiptItemMapper receiptItemMapper;
     private final SupplierShipmentMapper shipmentMapper;
@@ -472,6 +473,7 @@ public class ReceiptService {
         logService.recordOperateLog(WarehouseConstants.MENU_RECEIPT, "验收入库", null,
                 Map.of("grNo", r.getGrNo(), "sdNo", s.getSdNo(), "poNo", p.getPoNo(), "items", text));
         payables.syncPurchaseOrder(p.getId());
+        notices.received(r, p, items);
         return r;
     }
 

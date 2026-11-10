@@ -28,6 +28,8 @@ public class RequirementOrderVO {
     private Integer partialCount;
     private Integer draftCount;
     private Integer pendingCount;
+    /** 超时未下单的型号数 */
+    private Integer overdueCount;
     /** 需求中最近的更新时间 */
     private LocalDateTime updateTime;
     private List<RequirementVO> lines;

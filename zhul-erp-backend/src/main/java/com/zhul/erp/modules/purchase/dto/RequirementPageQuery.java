@@ -20,4 +20,6 @@ public class RequirementPageQuery {
     private String view;
     /** 1-现货、2-期货 */
     private Integer stockType;
+    /** true-只看超时未下单的需求 */
+    private Boolean overdue;
 }
