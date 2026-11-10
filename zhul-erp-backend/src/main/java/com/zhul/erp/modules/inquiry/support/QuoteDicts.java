@@ -24,6 +24,11 @@ public class QuoteDicts {
                 load(DictTypes.TAX_RATE));
     }
 
+    /** 无货原因字典（labels 含已停用项，enabled 只含启用项） */
+    public QuoteDictSnapshot.Dict noStockReasons() {
+        return load(DictTypes.NO_STOCK_REASON);
+    }
+
     private QuoteDictSnapshot.Dict load(String dictType) {
         List<DictItemVO> items = dictItemService.listByDictType(dictType);
         Map<Integer, String> labels = new LinkedHashMap<>(items.size() * 2);

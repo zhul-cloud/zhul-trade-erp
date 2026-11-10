@@ -615,6 +615,8 @@ public class AfterSalesService {
             v.setCustomerId(a.getCustomerId());
             v.setCustomerName(InquiryLookups.customerName(customers.get(a.getCustomerId())));
             v.setCustomerContact(InquiryLookups.contactName(customers.get(a.getCustomerId())));
+            CustomerDO customer = customers.get(a.getCustomerId());
+            v.setCustomerCountry(customer == null ? null : customer.getCountry());
             v.setSoId(a.getSoId());
             v.setSoNo(o == null ? null : o.getSoNo());
             v.setCurrencyCode(o == null ? null : o.getCurrencyCode());

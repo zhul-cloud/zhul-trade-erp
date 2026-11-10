@@ -308,6 +308,18 @@ public class MyTaskServiceImpl implements MyTaskService {
                 quotes.values().stream().flatMap(List::stream).map(SourcingQuoteDO::getId).toList());
         Map<Long, List<PreviousQuoteVO>> previous = previousQuotes(task, items, me);
         List<MyTaskItemVO> rows = new ArrayList<>(items.size());
+        // 无货原因字典只在有无货记录时才读
+        java.util.function.Supplier<QuoteDictSnapshot.Dict> reasons = new java.util.function.Supplier<>() {
+            private QuoteDictSnapshot.Dict dict;
+
+            @Override
+            public QuoteDictSnapshot.Dict get() {
+                if (dict == null) {
+                    dict = quoteDicts.noStockReasons();
+                }
+                return dict;
+            }
+        };
         for (InquiryItemDO i : items) {
             MyTaskItemVO vo = new MyTaskItemVO();
             vo.setLocked(locked.contains(i.getId()));
@@ -336,6 +348,9 @@ public class MyTaskServiceImpl implements MyTaskService {
             vo.setQuotes(own.stream().map(q -> {
                 MyQuoteVO qv = toQuoteVo(q);
                 qv.setAttachments(files.getOrDefault(q.getId(), List.of()));
+                if (Boolean.TRUE.equals(qv.getNoStock())) {
+                    qv.setNoStockReasonName(reasons.get().label(q.getNoStockReason()));
+                }
                 return qv;
             }).toList());
             ItemPriceHistory.Summary history = priceHistory.summary(i, taskId);
@@ -381,11 +396,16 @@ public class MyTaskServiceImpl implements MyTaskService {
                         || Objects.equals(q.getQuotedBy(), task.getReturnedBy())))).toList();
         Map<Long, String> names = lookups.userNames(quotes.stream().map(SourcingQuoteDO::getQuotedBy).distinct().toList());
         boolean hidePrice = lookups.isPartTime(me);
+        QuoteDictSnapshot.Dict reasons = quoteDicts.noStockReasons();
         return quotes.stream().collect(Collectors.groupingBy(SourcingQuoteDO::getInquiryItemId, Collectors.mapping(q -> {
             PreviousQuoteVO vo = new PreviousQuoteVO();
             vo.setQuotedByName(names.get(q.getQuotedBy()));
             vo.setDraft(q.getStatus() == InquiryConstants.QUOTE_DRAFT);
             vo.setNoStock(Objects.equals(q.getNoStock(), 1));
+            if (Objects.equals(q.getNoStock(), 1)) {
+                vo.setNoStockReason(q.getNoStockReason());
+                vo.setNoStockReasonName(reasons.label(q.getNoStockReason()));
+            }
             vo.setChannel(q.getChannel());
             vo.setShopName(q.getShopName());
             vo.setNote(q.getNote());
@@ -473,6 +493,7 @@ public class MyTaskServiceImpl implements MyTaskService {
         vo.setLeadTime(q.getLeadTime());
         vo.setNote(q.getNote());
         vo.setNoStock(Objects.equals(q.getNoStock(), 1));
+        vo.setNoStockReason(q.getNoStockReason());
         vo.setFreeShipping(!Objects.equals(q.getFreeShipping(), 0));
         vo.setRecommended(Objects.equals(q.getRecommended(), 1));
         vo.setStatus(q.getStatus());
@@ -491,11 +512,22 @@ public class MyTaskServiceImpl implements MyTaskService {
         requireEditable(task, req.getItems().stream().map(ItemQuotesRequest::getItemId).toList());
         boolean submit = Boolean.TRUE.equals(req.getSubmit());
         List<QuoteDraft> drafts = new ArrayList<>();
+        QuoteDictSnapshot.Dict reasons = null;
         for (ItemQuotesRequest item : req.getItems()) {
             if (Boolean.TRUE.equals(item.getNoStock())) {
+                Integer reason = item.getNoStockReason() == null || item.getNoStockReason() == 0 ? null : item.getNoStockReason();
+                if (reason == null && submit) {
+                    throw new BizException("请选择无货原因");
+                }
+                if (reason != null) {
+                    reasons = reasons == null ? quoteDicts.noStockReasons() : reasons;
+                    if (!reasons.enabled().contains(reason)) {
+                        throw new BizException("无货原因无效，请重新选择");
+                    }
+                }
                 drafts.add(new QuoteDraft(item.getItemId(), true, InquiryConstants.CHANNEL_OTHER, "", null, null, false, null, 0, 0,
                         item.getNoStockNote(), false, true,
-                        item.getNoStockAttachmentIds() == null ? List.of() : item.getNoStockAttachmentIds()));
+                        item.getNoStockAttachmentIds() == null ? List.of() : item.getNoStockAttachmentIds(), reason));
                 continue;
             }
             for (QuoteEntryRequest q : item.getQuotes() == null ? List.<QuoteEntryRequest>of() : item.getQuotes()) {
@@ -666,6 +698,7 @@ public class MyTaskServiceImpl implements MyTaskService {
             q.setShopName(supplier != null ? text(supplier.getName(), 128) : text(d.shopName(), 128));
             q.setSupplierId(supplier != null ? supplier.getId() : null);
             q.setNoStock(d.noStock() ? 1 : 0);
+            q.setNoStockReason(d.noStock() ? d.noStockReason() : null);
             q.setCurrencyCode(InquiryConstants.BASE_CURRENCY);
             if (!d.noStock()) {
                 BigDecimal price = d.unitPrice().setScale(2, RoundingMode.HALF_UP);

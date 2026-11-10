@@ -397,6 +397,8 @@ public class CustomerCreditService {
         pending.forEach(v -> {
             v.setCustomerName(InquiryLookups.customerName(customers.get(v.getCustomerId())));
             v.setCustomerContact(InquiryLookups.contactName(customers.get(v.getCustomerId())));
+            CustomerDO c = customers.get(v.getCustomerId());
+            v.setCustomerCountry(c == null ? null : c.getCountry());
             v.setSalesName(users.get(v.getSalesId()));
         });
         return pending;

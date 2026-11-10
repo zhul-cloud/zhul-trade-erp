@@ -103,6 +103,7 @@ export interface Overpaid {
   customerId: number;
   customerName?: string;
   customerContact?: string;
+  customerCountry?: string;
   currencyCode: string;
   businessUnitId?: number;
   total: number;

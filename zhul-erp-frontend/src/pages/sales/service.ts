@@ -43,6 +43,10 @@ export interface PiItem {
   inquiryCode?: string;
   inquiryItemId: number;
   model: string;
+  /** 来源询盘型号上的订货号，只在系统内显示 */
+  orderCode?: string;
+  /** 对应的商品档案；没有时为空 */
+  productId?: number;
   brand: string;
   category?: string;
   description?: string;
@@ -192,6 +196,7 @@ export interface ReceiptRow {
   soNo?: string;
   customerName?: string;
   customerContact?: string;
+  customerCountry?: string;
   currencyCode: string;
   amount: number;
   platformFee: number;
@@ -360,6 +365,7 @@ export interface ReceiptDeskRow {
   customerId: number;
   customerName: string;
   customerContact?: string;
+  customerCountry?: string;
   ownerId: number;
   ownerName?: string;
   currencyCode: string;
@@ -1053,8 +1059,10 @@ export interface OrderCandidatePi {
 }
 
 export interface CreateOrderLine {
-  model: string;
-  brand?: string;
+  /** 商品档案 ID（必填）：型号、品牌、品类以商品档案为准 */
+  productId: number;
+  /** 只用于前端识别空行，后端不使用 */
+  model?: string;
   quantity: number;
   unitPrice: number;
   costPrice?: number | null;

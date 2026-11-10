@@ -6,6 +6,7 @@ import com.zhul.erp.common.utils.MigratedGuard;
 import com.zhul.erp.common.result.PageResult;
 import com.zhul.erp.modules.attachment.service.AttachmentService;
 import com.zhul.erp.modules.inquiry.support.CurrentUserResolver;
+import com.zhul.erp.modules.inquiry.support.InquiryLookups;
 import com.zhul.erp.modules.logistics.constants.LogisticsConstants;
 import com.zhul.erp.modules.logistics.dto.ConfirmDirectRequest;
 import com.zhul.erp.modules.logistics.dto.DirectRef;
@@ -27,6 +28,7 @@ import com.zhul.erp.modules.logistics.repository.OutboundOrderItemMapper;
 import com.zhul.erp.modules.logistics.repository.OutboundOrderMapper;
 import com.zhul.erp.modules.logistics.repository.ShipmentDocGroupMapper;
 import com.zhul.erp.modules.logistics.support.LogisticsSupport;
+import com.zhul.erp.modules.masterdata.entity.CustomerDO;
 import com.zhul.erp.modules.purchase.entity.PurchaseOrderDO;
 import com.zhul.erp.modules.purchase.support.OrderPurchaseProgress;
 import com.zhul.erp.modules.sales.entity.SalesOrderDO;
@@ -517,7 +519,7 @@ public class LogisticsShipmentService {
                 : boxMapper.selectList(new LambdaQueryWrapper<OutboundBoxDO>().in(OutboundBoxDO::getOutboundId, obIds).isNull(OutboundBoxDO::getDeletedAt))
                 .stream().collect(Collectors.groupingBy(OutboundBoxDO::getOutboundId));
         Map<Long, SalesOrderDO> orders = support.orders(obs.values().stream().flatMap(List::stream).map(OutboundOrderDO::getSoId).toList());
-        Map<Long, String> customers = support.customerNames(rows.stream().map(LogisticsShipmentDO::getCustomerId).toList());
+        Map<Long, CustomerDO> customers = support.customers(rows.stream().map(LogisticsShipmentDO::getCustomerId).toList());
         Map<Long, String> forwarders = support.supplierNames(rows.stream().map(LogisticsShipmentDO::getForwarderId).toList());
         Map<Long, String> users = support.userNames(rows.stream().map(LogisticsShipmentDO::getOwnerId).toList());
         List<LogisticsVO> out = new ArrayList<>(rows.size());
@@ -529,7 +531,13 @@ public class LogisticsShipmentService {
             vo.setId(sh.getId());
             vo.setShNo(sh.getShNo());
             vo.setCustomerId(sh.getCustomerId());
-            vo.setCustomerName(customers.get(sh.getCustomerId()));
+            CustomerDO customer = customers.get(sh.getCustomerId());
+            vo.setCustomerName(InquiryLookups.customerName(customer));
+            vo.setCustomerCountry(customer == null ? null : customer.getCountry());
+            vo.setCustomerContact(InquiryLookups.contactName(customer));
+            // 新老客户取所装第一张订单下单时的判定
+            mine.stream().map(ob -> orders.get(ob.getSoId())).filter(Objects::nonNull).findFirst()
+                    .ifPresent(so -> vo.setCustomerType(so.getCustomerType()));
             vo.setForwarderId(sh.getForwarderId());
             vo.setForwarderName(forwarders.get(sh.getForwarderId()));
             vo.setVolumeDivisor(divisor.intValue());

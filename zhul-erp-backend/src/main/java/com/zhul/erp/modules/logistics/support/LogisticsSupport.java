@@ -116,6 +116,10 @@ public class LogisticsSupport {
         return out;
     }
 
+    public Map<Long, CustomerDO> customers(Collection<Long> ids) {
+        return lookups.customers(ids.stream().filter(Objects::nonNull).distinct().toList());
+    }
+
     public CustomerDO customer(Long id) {
         return lookups.customers(List.of(id)).get(id);
     }

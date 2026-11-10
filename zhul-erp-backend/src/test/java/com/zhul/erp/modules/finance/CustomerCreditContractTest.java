@@ -356,6 +356,7 @@ class CustomerCreditContractTest extends SalesContractSupport {
         adj.put("reason", "旧 ERP 余额迁移");
         ok(call(json(post(CREDIT + "/adjust"), write(adj)), admin));
         Map<String, Object> line = new LinkedHashMap<>();
+        line.put("productId", manualProduct("6ES7214-1AG40-0XB0"));
         line.put("model", "6ES7214-1AG40-0XB0");
         line.put("quantity", 1);
         line.put("unitPrice", "250");
@@ -430,6 +431,7 @@ class CustomerCreditContractTest extends SalesContractSupport {
 
     private long manualOrder(String price) throws Exception {
         Map<String, Object> line = new LinkedHashMap<>();
+        line.put("productId", manualProduct("6ES7214-1AG40-0XB0"));
         line.put("model", "6ES7214-1AG40-0XB0");
         line.put("quantity", 1);
         line.put("unitPrice", price);

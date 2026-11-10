@@ -21,6 +21,9 @@ public final class DictTypes {
     /** 询价税率：含税报价的增值税税率，字典值为百分比整数 */
     public static final String TAX_RATE = "inquiry_tax_rate";
 
+    /** 无货原因：采购标无货时的内部原因，字典值为整数 */
+    public static final String NO_STOCK_REASON = "inquiry_no_stock_reason";
+
     private DictTypes() {
     }
 }

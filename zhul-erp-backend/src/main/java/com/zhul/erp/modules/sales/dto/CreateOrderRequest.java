@@ -32,10 +32,11 @@ public class CreateOrderRequest {
 
     @Data
     public static class Line {
+        /** 商品档案（必填）：型号、品牌、品类以商品档案为准 */
+        private Long productId;
+        /** 只用于识别空行；保存时以商品档案的型号为准 */
         @Size(max = 128, message = "型号不能超过 128 个字符")
         private String model;
-        @Size(max = 64, message = "品牌不能超过 64 个字符")
-        private String brand;
         private Integer quantity;
         private BigDecimal unitPrice;
         /** 采购成本价（CNY），选填 */

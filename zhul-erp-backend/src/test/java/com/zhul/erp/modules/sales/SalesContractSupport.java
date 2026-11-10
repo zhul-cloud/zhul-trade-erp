@@ -36,6 +36,18 @@ public abstract class SalesContractSupport extends InquiryContractSupport {
     protected String admin;
     private int quotationSeq;
 
+    /** 手动建单用的商品档案（平台商品库，品牌「Manual Order Test」）：没有就建，返回商品 ID */
+    protected long manualProduct(String model) {
+        jdbc.update("insert into product_brand (tenant_id, brand_name) select 0, 'Manual Order Test' from dual "
+                + "where not exists (select 1 from product_brand where tenant_id = 0 and brand_name = 'Manual Order Test')");
+        long brand = jdbc.queryForObject("select id from product_brand where tenant_id = 0 and brand_name = 'Manual Order Test'", Long.class);
+        String normalized = com.zhul.erp.modules.product.support.MpnNormalizer.normalize(model);
+        jdbc.update("insert into product (tenant_id, brand_id, mpn_raw, mpn_normalized, mpn_display, product_name, status) "
+                + "select 0, ?, ?, ?, ?, ?, 1 from dual where not exists (select 1 from product where brand_id = ? and mpn_normalized = ?)",
+                brand, model, normalized, model, model, brand, normalized);
+        return jdbc.queryForObject("select id from product where brand_id = ? and mpn_normalized = ?", Long.class, brand, normalized);
+    }
+
     @BeforeEach
     void setUpSales() {
         cleanupSales();

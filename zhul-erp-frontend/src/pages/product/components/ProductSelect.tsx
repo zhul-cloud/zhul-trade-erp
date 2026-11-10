@@ -14,6 +14,8 @@ export const ProductSelect: React.FC<{
   placeholder?: string;
   disabled?: boolean;
   style?: React.CSSProperties;
+  /** 下拉底部的固定内容（如「去商品档案新建」），参数为当前输入的关键字 */
+  footer?: (keyword: string) => React.ReactNode;
   'aria-label'?: string;
 }> = ({
   value,
@@ -22,9 +24,11 @@ export const ProductSelect: React.FC<{
   placeholder = '输入型号或产品名称搜索',
   disabled,
   style,
+  footer,
   ...rest
 }) => {
   const [options, setOptions] = useState<ProductOption[]>([]);
+  const [keyword, setKeyword] = useState('');
   const [loading, setLoading] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const seq = useRef(0);
@@ -32,6 +36,7 @@ export const ProductSelect: React.FC<{
   useEffect(() => () => clearTimeout(timer.current), []);
 
   const search = (keyword: string) => {
+    setKeyword(keyword);
     clearTimeout(timer.current);
     if (!keyword.trim()) {
       setOptions([]);
@@ -77,6 +82,16 @@ export const ProductSelect: React.FC<{
         )
       }
       notFoundContent="没有找到启用的商品，换个型号写法试试"
+      popupRender={
+        footer
+          ? (menu) => (
+              <>
+                {menu}
+                {footer(keyword.trim())}
+              </>
+            )
+          : undefined
+      }
       style={{ minWidth: 280, ...style }}
       {...rest}
     />

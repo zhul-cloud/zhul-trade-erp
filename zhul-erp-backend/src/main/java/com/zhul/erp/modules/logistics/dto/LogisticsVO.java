@@ -14,6 +14,10 @@ public class LogisticsVO {
     private String shNo;
     private Long customerId;
     private String customerName;
+    /** 客户国家/地区、新老客户、主联系人（列表客户列三行显示） */
+    private String customerCountry;
+    private Integer customerType;
+    private String customerContact;
     private Long forwarderId;
     private String forwarderName;
     private Integer volumeDivisor;

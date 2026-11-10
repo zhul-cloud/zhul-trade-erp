@@ -147,6 +147,10 @@ export interface Logistics extends Audit {
   migrated?: boolean;
   customerId: number;
   customerName?: string;
+  /** 客户国家 / 地区、新老客户（1-新、2-老）、主联系人：列表客户列三行显示 */
+  customerCountry?: string;
+  customerType?: number;
+  customerContact?: string;
   forwarderId: number;
   forwarderName?: string;
   volumeDivisor: number;

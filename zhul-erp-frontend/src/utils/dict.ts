@@ -7,6 +7,8 @@ export const DICT_SOURCE_CHANNEL = 'crm_source_channel';
 /** 货况、货期：采购回价、导入询价结果、询价记录共用 */
 export const DICT_ITEM_CONDITION = 'inquiry_item_condition';
 export const DICT_LEAD_TIME = 'inquiry_lead_time';
+/** 无货原因：采购标无货时的内部原因 */
+export const DICT_NO_STOCK_REASON = 'inquiry_no_stock_reason';
 
 /** 型号生命周期：码值 2-停产可填替代型号，3-待查为默认值 */
 export const DICT_LIFECYCLE = 'inquiry_lifecycle';
