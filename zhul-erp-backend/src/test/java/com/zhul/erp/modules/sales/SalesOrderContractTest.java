@@ -2,7 +2,10 @@ package com.zhul.erp.modules.sales;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import org.junit.jupiter.api.Test;
+import org.springframework.mock.web.MockMultipartFile;
 
+import java.nio.charset.StandardCharsets;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -11,6 +14,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 
 /** spec sales/sales-order、quotation/quotation（成交由订单推进）、inquiry/inquiry-intake（成交推进询盘）、system/document-numbering（链路与搜索） */
@@ -52,6 +56,62 @@ class SalesOrderContractTest extends SalesContractSupport {
         assertEquals(3, quotationStatus(q), "全部型号成交 → 已成交");
         assertEquals(8, inquiryStatus(inquiryOf(q)), "成交推进询盘");
         assertEquals("PI 已转成订单 SO" + today() + "001", fail(convert(pi)).path("message").asText());
+    }
+
+    /** spec sales/sales-order「订单列表查看全部型号」：分页，顺序与明细一致，带币种；看不到的订单不能查 */
+    @Test
+    void orderModels_paged_scoped() throws Exception {
+        long c = customer("ACROBOT", "India");
+        long pi = sentPi(quotationItemIds(quotation(c, 2, "USD", "60", FOUR)), 5);
+        ok(uploadSlip(pi, "667.00", "2026-10-07", admin));
+        JsonNode so = ok(convert(pi));
+        long id = so.path("id").asLong();
+        JsonNode p1 = ok(call(get(SO + "/" + id + "/models").param("page", "1").param("pageSize", "3"), admin));
+        assertEquals(4, p1.path("total").asInt());
+        assertEquals(3, p1.path("records").size());
+        assertEquals(so.path("items").get(0).path("model").asText(), p1.path("records").get(0).path("model").asText());
+        assertEquals("USD", p1.path("records").get(0).path("currencyCode").asText());
+        JsonNode p2 = ok(call(get(SO + "/" + id + "/models").param("page", "2").param("pageSize", "3"), admin));
+        assertEquals(so.path("items").get(3).path("model").asText(), p2.path("records").get(0).path("model").asText());
+        jdbc.update("update sales_order set owner_id = ? where id = ?", BUYER_LIN, id);
+        loginWithResources("it_so_staff", MENU_SO);
+        assertEquals("销售订单不存在", call(get(SO + "/" + id + "/models"), token("it_so_staff")).path("message").asText());
+    }
+
+    /** 已发送、有水单、PI 当前版本备注为 remark 的 PI */
+    private long paidPiWithRemark(long customer, String remark) throws Exception {
+        long pi = sentPi(quotationItemIds(quotation(customer, 2, "USD", null, FOUR[0])), null);
+        ok(uploadSlip(pi, "100.00", "2026-10-07", admin));
+        jdbc.update("update proforma_invoice_version v join proforma_invoice p on p.id = v.pi_id and v.version_no = p.current_version_no"
+                + " set v.remark = ? where p.id = ?", remark, pi);
+        return pi;
+    }
+
+    /** spec sales/sales-order「由 PI 转成销售订单」：转订单时填写备注与附件（feedback-1109） */
+    @Test
+    void convert_remarkAndAttachments() throws Exception {
+        long c = customer("Ahmed Trading", "United Arab Emirates");
+        long file = ok(call(multipart("/api/v1/attachments")
+                .file(new MockMultipartFile("file", "客户PO.pdf", "application/pdf", "%PDF-1.4\n%test".getBytes(StandardCharsets.US_ASCII)))
+                .param("ownerType", "SALES_ORDER"), admin)).path("id").asLong();
+        Map<String, Object> b = new LinkedHashMap<>();
+        b.put("remark", " 客户要原装新品，采购时确认生产日期 ");
+        b.put("attachmentIds", List.of(file));
+        JsonNode changed = ok(call(json(post(PI + "/" + paidPiWithRemark(c, "Prices valid for 15 days.") + "/convert"), write(b)), admin));
+        assertEquals("客户要原装新品，采购时确认生产日期", changed.path("remark").asText(), "改过的备注");
+        assertEquals(1, changed.path("attachments").size());
+        assertEquals("客户PO.pdf", changed.path("attachments").get(0).path("fileName").asText());
+
+        JsonNode cleared = ok(call(json(post(PI + "/" + paidPiWithRemark(c, "Prices valid for 15 days.") + "/convert"),
+                write(Map.of("remark", ""))), admin));
+        assertEquals("", cleared.path("remark").asText(), "清空备注");
+        assertEquals(0, cleared.path("attachments").size());
+
+        JsonNode kept = ok(convert(paidPiWithRemark(c, "Prices valid for 15 days.")));
+        assertEquals("Prices valid for 15 days.", kept.path("remark").asText(), "不传备注时沿用 PI 备注");
+
+        assertTrue(fail(call(json(post(PI + "/" + paidPiWithRemark(c, "") + "/convert"), write(Map.of("remark", "x".repeat(501)))), admin))
+                .path("message").asText().contains("500"));
     }
 
     @Test

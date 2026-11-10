@@ -1007,6 +1007,38 @@ const PurchaseOrderDetail: React.FC = () => {
               : undefined
           }
         />
+        {po.salesRemarks?.length > 0 && (
+          <div style={{ marginTop: 14, display: 'grid', gap: 8 }}>
+            <b style={{ color: palette.ink }}>销售备注</b>
+            {po.salesRemarks.map((r) => (
+              <div
+                key={r.soId}
+                style={{
+                  display: 'flex',
+                  gap: 14,
+                  padding: '10px 14px',
+                  borderRadius: 10,
+                  background: palette.inset,
+                }}
+              >
+                <div style={{ width: 170, flexShrink: 0 }}>
+                  <a
+                    style={{ fontWeight: 700 }}
+                    onClick={() => history.push(PATHS.salesOrder(r.soId))}
+                  >
+                    {r.soNo}
+                  </a>
+                  <div style={{ fontSize: 12, color: palette.mute }}>
+                    {r.customerName}
+                  </div>
+                </div>
+                <span style={{ color: palette.ink, whiteSpace: 'pre-wrap' }}>
+                  {r.remark}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
         <div style={{ marginTop: 14, display: 'grid', gap: 8 }}>
           <b style={{ color: palette.ink }}>其他费用与优惠</b>
           {draft.fees.length === 0 && !editable && (

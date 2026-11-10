@@ -50,6 +50,8 @@ public interface FollowupItemMapper extends BaseMapper<FollowupItemDO> {
             + "<if test='f.excludeAfterSalesNext != null and f.excludeAfterSalesNext'> AND fi.next_action_source &lt;&gt; 4</if>"
             + "<if test='f.dueFrom != null'> AND fi.next_action_date &gt;= #{f.dueFrom}</if>"
             + "<if test='f.dueTo != null'> AND fi.next_action_date &lt;= #{f.dueTo}</if>"
+            + "<if test='f.customerIds != null'> AND fi.customer_id IN"
+            + "<foreach collection='f.customerIds' item='i' open='(' separator=',' close=')'>#{i}</foreach></if>"
             + "<if test='f.ownerIds != null'> AND fi.owner_id IN"
             + "<foreach collection='f.ownerIds' item='o' open='(' separator=',' close=')'>#{o}</foreach></if>";
     String FROM = TABLES + WHERE;
@@ -80,6 +82,47 @@ public interface FollowupItemMapper extends BaseMapper<FollowupItemDO> {
             + " CASE WHEN fi.next_action_date IS NULL THEN 1 ELSE 0 END, fi.next_action_date, fi.id"
             + "<if test='f.size != null'> LIMIT #{f.offset}, #{f.size}</if></script>")
     List<Long> rankedDevelopIds(@Param("f") FollowupItemFilter f);
+
+    /** 阶段序号，与 CustomerRollup.STAGE_ORDER 一致 */
+    String STAGE_RANK = "FIELD(fi.stage_code, "
+            + "'D1', 'D2', 'D3', 'D4', 'D5', 'D6', 'D7', "
+            + "'S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7', "
+            + "'F1', 'F2', 'F3', 'F4', 'F5', 'F6', "
+            + "'A1', 'A2', 'A3', 'A4', 'A5', 'A6', "
+            + "'G4', 'G5', 'G6', 'G7')";
+
+    /**
+     * 按客户分组（change followup-group-by-customer）：调用方不传 group / stage / blocker / keyword / exceptionOnly / dormantOnly，
+     * 改用 stageRanks（客户所处阶段）和 match*（名下有单据满足）在 HAVING 里筛选，所处阶段按客户在本板块的全部单据算。
+     */
+    String GROUPED = TABLES + WHERE + " GROUP BY fi.customer_id, c.biz_grade, c.potential_rating HAVING 1 = 1"
+            + "<if test='f.stageRanks != null'> AND MAX(" + STAGE_RANK + ") IN"
+            + "<foreach collection='f.stageRanks' item='r' open='(' separator=',' close=')'>#{r}</foreach></if>"
+            + "<if test='f.matchBlocker != null'> AND SUM(CASE WHEN fi.blocker_code = #{f.matchBlocker} THEN 1 ELSE 0 END) &gt; 0</if>"
+            + "<if test='f.matchKeyword != null'> AND SUM(CASE WHEN c.name LIKE CONCAT('%', #{f.matchKeyword}, '%')"
+            + " OR c.name_cn LIKE CONCAT('%', #{f.matchKeyword}, '%') OR c.customer_code LIKE CONCAT('%', #{f.matchKeyword}, '%')"
+            + " OR fi.doc_no LIKE CONCAT('%', #{f.matchKeyword}, '%') THEN 1 ELSE 0 END) &gt; 0</if>"
+            + "<if test='f.matchException != null and f.matchException'> AND SUM(CASE WHEN fi.exception_flags &gt; 0 THEN 1 ELSE 0 END) &gt; 0</if>"
+            + "<if test='f.matchDormant != null and f.matchDormant'> AND SUM(CASE WHEN fi.dormant_since IS NOT NULL THEN 1 ELSE 0 END) &gt; 0</if>";
+
+    /**
+     * 按客户价值给客户排序：经营等级 → 潜力 → 名下最高的金额档 → 有下一步日期的在前 → 最大逾期天数多→少 → 最早下一步日期 → 客户 ID
+     */
+    @Select("<script>SELECT fi.customer_id" + GROUPED
+            + " ORDER BY CASE WHEN c.biz_grade BETWEEN 1 AND 4 THEN c.biz_grade ELSE 9 END,"
+            + " CASE WHEN c.potential_rating BETWEEN 1 AND 5 THEN 6 - c.potential_rating ELSE 9 END,"
+            + " MIN(CASE WHEN fi.amount_cny &gt;= #{f.tier1} THEN 0 WHEN fi.amount_cny &gt;= #{f.tier2} THEN 1"
+            + " WHEN fi.amount_cny &gt;= #{f.tier3} THEN 2 ELSE 3 END),"
+            + " MAX(CASE WHEN fi.next_action_date IS NULL THEN 0 ELSE 1 END) DESC,"
+            + " MAX(CASE WHEN fi.next_action_date &lt; #{f.today} THEN DATEDIFF(#{f.today}, fi.next_action_date) ELSE 0 END) DESC,"
+            + " MIN(fi.next_action_date), fi.customer_id"
+            + "<if test='f.size != null'> LIMIT #{f.offset}, #{f.size}</if></script>")
+    List<Long> rankedCustomerIds(@Param("f") FollowupItemFilter f);
+
+    /** 按客户分组的客户数（customers）与单据数（docs） */
+    @Select("<script>SELECT COUNT(*) AS customers, COALESCE(SUM(t.n), 0) AS docs FROM (SELECT fi.customer_id, COUNT(*) AS n"
+            + GROUPED + ") t</script>")
+    Map<String, Object> countCustomers(@Param("f") FollowupItemFilter f);
 
     @Select("<script>SELECT COUNT(*)" + FROM + "</script>")
     long countBy(@Param("f") FollowupItemFilter f);

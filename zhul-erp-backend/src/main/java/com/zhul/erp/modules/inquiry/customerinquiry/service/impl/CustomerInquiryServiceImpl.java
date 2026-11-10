@@ -1479,6 +1479,31 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
         return modelLines(List.of(inquiry)).getOrDefault(inquiry.getId(), List.of());
     }
 
+    @Override
+    public PageResult<InquiryModelLineVO> modelsPage(Long id, int page, int pageSize) {
+        CustomerInquiryDO inquiry = getVisible(id);
+        int size = Math.min(Math.max(pageSize, 1), 100);
+        int current = Math.max(page, 1);
+        int st = inquiry.getStatus() == null ? 0 : inquiry.getStatus();
+        if (st <= InquiryConstants.STATUS_PARSE_FAILED) {
+            List<InquiryModelLineVO> all = modelLines(List.of(inquiry)).getOrDefault(inquiry.getId(), List.of());
+            int from = Math.min((current - 1) * size, all.size());
+            return PageResult.of((long) all.size(), all.subList(from, Math.min(from + size, all.size())));
+        }
+        Page<InquiryItemDO> rows = itemMapper.selectPage(new Page<>(current, size), new LambdaQueryWrapper<InquiryItemDO>()
+                .select(InquiryItemDO::getCustomerInquiryId, InquiryItemDO::getBrand, InquiryItemDO::getConfirmedModel,
+                        InquiryItemDO::getOriginalModel, InquiryItemDO::getCategoryId, InquiryItemDO::getCategory,
+                        InquiryItemDO::getQuantity, InquiryItemDO::getUnit)
+                .eq(InquiryItemDO::getCustomerInquiryId, inquiry.getId())
+                .isNull(InquiryItemDO::getDeletedAt)
+                .orderByAsc(InquiryItemDO::getLineNo)
+                .orderByAsc(InquiryItemDO::getId));
+        List<ProductCategoryDO> categories = inquiryCategories.categories();
+        return PageResult.of(rows.getTotal(), rows.getRecords().stream().map(r -> modelLine(r.getBrand(), r.getConfirmedModel(),
+                r.getOriginalModel(), rootCategory(r.getCategoryId(), r.getCategory(), categories), r.getQuantity(), r.getUnit()))
+                .toList());
+    }
+
     /**
      * 各询盘的型号行：待确认的取 AI 解析结果，已确认的取型号明细；未解析、解析中、解析失败的没有型号。
      * 品类统一换成一级品类。

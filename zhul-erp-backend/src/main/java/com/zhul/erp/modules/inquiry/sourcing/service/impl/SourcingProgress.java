@@ -1,6 +1,7 @@
 package com.zhul.erp.modules.inquiry.sourcing.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.zhul.erp.modules.inquiry.constants.InquiryConstants;
 import com.zhul.erp.modules.inquiry.customerinquiry.entity.CustomerInquiryDO;
 import com.zhul.erp.modules.inquiry.customerinquiry.repository.CustomerInquiryMapper;
@@ -10,6 +11,7 @@ import com.zhul.erp.modules.inquiry.sourcing.entity.SourcingQuoteDO;
 import com.zhul.erp.modules.inquiry.sourcing.entity.SourcingTaskDO;
 import com.zhul.erp.modules.inquiry.sourcing.repository.SourcingQuoteMapper;
 import com.zhul.erp.modules.inquiry.sourcing.repository.SourcingTaskMapper;
+import com.zhul.erp.modules.quotation.support.QuotationLocks;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -17,6 +19,7 @@ import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 
 /**
  * 回价进度联动：明细 → 询价任务 → 询盘单。调用方须在「读已提交」事务内、先 {@link #lock} 询盘单再调用：
@@ -27,9 +30,11 @@ import java.util.Objects;
 public class SourcingProgress {
 
     private final CustomerInquiryMapper inquiryMapper;
+    private final com.zhul.erp.modules.inquiry.sourcing.support.SourcingNotices notices;
     private final InquiryItemMapper itemMapper;
     private final SourcingTaskMapper taskMapper;
     private final SourcingQuoteMapper quoteMapper;
+    private final QuotationLocks quotationLocks;
 
     public void lock(Long inquiryId) {
         inquiryMapper.lockById(inquiryId);
@@ -93,21 +98,44 @@ public class SourcingProgress {
         }
     }
 
-    /** 任务里每个型号都有价格或无货时变为已回价 */
+    /**
+     * 任务里每个型号都有了结果时变为已回价：有价格、无货，或已经报给了客户（业务员直接按无货或自定价格报出，
+     * 型号被报价单锁住，采购无法再回价也无法退回，BUS-031）。报价单作废后又出现待询价的型号时回到询价中。
+     */
     public void refreshTask(Long taskId) {
         SourcingTaskDO task = taskMapper.selectById(taskId);
-        if (task == null || task.getStatus() == InquiryConstants.TASK_CANCELLED || task.getStatus() == InquiryConstants.TASK_UNASSIGNED) {
+        if (task == null || (task.getStatus() != InquiryConstants.TASK_SOURCING && task.getStatus() != InquiryConstants.TASK_DONE)) {
             return;
         }
-        long pending = itemMapper.selectCount(new LambdaQueryWrapper<InquiryItemDO>()
-                .eq(InquiryItemDO::getSourcingTaskId, taskId)
-                .eq(InquiryItemDO::getQuoteStatus, InquiryConstants.ITEM_PENDING)
-                .isNull(InquiryItemDO::getDeletedAt));
-        if (pending == 0 && task.getStatus() == InquiryConstants.TASK_SOURCING) {
+        List<Long> pending = itemMapper.selectList(new LambdaQueryWrapper<InquiryItemDO>()
+                        .select(InquiryItemDO::getId)
+                        .eq(InquiryItemDO::getSourcingTaskId, taskId)
+                        .eq(InquiryItemDO::getQuoteStatus, InquiryConstants.ITEM_PENDING)
+                        .isNull(InquiryItemDO::getDeletedAt))
+                .stream().map(InquiryItemDO::getId).toList();
+        Set<Long> quoted = quotationLocks.lockedItemIds(pending);
+        long open = pending.stream().filter(id -> !quoted.contains(id)).count();
+        if (open == 0 && task.getStatus() == InquiryConstants.TASK_SOURCING) {
             task.setStatus(InquiryConstants.TASK_DONE);
             task.setCompletedAt(LocalDateTime.now());
             taskMapper.updateById(task);
+        } else if (open > 0 && task.getStatus() == InquiryConstants.TASK_DONE) {
+            taskMapper.update(null, new LambdaUpdateWrapper<SourcingTaskDO>()
+                    .eq(SourcingTaskDO::getId, taskId)
+                    .set(SourcingTaskDO::getStatus, InquiryConstants.TASK_SOURCING)
+                    .set(SourcingTaskDO::getCompletedAt, null)
+                    .set(SourcingTaskDO::getUpdateTime, LocalDateTime.now()));
         }
+    }
+
+    /** 报价单状态变化后重算这个询盘下的询价任务（询价中、已回价） */
+    public void refreshTasksOf(Long inquiryId) {
+        taskMapper.selectList(new LambdaQueryWrapper<SourcingTaskDO>()
+                        .select(SourcingTaskDO::getId)
+                        .eq(SourcingTaskDO::getCustomerInquiryId, inquiryId)
+                        .in(SourcingTaskDO::getStatus, InquiryConstants.TASK_SOURCING, InquiryConstants.TASK_DONE)
+                        .isNull(SourcingTaskDO::getDeletedAt))
+                .forEach(t -> refreshTask(t.getId()));
     }
 
     /** 重算回价进度；询价中的全部有价格或无货时进入可报价 */
@@ -124,9 +152,13 @@ public class SourcingProgress {
                 .ne(InquiryItemDO::getQuoteStatus, InquiryConstants.ITEM_PENDING));
         inquiry.setTotalItemCount((int) total);
         inquiry.setPricedItemCount((int) priced);
-        if (inquiry.getStatus() == InquiryConstants.STATUS_SOURCING && priced == total && total > 0) {
+        boolean ready = inquiry.getStatus() == InquiryConstants.STATUS_SOURCING && priced == total && total > 0;
+        if (ready) {
             inquiry.setStatus(InquiryConstants.STATUS_READY_TO_QUOTE);
         }
         inquiryMapper.updateById(inquiry);
+        if (ready) {
+            notices.quotable(inquiry);
+        }
     }
 }

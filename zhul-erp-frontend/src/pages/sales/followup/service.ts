@@ -26,6 +26,12 @@ export const TARGET = {
   ORDER: 5,
   CUSTOMER: 6,
 };
+/** 按客户分组显示的板块 */
+export const GROUPED_BOARDS = [BOARD_SALES, BOARD_FULFIL, BOARD_AFTER_SALES];
+/** 记跟进必须回答阶段问题的阶段：不能批量跟进，选多张单据时阶段必须相同 */
+export const ANSWER_STAGES = ['A1', 'A2', 'A5', 'A6'];
+/** 批量操作一次最多的客户数 */
+export const BATCH_MAX = 50;
 export const NEXT_SYSTEM = 1;
 export const NEXT_USER = 2;
 /** 来自售后单的下一步（A3、A4）：只读，不进今日待办 */
@@ -152,6 +158,27 @@ export const NO_NEED_REASONS = [
   { value: 'OTHER', label: '其他' },
 ];
 export const RECORD_USER = 1;
+/** 跟进记录类型：调整阶段 */
+export const RECORD_STAGE = 3;
+
+/** 可以手动调整的判断段：同一段内可前进或后退 */
+export const ADJUST_SEGMENTS = [
+  ['S1', 'S2'],
+  ['S4', 'S5', 'S6'],
+  ['D4', 'D5', 'D6'],
+];
+export const adjustSegment = (stage?: string) =>
+  ADJUST_SEGMENTS.find((s) => !!stage && s.includes(stage));
+export const ADJUST_REASONS = [
+  { value: 'HISTORY', label: '历史数据阶段不对' },
+  { value: 'LAGGING', label: '系统判断滞后' },
+  { value: 'CHANGED', label: '客户情况变化' },
+  { value: 'OTHER', label: '其他' },
+];
+/** 快速记录的实际沟通日期最多往前选几天 */
+export const CONTACT_BACK_DAYS = 30;
+/** 今日待办每次加载的客户数 */
+export const TODAY_PAGE = 20;
 
 /** 客户情况位掩码 */
 export const SITUATION = { FEEDBACK: 1, NEGOTIATING: 2, NO_REPLY: 4 } as const;
@@ -219,6 +246,9 @@ export interface FollowupItem {
   nurtureReason?: string;
   nurtureReasonName?: string;
   suggestNurture?: boolean;
+  /** 记跟进「什么时候」的推荐日期与理由 */
+  suggestDate?: string;
+  suggestReason?: string;
   sopHint?: string;
   ownerId?: number;
   ownerName?: string;
@@ -403,11 +433,75 @@ export interface Overview {
   boards: OverviewBoard[];
 }
 
+/** 今日待办的一个板块：客户在这个板块所处的阶段、最紧急的到期单据和全部到期单据 */
+export interface TodayBoard {
+  board: number;
+  stageCode: string;
+  stageName: string;
+  lead: FollowupItem;
+  items: FollowupItem[];
+}
+
+/** 今日待办的一个客户：在多个板块都有到期单据时每个板块一行 */
+export interface TodayCustomer {
+  customerId: number;
+  customerName: string;
+  country?: string;
+  bizGrade?: string;
+  potentialRating?: number;
+  ownerName?: string;
+  overdueDays: number;
+  boards: TodayBoard[];
+}
+
+/** 今日待办按客户：数字都是客户数 */
 export interface Today {
-  overdue: FollowupItem[];
-  today: FollowupItem[];
+  overdue: TodayCustomer[];
+  today: TodayCustomer[];
+  /** 今天已经记过跟进、下一步仍是今天的客户，不计入待办 */
+  handled: TodayCustomer[];
   weekRemaining: number;
   tomorrow: number;
+}
+
+/** 按客户分组的一行：所处阶段为名下单据最靠后的阶段 */
+export interface CustomerGroup {
+  customerId: number;
+  customerName: string;
+  country?: string;
+  bizGrade?: string;
+  potentialRating?: number;
+  ownerName?: string;
+  stageCode: string;
+  stageName: string;
+  stageGroup?: number;
+  docCount: number;
+  /** targetType → 张数 */
+  typeCounts: Record<string, number>;
+  overdueDays: number;
+  lead: FollowupItem;
+  items: FollowupItem[];
+  /** 按阶段筛选时在范围内的单据，其余标灰；没有筛选时为空 */
+  inScope?: number[];
+}
+
+export interface GroupList {
+  total: number;
+  docTotal: number;
+  records: CustomerGroup[];
+  unpaid: CurrencyAmount[];
+}
+
+/** 批量跟进 / 批量延后的一个客户 */
+export interface BatchEntry {
+  customerId: number;
+  itemIds: number[];
+}
+
+export interface BatchResult {
+  success: number;
+  items: number;
+  failures: { customerId: number; customerName: string; reason: string }[];
 }
 
 export interface CurrencyAmount {
@@ -485,11 +579,19 @@ export interface FollowupRecord {
   operatorName?: string;
   targetType?: number;
   docNo?: string;
+  /** 一次跟进涉及多张单据时的单号 */
+  docNos?: string[];
+  /** 快速记录：只选了结果，下一步由系统按阶段填 */
+  quick?: boolean;
+  /** 快速记录的实际沟通日期 */
+  contactDate?: string;
   createTime: string;
 }
 
 export interface CustomerFollowup {
   current?: FollowupItem;
+  /** 当前跟进对象所在板块的全部单据，记一次跟进时默认全选 */
+  currentItems?: FollowupItem[];
   step?: number;
   lastContactAt?: string;
   lastChannelName?: string;
@@ -507,6 +609,8 @@ export interface CustomerFollowup {
 export interface RecordRequest {
   customerId: number;
   itemId?: number;
+  /** 这次跟进涉及的单据（同一客户、同一板块）；传了就忽略 itemId */
+  itemIds?: number[];
   situation?: number;
   blockerCode?: string;
   nextAction: string;
@@ -630,6 +734,8 @@ export interface TeamOwner {
   overdue: number;
   manySnoozes: number;
   records: number;
+  /** 本期跟进中的快速记录次数 */
+  quickRecords?: number;
   prevRecords: number;
   attention: boolean;
 }
@@ -694,6 +800,18 @@ export interface Team {
   exceptions: { total: number; items: TeamException[] };
 }
 
+/** 快速跟进结果：dateRule 为 NORMAL / TOMORROW / NO_REPLY */
+export interface QuickResult {
+  code: string;
+  label: string;
+  advanceTo?: string;
+  dateRule: 'NORMAL' | 'TOMORROW' | 'NO_REPLY';
+}
+
+export interface QuickEntry extends BatchEntry {
+  result: string;
+}
+
 interface Resp<T> {
   data: T;
 }
@@ -711,6 +829,56 @@ export const followupApi = {
     ),
   items: (params: ItemQuery) =>
     request<Resp<ItemList>>(`${BASE}/items`, { params }).then((r) => r.data),
+  /** 按客户分组的列表（商机成交、订单履约、售后评价） */
+  groups: (params: ItemQuery) =>
+    request<Resp<GroupList>>(`${BASE}/groups`, { params }).then((r) => r.data),
+  batchRecord: (data: {
+    entries: BatchEntry[];
+    situation?: number;
+    nextAction: string;
+    nextActionDate: string;
+    channel?: number;
+    note?: string;
+    idempotencyKey: string;
+  }) =>
+    request<Resp<BatchResult>>(`${BASE}/batch-record`, {
+      method: 'POST',
+      data,
+    }).then((r) => r.data),
+  /** 批量延后；今日待办客户卡片的「延后」也走这里 */
+  batchSnooze: (entries: BatchEntry[], date: string) =>
+    request<Resp<BatchResult>>(`${BASE}/batch-snooze`, {
+      method: 'POST',
+      data: { entries, date },
+    }).then((r) => r.data),
+  /** 各阶段可选的快速跟进结果：阶段 → 结果 */
+  quickResults: () =>
+    request<Resp<Record<string, QuickResult[]>>>(`${BASE}/quick-results`).then(
+      (r) => r.data,
+    ),
+  quick: (
+    data: QuickEntry & { contactDate?: string; idempotencyKey: string },
+  ) =>
+    request<Resp<number>>(`${BASE}/quick`, { method: 'POST', data }).then(
+      (r) => r.data,
+    ),
+  quickBatch: (data: {
+    entries: QuickEntry[];
+    contactDate?: string;
+    idempotencyKey: string;
+  }) =>
+    request<Resp<BatchResult>>(`${BASE}/quick-batch`, {
+      method: 'POST',
+      data,
+    }).then((r) => r.data),
+  adjustStage: (
+    id: number,
+    data: { toStage: string; reason: string; note?: string },
+  ) =>
+    request<Resp<string>>(`${BASE}/items/${id}/stage`, {
+      method: 'POST',
+      data,
+    }).then((r) => r.data),
   snooze: (id: number, date: string) =>
     request(`${BASE}/items/${id}/snooze`, { method: 'POST', data: { date } }),
   nurture: (

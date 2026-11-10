@@ -1,13 +1,14 @@
-import { RightOutlined } from '@ant-design/icons';
+import { DownOutlined, RightOutlined } from '@ant-design/icons';
 import { history } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
-import { App, Button, Progress, Select, Space, Table } from 'antd';
+import { App, Button, Checkbox, Progress, Select, Space, Table } from 'antd';
 import dayjs from 'dayjs';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Stars } from '@/pages/customer/profile/ui';
 import { RECEIPT_META } from '@/pages/sales/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
+import type { Picked } from './Batch';
 import {
   CustomerLink,
   DueText,
@@ -19,7 +20,9 @@ import {
   ValueCell,
 } from './components';
 import { PartsPanel, ProgressCell } from './OrderParts';
+import { QuickButton } from './QuickActions';
 import QuotationPreviewDrawer from './QuotationPreviewDrawer';
+import type { RecordTarget } from './RecordFollowupModal';
 import {
   BOARD_ACCOUNT,
   BOARD_AFTER_SALES,
@@ -27,9 +30,11 @@ import {
   BOARD_FULFIL,
   BOARD_SALES,
   type CurrencyAmount,
+  type CustomerGroup,
   type FollowupItem,
   followupApi,
   GROUP,
+  GROUPED_BOARDS,
   NEXT_AFTER_SALES,
   NEXT_USER,
   type OverviewBoard,
@@ -122,9 +127,12 @@ export const StageBar: React.FC<{
     !value.nurture &&
     !value.exception &&
     !value.dormant;
-  const total = board
-    ? board.total - (boardNo === BOARD_SALES ? board.nurture : 0)
-    : 0;
+  // 按客户分组的板块：全部 = 客户数，与各阶段（按客户所处阶段）之和一致
+  const total = !board
+    ? 0
+    : GROUPED_BOARDS.includes(boardNo)
+      ? board.customers
+      : board.total - (boardNo === BOARD_SALES ? board.nurture : 0);
   const groups = board?.groups ?? [];
   const items: React.ReactNode[] = [];
   groups.forEach((g, gi) => {
@@ -416,6 +424,98 @@ const BlockerCell: React.FC<{ item: FollowupItem }> = ({ item }) =>
 const followsAfterSales = (r: FollowupItem) =>
   r.nextActionSource === NEXT_AFTER_SALES && !!r.afterSalesId;
 
+/** 列表的一行：客户行（名下多张单据时）或单据行 */
+type Row = FollowupItem & {
+  _key: string;
+  /** 客户行（名下多张单据）；只有一张单据的客户直接是单据行，也带 _group 用于勾选 */
+  _head?: boolean;
+  _group?: CustomerGroup;
+  /** 展开后的单据行 */
+  _child?: boolean;
+  /** 按阶段筛选时不在范围内的单据，标灰 */
+  _out?: boolean;
+};
+
+const EXPAND_KEY = 'zhul:followup:expand-all';
+const readExpandAll = () => {
+  try {
+    return window.localStorage.getItem(EXPAND_KEY) === '1';
+  } catch {
+    return false;
+  }
+};
+const writeExpandAll = (v: boolean) => {
+  try {
+    window.localStorage.setItem(EXPAND_KEY, v ? '1' : '0');
+  } catch {
+    // 浏览器禁用存储时只在本页生效
+  }
+};
+
+const TYPE_LABEL: Record<number, string> = {
+  [TARGET.OPPORTUNITY]: '商机',
+  [TARGET.INQUIRY]: '询盘',
+  [TARGET.QUOTATION]: '报价单',
+  [TARGET.PI]: 'PI',
+  [TARGET.ORDER]: '订单',
+};
+/** 「38 张询盘 · 2 张报价单」 */
+const typeText = (g: CustomerGroup) =>
+  Object.entries(g.typeCounts)
+    .map(([t, n]) => {
+      const label = TYPE_LABEL[Number(t)] ?? '单据';
+      return `${n} 张${/^[A-Z]/.test(label) ? ' ' : ''}${label}`;
+    })
+    .join(' · ');
+
+/** 客户行在作战卡里按客户所处阶段显示：取名下处在这个阶段的单据 */
+export const stageItem = (g: CustomerGroup) =>
+  g.items.find((i) => i.stageCode === g.stageCode) ?? g.lead;
+
+/** 勾选、记跟进时带入的单据：本板块全部单据 */
+export const pickOfGroup = (g: CustomerGroup): Picked => ({
+  customerId: g.customerId,
+  customerName: g.customerName,
+  items: g.items,
+});
+
+/** 客户行的「延后」只延后到期单据 */
+const dueIds = (g: CustomerGroup) =>
+  g.items
+    .filter(
+      (i) =>
+        !!i.nextActionDate &&
+        !dayjs(i.nextActionDate).isAfter(dayjs(), 'day') &&
+        i.nextActionSource !== NEXT_AFTER_SALES,
+    )
+    .map((i) => i.id);
+
+const buildRows = (
+  groups: CustomerGroup[] | undefined,
+  records: FollowupItem[],
+  isOpen: (customerId: number) => boolean,
+): Row[] => {
+  if (!groups) return records.map((r) => ({ ...r, _key: `i${r.id}` }));
+  const out: Row[] = [];
+  for (const g of groups) {
+    const inScope = g.inScope?.length ? new Set(g.inScope) : undefined;
+    if (g.items.length <= 1) {
+      out.push({ ...g.lead, _key: `c${g.customerId}`, _group: g });
+      continue;
+    }
+    out.push({ ...g.lead, _key: `c${g.customerId}`, _head: true, _group: g });
+    if (isOpen(g.customerId))
+      for (const i of g.items)
+        out.push({
+          ...i,
+          _key: `i${i.id}`,
+          _child: true,
+          _out: !!inScope && !inScope.has(i.id),
+        });
+  }
+  return out;
+};
+
 export const FollowupTable: React.FC<{
   boardNo: number;
   filter: StageFilter;
@@ -423,11 +523,20 @@ export const FollowupTable: React.FC<{
   total: number;
   unpaid: CurrencyAmount[];
   loading: boolean;
-  selectedId?: number;
+  /** 按客户分组的板块（商机成交、订单履约、售后评价）：客户行 + 展开的单据行 */
+  groups?: CustomerGroup[];
+  docTotal?: number;
+  selectedKey?: string;
   canRecord: boolean;
   showOwner: boolean;
-  onSelect: (item: FollowupItem) => void;
+  onSelect: (item: FollowupItem, key: string) => void;
   onRecord: (item: FollowupItem) => void;
+  /** 客户行「记跟进」：带入本板块全部单据 */
+  onRecordTarget?: (t: RecordTarget) => void;
+  picked?: Record<number, Picked>;
+  onPick?: (p: Picked, on: boolean) => void;
+  /** 已选客户时的批量操作条 */
+  batchBar?: React.ReactNode;
   onNurture: (item: FollowupItem) => void;
   onChanged: () => void;
   onMore: () => void;
@@ -442,11 +551,17 @@ export const FollowupTable: React.FC<{
   total,
   unpaid,
   loading,
-  selectedId,
+  groups,
+  docTotal,
+  selectedKey,
   canRecord,
   showOwner,
   onSelect,
   onRecord,
+  onRecordTarget,
+  picked,
+  onPick,
+  batchBar,
   onNurture,
   onChanged,
   onMore,
@@ -461,17 +576,36 @@ export const FollowupTable: React.FC<{
   const afterQuote =
     sales && !filter.nurture && filter.group === GROUP.AFTER_QUOTE;
   const afterPi = sales && !filter.nurture && filter.group === GROUP.AFTER_PI;
-  const [expanded, setExpanded] = useState<number[]>([]);
+  const [expanded, setExpanded] = useState<string[]>([]);
+  /** 全部展开（记住上次的选择）；flipped 为与之相反的客户 */
+  const [expandAll, setExpandAll] = useState(readExpandAll);
+  const [flipped, setFlipped] = useState<number[]>([]);
   const [quotePreview, setQuotePreview] = useState<{
     id: number;
     versionNo?: number;
   }>();
   // 换板块或换筛选时收起展开的行
-  useEffect(() => setExpanded([]), [boardNo, filter]);
-  const toggle = (id: number) =>
+  useEffect(() => {
+    setExpanded([]);
+    setFlipped([]);
+  }, [boardNo, filter]);
+  const toggle = (key: string) =>
     setExpanded((l) =>
-      l.includes(id) ? l.filter((x) => x !== id) : [...l, id],
+      l.includes(key) ? l.filter((x) => x !== key) : [...l, key],
     );
+  const isOpen = (customerId: number) =>
+    expandAll !== flipped.includes(customerId);
+  const flip = (customerId: number) =>
+    setFlipped((l) =>
+      l.includes(customerId)
+        ? l.filter((x) => x !== customerId)
+        : [...l, customerId],
+    );
+  const rows = useMemo(
+    () => buildRows(groups, records, (c) => expandAll !== flipped.includes(c)),
+    [groups, records, expandAll, flipped],
+  );
+  const multi = (groups ?? []).some((g) => g.items.length > 1);
 
   const activate = async (item: FollowupItem) => {
     try {
@@ -483,7 +617,7 @@ export const FollowupTable: React.FC<{
     }
   };
 
-  const customerCol: TableColumnsType<FollowupItem>[number] = {
+  const customerCol: TableColumnsType<Row>[number] = {
     title: sales ? '客户 / 商机' : '客户',
     key: 'customer',
     width: 220,
@@ -503,13 +637,13 @@ export const FollowupTable: React.FC<{
       </div>
     ),
   };
-  const valueCol: TableColumnsType<FollowupItem>[number] = {
+  const valueCol: TableColumnsType<Row>[number] = {
     title: '价值',
     key: 'value',
     width: 150,
     render: (_, r) => <ValueCell item={r} />,
   };
-  const docCol: TableColumnsType<FollowupItem>[number] = {
+  const docCol: TableColumnsType<Row>[number] = {
     title: !sales
       ? '订单 · 金额'
       : afterPi
@@ -548,7 +682,7 @@ export const FollowupTable: React.FC<{
       </div>
     ),
   };
-  const actionCol: TableColumnsType<FollowupItem>[number] = {
+  const actionCol: TableColumnsType<Row>[number] = {
     title: '操作',
     key: 'action',
     width: 190,
@@ -594,6 +728,13 @@ export const FollowupTable: React.FC<{
                   onDone={onChanged}
                 />
               )}
+              <QuickButton
+                customerId={r.customerId}
+                items={[r]}
+                disabled={!canRecord}
+                onRecord={() => onRecord(r)}
+                onDone={onChanged}
+              />
               {develop && r.stageCode === 'D7' ? (
                 <>
                   <Button
@@ -662,7 +803,7 @@ export const FollowupTable: React.FC<{
         </span>
       ),
   };
-  const nextCol: TableColumnsType<FollowupItem>[number] = {
+  const nextCol: TableColumnsType<Row>[number] = {
     title: '下一步',
     key: 'next',
     width: 260,
@@ -670,7 +811,7 @@ export const FollowupTable: React.FC<{
   };
   const muted = { fontSize: 12, color: palette.mute };
 
-  let columns: TableColumnsType<FollowupItem>;
+  let columns: TableColumnsType<Row>;
   if (boardNo === BOARD_FULFIL) {
     columns = [
       customerCol,
@@ -683,8 +824,8 @@ export const FollowupTable: React.FC<{
         render: (_, r) => (
           <ProgressCell
             item={r}
-            expanded={expanded.includes(r.id)}
-            onToggle={() => toggle(r.id)}
+            expanded={expanded.includes(r._key)}
+            onToggle={() => toggle(r._key)}
           />
         ),
       },
@@ -1101,14 +1242,162 @@ export const FollowupTable: React.FC<{
     ];
   }
 
+  // ---------------------------------------------------------------- 客户行
+  const headCustomer = (g: CustomerGroup) => (
+    <div style={{ display: 'grid', gap: 4 }}>
+      <span style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}>
+        <button
+          type="button"
+          aria-label={isOpen(g.customerId) ? '收起' : '展开'}
+          onClick={(e) => {
+            e.stopPropagation();
+            flip(g.customerId);
+          }}
+          style={{
+            all: 'unset',
+            cursor: 'pointer',
+            color: palette.mute,
+            fontSize: 11,
+            width: 14,
+          }}
+        >
+          {isOpen(g.customerId) ? <DownOutlined /> : <RightOutlined />}
+        </button>
+        <CustomerLink item={g} />
+      </span>
+      <span style={{ fontSize: 12, color: palette.mute }}>
+        {[g.country, showOwner ? g.ownerName : undefined]
+          .filter(Boolean)
+          .join(' · ') || '—'}
+      </span>
+      <span>
+        <StageTag
+          item={{ ...g, board: boardNo, stageName: g.stageName }}
+          withCode
+        />
+      </span>
+    </div>
+  );
+  const headActions = (g: CustomerGroup) => {
+    const due = dueIds(g);
+    return filter.nurture ? null : (
+      <span onClick={(e) => e.stopPropagation()}>
+        <Space size={6}>
+          <SnoozeButton
+            entries={[{ customerId: g.customerId, itemIds: due }]}
+            disabled={!canRecord || due.length === 0}
+            onDone={onChanged}
+          />
+          <QuickButton
+            customerId={g.customerId}
+            items={g.items}
+            disabled={!canRecord}
+            onRecord={() =>
+              onRecordTarget?.({
+                customerId: g.customerId,
+                customerName: g.customerName,
+                item: g.lead,
+                items: g.items,
+              })
+            }
+            onDone={onChanged}
+          />
+          <Button
+            size="small"
+            type="primary"
+            disabled={!canRecord}
+            onClick={() =>
+              onRecordTarget?.({
+                customerId: g.customerId,
+                customerName: g.customerName,
+                item: g.lead,
+                items: g.items,
+              })
+            }
+          >
+            记跟进
+          </Button>
+        </Space>
+      </span>
+    );
+  };
+  /** 客户行沿用最紧急单据的列 */
+  const LEAD_COLS = ['next', 'last', 'feedback', 'blocker'];
+  const cols: TableColumnsType<Row> = columns.map((c) => {
+    const render = c.render;
+    const key = String(c.key);
+    return {
+      ...c,
+      render: (v: unknown, r: Row, i: number) => {
+        const g = r._group;
+        if (r._head && g) {
+          if (key === 'customer') return headCustomer(g);
+          if (key === 'value') return <ValueCell item={g} />;
+          if (key === 'doc')
+            return (
+              <span style={{ fontSize: 12, color: palette.sub }}>
+                {typeText(g)}
+              </span>
+            );
+          if (key === 'action') return headActions(g);
+          if (LEAD_COLS.includes(key) && render) return render(v, r, i);
+          return null;
+        }
+        if (r._child) {
+          if (key === 'customer')
+            return (
+              <span style={{ paddingLeft: 20 }}>
+                <StageTag item={r} withCode />
+              </span>
+            );
+          if (key === 'value') return null;
+        }
+        return render ? render(v, r, i) : null;
+      },
+    } as TableColumnsType<Row>[number];
+  });
+  if (groups && onPick && !filter.nurture)
+    cols.unshift({
+      key: 'pick',
+      width: 40,
+      render: (_, r) =>
+        r._group ? (
+          <span onClick={(e) => e.stopPropagation()}>
+            <Checkbox
+              checked={!!picked?.[r._group.customerId]}
+              disabled={!canRecord}
+              onChange={(e) =>
+                r._group && onPick(pickOfGroup(r._group), e.target.checked)
+              }
+            />
+          </span>
+        ) : null,
+    });
+
   return (
     <>
-      <Table<FollowupItem>
-        rowKey="id"
+      {batchBar}
+      {groups && multi && (
+        <div style={{ textAlign: 'right', marginBottom: 4 }}>
+          <Button
+            type="link"
+            size="small"
+            onClick={() => {
+              writeExpandAll(!expandAll);
+              setExpandAll(!expandAll);
+              setFlipped([]);
+            }}
+          >
+            {expandAll ? '全部收起' : '全部展开'}
+          </Button>
+        </div>
+      )}
+      <Table<Row>
+        rowKey="_key"
         size="middle"
-        columns={columns}
-        dataSource={records}
-        loading={loading && records.length === 0}
+        columns={cols}
+        dataSource={rows}
+        loading={loading && rows.length === 0}
         pagination={false}
         scroll={{ x: 'max-content' }}
         expandable={
@@ -1116,16 +1405,23 @@ export const FollowupTable: React.FC<{
             ? {
                 expandedRowKeys: expanded,
                 showExpandColumn: false,
-                rowExpandable: (r) => (r.partCount ?? 0) > 1,
+                rowExpandable: (r) => !r._head && (r.partCount ?? 0) > 1,
                 expandedRowRender: (r) => <PartsPanel item={r} />,
               }
             : undefined
         }
         onRow={(r) => ({
-          onClick: () => onSelect(r),
+          onClick: () =>
+            onSelect(r._head && r._group ? stageItem(r._group) : r, r._key),
           style: {
             cursor: 'pointer',
-            background: r.id === selectedId ? palette.accentSoft : undefined,
+            opacity: r._out ? 0.45 : undefined,
+            background:
+              r._key === selectedKey
+                ? palette.accentSoft
+                : r._child
+                  ? palette.inset
+                  : undefined,
           },
         })}
         locale={{
@@ -1140,7 +1436,7 @@ export const FollowupTable: React.FC<{
                   : '这一段没有要跟进的客户',
         }}
       />
-      {records.length > 0 && (
+      {(groups ? groups.length : records.length) > 0 && (
         <div
           style={{
             display: 'flex',
@@ -1154,7 +1450,9 @@ export const FollowupTable: React.FC<{
           }}
         >
           <span>
-            共 {total} 个 · 已显示 {records.length}
+            {groups
+              ? `共 ${total} 个客户 · ${docTotal ?? 0} 张单据 · 已显示 ${groups.length} 个客户`
+              : `共 ${total} 个 · 已显示 ${records.length}`}
           </span>
           {afterPi && unpaid.length > 0 && (
             <span style={{ color: palette.ink, fontWeight: 600 }}>
@@ -1164,7 +1462,7 @@ export const FollowupTable: React.FC<{
                 .join('、')}
             </span>
           )}
-          {records.length < total && (
+          {(groups ? groups.length : records.length) < total && (
             <Button size="small" loading={loading} onClick={onMore}>
               加载更多
             </Button>

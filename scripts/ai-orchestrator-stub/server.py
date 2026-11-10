@@ -142,6 +142,25 @@ def name_output(payload: dict) -> dict:
     return {"items": [{"key": i.get("key"), "text": "中文：" + (i.get("text") or "")} for i in items]}
 
 
+def candidate_output(payload: dict) -> dict:
+    """candidate-classify 的假结果，只用于联调：品类给清单里的第一个细分品类；
+    品牌按型号前缀猜（6ES7 → Siemens，FX/MR- → Mitsubishi），其余给一个品牌库里没有的名称"""
+    data = payload.get("input") or {}
+    items = data.get("items") or []
+    if data.get("mode") == "brand":
+        def guess(model: str) -> str:
+            m = (model or "").upper()
+            if m.startswith("6ES7"):
+                return "Siemens"
+            if m.startswith(("FX", "MR-")):
+                return "Mitsubishi"
+            return "Stub Brand"
+        return {"items": [{"key": i.get("key"), "categoryId": 0, "brand": guess(i.get("model"))} for i in items]}
+    cats = data.get("categories") or []
+    pick = next((c for c in cats if " / " in str(c.get("name"))), cats[0] if cats else {"id": 0})
+    return {"items": [{"key": i.get("key"), "categoryId": pick.get("id") or 0, "brand": ""} for i in items]}
+
+
 def send_callback(callback_url: str, output=None):
     time.sleep(CALLBACK_DELAY_SECONDS)
     body = json.dumps({"status": "success", "output": output or SAMPLE_OUTPUT, "error": None}).encode("utf-8")
@@ -222,6 +241,8 @@ class Handler(BaseHTTPRequestHandler):
                 output = translate_output(payload)
             elif self.path == "/skills/translate-contact-names/run":
                 output = name_output(payload)
+            elif self.path == "/skills/candidate-classify/run":
+                output = candidate_output(payload)
             threading.Thread(target=send_callback, args=(callback_url, output), daemon=True).start()
 
     def log_message(self, format, *args):

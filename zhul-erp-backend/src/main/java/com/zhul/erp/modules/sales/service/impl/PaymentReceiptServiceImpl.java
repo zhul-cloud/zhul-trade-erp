@@ -100,6 +100,7 @@ public class PaymentReceiptServiceImpl implements PaymentReceiptService {
     private final SalesOrderService orderService;
     private final com.zhul.erp.modules.finance.service.CreditUsageService creditUsage;
     private final com.zhul.erp.modules.crm.followup.support.FollowupHooks followupHooks;
+    private final com.zhul.erp.modules.sales.support.ReceiptNotices notices;
 
     // ---------------------------------------------------------------- 水单
 
@@ -165,6 +166,7 @@ public class PaymentReceiptServiceImpl implements PaymentReceiptService {
         r.setOperatorId(currentUserId());
         receiptMapper.insert(r);
         refresh(o);
+        notices.slipUploaded(r, o.no());
         logService.recordOperateLog(o.menu(), "上传付款水单", null, Map.of(o.noKey(), o.no(),
                 "amount", o.currency() + " " + r.getAmount(), "date", paidDate.toString(), "files", stored.size()));
     }
@@ -284,6 +286,7 @@ public class PaymentReceiptServiceImpl implements PaymentReceiptService {
         r.setOperatorId(currentUserId());
         receiptMapper.insert(r);
         refresh(o);
+        notifyReceived(o, r);
         Map<String, Object> after2 = new LinkedHashMap<>();
         after2.put(o.noKey(), o.no());
         after2.put("amount", o.currency() + " " + amount);
@@ -426,6 +429,7 @@ public class PaymentReceiptServiceImpl implements PaymentReceiptService {
         r.setOperatorId(currentUserId());
         receiptMapper.insert(r);
         refresh(o);
+        notifyReceived(o, r);
         Map<String, Object> after = new LinkedHashMap<>();
         after.put(o.noKey(), o.no());
         after.put("paymentMethod", method.name());
@@ -505,8 +509,14 @@ public class PaymentReceiptServiceImpl implements PaymentReceiptService {
         r.setClaimedAt(LocalDateTime.now());
         receiptMapper.updateById(r);
         refresh(o);
+        notifyReceived(o, r);
         logService.recordOperateLog(o.menu(), "认领到账", null, Map.of(o.noKey(), o.no(),
                 "amount", r.getCurrencyCode() + " " + r.getAmount(), "payer", r.getPayer(), "receiptId", r.getId()));
+    }
+
+    private void notifyReceived(Owner o, PaymentReceiptDO r) {
+        notices.received(o.no(), o.pi() != null, o.pi() != null ? o.pi().getId() : o.so().getId(),
+                o.pi() != null ? o.pi().getOwnerId() : o.so().getOwnerId(), r.getCurrencyCode(), r.getAmount());
     }
 
     /** 收款记录所属单据的编号（PI 编号或订单编号），未认领时为空 */

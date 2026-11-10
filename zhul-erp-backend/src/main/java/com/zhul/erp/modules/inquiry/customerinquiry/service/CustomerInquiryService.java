@@ -40,6 +40,9 @@ public interface CustomerInquiryService {
     /** 询盘的全部型号（列表「查看」弹窗）：待确认时为 AI 识别结果 */
     List<InquiryModelLineVO> models(Long id);
 
+    /** 列表「查看」弹窗分页：已确认的询盘按型号明细分页查询，待确认的按 AI 解析结果分页 */
+    com.zhul.erp.common.result.PageResult<InquiryModelLineVO> modelsPage(Long id, int page, int pageSize);
+
     /** 附件的临时访问链接：download=true 时强制下载，否则预览 */
     FileLink attachmentLink(Long id, Long attachmentId, boolean download);
 

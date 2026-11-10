@@ -21,11 +21,15 @@ public class RequirementOrderVO {
     /** 1-PI 转成、2-手动创建 */
     private Integer source;
     private String ownerName;
+    /** 销售订单当前的备注（业务员写给采购的注意事项），只在系统内显示 */
+    private String salesRemark;
     /** 型号进度汇总（按筛选后的需求）：已下单、部分下单、草稿中、未安排 */
     private Integer orderedCount;
     private Integer partialCount;
     private Integer draftCount;
     private Integer pendingCount;
+    /** 超时未下单的型号数 */
+    private Integer overdueCount;
     /** 需求中最近的更新时间 */
     private LocalDateTime updateTime;
     private List<RequirementVO> lines;

@@ -2,6 +2,7 @@ package com.zhul.erp.modules.finance.controller;
 
 import com.zhul.erp.common.result.PageResult;
 import com.zhul.erp.common.result.Result;
+import com.zhul.erp.modules.finance.dto.BatchPaymentRequest;
 import com.zhul.erp.modules.finance.dto.PaymentQuery;
 import com.zhul.erp.modules.finance.dto.PaymentStatsVO;
 import com.zhul.erp.modules.finance.dto.PayeeAccountVO;
@@ -57,6 +58,13 @@ public class PaymentController {
     @PreAuthorize(PAYER)
     public Result<PaymentVO> register(@Valid @RequestBody RegisterPaymentRequest req) {
         return Result.ok(service.register(req));
+    }
+
+    /** 批量付款：按收款方 + 币种分组，每组一笔付款单，整批同一事务 */
+    @PostMapping("/batch")
+    @PreAuthorize("@perm.has('finance:payment:register')")
+    public Result<List<PaymentVO>> batch(@Valid @RequestBody BatchPaymentRequest req) {
+        return Result.ok(service.batchRegister(req));
     }
 
     @PostMapping("/refunds")

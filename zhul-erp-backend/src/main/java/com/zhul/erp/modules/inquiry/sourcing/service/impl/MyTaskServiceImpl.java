@@ -81,6 +81,7 @@ import com.zhul.erp.modules.inquiry.sourcing.entity.SourcingItemHandoffDO;
 public class MyTaskServiceImpl implements MyTaskService {
 
     private final SourcingTaskMapper taskMapper;
+    private final com.zhul.erp.modules.inquiry.sourcing.support.SourcingNotices notices;
     private final SourcingTaskAssigneeMapper assigneeMapper;
     private final SourcingQuoteMapper quoteMapper;
     private final InquiryItemMapper itemMapper;
@@ -493,7 +494,8 @@ public class MyTaskServiceImpl implements MyTaskService {
         for (ItemQuotesRequest item : req.getItems()) {
             if (Boolean.TRUE.equals(item.getNoStock())) {
                 drafts.add(new QuoteDraft(item.getItemId(), true, InquiryConstants.CHANNEL_OTHER, "", null, null, false, null, 0, 0,
-                        item.getNoStockNote(), false));
+                        item.getNoStockNote(), false, true,
+                        item.getNoStockAttachmentIds() == null ? List.of() : item.getNoStockAttachmentIds()));
                 continue;
             }
             for (QuoteEntryRequest q : item.getQuotes() == null ? List.<QuoteEntryRequest>of() : item.getQuotes()) {
@@ -688,7 +690,7 @@ public class MyTaskServiceImpl implements MyTaskService {
             q.setSubmitBatch(batch);
             q.setQuoteRound(Objects.requireNonNullElse(item.getQuoteRound(), 0));
             quoteMapper.insert(q);
-            if (!d.noStock() && !d.attachmentIds().isEmpty()) {
+            if (!d.attachmentIds().isEmpty()) {
                 attachmentService.reassign(AttachmentService.SOURCING_QUOTE, d.attachmentIds(), ownQuoteIds, q.getId());
             }
             // 回价图片进素材库「供方实拍」；被替换的旧回价上的图片随之移走
@@ -920,7 +922,11 @@ public class MyTaskServiceImpl implements MyTaskService {
         }
         taskMapper.update(null, update);
         backToSourcingIfOpen(task.getCustomerInquiryId());
+        if (others == 0) {
+            notices.pool(task.getCustomerInquiryId());
+        }
         if (req.getReason() == InquiryConstants.RETURN_MODEL_DOUBT) {
+            notices.modelDoubt(task, inquiry, handed, req.getNote());
             CustomerInquiryDO patch = new CustomerInquiryDO();
             patch.setId(task.getCustomerInquiryId());
             patch.setNeedsReview(1);

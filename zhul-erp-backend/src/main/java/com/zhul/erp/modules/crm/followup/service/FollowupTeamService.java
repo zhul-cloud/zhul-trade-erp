@@ -7,6 +7,7 @@ import com.zhul.erp.framework.security.DataScopeResolver;
 import com.zhul.erp.modules.crm.followup.constants.FollowupConstants;
 import com.zhul.erp.modules.crm.followup.dto.FollowupTeamVO;
 import com.zhul.erp.modules.crm.followup.entity.FollowupItemDO;
+import com.zhul.erp.modules.crm.followup.support.CustomerRollup;
 import com.zhul.erp.modules.crm.followup.entity.SopStageDO;
 import com.zhul.erp.modules.crm.followup.repository.FollowupItemMapper;
 import com.zhul.erp.modules.crm.followup.repository.FollowupTeamMapper;
@@ -97,7 +98,8 @@ public class FollowupTeamService {
                         FollowupItemDO::getOwnerId, FollowupItemDO::getNextAction, FollowupItemDO::getNextActionDate,
                         FollowupItemDO::getNextActionSource, FollowupItemDO::getSnoozeCount, FollowupItemDO::getNurtureUntil,
                         FollowupItemDO::getStageSince, FollowupItemDO::getCreateTime, FollowupItemDO::getExceptionFlags,
-                        FollowupItemDO::getCurrencyCode, FollowupItemDO::getAmount, FollowupItemDO::getAmountCny)
+                        FollowupItemDO::getCurrencyCode, FollowupItemDO::getAmount, FollowupItemDO::getAmountCny,
+                        FollowupItemDO::getLastFollowupAt)
                 .isNull(FollowupItemDO::getClosedAt)
                 .isNull(FollowupItemDO::getDeletedAt)
                 .isNull(FollowupItemDO::getNurtureUntil)
@@ -249,8 +251,8 @@ public class FollowupTeamService {
     // ---------------------------------------------------------------- 按负责人
 
     private void ownerRows(FollowupTeamVO vo, List<FollowupItemDO> open, Collection<Long> owners, LocalDate[] range, LocalDate today) {
-        Map<Long, Integer> records = recordCounts(owners, range[0], range[1]);
-        Map<Long, Integer> prevRecords = recordCounts(owners, range[2], range[3]);
+        Map<Long, int[]> records = recordCounts(owners, range[0], range[1]);
+        Map<Long, int[]> prevRecords = recordCounts(owners, range[2], range[3]);
         Set<Long> ids = new TreeSet<>();
         open.forEach(i -> ids.add(i.getOwnerId()));
         ids.addAll(records.keySet());
@@ -262,17 +264,21 @@ public class FollowupTeamService {
             FollowupTeamVO.Owner o = new FollowupTeamVO.Owner();
             o.setOwnerId(id);
             o.setOwnerName(names.getOrDefault(id, ""));
+            // 跟进数、今天要跟、逾期都按客户计，口径同「我的」视图的板块卡片和今日待办
             for (int b = 1; b <= FollowupConstants.BOARD_NAMES.size(); b++) {
                 int board = b;
-                o.getBoards().add((int) mine.stream().filter(i -> i.getBoard() == board).count());
+                o.getBoards().add((int) mine.stream().filter(i -> i.getBoard() == board)
+                        .map(FollowupItemDO::getCustomerId).distinct().count());
             }
-            List<FollowupItemDO> todo = mine.stream().filter(i -> i.getNextActionDate() != null
-                    && nz(i.getNextActionSource()) != FollowupConstants.NEXT_AFTER_SALES).toList();
-            o.setTodayDue((int) todo.stream().filter(i -> today.equals(i.getNextActionDate())).count());
-            o.setOverdue((int) todo.stream().filter(i -> i.getNextActionDate().isBefore(today)).count());
+            int[] todo = new int[4];
+            CustomerRollup.byCustomer(mine).values().forEach(l -> todo[CustomerRollup.classify(l, today)]++);
+            o.setTodayDue(todo[CustomerRollup.TODAY]);
+            o.setOverdue(todo[CustomerRollup.OVERDUE]);
             o.setManySnoozes((int) mine.stream().filter(i -> nz(i.getSnoozeCount()) >= FollowupConstants.SNOOZE_WARN_TIMES).count());
-            o.setRecords(records.getOrDefault(id, 0));
-            o.setPrevRecords(prevRecords.getOrDefault(id, 0));
+            int[] cnt = records.getOrDefault(id, new int[2]);
+            o.setRecords(cnt[0]);
+            o.setQuickRecords(cnt[1]);
+            o.setPrevRecords(prevRecords.getOrDefault(id, new int[2])[0]);
             o.setAttention(o.getOverdue() >= ATTENTION || o.getManySnoozes() >= ATTENTION);
             vo.getOwners().add(o);
         }
@@ -282,10 +288,11 @@ public class FollowupTeamService {
                 .thenComparing(FollowupTeamVO.Owner::getOwnerId));
     }
 
-    private Map<Long, Integer> recordCounts(Collection<Long> owners, LocalDate from, LocalDate to) {
-        Map<Long, Integer> out = new HashMap<>(16);
+    /** 记跟进次数：记录人 → [全部, 其中快速记录] */
+    private Map<Long, int[]> recordCounts(Collection<Long> owners, LocalDate from, LocalDate to) {
+        Map<Long, int[]> out = new HashMap<>(16);
         for (Map<String, Object> row : teamMapper.recordsByOperator(owners, from.atStartOfDay(), to.plusDays(1).atStartOfDay())) {
-            out.put(((Number) row.get("ownerId")).longValue(), num(row.get("cnt")));
+            out.put(((Number) row.get("ownerId")).longValue(), new int[]{num(row.get("cnt")), num(row.get("quickCnt"))});
         }
         return out;
     }

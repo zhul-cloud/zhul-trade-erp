@@ -9,7 +9,7 @@ import {
   SearchOutlined,
   SyncOutlined,
 } from '@ant-design/icons';
-import { history, useModel, useSearchParams } from '@umijs/max';
+import { history, useSearchParams } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import {
   App,
@@ -219,12 +219,7 @@ const CustomerInquiryPage: React.FC = () => {
   const { message } = App.useApp();
   const [searchParams, setSearchParams] = useSearchParams();
   const [form] = Form.useForm<Filters>();
-  const { initialState } = useModel('@@initialState');
   const [filters, setFilters] = useState<Filters>(initialFilters);
-  /** 当前用户的负责人 ID：负责人筛选默认选自己，清空即看全部 */
-  const [myId, setMyId] = useState<number>();
-  /** 负责人默认值确定后才查询，避免先查全部再切成自己 */
-  const [ready, setReady] = useState(false);
   const [urgentOnly, setUrgentOnly] = useState(false);
   const [timeoutOnly, setTimeoutOnly] = useState(false);
   const [page, setPage] = useState(1);
@@ -243,7 +238,6 @@ const CustomerInquiryPage: React.FC = () => {
   const [viewing, setViewing] = useState<CustomerInquiry>();
 
   const load = useCallback(async () => {
-    if (!ready) return;
     setLoading(true);
     setError('');
     try {
@@ -259,11 +253,10 @@ const CustomerInquiryPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [ready, filters, urgentOnly, timeoutOnly, sort, page, pageSize]);
+  }, [filters, urgentOnly, timeoutOnly, sort, page, pageSize]);
 
   // 统计跟当前筛选条件走；状态、只看超时由各卡片自己定，否则点了一张卡片其余都变 0
   const loadStats = useCallback(async () => {
-    if (!ready) return;
     const base = toQuery({ ...filters, status: undefined }, urgentOnly, false);
     const count = (q: InquiryQuery) =>
       inquiryApi
@@ -294,7 +287,7 @@ const CustomerInquiryPage: React.FC = () => {
     } catch {
       setStats(null);
     }
-  }, [ready, filters, urgentOnly]);
+  }, [filters, urgentOnly]);
 
   useEffect(() => {
     load();
@@ -310,17 +303,8 @@ const CustomerInquiryPage: React.FC = () => {
         setOwners(
           res.data.records.map((u) => ({ value: u.id, label: u.name })),
         );
-        const me = res.data.records.find(
-          (u) => u.username === initialState?.currentUser?.userid,
-        )?.id;
-        if (me) {
-          setMyId(me);
-          form.setFieldValue('ownerId', me);
-          setFilters((f) => ({ ...f, ownerId: me }));
-        }
       })
-      .catch(() => setOwners([]))
-      .finally(() => setReady(true));
+      .catch(() => setOwners([]));
     // 从商机查重提示跳过来（?newForCustomer=客户ID）：直接打开新建弹窗并选好客户
     const preset = Number(searchParams.get('newForCustomer'));
     if (preset) {
@@ -436,7 +420,9 @@ const CustomerInquiryPage: React.FC = () => {
         )
           return '—';
         return (
-          <span style={{ display: 'inline-flex', flexDirection: 'column' }}>
+          <span
+            style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}
+          >
             <ModelCell r={r} onView={setViewing} />
             {r.status === STATUS.PENDING_CONFIRM && r.firstModel && (
               <span style={{ color: palette.mute, fontSize: 12 }}>
@@ -817,11 +803,8 @@ const CustomerInquiryPage: React.FC = () => {
             >
               <Button
                 onClick={() => {
-                  // 恢复默认：负责人为自己、最近 3 个月
-                  const defaults: Filters = {
-                    range: recentRange(),
-                    ownerId: myId,
-                  };
+                  // 恢复默认：最近 3 个月；看得到哪些询盘由数据权限决定
+                  const defaults: Filters = { range: recentRange() };
                   form.resetFields();
                   form.setFieldsValue(defaults);
                   setUrgentOnly(false);

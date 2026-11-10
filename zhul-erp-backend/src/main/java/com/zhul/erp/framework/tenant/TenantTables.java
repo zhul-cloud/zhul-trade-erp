@@ -67,6 +67,7 @@ public final class TenantTables {
             Map.entry("opportunity_stage_log", Policy.PRIVATE),
             Map.entry("followup_item", Policy.PRIVATE),
             Map.entry("customer_followup", Policy.PRIVATE),
+            Map.entry("customer_followup_item", Policy.PRIVATE),
             Map.entry("customer_annual_plan", Policy.PRIVATE),
             Map.entry("sop_stage", Policy.SHARED_READ),
             Map.entry("sop_blocker", Policy.SHARED_READ),
@@ -163,7 +164,10 @@ public final class TenantTables {
             Map.entry("exchange_rate", Policy.SHARED_READ),
             Map.entry("exchange_rate_log", Policy.PRIVATE),
             Map.entry("tenant_bank_account", Policy.PRIVATE),
-            Map.entry("transit_time", Policy.SHARED_READ)
+            Map.entry("transit_time", Policy.SHARED_READ),
+            // 系统通知
+            Map.entry("notification", Policy.PRIVATE),
+            Map.entry("notification_receiver", Policy.PRIVATE)
     );
 
     /**

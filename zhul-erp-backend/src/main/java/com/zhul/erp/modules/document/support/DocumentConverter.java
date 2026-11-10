@@ -3,9 +3,15 @@ package com.zhul.erp.modules.document.support;
 import com.zhul.erp.common.exception.BizException;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pdfbox.Loader;
+import org.apache.pdfbox.multipdf.LayerUtility;
 import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.pdmodel.PDPage;
+import org.apache.pdfbox.pdmodel.PDPageContentStream;
+import org.apache.pdfbox.pdmodel.common.PDRectangle;
+import org.apache.pdfbox.pdmodel.graphics.form.PDFormXObject;
 import org.apache.pdfbox.rendering.ImageType;
 import org.apache.pdfbox.rendering.PDFRenderer;
+import org.apache.pdfbox.util.Matrix;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -16,6 +22,7 @@ import javax.imageio.ImageWriter;
 import javax.imageio.stream.ImageOutputStream;
 import java.awt.Color;
 import java.awt.Graphics2D;
+import java.awt.Rectangle;
 import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
@@ -46,8 +53,11 @@ public class DocumentConverter {
     private static final String HTML_PDF_FILTER = "pdf:writer_web_pdf_Export";
     private static final int TIMEOUT_SECONDS = 30;
     private static final int PREVIEW_CACHE_SIZE = 50;
-    /** 预览图分辨率：放大查看时 A4 宽约 1240 像素，高分屏上文字仍清晰 */
-    private static final int PREVIEW_DPI = 150;
+    /** 预览图分辨率：裁掉页边后 A4 正文宽约 1500 像素，放大查看时高分屏上文字仍清晰 */
+    private static final int PREVIEW_DPI = 200;
+    private static final float PREVIEW_QUALITY = 0.85f;
+    /** 裁 PDF 时找内容边界用的渲染分辨率（只用来定位，不输出） */
+    private static final int PDF_TRIM_DPI = 100;
     /** 图片导出分辨率：裁掉页边后 A4 正文宽约 2000 像素 */
     private static final int IMAGE_DPI = 240;
     /** 比这个更亮的像素算空白（0–255，取 RGB 最暗的通道） */
@@ -118,6 +128,47 @@ public class DocumentConverter {
         }
     }
 
+    /**
+     * 报价单、PI 的 PDF：每页裁到内容（与图片导出同一规则），各页取同一左右边界，正文大小一致。
+     * 页面不再是 A4 尺寸，打印时由打印机缩放；报关、物流等单证仍用 {@link #toPdf} 保持标准纸张。
+     */
+    public byte[] toTrimmedPdf(byte[] xlsx) {
+        byte[] pdf = toPdf(xlsx);
+        try (PDDocument doc = Loader.loadPDF(pdf)) {
+            PDFRenderer renderer = new PDFRenderer(doc);
+            List<BufferedImage> images = new ArrayList<>(doc.getNumberOfPages());
+            for (int i = 0; i < doc.getNumberOfPages(); i++) {
+                images.add(renderer.renderImageWithDPI(i, PDF_TRIM_DPI, ImageType.RGB));
+            }
+            List<Rectangle> boxes = alignedBoxes(images);
+            float pt = 72f / PDF_TRIM_DPI;
+            // 新页面原点固定在 (0,0)，原页面作为矢量表单平移贴入：部分阅读器（如 macOS 预览）不认原点非零的页面框
+            try (PDDocument out = new PDDocument()) {
+                LayerUtility layers = new LayerUtility(out);
+                for (int i = 0; i < boxes.size(); i++) {
+                    Rectangle b = boxes.get(i);
+                    // 渲染的是 CropBox 区域，左上角为原点；PDF 坐标以左下角为原点
+                    PDRectangle crop = doc.getPage(i).getCropBox();
+                    float x = crop.getLowerLeftX() + b.x * pt;
+                    float y = crop.getUpperRightY() - (b.y + b.height) * pt;
+                    PDPage page = new PDPage(new PDRectangle(b.width * pt, b.height * pt));
+                    out.addPage(page);
+                    PDFormXObject form = layers.importPageAsForm(doc, i);
+                    try (PDPageContentStream cs = new PDPageContentStream(out, page)) {
+                        cs.transform(Matrix.getTranslateInstance(-x, -y));
+                        cs.drawForm(form);
+                    }
+                }
+                ByteArrayOutputStream bytes = new ByteArrayOutputStream(pdf.length);
+                out.save(bytes);
+                return bytes.toByteArray();
+            }
+        } catch (IOException e) {
+            log.error("PDF 裁边失败", e);
+            throw BizException.of("CONVERTER_UNAVAILABLE", UNAVAILABLE);
+        }
+    }
+
     /** HTML → PDF（背调报告导出），与 Excel 导出共用同一个转换队列 */
     public byte[] htmlToPdf(byte[] html) {
         waitingExports.incrementAndGet();
@@ -134,7 +185,7 @@ public class DocumentConverter {
     }
 
     /**
-     * 预览：返回逐页 JPG（96 dpi、质量 0.7）。同样内容命中缓存不再转换；
+     * 预览：返回逐页 JPG（200 dpi、质量 0.85，按 PDF 同样的规则裁掉页边，各页同宽）。同样内容命中缓存不再转换；
      * 拿到转换机会时若 {@code stillWanted} 已不成立（用户又改了内容），直接放弃。
      */
     public List<byte[]> previewPages(String cacheKey, byte[] xlsx, java.util.function.BooleanSupplier stillWanted) {
@@ -161,7 +212,7 @@ public class DocumentConverter {
             if (!stillWanted.getAsBoolean()) {
                 return null;
             }
-            List<byte[]> pages = renderPages(convert(xlsx), 96, 0.7f);
+            List<byte[]> pages = renderPages(convert(xlsx));
             synchronized (previewCache) {
                 previewCache.put(cacheKey, pages);
             }
@@ -254,6 +305,38 @@ public class DocumentConverter {
      * 整页空白时原样返回。
      */
     public static BufferedImage trim(BufferedImage page) {
+        Rectangle b = contentBox(page);
+        return b == null ? page : page.getSubimage(b.x, b.y, b.width, b.height);
+    }
+
+    /**
+     * 多页统一裁边：每页上下按自己的内容裁，左右取所有页的并集，各页同宽、显示时缩放比例一致。
+     * 空白页保留整页。
+     */
+    public static List<Rectangle> alignedBoxes(List<BufferedImage> pages) {
+        List<Rectangle> boxes = new ArrayList<>(pages.size());
+        int x0 = Integer.MAX_VALUE;
+        int x1 = -1;
+        for (BufferedImage p : pages) {
+            Rectangle b = contentBox(p);
+            boxes.add(b);
+            if (b != null) {
+                x0 = Math.min(x0, b.x);
+                x1 = Math.max(x1, b.x + b.width);
+            }
+        }
+        List<Rectangle> out = new ArrayList<>(pages.size());
+        for (int i = 0; i < pages.size(); i++) {
+            Rectangle b = boxes.get(i);
+            BufferedImage p = pages.get(i);
+            out.add(b == null ? new Rectangle(0, 0, p.getWidth(), p.getHeight())
+                    : new Rectangle(x0, b.y, Math.min(x1, p.getWidth()) - x0, b.height));
+        }
+        return out;
+    }
+
+    /** 内容区域（含四周留边）；整页空白返回 null */
+    static Rectangle contentBox(BufferedImage page) {
         int pw = page.getWidth();
         int ph = page.getHeight();
         boolean[] inkRow = new boolean[ph];
@@ -273,7 +356,7 @@ public class DocumentConverter {
             top++;
         }
         if (top == ph) {
-            return page;
+            return null;
         }
         int bottom = ph - 1;
         while (!inkRow[bottom]) {
@@ -308,7 +391,7 @@ public class DocumentConverter {
         int y0 = Math.max(0, top - pad);
         int x1 = Math.min(pw, right + 1 + pad);
         int y1 = Math.min(ph, bottom + 1 + pad);
-        return page.getSubimage(x0, y0, x1 - x0, y1 - y0);
+        return new Rectangle(x0, y0, x1 - x0, y1 - y0);
     }
 
     private static boolean isInk(int rgb) {
@@ -318,15 +401,21 @@ public class DocumentConverter {
         return Math.min(r, Math.min(g, b)) < INK_THRESHOLD;
     }
 
-    private List<byte[]> renderPages(byte[] pdf, int dpi, float quality) {
-        List<byte[]> list = new ArrayList<>();
+    private List<byte[]> renderPages(byte[] pdf) {
+        List<BufferedImage> images = new ArrayList<>();
         try (PDDocument doc = Loader.loadPDF(pdf)) {
             PDFRenderer renderer = new PDFRenderer(doc);
             for (int i = 0; i < doc.getNumberOfPages(); i++) {
-                list.add(jpeg(renderer.renderImageWithDPI(i, dpi, ImageType.RGB), quality));
+                images.add(renderer.renderImageWithDPI(i, PREVIEW_DPI, ImageType.RGB));
             }
         } catch (IOException e) {
             throw new BizException("预览生成失败", e);
+        }
+        List<Rectangle> boxes = alignedBoxes(images);
+        List<byte[]> list = new ArrayList<>(images.size());
+        for (int i = 0; i < images.size(); i++) {
+            Rectangle b = boxes.get(i);
+            list.add(jpeg(images.get(i).getSubimage(b.x, b.y, b.width, b.height), PREVIEW_QUALITY));
         }
         return list;
     }

@@ -97,6 +97,8 @@ interface ItemState {
   drafts: DraftEntry[];
   noStock: boolean;
   noStockNote: string;
+  /** 无货时的附件（代理商回复、停产通知等） */
+  noStockFiles: Attachment[];
   /** 生产状态（字典 inquiry_lifecycle 码值），采购询价时核实后可改 */
   lifecycle: number;
   replacementModel: string;
@@ -271,6 +273,8 @@ const MyTasksPage: React.FC = () => {
             })),
           noStock: base.some((q) => q.noStock),
           noStockNote: base.find((q) => q.noStock)?.note ?? '',
+          noStockFiles: (base.find((q) => q.noStock)?.attachments ??
+            []) as Attachment[],
           lifecycle: it.lifecycle || LIFECYCLE_UNKNOWN,
           replacementModel: it.replacementModel ?? '',
           actualModel: it.actualModel ?? '',
@@ -380,6 +384,7 @@ const MyTasksPage: React.FC = () => {
           itemId: it.id,
           noStock: true,
           noStockNote: s.noStockNote,
+          noStockAttachmentIds: s.noStockFiles.map((f) => f.id),
           ...lifecycle,
         });
         continue;
@@ -1383,9 +1388,14 @@ const MyTasksPage: React.FC = () => {
                             }}
                           >
                             {q.noStock ? (
-                              <span style={{ color: palette.mute }}>
-                                无货{q.note ? ` · ${q.note}` : ''}
-                              </span>
+                              <>
+                                <span style={{ color: palette.mute }}>
+                                  无货{q.note ? ` · ${q.note}` : ''}
+                                </span>
+                                {(q.attachments?.length ?? 0) > 0 && (
+                                  <ProofLinks files={q.attachments ?? []} />
+                                )}
+                              </>
                             ) : (
                               <>
                                 <b style={{ color: palette.ink, width: 90 }}>
@@ -1441,14 +1451,34 @@ const MyTasksPage: React.FC = () => {
                   )}
 
                   {!itemEditable ? null : s.noStock ? (
-                    <Input
-                      placeholder="无货说明，如：1688、淘宝、闲鱼都没有现货，代理商要 8 周"
-                      value={s.noStockNote}
-                      maxLength={300}
-                      onChange={(e) =>
-                        patchItem(it.id, { noStockNote: e.target.value })
-                      }
-                    />
+                    <div
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'minmax(0, 1fr) 340px',
+                        gap: 20,
+                        alignItems: 'start',
+                      }}
+                    >
+                      <Input
+                        placeholder="无货说明，如：1688、淘宝、闲鱼都没有现货，代理商要 8 周"
+                        value={s.noStockNote}
+                        maxLength={300}
+                        onChange={(e) =>
+                          patchItem(it.id, { noStockNote: e.target.value })
+                        }
+                      />
+                      <div style={{ display: 'grid', gap: 6 }}>
+                        <span style={{ color: palette.mute, fontSize: 12 }}>
+                          附件 {s.noStockFiles.length} / {QUOTE_MAX_FILES}
+                        </span>
+                        <QuoteAttachments
+                          value={s.noStockFiles}
+                          onChange={(list) =>
+                            patchItem(it.id, { noStockFiles: list })
+                          }
+                        />
+                      </div>
+                    </div>
                   ) : (
                     <div style={{ display: 'grid', gap: 12 }}>
                       {s.drafts.map((d, idx) => {

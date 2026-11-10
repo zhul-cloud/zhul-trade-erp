@@ -3,7 +3,9 @@ package com.zhul.erp.modules.document.support;
 import com.zhul.erp.common.exception.BizException;
 import com.zhul.erp.modules.document.constants.DocTypes;
 import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.CellStyle;
 import org.apache.poi.ss.usermodel.CellType;
+import org.apache.poi.ss.usermodel.DataFormat;
 import org.apache.poi.ss.usermodel.DataFormatter;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
@@ -38,6 +40,10 @@ public final class XlsxRenderer {
     private static final Pattern AREA_REF = Pattern.compile("(\\$?[A-Z]{1,3}\\$?)(\\d+):(\\$?[A-Z]{1,3}\\$?)(\\d+)");
 
     private static final int MAX_COLUMN_CHARS = 60;
+
+    /** 数字格式里的货币符号：[$$-409] 这类区域写法、带引号或反斜杠转义的符号、裸的 $ */
+    private static final Pattern FORMAT_SYMBOL = Pattern.compile(
+            "\\[\\$[^\\]\\-]*(?:-[0-9A-Fa-f]+)?]|\"[$￥¥€£₽]\"|\\\\[$￥¥€£₽]|[$€£₽]");
 
     private XlsxRenderer() {
     }
@@ -78,6 +84,7 @@ public final class XlsxRenderer {
                     feeRow < 0 ? -1 : (feeRow > itemRow ? feeRow + model.items().size() - 1 : feeRow) + Math.max(fees.size(), 1) - 1);
             appendCredit(sheet, lastDetail, model.header());
             fillHeader(sheet, model.header());
+            swapCurrencySymbol(wb, model.header());
             wb.setForceFormulaRecalculation(true);
             try {
                 XSSFFormulaEvaluator.evaluateAllFormulaCells(wb);
@@ -457,6 +464,37 @@ public final class XlsxRenderer {
                 setText(cell, filled);
             }
         }
+    }
+
+    /**
+     * 模版金额单元格的数字格式常写死货币符号（如 \$#,##0.00），导出时换成当前单据币种的符号，否则卢布单据也显示 $。
+     * 符号取表头 *.currencySymbol；没有（如装箱单）时不动。
+     */
+    private static void swapCurrencySymbol(XSSFWorkbook wb, Map<String, Object> header) {
+        String symbol = header.entrySet().stream()
+                .filter(e -> e.getKey().endsWith(".currencySymbol") && e.getValue() != null)
+                .map(e -> e.getValue().toString().trim()).filter(v -> !v.isEmpty()).findFirst().orElse(null);
+        if (symbol == null) {
+            return;
+        }
+        DataFormat formats = wb.createDataFormat();
+        for (int i = 0; i < wb.getNumCellStyles(); i++) {
+            CellStyle style = wb.getCellStyleAt(i);
+            String swapped = swapSymbol(style.getDataFormatString(), symbol);
+            if (swapped != null) {
+                style.setDataFormat(formats.getFormat(swapped));
+            }
+        }
+    }
+
+    /** 把格式里的货币符号换成 symbol；格式里没有货币符号或已是该符号时返回 null */
+    public static String swapSymbol(String format, String symbol) {
+        if (format == null || !FORMAT_SYMBOL.matcher(format).find()) {
+            return null;
+        }
+        String quoted = "\"" + symbol.replace("\"", "") + "\"";
+        String swapped = FORMAT_SYMBOL.matcher(format).replaceAll(Matcher.quoteReplacement(quoted));
+        return swapped.equals(format) ? null : swapped;
     }
 
     /** 先清空再写：内联字符串（inlineStr）单元格直接 setCellValue 时 POI 仍读写旧的内联值 */

@@ -180,6 +180,10 @@ export default function access(initialState: {
     systemDocumentNumbering: can('/system/document-numbering'),
     systemTransitTimes: can('/system/transit-times'),
     'system:transit-time:edit': can('system:transit-time:edit'),
+    systemNotificationReceivers: can('/system/notification-receivers'),
+    'system:notification-receiver:edit': can(
+      'system:notification-receiver:edit',
+    ),
     systemCountryProfiles: can('/system/country-profiles'),
     systemAiSettings: can('/system/ai-settings'),
     'system:ai-config:edit': can('system:ai-config:edit'),

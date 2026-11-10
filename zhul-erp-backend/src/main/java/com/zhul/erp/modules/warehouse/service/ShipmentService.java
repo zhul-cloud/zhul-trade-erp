@@ -72,6 +72,7 @@ public class ShipmentService {
     private final TransitTimeService transitTimes;
     private final com.zhul.erp.modules.logistics.support.LogisticsSupport logisticsSupport;
     private final com.zhul.erp.modules.crm.followup.support.FollowupHooks followupHooks;
+    private final com.zhul.erp.modules.warehouse.support.WarehouseNotices notices;
 
     // ---------------------------------------------------------------- 列表
 
@@ -303,6 +304,7 @@ public class ShipmentService {
         logService.recordOperateLog(WarehouseConstants.MENU_SHIPMENT, "登记发货", null,
                 Map.of("sdNo", s.getSdNo(), "poNo", p.getPoNo(), "items", text));
         followupHooks.purchaseChanged(p.getId());
+        notices.shipped(s, p, itemsOf(List.of(s.getId())).getOrDefault(s.getId(), List.of()));
         return detail(s.getId(), true);
     }
 

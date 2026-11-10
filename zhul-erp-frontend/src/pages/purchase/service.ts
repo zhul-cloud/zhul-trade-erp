@@ -65,6 +65,8 @@ export interface Requirement {
   stockType?: number;
   status: RequirementStatus;
   statusName: string;
+  /** 超过时限多少小时（没超时为空，刚超时不到 1 小时为 0） */
+  overdueHours?: number | null;
   purchaseOrders: PoRef[];
   createTime: string;
   createBy?: string;
@@ -83,10 +85,14 @@ export interface RequirementOrder {
   /** 1-PI 转成、2-手动创建 */
   source?: number;
   ownerName?: string;
+  /** 销售订单当前的备注，没有时为空串 */
+  salesRemark?: string;
   orderedCount: number;
   partialCount: number;
   draftCount: number;
   pendingCount: number;
+  /** 超时未下单的型号数 */
+  overdueCount: number;
   updateTime: string;
   lines: Requirement[];
 }
@@ -104,6 +110,8 @@ export interface RequirementQuery {
   /** open-还没全部下单、need-需要生成采购订单、all-全部 */
   view?: 'open' | 'need' | 'all';
   stockType?: number;
+  /** 只看超时未下单 */
+  overdue?: boolean;
 }
 
 export interface RequirementStats {
@@ -112,6 +120,8 @@ export interface RequirementStats {
   need: number;
   unplanned: number;
   unassigned: number;
+  /** 超时未下单 */
+  overdue: number;
   drafts: number;
 }
 
@@ -347,6 +357,13 @@ export interface PurchaseOrder {
   items: PoItem[];
   /** feeType：1-费用、2-优惠（金额为正数，合计里减去） */
   fees: { id: number; feeName: string; feeType?: number; amount: number }[];
+  /** 来源销售订单的备注（只含有备注的） */
+  salesRemarks: {
+    soId: number;
+    soNo: string;
+    customerName?: string;
+    remark: string;
+  }[];
   attachments: {
     id: number;
     fileName: string;

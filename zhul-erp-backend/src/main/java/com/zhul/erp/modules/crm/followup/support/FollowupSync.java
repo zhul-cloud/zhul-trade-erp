@@ -262,6 +262,14 @@ public class FollowupSync {
         Set<Long> replaced = new TreeSet<>();
         for (Target t : desired) {
             FollowupItemDO row = existing.get(t.key());
+            if (row == null) {
+                // 单据改挂到这个客户（如客户合并）：原客户名下的跟进对象转过来，唯一键按单据不按客户（BUS-033）
+                row = takeOver(t, customerId);
+                if (row != null) {
+                    existing.put(t.key(), row);
+                    changes++;
+                }
+            }
             boolean fresh = row == null;
             if (fresh) {
                 row = newItem(tenantId, customerId, t, bootstrap ? today : t.cadenceFrom());
@@ -317,6 +325,30 @@ public class FollowupSync {
         // 客户经营（第三期）：要读前面几个板块的结果，必须最后执行
         changes += accountSync.resync(customerId, today, bootstrap);
         return changes;
+    }
+
+    /**
+     * 这张单据在其他客户名下已有的跟进对象（单据被改挂到当前客户）：改归当前客户，下面按已有记录处理（已结束的重新打开）。
+     * 没有时返回 null，照常新建。
+     */
+    private FollowupItemDO takeOver(Target t, Long customerId) {
+        FollowupItemDO other = itemMapper.selectOne(new LambdaQueryWrapper<FollowupItemDO>()
+                .eq(FollowupItemDO::getBoard, FollowupConstants.BOARD_SALES)
+                .eq(FollowupItemDO::getTargetType, t.type())
+                .eq(FollowupItemDO::getTargetId, t.id())
+                .ne(FollowupItemDO::getCustomerId, customerId)
+                .last("LIMIT 1"));
+        if (other == null) {
+            return null;
+        }
+        log.info("跟进对象随单据改归客户，itemId={}，{} → {}", other.getId(), other.getCustomerId(), customerId);
+        other.setCustomerId(customerId);
+        other.setDeletedAt(null);
+        if (Objects.equals(other.getCloseReason(), FollowupConstants.CLOSE_OPPORTUNITY)) {
+            // 原客户输单移出的记录不代表新客户的意愿：按单据已完成处理，让下面照常重新打开
+            other.setCloseReason(FollowupConstants.CLOSE_DOC_DONE);
+        }
+        return other;
     }
 
     /** 输单后转培育的商机：商机本身的跟进对象保留在板块（培育中或已到期待联系），直到商机重新打开、改无效或删除 */
@@ -575,6 +607,19 @@ public class FollowupSync {
         Map<String, Map<String, String>> out = new HashMap<>(16);
         for (SopStageDO s : rows) {
             out.put(s.getStageCode(), parseActions(s.getDefaultActions()));
+        }
+        return out;
+    }
+
+    /** SOP 参考停留天数：阶段 → 天数，全部板块；租户自己的覆盖平台的 */
+    public Map<String, Integer> refDays() {
+        List<SopStageDO> rows = sopStageMapper.selectList(new LambdaQueryWrapper<SopStageDO>()
+                .select(SopStageDO::getTenantId, SopStageDO::getStageCode, SopStageDO::getRefDays)
+                .eq(SopStageDO::getStatus, 1));
+        rows.sort(Comparator.comparing(SopStageDO::getTenantId));
+        Map<String, Integer> out = new HashMap<>(64);
+        for (SopStageDO s : rows) {
+            out.put(s.getStageCode(), s.getRefDays());
         }
         return out;
     }

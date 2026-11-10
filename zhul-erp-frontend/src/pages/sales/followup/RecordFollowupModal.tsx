@@ -1,7 +1,9 @@
 import {
   BulbOutlined,
+  HourglassOutlined,
   LoadingOutlined,
   RobotOutlined,
+  ThunderboltOutlined,
 } from '@ant-design/icons';
 import {
   Alert,
@@ -22,12 +24,19 @@ import { customerApi } from '@/pages/customer/service';
 import { CreateAfterSalesModal } from '@/pages/sales/after-sales/dialogs';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
-import { fmtDate, iso, StageTag, useBlockers } from './components';
+import { DueText, fmtDate, iso, StageTag, useBlockers } from './components';
+import {
+  adjustSuggest,
+  nurtureCandidate,
+  dateShortcuts as shortcutsOf,
+  suggestOf,
+} from './nextDate';
 import StageQuestions from './StageQuestions';
 import {
   ACCOUNT_ANSWER,
   AI_NOT_CONFIGURED,
   AI_STATUS,
+  ANSWER_STAGES,
   BOARD_ACCOUNT,
   BOARD_DEVELOP,
   BOARD_SALES,
@@ -95,11 +104,112 @@ const SectionLabel: React.FC<{
   );
 };
 
+/** 单据超过这个数时默认只显示前几张 */
+const DOC_FOLD = 5;
+
+/** 这次跟进涉及的单据：默认全选，可取消，至少一张 */
+const DocChecklist: React.FC<{
+  docs: FollowupItem[];
+  checked: number[];
+  all: boolean;
+  onShowAll: () => void;
+  onChange: (ids: number[]) => void;
+}> = ({ docs, checked, all, onShowAll, onChange }) => {
+  const { palette } = useAppTheme();
+  const shown = all ? docs : docs.slice(0, DOC_FOLD);
+  const full = checked.length === docs.length;
+  return (
+    <div
+      style={{
+        marginTop: 12,
+        padding: '10px 14px',
+        borderRadius: 10,
+        background: palette.inset,
+        display: 'grid',
+        gap: 6,
+      }}
+    >
+      <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+        <b style={{ fontSize: 13, color: palette.ink }}>这次跟进涉及的单据</b>
+        <span style={{ fontSize: 12, color: palette.link, flex: 1 }}>
+          已选 {checked.length} / {docs.length}
+        </span>
+        <Checkbox
+          checked={full}
+          indeterminate={!full && checked.length > 0}
+          onChange={(e) =>
+            onChange(e.target.checked ? docs.map((d) => d.id) : [])
+          }
+        >
+          全选
+        </Checkbox>
+      </div>
+      <div
+        style={{
+          display: 'grid',
+          gap: 4,
+          maxHeight: all ? 280 : undefined,
+          overflowY: all ? 'auto' : undefined,
+        }}
+      >
+        {shown.map((d) => {
+          const on = checked.includes(d.id);
+          return (
+            <div
+              key={d.id}
+              style={{
+                display: 'flex',
+                gap: 10,
+                alignItems: 'center',
+                fontSize: 13,
+                opacity: on ? 1 : 0.55,
+              }}
+            >
+              <Checkbox
+                checked={on}
+                onChange={(e) =>
+                  onChange(
+                    e.target.checked
+                      ? [...checked, d.id]
+                      : checked.filter((x) => x !== d.id),
+                  )
+                }
+              >
+                <span style={{ color: palette.ink }}>
+                  {d.docNo ?? d.customerName}
+                </span>
+              </Checkbox>
+              <Tag variant="filled" style={{ margin: 0 }}>
+                {d.stageCode} {d.stageName}
+              </Tag>
+              <span style={{ marginLeft: 'auto', fontSize: 12 }}>
+                <DueText item={d} />
+              </span>
+            </div>
+          );
+        })}
+      </div>
+      {docs.length > shown.length && (
+        <Button
+          type="link"
+          size="small"
+          style={{ justifySelf: 'start', padding: 0 }}
+          onClick={onShowAll}
+        >
+          还有 {docs.length - shown.length} 张 · 展开
+        </Button>
+      )}
+    </div>
+  );
+};
+
 export interface RecordTarget {
   customerId?: number;
   customerName?: string;
   /** 已知的跟进对象（列表 / 待办打开时带入）；不传时按客户取最需要跟进的一条 */
   item?: FollowupItem;
+  /** 这次跟进涉及的单据（客户行、待办卡片带入），默认全选；不传时只有 item 一张 */
+  items?: FollowupItem[];
 }
 
 const RecordFollowupModal: React.FC<{
@@ -115,7 +225,9 @@ const RecordFollowupModal: React.FC<{
     newInquiryCustomerId?: number,
     refusedItem?: FollowupItem,
   ) => void;
-}> = ({ open, target, onClose, onDone }) => {
+  /** 选了 30 天以后：改为转培育这张报价单，激活日期带入所选日期 */
+  onNurture?: (item: FollowupItem, days: number) => void;
+}> = ({ open, target, onClose, onDone, onNurture }) => {
   const { palette } = useAppTheme();
   const { message } = App.useApp();
 
@@ -124,9 +236,24 @@ const RecordFollowupModal: React.FC<{
   const [customerOptions, setCustomerOptions] = useState<
     { value: number; label: string }[]
   >([]);
-  const [item, setItem] = useState<FollowupItem>();
+  /** 可选的单据与勾选的单据 */
+  const [docs, setDocs] = useState<FollowupItem[]>([]);
+  const [checked, setChecked] = useState<number[]>([]);
+  const [allDocs, setAllDocs] = useState(false);
+  const selected = docs.filter((d) => checked.includes(d.id));
+  /** 主单据：带入的那张仍勾选时用它，否则用勾选的第一张；决定阶段问题、卡点字典 */
+  const item = selected.find((d) => d.id === target?.item?.id) ?? selected[0];
+  /** 所选单据阶段不同：只填通用内容 */
+  const mixed = new Set(selected.map((d) => d.stageCode)).size > 1;
+  const mixedBlocked =
+    mixed && selected.some((d) => ANSWER_STAGES.includes(d.stageCode));
   const blockers = useBlockers(item?.board ?? BOARD_SALES);
-  const kind = stageKind(item);
+  const kind = mixed ? 'general' : stageKind(item);
+  const pickDocs = (list: FollowupItem[]) => {
+    setDocs(list);
+    setChecked(list.map((d) => d.id));
+    setAllDocs(false);
+  };
   const [answers, setAnswers] = useState<StageAnswers>(emptyAnswers);
   // 「有问题」保存后打开新建售后单
   const [afterSales, setAfterSales] = useState<{
@@ -139,6 +266,12 @@ const RecordFollowupModal: React.FC<{
   const [blocker, setBlocker] = useState<string>();
   const [nextAction, setNextAction] = useState('');
   const [nextDate, setNextDate] = useState<Dayjs | null>(null);
+  /** 手动选过日期后不再跟着推荐变 */
+  const [dateTouched, setDateTouched] = useState(false);
+  const pickDate = (d: Dayjs | null) => {
+    setNextDate(d);
+    setDateTouched(true);
+  };
   const [channel, setChannel] = useState(1);
   const [payDate, setPayDate] = useState<Dayjs | null>(null);
   const [nextError, setNextError] = useState(false);
@@ -175,6 +308,7 @@ const RecordFollowupModal: React.FC<{
     setBlocker(undefined);
     setNextAction('');
     setNextDate(null);
+    setDateTouched(false);
     setChannel(1);
     setPayDate(null);
     setNextError(false);
@@ -188,7 +322,7 @@ const RecordFollowupModal: React.FC<{
     setAnswers(emptyAnswers());
     setCustomerId(target?.customerId);
     setCustomerName(target?.customerName ?? target?.item?.customerName);
-    setItem(target?.item);
+    pickDocs(target?.items ?? (target?.item ? [target.item] : []));
     if (target?.item?.expectedPayDate)
       setPayDate(dayjs(target.item.expectedPayDate));
     if (target?.item?.blockerCode) setBlocker(target.item.blockerCode);
@@ -202,19 +336,30 @@ const RecordFollowupModal: React.FC<{
       .customerSummary(customerId)
       .then((s) => {
         if (!alive) return;
-        setItem(s.current);
+        pickDocs(s.currentItems ?? (s.current ? [s.current] : []));
         if (s.current?.blockerCode) setBlocker(s.current.blockerCode);
         if (s.current?.expectedPayDate)
           setPayDate(dayjs(s.current.expectedPayDate));
       })
-      .catch(() => alive && setItem(undefined));
+      .catch(() => alive && pickDocs([]));
     return () => {
       alive = false;
     };
   }, [open, customerId, target]);
 
-  // 换了跟进对象：阶段答案重来
-  useEffect(() => setAnswers(emptyAnswers()), [item?.id]);
+  // 换了主单据或阶段是否相同变了：阶段答案重来
+  useEffect(() => setAnswers(emptyAnswers()), [item?.id, mixed]);
+
+  // 推荐日期：按所选单据取最早的，再按客户情况修正；手动选过就不再变
+  const suggest = adjustSuggest(
+    suggestOf(selected, dayjs().startOf('day')),
+    situation,
+    dayjs().startOf('day'),
+  );
+  const suggestDay = iso(suggest.date);
+  useEffect(() => {
+    if (open && !dateTouched) setNextDate(dayjs(suggestDay));
+  }, [open, dateTouched, suggestDay]);
 
   const searchCustomer = (keyword: string) => {
     customerApi
@@ -242,7 +387,7 @@ const RecordFollowupModal: React.FC<{
     const first = res.nextActions?.[0];
     if (first && !nextAction.trim()) {
       setNextAction(first.text.slice(0, NEXT_MAX));
-      if (first.date && !nextDate) setNextDate(dayjs(first.date));
+      if (first.date && !dateTouched) pickDate(dayjs(first.date));
     }
   };
 
@@ -315,11 +460,10 @@ const RecordFollowupModal: React.FC<{
         setNextAction(
           fallback.replace(/^第\s*\d+\s*天[：:]\s*/, '').slice(0, NEXT_MAX),
         );
-      if (!nextDate) setNextDate(dayjs().add(3, 'day'));
     } else if (kind === 'sent') {
       setSummary((s) => s || '已发资料给客户');
       if (!nextAction.trim()) setNextAction('问客户资料是否收到，有没有疑问');
-      if (!nextDate) setNextDate(dayjs().add(1, 'day'));
+      if (!dateTouched) pickDate(dayjs().startOf('day').add(1, 'day'));
     } else {
       setSituation((s) => s | SITUATION.FEEDBACK);
       setBlocker('PRICE');
@@ -330,24 +474,38 @@ const RecordFollowupModal: React.FC<{
 
   // ------------------------------------------------------------ 保存
 
-  const isPi = item?.targetType === TARGET.PI;
+  const isPi =
+    selected.length > 0 && selected.every((d) => d.targetType === TARGET.PI);
   const vague = VAGUE.test(nextAction.replace(/[\s，。,.!！?？]/g, ''));
 
   const effect = (() => {
     const parts: string[] = [];
-    if (item && item.stageGroup === GROUP.AFTER_QUOTE) {
-      const target =
-        situation & SITUATION.NEGOTIATING
-          ? 'S6 商务谈判'
-          : situation & SITUATION.FEEDBACK
-            ? 'S5 报价反馈'
-            : undefined;
-      if (target && target.slice(0, 2) > item.stageCode)
-        parts.push(`推进到 ${target}`);
-    }
-    if (nextDate && nextAction.trim())
+    const advance =
+      situation & SITUATION.NEGOTIATING
+        ? 'S6 商务谈判'
+        : situation & SITUATION.FEEDBACK
+          ? 'S5 报价反馈'
+          : undefined;
+    const moved = advance
+      ? selected.filter(
+          (d) =>
+            d.stageGroup === GROUP.AFTER_QUOTE &&
+            advance.slice(0, 2) > d.stageCode,
+        )
+      : [];
+    if (moved.length === 1 && selected.length > 1)
+      parts.push(`${moved[0].docNo ?? '单据'} 推进到 ${advance}`);
+    else if (moved.length === 1) parts.push(`推进到 ${advance}`);
+    else if (moved.length > 1)
+      parts.push(`${moved.length} 张单据推进到 ${advance}`);
+    const when =
+      nextDate &&
+      (nextDate.isSame(dayjs(), 'day') ? '今天' : fmtDate(nextDate));
+    if (when && nextAction.trim())
       parts.push(
-        `${nextDate.isSame(dayjs(), 'day') ? '今天' : fmtDate(nextDate)} 提醒你：${nextAction.trim()}`,
+        selected.length > 1
+          ? `${selected.length} 张单据的下一步改到 ${when}`
+          : `${when} 提醒你：${nextAction.trim()}`,
       );
     const stage = stageEffect(kind, answers, item);
     if (stage) parts.unshift(stage);
@@ -361,6 +519,14 @@ const RecordFollowupModal: React.FC<{
   const submit = async () => {
     if (!customerId) {
       message.warning('请先选择客户');
+      return;
+    }
+    if (docs.length > 0 && selected.length === 0) {
+      message.warning('请至少选一张单据');
+      return;
+    }
+    if (mixedBlocked) {
+      message.warning('要回答阶段问题，请只选同一阶段的单据');
       return;
     }
     if (!nextAction.trim()) {
@@ -383,6 +549,7 @@ const RecordFollowupModal: React.FC<{
       const r = await followupApi.record({
         customerId,
         itemId: item?.id,
+        itemIds: docs.length > 1 ? selected.map((d) => d.id) : undefined,
         situation,
         blockerCode: blocker,
         nextAction: nextAction.trim(),
@@ -394,7 +561,7 @@ const RecordFollowupModal: React.FC<{
         expectedPayDate: isPi && payDate ? iso(payDate) : undefined,
         profile: Object.keys(profile).length ? profile : undefined,
         idempotencyKey: keyRef.current,
-        ...stagePayload(kind, answers, item?.stageCode),
+        ...(mixed ? {} : stagePayload(kind, answers, item?.stageCode)),
       });
       message.success(
         r.ended
@@ -429,13 +596,10 @@ const RecordFollowupModal: React.FC<{
   };
 
   const today = dayjs().startOf('day');
-  const nextMonday = today.add((8 - today.day()) % 7 || 7, 'day');
-  const dateShortcuts: { label: string; value: Dayjs }[] = [
-    { label: '今天', value: today },
-    { label: '明天', value: today.add(1, 'day') },
-    { label: '3 天后', value: today.add(3, 'day') },
-    { label: '下周', value: nextMonday },
-  ];
+  const dateShortcuts = shortcutsOf(today);
+  const nurtureItem = onNurture
+    ? nurtureCandidate(selected, nextDate, today)
+    : undefined;
 
   const chip = (active: boolean) => ({
     cursor: 'pointer',
@@ -476,7 +640,7 @@ const RecordFollowupModal: React.FC<{
   return (
     <>
       <Modal
-        title="记一次跟进"
+        title={customerName ? `记一次跟进 · ${customerName}` : '记一次跟进'}
         open={open}
         width={720}
         onCancel={onClose}
@@ -497,7 +661,12 @@ const RecordFollowupModal: React.FC<{
             </span>
             <Space>
               <Button onClick={onClose}>取消</Button>
-              <Button type="primary" loading={saving} onClick={submit}>
+              <Button
+                type="primary"
+                loading={saving}
+                disabled={mixedBlocked}
+                onClick={submit}
+              >
                 保存
               </Button>
             </Space>
@@ -513,9 +682,7 @@ const RecordFollowupModal: React.FC<{
             flexWrap: 'wrap',
           }}
         >
-          {target?.customerId || target?.item ? (
-            <b style={{ color: palette.ink }}>{customerName}</b>
-          ) : (
+          {!target?.customerId && !target?.item && (
             <Select
               showSearch={{ filterOption: false, onSearch: searchCustomer }}
               placeholder="搜索客户名称"
@@ -526,12 +693,14 @@ const RecordFollowupModal: React.FC<{
               onChange={(v, opt) => {
                 setCustomerId(v);
                 setCustomerName((opt as { label: string }).label);
-                setItem(undefined);
+                pickDocs([]);
               }}
             />
           )}
-          {item && item.board !== BOARD_SALES && <StageTag item={item} />}
-          {item && item.board === BOARD_SALES && (
+          {item && docs.length <= 1 && item.board !== BOARD_SALES && (
+            <StageTag item={item} />
+          )}
+          {item && docs.length <= 1 && item.board === BOARD_SALES && (
             <Tag variant="filled" color="blue">
               {item.stageCode} {item.stageName}
               {item.docNo && ` · ${item.docNo}`}
@@ -541,10 +710,31 @@ const RecordFollowupModal: React.FC<{
             </Tag>
           )}
         </div>
-        {orderLine && (
+        {orderLine && docs.length <= 1 && (
           <div style={{ fontSize: 12, color: palette.sub, marginTop: 6 }}>
             {orderLine}
           </div>
+        )}
+        {docs.length > 1 && (
+          <DocChecklist
+            docs={docs}
+            checked={checked}
+            all={allDocs}
+            onShowAll={() => setAllDocs(true)}
+            onChange={setChecked}
+          />
+        )}
+        {mixed && item && item.board !== BOARD_SALES && (
+          <Alert
+            style={{ marginTop: 12 }}
+            type="warning"
+            showIcon
+            title={
+              mixedBlocked
+                ? '所选单据阶段不同，不能一起回答阶段问题。请只选同一阶段的单据'
+                : '所选单据阶段不同，只填通用内容。要回答阶段问题，请只选同一阶段的单据'
+            }
+          />
         )}
 
         {/* 粘贴区 */}
@@ -655,16 +845,16 @@ const RecordFollowupModal: React.FC<{
                 kind === 'account' &&
                 a.accountAnswer === ACCOUNT_ANSWER.NO_NEED &&
                 answers.accountAnswer !== ACCOUNT_ANSWER.NO_NEED &&
-                !nextDate &&
+                !dateTouched &&
                 item.followDays
               )
-                setNextDate(dayjs().add(item.followDays, 'day'));
+                pickDate(dayjs().startOf('day').add(item.followDays, 'day'));
               setAnswers(a);
             }}
           />
         )}
 
-        {kind === 'general' && (
+        {kind === 'general' && (!mixed || item?.board === BOARD_SALES) && (
           <>
             {/* 客户情况 */}
             <SectionLabel>客户情况</SectionLabel>
@@ -718,7 +908,7 @@ const RecordFollowupModal: React.FC<{
                 style={chip(nextAction === n.text)}
                 onChange={() => {
                   setNextAction(n.text.slice(0, NEXT_MAX));
-                  if (n.date) setNextDate(dayjs(n.date));
+                  if (n.date) pickDate(dayjs(n.date));
                   setNextError(false);
                 }}
               >
@@ -756,7 +946,7 @@ const RecordFollowupModal: React.FC<{
               key={d.label}
               size="small"
               type={nextDate?.isSame(d.value, 'day') ? 'primary' : 'default'}
-              onClick={() => setNextDate(d.value)}
+              onClick={() => pickDate(d.value)}
             >
               {d.label}
             </Button>
@@ -765,10 +955,45 @@ const RecordFollowupModal: React.FC<{
             size="small"
             value={nextDate}
             placeholder="选日期"
-            onChange={setNextDate}
+            onChange={pickDate}
             disabledDate={(d) => d.isBefore(today)}
           />
+          {nextDate?.isSame(suggest.date, 'day') && suggest.reason && (
+            <span style={{ fontSize: 12, color: palette.link }}>
+              <ThunderboltOutlined /> 推荐：{suggest.reason}
+            </span>
+          )}
         </Space>
+        {nurtureItem && nextDate && (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              marginTop: 10,
+              padding: '8px 12px',
+              borderRadius: 10,
+              fontSize: 12,
+              color: palette.link,
+              background: palette.accentSoft,
+            }}
+          >
+            <HourglassOutlined />
+            <span style={{ flex: 1 }}>
+              隔这么久再跟，可以直接转培育，不占用待办和阶段停留
+            </span>
+            <Button
+              type="link"
+              size="small"
+              style={{ padding: 0 }}
+              onClick={() =>
+                onNurture?.(nurtureItem, nextDate.diff(today, 'day'))
+              }
+            >
+              改为转培育
+            </Button>
+          </div>
+        )}
 
         <SectionLabel>方式</SectionLabel>
         <Segmented

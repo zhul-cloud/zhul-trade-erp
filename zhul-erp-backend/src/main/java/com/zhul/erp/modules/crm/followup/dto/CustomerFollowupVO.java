@@ -12,6 +12,8 @@ import java.util.List;
 public class CustomerFollowupVO {
     /** 当前最紧急的跟进对象，没有在跟进的为空 */
     private FollowupItemVO current;
+    /** 当前跟进对象所在板块的全部单据（商机成交、订单履约、售后评价），记一次跟进时默认全选；其他板块只有当前这一张 */
+    private List<FollowupItemVO> currentItems = new ArrayList<>();
     /** 五个板块里，这位客户走到第几步（1–5），0 为还没进入 */
     private Integer step;
     /** 这位客户有在跟进对象的板块（第二期：链路卡片上逐个标出），按板块顺序 */

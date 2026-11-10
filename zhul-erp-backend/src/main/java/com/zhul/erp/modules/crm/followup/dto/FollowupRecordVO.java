@@ -13,6 +13,10 @@ public class FollowupRecordVO {
     private Long id;
     /** 1-业务员跟进、2-系统事件 */
     private Integer recordType;
+    /** 快速记录 */
+    private Boolean quick;
+    /** 实际沟通日期，快速记录时有 */
+    private LocalDate contactDate;
     private String title;
     private Integer situation;
     private List<String> situationLabels = new ArrayList<>();
@@ -32,6 +36,8 @@ public class FollowupRecordVO {
     private String operatorName;
     private Integer targetType;
     private String docNo;
+    /** 这次跟进涉及的单据编号（涉及多张时前端显示「涉及 n 张单据」，点开列出）；只涉及一张或没有时为空 */
+    private List<String> docNos = new ArrayList<>();
     private LocalDateTime createTime;
 
     @Data

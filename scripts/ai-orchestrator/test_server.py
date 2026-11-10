@@ -971,3 +971,46 @@ class AttachmentSourceTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class CandidateClassifyTest(unittest.TestCase):
+    def setUp(self):
+        self.server = load_server()
+        self.cfg = self.server.parse_ai_config(ai())
+
+    def test_batches_of_fifty_merged_in_order(self):
+        items = [{"key": str(i), "mpn": f"M{i}"} for i in range(120)]
+        calls = []
+
+        def fake(cfg, prompt, text, attachments, schema, **kw):
+            batch = json.loads(text)["items"]
+            calls.append((prompt, len(batch), schema, kw.get("web_search", False)))
+            return {"items": [{"key": b["key"], "categoryId": 7, "brand": ""} for b in batch]}
+
+        with mock.patch.object(self.server, "call_api", fake):
+            out = self.server.call_candidate_classify(
+                self.cfg, {"mode": "category", "items": items, "categories": [{"id": 7, "name": "PLC 与控制器 / PLC CPU/一体机"}]})
+        self.assertEqual([c[1] for c in calls], [50, 50, 20])
+        self.assertEqual([i["key"] for i in out["items"]], [str(i) for i in range(120)])
+        self.assertIn("7：PLC 与控制器 / PLC CPU/一体机", calls[0][0])
+        self.assertIs(calls[0][2], self.server.CANDIDATE_SCHEMA)
+        self.assertFalse(calls[0][3])
+
+    def test_brand_mode_uses_brand_prompt(self):
+        prompts = []
+        with mock.patch.object(self.server, "call_api",
+                               lambda cfg, prompt, *a, **kw: prompts.append(prompt) or {"items": []}):
+            self.server.call_candidate_classify(self.cfg, {"mode": "brand", "items": [{"key": "1"}]})
+        self.assertEqual(prompts, [self.server.CANDIDATE_BRAND_PROMPT])
+
+    def test_empty_input_and_errors_fail_without_key(self):
+        sent = []
+        with mock.patch.object(self.server, "send_callback",
+                               lambda url, status, output=None, error=None: sent.append((status, error))):
+            self.server.process_candidate({"input": {"items": []}, "ai": ai()}, "http://cb")
+            with mock.patch.object(self.server, "call_candidate_classify",
+                                   mock.MagicMock(side_effect=RuntimeError(f"bad key {KEY}"))):
+                self.server.process_candidate({"input": {"items": [{"key": "1"}]}, "ai": ai()}, "http://cb")
+        self.assertEqual(sent[0], ("failed", "没有需要解析的候选"))
+        self.assertEqual(sent[1][0], "failed")
+        self.assertNotIn(KEY, sent[1][1])

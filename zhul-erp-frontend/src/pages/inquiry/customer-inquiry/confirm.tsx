@@ -14,6 +14,7 @@ import type { TableColumnsType } from 'antd';
 import {
   App,
   Button,
+  Collapse,
   Input,
   InputNumber,
   Radio,
@@ -66,7 +67,14 @@ interface Row extends DraftRow {
   /** 复用的询价记录；null 表示重新询价 */
   reuseQuoteId: number | null;
   matching?: boolean;
+  /** 改品牌、品类的过程中冻结的分组键，选中或失焦后清空，行才换组（避免边输入边跳） */
+  groupKey?: string;
 }
+
+/** 组内每页型号数 */
+const GROUP_PAGE_SIZE = 20;
+/** 没填品牌的行单独一组，排在最前 */
+const NO_BRAND = '';
 
 let seq = 0;
 
@@ -160,6 +168,11 @@ const ConfirmPage: React.FC = () => {
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const [categories, setCategories] = useState<CategoryOption[]>([]);
+  const [categoriesReady, setCategoriesReady] = useState(false);
+  /** 展开的分组；首次加载完按「有待核实 / 只有一组」初始化 */
+  const [openGroups, setOpenGroups] = useState<string[] | null>(null);
+  const [groupPages, setGroupPages] = useState<Record<string, number>>({});
+  const lastGroupOf = useRef<Map<string, string> | null>(null);
   const lastLookup = useRef<Record<string, string>>({});
   const toggleExpanded = (key: string) =>
     setExpanded((prev) =>
@@ -200,7 +213,8 @@ const ConfirmPage: React.FC = () => {
     categoryApi
       .options(0)
       .then(setCategories)
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setCategoriesReady(true));
   }, []);
 
   const categoryName = (c: CategoryOption) =>
@@ -214,6 +228,80 @@ const ConfirmPage: React.FC = () => {
     if (!c) return undefined;
     return c.parentId ? categories.find((x) => x.id === c.parentId) : c;
   };
+
+  /** 与后端拆任务同口径：品牌按别名识别后的匹配键 + 一级品类（「伺服驱动器」「伺服电机」同属「伺服与运动」）；没关联品类的按品类文字 */
+  const keyOf = (r: Row) => {
+    if (!r.brand.trim()) return NO_BRAND;
+    const root = rootOf(r.categoryId);
+    return `${r.match?.brandKey ?? r.brand.trim().toLowerCase()}|${root ? `c:${root.id}` : `t:${r.category.trim()}`}`;
+  };
+  const groupKeyOf = (r: Row) => r.groupKey ?? keyOf(r);
+  /** 改品牌、品类时先冻结当前分组，选中或失焦后再换组 */
+  const freeze = (r: Row) => r.groupKey ?? keyOf(r);
+  const settle = (key: string) =>
+    setRows((prev) =>
+      prev.map((r) => (r.key === key ? { ...r, groupKey: undefined } : r)),
+    );
+
+  const tableGroups = useMemo(() => {
+    const map = new Map<
+      string,
+      {
+        key: string;
+        brand: string;
+        category: string;
+        items: { row: Row; no: number }[];
+      }
+    >();
+    rows.forEach((r, i) => {
+      const k = groupKeyOf(r);
+      let g = map.get(k);
+      if (!g) {
+        const root = rootOf(r.categoryId);
+        g = {
+          key: k,
+          brand: k === NO_BRAND ? '未填品牌' : r.brand.trim(),
+          category:
+            k === NO_BRAND ? '' : root ? categoryName(root) : r.category.trim(),
+          items: [],
+        };
+        map.set(k, g);
+      }
+      // 组名取组内第一个填了品牌的行（正在改品牌的行清空时组名不跟着变）
+      if (!g.brand && k !== NO_BRAND) g.brand = r.brand.trim();
+      g.items.push({ row: r, no: i + 1 });
+    });
+    const list = [...map.values()];
+    const blank = list.filter((g) => g.key === NO_BRAND);
+    return [...blank, ...list.filter((g) => g.key !== NO_BRAND)];
+  }, [rows, categories]);
+
+  // 初始展开：有待核实型号的组，只有一组时直接展开；之后行换组、新加行时展开所到的组
+  useEffect(() => {
+    if (loading || !categoriesReady || rows.length === 0) return;
+    const now = new Map(rows.map((r) => [r.key, groupKeyOf(r)]));
+    const before = lastGroupOf.current;
+    lastGroupOf.current = now;
+    if (!before || openGroups === null) {
+      setOpenGroups(
+        tableGroups.length === 1
+          ? [tableGroups[0].key]
+          : tableGroups
+              .filter((g) =>
+                g.items.some(
+                  ({ row }) => row.confidence >= CONFIDENCE.PENDING_VERIFY,
+                ),
+              )
+              .map((g) => g.key),
+      );
+      return;
+    }
+    const moved = [...now]
+      .filter(([k, g]) => before.get(k) !== g)
+      .map(([, g]) => g);
+    if (moved.length)
+      setOpenGroups((prev) => [...new Set([...(prev ?? []), ...moved])]);
+  }, [rows, loading, categoriesReady]);
 
   useEffect(() => {
     if (draft && rows.some((r) => r.brand || r.confirmedModel))
@@ -266,22 +354,42 @@ const ConfirmPage: React.FC = () => {
       { brand: string; category: string; count: number }
     >();
     for (const r of pending) {
-      if (!r.brand.trim()) continue;
-      // 与后端拆任务同口径：品牌按别名识别后的匹配键 + 一级品类分组（如「三菱」与「Mitsubishi」是同一组，
-      // 「伺服驱动器」「伺服电机」同属「伺服与运动」）；没关联品类的按品类文字
-      const root = rootOf(r.categoryId);
-      const k = `${r.match?.brandKey ?? r.brand.trim().toLowerCase()}|${root ? `c:${root.id}` : `t:${r.category.trim()}`}`;
+      const k = keyOf(r);
+      if (k === NO_BRAND) continue;
       const g = map.get(k);
       if (g) g.count += 1;
-      else
+      else {
+        const root = rootOf(r.categoryId);
         map.set(k, {
           brand: r.brand.trim(),
           category: root ? categoryName(root) : r.category.trim(),
           count: 1,
         });
+      }
     }
     return [...map.values()];
   }, [pending, categories]);
+
+  /** 展开出错行所在的组、翻到它所在的页并滚动过去 */
+  const reveal = (rowKey: string) => {
+    const g = tableGroups.find((x) =>
+      x.items.some(({ row }) => row.key === rowKey),
+    );
+    if (!g) return;
+    const at = g.items.findIndex(({ row }) => row.key === rowKey);
+    setOpenGroups((prev) => [...new Set([...(prev ?? []), g.key])]);
+    setGroupPages((prev) => ({
+      ...prev,
+      [g.key]: Math.floor(at / GROUP_PAGE_SIZE) + 1,
+    }));
+    setTimeout(
+      () =>
+        document
+          .querySelector(`[data-row-key="${rowKey}"]`)
+          ?.scrollIntoView({ block: 'center', behavior: 'smooth' }),
+      100,
+    );
+  };
 
   const confirm = async () => {
     const bad = rows.findIndex(
@@ -293,6 +401,7 @@ const ConfirmPage: React.FC = () => {
     );
     if (bad >= 0) {
       message.error(`第 ${bad + 1} 行请填写品牌、型号和数量`);
+      reveal(rows[bad].key);
       return;
     }
     setSaving(true);
@@ -319,6 +428,15 @@ const ConfirmPage: React.FC = () => {
 
   const columns: TableColumnsType<Row> = [
     {
+      title: '#',
+      width: 48,
+      render: (_, r) => (
+        <span style={{ color: palette.mute, fontSize: 12 }}>
+          {rows.findIndex((x) => x.key === r.key) + 1}
+        </span>
+      ),
+    },
+    {
       title: '品牌 / 品类',
       width: 190,
       render: (_, r) => (
@@ -328,17 +446,29 @@ const ConfirmPage: React.FC = () => {
             size="small"
             value={r.brand}
             status={r.brand.trim() ? undefined : 'error'}
-            onChange={(v) => patch(r.key, { brand: v })}
-            onSelect={(v) => lookup({ ...r, brand: v })}
-            onBlur={() => lookup(r)}
+            onChange={(v) => patch(r.key, { brand: v, groupKey: freeze(r) })}
+            onSelect={(v) => {
+              lookup({ ...r, brand: v });
+              settle(r.key);
+            }}
+            onBlur={() => {
+              lookup(r);
+              settle(r.key);
+            }}
           />
           <BrandCategoryPicker
             kind="category"
             size="small"
             value={r.category}
             onChange={(v) =>
-              patch(r.key, { category: v, categoryId: categoryIdOf(v) })
+              patch(r.key, {
+                category: v,
+                categoryId: categoryIdOf(v),
+                groupKey: freeze(r),
+              })
             }
+            onSelect={() => settle(r.key)}
+            onBlur={() => settle(r.key)}
           />
         </div>
       ),
@@ -846,8 +976,17 @@ const ConfirmPage: React.FC = () => {
         )}
         <Button
           size="small"
-          icon={<PlusOutlined />}
           style={{ marginLeft: 'auto' }}
+          onClick={() => setOpenGroups(tableGroups.map((g) => g.key))}
+        >
+          全部展开
+        </Button>
+        <Button size="small" onClick={() => setOpenGroups([])}>
+          全部收起
+        </Button>
+        <Button
+          size="small"
+          icon={<PlusOutlined />}
           onClick={() => setRows((prev) => [...prev, emptyRow()])}
         >
           手动加一行
@@ -861,23 +1000,113 @@ const ConfirmPage: React.FC = () => {
           alignItems: 'start',
         }}
       >
-        <Table<Row>
-          rowKey="key"
-          size="middle"
-          scroll={{ x: tableScrollX(columns) }}
-          columns={columns}
-          dataSource={rows}
-          pagination={false}
-          locale={{ emptyText: '还没有型号，点「手动加一行」开始填写' }}
-          expandable={{
-            expandedRowKeys: expanded,
-            onExpandedRowsChange: (keys) => setExpanded(keys as string[]),
-            rowExpandable: (r) =>
-              (r.match?.sameBrand.length ?? 0) > 0 ||
-              (r.match?.otherBrands.length ?? 0) > 0,
-            expandedRowRender: expandedRow,
-          }}
-        />
+        {rows.length === 0 ? (
+          <Card>
+            <span style={{ color: palette.mute }}>
+              还没有型号，点「手动加一行」开始填写
+            </span>
+          </Card>
+        ) : (
+          <Collapse
+            activeKey={openGroups ?? []}
+            onChange={(keys) => setOpenGroups(keys as string[])}
+            style={{ background: 'transparent', display: 'grid', gap: 12 }}
+            bordered={false}
+            items={tableGroups.map((g) => {
+              const total = g.items.length;
+              const pages = Math.ceil(total / GROUP_PAGE_SIZE);
+              const page = Math.min(groupPages[g.key] ?? 1, pages);
+              const waiting = g.items.filter(
+                ({ row }) => !row.reuseQuoteId,
+              ).length;
+              const verify = g.items.filter(
+                ({ row }) => row.confidence >= CONFIDENCE.PENDING_VERIFY,
+              ).length;
+              const open = (openGroups ?? []).includes(g.key);
+              return {
+                key: g.key,
+                style: {
+                  borderRadius: 14,
+                  overflow: 'hidden',
+                  border: `1px solid ${open ? palette.accentLine : palette.hairline}`,
+                  background: palette.card,
+                },
+                styles: { body: { padding: 0 } },
+                label: (
+                  <span
+                    style={{
+                      display: 'flex',
+                      flexWrap: 'wrap',
+                      gap: 8,
+                      alignItems: 'center',
+                    }}
+                  >
+                    <b
+                      style={{
+                        color:
+                          g.key === NO_BRAND ? palette.orange : palette.ink,
+                        fontSize: 15,
+                      }}
+                    >
+                      {g.brand}
+                    </b>
+                    {g.category && (
+                      <span style={{ color: palette.sub }}>· {g.category}</span>
+                    )}
+                    <Pill tone="gray">{total} 个型号</Pill>
+                    <span style={{ color: palette.mute, fontSize: 12 }}>
+                      待询价 {waiting} · 复用历史价 {total - waiting}
+                    </span>
+                    {verify > 0 && (
+                      <Pill tone="orange">
+                        <WarningOutlined /> {verify} 个待核实
+                      </Pill>
+                    )}
+                  </span>
+                ),
+                extra:
+                  open && pages > 1 ? (
+                    <span style={{ color: palette.mute, fontSize: 12 }}>
+                      第 {page} / {pages} 页
+                    </span>
+                  ) : undefined,
+                children: (
+                  <Table<Row>
+                    rowKey="key"
+                    size="middle"
+                    scroll={{ x: tableScrollX(columns) }}
+                    columns={columns}
+                    dataSource={g.items.map(({ row }) => row)}
+                    pagination={{
+                      current: page,
+                      pageSize: GROUP_PAGE_SIZE,
+                      hideOnSinglePage: true,
+                      showSizeChanger: false,
+                      showTotal: (t: number) =>
+                        `本组 ${t} 个 · 每页 ${GROUP_PAGE_SIZE} 个`,
+                      onChange: (p: number) =>
+                        setGroupPages((prev) => ({ ...prev, [g.key]: p })),
+                    }}
+                    expandable={{
+                      expandedRowKeys: expanded,
+                      onExpandedRowsChange: (keys) =>
+                        setExpanded((prev) => [
+                          ...prev.filter(
+                            (k) => !g.items.some(({ row }) => row.key === k),
+                          ),
+                          ...(keys as string[]),
+                        ]),
+                      rowExpandable: (r) =>
+                        (r.match?.sameBrand.length ?? 0) > 0 ||
+                        (r.match?.otherBrands.length ?? 0) > 0,
+                      expandedRowRender: expandedRow,
+                    }}
+                  />
+                ),
+              };
+            })}
+          />
+        )}
         <div style={{ display: 'grid', gap: 16 }}>
           <Card
             title="拆分预览"

@@ -988,12 +988,18 @@ export const piApi = {
     send<Pi>('POST', `${PI}/${id}/receipts/${receiptId}/void`, { reason }),
   receiptSettings: () =>
     get<{ feeTolerance: number }>(`${PI}/receipt-settings`),
-  /** 没有水单也没有到账时须 payLater 并填原因（先采购后收款） */
-  convert: (id: number, salesDate?: string, payLater?: { reason: string }) =>
+  /** 没有水单也没有到账时须 payLater 并填原因（先采购后收款）；备注不传时沿用 PI 备注 */
+  convert: (
+    id: number,
+    salesDate?: string,
+    payLater?: { reason: string },
+    extra?: { remark: string; attachmentIds: number[] },
+  ) =>
     send<Order>('POST', `${PI}/${id}/convert`, {
       salesDate,
       payLater: !!payLater,
       payLaterReason: payLater?.reason,
+      ...extra,
     }),
   /** 财务管理 → 收款单（待确认） */
   receiptDesk: (q: ReceiptDeskQuery) =>
@@ -1033,6 +1039,26 @@ export interface CreateOrderLine {
   stockType?: number;
 }
 
+export interface OrderModelLine {
+  id: number;
+  brand: string;
+  model: string;
+  category: string;
+  quantity: number;
+  unitPrice: number;
+  currencyCode: string;
+}
+
+/** 订单全部型号（复制用）：按每页 100 个依次取完 */
+export const allOrderModels = async (id: number) => {
+  const out: string[] = [];
+  for (let page = 1; ; page++) {
+    const res = await orderApi.models(id, page, 100);
+    out.push(...res.records.map((r) => r.model));
+    if (out.length >= res.total || res.records.length === 0) return out;
+  }
+};
+
 export const orderApi = {
   page: (q: OrderQuery) =>
     send<{ total: number; records: OrderListItem[] }>('POST', `${SO}/page`, q),
@@ -1040,6 +1066,12 @@ export const orderApi = {
   candidatePis: (keyword?: string) =>
     get<OrderCandidatePi[]>(`${SO}/candidates/pis`, { keyword }),
   detail: (id: number) => get<Order>(`${SO}/${id}`),
+  /** 列表「查看」弹窗：分页列出订单全部型号 */
+  models: (id: number, page: number, pageSize: number) =>
+    get<{ total: number; records: OrderModelLine[] }>(`${SO}/${id}/models`, {
+      page,
+      pageSize,
+    }),
   cancel: (id: number, reason: string) =>
     send<Order>('POST', `${SO}/${id}/cancel`, { reason }),
   partialCancelReasons: () =>

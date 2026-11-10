@@ -8,6 +8,9 @@ import com.zhul.erp.modules.document.support.TemplateProblem;
 import com.zhul.erp.modules.document.support.TextTemplateEngine;
 import com.zhul.erp.modules.document.support.XlsxRenderer;
 import com.zhul.erp.modules.document.support.XlsxTemplateInspector;
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.CellStyle;
+import org.apache.poi.ss.usermodel.DataFormatter;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -72,6 +75,44 @@ class DocumentRenderTest {
             // 6120 + 268.5×2 + 85.9×4 + 65 = 7065.6
             assertThat(all).contains("7065.6");
             assertThat(sheet.getRepeatingRows()).isNotNull();
+        }
+    }
+
+    @Test
+    void swapSymbol_replacesHardcodedCurrencyInNumberFormats() {
+        assertThat(XlsxRenderer.swapSymbol("\\$#,##0.00_);[Red]\\(\\$#,##0.00\\)", "₽"))
+                .isEqualTo("\"₽\"#,##0.00_);[Red]\\(\"₽\"#,##0.00\\)");
+        assertThat(XlsxRenderer.swapSymbol("[$$-409]#,##0.00", "₽")).isEqualTo("\"₽\"#,##0.00");
+        assertThat(XlsxRenderer.swapSymbol("_ \"￥\"* #,##0.00_ ", "$")).isEqualTo("_ \"$\"* #,##0.00_ ");
+        assertThat(XlsxRenderer.swapSymbol("#,##0.00_ ;[Red]\\-#,##0.00\\ ", "₽")).isNull();
+        assertThat(XlsxRenderer.swapSymbol("General", "₽")).isNull();
+        assertThat(XlsxRenderer.swapSymbol("\"$\"#,##0.00", "$")).isNull();
+    }
+
+    /** 模版金额格式写死 $（福唯报价/PI/CI 模版即如此）：卢布单据导出后显示 ₽ */
+    @Test
+    void rubDocumentReplacesDollarFormatFromTemplate() throws IOException {
+        byte[] template;
+        try (XSSFWorkbook wb = new XSSFWorkbook(new ByteArrayInputStream(builtin("quotation-v1.xlsx")));
+             ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            CellStyle dollar = wb.createCellStyle();
+            dollar.setDataFormat(wb.createDataFormat().getFormat("\\$#,##0.00;\\-\\$#,##0.00"));
+            Cell cell = wb.getSheetAt(0).createRow(wb.getSheetAt(0).getLastRowNum() + 2).createCell(0);
+            cell.setCellValue(12.5);
+            cell.setCellStyle(dollar);
+            wb.write(out);
+            template = out.toByteArray();
+        }
+        RenderModel sample = SampleData.quotation();
+        Map<String, Object> header = new LinkedHashMap<>(sample.header());
+        header.put("quotation.currency", "RUB");
+        header.put("quotation.currencySymbol", "₽");
+        byte[] out = XlsxRenderer.render(template, new RenderModel(header, sample.items(), sample.fees()));
+        try (XSSFWorkbook wb = new XSSFWorkbook(new ByteArrayInputStream(out))) {
+            XSSFSheet sheet = wb.getSheetAt(0);
+            String fmt = sheet.getRow(sheet.getLastRowNum()).getCell(0).getCellStyle().getDataFormatString();
+            assertThat(fmt).isEqualTo("\"₽\"#,##0.00;\\-\"₽\"#,##0.00");
+            assertThat(new DataFormatter().formatCellValue(sheet.getRow(sheet.getLastRowNum()).getCell(0))).isEqualTo("₽12.50");
         }
     }
 
@@ -187,6 +228,54 @@ class DocumentRenderTest {
         b.fillRect(0, 0, 10, 10);
         b.dispose();
         assertThat(DocumentConverter.trim(blank)).isSameAs(blank);
+    }
+
+    /** 报价预览与 PDF：每页上下按自己的内容裁，左右取所有页的并集，各页同宽；空白页保留整页 */
+    @Test
+    void alignedBoxes_sameWidthAcrossPages() {
+        java.awt.image.BufferedImage p1 = page(1000, 1414, new java.awt.Rectangle(100, 100, 800, 1200));
+        java.awt.image.BufferedImage p2 = page(1000, 1414, new java.awt.Rectangle(300, 100, 400, 200));
+        java.awt.image.BufferedImage blank = page(1000, 1414, null);
+        java.util.List<java.awt.Rectangle> boxes = DocumentConverter.alignedBoxes(java.util.List.of(p1, p2, blank));
+        assertThat(boxes.get(0)).isEqualTo(new java.awt.Rectangle(80, 80, 840, 1240));
+        assertThat(boxes.get(1)).isEqualTo(new java.awt.Rectangle(80, 80, 840, 240));
+        assertThat(boxes.get(2)).isEqualTo(new java.awt.Rectangle(0, 0, 1000, 1414));
+    }
+
+    private static java.awt.image.BufferedImage page(int w, int h, java.awt.Rectangle ink) {
+        java.awt.image.BufferedImage img = new java.awt.image.BufferedImage(w, h, java.awt.image.BufferedImage.TYPE_INT_RGB);
+        java.awt.Graphics2D g = img.createGraphics();
+        g.setColor(java.awt.Color.WHITE);
+        g.fillRect(0, 0, w, h);
+        if (ink != null) {
+            g.setColor(java.awt.Color.BLACK);
+            g.fill(ink);
+        }
+        g.dispose();
+        return img;
+    }
+
+    /** 报价单 PDF 裁到正文：30 行一页，比 A4 矮、窄，文字不丢；80 行两页同宽 */
+    @Test
+    void trimmedPdf_keepsOnlyContent() throws IOException {
+        DocumentConverter converter = new DocumentConverter("", System.getProperty("java.io.tmpdir") + "/zhul-document-test");
+        Assumptions.assumeTrue(converter.available(), "本机未安装 LibreOffice");
+        byte[] pdf = converter.toTrimmedPdf(XlsxRenderer.render(builtin("quotation-v1.xlsx"), withItems(30)));
+        try (org.apache.pdfbox.pdmodel.PDDocument doc = org.apache.pdfbox.Loader.loadPDF(pdf)) {
+            org.apache.pdfbox.pdmodel.common.PDRectangle box = doc.getPage(0).getCropBox();
+            assertThat(box.getWidth()).isLessThan(org.apache.pdfbox.pdmodel.common.PDRectangle.A4.getWidth());
+            assertThat(box.getHeight() / box.getWidth()).isLessThan(1.0f);
+            assertThat(new org.apache.pdfbox.text.PDFTextStripper().getText(doc)).contains("Model", "Brand");
+        }
+        byte[] two = converter.toTrimmedPdf(XlsxRenderer.render(builtin("quotation-v1.xlsx"), withItems(80)));
+        try (org.apache.pdfbox.pdmodel.PDDocument doc = org.apache.pdfbox.Loader.loadPDF(two)) {
+            assertThat(doc.getNumberOfPages()).isEqualTo(2);
+            assertThat(doc.getPage(1).getCropBox().getWidth()).isEqualTo(doc.getPage(0).getCropBox().getWidth());
+        }
+        String dir = System.getProperty("zhul.render.out");
+        if (dir != null) {
+            java.nio.file.Files.write(java.nio.file.Path.of(dir, "trimmed.pdf"), pdf);
+        }
     }
 
     /** 80 行明细分 2 页，第 2 页重复表头，页码为 Page 2 / 2 */

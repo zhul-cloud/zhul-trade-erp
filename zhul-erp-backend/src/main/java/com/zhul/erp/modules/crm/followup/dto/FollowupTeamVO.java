@@ -84,6 +84,8 @@ public class FollowupTeamVO {
         private Integer manySnoozes;
         /** 本期、上一周期记跟进次数 */
         private Integer records;
+        /** 本期记跟进中的快速记录次数 */
+        private Integer quickRecords;
         private Integer prevRecords;
         /** 逾期或多次延后达到 3 */
         private Boolean attention;

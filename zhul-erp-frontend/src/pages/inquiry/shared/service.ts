@@ -635,6 +635,8 @@ export interface ItemQuotes {
   itemId: number;
   noStock?: boolean;
   noStockNote?: string;
+  /** 无货时的附件 ID，最多 5 个 */
+  noStockAttachmentIds?: number[];
   quotes?: QuoteEntry[];
   /** 采购核实的生产状态（1-在产、2-停产、3-待查），不传表示不改 */
   lifecycle?: number;
@@ -831,6 +833,12 @@ export const inquiryApi = {
     ),
   detail: (id: number) => get<InquiryDetail>(`${INQ}/${id}`),
   models: (id: number) => get<InquiryModelLine[]>(`${INQ}/${id}/models`),
+  /** 列表「查看」弹窗分页 */
+  modelsPage: (id: number, page: number, pageSize: number) =>
+    get<{ total: number; records: InquiryModelLine[] }>(
+      `${INQ}/${id}/models/page`,
+      { page, pageSize },
+    ),
   /** 附件的临时访问链接（10 分钟有效），可直接用于预览 */
   attachmentBlobUrl: (id: number, attachmentId: number) =>
     fileUrl(`${INQ}/${id}/attachments/${attachmentId}`),

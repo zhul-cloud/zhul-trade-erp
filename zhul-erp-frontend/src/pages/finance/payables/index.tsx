@@ -21,6 +21,8 @@ import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
 import { usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
+import { BatchPayModal } from './BatchPayModal';
+import { currencyTotals, groupPayables, MAX_BATCH_PAYABLES } from './batch';
 import {
   DueTag,
   PayableBody,
@@ -87,6 +89,8 @@ const PayableManagement: React.FC = () => {
   const [detailLoading, setDetailLoading] = useState(false);
   const [payAnchor, setPayAnchor] = useState<number | 'pick'>();
   const [refund, setRefund] = useState<Payable>();
+  const [picked, setPicked] = useState<Payable[]>([]);
+  const [batchOpen, setBatchOpen] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -413,11 +417,61 @@ const PayableManagement: React.FC = () => {
           </Checkbox>
           <Button onClick={() => apply({})}>查询</Button>
         </div>
+        {picked.length > 0 && (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 12,
+              marginBottom: 12,
+              padding: '10px 16px',
+              borderRadius: 12,
+              background: palette.accentSoft,
+              flexWrap: 'wrap',
+            }}
+          >
+            <b style={{ color: palette.link }}>
+              已选 {picked.length} 张 · {groupPayables(picked).length} 家收款方
+            </b>
+            <span style={{ fontSize: 12, color: palette.sub }}>
+              {currencyTotals(picked)}
+            </span>
+            {picked.length > MAX_BATCH_PAYABLES && (
+              <span style={{ color: palette.orange, fontSize: 12 }}>
+                一次最多 {MAX_BATCH_PAYABLES} 张
+              </span>
+            )}
+            <span style={{ flex: 1 }} />
+            <Button onClick={() => setPicked([])}>清空</Button>
+            <Button
+              type="primary"
+              disabled={picked.length > MAX_BATCH_PAYABLES}
+              onClick={() => setBatchOpen(true)}
+            >
+              批量付款
+            </Button>
+          </div>
+        )}
         <Table<Payable>
           rowKey="id"
           loading={loading}
           columns={columns}
           dataSource={rows}
+          rowSelection={
+            canRegister
+              ? {
+                  selectedRowKeys: picked.map((r) => r.id),
+                  preserveSelectedRowKeys: true,
+                  getCheckboxProps: (r) => ({
+                    disabled:
+                      r.unpaidAmount <= 0 ||
+                      (r.status !== PAY_STATUS.UNPAID &&
+                        r.status !== PAY_STATUS.PARTIAL),
+                  }),
+                  onChange: (_, list) => setPicked(list.filter(Boolean)),
+                }
+              : undefined
+          }
           scroll={{ x: tableScrollX(columns) }}
           pagination={{
             current: page,
@@ -488,6 +542,16 @@ const PayableManagement: React.FC = () => {
         onDone={() => {
           load();
           if (detail) openDetail(detail.id);
+        }}
+      />
+      <BatchPayModal
+        open={batchOpen}
+        rows={picked}
+        onClose={() => setBatchOpen(false)}
+        onDone={() => {
+          setBatchOpen(false);
+          setPicked([]);
+          load();
         }}
       />
       <RefundModal

@@ -25,6 +25,7 @@ import java.util.stream.Collectors;
  * 包含其型号的报价单有已成交 → 已成交；否则有已发送 → 已报价；否则有未成交 → 未成交；
  * 否则只剩已作废（或已作废加草稿）→ 作废视为没报过，回到报价前的状态（全部型号有价格或无货为可报价，否则询价中）；否则不变。
  * 只推进询价中 / 可报价 / 已报价 / 已成交 / 未成交的询盘，已取消的不动。
+ * 同时重算这些询盘下的询价任务：已报给客户的待询价型号算有结果（BUS-031）。
  * 调用方须在事务内；按询盘 ID 升序加行锁，与回价提交（同样先锁询盘行）不会互相死锁。
  */
 @Slf4j
@@ -74,6 +75,8 @@ public class InquiryStatusSync {
                 inquiry.setStatus(target);
                 inquiryMapper.updateById(inquiry);
             }
+            // 型号报给客户后采购不能再回价：已报出的待询价型号算有结果，询价任务随之完结（BUS-031）
+            progress.refreshTasksOf(id);
         }
     }
 

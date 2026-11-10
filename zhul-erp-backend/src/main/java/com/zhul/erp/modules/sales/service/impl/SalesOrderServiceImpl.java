@@ -131,6 +131,7 @@ public class SalesOrderServiceImpl implements SalesOrderService {
     private final com.zhul.erp.modules.purchase.support.PurchaseLinks purchaseLinks;
     private final com.zhul.erp.modules.finance.service.CreditUsageService creditUsage;
     private final com.zhul.erp.modules.purchase.support.RequirementReduction requirementReduction;
+    private final com.zhul.erp.modules.purchase.support.PurchaseNotices purchaseNotices;
     private final com.zhul.erp.modules.purchase.support.OrderPurchaseProgress purchaseProgress;
     private final com.zhul.erp.modules.logistics.support.LogisticsQty logisticsQty;
     private final com.zhul.erp.modules.sales.support.PiSummary piSummary;
@@ -199,7 +200,7 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         o.setIncoterm(v.getIncoterm());
         o.setIncotermPlace(v.getIncotermPlace());
         o.setPortOfShipment(v.getPortOfShipment());
-        o.setRemark(v.getRemark());
+        o.setRemark(req == null || req.getRemark() == null ? v.getRemark() : req.getRemark().trim());
         o.setDiscountAmount(v.getDiscountAmount());
         o.setDiscountAmountCny(v.getDiscountAmountCny());
         o.setItemAmount(v.getItemAmount());
@@ -233,6 +234,9 @@ public class SalesOrderServiceImpl implements SalesOrderService {
             x.setRemark(f.getRemark());
             x.setSortOrder(sort++);
             orderFeeMapper.insert(x);
+        }
+        if (req != null) {
+            attachmentService.attach(AttachmentService.SALES_ORDER, o.getId(), req.getAttachmentIds());
         }
         pi.setStatus(SalesConstants.PI_CONVERTED);
         piMapper.updateById(pi);
@@ -868,6 +872,9 @@ public class SalesOrderServiceImpl implements SalesOrderService {
             }
             orderItemMapper.updateById(i);
             var r = requirementReduction.apply(o, i, n, operator);
+            if (!r.ordered().isEmpty()) {
+                purchaseNotices.itemCancelled(o, i.getModel(), n, r.ordered());
+            }
             com.zhul.erp.modules.sales.entity.SalesOrderPartialCancelDO c = new com.zhul.erp.modules.sales.entity.SalesOrderPartialCancelDO();
             c.setTenantId(o.getTenantId());
             c.setSoId(o.getId());
@@ -2087,6 +2094,31 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         n.setStatusName(statusName);
         n.setCurrent(current);
         return n;
+    }
+
+    @Override
+    public PageResult<com.zhul.erp.modules.sales.dto.SalesOrderModelVO> models(Long id, int page, int pageSize) {
+        SalesOrderDO o = visible(id);
+        com.baomidou.mybatisplus.extension.plugins.pagination.Page<SalesOrderItemDO> rows = orderItemMapper.selectPage(
+                new com.baomidou.mybatisplus.extension.plugins.pagination.Page<>(Math.max(page, 1), Math.min(Math.max(pageSize, 1), 100)),
+                new LambdaQueryWrapper<SalesOrderItemDO>()
+                        .select(SalesOrderItemDO::getId, SalesOrderItemDO::getBrand, SalesOrderItemDO::getModel,
+                                SalesOrderItemDO::getCategory, SalesOrderItemDO::getQuantity, SalesOrderItemDO::getUnitPrice)
+                        .eq(SalesOrderItemDO::getSoId, o.getId())
+                        .isNull(SalesOrderItemDO::getDeletedAt)
+                        .orderByAsc(SalesOrderItemDO::getLineNo)
+                        .orderByAsc(SalesOrderItemDO::getId));
+        return PageResult.of(rows.getTotal(), rows.getRecords().stream().map(i -> {
+            com.zhul.erp.modules.sales.dto.SalesOrderModelVO vo = new com.zhul.erp.modules.sales.dto.SalesOrderModelVO();
+            vo.setId(i.getId());
+            vo.setBrand(i.getBrand());
+            vo.setModel(i.getModel());
+            vo.setCategory(i.getCategory());
+            vo.setQuantity(i.getQuantity());
+            vo.setUnitPrice(i.getUnitPrice());
+            vo.setCurrencyCode(o.getCurrencyCode());
+            return vo;
+        }).toList());
     }
 
     // ---------------------------------------------------------------- 内部

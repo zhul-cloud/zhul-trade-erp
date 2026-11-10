@@ -271,6 +271,7 @@ public class ProductCandidateService {
                 .isNull(ProductDO::getDeletedAt)
                 .last("LIMIT 1"));
         if (existing != null) {
+            clearAiMarks(c, brandId, req.getCategoryId());
             c.setBrandId(brandId);
             resolve(c, CandidateConstants.STATUS_MERGED, existing.getId());
             return existing.getId();
@@ -298,10 +299,21 @@ public class ProductCandidateService {
         p.setLifecycleSource(req.getLifecycleSource() != null ? req.getLifecycleSource().trim()
                 : (Objects.equals(p.getLifecycleStatus(), suggested.status()) ? suggested.source() : ""));
         Long productId = platformScopeGuard.asCandidateReview(() -> productService.create(p)).getId();
+        clearAiMarks(c, brandId, req.getCategoryId());
         c.setBrandId(brandId);
         c.setCategoryId(req.getCategoryId());
         resolve(c, CandidateConstants.STATUS_ARCHIVED, productId);
         return productId;
+    }
+
+    /** 审核时改了 AI 写入的品类或品牌，AI 标记随之去掉 */
+    private static void clearAiMarks(ProductCandidateDO c, Long brandId, Long categoryId) {
+        if (!Objects.equals(c.getCategoryId(), categoryId)) {
+            c.setAiCategory(0);
+        }
+        if (!Objects.equals(c.getBrandId(), brandId)) {
+            c.setAiBrand(0);
+        }
     }
 
     record Lifecycle(int status, String source) {
@@ -420,7 +432,7 @@ public class ProductCandidateService {
         return c;
     }
 
-    private boolean canSee(Long candidateId) {
+    boolean canSee(Long candidateId) {
         return platformScopeGuard.isPlatform() || sourceMapper.selectCount(new LambdaQueryWrapper<ProductCandidateSourceDO>()
                 .eq(ProductCandidateSourceDO::getCandidateId, candidateId)
                 .eq(ProductCandidateSourceDO::getTenantId, tenantId())
@@ -491,6 +503,9 @@ public class ProductCandidateService {
             vo.setCategoryId(c.getCategoryId());
             vo.setCategoryName(at(categories, c.getCategoryId()));
             vo.setCategoryText(c.getCategoryText());
+            vo.setAiCategory(c.getAiCategory());
+            vo.setAiBrand(c.getAiBrand());
+            vo.setAiBrandName(c.getAiBrandName());
             vo.setProductName(c.getProductName());
             vo.setDescription(c.getDescription());
             vo.setDescriptionEn(c.getDescriptionEn());

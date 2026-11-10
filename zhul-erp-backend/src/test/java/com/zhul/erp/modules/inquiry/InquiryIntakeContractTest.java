@@ -260,6 +260,14 @@ class InquiryIntakeContractTest extends InquiryContractSupport {
         assertTrue(p.path("firstModel").isNull() || p.path("firstModel").isMissingNode());
         assertEquals(0, p.path("brands").size());
         assertEquals(0, ok(call(get(INQ + "/" + pending + "/models"), admin)).size());
+        // 弹窗分页：每页 2 个，第 2 页剩 1 个，顺序与不分页一致
+        JsonNode p1 = ok(call(get(INQ + "/" + bulk + "/models/page").param("page", "1").param("pageSize", "2"), admin));
+        assertEquals(3, p1.path("total").asInt());
+        assertEquals(2, p1.path("records").size());
+        JsonNode p2 = ok(call(get(INQ + "/" + bulk + "/models/page").param("page", "2").param("pageSize", "2"), admin));
+        assertEquals(1, p2.path("records").size());
+        assertEquals(models.get(2).path("model").asText(), p2.path("records").get(0).path("model").asText());
+        assertEquals(0, ok(call(get(INQ + "/" + pending + "/models/page"), admin)).path("total").asInt());
     }
 
     @Test
@@ -397,6 +405,9 @@ class InquiryIntakeContractTest extends InquiryContractSupport {
         assertEquals("20905", draft.path("inquiry").path("firstModel").asText(), "待确认时型号摘要取 AI 识别结果");
         JsonNode aiModels = ok(call(get(INQ + "/" + id + "/models"), admin));
         assertEquals(List.of("20905", "2043103"), List.of(aiModels.get(0).path("model").asText(), aiModels.get(1).path("model").asText()));
+        JsonNode aiPage = ok(call(get(INQ + "/" + id + "/models/page").param("page", "2").param("pageSize", "1"), admin));
+        assertEquals(2, aiPage.path("total").asInt(), "待确认的按 AI 解析结果分页");
+        assertEquals("2043103", aiPage.path("records").get(0).path("model").asText());
 
         long failed = submit(admin, customer("Erik Larsson", "Sweden"), "");
         jdbc.update("update customer_inquiry set status = 2, ai_task_id = ? where id = ?", task + 1000, failed);

@@ -14,6 +14,7 @@ export default {
   'menu.system.bankAccount': '收款账户',
   'menu.system.documentNumbering': '编号规则',
   'menu.system.transitTimes': '快递时效',
+  'menu.system.notificationReceivers': '通知接收人',
   'menu.system.countryProfiles': '国家资料',
   'menu.system.aiSettings': 'AI 设置',
   'menu.system.operateLog': '操作日志',

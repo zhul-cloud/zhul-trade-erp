@@ -25,6 +25,9 @@ public class RecordFollowupRequest {
     @NotNull(message = "请选择客户")
     private Long customerId;
     private Long itemId;
+    /** 这次跟进涉及的单据（同一客户、同一板块，第一张为主单据）；传了就忽略 itemId */
+    @Size(max = 500, message = "一次跟进最多选 500 张单据")
+    private List<Long> itemIds;
     private Integer situation;
     private String blockerCode;
     @NotBlank(message = "请写下一步要做什么")
@@ -37,6 +40,10 @@ public class RecordFollowupRequest {
     @Size(max = 1000, message = "摘要不能超过1000个字")
     private String summary;
     private Long aiTaskId;
+    /** 快速记录：由快速跟进生成，不在弹窗里填写 */
+    private Boolean quick;
+    /** 实际沟通日期：不能晚于今天、不能早于 30 天前，只在快速记录时有效 */
+    private LocalDate contactDate;
     private LocalDate expectedPayDate;
     private Map<String, String> profile;
     private Integer noticeMask;
