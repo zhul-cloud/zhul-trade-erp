@@ -107,6 +107,8 @@ public class OrderFollowupSync {
                 .eq(SalesOrderDO::getStatus, SalesConstants.SO_ACTIVE)
                 .and(w -> w.isNull(SalesOrderDO::getMigrated).or().eq(SalesOrderDO::getMigrated, 0))
                 .and(w -> w.isNull(SalesOrderDO::getAfterSalesId).or().eq(SalesOrderDO::getAfterSalesId, 0))
+                // 费用订单没有型号，不进履约看板（否则会被当成「待采购」）
+                .ne(SalesOrderDO::getSource, SalesConstants.SO_FEE)
                 .isNull(SalesOrderDO::getDeletedAt));
         Map<Long, OrderFacts> facts = load(orders);
         Map<String, Map<String, String>> actions = defaultActions();

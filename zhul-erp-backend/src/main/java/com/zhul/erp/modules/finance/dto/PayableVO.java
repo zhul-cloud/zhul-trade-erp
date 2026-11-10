@@ -36,6 +36,8 @@ public class PayableVO {
     /** 1-未付、2-部分付款、3-已付清、4-已关闭 */
     private Integer status;
     private LocalDate nextDueDate;
+    /** 历史迁移视为已付 */
+    private Boolean settledByMigration;
     /** OVERDUE 已逾期、SOON 即将到期、WAITING 只剩待入库、空 */
     private String dueState;
     /** 逾期天数或到期剩余天数 */

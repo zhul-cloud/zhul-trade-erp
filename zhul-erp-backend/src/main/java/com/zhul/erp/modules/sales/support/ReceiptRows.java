@@ -38,6 +38,7 @@ public class ReceiptRows {
     private final InquiryLookups lookups;
     private final FxSettlementAllocationMapper allocationMapper;
     private final FxSettlementMapper settlementMapper;
+    private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
 
     public List<ReceiptRowVO> of(List<PaymentReceiptDO> rows) {
         if (rows.isEmpty()) {
@@ -70,6 +71,7 @@ public class ReceiptRows {
             vo.setSoNo(so == null ? null : so.getSoNo());
             Long customerId = pi != null ? pi.getCustomerId() : so != null ? so.getCustomerId() : null;
             vo.setCustomerName(customerId == null ? null : InquiryLookups.customerName(customers.get(customerId)));
+            vo.setCustomerContact(customerId == null ? null : InquiryLookups.contactName(customers.get(customerId)));
             vo.setCurrencyCode(r.getCurrencyCode());
             vo.setAmount(r.getAmount());
             vo.setPlatformFee(r.getPlatformFee());
@@ -92,6 +94,7 @@ public class ReceiptRows {
             vo.setBusinessUnitId(r.getBusinessUnitId());
             vo.setBuMismatch(Integer.valueOf(1).equals(r.getBuMismatch()));
             vo.setNote(r.getNote());
+            vo.setFileNames(fileNames(r.getFileKeys()));
             vo.setStatus(r.getStatus());
             vo.setVoidReason(r.getVoidReason());
             vo.setOperatorName(users.get(r.getOperatorId()));
@@ -119,5 +122,21 @@ public class ReceiptRows {
             out.computeIfAbsent(a.getReceiptId(), k -> new ArrayList<>()).add(nos.get(a.getSettlementId()));
         }
         return out;
+    }
+
+    /** 附件 JSON（[{fileKey, storage, fileName}]）里的文件名 */
+    private List<String> fileNames(String json) {
+        if (json == null || json.isBlank() || "[]".equals(json.trim())) {
+            return List.of();
+        }
+        try {
+            List<String> names = new ArrayList<>();
+            for (com.fasterxml.jackson.databind.JsonNode n : objectMapper.readTree(json)) {
+                names.add(n.path("fileName").asText(""));
+            }
+            return names;
+        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+            throw new IllegalStateException("收款附件解析失败", e);
+        }
     }
 }

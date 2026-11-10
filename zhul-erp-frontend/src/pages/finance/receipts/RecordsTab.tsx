@@ -4,6 +4,7 @@ import type { TableColumnsType } from 'antd';
 import { App, Button, Checkbox, DatePicker, Input, Select, Table } from 'antd';
 import type { Dayjs } from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
+import { CustomerSub } from '@/components/DocFields';
 import { ellipsisRender } from '@/components/EllipsisText';
 import { CURRENCIES } from '@/pages/quotation/components';
 import { Card, PATHS, Pill } from '@/pages/sales/components';
@@ -159,9 +160,18 @@ const RecordsTab: React.FC = () => {
     {
       title: '客户',
       width: 180,
-      render: ellipsisRender,
       dataIndex: 'customerName',
       ellipsis: true,
+      render: (v: string, r: ReceiptRow) => (
+        <div style={{ minWidth: 0 }}>
+          {ellipsisRender(v)}
+          {r.customerContact && (
+            <div style={{ fontSize: 12, color: palette.mute }}>
+              <CustomerSub contact={r.customerContact} />
+            </div>
+          )}
+        </div>
+      ),
     },
     ...(bu.enabled
       ? [

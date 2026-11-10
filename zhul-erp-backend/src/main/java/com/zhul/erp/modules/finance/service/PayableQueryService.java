@@ -98,7 +98,8 @@ public class PayableQueryService {
         if ("DUE".equals(q.getSort()) || !due.isEmpty()) {
             w.orderByAsc(PayableDO::getNextDueDate).orderByDesc(PayableDO::getId);
         } else {
-            w.orderByDesc(PayableDO::getUpdateTime).orderByDesc(PayableDO::getId);
+            // 状态码 1-未付、2-部分付款、3-已付清、4-已关闭：未付的在前，同一状态内按更新时间倒序
+            w.orderByAsc(PayableDO::getStatus).orderByDesc(PayableDO::getUpdateTime).orderByDesc(PayableDO::getId);
         }
         Page<PayableDO> p = payableMapper.selectPage(new Page<>(page, size), w);
         List<PayableVO> rows = p.getRecords().stream().map(d -> toVo(d, null)).toList();
@@ -324,6 +325,7 @@ public class PayableQueryService {
                 : p.getPaidCny().subtract(cny(p.getPaidAmount().min(p.getAmount()).max(BigDecimal.ZERO), rate)));
         vo.setStatus(p.getStatus());
         vo.setNextDueDate(p.getNextDueDate());
+        vo.setSettledByMigration(Objects.equals(p.getSettledByMigration(), 1));
         LocalDate today = LocalDate.now();
         if (!closed && vo.getUnpaidAmount().signum() > 0) {
             Due d = due(p.getNextDueDate(), today);

@@ -28,6 +28,7 @@ import {
 import type { Dayjs } from 'dayjs';
 import dayjs from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
+import { CustomerSub } from '@/components/DocFields';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
 import { getUserList } from '@/pages/system/user/service';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -387,7 +388,10 @@ const CustomerInquiryPage: React.FC = () => {
           <span style={{ display: 'inline-flex', flexDirection: 'column' }}>
             <span style={{ color: palette.ink, fontWeight: 600 }}>{v}</span>
             <span style={{ color: palette.mute, fontSize: 12 }}>
-              {r.customerCountry || '—'}
+              <CustomerSub
+                country={r.customerCountry}
+                contact={r.customerContact}
+              />
             </span>
           </span>
           <CustomerTypePill type={r.customerType} />

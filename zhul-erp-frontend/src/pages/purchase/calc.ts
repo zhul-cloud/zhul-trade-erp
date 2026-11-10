@@ -18,7 +18,8 @@ export const bargainOf = (
   rate: number,
 ) => {
   const net = netPrice(unitPrice, rate);
-  if (target == null || net == null) return null;
+  // 单价为 0（样品、赠送）不算砍价，与后端 PurchaseCalc.bargain 一致
+  if (target == null || net == null || unitPrice === 0) return null;
   return round2((target - net) * quantity);
 };
 

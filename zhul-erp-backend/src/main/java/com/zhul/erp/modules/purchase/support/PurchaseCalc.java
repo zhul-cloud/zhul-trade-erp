@@ -27,10 +27,10 @@ public final class PurchaseCalc {
         return exact == null ? null : money(exact);
     }
 
-    /** 行砍价金额；没有目标价或单价时为空 */
+    /** 行砍价金额；没有目标价、没填单价或单价为 0（样品、赠送）时为空，不计入砍价 */
     public static BigDecimal bargain(BigDecimal targetPrice, BigDecimal unitPrice, int quantity, BigDecimal rate) {
         BigDecimal net = netPriceExact(unitPrice, rate);
-        if (targetPrice == null || net == null) {
+        if (targetPrice == null || net == null || unitPrice.signum() == 0) {
             return null;
         }
         return money(targetPrice.subtract(net, MC).multiply(BigDecimal.valueOf(quantity), MC));

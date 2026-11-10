@@ -986,7 +986,8 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
         if (lines.isEmpty()) {
             throw new BizException("采购订单没有型号");
         }
-        long missing = lines.stream().filter(i -> i.getUnitPrice() == null || i.getUnitPrice().signum() <= 0).count();
+        // 单价可以为 0（样品、赠送、补发），留空才算没填
+        long missing = lines.stream().filter(i -> i.getUnitPrice() == null).count();
         if (missing > 0) {
             throw new BizException("还有 " + missing + " 行没填单价");
         }

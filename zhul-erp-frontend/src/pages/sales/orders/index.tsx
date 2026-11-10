@@ -62,7 +62,7 @@ interface Filters {
   purchaserId?: number;
   ownerId?: number;
   receiptStatus?: number;
-  /** 1-PI 转成、2-手动创建、3-售后补发 */
+  /** 1-PI 转成、2-手动创建、3-售后补发、4-费用订单 */
   source?: number;
 }
 
@@ -192,8 +192,18 @@ const OrderList: React.FC = () => {
               <Pill tone="violet">售后补发</Pill>
             </div>
           )}
+          {r.source === 4 && (
+            <div style={{ marginTop: 4 }}>
+              <Pill tone="orange">费用订单</Pill>
+            </div>
+          )}
           {sub(r.salesDate ?? '—')}
           {r.originalSoNo && sub(`原订单 ${r.originalSoNo}`)}
+          {(r.feeOrderCount ?? 0) > 0 && (
+            <div style={{ fontSize: 12, color: palette.orange }}>
+              费用订单 {r.feeOrderCount}
+            </div>
+          )}
         </div>
       ),
     },
@@ -205,6 +215,7 @@ const OrderList: React.FC = () => {
         <CustomerCell
           name={v}
           country={r.customerCountry}
+          contact={r.customerContact}
           type={r.customerType}
         />
       ),
@@ -386,7 +397,9 @@ const OrderList: React.FC = () => {
             {(r.piVersionNo ?? 1) > 1 ? ` · Rev.${r.piVersionNo}` : ''}
           </a>
         ) : (
-          <span style={{ color: palette.sub }}>手动创建</span>
+          <span style={{ color: palette.sub }}>
+            {r.source === 4 ? '费用订单' : '手动创建'}
+          </span>
         ),
     },
     {
@@ -579,6 +592,7 @@ const OrderList: React.FC = () => {
                   { value: 1, label: 'PI 生成' },
                   { value: 2, label: '手动建单' },
                   { value: 3, label: '售后补发' },
+                  { value: 4, label: '费用订单' },
                 ]}
               />
             </Form.Item>

@@ -8,6 +8,7 @@ import { history } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { App, Button, Form, Input, Segmented, Select, Table } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
+import { CustomerSub } from '@/components/DocFields';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import {
   Card,
@@ -126,7 +127,7 @@ const DeskTab: React.FC<{ onTotal?: (n: number) => void }> = ({ onTotal }) => {
             {r.customerName}
           </div>
           <div style={{ fontSize: 12, color: palette.mute }}>
-            {r.ownerName ?? '—'}
+            <CustomerSub country={r.ownerName} contact={r.customerContact} />
           </div>
         </div>
       ),

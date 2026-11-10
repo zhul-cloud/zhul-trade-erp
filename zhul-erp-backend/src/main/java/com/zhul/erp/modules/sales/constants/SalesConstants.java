@@ -1,5 +1,6 @@
 package com.zhul.erp.modules.sales.constants;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -70,10 +71,18 @@ public final class SalesConstants {
     /** 销售订单状态 */
     public static final int SO_ACTIVE = 1;
     public static final int SO_CANCELLED = 2;
-    /** 订单来源：PI 转成 / 手动创建 / 售后补发 */
+    /** 订单来源：PI 转成 / 手动创建 / 售后补发 / 费用订单 */
     public static final int SO_FROM_PI = 1;
     public static final int SO_MANUAL = 2;
     public static final int SO_REPLACEMENT = 3;
+    /** 费用订单：只有费用行（如另收的运费），关联原订单，不走采购与出运，收款到账即完成 */
+    public static final int SO_FEE = 4;
+    /** 收款登记在订单自己身上的来源：手动创建、费用订单 */
+    public static final List<Integer> ORDER_RECEIPT_SOURCES = List.of(SO_MANUAL, SO_FEE);
+
+    public static boolean ordersOwnReceipts(Integer source) {
+        return ORDER_RECEIPT_SOURCES.contains(source);
+    }
     /** 免费补发在 CI/PL 上的说明 */
     public static final String REPLACEMENT_DOC_NOTE = "Free of charge replacement, no commercial value";
     /** 现货 / 期货 */

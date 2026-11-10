@@ -1,4 +1,4 @@
-import { ExpandOutlined } from '@ant-design/icons';
+import { ExpandOutlined, UserOutlined } from '@ant-design/icons';
 import { AutoComplete, Button, Drawer, Select, Space } from 'antd';
 import React, { useState } from 'react';
 import { INCOTERMS } from '@/pages/customer/constants';
@@ -125,12 +125,34 @@ export const DictTextInput: React.FC<{
   );
 };
 
-/** 列表的客户列：名称、国家与新 / 老客户（与询盘单列表一致） */
+/** 客户列第二行：「国家 · 主联系人」，缺哪个省哪个；都没有时为 empty */
+export const CustomerSub: React.FC<{
+  country?: string;
+  contact?: string;
+  empty?: React.ReactNode;
+}> = ({ country, contact, empty = '—' }) => {
+  if (!country && !contact) return <>{empty}</>;
+  return (
+    <>
+      {country}
+      {country && contact ? ' · ' : null}
+      {contact ? (
+        <>
+          <UserOutlined style={{ fontSize: 11, marginRight: 3 }} />
+          {contact}
+        </>
+      ) : null}
+    </>
+  );
+};
+
+/** 列表的客户列：名称、国家 · 主联系人与新 / 老客户（与询盘单列表一致） */
 export const CustomerCell: React.FC<{
   name?: string;
   country?: string;
   type?: number;
-}> = ({ name, country, type }) => {
+  contact?: string;
+}> = ({ name, country, type, contact }) => {
   const { palette } = useAppTheme();
   return (
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
@@ -141,7 +163,7 @@ export const CustomerCell: React.FC<{
           {name || '—'}
         </span>
         <span style={{ color: palette.mute, fontSize: 12 }}>
-          {country || '—'}
+          <CustomerSub country={country} contact={contact} />
         </span>
       </span>
       {type ? <CustomerTypePill type={type} /> : null}

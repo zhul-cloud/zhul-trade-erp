@@ -11,6 +11,7 @@ import type { TableColumnsType } from 'antd';
 import { Button, DatePicker, Form, Input, Select, Skeleton, Table } from 'antd';
 import type { Dayjs } from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
+import { CustomerSub } from '@/components/DocFields';
 import EllipsisText from '@/components/EllipsisText';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
 import { auditColumns } from '@/pages/purchase/components';
@@ -159,7 +160,13 @@ const OpportunityPage: React.FC = () => {
             </span>
             {r.customerNameMissing && <Pill tone="orange">未填客户名称</Pill>}
           </div>
-          <div style={{ fontSize: 12, color: palette.mute }}>{r.country}</div>
+          <div style={{ fontSize: 12, color: palette.mute }}>
+            <CustomerSub
+              country={r.country}
+              contact={r.customerContact}
+              empty={null}
+            />
+          </div>
         </div>
       ),
     },

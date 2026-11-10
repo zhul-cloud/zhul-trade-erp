@@ -16,6 +16,8 @@ public class ReceiptRowVO {
     private Long soId;
     private String soNo;
     private String customerName;
+    /** 客户主联系人姓名（客户档案中的主联系人，实时读取） */
+    private String customerContact;
     private String currencyCode;
     private BigDecimal amount;
     private BigDecimal platformFee;
@@ -42,6 +44,8 @@ public class ReceiptRowVO {
     /** 收款账户与订单的事业部不一致 */
     private Boolean buMismatch;
     private String note;
+    /** 附件文件名（未认领到账的银行回单等，按顺序对应下标） */
+    private java.util.List<String> fileNames;
     /** 1-有效、2-已作废 */
     private Integer status;
     private String voidReason;

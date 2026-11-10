@@ -17,6 +17,9 @@ public interface SalesOrderService {
 
     SalesOrderVO create(com.zhul.erp.modules.sales.dto.CreateOrderRequest req);
 
+    /** 在原订单上新建费用订单（只有费用行，不走采购与出运） */
+    SalesOrderVO createFeeOrder(Long originalId, com.zhul.erp.modules.sales.dto.CreateFeeOrderRequest req);
+
     SalesOrderVO updateSalesDate(Long id, java.time.LocalDate salesDate);
 
     /** 修改手动订单的费用（「修改订单费用」权限） */

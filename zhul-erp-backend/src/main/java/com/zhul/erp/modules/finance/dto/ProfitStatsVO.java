@@ -62,5 +62,7 @@ public class ProfitStatsVO {
         private BigDecimal profitRate;
         private Boolean settled;
         private List<String> pending;
+        /** 费用订单的原订单编号；不是费用订单时为空 */
+        private String feeOfNo;
     }
 }

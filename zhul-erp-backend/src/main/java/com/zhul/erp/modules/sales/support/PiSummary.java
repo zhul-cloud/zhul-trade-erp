@@ -15,7 +15,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * PI 表头的汇总缓存：型号数与合计取当前有效版本（没有时取编辑中的版本）；
@@ -59,6 +61,21 @@ public class PiSummary {
         o.setReceivedAmount(t.received());
         o.setFeeDiffAmount(t.feeDiff());
         o.setReceiptStatus(t.status());
+        if (Objects.equals(o.getSource(), SalesConstants.SO_FEE) && Objects.equals(o.getStatus(), SalesConstants.SO_ACTIVE)) {
+            // 费用订单没有型号与进度：收款到账即完成，到账作废或取消认领后回到进行中
+            boolean paid = t.status() == SalesConstants.RECEIPT_PAID;
+            boolean done = SalesConstants.PROGRESS_COMPLETED.equals(o.getProgressCode());
+            if (paid && !done) {
+                o.setProgressCode(SalesConstants.PROGRESS_COMPLETED);
+                o.setCompletedAt(LocalDateTime.now());
+            } else if (!paid && done) {
+                o.setProgressCode(SalesConstants.PROGRESS_PENDING);
+                o.setCompletedAt(null);
+                // updateById 不写空值，完成时间单独清空
+                orderMapper.update(null, new com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<SalesOrderDO>()
+                        .eq(SalesOrderDO::getId, o.getId()).set(SalesOrderDO::getCompletedAt, null));
+            }
+        }
         orderMapper.updateById(o);
         creditSync.afterReceipts(o);
     }

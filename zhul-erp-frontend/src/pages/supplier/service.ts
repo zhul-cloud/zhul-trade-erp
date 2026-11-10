@@ -85,6 +85,8 @@ export interface SupplierItem {
 export interface SupplierQuery {
   supplierCode?: string;
   name?: string;
+  /** 联系人姓名、电话、微信、邮箱 */
+  contact?: string;
   creditCode?: string;
   supplierType?: number;
   status?: number;

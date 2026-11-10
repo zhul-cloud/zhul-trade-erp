@@ -1,4 +1,8 @@
-import { InfoCircleOutlined, WarningOutlined } from '@ant-design/icons';
+import {
+  InfoCircleOutlined,
+  PaperClipOutlined,
+  WarningOutlined,
+} from '@ant-design/icons';
 import {
   Alert,
   App,
@@ -395,6 +399,24 @@ export const ClaimReceiptModal = <T extends ReceiptResult>({
                   .filter(Boolean)
                   .join(' · ')}
               </div>
+              {!!r.fileNames?.length && (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+                  {r.fileNames.map((name, i) => (
+                    <a
+                      key={name}
+                      style={{ fontSize: 12 }}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        pi?.openClaimableFile(r.id, i).catch((err) =>
+                          message.error(readBizError(err).message),
+                        );
+                      }}
+                    >
+                      <PaperClipOutlined /> {name}
+                    </a>
+                  ))}
+                </div>
+              )}
             </Radio>
           ))}
         </Radio.Group>
