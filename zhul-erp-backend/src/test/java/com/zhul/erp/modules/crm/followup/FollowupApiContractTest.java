@@ -191,6 +191,26 @@ class FollowupApiContractTest extends IntegrationTestBase {
         assertEquals(1, ((Number) item(4, 9201).get("close_reason")).intValue(), "全额到账移出");
     }
 
+    /** BUS-033：报价单改挂到另一个客户（如客户合并），原客户名下已结束的跟进对象转给新客户并重新打开，不再撞唯一键 */
+    @Test
+    void quoteMovedToAnotherCustomer_itemFollowsDocument() {
+        customer(C1, "OLD CO", 0, 3);
+        customer(C2, "NEW CO", 0, 3);
+        quote(9105, C1, "500.00", "3500.00", LocalDateTime.now().minusDays(3), SELF);
+        sync(C1);
+        Object id = item(3, 9105).get("id");
+        jdbc.update("update quotation set customer_id = ? where id = 9105", C2);
+        sync(C1);
+        assertNotNull(item(3, 9105).get("closed_at"), "原客户名下没有这张报价单了，先结束");
+        sync(C2);
+        Map<String, Object> moved = item(3, 9105);
+        assertEquals(id, moved.get("id"), "沿用原来那条，不新建");
+        assertEquals(C2, ((Number) moved.get("customer_id")).longValue());
+        assertNull(moved.get("closed_at"));
+        assertEquals("S4", moved.get("stage_code"));
+        assertEquals(1, jdbc.queryForObject("select count(*) from followup_item where target_type = 3 and target_id = 9105", Integer.class));
+    }
+
     @Test
     void sameSourceInquiry_keepsLatestQuoteOnly() {
         customer(C1, "ADORA", 0, 3);
