@@ -388,7 +388,7 @@ export const CreateOrderDrawer: React.FC<{
     <Drawer
       open={open}
       onClose={onClose}
-      size="min(1040px, 96vw)"
+      size="min(1240px, 96vw)"
       title="手动创建订单"
       footer={
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -467,7 +467,12 @@ export const CreateOrderDrawer: React.FC<{
       </b>
       <div style={{ display: 'flex', gap: 8, marginBottom: 6 }}>
         <div
-          style={{ flex: 1, minWidth: 0, fontSize: 12, color: palette.mute }}
+          style={{
+            flex: '1 1 0',
+            minWidth: 220,
+            fontSize: 12,
+            color: palette.mute,
+          }}
         >
           型号<span style={{ color: palette.red }}> *</span>
         </div>
@@ -488,7 +493,8 @@ export const CreateOrderDrawer: React.FC<{
             style={{ display: 'flex', gap: 8, alignItems: 'center' }}
           >
             <ProductSelect
-              style={{ flex: 1, minWidth: 0 }}
+              style={{ flex: '1 1 0', minWidth: 220 }}
+              modelOnly
               placeholder="输入型号搜索商品档案"
               value={l.productId}
               onChange={(id, o) =>

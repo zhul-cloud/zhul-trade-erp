@@ -16,6 +16,8 @@ export const ProductSelect: React.FC<{
   style?: React.CSSProperties;
   /** 下拉底部的固定内容（如「去商品档案新建」），参数为当前输入的关键字 */
   footer?: (keyword: string) => React.ReactNode;
+  /** 选中后只显示型号（品牌、品类另有列显示时用） */
+  modelOnly?: boolean;
   'aria-label'?: string;
 }> = ({
   value,
@@ -25,6 +27,7 @@ export const ProductSelect: React.FC<{
   disabled,
   style,
   footer,
+  modelOnly,
   ...rest
 }) => {
   const [options, setOptions] = useState<ProductOption[]>([]);
@@ -82,6 +85,12 @@ export const ProductSelect: React.FC<{
         )
       }
       notFoundContent="没有找到启用的商品，换个型号写法试试"
+      popupMatchSelectWidth={footer ? 380 : true}
+      labelRender={
+        modelOnly
+          ? (p) => options.find((o) => o.id === p.value)?.mpnDisplay ?? p.label
+          : undefined
+      }
       popupRender={
         footer
           ? (menu) => (
