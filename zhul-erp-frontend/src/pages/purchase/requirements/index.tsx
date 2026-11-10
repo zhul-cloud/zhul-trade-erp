@@ -70,7 +70,17 @@ interface Filters {
   sourceType?: 'supplier' | 'shop' | 'none';
   stockType?: number;
   purchaserId?: number;
+  /** 只看超时未下单（点顶部统计卡切换） */
+  overdue?: boolean;
 }
+
+/** 超时多久：不到 1 小时为「刚超时」，满 2 天按天 */
+const overdueText = (h: number) =>
+  h < 1
+    ? '刚超时'
+    : h < 48
+      ? `超时 ${h} 小时`
+      : `超时 ${Math.floor(h / 24)} 天`;
 
 const OPEN = ['pending', 'draft', 'partial'];
 const isOpen = (r: Requirement) =>
@@ -111,6 +121,7 @@ const RequirementList: React.FC = () => {
       sourceType: filters.sourceType,
       stockType: filters.stockType,
       purchaserId: filters.purchaserId,
+      overdue: filters.overdue || undefined,
       mine: scope === 'mine',
       page,
       pageSize,
@@ -186,6 +197,9 @@ const RequirementList: React.FC = () => {
     </div>
   );
 
+  const overdueRow = (r: Requirement) =>
+    r.overdueHours != null ? { style: { background: palette.redSoft } } : {};
+
   const lineColumns: TableColumnsType<Requirement> = [
     {
       title: '型号 · 品牌 · 品类',
@@ -194,6 +208,13 @@ const RequirementList: React.FC = () => {
       render: (v: string, r) => (
         <div>
           <b>{v}</b>
+          {r.overdueHours != null && (
+            <span style={{ marginLeft: 6 }}>
+              <Pill tone="red">
+                <ClockCircleOutlined /> {overdueText(r.overdueHours)}
+              </Pill>
+            </span>
+          )}
           {sub(
             palette.mute,
             [r.brand, r.category].filter(Boolean).join(' · ') || '—',
@@ -341,6 +362,11 @@ const RequirementList: React.FC = () => {
           {o.customerType ? <CustomerTypePill type={o.customerType} /> : null}
           {sub(palette.mute, o.customerCountry ?? '')}
         </div>
+        {o.overdueCount > 0 && (
+          <Pill tone="red">
+            <ClockCircleOutlined /> {o.overdueCount} 个超时
+          </Pill>
+        )}
         <span style={{ flex: 1 }} />
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
           {o.orderedCount > 0 && (
@@ -386,6 +412,22 @@ const RequirementList: React.FC = () => {
             label="还没全部下单"
             value={stats.open}
             hint={`其中 ${stats.inDraft} 个已排入草稿`}
+          />
+          <StatCard
+            icon={<ClockCircleOutlined />}
+            color={stats.overdue > 0 ? palette.red : palette.mute}
+            label="超时未下单"
+            value={stats.overdue}
+            hint={filters.overdue ? '再点一次看全部' : '点击只看超时的型号'}
+            hintColor={stats.overdue > 0 ? palette.red : undefined}
+            active={!!filters.overdue}
+            onClick={() =>
+              reset(() => {
+                const overdue = !filters.overdue || undefined;
+                setFilters((f) => ({ ...f, overdue }));
+                setDraftFilters((f) => ({ ...f, overdue }));
+              })
+            }
           />
           <StatCard
             icon={<ExclamationCircleOutlined />}
@@ -638,6 +680,7 @@ const RequirementList: React.FC = () => {
                       pagination={false}
                       scroll={{ x: tableScrollX(lineColumns) }}
                       rowSelection={rowSelection(o.lines)}
+                      onRow={overdueRow}
                     />
                   </div>
                 )}
@@ -699,6 +742,7 @@ const RequirementList: React.FC = () => {
           loading={loading}
           scroll={{ x: 'max-content' }}
           rowSelection={rowSelection(rows)}
+          onRow={overdueRow}
           pagination={{
             current: page,
             pageSize,

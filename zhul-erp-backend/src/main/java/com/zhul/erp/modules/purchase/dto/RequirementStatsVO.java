@@ -15,6 +15,8 @@ public class RequirementStatsVO {
     private Long unplanned;
     /** 未指定采购员（只有数据权限为全部时有值） */
     private Long unassigned;
+    /** 超时未下单（生成后超过系统设置的时限还没全部下单） */
+    private Long overdue;
     /** 草稿采购订单 */
     private Long drafts;
 }

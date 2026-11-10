@@ -131,6 +131,7 @@ public class SalesOrderServiceImpl implements SalesOrderService {
     private final com.zhul.erp.modules.purchase.support.PurchaseLinks purchaseLinks;
     private final com.zhul.erp.modules.finance.service.CreditUsageService creditUsage;
     private final com.zhul.erp.modules.purchase.support.RequirementReduction requirementReduction;
+    private final com.zhul.erp.modules.purchase.support.PurchaseNotices purchaseNotices;
     private final com.zhul.erp.modules.purchase.support.OrderPurchaseProgress purchaseProgress;
     private final com.zhul.erp.modules.logistics.support.LogisticsQty logisticsQty;
     private final com.zhul.erp.modules.sales.support.PiSummary piSummary;
@@ -871,6 +872,9 @@ public class SalesOrderServiceImpl implements SalesOrderService {
             }
             orderItemMapper.updateById(i);
             var r = requirementReduction.apply(o, i, n, operator);
+            if (!r.ordered().isEmpty()) {
+                purchaseNotices.itemCancelled(o, i.getModel(), n, r.ordered());
+            }
             com.zhul.erp.modules.sales.entity.SalesOrderPartialCancelDO c = new com.zhul.erp.modules.sales.entity.SalesOrderPartialCancelDO();
             c.setTenantId(o.getTenantId());
             c.setSoId(o.getId());

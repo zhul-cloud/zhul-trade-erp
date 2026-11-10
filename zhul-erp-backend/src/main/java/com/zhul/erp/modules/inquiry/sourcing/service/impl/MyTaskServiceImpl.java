@@ -81,6 +81,7 @@ import com.zhul.erp.modules.inquiry.sourcing.entity.SourcingItemHandoffDO;
 public class MyTaskServiceImpl implements MyTaskService {
 
     private final SourcingTaskMapper taskMapper;
+    private final com.zhul.erp.modules.inquiry.sourcing.support.SourcingNotices notices;
     private final SourcingTaskAssigneeMapper assigneeMapper;
     private final SourcingQuoteMapper quoteMapper;
     private final InquiryItemMapper itemMapper;
@@ -921,7 +922,11 @@ public class MyTaskServiceImpl implements MyTaskService {
         }
         taskMapper.update(null, update);
         backToSourcingIfOpen(task.getCustomerInquiryId());
+        if (others == 0) {
+            notices.pool(task.getCustomerInquiryId());
+        }
         if (req.getReason() == InquiryConstants.RETURN_MODEL_DOUBT) {
+            notices.modelDoubt(task, inquiry, handed, req.getNote());
             CustomerInquiryDO patch = new CustomerInquiryDO();
             patch.setId(task.getCustomerInquiryId());
             patch.setNeedsReview(1);

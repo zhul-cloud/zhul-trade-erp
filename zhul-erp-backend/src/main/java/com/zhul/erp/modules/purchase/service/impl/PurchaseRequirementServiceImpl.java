@@ -38,14 +38,19 @@ import com.zhul.erp.modules.sales.entity.SalesOrderItemDO;
 import com.zhul.erp.modules.sales.repository.SalesOrderItemMapper;
 import com.zhul.erp.modules.sales.repository.SalesOrderMapper;
 import com.zhul.erp.modules.sales.support.PiStore;
+import com.zhul.erp.modules.system.entity.SysConfigDO;
+import com.zhul.erp.modules.system.repository.SysConfigMapper;
 import com.zhul.erp.modules.system.service.LogService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -83,6 +88,7 @@ public class PurchaseRequirementServiceImpl implements PurchaseRequirementServic
     private final CurrentUserResolver currentUser;
     private final InquiryLookups lookups;
     private final LogService logService;
+    private final SysConfigMapper sysConfigMapper;
 
     // ---------------------------------------------------------------- 列表与统计
 
@@ -114,6 +120,11 @@ public class PurchaseRequirementServiceImpl implements PurchaseRequirementServic
             w.isNull(PurchaseRequirementDO::getSuggestedSupplierId).ne(PurchaseRequirementDO::getSuggestedShopName, "");
         } else if ("none".equals(q.getSourceType())) {
             w.isNull(PurchaseRequirementDO::getSuggestedSupplierId).eq(PurchaseRequirementDO::getSuggestedShopName, "");
+        }
+        if (Boolean.TRUE.equals(q.getOverdue())) {
+            w.eq(PurchaseRequirementDO::getStatus, PurchaseConstants.REQ_ACTIVE)
+                    .apply("purchase_requirement.quantity > " + PLACED_SQL.formatted("2"))
+                    .le(PurchaseRequirementDO::getCreateTime, overdueCutoff());
         }
         if (q.getStockType() != null) {
             w.apply("EXISTS (SELECT 1 FROM sales_order_item si WHERE si.id = purchase_requirement.so_item_id AND si.stock_type = {0})",
@@ -216,6 +227,7 @@ public class PurchaseRequirementServiceImpl implements PurchaseRequirementServic
             vo.setPartialCount((int) ls.stream().filter(x -> "partial".equals(x.getStatus())).count());
             vo.setDraftCount((int) ls.stream().filter(x -> "draft".equals(x.getStatus())).count());
             vo.setPendingCount((int) ls.stream().filter(x -> "pending".equals(x.getStatus())).count());
+            vo.setOverdueCount((int) ls.stream().filter(x -> x.getOverdueHours() != null).count());
             vo.setUpdateTime(latest.get(soId));
             vo.setLines(ls);
             out.add(vo);
@@ -232,6 +244,7 @@ public class PurchaseRequirementServiceImpl implements PurchaseRequirementServic
         vo.setUnplanned(requirementMapper.selectCount(base.open().isNull(PurchaseRequirementDO::getSuggestedSupplierId)
                 .eq(PurchaseRequirementDO::getSuggestedShopName, "")));
         vo.setInDraft(vo.getOpen() - vo.getNeed());
+        vo.setOverdue(requirementMapper.selectCount(base.open().le(PurchaseRequirementDO::getCreateTime, overdueCutoff())));
         DataScope scope = dataScopeResolver.current();
         vo.setUnassigned((scope.isAll() || canAssign()) && !mine ? requirementMapper.selectCount(base.need()
                 .isNull(PurchaseRequirementDO::getPurchaserId)) : 0L);
@@ -299,6 +312,8 @@ public class PurchaseRequirementServiceImpl implements PurchaseRequirementServic
                 pos.values().stream().map(PurchaseOrderDO::getSupplierId)).toList());
         Map<Long, String> users = lookups.userNames(Stream.concat(rows.stream().map(PurchaseRequirementDO::getPurchaserId),
                 pos.values().stream().map(PurchaseOrderDO::getPurchaserId)).toList());
+        int overdueHours = overdueHours();
+        LocalDateTime now = LocalDateTime.now();
         List<RequirementVO> out = new ArrayList<>(rows.size());
         for (PurchaseRequirementDO r : rows) {
             RequirementQty.Qty x = q.getOrDefault(r.getId(), RequirementQty.Qty.ZERO);
@@ -332,6 +347,7 @@ public class PurchaseRequirementServiceImpl implements PurchaseRequirementServic
             String[] st = statusOf(r, x);
             vo.setStatus(st[0]);
             vo.setStatusName(st[1]);
+            vo.setOverdueHours(overdue(r, x, overdueHours, now));
             List<RequirementVO.PoRef> refs = new ArrayList<>();
             for (PurchaseOrderItemDO i : lines.getOrDefault(r.getId(), List.of())) {
                 PurchaseOrderDO p = pos.get(i.getPoId());
@@ -357,6 +373,34 @@ public class PurchaseRequirementServiceImpl implements PurchaseRequirementServic
             out.add(vo);
         }
         return out;
+    }
+
+    /** 超时未下单：有效、还没全部下单（草稿中也算）、生成超过时限；返回超出时限的小时数，没超时为 null */
+    static Long overdue(PurchaseRequirementDO r, RequirementQty.Qty x, int hours, LocalDateTime now) {
+        if (r.getStatus() != PurchaseConstants.REQ_ACTIVE || x.ordered() >= r.getQuantity() || r.getCreateTime() == null) {
+            return null;
+        }
+        LocalDateTime due = r.getCreateTime().plusHours(hours);
+        return now.isBefore(due) ? null : Duration.between(due, now).toHours();
+    }
+
+    private LocalDateTime overdueCutoff() {
+        return LocalDateTime.now().minusHours(overdueHours());
+    }
+
+    /** 超时时限（小时）：租户设置优先，其次平台模板，没配或填错时用默认值 */
+    private int overdueHours() {
+        String v = sysConfigMapper.selectList(new LambdaQueryWrapper<SysConfigDO>()
+                        .eq(SysConfigDO::getConfigKey, PurchaseConstants.CONFIG_OVERDUE_HOURS)
+                        .in(SysConfigDO::getTenantId, List.of(0, PiStore.tenantId()))
+                        .isNull(SysConfigDO::getDeletedAt))
+                .stream().max(Comparator.comparing(SysConfigDO::getTenantId)).map(SysConfigDO::getConfigValue).orElse(null);
+        try {
+            int n = v == null ? 0 : Integer.parseInt(v.trim());
+            return n > 0 ? n : PurchaseConstants.DEFAULT_OVERDUE_HOURS;
+        } catch (NumberFormatException e) {
+            return PurchaseConstants.DEFAULT_OVERDUE_HOURS;
+        }
     }
 
     /** 显示状态：由数量得出 */

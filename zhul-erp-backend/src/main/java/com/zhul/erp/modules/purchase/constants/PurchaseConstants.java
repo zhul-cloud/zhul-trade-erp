@@ -15,6 +15,10 @@ public final class PurchaseConstants {
     public static final String PERM_CREATE = "purchase:order:create";
     public static final String PERM_CANCEL = "purchase:order:cancel";
 
+    /** 需求生成后多少小时还没下单算超时（系统设置），没配或填错时用默认值 */
+    public static final String CONFIG_OVERDUE_HOURS = "purchase.requirement.overdue-hours";
+    public static final int DEFAULT_OVERDUE_HOURS = 24;
+
     /** 需求状态（落库） */
     public static final int REQ_ACTIVE = 1;
     public static final int REQ_CLOSED = 2;

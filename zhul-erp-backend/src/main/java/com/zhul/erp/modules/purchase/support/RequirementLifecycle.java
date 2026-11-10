@@ -37,6 +37,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -67,6 +68,7 @@ public class RequirementLifecycle {
     private final PurchaseReceiptItemMapper receiptItemMapper;
     private final ShootTaskMapper shootTaskMapper;
     private final OutboundOrderItemMapper outboundItemMapper;
+    private final PurchaseNotices notices;
 
     // ---------------------------------------------------------------- 订单生成
 
@@ -94,6 +96,7 @@ public class RequirementLifecycle {
         reattach(o, reqs);
         placeAvailable(reqs, "由订单 " + o.getSoNo() + " 自动生成", null);
         progress.sync(items.stream().map(SalesOrderItemDO::getId).toList());
+        notices.orderCreated(o, reqs);
         return reqs;
     }
 
@@ -370,6 +373,7 @@ public class RequirementLifecycle {
         Map<Long, RequirementQty.Qty> q = qty.byRequirement(reqs.stream().map(PurchaseRequirementDO::getId).toList());
         Set<Long> touched = new LinkedHashSet<>();
         Set<Long> flagged = new LinkedHashSet<>();
+        Map<Long, List<String>> modelsByPo = new LinkedHashMap<>();
         for (PurchaseRequirementDO r : reqs) {
             RequirementQty.Qty x = q.getOrDefault(r.getId(), RequirementQty.Qty.ZERO);
             if (x.draft() > 0) {
@@ -378,7 +382,10 @@ public class RequirementLifecycle {
             if (x.ordered() > 0) {
                 r.setStatus(PurchaseConstants.REQ_ORDER_CANCELLED);
                 r.setQuantity(x.ordered());
-                orderedItems(r.getId()).forEach(i -> flagged.add(i.getPoId()));
+                orderedItems(r.getId()).forEach(i -> {
+                    flagged.add(i.getPoId());
+                    modelsByPo.computeIfAbsent(i.getPoId(), k -> new ArrayList<>()).add(r.getModel());
+                });
             } else {
                 r.setStatus(PurchaseConstants.REQ_CLOSED);
             }
@@ -388,6 +395,7 @@ public class RequirementLifecycle {
         for (Long poId : flagged) {
             logs.add(poId, "来源订单已取消", "订单 " + o.getSoNo() + " 已取消，请决定取消采购订单或保留货物", operatorId);
         }
+        notices.orderCancelled(o, modelsByPo);
     }
 
     // ---------------------------------------------------------------- 改采购员
@@ -397,6 +405,8 @@ public class RequirementLifecycle {
      * 没排入草稿的按建议供应商排入；新采购员为空时草稿行回到需求池。已下单的数量不动。
      */
     public void reassign(List<PurchaseRequirementDO> reqs, Long purchaserId, Long operatorId) {
+        Map<Long, Long> before = new HashMap<>();
+        reqs.forEach(r -> before.put(r.getId(), r.getPurchaserId()));
         Set<Long> touched = new LinkedHashSet<>();
         List<PurchaseDrafts.Placement> moves = new ArrayList<>();
         for (PurchaseRequirementDO r : reqs) {
@@ -417,6 +427,7 @@ public class RequirementLifecycle {
         if (purchaserId != null) {
             placeAvailable(reqs, "改采购员", operatorId);
         }
+        notices.reassigned(reqs, before, purchaserId);
     }
 
     /** 订单详情改型号的采购员：改这些型号还没全部下单的有效需求 */

@@ -36,6 +36,8 @@ public class RequirementVO {
     /** pending / draft / partial / ordered / closed / orderCancelled */
     private String status;
     private String statusName;
+    /** 超过时限多少小时（没超时为 null，刚超时不到 1 小时为 0） */
+    private Long overdueHours;
     /** 所在采购订单（草稿与已下单） */
     private List<PoRef> purchaseOrders;
     private java.time.LocalDateTime createTime;

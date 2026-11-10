@@ -30,6 +30,7 @@ import java.util.Set;
 public class SourcingProgress {
 
     private final CustomerInquiryMapper inquiryMapper;
+    private final com.zhul.erp.modules.inquiry.sourcing.support.SourcingNotices notices;
     private final InquiryItemMapper itemMapper;
     private final SourcingTaskMapper taskMapper;
     private final SourcingQuoteMapper quoteMapper;
@@ -151,9 +152,13 @@ public class SourcingProgress {
                 .ne(InquiryItemDO::getQuoteStatus, InquiryConstants.ITEM_PENDING));
         inquiry.setTotalItemCount((int) total);
         inquiry.setPricedItemCount((int) priced);
-        if (inquiry.getStatus() == InquiryConstants.STATUS_SOURCING && priced == total && total > 0) {
+        boolean ready = inquiry.getStatus() == InquiryConstants.STATUS_SOURCING && priced == total && total > 0;
+        if (ready) {
             inquiry.setStatus(InquiryConstants.STATUS_READY_TO_QUOTE);
         }
         inquiryMapper.updateById(inquiry);
+        if (ready) {
+            notices.quotable(inquiry);
+        }
     }
 }
