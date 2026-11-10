@@ -1119,7 +1119,7 @@ def _small_inputs(refs, raw_content, work):
         finally:
             lp._remove(path)
     text = "\n\n".join(([raw_content] if raw_content else []) + text_parts)
-    if pages > lp.SMALL_MAX_PDF_PAGES or len(text) > lp.BATCH_MAX_CHARS:
+    if pages > lp.SMALL_MAX_PDF_PAGES or len(text) > lp.SMALL_MAX_CHARS:
         return None
     return text, loaded, nos
 
@@ -1150,7 +1150,16 @@ def parse_large(cfg, raw_content, refs, categories, callback_url, work) -> dict:
         raise RuntimeError("；".join(f"《{u['file']}》{u['range']}{u['reason']}" for u in unparsed) or "没有可解析的内容")
 
     batches = lp.pack(units)
-    propagate = _call_deadline_propagator(_JOB.deadline)
+    job_deadline = _JOB.deadline
+    propagate = _call_deadline_propagator(job_deadline)
+
+    def job_expired() -> bool:
+        """整个任务到期才算超时；单次调用到期（TIMEOUT_SECONDS）只算这一批的一次失败"""
+        return time.monotonic() >= job_deadline
+
+    def reason(e: Exception) -> str:
+        """失败原因写进日志：异常类型与脱敏后的说明，不含询盘内容"""
+        return f"{type(e).__name__}: {scrub(str(e), cfg.api_key)[:200]}"
     usage_lock = threading.Lock()
     usages = []
     system_prompt = build_system_prompt(categories)
@@ -1173,17 +1182,18 @@ def parse_large(cfg, raw_content, refs, categories, callback_url, work) -> dict:
                     + ("\n\n附件图片依次为：" + "、".join(u.label for u in images) if images else "")
                     + _nameplate_hint([u.nameplate_no for u in images]))
             for attempt in range(lp.EXTRACT_RETRIES + 1):
+                propagate()  # 每次调用（含重试）重新计算单次期限
                 try:
                     result = call_api(cfg, system_prompt, text, [(u.image, u.ext) for u in images], EXTRACT_SCHEMA,
                                       model=cfg.parse_model, effort=cfg.parse_effort, web_search=False)
                     collect_usage()
                     progress.step()
                     return result.get("groups", []), labels
-                except JobTimeout:
-                    raise
                 except Exception as e:  # noqa: BLE001 - 失败的批重试，仍失败只影响这一批
+                    if isinstance(e, JobTimeout) and job_expired():
+                        raise
                     collect_usage()
-                    print(f"[ai-orchestrator] 第 {no} 批提取失败（第 {attempt + 1} 次）：{type(e).__name__}")
+                    print(f"[ai-orchestrator] 第 {no} 批提取失败（第 {attempt + 1} 次）：{reason(e)}")
             progress.step()
             unparsed.append({"file": "", "range": "、".join(labels),
                              "reason": f"解析失败，重试 {lp.EXTRACT_RETRIES} 次仍未成功"})
@@ -1200,6 +1210,7 @@ def parse_large(cfg, raw_content, refs, categories, callback_url, work) -> dict:
         def verify(chunk):
             brief = [dict({k: it.get(k) for k in ("originalModel", "confirmedModel", "quantity", "unit", "description")},
                           brand=it["_group"][0], category=it["_group"][1]) for it in chunk]
+            propagate()
             try:
                 result = call_api(cfg, system_prompt, VERIFY_PROMPT.format(count=len(chunk), items=lp.dumps(brief)),
                                   [], OUTPUT_SCHEMA, model=cfg.parse_model, effort=cfg.parse_effort, web_search=True)
@@ -1219,11 +1230,11 @@ def parse_large(cfg, raw_content, refs, categories, callback_url, work) -> dict:
                     with usage_lock:
                         group_meta.setdefault(meta_key, {k: x for k, x in g.items() if k != "items"})
                     it["_group"] = meta_key
-            except JobTimeout:
-                raise
             except Exception as e:  # noqa: BLE001 - 核验失败或达到搜索上限：这批不核验，标待核实（D10）
+                if isinstance(e, JobTimeout) and job_expired():
+                    raise
                 collect_usage()
-                print(f"[ai-orchestrator] 核验批失败，标为待核实：{type(e).__name__}")
+                print(f"[ai-orchestrator] 核验批失败，标为待核实：{reason(e)}")
                 for it in chunk:
                     it["confidence"] = lp.CONFIDENCE_PENDING_VERIFY
                     it["correctionNote"] = "；".join(x for x in (it.get("correctionNote"), "未联网核验") if x)

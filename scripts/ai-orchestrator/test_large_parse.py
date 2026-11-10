@@ -203,8 +203,9 @@ class PackTest(unittest.TestCase):
         return [lp.Unit("image", f"第 {i + 1} 页", image=b"x" * size) for i in range(n)]
 
     def test_image_count_boundary(self):
-        self.assertEqual([len(b) for b in lp.pack(self.images(20))], [20])
-        self.assertEqual([len(b) for b in lp.pack(self.images(21))], [20, 1])
+        n = lp.BATCH_MAX_IMAGES
+        self.assertEqual([len(b) for b in lp.pack(self.images(n))], [n])
+        self.assertEqual([len(b) for b in lp.pack(self.images(n + 1))], [n, 1])
 
     def test_text_boundary(self):
         half = lp.BATCH_MAX_CHARS // 2
@@ -223,7 +224,7 @@ class PackTest(unittest.TestCase):
 
     def test_300_scanned_pages_fit_subscription_limit(self):
         batches = lp.pack(self.images(300, size=200_000))
-        self.assertEqual(len(batches), 15)
+        self.assertEqual(len(batches), -(-300 // lp.BATCH_MAX_IMAGES))
         for b in batches:
             self.assertLessEqual(len(b), 20)
             self.assertLessEqual(sum(len(u.image) for u in b), 25 * 1024 * 1024)
@@ -408,6 +409,27 @@ class ParseLargeTest(unittest.TestCase):
         self.assertEqual(self.progress[-1], (4, 4), "核验批加入总数后一并报告")
         dones = [d for d, _ in self.progress]
         self.assertEqual(dones, sorted(dones))
+
+    def test_call_timeout_is_retried_with_a_fresh_deadline(self):
+        """单次调用跑满期限只算这一批失败一次；重试重新计时，不把整个任务判超时（2026-11-10 实测发现）"""
+        files = {"a.pdf": ([text_unit(f"《a.pdf》第 {p} 页", (f"M{p}", 1)) for p in range(1, 4)], [])}
+        model = FakeModel(self.server)
+        slow = {"left": 1}
+
+        def call(cfg, system_prompt, text, attachments, schema, *, model_name=None, **kw):
+            if not kw["web_search"] and "第 2 / 3 部分" in text and slow["left"]:
+                slow["left"] -= 1
+                time.sleep(0.4)
+                self.server.remaining()  # 单次期限已过：与真实调用一样抛 JobTimeout
+            return model(cfg, system_prompt, text, attachments, schema, **kw)
+
+        with mock.patch.object(lp, "BATCH_MAX_CHARS", 60), mock.patch.object(self.server, "TIMEOUT_SECONDS", 0.3), \
+                mock.patch("builtins.print"):
+            status, output, error = self.run_job(files, call)
+        self.assertEqual(status, "success", error)
+        self.assertEqual(model.extract_calls.count(2), 1, "超时那次没有算成功，重试后才提取到")
+        self.assertEqual(set(self.models(output)), {"M1", "M2", "M3"})
+        self.assertNotIn("unparsed", output)
 
     def test_deadline_stops_new_batches(self):
         files = {"a.pdf": ([text_unit(f"《a.pdf》第 {p} 页", (f"M{p}", 1)) for p in range(1, 7)], [])}

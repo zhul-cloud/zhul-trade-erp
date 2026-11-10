@@ -21,13 +21,16 @@ import urllib.request
 MAX_FILE_BYTES = 500 * 1024 * 1024
 DOWNLOAD_CHUNK = 1024 * 1024
 
-# 一批的上限：API 与订阅方式共用（订阅单次调用不超过 25MiB、20 张图片/页）
-BATCH_MAX_IMAGES = 20
-BATCH_MAX_CHARS = 60_000
+# 一批的上限：API 与订阅方式共用（订阅单次调用不超过 25MiB、20 张图片/页）。
+# 实测（2026-11-10，Codex 订阅）20 张图 / 6 万字一批要 14–15 分钟，贴着单次调用 900 秒的上限；
+# 改为约三分之一，让单批在 5 分钟左右完成，总量不变、只是调用次数变多
+BATCH_MAX_IMAGES = 8
+BATCH_MAX_CHARS = 20_000
 BATCH_MAX_IMAGE_BYTES = 18 * 1024 * 1024
-# 小询盘：原文件放得进一次请求时整份发送（与改动前一致）
+# 小询盘：原文件放得进一次请求时整份发送（与改动前一致，不随上面的分批上限变化）
 SMALL_MAX_BYTES = 18 * 1024 * 1024
 SMALL_MAX_PDF_PAGES = 20
+SMALL_MAX_CHARS = 60_000
 
 TEXT_PAGE_MIN_CHARS = 200
 RENDER_DPI = 150
