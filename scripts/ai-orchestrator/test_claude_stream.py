@@ -3,6 +3,7 @@ import base64
 from contextlib import contextmanager
 import io
 import json
+import os
 import unittest
 from unittest import mock
 
@@ -82,6 +83,19 @@ class ClaudeStreamProtocolTest(unittest.TestCase):
         self.assertNotIn("tools", request)
         self.assertNotIn("fallbacks", request)
 
+    @staticmethod
+    def saved(fixtures):
+        """模拟流式下载：按顺序把夹具内容写到临时目录，返回文件路径"""
+        queue = list(fixtures)
+
+        def download(ref, directory, deadline_left):
+            data, ext = queue.pop(0)
+            path = os.path.join(directory, f"{len(queue)}{ext}")
+            with open(path, "wb") as fh:
+                fh.write(data)
+            return path
+        return download
+
     def test_process_job_preserves_valid_image_pdf_and_extracted_spreadsheet_text(self):
         png = io.BytesIO()
         Image.new("RGB", (8, 8), "white").save(png, format="PNG")
@@ -91,7 +105,7 @@ class ClaudeStreamProtocolTest(unittest.TestCase):
         fixtures = [(png.getvalue(), ".png"), (pdf, ".pdf")]
         raw = "正文 Siemens 6ES7 x1\n\n附件《清单.xlsx》：\nSheet: Models\n6ES7\t1\n附件《清单.csv》：\nmodel,qty\n6ES7,1"
         with self.sdk(request_id="req_attachments"), \
-                mock.patch.object(self.server, "_read_attachment", side_effect=fixtures) as read, \
+                mock.patch.object(self.server.lp, "download", side_effect=self.saved(fixtures)) as read, \
                 mock.patch.object(self.server, "send_callback") as callback:
             self.server.process_job({"ai": ai(), "input": {"rawContent": raw, "attachments": [
                 {"url": "https://unit.test/png", "ext": "png"},

@@ -45,6 +45,10 @@ def stop_process(process):
     process.communicate()
 
 
+class SearchLimitError(RuntimeError):
+    """订阅调用达到联网搜索阈值被终止；分批解析时只影响这一批，改为不联网重新提取（OpenSpec inquiry-large-attachments）"""
+
+
 def prepare_images(attachments, directory):
     """图片重新编码，PDF 每页渲染；数量/体积超限明确失败，不截断附件。"""
     import pymupdf
@@ -110,6 +114,8 @@ def call_subscription(provider, system_prompt, text, attachments, schema, *, mod
                 except ProcessLookupError:
                     pass
         if process.returncode:
+            if stdout.strip() == "search_limit":
+                raise SearchLimitError("联网搜索操作达到订阅模式上限")
             # 只接受 worker 自己生成的安全错误码，不把 CLI stderr/认证信息带入回调。
             errors = {"auth": "未登录个人订阅；请在专用容器内运行官方 CLI 登录命令",
                       "search_limit": "联网搜索操作达到订阅模式上限，任务已终止，请拆分询盘后重试",

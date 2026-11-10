@@ -15,7 +15,7 @@
 
 - [x] 2.1 上传场景登记与 Redis 上传会话（D2）：准备上传、续签、完成、取消接口；完成后返回普通 `fileKey`，业务保存沿用 `locate` 校验（实施时调整，见 D2）。验证：`DirectUploadContractTest` 覆盖声明超限、扩展名不符、合计超限、没有权限、会话过期、他人的会话不能续传或完成。
 - [x] 2.2 OSS 分片上传：发起、逐片签名（15 分钟）、合并、HeadObject 核对大小、按范围读取文件头、CopyObject 到正式键、删除临时对象（D1、D4）。验证：`OssFileStorage` 单元测试 mock OSS 客户端，覆盖成功、大小超限、文件头不符；`OssLiveIT` 在配置了 OSS 时真实走通一次 20MB 的分片上传。
-  完成：`OssFileStorageTest` 新增 3 个用例通过；`OssLiveIT.multipartPresignedUpload_againstRealBucket` 已写好，本机没有开发 OSS 配置，**尚未真实运行**，上线前需在配了开发 OSS 的环境跑一次。
+  完成：`OssFileStorageTest` 新增 3 个用例通过；`OssLiveIT` 用本机 `.env` 的开发 OSS（`zhul-erp-dev-private`，cn-hangzhou，V4 签名）真实运行 2/2 通过，其中分片直传用例真实 PUT 两片（16MB + 4MB）、合并、读文件头、复制到正式键（2026-11-10）。
 - [x] 2.3 本地存储分片接口 `PUT /api/v1/uploads/{id}/parts/{n}`（D5）：一次性令牌鉴权；请求体按流写入临时文件的对应位置；完成时检查分片齐全、校验大小与文件头，再改名移到正式目录；准备上传时检查磁盘剩余空间。验证：契约测试覆盖乱序分片、重复分片、缺分片时完成被拒、伪装文件被删除、令牌过期或属于他人时拒绝、剩余空间不足时拒绝；断言上传 100MB 时后端堆内存不随文件大小增长。
   完成：`DirectUploadContractTest` 覆盖乱序与重复分片、缺分片、分片长短不对、伪装文件被删除、令牌或用户不对时拒绝。没有做的两项：一是空间不足（测试环境无法稳定造出磁盘不足）；二是堆内存断言（JVM 堆用量受 GC 影响，断言不稳定）。分片写入按 64KB 缓冲流式写到文件位置，不整片读入内存，以代码审查为准。
 - [x] 2.3a 本地临时上传的清理定时任务：每小时删除超过 1 天的未完成上传，用 `TenantScope.platform` 执行；启动时发现私有上传目录在 tmpfs 上就告警。验证：`BackgroundEntryTenantContractTest` 自动覆盖没有租户上下文时的执行；单元测试覆盖只删超过 1 天的、不动正式目录；告警用日志断言。
@@ -38,13 +38,20 @@
 
 ## 5. AI 编排服务：预处理与分批解析
 
-- [ ] 5.1 附件改为流式写入临时目录，单个附件超过 500MB 失败，任务结束后删除（D7）。验证：`test_server.py` 用本地 HTTP 服务提供 50MB 文件，断言内存中不留整份内容、临时目录被清理。
-- [ ] 5.2 预处理（D8）：PDF 区分文字页与扫描页，处理加密文件和损坏的页；图片缩放；Excel（xlsx、xls、csv）流式转文字；`requirements.txt` 加 openpyxl、xlrd。验证：单元测试用真实生成的混合 PDF、加密 PDF、含损坏页的 PDF、60MB 图片、多工作表 xlsx、xls、csv，断言输出单元和「未解析」列表。
-- [ ] 5.3 分批：按每批的图片数、文字量、数据量上限切分；只需一批时沿用现有的单次请求（D9）。验证：单元测试覆盖边界（20 张、21 张、6 万字），以及只需一批时调用参数与改前一致的回归用例。
-- [ ] 5.4 多批提取并行（同时 3 批、失败重试 2 次），合并去重（数量相加、单位不同时标待核实、记录出现位置），核验时每批 50 个型号，每批各自适用最大搜索次数（D9）。验证：单元测试用 fake 模型覆盖跨批重复型号的数量相加与位置、单位不同、120 个型号分 3 个核验批且每批不超过上限。
-- [ ] 5.5 逐项容错（D10）：附件、页、提取批、核验批各自失败互不影响，只有全部都提取不出型号时任务才失败；订阅方式达到搜索阈值时同一批改为不联网重新提取。验证：单元测试覆盖一个附件下载失败、某页损坏、某提取批始终失败、某核验批达到上限、全部失败五种情况的回调内容。
-- [ ] 5.6 订阅方式按同样的批次多次调用，去掉「超过 25MiB / 20 页即失败」。验证：`test_subscription.py` 覆盖 300 页扫描件分成每批不超过 20 页。
-- [ ] 5.7 进度报告与整个任务的期限 `AI_ORCHESTRATOR_MAX_SECONDS`（D11），更新编排服务 README 和 `.env.example`。验证：`test_job_deadline.py` 用模拟时钟覆盖每批报告进度、60 秒心跳、到期后不再发起新批。
+- [x] 5.1 附件改为流式写入临时目录，单个附件超过 500MB 失败，任务结束后删除（D7）。验证：`test_server.py` 用本地 HTTP 服务提供 50MB 文件，断言内存中不留整份内容、临时目录被清理。
+  完成：`test_large_parse.DownloadTest` 用本地 HTTP 服务下载 50MB，`tracemalloc` 峰值低于 8MB；超限时报错且不留文件；任务结束后临时目录被删除（`ParseLargeTest`）。
+- [x] 5.2 预处理（D8）：PDF 区分文字页与扫描页，处理加密文件和损坏的页；图片缩放；Excel（xlsx、xls、csv）流式转文字；`requirements.txt` 加 openpyxl、xlrd。验证：单元测试用真实生成的混合 PDF、加密 PDF、含损坏页的 PDF、60MB 图片、多工作表 xlsx、xls、csv，断言输出单元和「未解析」列表。
+  完成：`PreprocessTest` 覆盖混合 PDF、加密 PDF、损坏 PDF、单页损坏、大图片缩放（5000×4000 随机像素，约 60MB 原始数据）、多工作表 xlsx、GBK 编码 csv、与后端一致的表格文字格式。xls 只做了读取实现，没有测试：生成 xls 需要额外的 xlwt 库，测试环境未引入。
+- [x] 5.3 分批：按每批的图片数、文字量、数据量上限切分；只需一批时沿用现有的单次请求（D9）。验证：单元测试覆盖边界（20 张、21 张、6 万字），以及只需一批时调用参数与改前一致的回归用例。
+  完成：`PackTest` 覆盖 20 / 21 张图、6 万字、18MB 与单个超限单元；`test_small_inquiry_keeps_single_call` 与原有 `test_claude_stream`、`test_https_link_still_downloaded` 覆盖只需一批时仍是单次调用、参数与改前一致。
+- [x] 5.4 多批提取并行（同时 3 批、失败重试 2 次），合并去重（数量相加、单位不同时标待核实、记录出现位置），核验时每批 50 个型号，每批各自适用最大搜索次数（D9）。验证：单元测试用 fake 模型覆盖跨批重复型号的数量相加与位置、单位不同、120 个型号分 3 个核验批且每批不超过上限。
+  完成：`MergeTest` 与 `ParseLargeTest.test_duplicates_merged_and_120_models_verified_in_3_batches`（120 个型号分 50、50、20 三个核验批，跨批重复型号数量相加并注明位置）。
+- [x] 5.5 逐项容错（D10）：附件、页、提取批、核验批各自失败互不影响，只有全部都提取不出型号时任务才失败；订阅方式达到搜索阈值时同一批改为不联网重新提取。验证：单元测试覆盖一个附件下载失败、某页损坏、某提取批始终失败、某核验批达到上限、全部失败五种情况的回调内容。
+  完成：`test_partial_failures_do_not_fail_the_task`（附件下载失败、某页损坏、某提取批重试用尽、某核验批达到搜索上限）与 `test_everything_failing_fails_the_task`、`test_no_models_extracted_fails_the_task`。
+- [x] 5.6 订阅方式按同样的批次多次调用，去掉「超过 25MiB / 20 页即失败」。验证：`test_subscription.py` 覆盖 300 页扫描件分成每批不超过 20 页。
+  完成：大询盘不再整份交给订阅方式，而是按批调用；订阅方式单次调用的 25MiB / 20 页检查保留为兜底，批次上限保证不会触发。测试放在 `test_large_parse.PackTest.test_300_scanned_pages_fit_subscription_limit`（300 页分 15 批，每批不超过 20 页、25MiB）。
+- [x] 5.7 进度报告与整个任务的期限 `AI_ORCHESTRATOR_MAX_SECONDS`（D11），更新编排服务 README 和 `.env.example`。验证：`test_job_deadline.py` 用模拟时钟覆盖每批报告进度、60 秒心跳、到期后不再发起新批。
+  完成：README、`.env.example`、`docker-compose.yaml`、`04-AI编排服务.md` 已更新。测试放在 `test_large_parse`：`test_progress_reported_per_batch`、`HeartbeatTest`（心跳间隔调小到 0.05 秒）、`test_deadline_stops_new_batches`（期限调小到 0.5 秒，到期后只有第一轮 3 批发出）。用真实短时间代替模拟时钟。
 
 ## 6. 后端：进度与超时
 

@@ -50,6 +50,7 @@ import json
 import os
 import re
 import sys
+import tempfile
 import threading
 import time
 import urllib.error
@@ -65,7 +66,8 @@ import anthropic
 import jsonschema
 import openai
 
-from subscription import call_subscription, codex_models, login_status
+import large_parse as lp
+from subscription import SearchLimitError, call_subscription, codex_models, login_status
 
 PORT = int(os.environ.get("AI_STUB_PORT", "8899"))
 CALLBACK_TOKEN = os.environ.get("AI_TASK_CALLBACK_TOKEN", "zhul-erp-ai-callback-secret")
@@ -83,6 +85,8 @@ NON_CHAT_MARKERS = ("embedding", "tts", "whisper", "dall-e", "image", "audio", "
 # 也已经调大，避免这边还没跑完就被那边判定超时。
 TIMEOUT_SECONDS = int(os.environ.get("AI_ORCHESTRATOR_TIMEOUT_SECONDS") or "900")
 # 测试连接、获取模型列表这类同步请求的超时（秒），须短于后端的 30 秒
+# 大附件分批解析时整个任务的期限；单次模型调用仍按 TIMEOUT_SECONDS（OpenSpec inquiry-large-attachments D11）
+MAX_SECONDS = int(os.environ.get("AI_ORCHESTRATOR_MAX_SECONDS") or "10200")
 QUICK_TIMEOUT_SECONDS = 20
 # pause_turn 最多续传几次，防止异常情况下无限循环
 MAX_CONTINUATIONS = 5
@@ -157,10 +161,19 @@ class JobTimeout(Exception):
 _JOB = threading.local()
 
 
-def start_job():
+def start_job(seconds=None):
     """任务开始计时：下载附件、排队、每轮模型请求和续传共用这一个期限，
-    保证编排服务在后端超时扫描（默认 20 分钟）判失败之前就停下（audit AI-005）"""
-    _JOB.deadline = time.monotonic() + TIMEOUT_SECONDS
+    保证编排服务在后端超时扫描（默认 20 分钟）判失败之前就停下（audit AI-005）。
+    大附件分批解析改用 MAX_SECONDS，期间定期报告进度，后端按最近一次进度计时"""
+    _JOB.deadline = time.monotonic() + (seconds or TIMEOUT_SECONDS)
+
+
+def _call_deadline_propagator(job_deadline):
+    """给工作线程设置本次调用的期限：不超过整个任务的期限，单次调用最长 TIMEOUT_SECONDS"""
+    def propagate():
+        _JOB.deadline = min(job_deadline, time.monotonic() + TIMEOUT_SECONDS)
+        _usage.value = None
+    return propagate
 
 
 def remaining() -> float:
@@ -526,7 +539,8 @@ def _nameplate_hint(nos: list) -> str:
             "一张铭牌图片只填给一个型号；看不清或对不上任何型号的不填；不是铭牌图片的附件不要填。")
 
 
-def call_parse(cfg: AiConfig, raw_content: str, file_paths=None, categories=None, nameplate_nos=None) -> dict:
+def call_parse(cfg: AiConfig, raw_content: str, file_paths=None, categories=None, nameplate_nos=None,
+               web_search: bool = True) -> dict:
     """raw_content 为正文（Excel/CSV 附件已由后端抽成文本拼在里面）；file_paths 为图片、PDF 附件（已读好的 (内容, 扩展名)，或临时链接、本地路径）；
     categories 为后端带来的品类清单（没有时沿用 skill 里的品类枚举）；nameplate_nos 与 file_paths 一一对应，
     铭牌图片为编号（从 1 开始），其他附件为 None。"""
@@ -540,7 +554,7 @@ def call_parse(cfg: AiConfig, raw_content: str, file_paths=None, categories=None
     else:
         text = raw_content
     structured = call_api(cfg, build_system_prompt(categories), text, file_paths, OUTPUT_SCHEMA,
-                          model=cfg.parse_model, effort=cfg.parse_effort, web_search=True)
+                          model=cfg.parse_model, effort=cfg.parse_effort, web_search=web_search)
     if "groups" not in structured:
         raise RuntimeError("AI 未返回符合 schema 的结构化输出")
     return structured
@@ -937,6 +951,18 @@ def send_callback(callback_url: str, status: str, output=None, error=None) -> bo
     return False
 
 
+def send_progress(callback_url: str, done: int, total: int):
+    """报告分批解析进度（已完成批数 / 总批数），只发一次、不重投，失败不影响任务（spec「解析进度报告」）"""
+    body = json.dumps({"status": "progress", "output": {"done": done, "total": total}}).encode("utf-8")
+    req = urllib.request.Request(callback_url, data=body, method="POST",
+                                 headers={"Content-Type": "application/json", "X-AI-Callback-Token": CALLBACK_TOKEN})
+    try:
+        with urllib.request.urlopen(req, timeout=10):
+            pass
+    except (urllib.error.URLError, OSError, ValueError) as e:
+        print(f"[ai-orchestrator] 进度报告失败（{done}/{total}）：{type(e).__name__}")
+
+
 def _nameplate_no(ref: dict):
     """后端给铭牌图片标了 role=nameplate 与编号 no；旧版后端没有这两个字段"""
     if ref.get("role") != "nameplate":
@@ -947,31 +973,229 @@ def _nameplate_no(ref: dict):
         return None
 
 
+EXTRACT_SCHEMA = copy.deepcopy(OUTPUT_SCHEMA)
+EXTRACT_SCHEMA["properties"]["groups"]["items"]["properties"]["items"]["items"]["properties"]["source"] = {"type": "string"}
+
+EXTRACT_PROMPT = (
+    "这是一份大询盘拆开后的第 {no} / {total} 部分，包含：{labels}。只提取这部分出现的型号、数量、单位等询盘信息，"
+    "按 skill 的结构返回；这一步不联网搜索，描述等字段按已有知识填写，拿不准的置信度填待核实。"
+    "每个型号在 source 里写它出现的位置，用上面标注的「《文件》第 n 页」或行号。"
+)
+VERIFY_PROMPT = (
+    "下面是从一份大询盘中提取、合并去重后的 {count} 个型号（JSON 数组）。请按 skill 流程逐个联网核验、纠正型号，"
+    "补全订货号、描述、英文描述、生命周期、替代型号、采购难度、询价话术与搜索关键词。"
+    "按原顺序逐个返回全部 {count} 个型号，不要增删、不要合并，数量与单位保持不变。\n{items}"
+)
+VERIFIED_FIELDS = ("categoryCode", "confirmedModel", "orderCode", "confidence", "description", "descriptionEn",
+                   "lifecycle", "replacementModel", "difficulty", "inquiryScript", "searchKeywords")
+
+
+def _call_parse_degrading(cfg, raw_content, loaded, categories, nos):
+    """单次解析；订阅方式达到搜索阈值时同一批改为不联网重新解析，型号标待核实，任务不失败（D10）"""
+    try:
+        return call_parse(cfg, raw_content, loaded, categories, nos)
+    except SearchLimitError:
+        print("[ai-orchestrator] 达到联网搜索上限，改为不联网重新解析")
+        structured = call_parse(cfg, raw_content, loaded, categories, nos, web_search=False)
+        for g in structured.get("groups", []):
+            for item in g.get("items", []):
+                item["confidence"] = lp.CONFIDENCE_PENDING_VERIFY
+        return structured
+
+
+def _small_inputs(refs, raw_content, work):
+    """原文件放得进一次请求时返回 (正文, [(内容, 扩展名)], 铭牌编号)，与改动前的单次解析一致；放不下时返回 None。
+    后端给出附件大小时先按大小判断，免得为大询盘先把文件全部下载下来"""
+    sizes = [r.get("size") for r in refs]
+    if sum(x for x in sizes if isinstance(x, int)) > lp.SMALL_MAX_BYTES:
+        return None
+    text_parts, loaded, nos, total, pages = [], [], [], 0, 0
+    for i, r in enumerate(refs):
+        path = lp.download(r, work, remaining)
+        ext = "." + (r.get("ext") or "").lower().lstrip(".")
+        name = r.get("name") or f"附件{i + 1}"
+        try:
+            total += os.path.getsize(path)
+            if total > lp.SMALL_MAX_BYTES:
+                return None
+            if ext in (".xlsx", ".xls", ".csv"):
+                text_parts.append(f"附件《{name}》：\n" + lp.sheet_text(path, ext))
+                continue
+            if ext == ".pdf":
+                import pymupdf
+                with pymupdf.open(path) as doc:
+                    if doc.needs_pass:
+                        return None
+                    pages += len(doc)
+            else:
+                pages += 1
+            with open(path, "rb") as fh:
+                loaded.append((fh.read(), ext))
+            nos.append(_nameplate_no(r))
+        except Exception:  # noqa: BLE001 - 读不了的附件交给分批流程逐个报告
+            return None
+        finally:
+            lp._remove(path)
+    text = "\n\n".join(([raw_content] if raw_content else []) + text_parts)
+    if pages > lp.SMALL_MAX_PDF_PAGES or len(text) > lp.BATCH_MAX_CHARS:
+        return None
+    return text, loaded, nos
+
+
+def parse_large(cfg, raw_content, refs, categories, callback_url, work) -> dict:
+    """分批解析：逐个附件下载、预处理、删除 → 切批 → 并行提取 → 合并去重 → 分批联网核验（D8–D10）"""
+    units, unparsed = [], []
+    if raw_content:
+        units.append(lp.Unit("text", "询盘正文", text="询盘正文：\n" + raw_content))
+    for i, r in enumerate(refs):
+        name = r.get("name") or f"附件{i + 1}"
+        ext = "." + (r.get("ext") or "").lower().lstrip(".")
+        try:
+            path = lp.download(r, work, remaining)
+        except JobTimeout:
+            raise
+        except Exception as e:  # noqa: BLE001 - 一个附件取不到只影响它自己
+            print(f"[ai-orchestrator] 附件下载失败：{type(e).__name__}")
+            unparsed.append({"file": name, "range": "", "reason": "无法读取"})
+            continue
+        try:
+            got, bad = lp.preprocess(path, ext, name, _nameplate_no(r))
+        finally:
+            lp._remove(path)
+        units.extend(got)
+        unparsed.extend(bad)
+    if not units:
+        raise RuntimeError("；".join(f"《{u['file']}》{u['range']}{u['reason']}" for u in unparsed) or "没有可解析的内容")
+
+    batches = lp.pack(units)
+    propagate = _call_deadline_propagator(_JOB.deadline)
+    usage_lock = threading.Lock()
+    usages = []
+    system_prompt = build_system_prompt(categories)
+
+    def collect_usage():
+        u = _take_usage()
+        if u:
+            with usage_lock:
+                usages.append(u)
+
+    print(f"[ai-orchestrator] 大附件分批解析：{len(units)} 个单元，{len(batches)} 批")
+    with lp.Progress(lambda d, t: send_progress(callback_url, d, t), len(batches)) as progress:
+        def extract(indexed):
+            no, batch = indexed
+            labels = [u.label for u in batch]
+            texts = [u.text for u in batch if u.kind == "text"]
+            images = [u for u in batch if u.kind == "image"]
+            text = (EXTRACT_PROMPT.format(no=no, total=len(batches), labels="、".join(labels)) + "\n\n"
+                    + "\n\n".join(texts)
+                    + ("\n\n附件图片依次为：" + "、".join(u.label for u in images) if images else "")
+                    + _nameplate_hint([u.nameplate_no for u in images]))
+            for attempt in range(lp.EXTRACT_RETRIES + 1):
+                try:
+                    result = call_api(cfg, system_prompt, text, [(u.image, u.ext) for u in images], EXTRACT_SCHEMA,
+                                      model=cfg.parse_model, effort=cfg.parse_effort, web_search=False)
+                    collect_usage()
+                    progress.step()
+                    return result.get("groups", []), labels
+                except JobTimeout:
+                    raise
+                except Exception as e:  # noqa: BLE001 - 失败的批重试，仍失败只影响这一批
+                    collect_usage()
+                    print(f"[ai-orchestrator] 第 {no} 批提取失败（第 {attempt + 1} 次）：{type(e).__name__}")
+            progress.step()
+            unparsed.append({"file": "", "range": "、".join(labels),
+                             "reason": f"解析失败，重试 {lp.EXTRACT_RETRIES} 次仍未成功"})
+            return None
+
+        results = lp.run_parallel(extract, list(enumerate(batches, 1)), lp.EXTRACT_WORKERS, propagate)
+        items, group_meta = lp.merge([r for r in results if r])
+        if not items:
+            raise RuntimeError("没有从附件中提取到型号")
+
+        chunks = [items[i:i + lp.VERIFY_BATCH] for i in range(0, len(items), lp.VERIFY_BATCH)]
+        progress.add_total(len(chunks))
+
+        def verify(chunk):
+            brief = [dict({k: it.get(k) for k in ("originalModel", "confirmedModel", "quantity", "unit", "description")},
+                          brand=it["_group"][0], category=it["_group"][1]) for it in chunk]
+            try:
+                result = call_api(cfg, system_prompt, VERIFY_PROMPT.format(count=len(chunk), items=lp.dumps(brief)),
+                                  [], OUTPUT_SCHEMA, model=cfg.parse_model, effort=cfg.parse_effort, web_search=True)
+                collect_usage()
+                got = [(g, it) for g in result.get("groups", []) for it in g.get("items", [])]
+                if len(got) != len(chunk):
+                    raise RuntimeError("核验返回的型号数与提交的不一致")
+                for (g, v), it in zip(got, chunk):
+                    for k in VERIFIED_FIELDS:
+                        if k in v:
+                            it[k] = v[k]
+                    if v.get("correctionNote"):
+                        it["correctionNote"] = "；".join(x for x in (v["correctionNote"], it.get("correctionNote")) if x)
+                    if it.get("_unit_conflict"):
+                        it["confidence"] = lp.CONFIDENCE_PENDING_VERIFY
+                    meta_key = (g.get("brand", it["_group"][0]), g.get("category", it["_group"][1]))
+                    with usage_lock:
+                        group_meta.setdefault(meta_key, {k: x for k, x in g.items() if k != "items"})
+                    it["_group"] = meta_key
+            except JobTimeout:
+                raise
+            except Exception as e:  # noqa: BLE001 - 核验失败或达到搜索上限：这批不核验，标待核实（D10）
+                collect_usage()
+                print(f"[ai-orchestrator] 核验批失败，标为待核实：{type(e).__name__}")
+                for it in chunk:
+                    it["confidence"] = lp.CONFIDENCE_PENDING_VERIFY
+                    it["correctionNote"] = "；".join(x for x in (it.get("correctionNote"), "未联网核验") if x)
+            progress.step()
+
+        lp.run_parallel(verify, chunks, lp.EXTRACT_WORKERS, propagate)
+
+    for u in usages:
+        _record_usage(u.get("model"), u.get("inputTokens"), u.get("outputTokens"), u.get("webSearches"))
+    output = {"groups": lp.regroup(items, group_meta)}
+    if unparsed:
+        output["unparsed"] = unparsed
+    searches = sum(int(u.get("webSearches") or 0) for u in usages)
+    print(f"[ai-orchestrator] 大附件解析完成：{len(items)} 个型号，{len(unparsed)} 处未解析，联网搜索共 {searches} 次")
+    return output
+
+
 def process_job(payload: dict, callback_url: str):
     start_job()
+    limit = TIMEOUT_SECONDS
     key = _api_key_of(payload)
     try:
         cfg = parse_ai_config(payload.get("ai"))
         input_data = payload.get("input") or {}
         raw_content = (input_data.get("rawContent") or "").strip()
-        # Excel/CSV 附件已由后端抽成文本拼进 rawContent；图片、PDF 通过 attachments 传后端签发的临时链接
-        # （[{"url", "ext"}]，本服务下载后发给模型）。旧版的本地路径 attachmentPaths / rawAttachmentPath 不再接受。
+        # 附件都通过后端签发的临时链接传来（[{"url", "ext", "name", "size", "role", "no"}]），本服务下载后处理。
+        # 旧版的本地路径 attachmentPaths / rawAttachmentPath 不再接受。
         refs = [a for a in (input_data.get("attachments") or []) if a and a.get("url")]
         if not raw_content and not refs:
             send_callback(callback_url, "failed", error="询盘既没有正文也没有可读的附件，无法解析")
             return
-        try:
-            loaded = [_read_attachment(r) for r in refs]
-        except Exception as e:  # noqa: BLE001 - 链接过期或网络问题都按附件读取失败回报
-            send_callback(callback_url, "failed", error=f"附件下载失败: {str(e)[:200]}")
-            return
-        nos = [_nameplate_no(r) for r in refs]
-        output = call_parse(cfg, raw_content, loaded, input_data.get("categories") or [], nos)
+        categories = input_data.get("categories") or []
+        with tempfile.TemporaryDirectory(prefix="zhul-parse-") as work:
+            try:
+                small = _small_inputs(refs, raw_content, work) if refs else (raw_content, [], [])
+            except JobTimeout:
+                raise
+            except Exception as e:  # noqa: BLE001 - 链接过期或网络问题都按附件读取失败回报（只有一个附件时）
+                if len(refs) == 1 and not raw_content:
+                    send_callback(callback_url, "failed", error=f"附件下载失败: {str(e)[:200]}")
+                    return
+                small = None
+            if small is not None:
+                text, loaded, nos = small
+                output = _call_parse_degrading(cfg, text, loaded, categories, nos)
+            else:
+                limit = MAX_SECONDS
+                start_job(limit)
+                output = parse_large(cfg, raw_content, refs, categories, callback_url, work)
         send_callback(callback_url, "success", output=output)
     except ConfigError as e:
         send_callback(callback_url, "failed", error=str(e))
     except (JobTimeout, anthropic.APITimeoutError, openai.APITimeoutError):
-        send_callback(callback_url, "failed", error=f"AI 处理超过 {TIMEOUT_SECONDS} 秒未完成")
+        send_callback(callback_url, "failed", error=f"AI 处理超过 {limit} 秒未完成")
     except Exception as e:
         message = scrub(str(e), key)
         print(f"[ai-orchestrator] job failed: {message}")
