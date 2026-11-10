@@ -1,5 +1,6 @@
 import { ArrowLeftOutlined, LockOutlined } from '@ant-design/icons';
 import { history, useAccess, useParams, useSearchParams } from '@umijs/max';
+import { safeFromPath } from '@/components/DocFields/DocModelCell';
 import {
   Alert,
   App,
@@ -263,6 +264,9 @@ const DetailInner: React.FC = () => {
   const access = useAccess();
   const params = useParams<{ id: string }>();
   const [search] = useSearchParams();
+  // 从询盘单、报价单等单据点型号进来时，返回原单据
+  const backPath = safeFromPath(search.get('from'));
+  const backLabel = search.get('fromLabel') || '上一页';
   const id = Number(params.id);
   const [product, setProduct] = useState<Product>();
   // 维护方：平台账号，或商品属于本租户（后端按归属算出 editable）；修改还需「编辑商品」按钮权限
@@ -396,10 +400,10 @@ const DetailInner: React.FC = () => {
       <Button
         type="link"
         icon={<ArrowLeftOutlined />}
-        onClick={() => history.push('/product/products')}
+        onClick={() => history.push(backPath ?? '/product/products')}
         style={{ paddingLeft: 0, marginBottom: 8 }}
       >
-        返回商品列表
+        {backPath ? `返回 ${backLabel}` : '返回商品列表'}
       </Button>
 
       <div

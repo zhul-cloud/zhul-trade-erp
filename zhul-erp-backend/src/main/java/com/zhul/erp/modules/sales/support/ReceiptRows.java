@@ -72,6 +72,8 @@ public class ReceiptRows {
             Long customerId = pi != null ? pi.getCustomerId() : so != null ? so.getCustomerId() : null;
             vo.setCustomerName(customerId == null ? null : InquiryLookups.customerName(customers.get(customerId)));
             vo.setCustomerContact(customerId == null ? null : InquiryLookups.contactName(customers.get(customerId)));
+            CustomerDO customer = customerId == null ? null : customers.get(customerId);
+            vo.setCustomerCountry(customer == null ? null : customer.getCountry());
             vo.setCurrencyCode(r.getCurrencyCode());
             vo.setAmount(r.getAmount());
             vo.setPlatformFee(r.getPlatformFee());

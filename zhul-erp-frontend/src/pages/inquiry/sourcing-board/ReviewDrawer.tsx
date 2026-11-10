@@ -32,7 +32,7 @@ import {
   TaxHint,
   useWide,
 } from '../shared/components';
-import { formatMinutes } from '../shared/constants';
+import { formatMinutes, noStockText } from '../shared/constants';
 import QuoteExtras from '../shared/QuoteExtras';
 import {
   boardApi,
@@ -420,7 +420,7 @@ const ReviewDrawer: React.FC<{
                           fontSize: 13,
                         }}
                       >
-                        无货{q.note ? `：${q.note}` : ''}
+                        {noStockText(q.noStockReasonName, q.note)}
                       </div>
                     );
                   }

@@ -270,8 +270,11 @@ class AfterSalesContractTest extends SalesContractSupport {
                 "result", "供应商换新，客户确认正常", "caseNote", " 该型号运输需加泡沫护角 "))), admin));
         assertEquals("已结案", closed.path("statusName").asText());
         assertEquals("该型号运输需加泡沫护角", closed.path("caseNote").asText());
+        // 售后单号每天从 001 起，限定本单客户，避免同一天重跑时数到之前留下的记录
         assertEquals(1, jdbc.queryForObject("select count(*) from customer_followup where record_type = 2 and title like ?"
-                + " and raw_content = '案例沉淀：该型号运输需加泡沫护角'", Integer.class, "售后单 % 结案 · 供应商换新，客户确认正常"));
+                + " and raw_content = '案例沉淀：该型号运输需加泡沫护角'"
+                + " and customer_id = (select customer_id from sales_order where id = ?)",
+                Integer.class, "售后单 % 结案 · 供应商换新，客户确认正常", so));
         assertFalse(closed.path("overdue").asBoolean());
         assertEquals("售后单已结案，只能添加跟进记录", fail(plan(asId, Map.of("reasonCode", "TRANSPORT"))).path("message").asText());
         ok(call(json(post(AS + "/" + asId + "/notes"), write(Map.of("content", "客户回访正常"))), admin));
@@ -329,8 +332,8 @@ class AfterSalesContractTest extends SalesContractSupport {
     private long manualShipped(long customer) throws Exception {
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("customerId", customer);
-        m.put("items", List.of(Map.of("model", "A-9", "quantity", 4, "unitPrice", "100", "costPrice", "300"),
-                Map.of("model", "B-9", "quantity", 2, "unitPrice", "50")));
+        m.put("items", List.of(Map.of("productId", manualProduct("A-9"), "quantity", 4, "unitPrice", "100", "costPrice", "300"),
+                Map.of("productId", manualProduct("B-9"), "quantity", 2, "unitPrice", "50")));
         long so = ok(call(json(post(SO), write(m)), admin)).path("id").asLong();
         Map<String, Object> r = new HashMap<>();
         r.put("amount", "500");

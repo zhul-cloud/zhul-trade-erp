@@ -128,6 +128,7 @@ class SourcingQuoteEnhancementsContractTest extends InquiryContractSupport {
         Map<String, Object> row = new LinkedHashMap<>();
         row.put("itemId", item);
         row.put("noStock", true);
+        row.put("noStockReason", 4);
         row.put("noStockNote", "代理商要 8 周");
         row.put("noStockAttachmentIds", List.of(a, b));
         ok(call(json(put(MY + "/" + task + "/quotes"), write(Map.of("submit", true, "items", List.of(row)))), lin));
@@ -139,6 +140,60 @@ class SourcingQuoteEnhancementsContractTest extends InquiryContractSupport {
         row.put("noStockAttachmentIds", List.of(a, b, 3L, 4L, 5L, 6L));
         JsonNode bad = call(json(put(MY + "/" + task + "/quotes"), write(Map.of("submit", true, "items", List.of(row)))), lin);
         assertTrue(bad.path("message").asText().contains("无货附件最多 5 个"), bad.toString());
+    }
+
+    @Test
+    void noStockReason_requiredOnSubmit_validatedAgainstDict_shownEverywhere() throws Exception {
+        loginAsAdmin("it_sqe_admin");
+        admin = token("it_sqe_admin");
+        long inq = inquiry(MODEL);
+        long task = task(inq);
+        long item = item(task);
+        String lin = token("it_lin");
+        Map<String, Object> row = new LinkedHashMap<>();
+        row.put("itemId", item);
+        row.put("noStock", true);
+
+        // 提交时必须选原因；只保存草稿可以先不选
+        JsonNode missing = call(json(put(MY + "/" + task + "/quotes"), write(Map.of("submit", true, "items", List.of(row)))), lin);
+        assertEquals("请选择无货原因", missing.path("message").asText(), missing.toString());
+        ok(call(json(put(MY + "/" + task + "/quotes"), write(Map.of("submit", false, "items", List.of(row)))), lin));
+
+        // 不在字典里、已停用的原因都不行
+        row.put("noStockReason", 99);
+        assertEquals("无货原因无效，请重新选择",
+                call(json(put(MY + "/" + task + "/quotes"), write(Map.of("submit", true, "items", List.of(row)))), lin).path("message").asText());
+        jdbc.update("update dict_item set status = 0 where dict_type = 'inquiry_no_stock_reason' and item_value = '3'");
+        try {
+            row.put("noStockReason", 3);
+            assertEquals("无货原因无效，请重新选择",
+                    call(json(put(MY + "/" + task + "/quotes"), write(Map.of("submit", true, "items", List.of(row)))), lin).path("message").asText());
+        } finally {
+            jdbc.update("update dict_item set status = 1 where dict_type = 'inquiry_no_stock_reason' and item_value = '3'");
+        }
+
+        // 只选原因、说明留空也能提交
+        row.put("noStockReason", 1);
+        ok(call(json(put(MY + "/" + task + "/quotes"), write(Map.of("submit", true, "items", List.of(row)))), lin));
+        assertEquals(1, jdbc.queryForObject("select no_stock_reason from sourcing_quote where inquiry_item_id = ? and deleted_at is null",
+                Integer.class, item));
+        JsonNode mine = ok(call(get(MY + "/" + task), lin)).path("items").get(0).path("quotes").get(0);
+        assertEquals(1, mine.path("noStockReason").asInt());
+        assertEquals("厂家停产", mine.path("noStockReasonName").asText());
+        JsonNode inquiryItem = ok(call(get(INQ + "/" + inq), admin)).path("items").get(0);
+        assertEquals("厂家停产", inquiryItem.path("noStockReasonName").asText(), "询盘单型号行显示无货原因");
+
+        // 停用后历史记录照常显示原名称
+        jdbc.update("update dict_item set status = 0 where dict_type = 'inquiry_no_stock_reason' and item_value = '1'");
+        try {
+            assertEquals("厂家停产", ok(call(get(INQ + "/" + inq), admin)).path("items").get(0).path("noStockReasonName").asText());
+        } finally {
+            jdbc.update("update dict_item set status = 1 where dict_type = 'inquiry_no_stock_reason' and item_value = '1'");
+        }
+
+        // 改版前的无货没有原因：名称为空，由前端显示「未填原因」
+        jdbc.update("update sourcing_quote set no_stock_reason = null where inquiry_item_id = ?", item);
+        assertEquals("", ok(call(get(INQ + "/" + inq), admin)).path("items").get(0).path("noStockReasonName").asText());
     }
 
     @Test

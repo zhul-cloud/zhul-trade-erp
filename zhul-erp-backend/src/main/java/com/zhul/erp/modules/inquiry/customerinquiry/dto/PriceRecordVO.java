@@ -14,6 +14,10 @@ public class PriceRecordVO {
     private Integer channel;
     private String shopName;
     private Boolean noStock;
+    /** 内部无货原因（字典值）；没有填时为空 */
+    private Integer noStockReason;
+    /** 内部无货原因名称；没有填时为空串 */
+    private String noStockReasonName;
     /** 是否包邮 */
     private Boolean freeShipping;
     /** 回价附件（截图、报价单），与渠道店铺一样只对有「查看货源信息」权限的人返回 */

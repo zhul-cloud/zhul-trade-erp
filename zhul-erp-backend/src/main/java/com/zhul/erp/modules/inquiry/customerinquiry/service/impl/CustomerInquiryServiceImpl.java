@@ -468,14 +468,21 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
         Map<Long, PriceRecordVO> selected = new HashMap<>(quoteIds.isEmpty() ? Map.of() : priceHistoryService.toVoMap(quoteMapper.selectBatchIds(quoteIds)));
         List<Long> noStockItems = items.stream().filter(i -> i.getQuoteStatus() == InquiryConstants.ITEM_NO_STOCK).map(InquiryItemDO::getId).toList();
         Map<Long, String> noStockNotes = new HashMap<>();
+        Map<Long, String> noStockReasons = new HashMap<>();
         if (!noStockItems.isEmpty()) {
+            QuoteDictSnapshot.Dict reasons = quoteDicts.noStockReasons();
             quoteMapper.selectList(new LambdaQueryWrapper<SourcingQuoteDO>()
                             .in(SourcingQuoteDO::getInquiryItemId, noStockItems)
                             .eq(SourcingQuoteDO::getNoStock, 1)
                             .eq(SourcingQuoteDO::getStatus, InquiryConstants.QUOTE_SUBMITTED)
                             .isNull(SourcingQuoteDO::getDeletedAt)
                             .orderByDesc(SourcingQuoteDO::getQuotedAt))
-                    .forEach(q -> noStockNotes.putIfAbsent(q.getInquiryItemId(), q.getNote()));
+                    .forEach(q -> {
+                        if (!noStockNotes.containsKey(q.getInquiryItemId())) {
+                            noStockNotes.put(q.getInquiryItemId(), q.getNote());
+                            noStockReasons.put(q.getInquiryItemId(), reasons.label(q.getNoStockReason()));
+                        }
+                    });
         }
         Set<Long> quoted = quotationLocks.lockedItemIds(items.stream().map(InquiryItemDO::getId).toList());
         List<ProductCategoryDO> categories = inquiryCategories.categories();
@@ -512,6 +519,7 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
             vo.setTaskCode(taskCodes.get(i.getSourcingTaskId()));
             vo.setSelectedQuote(selected.get(i.getSelectedQuoteId()));
             vo.setNoStockNote(noStockNotes.get(i.getId()));
+            vo.setNoStockReasonName(noStockReasons.get(i.getId()));
             list.add(vo);
         }
         // 同品牌、同一级品类的型号排在一起；组之间按首次出现的顺序

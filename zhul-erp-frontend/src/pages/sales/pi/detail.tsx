@@ -60,6 +60,10 @@ import {
   IncotermInput,
   PreviewPages,
 } from '@/components/DocFields';
+import DocModelCell, {
+  docBrandColumns,
+  docInquiryColumn,
+} from '@/components/DocFields/DocModelCell';
 import { type DiffRow, VersionPanel } from '@/components/VersionPanel';
 import { useQuoteDicts, useWide } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
@@ -1194,17 +1198,27 @@ const PiDetail: React.FC = () => {
   // ---------------------------------------------------------------- 型号
 
   const modelCell = (src: PiItem, d?: SavePi['items'][number]) => (
-    <div style={{ minWidth: 0 }}>
-      <div style={{ fontWeight: 600, color: palette.ink }}>{src.model}</div>
-      <div style={{ fontSize: 12, color: palette.mute }}>
-        {[src.brand, src.category, src.quotationNo].filter(Boolean).join(' · ')}
-      </div>
+    <DocModelCell
+      model={src.model}
+      brand={src.brand}
+      orderCode={src.orderCode}
+      productId={src.productId}
+      from={pi && { path: PATHS.pi(pi.id), label: `形式发票 ${pi.piNo}` }}
+    >
+      {/* 并排预览时只剩型号一列，品牌、品类、来源询盘缩到型号下面 */}
+      {compact && (
+        <div style={{ fontSize: 12, color: palette.mute }}>
+          {[src.brand, src.category, src.inquiryCode]
+            .filter(Boolean)
+            .join(' · ')}
+        </div>
+      )}
       {d && (d.description ?? '').trim() && needsEnglish(d.descriptionEn) && (
         <span style={{ display: 'inline-block', marginTop: 4 }}>
           <Pill tone="orange">缺英文描述</Pill>
         </span>
       )}
-    </div>
+    </DocModelCell>
   );
 
   // 缺英文描述：导出会退回中文，可一键生成
@@ -1257,12 +1271,18 @@ const PiDetail: React.FC = () => {
 
   const editColumns: TableColumnsType<SavePi['items'][number]> = [
     { title: '#', key: 'no', width: 44, render: (_, __, i) => i + 1 },
+    ...(compact
+      ? []
+      : docBrandColumns<SavePi['items'][number]>((d) => itemById.get(d.id))),
     {
-      title: '型号 / 品牌 · 来源报价单',
+      title: '型号',
       key: 'model',
-      width: compact ? 180 : 250,
+      width: compact ? 180 : 220,
       render: (_, d) => modelCell(itemById.get(d.id) as PiItem, d),
     },
+    ...(compact
+      ? []
+      : [docInquiryColumn<SavePi['items'][number]>((d) => itemById.get(d.id))]),
     {
       title: '数量',
       key: 'qty',
@@ -1431,12 +1451,14 @@ const PiDetail: React.FC = () => {
 
   const viewColumns: TableColumnsType<PiItem> = [
     { title: '#', key: 'no', width: 44, render: (_, __, i) => i + 1 },
+    ...docBrandColumns<PiItem>((r) => r),
     {
-      title: '型号 / 品牌 · 来源报价单',
+      title: '型号',
       key: 'model',
-      width: 260,
+      width: 220,
       render: (_, r) => modelCell(r),
     },
+    docInquiryColumn<PiItem>((r) => r),
     { title: '数量', dataIndex: 'quantity', width: 70, align: 'right' },
     {
       title: '单价',

@@ -13,6 +13,8 @@ public class ItemQuotesRequest {
     @NotNull(message = "缺少型号")
     private Long itemId;
     private Boolean noStock;
+    /** 内部无货原因（字典 inquiry_no_stock_reason 的字典值），无货时必填 */
+    private Integer noStockReason;
     @Size(max = 300, message = "无货说明不能超过 300 字")
     private String noStockNote;
     /** 无货时的附件（代理商回复、停产通知等），与有货报价同样最多 5 个 */

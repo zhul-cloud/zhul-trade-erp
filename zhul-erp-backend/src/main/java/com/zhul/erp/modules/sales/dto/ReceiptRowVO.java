@@ -18,6 +18,8 @@ public class ReceiptRowVO {
     private String customerName;
     /** 客户主联系人姓名（客户档案中的主联系人，实时读取） */
     private String customerContact;
+    /** 客户国家 / 地区（列表客户列第二行） */
+    private String customerCountry;
     private String currencyCode;
     private BigDecimal amount;
     private BigDecimal platformFee;

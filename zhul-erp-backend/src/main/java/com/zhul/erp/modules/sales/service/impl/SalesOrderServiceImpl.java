@@ -9,6 +9,7 @@ import com.zhul.erp.framework.security.DataScopeResolver;
 import com.zhul.erp.modules.inquiry.customerinquiry.entity.CustomerInquiryDO;
 import com.zhul.erp.modules.inquiry.customerinquiry.repository.CustomerInquiryMapper;
 import com.zhul.erp.modules.inquiry.support.CurrentUserResolver;
+import com.zhul.erp.modules.inquiry.support.DocItemProducts;
 import com.zhul.erp.modules.inquiry.support.InquiryLookups;
 import com.zhul.erp.modules.masterdata.entity.CustomerDO;
 import com.zhul.erp.modules.masterdata.repository.CustomerMapper;
@@ -77,6 +78,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -89,6 +91,8 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class SalesOrderServiceImpl implements SalesOrderService {
 
+    private final com.zhul.erp.modules.product.service.ProductLookupService productLookup;
+    private final DocItemProducts docItemProducts;
     private final com.zhul.erp.modules.finance.service.OrderCostService orderCostService;
     private final com.zhul.erp.modules.aftersales.repository.AfterSalesMapper afterSalesMapper;
 
@@ -323,9 +327,22 @@ public class SalesOrderServiceImpl implements SalesOrderService {
             throw new BizException("客户不存在");
         }
         List<CreateOrderRequest.Line> lines = req.getItems() == null ? List.of()
-                : req.getItems().stream().filter(l -> l != null && StringUtils.hasText(l.getModel())).toList();
+                : req.getItems().stream().filter(l -> l != null && (l.getProductId() != null || StringUtils.hasText(l.getModel()))).toList();
         if (lines.isEmpty()) {
             throw new BizException("请至少添加一个型号");
+        }
+        // 型号必须从商品档案选择，品牌、品类以档案为准（spec sales-order「手动创建销售订单」）
+        List<com.zhul.erp.modules.product.dto.ProductOptionVO> products = new ArrayList<>(lines.size());
+        for (int n = 0; n < lines.size(); n++) {
+            Long productId = lines.get(n).getProductId();
+            if (productId == null) {
+                throw new BizException("第 " + (n + 1) + " 行请从商品档案选择型号");
+            }
+            com.zhul.erp.modules.product.dto.ProductOptionVO p = productLookup.selectable(productId);
+            if (p == null) {
+                throw new BizException("第 " + (n + 1) + " 行的商品不存在或已停用，请重新选择");
+            }
+            products.add(p);
         }
         String currency = StringUtils.hasText(req.getCurrencyCode()) ? req.getCurrencyCode().trim().toUpperCase(Locale.ROOT) : "USD";
         BigDecimal rate = exchangeRateService.require(currency).rate();
@@ -385,7 +402,9 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         BigDecimal total = BigDecimal.ZERO;
         List<SalesOrderItemDO> rows = new ArrayList<>(lines.size());
         int lineNo = 1;
-        for (CreateOrderRequest.Line l : lines) {
+        for (int n = 0; n < lines.size(); n++) {
+            CreateOrderRequest.Line l = lines.get(n);
+            com.zhul.erp.modules.product.dto.ProductOptionVO product = products.get(n);
             SalesOrderItemDO x = new SalesOrderItemDO();
             x.setTenantId(tenant);
             x.setLineNo(lineNo++);
@@ -394,9 +413,10 @@ public class SalesOrderServiceImpl implements SalesOrderService {
             x.setQuotationItemId(0L);
             x.setCustomerInquiryId(0L);
             x.setInquiryItemId(0L);
-            x.setModel(l.getModel().trim());
-            x.setBrand(l.getBrand() == null ? "" : l.getBrand().trim());
-            x.setCategory("");
+            x.setProductId(product.getId());
+            x.setModel(product.getMpnDisplay());
+            x.setBrand(Objects.requireNonNullElse(product.getBrandName(), ""));
+            x.setCategory(Objects.requireNonNullElse(product.getCategoryName(), ""));
             x.setDescription("");
             x.setDescriptionEn("");
             x.setItemCondition(0);
@@ -1403,8 +1423,13 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         Map<Long, String> purchaserNames = lookups.userNames(itemPurchasers.values().stream().flatMap(List::stream).toList());
         Map<Long, com.zhul.erp.modules.logistics.support.LogisticsQty.Qty> outbound =
                 logisticsQty.bySoItem(items.stream().map(SalesOrderItemDO::getId).toList());
+        Iterator<DocItemProducts.Info> products = docItemProducts.resolve(items.stream()
+                .map(i -> new DocItemProducts.Line(i.getProductId(), i.getInquiryItemId(), i.getBrand(), i.getModel())).toList()).iterator();
         vo.setItems(items.stream().map(i -> {
             SalesOrderItemVO x = new SalesOrderItemVO();
+            DocItemProducts.Info product = products.next();
+            x.setProductId(product.productId());
+            x.setOrderCode(product.orderCode());
             x.setStockType(i.getStockType());
             int out = outbound.getOrDefault(i.getId(), com.zhul.erp.modules.logistics.support.LogisticsQty.Qty.ZERO).occupied();
             x.setOriginalQuantity(i.getOriginalQuantity());

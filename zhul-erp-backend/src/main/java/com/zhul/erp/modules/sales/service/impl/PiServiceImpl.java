@@ -7,6 +7,7 @@ import com.zhul.erp.common.exception.BizException;
 import com.zhul.erp.common.result.PageResult;
 import com.zhul.erp.framework.security.DataScopeResolver;
 import com.zhul.erp.modules.inquiry.support.CurrentUserResolver;
+import com.zhul.erp.modules.inquiry.support.DocItemProducts;
 import com.zhul.erp.modules.inquiry.support.InquiryLookups;
 import com.zhul.erp.modules.masterdata.entity.CustomerDO;
 import com.zhul.erp.modules.masterdata.repository.CustomerMapper;
@@ -84,6 +85,7 @@ import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -101,6 +103,7 @@ public class PiServiceImpl implements PiService {
     private static final int KEYWORD_LIMIT = 500;
     private static final int OVERDUE_TOP = 5;
 
+    private final DocItemProducts docItemProducts;
     private final ProformaInvoiceMapper piMapper;
     private final PiVersionMapper versionMapper;
     private final PiItemMapper itemMapper;
@@ -935,8 +938,13 @@ public class PiServiceImpl implements PiService {
         vo.setNetProfitCny(v.getNetProfitCny());
         vo.setMarginRate(v.getMarginRate());
         vo.setSentAt(v.getSentAt());
+        Iterator<DocItemProducts.Info> products = docItemProducts.resolve(items.stream()
+                .map(i -> new DocItemProducts.Line(null, i.getInquiryItemId(), i.getBrand(), i.getModel())).toList()).iterator();
         vo.setItems(items.stream().map(i -> {
             PiItemVO x = new PiItemVO();
+            DocItemProducts.Info product = products.next();
+            x.setProductId(product.productId());
+            x.setOrderCode(product.orderCode());
             x.setId(i.getId());
             x.setLineNo(i.getLineNo());
             x.setQuotationId(i.getQuotationId());

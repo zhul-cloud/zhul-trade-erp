@@ -35,6 +35,7 @@ import { ProofLinks } from '@/pages/finance/payables/components';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
 import type { Attachment } from '@/pages/warehouse/service';
 import { useAppTheme } from '@/theme/AppTheme';
+import { DICT_NO_STOCK_REASON, useDictOptions } from '@/utils/dict';
 import { formatAmount } from '@/utils/format';
 import { fetchFirst, LOAD_STEP, LoadMore } from '../shared/BrandGroups';
 import {
@@ -61,6 +62,7 @@ import {
   formatMinutes,
   LIFECYCLE_DISCONTINUED,
   LIFECYCLE_UNKNOWN,
+  noStockText,
   searchLinks,
 } from '../shared/constants';
 import ImportModal from '../shared/ImportModal';
@@ -96,6 +98,8 @@ interface DraftEntry extends QuoteEntry {
 interface ItemState {
   drafts: DraftEntry[];
   noStock: boolean;
+  /** 内部无货原因（字典 inquiry_no_stock_reason），提交时必选 */
+  noStockReason?: number;
   noStockNote: string;
   /** 无货时的附件（代理商回复、停产通知等） */
   noStockFiles: Attachment[];
@@ -162,6 +166,7 @@ const MyTasksPage: React.FC = () => {
   const { message, modal } = App.useApp();
   const { token } = theme.useToken();
   const { conditionOptions, leadTimeOptions } = useQuoteDicts();
+  const noStockReasons = useDictOptions(DICT_NO_STOCK_REASON, '');
   const { taxRateOptions } = useTaxRates();
   const { lifecycleOptions } = useLifecycles();
   const [done, setDone] = useState(false);
@@ -272,6 +277,7 @@ const MyTasksPage: React.FC = () => {
               files: (q.attachments ?? []) as Attachment[],
             })),
           noStock: base.some((q) => q.noStock),
+          noStockReason: base.find((q) => q.noStock)?.noStockReason,
           noStockNote: base.find((q) => q.noStock)?.note ?? '',
           noStockFiles: (base.find((q) => q.noStock)?.attachments ??
             []) as Attachment[],
@@ -380,9 +386,13 @@ const MyTasksPage: React.FC = () => {
             }
           : {};
       if (s.noStock) {
+        if (submit && !s.noStockReason && !invalid) {
+          invalid = `${it.model}：请选择无货原因`;
+        }
         items.push({
           itemId: it.id,
           noStock: true,
+          noStockReason: s.noStockReason,
           noStockNote: s.noStockNote,
           noStockAttachmentIds: s.noStockFiles.map((f) => f.id),
           ...lifecycle,
@@ -1270,7 +1280,11 @@ const MyTasksPage: React.FC = () => {
                           <span>{p.quotedByName ?? '—'}</span>
                           {p.draft && <Pill tone="orange">未提交</Pill>}
                           {p.noStock ? (
-                            <Pill tone="red">无货</Pill>
+                            <Pill tone="red">
+                              {p.noStockReasonName
+                                ? `无货 · ${p.noStockReasonName}`
+                                : '无货'}
+                            </Pill>
                           ) : (
                             <Pill tone="green">有价</Pill>
                           )}
@@ -1390,7 +1404,7 @@ const MyTasksPage: React.FC = () => {
                             {q.noStock ? (
                               <>
                                 <span style={{ color: palette.mute }}>
-                                  无货{q.note ? ` · ${q.note}` : ''}
+                                  {noStockText(q.noStockReasonName, q.note)}
                                 </span>
                                 {(q.attachments?.length ?? 0) > 0 && (
                                   <ProofLinks files={q.attachments ?? []} />
@@ -1459,14 +1473,27 @@ const MyTasksPage: React.FC = () => {
                         alignItems: 'start',
                       }}
                     >
-                      <Input
-                        placeholder="无货说明，如：1688、淘宝、闲鱼都没有现货，代理商要 8 周"
-                        value={s.noStockNote}
-                        maxLength={300}
-                        onChange={(e) =>
-                          patchItem(it.id, { noStockNote: e.target.value })
-                        }
-                      />
+                      <div style={{ display: 'grid', gap: 8 }}>
+                        <Select
+                          placeholder="无货原因（必选）"
+                          aria-label="无货原因"
+                          value={s.noStockReason}
+                          options={noStockReasons.options}
+                          status={s.noStockReason ? undefined : 'warning'}
+                          style={{ maxWidth: 320 }}
+                          onChange={(v) =>
+                            patchItem(it.id, { noStockReason: v })
+                          }
+                        />
+                        <Input
+                          placeholder="说明（选填），如：代理商确认已停产，替代型号 …"
+                          value={s.noStockNote}
+                          maxLength={300}
+                          onChange={(e) =>
+                            patchItem(it.id, { noStockNote: e.target.value })
+                          }
+                        />
+                      </div>
                       <div style={{ display: 'grid', gap: 6 }}>
                         <span style={{ color: palette.mute, fontSize: 12 }}>
                           附件 {s.noStockFiles.length} / {QUOTE_MAX_FILES}
