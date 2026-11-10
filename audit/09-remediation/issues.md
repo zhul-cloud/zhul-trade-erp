@@ -40,6 +40,7 @@
 | [BUS-030](tasks/2026-11-05-BUS-028-user-feedback-defects.md) | 询价任务改派后，接手人看不到原采购已找到的报价 | P2 | 已合并待发布 | Claude | [2026-11-05-BUS-028](tasks/2026-11-05-BUS-028-user-feedback-defects.md) | 2026-11-05 |
 | [BUS-031](tasks/2026-11-09-BUS-031-quoted-items-task-stuck.md) | 剩余型号已直接报给客户后，询价任务既不能退回也无法完结 | P2 | 已发布待验收 | Claude | [2026-11-09-BUS-031](tasks/2026-11-09-BUS-031-quoted-items-task-stuck.md) | 2026-11-09 |
 | [BUS-032](tasks/2026-11-09-BUS-032-export-currency-symbol.md) | 卢布单据导出后金额仍显示美元符号 | P2 | 已发布待验收 | Claude | [2026-11-09-BUS-032](tasks/2026-11-09-BUS-032-export-currency-symbol.md) | 2026-11-09 |
+| [BUS-033](tasks/2026-11-10-BUS-033-followup-reconcile-duplicate.md) | 单据换了客户后跟进对象核对失败，新客户看不到该单据跟进 | P2 | 待认领 | — | [2026-11-10-BUS-033](tasks/2026-11-10-BUS-033-followup-reconcile-duplicate.md) | 2026-11-10 |
 
 ## 前端
 
