@@ -1066,7 +1066,8 @@ EXTRACT_PROMPT = (
 VERIFY_PROMPT = (
     "下面是从一份大询盘中提取、合并去重后的 {count} 个型号（JSON 数组）。请按 skill 流程逐个联网核验、纠正型号，"
     "补全订货号、描述、英文描述、生命周期、替代型号、采购难度、询价话术与搜索关键词。"
-    "按原顺序逐个返回全部 {count} 个型号，不要增删、不要合并，数量与单位保持不变。\n{items}"
+    "按原顺序逐个返回全部 {count} 个型号，不要增删、不要合并，数量与单位保持不变；"
+    "每个型号的 originalModel 必须与下面给出的原样一致（用来对回原型号），纠正后的型号写在 confirmedModel。\n{items}"
 )
 VERIFIED_FIELDS = ("categoryCode", "confirmedModel", "orderCode", "confidence", "description", "descriptionEn",
                    "lifecycle", "replacementModel", "difficulty", "inquiryScript", "searchKeywords")
@@ -1215,10 +1216,23 @@ def parse_large(cfg, raw_content, refs, categories, callback_url, work) -> dict:
                 result = call_api(cfg, system_prompt, VERIFY_PROMPT.format(count=len(chunk), items=lp.dumps(brief)),
                                   [], OUTPUT_SCHEMA, model=cfg.parse_model, effort=cfg.parse_effort, web_search=True)
                 collect_usage()
-                got = [(g, it) for g in result.get("groups", []) for it in g.get("items", [])]
-                if len(got) != len(chunk):
-                    raise RuntimeError("核验返回的型号数与提交的不一致")
-                for (g, v), it in zip(got, chunk):
+                # 按原文型号把核验结果对回提交的型号，不依赖返回顺序（实测模型会调换顺序，按位置对会张冠李戴）；
+                # 对不上的型号不采用核验结果，标待核实
+                pending = {}
+                for it in chunk:
+                    pending.setdefault(lp.normalize_model(it.get("originalModel") or it.get("confirmedModel")), it)
+                matched = []
+                for g in result.get("groups", []):
+                    for v in g.get("items", []):
+                        it = pending.pop(lp.normalize_model(v.get("originalModel")), None)
+                        if it is not None:
+                            matched.append((g, v, it))
+                for it in pending.values():
+                    it["confidence"] = lp.CONFIDENCE_PENDING_VERIFY
+                    it["correctionNote"] = "；".join(x for x in (it.get("correctionNote"), "未联网核验") if x)
+                if pending:
+                    print(f"[ai-orchestrator] 核验结果有 {len(pending)} 个型号对不上，标为待核实")
+                for g, v, it in matched:
                     for k in VERIFIED_FIELDS:
                         if k in v:
                             it[k] = v[k]

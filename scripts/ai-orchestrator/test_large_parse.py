@@ -412,6 +412,34 @@ class ParseLargeTest(unittest.TestCase):
         dones = [d for d, _ in self.progress]
         self.assertEqual(dones, sorted(dones))
 
+    def test_verify_results_matched_by_original_model_not_order(self):
+        """核验结果按原文型号对回，不按返回顺序；漏返回的型号标待核实（2026-11-11 实测发现顺序调换导致数量错位）"""
+        files = {"a.pdf": ([text_unit("《a.pdf》第 1 页", ("6AV2124", 1470), ("TK4S-14RN", 1529), ("E3Z-D61", 7))], [])}
+        model = FakeModel(self.server)
+
+        def call(cfg, system_prompt, text, attachments, schema, **kw):
+            result = model(cfg, system_prompt, text, attachments, schema, **kw)
+            if kw["web_search"]:
+                items = result["groups"][0]["items"]
+                for it in items:
+                    if it["originalModel"] == "TK4S-14RN":
+                        it["confirmedModel"] = "TK4S-14RN-X"  # 核验纠正了型号
+                # 顺序调换、并漏掉一个
+                result["groups"][0]["items"] = [it for it in reversed(items) if it["originalModel"] != "E3Z-D61"]
+            return result
+
+        with mock.patch("builtins.print"):
+            status, output, error = self.run_job(files, call)
+        self.assertEqual(status, "success", error)
+        got = {it["originalModel"]: it for g in output["groups"] for it in g["items"]}
+        self.assertEqual(got["6AV2124"]["quantity"], 1470)
+        self.assertEqual(got["6AV2124"]["confirmedModel"], "6AV2124")
+        self.assertEqual(got["TK4S-14RN"]["quantity"], 1529)
+        self.assertEqual(got["TK4S-14RN"]["confirmedModel"], "TK4S-14RN-X")
+        self.assertEqual(got["TK4S-14RN"]["description"], "已核验")
+        self.assertEqual(got["E3Z-D61"]["confidence"], lp.CONFIDENCE_PENDING_VERIFY)
+        self.assertIn("未联网核验", got["E3Z-D61"]["correctionNote"])
+
     def test_call_timeout_is_retried_with_a_fresh_deadline(self):
         """单次调用跑满期限只算这一批失败一次；重试重新计时，不把整个任务判超时（2026-11-10 实测发现）"""
         files = {"a.pdf": ([text_unit(f"《a.pdf》第 {p} 页", (f"M{p}", 1)) for p in range(1, 4)], [])}
