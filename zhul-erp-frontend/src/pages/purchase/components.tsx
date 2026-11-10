@@ -359,7 +359,7 @@ export const StatCard: React.FC<{
       style={{
         padding: 18,
         height: '100%',
-        borderColor: active ? color : undefined,
+        border: `1px solid ${active ? color : palette.hairline}`,
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>

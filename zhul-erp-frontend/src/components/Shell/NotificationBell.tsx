@@ -287,7 +287,7 @@ export const NotificationBell: React.FC = () => {
   return (
     <>
       <Tooltip title="通知">
-        <Badge count={count} size="small" offset={[-4, 4]}>
+        <Badge count={count} size="small" offset={[-6, 6]}>
           <Button
             type="text"
             aria-label="通知"
