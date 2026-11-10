@@ -80,6 +80,7 @@ export interface AfterSales {
   asNo: string;
   customerId: number;
   customerName?: string;
+  customerContact?: string;
   soId?: number | null;
   soNo?: string;
   currencyCode?: string;

@@ -107,7 +107,24 @@ public class OrderCostService {
             out.putAll(fromSnapshots(migrated));
         }
         attachReplacements(active, out);
+        attachFeeOrigins(active, out);
         return out;
+    }
+
+    /** 费用订单标出原订单编号；收入与毛利照常按自己算 */
+    private void attachFeeOrigins(List<SalesOrderDO> active, Map<Long, OrderCostVO> out) {
+        List<SalesOrderDO> fees = active.stream().filter(o -> Objects.equals(o.getSource(), SalesConstants.SO_FEE)
+                && o.getOriginalSoId() != null && out.containsKey(o.getId())).toList();
+        if (fees.isEmpty()) {
+            return;
+        }
+        Map<Long, String> nos = soMapper.selectBatchIds(fees.stream().map(SalesOrderDO::getOriginalSoId).distinct().toList())
+                .stream().collect(Collectors.toMap(SalesOrderDO::getId, SalesOrderDO::getSoNo));
+        for (SalesOrderDO o : fees) {
+            OrderCostVO vo = out.get(o.getId());
+            vo.setFeeOfId(o.getOriginalSoId());
+            vo.setFeeOfNo(nos.get(o.getOriginalSoId()));
+        }
     }
 
     private static boolean replacement(SalesOrderDO o) {

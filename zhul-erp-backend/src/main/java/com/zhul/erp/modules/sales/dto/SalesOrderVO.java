@@ -38,6 +38,19 @@ public class SalesOrderVO {
     private String afterSalesNo;
     private Long originalSoId;
     private String originalSoNo;
+    /** 在这张订单上建的费用订单（新的在前） */
+    private java.util.List<FeeOrderBrief> feeOrders;
+
+    @Data
+    public static class FeeOrderBrief {
+        private Long id;
+        private String soNo;
+        private String currencyCode;
+        private java.math.BigDecimal totalAmount;
+        private Integer receiptStatus;
+        private Integer status;
+        private String progressCode;
+    }
     private Long piId;
     private String piNo;
     private Integer piVersionNo;

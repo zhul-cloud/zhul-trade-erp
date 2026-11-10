@@ -1220,6 +1220,7 @@ public class QuotationServiceImpl implements QuotationService {
             vo.setQuotationNo(q.getQuotationNo());
             vo.setCustomerId(q.getCustomerId());
             vo.setCustomerName(InquiryLookups.customerName(customers.get(q.getCustomerId())));
+            vo.setCustomerContact(InquiryLookups.contactName(customers.get(q.getCustomerId())));
             vo.setCustomerCountry(customers.get(q.getCustomerId()) == null ? null : customers.get(q.getCustomerId()).getCountry());
             vo.setCustomerType(customerTypes.get(q.getId()));
             vo.setTotalQuantity(quantities.getOrDefault(q.getId(), 0));

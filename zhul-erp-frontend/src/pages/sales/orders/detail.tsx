@@ -9,6 +9,7 @@ import {
   MinusCircleOutlined,
   NodeIndexOutlined,
   PaperClipOutlined,
+  PlusOutlined,
   RollbackOutlined,
   SendOutlined,
   ShopOutlined,
@@ -67,6 +68,7 @@ import {
 } from '../service';
 import OrderCostCard from './CostCard';
 import {
+  CreateFeeOrderModal,
   EditFeesModal,
   manualSteps,
   ProgressModal,
@@ -107,7 +109,8 @@ type Dialog =
   | 'notice'
   | 'partialCancel'
   | 'afterSales'
-  | 'refundRequest';
+  | 'refundRequest'
+  | 'feeOrder';
 
 const OrderDetail: React.FC = () => {
   const { id: idParam } = useParams<{ id: string }>();
@@ -152,7 +155,10 @@ const OrderDetail: React.FC = () => {
 
   /** 收款弹窗的操作对象（手动创建的订单才有；保持引用稳定） */
   const owner = useMemo(
-    () => (o && o.source === 2 ? orderReceiptOwner(o) : undefined),
+    () =>
+      o && (o.source === 2 || o.source === 4)
+        ? orderReceiptOwner(o)
+        : undefined,
     [o],
   );
 
@@ -163,9 +169,17 @@ const OrderDetail: React.FC = () => {
   const active = o.status === 1;
   /** 历史迁移的订单只读（可以照常登记退款） */
   const editable = active && !o.migrated;
-  const manual = o.source === 2;
+  /** 费用订单：只有费用行，关联原订单，收款到账后自动完成 */
+  const fee = o.source === 4;
+  /** 收款登记在订单自己身上（手动创建、费用订单） */
+  const manual = o.source === 2 || fee;
   /** 售后补发订单：0 元、不收款，成本计入原订单 */
   const replacement = o.source === 3;
+  /** 原订单上可以新建费用订单 */
+  const canFeeOrder =
+    editable &&
+    (o.source === 1 || o.source === 2) &&
+    !!access['sales:order:create'];
   const completed = o.progressCode === 'COMPLETED';
   const orderedModels = o.items.filter(
     (i) => (i.purchaseOrderedQty ?? 0) > 0,
@@ -884,7 +898,7 @@ const OrderDetail: React.FC = () => {
             )}
           </div>
         )}
-        {line('小计', formatAmount(o.itemAmount, cur))}
+        {!fee && line('小计', formatAmount(o.itemAmount, cur))}
         {o.fees.map((f) => line(f.feeName, formatAmount(f.amount, cur)))}
         {o.discountAmount > 0 &&
           line('折扣', formatAmount(-o.discountAmount, cur), palette.orange)}
@@ -1063,9 +1077,11 @@ const OrderDetail: React.FC = () => {
         </div>
       )}
       <div style={{ fontSize: 12, color: palette.mute, marginBottom: 12 }}>
-        {manual
-          ? '手动创建的订单没有 PI，收款直接登记在订单上'
-          : `收款登记在 PI ${o.piNo ?? ''} 上，这里只读显示`}
+        {fee
+          ? '收款到账后订单自动完成，不走采购和出运'
+          : manual
+            ? '手动创建的订单没有 PI，收款直接登记在订单上'
+            : `收款登记在 PI ${o.piNo ?? ''} 上，这里只读显示`}
       </div>
       <CreditInfo
         credit={o.credit}
@@ -1251,6 +1267,67 @@ const OrderDetail: React.FC = () => {
     </>
   );
 
+  const feeOrdersCard = (
+    <Card style={{ padding: 20, marginTop: 16 }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          marginBottom: 12,
+        }}
+      >
+        <b style={{ fontSize: 16, color: palette.ink }}>费用订单</b>
+        {canFeeOrder && (
+          <Button
+            size="small"
+            icon={<PlusOutlined />}
+            style={{ marginLeft: 'auto' }}
+            onClick={() => setDialog('feeOrder')}
+          >
+            新建费用订单
+          </Button>
+        )}
+      </div>
+      {(o.feeOrders?.length ?? 0) === 0 ? (
+        <div style={{ fontSize: 12, color: palette.mute }}>
+          订单已收齐款或已完成，后来要另收运费等费用时，新建一张费用订单单独收款
+        </div>
+      ) : (
+        <div style={{ display: 'grid', gap: 8 }}>
+          {o.feeOrders?.map((x) => (
+            <div
+              key={x.id}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 10,
+                padding: '8px 12px',
+                borderRadius: 10,
+                background: palette.inset,
+                opacity: x.status === 2 ? 0.6 : 1,
+              }}
+            >
+              <a onClick={() => history.push(`/sales/orders/${x.id}`)}>
+                {x.soNo}
+              </a>
+              <span style={{ ...num, color: palette.ink }}>
+                {formatAmount(x.totalAmount, x.currencyCode)}
+              </span>
+              <span style={{ marginLeft: 'auto' }}>
+                {x.status === 2 ? (
+                  <Pill tone="gray">已取消</Pill>
+                ) : (
+                  <ReceiptStatusPill status={x.receiptStatus} />
+                )}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </Card>
+  );
+
   const m = o.margin;
   const marginCard = (
     <Card style={{ padding: 20, marginTop: 16 }}>
@@ -1371,34 +1448,38 @@ const OrderDetail: React.FC = () => {
           type="success"
           showIcon
           style={{ marginBottom: 16 }}
-          title={`客户已收货，订单已完成（${formatDateTime(o.completedAt).slice(0, 16)}）`}
+          title={`${fee ? '收款已到账' : '客户已收货'}，订单已完成（${formatDateTime(o.completedAt).slice(0, 16)}）`}
         />
       )}
-      {info}
-      {stepper}
-      {bulk}
-      <Table<OrderItem>
-        rowKey="id"
-        size="middle"
-        columns={columns}
-        dataSource={o.items}
-        pagination={false}
-        scroll={{ x: tableScrollX(columns) }}
-        rowSelection={
-          o.trackable
-            ? {
-                selectedRowKeys: selected,
-                onChange: (keys) => setSelected(keys as number[]),
-                getCheckboxProps: (r) => ({ disabled: r.quantity === 0 }),
-              }
-            : undefined
-        }
-      />
-      <div style={{ fontSize: 12, color: palette.mute, marginTop: 10 }}>
-        成交内容（型号、单价、费用）不能直接改：减少型号数量用「部分取消」，其他变更请取消订单（手动创建的订单，有「修改订单费用」权限的人可以改费用）；全部取消的型号保留显示，不再参与进度与货物状态。销售日期、进度、采购员、现货
-        / 期货可以随时改，改动写操作日志。
-      </div>
-      <PartialCancelRecords order={o} />
+      {!fee && (
+        <>
+          {info}
+          {stepper}
+          {bulk}
+          <Table<OrderItem>
+            rowKey="id"
+            size="middle"
+            columns={columns}
+            dataSource={o.items}
+            pagination={false}
+            scroll={{ x: tableScrollX(columns) }}
+            rowSelection={
+              o.trackable
+                ? {
+                    selectedRowKeys: selected,
+                    onChange: (keys) => setSelected(keys as number[]),
+                    getCheckboxProps: (r) => ({ disabled: r.quantity === 0 }),
+                  }
+                : undefined
+            }
+          />
+          <div style={{ fontSize: 12, color: palette.mute, marginTop: 10 }}>
+            成交内容（型号、单价、费用）不能直接改：减少型号数量用「部分取消」，其他变更请取消订单（手动创建的订单，有「修改订单费用」权限的人可以改费用）；全部取消的型号保留显示，不再参与进度与货物状态。销售日期、进度、采购员、现货
+            / 期货可以随时改，改动写操作日志。
+          </div>
+          <PartialCancelRecords order={o} />
+        </>
+      )}
       {afterSales.length > 0 && (
         <Card style={{ padding: 20, marginTop: 16 }}>
           <div
@@ -1472,9 +1553,10 @@ const OrderDetail: React.FC = () => {
             {o.soNo}
             <MigratedPill migrated={o.migrated} />
             <ProgressPill code={o.progressCode} name={o.progressName} />
-            <StockPill type={o.stockType} />
+            {!fee && <StockPill type={o.stockType} />}
             <ReceiptStatusPill status={o.receiptStatus} />
             {replacement && <Pill tone="violet">售后补发</Pill>}
+            {fee && <Pill tone="orange">费用订单</Pill>}
             {o.payLater && <Pill tone="orange">先采购后收款</Pill>}
           </>
         }
@@ -1500,6 +1582,17 @@ const OrderDetail: React.FC = () => {
                   {o.originalSoNo}
                 </a>
               </>
+            ) : fee ? (
+              <>
+                原订单{' '}
+                <a
+                  onClick={() =>
+                    history.push(`/sales/orders/${o.originalSoId}`)
+                  }
+                >
+                  {o.originalSoNo}
+                </a>
+              </>
             ) : manual ? (
               '手动创建'
             ) : (
@@ -1517,69 +1610,9 @@ const OrderDetail: React.FC = () => {
           </>
         }
         actions={
-          (o.trackable || o.partialCancelable) && (
-            <>
-              {access.salesAfterSales && (
-                <Button
-                  icon={<CustomerServiceOutlined />}
-                  onClick={() => setDialog('afterSales')}
-                >
-                  售后
-                </Button>
-              )}
-              {!access['finance:refund:edit'] &&
-                !replacement &&
-                access.salesAfterSales &&
-                (o.receivedAmount ?? 0) > 0 && (
-                  <Button
-                    icon={<RollbackOutlined />}
-                    onClick={() => setDialog('refundRequest')}
-                  >
-                    申请退款
-                  </Button>
-                )}
-              {o.trackable && (
-                <>
-                  {access['sales:order:ship-notice'] && (
-                    <Button
-                      type="primary"
-                      icon={<SendOutlined />}
-                      onClick={() => setDialog('notice')}
-                    >
-                      发货通知
-                    </Button>
-                  )}
-                  <Button
-                    icon={<CheckOutlined />}
-                    disabled={!o.completable}
-                    title={o.completable ? '' : '所有型号都出运后才能确认收货'}
-                    onClick={complete}
-                  >
-                    客户已收货
-                  </Button>
-                  {access['finance:refund:edit'] &&
-                    active &&
-                    (o.receivedAmount ?? 0) > 0 && (
-                      <Button
-                        icon={<RollbackOutlined />}
-                        onClick={() => setRefundOpen(true)}
-                      >
-                        登记退款
-                      </Button>
-                    )}
-                </>
-              )}
-              {o.partialCancelable && (
-                <Button
-                  icon={<MinusCircleOutlined />}
-                  disabled={completed}
-                  title={completed ? '订单已完成，请走售后' : ''}
-                  onClick={() => setDialog('partialCancel')}
-                >
-                  部分取消
-                </Button>
-              )}
-              {o.trackable && (
+          fee
+            ? editable &&
+              !completed && (
                 <Button
                   danger
                   icon={<StopOutlined />}
@@ -1587,9 +1620,82 @@ const OrderDetail: React.FC = () => {
                 >
                   取消订单
                 </Button>
-              )}
-            </>
-          )
+              )
+            : (o.trackable || o.partialCancelable) && (
+                <>
+                  {access.salesAfterSales && (
+                    <Button
+                      icon={<CustomerServiceOutlined />}
+                      onClick={() => setDialog('afterSales')}
+                    >
+                      售后
+                    </Button>
+                  )}
+                  {!access['finance:refund:edit'] &&
+                    !replacement &&
+                    access.salesAfterSales &&
+                    (o.receivedAmount ?? 0) > 0 && (
+                      <Button
+                        icon={<RollbackOutlined />}
+                        onClick={() => setDialog('refundRequest')}
+                      >
+                        申请退款
+                      </Button>
+                    )}
+                  {o.trackable && (
+                    <>
+                      {access['sales:order:ship-notice'] && (
+                        <Button
+                          type="primary"
+                          icon={<SendOutlined />}
+                          onClick={() => setDialog('notice')}
+                        >
+                          发货通知
+                        </Button>
+                      )}
+                      <Button
+                        icon={<CheckOutlined />}
+                        disabled={!o.completable}
+                        title={
+                          o.completable ? '' : '所有型号都出运后才能确认收货'
+                        }
+                        onClick={complete}
+                      >
+                        客户已收货
+                      </Button>
+                      {access['finance:refund:edit'] &&
+                        active &&
+                        (o.receivedAmount ?? 0) > 0 && (
+                          <Button
+                            icon={<RollbackOutlined />}
+                            onClick={() => setRefundOpen(true)}
+                          >
+                            登记退款
+                          </Button>
+                        )}
+                    </>
+                  )}
+                  {o.partialCancelable && (
+                    <Button
+                      icon={<MinusCircleOutlined />}
+                      disabled={completed}
+                      title={completed ? '订单已完成，请走售后' : ''}
+                      onClick={() => setDialog('partialCancel')}
+                    >
+                      部分取消
+                    </Button>
+                  )}
+                  {o.trackable && (
+                    <Button
+                      danger
+                      icon={<StopOutlined />}
+                      onClick={() => setCancelOpen(true)}
+                    >
+                      取消订单
+                    </Button>
+                  )}
+                </>
+              )
         }
       />
       <div
@@ -1616,7 +1722,9 @@ const OrderDetail: React.FC = () => {
             onClose={() => setRefundOpen(false)}
             onDone={load}
           />
-          <OrderOutbounds soId={o.id} version={version} onChanged={load} />
+          {!fee && (
+            <OrderOutbounds soId={o.id} version={version} onChanged={load} />
+          )}
         </div>
         <div style={{ minWidth: 0 }}>
           {replacement ? (
@@ -1624,12 +1732,22 @@ const OrderDetail: React.FC = () => {
           ) : (
             <>
               {receipts}
-              {marginCard}
+              {(canFeeOrder || (o.feeOrders?.length ?? 0) > 0) && feeOrdersCard}
+              {!fee && marginCard}
             </>
           )}
         </div>
       </div>
 
+      <CreateFeeOrderModal
+        order={o}
+        open={dialog === 'feeOrder'}
+        onClose={() => setDialog(undefined)}
+        onDone={(x) => {
+          setDialog(undefined);
+          history.push(`/sales/orders/${x.id}`);
+        }}
+      />
       <CreateAfterSalesModal
         open={dialog === 'afterSales'}
         order={o}

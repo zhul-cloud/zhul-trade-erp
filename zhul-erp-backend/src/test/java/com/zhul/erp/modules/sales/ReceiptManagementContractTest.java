@@ -10,6 +10,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
@@ -199,5 +200,61 @@ class ReceiptManagementContractTest extends SalesContractSupport {
         money(sum.toPlainString(), total.path("netAmountCny"));
         assertEquals(1, ok(call(json(post(FIN + "/records"), "{\"channel\":2}"), admin)).path("total").asInt());
         assertEquals(1, ok(call(json(post(FIN + "/records"), "{\"keyword\":\"TA-1\"}"), admin)).path("total").asInt());
+    }
+
+    @Test
+    void unclaimedFiles_upToFive_previewForClaimer_keptAfterClaim() throws Exception {
+        long id = pi1000("ACROBOT");
+        long usd = unclaimed("USD", "1000", "ACROBOT TECHNOLOGIES PVT LTD").path("id").asLong();
+        var upload = org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart(FIN + "/unclaimed/" + usd + "/files");
+        for (int i = 0; i < 2; i++) {
+            upload.file(new org.springframework.mock.web.MockMultipartFile("files", "回单" + i + ".png", "image/png", PNG));
+        }
+        ok(call(upload, admin));
+        JsonNode row = ok(call(get(FIN + "/unclaimed"), admin)).path("unclaimed").get(0);
+        assertEquals(2, row.path("fileNames").size());
+        assertEquals("回单0.png", row.path("fileNames").get(0).asText());
+        assertFalse(ok(call(get(FIN + "/" + usd + "/files/0/url"), admin)).path("url").asText().isEmpty());
+        // 最多 5 个
+        var tooMany = org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart(FIN + "/unclaimed/" + usd + "/files");
+        for (int i = 0; i < 4; i++) {
+            tooMany.file(new org.springframework.mock.web.MockMultipartFile("files", "x" + i + ".png", "image/png", PNG));
+        }
+        fail(call(tooMany, admin));
+
+        // 业务员认领前可以预览候选到账的附件，认领后附件保留
+        loginWithResources("it_claim_rep", MENU_PI, BTN_SLIP, BTN_CLAIM);
+        String rep = token("it_claim_rep");
+        JsonNode cand = ok(call(get(PI + "/" + id + "/claimable-receipts"), rep));
+        assertEquals(2, cand.get(0).path("fileNames").size());
+        assertFalse(ok(call(get(PI + "/" + id + "/claimable-receipts/" + usd + "/files/1/url"), rep)).path("url").asText().isEmpty());
+        ok(call(json(post(PI + "/" + id + "/claim"), "{\"receiptId\":" + usd + "}"), rep));
+        fail(call(get(PI + "/" + id + "/claimable-receipts/" + usd + "/files/0/url"), rep));
+        loginAsAdmin("it_sales_admin");
+        admin = token("it_sales_admin");
+        String keys = jdbc.queryForObject("select file_keys from payment_receipt where id = ?", String.class, usd);
+        assertEquals(2, objectMapper.readTree(keys).size());
+        // 认领后不能再补附件
+        var late = org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart(FIN + "/unclaimed/" + usd + "/files")
+                .file(new org.springframework.mock.web.MockMultipartFile("files", "y.png", "image/png", PNG));
+        fail(call(late, admin));
+    }
+
+    @Test
+    void listsShowPrimaryContact_followsChange_emptyWhenNone() throws Exception {
+        long id = pi1000("ACROBOT");
+        long customer = jdbc.queryForObject("select customer_id from proforma_invoice where id = ?", Long.class, id);
+        jdbc.update("update customer set contact_name = '' where id = ?", customer);
+        JsonNode pis = ok(call(json(post(PI + "/page"), "{}"), admin));
+        assertTrue(pis.path("records").get(0).path("customerContact").isMissingNode() || pis.path("records").get(0).path("customerContact").isNull()
+                || pis.path("records").get(0).path("customerContact").asText().isEmpty(), "没有主联系人时为空");
+        jdbc.update("update customer set contact_name = 'Rahul Mehta' where id = ?", customer);
+        assertEquals("Rahul Mehta", ok(call(json(post(PI + "/page"), "{}"), admin)).path("records").get(0).path("customerContact").asText());
+        // 换了主联系人，列表跟着变
+        jdbc.update("update customer set contact_name = 'Priya Shah' where id = ?", customer);
+        assertEquals("Priya Shah", ok(call(json(post(PI + "/page"), "{}"), admin)).path("records").get(0).path("customerContact").asText());
+        ok(confirmReceipt(id, "1000", null, false, admin));
+        JsonNode records = ok(call(json(post(FIN + "/records"), "{}"), admin));
+        assertEquals("Priya Shah", records.path("records").get(0).path("customerContact").asText());
     }
 }

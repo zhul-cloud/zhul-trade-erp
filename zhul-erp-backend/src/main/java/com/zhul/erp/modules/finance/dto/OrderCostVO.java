@@ -44,6 +44,9 @@ public class OrderCostVO {
     /** 原订单：计入的售后补发成本合计与明细（已含在 cost 里） */
     private BigDecimal replacementCost;
     private List<Replacement> replacements;
+    /** 费用订单自己：关联的原订单（spec finance/order-cost「费用订单的收入与毛利」） */
+    private Long feeOfId;
+    private String feeOfNo;
 
     @Data
     public static class Replacement {

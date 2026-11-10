@@ -198,6 +198,7 @@ export interface QuotationListItem {
   customerName: string;
   /** 客户国家 */
   customerCountry?: string;
+  customerContact?: string;
   /** 1-新客户、2-老客户 */
   customerType?: number;
   /** 全部型号数量之和 */

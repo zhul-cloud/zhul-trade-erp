@@ -35,7 +35,9 @@ public final class InstallmentPlanner {
     public record Inst(int seq, BigDecimal ratio, int trigger, int days, BigDecimal amount, LocalDate dueDate,
                        BigDecimal paid, int status) {
         Inst withPaid(BigDecimal p) {
-            int st = p.signum() <= 0 ? FinanceConstants.STATUS_UNPAID
+            // 本期金额为 0（如单价为 0 的采购订单）不需要付款，直接已付清
+            int st = amount.signum() <= 0 ? FinanceConstants.STATUS_PAID
+                    : p.signum() <= 0 ? FinanceConstants.STATUS_UNPAID
                     : p.compareTo(amount) >= 0 ? FinanceConstants.STATUS_PAID : FinanceConstants.STATUS_PARTIAL;
             return new Inst(seq, ratio, trigger, days, amount, dueDate, p, st);
         }

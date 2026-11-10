@@ -82,6 +82,12 @@ public class OrderReceiptController {
         return Result.ok(service.orderPlatformReceipt(id, req));
     }
 
+    @GetMapping("/{id}/claimable-receipts/{receiptId}/files/{index}/url")
+    @PreAuthorize("@perm.canAccessMenu('/sales/orders') and @perm.has('sales:pi:claim-receipt')")
+    public Result<FileLink> claimableFile(@PathVariable Long id, @PathVariable Long receiptId, @PathVariable int index) {
+        return Result.ok(service.orderClaimableFileLink(id, receiptId, index));
+    }
+
     @GetMapping("/{id}/claimable-receipts")
     @PreAuthorize("@perm.canAccessMenu('/sales/orders') and @perm.has('sales:pi:claim-receipt')")
     public Result<List<ReceiptRowVO>> claimable(@PathVariable Long id) {

@@ -258,7 +258,7 @@ public class ReceiptLedgerServiceImpl implements ReceiptLedgerService {
             List<Long> soIds = orderMapper.selectList(new LambdaQueryWrapper<SalesOrderDO>()
                             .select(SalesOrderDO::getId)
                             .eq(SalesOrderDO::getTenantId, tenant)
-                            .eq(SalesOrderDO::getSource, SalesConstants.SO_MANUAL)
+                            .in(SalesOrderDO::getSource, SalesConstants.ORDER_RECEIPT_SOURCES)
                             .and(x -> {
                                 x.like(SalesOrderDO::getSoNo, kw);
                                 if (!customerIds.isEmpty()) {

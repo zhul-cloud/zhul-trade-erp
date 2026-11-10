@@ -119,6 +119,7 @@ public class CustomerCreditService {
         slice.forEach(a -> {
             CustomerDO c = customers.get(a.getCustomerId());
             a.setCustomerName(InquiryLookups.customerName(c));
+            a.setCustomerContact(InquiryLookups.contactName(c));
             // 客户只做软删除，按 ID 总能查到
             a.setCustomerCountry(c.getCountry());
         });
@@ -374,7 +375,7 @@ public class CustomerCreditService {
                         + " AND o.status = 1 AND o.deleted_at IS NULL LIMIT 1), total_amount)"));
         List<SalesOrderDO> orders = orderMapper.selectList(new LambdaQueryWrapper<SalesOrderDO>()
                 .eq(SalesOrderDO::getTenantId, PiStore.tenantId())
-                .eq(SalesOrderDO::getSource, SalesConstants.SO_MANUAL)
+                .in(SalesOrderDO::getSource, SalesConstants.ORDER_RECEIPT_SOURCES)
                 .isNull(SalesOrderDO::getDeletedAt)
                 .apply("received_amount + fee_diff_amount > total_amount"));
         Map<Long, SalesOrderDO> piOrders = pis.isEmpty() ? Map.of() : orderMapper.selectList(new LambdaQueryWrapper<SalesOrderDO>()
@@ -395,6 +396,7 @@ public class CustomerCreditService {
         Map<Long, String> users = lookups.userNames(pending.stream().map(OverpaidVO::getSalesId).filter(Objects::nonNull).distinct().toList());
         pending.forEach(v -> {
             v.setCustomerName(InquiryLookups.customerName(customers.get(v.getCustomerId())));
+            v.setCustomerContact(InquiryLookups.contactName(customers.get(v.getCustomerId())));
             v.setSalesName(users.get(v.getSalesId()));
         });
         return pending;
@@ -506,7 +508,7 @@ public class CustomerCreditService {
         if (o != null && Objects.equals(o.getSource(), SalesConstants.SO_REPLACEMENT)) {
             throw new BizException("售后补发订单无需收款");
         }
-        if (o == null || o.getDeletedAt() != null || !Objects.equals(o.getTenantId(), PiStore.tenantId()) || !Objects.equals(o.getSource(), SalesConstants.SO_MANUAL)) {
+        if (o == null || o.getDeletedAt() != null || !Objects.equals(o.getTenantId(), PiStore.tenantId()) || !SalesConstants.ordersOwnReceipts(o.getSource())) {
             throw new BizException("销售订单不存在");
         }
         return receiptPosition.ofOrder(o);

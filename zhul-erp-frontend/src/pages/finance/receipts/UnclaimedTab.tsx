@@ -1,6 +1,13 @@
-import { PlusOutlined, SearchOutlined } from '@ant-design/icons';
+import {
+  FileImageOutlined,
+  FileTextOutlined,
+  PaperClipOutlined,
+  PlusOutlined,
+  SearchOutlined,
+  UploadOutlined,
+} from '@ant-design/icons';
 import { history } from '@umijs/max';
-import type { TableColumnsType } from 'antd';
+import type { TableColumnsType, UploadFile } from 'antd';
 import {
   App,
   Button,
@@ -10,12 +17,17 @@ import {
   Modal,
   Select,
   Table,
+  Upload,
 } from 'antd';
 import dayjs from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
 import { CURRENCIES } from '@/pages/quotation/components';
 import { Card, PATHS, Pill } from '@/pages/sales/components';
-import { ReasonModal, useBankOptions } from '@/pages/sales/pi/dialogs';
+import {
+  ReasonModal,
+  SLIP_TYPES,
+  useBankOptions,
+} from '@/pages/sales/pi/dialogs';
 import {
   FxEstimateHint,
   PaymentMethodSelect,
@@ -101,6 +113,7 @@ const RegisterModal: React.FC<{
   const [method, setMethod] = useState<string>();
   const [payer, setPayer] = useState('');
   const [note, setNote] = useState('');
+  const [files, setFiles] = useState<UploadFile[]>([]);
   const [busy, setBusy] = useState(false);
   const banks = useBankOptions(currency);
 
@@ -111,6 +124,7 @@ const RegisterModal: React.FC<{
     setMethod(undefined);
     setPayer('');
     setNote('');
+    setFiles([]);
   }, [open]);
 
   useEffect(() => {
@@ -123,7 +137,7 @@ const RegisterModal: React.FC<{
     if (!amount || !date || !bankId) return;
     setBusy(true);
     try {
-      await ledgerApi.registerUnclaimed({
+      const created = await ledgerApi.registerUnclaimed({
         currencyCode: currency,
         amount,
         receiptDate: date.format('YYYY-MM-DD'),
@@ -132,6 +146,19 @@ const RegisterModal: React.FC<{
         payer: payer.trim() || undefined,
         note: note.trim() || undefined,
       });
+      if (files.length) {
+        try {
+          await ledgerApi.addUnclaimedFiles(
+            created.id,
+            files.map((f) => f.originFileObj as File),
+          );
+        } catch (e) {
+          // 到账已登记，附件没传上：提示后仍关闭，可在列表里看到没有附件
+          message.warning(`已登记，附件上传失败：${readBizError(e).message}`);
+          onDone();
+          return;
+        }
+      }
       message.success('已登记，业务员可以在自己的 PI 上认领');
       onDone();
     } catch (e) {
@@ -242,6 +269,91 @@ const RegisterModal: React.FC<{
           onChange={(e) => setNote(e.target.value)}
         />
       </div>
+      <div style={{ marginTop: 12 }}>
+        <div style={{ ...label, color: palette.sub }}>
+          附件{' '}
+          <span style={{ fontSize: 12, color: palette.mute }}>最多 5 个</span>
+        </div>
+        <Upload.Dragger
+          multiple
+          fileList={files}
+          accept=".jpg,.jpeg,.png,.pdf"
+          beforeUpload={(f) => {
+            if (!SLIP_TYPES.includes(f.type)) {
+              message.error('只支持 JPG、PNG、PDF');
+              return Upload.LIST_IGNORE;
+            }
+            if (f.size > 10 * 1024 * 1024) {
+              message.error('单个文件不能超过 10MB');
+              return Upload.LIST_IGNORE;
+            }
+            return false;
+          }}
+          onChange={({ fileList }) => setFiles(fileList.slice(0, 5))}
+          style={{ padding: '4px 0' }}
+        >
+          <span style={{ color: palette.sub }}>
+            <UploadOutlined /> 拖入或点击上传银行回单
+          </span>
+        </Upload.Dragger>
+      </div>
+    </Modal>
+  );
+};
+
+/** 未认领到账的附件：点开在新窗口预览 */
+const FilesModal: React.FC<{ row?: ReceiptRow; onClose: () => void }> = ({
+  row,
+  onClose,
+}) => {
+  const { message } = App.useApp();
+  const { palette } = useAppTheme();
+  return (
+    <Modal
+      open={!!row}
+      onCancel={onClose}
+      footer={null}
+      width={560}
+      title={row ? `附件 · ${formatAmount(row.amount, row.currencyCode)}` : ''}
+    >
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))',
+          gap: 10,
+        }}
+      >
+        {row?.fileNames?.map((name, i) => (
+          <button
+            type="button"
+            key={name}
+            onClick={() =>
+              ledgerApi
+                .openFile(row.id, i)
+                .catch((e) => message.error(readBizError(e).message))
+            }
+            style={{
+              display: 'grid',
+              justifyItems: 'center',
+              gap: 8,
+              padding: '24px 10px',
+              borderRadius: 12,
+              border: `1px solid ${palette.hairline}`,
+              background: palette.inset,
+              color: palette.ink,
+              cursor: 'pointer',
+              fontSize: 12,
+            }}
+          >
+            {/\.pdf$/i.test(name) ? (
+              <FileTextOutlined style={{ fontSize: 26, color: palette.sub }} />
+            ) : (
+              <FileImageOutlined style={{ fontSize: 26, color: palette.sub }} />
+            )}
+            <span style={{ wordBreak: 'break-all' }}>{name}</span>
+          </button>
+        ))}
+      </div>
     </Modal>
   );
 };
@@ -261,6 +373,7 @@ const UnclaimedTab: React.FC<{
   }>();
   const [loading, setLoading] = useState(true);
   const [registerOpen, setRegisterOpen] = useState(false);
+  const [viewing, setViewing] = useState<ReceiptRow>();
   const [bu] = useBusinessUnits();
   const [unitFilter, setUnitFilter] = useState<number>();
   const [reason, setReason] = useState<{
@@ -339,6 +452,19 @@ const UnclaimedTab: React.FC<{
       key: 'cny',
       width: 160,
       render: (_, r) => <NetCnyCell r={r} />,
+    },
+    {
+      title: '附件',
+      key: 'files',
+      width: 80,
+      render: (_, r) =>
+        r.fileNames?.length ? (
+          <a onClick={() => setViewing(r)}>
+            <PaperClipOutlined /> {r.fileNames.length} 个
+          </a>
+        ) : (
+          <span style={{ color: palette.mute }}>—</span>
+        ),
     },
     {
       title: '说明',
@@ -495,6 +621,7 @@ const UnclaimedTab: React.FC<{
         scroll={{ x: tableScrollX(claimedColumns) }}
         locale={{ emptyText: '还没有认领记录' }}
       />
+      <FilesModal row={viewing} onClose={() => setViewing(undefined)} />
       <RegisterModal
         open={registerOpen}
         onClose={() => setRegisterOpen(false)}

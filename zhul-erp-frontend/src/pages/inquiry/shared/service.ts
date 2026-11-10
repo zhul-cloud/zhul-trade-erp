@@ -37,6 +37,7 @@ export interface CustomerInquiry {
   customerId: number;
   customerName: string;
   customerCountry: string;
+  customerContact?: string;
   customerType: number;
   source: number;
   inquiryDate: string;

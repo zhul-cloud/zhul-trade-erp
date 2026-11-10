@@ -13,6 +13,8 @@ public class CustomerInquiryVO {
     private String inquiryCode;
     private Long customerId;
     private String customerName;
+    /** 客户主联系人姓名（客户档案中的主联系人，实时读取） */
+    private String customerContact;
     private String customerCountry;
     private Integer customerType;
     private Integer source;

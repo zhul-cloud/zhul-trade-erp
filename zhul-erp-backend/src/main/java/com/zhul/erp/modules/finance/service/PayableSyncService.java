@@ -171,12 +171,15 @@ public class PayableSyncService {
 
     /** 已付合计、欠款、状态、各期已付与下一期到期日，写回应付单与付款计划 */
     private void apply(PayableDO p, BigDecimal amount, List<InstallmentPlanner.Inst> plan, boolean closed) {
-        Totals t = totals(p.getId());
+        BigDecimal rate = p.getExchangeRate() == null ? BigDecimal.ONE : p.getExchangeRate();
+        BigDecimal amountCny = amount.multiply(rate).setScale(2, RoundingMode.HALF_UP);
+        // 历史迁移视为已付：迁移前已线下付清，没有付款核销，已付跟着应付走
+        boolean settled = Objects.equals(p.getSettledByMigration(), 1);
+        Totals t = settled ? new Totals(amount, amountCny) : totals(p.getId());
         BigDecimal paid = t.paid();
         List<InstallmentPlanner.Inst> filled = InstallmentPlanner.allocate(plan, paid.min(amount));
         p.setAmount(amount);
-        BigDecimal rate = p.getExchangeRate() == null ? BigDecimal.ONE : p.getExchangeRate();
-        p.setAmountCny(amount.multiply(rate).setScale(2, RoundingMode.HALF_UP));
+        p.setAmountCny(amountCny);
         p.setPaidAmount(paid);
         p.setPaidCny(t.paidCny());
         p.setCreditAmount(paid.subtract(amount).max(BigDecimal.ZERO));
