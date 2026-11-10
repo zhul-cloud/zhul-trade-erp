@@ -1,4 +1,8 @@
-"""生成 7.1 端到端实测用的附件：300 页混有扫描页的 PDF（约 300MB）与两个工作表的大 xlsx。"""
+"""生成端到端实测用的附件：混有扫描页的 PDF 与两个工作表的 xlsx。
+
+用法：gen_files.py 输出目录 [规模]。规模 full 为 300 页 / 约 400MB / 3000 行（2026-11-10 首次实测用）；
+默认 small 为 25 页 / 几 MB / 200 行、约 25 个型号，刚好越过分批门槛，平时实测用这个。
+"""
 import io
 import os
 import random
@@ -9,6 +13,9 @@ import pymupdf
 from PIL import Image, ImageDraw, ImageFont
 
 out = sys.argv[1]
+FULL = len(sys.argv) > 2 and sys.argv[2] == "full"
+PAGES, SCANNED, ROWS = (300, 20, (1200, 1800)) if FULL else (25, 4, (80, 120))
+DUP_PAGES, CONFLICT_PAGES = ((3, 120), (45, 88)) if FULL else ((3, 18), (7, 15))
 random.seed(20261110)
 
 MODELS = [
@@ -49,25 +56,28 @@ def note(model, qty, unit, where):
     expected.setdefault(model, []).append((qty, unit, where))
 
 
-for p in range(1, 301):
+if not FULL:
+    MODELS = MODELS[:24]
+
+for p in range(1, PAGES + 1):
     page = doc.new_page(width=595, height=842)
     picks = random.sample(MODELS, 2)
     # 刻意的重复：第 3 页与第 120 页都有 6ES7214-1AG40-0XB0（各 2 个）；第 45 页与第 88 页 3VA… 单位不同
-    if p in (3, 120):
+    if p in DUP_PAGES:
         picks[0] = ("Siemens", "6ES7214-1AG40-0XB0")
     rows = []
     for brand, model in picks:
-        qty = 2 if model == "6ES7214-1AG40-0XB0" and p in (3, 120) else random.randint(1, 20)
+        qty = 2 if model == "6ES7214-1AG40-0XB0" and p in DUP_PAGES else random.randint(1, 20)
         rows.append((brand, model, qty, unit_of(brand)))
-    if p == 45:
+    if p == CONFLICT_PAGES[0]:
         rows.append(("Siemens", "3VA2340-5JQ42-0AA0", 1, "pcs"))
-    if p == 88:
+    if p == CONFLICT_PAGES[1]:
         rows.append(("Siemens", "3VA2340-5JQ42-0AA0", 1, "set"))
-    lines = [f"RFQ equipment list - page {p} / 300", FILLER, ""]
+    lines = [f"RFQ equipment list - page {p} / {PAGES}", FILLER, ""]
     lines += [f"{i + 1}. Brand: {b}   Model: {m}   Qty: {q} {u}" for i, (b, m, q, u) in enumerate(rows)]
     for b, m, q, u in rows:
         note(m, q, u, f"p{p}")
-    if p <= 280:
+    if p <= PAGES - SCANNED:
         page.insert_textbox(pymupdf.Rect(40, 40, 555, 800), "\n".join(lines), fontsize=11)
         continue
     # 扫描页：文字画成图片（没有文字层），再加一块难以压缩的噪点图把文件撑大
@@ -81,6 +91,8 @@ for p in range(1, 301):
     buf = io.BytesIO()
     img.save(buf, format="PNG")
     page.insert_image(pymupdf.Rect(0, 0, 595, 842), stream=buf.getvalue())
+    if not FULL:
+        continue
     noise = Image.frombytes("RGB", (2200, 2200), os.urandom(2200 * 2200 * 3))
     nb = io.BytesIO()
     noise.save(nb, format="PNG", compress_level=1)
@@ -99,7 +111,7 @@ ws.append(["序号", "品牌", "型号", "数量", "单位", "备注"])
 ws2 = wb.create_sheet("备件")
 ws2.append(["序号", "品牌", "型号", "数量", "单位", "备注"])
 n = 0
-for sheet, count in ((ws, 1200), (ws2, 1800)):
+for sheet, count in ((ws, ROWS[0]), (ws2, ROWS[1])):
     for i in range(count):
         n += 1
         brand, model = random.choice(MODELS)
