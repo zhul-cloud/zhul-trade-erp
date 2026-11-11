@@ -5,8 +5,8 @@
 
 ## 2. 数据库
 
-- [x] 2.1 迁移 V1.5.27：`sales_order` 加 `deleted_by`、`delete_reason`；资源 110234「删除订单」（`sales:order:delete`，挂 100079）；追加到含 100079 的套餐；授给内置租户管理员和名称含「总经理」的角色
-- [x] 2.2 回滚脚本 `sql/build/rollback/V1.5.27__sales_order_delete_rollback.sql`
+- [x] 2.1 迁移 V1.5.28：`sales_order` 加 `deleted_by`、`delete_reason`；资源 110234「删除订单」（`sales:order:delete`，挂 100079）；追加到含 100079 的套餐；授给内置租户管理员和名称含「总经理」的角色
+- [x] 2.2 回滚脚本 `sql/build/rollback/V1.5.28__sales_order_delete_rollback.sql`
 
 ## 3. 后端
 
@@ -37,4 +37,4 @@
 ## 6. 收尾
 
 - [x] 6.1 新功能按 OpenSpec 流程记录，不登记审计台账（台账只记缺陷修复）
-- [ ] 6.2 PR 说明写明迁移版本 V1.5.27 及可回退
+- [ ] 6.2 PR 说明写明迁移版本 V1.5.28 及可回退

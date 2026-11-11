@@ -25,7 +25,7 @@
 
 ## Impact
 
-- 数据库：迁移新增按钮资源 110234「删除订单」（销售订单菜单 100079 下），加进含销售订单菜单的套餐，授给内置租户管理员和名称含「总经理」的角色。`sales_order` 已有 `deleted_at`，补 `deleted_by`、`delete_reason` 两列。版本号用合并时的下一个空号（当前为 V1.5.27；未合并的售后分支 V1.5.25 须改到更大的号）。
+- 数据库：迁移新增按钮资源 110234「删除订单」（销售订单菜单 100079 下），加进含销售订单菜单的套餐，授给内置租户管理员和名称含「总经理」的角色。`sales_order` 已有 `deleted_at`，补 `deleted_by`、`delete_reason` 两列。版本号 V1.5.28，排在售后退货单据化的 V1.5.27 之后。
 - 后端：`SalesOrderController` 新增删除预检（`GET /api/v1/sales/orders/{id}/delete-check`）与删除（`POST /api/v1/sales/orders/{id}/delete`）；服务层复用取消订单的关联处理。核对手写 SQL 与统计查询是否都排除已删除订单（目前 `AfterSalesService`、`CustomerRefundService` 两处未排除，但有售后、退款的订单不能删，不受影响）。
 - 前端：订单详情加「删除」按钮与确认弹窗；`access.ts` 加权限码。
 - 不影响：PI、报价单、询盘不删除；客户余额、应收应付不变（有这些数据的订单不能删）。

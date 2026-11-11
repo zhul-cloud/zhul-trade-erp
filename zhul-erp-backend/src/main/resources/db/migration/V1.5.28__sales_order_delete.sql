@@ -1,7 +1,7 @@
--- V1.5.27：销售订单删除（2026-11-11 反馈「销售订单支持删除，需要按钮级别权限控制」，OpenSpec sales-order-delete）。
+-- V1.5.28：销售订单删除（2026-11-11 反馈「销售订单支持删除，需要按钮级别权限控制」，OpenSpec sales-order-delete）。
 -- sales_order 已有 deleted_at，补删除人、删除原因；新增按钮权限「删除订单」挂在销售订单菜单 100079 下。
 -- 加进含销售订单菜单的套餐；授给内置租户管理员和名称含「总经理」的角色，其他角色由管理员在角色管理里授权。
--- 回退见 sql/build/rollback/V1.5.27__sales_order_delete_rollback.sql
+-- 回退见 sql/build/rollback/V1.5.28__sales_order_delete_rollback.sql
 ALTER TABLE `sales_order`
     ADD COLUMN `deleted_by`    bigint       NULL               COMMENT '删除人用户ID' AFTER `deleted_at`,
     ADD COLUMN `delete_reason` varchar(200) NOT NULL DEFAULT '' COMMENT '删除原因' AFTER `deleted_by`;
