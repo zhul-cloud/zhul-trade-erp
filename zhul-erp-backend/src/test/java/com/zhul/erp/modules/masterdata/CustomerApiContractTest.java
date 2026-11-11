@@ -64,6 +64,9 @@ class CustomerApiContractTest extends IntegrationTestBase {
 
     private void cleanup() {
         jdbc.update("delete from customer_inquiry where tenant_id = 0 and customer_id in (select id from customer where tenant_id = 0)");
+        for (String t : new String[] {"sales_order", "opportunity", "quotation"}) {
+            jdbc.update("delete from " + t + " where tenant_id = 0 and customer_id in (select id from customer where tenant_id = 0)");
+        }
         jdbc.update("delete from customer_party where tenant_id = 0");
         jdbc.update("delete from customer where tenant_id = 0");
         jdbc.update("delete from user_basic where id = ?", OTHER_OWNER);
@@ -238,6 +241,33 @@ class CustomerApiContractTest extends IntegrationTestBase {
         assertEquals(1, batch.path("deleted").asInt());
         assertEquals(1, batch.path("referenced").asInt());
         assertEquals(1, batch.path("missing").asInt());
+    }
+
+    /** BUS-001：只有手动销售订单、只有商机、只有报价单的客户都不能删除；作废未删除的单据同样算引用 */
+    @Test
+    void deleteCustomerReferencedByOrderOpportunityOrQuotation_isRejected() throws Exception {
+        loginAsAdmin("cust_admin");
+        String admin = token("cust_admin");
+        long withOrder = create(admin, "{\"name\":\"Order Only Ltd\",\"country\":\"Germany\"}");
+        long withOpportunity = create(admin, "{\"name\":\"Opportunity Only Ltd\",\"country\":\"Germany\"}");
+        long withQuotation = create(admin, "{\"name\":\"Quotation Only Ltd\",\"country\":\"Germany\"}");
+        long free = create(admin, "{\"name\":\"Nothing Ltd\",\"country\":\"Germany\"}");
+        jdbc.update("insert into sales_order (tenant_id, customer_id) values (0, ?)", withOrder);
+        jdbc.update("insert into opportunity (tenant_id, customer_id, first_contact_date) values (0, ?, curdate())", withOpportunity);
+        jdbc.update("insert into quotation (tenant_id, customer_id, status) values (0, ?, 9)", withQuotation);
+
+        for (long id : new long[] {withOrder, withOpportunity, withQuotation}) {
+            assertEquals("该客户已有询盘或单据记录，不能删除，可改为禁用",
+                    call(delete(BASE + "/" + id), admin).path("message").asText());
+        }
+        JsonNode batch = call(json(post(BASE + "/batch-delete"),
+                "{\"ids\":[" + withOrder + "," + withOpportunity + "," + withQuotation + "," + free + "]}"), admin).path("data");
+        assertEquals(1, batch.path("deleted").asInt());
+        assertEquals(3, batch.path("referenced").asInt());
+
+        // 单据删除（软删除）后不再算引用
+        jdbc.update("update sales_order set deleted_at = now() where tenant_id = 0 and customer_id = ?", withOrder);
+        assertEquals(0, call(delete(BASE + "/" + withOrder), admin).path("code").asInt());
     }
 
     @Test
