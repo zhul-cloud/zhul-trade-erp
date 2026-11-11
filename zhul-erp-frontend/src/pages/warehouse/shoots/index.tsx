@@ -1,5 +1,5 @@
 import { InfoCircleOutlined, SearchOutlined } from '@ant-design/icons';
-import { useAccess } from '@umijs/max';
+import { Link, useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import {
   App,
@@ -12,6 +12,7 @@ import {
   Table,
 } from 'antd';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { listHref } from '@/components/DocFields/SourceNos';
 import MediaDrawer from '@/pages/operations/media/MediaDrawer';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { auditColumns } from '@/pages/purchase/components';
@@ -27,6 +28,7 @@ import {
   sub,
   UploadTile,
   usePreview,
+  WAREHOUSE_PATHS,
   WarehousePageTitle,
 } from '../components';
 import {
@@ -107,12 +109,16 @@ const Shoots: React.FC = () => {
       ),
     },
     {
-      title: '来源',
+      title: '来源单号',
       key: 'source',
       width: 180,
       render: (_, r) => (
         <div>
-          <span style={{ color: palette.link }}>{r.grNo}</span>
+          {r.grNo && (
+            <Link to={listHref(WAREHOUSE_PATHS.receipts, r.grNo, 'received')}>
+              {r.grNo}
+            </Link>
+          )}
           {r.soNo && sub(palette.mute, r.soNo)}
         </div>
       ),

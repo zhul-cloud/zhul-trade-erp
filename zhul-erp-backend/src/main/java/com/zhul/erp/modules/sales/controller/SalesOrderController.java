@@ -125,6 +125,13 @@ public class SalesOrderController {
         return Result.ok(service.removeAttachment(id, attachmentId));
     }
 
+    @PostMapping("/orders/{id}/fee-orders")
+    @PreAuthorize("@perm.canAccessMenu('/sales/orders') and @perm.has('sales:order:create')")
+    public Result<SalesOrderVO> createFeeOrder(@PathVariable Long id,
+                                               @Valid @RequestBody com.zhul.erp.modules.sales.dto.CreateFeeOrderRequest req) {
+        return Result.ok(service.createFeeOrder(id, req));
+    }
+
     @PutMapping("/orders/{id}/fees")
     @PreAuthorize("@perm.canAccessMenu('/sales/orders') and @perm.has('sales:order:fee-edit')")
     public Result<SalesOrderVO> updateFees(@PathVariable Long id,

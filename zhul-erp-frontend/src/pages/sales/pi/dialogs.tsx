@@ -563,7 +563,7 @@ export const useBankOptions = (currency?: string) => {
 
 // ---------------------------------------------------------------- 上传水单
 
-const SLIP_TYPES = ['image/jpeg', 'image/png', 'application/pdf'];
+export const SLIP_TYPES = ['image/jpeg', 'image/png', 'application/pdf'];
 
 export const SlipModal = <T extends ReceiptResult>({
   owner: pi,

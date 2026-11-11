@@ -53,14 +53,18 @@ import {
   IncotermInput,
   PreviewPages,
 } from '@/components/DocFields';
+import DocModelCell, {
+  docBrandColumns,
+} from '@/components/DocFields/DocModelCell';
+import SourceNos from '@/components/DocFields/SourceNos';
 import { ellipsisRender } from '@/components/EllipsisText';
+import { usePageTitle, useTabDirty } from '@/components/PageTabs/hooks';
 import { type DiffRow, VersionPanel } from '@/components/VersionPanel';
 import {
   ConditionPill,
   useQuoteDicts,
   useWide,
 } from '@/pages/inquiry/shared/components';
-import ViewMediaLink from '@/pages/operations/media/ViewMediaLink';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { ChainCard, PATHS as SALES_PATHS } from '@/pages/sales/components';
 import NewPiModal from '@/pages/sales/pi/NewPiModal';
@@ -351,6 +355,7 @@ const QuotationDetail: React.FC = () => {
   const wide = useWide();
   const { leadTimeOptions } = useQuoteDicts();
   const [q, setQ] = useState<Quotation>();
+  usePageTitle(q ? `报价单 ${q.quotationNo}` : undefined, q?.quotationNo);
   const [draft, setDraft] = useState<Draft>();
   const [saved, setSaved] = useState<string>('');
   const [error, setError] = useState<string>();
@@ -443,6 +448,7 @@ const QuotationDetail: React.FC = () => {
     window.addEventListener('beforeunload', warn);
     return () => window.removeEventListener('beforeunload', warn);
   }, [dirty]);
+  useTabDirty(dirty);
 
   const itemById = useMemo(
     () => new Map(q?.items.map((i) => [i.id, i]) ?? []),
@@ -950,33 +956,34 @@ const QuotationDetail: React.FC = () => {
     return reason === NO_STOCK_REASON.DISCONTINUED ? '已停产' : '暂时缺货';
   };
 
-  const modelCell = (src: QuotationItem, d?: SaveQuotationItem) => (
-    <div style={{ minWidth: 0 }}>
-      <div
-        style={{
-          display: 'flex',
-          gap: 8,
-          alignItems: 'baseline',
-          flexWrap: 'wrap',
-        }}
-      >
-        <span style={{ fontWeight: 600, color: palette.ink }}>{src.model}</span>
-        <ViewMediaLink brand={src.brand} model={src.model} />
-      </div>
+  /** 品牌：英文名与中文名不同时注明导出用的英文名 */
+  const brandText = (src: QuotationItem) =>
+    src.brandEn && src.brandEn !== src.brand
+      ? `${src.brand}（导出为 ${src.brandEn}）`
+      : src.brand;
+
+  /** 采购填的内部无货原因：只在系统内显示，不进导出与文字报价 */
+  const internalNoStock = (src: QuotationItem) =>
+    src.sourcingNoStockReasonName != null && (
       <div style={{ fontSize: 12, color: palette.mute }}>
-        {[
-          src.brandEn && src.brandEn !== src.brand
-            ? `${src.brand}（导出为 ${src.brandEn}）`
-            : src.brand,
-          src.category,
-          src.inquiryCode,
-        ]
+        内部：
+        {[src.sourcingNoStockReasonName || '未填原因', src.sourcingNoStockNote]
           .filter(Boolean)
           .join(' · ')}
       </div>
-      {src.orderCode && (
+    );
+
+  const modelCell = (src: QuotationItem, d?: SaveQuotationItem) => (
+    <DocModelCell
+      model={src.model}
+      brand={src.brand}
+      orderCode={src.orderCode}
+      productId={src.productId}
+    >
+      {/* 并排预览时只剩型号一列，品牌、品类缩到型号下面 */}
+      {compact && (
         <div style={{ fontSize: 12, color: palette.mute }}>
-          订货号 {src.orderCode}
+          {[brandText(src), src.category].filter(Boolean).join(' · ')}
         </div>
       )}
       {src.pendingAsNoStock &&
@@ -993,6 +1000,7 @@ const QuotationDetail: React.FC = () => {
                 {noStockSummary(src)}
               </div>
             ))}
+      {(d ? isNoStockLine(src, d) : src.noStockLine) && internalNoStock(src)}
       {/* 有价格的停产替代行：采购标了停产并给了替代型号，客户单据会提示（清空后保存即不再提示） */}
       {d
         ? !isNoStockLine(src, d) &&
@@ -1037,15 +1045,22 @@ const QuotationDetail: React.FC = () => {
           <Pill tone="orange">缺英文描述</Pill>
         </span>
       )}
-    </div>
+    </DocModelCell>
   );
+
+  /** 品牌、品类列的取值；品牌注明导出用的英文名 */
+  const metaOf = (src?: QuotationItem) =>
+    src && { ...src, brand: brandText(src) };
 
   const editColumns: TableColumnsType<SaveQuotationItem> = [
     { title: '#', key: 'no', width: 44, render: (_, __, i) => i + 1 },
+    ...(compact
+      ? []
+      : docBrandColumns<SaveQuotationItem>((d) => metaOf(itemById.get(d.id)))),
     {
-      title: compact ? '型号' : '型号 / 品牌·品类·来源',
+      title: '型号',
       key: 'model',
-      width: compact ? 170 : 240,
+      width: compact ? 170 : 220,
       render: (_, d) => modelCell(itemById.get(d.id) as QuotationItem, d),
     },
     ...(compact
@@ -1257,8 +1272,9 @@ const QuotationDetail: React.FC = () => {
 
   const viewColumns: TableColumnsType<QuotationItem> = [
     { title: '#', key: 'no', width: 44, render: (_, __, i) => i + 1 },
+    ...docBrandColumns<QuotationItem>(metaOf),
     {
-      title: '型号 / 品牌',
+      title: '型号',
       key: 'model',
       width: 220,
       render: (_, r) => modelCell(r),
@@ -2192,8 +2208,15 @@ const QuotationDetail: React.FC = () => {
         }
         description={
           <>
-            {q.customerName} · 来源询盘：{q.inquiryCodes.join('、') || '—'} ·{' '}
-            {q.ownerName ?? '—'} {formatDateTime(q.createTime).slice(0, 16)}{' '}
+            {q.customerName} ·{' '}
+            <SourceNos
+              mode="inline"
+              refs={q.inquiries.map((x) => ({
+                no: x.no,
+                href: `/inquiry/customer-inquiries/${x.id}`,
+              }))}
+            />{' '}
+            · {q.ownerName ?? '—'} {formatDateTime(q.createTime).slice(0, 16)}{' '}
             创建
             {q.copiedFromNo && (
               <span style={{ marginLeft: 8 }}>

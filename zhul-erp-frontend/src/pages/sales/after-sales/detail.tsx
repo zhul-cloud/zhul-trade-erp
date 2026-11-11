@@ -18,6 +18,7 @@ import { history, useAccess, useParams } from '@umijs/max';
 import { App, Button, Checkbox, Input, Skeleton } from 'antd';
 import dayjs from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
+import { usePageTitle } from '@/components/PageTabs/hooks';
 import ExpenseQuickModal from '@/pages/finance/expenses/AfterSalesExpense';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { AttachmentWall, ReasonModal } from '@/pages/warehouse/components';
@@ -82,6 +83,7 @@ const AfterSalesDetail: React.FC = () => {
   const { palette } = useAppTheme();
   const access = useAccess() as Record<string, boolean>;
   const [a, setA] = useState<AfterSales>();
+  usePageTitle(a ? `售后单 ${a.asNo}` : undefined, a?.asNo);
   const [error, setError] = useState<string>();
   const [dialog, setDialog] = useState<Dialog>();
   const [note, setNote] = useState('');

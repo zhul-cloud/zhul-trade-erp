@@ -368,6 +368,12 @@ const SupplierListPage: React.FC = () => {
             <Input placeholder="请输入供应商名称" allowClear />
           </Form.Item>
           <Form.Item
+            name="contact"
+            label={<span style={filterLabel}>联系人</span>}
+          >
+            <Input placeholder="姓名、电话、微信或邮箱" allowClear />
+          </Form.Item>
+          <Form.Item
             name="creditCode"
             label={<span style={filterLabel}>统一社会信用代码</span>}
           >

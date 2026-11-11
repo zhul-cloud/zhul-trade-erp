@@ -80,6 +80,8 @@ export interface AfterSales {
   asNo: string;
   customerId: number;
   customerName?: string;
+  customerContact?: string;
+  customerCountry?: string;
   soId?: number | null;
   soNo?: string;
   currencyCode?: string;
@@ -314,6 +316,10 @@ export interface SalesReturn {
   soId: number;
   soNo?: string;
   customerName?: string;
+  /** 客户国家 / 地区、新老客户（1-新、2-老）、主联系人：列表客户列三行显示 */
+  customerCountry?: string;
+  customerType?: number;
+  customerContact?: string;
   carrier?: string;
   trackingNo?: string;
   remark?: string;

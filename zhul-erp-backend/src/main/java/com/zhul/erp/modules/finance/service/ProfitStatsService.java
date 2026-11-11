@@ -230,6 +230,7 @@ public class ProfitStatsService {
             r.setProfitRate(c.getProfitRate());
             r.setSettled(c.getSettled());
             r.setPending(c.getPending());
+            r.setFeeOfNo(c.getFeeOfNo());
         }
         return r;
     }

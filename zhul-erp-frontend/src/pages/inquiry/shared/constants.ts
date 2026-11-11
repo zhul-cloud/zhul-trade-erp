@@ -150,3 +150,9 @@ export const formatMinutes = (minutes?: number | null) => {
   if (h < 24) return `${h} 小时${m % 60 ? ` ${m % 60} 分` : ''}`;
   return `${Math.floor(h / 24)} 天${h % 24 ? ` ${h % 24} 小时` : ''}`;
 };
+
+/** 无货的显示文字：无货 · 原因 · 说明；没有原因（改版前或 Excel 导入）显示「未填原因」 */
+export const noStockText = (reasonName?: string | null, note?: string | null) =>
+  ['无货', reasonName?.trim() || '未填原因', note?.trim()]
+    .filter(Boolean)
+    .join(' · ');

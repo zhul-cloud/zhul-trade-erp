@@ -479,7 +479,7 @@ export const RegisterPaymentDrawer: React.FC<{
 
   const columns: TableColumnsType<Payable> = [
     {
-      title: '应付单 · 来源',
+      title: '应付单 · 来源单号',
       width: 200,
       key: 'no',
       render: (_, r) => (

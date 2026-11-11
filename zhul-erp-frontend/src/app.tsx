@@ -15,6 +15,8 @@ import {
   LangDropdown,
   OfflineBanner,
 } from '@/components';
+import PageTabs from '@/components/PageTabs';
+import { tabsActions } from '@/components/PageTabs/store';
 import PasteToUpload from '@/components/PasteToUpload';
 import {
   AppLogo,
@@ -149,6 +151,16 @@ export async function getInitialState(): Promise<{
   };
 }
 
+/** 固定在标签栏最左边的首页：工作台；没有工作台权限时为菜单里第一个能访问的页面 */
+const homePath = (initialState?: {
+  currentUser?: { permissions?: string[] };
+  menuTree?: MenuItem[];
+}) => {
+  const allowed = new Set(initialState?.currentUser?.permissions ?? []);
+  if (allowed.has('/dashboard')) return '/dashboard';
+  return firstMenuPath(toProLayoutMenu(initialState?.menuTree ?? [], allowed));
+};
+
 // ProLayout 支持的api https://procomponents.ant.design/components/layout
 export const layout: RunTimeLayoutConfig = ({
   initialState,
@@ -187,6 +199,19 @@ export const layout: RunTimeLayoutConfig = ({
             to={item.path}
             prefetch
             style={{ display: 'block', width: '100%' }}
+            onClick={(e) => {
+              // 普通左键点菜单：切到该菜单的标签（没有就新建）；Ctrl/⌘/Shift/中键仍按浏览器方式在新窗口打开
+              if (
+                e.button !== 0 ||
+                e.metaKey ||
+                e.ctrlKey ||
+                e.shiftKey ||
+                e.altKey
+              )
+                return;
+              e.preventDefault();
+              tabsActions.openMenu(item.path as string);
+            }}
           >
             {dom}
           </Link>
@@ -247,7 +272,17 @@ export const layout: RunTimeLayoutConfig = ({
           <DocLink />
           <LangDropdown />
         </TopBar>
-        {children}
+        {initialState?.currentUser ? (
+          <PageTabs
+            userKey={String(initialState.currentUser.userid ?? '')}
+            homePath={homePath(initialState)}
+            canOpen={(p) =>
+              (initialState.currentUser?.permissions ?? []).includes(p)
+            }
+          />
+        ) : (
+          children
+        )}
       </>
     ),
     ...initialState?.settings,

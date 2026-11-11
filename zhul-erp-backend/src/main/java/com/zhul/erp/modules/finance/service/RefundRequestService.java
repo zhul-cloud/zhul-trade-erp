@@ -332,6 +332,9 @@ public class RefundRequestService {
             v.setSoId(q.getSoId());
             v.setSoNo(o == null ? null : o.getSoNo());
             v.setCustomerName(o == null ? null : InquiryLookups.customerName(customers.get(o.getCustomerId())));
+            CustomerDO customer = o == null ? null : customers.get(o.getCustomerId());
+            v.setCustomerContact(InquiryLookups.contactName(customer));
+            v.setCustomerCountry(customer == null ? null : customer.getCountry());
             v.setCurrencyCode(q.getCurrencyCode());
             v.setAmount(q.getAmount());
             v.setReason(q.getReason());

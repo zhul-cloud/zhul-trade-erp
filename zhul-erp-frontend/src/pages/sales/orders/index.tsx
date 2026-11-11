@@ -12,6 +12,7 @@ import { App, Button, DatePicker, Form, Input, Select, Table } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
 import { CustomerCell } from '@/components/DocFields';
+import SourceNos from '@/components/DocFields/SourceNos';
 import EllipsisText, { ellipsisRender } from '@/components/EllipsisText';
 import {
   ModalTitle,
@@ -30,6 +31,7 @@ import { tableScrollX } from '@/utils/tableScroll';
 import {
   Card,
   MigratedPill,
+  orderSourceRefs,
   PATHS,
   Pill,
   RECEIPT_META,
@@ -62,7 +64,7 @@ interface Filters {
   purchaserId?: number;
   ownerId?: number;
   receiptStatus?: number;
-  /** 1-PI 转成、2-手动创建、3-售后补发 */
+  /** 1-PI 转成、2-手动创建、3-售后补发、4-费用订单 */
   source?: number;
 }
 
@@ -192,8 +194,18 @@ const OrderList: React.FC = () => {
               <Pill tone="violet">售后补发</Pill>
             </div>
           )}
+          {r.source === 4 && (
+            <div style={{ marginTop: 4 }}>
+              <Pill tone="orange">费用订单</Pill>
+            </div>
+          )}
           {sub(r.salesDate ?? '—')}
           {r.originalSoNo && sub(`原订单 ${r.originalSoNo}`)}
+          {(r.feeOrderCount ?? 0) > 0 && (
+            <div style={{ fontSize: 12, color: palette.orange }}>
+              费用订单 {r.feeOrderCount}
+            </div>
+          )}
         </div>
       ),
     },
@@ -205,6 +217,7 @@ const OrderList: React.FC = () => {
         <CustomerCell
           name={v}
           country={r.customerCountry}
+          contact={r.customerContact}
           type={r.customerType}
         />
       ),
@@ -373,21 +386,12 @@ const OrderList: React.FC = () => {
       ),
     },
     {
-      title: '来源',
-      dataIndex: 'piNo',
+      title: '来源单号',
+      key: 'source',
       width: 200,
-      render: (v: string | undefined, r) =>
-        r.piId ? (
-          <a
-            style={{ whiteSpace: 'nowrap' }}
-            onClick={() => history.push(PATHS.pi(r.piId as number))}
-          >
-            {v}
-            {(r.piVersionNo ?? 1) > 1 ? ` · Rev.${r.piVersionNo}` : ''}
-          </a>
-        ) : (
-          <span style={{ color: palette.sub }}>手动创建</span>
-        ),
+      render: (_, r) => (
+        <SourceNos refs={orderSourceRefs(r)} empty="手动创建" />
+      ),
     },
     {
       title: '业务员',
@@ -579,6 +583,7 @@ const OrderList: React.FC = () => {
                   { value: 1, label: 'PI 生成' },
                   { value: 2, label: '手动建单' },
                   { value: 3, label: '售后补发' },
+                  { value: 4, label: '费用订单' },
                 ]}
               />
             </Form.Item>

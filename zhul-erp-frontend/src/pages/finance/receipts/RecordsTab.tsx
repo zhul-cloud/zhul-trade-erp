@@ -4,6 +4,7 @@ import type { TableColumnsType } from 'antd';
 import { App, Button, Checkbox, DatePicker, Input, Select, Table } from 'antd';
 import type { Dayjs } from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
+import { CustomerSub } from '@/components/DocFields';
 import { ellipsisRender } from '@/components/EllipsisText';
 import { CURRENCIES } from '@/pages/quotation/components';
 import { Card, PATHS, Pill } from '@/pages/sales/components';
@@ -137,7 +138,7 @@ const RecordsTab: React.FC = () => {
   const columns: TableColumnsType<ReceiptRow> = [
     { title: '到账日期', dataIndex: 'receiptDate', width: 110 },
     {
-      title: 'PI / 订单编号',
+      title: '来源单号',
       key: 'pi',
       width: 180,
       render: (_, r) =>
@@ -159,9 +160,21 @@ const RecordsTab: React.FC = () => {
     {
       title: '客户',
       width: 180,
-      render: ellipsisRender,
       dataIndex: 'customerName',
       ellipsis: true,
+      render: (v: string, r: ReceiptRow) => (
+        <div style={{ minWidth: 0 }}>
+          {ellipsisRender(v)}
+          {(r.customerCountry || r.customerContact) && (
+            <div style={{ fontSize: 12, color: palette.mute }}>
+              <CustomerSub
+                country={r.customerCountry}
+                contact={r.customerContact}
+              />
+            </div>
+          )}
+        </div>
+      ),
     },
     ...(bu.enabled
       ? [

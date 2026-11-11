@@ -37,6 +37,7 @@ export interface CustomerInquiry {
   customerId: number;
   customerName: string;
   customerCountry: string;
+  customerContact?: string;
   customerType: number;
   source: number;
   inquiryDate: string;
@@ -79,6 +80,8 @@ export interface PriceRecord {
   channel?: number | null;
   shopName?: string | null;
   noStock: boolean;
+  /** 内部无货原因名称；没有填原因时为空 */
+  noStockReasonName?: string;
   currencyCode: string;
   unitPrice?: number;
   unitPriceCny?: number;
@@ -133,6 +136,8 @@ export interface InquiryItem {
   taskCode?: string;
   selectedQuote?: PriceRecord;
   noStockNote?: string;
+  /** 内部无货原因名称；没有填原因时为空 */
+  noStockReasonName?: string;
   /** 已报给客户（出现在已发送及之后的报价单中） */
   quoted?: boolean;
   /** 采购回填的真实型号 */
@@ -473,6 +478,8 @@ export interface PreviousQuote {
   /** 改派前只保存、没有提交的记录 */
   draft?: boolean;
   noStock: boolean;
+  /** 内部无货原因名称；没有填原因时为空 */
+  noStockReasonName?: string;
   channel: number;
   shopName?: string;
   note?: string;
@@ -535,6 +542,10 @@ export interface MyQuote {
   note: string;
   recommended?: boolean;
   noStock: boolean;
+  /** 内部无货原因（字典值） */
+  noStockReason?: number;
+  /** 内部无货原因名称；没有填原因时为空 */
+  noStockReasonName?: string;
   /** 是否包邮，默认包邮 */
   freeShipping?: boolean;
   /** 回价附件（截图、报价单） */
@@ -648,6 +659,8 @@ export interface PasteRow {
 export interface ItemQuotes {
   itemId: number;
   noStock?: boolean;
+  /** 内部无货原因（字典值），提交时无货必填 */
+  noStockReason?: number;
   noStockNote?: string;
   /** 无货时的附件 ID，最多 5 个 */
   noStockAttachmentIds?: number[];

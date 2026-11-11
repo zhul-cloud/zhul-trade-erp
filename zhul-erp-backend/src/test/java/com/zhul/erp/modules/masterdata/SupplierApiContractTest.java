@@ -18,6 +18,7 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -272,5 +273,21 @@ class SupplierApiContractTest extends IntegrationTestBase {
     @Test
     void regions_rejectUnauthenticated() throws Exception {
         assertEquals(401, call(get("/api/v1/masterdata/regions"), null).path("code").asInt());
+    }
+
+    @Test
+    void page_filtersByContactNamePhoneWechatOrEmail() throws Exception {
+        loginAsAdmin("supplier_admin");
+        String admin = token("supplier_admin");
+        jdbc.update("insert into supplier (tenant_id, supplier_code, name, supplier_type, status, contact_name, contact_phone, contact_email, wechat) "
+                + "values (?, 'SUPC1', '甲电子', 1, 1, '王五', '13900001111', 'wang@jia.cn', 'wangwu_wx'), "
+                + "(?, 'SUPC2', '乙电子', 2, 1, '赵六', '13700002222', 'zhao@yi.cn', 'zl888')", TENANT, TENANT);
+        for (String kw : List.of("王五", "0000111", "wangwu_wx", "wang@jia")) {
+            JsonNode page = call(get(BASE + "/page").param("contact", kw), admin).path("data");
+            assertEquals(1, page.path("total").asInt(), kw);
+            assertEquals("甲电子", page.path("records").get(0).path("name").asText());
+        }
+        // 与其他条件同时生效
+        assertEquals(0, call(get(BASE + "/page").param("contact", "王五").param("supplierType", "2"), admin).path("data").path("total").asInt());
     }
 }

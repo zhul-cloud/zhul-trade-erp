@@ -509,7 +509,11 @@ public class SalesReturnService {
             v.setAsNo(a == null ? null : a.getAsNo());
             v.setSoId(r.getSoId());
             v.setSoNo(o == null ? null : o.getSoNo());
-            v.setCustomerName(o == null ? null : InquiryLookups.customerName(customers.get(o.getCustomerId())));
+            CustomerDO c = o == null ? null : customers.get(o.getCustomerId());
+            v.setCustomerName(InquiryLookups.customerName(c));
+            v.setCustomerCountry(c == null ? null : c.getCountry());
+            v.setCustomerType(o == null ? null : o.getCustomerType());
+            v.setCustomerContact(InquiryLookups.contactName(c));
             v.setCarrier(r.getCarrier());
             v.setTrackingNo(r.getTrackingNo());
             v.setRemark(r.getRemark());

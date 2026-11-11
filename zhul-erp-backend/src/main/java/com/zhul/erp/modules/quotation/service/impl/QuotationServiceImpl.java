@@ -1,5 +1,6 @@
 package com.zhul.erp.modules.quotation.service.impl;
 
+import com.zhul.erp.common.result.DocRefVO;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.zhul.erp.common.exception.BizException;
@@ -122,6 +123,8 @@ public class QuotationServiceImpl implements QuotationService {
     private final com.zhul.erp.modules.product.support.BrandResolver brandResolver;
     private final com.zhul.erp.modules.crm.followup.support.FollowupHooks followupHooks;
     private final com.zhul.erp.modules.quotation.service.QuoteCandidateService candidateService;
+    private final com.zhul.erp.modules.inquiry.support.DocItemProducts docItemProducts;
+    private final com.zhul.erp.modules.inquiry.support.NoStockReasons noStockReasons;
 
     /** 带入时还在询价、按无货报的行，记在建议依据上（随版本复制） */
     private static final String PENDING_AS_NO_STOCK = "未回价，按无货报";
@@ -919,13 +922,25 @@ public class QuotationServiceImpl implements QuotationService {
             }
         }
         Map<String, String> brandsEn = brandResolver.displayNames(items.stream().map(QuotationItemDO::getBrand).toList());
-        Map<Long, String> orderCodes = orderCodesOf(items);
-        vo.setItems(items.stream().map(i -> {
+        List<com.zhul.erp.modules.inquiry.support.DocItemProducts.Info> products = docItemProducts.resolve(items.stream()
+                .map(i -> new com.zhul.erp.modules.inquiry.support.DocItemProducts.Line(null, i.getInquiryItemId(), i.getBrand(), i.getModel())).toList());
+        Map<Long, com.zhul.erp.modules.inquiry.support.NoStockReasons.Reason> sourcingNoStock = noStockReasons.of(items.stream()
+                .filter(i -> Objects.equals(i.getNoStock(), 1)).map(QuotationItemDO::getInquiryItemId).toList());
+        List<QuotationItemVO> itemVos = new ArrayList<>(items.size());
+        for (int k = 0; k < items.size(); k++) {
+            QuotationItemDO i = items.get(k);
             QuotationItemVO x = toItemVo(i, labels, inquiryCodes);
             x.setBrandEn(brandsEn.getOrDefault(i.getBrand(), i.getBrand()));
-            x.setOrderCode(orderCodes.get(i.getInquiryItemId()));
-            return x;
-        }).toList());
+            x.setOrderCode(products.get(k).orderCode());
+            x.setProductId(products.get(k).productId());
+            com.zhul.erp.modules.inquiry.support.NoStockReasons.Reason reason = sourcingNoStock.get(i.getInquiryItemId());
+            if (reason != null) {
+                x.setSourcingNoStockReasonName(reason.name());
+                x.setSourcingNoStockNote(reason.note());
+            }
+            itemVos.add(x);
+        }
+        vo.setItems(itemVos);
         vo.setFees(fees.stream().map(f -> {
             QuotationFeeVO fv = new QuotationFeeVO();
             fv.setFeeName(f.getFeeName());
@@ -936,6 +951,8 @@ public class QuotationServiceImpl implements QuotationService {
         vo.setSendLogs(sendLogs(id));
         vo.setInquiryCodes(items.stream().map(i -> inquiryCodes.get(i.getCustomerInquiryId())).filter(Objects::nonNull)
                 .distinct().toList());
+        vo.setInquiries(items.stream().map(QuotationItemDO::getCustomerInquiryId).filter(Objects::nonNull).distinct()
+                .filter(inquiryCodes::containsKey).map(iid -> new DocRefVO(iid, inquiryCodes.get(iid))).toList());
         applyReturningCustomer(vo, q, items);
         if ((q.getStatus() == QuotationConstants.STATUS_DRAFT || viewingEditing) && !"CNY".equals(q.getCurrencyCode())) {
             try {
@@ -975,18 +992,6 @@ public class QuotationServiceImpl implements QuotationService {
     }
 
     /** 询盘型号上的订货号（辅助识别，只在系统内显示，不出现在给客户的报价单上） */
-    private Map<Long, String> orderCodesOf(List<QuotationItemDO> items) {
-        List<Long> ids = items.stream().map(QuotationItemDO::getInquiryItemId).filter(x -> x != null && x > 0).distinct().toList();
-        if (ids.isEmpty()) {
-            return Map.of();
-        }
-        return inquiryItemMapper.selectList(new LambdaQueryWrapper<InquiryItemDO>()
-                        .select(InquiryItemDO::getId, InquiryItemDO::getOrderCode)
-                        .in(InquiryItemDO::getId, ids))
-                .stream().filter(x -> StringUtils.hasText(x.getOrderCode()))
-                .collect(Collectors.toMap(InquiryItemDO::getId, InquiryItemDO::getOrderCode, (x, y) -> x));
-    }
-
     private List<QuotationVO.SendLog> sendLogs(Long id) {
         List<QuotationSendLogDO> rows = sendLogMapper.selectList(new LambdaQueryWrapper<QuotationSendLogDO>()
                 .eq(QuotationSendLogDO::getQuotationId, id)
@@ -1220,6 +1225,7 @@ public class QuotationServiceImpl implements QuotationService {
             vo.setQuotationNo(q.getQuotationNo());
             vo.setCustomerId(q.getCustomerId());
             vo.setCustomerName(InquiryLookups.customerName(customers.get(q.getCustomerId())));
+            vo.setCustomerContact(InquiryLookups.contactName(customers.get(q.getCustomerId())));
             vo.setCustomerCountry(customers.get(q.getCustomerId()) == null ? null : customers.get(q.getCustomerId()).getCountry());
             vo.setCustomerType(customerTypes.get(q.getId()));
             vo.setTotalQuantity(quantities.getOrDefault(q.getId(), 0));
@@ -1232,6 +1238,8 @@ public class QuotationServiceImpl implements QuotationService {
             vo.setLostReasonName(StringUtils.hasText(q.getLostReasonName()) ? q.getLostReasonName() : null);
             vo.setInquiryCodes(inquiriesByQuotation.getOrDefault(q.getId(), Set.of()).stream().map(codes::get)
                     .filter(Objects::nonNull).toList());
+            vo.setInquiries(inquiriesByQuotation.getOrDefault(q.getId(), Set.of()).stream().filter(codes::containsKey)
+                    .map(iid -> new DocRefVO(iid, codes.get(iid))).toList());
             vo.setOwnerId(q.getOwnerId());
             vo.setOwnerName(users.get(q.getOwnerId()));
             vo.setCreateTime(q.getCreateTime());

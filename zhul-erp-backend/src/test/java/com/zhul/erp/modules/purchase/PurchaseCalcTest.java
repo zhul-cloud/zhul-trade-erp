@@ -41,8 +41,9 @@ class PurchaseCalcTest {
     }
 
     @Test
-    void zeroPriceIsFullBargain() {
-        assertEquals(d("200.00"), PurchaseCalc.bargain(d("100.00"), BigDecimal.ZERO, 2, BigDecimal.ONE));
+    void zeroPriceHasNoBargain() {
+        // 单价为 0（样品、赠送）不计算砍价（2026-11-10 反馈）
+        assertNull(PurchaseCalc.bargain(d("100.00"), BigDecimal.ZERO, 2, BigDecimal.ONE));
     }
 
     @Test

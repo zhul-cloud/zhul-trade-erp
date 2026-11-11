@@ -2,6 +2,7 @@ import { history, useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { App, Button, Input, Segmented, Space, Table } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
+import { CustomerSub } from '@/components/DocFields';
 import { Card, Pill } from '@/pages/inquiry/shared/components';
 import { auditColumns } from '@/pages/purchase/components';
 import { readBizError } from '@/pages/sales/service';
@@ -126,7 +127,7 @@ const RequestsTab: React.FC<{ onChanged?: () => void }> = ({ onChanged }) => {
       ),
     },
     {
-      title: '售后单 · 订单',
+      title: '来源单号 · 订单',
       key: 'as',
       width: 170,
       render: (_, r) => (
@@ -150,7 +151,24 @@ const RequestsTab: React.FC<{ onChanged?: () => void }> = ({ onChanged }) => {
         </div>
       ),
     },
-    { title: '客户', dataIndex: 'customerName', width: 180 },
+    {
+      title: '客户',
+      dataIndex: 'customerName',
+      width: 180,
+      render: (v: string, r) => (
+        <div>
+          {v}
+          {(r.customerCountry || r.customerContact) && (
+            <div style={{ fontSize: 12, color: palette.mute }}>
+              <CustomerSub
+                country={r.customerCountry}
+                contact={r.customerContact}
+              />
+            </div>
+          )}
+        </div>
+      ),
+    },
     {
       title: '金额',
       dataIndex: 'amount',

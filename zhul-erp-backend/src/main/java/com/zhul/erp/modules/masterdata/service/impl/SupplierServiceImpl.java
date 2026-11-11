@@ -417,6 +417,13 @@ public class SupplierServiceImpl implements SupplierService {
                 .eq(!creditCode.isEmpty(), SupplierDO::getCreditCode, creditCode)
                 .eq(query.getSupplierType() != null, SupplierDO::getSupplierType, query.getSupplierType())
                 .orderByDesc(SupplierDO::getUpdateTime);
+        String contact = normalize(query.getContact());
+        if (StringUtils.hasText(contact)) {
+            wrapper.and(w -> w.like(SupplierDO::getContactName, contact)
+                    .or().like(SupplierDO::getContactPhone, contact)
+                    .or().like(SupplierDO::getWechat, contact)
+                    .or().like(SupplierDO::getContactEmail, contact));
+        }
         if (query.getBrandId() != null || query.getCategoryId() != null) {
             Set<Long> ids = scopeSync.supplierIdsMatching(currentTenantId(), query.getBrandId(), query.getCategoryId());
             if (ids.isEmpty()) {

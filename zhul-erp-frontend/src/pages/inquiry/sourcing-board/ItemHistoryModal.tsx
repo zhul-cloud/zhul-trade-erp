@@ -12,6 +12,7 @@ import {
   SupplierText,
   TaxHint,
 } from '../shared/components';
+import { noStockText } from '../shared/constants';
 import QuoteExtras from '../shared/QuoteExtras';
 import {
   boardApi,
@@ -126,7 +127,7 @@ const ItemHistoryModal: React.FC<{
                       }}
                     >
                       {q.noStock ? (
-                        <span>无货{q.note ? ` · ${q.note}` : ''}</span>
+                        <span>{noStockText(q.noStockReasonName, q.note)}</span>
                       ) : (
                         <>
                           <b style={{ minWidth: 80 }}>

@@ -50,6 +50,17 @@ public interface PaymentReceiptService {
 
     FileLink orderSlipLink(Long soId, Long slipId, int index);
 
+    /** 未认领到账追加附件（银行回单等），合计最多 5 个 */
+    com.zhul.erp.modules.sales.dto.ReceiptRowVO addUnclaimedFiles(Long receiptId, List<MultipartFile> files);
+
+    /** 财务查看到账附件 */
+    FileLink receiptFileLink(Long receiptId, int index);
+
+    /** 业务员认领时查看候选到账的附件（PI / 手动订单必须可见，到账须未认领且同币种） */
+    FileLink claimableFileLink(Long piId, Long receiptId, int index);
+
+    FileLink orderClaimableFileLink(Long soId, Long receiptId, int index);
+
     com.zhul.erp.modules.sales.dto.SalesOrderVO confirmOrder(Long soId, ConfirmReceiptRequest req);
 
     com.zhul.erp.modules.sales.dto.SalesOrderVO voidOrderReceipt(Long soId, Long receiptId, String reason);

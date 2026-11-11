@@ -48,6 +48,14 @@ public class InquiryLookups {
         return map;
     }
 
+    /** 客户主联系人姓名（与联系人列表的主联系人同步）；客户没有名称时名称已显示联系人，这里返回空 */
+    public static String contactName(CustomerDO c) {
+        if (c == null || !StringUtils.hasText(c.getName()) || !StringUtils.hasText(c.getContactName())) {
+            return null;
+        }
+        return c.getContactName();
+    }
+
     public static String customerName(CustomerDO c) {
         if (c == null) {
             return "";

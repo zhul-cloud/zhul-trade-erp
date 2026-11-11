@@ -17,7 +17,8 @@ import {
   Tooltip,
 } from 'antd';
 import React, { useEffect, useState } from 'react';
-import ViewMediaLink from '@/pages/operations/media/ViewMediaLink';
+import DocModelCell, { productHref } from '@/components/DocFields/DocModelCell';
+import { usePageTitle, useTabActive } from '@/components/PageTabs/hooks';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import {
   PATHS as QUOTATION_PATHS,
@@ -55,6 +56,7 @@ import {
   ITEM_NO_STOCK,
   ITEM_PENDING,
   LIFECYCLE_DISCONTINUED,
+  noStockText,
   PATHS,
   PRICE_SOURCE_HISTORY,
   STATUS,
@@ -99,6 +101,10 @@ const CustomerInquiryDetailPage: React.FC = () => {
   const { palette } = useAppTheme();
   const { message, modal } = App.useApp();
   const [detail, setDetail] = useState<InquiryDetail | null>(null);
+  usePageTitle(
+    detail ? `询盘单 ${detail.inquiry.inquiryCode}` : undefined,
+    detail?.inquiry.inquiryCode,
+  );
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [goQuoteOpen, setGoQuoteOpen] = useState(false);
@@ -162,12 +168,15 @@ const CustomerInquiryDetailPage: React.FC = () => {
 
   // 解析中（含追加型号的解析）时每 5 秒刷新一次，解析完自动显示结果
   const appendParsing = detail?.openAppend?.status === 1;
+  // 在后台标签里不刷新，切回来再继续
+  const tabActive = useTabActive();
   useEffect(() => {
+    if (!tabActive) return undefined;
     if (detail?.inquiry.status !== STATUS.PARSING && !appendParsing)
       return undefined;
     const t = window.setInterval(load, 5000);
     return () => window.clearInterval(t);
-  }, [detail?.inquiry.status, appendParsing]);
+  }, [detail?.inquiry.status, appendParsing, tabActive]);
 
   const run = async (
     fn: () => Promise<unknown>,
@@ -270,21 +279,20 @@ const CustomerInquiryDetailPage: React.FC = () => {
       title: '型号',
       width: 180,
       render: (_, r) => (
-        <span style={{ display: 'inline-flex', flexDirection: 'column' }}>
-          <span style={{ color: palette.ink, fontWeight: 600 }}>
-            {r.confirmedModel}
-            {r.lifecycle === LIFECYCLE_DISCONTINUED && r.replacementModel
+        <DocModelCell
+          model={r.confirmedModel}
+          brand={r.brand}
+          orderCode={r.orderCode}
+          productId={r.productId}
+          suffix={
+            r.lifecycle === LIFECYCLE_DISCONTINUED && r.replacementModel
               ? ` → ${r.replacementModel}`
-              : ''}
-          </span>
+              : ''
+          }
+        >
           {r.lifecycle === LIFECYCLE_DISCONTINUED && (
             <span style={{ color: palette.red, fontSize: 12 }}>
               {lifecycleLabel(r.lifecycle)}
-            </span>
-          )}
-          {r.orderCode && (
-            <span style={{ color: palette.mute, fontSize: 12 }}>
-              订货号 {r.orderCode}
             </span>
           )}
           {r.actualModel && (
@@ -292,8 +300,7 @@ const CustomerInquiryDetailPage: React.FC = () => {
               真实型号：{r.actualModel}
             </span>
           )}
-          <ViewMediaLink brand={r.brand} model={r.confirmedModel} />
-        </span>
+        </DocModelCell>
       ),
     },
     {
@@ -371,7 +378,7 @@ const CustomerInquiryDetailPage: React.FC = () => {
         if (r.quoteStatus === ITEM_NO_STOCK && !r.selectedQuote) {
           return (
             <span style={{ color: palette.mute, fontSize: 12 }}>
-              无货{r.noStockNote ? ` · ${r.noStockNote}` : ''}
+              {noStockText(r.noStockReasonName, r.noStockNote)}
             </span>
           );
         }
@@ -478,9 +485,7 @@ const CustomerInquiryDetailPage: React.FC = () => {
             style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}
           >
             <Pill tone="green">已建档</Pill>
-            {r.productId && (
-              <Link to={`/product/products/${r.productId}`}>查看商品</Link>
-            )}
+            {r.productId && <Link to={productHref(r.productId)}>查看商品</Link>}
           </span>
         ) : r.archiveStatus === 2 ? (
           <Pill tone="orange">候选中</Pill>

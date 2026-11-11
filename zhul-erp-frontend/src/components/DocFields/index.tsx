@@ -1,4 +1,4 @@
-import { ExpandOutlined } from '@ant-design/icons';
+import { ExpandOutlined, UserOutlined } from '@ant-design/icons';
 import { AutoComplete, Button, Drawer, Select, Space } from 'antd';
 import React, { useState } from 'react';
 import { INCOTERMS } from '@/pages/customer/constants';
@@ -125,27 +125,50 @@ export const DictTextInput: React.FC<{
   );
 };
 
-/** 列表的客户列：名称、国家与新 / 老客户（与询盘单列表一致） */
+/** 客户列名称下面的行：国家 / 地区一行、主联系人一行，缺哪个不显示哪行；都没有时为 empty */
+export const CustomerSub: React.FC<{
+  country?: string;
+  contact?: string;
+  empty?: React.ReactNode;
+}> = ({ country, contact, empty = '—' }) => {
+  if (!country && !contact) return <>{empty}</>;
+  return (
+    <>
+      {country && <div>{country}</div>}
+      {contact && (
+        <div>
+          <UserOutlined style={{ fontSize: 11, marginRight: 3 }} />
+          {contact}
+        </div>
+      )}
+    </>
+  );
+};
+
+/** 列表的客户列：名称 + 新 / 老客户、国家 / 地区、主联系人，分三行，缺哪行不显示哪行 */
 export const CustomerCell: React.FC<{
   name?: string;
   country?: string;
   type?: number;
-}> = ({ name, country, type }) => {
+  contact?: string;
+}> = ({ name, country, type, contact }) => {
   const { palette } = useAppTheme();
   return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-      <span
-        style={{ display: 'inline-flex', flexDirection: 'column', minWidth: 0 }}
-      >
-        <span style={{ color: palette.ink, fontWeight: 600 }}>
+    <div style={{ minWidth: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+        <span style={{ color: palette.ink, fontWeight: 600, minWidth: 0 }}>
           {name || '—'}
         </span>
-        <span style={{ color: palette.mute, fontSize: 12 }}>
-          {country || '—'}
-        </span>
-      </span>
-      {type ? <CustomerTypePill type={type} /> : null}
-    </span>
+        {type ? (
+          <span style={{ flex: 'none' }}>
+            <CustomerTypePill type={type} />
+          </span>
+        ) : null}
+      </div>
+      <div style={{ color: palette.mute, fontSize: 12, lineHeight: '18px' }}>
+        <CustomerSub country={country} contact={contact} empty={null} />
+      </div>
+    </div>
   );
 };
 

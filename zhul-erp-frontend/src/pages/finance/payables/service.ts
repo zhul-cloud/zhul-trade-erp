@@ -82,6 +82,8 @@ export interface PaymentLine {
 
 export interface Payable {
   id: number;
+  /** 历史迁移视为已付：迁移前已线下付清，没有付款单 */
+  settledByMigration?: boolean;
   payableNo: string;
   payeeType: number;
   supplierId?: number;

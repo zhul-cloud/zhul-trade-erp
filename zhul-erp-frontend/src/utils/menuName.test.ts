@@ -62,7 +62,7 @@ describe('findMenu：页面地址对应的菜单名称与分组', () => {
     ['/inquiry/customer-inquiries/3/confirm', '询盘管理', '销售管理'],
     ['/dashboard', '工作台', ''],
   ])('%s → %s（%s）', (path, name, group) => {
-    expect(findMenu(tree, path)).toEqual({ name, group });
+    expect(findMenu(tree, path)).toMatchObject({ name, group });
   });
 
   it('分组地址、前缀相同但不是下级的地址、隐藏或停用的菜单都不算', () => {

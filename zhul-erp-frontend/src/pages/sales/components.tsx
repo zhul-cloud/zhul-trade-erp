@@ -1,6 +1,7 @@
 import { history } from '@umijs/max';
 import { Skeleton } from 'antd';
 import React, { useEffect, useState } from 'react';
+import type { SourceRef } from '@/components/DocFields/SourceNos';
 import {
   Card,
   MigratedPill,
@@ -60,6 +61,40 @@ export const PATHS = {
   order: (id: number) => `/sales/orders/${id}`,
   quotation: (id: number) => `/quotation/quotations/${id}`,
   inquiry: (id: number) => `/inquiry/customer-inquiries/${id}`,
+  afterSales: (id: number) => `/sales/after-sales/${id}`,
+};
+
+/**
+ * 销售订单的来源单号：PI 转成的是形式发票号，售后补发是售后单号，费用订单是原订单号；
+ * 手动创建的没有来源单号（显示时用「手动创建」）。
+ */
+export const orderSourceRefs = (o: {
+  source: number;
+  piId?: number;
+  piNo?: string;
+  piVersionNo?: number;
+  afterSalesId?: number;
+  afterSalesNo?: string;
+  originalSoId?: number;
+  originalSoNo?: string;
+}): SourceRef[] => {
+  if (o.source === 3)
+    return o.afterSalesId && o.afterSalesNo
+      ? [{ no: o.afterSalesNo, href: PATHS.afterSales(o.afterSalesId) }]
+      : [];
+  if (o.source === 4)
+    return o.originalSoId && o.originalSoNo
+      ? [{ no: o.originalSoNo, href: PATHS.order(o.originalSoId) }]
+      : [];
+  if (o.piId && o.piNo)
+    return [
+      {
+        no:
+          (o.piVersionNo ?? 1) > 1 ? `${o.piNo} Rev.${o.piVersionNo}` : o.piNo,
+        href: PATHS.pi(o.piId),
+      },
+    ];
+  return [];
 };
 
 const StatusPill: React.FC<{

@@ -1,5 +1,4 @@
 import {
-  ArrowLeftOutlined,
   EditOutlined,
   EnvironmentOutlined,
   FileTextOutlined,
@@ -11,6 +10,7 @@ import {
 import { history, useAccess, useParams } from '@umijs/max';
 import { Button, Skeleton } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
+import { usePageTitle } from '@/components/PageTabs/hooks';
 import EntriesDrawer from '@/pages/finance/credits/EntriesDrawer';
 import { type CreditAccount, creditApi } from '@/pages/finance/credits/service';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
@@ -283,6 +283,7 @@ const CustomerDetailPage: React.FC = () => {
   const { palette } = useAppTheme();
   const { labelOf: countryLabel, zhOf } = useCountries();
   const [record, setRecord] = useState<CustomerDetail | null>();
+  usePageTitle(record ? `客户 ${record.name}` : undefined, record?.name);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>();
   const [transferOpen, setTransferOpen] = useState(false);
@@ -327,11 +328,7 @@ const CustomerDetailPage: React.FC = () => {
 
   let body: React.ReactNode;
   let title: React.ReactNode = '客户详情';
-  let actions: React.ReactNode = (
-    <Button icon={<ArrowLeftOutlined />} onClick={back}>
-      返回
-    </Button>
-  );
+  let actions: React.ReactNode = null;
   if (loading) {
     body = (
       <div
@@ -371,9 +368,6 @@ const CustomerDetailPage: React.FC = () => {
     );
     actions = (
       <>
-        <Button icon={<ArrowLeftOutlined />} onClick={back}>
-          返回
-        </Button>
         {access['partner:customer:transfer'] && (
           <Button icon={<SwapOutlined />} onClick={() => setTransferOpen(true)}>
             转移

@@ -154,7 +154,8 @@ public class BargainStatsService {
             purchase = purchase.add(r.purchase());
             claim = claim.add(r.claim());
             invoice = invoice.add(r.invoice());
-            if (r.item().getTargetPrice() == null) {
+            if (r.item().getTargetPrice() == null || r.item().getBargainAmount() == null) {
+                // 没有目标价或单价为 0 的行不计砍价
                 noTarget = noTarget.add(r.purchase());
             } else {
                 target = target.add(PurchaseCalc.targetAmount(r.item().getTargetPrice(), r.item().getQuantity()));
@@ -187,7 +188,7 @@ public class BargainStatsService {
         x.setTargetPrice(r.item().getTargetPrice());
         x.setNetPriceCny(r.item().getNetPriceCny());
         x.setBargainAmount(r.item().getBargainAmount());
-        x.setBargainRate(r.item().getTargetPrice() == null ? null
+        x.setBargainRate(r.item().getTargetPrice() == null || r.item().getBargainAmount() == null ? null
                 : PurchaseCalc.rate(r.item().getBargainAmount(), PurchaseCalc.targetAmount(r.item().getTargetPrice(), r.item().getQuantity())));
         x.setClaimAmount(PurchaseCalc.money(r.claim()));
         return x;

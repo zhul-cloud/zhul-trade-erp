@@ -16,6 +16,7 @@ import {
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
+import { CustomerCell } from '@/components/DocFields';
 import { ellipsisRender } from '@/components/EllipsisText';
 import { Card, Pill } from '@/pages/inquiry/shared/components';
 import { auditColumns, SupplierPicker } from '@/pages/purchase/components';
@@ -514,7 +515,7 @@ const ReturnsPage: React.FC = () => {
       render: (v: string, r) => <a onClick={() => open(r, setViewing)}>{v}</a>,
     },
     {
-      title: '售后单 · 订单',
+      title: '来源单号 · 订单',
       key: 'as',
       width: 170,
       render: (_, r) => (
@@ -528,7 +529,19 @@ const ReturnsPage: React.FC = () => {
         </div>
       ),
     },
-    { title: '客户', dataIndex: 'customerName', width: 180 },
+    {
+      title: '客户',
+      dataIndex: 'customerName',
+      width: 200,
+      render: (v: string, r) => (
+        <CustomerCell
+          name={v}
+          country={r.customerCountry}
+          type={r.customerType}
+          contact={r.customerContact}
+        />
+      ),
+    },
     {
       title: '型号 · 数量',
       dataIndex: 'itemSummary',

@@ -1,7 +1,12 @@
-import { PlusOutlined, SearchOutlined } from '@ant-design/icons';
+import {
+  HistoryOutlined,
+  PlusOutlined,
+  SearchOutlined,
+} from '@ant-design/icons';
 import { history, useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import {
+  Alert,
   App,
   Button,
   Checkbox,
@@ -204,7 +209,7 @@ const PayableManagement: React.FC = () => {
       ),
     },
     {
-      title: '来源',
+      title: '来源单号',
       key: 'source',
       width: 170,
       render: (_, r) => (
@@ -264,8 +269,15 @@ const PayableManagement: React.FC = () => {
     {
       title: '状态',
       dataIndex: 'status',
-      width: 96,
-      render: (v: number) => <PayStatusPill status={v} />,
+      width: 150,
+      render: (v: number, r) => (
+        <Space size={6}>
+          <PayStatusPill status={v} />
+          {r.settledByMigration && (
+            <span style={{ fontSize: 12, color: palette.mute }}>历史迁移</span>
+          )}
+        </Space>
+      ),
     },
     ...auditColumns<Payable>(),
     {
@@ -526,11 +538,20 @@ const PayableManagement: React.FC = () => {
           <>
             <div style={{ marginBottom: 14, color: palette.sub }}>
               {detail.payeeName} <PayeeTypePill type={detail.payeeType} /> ·
-              来源{' '}
+              来源单号{' '}
               <a onClick={() => history.push(sourcePath(detail))}>
                 {detail.sourceNo}
               </a>
             </div>
+            {detail.settledByMigration && (
+              <Alert
+                type="info"
+                showIcon
+                icon={<HistoryOutlined />}
+                style={{ marginBottom: 14 }}
+                title="历史迁移视为已付：迁移前已线下付清，没有付款单"
+              />
+            )}
             <PayableBody payable={detail} showVoided />
           </>
         )}

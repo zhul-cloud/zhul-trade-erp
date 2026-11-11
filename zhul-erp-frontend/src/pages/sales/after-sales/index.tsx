@@ -19,6 +19,7 @@ import {
 } from 'antd';
 import dayjs from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
+import { CustomerSub } from '@/components/DocFields';
 import { ellipsisRender } from '@/components/EllipsisText';
 import { Card, PageTitle, Pill } from '@/pages/inquiry/shared/components';
 import { auditColumns } from '@/pages/purchase/components';
@@ -118,7 +119,7 @@ const AfterSalesPage: React.FC = () => {
       ),
     },
     {
-      title: '客户 · 订单',
+      title: '客户 · 来源单号',
       key: 'customer',
       width: 210,
       render: (_, r) => (
@@ -126,6 +127,14 @@ const AfterSalesPage: React.FC = () => {
           <div style={{ fontWeight: 600, color: palette.ink }}>
             {r.customerName}
           </div>
+          {(r.customerCountry || r.customerContact) && (
+            <div style={{ fontSize: 12, color: palette.mute }}>
+              <CustomerSub
+                country={r.customerCountry}
+                contact={r.customerContact}
+              />
+            </div>
+          )}
           {r.soId ? (
             <a
               style={{ fontSize: 12 }}

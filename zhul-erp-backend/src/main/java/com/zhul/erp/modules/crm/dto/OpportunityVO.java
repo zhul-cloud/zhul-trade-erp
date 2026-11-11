@@ -14,6 +14,8 @@ public class OpportunityVO {
     private Long customerId;
     /** 客户展示名：有客户名称用名称，否则用联系人名称 */
     private String customerName;
+    /** 客户主联系人姓名（客户没有名称时名称已显示联系人，这里为空） */
+    private String customerContact;
     private boolean customerNameMissing;
     private String country;
     private Integer sourceChannel;

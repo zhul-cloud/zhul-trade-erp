@@ -1,7 +1,9 @@
 package com.zhul.erp.modules.finance;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.zhul.erp.framework.tenant.TenantContext;
 import com.zhul.erp.modules.finance.service.PayableBackfill;
+import com.zhul.erp.modules.finance.service.PayableSyncService;
 import com.zhul.erp.modules.sales.SalesContractSupport;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -42,6 +44,8 @@ class PayableContractTest extends SalesContractSupport {
 
     @Autowired
     private PayableBackfill backfill;
+    @Autowired
+    private PayableSyncService payableSync;
 
     private String lin;
     private long account;
@@ -627,5 +631,69 @@ class PayableContractTest extends SalesContractSupport {
         money("0.00", bySource(poA, admin).path("paidCny"));
         assertEquals(0, jdbc.queryForObject("select count(*) from fin_payment_allocation where payable_id = ? and from_credit = 1 "
                 + "and amount_cny <> 0 and deleted_at is null", Integer.class, apB), "抵扣行的现金流仍为 0");
+    }
+
+    // ---------------------------------------------------------------- 2026-11-10 反馈（feedback-1110-fee-order-contact-ap）
+
+    @Test
+    void zeroPriceOrder_payableAndInstallmentsPaid() throws Exception {
+        long sup = supplier("样品供应商", null);
+        JsonNode po = orderedPo(sup, "Z-1", 2, "0", List.of(term(30, 1, 0), term(70, 3, 0)));
+        JsonNode ap = bySource(po.path("id").asLong(), admin);
+        money("0", ap.path("amount"));
+        assertEquals(3, ap.path("status").asInt(), "合计为 0 直接已付清");
+        ap.path("installments").forEach(i -> assertEquals(3, i.path("status").asInt(), "金额为 0 的期次为已付清"));
+        assertTrue(blank(ap.path("nextDueDate")));
+    }
+
+    @Test
+    void settledByMigration_survivesResync_sortUnpaidFirst() throws Exception {
+        long sup = supplier("历史供应商", null);
+        long oldPo = orderedPo(sup, "H-1", 2, "100", List.of(term(100, 1, 0))).path("id").asLong();
+        long newPo = orderedPo(sup, "H-2", 2, "100", List.of(term(100, 1, 0))).path("id").asLong();
+        long paidPo = orderedPo(sup, "H-3", 1, "100", List.of(term(100, 1, 0))).path("id").asLong();
+        long nonMigrated = orderedPo(sup, "H-4", 1, "100", List.of(term(100, 1, 0))).path("id").asLong();
+        long withPayment = orderedPo(sup, "H-5", 1, "100", List.of(term(100, 1, 0))).path("id").asLong();
+        jdbc.update("update purchase_order set migrated = 1, order_date = '2026-10-31' where id in (?, ?, ?)", oldPo, paidPo, withPayment);
+        jdbc.update("update purchase_order set migrated = 1, order_date = '2026-11-01' where id = ?", newPo);
+        jdbc.update("update purchase_order set order_date = '2026-10-01' where id = ?", nonMigrated);
+        long paidAp = bySource(paidPo, admin).path("id").asLong();
+        ok(pay(payBody(1, "100.00", Map.of(paidAp, "100.00"), admin), admin));
+        long partAp = bySource(withPayment, admin).path("id").asLong();
+        ok(pay(payBody(1, "50.00", Map.of(partAp, "50.00"), admin), admin));
+
+        // 迁移语句：只标记历史迁移、11-01 之前、没有核销的
+        String sql = new String(getClass().getResourceAsStream("/db/migration/V1.5.23__fee_order_settled_payable.sql").readAllBytes(),
+                java.nio.charset.StandardCharsets.UTF_8);
+        for (String stmt : sql.replaceAll("(?m)^--.*$", "").split(";")) {
+            if (stmt.trim().startsWith("UPDATE")) {
+                jdbc.update(stmt);
+            }
+        }
+        JsonNode old = bySource(oldPo, admin);
+        assertTrue(old.path("settledByMigration").asBoolean());
+        assertEquals(3, old.path("status").asInt());
+        money("0", old.path("unpaidAmount"));
+        assertEquals(3, old.path("installments").get(0).path("status").asInt());
+        assertEquals(0, old.path("payments").size(), "不生成付款记录");
+        for (long other : List.of(newPo, nonMigrated, withPayment)) {
+            assertFalse(bySource(other, admin).path("settledByMigration").asBoolean(), "不该标记：" + other);
+        }
+        assertEquals(2, bySource(withPayment, admin).path("status").asInt());
+
+        // 重算后仍为已付清
+        TenantContext.runAs(0, () -> payableSync.syncPurchaseOrder(oldPo));
+        old = bySource(oldPo, admin);
+        assertEquals(3, old.path("status").asInt());
+        money("0", old.path("unpaidAmount"));
+
+        // 默认排序：未付、部分付款在前
+        JsonNode rows = ok(call(get(AP), admin)).path("records");
+        boolean seenPaid = false;
+        for (JsonNode r : rows) {
+            boolean paid = r.path("status").asInt() >= 3;
+            assertFalse(seenPaid && !paid, "已付清的排在未付之后：" + rows);
+            seenPaid |= paid;
+        }
     }
 }

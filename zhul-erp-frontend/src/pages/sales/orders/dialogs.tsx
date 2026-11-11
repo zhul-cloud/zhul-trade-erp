@@ -1,5 +1,5 @@
 import { DeleteOutlined, PlusOutlined } from '@ant-design/icons';
-import { request } from '@umijs/max';
+import { request, useAccess } from '@umijs/max';
 import {
   Alert,
   App,
@@ -16,6 +16,7 @@ import {
 } from 'antd';
 import dayjs from 'dayjs';
 import React, { useEffect, useMemo, useState } from 'react';
+import { ProductSelect } from '@/pages/product/components/ProductSelect';
 import { CURRENCIES } from '@/pages/quotation/components';
 import type { Attachment } from '@/pages/warehouse/service';
 import { searchCustomers } from '@/services/zhul/masterdata';
@@ -274,6 +275,9 @@ export const ConvertOrderModal: React.FC<{
 
 interface Line extends Partial<CreateOrderLine> {
   key: number;
+  /** 选中商品档案后带出，只读显示 */
+  brand?: string;
+  category?: string;
 }
 
 let lineSeq = 0;
@@ -290,6 +294,7 @@ export const CreateOrderDrawer: React.FC<{
 }> = ({ open, onClose, onDone }) => {
   const { message } = App.useApp();
   const { palette } = useAppTheme();
+  const access = useAccess() as Record<string, boolean>;
   const users = useUserOptions();
   const [customerId, setCustomerId] = useState<number>();
   const [customerOptions, setCustomerOptions] = useState<
@@ -336,7 +341,7 @@ export const CreateOrderDrawer: React.FC<{
   const amountOf = (l: Line) =>
     Math.round((l.unitPrice ?? 0) * (l.quantity ?? 0) * 100) / 100;
   const total = lines.reduce((s, l) => s + amountOf(l), 0) + feeTotal(fees);
-  const filled = lines.filter((l) => l.model?.trim());
+  const filled = lines.filter((l) => l.productId);
   const ready =
     !!customerId &&
     !!date &&
@@ -352,8 +357,7 @@ export const CreateOrderDrawer: React.FC<{
         currencyCode: currency,
         salesDate: date.format('YYYY-MM-DD'),
         items: filled.map((l) => ({
-          model: (l.model ?? '').trim(),
-          brand: l.brand?.trim() || undefined,
+          productId: l.productId as number,
           quantity: l.quantity ?? 1,
           unitPrice: l.unitPrice ?? 0,
           costPrice: l.costPrice ?? null,
@@ -384,7 +388,7 @@ export const CreateOrderDrawer: React.FC<{
     <Drawer
       open={open}
       onClose={onClose}
-      size="min(1040px, 96vw)"
+      size="min(1240px, 96vw)"
       title="手动创建订单"
       footer={
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -463,11 +467,17 @@ export const CreateOrderDrawer: React.FC<{
       </b>
       <div style={{ display: 'flex', gap: 8, marginBottom: 6 }}>
         <div
-          style={{ flex: 1, minWidth: 0, fontSize: 12, color: palette.mute }}
+          style={{
+            flex: '1 1 0',
+            minWidth: 220,
+            fontSize: 12,
+            color: palette.mute,
+          }}
         >
           型号<span style={{ color: palette.red }}> *</span>
         </div>
         {head('品牌', 110)}
+        {head('品类', 110)}
         {head('数量', 80, true)}
         {head(`单价（${currency}）`, 120, true)}
         {head('采购成本价（CNY）', 130)}
@@ -482,19 +492,75 @@ export const CreateOrderDrawer: React.FC<{
             key={l.key}
             style={{ display: 'flex', gap: 8, alignItems: 'center' }}
           >
-            <Input
-              style={{ flex: 1, minWidth: 0 }}
-              placeholder="输入型号"
-              value={l.model}
-              onChange={(e) => patch(l.key, { model: e.target.value })}
+            <ProductSelect
+              style={{ flex: '1 1 0', minWidth: 220 }}
+              modelOnly
+              placeholder="输入型号搜索商品档案"
+              value={l.productId}
+              onChange={(id, o) =>
+                patch(l.key, {
+                  productId: id,
+                  model: o?.mpnDisplay,
+                  brand: o?.brandName,
+                  category: o?.categoryName,
+                })
+              }
+              footer={(kw) => (
+                <div
+                  style={{
+                    borderTop: `1px solid ${palette.hairline}`,
+                    padding: '8px 12px 4px',
+                    fontSize: 12,
+                    color: palette.mute,
+                  }}
+                >
+                  {access['product:product:add'] ? (
+                    <>
+                      找不到？
+                      <a
+                        href={`/product/products/new${kw ? `?mpn=${encodeURIComponent(kw)}` : ''}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        style={{ marginLeft: 4 }}
+                      >
+                        <PlusOutlined /> 去商品档案新建
+                      </a>
+                    </>
+                  ) : (
+                    '搜不到这个型号，请联系有商品档案权限的同事建档'
+                  )}
+                </div>
+              )}
               aria-label="型号"
             />
-            <Input
-              style={{ width: 110 }}
-              placeholder="选填"
-              value={l.brand}
-              onChange={(e) => patch(l.key, { brand: e.target.value })}
-            />
+            <span
+              style={{
+                width: 110,
+                flexShrink: 0,
+                color: palette.sub,
+                fontSize: 13,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
+              title={l.brand}
+            >
+              {l.brand || '—'}
+            </span>
+            <span
+              style={{
+                width: 110,
+                flexShrink: 0,
+                color: palette.sub,
+                fontSize: 13,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
+              title={l.category}
+            >
+              {l.category || '—'}
+            </span>
             <InputNumber
               style={{ width: 80 }}
               min={1}
@@ -1440,6 +1506,162 @@ export const EditFeesModal: React.FC<{
         onChange={(e) => setReason(e.target.value)}
         aria-label="修改原因"
       />
+    </Modal>
+  );
+};
+
+/**
+ * 新建费用订单（spec sales/sales-order「费用订单」）：只有费用行，客户、币种、事业部、业务员取原订单；
+ * 不走采购与出运，收款到账后自动完成。
+ */
+export const CreateFeeOrderModal: React.FC<{
+  order?: OrderDetail;
+  open: boolean;
+  onClose: () => void;
+  onDone: (o: Order) => void;
+}> = ({ order, open, onClose, onDone }) => {
+  const { message } = App.useApp();
+  const { palette } = useAppTheme();
+  const [rows, setRows] = useState<FeeRow[]>([]);
+  const [date, setDate] = useState<dayjs.Dayjs | null>(dayjs());
+  const [remark, setRemark] = useState('');
+  const [files, setFiles] = useState<Attachment[]>([]);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    setRows([{ key: ++feeSeq, feeName: 'Shipping Cost', amount: null }]);
+    setDate(dayjs());
+    setRemark('');
+    setFiles([]);
+  }, [open]);
+
+  if (!order) return null;
+  const cur = order.currencyCode;
+  const fees = toFeeInputs(rows);
+  const total = feeTotal(rows);
+  const rate = Number(order.exchangeRate);
+
+  const submit = async () => {
+    if (!date || fees.length === 0) return;
+    setBusy(true);
+    try {
+      const created = await orderApi.createFeeOrder(order.id, {
+        salesDate: date.format('YYYY-MM-DD'),
+        fees,
+        remark: remark.trim() || undefined,
+        attachmentIds: files.map((f) => f.id),
+      });
+      message.success(`已创建费用订单 ${created.soNo}`);
+      onDone(created);
+    } catch (e) {
+      message.error(readBizError(e).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const label = (text: string, required = false) => (
+    <div style={{ fontSize: 13, color: palette.sub, margin: '16px 0 8px' }}>
+      {text}
+      {required && <span style={{ color: palette.red }}> *</span>}
+    </div>
+  );
+
+  return (
+    <Modal
+      open={open}
+      title="新建费用订单"
+      onCancel={onClose}
+      onOk={submit}
+      okText="创建费用订单"
+      okButtonProps={{ loading: busy, disabled: !date || fees.length === 0 }}
+      width={560}
+      destroyOnHidden
+    >
+      <div
+        style={{
+          padding: '10px 14px',
+          borderRadius: 12,
+          background: palette.inset,
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <b style={{ color: palette.ink }}>{order.soNo}</b>
+          <ReceiptStatusPill status={order.receiptStatus} />
+        </div>
+        <div style={{ fontSize: 12, color: palette.mute }}>
+          {[
+            order.customerName,
+            cur,
+            order.ownerName && `业务员 ${order.ownerName}`,
+          ]
+            .filter(Boolean)
+            .join(' · ')}
+        </div>
+      </div>
+      {label('费用', true)}
+      <FeeRowsEditor rows={rows} currency={cur} onChange={setRows} />
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'baseline',
+          gap: 8,
+          marginTop: 12,
+          padding: '12px 14px',
+          borderRadius: 12,
+          background: palette.accentSoft,
+        }}
+      >
+        <span style={{ color: palette.sub }}>合计</span>
+        <b
+          style={{
+            marginLeft: 'auto',
+            fontSize: 18,
+            color: palette.ink,
+            fontVariantNumeric: 'tabular-nums',
+          }}
+        >
+          {formatAmount(total, cur)}
+        </b>
+        {cur !== 'CNY' && rate > 0 && (
+          <span style={{ fontSize: 12, color: palette.mute }}>
+            ≈ {formatAmount(Math.round(total * rate * 100) / 100, 'CNY')}
+          </span>
+        )}
+      </div>
+      {label('销售日期', true)}
+      <DatePicker
+        style={{ width: '100%' }}
+        value={date}
+        onChange={setDate}
+        allowClear={false}
+        aria-label="销售日期"
+      />
+      {label('备注')}
+      <Input
+        value={remark}
+        maxLength={500}
+        placeholder="如 客户改用我们的货代，运费另收"
+        onChange={(e) => setRemark(e.target.value)}
+        aria-label="备注"
+      />
+      {label('附件')}
+      <div style={{ display: 'grid', gap: 8 }}>
+        <OrderFileList
+          files={files}
+          onRemove={(a) =>
+            setFiles((prev) => prev.filter((f) => f.id !== a.id))
+          }
+        />
+        {files.length < ORDER_FILE_MAX && (
+          <OrderFileUpload
+            dragger
+            count={files.length}
+            onUploaded={(a) => setFiles((prev) => [...prev, a])}
+          />
+        )}
+      </div>
     </Modal>
   );
 };

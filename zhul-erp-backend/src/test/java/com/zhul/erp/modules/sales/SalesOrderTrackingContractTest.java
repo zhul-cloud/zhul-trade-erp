@@ -87,8 +87,9 @@ class SalesOrderTrackingContractTest extends SalesContractSupport {
         return call(json(post(SO), write(b)), admin);
     }
 
-    private static Map<String, Object> line(String model, int qty, String price, String cost, Long purchaser, Integer stock) {
+    private Map<String, Object> line(String model, int qty, String price, String cost, Long purchaser, Integer stock) {
         Map<String, Object> m = new LinkedHashMap<>();
+        m.put("productId", manualProduct(model));
         m.put("model", model);
         m.put("quantity", qty);
         m.put("unitPrice", price);

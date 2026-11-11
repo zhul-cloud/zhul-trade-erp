@@ -16,4 +16,18 @@ public interface ProductLookupService {
 
     /** 型号匹配：同品牌同归一化型号为精确匹配，其余相同或前缀相同的为候选 */
     ProductMatchVO match(String brand, String mpn);
+
+    /** 按 ID 取可以被业务单据选用的商品（启用、未删除、在本行业内），没有时返回 null */
+    ProductOptionVO selectable(Long id);
+
+    /**
+     * 单据明细显示用：按「品牌名 + 归一化型号」批量精确匹配未删除的商品（不看启用状态），一次查询。
+     * 键为 {@link #matchKey(String, String)}，匹配不到的不在结果里。
+     */
+    java.util.Map<String, Long> matchAll(java.util.Collection<String[]> brandModels);
+
+    static String matchKey(String brand, String model) {
+        return (brand == null ? "" : brand.trim().toLowerCase(java.util.Locale.ROOT)) + "|"
+                + com.zhul.erp.modules.product.support.MpnNormalizer.normalize(model);
+    }
 }

@@ -18,6 +18,10 @@ public class ReturnVO {
     private Long soId;
     private String soNo;
     private String customerName;
+    /** 客户国家/地区、新老客户、主联系人（列表客户列三行显示） */
+    private String customerCountry;
+    private Integer customerType;
+    private String customerContact;
     private String carrier;
     private String trackingNo;
     private String remark;

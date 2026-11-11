@@ -68,6 +68,11 @@ export interface QuotationItem {
   model: string;
   /** 询盘型号上的订货号（物料号、料号），辅助识别，只在系统内显示 */
   orderCode?: string;
+  /** 对应的商品档案；没有时为空 */
+  productId?: number;
+  /** 采购填的内部无货原因（只在系统内显示）；无货但没填原因时为空串，不是无货时为空 */
+  sourcingNoStockReasonName?: string;
+  sourcingNoStockNote?: string;
   brand: string;
   category?: string;
   description?: string;
@@ -177,6 +182,8 @@ export interface Quotation {
   fees: QuotationFee[];
   sendLogs: SendLog[];
   inquiryCodes: string[];
+  /** 来源单号：询盘单 */
+  inquiries: { id: number; no: string }[];
   returningCustomer?: boolean;
   returningCustomerMargins?: number[];
   systemRate?: number;
@@ -198,6 +205,7 @@ export interface QuotationListItem {
   customerName: string;
   /** 客户国家 */
   customerCountry?: string;
+  customerContact?: string;
   /** 1-新客户、2-老客户 */
   customerType?: number;
   /** 全部型号数量之和 */
@@ -210,6 +218,8 @@ export interface QuotationListItem {
   statusName: string;
   lostReasonName?: string;
   inquiryCodes: string[];
+  /** 来源单号：询盘单 */
+  inquiries: { id: number; no: string }[];
   ownerId: number;
   ownerName?: string;
   createTime: string;

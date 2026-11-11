@@ -2,6 +2,7 @@ import { history, useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { App, Button, InputNumber, Modal, Segmented, Table } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
+import { CustomerSub } from '@/components/DocFields';
 import { Card } from '@/pages/inquiry/shared/components';
 import { readBizError } from '@/pages/sales/service';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -50,7 +51,7 @@ const OverpaidTab: React.FC<{ onCount?: (n: number) => void }> = ({
 
   const columns: TableColumnsType<Overpaid> = [
     {
-      title: 'PI / 订单',
+      title: '来源单号',
       key: 'no',
       width: 200,
       render: (_, r) => (
@@ -80,7 +81,19 @@ const OverpaidTab: React.FC<{ onCount?: (n: number) => void }> = ({
       title: '客户',
       dataIndex: 'customerName',
       width: 200,
-      render: (v: string) => <b style={{ color: palette.ink }}>{v}</b>,
+      render: (v: string, r) => (
+        <div>
+          <b style={{ color: palette.ink }}>{v}</b>
+          {(r.customerCountry || r.customerContact) && (
+            <div style={{ fontSize: 12, color: palette.mute }}>
+              <CustomerSub
+                country={r.customerCountry}
+                contact={r.customerContact}
+              />
+            </div>
+          )}
+        </div>
+      ),
     },
     {
       title: '合计',

@@ -13,6 +13,7 @@ import {
   Table,
 } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
+import { useUrlFilter } from '@/components/DocFields/SourceNos';
 import EllipsisText, { ellipsisRender } from '@/components/EllipsisText';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { auditColumns } from '@/pages/purchase/components';
@@ -91,9 +92,12 @@ const ShipmentsTab: React.FC = () => {
   const { message } = App.useApp();
   const access = useAccess();
   const canShip = !!access['purchase:shipment:create'];
-  const [keyword, setKeyword] = useState('');
+  const url = useUrlFilter();
+  const [keyword, setKeyword] = useState(url.keyword);
   const [status, setStatus] = useState<number>();
-  const [query, setQuery] = useState<{ keyword?: string; status?: number }>({});
+  const [query, setQuery] = useState<{ keyword?: string; status?: number }>(
+    url.keyword ? { keyword: url.keyword } : {},
+  );
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = usePageSize(20);
   const [rows, setRows] = useState<Shipment[]>([]);
@@ -136,7 +140,7 @@ const ShipmentsTab: React.FC = () => {
       ),
     },
     {
-      title: '采购订单 · 采购对象',
+      title: '来源单号 · 采购对象',
       dataIndex: 'poNo',
       width: 210,
       render: (v: string, r) => (
@@ -530,7 +534,7 @@ const DiffsTab: React.FC<{ onChanged: () => void }> = ({ onChanged }) => {
       ),
     },
     {
-      title: '采购订单 · 采购对象',
+      title: '来源单号 · 采购对象',
       dataIndex: 'poNo',
       width: 200,
       render: (v: string, r) => (

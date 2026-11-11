@@ -1,0 +1,859 @@
+{
+  "version": "0.8.5",
+  "children": [
+    {
+      "type": "frame",
+      "id": "n1",
+      "name": "供应链工作台",
+      "width": 1440.0,
+      "height": 900.0,
+      "layout": "horizontal",
+      "gap": 0.0,
+      "padding": 0.0,
+      "cornerRadius": 12.0,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "#0B1220"
+        }
+      ],
+      "children": [
+        {
+          "type": "frame",
+          "id": "n2",
+          "name": "主区域",
+          "width": 1200.0,
+          "height": 900.0,
+          "layout": "vertical",
+          "gap": 16.0,
+          "padding": 28.0,
+          "cornerRadius": 12.0,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "#0B1220"
+            }
+          ],
+          "children": [
+            {
+              "type": "frame",
+              "id": "n3",
+              "name": "顶部栏",
+              "width": 1200.0,
+              "height": 60.0,
+              "layout": "horizontal",
+              "gap": 28.0,
+              "padding": 20.0,
+              "cornerRadius": 12.0,
+              "fill": [
+                {
+                  "type": "solid",
+                  "color": "#0A101D"
+                }
+              ],
+              "children": [
+                {
+                  "type": "text",
+                  "id": "n4",
+                  "width": "fit_content",
+                  "height": "fit_content",
+                  "content": "供应链管理  /  供应链工作台",
+                  "fontSize": 14.0,
+                  "fontWeight": 600,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "#CBD5E1"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "n5",
+                  "width": "fit_content",
+                  "height": "fit_content",
+                  "content": "⌘K   搜索需求、品牌、型号",
+                  "fontSize": 13.0,
+                  "fontWeight": 400,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "#94A3B8"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "n6",
+                  "width": "fit_content",
+                  "height": "fit_content",
+                  "content": "林经理  ·  供应链部",
+                  "fontSize": 13.0,
+                  "fontWeight": 600,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "#F8FAFC"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "text",
+              "id": "n7",
+              "width": "fit_content",
+              "height": "fit_content",
+              "content": "供应链工作台",
+              "fontSize": 28.0,
+              "fontWeight": 700,
+              "fill": [
+                {
+                  "type": "solid",
+                  "color": "#F8FAFC"
+                }
+              ]
+            },
+            {
+              "type": "text",
+              "id": "n8",
+              "width": "fit_content",
+              "height": "fit_content",
+              "content": "从多源需求信号到品牌品类覆盖，集中处理供应缺口与下一步动作",
+              "fontSize": 13.0,
+              "fontWeight": 400,
+              "fill": [
+                {
+                  "type": "solid",
+                  "color": "#CBD5E1"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "n9",
+              "name": "统计卡片",
+              "width": 1160.0,
+              "height": 104.0,
+              "layout": "horizontal",
+              "gap": 16.0,
+              "padding": 20.0,
+              "cornerRadius": 12.0,
+              "fill": [
+                {
+                  "type": "solid",
+                  "color": "#111A2C"
+                }
+              ],
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "n10",
+                  "name": "待处理需求",
+                  "width": 260.0,
+                  "height": 64.0,
+                  "layout": "vertical",
+                  "gap": 12.0,
+                  "padding": 14.0,
+                  "cornerRadius": 12.0,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "#182B4C"
+                    }
+                  ],
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "n11",
+                      "width": "fit_content",
+                      "height": "fit_content",
+                      "content": "待处理需求",
+                      "fontSize": 12.0,
+                      "fontWeight": 400,
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "#94A3B8"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "n12",
+                      "width": "fit_content",
+                      "height": "fit_content",
+                      "content": "28",
+                      "fontSize": 28.0,
+                      "fontWeight": 700,
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "#F8FAFC"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "n13",
+                      "width": "fit_content",
+                      "height": "fit_content",
+                      "content": "较昨日 +6",
+                      "fontSize": 12.0,
+                      "fontWeight": 400,
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "#60A5FA"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "n14",
+                  "name": "高优先级缺口",
+                  "width": 260.0,
+                  "height": 64.0,
+                  "layout": "vertical",
+                  "gap": 12.0,
+                  "padding": 14.0,
+                  "cornerRadius": 12.0,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "#2D282E"
+                    }
+                  ],
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "n15",
+                      "width": "fit_content",
+                      "height": "fit_content",
+                      "content": "高优先级缺口",
+                      "fontSize": 12.0,
+                      "fontWeight": 400,
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "#94A3B8"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "n16",
+                      "width": "fit_content",
+                      "height": "fit_content",
+                      "content": "12",
+                      "fontSize": 28.0,
+                      "fontWeight": 700,
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "#FB923C"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "n17",
+                      "width": "fit_content",
+                      "height": "fit_content",
+                      "content": "需要补渠道",
+                      "fontSize": 12.0,
+                      "fontWeight": 400,
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "#FB923C"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "n18",
+                  "name": "待验证供应商",
+                  "width": 260.0,
+                  "height": 64.0,
+                  "layout": "vertical",
+                  "gap": 12.0,
+                  "padding": 14.0,
+                  "cornerRadius": 12.0,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "#133043"
+                    }
+                  ],
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "n19",
+                      "width": "fit_content",
+                      "height": "fit_content",
+                      "content": "待验证供应商",
+                      "fontSize": 12.0,
+                      "fontWeight": 400,
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "#94A3B8"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "n20",
+                      "width": "fit_content",
+                      "height": "fit_content",
+                      "content": "19",
+                      "fontSize": 28.0,
+                      "fontWeight": 700,
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "#22D3EE"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "n21",
+                      "width": "fit_content",
+                      "height": "fit_content",
+                      "content": "证据待补全",
+                      "fontSize": 12.0,
+                      "fontWeight": 400,
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "#22D3EE"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "n22",
+                  "name": "报价待确认",
+                  "width": 260.0,
+                  "height": 64.0,
+                  "layout": "vertical",
+                  "gap": 12.0,
+                  "padding": 14.0,
+                  "cornerRadius": 12.0,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "#183236"
+                    }
+                  ],
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "n23",
+                      "width": "fit_content",
+                      "height": "fit_content",
+                      "content": "报价待确认",
+                      "fontSize": 12.0,
+                      "fontWeight": 400,
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "#94A3B8"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "n24",
+                      "width": "fit_content",
+                      "height": "fit_content",
+                      "content": "7",
+                      "fontSize": 28.0,
+                      "fontWeight": 700,
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "#4ADE80"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "n25",
+                      "width": "fit_content",
+                      "height": "fit_content",
+                      "content": "今日截止 3 条",
+                      "fontSize": 12.0,
+                      "fontWeight": 400,
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "#4ADE80"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "n26",
+              "name": "需求筛选",
+              "width": 1160.0,
+              "height": 88.0,
+              "layout": "horizontal",
+              "gap": 18.0,
+              "padding": 20.0,
+              "cornerRadius": 12.0,
+              "fill": [
+                {
+                  "type": "solid",
+                  "color": "#111A2C"
+                }
+              ],
+              "children": [
+                {
+                  "type": "text",
+                  "id": "n27",
+                  "width": "fit_content",
+                  "height": "fit_content",
+                  "content": "需求信号",
+                  "fontSize": 14.0,
+                  "fontWeight": 600,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "#F8FAFC"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "n28",
+                  "width": "fit_content",
+                  "height": "fit_content",
+                  "content": "入口：全部  ▾",
+                  "fontSize": 13.0,
+                  "fontWeight": 400,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "#CBD5E1"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "n29",
+                  "width": "fit_content",
+                  "height": "fit_content",
+                  "content": "品牌：全部  ▾",
+                  "fontSize": 13.0,
+                  "fontWeight": 400,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "#CBD5E1"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "n30",
+                  "width": "fit_content",
+                  "height": "fit_content",
+                  "content": "优先级：高 / 中 / 低  ▾",
+                  "fontSize": 13.0,
+                  "fontWeight": 400,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "#CBD5E1"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "n31",
+                  "name": "查询",
+                  "width": 88.0,
+                  "height": 36.0,
+                  "layout": "horizontal",
+                  "gap": 12.0,
+                  "padding": 10.0,
+                  "cornerRadius": 12.0,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "#2563EB"
+                    }
+                  ],
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "n32",
+                      "width": "fit_content",
+                      "height": "fit_content",
+                      "content": "查询",
+                      "fontSize": 13.0,
+                      "fontWeight": 600,
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "#FFFFFF"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "n33",
+                  "width": "fit_content",
+                  "height": "fit_content",
+                  "content": "重置",
+                  "fontSize": 13.0,
+                  "fontWeight": 400,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "#60A5FA"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "n34",
+              "name": "主体内容",
+              "width": 1160.0,
+              "height": 300.0,
+              "layout": "horizontal",
+              "gap": 24.0,
+              "padding": 0.0,
+              "cornerRadius": 12.0,
+              "fill": [
+                {
+                  "type": "solid",
+                  "color": "#0B1220"
+                }
+              ],
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "n35",
+                  "name": "需求信号列表",
+                  "width": 720.0,
+                  "height": 300.0,
+                  "layout": "vertical",
+                  "gap": 14.0,
+                  "padding": 20.0,
+                  "cornerRadius": 12.0,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "#111A2C"
+                    }
+                  ],
+                  "stroke": {
+                    "thickness": 1.0,
+                    "fill": [
+                      {
+                        "type": "solid",
+                        "color": "#1E293B"
+                      }
+                    ]
+                  },
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "n36",
+                      "width": "fit_content",
+                      "height": "fit_content",
+                      "content": "来源 / 信号",
+                      "fontSize": 13.0,
+                      "fontWeight": 600,
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "#CBD5E1"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "n37",
+                      "width": "fit_content",
+                      "height": "fit_content",
+                      "content": "品牌 / 品类 / 型号",
+                      "fontSize": 13.0,
+                      "fontWeight": 600,
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "#CBD5E1"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "n38",
+                      "width": "fit_content",
+                      "height": "fit_content",
+                      "content": "优先级",
+                      "fontSize": 13.0,
+                      "fontWeight": 600,
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "#CBD5E1"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "n39",
+                      "width": "fit_content",
+                      "height": "fit_content",
+                      "content": "覆盖状态",
+                      "fontSize": 13.0,
+                      "fontWeight": 600,
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "#CBD5E1"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "n40",
+                      "width": "fit_content",
+                      "height": "fit_content",
+                      "content": "下一步动作",
+                      "fontSize": 13.0,
+                      "fontWeight": 600,
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "#CBD5E1"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "n41",
+                      "width": "fit_content",
+                      "height": "fit_content",
+                      "content": "更新时间",
+                      "fontSize": 13.0,
+                      "fontWeight": 600,
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "#CBD5E1"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "n42",
+                      "width": "fit_content",
+                      "height": "fit_content",
+                      "content": "客户询价   Siemens / PLC / S7-1200   高   弱覆盖   补充备用渠道   2026-11-08 18:42:10",
+                      "fontSize": 13.0,
+                      "fontWeight": 400,
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "#F8FAFC"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "n43",
+                      "width": "fit_content",
+                      "height": "fit_content",
+                      "content": "平台搜索关键词   ABB / 变频器 / ACS880   高   未覆盖   创建开发任务   2026-11-08 17:26:04",
+                      "fontSize": 13.0,
+                      "fontWeight": 400,
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "#F8FAFC"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "n44",
+                      "width": "fit_content",
+                      "height": "fit_content",
+                      "content": "客户评价   Omron / 传感器 / E2E   中   已覆盖   验证成本有效期   2026-11-08 16:18:33",
+                      "fontSize": 13.0,
+                      "fontWeight": 400,
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "#F8FAFC"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "n45",
+                  "name": "覆盖矩阵摘要",
+                  "width": 416.0,
+                  "height": 300.0,
+                  "layout": "vertical",
+                  "gap": 16.0,
+                  "padding": 20.0,
+                  "cornerRadius": 12.0,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "#111A2C"
+                    }
+                  ],
+                  "stroke": {
+                    "thickness": 1.0,
+                    "fill": [
+                      {
+                        "type": "solid",
+                        "color": "#1E293B"
+                      }
+                    ]
+                  },
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "n46",
+                      "width": "fit_content",
+                      "height": "fit_content",
+                      "content": "品牌品类覆盖矩阵",
+                      "fontSize": 16.0,
+                      "fontWeight": 600,
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "#F8FAFC"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "n47",
+                      "width": "fit_content",
+                      "height": "fit_content",
+                      "content": "以需求频次、价值和可信度排序",
+                      "fontSize": 12.0,
+                      "fontWeight": 400,
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "#94A3B8"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "n48",
+                      "width": "fit_content",
+                      "height": "fit_content",
+                      "content": "已覆盖  46%",
+                      "fontSize": 24.0,
+                      "fontWeight": 700,
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "#60A5FA"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "n49",
+                      "width": "fit_content",
+                      "height": "fit_content",
+                      "content": "弱覆盖  31%",
+                      "fontSize": 20.0,
+                      "fontWeight": 700,
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "#FB923C"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "n50",
+                      "width": "fit_content",
+                      "height": "fit_content",
+                      "content": "未覆盖  23%",
+                      "fontSize": 20.0,
+                      "fontWeight": 700,
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "#F87171"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "n51",
+                      "width": "fit_content",
+                      "height": "fit_content",
+                      "content": "下一优先级：ABB 变频器、Siemens PLC",
+                      "fontSize": 13.0,
+                      "fontWeight": 400,
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "#CBD5E1"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "n52",
+                      "width": "fit_content",
+                      "height": "fit_content",
+                      "content": "查看完整矩阵  →",
+                      "fontSize": 13.0,
+                      "fontWeight": 600,
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "#60A5FA"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "editorMeta": {
+    "activePageIndex": 0,
+    "preserveAuthoredGeometry": false
+  }
+}

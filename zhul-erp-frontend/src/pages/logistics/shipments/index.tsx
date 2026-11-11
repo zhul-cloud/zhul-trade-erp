@@ -3,6 +3,7 @@ import { history, Link, useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { App, Button, Checkbox, Input, Select, Table } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
+import { CustomerCell } from '@/components/DocFields';
 import { ellipsisRender } from '@/components/EllipsisText';
 import {
   Card,
@@ -296,7 +297,19 @@ const Shipments: React.FC = () => {
         </div>
       ),
     },
-    { title: '客户', dataIndex: 'customerName', width: 200 },
+    {
+      title: '客户',
+      dataIndex: 'customerName',
+      width: 220,
+      render: (v: string, r) => (
+        <CustomerCell
+          name={v}
+          country={r.customerCountry}
+          type={r.customerType}
+          contact={r.customerContact}
+        />
+      ),
+    },
     {
       title: '货代',
       dataIndex: 'forwarderName',
@@ -304,7 +317,7 @@ const Shipments: React.FC = () => {
       render: ellipsisRender,
     },
     {
-      title: '销售出库单 · 订单',
+      title: '来源单号 · 订单',
       key: 'orders',
       width: 230,
       render: (_, r) => (

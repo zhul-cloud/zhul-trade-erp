@@ -123,6 +123,7 @@ class SalesFirstSourcingContractTest extends InquiryContractSupport {
         Map<String, Object> item = new LinkedHashMap<>();
         item.put("itemId", itemId);
         item.put("noStock", true);
+        item.put("noStockReason", 2);
         item.put("noStockNote", "淘宝没货");
         return call(json(put(MY + "/" + taskId + "/quotes"), write(Map.of("submit", true, "items", List.of(item)))), token);
     }

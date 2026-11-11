@@ -43,6 +43,10 @@ export interface PiItem {
   inquiryCode?: string;
   inquiryItemId: number;
   model: string;
+  /** 来源询盘型号上的订货号，只在系统内显示 */
+  orderCode?: string;
+  /** 对应的商品档案；没有时为空 */
+  productId?: number;
   brand: string;
   category?: string;
   description?: string;
@@ -183,12 +187,16 @@ export interface Receipt {
 /** 收款单里的一笔到账（未认领到账、可认领列表、收款记录） */
 export interface ReceiptRow {
   id: number;
+  /** 未认领到账的附件名（最多 5 个） */
+  fileNames?: string[];
   piId?: number | null;
   piNo?: string;
   /** 手动创建的订单的收款 */
   soId?: number;
   soNo?: string;
   customerName?: string;
+  customerContact?: string;
+  customerCountry?: string;
   currencyCode: string;
   amount: number;
   platformFee: number;
@@ -291,6 +299,7 @@ export interface PiListItem {
   customerName: string;
   /** 客户国家 */
   customerCountry?: string;
+  customerContact?: string;
   /** 1-新客户、2-老客户 */
   customerType?: number;
   /** 全部型号数量之和 */
@@ -305,6 +314,8 @@ export interface PiListItem {
   currentVersionNo: number;
   revising: boolean;
   quotationNos: string[];
+  /** 来源单号：报价单 */
+  quotations: { id: number; no: string }[];
   orderId?: number;
   soNo?: string;
   ownerId: number;
@@ -355,6 +366,8 @@ export interface ReceiptDeskRow {
   piStatus?: number;
   customerId: number;
   customerName: string;
+  customerContact?: string;
+  customerCountry?: string;
   ownerId: number;
   ownerName?: string;
   currencyCode: string;
@@ -460,7 +473,7 @@ export interface OrderListItem {
   soNo: string;
   /** 历史迁移的订单（只读） */
   migrated?: boolean;
-  /** 1-PI 转成、2-手动创建、3-售后补发 */
+  /** 1-PI 转成、2-手动创建、3-售后补发、4-费用订单 */
   source: number;
   salesDate?: string;
   /** 1-现货、2-期货 */
@@ -474,6 +487,7 @@ export interface OrderListItem {
   customerName: string;
   /** 客户国家 */
   customerCountry?: string;
+  customerContact?: string;
   /** 1-新客户、2-老客户 */
   customerType?: number;
   /** 全部型号数量之和 */
@@ -494,9 +508,14 @@ export interface OrderListItem {
   piId?: number;
   piNo?: string;
   piVersionNo?: number;
-  /** 售后补发：原订单 */
+  /** 售后补发订单：来源售后单 */
+  afterSalesId?: number;
+  afterSalesNo?: string;
+  /** 售后补发、费用订单：原订单 */
   originalSoId?: number;
   originalSoNo?: string;
+  /** 原订单：有效的费用订单数 */
+  feeOrderCount?: number;
   ownerId: number;
   ownerName?: string;
   cancelReason?: string;
@@ -649,12 +668,23 @@ export interface OrderFeeInput {
   amount: number;
 }
 
+/** 原订单详情里的费用订单 */
+export interface FeeOrderBrief {
+  id: number;
+  soNo: string;
+  currencyCode: string;
+  totalAmount: number;
+  receiptStatus?: number;
+  status: number;
+  progressCode: string;
+}
+
 export interface Order {
   id: number;
   soNo: string;
   /** 历史迁移的订单（只读） */
   migrated?: boolean;
-  /** 1-PI 转成、2-手动创建、3-售后补发 */
+  /** 1-PI 转成、2-手动创建、3-售后补发、4-费用订单 */
   source: number;
   salesDate?: string;
   /** 1-新客户、2-老客户 */
@@ -697,11 +727,13 @@ export interface Order {
     estimated: boolean;
     missingCostCount: number;
   };
-  /** 售后补发：来源售后单与原订单 */
+  /** 售后补发：来源售后单与原订单；费用订单：原订单 */
   afterSalesId?: number;
   afterSalesNo?: string;
   originalSoId?: number;
   originalSoNo?: string;
+  /** 原订单：关联的费用订单 */
+  feeOrders?: FeeOrderBrief[];
   piId?: number;
   piNo?: string;
   piVersionNo?: number;
@@ -780,7 +812,7 @@ export interface OrderQuery {
   customerType?: number;
   currencyCode?: string;
   purchaserId?: number;
-  /** 1-PI 转成、2-手动创建、3-售后补发 */
+  /** 1-PI 转成、2-手动创建、3-售后补发、4-费用订单 */
   source?: number;
   /** 表头排序：profit 按毛利 */
   sortField?: string;
@@ -982,6 +1014,8 @@ export const piApi = {
     send<Pi>('POST', `${PI}/${id}/platform-receipts`, body),
   claimable: (id: number) =>
     get<ReceiptRow[]>(`${PI}/${id}/claimable-receipts`),
+  openClaimableFile: (id: number, receiptId: number, index: number) =>
+    openFile(`${PI}/${id}/claimable-receipts/${receiptId}/files/${index}`),
   claim: (id: number, receiptId: number, slipId?: number) =>
     send<Pi>('POST', `${PI}/${id}/claim`, { receiptId, slipId }),
   voidReceipt: (id: number, receiptId: number, reason: string) =>
@@ -1030,8 +1064,10 @@ export interface OrderCandidatePi {
 }
 
 export interface CreateOrderLine {
-  model: string;
-  brand?: string;
+  /** 商品档案 ID（必填）：型号、品牌、品类以商品档案为准 */
+  productId: number;
+  /** 只用于前端识别空行，后端不使用 */
+  model?: string;
   quantity: number;
   unitPrice: number;
   costPrice?: number | null;
@@ -1095,6 +1131,16 @@ export const orderApi = {
     /** 费用行（选填，如运费） */
     fees?: OrderFeeInput[];
   }) => send<Order>('POST', SO, body),
+  /** 从原订单新建费用订单（只有费用行，如另收的运费） */
+  createFeeOrder: (
+    id: number,
+    body: {
+      salesDate?: string;
+      fees: OrderFeeInput[];
+      remark?: string;
+      attachmentIds?: number[];
+    },
+  ) => send<Order>('POST', `${SO}/${id}/fee-orders`, body),
   /** 修改手动订单的费用（「修改订单费用」权限）；expectedTotal 为页面上看到的原合计 */
   updateFees: (
     id: number,
@@ -1159,6 +1205,8 @@ export const orderApi = {
     send<Order>('POST', `${SO}/${id}/credit`, { amount }),
   claimable: (id: number) =>
     get<ReceiptRow[]>(`${SO}/${id}/claimable-receipts`),
+  openClaimableFile: (id: number, receiptId: number, index: number) =>
+    openFile(`${SO}/${id}/claimable-receipts/${receiptId}/files/${index}`),
   claim: (id: number, receiptId: number, slipId?: number) =>
     send<Order>('POST', `${SO}/${id}/claim`, { receiptId, slipId }),
   voidReceipt: (id: number, receiptId: number, reason: string) =>
@@ -1193,6 +1241,8 @@ export interface ReceiptOwner<T> {
   confirmReceipt: (body: ConfirmReceiptBody) => Promise<T>;
   platformReceipt: (body: PlatformReceiptBody) => Promise<T>;
   claimable: () => Promise<ReceiptRow[]>;
+  /** 预览候选到账的附件 */
+  openClaimableFile: (receiptId: number, index: number) => Promise<void>;
   claim: (receiptId: number, slipId?: number) => Promise<T>;
 }
 
@@ -1211,6 +1261,8 @@ export const piReceiptOwner = (pi: Pi): ReceiptOwner<Pi> => ({
   confirmReceipt: (body) => piApi.confirmReceipt(pi.id, body),
   platformReceipt: (body) => piApi.platformReceipt(pi.id, body),
   claimable: () => piApi.claimable(pi.id),
+  openClaimableFile: (receiptId, index) =>
+    piApi.openClaimableFile(pi.id, receiptId, index),
   claim: (receiptId, slipId) => piApi.claim(pi.id, receiptId, slipId),
 });
 
@@ -1230,6 +1282,8 @@ export const orderReceiptOwner = (o: Order): ReceiptOwner<Order> => ({
   confirmReceipt: (body) => orderApi.confirmReceipt(o.id, body),
   platformReceipt: (body) => orderApi.platformReceipt(o.id, body),
   claimable: () => orderApi.claimable(o.id),
+  openClaimableFile: (receiptId, index) =>
+    orderApi.openClaimableFile(o.id, receiptId, index),
   claim: (receiptId, slipId) => orderApi.claim(o.id, receiptId, slipId),
 });
 

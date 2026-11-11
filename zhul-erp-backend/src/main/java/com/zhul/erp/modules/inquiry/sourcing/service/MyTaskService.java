@@ -69,10 +69,18 @@ public interface MyTaskService {
     /** 提交后重算明细、任务与询盘单进度，并记录提交时间 */
     void afterSubmit(SourcingTaskDO task, Long quotedBy, List<Long> itemIds);
 
-    /** 一条待写入的询价结果；noStock 为真时只记无货说明 */
+    /** 一条待写入的询价结果；noStock 为真时只记无货原因与说明 */
     record QuoteDraft(Long itemId, boolean noStock, Integer channel, String shopName, Long supplierId, java.math.BigDecimal unitPrice,
                       boolean taxIncluded, Integer taxRate, Integer itemCondition, Integer leadTime, String note, boolean recommended,
-                      boolean freeShipping, List<Long> attachmentIds) {
+                      boolean freeShipping, List<Long> attachmentIds, Integer noStockReason) {
+
+        /** 没有无货原因的来源（有货报价、Excel 导入） */
+        public QuoteDraft(Long itemId, boolean noStock, Integer channel, String shopName, Long supplierId, java.math.BigDecimal unitPrice,
+                          boolean taxIncluded, Integer taxRate, Integer itemCondition, Integer leadTime, String note, boolean recommended,
+                          boolean freeShipping, List<Long> attachmentIds) {
+            this(itemId, noStock, channel, shopName, supplierId, unitPrice, taxIncluded, taxRate, itemCondition, leadTime, note, recommended,
+                    freeShipping, attachmentIds, null);
+        }
 
         /** Excel 导入等没有包邮与附件的来源：按包邮、无附件 */
         public QuoteDraft(Long itemId, boolean noStock, Integer channel, String shopName, Long supplierId, java.math.BigDecimal unitPrice,

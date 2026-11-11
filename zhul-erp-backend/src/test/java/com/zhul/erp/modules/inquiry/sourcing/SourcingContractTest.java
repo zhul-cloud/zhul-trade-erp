@@ -247,6 +247,7 @@ class SourcingContractTest extends InquiryContractSupport {
         Map<String, Object> discontinued = new LinkedHashMap<>();
         discontinued.put("itemId", items.get(1));
         discontinued.put("noStock", true);
+        discontinued.put("noStockReason", 1);
         discontinued.put("noStockNote", "全网无现货");
         discontinued.put("quotes", List.of());
         discontinued.put("lifecycle", 9);

@@ -16,6 +16,7 @@ const post = <T>(url: string, data?: unknown) =>
 export interface CreditAccount {
   customerId: number;
   customerName?: string;
+  customerContact?: string;
   customerCountry?: string;
   currencyCode: string;
   businessUnitId?: number;
@@ -101,6 +102,8 @@ export interface Overpaid {
   soNo?: string;
   customerId: number;
   customerName?: string;
+  customerContact?: string;
+  customerCountry?: string;
   currencyCode: string;
   businessUnitId?: number;
   total: number;

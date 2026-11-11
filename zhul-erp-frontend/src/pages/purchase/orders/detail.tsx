@@ -33,6 +33,7 @@ import {
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { usePageTitle } from '@/components/PageTabs/hooks';
 import {
   ACCEPT_PROOF,
   PayablePanel,
@@ -180,6 +181,7 @@ const PurchaseOrderDetail: React.FC = () => {
   const { message, modal } = App.useApp();
   const access = useAccess();
   const [po, setPo] = useState<PurchaseOrder>();
+  usePageTitle(po?.poNo ? `采购订单 ${po.poNo}` : undefined, po?.poNo);
   // 历史迁移的采购单只读
   const canEdit = !!access['purchase:order:create'] && !po?.migrated;
   const canCancel = !!access['purchase:order:cancel'] && !po?.migrated;
@@ -380,7 +382,7 @@ const PurchaseOrderDetail: React.FC = () => {
       ),
     },
     {
-      title: '来源订单 · 客户',
+      title: '来源单号 · 客户',
       dataIndex: 'soNo',
       width: 220,
       render: (v: string, r) => (
@@ -514,6 +516,7 @@ const PurchaseOrderDetail: React.FC = () => {
           <BargainText
             amount={b}
             rate={r.targetPrice == null ? null : rateOf(b, r.targetPrice * qty)}
+            empty={draft.items[r.id]?.unitPrice === 0 ? '单价为 0' : undefined}
           />
         );
       },
@@ -1281,6 +1284,11 @@ const PurchaseOrderDetail: React.FC = () => {
         po={po}
         total={formatAmount(preview.total, draft.currencyCode)}
         missing={preview.missing}
+        zeroModels={po.items
+          .filter((i) => draft.items[i.id]?.unitPrice === 0)
+          .map(
+            (i) => `${i.model} × ${draft.items[i.id]?.quantity ?? i.quantity}`,
+          )}
         onClose={() => setConfirmOpen(false)}
         onConfirm={async (date, shipDate) => {
           const saved = await save(true);
@@ -1894,9 +1902,11 @@ const ConfirmModal: React.FC<{
   po: PurchaseOrder;
   total: string;
   missing: number;
+  /** 单价为 0 的型号（样品、赠送），确认前提示 */
+  zeroModels: string[];
   onClose: () => void;
   onConfirm: (date: Dayjs, shipDate: Dayjs) => Promise<void>;
-}> = ({ open, po, total, missing, onClose, onConfirm }) => {
+}> = ({ open, po, total, missing, zeroModels, onClose, onConfirm }) => {
   const { palette } = useAppTheme();
   const [date, setDate] = useState<Dayjs | null>(dayjs());
   const [shipDate, setShipDate] = useState<Dayjs | null>(null);
@@ -1932,6 +1942,13 @@ const ConfirmModal: React.FC<{
       <div style={{ display: 'grid', gap: 12 }}>
         {missing > 0 && (
           <Alert type="warning" showIcon title={`还有 ${missing} 行没填单价`} />
+        )}
+        {zeroModels.length > 0 && (
+          <Alert
+            type="warning"
+            showIcon
+            title={`有 ${zeroModels.length} 行单价为 0：${zeroModels.join('、')}`}
+          />
         )}
         <div style={{ color: palette.sub }}>
           {po.items.length} 个型号，合计{' '}

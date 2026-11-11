@@ -1,5 +1,6 @@
 package com.zhul.erp.modules.quotation.dto;
 
+import com.zhul.erp.common.result.DocRefVO;
 import lombok.Data;
 
 import java.math.BigDecimal;
@@ -13,6 +14,8 @@ public class QuotationListVO {
     private String quotationNo;
     private Long customerId;
     private String customerName;
+    /** 客户主联系人姓名（客户档案中的主联系人，实时读取） */
+    private String customerContact;
     /** 客户国家 */
     private String customerCountry;
     /** 1-新客户、2-老客户（按来源询盘单判断） */
@@ -27,6 +30,8 @@ public class QuotationListVO {
     private String statusName;
     private String lostReasonName;
     private List<String> inquiryCodes;
+    /** 来源单号：询盘单（按 ID 排序） */
+    private List<DocRefVO> inquiries;
     private Long ownerId;
     private String ownerName;
     private LocalDateTime createTime;

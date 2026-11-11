@@ -24,6 +24,8 @@ public class SalesOrderItemDO {
     private Long quotationItemId;
     private Long customerInquiryId;
     private Long inquiryItemId;
+    /** 商品档案（手动创建订单时选择；转成的订单为空，经询盘型号追溯） */
+    private Long productId;
     private String model;
     private String brand;
     private String category;

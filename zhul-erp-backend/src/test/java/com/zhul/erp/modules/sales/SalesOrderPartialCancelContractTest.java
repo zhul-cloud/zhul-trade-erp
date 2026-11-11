@@ -302,7 +302,7 @@ class SalesOrderPartialCancelContractTest extends SalesContractSupport {
         long c = customer("Pacific Controls", "Australia");
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("customerId", c);
-        m.put("items", List.of(Map.of("model", "M-1", "quantity", 4, "unitPrice", "100"), Map.of("model", "M-2", "quantity", 1, "unitPrice", "100")));
+        m.put("items", List.of(Map.of("productId", manualProduct("M-1"), "quantity", 4, "unitPrice", "100"), Map.of("productId", manualProduct("M-2"), "quantity", 1, "unitPrice", "100")));
         JsonNode manual = ok(call(json(post(SO), write(m)), admin));
         long mid = manual.path("id").asLong();
         Map<String, Object> r = new LinkedHashMap<>();

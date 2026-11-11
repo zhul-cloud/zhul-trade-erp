@@ -1,5 +1,6 @@
 import { request } from '@umijs/max';
 import type { ReceiptRow } from '@/pages/sales/service';
+import { openFile } from '@/utils/fileLink';
 
 const FIN = '/api/v1/finance/receipts';
 const quiet = { skipErrorHandler: true } as const;
@@ -69,6 +70,21 @@ export const ledgerApi = {
         ...quiet,
       }),
     ),
+  /** 给未认领到账补附件（合计最多 5 个） */
+  addUnclaimedFiles: (id: number, files: File[]) => {
+    const form = new FormData();
+    for (const f of files) form.append('files', f);
+    return unwrap(
+      request<{ data: ReceiptRow }>(`${FIN}/unclaimed/${id}/files`, {
+        method: 'POST',
+        data: form,
+        requestType: 'form',
+        ...quiet,
+      }),
+    );
+  },
+  openFile: (id: number, index: number) =>
+    openFile(`${FIN}/${id}/files/${index}`),
   unclaim: (id: number, reason: string) =>
     unwrap(
       request<{ data: null }>(`${FIN}/${id}/unclaim`, {

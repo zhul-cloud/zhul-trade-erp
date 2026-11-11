@@ -14,6 +14,8 @@ public class SupplierPageQuery {
     private String supplierCode;
     /** 名称，模糊匹配 */
     private String name;
+    /** 联系人，模糊匹配联系人姓名、电话、微信、邮箱 */
+    private String contact;
     /** 统一社会信用代码，精确匹配（忽略大小写） */
     private String creditCode;
     private Integer supplierType;

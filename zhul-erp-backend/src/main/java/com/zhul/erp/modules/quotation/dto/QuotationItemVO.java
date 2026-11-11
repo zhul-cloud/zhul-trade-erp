@@ -16,6 +16,12 @@ public class QuotationItemVO {
     private String model;
     /** 询盘型号上的订货号（物料号、料号），辅助识别，只在系统内显示 */
     private String orderCode;
+    /** 对应的商品档案（来源询盘型号已建档，或按品牌 + 型号匹配到）；没有时为空 */
+    private Long productId;
+    /** 采购填的内部无货原因名称（只在系统内显示）；无货但没有填原因时为空串，不是无货时为空 */
+    private String sourcingNoStockReasonName;
+    /** 采购填的无货说明 */
+    private String sourcingNoStockNote;
     private String brand;
     private String category;
     private String description;

@@ -28,6 +28,7 @@ import {
 import type { Dayjs } from 'dayjs';
 import dayjs from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
+import { CustomerCell } from '@/components/DocFields';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
 import { getUserList } from '@/pages/system/user/service';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -38,7 +39,6 @@ import { usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import {
   Card,
-  CustomerTypePill,
   DeadlineText,
   LevelPill,
   MigratedPill,
@@ -383,15 +383,12 @@ const CustomerInquiryPage: React.FC = () => {
       dataIndex: 'customerName',
       width: 260,
       render: (v, r) => (
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ display: 'inline-flex', flexDirection: 'column' }}>
-            <span style={{ color: palette.ink, fontWeight: 600 }}>{v}</span>
-            <span style={{ color: palette.mute, fontSize: 12 }}>
-              {r.customerCountry || '—'}
-            </span>
-          </span>
-          <CustomerTypePill type={r.customerType} />
-        </span>
+        <CustomerCell
+          name={v}
+          country={r.customerCountry}
+          type={r.customerType}
+          contact={r.customerContact}
+        />
       ),
     },
     {

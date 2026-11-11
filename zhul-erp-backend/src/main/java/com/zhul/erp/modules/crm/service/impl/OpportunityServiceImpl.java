@@ -776,6 +776,7 @@ public class OpportunityServiceImpl implements OpportunityService {
             boolean missing = !StringUtils.hasText(c.getName());
             vo.setCustomerName(missing ? c.getContactName() : c.getName());
             vo.setCustomerNameMissing(missing);
+            vo.setCustomerContact(com.zhul.erp.modules.inquiry.support.InquiryLookups.contactName(c));
             vo.setCountry(c.getCountry());
         }
         vo.setSourceChannel(o.getSourceChannel());
