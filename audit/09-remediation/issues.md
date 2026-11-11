@@ -91,6 +91,8 @@
 | [UI-043](tasks/2026-11-05-UI-043-inquiry-stats-filters.md) | 询盘管理顶部统计不随搜索条件变化，与列表对不上 | P2 | 已合并待发布 | Claude / Codex | [2026-11-05-UI-043](tasks/2026-11-05-UI-043-inquiry-stats-filters.md) | 2026-11-06 |
 | [UI-044](tasks/2026-11-09-UI-044-user-feedback-1109.md) | 报价单 / PI 预览模糊、PDF 页边和底部大片空白 | P2 | 已发布待验收 | Claude | [2026-11-09-UI-044](tasks/2026-11-09-UI-044-user-feedback-1109.md) | 2026-11-09 |
 | [UI-045](tasks/2026-11-09-UI-044-user-feedback-1109.md) | 列表「型号 · 数量」列型号过长时盖住相邻的品牌列 | P3 | 已发布待验收 | Claude | [2026-11-09-UI-044](tasks/2026-11-09-UI-044-user-feedback-1109.md) | 2026-11-09 |
+| [UI-047](tasks/2026-11-11-UI-047-user-feedback-1111.md) | 列多的列表滚动后，表格固定列盖住顶部栏与标签栏 | P2 | 待合并 | Claude | [2026-11-11-UI-047](tasks/2026-11-11-UI-047-user-feedback-1111.md) | 2026-11-11 |
+| [UI-048](tasks/2026-11-11-UI-047-user-feedback-1111.md) | 来源单号与客户 / 供应商合在一列，不符合单据页统一规范 | P3 | 待合并 | Claude | [2026-11-11-UI-047](tasks/2026-11-11-UI-047-user-feedback-1111.md) | 2026-11-11 |
 
 ## AI 可靠性
 
