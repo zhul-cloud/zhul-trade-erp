@@ -13,14 +13,11 @@ import {
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import React, { useEffect, useState } from 'react';
+import ChunkUploadList, { useChunkUploads } from '@/components/ChunkUploadList';
 import { formatSize, Pill } from '@/pages/crm/opportunity/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { DICT_SOURCE_CHANNEL, useDictOptions } from '@/utils/dict';
-import {
-  ATTACHMENT_ACCEPT,
-  ATTACHMENT_MAX_BYTES,
-  MAX_ATTACHMENTS,
-} from '../shared/constants';
+import { ATTACHMENT_ACCEPT, ATTACHMENT_UPLOAD } from '../shared/constants';
 import NameplateUploader, {
   type PickedPlate,
   toRefs,
@@ -31,7 +28,6 @@ import {
   inquiryApi,
   type OpportunityOption,
   readBizError,
-  type UploadedFile,
 } from '../shared/service';
 import { fileIcon } from './NewInquiryModal';
 
@@ -55,13 +51,16 @@ const EditInquiryModal: React.FC<{
   onSaved: () => void;
 }> = ({ detail, open, onClose, onSaved }) => {
   const { palette } = useAppTheme();
-  const { message } = App.useApp();
+  const { message, modal } = App.useApp();
   const [form] = Form.useForm<Values>();
   const { options: sourceOptions } = useDictOptions(DICT_SOURCE_CHANNEL);
   const inq = detail.inquiry;
   const [kept, setKept] = useState<InquiryAttachment[]>([]);
-  const [added, setAdded] = useState<UploadedFile[]>([]);
-  const [uploading, setUploading] = useState(0);
+  // 保留的旧附件计入每单 2GB 的合计；删掉旧附件后可以补传更大的
+  const uploads = useChunkUploads(
+    ATTACHMENT_UPLOAD,
+    kept.reduce((sum, a) => sum + a.fileSize, 0),
+  );
   const [keptPlates, setKeptPlates] = useState<InquiryAttachment[]>([]);
   const [addedPlates, setAddedPlates] = useState<PickedPlate[]>([]);
   const [plateUploading, setPlateUploading] = useState(0);
@@ -71,7 +70,7 @@ const EditInquiryModal: React.FC<{
   useEffect(() => {
     if (!open) return;
     setKept(detail.attachments);
-    setAdded([]);
+    uploads.reset();
     setKeptPlates(detail.nameplates ?? []);
     setAddedPlates([]);
     form.setFieldsValue({
@@ -86,24 +85,29 @@ const EditInquiryModal: React.FC<{
       .opportunityOptions(inq.customerId)
       .then(setOpps)
       .catch(() => setOpps([]));
-  }, [open, detail, inq, form]);
+  }, [open, detail, inq, form, uploads.reset]);
 
-  const beforeUpload = (file: File) => {
-    if (kept.length + added.length + uploading >= MAX_ATTACHMENTS) {
-      message.error(`附件最多 ${MAX_ATTACHMENTS} 个`);
-      return Upload.LIST_IGNORE;
-    }
-    if (file.size > ATTACHMENT_MAX_BYTES) {
-      message.error(`「${file.name}」超过 10MB`);
-      return Upload.LIST_IGNORE;
-    }
-    setUploading((n) => n + 1);
-    inquiryApi
-      .upload(file)
-      .then((f) => setAdded((prev) => [...prev, f]))
-      .catch((e) => message.error(`「${file.name}」${readBizError(e).message}`))
-      .finally(() => setUploading((n) => n - 1));
+  const beforeUpload = (file: File, list: File[]) => {
+    if (file === list[0]) uploads.add(list);
     return Upload.LIST_IGNORE;
+  };
+
+  /** 附件还在上传时关闭先确认，确认后中断上传 */
+  const close = () => {
+    if (uploads.busy === 0) {
+      onClose();
+      return;
+    }
+    modal.confirm({
+      title: '附件还没传完',
+      content: '关闭后正在上传的附件会中断，修改不保存。',
+      okText: '仍然关闭',
+      cancelText: '继续上传',
+      onOk: () => {
+        uploads.reset();
+        onClose();
+      },
+    });
   };
 
   const save = async () => {
@@ -118,7 +122,7 @@ const EditInquiryModal: React.FC<{
         opportunityId: v.opportunityId || undefined,
         keepAttachmentIds: [...kept, ...keptPlates].map((a) => a.id),
         nameplates: toRefs(addedPlates),
-        attachments: added.map((f) => ({
+        attachments: uploads.done.map((f) => ({
           fileKey: f.fileKey,
           fileName: f.fileName,
         })),
@@ -159,7 +163,6 @@ const EditInquiryModal: React.FC<{
     key: string,
     name: string,
     size: number,
-    fresh: boolean,
     remove: () => void,
   ) => (
     <div
@@ -178,7 +181,6 @@ const EditInquiryModal: React.FC<{
       <span style={{ color: palette.mute, fontSize: 12 }}>
         {formatSize(size)}
       </span>
-      {fresh && <Pill tone="green">新上传</Pill>}
       <Button
         type="text"
         size="small"
@@ -196,7 +198,7 @@ const EditInquiryModal: React.FC<{
       title="修改询盘"
       width={600}
       destroyOnHidden
-      onCancel={onClose}
+      onCancel={close}
       footer={
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <span
@@ -204,12 +206,17 @@ const EditInquiryModal: React.FC<{
           >
             询盘内容与型号不在这里改
           </span>
-          <Button onClick={onClose}>取消</Button>
+          {uploads.busy > 0 && (
+            <span style={{ color: palette.orange, fontSize: 13 }}>
+              还有 {uploads.busy} 个附件没传完
+            </span>
+          )}
+          <Button onClick={close}>取消</Button>
           <Button
             type="primary"
             onClick={save}
             loading={saving}
-            disabled={uploading + plateUploading > 0}
+            disabled={plateUploading + uploads.busy > 0}
           >
             保存
           </Button>
@@ -273,13 +280,8 @@ const EditInquiryModal: React.FC<{
         <Form.Item label="附件" style={{ marginBottom: 12 }}>
           <div style={{ display: 'grid', gap: 8 }}>
             {kept.map((a) =>
-              fileRow(`k${a.id}`, a.fileName, a.fileSize, false, () =>
+              fileRow(`k${a.id}`, a.fileName, a.fileSize, () =>
                 setKept((prev) => prev.filter((p) => p.id !== a.id)),
-              ),
-            )}
-            {added.map((f) =>
-              fileRow(f.fileKey, f.fileName, f.fileSize, true, () =>
-                setAdded((prev) => prev.filter((p) => p.fileKey !== f.fileKey)),
               ),
             )}
             <Upload.Dragger
@@ -290,11 +292,14 @@ const EditInquiryModal: React.FC<{
             >
               <span style={{ color: palette.sub }}>
                 <CloudUploadOutlined style={{ color: palette.link }} />{' '}
-                {uploading > 0
-                  ? `正在上传 ${uploading} 个文件…`
-                  : `上传附件（最多 ${MAX_ATTACHMENTS} 个，单个不超过 10MB，可直接粘贴）`}
+                上传附件（单个不超过 500MB，合计不超过 2GB）
               </span>
             </Upload.Dragger>
+            <ChunkUploadList
+              items={uploads.items}
+              onResume={uploads.resume}
+              onRemove={uploads.remove}
+            />
             <Alert
               type="warning"
               showIcon

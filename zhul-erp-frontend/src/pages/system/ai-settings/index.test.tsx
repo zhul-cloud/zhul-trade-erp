@@ -99,6 +99,10 @@ describe('AiSettingsPage', () => {
     expect(screen.getByDisplayValue('claude-opus-5-5')).toBeTruthy();
     expect(mocked.getAiSubscriptionStatus).not.toHaveBeenCalled();
     expect(saveButton()).toBeNull();
+    // 最大搜索次数按每次调用计算，大文件分批时每批各自计算（OpenSpec inquiry-large-attachments 6.6）
+    expect(
+      screen.getByText(/每次调用最多搜索几次；大文件分批解析时每批各自计算/),
+    ).toBeTruthy();
   });
 
   it('改选另一家并填写 Key：保存条出现，一次保存选择与这一行的设置', async () => {

@@ -128,6 +128,8 @@ zhul:
     # 接入真实 AI 编排服务（scripts/ai-orchestrator，联网搜索验证多个型号）后处理耗时
     # 是分钟级的，这个阈值必须明显大于真实处理时间，否则会把还在正常处理的任务误判为超时
     timeout-minutes: ${AI_TASK_TIMEOUT_MINUTES:20}
+    # 超时从最近一次回调或进度报告起计算；仍在报告进度的任务超过这个时长（分钟）也判超时（询盘大附件分批解析）
+    max-minutes: ${AI_TASK_MAX_MINUTES:180}
     # 超时扫描的执行间隔（毫秒）
     timeout-check-interval-ms: ${AI_TASK_TIMEOUT_CHECK_INTERVAL_MS:60000}
 

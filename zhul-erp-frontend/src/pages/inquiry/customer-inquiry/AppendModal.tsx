@@ -1,54 +1,60 @@
-import { CloseOutlined, CloudUploadOutlined } from '@ant-design/icons';
+import { CloudUploadOutlined } from '@ant-design/icons';
 import { history } from '@umijs/max';
 import { App, Button, Input, Modal, Space, Upload } from 'antd';
 import React, { useState } from 'react';
-import { formatSize } from '@/pages/crm/opportunity/components';
+import ChunkUploadList, { useChunkUploads } from '@/components/ChunkUploadList';
 import { useAppTheme } from '@/theme/AppTheme';
 import {
   ATTACHMENT_ACCEPT,
-  ATTACHMENT_MAX_BYTES,
-  MAX_ATTACHMENTS,
+  ATTACHMENT_UPLOAD,
   PATHS,
 } from '../shared/constants';
 import NameplateUploader, {
   type PickedPlate,
   toRefs,
 } from '../shared/NameplateUploader';
-import { inquiryApi, readBizError, type UploadedFile } from '../shared/service';
+import { inquiryApi, readBizError } from '../shared/service';
 
 /** 追加型号（spec inquiry/inquiry-intake「追加型号」）：粘贴新内容或上传附件，AI 解析或手动录入 */
 const AppendModal: React.FC<{
   inquiryId: number;
   open: boolean;
+  /** 询盘上已有附件的合计大小，用于每单 2GB 的合计上限 */
+  existingBytes?: number;
   onClose: () => void;
   onStarted: () => void;
-}> = ({ inquiryId, open, onClose, onStarted }) => {
+}> = ({ inquiryId, open, existingBytes = 0, onClose, onStarted }) => {
   const { palette } = useAppTheme();
-  const { message } = App.useApp();
+  const { message, modal } = App.useApp();
   const [content, setContent] = useState('');
-  const [files, setFiles] = useState<UploadedFile[]>([]);
-  const [uploading, setUploading] = useState(0);
+  const uploads = useChunkUploads(ATTACHMENT_UPLOAD, existingBytes);
+  const files = uploads.done;
   const [plates, setPlates] = useState<PickedPlate[]>([]);
   const [plateUploading, setPlateUploading] = useState(0);
   const [saving, setSaving] = useState(false);
-  const busy = uploading + plateUploading > 0;
+  const busy = plateUploading + uploads.busy > 0;
 
-  const beforeUpload = (file: File) => {
-    if (files.length + uploading >= MAX_ATTACHMENTS) {
-      message.error(`附件最多 ${MAX_ATTACHMENTS} 个`);
-      return Upload.LIST_IGNORE;
-    }
-    if (file.size > ATTACHMENT_MAX_BYTES) {
-      message.error(`「${file.name}」超过 10MB`);
-      return Upload.LIST_IGNORE;
-    }
-    setUploading((n) => n + 1);
-    inquiryApi
-      .upload(file)
-      .then((f) => setFiles((prev) => [...prev, f]))
-      .catch((e) => message.error(`「${file.name}」${readBizError(e).message}`))
-      .finally(() => setUploading((n) => n - 1));
+  const beforeUpload = (file: File, list: File[]) => {
+    if (file === list[0]) uploads.add(list);
     return Upload.LIST_IGNORE;
+  };
+
+  /** 附件还在上传时关闭先确认，确认后中断上传 */
+  const close = () => {
+    if (uploads.busy === 0) {
+      onClose();
+      return;
+    }
+    modal.confirm({
+      title: '附件还没传完',
+      content: '关闭后正在上传的附件会中断。',
+      okText: '仍然关闭',
+      cancelText: '继续上传',
+      onOk: () => {
+        uploads.reset();
+        onClose();
+      },
+    });
   };
 
   const start = async (manual: boolean) => {
@@ -73,7 +79,7 @@ const AppendModal: React.FC<{
         manual,
       });
       setContent('');
-      setFiles([]);
+      uploads.reset();
       setPlates([]);
       onClose();
       if (manual) {
@@ -94,11 +100,16 @@ const AppendModal: React.FC<{
       open={open}
       title="追加型号"
       width={640}
-      onCancel={onClose}
+      onCancel={close}
       destroyOnHidden
       footer={
         <Space>
-          <Button onClick={onClose}>取消</Button>
+          {uploads.busy > 0 && (
+            <span style={{ color: palette.orange, fontSize: 13 }}>
+              还有 {uploads.busy} 个附件没传完
+            </span>
+          )}
+          <Button onClick={close}>取消</Button>
           <Button disabled={saving || busy} onClick={() => start(true)}>
             手动录入
           </Button>
@@ -134,45 +145,17 @@ const AppendModal: React.FC<{
           <CloudUploadOutlined />
         </p>
         <p style={{ margin: '4px 0 0', color: palette.sub }}>
-          {uploading > 0
-            ? `正在上传 ${uploading} 个文件…`
-            : '把图片、Excel 或 PDF 拖到这里，或点击选择'}
+          把图片、Excel 或 PDF 拖到这里，或点击选择
+        </p>
+        <p style={{ margin: 0, color: palette.mute, fontSize: 12 }}>
+          单个不超过 500MB，整张询盘的附件合计不超过 2GB
         </p>
       </Upload.Dragger>
-      {files.length > 0 && (
-        <div style={{ display: 'grid', gap: 8, marginTop: 12 }}>
-          {files.map((f) => (
-            <div
-              key={f.fileKey}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 10,
-                padding: '6px 12px',
-                borderRadius: 10,
-                background: palette.hover,
-              }}
-            >
-              <span style={{ color: palette.ink }}>{f.fileName}</span>
-              <span style={{ color: palette.mute, fontSize: 12 }}>
-                {formatSize(f.fileSize)}
-              </span>
-              <Button
-                type="text"
-                size="small"
-                aria-label={`移除 ${f.fileName}`}
-                icon={<CloseOutlined />}
-                style={{ marginLeft: 'auto' }}
-                onClick={() =>
-                  setFiles((prev) =>
-                    prev.filter((p) => p.fileKey !== f.fileKey),
-                  )
-                }
-              />
-            </div>
-          ))}
-        </div>
-      )}
+      <ChunkUploadList
+        items={uploads.items}
+        onResume={uploads.resume}
+        onRemove={uploads.remove}
+      />
       <div style={{ marginTop: 12 }}>
         <NameplateUploader
           value={plates}

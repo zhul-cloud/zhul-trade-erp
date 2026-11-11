@@ -1,3 +1,5 @@
+import type { UploadRules } from '@/components/ChunkUploadList';
+
 /** 询价协作的码值，与后端 InquiryConstants 一致 */
 
 export type Tone =
@@ -105,8 +107,18 @@ export const RETURN_REASONS = [
 
 export const ATTACHMENT_ACCEPT =
   '.jpg,.jpeg,.png,.xls,.xlsx,.csv,.pdf,image/jpeg,image/png,application/pdf';
-export const ATTACHMENT_MAX_BYTES = 10 * 1024 * 1024;
-export const MAX_ATTACHMENTS = 10;
+/** 询盘附件：分片直传，单个不超过 500MB，每单合计不超过 2GB，不限个数（spec inquiry/inquiry-intake「询盘大附件」） */
+export const ATTACHMENT_MAX_BYTES = 500 * 1024 * 1024;
+export const ATTACHMENT_TOTAL_BYTES = 2 * 1024 * 1024 * 1024;
+export const ATTACHMENT_UPLOAD: UploadRules = {
+  scene: 'inquiry-attachment',
+  exts: ['jpg', 'png', 'xls', 'xlsx', 'csv', 'pdf'],
+  typeHint: '只支持图片（JPG、PNG）、PDF、Excel',
+  maxBytes: ATTACHMENT_MAX_BYTES,
+  totalBytes: ATTACHMENT_TOTAL_BYTES,
+};
+/** 铭牌图片仍走普通上传，单张不超过 10MB */
+export const NAMEPLATE_MAX_BYTES = 10 * 1024 * 1024;
 
 export const PATHS = {
   inquiries: '/inquiry/customer-inquiries',

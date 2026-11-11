@@ -16,6 +16,8 @@ import urllib.request
 from types import SimpleNamespace
 from unittest import mock
 
+REAL_OPEN = open
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 
@@ -921,12 +923,19 @@ class AttachmentSourceTest(unittest.TestCase):
     def setUp(self):
         self.server = load_server()
 
+    @staticmethod
+    def only_temp_files(path, *args, **kwargs):
+        """只允许读写本服务自己的下载临时目录，不读请求里给的本地路径"""
+        if "zhul-parse-" not in str(path):
+            raise AssertionError("不应读本地文件")
+        return REAL_OPEN(path, *args, **kwargs)
+
     def parse(self, input_data):
         sent = []
         with mock.patch.object(self.server, "send_callback",
                                lambda url, status, output=None, error=None: sent.append((status, error))), \
                 mock.patch.object(self.server, "call_parse") as call_parse, \
-                mock.patch("builtins.open", side_effect=AssertionError("不应读本地文件")):
+                mock.patch("builtins.open", side_effect=self.only_temp_files):
             self.server.process_job({"ai": ai(), "input": input_data}, "http://cb")
         return sent[-1], call_parse
 
@@ -946,13 +955,18 @@ class AttachmentSourceTest(unittest.TestCase):
         call_parse.assert_not_called()
 
     def test_https_link_still_downloaded(self):
+        import pymupdf
+        with pymupdf.open() as doc:
+            doc.new_page().insert_text((10, 20), "MODEL: 6ES7")
+            pdf = doc.tobytes()
         response = mock.MagicMock()
-        response.__enter__.return_value.read.return_value = PDF[0]
+        # 流式下载按块读到返回空为止；mock 必须在第二次读时返回 b""，否则会无限读下去
+        response.__enter__.return_value.read.side_effect = [pdf, b""]
         with mock.patch.object(self.server.urllib.request, "urlopen", return_value=response) as urlopen:
             (status, _), call_parse = self.parse({"attachments": [{"url": "https://files.example/a?sig=1", "ext": "pdf"}]})
         self.assertEqual(status, "success")
         urlopen.assert_called_once()
-        self.assertEqual(call_parse.call_args[0][2], [PDF])
+        self.assertEqual(call_parse.call_args[0][2], [(pdf, ".pdf")])
 
 
 if __name__ == "__main__":

@@ -61,6 +61,7 @@ import {
   type PriceMatch,
   readBizError,
 } from '../shared/service';
+import { UnparsedAlert } from './ParseProgress';
 
 interface Row extends DraftRow {
   key: string;
@@ -954,6 +955,7 @@ const ConfirmPage: React.FC = () => {
           </div>
         </Card>
       )}
+      <UnparsedAlert parts={draft.unparsed} />
       <div
         style={{
           display: 'flex',

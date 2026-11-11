@@ -15,4 +15,6 @@ public class DraftVO {
     /** 这次录入或追加的铭牌图片 */
     private List<AttachmentVO> nameplates;
     private List<DraftRowVO> rows;
+    /** AI 没能解析的部分，确认页提示用户自行核对；手动录入或没有时为空 */
+    private List<AiParseOutputDTO.Unparsed> unparsed = List.of();
 }

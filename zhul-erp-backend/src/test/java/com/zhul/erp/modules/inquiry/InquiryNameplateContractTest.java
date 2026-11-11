@@ -157,6 +157,74 @@ class InquiryNameplateContractTest extends InquiryContractSupport {
     }
 
     @Test
+    void parse_sendsSpreadsheetAsLinkWithNameAndSize() throws Exception {
+        loginAsAdmin("it_np_admin");
+        admin = token("it_np_admin");
+        when(orchestrator.submit(any(), anyLong(), any(), any())).thenReturn(new CompletableFuture<>());
+        long c = customer("Ahmed Trading", "UAE");
+        byte[] csv = "model,qty\n6ES7214-1AG40-0XB0,2\n".getBytes();
+        String sheet = ok(call(multipart(INQ + "/attachments").file(new MockMultipartFile("file", "清单.csv", "text/csv", csv)), admin))
+                .path("fileKey").asText();
+        long id = ok(submit(c, ",\"rawContent\":\"please quote\",\"attachments\":[{\"fileKey\":\"" + sheet
+                + "\",\"fileName\":\"清单.csv\"}]")).path("id").asLong();
+        ok(call(post(INQ + "/" + id + "/start-parse"), admin));
+        ArgumentCaptor<String> input = ArgumentCaptor.forClass(String.class);
+        verify(orchestrator, timeout(5000)).submit(eq("inquiry-parse-and-split"), anyLong(), input.capture(), any());
+        JsonNode sent = objectMapper.readTree(input.getValue());
+        assertEquals("please quote", sent.path("rawContent").asText(), "Excel、CSV 不再抽成文字拼进正文");
+        JsonNode file = sent.path("attachments").path(0);
+        assertEquals("csv", file.path("ext").asText());
+        assertEquals("清单.csv", file.path("name").asText());
+        assertEquals(csv.length, file.path("size").asInt());
+        assertTrue(file.path("url").asText().startsWith("http"), "以临时链接交给编排服务下载");
+    }
+
+    @Test
+    void draft_returnsUnparsedParts() throws Exception {
+        loginAsAdmin("it_np_admin");
+        admin = token("it_np_admin");
+        long id = parsedInquiry("""
+                {"groups":[{"brand":"Siemens","category":"PLC","items":[
+                  {"originalModel":"6ES7214-1AG40-0XB0","confirmedModel":"6ES7214-1AG40-0XB0","confidence":1,"quantity":2,"unit":"个"}]}],
+                 "unparsed":[{"file":"清单.pdf","range":"第 15 页","reason":"页面损坏，无法读取"}]}""");
+        JsonNode unparsed = ok(call(get(INQ + "/" + id + "/draft"), admin)).path("unparsed");
+        assertEquals(1, unparsed.size());
+        assertEquals("清单.pdf", unparsed.path(0).path("file").asText());
+        assertEquals("第 15 页", unparsed.path(0).path("range").asText());
+        assertEquals("页面损坏，无法读取", unparsed.path(0).path("reason").asText());
+
+        long plain = parsedInquiry(OUTPUT);
+        assertEquals(0, ok(call(get(INQ + "/" + plain + "/draft"), admin)).path("unparsed").size(), "没有未解析部分时为空");
+    }
+
+    @Test
+    void detail_showsParseProgressWhileParsing() throws Exception {
+        loginAsAdmin("it_np_admin");
+        admin = token("it_np_admin");
+        long c = customer("Ahmed Trading", "UAE");
+        long id = ok(submit(c, ",\"rawContent\":\"big rfq\"")).path("id").asLong();
+        jdbc.update("insert into ai_task (tenant_id, skill_id, status, requested_by, progress_done, progress_total, "
+                + "progress_stage, last_progress_at) values (0, 'inquiry-parse-and-split', 2, ?, 5, 12, 'extract', now())",
+                ADMIN_ID);
+        long task = jdbc.queryForObject("select max(id) from ai_task", Long.class);
+        jdbc.update("update customer_inquiry set status = 2, ai_task_id = ? where id = ?", task, id);
+
+        JsonNode inquiry = ok(call(get(INQ + "/" + id), admin)).path("inquiry");
+        assertEquals(5, inquiry.path("parseProgressDone").asInt());
+        assertEquals(12, inquiry.path("parseProgressTotal").asInt());
+        assertEquals("extract", inquiry.path("parseProgressStage").asText());
+
+        jdbc.update("update ai_task set progress_total = 0, progress_done = 0, progress_stage = 'read' where id = ?", task);
+        JsonNode reading = ok(call(get(INQ + "/" + id), admin)).path("inquiry");
+        assertEquals("read", reading.path("parseProgressStage").asText(), "读取附件阶段还没切批，也显示阶段");
+        assertEquals(0, reading.path("parseProgressTotal").asInt());
+
+        jdbc.update("update ai_task set progress_total = 0, progress_done = 0, progress_stage = '' where id = ?", task);
+        JsonNode none = ok(call(get(INQ + "/" + id), admin)).path("inquiry").path("parseProgressTotal");
+        assertTrue(none.isNull() || none.isMissingNode(), "不分批时不显示进度");
+    }
+
+    @Test
     void confirm_savesAiMatches_relinkAndMedia() throws Exception {
         loginAsAdmin("it_np_admin");
         admin = token("it_np_admin");
