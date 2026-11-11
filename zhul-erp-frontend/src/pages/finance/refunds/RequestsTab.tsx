@@ -1,10 +1,13 @@
-import { history, useAccess } from '@umijs/max';
+import { history, Link, useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { App, Button, Input, Segmented, Space, Table } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
 import { CustomerSub } from '@/components/DocFields';
+import SourceNos from '@/components/DocFields/SourceNos';
 import { Card, Pill } from '@/pages/inquiry/shared/components';
 import { auditColumns } from '@/pages/purchase/components';
+import { RQ_STATUS_TONE } from '@/pages/sales/after-sales/service';
+import { PATHS } from '@/pages/sales/components';
 import { readBizError } from '@/pages/sales/service';
 import { ReasonModal } from '@/pages/warehouse/components';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -14,21 +17,19 @@ import { tableScrollX } from '@/utils/tableScroll';
 import RefundModal from './RefundModal';
 import { type RefundRequest, RQ_STATUS, refundRequestApi } from './service';
 
-const STATUS_TONE: Record<
-  number,
-  'orange' | 'accent' | 'green' | 'gray' | 'mute' | 'red'
-> = {
-  1: 'accent',
-  2: 'orange',
-  3: 'green',
-  4: 'red',
-  5: 'mute',
-};
 const METHOD_TONE: Record<number, 'violet' | 'gray' | 'accent'> = {
   1: 'violet',
   2: 'gray',
   3: 'accent',
 };
+
+/** 来源单号：退货退款是销售退货单，其他是售后单（都没有时为空） */
+export const refundSourceRef = (r: RefundRequest) =>
+  r.salesReturnId
+    ? { no: r.sourceNo, href: PATHS.salesReturn(r.salesReturnId) }
+    : r.afterSalesId
+      ? { no: r.asNo, href: PATHS.afterSales(r.afterSalesId) }
+      : {};
 
 /** 退款管理 → 退款申请（spec finance/refund-request）：审批（开关打开时）、执行、驳回 */
 const RequestsTab: React.FC<{ onChanged?: () => void }> = ({ onChanged }) => {
@@ -38,6 +39,7 @@ const RequestsTab: React.FC<{ onChanged?: () => void }> = ({ onChanged }) => {
   const canEdit = !!access['finance:refund:edit'];
   const canApprove = !!access['finance:refund-request:approve'];
   const [counts, setCounts] = useState<{
+    pendingReceipt: number;
     pendingApproval: number;
     pendingFinance: number;
     approvalRequired: number;
@@ -92,6 +94,10 @@ const RequestsTab: React.FC<{ onChanged?: () => void }> = ({ onChanged }) => {
   const showApproval =
     !!counts && (counts.approvalRequired > 0 || counts.pendingApproval > 0);
   const tabs = [
+    {
+      value: RQ_STATUS.PENDING_RECEIPT as number | 'all',
+      label: `待验收 ${counts?.pendingReceipt ?? 0}`,
+    },
     ...(showApproval
       ? [
           {
@@ -121,34 +127,23 @@ const RequestsTab: React.FC<{ onChanged?: () => void }> = ({ onChanged }) => {
       fixed: 'left',
       render: (v: string, r) => (
         <div>
-          <b style={{ color: palette.ink }}>{v}</b>
+          <Link to={PATHS.refundRequest(r.id)}>{v}</Link>
           {r.refundNo && sub(`退款单 ${r.refundNo}`)}
         </div>
       ),
     },
     {
-      title: '来源单号 · 订单',
-      key: 'as',
-      width: 170,
-      render: (_, r) => (
-        <div>
-          {r.afterSalesId ? (
-            <a
-              onClick={() =>
-                history.push(`/sales/after-sales/${r.afterSalesId}`)
-              }
-            >
-              {r.asNo}
-            </a>
-          ) : (
-            <span style={{ color: palette.mute }}>—</span>
-          )}
-          {sub(
-            <a onClick={() => history.push(`/sales/orders/${r.soId}`)}>
-              {r.soNo}
-            </a>,
-          )}
-        </div>
+      title: '来源单号',
+      key: 'source',
+      width: 150,
+      render: (_, r) => <SourceNos refs={[refundSourceRef(r)]} />,
+    },
+    {
+      title: '销售订单',
+      dataIndex: 'soNo',
+      width: 150,
+      render: (v: string, r) => (
+        <a onClick={() => history.push(`/sales/orders/${r.soId}`)}>{v}</a>
       ),
     },
     {
@@ -206,7 +201,8 @@ const RequestsTab: React.FC<{ onChanged?: () => void }> = ({ onChanged }) => {
       width: 160,
       render: (v: string, r) => (
         <div>
-          <Pill tone={STATUS_TONE[r.status] ?? 'gray'}>{v}</Pill>
+          <Pill tone={RQ_STATUS_TONE[r.status] ?? 'gray'}>{v}</Pill>
+          {r.receivedHint && sub(r.receivedHint)}
           {r.status === RQ_STATUS.REJECTED && sub(r.rejectReason)}
           {r.approverName && sub(`审批：${r.approverName}`)}
         </div>
@@ -299,7 +295,7 @@ const RequestsTab: React.FC<{ onChanged?: () => void }> = ({ onChanged }) => {
         />
         <Input.Search
           allowClear
-          placeholder="申请号、售后单号、订单号"
+          placeholder="申请号、退货单号、售后单号、订单号"
           value={keyword}
           onChange={(e) => setKeyword(e.target.value)}
           onSearch={(v) => {
@@ -319,9 +315,11 @@ const RequestsTab: React.FC<{ onChanged?: () => void }> = ({ onChanged }) => {
         scroll={{ x: tableScrollX(columns) }}
         locale={{
           emptyText:
-            status === RQ_STATUS.PENDING_FINANCE
-              ? '没有待处理的退款申请；业务员在售后单或订单详情提出'
-              : '没有符合条件的退款申请',
+            status === RQ_STATUS.PENDING_RECEIPT
+              ? '没有待验收的退款申请；退货退款没勾选「先退款」时，仓库验收前在这里'
+              : status === RQ_STATUS.PENDING_FINANCE
+                ? '没有待处理的退款申请；业务员在售后单或订单详情提出'
+                : '没有符合条件的退款申请',
         }}
         pagination={{
           current: page,

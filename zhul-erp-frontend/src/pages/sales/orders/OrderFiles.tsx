@@ -6,7 +6,7 @@ import {
 } from '@ant-design/icons';
 import { App, Button, Input, Popconfirm, Upload } from 'antd';
 import React, { useState } from 'react';
-import { usePreview } from '@/pages/warehouse/components';
+import { useDocPreview } from '@/components/DocFiles';
 import { type Attachment, attachmentApi } from '@/pages/warehouse/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import { downloadFile } from '@/utils/fileLink';
@@ -42,7 +42,7 @@ export const OrderFileList: React.FC<{
 }> = ({ files, onRemove, confirmRemove }) => {
   const { palette } = useAppTheme();
   const { message } = App.useApp();
-  const preview = usePreview();
+  const preview = useDocPreview();
   const download = (a: Attachment) =>
     downloadFile(`/api/v1/attachments/${a.id}`).catch((e) =>
       message.error(readBizError(e).message),
@@ -91,9 +91,7 @@ export const OrderFileList: React.FC<{
                 .join(' · ')}
             </span>
             <span style={{ flex: 1 }} />
-            {!/\.xlsx?$/i.test(a.fileName) && (
-              <a onClick={() => preview.open(a)}>预览</a>
-            )}
+            <a onClick={() => preview.open(files, files.indexOf(a))}>预览</a>
             <a onClick={() => download(a)}>下载</a>
             {onRemove &&
               (confirmRemove ? (

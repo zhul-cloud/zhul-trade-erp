@@ -18,7 +18,9 @@ const SOURCE_PATH: Record<string, (id: number) => string | undefined> = {
   PO: (id) => `/purchase/orders/${id}`,
   SHIPMENT: (id) => `/logistics/shipments/${id}`,
   EXPENSE: () => '/finance/expenses',
-  RETURN: (id) => `/warehouse/returns?id=${id}`,
+  RETURN: (id) => `/sales/returns/${id}`,
+  RETURN_RECEIPT: (id) => `/warehouse/returns/${id}`,
+  PURCHASE_RETURN: (id) => `/purchase/returns/${id}`,
   COURIER: () => undefined,
 };
 

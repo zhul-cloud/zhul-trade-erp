@@ -407,6 +407,19 @@ export default [
         component: './sales/after-sales/detail',
       },
       {
+        path: '/sales/returns',
+        name: 'salesReturns',
+        icon: 'rollback',
+        access: 'salesReturns',
+        component: './sales/returns',
+      },
+      {
+        path: '/sales/returns/:id',
+        hideInMenu: true,
+        access: 'salesReturnDetail',
+        component: './sales/returns/detail',
+      },
+      {
         path: '/sales/stats',
         name: 'stats',
         icon: 'barChart',
@@ -451,6 +464,19 @@ export default [
         component: './purchase/shipments',
       },
       {
+        path: '/purchase/returns',
+        name: 'returns',
+        icon: 'undo',
+        access: 'purchaseReturns',
+        component: './purchase/returns',
+      },
+      {
+        path: '/purchase/returns/:id',
+        hideInMenu: true,
+        access: 'purchaseReturns',
+        component: './purchase/returns/detail',
+      },
+      {
         path: '/purchase/bargain-stats',
         name: 'bargainStats',
         icon: 'fall',
@@ -486,6 +512,12 @@ export default [
         icon: 'import',
         access: 'warehouseReturns',
         component: './warehouse/returns',
+      },
+      {
+        path: '/warehouse/returns/:id',
+        hideInMenu: true,
+        access: 'returnReceiptDetail',
+        component: './warehouse/returns/detail',
       },
       {
         path: '/warehouse/holds',
@@ -552,6 +584,12 @@ export default [
         icon: 'rollback',
         access: 'financeRefunds',
         component: './finance/refunds',
+      },
+      {
+        path: '/finance/refunds/requests/:id',
+        hideInMenu: true,
+        access: 'refundRequestDetail',
+        component: './finance/refunds/request-detail',
       },
       {
         path: '/finance/credits',

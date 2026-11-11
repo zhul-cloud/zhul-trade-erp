@@ -44,7 +44,8 @@
     "highlight.js": "^11.11.1",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
-    "topojson-client": "^3.1.0"
+    "topojson-client": "^3.1.0",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
   },
   "devDependencies": {
     "@ant-design/cli": "^6.4.3",

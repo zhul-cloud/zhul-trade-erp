@@ -59,7 +59,10 @@ export type OwnerType =
   | 'SALES_ORDER'
   | 'AFTER_SALES'
   | 'AFTER_SALES_LOG'
-  | 'SALES_RETURN';
+  | 'SALES_RETURN'
+  | 'RETURN_RECEIPT'
+  | 'PURCHASE_RETURN'
+  | 'REFUND_REQUEST';
 
 export interface ShipmentItem {
   id: number;
@@ -181,6 +184,7 @@ export interface Discrepancy extends Audit {
   resolution: number;
   resolutionName?: string;
   discountAmount?: number | null;
+  /** 历史数据：退货快递与运费，新处理的到采购退货单登记 */
   returnCarrier?: string;
   returnTrackingNo?: string;
   returnFreight?: number | null;
@@ -191,17 +195,15 @@ export interface Discrepancy extends Audit {
   handledByName?: string;
   handledAt?: string;
   holdId?: number;
+  /** 退货类处理生成的采购退货单 */
+  purchaseReturnId?: number;
+  purchaseReturnNo?: string;
 }
 
 export interface HandleDiscrepancyBody {
   resolution: number;
   note?: string;
   discountAmount?: number | null;
-  returnCarrier?: string;
-  returnTrackingNo?: string;
-  returnFreight?: number | null;
-  /** 退货运费垫付人，默认当前处理人；进入垫付人的待报销 */
-  returnPayerId?: number;
   freeOfCharge?: boolean;
   locationNote?: string;
 }
