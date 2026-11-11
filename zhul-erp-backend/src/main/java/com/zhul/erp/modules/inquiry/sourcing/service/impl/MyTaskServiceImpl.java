@@ -638,6 +638,8 @@ public class MyTaskServiceImpl implements MyTaskService {
     @Override
     public void writeQuotes(SourcingTaskDO task, Long quotedBy, List<QuoteDraft> drafts, boolean submit, int entryMode, Long importId) {
         MigratedGuard.requireEditable(task.getMigrated());
+        // 在线录入、本人导入、代导入都经过这里：调用方已锁询盘单，在锁内统一检查询盘取消与已报客户只读（BUS-015）
+        requireEditable(task, drafts.stream().map(QuoteDraft::itemId).distinct().toList());
         Map<Long, InquiryItemDO> items = taskItems(task.getId()).stream().collect(Collectors.toMap(InquiryItemDO::getId, i -> i));
         QuoteDictSnapshot dicts = quoteDicts.snapshot();
         LocalDateTime now = LocalDateTime.now();
