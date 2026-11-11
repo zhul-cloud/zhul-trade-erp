@@ -70,7 +70,7 @@
 ## 6. 后端：进度与超时
 
 - [x] 6.1 迁移：给 `ai_task` 增加进度和最后一次进度报告时间，并写回滚脚本。验证：Flyway 在测试库迁移成功；回滚脚本在本机执行成功。
-  完成：`V1.5.23__ai_task_progress.sql` 增加 `progress_done`、`progress_total`、`last_progress_at`；回滚脚本 `sql/build/rollback/V1.5.23__ai_task_progress_rollback.sql` 已在本机测试库执行成功，删除迁移记录后重新迁移通过。
+  完成：`V1.5.25__ai_task_progress.sql` 增加 `progress_done`、`progress_total`、`progress_stage`、`last_progress_at`；回滚脚本 `sql/build/rollback/V1.5.25__ai_task_progress_rollback.sql` 已在本机测试库执行成功，删除迁移记录后重新迁移通过。
 - [x] 6.2 回调接收进度：只在任务未结束时更新进度，不改变状态，任务结束后忽略。验证：`AiTaskStateRaceContractTest` 覆盖结束后到达的进度报告被忽略。
   完成：`AiTaskStateRaceContractTest.progressWhileRunning_updatesProgressOnly`、`progressAfterFinish_isIgnored`。
 - [x] 6.3 超时扫描按最近一次回调或进度报告计时，并加最长处理时长 `AI_TASK_MAX_MINUTES`（默认 180），写进 `.env.example`。验证：契约测试覆盖 50 分钟仍在报告进度的任务不超时、181 分钟的任务判为超时、20 分钟无进度判为超时，三种情况都会分发结果。
@@ -78,7 +78,7 @@
 - [x] 6.4 后端不再把 Excel 转文字放进 `rawContent`，改为以链接传给编排服务；询盘解析结果保存并返回 `unparsed`（D8、D9）。验证：现有带 Excel 的解析契约测试改断言为 Excel 以链接传出；新增测试覆盖 `unparsed` 在确认页接口返回。
   完成：所有附件（含 Excel、CSV）以临时链接传出，带文件名与大小；删除不再使用的 `SpreadsheetText` 及其测试（编排服务用同样格式转文字）。`InquiryNameplateContractTest.parse_sendsSpreadsheetAsLinkWithNameAndSize`、`draft_returnsUnparsedParts`；`unparsed` 随 AI 任务结果保存，确认页与追加确认页接口都返回。
 - [x] 6.5 询盘详情返回解析进度，确认页显示未解析部分（按确认的原型）。验证：前端组件测试覆盖「已解析 5 / 12」和「《清单.pdf》第 15 页无法读取」。
-  已实现：后端询盘列表与详情返回 `parseProgressDone` / `parseProgressTotal`（`InquiryNameplateContractTest.detail_showsParseProgressWhileParsing`）；前端详情页显示「已解析 x / y 批」进度卡，确认页顶部列出未解析部分（`ParseProgress.test.tsx`）。2026-11-11 用户确认补做原型里「读取附件 / 提取型号 / 合并去重 / 联网核验」四个阶段：编排服务进度报告带阶段（`test_progress_reported_per_batch` 验证阶段只前进不后退），`ai_task` 新增 `progress_stage`（并入未发布的 V1.5.23，`AiTaskStateRaceContractTest.progressStage_savedWhenKnown_keptWhenMissingOrUnknown`），询盘详情返回 `parseProgressStage`，详情页进度卡下方显示四张阶段卡片（`ParseProgress.test.tsx`，本机截图 `e2e/05`）。超时提示不写具体分钟数，因为超时时长可配置。
+  已实现：后端询盘列表与详情返回 `parseProgressDone` / `parseProgressTotal`（`InquiryNameplateContractTest.detail_showsParseProgressWhileParsing`）；前端详情页显示「已解析 x / y 批」进度卡，确认页顶部列出未解析部分（`ParseProgress.test.tsx`）。2026-11-11 用户确认补做原型里「读取附件 / 提取型号 / 合并去重 / 联网核验」四个阶段：编排服务进度报告带阶段（`test_progress_reported_per_batch` 验证阶段只前进不后退），`ai_task` 新增 `progress_stage`（并入未发布的 V1.5.25，`AiTaskStateRaceContractTest.progressStage_savedWhenKnown_keptWhenMissingOrUnknown`），询盘详情返回 `parseProgressStage`，详情页进度卡下方显示四张阶段卡片（`ParseProgress.test.tsx`，本机截图 `e2e/05`）。超时提示不写具体分钟数，因为超时时长可配置。
 - [x] 6.6 AI 设置页「最大搜索次数」旁的说明改为「每次调用最多搜索几次；大文件分批解析时每批各自计算」。验证：组件测试断言说明文字。
   完成：编辑处与只读摘要的说明都已改；`ai-settings/index.test.tsx` 断言说明文字。
 
