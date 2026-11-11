@@ -21,6 +21,8 @@ export interface MenuHit {
   name: string;
   /** 所属分组的名称（面包屑第一级），如「财务管理」；工作台这类一级页面为空 */
   group: string;
+  /** 菜单地址 */
+  path: string;
 }
 
 /**
@@ -42,7 +44,7 @@ export function findMenu(
         (pathname === p || pathname.startsWith(`${p}/`)) &&
         p.length > (best?.len ?? 0)
       ) {
-        best = { hit: { name: n.name ?? '', group }, len: p.length };
+        best = { hit: { name: n.name ?? '', group, path: p }, len: p.length };
       }
       if (n.children?.length) {
         walk(n.children, n.type === 1 ? (n.name ?? '') : group);

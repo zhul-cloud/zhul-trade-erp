@@ -314,6 +314,8 @@ export interface PiListItem {
   currentVersionNo: number;
   revising: boolean;
   quotationNos: string[];
+  /** 来源单号：报价单 */
+  quotations: { id: number; no: string }[];
   orderId?: number;
   soNo?: string;
   ownerId: number;
@@ -506,6 +508,9 @@ export interface OrderListItem {
   piId?: number;
   piNo?: string;
   piVersionNo?: number;
+  /** 售后补发订单：来源售后单 */
+  afterSalesId?: number;
+  afterSalesNo?: string;
   /** 售后补发、费用订单：原订单 */
   originalSoId?: number;
   originalSoNo?: string;

@@ -93,4 +93,31 @@ class ProductLinkContractTest extends SalesContractSupport {
         assertEquals(matched, piItems.get(1).path("productId").asLong());
         assertEquals(0, piItems.get(2).path("productId").asLong());
     }
+
+    @Test
+    void sourceDocRefs_quotationInquiriesAndPiQuotations_carryIdAndNo() throws Exception {
+        long customer = customer("Source Ref Buyer", "US");
+        long q = quotation(customer, 2, "USD", null, l("SRC-REF-1", 1, "100", "200"));
+        long inquiry = inquiryOf(q);
+        String inquiryCode = jdbc.queryForObject("select inquiry_code from customer_inquiry where id = ?", String.class, inquiry);
+        String quotationNo = jdbc.queryForObject("select quotation_no from quotation where id = ?", String.class, q);
+
+        // 报价单详情与列表：来源单号是询盘单，带 ID 可点开
+        JsonNode detail = ok(call(get(QT + "/" + q), admin)).path("inquiries");
+        assertEquals(1, detail.size());
+        assertEquals(inquiry, detail.get(0).path("id").asLong());
+        assertEquals(inquiryCode, detail.get(0).path("no").asText());
+        JsonNode qRow = ok(call(json(post(QT + "/page"), write(Map.of("keyword", quotationNo, "page", 1, "pageSize", 20))), admin))
+                .path("records").get(0);
+        assertEquals(inquiry, qRow.path("inquiries").get(0).path("id").asLong());
+        assertEquals(inquiryCode, qRow.path("inquiries").get(0).path("no").asText());
+
+        // 形式发票列表：来源单号是报价单
+        JsonNode pi = ok(createPi(quotationItemIds(q)));
+        String piNo = jdbc.queryForObject("select pi_no from proforma_invoice where id = ?", String.class, pi.path("id").asLong());
+        JsonNode piRow = ok(call(json(post(PI + "/page"), write(Map.of("keyword", piNo, "page", 1, "pageSize", 20))), admin))
+                .path("records").get(0);
+        assertEquals(q, piRow.path("quotations").get(0).path("id").asLong());
+        assertEquals(quotationNo, piRow.path("quotations").get(0).path("no").asText());
+    }
 }

@@ -12,6 +12,7 @@ import { App, Button, DatePicker, Form, Input, Select, Table } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
 import { CustomerCell } from '@/components/DocFields';
+import SourceNos from '@/components/DocFields/SourceNos';
 import EllipsisText, { ellipsisRender } from '@/components/EllipsisText';
 import {
   ModalTitle,
@@ -30,6 +31,7 @@ import { tableScrollX } from '@/utils/tableScroll';
 import {
   Card,
   MigratedPill,
+  orderSourceRefs,
   PATHS,
   Pill,
   RECEIPT_META,
@@ -384,23 +386,12 @@ const OrderList: React.FC = () => {
       ),
     },
     {
-      title: '来源',
-      dataIndex: 'piNo',
+      title: '来源单号',
+      key: 'source',
       width: 200,
-      render: (v: string | undefined, r) =>
-        r.piId ? (
-          <a
-            style={{ whiteSpace: 'nowrap' }}
-            onClick={() => history.push(PATHS.pi(r.piId as number))}
-          >
-            {v}
-            {(r.piVersionNo ?? 1) > 1 ? ` · Rev.${r.piVersionNo}` : ''}
-          </a>
-        ) : (
-          <span style={{ color: palette.sub }}>
-            {r.source === 4 ? '费用订单' : '手动创建'}
-          </span>
-        ),
+      render: (_, r) => (
+        <SourceNos refs={orderSourceRefs(r)} empty="手动创建" />
+      ),
     },
     {
       title: '业务员',

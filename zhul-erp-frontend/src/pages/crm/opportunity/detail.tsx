@@ -13,6 +13,7 @@ import {
 import { history, useAccess, useParams } from '@umijs/max';
 import { Alert, App, Button, Dropdown, Skeleton } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
+import { usePageTitle } from '@/components/PageTabs/hooks';
 import { StatusPill } from '@/pages/inquiry/shared/components';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
 import RecordFollowupModal from '@/pages/sales/followup/RecordFollowupModal';
@@ -56,6 +57,10 @@ const OpportunityDetailPage: React.FC = () => {
   const canDelete = !!access['crm:opportunity:delete'];
 
   const [detail, setDetail] = useState<OpportunityDetail | null>();
+  usePageTitle(
+    detail ? `商机 ${detail.opportunityCode}` : undefined,
+    detail?.opportunityCode,
+  );
   const [stages, setStages] = useState<OpportunityStage[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');

@@ -18,6 +18,7 @@ import {
 } from 'antd';
 import React, { useEffect, useState } from 'react';
 import DocModelCell, { productHref } from '@/components/DocFields/DocModelCell';
+import { usePageTitle, useTabActive } from '@/components/PageTabs/hooks';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import {
   PATHS as QUOTATION_PATHS,
@@ -99,6 +100,10 @@ const CustomerInquiryDetailPage: React.FC = () => {
   const { palette } = useAppTheme();
   const { message, modal } = App.useApp();
   const [detail, setDetail] = useState<InquiryDetail | null>(null);
+  usePageTitle(
+    detail ? `询盘单 ${detail.inquiry.inquiryCode}` : undefined,
+    detail?.inquiry.inquiryCode,
+  );
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [goQuoteOpen, setGoQuoteOpen] = useState(false);
@@ -162,12 +167,15 @@ const CustomerInquiryDetailPage: React.FC = () => {
 
   // 解析中（含追加型号的解析）时每 5 秒刷新一次，解析完自动显示结果
   const appendParsing = detail?.openAppend?.status === 1;
+  // 在后台标签里不刷新，切回来再继续
+  const tabActive = useTabActive();
   useEffect(() => {
+    if (!tabActive) return undefined;
     if (detail?.inquiry.status !== STATUS.PARSING && !appendParsing)
       return undefined;
     const t = window.setInterval(load, 5000);
     return () => window.clearInterval(t);
-  }, [detail?.inquiry.status, appendParsing]);
+  }, [detail?.inquiry.status, appendParsing, tabActive]);
 
   const run = async (
     fn: () => Promise<unknown>,
@@ -250,12 +258,6 @@ const CustomerInquiryDetailPage: React.FC = () => {
     if (first || prev.category !== it.category) showCategory.add(it.id);
   });
 
-  /** 从这张询盘单进入商品档案后可返回 */
-  const from = {
-    path: `${PATHS.inquiries}/${inquiryId}`,
-    label: `询盘单 ${inq.inquiryCode}`,
-  };
-
   const columns: TableColumnsType<InquiryItem> = [
     {
       title: '品牌',
@@ -281,7 +283,6 @@ const CustomerInquiryDetailPage: React.FC = () => {
           brand={r.brand}
           orderCode={r.orderCode}
           productId={r.productId}
-          from={from}
           suffix={
             r.lifecycle === LIFECYCLE_DISCONTINUED && r.replacementModel
               ? ` → ${r.replacementModel}`
@@ -483,9 +484,7 @@ const CustomerInquiryDetailPage: React.FC = () => {
             style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}
           >
             <Pill tone="green">已建档</Pill>
-            {r.productId && (
-              <Link to={productHref(r.productId, from)}>查看商品</Link>
-            )}
+            {r.productId && <Link to={productHref(r.productId)}>查看商品</Link>}
           </span>
         ) : r.archiveStatus === 2 ? (
           <Pill tone="orange">候选中</Pill>

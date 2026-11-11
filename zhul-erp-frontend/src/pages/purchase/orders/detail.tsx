@@ -33,6 +33,7 @@ import {
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { usePageTitle } from '@/components/PageTabs/hooks';
 import {
   ACCEPT_PROOF,
   PayablePanel,
@@ -180,6 +181,7 @@ const PurchaseOrderDetail: React.FC = () => {
   const { message, modal } = App.useApp();
   const access = useAccess();
   const [po, setPo] = useState<PurchaseOrder>();
+  usePageTitle(po?.poNo ? `采购订单 ${po.poNo}` : undefined, po?.poNo);
   // 历史迁移的采购单只读
   const canEdit = !!access['purchase:order:create'] && !po?.migrated;
   const canCancel = !!access['purchase:order:cancel'] && !po?.migrated;
@@ -380,7 +382,7 @@ const PurchaseOrderDetail: React.FC = () => {
       ),
     },
     {
-      title: '来源订单 · 客户',
+      title: '来源单号 · 客户',
       dataIndex: 'soNo',
       width: 220,
       render: (v: string, r) => (

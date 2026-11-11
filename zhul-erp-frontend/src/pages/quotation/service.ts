@@ -182,6 +182,8 @@ export interface Quotation {
   fees: QuotationFee[];
   sendLogs: SendLog[];
   inquiryCodes: string[];
+  /** 来源单号：询盘单 */
+  inquiries: { id: number; no: string }[];
   returningCustomer?: boolean;
   returningCustomerMargins?: number[];
   systemRate?: number;
@@ -216,6 +218,8 @@ export interface QuotationListItem {
   statusName: string;
   lostReasonName?: string;
   inquiryCodes: string[];
+  /** 来源单号：询盘单 */
+  inquiries: { id: number; no: string }[];
   ownerId: number;
   ownerName?: string;
   createTime: string;

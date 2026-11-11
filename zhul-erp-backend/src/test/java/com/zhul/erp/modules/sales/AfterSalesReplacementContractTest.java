@@ -124,6 +124,10 @@ class AfterSalesReplacementContractTest extends SalesContractSupport {
         JsonNode page = ok(call(json(post(SO + "/page"), write(Map.of("source", 3))), admin));
         assertEquals(1, page.path("total").asInt());
         assertEquals(order(so).path("soNo").asText(), page.path("records").get(0).path("originalSoNo").asText());
+        // 来源单号：补发订单列表带售后单 ID 与单号
+        assertEquals(asId, page.path("records").get(0).path("afterSalesId").asLong());
+        assertEquals(jdbc.queryForObject("select as_no from after_sales where id = ?", String.class, asId),
+                page.path("records").get(0).path("afterSalesNo").asText());
         assertEquals(1, ok(call(get(SO + "/stats"), admin)).path("monthCount").asInt());
         JsonNode profit = ok(call(get("/api/v1/finance/profit-stats"), admin));
         assertEquals(1, profit.path("summary").path("orderCount").asInt());

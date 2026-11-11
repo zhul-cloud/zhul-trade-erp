@@ -3,6 +3,7 @@ import { Link, useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { App, Button, Input, Segmented, Table } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
+import { useUrlFilter } from '@/components/DocFields/SourceNos';
 import EllipsisText, { ellipsisRender } from '@/components/EllipsisText';
 import { kg, LOGISTICS_PATHS } from '@/pages/logistics/components';
 import {
@@ -27,10 +28,13 @@ const Outbounds: React.FC = () => {
   const { message } = App.useApp();
   const access = useAccess();
   const canPack = !!access['warehouse:outbound:pack'];
-  const [tab, setTab] = useState<Tab>('pending');
+  const url = useUrlFilter();
+  const [tab, setTab] = useState<Tab>(
+    url.tab === 'packed' || url.tab === 'handed' ? url.tab : 'pending',
+  );
   const [counts, setCounts] = useState<{ pending: number; packed: number }>();
-  const [keyword, setKeyword] = useState('');
-  const [query, setQuery] = useState<string>();
+  const [keyword, setKeyword] = useState(url.keyword);
+  const [query, setQuery] = useState(url.keyword || undefined);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = usePageSize(20);
   const [rows, setRows] = useState<Outbound[]>([]);
@@ -105,7 +109,12 @@ const Outbounds: React.FC = () => {
             width: 160,
             render: obCell,
           },
-          { title: '订单 · 客户', key: 'so', width: 220, render: orderCell },
+          {
+            title: '来源单号 · 客户',
+            key: 'so',
+            width: 220,
+            render: orderCell,
+          },
           { title: '货代', dataIndex: 'forwarderName', width: 120 },
           { title: '型号 · 数量', key: 'items', width: 260, render: itemsCell },
           {
@@ -139,7 +148,12 @@ const Outbounds: React.FC = () => {
               width: 160,
               render: obCell,
             },
-            { title: '订单 · 客户', key: 'so', width: 220, render: orderCell },
+            {
+              title: '来源单号 · 客户',
+              key: 'so',
+              width: 220,
+              render: orderCell,
+            },
             { title: '货代', dataIndex: 'forwarderName', width: 120 },
             {
               title: '型号 · 数量',
@@ -184,7 +198,12 @@ const Outbounds: React.FC = () => {
               width: 160,
               render: obCell,
             },
-            { title: '订单 · 客户', key: 'so', width: 220, render: orderCell },
+            {
+              title: '来源单号 · 客户',
+              key: 'so',
+              width: 220,
+              render: orderCell,
+            },
             { title: '货代', dataIndex: 'forwarderName', width: 120 },
             { title: '箱数', dataIndex: 'boxCount', width: 70 },
             {

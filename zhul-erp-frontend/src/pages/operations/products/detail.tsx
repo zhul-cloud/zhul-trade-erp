@@ -3,6 +3,7 @@ import { Link, useParams } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { Segmented, Table } from 'antd';
 import React, { useEffect, useState } from 'react';
+import { usePageTitle } from '@/components/PageTabs/hooks';
 import { Card, PageTitle } from '@/pages/inquiry/shared/components';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
 import { Pill } from '@/pages/product/components/Pills';
@@ -149,6 +150,7 @@ const OperationsProductDetail: React.FC = () => {
   const params = useParams<{ id: string }>();
   const id = Number(params.id);
   const [product, setProduct] = useState<Product>();
+  usePageTitle(product?.mpnDisplay);
   const [error, setError] = useState<string>();
   const content = useProductContent(id);
   const [tab, setTab] = useState<Tab>('keywords');

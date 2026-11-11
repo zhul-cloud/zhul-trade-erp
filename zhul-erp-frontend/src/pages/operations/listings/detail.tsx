@@ -1,6 +1,7 @@
 import { Link, useParams, useSearchParams } from '@umijs/max';
 import { Segmented } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
+import { usePageTitle } from '@/components/PageTabs/hooks';
 import { Card, PageTitle, Pill } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -16,6 +17,7 @@ const ListingProductDetail: React.FC = () => {
   const productId = Number(params.productId);
   const [search, setSearch] = useSearchParams();
   const [data, setData] = useState<ListingProduct>();
+  usePageTitle(data?.model);
   const [error, setError] = useState<string>();
 
   const load = useCallback(async () => {

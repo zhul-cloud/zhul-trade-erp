@@ -317,7 +317,7 @@ const Shipments: React.FC = () => {
       render: ellipsisRender,
     },
     {
-      title: '销售出库单 · 订单',
+      title: '来源单号 · 订单',
       key: 'orders',
       width: 230,
       render: (_, r) => (
