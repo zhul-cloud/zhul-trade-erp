@@ -62,6 +62,7 @@ describe('precheckUpload（上传预检，服务端仍会再校验）', () => {
     expect(
       precheckUpload({ name: 'a.webm', size: 95 * MB }, 2),
     ).toBeUndefined();
+    expect(precheckUpload({ name: 'a.MOV', size: 4 * MB }, 2)).toBeUndefined();
   });
 
   it('超过大小上限给出原因', () => {

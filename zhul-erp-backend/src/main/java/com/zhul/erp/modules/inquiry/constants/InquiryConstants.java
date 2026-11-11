@@ -144,8 +144,8 @@ public final class InquiryConstants {
     /** 询盘附件类别：1-询盘附件、2-铭牌图片（spec inquiry/inquiry-intake「铭牌图片」） */
     public static final int ATTACHMENT_KIND_FILE = 1;
     public static final int ATTACHMENT_KIND_NAMEPLATE = 2;
-    /** 铭牌图片只收 JPG、PNG，每次录入或追加最多 20 张 */
-    public static final Set<String> NAMEPLATE_EXTS = Set.of("jpg", "png");
+    /** 铭牌只收 JPG、PNG、PDF（客户有时发 PDF），每次录入或追加最多 20 个 */
+    public static final Set<String> NAMEPLATE_EXTS = Set.of("jpg", "png", "pdf");
     public static final int NAMEPLATE_MAX = 20;
     public static final String ATTACHMENT_TYPE_MESSAGE = "文件类型不支持，只支持 JPG、PNG、XLS、XLSX、CSV、PDF";
 

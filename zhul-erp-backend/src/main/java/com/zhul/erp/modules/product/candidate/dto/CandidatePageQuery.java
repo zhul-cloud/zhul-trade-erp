@@ -13,7 +13,7 @@ public class CandidatePageQuery {
     private String keyword;
     /** 可信度 1-3 */
     private Integer level;
-    /** 品牌：1-已确认（品牌库里有）、2-待确认；不传为全部 */
+    /** 品牌：1-已确认（品牌库里有，含 Others）、2-待确认、3-AI 未识别（记为 Others）；不传为全部 */
     private Integer brandState;
     /** 品类：1-已选、2-未选；不传为全部 */
     private Integer categoryState;

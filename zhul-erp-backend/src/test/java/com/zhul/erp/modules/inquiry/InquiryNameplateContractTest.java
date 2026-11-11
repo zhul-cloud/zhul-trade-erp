@@ -127,8 +127,13 @@ class InquiryNameplateContractTest extends InquiryContractSupport {
         assertEquals(1, detail.path("nameplates").size());
         assertEquals(0, detail.path("nameplates").path(0).path("inquiryItemId").asLong());
 
-        String pdf = upload("spec.pdf", PDF, "application/pdf");
-        assertEquals("铭牌图片只支持 JPG、PNG", submit(c, refs("nameplates", List.of(pdf))).path("message").asText());
+        // 客户发来的铭牌是 PDF 时也能收（2026-11-11 用户反馈）
+        String pdf = upload("plate.pdf", PDF, "application/pdf");
+        JsonNode withPdf = ok(submit(c, refs("nameplates", List.of(pdf))));
+        JsonNode pdfDetail = ok(call(get(INQ + "/" + withPdf.path("id").asLong()), admin));
+        assertEquals(1, pdfDetail.path("nameplates").size(), "PDF 铭牌按铭牌保存");
+        String csv = upload("list.csv", "model,qty\nA,1".getBytes(), "text/csv");
+        assertEquals("铭牌只支持 JPG、PNG、PDF", submit(c, refs("nameplates", List.of(csv))).path("message").asText());
         List<String> many = new ArrayList<>();
         for (int i = 0; i < 21; i++) {
             many.add(png);

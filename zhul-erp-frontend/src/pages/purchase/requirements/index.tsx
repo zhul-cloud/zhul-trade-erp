@@ -29,6 +29,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
+import { CustomerCell } from '@/components/DocFields';
 import { CustomerTypePill } from '@/pages/inquiry/shared/components';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
 import { StockPill, useUserOptions } from '@/pages/sales/orders/dialogs';
@@ -718,22 +719,25 @@ const RequirementList: React.FC = () => {
           rowKey="id"
           columns={[
             {
-              title: '来源单号 · 客户',
+              title: '来源单号',
               dataIndex: 'soNo',
-              width: 210,
+              width: 160,
               fixed: 'left',
               render: (v: string, r) => (
-                <div>
-                  <a onClick={() => history.push(PATHS.salesOrder(r.soId))}>
-                    {v}
-                  </a>
-                  {sub(
-                    palette.mute,
-                    [r.customerName, r.customerCountry]
-                      .filter(Boolean)
-                      .join(' · '),
-                  )}
-                </div>
+                <a onClick={() => history.push(PATHS.salesOrder(r.soId))}>
+                  {v}
+                </a>
+              ),
+            },
+            {
+              title: '客户',
+              key: 'customer',
+              width: 200,
+              render: (_, r) => (
+                <CustomerCell
+                  name={r.customerName}
+                  country={r.customerCountry}
+                />
               ),
             },
             ...lineColumns,

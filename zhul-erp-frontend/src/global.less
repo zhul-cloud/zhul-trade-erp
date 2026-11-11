@@ -65,6 +65,11 @@ canvas {
   display: block;
 }
 
+// 表格自成层叠上下文：列多时固定列的 z-index 会超过顶栏（20）与标签栏（19），滚动时盖住它们
+.ant-table-wrapper {
+  isolation: isolate;
+}
+
 ul,
 ol {
   list-style: none;

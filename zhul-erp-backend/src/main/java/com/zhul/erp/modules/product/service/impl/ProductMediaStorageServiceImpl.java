@@ -24,7 +24,8 @@ public class ProductMediaStorageServiceImpl implements ProductMediaStorageServic
 
     /** 扩展名 → 存储时使用的规范扩展名（jpeg 统一存为 jpg） */
     private static final Map<String, String> IMAGE_EXT = Map.of("jpg", "jpg", "jpeg", "jpg", "png", "png", "webp", "webp");
-    private static final Map<String, String> VIDEO_EXT = Map.of("mp4", "mp4", "webm", "webm");
+    /** mov（苹果 QuickTime）与 mp4 同属一种封装，统一存为 mp4，浏览器播放兼容更好 */
+    private static final Map<String, String> VIDEO_EXT = Map.of("mp4", "mp4", "mov", "mp4", "webm", "webm");
     private static final Set<String> REJECTED_EXT = Set.of("svg", "svgz");
 
     private final FileStorageService files;
@@ -49,13 +50,15 @@ public class ProductMediaStorageServiceImpl implements ProductMediaStorageServic
         String storedExt = (image ? IMAGE_EXT : VIDEO_EXT).get(ext);
         if (storedExt == null) {
             throw BizException.of(ProductErrorCodes.MEDIA_FILE_INVALID,
-                    image ? "图片仅支持 jpg、jpeg、png、webp 格式" : "视频仅支持 mp4、webm 格式");
+                    image ? "图片仅支持 jpg、jpeg、png、webp 格式" : "视频仅支持 mp4、mov、webm 格式");
         }
         if (file.getSize() > (image ? MAX_IMAGE_BYTES : MAX_VIDEO_BYTES)) {
             throw BizException.of(ProductErrorCodes.MEDIA_TOO_LARGE,
                     image ? "图片不能超过 5MB" : "视频不能超过 95MB");
         }
-        if (!storedExt.equals(UploadRules.detect(UploadRules.head(file), file.getOriginalFilename()))) {
+        String detected = UploadRules.detect(UploadRules.head(file), file.getOriginalFilename());
+        // 手机、剪辑软件导出的 mp4 常带 QuickTime 标记（识别为 mov），按同一种封装看待
+        if (!storedExt.equals("mov".equals(detected) ? "mp4" : detected)) {
             throw BizException.of(ProductErrorCodes.MEDIA_FILE_INVALID, "文件内容与扩展名不一致，已拒绝");
         }
         FileStorageService.StoredFile s;

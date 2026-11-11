@@ -7,6 +7,8 @@ import com.zhul.erp.modules.product.candidate.dto.BatchApproveRequest;
 import com.zhul.erp.modules.product.candidate.dto.CandidateAiFillRequest;
 import com.zhul.erp.modules.product.candidate.dto.CandidateAiFillVO;
 import com.zhul.erp.modules.product.candidate.dto.BatchApproveVO;
+import com.zhul.erp.modules.product.candidate.dto.BatchEditRequest;
+import com.zhul.erp.modules.product.candidate.dto.BatchEditVO;
 import com.zhul.erp.modules.product.candidate.dto.CandidateImportPreviewVO;
 import com.zhul.erp.modules.product.candidate.dto.CandidateImportRequest;
 import com.zhul.erp.modules.product.candidate.dto.CandidateImportResultVO;
@@ -79,6 +81,13 @@ public class ProductCandidateController {
     @PreAuthorize(REVIEW)
     public Result<BatchApproveVO> batchApprove(@Valid @RequestBody BatchApproveRequest req) {
         return Result.ok(service.batchApprove(req.getIds()));
+    }
+
+    /** 批量修改品牌、品类：只改仍待审核的候选 */
+    @PostMapping("/batch-edit")
+    @PreAuthorize(REVIEW)
+    public Result<BatchEditVO> batchEdit(@Valid @RequestBody BatchEditRequest req) {
+        return Result.ok(service.batchEdit(req));
     }
 
     /** 批量 AI 解析品类或品牌：写入候选，审核时可改 */

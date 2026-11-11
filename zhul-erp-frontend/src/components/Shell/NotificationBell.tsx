@@ -81,6 +81,16 @@ const dayGroup = (t: string) => {
 };
 
 /** 一条通知：待办在处理前一直留在「待处理」，知会点开即已读 */
+/** 通知内容按「 · 」分段；key 用段文字加出现次数，重复段也不冲突 */
+const segments = (content: string) => {
+  const seen = new Map<string, number>();
+  return content.split(' · ').map((part, i) => {
+    const n = (seen.get(part) ?? 0) + 1;
+    seen.set(part, n);
+    return { key: `${part}#${n}`, part, first: i === 0 };
+  });
+};
+
 const Row: React.FC<{
   item: NotificationItem;
   palette: Palette;
@@ -184,10 +194,23 @@ const Row: React.FC<{
               fontSize: 12,
               lineHeight: 1.5,
               color: palette.sub,
-              wordBreak: 'break-all',
             }}
           >
-            {item.content}
+            {/* 按「 · 」分段整段换行，避免日期、型号从中间断开；单段超过一行时才在段内折行 */}
+            {segments(item.content).map(({ key, part, first }) => (
+              <React.Fragment key={key}>
+                {!first && ' · '}
+                <span
+                  style={{
+                    display: 'inline-block',
+                    maxWidth: '100%',
+                    overflowWrap: 'anywhere',
+                  }}
+                >
+                  {part}
+                </span>
+              </React.Fragment>
+            ))}
           </span>
         )}
       </span>

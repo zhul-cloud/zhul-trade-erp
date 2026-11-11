@@ -30,17 +30,18 @@
 | [BUS-020](../07-security/03-全量平台与商品代码审查.md) | 普通部门维护绕过事业部非嵌套约束 | P2 | 待认领 | — | — | 2026-11-01 |
 | [BUS-021](../01-business/05-全量业务代码审查.md) | 兼容关系说明的主表与中文说明表读写不一致 | P2 | 待认领 | — | — | 2026-11-01 |
 | [BUS-022](../01-business/05-全量业务代码审查.md) | 候选批量审核在行锁后继续使用待审核旧快照 | P2 | 待认领 | — | — | 2026-11-01 |
-| [BUS-023](tasks/2026-11-03-UI-038-feedback-batch-bugs.md) | 应付的收款方不随供应商改名刷新 | P2 | 待验证 | Claude | [2026-11-03-UI-038](tasks/2026-11-03-UI-038-feedback-batch-bugs.md) | 2026-11-03 |
-| [BUS-024](tasks/2026-11-03-UI-038-feedback-batch-bugs.md) | PI 导出的贸易术语地点与业务员显示中文 | P2 | 待验证 | Claude | [2026-11-03-UI-038](tasks/2026-11-03-UI-038-feedback-batch-bugs.md) | 2026-11-03 |
+| [BUS-023](tasks/2026-11-03-UI-038-feedback-batch-bugs.md) | 应付的收款方不随供应商改名刷新 | P2 | 已发布待验收 | Claude | [2026-11-03-UI-038](tasks/2026-11-03-UI-038-feedback-batch-bugs.md) | 2026-11-11 |
+| [BUS-024](tasks/2026-11-03-UI-038-feedback-batch-bugs.md) | PI 导出的贸易术语地点与业务员显示中文 | P2 | 已发布待验收 | Claude | [2026-11-03-UI-038](tasks/2026-11-03-UI-038-feedback-batch-bugs.md) | 2026-11-11 |
 | [BUS-025](tasks/2026-11-03-BUS-025-develop-merge-review.md) | 客户合并不加锁，反向并发合并会把两个客户都删掉 | P2 | 已关闭 | Claude | [2026-11-03-BUS-025](tasks/2026-11-03-BUS-025-develop-merge-review.md) | 2026-11-04 |
 | [BUS-026](tasks/2026-11-03-BUS-025-develop-merge-review.md) | 「先采购后收款」筛选把租户全部未收款 PI 的 ID 拼进 IN 列表 | P3 | 待认领 | — | [2026-11-03-BUS-025](tasks/2026-11-03-BUS-025-develop-merge-review.md) | 2026-11-03 |
 | [BUS-027](tasks/2026-11-04-BUS-005-fulfillment-batch-e.md) | 订单还有在仓库的出库单时仍可取消，重转后已发出的货会被重复算成可出库 | P2 | 已发布待验收 | Claude | [2026-11-04-BUS-005](tasks/2026-11-04-BUS-005-fulfillment-batch-e.md) | 2026-11-05 |
-| [BUS-028](tasks/2026-11-05-BUS-028-user-feedback-defects.md) | 报价按毛利率定价填 100% 时售价变成成本的 1 万倍 | P2 | 已合并待发布 | Claude | [2026-11-05-BUS-028](tasks/2026-11-05-BUS-028-user-feedback-defects.md) | 2026-11-05 |
-| [BUS-029](tasks/2026-11-05-BUS-028-user-feedback-defects.md) | 采购员未指定的需求，非「全部」数据权限的供应链主管看不到、无法统一分配 | P2 | 已合并待发布 | Claude | [2026-11-05-BUS-028](tasks/2026-11-05-BUS-028-user-feedback-defects.md) | 2026-11-05 |
-| [BUS-030](tasks/2026-11-05-BUS-028-user-feedback-defects.md) | 询价任务改派后，接手人看不到原采购已找到的报价 | P2 | 已合并待发布 | Claude | [2026-11-05-BUS-028](tasks/2026-11-05-BUS-028-user-feedback-defects.md) | 2026-11-05 |
+| [BUS-028](tasks/2026-11-05-BUS-028-user-feedback-defects.md) | 报价按毛利率定价填 100% 时售价变成成本的 1 万倍 | P2 | 已发布待验收 | Claude | [2026-11-05-BUS-028](tasks/2026-11-05-BUS-028-user-feedback-defects.md) | 2026-11-11 |
+| [BUS-029](tasks/2026-11-05-BUS-028-user-feedback-defects.md) | 采购员未指定的需求，非「全部」数据权限的供应链主管看不到、无法统一分配 | P2 | 已发布待验收 | Claude | [2026-11-05-BUS-028](tasks/2026-11-05-BUS-028-user-feedback-defects.md) | 2026-11-11 |
+| [BUS-030](tasks/2026-11-05-BUS-028-user-feedback-defects.md) | 询价任务改派后，接手人看不到原采购已找到的报价 | P2 | 已发布待验收 | Claude | [2026-11-05-BUS-028](tasks/2026-11-05-BUS-028-user-feedback-defects.md) | 2026-11-11 |
 | [BUS-031](tasks/2026-11-09-BUS-031-quoted-items-task-stuck.md) | 剩余型号已直接报给客户后，询价任务既不能退回也无法完结 | P2 | 已发布待验收 | Claude | [2026-11-09-BUS-031](tasks/2026-11-09-BUS-031-quoted-items-task-stuck.md) | 2026-11-09 |
 | [BUS-032](tasks/2026-11-09-BUS-032-export-currency-symbol.md) | 卢布单据导出后金额仍显示美元符号 | P2 | 已发布待验收 | Claude | [2026-11-09-BUS-032](tasks/2026-11-09-BUS-032-export-currency-symbol.md) | 2026-11-09 |
 | [BUS-033](tasks/2026-11-10-BUS-033-followup-reconcile-duplicate.md) | 单据换了客户后跟进对象核对失败，新客户看不到该单据跟进 | P2 | 已关闭 | Claude | [2026-11-10-BUS-033](tasks/2026-11-10-BUS-033-followup-reconcile-duplicate.md) | 2026-11-10 |
+| [BUS-034](tasks/2026-11-11-BUS-034-product-media-feedback.md) | 商品档案上传苹果格式的 mp4 视频被判为「内容与扩展名不一致」而拒绝 | P2 | 待合并 | Claude | [2026-11-11-BUS-034](tasks/2026-11-11-BUS-034-product-media-feedback.md) | 2026-11-11 |
 
 ## 前端
 
@@ -83,14 +84,19 @@
 | [UI-035](../02-frontend/07-全量前端代码与页面审查.md) | 物流出运页在窄屏下整页横溢出，创建入口与详情卡片越出可视区 | P3 | 待认领 | — | — | 2026-11-01 |
 | [UI-036](../02-frontend/07-全量前端代码与页面审查.md) | 三处人民币运费输入仍用货币符号，偏离统一币种代码规范 | P3 | 待认领 | — | — | 2026-11-01 |
 | [UI-037](../02-frontend/02-表单草稿与页面切换.md) | 编辑角色的部门数据晚返回时，关闭后又弹出编辑抽屉 | P3 | 已关闭 | Claude | [2026-11-03-UI-037](tasks/2026-11-03-UI-037-role-edit-race.md) | 2026-11-04 |
-| [UI-038](tasks/2026-11-03-UI-038-feedback-batch-bugs.md) | 询盘管理、销售订单列表点第 2 页无效 | P2 | 待验证 | Claude | [2026-11-03-UI-038](tasks/2026-11-03-UI-038-feedback-batch-bugs.md) | 2026-11-03 |
-| [UI-039](tasks/2026-11-03-UI-038-feedback-batch-bugs.md) | 新建询盘时客户名称过长把「来源」挤出对话框 | P3 | 待验证 | Claude | [2026-11-03-UI-038](tasks/2026-11-03-UI-038-feedback-batch-bugs.md) | 2026-11-03 |
-| [UI-040](tasks/2026-11-03-UI-038-feedback-batch-bugs.md) | 登录过期后页面先提示加载失败再跳登录页 | P2 | 待验证 | Claude | [2026-11-03-UI-038](tasks/2026-11-03-UI-038-feedback-batch-bugs.md) | 2026-11-03 |
+| [UI-038](tasks/2026-11-03-UI-038-feedback-batch-bugs.md) | 询盘管理、销售订单列表点第 2 页无效 | P2 | 已发布待验收 | Claude | [2026-11-03-UI-038](tasks/2026-11-03-UI-038-feedback-batch-bugs.md) | 2026-11-11 |
+| [UI-039](tasks/2026-11-03-UI-038-feedback-batch-bugs.md) | 新建询盘时客户名称过长把「来源」挤出对话框 | P3 | 已发布待验收 | Claude | [2026-11-03-UI-038](tasks/2026-11-03-UI-038-feedback-batch-bugs.md) | 2026-11-11 |
+| [UI-040](tasks/2026-11-03-UI-038-feedback-batch-bugs.md) | 登录过期后页面先提示加载失败再跳登录页 | P2 | 已发布待验收 | Claude | [2026-11-03-UI-038](tasks/2026-11-03-UI-038-feedback-batch-bugs.md) | 2026-11-11 |
 | [UI-041](../02-frontend/07-全量前端代码与页面审查.md) | 表格与列表在电脑低分辨率下布局失效 | P2 | 处理中 | Claude | [2026-11-04-UI-041](tasks/2026-11-04-UI-041-low-res-layout.md) | 2026-11-05 |
-| [UI-042](tasks/2026-11-05-BUS-028-user-feedback-defects.md) | 单据导出图片模糊，且下方大片空白 | P2 | 已合并待发布 | Claude | [2026-11-05-BUS-028](tasks/2026-11-05-BUS-028-user-feedback-defects.md) | 2026-11-05 |
-| [UI-043](tasks/2026-11-05-UI-043-inquiry-stats-filters.md) | 询盘管理顶部统计不随搜索条件变化，与列表对不上 | P2 | 已合并待发布 | Claude / Codex | [2026-11-05-UI-043](tasks/2026-11-05-UI-043-inquiry-stats-filters.md) | 2026-11-06 |
+| [UI-042](tasks/2026-11-05-BUS-028-user-feedback-defects.md) | 单据导出图片模糊，且下方大片空白 | P2 | 已发布待验收 | Claude | [2026-11-05-BUS-028](tasks/2026-11-05-BUS-028-user-feedback-defects.md) | 2026-11-11 |
+| [UI-043](tasks/2026-11-05-UI-043-inquiry-stats-filters.md) | 询盘管理顶部统计不随搜索条件变化，与列表对不上 | P2 | 已发布待验收 | Claude / Codex | [2026-11-05-UI-043](tasks/2026-11-05-UI-043-inquiry-stats-filters.md) | 2026-11-11 |
 | [UI-044](tasks/2026-11-09-UI-044-user-feedback-1109.md) | 报价单 / PI 预览模糊、PDF 页边和底部大片空白 | P2 | 已发布待验收 | Claude | [2026-11-09-UI-044](tasks/2026-11-09-UI-044-user-feedback-1109.md) | 2026-11-09 |
 | [UI-045](tasks/2026-11-09-UI-044-user-feedback-1109.md) | 列表「型号 · 数量」列型号过长时盖住相邻的品牌列 | P3 | 已发布待验收 | Claude | [2026-11-09-UI-044](tasks/2026-11-09-UI-044-user-feedback-1109.md) | 2026-11-09 |
+| [UI-046](tasks/2026-11-11-UI-046-fee-order-detail-crash.md) | 费用订单详情页打开即显示「页面出现错误」 | P1 | 已合并待发布 | Claude | [2026-11-11-UI-046](tasks/2026-11-11-UI-046-fee-order-detail-crash.md) | 2026-11-11 |
+| [UI-047](tasks/2026-11-11-UI-047-user-feedback-1111.md) | 列多的列表滚动后，表格固定列盖住顶部栏与标签栏 | P2 | 已合并待发布 | Claude | [2026-11-11-UI-047](tasks/2026-11-11-UI-047-user-feedback-1111.md) | 2026-11-11 |
+| [UI-048](tasks/2026-11-11-UI-047-user-feedback-1111.md) | 来源单号与客户 / 供应商合在一列，不符合单据页统一规范 | P3 | 已合并待发布 | Claude | [2026-11-11-UI-047](tasks/2026-11-11-UI-047-user-feedback-1111.md) | 2026-11-11 |
+| [UI-049](tasks/2026-11-11-UI-049-notification-content-wrap.md) | 通知抽屉内容在日期、型号中间断行 | P3 | 待合并 | Claude | [2026-11-11-UI-049](tasks/2026-11-11-UI-049-notification-content-wrap.md) | 2026-11-11 |
+| [UI-050](tasks/2026-11-11-BUS-034-product-media-feedback.md) | 商品档案的图片点开不能预览 | P3 | 待合并 | Claude | [2026-11-11-BUS-034](tasks/2026-11-11-BUS-034-product-media-feedback.md) | 2026-11-11 |
 
 ## AI 可靠性
 
