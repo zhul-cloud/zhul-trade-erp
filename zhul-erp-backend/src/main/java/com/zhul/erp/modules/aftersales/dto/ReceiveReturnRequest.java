@@ -9,7 +9,7 @@ import lombok.Data;
 import java.time.LocalDate;
 import java.util.List;
 
-/** 退货验收 */
+/** 退货入库单验收；照片等附件上传到退货入库单 */
 @Data
 public class ReceiveReturnRequest {
     @NotNull(message = "请填写收货日期")
@@ -23,11 +23,14 @@ public class ReceiveReturnRequest {
 
     @Data
     public static class Line {
+        /** 退货入库单行 ID */
         @NotNull(message = "请选择退货行")
         private Long itemId;
         @NotNull(message = "请填写实收数量")
         private Integer receivedQty;
         @NotNull(message = "请填写合格数量")
         private Integer qualifiedQty;
+        @Size(max = 300, message = "说明不能超过 300 字")
+        private String note;
     }
 }

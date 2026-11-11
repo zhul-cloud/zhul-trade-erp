@@ -49,7 +49,8 @@ public class HoldService {
     private final InquiryLookups lookups;
     private final LogService logService;
     private final com.zhul.erp.modules.sales.repository.SalesOrderMapper soMapper;
-    private final com.zhul.erp.modules.aftersales.repository.SalesReturnMapper returnMapper;
+    /** 售后退货来源：退货入库单（return_id 关联 return_receipt.id） */
+    private final com.zhul.erp.modules.aftersales.repository.ReturnReceiptMapper returnMapper;
 
     public PageResult<HoldVO> page(HoldPageQuery q) {
         LambdaQueryWrapper<StockHoldDO> w = new LambdaQueryWrapper<StockHoldDO>()
@@ -139,7 +140,7 @@ public class HoldService {
         List<Long> returnIds = rows.stream().map(StockHoldDO::getReturnId).filter(x -> x != null && x > 0).distinct().toList();
         Map<Long, String> returnNos = new java.util.HashMap<>();
         if (!returnIds.isEmpty()) {
-            returnMapper.selectBatchIds(returnIds).forEach(r -> returnNos.put(r.getId(), r.getReturnNo()));
+            returnMapper.selectBatchIds(returnIds).forEach(r -> returnNos.put(r.getId(), r.getReceiptNo()));
         }
         if (!soIds.isEmpty()) {
             soMapper.selectBatchIds(soIds).forEach(o -> soNos.put(o.getId(), o.getSoNo()));

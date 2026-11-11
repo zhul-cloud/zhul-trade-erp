@@ -10,6 +10,17 @@ import java.time.LocalDateTime;
 public class RefundRequestVO {
     private Long id;
     private String requestNo;
+    /** 来源：销售退货单（有时）或售后单 */
+    private Long salesReturnId;
+    private String sourceNo;
+    private Integer refundFirst;
+    /** 实收少于退货数量时的提示 */
+    private String receivedHint;
+    /** 退款单金额（执行时改过金额的，与申请金额的差额在详情页显示） */
+    private BigDecimal refundAmount;
+    private java.util.List<Item> items;
+    private java.util.List<com.zhul.erp.modules.attachment.dto.AttachmentVO> attachments;
+    private java.util.List<com.zhul.erp.modules.system.doclog.DocLogVO> logs;
     private Long afterSalesId;
     private String asNo;
     private Long soId;
@@ -41,4 +52,19 @@ public class RefundRequestVO {
     private String createBy;
     private LocalDateTime updateTime;
     private String updateBy;
+
+    @Data
+    public static class Item {
+        private Long id;
+        private Integer lineType;
+        private Long soItemId;
+        private Long salesReturnItemId;
+        private String itemName;
+        private String brand;
+        private String category;
+        private Integer quantity;
+        private BigDecimal unitPrice;
+        private BigDecimal amount;
+        private String note;
+    }
 }

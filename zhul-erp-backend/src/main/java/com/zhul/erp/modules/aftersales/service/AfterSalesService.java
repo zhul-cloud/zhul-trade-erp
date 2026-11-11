@@ -15,7 +15,11 @@ import com.zhul.erp.modules.aftersales.dto.SaveAfterSalesRequest;
 import com.zhul.erp.modules.aftersales.entity.AfterSalesDO;
 import com.zhul.erp.modules.aftersales.entity.AfterSalesItemDO;
 import com.zhul.erp.modules.aftersales.entity.AfterSalesLogDO;
+import com.zhul.erp.modules.aftersales.dto.ReturnVO;
+import com.zhul.erp.modules.aftersales.entity.ReturnReceiptDO;
 import com.zhul.erp.modules.aftersales.entity.SalesReturnDO;
+import com.zhul.erp.modules.purchase.purchasereturn.PurchaseReturnConstants;
+import com.zhul.erp.modules.purchase.purchasereturn.entity.PurchaseReturnDO;
 import com.zhul.erp.modules.aftersales.entity.SalesReturnDispositionDO;
 import com.zhul.erp.modules.aftersales.entity.SalesReturnItemDO;
 import com.zhul.erp.modules.aftersales.repository.AfterSalesItemMapper;
@@ -62,6 +66,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -86,6 +91,9 @@ public class AfterSalesService {
     private final SalesReturnItemMapper returnItemMapper;
     private final SalesReturnDispositionMapper dispositionMapper;
     private final RefundRequestMapper requestMapper;
+    private final com.zhul.erp.modules.aftersales.repository.ReturnReceiptMapper receiptMapper;
+    private final com.zhul.erp.modules.aftersales.repository.ReturnReceiptItemMapper receiptItemMapper;
+    private final com.zhul.erp.modules.purchase.purchasereturn.repository.PurchaseReturnMapper purchaseReturnMapper;
     private final CustomerRefundMapper refundMapper;
     private final ExpenseMapper expenseMapper;
     private final CustomerMapper customerMapper;
@@ -309,12 +317,23 @@ public class AfterSalesService {
             throw new BizException("结案时请确认最终原因与责任，不能是「调查中」");
         }
         for (SalesReturnDO r : returnsOf(id)) {
-            if (r.getStatus() == AfterSalesConstants.RT_PENDING || r.getStatus() == AfterSalesConstants.RT_RECEIVED) {
-                throw new BizException("退货单 " + r.getReturnNo() + " 还没处理完");
+            if (r.getStatus() == AfterSalesConstants.RT_CONFIRMING || r.getStatus() == AfterSalesConstants.RT_PENDING) {
+                throw new BizException("销售退货单 " + r.getReturnNo() + " " + AfterSalesConstants.RT_STATUS_NAMES.get(r.getStatus()));
+            }
+        }
+        for (ReturnReceiptDO rr : receiptsOf(id)) {
+            if (rr.getStatus() == AfterSalesConstants.RR_RECEIVED) {
+                throw new BizException("退货入库单 " + rr.getReceiptNo() + " 还有数量没处理去向");
+            }
+        }
+        for (PurchaseReturnDO p : purchaseReturnsOf(id)) {
+            if (p.getStatus() == PurchaseReturnConstants.PENDING || p.getStatus() == PurchaseReturnConstants.SHIPPED) {
+                throw new BizException("采购退货单 " + p.getReturnNo() + " 还没完成");
             }
         }
         for (RefundRequestDO q : requestsOf(id)) {
-            if (q.getStatus() == FinanceConstants.RQ_PENDING_APPROVAL || q.getStatus() == FinanceConstants.RQ_PENDING_FINANCE) {
+            if (q.getStatus() == FinanceConstants.RQ_PENDING_RECEIPT || q.getStatus() == FinanceConstants.RQ_PENDING_APPROVAL
+                    || q.getStatus() == FinanceConstants.RQ_PENDING_FINANCE) {
                 throw new BizException("退款申请 " + q.getRequestNo() + " 还没处理完");
             }
         }
@@ -359,7 +378,7 @@ public class AfterSalesService {
         }
         AfterSalesDO a = lockEditable(id);
         if (returnsOf(id).stream().anyMatch(r -> r.getStatus() != AfterSalesConstants.RT_VOID)) {
-            throw new BizException("已有退货单，不能撤销");
+            throw new BizException("已有销售退货单，不能撤销");
         }
         if (requestsOf(id).stream().anyMatch(q -> q.getStatus() != FinanceConstants.RQ_WITHDRAWN)) {
             throw new BizException("已有退款申请，不能撤销");
@@ -457,6 +476,25 @@ public class AfterSalesService {
         return toVos(mapper.selectList(dueBefore(scoped(), LocalDateTime.now()).orderByAsc(AfterSalesDO::getDueAt)));
     }
 
+    /** 订单型号在未作废销售退货单上的数量（与 SalesReturnService 校验口径一致） */
+    private Map<Long, Integer> returnedQty(List<Long> soItemIds) {
+        if (soItemIds.isEmpty()) {
+            return Map.of();
+        }
+        List<SalesReturnItemDO> rows = returnItemMapper.selectList(new LambdaQueryWrapper<SalesReturnItemDO>()
+                .in(SalesReturnItemDO::getSoItemId, soItemIds)
+                .isNull(SalesReturnItemDO::getDeletedAt));
+        if (rows.isEmpty()) {
+            return Map.of();
+        }
+        Set<Long> valid = returnMapper.selectBatchIds(rows.stream().map(SalesReturnItemDO::getReturnId).distinct().toList()).stream()
+                .filter(r -> r.getDeletedAt() == null && r.getStatus() != AfterSalesConstants.RT_VOID)
+                .map(SalesReturnDO::getId).collect(Collectors.toSet());
+        Map<Long, Integer> m = new HashMap<>();
+        rows.stream().filter(x -> valid.contains(x.getReturnId())).forEach(x -> m.merge(x.getSoItemId(), x.getQuantity(), Integer::sum));
+        return m;
+    }
+
     /** 处理中、待客户确认且截止时间早于 t */
     private static LambdaQueryWrapper<AfterSalesDO> dueBefore(LambdaQueryWrapper<AfterSalesDO> w, LocalDateTime t) {
         return w.in(AfterSalesDO::getStatus, AfterSalesConstants.AS_OPEN, AfterSalesConstants.AS_WAITING)
@@ -468,7 +506,11 @@ public class AfterSalesService {
         AfterSalesDO a = visible(id);
         AfterSalesVO vo = toVos(List.of(a)).get(0);
         List<AfterSalesItemDO> items = itemsOf(List.of(id)).getOrDefault(id, List.of());
-        Map<Long, LogisticsQty.Qty> out = logisticsQty.bySoItem(items.stream().map(AfterSalesItemDO::getSoItemId).filter(Objects::nonNull).toList());
+        List<Long> soItemIds = items.stream().map(AfterSalesItemDO::getSoItemId).filter(Objects::nonNull).distinct().toList();
+        Map<Long, LogisticsQty.Qty> out = logisticsQty.bySoItem(soItemIds);
+        Map<Long, SalesOrderItemDO> soItems = soItemIds.isEmpty() ? Map.of() : orderItemMapper.selectBatchIds(soItemIds).stream()
+                .collect(Collectors.toMap(SalesOrderItemDO::getId, x -> x));
+        Map<Long, Integer> returned = returnedQty(soItemIds);
         vo.setItems(items.stream().map(i -> {
             AfterSalesVO.Item x = new AfterSalesVO.Item();
             x.setId(i.getId());
@@ -476,7 +518,14 @@ public class AfterSalesService {
             x.setModel(i.getModel());
             x.setBrand(i.getBrand());
             x.setQuantity(i.getQuantity());
-            x.setShippedQty(i.getSoItemId() == null ? null : out.getOrDefault(i.getSoItemId(), LogisticsQty.Qty.ZERO).shipped());
+            if (i.getSoItemId() != null) {
+                int shipped = out.getOrDefault(i.getSoItemId(), LogisticsQty.Qty.ZERO).shipped();
+                SalesOrderItemDO si = soItems.get(i.getSoItemId());
+                x.setShippedQty(shipped);
+                x.setReturnableQty(Math.max(0, shipped - returned.getOrDefault(i.getSoItemId(), 0)));
+                x.setUnitPrice(si == null ? null : si.getUnitPrice());
+                x.setCategory(si == null ? null : si.getCategory());
+            }
             return x;
         }).toList());
         vo.setAttachments(attachments.listOf(AttachmentService.AFTER_SALES, id));
@@ -505,10 +554,22 @@ public class AfterSalesService {
                                 .in(SalesReturnItemDO::getReturnId, returns.stream().map(SalesReturnDO::getId).toList())
                                 .isNull(SalesReturnItemDO::getDeletedAt))
                 .stream().collect(Collectors.groupingBy(SalesReturnItemDO::getReturnId));
+        // 一张销售退货单只有一张有效的退货入库单；作废后留着的作废单只在没有有效单时显示
+        Map<Long, ReturnReceiptDO> receipts = receiptsOf(id).stream()
+                .collect(Collectors.toMap(ReturnReceiptDO::getSalesReturnId, rr -> rr, (x, y) -> x.getStatus() == AfterSalesConstants.RR_VOID ? y : x));
         vo.setReturns(returns.stream().map(r -> {
             AfterSalesVO.ReturnBrief x = new AfterSalesVO.ReturnBrief();
             x.setId(r.getId());
             x.setReturnNo(r.getReturnNo());
+            x.setHandling(r.getHandling());
+            x.setHandlingName(AfterSalesConstants.HANDLING_NAMES.get(r.getHandling()));
+            ReturnReceiptDO rr = receipts.get(r.getId());
+            if (rr != null) {
+                x.setReceiptId(rr.getId());
+                x.setReceiptNo(rr.getReceiptNo());
+                x.setReceiptStatus(rr.getStatus());
+                x.setReceiptStatusName(AfterSalesConstants.RR_STATUS_NAMES.get(rr.getStatus()));
+            }
             x.setStatus(r.getStatus());
             x.setStatusName(AfterSalesConstants.RT_STATUS_NAMES.get(r.getStatus()));
             x.setSummary(returnItems.getOrDefault(r.getId(), List.of()).stream().map(i -> i.getModel() + " × " + i.getQuantity())
@@ -521,6 +582,14 @@ public class AfterSalesService {
                         .isNull(SalesReturnDispositionDO::getDeletedAt));
         vo.setReturnCreditCny(disps.stream().map(SalesReturnDispositionDO::getCostCny).reduce(BigDecimal.ZERO, BigDecimal::add));
         vo.setReturnFreightCny(disps.stream().map(SalesReturnDispositionDO::getFreightCny).reduce(BigDecimal.ZERO, BigDecimal::add));
+        vo.setPurchaseReturns(purchaseReturnsOf(id).stream().map(p -> {
+            ReturnVO.DocBrief b = new ReturnVO.DocBrief();
+            b.setId(p.getId());
+            b.setNo(p.getReturnNo());
+            b.setStatus(p.getStatus());
+            b.setStatusName(PurchaseReturnConstants.STATUS_NAMES.get(p.getStatus()));
+            return b;
+        }).toList());
         vo.setRequests(requestsOf(id).stream().map(q -> {
             AfterSalesVO.RequestBrief x = new AfterSalesVO.RequestBrief();
             x.setId(q.getId());
@@ -677,6 +746,21 @@ public class AfterSalesService {
                 .orderByDesc(SalesReturnDO::getId));
     }
 
+    private List<ReturnReceiptDO> receiptsOf(Long id) {
+        return receiptMapper.selectList(new LambdaQueryWrapper<ReturnReceiptDO>()
+                .eq(ReturnReceiptDO::getAfterSalesId, id)
+                .isNull(ReturnReceiptDO::getDeletedAt)
+                .orderByDesc(ReturnReceiptDO::getId));
+    }
+
+    private List<PurchaseReturnDO> purchaseReturnsOf(Long id) {
+        return purchaseReturnMapper.selectList(new LambdaQueryWrapper<PurchaseReturnDO>()
+                .eq(PurchaseReturnDO::getAfterSalesId, id)
+                .eq(PurchaseReturnDO::getSourceType, PurchaseReturnConstants.SRC_AFTER_SALES)
+                .isNull(PurchaseReturnDO::getDeletedAt)
+                .orderByDesc(PurchaseReturnDO::getId));
+    }
+
     private List<RefundRequestDO> requestsOf(Long id) {
         return requestMapper.selectList(new LambdaQueryWrapper<RefundRequestDO>()
                 .eq(RefundRequestDO::getAfterSalesId, id)
@@ -716,6 +800,33 @@ public class AfterSalesService {
         String ids = owners.stream().map(String::valueOf).collect(Collectors.joining(","));
         return w.and(x -> x.in(AfterSalesDO::getOwnerId, owners)
                 .or().inSql(AfterSalesDO::getSoId, "SELECT id FROM sales_order WHERE owner_id IN (" + ids + ")"));
+    }
+
+    /** 可见售后单 ID 的子查询（负责人或订单业务员在数据范围内）；全部可见时为 null。销售退货、退货入库列表按它过滤 */
+    public String visibleIdsSql() {
+        DataScope scope = dataScopeResolver.current();
+        if (scope.isAll()) {
+            return null;
+        }
+        if (scope.ownerIds().isEmpty()) {
+            return "SELECT 0 FROM DUAL WHERE 1 = 0";
+        }
+        String ids = scope.ownerIds().stream().map(String::valueOf).collect(Collectors.joining(","));
+        return "SELECT id FROM after_sales WHERE owner_id IN (" + ids + ") OR so_id IN (SELECT id FROM sales_order WHERE owner_id IN (" + ids + "))";
+    }
+
+    /** 当前用户能否看到这张售后单（销售退货、退货入库单按它判断可见） */
+    public boolean canSee(Long id) {
+        AfterSalesDO a = id == null ? null : mapper.selectById(id);
+        if (a == null || a.getDeletedAt() != null || !Objects.equals(a.getTenantId(), PiStore.tenantId())) {
+            return false;
+        }
+        DataScope scope = dataScopeResolver.current();
+        if (scope.canSee(a.getOwnerId())) {
+            return true;
+        }
+        SalesOrderDO o = a.getSoId() == null ? null : orderMapper.selectById(a.getSoId());
+        return o != null && scope.canSee(o.getOwnerId());
     }
 
     private AfterSalesDO visible(Long id) {

@@ -399,8 +399,8 @@ class ReceivingContractTest extends SalesContractSupport {
         long sid = ok(ship(poId, Map.of(item(po, 0), 10), lin)).path("shipment").path("id").asLong();
         JsonNode gr = ok(accept(sid, List.of(new int[] {10, 8, 2}), keeper));
         long badId = gr.path("discrepancies").get(0).path("id").asLong();
-        JsonNode h = ok(handle(badId, Map.of("resolution", 3, "returnCarrier", "顺丰", "returnTrackingNo", "SF9", "returnFreight", "12.5")));
-        money("12.50", h.path("returnFreight"));
+        JsonNode h = ok(handle(badId, Map.of("resolution", 3)));
+        assertTrue(h.path("purchaseReturnNo").asText().startsWith("PR"), "退货换货生成采购退货单：" + h);
         assertEquals(2, po(poId, lin).path("items").get(0).path("unshippedQty").asInt(), "退货换货的不良数量计为未发");
         ok(ship(poId, Map.of(item(po, 0), 2), lin));
         assertEquals("补发已经登记，不能重新打开", fail(call(post(DIFF + "/" + badId + "/reopen"), lin)).path("message").asText());

@@ -20,6 +20,8 @@ public class SalesReturnDispositionDO {
     private Integer tenantId;
     private Long returnId;
     private Long returnItemId;
+    private Long receiptId;
+    private Long receiptItemId;
     private Long soId;
     private Long soItemId;
     private Integer disposition;
@@ -30,6 +32,7 @@ public class SalesReturnDispositionDO {
     private BigDecimal supplierRefundCny;
     private BigDecimal costCny;
     private Long holdId;
+    private Long purchaseReturnId;
     private String remark;
     private Long operatorId;
     private LocalDateTime deletedAt;

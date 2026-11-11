@@ -21,10 +21,14 @@ public class SalesReturnDO {
     private String returnNo;
     private Long afterSalesId;
     private Long soId;
+    private Integer handling;
+    private Integer refundFirst;
     private String carrier;
     private String trackingNo;
     private String remark;
     private Integer status;
+    private LocalDateTime confirmedAt;
+    private Long confirmedBy;
     @TableField(updateStrategy = com.baomidou.mybatisplus.annotation.FieldStrategy.ALWAYS)
     private LocalDate receivedDate;
     @TableField(updateStrategy = com.baomidou.mybatisplus.annotation.FieldStrategy.ALWAYS)

@@ -51,6 +51,7 @@ public final class TenantTables {
             Map.entry("fin_payment", Policy.PRIVATE),
             Map.entry("fin_payment_allocation", Policy.PRIVATE),
             Map.entry("fin_refund_request", Policy.PRIVATE),
+            Map.entry("fin_refund_request_item", Policy.PRIVATE),
             Map.entry("fin_reimbursement", Policy.PRIVATE),
             Map.entry("fin_reimbursement_line", Policy.PRIVATE),
             // 客户、商机（商机阶段由平台统一定义，租户只读）
@@ -112,6 +113,9 @@ public final class TenantTables {
             Map.entry("sales_return", Policy.PRIVATE),
             Map.entry("sales_return_disposition", Policy.PRIVATE),
             Map.entry("sales_return_item", Policy.PRIVATE),
+            Map.entry("return_receipt", Policy.PRIVATE),
+            Map.entry("document_log", Policy.PRIVATE),
+            Map.entry("return_receipt_item", Policy.PRIVATE),
             // 采购与收货
             Map.entry("purchase_order", Policy.PRIVATE),
             Map.entry("purchase_order_attachment", Policy.PRIVATE),
@@ -121,6 +125,8 @@ public final class TenantTables {
             Map.entry("purchase_receipt", Policy.PRIVATE),
             Map.entry("purchase_receipt_item", Policy.PRIVATE),
             Map.entry("purchase_requirement", Policy.PRIVATE),
+            Map.entry("purchase_return", Policy.PRIVATE),
+            Map.entry("purchase_return_item", Policy.PRIVATE),
             Map.entry("receiving_discrepancy", Policy.PRIVATE),
             Map.entry("supplier_shipment", Policy.PRIVATE),
             Map.entry("supplier_shipment_item", Policy.PRIVATE),

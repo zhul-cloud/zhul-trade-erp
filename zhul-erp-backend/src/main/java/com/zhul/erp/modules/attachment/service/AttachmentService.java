@@ -81,7 +81,13 @@ public class AttachmentService {
     public static final String AFTER_SALES = "AFTER_SALES";
     public static final String AFTER_SALES_LOG = "AFTER_SALES_LOG";
     public static final String SALES_RETURN = "SALES_RETURN";
-    private static final Set<String> AFTER_SALES_TYPES = Set.of(AFTER_SALES, AFTER_SALES_LOG, SALES_RETURN);
+    /** 退货入库单、采购退货单、退款申请（spec system/file-attachment「单据附件与预览」） */
+    public static final String RETURN_RECEIPT = "RETURN_RECEIPT";
+    public static final String PURCHASE_RETURN = "PURCHASE_RETURN";
+    public static final String REFUND_REQUEST = "REFUND_REQUEST";
+    private static final Set<String> AFTER_SALES_TYPES = Set.of(AFTER_SALES, AFTER_SALES_LOG);
+    /** 单据附件：图片、视频、PDF 与 Excel，每单最多 20 个 */
+    private static final Set<String> DOCUMENT_TYPES = Set.of(SALES_RETURN, RETURN_RECEIPT, PURCHASE_RETURN, REFUND_REQUEST);
     /** 只收图片或 PDF 的归属类型 */
     private static final Set<String> PROOF_TYPES = Set.of(PAYMENT, COURIER_PROOF, RETURN_PROOF, EXPENSE, REIMBURSE, PO_INVOICE, REFUND, OTHER_INCOME,
             SOURCING_QUOTE, CREDIT);
@@ -90,7 +96,8 @@ public class AttachmentService {
             Map.entry(RETURN_PROOF, 10), Map.entry(EXPENSE, 10), Map.entry(REIMBURSE, 10), Map.entry(PO_INVOICE, 10),
             Map.entry(REFUND, 10), Map.entry(OTHER_INCOME, 10), Map.entry(CREDIT, 10), Map.entry(SOURCING_QUOTE, 5), Map.entry(RECEIPT_DEFECT, 20),
             Map.entry(PACKING, 20), Map.entry(NETWORK, 1), Map.entry(SALES_ORDER, 10),
-            Map.entry(AFTER_SALES, 20), Map.entry(AFTER_SALES_LOG, 10), Map.entry(SALES_RETURN, 20));
+            Map.entry(AFTER_SALES, 20), Map.entry(AFTER_SALES_LOG, 10), Map.entry(SALES_RETURN, 20),
+            Map.entry(RETURN_RECEIPT, 20), Map.entry(PURCHASE_RETURN, 20), Map.entry(REFUND_REQUEST, 20));
     /** 只收图片的归属类型（不传视频） */
     private static final Set<String> IMAGE_ONLY_TYPES = Set.of(RECEIPT_DEFECT, PACKING, NETWORK);
     public static final int IMAGE = 1;
@@ -102,6 +109,7 @@ public class AttachmentService {
     private static final Set<String> FACE_SHEET_EXTS = Set.of("pdf", "jpg", "png", "webp");
     private static final Set<String> DOC_EXTS = Set.of("pdf", "jpg", "png", "webp", "xlsx", "xls");
     private static final long IMAGE_MAX = 10L * 1024 * 1024;
+    private static final String DOCUMENT_MESSAGE = "只支持图片、视频、PDF 与 Excel";
     private static final long VIDEO_MAX = 95L * 1024 * 1024;
 
     /** 所属单据类型 → 存储目录对应的业务环节 */
@@ -114,7 +122,9 @@ public class AttachmentService {
             Map.entry(SOURCING_QUOTE, StorageArea.SOURCING), Map.entry(RECEIPT_DEFECT, StorageArea.RECEIPT),
             Map.entry(PACKING, StorageArea.PACKING), Map.entry(NETWORK, StorageArea.MEDIA),
             Map.entry(SALES_ORDER, StorageArea.SALES), Map.entry(AFTER_SALES, StorageArea.SALES),
-            Map.entry(AFTER_SALES_LOG, StorageArea.SALES), Map.entry(SALES_RETURN, StorageArea.RECEIPT));
+            Map.entry(AFTER_SALES_LOG, StorageArea.SALES), Map.entry(SALES_RETURN, StorageArea.SALES),
+            Map.entry(RETURN_RECEIPT, StorageArea.RECEIPT), Map.entry(PURCHASE_RETURN, StorageArea.PURCHASE),
+            Map.entry(REFUND_REQUEST, StorageArea.FINANCE));
 
     private final BizAttachmentMapper mapper;
     private final BizAttachmentModelMapper tagMapper;
@@ -139,6 +149,9 @@ public class AttachmentService {
         if (SALES_ORDER.equals(ownerType)) {
             s = files.store(area, tenantId, file, DOC_EXTS, IMAGE_MAX, "只支持 PDF、JPG、PNG、WEBP、Excel");
             kind = s.contentType().startsWith("image/") ? IMAGE : FILE;
+        } else if (DOCUMENT_TYPES.contains(ownerType) && !video) {
+            s = files.store(area, tenantId, file, DOC_EXTS, IMAGE_MAX, DOCUMENT_MESSAGE);
+            kind = s.contentType().startsWith("image/") ? IMAGE : FILE;
         } else if (AFTER_SALES_TYPES.contains(ownerType) && !video) {
             s = files.store(area, tenantId, file, FACE_SHEET_EXTS, IMAGE_MAX, "只支持 PDF、JPG、PNG、WEBP 或 MP4、MOV 视频");
             kind = s.contentType().startsWith("image/") ? IMAGE : FILE;
@@ -147,7 +160,8 @@ public class AttachmentService {
                     PROOF_TYPES.contains(ownerType) ? "截图只支持 PDF、JPG、PNG、WEBP" : "面单只支持 PDF、JPG、PNG、WEBP");
             kind = s.contentType().startsWith("image/") ? IMAGE : FILE;
         } else if (video && !IMAGE_ONLY_TYPES.contains(ownerType)) {
-            s = store(area, ownerType, ownerId, tenantId, file, VIDEO_EXTS, VIDEO_MAX, "只支持 MP4、MOV 视频");
+            s = store(area, ownerType, ownerId, tenantId, file, VIDEO_EXTS, VIDEO_MAX,
+                    DOCUMENT_TYPES.contains(ownerType) ? DOCUMENT_MESSAGE : "只支持 MP4、MOV 视频");
             kind = VIDEO;
         } else {
             s = store(area, ownerType, ownerId, tenantId, file, IMAGE_EXTS, IMAGE_MAX, "只支持 JPG、PNG、WEBP 图片");
