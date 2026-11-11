@@ -1,6 +1,7 @@
 import {
   CheckOutlined,
   CloseOutlined,
+  EditOutlined,
   MergeCellsOutlined,
   PlusOutlined,
   RobotOutlined,
@@ -54,6 +55,8 @@ import {
 
 /** 批量 AI 解析每次最多条数 */
 const AI_FILL_MAX = 200;
+/** 批量修改品牌、品类每次最多条数（与后端一致） */
+const BATCH_EDIT_MAX = 200;
 const AI_FILL_KEY = 'zhul:candidate:ai-fill';
 const AI_MODE_NAME: Record<AiFillMode, string> = {
   category: '品类',
@@ -92,7 +95,7 @@ const aiSummary = (j: AiFill) => {
     ? `，${j.unchanged} 个没写入（AI 判断不出或期间已被修改）`
     : '';
   return j.mode === 'brand'
-    ? `AI 解析品牌完成：匹配 ${j.matched ?? 0} 个、未识别 ${j.unmatched ?? 0} 个${skipped}${unchanged}`
+    ? `AI 解析品牌完成：匹配 ${j.matched ?? 0} 个、记为 Others ${j.unmatched ?? 0} 个${skipped}${unchanged}`
     : `AI 解析品类完成：填了 ${j.filled ?? 0} 个${skipped}${unchanged}`;
 };
 
@@ -447,7 +450,70 @@ const ReviewDrawer: React.FC<{
                     <AiTag /> {c.brandText ? `原文「${c.brandText}」` : ''}
                   </div>
                 )}
-                {c.brandId ? (
+                {c.brandId && c.aiBrand === 2 ? (
+                  // AI 认不出、记为 Others 的：可以保留 Others，或按 AI 给出的名称新建品牌
+                  <div style={{ display: 'grid', gap: 10 }}>
+                    <div>
+                      <AiTag
+                        text={
+                          c.aiBrandName
+                            ? `AI 未识别：${c.aiBrandName}`
+                            : 'AI 未识别'
+                        }
+                      />
+                    </div>
+                    <Radio.Group
+                      value={form.brandMode === 'NEW' ? 'NEW' : 'EXISTING'}
+                      onChange={(e) =>
+                        patch(
+                          e.target.value === 'NEW'
+                            ? {
+                                brandMode: 'NEW',
+                                brandName: c.aiBrandName || c.brandText,
+                                seriesId: undefined,
+                              }
+                            : {
+                                brandMode: 'EXISTING',
+                                brandId: c.brandId ?? undefined,
+                                brandName: undefined,
+                                seriesId: undefined,
+                              },
+                        )
+                      }
+                      options={[
+                        { value: 'EXISTING', label: '已有品牌' },
+                        { value: 'NEW', label: '新建品牌' },
+                      ]}
+                    />
+                    {form.brandMode === 'NEW' ? (
+                      <>
+                        <Input
+                          value={form.brandName}
+                          maxLength={64}
+                          onChange={(e) => patch({ brandName: e.target.value })}
+                          aria-label="新品牌名称"
+                        />
+                        <span style={{ fontSize: 12, color: palette.mute }}>
+                          已按 AI 给出的名称预填，可修改
+                        </span>
+                      </>
+                    ) : (
+                      <Select
+                        value={form.brandId}
+                        showSearch={{ optionFilterProp: 'label' }}
+                        options={brands.map((b) => ({
+                          value: b.id,
+                          label: b.brandName,
+                        }))}
+                        onChange={(v) =>
+                          patch({ brandId: v, seriesId: undefined })
+                        }
+                        style={{ width: '100%' }}
+                        aria-label="品牌"
+                      />
+                    )}
+                  </div>
+                ) : c.brandId ? (
                   <Select
                     value={form.brandId}
                     showSearch={{ optionFilterProp: 'label' }}
@@ -801,6 +867,89 @@ const ReviewDrawer: React.FC<{
   );
 };
 
+/** 批量修改品牌、品类：两项都可清空，没选的保持不变 */
+export const BatchEditModal: React.FC<{
+  open: boolean;
+  ids: number[];
+  onClose: () => void;
+  onDone: () => void;
+}> = ({ open, ids, onClose, onDone }) => {
+  const { message } = App.useApp();
+  const [brands, setBrands] = useState<BrandOption[]>([]);
+  const [categories, setCategories] = useState<CategoryOption[]>([]);
+  const [brandId, setBrandId] = useState<number>();
+  const [categoryId, setCategoryId] = useState<number>();
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    if (!open) return;
+    setBrandId(undefined);
+    setCategoryId(undefined);
+    Promise.all([brandApi.options(), categoryApi.options(0)])
+      .then(([b, cats]) => {
+        setBrands(b);
+        setCategories(cats);
+      })
+      .catch((e) => message.error(readBizError(e).message));
+  }, [open, message]);
+  const submit = async () => {
+    setBusy(true);
+    try {
+      const r = await candidateApi.batchEdit(ids, brandId, categoryId);
+      message.success(
+        `已修改 ${r.updated} 个${r.skipped ? `，跳过 ${r.skipped} 个（已审核）` : ''}`,
+      );
+      onDone();
+    } catch (e) {
+      message.error(readBizError(e).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <Modal
+      open={open}
+      title={`批量修改 · 已选 ${ids.length} 个`}
+      okText="确定"
+      okButtonProps={{
+        disabled: brandId === undefined && categoryId === undefined,
+        loading: busy,
+      }}
+      onCancel={onClose}
+      onOk={submit}
+      destroyOnHidden
+    >
+      <div style={{ display: 'grid', gap: 16, margin: '8px 0' }}>
+        <div>
+          <Label>品牌</Label>
+          <Select
+            allowClear
+            value={brandId}
+            showSearch={{ optionFilterProp: 'label' }}
+            placeholder="不修改"
+            options={brands.map((b) => ({ value: b.id, label: b.brandName }))}
+            onChange={setBrandId}
+            style={{ width: '100%' }}
+            aria-label="批量修改品牌"
+          />
+        </div>
+        <div>
+          <Label>品类</Label>
+          <Select
+            allowClear
+            value={categoryId}
+            showSearch={{ optionFilterProp: 'label' }}
+            placeholder="不修改"
+            options={groupedCategoryOptions(categories)}
+            onChange={setCategoryId}
+            style={{ width: '100%' }}
+            aria-label="批量修改品类"
+          />
+        </div>
+      </div>
+    </Modal>
+  );
+};
+
 const RejectModal: React.FC<{
   open: boolean;
   label: string;
@@ -937,6 +1086,7 @@ const Candidates: React.FC = () => {
   const [busy, setBusy] = useState(false);
   const [aiJob, setAiJob] = useState<AiFill | null>(readAiJob);
   const [aiDone, setAiDone] = useState<AiFill | null>(null);
+  const [editing, setEditing] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -1122,9 +1272,18 @@ const Candidates: React.FC = () => {
               <AiTag /> {c.brandText ? `原文「${c.brandText}」 ` : ''}
             </>
           )}
+          {c.aiBrand === 2 && (
+            <>
+              <AiTag
+                text={
+                  c.aiBrandName ? `AI 未识别：${c.aiBrandName}` : 'AI 未识别'
+                }
+              />{' '}
+            </>
+          )}
           {c.originalModel
             ? `回填自「${c.originalModel}」`
-            : c.aiBrand === 1
+            : c.aiBrand
               ? ''
               : '品牌 ✓'}
           {c.orderCode ? ` · 订货号 ${c.orderCode}` : ''}
@@ -1275,6 +1434,21 @@ const Candidates: React.FC = () => {
               ))}
             {tab === 1 && canReview && (
               <Button
+                icon={<EditOutlined />}
+                disabled={selected.length === 0}
+                onClick={() =>
+                  selected.length > BATCH_EDIT_MAX
+                    ? message.warning(
+                        `每次最多 ${BATCH_EDIT_MAX} 条，已选 ${selected.length} 条`,
+                      )
+                    : setEditing(true)
+                }
+              >
+                批量修改{selected.length ? ` · ${selected.length}` : ''}
+              </Button>
+            )}
+            {tab === 1 && canReview && (
+              <Button
                 type="primary"
                 icon={<CheckOutlined />}
                 disabled={selected.length === 0}
@@ -1342,8 +1516,9 @@ const Candidates: React.FC = () => {
           options={[
             { value: 1, label: '品牌已确认' },
             { value: 2, label: '待确认品牌' },
+            { value: 3, label: 'AI 未识别（Others）' },
           ]}
-          style={{ width: 150 }}
+          style={{ width: 170 }}
           aria-label="品牌"
         />
         <Select
@@ -1386,7 +1561,7 @@ const Candidates: React.FC = () => {
               <b style={{ color: palette.ink }}>{aiSummary(aiDone)}</b>
               <span style={{ color: palette.mute, fontSize: 12 }}>
                 {aiDone.mode === 'brand'
-                  ? '未识别的保留原文，审核时可新建品牌或设为已有品牌的别名'
+                  ? '认不出的记为 Others，审核时可以改为新建品牌'
                   : 'AI 填的品类标「AI 建议」，审核时可以改'}
               </span>
             </span>
@@ -1394,12 +1569,12 @@ const Candidates: React.FC = () => {
             {aiDone.mode === 'brand' && !!aiDone.unmatched && (
               <a
                 onClick={() => {
-                  setBrandState(2);
-                  setQuery((q) => ({ ...q, brandState: 2 }));
+                  setBrandState(3);
+                  setQuery((q) => ({ ...q, brandState: 3 }));
                   setPage(1);
                 }}
               >
-                只看待确认品牌
+                查看 Others
               </a>
             )}
             <Button
@@ -1460,6 +1635,15 @@ const Candidates: React.FC = () => {
         canReview={canReview}
         onClose={() => setViewing(undefined)}
         onDone={changed}
+      />
+      <BatchEditModal
+        open={editing}
+        ids={selected.map((c) => c.id)}
+        onClose={() => setEditing(false)}
+        onDone={() => {
+          setEditing(false);
+          changed();
+        }}
       />
       <ImportDrawer
         open={importOpen}

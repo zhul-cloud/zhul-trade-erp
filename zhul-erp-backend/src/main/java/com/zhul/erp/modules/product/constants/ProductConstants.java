@@ -9,6 +9,9 @@ public final class ProductConstants {
     /** 平台级共享数据的租户ID，本模块所有行的 tenant_id 恒为 0 */
     public static final int PLATFORM_TENANT_ID = 0;
 
+    /** 平台品牌 Others（迁移 V1.5.26 种子数据，按名称查找）：AI 认不出品牌的商品候选统一归到这里 */
+    public static final String OTHERS_BRAND = "Others";
+
     public static final int STATUS_DISABLED = 0;
     public static final int STATUS_ENABLED = 1;
 

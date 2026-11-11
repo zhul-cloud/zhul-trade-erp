@@ -14,6 +14,8 @@ import com.zhul.erp.modules.inquiry.support.InquiryLookups;
 import com.zhul.erp.modules.product.candidate.constants.CandidateConstants;
 import com.zhul.erp.modules.product.candidate.dto.ApproveCandidateRequest;
 import com.zhul.erp.modules.product.candidate.dto.BatchApproveVO;
+import com.zhul.erp.modules.product.candidate.dto.BatchEditRequest;
+import com.zhul.erp.modules.product.candidate.dto.BatchEditVO;
 import com.zhul.erp.modules.product.candidate.dto.CandidatePageQuery;
 import com.zhul.erp.modules.product.candidate.dto.CandidateVO;
 import com.zhul.erp.modules.product.candidate.dto.RejectCandidateRequest;
@@ -35,6 +37,7 @@ import com.zhul.erp.modules.product.repository.ProductMapper;
 import com.zhul.erp.modules.product.service.BrandService;
 import com.zhul.erp.modules.product.service.ProductService;
 import com.zhul.erp.modules.product.service.SeriesService;
+import com.zhul.erp.modules.product.support.IndustryScope;
 import com.zhul.erp.modules.product.support.MpnNormalizer;
 import com.zhul.erp.modules.product.support.ProductOrderCodes;
 import com.zhul.erp.modules.product.support.PlatformScopeGuard;
@@ -85,6 +88,7 @@ public class ProductCandidateService {
     private final InquiryLookups lookups;
     private final ProductOrderCodes orderCodes;
     private final LogService logService;
+    private final IndustryScope industryScope;
 
     // ---------------------------------------------------------------- 查询
 
@@ -132,6 +136,9 @@ public class ProductCandidateService {
             w.isNotNull(ProductCandidateDO::getBrandId);
         } else if (Integer.valueOf(2).equals(q.getBrandState())) {
             w.isNull(ProductCandidateDO::getBrandId);
+        } else if (Integer.valueOf(3).equals(q.getBrandState())) {
+            // AI 认不出、记为 Others 的
+            w.eq(ProductCandidateDO::getAiBrand, 2);
         }
         if (Integer.valueOf(1).equals(q.getCategoryState())) {
             w.isNotNull(ProductCandidateDO::getCategoryId);
@@ -198,6 +205,64 @@ public class ProductCandidateService {
         vo.setApproved(approved);
         vo.setSkipped(skipped);
         logService.recordOperateLog(CandidateConstants.MENU, "批量通过", null, Map.of("approved", approved, "skipped", skipped.size()));
+        return vo;
+    }
+
+    /**
+     * 批量修改品牌、品类：只改仍待审核的候选，其余跳过；改了的那一项去掉 AI 建议标记（AI 给出的原名称保留）。
+     * 逐条加行锁后修改，与审核互斥；同一请求重复提交结果相同。
+     */
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
+    public BatchEditVO batchEdit(BatchEditRequest req) {
+        if (req.getBrandId() == null && req.getCategoryId() == null) {
+            throw new BizException("请选择要修改的品牌或品类");
+        }
+        if (req.getBrandId() != null && !industryScope.brandVisible(requireBrand(req.getBrandId()))) {
+            throw new BizException("请选择品牌");
+        }
+        if (req.getCategoryId() != null) {
+            ProductCategoryDO cat = categoryMapper.selectById(req.getCategoryId());
+            if (cat == null || cat.getDeletedAt() != null || !Objects.equals(cat.getStatus(), ProductConstants.STATUS_ENABLED)) {
+                throw new BizException("请选择品类");
+            }
+        }
+        int updated = 0;
+        int skipped = 0;
+        for (Long id : req.getIds().stream().filter(Objects::nonNull).distinct().sorted().toList()) {
+            ProductCandidateDO c = candidateMapper.selectById(id);
+            if (c == null || c.getDeletedAt() != null || !canSee(c.getId())) {
+                skipped++;
+                continue;
+            }
+            candidateMapper.lockById(id);
+            c = candidateMapper.selectById(id);
+            if (c.getStatus() != CandidateConstants.STATUS_PENDING) {
+                skipped++;
+                continue;
+            }
+            Map<String, Object> before = new LinkedHashMap<>();
+            Map<String, Object> after = new LinkedHashMap<>();
+            before.put("candidate", label(c));
+            after.put("candidate", label(c));
+            if (req.getBrandId() != null) {
+                before.put("brandId", c.getBrandId());
+                after.put("brandId", req.getBrandId());
+                c.setBrandId(req.getBrandId());
+                c.setAiBrand(0);
+            }
+            if (req.getCategoryId() != null) {
+                before.put("categoryId", c.getCategoryId());
+                after.put("categoryId", req.getCategoryId());
+                c.setCategoryId(req.getCategoryId());
+                c.setAiCategory(0);
+            }
+            candidateMapper.updateById(c);
+            logService.recordOperateLog(CandidateConstants.MENU, "批量修改", before, after);
+            updated++;
+        }
+        BatchEditVO vo = new BatchEditVO();
+        vo.setUpdated(updated);
+        vo.setSkipped(skipped);
         return vo;
     }
 
