@@ -590,6 +590,8 @@ public class CustomerServiceImpl implements CustomerService {
     @Transactional(rollbackFor = Exception.class)
     public void delete(Long id) {
         CustomerDO customer = getActiveInScope(id, dataScopeResolver.current());
+        // 先锁客户行再查引用，同一客户的删除串行执行
+        customerMapper.lockById(id);
         if (!customerMapper.selectReferencedCustomerIds(List.of(id)).isEmpty()) {
             throw new BizException("该客户已有询盘或单据记录，不能删除，可改为禁用");
         }
@@ -611,6 +613,7 @@ public class CustomerServiceImpl implements CustomerService {
                 visible.add(c);
             }
         }
+        visible.stream().map(CustomerDO::getId).sorted().forEach(customerMapper::lockById);
         Set<Long> referenced = visible.isEmpty() ? Set.of()
                 : new HashSet<>(customerMapper.selectReferencedCustomerIds(visible.stream().map(CustomerDO::getId).toList()));
         LocalDateTime now = LocalDateTime.now();

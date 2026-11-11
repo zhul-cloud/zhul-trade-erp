@@ -426,6 +426,38 @@ public class BusinessUnitService {
                 .eq(OtherIncomeDO::getTenantId, t).isNull(OtherIncomeDO::getBusinessUnitId));
     }
 
+    /**
+     * 普通部门维护改上级前检查（BUS-020）：移动后不能出现事业部嵌套。被移动的部门或其下级有事业部时，
+     * 新的上级链上不能有事业部。
+     */
+    public void checkMove(Integer deptId, Integer newPid) {
+        Map<Integer, DepartmentDO> all = deptMap();
+        DepartmentDO dept = all.get(deptId);
+        if (dept == null) {
+            return;
+        }
+        DepartmentDO movedUnit = Integer.valueOf(1).equals(dept.getIsBusinessUnit()) ? dept : all.values().stream()
+                .filter(d -> Integer.valueOf(1).equals(d.getIsBusinessUnit()) && isUnder(all, d, deptId))
+                .findFirst().orElse(null);
+        if (movedUnit == null) {
+            return;
+        }
+        DepartmentDO p = all.get(newPid);
+        for (int i = 0; p != null && i < MAX_DEPTH; i++, p = all.get(p.getPid())) {
+            if (Integer.valueOf(1).equals(p.getIsBusinessUnit())) {
+                throw new BizException("「" + movedUnit.getName() + "」是事业部，不能放到事业部「" + p.getName() + "」下面，事业部不能嵌套");
+            }
+        }
+    }
+
+    /** 删除部门前检查（BUS-020）：已有单据归属的事业部不能删除，与取消事业部标记同一规则 */
+    public void checkDelete(Integer deptId) {
+        DepartmentDO dept = deptMap().get(deptId);
+        if (dept != null && Integer.valueOf(1).equals(dept.getIsBusinessUnit()) && referenced(deptId)) {
+            throw new BizException("该事业部已有单据，不能删除");
+        }
+    }
+
     /** 是否有单据归属这个事业部 */
     private boolean referenced(Integer unitId) {
         return customerMapper.selectCount(new LambdaQueryWrapper<CustomerDO>().eq(CustomerDO::getBusinessUnitId, unitId)) > 0

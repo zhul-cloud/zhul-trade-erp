@@ -10,6 +10,7 @@ import com.zhul.erp.modules.system.entity.DepartmentDO;
 import com.zhul.erp.modules.system.entity.UserBasicDO;
 import com.zhul.erp.modules.system.repository.DepartmentMapper;
 import com.zhul.erp.modules.system.repository.UserBasicMapper;
+import com.zhul.erp.modules.system.service.BusinessUnitService;
 import com.zhul.erp.modules.system.service.DeptService;
 import com.zhul.erp.modules.system.service.UserService;
 import lombok.RequiredArgsConstructor;
@@ -33,6 +34,7 @@ public class DeptServiceImpl implements DeptService {
 
     private final DepartmentMapper departmentMapper;
     private final UserBasicMapper userBasicMapper;
+    private final BusinessUnitService businessUnitService;
 
     @Override
     public List<DeptVO> listAll() {
@@ -129,11 +131,14 @@ public class DeptServiceImpl implements DeptService {
                 }
             }
             level = newParent != null ? newParent.getLevel() + 1 : 1;
-            if (level > MAX_DEPTH) {
+            // 整棵子树一起移动：最深的下级也不能超过层级上限
+            if (level + subtreeHeight(id) > MAX_DEPTH) {
                 throw new BizException("已达最大层级（" + MAX_DEPTH + "级）限制");
             }
+            businessUnitService.checkMove(id, newPid);
         }
         checkNameDuplicate(newPid, req.getName(), id);
+        int levelDelta = level - dept.getLevel();
 
         dept.setPid(newPid);
         dept.setName(req.getName());
@@ -145,6 +150,44 @@ public class DeptServiceImpl implements DeptService {
         dept.setSort(req.getSort());
         dept.setStatus(req.getStatus());
         departmentMapper.updateById(dept);
+        if (levelDelta != 0) {
+            shiftDescendantLevels(id, levelDelta);
+        }
+    }
+
+    /** 子树高度：没有下级为 0 */
+    private int subtreeHeight(Integer id) {
+        Map<Integer, List<DepartmentDO>> children = childrenByPid();
+        return height(id, children, 0);
+    }
+
+    private static int height(Integer id, Map<Integer, List<DepartmentDO>> children, int guard) {
+        int h = 0;
+        if (guard > MAX_DEPTH) {
+            return h;
+        }
+        for (DepartmentDO c : children.getOrDefault(id, List.of())) {
+            h = Math.max(h, 1 + height(c.getId(), children, guard + 1));
+        }
+        return h;
+    }
+
+    /** 部门移动后，下级部门的层级随之调整 */
+    private void shiftDescendantLevels(Integer id, int delta) {
+        Map<Integer, List<DepartmentDO>> children = childrenByPid();
+        List<DepartmentDO> stack = new ArrayList<>(children.getOrDefault(id, List.of()));
+        for (int guard = 0; !stack.isEmpty() && guard < 10_000; guard++) {
+            DepartmentDO d = stack.remove(stack.size() - 1);
+            DepartmentDO patch = new DepartmentDO();
+            patch.setId(d.getId());
+            patch.setLevel(d.getLevel() + delta);
+            departmentMapper.updateById(patch);
+            stack.addAll(children.getOrDefault(d.getId(), List.of()));
+        }
+    }
+
+    private Map<Integer, List<DepartmentDO>> childrenByPid() {
+        return departmentMapper.selectList(activeWrapper()).stream().collect(Collectors.groupingBy(DepartmentDO::getPid));
     }
 
     /** 判断 candidateId 是否是 ofId 的子孙节点（含自身以外的整条子树） */
@@ -221,6 +264,7 @@ public class DeptServiceImpl implements DeptService {
         if (userCount > 0) {
             throw new BizException("该部门已分配 " + userCount + " 名用户，请先移除关联用户后重试");
         }
+        businessUnitService.checkDelete(id);
         dept.setDeletedAt(LocalDateTime.now());
         departmentMapper.updateById(dept);
     }

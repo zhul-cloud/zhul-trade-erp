@@ -182,6 +182,12 @@ public class ProductCandidateService {
                 skipped.add(new BatchApproveVO.Skipped(id, "", "候选不存在"));
                 continue;
             }
+            // 先加行锁再按最新值判断：加锁前别人刚驳回 / 通过的，不能再用旧快照建档（BUS-022）
+            c = lockedRow(id);
+            if (c == null || c.getDeletedAt() != null) {
+                skipped.add(new BatchApproveVO.Skipped(id, "", "候选不存在"));
+                continue;
+            }
             if (c.getStatus() != CandidateConstants.STATUS_PENDING) {
                 skipped.add(new BatchApproveVO.Skipped(id, label(c), "已审核"));
                 continue;
@@ -194,7 +200,6 @@ public class ProductCandidateService {
                 skipped.add(new BatchApproveVO.Skipped(id, label(c), "品类未选"));
                 continue;
             }
-            candidateMapper.lockById(id);
             ApproveCandidateRequest req = new ApproveCandidateRequest();
             req.setBrandMode("EXISTING");
             req.setBrandId(c.getBrandId());
@@ -234,8 +239,7 @@ public class ProductCandidateService {
                 skipped++;
                 continue;
             }
-            candidateMapper.lockById(id);
-            c = candidateMapper.selectById(id);
+            c = lockedRow(id);
             if (c.getStatus() != CandidateConstants.STATUS_PENDING) {
                 skipped++;
                 continue;
@@ -304,8 +308,7 @@ public class ProductCandidateService {
     @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public CandidateVO reopen(Long id) {
         ProductCandidateDO c = visible(id);
-        candidateMapper.lockById(id);
-        c = candidateMapper.selectById(id);
+        c = lockedRow(id);
         if (c.getStatus() != CandidateConstants.STATUS_REJECTED) {
             throw new BizException("只有已驳回的候选可以重新打开");
         }
@@ -479,10 +482,18 @@ public class ProductCandidateService {
         }
     }
 
+    /**
+     * 行锁读取最新值（SELECT … FOR UPDATE 一步完成）。不能先 lockById 再 selectById：同一事务里 MyBatis 会把
+     * 之前 selectById 的结果直接从一级缓存返回，拿到的仍是加锁前的旧快照（BUS-022）。
+     */
+    private ProductCandidateDO lockedRow(Long id) {
+        return candidateMapper.selectOne(new LambdaQueryWrapper<ProductCandidateDO>()
+                .eq(ProductCandidateDO::getId, id).last("FOR UPDATE"));
+    }
+
     private ProductCandidateDO lockPending(Long id) {
         visible(id);
-        candidateMapper.lockById(id);
-        ProductCandidateDO c = candidateMapper.selectById(id);
+        ProductCandidateDO c = lockedRow(id);
         if (c.getStatus() != CandidateConstants.STATUS_PENDING) {
             throw new BizException("候选已审核（" + CandidateConstants.STATUS_NAMES.get(c.getStatus()) + "）");
         }

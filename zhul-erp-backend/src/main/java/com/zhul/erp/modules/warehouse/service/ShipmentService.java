@@ -119,6 +119,28 @@ public class ShipmentService {
         return PageResult.of(total, toListVos(shipmentMapper.selectList(w)));
     }
 
+    /** 采购员侧（按数据权限）在途发货单数与其中已过预计到货日的数；口径与发货跟踪列表「在途」筛选一致，统计全部而非一页 */
+    public record TransitCounts(long inTransit, long overdue) {
+    }
+
+    public TransitCounts countScopedInTransit() {
+        String scopeSql = support.scopedPoSql();
+        java.util.function.Supplier<LambdaQueryWrapper<SupplierShipmentDO>> base = () -> {
+            LambdaQueryWrapper<SupplierShipmentDO> w = new LambdaQueryWrapper<SupplierShipmentDO>()
+                    .eq(SupplierShipmentDO::getTenantId, PiStore.tenantId())
+                    .eq(SupplierShipmentDO::getStatus, WarehouseConstants.SHIP_IN_TRANSIT)
+                    .isNull(SupplierShipmentDO::getDeletedAt);
+            if (scopeSql != null) {
+                w.inSql(SupplierShipmentDO::getPoId, scopeSql);
+            }
+            return w;
+        };
+        long inTransit = shipmentMapper.selectCount(base.get());
+        long overdue = inTransit == 0 ? 0 : shipmentMapper.selectCount(base.get()
+                .lt(SupplierShipmentDO::getExpectedArrivalDate, LocalDate.now()));
+        return new TransitCounts(inTransit, overdue);
+    }
+
     public long countInTransit() {
         return shipmentMapper.selectCount(new LambdaQueryWrapper<SupplierShipmentDO>()
                 .eq(SupplierShipmentDO::getTenantId, PiStore.tenantId())

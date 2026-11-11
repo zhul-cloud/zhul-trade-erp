@@ -17,6 +17,7 @@ import com.zhul.erp.modules.product.repository.ProductMapper;
 import com.zhul.erp.modules.product.repository.ProductRelationshipMapper;
 import com.zhul.erp.modules.product.service.ProductRelationshipService;
 import com.zhul.erp.modules.product.support.MpnNormalizer;
+import com.zhul.erp.modules.product.content.constants.ContentConstants;
 import com.zhul.erp.modules.product.content.entity.ProductRelationshipNoteDO;
 import com.zhul.erp.modules.product.content.repository.ProductRelationshipNoteMapper;
 import com.zhul.erp.modules.product.support.LangRules;
@@ -96,11 +97,14 @@ public class ProductRelationshipServiceImpl implements ProductRelationshipServic
         assertNotDuplicate(productId, in.relatedMpn(), in.type(), null);
         ProductRelationshipDO forward = newRow(productId, in.relatedMpn(), in.relatedProductId(), in);
         relationshipMapper.insert(forward);
+        syncZhNote(forward.getId(), in.note());
 
         if (reverse) {
             // 反向重复会抛出 BizException，事务整体回滚，正向关系也不保存
             assertNotDuplicate(in.relatedProductId(), self.getMpnRaw(), in.type(), null);
-            relationshipMapper.insert(newRow(in.relatedProductId(), self.getMpnRaw(), productId, in));
+            ProductRelationshipDO back = newRow(in.relatedProductId(), self.getMpnRaw(), productId, in);
+            relationshipMapper.insert(back);
+            syncZhNote(back.getId(), in.note());
         }
         return toVOs(List.of(forward)).get(0);
     }
@@ -126,7 +130,33 @@ public class ProductRelationshipServiceImpl implements ProductRelationshipServic
                 .eq(ProductRelationshipDO::getId, relationshipId)
                 .set(ProductRelationshipDO::getRelatedProductId, in.relatedProductId())
                 .set(ProductRelationshipDO::getVerifiedAt, in.verifiedAt()));
+        syncZhNote(relationshipId, in.note());
         return toVOs(List.of(ownedRow(productId, relationshipId))).get(0);
+    }
+
+    /**
+     * 中文说明同时写主表与说明表（BUS-021）：列表、营销包都读说明表的中文，内容包导入也写这里；
+     * 手工新建、修改只写主表时，营销包缺说明、导入过的说明改不动。
+     */
+    private void syncZhNote(Long relationshipId, String note) {
+        String value = note == null ? "" : note;
+        ProductRelationshipNoteDO row = noteMapper.selectOne(new LambdaQueryWrapper<ProductRelationshipNoteDO>()
+                .eq(ProductRelationshipNoteDO::getRelationshipId, relationshipId)
+                .eq(ProductRelationshipNoteDO::getLang, ContentConstants.FACTS_LANG));
+        if (row == null) {
+            if (value.isEmpty()) {
+                return;
+            }
+            row = new ProductRelationshipNoteDO();
+            row.setTenantId(ProductConstants.PLATFORM_TENANT_ID);
+            row.setRelationshipId(relationshipId);
+            row.setLang(ContentConstants.FACTS_LANG);
+            row.setNote(value);
+            noteMapper.insert(row);
+        } else if (!value.equals(row.getNote())) {
+            row.setNote(value);
+            noteMapper.updateById(row);
+        }
     }
 
     @Override

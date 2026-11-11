@@ -10,9 +10,6 @@ import com.zhul.erp.modules.inquiry.sourcing.service.impl.SourcingStatsService;
 import com.zhul.erp.modules.purchase.dto.PurchaseOrderStatsVO;
 import com.zhul.erp.modules.purchase.service.PurchaseOrderService;
 import com.zhul.erp.modules.purchase.service.PurchaseRequirementService;
-import com.zhul.erp.modules.warehouse.constants.WarehouseConstants;
-import com.zhul.erp.modules.warehouse.dto.ShipmentListVO;
-import com.zhul.erp.modules.warehouse.dto.ShipmentPageQuery;
 import com.zhul.erp.modules.warehouse.service.DiscrepancyService;
 import com.zhul.erp.modules.warehouse.service.ShipmentService;
 import com.zhul.erp.modules.workbench.dto.WidgetData;
@@ -90,15 +87,11 @@ public class PurchaseLeadWidgets {
                         PurchaserWidgets.ORDERS));
             }
             if (perm.canAccessMenu(PurchaserWidgets.SHIPMENTS)) {
-                ShipmentPageQuery q = new ShipmentPageQuery();
-                q.setPage(1);
-                q.setPageSize(1000);
-                q.setStatus(WarehouseConstants.SHIP_IN_TRANSIT);
-                List<ShipmentListVO> transit = shipments.page(q, true, false).getRecords();
-                long late = transit.stream().filter(x -> Boolean.TRUE.equals(x.getArrivalOverdue())).count();
-                todos.add(W.todo("truck", "green", "在途", "供应商已发货，还没到仓", transit.size(), false,
+                ShipmentService.TransitCounts transit = shipments.countScopedInTransit();
+                todos.add(W.todo("truck", "green", "在途", "供应商已发货，还没到仓", transit.inTransit(), false,
                         PurchaserWidgets.SHIPMENTS));
-                todos.add(W.todo("clock", "red", "超期未到货", "在途且已过预计到货日期", late, true, PurchaserWidgets.SHIPMENTS));
+                todos.add(W.todo("clock", "red", "超期未到货", "在途且已过预计到货日期", transit.overdue(), true,
+                        PurchaserWidgets.SHIPMENTS));
                 todos.add(W.todo("warning", "orange", "到货差异待处理", "少发、错发、不良", discrepancies.countPending(), true,
                         PurchaserWidgets.SHIPMENTS + "?tab=diffs"));
             }

@@ -198,7 +198,7 @@ public class OpportunityServiceImpl implements OpportunityService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void update(Long id, UpdateOpportunityRequest req) {
-        OpportunityDO o = getInScope(id);
+        OpportunityDO o = lockedInScope(id);
         o.setMigrated(0);
         if (!Objects.equals(req.getSourceChannel(), o.getSourceChannel())) {
             dictItemService.requireEnabledValue(DictTypes.SOURCE_CHANNEL, req.getSourceChannel(), "来源渠道不正确");
@@ -207,7 +207,15 @@ public class OpportunityServiceImpl implements OpportunityService {
         o.setAliLevel(aliLevel(req.getSourceChannel(), req.getAliLevel()));
         o.setFirstContactDate(req.getFirstContactDate());
         o.setDemandSummary(text(req.getDemandSummary()));
-        opportunityMapper.updateById(o);
+        // 只写基本信息，不写阶段与结束字段，避免覆盖并发的阶段流转（BUS-013）
+        opportunityMapper.update(null, new com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<OpportunityDO>()
+                .set(OpportunityDO::getMigrated, 0)
+                .set(OpportunityDO::getSourceChannel, o.getSourceChannel())
+                .set(OpportunityDO::getAliLevel, o.getAliLevel())
+                .set(OpportunityDO::getFirstContactDate, o.getFirstContactDate())
+                .set(OpportunityDO::getDemandSummary, o.getDemandSummary())
+                .set(OpportunityDO::getUpdateTime, LocalDateTime.now())
+                .eq(OpportunityDO::getId, o.getId()));
         syncCustomerAliLevel(o);
         if (req.getAttachments() != null) {
             mergeAttachments(o, req.getAttachments());
@@ -236,7 +244,7 @@ public class OpportunityServiceImpl implements OpportunityService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void changeStage(Long id, ChangeStageRequest req) {
-        OpportunityDO o = getInScope(id);
+        OpportunityDO o = lockedInScope(id);
         o.setMigrated(0);
         OpportunityStageRules.Stages stages = stageRules.load();
         String to = req.getToStage().trim();
@@ -251,7 +259,7 @@ public class OpportunityServiceImpl implements OpportunityService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void close(Long id, CloseOpportunityRequest req) {
-        OpportunityDO o = getInScope(id);
+        OpportunityDO o = lockedInScope(id);
         o.setMigrated(0);
         OpportunityStageRules.Stages stages = stageRules.load();
         String result = req.getResult().trim();
@@ -289,7 +297,7 @@ public class OpportunityServiceImpl implements OpportunityService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void reopen(Long id) {
-        OpportunityDO o = getInScope(id);
+        OpportunityDO o = lockedInScope(id);
         o.setMigrated(0);
         OpportunityStageRules.Stages stages = stageRules.load();
         if (stages.isActive(o.getStageCode())) {
@@ -576,7 +584,7 @@ public class OpportunityServiceImpl implements OpportunityService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void onInquiryCreated(Long opportunityId, String inquiryCode) {
-        OpportunityDO o = getInScope(opportunityId);
+        OpportunityDO o = lockedInScope(opportunityId);
         OpportunityStageRules.Stages stages = stageRules.load();
         if (!stages.isActive(o.getStageCode())) {
             throw new BizException("商机已结束，不能再创建询盘；老客户的新需求请在询盘单列表新建");
@@ -597,7 +605,7 @@ public class OpportunityServiceImpl implements OpportunityService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void onQuoted(Long opportunityId, String quotationNo) {
-        OpportunityDO o = opportunityId == null ? null : opportunityMapper.selectById(opportunityId);
+        OpportunityDO o = opportunityId == null ? null : lockedRow(opportunityId);
         if (o == null || o.getDeletedAt() != null || !Objects.equals(o.getTenantId(), currentTenantId())) {
             return;
         }
@@ -664,11 +672,17 @@ public class OpportunityServiceImpl implements OpportunityService {
         if (customerId == null) {
             return null;
         }
-        return opportunityMapper.selectList(new LambdaQueryWrapper<OpportunityDO>()
+        OpportunityDO found = opportunityMapper.selectList(new LambdaQueryWrapper<OpportunityDO>()
                         .eq(OpportunityDO::getCustomerId, customerId)
                         .isNull(OpportunityDO::getDeletedAt)).stream()
                 .filter(x -> stages.isActive(x.getStageCode()))
                 .max(java.util.Comparator.comparing(OpportunityDO::getId)).orElse(null);
+        if (found == null) {
+            return null;
+        }
+        // 锁住后按当前值重判，期间被别人结束或删除的不再处理
+        OpportunityDO o = lockedRow(found.getId());
+        return o != null && o.getDeletedAt() == null && stages.isActive(o.getStageCode()) ? o : null;
     }
 
     @Override
@@ -710,6 +724,21 @@ public class OpportunityServiceImpl implements OpportunityService {
     // ---------------------------------------------------------------- 工具
 
     /** 本租户、未删除、数据权限内的商机，否则抛「商机不存在」 */
+    /** 行锁读取当前值（FOR UPDATE 读最新提交，不受事务快照影响）；阶段流转与编辑都先锁再判断 */
+    private OpportunityDO lockedRow(Long id) {
+        return opportunityMapper.selectOne(new LambdaQueryWrapper<OpportunityDO>()
+                .eq(OpportunityDO::getId, id).last("FOR UPDATE"));
+    }
+
+    private OpportunityDO lockedInScope(Long id) {
+        OpportunityDO o = id == null ? null : lockedRow(id);
+        if (o == null || o.getDeletedAt() != null || !Objects.equals(o.getTenantId(), currentTenantId())
+                || !dataScopeResolver.current().canSee(o.getOwnerId())) {
+            throw new BizException("商机不存在");
+        }
+        return o;
+    }
+
     private OpportunityDO getInScope(Long id) {
         OpportunityDO o = id == null ? null : opportunityMapper.selectById(id);
         if (o == null || o.getDeletedAt() != null || !Objects.equals(o.getTenantId(), currentTenantId())

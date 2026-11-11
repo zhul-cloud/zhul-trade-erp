@@ -75,7 +75,7 @@ class ProductEdgeCaseIntegrationTest extends IntegrationTestBase {
     @BeforeEach
     void setUp() {
         wipeTables("product_reference_price", "product_customs", "product_logistics", "product_media",
-                "product_faq", "product_application", "product_document", "product_relationship",
+                "product_faq", "product_application", "product_document", "product_relationship_note", "product_relationship",
                 "product_specification", "product", "product_series", "product_category", "product_brand_alias", "product_brand");
         TenantContext.setTenantId(0);
         siemens = brand("Siemens");
@@ -274,6 +274,35 @@ class ProductEdgeCaseIntegrationTest extends IntegrationTestBase {
         SaveRelationshipRequest self = relationship("anything", 4);
         self.setRelatedProductId(product);
         biz(() -> relationshipService.create(product, self), ProductErrorCodes.RELATIONSHIP_INVALID);
+    }
+
+    /** BUS-021：手工新建、修改的兼容说明写进中文说明表（营销包读这里）；导入过中文说明后再修改，列表显示新值；清空也一致 */
+    @Test
+    void relationshipNote_manualAndImported_stayConsistent() {
+        SaveRelationshipRequest create = relationship("X-NOTE", 4);
+        create.setNote("MANUAL_NOTE");
+        RelationshipVO rel = relationshipService.create(product, create);
+        assertEquals("MANUAL_NOTE", relationshipService.list(product, "zh").get(0).getNote());
+        assertEquals("MANUAL_NOTE", zhNote(rel.getId()), "营销包读中文说明表");
+
+        // 模拟中文内容包导入写过说明表
+        jdbc.update("update product_relationship_note set note = 'IMPORT_ZH' where relationship_id = ? and lang = 'zh'", rel.getId());
+        SaveRelationshipRequest edit = relationship("X-NOTE", 4);
+        edit.setNote("EDITED_NOTE");
+        assertEquals("EDITED_NOTE", relationshipService.update(product, rel.getId(), edit).getNote());
+        assertEquals("EDITED_NOTE", relationshipService.list(product, "zh").get(0).getNote(), "重读仍是新说明");
+        assertEquals("EDITED_NOTE", zhNote(rel.getId()));
+
+        SaveRelationshipRequest clear = relationship("X-NOTE", 4);
+        clear.setNote("");
+        relationshipService.update(product, rel.getId(), clear);
+        assertEquals("", relationshipService.list(product, "zh").get(0).getNote());
+        assertEquals("", zhNote(rel.getId()));
+    }
+
+    private String zhNote(Long relationshipId) {
+        return jdbc.queryForObject("select note from product_relationship_note where relationship_id = ? and lang = 'zh'",
+                String.class, relationshipId);
     }
 
     @Test
