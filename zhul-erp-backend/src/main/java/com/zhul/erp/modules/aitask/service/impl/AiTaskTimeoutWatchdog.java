@@ -1,5 +1,6 @@
 package com.zhul.erp.modules.aitask.service.impl;
 
+import com.baomidou.mybatisplus.core.conditions.AbstractLambdaWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.zhul.erp.framework.tenant.TenantContext;
@@ -39,18 +40,27 @@ public class AiTaskTimeoutWatchdog {
     @Value("${zhul.ai-task.timeout-minutes:20}")
     private int timeoutMinutes;
 
+    /** 仍在报告进度的任务最长处理多久（分钟），从创建时算起（询盘大附件分批解析） */
+    @Value("${zhul.ai-task.max-minutes:180}")
+    private int maxMinutes = 180;
+
     @Scheduled(fixedDelayString = "${zhul.ai-task.timeout-check-interval-ms:60000}")
     public void checkTimeouts() {
         // 跨租户的后台任务：按各行自己的租户处理，不由租户拦截器追加当前租户条件
         TenantScope.platform(() -> {
-            LocalDateTime deadline = LocalDateTime.now().minusMinutes(timeoutMinutes);
+            LocalDateTime scanTime = LocalDateTime.now();
+            LocalDateTime idleDeadline = scanTime.minusMinutes(timeoutMinutes);
+            LocalDateTime maxDeadline = scanTime.minusMinutes(maxMinutes);
             List<AiTaskDO> staleTasks = aiTaskMapper.selectList(new LambdaQueryWrapper<AiTaskDO>()
                     .in(AiTaskDO::getStatus, AiTaskStatus.QUEUED, AiTaskStatus.PROCESSING)
-                    .lt(AiTaskDO::getCreateTime, deadline)
-                    .isNull(AiTaskDO::getDeletedAt));
+                    .isNull(AiTaskDO::getDeletedAt)
+                    .and(w -> stale(w, idleDeadline, maxDeadline)));
 
             for (AiTaskDO task : staleTasks) {
-                String message = "处理超时：超过" + timeoutMinutes + "分钟未收到AI编排服务的处理结果";
+                boolean overMax = task.getCreateTime() != null && task.getCreateTime().isBefore(maxDeadline);
+                String message = overMax
+                        ? "处理超时：超过最长处理时长" + maxMinutes + "分钟仍未完成"
+                        : "处理超时：超过" + timeoutMinutes + "分钟未收到AI编排服务的处理结果或进度";
                 log.warn("ai_task id={} skillId={} 处理超时，标记为失败并转人工：{}", task.getId(), task.getSkillId(), message);
 
                 LocalDateTime now = LocalDateTime.now();
@@ -59,9 +69,11 @@ public class AiTaskTimeoutWatchdog {
                 update.setErrorMessage(message);
                 update.setCompletedAt(now);
                 // 查到之后回调可能已先落库：只在任务仍未结束时改为失败，抢到才通知业务（audit AI-001）
+                // 查询后又收到进度报告的任务不算超时：更新时再按同样的条件判断一次
                 int changed = aiTaskMapper.update(update, new LambdaUpdateWrapper<AiTaskDO>()
                         .eq(AiTaskDO::getId, task.getId())
-                        .in(AiTaskDO::getStatus, AiTaskStatus.OPEN));
+                        .in(AiTaskDO::getStatus, AiTaskStatus.OPEN)
+                        .and(w -> stale(w, idleDeadline, maxDeadline)));
                 if (changed == 0) {
                     log.info("ai_task id={} 在超时扫描期间已结束，跳过", task.getId());
                     continue;
@@ -81,5 +93,16 @@ public class AiTaskTimeoutWatchdog {
                 }
             }
         });
+    }
+
+    /**
+     * 超时条件：从最近一次进度报告（没有时为创建时间）起超过 timeoutMinutes 没有消息，
+     * 或者从创建起超过最长处理时长 maxMinutes（spec「任务失败的统一处理」）
+     */
+    private static <W extends AbstractLambdaWrapper<AiTaskDO, W>> void stale(W w, LocalDateTime idleDeadline,
+                                                                          LocalDateTime maxDeadline) {
+        w.nested(n -> n.isNull(AiTaskDO::getLastProgressAt).lt(AiTaskDO::getCreateTime, idleDeadline))
+                .or().lt(AiTaskDO::getLastProgressAt, idleDeadline)
+                .or().lt(AiTaskDO::getCreateTime, maxDeadline);
     }
 }

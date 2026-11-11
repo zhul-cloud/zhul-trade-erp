@@ -2,21 +2,32 @@ package com.zhul.erp.framework.storage;
 
 import com.aliyun.oss.OSS;
 import com.aliyun.oss.OSSException;
+import com.aliyun.oss.HttpMethod;
+import com.aliyun.oss.model.AbortMultipartUploadRequest;
+import com.aliyun.oss.model.CompleteMultipartUploadRequest;
 import com.aliyun.oss.model.GeneratePresignedUrlRequest;
+import com.aliyun.oss.model.GetObjectRequest;
+import com.aliyun.oss.model.InitiateMultipartUploadRequest;
+import com.aliyun.oss.model.InitiateMultipartUploadResult;
+import com.aliyun.oss.model.OSSObject;
+import com.aliyun.oss.model.PartETag;
 import com.aliyun.oss.model.ObjectMetadata;
 import com.zhul.erp.common.exception.BizException;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.net.URL;
 import java.nio.file.Path;
 import java.time.Instant;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -82,5 +93,59 @@ class OssFileStorageTest {
                 .thenThrow(new OSSException("not found", "NoSuchKey", "req", "host", null, null, null));
         BizException e = assertThrows(BizException.class, () -> new OssFileStorage(client, cfg(null, null)).open(false, "k.pdf"));
         assertThat(e.getMessage()).contains("附件不存在");
+    }
+
+    // ---------- 分片直传（spec system/file-attachment「大文件分片直传」） ----------
+
+    @Test
+    void multipart_initiatePresignComplete_usePrivateBucketAndPrefix() throws Exception {
+        OssFileStorage s = new OssFileStorage(client, cfg("prod", null));
+        InitiateMultipartUploadResult init = new InitiateMultipartUploadResult();
+        init.setUploadId("up-1");
+        when(client.initiateMultipartUpload(any(InitiateMultipartUploadRequest.class))).thenReturn(init);
+        assertThat(s.initiateMultipart("tmp/0/a.pdf", "application/pdf")).isEqualTo("up-1");
+        ArgumentCaptor<InitiateMultipartUploadRequest> ir = ArgumentCaptor.forClass(InitiateMultipartUploadRequest.class);
+        verify(client).initiateMultipartUpload(ir.capture());
+        assertThat(ir.getValue().getBucketName()).isEqualTo("zhul-private");
+        assertThat(ir.getValue().getKey()).isEqualTo("prod/tmp/0/a.pdf");
+
+        when(client.generatePresignedUrl(any(GeneratePresignedUrlRequest.class))).thenReturn(new URL("https://signed.example/part"));
+        Instant exp = Instant.parse("2026-11-10T08:15:00Z");
+        assertThat(s.presignPart("tmp/0/a.pdf", "up-1", 3, 1024, exp)).isEqualTo("https://signed.example/part");
+        ArgumentCaptor<GeneratePresignedUrlRequest> pr = ArgumentCaptor.forClass(GeneratePresignedUrlRequest.class);
+        verify(client).generatePresignedUrl(pr.capture());
+        assertThat(pr.getValue().getMethod()).isEqualTo(HttpMethod.PUT);
+        assertThat(pr.getValue().getKey()).isEqualTo("prod/tmp/0/a.pdf");
+        assertThat(pr.getValue().getQueryParameter()).containsEntry("partNumber", "3").containsEntry("uploadId", "up-1");
+        assertThat(pr.getValue().getExpiration().toInstant()).isEqualTo(exp);
+
+        s.completeMultipart("tmp/0/a.pdf", "up-1", List.of(new PartETag(1, "e1"), new PartETag(2, "e2")));
+        ArgumentCaptor<CompleteMultipartUploadRequest> cr = ArgumentCaptor.forClass(CompleteMultipartUploadRequest.class);
+        verify(client).completeMultipartUpload(cr.capture());
+        assertThat(cr.getValue().getKey()).isEqualTo("prod/tmp/0/a.pdf");
+        assertThat(cr.getValue().getPartETags()).hasSize(2);
+    }
+
+    @Test
+    void readHead_requestsOnlyTheFirstBytes() {
+        OSSObject obj = new OSSObject();
+        obj.setObjectContent(new ByteArrayInputStream("%PDF-1.7 rest".getBytes()));
+        when(client.getObject(any(GetObjectRequest.class))).thenReturn(obj);
+        byte[] head = new OssFileStorage(client, cfg(null, null)).readHead("tmp/0/a.pdf", 4);
+        assertThat(new String(head)).isEqualTo("%PDF");
+        ArgumentCaptor<GetObjectRequest> gr = ArgumentCaptor.forClass(GetObjectRequest.class);
+        verify(client).getObject(gr.capture());
+        assertThat(gr.getValue().getRange()).containsExactly(0L, 3L);
+    }
+
+    @Test
+    void abortMultipart_ignoresAlreadyFinishedUpload_butRethrowsOthers() {
+        OssFileStorage s = new OssFileStorage(client, cfg(null, null));
+        doThrow(new OSSException("gone", "NoSuchUpload", "req", "host", null, null, null))
+                .when(client).abortMultipartUpload(any(AbortMultipartUploadRequest.class));
+        s.abortMultipart("tmp/0/a.pdf", "up-1");
+        doThrow(new OSSException("denied", "AccessDenied", "req", "host", null, null, null))
+                .when(client).abortMultipartUpload(any(AbortMultipartUploadRequest.class));
+        assertThrows(OSSException.class, () -> s.abortMultipart("tmp/0/a.pdf", "up-1"));
     }
 }

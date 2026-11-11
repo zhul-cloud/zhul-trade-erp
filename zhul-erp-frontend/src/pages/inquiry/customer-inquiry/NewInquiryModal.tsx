@@ -20,6 +20,7 @@ import {
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import React, { useEffect, useRef, useState } from 'react';
+import ChunkUploadList, { useChunkUploads } from '@/components/ChunkUploadList';
 import CustomerQuickCreateModal from '@/components/CustomerQuickCreateModal';
 import { formatSize, Pill } from '@/pages/crm/opportunity/components';
 import { getCustomer, searchCustomers } from '@/services/zhul/masterdata';
@@ -28,10 +29,10 @@ import { DICT_SOURCE_CHANNEL, useDictOptions } from '@/utils/dict';
 import { useLevels } from '../shared/components';
 import {
   ATTACHMENT_ACCEPT,
-  ATTACHMENT_MAX_BYTES,
+  ATTACHMENT_TOTAL_BYTES,
+  ATTACHMENT_UPLOAD,
   CUSTOMER_RETURNING,
   LEVEL_DEFAULT,
-  MAX_ATTACHMENTS,
 } from '../shared/constants';
 import NameplateUploader, {
   type PickedPlate,
@@ -45,7 +46,7 @@ import {
   type UploadedFile,
 } from '../shared/service';
 
-/** 附件：fromOpp 为从关联商机带入的，换商机或不关联时一并换掉 */
+/** 从关联商机带入的附件，换商机或不关联时一并换掉；自己上传的附件由分片直传列表管理 */
 type PickedFile = UploadedFile & { fromOpp?: boolean };
 
 /** 不关联商机 */
@@ -82,7 +83,7 @@ const NewInquiryModal: React.FC<{
   const { levelOptions } = useLevels();
   const { options: sourceOptions } = useDictOptions(DICT_SOURCE_CHANNEL);
   const { palette } = useAppTheme();
-  const { message } = App.useApp();
+  const { message, modal } = App.useApp();
   const [form] = Form.useForm<Values>();
   const [customers, setCustomers] = useState<
     { value: number; label: string }[]
@@ -108,8 +109,14 @@ const NewInquiryModal: React.FC<{
   const broughtRef = useRef<string | undefined>(undefined);
   /** 换商机时作废还在复制的附件 */
   const linkSeq = useRef(0);
-  const ownFiles = useRef(0);
-  ownFiles.current = files.filter((f) => !f.fromOpp).length;
+  const uploads = useChunkUploads(
+    ATTACHMENT_UPLOAD,
+    files.reduce((sum, f) => sum + f.fileSize, 0),
+  );
+  const ownBytes = useRef(0);
+  ownBytes.current = uploads.items
+    .filter((i) => i.status !== 'blocked' && i.errorKind !== 'rejected')
+    .reduce((sum, i) => sum + i.size, 0);
   const bring = (text: string | undefined) => {
     broughtRef.current = text;
     setBrought(text);
@@ -132,15 +139,18 @@ const NewInquiryModal: React.FC<{
         summary && !current.includes(summary) ? summary : undefined,
       );
     }
-    setFiles((prev) => prev.filter((f) => !f.fromOpp));
+    setFiles([]);
     if (!opp) return;
-    const take = opp.attachments.slice(
-      0,
-      Math.max(0, MAX_ATTACHMENTS - ownFiles.current),
-    );
+    // 商机附件按合计上限带入：放不下的不带，提示个数
+    let room = ATTACHMENT_TOTAL_BYTES - ownBytes.current;
+    const take = opp.attachments.filter((a) => {
+      if (a.fileSize > room) return false;
+      room -= a.fileSize;
+      return true;
+    });
     if (take.length < opp.attachments.length) {
       message.warning(
-        `附件最多 ${MAX_ATTACHMENTS} 个，商机里的 ${opp.attachments.length - take.length} 个附件没有带入`,
+        `附件合计不能超过 2GB，商机里的 ${opp.attachments.length - take.length} 个附件没有带入`,
       );
     }
     for (const a of take) {
@@ -199,6 +209,7 @@ const NewInquiryModal: React.FC<{
     if (!open) return;
     form.resetFields();
     setFiles([]);
+    uploads.reset();
     setPlates([]);
     setTypeHint(null);
     setOpps(undefined);
@@ -221,27 +232,42 @@ const NewInquiryModal: React.FC<{
     }
   }, [open]);
 
-  const beforeUpload = (file: File) => {
-    if (files.length + uploading >= MAX_ATTACHMENTS) {
-      message.error(`附件最多 ${MAX_ATTACHMENTS} 个`);
-      return Upload.LIST_IGNORE;
-    }
-    if (file.size > ATTACHMENT_MAX_BYTES) {
-      message.error(`「${file.name}」超过 10MB`);
-      return Upload.LIST_IGNORE;
-    }
-    setUploading((n) => n + 1);
-    inquiryApi
-      .upload(file)
-      .then((f) => setFiles((prev) => [...prev, f]))
-      .catch((e) => message.error(`「${file.name}」${readBizError(e).message}`))
-      .finally(() => setUploading((n) => n - 1));
+  // 一次选多个文件时整批加入，合计上限按整批计算
+  const beforeUpload = (file: File, list: File[]) => {
+    if (file === list[0]) uploads.add(list);
     return Upload.LIST_IGNORE;
+  };
+
+  /** 附件还在上传时关闭弹窗先确认，确认后中断上传 */
+  const close = () => {
+    if (uploads.busy === 0) {
+      onClose();
+      return;
+    }
+    modal.confirm({
+      title: '附件还没传完',
+      content: '关闭后正在上传的附件会中断，已填的内容不保存。',
+      okText: '仍然关闭',
+      cancelText: '继续上传',
+      onOk: () => {
+        uploads.reset();
+        onClose();
+      },
+    });
   };
 
   const submit = async (startParse: boolean) => {
     const v = await form.validateFields();
-    if (!v.rawContent?.trim() && files.length === 0 && plates.length === 0) {
+    if (uploads.busy > 0) {
+      message.warning(`还有 ${uploads.busy} 个附件没传完`);
+      return;
+    }
+    const attachments = [...files, ...uploads.done];
+    if (
+      !v.rawContent?.trim() &&
+      attachments.length === 0 &&
+      plates.length === 0
+    ) {
       form.setFields([
         { name: 'rawContent', errors: ['请粘贴询盘内容或上传附件'] },
       ]);
@@ -259,7 +285,7 @@ const NewInquiryModal: React.FC<{
         rawContent: v.rawContent?.trim() || undefined,
         remark: v.remark?.trim() || undefined,
         opportunityId: oppId || undefined,
-        attachments: files.map((f) => ({
+        attachments: attachments.map((f) => ({
           fileKey: f.fileKey,
           fileName: f.fileName,
         })),
@@ -280,7 +306,7 @@ const NewInquiryModal: React.FC<{
         title="新建询盘单"
         width={720}
         destroyOnHidden
-        onCancel={onClose}
+        onCancel={close}
         footer={
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <span
@@ -288,11 +314,16 @@ const NewInquiryModal: React.FC<{
             >
               Ctrl + 回车提交 · Esc 关闭
             </span>
-            <Button onClick={onClose}>取消</Button>
+            {uploads.busy > 0 && (
+              <span style={{ color: palette.orange, fontSize: 13 }}>
+                还有 {uploads.busy} 个附件没传完
+              </span>
+            )}
+            <Button onClick={close}>取消</Button>
             <Button
               onClick={() => submit(false)}
               loading={saving}
-              disabled={uploading + plateUploading > 0}
+              disabled={uploading + plateUploading + uploads.busy > 0}
             >
               先保存
             </Button>
@@ -300,7 +331,7 @@ const NewInquiryModal: React.FC<{
               type="primary"
               onClick={() => submit(true)}
               loading={saving}
-              disabled={uploading + plateUploading > 0}
+              disabled={uploading + plateUploading + uploads.busy > 0}
             >
               提交并开始 AI 解析
             </Button>
@@ -526,14 +557,19 @@ const NewInquiryModal: React.FC<{
             </p>
             <p style={{ margin: '4px 0 0', color: palette.sub }}>
               {uploading > 0
-                ? `正在上传 ${uploading} 个文件…`
+                ? `正在带入 ${uploading} 个商机附件…`
                 : '把图片、Excel 或 PDF 拖到这里，或点击选择'}
             </p>
             <p style={{ margin: 0, color: palette.mute, fontSize: 12 }}>
-              支持 JPG、PNG、XLS、XLSX、CSV、PDF，单个不超过
-              10MB；采购看不到询盘附件
+              JPG、PNG、XLS、XLSX、CSV、PDF · 单个不超过 500MB · 合计不超过
+              2GB；采购看不到询盘附件
             </p>
           </Upload.Dragger>
+          <ChunkUploadList
+            items={uploads.items}
+            onResume={uploads.resume}
+            onRemove={uploads.remove}
+          />
           {files.some((f) => f.fromOpp) && (
             <div style={{ marginTop: 12 }}>
               <Pill tone="cyan">
