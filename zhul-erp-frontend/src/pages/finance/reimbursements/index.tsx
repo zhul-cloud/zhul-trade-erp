@@ -63,6 +63,14 @@ const STATUS_META: Record<number, { label: string; tone: Tone }> = {
   [BX_STATUS.WITHDRAWN]: { label: '已撤回', tone: 'mute' },
 };
 const keyOf = (i: AdvanceItem) => `${i.sourceType}:${i.sourceId}`;
+
+/** 来源单号：单据类型标签 + 单号 */
+const sourceCell = (_: unknown, i: AdvanceItem) => (
+  <span style={{ whiteSpace: 'nowrap' }}>
+    <Pill tone={ITEM_TONE[i.sourceType]}>{ITEM_NAMES[i.sourceType]}</Pill>{' '}
+    {i.sourceNo || '—'}
+  </span>
+);
 const newKey = () =>
   typeof crypto !== 'undefined' && 'randomUUID' in crypto
     ? crypto.randomUUID()
@@ -284,13 +292,7 @@ const PendingTab: React.FC<{
           },
         ]
       : []),
-    {
-      title: '来源',
-      dataIndex: 'sourceType',
-      width: 100,
-      render: (v: number) => <Pill tone={ITEM_TONE[v]}>{ITEM_NAMES[v]}</Pill>,
-    },
-    { title: '单据', dataIndex: 'sourceNo', width: 170 },
+    { title: '来源单号', key: 'source', width: 240, render: sourceCell },
     { title: '日期', dataIndex: 'occurDate', width: 110 },
     {
       title: '说明',
@@ -986,14 +988,11 @@ const ListTab: React.FC<{ refreshSignal: number }> = ({ refreshSignal }) => {
               dataSource={detail.lines}
               columns={[
                 {
-                  title: '来源',
-                  dataIndex: 'sourceType',
-                  width: 100,
-                  render: (v: number) => (
-                    <Pill tone={ITEM_TONE[v]}>{ITEM_NAMES[v]}</Pill>
-                  ),
+                  title: '来源单号',
+                  key: 'source',
+                  width: 230,
+                  render: sourceCell,
                 },
-                { title: '单据', dataIndex: 'sourceNo', width: 160 },
                 {
                   title: '说明',
                   width: 240,

@@ -1,5 +1,6 @@
 package com.zhul.erp.modules.quotation.service.impl;
 
+import com.zhul.erp.common.result.DocRefVO;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.zhul.erp.common.exception.BizException;
@@ -950,6 +951,8 @@ public class QuotationServiceImpl implements QuotationService {
         vo.setSendLogs(sendLogs(id));
         vo.setInquiryCodes(items.stream().map(i -> inquiryCodes.get(i.getCustomerInquiryId())).filter(Objects::nonNull)
                 .distinct().toList());
+        vo.setInquiries(items.stream().map(QuotationItemDO::getCustomerInquiryId).filter(Objects::nonNull).distinct()
+                .filter(inquiryCodes::containsKey).map(iid -> new DocRefVO(iid, inquiryCodes.get(iid))).toList());
         applyReturningCustomer(vo, q, items);
         if ((q.getStatus() == QuotationConstants.STATUS_DRAFT || viewingEditing) && !"CNY".equals(q.getCurrencyCode())) {
             try {
@@ -1235,6 +1238,8 @@ public class QuotationServiceImpl implements QuotationService {
             vo.setLostReasonName(StringUtils.hasText(q.getLostReasonName()) ? q.getLostReasonName() : null);
             vo.setInquiryCodes(inquiriesByQuotation.getOrDefault(q.getId(), Set.of()).stream().map(codes::get)
                     .filter(Objects::nonNull).toList());
+            vo.setInquiries(inquiriesByQuotation.getOrDefault(q.getId(), Set.of()).stream().filter(codes::containsKey)
+                    .map(iid -> new DocRefVO(iid, codes.get(iid))).toList());
             vo.setOwnerId(q.getOwnerId());
             vo.setOwnerName(users.get(q.getOwnerId()));
             vo.setCreateTime(q.getCreateTime());

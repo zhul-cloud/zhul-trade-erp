@@ -18,16 +18,17 @@ import {
   UploadOutlined,
   UserOutlined,
 } from '@ant-design/icons';
-import { history, useAccess, useParams } from '@umijs/max';
+import { history, Link, useAccess, useParams } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { Alert, App, Button, Dropdown, Skeleton, Table } from 'antd';
 import dayjs from 'dayjs';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import DocModelCell, {
   docBrandColumns,
-  docInquiryColumn,
 } from '@/components/DocFields/DocModelCell';
+import SourceNos from '@/components/DocFields/SourceNos';
 import EllipsisText from '@/components/EllipsisText';
+import { usePageTitle } from '@/components/PageTabs/hooks';
 import RefundModal from '@/pages/finance/refunds/RefundModal';
 import { useWide } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
@@ -51,6 +52,7 @@ import {
   ChainCard,
   KIND,
   MigratedPill,
+  orderSourceRefs,
   PATHS,
   Pill,
   partyAddress,
@@ -125,6 +127,7 @@ const OrderDetail: React.FC = () => {
   const access = useAccess();
   const wide = useWide();
   const [o, setO] = useState<Order>();
+  usePageTitle(o ? `销售订单 ${o.soNo}` : undefined, o?.soNo);
   const [error, setError] = useState<string>();
   const [selected, setSelected] = useState<number[]>([]);
   const [dialog, setDialog] = useState<Dialog>();
@@ -533,7 +536,6 @@ const OrderDetail: React.FC = () => {
           brand={r.brand}
           orderCode={r.orderCode}
           productId={r.productId}
-          from={{ path: PATHS.order(o.id), label: `销售订单 ${o.soNo}` }}
           suffix={
             r.quantity === 0 && (
               <span style={{ marginLeft: 8 }}>
@@ -544,7 +546,6 @@ const OrderDetail: React.FC = () => {
         />
       ),
     },
-    docInquiryColumn<OrderItem>((r) => r),
     {
       title: '数量',
       dataIndex: 'quantity',
@@ -1559,46 +1560,16 @@ const OrderDetail: React.FC = () => {
         description={
           <>
             {o.customerName} ·{' '}
-            {replacement ? (
+            <SourceNos
+              mode="inline"
+              refs={orderSourceRefs(o)}
+              empty="手动创建"
+            />
+            {replacement && o.originalSoId && (
               <>
-                售后单{' '}
-                <a
-                  onClick={() =>
-                    history.push(`/sales/after-sales/${o.afterSalesId}`)
-                  }
-                >
-                  {o.afterSalesNo}
-                </a>{' '}
+                {' '}
                 · 原订单{' '}
-                <a
-                  onClick={() =>
-                    history.push(`/sales/orders/${o.originalSoId}`)
-                  }
-                >
-                  {o.originalSoNo}
-                </a>
-              </>
-            ) : fee ? (
-              <>
-                原订单{' '}
-                <a
-                  onClick={() =>
-                    history.push(`/sales/orders/${o.originalSoId}`)
-                  }
-                >
-                  {o.originalSoNo}
-                </a>
-              </>
-            ) : manual ? (
-              '手动创建'
-            ) : (
-              <>
-                由{' '}
-                <a onClick={() => history.push(PATHS.pi(o.piId as number))}>
-                  {o.piNo}
-                  {(o.piVersionNo ?? 1) > 1 ? ` Rev.${o.piVersionNo}` : ''}
-                </a>{' '}
-                转成
+                <Link to={PATHS.order(o.originalSoId)}>{o.originalSoNo}</Link>
               </>
             )}{' '}
             · {o.ownerName ?? '—'} · {formatDateTime(o.createTime).slice(0, 16)}{' '}

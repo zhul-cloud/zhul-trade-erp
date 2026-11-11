@@ -1,6 +1,5 @@
-import { ArrowLeftOutlined, LockOutlined } from '@ant-design/icons';
+import { LockOutlined } from '@ant-design/icons';
 import { history, useAccess, useParams, useSearchParams } from '@umijs/max';
-import { safeFromPath } from '@/components/DocFields/DocModelCell';
 import {
   Alert,
   App,
@@ -22,6 +21,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
+import { usePageTitle, useTabDirty } from '@/components/PageTabs/hooks';
 import { CompletenessBar } from '../components/CompletenessBar';
 import { ErrorHint } from '../components/EmptyHint';
 import { LifecyclePill, Pill } from '../components/Pills';
@@ -264,11 +264,12 @@ const DetailInner: React.FC = () => {
   const access = useAccess();
   const params = useParams<{ id: string }>();
   const [search] = useSearchParams();
-  // 从询盘单、报价单等单据点型号进来时，返回原单据
-  const backPath = safeFromPath(search.get('from'));
-  const backLabel = search.get('fromLabel') || '上一页';
   const id = Number(params.id);
   const [product, setProduct] = useState<Product>();
+  usePageTitle(
+    product ? `商品 ${product.mpnDisplay}` : undefined,
+    product?.mpnDisplay,
+  );
   // 维护方：平台账号，或商品属于本租户（后端按归属算出 editable）；修改还需「编辑商品」按钮权限
   const maintainer = !!product?.editable;
   const canEdit = maintainer && !!access['product:product:edit'];
@@ -324,23 +325,10 @@ const DetailInner: React.FC = () => {
       e.preventDefault();
     };
     window.addEventListener('beforeunload', onBefore);
-    const unblock = history.block((tx) => {
-      modal.confirm({
-        title: '有未保存的修改',
-        content: '现在离开，这些修改会丢失。',
-        okText: '离开',
-        cancelText: '留下',
-        onOk: () => {
-          unblock();
-          tx.retry();
-        },
-      });
-    });
-    return () => {
-      window.removeEventListener('beforeunload', onBefore);
-      unblock();
-    };
-  }, [unsavedCount, modal]);
+    return () => window.removeEventListener('beforeunload', onBefore);
+  }, [unsavedCount]);
+  // 点返回离开这页、关闭标签时由标签页统一确认；切到别的标签时页面保留，修改不会丢
+  useTabDirty(unsavedCount > 0);
 
   const saveAll = async () => {
     setSaving(true);
@@ -397,15 +385,6 @@ const DetailInner: React.FC = () => {
 
   return (
     <UnsavedContext.Provider value={registry}>
-      <Button
-        type="link"
-        icon={<ArrowLeftOutlined />}
-        onClick={() => history.push(backPath ?? '/product/products')}
-        style={{ paddingLeft: 0, marginBottom: 8 }}
-      >
-        {backPath ? `返回 ${backLabel}` : '返回商品列表'}
-      </Button>
-
       <div
         style={{
           ...panel(palette),

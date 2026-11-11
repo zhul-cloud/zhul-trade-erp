@@ -3,6 +3,10 @@ import { useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { Button, Input, Segmented, Table } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
+import SourceNos, {
+  listHref,
+  useUrlFilter,
+} from '@/components/DocFields/SourceNos';
 import EllipsisText, { ellipsisRender } from '@/components/EllipsisText';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { auditColumns } from '@/pages/purchase/components';
@@ -14,6 +18,7 @@ import {
   Card,
   ReceiptStatusPill,
   sub,
+  WAREHOUSE_PATHS,
   WarehousePageTitle,
 } from '../components';
 import {
@@ -30,10 +35,13 @@ const Receipts: React.FC = () => {
   const { palette } = useAppTheme();
   const access = useAccess();
   const canEdit = !!access['warehouse:receipt:create'];
-  const [tab, setTab] = useState<Tab>('pending');
+  const url = useUrlFilter();
+  const [tab, setTab] = useState<Tab>(
+    url.tab === 'received' ? 'received' : 'pending',
+  );
   const [pending, setPending] = useState<number>();
-  const [keyword, setKeyword] = useState('');
-  const [query, setQuery] = useState<string>();
+  const [keyword, setKeyword] = useState(url.keyword);
+  const [query, setQuery] = useState(url.keyword || undefined);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = usePageSize(20);
   const [ships, setShips] = useState<Shipment[]>([]);
@@ -181,7 +189,18 @@ const Receipts: React.FC = () => {
         </div>
       ),
     },
-    { title: '发货单', dataIndex: 'sdNo', width: 150 },
+    {
+      title: '来源单号',
+      dataIndex: 'sdNo',
+      width: 150,
+      render: (v?: string) => (
+        <SourceNos
+          refs={
+            v ? [{ no: v, href: listHref(WAREHOUSE_PATHS.shipments, v) }] : []
+          }
+        />
+      ),
+    },
     {
       title: '采购订单 · 采购对象',
       dataIndex: 'poNo',

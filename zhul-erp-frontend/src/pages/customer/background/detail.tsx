@@ -1,5 +1,4 @@
 import {
-  ArrowLeftOutlined,
   DashboardOutlined,
   DeleteOutlined,
   DownloadOutlined,
@@ -12,6 +11,7 @@ import { history, useAccess, useParams } from '@umijs/max';
 import '@ant-design/x-markdown/es/XMarkdown/index.css';
 import { App, Button, Skeleton } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
+import { usePageTitle, useTabActive } from '@/components/PageTabs/hooks';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatDateTime } from '@/utils/format';
@@ -77,6 +77,10 @@ const BackgroundReportPage: React.FC = () => {
   const { message, modal } = App.useApp();
   const { palette } = useAppTheme();
   const [report, setReport] = useState<BackgroundReportDetail | null>();
+  usePageTitle(
+    report ? `背调报告 ${report.reportNo}` : undefined,
+    report?.reportNo,
+  );
   const [customerName, setCustomerName] = useState('');
   const [error, setError] = useState<string>();
   const [exporting, setExporting] = useState(false);
@@ -103,11 +107,13 @@ const BackgroundReportPage: React.FC = () => {
 
   // 背调中每 5 秒刷新，完成后停
   const running = report?.status === STATUS.RUNNING;
+  // 在后台标签里不刷新，切回来再继续
+  const tabActive = useTabActive();
   useEffect(() => {
-    if (!running) return undefined;
+    if (!running || !tabActive) return undefined;
     const timer = window.setInterval(load, 5000);
     return () => window.clearInterval(timer);
-  }, [running, load]);
+  }, [running, tabActive, load]);
 
   const back = () => history.push(`${LIST_PATH}/${customerId}`);
 
@@ -150,11 +156,7 @@ const BackgroundReportPage: React.FC = () => {
     });
 
   let body: React.ReactNode;
-  let actions: React.ReactNode = (
-    <Button icon={<ArrowLeftOutlined />} onClick={back}>
-      返回客户
-    </Button>
-  );
+  let actions: React.ReactNode = null;
   if (error) {
     body = <ErrorHint message={error} onRetry={load} />;
   } else if (report === undefined) {
@@ -176,9 +178,6 @@ const BackgroundReportPage: React.FC = () => {
     const r = report;
     actions = (
       <>
-        <Button icon={<ArrowLeftOutlined />} onClick={back}>
-          返回客户
-        </Button>
         {r.canDelete && (
           <Button danger icon={<DeleteOutlined />} onClick={() => remove(r)}>
             删除

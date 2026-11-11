@@ -718,7 +718,7 @@ const RequirementList: React.FC = () => {
           rowKey="id"
           columns={[
             {
-              title: '来源订单 · 客户',
+              title: '来源单号 · 客户',
               dataIndex: 'soNo',
               width: 210,
               fixed: 'left',

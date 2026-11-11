@@ -515,7 +515,7 @@ const ReturnsPage: React.FC = () => {
       render: (v: string, r) => <a onClick={() => open(r, setViewing)}>{v}</a>,
     },
     {
-      title: '售后单 · 订单',
+      title: '来源单号 · 订单',
       key: 'as',
       width: 170,
       render: (_, r) => (

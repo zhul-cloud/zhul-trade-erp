@@ -55,9 +55,10 @@ import {
 } from '@/components/DocFields';
 import DocModelCell, {
   docBrandColumns,
-  docInquiryColumn,
 } from '@/components/DocFields/DocModelCell';
+import SourceNos from '@/components/DocFields/SourceNos';
 import { ellipsisRender } from '@/components/EllipsisText';
+import { usePageTitle, useTabDirty } from '@/components/PageTabs/hooks';
 import { type DiffRow, VersionPanel } from '@/components/VersionPanel';
 import {
   ConditionPill,
@@ -354,6 +355,7 @@ const QuotationDetail: React.FC = () => {
   const wide = useWide();
   const { leadTimeOptions } = useQuoteDicts();
   const [q, setQ] = useState<Quotation>();
+  usePageTitle(q ? `报价单 ${q.quotationNo}` : undefined, q?.quotationNo);
   const [draft, setDraft] = useState<Draft>();
   const [saved, setSaved] = useState<string>('');
   const [error, setError] = useState<string>();
@@ -446,6 +448,7 @@ const QuotationDetail: React.FC = () => {
     window.addEventListener('beforeunload', warn);
     return () => window.removeEventListener('beforeunload', warn);
   }, [dirty]);
+  useTabDirty(dirty);
 
   const itemById = useMemo(
     () => new Map(q?.items.map((i) => [i.id, i]) ?? []),
@@ -976,14 +979,11 @@ const QuotationDetail: React.FC = () => {
       brand={src.brand}
       orderCode={src.orderCode}
       productId={src.productId}
-      from={q && { path: PATHS.detail(q.id), label: `报价单 ${q.quotationNo}` }}
     >
-      {/* 并排预览时只剩型号一列，品牌、品类、来源询盘缩到型号下面 */}
+      {/* 并排预览时只剩型号一列，品牌、品类缩到型号下面 */}
       {compact && (
         <div style={{ fontSize: 12, color: palette.mute }}>
-          {[brandText(src), src.category, src.inquiryCode]
-            .filter(Boolean)
-            .join(' · ')}
+          {[brandText(src), src.category].filter(Boolean).join(' · ')}
         </div>
       )}
       {src.pendingAsNoStock &&
@@ -1048,7 +1048,7 @@ const QuotationDetail: React.FC = () => {
     </DocModelCell>
   );
 
-  /** 品牌、品类、来源询盘列的取值；品牌注明导出用的英文名 */
+  /** 品牌、品类列的取值；品牌注明导出用的英文名 */
   const metaOf = (src?: QuotationItem) =>
     src && { ...src, brand: brandText(src) };
 
@@ -1063,9 +1063,6 @@ const QuotationDetail: React.FC = () => {
       width: compact ? 170 : 220,
       render: (_, d) => modelCell(itemById.get(d.id) as QuotationItem, d),
     },
-    ...(compact
-      ? []
-      : [docInquiryColumn<SaveQuotationItem>((d) => itemById.get(d.id))]),
     ...(compact
       ? []
       : ([
@@ -1282,7 +1279,6 @@ const QuotationDetail: React.FC = () => {
       width: 220,
       render: (_, r) => modelCell(r),
     },
-    docInquiryColumn<QuotationItem>((r) => r),
     {
       title: '描述',
       width: 240,
@@ -2212,8 +2208,15 @@ const QuotationDetail: React.FC = () => {
         }
         description={
           <>
-            {q.customerName} · 来源询盘：{q.inquiryCodes.join('、') || '—'} ·{' '}
-            {q.ownerName ?? '—'} {formatDateTime(q.createTime).slice(0, 16)}{' '}
+            {q.customerName} ·{' '}
+            <SourceNos
+              mode="inline"
+              refs={q.inquiries.map((x) => ({
+                no: x.no,
+                href: `/inquiry/customer-inquiries/${x.id}`,
+              }))}
+            />{' '}
+            · {q.ownerName ?? '—'} {formatDateTime(q.createTime).slice(0, 16)}{' '}
             创建
             {q.copiedFromNo && (
               <span style={{ marginLeft: 8 }}>

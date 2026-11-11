@@ -1,5 +1,6 @@
 package com.zhul.erp.modules.sales.dto;
 
+import com.zhul.erp.common.result.DocRefVO;
 import lombok.Data;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -30,6 +31,8 @@ public class PiListVO {
     private Integer currentVersionNo;
     private Boolean revising;
     private List<String> quotationNos;
+    /** 来源单号：报价单（按 ID 排序） */
+    private List<DocRefVO> quotations;
     private Long orderId;
     private String soNo;
     private Long ownerId;

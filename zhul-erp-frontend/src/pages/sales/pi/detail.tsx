@@ -62,8 +62,9 @@ import {
 } from '@/components/DocFields';
 import DocModelCell, {
   docBrandColumns,
-  docInquiryColumn,
 } from '@/components/DocFields/DocModelCell';
+import SourceNos from '@/components/DocFields/SourceNos';
+import { usePageTitle, useTabDirty } from '@/components/PageTabs/hooks';
 import { type DiffRow, VersionPanel } from '@/components/VersionPanel';
 import { useQuoteDicts, useWide } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
@@ -373,6 +374,7 @@ const PiDetail: React.FC = () => {
   const wide = useWide();
   const { leadTimeOptions } = useQuoteDicts();
   const [pi, setPi] = useState<Pi>();
+  usePageTitle(pi ? `形式发票 ${pi.piNo}` : undefined, pi?.piNo);
   const [convertOpen, setConvertOpen] = useState(false);
   /** 刚由「生成英文描述」填入英文的行 */
   const [generated, setGenerated] = useState<Set<number>>(new Set());
@@ -469,6 +471,7 @@ const PiDetail: React.FC = () => {
     window.addEventListener('beforeunload', warn);
     return () => window.removeEventListener('beforeunload', warn);
   }, [dirty]);
+  useTabDirty(dirty);
 
   const itemById = useMemo(
     () => new Map(pi?.version.items.map((i) => [i.id, i]) ?? []),
@@ -1203,14 +1206,11 @@ const PiDetail: React.FC = () => {
       brand={src.brand}
       orderCode={src.orderCode}
       productId={src.productId}
-      from={pi && { path: PATHS.pi(pi.id), label: `形式发票 ${pi.piNo}` }}
     >
-      {/* 并排预览时只剩型号一列，品牌、品类、来源询盘缩到型号下面 */}
+      {/* 并排预览时只剩型号一列，品牌、品类缩到型号下面 */}
       {compact && (
         <div style={{ fontSize: 12, color: palette.mute }}>
-          {[src.brand, src.category, src.inquiryCode]
-            .filter(Boolean)
-            .join(' · ')}
+          {[src.brand, src.category].filter(Boolean).join(' · ')}
         </div>
       )}
       {d && (d.description ?? '').trim() && needsEnglish(d.descriptionEn) && (
@@ -1280,9 +1280,6 @@ const PiDetail: React.FC = () => {
       width: compact ? 180 : 220,
       render: (_, d) => modelCell(itemById.get(d.id) as PiItem, d),
     },
-    ...(compact
-      ? []
-      : [docInquiryColumn<SavePi['items'][number]>((d) => itemById.get(d.id))]),
     {
       title: '数量',
       key: 'qty',
@@ -1458,7 +1455,6 @@ const PiDetail: React.FC = () => {
       width: 220,
       render: (_, r) => modelCell(r),
     },
-    docInquiryColumn<PiItem>((r) => r),
     { title: '数量', dataIndex: 'quantity', width: 70, align: 'right' },
     {
       title: '单价',
@@ -2532,15 +2528,14 @@ const PiDetail: React.FC = () => {
         }
         description={
           <>
-            {pi.customerName} · 来源报价单：
-            {pi.quotations.map((q, i) => (
-              <React.Fragment key={q.id}>
-                {i > 0 && '、'}
-                <a onClick={() => history.push(PATHS.quotation(q.id))}>
-                  {q.quotationNo}
-                </a>
-              </React.Fragment>
-            ))}{' '}
+            {pi.customerName} ·{' '}
+            <SourceNos
+              mode="inline"
+              refs={pi.quotations.map((q) => ({
+                no: q.quotationNo,
+                href: PATHS.quotation(q.id),
+              }))}
+            />{' '}
             · {pi.ownerName ?? '—'} {formatDateTime(pi.createTime).slice(0, 16)}{' '}
             创建
           </>

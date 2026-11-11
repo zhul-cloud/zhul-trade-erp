@@ -138,7 +138,7 @@ const RecordsTab: React.FC = () => {
   const columns: TableColumnsType<ReceiptRow> = [
     { title: '到账日期', dataIndex: 'receiptDate', width: 110 },
     {
-      title: 'PI / 订单编号',
+      title: '来源单号',
       key: 'pi',
       width: 180,
       render: (_, r) =>

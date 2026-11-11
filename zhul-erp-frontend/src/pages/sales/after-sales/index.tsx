@@ -119,7 +119,7 @@ const AfterSalesPage: React.FC = () => {
       ),
     },
     {
-      title: '客户 · 订单',
+      title: '客户 · 来源单号',
       key: 'customer',
       width: 210,
       render: (_, r) => (

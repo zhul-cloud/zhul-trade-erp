@@ -1,5 +1,6 @@
 package com.zhul.erp.modules.sales.service.impl;
 
+import com.zhul.erp.common.result.DocRefVO;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -1224,6 +1225,8 @@ public class PiServiceImpl implements PiService {
             vo.setCurrentVersionNo(p.getCurrentVersionNo());
             vo.setRevising(p.getEditingVersionNo() != null && p.getCurrentVersionNo() != null && p.getCurrentVersionNo() > 0);
             vo.setQuotationNos(quotationsByPi.getOrDefault(p.getId(), Set.of()).stream().map(quotationNos::get).filter(Objects::nonNull).toList());
+            vo.setQuotations(quotationsByPi.getOrDefault(p.getId(), Set.of()).stream().filter(quotationNos::containsKey)
+                    .map(qid -> new DocRefVO(qid, quotationNos.get(qid))).toList());
             SalesOrderDO o = orders.get(p.getId());
             vo.setOrderId(o == null ? null : o.getId());
             vo.setSoNo(o == null ? null : o.getSoNo());
