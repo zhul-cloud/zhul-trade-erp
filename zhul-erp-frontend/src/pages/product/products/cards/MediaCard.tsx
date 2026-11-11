@@ -13,6 +13,7 @@ import {
   Button,
   Checkbox,
   Form,
+  Image,
   Input,
   Modal,
   Progress,
@@ -250,7 +251,7 @@ export const UploadModal: React.FC<{
           ]}
         />
         <Upload.Dragger
-          accept={mediaType === 1 ? '.jpg,.jpeg,.png,.webp' : '.mp4,.webm'}
+          accept={mediaType === 1 ? '.jpg,.jpeg,.png,.webp' : '.mp4,.mov,.webm'}
           multiple={mediaType === 1}
           showUploadList={false}
           disabled={uploading}
@@ -267,7 +268,7 @@ export const UploadModal: React.FC<{
           <p style={{ color: palette.sub, fontSize: 13, margin: 0 }}>
             {mediaType === 1
               ? '支持 jpg、jpeg、png、webp，不超过 5MB，可一次选择多张'
-              : '支持 mp4、webm，不超过 95MB'}
+              : '支持 mp4、mov、webm，不超过 95MB'}
           </p>
         </Upload.Dragger>
         {files.length > 0 && (
@@ -616,7 +617,7 @@ export const MediaCard: React.FC<{
         <div style={{ color: palette.sub }}>正在加载…</div>
       ) : items.length === 0 ? (
         <CardEmpty
-          benefit="有主图，客户才能一眼认出这个商品；图片支持 jpg、png、webp，视频支持 mp4、webm。"
+          benefit="有主图，客户才能一眼认出这个商品；图片支持 jpg、png、webp，视频支持 mp4、mov、webm。"
           actionText={readOnly ? undefined : '上传第一张图片'}
           onAction={() => setUploadOpen(true)}
         />
@@ -630,122 +631,126 @@ export const MediaCard: React.FC<{
               还没有设置主图：点图片下方的「设为主图」，列表和询盘里就会显示它。
             </div>
           )}
-          <ul
-            style={{
-              listStyle: 'none',
-              margin: 0,
-              padding: 0,
-              display: 'grid',
-              gap: 16,
-              gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
-            }}
-          >
-            {items.map((m, i) => (
-              <li
-                key={m.id}
-                style={{
-                  border: `1px solid ${m.isMain ? palette.link : palette.hairline}`,
-                  borderRadius: 12,
-                  overflow: 'hidden',
-                  background: palette.inset,
-                }}
-              >
-                <div
+          {/* 点图片放大预览，同一商品的图片可以左右切换（UI-050） */}
+          <Image.PreviewGroup>
+            <ul
+              style={{
+                listStyle: 'none',
+                margin: 0,
+                padding: 0,
+                display: 'grid',
+                gap: 16,
+                gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
+              }}
+            >
+              {items.map((m, i) => (
+                <li
+                  key={m.id}
                   style={{
-                    position: 'relative',
-                    aspectRatio: '4 / 3',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    background: m.mediaType === 2 ? '#0B1220' : palette.inset,
+                    border: `1px solid ${m.isMain ? palette.link : palette.hairline}`,
+                    borderRadius: 12,
+                    overflow: 'hidden',
+                    background: palette.inset,
                   }}
                 >
-                  {m.mediaType === 1 ? (
-                    <img
-                      src={m.fileUrl}
-                      alt={m.title || '商品图片'}
-                      style={{
-                        width: '100%',
-                        height: '100%',
-                        objectFit: 'contain',
-                      }}
-                    />
-                  ) : (
-                    <a
-                      href={m.fileUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      aria-label={`播放视频 ${m.title || ''}`}
-                      style={{ color: '#F8FAFC', fontSize: 40 }}
-                    >
-                      <PlayCircleFilled />
-                    </a>
-                  )}
-                  {m.isMain === 1 && (
-                    <span style={{ position: 'absolute', top: 8, left: 8 }}>
-                      <Pill tone="accent">
-                        <StarFilled style={{ marginRight: 4 }} />
-                        主图
-                      </Pill>
-                    </span>
-                  )}
-                </div>
-                <div style={{ padding: 12 }}>
                   <div
                     style={{
-                      fontSize: 13,
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap',
+                      position: 'relative',
+                      aspectRatio: '4 / 3',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      background: m.mediaType === 2 ? '#0B1220' : palette.inset,
                     }}
-                    title={m.title}
                   >
-                    {m.title ||
-                      (m.mediaType === 1 ? '未命名图片' : '未命名视频')}
+                    {m.mediaType === 1 ? (
+                      <Image
+                        src={m.fileUrl}
+                        alt={m.title || '商品图片'}
+                        width="100%"
+                        height="100%"
+                        styles={{
+                          root: { display: 'block' },
+                          image: { objectFit: 'contain' },
+                        }}
+                      />
+                    ) : (
+                      <a
+                        href={m.fileUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        aria-label={`播放视频 ${m.title || ''}`}
+                        style={{ color: '#F8FAFC', fontSize: 40 }}
+                      >
+                        <PlayCircleFilled />
+                      </a>
+                    )}
+                    {m.isMain === 1 && (
+                      <span style={{ position: 'absolute', top: 8, left: 8 }}>
+                        <Pill tone="accent">
+                          <StarFilled style={{ marginRight: 4 }} />
+                          主图
+                        </Pill>
+                      </span>
+                    )}
                   </div>
-                  <div style={{ fontSize: 12, color: palette.mute }}>
-                    {m.storageType === 1
-                      ? `平台上传 · ${formatSize(m.fileSize)}`
-                      : '外部链接'}
-                  </div>
-                  {!readOnly && (
-                    <Space size={4} wrap style={{ marginTop: 8 }}>
-                      {m.mediaType === 1 && m.isMain !== 1 && (
+                  <div style={{ padding: 12 }}>
+                    <div
+                      style={{
+                        fontSize: 13,
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                      }}
+                      title={m.title}
+                    >
+                      {m.title ||
+                        (m.mediaType === 1 ? '未命名图片' : '未命名视频')}
+                    </div>
+                    <div style={{ fontSize: 12, color: palette.mute }}>
+                      {m.storageType === 1
+                        ? `平台上传 · ${formatSize(m.fileSize)}`
+                        : '外部链接'}
+                    </div>
+                    {!readOnly && (
+                      <Space size={4} wrap style={{ marginTop: 8 }}>
+                        {m.mediaType === 1 && m.isMain !== 1 && (
+                          <Button
+                            size="small"
+                            type="link"
+                            onClick={() => setMain(m)}
+                          >
+                            设为主图
+                          </Button>
+                        )}
                         <Button
                           size="small"
-                          type="link"
-                          onClick={() => setMain(m)}
-                        >
-                          设为主图
-                        </Button>
-                      )}
-                      <Button
-                        size="small"
-                        aria-label="上移"
-                        icon={<ArrowUpOutlined />}
-                        disabled={i === 0}
-                        onClick={() => move(i, -1)}
-                      />
-                      <Button
-                        size="small"
-                        aria-label="下移"
-                        icon={<ArrowDownOutlined />}
-                        disabled={i === items.length - 1}
-                        onClick={() => move(i, 1)}
-                      />
-                      <Button
-                        size="small"
-                        aria-label="删除"
-                        danger
-                        icon={<DeleteOutlined />}
-                        onClick={() => remove(m)}
-                      />
-                    </Space>
-                  )}
-                </div>
-              </li>
-            ))}
-          </ul>
+                          aria-label="上移"
+                          icon={<ArrowUpOutlined />}
+                          disabled={i === 0}
+                          onClick={() => move(i, -1)}
+                        />
+                        <Button
+                          size="small"
+                          aria-label="下移"
+                          icon={<ArrowDownOutlined />}
+                          disabled={i === items.length - 1}
+                          onClick={() => move(i, 1)}
+                        />
+                        <Button
+                          size="small"
+                          aria-label="删除"
+                          danger
+                          icon={<DeleteOutlined />}
+                          onClick={() => remove(m)}
+                        />
+                      </Space>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </Image.PreviewGroup>
         </>
       )}
       <UploadModal

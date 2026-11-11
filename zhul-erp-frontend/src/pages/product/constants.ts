@@ -210,14 +210,14 @@ export const UPLOAD_RULES = {
     label: '图片不能超过 5MB',
   },
   video: {
-    ext: ['mp4', 'webm'],
+    ext: ['mp4', 'mov', 'webm'],
     maxBytes: 95 * 1024 * 1024,
     label: '视频不能超过 95MB',
   },
 };
 
 export const UPLOAD_TYPE_MESSAGE =
-  '不支持该文件类型，请上传 jpg、png、webp 图片或 mp4、webm 视频';
+  '不支持该文件类型，请上传 jpg、png、webp 图片或 mp4、mov、webm 视频';
 
 /** 返回预检失败的原因；通过返回 undefined */
 export function precheckUpload(

@@ -32,6 +32,8 @@ class ProductMediaStorageServiceImplTest {
     private static final byte[] JPEG = {(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xE0, 0, 0x10, 'J', 'F', 'I', 'F', 0, 1, 1, 0, 0, 1};
     private static final byte[] WEBP = {'R', 'I', 'F', 'F', 0x10, 0, 0, 0, 'W', 'E', 'B', 'P', 'V', 'P', '8', ' '};
     private static final byte[] MP4 = {0, 0, 0, 0x18, 'f', 't', 'y', 'p', 'i', 's', 'o', 'm', 0, 0, 2, 0};
+    /** 主品牌「qt  」：苹果 QuickTime，手机、剪辑软件导出的 mp4 也常是这种 */
+    private static final byte[] QUICKTIME = {0, 0, 0, 0x14, 'f', 't', 'y', 'p', 'q', 't', ' ', ' ', 0, 0, 2, 0};
     private static final byte[] WEBM = {0x1A, 0x45, (byte) 0xDF, (byte) 0xA3, (byte) 0x9F, 0x42, (byte) 0x86, (byte) 0x81, 1, 0, 0, 0, 0, 0, 0, 0};
     private static final byte[] EXE = {'M', 'Z', (byte) 0x90, 0, 3, 0, 0, 0, 4, 0, 0, 0, (byte) 0xFF, (byte) 0xFF, 0, 0};
 
@@ -74,7 +76,9 @@ class ProductMediaStorageServiceImplTest {
         for (Case c : List.of(
                 new Case("a.png", PNG, 1, "png"), new Case("a.jpg", JPEG, 1, "jpg"),
                 new Case("a.jpeg", JPEG, 1, "jpg"), new Case("a.webp", WEBP, 1, "webp"),
-                new Case("a.mp4", MP4, 2, "mp4"), new Case("a.webm", WEBM, 2, "webm"))) {
+                new Case("a.mp4", MP4, 2, "mp4"), new Case("a.webm", WEBM, 2, "webm"),
+                // BUS-034：带 QuickTime 标记的 mp4、以及 mov 都收下，统一存为 mp4
+                new Case("a.mp4", QUICKTIME, 2, "mp4"), new Case("a.MOV", QUICKTIME, 2, "mp4"), new Case("a.mov", MP4, 2, "mp4"))) {
             var stored = storage.store(file(c.name(), withPadding(c.content(), 64)), c.type(), "Siemens", "6ES7");
 
             assertTrue(stored.url().startsWith("/uploads/shared/product/siemens/6es7/"), stored.url());
@@ -116,6 +120,8 @@ class ProductMediaStorageServiceImplTest {
         assertRejected(() -> storage.store(file("a.jpg", withPadding(PNG, 32)), 1, "Siemens", "6ES7"), ProductErrorCodes.MEDIA_FILE_INVALID);
         assertRejected(() -> storage.store(file("a.mp4", withPadding(WEBM, 32)), 2, "Siemens", "6ES7"), ProductErrorCodes.MEDIA_FILE_INVALID);
         assertRejected(() -> storage.store(file("a.webm", withPadding(MP4, 32)), 2, "Siemens", "6ES7"), ProductErrorCodes.MEDIA_FILE_INVALID);
+        assertRejected(() -> storage.store(file("a.webm", withPadding(QUICKTIME, 32)), 2, "Siemens", "6ES7"), ProductErrorCodes.MEDIA_FILE_INVALID);
+        assertRejected(() -> storage.store(file("a.mov", withPadding(WEBM, 32)), 2, "Siemens", "6ES7"), ProductErrorCodes.MEDIA_FILE_INVALID);
         assertEquals(0, filesOnDisk(), "校验不通过时不应留下任何文件");
     }
 
