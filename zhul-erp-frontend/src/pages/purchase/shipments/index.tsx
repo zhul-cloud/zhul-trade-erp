@@ -140,15 +140,10 @@ const ShipmentsTab: React.FC = () => {
       ),
     },
     {
-      title: '来源单号 · 采购对象',
-      dataIndex: 'poNo',
-      width: 210,
-      render: (v: string, r) => (
-        <div>
-          <a onClick={() => history.push(WAREHOUSE_PATHS.order(r.poId))}>{v}</a>
-          {sub(palette.mute, r.supplierName)}
-        </div>
-      ),
+      title: '供应商',
+      dataIndex: 'supplierName',
+      width: 150,
+      render: (v: string) => <b style={{ color: palette.ink }}>{v || '—'}</b>,
     },
     {
       title: '快递 · 单号',
@@ -223,6 +218,14 @@ const ShipmentsTab: React.FC = () => {
           {r.grNo && sub(palette.mute, r.grNo)}
           {r.voidReason && sub(palette.mute, r.voidReason)}
         </div>
+      ),
+    },
+    {
+      title: '来源单号',
+      dataIndex: 'poNo',
+      width: 160,
+      render: (v: string, r: { poId: number }) => (
+        <a onClick={() => history.push(WAREHOUSE_PATHS.order(r.poId))}>{v}</a>
       ),
     },
     {
@@ -534,15 +537,10 @@ const DiffsTab: React.FC<{ onChanged: () => void }> = ({ onChanged }) => {
       ),
     },
     {
-      title: '来源单号 · 采购对象',
-      dataIndex: 'poNo',
-      width: 200,
-      render: (v: string, r) => (
-        <div>
-          <a onClick={() => history.push(WAREHOUSE_PATHS.order(r.poId))}>{v}</a>
-          {sub(palette.mute, r.supplierName)}
-        </div>
-      ),
+      title: '供应商',
+      dataIndex: 'supplierName',
+      width: 150,
+      render: (v: string) => <b style={{ color: palette.ink }}>{v || '—'}</b>,
     },
     {
       title: '型号',
@@ -589,6 +587,14 @@ const DiffsTab: React.FC<{ onChanged: () => void }> = ({ onChanged }) => {
         ) : (
           <span style={{ color: palette.mute }}>—</span>
         ),
+    },
+    {
+      title: '来源单号',
+      dataIndex: 'poNo',
+      width: 160,
+      render: (v: string, r: { poId: number }) => (
+        <a onClick={() => history.push(WAREHOUSE_PATHS.order(r.poId))}>{v}</a>
+      ),
     },
     {
       title: '采购员',
