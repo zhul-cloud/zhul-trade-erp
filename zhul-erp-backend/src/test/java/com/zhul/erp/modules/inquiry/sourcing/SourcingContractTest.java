@@ -5,6 +5,7 @@ import com.zhul.erp.modules.inquiry.InquiryContractSupport;
 import com.zhul.erp.modules.inquiry.support.PriceKeys;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -16,6 +17,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -26,6 +28,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 
 /** 询价任务与询价记录（spec inquiry/sourcing-task、sourcing-quote、price-ledger）：分配、推荐、改派、比价、录入、退回、超时、规则、询价记录 */
 class SourcingContractTest extends InquiryContractSupport {
+
+    @Autowired private TransactionTemplate tx;
 
     @Autowired private PriceKeys priceKeys;
 
@@ -82,6 +86,39 @@ class SourcingContractTest extends InquiryContractSupport {
     private void login() {
         loginAsAdmin("it_src_admin");
         admin = token("it_src_admin");
+    }
+
+    /**
+     * BUS-014：另一个分配还没提交时（任务已被锁住、改成询价中并插入了处理人），再把同一任务分给别人：
+     * 必须等前者提交后按最新状态拒绝，只留一条有效普通分配。
+     */
+    @Test
+    void concurrentAssign_sameUnassignedTask_onlyOneWins() throws Exception {
+        login();
+        long inq = inquiry(false, row("Omron", "传感器", "E3Z-D61", 10));
+        long task = taskId(inq, "Omron");
+
+        CountDownLatch firstHoldsLock = new CountDownLatch(1);
+        Thread first = new Thread(() -> tx.executeWithoutResult(s -> {
+            jdbc.queryForObject("select id from sourcing_task where id = ? for update", Long.class, task);
+            jdbc.update("update sourcing_task set status = 2 where id = ?", task);
+            jdbc.update("insert into sourcing_task_assignee (tenant_id, task_id, assignee_id, assigned_at, assign_mode, active) "
+                    + "values (0, ?, ?, now(), 1, 1)", task, BUYER_LIN);
+            firstHoldsLock.countDown();
+            try {
+                Thread.sleep(800);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }), "assign-first");
+        first.start();
+        assertTrue(firstHoldsLock.await(10, TimeUnit.SECONDS));
+        JsonNode second = call(json(post(BOARD + "/assign"), "{\"taskIds\":[" + task + "],\"assigneeId\":" + BUYER_JIANG + "}"), admin);
+        first.join(10_000);
+
+        assertTrue(second.path("message").asText().contains("已经分配过了"), second.toString());
+        assertEquals(1, jdbc.queryForObject("select count(*) from sourcing_task_assignee where task_id = ? and active = 1",
+                Integer.class, task));
     }
 
     @Test

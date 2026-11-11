@@ -1020,11 +1020,17 @@ public class SourcingTaskServiceImpl implements SourcingTaskService {
         return task;
     }
 
+    /**
+     * 按 ID 顺序锁定并读取最新值（FOR UPDATE）：分配、推荐、规则、改派、追加比价都经过这里，
+     * 同一任务的并发操作串行，后到的按最新状态校验（BUS-014）。
+     */
     private List<SourcingTaskDO> tasks(List<Long> taskIds) {
         List<SourcingTaskDO> tasks = taskMapper.selectList(new LambdaQueryWrapper<SourcingTaskDO>()
                 .eq(SourcingTaskDO::getTenantId, tenantId())
                 .in(SourcingTaskDO::getId, taskIds)
-                .isNull(SourcingTaskDO::getDeletedAt));
+                .isNull(SourcingTaskDO::getDeletedAt)
+                .orderByAsc(SourcingTaskDO::getId)
+                .last("FOR UPDATE"));
         if (tasks.size() != Set.copyOf(taskIds).size()) {
             throw new BizException("询价任务不存在");
         }
