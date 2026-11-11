@@ -1,6 +1,5 @@
 import {
   AppstoreOutlined,
-  ArrowLeftOutlined,
   BankOutlined,
   EditOutlined,
   HistoryOutlined,
@@ -12,6 +11,7 @@ import {
 import { history, useAccess, useParams } from '@umijs/max';
 import { Button, Skeleton } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
+import { usePageTitle } from '@/components/PageTabs/hooks';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatDateTime } from '@/utils/format';
@@ -79,6 +79,7 @@ const SupplierDetailPage: React.FC = () => {
   const access = useAccess() as Record<string, boolean>;
   const { palette } = useAppTheme();
   const [record, setRecord] = useState<SupplierItem | null>();
+  usePageTitle(record ? `供应商 ${record.name}` : undefined, record?.name);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>();
 
@@ -243,20 +244,15 @@ const SupplierDetailPage: React.FC = () => {
         title="供应商详情"
         current="供应商详情"
         actions={
-          <>
-            <Button icon={<ArrowLeftOutlined />} onClick={back}>
-              返回
+          canEdit && (
+            <Button
+              type="primary"
+              icon={<EditOutlined />}
+              onClick={() => history.push(`${LIST_PATH}/${id}/edit`)}
+            >
+              编辑
             </Button>
-            {canEdit && (
-              <Button
-                type="primary"
-                icon={<EditOutlined />}
-                onClick={() => history.push(`${LIST_PATH}/${id}/edit`)}
-              >
-                编辑
-              </Button>
-            )}
-          </>
+          )
         }
       />
       {body}

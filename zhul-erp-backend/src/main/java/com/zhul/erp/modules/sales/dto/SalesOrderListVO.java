@@ -45,6 +45,9 @@ public class SalesOrderListVO {
     private Long piId;
     private String piNo;
     /** 售后补发：原订单 */
+    /** 售后补发订单：来源售后单 */
+    private Long afterSalesId;
+    private String afterSalesNo;
     private Long originalSoId;
     private String originalSoNo;
     /** 这张订单上的有效费用订单数 */

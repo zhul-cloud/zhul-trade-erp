@@ -11,6 +11,7 @@ import type { TableColumnsType, TableProps } from 'antd';
 import { Button, DatePicker, Form, Input, Select, Table } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
+import SourceNos from '@/components/DocFields/SourceNos';
 import { ellipsisRender } from '@/components/EllipsisText';
 import { PayStatusPill } from '@/pages/finance/payables/components';
 import { PAY_STATUS } from '@/pages/finance/payables/service';
@@ -291,18 +292,17 @@ const PurchaseOrderList: React.FC = () => {
         ),
     },
     {
-      title: '来源订单',
+      title: '来源单号',
       key: 'orders',
       width: 180,
       render: (_, r) => (
         <div>
-          {r.orders.map((o) => (
-            <div key={o.id}>
-              <a onClick={() => history.push(PATHS.salesOrder(o.id))}>
-                {o.soNo}
-              </a>
-            </div>
-          ))}
+          <SourceNos
+            refs={r.orders.map((o) => ({
+              no: o.soNo,
+              href: PATHS.salesOrder(o.id),
+            }))}
+          />
           {r.orderCancelledCount > 0 && <Pill tone="red">来源订单已取消</Pill>}
         </div>
       ),

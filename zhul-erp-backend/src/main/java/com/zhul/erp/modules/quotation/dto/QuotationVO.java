@@ -1,5 +1,6 @@
 package com.zhul.erp.modules.quotation.dto;
 
+import com.zhul.erp.common.result.DocRefVO;
 import lombok.Data;
 
 import java.math.BigDecimal;
@@ -60,6 +61,8 @@ public class QuotationVO {
     private List<SendLog> sendLogs;
     /** 来源询盘编号 */
     private List<String> inquiryCodes;
+    /** 来源单号：询盘单（按明细顺序） */
+    private List<DocRefVO> inquiries;
     /** 老客户提示：近 3 张已成交报价单的合计毛利率；不是老客户或提示已停用时为空 */
     private List<BigDecimal> returningCustomerMargins;
     private Boolean returningCustomer;

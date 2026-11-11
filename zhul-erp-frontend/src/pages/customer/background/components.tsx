@@ -11,6 +11,7 @@ import {
 import { history } from '@umijs/max';
 import { App, Button, Input, Modal, Segmented, Upload } from 'antd';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useTabActive } from '@/components/PageTabs/hooks';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatDateTime } from '@/utils/format';
 import { readBizError } from '../service';
@@ -200,11 +201,13 @@ export const useBackgroundReports = (customerId?: number) => {
   }, [customerId, message]);
   useEffect(load, [load]);
   const running = reports?.some((r) => r.status === STATUS.RUNNING);
+  // 在后台标签里不刷新，切回来再继续
+  const tabActive = useTabActive();
   useEffect(() => {
-    if (!running) return undefined;
+    if (!running || !tabActive) return undefined;
     const timer = window.setInterval(load, 5000);
     return () => window.clearInterval(timer);
-  }, [running, load]);
+  }, [running, tabActive, load]);
   return { reports, reload: load, running: !!running };
 };
 

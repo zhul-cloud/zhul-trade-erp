@@ -31,6 +31,7 @@ import {
 } from 'antd';
 import dayjs from 'dayjs';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useTabDirty } from '@/components/PageTabs/hooks';
 import { ProofLinks } from '@/pages/finance/payables/components';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
 import type { Attachment } from '@/pages/warehouse/service';
@@ -528,6 +529,7 @@ const MyTasksPage: React.FC = () => {
     window.addEventListener('beforeunload', warn);
     return () => window.removeEventListener('beforeunload', warn);
   }, [dirty]);
+  useTabDirty(dirty);
 
   /**
    * 粘贴报价填入草稿：同一渠道 + 店铺（供应商按 ID）已有的草稿覆盖，否则追加；同一批里同一型号的后几行追加，不互相覆盖。

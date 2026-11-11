@@ -209,7 +209,7 @@ const PayableManagement: React.FC = () => {
       ),
     },
     {
-      title: '来源',
+      title: '来源单号',
       key: 'source',
       width: 170,
       render: (_, r) => (
@@ -538,7 +538,7 @@ const PayableManagement: React.FC = () => {
           <>
             <div style={{ marginBottom: 14, color: palette.sub }}>
               {detail.payeeName} <PayeeTypePill type={detail.payeeType} /> ·
-              来源{' '}
+              来源单号{' '}
               <a onClick={() => history.push(sourcePath(detail))}>
                 {detail.sourceNo}
               </a>

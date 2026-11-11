@@ -1,4 +1,5 @@
 import { request } from '@umijs/max';
+import { resetTabs } from '@/components/PageTabs/store';
 import { clearToken } from '@/utils/tokenStore';
 
 export interface LoginParams {
@@ -58,6 +59,7 @@ export async function logout(): Promise<void> {
   } finally {
     clearToken();
     localStorage.removeItem('zhul_user');
+    resetTabs();
   }
 }
 

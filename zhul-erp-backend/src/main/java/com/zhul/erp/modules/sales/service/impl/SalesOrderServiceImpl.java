@@ -2025,6 +2025,12 @@ public class SalesOrderServiceImpl implements SalesOrderService {
                 .stream().collect(Collectors.groupingBy(SalesOrderDO::getOriginalSoId, Collectors.counting()));
         Map<Long, String> originalNos = originalIds.isEmpty() ? Map.of() : orderMapper.selectBatchIds(originalIds).stream()
                 .collect(Collectors.toMap(SalesOrderDO::getId, SalesOrderDO::getSoNo));
+        // 售后补发订单的来源单号是售后单
+        List<Long> afterSalesIds = rows.stream().filter(o -> Objects.equals(o.getSource(), SalesConstants.SO_REPLACEMENT))
+                .map(SalesOrderDO::getAfterSalesId).filter(id -> id != null && id > 0).distinct().toList();
+        Map<Long, String> afterSalesNos = afterSalesIds.isEmpty() ? Map.of() : afterSalesMapper.selectBatchIds(afterSalesIds).stream()
+                .collect(Collectors.toMap(com.zhul.erp.modules.aftersales.entity.AfterSalesDO::getId,
+                        com.zhul.erp.modules.aftersales.entity.AfterSalesDO::getAsNo));
         Map<Long, List<SalesOrderItemDO>> itemsByOrder = allItems.stream().collect(Collectors.groupingBy(SalesOrderItemDO::getSoId));
         List<SalesOrderListVO> list = new ArrayList<>(rows.size());
         for (SalesOrderDO o : rows) {
@@ -2082,6 +2088,10 @@ public class SalesOrderServiceImpl implements SalesOrderService {
             if (Objects.equals(o.getSource(), SalesConstants.SO_REPLACEMENT) || Objects.equals(o.getSource(), SalesConstants.SO_FEE)) {
                 vo.setOriginalSoId(o.getOriginalSoId());
                 vo.setOriginalSoNo(originalNos.get(o.getOriginalSoId()));
+            }
+            if (Objects.equals(o.getSource(), SalesConstants.SO_REPLACEMENT)) {
+                vo.setAfterSalesId(o.getAfterSalesId());
+                vo.setAfterSalesNo(afterSalesNos.get(o.getAfterSalesId()));
             }
             vo.setFeeOrderCount(feeOrderCounts.getOrDefault(o.getId(), 0L).intValue());
             vo.setCreateTime(o.getCreateTime());

@@ -23,6 +23,7 @@ import {
 import type { Dayjs } from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
 import { CustomerCell } from '@/components/DocFields';
+import SourceNos from '@/components/DocFields/SourceNos';
 import { ellipsisRender } from '@/components/EllipsisText';
 import { Stat, useWide } from '@/pages/inquiry/shared/components';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
@@ -239,15 +240,17 @@ const QuotationList: React.FC = () => {
       ),
     },
     {
-      title: '来源询盘',
-      dataIndex: 'inquiryCodes',
+      title: '来源单号',
+      key: 'inquiries',
       width: 190,
-      render: (v: string[]) =>
-        v.length === 0
-          ? '—'
-          : v.length === 1
-            ? v[0]
-            : `${v[0]} 等 ${v.length} 个`,
+      render: (_, r) => (
+        <SourceNos
+          refs={r.inquiries.map((x) => ({
+            no: x.no,
+            href: `/inquiry/customer-inquiries/${x.id}`,
+          }))}
+        />
+      ),
     },
     {
       title: '创建人',

@@ -13,6 +13,7 @@ import {
 } from 'antd';
 import dayjs from 'dayjs';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTabActive } from '@/components/PageTabs/hooks';
 import { Card, PageTitle, Pill } from '@/pages/inquiry/shared/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatDateTime } from '@/utils/format';
@@ -102,11 +103,13 @@ const HistoryMigrationPage: React.FC = () => {
 
   const running = batches.some(busy);
   // 有任务在跑时每 5 秒刷新一次进度
+  // 在后台标签里不刷新，切回来再继续
+  const tabActive = useTabActive();
   useEffect(() => {
-    if (!running) return undefined;
+    if (!running || !tabActive) return undefined;
     const t = window.setInterval(load, 5000);
     return () => window.clearInterval(t);
-  }, [running, load]);
+  }, [running, tabActive, load]);
 
   const expired = bundle?.linksExpireAt
     ? dayjs(bundle.linksExpireAt).isBefore(dayjs())

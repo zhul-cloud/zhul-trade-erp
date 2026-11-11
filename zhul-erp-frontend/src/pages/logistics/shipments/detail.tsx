@@ -10,6 +10,8 @@ import {
 import { Link, useAccess, useParams } from '@umijs/max';
 import { App, Button, Skeleton, Table } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
+import { listHref } from '@/components/DocFields/SourceNos';
+import { usePageTitle } from '@/components/PageTabs/hooks';
 import {
   Card,
   MigratedPill,
@@ -60,6 +62,7 @@ const ShipmentDetail: React.FC = () => {
   const access = useAccess();
   const canEdit = !!access['logistics:shipment:edit'];
   const [sh, setSh] = useState<Logistics>();
+  usePageTitle(sh ? `出运单 ${sh.shNo}` : undefined, sh?.shNo);
   const [error, setError] = useState<string>();
   const [dialog, setDialog] = useState<Dialog>();
   const [confirming, setConfirming] = useState<DirectRef>();
@@ -283,12 +286,16 @@ const ShipmentDetail: React.FC = () => {
           scroll={{ x: 'max-content' }}
           columns={[
             {
-              title: '来源',
+              title: '来源单号',
               key: 'src',
               width: 170,
               render: (_, r) => (
                 <div>
-                  <b style={{ color: palette.ink }}>{r.obNo}</b>
+                  <Link
+                    to={listHref(LOGISTICS_PATHS.outbounds, r.obNo, 'handed')}
+                  >
+                    {r.obNo}
+                  </Link>
                   {r.direct && (
                     <span
                       style={{
