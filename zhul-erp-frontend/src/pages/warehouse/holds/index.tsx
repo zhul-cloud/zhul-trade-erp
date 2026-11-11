@@ -112,9 +112,7 @@ const Holds: React.FC = () => {
           <div>
             <Pill tone="violet">售后退货</Pill>{' '}
             <a
-              onClick={() =>
-                history.push(`/warehouse/returns?id=${r.returnId}`)
-              }
+              onClick={() => history.push(`/warehouse/returns/${r.returnId}`)}
             >
               {r.returnNo}
             </a>

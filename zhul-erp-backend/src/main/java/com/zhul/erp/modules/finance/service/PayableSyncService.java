@@ -18,6 +18,9 @@ import com.zhul.erp.modules.masterdata.entity.SupplierDO;
 import com.zhul.erp.modules.masterdata.repository.SupplierMapper;
 import com.zhul.erp.modules.masterdata.support.PaymentTerms;
 import com.zhul.erp.modules.masterdata.support.SupplierRenamedEvent;
+import com.zhul.erp.modules.purchase.purchasereturn.PurchaseReturnConstants;
+import com.zhul.erp.modules.purchase.purchasereturn.entity.PurchaseReturnDO;
+import com.zhul.erp.modules.purchase.purchasereturn.repository.PurchaseReturnMapper;
 import com.zhul.erp.modules.purchase.constants.PurchaseConstants;
 import com.zhul.erp.modules.purchase.entity.PurchaseOrderDO;
 import com.zhul.erp.modules.purchase.entity.PurchaseOrderItemDO;
@@ -65,6 +68,7 @@ public class PayableSyncService {
     private final ForwarderStatementMapper statementMapper;
     private final ExpenseMapper expenseMapper;
     private final DocumentNumberService documentNumberService;
+    private final PurchaseReturnMapper purchaseReturnMapper;
 
     /** 采购订单：已下单的生成或重算；取消的关闭（已付转为欠款）；草稿不处理 */
     public void syncPurchaseOrder(Long poId) {
@@ -82,7 +86,8 @@ public class PayableSyncService {
             fillPayee(p, po);
             payableMapper.insert(p);
         }
-        BigDecimal amount = cancelled ? BigDecimal.ZERO : nz(po.getTotalAmount()).subtract(discountOf(poId)).max(BigDecimal.ZERO);
+        BigDecimal amount = cancelled ? BigDecimal.ZERO : nz(po.getTotalAmount()).subtract(discountOf(poId))
+                .subtract(returnCreditOf(poId)).max(BigDecimal.ZERO);
         InstallmentPlanner.Dates dates = new InstallmentPlanner.Dates(po.getOrderDate(), po.getExpectedShipDate(),
                 receivedDate(po), null);
         List<InstallmentPlanner.Term> terms = PaymentTerms.fromJson(po.getPaymentTerms()).stream()
@@ -361,6 +366,20 @@ public class PayableSyncService {
                         .eq(ReceivingDiscrepancyDO::getResolution, WarehouseConstants.RES_DISCOUNT)
                         .isNull(ReceivingDiscrepancyDO::getDeletedAt))
                 .stream().map(d -> nz(d.getDiscountAmount())).reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    /** 已完成的售后来源采购退货单的退款或抵扣合计（采购订单币种；历史迁移的不冲减，spec finance/accounts-payable「应付金额同步」） */
+    private BigDecimal returnCreditOf(Long poId) {
+        return purchaseReturnMapper.selectList(new LambdaQueryWrapper<PurchaseReturnDO>()
+                        .select(PurchaseReturnDO::getRefundAmount)
+                        .eq(PurchaseReturnDO::getPoId, poId)
+                        .eq(PurchaseReturnDO::getSourceType,
+                                PurchaseReturnConstants.SRC_AFTER_SALES)
+                        .eq(PurchaseReturnDO::getStatus,
+                                PurchaseReturnConstants.DONE)
+                        .eq(PurchaseReturnDO::getMigrated, 0)
+                        .isNull(PurchaseReturnDO::getDeletedAt))
+                .stream().map(r -> nz(r.getRefundAmount())).reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
     /** 全部入库（发货进度为已入库）时取有效采购入库单最晚的入库日期，否则为空 */

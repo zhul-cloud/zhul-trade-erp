@@ -39,6 +39,9 @@ public class DiscrepancyVO {
     private String handledByName;
     private LocalDateTime handledAt;
     private Long holdId;
+    /** 退货类处理生成的采购退货单 */
+    private Long purchaseReturnId;
+    private String purchaseReturnNo;
     private LocalDateTime createTime;
     private String createBy;
     private LocalDateTime updateTime;

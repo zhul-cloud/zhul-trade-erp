@@ -6,10 +6,9 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
-import java.math.BigDecimal;
 import java.util.List;
 
-/** 退货去向：同一退货行可以拆到多个去向，合计等于实收 */
+/** 退货去向：同一行可以拆到多个去向，可以分几次处理，累计不超过实收；退回供应商的快递、运费与退款在采购退货单上登记 */
 @Data
 public class DisposeReturnRequest {
     @Valid
@@ -18,6 +17,7 @@ public class DisposeReturnRequest {
 
     @Data
     public static class Line {
+        /** 退货入库单行 ID */
         @NotNull(message = "请选择退货行")
         private Long itemId;
         /** 1-退回供应商、2-转闲置库存、3-报废 */
@@ -25,14 +25,10 @@ public class DisposeReturnRequest {
         private Integer disposition;
         @NotNull(message = "请填写数量")
         private Integer quantity;
-        /** 退回供应商时必填 */
+        /** 退回供应商时必填（默认原采购订单的供应商） */
         private Long supplierId;
-        @Size(max = 64, message = "快递单号不能超过 64 字")
-        private String trackingNo;
-        /** 退回运费（CNY） */
-        private BigDecimal freightCny;
-        /** 供应商退款或抵扣（CNY） */
-        private BigDecimal supplierRefundCny;
+        /** 退回供应商：关联的采购订单（默认原订单型号行的采购订单，可以不选） */
+        private Long poId;
         @Size(max = 300, message = "说明不能超过 300 字")
         private String remark;
     }

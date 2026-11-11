@@ -21,6 +21,8 @@ public class RefundRequestDO {
     private String requestNo;
     private Long afterSalesId;
     private Long soId;
+    private Long salesReturnId;
+    private Integer refundFirst;
     private String currencyCode;
     private BigDecimal amount;
     private String reason;

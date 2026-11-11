@@ -12,7 +12,7 @@ import {
   Space,
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   DICT_REFUND_REASON,
   REFUND_METHODS,
@@ -32,7 +32,6 @@ import {
   DICT_LEVEL,
   DICT_REASON,
   DICT_SOLUTION,
-  returnApi,
 } from './service';
 
 const fmt = (d?: Dayjs | null) =>
@@ -819,152 +818,6 @@ export const CloseModal: React.FC<{
         <div style={{ fontSize: 12, color: palette.mute }}>
           结案后只能添加跟进记录。有没处理完的退货单、待处理的退款申请或还没出运的补发订单时不能结案。
         </div>
-      </Space>
-    </Modal>
-  );
-};
-
-// ---------------------------------------------------------------- 发起退货
-
-export const ReturnModal: React.FC<{
-  open: boolean;
-  data: AfterSales;
-  onClose: () => void;
-  onDone: () => void;
-}> = ({ open, data, onClose, onDone }) => {
-  const { message } = App.useApp();
-  const { palette } = useAppTheme();
-  const items = useMemo(
-    () => (data.items ?? []).filter((i) => i.soItemId),
-    [data],
-  );
-  const [qty, setQty] = useState<Record<number, number | null>>({});
-  const [carrier, setCarrier] = useState('');
-  const [trackingNo, setTrackingNo] = useState('');
-  const [remark, setRemark] = useState('');
-  const [busy, setBusy] = useState(false);
-  useEffect(() => {
-    if (!open) return;
-    const q: Record<number, number | null> = {};
-    items.forEach((i) => {
-      q[i.soItemId as number] = Math.min(i.quantity, i.shippedQty ?? 0) || null;
-    });
-    setQty(q);
-    setCarrier('');
-    setTrackingNo('');
-    setRemark('');
-  }, [open, items]);
-  return (
-    <Modal
-      open={open}
-      onCancel={onClose}
-      width={680}
-      title={
-        <div>
-          <div>发起退货</div>
-          <div style={{ fontSize: 12, color: palette.mute, fontWeight: 400 }}>
-            {data.asNo} · {data.soNo}
-          </div>
-        </div>
-      }
-      okText="发起退货"
-      okButtonProps={{ loading: busy }}
-      onOk={async () => {
-        const lines = Object.entries(qty)
-          .filter(([, v]) => (v ?? 0) > 0)
-          .map(([k, v]) => ({ soItemId: Number(k), quantity: v as number }));
-        if (lines.length === 0) {
-          message.error('请填写退回数量');
-          return;
-        }
-        setBusy(true);
-        try {
-          const r = await returnApi.create({
-            afterSalesId: data.id,
-            items: lines,
-            carrier: carrier.trim() || undefined,
-            trackingNo: trackingNo.trim() || undefined,
-            remark: remark.trim() || undefined,
-          });
-          message.success(`已发起退货 ${r.returnNo}`);
-          onDone();
-        } catch (e) {
-          message.error(readBizError(e).message);
-        } finally {
-          setBusy(false);
-        }
-      }}
-      destroyOnHidden
-    >
-      <Space orientation="vertical" size={14} style={{ width: '100%' }}>
-        <div
-          style={{
-            padding: '10px 14px',
-            borderRadius: 12,
-            background: palette.accentSoft,
-            fontSize: 13,
-            color: palette.sub,
-          }}
-        >
-          客户寄回后，仓库在「退货入库」验收；可退 = 已出运 −
-          其他退货单的数量。去向（退回供应商 / 转闲置 /
-          报废）由采购员在验收后处理。
-        </div>
-        {items.length === 0 && (
-          <div style={{ color: palette.mute }}>
-            售后单没有选订单型号，不能退货
-          </div>
-        )}
-        {items.map((i) => (
-          <div
-            key={i.id}
-            style={{ display: 'flex', alignItems: 'center', gap: 12 }}
-          >
-            <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: 600, color: palette.ink }}>
-                {i.model}
-              </div>
-              <div style={{ fontSize: 12, color: palette.mute }}>
-                已出运 {i.shippedQty ?? 0} 个 · 售后 {i.quantity} 个
-              </div>
-            </div>
-            <InputNumber<number>
-              min={0}
-              precision={0}
-              value={qty[i.soItemId as number] ?? null}
-              onChange={(v) =>
-                setQty((s) => ({ ...s, [i.soItemId as number]: v }))
-              }
-              style={{ width: 120 }}
-              aria-label={`${i.model} 退回数量`}
-            />
-          </div>
-        ))}
-        <div
-          style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}
-        >
-          <Input
-            value={carrier}
-            maxLength={32}
-            onChange={(e) => setCarrier(e.target.value)}
-            placeholder="客户寄回快递，如 DHL"
-            aria-label="快递公司"
-          />
-          <Input
-            value={trackingNo}
-            maxLength={64}
-            onChange={(e) => setTrackingNo(e.target.value)}
-            placeholder="快递单号（可后补）"
-            aria-label="快递单号"
-          />
-        </div>
-        <Input
-          value={remark}
-          maxLength={300}
-          onChange={(e) => setRemark(e.target.value)}
-          placeholder="说明（选填），如 供应商 RMA 号"
-          aria-label="说明"
-        />
       </Space>
     </Modal>
   );

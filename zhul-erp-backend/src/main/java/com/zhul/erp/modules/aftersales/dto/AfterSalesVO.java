@@ -61,6 +61,8 @@ public class AfterSalesVO {
     private List<AttachmentVO> attachments;
     private List<Log> logs;
     private List<ReturnBrief> returns;
+    /** 售后来源的采购退货单 */
+    private List<ReturnVO.DocBrief> purchaseReturns;
     private List<RequestBrief> requests;
     private List<RefundBrief> refunds;
     private List<ExpenseBrief> expenses;
@@ -107,6 +109,11 @@ public class AfterSalesVO {
         private Integer quantity;
         /** 订单型号已出运数量（退货上限参考） */
         private Integer shippedQty;
+        /** 还能退的数量 = 已出运 − 未作废销售退货单上的数量 */
+        private Integer returnableQty;
+        /** 成交单价（原币），退货退款预计退款用 */
+        private BigDecimal unitPrice;
+        private String category;
     }
 
     @Data
@@ -125,9 +132,16 @@ public class AfterSalesVO {
     public static class ReturnBrief {
         private Long id;
         private String returnNo;
+        private Integer handling;
+        private String handlingName;
         private Integer status;
         private String statusName;
         private String summary;
+        /** 退货入库单（确认后生成） */
+        private Long receiptId;
+        private String receiptNo;
+        private Integer receiptStatus;
+        private String receiptStatusName;
     }
 
     @Data

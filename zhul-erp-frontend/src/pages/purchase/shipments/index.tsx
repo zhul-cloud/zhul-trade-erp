@@ -1,5 +1,5 @@
 import { SearchOutlined } from '@ant-design/icons';
-import { history, useAccess, useLocation } from '@umijs/max';
+import { history, Link, useAccess, useLocation } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import {
   App,
@@ -17,6 +17,7 @@ import { useUrlFilter } from '@/components/DocFields/SourceNos';
 import EllipsisText, { ellipsisRender } from '@/components/EllipsisText';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { auditColumns } from '@/pages/purchase/components';
+import { PATHS as SALES_PATHS } from '@/pages/sales/components';
 import {
   ArrivalCell,
   AttachmentWall,
@@ -583,6 +584,11 @@ const DiffsTab: React.FC<{ onChanged: () => void }> = ({ onChanged }) => {
           <div>
             <b style={{ color: palette.ink }}>{v}</b>
             {resolutionDetail(r) && sub(palette.mute, resolutionDetail(r))}
+            {r.purchaseReturnId && r.purchaseReturnNo && (
+              <Link to={SALES_PATHS.purchaseReturn(r.purchaseReturnId)}>
+                {r.purchaseReturnNo}
+              </Link>
+            )}
           </div>
         ) : (
           <span style={{ color: palette.mute }}>—</span>

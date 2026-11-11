@@ -27,4 +27,19 @@ public class SaveRefundRequestApply {
     private String payeeInfo;
     @Size(max = 500, message = "说明不能超过 500 字")
     private String remark;
+    /** 分项（选填）：不填时为一行「退款」；填写时合计须等于申请金额 */
+    @jakarta.validation.Valid
+    private java.util.List<Line> lines;
+
+    @Data
+    public static class Line {
+        @NotBlank(message = "请填写退款项目")
+        @Size(max = 100, message = "退款项目不能超过 100 字")
+        private String itemName;
+        @NotNull(message = "请填写分项金额")
+        @DecimalMin(value = "0.01", message = "分项金额须大于 0")
+        private BigDecimal amount;
+        @Size(max = 200, message = "说明不能超过 200 字")
+        private String note;
+    }
 }

@@ -1,16 +1,10 @@
-import { AuditOutlined, InfoCircleOutlined } from '@ant-design/icons';
 import {
-  App,
-  AutoComplete,
-  Checkbox,
-  Input,
-  InputNumber,
-  Modal,
-  Radio,
-  Select,
-} from 'antd';
+  AuditOutlined,
+  FileDoneOutlined,
+  InfoCircleOutlined,
+} from '@ant-design/icons';
+import { App, Checkbox, Input, InputNumber, Modal, Radio } from 'antd';
 import React, { useEffect, useState } from 'react';
-import { useUserOptions } from '@/pages/sales/orders/dialogs';
 import { AttachmentWall } from '@/pages/warehouse/components';
 import {
   type Attachment,
@@ -20,7 +14,6 @@ import {
   readBizError,
 } from '@/pages/warehouse/service';
 import { useAppTheme } from '@/theme/AppTheme';
-import { CARRIERS } from './ShipmentDrawer';
 
 /** 差异类型 → 可选的处理方式与说明（与后端 WarehouseConstants.RESOLUTIONS_BY_TYPE 一致） */
 const OPTIONS: Record<
@@ -77,7 +70,6 @@ const HandleDiscrepancyModal: React.FC<{
   onDone: () => void;
 }> = ({ target, onClose, onDone }) => {
   const { palette } = useAppTheme();
-  const users = useUserOptions();
   const { message } = App.useApp();
   const [body, setBody] = useState<HandleDiscrepancyBody>({ resolution: 0 });
   const [evidence, setEvidence] = useState<{
@@ -206,68 +198,24 @@ const HandleDiscrepancyModal: React.FC<{
           </div>
         )}
         {RETURNS.includes(r) && (
-          <>
-            <div>
-              <div style={{ color: palette.sub, marginBottom: 6 }}>
-                退货快递
-              </div>
-              <AutoComplete
-                options={CARRIERS}
-                value={body.returnCarrier}
-                onChange={(v) => set({ returnCarrier: v })}
-                placeholder="选填"
-                style={{ width: '100%' }}
-                aria-label="退货快递公司"
-              />
-            </div>
-            <div>
-              <div style={{ color: palette.sub, marginBottom: 6 }}>
-                退货单号
-              </div>
-              <Input
-                maxLength={64}
-                value={body.returnTrackingNo}
-                onChange={(e) => set({ returnTrackingNo: e.target.value })}
-                placeholder="选填"
-                aria-label="退货快递单号"
-              />
-            </div>
-            <div>
-              <div style={{ color: palette.sub, marginBottom: 6 }}>运费</div>
-              <InputNumber
-                min={0}
-                precision={2}
-                prefix="¥"
-                value={body.returnFreight}
-                onChange={(v) => set({ returnFreight: v })}
-                placeholder="选填"
-                style={{ width: '100%' }}
-                aria-label="退货运费"
-              />
-            </div>
-            {!!body.returnFreight && body.returnFreight > 0 && (
-              <div>
-                <div style={{ color: palette.sub, marginBottom: 6 }}>
-                  运费垫付人
-                </div>
-                <Select
-                  allowClear
-                  showSearch={{ optionFilterProp: 'label' }}
-                  placeholder="默认自己"
-                  value={body.returnPayerId}
-                  onChange={(v) => set({ returnPayerId: v })}
-                  options={users}
-                  style={{ width: '100%' }}
-                  aria-label="运费垫付人"
-                />
-                <div
-                  style={{ fontSize: 12, color: palette.mute, marginTop: 4 }}
-                >
-                  进入垫付人的待报销，报销时补传付款截图
-                </div>
-              </div>
-            )}
-          </>
+          <div
+            style={{
+              gridColumn: '1 / -1',
+              padding: '10px 12px',
+              borderRadius: 10,
+              background: palette.accentSoft,
+              color: palette.sub,
+              fontSize: 13,
+            }}
+          >
+            <FileDoneOutlined style={{ color: palette.link }} />{' '}
+            {r === 3
+              ? `生成采购退货单（待寄出），退回 ${target.quantity} 个`
+              : r === 4
+                ? `采购订单行减 ${target.quantity} 个，并生成采购退货单（待寄出）`
+                : `生成采购退货单（待寄出），寄回多发的 ${target.quantity} 个`}
+            ；快递与运费到采购退货单上登记
+          </div>
         )}
         {r === 7 && (
           <>
