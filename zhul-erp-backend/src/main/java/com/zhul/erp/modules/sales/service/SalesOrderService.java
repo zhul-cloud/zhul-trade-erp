@@ -44,6 +44,12 @@ public interface SalesOrderService {
 
     SalesOrderVO cancel(Long id, String reason);
 
+    /** 删除前检查关联单据（spec sales/sales-order「删除销售订单」） */
+    com.zhul.erp.modules.sales.dto.DeleteCheckVO deleteCheck(Long id);
+
+    /** 删除订单（软删除）；有挡住删除的单据时拒绝 */
+    void delete(Long id, String reason);
+
     /** 部分取消的影响（只计算，不写库） */
     com.zhul.erp.modules.sales.dto.PartialCancelPreviewVO partialCancelPreview(Long id, com.zhul.erp.modules.sales.dto.PartialCancelRequest req);
 

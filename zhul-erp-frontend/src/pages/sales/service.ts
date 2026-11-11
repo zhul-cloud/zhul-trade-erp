@@ -679,6 +679,21 @@ export interface FeeOrderBrief {
   progressCode: string;
 }
 
+/** 删除订单时的一张关联单据：note 挡住时写怎么处理，一起处理时写删除后的结果 */
+export interface OrderDeleteDoc {
+  kind: string;
+  no: string;
+  path?: string | null;
+  note: string;
+}
+
+/** 删除前检查：DIRECT 直接删除、CONFIRM 列出关联单据确认后删除、BLOCKED 不能删除 */
+export interface OrderDeleteCheck {
+  level: 'DIRECT' | 'CONFIRM' | 'BLOCKED';
+  blockers: OrderDeleteDoc[];
+  related: OrderDeleteDoc[];
+}
+
 export interface Order {
   id: number;
   soNo: string;
@@ -1110,6 +1125,11 @@ export const orderApi = {
     }),
   cancel: (id: number, reason: string) =>
     send<Order>('POST', `${SO}/${id}/cancel`, { reason }),
+  /** 删除前检查关联单据 */
+  deleteCheck: (id: number) =>
+    get<OrderDeleteCheck>(`${SO}/${id}/delete-check`),
+  remove: (id: number, reason: string) =>
+    send<void>('POST', `${SO}/${id}/delete`, { reason }),
   partialCancelReasons: () =>
     get<Record<string, string>>(`${SO}/partial-cancel-reasons`),
   partialCancelPreview: (id: number, body: PartialCancelBody) =>
