@@ -9,8 +9,8 @@
 | 目标与影响范围 | 销售订单详情的「更新进度」弹窗（`pages/sales/orders/dialogs.tsx` 的 `ProgressModal`）；只改前端，不改接口与数据 |
 | 起点 commit / 工作分支 | `0ecfa27c`（develop，v1.17.0 合回与归档后）/ `fix/fee-order-detail-crash` |
 | OpenSpec | 缺陷修复，不新开提案 |
-| PR / 目标分支 | 待创建：fix/fee-order-detail-crash → develop |
-| 合并证据 | — |
+| PR / 目标分支 | [#237](https://github.com/zhul-cloud/zhul-trade-erp/pull/237) → develop |
+| 合并证据 | 2026-11-11 合并到 develop（`af2691c8`） |
 | 目标版本 / 环境 | 下一个发布版本；生产 |
 
 ## 原因
@@ -37,7 +37,7 @@
 
 | ID | 修复 / 验收范围 | 部署与目标环境验收证据 | 验收人 / 日期 | 结论与剩余项 |
 | --- | --- | --- | --- | --- |
-| UI-046 | 费用订单详情可以正常打开 | — | — | 待合并 |
+| UI-046 | 费用订单详情可以正常打开 | 未部署 | — | 已合并待发布 |
 
 ## 阻塞与下一步
 
@@ -48,3 +48,4 @@
 | 日期 / 作者 | 事件与证据 | 下一步 / 交接 |
 | --- | --- | --- |
 | 2026-11-11 / Claude | 用户反馈；本机复现并定位到 `ProgressModal` 空数组 `reduce`；修复并补测试 | 提交、创建 PR |
+| 2026-11-11 / Claude | #237 CI 全部通过，合并到 develop | 随下一个版本发布 |
