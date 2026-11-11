@@ -223,6 +223,14 @@ class AfterSalesContractTest extends SalesContractSupport {
         assertEquals("PR" + today() + "001", pr.path("returnNo").asText());
         assertEquals("待寄出", pr.path("statusName").asText());
         assertEquals(rr.path("receiptNo").asText(), pr.path("sourceNo").asText());
+        // 采购退货列表：待寄出页签计数、按退货入库单号与型号搜索、采购订单详情列出
+        assertEquals(1, ok(call(get(PRS + "/counts"), admin)).path("pending").asLong());
+        JsonNode prPage = ok(call(json(post(PRS + "/page"), write(Map.of("status", 1, "keyword", rr.path("receiptNo").asText()))), admin));
+        assertEquals(1, prPage.path("total").asInt());
+        assertEquals(pr.path("returnNo").asText(), prPage.path("records").get(0).path("returnNo").asText());
+        assertEquals(1, ok(call(json(post(PRS + "/page"), write(Map.of("keyword", "A-1"))), admin)).path("total").asInt());
+        assertEquals(0, ok(call(json(post(PRS + "/page"), write(Map.of("status", 2))), admin)).path("total").asInt());
+        assertEquals(prId, ok(call(get(PRS + "/of-order/" + poId), admin)).get(0).path("id").asLong());
         assertEquals(0, new java.math.BigDecimal("2000").compareTo(jdbc.queryForObject("select sum(amount) from fin_payable where source_type = 1 and source_id = ? and deleted_at is null", java.math.BigDecimal.class, poId)));
         ok(call(json(post(PRS + "/" + prId + "/ship"), write(Map.of("shipDate", LocalDate.now().toString(), "carrier", "顺丰",
                 "trackingNo", "SF7788", "freightCny", 45, "companyPaid", true))), admin));
@@ -231,6 +239,7 @@ class AfterSalesContractTest extends SalesContractSupport {
         JsonNode prDone = ok(call(json(post(PRS + "/" + prId + "/complete"), write(Map.of("signedDate", LocalDate.now().toString(),
                 "refundAmount", 150, "settleNote", "抵扣下次货款"))), admin));
         assertEquals("已完成", prDone.path("statusName").asText());
+        assertEquals(0, ok(call(get(PRS + "/counts"), admin)).path("pending").asLong(), "完成后不再计入待寄出");
         assertEquals(0, new java.math.BigDecimal("1850").compareTo(jdbc.queryForObject("select sum(amount) from fin_payable where source_type = 1 and source_id = ? and deleted_at is null", java.math.BigDecimal.class, poId)));
         JsonNode rrAfter = ok(call(get(RT + "/" + rid), admin));
         money("350", rrAfter.path("costCny"));
