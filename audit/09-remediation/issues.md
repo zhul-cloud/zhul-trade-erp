@@ -92,6 +92,8 @@
 | [UI-044](tasks/2026-11-09-UI-044-user-feedback-1109.md) | 报价单 / PI 预览模糊、PDF 页边和底部大片空白 | P2 | 已发布待验收 | Claude | [2026-11-09-UI-044](tasks/2026-11-09-UI-044-user-feedback-1109.md) | 2026-11-09 |
 | [UI-045](tasks/2026-11-09-UI-044-user-feedback-1109.md) | 列表「型号 · 数量」列型号过长时盖住相邻的品牌列 | P3 | 已发布待验收 | Claude | [2026-11-09-UI-044](tasks/2026-11-09-UI-044-user-feedback-1109.md) | 2026-11-09 |
 | [UI-046](tasks/2026-11-11-UI-046-fee-order-detail-crash.md) | 费用订单详情页打开即显示「页面出现错误」 | P1 | 待合并 | Claude | [2026-11-11-UI-046](tasks/2026-11-11-UI-046-fee-order-detail-crash.md) | 2026-11-11 |
+| [UI-047](tasks/2026-11-11-UI-047-user-feedback-1111.md) | 列多的列表滚动后，表格固定列盖住顶部栏与标签栏 | P2 | 待合并 | Claude | [2026-11-11-UI-047](tasks/2026-11-11-UI-047-user-feedback-1111.md) | 2026-11-11 |
+| [UI-048](tasks/2026-11-11-UI-047-user-feedback-1111.md) | 来源单号与客户 / 供应商合在一列，不符合单据页统一规范 | P3 | 待合并 | Claude | [2026-11-11-UI-047](tasks/2026-11-11-UI-047-user-feedback-1111.md) | 2026-11-11 |
 
 ## AI 可靠性
 

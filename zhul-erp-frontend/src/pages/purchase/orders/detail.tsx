@@ -33,6 +33,7 @@ import {
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { CustomerCell } from '@/components/DocFields';
 import { usePageTitle } from '@/components/PageTabs/hooks';
 import {
   ACCEPT_PROOF,
@@ -382,17 +383,19 @@ const PurchaseOrderDetail: React.FC = () => {
       ),
     },
     {
-      title: '来源单号 · 客户',
+      title: '来源单号',
       dataIndex: 'soNo',
-      width: 220,
+      width: 160,
       render: (v: string, r) => (
-        <div>
-          <a onClick={() => history.push(PATHS.salesOrder(r.soId))}>{v}</a>
-          {sub(
-            palette.mute,
-            [r.customerName, r.customerCountry].filter(Boolean).join(' · '),
-          )}
-        </div>
+        <a onClick={() => history.push(PATHS.salesOrder(r.soId))}>{v}</a>
+      ),
+    },
+    {
+      title: '客户',
+      key: 'customer',
+      width: 200,
+      render: (_, r) => (
+        <CustomerCell name={r.customerName} country={r.customerCountry} />
       ),
     },
     {

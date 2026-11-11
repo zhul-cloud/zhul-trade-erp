@@ -3,6 +3,7 @@ import { Link, useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { App, Button, Input, Segmented, Table } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
+import { CustomerCell } from '@/components/DocFields';
 import { useUrlFilter } from '@/components/DocFields/SourceNos';
 import EllipsisText, { ellipsisRender } from '@/components/EllipsisText';
 import { kg, LOGISTICS_PATHS } from '@/pages/logistics/components';
@@ -83,11 +84,11 @@ const Outbounds: React.FC = () => {
     refreshCounts();
   };
 
-  const orderCell = (_: unknown, r: Outbound) => (
-    <div>
-      <Link to={LOGISTICS_PATHS.salesOrder(r.soId)}>{r.soNo}</Link>
-      {sub(palette.mute, r.customerName)}
-    </div>
+  const customerCell = (_: unknown, r: Outbound) => (
+    <CustomerCell name={r.customerName} />
+  );
+  const sourceCell = (_: unknown, r: Outbound) => (
+    <Link to={LOGISTICS_PATHS.salesOrder(r.soId)}>{r.soNo}</Link>
   );
   const itemsCell = (_: unknown, r: Outbound) => (
     <div style={{ fontSize: 13 }}>
@@ -110,10 +111,10 @@ const Outbounds: React.FC = () => {
             render: obCell,
           },
           {
-            title: '来源单号 · 客户',
-            key: 'so',
-            width: 220,
-            render: orderCell,
+            title: '客户',
+            key: 'customer',
+            width: 200,
+            render: customerCell,
           },
           { title: '货代', dataIndex: 'forwarderName', width: 120 },
           { title: '型号 · 数量', key: 'items', width: 260, render: itemsCell },
@@ -123,6 +124,12 @@ const Outbounds: React.FC = () => {
             width: 160,
             render: (v?: string) =>
               v || <span style={{ color: palette.mute }}>—</span>,
+          },
+          {
+            title: '来源单号',
+            key: 'so',
+            width: 160,
+            render: sourceCell,
           },
           {
             title: '业务员',
@@ -149,10 +156,10 @@ const Outbounds: React.FC = () => {
               render: obCell,
             },
             {
-              title: '来源单号 · 客户',
-              key: 'so',
-              width: 220,
-              render: orderCell,
+              title: '客户',
+              key: 'customer',
+              width: 200,
+              render: customerCell,
             },
             { title: '货代', dataIndex: 'forwarderName', width: 120 },
             {
@@ -179,6 +186,12 @@ const Outbounds: React.FC = () => {
                 </div>
               ),
             },
+            {
+              title: '来源单号',
+              key: 'so',
+              width: 160,
+              render: sourceCell,
+            },
             ...auditColumns<Outbound>(),
             {
               title: '操作',
@@ -199,10 +212,10 @@ const Outbounds: React.FC = () => {
               render: obCell,
             },
             {
-              title: '来源单号 · 客户',
-              key: 'so',
-              width: 220,
-              render: orderCell,
+              title: '客户',
+              key: 'customer',
+              width: 200,
+              render: customerCell,
             },
             { title: '货代', dataIndex: 'forwarderName', width: 120 },
             { title: '箱数', dataIndex: 'boxCount', width: 70 },
@@ -240,6 +253,12 @@ const Outbounds: React.FC = () => {
               width: 150,
               render: (v?: string) =>
                 v || <span style={{ color: palette.mute }}>待出运</span>,
+            },
+            {
+              title: '来源单号',
+              key: 'so',
+              width: 160,
+              render: sourceCell,
             },
             ...auditColumns<Outbound>(),
             {
