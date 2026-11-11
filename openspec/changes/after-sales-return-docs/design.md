@@ -128,7 +128,7 @@
 
 ## Migration Plan
 
-迁移版本 V1.5.25（下一个可用版本，开发时再确认）：
+迁移版本 V1.5.27（V1.5.25、V1.5.26 已被 AI 任务进度、品牌 Others 占用）：
 
 1. 建表 `return_receipt`、`return_receipt_item`、`purchase_return`、`purchase_return_item`、`fin_refund_request_item`；加列（`sales_return.handling` 等、`sales_return_disposition.receipt_id / receipt_item_id / purchase_return_id`、`fin_refund_request.sales_return_id / refund_first`、`receiving_discrepancy.purchase_return_id`）。
 2. 存量销售退货单：状态 1 待入库 → 销售退货单 2 待入库 + 退货入库单 1 待入库；2 待处理 → 3 已入库 + 退货入库单 2 待处理；3 已处理 → 3 已入库 + 退货入库单 3 已处理；4 已作废 → 4 已作废（不生成入库单）。处理方式按是否有关联退款申请判断（有为退货退款，否则仅退货）。退货入库单编号按创建日期补发 RR 号，入库字段从 `sales_return_item` 复制。

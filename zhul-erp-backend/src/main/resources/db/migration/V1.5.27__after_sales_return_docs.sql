@@ -1,4 +1,4 @@
--- V1.5.25：售后退货单据化（openspec after-sales-return-docs）。
+-- V1.5.27：售后退货单据化（openspec after-sales-return-docs）。
 -- 售后 → 销售退货单 TH → 退货入库单 RR → 采购退货单 PR，退款申请 RA 增加「待验收」与明细；到货差异的退货类处理也生成采购退货单。
 -- 1. 建表 return_receipt、return_receipt_item、purchase_return、purchase_return_item、fin_refund_request_item，相关表加列。
 -- 2. 存量销售退货单拆出退货入库单（状态对照见 design.md「Migration Plan」），闲置库存的来源改指退货入库单。
@@ -8,7 +8,7 @@
 -- 5. 菜单「销售管理 → 销售退货」「采购管理 → 采购退货」、按钮「维护采购退货单」，角色与租户套餐授权。
 -- 订单成本、应付、待报销的数字不变：退回供应商的冲减金额与运费仍记在去向行（由采购退货单同步写回），
 -- 迁移生成的采购退货单 migrated = 1，不参与应付冲减。
--- 回退：见文件末尾注释（反向脚本，需与旧版本代码一起回退，手动执行）。
+-- 回退：sql/build/rollback/V1.5.27__after_sales_return_docs_rollback.sql（需与旧版本代码一起回退，手动执行）。
 
 -- ---------------------------------------------------------------- 1. 表结构
 
@@ -296,7 +296,7 @@ WHERE f.`owner_type` = 'SALES_RETURN' AND f.`owner_id` > 0;
 
 -- ---------------------------------------------------------------- 3. 存量退回供应商 → 已完成的采购退货单
 
-CREATE TABLE `tmp_v1525_pr` (
+CREATE TABLE `tmp_v1527_pr` (
     `seq`          int          NOT NULL AUTO_INCREMENT,
     `tenant_id`    int          NOT NULL,
     `biz_date`     date         NOT NULL,
@@ -304,9 +304,9 @@ CREATE TABLE `tmp_v1525_pr` (
     `src_id`       bigint       NOT NULL,
     `return_no`    varchar(32)  NOT NULL DEFAULT '',
     PRIMARY KEY (`seq`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='V1.5.25 迁移用临时表，迁移结束删除';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='V1.5.27 迁移用临时表，迁移结束删除';
 
-INSERT INTO `tmp_v1525_pr` (`tenant_id`, `biz_date`, `kind`, `src_id`)
+INSERT INTO `tmp_v1527_pr` (`tenant_id`, `biz_date`, `kind`, `src_id`)
 SELECT x.`tenant_id`, x.`biz_date`, x.`kind`, x.`src_id` FROM (
     SELECT d.`tenant_id`, DATE(d.`create_time`) AS `biz_date`, 1 AS `kind`, d.`id` AS `src_id`, d.`create_time` AS `t`
     FROM `sales_return_disposition` d
@@ -318,12 +318,12 @@ SELECT x.`tenant_id`, x.`biz_date`, x.`kind`, x.`src_id` FROM (
 ) x
 ORDER BY x.`t`, x.`kind`, x.`src_id`;
 
-UPDATE `tmp_v1525_pr` t
-JOIN (SELECT `seq`, ROW_NUMBER() OVER (PARTITION BY `tenant_id`, `biz_date` ORDER BY `seq`) AS n FROM `tmp_v1525_pr`) z ON z.`seq` = t.`seq`
+UPDATE `tmp_v1527_pr` t
+JOIN (SELECT `seq`, ROW_NUMBER() OVER (PARTITION BY `tenant_id`, `biz_date` ORDER BY `seq`) AS n FROM `tmp_v1527_pr`) z ON z.`seq` = t.`seq`
 SET t.`return_no` = CONCAT('PR', DATE_FORMAT(t.`biz_date`, '%Y%m%d'), LPAD(z.n, 3, '0'));
 
 INSERT INTO `document_sequence` (`tenant_id`, `doc_type`, `biz_date`, `last_no`)
-SELECT `tenant_id`, 'PR', `biz_date`, COUNT(*) FROM `tmp_v1525_pr` GROUP BY `tenant_id`, `biz_date`
+SELECT `tenant_id`, 'PR', `biz_date`, COUNT(*) FROM `tmp_v1527_pr` GROUP BY `tenant_id`, `biz_date`
 ON DUPLICATE KEY UPDATE `last_no` = GREATEST(`last_no`, VALUES(`last_no`));
 
 -- 售后来源：运费、快递、供应商退款搬到采购退货单；垫付人为空（以前不进报销）；采购订单取该型号行最早的有效采购订单
@@ -337,7 +337,7 @@ SELECT d.`tenant_id`, t.`return_no`, IFNULL(d.`supplier_id`, 0), 1,
        d.`receipt_id`, NULL, r.`after_sales_id`, d.`so_id`, d.`operator_id`, 3, DATE(d.`create_time`), '', d.`tracking_no`, d.`freight_cny`, NULL,
        DATE(d.`create_time`), 'CNY', 1, d.`supplier_refund_cny`, d.`supplier_refund_cny`, '历史迁移，未冲减应付', d.`remark`,
        1, d.`create_time`, d.`create_by`, d.`update_time`, d.`update_by`
-FROM `tmp_v1525_pr` t
+FROM `tmp_v1527_pr` t
 JOIN `sales_return_disposition` d ON d.`id` = t.`src_id`
 JOIN `sales_return` r ON r.`id` = d.`return_id`
 WHERE t.`kind` = 1;
@@ -347,14 +347,14 @@ INSERT INTO `purchase_return_item` (`tenant_id`, `purchase_return_id`, `receipt_
 SELECT d.`tenant_id`, p.`id`, d.`receipt_item_id`, d.`id`, d.`so_item_id`,
        (SELECT MIN(pi.`id`) FROM `purchase_order_item` pi WHERE pi.`po_id` = p.`po_id` AND pi.`so_item_id` = d.`so_item_id` AND pi.`deleted_at` IS NULL),
        i.`model`, i.`brand`, d.`quantity`, d.`create_time`, d.`create_by`, d.`update_time`, d.`update_by`
-FROM `tmp_v1525_pr` t
+FROM `tmp_v1527_pr` t
 JOIN `sales_return_disposition` d ON d.`id` = t.`src_id`
 JOIN `sales_return_item` i ON i.`id` = d.`return_item_id`
 JOIN `purchase_return` p ON p.`tenant_id` = t.`tenant_id` AND p.`return_no` = t.`return_no`
 WHERE t.`kind` = 1;
 
 UPDATE `sales_return_disposition` d
-JOIN `tmp_v1525_pr` t ON t.`kind` = 1 AND t.`src_id` = d.`id`
+JOIN `tmp_v1527_pr` t ON t.`kind` = 1 AND t.`src_id` = d.`id`
 JOIN `purchase_return` p ON p.`tenant_id` = t.`tenant_id` AND p.`return_no` = t.`return_no`
 SET d.`purchase_return_id` = p.`id`;
 
@@ -368,7 +368,7 @@ SELECT g.`tenant_id`, t.`return_no`, IFNULL(po.`supplier_id`, 0), CASE g.`resolu
        IFNULL(g.`return_freight`, 0), IF(IFNULL(g.`return_freight`, 0) > 0, g.`return_payer_id`, NULL), t.`biz_date`,
        IFNULL(po.`currency_code`, 'CNY'), IFNULL(po.`exchange_rate`, 1), 0, 0, '历史迁移', g.`note`,
        1, IFNULL(g.`handled_at`, g.`update_time`), g.`create_by`, g.`update_time`, g.`update_by`
-FROM `tmp_v1525_pr` t
+FROM `tmp_v1527_pr` t
 JOIN `receiving_discrepancy` g ON g.`id` = t.`src_id`
 LEFT JOIN `purchase_order` po ON po.`id` = g.`po_id`
 WHERE t.`kind` = 2;
@@ -376,13 +376,13 @@ WHERE t.`kind` = 2;
 INSERT INTO `purchase_return_item` (`tenant_id`, `purchase_return_id`, `discrepancy_id`, `po_item_id`, `model`, `brand`, `quantity`,
                                     `create_time`, `create_by`, `update_time`, `update_by`)
 SELECT g.`tenant_id`, p.`id`, g.`id`, g.`po_item_id`, g.`model`, g.`brand`, g.`quantity`, p.`create_time`, g.`create_by`, g.`update_time`, g.`update_by`
-FROM `tmp_v1525_pr` t
+FROM `tmp_v1527_pr` t
 JOIN `receiving_discrepancy` g ON g.`id` = t.`src_id`
 JOIN `purchase_return` p ON p.`tenant_id` = t.`tenant_id` AND p.`return_no` = t.`return_no`
 WHERE t.`kind` = 2;
 
 UPDATE `receiving_discrepancy` g
-JOIN `tmp_v1525_pr` t ON t.`kind` = 2 AND t.`src_id` = g.`id`
+JOIN `tmp_v1527_pr` t ON t.`kind` = 2 AND t.`src_id` = g.`id`
 JOIN `purchase_return` p ON p.`tenant_id` = t.`tenant_id` AND p.`return_no` = t.`return_no`
 SET g.`purchase_return_id` = p.`id`;
 
@@ -399,7 +399,7 @@ JOIN `purchase_return` p ON p.`id` = g.`purchase_return_id`
 SET f.`owner_id` = p.`id`
 WHERE f.`owner_type` = 'RETURN_PROOF' AND f.`owner_id` > 0;
 
-DROP TABLE `tmp_v1525_pr`;
+DROP TABLE `tmp_v1527_pr`;
 
 -- ---------------------------------------------------------------- 4. 存量退款申请补「退款」明细
 
@@ -477,27 +477,3 @@ SELECT 1 INTO @v1525_chk FROM (SELECT 1 AS a UNION ALL SELECT 2) t
 WHERE EXISTS (SELECT 1 FROM `fin_refund_request` q
               WHERE q.`amount` <> (SELECT IFNULL(SUM(x.`amount`), 0) FROM `fin_refund_request_item` x
                                    WHERE x.`request_id` = q.`id` AND x.`deleted_at` IS NULL));
-
--- ---------------------------------------------------------------- 回退（手动执行，与旧版本代码一起回退）
--- UPDATE `sales_return` SET `status` = CASE WHEN `status` = 2 THEN 1 WHEN `status` = 3 THEN
---     IFNULL((SELECT CASE x.`status` WHEN 2 THEN 2 WHEN 3 THEN 3 ELSE 2 END FROM `return_receipt` x WHERE x.`sales_return_id` = `sales_return`.`id` LIMIT 1), 2)
---     WHEN `status` = 1 THEN 4 ELSE `status` END;
--- UPDATE `sales_return_item` i JOIN `return_receipt_item` x ON x.`return_item_id` = i.`id`
---     SET i.`received_qty` = x.`received_qty`, i.`qualified_qty` = x.`qualified_qty`;
--- UPDATE `stock_hold` h JOIN `return_receipt` x ON x.`id` = h.`return_id` SET h.`return_id` = x.`sales_return_id` WHERE h.`source_type` = 3;
--- UPDATE `biz_attachment` f JOIN `return_receipt` x ON x.`id` = f.`owner_id` SET f.`owner_type` = 'SALES_RETURN', f.`owner_id` = x.`sales_return_id`
---     WHERE f.`owner_type` = 'RETURN_RECEIPT';
--- UPDATE `fin_reimbursement_line` l JOIN `receiving_discrepancy` g ON g.`purchase_return_id` = l.`source_id` SET l.`source_id` = g.`id` WHERE l.`source_type` = 3;
--- UPDATE `biz_attachment` f JOIN `receiving_discrepancy` g ON g.`purchase_return_id` = f.`owner_id` SET f.`owner_id` = g.`id` WHERE f.`owner_type` = 'RETURN_PROOF';
--- （迁移后新建的采购退货单的运费、退款需先人工核对再回退）
--- DELETE FROM `role_resource` WHERE `resource_id` IN (110231, 110232, 110233);
--- DELETE FROM `resource` WHERE `id` IN (110231, 110232, 110233);
--- UPDATE `resource` SET `sort` = 7 WHERE `id` = 100120; UPDATE `resource` SET `sort` = 8 WHERE `id` = 100062;
--- ALTER TABLE `fin_refund_request` DROP INDEX `idx_sales_return_id`, DROP COLUMN `sales_return_id`, DROP COLUMN `refund_first`;
--- ALTER TABLE `receiving_discrepancy` DROP INDEX `idx_purchase_return_id`, DROP COLUMN `purchase_return_id`;
--- ALTER TABLE `sales_return_disposition` DROP INDEX `idx_receipt_id`, DROP INDEX `idx_purchase_return_id`,
---     DROP COLUMN `receipt_id`, DROP COLUMN `receipt_item_id`, DROP COLUMN `purchase_return_id`;
--- ALTER TABLE `sales_return` DROP COLUMN `handling`, DROP COLUMN `refund_first`, DROP COLUMN `confirmed_at`, DROP COLUMN `confirmed_by`;
--- DROP TABLE `fin_refund_request_item`; DROP TABLE `purchase_return_item`; DROP TABLE `purchase_return`;
--- DROP TABLE `return_receipt_item`; DROP TABLE `return_receipt`; DROP TABLE `document_log`;
--- DELETE FROM `document_sequence` WHERE `doc_type` IN ('RR', 'PR');

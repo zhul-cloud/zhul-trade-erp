@@ -11,7 +11,7 @@
 
 ## 2. 数据库迁移
 
-- [x] 2.1 写迁移 V1.5.25（开发时确认版本号）：建 `return_receipt`、`return_receipt_item`、`purchase_return`、`purchase_return_item`，加列（`sales_return.handling / confirmed_at / confirmed_by`、`sales_return_disposition.receipt_id / receipt_item_id / purchase_return_id`、`fin_refund_request.sales_return_id / refund_first`、`receiving_discrepancy.purchase_return_id`），验证：本地 Flyway 迁移成功
+- [x] 2.1 写迁移 V1.5.27：建 `return_receipt`、`return_receipt_item`、`purchase_return`、`purchase_return_item`，加列（`sales_return.handling / confirmed_at / confirmed_by`、`sales_return_disposition.receipt_id / receipt_item_id / purchase_return_id`、`fin_refund_request.sales_return_id / refund_first`、`receiving_discrepancy.purchase_return_id`），验证：本地 Flyway 迁移成功
 - [x] 2.2 迁移存量销售退货单与退货入库单（状态对照见 design.md），验证：迁移后每张退货单都有对应入库单，状态符合对照表
 - [ ] 2.3 迁移退回供应商去向与已处理的退货类到货差异为已完成的采购退货单，报销明细 `source_type` 3 改指采购退货单，验证：迁移前后每张订单的售后退货冲减与运费合计、每人待报销合计、每个采购订单应付一致（写比对 SQL，不一致即失败）
 - [x] 2.4 建 `fin_refund_request_item`，存量退款申请各补一行「退款」明细，验证：每张申请明细合计等于表头金额
