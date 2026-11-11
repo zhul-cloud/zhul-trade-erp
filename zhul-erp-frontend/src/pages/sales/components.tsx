@@ -62,6 +62,13 @@ export const PATHS = {
   quotation: (id: number) => `/quotation/quotations/${id}`,
   inquiry: (id: number) => `/inquiry/customer-inquiries/${id}`,
   afterSales: (id: number) => `/sales/after-sales/${id}`,
+  salesReturnList: '/sales/returns',
+  salesReturn: (id: number) => `/sales/returns/${id}`,
+  returnReceiptList: '/warehouse/returns',
+  returnReceipt: (id: number) => `/warehouse/returns/${id}`,
+  purchaseReturnList: '/purchase/returns',
+  purchaseReturn: (id: number) => `/purchase/returns/${id}`,
+  refundRequest: (id: number) => `/finance/refunds/requests/${id}`,
 };
 
 /**

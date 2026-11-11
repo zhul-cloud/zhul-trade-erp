@@ -69,6 +69,9 @@ mybatis-plus:
   configuration:
     map-underscore-to-camel-case: true
     log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
+    # 一级缓存只在单条语句内有效：事务里「先加锁再按 ID 重读」必须读到加锁后的最新值，
+    # 默认的会话级缓存会直接返回加锁前读过的旧对象（BUS-035）
+    local-cache-scope: statement
 
 jwt:
   secret: ${JWT_SECRET:zhul-erp-secret-key-must-be-at-least-256-bits-long}

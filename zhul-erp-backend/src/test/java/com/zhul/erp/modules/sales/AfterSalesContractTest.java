@@ -21,13 +21,16 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 
 /**
- * spec sales/after-sales、warehouse/sales-return、finance/refund-request，以及 finance/order-cost「售后退货冲减订单成本」、
+ * spec sales/after-sales、sales/sales-return、warehouse/sales-return、purchase/purchase-return、finance/refund-request，
+ * 以及 finance/order-cost「售后退货冲减订单成本」、
  * finance/expense「费用单关联售后单」、finance/customer-refund「退款单关联售后」、warehouse/stock-hold「售后退货转入闲置库存」。
  */
 class AfterSalesContractTest extends SalesContractSupport {
 
     private static final String AS = "/api/v1/sales/after-sales";
+    private static final String TH = "/api/v1/sales/returns";
     private static final String RT = "/api/v1/warehouse/returns";
+    private static final String PRS = "/api/v1/purchase/returns";
     private static final String RQ = "/api/v1/finance/refund-requests";
     private static final String REFUND = "/api/v1/finance/refunds";
     private static final String FE = "/api/v1/finance/expenses";
@@ -100,9 +103,17 @@ class AfterSalesContractTest extends SalesContractSupport {
         return call(json(post(AS + "/" + id + "/plan"), write(body)), admin);
     }
 
+    /** 售后单选「仅退货」：生成待确认的销售退货单 */
     private JsonNode newReturn(long asId, long soItem, int qty) throws Exception {
-        return call(json(post(RT), write(Map.of("afterSalesId", asId, "items", List.of(Map.of("soItemId", soItem, "quantity", qty)),
+        return call(json(post(TH), write(Map.of("afterSalesId", asId, "handling", 1, "items", List.of(Map.of("soItemId", soItem, "quantity", qty)),
                 "carrier", "DHL", "trackingNo", "1234567890"))), admin);
+    }
+
+    /** 确认销售退货单，返回生成的退货入库单 */
+    private JsonNode confirmReturn(long thId) throws Exception {
+        JsonNode th = ok(call(json(post(TH + "/" + thId + "/confirm"), "{}"), admin));
+        assertEquals("待入库", th.path("statusName").asText());
+        return ok(call(get(RT + "/" + th.path("receipt").path("id").asLong()), admin));
     }
 
     private JsonNode apply(long so, Long asId, String amount, int method) throws Exception {
@@ -132,6 +143,7 @@ class AfterSalesContractTest extends SalesContractSupport {
         assertEquals(ADMIN_USER, a.path("ownerId").asLong());
         assertTrue(a.path("overdue").asBoolean());
         assertEquals(10, a.path("items").get(0).path("shippedQty").asInt());
+        assertEquals(10, a.path("items").get(0).path("returnableQty").asInt());
         assertEquals(1, ok(call(get(AS + "/counts"), admin)).path("overdue").asInt());
         assertEquals(1, ok(call(json(post(AS + "/page"), write(Map.of("keyword", "A-1"))), admin)).path("total").asInt());
 
@@ -145,19 +157,29 @@ class AfterSalesContractTest extends SalesContractSupport {
         ok(call(json(post(AS + "/" + asId + "/notes"), write(Map.of("content", "供应商要求寄回检测，RMA-88213"))), admin));
         ok(call(json(post(AS + "/" + asId + "/status"), write(Map.of("status", 2))), admin));
 
-        // 退货：可退 = 已出运 − 其他退货单
+        // 销售退货单：可退 = 已出运 − 其他销售退货单
         JsonNode r = ok(newReturn(asId, item, 2));
-        long rid = r.path("id").asLong();
+        long thId = r.path("id").asLong();
         assertEquals("TH" + today() + "001", r.path("returnNo").asText());
+        assertEquals("待确认", r.path("statusName").asText());
+        assertEquals("仅退货", r.path("handlingName").asText());
+        assertEquals(ADMIN_USER, r.path("ownerId").asLong(), "负责人取售后单负责人");
         assertEquals("A-1 最多还能退 8 个", fail(newReturn(asId, item, 9)).path("message").asText());
-        assertEquals("退货单 " + r.path("returnNo").asText() + " 还没处理完", fail(call(json(post(AS + "/" + asId + "/close"),
+        assertEquals(8, ok(call(get(AS + "/" + asId), admin)).path("items").get(0).path("returnableQty").asInt(), "可退扣掉未作废的销售退货单");
+        assertEquals("销售退货单 " + r.path("returnNo").asText() + " 待确认", fail(call(json(post(AS + "/" + asId + "/close"),
                 write(Map.of("reasonCode", "QUALITY", "result", "换新"))), admin)).path("message").asText());
-        long rItem = r.path("items").get(0).path("id").asLong();
-        ok(call(json(put(RT + "/" + rid), write(Map.of("items", List.of(Map.of("soItemId", item, "quantity", 2)), "carrier", "DHL",
+        ok(call(json(put(TH + "/" + thId), write(Map.of("items", List.of(Map.of("soItemId", item, "quantity", 2)), "carrier", "DHL",
                 "trackingNo", "999"))), admin));
-        rItem = ok(call(get(RT + "/" + rid), admin)).path("items").get(0).path("id").asLong();
+        // 确认：生成退货入库单
+        JsonNode rr = confirmReturn(thId);
+        long rid = rr.path("id").asLong();
+        assertEquals("RR" + today() + "001", rr.path("receiptNo").asText());
+        assertEquals("待入库", rr.path("statusName").asText());
+        assertEquals(r.path("returnNo").asText(), rr.path("returnNo").asText());
+        long rItem = rr.path("items").get(0).path("id").asLong();
+        assertEquals("销售退货单待入库，不能确认", fail(call(json(post(TH + "/" + thId + "/confirm"), "{}"), admin)).path("message").asText());
 
-        // 验收：实收 2、合格 1
+        // 验收：实收 2、合格 1；销售退货单变为已入库
         Map<String, Object> rec = new HashMap<>();
         rec.put("receivedDate", LocalDate.now().toString());
         rec.put("items", List.of(Map.of("itemId", rItem, "receivedQty", 2, "qualifiedQty", 3)));
@@ -167,46 +189,74 @@ class AfterSalesContractTest extends SalesContractSupport {
         assertEquals("待处理", received.path("statusName").asText());
         money("200", received.path("items").get(0).path("unitCost"));
         assertEquals(sup, received.path("items").get(0).path("supplierId").asLong());
+        long poId = received.path("items").get(0).path("poId").asLong();
+        assertEquals("已入库", ok(call(get(TH + "/" + thId), admin)).path("statusName").asText());
+        assertEquals("已入库的退货单不能作废", fail(call(json(post(TH + "/" + thId + "/void"), "{\"reason\":\"x\"}"), admin))
+                .path("message").asText());
         // 撤回入库再验收
         ok(call(json(post(RT + "/" + rid + "/unreceive"), "{\"reason\":\"数量录错\"}"), admin));
+        assertEquals("待入库", ok(call(get(TH + "/" + thId), admin)).path("statusName").asText());
         ok(call(json(post(RT + "/" + rid + "/receive"), write(rec)), admin));
 
-        // 去向：合计等于实收；不良不能转闲置
-        Map<String, Object> toSupplier = new HashMap<>();
-        toSupplier.put("itemId", rItem);
-        toSupplier.put("disposition", 1);
-        toSupplier.put("quantity", 1);
-        toSupplier.put("supplierId", sup);
-        toSupplier.put("freightCny", "45");
-        toSupplier.put("supplierRefundCny", "150");
+        // 去向：不良不能转闲置；可以分几次处理，累计不超过实收
+        Map<String, Object> toSupplier = new HashMap<>(Map.of("itemId", rItem, "disposition", 1, "quantity", 1, "supplierId", sup,
+                "poId", poId));
         Map<String, Object> toHold = new HashMap<>(Map.of("itemId", rItem, "disposition", 2, "quantity", 2));
-        assertEquals("A-1 的去向数量合计要等于实收 2 个", fail(call(json(post(RT + "/" + rid + "/dispose"),
-                write(Map.of("lines", List.of(toSupplier, toHold)))), admin)).path("message").asText());
-        toHold.put("quantity", 1);
-        toSupplier.put("quantity", 0);
-        Map<String, Object> scrap = new HashMap<>(Map.of("itemId", rItem, "disposition", 3, "quantity", 1, "remark", "烧焦"));
-        toHold.put("quantity", 2);
         assertEquals("只有合格的才能转闲置库存（合格 1 个）", fail(call(json(post(RT + "/" + rid + "/dispose"),
                 write(Map.of("lines", List.of(toHold)))), admin)).path("message").asText());
         toHold.put("quantity", 1);
-        toSupplier.put("quantity", 1);
-        JsonNode done = ok(call(json(post(RT + "/" + rid + "/dispose"), write(Map.of("lines", List.of(toSupplier, toHold)))), admin));
+        JsonNode half = ok(call(json(post(RT + "/" + rid + "/dispose"), write(Map.of("lines", List.of(toHold)))), admin));
+        assertEquals("待处理", half.path("statusName").asText(), "还有 1 个没处理");
+        assertEquals("A-1 还有 1 个没处理，去向数量不能多于它", fail(call(json(post(RT + "/" + rid + "/dispose"),
+                write(Map.of("lines", List.of(new HashMap<>(Map.of("itemId", rItem, "disposition", 3, "quantity", 2)))))), admin))
+                .path("message").asText());
+        JsonNode done = ok(call(json(post(RT + "/" + rid + "/dispose"), write(Map.of("lines", List.of(toSupplier)))), admin));
         assertEquals("已处理", done.path("statusName").asText());
-        money("350", done.path("costCny"));
-        money("45", done.path("freightCny"));
-        assertEquals("退货已处理去向，不能撤回入库", fail(call(json(post(RT + "/" + rid + "/unreceive"), "{\"reason\":\"x\"}"), admin))
+        money("200", done.path("costCny"));
+        assertEquals("已经处理过去向，不能撤回入库", fail(call(json(post(RT + "/" + rid + "/unreceive"), "{\"reason\":\"x\"}"), admin))
                 .path("message").asText());
 
-        // 闲置库存来源「售后退货」，订单成本冲减 150 + 1 × 200、退回运费 45
+        // 退回供应商生成采购退货单：寄出登记运费 45，完成时供应商退款 ¥150，冲减应付与订单成本
+        assertEquals(1, done.path("purchaseReturns").size());
+        long prId = done.path("purchaseReturns").get(0).path("id").asLong();
+        JsonNode pr = ok(call(get(PRS + "/" + prId), admin));
+        assertEquals("PR" + today() + "001", pr.path("returnNo").asText());
+        assertEquals("待寄出", pr.path("statusName").asText());
+        assertEquals(rr.path("receiptNo").asText(), pr.path("sourceNo").asText());
+        // 采购退货列表：待寄出页签计数、按退货入库单号与型号搜索、采购订单详情列出
+        assertEquals(1, ok(call(get(PRS + "/counts"), admin)).path("pending").asLong());
+        JsonNode prPage = ok(call(json(post(PRS + "/page"), write(Map.of("status", 1, "keyword", rr.path("receiptNo").asText()))), admin));
+        assertEquals(1, prPage.path("total").asInt());
+        assertEquals(pr.path("returnNo").asText(), prPage.path("records").get(0).path("returnNo").asText());
+        assertEquals(1, ok(call(json(post(PRS + "/page"), write(Map.of("keyword", "A-1"))), admin)).path("total").asInt());
+        assertEquals(0, ok(call(json(post(PRS + "/page"), write(Map.of("status", 2))), admin)).path("total").asInt());
+        assertEquals(prId, ok(call(get(PRS + "/of-order/" + poId), admin)).get(0).path("id").asLong());
+        assertEquals(0, new java.math.BigDecimal("2000").compareTo(jdbc.queryForObject("select sum(amount) from fin_payable where source_type = 1 and source_id = ? and deleted_at is null", java.math.BigDecimal.class, poId)));
+        ok(call(json(post(PRS + "/" + prId + "/ship"), write(Map.of("shipDate", LocalDate.now().toString(), "carrier", "顺丰",
+                "trackingNo", "SF7788", "freightCny", 45, "companyPaid", true))), admin));
+        assertEquals("请填写供应商退款或抵扣金额（没有就填 0）", fail(call(json(post(PRS + "/" + prId + "/complete"),
+                write(Map.of("signedDate", LocalDate.now().toString()))), admin)).path("message").asText());
+        JsonNode prDone = ok(call(json(post(PRS + "/" + prId + "/complete"), write(Map.of("signedDate", LocalDate.now().toString(),
+                "refundAmount", 150, "settleNote", "抵扣下次货款"))), admin));
+        assertEquals("已完成", prDone.path("statusName").asText());
+        assertEquals(0, ok(call(get(PRS + "/counts"), admin)).path("pending").asLong(), "完成后不再计入待寄出");
+        assertEquals(0, new java.math.BigDecimal("1850").compareTo(jdbc.queryForObject("select sum(amount) from fin_payable where source_type = 1 and source_id = ? and deleted_at is null", java.math.BigDecimal.class, poId)));
+        JsonNode rrAfter = ok(call(get(RT + "/" + rid), admin));
+        money("350", rrAfter.path("costCny"));
+        money("45", rrAfter.path("freightCny"));
+
+        // 闲置库存来源「售后退货」，来源单号为退货入库单；订单成本冲减 150 + 1 × 200、退回运费 45
         JsonNode hold = ok(call(json(post(HOLD + "/page"), write(Map.of("sourceType", 3))), admin)).path("records").get(0);
         assertEquals("售后退货", hold.path("sourceName").asText());
-        assertEquals(r.path("returnNo").asText(), hold.path("returnNo").asText());
+        assertEquals(rr.path("receiptNo").asText(), hold.path("returnNo").asText());
         money("200", hold.path("costPrice"));
         JsonNode cost = ok(call(get(SO + "/" + so), admin)).path("cost").path("lines").get(0);
         money("350", cost.path("salesReturnCredit"));
         money("45", cost.path("returnFreight"));
         money("1695", cost.path("cost"));
-        assertEquals(2, cost.path("sources").path("salesReturn").size(), "退回供应商与转闲置各一条");
+        JsonNode srcs = cost.path("sources").path("salesReturn");
+        assertEquals(2, srcs.size(), "退回供应商与转闲置各一条");
+        assertTrue(srcs.toString().contains(pr.path("returnNo").asText()) && srcs.toString().contains(rr.path("receiptNo").asText()), srcs.toString());
 
         // 退款申请：可申请 = 已到账 − 已退 − 待处理申请
         JsonNode rq = ok(apply(so, asId, "50", 3));
@@ -257,11 +307,13 @@ class AfterSalesContractTest extends SalesContractSupport {
         money("350", detail.path("returnCreditCny"));
         assertTrue(detail.path("logs").toString().contains("费用单"));
         assertEquals(1, ok(call(get(AS + "/order/" + so), admin)).size());
+        assertEquals(1, detail.path("purchaseReturns").size());
+        assertEquals(rr.path("receiptNo").asText(), detail.path("returns").get(0).path("receiptNo").asText());
 
         // 结案：原因不能是调查中；已有单据不能撤销
         assertEquals("结案时请确认最终原因与责任，不能是「调查中」", fail(call(json(post(AS + "/" + asId + "/close"),
                 write(Map.of("reasonCode", "INVESTIGATING", "result", "换新"))), admin)).path("message").asText());
-        assertEquals("已有退货单，不能撤销", fail(call(json(post(AS + "/" + asId + "/cancel"), "{\"reason\":\"误建\"}"), admin))
+        assertEquals("已有销售退货单，不能撤销", fail(call(json(post(AS + "/" + asId + "/cancel"), "{\"reason\":\"误建\"}"), admin))
                 .path("message").asText());
         // 案例沉淀选填，最多 500 字；结案后显示在详情和客户跟进时间线（第二期 tasks 4.4）
         assertEquals("案例沉淀不能超过 500 字", fail(call(json(post(AS + "/" + asId + "/close"), write(Map.of("reasonCode", "QUALITY",
@@ -306,7 +358,7 @@ class AfterSalesContractTest extends SalesContractSupport {
 
         // 退货单作废后可以撤销售后单？有撤回的申请也不算单据，但作废的退货单不阻挡
         long rid = ok(newReturn(asId, soItem(so), 1)).path("id").asLong();
-        assertEquals("已作废", ok(call(json(post(RT + "/" + rid + "/void"), "{\"reason\":\"客户不寄了\"}"), admin)).path("statusName").asText());
+        assertEquals("已作废", ok(call(json(post(TH + "/" + rid + "/void"), "{\"reason\":\"客户不寄了\"}"), admin)).path("statusName").asText());
         assertEquals("已有退款申请，不能撤销", fail(call(json(post(AS + "/" + asId + "/cancel"), "{\"reason\":\"误建\"}"), admin))
                 .path("message").asText());
 
@@ -319,13 +371,132 @@ class AfterSalesContractTest extends SalesContractSupport {
         b.put("levelCode", "S5");
         JsonNode noOrder = ok(call(json(post(AS), write(b)), admin));
         assertTrue(noOrder.path("soId").isNull() || noOrder.path("soId").isMissingNode());
-        assertEquals("售后单没有关联订单，不能发起退货", fail(call(json(post(RT), write(Map.of("afterSalesId", noOrder.path("id").asLong(),
-                "items", List.of(Map.of("soItemId", soItem(so), "quantity", 1))))), admin)).path("message").asText());
+        assertEquals("售后单没有关联订单，不能发起退货", fail(call(json(post(TH), write(Map.of("afterSalesId", noOrder.path("id").asLong(),
+                "handling", 1, "items", List.of(Map.of("soItemId", soItem(so), "quantity", 1))))), admin)).path("message").asText());
         JsonNode cancelled = ok(call(json(post(AS + "/" + noOrder.path("id").asLong() + "/cancel"), "{\"reason\":\"重复登记\"}"), admin));
         assertEquals("已撤销", cancelled.path("statusName").asText());
         assertEquals(1, ok(call(json(post(AS + "/page"), write(Map.of("status", 4))), admin)).path("total").asInt());
         assertEquals("订单不属于这个客户", fail(call(json(post(AS), write(Map.of("customerId", customer("Other", "US"), "soId", so,
                 "symptom", "x"))), admin)).path("message").asText());
+    }
+
+    @Test
+    void disposeToShop_whenOriginPurchaseOrderIsOnlineShop() throws Exception {
+        long sup = supplier("苏州伺服", null);
+        long so = shippedOrder(sup, "500");
+        long item = soItem(so);
+        long asId = ok(create(so, 1, "S2")).path("id").asLong();
+        JsonNode rr = confirmReturn(ok(newReturn(asId, item, 1)).path("id").asLong());
+        long rid = rr.path("id").asLong();
+        long rItem = rr.path("items").get(0).path("id").asLong();
+        long poId = rr.path("items").get(0).path("poId").asLong();
+        // 原采购订单改成线上店铺采购：没有供应商（supplier_id 为 0），显示店铺名
+        jdbc.update("update purchase_order set supplier_id = 0, channel = 1, shop_name = '瓦韦尔电气' where id = ?", poId);
+        ok(call(json(post(RT + "/" + rid + "/receive"), write(Map.of("receivedDate", LocalDate.now().toString(),
+                "items", List.of(Map.of("itemId", rItem, "receivedQty", 1, "qualifiedQty", 1))))), admin));
+        JsonNode got = ok(call(get(RT + "/" + rid), admin)).path("items").get(0);
+        assertEquals(0, got.path("supplierId").asLong());
+        assertEquals("淘宝 · 瓦韦尔电气", got.path("supplierName").asText());
+
+        String d = RT + "/" + rid + "/dispose";
+        assertEquals("供应商不存在", fail(call(json(post(d), write(Map.of("lines", List.of(Map.of("itemId", rItem, "disposition", 1,
+                "quantity", 1, "supplierId", 0))))), admin)).path("message").asText(), "没有店铺采购订单时不能退回供应商 0");
+        JsonNode done = ok(call(json(post(d), write(Map.of("lines", List.of(Map.of("itemId", rItem, "disposition", 1,
+                "quantity", 1, "supplierId", 0, "poId", poId))))), admin));
+        assertEquals("淘宝 · 瓦韦尔电气", done.path("dispositions").get(0).path("supplierName").asText());
+        JsonNode pr = ok(call(get(PRS + "/" + done.path("purchaseReturns").get(0).path("id").asLong()), admin));
+        assertEquals("淘宝 · 瓦韦尔电气", pr.path("supplierName").asText());
+        assertEquals(poId, pr.path("poId").asLong());
+
+        // 采购退货单没完成不能结案
+        assertEquals("采购退货单 " + pr.path("returnNo").asText() + " 还没完成", fail(call(json(post(AS + "/" + asId + "/close"),
+                write(Map.of("reasonCode", "QUALITY", "result", "退回店铺"))), admin)).path("message").asText());
+        // 退款申请分项合计要等于申请金额
+        Map<String, Object> b = new HashMap<>(Map.of("soId", so, "afterSalesId", asId, "amount", 10, "reason", "QUALITY", "method", 2,
+                "lines", List.of(Map.of("itemName", "补偿", "amount", 6), Map.of("itemName", "运费", "amount", 3))));
+        assertEquals("分项合计要等于申请金额 USD 10.00", fail(call(json(post(RQ), write(b)), admin)).path("message").asText());
+        // 没有已出运的数量不能退货
+        jdbc.update("update outbound_order_item set quantity = 0 where so_item_id = ?", item);
+        assertEquals("A-1 还没有可以退的数量（已出运的才能退）", fail(newReturn(asId, item, 1)).path("message").asText());
+    }
+
+    @Test
+    void returnRefund_pendingReceipt_refundFirst_purchaseReturnQtyAndVoid() throws Exception {
+        long sup = supplier("苏州伺服", null);
+        long so = shippedOrder(sup, "500");
+        long item = soItem(so);
+        long asId = ok(create(so, 2, "S2")).path("id").asLong();
+
+        // 退货退款：确认时按退货数量 × 成交单价生成退款申请（待验收，财务不能执行）
+        JsonNode th = ok(call(json(post(TH), write(Map.of("afterSalesId", asId, "handling", 2, "items",
+                List.of(Map.of("soItemId", item, "quantity", 2))))), admin));
+        long thId = th.path("id").asLong();
+        assertEquals("退货退款", th.path("handlingName").asText());
+        assertEquals("请填写退款信息", fail(call(json(post(TH + "/" + thId + "/confirm"), "{}"), admin)).path("message").asText());
+        JsonNode confirmed = ok(call(json(post(TH + "/" + thId + "/confirm"), write(Map.of("refund", Map.of("method", 3)))), admin));
+        long rqId = confirmed.path("refunds").get(0).path("id").asLong();
+        JsonNode rq = ok(call(get(RQ + "/" + rqId), admin));
+        assertEquals("待验收", rq.path("statusName").asText());
+        money("100", rq.path("amount"));
+        assertEquals(th.path("returnNo").asText(), rq.path("sourceNo").asText());
+        assertEquals(1, rq.path("items").size());
+        assertEquals("A-1", rq.path("items").get(0).path("itemName").asText());
+        money("50", rq.path("items").get(0).path("unitPrice"));
+        assertEquals(1, ok(call(get(RQ + "/counts"), admin)).path("pendingReceipt").asInt());
+        Map<String, Object> exe = new HashMap<>(Map.of("refundDate", LocalDate.now().toString(), "amount", "100"));
+        assertEquals("退款申请待验收，不能这样操作", fail(call(json(post(RQ + "/" + rqId + "/execute"), write(exe)), admin))
+                .path("message").asText());
+        assertEquals("销售退货单 " + th.path("returnNo").asText() + " 待入库", fail(call(json(post(AS + "/" + asId + "/close"),
+                write(Map.of("reasonCode", "QUALITY", "result", "退款"))), admin)).path("message").asText());
+
+        // 验收（实收少于退货数量）后进入待财务处理并提示；撤回入库回到待验收
+        long rid = confirmed.path("receipt").path("id").asLong();
+        JsonNode rr = ok(call(get(RT + "/" + rid), admin));
+        long rItem = rr.path("items").get(0).path("id").asLong();
+        Map<String, Object> rec = new HashMap<>(Map.of("receivedDate", LocalDate.now().toString(),
+                "items", List.of(Map.of("itemId", rItem, "receivedQty", 1, "qualifiedQty", 1))));
+        ok(call(json(post(RT + "/" + rid + "/receive"), write(rec)), admin));
+        rq = ok(call(get(RQ + "/" + rqId), admin));
+        assertEquals("待财务处理", rq.path("statusName").asText());
+        assertEquals("实收 1 个，少于退货数量 2 个", rq.path("receivedHint").asText());
+        ok(call(json(post(RT + "/" + rid + "/unreceive"), "{\"reason\":\"数错了\"}"), admin));
+        assertEquals("待验收", ok(call(get(RQ + "/" + rqId), admin)).path("statusName").asText());
+        ok(call(json(post(RT + "/" + rid + "/receive"), write(rec)), admin));
+        assertEquals("已执行", ok(call(json(post(RQ + "/" + rqId + "/execute"), write(exe)), admin)).path("statusName").asText());
+
+        // 先退款：确认后直接待财务处理，逐行改金额；作废销售退货单时撤回申请、作废退货入库单
+        JsonNode th2 = ok(call(json(post(TH), write(Map.of("afterSalesId", asId, "handling", 2, "refundFirst", true, "items",
+                List.of(Map.of("soItemId", item, "quantity", 1))))), admin));
+        long th2Item = th2.path("items").get(0).path("id").asLong();
+        JsonNode c2 = ok(call(json(post(TH + "/" + th2.path("id").asLong() + "/confirm"), write(Map.of("refund", Map.of("method", 3,
+                "lines", List.of(Map.of("returnItemId", th2Item, "amount", "40")))))), admin));
+        long rq2 = c2.path("refunds").get(0).path("id").asLong();
+        assertEquals("待财务处理", ok(call(get(RQ + "/" + rq2), admin)).path("statusName").asText());
+        money("40", ok(call(get(RQ + "/" + rq2), admin)).path("amount"));
+        ok(call(json(post(TH + "/" + th2.path("id").asLong() + "/void"), "{\"reason\":\"客户不退了\"}"), admin));
+        assertEquals("已撤回", ok(call(get(RQ + "/" + rq2), admin)).path("statusName").asText());
+        assertEquals("已作废", ok(call(get(RT + "/" + c2.path("receipt").path("id").asLong()), admin)).path("statusName").asText());
+
+        // 采购退货单：只能减少数量，减少的回到退货入库单待处理；作废后全部回到待处理
+        JsonNode th3 = ok(newReturn(asId, item, 2));
+        JsonNode rr3 = confirmReturn(th3.path("id").asLong());
+        long rid3 = rr3.path("id").asLong();
+        long rItem3 = rr3.path("items").get(0).path("id").asLong();
+        ok(call(json(post(RT + "/" + rid3 + "/receive"), write(Map.of("receivedDate", LocalDate.now().toString(),
+                "items", List.of(Map.of("itemId", rItem3, "receivedQty", 2, "qualifiedQty", 0))))), admin));
+        JsonNode disposed = ok(call(json(post(RT + "/" + rid3 + "/dispose"), write(Map.of("lines", List.of(Map.of("itemId", rItem3,
+                "disposition", 1, "quantity", 2, "supplierId", sup))))), admin));
+        long prId = disposed.path("purchaseReturns").get(0).path("id").asLong();
+        long prItem = ok(call(get(PRS + "/" + prId), admin)).path("items").get(0).path("id").asLong();
+        assertEquals("A-1 只能减少，不能多于 2 个", fail(call(json(put(PRS + "/" + prId + "/quantities"),
+                write(Map.of("items", List.of(Map.of("itemId", prItem, "quantity", 3))))), admin)).path("message").asText());
+        ok(call(json(put(PRS + "/" + prId + "/quantities"), write(Map.of("items", List.of(Map.of("itemId", prItem, "quantity", 1))))), admin));
+        JsonNode back = ok(call(get(RT + "/" + rid3), admin));
+        assertEquals("待处理", back.path("statusName").asText());
+        assertEquals(1, back.path("items").get(0).path("disposedQty").asInt());
+        ok(call(json(post(PRS + "/" + prId + "/void"), "{\"reason\":\"供应商不收\"}"), admin));
+        assertEquals(0, ok(call(get(RT + "/" + rid3), admin)).path("items").get(0).path("disposedQty").asInt());
+        assertEquals("已作废", ok(call(get(PRS + "/" + prId), admin)).path("statusName").asText());
     }
 
     /** 手动订单（没有采购订单）：A-9 × 4 售价 USD 100、采购成本价 ¥300，已到账 400，全部出运；返回订单 ID */
@@ -396,19 +567,24 @@ class AfterSalesContractTest extends SalesContractSupport {
         assertTrue(ok(plan(asId, Map.of("ownerId", BUYER_LIN))).path("logs").toString().contains("负责人"));
         assertEquals("状态不正确", msg(call(json(post(AS + "/" + asId + "/status"), write(Map.of("status", 3))), admin)));
 
-        // ---- 退货的校验
-        assertEquals("请从售后单发起退货", msg(call(json(post(RT), write(Map.of("items", List.of(Map.of("soItemId", item, "quantity", 1))))), admin)));
+        // ---- 销售退货单的校验
+        assertEquals("请从售后单发起退货", msg(call(json(post(TH), write(Map.of("handling", 1, "items",
+                List.of(Map.of("soItemId", item, "quantity", 1))))), admin)));
+        assertEquals("请选择处理方式", msg(call(json(post(TH), write(Map.of("afterSalesId", asId, "items",
+                List.of(Map.of("soItemId", item, "quantity", 1))))), admin)));
         assertEquals("型号不属于这张订单", msg(newReturn(asId, 999999999L, 1)));
-        assertEquals("同一个型号不能重复填写", msg(call(json(post(RT), write(Map.of("afterSalesId", asId, "items",
+        assertEquals("同一个型号不能重复填写", msg(call(json(post(TH), write(Map.of("afterSalesId", asId, "handling", 1, "items",
                 List.of(Map.of("soItemId", item, "quantity", 1), Map.of("soItemId", item, "quantity", 1))))), admin)));
         assertEquals("请填写退回数量", msg(newReturn(asId, item, 0)));
         JsonNode r = ok(newReturn(asId, item, 3));
-        long rid = r.path("id").asLong();
-        long rItem = r.path("items").get(0).path("id").asLong();
-        assertEquals("请填写作废原因", msg(call(json(post(RT + "/" + rid + "/void"), "{\"reason\":\" \"}"), admin)));
-        assertEquals("退货单还没入库", msg(call(json(post(RT + "/" + rid + "/unreceive"), "{\"reason\":\"x\"}"), admin)));
+        long thId = r.path("id").asLong();
+        assertEquals("请填写作废原因", msg(call(json(post(TH + "/" + thId + "/void"), "{\"reason\":\" \"}"), admin)));
+        JsonNode rr = confirmReturn(thId);
+        long rid = rr.path("id").asLong();
+        long rItem = rr.path("items").get(0).path("id").asLong();
+        assertEquals("退货入库单还没入库", msg(call(json(post(RT + "/" + rid + "/unreceive"), "{\"reason\":\"x\"}"), admin)));
         assertEquals("请填写撤回原因", msg(call(json(post(RT + "/" + rid + "/unreceive"), "{\"reason\":\"\"}"), admin)));
-        assertEquals("退货单还没验收", msg(call(json(post(RT + "/" + rid + "/dispose"),
+        assertEquals("退货入库单还没验收", msg(call(json(post(RT + "/" + rid + "/dispose"),
                 write(Map.of("lines", List.of(Map.of("itemId", rItem, "disposition", 3, "quantity", 3))))), admin)));
 
         Map<String, Object> rec = new HashMap<>();
@@ -431,10 +607,10 @@ class AfterSalesContractTest extends SalesContractSupport {
         // 没有采购订单：原采购成本取订单型号的采购成本价
         money("300", got.path("items").get(0).path("unitCost"));
         assertTrue(got.path("items").get(0).path("supplierId").isNull() || got.path("items").get(0).path("supplierId").isMissingNode());
-        assertEquals("退货单已验收", msg(call(json(post(RT + "/" + rid + "/receive"), write(rec)), admin)));
-        assertEquals("退货单已入库，不能修改", msg(call(json(put(RT + "/" + rid), write(Map.of("items",
+        assertEquals("退货入库单已验收", msg(call(json(post(RT + "/" + rid + "/receive"), write(rec)), admin)));
+        assertEquals("销售退货单已入库，不能修改", msg(call(json(put(TH + "/" + thId), write(Map.of("items",
                 List.of(Map.of("soItemId", item, "quantity", 1))))), admin)));
-        assertEquals("退货单已入库，不能作废", msg(call(json(post(RT + "/" + rid + "/void"), "{\"reason\":\"x\"}"), admin)));
+        assertEquals("已入库的退货单不能作废", msg(call(json(post(TH + "/" + thId + "/void"), "{\"reason\":\"x\"}"), admin)));
 
         // 去向校验
         String d = RT + "/" + rid + "/dispose";
@@ -446,8 +622,8 @@ class AfterSalesContractTest extends SalesContractSupport {
                 "quantity", -1))))), admin)));
         assertEquals("退回供应商时请选择供应商", msg(call(json(post(d), write(Map.of("lines", List.of(Map.of("itemId", rItem,
                 "disposition", 1, "quantity", 1))))), admin)));
-        assertEquals("金额不能为负数", msg(call(json(post(d), write(Map.of("lines", List.of(Map.of("itemId", rItem,
-                "disposition", 1, "quantity", 1, "supplierId", 1, "freightCny", -1))))), admin)));
+        assertEquals("请填写去向数量", msg(call(json(post(d), write(Map.of("lines", List.of(Map.of("itemId", rItem,
+                "disposition", 3, "quantity", 0))))), admin)));
         assertEquals("供应商不存在", msg(call(json(post(d), write(Map.of("lines", List.of(
                 Map.of("itemId", rItem, "disposition", 1, "quantity", 1, "supplierId", 999999999L),
                 Map.of("itemId", rItem, "disposition", 2, "quantity", 2))))), admin)));
@@ -459,20 +635,25 @@ class AfterSalesContractTest extends SalesContractSupport {
         money("600", done.path("costCny"));
         assertEquals(2, done.path("dispositions").size());
         assertTrue(done.path("dispositions").toString().contains("烧坏"));
-        assertEquals("退货已处理去向", msg(call(json(post(d), write(Map.of("lines", List.of(Map.of("itemId", rItem, "disposition", 3,
+        assertEquals("退货已处理完", msg(call(json(post(d), write(Map.of("lines", List.of(Map.of("itemId", rItem, "disposition", 3,
                 "quantity", 3))))), admin)));
-        assertEquals("退货单不存在", msg(call(get(RT + "/999999999"), admin)));
+        assertEquals("退货入库单不存在", msg(call(get(RT + "/999999999"), admin)));
+        assertEquals("销售退货单不存在", msg(call(get(TH + "/999999999"), admin)));
 
-        // ---- 退货入库列表、计数，售后单的退货
+        // ---- 退货入库列表、计数，售后单的销售退货单
         long r2 = ok(newReturn(asId, item, 1)).path("id").asLong();
+        long rr2 = confirmReturn(r2).path("id").asLong();
         assertEquals(1, ok(call(get(RT + "/counts"), admin)).path("pending").asInt());
         assertEquals(2, ok(call(json(post(RT + "/page"), write(Map.of("keyword", a.path("asNo").asText()))), admin)).path("total").asInt());
         String soNo = jdbc.queryForObject("select so_no from sales_order where id = ?", String.class, so);
         assertEquals(1, ok(call(json(post(RT + "/page"), write(Map.of("keyword", soNo, "status", 3))), admin)).path("total").asInt());
         assertEquals(0, ok(call(json(post(RT + "/page"), write(Map.of("keyword", "不存在的单号"))), admin)).path("total").asInt());
+        assertEquals(2, ok(call(json(post(TH + "/page"), write(Map.of("keyword", soNo))), admin)).path("total").asInt());
         assertEquals(2, ok(call(get(AS + "/" + asId + "/returns"), admin)).size());
-        ok(call(json(post(RT + "/" + r2 + "/void"), "{\"reason\":\"客户不寄了\"}"), admin));
-        assertEquals("退货单已作废", msg(call(json(post(RT + "/" + r2 + "/receive"), write(rec)), admin)));
+        // 作废销售退货单：待入库的退货入库单随之作废
+        ok(call(json(post(TH + "/" + r2 + "/void"), "{\"reason\":\"客户不寄了\"}"), admin));
+        assertEquals("已作废", ok(call(get(RT + "/" + rr2), admin)).path("statusName").asText());
+        assertEquals("退货入库单已作废", msg(call(json(post(RT + "/" + rr2 + "/receive"), write(rec)), admin)));
 
         // ---- 售后单列表的筛选、负责人候选
         assertTrue(ok(call(get(AS + "/owners"), admin)).size() > 0);
@@ -550,11 +731,12 @@ class AfterSalesContractTest extends SalesContractSupport {
         b.put("soId", other);
         b.put("items", List.of(Map.of("soItemId", soItem(other), "quantity", 1), Map.of("soItemId", item2, "quantity", 1)));
         long as3 = ok(call(json(post(AS), write(b)), admin)).path("id").asLong();
-        JsonNode two = ok(call(json(post(RT), write(Map.of("afterSalesId", as3, "items", List.of(Map.of("soItemId", soItem(other), "quantity", 1),
-                Map.of("soItemId", item2, "quantity", 1))))), admin));
+        JsonNode twoTh = ok(call(json(post(TH), write(Map.of("afterSalesId", as3, "handling", 1, "items",
+                List.of(Map.of("soItemId", soItem(other), "quantity", 1), Map.of("soItemId", item2, "quantity", 1))))), admin));
+        JsonNode two = confirmReturn(twoTh.path("id").asLong());
         rec.put("items", List.of(Map.of("itemId", two.path("items").get(0).path("id").asLong(), "receivedQty", 1, "qualifiedQty", 1)));
         assertEquals("请填写每个型号的验收数量", msg(call(json(post(RT + "/" + two.path("id").asLong() + "/receive"), write(rec)), admin)));
-        ok(call(json(post(RT + "/" + two.path("id").asLong() + "/void"), "{\"reason\":\"重复\"}"), admin));
+        ok(call(json(post(TH + "/" + twoTh.path("id").asLong() + "/void"), "{\"reason\":\"重复\"}"), admin));
         // 平台收款的订单只能原路退回
         jdbc.update("update payment_receipt set channel = 2 where so_id = ?", other);
         assertEquals("平台收款的订单只能原路退回", msg(apply(other, null, "10", 3)));

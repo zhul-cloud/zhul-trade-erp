@@ -20,10 +20,13 @@ import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -55,6 +58,7 @@ class OpportunityApiContractTest extends IntegrationTestBase {
     @Autowired private ObjectMapper objectMapper;
     @Autowired private ContactNameTranslations contactNameTranslations;
     @Autowired private com.zhul.erp.modules.crm.service.OpportunityService opportunityService;
+    @Autowired private TransactionTemplate tx;
 
     @BeforeEach
     void setUp() {
@@ -199,6 +203,40 @@ class OpportunityApiContractTest extends IntegrationTestBase {
         TenantContext.runAs(task.getTenantId(), () -> contactNameTranslations.handle(task));
         assertEquals("约翰", jdbc.queryForObject("select name_cn from customer where id = ?", String.class, johnCustomer));
         assertEquals("安娜手填", jdbc.queryForObject("select name_cn from customer where id = ?", String.class, annaCustomer));
+    }
+
+    /**
+     * BUS-013：编辑基本信息与阶段流转交错。B 已把商机推进到 S3 但还没提交，A 此时保存基本信息；
+     * A 必须等 B 提交后按最新值处理，不能把阶段写回 S2、把「曾有效」清回 0。
+     */
+    @Test
+    void editWhileStageChanging_keepsNewStageAndReachedValid() throws Exception {
+        loginAsAdmin("opp_admin");
+        String admin = token("opp_admin");
+        String day = LocalDate.now().minusDays(1).toString();
+        long id = register(admin, lead("Race", 2, day, ",\"email\":\"race@x.com\""));
+        ok(call(json(post(BASE + "/" + id + "/stage"), "{\"toStage\":\"S2\"}"), admin));
+
+        CountDownLatch bHoldsLock = new CountDownLatch(1);
+        Thread b = new Thread(() -> tx.executeWithoutResult(s -> {
+            jdbc.update("update opportunity set stage_code = 'S3', reached_valid = 1 where id = ?", id);
+            bHoldsLock.countDown();
+            try {
+                Thread.sleep(800);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }), "opp-stage-b");
+        b.start();
+        assertTrue(bHoldsLock.await(10, TimeUnit.SECONDS));
+        ok(call(json(put(BASE + "/" + id), "{\"sourceChannel\":2,\"firstContactDate\":\"" + day
+                + "\",\"demandSummary\":\"edited while moving\"}"), admin));
+        b.join(10_000);
+
+        JsonNode d = ok(call(get(BASE + "/" + id), admin));
+        assertEquals("S3", d.path("stageCode").asText(), "编辑不能把阶段写回旧值");
+        assertEquals(1, jdbc.queryForObject("select reached_valid from opportunity where id = ?", Integer.class, id));
+        assertEquals("edited while moving", d.path("demandSummary").asText());
     }
 
     @Test

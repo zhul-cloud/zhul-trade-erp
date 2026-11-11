@@ -6,7 +6,7 @@ import {
 } from '@ant-design/icons';
 import { App, Button, Input, Popconfirm, Upload } from 'antd';
 import React, { useState } from 'react';
-import { usePreview } from '@/pages/warehouse/components';
+import { useDocPreview } from '@/components/DocFiles';
 import { type Attachment, attachmentApi } from '@/pages/warehouse/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import { downloadFile } from '@/utils/fileLink';
@@ -42,7 +42,7 @@ export const OrderFileList: React.FC<{
 }> = ({ files, onRemove, confirmRemove }) => {
   const { palette } = useAppTheme();
   const { message } = App.useApp();
-  const preview = usePreview();
+  const preview = useDocPreview();
   const download = (a: Attachment) =>
     downloadFile(`/api/v1/attachments/${a.id}`).catch((e) =>
       message.error(readBizError(e).message),
@@ -91,9 +91,7 @@ export const OrderFileList: React.FC<{
                 .join(' · ')}
             </span>
             <span style={{ flex: 1 }} />
-            {!/\.xlsx?$/i.test(a.fileName) && (
-              <a onClick={() => preview.open(a)}>预览</a>
-            )}
+            <a onClick={() => preview.open(files, files.indexOf(a))}>预览</a>
             <a onClick={() => download(a)}>下载</a>
             {onRemove &&
               (confirmRemove ? (
@@ -182,23 +180,27 @@ export const OrderFilesCard: React.FC<{
   const [editing, setEditing] = useState<string>();
   const [saving, setSaving] = useState(false);
   const files = order.attachments ?? [];
+  /** 返回是否成功 */
   const run = async (fn: () => Promise<unknown>, ok: string) => {
     try {
       await fn();
       message.success(ok);
       onChanged();
+      return true;
     } catch (e) {
       message.error(readBizError(e).message);
+      return false;
     }
   };
   const saveRemark = async () => {
     setSaving(true);
-    await run(
+    const saved = await run(
       () => orderApi.remark(order.id, (editing ?? '').trim()),
       '备注已保存',
     );
     setSaving(false);
-    setEditing(undefined);
+    // 保存失败时留在编辑状态，输入的内容还在，可以再点保存（UI-033）
+    if (saved) setEditing(undefined);
   };
   return (
     <Card style={{ padding: 20, marginBottom: 16 }}>

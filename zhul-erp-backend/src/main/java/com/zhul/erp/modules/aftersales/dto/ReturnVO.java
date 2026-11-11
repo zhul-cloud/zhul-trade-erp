@@ -1,6 +1,7 @@
 package com.zhul.erp.modules.aftersales.dto;
 
 import com.zhul.erp.modules.attachment.dto.AttachmentVO;
+import com.zhul.erp.modules.system.doclog.DocLogVO;
 import lombok.Data;
 
 import java.math.BigDecimal;
@@ -8,7 +9,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
-/** 退货单 */
+/** 销售退货单 TH（列表与详情） */
 @Data
 public class ReturnVO {
     private Long id;
@@ -17,27 +18,42 @@ public class ReturnVO {
     private String asNo;
     private Long soId;
     private String soNo;
+    private String currencyCode;
+    private Long customerId;
     private String customerName;
     /** 客户国家/地区、新老客户、主联系人（列表客户列三行显示） */
     private String customerCountry;
     private Integer customerType;
     private String customerContact;
+    private Integer handling;
+    private String handlingName;
+    private Boolean refundFirst;
+    /** 负责人：售后单负责人 */
+    private Long ownerId;
+    private String ownerName;
     private String carrier;
     private String trackingNo;
     private String remark;
     private Integer status;
     private String statusName;
-    private LocalDate receivedDate;
-    private String receivedByName;
-    private String receiveNote;
+    private LocalDateTime confirmedAt;
+    private String confirmedByName;
     private String voidReason;
     private String itemSummary;
+    private Integer totalQty;
+    /** 入库后：实收、合格合计 */
+    private Integer receivedQty;
+    private Integer qualifiedQty;
+    private LocalDate receivedDate;
+    private List<String> brands;
+    private List<String> categories;
     private List<Item> items;
-    private List<Disposition> dispositions;
+    /** 对应的退货入库单（确认后才有） */
+    private DocBrief receipt;
+    /** 由它生成的退款申请 */
+    private List<RefundBrief> refunds;
     private List<AttachmentVO> attachments;
-    /** 冲减原订单成本合计与退回运费（CNY） */
-    private BigDecimal costCny;
-    private BigDecimal freightCny;
+    private List<DocLogVO> logs;
     private LocalDateTime createTime;
     private String createBy;
     private LocalDateTime updateTime;
@@ -49,34 +65,29 @@ public class ReturnVO {
         private Long soItemId;
         private String model;
         private String brand;
+        private String category;
         private Integer quantity;
+        /** 成交单价（订单币种） */
+        private BigDecimal unitPrice;
         private Integer receivedQty;
         private Integer qualifiedQty;
-        /** 原采购成本（CNY / 个），转闲置库存按它冲减 */
-        private BigDecimal unitCost;
-        /** 默认退回的供应商（原采购订单） */
-        private Long supplierId;
-        private String supplierName;
-        private String poNo;
     }
 
     @Data
-    public static class Disposition {
+    public static class DocBrief {
         private Long id;
-        private Long itemId;
-        private String model;
-        private Integer disposition;
-        private String dispositionName;
-        private Integer quantity;
-        private Long supplierId;
-        private String supplierName;
-        private String trackingNo;
-        private BigDecimal freightCny;
-        private BigDecimal supplierRefundCny;
-        private BigDecimal costCny;
-        private Long holdId;
-        private String remark;
-        private String operatorName;
-        private LocalDateTime createTime;
+        private String no;
+        private Integer status;
+        private String statusName;
+    }
+
+    @Data
+    public static class RefundBrief {
+        private Long id;
+        private String requestNo;
+        private String currencyCode;
+        private BigDecimal amount;
+        private Integer status;
+        private String statusName;
     }
 }

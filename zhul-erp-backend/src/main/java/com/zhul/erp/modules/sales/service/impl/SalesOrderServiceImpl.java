@@ -142,6 +142,7 @@ public class SalesOrderServiceImpl implements SalesOrderService {
     private final com.zhul.erp.modules.sales.repository.SalesOrderPartialCancelMapper partialCancelMapper;
     private final com.zhul.erp.modules.crm.followup.support.FollowupHooks followupHooks;
     private final com.zhul.erp.modules.system.service.DictItemService dictItemService;
+    private final com.zhul.erp.modules.sales.support.OrderDeleteCheck deleteCheck;
 
     // ---------------------------------------------------------------- 转订单与取消
 
@@ -670,36 +671,108 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         o.setCancelledBy(currentUserId());
         o.setCancelledAt(LocalDateTime.now());
         orderMapper.updateById(o);
-        // 订单取消：商品候选去掉这张订单的成交来源
-        productArchiver.sync(orderItems(id).stream().map(SalesOrderItemDO::getInquiryItemId).filter(Objects::nonNull).toList());
-        // 没下单的采购需求关闭，已下单的标「订单已取消」交给采购员
-        requirementLifecycle.onOrderCancelled(o, currentUserId());
+        releaseLinks(o, pi);
         if (manual) {
-            // 手动订单上的余额抵扣随订单取消作废，释放余额
-            creditUsage.releaseOrder(o);
             logService.recordOperateLog(SalesConstants.MENU_SO, "取消销售订单", Map.of("soNo", o.getSoNo(), "status", "有效"),
                     Map.of("soNo", o.getSoNo(), "status", "已取消", "reason", o.getCancelReason(),
                             "received", o.getCurrencyCode() + " " + o.getReceivedAmount()));
-            followupHooks.orderChanged(id);
-            return detail(id);
+        } else {
+            logService.recordOperateLog(SalesConstants.MENU_SO, "取消销售订单", Map.of("soNo", o.getSoNo(), "status", "有效"),
+                    Map.of("soNo", o.getSoNo(), "status", "已取消", "reason", o.getCancelReason(), "piNo", pi.getPiNo(),
+                            "received", pi.getCurrencyCode() + " " + pi.getReceivedAmount()));
+        }
+        followupHooks.orderChanged(id);
+        return detail(id);
+    }
+
+    /**
+     * 订单退出有效状态（取消、删除）时释放关联：商品候选成交来源、采购需求与草稿采购单行、
+     * 手动订单的余额抵扣；PI 转成的订单 PI 回到「已发送」，报价行按剩余有效订单重算成交。
+     * 调用前订单已写成取消或删除，下面的查询不再把它算作有效订单。
+     */
+    private void releaseLinks(SalesOrderDO o, ProformaInvoiceDO pi) {
+        List<SalesOrderItemDO> items = orderItems(o.getId());
+        // 商品候选去掉这张订单的成交来源
+        productArchiver.sync(items.stream().map(SalesOrderItemDO::getInquiryItemId).filter(Objects::nonNull).toList());
+        // 没下单的采购需求关闭，已下单的标「订单已取消」交给采购员
+        requirementLifecycle.onOrderCancelled(o, currentUserId());
+        if (pi == null) {
+            // 手动订单上的余额抵扣随订单作废，释放余额
+            creditUsage.releaseOrder(o);
+            return;
         }
         pi.setStatus(SalesConstants.PI_SENT);
         piMapper.updateById(pi);
-        // 订单取消后 PI 的应收合计回到 PI 合计（部分取消过的订单收款状态、多收随之变化）
+        // PI 的应收合计回到 PI 合计（部分取消过的订单收款状态、多收随之变化）
         piSummary.refresh(pi);
-
         // 报价行仍在其他有效订单中的保持成交
-        Set<Long> lines = orderItems(id).stream().map(SalesOrderItemDO::getQuotationItemId).collect(Collectors.toSet());
-        Set<Long> stillWon = wonElsewhere(lines, id);
+        Set<Long> lines = items.stream().map(SalesOrderItemDO::getQuotationItemId).collect(Collectors.toSet());
         Set<Long> lost = new HashSet<>(lines);
-        lost.removeAll(stillWon);
+        lost.removeAll(wonElsewhere(lines, o.getId()));
         deals.apply(Set.of(), lost);
+    }
 
-        logService.recordOperateLog(SalesConstants.MENU_SO, "取消销售订单", Map.of("soNo", o.getSoNo(), "status", "有效"),
-                Map.of("soNo", o.getSoNo(), "status", "已取消", "reason", o.getCancelReason(), "piNo", pi.getPiNo(),
-                        "received", pi.getCurrencyCode() + " " + pi.getReceivedAmount()));
+    // ---------------------------------------------------------------- 删除（spec sales/sales-order「删除销售订单」）
+
+    @Override
+    public com.zhul.erp.modules.sales.dto.DeleteCheckVO deleteCheck(Long id) {
+        SalesOrderDO o = visible(id);
+        requireDeletable(o);
+        boolean manual = !Objects.equals(o.getSource(), SalesConstants.SO_FROM_PI);
+        return deleteCheck.check(o, manual ? null : piMapper.selectById(o.getPiId()));
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void delete(Long id, String reason) {
+        String why = reason == null ? "" : reason.trim();
+        if (why.isEmpty()) {
+            throw new BizException("请填写删除原因");
+        }
+        SalesOrderDO o = visible(id);
+        boolean manual = !Objects.equals(o.getSource(), SalesConstants.SO_FROM_PI);
+        // 加锁顺序与取消一致：先 PI 后订单
+        ProformaInvoiceDO pi = manual ? null : piStore.lockVisible(o.getPiId());
+        o = lockOrder(id);
+        if (o == null || o.getDeletedAt() != null) {
+            throw BizException.of("ORDER_DELETED", "订单已删除");
+        }
+        requireDeletable(o);
+        com.zhul.erp.modules.sales.dto.DeleteCheckVO check = deleteCheck.check(o, pi);
+        if (com.zhul.erp.modules.sales.dto.DeleteCheckVO.BLOCKED.equals(check.getLevel())) {
+            // detail 带最新检查结果，前端据此刷新弹窗
+            throw BizException.of("ORDER_DELETE_BLOCKED", "订单有" + check.getBlockers().stream()
+                    .map(com.zhul.erp.modules.sales.dto.DeleteCheckVO.Doc::kind).distinct().collect(Collectors.joining("、")) + "，不能删除", check);
+        }
+        boolean active = Objects.equals(o.getStatus(), SalesConstants.SO_ACTIVE);
+        String statusBefore = active ? "有效" : "已取消";
+        // 进行中的订单一并改为已取消，只按状态筛有效订单的查询也不再算它
+        o.setStatus(SalesConstants.SO_CANCELLED);
+        o.setDeletedAt(LocalDateTime.now());
+        o.setDeletedBy(currentUserId());
+        o.setDeleteReason(why.length() > 200 ? why.substring(0, 200) : why);
+        orderMapper.updateById(o);
+        if (active) {
+            releaseLinks(o, pi);
+        }
+        Map<String, Object> after = new LinkedHashMap<>();
+        after.put("soNo", o.getSoNo());
+        after.put("status", "已删除");
+        after.put("reason", o.getDeleteReason());
+        if (!check.getRelated().isEmpty()) {
+            after.put("related", check.getRelated().stream().map(d -> d.kind() + " " + d.no() + "：" + d.note())
+                    .collect(Collectors.joining("；")));
+        }
+        logService.recordOperateLog(SalesConstants.MENU_SO, "删除销售订单", Map.of("soNo", o.getSoNo(), "status", statusBefore), after);
         followupHooks.orderChanged(id);
-        return detail(id);
+    }
+
+    /** 已完成、历史迁移的订单不能删除 */
+    private static void requireDeletable(SalesOrderDO o) {
+        MigratedGuard.requireEditable(o.getMigrated());
+        if (SalesConstants.PROGRESS_COMPLETED.equals(o.getProgressCode())) {
+            throw new BizException("已完成的订单不能删除");
+        }
     }
 
     // ---------------------------------------------------------------- 部分取消（spec sales/sales-order「按型号部分取消」）
@@ -2290,9 +2363,11 @@ public class SalesOrderServiceImpl implements SalesOrderService {
 
     private SalesOrderDO visible(Long id) {
         SalesOrderDO o = id == null ? null : orderMapper.selectById(id);
-        if (o == null || o.getDeletedAt() != null || !Objects.equals(o.getTenantId(), PiStore.tenantId())
-                || !dataScopeResolver.current().canSee(o.getOwnerId())) {
+        if (o == null || !Objects.equals(o.getTenantId(), PiStore.tenantId()) || !dataScopeResolver.current().canSee(o.getOwnerId())) {
             throw new BizException("销售订单不存在");
+        }
+        if (o.getDeletedAt() != null) {
+            throw BizException.of("ORDER_DELETED", "订单已删除");
         }
         return o;
     }

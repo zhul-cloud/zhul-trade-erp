@@ -43,6 +43,8 @@ public class ReceivingDiscrepancyDO {
     @com.baomidou.mybatisplus.annotation.TableField(updateStrategy = com.baomidou.mybatisplus.annotation.FieldStrategy.ALWAYS)
     private Long returnPayerId;
     private Integer freeOfCharge;
+    @TableField(updateStrategy = com.baomidou.mybatisplus.annotation.FieldStrategy.ALWAYS)
+    private Long purchaseReturnId;
     @TableField(updateStrategy = FieldStrategy.ALWAYS)
     private Long handledBy;
     @TableField(updateStrategy = FieldStrategy.ALWAYS)

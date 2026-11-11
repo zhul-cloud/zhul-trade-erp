@@ -40,7 +40,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 
 /**
  * spec finance/reimbursement、finance/expense，与 finance/accounts-payable（费用单生成应付、退款退到员工）、
- * purchase/receiving-discrepancy（退货运费垫付人）。
+ * purchase/purchase-return（退货运费垫付人，寄出采购退货单时登记）。
  */
 class ReimbursementContractTest extends SalesContractSupport {
 
@@ -129,12 +129,12 @@ class ReimbursementContractTest extends SalesContractSupport {
         return jdbc.queryForObject("select max(id) from courier_waybill where tenant_id = 0", Long.class);
     }
 
+    /** 已寄出的采购退货单（到货不良 · 退货换货），运费由 payer 垫付 */
     private long returnFreight(long poId, long payer, String freight) {
-        jdbc.update("insert into receiving_discrepancy (tenant_id, receipt_id, receipt_item_id, po_id, po_item_id, purchaser_id, model, type, "
-                + "quantity, status, resolution, return_freight, return_payer_id, handled_by, handled_at) "
-                + "values (0, 0, 0, ?, 0, ?, 'A-1', 2, 2, 2, 4, ?, ?, ?, now())",
-                poId, payer, new BigDecimal(freight), payer, payer);
-        return jdbc.queryForObject("select max(id) from receiving_discrepancy where tenant_id = 0", Long.class);
+        jdbc.update("insert into purchase_return (tenant_id, return_no, supplier_id, source_type, po_id, owner_id, status, ship_date, carrier, "
+                + "tracking_no, freight_cny, payer_id) values (0, ?, 0, 2, ?, ?, 2, ?, '顺丰', 'SF1188776655', ?, ?)",
+                "ITPR" + System.nanoTime() % 100000000, poId, payer, LocalDate.now(), new BigDecimal(freight), payer);
+        return jdbc.queryForObject("select max(id) from purchase_return where tenant_id = 0", Long.class);
     }
 
     private static List<String> types(JsonNode items) {
@@ -195,12 +195,12 @@ class ReimbursementContractTest extends SalesContractSupport {
         assertEquals(0, ok(call(get(BX + "/pending"), lin)).size());
         assertEquals(2, jdbc.queryForObject("select reimburse_status from fin_payment where id = ?", Integer.class, pay.path("id").asLong()));
 
-        // 同一项不能再提交；已进报销单的付款不能作废、退货运费不能重新打开
+        // 同一项不能再提交；已进报销单的付款不能作废；已寄出的采购退货单不能作废（运费不会再变）
         assertTrue(fail(submit(lin, find(pending, 1))).path("message").asText().contains("请刷新"));
         assertEquals("这笔垫付已进入报销单，不能作废", fail(call(json(post(PY + "/" + pay.path("id").asLong() + "/void"),
                 write(Map.of("reason", "x"))), lin)).path("message").asText());
-        assertTrue(fail(call(json(post("/api/v1/purchase/discrepancies/" + diff + "/reopen"), "{}"), lin)).path("message").asText()
-                .contains("已在报销单 " + bx.path("reimburseNo").asText()));
+        assertEquals("已寄出的采购退货单不能作废", fail(call(json(post("/api/v1/purchase/returns/" + diff + "/void"),
+                write(Map.of("reason", "x"))), admin)).path("message").asText());
 
         // 江晓晞不能撤回林熙的；林熙撤回后回到待报销
         long id = bx.path("id").asLong();
@@ -508,12 +508,22 @@ class ReimbursementContractTest extends SalesContractSupport {
                         "receivedQty", 5, "qualifiedQty", 3, "defectiveQty", 2))))), admin));
         long diff = jdbc.queryForObject("select id from receiving_discrepancy where po_id = ? and type = 2", Long.class, poId);
         JsonNode handled = ok(call(json(post("/api/v1/purchase/discrepancies/" + diff + "/handle"), write(Map.of("resolution", 4,
-                "returnCarrier", "顺丰", "returnTrackingNo", "SF1188776655", "returnFreight", 18, "note", "外壳破损"))), lin));
-        assertEquals(BUYER_LIN, handled.path("returnPayerId").asLong());
-        assertTrue(types(ok(call(get(BX + "/pending"), lin))).contains("3:18.00"));
-        // 重新打开后不再是待报销
-        ok(call(json(post("/api/v1/purchase/discrepancies/" + diff + "/reopen"), "{}"), lin));
+                "note", "外壳破损"))), lin));
+        long pr = handled.path("purchaseReturnId").asLong();
+        assertTrue(pr > 0, "退货换货生成采购退货单：" + handled);
+        // 待寄出时还不是待报销，可以重新打开差异（采购退货单随之作废）
         assertFalse(types(ok(call(get(BX + "/pending"), lin))).contains("3:18.00"));
+        for (int id : new int[] {110232, 110233}) {
+            jdbc.update("insert into role_resource (role_code, resource_id, resource_code) values (?, ?, '')", BUYER_ROLE, id);
+        }
+        String linPr = token("it_lin");
+        ok(call(json(post("/api/v1/purchase/returns/" + pr + "/ship"), write(Map.of("shipDate", LocalDate.now().toString(),
+                "carrier", "顺丰", "trackingNo", "SF1188776655", "freightCny", 18))), linPr));
+        assertEquals(BUYER_LIN, jdbc.queryForObject("select payer_id from purchase_return where id = ?", Long.class, pr), "垫付人默认寄出的人");
+        assertTrue(types(ok(call(get(BX + "/pending"), lin))).contains("3:18.00"));
+        // 已寄出后差异不能重新打开
+        assertTrue(fail(call(json(post("/api/v1/purchase/discrepancies/" + diff + "/reopen"), "{}"), lin)).path("message").asText()
+                .contains("已寄出"));
     }
 
     // ---------------------------------------------------------------- 提交与来源作废交错（audit BUS-011）
@@ -611,8 +621,8 @@ class ReimbursementContractTest extends SalesContractSupport {
         ok(call(json(post(BX + "/proofs"), write(Map.of("sourceType", 3, "sourceId", diff,
                 "attachmentIds", List.of(upload("RETURN_PROOF", lin))))), lin));
         raceSubmitWith(List.of(FinanceConstants.ITEM_RETURN_FREIGHT),
-                () -> call(json(post("/api/v1/purchase/discrepancies/" + diff + "/reopen"), "{}"), admin),
-                "这笔退货运费已在报销单");
-        assertEquals(2, jdbc.queryForObject("select status from receiving_discrepancy where id = ?", Integer.class, diff), "差异仍是已处理");
+                () -> call(json(post("/api/v1/purchase/returns/" + diff + "/void"), write(Map.of("reason", "x"))), admin),
+                "已寄出的采购退货单不能作废");
+        assertEquals(2, jdbc.queryForObject("select status from purchase_return where id = ?", Integer.class, diff), "采购退货单仍是已寄出");
     }
 }

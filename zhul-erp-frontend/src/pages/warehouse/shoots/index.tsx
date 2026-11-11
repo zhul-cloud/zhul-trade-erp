@@ -297,12 +297,21 @@ const ShootDrawer: React.FC<{
 
   useEffect(() => {
     if (id === undefined) return;
+    // 换任务或关闭后，上一个任务迟到的回包作废（UI-017 同型）
+    let alive = true;
     setD(undefined);
     setError(undefined);
     shootApi
       .detail(id)
-      .then(setD)
-      .catch((e) => setError(readBizError(e).message));
+      .then((next) => {
+        if (alive) setD(next);
+      })
+      .catch((e) => {
+        if (alive) setError(readBizError(e).message);
+      });
+    return () => {
+      alive = false;
+    };
   }, [id]);
 
   const update = (next: ShootDetail) => {

@@ -34,6 +34,7 @@ import {
 import dayjs, { type Dayjs } from 'dayjs';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { CustomerCell } from '@/components/DocFields';
+import { RelatedDocsCard } from '@/components/DocFields/DocPage';
 import { usePageTitle } from '@/components/PageTabs/hooks';
 import {
   ACCEPT_PROOF,
@@ -43,6 +44,8 @@ import {
 import { SOURCE } from '@/pages/finance/payables/service';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { CURRENCIES } from '@/pages/quotation/components';
+import { PR_STATUS_TONE } from '@/pages/sales/after-sales/service';
+import { PATHS as SALES_PATHS } from '@/pages/sales/components';
 import { StockPill } from '@/pages/sales/orders/dialogs';
 import {
   AttachmentWall,
@@ -81,6 +84,7 @@ import {
   StatCard,
   sub,
 } from '../components';
+import { type PurchaseReturn, purchaseReturnApi } from '../returns/service';
 import {
   type CounterpartyValue,
   FEE_TYPE,
@@ -1191,6 +1195,8 @@ const PurchaseOrderDetail: React.FC = () => {
         />
       )}
 
+      {!isDraft && <PurchaseReturnsCard poId={po.id} />}
+
       {po.status !== PO_STATUS.DRAFT && po.invoiceRequired && (
         <InvoicePanel
           key={`${po.id}-${po.invoiceStatus}`}
@@ -1726,6 +1732,31 @@ const ShipmentsCard: React.FC<{
 };
 
 // ---------------------------------------------------------------- 合同
+
+/** 这张采购订单的采购退货单（售后退回供应商、到货差异退货）；没有时不显示 */
+const PurchaseReturnsCard: React.FC<{ poId: number }> = ({ poId }) => {
+  const [list, setList] = useState<PurchaseReturn[]>([]);
+  useEffect(() => {
+    purchaseReturnApi
+      .ofOrder(poId)
+      .then(setList)
+      .catch(() => setList([]));
+  }, [poId]);
+  if (list.length === 0) return null;
+  return (
+    <RelatedDocsCard
+      title="采购退货单"
+      docs={list.map((p) => ({
+        label: p.sourceTypeName.split(' · ').pop() ?? '',
+        no: p.returnNo,
+        href: SALES_PATHS.purchaseReturn(p.id),
+        statusName: p.statusName,
+        tone: PR_STATUS_TONE[p.status],
+        extra: `${p.itemSummary ?? ''}`,
+      }))}
+    />
+  );
+};
 
 const ContractCard: React.FC<{
   po: PurchaseOrder;

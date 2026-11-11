@@ -2,6 +2,7 @@ import { request } from '@umijs/max';
 import type { Attachment } from '@/pages/warehouse/service';
 
 const AS = '/api/v1/sales/after-sales';
+const TH = '/api/v1/sales/returns';
 const RT = '/api/v1/warehouse/returns';
 const quiet = { skipErrorHandler: true } as const;
 const get = <T>(url: string, params?: object) =>
@@ -16,6 +17,33 @@ export const DICT_REASON = 'after_sales_reason';
 export const DICT_SOLUTION = 'after_sales_solution';
 
 export const AS_STATUS = { OPEN: 1, WAITING: 2, CLOSED: 3, CANCELLED: 4 };
+/** 销售退货单：1-待确认、2-待入库、3-已入库、4-已作废 */
+export const TH_STATUS = { CONFIRMING: 1, PENDING: 2, RECEIVED: 3, VOID: 4 };
+export const TH_STATUS_TONE: Record<number, Tone> = {
+  1: 'orange',
+  2: 'accent',
+  3: 'green',
+  4: 'mute',
+};
+/** 退款申请：0-待验收、1-待审批、2-待财务处理、3-已执行、4-已驳回、5-已撤回 */
+export const RQ_STATUS_TONE: Record<number, Tone> = {
+  0: 'violet',
+  1: 'accent',
+  2: 'orange',
+  3: 'green',
+  4: 'red',
+  5: 'mute',
+};
+/** 采购退货单：1-待寄出、2-已寄出、3-已完成、4-已作废 */
+export const PR_STATUS_TONE: Record<number, Tone> = {
+  1: 'orange',
+  2: 'accent',
+  3: 'green',
+  4: 'mute',
+};
+/** 处理方式：1-仅退货、2-退货退款 */
+export const HANDLING = { RETURN: 1, REFUND: 2 };
+/** 退货入库单：1-待入库、2-待处理、3-已处理、4-已作废 */
 export const RT_STATUS = { PENDING: 1, RECEIVED: 2, DONE: 3, VOID: 4 };
 export const DISP = { SUPPLIER: 1, HOLD: 2, SCRAP: 3 };
 
@@ -61,6 +89,10 @@ export interface AfterSalesItem {
   brand?: string;
   quantity: number;
   shippedQty?: number | null;
+  /** 还能退的数量 = 已出运 − 未作废销售退货单上的数量 */
+  returnableQty?: number | null;
+  unitPrice?: number | null;
+  category?: string | null;
 }
 
 export interface AfterSalesLog {
@@ -126,10 +158,17 @@ export interface AfterSales {
   returns?: {
     id: number;
     returnNo: string;
+    handling?: number;
+    handlingName?: string;
     status: number;
     statusName: string;
     summary: string;
+    receiptId?: number;
+    receiptNo?: string;
+    receiptStatus?: number;
+    receiptStatusName?: string;
   }[];
+  purchaseReturns?: DocBrief[];
   requests?: {
     id: number;
     requestNo: string;
@@ -275,71 +314,218 @@ export const afterSalesApi = {
     send<AfterSales>('POST', `${AS}/${id}/replacement`, { items, remark }),
 };
 
-// ---------------------------------------------------------------- 退货单（spec warehouse/sales-return）
+// ---------------------------------------------------------------- 单据公共
+
+export interface DocBrief {
+  id: number;
+  no: string;
+  status: number;
+  statusName: string;
+}
+
+export interface DocLog {
+  id: number;
+  action: string;
+  content?: string;
+  operatorName?: string;
+  createTime: string;
+}
+
+interface DocAudit {
+  createTime?: string;
+  createBy?: string;
+  updateTime?: string;
+  updateBy?: string;
+}
+
+interface CustomerFields {
+  customerName?: string;
+  /** 客户国家 / 地区、新老客户（1-新、2-老）、主联系人：列表客户列三行显示 */
+  customerCountry?: string;
+  customerType?: number;
+  customerContact?: string;
+}
+
+// ---------------------------------------------------------------- 销售退货单 TH（spec sales/sales-return）
 
 export interface SalesReturnItem {
   id: number;
   soItemId: number;
   model: string;
   brand?: string;
+  category?: string;
   quantity: number;
+  unitPrice?: number;
   receivedQty?: number | null;
   qualifiedQty?: number | null;
-  unitCost?: number | null;
-  supplierId?: number | null;
-  supplierName?: string;
-  poNo?: string;
 }
 
-export interface SalesReturnDisposition {
-  id: number;
-  itemId: number;
-  model?: string;
-  disposition: number;
-  dispositionName: string;
-  quantity: number;
-  supplierName?: string;
-  trackingNo?: string;
-  freightCny: number;
-  supplierRefundCny: number;
-  costCny: number;
-  remark?: string;
-  operatorName?: string;
-  createTime?: string;
-}
-
-export interface SalesReturn {
+export interface SalesReturn extends DocAudit, CustomerFields {
   id: number;
   returnNo: string;
   afterSalesId: number;
   asNo?: string;
   soId: number;
   soNo?: string;
-  customerName?: string;
-  /** 客户国家 / 地区、新老客户（1-新、2-老）、主联系人：列表客户列三行显示 */
-  customerCountry?: string;
-  customerType?: number;
-  customerContact?: string;
+  currencyCode?: string;
+  customerId?: number;
+  handling: number;
+  handlingName: string;
+  refundFirst?: boolean;
+  ownerId?: number;
+  ownerName?: string;
   carrier?: string;
   trackingNo?: string;
   remark?: string;
-  /** 1-待入库、2-待处理、3-已处理、4-已作废 */
+  status: number;
+  statusName: string;
+  confirmedAt?: string;
+  confirmedByName?: string;
+  voidReason?: string;
+  itemSummary?: string;
+  totalQty?: number;
+  receivedQty?: number | null;
+  qualifiedQty?: number | null;
+  receivedDate?: string;
+  brands?: string[];
+  categories?: string[];
+  items: SalesReturnItem[];
+  receipt?: DocBrief | null;
+  refunds?: {
+    id: number;
+    requestNo: string;
+    currencyCode: string;
+    amount: number;
+    status: number;
+    statusName: string;
+  }[];
+  attachments?: Attachment[];
+  logs?: DocLog[];
+}
+
+export interface SaveSalesReturn {
+  afterSalesId?: number;
+  handling?: number;
+  refundFirst?: boolean;
+  items: { soItemId: number; quantity: number }[];
+  carrier?: string;
+  trackingNo?: string;
+  remark?: string;
+}
+
+export interface ConfirmRefund {
+  lines?: { returnItemId: number; amount: number }[];
+  reason?: string;
+  method?: number;
+  payeeInfo?: string;
+  remark?: string;
+}
+
+export interface ReturnQuery {
+  page: number;
+  pageSize: number;
+  status?: number;
+  handling?: number;
+  customerId?: number;
+  keyword?: string;
+}
+
+export const salesReturnApi = {
+  page: (q: ReturnQuery) =>
+    send<{ total: number; records: SalesReturn[] }>('POST', `${TH}/page`, q),
+  counts: () => get<{ confirming: number; pending: number }>(`${TH}/counts`),
+  detail: (id: number) => get<SalesReturn>(`${TH}/${id}`),
+  create: (body: SaveSalesReturn) => send<SalesReturn>('POST', TH, body),
+  update: (id: number, body: SaveSalesReturn) =>
+    send<SalesReturn>('PUT', `${TH}/${id}`, body),
+  confirm: (id: number, refund?: ConfirmRefund) =>
+    send<SalesReturn>('POST', `${TH}/${id}/confirm`, { refund }),
+  voidReturn: (id: number, reason: string) =>
+    send<SalesReturn>('POST', `${TH}/${id}/void`, { reason }),
+  remark: (id: number, remark: string) =>
+    send<SalesReturn>('POST', `${TH}/${id}/remark`, { remark }),
+  attach: (id: number, ids: number[]) =>
+    send<SalesReturn>('POST', `${TH}/${id}/attachments`, { ids }),
+  removeAttachment: (id: number, attachmentId: number) =>
+    request<{ data: SalesReturn }>(`${TH}/${id}/attachments/${attachmentId}`, {
+      method: 'DELETE',
+      ...quiet,
+    }).then((r) => r.data),
+};
+
+// ---------------------------------------------------------------- 退货入库单 RR（spec warehouse/sales-return）
+
+export interface ReturnReceiptItem {
+  id: number;
+  returnItemId: number;
+  soItemId: number;
+  model: string;
+  brand?: string;
+  category?: string;
+  quantity: number;
+  receivedQty?: number | null;
+  qualifiedQty?: number | null;
+  disposedQty: number;
+  note?: string;
+  unitCost?: number | null;
+  supplierId?: number | null;
+  supplierName?: string;
+  poId?: number | null;
+  poNo?: string;
+}
+
+export interface ReturnDisposition {
+  id: number;
+  itemId: number;
+  model?: string;
+  disposition: number;
+  dispositionName: string;
+  quantity: number;
+  supplierId?: number;
+  supplierName?: string;
+  freightCny: number;
+  costCny: number;
+  holdId?: number;
+  purchaseReturnId?: number;
+  purchaseReturnNo?: string;
+  remark?: string;
+  operatorName?: string;
+  createTime?: string;
+}
+
+export interface ReturnReceipt extends DocAudit, CustomerFields {
+  id: number;
+  receiptNo: string;
+  salesReturnId: number;
+  returnNo?: string;
+  afterSalesId: number;
+  asNo?: string;
+  soId: number;
+  soNo?: string;
+  carrier?: string;
+  trackingNo?: string;
+  ownerId?: number;
+  ownerName?: string;
   status: number;
   statusName: string;
   receivedDate?: string;
   receivedByName?: string;
   receiveNote?: string;
+  remark?: string;
   voidReason?: string;
   itemSummary?: string;
-  items: SalesReturnItem[];
-  dispositions: SalesReturnDisposition[];
+  totalQty?: number;
+  receivedQty?: number | null;
+  qualifiedQty?: number | null;
+  brands?: string[];
+  categories?: string[];
+  items: ReturnReceiptItem[];
+  dispositions: ReturnDisposition[];
+  purchaseReturns?: DocBrief[];
   attachments?: Attachment[];
+  logs?: DocLog[];
   costCny?: number;
   freightCny?: number;
-  createTime?: string;
-  createBy?: string;
-  updateTime?: string;
-  updateBy?: string;
 }
 
 export interface DisposeLine {
@@ -347,51 +533,43 @@ export interface DisposeLine {
   disposition: number;
   quantity: number;
   supplierId?: number;
-  trackingNo?: string;
-  freightCny?: number;
-  supplierRefundCny?: number;
+  poId?: number;
   remark?: string;
 }
 
 export const returnApi = {
-  page: (q: {
-    page: number;
-    pageSize: number;
-    status?: number;
-    keyword?: string;
-  }) =>
-    send<{ total: number; records: SalesReturn[] }>('POST', `${RT}/page`, q),
+  page: (q: ReturnQuery) =>
+    send<{ total: number; records: ReturnReceipt[] }>('POST', `${RT}/page`, q),
   counts: () => get<{ pending: number; received: number }>(`${RT}/counts`),
-  detail: (id: number) => get<SalesReturn>(`${RT}/${id}`),
-  create: (body: {
-    afterSalesId: number;
-    items: { soItemId: number; quantity: number }[];
-    carrier?: string;
-    trackingNo?: string;
-    remark?: string;
-  }) => send<SalesReturn>('POST', RT, body),
-  update: (
-    id: number,
-    body: {
-      items: { soItemId: number; quantity: number }[];
-      carrier?: string;
-      trackingNo?: string;
-      remark?: string;
-    },
-  ) => send<SalesReturn>('PUT', `${RT}/${id}`, body),
-  voidReturn: (id: number, reason: string) =>
-    send<SalesReturn>('POST', `${RT}/${id}/void`, { reason }),
+  detail: (id: number) => get<ReturnReceipt>(`${RT}/${id}`),
   receive: (
     id: number,
     body: {
       receivedDate: string;
       note?: string;
-      items: { itemId: number; receivedQty: number; qualifiedQty: number }[];
+      items: {
+        itemId: number;
+        receivedQty: number;
+        qualifiedQty: number;
+        note?: string;
+      }[];
       attachmentIds?: number[];
     },
-  ) => send<SalesReturn>('POST', `${RT}/${id}/receive`, body),
+  ) => send<ReturnReceipt>('POST', `${RT}/${id}/receive`, body),
   unreceive: (id: number, reason: string) =>
-    send<SalesReturn>('POST', `${RT}/${id}/unreceive`, { reason }),
+    send<ReturnReceipt>('POST', `${RT}/${id}/unreceive`, { reason }),
   dispose: (id: number, lines: DisposeLine[]) =>
-    send<SalesReturn>('POST', `${RT}/${id}/dispose`, { lines }),
+    send<ReturnReceipt>('POST', `${RT}/${id}/dispose`, { lines }),
+  remark: (id: number, remark: string) =>
+    send<ReturnReceipt>('POST', `${RT}/${id}/remark`, { remark }),
+  attach: (id: number, ids: number[]) =>
+    send<ReturnReceipt>('POST', `${RT}/${id}/attachments`, { ids }),
+  removeAttachment: (id: number, attachmentId: number) =>
+    request<{ data: ReturnReceipt }>(
+      `${RT}/${id}/attachments/${attachmentId}`,
+      {
+        method: 'DELETE',
+        ...quiet,
+      },
+    ).then((r) => r.data),
 };

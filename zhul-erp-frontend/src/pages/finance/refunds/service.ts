@@ -1,4 +1,5 @@
 import { request } from '@umijs/max';
+import type { Attachment } from '@/pages/warehouse/service';
 import type { FileRef } from '../payables/service';
 
 const BASE = '/api/v1/finance/refunds';
@@ -124,6 +125,7 @@ export const refundApi = {
 const RQ = '/api/v1/finance/refund-requests';
 
 export const RQ_STATUS = {
+  PENDING_RECEIPT: 0,
   PENDING_APPROVAL: 1,
   PENDING_FINANCE: 2,
   EXECUTED: 3,
@@ -131,9 +133,41 @@ export const RQ_STATUS = {
   WITHDRAWN: 5,
 } as const;
 
+export interface RefundRequestItem {
+  id: number;
+  /** 1-退货型号、2-其他（仅退款手填） */
+  lineType: number;
+  soItemId?: number;
+  salesReturnItemId?: number;
+  itemName: string;
+  brand?: string;
+  category?: string;
+  quantity?: number;
+  unitPrice?: number;
+  amount: number;
+  note?: string;
+}
+
 export interface RefundRequest {
   id: number;
   requestNo: string;
+  /** 退货退款时的销售退货单 */
+  salesReturnId?: number | null;
+  /** 来源单号：销售退货单号，没有时为售后单号 */
+  sourceNo?: string;
+  /** 1-先退款 */
+  refundFirst?: number;
+  /** 实收少于退货数量时的提示 */
+  receivedHint?: string;
+  items?: RefundRequestItem[];
+  attachments?: Attachment[];
+  logs?: {
+    id: number;
+    action: string;
+    content?: string;
+    operatorName?: string;
+    createTime: string;
+  }[];
   afterSalesId?: number | null;
   asNo?: string;
   soId: number;
@@ -149,7 +183,7 @@ export interface RefundRequest {
   methodName?: string;
   payeeInfo?: string;
   remark?: string;
-  /** 1-待审批、2-待财务处理、3-已执行、4-已驳回、5-已撤回 */
+  /** 0-待验收、1-待审批、2-待财务处理、3-已执行、4-已驳回、5-已撤回 */
   status: number;
   statusName: string;
   applicantName?: string;
@@ -187,10 +221,12 @@ export const refundRequestApi = {
   }) => post<{ total: number; records: RefundRequest[] }>(`${RQ}/page`, q),
   counts: () =>
     get<{
+      pendingReceipt: number;
       pendingApproval: number;
       pendingFinance: number;
       approvalRequired: number;
     }>(`${RQ}/counts`),
+  detail: (id: number) => get<RefundRequest>(`${RQ}/${id}`),
   refundable: (soId: number) =>
     get<RequestRefundable>(`${RQ}/refundable/${soId}`),
   ofOrder: (soId: number) => get<RefundRequest[]>(`${RQ}/order/${soId}`),
@@ -202,6 +238,8 @@ export const refundRequestApi = {
     method: number;
     payeeInfo?: string;
     remark?: string;
+    /** 不填时生成一行「退款」；填写时合计须等于金额 */
+    lines?: { itemName: string; amount: number; note?: string }[];
   }) => post<RefundRequest>(RQ, body),
   withdraw: (id: number) => post<RefundRequest>(`${RQ}/${id}/withdraw`, {}),
   approve: (id: number) => post<RefundRequest>(`${RQ}/${id}/approve`, {}),
@@ -221,6 +259,18 @@ export const refundRequestApi = {
       attachmentIds: number[];
     },
   ) => post<RefundRequest>(`${RQ}/${id}/execute`, body),
+  remark: (id: number, remark: string) =>
+    post<RefundRequest>(`${RQ}/${id}/remark`, { remark }),
+  attach: (id: number, ids: number[]) =>
+    post<RefundRequest>(`${RQ}/${id}/attachments`, { ids }),
+  removeAttachment: (id: number, attachmentId: number) =>
+    request<{ data: RefundRequest }>(
+      `${RQ}/${id}/attachments/${attachmentId}`,
+      {
+        method: 'DELETE',
+        skipErrorHandler: true,
+      },
+    ).then((r) => r.data),
 };
 
 /** 订单的售后单（退款单、费用单关联用） */

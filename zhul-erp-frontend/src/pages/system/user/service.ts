@@ -38,6 +38,7 @@ export async function getUserList(params: {
   pageSize?: number;
   name?: string;
   phone?: string;
+  deptId?: number;
   status?: number;
 }): Promise<{ data: UserPageResult }> {
   const res = await request('/api/v1/system/users', {
@@ -47,6 +48,7 @@ export async function getUserList(params: {
       pageSize: params.pageSize,
       name: params.name,
       phone: params.phone,
+      deptId: params.deptId,
       status: params.status,
     },
   });

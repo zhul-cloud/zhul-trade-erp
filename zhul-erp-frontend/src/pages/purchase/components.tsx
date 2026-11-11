@@ -150,7 +150,7 @@ export const SupplierPicker: React.FC<{
   }, []);
 
   const merged =
-    value && label && !options.some((o) => o.value === value)
+    value != null && label && !options.some((o) => o.value === value)
       ? [{ value, label }, ...options]
       : options;
 

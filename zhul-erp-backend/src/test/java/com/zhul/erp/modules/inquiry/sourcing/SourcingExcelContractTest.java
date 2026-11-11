@@ -145,6 +145,36 @@ class SourcingExcelContractTest extends InquiryContractSupport {
         assertEquals(2, entries, "多个任务打包下载");
     }
 
+    /** BUS-015：型号已报给客户后，本人导入与代导入都和在线录入一样拒绝，且不留下回价或导入记录 */
+    @Test
+    void importConfirm_quotedItem_isReadOnlyLikeOnline() throws Exception {
+        loginAsAdmin("it_xls_admin");
+        admin = token("it_xls_admin");
+        long task = inquiryWithTask("Omron", "传感器", "E3Z-D61");
+        assign(task, BUYER_LIN);
+        long item = jdbc.queryForObject("select id from inquiry_item where sourcing_task_id = ?", Long.class, task);
+        long inq = jdbc.queryForObject("select customer_inquiry_id from sourcing_task where id = ?", Long.class, task);
+        jdbc.update("insert into quotation (tenant_id, quotation_no, customer_id, status) values (0, 'QTIT00000015', 0, 2)");
+        long sent = jdbc.queryForObject("select id from quotation where quotation_no = 'QTIT00000015'", Long.class);
+        jdbc.update("insert into quotation_item (tenant_id, quotation_id, customer_inquiry_id, inquiry_item_id, model) values (0, ?, ?, ?, 'x')",
+                sent, inq, item);
+
+        Map<String, Object> row = new LinkedHashMap<>();
+        row.put("itemId", item);
+        row.put("channel", 1);
+        row.put("noStock", false);
+        row.put("unitPrice", "80.00");
+        Map<String, Object> file = Map.of("taskId", task, "rows", List.of(row));
+        JsonNode own = call(json(post(MY + "/import/confirm"), write(Map.of("files", List.of(file)))), token("it_lin"));
+        assertEquals("E3Z-D61 已报给客户，回价不能再修改", own.path("message").asText());
+        JsonNode proxy = call(json(post(BOARD + "/import/confirm"), write(Map.of("files", List.of(file)))), admin);
+        assertEquals("E3Z-D61 已报给客户，回价不能再修改", proxy.path("message").asText());
+        assertEquals(0, jdbc.queryForObject("select count(*) from sourcing_quote where inquiry_item_id = ?", Integer.class, item));
+        assertEquals(0, jdbc.queryForObject("select count(*) from sourcing_import where task_id = ?", Integer.class, task));
+        jdbc.update("delete from quotation_item where quotation_id = ?", sent);
+        jdbc.update("delete from quotation where id = ?", sent);
+    }
+
     @Test
     void importResults_previewProblemsRejectsAndConfirm() throws Exception {
         loginAsAdmin("it_xls_admin");

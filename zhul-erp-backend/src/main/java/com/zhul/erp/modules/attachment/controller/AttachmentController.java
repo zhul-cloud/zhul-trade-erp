@@ -40,7 +40,7 @@ public class AttachmentController {
             Map.entry(AttachmentService.PAYMENT, List.of("/finance/payables", "/finance/payments", "/purchase/orders",
                     "/logistics/statements", "/finance/reimbursements")),
             Map.entry(AttachmentService.COURIER_PROOF, List.of("/finance/reimbursements")),
-            Map.entry(AttachmentService.RETURN_PROOF, List.of("/finance/reimbursements")),
+            Map.entry(AttachmentService.RETURN_PROOF, List.of("/finance/reimbursements", "/purchase/returns")),
             Map.entry(AttachmentService.EXPENSE, List.of("/finance/expenses", "/finance/reimbursements")),
             Map.entry(AttachmentService.REIMBURSE, List.of("/finance/reimbursements", "/finance/payments")),
             Map.entry(AttachmentService.PO_INVOICE, List.of("/purchase/orders", "/finance/payables")),
@@ -50,7 +50,10 @@ public class AttachmentController {
             Map.entry(AttachmentService.SALES_ORDER, List.of("/sales/orders")),
             Map.entry(AttachmentService.AFTER_SALES, List.of("/sales/after-sales", "/sales/orders")),
             Map.entry(AttachmentService.AFTER_SALES_LOG, List.of("/sales/after-sales", "/warehouse/returns", "/finance/refunds")),
-            Map.entry(AttachmentService.SALES_RETURN, List.of("/warehouse/returns")),
+            Map.entry(AttachmentService.SALES_RETURN, List.of("/sales/returns", "/sales/after-sales")),
+            Map.entry(AttachmentService.RETURN_RECEIPT, List.of("/warehouse/returns", "/sales/returns", "/sales/after-sales")),
+            Map.entry(AttachmentService.PURCHASE_RETURN, List.of("/purchase/returns")),
+            Map.entry(AttachmentService.REFUND_REQUEST, List.of("/finance/refunds", "/sales/after-sales", "/sales/orders")),
             Map.entry(AttachmentService.SOURCING_QUOTE, List.of("/inquiry/my-tasks", "/inquiry/sourcing-board",
                     "/inquiry/price-history", "/inquiry/customer-inquiries", "/quotation/quotations")));
 

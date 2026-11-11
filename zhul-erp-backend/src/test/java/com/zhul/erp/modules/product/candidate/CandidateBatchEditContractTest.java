@@ -5,10 +5,14 @@ import com.zhul.erp.modules.inquiry.InquiryContractSupport;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.LongStream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -21,6 +25,9 @@ class CandidateBatchEditContractTest extends InquiryContractSupport {
 
     private static final String CAND = "/api/v1/product/candidates";
 
+    @Autowired private TransactionTemplate tx;
+    @Autowired private com.zhul.erp.modules.product.candidate.repository.ProductCandidateMapper candidateMapper;
+    @Autowired private org.springframework.transaction.PlatformTransactionManager txManager;
     private String admin;
     private long others;
     private long abb;
@@ -119,6 +126,53 @@ class CandidateBatchEditContractTest extends InquiryContractSupport {
         // 没有审核权限
         Map<String, Object> body = Map.of("ids", List.of(c), "brandId", abb);
         fail(call(json(post(CAND + "/batch-edit"), write(body)), token("it_lin")));
+    }
+
+    /** BUS-022：别人驳回还没提交时批量通过：等对方提交后按最新状态跳过，不能用旧快照建档、覆盖驳回 */
+    @Test
+    void batchApprove_whileRejectInFlight_skipsRejected() throws Exception {
+        long c = candidate("ITBE-22", "ABB", abb, contactor, 1);
+        CountDownLatch rejecting = new CountDownLatch(1);
+        Thread reject = new Thread(() -> tx.executeWithoutResult(s -> {
+            jdbc.queryForObject("select id from product_candidate where id = ? for update", Long.class, c);
+            jdbc.update("update product_candidate set status = 4 where id = ?", c);
+            rejecting.countDown();
+            try {
+                Thread.sleep(800);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }), "candidate-reject");
+        reject.start();
+        assertTrue(rejecting.await(10, TimeUnit.SECONDS));
+        JsonNode vo = ok(call(json(post(CAND + "/batch-approve"), write(Map.of("ids", List.of(c)))), admin));
+        reject.join(10_000);
+
+        assertEquals(0, vo.path("approved").asInt(), vo.toString());
+        assertEquals("已审核", vo.path("skipped").get(0).path("reason").asText());
+        assertEquals(4L, col("status", c), "仍是驳回");
+        assertEquals(null, jdbc.queryForObject("select product_id from product_candidate where id = ?", Long.class, c));
+    }
+
+    /** BUS-035：同一事务里按 ID 再读一次，要读到别人已提交的新值，不能拿 MyBatis 会话缓存里的旧对象 */
+    @Test
+    void sameTransactionReread_seesCommittedChange() throws Exception {
+        long c = candidate("ITBE-35", "ABB", abb, contactor, 1);
+        TransactionTemplate rc = new TransactionTemplate(txManager);
+        rc.setIsolationLevel(org.springframework.transaction.TransactionDefinition.ISOLATION_READ_COMMITTED);
+        Integer reread = rc.execute(s -> {
+            com.zhul.erp.framework.tenant.TenantContext.setTenantId(0);
+            assertEquals(1, candidateMapper.selectById(c).getStatus());
+            Thread other = new Thread(() -> jdbc.update("update product_candidate set status = 4 where id = ?", c));
+            other.start();
+            try {
+                other.join(10_000);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+            return candidateMapper.selectById(c).getStatus();
+        });
+        assertEquals(4, reread);
     }
 
     @Test

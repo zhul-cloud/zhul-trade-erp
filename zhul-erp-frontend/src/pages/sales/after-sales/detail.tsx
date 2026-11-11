@@ -6,18 +6,21 @@ import {
   EditOutlined,
   FileTextOutlined,
   HistoryOutlined,
-  InboxOutlined,
   MessageOutlined,
   PauseCircleOutlined,
+  RollbackOutlined,
   SendOutlined,
   ShoppingCartOutlined,
   StopOutlined,
+  SwapOutlined,
   WarningOutlined,
 } from '@ant-design/icons';
 import { history, useAccess, useParams } from '@umijs/max';
 import { App, Button, Checkbox, Input, Skeleton } from 'antd';
 import dayjs from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
+import { RelatedDocsCard } from '@/components/DocFields/DocPage';
+import { listHref } from '@/components/DocFields/SourceNos';
 import { usePageTitle } from '@/components/PageTabs/hooks';
 import ExpenseQuickModal from '@/pages/finance/expenses/AfterSalesExpense';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
@@ -26,23 +29,27 @@ import type { Attachment } from '@/pages/warehouse/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount, formatDateTime } from '@/utils/format';
 import { MenuLink } from '@/utils/menuName';
-import { Card, Pill, SalesPageTitle } from '../components';
+import { Card, PATHS, Pill, SalesPageTitle } from '../components';
+import { CreateReturnModal } from '../returns/dialogs';
 import { readBizError } from '../service';
 import {
   CloseModal,
   PlanModal,
   RefundRequestModal,
   ReplacementModal,
-  ReturnModal,
 } from './dialogs';
 import {
   type AfterSales,
   AS_STATUS,
   AS_STATUS_TONE,
   afterSalesApi,
+  HANDLING,
   LEVEL_TONE,
   levelShort,
+  PR_STATUS_TONE,
+  RQ_STATUS_TONE,
   RT_STATUS_TONE,
+  TH_STATUS_TONE,
   type Tone,
 } from './service';
 import { dueLeftText, SLA_TEXT, WORK_HOURS_TEXT } from './sla';
@@ -58,18 +65,11 @@ const LOG_TONE: Record<string, Tone> = {
   CREATE: 'gray',
   REPLACEMENT: 'violet',
 };
-const RQ_TONE: Record<number, Tone> = {
-  1: 'accent',
-  2: 'orange',
-  3: 'green',
-  4: 'red',
-  5: 'mute',
-};
-
 type Dialog =
   | 'plan'
   | 'close'
-  | 'return'
+  | 'returnOnly'
+  | 'returnRefund'
   | 'refund'
   | 'expense'
   | 'cancel'
@@ -597,79 +597,9 @@ const AfterSalesDetail: React.FC = () => {
       {section(<DollarOutlined />, '售后成本')}
       <div
         style={{
-          padding: 14,
-          borderRadius: 12,
-          background: palette.inset,
-          display: 'grid',
-          gap: 10,
-          fontSize: 13,
-        }}
-      >
-        <div>
-          <div style={{ color: palette.mute, marginBottom: 4 }}>退货</div>
-          {(a.returns ?? []).length === 0 && <span>—</span>}
-          {(a.returns ?? []).map((r) => (
-            <div
-              key={r.id}
-              style={{ display: 'flex', gap: 8, alignItems: 'center' }}
-            >
-              <a onClick={() => history.push(`/warehouse/returns?id=${r.id}`)}>
-                {r.returnNo}
-              </a>
-              <span style={{ color: palette.sub, flex: 1 }}>{r.summary}</span>
-              <Pill tone={RT_STATUS_TONE[r.status] ?? 'gray'}>
-                {r.statusName}
-              </Pill>
-            </div>
-          ))}
-        </div>
-        <div>
-          <div style={{ color: palette.mute, marginBottom: 4 }}>
-            退款申请 · 退款
-          </div>
-          {(a.requests ?? []).length + (a.refunds ?? []).length === 0 && (
-            <span>—</span>
-          )}
-          {(a.requests ?? []).map((q) => (
-            <div
-              key={`q${q.id}`}
-              style={{ display: 'flex', gap: 8, alignItems: 'center' }}
-            >
-              <span>{q.requestNo}</span>
-              <span style={{ color: palette.sub, flex: 1 }}>
-                {formatAmount(q.amount, q.currencyCode)}
-              </span>
-              <Pill tone={RQ_TONE[q.status] ?? 'gray'}>{q.statusName}</Pill>
-            </div>
-          ))}
-          {(a.refunds ?? []).map((f) => (
-            <div key={`f${f.id}`} style={{ display: 'flex', gap: 8 }}>
-              <span>{f.refundNo}</span>
-              <span style={{ color: palette.sub, flex: 1 }}>
-                {formatAmount(f.amount, f.currencyCode)} · {f.methodName}
-              </span>
-              <b>{formatAmount(f.amountCny, 'CNY')}</b>
-            </div>
-          ))}
-        </div>
-        <div>
-          <div style={{ color: palette.mute, marginBottom: 4 }}>费用</div>
-          {(a.expenses ?? []).length === 0 && <span>—</span>}
-          {(a.expenses ?? []).map((e) => (
-            <div key={e.id} style={{ display: 'flex', gap: 8 }}>
-              <span>{e.expenseNo}</span>
-              <span style={{ color: palette.sub, flex: 1 }}>{e.name}</span>
-              <b>{formatAmount(e.amountCny, 'CNY')}</b>
-            </div>
-          ))}
-        </div>
-      </div>
-      <div
-        style={{
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'baseline',
-          marginTop: 12,
         }}
       >
         <span style={{ color: palette.sub }}>
@@ -693,6 +623,195 @@ const AfterSalesDetail: React.FC = () => {
         退款冲减订单收入，费用计入订单成本；退货去向处理后，退回供应商或转闲置冲减订单成本；补发订单的成本计入原订单。
       </div>
     </Card>
+  );
+
+  const returnItems = (a.items ?? [])
+    .filter((i) => i.soItemId)
+    .map((i) => ({
+      soItemId: i.soItemId as number,
+      model: i.model,
+      brand: i.brand,
+      category: i.category ?? undefined,
+      shippedQty: i.shippedQty ?? 0,
+      returnable: i.returnableQty ?? 0,
+      unitPrice: i.unitPrice ?? undefined,
+    }));
+  const noReturnable = returnItems.every((i) => i.returnable <= 0);
+  const options: {
+    key: Dialog;
+    icon: React.ReactNode;
+    title: string;
+    desc: string;
+    disabled?: string;
+  }[] = [
+    {
+      key: 'returnOnly',
+      icon: <RollbackOutlined />,
+      title: '仅退货',
+      desc: '客户寄回，不退钱',
+      disabled: noReturnable ? '没有可退的数量（已出运的才能退）' : undefined,
+    },
+    {
+      key: 'returnRefund',
+      icon: <SwapOutlined />,
+      title: '退货退款',
+      desc: '寄回后退钱，可先退款',
+      disabled: noReturnable ? '没有可退的数量（已出运的才能退）' : undefined,
+    },
+    {
+      key: 'refund',
+      icon: <DollarOutlined />,
+      title: '仅退款',
+      desc: '不寄回，按金额退',
+    },
+    {
+      key: 'replacement',
+      icon: <ShoppingCartOutlined />,
+      title: '补发',
+      desc: '生成补发订单',
+    },
+  ];
+  const handlingCard = active && (
+    <Card style={{ padding: 20, marginBottom: 16 }}>
+      {section(<EditOutlined />, '处理方式')}
+      {!a.soId ? (
+        <div style={{ color: palette.mute, fontSize: 13 }}>
+          售后单没有关联订单，不能退货、退款或补发
+        </div>
+      ) : (
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
+            gap: 12,
+          }}
+        >
+          {options.map((o) => (
+            <button
+              key={o.key}
+              type="button"
+              disabled={!!o.disabled}
+              title={o.disabled}
+              onClick={() => setDialog(o.key)}
+              style={{
+                display: 'flex',
+                gap: 12,
+                alignItems: 'center',
+                textAlign: 'left',
+                padding: '14px 16px',
+                borderRadius: 12,
+                border: `1px solid ${palette.hairline}`,
+                background: palette.inset,
+                color: palette.ink,
+                font: 'inherit',
+                cursor: o.disabled ? 'not-allowed' : 'pointer',
+                opacity: o.disabled ? 0.5 : 1,
+              }}
+            >
+              <span
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 10,
+                  display: 'grid',
+                  placeItems: 'center',
+                  flexShrink: 0,
+                  background: palette.accentSoft,
+                  color: palette.link,
+                  fontSize: 16,
+                }}
+              >
+                {o.icon}
+              </span>
+              <span style={{ minWidth: 0 }}>
+                <b style={{ display: 'block' }}>{o.title}</b>
+                <span style={{ fontSize: 12, color: palette.mute }}>
+                  {o.disabled ?? o.desc}
+                </span>
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+    </Card>
+  );
+
+  const docs = [
+    ...(a.returns ?? []).flatMap((r) => [
+      {
+        label: '销售退货单',
+        no: r.returnNo,
+        href: PATHS.salesReturn(r.id),
+        statusName: r.statusName,
+        tone: TH_STATUS_TONE[r.status],
+        extra: <span style={{ color: palette.sub }}>{r.handlingName}</span>,
+      },
+      ...(r.receiptId
+        ? [
+            {
+              label: '退货入库单',
+              no: r.receiptNo,
+              href: PATHS.returnReceipt(r.receiptId),
+              statusName: r.receiptStatusName,
+              tone:
+                r.receiptStatus == null
+                  ? undefined
+                  : RT_STATUS_TONE[r.receiptStatus],
+            },
+          ]
+        : []),
+    ]),
+    ...(a.requests ?? []).map((q) => ({
+      label: '退款申请',
+      no: q.requestNo,
+      href: PATHS.refundRequest(q.id),
+      statusName: q.statusName,
+      tone: RQ_STATUS_TONE[q.status],
+      extra: (
+        <span style={{ color: palette.sub }}>
+          {formatAmount(q.amount, q.currencyCode)}
+        </span>
+      ),
+    })),
+    ...(a.refunds ?? []).map((f) => ({
+      label: '退款单',
+      no: f.refundNo,
+      href: listHref('/finance/refunds', f.refundNo),
+      extra: (
+        <span style={{ color: palette.sub }}>
+          {formatAmount(f.amount, f.currencyCode)} · {f.methodName}
+        </span>
+      ),
+    })),
+    ...(a.purchaseReturns ?? []).map((p) => ({
+      label: '采购退货单',
+      no: p.no,
+      href: PATHS.purchaseReturn(p.id),
+      statusName: p.statusName,
+      tone: PR_STATUS_TONE[p.status],
+    })),
+    ...(a.expenses ?? []).map((e) => ({
+      label: '费用单',
+      no: e.expenseNo,
+      extra: (
+        <span style={{ color: palette.sub }}>
+          {e.name} · {formatAmount(e.amountCny, 'CNY')}
+        </span>
+      ),
+    })),
+  ];
+  const docsCard = docs.length > 0 && (
+    <RelatedDocsCard
+      title={
+        <>
+          售后单据{' '}
+          <span style={{ color: palette.mute, fontWeight: 400 }}>
+            {docs.length}
+          </span>
+        </>
+      }
+      docs={docs}
+    />
   );
 
   return (
@@ -729,35 +848,13 @@ const AfterSalesDetail: React.FC = () => {
         actions={
           active && (
             <>
-              {a.soId && (
-                <>
-                  <Button
-                    icon={<ShoppingCartOutlined />}
-                    onClick={() => setDialog('replacement')}
-                  >
-                    补发
-                  </Button>
-                  <Button
-                    icon={<InboxOutlined />}
-                    onClick={() => setDialog('return')}
-                  >
-                    发起退货
-                  </Button>
-                  <Button
-                    icon={<DollarOutlined />}
-                    onClick={() => setDialog('refund')}
-                  >
-                    申请退款
-                  </Button>
-                  {access['finance:expense:edit'] && (
-                    <Button
-                      icon={<FileTextOutlined />}
-                      onClick={() => setDialog('expense')}
-                    >
-                      登记费用
-                    </Button>
-                  )}
-                </>
+              {a.soId && access['finance:expense:edit'] && (
+                <Button
+                  icon={<FileTextOutlined />}
+                  onClick={() => setDialog('expense')}
+                >
+                  登记费用
+                </Button>
               )}
               <Button
                 type="primary"
@@ -787,6 +884,8 @@ const AfterSalesDetail: React.FC = () => {
         }}
       >
         <div style={{ minWidth: 0 }}>
+          {handlingCard}
+          {docsCard}
           {problem}
           {replacements}
           {timeline}
@@ -816,11 +915,19 @@ const AfterSalesDetail: React.FC = () => {
           onDone={done}
         />
       )}
-      <ReturnModal
-        open={dialog === 'return'}
-        data={a}
+      <CreateReturnModal
+        open={dialog === 'returnOnly' || dialog === 'returnRefund'}
+        handling={dialog === 'returnRefund' ? HANDLING.REFUND : HANDLING.RETURN}
+        afterSalesId={a.id}
+        asNo={a.asNo}
+        soNo={a.soNo}
+        currencyCode={a.currencyCode}
+        items={returnItems}
         onClose={() => setDialog(undefined)}
-        onDone={reload}
+        onDone={(r) => {
+          setDialog(undefined);
+          history.push(PATHS.salesReturn(r.id));
+        }}
       />
       {a.soId && (
         <RefundRequestModal

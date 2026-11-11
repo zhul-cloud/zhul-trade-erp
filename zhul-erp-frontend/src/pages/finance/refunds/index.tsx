@@ -54,12 +54,17 @@ const num: React.CSSProperties = {
   whiteSpace: 'nowrap',
 };
 
-/** 日期范围：默认最近 3 个月（清空看全部）；经营统计跳转时用 URL 带的日期 */
+/** 从其他单据跳转来时地址带 keyword（退款单号） */
+const keywordFromUrl = () =>
+  new URLSearchParams(window.location.search).get('keyword') ?? '';
+
+/** 日期范围：默认最近 3 个月（清空看全部）；经营统计跳转时用 URL 带的日期；按单号跳转时不限日期 */
 const rangeFromUrl = (): [Dayjs, Dayjs] | null => {
   const p = new URLSearchParams(window.location.search);
   const from = p.get('dateFrom');
   const to = p.get('dateTo');
-  return from && to ? [dayjs(from), dayjs(to)] : recentRange();
+  if (from && to) return [dayjs(from), dayjs(to)];
+  return keywordFromUrl() ? null : recentRange();
 };
 
 /** 先选订单再登记退款 */
@@ -122,8 +127,8 @@ const RefundPage: React.FC = () => {
   const access = useAccess() as Record<string, boolean>;
   const canEdit = !!access['finance:refund:edit'];
   const reasons = useDictTexts(DICT_REFUND_REASON);
-  const [keyword, setKeyword] = useState('');
-  const [query, setQuery] = useState('');
+  const [keyword, setKeyword] = useState(keywordFromUrl);
+  const [query, setQuery] = useState(keywordFromUrl);
   const [reason, setReason] = useState<string>();
   const [range, setRange] = useState<[Dayjs, Dayjs] | null>(rangeFromUrl);
   const [showVoid, setShowVoid] = useState(false);
@@ -470,7 +475,11 @@ const RefundPage: React.FC = () => {
               />
               <Checkbox
                 checked={showVoid}
-                onChange={(e) => setShowVoid(e.target.checked)}
+                onChange={(e) => {
+                  // 切换是否含作废记录：和其他筛选一样回到第 1 页，免得停在越界的空页（UI-031）
+                  setShowVoid(e.target.checked);
+                  setPage(1);
+                }}
               >
                 显示已作废
               </Checkbox>

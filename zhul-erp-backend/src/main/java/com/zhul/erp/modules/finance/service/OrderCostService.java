@@ -80,6 +80,8 @@ public class OrderCostService {
     private final ExpenseAllocationMapper expenseAllocationMapper;
     private final com.zhul.erp.modules.aftersales.repository.SalesReturnDispositionMapper dispositionMapper;
     private final com.zhul.erp.modules.aftersales.repository.SalesReturnMapper salesReturnMapper;
+    private final com.zhul.erp.modules.aftersales.repository.ReturnReceiptMapper returnReceiptMapper;
+    private final com.zhul.erp.modules.purchase.purchasereturn.repository.PurchaseReturnMapper purchaseReturnMapper;
     private final ExpenseMapper expenseMapper;
     private final CustomerRefundMapper refundMapper;
     private final DictItemService dictItemService;
@@ -299,6 +301,21 @@ public class OrderCostService {
                         .flatMap(List::stream).map(com.zhul.erp.modules.aftersales.entity.SalesReturnDispositionDO::getReturnId).distinct().toList())
                 .stream().collect(Collectors.toMap(com.zhul.erp.modules.aftersales.entity.SalesReturnDO::getId,
                         com.zhul.erp.modules.aftersales.entity.SalesReturnDO::getReturnNo));
+        // 来源单号：退回供应商显示采购退货单，其他去向显示退货入库单（spec after-sales-return-docs）
+        List<Long> rrIds = returnsByItem.values().stream().flatMap(List::stream)
+                .map(com.zhul.erp.modules.aftersales.entity.SalesReturnDispositionDO::getReceiptId).filter(Objects::nonNull).distinct().toList();
+        Map<Long, String> receiptNos = rrIds.isEmpty() ? Map.of() : returnReceiptMapper.selectBatchIds(rrIds).stream()
+                .collect(Collectors.toMap(com.zhul.erp.modules.aftersales.entity.ReturnReceiptDO::getId,
+                        com.zhul.erp.modules.aftersales.entity.ReturnReceiptDO::getReceiptNo));
+        List<Long> prIds = returnsByItem.values().stream().flatMap(List::stream)
+                .map(com.zhul.erp.modules.aftersales.entity.SalesReturnDispositionDO::getPurchaseReturnId).filter(Objects::nonNull).distinct().toList();
+        Map<Long, String> purchaseReturnNos = prIds.isEmpty() ? Map.of() : purchaseReturnMapper.selectBatchIds(prIds).stream()
+                .collect(Collectors.toMap(com.zhul.erp.modules.purchase.purchasereturn.entity.PurchaseReturnDO::getId,
+                        com.zhul.erp.modules.purchase.purchasereturn.entity.PurchaseReturnDO::getReturnNo));
+        Map<String, String> sourceNos = new java.util.HashMap<>();
+        returnNos.forEach((k, v) -> sourceNos.put("RETURN:" + k, v));
+        receiptNos.forEach((k, v) -> sourceNos.put("RETURN_RECEIPT:" + k, v));
+        purchaseReturnNos.forEach((k, v) -> sourceNos.put("PURCHASE_RETURN:" + k, v));
 
         // 收款：PI 转成的订单按 PI 的到账，手动订单按订单自己的
         Set<Long> piIds = active.stream().map(SalesOrderDO::getPiId).filter(Objects::nonNull).collect(Collectors.toSet());
@@ -410,7 +427,7 @@ public class OrderCostService {
                     nz(o.getTotalAmountCny()).subtract(collectionCny), calcItems, calcLines, calcPos, calcReceipts, refund, deduction,
                     feeDeduction));
             OrderCostVO vo = toVo(o, mine, res, poLinesByItem, pos, qualified, freightByItem, shipments, waybills, expenseByItem, expenses,
-                    returnsByItem, returnNos);
+                    returnsByItem, sourceNos);
             vo.setRefund(res.refund());
             vo.setRefunds(refunds.stream().map(f -> brief(f, reasonNames)).toList());
             vo.setCollectionCny(OrderCostCalc.money(collectionDeducted));
@@ -542,7 +559,7 @@ public class OrderCostService {
                              Map<Long, List<FreightAllocationDO>> freightByItem, Map<Long, LogisticsShipmentDO> shipments,
                              Map<Long, CourierWaybillDO> waybills, Map<Long, List<ExpenseAllocationDO>> expenseByItem, Map<Long, ExpenseDO> expenses,
                              Map<Long, List<com.zhul.erp.modules.aftersales.entity.SalesReturnDispositionDO>> returnsByItem,
-                             Map<Long, String> returnNos) {
+                             Map<String, String> sourceNos) {
         OrderCostVO vo = new OrderCostVO();
         vo.setSoId(o.getId());
         vo.setSalesAmountCny(o.getTotalAmountCny());
@@ -613,13 +630,21 @@ public class OrderCostService {
             }).toList());
             sources.put("salesReturn", returnsByItem.getOrDefault(l.soItemId(), List.of()).stream()
                     .filter(d -> d.getCostCny().signum() != 0 || d.getFreightCny().signum() != 0)
-                    .map(d -> source("RETURN", d.getReturnId(), returnNos.get(d.getReturnId()), d.getCostCny().negate(),
+                    .map(d -> returnSource(d, sourceNos,
                             com.zhul.erp.modules.aftersales.constants.AfterSalesConstants.DISP_NAMES.get(d.getDisposition()) + " × " + d.getQuantity()
                                     + (d.getFreightCny().signum() > 0 ? "，退回运费 ¥" + d.getFreightCny() : ""))).toList());
             x.setSources(sources);
             return x;
         }).toList());
         return vo;
+    }
+
+    /** 退货去向的来源单：退回供应商为采购退货单，其他去向为退货入库单，迁移前没有入库单的为销售退货单 */
+    private static OrderCostVO.Source returnSource(com.zhul.erp.modules.aftersales.entity.SalesReturnDispositionDO d,
+                                                   Map<String, String> sourceNos, String note) {
+        String type = d.getPurchaseReturnId() != null ? "PURCHASE_RETURN" : d.getReceiptId() != null ? "RETURN_RECEIPT" : "RETURN";
+        Long id = d.getPurchaseReturnId() != null ? d.getPurchaseReturnId() : d.getReceiptId() != null ? d.getReceiptId() : d.getReturnId();
+        return source(type, id, sourceNos.get(type + ":" + id), d.getCostCny().negate(), note);
     }
 
     private static OrderCostVO.Source source(String type, Long id, String no, BigDecimal amount, String note) {

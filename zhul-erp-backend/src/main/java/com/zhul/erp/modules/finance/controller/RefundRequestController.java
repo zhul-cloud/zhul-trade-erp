@@ -9,9 +9,12 @@ import com.zhul.erp.modules.finance.dto.RequestRefundableVO;
 import com.zhul.erp.modules.finance.dto.SaveRefundRequest;
 import com.zhul.erp.modules.finance.dto.SaveRefundRequestApply;
 import com.zhul.erp.modules.finance.service.RefundRequestService;
+import com.zhul.erp.modules.system.doclog.DocAttachRequest;
+import com.zhul.erp.modules.system.doclog.DocRemarkRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -99,5 +102,23 @@ public class RefundRequestController {
     @PreAuthorize(EDIT)
     public Result<RefundRequestVO> reject(@PathVariable Long id, @Valid @RequestBody ReasonBody req) {
         return Result.ok(service.reject(id, req.getReason(), false));
+    }
+
+    @PostMapping("/{id}/remark")
+    @PreAuthorize(MENU + " or " + APPLY)
+    public Result<RefundRequestVO> remark(@PathVariable Long id, @Valid @RequestBody DocRemarkRequest req) {
+        return Result.ok(service.remark(id, req.getRemark()));
+    }
+
+    @PostMapping("/{id}/attachments")
+    @PreAuthorize(MENU + " or " + APPLY)
+    public Result<RefundRequestVO> attach(@PathVariable Long id, @Valid @RequestBody DocAttachRequest req) {
+        return Result.ok(service.attach(id, req.getIds()));
+    }
+
+    @DeleteMapping("/{id}/attachments/{attachmentId}")
+    @PreAuthorize(MENU + " or " + APPLY)
+    public Result<RefundRequestVO> removeAttachment(@PathVariable Long id, @PathVariable Long attachmentId) {
+        return Result.ok(service.removeAttachment(id, attachmentId));
     }
 }

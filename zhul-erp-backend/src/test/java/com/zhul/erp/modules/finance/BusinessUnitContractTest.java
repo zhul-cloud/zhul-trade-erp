@@ -288,4 +288,40 @@ class BusinessUnitContractTest extends SalesContractSupport {
         }
         throw new AssertionError("没有 " + month + " 月");
     }
+
+    /** BUS-020：普通部门维护也守事业部不嵌套；部门移动时下级层级一起调整；已有单据的事业部不能删除 */
+    @Test
+    void deptMaintenance_keepsBusinessUnitsFlat() throws Exception {
+        ok(mark(deptA, true, YearMonth.now().toString()));
+        ok(mark(deptB, true, YearMonth.now().toString()));
+        jdbc.update("update department set level = 2 where id = ?", deptA1);
+
+        // 事业部 A 不能挂到事业部 B 下面；挂着事业部的普通上级也不能挪到事业部下面
+        assertEquals("「IT-外贸部门-阿里国际站」是事业部，不能放到事业部「IT-外贸部门-中国制造网」下面，事业部不能嵌套",
+                fail(call(json(put(DEPT + "/" + deptA), write(Map.of("name", "IT-外贸部门-阿里国际站", "pid", deptB))), admin))
+                        .path("message").asText());
+        int group = dept("IT-外贸中心", 0);
+        jdbc.update("update department set pid = ?, level = 2 where id = ?", group, deptA);
+        jdbc.update("update department set level = 3 where id = ?", deptA1);
+        assertTrue(fail(call(json(put(DEPT + "/" + group), write(Map.of("name", "IT-外贸中心", "pid", deptB))), admin))
+                .path("message").asText().contains("事业部不能嵌套"));
+        assertEquals(group, jdbc.queryForObject("select pid from department where id = ?", Integer.class, deptA));
+
+        // 普通部门移到事业部下面可以，下级层级跟着变
+        int plain = dept("IT-行政部", 0);
+        int plainChild = dept("IT-行政组", plain);
+        jdbc.update("update department set level = 2 where id = ?", plainChild);
+        ok(call(json(put(DEPT + "/" + plain), write(Map.of("name", "IT-行政部", "pid", deptB))), admin));
+        assertEquals(2, jdbc.queryForObject("select level from department where id = ?", Integer.class, plain));
+        assertEquals(3, jdbc.queryForObject("select level from department where id = ?", Integer.class, plainChild));
+
+        // 已有单据归属的事业部不能删除
+        jdbc.update("update department set pid = 0, level = 1 where id = ?", plain);
+        jdbc.update("update department set level = 2 where id = ?", plainChild);
+        jdbc.update("insert into customer (tenant_id, customer_code, name, country, business_unit_id) values (0, 'CUSIT020', 'BU Ref Ltd', 'Germany', ?)",
+                deptB);
+        assertEquals("该事业部已有单据，不能删除",
+                fail(call(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete(DEPT + "/" + deptB), admin))
+                        .path("message").asText());
+    }
 }

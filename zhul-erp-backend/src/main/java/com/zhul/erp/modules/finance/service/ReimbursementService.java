@@ -36,8 +36,9 @@ import com.zhul.erp.modules.logistics.entity.CourierWaybillDO;
 import com.zhul.erp.modules.logistics.repository.CourierWaybillMapper;
 import com.zhul.erp.modules.masterdata.entity.SupplierDO;
 import com.zhul.erp.modules.masterdata.repository.SupplierMapper;
-import com.zhul.erp.modules.purchase.entity.PurchaseOrderDO;
-import com.zhul.erp.modules.purchase.repository.PurchaseOrderMapper;
+import com.zhul.erp.modules.purchase.purchasereturn.PurchaseReturnConstants;
+import com.zhul.erp.modules.purchase.purchasereturn.entity.PurchaseReturnDO;
+import com.zhul.erp.modules.purchase.purchasereturn.repository.PurchaseReturnMapper;
 import com.zhul.erp.modules.sales.support.PiStore;
 import com.zhul.erp.modules.system.constants.DocumentType;
 import com.zhul.erp.modules.system.entity.BankAccountDO;
@@ -46,9 +47,6 @@ import com.zhul.erp.modules.system.repository.UserBasicMapper;
 import com.zhul.erp.modules.system.entity.UserBasicDO;
 import com.zhul.erp.modules.system.service.DocumentNumberService;
 import com.zhul.erp.modules.system.service.LogService;
-import com.zhul.erp.modules.warehouse.constants.WarehouseConstants;
-import com.zhul.erp.modules.warehouse.entity.ReceivingDiscrepancyDO;
-import com.zhul.erp.modules.warehouse.repository.ReceivingDiscrepancyMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
@@ -91,8 +89,7 @@ public class ReimbursementService {
     private final PayableMapper payableMapper;
     private final ExpenseMapper expenseMapper;
     private final CourierWaybillMapper waybillMapper;
-    private final ReceivingDiscrepancyMapper discrepancyMapper;
-    private final PurchaseOrderMapper orderMapper;
+    private final PurchaseReturnMapper purchaseReturnMapper;
     private final SupplierMapper supplierMapper;
     private final BankAccountMapper bankAccountMapper;
     private final PayableQueryService payableQuery;
@@ -183,26 +180,23 @@ public class ReimbursementService {
             i.setAdvanceUserId(w.getPayerId());
             out.add(i);
         }
-        List<ReceivingDiscrepancyDO> diffs = discrepancyMapper.selectList(new LambdaQueryWrapper<ReceivingDiscrepancyDO>()
-                .eq(ReceivingDiscrepancyDO::getTenantId, tenant)
-                .eq(!everyone, ReceivingDiscrepancyDO::getReturnPayerId, me.id())
-                .isNotNull(everyone, ReceivingDiscrepancyDO::getReturnPayerId)
-                .eq(ReceivingDiscrepancyDO::getStatus, WarehouseConstants.DIFF_HANDLED)
-                .gt(ReceivingDiscrepancyDO::getReturnFreight, BigDecimal.ZERO)
-                .isNull(ReceivingDiscrepancyDO::getDeletedAt));
-        Map<Long, String> poNos = diffs.isEmpty() ? Map.of()
-                : orderMapper.selectBatchIds(diffs.stream().map(ReceivingDiscrepancyDO::getPoId).distinct().toList()).stream()
-                .collect(Collectors.toMap(PurchaseOrderDO::getId, p -> p.getPoNo() == null ? "" : p.getPoNo()));
-        Map<Long, List<AttachmentVO>> diffFiles = attachments.list(AttachmentService.RETURN_PROOF,
-                diffs.stream().map(ReceivingDiscrepancyDO::getId).toList());
-        for (ReceivingDiscrepancyDO d : diffs) {
-            AdvanceItemVO i = item(FinanceConstants.ITEM_RETURN_FREIGHT, d.getId(), poNos.getOrDefault(d.getPoId(), ""),
-                    d.getHandledAt() == null ? null : d.getHandledAt().toLocalDate(),
-                    "退货运费 · " + d.getModel() + " " + WarehouseConstants.DIFF_TYPE_NAMES.get(d.getType()) + " " + d.getQuantity()
-                            + (StringUtils.hasText(d.getReturnTrackingNo()) ? " · " + nz(d.getReturnCarrier()) + " " + d.getReturnTrackingNo() : ""),
-                    d.getReturnFreight());
-            proof(i, AttachmentService.RETURN_PROOF, d.getId(), diffFiles, true);
-            i.setAdvanceUserId(d.getReturnPayerId());
+        // 退货运费：采购退货单寄出时登记的垫付（spec finance/reimbursement「待报销项」）
+        List<PurchaseReturnDO> returns = purchaseReturnMapper.selectList(new LambdaQueryWrapper<PurchaseReturnDO>()
+                .eq(PurchaseReturnDO::getTenantId, tenant)
+                .eq(!everyone, PurchaseReturnDO::getPayerId, me.id())
+                .isNotNull(everyone, PurchaseReturnDO::getPayerId)
+                .in(PurchaseReturnDO::getStatus, PurchaseReturnConstants.SHIPPED, PurchaseReturnConstants.DONE)
+                .gt(PurchaseReturnDO::getFreightCny, BigDecimal.ZERO)
+                .isNull(PurchaseReturnDO::getDeletedAt));
+        Map<Long, List<AttachmentVO>> returnFiles = attachments.list(AttachmentService.RETURN_PROOF,
+                returns.stream().map(PurchaseReturnDO::getId).toList());
+        for (PurchaseReturnDO r : returns) {
+            AdvanceItemVO i = item(FinanceConstants.ITEM_RETURN_FREIGHT, r.getId(), r.getReturnNo(), r.getShipDate(),
+                    "退货运费 · " + PurchaseReturnConstants.SOURCE_NAMES.get(r.getSourceType())
+                            + (StringUtils.hasText(r.getTrackingNo()) ? " · " + nz(r.getCarrier()) + " " + r.getTrackingNo() : ""),
+                    r.getFreightCny());
+            proof(i, AttachmentService.RETURN_PROOF, r.getId(), returnFiles, true);
+            i.setAdvanceUserId(r.getPayerId());
             out.add(i);
         }
         List<ExpenseDO> expenses = expenseMapper.selectList(new LambdaQueryWrapper<ExpenseDO>()
@@ -393,9 +387,9 @@ public class ReimbursementService {
                 .select(PaymentDO::getId).in(PaymentDO::getId, list).orderByAsc(PaymentDO::getId).last("FOR UPDATE")));
         lock(ids.get(FinanceConstants.ITEM_COURIER), list -> waybillMapper.selectList(new LambdaQueryWrapper<CourierWaybillDO>()
                 .select(CourierWaybillDO::getId).in(CourierWaybillDO::getId, list).orderByAsc(CourierWaybillDO::getId).last("FOR UPDATE")));
-        lock(ids.get(FinanceConstants.ITEM_RETURN_FREIGHT), list -> discrepancyMapper.selectList(
-                new LambdaQueryWrapper<ReceivingDiscrepancyDO>().select(ReceivingDiscrepancyDO::getId)
-                        .in(ReceivingDiscrepancyDO::getId, list).orderByAsc(ReceivingDiscrepancyDO::getId).last("FOR UPDATE")));
+        lock(ids.get(FinanceConstants.ITEM_RETURN_FREIGHT), list -> purchaseReturnMapper.selectList(
+                new LambdaQueryWrapper<PurchaseReturnDO>().select(PurchaseReturnDO::getId)
+                        .in(PurchaseReturnDO::getId, list).orderByAsc(PurchaseReturnDO::getId).last("FOR UPDATE")));
         lock(ids.get(FinanceConstants.ITEM_EXPENSE), list -> expenseMapper.selectList(new LambdaQueryWrapper<ExpenseDO>()
                 .select(ExpenseDO::getId).in(ExpenseDO::getId, list).orderByAsc(ExpenseDO::getId).last("FOR UPDATE")));
     }

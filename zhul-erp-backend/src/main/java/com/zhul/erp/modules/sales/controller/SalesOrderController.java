@@ -35,6 +35,7 @@ public class SalesOrderController {
 
     /** 订单详情里补传、删除附件与修改备注 */
     private static final String EDIT_ATTACHMENT = "@perm.canAccessMenu('/sales/orders') and @perm.has('sales:order:attachment')";
+    private static final String DELETE = "@perm.canAccessMenu('/sales/orders') and @perm.has('sales:order:delete')";
 
     private final SalesOrderService service;
 
@@ -149,6 +150,19 @@ public class SalesOrderController {
     @PreAuthorize("@perm.canAccessMenu('/sales/orders')")
     public Result<SalesOrderVO> cancel(@PathVariable Long id, @Valid @RequestBody CancelOrderRequest req) {
         return Result.ok(service.cancel(id, req.getReason()));
+    }
+
+    @GetMapping("/orders/{id}/delete-check")
+    @PreAuthorize(DELETE)
+    public Result<com.zhul.erp.modules.sales.dto.DeleteCheckVO> deleteCheck(@PathVariable Long id) {
+        return Result.ok(service.deleteCheck(id));
+    }
+
+    @PostMapping("/orders/{id}/delete")
+    @PreAuthorize(DELETE)
+    public Result<Void> delete(@PathVariable Long id, @Valid @RequestBody com.zhul.erp.modules.sales.dto.DeleteOrderRequest req) {
+        service.delete(id, req.getReason());
+        return Result.ok();
     }
 
     @GetMapping("/orders/partial-cancel-reasons")

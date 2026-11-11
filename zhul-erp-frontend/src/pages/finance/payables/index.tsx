@@ -62,8 +62,9 @@ interface Filters {
   showClosed: boolean;
 }
 
+/** 从其他单据跳转来时地址带 keyword（应付单号） */
 const initial = (): Filters => ({
-  keyword: '',
+  keyword: new URLSearchParams(window.location.search).get('keyword') ?? '',
   hasCredit: false,
   showClosed: false,
 });

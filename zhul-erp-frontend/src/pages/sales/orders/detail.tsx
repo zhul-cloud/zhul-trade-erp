@@ -3,7 +3,9 @@ import {
   CheckCircleFilled,
   CheckOutlined,
   CustomerServiceOutlined,
+  DeleteOutlined,
   EditOutlined,
+  EllipsisOutlined,
   FileTextOutlined,
   InboxOutlined,
   MinusCircleOutlined,
@@ -73,6 +75,7 @@ import {
   readBizError,
 } from '../service';
 import OrderCostCard from './CostCard';
+import { DeleteOrderModal } from './deleteOrder';
 import {
   CreateFeeOrderModal,
   EditFeesModal,
@@ -132,6 +135,7 @@ const OrderDetail: React.FC = () => {
   const [selected, setSelected] = useState<number[]>([]);
   const [dialog, setDialog] = useState<Dialog>();
   const [cancelOpen, setCancelOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const [feesOpen, setFeesOpen] = useState(false);
   const [refundOpen, setRefundOpen] = useState(false);
   const [voidId, setVoidId] = useState<number>();
@@ -188,6 +192,8 @@ const OrderDetail: React.FC = () => {
     (o.source === 1 || o.source === 2) &&
     !!access['sales:order:create'];
   const completed = o.progressCode === 'COMPLETED';
+  // 进行中、已取消的订单可以删；已完成、历史迁移的不显示
+  const canDelete = !!access['sales:order:delete'] && !completed && !o.migrated;
   const orderedModels = o.items.filter(
     (i) => (i.purchaseOrderedQty ?? 0) > 0,
   ).length;
@@ -1577,92 +1583,113 @@ const OrderDetail: React.FC = () => {
           </>
         }
         actions={
-          fee
-            ? editable &&
-              !completed && (
-                <Button
-                  danger
-                  icon={<StopOutlined />}
-                  onClick={() => setCancelOpen(true)}
-                >
-                  取消订单
-                </Button>
-              )
-            : (o.trackable || o.partialCancelable) && (
-                <>
-                  {access.salesAfterSales && (
-                    <Button
-                      icon={<CustomerServiceOutlined />}
-                      onClick={() => setDialog('afterSales')}
-                    >
-                      售后
-                    </Button>
-                  )}
-                  {!access['finance:refund:edit'] &&
-                    !replacement &&
-                    access.salesAfterSales &&
-                    (o.receivedAmount ?? 0) > 0 && (
+          <>
+            {fee
+              ? editable &&
+                !completed && (
+                  <Button
+                    danger
+                    icon={<StopOutlined />}
+                    onClick={() => setCancelOpen(true)}
+                  >
+                    取消订单
+                  </Button>
+                )
+              : (o.trackable || o.partialCancelable) && (
+                  <>
+                    {access.salesAfterSales && (
                       <Button
-                        icon={<RollbackOutlined />}
-                        onClick={() => setDialog('refundRequest')}
+                        icon={<CustomerServiceOutlined />}
+                        onClick={() => setDialog('afterSales')}
                       >
-                        申请退款
+                        售后
                       </Button>
                     )}
-                  {o.trackable && (
-                    <>
-                      {access['sales:order:ship-notice'] && (
+                    {!access['finance:refund:edit'] &&
+                      !replacement &&
+                      access.salesAfterSales &&
+                      (o.receivedAmount ?? 0) > 0 && (
                         <Button
-                          type="primary"
-                          icon={<SendOutlined />}
-                          onClick={() => setDialog('notice')}
+                          icon={<RollbackOutlined />}
+                          onClick={() => setDialog('refundRequest')}
                         >
-                          发货通知
+                          申请退款
                         </Button>
                       )}
-                      <Button
-                        icon={<CheckOutlined />}
-                        disabled={!o.completable}
-                        title={
-                          o.completable ? '' : '所有型号都出运后才能确认收货'
-                        }
-                        onClick={complete}
-                      >
-                        客户已收货
-                      </Button>
-                      {access['finance:refund:edit'] &&
-                        active &&
-                        (o.receivedAmount ?? 0) > 0 && (
+                    {o.trackable && (
+                      <>
+                        {access['sales:order:ship-notice'] && (
                           <Button
-                            icon={<RollbackOutlined />}
-                            onClick={() => setRefundOpen(true)}
+                            type="primary"
+                            icon={<SendOutlined />}
+                            onClick={() => setDialog('notice')}
                           >
-                            登记退款
+                            发货通知
                           </Button>
                         )}
-                    </>
-                  )}
-                  {o.partialCancelable && (
-                    <Button
-                      icon={<MinusCircleOutlined />}
-                      disabled={completed}
-                      title={completed ? '订单已完成，请走售后' : ''}
-                      onClick={() => setDialog('partialCancel')}
-                    >
-                      部分取消
-                    </Button>
-                  )}
-                  {o.trackable && (
-                    <Button
-                      danger
-                      icon={<StopOutlined />}
-                      onClick={() => setCancelOpen(true)}
-                    >
-                      取消订单
-                    </Button>
-                  )}
-                </>
-              )
+                        <Button
+                          icon={<CheckOutlined />}
+                          disabled={!o.completable}
+                          title={
+                            o.completable ? '' : '所有型号都出运后才能确认收货'
+                          }
+                          onClick={complete}
+                        >
+                          客户已收货
+                        </Button>
+                        {access['finance:refund:edit'] &&
+                          active &&
+                          (o.receivedAmount ?? 0) > 0 && (
+                            <Button
+                              icon={<RollbackOutlined />}
+                              onClick={() => setRefundOpen(true)}
+                            >
+                              登记退款
+                            </Button>
+                          )}
+                      </>
+                    )}
+                    {o.partialCancelable && (
+                      <Button
+                        icon={<MinusCircleOutlined />}
+                        disabled={completed}
+                        title={completed ? '订单已完成，请走售后' : ''}
+                        onClick={() => setDialog('partialCancel')}
+                      >
+                        部分取消
+                      </Button>
+                    )}
+                    {o.trackable && (
+                      <Button
+                        danger
+                        icon={<StopOutlined />}
+                        onClick={() => setCancelOpen(true)}
+                      >
+                        取消订单
+                      </Button>
+                    )}
+                  </>
+                )}
+            {canDelete && (
+              <Dropdown
+                trigger={['click']}
+                placement="bottomRight"
+                menu={{
+                  items: [
+                    {
+                      key: 'delete',
+                      danger: true,
+                      icon: <DeleteOutlined />,
+                      label: '删除订单',
+                    },
+                  ],
+                  onClick: () => setDeleteOpen(true),
+                }}
+              >
+                <Button icon={<EllipsisOutlined />} aria-label="更多操作" />
+              </Dropdown>
+            )}
+          </>
         }
       />
       <div
@@ -1869,6 +1896,18 @@ const OrderDetail: React.FC = () => {
           }
         }}
       />
+      {canDelete && (
+        <DeleteOrderModal
+          order={o}
+          open={deleteOpen}
+          onClose={() => setDeleteOpen(false)}
+          onDeleted={() => {
+            setDeleteOpen(false);
+            // 用列表替换掉已删除的订单页，返回条不再回到它
+            history.replace('/sales/orders');
+          }}
+        />
+      )}
     </div>
   );
 };

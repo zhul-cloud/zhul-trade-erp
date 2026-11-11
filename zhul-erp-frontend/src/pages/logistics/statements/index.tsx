@@ -19,7 +19,7 @@ import {
   Table,
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   PayablePanel,
   PayStatusPill,
@@ -148,14 +148,21 @@ const StatementDrawer: React.FC<{
     );
   }, []);
 
+  /** 请求序号：换账单、关闭或重新加载后，之前迟到的回包作废（UI-017 同型） */
+  const seq = useRef(0);
   const load = useCallback(() => {
+    const mine = ++seq.current;
     if (id === undefined) return;
     setSt(undefined);
     setError(undefined);
     statementApi
       .detail(id)
-      .then(show)
-      .catch((e) => setError(readBizError(e).message));
+      .then((s) => {
+        if (seq.current === mine) show(s);
+      })
+      .catch((e) => {
+        if (seq.current === mine) setError(readBizError(e).message);
+      });
   }, [id, show]);
   useEffect(load, [load]);
 
