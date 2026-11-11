@@ -75,6 +75,9 @@ public class CandidateAiFill implements AiTaskResultHandler {
             throw new BizException("上一次 AI 解析还没跑完，跑完再提交");
         }
         boolean brand = MODE_BRAND.equals(req.getMode());
+        if (brand && brandResolver.resolve(ProductConstants.OTHERS_BRAND) == null) {
+            throw new BizException("品牌库缺少 Others，请联系管理员");
+        }
         List<ProductCategoryDO> categories = categories();
         Long other = CategoryMatcher.otherId(categories, CandidateConstants.CATEGORY_OTHER);
         Map<Long, ProductCategoryDO> byId = categories.stream().collect(Collectors.toMap(ProductCategoryDO::getId, Function.identity()));
@@ -158,6 +161,8 @@ public class CandidateAiFill implements AiTaskResultHandler {
         int matched = 0;
         int unmatched = 0;
         Map<Long, Boolean> seen = new HashMap<>();
+        Long others = null;
+        boolean othersLoaded = false;
         for (JsonNode n : output.path("items")) {
             Key k = Key.parse(n.path("key").asText(""));
             if (k == null || seen.put(k.id(), Boolean.TRUE) != null) {
@@ -165,8 +170,11 @@ public class CandidateAiFill implements AiTaskResultHandler {
             }
             brandMode = k.brand();
             if (k.brand()) {
-                String brand = n.path("brand").asText("").trim();
-                int r = StringUtils.hasText(brand) ? writeBrand(k.id(), brand) : 0;
+                if (!othersLoaded) {
+                    others = brandResolver.resolve(ProductConstants.OTHERS_BRAND);
+                    othersLoaded = true;
+                }
+                int r = writeBrand(k.id(), n.path("brand").asText("").trim(), others);
                 matched += r == 1 ? 1 : 0;
                 unmatched += r == 2 ? 1 : 0;
             } else {
@@ -228,15 +236,24 @@ public class CandidateAiFill implements AiTaskResultHandler {
         return candidateMapper.update(null, w) > 0;
     }
 
-    /** 品牌按品牌库名称和别名匹配，不新建；返回 1-匹配到、2-未识别、0-没写入（已审核或品牌已被人确认） */
-    private int writeBrand(Long id, String brand) {
-        Long brandId = brandResolver.resolve(brand);
+    /**
+     * 品牌按品牌库名称和别名匹配，不新建；AI 没给出品牌、匹配不上或给的就是 Others 时填 Others 并标「AI 未识别」，保留 AI 给出的名称。
+     * Others 缺失（被删或改名）时匹配不上的只做标记、品牌仍待确认。
+     * 返回 1-匹配到、2-未识别（记为 Others）、0-没写入（已审核、品牌已被人确认，或 Others 缺失且 AI 没给出品牌）。
+     */
+    private int writeBrand(Long id, String brand, Long others) {
+        Long matched = StringUtils.hasText(brand) ? brandResolver.resolve(brand) : null;
+        boolean recognized = matched != null && !matched.equals(others);
+        Long brandId = recognized ? matched : others;
+        if (brandId == null && !StringUtils.hasText(brand)) {
+            return 0;
+        }
         LambdaUpdateWrapper<ProductCandidateDO> w = new LambdaUpdateWrapper<ProductCandidateDO>()
                 .eq(ProductCandidateDO::getId, id)
                 .eq(ProductCandidateDO::getStatus, CandidateConstants.STATUS_PENDING)
                 .isNull(ProductCandidateDO::getDeletedAt)
                 .isNull(ProductCandidateDO::getBrandId)
-                .set(ProductCandidateDO::getAiBrand, brandId != null ? 1 : 2)
+                .set(ProductCandidateDO::getAiBrand, recognized ? 1 : 2)
                 .set(ProductCandidateDO::getAiBrandName, brand.length() > MAX_BRAND ? brand.substring(0, MAX_BRAND) : brand)
                 .set(ProductCandidateDO::getUpdateTime, LocalDateTime.now())
                 .set(ProductCandidateDO::getUpdateBy, "AI");
@@ -246,7 +263,7 @@ public class CandidateAiFill implements AiTaskResultHandler {
         if (candidateMapper.update(null, w) == 0) {
             return 0;
         }
-        return brandId != null ? 1 : 2;
+        return recognized ? 1 : 2;
     }
 
     /** 没选品类、只选了一级品类、或是兜底「其他」的需要解析；已选细分品类的跳过 */

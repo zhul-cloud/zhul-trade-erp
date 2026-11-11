@@ -160,36 +160,67 @@ class CandidateAiFillContractTest extends InquiryContractSupport {
     }
 
     @Test
-    void brand_matchesAliasOrMarksUnmatched_neverCreatesBrand() throws Exception {
+    void brand_matchesAlias_unmatchedOrEmptyBecomeOthers_neverCreatesBrand() throws Exception {
+        long others = jdbc.queryForObject("select id from product_brand where tenant_id = 0 and brand_name = 'Others'", Long.class);
         long alias = candidate("ITAF-11", null, contactor, 1);
         long unknown = candidate("ITAF-12", null, contactor, 1);
         long confirmed = candidate("ITAF-13", rockwell, contactor, 1);
+        long empty = candidate("ITAF-14", null, contactor, 1);
+        long saysOthers = candidate("ITAF-15", null, contactor, 1);
+        long manual = candidate("ITAF-16", null, contactor, 1);
         long brands = jdbc.queryForObject("select count(*) from product_brand", Long.class);
 
-        JsonNode vo = ok(submit("brand", List.of(alias, unknown, confirmed)));
-        assertEquals(2, vo.path("total").asInt());
+        JsonNode vo = ok(submit("brand", List.of(alias, unknown, confirmed, empty, saysOthers, manual)));
+        assertEquals(5, vo.path("total").asInt());
         assertEquals(1, vo.path("skipped").asInt(), "品牌已确认的跳过");
         sentItems();
+        // 运行期间人工确认了品牌
+        jdbc.update("update product_candidate set brand_id = ? where id = ?", rockwell, manual);
         callback(vo.path("taskId").asLong(), List.of(
                 Map.of("key", "b" + alias + "#" + contactor, "categoryId", 0, "brand", "IT-Allen-Bradley"),
-                Map.of("key", "b" + unknown + "#" + contactor, "categoryId", 0, "brand", "ITMitsubishi")));
+                Map.of("key", "b" + unknown + "#" + contactor, "categoryId", 0, "brand", "ITMitsubishi"),
+                Map.of("key", "b" + empty + "#" + contactor, "categoryId", 0, "brand", ""),
+                Map.of("key", "b" + saysOthers + "#" + contactor, "categoryId", 0, "brand", "others"),
+                Map.of("key", "b" + manual + "#" + contactor, "categoryId", 0, "brand", "ITMitsubishi")));
 
         assertEquals(rockwell, col("brand_id", alias));
         assertEquals(1L, col("ai_brand", alias));
-        assertNull(col("brand_id", unknown));
+        assertEquals(others, col("brand_id", unknown), "匹配不上记为 Others");
         assertEquals(2L, col("ai_brand", unknown));
         assertEquals("ITMitsubishi", jdbc.queryForObject("select ai_brand_name from product_candidate where id = ?", String.class, unknown));
+        assertEquals(others, col("brand_id", empty), "AI 没给出品牌也记为 Others");
+        assertEquals(2L, col("ai_brand", empty));
+        assertEquals(others, col("brand_id", saysOthers));
+        assertEquals(2L, col("ai_brand", saysOthers), "AI 直接给 Others 也算未识别");
+        assertEquals(rockwell, col("brand_id", manual), "人工确认过的不覆盖");
+        assertEquals(0L, col("ai_brand", manual));
         assertEquals(brands, jdbc.queryForObject("select count(*) from product_brand", Long.class), "不新建品牌");
 
         JsonNode status = ok(call(get(CAND + "/ai-fill/" + vo.path("taskId").asLong()), admin));
         assertEquals("brand", status.path("mode").asText());
         assertEquals(1, status.path("matched").asInt());
-        assertEquals(1, status.path("unmatched").asInt());
+        assertEquals(3, status.path("unmatched").asInt());
+        assertEquals(1, status.path("unchanged").asInt());
 
-        // 审核时换了品牌：AI 标记去掉
+        JsonNode row = ok(call(get(CAND + "/" + unknown), admin));
+        assertEquals(others, row.path("brandId").asLong());
+        assertEquals("Others", row.path("brandName").asText());
+
+        // 审核时没改品牌：标记保留
         Map<String, Object> approve = Map.of("brandMode", "EXISTING", "brandId", rockwell, "categoryId", contactor, "lifecycleStatus", 1);
         ok(call(json(post(CAND + "/" + alias + "/approve"), write(approve)), admin));
         assertEquals(1L, col("ai_brand", alias), "没改品牌，标记保留");
+    }
+
+    @Test
+    void brand_refusedWhenOthersMissing() throws Exception {
+        long c = candidate("ITAF-31", null, contactor, 1);
+        jdbc.update("update product_brand set brand_name = 'Others-IT-renamed' where tenant_id = 0 and brand_name = 'Others'");
+        try {
+            assertTrue(fail(submit("brand", List.of(c))).path("message").asText().contains("Others"));
+        } finally {
+            jdbc.update("update product_brand set brand_name = 'Others' where tenant_id = 0 and brand_name = 'Others-IT-renamed'");
+        }
     }
 
     @Test

@@ -119,6 +119,13 @@ export const candidateApi = {
       approved: number;
       skipped: { id: number; label: string; reason: string }[];
     }>('POST', `${C}/batch-approve`, { ids }),
+  /** 批量修改品牌、品类：只传要改的那一项；已审核的跳过 */
+  batchEdit: (ids: number[], brandId?: number, categoryId?: number) =>
+    send<{ updated: number; skipped: number }>('POST', `${C}/batch-edit`, {
+      ids,
+      brandId,
+      categoryId,
+    }),
   /** 批量 AI 解析品类或品牌；全部跳过时不产生任务，taskId 为空 */
   aiFill: (mode: AiFillMode, ids: number[]) =>
     send<AiFill>('POST', `${C}/ai-fill`, { mode, ids }),
