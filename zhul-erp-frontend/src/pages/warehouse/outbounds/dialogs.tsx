@@ -79,12 +79,15 @@ export const PackDrawer: React.FC<{
 
   useEffect(() => {
     if (id === undefined) return;
+    // 关闭或换单后，上一单迟到的回包作废，不能改写当前抽屉（UI-017）
+    let alive = true;
     setOb(undefined);
     setTags({});
     setError(undefined);
     outboundApi
       .detail(id)
       .then((d) => {
+        if (!alive) return;
         setOb(d);
         setPhotos(d.packingAttachments ?? []);
         const lines = d.items.map((i) => ({
@@ -94,7 +97,12 @@ export const PackDrawer: React.FC<{
         }));
         setBoxes(d.boxes.length ? toInputs(d) : [emptyBox(lines, new Map())]);
       })
-      .catch((e) => setError(readBizError(e).message));
+      .catch((e) => {
+        if (alive) setError(readBizError(e).message);
+      });
+    return () => {
+      alive = false;
+    };
   }, [id]);
 
   const lines: PackLine[] = useMemo(
@@ -109,7 +117,8 @@ export const PackDrawer: React.FC<{
   const problem = ob ? boxesProblem(lines, boxes) : '加载中';
 
   const submit = async () => {
-    if (!ob) return;
+    // 只提交本次打开的单据
+    if (!ob || ob.id !== id) return;
     setBusy(true);
     try {
       await outboundApi.pack(ob.id, boxes, {
@@ -451,12 +460,20 @@ export const OutboundView: React.FC<{ id?: number; onClose: () => void }> = ({
   const [error, setError] = useState<string>();
   useEffect(() => {
     if (id === undefined) return;
+    let alive = true;
     setOb(undefined);
     setError(undefined);
     outboundApi
       .detail(id)
-      .then(setOb)
-      .catch((e) => setError(readBizError(e).message));
+      .then((d) => {
+        if (alive) setOb(d);
+      })
+      .catch((e) => {
+        if (alive) setError(readBizError(e).message);
+      });
+    return () => {
+      alive = false;
+    };
   }, [id]);
   return (
     <Drawer
