@@ -20,8 +20,6 @@ import com.zhul.erp.modules.sales.service.PiService;
 import com.zhul.erp.modules.sales.service.SalesOrderService;
 import com.zhul.erp.modules.sales.service.SalesStatsService;
 import com.zhul.erp.modules.sales.support.PiStore;
-import com.zhul.erp.modules.warehouse.constants.WarehouseConstants;
-import com.zhul.erp.modules.warehouse.dto.ShipmentPageQuery;
 import com.zhul.erp.modules.warehouse.service.DiscrepancyService;
 import com.zhul.erp.modules.warehouse.service.ShipmentService;
 import com.zhul.erp.modules.workbench.dto.WidgetData;
@@ -170,12 +168,7 @@ public class BossWidgets {
                         true, SalesWidgets.PIS + "?expired=1"));
             }
             if (perm.canAccessMenu(PurchaserWidgets.SHIPMENTS)) {
-                ShipmentPageQuery q = new ShipmentPageQuery();
-                q.setPage(1);
-                q.setPageSize(1000);
-                q.setStatus(WarehouseConstants.SHIP_IN_TRANSIT);
-                long late = shipments.page(q, true, false).getRecords().stream()
-                        .filter(x -> Boolean.TRUE.equals(x.getArrivalOverdue())).count();
+                long late = shipments.countScopedInTransit().overdue();
                 todos.add(W.todo("truck", "orange", "超期未到货", "在途且已过预计到货日期", late, true, PurchaserWidgets.SHIPMENTS));
                 todos.add(W.todo("warning", "orange", "未处理的到货差异", "少发、错发、不良待处理", discrepancies.countPending(), true,
                         PurchaserWidgets.SHIPMENTS + "?tab=diffs"));

@@ -43,6 +43,9 @@ class ReceivingContractTest extends SalesContractSupport {
     private static final int[] BUYER_BUTTONS = {110189, 110190, 110191, 110192};
     private static final byte[] MP4 = {0, 0, 0, 0x18, 'f', 't', 'y', 'p', 'i', 's', 'o', 'm', 0, 0, 2, 0};
 
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.zhul.erp.modules.warehouse.service.ShipmentService shipmentService;
+
     private String lin;
     private String keeper;
 
@@ -786,5 +789,29 @@ class ReceivingContractTest extends SalesContractSupport {
         assertEquals(10, g.path("total").asInt());
         assertEquals("已下单", row.path("progressName").asText(), "订单状态口径不变");
         assertTrue(row.has("updateBy"), "列表审计列");
+    }
+
+    /** BUS-017：在途超过一页（101 张）时，工作台在途与超期按全部统计；唯一超期的那张按列表排序在最后一页 */
+    @Test
+    void workbenchTransitCounts_coverAllPages() {
+        for (int i = 0; i < 100; i++) {
+            jdbc.update("insert into supplier_shipment (tenant_id, sd_no, po_id, status, ship_date, expected_arrival_date, update_time) "
+                    + "values (0, ?, 0, 1, curdate(), curdate() + interval 3 day, now())", "SDIT17" + i);
+        }
+        jdbc.update("insert into supplier_shipment (tenant_id, sd_no, po_id, status, ship_date, expected_arrival_date, update_time) "
+                + "values (0, 'SDIT17LATE', 0, 1, curdate() - interval 9 day, curdate() - interval 2 day, now() - interval 1 day)");
+        loginAsAdmin("it_transit_admin");
+        com.zhul.erp.framework.tenant.TenantContext.setTenantId(0);
+        com.zhul.erp.modules.warehouse.service.ShipmentService.TransitCounts c = shipmentService.countScopedInTransit();
+        assertEquals(101L, c.inTransit());
+        assertEquals(1L, c.overdue());
+        // 旧实现取列表第一页记录计数：列表每页最多 100 条，会漏掉第 101 张（也就是唯一超期的那张）
+        com.zhul.erp.modules.warehouse.dto.ShipmentPageQuery q = new com.zhul.erp.modules.warehouse.dto.ShipmentPageQuery();
+        q.setPage(1);
+        q.setPageSize(1000);
+        q.setStatus(1);
+        com.zhul.erp.common.result.PageResult<com.zhul.erp.modules.warehouse.dto.ShipmentListVO> first = shipmentService.page(q, true, false);
+        assertEquals(100, first.getRecords().size());
+        assertTrue(first.getRecords().stream().noneMatch(x -> Boolean.TRUE.equals(x.getArrivalOverdue())));
     }
 }
