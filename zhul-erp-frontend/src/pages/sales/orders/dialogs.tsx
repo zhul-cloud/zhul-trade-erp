@@ -731,7 +731,8 @@ export const ProgressModal: React.FC<{
     setNote('');
   }, [open, order, selected]);
 
-  if (!order) return null;
+  // 费用订单没有型号，没有进度可更新
+  if (!order || order.items.length === 0) return null;
   const rank = (c: string) => order.steps.findIndex((s) => s.code === c);
   const slowest = order.items
     .map((i) => (itemIds.includes(i.id) && code ? code : i.progressCode))

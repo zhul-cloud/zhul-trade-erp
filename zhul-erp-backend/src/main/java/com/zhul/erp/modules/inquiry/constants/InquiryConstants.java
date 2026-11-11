@@ -134,10 +134,13 @@ public final class InquiryConstants {
     /** 本位币 */
     public static final String BASE_CURRENCY = "CNY";
 
-    /** 询盘附件：图片、Excel、PDF，单个 ≤10MB，每条询盘 ≤10 个 */
+    /** 询盘附件：图片、Excel、PDF，单个 ≤500MB，每张询盘合计 ≤2GB、不限个数（spec inquiry/inquiry-intake「询盘大附件」） */
     public static final Set<String> ATTACHMENT_EXTS = Set.of("jpg", "png", "xls", "xlsx", "csv", "pdf");
-    public static final long ATTACHMENT_MAX_BYTES = 10L * 1024 * 1024;
-    public static final int MAX_ATTACHMENTS = 10;
+    public static final long ATTACHMENT_MAX_BYTES = 500L * 1024 * 1024;
+    public static final long ATTACHMENT_TOTAL_BYTES = 2L * 1024 * 1024 * 1024;
+    public static final String ATTACHMENT_TOTAL_MESSAGE = "这张询盘的附件合计不能超过 2GB";
+    /** 直传场景标识（前端准备上传时传入） */
+    public static final String UPLOAD_SCENE_ATTACHMENT = "inquiry-attachment";
     /** 询盘附件类别：1-询盘附件、2-铭牌图片（spec inquiry/inquiry-intake「铭牌图片」） */
     public static final int ATTACHMENT_KIND_FILE = 1;
     public static final int ATTACHMENT_KIND_NAMEPLATE = 2;

@@ -25,7 +25,7 @@ public class UpdateCustomerInquiryRequest {
     private List<Long> keepAttachmentIds;
     /** 补传的附件：只作为资料保存，不解析 */
     @Valid
-    @Size(max = 10, message = "附件最多 10 个")
+    @Size(max = 1000, message = "附件太多，请分几次上传")
     private List<AttachmentRef> attachments;
     /** 铭牌图片：补传的不解析，先放进「未对应型号」 */
     @Valid

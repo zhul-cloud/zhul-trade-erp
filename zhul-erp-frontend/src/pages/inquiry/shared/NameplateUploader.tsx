@@ -7,7 +7,7 @@ import { App, Upload } from 'antd';
 import React, { useEffect, useRef, useState } from 'react';
 import { Pill } from '@/pages/crm/opportunity/components';
 import { useAppTheme } from '@/theme/AppTheme';
-import { ATTACHMENT_MAX_BYTES } from './constants';
+import { NAMEPLATE_MAX_BYTES } from './constants';
 import { FileTile, useFilePreview } from './FilePreview';
 import type { PreviewFile } from './files';
 import { inquiryApi, readBizError, type UploadedFile } from './service';
@@ -101,7 +101,7 @@ const NameplateUploader: React.FC<{
       message.error(`铭牌图片最多 ${NAMEPLATE_MAX} 张`);
       return Upload.LIST_IGNORE;
     }
-    if (file.size > ATTACHMENT_MAX_BYTES) {
+    if (file.size > NAMEPLATE_MAX_BYTES) {
       message.error(`「${file.name}」超过 10MB`);
       return Upload.LIST_IGNORE;
     }

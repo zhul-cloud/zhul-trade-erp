@@ -4,6 +4,9 @@ import com.zhul.erp.modules.aitask.dto.AiTaskCallbackRequest;
 import com.zhul.erp.modules.aitask.dto.AiTaskVO;
 import com.zhul.erp.modules.aitask.entity.AiTaskDO;
 
+import java.util.Collection;
+import java.util.List;
+
 public interface AiTaskService {
 
     /** 创建任务（status=排队中）并异步提交给 AI 编排服务；提交结果通过 webhook 回调异步返回 */
@@ -17,4 +20,7 @@ public interface AiTaskService {
 
     /** 未找到时抛出 BizException，供业务方（如询盘拆单预览）读取任务结果 */
     AiTaskVO getById(Long id);
+
+    /** 批量读取任务的分批解析进度（只含 id 与进度字段），供列表、详情显示「已解析 x / y」 */
+    List<AiTaskVO> listProgress(Collection<Long> ids);
 }

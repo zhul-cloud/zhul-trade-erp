@@ -12,7 +12,7 @@ public class AppendRequest {
     @Size(max = 20000, message = "追加内容不能超过 20000 字")
     private String rawContent;
     @Valid
-    @Size(max = 10, message = "附件最多 10 个")
+    @Size(max = 1000, message = "附件太多，请分几次上传")
     private List<AttachmentRef> attachments;
     /** 铭牌图片（spec inquiry/inquiry-intake「铭牌图片」）：只收 JPG、PNG，采购能看到 */
     @Valid
