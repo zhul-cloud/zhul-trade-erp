@@ -1,4 +1,8 @@
-import { CloseOutlined, PlusOutlined } from '@ant-design/icons';
+import {
+  CloseOutlined,
+  FilePdfOutlined,
+  PlusOutlined,
+} from '@ant-design/icons';
 import { App, Upload } from 'antd';
 import React, { useEffect, useRef, useState } from 'react';
 import { Pill } from '@/pages/crm/opportunity/components';
@@ -10,7 +14,8 @@ import { inquiryApi, readBizError, type UploadedFile } from './service';
 
 /** 每次录入或追加最多 20 张（spec inquiry/inquiry-intake「铭牌图片」） */
 export const NAMEPLATE_MAX = 20;
-const ACCEPT = '.jpg,.jpeg,.png';
+const ACCEPT = '.jpg,.jpeg,.png,.pdf';
+const isPdf = (name: string) => /\.pdf$/i.test(name);
 
 /** 刚上传、还没提交的铭牌图片：用本地预览地址显示缩略图 */
 export type PickedPlate = UploadedFile & { localUrl: string };
@@ -48,7 +53,7 @@ const RemoveButton: React.FC<{ name: string; onClick: () => void }> = ({
 );
 
 /**
- * 「铭牌图片」上传区：和询盘附件分开，只收 JPG、PNG；采购能看到。
+ * 「铭牌图片」上传区：和询盘附件分开，收 JPG、PNG 与 PDF（客户有时发的是 PDF）；采购能看到。
  * existing 为已保存的铭牌图片（修改询盘时），可以移除。
  */
 const NameplateUploader: React.FC<{
@@ -67,7 +72,7 @@ const NameplateUploader: React.FC<{
   existingEndpoint,
   onRemoveExisting,
   onUploadingChange,
-  hint = '客户发来的型号铭牌照片放这里。AI 解析时会认出型号并对应到每一行，采购在「我的询价」里能直接看到。不要放带客户信息的图片。',
+  hint = '客户发来的型号铭牌照片或 PDF 放这里。AI 解析时会认出型号并对应到每一行，采购在「我的询价」里能直接看到。不要放带客户信息的图片。',
 }) => {
   const { palette } = useAppTheme();
   const { message } = App.useApp();
@@ -88,8 +93,8 @@ const NameplateUploader: React.FC<{
   );
 
   const beforeUpload = (file: File) => {
-    if (!/\.(jpe?g|png)$/i.test(file.name)) {
-      message.error('铭牌图片只支持 JPG、PNG');
+    if (!/\.(jpe?g|png|pdf)$/i.test(file.name)) {
+      message.error('铭牌只支持 JPG、PNG、PDF');
       return Upload.LIST_IGNORE;
     }
     if (count + uploading >= NAMEPLATE_MAX) {
@@ -131,7 +136,7 @@ const NameplateUploader: React.FC<{
         <span style={{ fontWeight: 600, color: palette.ink }}>铭牌图片</span>
         <Pill tone="accent">采购能看到</Pill>
         <span style={{ marginLeft: 'auto', fontSize: 12, color: palette.mute }}>
-          JPG、PNG ·{' '}
+          JPG、PNG、PDF ·{' '}
           {existing.length > 0 ? `已有 ${existing.length} 张，补传 ` : ''}
           {count} / {NAMEPLATE_MAX}
         </span>
@@ -176,9 +181,17 @@ const NameplateUploader: React.FC<{
                 height: TILE_H,
                 borderRadius: 10,
                 border: `1px solid ${palette.hairline}`,
-                background: `center / cover no-repeat url("${p.localUrl}")`,
+                background: isPdf(p.fileName)
+                  ? palette.inset
+                  : `center / cover no-repeat url("${p.localUrl}")`,
+                display: 'grid',
+                placeItems: 'center',
               }}
-            />
+            >
+              {isPdf(p.fileName) && (
+                <FilePdfOutlined style={{ fontSize: 24, color: palette.red }} />
+              )}
+            </div>
             <span
               style={{
                 fontSize: 12,
@@ -224,7 +237,7 @@ const NameplateUploader: React.FC<{
               }}
             >
               <PlusOutlined />
-              {uploading > 0 ? `上传中 ${uploading}` : '添加图片'}
+              {uploading > 0 ? `上传中 ${uploading}` : '添加铭牌'}
             </button>
           </Upload>
         )}

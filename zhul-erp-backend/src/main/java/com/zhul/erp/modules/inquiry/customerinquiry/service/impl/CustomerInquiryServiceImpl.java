@@ -321,7 +321,7 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
         }
         for (AttachmentRef ref : refs) {
             if (!InquiryConstants.NAMEPLATE_EXTS.contains(UploadRules.extOf(ref.getFileKey()))) {
-                throw new BizException("铭牌图片只支持 JPG、PNG");
+                throw new BizException("铭牌只支持 JPG、PNG、PDF");
             }
         }
         return refs;
