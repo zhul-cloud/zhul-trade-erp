@@ -322,42 +322,52 @@ def regroup(items, group_meta):
 
 # ---------------------------------------------------------------- 进度
 
-class Progress:
-    """每完成一批报告一次进度；超过 60 秒没有新进度时也报告一次，作为心跳（D11）"""
+STAGE_READ = "read"
+STAGE_EXTRACT = "extract"
+STAGE_MERGE = "merge"
+STAGE_VERIFY = "verify"
 
-    def __init__(self, report, total):
+
+class Progress:
+    """每完成一批报告一次进度与当前阶段；超过 60 秒没有新进度时也报告一次，作为心跳（D11）。
+    report(done, total, stage)；总批数在开始联网核验时加上核验批数"""
+
+    def __init__(self, report, total, stage=STAGE_EXTRACT):
         self.report = report
         self.total = total
+        self.stage = stage
         self.done = 0
         self.lock = threading.Lock()
         self.stop = threading.Event()
         self.thread = threading.Thread(target=self._beat, daemon=True)
 
     def __enter__(self):
-        self.report(0, self.total)
+        self.report(0, self.total, self.stage)
         self.thread.start()
         return self
 
     def __exit__(self, *exc):
         self.stop.set()
 
-    def add_total(self, n):
+    def set_stage(self, stage, add_total=0):
+        """进入下一阶段；联网核验阶段同时把核验批数加进总批数"""
         with self.lock:
-            self.total += n
+            self.stage = stage
+            self.total += add_total
             done, total = self.done, self.total
-        self.report(done, total)
+        self.report(done, total, stage)
 
     def step(self):
         with self.lock:
             self.done += 1
-            done, total = self.done, self.total
-        self.report(done, total)
+            done, total, stage = self.done, self.total, self.stage
+        self.report(done, total, stage)
 
     def _beat(self):
         while not self.stop.wait(HEARTBEAT_SECONDS):
             with self.lock:
-                done, total = self.done, self.total
-            self.report(done, total)
+                done, total, stage = self.done, self.total, self.stage
+            self.report(done, total, stage)
 
 
 def run_parallel(fn, items, workers, propagate):

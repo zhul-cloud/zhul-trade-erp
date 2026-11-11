@@ -1033,9 +1033,11 @@ def send_callback(callback_url: str, status: str, output=None, error=None) -> bo
     return False
 
 
-def send_progress(callback_url: str, done: int, total: int):
-    """报告分批解析进度（已完成批数 / 总批数），只发一次、不重投，失败不影响任务（spec「解析进度报告」）"""
-    body = json.dumps({"status": "progress", "output": {"done": done, "total": total}}).encode("utf-8")
+def send_progress(callback_url: str, done: int, total: int, stage: str):
+    """报告分批解析进度（已完成批数 / 总批数）与当前阶段（read / extract / merge / verify），
+    只发一次、不重投，失败不影响任务（spec「解析进度报告」）"""
+    body = json.dumps({"status": "progress",
+                       "output": {"done": done, "total": total, "stage": stage}}).encode("utf-8")
     req = urllib.request.Request(callback_url, data=body, method="POST",
                                  headers={"Content-Type": "application/json", "X-AI-Callback-Token": CALLBACK_TOKEN})
     try:
@@ -1127,6 +1129,7 @@ def _small_inputs(refs, raw_content, work):
 
 def parse_large(cfg, raw_content, refs, categories, callback_url, work) -> dict:
     """分批解析：逐个附件下载、预处理、删除 → 切批 → 并行提取 → 合并去重 → 分批联网核验（D8–D10）"""
+    send_progress(callback_url, 0, 0, lp.STAGE_READ)
     units, unparsed = [], []
     if raw_content:
         units.append(lp.Unit("text", "询盘正文", text="询盘正文：\n" + raw_content))
@@ -1172,7 +1175,7 @@ def parse_large(cfg, raw_content, refs, categories, callback_url, work) -> dict:
                 usages.append(u)
 
     print(f"[ai-orchestrator] 大附件分批解析：{len(units)} 个单元，{len(batches)} 批")
-    with lp.Progress(lambda d, t: send_progress(callback_url, d, t), len(batches)) as progress:
+    with lp.Progress(lambda d, t, s: send_progress(callback_url, d, t, s), len(batches)) as progress:
         def extract(indexed):
             no, batch = indexed
             labels = [u.label for u in batch]
@@ -1201,12 +1204,13 @@ def parse_large(cfg, raw_content, refs, categories, callback_url, work) -> dict:
             return None
 
         results = lp.run_parallel(extract, list(enumerate(batches, 1)), lp.EXTRACT_WORKERS, propagate)
+        progress.set_stage(lp.STAGE_MERGE)
         items, group_meta = lp.merge([r for r in results if r])
         if not items:
             raise RuntimeError("没有从附件中提取到型号")
 
         chunks = [items[i:i + lp.VERIFY_BATCH] for i in range(0, len(items), lp.VERIFY_BATCH)]
-        progress.add_total(len(chunks))
+        progress.set_stage(lp.STAGE_VERIFY, len(chunks))
 
         def verify(chunk):
             brief = [dict({k: it.get(k) for k in ("originalModel", "confirmedModel", "quantity", "unit", "description")},

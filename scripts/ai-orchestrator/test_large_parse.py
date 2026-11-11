@@ -332,7 +332,7 @@ class ParseLargeTest(unittest.TestCase):
 
         with mock.patch.object(lp, "download", download), mock.patch.object(lp, "preprocess", preprocess), \
                 mock.patch.object(self.server, "call_api", model), \
-                mock.patch.object(self.server, "send_progress", lambda url, d, t: self.progress.append((d, t))), \
+                mock.patch.object(self.server, "send_progress", lambda url, d, t, st: self.progress.append((d, t, st))), \
                 mock.patch.object(self.server, "send_callback",
                                   lambda url, status, output=None, error=None: self.sent.append((status, output, error))):
             self.server.process_job({"ai": ai(), "input": {"rawContent": raw, "attachments": refs}}, "http://cb")
@@ -406,11 +406,17 @@ class ParseLargeTest(unittest.TestCase):
         with mock.patch.object(lp, "BATCH_MAX_CHARS", 60):
             status, _, error = self.run_job(files, FakeModel(self.server))
         self.assertEqual(status, "success", error)
-        self.assertEqual(self.progress[0], (0, 3))
-        self.assertIn((3, 3), self.progress)
-        self.assertEqual(self.progress[-1], (4, 4), "核验批加入总数后一并报告")
-        dones = [d for d, _ in self.progress]
+        self.assertEqual(self.progress[0], (0, 0, "read"), "开始读取附件时先报告阶段")
+        self.assertEqual(self.progress[1], (0, 3, "extract"))
+        self.assertIn((3, 3, "extract"), self.progress)
+        self.assertIn((3, 3, "merge"), self.progress)
+        self.assertIn((3, 4, "verify"), self.progress, "进入核验时把核验批数加进总数")
+        self.assertEqual(self.progress[-1], (4, 4, "verify"))
+        dones = [d for d, _, _ in self.progress]
         self.assertEqual(dones, sorted(dones))
+        order = ["read", "extract", "merge", "verify"]
+        stages = [order.index(st) for _, _, st in self.progress]
+        self.assertEqual(stages, sorted(stages), "阶段只前进不后退")
 
     def test_verify_results_matched_by_original_model_not_order(self):
         """核验结果按原文型号对回，不按返回顺序；漏返回的型号标待核实（2026-11-11 实测发现顺序调换导致数量错位）"""
@@ -497,10 +503,10 @@ class HeartbeatTest(unittest.TestCase):
     def test_heartbeat_reports_without_new_progress(self):
         reports = []
         with mock.patch.object(lp, "HEARTBEAT_SECONDS", 0.05):
-            with lp.Progress(lambda d, t: reports.append((d, t)), 5) as progress:
+            with lp.Progress(lambda d, t, st: reports.append((d, t, st)), 5) as progress:
                 progress.step()
                 time.sleep(0.3)
-        self.assertGreaterEqual(reports.count((1, 5)), 3)
+        self.assertGreaterEqual(reports.count((1, 5, "extract")), 3, "心跳带上当前阶段")
         count = len(reports)
         time.sleep(0.15)
         self.assertEqual(len(reports), count, "结束后不再发心跳")

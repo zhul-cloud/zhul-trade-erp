@@ -3,9 +3,51 @@ import React from 'react';
 import { ParseProgressCard, UnparsedAlert } from './ParseProgress';
 
 describe('大附件解析的进度与未解析提示', () => {
-  it('显示已解析批数', () => {
-    render(<ParseProgressCard done={5} total={12} />);
+  const states = (container: HTMLElement) =>
+    Array.from(container.querySelectorAll('[data-stage]')).map(
+      (el) =>
+        `${el.getAttribute('data-stage')}:${el.getAttribute('data-state')}`,
+    );
+
+  it('显示已解析批数与四个阶段', () => {
+    const { container } = render(
+      <ParseProgressCard done={5} total={12} stage="extract" files={2} />,
+    );
     expect(screen.getByText('已解析 5 / 12 批')).toBeTruthy();
+    expect(states(container)).toEqual([
+      'read:done',
+      'extract:active',
+      'merge:wait',
+      'verify:wait',
+    ]);
+    expect(screen.getByText('2 个文件')).toBeTruthy();
+  });
+
+  it('读取附件阶段还没切批，不显示批数', () => {
+    const { container } = render(
+      <ParseProgressCard done={0} total={0} stage="read" files={1} />,
+    );
+    expect(screen.getByText('正在读取附件')).toBeTruthy();
+    expect(states(container)[0]).toBe('read:active');
+  });
+
+  it('联网核验时前面三个阶段都已完成', () => {
+    const { container } = render(
+      <ParseProgressCard done={14} total={21} stage="verify" files={2} />,
+    );
+    expect(states(container)).toEqual([
+      'read:done',
+      'extract:done',
+      'merge:done',
+      'verify:active',
+    ]);
+  });
+
+  it('旧版编排服务不报阶段时按提取型号显示', () => {
+    const { container } = render(
+      <ParseProgressCard done={1} total={4} files={1} />,
+    );
+    expect(states(container)[1]).toBe('extract:active');
   });
 
   it('列出未解析的部分', () => {

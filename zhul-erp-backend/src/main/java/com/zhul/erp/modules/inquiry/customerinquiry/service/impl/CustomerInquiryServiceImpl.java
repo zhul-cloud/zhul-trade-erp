@@ -634,10 +634,13 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
             vo.setStatus(i.getStatus());
             vo.setParseMode(i.getParseMode());
             AiTaskVO p = parsing.get(i.getAiTaskId());
-            if (i.getStatus() == InquiryConstants.STATUS_PARSING && p != null && p.getProgressTotal() != null
-                    && p.getProgressTotal() > 0) {
+            // 分批解析才有进度：读取附件阶段还没切批，总批数为 0，但已报告阶段
+            if (i.getStatus() == InquiryConstants.STATUS_PARSING && p != null
+                    && ((p.getProgressTotal() != null && p.getProgressTotal() > 0)
+                    || (p.getProgressStage() != null && !p.getProgressStage().isEmpty()))) {
                 vo.setParseProgressDone(p.getProgressDone());
                 vo.setParseProgressTotal(p.getProgressTotal());
+                vo.setParseProgressStage(p.getProgressStage());
             }
             vo.setTotalItemCount(i.getTotalItemCount());
             vo.setTotalQuantity(i.getTotalQuantity());

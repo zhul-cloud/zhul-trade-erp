@@ -203,16 +203,23 @@ class InquiryNameplateContractTest extends InquiryContractSupport {
         admin = token("it_np_admin");
         long c = customer("Ahmed Trading", "UAE");
         long id = ok(submit(c, ",\"rawContent\":\"big rfq\"")).path("id").asLong();
-        jdbc.update("insert into ai_task (tenant_id, skill_id, status, requested_by, progress_done, progress_total, last_progress_at) "
-                + "values (0, 'inquiry-parse-and-split', 2, ?, 5, 12, now())", ADMIN_ID);
+        jdbc.update("insert into ai_task (tenant_id, skill_id, status, requested_by, progress_done, progress_total, "
+                + "progress_stage, last_progress_at) values (0, 'inquiry-parse-and-split', 2, ?, 5, 12, 'extract', now())",
+                ADMIN_ID);
         long task = jdbc.queryForObject("select max(id) from ai_task", Long.class);
         jdbc.update("update customer_inquiry set status = 2, ai_task_id = ? where id = ?", task, id);
 
         JsonNode inquiry = ok(call(get(INQ + "/" + id), admin)).path("inquiry");
         assertEquals(5, inquiry.path("parseProgressDone").asInt());
         assertEquals(12, inquiry.path("parseProgressTotal").asInt());
+        assertEquals("extract", inquiry.path("parseProgressStage").asText());
 
-        jdbc.update("update ai_task set progress_total = 0, progress_done = 0 where id = ?", task);
+        jdbc.update("update ai_task set progress_total = 0, progress_done = 0, progress_stage = 'read' where id = ?", task);
+        JsonNode reading = ok(call(get(INQ + "/" + id), admin)).path("inquiry");
+        assertEquals("read", reading.path("parseProgressStage").asText(), "读取附件阶段还没切批，也显示阶段");
+        assertEquals(0, reading.path("parseProgressTotal").asInt());
+
+        jdbc.update("update ai_task set progress_total = 0, progress_done = 0, progress_stage = '' where id = ?", task);
         JsonNode none = ok(call(get(INQ + "/" + id), admin)).path("inquiry").path("parseProgressTotal");
         assertTrue(none.isNull() || none.isMissingNode(), "不分批时不显示进度");
     }

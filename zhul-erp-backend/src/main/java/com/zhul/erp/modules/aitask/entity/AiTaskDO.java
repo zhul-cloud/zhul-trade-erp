@@ -36,6 +36,8 @@ public class AiTaskDO {
     /** 分批解析进度：已完成批数 / 总批数（0 表示没有分批），最近一次进度报告时间（spec「解析进度报告」） */
     private Integer progressDone;
     private Integer progressTotal;
+    /** 当前阶段：read / extract / merge / verify，空为未报告 */
+    private String progressStage;
     private LocalDateTime lastProgressAt;
     private Long requestedBy;
     private LocalDateTime startedAt;

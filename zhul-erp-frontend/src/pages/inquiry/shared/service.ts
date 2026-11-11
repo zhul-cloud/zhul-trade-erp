@@ -49,6 +49,8 @@ export interface CustomerInquiry {
   /** 解析中且分批解析时：已解析批数 / 总批数；不分批时没有 */
   parseProgressDone?: number;
   parseProgressTotal?: number;
+  /** 分批解析当前阶段：read / extract / merge / verify */
+  parseProgressStage?: string;
   totalItemCount: number;
   /** 所有型号数量之和（不区分单位）；待确认时为 AI 识别结果 */
   totalQuantity: number;

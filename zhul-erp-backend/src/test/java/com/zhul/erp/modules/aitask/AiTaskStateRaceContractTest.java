@@ -198,6 +198,13 @@ class AiTaskStateRaceContractTest extends IntegrationTestBase {
         return req;
     }
 
+    private static AiTaskCallbackRequest progress(int done, int total, String stage) {
+        AiTaskCallbackRequest req = new AiTaskCallbackRequest();
+        req.setStatus("progress");
+        req.setOutput(Map.of("done", done, "total", total, "stage", stage));
+        return req;
+    }
+
     /** 插入一个处理中的任务：创建于 createdAgo 分钟前，最近一次进度报告在 progressAgo 分钟前（null 表示没有报告过） */
     private long runningTask(int createdAgo, Integer progressAgo) {
         jdbc.update("insert into ai_task (tenant_id, skill_id, status, create_time, last_progress_at, progress_done, progress_total) "
@@ -221,6 +228,27 @@ class AiTaskStateRaceContractTest extends IntegrationTestBase {
         assertEquals(9, ((Number) row.get("progress_total")).intValue());
         assertTrue(row.get("last_progress_at") != null);
         assertEquals(0, dispatched(task, AiTaskStatus.COMPLETED) + dispatched(task, AiTaskStatus.FAILED), "进度不通知业务");
+    }
+
+    @Test
+    void progressStage_savedWhenKnown_keptWhenMissingOrUnknown() {
+        long task = runningTask(5, null);
+
+        aiTaskService.handleCallback(task, progress(0, 0, "read"));
+        assertEquals("read", stage(task));
+        aiTaskService.handleCallback(task, progress(9, 12, "verify"));
+        assertEquals("verify", stage(task));
+
+        aiTaskService.handleCallback(task, progress(10, 12));
+        assertEquals("verify", stage(task), "旧版编排服务不带阶段时保留原阶段");
+        aiTaskService.handleCallback(task, progress(11, 12, "drop table"));
+        assertEquals("verify", stage(task), "不认识的阶段不保存");
+        assertEquals(11, jdbc.queryForObject("select progress_done from ai_task where id = ?", Integer.class, task),
+                "阶段不认识时批数照常更新");
+    }
+
+    private String stage(long task) {
+        return jdbc.queryForObject("select progress_stage from ai_task where id = ?", String.class, task);
     }
 
     @Test

@@ -760,20 +760,25 @@ const CustomerInquiryDetailPage: React.FC = () => {
         onClose={() => setAppendOpen(false)}
         onStarted={load}
       />
-      {inq.status === STATUS.PARSING && !inq.parseProgressTotal && (
-        <Alert
-          type="info"
-          showIcon
-          style={{ marginBottom: 16 }}
-          title="AI 正在解析，通常需要几十秒到几分钟，完成后页面会自动刷新"
-        />
-      )}
-      {inq.status === STATUS.PARSING && !!inq.parseProgressTotal && (
-        <ParseProgressCard
-          done={inq.parseProgressDone ?? 0}
-          total={inq.parseProgressTotal}
-        />
-      )}
+      {inq.status === STATUS.PARSING &&
+        !inq.parseProgressTotal &&
+        !inq.parseProgressStage && (
+          <Alert
+            type="info"
+            showIcon
+            style={{ marginBottom: 16 }}
+            title="AI 正在解析，通常需要几十秒到几分钟，完成后页面会自动刷新"
+          />
+        )}
+      {inq.status === STATUS.PARSING &&
+        (!!inq.parseProgressTotal || !!inq.parseProgressStage) && (
+          <ParseProgressCard
+            done={inq.parseProgressDone ?? 0}
+            total={inq.parseProgressTotal ?? 0}
+            stage={inq.parseProgressStage}
+            files={detail.attachments.length}
+          />
+        )}
 
       <div
         style={{

@@ -27,6 +27,7 @@ import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @Slf4j
 @Service
@@ -194,6 +195,12 @@ public class AiTaskServiceImpl implements AiTaskService {
         AiTaskDO update = new AiTaskDO();
         update.setProgressDone(done);
         update.setProgressTotal(total);
+        Object stage = output instanceof Map<?, ?> map ? map.get("stage") : null;
+        if (stage instanceof String s && PROGRESS_STAGES.contains(s)) {
+            update.setProgressStage(s);
+        } else if (stage != null) {
+            log.warn("ai_task id={} 进度阶段不认识，只更新批数", taskId);
+        }
         update.setLastProgressAt(LocalDateTime.now());
         int changed = aiTaskMapper.update(update, new LambdaUpdateWrapper<AiTaskDO>()
                 .eq(AiTaskDO::getId, taskId)
@@ -202,6 +209,9 @@ public class AiTaskServiceImpl implements AiTaskService {
             log.info("ai_task id={} 已结束，忽略进度报告 {}/{}", taskId, done, total);
         }
     }
+
+    /** 编排服务报告的解析阶段；旧版编排服务不带阶段 */
+    private static final Set<String> PROGRESS_STAGES = Set.of("read", "extract", "merge", "verify");
 
     private static Integer progressNumber(Object output, String key) {
         if (output instanceof Map<?, ?> map && map.get(key) instanceof Number n) {
@@ -289,13 +299,15 @@ public class AiTaskServiceImpl implements AiTaskService {
             return List.of();
         }
         return aiTaskMapper.selectList(new LambdaQueryWrapper<AiTaskDO>()
-                        .select(AiTaskDO::getId, AiTaskDO::getProgressDone, AiTaskDO::getProgressTotal)
+                        .select(AiTaskDO::getId, AiTaskDO::getProgressDone, AiTaskDO::getProgressTotal,
+                                AiTaskDO::getProgressStage)
                         .in(AiTaskDO::getId, ids))
                 .stream().map(t -> {
                     AiTaskVO vo = new AiTaskVO();
                     vo.setId(t.getId());
                     vo.setProgressDone(t.getProgressDone());
                     vo.setProgressTotal(t.getProgressTotal());
+                    vo.setProgressStage(t.getProgressStage());
                     return vo;
                 }).toList();
     }
