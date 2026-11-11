@@ -470,7 +470,11 @@ const RefundPage: React.FC = () => {
               />
               <Checkbox
                 checked={showVoid}
-                onChange={(e) => setShowVoid(e.target.checked)}
+                onChange={(e) => {
+                  // 切换是否含作废记录：和其他筛选一样回到第 1 页，免得停在越界的空页（UI-031）
+                  setShowVoid(e.target.checked);
+                  setPage(1);
+                }}
               >
                 显示已作废
               </Checkbox>

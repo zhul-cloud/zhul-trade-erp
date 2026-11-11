@@ -727,7 +727,11 @@ const FxSettlementPage: React.FC = () => {
                   />
                   <Checkbox
                     checked={includeVoid}
-                    onChange={(e) => setIncludeVoid(e.target.checked)}
+                    onChange={(e) => {
+                      // 切换是否含作废记录：和其他筛选一样回到第 1 页，免得停在越界的空页（UI-031）
+                      setIncludeVoid(e.target.checked);
+                      setPage(1);
+                    }}
                   >
                     显示已作废
                   </Checkbox>
