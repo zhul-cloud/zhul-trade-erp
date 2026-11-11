@@ -20,7 +20,7 @@ import {
   Table,
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ellipsisRender } from '@/components/EllipsisText';
 import {
   Card,
@@ -83,7 +83,7 @@ interface AllocRow {
 }
 
 /** 新建与修改费用单 */
-const ExpenseDrawer: React.FC<{
+export const ExpenseDrawer: React.FC<{
   open: boolean;
   editing?: Expense;
   onClose: () => void;
@@ -112,6 +112,8 @@ const ExpenseDrawer: React.FC<{
   const [allocs, setAllocs] = useState<AllocRow[]>([]);
   const [bu] = useBusinessUnits();
   const [unit, setUnit] = useState<number>(PUBLIC_UNIT);
+  /** 用户这次打开后自己选过事业部：之后到达的默认事业部不再覆盖 */
+  const unitTouched = useRef(false);
   const [options, setOptions] = useState<SoItemOption[]>([]);
   const [saving, setSaving] = useState(false);
   const locked = !!editing?.locked;
@@ -159,9 +161,8 @@ const ExpenseDrawer: React.FC<{
     setMethod(e?.method ?? METHOD.COMPANY);
     setAdvanceUserId(e?.advanceUserId);
     setRemark(e?.remark ?? '');
-    setUnit(
-      e ? (e.businessUnitId ?? PUBLIC_UNIT) : (bu.myUnitId ?? PUBLIC_UNIT),
-    );
+    unitTouched.current = false;
+    setUnit(e ? (e.businessUnitId ?? PUBLIC_UNIT) : PUBLIC_UNIT);
     setFiles((e?.attachments ?? []) as unknown as Attachment[]);
     setAfterSalesId(e?.afterSalesId ?? undefined);
     setAllocs(
@@ -177,6 +178,12 @@ const ExpenseDrawer: React.FC<{
       .soItems()
       .then(setOptions)
       .catch(() => setOptions([]));
+  }, [open, editing]);
+
+  // 默认事业部单独补：新建时信息晚到也只填事业部，不重置已填写的内容（UI-018）
+  useEffect(() => {
+    if (!open || editing || unitTouched.current) return;
+    setUnit(bu.myUnitId ?? PUBLIC_UNIT);
   }, [open, editing, bu.myUnitId]);
 
   const allocTotal = round2(allocs.reduce((s, a) => s + (a.amount ?? 0), 0));
@@ -399,7 +406,10 @@ const ExpenseDrawer: React.FC<{
               info={bu}
               allowPublic
               value={unit}
-              onChange={setUnit}
+              onChange={(v) => {
+                unitTouched.current = true;
+                setUnit(v);
+              }}
               style={{ width: '100%' }}
             />
             <div style={{ fontSize: 12, color: palette.mute, marginTop: 6 }}>

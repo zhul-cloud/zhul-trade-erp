@@ -383,7 +383,13 @@ export const AccountListEditor: React.FC<{
     let rows = editing
       ? value.map((r) =>
           r.key === editing.key
-            ? { ...r, ...v, payeeIdNoMasked: masked(r.payeeIdNoMasked) }
+            ? {
+                ...r,
+                ...v,
+                // 这次没重新填身份证号：保留之前编辑里填了、还没随供应商保存的号码（UI-027）
+                payeeIdNo: personal ? (v.payeeIdNo ?? r.payeeIdNo) : undefined,
+                payeeIdNoMasked: masked(r.payeeIdNoMasked),
+              }
             : r,
         )
       : [...value, { ...v, key: newKey(), payeeIdNoMasked: masked('') }];

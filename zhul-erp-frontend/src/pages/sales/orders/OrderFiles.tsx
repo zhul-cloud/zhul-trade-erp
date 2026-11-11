@@ -182,23 +182,27 @@ export const OrderFilesCard: React.FC<{
   const [editing, setEditing] = useState<string>();
   const [saving, setSaving] = useState(false);
   const files = order.attachments ?? [];
+  /** 返回是否成功 */
   const run = async (fn: () => Promise<unknown>, ok: string) => {
     try {
       await fn();
       message.success(ok);
       onChanged();
+      return true;
     } catch (e) {
       message.error(readBizError(e).message);
+      return false;
     }
   };
   const saveRemark = async () => {
     setSaving(true);
-    await run(
+    const saved = await run(
       () => orderApi.remark(order.id, (editing ?? '').trim()),
       '备注已保存',
     );
     setSaving(false);
-    setEditing(undefined);
+    // 保存失败时留在编辑状态，输入的内容还在，可以再点保存（UI-033）
+    if (saved) setEditing(undefined);
   };
   return (
     <Card style={{ padding: 20, marginBottom: 16 }}>

@@ -135,8 +135,10 @@ const DictPage: React.FC = () => {
   const handleTypeFinish = async (
     values: Record<string, any>,
   ): Promise<boolean> => {
+    const editing = typeDrawerMode === 'edit' && editingType;
     const payload = {
-      dictType: values.dictType,
+      // 编辑时编码不可改、表单里也不提交，取原值满足后端必填校验（UI-025）
+      dictType: editing ? editingType.dictType : values.dictType,
       dictName: values.dictName,
       status: values.status ?? 1,
       remark: values.remark,
