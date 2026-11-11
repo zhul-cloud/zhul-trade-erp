@@ -94,6 +94,7 @@
 | [UI-046](tasks/2026-11-11-UI-046-fee-order-detail-crash.md) | 费用订单详情页打开即显示「页面出现错误」 | P1 | 已合并待发布 | Claude | [2026-11-11-UI-046](tasks/2026-11-11-UI-046-fee-order-detail-crash.md) | 2026-11-11 |
 | [UI-047](tasks/2026-11-11-UI-047-user-feedback-1111.md) | 列多的列表滚动后，表格固定列盖住顶部栏与标签栏 | P2 | 已合并待发布 | Claude | [2026-11-11-UI-047](tasks/2026-11-11-UI-047-user-feedback-1111.md) | 2026-11-11 |
 | [UI-048](tasks/2026-11-11-UI-047-user-feedback-1111.md) | 来源单号与客户 / 供应商合在一列，不符合单据页统一规范 | P3 | 已合并待发布 | Claude | [2026-11-11-UI-047](tasks/2026-11-11-UI-047-user-feedback-1111.md) | 2026-11-11 |
+| [UI-049](tasks/2026-11-11-UI-049-notification-content-wrap.md) | 通知抽屉内容在日期、型号中间断行 | P3 | 待合并 | Claude | [2026-11-11-UI-049](tasks/2026-11-11-UI-049-notification-content-wrap.md) | 2026-11-11 |
 
 ## AI 可靠性
 
