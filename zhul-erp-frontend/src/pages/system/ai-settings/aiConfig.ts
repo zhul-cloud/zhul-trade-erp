@@ -48,6 +48,18 @@ export function toPayload(values: AiFormValues): AiConfigPayload {
   return payload;
 }
 
+/**
+ * 测试结果属于哪一份配置：方式、服务商、模型、思考强度、搜索次数、本次填写的 Key 任一变化，
+ * 之前的测试结果就不再适用；迟到的回包也按它核对归属（UI-019）
+ */
+export const testFingerprint = (v: AiFormValues) => JSON.stringify(toPayload(v));
+
+/** 模型列表属于哪一份配置：方式、服务商、本次填写的 Key（UI-020） */
+export const modelsFingerprint = (v: AiFormValues) => {
+  const p = toPayload(v);
+  return JSON.stringify([p.mode, p.provider, p.apiKey ?? '']);
+};
+
 export const PROVIDERS: AiProvider[] = ['claude', 'openai'];
 
 /** 某一种连接方式已保存的设置 → 表单值（Key 不回填；模型没填时预填该服务商的推荐模型） */

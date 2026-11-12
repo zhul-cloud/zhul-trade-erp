@@ -6,7 +6,7 @@
  * 布局组件
  */
 import Footer from './Footer';
-import { DocLink, LangDropdown, VersionDropdown } from './RightContent';
+import { LangDropdown, VersionDropdown } from './RightContent';
 import { AvatarDropdown } from './RightContent/AvatarDropdown';
 
 /**
@@ -16,4 +16,4 @@ export { default as AuthLayout } from './AuthLayout';
 export { default as ErrorBoundary } from './ErrorBoundary';
 export { default as OfflineBanner } from './OfflineBanner';
 
-export { AvatarDropdown, DocLink, Footer, LangDropdown, VersionDropdown };
+export { AvatarDropdown, Footer, LangDropdown, VersionDropdown };

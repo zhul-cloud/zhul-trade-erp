@@ -58,7 +58,7 @@
 
 | ID | 修复 / 验收范围 | 部署与目标环境验收证据 | 验收人 / 日期 | 结论与剩余项 |
 | --- | --- | --- | --- | --- |
-| UI-017 | 换单 / 关闭后旧详情不改写抽屉，打包只提交当前单；保存、上传进行中换单不影响新单 | 加载部分随 v1.20.0 已部署（[#257](https://github.com/zhul-cloud/zhul-trade-erp/pull/257)；[生产发版](https://github.com/zhul-cloud/zhul-trade-erp/actions/runs/43119493452) 成功，2026-11-12）；保存 / 上传中换单部分待合并 | — | 待合并 |
+| UI-017 | 换单 / 关闭后旧详情不改写抽屉，打包只提交当前单；保存、上传进行中换单不影响新单 | 加载部分随 v1.20.0 已部署（[#257](https://github.com/zhul-cloud/zhul-trade-erp/pull/257)；[生产发版](https://github.com/zhul-cloud/zhul-trade-erp/actions/runs/43119493452) 成功，2026-11-12）；保存 / 上传中换单部分 [#261](https://github.com/zhul-cloud/zhul-trade-erp/pull/261) 已合并（`54847eae`） | — | 已合并待发布 |
 | UI-018 | 事业部晚到不清空费用单草稿 | v1.20.0 已部署（[#257](https://github.com/zhul-cloud/zhul-trade-erp/pull/257)；[生产发版](https://github.com/zhul-cloud/zhul-trade-erp/actions/runs/43119493452) 成功，2026-11-12） | — | 已发布待验收 |
 | UI-024 | 用户列表按部门筛选生效 | v1.20.0 已部署（[#257](https://github.com/zhul-cloud/zhul-trade-erp/pull/257)；[生产发版](https://github.com/zhul-cloud/zhul-trade-erp/actions/runs/43119493452) 成功，2026-11-12） | — | 已发布待验收 |
 | UI-025 | 编辑字典类型可正常保存 | v1.20.0 已部署（[#257](https://github.com/zhul-cloud/zhul-trade-erp/pull/257)；[生产发版](https://github.com/zhul-cloud/zhul-trade-erp/actions/runs/43119493452) 成功，2026-11-12） | — | 已发布待验收 |
@@ -76,3 +76,4 @@
 | 2026-11-12 / Claude | 用户要求本机实测 UI-031、UI-017：本机容器重启后重建测试租户，其他收入翻页与打包迟到回包两项浏览器实测通过 | 随下一个版本发布 |
 | 2026-11-12 / Claude | 补测 UI-031 退款、结汇两页与 UI-017 出库查看、实拍、货代账单三处，本机浏览器实测通过 | 随下一个版本发布 |
 | 2026-11-12 / Claude | 6 项随 v1.20.0 上线（#257，发版运行 43119493452 成功）改为已发布待验收；UI-017 补测保存 / 上传中换单发现三处问题并修复，改回待合并 | 创建 PR |
+| 2026-11-12 / Claude | #261 CI 通过并合并（`54847eae`），UI-017 改为已合并待发布 | 随下一个版本发布 |
