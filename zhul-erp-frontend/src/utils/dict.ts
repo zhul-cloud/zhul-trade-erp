@@ -225,3 +225,14 @@ export const useIndustryOptions = () => {
     all.find((i) => i.itemCode === code)?.itemName ?? code ?? '—';
   return { options, labelOf };
 };
+
+/**
+ * 字典改动后清掉本页面生命周期里的全部字典缓存（整数、文字、付款方式、行业），
+ * 之后打开的业务页重新取数，停用项不再作为可选项出现（UI-008）
+ */
+export const invalidateDictCache = () => {
+  cache.clear();
+  textCache.clear();
+  paymentMethodsCache = undefined;
+  industryCache = undefined;
+};

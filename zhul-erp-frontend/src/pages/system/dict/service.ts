@@ -1,4 +1,5 @@
 import { request } from '@umijs/max';
+import { invalidateDictCache } from '@/utils/dict';
 
 export interface DictTypeItem {
   id: number;
@@ -33,6 +34,13 @@ export interface DictItemRow {
   createTime: string;
 }
 
+/** 字典写操作成功后清掉业务页的字典缓存（UI-008） */
+const changed = async <T>(p: Promise<T>): Promise<T> => {
+  const r = await p;
+  invalidateDictCache();
+  return r;
+};
+
 export async function getDictTypeList(name?: string): Promise<DictTypeItem[]> {
   const res = await request('/api/v1/system/dict-types', {
     method: 'GET',
@@ -56,18 +64,24 @@ export interface SaveDictTypePayload {
 }
 
 export async function createDictType(data: SaveDictTypePayload): Promise<void> {
-  return request('/api/v1/system/dict-types', { method: 'POST', data });
+  return changed(
+    request('/api/v1/system/dict-types', { method: 'POST', data }),
+  );
 }
 
 export async function updateDictType(
   id: number,
   data: SaveDictTypePayload,
 ): Promise<void> {
-  return request(`/api/v1/system/dict-types/${id}`, { method: 'PUT', data });
+  return changed(
+    request(`/api/v1/system/dict-types/${id}`, { method: 'PUT', data }),
+  );
 }
 
 export async function deleteDictType(id: number): Promise<void> {
-  return request(`/api/v1/system/dict-types/${id}`, { method: 'DELETE' });
+  return changed(
+    request(`/api/v1/system/dict-types/${id}`, { method: 'DELETE' }),
+  );
 }
 
 export async function getDictItemList(
@@ -95,16 +109,22 @@ export interface SaveDictItemPayload {
 }
 
 export async function createDictItem(data: SaveDictItemPayload): Promise<void> {
-  return request('/api/v1/system/dict-items', { method: 'POST', data });
+  return changed(
+    request('/api/v1/system/dict-items', { method: 'POST', data }),
+  );
 }
 
 export async function updateDictItem(
   id: number,
   data: SaveDictItemPayload,
 ): Promise<void> {
-  return request(`/api/v1/system/dict-items/${id}`, { method: 'PUT', data });
+  return changed(
+    request(`/api/v1/system/dict-items/${id}`, { method: 'PUT', data }),
+  );
 }
 
 export async function deleteDictItem(id: number): Promise<void> {
-  return request(`/api/v1/system/dict-items/${id}`, { method: 'DELETE' });
+  return changed(
+    request(`/api/v1/system/dict-items/${id}`, { method: 'DELETE' }),
+  );
 }

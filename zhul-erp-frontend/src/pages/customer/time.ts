@@ -16,6 +16,20 @@ export function utcOffsetLabel(zone: string, at: Date = new Date()): string {
   }
 }
 
+/** IANA 时区在某一时刻的 UTC 偏移（分钟），如 America/Los_Angeles 冬季为 -480 */
+export function offsetMinutes(zone: string, at: Date = new Date()): number {
+  const part = new Intl.DateTimeFormat('en-US', {
+    timeZone: zone,
+    timeZoneName: 'shortOffset',
+  })
+    .formatToParts(at)
+    .find((p) => p.type === 'timeZoneName')?.value;
+  const m = /GMT([+-])(\d{1,2})(?::(\d{2}))?/.exec(part ?? '');
+  if (!m) return 0;
+  const minutes = Number(m[2]) * 60 + Number(m[3] ?? 0);
+  return m[1] === '-' ? -minutes : minutes;
+}
+
 /** 下拉里显示的时区名：Europe/Berlin（UTC+01:00） */
 export function zoneLabel(zone: string): string {
   const offset = utcOffsetLabel(zone);
@@ -36,9 +50,8 @@ export function localTimeInfo(zone: string, now: Date = new Date()) {
     return h * 60 + m;
   };
   const local = fmt(zone);
-  let diff = minutesOf(local) - minutesOf(fmt('Asia/Shanghai'));
-  if (diff > 12 * 60) diff -= 24 * 60;
-  if (diff < -12 * 60) diff += 24 * 60;
+  // 用同一时刻两地的 UTC 偏移相减，保留真实时差；不能用钟面相减再折回 ±12 小时（UI-016）
+  const diff = offsetMinutes(zone, now) - offsetMinutes('Asia/Shanghai', now);
   const localMinutes = minutesOf(local);
   return {
     time: local,

@@ -76,8 +76,10 @@ const initial = (): Filters => {
   const p = new URLSearchParams(window.location.search);
   const from = p.get('dateFrom');
   const to = p.get('dateTo');
+  const owner = Number(p.get('ownerId'));
   return {
     range: from && to ? [dayjs(from), dayjs(to)] : recentRange(),
+    ownerId: owner > 0 ? owner : undefined,
   };
 };
 

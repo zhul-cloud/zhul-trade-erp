@@ -189,3 +189,19 @@ describe('菜单标签页', () => {
     expect(urls(M.activeTab(t))).toEqual(['/purchase/orders/5']);
   });
 });
+
+/** UI-004：有未保存修改的页面被压到很深也不卸载，其他超出保活深度的照常卸载 */
+it('有未保存修改的页面不受保活深度限制', () => {
+  let s = M.openMenu(start(), '/quotation').state;
+  s = M.navigated(s, '/quotation/1', 'push', menuOf);
+  const quoteKey = M.top(M.activeTab(s) as M.Tab).key;
+  s = M.setDirty(s, quoteKey, true);
+  for (let i = 2; i <= 2 + M.KEEP_ALIVE_DEPTH; i++) {
+    s = M.navigated(s, `/sales/orders/${i}`, 'push', menuOf);
+  }
+  const tab = M.activeTab(s) as M.Tab;
+  const alive = M.aliveEntries(tab).map((e) => e.url);
+  expect(alive).toContain('/quotation/1');
+  expect(alive).not.toContain('/quotation');
+  expect(alive).toHaveLength(M.KEEP_ALIVE_DEPTH + 1);
+});

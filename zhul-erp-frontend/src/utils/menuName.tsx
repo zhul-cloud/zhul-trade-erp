@@ -27,7 +27,7 @@ export interface MenuHit {
 
 /**
  * 页面地址所属的菜单：地址与菜单相同，或是菜单地址的下级（详情、新建、编辑页），取地址最长的一个。
- * 只认页面菜单（不含分组与按钮），隐藏或停用的菜单不算。
+ * 只认页面菜单（不含分组与按钮），隐藏的菜单不算。与侧边栏同一规则：按 isHidden 判断，不看 status（UI-010）。
  */
 export function findMenu(
   tree: MenuNode[],
@@ -36,7 +36,7 @@ export function findMenu(
   let best: { hit: MenuHit; len: number } | undefined;
   const walk = (nodes: MenuNode[], group: string) => {
     for (const n of nodes) {
-      if (n.type === 3 || n.isHidden === 1 || n.status === 0) continue;
+      if (n.type === 3 || n.isHidden === 1) continue;
       const p = n.path;
       if (
         n.type === 2 &&
