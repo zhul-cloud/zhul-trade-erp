@@ -101,6 +101,21 @@ class SalesOrderContractTest extends SalesContractSupport {
                 "看不到的订单不会因事业部条件出现");
     }
 
+    /** BUS-026：收款状态筛选改为子查询后结果不变——PI 转成的订单按 PI 的收款状态 */
+    @Test
+    void page_filterByReceiptStatus_piSubquery() throws Exception {
+        long c = customer("ACROBOT", "India");
+        long pi = sentPi(quotationItemIds(quotation(c, 2, "USD", null, FOUR[0])), null);
+        ok(uploadSlip(pi, "100.00", "2026-10-07", admin));
+        long id = ok(convert(pi)).path("id").asLong();
+        int status = jdbc.queryForObject("select receipt_status from proforma_invoice where id = ?", Integer.class, pi);
+        JsonNode hit = ok(call(json(post(SO + "/page"), write(Map.of("receiptStatus", status))), admin));
+        assertEquals(1, hit.path("total").asInt());
+        assertEquals(id, hit.path("records").get(0).path("id").asLong());
+        int other = status == 1 ? 2 : 1;
+        assertEquals(0, ok(call(json(post(SO + "/page"), write(Map.of("receiptStatus", other))), admin)).path("total").asInt());
+    }
+
     /** 已发送、有水单、PI 当前版本备注为 remark 的 PI */
     private long paidPiWithRemark(long customer, String remark) throws Exception {
         long pi = sentPi(quotationItemIds(quotation(customer, 2, "USD", null, FOUR[0])), null);

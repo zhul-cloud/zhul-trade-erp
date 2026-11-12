@@ -1757,6 +1757,11 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         return m;
     }
 
+    /** 某收款状态的 PI 的 ID 子查询；只拼整数，租户条件显式写上，不依赖拦截器 */
+    private static String piIdsByReceipt(int tenant, int receiptStatus) {
+        return "SELECT id FROM proforma_invoice WHERE tenant_id = " + tenant + " AND receipt_status = " + receiptStatus;
+    }
+
     @Override
     public PageResult<SalesOrderListVO> page(SalesOrderPageQuery q) {
         int tenant = PiStore.tenantId();
@@ -1777,32 +1782,15 @@ public class SalesOrderServiceImpl implements SalesOrderService {
             w.lt(SalesOrderDO::getCreateTime, q.getCreatedTo().plusDays(1).atStartOfDay());
         }
         if (Boolean.TRUE.equals(q.getPayLaterOpen())) {
-            // 先采购后收款都是 PI 转成的订单，收款状态看 PI
-            List<Long> unpaid = piMapper.selectList(new LambdaQueryWrapper<ProformaInvoiceDO>()
-                            .select(ProformaInvoiceDO::getId)
-                            .eq(ProformaInvoiceDO::getTenantId, tenant)
-                            .eq(ProformaInvoiceDO::getReceiptStatus, SalesConstants.RECEIPT_NONE))
-                    .stream().map(ProformaInvoiceDO::getId).toList();
-            w.eq(SalesOrderDO::getPayLater, 1);
-            if (unpaid.isEmpty()) {
-                w.isNull(SalesOrderDO::getId);
-            } else {
-                w.in(SalesOrderDO::getPiId, unpaid);
-            }
+            // 先采购后收款都是 PI 转成的订单，收款状态看 PI；用子查询，不把租户全部 PI 的 ID 拼进 IN（BUS-026）
+            w.eq(SalesOrderDO::getPayLater, 1)
+                    .inSql(SalesOrderDO::getPiId, piIdsByReceipt(tenant, SalesConstants.RECEIPT_NONE));
         }
         if (q.getReceiptStatus() != null) {
-            List<Long> piIds = piMapper.selectList(new LambdaQueryWrapper<ProformaInvoiceDO>()
-                            .select(ProformaInvoiceDO::getId)
-                            .eq(ProformaInvoiceDO::getTenantId, tenant)
-                            .eq(ProformaInvoiceDO::getReceiptStatus, q.getReceiptStatus()))
-                    .stream().map(ProformaInvoiceDO::getId).toList();
+            int receipt = q.getReceiptStatus();
             // PI 转成的订单按 PI 的收款状态，手动创建的订单按订单自己的
-            w.and(x -> {
-                x.and(m -> m.ne(SalesOrderDO::getSource, SalesConstants.SO_FROM_PI).eq(SalesOrderDO::getReceiptStatus, q.getReceiptStatus()));
-                if (!piIds.isEmpty()) {
-                    x.or().in(SalesOrderDO::getPiId, piIds);
-                }
-            });
+            w.and(x -> x.and(m -> m.ne(SalesOrderDO::getSource, SalesConstants.SO_FROM_PI).eq(SalesOrderDO::getReceiptStatus, receipt))
+                    .or().inSql(SalesOrderDO::getPiId, piIdsByReceipt(tenant, receipt)));
         }
         if (q.getSource() != null) {
             w.eq(SalesOrderDO::getSource, q.getSource());
