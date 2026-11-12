@@ -19,7 +19,8 @@ import {
 } from 'antd';
 import dayjs from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
-import { CustomerSub } from '@/components/DocFields';
+import { CustomerCell } from '@/components/DocFields';
+import SourceNos from '@/components/DocFields/SourceNos';
 import { ellipsisRender } from '@/components/EllipsisText';
 import { Card, PageTitle, Pill } from '@/pages/inquiry/shared/components';
 import { auditColumns } from '@/pages/purchase/components';
@@ -125,35 +126,15 @@ const AfterSalesPage: React.FC = () => {
       ),
     },
     {
-      title: '客户 · 来源单号',
+      title: '客户',
       key: 'customer',
-      width: 210,
+      width: 200,
       render: (_, r) => (
-        <div>
-          <div style={{ fontWeight: 600, color: palette.ink }}>
-            {r.customerName}
-          </div>
-          {(r.customerCountry || r.customerContact) && (
-            <div style={{ fontSize: 12, color: palette.mute }}>
-              <CustomerSub
-                country={r.customerCountry}
-                contact={r.customerContact}
-              />
-            </div>
-          )}
-          {r.soId ? (
-            <button
-              type="button"
-              className="zhul-link"
-              style={{ fontSize: 12 }}
-              onClick={() => history.push(`/sales/orders/${r.soId}`)}
-            >
-              {r.soNo}
-            </button>
-          ) : (
-            sub('没有订单（按型号追溯）')
-          )}
-        </div>
+        <CustomerCell
+          name={r.customerName}
+          country={r.customerCountry}
+          contact={r.customerContact}
+        />
       ),
     },
     {
@@ -192,6 +173,21 @@ const AfterSalesPage: React.FC = () => {
           </div>
           {sub(r.solutionNames.join('、') || '还没定方案')}
         </div>
+      ),
+    },
+    {
+      title: '来源单号',
+      key: 'source',
+      width: 150,
+      render: (_, r) => (
+        <SourceNos
+          refs={[
+            {
+              no: r.soNo,
+              href: r.soId ? `/sales/orders/${r.soId}` : undefined,
+            },
+          ]}
+        />
       ),
     },
     {

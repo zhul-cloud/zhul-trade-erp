@@ -1,5 +1,5 @@
 import { InboxOutlined, SearchOutlined } from '@ant-design/icons';
-import { useAccess } from '@umijs/max';
+import { Link, useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { Button, Input, Segmented, Table } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
@@ -107,15 +107,10 @@ const Receipts: React.FC = () => {
       ),
     },
     {
-      title: '采购订单 · 采购对象',
-      dataIndex: 'poNo',
-      width: 210,
-      render: (v: string, r) => (
-        <div>
-          <span style={{ color: palette.link }}>{v}</span>
-          {sub(palette.mute, r.supplierName)}
-        </div>
-      ),
+      title: '采购对象',
+      dataIndex: 'supplierName',
+      width: 180,
+      render: ellipsisRender,
     },
     {
       title: '快递 · 单号',
@@ -147,6 +142,14 @@ const Receipts: React.FC = () => {
             <EllipsisText key={i.id} text={`${i.model} × ${i.quantity}`} />
           ))}
         </div>
+      ),
+    },
+    {
+      title: '来源单号',
+      dataIndex: 'poNo',
+      width: 150,
+      render: (v: string | undefined, r) => (
+        <SourceNos refs={[{ no: v, href: WAREHOUSE_PATHS.order(r.poId) }]} />
       ),
     },
     {
@@ -216,15 +219,21 @@ const Receipts: React.FC = () => {
       ),
     },
     {
-      title: '采购订单 · 采购对象',
+      title: '采购订单',
       dataIndex: 'poNo',
-      width: 210,
-      render: (v: string, r) => (
-        <div>
-          <span style={{ color: palette.ink }}>{v}</span>
-          {sub(palette.mute, r.supplierName)}
-        </div>
-      ),
+      width: 150,
+      render: (v: string | undefined, r) =>
+        v ? (
+          <Link to={WAREHOUSE_PATHS.order(r.poId)}>{v}</Link>
+        ) : (
+          <span style={{ color: palette.mute }}>—</span>
+        ),
+    },
+    {
+      title: '采购对象',
+      dataIndex: 'supplierName',
+      width: 180,
+      render: ellipsisRender,
     },
     {
       title: '型号数',

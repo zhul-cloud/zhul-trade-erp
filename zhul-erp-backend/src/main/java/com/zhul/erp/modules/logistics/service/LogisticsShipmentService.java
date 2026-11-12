@@ -553,6 +553,7 @@ public class LogisticsShipmentService {
             vo.setVoidReason(sh.getVoidReason());
             vo.setNote(sh.getNote());
             vo.setOutboundCount(mine.size());
+            vo.setOutboundNos(mine.stream().map(OutboundOrderDO::getObNo).toList());
             Map<Long, String> soNos = new LinkedHashMap<>();
             mine.forEach(o -> soNos.putIfAbsent(o.getSoId(), orders.get(o.getSoId()) == null ? null : orders.get(o.getSoId()).getSoNo()));
             vo.setOrders(soNos.entrySet().stream().map(e -> {

@@ -4,6 +4,7 @@ import type { TableColumnsType } from 'antd';
 import { App, Button, Checkbox, Input, Select, Table } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
 import { CustomerCell } from '@/components/DocFields';
+import SourceNos, { listHref } from '@/components/DocFields/SourceNos';
 import { ellipsisRender } from '@/components/EllipsisText';
 import {
   Card,
@@ -328,21 +329,16 @@ const Shipments: React.FC = () => {
       render: ellipsisRender,
     },
     {
-      title: '来源单号 · 订单',
+      title: '销售订单',
       key: 'orders',
-      width: 230,
+      width: 150,
       render: (_, r) => (
-        <div>
-          {r.outboundCount} 张销售出库单
-          <div style={{ fontSize: 12 }}>
-            {r.orders.map((o, i) => (
-              <React.Fragment key={o.id}>
-                {i > 0 && '、'}
-                <Link to={LOGISTICS_PATHS.salesOrder(o.id)}>{o.soNo}</Link>
-              </React.Fragment>
-            ))}
-          </div>
-        </div>
+        <SourceNos
+          refs={r.orders.map((o) => ({
+            no: o.soNo,
+            href: LOGISTICS_PATHS.salesOrder(o.id),
+          }))}
+        />
       ),
     },
     {
@@ -403,6 +399,19 @@ const Shipments: React.FC = () => {
       width: 90,
       render: (v: number, r) => (
         <ShStatusPill value={v}>{r.statusName}</ShStatusPill>
+      ),
+    },
+    {
+      title: '来源单号',
+      key: 'outbounds',
+      width: 150,
+      render: (_, r) => (
+        <SourceNos
+          refs={(r.outboundNos ?? []).map((no) => ({
+            no,
+            href: listHref(LOGISTICS_PATHS.outbounds, no, 'handed'),
+          }))}
+        />
       ),
     },
     {

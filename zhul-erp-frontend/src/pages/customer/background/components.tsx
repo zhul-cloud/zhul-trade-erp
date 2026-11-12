@@ -318,13 +318,15 @@ export const BackgroundCard: React.FC<{
                     `缺 ${missingLabels(precheck).join('、')}`}
                 </span>
                 {missingLabels(precheck).length > 0 && (
-                  <a
+                  <button
+                    type="button"
+                    className="zhul-link"
                     style={{ flex: 'none' }}
                     onClick={() => setCheckOpen(!checkOpen)}
                   >
                     {checkOpen ? '收起' : '展开'}{' '}
                     {checkOpen ? <UpOutlined /> : <DownOutlined />}
-                  </a>
+                  </button>
                 )}
               </div>
               {checkOpen && (
