@@ -194,9 +194,14 @@ const HistoryMigrationPage: React.FC = () => {
       <PageTitle
         root="租户管理"
         crumbs={[
-          <a key="list" onClick={() => history.push('/tenant/list')}>
+          <button
+            type="button"
+            className="zhul-link"
+            key="list"
+            onClick={() => history.push('/tenant/list')}
+          >
             租户列表
-          </a>,
+          </button>,
           '历史迁移',
         ]}
         title={`历史迁移：${tenantName}`}
@@ -323,16 +328,24 @@ const HistoryMigrationPage: React.FC = () => {
               width: 130,
               render: (_, b) => (
                 <Space>
-                  <a onClick={() => openDetail(b)}>详情</a>
+                  <button
+                    type="button"
+                    className="zhul-link"
+                    onClick={() => openDetail(b)}
+                  >
+                    详情
+                  </button>
                   {b.runMode === 2 &&
                     (b.status === 2 || b.status === 3) &&
                     !b.rollingBack && (
-                      <a
+                      <button
+                        type="button"
+                        className="zhul-link"
                         style={{ color: palette.red }}
                         onClick={() => rollback(b)}
                       >
                         回滚
-                      </a>
+                      </button>
                     )}
                 </Space>
               ),

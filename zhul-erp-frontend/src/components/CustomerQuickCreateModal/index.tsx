@@ -83,6 +83,7 @@ const CustomerQuickCreateModal: React.FC<CustomerQuickCreateModalProps> = ({
 
   return (
     <ModalForm<SaveCustomerPayload>
+      name="customerQuickCreate"
       title="新建客户"
       width={640}
       open={open}

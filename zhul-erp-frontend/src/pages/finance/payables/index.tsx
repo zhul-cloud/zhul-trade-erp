@@ -196,7 +196,15 @@ const PayableManagement: React.FC = () => {
       dataIndex: 'payableNo',
       width: 140,
       fixed: 'left',
-      render: (v: string, r) => <a onClick={() => openDetail(r.id)}>{v}</a>,
+      render: (v: string, r) => (
+        <button
+          type="button"
+          className="zhul-link"
+          onClick={() => openDetail(r.id)}
+        >
+          {v}
+        </button>
+      ),
     },
     {
       title: '收款方',
@@ -214,7 +222,13 @@ const PayableManagement: React.FC = () => {
       key: 'source',
       width: 170,
       render: (_, r) => (
-        <a onClick={() => history.push(sourcePath(r))}>{r.sourceNo}</a>
+        <button
+          type="button"
+          className="zhul-link"
+          onClick={() => history.push(sourcePath(r))}
+        >
+          {r.sourceNo}
+        </button>
       ),
     },
     { title: '币种', dataIndex: 'currencyCode', width: 64 },
@@ -291,12 +305,32 @@ const PayableManagement: React.FC = () => {
           {canRegister &&
             (r.status === PAY_STATUS.UNPAID ||
               r.status === PAY_STATUS.PARTIAL) && (
-              <a onClick={() => setPayAnchor(r.id)}>付款</a>
+              <button
+                type="button"
+                className="zhul-link"
+                onClick={() => setPayAnchor(r.id)}
+              >
+                付款
+              </button>
             )}
           {canRegister && r.creditAmount > 0 && (
-            <a onClick={() => setRefund(r)}>退款</a>
+            <button
+              type="button"
+              className="zhul-link"
+              onClick={() => setRefund(r)}
+            >
+              退款
+            </button>
           )}
-          {!canRegister && <a onClick={() => openDetail(r.id)}>查看</a>}
+          {!canRegister && (
+            <button
+              type="button"
+              className="zhul-link"
+              onClick={() => openDetail(r.id)}
+            >
+              查看
+            </button>
+          )}
         </Space>
       ),
     },
@@ -540,9 +574,13 @@ const PayableManagement: React.FC = () => {
             <div style={{ marginBottom: 14, color: palette.sub }}>
               {detail.payeeName} <PayeeTypePill type={detail.payeeType} /> ·
               来源单号{' '}
-              <a onClick={() => history.push(sourcePath(detail))}>
+              <button
+                type="button"
+                className="zhul-link"
+                onClick={() => history.push(sourcePath(detail))}
+              >
                 {detail.sourceNo}
-              </a>
+              </button>
             </div>
             {detail.settledByMigration && (
               <Alert

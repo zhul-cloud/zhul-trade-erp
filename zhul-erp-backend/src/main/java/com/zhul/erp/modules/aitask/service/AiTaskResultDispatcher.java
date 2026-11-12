@@ -9,8 +9,9 @@ import java.util.List;
 
 /**
  * 按 skillId 把任务结果分发给匹配的 {@link AiTaskResultHandler}。
- * Spring 自动注入所有已声明的处理器实现（当前只有 {@link com.zhul.erp.modules.aitask.service.impl.NoopAiTaskResultHandler}
- * 作为路由验证用的占位实现；询盘解析对应的处理器由任务组4实现）。
+ * Spring 自动注入所有已声明的处理器实现：每个技能一个，如询盘解析
+ * {@link com.zhul.erp.modules.inquiry.customerinquiry.service.InquiryParseResultHandler}、跟进提取、客户背调、商品候选补全与翻译；
+ * {@link com.zhul.erp.modules.aitask.service.impl.NoopAiTaskResultHandler} 只是路由验证用的占位实现。
  */
 @Slf4j
 @Component

@@ -82,9 +82,14 @@ const SourcingStatsPage: React.FC = () => {
       align: 'right',
       render: (_, r) =>
         r.total ? (
-          <a style={num} onClick={() => open(r)}>
+          <button
+            type="button"
+            className="zhul-link"
+            style={num}
+            onClick={() => open(r)}
+          >
             {r.total}
-          </a>
+          </button>
         ) : (
           n(0)
         ),
@@ -357,9 +362,14 @@ const SourcingStatsPage: React.FC = () => {
                       <b>合计</b>
                     </Table.Summary.Cell>
                     <Table.Summary.Cell index={1} align="right">
-                      <a style={num} onClick={() => open(total)}>
+                      <button
+                        type="button"
+                        className="zhul-link"
+                        style={num}
+                        onClick={() => open(total)}
+                      >
                         {total.total}
-                      </a>
+                      </button>
                     </Table.Summary.Cell>
                     <Table.Summary.Cell index={2} align="right">
                       {n(total.completed)}

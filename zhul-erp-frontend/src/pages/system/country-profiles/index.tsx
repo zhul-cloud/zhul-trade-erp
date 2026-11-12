@@ -308,7 +308,13 @@ const CountryProfilesPage: React.FC = () => {
       width: 90,
       fixed: 'right',
       render: (_, r) => (
-        <a onClick={() => setEditing(r)}>{r.id ? '编辑' : '去维护'}</a>
+        <button
+          type="button"
+          className="zhul-link"
+          onClick={() => setEditing(r)}
+        >
+          {r.id ? '编辑' : '去维护'}
+        </button>
       ),
     },
   ];

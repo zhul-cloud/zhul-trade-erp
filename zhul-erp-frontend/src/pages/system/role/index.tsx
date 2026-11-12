@@ -453,23 +453,43 @@ const RolePage: React.FC = () => {
       width: 220,
       render: (_, record) => (
         <Space size={12}>
-          {canAssign && <a onClick={() => openAssign(record)}>分配权限</a>}
-          {canEdit && <a onClick={() => openEdit(record)}>编辑</a>}
+          {canAssign && (
+            <button
+              type="button"
+              className="zhul-link"
+              onClick={() => openAssign(record)}
+            >
+              分配权限
+            </button>
+          )}
           {canEdit && (
-            <a
+            <button
+              type="button"
+              className="zhul-link"
+              onClick={() => openEdit(record)}
+            >
+              编辑
+            </button>
+          )}
+          {canEdit && (
+            <button
+              type="button"
+              className="zhul-link"
               style={{ color: record.status === 1 ? p.red : p.green }}
               onClick={() => handleToggleStatus(record)}
             >
               {record.status === 1 ? '禁用' : '启用'}
-            </a>
+            </button>
           )}
           {canDelete && record.isBuiltIn !== 1 && (
-            <a
+            <button
+              type="button"
+              className="zhul-link"
               style={{ color: p.red }}
               onClick={() => handleDeleteClick(record)}
             >
               删除
-            </a>
+            </button>
           )}
         </Space>
       ),
@@ -575,6 +595,7 @@ const RolePage: React.FC = () => {
 
       {/* 新增 / 编辑角色 */}
       <DrawerForm
+        name="roleEdit"
         title={isEdit ? `编辑角色 - ${editingRole?.name ?? ''}` : '新增角色'}
         width={480}
         open={drawerOpen}
@@ -688,6 +709,7 @@ const RolePage: React.FC = () => {
 
       {/* 分配权限 */}
       <DrawerForm
+        name="rolePerm"
         title={`分配权限 - ${permRole?.name ?? ''}`}
         width={480}
         open={permOpen}
@@ -720,18 +742,36 @@ const RolePage: React.FC = () => {
       >
         <div style={{ marginBottom: 12 }}>
           <Space size={16}>
-            <a onClick={() => setCheckedKeys(flattenAllKeys(rawMenuTree))}>
+            <button
+              type="button"
+              className="zhul-link"
+              onClick={() => setCheckedKeys(flattenAllKeys(rawMenuTree))}
+            >
               全选
-            </a>
-            <a onClick={() => setCheckedKeys([])}>取消全选</a>
-            <a
+            </button>
+            <button
+              type="button"
+              className="zhul-link"
+              onClick={() => setCheckedKeys([])}
+            >
+              取消全选
+            </button>
+            <button
+              type="button"
+              className="zhul-link"
               onClick={() =>
                 setExpandedKeys(flattenParentKeys(displayMenuTree))
               }
             >
               展开全部
-            </a>
-            <a onClick={() => setExpandedKeys([])}>折叠全部</a>
+            </button>
+            <button
+              type="button"
+              className="zhul-link"
+              onClick={() => setExpandedKeys([])}
+            >
+              折叠全部
+            </button>
           </Space>
         </div>
         <Input

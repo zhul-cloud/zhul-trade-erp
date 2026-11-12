@@ -153,14 +153,16 @@ const PriceHistoryPage: React.FC = () => {
           <AgeText days={q.daysAgo} date={q.quotedAt} />
           <span style={{ textAlign: 'right' }}>
             {q.customerInquiryId && (
-              <a
+              <button
+                type="button"
+                className="zhul-link"
                 style={{ fontSize: 12 }}
                 onClick={() =>
                   history.push(`${PATHS.inquiries}/${q.customerInquiryId}`)
                 }
               >
                 来自 {q.customerInquiryCode}
-              </a>
+              </button>
             )}
           </span>
         </div>

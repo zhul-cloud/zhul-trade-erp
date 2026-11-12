@@ -308,19 +308,31 @@ const SupplierListPage: React.FC = () => {
       fixed: 'right',
       render: (_, record) => (
         <div style={{ display: 'flex', gap: 12 }}>
-          <a onClick={() => history.push(`${LIST_PATH}/${record.id}`)}>查看</a>
+          <button
+            type="button"
+            className="zhul-link"
+            onClick={() => history.push(`${LIST_PATH}/${record.id}`)}
+          >
+            查看
+          </button>
           {canEdit && (
-            <a onClick={() => history.push(`${LIST_PATH}/${record.id}/edit`)}>
+            <button
+              type="button"
+              className="zhul-link"
+              onClick={() => history.push(`${LIST_PATH}/${record.id}/edit`)}
+            >
               编辑
-            </a>
+            </button>
           )}
           {canDelete && (
-            <a
+            <button
+              type="button"
+              className="zhul-link"
               style={{ color: palette.red }}
               onClick={() => confirmDelete(record)}
             >
               删除
-            </a>
+            </button>
           )}
         </div>
       ),

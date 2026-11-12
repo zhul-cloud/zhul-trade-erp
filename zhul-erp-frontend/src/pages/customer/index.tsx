@@ -496,17 +496,40 @@ const CustomerListPage: React.FC = () => {
       fixed: 'right',
       render: (_, r) => (
         <div style={{ display: 'flex', gap: 12 }}>
-          <a onClick={() => history.push(`${LIST_PATH}/${r.id}`)}>查看</a>
+          <button
+            type="button"
+            className="zhul-link"
+            onClick={() => history.push(`${LIST_PATH}/${r.id}`)}
+          >
+            查看
+          </button>
           {canEdit && (
-            <a onClick={() => history.push(`${LIST_PATH}/${r.id}/edit`)}>
+            <button
+              type="button"
+              className="zhul-link"
+              onClick={() => history.push(`${LIST_PATH}/${r.id}/edit`)}
+            >
               编辑
-            </a>
+            </button>
           )}
-          {canTransfer && <a onClick={() => setTransferTargets([r])}>转移</a>}
+          {canTransfer && (
+            <button
+              type="button"
+              className="zhul-link"
+              onClick={() => setTransferTargets([r])}
+            >
+              转移
+            </button>
+          )}
           {canDelete && (
-            <a style={{ color: palette.red }} onClick={() => confirmDelete(r)}>
+            <button
+              type="button"
+              className="zhul-link"
+              style={{ color: palette.red }}
+              onClick={() => confirmDelete(r)}
+            >
               删除
-            </a>
+            </button>
           )}
         </div>
       ),

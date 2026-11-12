@@ -392,14 +392,18 @@ export const FaceSheets: React.FC<{
           style={{ display: 'flex', alignItems: 'center', gap: 8 }}
         >
           <PaperClipOutlined style={{ color: palette.mute }} />
-          <a onClick={() => open(a)}>{a.fileName}</a>
+          <button type="button" className="zhul-link" onClick={() => open(a)}>
+            {a.fileName}
+          </button>
           {onChange && (
-            <a
+            <button
+              type="button"
+              className="zhul-link"
               style={{ color: palette.red, fontSize: 12 }}
               onClick={() => onChange(value.filter((x) => x.id !== a.id))}
             >
               移除
-            </a>
+            </button>
           )}
         </div>
       ))}
@@ -559,7 +563,7 @@ export const ShipModal: React.FC<{
             value={freight}
             min={0}
             precision={2}
-            prefix="¥"
+            prefix="CNY"
             disabled={sh.reconciled}
             onChange={(v) => setFreight(v === null ? null : Number(v))}
             style={{ width: '100%' }}

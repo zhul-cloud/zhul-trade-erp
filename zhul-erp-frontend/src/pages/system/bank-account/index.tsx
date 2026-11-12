@@ -326,7 +326,9 @@ const BankAccountPage: React.FC = () => {
         r.isDefault ? (
           <Pill tone="accent">默认</Pill>
         ) : canEdit && r.enabled && r.accountType !== ACCOUNT_TYPE.PRIVATE ? (
-          <a
+          <button
+            type="button"
+            className="zhul-link"
             onClick={() =>
               run(
                 () => bankAccountApi.setDefault(r.id),
@@ -335,7 +337,7 @@ const BankAccountPage: React.FC = () => {
             }
           >
             设为默认
-          </a>
+          </button>
         ) : (
           '—'
         ),
@@ -358,16 +360,20 @@ const BankAccountPage: React.FC = () => {
       hidden: !canEdit,
       render: (_, r) => (
         <Space size={12}>
-          <a
+          <button
+            type="button"
+            className="zhul-link"
             onClick={() => {
               setEditing(r);
               setModalOpen(true);
             }}
           >
             编辑
-          </a>
+          </button>
           {r.enabled ? (
-            <a
+            <button
+              type="button"
+              className="zhul-link"
               style={{ color: palette.red }}
               onClick={() =>
                 modal.confirm({
@@ -382,15 +388,17 @@ const BankAccountPage: React.FC = () => {
               }
             >
               停用
-            </a>
+            </button>
           ) : (
-            <a
+            <button
+              type="button"
+              className="zhul-link"
               onClick={() =>
                 run(() => bankAccountApi.setEnabled(r.id, true), '已启用')
               }
             >
               启用
-            </a>
+            </button>
           )}
         </Space>
       ),

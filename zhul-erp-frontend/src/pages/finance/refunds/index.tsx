@@ -14,6 +14,8 @@ import {
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
+import { CustomerCell } from '@/components/DocFields';
+import SourceNos from '@/components/DocFields/SourceNos';
 import {
   Card,
   MigratedPill,
@@ -228,23 +230,10 @@ const RefundPage: React.FC = () => {
     },
     { title: '退款日期', dataIndex: 'refundDate', width: 110 },
     {
-      title: '订单 · 客户',
-      key: 'so',
-      width: 240,
-      render: (_, r) => (
-        <div>
-          {r.soId ? (
-            <a onClick={() => history.push(`/sales/orders/${r.soId}`)}>
-              {r.soNo}
-            </a>
-          ) : (
-            <span style={{ color: palette.mute }}>不挂订单</span>
-          )}
-          <div style={{ fontSize: 12, color: palette.sub }}>
-            {r.customerName}
-          </div>
-        </div>
-      ),
+      title: '客户',
+      dataIndex: 'customerName',
+      width: 180,
+      render: (v?: string) => <CustomerCell name={v} />,
     },
     { title: '原因', dataIndex: 'reasonName', width: 120 },
     {
@@ -288,6 +277,40 @@ const RefundPage: React.FC = () => {
       render: (_, r) => <ProofLinks files={r.attachments} />,
     },
     {
+      title: '销售订单',
+      dataIndex: 'soNo',
+      width: 150,
+      render: (v: string | undefined, r) =>
+        r.soId ? (
+          <button
+            type="button"
+            className="zhul-link"
+            onClick={() => history.push(`/sales/orders/${r.soId}`)}
+          >
+            {v}
+          </button>
+        ) : (
+          <span style={{ color: palette.mute }}>不挂订单</span>
+        ),
+    },
+    {
+      title: '来源单号',
+      dataIndex: 'requestNo',
+      width: 150,
+      render: (v: string | undefined, r) => (
+        <SourceNos
+          refs={[
+            {
+              no: v,
+              href: r.refundRequestId
+                ? `/finance/refunds/requests/${r.refundRequestId}`
+                : undefined,
+            },
+          ]}
+        />
+      ),
+    },
+    {
       title: '状态',
       dataIndex: 'status',
       width: 120,
@@ -313,7 +336,13 @@ const RefundPage: React.FC = () => {
         r.migrated ? (
           <MigratedPill migrated />
         ) : canEdit && r.status === 1 ? (
-          <a onClick={() => setVoiding(r)}>作废</a>
+          <button
+            type="button"
+            className="zhul-link"
+            onClick={() => setVoiding(r)}
+          >
+            作废
+          </button>
         ) : (
           <span style={{ color: palette.mute }}>—</span>
         ),

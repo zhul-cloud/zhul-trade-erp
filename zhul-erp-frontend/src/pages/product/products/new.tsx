@@ -14,6 +14,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
+import { useTabDirty } from '@/components/PageTabs/hooks';
 import { CompletenessBar } from '../components/CompletenessBar';
 import { BrandMark, LifecyclePill, Pill } from '../components/Pills';
 import {
@@ -40,6 +41,22 @@ import {
 import { ProductThemeProvider, useProductTheme } from '../theme';
 import { LinkModal, UploadModal } from './cards/MediaCard';
 
+/** 启用的一级品类，按页取全：超过一页（100 个）也都能选（UI-009） */
+const CATEGORY_PAGE = 100;
+export const loadAllTopCategories = async (): Promise<Category[]> => {
+  const first = await categoryApi.page({
+    page: 1,
+    pageSize: CATEGORY_PAGE,
+    status: 1,
+  });
+  const pages = Math.ceil(first.total / CATEGORY_PAGE);
+  const rest = await Promise.all(
+    Array.from({ length: Math.max(pages - 1, 0) }, (_, i) =>
+      categoryApi.page({ page: i + 2, pageSize: CATEGORY_PAGE, status: 1 }),
+    ),
+  );
+  return [...first.records, ...rest.flatMap((r) => r.records)];
+};
 const STEPS = ['型号', '分类', '图片', '补充资料', '完成'];
 const DRAFT_TTL_MS = 7 * 24 * 3600 * 1000;
 const COMMON_BRANDS = 7;
@@ -155,6 +172,13 @@ const WizardInner: React.FC = () => {
 
   const created = !!product;
   const normalized = normalizeMpn(draft.mpn);
+  // 第 4 步的补充资料点「完成」才保存；填了还没保存时，离开要先问（UI-005）
+  const info = Form.useWatch([], form);
+  const infoUnsaved =
+    created &&
+    step === 4 &&
+    !!(info?.productName || info?.specSummary || info?.shortDescription);
+  useTabDirty(infoUnsaved);
 
   // 打开时：有草稿就询问是否继续
   useEffect(() => {
@@ -178,9 +202,8 @@ const WizardInner: React.FC = () => {
       .options()
       .then(setBrands)
       .catch(() => {});
-    categoryApi
-      .page({ page: 1, pageSize: 100, status: 1 })
-      .then((r) => setCategories(r.records))
+    loadAllTopCategories()
+      .then(setCategories)
       .catch(() => {});
     categoryApi
       .options(2)
@@ -299,25 +322,29 @@ const WizardInner: React.FC = () => {
     setStep(4);
   };
 
+  /** 保存第 4 步的补充资料（都没填就不发请求） */
+  const saveInfo = async (p: Product) => {
+    const v = form.getFieldsValue();
+    if (v.productName || v.specSummary || v.shortDescription) {
+      await productApi.update(p.id, {
+        brandId: p.brandId,
+        categoryId: p.categoryId,
+        seriesId: p.seriesId ?? null,
+        mpnRaw: p.mpnRaw,
+        lifecycleStatus: p.lifecycleStatus,
+        lifecycleSource: p.lifecycleSource,
+        productName: v.productName ?? '',
+        specSummary: v.specSummary ?? '',
+        shortDescription: v.shortDescription ?? '',
+      });
+    }
+  };
+
   const finish = async () => {
     if (!product) return;
-    const v = form.getFieldsValue();
-    const any = v.productName || v.specSummary || v.shortDescription;
     setSavingInfo(true);
     try {
-      if (any) {
-        await productApi.update(product.id, {
-          brandId: product.brandId,
-          categoryId: product.categoryId,
-          seriesId: product.seriesId ?? null,
-          mpnRaw: product.mpnRaw,
-          lifecycleStatus: product.lifecycleStatus,
-          lifecycleSource: product.lifecycleSource,
-          productName: v.productName ?? '',
-          specSummary: v.specSummary ?? '',
-          shortDescription: v.shortDescription ?? '',
-        });
-      }
+      await saveInfo(product);
       setDetail(await productApi.get(product.id));
       setStep(5);
     } finally {
@@ -327,7 +354,32 @@ const WizardInner: React.FC = () => {
 
   const close = () => {
     const hasDraft = !created && (draft.mpn || draft.brandId);
-    if (hasDraft) {
+    if (infoUnsaved && product) {
+      const m = Modal.confirm({
+        title: '补充资料还没保存',
+        content: '产品名称、规格摘要、简介点「完成」才会保存。',
+        okText: '保存并离开',
+        cancelText: '继续填写',
+        footer: (_, { OkBtn, CancelBtn }) => (
+          <>
+            <CancelBtn />
+            <Button
+              onClick={() => {
+                m.destroy();
+                history.push('/product/products');
+              }}
+            >
+              不保存，离开
+            </Button>
+            <OkBtn />
+          </>
+        ),
+        onOk: async () => {
+          await saveInfo(product);
+          history.push('/product/products');
+        },
+      });
+    } else if (hasDraft) {
       Modal.confirm({
         title: '草稿已保存，确定离开？',
         content: '下次进入新建商品时可以继续。',
@@ -573,7 +625,7 @@ const WizardInner: React.FC = () => {
           })}
         </ol>
         <span style={{ color: '#94A3B8', fontSize: 13 }} role="status">
-          {created ? '商品已创建 · 改动自动保存' : '草稿已自动保存'}
+          {created ? '商品已创建' : '草稿已自动保存'}
         </span>
         <Button
           aria-label={mode === 'dark' ? '切换到浅色主题' : '切换到深色主题'}
@@ -715,13 +767,15 @@ const WizardInner: React.FC = () => {
                   >
                     {similar.map((s) => (
                       <li key={s.id}>
-                        <a
+                        <button
+                          type="button"
+                          className="zhul-link"
                           onClick={() =>
                             history.push(`/product/products/${s.id}`)
                           }
                         >
                           {s.mpnDisplay}
-                        </a>{' '}
+                        </button>{' '}
                         · {s.productName || s.categoryName}
                       </li>
                     ))}

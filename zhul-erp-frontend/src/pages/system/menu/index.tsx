@@ -523,9 +523,23 @@ const MenuPage: React.FC = () => {
       render: (_, record) => (
         <Space size={12}>
           {record.type !== 3 && canAdd && (
-            <a onClick={() => openCreateChild(record)}>+子节点</a>
+            <button
+              type="button"
+              className="zhul-link"
+              onClick={() => openCreateChild(record)}
+            >
+              +子节点
+            </button>
           )}
-          {canEdit && <a onClick={() => openEdit(record)}>编辑</a>}
+          {canEdit && (
+            <button
+              type="button"
+              className="zhul-link"
+              onClick={() => openEdit(record)}
+            >
+              编辑
+            </button>
+          )}
           {canEdit && (
             <Popconfirm
               title={
@@ -544,12 +558,14 @@ const MenuPage: React.FC = () => {
             </Popconfirm>
           )}
           {canDelete && (
-            <a
+            <button
+              type="button"
+              className="zhul-link"
               style={{ color: p.red }}
               onClick={() => handleDeleteClick(record)}
             >
               删除
-            </a>
+            </button>
           )}
         </Space>
       ),
@@ -784,6 +800,7 @@ const MenuPage: React.FC = () => {
       </Card>
 
       <DrawerForm
+        name="menuEdit"
         title={
           isEdit ? `编辑资源节点 - ${editingNode?.name ?? ''}` : '新增资源节点'
         }

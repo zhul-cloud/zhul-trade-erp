@@ -176,7 +176,9 @@ const PositionPage: React.FC = () => {
       width: 160,
       render: (_, record) => [
         canEdit && (
-          <a
+          <button
+            type="button"
+            className="zhul-link"
             key="edit"
             onClick={() => {
               setEditRecord(record);
@@ -184,7 +186,7 @@ const PositionPage: React.FC = () => {
             }}
           >
             编辑
-          </a>
+          </button>
         ),
         canEdit && (
           <Popconfirm
@@ -209,13 +211,15 @@ const PositionPage: React.FC = () => {
           </Popconfirm>
         ),
         canDelete && (
-          <a
+          <button
+            type="button"
+            className="zhul-link"
             key="delete"
             style={{ color: p.red }}
             onClick={() => handleDeleteClick(record)}
           >
             删除
-          </a>
+          </button>
         ),
       ],
     },
@@ -248,6 +252,7 @@ const PositionPage: React.FC = () => {
         ]}
       />
       <ModalForm
+        name="positionEdit"
         title={editRecord ? '编辑岗位' : '新增岗位'}
         width={480}
         open={modalOpen}

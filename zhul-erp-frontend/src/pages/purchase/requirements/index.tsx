@@ -187,9 +187,13 @@ const RequirementList: React.FC = () => {
       <ReqStatusPill status={r.status} name={r.statusName} />
       {r.purchaseOrders.map((p) => (
         <div key={p.id} style={{ fontSize: 12 }}>
-          <a onClick={() => history.push(PATHS.order(p.id))}>
+          <button
+            type="button"
+            className="zhul-link"
+            onClick={() => history.push(PATHS.order(p.id))}
+          >
             {p.poNo ?? '去下单 →'}
-          </a>
+          </button>
           {!p.poNo && (
             <span style={{ color: palette.mute }}> {p.supplierName}</span>
           )}
@@ -292,15 +296,33 @@ const RequirementList: React.FC = () => {
         return (
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
             {canCreate && open && (
-              <a
+              <button
+                type="button"
+                className="zhul-link"
                 style={planned ? undefined : { color: palette.orange }}
                 onClick={() => setSourcing([r])}
               >
                 {planned ? '换渠道' : '选渠道'}
-              </a>
+              </button>
             )}
-            {canAssign && open && <a onClick={() => setAssigning([r])}>指派</a>}
-            {canSplit && open && <a onClick={() => setSplitting(r)}>拆分</a>}
+            {canAssign && open && (
+              <button
+                type="button"
+                className="zhul-link"
+                onClick={() => setAssigning([r])}
+              >
+                指派
+              </button>
+            )}
+            {canSplit && open && (
+              <button
+                type="button"
+                className="zhul-link"
+                onClick={() => setSplitting(r)}
+              >
+                拆分
+              </button>
+            )}
           </div>
         );
       },
@@ -347,12 +369,14 @@ const RequirementList: React.FC = () => {
           onClick={() => toggleOrder(o.soId)}
         />
         <div style={{ minWidth: 170 }}>
-          <a
+          <button
+            type="button"
+            className="zhul-link"
             style={{ fontWeight: 700 }}
             onClick={() => history.push(PATHS.salesOrder(o.soId))}
           >
             {o.soNo}
-          </a>
+          </button>
           {sub(
             palette.mute,
             `销售 ${o.salesDate ?? '—'} · ${o.stockType === 2 ? '期货' : '现货'}${o.source === 2 ? ' · 手动创建' : ''}`,
@@ -454,7 +478,13 @@ const RequirementList: React.FC = () => {
             color={palette.violet}
             label="草稿采购订单"
             value={
-              <a onClick={() => history.push(PATHS.orders)}>{stats.drafts}</a>
+              <button
+                type="button"
+                className="zhul-link"
+                onClick={() => history.push(PATHS.orders)}
+              >
+                {stats.drafts}
+              </button>
             }
             hint="谈好价后去草稿里填单价、确认下单"
           />
@@ -724,9 +754,13 @@ const RequirementList: React.FC = () => {
               width: 160,
               fixed: 'left',
               render: (v: string, r) => (
-                <a onClick={() => history.push(PATHS.salesOrder(r.soId))}>
+                <button
+                  type="button"
+                  className="zhul-link"
+                  onClick={() => history.push(PATHS.salesOrder(r.soId))}
+                >
                   {v}
-                </a>
+                </button>
               ),
             },
             {
@@ -1030,11 +1064,15 @@ const SplitModal: React.FC<{
                   style={{ fontSize: 12, color: palette.sub, marginBottom: 6 }}
                 >
                   新需求向谁买：
-                  <a onClick={() => setChangeSource((v) => !v)}>
+                  <button
+                    type="button"
+                    className="zhul-link"
+                    onClick={() => setChangeSource((v) => !v)}
+                  >
                     {changeSource
                       ? '沿用原来的'
                       : `沿用「${keepSource}」，点这里改`}
-                  </a>
+                  </button>
                 </div>
                 {changeSource && (
                   <CounterpartyPicker value={source} onChange={setSource} />

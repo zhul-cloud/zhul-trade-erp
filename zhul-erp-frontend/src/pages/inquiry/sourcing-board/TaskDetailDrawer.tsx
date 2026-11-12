@@ -266,22 +266,26 @@ const TaskDetailDrawer: React.FC<{
                           ? '（采购负责人指定）'
                           : '（按推荐报价自动取）'}
                         {it.changeCount > 0 && (
-                          <a
+                          <button
+                            type="button"
+                            className="zhul-link"
                             style={{ marginLeft: 12, fontSize: 12 }}
                             onClick={() =>
                               setHistoryItem({ id: it.id, model: it.model })
                             }
                           >
                             修改记录（{it.changeCount}）
-                          </a>
+                          </button>
                         )}
                         {canPick && it.costManual && (
-                          <a
+                          <button
+                            type="button"
+                            className="zhul-link"
                             style={{ marginLeft: 'auto', fontSize: 12 }}
                             onClick={() => !saving && pickCost(it.id, null)}
                           >
                             恢复自动
-                          </a>
+                          </button>
                         )}
                       </span>
                       {it.quotes

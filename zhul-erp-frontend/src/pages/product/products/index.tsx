@@ -109,6 +109,8 @@ const ProductListInner: React.FC = () => {
     const t = setTimeout(() => {
       setDebounced(keyword.trim());
       setPage(1);
+      // 换了查询结果就清掉勾选，免得批量操作作用到已看不见的商品（UI-029）
+      setSelected([]);
     }, 300);
     return () => clearTimeout(t);
   }, [keyword]);
@@ -239,6 +241,7 @@ const ProductListInner: React.FC = () => {
       /* 忽略 */
     }
     setPage(1);
+    setSelected([]);
   };
 
   const changeStatus = (row: Product) => {
@@ -484,14 +487,16 @@ const ProductListInner: React.FC = () => {
             width: 80,
             render: (_: unknown, r: Product) =>
               r.deleted ? (
-                <a
+                <button
+                  type="button"
+                  className="zhul-link"
                   onClick={(e) => {
                     e.stopPropagation();
                     restore(r);
                   }}
                 >
                   恢复
-                </a>
+                </button>
               ) : null,
           },
         ] as ColumnsType<Product>)
@@ -793,6 +798,7 @@ const ProductListInner: React.FC = () => {
               ) {
                 setHeatSort(s.order ? s.columnKey : undefined);
                 setPage(1);
+                setSelected([]);
               }
             }}
             onRow={(r) => ({

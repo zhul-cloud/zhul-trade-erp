@@ -21,6 +21,21 @@ import {
   salesStatsApi,
 } from './service';
 
+/** 下钻带上当前统计的全部条件：日期、业务员（按业务员分组时取这一行的）、事业部（UI-015） */
+export const drillQuery = (
+  from: Dayjs,
+  to: Dayjs,
+  owner?: number | string,
+  unit?: number,
+) => {
+  const q = new URLSearchParams({
+    dateFrom: from.format('YYYY-MM-DD'),
+    dateTo: to.format('YYYY-MM-DD'),
+  });
+  if (owner) q.set('ownerId', String(owner));
+  if (unit != null) q.set('businessUnitId', String(unit));
+  return q.toString();
+};
 const num: React.CSSProperties = { fontVariantNumeric: 'tabular-nums' };
 const cny = (v?: number | null) => formatAmount(v ?? 0, 'CNY');
 const rateText = (v?: Rate) => (v == null ? '—' : `${v}%`);
@@ -75,7 +90,7 @@ const SalesStatsPage: React.FC = () => {
   const go = (path: string, r: StatsRow) => {
     const [from, to] = rangeOf(r);
     history.push(
-      `${path}?dateFrom=${from.format('YYYY-MM-DD')}&dateTo=${to.format('YYYY-MM-DD')}`,
+      `${path}?${drillQuery(from, to, view === 'OWNER' && r.key ? r.key : ownerId, unit)}`,
     );
   };
 
@@ -172,10 +187,15 @@ const SalesStatsPage: React.FC = () => {
       align: 'right',
       render: (_, r) =>
         r.orders.all ? (
-          <a style={num} onClick={() => go('/sales/orders', r)}>
+          <button
+            type="button"
+            className="zhul-link"
+            style={num}
+            onClick={() => go('/sales/orders', r)}
+          >
             <div>{r.orders.all}</div>
             {sub(`${r.orders.fresh} / ${r.orders.old}`)}
-          </a>
+          </button>
         ) : (
           <span style={{ color: palette.mute }}>—</span>
         ),
@@ -237,10 +257,15 @@ const SalesStatsPage: React.FC = () => {
       align: 'right',
       render: (_, r) =>
         r.revenue.all ? (
-          <a style={num} onClick={() => go('/finance/profit-stats', r)}>
+          <button
+            type="button"
+            className="zhul-link"
+            style={num}
+            onClick={() => go('/finance/profit-stats', r)}
+          >
             <div style={{ fontWeight: 700 }}>{cny(r.revenue.all)}</div>
             {sub(`${cny(r.revenue.fresh)} / ${cny(r.revenue.old)}`)}
-          </a>
+          </button>
         ) : (
           <span style={{ color: palette.mute }}>—</span>
         ),
@@ -252,12 +277,14 @@ const SalesStatsPage: React.FC = () => {
       align: 'right',
       render: (_, r) =>
         r.revenue.all ? (
-          <a
+          <button
+            type="button"
+            className="zhul-link"
             style={{ ...num, color: palette.green }}
             onClick={() => go('/finance/profit-stats', r)}
           >
             {cny(r.profit.all)}
-          </a>
+          </button>
         ) : (
           <span style={{ color: palette.mute }}>—</span>
         ),

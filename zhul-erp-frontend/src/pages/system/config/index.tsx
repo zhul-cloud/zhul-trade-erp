@@ -353,11 +353,24 @@ const ConfigPage: React.FC = () => {
       width: 120,
       render: (_, record) => (
         <Space size={14}>
-          {canEdit && <a onClick={() => openEdit(record)}>编辑</a>}
+          {canEdit && (
+            <button
+              type="button"
+              className="zhul-link"
+              onClick={() => openEdit(record)}
+            >
+              编辑
+            </button>
+          )}
           {canDelete && record.isBuiltin !== 1 && (
-            <a style={{ color: p.red }} onClick={() => handleDelete(record)}>
+            <button
+              type="button"
+              className="zhul-link"
+              style={{ color: p.red }}
+              onClick={() => handleDelete(record)}
+            >
               删除
-            </a>
+            </button>
           )}
         </Space>
       ),
@@ -513,6 +526,7 @@ const ConfigPage: React.FC = () => {
 
       {/* 编辑配置值 */}
       <ModalForm
+        name="configEdit"
         title="编辑配置"
         width={520}
         open={editOpen}
@@ -593,6 +607,7 @@ const ConfigPage: React.FC = () => {
 
       {/* 新增自定义配置 */}
       <ModalForm
+        name="configCreate"
         title="新增自定义配置"
         width={520}
         open={createOpen}

@@ -42,10 +42,12 @@ import {
   isDirty,
   type ModelField,
   modelOptions,
+  modelsFingerprint,
   PROVIDERS,
   profileFormValues,
   type SubState,
   subscriptionState,
+  testFingerprint,
   testSlot,
   toFormValues,
   toPayload,
@@ -367,9 +369,24 @@ const AiSettingsPage: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [editingKey, setEditingKey] = useState<AiProvider>();
   const [testing, setTesting] = useState(false);
-  const [testResult, setTestResult] = useState<AiTestResult>();
-  const [models, setModels] = useState<AiModelList>();
-  const [modelsLoading, setModelsLoading] = useState(false);
+  /** 测试结果连同发起测试时的配置指纹；表单改了、或回包属于别的配置，就不显示 */
+  const [tested, setTested] = useState<{ fp: string; result: AiTestResult }>();
+  const testResult =
+    tested && values && tested.fp === testFingerprint(values)
+      ? tested.result
+      : undefined;
+  /** 模型列表按配置缓存；换了服务商等，之前的列表和加载中状态不再适用 */
+  const [modelCache, setModelCache] = useState<{
+    fp: string;
+    list: AiModelList;
+  }>();
+  const [loadingFp, setLoadingFp] = useState<string>();
+  const currentModelsFp = values ? modelsFingerprint(values) : '';
+  const models =
+    modelCache && modelCache.fp === currentModelsFp
+      ? modelCache.list
+      : undefined;
+  const modelsLoading = !!loadingFp && loadingFp === currentModelsFp;
   const [status, setStatus] = useState<AiSubscriptionStatus>();
   const [statusLoading, setStatusLoading] = useState(false);
 
@@ -406,33 +423,42 @@ const AiSettingsPage: React.FC = () => {
     if (!config) return;
     form.setFieldsValue(profileFormValues(config, m, p));
     setEditingKey(editKey ? p : undefined);
-    setModels(undefined);
-    setTestResult(undefined);
+    setModelCache(undefined);
+    setTested(undefined);
   };
 
   const fetchModels = async () => {
-    if (!canEdit || models || modelsLoading) return;
-    setModelsLoading(true);
+    const sent = form.getFieldsValue(true) as AiFormValues;
+    const fp = modelsFingerprint(sent);
+    if (!canEdit || models || loadingFp === fp) return;
+    setLoadingFp(fp);
     try {
-      setModels(await getAiModels(toPayload(form.getFieldsValue(true))));
+      setModelCache({ fp, list: await getAiModels(toPayload(sent)) });
     } catch {
-      setModels({
-        models: [],
-        source: 'defaults',
-        error: '获取模型列表失败，可直接输入模型名',
+      setModelCache({
+        fp,
+        list: {
+          models: [],
+          source: 'defaults',
+          error: '获取模型列表失败，可直接输入模型名',
+        },
       });
     } finally {
-      setModelsLoading(false);
+      setLoadingFp((cur) => (cur === fp ? undefined : cur));
     }
   };
 
   const runTest = async () => {
+    const sent = form.getFieldsValue(true) as AiFormValues;
+    const fp = testFingerprint(sent);
     setTesting(true);
-    setTestResult(undefined);
+    setTested(undefined);
     try {
-      const r = await testAiConfig(toPayload(form.getFieldsValue(true)));
-      setTestResult(r);
-      if (r.ok) message.success('连接正常');
+      const r = await testAiConfig(toPayload(sent));
+      setTested({ fp, result: r });
+      const stillCurrent =
+        fp === testFingerprint(form.getFieldsValue(true) as AiFormValues);
+      if (r.ok && stillCurrent) message.success('连接正常');
     } catch {
       // 请求层已提示错误原因
     } finally {
@@ -445,7 +471,7 @@ const AiSettingsPage: React.FC = () => {
     try {
       await saveAiConfig(toPayload(v));
       message.success('已保存，之后提交的 AI 任务立即使用新配置');
-      setTestResult(undefined);
+      setTested(undefined);
       await load();
     } finally {
       setSaving(false);
@@ -544,7 +570,8 @@ const AiSettingsPage: React.FC = () => {
     pill = ['未配置', 'gray'];
     desc = '填写 API Key 后即可使用。';
   } else if (!savedSub) {
-    if (testResult) {
+    // 顶部描述已保存的配置：只有表单就是已保存的这一份时，测试结果才算它的
+    if (testResult && !dirty) {
       tone = testResult.ok ? 'ok' : 'bad';
       title = testResult.ok ? 'AI 已就绪' : '连接失败';
       pill = testResult.ok ? ['测试通过', 'green'] : ['测试未通过', 'red'];
@@ -746,7 +773,7 @@ const AiSettingsPage: React.FC = () => {
               onClick={() => {
                 form.setFieldValue('apiKey', '');
                 setEditingKey(undefined);
-                setTestResult(undefined);
+                setTested(undefined);
               }}
             >
               取消
@@ -1146,8 +1173,8 @@ const AiSettingsPage: React.FC = () => {
           onClick={() => {
             form.setFieldsValue(toFormValues(config));
             setEditingKey(undefined);
-            setModels(undefined);
-            setTestResult(undefined);
+            setModelCache(undefined);
+            setTested(undefined);
           }}
         >
           撤销修改
@@ -1177,7 +1204,7 @@ const AiSettingsPage: React.FC = () => {
         disabled={!canEdit}
         onFinish={() => onFinish(form.getFieldsValue(true))}
         onValuesChange={(changed) => {
-          if ('apiKey' in changed) setTestResult(undefined);
+          if ('apiKey' in changed) setTested(undefined);
         }}
       >
         <Form.Item name="mode" hidden>

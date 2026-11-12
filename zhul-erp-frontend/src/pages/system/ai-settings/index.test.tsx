@@ -1,4 +1,10 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react';
 import { App } from 'antd';
 import React from 'react';
 import AiSettingsPage from './index';
@@ -268,5 +274,76 @@ describe('AiSettingsPage', () => {
     expect(screen.getByText('API Key 无效或已失效')).toBeTruthy();
     expect(screen.getByText('解析模型未检测')).toBeTruthy();
     expect(screen.queryByText('前一项通过后再检测')).toBeNull();
+  });
+  /** UI-019：测试通过后改了模型，旧的「测试通过」不再显示 */
+  it('测试通过后改模型，测试结果作废', async () => {
+    mocked.getAiConfig.mockResolvedValue(config());
+    mocked.testAiConfig.mockResolvedValue({
+      ok: true,
+      items: [{ name: 'API Key', ok: true, message: '' }],
+    });
+    const { container } = renderPage();
+    fireEvent.click(await screen.findByRole('button', { name: /测试连接/ }));
+    expect(await screen.findByText('测试通过')).toBeTruthy();
+    fireEvent.change(container.querySelectorAll('input[role="combobox"]')[0], {
+      target: { value: 'claude-untested-model' },
+    });
+    await waitFor(() => expect(screen.queryByText('测试通过')).toBeNull());
+  });
+
+  /** UI-019：Claude 测试还没返回就改选 OpenAI，迟到的 Claude 结果不显示 */
+  it('测试中改选另一家，迟到的结果不算新选择的', async () => {
+    mocked.getAiConfig.mockResolvedValue(config());
+    let resolve!: (v: unknown) => void;
+    mocked.testAiConfig.mockReturnValue(
+      new Promise((r) => {
+        resolve = r;
+      }),
+    );
+    renderPage();
+    fireEvent.click(await screen.findByRole('button', { name: /测试连接/ }));
+    fireEvent.click(rows()[1]);
+    expect(await screen.findByText('填写 API Key 后才能保存')).toBeTruthy();
+    await act(async () => {
+      resolve({
+        ok: true,
+        items: [{ name: 'API Key', ok: true, message: '' }],
+      });
+    });
+    expect(screen.queryByText('测试通过')).toBeNull();
+    expect(screen.queryByText('AI 已就绪')).toBeNull();
+  });
+
+  /** UI-020：Claude 的模型列表还没返回就改选 OpenAI，迟到的列表不用于 OpenAI */
+  it('模型列表迟到不串到另一家', async () => {
+    mocked.getAiConfig.mockResolvedValue(config());
+    let resolveClaude!: (v: unknown) => void;
+    mocked.getAiModels.mockImplementation((payload: { provider: string }) =>
+      payload.provider === 'claude'
+        ? new Promise((r) => {
+            resolveClaude = r;
+          })
+        : Promise.resolve({
+            models: [{ id: 'gpt-own-list', defaultModel: false }],
+            source: 'provider',
+          }),
+    );
+    const { container } = renderPage();
+    await screen.findByText('AI 已配置');
+    const claudeParse = container.querySelectorAll('input[role="combobox"]')[0];
+    fireEvent.mouseDown(claudeParse);
+    // 点另一家时焦点离开输入框，下拉收起
+    fireEvent.blur(claudeParse);
+    fireEvent.click(rows()[1]);
+    expect(await screen.findByText('填写 API Key 后才能保存')).toBeTruthy();
+    await act(async () => {
+      resolveClaude({
+        models: [{ id: 'claude-delayed-wrong-provider', defaultModel: false }],
+        source: 'provider',
+      });
+    });
+    // 下拉仍开着：迟到的 Claude 列表不能出现在 OpenAI 的下拉里，也不能标成「OpenAI 返回的模型」
+    expect(screen.queryByText('claude-delayed-wrong-provider')).toBeNull();
+    expect(screen.queryByText(/OpenAI 返回的模型/)).toBeNull();
   });
 });

@@ -202,9 +202,13 @@ export const ImportRecordList: React.FC<{
       dataIndex: 'fileName',
       width: 220,
       render: (v: string, r) => (
-        <a onClick={() => setViewing(r.id)}>
+        <button
+          type="button"
+          className="zhul-link"
+          onClick={() => setViewing(r.id)}
+        >
           <FileTextOutlined /> {v}
-        </a>
+        </button>
       ),
     },
     {
@@ -245,7 +249,15 @@ export const ImportRecordList: React.FC<{
       title: '操作',
       key: 'actions',
       width: 70,
-      render: (_, r) => <a onClick={() => setViewing(r.id)}>预览</a>,
+      render: (_, r) => (
+        <button
+          type="button"
+          className="zhul-link"
+          onClick={() => setViewing(r.id)}
+        >
+          预览
+        </button>
+      ),
     },
   ];
 

@@ -160,9 +160,13 @@ export const TextQuoteModal: React.FC<{
           <span style={{ marginLeft: 'auto', color: palette.sub }}>
             {firstSend ? '已经发给客户了？' : '再发了一次？'}
           </span>
-          <a onClick={() => onMarkSent(CHANNEL.TEXT)}>
+          <button
+            type="button"
+            className="zhul-link"
+            onClick={() => onMarkSent(CHANNEL.TEXT)}
+          >
             {firstSend ? '标为已发送' : '记一次发送'}
-          </a>
+          </button>
         </div>
       )}
     </Modal>

@@ -40,6 +40,13 @@ export const MAX_TABS = 10;
 /** 每个标签保留不卸载的页面数（栈顶往下） */
 export const KEEP_ALIVE_DEPTH = 5;
 
+/**
+ * 一个标签里保持挂载（不卸载）的页面：栈顶往下 KEEP_ALIVE_DEPTH 个；
+ * 有未保存修改的页面不论多深都保留，修改不会被悄悄丢掉（UI-004）
+ */
+export const aliveEntries = (t: Tab) =>
+  t.stack.filter((e, i) => i >= t.stack.length - KEEP_ALIVE_DEPTH || e.dirty);
+
 export const emptyState = (): TabsState => ({ tabs: [], seq: 0 });
 
 const tick = (s: TabsState) => s.seq + 1;

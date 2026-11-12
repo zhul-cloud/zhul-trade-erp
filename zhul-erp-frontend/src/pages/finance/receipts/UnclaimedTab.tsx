@@ -459,9 +459,13 @@ const UnclaimedTab: React.FC<{
       width: 80,
       render: (_, r) =>
         r.fileNames?.length ? (
-          <a onClick={() => setViewing(r)}>
+          <button
+            type="button"
+            className="zhul-link"
+            onClick={() => setViewing(r)}
+          >
             <PaperClipOutlined /> {r.fileNames.length} 个
-          </a>
+          </button>
         ) : (
           <span style={{ color: palette.mute }}>—</span>
         ),
@@ -478,12 +482,14 @@ const UnclaimedTab: React.FC<{
       key: 'op',
       width: 70,
       render: (_, r) => (
-        <a
+        <button
+          type="button"
+          className="zhul-link"
           style={{ color: palette.red }}
           onClick={() => setReason({ id: r.id, kind: 'void' })}
         >
           作废
-        </a>
+        </button>
       ),
     },
   ];
@@ -512,7 +518,9 @@ const UnclaimedTab: React.FC<{
       render: (_, r) =>
         r.piId || r.soId ? (
           <span>
-            <a
+            <button
+              type="button"
+              className="zhul-link"
               onClick={() =>
                 history.push(
                   r.piId ? PATHS.pi(r.piId) : PATHS.order(r.soId as number),
@@ -520,7 +528,7 @@ const UnclaimedTab: React.FC<{
               }
             >
               {r.piNo ?? r.soNo}
-            </a>
+            </button>
             <span style={{ marginLeft: 6, fontSize: 12, color: palette.mute }}>
               {r.customerName}
             </span>
@@ -541,12 +549,14 @@ const UnclaimedTab: React.FC<{
       key: 'op',
       width: 90,
       render: (_, r) => (
-        <a
+        <button
+          type="button"
+          className="zhul-link"
           style={{ color: palette.orange }}
           onClick={() => setReason({ id: r.id, kind: 'unclaim' })}
         >
           取消认领
-        </a>
+        </button>
       ),
     },
   ];

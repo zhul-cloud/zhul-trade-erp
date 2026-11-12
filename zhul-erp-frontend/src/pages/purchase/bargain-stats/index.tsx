@@ -204,7 +204,13 @@ const BargainStatsPage: React.FC = () => {
       dataIndex: 'poNo',
       width: 170,
       render: (v: string, r) => (
-        <a onClick={() => history.push(`/purchase/orders/${r.poId}`)}>{v}</a>
+        <button
+          type="button"
+          className="zhul-link"
+          onClick={() => history.push(`/purchase/orders/${r.poId}`)}
+        >
+          {v}
+        </button>
       ),
     },
     { title: '下单日期', dataIndex: 'orderDate', width: 110 },

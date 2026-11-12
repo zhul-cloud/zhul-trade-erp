@@ -279,9 +279,14 @@ const ByInquiryPanel: React.FC<{
           <b style={{ color: palette.ink }}>
             已选 {selected[0].customerName} 的询盘
           </b>
-          <a onClick={selectAll} style={{ fontWeight: 600 }}>
+          <button
+            type="button"
+            className="zhul-link"
+            onClick={selectAll}
+            style={{ fontWeight: 600 }}
+          >
             全选该客户可报价询盘（{ready.length} 个）
-          </a>
+          </button>
           <span style={{ color: palette.mute, fontSize: 12 }}>
             询价中、已有草稿的不自动勾选
           </span>
@@ -291,9 +296,14 @@ const ByInquiryPanel: React.FC<{
       {error && (
         <div style={{ color: palette.red, margin: '16px 0' }}>
           {error}{' '}
-          <a onClick={() => load(1)} style={{ marginLeft: 8 }}>
+          <button
+            type="button"
+            className="zhul-link"
+            onClick={() => load(1)}
+            style={{ marginLeft: 8 }}
+          >
             重试
-          </a>
+          </button>
         </div>
       )}
       {!error && rows.length === 0 && loading && (
@@ -733,9 +743,14 @@ export const PickItemsPanel: React.FC<{
       {error && (
         <div style={{ color: palette.red, margin: '16px 0' }}>
           {error}
-          <a onClick={() => load(1)} style={{ marginLeft: 8 }}>
+          <button
+            type="button"
+            className="zhul-link"
+            onClick={() => load(1)}
+            style={{ marginLeft: 8 }}
+          >
             重试
-          </a>
+          </button>
         </div>
       )}
       {customer && !error && rows.length === 0 && loading && (
@@ -834,12 +849,14 @@ export const PickItemsPanel: React.FC<{
                         已回价 {inq.pricedCount} / 共 {inq.itemCount} 个型号
                       </span>
                       {open && pickable.length > 0 && (
-                        <a
+                        <button
+                          type="button"
+                          className="zhul-link"
                           onClick={() => selectAll(inq)}
                           style={{ fontSize: 12 }}
                         >
                           全选可报价型号
-                        </a>
+                        </button>
                       )}
                     </span>
                   </div>
@@ -855,7 +872,9 @@ export const PickItemsPanel: React.FC<{
                         />
                       ))}
                       {inq.items.length > 5 && !showAll.has(inq.inquiryId) && (
-                        <a
+                        <button
+                          type="button"
+                          className="zhul-link"
                           style={{
                             display: 'inline-block',
                             margin: '6px 12px',
@@ -867,7 +886,7 @@ export const PickItemsPanel: React.FC<{
                         >
                           <DownOutlined /> 展开其余 {inq.items.length - 5}{' '}
                           个型号
-                        </a>
+                        </button>
                       )}
                     </div>
                   )}

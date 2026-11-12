@@ -4,6 +4,7 @@ import type { TableColumnsType } from 'antd';
 import { App, Button, Checkbox, Input, Select, Table } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
 import { CustomerCell } from '@/components/DocFields';
+import SourceNos, { listHref } from '@/components/DocFields/SourceNos';
 import { ellipsisRender } from '@/components/EllipsisText';
 import {
   Card,
@@ -100,6 +101,7 @@ const PendingPanel: React.FC<{ canEdit: boolean; version: number }> = ({
       <div
         style={{
           display: 'flex',
+          flexWrap: 'wrap',
           alignItems: 'center',
           gap: 8,
           marginBottom: 12,
@@ -117,7 +119,8 @@ const PendingPanel: React.FC<{ canEdit: boolean; version: number }> = ({
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(460px, 1fr))',
+          gridTemplateColumns:
+            'repeat(auto-fill, minmax(min(460px, 100%), 1fr))',
           gap: 12,
         }}
       >
@@ -140,6 +143,7 @@ const PendingPanel: React.FC<{ canEdit: boolean; version: number }> = ({
               <div
                 style={{
                   display: 'flex',
+                  flexWrap: 'wrap',
                   alignItems: 'center',
                   gap: 8,
                   marginBottom: 8,
@@ -174,6 +178,7 @@ const PendingPanel: React.FC<{ canEdit: boolean; version: number }> = ({
                   key={o.id}
                   style={{
                     display: 'flex',
+                    flexWrap: 'wrap',
                     alignItems: 'center',
                     gap: 8,
                     fontSize: 13,
@@ -202,6 +207,7 @@ const PendingPanel: React.FC<{ canEdit: boolean; version: number }> = ({
                   key={d.id}
                   style={{
                     display: 'flex',
+                    flexWrap: 'wrap',
                     alignItems: 'center',
                     gap: 8,
                     fontSize: 13,
@@ -288,7 +294,13 @@ const Shipments: React.FC = () => {
       fixed: 'left',
       render: (v: string, r) => (
         <div>
-          <a onClick={() => open(r.id)}>{v}</a>
+          <button
+            type="button"
+            className="zhul-link"
+            onClick={() => open(r.id)}
+          >
+            {v}
+          </button>
           {r.migrated && (
             <div style={{ marginTop: 4 }}>
               <MigratedPill migrated />
@@ -317,21 +329,16 @@ const Shipments: React.FC = () => {
       render: ellipsisRender,
     },
     {
-      title: '来源单号 · 订单',
+      title: '销售订单',
       key: 'orders',
-      width: 230,
+      width: 150,
       render: (_, r) => (
-        <div>
-          {r.outboundCount} 张销售出库单
-          <div style={{ fontSize: 12 }}>
-            {r.orders.map((o, i) => (
-              <React.Fragment key={o.id}>
-                {i > 0 && '、'}
-                <Link to={LOGISTICS_PATHS.salesOrder(o.id)}>{o.soNo}</Link>
-              </React.Fragment>
-            ))}
-          </div>
-        </div>
+        <SourceNos
+          refs={r.orders.map((o) => ({
+            no: o.soNo,
+            href: LOGISTICS_PATHS.salesOrder(o.id),
+          }))}
+        />
       ),
     },
     {
@@ -395,6 +402,19 @@ const Shipments: React.FC = () => {
       ),
     },
     {
+      title: '来源单号',
+      key: 'outbounds',
+      width: 150,
+      render: (_, r) => (
+        <SourceNos
+          refs={(r.outboundNos ?? []).map((no) => ({
+            no,
+            href: listHref(LOGISTICS_PATHS.outbounds, no, 'handed'),
+          }))}
+        />
+      ),
+    },
+    {
       title: '业务员',
       dataIndex: 'ownerName',
       width: 90,
@@ -406,7 +426,11 @@ const Shipments: React.FC = () => {
       key: 'actions',
       width: 70,
       fixed: 'right',
-      render: (_, r) => <a onClick={() => open(r.id)}>查看</a>,
+      render: (_, r) => (
+        <button type="button" className="zhul-link" onClick={() => open(r.id)}>
+          查看
+        </button>
+      ),
     },
   ];
 

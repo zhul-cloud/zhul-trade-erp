@@ -930,12 +930,14 @@ const PiDetail: React.FC = () => {
           {isNew && <Pill tone="orange">本次新填</Pill>}
           {sameAsBuyer && <Pill tone="gray">同买方</Pill>}
           {editable && (
-            <a
+            <button
+              type="button"
+              className="zhul-link"
               style={{ marginLeft: 'auto', fontSize: 13 }}
               onClick={() => setPartyType(type)}
             >
               {p ? '改选' : '选择'}
-            </a>
+            </button>
           )}
         </div>
         {p ? (
@@ -1711,7 +1713,9 @@ const PiDetail: React.FC = () => {
           onChange={(x) => setDraft({ ...draft, creditAmount: x })}
           aria-label="本次抵扣"
         />
-        <a
+        <button
+          type="button"
+          className="zhul-link"
           onClick={() =>
             setDraft({
               ...draft,
@@ -1720,7 +1724,7 @@ const PiDetail: React.FC = () => {
           }
         >
           全部使用
-        </a>
+        </button>
         <span style={{ fontSize: 12, color: palette.mute }}>
           保存草稿即占用，别的 PI 不能再用；PI 关闭或作废时自动释放
         </span>
@@ -1747,7 +1751,9 @@ const PiDetail: React.FC = () => {
         <span style={{ fontSize: 12, color: palette.mute }}>
           运费、手续费不计入毛利率；折扣按小计计算
         </span>
-        <a
+        <button
+          type="button"
+          className="zhul-link"
           style={{ marginLeft: 'auto' }}
           onClick={() =>
             setFees([
@@ -1763,7 +1769,7 @@ const PiDetail: React.FC = () => {
           }
         >
           <PlusOutlined /> 加费用行
-        </a>
+        </button>
       </div>
       {fees.map((f) => (
         <div
@@ -2281,7 +2287,9 @@ const PiDetail: React.FC = () => {
                     }}
                   >
                     {r.files.map((f, i) => (
-                      <a
+                      <button
+                        type="button"
+                        className="zhul-link"
                         key={f.fileKey}
                         style={{ fontSize: 12 }}
                         onClick={() =>
@@ -2291,7 +2299,7 @@ const PiDetail: React.FC = () => {
                         }
                       >
                         <PaperClipOutlined /> {f.fileName}
-                      </a>
+                      </button>
                     ))}
                   </div>
                 )}
@@ -2302,7 +2310,9 @@ const PiDetail: React.FC = () => {
                       (r.voidable ?? canConfirm))) && (
                     <div style={{ marginTop: 6 }}>
                       {slip ? (
-                        <a
+                        <button
+                          type="button"
+                          className="zhul-link"
                           style={{ fontSize: 12, color: palette.red }}
                           onClick={() =>
                             modal.confirm({
@@ -2318,14 +2328,16 @@ const PiDetail: React.FC = () => {
                           }
                         >
                           删除
-                        </a>
+                        </button>
                       ) : (
-                        <a
+                        <button
+                          type="button"
+                          className="zhul-link"
                           style={{ fontSize: 12, color: palette.red }}
                           onClick={() => setVoidReceipt(r.id)}
                         >
                           作废
-                        </a>
+                        </button>
                       )}
                     </div>
                   )}

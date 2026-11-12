@@ -341,7 +341,9 @@ const MyTasksPage: React.FC = () => {
       content: (
         <span>
           已删除这条报价{' '}
-          <a
+          <button
+            type="button"
+            className="zhul-link"
             onClick={() => {
               setState((prev) => {
                 const drafts = [...prev[id].drafts];
@@ -352,7 +354,7 @@ const MyTasksPage: React.FC = () => {
             }}
           >
             撤销
-          </a>
+          </button>
         </span>
       ),
     });

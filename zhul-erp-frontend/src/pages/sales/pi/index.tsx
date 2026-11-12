@@ -174,7 +174,13 @@ const PiList: React.FC = () => {
       width: 170,
       fixed: 'left',
       render: (v: string, r) => (
-        <a onClick={() => history.push(PATHS.pi(r.id))}>{v}</a>
+        <button
+          type="button"
+          className="zhul-link"
+          onClick={() => history.push(PATHS.pi(r.id))}
+        >
+          {v}
+        </button>
       ),
     },
     {
@@ -298,9 +304,13 @@ const PiList: React.FC = () => {
       width: 150,
       render: (v: string | undefined, r) =>
         v && r.orderId ? (
-          <a onClick={() => history.push(PATHS.order(r.orderId as number))}>
+          <button
+            type="button"
+            className="zhul-link"
+            onClick={() => history.push(PATHS.order(r.orderId as number))}
+          >
             {v}
-          </a>
+          </button>
         ) : (
           '—'
         ),
@@ -331,7 +341,13 @@ const PiList: React.FC = () => {
       render: (_, r) =>
         r.status === PI_STATUS.DRAFT ? (
           <Space size={12}>
-            <a onClick={() => history.push(PATHS.pi(r.id))}>编辑</a>
+            <button
+              type="button"
+              className="zhul-link"
+              onClick={() => history.push(PATHS.pi(r.id))}
+            >
+              编辑
+            </button>
             <Popconfirm
               title="删除这张草稿？"
               description="删除后不能恢复，报价单里的型号可以重新开 PI"
@@ -343,7 +359,13 @@ const PiList: React.FC = () => {
             </Popconfirm>
           </Space>
         ) : (
-          <a onClick={() => history.push(PATHS.pi(r.id))}>查看</a>
+          <button
+            type="button"
+            className="zhul-link"
+            onClick={() => history.push(PATHS.pi(r.id))}
+          >
+            查看
+          </button>
         ),
     },
   ];

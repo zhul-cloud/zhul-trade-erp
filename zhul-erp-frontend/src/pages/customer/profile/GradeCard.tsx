@@ -392,7 +392,13 @@ export const RfmModal: React.FC<{
               title: '订单号',
               dataIndex: 'soNo',
               render: (v, r) => (
-                <a onClick={() => history.push(`/sales/orders/${r.id}`)}>{v}</a>
+                <button
+                  type="button"
+                  className="zhul-link"
+                  onClick={() => history.push(`/sales/orders/${r.id}`)}
+                >
+                  {v}
+                </button>
               ),
             },
             { title: '下单日期', dataIndex: 'salesDate' },
@@ -581,7 +587,15 @@ const GradeCard: React.FC<{
               计算于 {formatDateTime(g.calcAt)}
             </span>
           )}
-          {dealt && <a onClick={() => setRfmOpen(true)}>查看 RFM 明细</a>}
+          {dealt && (
+            <button
+              type="button"
+              className="zhul-link"
+              onClick={() => setRfmOpen(true)}
+            >
+              查看 RFM 明细
+            </button>
+          )}
           {dealt && canAdjust && (
             <Button size="small" onClick={() => setAdjustOpen(true)}>
               调整

@@ -210,6 +210,8 @@ const DocumentTemplatePage: React.FC = () => {
   useEffect(loadVersions, [loadVersions]);
 
   const refresh = () => {
+    // 先清掉错误，否则重试成功后仍停在错误页（UI-006）
+    setError(undefined);
     loadTypes();
     loadVersions();
   };
@@ -377,13 +379,21 @@ const DocumentTemplatePage: React.FC = () => {
       render: (_, v) => (
         <Space size={12}>
           {current?.generatable ? (
-            <a onClick={() => preview(v)}>预览导出</a>
+            <button
+              type="button"
+              className="zhul-link"
+              onClick={() => preview(v)}
+            >
+              预览导出
+            </button>
           ) : (
             <Tooltip title="生成功能随发货模块上线，暂时只能下载模版查看">
               <span style={{ color: palette.mute }}>预览导出</span>
             </Tooltip>
           )}
-          <a
+          <button
+            type="button"
+            className="zhul-link"
             onClick={() =>
               isText
                 ? setTextPreview(v.content ?? '')
@@ -393,19 +403,27 @@ const DocumentTemplatePage: React.FC = () => {
             }
           >
             {isText ? '查看' : '下载'}
-          </a>
+          </button>
           {canEdit && !v.isDefault && v.enabled && (
-            <a onClick={() => setDefault(v)}>设为默认</a>
+            <button
+              type="button"
+              className="zhul-link"
+              onClick={() => setDefault(v)}
+            >
+              设为默认
+            </button>
           )}
           {canEdit && !v.isDefault && (
-            <a
+            <button
+              type="button"
+              className="zhul-link"
               style={{
                 color: v.enabled ? palette.sub : palette.link,
               }}
               onClick={() => toggle(v)}
             >
               {v.enabled ? '停用' : '启用'}
-            </a>
+            </button>
           )}
         </Space>
       ),
@@ -651,7 +669,13 @@ const DocumentTemplatePage: React.FC = () => {
         />
         <div style={{ fontSize: 12, color: palette.mute, marginTop: 8 }}>
           看不懂占位符？打开「
-          <a onClick={() => setHelpOpen(true)}>占位符说明</a>
+          <button
+            type="button"
+            className="zhul-link"
+            onClick={() => setHelpOpen(true)}
+          >
+            占位符说明
+          </button>
           」，或下载示例模版照着改。
         </div>
       </Modal>

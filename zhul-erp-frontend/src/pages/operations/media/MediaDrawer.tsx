@@ -244,9 +244,14 @@ export const MediaGrid: React.FC<{
                 </div>
               )}
               {onDelete && i.category === 5 && (
-                <a style={{ color: palette.red }} onClick={() => onDelete(i)}>
+                <button
+                  type="button"
+                  className="zhul-link"
+                  style={{ color: palette.red }}
+                  onClick={() => onDelete(i)}
+                >
                   <DeleteOutlined /> 删除
-                </a>
+                </button>
               )}
             </div>
           </div>

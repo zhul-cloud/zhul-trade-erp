@@ -24,6 +24,7 @@ import { auditColumns } from '@/pages/purchase/components';
 import { CURRENCIES } from '@/pages/quotation/components';
 import { getUserList } from '@/pages/system/user/service';
 import { useAppTheme } from '@/theme/AppTheme';
+import { useBusinessUnits } from '@/utils/businessUnit';
 import { recentRange } from '@/utils/dateRange';
 import { formatAmount } from '@/utils/format';
 import { usePageSize } from '@/utils/pageSize';
@@ -63,6 +64,8 @@ interface Filters {
   currencyCode?: string;
   purchaserId?: number;
   ownerId?: number;
+  /** 所属事业部 */
+  businessUnitId?: number;
   receiptStatus?: number;
   /** 1-PI 转成、2-手动创建、3-售后补发、4-费用订单 */
   source?: number;
@@ -71,13 +74,17 @@ interface Filters {
 /** 收款状态筛选里的「先采购后收款未收款」 */
 const PAY_LATER_OPEN = -1;
 
-/** 默认最近 3 个月（清空日期看全部）；从销售统计跳转时用 URL 带的销售日期 */
-const initial = (): Filters => {
+/** 默认最近 3 个月（清空日期看全部）；从销售统计跳转时用 URL 带的销售日期、业务员、事业部 */
+export const initial = (): Filters => {
   const p = new URLSearchParams(window.location.search);
   const from = p.get('dateFrom');
   const to = p.get('dateTo');
+  const owner = Number(p.get('ownerId'));
+  const unit = Number(p.get('businessUnitId'));
   return {
     range: from && to ? [dayjs(from), dayjs(to)] : recentRange(),
+    ownerId: owner > 0 ? owner : undefined,
+    businessUnitId: unit > 0 ? unit : undefined,
   };
 };
 
@@ -104,6 +111,7 @@ const OrderList: React.FC = () => {
   const canFromPi = !!access.salesPi;
   const canManual = !!access['sales:order:create'];
   const users = useUserOptions();
+  const [bu] = useBusinessUnits();
   const [owners, setOwners] = useState<{ value: number; label: string }[]>([]);
 
   const load = useCallback(async () => {
@@ -119,6 +127,7 @@ const OrderList: React.FC = () => {
       currencyCode: filters.currencyCode,
       purchaserId: filters.purchaserId,
       ownerId: filters.ownerId,
+      businessUnitId: filters.businessUnitId,
       receiptStatus:
         filters.receiptStatus === PAY_LATER_OPEN
           ? undefined
@@ -167,6 +176,7 @@ const OrderList: React.FC = () => {
     !filters.currencyCode &&
     !filters.purchaserId &&
     !filters.ownerId &&
+    !filters.businessUnitId &&
     !filters.receiptStatus &&
     !filters.source &&
     !filters.range;
@@ -183,7 +193,13 @@ const OrderList: React.FC = () => {
       fixed: 'left',
       render: (v: string, r) => (
         <div>
-          <a onClick={() => history.push(PATHS.order(r.id))}>{v}</a>
+          <button
+            type="button"
+            className="zhul-link"
+            onClick={() => history.push(PATHS.order(r.id))}
+          >
+            {v}
+          </button>
           {r.migrated && (
             <div style={{ marginTop: 4 }}>
               <MigratedPill migrated />
@@ -242,7 +258,13 @@ const OrderList: React.FC = () => {
             r.itemCount > 1 ? (
               <>
                 共 {r.itemCount} 个型号 · {r.totalQuantity ?? 0} 件 ·{' '}
-                <a onClick={() => setViewing(r)}>查看</a>
+                <button
+                  type="button"
+                  className="zhul-link"
+                  onClick={() => setViewing(r)}
+                >
+                  查看
+                </button>
               </>
             ) : (
               `${r.totalQuantity ?? 0} 件`
@@ -406,7 +428,13 @@ const OrderList: React.FC = () => {
       width: 70,
       fixed: 'right',
       render: (_, r) => (
-        <a onClick={() => history.push(PATHS.order(r.id))}>查看</a>
+        <button
+          type="button"
+          className="zhul-link"
+          onClick={() => history.push(PATHS.order(r.id))}
+        >
+          查看
+        </button>
       ),
     },
   ];
@@ -638,6 +666,22 @@ const OrderList: React.FC = () => {
                 showSearch={{ optionFilterProp: 'label' }}
               />
             </Form.Item>
+            {bu.enabled && (
+              <Form.Item
+                name="businessUnitId"
+                label="事业部"
+                style={{ marginBottom: 0 }}
+              >
+                <Select
+                  allowClear
+                  placeholder="全部"
+                  options={bu.units.map((u) => ({
+                    value: u.id,
+                    label: u.name,
+                  }))}
+                />
+              </Form.Item>
+            )}
             <Form.Item
               name="purchaserId"
               label="采购员"

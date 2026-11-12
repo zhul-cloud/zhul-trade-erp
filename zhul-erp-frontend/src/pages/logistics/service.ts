@@ -166,6 +166,8 @@ export interface Logistics extends Audit {
   voidReason?: string;
   note?: string;
   outboundCount: number;
+  /** 所装销售出库单号（列表「来源单号」） */
+  outboundNos?: string[];
   orders: { id: number; soNo?: string }[];
   boxCount: number;
   chargeableWeight: number;

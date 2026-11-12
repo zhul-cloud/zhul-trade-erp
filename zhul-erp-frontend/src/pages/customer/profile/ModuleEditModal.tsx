@@ -405,7 +405,9 @@ const ModuleEditModal: React.FC<{
                 <span style={{ color: palette.cyan }}>
                   <ThunderboltOutlined /> 询盘里常用：
                   {derived.map((b) => `${b.name} ${b.count}`).join(' · ')}{' '}
-                  <a
+                  <button
+                    type="button"
+                    className="zhul-link"
                     onClick={() =>
                       form.setFieldValue('currentBrands', [
                         ...brands,
@@ -414,7 +416,7 @@ const ModuleEditModal: React.FC<{
                     }
                   >
                     一键加入
-                  </a>
+                  </button>
                 </span>
               )
             }

@@ -42,7 +42,13 @@ const ProfitStatsPage: React.FC = () => {
     const v = new URLSearchParams(window.location.search).get('businessUnitId');
     return v == null ? undefined : Number(v);
   });
-  const [ownerId, setOwnerId] = useState<number>();
+  const [ownerId, setOwnerId] = useState<number | undefined>(() => {
+    // 从销售统计下钻时 URL 带业务员（UI-015）
+    const v = Number(
+      new URLSearchParams(window.location.search).get('ownerId'),
+    );
+    return v > 0 ? v : undefined;
+  });
   const [customerType, setCustomerType] = useState<number>();
   const [settledOnly, setSettledOnly] = useState(false);
   const [groupBy, setGroupBy] = useState<ProfitQuery['groupBy']>('MONTH');
@@ -235,7 +241,13 @@ const ProfitStatsPage: React.FC = () => {
       dataIndex: 'soNo',
       width: 170,
       render: (v: string, r) => (
-        <a onClick={() => history.push(`/sales/orders/${r.soId}`)}>{v}</a>
+        <button
+          type="button"
+          className="zhul-link"
+          onClick={() => history.push(`/sales/orders/${r.soId}`)}
+        >
+          {v}
+        </button>
       ),
     },
     { title: '客户', dataIndex: 'customerName', width: 200, ellipsis: true },

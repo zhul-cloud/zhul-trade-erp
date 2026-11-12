@@ -1386,9 +1386,13 @@ const Candidates: React.FC = () => {
       width: 90,
       fixed: 'right',
       render: (_, c) => (
-        <a onClick={() => setViewing(c.id)}>
+        <button
+          type="button"
+          className="zhul-link"
+          onClick={() => setViewing(c.id)}
+        >
           {tab === 1 && canReview ? '审核' : '查看'}
-        </a>
+        </button>
       ),
     },
   ];
@@ -1567,7 +1571,9 @@ const Candidates: React.FC = () => {
             </span>
             <span style={{ flex: 1 }} />
             {aiDone.mode === 'brand' && !!aiDone.unmatched && (
-              <a
+              <button
+                type="button"
+                className="zhul-link"
                 onClick={() => {
                   setBrandState(3);
                   setQuery((q) => ({ ...q, brandState: 3 }));
@@ -1575,7 +1581,7 @@ const Candidates: React.FC = () => {
                 }}
               >
                 查看 Others
-              </a>
+              </button>
             )}
             <Button
               type="text"

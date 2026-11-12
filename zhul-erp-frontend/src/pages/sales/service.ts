@@ -818,6 +818,8 @@ export interface OrderQuery {
   status?: number;
   receiptStatus?: number;
   ownerId?: number;
+  /** 所属事业部 */
+  businessUnitId?: number;
   createdFrom?: string;
   createdTo?: string;
   salesFrom?: string;

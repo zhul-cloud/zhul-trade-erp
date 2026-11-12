@@ -259,9 +259,14 @@ export const useDocPreview = () => {
               </span>
             )}
             <span style={{ flex: 1 }} />
-            <a style={{ fontSize: 13, fontWeight: 400 }} onClick={download}>
+            <button
+              type="button"
+              className="zhul-link"
+              style={{ fontSize: 13, fontWeight: 400 }}
+              onClick={download}
+            >
               下载
-            </a>
+            </button>
           </div>
         )
       }

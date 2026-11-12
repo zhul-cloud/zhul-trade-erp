@@ -558,10 +558,15 @@ export const blockWidget = (opts: {
         sub={opts.sub}
         extra={
           opts.more && (
-            <a onClick={() => go(opts.more?.link)} style={{ fontSize: 13 }}>
+            <button
+              type="button"
+              className="zhul-link"
+              onClick={() => go(opts.more?.link)}
+              style={{ fontSize: 13 }}
+            >
               <MenuName path={opts.more.link} />{' '}
               <RightOutlined style={{ fontSize: 11 }} />
-            </a>
+            </button>
           )
         }
         loading={!data}

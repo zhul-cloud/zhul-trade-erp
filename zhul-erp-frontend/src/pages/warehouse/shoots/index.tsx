@@ -172,9 +172,13 @@ const Shoots: React.FC = () => {
       fixed: 'right',
       render: (_, r) => (
         <Space size={12}>
-          <a onClick={() => setOpen(r.id)}>
+          <button
+            type="button"
+            className="zhul-link"
+            onClick={() => setOpen(r.id)}
+          >
             {r.status === 1 && canEdit ? '拍摄' : '查看'}
-          </a>
+          </button>
         </Space>
       ),
     },
@@ -314,7 +318,15 @@ const ShootDrawer: React.FC<{
     };
   }, [id]);
 
+  /** 抽屉当前打开的任务：上传、删除完成时已换了任务，就只刷新列表、不改写抽屉（UI-017） */
+  const current = useRef(id);
+  current.current = id;
+
   const update = (next: ShootDetail) => {
+    if (next.task.id !== current.current) {
+      onChanged();
+      return;
+    }
     if (d && next.task.status !== d.task.status) {
       message.success(
         next.task.status === 2

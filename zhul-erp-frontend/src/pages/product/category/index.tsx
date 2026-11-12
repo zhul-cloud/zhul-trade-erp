@@ -253,19 +253,34 @@ const CategoryPage: React.FC = () => {
       width: 210,
       render: (_, row) => [
         access['product:category:add'] && !row.parentId && (
-          <a key="sub" onClick={() => openForm(null, row.id)}>
+          <button
+            type="button"
+            className="zhul-link"
+            key="sub"
+            onClick={() => openForm(null, row.id)}
+          >
             + 细分品类
-          </a>
+          </button>
         ),
         access['product:category:edit'] && (
-          <a key="edit" onClick={() => openForm(row)}>
+          <button
+            type="button"
+            className="zhul-link"
+            key="edit"
+            onClick={() => openForm(row)}
+          >
             编辑
-          </a>
+          </button>
         ),
         access['product:category:edit'] && (
-          <a key="status" onClick={() => toggleStatus(row)}>
+          <button
+            type="button"
+            className="zhul-link"
+            key="status"
+            onClick={() => toggleStatus(row)}
+          >
             {row.status === 1 ? '停用' : '启用'}
-          </a>
+          </button>
         ),
         access['product:category:delete'] &&
           ((row.children?.length ?? 0) > 0 ? (
@@ -290,9 +305,14 @@ const CategoryPage: React.FC = () => {
               </span>
             </Tooltip>
           ) : (
-            <a key="delete" onClick={() => remove(row)}>
+            <button
+              type="button"
+              className="zhul-link"
+              key="delete"
+              onClick={() => remove(row)}
+            >
               删除
-            </a>
+            </button>
           )),
       ],
     },
@@ -367,6 +387,7 @@ const CategoryPage: React.FC = () => {
         sortOrder?: number;
         industryCode?: string;
       }>
+        name="categoryEdit"
         title={
           editing
             ? editing.parentId

@@ -12,7 +12,7 @@ import java.time.LocalDateTime;
 /**
  * 通用 AI 任务：Java 后端与外部 AI 编排服务之间的异步任务契约。
  * 与具体业务（询盘解析等）无关，未来新增 skill 时复用同一张表，见
- * openspec/changes/add-inquiry-management/design.md 决策3。
+ * openspec/changes/archive/2026-10-03-add-inquiry-management/design.md 决策3。
  */
 @Data
 @TableName("ai_task")

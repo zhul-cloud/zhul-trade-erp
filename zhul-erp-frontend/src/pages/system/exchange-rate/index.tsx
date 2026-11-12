@@ -159,12 +159,22 @@ const ExchangeRatePage: React.FC = () => {
       render: (_, r) => (
         <span style={{ display: 'inline-flex', gap: 12 }}>
           {canEdit && (
-            <a onClick={() => openEdit(r)}>
+            <button
+              type="button"
+              className="zhul-link"
+              onClick={() => openEdit(r)}
+            >
               {r.rate == null ? '设置' : '修改'}
-            </a>
+            </button>
           )}
           {r.rate != null && (
-            <a onClick={() => setLogCurrency(r.currencyCode)}>变更记录</a>
+            <button
+              type="button"
+              className="zhul-link"
+              onClick={() => setLogCurrency(r.currencyCode)}
+            >
+              变更记录
+            </button>
           )}
         </span>
       ),

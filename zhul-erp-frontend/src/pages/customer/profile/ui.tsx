@@ -151,7 +151,9 @@ export const SourceTag: React.FC<{
   return (
     <Tooltip title={tip}>
       {link ? (
-        <a
+        <button
+          type="button"
+          className="zhul-link"
           onClick={() =>
             history.push(
               `/customer/list/${customerId}/background/${source?.reportId}`,
@@ -160,7 +162,7 @@ export const SourceTag: React.FC<{
           style={{ fontSize: 11, color, whiteSpace: 'nowrap' }}
         >
           {text}
-        </a>
+        </button>
       ) : (
         <span style={{ fontSize: 11, color, whiteSpace: 'nowrap' }}>
           {text}

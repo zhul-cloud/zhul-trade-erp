@@ -58,7 +58,13 @@ const Amount: React.FC<{
             return (
               <div key={`${s.type}-${s.id}`} style={{ fontSize: 12 }}>
                 {path ? (
-                  <a onClick={() => history.push(path)}>{s.no}</a>
+                  <button
+                    type="button"
+                    className="zhul-link"
+                    onClick={() => history.push(path)}
+                  >
+                    {s.no}
+                  </button>
                 ) : (
                   <span>{s.no}</span>
                 )}
@@ -351,17 +357,23 @@ const OrderCostCard: React.FC<{ cost: OrderCost }> = ({ cost }) => {
               }}
             >
               <Pill tone="violet">售后补发</Pill>
-              <a onClick={() => history.push(`/sales/orders/${r.soId}`)}>
+              <button
+                type="button"
+                className="zhul-link"
+                onClick={() => history.push(`/sales/orders/${r.soId}`)}
+              >
                 {r.soNo}
-              </a>
+              </button>
               {r.afterSalesNo && (
-                <a
+                <button
+                  type="button"
+                  className="zhul-link"
                   onClick={() =>
                     history.push(`/sales/after-sales/${r.afterSalesId}`)
                   }
                 >
                   {r.afterSalesNo}
-                </a>
+                </button>
               )}
               <span style={{ color: palette.sub }}>
                 采购 {formatAmount(r.purchase, 'CNY')} · 运费{' '}
@@ -396,9 +408,13 @@ const OrderCostCard: React.FC<{ cost: OrderCost }> = ({ cost }) => {
               }}
             >
               <b style={{ color: palette.ink }}>退款</b>
-              <a onClick={() => history.push('/finance/refunds')}>
+              <button
+                type="button"
+                className="zhul-link"
+                onClick={() => history.push('/finance/refunds')}
+              >
                 {r.refundNo}
-              </a>
+              </button>
               <span style={{ color: palette.sub }}>
                 {r.refundDate} · {r.reasonName}
               </span>

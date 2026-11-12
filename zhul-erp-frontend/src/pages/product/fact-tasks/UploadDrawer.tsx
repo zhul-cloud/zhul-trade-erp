@@ -494,7 +494,9 @@ export const UploadDrawer: React.FC<{
                   }}
                 >
                   <FileTextOutlined /> {f.fileName}
-                  <a
+                  <button
+                    type="button"
+                    className="zhul-link"
                     style={{ marginLeft: 'auto' }}
                     onClick={() =>
                       set((prev) =>
@@ -503,7 +505,7 @@ export const UploadDrawer: React.FC<{
                     }
                   >
                     移除
-                  </a>
+                  </button>
                 </div>
               ))}
             </div>

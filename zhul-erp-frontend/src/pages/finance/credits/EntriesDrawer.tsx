@@ -172,9 +172,13 @@ const EntriesDrawer: React.FC<{
                         </Pill>
                         {e.sourceNo &&
                           (href ? (
-                            <a onClick={() => history.push(href)}>
+                            <button
+                              type="button"
+                              className="zhul-link"
+                              onClick={() => history.push(href)}
+                            >
                               {e.sourceNo}
-                            </a>
+                            </button>
                           ) : (
                             <span style={{ color: palette.sub }}>
                               {e.sourceNo}

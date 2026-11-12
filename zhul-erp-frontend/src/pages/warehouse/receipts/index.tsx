@@ -1,5 +1,5 @@
 import { InboxOutlined, SearchOutlined } from '@ant-design/icons';
-import { useAccess } from '@umijs/max';
+import { Link, useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { Button, Input, Segmented, Table } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
@@ -107,15 +107,10 @@ const Receipts: React.FC = () => {
       ),
     },
     {
-      title: '采购订单 · 采购对象',
-      dataIndex: 'poNo',
-      width: 210,
-      render: (v: string, r) => (
-        <div>
-          <span style={{ color: palette.link }}>{v}</span>
-          {sub(palette.mute, r.supplierName)}
-        </div>
-      ),
+      title: '采购对象',
+      dataIndex: 'supplierName',
+      width: 180,
+      render: ellipsisRender,
     },
     {
       title: '快递 · 单号',
@@ -150,6 +145,14 @@ const Receipts: React.FC = () => {
       ),
     },
     {
+      title: '来源单号',
+      dataIndex: 'poNo',
+      width: 150,
+      render: (v: string | undefined, r) => (
+        <SourceNos refs={[{ no: v, href: WAREHOUSE_PATHS.order(r.poId) }]} />
+      ),
+    },
+    {
       title: '采购员',
       dataIndex: 'purchaserName',
       width: 90,
@@ -172,7 +175,15 @@ const Receipts: React.FC = () => {
       width: 100,
       fixed: 'right',
       render: (_, r) =>
-        canEdit ? <a onClick={() => setAccepting(r.id)}>验收入库</a> : null,
+        canEdit ? (
+          <button
+            type="button"
+            className="zhul-link"
+            onClick={() => setAccepting(r.id)}
+          >
+            验收入库
+          </button>
+        ) : null,
     },
   ];
 
@@ -184,7 +195,13 @@ const Receipts: React.FC = () => {
       fixed: 'left',
       render: (v: string, r) => (
         <div>
-          <a onClick={() => setViewing(r.id)}>{v}</a>
+          <button
+            type="button"
+            className="zhul-link"
+            onClick={() => setViewing(r.id)}
+          >
+            {v}
+          </button>
           {sub(palette.mute, r.receivedDate ?? '—')}
         </div>
       ),
@@ -202,15 +219,21 @@ const Receipts: React.FC = () => {
       ),
     },
     {
-      title: '采购订单 · 采购对象',
+      title: '采购订单',
       dataIndex: 'poNo',
-      width: 210,
-      render: (v: string, r) => (
-        <div>
-          <span style={{ color: palette.ink }}>{v}</span>
-          {sub(palette.mute, r.supplierName)}
-        </div>
-      ),
+      width: 150,
+      render: (v: string | undefined, r) =>
+        v ? (
+          <Link to={WAREHOUSE_PATHS.order(r.poId)}>{v}</Link>
+        ) : (
+          <span style={{ color: palette.mute }}>—</span>
+        ),
+    },
+    {
+      title: '采购对象',
+      dataIndex: 'supplierName',
+      width: 180,
+      render: ellipsisRender,
     },
     {
       title: '型号数',
@@ -251,7 +274,15 @@ const Receipts: React.FC = () => {
       key: 'actions',
       width: 70,
       fixed: 'right',
-      render: (_, r) => <a onClick={() => setViewing(r.id)}>查看</a>,
+      render: (_, r) => (
+        <button
+          type="button"
+          className="zhul-link"
+          onClick={() => setViewing(r.id)}
+        >
+          查看
+        </button>
+      ),
     },
   ];
 

@@ -85,15 +85,18 @@ export const UploadModal: React.FC<{
     };
   }, []);
 
+  // 只在打开弹窗时初始化：上传中第一张设为主图后 defaultSetMain 会变，不能因此清掉这一批（UI-034）
+  const defaultMain = useRef(defaultSetMain);
+  defaultMain.current = defaultSetMain;
   useEffect(() => {
     if (open) {
       setMediaType(1);
       setFiles([]);
       setTitle('');
-      setSetMain(!!defaultSetMain);
+      setSetMain(!!defaultMain.current);
       setUploading(false);
     }
-  }, [open, defaultSetMain]);
+  }, [open]);
 
   const addFiles = (list: File[], type: 1 | 2) => {
     const items: PendingFile[] = list.map((f) => {

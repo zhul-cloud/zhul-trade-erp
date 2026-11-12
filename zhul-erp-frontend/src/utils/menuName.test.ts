@@ -65,10 +65,16 @@ describe('findMenu：页面地址对应的菜单名称与分组', () => {
     expect(findMenu(tree, path)).toMatchObject({ name, group });
   });
 
-  it('分组地址、前缀相同但不是下级的地址、隐藏或停用的菜单都不算', () => {
+  it('分组地址、前缀相同但不是下级的地址、隐藏的菜单都不算', () => {
     expect(findMenu(tree, '/finance')).toBeUndefined();
     expect(findMenu(tree, '/finance/receipts-old')).toBeUndefined();
     expect(findMenu(tree, '/inquiry/part-time-board')).toBeUndefined();
-    expect(findMenu(tree, '/inquiry/orders')).toBeUndefined();
+  });
+
+  /** UI-010：侧边栏不看 status，停用（status=0）但没隐藏的菜单仍在侧栏里，标题也要取得到 */
+  it('停用但未隐藏的菜单仍能取到名称和分组，与侧边栏一致', () => {
+    expect(findMenu(tree, '/inquiry/orders')).toMatchObject({
+      name: '询盘单（已下线）',
+    });
   });
 });

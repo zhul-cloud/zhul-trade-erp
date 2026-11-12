@@ -9,7 +9,6 @@ import React from 'react';
 dayjs.extend(relativeTime);
 
 import {
-  DocLink,
   ErrorBoundary,
   Footer,
   LangDropdown,
@@ -269,7 +268,6 @@ export const layout: RunTimeLayoutConfig = ({
         <TopBar>
           <NotificationBell />
           <ThemeToggle />
-          <DocLink />
           <LangDropdown />
         </TopBar>
         {initialState?.currentUser ? (

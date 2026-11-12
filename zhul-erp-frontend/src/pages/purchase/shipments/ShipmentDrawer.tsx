@@ -358,7 +358,13 @@ const ShipmentDrawer: React.FC<{
               {arrivalTouched ? (
                 <span style={{ color: palette.mute }}>
                   已手动填写；
-                  <a onClick={() => setArrivalTouched(false)}>重新估算</a>
+                  <button
+                    type="button"
+                    className="zhul-link"
+                    onClick={() => setArrivalTouched(false)}
+                  >
+                    重新估算
+                  </button>
                 </span>
               ) : basis ? (
                 <span>

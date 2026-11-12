@@ -1,12 +1,11 @@
 import {
-  BookOutlined,
   CheckOutlined,
   ForkOutlined,
   GlobalOutlined,
 } from '@ant-design/icons';
-import { getAllLocales, getLocale, history, setLocale } from '@umijs/max';
+import { getAllLocales, getLocale, setLocale } from '@umijs/max';
 import type { MenuProps } from 'antd';
-import { Button, Tooltip } from 'antd';
+import { Button } from 'antd';
 import { createStyles } from 'antd-style';
 import React, { useMemo } from 'react';
 import HeaderDropdown from '../HeaderDropdown';
@@ -35,23 +34,6 @@ const useStyles = createStyles(({ token, css }) => ({
     border-radius: ${token.borderRadius}px !important;
   `,
 }));
-
-export const DocLink: React.FC = () => {
-  const { styles } = useStyles();
-  return (
-    <Tooltip title="使用文档">
-      <Button
-        type="text"
-        className={styles.action}
-        icon={<BookOutlined />}
-        aria-label="使用文档"
-        onClick={() => {
-          history.push('/welcome');
-        }}
-      />
-    </Tooltip>
-  );
-};
 
 const versionItems: MenuProps['items'] = [
   { key: 'https://v5.pro.ant.design', label: 'v5' },

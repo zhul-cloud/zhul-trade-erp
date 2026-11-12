@@ -23,6 +23,7 @@ import {
   BackgroundCard,
   useBackgroundReports,
 } from './background/components';
+import { useBackgroundPrecheck } from './background/precheck';
 import {
   LIST_PATH,
   PageTitle,
@@ -46,12 +47,12 @@ import {
   useCustomerFollowup,
 } from './FollowupSection';
 import CompletenessCard from './profile/CompletenessCard';
-import ContactsCard from './profile/ContactsCard';
+import ContactsCard, { ContactModal } from './profile/ContactsCard';
 import GradeCard from './profile/GradeCard';
 import ManualMergeModal from './profile/ManualMergeModal';
 import ModuleEditModal from './profile/ModuleEditModal';
 import ProfileModules from './profile/ProfileModules';
-import { type Profile, profileApi } from './profile/service';
+import { type Contact, type Profile, profileApi } from './profile/service';
 import { GradeBadge, Stars } from './profile/ui';
 import { type CustomerDetail, customerApi, readBizError } from './service';
 import { localTimeInfo, zoneLabel } from './time';
@@ -244,9 +245,14 @@ const CreditCard: React.FC<{ customerId: number; customerName: string }> = ({
           >
             {a.currencyCode} 可用余额
             {a.businessUnitName ? ` · ${a.businessUnitName}` : ''}
-            <a style={{ marginLeft: 'auto' }} onClick={() => setViewing(a)}>
+            <button
+              type="button"
+              className="zhul-link"
+              style={{ marginLeft: 'auto' }}
+              onClick={() => setViewing(a)}
+            >
               流水
-            </a>
+            </button>
           </div>
           <div
             style={{
@@ -291,6 +297,9 @@ const CustomerDetailPage: React.FC = () => {
   const [profile, setProfile] = useState<Profile>();
   const [editModule, setEditModule] = useState<number>();
   const bg = useBackgroundReports(Number(id));
+  const precheck = useBackgroundPrecheck(Number(id));
+  /** 背调前检查「去补充」联系人：改主联系人（没有时新增） */
+  const [fixContact, setFixContact] = useState<Contact | 'new'>();
   // 「跟进」分区：有客户跟进菜单权限才显示（openspec customer-followup）
   const showFollowup = !!access.salesFollowup;
   const followup = useCustomerFollowup(Number(id), showFollowup);
@@ -325,6 +334,16 @@ const CustomerDetailPage: React.FC = () => {
   const back = () => history.push(LIST_PATH);
   const canEdit = !!access['partner:customer:edit'];
   const canBackground = !!access['partner:customer:background'];
+  const fixPrecheck = canEdit
+    ? (target: string) => {
+        if (target.startsWith('profile:')) {
+          setEditModule(Number(target.slice('profile:'.length)));
+        } else if (target === 'contact') {
+          const cs = profile?.contacts ?? [];
+          setFixContact(cs.find((c) => c.primary) ?? cs[0] ?? 'new');
+        }
+      }
+    : undefined;
 
   let body: React.ReactNode;
   let title: React.ReactNode = '客户详情';
@@ -384,6 +403,8 @@ const CustomerDetailPage: React.FC = () => {
             customerName={r.displayName}
             running={bg.running}
             onStarted={bg.reload}
+            precheck={precheck}
+            onFix={fixPrecheck}
           />
         )}
         {canEdit && profile && (
@@ -567,7 +588,12 @@ const CustomerDetailPage: React.FC = () => {
             {showFollowup && <FollowupChainCard data={followup.data} />}
             {showFollowup && <SopStageCard data={followup.data} />}
             {bg.reports && (
-              <BackgroundCard customerId={r.id} reports={bg.reports} />
+              <BackgroundCard
+                customerId={r.id}
+                reports={bg.reports}
+                precheck={precheck.data}
+                onFix={fixPrecheck}
+              />
             )}
             {profile && (
               <ContactsCard
@@ -582,6 +608,7 @@ const CustomerDetailPage: React.FC = () => {
                 onChanged={() => {
                   loadProfile();
                   load();
+                  precheck.reload();
                 }}
               />
             )}
@@ -674,6 +701,22 @@ const CustomerDetailPage: React.FC = () => {
                 setEditModule(undefined);
                 loadProfile();
                 load();
+                precheck.reload();
+              }}
+            />
+          )}
+          {record && (
+            <ContactModal
+              open={!!fixContact}
+              customerId={record.id}
+              customerName={record.displayName}
+              contact={fixContact === 'new' ? undefined : fixContact}
+              first={(profile?.contacts.length ?? 0) === 0}
+              onClose={() => setFixContact(undefined)}
+              onDone={() => {
+                setFixContact(undefined);
+                loadProfile();
+                precheck.reload();
               }}
             />
           )}

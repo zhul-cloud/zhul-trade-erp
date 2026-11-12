@@ -136,7 +136,7 @@ export const PlatformRefundFields: React.FC<{
         <InputNumber<number>
           min={0.01}
           precision={2}
-          prefix="¥"
+          prefix="CNY"
           value={value.actualCny}
           onChange={(v) => onChange({ ...value, actualCny: v })}
           style={{ width: '100%' }}
@@ -226,7 +226,7 @@ export const PayoutFields: React.FC<{
         <InputNumber<number>
           min={0.01}
           precision={2}
-          prefix="¥"
+          prefix="CNY"
           value={value.actualCny}
           onChange={(v) => onChange({ ...value, actualCny: v })}
           style={{ width: '100%' }}
@@ -561,7 +561,7 @@ export const AdjustModal: React.FC<{
             <InputNumber<number>
               min={0.01}
               precision={2}
-              prefix="¥"
+              prefix="CNY"
               value={cny}
               disabled={(amount ?? 0) < 0}
               onChange={setCny}

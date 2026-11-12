@@ -343,7 +343,8 @@ const ShipmentDetail: React.FC = () => {
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))',
+          gridTemplateColumns:
+            'repeat(auto-fit, minmax(min(420px, 100%), 1fr))',
           gap: 16,
         }}
       >
@@ -390,13 +391,37 @@ const ShipmentDetail: React.FC = () => {
                     }}
                   >
                     <span style={{ color: palette.mute }}>CI</span>
-                    <a onClick={() => exportDoc(g.id, 'ci', 'xlsx')}>Excel</a>
-                    <a onClick={() => exportDoc(g.id, 'ci', 'pdf')}>PDF</a>
+                    <button
+                      type="button"
+                      className="zhul-link"
+                      onClick={() => exportDoc(g.id, 'ci', 'xlsx')}
+                    >
+                      Excel
+                    </button>
+                    <button
+                      type="button"
+                      className="zhul-link"
+                      onClick={() => exportDoc(g.id, 'ci', 'pdf')}
+                    >
+                      PDF
+                    </button>
                     <span style={{ color: palette.mute, marginLeft: 8 }}>
                       PL
                     </span>
-                    <a onClick={() => exportDoc(g.id, 'pl', 'xlsx')}>Excel</a>
-                    <a onClick={() => exportDoc(g.id, 'pl', 'pdf')}>PDF</a>
+                    <button
+                      type="button"
+                      className="zhul-link"
+                      onClick={() => exportDoc(g.id, 'pl', 'xlsx')}
+                    >
+                      Excel
+                    </button>
+                    <button
+                      type="button"
+                      className="zhul-link"
+                      onClick={() => exportDoc(g.id, 'pl', 'pdf')}
+                    >
+                      PDF
+                    </button>
                   </div>
                   {g.paymentRef && (
                     <div

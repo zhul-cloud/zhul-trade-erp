@@ -94,11 +94,15 @@ const MediaLibraryPage: React.FC = () => {
       fixed: 'left',
       render: (_, r) => (
         <div>
-          <a onClick={() => setOpen(r)}>
+          <button
+            type="button"
+            className="zhul-link"
+            onClick={() => setOpen(r)}
+          >
             <b>
               {r.brand} · {r.model}
             </b>
-          </a>
+          </button>
           <div style={{ fontSize: 12, color: palette.mute }}>
             {r.productName || '—'}
           </div>
@@ -158,7 +162,11 @@ const MediaLibraryPage: React.FC = () => {
       key: 'op',
       width: 90,
       fixed: 'right',
-      render: (_, r) => <a onClick={() => setOpen(r)}>查看素材</a>,
+      render: (_, r) => (
+        <button type="button" className="zhul-link" onClick={() => setOpen(r)}>
+          查看素材
+        </button>
+      ),
     },
   ];
 
