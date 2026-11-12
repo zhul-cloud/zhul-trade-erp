@@ -78,6 +78,29 @@ class SalesOrderContractTest extends SalesContractSupport {
         assertEquals("销售订单不存在", call(get(SO + "/" + id + "/models"), token("it_so_staff")).path("message").asText());
     }
 
+    /** UI-015：订单列表按所属事业部筛选，与销售统计同一口径；只在可见订单内缩小 */
+    @Test
+    void page_filterByBusinessUnit() throws Exception {
+        long c = customer("ACROBOT", "India");
+        long[] ids = new long[2];
+        for (int i = 0; i < 2; i++) {
+            long pi = sentPi(quotationItemIds(quotation(c, 2, "USD", null, FOUR[0])), null);
+            ok(uploadSlip(pi, "100.00", "2026-10-07", admin));
+            ids[i] = ok(convert(pi)).path("id").asLong();
+        }
+        jdbc.update("update sales_order set business_unit_id = 7 where id = ?", ids[0]);
+        jdbc.update("update sales_order set business_unit_id = 8 where id = ?", ids[1]);
+        JsonNode unit7 = ok(call(json(post(SO + "/page"), write(Map.of("businessUnitId", 7))), admin));
+        assertEquals(1, unit7.path("total").asInt());
+        assertEquals(ids[0], unit7.path("records").get(0).path("id").asLong());
+        assertEquals(2, ok(call(json(post(SO + "/page"), "{}"), admin)).path("total").asInt(), "不传事业部不过滤");
+
+        jdbc.update("update sales_order set owner_id = ? where id = ?", BUYER_LIN, ids[0]);
+        loginWithResources("it_so_unit", MENU_SO);
+        assertEquals(0, ok(call(json(post(SO + "/page"), write(Map.of("businessUnitId", 7))), token("it_so_unit"))).path("total").asInt(),
+                "看不到的订单不会因事业部条件出现");
+    }
+
     /** 已发送、有水单、PI 当前版本备注为 remark 的 PI */
     private long paidPiWithRemark(long customer, String remark) throws Exception {
         long pi = sentPi(quotationItemIds(quotation(customer, 2, "USD", null, FOUR[0])), null);
