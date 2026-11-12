@@ -14,6 +14,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
+import { useTabDirty } from '@/components/PageTabs/hooks';
 import { CompletenessBar } from '../components/CompletenessBar';
 import { BrandMark, LifecyclePill, Pill } from '../components/Pills';
 import {
@@ -38,9 +39,24 @@ import {
   seriesApi,
 } from '../service';
 import { ProductThemeProvider, useProductTheme } from '../theme';
-import { useTabDirty } from '@/components/PageTabs/hooks';
 import { LinkModal, UploadModal } from './cards/MediaCard';
 
+/** 启用的一级品类，按页取全：超过一页（100 个）也都能选（UI-009） */
+const CATEGORY_PAGE = 100;
+export const loadAllTopCategories = async (): Promise<Category[]> => {
+  const first = await categoryApi.page({
+    page: 1,
+    pageSize: CATEGORY_PAGE,
+    status: 1,
+  });
+  const pages = Math.ceil(first.total / CATEGORY_PAGE);
+  const rest = await Promise.all(
+    Array.from({ length: Math.max(pages - 1, 0) }, (_, i) =>
+      categoryApi.page({ page: i + 2, pageSize: CATEGORY_PAGE, status: 1 }),
+    ),
+  );
+  return [...first.records, ...rest.flatMap((r) => r.records)];
+};
 const STEPS = ['型号', '分类', '图片', '补充资料', '完成'];
 const DRAFT_TTL_MS = 7 * 24 * 3600 * 1000;
 const COMMON_BRANDS = 7;
@@ -186,9 +202,8 @@ const WizardInner: React.FC = () => {
       .options()
       .then(setBrands)
       .catch(() => {});
-    categoryApi
-      .page({ page: 1, pageSize: 100, status: 1 })
-      .then((r) => setCategories(r.records))
+    loadAllTopCategories()
+      .then(setCategories)
       .catch(() => {});
     categoryApi
       .options(2)
@@ -337,7 +352,6 @@ const WizardInner: React.FC = () => {
     }
   };
 
-
   const close = () => {
     const hasDraft = !created && (draft.mpn || draft.brandId);
     if (infoUnsaved && product) {
@@ -377,7 +391,6 @@ const WizardInner: React.FC = () => {
       history.push('/product/products');
     }
   };
-
 
   const restart = () => {
     setProduct(undefined);
