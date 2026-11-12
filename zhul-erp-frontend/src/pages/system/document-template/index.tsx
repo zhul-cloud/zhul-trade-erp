@@ -210,6 +210,8 @@ const DocumentTemplatePage: React.FC = () => {
   useEffect(loadVersions, [loadVersions]);
 
   const refresh = () => {
+    // 先清掉错误，否则重试成功后仍停在错误页（UI-006）
+    setError(undefined);
     loadTypes();
     loadVersions();
   };

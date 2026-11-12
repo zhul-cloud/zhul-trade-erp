@@ -2,7 +2,7 @@ import { WarningOutlined } from '@ant-design/icons';
 import { Link, useParams } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { Segmented, Table } from 'antd';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { usePageTitle } from '@/components/PageTabs/hooks';
 import { Card, PageTitle } from '@/pages/inquiry/shared/components';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
@@ -157,18 +157,25 @@ const OperationsProductDetail: React.FC = () => {
   const [uploadOpen, setUploadOpen] = useState(false);
   const data = content.data;
 
-  useEffect(() => {
+  const loadProduct = useCallback(() => {
+    setError(undefined);
     productApi
       .get(id)
       .then(setProduct)
       .catch((e) => setError(readBizError(e).message));
   }, [id]);
 
+  useEffect(loadProduct, [loadProduct]);
+
   if (error || content.error) {
     return (
       <ErrorHint
         message={error ?? content.error ?? ''}
-        onRetry={content.load}
+        onRetry={() => {
+          // 哪个失败就重试哪个：商品基础信息与资料各自恢复（UI-006）
+          if (error) loadProduct();
+          if (content.error) content.load();
+        }}
       />
     );
   }
