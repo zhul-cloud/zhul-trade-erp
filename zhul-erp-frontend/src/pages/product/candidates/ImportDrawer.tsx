@@ -8,7 +8,7 @@ import {
 } from '@ant-design/icons';
 import type { TableColumnsType } from 'antd';
 import { App, Button, Drawer, Segmented, Table, Tooltip, Upload } from 'antd';
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { Pill } from '@/pages/inquiry/shared/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { tableScrollX } from '@/utils/tableScroll';
@@ -55,8 +55,12 @@ export const ImportDrawer: React.FC<{
   const [previews, setPreviews] = useState<ImportPreview[]>([]);
   const [result, setResult] = useState<ImportResult>();
   const [loading, setLoading] = useState(false);
+  /** 本次选择的序号：取消、关闭、重新选择后，之前还没回来的预览作废（UI-021） */
+  const session = useRef(0);
 
   const reset = () => {
+    session.current++;
+    setLoading(false);
     setFiles([]);
     setPreviews([]);
     setResult(undefined);
@@ -78,17 +82,21 @@ export const ImportDrawer: React.FC<{
       message.error(`「${big.name}」超过 1MB`);
       return;
     }
+    const mine = ++session.current;
     setLoading(true);
     try {
       const read = await Promise.all(
         list.map(async (f) => ({ fileName: f.name, content: await f.text() })),
       );
+      const preview = await candidateApi.importPreview(read);
+      if (session.current !== mine) return;
+      // 文件与预览一起写入，确认时提交的就是预览里的这一组
       setFiles(read);
-      setPreviews(await candidateApi.importPreview(read));
+      setPreviews(preview);
     } catch (e) {
-      message.error(readBizError(e).message);
+      if (session.current === mine) message.error(readBizError(e).message);
     } finally {
-      setLoading(false);
+      if (session.current === mine) setLoading(false);
     }
   };
 
@@ -235,7 +243,7 @@ export const ImportDrawer: React.FC<{
             <Button onClick={close}>取消</Button>
             <Button
               type="primary"
-              disabled={toWrite === 0}
+              disabled={toWrite === 0 || files.length === 0}
               loading={loading}
               onClick={confirm}
             >
