@@ -2,11 +2,13 @@ package com.zhul.erp.modules.masterdata.customerbackground.controller;
 
 import com.zhul.erp.common.result.Result;
 import com.zhul.erp.framework.storage.FileStorageService.FileLink;
+import com.zhul.erp.modules.masterdata.customerbackground.dto.BackgroundPrecheckVO;
 import com.zhul.erp.modules.masterdata.customerbackground.dto.BackgroundReportDetailVO;
 import com.zhul.erp.modules.masterdata.customerbackground.dto.BackgroundReportVO;
 import com.zhul.erp.modules.masterdata.customerbackground.dto.BackgroundResearchRequest;
 import com.zhul.erp.modules.masterdata.customerbackground.dto.SuggestionIndexesRequest;
 import com.zhul.erp.modules.masterdata.customerbackground.service.BackgroundAdoptService;
+import com.zhul.erp.modules.masterdata.customerbackground.service.BackgroundPrecheckService;
 import com.zhul.erp.modules.masterdata.customerbackground.service.CustomerBackgroundService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -44,11 +46,18 @@ public class CustomerBackgroundController {
     private static final String EDIT = "@perm.has('partner:customer:edit')";
 
     private final CustomerBackgroundService backgroundService;
+    private final BackgroundPrecheckService precheckService;
     private final BackgroundAdoptService adoptService;
 
     @GetMapping
     public Result<List<BackgroundReportVO>> list(@PathVariable Long id) {
         return Result.ok(backgroundService.list(id));
+    }
+
+    /** 背调前检查：关键信息是否齐全与充足度，能看客户就能看 */
+    @GetMapping("/precheck")
+    public Result<BackgroundPrecheckVO> precheck(@PathVariable Long id) {
+        return Result.ok(precheckService.check(id));
     }
 
     @GetMapping("/{reportId}")
