@@ -138,7 +138,13 @@ const PurchaseOrderList: React.FC = () => {
       fixed: 'left',
       render: (v: string | undefined, r) => (
         <div>
-          <a onClick={() => history.push(PATHS.order(r.id))}>{v ?? '草稿'}</a>
+          <button
+            type="button"
+            className="zhul-link"
+            onClick={() => history.push(PATHS.order(r.id))}
+          >
+            {v ?? '草稿'}
+          </button>
           {r.migrated && (
             <div style={{ marginTop: 4 }}>
               <MigratedPill migrated />
@@ -346,9 +352,13 @@ const PurchaseOrderList: React.FC = () => {
       width: 70,
       fixed: 'right',
       render: (_, r) => (
-        <a onClick={() => history.push(PATHS.order(r.id))}>
+        <button
+          type="button"
+          className="zhul-link"
+          onClick={() => history.push(PATHS.order(r.id))}
+        >
           {r.status === PO_STATUS.DRAFT ? '编辑' : '查看'}
-        </a>
+        </button>
       ),
     },
   ];

@@ -143,7 +143,9 @@ const RecordsTab: React.FC = () => {
       width: 180,
       render: (_, r) =>
         r.piId || r.soId ? (
-          <a
+          <button
+            type="button"
+            className="zhul-link"
             style={{ whiteSpace: 'nowrap' }}
             onClick={() =>
               history.push(
@@ -152,7 +154,7 @@ const RecordsTab: React.FC = () => {
             }
           >
             {r.piNo ?? r.soNo}
-          </a>
+          </button>
         ) : (
           '—'
         ),

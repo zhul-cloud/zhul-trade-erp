@@ -487,14 +487,16 @@ const ProductListInner: React.FC = () => {
             width: 80,
             render: (_: unknown, r: Product) =>
               r.deleted ? (
-                <a
+                <button
+                  type="button"
+                  className="zhul-link"
                   onClick={(e) => {
                     e.stopPropagation();
                     restore(r);
                   }}
                 >
                   恢复
-                </a>
+                </button>
               ) : null,
           },
         ] as ColumnsType<Product>)

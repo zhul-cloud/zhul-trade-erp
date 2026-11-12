@@ -116,7 +116,15 @@ export const SupplierPicker: React.FC<{
   placeholder?: string;
   style?: React.CSSProperties;
   onChange: (supplierId: number | undefined, name: string) => void;
-}> = ({ value, label, placeholder = '搜索供应商', style, onChange }) => {
+  'aria-label'?: string;
+}> = ({
+  value,
+  label,
+  placeholder = '搜索供应商',
+  style,
+  onChange,
+  'aria-label': ariaLabel,
+}) => {
   const [options, setOptions] = useState<{ value: number; label: string }[]>(
     [],
   );
@@ -157,6 +165,7 @@ export const SupplierPicker: React.FC<{
   return (
     <Select
       allowClear
+      aria-label={ariaLabel}
       style={style}
       placeholder={placeholder}
       value={value}

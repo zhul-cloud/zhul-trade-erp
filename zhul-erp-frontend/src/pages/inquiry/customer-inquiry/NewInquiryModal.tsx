@@ -526,7 +526,9 @@ const NewInquiryModal: React.FC<{
             }
             extra={
               appendable && (
-                <a
+                <button
+                  type="button"
+                  className="zhul-link"
                   onClick={() => {
                     form.setFieldValue(
                       'rawContent',
@@ -536,7 +538,7 @@ const NewInquiryModal: React.FC<{
                   }}
                 >
                   商机里有原始内容，点此追加
-                </a>
+                </button>
               )
             }
           >

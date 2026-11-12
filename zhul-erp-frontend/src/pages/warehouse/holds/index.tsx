@@ -111,24 +111,28 @@ const Holds: React.FC = () => {
         r.sourceType === 3 ? (
           <div>
             <Pill tone="violet">售后退货</Pill>{' '}
-            <a
+            <button
+              type="button"
+              className="zhul-link"
               onClick={() => history.push(`/warehouse/returns/${r.returnId}`)}
             >
               {r.returnNo}
-            </a>
+            </button>
             {sub(palette.mute, `${r.soNo ?? ''} · 合格品`)}
           </div>
         ) : r.sourceType === 2 ? (
           <div>
             <Pill tone="orange">订单部分取消</Pill>{' '}
             {r.soId ? (
-              <a
+              <button
+                type="button"
+                className="zhul-link"
                 onClick={() =>
                   history.push(WAREHOUSE_PATHS.salesOrder(r.soId as number))
                 }
               >
                 {r.soNo}
-              </a>
+              </button>
             ) : null}
             {sub(
               palette.mute,
@@ -184,9 +188,14 @@ const Holds: React.FC = () => {
         r.status === 1 && canHandle ? (
           <Space size={12}>
             {[2, 3, 4].map((s) => (
-              <a key={s} onClick={() => setHandling({ hold: r, status: s })}>
+              <button
+                type="button"
+                className="zhul-link"
+                key={s}
+                onClick={() => setHandling({ hold: r, status: s })}
+              >
                 {ACTIONS[s].label}
-              </a>
+              </button>
             ))}
           </Space>
         ) : null,

@@ -51,3 +51,25 @@ it('事业部信息晚到不重置已填写的费用单', async () => {
     (screen.getByPlaceholderText('如 补发运费') as HTMLInputElement).value,
   ).toBe('AUDIT-DRAFT-NAME');
 });
+
+/** UI-026：自绘标签的字段要有可读名称，读屏能读出字段 */
+it('费用单的输入框都有可读名称', async () => {
+  (request as jest.Mock).mockResolvedValue({ data: [] });
+  render(
+    React.createElement(
+      App,
+      null,
+      React.createElement(ExpenseDrawer, {
+        open: true,
+        onClose: () => undefined,
+        onDone: () => undefined,
+      }),
+    ),
+  );
+  expect(await screen.findByRole('textbox', { name: '名称' })).toBeTruthy();
+  expect(screen.getByRole('spinbutton', { name: '金额' })).toBeTruthy();
+  expect(screen.getByRole('textbox', { name: '说明' })).toBeTruthy();
+  expect(screen.getByRole('combobox', { name: '币种' })).toBeTruthy();
+  expect(screen.getByRole('combobox', { name: '费用类别' })).toBeTruthy();
+  expect(screen.getByRole('textbox', { name: '收款方名称' })).toBeTruthy();
+});

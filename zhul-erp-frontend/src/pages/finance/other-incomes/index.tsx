@@ -330,8 +330,20 @@ const OtherIncomePage: React.FC = () => {
           </span>
         ) : canEdit && r.status === 1 ? (
           <Space size={10}>
-            <a onClick={() => setModal({ editing: r })}>修改</a>
-            <a onClick={() => setVoiding(r)}>作废</a>
+            <button
+              type="button"
+              className="zhul-link"
+              onClick={() => setModal({ editing: r })}
+            >
+              修改
+            </button>
+            <button
+              type="button"
+              className="zhul-link"
+              onClick={() => setVoiding(r)}
+            >
+              作废
+            </button>
           </Space>
         ) : (
           <span style={{ color: palette.mute }}>—</span>

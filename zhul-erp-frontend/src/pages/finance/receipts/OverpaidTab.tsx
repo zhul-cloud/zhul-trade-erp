@@ -56,7 +56,9 @@ const OverpaidTab: React.FC<{ onCount?: (n: number) => void }> = ({
       width: 200,
       render: (_, r) => (
         <div>
-          <a
+          <button
+            type="button"
+            className="zhul-link"
             onClick={() =>
               history.push(
                 r.ownerType === 'PI'
@@ -66,7 +68,7 @@ const OverpaidTab: React.FC<{ onCount?: (n: number) => void }> = ({
             }
           >
             {r.ownerNo}
-          </a>
+          </button>
           <div style={{ fontSize: 12, color: palette.mute }}>
             {r.ownerType === 'PI'
               ? r.soNo

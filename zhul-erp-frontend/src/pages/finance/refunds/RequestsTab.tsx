@@ -143,7 +143,13 @@ const RequestsTab: React.FC<{ onChanged?: () => void }> = ({ onChanged }) => {
       dataIndex: 'soNo',
       width: 150,
       render: (v: string, r) => (
-        <a onClick={() => history.push(`/sales/orders/${r.soId}`)}>{v}</a>
+        <button
+          type="button"
+          className="zhul-link"
+          onClick={() => history.push(`/sales/orders/${r.soId}`)}
+        >
+          {v}
+        </button>
       ),
     },
     {

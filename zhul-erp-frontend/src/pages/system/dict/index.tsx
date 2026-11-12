@@ -363,14 +363,24 @@ const DictPage: React.FC = () => {
       width: 120,
       render: (_: unknown, record: DictItemRow) => (
         <Space size={14}>
-          {canEdit && <a onClick={() => openEditItem(record)}>编辑</a>}
+          {canEdit && (
+            <button
+              type="button"
+              className="zhul-link"
+              onClick={() => openEditItem(record)}
+            >
+              编辑
+            </button>
+          )}
           {canDelete && (
-            <a
+            <button
+              type="button"
+              className="zhul-link"
               style={{ color: p.red }}
               onClick={() => handleDeleteItem(record)}
             >
               删除
-            </a>
+            </button>
           )}
         </Space>
       ),
@@ -513,6 +523,7 @@ const DictPage: React.FC = () => {
 
       {/* 新增/编辑字典类型 */}
       <ModalForm
+        name="dictTypeEdit"
         title={typeDrawerMode === 'edit' ? '编辑字典类型' : '新增字典类型'}
         width={480}
         open={typeModalOpen}
@@ -583,6 +594,7 @@ const DictPage: React.FC = () => {
 
       {/* 新增/编辑字典项 */}
       <ModalForm
+        name="dictItemEdit"
         title={itemDrawerMode === 'edit' ? '编辑字典项' : '新增字典项'}
         width={520}
         open={itemModalOpen}

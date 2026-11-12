@@ -91,8 +91,20 @@ export const OrderFileList: React.FC<{
                 .join(' · ')}
             </span>
             <span style={{ flex: 1 }} />
-            <a onClick={() => preview.open(files, files.indexOf(a))}>预览</a>
-            <a onClick={() => download(a)}>下载</a>
+            <button
+              type="button"
+              className="zhul-link"
+              onClick={() => preview.open(files, files.indexOf(a))}
+            >
+              预览
+            </button>
+            <button
+              type="button"
+              className="zhul-link"
+              onClick={() => download(a)}
+            >
+              下载
+            </button>
             {onRemove &&
               (confirmRemove ? (
                 <Popconfirm
@@ -257,7 +269,13 @@ export const OrderFilesCard: React.FC<{
               {order.remark || '—'}
             </span>
             {canEdit && (
-              <a onClick={() => setEditing(order.remark ?? '')}>编辑</a>
+              <button
+                type="button"
+                className="zhul-link"
+                onClick={() => setEditing(order.remark ?? '')}
+              >
+                编辑
+              </button>
             )}
           </>
         ) : (

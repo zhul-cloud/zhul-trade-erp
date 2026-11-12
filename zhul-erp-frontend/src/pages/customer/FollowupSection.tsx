@@ -791,9 +791,14 @@ export const SopStageCard: React.FC<{ data?: CustomerFollowup }> = ({
           </Checkbox>
         ))}
       </div>
-      <a onClick={() => history.push(FOLLOWUP_PATH)} style={{ fontSize: 13 }}>
+      <button
+        type="button"
+        className="zhul-link"
+        onClick={() => history.push(FOLLOWUP_PATH)}
+        style={{ fontSize: 13 }}
+      >
         打开作战卡（话术、常见卡点处理）
-      </a>
+      </button>
     </SideCard>
   );
 };

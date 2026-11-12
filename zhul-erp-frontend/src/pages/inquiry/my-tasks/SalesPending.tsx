@@ -132,7 +132,13 @@ const SalesPending: React.FC<{
           <span style={{ color: palette.ink, fontWeight: 600 }}>
             已选 {selected.length} 个任务
           </span>
-          <a onClick={() => setSelected([])}>取消选择</a>
+          <button
+            type="button"
+            className="zhul-link"
+            onClick={() => setSelected([])}
+          >
+            取消选择
+          </button>
           <span style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
             <Button
               type="primary"

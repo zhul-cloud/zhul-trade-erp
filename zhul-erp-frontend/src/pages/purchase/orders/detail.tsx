@@ -391,7 +391,13 @@ const PurchaseOrderDetail: React.FC = () => {
       dataIndex: 'soNo',
       width: 160,
       render: (v: string, r) => (
-        <a onClick={() => history.push(PATHS.salesOrder(r.soId))}>{v}</a>
+        <button
+          type="button"
+          className="zhul-link"
+          onClick={() => history.push(PATHS.salesOrder(r.soId))}
+        >
+          {v}
+        </button>
       ),
     },
     {
@@ -536,14 +542,16 @@ const PurchaseOrderDetail: React.FC = () => {
             width: 150,
             render: (_: unknown, r: PoItem) => (
               <Space size={12}>
-                <a
+                <button
+                  type="button"
+                  className="zhul-link"
                   onClick={() => {
                     setPicked([r.id]);
                     setMoveOpen(true);
                   }}
                 >
                   改到其他供应商
-                </a>
+                </button>
                 <Button
                   type="text"
                   size="small"
@@ -1032,12 +1040,14 @@ const PurchaseOrderDetail: React.FC = () => {
                 }}
               >
                 <div style={{ width: 170, flexShrink: 0 }}>
-                  <a
+                  <button
+                    type="button"
+                    className="zhul-link"
                     style={{ fontWeight: 700 }}
                     onClick={() => history.push(PATHS.salesOrder(r.soId))}
                   >
                     {r.soNo}
-                  </a>
+                  </button>
                   <div style={{ fontSize: 12, color: palette.mute }}>
                     {r.customerName}
                   </div>
@@ -1681,13 +1691,30 @@ const ShipmentsCard: React.FC<{
       render: (_, r) =>
         r.kind === 'ship' ? (
           <Space size={12}>
-            <a onClick={() => setViewing(r.ref.id)}>查看</a>
+            <button
+              type="button"
+              className="zhul-link"
+              onClick={() => setViewing(r.ref.id)}
+            >
+              查看
+            </button>
             {r.ref.status === 1 && canShip && (
               <>
-                <a onClick={() => onEdit(r.ref.id)}>修改</a>
-                <a style={{ color: palette.red }} onClick={() => onVoid(r.ref)}>
+                <button
+                  type="button"
+                  className="zhul-link"
+                  onClick={() => onEdit(r.ref.id)}
+                >
+                  修改
+                </button>
+                <button
+                  type="button"
+                  className="zhul-link"
+                  style={{ color: palette.red }}
+                  onClick={() => onVoid(r.ref)}
+                >
                   作废
-                </a>
+                </button>
               </>
             )}
           </Space>
@@ -1825,8 +1852,20 @@ const ContractCard: React.FC<{
               {(a.fileSize / 1024 / 1024).toFixed(1)} MB · {a.uploadedByName}
             </span>
             <span style={{ flex: 1 }} />
-            <a onClick={() => open(a.id, a.fileName, true)}>预览</a>
-            <a onClick={() => open(a.id, a.fileName, false)}>下载</a>
+            <button
+              type="button"
+              className="zhul-link"
+              onClick={() => open(a.id, a.fileName, true)}
+            >
+              预览
+            </button>
+            <button
+              type="button"
+              className="zhul-link"
+              onClick={() => open(a.id, a.fileName, false)}
+            >
+              下载
+            </button>
             {editable && (
               <Button
                 type="text"

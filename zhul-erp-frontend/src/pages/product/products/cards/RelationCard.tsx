@@ -232,13 +232,15 @@ export const RelationCard: React.FC<{
               title: '关联型号',
               render: (_, r) =>
                 r.relatedProductId ? (
-                  <a
+                  <button
+                    type="button"
+                    className="zhul-link"
                     onClick={() =>
                       history.push(`/product/products/${r.relatedProductId}`)
                     }
                   >
                     {r.relatedProductDisplay ?? r.relatedMpn}
-                  </a>
+                  </button>
                 ) : (
                   r.relatedMpn
                 ),

@@ -13,7 +13,9 @@ const ViewMediaLink: React.FC<{ brand?: string; model?: string }> = ({
   if (!access.operationsMedia || !model) return null;
   return (
     <>
-      <a
+      <button
+        type="button"
+        className="zhul-link"
         onClick={(e) => {
           e.stopPropagation();
           setOpen(true);
@@ -21,7 +23,7 @@ const ViewMediaLink: React.FC<{ brand?: string; model?: string }> = ({
         style={{ fontSize: 12 }}
       >
         <PictureOutlined /> 查看素材
-      </a>
+      </button>
       {open && (
         <MediaDrawer
           open

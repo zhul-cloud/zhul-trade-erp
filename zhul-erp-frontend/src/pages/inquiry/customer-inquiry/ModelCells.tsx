@@ -60,7 +60,10 @@ export const ModelCell: React.FC<{
       <EllipsisText text={r.firstModel} style={{ fontFamily: 'monospace' }} />
       {r.totalItemCount > 1 && (
         <span style={{ fontSize: 12, color: palette.mute }}>
-          共 {r.totalItemCount} 个 · <a onClick={() => onView(r)}>查看</a>
+          共 {r.totalItemCount} 个 ·{' '}
+          <button type="button" className="zhul-link" onClick={() => onView(r)}>
+            查看
+          </button>
         </span>
       )}
     </span>

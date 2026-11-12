@@ -135,7 +135,13 @@ const ShipmentsTab: React.FC = () => {
       fixed: 'left',
       render: (v: string, r) => (
         <div>
-          <a onClick={() => setViewing(r.id)}>{v}</a>
+          <button
+            type="button"
+            className="zhul-link"
+            onClick={() => setViewing(r.id)}
+          >
+            {v}
+          </button>
           {sub(palette.mute, r.shipDate ?? '—')}
         </div>
       ),
@@ -226,7 +232,13 @@ const ShipmentsTab: React.FC = () => {
       dataIndex: 'poNo',
       width: 160,
       render: (v: string, r: { poId: number }) => (
-        <a onClick={() => history.push(WAREHOUSE_PATHS.order(r.poId))}>{v}</a>
+        <button
+          type="button"
+          className="zhul-link"
+          onClick={() => history.push(WAREHOUSE_PATHS.order(r.poId))}
+        >
+          {v}
+        </button>
       ),
     },
     {
@@ -243,13 +255,30 @@ const ShipmentsTab: React.FC = () => {
       fixed: 'right',
       render: (_, r) => (
         <Space size={12}>
-          <a onClick={() => setViewing(r.id)}>查看</a>
+          <button
+            type="button"
+            className="zhul-link"
+            onClick={() => setViewing(r.id)}
+          >
+            查看
+          </button>
           {r.status === 1 && canShip && (
             <>
-              <a onClick={() => setEditing(r.id)}>修改</a>
-              <a style={{ color: palette.red }} onClick={() => setVoiding(r)}>
+              <button
+                type="button"
+                className="zhul-link"
+                onClick={() => setEditing(r.id)}
+              >
+                修改
+              </button>
+              <button
+                type="button"
+                className="zhul-link"
+                style={{ color: palette.red }}
+                onClick={() => setVoiding(r)}
+              >
                 作废
-              </a>
+              </button>
             </>
           )}
         </Space>
@@ -519,7 +548,9 @@ const DiffsTab: React.FC<{ onChanged: () => void }> = ({ onChanged }) => {
     if (r.returnFreight != null)
       parts.push(`运费 ${formatAmount(r.returnFreight, 'CNY')}`);
     if (r.resolution === 7)
-      parts.push(r.freeOfCharge ? '供应商白送，成本 CNY 0.00' : '按采购价计成本');
+      parts.push(
+        r.freeOfCharge ? '供应商白送，成本 CNY 0.00' : '按采购价计成本',
+      );
     if (r.note) parts.push(r.note);
     return parts.join('；');
   };
@@ -599,7 +630,13 @@ const DiffsTab: React.FC<{ onChanged: () => void }> = ({ onChanged }) => {
       dataIndex: 'poNo',
       width: 160,
       render: (v: string, r: { poId: number }) => (
-        <a onClick={() => history.push(WAREHOUSE_PATHS.order(r.poId))}>{v}</a>
+        <button
+          type="button"
+          className="zhul-link"
+          onClick={() => history.push(WAREHOUSE_PATHS.order(r.poId))}
+        >
+          {v}
+        </button>
       ),
     },
     {
@@ -616,9 +653,17 @@ const DiffsTab: React.FC<{ onChanged: () => void }> = ({ onChanged }) => {
       fixed: 'right',
       render: (_, r) =>
         !canHandle ? null : r.status === 1 ? (
-          <a onClick={() => setHandling(r)}>处理</a>
+          <button
+            type="button"
+            className="zhul-link"
+            onClick={() => setHandling(r)}
+          >
+            处理
+          </button>
         ) : (
-          <a
+          <button
+            type="button"
+            className="zhul-link"
             onClick={() =>
               modal.confirm({
                 title: `重新打开「${r.model} ${r.typeName} ${r.quantity}」？`,
@@ -638,7 +683,7 @@ const DiffsTab: React.FC<{ onChanged: () => void }> = ({ onChanged }) => {
             }
           >
             重新打开
-          </a>
+          </button>
         ),
     },
   ];

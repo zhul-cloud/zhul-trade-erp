@@ -117,7 +117,9 @@ const Step3: React.FC = () => {
           title="重置凭证已失效，请重新发起找回密码"
           style={{ marginBottom: 16 }}
           action={
-            <a
+            <button
+              type="button"
+              className="zhul-link"
               onClick={() => {
                 sessionStorage.removeItem('fpUsername');
                 sessionStorage.removeItem('fpEmail');
@@ -126,7 +128,7 @@ const Step3: React.FC = () => {
               }}
             >
               重新发起
-            </a>
+            </button>
           }
         />
       )}

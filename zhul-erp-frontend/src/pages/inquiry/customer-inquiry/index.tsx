@@ -363,7 +363,13 @@ const CustomerInquiryPage: React.FC = () => {
       width: 190,
       render: (v, r) => (
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-          <a onClick={() => history.push(`${PATHS.inquiries}/${r.id}`)}>{v}</a>
+          <button
+            type="button"
+            className="zhul-link"
+            onClick={() => history.push(`${PATHS.inquiries}/${r.id}`)}
+          >
+            {v}
+          </button>
           {r.urgent && <Pill tone="red">紧急</Pill>}
           <MigratedPill migrated={r.migrated} />
         </span>
@@ -569,7 +575,9 @@ const CustomerInquiryPage: React.FC = () => {
         ) {
           return (
             <span style={{ display: 'inline-flex', gap: 12 }}>
-              <a
+              <button
+                type="button"
+                className="zhul-link"
                 aria-disabled={busyId === r.id}
                 onClick={() =>
                   run(
@@ -583,33 +591,41 @@ const CustomerInquiryPage: React.FC = () => {
                 }
               >
                 {r.status === STATUS.PENDING_PARSE ? 'AI 解析' : '重新解析'}
-              </a>
+              </button>
               {/* 手动录入只打开确认页，不改状态；确认时才离开待解析 / 解析失败 */}
-              <a
+              <button
+                type="button"
+                className="zhul-link"
                 aria-disabled={busyId === r.id}
                 onClick={() =>
                   history.push(`${PATHS.inquiries}/${r.id}/confirm`)
                 }
               >
                 手动录入
-              </a>
+              </button>
             </span>
           );
         }
         return (
           <span style={{ display: 'inline-flex', gap: 12 }}>
-            <a onClick={() => history.push(`${PATHS.inquiries}/${r.id}`)}>
+            <button
+              type="button"
+              className="zhul-link"
+              onClick={() => history.push(`${PATHS.inquiries}/${r.id}`)}
+            >
               查看
-            </a>
+            </button>
             {r.status === STATUS.PENDING_CONFIRM && (
-              <a
+              <button
+                type="button"
+                className="zhul-link"
                 style={{ fontWeight: 600 }}
                 onClick={() =>
                   history.push(`${PATHS.inquiries}/${r.id}/confirm`)
                 }
               >
                 去确认
-              </a>
+              </button>
             )}
           </span>
         );

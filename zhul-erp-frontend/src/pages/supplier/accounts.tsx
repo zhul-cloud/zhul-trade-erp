@@ -474,12 +474,29 @@ export const AccountListEditor: React.FC<{
               actions={
                 <>
                   {!row.defaultAccount && (
-                    <a onClick={() => setDefault(row)}>设为默认</a>
+                    <button
+                      type="button"
+                      className="zhul-link"
+                      onClick={() => setDefault(row)}
+                    >
+                      设为默认
+                    </button>
                   )}
-                  <a onClick={() => setEditing(row)}>编辑</a>
-                  <a style={{ color: palette.red }} onClick={() => remove(row)}>
+                  <button
+                    type="button"
+                    className="zhul-link"
+                    onClick={() => setEditing(row)}
+                  >
+                    编辑
+                  </button>
+                  <button
+                    type="button"
+                    className="zhul-link"
+                    style={{ color: palette.red }}
+                    onClick={() => remove(row)}
+                  >
                     删除
-                  </a>
+                  </button>
                 </>
               }
             />

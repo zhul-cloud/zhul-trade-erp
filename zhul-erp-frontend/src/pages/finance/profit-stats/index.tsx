@@ -241,7 +241,13 @@ const ProfitStatsPage: React.FC = () => {
       dataIndex: 'soNo',
       width: 170,
       render: (v: string, r) => (
-        <a onClick={() => history.push(`/sales/orders/${r.soId}`)}>{v}</a>
+        <button
+          type="button"
+          className="zhul-link"
+          onClick={() => history.push(`/sales/orders/${r.soId}`)}
+        >
+          {v}
+        </button>
       ),
     },
     { title: '客户', dataIndex: 'customerName', width: 200, ellipsis: true },

@@ -293,7 +293,13 @@ const Shipments: React.FC = () => {
       fixed: 'left',
       render: (v: string, r) => (
         <div>
-          <a onClick={() => open(r.id)}>{v}</a>
+          <button
+            type="button"
+            className="zhul-link"
+            onClick={() => open(r.id)}
+          >
+            {v}
+          </button>
           {r.migrated && (
             <div style={{ marginTop: 4 }}>
               <MigratedPill migrated />
@@ -411,7 +417,11 @@ const Shipments: React.FC = () => {
       key: 'actions',
       width: 70,
       fixed: 'right',
-      render: (_, r) => <a onClick={() => open(r.id)}>查看</a>,
+      render: (_, r) => (
+        <button type="button" className="zhul-link" onClick={() => open(r.id)}>
+          查看
+        </button>
+      ),
     },
   ];
 

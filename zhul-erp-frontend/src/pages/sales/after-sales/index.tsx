@@ -115,7 +115,13 @@ const AfterSalesPage: React.FC = () => {
       width: 150,
       fixed: 'left',
       render: (v: string, r) => (
-        <a onClick={() => history.push(`/sales/after-sales/${r.id}`)}>{v}</a>
+        <button
+          type="button"
+          className="zhul-link"
+          onClick={() => history.push(`/sales/after-sales/${r.id}`)}
+        >
+          {v}
+        </button>
       ),
     },
     {
@@ -136,12 +142,14 @@ const AfterSalesPage: React.FC = () => {
             </div>
           )}
           {r.soId ? (
-            <a
+            <button
+              type="button"
+              className="zhul-link"
               style={{ fontSize: 12 }}
               onClick={() => history.push(`/sales/orders/${r.soId}`)}
             >
               {r.soNo}
-            </a>
+            </button>
           ) : (
             sub('没有订单（按型号追溯）')
           )}

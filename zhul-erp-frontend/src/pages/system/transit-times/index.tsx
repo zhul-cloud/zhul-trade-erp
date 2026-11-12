@@ -113,8 +113,16 @@ const TransitTimes: React.FC = () => {
       render: (_, r) =>
         canEdit ? (
           <Space size={12}>
-            <a onClick={() => setEditing({ ...r, open: true })}>编辑</a>
-            <a
+            <button
+              type="button"
+              className="zhul-link"
+              onClick={() => setEditing({ ...r, open: true })}
+            >
+              编辑
+            </button>
+            <button
+              type="button"
+              className="zhul-link"
               style={{ color: palette.red }}
               onClick={() =>
                 modal.confirm({
@@ -135,7 +143,7 @@ const TransitTimes: React.FC = () => {
               }
             >
               删除
-            </a>
+            </button>
           </Space>
         ) : null,
     },

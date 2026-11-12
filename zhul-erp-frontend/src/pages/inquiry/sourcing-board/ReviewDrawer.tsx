@@ -498,7 +498,9 @@ const ReviewDrawer: React.FC<{
                           {rec && <Pill tone="green">推荐</Pill>}
                           {voided && <Pill tone="red">已作废</Pill>}
                           {canReview && (
-                            <a
+                            <button
+                              type="button"
+                              className="zhul-link"
                               style={{
                                 fontSize: 12,
                                 color: voided ? palette.link : palette.mute,
@@ -516,7 +518,7 @@ const ReviewDrawer: React.FC<{
                               }}
                             >
                               {voided ? '恢复' : '作废'}
-                            </a>
+                            </button>
                           )}
                         </span>
                       </div>

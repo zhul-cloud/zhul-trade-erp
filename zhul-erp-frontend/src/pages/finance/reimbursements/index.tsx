@@ -735,7 +735,11 @@ const ListTab: React.FC<{ refreshSignal: number }> = ({ refreshSignal }) => {
       dataIndex: 'reimburseNo',
       width: 150,
       fixed: 'left',
-      render: (v: string, r) => <a onClick={() => open(r.id)}>{v}</a>,
+      render: (v: string, r) => (
+        <button type="button" className="zhul-link" onClick={() => open(r.id)}>
+          {v}
+        </button>
+      ),
     },
     { title: '提交人', dataIndex: 'applicantName', width: 100 },
     {
@@ -773,12 +777,32 @@ const ListTab: React.FC<{ refreshSignal: number }> = ({ refreshSignal }) => {
       render: (_, r) => (
         <Space size={10}>
           {canPay && r.status === BX_STATUS.PENDING && (
-            <a onClick={() => setPaying([r])}>登记已付</a>
+            <button
+              type="button"
+              className="zhul-link"
+              onClick={() => setPaying([r])}
+            >
+              登记已付
+            </button>
           )}
           {r.canWithdraw && (
-            <a onClick={() => setReason({ kind: 'withdraw', bx: r })}>撤回</a>
+            <button
+              type="button"
+              className="zhul-link"
+              onClick={() => setReason({ kind: 'withdraw', bx: r })}
+            >
+              撤回
+            </button>
           )}
-          {!canPay && !r.canWithdraw && <a onClick={() => open(r.id)}>查看</a>}
+          {!canPay && !r.canWithdraw && (
+            <button
+              type="button"
+              className="zhul-link"
+              onClick={() => open(r.id)}
+            >
+              查看
+            </button>
+          )}
         </Space>
       ),
     },

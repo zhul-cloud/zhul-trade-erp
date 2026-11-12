@@ -485,14 +485,16 @@ const FxSettlementPage: React.FC = () => {
       width: 150,
       fixed: 'left',
       render: (v: string, r) => (
-        <a
+        <button
+          type="button"
+          className="zhul-link"
           onClick={() => open(r.id)}
           style={{
             textDecoration: r.status === 2 ? 'line-through' : undefined,
           }}
         >
           {v}
-        </a>
+        </button>
       ),
     },
     { title: '结汇日期', dataIndex: 'settleDate', width: 110 },
@@ -565,7 +567,13 @@ const FxSettlementPage: React.FC = () => {
       fixed: 'right',
       render: (_, r) =>
         canSettle && r.status === 1 && r.latest ? (
-          <a onClick={() => setVoiding(r)}>作废</a>
+          <button
+            type="button"
+            className="zhul-link"
+            onClick={() => setVoiding(r)}
+          >
+            作废
+          </button>
         ) : (
           <span style={{ color: palette.mute }}>—</span>
         ),

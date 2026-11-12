@@ -759,6 +759,7 @@ const DeptPage: React.FC = () => {
       </Modal>
 
       <ModalForm
+        name="deptEdit"
         title={isEdit ? '编辑部门' : '新增部门'}
         width={560}
         open={drawerOpen}

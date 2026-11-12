@@ -767,13 +767,15 @@ const WizardInner: React.FC = () => {
                   >
                     {similar.map((s) => (
                       <li key={s.id}>
-                        <a
+                        <button
+                          type="button"
+                          className="zhul-link"
                           onClick={() =>
                             history.push(`/product/products/${s.id}`)
                           }
                         >
                           {s.mpnDisplay}
-                        </a>{' '}
+                        </button>{' '}
                         · {s.productName || s.categoryName}
                       </li>
                     ))}

@@ -439,9 +439,14 @@ const Wizard: React.FC<{
 
   const editorLink = (i: CompletionItem) =>
     canEdit && (
-      <a style={{ fontSize: 13 }} onClick={() => openEditor(i)}>
+      <button
+        type="button"
+        className="zhul-link"
+        style={{ fontSize: 13 }}
+        onClick={() => openEditor(i)}
+      >
         {i.contact && !hasContact ? '添加联系人' : '去填写'}
-      </a>
+      </button>
     );
 
   const allItems = [s2, s3, s4].flatMap((s) => s?.items ?? []);
@@ -560,9 +565,13 @@ const Wizard: React.FC<{
             {w.done} / 5
           </span>
           <Progress5 mask={(1 << w.done) - 1} />
-          <a onClick={() => history.push(`${LIST_PATH}/${w.customerId}`)}>
+          <button
+            type="button"
+            className="zhul-link"
+            onClick={() => history.push(`${LIST_PATH}/${w.customerId}`)}
+          >
             打开客户
-          </a>
+          </button>
         </span>
       </header>
 
@@ -601,12 +610,14 @@ const Wizard: React.FC<{
                 <span style={{ color: palette.orange, padding: '4px 0' }}>
                   国家资料缺失（电压、外汇管制）
                   {access.systemCountryProfiles && (
-                    <a
+                    <button
+                      type="button"
+                      className="zhul-link"
                       style={{ marginLeft: 8 }}
                       onClick={() => history.push(COUNTRY_PATH)}
                     >
                       去维护国家资料
-                    </a>
+                    </button>
                   )}
                 </span>
               )}
@@ -647,14 +658,16 @@ const Wizard: React.FC<{
                     {report.score} 分
                   </span>
                 )}
-                <a
+                <button
+                  type="button"
+                  className="zhul-link"
                   style={{ marginLeft: 'auto', fontSize: 13 }}
                   onClick={() =>
                     history.push(reportPath(w.customerId, report.id))
                   }
                 >
                   看完整报告
-                </a>
+                </button>
               </div>
               <Suggestions
                 customerId={w.customerId}
@@ -687,12 +700,14 @@ const Wizard: React.FC<{
             <div style={{ fontSize: 12, color: palette.mute }}>
               还缺：{s2.items.map((i) => i.label).join('、')}
               {canEdit && (
-                <a
+                <button
+                  type="button"
+                  className="zhul-link"
                   style={{ marginLeft: 8 }}
                   onClick={() => openEditor(s2.items[0])}
                 >
                   手动填写
-                </a>
+                </button>
               )}
             </div>
           )}

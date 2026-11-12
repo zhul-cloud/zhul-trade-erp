@@ -199,8 +199,16 @@ const AssignRulesPage: React.FC = () => {
       render: (_, r) =>
         canEdit ? (
           <span style={{ display: 'inline-flex', gap: 12 }}>
-            <a onClick={() => setEditing(r)}>编辑</a>
-            <a
+            <button
+              type="button"
+              className="zhul-link"
+              onClick={() => setEditing(r)}
+            >
+              编辑
+            </button>
+            <button
+              type="button"
+              className="zhul-link"
               style={{ color: palette.red }}
               onClick={() =>
                 modal.confirm({
@@ -216,7 +224,7 @@ const AssignRulesPage: React.FC = () => {
               }
             >
               删除
-            </a>
+            </button>
           </span>
         ) : null,
     },

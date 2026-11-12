@@ -234,9 +234,13 @@ const RefundPage: React.FC = () => {
       render: (_, r) => (
         <div>
           {r.soId ? (
-            <a onClick={() => history.push(`/sales/orders/${r.soId}`)}>
+            <button
+              type="button"
+              className="zhul-link"
+              onClick={() => history.push(`/sales/orders/${r.soId}`)}
+            >
               {r.soNo}
-            </a>
+            </button>
           ) : (
             <span style={{ color: palette.mute }}>不挂订单</span>
           )}
@@ -313,7 +317,13 @@ const RefundPage: React.FC = () => {
         r.migrated ? (
           <MigratedPill migrated />
         ) : canEdit && r.status === 1 ? (
-          <a onClick={() => setVoiding(r)}>作废</a>
+          <button
+            type="button"
+            className="zhul-link"
+            onClick={() => setVoiding(r)}
+          >
+            作废
+          </button>
         ) : (
           <span style={{ color: palette.mute }}>—</span>
         ),

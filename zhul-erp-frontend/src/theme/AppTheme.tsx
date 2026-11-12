@@ -1,4 +1,5 @@
 import { useAntdConfigSetter } from '@umijs/max';
+import { theme as antdTheme } from 'antd';
 import React, { useEffect, useMemo, useRef } from 'react';
 import { buildAntdTheme } from './antd';
 import {
@@ -20,7 +21,7 @@ export function useAppTheme(): {
 }
 
 /** 全站共用的样式：主按钮渐变、焦点环、等宽数字、减少动效 */
-const globalCss = (p: Palette) => `
+const globalCss = (p: Palette, link: { hover: string; active: string }) => `
   :root { ${Object.entries(p)
     .map(([k, v]) => `--z-${k}: ${v};`)
     .join(' ')} }
@@ -59,6 +60,13 @@ const globalCss = (p: Palette) => `
     caret-color: ${p.ink};
     transition: background-color 9999s ease-out 0s;
   }
+  /* 看起来像链接的命令按钮：用原生 button，键盘 Tab、Enter、空格都能用（UI-022） */
+  .zhul-link {
+    padding: 0; margin: 0; border: 0; background: none; font: inherit; line-height: inherit;
+    text-align: inherit; color: ${p.link}; cursor: pointer; transition: color 0.3s;
+  }
+  .zhul-link:hover { color: ${link.hover}; }
+  .zhul-link:active { color: ${link.active}; }
   .zhul-skip {
     position: absolute; left: 16px; top: 12px; z-index: 1100; padding: 8px 16px; border-radius: 10px;
     background: ${p.card}; color: ${p.link}; border: 2px solid ${p.link};
@@ -79,7 +87,13 @@ export const AppThemeSync: React.FC<{ children: React.ReactNode }> = ({
 }) => {
   const setAntdConfig = useAntdConfigSetter();
   const { mode, palette } = useAppTheme();
-  const css = useMemo(() => globalCss(palette), [palette]);
+  const css = useMemo(() => {
+    const t = antdTheme.getDesignToken(buildAntdTheme(mode));
+    return globalCss(palette, {
+      hover: t.colorLinkHover,
+      active: t.colorLinkActive,
+    });
+  }, [mode, palette]);
 
   // setter 的引用会随 antd 配置变化，放进依赖会形成「设置配置 → 换引用 → 再设置」的死循环，所以用 ref 只在 mode 变化时触发
   const setterRef = useRef(setAntdConfig);

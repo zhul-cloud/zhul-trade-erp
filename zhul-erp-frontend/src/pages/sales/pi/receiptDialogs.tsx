@@ -402,7 +402,9 @@ export const ClaimReceiptModal = <T extends ReceiptResult>({
               {!!r.fileNames?.length && (
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
                   {r.fileNames.map((name, i) => (
-                    <a
+                    <button
+                      type="button"
+                      className="zhul-link"
                       key={name}
                       style={{ fontSize: 12 }}
                       onClick={(e) => {
@@ -413,7 +415,7 @@ export const ClaimReceiptModal = <T extends ReceiptResult>({
                       }}
                     >
                       <PaperClipOutlined /> {name}
-                    </a>
+                    </button>
                   ))}
                 </div>
               )}

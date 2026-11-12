@@ -270,7 +270,13 @@ const PaymentRecords: React.FC = () => {
       fixed: 'right',
       render: (_, r) =>
         r.canVoid ? (
-          <a onClick={() => setVoiding(r)}>作废</a>
+          <button
+            type="button"
+            className="zhul-link"
+            onClick={() => setVoiding(r)}
+          >
+            作废
+          </button>
         ) : (
           <span style={{ color: palette.mute }}>—</span>
         ),

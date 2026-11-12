@@ -286,27 +286,36 @@ const TenantPackagePage: React.FC = () => {
       width: 160,
       render: (_, row) => [
         access['tenant:package:edit'] && (
-          <a key="edit" onClick={() => openEdit(row)}>
+          <button
+            type="button"
+            className="zhul-link"
+            key="edit"
+            onClick={() => openEdit(row)}
+          >
             编辑
-          </a>
+          </button>
         ),
         access['tenant:package:status'] && (
-          <a
+          <button
+            type="button"
+            className="zhul-link"
             key="status"
             style={{ color: row.status === 1 ? palette.red : palette.green }}
             onClick={() => toggleStatus(row)}
           >
             {row.status === 1 ? '禁用' : '启用'}
-          </a>
+          </button>
         ),
         access['tenant:package:delete'] && (
-          <a
+          <button
+            type="button"
+            className="zhul-link"
             key="delete"
             style={{ color: palette.red }}
             onClick={() => handleDelete(row)}
           >
             删除
-          </a>
+          </button>
         ),
       ],
     },
@@ -351,6 +360,7 @@ const TenantPackagePage: React.FC = () => {
 
       {/* 新增 / 编辑套餐 */}
       <DrawerForm
+        name="packageEdit"
         title={editing ? `编辑套餐 — ${editing.name}` : '新增套餐'}
         width={720}
         open={drawerOpen}
@@ -405,7 +415,9 @@ const TenantPackagePage: React.FC = () => {
             <span>
               可用菜单 <span style={{ color: palette.red }}>*</span>
             </span>
-            <a
+            <button
+              type="button"
+              className="zhul-link"
               onClick={() =>
                 setCheckedKeys(
                   checkedCount === flattenAllKeys(rawMenuTree).length
@@ -418,11 +430,21 @@ const TenantPackagePage: React.FC = () => {
               checkedCount > 0
                 ? '取消全选'
                 : '全选'}
-            </a>
-            <a onClick={() => setExpandedKeys(flattenAllKeys(rawMenuTree))}>
+            </button>
+            <button
+              type="button"
+              className="zhul-link"
+              onClick={() => setExpandedKeys(flattenAllKeys(rawMenuTree))}
+            >
               展开全部
-            </a>
-            <a onClick={() => setExpandedKeys([])}>折叠全部</a>
+            </button>
+            <button
+              type="button"
+              className="zhul-link"
+              onClick={() => setExpandedKeys([])}
+            >
+              折叠全部
+            </button>
           </Space>
           <span style={{ color: palette.mute }}>
             已选：{checkedCount} 个菜单

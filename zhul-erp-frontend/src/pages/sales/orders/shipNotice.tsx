@@ -310,7 +310,13 @@ export const OrderOutbounds: React.FC<{
               background: palette.inset,
             }}
           >
-            <a onClick={() => setViewing(r)}>{r.obNo}</a>
+            <button
+              type="button"
+              className="zhul-link"
+              onClick={() => setViewing(r)}
+            >
+              {r.obNo}
+            </button>
             <ObStatusPill value={r.status}>{r.statusName}</ObStatusPill>
             {r.source === 2 && (
               <span style={{ fontSize: 12, color: palette.orange }}>
@@ -330,13 +336,21 @@ export const OrderOutbounds: React.FC<{
             </span>
             {canNotice && r.status === 1 && (
               <>
-                <a onClick={() => setEditing(r)}>修改</a>
-                <a
+                <button
+                  type="button"
+                  className="zhul-link"
+                  onClick={() => setEditing(r)}
+                >
+                  修改
+                </button>
+                <button
+                  type="button"
+                  className="zhul-link"
                   style={{ color: palette.red }}
                   onClick={() => setWithdrawing(r)}
                 >
                   撤回
-                </a>
+                </button>
               </>
             )}
           </div>

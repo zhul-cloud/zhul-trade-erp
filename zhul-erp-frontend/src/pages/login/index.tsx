@@ -184,9 +184,13 @@ const LoginPage: React.FC = () => {
             <Form.Item name="rememberMe" valuePropName="checked" noStyle>
               <Checkbox>记住我（30 天内免登录）</Checkbox>
             </Form.Item>
-            <a onClick={() => history.push('/forget-password/step1')}>
+            <button
+              type="button"
+              className="zhul-link"
+              onClick={() => history.push('/forget-password/step1')}
+            >
               忘记密码?
-            </a>
+            </button>
           </div>
         </Form.Item>
 

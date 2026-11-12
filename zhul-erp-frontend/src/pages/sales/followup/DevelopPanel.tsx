@@ -705,16 +705,24 @@ export const NewProspectModal: React.FC<{
             dup.existingId && (
               <div style={{ display: 'flex', gap: 16, marginTop: 4 }}>
                 {dup.selectable && (
-                  <a onClick={joinExisting}>把这个客户加入开发</a>
+                  <button
+                    type="button"
+                    className="zhul-link"
+                    onClick={joinExisting}
+                  >
+                    把这个客户加入开发
+                  </button>
                 )}
                 {dup.selectable && (
-                  <a
+                  <button
+                    type="button"
+                    className="zhul-link"
                     onClick={() =>
                       history.push(`/customer/list/${dup.existingId}`)
                     }
                   >
                     打开客户
-                  </a>
+                  </button>
                 )}
               </div>
             )
