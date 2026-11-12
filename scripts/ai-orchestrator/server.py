@@ -9,7 +9,7 @@ scripts/ai-orchestrator-stub 里那个返回固定假数据的占位脚本。
 「业务设置 → AI 设置」中维护的配置，见 openspec ai-platform/tenant-ai-settings），本服务不读取这些环境变量。
 所有接口校验请求头 X-AI-Callback-Token 与 AI_TASK_CALLBACK_TOKEN 一致。
 
-对应 openspec/changes/add-inquiry-management/design.md 决策3的通用契约：
+对应 openspec/changes/archive/2026-10-03-add-inquiry-management/design.md 决策3的通用契约：
   POST /skills/{skill_id}/run
     body: {"input": {...}, "callback_url": "http://.../api/v1/ai-tasks/{id}/callback", "ai": {...}}
     -> 202 {"job_id": "..."}

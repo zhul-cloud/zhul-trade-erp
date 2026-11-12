@@ -376,7 +376,7 @@ const HandleHoldModal: React.FC<{
           <InputNumber
             min={0}
             precision={2}
-            prefix="¥"
+            prefix="CNY"
             value={freight}
             onChange={setFreight}
             placeholder="运费"

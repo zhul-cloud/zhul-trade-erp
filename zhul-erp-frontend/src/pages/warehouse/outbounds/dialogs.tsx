@@ -410,7 +410,7 @@ export const HandOverModal: React.FC<{
             value={freight}
             min={0}
             precision={2}
-            prefix="¥"
+            prefix="CNY"
             onChange={(v) => setFreight(v === null ? null : Number(v))}
             style={{ width: '100%' }}
             aria-label="运费"

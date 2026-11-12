@@ -5,7 +5,7 @@ import lombok.Data;
 
 /**
  * AI 编排服务 webhook 回调请求体，契约见
- * openspec/changes/add-inquiry-management/design.md 决策3：
+ * openspec/changes/archive/2026-10-03-add-inquiry-management/design.md 决策3：
  * {"status": "success"|"failed", "output": {...}, "error": null|string}
  */
 @Data

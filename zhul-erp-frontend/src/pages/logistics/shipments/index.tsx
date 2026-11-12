@@ -100,6 +100,7 @@ const PendingPanel: React.FC<{ canEdit: boolean; version: number }> = ({
       <div
         style={{
           display: 'flex',
+          flexWrap: 'wrap',
           alignItems: 'center',
           gap: 8,
           marginBottom: 12,
@@ -117,7 +118,8 @@ const PendingPanel: React.FC<{ canEdit: boolean; version: number }> = ({
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(460px, 1fr))',
+          gridTemplateColumns:
+            'repeat(auto-fill, minmax(min(460px, 100%), 1fr))',
           gap: 12,
         }}
       >
@@ -140,6 +142,7 @@ const PendingPanel: React.FC<{ canEdit: boolean; version: number }> = ({
               <div
                 style={{
                   display: 'flex',
+                  flexWrap: 'wrap',
                   alignItems: 'center',
                   gap: 8,
                   marginBottom: 8,
@@ -174,6 +177,7 @@ const PendingPanel: React.FC<{ canEdit: boolean; version: number }> = ({
                   key={o.id}
                   style={{
                     display: 'flex',
+                    flexWrap: 'wrap',
                     alignItems: 'center',
                     gap: 8,
                     fontSize: 13,
@@ -202,6 +206,7 @@ const PendingPanel: React.FC<{ canEdit: boolean; version: number }> = ({
                   key={d.id}
                   style={{
                     display: 'flex',
+                    flexWrap: 'wrap',
                     alignItems: 'center',
                     gap: 8,
                     fontSize: 13,
