@@ -18,8 +18,8 @@ import { findMenu } from '@/utils/menuName';
 import { PaneContext } from './hooks';
 import {
   activeTab,
+  aliveEntries,
   isDirty,
-  KEEP_ALIVE_DEPTH,
   MAX_TABS,
   type Tab,
   type TabEntry,
@@ -394,7 +394,7 @@ const PageTabs: React.FC<{
   const panes: React.ReactNode[] = [];
   const alive = new Set<string>();
   for (const t of s.tabs) {
-    for (const e of t.stack.slice(-KEEP_ALIVE_DEPTH)) {
+    for (const e of aliveEntries(t)) {
       const c = cache.current.get(e.key);
       if (!c) continue;
       alive.add(e.key);
