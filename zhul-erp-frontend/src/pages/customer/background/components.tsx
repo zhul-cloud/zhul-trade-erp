@@ -1,12 +1,14 @@
 import {
   CloseOutlined,
   CloudUploadOutlined,
+  DownOutlined,
   FilePdfOutlined,
   FireOutlined,
   InfoCircleOutlined,
   LoadingOutlined,
   ThunderboltOutlined,
   UploadOutlined,
+  UpOutlined,
 } from '@ant-design/icons';
 import { history } from '@umijs/max';
 import { App, Button, Input, Modal, Segmented, Upload } from 'antd';
@@ -15,6 +17,13 @@ import { useTabActive } from '@/components/PageTabs/hooks';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatDateTime } from '@/utils/format';
 import { readBizError } from '../service';
+import {
+  LevelPill,
+  missingLabels,
+  PrecheckList,
+  PrecheckModal,
+  type PrecheckState,
+} from './precheck';
 import {
   type BackgroundReport,
   backgroundApi,
@@ -211,13 +220,20 @@ export const useBackgroundReports = (customerId?: number) => {
   return { reports, reload: load, running: !!running };
 };
 
-/** 客户详情右侧「背调报告」卡（原型 C1）：最近一份已完成报告的结论 + 历次报告 */
+/**
+ * 客户详情右侧「背调报告」卡（原型 C1、P4–P6）：背调前检查结果 + 最近一份已完成报告的结论 + 历次报告。
+ * 没有报告时显示完整检查清单，有报告时显示一行充足度与缺项、可展开。
+ */
 export const BackgroundCard: React.FC<{
   customerId: number;
   reports: BackgroundReport[];
-}> = ({ customerId, reports }) => {
+  precheck?: PrecheckState['data'];
+  /** 能编辑客户时传入，显示「去补充」 */
+  onFix?: (target: string) => void;
+}> = ({ customerId, reports, precheck, onFix }) => {
   const { palette } = useAppTheme();
   const [all, setAll] = useState(false);
+  const [checkOpen, setCheckOpen] = useState(false);
   const latest = reports.find((r) => r.status === STATUS.DONE);
   const shown = all ? reports : reports.slice(0, 3);
   const open = (r: BackgroundReport) =>
@@ -257,12 +273,65 @@ export const BackgroundCard: React.FC<{
         )}
       </div>
       {reports.length === 0 ? (
-        <div style={{ fontSize: 13, color: palette.mute, lineHeight: 1.6 }}>
-          还没有背调。点右上角「AI
-          背调」联网查一次，或「上传报告」导入桌面端做好的报告。
-        </div>
+        <>
+          {precheck && (
+            <>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span
+                  style={{ fontSize: 13, fontWeight: 600, color: palette.sub }}
+                >
+                  背调前检查
+                </span>
+                <LevelPill level={precheck.level} />
+              </div>
+              <PrecheckList data={precheck} dense onFix={onFix} />
+            </>
+          )}
+          <div style={{ fontSize: 12, color: palette.mute, lineHeight: 1.6 }}>
+            还没有背调。点右上角「AI
+            背调」联网查一次，或「上传报告」导入桌面端做好的报告。
+          </div>
+        </>
       ) : (
         <>
+          {precheck && (
+            <div
+              style={{
+                padding: '8px 12px',
+                borderRadius: 10,
+                background: palette.inset,
+              }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  fontSize: 13,
+                }}
+              >
+                <LevelPill level={precheck.level} />
+                <span style={{ flex: 1, minWidth: 0, color: palette.sub }}>
+                  {missingLabels(precheck).length > 0 &&
+                    `缺 ${missingLabels(precheck).join('、')}`}
+                </span>
+                {missingLabels(precheck).length > 0 && (
+                  <a
+                    style={{ flex: 'none' }}
+                    onClick={() => setCheckOpen(!checkOpen)}
+                  >
+                    {checkOpen ? '收起' : '展开'}{' '}
+                    {checkOpen ? <UpOutlined /> : <DownOutlined />}
+                  </a>
+                )}
+              </div>
+              {checkOpen && (
+                <div style={{ marginTop: 10 }}>
+                  <PrecheckList data={precheck} dense onFix={onFix} />
+                </div>
+              )}
+            </div>
+          )}
           {latest && (
             <a onClick={() => open(latest)} style={{ color: 'inherit' }}>
               <ConclusionBox
@@ -354,9 +423,15 @@ export const BackgroundActions: React.FC<{
   customerName: string;
   running: boolean;
   onStarted: () => void;
-}> = ({ customerId, customerName, running, onStarted }) => {
+  /** 背调前检查（原型 P1–P3）：点「AI 背调」先弹检查窗口 */
+  precheck: PrecheckState;
+  /** 能编辑客户时传入，检查窗口里显示「去补充」 */
+  onFix?: (target: string) => void;
+}> = ({ customerId, customerName, running, onStarted, precheck, onFix }) => {
   const { message } = App.useApp();
   const [starting, setStarting] = useState(false);
+  const [checking, setChecking] = useState(false);
+  const { open: checkOpen, setOpen: setCheckOpen } = precheck;
   const [recent, setRecent] = useState<RecentDetail>();
   const [uploadOpen, setUploadOpen] = useState(false);
 
@@ -365,6 +440,7 @@ export const BackgroundActions: React.FC<{
     try {
       await backgroundApi.research(customerId, confirmed);
       setRecent(undefined);
+      setCheckOpen(false);
       message.success(
         '已开始背调，大约需要 3–5 分钟，完成后在右侧「背调报告」查看',
       );
@@ -372,6 +448,7 @@ export const BackgroundActions: React.FC<{
     } catch (e) {
       const err = readBizError(e);
       if (err.errorCode === ERR_RECENT) {
+        setCheckOpen(false);
         setRecent(err.detail as unknown as RecentDetail);
       } else {
         message.error(err.message);
@@ -379,6 +456,15 @@ export const BackgroundActions: React.FC<{
     } finally {
       setStarting(false);
     }
+  };
+
+  /** 先重新检查，再弹检查窗口；检查接口失败时不挡背调 */
+  const check = async () => {
+    setChecking(true);
+    const d = await precheck.reload();
+    setChecking(false);
+    if (d) setCheckOpen(true);
+    else start(false);
   };
 
   return (
@@ -389,12 +475,21 @@ export const BackgroundActions: React.FC<{
       <Button
         type="primary"
         icon={running ? <LoadingOutlined /> : <ThunderboltOutlined />}
-        loading={starting}
+        loading={checking || (starting && !checkOpen)}
         disabled={running}
-        onClick={() => start(false)}
+        onClick={check}
       >
         {running ? '背调中' : 'AI 背调'}
       </Button>
+      <PrecheckModal
+        open={checkOpen}
+        customerName={customerName}
+        data={precheck.data}
+        starting={starting}
+        onFix={onFix}
+        onCancel={() => setCheckOpen(false)}
+        onStart={() => start(false)}
+      />
       <RecentModal
         customerId={customerId}
         detail={recent}

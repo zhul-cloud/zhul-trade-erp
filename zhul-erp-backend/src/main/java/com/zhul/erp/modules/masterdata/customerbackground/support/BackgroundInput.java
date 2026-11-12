@@ -140,13 +140,24 @@ public class BackgroundInput {
         return "20 万美元以上";
     }
 
-    private List<Map<String, Object>> inquiries(Long customerId) {
-        List<CustomerInquiryDO> rows = inquiryMapper.selectList(new LambdaQueryWrapper<CustomerInquiryDO>()
-                .select(CustomerInquiryDO::getInquiryCode, CustomerInquiryDO::getInquiryDate, CustomerInquiryDO::getRawContent)
+    /** 有原文的询盘张数，最多算 {@value #INQUIRY_COUNT} 张（背调只发这么多；背调前检查用，与背调输入同口径） */
+    public int inquiryTextCount(Long customerId) {
+        long n = inquiryMapper.selectCount(withText(customerId));
+        return (int) Math.min(n, INQUIRY_COUNT);
+    }
+
+    /** 这个客户未删除、有原文的询盘 */
+    private static LambdaQueryWrapper<CustomerInquiryDO> withText(Long customerId) {
+        return new LambdaQueryWrapper<CustomerInquiryDO>()
                 .eq(CustomerInquiryDO::getCustomerId, customerId)
                 .isNull(CustomerInquiryDO::getDeletedAt)
                 .ne(CustomerInquiryDO::getRawContent, "")
-                .isNotNull(CustomerInquiryDO::getRawContent)
+                .isNotNull(CustomerInquiryDO::getRawContent);
+    }
+
+    private List<Map<String, Object>> inquiries(Long customerId) {
+        List<CustomerInquiryDO> rows = inquiryMapper.selectList(withText(customerId)
+                .select(CustomerInquiryDO::getInquiryCode, CustomerInquiryDO::getInquiryDate, CustomerInquiryDO::getRawContent)
                 .orderByDesc(CustomerInquiryDO::getInquiryDate)
                 .orderByDesc(CustomerInquiryDO::getId)
                 .last("LIMIT " + INQUIRY_COUNT));
@@ -192,7 +203,7 @@ public class BackgroundInput {
         }
     }
 
-    static String domain(String email) {
+    public static String domain(String email) {
         if (!StringUtils.hasText(email) || !email.contains("@")) {
             return "";
         }

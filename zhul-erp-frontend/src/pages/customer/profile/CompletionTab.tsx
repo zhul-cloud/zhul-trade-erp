@@ -24,6 +24,7 @@ import {
   PriorityPill,
   useBackgroundReports,
 } from '../background/components';
+import { useBackgroundPrecheck } from '../background/precheck';
 import Suggestions from '../background/Suggestions';
 import {
   type CompletionItem,
@@ -396,6 +397,17 @@ const Wizard: React.FC<{
   const [editModule, setEditModule] = useState<number>();
   const [contactOpen, setContactOpen] = useState(false);
   const bg = useBackgroundReports(w.customerId);
+  const precheck = useBackgroundPrecheck(w.customerId);
+  /** 背调前检查「去补充」：档案编辑对应页签或联系人弹窗 */
+  const fixPrecheck = canEdit
+    ? (target: string) => {
+        if (target.startsWith('profile:')) {
+          setEditModule(Number(target.slice('profile:'.length)));
+        } else if (target === 'contact') {
+          setContactOpen(true);
+        }
+      }
+    : undefined;
 
   useEffect(() => setValues({}), [w]);
 
@@ -665,6 +677,8 @@ const Wizard: React.FC<{
                   customerName={w.name}
                   running={bg.running}
                   onStarted={bg.reload}
+                  precheck={precheck}
+                  onFix={fixPrecheck}
                 />
               </div>
             )
@@ -833,6 +847,7 @@ const Wizard: React.FC<{
           onDone={() => {
             setEditModule(undefined);
             onReload();
+            precheck.reload();
           }}
         />
       )}
@@ -846,6 +861,7 @@ const Wizard: React.FC<{
         onDone={() => {
           setContactOpen(false);
           onReload();
+          precheck.reload();
         }}
       />
     </section>

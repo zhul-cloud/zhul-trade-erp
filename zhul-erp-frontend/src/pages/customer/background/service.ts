@@ -81,11 +81,38 @@ export interface RecentDetail {
 
 export const ERR_RECENT = 'BACKGROUND_RECENT';
 
+/** 背调前检查的充足度：很少、一般、充足 */
+export type PrecheckLevel = 'LOW' | 'MEDIUM' | 'HIGH';
+
+/** 背调前检查的一项（spec「背调前检查」） */
+export interface PrecheckItem {
+  key: string;
+  label: string;
+  /** 关键信息（决定充足度），否则为建议补充 */
+  keyInfo: boolean;
+  /** OK 已有、MISSING 缺失、WARN 只有免费邮箱 */
+  state: 'OK' | 'MISSING' | 'WARN';
+  value?: string;
+  reason?: string;
+  /** profile:1 / profile:2（档案编辑页签）、contact（联系人）；没有入口时为空 */
+  fixTarget?: string;
+}
+
+export interface BackgroundPrecheck {
+  level: PrecheckLevel;
+  keyCount: number;
+  items: PrecheckItem[];
+}
+
 const quiet = { skipErrorHandler: true } as const;
 const base = (id: number) =>
   `/api/v1/masterdata/customers/${id}/background-reports`;
 
 export const backgroundApi = {
+  precheck: (id: number) =>
+    request<{ data: BackgroundPrecheck }>(`${base(id)}/precheck`, quiet).then(
+      (r) => r.data,
+    ),
   list: (id: number) =>
     request<{ data: BackgroundReport[] }>(base(id), quiet).then((r) => r.data),
   detail: (id: number, reportId: number) =>
