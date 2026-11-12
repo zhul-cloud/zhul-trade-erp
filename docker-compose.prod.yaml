@@ -1,9 +1,9 @@
 # 生产覆盖配置，与 docker-compose.yaml 合并使用；本文件不含密钥，密钥只在服务器 .env 中。
-# 上线时从同一个提交复制这两个文件到服务器 /opt/zhul-trade-erp/，以仓库为准，不在服务器上直接改：
+# 部署脚本（scripts/deploy/prod-deploy.sh）从版本标签取这两个文件装到服务器 /opt/zhul-trade-erp/，以仓库为准，不在服务器上直接改：
 #   docker compose -f docker-compose.yaml -f docker-compose.prod.yaml --profile app up -d
 # 1. MySQL、Redis 由 tmpfs 改为持久化到 ./storage/。
-# 2. 应用镜像不在服务器构建、不从网上拉取，只用本机构建后传上来的 :prod 标签；
-#    上线或回滚时把 :prod 指向对应提交号的镜像，本文件不用改。
+# 2. 应用镜像不在服务器构建：GitHub Actions 构建并推送 ghcr.io/zhul-cloud/zhul-erp-*:vX.Y.Z，部署脚本拉取后
+#    把本地 :prod 标签指向该版本；回滚即重新部署上一版，本文件不用改。流程见 docs/06-部署运维/08-生产发版.md。
 # 上传文件走 OSS（.env 中 STORAGE_TYPE=oss），不在服务器持久化。
 services:
   mysql:

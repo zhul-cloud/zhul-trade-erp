@@ -3,7 +3,7 @@
 本地开发用的 AI 编排服务 stub —— 不是真正的 AI 编排服务实现，只用于让
 zhul-erp-backend 能够本地联调"提交任务 -> 异步 webhook 回调"这条链路。
 
-对应 openspec/changes/add-inquiry-management/design.md 决策3的通用契约：
+对应 openspec/changes/archive/2026-10-03-add-inquiry-management/design.md 决策3的通用契约：
   POST /skills/{skill_id}/run
     body: {"input": {...}, "callback_url": "http://.../api/v1/ai-tasks/{id}/callback"}
     -> 202 {"job_id": "..."}

@@ -5,7 +5,7 @@ import com.zhul.erp.modules.aitask.entity.AiTaskDO;
 /**
  * 按 skill_id 路由到具体业务处理器的扩展点。新增一个 skill 时，只需新增一个
  * 实现类（Spring 会自动收集），不需要修改分发框架本身或其他已有 skill 的处理逻辑，
- * 见 openspec/changes/add-inquiry-management/design.md 决策3。
+ * 见 openspec/changes/archive/2026-10-03-add-inquiry-management/design.md 决策3。
  */
 public interface AiTaskResultHandler {
 
