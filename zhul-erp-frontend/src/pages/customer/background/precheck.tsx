@@ -170,12 +170,14 @@ export const PrecheckList: React.FC<{
             {i.state === 'OK' ? i.value : i.reason}
           </span>
           {onFix && i.state !== 'OK' && i.fixTarget && (
-            <a
+            <button
+              type="button"
+              className="zhul-link"
               style={{ flex: 'none', fontWeight: 600 }}
               onClick={() => onFix(i.fixTarget as string)}
             >
               去补充
-            </a>
+            </button>
           )}
         </div>
       ))}

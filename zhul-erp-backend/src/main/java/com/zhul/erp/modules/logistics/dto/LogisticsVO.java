@@ -33,6 +33,8 @@ public class LogisticsVO {
     private String voidReason;
     private String note;
     private Integer outboundCount;
+    /** 所装销售出库单号（列表「来源单号」） */
+    private List<String> outboundNos;
     private List<SoRef> orders;
     private Integer boxCount;
     /** 按货代体积系数的计费重合计 */

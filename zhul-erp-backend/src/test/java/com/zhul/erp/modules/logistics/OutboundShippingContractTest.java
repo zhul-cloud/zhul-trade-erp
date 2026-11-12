@@ -254,6 +254,8 @@ class OutboundShippingContractTest extends SalesContractSupport {
         assertEquals("待出运", sh.path("statusName").asText());
         assertEquals(0, ok(call(get(SH + "/pending"), admin)).size(), "放进出运单后不在待出运里");
         long shId = sh.path("id").asLong();
+        JsonNode listed = ok(call(json(post(SH + "/page"), "{\"page\":1,\"pageSize\":20}"), admin)).path("records").get(0);
+        assertEquals(ob.path("obNo").asText(), listed.path("outboundNos").get(0).asText(), "列表来源单号为所装销售出库单");
         assertEquals("销售出库单已放进出运单，请先从出运单里移出",
                 fail(call(json(post(OB + "/" + ob.path("id").asLong() + "/undo-hand-over"), "{\"reason\":\"x\"}"), keeper)).path("message").asText());
 
