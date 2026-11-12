@@ -1,4 +1,10 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react';
 import { App } from 'antd';
 import React from 'react';
 import AiSettingsPage from './index';
@@ -299,7 +305,10 @@ describe('AiSettingsPage', () => {
     fireEvent.click(rows()[1]);
     expect(await screen.findByText('填写 API Key 后才能保存')).toBeTruthy();
     await act(async () => {
-      resolve({ ok: true, items: [{ name: 'API Key', ok: true, message: '' }] });
+      resolve({
+        ok: true,
+        items: [{ name: 'API Key', ok: true, message: '' }],
+      });
     });
     expect(screen.queryByText('测试通过')).toBeNull();
     expect(screen.queryByText('AI 已就绪')).toBeNull();
@@ -309,16 +318,15 @@ describe('AiSettingsPage', () => {
   it('模型列表迟到不串到另一家', async () => {
     mocked.getAiConfig.mockResolvedValue(config());
     let resolveClaude!: (v: unknown) => void;
-    mocked.getAiModels.mockImplementation(
-      (payload: { provider: string }) =>
-        payload.provider === 'claude'
-          ? new Promise((r) => {
-              resolveClaude = r;
-            })
-          : Promise.resolve({
-              models: [{ id: 'gpt-own-list', defaultModel: false }],
-              source: 'provider',
-            }),
+    mocked.getAiModels.mockImplementation((payload: { provider: string }) =>
+      payload.provider === 'claude'
+        ? new Promise((r) => {
+            resolveClaude = r;
+          })
+        : Promise.resolve({
+            models: [{ id: 'gpt-own-list', defaultModel: false }],
+            source: 'provider',
+          }),
     );
     const { container } = renderPage();
     await screen.findByText('AI 已配置');

@@ -43,13 +43,12 @@ const row = (id: number, mpn: string) => ({
 /** UI-029：勾选后改关键词，结果里看不见的旧商品不能还留在「已选」里被批量操作 */
 it('关键词换了查询结果就清掉勾选', async () => {
   (productApi.summary as jest.Mock).mockResolvedValue(undefined);
-  (productApi.page as jest.Mock).mockImplementation(
-    (q: { keyword?: string }) =>
-      Promise.resolve(
-        q.keyword === 'MODEL-B'
-          ? { total: 1, records: [row(2, 'MODEL-B')] }
-          : { total: 1, records: [row(1, 'MODEL-A')] },
-      ),
+  (productApi.page as jest.Mock).mockImplementation((q: { keyword?: string }) =>
+    Promise.resolve(
+      q.keyword === 'MODEL-B'
+        ? { total: 1, records: [row(2, 'MODEL-B')] }
+        : { total: 1, records: [row(1, 'MODEL-A')] },
+    ),
   );
   render(React.createElement(App, null, React.createElement(ProductListPage)));
   fireEvent.click(await screen.findByLabelText('选择 MODEL-A'));
@@ -57,6 +56,8 @@ it('关键词换了查询结果就清掉勾选', async () => {
   fireEvent.change(screen.getByLabelText('搜索商品'), {
     target: { value: 'MODEL-B' },
   });
-  expect(await screen.findByLabelText('选择 MODEL-B', {}, { timeout: 3000 })).toBeTruthy();
+  expect(
+    await screen.findByLabelText('选择 MODEL-B', {}, { timeout: 3000 }),
+  ).toBeTruthy();
   expect(screen.queryByText(/已选/)).toBeNull();
 });

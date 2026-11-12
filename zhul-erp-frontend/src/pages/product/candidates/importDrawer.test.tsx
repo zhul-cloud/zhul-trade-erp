@@ -40,7 +40,9 @@ it('取消后迟到的预览不复活', async () => {
   const { rerender } = render(view(true));
   const file = new File(['# A'], 'cancelled-A.md', { type: 'text/markdown' });
   Object.defineProperty(file, 'text', { value: () => Promise.resolve('# A') });
-  const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+  const input = document.querySelector(
+    'input[type="file"]',
+  ) as HTMLInputElement;
   await act(async () => {
     fireEvent.change(input, { target: { files: [file] } });
   });
