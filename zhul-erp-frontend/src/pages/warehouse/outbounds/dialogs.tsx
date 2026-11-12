@@ -18,7 +18,7 @@ import {
   Table,
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   BoxEditor,
   boxesProblem,
@@ -66,10 +66,14 @@ export const toInputs = (ob: Outbound): BoxInput[] =>
 export const PackDrawer: React.FC<{
   id?: number;
   onClose: () => void;
-  onDone: () => void;
+  /** 打包完成；packedId 是完成的那张单（可能已不是抽屉当前的单） */
+  onDone: (packedId: number) => void;
 }> = ({ id, onClose, onDone }) => {
   const { palette } = useAppTheme();
   const { message } = App.useApp();
+  /** 抽屉当前打开的单：保存进行中换了单，旧单的结果不能动新单的按钮状态 */
+  const current = useRef(id);
+  current.current = id;
   const [ob, setOb] = useState<Outbound>();
   const [error, setError] = useState<string>();
   const [boxes, setBoxes] = useState<BoxInput[]>([]);
@@ -84,6 +88,7 @@ export const PackDrawer: React.FC<{
     setOb(undefined);
     setTags({});
     setError(undefined);
+    setBusy(false);
     outboundApi
       .detail(id)
       .then((d) => {
@@ -119,18 +124,19 @@ export const PackDrawer: React.FC<{
   const submit = async () => {
     // 只提交本次打开的单据
     if (!ob || ob.id !== id) return;
+    const target = ob.id;
     setBusy(true);
     try {
-      await outboundApi.pack(ob.id, boxes, {
+      await outboundApi.pack(target, boxes, {
         attachmentIds: photos.map((p) => p.id),
         attachmentModels: attachmentModels(photos, tags),
       });
       message.success(`${ob.obNo} 已打包`);
-      onDone();
+      onDone(target);
     } catch (e) {
       message.error(readBizError(e).message);
     } finally {
-      setBusy(false);
+      if (current.current === target) setBusy(false);
     }
   };
 
