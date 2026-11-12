@@ -519,7 +519,7 @@ const DiffsTab: React.FC<{ onChanged: () => void }> = ({ onChanged }) => {
     if (r.returnFreight != null)
       parts.push(`运费 ${formatAmount(r.returnFreight, 'CNY')}`);
     if (r.resolution === 7)
-      parts.push(r.freeOfCharge ? '供应商白送，成本 ¥0' : '按采购价计成本');
+      parts.push(r.freeOfCharge ? '供应商白送，成本 CNY 0.00' : '按采购价计成本');
     if (r.note) parts.push(r.note);
     return parts.join('；');
   };

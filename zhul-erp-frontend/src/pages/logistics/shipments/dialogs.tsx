@@ -559,7 +559,7 @@ export const ShipModal: React.FC<{
             value={freight}
             min={0}
             precision={2}
-            prefix="¥"
+            prefix="CNY"
             disabled={sh.reconciled}
             onChange={(v) => setFreight(v === null ? null : Number(v))}
             style={{ width: '100%' }}

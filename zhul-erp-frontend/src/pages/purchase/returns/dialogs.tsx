@@ -127,7 +127,7 @@ export const ShipModal: React.FC<{
             <InputNumber<number>
               min={0}
               precision={2}
-              prefix="¥"
+              prefix="CNY"
               value={freight}
               onChange={setFreight}
               placeholder="没有可不填"

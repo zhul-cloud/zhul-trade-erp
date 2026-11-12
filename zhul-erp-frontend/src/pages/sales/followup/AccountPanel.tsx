@@ -145,7 +145,7 @@ export const AnnualPlanModal: React.FC<{
         style={{ width: 240 }}
         min={0}
         precision={2}
-        prefix="¥"
+        prefix="CNY"
         value={target}
         onChange={(v) => setTarget(v == null ? null : Number(v))}
       />

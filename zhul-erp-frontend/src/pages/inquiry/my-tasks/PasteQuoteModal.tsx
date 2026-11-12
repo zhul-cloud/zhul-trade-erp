@@ -324,7 +324,7 @@ const PasteQuoteModal: React.FC<{
                 ),
               },
               {
-                title: '单价 ¥',
+                title: '单价（CNY）',
                 key: 'price',
                 width: 120,
                 render: (_, r) => (

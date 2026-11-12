@@ -242,7 +242,7 @@ const HandleDiscrepancyModal: React.FC<{
                 checked={body.freeOfCharge}
                 onChange={(e) => set({ freeOfCharge: e.target.checked })}
               >
-                供应商白送（成本记 ¥0）
+                供应商白送（成本记 CNY 0.00）
               </Checkbox>
             </div>
           </>
