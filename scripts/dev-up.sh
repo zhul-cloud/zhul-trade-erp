@@ -14,12 +14,16 @@ RUN="$ROOT/.dev-run"
 AI=real
 while [ $# -gt 0 ]; do
   case "$1" in
-    --ai) AI="${2:-real}"; shift 2 ;;
+    --ai)
+      # 先检查有没有值：只写 --ai 时 shift 2 会失败且不消费参数，循环停不下来（OPS-001）
+      [ $# -ge 2 ] || { echo "--ai 后面要写 stub、real、subscription 或 none" >&2; exit 2; }
+      AI="$2"; shift 2 ;;
     *) echo "未知参数：$1（用法：scripts/dev-up.sh [--ai stub|real|subscription|none]）" >&2; exit 2 ;;
   esac
 done
 case "$AI" in stub|real|subscription|none) ;; *) echo "--ai 只能是 stub、real、subscription 或 none" >&2; exit 2 ;; esac
 mkdir -p "$RUN"
+FAILED=()
 
 listening() { lsof -iTCP:"$1" -sTCP:LISTEN -P -n >/dev/null 2>&1; }
 wait_port() { # 端口 名称 超时秒
@@ -38,11 +42,11 @@ start_bg() { # 名称 目录 命令...
 echo "== MySQL / Redis"
 if ! listening 3306; then
   command -v brew >/dev/null && brew services start mysql >/dev/null 2>&1
-  wait_port 3306 MySQL 30 mysql
+  wait_port 3306 MySQL 30 mysql || FAILED+=(MySQL)
 else echo "  ✓ MySQL 已在运行（:3306）"; fi
 if ! listening 6379; then
   command -v brew >/dev/null && brew services start redis >/dev/null 2>&1
-  wait_port 6379 Redis 15 redis
+  wait_port 6379 Redis 15 redis || FAILED+=(Redis)
 else echo "  ✓ Redis 已在运行（:6379）"; fi
 
 echo "== AI 编排服务（${AI}）"
@@ -57,7 +61,7 @@ else
   [ "$AI" = real ] && echo "  ⚠ 真实模式：API 方式每次解析都会产生费用；服务商与 Key 在「业务设置 → AI 设置」中填写（免费联调用 --ai stub）"
   [ "$AI" = stub ] && echo "  ⚠ 占位模式：解析结果是固定假数据，与询盘内容无关"
   start_bg ai "$ROOT" python3 "$script"
-  wait_port 8899 "AI 编排服务($AI)" 15 ai
+  wait_port 8899 "AI 编排服务($AI)" 15 ai || FAILED+=("AI 编排服务($AI)")
 fi
 
 echo "== LibreOffice（报价单 PDF / 图片导出与实时预览）"
@@ -73,17 +77,22 @@ else
   # shellcheck disable=SC1091
   source "$ROOT/scripts/dev-env.sh" >/dev/null || exit 1
   start_bg backend "$ROOT/zhul-erp-backend" mvn -o -q spring-boot:run
-  wait_port 8080 后端 120 backend
+  wait_port 8080 后端 120 backend || FAILED+=(后端)
 fi
 
 echo "== 前端"
 if listening 8000; then echo "  ✓ 8000 已被占用，视为已在运行"
 else
   start_bg frontend "$ROOT/zhul-erp-frontend" npm run dev
-  wait_port 8000 前端 90 frontend
+  wait_port 8000 前端 90 frontend || FAILED+=(前端)
 fi
 
 echo
+# 有服务没起来就如实报告并以失败退出，不再打印「全部就绪」（OPS-002）
+if [ ${#FAILED[@]} -gt 0 ]; then
+  echo "没有全部起来：${FAILED[*]}。看 $RUN/ 下对应的日志，处理后重新运行；已起来的服务用 scripts/dev-down.sh 停止" >&2
+  exit 1
+fi
 echo "全部就绪：前端 http://localhost:8000  后端 http://localhost:8080  （Swagger：/doc.html）"
 echo "登录：admin / admin123（租户账号）；platform / admin123（平台账号，可维护商品主数据）"
 echo "停止：scripts/dev-down.sh    日志：$RUN/*.log"
