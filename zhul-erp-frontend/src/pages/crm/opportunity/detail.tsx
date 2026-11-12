@@ -163,14 +163,16 @@ const OpportunityDetailPage: React.FC = () => {
                 key={q.id}
                 style={{ display: 'flex', justifyContent: 'space-between' }}
               >
-                <a
+                <button
+                  type="button"
+                  className="zhul-link"
                   onClick={() => {
                     dialog.destroy();
                     history.push(`/inquiry/customer-inquiries/${q.id}`);
                   }}
                 >
                   {q.inquiryCode}
-                </a>
+                </button>
                 <StatusPill status={q.status} />
               </div>
             ))}
@@ -470,9 +472,13 @@ const OpportunityDetailPage: React.FC = () => {
           <Card
             title="客户与联系方式"
             extra={
-              <a onClick={() => history.push(`/customer/list/${d.customerId}`)}>
+              <button
+                type="button"
+                className="zhul-link"
+                onClick={() => history.push(`/customer/list/${d.customerId}`)}
+              >
                 去客户档案补全
-              </a>
+              </button>
             }
           >
             <div
@@ -565,7 +571,13 @@ const OpportunityDetailPage: React.FC = () => {
             title="关联询盘"
             extra={
               isActive && (
-                <a onClick={() => setCreatingInquiry(true)}>创建询盘单</a>
+                <button
+                  type="button"
+                  className="zhul-link"
+                  onClick={() => setCreatingInquiry(true)}
+                >
+                  创建询盘单
+                </button>
               )
             }
           >
@@ -590,13 +602,15 @@ const OpportunityDetailPage: React.FC = () => {
                         background: palette.inset,
                       }}
                     >
-                      <a
+                      <button
+                        type="button"
+                        className="zhul-link"
                         onClick={() =>
                           history.push(`/inquiry/customer-inquiries/${q.id}`)
                         }
                       >
                         {q.inquiryCode}
-                      </a>
+                      </button>
                       <StatusPill status={q.status} />
                       <span style={{ color: palette.mute }}>
                         {q.totalOrderCount} 张询盘单 · {q.inquiryDate}

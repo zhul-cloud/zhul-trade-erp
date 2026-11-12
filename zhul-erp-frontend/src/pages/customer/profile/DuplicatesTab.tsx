@@ -225,13 +225,15 @@ export const MergeModal: React.FC<{
           {group.members
             .filter((m) => m.id !== pair[0].id && m.id !== pair[1].id)
             .map((m) => (
-              <a
+              <button
+                type="button"
+                className="zhul-link"
                 key={m.id}
                 style={{ marginLeft: 8 }}
                 onClick={() => setPair([pair[0], m])}
               >
                 {m.name}
-              </a>
+              </button>
             ))}
         </div>
       )}
@@ -409,12 +411,14 @@ const DuplicatesTab: React.FC<{
               <span className="num" style={{ color: palette.mute }}>
                 {m.customerCode}
               </span>
-              <a
+              <button
+                type="button"
+                className="zhul-link"
                 style={{ fontWeight: 600 }}
                 onClick={() => history.push(`${LIST_PATH}/${m.id}`)}
               >
                 {m.name}
-              </a>
+              </button>
               <span>{zhOf(m.country) || '—'}</span>
               <span>{m.ownerName || '未分配'}</span>
               <span className="num">完整度 {m.profileDone}/5</span>

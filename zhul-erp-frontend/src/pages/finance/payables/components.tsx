@@ -1034,9 +1034,14 @@ export const ProofLinks: React.FC<{
     <>
       <Space size={6} wrap>
         {files.map((f, i) => (
-          <a key={f.id} onClick={() => preview.open(f)}>
+          <button
+            type="button"
+            className="zhul-link"
+            key={f.id}
+            onClick={() => preview.open(f)}
+          >
             {files.length > 1 ? `截图 ${i + 1}` : '查看'}
-          </a>
+          </button>
         ))}
       </Space>
       {preview.node}
@@ -1273,7 +1278,9 @@ export const PayablePanel: React.FC<{
     return (
       <Card style={{ marginBottom: 16 }}>
         <span style={{ color: palette.red }}>付款信息加载失败：{error}</span>{' '}
-        <a onClick={load}>重试</a>
+        <button type="button" className="zhul-link" onClick={load}>
+          重试
+        </button>
       </Card>
     );
   }

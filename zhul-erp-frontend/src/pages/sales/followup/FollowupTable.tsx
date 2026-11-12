@@ -658,14 +658,16 @@ export const FollowupTable: React.FC<{
         <span style={{ fontVariantNumeric: 'tabular-nums' }}>
           {r.docNo && r.targetType === TARGET.QUOTATION ? (
             // 点报价单号打开预览，不切换选中行、不展开行
-            <a
+            <button
+              type="button"
+              className="zhul-link"
               onClick={(e) => {
                 e.stopPropagation();
                 setQuotePreview({ id: r.targetId, versionNo: r.versionNo });
               }}
             >
               {r.docNo}
-            </a>
+            </button>
           ) : (
             r.docNo || '—'
           )}

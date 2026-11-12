@@ -385,24 +385,28 @@ const UserPage: React.FC = () => {
       render: (_, record) => (
         <Space>
           {!!(access as Record<string, unknown>)['system:user:edit'] && (
-            <a
+            <button
+              type="button"
+              className="zhul-link"
               onClick={() => {
                 setEditingUser(record);
                 setEditOpen(true);
               }}
             >
               编辑
-            </a>
+            </button>
           )}
           {!!(access as Record<string, unknown>)['system:user:resetPwd'] && (
-            <a
+            <button
+              type="button"
+              className="zhul-link"
               onClick={() => {
                 setResetPwdUserId(record.id);
                 setResetPwdOpen(true);
               }}
             >
               重置密码
-            </a>
+            </button>
           )}
           {!!(access as Record<string, unknown>)['system:user:status'] && (
             <Popconfirm
@@ -528,6 +532,7 @@ const UserPage: React.FC = () => {
 
       {/* 新增用户 */}
       <ModalForm
+        name="userCreate"
         title="新增用户"
         width={640}
         grid
@@ -541,6 +546,7 @@ const UserPage: React.FC = () => {
 
       {/* 编辑用户 */}
       <ModalForm
+        name="userEdit"
         title="编辑用户"
         width={640}
         grid

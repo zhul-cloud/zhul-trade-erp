@@ -175,14 +175,24 @@ const SeriesPage: React.FC = () => {
       width: 140,
       render: (_, row) => [
         access['product:series:edit'] && (
-          <a key="edit" onClick={() => openForm(row)}>
+          <button
+            type="button"
+            className="zhul-link"
+            key="edit"
+            onClick={() => openForm(row)}
+          >
             编辑
-          </a>
+          </button>
         ),
         access['product:series:edit'] && (
-          <a key="status" onClick={() => toggleStatus(row)}>
+          <button
+            type="button"
+            className="zhul-link"
+            key="status"
+            onClick={() => toggleStatus(row)}
+          >
             {row.status === 1 ? '停用' : '启用'}
-          </a>
+          </button>
         ),
         access['product:series:delete'] &&
           (row.productCount > 0 ? (
@@ -198,9 +208,14 @@ const SeriesPage: React.FC = () => {
               </span>
             </Tooltip>
           ) : (
-            <a key="delete" onClick={() => remove(row)}>
+            <button
+              type="button"
+              className="zhul-link"
+              key="delete"
+              onClick={() => remove(row)}
+            >
               删除
-            </a>
+            </button>
           )),
       ],
     },
@@ -252,6 +267,7 @@ const SeriesPage: React.FC = () => {
         }}
       />
       <ModalForm<{ brandId: number; seriesName: string; description?: string }>
+        name="seriesEdit"
         title={editing ? '编辑系列' : '新增系列'}
         open={open}
         onOpenChange={setOpen}

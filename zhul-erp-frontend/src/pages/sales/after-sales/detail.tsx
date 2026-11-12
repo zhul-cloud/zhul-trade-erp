@@ -444,9 +444,13 @@ const AfterSalesDetail: React.FC = () => {
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <a onClick={() => history.push(`/sales/orders/${r.soId}`)}>
+              <button
+                type="button"
+                className="zhul-link"
+                onClick={() => history.push(`/sales/orders/${r.soId}`)}
+              >
                 {r.soNo}
-              </a>
+              </button>
               <Pill
                 tone={r.status !== 1 ? 'mute' : r.shipped ? 'green' : 'orange'}
               >
@@ -835,9 +839,13 @@ const AfterSalesDetail: React.FC = () => {
             {a.soId ? (
               <>
                 {' · 订单 '}
-                <a onClick={() => history.push(`/sales/orders/${a.soId}`)}>
+                <button
+                  type="button"
+                  className="zhul-link"
+                  onClick={() => history.push(`/sales/orders/${a.soId}`)}
+                >
                   {a.soNo}
-                </a>
+                </button>
               </>
             ) : (
               ' · 没有订单'

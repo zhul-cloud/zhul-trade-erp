@@ -848,7 +848,9 @@ const QuotationDetail: React.FC = () => {
             : `依据：${src.suggestBasis || '—'}`}
         </span>
         {restorable && (
-          <a
+          <button
+            type="button"
+            className="zhul-link"
             style={{ fontSize: 12 }}
             onClick={() =>
               updateItem(d.id, {
@@ -858,7 +860,7 @@ const QuotationDetail: React.FC = () => {
             }
           >
             恢复建议毛利率（{formatMargin(src.suggestedMargin)}）
-          </a>
+          </button>
         )}
         {below && (
           <span style={{ fontSize: 12, color: palette.red }}>
@@ -1920,7 +1922,9 @@ const QuotationDetail: React.FC = () => {
           运费、手续费不计入毛利率与净利润
         </span>
         {editable && (
-          <a
+          <button
+            type="button"
+            className="zhul-link"
             style={{ marginLeft: 'auto' }}
             onClick={() =>
               setFees([
@@ -1930,7 +1934,7 @@ const QuotationDetail: React.FC = () => {
             }
           >
             <PlusOutlined /> 加费用行
-          </a>
+          </button>
         )}
       </div>
       {(editable
@@ -2139,9 +2143,13 @@ const QuotationDetail: React.FC = () => {
                   border: `1px solid ${palette.hairline}`,
                 }}
               >
-                <a onClick={() => history.push(SALES_PATHS.pi(p.id))}>
+                <button
+                  type="button"
+                  className="zhul-link"
+                  onClick={() => history.push(SALES_PATHS.pi(p.id))}
+                >
                   <b>{p.piNo}</b>
-                </a>
+                </button>
                 <Pill
                   tone={
                     p.status === 3
@@ -2162,14 +2170,16 @@ const QuotationDetail: React.FC = () => {
                   {formatAmount(p.totalAmount, p.currencyCode)}
                 </span>
                 {p.soNo && p.orderId && (
-                  <a
+                  <button
+                    type="button"
+                    className="zhul-link"
                     style={{ marginLeft: 'auto' }}
                     onClick={() =>
                       history.push(SALES_PATHS.order(p.orderId as number))
                     }
                   >
                     订单 {p.soNo}
-                  </a>
+                  </button>
                 )}
               </div>
             ))}
@@ -2221,13 +2231,15 @@ const QuotationDetail: React.FC = () => {
             {q.copiedFromNo && (
               <span style={{ marginLeft: 8 }}>
                 · 复制自{' '}
-                <a
+                <button
+                  type="button"
+                  className="zhul-link"
                   onClick={() =>
                     q.copiedFromId && history.push(PATHS.detail(q.copiedFromId))
                   }
                 >
                   {q.copiedFromNo}
-                </a>
+                </button>
               </span>
             )}
           </>

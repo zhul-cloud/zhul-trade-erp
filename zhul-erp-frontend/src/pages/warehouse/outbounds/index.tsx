@@ -98,7 +98,13 @@ const Outbounds: React.FC = () => {
     </div>
   );
   const obCell = (v: string, r: Outbound) => (
-    <a onClick={() => setViewing(r.id)}>{v}</a>
+    <button
+      type="button"
+      className="zhul-link"
+      onClick={() => setViewing(r.id)}
+    >
+      {v}
+    </button>
   );
 
   const columns: TableColumnsType<Outbound> =
@@ -144,7 +150,15 @@ const Outbounds: React.FC = () => {
             width: 80,
             fixed: 'right',
             render: (_, r) =>
-              canPack ? <a onClick={() => setPacking(r.id)}>打包</a> : null,
+              canPack ? (
+                <button
+                  type="button"
+                  className="zhul-link"
+                  onClick={() => setPacking(r.id)}
+                >
+                  打包
+                </button>
+              ) : null,
           },
         ]
       : tab === 'packed'
@@ -200,7 +214,13 @@ const Outbounds: React.FC = () => {
               fixed: 'right',
               render: (_, r) =>
                 canPack ? (
-                  <a onClick={() => setPacking(r.id)}>修改装箱</a>
+                  <button
+                    type="button"
+                    className="zhul-link"
+                    onClick={() => setPacking(r.id)}
+                  >
+                    修改装箱
+                  </button>
                 ) : null,
             },
           ]
@@ -268,7 +288,13 @@ const Outbounds: React.FC = () => {
               fixed: 'right',
               render: (_, r) =>
                 canPack && !r.logisticsId ? (
-                  <a onClick={() => setUndoing(r)}>撤销交货代</a>
+                  <button
+                    type="button"
+                    className="zhul-link"
+                    onClick={() => setUndoing(r)}
+                  >
+                    撤销交货代
+                  </button>
                 ) : null,
             },
           ];

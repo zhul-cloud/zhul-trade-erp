@@ -161,7 +161,13 @@ const QuotationList: React.FC = () => {
       fixed: 'left',
       render: (v: string, r) => (
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-          <a onClick={() => history.push(PATHS.detail(r.id))}>{v}</a>
+          <button
+            type="button"
+            className="zhul-link"
+            onClick={() => history.push(PATHS.detail(r.id))}
+          >
+            {v}
+          </button>
           {r.editingVersionNo ? (
             <Pill tone="orange">Rev.{r.editingVersionNo} 编辑中</Pill>
           ) : (r.currentVersionNo ?? 1) > 1 ? (
@@ -278,7 +284,13 @@ const QuotationList: React.FC = () => {
       render: (_, r) =>
         r.status === STATUS.DRAFT ? (
           <Space size={12}>
-            <a onClick={() => history.push(PATHS.detail(r.id))}>编辑</a>
+            <button
+              type="button"
+              className="zhul-link"
+              onClick={() => history.push(PATHS.detail(r.id))}
+            >
+              编辑
+            </button>
             <Popconfirm
               title="删除这张草稿？"
               description="删除后不能恢复，询盘里的型号可以重新报价"
@@ -290,7 +302,13 @@ const QuotationList: React.FC = () => {
             </Popconfirm>
           </Space>
         ) : (
-          <a onClick={() => history.push(PATHS.detail(r.id))}>查看</a>
+          <button
+            type="button"
+            className="zhul-link"
+            onClick={() => history.push(PATHS.detail(r.id))}
+          >
+            查看
+          </button>
         ),
     },
   ];

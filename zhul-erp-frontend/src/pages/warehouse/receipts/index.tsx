@@ -172,7 +172,15 @@ const Receipts: React.FC = () => {
       width: 100,
       fixed: 'right',
       render: (_, r) =>
-        canEdit ? <a onClick={() => setAccepting(r.id)}>验收入库</a> : null,
+        canEdit ? (
+          <button
+            type="button"
+            className="zhul-link"
+            onClick={() => setAccepting(r.id)}
+          >
+            验收入库
+          </button>
+        ) : null,
     },
   ];
 
@@ -184,7 +192,13 @@ const Receipts: React.FC = () => {
       fixed: 'left',
       render: (v: string, r) => (
         <div>
-          <a onClick={() => setViewing(r.id)}>{v}</a>
+          <button
+            type="button"
+            className="zhul-link"
+            onClick={() => setViewing(r.id)}
+          >
+            {v}
+          </button>
           {sub(palette.mute, r.receivedDate ?? '—')}
         </div>
       ),
@@ -251,7 +265,15 @@ const Receipts: React.FC = () => {
       key: 'actions',
       width: 70,
       fixed: 'right',
-      render: (_, r) => <a onClick={() => setViewing(r.id)}>查看</a>,
+      render: (_, r) => (
+        <button
+          type="button"
+          className="zhul-link"
+          onClick={() => setViewing(r.id)}
+        >
+          查看
+        </button>
+      ),
     },
   ];
 

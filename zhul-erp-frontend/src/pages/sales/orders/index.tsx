@@ -193,7 +193,13 @@ const OrderList: React.FC = () => {
       fixed: 'left',
       render: (v: string, r) => (
         <div>
-          <a onClick={() => history.push(PATHS.order(r.id))}>{v}</a>
+          <button
+            type="button"
+            className="zhul-link"
+            onClick={() => history.push(PATHS.order(r.id))}
+          >
+            {v}
+          </button>
           {r.migrated && (
             <div style={{ marginTop: 4 }}>
               <MigratedPill migrated />
@@ -252,7 +258,13 @@ const OrderList: React.FC = () => {
             r.itemCount > 1 ? (
               <>
                 共 {r.itemCount} 个型号 · {r.totalQuantity ?? 0} 件 ·{' '}
-                <a onClick={() => setViewing(r)}>查看</a>
+                <button
+                  type="button"
+                  className="zhul-link"
+                  onClick={() => setViewing(r)}
+                >
+                  查看
+                </button>
               </>
             ) : (
               `${r.totalQuantity ?? 0} 件`
@@ -416,7 +428,13 @@ const OrderList: React.FC = () => {
       width: 70,
       fixed: 'right',
       render: (_, r) => (
-        <a onClick={() => history.push(PATHS.order(r.id))}>查看</a>
+        <button
+          type="button"
+          className="zhul-link"
+          onClick={() => history.push(PATHS.order(r.id))}
+        >
+          查看
+        </button>
       ),
     },
   ];

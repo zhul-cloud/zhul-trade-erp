@@ -94,7 +94,19 @@ export const UnitSelect: React.FC<{
   allowPublic?: boolean;
   style?: React.CSSProperties;
   placeholder?: string;
-}> = ({ info, value, onChange, allowPublic, style, placeholder }) => {
+  /** Form.Item 传入，让标签关联到输入框 */
+  id?: string;
+  'aria-label'?: string;
+}> = ({
+  info,
+  value,
+  onChange,
+  allowPublic,
+  style,
+  placeholder,
+  id,
+  'aria-label': ariaLabel,
+}) => {
   const { palette } = useAppTheme();
   const options: { value: number; label: React.ReactNode }[] = info.units.map(
     (u) => ({ value: u.id, label: u.name }),
@@ -114,6 +126,8 @@ export const UnitSelect: React.FC<{
   }
   return (
     <Select
+      id={id}
+      aria-label={ariaLabel}
       value={value as number}
       onChange={(v) => onChange?.(v as number)}
       options={options}

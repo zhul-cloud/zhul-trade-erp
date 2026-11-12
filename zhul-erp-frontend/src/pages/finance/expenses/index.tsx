@@ -278,6 +278,7 @@ export const ExpenseDrawer: React.FC<{
             <Input
               value={name}
               onChange={(e) => setName(e.target.value)}
+              aria-label="名称"
               maxLength={64}
               placeholder="如 补发运费"
             />
@@ -288,6 +289,7 @@ export const ExpenseDrawer: React.FC<{
               style={{ width: '100%' }}
               value={category ?? (allocs.length ? 'ORDER' : 'OTHER')}
               onChange={setCategory}
+              aria-label="费用类别"
               options={categories.map((c) => ({
                 value: c.code,
                 label: c.name,
@@ -313,6 +315,7 @@ export const ExpenseDrawer: React.FC<{
               value={date}
               disabled={locked}
               onChange={(d) => d && setDate(d)}
+              aria-label="发生日期"
               disabledDate={(d) => d.isAfter(dayjs(), 'day')}
               allowClear={false}
               style={{ width: '100%' }}
@@ -327,6 +330,7 @@ export const ExpenseDrawer: React.FC<{
               value={payeeType}
               disabled={locked}
               onChange={setPayeeType}
+              aria-label="收款方类型"
               options={[
                 { value: PAYEE.OTHER, label: '其他' },
                 { value: PAYEE.SUPPLIER, label: '供应商' },
@@ -339,6 +343,7 @@ export const ExpenseDrawer: React.FC<{
               <SupplierPicker
                 value={supplierId}
                 label={supplierName}
+                aria-label={payeeType === PAYEE.FORWARDER ? '货代' : '供应商'}
                 style={{ width: 280 }}
                 onChange={(id, n) => {
                   setSupplierId(id);
@@ -354,6 +359,7 @@ export const ExpenseDrawer: React.FC<{
                   disabled={locked}
                   onChange={setShopChannel}
                   options={SHOP_CHANNELS}
+                  aria-label="店铺平台"
                 />
                 <Input
                   style={{ width: 220 }}
@@ -361,6 +367,7 @@ export const ExpenseDrawer: React.FC<{
                   disabled={locked}
                   onChange={(e) => setShopName(e.target.value)}
                   placeholder="店铺名称"
+                  aria-label="店铺名称"
                 />
               </>
             )}
@@ -371,6 +378,7 @@ export const ExpenseDrawer: React.FC<{
                 disabled={locked}
                 onChange={(e) => setPayeeName(e.target.value)}
                 placeholder="如 顺丰"
+                aria-label="收款方名称"
                 maxLength={128}
               />
             )}
@@ -385,6 +393,7 @@ export const ExpenseDrawer: React.FC<{
               disabled={locked}
               onChange={setCurrency}
               options={CURRENCIES.map((c) => ({ value: c, label: c }))}
+              aria-label="币种"
             />
           </div>
           <div style={{ width: 200 }}>
@@ -396,6 +405,7 @@ export const ExpenseDrawer: React.FC<{
               style={{ width: '100%' }}
               value={amount}
               onChange={setAmount}
+              aria-label="金额"
             />
           </div>
         </div>
@@ -405,6 +415,7 @@ export const ExpenseDrawer: React.FC<{
             <UnitSelect
               info={bu}
               allowPublic
+              aria-label="所属事业部"
               value={unit}
               onChange={(v) => {
                 unitTouched.current = true;
@@ -427,6 +438,7 @@ export const ExpenseDrawer: React.FC<{
             value={method}
             disabled={locked}
             onChange={setMethod}
+            aria-label="付款方式"
             options={[
               { label: '公司对公', value: METHOD.COMPANY },
               { label: '员工垫付', value: METHOD.ADVANCE },
@@ -439,6 +451,7 @@ export const ExpenseDrawer: React.FC<{
             <Select
               style={{ width: 200, marginTop: 8 }}
               placeholder="垫付人（默认自己）"
+              aria-label="垫付人"
               allowClear
               disabled={locked}
               value={advanceUserId}
@@ -478,6 +491,7 @@ export const ExpenseDrawer: React.FC<{
                 </span>
               }
               style={{ width: 300 }}
+              aria-label="按订单号搜索并添加型号"
               value={null}
               options={options
                 .filter((o) => !allocs.some((a) => a.soItemId === o.soItemId))
@@ -593,6 +607,7 @@ export const ExpenseDrawer: React.FC<{
             onChange={(e) => setRemark(e.target.value)}
             maxLength={500}
             autoSize={{ minRows: 2 }}
+            aria-label="说明"
           />
         </div>
       </Space>
@@ -825,8 +840,22 @@ const ExpensePage: React.FC = () => {
           <MigratedPill migrated />
         ) : canEdit && r.status === 1 ? (
           <Space size={10}>
-            <a onClick={() => setDrawer({ editing: r })}>修改</a>
-            {!r.locked && <a onClick={() => setVoiding(r)}>作废</a>}
+            <button
+              type="button"
+              className="zhul-link"
+              onClick={() => setDrawer({ editing: r })}
+            >
+              修改
+            </button>
+            {!r.locked && (
+              <button
+                type="button"
+                className="zhul-link"
+                onClick={() => setVoiding(r)}
+              >
+                作废
+              </button>
+            )}
           </Space>
         ) : (
           <span style={{ color: palette.mute }}>—</span>

@@ -172,9 +172,13 @@ const Shoots: React.FC = () => {
       fixed: 'right',
       render: (_, r) => (
         <Space size={12}>
-          <a onClick={() => setOpen(r.id)}>
+          <button
+            type="button"
+            className="zhul-link"
+            onClick={() => setOpen(r.id)}
+          >
             {r.status === 1 && canEdit ? '拍摄' : '查看'}
-          </a>
+          </button>
         </Space>
       ),
     },

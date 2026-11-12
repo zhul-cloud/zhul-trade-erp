@@ -46,7 +46,13 @@ const DocList: React.FC<{
             {d.kind}
           </span>
           {d.path ? (
-            <a onClick={() => onOpen(d.path as string)}>{d.no}</a>
+            <button
+              type="button"
+              className="zhul-link"
+              onClick={() => onOpen(d.path as string)}
+            >
+              {d.no}
+            </button>
           ) : (
             <span style={{ color: palette.ink }}>{d.no}</span>
           )}

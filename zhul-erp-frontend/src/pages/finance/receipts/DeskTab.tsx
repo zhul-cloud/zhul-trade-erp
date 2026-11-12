@@ -107,12 +107,22 @@ const DeskTab: React.FC<{ onTotal?: (n: number) => void }> = ({ onTotal }) => {
       fixed: 'left',
       render: (v: string | undefined, r) =>
         r.piId ? (
-          <a onClick={() => history.push(PATHS.pi(r.piId as number))}>{v}</a>
+          <button
+            type="button"
+            className="zhul-link"
+            onClick={() => history.push(PATHS.pi(r.piId as number))}
+          >
+            {v}
+          </button>
         ) : (
           <div>
-            <a onClick={() => history.push(PATHS.order(r.orderId as number))}>
+            <button
+              type="button"
+              className="zhul-link"
+              onClick={() => history.push(PATHS.order(r.orderId as number))}
+            >
               {r.soNo}
-            </a>
+            </button>
             <div style={{ fontSize: 12, color: palette.mute }}>手动订单</div>
           </div>
         ),
@@ -194,7 +204,9 @@ const DeskTab: React.FC<{ onTotal?: (n: number) => void }> = ({ onTotal }) => {
                   </span>
                 </div>
                 {s.files.map((f, i) => (
-                  <a
+                  <button
+                    type="button"
+                    className="zhul-link"
                     key={f.fileKey}
                     style={{ fontSize: 12, marginRight: 8 }}
                     onClick={() =>
@@ -205,7 +217,7 @@ const DeskTab: React.FC<{ onTotal?: (n: number) => void }> = ({ onTotal }) => {
                     }
                   >
                     <PaperClipOutlined /> {f.fileName}
-                  </a>
+                  </button>
                 ))}
               </div>
             ))}

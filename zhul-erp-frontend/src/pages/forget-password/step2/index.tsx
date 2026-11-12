@@ -103,7 +103,9 @@ const Step2: React.FC = () => {
         .fp-otp-shake { animation: fp-shake 0.5s; }
       `}</style>
       <div style={{ position: 'relative', marginBottom: 16 }}>
-        <a
+        <button
+          type="button"
+          className="zhul-link"
           onClick={() => {
             sessionStorage.removeItem('fpUsername');
             sessionStorage.removeItem('fpEmail');
@@ -112,7 +114,7 @@ const Step2: React.FC = () => {
           style={{ position: 'absolute', left: 0, top: 4, fontSize: 13 }}
         >
           <LeftOutlined /> 上一步
-        </a>
+        </button>
         <div
           style={{
             fontSize: 20,
@@ -173,9 +175,14 @@ const Step2: React.FC = () => {
             重新发送验证码（{countdown}秒后可重发）
           </span>
         ) : (
-          <a onClick={handleResend} style={{ fontSize: 13 }}>
+          <button
+            type="button"
+            className="zhul-link"
+            onClick={handleResend}
+            style={{ fontSize: 13 }}
+          >
             {resending ? '发送中...' : '重新发送验证码'}
-          </a>
+          </button>
         )}
       </div>
 

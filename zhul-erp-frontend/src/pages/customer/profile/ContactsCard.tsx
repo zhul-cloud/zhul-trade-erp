@@ -352,12 +352,14 @@ const ContactsCard: React.FC<{
             {c.primary && tag('主联系人', 'accent')}
             {!!c.jobRole && tag(d.job.labelOf(c.jobRole))}
             {canEdit && (
-              <a
+              <button
+                type="button"
+                className="zhul-link"
                 style={{ marginLeft: 'auto', fontSize: 12 }}
                 onClick={() => setEditing(c)}
               >
                 编辑
-              </a>
+              </button>
             )}
           </div>
           <div

@@ -41,12 +41,14 @@ const Step1: React.FC = () => {
         <title>{usePageTitle('忘记密码')}</title>
       </Helmet>
       <div style={{ position: 'relative', marginBottom: 16 }}>
-        <a
+        <button
+          type="button"
+          className="zhul-link"
           onClick={() => history.push('/login')}
           style={{ position: 'absolute', left: 0, top: 4, fontSize: 13 }}
         >
           <LeftOutlined /> 返回登录
-        </a>
+        </button>
         <div
           style={{
             fontSize: 20,

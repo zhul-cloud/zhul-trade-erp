@@ -638,12 +638,20 @@ const ConfirmPage: React.FC = () => {
                 </span>
               )}
               <span style={actions}>
-                <a onClick={() => toggleExpanded(r.key)}>
+                <button
+                  type="button"
+                  className="zhul-link"
+                  onClick={() => toggleExpanded(r.key)}
+                >
                   {same.length} 条历史价 · 换一个
-                </a>
-                <a onClick={() => patch(r.key, { reuseQuoteId: null })}>
+                </button>
+                <button
+                  type="button"
+                  className="zhul-link"
+                  onClick={() => patch(r.key, { reuseQuoteId: null })}
+                >
                   改为重新询价
-                </a>
+                </button>
               </span>
             </div>
           );
@@ -660,7 +668,9 @@ const ConfirmPage: React.FC = () => {
                 <span style={{ color: palette.mute }}>
                   有 {same.length} 条历史价
                 </span>
-                <a
+                <button
+                  type="button"
+                  className="zhul-link"
                   onClick={() =>
                     patch(r.key, {
                       reuseQuoteId: r.match?.defaultQuoteId ?? same[0].id,
@@ -668,7 +678,7 @@ const ConfirmPage: React.FC = () => {
                   }
                 >
                   改回复用历史价
-                </a>
+                </button>
               </span>
             )}
             {same.length === 0 && (r.match?.otherBrands.length ?? 0) > 0 && (

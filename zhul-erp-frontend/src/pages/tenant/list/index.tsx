@@ -395,22 +395,39 @@ const TenantListPage: React.FC = () => {
       width: 340,
       render: (_, row) => [
         access['tenant:list:edit'] && (
-          <a key="edit" onClick={() => openEdit(row)}>
+          <button
+            type="button"
+            className="zhul-link"
+            key="edit"
+            onClick={() => openEdit(row)}
+          >
             编辑
-          </a>
+          </button>
         ),
         access['tenant:list:edit'] && (
-          <a key="renew" onClick={() => openRenew(row)}>
+          <button
+            type="button"
+            className="zhul-link"
+            key="renew"
+            onClick={() => openRenew(row)}
+          >
             续期
-          </a>
+          </button>
         ),
         access['tenant:list:init'] && (
-          <a key="init" onClick={() => openInit(row)}>
+          <button
+            type="button"
+            className="zhul-link"
+            key="init"
+            onClick={() => openInit(row)}
+          >
             数据初始化
-          </a>
+          </button>
         ),
         access['tenant:list:init'] && (
-          <a
+          <button
+            type="button"
+            className="zhul-link"
             key="migrate"
             onClick={() =>
               history.push(
@@ -419,21 +436,28 @@ const TenantListPage: React.FC = () => {
             }
           >
             历史迁移
-          </a>
+          </button>
         ),
         access['tenant:list:resetPwd'] && (
-          <a key="reset" onClick={() => openReset(row)}>
+          <button
+            type="button"
+            className="zhul-link"
+            key="reset"
+            onClick={() => openReset(row)}
+          >
             重置密码
-          </a>
+          </button>
         ),
         access['tenant:list:status'] && (
-          <a
+          <button
+            type="button"
+            className="zhul-link"
             key="status"
             style={{ color: row.status === 1 ? palette.red : palette.green }}
             onClick={() => toggleStatus(row)}
           >
             {row.status === 1 ? '禁用' : '启用'}
-          </a>
+          </button>
         ),
       ],
     },
@@ -487,6 +511,7 @@ const TenantListPage: React.FC = () => {
 
       {/* 新增 / 编辑租户 */}
       <DrawerForm
+        name="tenantEdit"
         title={editing ? `编辑租户 — ${editing.name}` : '新增租户'}
         width={600}
         open={drawerOpen}

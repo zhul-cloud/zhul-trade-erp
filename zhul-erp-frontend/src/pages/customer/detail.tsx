@@ -244,9 +244,14 @@ const CreditCard: React.FC<{ customerId: number; customerName: string }> = ({
           >
             {a.currencyCode} 可用余额
             {a.businessUnitName ? ` · ${a.businessUnitName}` : ''}
-            <a style={{ marginLeft: 'auto' }} onClick={() => setViewing(a)}>
+            <button
+              type="button"
+              className="zhul-link"
+              style={{ marginLeft: 'auto' }}
+              onClick={() => setViewing(a)}
+            >
               流水
-            </a>
+            </button>
           </div>
           <div
             style={{

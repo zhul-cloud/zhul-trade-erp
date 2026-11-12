@@ -184,7 +184,15 @@ const OperateLogPage: React.FC = () => {
       valueType: 'option',
       width: 80,
       align: 'center',
-      render: (_, record) => <a onClick={() => openDetail(record)}>详情</a>,
+      render: (_, record) => (
+        <button
+          type="button"
+          className="zhul-link"
+          onClick={() => openDetail(record)}
+        >
+          详情
+        </button>
+      ),
     },
   ];
 

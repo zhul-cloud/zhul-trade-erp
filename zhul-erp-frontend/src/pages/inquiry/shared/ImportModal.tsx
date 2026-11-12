@@ -236,14 +236,16 @@ const ImportModal: React.FC<{
                 >
                   <FileExcelOutlined style={{ color: palette.green }} />
                   <span style={{ color: palette.ink }}>{f.name}</span>
-                  <a
+                  <button
+                    type="button"
+                    className="zhul-link"
                     style={{ marginLeft: 'auto' }}
                     onClick={() =>
                       setPicked((prev) => prev.filter((p) => p !== f))
                     }
                   >
                     移除
-                  </a>
+                  </button>
                 </div>
               ))}
             </div>

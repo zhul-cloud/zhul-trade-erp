@@ -248,12 +248,14 @@ export const BackgroundCard: React.FC<{
           背调报告
         </h2>
         {reports.length > 3 && (
-          <a
+          <button
+            type="button"
+            className="zhul-link"
             style={{ marginLeft: 'auto', fontSize: 13 }}
             onClick={() => setAll(!all)}
           >
             {all ? '收起' : `全部 ${reports.length} 份`}
-          </a>
+          </button>
         )}
       </div>
       {reports.length === 0 ? (
@@ -264,13 +266,18 @@ export const BackgroundCard: React.FC<{
       ) : (
         <>
           {latest && (
-            <a onClick={() => open(latest)} style={{ color: 'inherit' }}>
+            <button
+              type="button"
+              className="zhul-link"
+              onClick={() => open(latest)}
+              style={{ color: 'inherit' }}
+            >
               <ConclusionBox
                 report={latest}
                 compact
                 extra={`${latest.reportNo} · ${formatDateTime(latest.createTime).slice(5, 10)}`}
               />
-            </a>
+            </button>
           )}
           {shown.map((r) => (
             <ReportRow key={r.id} report={r} onOpen={() => open(r)} />
@@ -301,9 +308,14 @@ const ReportRow: React.FC<{ report: BackgroundReport; onOpen: () => void }> = ({
       }}
     >
       {clickable ? (
-        <a className="num" onClick={onOpen} style={{ fontSize: 13 }}>
+        <button
+          type="button"
+          className="zhul-link num"
+          onClick={onOpen}
+          style={{ fontSize: 13 }}
+        >
           {r.reportNo}
-        </a>
+        </button>
       ) : (
         <span className="num" style={{ fontSize: 13, color: palette.sub }}>
           {r.reportNo}
@@ -464,12 +476,14 @@ const RecentModal: React.FC<{
               : ''}
             。
           </div>
-          <a
+          <button
+            type="button"
+            className="zhul-link"
             style={{ fontSize: 13 }}
             onClick={() => history.push(reportPath(customerId, d.reportId))}
           >
             先看上次的报告
-          </a>
+          </button>
         </div>
       )}
     </Modal>

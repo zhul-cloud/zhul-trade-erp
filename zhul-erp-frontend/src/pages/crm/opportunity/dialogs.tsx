@@ -161,7 +161,13 @@ export const CloseModal: React.FC<{
           {recommend.reasons.map((r, i) => (
             <React.Fragment key={r}>
               {i > 0 && '、'}
-              <a onClick={() => setReason(r)}>{recommend.names[i]}</a>
+              <button
+                type="button"
+                className="zhul-link"
+                onClick={() => setReason(r)}
+              >
+                {recommend.names[i]}
+              </button>
             </React.Fragment>
           ))}
           {recommend.date &&

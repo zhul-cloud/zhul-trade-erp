@@ -187,10 +187,15 @@ const SalesStatsPage: React.FC = () => {
       align: 'right',
       render: (_, r) =>
         r.orders.all ? (
-          <a style={num} onClick={() => go('/sales/orders', r)}>
+          <button
+            type="button"
+            className="zhul-link"
+            style={num}
+            onClick={() => go('/sales/orders', r)}
+          >
             <div>{r.orders.all}</div>
             {sub(`${r.orders.fresh} / ${r.orders.old}`)}
-          </a>
+          </button>
         ) : (
           <span style={{ color: palette.mute }}>—</span>
         ),
@@ -252,10 +257,15 @@ const SalesStatsPage: React.FC = () => {
       align: 'right',
       render: (_, r) =>
         r.revenue.all ? (
-          <a style={num} onClick={() => go('/finance/profit-stats', r)}>
+          <button
+            type="button"
+            className="zhul-link"
+            style={num}
+            onClick={() => go('/finance/profit-stats', r)}
+          >
             <div style={{ fontWeight: 700 }}>{cny(r.revenue.all)}</div>
             {sub(`${cny(r.revenue.fresh)} / ${cny(r.revenue.old)}`)}
-          </a>
+          </button>
         ) : (
           <span style={{ color: palette.mute }}>—</span>
         ),
@@ -267,12 +277,14 @@ const SalesStatsPage: React.FC = () => {
       align: 'right',
       render: (_, r) =>
         r.revenue.all ? (
-          <a
+          <button
+            type="button"
+            className="zhul-link"
             style={{ ...num, color: palette.green }}
             onClick={() => go('/finance/profit-stats', r)}
           >
             {cny(r.profit.all)}
-          </a>
+          </button>
         ) : (
           <span style={{ color: palette.mute }}>—</span>
         ),

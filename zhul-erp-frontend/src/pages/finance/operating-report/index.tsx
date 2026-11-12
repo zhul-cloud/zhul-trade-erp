@@ -75,7 +75,9 @@ const OperatingReportPage: React.FC = () => {
     bold?: boolean,
   ) =>
     value ? (
-      <a
+      <button
+        type="button"
+        className="zhul-link"
         onClick={onClick}
         style={{
           ...num,
@@ -84,7 +86,7 @@ const OperatingReportPage: React.FC = () => {
         }}
       >
         {cny(value)}
-      </a>
+      </button>
     ) : (
       <span style={{ color: palette.mute }}>—</span>
     );

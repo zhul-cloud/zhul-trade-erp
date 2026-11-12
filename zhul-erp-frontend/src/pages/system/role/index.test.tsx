@@ -148,7 +148,7 @@ describe('RolePage 分配权限（audit UI-014）', () => {
     );
     renderPage();
     fireEvent.click((await screen.findAllByText('分配权限'))[0]);
-    fireEvent.click(screen.getByRole('button', { name: /取\s?消/ }));
+    fireEvent.click(screen.getByRole('button', { name: /^取\s?消$/ }));
     fireEvent.click((await screen.findAllByText('分配权限'))[1]);
     await waitFor(() => expect(saveButton().disabled).toBe(false));
 
@@ -196,7 +196,7 @@ describe('RolePage 编辑角色（audit UI-037）', () => {
     fireEvent.click(edits[0]);
     fireEvent.click(edits[1]);
     expect(await screen.findByText('编辑角色 - 角色乙')).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: /取\s?消/ }));
+    fireEvent.click(screen.getByRole('button', { name: /^取\s?消$/ }));
     await waitFor(() =>
       expect(screen.queryByText('编辑角色 - 角色乙')).toBeNull(),
     );
@@ -206,5 +206,32 @@ describe('RolePage 编辑角色（audit UI-037）', () => {
     // 留出足够时间让迟到的回包走完（修复前抽屉会在这段时间里重新弹出）
     await new Promise((r) => setTimeout(r, 500));
     expect(screen.queryByText(/编辑角色 - /)).toBeNull();
+  });
+});
+
+describe('RolePage 编辑抽屉的标签（audit UI-026）', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mocked.getRoleList.mockResolvedValue({
+      data: [role(1, 'RA', '角色甲', 1)],
+      total: 1,
+      success: true,
+    });
+  });
+
+  it('抽屉里的标签指向抽屉自己的输入框，不指向背景的搜索框', async () => {
+    renderPage();
+    fireEvent.click((await screen.findAllByText('编辑'))[0]);
+    const drawer = (await screen.findByText('编辑角色 - 角色甲')).closest(
+      '.ant-drawer',
+    ) as Element;
+    const labels = Array.from(drawer.querySelectorAll('label[for]'));
+    expect(labels.length).toBeGreaterThan(0);
+    for (const l of labels) {
+      const id = l.getAttribute('for') as string;
+      expect(document.querySelectorAll(`[id="${id}"]`).length).toBeLessThan(2);
+      const target = document.getElementById(id);
+      if (target) expect(drawer.contains(target)).toBe(true);
+    }
   });
 });

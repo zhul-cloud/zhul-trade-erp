@@ -139,7 +139,13 @@ const OpportunityPage: React.FC = () => {
       width: 160,
       render: (v: string, r) => (
         <div>
-          <a onClick={() => history.push(`${LIST_PATH}/${r.id}`)}>{v}</a>
+          <button
+            type="button"
+            className="zhul-link"
+            onClick={() => history.push(`${LIST_PATH}/${r.id}`)}
+          >
+            {v}
+          </button>
           {r.migrated && (
             <div style={{ marginTop: 4 }}>
               <MigratedPill migrated />
@@ -220,7 +226,13 @@ const OpportunityPage: React.FC = () => {
       width: 90,
       fixed: 'right',
       render: (_, r) => (
-        <a onClick={() => history.push(`${LIST_PATH}/${r.id}`)}>查看</a>
+        <button
+          type="button"
+          className="zhul-link"
+          onClick={() => history.push(`${LIST_PATH}/${r.id}`)}
+        >
+          查看
+        </button>
       ),
     },
   ];

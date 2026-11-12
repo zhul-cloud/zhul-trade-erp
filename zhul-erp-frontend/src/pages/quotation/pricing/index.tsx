@@ -332,7 +332,13 @@ const PricingStrategyPage: React.FC = () => {
                   width: 60,
                   render: (_, c) =>
                     canEdit && c.itemCondition !== TO_CONFIRM ? (
-                      <a onClick={() => openEdit(c)}>编辑</a>
+                      <button
+                        type="button"
+                        className="zhul-link"
+                        onClick={() => openEdit(c)}
+                      >
+                        编辑
+                      </button>
                     ) : null,
                 },
               ]}
@@ -343,7 +349,9 @@ const PricingStrategyPage: React.FC = () => {
             title="低值耗材金额分层"
             extra={
               canEdit && (
-                <a
+                <button
+                  type="button"
+                  className="zhul-link"
                   onClick={() => {
                     setTiers(data.tiers.map((t) => ({ ...t, key: ++tierSeq })));
                     setFormError(undefined);
@@ -351,7 +359,7 @@ const PricingStrategyPage: React.FC = () => {
                   }}
                 >
                   编辑分层
-                </a>
+                </button>
               )
             }
           >
@@ -466,7 +474,9 @@ const PricingStrategyPage: React.FC = () => {
                         </Tag>
                       ))}
                       {canEdit && (
-                        <a
+                        <button
+                          type="button"
+                          className="zhul-link"
                           style={{ fontSize: 12 }}
                           onClick={() => {
                             setBrands([...data.premiumBrands]);
@@ -476,7 +486,7 @@ const PricingStrategyPage: React.FC = () => {
                           }}
                         >
                           <PlusOutlined /> 编辑品牌
-                        </a>
+                        </button>
                       )}
                     </div>
                   )}

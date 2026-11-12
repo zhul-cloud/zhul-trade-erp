@@ -706,12 +706,14 @@ const OrderDetail: React.FC = () => {
         ) : (
           <div style={{ fontSize: 12, display: 'grid', gap: 2 }}>
             {(r.purchaseOrders ?? []).map((p) => (
-              <a
+              <button
+                type="button"
+                className="zhul-link"
                 key={p.id}
                 onClick={() => history.push(`/purchase/orders/${p.id}`)}
               >
                 {p.poNo ?? '草稿采购订单'}
-              </a>
+              </button>
             ))}
             {(r.transits ?? []).map((t) => (
               <span key={t.shipmentId} style={{ color: palette.mute }}>
@@ -1183,22 +1185,26 @@ const OrderDetail: React.FC = () => {
                 </div>
                 {slip &&
                   r.files.map((f, i) => (
-                    <a
+                    <button
+                      type="button"
+                      className="zhul-link"
                       key={f.fileKey}
                       style={{ fontSize: 12, marginRight: 10 }}
                       onClick={() => openSlip(r.id, i)}
                     >
                       <PaperClipOutlined /> {f.fileName}
-                    </a>
+                    </button>
                   ))}
                 {manual && r.voidable && (
                   <div>
-                    <a
+                    <button
+                      type="button"
+                      className="zhul-link"
                       style={{ fontSize: 12, color: palette.red }}
                       onClick={() => setVoidId(r.id)}
                     >
                       作废
-                    </a>
+                    </button>
                   </div>
                 )}
               </div>
@@ -1258,11 +1264,13 @@ const OrderDetail: React.FC = () => {
           <div style={{ fontSize: 12, color: palette.mute, marginTop: 10 }}>
             不单独计算收入与毛利，成本计入原订单{' '}
             {o.originalSoId && (
-              <a
+              <button
+                type="button"
+                className="zhul-link"
                 onClick={() => history.push(`/sales/orders/${o.originalSoId}`)}
               >
                 {o.originalSoNo}
-              </a>
+              </button>
             )}
           </div>
         </Card>
@@ -1311,9 +1319,13 @@ const OrderDetail: React.FC = () => {
                 opacity: x.status === 2 ? 0.6 : 1,
               }}
             >
-              <a onClick={() => history.push(`/sales/orders/${x.id}`)}>
+              <button
+                type="button"
+                className="zhul-link"
+                onClick={() => history.push(`/sales/orders/${x.id}`)}
+              >
                 {x.soNo}
-              </a>
+              </button>
               <span style={{ ...num, color: palette.ink }}>
                 {formatAmount(x.totalAmount, x.currencyCode)}
               </span>
@@ -1439,9 +1451,13 @@ const OrderDetail: React.FC = () => {
           title={`客户还没有付款（先采购后收款：${o.payLaterReason ?? ''}${o.payLaterByName ? ` · ${o.payLaterByName}` : ''} ${formatDateTime(o.payLaterAt).slice(5, 10)}），请跟进收款`}
           action={
             o.piId ? (
-              <a onClick={() => history.push(PATHS.pi(o.piId as number))}>
+              <button
+                type="button"
+                className="zhul-link"
+                onClick={() => history.push(PATHS.pi(o.piId as number))}
+              >
                 去 PI 上传水单
-              </a>
+              </button>
             ) : undefined
           }
         />
@@ -1514,9 +1530,13 @@ const OrderDetail: React.FC = () => {
                   background: palette.inset,
                 }}
               >
-                <a onClick={() => history.push(`/sales/after-sales/${x.id}`)}>
+                <button
+                  type="button"
+                  className="zhul-link"
+                  onClick={() => history.push(`/sales/after-sales/${x.id}`)}
+                >
                   {x.asNo}
-                </a>
+                </button>
                 <Pill tone={LEVEL_TONE[x.levelCode] ?? 'gray'}>
                   {levelShort(x.levelCode, x.levelName)}
                 </Pill>

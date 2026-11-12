@@ -275,7 +275,9 @@ const RegisterDrawer: React.FC<{
             </div>
             {duplicate.existingId && (
               <div style={{ display: 'flex', gap: 16 }}>
-                <a
+                <button
+                  type="button"
+                  className="zhul-link"
                   onClick={() =>
                     history.push(
                       `/inquiry/customer-inquiries?newForCustomer=${duplicate.existingId}`,
@@ -283,15 +285,17 @@ const RegisterDrawer: React.FC<{
                   }
                 >
                   为该客户新建询盘
-                </a>
+                </button>
                 {duplicate.selectable && (
-                  <a
+                  <button
+                    type="button"
+                    className="zhul-link"
                     onClick={() =>
                       history.push(`/customer/list/${duplicate.existingId}`)
                     }
                   >
                     查看客户
-                  </a>
+                  </button>
                 )}
               </div>
             )}

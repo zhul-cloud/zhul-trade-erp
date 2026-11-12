@@ -416,7 +416,13 @@ const SourcingBoardPage: React.FC = () => {
                   <span style={{ color: palette.ink, fontWeight: 600 }}>
                     已选 {selected.length} 个任务
                   </span>
-                  <a onClick={() => setSelected([])}>取消选择</a>
+                  <button
+                    type="button"
+                    className="zhul-link"
+                    onClick={() => setSelected([])}
+                  >
+                    取消选择
+                  </button>
                   <span style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
                     <Button
                       type="primary"
@@ -602,9 +608,13 @@ const SourcingBoardPage: React.FC = () => {
                                 flexWrap: 'wrap',
                               }}
                             >
-                              <a onClick={() => setDetailId(t.id)}>
+                              <button
+                                type="button"
+                                className="zhul-link"
+                                onClick={() => setDetailId(t.id)}
+                              >
                                 {t.taskCode}
-                              </a>
+                              </button>
                               <LevelPill value={t.level} />
                               {t.urgent && <Pill tone="red">紧急</Pill>}
                               {t.returnReason > 0 &&
@@ -1100,7 +1110,13 @@ const ReviewList: React.FC<{
                 flexWrap: 'wrap',
               }}
             >
-              <a onClick={() => onOpenTask(t.id)}>{t.taskCode}</a>
+              <button
+                type="button"
+                className="zhul-link"
+                onClick={() => onOpenTask(t.id)}
+              >
+                {t.taskCode}
+              </button>
               <LevelPill value={t.level} />
               {t.urgent && <Pill tone="red">紧急</Pill>}
             </span>

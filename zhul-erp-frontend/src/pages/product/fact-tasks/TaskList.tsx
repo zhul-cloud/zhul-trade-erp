@@ -334,7 +334,13 @@ export const TaskList: React.FC<{ entry: PackageType }> = ({ entry }) => {
         >
           {facts ? (
             <>
-              <a onClick={() => download([t.productId])}>下载资料包</a>
+              <button
+                type="button"
+                className="zhul-link"
+                onClick={() => download([t.productId])}
+              >
+                下载资料包
+              </button>
               {!factsVerified(t.status) && access['product:content:edit'] && (
                 <VerifyFactsButton
                   productId={t.productId}
@@ -355,19 +361,27 @@ export const TaskList: React.FC<{ entry: PackageType }> = ({ entry }) => {
               />
             </>
           )}
-          <a onClick={() => setRowUpload({ id: t.productId, label: label(t) })}>
+          <button
+            type="button"
+            className="zhul-link"
+            onClick={() => setRowUpload({ id: t.productId, label: label(t) })}
+          >
             上传
-          </a>
-          <a
+          </button>
+          <button
+            type="button"
+            className="zhul-link"
             onClick={() => setRowCombined({ id: t.productId, label: label(t) })}
           >
             资料+营销
-          </a>
-          <a
+          </button>
+          <button
+            type="button"
+            className="zhul-link"
             onClick={() => setRowRecords({ id: t.productId, label: label(t) })}
           >
             上传记录
-          </a>
+          </button>
         </span>
       ),
     },

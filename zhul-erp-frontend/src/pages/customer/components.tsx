@@ -284,13 +284,24 @@ export const PartyCard: React.FC<{
         </div>
         <div style={{ display: 'flex', gap: 12, fontSize: 12, flexShrink: 0 }}>
           {onSetDefault && !party.defaultParty && (
-            <a onClick={onSetDefault}>设为默认</a>
+            <button type="button" className="zhul-link" onClick={onSetDefault}>
+              设为默认
+            </button>
           )}
-          {onEdit && <a onClick={onEdit}>编辑</a>}
+          {onEdit && (
+            <button type="button" className="zhul-link" onClick={onEdit}>
+              编辑
+            </button>
+          )}
           {onDelete && (
-            <a style={{ color: palette.red }} onClick={onDelete}>
+            <button
+              type="button"
+              className="zhul-link"
+              style={{ color: palette.red }}
+              onClick={onDelete}
+            >
               删除
-            </a>
+            </button>
           )}
         </div>
       </div>
@@ -442,7 +453,12 @@ export const PartyDrawer: React.FC<{
         </div>
       }
     >
-      <Form form={form} layout="vertical" validateTrigger="onBlur">
+      <Form
+        form={form}
+        name="party"
+        layout="vertical"
+        validateTrigger="onBlur"
+      >
         <Form.Item name="partyType" label="类型" rules={[{ required: true }]}>
           <Segmented
             block

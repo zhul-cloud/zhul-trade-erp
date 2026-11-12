@@ -102,9 +102,14 @@ const ModuleCard: React.FC<{
           {done ? '已完成' : `缺 ${missing?.length}`}
         </Pill>
         {onEdit && (
-          <a style={{ marginLeft: 'auto', fontSize: 13 }} onClick={onEdit}>
+          <button
+            type="button"
+            className="zhul-link"
+            style={{ marginLeft: 'auto', fontSize: 13 }}
+            onClick={onEdit}
+          >
             编辑
-          </a>
+          </button>
         )}
       </div>
       {children}
@@ -409,7 +414,9 @@ const ProfileModules: React.FC<{
           >
             这个国家还没有资料（电压、外汇管制、节假日）。
             {canEditCountry && (
-              <a
+              <button
+                type="button"
+                className="zhul-link"
                 onClick={() =>
                   history.push(
                     `${COUNTRY_PATH}?country=${encodeURIComponent(p.country)}`,
@@ -417,7 +424,7 @@ const ProfileModules: React.FC<{
                 }
               >
                 去维护
-              </a>
+              </button>
             )}
           </div>
         )}

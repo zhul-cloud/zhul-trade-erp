@@ -341,11 +341,23 @@ const BrandPage: React.FC = () => {
         const canDelete = !!access['product:brand:delete'];
         return (
           <Space size={12} style={{ whiteSpace: 'nowrap' }}>
-            {canEdit && <a onClick={() => openForm(row)}>编辑</a>}
             {canEdit && (
-              <a onClick={() => toggleStatus(row)}>
+              <button
+                type="button"
+                className="zhul-link"
+                onClick={() => openForm(row)}
+              >
+                编辑
+              </button>
+            )}
+            {canEdit && (
+              <button
+                type="button"
+                className="zhul-link"
+                onClick={() => toggleStatus(row)}
+              >
                 {row.status === 1 ? '停用' : '启用'}
-              </a>
+              </button>
             )}
             {canDelete && (
               <Dropdown
@@ -456,9 +468,21 @@ const BrandPage: React.FC = () => {
               width: 260,
               render: (_: unknown, row: PendingBrand) => (
                 <Space size={12} style={{ whiteSpace: 'nowrap' }}>
-                  <a onClick={() => openLink(row)}>设为已有品牌的别名</a>
+                  <button
+                    type="button"
+                    className="zhul-link"
+                    onClick={() => openLink(row)}
+                  >
+                    设为已有品牌的别名
+                  </button>
                   {access['product:brand:add'] && (
-                    <a onClick={() => openForm(null, row)}>新建为品牌</a>
+                    <button
+                      type="button"
+                      className="zhul-link"
+                      onClick={() => openForm(null, row)}
+                    >
+                      新建为品牌
+                    </button>
                   )}
                 </Space>
               ),
@@ -581,6 +605,7 @@ const BrandPage: React.FC = () => {
         aliases?: string[];
         industryCodes?: string[];
       }>
+        name="brandEdit"
         title={editing ? '编辑品牌' : creatingFrom ? '新建为品牌' : '新增品牌'}
         open={open}
         onOpenChange={setOpen}
@@ -733,6 +758,7 @@ const BrandPage: React.FC = () => {
         />
       </ModalForm>
       <ModalForm
+        name="brandAlias"
         title={linking ? `把「${linking.name}」设为已有品牌的别名` : ''}
         open={!!linking}
         onOpenChange={(v) => !v && setLinking(null)}

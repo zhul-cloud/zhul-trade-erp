@@ -540,13 +540,15 @@ const CustomerFormPage: React.FC = () => {
                 <ul style={{ margin: 0, paddingLeft: 18 }}>
                   {errorSummary.map((e) => (
                     <li key={e.name}>
-                      <a
+                      <button
+                        type="button"
+                        className="zhul-link"
                         onClick={() =>
                           form.scrollToField(e.name, { focus: true })
                         }
                       >
                         {e.text}
-                      </a>
+                      </button>
                     </li>
                   ))}
                 </ul>

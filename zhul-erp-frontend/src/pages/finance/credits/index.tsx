@@ -174,12 +174,14 @@ const CreditPage: React.FC = () => {
             </span>
             {a.occupiers.map((o) => (
               <div key={o.sourceNo}>
-                <a
+                <button
+                  type="button"
+                  className="zhul-link"
                   style={{ fontSize: 12 }}
                   onClick={() => history.push(`/sales/pi/${o.sourceId}`)}
                 >
                   {o.sourceNo}
-                </a>
+                </button>
               </div>
             ))}
           </div>
@@ -214,10 +216,22 @@ const CreditPage: React.FC = () => {
       fixed: 'right',
       render: (_, a) => (
         <span style={{ display: 'inline-flex', gap: 12 }}>
-          <a onClick={() => setViewing(a)}>流水</a>
+          <button
+            type="button"
+            className="zhul-link"
+            onClick={() => setViewing(a)}
+          >
+            流水
+          </button>
           {canWithdraw &&
             (a.available > 0 ? (
-              <a onClick={() => setWithdrawing(a)}>转给客户</a>
+              <button
+                type="button"
+                className="zhul-link"
+                onClick={() => setWithdrawing(a)}
+              >
+                转给客户
+              </button>
             ) : (
               <span
                 style={{ color: palette.mute }}

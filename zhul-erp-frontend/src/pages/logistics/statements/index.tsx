@@ -250,13 +250,15 @@ const StatementDrawer: React.FC<{
       dataIndex: 'shNo',
       width: 150,
       render: (v: string, l) => (
-        <a
+        <button
+          type="button"
+          className="zhul-link"
           onClick={() =>
             history.push(`${LOGISTICS_PATHS.shipments}/${l.logisticsId}`)
           }
         >
           {v}
-        </a>
+        </button>
       ),
     },
     { title: '出运日期', dataIndex: 'shippedDate', width: 110 },
@@ -536,9 +538,13 @@ const Statements: React.FC = () => {
       width: 200,
       fixed: 'left',
       render: (_, r) => (
-        <a onClick={() => setViewing(r.id)}>
+        <button
+          type="button"
+          className="zhul-link"
+          onClick={() => setViewing(r.id)}
+        >
           {r.forwarderName} · {r.period}
-        </a>
+        </button>
       ),
     },
     {
@@ -622,9 +628,13 @@ const Statements: React.FC = () => {
       width: 80,
       fixed: 'right',
       render: (_, r) => (
-        <a onClick={() => setViewing(r.id)}>
+        <button
+          type="button"
+          className="zhul-link"
+          onClick={() => setViewing(r.id)}
+        >
           {r.status === 1 && canEdit ? '核对' : '查看'}
-        </a>
+        </button>
       ),
     },
   ];
