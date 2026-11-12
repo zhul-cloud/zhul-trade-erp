@@ -1767,6 +1767,9 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         if (q.getOwnerId() != null) {
             w.eq(SalesOrderDO::getOwnerId, q.getOwnerId());
         }
+        if (q.getBusinessUnitId() != null) {
+            w.eq(SalesOrderDO::getBusinessUnitId, q.getBusinessUnitId());
+        }
         if (q.getCreatedFrom() != null) {
             w.ge(SalesOrderDO::getCreateTime, q.getCreatedFrom().atStartOfDay());
         }

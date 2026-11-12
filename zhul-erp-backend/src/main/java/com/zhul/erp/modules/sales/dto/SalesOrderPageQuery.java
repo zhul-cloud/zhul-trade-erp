@@ -24,6 +24,8 @@ public class SalesOrderPageQuery {
     /** 来源：1-PI 转成、2-手动创建、3-售后补发 */
     private Integer source;
     private Long ownerId;
+    /** 所属事业部：只在可见订单内缩小范围（UI-015） */
+    private Integer businessUnitId;
     private LocalDate createdFrom;
     private LocalDate createdTo;
     private Integer page = 1;
