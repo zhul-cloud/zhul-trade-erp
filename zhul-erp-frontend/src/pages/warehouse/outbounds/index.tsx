@@ -390,8 +390,9 @@ const Outbounds: React.FC = () => {
       <PackDrawer
         id={packing}
         onClose={() => setPacking(undefined)}
-        onDone={() => {
-          setPacking(undefined);
+        onDone={(packedId) => {
+          // 保存期间换开了别的单：只刷新列表，不关掉正在看的抽屉（UI-017）
+          setPacking((cur) => (cur === packedId ? undefined : cur));
           changed();
         }}
       />

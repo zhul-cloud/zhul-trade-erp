@@ -150,9 +150,13 @@ const StatementDrawer: React.FC<{
 
   /** 请求序号：换账单、关闭或重新加载后，之前迟到的回包作废（UI-017 同型） */
   const seq = useRef(0);
+  /** 抽屉当前打开的账单 */
+  const current = useRef(id);
+  current.current = id;
   const load = useCallback(() => {
     const mine = ++seq.current;
     if (id === undefined) return;
+    setBusy(false);
     setSt(undefined);
     setError(undefined);
     statementApi
@@ -184,15 +188,18 @@ const StatementDrawer: React.FC<{
     }));
 
   const run = async (fn: () => Promise<Statement>, ok: string) => {
+    const target = id;
     setBusy(true);
     try {
-      show(await fn());
+      const saved = await fn();
+      // 保存期间换了账单或关了抽屉：只提示和刷新列表，不改写当前抽屉（UI-017）
+      if (current.current === target) show(saved);
       message.success(ok);
       onChanged();
     } catch (e) {
       message.error(readBizError(e).message);
     } finally {
-      setBusy(false);
+      if (current.current === target) setBusy(false);
     }
   };
 

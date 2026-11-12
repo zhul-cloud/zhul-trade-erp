@@ -11,7 +11,7 @@
 | OpenSpec | 缺陷修复，按现行规格修正行为，不新开提案 |
 | PR / 目标分支 | [#252](https://github.com/zhul-cloud/zhul-trade-erp/pull/252) → develop |
 | 合并证据 | 2026-11-11 合并到 develop（`e0894ce7`）；合并前并入 develop 解决台账冲突，CI 6 项通过 |
-| 目标版本 / 环境 | 下一个发布版本；生产 |
+| 目标版本 / 环境 | v1.20.0；生产 |
 
 ## 原因与实施
 
@@ -47,15 +47,15 @@
 
 | ID | 修复 / 验收范围 | 部署与目标环境验收证据 | 验收人 / 日期 | 结论与剩余项 |
 | --- | --- | --- | --- | --- |
-| BUS-001 | 有订单 / 商机 / 报价等引用的客户不能删除 | 未部署 | — | 已合并待发布；残留建单未锁客户的交错 |
-| BUS-013 | 编辑基本信息不改阶段与结束信息 | 未部署 | — | 已合并待发布 |
-| BUS-014 | 同一待分配任务并发分配只有一方成功 | 未部署 | — | 已合并待发布 |
-| BUS-015 | 已报客户型号导入回价被拒 | 未部署 | — | 已合并待发布 |
-| BUS-017 | 工作台在途、超期按全部单据统计 | 未部署 | — | 已合并待发布 |
-| BUS-020 | 部门维护不能形成事业部嵌套；有单据的事业部不能删除 | 未部署 | — | 已合并待发布 |
-| BUS-021 | 兼容说明在列表、营销包、导入与修改间一致 | 未部署 | — | 已合并待发布 |
-| BUS-022 | 批量通过不覆盖并发驳回 | 未部署 | — | 已合并待发布 |
-| BUS-035 | 事务内加锁后重读得到最新值 | 未部署 | — | 已合并待发布 |
+| BUS-001 | 有订单 / 商机 / 报价等引用的客户不能删除 | v1.20.0 已部署（[#257](https://github.com/zhul-cloud/zhul-trade-erp/pull/257)；[生产发版](https://github.com/zhul-cloud/zhul-trade-erp/actions/runs/43119493452) 成功，2026-11-12） | — | 已发布待验收；残留建单未锁客户的交错 |
+| BUS-013 | 编辑基本信息不改阶段与结束信息 | v1.20.0 已部署（[#257](https://github.com/zhul-cloud/zhul-trade-erp/pull/257)；[生产发版](https://github.com/zhul-cloud/zhul-trade-erp/actions/runs/43119493452) 成功，2026-11-12） | — | 已发布待验收 |
+| BUS-014 | 同一待分配任务并发分配只有一方成功 | v1.20.0 已部署（[#257](https://github.com/zhul-cloud/zhul-trade-erp/pull/257)；[生产发版](https://github.com/zhul-cloud/zhul-trade-erp/actions/runs/43119493452) 成功，2026-11-12） | — | 已发布待验收 |
+| BUS-015 | 已报客户型号导入回价被拒 | v1.20.0 已部署（[#257](https://github.com/zhul-cloud/zhul-trade-erp/pull/257)；[生产发版](https://github.com/zhul-cloud/zhul-trade-erp/actions/runs/43119493452) 成功，2026-11-12） | — | 已发布待验收 |
+| BUS-017 | 工作台在途、超期按全部单据统计 | v1.20.0 已部署（[#257](https://github.com/zhul-cloud/zhul-trade-erp/pull/257)；[生产发版](https://github.com/zhul-cloud/zhul-trade-erp/actions/runs/43119493452) 成功，2026-11-12） | — | 已发布待验收 |
+| BUS-020 | 部门维护不能形成事业部嵌套；有单据的事业部不能删除 | v1.20.0 已部署（[#257](https://github.com/zhul-cloud/zhul-trade-erp/pull/257)；[生产发版](https://github.com/zhul-cloud/zhul-trade-erp/actions/runs/43119493452) 成功，2026-11-12） | — | 已发布待验收 |
+| BUS-021 | 兼容说明在列表、营销包、导入与修改间一致 | v1.20.0 已部署（[#257](https://github.com/zhul-cloud/zhul-trade-erp/pull/257)；[生产发版](https://github.com/zhul-cloud/zhul-trade-erp/actions/runs/43119493452) 成功，2026-11-12） | — | 已发布待验收 |
+| BUS-022 | 批量通过不覆盖并发驳回 | v1.20.0 已部署（[#257](https://github.com/zhul-cloud/zhul-trade-erp/pull/257)；[生产发版](https://github.com/zhul-cloud/zhul-trade-erp/actions/runs/43119493452) 成功，2026-11-12） | — | 已发布待验收 |
+| BUS-035 | 事务内加锁后重读得到最新值 | v1.20.0 已部署（[#257](https://github.com/zhul-cloud/zhul-trade-erp/pull/257)；[生产发版](https://github.com/zhul-cloud/zhul-trade-erp/actions/runs/43119493452) 成功，2026-11-12） | — | 已发布待验收 |
 
 ## 事件记录
 
@@ -64,3 +64,4 @@
 | 2026-11-11 / Claude | 认领 8 项；逐项核实缺陷仍在，实施并补测试（修复前失败、修复后通过）；实施 BUS-022 时发现 BUS-035 并一并修复 | 全量测试后创建 PR |
 | 2026-11-11 / Claude | 后端全量 1609 个通过，9 项改为待合并 | 创建 PR → develop |
 | 2026-11-11 / Claude | #252 CI 通过并合并（`e0894ce7`），9 项改为已合并待发布 | 随下一个版本发布 |
+| 2026-11-12 / Claude | 随 v1.20.0 上线（#257，发版运行 43119493452 成功），9 项改为已发布待验收 | 生产验收 |
