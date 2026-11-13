@@ -382,6 +382,27 @@ class OutboundShippingContractTest extends SalesContractSupport {
         assertTrue(actions(ok(call(get(SH + "/" + shId), admin))).containsAll(List.of("新建", "修改备注", "上传附件", "删除附件", "作废")));
     }
 
+    /** 业务员只有销售订单菜单：只能看、只能备注自己负责订单的销售出库单；仓库人员不受业务员范围限制 */
+    @Test
+    void documents_outbound_salespersonSeesOnlyOwnOrders() throws Exception {
+        JsonNode po = orderedPo(supplier("华控自动化", null), 10);
+        long soId = soOf(po);
+        receive(po, 10);
+        long obId = ok(notice(soId, 10)).path("id").asLong();
+        jdbc.update("insert into role_resource (role_code, resource_id, resource_code) values (?, 100079, '')", BUYER_ROLE);
+
+        jdbc.update("update outbound_order set owner_id = ? where id = ?", BUYER_JIANG, obId);
+        assertEquals("销售出库单不存在", fail(call(get(OB + "/" + obId), lin)).path("message").asText(), "别人的订单看不到");
+        assertEquals("销售出库单不存在", fail(call(json(post(OB + "/" + obId + "/remark"), "{\"remark\":\"x\"}"), lin))
+                .path("message").asText(), "别人的订单不能备注");
+        ok(call(get(OB + "/" + obId), keeper));
+
+        jdbc.update("update outbound_order set owner_id = ? where id = ?", BUYER_LIN, obId);
+        assertEquals(obId, ok(call(get(OB + "/" + obId), lin)).path("id").asLong(), "自己的订单能看");
+        assertEquals("业务员备注", ok(call(json(post(OB + "/" + obId + "/remark"), "{\"remark\":\"业务员备注\"}"), lin))
+                .path("note").asText());
+    }
+
     /** audit BUS-018：同一直发货并发加入两张出运单，只能一张成功，另一张提示已在别的出运单上，不能静默改归属 */
     @Test
     void directShipment_concurrentAttach_onlyOneWins() throws Exception {

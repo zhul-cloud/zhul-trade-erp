@@ -609,6 +609,8 @@ public class LogisticsShipmentService {
         Map<Long, CustomerDO> customers = support.customers(rows.stream().map(LogisticsShipmentDO::getCustomerId).toList());
         Map<Long, String> forwarders = support.supplierNames(rows.stream().map(LogisticsShipmentDO::getForwarderId).toList());
         Map<Long, String> users = support.userNames(rows.stream().map(LogisticsShipmentDO::getOwnerId).toList());
+        Map<Long, OutboundVO> obVos = outbounds.toVos(obs.values().stream().flatMap(List::stream).toList()).stream()
+                .collect(Collectors.toMap(OutboundVO::getId, x -> x));
         List<LogisticsVO> out = new ArrayList<>(rows.size());
         for (LogisticsShipmentDO sh : rows) {
             BigDecimal divisor = support.divisorOf(sh.getForwarderId());
@@ -641,6 +643,16 @@ public class LogisticsShipmentService {
             vo.setNote(sh.getNote());
             vo.setOutboundCount(mine.size());
             vo.setOutboundNos(mine.stream().map(OutboundOrderDO::getObNo).toList());
+            vo.setOutboundIds(mine.stream().map(OutboundOrderDO::getId).toList());
+            List<OutboundVO.Item> items = mine.stream().map(o -> obVos.get(o.getId())).filter(Objects::nonNull)
+                    .flatMap(o -> o.getItems().stream()).toList();
+            if (!items.isEmpty()) {
+                vo.setFirstModel(items.get(0).getModel());
+                vo.setFirstQty(items.get(0).getQuantity());
+            }
+            vo.setTotalQuantity(items.stream().mapToInt(i -> i.getQuantity() == null ? 0 : i.getQuantity()).sum());
+            vo.setBrands(items.stream().map(OutboundVO.Item::getBrand).filter(StringUtils::hasText).distinct().toList());
+            vo.setCategories(items.stream().map(OutboundVO.Item::getCategory).filter(StringUtils::hasText).distinct().toList());
             Map<Long, String> soNos = new LinkedHashMap<>();
             mine.forEach(o -> soNos.putIfAbsent(o.getSoId(), orders.get(o.getSoId()) == null ? null : orders.get(o.getSoId()).getSoNo()));
             vo.setOrders(soNos.entrySet().stream().map(e -> {
@@ -655,7 +667,7 @@ public class LogisticsShipmentService {
             bs.forEach(b -> chargeable.put(b.getId(), FreightService.chargeable(b, divisor)));
             vo.setChargeableWeight(chargeable.values().stream().reduce(BigDecimal.ZERO, BigDecimal::add));
             if (full) {
-                vo.setOutbounds(outbounds.toVos(mine));
+                vo.setOutbounds(mine.stream().map(o -> obVos.get(o.getId())).filter(Objects::nonNull).toList());
                 vo.setBoxChargeable(chargeable);
                 vo.setBoxFreight(freight.byBox(LogisticsConstants.FREIGHT_INTERNATIONAL, sh.getId()));
                 vo.setDirects(directRefs(directsOf(sh.getId()), false));
