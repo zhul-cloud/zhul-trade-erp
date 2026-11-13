@@ -72,6 +72,15 @@ public interface SourcingTaskService {
 
     void assignByRecommend(List<Long> taskIds);
 
+    /** 延后待分配的任务（单个、批量或整张询盘），也用于改日期 */
+    void defer(com.zhul.erp.modules.inquiry.sourcing.dto.DeferRequest req);
+
+    /** 现在处理：清空延后，任务立刻回到待分配 */
+    void undefer(List<Long> taskIds);
+
+    /** 延后整张询盘前的确认信息 */
+    com.zhul.erp.modules.inquiry.sourcing.dto.DeferPreviewVO deferPreview(Long customerInquiryId);
+
     void reassign(Long taskId, Long assigneeId);
 
     void addAssignee(Long taskId, Long assigneeId);

@@ -15,7 +15,7 @@ import java.util.Collection;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-/** 询价待办是否已处理：待分配的任务已分出去或取消；分给我的任务已回价、我已退回或被改派走 */
+/** 询价待办是否已处理：待分配的任务已分出去、取消或延后；分给我的任务已回价、我已退回或被改派走 */
 @Component
 @RequiredArgsConstructor
 public class SourcingNotificationChecker implements NotificationTodoChecker {
@@ -35,6 +35,7 @@ public class SourcingNotificationChecker implements NotificationTodoChecker {
                     .select(SourcingTaskDO::getId)
                     .in(SourcingTaskDO::getId, bizIds)
                     .eq(SourcingTaskDO::getStatus, InquiryConstants.TASK_UNASSIGNED)
+                    .and(w -> w.isNull(SourcingTaskDO::getDeferUntil).or().le(SourcingTaskDO::getDeferUntil, java.time.LocalDate.now()))
                     .isNull(SourcingTaskDO::getDeletedAt)));
         }
         Set<Long> sourcing = ids(taskMapper.selectList(new LambdaQueryWrapper<SourcingTaskDO>()

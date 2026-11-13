@@ -962,6 +962,11 @@ const CustomerInquiryDetailPage: React.FC = () => {
                 <span style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
                   {t.selfSourcing && <Pill tone="violet">业务员自询</Pill>}
                   <TaskStatusPill status={t.status} timeout={t.timeout} />
+                  {t.deferUntil && (
+                    <Tooltip title={t.deferReason || undefined}>
+                      <Pill tone="gray">延后到 {t.deferUntil.slice(5)}</Pill>
+                    </Tooltip>
+                  )}
                 </span>
               </div>
               <div style={{ color: palette.ink, margin: '8px 0' }}>

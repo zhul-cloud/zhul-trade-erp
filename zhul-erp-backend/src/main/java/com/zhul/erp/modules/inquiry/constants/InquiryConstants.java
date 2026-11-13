@@ -65,6 +65,8 @@ public final class InquiryConstants {
     public static final int TASK_SALES = 6;
     /** 分配工作台「待审核」页签的查询值（不是任务状态：任务下有兼职回价待审核） */
     public static final int BOARD_TAB_REVIEW = 5;
+    /** 分配工作台「已延后」：待分配里延后到以后的任务 */
+    public static final int BOARD_TAB_DEFERRED = 8;
 
     /** 分配方式 */
     public static final int ASSIGN_MANUAL = 1;

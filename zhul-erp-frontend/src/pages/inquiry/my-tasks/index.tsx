@@ -88,7 +88,12 @@ import QuoteAttachments, {
 import ReturnModal from './ReturnModal';
 import SalesPending from './SalesPending';
 import SupplierSelect from './SupplierSelect';
-import { buildTaskScript, pendingItems } from './taskScript';
+import {
+  buildTaskScript,
+  type ItemFilter,
+  itemFilterOf,
+  pendingItems,
+} from './taskScript';
 
 interface DraftEntry extends QuoteEntry {
   key: string;
@@ -143,6 +148,13 @@ const NOTE_BOX: React.CSSProperties = {
 
 /** 已提交的回价：已提交，或兼职提交后待审核 */
 const isSubmitted = (q: MyQuote) => q.status === 2 || q.status === 3;
+
+const ITEM_FILTER_LABEL: Record<ItemFilter, string> = {
+  all: '全部',
+  pending: '未回价',
+  draft: '草稿',
+  submitted: '已提交',
+};
 
 const REVIEW_PILL: Record<
   number,
@@ -199,15 +211,26 @@ const MyTasksPage: React.FC = () => {
   const [returnTaskId, setReturnTaskId] = useState<number>();
   const [returnSelf, setReturnSelf] = useState(false);
   const [returnTitle, setReturnTitle] = useState('');
-  const [view, setView] = useState<'sales' | 'pending' | 'done'>('pending');
+  const [view, setView] = useState<'sales' | 'pending' | 'reviewing' | 'done'>(
+    'pending',
+  );
+  /** 型号筛选：切换任务时回到全部 */
+  const [itemFilter, setItemFilter] = useState<ItemFilter>('all');
   const [salesTotal, setSalesTotal] = useState(0);
   const salesViewChecked = useRef(false);
   const [importOpen, setImportOpen] = useState(false);
   const [pasteOpen, setPasteOpen] = useState(false);
-  const [counts, setCounts] = useState<{ pending: number; done: number }>({
+  const [counts, setCounts] = useState<{
+    pending: number;
+    reviewing: number;
+    done: number;
+  }>({
     pending: 0,
+    reviewing: 0,
     done: 0,
   });
+  /** 回价需审核的账号（兼职采购）才有「审核中」页签 */
+  const [reviewAccount, setReviewAccount] = useState(false);
 
   const loadList = useCallback(async () => {
     setError('');
@@ -229,8 +252,20 @@ const MyTasksPage: React.FC = () => {
         salesViewChecked.current = true;
         if (sales.total > 0 && !activeIdRef.current) setView('sales');
       }
-      setCounts({ pending: pending.length, done: finished.total });
-      const list = done ? finished.records : pending;
+      // 兼职采购：本人没有要做的型号、等审核的任务归「审核中」
+      const reviewing = pending.filter((t) => t.reviewing);
+      const todo = pending.filter((t) => !t.reviewing);
+      setReviewAccount(pending.some((t) => t.pendingReviewCount != null));
+      setCounts({
+        pending: todo.length,
+        reviewing: reviewing.length,
+        done: finished.total,
+      });
+      const list = done
+        ? finished.records
+        : view === 'reviewing'
+          ? reviewing
+          : todo;
       setTasks(list);
       const next = nextActiveTask(activeIdRef.current, list);
       setActiveId(next.id);
@@ -241,9 +276,10 @@ const MyTasksPage: React.FC = () => {
     } finally {
       setDoneMore(false);
     }
-  }, [done, search, doneLimit]);
+  }, [done, search, doneLimit, view]);
 
-  const loadDetail = useCallback(async (id?: number) => {
+  /** keepDirty：保存后重新载入时，其他型号没保存的改动留在页面上 */
+  const loadDetail = useCallback(async (id?: number, keepDirty = false) => {
     if (!id) {
       setDetail(null);
       return;
@@ -296,7 +332,16 @@ const MyTasksPage: React.FC = () => {
           next[it.id].drafts = [newEntry()];
         }
       }
-      setState(next);
+      setState((prev) =>
+        keepDirty
+          ? Object.fromEntries(
+              Object.entries(next).map(([k, v]) => [
+                k,
+                prev[Number(k)]?.dirty ? prev[Number(k)] : v,
+              ]),
+            )
+          : next,
+      );
     } catch (e) {
       message.error(readBizError(e).message);
     }
@@ -311,6 +356,7 @@ const MyTasksPage: React.FC = () => {
   }, [loadList, loadDetail]);
 
   useEffect(() => {
+    setItemFilter('all');
     loadDetail(activeId);
   }, [activeId, loadDetail]);
 
@@ -363,10 +409,12 @@ const MyTasksPage: React.FC = () => {
   /** 本次要保存的型号：有改动、且填了报价或标了无货 */
   const collect = (
     submit: boolean,
+    only?: number,
   ): { items: ItemQuotes[]; invalid: string } => {
     const items: ItemQuotes[] = [];
     let invalid = '';
     for (const it of detail?.items ?? []) {
+      if (only != null && it.id !== only) continue;
       const s = state[it.id];
       // 已报给客户的型号回价只读，不随本次保存提交
       if (!s || it.locked) continue;
@@ -417,10 +465,10 @@ const MyTasksPage: React.FC = () => {
     return { items, invalid };
   };
 
-  /** 返回是否已保存到后端 */
-  const save = async (submit: boolean): Promise<boolean> => {
+  /** 返回是否已保存到后端；only 为型号 ID 时只保存这个型号，其他型号的改动留在页面上 */
+  const save = async (submit: boolean, only?: number): Promise<boolean> => {
     if (!detail) return false;
-    const { items, invalid } = collect(submit);
+    const { items, invalid } = collect(submit, only);
     if (invalid) {
       message.error(invalid);
       return false;
@@ -459,14 +507,25 @@ const MyTasksPage: React.FC = () => {
           onOk: () => openReturn(task),
         });
       }
+      const savedIds = new Set(effective.map((i) => i.itemId));
+      setState((prev) =>
+        Object.fromEntries(
+          Object.entries(prev).map(([k, v]) => [
+            k,
+            savedIds.has(Number(k)) ? { ...v, dirty: false } : v,
+          ]),
+        ),
+      );
       message.success(
         !submit
-          ? '草稿已保存'
+          ? only != null
+            ? `${detail.items.find((i) => i.id === only)?.model ?? ''} 草稿已保存`
+            : '草稿已保存'
           : detail.reviewRequired
             ? `已提交 ${effective.length} 个型号，等采购负责人审核后业务员就能看到`
             : `已提交 ${effective.length} 个型号的回价`,
       );
-      await Promise.all([loadDetail(detail.task.id), loadList()]);
+      await Promise.all([loadDetail(detail.task.id, true), loadList()]);
       return true;
     } catch (e) {
       message.error(readBizError(e).message);
@@ -649,6 +708,12 @@ const MyTasksPage: React.FC = () => {
       : detail.items
     : [];
   const review = !!detail?.reviewRequired;
+  const reviewingView = view === 'reviewing';
+  // 型号筛选只影响显示，不影响保存与提交的范围
+  const visibleItems =
+    itemFilter === 'all'
+      ? sortedItems
+      : sortedItems.filter((i) => itemFilterOf(i.quotes) === itemFilter);
 
   /** 撤回回价：价格填错、要等供应商重新报价时用，撤回后业务员看不到，任务回到待处理 */
   const withdraw = async () => {
@@ -805,6 +870,9 @@ const MyTasksPage: React.FC = () => {
             options={[
               { value: 'sales', label: `待认领 ${salesTotal}` },
               { value: 'pending', label: `待处理 ${counts.pending}` },
+              ...(reviewAccount || counts.reviewing
+                ? [{ value: 'reviewing', label: `审核中 ${counts.reviewing}` }]
+                : []),
               { value: 'done', label: `已回价 ${counts.done}` },
             ]}
           />
@@ -826,10 +894,16 @@ const MyTasksPage: React.FC = () => {
                     ? `没有找到「${search}」相关的任务`
                     : done
                       ? '还没有回价完成的任务'
-                      : '没有待处理的任务'
+                      : view === 'reviewing'
+                        ? '没有审核中的任务'
+                        : '没有待处理的任务'
                 }
                 description={
-                  done ? undefined : '采购负责人分配给你的任务会出现在这里。'
+                  done
+                    ? undefined
+                    : view === 'reviewing'
+                      ? '型号都提交后等采购负责人审核的任务在这里，全部通过后进入已回价。'
+                      : '采购负责人分配给你的任务会出现在这里。'
                 }
               />
             </Card>
@@ -876,7 +950,9 @@ const MyTasksPage: React.FC = () => {
                 <span
                   style={{ display: 'flex', fontSize: 12, color: palette.mute }}
                 >
-                  已填 {t.filledCount}/{t.itemCount}
+                  {t.pendingReviewCount
+                    ? `待审核 ${t.pendingReviewCount}${t.reviewing ? '' : ` · 待填 ${Math.max(0, t.itemCount - t.filledCount)}`}`
+                    : `已填 ${t.filledCount}/${t.itemCount}`}
                   <span
                     style={{
                       marginLeft: 'auto',
@@ -926,7 +1002,17 @@ const MyTasksPage: React.FC = () => {
               minWidth: 0,
             }}
           >
-            <Card style={{ padding: 20 }}>
+            {/* 往下滚动时任务标题与保存、提交按钮固定在顶部 */}
+            <Card
+              style={{
+                padding: 20,
+                position: 'sticky',
+                // 紧贴顶栏（60）与标签栏（44）下方
+                top: 104,
+                zIndex: 5,
+                boxShadow: token.boxShadowTertiary,
+              }}
+            >
               <div
                 style={{
                   display: 'flex',
@@ -947,6 +1033,7 @@ const MyTasksPage: React.FC = () => {
                     <FireOutlined /> 紧急
                   </Pill>
                 )}
+                {reviewingView && <Pill tone="cyan">审核中</Pill>}
                 <CustomerBrief
                   customerType={detail.task.customerType}
                   customerName={detail.task.customerName}
@@ -995,7 +1082,7 @@ const MyTasksPage: React.FC = () => {
                       </Dropdown>
                     </Space.Compact>
                   )}
-                  {(!done || editable) && (
+                  {(!done || editable) && !reviewingView && (
                     <Button
                       size="small"
                       icon={<RollbackOutlined />}
@@ -1006,7 +1093,7 @@ const MyTasksPage: React.FC = () => {
                       退回
                     </Button>
                   )}
-                  {editable && !done && (
+                  {editable && !done && !reviewingView && (
                     <Button
                       size="small"
                       loading={busy}
@@ -1033,7 +1120,7 @@ const MyTasksPage: React.FC = () => {
                       loading={busy}
                       onClick={() => save(true)}
                     >
-                      {done ? '保存修改' : '提交回价'}
+                      {done || reviewingView ? '保存修改' : '提交回价'}
                     </Button>
                   )}
                 </span>
@@ -1043,12 +1130,17 @@ const MyTasksPage: React.FC = () => {
                 {detail.task.quoteDeadline
                   ? ` · 报价截止 ${detail.task.quoteDeadline}`
                   : ''}{' '}
-                · 已填 {detail.task.filledCount}/{detail.task.itemCount} ·
-                {!editable
-                  ? '回价只能查看：询盘已取消，或型号都已报给客户'
-                  : review
-                    ? '可以部分提交，提交的型号进入待审核，采购负责人审核通过后业务员才能看到；审核通过后仍可修改，修改后重新审核'
-                    : '可以部分提交，已提交的型号会立刻计入回价；型号报给客户前都可以修改，修改会留痕'}
+                ·{' '}
+                {reviewingView
+                  ? `${detail.task.itemCount} 个型号都已提交 · 待审核 ${detail.task.pendingReviewCount ?? 0} · 全部通过后进入已回价`
+                  : `已填 ${detail.task.filledCount}/${detail.task.itemCount}`}
+                {reviewingView
+                  ? ''
+                  : !editable
+                    ? ' · 回价只能查看：询盘已取消，或型号都已报给客户'
+                    : review
+                      ? ' · 可以部分提交，提交的型号进入待审核，采购负责人审核通过后业务员才能看到；审核通过后仍可修改，修改后重新审核'
+                      : ' · 可以部分提交，已提交的型号会立刻计入回价；型号报给客户前都可以修改，修改会留痕'}
               </div>
             </Card>
 
@@ -1068,7 +1160,28 @@ const MyTasksPage: React.FC = () => {
                 />
               )}
             {plates.unmatched}
-            {sortedItems.map((it) => {
+            {detail.items.length > 1 && (
+              <Segmented
+                style={{ justifySelf: 'start' }}
+                value={itemFilter}
+                onChange={(v) => setItemFilter(v as ItemFilter)}
+                options={[
+                  { value: 'all', label: `全部 ${detail.items.length}` },
+                  ...(['pending', 'draft', 'submitted'] as const).map((k) => ({
+                    value: k,
+                    label: `${ITEM_FILTER_LABEL[k]} ${detail.items.filter((i) => itemFilterOf(i.quotes) === k).length}`,
+                  })),
+                ]}
+              />
+            )}
+            {visibleItems.length === 0 && (
+              <Card>
+                <EmptyHint
+                  title={`没有${ITEM_FILTER_LABEL[itemFilter]}的型号`}
+                />
+              </Card>
+            )}
+            {visibleItems.map((it) => {
               const s = state[it.id];
               if (!s) return null;
               // 型号已报给客户后只读，同一任务里其他型号仍可修改
@@ -1203,8 +1316,31 @@ const MyTasksPage: React.FC = () => {
                         {rv.label}
                       </Pill>
                     )}
+                    {s.dirty && itemEditable ? (
+                      <span
+                        style={{
+                          marginLeft: 'auto',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 8,
+                        }}
+                      >
+                        <span style={{ color: palette.orange, fontSize: 12 }}>
+                          ● 未保存
+                        </span>
+                        <Button
+                          size="small"
+                          type="primary"
+                          loading={busy}
+                          onClick={() => save(s.submittedBase, it.id)}
+                        >
+                          {s.submittedBase ? '保存修改' : '保存草稿'}
+                        </Button>
+                      </span>
+                    ) : (
+                      <span style={{ marginLeft: 'auto' }} />
+                    )}
                     <Checkbox
-                      style={{ marginLeft: 'auto' }}
                       checked={s.noStock}
                       onChange={(e) =>
                         patchItem(it.id, { noStock: e.target.checked })

@@ -23,4 +23,6 @@ public class BoardStatsVO {
     private Integer timeoutHours;
     private Integer urgentTimeoutHours;
     private Boolean autoAssign;
+    /** 延后到以后、暂不进待分配的任务数 */
+    private Integer deferred;
 }

@@ -170,6 +170,9 @@ export interface TaskBrief {
   canClaim?: boolean;
   /** 业务员自询 */
   selfSourcing?: boolean;
+  /** 待分配且延后中：回来的日期与原因 */
+  deferUntil?: string;
+  deferReason?: string;
 }
 
 export interface InquiryDetail {
@@ -362,6 +365,8 @@ export interface Board {
     pendingReview?: number;
     pendingReviewItems?: number;
     longestReviewMinutes?: number;
+    /** 延后中的待分配任务数（不计入 unassigned） */
+    deferred?: number;
   };
   /** 当前页签的任务总数 */
   total: number;
@@ -371,7 +376,49 @@ export interface Board {
   tasks: BoardTask[];
   purchasers: Purchaser[];
   /** 页签数字：按搜索与采购员筛选后统计（stats 不受筛选影响） */
-  tabs?: { unassigned: number; sourcing: number; review: number; done: number };
+  tabs?: {
+    unassigned: number;
+    sourcing: number;
+    review: number;
+    done: number;
+    deferred?: number;
+  };
+  /** 「已延后」：同一询盘、延后到同一天的任务合成一行 */
+  deferredGroups?: DeferredGroup[];
+}
+
+export interface DeferredGroup {
+  deferUntil: string;
+  customerInquiryId: number;
+  inquiryCode: string;
+  level?: number;
+  customerName?: string;
+  salesName?: string;
+  taskIds: number[];
+  /** 只有一个任务时的编号、品牌、品类 */
+  taskCode?: string;
+  brand?: string;
+  category?: string;
+  taskCount: number;
+  itemCount: number;
+  /** 这张询盘待分配的任务都延后了 */
+  wholeInquiry: boolean;
+  reason?: string;
+  deferByName?: string;
+  deferTime?: string;
+}
+
+/** 延后整张询盘前的确认信息 */
+export interface DeferPreview {
+  customerInquiryId: number;
+  inquiryCode: string;
+  level?: number;
+  customerName?: string;
+  salesName?: string;
+  taskCount: number;
+  itemCount: number;
+  /** 不在待分配、不受影响的任务数 */
+  otherCount: number;
 }
 
 /** 询价分配「全部」页签的一行 */
@@ -470,6 +517,9 @@ export interface MyTask {
   returnReasonLabel?: string;
   returnNote?: string;
   returnedByName?: string;
+  /** 回价需审核的账号：本人待审核的型号数；没有要做的型号且有待审核时为「审核中」 */
+  pendingReviewCount?: number;
+  reviewing?: boolean;
 }
 
 /** 接手人看到的上一轮记录；兼职看不到价格 */
@@ -952,6 +1002,17 @@ export const boardApi = {
     send<void>('POST', `${BOARD}/tasks/${taskId}/reassign`, { assigneeId }),
   addAssignee: (taskId: number, assigneeId: number) =>
     send<void>('POST', `${BOARD}/tasks/${taskId}/assignees`, { assigneeId }),
+  /** 延后到某天：给任务 ID，或给询盘 ID 延后整张询盘的待分配任务 */
+  defer: (body: {
+    taskIds?: number[];
+    customerInquiryId?: number;
+    deferUntil: string;
+    reason?: string;
+  }) => send<void>('POST', `${BOARD}/defer`, body),
+  undefer: (taskIds: number[]) =>
+    send<void>('POST', `${BOARD}/undefer`, { taskIds }),
+  deferPreview: (customerInquiryId: number) =>
+    get<DeferPreview>(`${BOARD}/defer-preview`, { customerInquiryId }),
   rulePreview: (taskIds: number[]) =>
     send<RulePreview[]>('POST', `${BOARD}/rule-preview`, { taskIds }),
   assignByRule: (taskIds: number[]) =>
