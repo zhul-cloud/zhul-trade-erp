@@ -35,6 +35,7 @@ jest.mock('../shared/service', () => ({
     salesPending: jest.fn().mockResolvedValue({ total: 0, records: [] }),
     detail: jest.fn(),
     save: jest.fn().mockResolvedValue(undefined),
+    pasteAiEnabled: jest.fn().mockResolvedValue(false),
   },
 }));
 

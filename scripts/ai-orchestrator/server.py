@@ -993,6 +993,128 @@ def process_followup(payload: dict, callback_url: str, skill_id: str):
         send_callback(callback_url, "failed", error=message[:500])
 
 
+QUOTE_PARSE_SKILL = "sourcing-quote-parse"
+QUOTE_RAW_MAX = 20000
+QUOTE_ROWS_MAX = 200
+QUOTE_UNKNOWN_MAX = 50
+QUOTE_CONFIDENCE = ("sure", "check")
+
+QUOTE_PARSE_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "rows": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "itemId": {"type": "integer"},
+                    "raw": {"type": "string"},
+                    "unitPrice": {"type": "number"},
+                    "taxIncluded": {"type": "boolean"},
+                    "taxRate": {"type": "integer"},
+                    "itemCondition": {"type": "integer"},
+                    "leadTime": {"type": "integer"},
+                    "note": {"type": "string"},
+                    "confidence": {"type": "string", "enum": list(QUOTE_CONFIDENCE)},
+                },
+                "required": ["itemId", "raw", "taxIncluded", "note", "confidence"],
+            },
+        },
+        "otherModels": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {"taskId": {"type": "integer"}, "model": {"type": "string"}},
+                "required": ["taskId", "model"],
+            },
+        },
+        "unknownModels": {"type": "array", "items": {"type": "string"}},
+        "common": {"type": "string"},
+    },
+    "required": ["rows", "otherModels", "unknownModels", "common"],
+}
+
+
+def _codes(input_data: dict, key: str) -> set:
+    return {d.get("code") for d in input_data.get(key) or [] if isinstance(d, dict)}
+
+
+def sanitize_quote_parse(structured: dict, input_data: dict) -> dict:
+    """明细 id 只留当前任务的，单价、字典值不合法的置空并改为「请核对」；其他任务的型号只留输入里的任务。
+    后端处理器还会按租户字典再校验一遍，这里先把明显不合法的去掉"""
+    item_ids = {i.get("id") for i in input_data.get("items") or [] if isinstance(i, dict)}
+    conditions, lead_times, tax_rates = (_codes(input_data, k) for k in ("conditions", "leadTimes", "taxRates"))
+    rows, seen = [], set()
+    for r in structured.get("rows") or []:
+        item_id = r.get("itemId")
+        if item_id not in item_ids or item_id in seen:
+            continue
+        seen.add(item_id)
+        check = r.get("confidence") != "sure"
+        row = {"itemId": item_id, "raw": str(r.get("raw") or "").strip()[:200],
+               "taxIncluded": bool(r.get("taxIncluded")), "note": str(r.get("note") or "").strip()[:200]}
+        price = r.get("unitPrice")
+        if isinstance(price, (int, float)) and not isinstance(price, bool) and price >= 0:
+            row["unitPrice"] = price
+        elif price is not None:
+            check = True
+        if row["taxIncluded"]:
+            rate = r.get("taxRate")
+            if rate in tax_rates:
+                row["taxRate"] = rate
+            else:
+                check = True
+        for field, allowed in (("itemCondition", conditions), ("leadTime", lead_times)):
+            value = r.get(field)
+            if value in allowed:
+                row[field] = value
+            elif value not in (None, 0):
+                check = True
+        row["confidence"] = "check" if check else "sure"
+        rows.append(row)
+    other_ids = {t.get("id") for t in input_data.get("otherTasks") or [] if isinstance(t, dict)}
+    others, seen_other = [], set()
+    for m in structured.get("otherModels") or []:
+        model = str(m.get("model") or "").strip()[:100]
+        if m.get("taskId") in other_ids and model and (m["taskId"], model) not in seen_other:
+            seen_other.add((m["taskId"], model))
+            others.append({"taskId": m["taskId"], "model": model})
+    unknown = list(dict.fromkeys(s for s in (str(x).strip()[:100] for x in structured.get("unknownModels") or []) if s))
+    return {"rows": rows[:QUOTE_ROWS_MAX], "otherModels": others, "unknownModels": unknown[:QUOTE_UNKNOWN_MAX],
+            "common": str(structured.get("common") or "").strip()[:500]}
+
+
+def call_quote_parse(cfg: AiConfig, input_data: dict) -> dict:
+    """识别粘贴的报价；不联网，用翻译的模型与思考强度（轻量、快，采购在弹窗里等）"""
+    raw = (input_data.get("rawContent") or "").strip()[:QUOTE_RAW_MAX]
+    prepared = {**input_data, "rawContent": raw}
+    structured = call_api(cfg, _read_skill(QUOTE_PARSE_SKILL), json.dumps(prepared, ensure_ascii=False, indent=1), [],
+                          QUOTE_PARSE_SCHEMA, model=cfg.translate_model, effort=cfg.translate_effort)
+    if "rows" not in structured:
+        raise RuntimeError("AI 未返回符合 schema 的报价识别结果")
+    return sanitize_quote_parse(structured, prepared)
+
+
+def process_quote_parse(payload: dict, callback_url: str):
+    start_job()
+    key = _api_key_of(payload)
+    try:
+        cfg = parse_ai_config(payload.get("ai"))
+        input_data = payload.get("input") or {}
+        if not (input_data.get("rawContent") or "").strip():
+            send_callback(callback_url, "failed", error="没有需要识别的报价")
+            return
+        send_callback(callback_url, "success", output=call_quote_parse(cfg, input_data))
+    except ConfigError as e:
+        send_callback(callback_url, "failed", error=str(e))
+    except (JobTimeout, anthropic.APITimeoutError, openai.APITimeoutError):
+        send_callback(callback_url, "failed", error=f"AI 处理超过 {TIMEOUT_SECONDS} 秒未完成")
+    except Exception as e:
+        message = scrub(str(e), key)
+        print(f"[ai-orchestrator] {QUOTE_PARSE_SKILL} failed: {message}")
+        send_callback(callback_url, "failed", error=message[:500])
+
+
 def send_callback(callback_url: str, status: str, output=None, error=None) -> bool:
     """回调带上本线程累计的用量（spec ai-platform/task-orchestration「记录 AI 调用用量」）；旧版后端忽略 usage。
     投递失败（连不上、超时、后端 5xx）按 CALLBACK_RETRY_DELAYS 重投同一结果，不重新调用模型；
@@ -1504,6 +1626,11 @@ class Handler(BaseHTTPRequestHandler):
         if skill_id in (FOLLOWUP_EXTRACT_SKILL, FOLLOWUP_REPLY_SKILL):
             if callback_url:
                 threading.Thread(target=process_followup, args=(payload, callback_url, skill_id), daemon=True).start()
+            return
+
+        if skill_id == QUOTE_PARSE_SKILL:
+            if callback_url:
+                threading.Thread(target=process_quote_parse, args=(payload, callback_url), daemon=True).start()
             return
 
         if skill_id == CANDIDATE_SKILL:

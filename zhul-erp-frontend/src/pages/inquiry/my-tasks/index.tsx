@@ -81,6 +81,7 @@ import { useTaskNameplates } from '../shared/TaskNameplates';
 import { nextActiveTask } from './activeTask';
 import ItemHistory from './ItemHistory';
 import PasteQuoteModal, { type PasteFill } from './PasteQuoteModal';
+import type { PasteCarry } from './pasteAi';
 import QuoteAttachments, {
   QUOTE_ATTACH_WIDTH,
   QUOTE_MAX_FILES,
@@ -220,6 +221,8 @@ const MyTasksPage: React.FC = () => {
   const salesViewChecked = useRef(false);
   const [importOpen, setImportOpen] = useState(false);
   const [pasteOpen, setPasteOpen] = useState(false);
+  /** AI 识别里点了其他任务：打开那个任务后自动弹出粘贴报价并带上原文（只在页面里，不保存） */
+  const [pasteCarry, setPasteCarry] = useState<PasteCarry>();
   const [counts, setCounts] = useState<{
     pending: number;
     reviewing: number;
@@ -635,7 +638,7 @@ const MyTasksPage: React.FC = () => {
       }
       return next;
     });
-    setPasteOpen(false);
+    closePaste();
     message.success(
       `已填入 ${fills.length} 条报价（${source}），还没有保存：核对后点「保存草稿」或「${done ? '保存修改' : '提交回价'}」`,
     );
@@ -690,6 +693,18 @@ const MyTasksPage: React.FC = () => {
   };
 
   const editable = detail?.task.editable !== false;
+
+  useEffect(() => {
+    if (pasteCarry && detail?.task.id === pasteCarry.taskId) {
+      if (detail.task.editable === false) setPasteCarry(undefined);
+      else setPasteOpen(true);
+    }
+  }, [pasteCarry, detail]);
+
+  const closePaste = () => {
+    setPasteOpen(false);
+    setPasteCarry(undefined);
+  };
   const openReturn = (task: MyTask) => {
     setReturnSelf(!!task.selfSourcing);
     setReturnTitle(
@@ -2103,8 +2118,16 @@ const MyTasksPage: React.FC = () => {
             model: i.model,
             locked: i.locked,
           }))}
-          onClose={() => setPasteOpen(false)}
+          carry={pasteCarry}
+          onClose={closePaste}
           onFill={fillPasted}
+          onOpenTask={(c) => {
+            setPasteOpen(false);
+            leave(() => {
+              setPasteCarry(c);
+              setActiveId(c.taskId);
+            });
+          }}
         />
       )}
 

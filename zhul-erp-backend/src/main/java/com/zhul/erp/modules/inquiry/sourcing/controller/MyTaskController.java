@@ -13,12 +13,15 @@ import com.zhul.erp.modules.inquiry.sourcing.dto.ImportFileVO;
 import com.zhul.erp.modules.inquiry.sourcing.dto.MyTaskDetailVO;
 import com.zhul.erp.modules.inquiry.sourcing.dto.MyTaskItemVO;
 import com.zhul.erp.modules.inquiry.sourcing.dto.MyTaskVO;
+import com.zhul.erp.modules.inquiry.sourcing.dto.PasteAiRequest;
+import com.zhul.erp.modules.inquiry.sourcing.dto.PasteAiVO;
 import com.zhul.erp.modules.inquiry.sourcing.dto.PastePreviewRequest;
 import com.zhul.erp.modules.inquiry.sourcing.dto.PastePreviewVO;
 import com.zhul.erp.modules.inquiry.sourcing.dto.ReturnTaskRequest;
 import com.zhul.erp.modules.inquiry.sourcing.dto.SaveQuotesRequest;
 import com.zhul.erp.modules.inquiry.sourcing.service.impl.ItemPriceHistory;
 import com.zhul.erp.modules.inquiry.sourcing.service.MyTaskService;
+import com.zhul.erp.modules.inquiry.sourcing.service.QuoteAiService;
 import com.zhul.erp.modules.inquiry.sourcing.service.SourcingExcelService;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
@@ -51,6 +54,7 @@ public class MyTaskController {
     private final MyTaskService myTaskService;
     private final SourcingTaskService sourcingTaskService;
     private final SourcingExcelService excelService;
+    private final QuoteAiService quoteAiService;
 
     @GetMapping
     public Result<List<MyTaskVO>> list(@RequestParam(defaultValue = "false") boolean done,
@@ -98,6 +102,29 @@ public class MyTaskController {
     @PostMapping("/{id}/paste-preview")
     public Result<PastePreviewVO> pastePreview(@PathVariable Long id, @Valid @RequestBody PastePreviewRequest req) {
         return Result.ok(myTaskService.pastePreview(id, req.getText()));
+    }
+
+    /** 租户是否开启了 AI：没开启时粘贴报价只有「按规则识别」 */
+    @GetMapping("/paste-ai/enabled")
+    public Result<Boolean> pasteAiEnabled() {
+        return Result.ok(quoteAiService.enabled());
+    }
+
+    /** AI 识别粘贴的报价：异步，返回识别任务 id，前端轮询结果 */
+    @PostMapping("/{id}/paste-ai")
+    public Result<PasteAiVO> pasteAi(@PathVariable Long id, @Valid @RequestBody PasteAiRequest req) {
+        return Result.ok(quoteAiService.start(id, req.getText()));
+    }
+
+    @GetMapping("/{id}/paste-ai/{aiTaskId}")
+    public Result<PasteAiVO> pasteAiResult(@PathVariable Long id, @PathVariable Long aiTaskId) {
+        return Result.ok(quoteAiService.result(id, aiTaskId));
+    }
+
+    @PostMapping("/{id}/paste-ai/{aiTaskId}/cancel")
+    public Result<Void> pasteAiCancel(@PathVariable Long id, @PathVariable Long aiTaskId) {
+        quoteAiService.cancel(id, aiTaskId);
+        return Result.ok();
     }
 
     /** 采购回填真实型号（离开输入框即保存，不受报价锁定限制） */
