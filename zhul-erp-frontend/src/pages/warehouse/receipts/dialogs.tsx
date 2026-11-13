@@ -4,7 +4,6 @@ import {
   InfoCircleOutlined,
   WarningOutlined,
 } from '@ant-design/icons';
-import { useAccess } from '@umijs/max';
 import {
   App,
   Button,
@@ -14,22 +13,16 @@ import {
   InputNumber,
   Select,
   Skeleton,
-  Table,
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import React, { useEffect, useRef, useState } from 'react';
-import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useAppTheme } from '@/theme/AppTheme';
 import {
   ACCEPT_IMAGE,
   AttachmentWall,
   attachmentModels,
-  DiffStatusPill,
-  DiffTypePill,
   type ModelTagMap,
   ModelTags,
-  ReasonModal,
-  ReceiptStatusPill,
   sub,
   trackingText,
 } from '../components';
@@ -644,179 +637,6 @@ export const DirectReceiveDrawer: React.FC<{
           )}
         </>
       )}
-    </Drawer>
-  );
-};
-
-// ---------------------------------------------------------------- 采购入库单详情
-
-export const ReceiptView: React.FC<{
-  id?: number;
-  onClose: () => void;
-  onChanged: () => void;
-}> = ({ id, onClose, onChanged }) => {
-  const { palette } = useAppTheme();
-  const { message } = App.useApp();
-  const access = useAccess();
-  const canEdit = !!access['warehouse:receipt:create'];
-  const [d, setD] = useState<ReceiptDetail>();
-  const [error, setError] = useState<string>();
-  const [reversing, setReversing] = useState(false);
-
-  useEffect(() => {
-    if (id === undefined) return;
-    setD(undefined);
-    setError(undefined);
-    receiptApi
-      .detail(id)
-      .then(setD)
-      .catch((e) => setError(readBizError(e).message));
-  }, [id]);
-
-  const r = d?.receipt;
-  return (
-    <Drawer
-      open={id !== undefined}
-      onClose={onClose}
-      size="min(760px, 96vw)"
-      destroyOnHidden
-      title={r ? `采购入库单 ${r.grNo}` : '采购入库单'}
-      extra={
-        d?.reversible && canEdit ? (
-          <Button danger onClick={() => setReversing(true)}>
-            冲销
-          </Button>
-        ) : null
-      }
-    >
-      {error ? (
-        <ErrorHint message={error} onRetry={onClose} />
-      ) : !r || !d ? (
-        <Skeleton active />
-      ) : (
-        <div style={{ display: 'grid', gap: 16 }}>
-          <div
-            style={{
-              display: 'flex',
-              gap: 8,
-              alignItems: 'center',
-              flexWrap: 'wrap',
-              color: palette.sub,
-            }}
-          >
-            <ReceiptStatusPill value={r.status}>
-              {r.statusName}
-            </ReceiptStatusPill>
-            {r.receivedDate} 收货 · {r.receivedByName} · 发货单 {r.sdNo} ·{' '}
-            {r.poNo} · {r.supplierName}
-          </div>
-          {r.reverseReason && sub(palette.mute, `冲销原因：${r.reverseReason}`)}
-          {r.note && sub(palette.sub, `差异说明：${r.note}`)}
-          <Table
-            rowKey="id"
-            size="small"
-            pagination={false}
-            dataSource={d.items}
-            columns={[
-              {
-                title: '型号',
-                dataIndex: 'model',
-                render: (v: string, x) => (
-                  <div>
-                    <b>{v}</b>
-                    {sub(
-                      palette.mute,
-                      [x.brand, x.category].filter(Boolean).join(' · '),
-                    )}
-                  </div>
-                ),
-              },
-              { title: '发货', dataIndex: 'shippedQty', width: 70 },
-              { title: '实收', dataIndex: 'receivedQty', width: 70 },
-              { title: '合格', dataIndex: 'qualifiedQty', width: 70 },
-              { title: '不良', dataIndex: 'defectiveQty', width: 70 },
-            ]}
-          />
-          {d.discrepancies.length > 0 && (
-            <div>
-              <b
-                style={{
-                  color: palette.ink,
-                  display: 'block',
-                  marginBottom: 8,
-                }}
-              >
-                到货差异
-              </b>
-              <div style={{ display: 'grid', gap: 6 }}>
-                {d.discrepancies.map((x) => (
-                  <div
-                    key={x.id}
-                    style={{ display: 'flex', gap: 8, alignItems: 'center' }}
-                  >
-                    <DiffTypePill value={x.type}>
-                      {x.typeName} {x.quantity}
-                    </DiffTypePill>
-                    <span style={{ color: palette.sub }}>{x.model}</span>
-                    <DiffStatusPill value={x.status}>
-                      {x.statusName}
-                    </DiffStatusPill>
-                    {x.resolutionName && (
-                      <span style={{ color: palette.mute, fontSize: 12 }}>
-                        {x.resolutionName}
-                      </span>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-          <div>
-            <b
-              style={{ color: palette.ink, display: 'block', marginBottom: 8 }}
-            >
-              验收照片与视频
-            </b>
-            <AttachmentWall ownerType="RECEIPT" value={d.attachments} />
-          </div>
-          <div>
-            <b
-              style={{ color: palette.ink, display: 'block', marginBottom: 8 }}
-            >
-              发货图片与视频
-            </b>
-            <AttachmentWall
-              ownerType="SHIPMENT"
-              value={d.shipmentAttachments}
-            />
-          </div>
-          {r.status === 1 && !d.reversible && (
-            <div style={{ fontSize: 12, color: palette.mute }}>
-              <InfoCircleOutlined /> 差异已处理或拍摄已开始，不能再冲销。
-            </div>
-          )}
-        </div>
-      )}
-      <ReasonModal
-        open={reversing}
-        title={`冲销采购入库单 ${r?.grNo ?? ''}`}
-        description="录错时整张冲销：采购入库单作废，发货单回到「在途」，它的差异与实拍任务一起作废，之后可以重新验收。"
-        placeholder="如：数量录错"
-        okText="冲销"
-        danger
-        onCancel={() => setReversing(false)}
-        onOk={async (reason) => {
-          if (!r) return;
-          try {
-            setD(await receiptApi.reverse(r.id, reason));
-            setReversing(false);
-            message.success('已冲销，发货单回到在途');
-            onChanged();
-          } catch (e) {
-            message.error(readBizError(e).message);
-          }
-        }}
-      />
     </Drawer>
   );
 };

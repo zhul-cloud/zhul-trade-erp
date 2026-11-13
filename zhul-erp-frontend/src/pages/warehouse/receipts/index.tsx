@@ -1,13 +1,12 @@
 import { InboxOutlined, SearchOutlined } from '@ant-design/icons';
-import { Link, useAccess } from '@umijs/max';
+import { history, Link, useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
-import { Button, Input, Segmented, Table } from 'antd';
+import { Button, Input, Segmented, Space, Table } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
-import SourceNos, {
-  listHref,
-  useUrlFilter,
-} from '@/components/DocFields/SourceNos';
-import EllipsisText, { ellipsisRender } from '@/components/EllipsisText';
+import { ModelQtyCell } from '@/components/DocFields/DocPage';
+import SourceNos, { useUrlFilter } from '@/components/DocFields/SourceNos';
+import { ellipsisRender } from '@/components/EllipsisText';
+import { TagList } from '@/pages/inquiry/customer-inquiry/ModelCells';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { auditColumns } from '@/pages/purchase/components';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -16,6 +15,8 @@ import { tableScrollX } from '@/utils/tableScroll';
 import {
   ArrivalCell,
   Card,
+  DOC_PATHS,
+  distinctOf,
   ReceiptStatusPill,
   sub,
   WAREHOUSE_PATHS,
@@ -27,7 +28,7 @@ import {
   receiptApi,
   type Shipment,
 } from '../service';
-import { AcceptDrawer, DirectReceiveDrawer, ReceiptView } from './dialogs';
+import { AcceptDrawer, DirectReceiveDrawer } from './dialogs';
 
 type Tab = 'pending' | 'received';
 
@@ -51,7 +52,6 @@ const Receipts: React.FC = () => {
   const [error, setError] = useState<string>();
   const [accepting, setAccepting] = useState<number>();
   const [direct, setDirect] = useState(false);
-  const [viewing, setViewing] = useState<number>();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -91,31 +91,61 @@ const Receipts: React.FC = () => {
     setDirect(false);
     load();
     refreshCount();
-    setViewing(receiptId);
+    history.push(DOC_PATHS.receipt(receiptId));
   };
 
   const shipColumns: TableColumnsType<Shipment> = [
     {
-      title: '发货单',
+      title: '发货单号 · 发货日期',
       dataIndex: 'sdNo',
-      width: 160,
+      width: 170,
+      fixed: 'left',
       render: (v: string, r) => (
         <div>
-          <b style={{ color: palette.ink }}>{v}</b>
-          {r.source === 2 && sub(palette.orange, r.sourceName)}
+          <Link to={DOC_PATHS.shipment(r.id)}>{v}</Link>
+          {sub(palette.mute, r.shipDate ?? '—')}
         </div>
       ),
     },
     {
       title: '采购对象',
       dataIndex: 'supplierName',
-      width: 180,
-      render: ellipsisRender,
+      width: 150,
+      render: (v: string, r) => (
+        <div>
+          <b style={{ color: palette.ink }}>{v || '—'}</b>
+          {sub(palette.mute, r.shop ? '平台店铺' : '供应商')}
+        </div>
+      ),
+    },
+    {
+      title: '型号 · 数量',
+      key: 'items',
+      width: 200,
+      render: (_, r) => (
+        <ModelQtyCell items={r.items} totalQty={r.totalQuantity} />
+      ),
+    },
+    {
+      title: '品牌',
+      key: 'brands',
+      width: 120,
+      render: (_, r) => (
+        <TagList values={distinctOf(r.items, 'brand')} label="品牌" />
+      ),
+    },
+    {
+      title: '品类',
+      key: 'categories',
+      width: 130,
+      render: (_, r) => (
+        <TagList values={distinctOf(r.items, 'category')} label="品类" />
+      ),
     },
     {
       title: '快递 · 单号',
       key: 'tracking',
-      width: 200,
+      width: 180,
       render: (_, r) => (
         <div>
           <b style={{ color: palette.ink }}>{r.carrier || '—'}</b>
@@ -123,25 +153,22 @@ const Receipts: React.FC = () => {
         </div>
       ),
     },
-    { title: '发货日期', dataIndex: 'shipDate', width: 120 },
     {
       title: '预计到货',
       dataIndex: 'expectedArrivalDate',
-      width: 120,
+      width: 110,
       render: (v: string | undefined, r) => (
         <ArrivalCell date={v} overdue={r.arrivalOverdue} />
       ),
     },
     {
-      title: '型号 · 数量',
-      key: 'items',
-      width: 260,
-      render: (_, r) => (
-        <div style={{ fontSize: 13 }}>
-          {r.items.map((i) => (
-            <EllipsisText key={i.id} text={`${i.model} × ${i.quantity}`} />
-          ))}
-        </div>
+      title: '登记来源',
+      dataIndex: 'sourceName',
+      width: 110,
+      render: (v: string, r) => (
+        <span style={{ color: r.source === 2 ? palette.orange : palette.sub }}>
+          {v}
+        </span>
       ),
     },
     {
@@ -158,108 +185,100 @@ const Receipts: React.FC = () => {
       width: 90,
       render: ellipsisRender,
     },
-    {
-      title: '附件',
-      dataIndex: 'attachmentCount',
-      width: 70,
-      render: (v: number) =>
-        v ? (
-          <span style={{ color: palette.link }}>{v}</span>
-        ) : (
-          <span style={{ color: palette.mute }}>—</span>
-        ),
-    },
+    ...auditColumns<Shipment>(),
     {
       title: '操作',
       key: 'actions',
-      width: 100,
+      width: 130,
       fixed: 'right',
-      render: (_, r) =>
-        canEdit ? (
-          <button
-            type="button"
-            className="zhul-link"
-            onClick={() => setAccepting(r.id)}
-          >
-            验收入库
-          </button>
-        ) : null,
+      render: (_, r) => (
+        <Space size={12}>
+          {canEdit && (
+            <button
+              type="button"
+              className="zhul-link"
+              onClick={() => setAccepting(r.id)}
+            >
+              验收入库
+            </button>
+          )}
+          <Link to={DOC_PATHS.shipment(r.id)}>查看</Link>
+        </Space>
+      ),
     },
   ];
 
   const receiptColumns: TableColumnsType<Receipt> = [
     {
-      title: '采购入库单 · 收货日期',
+      title: '入库单号 · 收货日期',
       dataIndex: 'grNo',
       width: 170,
       fixed: 'left',
       render: (v: string, r) => (
         <div>
-          <button
-            type="button"
-            className="zhul-link"
-            onClick={() => setViewing(r.id)}
-          >
-            {v}
-          </button>
+          <Link to={DOC_PATHS.receipt(r.id)}>{v}</Link>
           {sub(palette.mute, r.receivedDate ?? '—')}
         </div>
       ),
     },
     {
-      title: '来源单号',
-      dataIndex: 'sdNo',
+      title: '采购对象',
+      dataIndex: 'supplierName',
       width: 150,
-      render: (v?: string) => (
-        <SourceNos
-          refs={
-            v ? [{ no: v, href: listHref(WAREHOUSE_PATHS.shipments, v) }] : []
-          }
+      render: (v?: string) => <b style={{ color: palette.ink }}>{v || '—'}</b>,
+    },
+    {
+      title: '型号 · 数量',
+      key: 'items',
+      width: 200,
+      render: (_, r) => (
+        <ModelQtyCell
+          items={r.items?.map((i) => ({
+            model: i.model,
+            quantity: i.receivedQty,
+          }))}
+          totalQty={r.receivedQty}
         />
       ),
     },
     {
-      title: '采购订单',
-      dataIndex: 'poNo',
-      width: 150,
-      render: (v: string | undefined, r) =>
-        v ? (
-          <Link to={WAREHOUSE_PATHS.order(r.poId)}>{v}</Link>
-        ) : (
-          <span style={{ color: palette.mute }}>—</span>
-        ),
+      title: '品牌',
+      key: 'brands',
+      width: 120,
+      render: (_, r) => (
+        <TagList values={distinctOf(r.items, 'brand')} label="品牌" />
+      ),
     },
     {
-      title: '采购对象',
-      dataIndex: 'supplierName',
-      width: 180,
-      render: ellipsisRender,
-    },
-    {
-      title: '型号数',
-      dataIndex: 'itemCount',
-      width: 80,
+      title: '品类',
+      key: 'categories',
+      width: 130,
+      render: (_, r) => (
+        <TagList values={distinctOf(r.items, 'category')} label="品类" />
+      ),
     },
     {
       title: '合格 · 不良 · 差异',
       key: 'qty',
-      width: 170,
+      width: 140,
       render: (_, r) => (
         <span>
-          <span style={{ color: palette.green }}>合格 {r.qualifiedQty}</span>
-          {r.defectiveQty > 0 && (
-            <span style={{ color: palette.red }}> · 不良 {r.defectiveQty}</span>
-          )}
-          {r.discrepancyCount > 0 && (
-            <span style={{ color: palette.orange }}>
-              {' '}
-              · {r.discrepancyCount} 条差异
-            </span>
-          )}
+          <span style={{ color: palette.green }}>{r.qualifiedQty}</span>
+          {' · '}
+          <span style={{ color: r.defectiveQty ? palette.red : palette.mute }}>
+            {r.defectiveQty}
+          </span>
+          {' · '}
+          <span
+            style={{
+              color: r.discrepancyCount ? palette.orange : palette.mute,
+            }}
+          >
+            {r.discrepancyCount}
+          </span>
         </span>
       ),
     },
-    { title: '收货人', dataIndex: 'receivedByName', width: 90 },
     {
       title: '状态',
       dataIndex: 'status',
@@ -268,21 +287,32 @@ const Receipts: React.FC = () => {
         <ReceiptStatusPill value={v}>{r.statusName}</ReceiptStatusPill>
       ),
     },
+    {
+      title: '来源单号',
+      key: 'source',
+      width: 160,
+      render: (_, r) => (
+        <SourceNos
+          refs={[
+            { no: r.sdNo, href: DOC_PATHS.shipment(r.shipmentId) },
+            { no: r.poNo, href: WAREHOUSE_PATHS.order(r.poId) },
+          ]}
+        />
+      ),
+    },
+    {
+      title: '收货人',
+      dataIndex: 'receivedByName',
+      width: 90,
+      render: ellipsisRender,
+    },
     ...auditColumns<Receipt>(),
     {
       title: '操作',
       key: 'actions',
       width: 70,
       fixed: 'right',
-      render: (_, r) => (
-        <button
-          type="button"
-          className="zhul-link"
-          onClick={() => setViewing(r.id)}
-        >
-          查看
-        </button>
-      ),
+      render: (_, r) => <Link to={DOC_PATHS.receipt(r.id)}>查看</Link>,
     },
   ];
 
@@ -399,14 +429,6 @@ const Receipts: React.FC = () => {
         open={direct}
         onClose={() => setDirect(false)}
         onDone={(d) => afterReceive(d.receipt.id)}
-      />
-      <ReceiptView
-        id={viewing}
-        onClose={() => setViewing(undefined)}
-        onChanged={() => {
-          load();
-          refreshCount();
-        }}
       />
     </div>
   );

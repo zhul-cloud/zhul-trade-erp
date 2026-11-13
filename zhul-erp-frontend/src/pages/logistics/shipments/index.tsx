@@ -4,8 +4,9 @@ import type { TableColumnsType } from 'antd';
 import { App, Button, Checkbox, Input, Select, Table } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
 import { CustomerCell } from '@/components/DocFields';
-import SourceNos, { listHref } from '@/components/DocFields/SourceNos';
+import SourceNos from '@/components/DocFields/SourceNos';
 import { ellipsisRender } from '@/components/EllipsisText';
+import { TagList } from '@/pages/inquiry/customer-inquiry/ModelCells';
 import {
   Card,
   MigratedPill,
@@ -14,6 +15,7 @@ import {
 } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { auditColumns } from '@/pages/purchase/components';
+import { DOC_PATHS } from '@/pages/warehouse/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
 import { usePageSize } from '@/utils/pageSize';
@@ -283,24 +285,16 @@ const Shipments: React.FC = () => {
     load();
   }, [load]);
 
-  const open = (id: number) =>
-    history.push(`${LOGISTICS_PATHS.shipments}/${id}`);
-
   const columns: TableColumnsType<Logistics> = [
     {
-      title: '出运单',
+      title: '出运单号 · 出运日期',
       dataIndex: 'shNo',
-      width: 160,
+      width: 170,
       fixed: 'left',
       render: (v: string, r) => (
         <div>
-          <button
-            type="button"
-            className="zhul-link"
-            onClick={() => open(r.id)}
-          >
-            {v}
-          </button>
+          <Link to={DOC_PATHS.logistics(r.id)}>{v}</Link>
+          {sub(palette.mute, r.shippedDate ?? '—')}
           {r.migrated && (
             <div style={{ marginTop: 4 }}>
               <MigratedPill migrated />
@@ -312,7 +306,7 @@ const Shipments: React.FC = () => {
     {
       title: '客户',
       dataIndex: 'customerName',
-      width: 220,
+      width: 200,
       render: (v: string, r) => (
         <CustomerCell
           name={v}
@@ -323,39 +317,66 @@ const Shipments: React.FC = () => {
       ),
     },
     {
-      title: '货代',
-      dataIndex: 'forwarderName',
-      width: 120,
-      render: ellipsisRender,
+      title: '型号 · 数量',
+      key: 'items',
+      width: 200,
+      render: (_, r) =>
+        r.firstModel ? (
+          <div style={{ minWidth: 0 }}>
+            <div
+              style={{
+                fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+                fontWeight: 600,
+                color: palette.ink,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {r.firstModel} × {r.firstQty}
+            </div>
+            {sub(
+              palette.mute,
+              `${r.outboundCount} 张出库单 · ${r.totalQuantity ?? 0} 件`,
+            )}
+          </div>
+        ) : (
+          <span style={{ color: palette.mute }}>—</span>
+        ),
     },
     {
-      title: '销售订单',
-      key: 'orders',
-      width: 150,
-      render: (_, r) => (
-        <SourceNos
-          refs={r.orders.map((o) => ({
-            no: o.soNo,
-            href: LOGISTICS_PATHS.salesOrder(o.id),
-          }))}
-        />
-      ),
+      title: '品牌',
+      dataIndex: 'brands',
+      width: 120,
+      render: (v?: string[]) => <TagList values={v} label="品牌" />,
+    },
+    {
+      title: '品类',
+      dataIndex: 'categories',
+      width: 130,
+      render: (v?: string[]) => <TagList values={v} label="品类" />,
+    },
+    {
+      title: '货代',
+      dataIndex: 'forwarderName',
+      width: 110,
+      render: ellipsisRender,
     },
     {
       title: '箱数 · 计费重',
       key: 'boxes',
-      width: 140,
-      render: (_, r) => (
-        <div>
-          <b style={{ color: palette.ink }}>{r.boxCount} 箱</b>
-          {sub(palette.mute, kg(r.chargeableWeight))}
-        </div>
-      ),
+      width: 130,
+      render: (_, r) =>
+        r.boxCount ? (
+          `${r.boxCount} 箱 · ${kg(r.chargeableWeight)}`
+        ) : (
+          <span style={{ color: palette.mute }}>—</span>
+        ),
     },
     {
       title: '运单号',
       key: 'waybill',
-      width: 160,
+      width: 150,
       render: (_, r) =>
         r.waybillNo ? (
           <div>
@@ -367,16 +388,9 @@ const Shipments: React.FC = () => {
         ),
     },
     {
-      title: '出运日期',
-      dataIndex: 'shippedDate',
-      width: 110,
-      render: (v?: string) =>
-        v ?? <span style={{ color: palette.mute }}>—</span>,
-    },
-    {
       title: '运费',
       dataIndex: 'freight',
-      width: 120,
+      width: 110,
       render: (v?: number | null) =>
         v === null || v === undefined ? '—' : formatAmount(v, 'CNY'),
     },
@@ -404,12 +418,14 @@ const Shipments: React.FC = () => {
     {
       title: '来源单号',
       key: 'outbounds',
-      width: 150,
+      width: 160,
       render: (_, r) => (
         <SourceNos
-          refs={(r.outboundNos ?? []).map((no) => ({
+          refs={(r.outboundNos ?? []).map((no, i) => ({
             no,
-            href: listHref(LOGISTICS_PATHS.outbounds, no, 'handed'),
+            href: r.outboundIds?.[i]
+              ? DOC_PATHS.outbound(r.outboundIds[i])
+              : undefined,
           }))}
         />
       ),
@@ -426,11 +442,7 @@ const Shipments: React.FC = () => {
       key: 'actions',
       width: 70,
       fixed: 'right',
-      render: (_, r) => (
-        <button type="button" className="zhul-link" onClick={() => open(r.id)}>
-          查看
-        </button>
-      ),
+      render: (_, r) => <Link to={DOC_PATHS.logistics(r.id)}>查看</Link>,
     },
   ];
 

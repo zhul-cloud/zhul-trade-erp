@@ -3,13 +3,12 @@ import {
   CheckOutlined,
   InfoCircleOutlined,
 } from '@ant-design/icons';
-import { Link, useModel } from '@umijs/max';
+import { useModel } from '@umijs/max';
 import {
   App,
   AutoComplete,
   Button,
   DatePicker,
-  Descriptions,
   Drawer,
   Input,
   InputNumber,
@@ -24,8 +23,6 @@ import {
   boxesProblem,
   emptyBox,
   kg,
-  LOGISTICS_PATHS,
-  ObStatusPill,
   type PackLine,
 } from '@/pages/logistics/components';
 import {
@@ -45,7 +42,7 @@ import {
 } from '@/pages/warehouse/components';
 import type { Attachment } from '@/pages/warehouse/service';
 import { useAppTheme } from '@/theme/AppTheme';
-import { formatAmount, formatDateTime } from '@/utils/format';
+import { formatAmount } from '@/utils/format';
 
 /** 已有装箱记录转成可编辑的箱子 */
 export const toInputs = (ob: Outbound): BoxInput[] =>
@@ -454,154 +451,3 @@ export const HandOverModal: React.FC<{
     </Modal>
   );
 };
-
-// ---------------------------------------------------------------- 查看
-
-export const OutboundView: React.FC<{ id?: number; onClose: () => void }> = ({
-  id,
-  onClose,
-}) => {
-  const { palette } = useAppTheme();
-  const [ob, setOb] = useState<Outbound>();
-  const [error, setError] = useState<string>();
-  useEffect(() => {
-    if (id === undefined) return;
-    let alive = true;
-    setOb(undefined);
-    setError(undefined);
-    outboundApi
-      .detail(id)
-      .then((d) => {
-        if (alive) setOb(d);
-      })
-      .catch((e) => {
-        if (alive) setError(readBizError(e).message);
-      });
-    return () => {
-      alive = false;
-    };
-  }, [id]);
-  return (
-    <Drawer
-      open={id !== undefined}
-      onClose={onClose}
-      size="min(760px, 96vw)"
-      destroyOnHidden
-      title={ob ? `销售出库单 ${ob.obNo}` : '销售出库单'}
-    >
-      {error ? (
-        <ErrorHint message={error} onRetry={onClose} />
-      ) : !ob ? (
-        <Skeleton active />
-      ) : (
-        <OutboundDetail ob={ob} palette={palette} />
-      )}
-    </Drawer>
-  );
-};
-
-export const OutboundDetail: React.FC<{
-  ob: Outbound;
-  palette: ReturnType<typeof useAppTheme>['palette'];
-}> = ({ ob, palette }) => (
-  <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-    <Descriptions
-      size="small"
-      column={2}
-      items={[
-        {
-          label: '状态',
-          children: (
-            <ObStatusPill value={ob.status}>{ob.statusName}</ObStatusPill>
-          ),
-        },
-        { label: '来源', children: ob.sourceName },
-        {
-          label: '订单',
-          children: (
-            <Link to={LOGISTICS_PATHS.salesOrder(ob.soId)}>{ob.soNo}</Link>
-          ),
-        },
-        { label: '客户', children: ob.customerName },
-        { label: '货代', children: ob.forwarderName },
-        { label: '业务员', children: ob.ownerName },
-        ...(ob.packedByName
-          ? [
-              {
-                label: '打包',
-                children: `${ob.packedByName} · ${formatDateTime(ob.packedAt)}`,
-              },
-            ]
-          : []),
-        ...(ob.courier
-          ? [
-              {
-                label: '国内快递',
-                children: `${ob.courier.carrier} ${ob.courier.trackingNo ?? ''} · ${ob.courier.sentDate ?? ''}`,
-              },
-              {
-                label: '运费',
-                children: `${formatAmount(ob.courier.freight, 'CNY')}${
-                  ob.courier.outboundCount > 1
-                    ? `（${ob.courier.outboundCount} 单共用，本单 ${formatAmount(ob.courier.share, 'CNY')}）`
-                    : ''
-                } · 垫付人 ${ob.courier.payerName ?? '—'}`,
-              },
-            ]
-          : []),
-        ...(ob.shNo ? [{ label: '出运单', children: ob.shNo }] : []),
-        ...(ob.note ? [{ label: '备注', children: ob.note }] : []),
-        ...(ob.withdrawReason
-          ? [{ label: '撤回原因', children: ob.withdrawReason }]
-          : []),
-      ]}
-    />
-    <Table
-      rowKey="id"
-      size="small"
-      pagination={false}
-      dataSource={ob.items}
-      columns={[
-        { title: '型号', dataIndex: 'model' },
-        { title: '品牌', dataIndex: 'brand', render: (v?: string) => v || '—' },
-        { title: '数量', dataIndex: 'quantity', width: 90 },
-      ]}
-    />
-    {ob.boxes.length > 0 && (
-      <Table
-        rowKey="id"
-        size="small"
-        pagination={false}
-        dataSource={ob.boxes}
-        columns={[
-          { title: '箱号', dataIndex: 'boxNo', width: 60 },
-          {
-            title: '尺寸（cm）',
-            key: 'dim',
-            render: (_, b) => `${b.length} × ${b.width} × ${b.height}`,
-          },
-          {
-            title: '毛重',
-            dataIndex: 'grossWeight',
-            render: (v: number) => kg(v),
-          },
-          {
-            title: '计费重',
-            dataIndex: 'chargeable',
-            render: (v: number) => kg(v),
-          },
-          {
-            title: '箱内型号',
-            key: 'items',
-            render: (_, b) =>
-              b.items.map((i) => (
-                <div key={i.outboundItemId} style={{ color: palette.sub }}>
-                  {i.model} × {i.quantity}
-                </div>
-              )),
-          },
-        ]}
-      />
-    )}
-  </div>
-);

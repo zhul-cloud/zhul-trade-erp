@@ -14,7 +14,7 @@ import {
   UserAddOutlined,
   WalletOutlined,
 } from '@ant-design/icons';
-import { history, useAccess, useParams } from '@umijs/max';
+import { history, Link, useAccess, useParams } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import {
   Alert,
@@ -49,6 +49,7 @@ import { PATHS as SALES_PATHS } from '@/pages/sales/components';
 import { StockPill } from '@/pages/sales/orders/dialogs';
 import {
   AttachmentWall,
+  DOC_PATHS,
   ReasonModal,
   ReceiptStatusPill,
   ShipStatusPill,
@@ -97,7 +98,6 @@ import {
   readBizError,
   type SavePoBody,
 } from '../service';
-import { ShipmentView } from '../shipments';
 import ShipmentDrawer from '../shipments/ShipmentDrawer';
 
 interface Draft {
@@ -1582,11 +1582,6 @@ const ShipmentsCard: React.FC<{
   onVoid: (s: PoShipmentRef) => void;
 }> = ({ po, canShip, onEdit, onVoid }) => {
   const { palette } = useAppTheme();
-  const [viewing, setViewing] = useState<number>();
-  const loadShipment = useCallback(
-    (shipmentId: number) => poApi.shipment(po.id, shipmentId),
-    [po.id],
-  );
   const rows: FlowRow[] = [
     ...po.shipments.map((ref) => ({
       kind: 'ship' as const,
@@ -1608,11 +1603,12 @@ const ShipmentsCard: React.FC<{
       title: '单据',
       key: 'no',
       width: 170,
-      render: (_, r) => (
-        <b style={{ color: palette.ink }}>
-          {r.kind === 'ship' ? r.ref.sdNo : r.ref.grNo}
-        </b>
-      ),
+      render: (_, r) =>
+        r.kind === 'ship' ? (
+          <Link to={DOC_PATHS.shipment(r.ref.id)}>{r.ref.sdNo}</Link>
+        ) : (
+          <Link to={DOC_PATHS.receipt(r.ref.id)}>{r.ref.grNo}</Link>
+        ),
     },
     {
       title: '类型',
@@ -1691,13 +1687,7 @@ const ShipmentsCard: React.FC<{
       render: (_, r) =>
         r.kind === 'ship' ? (
           <Space size={12}>
-            <button
-              type="button"
-              className="zhul-link"
-              onClick={() => setViewing(r.ref.id)}
-            >
-              查看
-            </button>
+            <Link to={DOC_PATHS.shipment(r.ref.id)}>查看</Link>
             {r.ref.status === 1 && canShip && (
               <>
                 <button
@@ -1718,7 +1708,9 @@ const ShipmentsCard: React.FC<{
               </>
             )}
           </Space>
-        ) : null,
+        ) : (
+          <Link to={DOC_PATHS.receipt(r.ref.id)}>查看</Link>
+        ),
     },
   ];
   return (
@@ -1748,11 +1740,6 @@ const ShipmentsCard: React.FC<{
         pagination={false}
         scroll={{ x: tableScrollX(columns) }}
         locale={{ emptyText: '供应商还没发货；发货后点右上角「登记发货」' }}
-      />
-      <ShipmentView
-        id={viewing}
-        load={loadShipment}
-        onClose={() => setViewing(undefined)}
       />
     </Card>
   );

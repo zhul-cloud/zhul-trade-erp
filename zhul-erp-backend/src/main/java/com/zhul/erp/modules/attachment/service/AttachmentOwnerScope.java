@@ -13,12 +13,18 @@ import com.zhul.erp.modules.finance.entity.CustomerRefundDO;
 import com.zhul.erp.modules.finance.repository.CustomerCreditEntryMapper;
 import com.zhul.erp.modules.finance.repository.CustomerRefundMapper;
 import com.zhul.erp.modules.inquiry.support.CurrentUserResolver;
+import com.zhul.erp.modules.logistics.entity.OutboundOrderDO;
+import com.zhul.erp.modules.logistics.repository.OutboundOrderMapper;
 import com.zhul.erp.modules.masterdata.entity.CustomerDO;
 import com.zhul.erp.modules.masterdata.repository.CustomerMapper;
 import com.zhul.erp.modules.purchase.entity.PurchaseOrderDO;
 import com.zhul.erp.modules.purchase.repository.PurchaseOrderMapper;
 import com.zhul.erp.modules.sales.entity.SalesOrderDO;
 import com.zhul.erp.modules.sales.repository.SalesOrderMapper;
+import com.zhul.erp.modules.warehouse.entity.PurchaseReceiptDO;
+import com.zhul.erp.modules.warehouse.entity.SupplierShipmentDO;
+import com.zhul.erp.modules.warehouse.repository.PurchaseReceiptMapper;
+import com.zhul.erp.modules.warehouse.repository.SupplierShipmentMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -42,6 +48,9 @@ public class AttachmentOwnerScope {
     private final CustomerCreditEntryMapper creditEntryMapper;
     private final CustomerMapper customerMapper;
     private final PurchaseOrderMapper purchaseOrderMapper;
+    private final SupplierShipmentMapper shipmentMapper;
+    private final PurchaseReceiptMapper receiptMapper;
+    private final OutboundOrderMapper outboundMapper;
 
     public boolean canSee(BizAttachmentDO a) {
         if (a.getOwnerId() == null || a.getOwnerId() == 0) {
@@ -61,6 +70,14 @@ public class AttachmentOwnerScope {
                     || customerVisible(creditCustomer(creditEntryMapper.selectById(id)));
             case AttachmentService.PO_INVOICE -> anyMenu("/finance/payables")
                     || purchaseVisible(purchaseOrderMapper.selectById(id));
+            // 发货单与采购入库单的附件：采购与仓库菜单看全部，只有采购订单菜单时按采购订单的采购员
+            case AttachmentService.SHIPMENT -> anyMenu("/purchase/shipments", "/warehouse/receipts")
+                    || purchaseVisible(poOfShipment(shipmentMapper.selectById(id)));
+            case AttachmentService.RECEIPT, AttachmentService.RECEIPT_DEFECT -> anyMenu("/warehouse/receipts", "/purchase/shipments")
+                    || purchaseVisible(poOfReceipt(receiptMapper.selectById(id)));
+            // 销售出库单的附件与打包照片：仓库看全部，业务员按销售订单负责人
+            case AttachmentService.OUTBOUND, AttachmentService.PACKING -> anyMenu("/warehouse/outbounds")
+                    || orderVisible(orderOfOutbound(outboundMapper.selectById(id)));
             default -> true;
         };
     }
@@ -115,5 +132,17 @@ public class AttachmentOwnerScope {
 
     private boolean purchaseVisible(PurchaseOrderDO p) {
         return p != null && dataScopeResolver.current().canSee(p.getPurchaserId());
+    }
+
+    private PurchaseOrderDO poOfShipment(SupplierShipmentDO s) {
+        return s == null || s.getPoId() == null ? null : purchaseOrderMapper.selectById(s.getPoId());
+    }
+
+    private PurchaseOrderDO poOfReceipt(PurchaseReceiptDO r) {
+        return r == null || r.getPoId() == null ? null : purchaseOrderMapper.selectById(r.getPoId());
+    }
+
+    private SalesOrderDO orderOfOutbound(OutboundOrderDO o) {
+        return o == null || o.getSoId() == null ? null : salesOrderMapper.selectById(o.getSoId());
     }
 }

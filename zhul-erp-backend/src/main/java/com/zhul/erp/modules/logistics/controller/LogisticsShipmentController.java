@@ -12,12 +12,15 @@ import com.zhul.erp.modules.logistics.dto.SaveLogisticsRequest;
 import com.zhul.erp.modules.logistics.dto.ShipRequest;
 import com.zhul.erp.modules.logistics.service.DocGroupService;
 import com.zhul.erp.modules.logistics.service.LogisticsShipmentService;
+import com.zhul.erp.modules.system.doclog.DocAttachRequest;
+import com.zhul.erp.modules.system.doclog.DocRemarkRequest;
 import com.zhul.erp.modules.warehouse.dto.ReasonRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -61,6 +64,24 @@ public class LogisticsShipmentController {
     @PreAuthorize(MENU)
     public Result<LogisticsVO> detail(@PathVariable Long id) {
         return Result.ok(service.detail(id));
+    }
+
+    @PostMapping("/{id}/remark")
+    @PreAuthorize(MENU)
+    public Result<LogisticsVO> remark(@PathVariable Long id, @Valid @RequestBody DocRemarkRequest req) {
+        return Result.ok(service.remark(id, req.getRemark()));
+    }
+
+    @PostMapping("/{id}/attachments")
+    @PreAuthorize(MENU)
+    public Result<LogisticsVO> attach(@PathVariable Long id, @Valid @RequestBody DocAttachRequest req) {
+        return Result.ok(service.attachFiles(id, req.getIds()));
+    }
+
+    @DeleteMapping("/{id}/attachments/{attachmentId}")
+    @PreAuthorize(MENU)
+    public Result<LogisticsVO> removeAttachment(@PathVariable Long id, @PathVariable Long attachmentId) {
+        return Result.ok(service.removeAttachment(id, attachmentId));
     }
 
     @PostMapping

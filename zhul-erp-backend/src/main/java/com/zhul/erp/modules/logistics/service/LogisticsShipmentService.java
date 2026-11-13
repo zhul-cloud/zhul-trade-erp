@@ -17,11 +17,15 @@ import com.zhul.erp.modules.logistics.dto.PackRequest;
 import com.zhul.erp.modules.logistics.dto.PendingGroupVO;
 import com.zhul.erp.modules.logistics.dto.SaveLogisticsRequest;
 import com.zhul.erp.modules.logistics.dto.ShipRequest;
+import com.zhul.erp.modules.logistics.entity.ForwarderStatementDO;
+import com.zhul.erp.modules.logistics.entity.ForwarderStatementLineDO;
 import com.zhul.erp.modules.logistics.entity.LogisticsShipmentDO;
 import com.zhul.erp.modules.logistics.entity.OutboundBoxDO;
 import com.zhul.erp.modules.logistics.entity.OutboundOrderDO;
 import com.zhul.erp.modules.logistics.entity.OutboundOrderItemDO;
 import com.zhul.erp.modules.logistics.entity.ShipmentDocGroupDO;
+import com.zhul.erp.modules.logistics.repository.ForwarderStatementLineMapper;
+import com.zhul.erp.modules.logistics.repository.ForwarderStatementMapper;
 import com.zhul.erp.modules.logistics.repository.LogisticsShipmentMapper;
 import com.zhul.erp.modules.logistics.repository.OutboundBoxMapper;
 import com.zhul.erp.modules.logistics.repository.OutboundOrderItemMapper;
@@ -37,6 +41,8 @@ import com.zhul.erp.modules.sales.repository.SalesOrderItemMapper;
 import com.zhul.erp.modules.sales.repository.SalesOrderMapper;
 import com.zhul.erp.modules.sales.support.PiStore;
 import com.zhul.erp.modules.system.constants.DocumentType;
+import com.zhul.erp.modules.system.doclog.DocLogs;
+import com.zhul.erp.modules.system.doclog.DocRefVO;
 import com.zhul.erp.modules.system.service.DocumentNumberService;
 import com.zhul.erp.modules.system.service.LogService;
 import com.zhul.erp.modules.warehouse.constants.WarehouseConstants;
@@ -96,6 +102,9 @@ public class LogisticsShipmentService {
     private final CurrentUserResolver currentUser;
     private final LogService logService;
     private final com.zhul.erp.modules.crm.followup.support.FollowupHooks followupHooks;
+    private final ForwarderStatementMapper statementMapper;
+    private final ForwarderStatementLineMapper statementLineMapper;
+    private final DocLogs docLogs;
 
     // ---------------------------------------------------------------- 待出运的货
 
@@ -169,6 +178,7 @@ public class LogisticsShipmentService {
         shipmentMapper.insert(sh);
         attach(sh, req.getOutboundIds(), req.getDirectShipmentIds());
         logService.recordOperateLog(LogisticsConstants.MENU_SHIPMENT, "新建出运单", null, Map.of("shNo", sh.getShNo()));
+        docLogs.add(DocumentType.SH, sh.getId(), "新建", goodsText(sh.getId()));
         followupHooks.customerChanged(sh.getCustomerId());
         return detail(sh.getId());
     }
@@ -210,6 +220,7 @@ public class LogisticsShipmentService {
         if (outboundsOf(id).isEmpty() && directsOf(id).isEmpty()) {
             throw new BizException("出运单里至少要有一张销售出库单或直发货；不要了请作废");
         }
+        docLogs.add(DocumentType.SH, id, "调整货物", goodsText(id));
         followupHooks.customerChanged(sh.getCustomerId());
         return detail(id);
     }
@@ -296,6 +307,7 @@ public class LogisticsShipmentService {
         shipmentMapper.updateById(sh);
         logService.recordOperateLog(LogisticsConstants.MENU_SHIPMENT, "作废出运单", Map.of("shNo", sh.getShNo(), "status", "待出运"),
                 Map.of("shNo", sh.getShNo(), "status", "已作废", "reason", sh.getVoidReason()));
+        docLogs.add(DocumentType.SH, id, "作废", sh.getVoidReason());
         followupHooks.customerChanged(sh.getCustomerId());
         return detail(id);
     }
@@ -382,6 +394,8 @@ public class LogisticsShipmentService {
         progress.sync(items.stream().map(OutboundOrderItemDO::getSoItemId).toList());
         logService.recordOperateLog(LogisticsConstants.MENU_SHIPMENT, "确认直发货", null, Map.of("shNo", sh.getShNo(), "sdNo", s.getSdNo(),
                 "obNo", ob.getObNo(), "received", receiptItems.size()));
+        docLogs.add(DocumentType.SH, id, "直发确认", s.getSdNo() + " → " + ob.getObNo());
+        docLogs.add(DocumentType.OB, ob.getId(), "直发确认生成", sh.getShNo() + "，" + s.getSdNo());
         followupHooks.customerChanged(sh.getCustomerId());
         return detail(id);
     }
@@ -406,6 +420,7 @@ public class LogisticsShipmentService {
         progress.sync(outbounds.soItemIds(obs.stream().map(OutboundOrderDO::getId).toList()));
         logService.recordOperateLog(LogisticsConstants.MENU_SHIPMENT, "登记出运", null, Map.of("shNo", sh.getShNo(),
                 "waybill", sh.getCarrier() + " " + sh.getWaybillNo(), "freight", "CNY " + sh.getFreight()));
+        docLogs.add(DocumentType.SH, id, "登记出运", sh.getCarrier() + " " + sh.getWaybillNo() + "，运费 CNY " + sh.getFreight());
         followupHooks.customerChanged(sh.getCustomerId());
         return detail(id);
     }
@@ -432,6 +447,7 @@ public class LogisticsShipmentService {
         }
         logService.recordOperateLog(LogisticsConstants.MENU_SHIPMENT, "修改运单", Map.of("shNo", sh.getShNo(), "freight", String.valueOf(before)),
                 Map.of("shNo", sh.getShNo(), "waybill", sh.getCarrier() + " " + sh.getWaybillNo(), "freight", String.valueOf(after)));
+        docLogs.add(DocumentType.SH, id, "修改出运信息", sh.getCarrier() + " " + sh.getWaybillNo() + "，运费 CNY " + sh.getFreight());
         followupHooks.customerChanged(sh.getCustomerId());
         return detail(id);
     }
@@ -503,7 +519,78 @@ public class LogisticsShipmentService {
     }
 
     public LogisticsVO detail(Long id) {
-        return toVos(List.of(visible(id)), true).get(0);
+        LogisticsShipmentDO sh = visible(id);
+        LogisticsVO vo = toVos(List.of(sh), true).get(0);
+        vo.setAttachments(attachments.listOf(AttachmentService.LOGISTICS_DOC, id));
+        vo.setRelated(related(sh, vo));
+        vo.setLogs(docLogs.list(DocumentType.SH, id));
+        return vo;
+    }
+
+    /** 关联单据：销售出库单、销售订单、直发的发货单、运费账单（change warehouse-logistics-docs） */
+    private List<DocRefVO> related(LogisticsShipmentDO sh, LogisticsVO vo) {
+        List<DocRefVO> out = new ArrayList<>(8);
+        nn(vo.getOutbounds()).forEach(o -> out.add(new DocRefVO(DocumentType.OB.name(), o.getId(), o.getObNo(), o.getStatus(),
+                LogisticsConstants.OB_STATUS_NAMES.get(o.getStatus()))));
+        nn(vo.getOrders()).forEach(o -> out.add(new DocRefVO(DocumentType.SO.name(), o.getId(), o.getSoNo(), null, null)));
+        directsOf(sh.getId()).forEach(d -> out.add(new DocRefVO(DocumentType.SD.name(), d.getId(), d.getSdNo(), d.getStatus(),
+                WarehouseConstants.SHIP_STATUS_NAMES.get(d.getStatus()))));
+        statementLineMapper.selectList(new LambdaQueryWrapper<ForwarderStatementLineDO>()
+                        .eq(ForwarderStatementLineDO::getLogisticsId, sh.getId())
+                        .isNull(ForwarderStatementLineDO::getDeletedAt))
+                .stream().map(ForwarderStatementLineDO::getStatementId).distinct()
+                .map(statementMapper::selectById)
+                .filter(st -> st != null && st.getDeletedAt() == null)
+                .forEach(st -> out.add(new DocRefVO(DocumentType.ST.name(), st.getId(), st.getPeriod(), st.getStatus(),
+                        LogisticsConstants.STATEMENT_STATUS_NAMES.get(st.getStatus()))));
+        return out;
+    }
+
+    // ---------------------------------------------------------------- 备注与单据附件
+
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
+    public LogisticsVO remark(Long id, String remark) {
+        LogisticsShipmentDO sh = lockNotVoid(id);
+        String text = remark == null ? "" : remark.trim();
+        sh.setNote(text);
+        shipmentMapper.updateById(sh);
+        docLogs.add(DocumentType.SH, id, "修改备注", text.isEmpty() ? "清空备注" : text);
+        return detail(id);
+    }
+
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
+    public LogisticsVO attachFiles(Long id, List<Long> ids) {
+        lockNotVoid(id);
+        attachments.attach(AttachmentService.LOGISTICS_DOC, id, ids);
+        docLogs.add(DocumentType.SH, id, "上传附件", ids.size() + " 个");
+        return detail(id);
+    }
+
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
+    public LogisticsVO removeAttachment(Long id, Long attachmentId) {
+        lockNotVoid(id);
+        attachments.remove(AttachmentService.LOGISTICS_DOC, id, attachmentId);
+        docLogs.add(DocumentType.SH, id, "删除附件", "");
+        return detail(id);
+    }
+
+    private LogisticsShipmentDO lockNotVoid(Long id) {
+        visible(id);
+        shipmentMapper.lockById(id);
+        LogisticsShipmentDO sh = visible(id);
+        MigratedGuard.requireEditable(sh.getMigrated());
+        if (sh.getStatus() == LogisticsConstants.SH_VOID) {
+            throw new BizException("出运单已作废");
+        }
+        return sh;
+    }
+
+    /** 日志里的货物摘要：销售出库单号与直发货单号 */
+    private String goodsText(Long id) {
+        List<String> nos = new ArrayList<>();
+        outboundsOf(id).forEach(o -> nos.add(o.getObNo()));
+        directsOf(id).forEach(d -> nos.add(d.getSdNo()));
+        return String.join("、", nos);
     }
 
     private List<LogisticsVO> toVos(List<LogisticsShipmentDO> rows, boolean full) {
@@ -522,6 +609,8 @@ public class LogisticsShipmentService {
         Map<Long, CustomerDO> customers = support.customers(rows.stream().map(LogisticsShipmentDO::getCustomerId).toList());
         Map<Long, String> forwarders = support.supplierNames(rows.stream().map(LogisticsShipmentDO::getForwarderId).toList());
         Map<Long, String> users = support.userNames(rows.stream().map(LogisticsShipmentDO::getOwnerId).toList());
+        Map<Long, OutboundVO> obVos = outbounds.toVos(obs.values().stream().flatMap(List::stream).toList()).stream()
+                .collect(Collectors.toMap(OutboundVO::getId, x -> x));
         List<LogisticsVO> out = new ArrayList<>(rows.size());
         for (LogisticsShipmentDO sh : rows) {
             BigDecimal divisor = support.divisorOf(sh.getForwarderId());
@@ -554,6 +643,16 @@ public class LogisticsShipmentService {
             vo.setNote(sh.getNote());
             vo.setOutboundCount(mine.size());
             vo.setOutboundNos(mine.stream().map(OutboundOrderDO::getObNo).toList());
+            vo.setOutboundIds(mine.stream().map(OutboundOrderDO::getId).toList());
+            List<OutboundVO.Item> items = mine.stream().map(o -> obVos.get(o.getId())).filter(Objects::nonNull)
+                    .flatMap(o -> o.getItems().stream()).toList();
+            if (!items.isEmpty()) {
+                vo.setFirstModel(items.get(0).getModel());
+                vo.setFirstQty(items.get(0).getQuantity());
+            }
+            vo.setTotalQuantity(items.stream().mapToInt(i -> i.getQuantity() == null ? 0 : i.getQuantity()).sum());
+            vo.setBrands(items.stream().map(OutboundVO.Item::getBrand).filter(StringUtils::hasText).distinct().toList());
+            vo.setCategories(items.stream().map(OutboundVO.Item::getCategory).filter(StringUtils::hasText).distinct().toList());
             Map<Long, String> soNos = new LinkedHashMap<>();
             mine.forEach(o -> soNos.putIfAbsent(o.getSoId(), orders.get(o.getSoId()) == null ? null : orders.get(o.getSoId()).getSoNo()));
             vo.setOrders(soNos.entrySet().stream().map(e -> {
@@ -568,7 +667,7 @@ public class LogisticsShipmentService {
             bs.forEach(b -> chargeable.put(b.getId(), FreightService.chargeable(b, divisor)));
             vo.setChargeableWeight(chargeable.values().stream().reduce(BigDecimal.ZERO, BigDecimal::add));
             if (full) {
-                vo.setOutbounds(outbounds.toVos(mine));
+                vo.setOutbounds(mine.stream().map(o -> obVos.get(o.getId())).filter(Objects::nonNull).toList());
                 vo.setBoxChargeable(chargeable);
                 vo.setBoxFreight(freight.byBox(LogisticsConstants.FREIGHT_INTERNATIONAL, sh.getId()));
                 vo.setDirects(directRefs(directsOf(sh.getId()), false));

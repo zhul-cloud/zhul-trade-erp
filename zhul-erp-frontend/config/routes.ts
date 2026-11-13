@@ -464,6 +464,12 @@ export default [
         component: './purchase/shipments',
       },
       {
+        path: '/purchase/shipments/:id',
+        hideInMenu: true,
+        access: 'shipmentDetail',
+        component: './purchase/shipments/detail',
+      },
+      {
         path: '/purchase/returns',
         name: 'returns',
         icon: 'undo',
@@ -500,11 +506,23 @@ export default [
         component: './warehouse/receipts',
       },
       {
+        path: '/warehouse/receipts/:id',
+        hideInMenu: true,
+        access: 'receiptDetail',
+        component: './warehouse/receipts/detail',
+      },
+      {
         path: '/warehouse/outbounds',
         name: 'outbounds',
         icon: 'export',
         access: 'warehouseOutbounds',
         component: './warehouse/outbounds',
+      },
+      {
+        path: '/warehouse/outbounds/:id',
+        hideInMenu: true,
+        access: 'outboundDetail',
+        component: './warehouse/outbounds/detail',
       },
       {
         path: '/warehouse/returns',
