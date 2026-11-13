@@ -15,7 +15,7 @@
 - [x] 3.2 `BackgroundActions` 点「AI 背调」先弹检查窗口，「直接背调 / 仍要背调」后接原来的 24 小时提醒与发起；增加 `onFix` 回调，验证：组件测试覆盖很少时按钮为「仍要背调」、点击后调用发起接口
 - [x] 3.3 客户详情与档案补全向导接上 `onFix`（打开档案编辑对应页签或联系人弹窗），保存后刷新检查结果，验证：本地走查补官网后充足度变化
 - [x] 3.4 `BackgroundCard` 显示检查结果（没有报告时完整清单，有报告时一行摘要可展开），验证：本地走查对照原型
-- [ ] 3.5 `npm run lint`、`npx antd lint ./src`、前端测试与 `npm run build` 通过
+- [x] 3.5 `npm run lint`、`npx antd lint ./src`、前端测试与 `npm run build` 通过
 
 ## 4. 文档与提交
 
