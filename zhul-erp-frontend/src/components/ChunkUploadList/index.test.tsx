@@ -85,6 +85,13 @@ describe('checkFile', () => {
       checkFile({ name: 'A.PDF', size: 400 * MB }, RULES, 0),
     ).toBeUndefined();
   });
+
+  it('.jpeg 按 jpg 放行', () => {
+    expect(
+      checkFile({ name: 'WhatsApp Image 2026-11-13.jpeg', size: MB }, RULES, 0),
+    ).toBeUndefined();
+    expect(checkFile({ name: 'a.JPEG', size: MB }, RULES, 0)).toBeUndefined();
+  });
 });
 
 describe('ChunkUploadList', () => {
