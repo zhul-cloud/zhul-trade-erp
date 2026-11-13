@@ -48,7 +48,11 @@ export interface UploadItem {
   file?: DirectUploadedFile;
 }
 
-const extOf = (name: string) => name.split('.').pop()?.toLowerCase() ?? '';
+/** 扩展名小写；jpeg 视为 jpg，与后端一致（WhatsApp 下载的图片是 .jpeg） */
+const extOf = (name: string) => {
+  const ext = name.split('.').pop()?.toLowerCase() ?? '';
+  return ext === 'jpeg' ? 'jpg' : ext;
+};
 
 /** 选文件时的检查；返回拦下的原因，可以上传时返回 undefined */
 export const checkFile = (
