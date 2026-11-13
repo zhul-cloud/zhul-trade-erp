@@ -43,4 +43,7 @@ public class MyTaskVO {
     private String returnReasonLabel;
     private String returnNote;
     private String returnedByName;
+    /** 回价需审核的账号：本人待审核的型号数，与「审核中」分类（其他账号为空） */
+    private Integer pendingReviewCount;
+    private Boolean reviewing;
 }

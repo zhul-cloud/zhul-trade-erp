@@ -1,7 +1,10 @@
 import {
   AlertOutlined,
   ApartmentOutlined,
+  ClockCircleOutlined,
+  CloseOutlined,
   DownloadOutlined,
+  EllipsisOutlined,
   InboxOutlined,
   OrderedListOutlined,
   SafetyCertificateOutlined,
@@ -57,6 +60,8 @@ import {
   readBizError,
 } from '../shared/service';
 import AllTasksTable from './AllTasksTable';
+import DeferModal, { type DeferTarget } from './DeferModal';
+import DeferredList from './DeferredList';
 import ReviewDrawer from './ReviewDrawer';
 import TaskDetailDrawer from './TaskDetailDrawer';
 
@@ -66,6 +71,8 @@ const SOURCING = 2;
 const DONE = 3;
 /** 待审核：任务下有兼职回价等采购负责人审核（不是任务状态，与后端 BOARD_TAB_REVIEW 一致） */
 const REVIEW = 5;
+/** 已延后：待分配页签里的切换，与后端 BOARD_TAB_DEFERRED 一致 */
+const DEFERRED = 8;
 /** 全部：全部询价任务（含已报价、已关闭），只在前端使用，走 /all 接口 */
 const ALL = 9;
 
@@ -99,7 +106,10 @@ const SourcingBoardPage: React.FC = () => {
   const [keyword, setKeyword] = useState('');
   const [search, setSearch] = useState('');
   const [purchaserId, setPurchaserId] = useState<number>();
+  const [deferredView, setDeferredView] = useState(false);
+  const [deferTarget, setDeferTarget] = useState<DeferTarget>();
   const fold = useFold();
+  const showDeferred = tab === UNASSIGNED && deferredView;
 
   const load = useCallback(async () => {
     setError('');
@@ -107,7 +117,7 @@ const SourcingBoardPage: React.FC = () => {
       // 「全部」页签只用这次请求取统计、页签数字与采购名单，表格由 AllTasksTable 自己查
       const all = tab === ALL;
       const b = await boardApi.board(
-        all ? UNASSIGNED : tab,
+        all ? UNASSIGNED : showDeferred ? DEFERRED : tab,
         all ? 1 : page,
         all ? 1 : pageSize,
         { keyword: search || undefined, purchaserId },
@@ -121,11 +131,11 @@ const SourcingBoardPage: React.FC = () => {
     } catch (e) {
       setError(readBizError(e).message);
     }
-  }, [tab, page, pageSize, search, purchaserId]);
+  }, [tab, page, pageSize, search, purchaserId, showDeferred]);
 
   useEffect(() => {
     setBoard(null);
-  }, [tab]);
+  }, [tab, showDeferred]);
 
   // 搜索条件变化时回到第一页
   useEffect(() => setPage(1), [search, purchaserId]);
@@ -150,8 +160,8 @@ const SourcingBoardPage: React.FC = () => {
   };
 
   const groups = useMemo(
-    () => (tab === ALL ? [] : groupByBrand(board?.tasks ?? [])),
-    [board, tab],
+    () => (tab === ALL || showDeferred ? [] : groupByBrand(board?.tasks ?? [])),
+    [board, tab, showDeferred],
   );
   const brandSummary = useMemo(
     () => new Map((board?.brands ?? []).map((b) => [b.brand, b])),
@@ -183,6 +193,8 @@ const SourcingBoardPage: React.FC = () => {
       if (p) onPick(p);
     },
   });
+
+  const closeDefer = useCallback(() => setDeferTarget(undefined), []);
 
   const openRulePreview = async () => {
     setBusy(true);
@@ -251,6 +263,7 @@ const SourcingBoardPage: React.FC = () => {
                   {s.unassigned
                     ? `最久已等 ${formatMinutes(s.longestWaitingMinutes)}`
                     : '都分配完了'}
+                  {s.deferred ? ` · 另有 ${s.deferred} 个已延后` : ''}
                 </span>
               }
             />
@@ -351,6 +364,7 @@ const SourcingBoardPage: React.FC = () => {
                   value={tab}
                   onChange={(v) => {
                     setTab(v as number);
+                    setDeferredView(false);
                     setPage(1);
                   }}
                   options={[
@@ -373,6 +387,22 @@ const SourcingBoardPage: React.FC = () => {
                     { value: ALL, label: '全部' },
                   ]}
                 />
+                {tab === UNASSIGNED && (
+                  <Button
+                    size="small"
+                    type={showDeferred ? 'primary' : 'default'}
+                    ghost={showDeferred}
+                    icon={<ClockCircleOutlined />}
+                    onClick={() => {
+                      setDeferredView(!showDeferred);
+                      setPage(1);
+                    }}
+                    aria-pressed={showDeferred}
+                  >
+                    已延后 {board.tabs?.deferred ?? s.deferred ?? 0}
+                    {showDeferred && <CloseOutlined style={{ fontSize: 10 }} />}
+                  </Button>
+                )}
                 {TAB_HINT[tab] && (
                   <span
                     style={{
@@ -386,7 +416,7 @@ const SourcingBoardPage: React.FC = () => {
                   </span>
                 )}
                 <span style={{ marginLeft: 'auto' }} />
-                {tab !== REVIEW && tab !== ALL && (
+                {tab !== REVIEW && tab !== ALL && !showDeferred && (
                   <FoldToggle mode={fold.mode} onChange={fold.setAll} />
                 )}
                 <span
@@ -401,82 +431,96 @@ const SourcingBoardPage: React.FC = () => {
                 </span>
               </div>
 
-              {tab === UNASSIGNED && canAssign && selected.length > 0 && (
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 10,
-                    padding: '12px 16px',
-                    borderRadius: 12,
-                    background: palette.accentSoft,
-                    border: `1px solid ${palette.accentLine}`,
-                  }}
-                >
-                  <span style={{ color: palette.ink, fontWeight: 600 }}>
-                    已选 {selected.length} 个任务
-                  </span>
-                  <button
-                    type="button"
-                    className="zhul-link"
-                    onClick={() => setSelected([])}
+              {tab === UNASSIGNED &&
+                !showDeferred &&
+                canAssign &&
+                selected.length > 0 && (
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 10,
+                      padding: '12px 16px',
+                      borderRadius: 12,
+                      background: palette.accentSoft,
+                      border: `1px solid ${palette.accentLine}`,
+                    }}
                   >
-                    取消选择
-                  </button>
-                  <span style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
-                    <Button
-                      type="primary"
-                      size="small"
-                      icon={<ThunderboltOutlined />}
-                      loading={busy}
-                      onClick={() =>
-                        run(
-                          () => boardApi.assignRecommended(selected),
-                          `已按推荐分配 ${selected.length} 个任务`,
-                        )
-                      }
+                    <span style={{ color: palette.ink, fontWeight: 600 }}>
+                      已选 {selected.length} 个任务
+                    </span>
+                    <button
+                      type="button"
+                      className="zhul-link"
+                      onClick={() => setSelected([])}
                     >
-                      按推荐分配
-                    </Button>
-                    <Dropdown
-                      menu={purchaserMenu((p) =>
-                        run(
-                          () => boardApi.assign(selected, p.id),
-                          `已分配给 ${p.name}`,
-                        ),
-                      )}
-                      trigger={['click']}
+                      取消选择
+                    </button>
+                    <span
+                      style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}
                     >
-                      <Button size="small" icon={<UserAddOutlined />}>
-                        分配给…
-                      </Button>
-                    </Dropdown>
-                    <Button
-                      size="small"
-                      icon={<OrderedListOutlined />}
-                      onClick={openRulePreview}
-                      loading={busy}
-                    >
-                      按规则分配
-                    </Button>
-                    {canProxy && (
                       <Button
+                        type="primary"
                         size="small"
-                        icon={<DownloadOutlined />}
+                        icon={<ThunderboltOutlined />}
+                        loading={busy}
                         onClick={() =>
-                          boardApi
-                            .downloadPackage(selected)
-                            .catch((e) =>
-                              message.error(readBizError(e).message),
-                            )
+                          run(
+                            () => boardApi.assignRecommended(selected),
+                            `已按推荐分配 ${selected.length} 个任务`,
+                          )
                         }
                       >
-                        下载询价包
+                        按推荐分配
                       </Button>
-                    )}
-                  </span>
-                </div>
-              )}
+                      <Dropdown
+                        menu={purchaserMenu((p) =>
+                          run(
+                            () => boardApi.assign(selected, p.id),
+                            `已分配给 ${p.name}`,
+                          ),
+                        )}
+                        trigger={['click']}
+                      >
+                        <Button size="small" icon={<UserAddOutlined />}>
+                          分配给…
+                        </Button>
+                      </Dropdown>
+                      <Button
+                        size="small"
+                        icon={<OrderedListOutlined />}
+                        onClick={openRulePreview}
+                        loading={busy}
+                      >
+                        按规则分配
+                      </Button>
+                      <Button
+                        size="small"
+                        icon={<ClockCircleOutlined />}
+                        onClick={() =>
+                          setDeferTarget({ kind: 'tasks', taskIds: selected })
+                        }
+                      >
+                        延后
+                      </Button>
+                      {canProxy && (
+                        <Button
+                          size="small"
+                          icon={<DownloadOutlined />}
+                          onClick={() =>
+                            boardApi
+                              .downloadPackage(selected)
+                              .catch((e) =>
+                                message.error(readBizError(e).message),
+                              )
+                          }
+                        >
+                          下载询价包
+                        </Button>
+                      )}
+                    </span>
+                  </div>
+                )}
 
               {tab === REVIEW && (
                 <ReviewList
@@ -492,22 +536,49 @@ const SourcingBoardPage: React.FC = () => {
                   onOpen={setDetailId}
                 />
               )}
-              {tab !== REVIEW && tab !== ALL && groups.length === 0 && (
-                <Card>
-                  <EmptyHint
-                    title={
-                      tab === UNASSIGNED
-                        ? '没有待分配的任务'
-                        : '没有询价中的任务'
-                    }
-                    description={
-                      tab === UNASSIGNED
-                        ? '业务员确认型号后，待询价的型号会按品牌拆成任务出现在这里。'
-                        : '分配出去的任务会出现在这里，可以改派或追加比价。'
-                    }
-                  />
-                </Card>
+              {showDeferred && (
+                <DeferredList
+                  groups={board.deferredGroups ?? []}
+                  canAssign={canAssign}
+                  busy={busy}
+                  onOpenTask={setDetailId}
+                  onOpenInquiry={(id) =>
+                    history.push(`${PATHS.inquiries}/${id}`)
+                  }
+                  onChangeDate={(g) =>
+                    setDeferTarget({
+                      kind: 'tasks',
+                      taskIds: g.taskIds,
+                      current: g.deferUntil,
+                    })
+                  }
+                  onNow={(g) =>
+                    run(
+                      () => boardApi.undefer(g.taskIds),
+                      `${g.taskCount} 个任务已回到待分配`,
+                    )
+                  }
+                />
               )}
+              {tab !== REVIEW &&
+                tab !== ALL &&
+                !showDeferred &&
+                groups.length === 0 && (
+                  <Card>
+                    <EmptyHint
+                      title={
+                        tab === UNASSIGNED
+                          ? '没有待分配的任务'
+                          : '没有询价中的任务'
+                      }
+                      description={
+                        tab === UNASSIGNED
+                          ? '业务员确认型号后，待询价的型号会按品牌拆成任务出现在这里。'
+                          : '分配出去的任务会出现在这里，可以改派或追加比价。'
+                      }
+                    />
+                  </Card>
+                )}
               {tab !== REVIEW &&
                 groups.map(([brand, tasks]) => (
                   <Card key={brand} style={{ padding: 0, overflow: 'hidden' }}>
@@ -779,6 +850,42 @@ const SourcingBoardPage: React.FC = () => {
                                     >
                                       <Button size="small">其他人…</Button>
                                     </Dropdown>
+                                    <Dropdown
+                                      trigger={['click']}
+                                      menu={{
+                                        items: [
+                                          {
+                                            key: 'task',
+                                            icon: <ClockCircleOutlined />,
+                                            label: '延后这个任务',
+                                          },
+                                          {
+                                            key: 'inquiry',
+                                            icon: <ClockCircleOutlined />,
+                                            label: '延后整张询盘',
+                                          },
+                                        ],
+                                        onClick: ({ key }) =>
+                                          setDeferTarget(
+                                            key === 'task'
+                                              ? {
+                                                  kind: 'tasks',
+                                                  taskIds: [t.id],
+                                                }
+                                              : {
+                                                  kind: 'inquiry',
+                                                  customerInquiryId:
+                                                    t.customerInquiryId,
+                                                },
+                                          ),
+                                      }}
+                                    >
+                                      <Button
+                                        size="small"
+                                        icon={<EllipsisOutlined />}
+                                        aria-label="更多操作"
+                                      />
+                                    </Dropdown>
                                   </>
                                 ) : (
                                   <>
@@ -827,7 +934,7 @@ const SourcingBoardPage: React.FC = () => {
                       ))}
                   </Card>
                 ))}
-              {tab !== ALL && (
+              {tab !== ALL && !showDeferred && (
                 <TaskPager
                   total={board.total}
                   page={page}
@@ -1025,6 +1132,15 @@ const SourcingBoardPage: React.FC = () => {
         </div>
       </Modal>
 
+      <DeferModal
+        target={deferTarget}
+        onClose={closeDefer}
+        onDone={() => {
+          setDeferTarget(undefined);
+          setSelected([]);
+          load();
+        }}
+      />
       <TaskDetailDrawer
         taskId={detailId}
         onClose={() => setDetailId(undefined)}

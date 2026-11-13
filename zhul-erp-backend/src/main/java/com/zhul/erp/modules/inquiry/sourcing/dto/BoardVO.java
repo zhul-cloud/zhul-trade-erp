@@ -18,11 +18,15 @@ public class BoardVO {
     /** 页签数字：按搜索与采购员筛选后统计（顶部 stats 不受筛选影响） */
     private TabCounts tabs;
 
+    /** 「已延后」页签：按回来的日期、询盘合并后的行 */
+    private List<DeferredGroupVO> deferredGroups;
+
     @Data
     public static class TabCounts {
         private Integer unassigned;
         private Integer sourcing;
         private Integer review;
         private Integer done;
+        private Integer deferred;
     }
 }

@@ -1,4 +1,9 @@
-import { buildTaskScript, pendingItems, TASK_SCRIPT_HEAD } from './taskScript';
+import {
+  buildTaskScript,
+  itemFilterOf,
+  pendingItems,
+  TASK_SCRIPT_HEAD,
+} from './taskScript';
 
 const items = [
   { model: 'LXM32AD30N4', quantity: 1, unit: '台', quotes: [{}] },
@@ -30,5 +35,26 @@ describe('buildTaskScript', () => {
     expect(
       pendingItems(items.map((i) => ({ ...i, quotes: [{}] }))),
     ).toHaveLength(0);
+  });
+});
+
+describe('itemFilterOf', () => {
+  it('没有任何记录是未回价，与只复制未回价同口径', () => {
+    const items = [
+      { model: 'A', quantity: 1, quotes: [] },
+      { model: 'B', quantity: 1, quotes: [{ status: 1 }] },
+    ];
+    expect(itemFilterOf(items[0].quotes)).toBe('pending');
+    expect(pendingItems(items).map((i) => i.model)).toEqual(['A']);
+  });
+  it('只有草稿是草稿', () => {
+    expect(itemFilterOf([{ status: 1 }])).toBe('draft');
+  });
+  it('有已提交或待审核算已提交（含同时有草稿）', () => {
+    expect(itemFilterOf([{ status: 2 }])).toBe('submitted');
+    expect(itemFilterOf([{ status: 3 }, { status: 1 }])).toBe('submitted');
+  });
+  it('只有作废记录不归入任何筛选', () => {
+    expect(itemFilterOf([{ status: 4 }])).toBeUndefined();
   });
 });
