@@ -48,6 +48,12 @@ public class LogisticsVO {
     private List<DirectRef> directs;
     private List<DocGroup> docGroups;
     private List<com.zhul.erp.modules.attachment.dto.AttachmentVO> faceSheets;
+    /** 详情才有：单据附件（LOGISTICS_DOC，与面单分开） */
+    private List<com.zhul.erp.modules.attachment.dto.AttachmentVO> attachments;
+    /** 详情才有：关联单据（销售出库单、销售订单、直发的发货单、运费账单） */
+    private List<com.zhul.erp.modules.system.doclog.DocRefVO> related;
+    /** 详情才有：单据操作日志 */
+    private List<com.zhul.erp.modules.system.doclog.DocLogVO> logs;
     private LocalDateTime createTime;
     private String createBy;
     private LocalDateTime updateTime;

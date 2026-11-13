@@ -16,7 +16,7 @@ public class AcceptRequest {
     private Long shipmentId;
     @NotNull(message = "请填写收货日期")
     private LocalDate receivedDate;
-    @Size(max = 300, message = "差异说明不能超过300个字")
+    @Size(max = 500, message = "差异说明不能超过500个字")
     private String note;
     @NotEmpty
     @Valid

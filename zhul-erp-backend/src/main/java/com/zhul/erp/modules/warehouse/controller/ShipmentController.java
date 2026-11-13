@@ -11,9 +11,13 @@ import com.zhul.erp.modules.warehouse.dto.ShipmentPageQuery;
 import com.zhul.erp.modules.warehouse.dto.ShipmentVO;
 import com.zhul.erp.modules.warehouse.service.ShipmentService;
 import jakarta.validation.Valid;
+import com.zhul.erp.framework.security.PermissionChecker;
+import com.zhul.erp.modules.system.doclog.DocAttachRequest;
+import com.zhul.erp.modules.system.doclog.DocRemarkRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -33,8 +37,10 @@ public class ShipmentController {
 
     private static final String MENU = "@perm.canAccessMenu('/purchase/shipments')";
     private static final String EDIT = MENU + " and @perm.has('purchase:shipment:create')";
+    private static final String WH_MENU = "@perm.canAccessMenu('/warehouse/receipts')";
 
     private final ShipmentService service;
+    private final PermissionChecker perm;
 
     @PostMapping("/page")
     @PreAuthorize(MENU)
@@ -42,10 +48,31 @@ public class ShipmentController {
         return Result.ok(service.page(query, true, false));
     }
 
+    /**
+     * 发货单详情页（change warehouse-logistics-docs）：仓库人员看全部；采购员（发货跟踪或采购订单菜单）按采购订单的采购员。
+     */
     @GetMapping("/{id}")
-    @PreAuthorize(MENU)
+    @PreAuthorize(MENU + " or @perm.canAccessMenu('/purchase/orders') or " + WH_MENU)
     public Result<ShipmentVO> detail(@PathVariable Long id) {
-        return Result.ok(service.detail(id, true));
+        return Result.ok(service.detail(id, !perm.canAccessMenu("/warehouse/receipts")));
+    }
+
+    @PostMapping("/{id}/remark")
+    @PreAuthorize(MENU)
+    public Result<ShipmentVO> remark(@PathVariable Long id, @Valid @RequestBody DocRemarkRequest req) {
+        return Result.ok(service.remark(id, req.getRemark()));
+    }
+
+    @PostMapping("/{id}/attachments")
+    @PreAuthorize(EDIT)
+    public Result<ShipmentVO> attach(@PathVariable Long id, @Valid @RequestBody DocAttachRequest req) {
+        return Result.ok(service.attach(id, req.getIds()));
+    }
+
+    @DeleteMapping("/{id}/attachments/{attachmentId}")
+    @PreAuthorize(EDIT)
+    public Result<ShipmentVO> removeAttachment(@PathVariable Long id, @PathVariable Long attachmentId) {
+        return Result.ok(service.removeAttachment(id, attachmentId));
     }
 
     /** 登记（传 poId）或修改（传 shipmentId）发货单的表单 */

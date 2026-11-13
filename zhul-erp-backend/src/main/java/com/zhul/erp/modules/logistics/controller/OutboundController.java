@@ -14,8 +14,12 @@ import com.zhul.erp.modules.logistics.service.OutboundService;
 import com.zhul.erp.modules.logistics.support.LogisticsSupport;
 import com.zhul.erp.modules.warehouse.dto.ReasonRequest;
 import jakarta.validation.Valid;
+import com.zhul.erp.framework.security.PermissionChecker;
+import com.zhul.erp.modules.system.doclog.DocAttachRequest;
+import com.zhul.erp.modules.system.doclog.DocRemarkRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -41,6 +45,7 @@ public class OutboundController {
             + " or @perm.canAccessMenu('/logistics/shipments') or @perm.canAccessMenu('/purchase/shipments')"
             + " or @perm.canAccessMenu('/logistics/statements')";
 
+    private final PermissionChecker perm;
     private final OutboundService service;
     private final LogisticsSupport support;
 
@@ -94,10 +99,33 @@ public class OutboundController {
         return Result.ok(service.counts());
     }
 
+    /** 销售出库单详情页：仓库人员看全部，业务员（销售订单菜单）按订单所属业务员（change warehouse-logistics-docs） */
     @GetMapping("/outbounds/{id}")
-    @PreAuthorize(WH_MENU)
+    @PreAuthorize(ANY)
     public Result<OutboundVO> detail(@PathVariable Long id) {
-        return Result.ok(service.detail(id, false));
+        return Result.ok(service.detail(id, scoped()));
+    }
+
+    @PostMapping("/outbounds/{id}/remark")
+    @PreAuthorize(ANY)
+    public Result<OutboundVO> remark(@PathVariable Long id, @Valid @RequestBody DocRemarkRequest req) {
+        return Result.ok(service.remark(id, req.getRemark(), scoped()));
+    }
+
+    @PostMapping("/outbounds/{id}/attachments")
+    @PreAuthorize(ANY)
+    public Result<OutboundVO> attach(@PathVariable Long id, @Valid @RequestBody DocAttachRequest req) {
+        return Result.ok(service.attach(id, req.getIds(), scoped()));
+    }
+
+    @DeleteMapping("/outbounds/{id}/attachments/{attachmentId}")
+    @PreAuthorize(ANY)
+    public Result<OutboundVO> removeAttachment(@PathVariable Long id, @PathVariable Long attachmentId) {
+        return Result.ok(service.removeAttachment(id, attachmentId, scoped()));
+    }
+
+    private boolean scoped() {
+        return !perm.canAccessMenu("/warehouse/outbounds");
     }
 
     @PutMapping("/outbounds/{id}/pack")

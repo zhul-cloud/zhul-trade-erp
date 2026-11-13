@@ -16,6 +16,8 @@ public class ReceiptListVO {
     private String poNo;
     private String supplierName;
     private Integer itemCount;
+    /** 列表「型号 · 数量」与品牌、品类：每行型号、品牌、品类与实收数量 */
+    private java.util.List<ReceiptVO.Item> items;
     private Integer receivedQty;
     private Integer qualifiedQty;
     private Integer defectiveQty;
