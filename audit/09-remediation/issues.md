@@ -43,7 +43,7 @@
 | [BUS-033](tasks/2026-11-10-BUS-033-followup-reconcile-duplicate.md) | 单据换了客户后跟进对象核对失败，新客户看不到该单据跟进 | P2 | 已关闭 | Claude | [2026-11-10-BUS-033](tasks/2026-11-10-BUS-033-followup-reconcile-duplicate.md) | 2026-11-10 |
 | [BUS-034](tasks/2026-11-11-BUS-034-product-media-feedback.md) | 商品档案上传苹果格式的 mp4 视频被判为「内容与扩展名不一致」而拒绝 | P2 | 已关闭 | Claude | [2026-11-11-BUS-034](tasks/2026-11-11-BUS-034-product-media-feedback.md) | 2026-11-11 |
 | [BUS-035](tasks/2026-11-11-BUS-001-business-batch-h.md) | 事务内加锁后按 ID 重读，MyBatis 一级缓存返回加锁前的旧对象 | P2 | 已发布待验收 | Claude | [2026-11-11-BUS-001](tasks/2026-11-11-BUS-001-business-batch-h.md) | 2026-11-12 |
-| [BUS-036](tasks/2026-11-13-BUS-036-inquiry-attachment-jpeg.md) | 询盘附件不能上传 .jpeg 图片（WhatsApp 下载的图片） | P2 | 实施中 | Claude | [2026-11-13-BUS-036](tasks/2026-11-13-BUS-036-inquiry-attachment-jpeg.md) | 2026-11-13 |
+| [BUS-036](tasks/2026-11-13-BUS-036-inquiry-attachment-jpeg.md) | 询盘附件不能上传 .jpeg 图片（WhatsApp 下载的图片） | P2 | 已合并待发布 | Claude | [2026-11-13-BUS-036](tasks/2026-11-13-BUS-036-inquiry-attachment-jpeg.md) | 2026-11-13 |
 
 ## 前端
 
