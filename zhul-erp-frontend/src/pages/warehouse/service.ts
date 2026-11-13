@@ -46,6 +46,8 @@ export type OwnerType =
   | 'RECEIPT_DEFECT'
   | 'PACKING'
   | 'LOGISTICS'
+  | 'LOGISTICS_DOC'
+  | 'OUTBOUND'
   | 'PAYMENT'
   | 'COURIER_PROOF'
   | 'RETURN_PROOF'
@@ -71,6 +73,27 @@ export interface ShipmentItem {
   brand?: string;
   category?: string;
   quantity: number;
+  /** 详情才有：采购订单这一行的订购数量、这批已入库数量 */
+  orderQty?: number;
+  receivedQty?: number;
+}
+
+/** 单据详情的关联单据（type：PO、SO、SD、GR、OB、SH、ST、SHOOT 等） */
+export interface DocRef {
+  type: string;
+  id: number;
+  no: string;
+  status?: number;
+  statusName?: string;
+}
+
+/** 单据操作日志，最新在前 */
+export interface DocLog {
+  id: number;
+  action: string;
+  content?: string;
+  operatorName?: string;
+  createTime: string;
 }
 
 export interface Shipment extends Audit {
@@ -113,6 +136,8 @@ export interface ShipmentDetail {
   shipment: Shipment;
   attachments: Attachment[];
   editable: boolean;
+  related?: DocRef[];
+  logs?: DocLog[];
 }
 
 export interface ShipmentForm {
@@ -228,6 +253,20 @@ export interface Receipt extends Audit {
   statusName: string;
   reverseReason?: string;
   note?: string;
+  /** 列表才有：明细（品牌、品类、型号 · 数量） */
+  items?: ReceiptItem[];
+}
+
+export interface ReceiptItem {
+  id: number;
+  model: string;
+  brand?: string;
+  category?: string;
+  shippedQty: number;
+  receivedQty: number;
+  qualifiedQty: number;
+  defectiveQty: number;
+  note?: string;
 }
 
 export interface ReceiptDetail {
@@ -245,8 +284,11 @@ export interface ReceiptDetail {
   }[];
   discrepancies: Discrepancy[];
   attachments: Attachment[];
+  defectAttachments?: Attachment[];
   shipmentAttachments: Attachment[];
   reversible: boolean;
+  related?: DocRef[];
+  logs?: DocLog[];
 }
 
 export interface QtyLine {
@@ -422,6 +464,12 @@ export const shipmentApi = {
     send<ShipmentDetail>('PUT', `${SHIP}/${id}`, body),
   void: (id: number, reason: string) =>
     send<ShipmentDetail>('POST', `${SHIP}/${id}/void`, { reason }),
+  remark: (id: number, remark: string) =>
+    send<ShipmentDetail>('POST', `${SHIP}/${id}/remark`, { remark }),
+  attach: (id: number, ids: number[]) =>
+    send<ShipmentDetail>('POST', `${SHIP}/${id}/attachments`, { ids }),
+  removeAttachment: (id: number, attachmentId: number) =>
+    send<ShipmentDetail>('DELETE', `${SHIP}/${id}/attachments/${attachmentId}`),
 };
 
 export const discrepancyApi = {
@@ -470,6 +518,17 @@ export const receiptApi = {
   }) => send<ReceiptDetail>('POST', `${GR}/direct`, body),
   reverse: (id: number, reason: string) =>
     send<ReceiptDetail>('POST', `${GR}/${id}/reverse`, { reason }),
+  remark: (id: number, remark: string) =>
+    send<ReceiptDetail>('POST', `${GR}/${id}/remark`, { remark }),
+  attach: (id: number, ids: number[], defect = false) =>
+    send<ReceiptDetail>('POST', `${GR}/${id}/attachments?defect=${defect}`, {
+      ids,
+    }),
+  removeAttachment: (id: number, attachmentId: number, defect = false) =>
+    send<ReceiptDetail>(
+      'DELETE',
+      `${GR}/${id}/attachments/${attachmentId}?defect=${defect}`,
+    ),
 };
 
 export const holdApi = {

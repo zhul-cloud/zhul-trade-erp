@@ -69,6 +69,17 @@ export const PATHS = {
   purchaseReturnList: '/purchase/returns',
   purchaseReturn: (id: number) => `/purchase/returns/${id}`,
   refundRequest: (id: number) => `/finance/refunds/requests/${id}`,
+  purchaseOrder: (id: number) => `/purchase/orders/${id}`,
+  shipmentList: '/purchase/shipments',
+  shipment: (id: number) => `/purchase/shipments/${id}`,
+  receiptList: '/warehouse/receipts',
+  receipt: (id: number) => `/warehouse/receipts/${id}`,
+  outboundList: '/warehouse/outbounds',
+  outbound: (id: number) => `/warehouse/outbounds/${id}`,
+  logisticsList: '/logistics/shipments',
+  logistics: (id: number) => `/logistics/shipments/${id}`,
+  statement: (id: number) => `/logistics/statements?id=${id}`,
+  shoots: '/warehouse/shoots',
 };
 
 /**

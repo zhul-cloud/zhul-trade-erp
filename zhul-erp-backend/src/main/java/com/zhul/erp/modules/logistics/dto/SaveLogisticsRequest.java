@@ -14,6 +14,6 @@ public class SaveLogisticsRequest {
     private Long forwarderId;
     private List<Long> outboundIds;
     private List<Long> directShipmentIds;
-    @Size(max = 300, message = "备注不能超过300个字")
+    @Size(max = 500, message = "备注不能超过500个字")
     private String note;
 }

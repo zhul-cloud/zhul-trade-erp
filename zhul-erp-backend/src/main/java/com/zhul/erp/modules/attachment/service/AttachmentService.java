@@ -85,9 +85,13 @@ public class AttachmentService {
     public static final String RETURN_RECEIPT = "RETURN_RECEIPT";
     public static final String PURCHASE_RETURN = "PURCHASE_RETURN";
     public static final String REFUND_REQUEST = "REFUND_REQUEST";
+    /** 销售出库单、出运单的单据附件（与打包照片、面单分开；change warehouse-logistics-docs） */
+    public static final String OUTBOUND = "OUTBOUND";
+    public static final String LOGISTICS_DOC = "LOGISTICS_DOC";
     private static final Set<String> AFTER_SALES_TYPES = Set.of(AFTER_SALES, AFTER_SALES_LOG);
     /** 单据附件：图片、视频、PDF 与 Excel，每单最多 20 个 */
-    private static final Set<String> DOCUMENT_TYPES = Set.of(SALES_RETURN, RETURN_RECEIPT, PURCHASE_RETURN, REFUND_REQUEST);
+    private static final Set<String> DOCUMENT_TYPES = Set.of(SALES_RETURN, RETURN_RECEIPT, PURCHASE_RETURN, REFUND_REQUEST,
+            OUTBOUND, LOGISTICS_DOC);
     /** 只收图片或 PDF 的归属类型 */
     private static final Set<String> PROOF_TYPES = Set.of(PAYMENT, COURIER_PROOF, RETURN_PROOF, EXPENSE, REIMBURSE, PO_INVOICE, REFUND, OTHER_INCOME,
             SOURCING_QUOTE, CREDIT);
@@ -97,7 +101,8 @@ public class AttachmentService {
             Map.entry(REFUND, 10), Map.entry(OTHER_INCOME, 10), Map.entry(CREDIT, 10), Map.entry(SOURCING_QUOTE, 5), Map.entry(RECEIPT_DEFECT, 20),
             Map.entry(PACKING, 20), Map.entry(NETWORK, 1), Map.entry(SALES_ORDER, 10),
             Map.entry(AFTER_SALES, 20), Map.entry(AFTER_SALES_LOG, 10), Map.entry(SALES_RETURN, 20),
-            Map.entry(RETURN_RECEIPT, 20), Map.entry(PURCHASE_RETURN, 20), Map.entry(REFUND_REQUEST, 20));
+            Map.entry(RETURN_RECEIPT, 20), Map.entry(PURCHASE_RETURN, 20), Map.entry(REFUND_REQUEST, 20),
+            Map.entry(OUTBOUND, 20), Map.entry(LOGISTICS_DOC, 20));
     /** 只收图片的归属类型（不传视频） */
     private static final Set<String> IMAGE_ONLY_TYPES = Set.of(RECEIPT_DEFECT, PACKING, NETWORK);
     public static final int IMAGE = 1;
@@ -124,7 +129,8 @@ public class AttachmentService {
             Map.entry(SALES_ORDER, StorageArea.SALES), Map.entry(AFTER_SALES, StorageArea.SALES),
             Map.entry(AFTER_SALES_LOG, StorageArea.SALES), Map.entry(SALES_RETURN, StorageArea.SALES),
             Map.entry(RETURN_RECEIPT, StorageArea.RECEIPT), Map.entry(PURCHASE_RETURN, StorageArea.PURCHASE),
-            Map.entry(REFUND_REQUEST, StorageArea.FINANCE));
+            Map.entry(REFUND_REQUEST, StorageArea.FINANCE), Map.entry(OUTBOUND, StorageArea.PACKING),
+            Map.entry(LOGISTICS_DOC, StorageArea.LOGISTICS));
 
     private final BizAttachmentMapper mapper;
     private final BizAttachmentModelMapper tagMapper;

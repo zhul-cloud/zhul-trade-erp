@@ -1,5 +1,4 @@
 import { request } from '@umijs/max';
-import { listHref } from '@/components/DocFields/SourceNos';
 import type { DocLog } from '@/pages/sales/after-sales/service';
 import { PATHS as SALES_PATHS } from '@/pages/sales/components';
 import type { Attachment } from '@/pages/warehouse/service';
@@ -147,16 +146,12 @@ export const purchaseReturnApi = {
     ).then((r) => r.data),
 };
 
-/** 来源单号：售后退货是退货入库单，到货差异是采购入库单（没有详情页，打开入库列表并筛好） */
-export const prSourceRef = (p: PurchaseReturn) =>
-  p.sourceType === PR_SOURCE.AFTER_SALES
-    ? {
-        no: p.sourceNo,
-        href: p.sourceId ? SALES_PATHS.returnReceipt(p.sourceId) : undefined,
-      }
-    : {
-        no: p.sourceNo,
-        href: p.sourceNo
-          ? listHref('/warehouse/receipts', p.sourceNo)
-          : undefined,
-      };
+/** 来源单号：售后退货是退货入库单，到货差异是采购入库单 */
+export const prSourceRef = (p: PurchaseReturn) => ({
+  no: p.sourceNo,
+  href: p.sourceId
+    ? p.sourceType === PR_SOURCE.AFTER_SALES
+      ? SALES_PATHS.returnReceipt(p.sourceId)
+      : SALES_PATHS.receipt(p.sourceId)
+    : undefined,
+});

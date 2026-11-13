@@ -7,6 +7,8 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import com.zhul.erp.modules.attachment.dto.AttachmentVO;
+import com.zhul.erp.modules.system.doclog.DocLogVO;
+import com.zhul.erp.modules.system.doclog.DocRefVO;
 
 /** 销售出库单 */
 @Data
@@ -41,6 +43,10 @@ public class OutboundVO {
     private List<AttachmentVO> packingAttachments;
     /** 还没有营销实拍的型号（详情返回，打包页提醒，不拦截） */
     private List<String> missingMarketing;
+    /** 详情页（change warehouse-logistics-docs）：单据附件（与打包照片分开）、关联单据、操作日志 */
+    private List<AttachmentVO> attachments;
+    private List<DocRefVO> related;
+    private List<DocLogVO> logs;
     private LocalDateTime createTime;
     private String createBy;
     private LocalDateTime updateTime;
@@ -52,7 +58,11 @@ public class OutboundVO {
         private Long soItemId;
         private String model;
         private String brand;
+        /** 品类取订单型号行 */
+        private String category;
         private Integer quantity;
+        /** 已装箱数量（各箱合计） */
+        private Integer packedQty;
     }
 
     @Data

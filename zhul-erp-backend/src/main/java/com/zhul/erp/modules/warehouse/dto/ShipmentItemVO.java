@@ -11,4 +11,7 @@ public class ShipmentItemVO {
     private String brand;
     private String category;
     private Integer quantity;
+    /** 详情页：采购订单这一行的数量、这张发货单在有效入库单上的实收数量 */
+    private Integer orderQty;
+    private Integer receivedQty;
 }

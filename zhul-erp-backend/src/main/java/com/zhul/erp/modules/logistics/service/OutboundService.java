@@ -33,6 +33,9 @@ import com.zhul.erp.modules.sales.repository.SalesOrderItemMapper;
 import com.zhul.erp.modules.sales.repository.SalesOrderMapper;
 import com.zhul.erp.modules.sales.support.PiStore;
 import com.zhul.erp.modules.system.constants.DocumentType;
+import com.zhul.erp.modules.system.doclog.DocLogs;
+import com.zhul.erp.modules.system.doclog.DocRefVO;
+import com.zhul.erp.modules.logistics.entity.LogisticsShipmentDO;
 import com.zhul.erp.modules.system.service.DocumentNumberService;
 import com.zhul.erp.modules.system.service.LogService;
 import com.zhul.erp.modules.finance.constants.FinanceConstants;
@@ -90,6 +93,7 @@ public class OutboundService {
     private final AttachmentService attachments;
     private final MediaIndexer media;
     private final com.zhul.erp.modules.crm.followup.support.FollowupHooks followupHooks;
+    private final DocLogs docLogs;
 
     // ---------------------------------------------------------------- 发货通知
 
@@ -155,6 +159,8 @@ public class OutboundService {
         outboundMapper.insert(ob);
         String text = saveItems(ob, lines);
         logService.recordOperateLog("销售订单", "发货通知", null, Map.of("soNo", o.getSoNo(), "obNo", ob.getObNo(), "items", text));
+        docLogs.add(DocumentType.OB, ob.getId(), "发货通知", text + "，货代 " + support.supplierNames(List.of(ob.getForwarderId()))
+                .getOrDefault(ob.getForwarderId(), ""));
         followupHooks.orderChanged(ob.getSoId());
         return detail(ob.getId(), true);
     }
@@ -179,6 +185,7 @@ public class OutboundService {
         outboundMapper.updateById(ob);
         String text = saveItems(ob, buildItems(o, req.getItems()));
         logService.recordOperateLog("销售订单", "修改发货通知", null, Map.of("soNo", o.getSoNo(), "obNo", ob.getObNo(), "items", text));
+        docLogs.add(DocumentType.OB, id, "修改通知", text);
         followupHooks.orderChanged(ob.getSoId());
         return detail(id, true);
     }
@@ -195,6 +202,7 @@ public class OutboundService {
         ob.setWithdrawReason(reason.trim());
         outboundMapper.updateById(ob);
         logService.recordOperateLog("销售订单", "撤回发货通知", Map.of("obNo", ob.getObNo()), Map.of("obNo", ob.getObNo(), "reason", ob.getWithdrawReason()));
+        docLogs.add(DocumentType.OB, id, "撤回", ob.getWithdrawReason());
         followupHooks.orderChanged(ob.getSoId());
         return detail(id, true);
     }
@@ -270,6 +278,7 @@ public class OutboundService {
         ob.setPackedAt(LocalDateTime.now());
         outboundMapper.updateById(ob);
         logService.recordOperateLog(LogisticsConstants.MENU_OUTBOUND, "打包", null, Map.of("obNo", ob.getObNo(), "boxes", req.getBoxes().size()));
+        docLogs.add(DocumentType.OB, id, "打包", req.getBoxes().size() + " 箱");
         followupHooks.orderChanged(ob.getSoId());
         return detail(id, false);
     }
@@ -376,6 +385,8 @@ public class OutboundService {
         }
         freight.allocateDomestic(w.getId(), w.getFreight(), ids);
         progress.sync(soItemIds(ids));
+        String sent = (w.getCarrier() + " " + w.getTrackingNo()).trim() + "，运费 ¥" + w.getFreight();
+        obs.forEach(ob -> docLogs.add(DocumentType.OB, ob.getId(), "交快递", sent));
         logService.recordOperateLog(LogisticsConstants.MENU_OUTBOUND, "交国内快递", null, Map.of("outbounds",
                 obs.stream().map(OutboundOrderDO::getObNo).toList(), "tracking", (w.getCarrier() + " " + w.getTrackingNo()).trim(),
                 "freight", "CNY " + w.getFreight()));
@@ -421,6 +432,7 @@ public class OutboundService {
         progress.sync(soItemIds(List.of(id)));
         logService.recordOperateLog(LogisticsConstants.MENU_OUTBOUND, "撤销交货代", Map.of("obNo", ob.getObNo(), "status", "已交货代"),
                 Map.of("obNo", ob.getObNo(), "status", "已打包", "reason", reason.trim()));
+        docLogs.add(DocumentType.OB, id, "撤销交快递", reason.trim());
         followupHooks.orderChanged(ob.getSoId());
         return detail(id, false);
     }
@@ -434,7 +446,7 @@ public class OutboundService {
                 .isNull(OutboundOrderDO::getDeletedAt);
         if (q.getStatus() != null) {
             w.eq(OutboundOrderDO::getStatus, q.getStatus());
-        } else {
+        } else if (!Boolean.TRUE.equals(q.getAll())) {
             w.ne(OutboundOrderDO::getStatus, LogisticsConstants.OB_WITHDRAWN);
         }
         if (q.getForwarderId() != null) {
@@ -484,7 +496,72 @@ public class OutboundService {
         OutboundVO vo = toVos(List.of(ob)).get(0);
         vo.setPackingAttachments(attachments.listOf(AttachmentService.PACKING, id));
         vo.setMissingMarketing(media.missingMarketing(ob.getTenantId(), modelsOf(itemsOf(List.of(id)).getOrDefault(id, List.of()))));
+        vo.setAttachments(attachments.listOf(AttachmentService.OUTBOUND, id));
+        vo.setRelated(related(ob));
+        vo.setLogs(docLogs.list(DocumentType.OB, id));
         return vo;
+    }
+
+    /** 关联单据：销售订单、出运单、同一票国内快递的其他销售出库单（change warehouse-logistics-docs） */
+    private List<DocRefVO> related(OutboundOrderDO ob) {
+        List<DocRefVO> out = new ArrayList<>(6);
+        SalesOrderDO so = soMapper.selectById(ob.getSoId());
+        if (so != null) {
+            out.add(new DocRefVO(DocumentType.SO.name(), so.getId(), so.getSoNo(), null, null));
+        }
+        LogisticsShipmentDO sh = ob.getLogisticsId() == null ? null : shipmentMapper.selectById(ob.getLogisticsId());
+        if (sh != null) {
+            out.add(new DocRefVO(DocumentType.SH.name(), sh.getId(), sh.getShNo(), sh.getStatus(),
+                    LogisticsConstants.SH_STATUS_NAMES.get(sh.getStatus())));
+        }
+        if (ob.getCourierWaybillId() != null) {
+            outboundMapper.selectList(new LambdaQueryWrapper<OutboundOrderDO>()
+                            .eq(OutboundOrderDO::getCourierWaybillId, ob.getCourierWaybillId())
+                            .ne(OutboundOrderDO::getId, ob.getId())
+                            .isNull(OutboundOrderDO::getDeletedAt)
+                            .orderByAsc(OutboundOrderDO::getId))
+                    .forEach(x -> out.add(new DocRefVO(DocumentType.OB.name(), x.getId(), x.getObNo(), x.getStatus(),
+                            LogisticsConstants.OB_STATUS_NAMES.get(x.getStatus()))));
+        }
+        return out;
+    }
+
+    // ---------------------------------------------------------------- 备注与单据附件
+
+    @Transactional(rollbackFor = Exception.class)
+    public OutboundVO remark(Long id, String remark, boolean scoped) {
+        visible(id, scoped);
+        OutboundOrderDO ob = lock(id);
+        requireNotWithdrawn(ob);
+        String text = trim(remark);
+        ob.setNote(text);
+        outboundMapper.updateById(ob);
+        docLogs.add(DocumentType.OB, id, "修改备注", text.isEmpty() ? "清空备注" : text);
+        return detail(id, scoped);
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public OutboundVO attach(Long id, List<Long> ids, boolean scoped) {
+        visible(id, scoped);
+        requireNotWithdrawn(lock(id));
+        attachments.attach(AttachmentService.OUTBOUND, id, ids);
+        docLogs.add(DocumentType.OB, id, "上传附件", ids.size() + " 个");
+        return detail(id, scoped);
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public OutboundVO removeAttachment(Long id, Long attachmentId, boolean scoped) {
+        visible(id, scoped);
+        requireNotWithdrawn(lock(id));
+        attachments.remove(AttachmentService.OUTBOUND, id, attachmentId);
+        docLogs.add(DocumentType.OB, id, "删除附件", "");
+        return detail(id, scoped);
+    }
+
+    private static void requireNotWithdrawn(OutboundOrderDO ob) {
+        if (ob.getStatus() == LogisticsConstants.OB_WITHDRAWN) {
+            throw new BizException("发货通知已撤回");
+        }
     }
 
     private static List<MediaIndexer.ModelRef> modelsOf(List<OutboundOrderItemDO> items) {
@@ -528,6 +605,10 @@ public class OutboundService {
         Map<Long, String> users = support.userNames(java.util.stream.Stream.concat(
                 rows.stream().flatMap(r -> java.util.stream.Stream.of(r.getOwnerId(), r.getPackedBy())),
                 waybills.values().stream().map(CourierWaybillDO::getPayerId)).toList());
+        List<Long> soItemIds = items.values().stream().flatMap(List::stream).map(OutboundOrderItemDO::getSoItemId)
+                .filter(Objects::nonNull).distinct().toList();
+        Map<Long, String> categories = soItemIds.isEmpty() ? Map.of() : soItemMapper.selectBatchIds(soItemIds).stream()
+                .collect(Collectors.toMap(SalesOrderItemDO::getId, i -> Objects.requireNonNullElse(i.getCategory(), ""), (a, b) -> a));
         Map<Long, Map<Long, BigDecimal>> shares = new HashMap<>();
         for (Long wId : wIds) {
             shares.put(wId, freight.byOutbound(LogisticsConstants.FREIGHT_DOMESTIC, wId));
@@ -554,16 +635,20 @@ public class OutboundService {
             vo.setNote(ob.getNote());
             vo.setWithdrawReason(ob.getWithdrawReason());
             vo.setTotalQuantity(lines.stream().mapToInt(OutboundOrderItemDO::getQuantity).sum());
+            List<OutboundBoxDO> bs = boxes.getOrDefault(ob.getId(), List.of());
+            Map<Long, Integer> packed = bs.stream().flatMap(b -> contents.getOrDefault(b.getId(), List.of()).stream())
+                    .collect(Collectors.groupingBy(OutboundBoxItemDO::getOutboundItemId, Collectors.summingInt(OutboundBoxItemDO::getQuantity)));
             vo.setItems(lines.stream().map(i -> {
                 OutboundVO.Item x = new OutboundVO.Item();
                 x.setId(i.getId());
                 x.setSoItemId(i.getSoItemId());
                 x.setModel(i.getModel());
                 x.setBrand(i.getBrand());
+                x.setCategory(categories.get(i.getSoItemId()));
                 x.setQuantity(i.getQuantity());
+                x.setPackedQty(packed.getOrDefault(i.getId(), 0));
                 return x;
             }).toList());
-            List<OutboundBoxDO> bs = boxes.getOrDefault(ob.getId(), List.of());
             BigDecimal weight = BigDecimal.ZERO;
             List<OutboundVO.Box> boxVos = new ArrayList<>(bs.size());
             for (OutboundBoxDO b : bs) {

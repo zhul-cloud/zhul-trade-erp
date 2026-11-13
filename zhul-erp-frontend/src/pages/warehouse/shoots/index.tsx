@@ -12,7 +12,6 @@ import {
   Table,
 } from 'antd';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { listHref } from '@/components/DocFields/SourceNos';
 import MediaDrawer from '@/pages/operations/media/MediaDrawer';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { auditColumns } from '@/pages/purchase/components';
@@ -21,6 +20,7 @@ import { usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import {
   ACCEPT_IMAGE,
+  DOC_PATHS,
   MediaTile,
   Pill,
   ReasonModal,
@@ -28,7 +28,6 @@ import {
   sub,
   UploadTile,
   usePreview,
-  WAREHOUSE_PATHS,
   WarehousePageTitle,
 } from '../components';
 import {
@@ -114,11 +113,7 @@ const Shoots: React.FC = () => {
       width: 180,
       render: (_, r) => (
         <div>
-          {r.grNo && (
-            <Link to={listHref(WAREHOUSE_PATHS.receipts, r.grNo, 'received')}>
-              {r.grNo}
-            </Link>
-          )}
+          {r.grNo && <Link to={DOC_PATHS.receipt(r.receiptId)}>{r.grNo}</Link>}
           {r.soNo && sub(palette.mute, r.soNo)}
         </div>
       ),

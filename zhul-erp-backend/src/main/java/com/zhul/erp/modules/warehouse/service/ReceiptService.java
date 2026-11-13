@@ -21,6 +21,11 @@ import com.zhul.erp.modules.purchase.support.PurchaseLogs;
 import com.zhul.erp.modules.purchase.support.RequirementTouch;
 import com.zhul.erp.modules.sales.support.PiStore;
 import com.zhul.erp.modules.system.constants.DocumentType;
+import com.zhul.erp.modules.system.doclog.DocLogs;
+import com.zhul.erp.modules.system.doclog.DocRefVO;
+import com.zhul.erp.modules.warehouse.entity.ShootTaskDO;
+import com.zhul.erp.modules.warehouse.repository.ShootTaskMapper;
+import com.zhul.erp.framework.security.PermissionChecker;
 import com.zhul.erp.modules.system.service.DocumentNumberService;
 import com.zhul.erp.modules.system.service.LogService;
 import com.zhul.erp.modules.warehouse.constants.WarehouseConstants;
@@ -96,6 +101,9 @@ public class ReceiptService {
     private final LogService logService;
     private final com.zhul.erp.modules.warehouse.support.PartialCancelHolds partialCancelHolds;
     private final com.zhul.erp.modules.crm.followup.support.FollowupHooks followupHooks;
+    private final ShootTaskMapper shootTaskMapper;
+    private final DocLogs docLogs;
+    private final PermissionChecker perm;
 
     // ---------------------------------------------------------------- 列表与详情
 
@@ -170,6 +178,7 @@ public class ReceiptService {
             vo.setPoNo(p == null ? null : p.getPoNo());
             vo.setSupplierName(names.get(r.getPoId()));
             vo.setItemCount(lines.size());
+            vo.setItems(lines.stream().map(ReceiptService::itemVo).toList());
             vo.setReceivedQty(lines.stream().mapToInt(PurchaseReceiptItemDO::getReceivedQty).sum());
             vo.setQualifiedQty(lines.stream().mapToInt(PurchaseReceiptItemDO::getQualifiedQty).sum());
             vo.setDefectiveQty(lines.stream().mapToInt(PurchaseReceiptItemDO::getDefectiveQty).sum());
@@ -203,25 +212,102 @@ public class ReceiptService {
         PurchaseReceiptDO r = visible(id);
         ReceiptVO vo = new ReceiptVO();
         vo.setReceipt(toListVos(List.of(r)).get(0));
-        vo.setItems(itemsOf(List.of(id)).getOrDefault(id, List.of()).stream().map(i -> {
-            ReceiptVO.Item x = new ReceiptVO.Item();
-            x.setId(i.getId());
-            x.setModel(i.getModel());
-            x.setBrand(i.getBrand());
-            x.setCategory(i.getCategory());
-            x.setShippedQty(i.getShippedQty());
-            x.setReceivedQty(i.getReceivedQty());
-            x.setQualifiedQty(i.getQualifiedQty());
-            x.setDefectiveQty(i.getDefectiveQty());
-            x.setNote(i.getNote());
-            return x;
-        }).toList());
+        vo.setItems(vo.getReceipt().getItems());
         vo.setDiscrepancies(discrepancies.ofReceipt(id));
         vo.setAttachments(attachments.listOf(AttachmentService.RECEIPT, id));
         vo.setDefectAttachments(attachments.listOf(AttachmentService.RECEIPT_DEFECT, id));
         vo.setShipmentAttachments(attachments.listOf(AttachmentService.SHIPMENT, r.getShipmentId()));
         vo.setReversible(r.getStatus() == WarehouseConstants.GR_VALID && reversible(id));
+        vo.setRelated(related(r, vo.getReceipt()));
+        vo.setLogs(docLogs.list(DocumentType.GR, id));
         return vo;
+    }
+
+    private static ReceiptVO.Item itemVo(PurchaseReceiptItemDO i) {
+        ReceiptVO.Item x = new ReceiptVO.Item();
+        x.setId(i.getId());
+        x.setModel(i.getModel());
+        x.setBrand(i.getBrand());
+        x.setCategory(i.getCategory());
+        x.setShippedQty(i.getShippedQty());
+        x.setReceivedQty(i.getReceivedQty());
+        x.setQualifiedQty(i.getQualifiedQty());
+        x.setDefectiveQty(i.getDefectiveQty());
+        x.setNote(i.getNote());
+        return x;
+    }
+
+    /** 关联单据：发货单、采购订单、每个型号的实拍任务（change warehouse-logistics-docs） */
+    private List<DocRefVO> related(PurchaseReceiptDO r, ReceiptListVO head) {
+        List<DocRefVO> out = new ArrayList<>(8);
+        SupplierShipmentDO s = r.getShipmentId() == null ? null : shipmentMapper.selectById(r.getShipmentId());
+        if (s != null) {
+            out.add(new DocRefVO(DocumentType.SD.name(), s.getId(), s.getSdNo(), s.getStatus(),
+                    WarehouseConstants.SHIP_STATUS_NAMES.get(s.getStatus())));
+        }
+        PurchaseOrderDO p = support.po(r.getPoId(), false);
+        out.add(new DocRefVO(DocumentType.PO.name(), p.getId(), head.getPoNo(), p.getStatus(),
+                com.zhul.erp.modules.purchase.constants.PurchaseConstants.PO_STATUS_NAMES.get(p.getStatus())));
+        shootTaskMapper.selectList(new LambdaQueryWrapper<ShootTaskDO>()
+                        .eq(ShootTaskDO::getReceiptId, r.getId())
+                        .isNull(ShootTaskDO::getDeletedAt)
+                        .orderByAsc(ShootTaskDO::getId))
+                .forEach(t -> out.add(new DocRefVO("SHOOT", t.getId(), t.getModel(), t.getStatus(),
+                        WarehouseConstants.SHOOT_STATUS_NAMES.get(t.getStatus()))));
+        return out;
+    }
+
+    // ---------------------------------------------------------------- 备注与照片（数量是收货的事实，不能改）
+
+    @Transactional(rollbackFor = Exception.class)
+    public ReceiptVO remark(Long id, String remark) {
+        receiptMapper.lockById(id);
+        PurchaseReceiptDO r = requireValid(id);
+        String text = remark == null ? "" : remark.trim();
+        r.setNote(text);
+        receiptMapper.updateById(r);
+        docLogs.add(DocumentType.GR, id, "修改备注", text.isEmpty() ? "清空备注" : text);
+        return detail(id);
+    }
+
+    /** defect 为 true 时是不良照片（只有有不良品的入库单能传） */
+    @Transactional(rollbackFor = Exception.class)
+    public ReceiptVO attach(Long id, List<Long> ids, boolean defect) {
+        receiptMapper.lockById(id);
+        PurchaseReceiptDO r = requireValid(id);
+        List<PurchaseReceiptItemDO> items = itemsOf(List.of(id)).getOrDefault(id, List.of());
+        if (defect && items.stream().noneMatch(x -> x.getDefectiveQty() > 0)) {
+            throw new BizException("没有不良品，不能上传不良品照片");
+        }
+        String type = defect ? AttachmentService.RECEIPT_DEFECT : AttachmentService.RECEIPT;
+        attachments.attach(type, id, ids);
+        reindex(r, type, items);
+        docLogs.add(DocumentType.GR, id, defect ? "上传不良照片" : "上传验收照片", ids.size() + " 个");
+        return detail(id);
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public ReceiptVO removeAttachment(Long id, Long attachmentId, boolean defect) {
+        receiptMapper.lockById(id);
+        PurchaseReceiptDO r = requireValid(id);
+        String type = defect ? AttachmentService.RECEIPT_DEFECT : AttachmentService.RECEIPT;
+        attachments.remove(type, id, attachmentId);
+        reindex(r, type, itemsOf(List.of(id)).getOrDefault(id, List.of()));
+        docLogs.add(DocumentType.GR, id, defect ? "删除不良照片" : "删除验收照片", "");
+        return detail(id);
+    }
+
+    private void reindex(PurchaseReceiptDO r, String type, List<PurchaseReceiptItemDO> items) {
+        List<MediaIndexer.ModelRef> models = items.stream().map(x -> new MediaIndexer.ModelRef(x.getBrand(), x.getModel())).toList();
+        media.indexDocument(type, r.getId(), r.getTenantId(), models, null);
+    }
+
+    private PurchaseReceiptDO requireValid(Long id) {
+        PurchaseReceiptDO r = visible(id);
+        if (r.getStatus() != WarehouseConstants.GR_VALID) {
+            throw new BizException("采购入库单已冲销");
+        }
+        return r;
     }
 
     /** 直接收货可选的采购订单：已下单，按采购订单号、采购对象、型号搜索，最多 20 张 */
@@ -380,6 +466,7 @@ public class ReceiptService {
             lines.add(new Qty(x.getId(), l.getReceivedQty(), l.getQualifiedQty(), l.getNote()));
         }
         logs.add(p.getId(), "仓库补登发货", s.getSdNo() + "：" + String.join("、", text) + "（仓库直接收货）", currentUser.resolve());
+        docLogs.add(DocumentType.SD, s.getId(), "仓库补登", String.join("、", text) + "（仓库直接收货）");
         PurchaseReceiptDO r = receive(p, s, req.getReceivedDate(), req.getNote(), lines,
                 new Files(req.getAttachmentIds(), req.getDefectAttachmentIds(), req.getAttachmentModels()), true);
         followupHooks.purchaseChanged(r.getPoId());
@@ -470,6 +557,9 @@ public class ReceiptService {
         progress.sync(items.stream().map(PurchaseReceiptItemDO::getSoItemId).toList());
         logs.add(p.getId(), "验收入库", r.getGrNo() + "（发货单 " + s.getSdNo() + "）：" + String.join("；", text)
                 + (diffCount > 0 ? "；产生 " + diffCount + " 条到货差异" : ""), operator);
+        docLogs.add(DocumentType.GR, r.getId(), "验收入库", String.join("；", text)
+                + (diffCount > 0 ? "；产生 " + diffCount + " 条到货差异" : ""));
+        docLogs.add(DocumentType.SD, s.getId(), "验收入库", r.getGrNo());
         logService.recordOperateLog(WarehouseConstants.MENU_RECEIPT, "验收入库", null,
                 Map.of("grNo", r.getGrNo(), "sdNo", s.getSdNo(), "poNo", p.getPoNo(), "items", text));
         payables.syncPurchaseOrder(p.getId());
@@ -510,6 +600,8 @@ public class ReceiptService {
         touch.touch(items.stream().map(PurchaseReceiptItemDO::getRequirementId).toList());
         progress.sync(items.stream().map(PurchaseReceiptItemDO::getSoItemId).toList());
         logs.add(p.getId(), "冲销入库", r.getGrNo() + "，原因：" + why + "；发货单 " + s.getSdNo() + " 回到在途", currentUser.resolve());
+        docLogs.add(DocumentType.GR, id, "冲销", why);
+        docLogs.add(DocumentType.SD, s.getId(), "入库单冲销", r.getGrNo() + " 冲销，回到在途");
         logService.recordOperateLog(WarehouseConstants.MENU_RECEIPT, "冲销入库", Map.of("grNo", r.getGrNo(), "status", "有效"),
                 Map.of("grNo", r.getGrNo(), "status", "已冲销", "reason", why));
         payables.syncPurchaseOrder(p.getId());
@@ -568,6 +660,11 @@ public class ReceiptService {
     private PurchaseReceiptDO visible(Long id) {
         PurchaseReceiptDO r = id == null ? null : receiptMapper.selectById(id);
         if (r == null || r.getDeletedAt() != null || !Objects.equals(r.getTenantId(), PiStore.tenantId())) {
+            throw new BizException("采购入库单不存在");
+        }
+        // 仓库人员看全部；只有采购菜单（发货跟踪、采购订单）的按采购订单的采购员
+        if (!perm.canAccessMenu("/warehouse/receipts")
+                && !support.scope().canSee(support.po(r.getPoId(), false).getPurchaserId())) {
             throw new BizException("采购入库单不存在");
         }
         return r;
