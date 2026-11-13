@@ -63,6 +63,81 @@ export const sub = (color: string, text: React.ReactNode) => (
   <div style={{ fontSize: 12, color }}>{text}</div>
 );
 
+// ---------------------------------------------------------------- 单据（change warehouse-logistics-docs）
+
+/** 仓库物流单据的详情页地址 */
+export const DOC_PATHS = {
+  shipment: (id: number) => `/purchase/shipments/${id}`,
+  receipt: (id: number) => `/warehouse/receipts/${id}`,
+  outbound: (id: number) => `/warehouse/outbounds/${id}`,
+  logistics: (id: number) => `/logistics/shipments/${id}`,
+};
+
+const DOC_META: Record<
+  string,
+  { label: string; href?: (id: number) => string; tones?: Record<number, Tone> }
+> = {
+  PO: { label: '采购订单', href: (id) => `/purchase/orders/${id}` },
+  SO: { label: '销售订单', href: (id) => `/sales/orders/${id}` },
+  SD: {
+    label: '发货单',
+    href: DOC_PATHS.shipment,
+    tones: { 1: 'accent', 2: 'green', 3: 'mute' },
+  },
+  GR: {
+    label: '采购入库单',
+    href: DOC_PATHS.receipt,
+    tones: { 1: 'green', 2: 'mute' },
+  },
+  OB: {
+    label: '销售出库单',
+    href: DOC_PATHS.outbound,
+    tones: { 1: 'orange', 2: 'accent', 3: 'green', 4: 'mute' },
+  },
+  SH: {
+    label: '出运单',
+    href: DOC_PATHS.logistics,
+    tones: { 1: 'accent', 2: 'green', 3: 'mute' },
+  },
+  ST: {
+    label: '运费账单',
+    href: () => '/logistics/statements',
+    tones: { 1: 'orange', 2: 'green' },
+  },
+  SHOOT: {
+    label: '实拍任务',
+    href: () => '/warehouse/shoots',
+    tones: { 1: 'gray', 2: 'green', 3: 'mute' },
+  },
+};
+
+/** 后端返回的关联单据转为关联单据卡片的行 */
+export const relatedRows = (
+  refs?: {
+    type: string;
+    id: number;
+    no: string;
+    status?: number;
+    statusName?: string;
+  }[],
+) =>
+  (refs ?? []).map((r) => {
+    const m = DOC_META[r.type];
+    return {
+      label: m?.label ?? r.type,
+      no: r.no,
+      href: m?.href?.(r.id),
+      statusName: r.statusName,
+      tone: r.status != null ? (m?.tones?.[r.status] ?? 'accent') : undefined,
+    };
+  });
+
+/** 明细里去重后的品牌、品类（列表的品牌、品类列） */
+export const distinctOf = (
+  items: { brand?: string; category?: string }[] | undefined,
+  key: 'brand' | 'category',
+) => [...new Set((items ?? []).map((i) => i[key]).filter(Boolean))] as string[];
+
 /** 预计到货：在途且已过日期时标「超时未到」 */
 export const ArrivalCell: React.FC<{ date?: string; overdue?: boolean }> = ({
   date,

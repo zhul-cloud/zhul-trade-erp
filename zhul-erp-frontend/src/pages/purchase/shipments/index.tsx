@@ -1,33 +1,24 @@
 import { SearchOutlined } from '@ant-design/icons';
 import { history, Link, useAccess, useLocation } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
-import {
-  App,
-  Button,
-  Drawer,
-  Input,
-  Segmented,
-  Select,
-  Skeleton,
-  Space,
-  Table,
-} from 'antd';
+import { App, Button, Input, Segmented, Select, Table } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
-import { useUrlFilter } from '@/components/DocFields/SourceNos';
-import EllipsisText, { ellipsisRender } from '@/components/EllipsisText';
+import { ModelQtyCell } from '@/components/DocFields/DocPage';
+import SourceNos, { useUrlFilter } from '@/components/DocFields/SourceNos';
+import { ellipsisRender } from '@/components/EllipsisText';
+import { TagList } from '@/pages/inquiry/customer-inquiry/ModelCells';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { auditColumns } from '@/pages/purchase/components';
 import { PATHS as SALES_PATHS } from '@/pages/sales/components';
 import {
   ArrivalCell,
-  AttachmentWall,
   Card,
   DiffStatusPill,
   DiffTypePill,
-  ReasonModal,
+  DOC_PATHS,
+  distinctOf,
   ShipStatusPill,
   sub,
-  trackingText,
   WAREHOUSE_PATHS,
   WarehousePageTitle,
 } from '@/pages/warehouse/components';
@@ -36,7 +27,6 @@ import {
   discrepancyApi,
   readBizError,
   type Shipment,
-  type ShipmentDetail,
   shipmentApi,
 } from '@/pages/warehouse/service';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -44,7 +34,6 @@ import { formatAmount } from '@/utils/format';
 import { usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import HandleDiscrepancyModal from './HandleDiscrepancyModal';
-import ShipmentDrawer from './ShipmentDrawer';
 
 type Tab = 'shipments' | 'diffs';
 
@@ -90,9 +79,6 @@ const SupplierShipments: React.FC = () => {
 
 const ShipmentsTab: React.FC = () => {
   const { palette } = useAppTheme();
-  const { message } = App.useApp();
-  const access = useAccess();
-  const canShip = !!access['purchase:shipment:create'];
   const url = useUrlFilter();
   const [keyword, setKeyword] = useState(url.keyword);
   const [status, setStatus] = useState<number>();
@@ -105,9 +91,6 @@ const ShipmentsTab: React.FC = () => {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>();
-  const [viewing, setViewing] = useState<number>();
-  const [editing, setEditing] = useState<number>();
-  const [voiding, setVoiding] = useState<Shipment>();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -125,37 +108,59 @@ const ShipmentsTab: React.FC = () => {
   useEffect(() => {
     load();
   }, [load]);
-  const closeEdit = useCallback(() => setEditing(undefined), []);
 
   const columns: TableColumnsType<Shipment> = [
     {
-      title: '发货单 · 发货日期',
+      title: '发货单号 · 发货日期',
       dataIndex: 'sdNo',
       width: 170,
       fixed: 'left',
       render: (v: string, r) => (
         <div>
-          <button
-            type="button"
-            className="zhul-link"
-            onClick={() => setViewing(r.id)}
-          >
-            {v}
-          </button>
+          <Link to={DOC_PATHS.shipment(r.id)}>{v}</Link>
           {sub(palette.mute, r.shipDate ?? '—')}
         </div>
       ),
     },
     {
-      title: '供应商',
+      title: '采购对象',
       dataIndex: 'supplierName',
       width: 150,
-      render: (v: string) => <b style={{ color: palette.ink }}>{v || '—'}</b>,
+      render: (v: string, r) => (
+        <div>
+          <b style={{ color: palette.ink }}>{v || '—'}</b>
+          {sub(palette.mute, r.shop ? '平台店铺' : '供应商')}
+        </div>
+      ),
+    },
+    {
+      title: '型号 · 数量',
+      key: 'items',
+      width: 200,
+      render: (_, r) => (
+        <ModelQtyCell items={r.items} totalQty={r.totalQuantity} />
+      ),
+    },
+    {
+      title: '品牌',
+      key: 'brands',
+      width: 120,
+      render: (_, r) => (
+        <TagList values={distinctOf(r.items, 'brand')} label="品牌" />
+      ),
+    },
+    {
+      title: '品类',
+      key: 'categories',
+      width: 130,
+      render: (_, r) => (
+        <TagList values={distinctOf(r.items, 'category')} label="品类" />
+      ),
     },
     {
       title: '快递 · 单号',
       key: 'tracking',
-      width: 200,
+      width: 180,
       render: (_, r) => (
         <div>
           <b style={{ color: palette.ink }}>{r.carrier || '—'}</b>
@@ -166,41 +171,13 @@ const ShipmentsTab: React.FC = () => {
     {
       title: '预计到货',
       dataIndex: 'expectedArrivalDate',
-      width: 120,
+      width: 110,
       render: (v: string | undefined, r) => (
         <ArrivalCell date={v} overdue={r.arrivalOverdue} />
       ),
     },
     {
-      title: '型号 · 数量',
-      key: 'items',
-      width: 240,
-      render: (_, r) => (
-        <div style={{ fontSize: 13 }}>
-          {r.items.slice(0, 3).map((i) => (
-            <EllipsisText key={i.id} text={`${i.model} × ${i.quantity}`} />
-          ))}
-          {r.items.length > 3 &&
-            sub(
-              palette.mute,
-              `等 ${r.itemCount} 个型号，共 ${r.totalQuantity} 件`,
-            )}
-        </div>
-      ),
-    },
-    {
-      title: '附件',
-      dataIndex: 'attachmentCount',
-      width: 70,
-      render: (v: number) =>
-        v ? (
-          <span style={{ color: palette.link }}>{v}</span>
-        ) : (
-          <span style={{ color: palette.mute }}>—</span>
-        ),
-    },
-    {
-      title: '来源',
+      title: '登记来源',
       dataIndex: 'sourceName',
       width: 120,
       render: (v: string, r) => (
@@ -218,27 +195,17 @@ const ShipmentsTab: React.FC = () => {
     {
       title: '状态',
       dataIndex: 'status',
-      width: 140,
+      width: 110,
       render: (v: number, r) => (
-        <div>
-          <ShipStatusPill value={v}>{r.statusName}</ShipStatusPill>
-          {r.grNo && sub(palette.mute, r.grNo)}
-          {r.voidReason && sub(palette.mute, r.voidReason)}
-        </div>
+        <ShipStatusPill value={v}>{r.statusName}</ShipStatusPill>
       ),
     },
     {
       title: '来源单号',
       dataIndex: 'poNo',
       width: 160,
-      render: (v: string, r: { poId: number }) => (
-        <button
-          type="button"
-          className="zhul-link"
-          onClick={() => history.push(WAREHOUSE_PATHS.order(r.poId))}
-        >
-          {v}
-        </button>
+      render: (v: string, r) => (
+        <SourceNos refs={[{ no: v, href: WAREHOUSE_PATHS.order(r.poId) }]} />
       ),
     },
     {
@@ -251,38 +218,9 @@ const ShipmentsTab: React.FC = () => {
     {
       title: '操作',
       key: 'actions',
-      width: 130,
+      width: 80,
       fixed: 'right',
-      render: (_, r) => (
-        <Space size={12}>
-          <button
-            type="button"
-            className="zhul-link"
-            onClick={() => setViewing(r.id)}
-          >
-            查看
-          </button>
-          {r.status === 1 && canShip && (
-            <>
-              <button
-                type="button"
-                className="zhul-link"
-                onClick={() => setEditing(r.id)}
-              >
-                修改
-              </button>
-              <button
-                type="button"
-                className="zhul-link"
-                style={{ color: palette.red }}
-                onClick={() => setVoiding(r)}
-              >
-                作废
-              </button>
-            </>
-          )}
-        </Space>
-      ),
+      render: (_, r) => <Link to={DOC_PATHS.shipment(r.id)}>查看</Link>,
     },
   ];
 
@@ -360,133 +298,7 @@ const ShipmentsTab: React.FC = () => {
           }}
         />
       )}
-      <ShipmentView id={viewing} onClose={() => setViewing(undefined)} />
-      <ShipmentDrawer
-        open={editing !== undefined}
-        shipmentId={editing}
-        onClose={closeEdit}
-        onSaved={() => {
-          setEditing(undefined);
-          load();
-        }}
-      />
-      <ReasonModal
-        open={!!voiding}
-        title={`作废发货单 ${voiding?.sdNo ?? ''}`}
-        description="作废后这批数量回到未发；已入库的发货单不能作废。"
-        placeholder="如：供应商发错单号、重复登记"
-        okText="作废"
-        danger
-        onCancel={() => setVoiding(undefined)}
-        onOk={async (reason) => {
-          if (!voiding) return;
-          try {
-            await shipmentApi.void(voiding.id, reason);
-            setVoiding(undefined);
-            message.success('发货单已作废');
-            load();
-          } catch (e) {
-            message.error(readBizError(e).message);
-          }
-        }}
-      />
     </>
-  );
-};
-
-/** 发货单详情：型号、快递、图片与视频 */
-export const ShipmentView: React.FC<{
-  id?: number;
-  load?: (id: number) => Promise<ShipmentDetail>;
-  onClose: () => void;
-}> = ({ id, load = shipmentApi.detail, onClose }) => {
-  const { palette } = useAppTheme();
-  const [d, setD] = useState<ShipmentDetail>();
-  const [error, setError] = useState<string>();
-  useEffect(() => {
-    if (id === undefined) return;
-    setD(undefined);
-    setError(undefined);
-    load(id)
-      .then(setD)
-      .catch((e) => setError(readBizError(e).message));
-  }, [id, load]);
-  const s = d?.shipment;
-  return (
-    <Drawer
-      open={id !== undefined}
-      onClose={onClose}
-      size="min(640px, 96vw)"
-      title={s ? `发货单 ${s.sdNo}` : '发货单'}
-      destroyOnHidden
-    >
-      {error ? (
-        <ErrorHint message={error} onRetry={onClose} />
-      ) : !s || !d ? (
-        <Skeleton active />
-      ) : (
-        <div style={{ display: 'grid', gap: 16 }}>
-          <div
-            style={{
-              display: 'flex',
-              gap: 8,
-              alignItems: 'center',
-              flexWrap: 'wrap',
-            }}
-          >
-            <ShipStatusPill value={s.status}>{s.statusName}</ShipStatusPill>
-            <span style={{ color: palette.sub }}>
-              {s.poNo} · {s.supplierName} · {s.sourceName}
-              {s.directForwarderName && ` · 直发货代 ${s.directForwarderName}`}
-            </span>
-          </div>
-          <div style={{ color: palette.sub }}>
-            {trackingText(s.carrier, s.trackingNo)} · 发货日期{' '}
-            {s.shipDate ?? '—'}
-            {s.expectedArrivalDate && ` · 预计 ${s.expectedArrivalDate} 到`}
-            {s.note && (
-              <div style={{ color: palette.mute }}>备注：{s.note}</div>
-            )}
-            {s.voidReason && (
-              <div style={{ color: palette.mute }}>
-                作废原因：{s.voidReason}
-              </div>
-            )}
-          </div>
-          <Table
-            rowKey="id"
-            size="small"
-            pagination={false}
-            dataSource={s.items}
-            columns={[
-              {
-                title: '型号',
-                width: 160,
-                dataIndex: 'model',
-                render: (v: string, r) => (
-                  <div>
-                    <b>{v}</b>
-                    {sub(
-                      palette.mute,
-                      [r.brand, r.category].filter(Boolean).join(' · '),
-                    )}
-                  </div>
-                ),
-              },
-              { title: '发货数量', dataIndex: 'quantity', width: 100 },
-            ]}
-          />
-          <div>
-            <b
-              style={{ color: palette.ink, display: 'block', marginBottom: 8 }}
-            >
-              发货图片与视频
-            </b>
-            <AttachmentWall ownerType="SHIPMENT" value={d.attachments} />
-          </div>
-        </div>
-      )}
-    </Drawer>
   );
 };
 
@@ -563,7 +375,7 @@ const DiffsTab: React.FC<{ onChanged: () => void }> = ({ onChanged }) => {
       fixed: 'left',
       render: (v: string, r) => (
         <div>
-          <b style={{ color: palette.ink }}>{v}</b>
+          <Link to={DOC_PATHS.receipt(r.receiptId)}>{v}</Link>
           {sub(palette.mute, r.receivedDate ?? '—')}
         </div>
       ),

@@ -73,6 +73,12 @@ export default function access(initialState: {
     purchaseRequirements: can('/purchase/requirements'),
     purchaseOrders: can('/purchase/orders'),
     purchaseShipments: can('/purchase/shipments'),
+    // 发货单详情：采购订单的采购员、仓库收货也能打开（数据权限由后端按采购员控制）
+    shipmentDetail: any(
+      '/purchase/shipments',
+      '/purchase/orders',
+      '/warehouse/receipts',
+    ),
     purchaseReturns: can('/purchase/returns'),
     'purchase:purchase-return:edit': can('purchase:purchase-return:edit'),
     purchaseBargainStats: can('/purchase/bargain-stats'),
@@ -88,6 +94,14 @@ export default function access(initialState: {
     ),
     warehouseReceipts: can('/warehouse/receipts'),
     warehouseOutbounds: can('/warehouse/outbounds'),
+    // 采购入库单详情：发货跟踪、采购订单也能从关联单据打开
+    receiptDetail: any(
+      '/warehouse/receipts',
+      '/purchase/shipments',
+      '/purchase/orders',
+    ),
+    // 销售出库单详情：业务员从销售订单打开（按订单业务员），仓库看全部
+    outboundDetail: any('/warehouse/outbounds', '/sales/orders'),
     'warehouse:outbound:pack': can('warehouse:outbound:pack'),
     warehouseHolds: can('/warehouse/holds'),
     warehouseReturns: can('/warehouse/returns'),
