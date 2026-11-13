@@ -704,6 +704,33 @@ export interface PasteRow {
   status: 'MATCHED' | 'UNMATCHED' | 'NO_PRICE';
   /** 型号已报给客户，回价不能再修改 */
   locked: boolean;
+  /** AI 识别才有：确定 / 请核对 */
+  confidence?: 'SURE' | 'CHECK';
+  /** 含税时的不含税价（含税价 ÷ (1 + 税率)，两位小数四舍五入）；不含税时等于单价 */
+  unitPriceExTax?: number | null;
+}
+
+/** AI 识别：原文里属于本人其他待处理任务的型号 */
+export interface PasteOtherTask {
+  taskId: number;
+  taskCode: string;
+  brand?: string;
+  category?: string;
+  modelCount: number;
+}
+
+export interface PastePreview {
+  rows: PasteRow[];
+  common: string;
+  otherTasks?: PasteOtherTask[];
+  unknownModels?: string[];
+}
+
+export interface PasteAiState {
+  aiTaskId: number;
+  status: 'RUNNING' | 'DONE' | 'FAILED';
+  errorMessage?: string;
+  preview?: PastePreview;
 }
 
 export interface ItemQuotes {
@@ -1133,11 +1160,15 @@ export const myTaskApi = {
   save: (id: number, items: ItemQuotes[], submit: boolean) =>
     send<void>('PUT', `${MY}/${id}/quotes`, { items, submit }),
   pastePreview: (id: number, text: string) =>
-    send<{ rows: PasteRow[]; common: string }>(
-      'POST',
-      `${MY}/${id}/paste-preview`,
-      { text },
-    ),
+    send<PastePreview>('POST', `${MY}/${id}/paste-preview`, { text }),
+  /** 租户没开启 AI 时粘贴报价只有按规则识别 */
+  pasteAiEnabled: () => send<boolean>('GET', `${MY}/paste-ai/enabled`),
+  pasteAi: (id: number, text: string) =>
+    send<PasteAiState>('POST', `${MY}/${id}/paste-ai`, { text }),
+  pasteAiResult: (id: number, aiTaskId: number) =>
+    send<PasteAiState>('GET', `${MY}/${id}/paste-ai/${aiTaskId}`),
+  pasteAiCancel: (id: number, aiTaskId: number) =>
+    send<void>('POST', `${MY}/${id}/paste-ai/${aiTaskId}/cancel`),
   /** 采购回填真实型号：离开输入框即保存，不受「已报给客户」限制 */
   saveActualModel: (id: number, itemId: number, actualModel: string) =>
     send<{

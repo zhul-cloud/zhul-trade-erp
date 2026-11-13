@@ -969,6 +969,81 @@ class AttachmentSourceTest(unittest.TestCase):
         self.assertEqual(call_parse.call_args[0][2], [(pdf, ".pdf")])
 
 
+
+QUOTE_INPUT = {
+    "task": {"code": "IQ20261113001-A", "brand": "三菱", "category": "伺服与运动"},
+    "items": [{"id": 101, "model": "MR-J4-70B", "originalModel": "", "quantity": 2},
+              {"id": 102, "model": "HG-KR73", "originalModel": "", "quantity": 2}],
+    "otherTasks": [{"id": 88, "code": "IQ20261113002-B", "brand": "三菱", "category": "变频器",
+                    "models": ["FR-E740-0.75K-CHT"]}],
+    "conditions": [{"code": 1, "name": "全新"}, {"code": 2, "name": "99新"}],
+    "leadTimes": [{"code": 1, "name": "现货"}, {"code": 2, "name": "3-5天"}],
+    "taxRates": [{"code": 13, "name": "13%"}, {"code": 1, "name": "1%"}],
+}
+
+
+class QuoteParseTest(unittest.TestCase):
+    """粘贴报价的 AI 识别：明细 id 只留当前任务、非法值置空并标请核对、其他任务的型号只留输入里的任务"""
+
+    def setUp(self):
+        FakeClaude.calls = []
+        self.server = load_server()
+        self.cfg = self.server.parse_ai_config(ai())
+
+    def parse(self, reply, raw="70B 驱动 含税 2850 现货\nFR-E740-0.75K 780"):
+        FakeClaude.reply = json.dumps(reply)
+        with mock.patch.object(self.server.anthropic, "Anthropic", FakeClaude):
+            result = self.server.call_quote_parse(self.cfg, {**QUOTE_INPUT, "rawContent": raw})
+        return result, FakeClaude.calls[-1]["params"]
+
+    def test_keeps_valid_rows_and_uses_light_model(self):
+        result, p = self.parse({
+            "rows": [{"itemId": 101, "raw": "70B 驱动 含税 2850 现货", "unitPrice": 2850, "taxIncluded": True, "taxRate": 13,
+                      "itemCondition": 1, "leadTime": 1, "note": "", "confidence": "check"},
+                     {"itemId": 102, "raw": "HG-KR73 1350", "unitPrice": 1350, "taxIncluded": False, "taxRate": 13,
+                      "note": "", "confidence": "sure"}],
+            "otherModels": [{"taskId": 88, "model": "FR-E740-0.75K-CHT"}], "unknownModels": ["E2E-X5ME1"], "common": ""})
+        self.assertEqual(result["rows"][0], {"itemId": 101, "raw": "70B 驱动 含税 2850 现货", "unitPrice": 2850,
+                                             "taxIncluded": True, "taxRate": 13, "itemCondition": 1, "leadTime": 1,
+                                             "note": "", "confidence": "check"})
+        self.assertNotIn("taxRate", result["rows"][1], "不含税时不带税率")
+        self.assertEqual(result["rows"][1]["confidence"], "sure")
+        self.assertEqual(result["otherModels"], [{"taskId": 88, "model": "FR-E740-0.75K-CHT"}])
+        self.assertEqual(result["unknownModels"], ["E2E-X5ME1"])
+        self.assertEqual(p["model"], "claude-haiku-5-5")
+        self.assertNotIn("tools", p, "不联网")
+        self.assertIn("sourcing-quote-parse", p["system"])
+        self.assertIn("70B 驱动", p["messages"][0]["content"][-1]["text"])
+
+    def test_drops_foreign_ids_and_blanks_illegal_values(self):
+        result, _ = self.parse({
+            "rows": [{"itemId": 999, "raw": "x", "unitPrice": 1, "taxIncluded": False, "note": "", "confidence": "sure"},
+                     {"itemId": 101, "raw": "70B -5", "unitPrice": -5, "taxIncluded": True, "taxRate": 6,
+                      "itemCondition": 9, "leadTime": 1, "note": "", "confidence": "sure"},
+                     {"itemId": 101, "raw": "重复", "unitPrice": 1, "taxIncluded": False, "note": "", "confidence": "sure"}],
+            "otherModels": [{"taskId": 77, "model": "X"}, {"taskId": 88, "model": " "}],
+            "unknownModels": ["A", "A", ""], "common": "以上含税"})
+        self.assertEqual(len(result["rows"]), 1, "不属于任务的 id 和重复的行都去掉")
+        row = result["rows"][0]
+        self.assertNotIn("unitPrice", row)
+        self.assertNotIn("taxRate", row)
+        self.assertNotIn("itemCondition", row)
+        self.assertEqual(row["leadTime"], 1)
+        self.assertEqual(row["confidence"], "check")
+        self.assertEqual(result["otherModels"], [])
+        self.assertEqual(result["unknownModels"], ["A"])
+        self.assertEqual(result["common"], "以上含税")
+
+    def test_truncates_raw_content(self):
+        _, p = self.parse({"rows": [], "otherModels": [], "unknownModels": [], "common": ""}, raw="x" * 25000)
+        self.assertNotIn("x" * 20001, p["messages"][0]["content"][-1]["text"])
+
+    def test_empty_content_fails_without_calling_ai(self):
+        with mock.patch.object(self.server, "send_callback") as cb:
+            self.server.process_quote_parse({"ai": ai(), "input": {**QUOTE_INPUT, "rawContent": "  "}}, "http://cb")
+        cb.assert_called_once_with("http://cb", "failed", error="没有需要识别的报价")
+        self.assertEqual(FakeClaude.calls, [])
+
 if __name__ == "__main__":
     unittest.main()
 
