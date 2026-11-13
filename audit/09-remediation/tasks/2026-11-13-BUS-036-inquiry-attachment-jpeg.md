@@ -9,7 +9,7 @@
 | 目标与影响范围 | WhatsApp 下载的图片扩展名是 .jpeg，新建 / 修改 / 追加询盘附件时被前端拦下，提示「只支持图片（JPG、PNG）、PDF、Excel」。期望 .jpeg 与 .jpg 同样可传。涉及前端分片上传组件 `ChunkUploadList` 的扩展名检查；不改后端 |
 | 起点 commit / 工作分支 | 26a835fa01d049c08d042c4d56d5b53ae9b5b1d3 / fix/inquiry-attachment-jpeg |
 | OpenSpec | 不适用：缺陷修复，规格「询盘大附件」本就允许 JPG 图片 |
-| PR / 目标分支 | 待创建 → develop |
+| PR / 目标分支 | [#279](https://github.com/zhul-cloud/zhul-trade-erp/pull/279) fix/inquiry-attachment-jpeg → develop |
 | 合并证据 | 未合并 |
 | 目标版本 / 环境 | 下一个 release |
 
@@ -38,4 +38,4 @@
 
 | 日期 / 作者 | 事件与证据 | 下一步 / 交接 |
 | --- | --- | --- |
-| 2026-11-13 / Claude | 认领并修复，单元测试通过 | 创建 PR |
+| 2026-11-13 / Claude | 认领并修复，单元测试通过；创建 PR #279 | 等用户确认后合并 |
