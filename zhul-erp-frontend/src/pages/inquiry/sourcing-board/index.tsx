@@ -91,7 +91,11 @@ const SourcingBoardPage: React.FC = () => {
   const access = useAccess() as Record<string, boolean>;
   const canAssign = !!access['inquiry:task:assign'];
   const canProxy = !!access['inquiry:import:proxy'];
-  const [tab, setTab] = useState(UNASSIGNED);
+  // 供应链跟进的「询价中」带任务编号跳过来：直接在「全部」里搜这个任务
+  const [initKeyword] = useState(
+    () => new URLSearchParams(window.location.search).get('keyword') ?? '',
+  );
+  const [tab, setTab] = useState(initKeyword ? ALL : UNASSIGNED);
   const [board, setBoard] = useState<Board | null>(null);
   const [error, setError] = useState('');
   const [selected, setSelected] = useState<number[]>([]);
@@ -103,8 +107,8 @@ const SourcingBoardPage: React.FC = () => {
   const [reviewId, setReviewId] = useState<number>();
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = usePageSize(20);
-  const [keyword, setKeyword] = useState('');
-  const [search, setSearch] = useState('');
+  const [keyword, setKeyword] = useState(initKeyword);
+  const [search, setSearch] = useState(initKeyword);
   const [purchaserId, setPurchaserId] = useState<number>();
   const [deferredView, setDeferredView] = useState(false);
   const [deferTarget, setDeferTarget] = useState<DeferTarget>();
