@@ -1,4 +1,4 @@
-import { useParams } from '@umijs/max';
+import { Link, useParams } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { App, Button, Skeleton, Table, Tooltip } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
@@ -19,7 +19,11 @@ import {
 } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { readBizError } from '@/pages/sales/service';
-import { ReasonModal, relatedRows } from '@/pages/warehouse/components';
+import {
+  DOC_PATHS,
+  ReasonModal,
+  relatedRows,
+} from '@/pages/warehouse/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount, formatDateTime } from '@/utils/format';
 import { MenuLink } from '@/utils/menuName';
@@ -85,7 +89,14 @@ const PaymentDetail: React.FC = () => {
 
   const columns: TableColumnsType<Allocation> = [
     { title: '#', key: 'no', width: 48, render: (_, __, i) => i + 1 },
-    { title: '应付单号', dataIndex: 'payableNo', width: 150 },
+    {
+      title: '应付单号',
+      dataIndex: 'payableNo',
+      width: 150,
+      render: (v: string, a) => (
+        <Link to={DOC_PATHS.payable(a.payableId)}>{v}</Link>
+      ),
+    },
     {
       title: '来源单号',
       dataIndex: 'sourceNo',

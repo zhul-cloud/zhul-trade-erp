@@ -187,6 +187,7 @@ public class PaymentService {
         allocate(pay, targets, credits);
         attachments.attach(OWNER_TYPE, pay.getId(), req.getAttachmentIds());
         ids.forEach(sync::refresh);
+        logPayables(pay, allocationsOf(List.of(pay.getId())).getOrDefault(pay.getId(), List.of()), false);
         docLogs.add(DocumentType.PY, pay.getId(), "登记", "付款：" + pay.getCurrencyCode() + " " + amount.toPlainString()
                 + "，" + FinanceConstants.METHOD_NAMES.get(method) + "，收款方 " + pay.getPayeeName());
         logService.recordOperateLog(MENU, "登记付款", null, Map.of("paymentNo", pay.getPaymentNo(), "payee", pay.getPayeeName(),
@@ -399,6 +400,7 @@ public class PaymentService {
         allocationMapper.insert(a);
         attachments.attach(OWNER_TYPE, pay.getId(), req.getAttachmentIds());
         sync.refresh(p.getId());
+        logPayables(pay, List.of(a), false);
         docLogs.add(DocumentType.PY, pay.getId(), "登记", "供应商退款：" + pay.getCurrencyCode() + " " + amount.toPlainString()
                 + "，冲减应付单 " + p.getPayableNo());
         logService.recordOperateLog(MENU, "登记供应商退款", null, Map.of("paymentNo", pay.getPaymentNo(), "payable", p.getPayableNo(),
@@ -454,6 +456,7 @@ public class PaymentService {
         allocationMapper.insert(a);
         attachments.attach(OWNER_TYPE, pay.getId(), req.getAttachmentIds());
         sync.refresh(p.getId());
+        logPayables(pay, List.of(a), false);
         docLogs.add(DocumentType.PY, pay.getId(), "登记", "已收到供应商退款：" + pay.getCurrencyCode() + " " + amount.toPlainString()
                 + "，冲减应付单 " + p.getPayableNo());
         logService.recordOperateLog(MENU, "登记已收到退款", null, Map.of("paymentNo", pay.getPaymentNo(), "payable", p.getPayableNo(),
@@ -504,6 +507,7 @@ public class PaymentService {
                 .set(PaymentAllocationDO::getUpdateBy, SecurityUtils.getCurrentUsername()));
         ids.forEach(sync::refresh);
         docLogs.add(DocumentType.PY, id, "作废", reason.trim());
+        logPayables(pay, allocs, true);
         logService.recordOperateLog(MENU, "作废付款", Map.of("paymentNo", pay.getPaymentNo(), "status", "有效"),
                 Map.of("paymentNo", pay.getPaymentNo(), "status", "已作废", "reason", reason.trim()));
         return toVo(pay);
@@ -611,6 +615,43 @@ public class PaymentService {
             w.eq(PaymentDO::getKind, q.getKind());
         }
         return w;
+    }
+
+    /** 应付单操作日志（change finance-ap-fx-docs）：付款核销、欠款抵扣转入转出、供应商退款、付款作废 */
+    private void logPayables(PaymentDO pay, List<PaymentAllocationDO> allocs, boolean voided) {
+        Set<Long> ids = new TreeSet<>();
+        allocs.forEach(a -> {
+            ids.add(a.getPayableId());
+            if (a.getCreditPayableId() != null) {
+                ids.add(a.getCreditPayableId());
+            }
+        });
+        if (ids.isEmpty()) {
+            return;
+        }
+        Map<Long, String> nos = payableMapper.selectBatchIds(ids).stream()
+                .collect(Collectors.toMap(PayableDO::getId, PayableDO::getPayableNo));
+        String cur = pay.getCurrencyCode() + " ";
+        for (PaymentAllocationDO a : allocs) {
+            String amt = cur + a.getAmount().toPlainString();
+            int from = a.getFromCredit() == null ? 0 : a.getFromCredit();
+            if (voided) {
+                docLogs.add(DocumentType.AP, a.getPayableId(), "付款作废", pay.getPaymentNo() + " 作废，撤回 " + amt);
+                if (a.getCreditPayableId() != null) {
+                    docLogs.add(DocumentType.AP, a.getCreditPayableId(), "付款作废",
+                            pay.getPaymentNo() + " 作废，欠款抵扣 " + amt + " 退回本单");
+                }
+            } else if (from == 1) {
+                docLogs.add(DocumentType.AP, a.getPayableId(), "欠款抵扣转入",
+                        pay.getPaymentNo() + " 从 " + nos.get(a.getCreditPayableId()) + " 抵扣 " + amt);
+                docLogs.add(DocumentType.AP, a.getCreditPayableId(), "欠款抵扣转出",
+                        pay.getPaymentNo() + " 抵扣到 " + nos.get(a.getPayableId()) + " " + amt);
+            } else if (from == 2) {
+                docLogs.add(DocumentType.AP, a.getPayableId(), "供应商退款", pay.getPaymentNo() + " 退回 " + amt);
+            } else {
+                docLogs.add(DocumentType.AP, a.getPayableId(), "付款核销", pay.getPaymentNo() + " 核销 " + amt);
+            }
+        }
     }
 
     // ---------------------------------------------------------------- 详情、备注与附件（change finance-cash-docs）

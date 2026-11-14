@@ -21,7 +21,11 @@ import {
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { PATHS } from '@/pages/sales/components';
 import { orderApi, piApi, readBizError } from '@/pages/sales/service';
-import { ReasonModal, relatedRows } from '@/pages/warehouse/components';
+import {
+  DOC_PATHS,
+  ReasonModal,
+  relatedRows,
+} from '@/pages/warehouse/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { UnitPill, useBusinessUnits } from '@/utils/businessUnit';
 import { formatAmount, formatDateTime } from '@/utils/format';
@@ -127,7 +131,9 @@ const ReceiptDocDetail: React.FC = () => {
       title: '结汇单号',
       dataIndex: 'settleNo',
       width: 160,
-      render: (v: string) => <Link to="/finance/fx-settlements">{v}</Link>,
+      render: (v: string, s) => (
+        <Link to={DOC_PATHS.fxSettlement(s.settlementId)}>{v}</Link>
+      ),
     },
     { title: '结汇日期', dataIndex: 'settleDate', width: 110 },
     {

@@ -1,5 +1,6 @@
 import { request } from '@umijs/max';
 import type { ReceiptRow } from '@/pages/sales/service';
+import type { Attachment, DocLog, DocRef } from '@/pages/warehouse/service';
 
 const FX = '/api/v1/finance/fx-settlements';
 const quiet = { skipErrorHandler: true } as const;
@@ -40,6 +41,13 @@ export interface FxSettlement {
   createBy?: string;
   updateTime?: string;
   updateBy?: string;
+  /** 以下只在详情返回（change finance-ap-fx-docs） */
+  files?: Attachment[];
+  related?: DocRef[];
+  logs?: DocLog[];
+  editable?: boolean;
+  /** 不是最新一张有效结汇单时，要先作废的那一张 */
+  blockingNo?: string;
 }
 
 export interface FxPending {
@@ -80,4 +88,13 @@ export const fxApi = {
   }) => send<FxSettlement>(FX, body),
   voidSettlement: (id: number, reason: string) =>
     send<FxSettlement>(`${FX}/${id}/void`, { reason }),
+  remark: (id: number, remark: string) =>
+    send<FxSettlement>(`${FX}/${id}/remark`, { remark }),
+  attach: (id: number, ids: number[]) =>
+    send<FxSettlement>(`${FX}/${id}/attachments`, { ids }),
+  removeAttachment: (id: number, attachmentId: number) =>
+    request<{ data: FxSettlement }>(`${FX}/${id}/attachments/${attachmentId}`, {
+      method: 'DELETE',
+      ...quiet,
+    }).then((r) => r.data),
 };

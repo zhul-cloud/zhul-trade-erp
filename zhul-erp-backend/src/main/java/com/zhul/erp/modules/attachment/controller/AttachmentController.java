@@ -39,6 +39,8 @@ public class AttachmentController {
             Map.entry(AttachmentService.NETWORK, List.of("/operations/media")),
             Map.entry(AttachmentService.LOGISTICS, List.of("/logistics/shipments")),
             Map.entry(AttachmentService.LOGISTICS_DOC, List.of("/logistics/shipments")),
+            Map.entry(AttachmentService.PAYABLE, List.of("/finance/payables", "/finance/payments")),
+            Map.entry(AttachmentService.FX_SETTLEMENT, List.of("/finance/fx-settlements")),
             Map.entry(AttachmentService.PAYMENT_RECEIPT, List.of("/finance/receipts", "/sales/pi", "/sales/orders")),
             Map.entry(AttachmentService.PAYMENT, List.of("/finance/payables", "/finance/payments", "/purchase/orders",
                     "/logistics/statements", "/finance/reimbursements")),

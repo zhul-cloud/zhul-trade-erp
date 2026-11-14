@@ -31,6 +31,14 @@ export const PAYEE = {
 } as const;
 /** 来源类型 */
 export const SOURCE = { PO: 1, STATEMENT: 2, EXPENSE: 3 } as const;
+/** 来源单据链接：采购订单、运费账单、费用单 */
+export const sourcePath = (p: Pick<Payable, 'sourceType' | 'sourceId'>) =>
+  p.sourceType === SOURCE.PO
+    ? `/purchase/orders/${p.sourceId}`
+    : p.sourceType === SOURCE.EXPENSE
+      ? '/finance/expenses'
+      : '/logistics/statements';
+
 /** 付款方式 */
 export const METHOD = { COMPANY: 1, ADVANCE: 2, PRIVATE: 3 } as const;
 
@@ -113,6 +121,12 @@ export interface Payable {
   createBy?: string;
   updateTime?: string;
   updateBy?: string;
+  /** 以下只在详情返回（change finance-ap-fx-docs） */
+  remark?: string;
+  files?: Attachment[];
+  related?: DocRef[];
+  logs?: DocLog[];
+  editable?: boolean;
 }
 
 export interface PayableStats {
@@ -295,6 +309,15 @@ export const payableApi = {
   payees: (keyword?: string) => get<PayeeOption[]>(`${AP}/payees`, { keyword }),
   /** 与这张应付单同一收款方、同一币种，有未付或欠款的应付单 */
   open: (id: number) => get<Payable[]>(`${AP}/${id}/open`),
+  remark: (id: number, remark: string) =>
+    send<Payable>(`${AP}/${id}/remark`, { remark }),
+  attach: (id: number, ids: number[]) =>
+    send<Payable>(`${AP}/${id}/attachments`, { ids }),
+  removeAttachment: (id: number, attachmentId: number) =>
+    request<{ data: Payable }>(`${AP}/${id}/attachments/${attachmentId}`, {
+      method: 'DELETE',
+      ...quiet,
+    }).then((r) => r.data),
 };
 
 export const paymentApi = {

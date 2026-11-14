@@ -69,6 +69,7 @@ public class PayableSyncService {
     private final ExpenseMapper expenseMapper;
     private final DocumentNumberService documentNumberService;
     private final PurchaseReturnMapper purchaseReturnMapper;
+    private final com.zhul.erp.modules.system.doclog.DocLogs docLogs;
 
     /** 采购订单：已下单的生成或重算；取消的关闭（已付转为欠款）；草稿不处理 */
     public void syncPurchaseOrder(Long poId) {
@@ -78,7 +79,8 @@ public class PayableSyncService {
         }
         boolean cancelled = Objects.equals(po.getStatus(), PurchaseConstants.PO_CANCELLED);
         PayableDO p = lockBySource(FinanceConstants.SOURCE_PURCHASE_ORDER, poId);
-        if (p == null) {
+        boolean created = p == null;
+        if (created) {
             if (cancelled) {
                 return;
             }
@@ -99,7 +101,7 @@ public class PayableSyncService {
         // 币种随采购订单（有资金往来时采购订单不允许改币种，见 hasMoneyMovement；audit BUS-004）
         p.setCurrencyCode(po.getCurrencyCode());
         p.setExchangeRate(po.getExchangeRate() == null ? BigDecimal.ONE : po.getExchangeRate());
-        apply(p, amount, InstallmentPlanner.plan(amount, terms, dates), cancelled);
+        apply(p, amount, InstallmentPlanner.plan(amount, terms, dates), cancelled, created);
     }
 
     /** 来源单据的应付是否已有资金往来：有效的付款、退款核销，或作为欠款来源被抵扣（作废的付款核销已软删除，不算） */
@@ -128,7 +130,7 @@ public class PayableSyncService {
         payableMapper.insert(p);
         BigDecimal amount = nz(st.getStatementTotal());
         LocalDate due = st.getConfirmedAt() == null ? LocalDate.now() : st.getConfirmedAt().toLocalDate();
-        apply(p, amount, InstallmentPlanner.single(amount, due), false);
+        apply(p, amount, InstallmentPlanner.single(amount, due), false, true);
     }
 
     /**
@@ -142,7 +144,8 @@ public class PayableSyncService {
         boolean active = Objects.equals(e.getStatus(), FinanceConstants.FE_VALID)
                 && Objects.equals(e.getMethod(), FinanceConstants.METHOD_COMPANY);
         PayableDO p = lockBySource(FinanceConstants.SOURCE_EXPENSE, expenseId);
-        if (p == null) {
+        boolean created = p == null;
+        if (created) {
             if (!active) {
                 return;
             }
@@ -157,7 +160,7 @@ public class PayableSyncService {
         p.setCurrencyCode(e.getCurrencyCode());
         p.setExchangeRate(e.getExchangeRate());
         BigDecimal amount = active ? e.getAmount() : BigDecimal.ZERO;
-        apply(p, amount, InstallmentPlanner.single(amount, e.getOccurDate()), !active);
+        apply(p, amount, InstallmentPlanner.single(amount, e.getOccurDate()), !active, created);
     }
 
     /** 付款登记、作废、退款后：锁住应付单，按现有付款计划重算已付、欠款与状态 */
@@ -171,11 +174,13 @@ public class PayableSyncService {
                 .map(i -> new InstallmentPlanner.Inst(i.getSeq(), i.getRatio(), i.getTriggerType(), i.getOffsetDays(),
                         i.getAmount(), i.getDueDate(), BigDecimal.ZERO, FinanceConstants.STATUS_UNPAID))
                 .toList();
-        apply(p, nz(p.getAmount()), plan, Objects.equals(p.getStatus(), FinanceConstants.STATUS_CLOSED));
+        apply(p, nz(p.getAmount()), plan, Objects.equals(p.getStatus(), FinanceConstants.STATUS_CLOSED), false);
     }
 
     /** 已付合计、欠款、状态、各期已付与下一期到期日，写回应付单与付款计划 */
-    private void apply(PayableDO p, BigDecimal amount, List<InstallmentPlanner.Inst> plan, boolean closed) {
+    private void apply(PayableDO p, BigDecimal amount, List<InstallmentPlanner.Inst> plan, boolean closed, boolean created) {
+        BigDecimal before = nz(p.getAmount());
+        boolean wasClosed = Objects.equals(p.getStatus(), FinanceConstants.STATUS_CLOSED);
         BigDecimal rate = p.getExchangeRate() == null ? BigDecimal.ONE : p.getExchangeRate();
         BigDecimal amountCny = amount.multiply(rate).setScale(2, RoundingMode.HALF_UP);
         // 历史迁移视为已付：迁移前已线下付清，没有付款核销，已付跟着应付走
@@ -195,6 +200,25 @@ public class PayableSyncService {
         p.setNextDueDate(closed ? null : InstallmentPlanner.nextDue(filled));
         payableMapper.updateById(p);
         saveInstallments(p, filled);
+        logChange(p, created, before, wasClosed, closed);
+    }
+
+    /** 应付单操作日志（change finance-ap-fx-docs）：生成、应付金额变化、关闭与重新打开；付款引起的变化由付款一侧写 */
+    private void logChange(PayableDO p, boolean created, BigDecimal before, boolean wasClosed, boolean closed) {
+        String cur = p.getCurrencyCode() + " ";
+        if (created) {
+            docLogs.add(DocumentType.AP, p.getId(), "生成", "来源单号 " + p.getSourceNo() + "，应付 " + cur + p.getAmount().toPlainString());
+            return;
+        }
+        if (before.compareTo(p.getAmount()) != 0) {
+            docLogs.add(DocumentType.AP, p.getId(), "应付金额变化", cur + before.toPlainString() + " → " + cur
+                    + p.getAmount().toPlainString() + "（" + p.getSourceNo() + "）");
+        }
+        if (closed && !wasClosed) {
+            docLogs.add(DocumentType.AP, p.getId(), "关闭", "来源单据已取消或作废");
+        } else if (!closed && wasClosed) {
+            docLogs.add(DocumentType.AP, p.getId(), "重新打开", "");
+        }
     }
 
     /** 付款计划按期次更新；期数变少时多出的软删除 */

@@ -1,19 +1,17 @@
 import { PlusOutlined } from '@ant-design/icons';
-import { Link, useAccess } from '@umijs/max';
+import { history, useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import {
   App,
   Button,
   Checkbox,
   DatePicker,
-  Drawer,
   Empty,
   Input,
   InputNumber,
   Modal,
   Select,
   Space,
-  Spin,
   Table,
   Tabs,
 } from 'antd';
@@ -27,7 +25,6 @@ import {
   type ReceiptRow,
   readBizError,
 } from '@/pages/sales/service';
-import { ReasonModal } from '@/pages/warehouse/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import {
   UnitPill,
@@ -40,6 +37,7 @@ import { formatAmount } from '@/utils/format';
 import { usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import { settleCny, settleRate } from './calc';
+import { ReceiptWho, SettlePill } from './components';
 import { type FxPending, type FxSettlement, fxApi } from './service';
 
 const num: React.CSSProperties = { fontVariantNumeric: 'tabular-nums' };
@@ -50,32 +48,6 @@ const newKey = () =>
     : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 const unsettled = (r: ReceiptRow) =>
   round2(Number(r.netAmount) - Number(r.settledAmount ?? 0));
-
-const SettlePill: React.FC<{ status?: number }> = ({ status }) =>
-  status === 3 ? (
-    <Pill tone="green">已结汇</Pill>
-  ) : status === 2 ? (
-    <Pill tone="orange">部分结汇</Pill>
-  ) : status === 1 ? (
-    <Pill tone="orange">未结汇</Pill>
-  ) : null;
-
-/** 到账的 PI 与客户：未认领的显示付款人 */
-const ReceiptWho: React.FC<{ r: ReceiptRow }> = ({ r }) => {
-  const { palette } = useAppTheme();
-  return (
-    <div>
-      {r.piNo ? (
-        <span style={{ color: palette.link }}>{r.piNo}</span>
-      ) : (
-        <span style={{ color: palette.mute }}>未认领</span>
-      )}
-      <div style={{ fontSize: 12, color: palette.sub }}>
-        {r.customerName ?? r.payer ?? ''}
-      </div>
-    </div>
-  );
-};
 
 /** 登记结汇单：照银行结汇流水填写，按先进先出预览分摊 */
 const RegisterModal: React.FC<{
@@ -431,9 +403,6 @@ const FxSettlementPage: React.FC = () => {
   const [includeVoid, setIncludeVoid] = useState(false);
   const [loading, setLoading] = useState(true);
   const [registering, setRegistering] = useState(false);
-  const [detail, setDetail] = useState<FxSettlement>();
-  const [detailLoading, setDetailLoading] = useState(false);
-  const [voiding, setVoiding] = useState<FxSettlement>();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -464,17 +433,7 @@ const FxSettlementPage: React.FC = () => {
     load();
   }, [load]);
 
-  const open = async (id: number) => {
-    setDetailLoading(true);
-    setDetail(undefined);
-    try {
-      setDetail(await fxApi.detail(id));
-    } catch (e) {
-      message.error(readBizError(e).message);
-    } finally {
-      setDetailLoading(false);
-    }
-  };
+  const open = (id: number) => history.push(`/finance/fx-settlements/${id}`);
 
   const pendingCount = pending.reduce((s, p) => s + p.receipts.length, 0);
 
@@ -563,20 +522,13 @@ const FxSettlementPage: React.FC = () => {
     {
       title: '操作',
       key: 'op',
-      width: 90,
+      width: 70,
       fixed: 'right',
-      render: (_, r) =>
-        canSettle && r.status === 1 && r.latest ? (
-          <button
-            type="button"
-            className="zhul-link"
-            onClick={() => setVoiding(r)}
-          >
-            作废
-          </button>
-        ) : (
-          <span style={{ color: palette.mute }}>—</span>
-        ),
+      render: (_, r) => (
+        <button type="button" className="zhul-link" onClick={() => open(r.id)}>
+          查看
+        </button>
+      ),
     },
   ];
 
@@ -841,109 +793,6 @@ const FxSettlementPage: React.FC = () => {
         pending={pending}
         onClose={() => setRegistering(false)}
         onDone={load}
-      />
-      <Drawer
-        open={detailLoading || !!detail}
-        onClose={() => setDetail(undefined)}
-        size="min(860px, 96vw)"
-        destroyOnHidden
-        title={detail ? `结汇单 ${detail.settleNo}` : '结汇单'}
-      >
-        {!detail ? (
-          <Spin />
-        ) : (
-          <Space orientation="vertical" size={16} style={{ width: '100%' }}>
-            <div style={{ color: palette.sub }}>
-              {detail.settleDate} ·{' '}
-              {formatAmount(detail.amount, detail.currencyCode)} →{' '}
-              <b style={{ color: palette.ink }}>
-                {formatAmount(detail.amountCny, 'CNY')}
-              </b>{' '}
-              · 汇率 {Number(detail.exchangeRate).toFixed(6)} ·{' '}
-              {detail.bankAccountName}
-              {detail.remark ? ` · ${detail.remark}` : ''}
-            </div>
-            {detail.status === 2 && (
-              <div style={{ color: palette.mute }}>
-                已作废：{detail.voidReason}（{detail.voidedBy}）
-              </div>
-            )}
-            <Table
-              rowKey={(a) => a.receipt?.id ?? Math.random()}
-              size="small"
-              pagination={false}
-              dataSource={detail.allocations ?? []}
-              locale={{ emptyText: '作废后分摊已撤回' }}
-              columns={[
-                {
-                  title: '收款单号',
-                  key: 'no',
-                  width: 150,
-                  render: (_, a) =>
-                    a.receipt?.receiptNo ? (
-                      <Link to={`/finance/receipts/${a.receipt.id}`}>
-                        {a.receipt.receiptNo}
-                      </Link>
-                    ) : (
-                      '—'
-                    ),
-                },
-                {
-                  title: '到账日期',
-                  key: 'd',
-                  width: 100,
-                  render: (_, a) => a.receipt?.receiptDate,
-                },
-                {
-                  title: 'PI · 客户',
-                  width: 200,
-                  key: 'pi',
-                  render: (_, a) =>
-                    a.receipt ? <ReceiptWho r={a.receipt} /> : '—',
-                },
-                {
-                  title: '分摊外币',
-                  dataIndex: 'amount',
-                  width: 130,
-                  align: 'right',
-                  render: (v: number) => formatAmount(v, detail.currencyCode),
-                },
-                {
-                  title: '分摊人民币',
-                  dataIndex: 'amountCny',
-                  width: 130,
-                  align: 'right',
-                  render: (v: number) => (
-                    <b style={num}>{formatAmount(v, 'CNY')}</b>
-                  ),
-                },
-                {
-                  title: '结汇状态',
-                  key: 's',
-                  width: 100,
-                  render: (_, a) => (
-                    <SettlePill status={a.receipt?.settleStatus} />
-                  ),
-                },
-              ]}
-            />
-          </Space>
-        )}
-      </Drawer>
-      <ReasonModal
-        open={!!voiding}
-        title={`作废 ${voiding?.settleNo ?? ''}`}
-        description="撤回它的全部分摊，相关到账回到未结汇或部分结汇，未结完的到账按上一张结汇单的汇率重新估算。只能作废最新的一张。"
-        okText="作废"
-        danger
-        onCancel={() => setVoiding(undefined)}
-        onOk={async (reason) => {
-          if (!voiding) return;
-          await fxApi.voidSettlement(voiding.id, reason);
-          message.success('已作废');
-          setVoiding(undefined);
-          load();
-        }}
       />
     </div>
   );

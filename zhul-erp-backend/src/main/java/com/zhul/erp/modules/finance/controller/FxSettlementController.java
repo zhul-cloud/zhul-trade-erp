@@ -55,6 +55,26 @@ public class FxSettlementController {
         return Result.ok(service.create(req));
     }
 
+    @PostMapping("/{id}/remark")
+    @PreAuthorize(SETTLE)
+    public Result<FxSettlementVO> remark(@PathVariable Long id,
+                                         @Valid @RequestBody com.zhul.erp.modules.system.doclog.DocRemarkRequest req) {
+        return Result.ok(service.remark(id, req.getRemark()));
+    }
+
+    @PostMapping("/{id}/attachments")
+    @PreAuthorize(SETTLE)
+    public Result<FxSettlementVO> attach(@PathVariable Long id,
+                                         @Valid @RequestBody com.zhul.erp.modules.system.doclog.DocAttachRequest req) {
+        return Result.ok(service.attach(id, req.getIds()));
+    }
+
+    @org.springframework.web.bind.annotation.DeleteMapping("/{id}/attachments/{attachmentId}")
+    @PreAuthorize(SETTLE)
+    public Result<FxSettlementVO> removeAttachment(@PathVariable Long id, @PathVariable Long attachmentId) {
+        return Result.ok(service.removeAttachment(id, attachmentId));
+    }
+
     @PostMapping("/{id}/void")
     @PreAuthorize(SETTLE)
     public Result<FxSettlementVO> voidSettlement(@PathVariable Long id, @Valid @RequestBody VoidPaymentRequest req) {

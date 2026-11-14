@@ -1,5 +1,5 @@
 import { SearchOutlined } from '@ant-design/icons';
-import { history } from '@umijs/max';
+import { history, Link } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { App, Button, Checkbox, DatePicker, Input, Select, Table } from 'antd';
 import type { Dayjs } from 'dayjs';
@@ -237,7 +237,7 @@ const PaymentRecords: React.FC = () => {
             <div
               key={`${a.payableId}-${a.fromCredit}-${a.creditPayableNo ?? ''}`}
             >
-              {a.payableNo}{' '}
+              <Link to={DOC_PATHS.payable(a.payableId)}>{a.payableNo}</Link>{' '}
               <span style={{ color: palette.mute }}>{a.sourceNo}</span>{' '}
               {formatAmount(a.amount, r.currencyCode)}
               {a.fromCredit === 1 && (
