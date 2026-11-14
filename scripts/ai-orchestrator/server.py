@@ -1250,8 +1250,19 @@ def _small_inputs(refs, raw_content, work):
 
 
 def parse_large(cfg, raw_content, refs, categories, callback_url, work) -> dict:
-    """分批解析：逐个附件下载、预处理、删除 → 切批 → 并行提取 → 合并去重 → 分批联网核验（D8–D10）"""
-    send_progress(callback_url, 0, 0, lp.STAGE_READ)
+    """分批解析：逐个附件下载、预处理、删除 → 切批 → 并行提取 → 合并去重 → 分批联网核验（D8–D10）。
+    心跳从读取附件开始一直到核验结束（audit AI-009）；无论成功、失败还是超时，
+    工作线程已经产生的用量都汇总回本线程，随回调上报（audit AI-010）"""
+    usages = []
+    try:
+        with lp.Progress(lambda d, t, s: send_progress(callback_url, d, t, s), 0, lp.STAGE_READ) as progress:
+            return _parse_large(cfg, raw_content, refs, categories, work, progress, usages)
+    finally:
+        for u in usages:
+            _record_usage(u.get("model"), u.get("inputTokens"), u.get("outputTokens"), u.get("webSearches"))
+
+
+def _parse_large(cfg, raw_content, refs, categories, work, progress, usages) -> dict:
     units, unparsed = [], []
     if raw_content:
         units.append(lp.Unit("text", "询盘正文", text="询盘正文：\n" + raw_content))
@@ -1267,7 +1278,7 @@ def parse_large(cfg, raw_content, refs, categories, callback_url, work) -> dict:
             unparsed.append({"file": name, "range": "", "reason": "无法读取"})
             continue
         try:
-            got, bad = lp.preprocess(path, ext, name, _nameplate_no(r))
+            got, bad = lp.preprocess(path, ext, name, _nameplate_no(r), remaining)
         finally:
             lp._remove(path)
         units.extend(got)
@@ -1287,7 +1298,6 @@ def parse_large(cfg, raw_content, refs, categories, callback_url, work) -> dict:
         """失败原因写进日志：异常类型与脱敏后的说明，不含询盘内容"""
         return f"{type(e).__name__}: {scrub(str(e), cfg.api_key)[:200]}"
     usage_lock = threading.Lock()
-    usages = []
     system_prompt = build_system_prompt(categories)
 
     def collect_usage():
@@ -1297,93 +1307,91 @@ def parse_large(cfg, raw_content, refs, categories, callback_url, work) -> dict:
                 usages.append(u)
 
     print(f"[ai-orchestrator] 大附件分批解析：{len(units)} 个单元，{len(batches)} 批")
-    with lp.Progress(lambda d, t, s: send_progress(callback_url, d, t, s), len(batches)) as progress:
-        def extract(indexed):
-            no, batch = indexed
-            labels = [u.label for u in batch]
-            texts = [u.text for u in batch if u.kind == "text"]
-            images = [u for u in batch if u.kind == "image"]
-            text = (EXTRACT_PROMPT.format(no=no, total=len(batches), labels="、".join(labels)) + "\n\n"
-                    + "\n\n".join(texts)
-                    + ("\n\n附件图片依次为：" + "、".join(u.label for u in images) if images else "")
-                    + _nameplate_hint([u.nameplate_no for u in images]))
-            for attempt in range(lp.EXTRACT_RETRIES + 1):
-                propagate()  # 每次调用（含重试）重新计算单次期限
-                try:
-                    result = call_api(cfg, system_prompt, text, [(u.image, u.ext) for u in images], EXTRACT_SCHEMA,
-                                      model=cfg.parse_model, effort=cfg.parse_effort, web_search=False)
-                    collect_usage()
-                    progress.step()
-                    return result.get("groups", []), labels
-                except Exception as e:  # noqa: BLE001 - 失败的批重试，仍失败只影响这一批
-                    if isinstance(e, JobTimeout) and job_expired():
-                        raise
-                    collect_usage()
-                    print(f"[ai-orchestrator] 第 {no} 批提取失败（第 {attempt + 1} 次）：{reason(e)}")
-            progress.step()
-            unparsed.append({"file": "", "range": "、".join(labels),
-                             "reason": f"解析失败，重试 {lp.EXTRACT_RETRIES} 次仍未成功"})
-            return None
+    progress.set_stage(lp.STAGE_EXTRACT, len(batches))
 
-        results = lp.run_parallel(extract, list(enumerate(batches, 1)), lp.EXTRACT_WORKERS, propagate)
-        progress.set_stage(lp.STAGE_MERGE)
-        items, group_meta = lp.merge([r for r in results if r])
-        if not items:
-            raise RuntimeError("没有从附件中提取到型号")
-
-        chunks = [items[i:i + lp.VERIFY_BATCH] for i in range(0, len(items), lp.VERIFY_BATCH)]
-        progress.set_stage(lp.STAGE_VERIFY, len(chunks))
-
-        def verify(chunk):
-            brief = [dict({k: it.get(k) for k in ("originalModel", "confirmedModel", "quantity", "unit", "description")},
-                          brand=it["_group"][0], category=it["_group"][1]) for it in chunk]
-            propagate()
+    def extract(indexed):
+        no, batch = indexed
+        labels = [u.label for u in batch]
+        texts = [u.text for u in batch if u.kind == "text"]
+        images = [u for u in batch if u.kind == "image"]
+        text = (EXTRACT_PROMPT.format(no=no, total=len(batches), labels="、".join(labels)) + "\n\n"
+                + "\n\n".join(texts)
+                + ("\n\n附件图片依次为：" + "、".join(u.label for u in images) if images else "")
+                + _nameplate_hint([u.nameplate_no for u in images]))
+        for attempt in range(lp.EXTRACT_RETRIES + 1):
+            propagate()  # 每次调用（含重试）重新计算单次期限
             try:
-                result = call_api(cfg, system_prompt, VERIFY_PROMPT.format(count=len(chunk), items=lp.dumps(brief)),
-                                  [], OUTPUT_SCHEMA, model=cfg.parse_model, effort=cfg.parse_effort, web_search=True)
+                result = call_api(cfg, system_prompt, text, [(u.image, u.ext) for u in images], EXTRACT_SCHEMA,
+                                  model=cfg.parse_model, effort=cfg.parse_effort, web_search=False)
                 collect_usage()
-                # 按原文型号把核验结果对回提交的型号，不依赖返回顺序（实测模型会调换顺序，按位置对会张冠李戴）；
-                # 对不上的型号不采用核验结果，标待核实
-                pending = {}
-                for it in chunk:
-                    pending.setdefault(lp.normalize_model(it.get("originalModel") or it.get("confirmedModel")), it)
-                matched = []
-                for g in result.get("groups", []):
-                    for v in g.get("items", []):
-                        it = pending.pop(lp.normalize_model(v.get("originalModel")), None)
-                        if it is not None:
-                            matched.append((g, v, it))
-                for it in pending.values():
-                    it["confidence"] = lp.CONFIDENCE_PENDING_VERIFY
-                    it["correctionNote"] = "；".join(x for x in (it.get("correctionNote"), "未联网核验") if x)
-                if pending:
-                    print(f"[ai-orchestrator] 核验结果有 {len(pending)} 个型号对不上，标为待核实")
-                for g, v, it in matched:
-                    for k in VERIFIED_FIELDS:
-                        if k in v:
-                            it[k] = v[k]
-                    if v.get("correctionNote"):
-                        it["correctionNote"] = "；".join(x for x in (v["correctionNote"], it.get("correctionNote")) if x)
-                    if it.get("_unit_conflict"):
-                        it["confidence"] = lp.CONFIDENCE_PENDING_VERIFY
-                    meta_key = (g.get("brand", it["_group"][0]), g.get("category", it["_group"][1]))
-                    with usage_lock:
-                        group_meta.setdefault(meta_key, {k: x for k, x in g.items() if k != "items"})
-                    it["_group"] = meta_key
-            except Exception as e:  # noqa: BLE001 - 核验失败或达到搜索上限：这批不核验，标待核实（D10）
+                progress.step()
+                return result.get("groups", []), labels
+            except Exception as e:  # noqa: BLE001 - 失败的批重试，仍失败只影响这一批
                 if isinstance(e, JobTimeout) and job_expired():
                     raise
                 collect_usage()
-                print(f"[ai-orchestrator] 核验批失败，标为待核实：{reason(e)}")
-                for it in chunk:
+                print(f"[ai-orchestrator] 第 {no} 批提取失败（第 {attempt + 1} 次）：{reason(e)}")
+        progress.step()
+        unparsed.append({"file": "", "range": "、".join(labels),
+                         "reason": f"解析失败，重试 {lp.EXTRACT_RETRIES} 次仍未成功"})
+        return None
+
+    results = lp.run_parallel(extract, list(enumerate(batches, 1)), lp.EXTRACT_WORKERS, propagate)
+    progress.set_stage(lp.STAGE_MERGE)
+    items, group_meta = lp.merge([r for r in results if r])
+    if not items:
+        raise RuntimeError("没有从附件中提取到型号")
+
+    chunks = [items[i:i + lp.VERIFY_BATCH] for i in range(0, len(items), lp.VERIFY_BATCH)]
+    progress.set_stage(lp.STAGE_VERIFY, len(chunks))
+
+    def verify(chunk):
+        brief = [dict({k: it.get(k) for k in ("originalModel", "confirmedModel", "quantity", "unit", "description")},
+                      brand=it["_group"][0], category=it["_group"][1]) for it in chunk]
+        propagate()
+        try:
+            result = call_api(cfg, system_prompt, VERIFY_PROMPT.format(count=len(chunk), items=lp.dumps(brief)),
+                              [], OUTPUT_SCHEMA, model=cfg.parse_model, effort=cfg.parse_effort, web_search=True)
+            collect_usage()
+            # 按原文型号把核验结果对回提交的型号，不依赖返回顺序（实测模型会调换顺序，按位置对会张冠李戴）；
+            # 对不上的型号不采用核验结果，标待核实
+            pending = {}
+            for it in chunk:
+                pending.setdefault(lp.normalize_model(it.get("originalModel") or it.get("confirmedModel")), it)
+            matched = []
+            for g in result.get("groups", []):
+                for v in g.get("items", []):
+                    it = pending.pop(lp.normalize_model(v.get("originalModel")), None)
+                    if it is not None:
+                        matched.append((g, v, it))
+            for it in pending.values():
+                it["confidence"] = lp.CONFIDENCE_PENDING_VERIFY
+                it["correctionNote"] = "；".join(x for x in (it.get("correctionNote"), "未联网核验") if x)
+            if pending:
+                print(f"[ai-orchestrator] 核验结果有 {len(pending)} 个型号对不上，标为待核实")
+            for g, v, it in matched:
+                for k in VERIFIED_FIELDS:
+                    if k in v:
+                        it[k] = v[k]
+                if v.get("correctionNote"):
+                    it["correctionNote"] = "；".join(x for x in (v["correctionNote"], it.get("correctionNote")) if x)
+                if it.get("_unit_conflict"):
                     it["confidence"] = lp.CONFIDENCE_PENDING_VERIFY
-                    it["correctionNote"] = "；".join(x for x in (it.get("correctionNote"), "未联网核验") if x)
-            progress.step()
+                meta_key = (g.get("brand", it["_group"][0]), g.get("category", it["_group"][1]))
+                with usage_lock:
+                    group_meta.setdefault(meta_key, {k: x for k, x in g.items() if k != "items"})
+                it["_group"] = meta_key
+        except Exception as e:  # noqa: BLE001 - 核验失败或达到搜索上限：这批不核验，标待核实（D10）
+            if isinstance(e, JobTimeout) and job_expired():
+                raise
+            collect_usage()
+            print(f"[ai-orchestrator] 核验批失败，标为待核实：{reason(e)}")
+            for it in chunk:
+                it["confidence"] = lp.CONFIDENCE_PENDING_VERIFY
+                it["correctionNote"] = "；".join(x for x in (it.get("correctionNote"), "未联网核验") if x)
+        progress.step()
 
-        lp.run_parallel(verify, chunks, lp.EXTRACT_WORKERS, propagate)
-
-    for u in usages:
-        _record_usage(u.get("model"), u.get("inputTokens"), u.get("outputTokens"), u.get("webSearches"))
+    lp.run_parallel(verify, chunks, lp.EXTRACT_WORKERS, propagate)
     output = {"groups": lp.regroup(items, group_meta)}
     if unparsed:
         output["unparsed"] = unparsed

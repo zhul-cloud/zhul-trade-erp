@@ -10,6 +10,7 @@ import {
 } from '@ant-design/icons';
 import { App, Button, Input, Modal, Popconfirm, Spin, Upload } from 'antd';
 import React, { useEffect, useState } from 'react';
+import { useTabDirty } from '@/components/PageTabs/hooks';
 import { Card } from '@/pages/inquiry/shared/components';
 import { MediaTile } from '@/pages/warehouse/components';
 import {
@@ -452,6 +453,18 @@ export const DocFilesCard: React.FC<{
   const [editing, setEditing] = useState<string>();
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState<Record<string, number>>({});
+  // 备注改了还没保存：关标签、刷新、返回或离开浏览器页面前先确认（audit UI-052）
+  const remarkDirty =
+    editing !== undefined && editing.trim() !== (remark ?? '').trim();
+  useTabDirty(remarkDirty);
+  useEffect(() => {
+    if (!remarkDirty) return undefined;
+    const warn = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+    };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [remarkDirty]);
   const list: DocFileGroup[] =
     groups ??
     (ownerType && onAttach && onRemove

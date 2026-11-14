@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.zhul.erp.common.exception.BizException;
 import com.zhul.erp.common.result.PageResult;
 import com.zhul.erp.framework.security.DataScopeResolver;
+import com.zhul.erp.framework.security.PermissionChecker;
 import com.zhul.erp.modules.aftersales.constants.AfterSalesConstants;
 import com.zhul.erp.modules.aftersales.dto.ConfirmReturnRequest;
 import com.zhul.erp.modules.aftersales.entity.AfterSalesDO;
@@ -96,6 +97,7 @@ public class RefundRequestService {
     private final SysConfigMapper sysConfigMapper;
     private final DocumentNumberService documentNumberService;
     private final DataScopeResolver dataScopeResolver;
+    private final PermissionChecker perm;
     private final CurrentUserResolver currentUser;
     private final InquiryLookups lookups;
     private final LogService logService;
@@ -441,6 +443,7 @@ public class RefundRequestService {
 
     @Transactional(rollbackFor = Exception.class)
     public RefundRequestVO remark(Long id, String remark) {
+        visible(id);
         RefundRequestDO q = lock(id);
         q.setRemark(trim(remark));
         mapper.updateById(q);
@@ -450,7 +453,7 @@ public class RefundRequestService {
 
     @Transactional(rollbackFor = Exception.class)
     public RefundRequestVO attach(Long id, Collection<Long> ids) {
-        require(id);
+        visible(id);
         attachments.attach(AttachmentService.REFUND_REQUEST, id, ids);
         docLogs.add(DocumentType.RA, id, "上传附件", ids.size() + " 个");
         return detail(id);
@@ -458,7 +461,7 @@ public class RefundRequestService {
 
     @Transactional(rollbackFor = Exception.class)
     public RefundRequestVO removeAttachment(Long id, Long attachmentId) {
-        require(id);
+        visible(id);
         attachments.remove(AttachmentService.REFUND_REQUEST, id, attachmentId);
         docLogs.add(DocumentType.RA, id, "删除附件", "");
         return detail(id);
@@ -518,7 +521,7 @@ public class RefundRequestService {
     }
 
     public RefundRequestVO detail(Long id) {
-        return toVos(List.of(require(id)), true).get(0);
+        return toVos(List.of(visible(id)), true).get(0);
     }
 
     // ---------------------------------------------------------------- 内部
@@ -690,6 +693,23 @@ public class RefundRequestService {
     private RefundRequestDO require(Long id) {
         RefundRequestDO q = id == null ? null : mapper.selectById(id);
         if (q == null || q.getDeletedAt() != null || !Objects.equals(q.getTenantId(), PiStore.tenantId())) {
+            throw new BizException("退款申请不存在");
+        }
+        return q;
+    }
+
+    /**
+     * 按 ID 读取、改备注、维护附件（audit SEC-013）：退款单菜单（财务）与审批人处理本租户全部申请；
+     * 只从订单、售后进来的申请侧按订单负责人的数据范围，与按订单列出申请一致
+     */
+    private RefundRequestDO visible(Long id) {
+        RefundRequestDO q = require(id);
+        if (perm.canAccessMenu(FinanceConstants.MENU_REFUND)
+                || perm.has(FinanceConstants.PERM_REFUND_REQUEST_APPROVE)) {
+            return q;
+        }
+        SalesOrderDO o = q.getSoId() == null ? null : orderMapper.selectById(q.getSoId());
+        if (o == null || !dataScopeResolver.current().canSee(o.getOwnerId())) {
             throw new BizException("退款申请不存在");
         }
         return q;

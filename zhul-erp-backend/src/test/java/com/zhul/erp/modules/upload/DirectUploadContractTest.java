@@ -2,12 +2,16 @@ package com.zhul.erp.modules.upload;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.zhul.erp.framework.storage.FileStorages;
+import com.zhul.erp.framework.tenant.TenantContext;
 import com.zhul.erp.modules.inquiry.InquiryContractSupport;
 import com.zhul.erp.modules.upload.service.DirectUploadService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDate;
@@ -16,6 +20,9 @@ import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -37,6 +44,7 @@ class DirectUploadContractTest extends InquiryContractSupport {
     private static final int PART = (int) DirectUploadService.PART_SIZE;
 
     @Autowired private FileStorages storages;
+    @Autowired private DirectUploadService service;
     private String admin;
 
     @BeforeEach
@@ -147,6 +155,89 @@ class DirectUploadContractTest extends InquiryContractSupport {
         body.put("attachments", List.of(Map.of("fileKey", key, "fileName", "a.pdf")));
         ok(call(json(post(INQ), write(body)), admin));
         assertFalse(Files.exists(privatePath(key)));
+    }
+
+    /** audit SEC-014：完成校验后分片地址作废，不能把已校验的文件改写成别的内容；认领的就是校验过的内容 */
+    @Test
+    void completedUpload_rejectsRewrite_andClaimKeepsVerifiedContent() throws Exception {
+        byte[] data = pdf(2048);
+        JsonNode prep = ok(prepare("报价单.pdf", data.length, null, admin));
+        String id = prep.path("uploadId").asText();
+        ok(putPart(prep, 1, data, admin));
+        String key = ok(complete(id, 1, admin)).path("fileKey").asText();
+
+        byte[] exe = new byte[data.length];
+        exe[0] = 'M';
+        exe[1] = 'Z';
+        assertNotEquals(0, putPart(prep, 1, exe, admin).path("code").asInt(), "完成后不能再写分片");
+        assertNotEquals(0, call(get(UP + "/" + id + "/parts?from=1&count=1"), admin).path("code").asInt(), "完成后不再签发分片地址");
+        assertTrue(Arrays.equals(data, Files.readAllBytes(privatePath(key))), "临时文件仍是校验过的内容");
+
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("customerId", customer("Delta", "Italy"));
+        body.put("source", 1);
+        body.put("attachments", List.of(Map.of("fileKey", key, "fileName", "报价单.pdf")));
+        long inquiry = ok(call(json(post(INQ), write(body)), admin)).path("id").asLong();
+        String saved = jdbc.queryForObject("select file_key from customer_inquiry_attachment where customer_inquiry_id = ?",
+                String.class, inquiry);
+        assertTrue(Arrays.equals(data, Files.readAllBytes(privatePath(saved))), "认领的是校验过的内容");
+    }
+
+    /** audit SEC-014：完成与在途的分片写入不交错，等写入结束后才校验；之后再写被拒绝 */
+    @Test
+    void complete_waitsForInFlightPartWrite_beforeVerifying() throws Exception {
+        byte[] data = pdf(4096);
+        JsonNode prep = ok(prepare("清单.pdf", data.length, null, admin));
+        String id = prep.path("uploadId").asText();
+        ok(putPart(prep, 1, data, admin));
+        String partToken = prep.path("parts").get(0).path("url").asText().replaceAll(".*[?&]t=", "");
+
+        byte[] rewrite = data.clone();
+        Arrays.fill(rewrite, 100, 4096, (byte) 'y');
+        CountDownLatch writing = new CountDownLatch(1);
+        CountDownLatch release = new CountDownLatch(1);
+        InputStream slow = new InputStream() {
+            private int i;
+
+            @Override
+            public int read() {
+                if (i == 1024) {
+                    writing.countDown();
+                    try {
+                        release.await(10, TimeUnit.SECONDS);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    }
+                }
+                return i < rewrite.length ? rewrite[i++] & 0xff : -1;
+            }
+        };
+        CompletableFuture<Void> write = CompletableFuture.runAsync(() -> asUploader(() -> service.receivePart(id, 1, partToken, slow)));
+        assertTrue(writing.await(5, TimeUnit.SECONDS), "分片正在写");
+        CompletableFuture<JsonNode> done = CompletableFuture.supplyAsync(() -> {
+            try {
+                return complete(id, 1, admin);
+            } catch (Exception e) {
+                throw new IllegalStateException(e);
+            }
+        });
+        Thread.sleep(300);
+        assertFalse(done.isDone(), "完成要等在途的分片写完");
+        release.countDown();
+        write.get(10, TimeUnit.SECONDS);
+        String key = ok(done.get(30, TimeUnit.SECONDS)).path("fileKey").asText();
+        assertTrue(Arrays.equals(rewrite, Files.readAllBytes(privatePath(key))), "校验的是写完之后的内容");
+        assertNotEquals(0, putPart(prep, 1, data, admin).path("code").asInt(), "完成后不能再写分片");
+        assertTrue(Arrays.equals(rewrite, Files.readAllBytes(privatePath(key))));
+    }
+
+    private void asUploader(Runnable action) {
+        SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken("it_up_admin", null, List.of()));
+        try {
+            TenantContext.runAs(0, action);
+        } finally {
+            SecurityContextHolder.clearContext();
+        }
     }
 
     @Test

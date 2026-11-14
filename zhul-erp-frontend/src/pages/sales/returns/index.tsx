@@ -5,6 +5,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { CustomerCell } from '@/components/DocFields';
 import { ModelQtyCell } from '@/components/DocFields/DocPage';
 import SourceNos, { useUrlFilter } from '@/components/DocFields/SourceNos';
+import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { TagList } from '@/pages/inquiry/customer-inquiry/ModelCells';
 import { Card, Pill } from '@/pages/inquiry/shared/components';
 import { auditColumns } from '@/pages/purchase/components';
@@ -75,6 +76,8 @@ const SalesReturnsPage: React.FC = () => {
   useEffect(() => {
     load();
   }, [load]);
+  // 在详情里确认、作废后返回，列表与计数跟着更新（audit UI-053）
+  useOnReactivate(load);
 
   const searchCust = async (kw: string) => {
     try {
