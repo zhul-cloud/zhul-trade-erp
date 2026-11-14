@@ -3,7 +3,7 @@
 -- 2. sop_stage 加「质量检查项」列，导入供应链作战地图 25 个节点的作战卡（板块 6，阶段编码加 SC- 前缀，避免与客户跟进的 G4、G5 重名）
 -- 3. 一级菜单「供应链管理」（排在采购管理之后）与两个页面、四个按钮权限；系统设置「供应证据有效天数」
 -- 4. 加进含「采购订单」菜单的套餐，授给内置租户管理员，其他角色由管理员授权
--- 操作日志沿用 document_log（单据类型 SC_DEMAND、SC_GAP_PROJECT），不另建表。
+-- 操作日志沿用 document_log（单据类型 SC-需求对象、GP-专项），不另建表。
 -- 回退见 sql/build/rollback/V1.5.34__supply_chain_phase1_rollback.sql
 
 CREATE TABLE `sc_demand_signal` (
@@ -131,7 +131,7 @@ CREATE TABLE `sc_followup_log` (
     `id`               bigint        NOT NULL AUTO_INCREMENT COMMENT '主键',
     `tenant_id`        int(11)       NOT NULL DEFAULT 0  COMMENT '租户ID',
     `record_type`      tinyint(2)    NOT NULL DEFAULT 1  COMMENT '记录类型（1-人工处理、2-系统登记）',
-    `source_type`      tinyint(2)    NOT NULL DEFAULT 0  COMMENT '系统登记来源（0-人工、1-询价回价、2-询价无货、3-撤回回价）',
+    `source_type`      tinyint(2)    NOT NULL DEFAULT 0  COMMENT '系统登记来源（0-人工、1-询价回价、2-询价无货、3-撤回回价、4-系统提醒）',
     `source_id`        bigint        NULL                COMMENT '系统登记的来源ID（询价记录ID）；人工处理为 NULL',
     `source_doc_no`    varchar(32)   NOT NULL DEFAULT '' COMMENT '来源单号（询价任务编号）',
     `content`          varchar(1000) NOT NULL DEFAULT '' COMMENT '做了什么 / 系统登记内容',

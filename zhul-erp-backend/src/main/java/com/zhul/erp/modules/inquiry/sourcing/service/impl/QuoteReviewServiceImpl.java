@@ -50,6 +50,7 @@ public class QuoteReviewServiceImpl implements QuoteReviewService {
     private static final String MENU = "分配工作台";
 
     private final SourcingTaskMapper taskMapper;
+    private final org.springframework.context.ApplicationEventPublisher events;
     private final SourcingQuoteMapper quoteMapper;
     private final InquiryItemMapper itemMapper;
     private final CustomerInquiryMapper inquiryMapper;
@@ -139,6 +140,7 @@ public class QuoteReviewServiceImpl implements QuoteReviewService {
         LocalDateTime now = LocalDateTime.now();
         String operator = operatorName(me);
         List<Long> itemIds = new ArrayList<>(req.getItems().size());
+        List<Long> approved = new ArrayList<>();
         for (ReviewApproveRequest.Item r : req.getItems()) {
             InquiryItemDO item = item(task, r.getItemId());
             List<SourcingQuoteDO> pending = pending(taskId, r.getItemId(), r.getQuotedBy(), item);
@@ -176,6 +178,7 @@ public class QuoteReviewServiceImpl implements QuoteReviewService {
                         .set(SourcingQuoteDO::getReviewNote, v.getValue().length() > 200 ? v.getValue().substring(0, 200) : v.getValue())
                         .set(SourcingQuoteDO::getRecommended, 0));
             }
+            kept.forEach(q -> approved.add(q.getId()));
             for (SourcingQuoteDO q : kept) {
                 // 价格、货况、货期等内容一律不动，只改状态与推荐
                 quoteMapper.update(null, reviewed(q.getId(), me, now)
@@ -196,6 +199,8 @@ public class QuoteReviewServiceImpl implements QuoteReviewService {
         progress.refreshItems(itemIds);
         progress.refreshTask(taskId);
         progress.refreshInquiry(task.getCustomerInquiryId());
+        events.publishEvent(new com.zhul.erp.modules.inquiry.sourcing.event.SourcingQuoteEvent(
+                task.getTenantId(), taskId, approved, false));
     }
 
     /** 退回：待审核的记录回到兼职的草稿并带上退回原因；上次通过的版本不动，继续对业务员有效 */

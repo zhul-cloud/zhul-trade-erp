@@ -12,7 +12,7 @@ DELETE FROM `sop_stage` WHERE `board` = 6;
 ALTER TABLE `sop_stage`
     DROP COLUMN `quality_checks`,
     MODIFY COLUMN `board` tinyint(2) NOT NULL DEFAULT 2 COMMENT '板块（1-主动开发、2-商机成交、3-订单履约、4-售后评价、5-客户经营）';
-DELETE FROM `document_log` WHERE `doc_type` IN ('SC_DEMAND', 'SC_GAP_PROJECT');
+DELETE FROM `document_log` WHERE `doc_type` IN ('SC', 'GP');
 DROP TABLE `sc_gap_project_item`;
 DROP TABLE `sc_gap_project`;
 DROP TABLE `sc_followup_log`;
