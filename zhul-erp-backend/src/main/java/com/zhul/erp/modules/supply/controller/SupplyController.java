@@ -5,6 +5,7 @@ import com.zhul.erp.common.result.PageResult;
 import com.zhul.erp.modules.supply.dto.BoardVOs;
 import com.zhul.erp.modules.supply.dto.DemandDetailVO;
 import com.zhul.erp.modules.supply.dto.DemandVO;
+import com.zhul.erp.modules.supply.dto.DevVOs;
 import com.zhul.erp.modules.supply.dto.MatrixVO;
 import com.zhul.erp.modules.supply.dto.ProjectVO;
 import com.zhul.erp.modules.supply.dto.SignalVO;
@@ -15,8 +16,10 @@ import com.zhul.erp.modules.supply.service.CoverageService;
 import com.zhul.erp.modules.supply.service.DemandDetailService;
 import com.zhul.erp.modules.supply.service.DemandService;
 import com.zhul.erp.modules.supply.service.GapProjectService;
+import com.zhul.erp.modules.supply.service.SupplierDevService;
 import com.zhul.erp.modules.supply.service.SupplyBoardService;
 import com.zhul.erp.modules.supply.service.SupplyTeamService;
+import com.zhul.erp.framework.security.PermissionChecker;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -32,7 +35,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.Map;
 
 /**
- * 供应链管理第一期（OpenSpec supply-chain-phase1-demand-coverage）。
+ * 供应链管理第一期（OpenSpec supply-chain-phase1-demand-coverage）与第二期供应商开发（supply-chain-phase2-supplier-development）。
  * 查看要求能访问「供应链跟进」或「覆盖矩阵」菜单；写操作按四个按钮权限控制；供应商与价格另受「查看货源信息」控制（服务层处理）。
  */
 @RestController
@@ -47,6 +50,7 @@ public class SupplyController {
     private static final String TEAM = FOLLOWUP + " and @perm.has('supply:followup:team')";
     private static final String PROJECT = ANY + " and @perm.has('supply:project:edit')";
     private static final String COVERAGE = ANY + " and @perm.has('supply:coverage:edit')";
+    private static final String DEV = ANY + " and @perm.has('supply:dev:edit')";
 
     private final SupplyBoardService boardService;
     private final DemandService demandService;
@@ -55,6 +59,8 @@ public class SupplyController {
     private final GapProjectService projectService;
     private final SupplyTeamService teamService;
     private final CoverageMatrixService matrixService;
+    private final SupplierDevService devService;
+    private final PermissionChecker perm;
 
     // ---------------------------------------------------------------- 供应链跟进
 
@@ -62,7 +68,14 @@ public class SupplyController {
     @GetMapping("/overview")
     @PreAuthorize(FOLLOWUP)
     public Result<BoardVOs.Overview> overview(@RequestParam(required = false) Long ownerId) {
-        return Result.ok(boardService.overview(ownerId));
+        BoardVOs.Overview o = boardService.overview(ownerId);
+        o.setDev(devService.overview(ownerId));
+        o.setCanDev(perm.has("supply:dev:edit"));
+        DevVOs.Today t = devService.today();
+        o.setOverdue(o.getOverdue() + t.getOverdue());
+        o.setDueToday(o.getDueToday() + t.getDueToday());
+        o.setTodayModels(o.getTodayModels() + t.getOverdue() + t.getDueToday());
+        return Result.ok(o);
     }
 
     /** 分组列表：board 为 intel（需求情报）或 cover（供应覆盖） */
@@ -87,7 +100,12 @@ public class SupplyController {
     @GetMapping("/today")
     @PreAuthorize(FOLLOWUP)
     public Result<BoardVOs.Today> today() {
-        return Result.ok(boardService.today());
+        BoardVOs.Today t = boardService.today();
+        DevVOs.Today d = devService.today();
+        t.setOverdue(t.getOverdue() + d.getOverdue());
+        t.setDueToday(t.getDueToday() + d.getDueToday());
+        t.setDevItems(d.getItems());
+        return Result.ok(t);
     }
 
     /** 作战卡：作战地图节点（C1–G5）→ 内容 */
@@ -226,7 +244,21 @@ public class SupplyController {
     public Result<ProjectVO> project(@PathVariable Long id) {
         ProjectVO v = projectService.detail(id);
         v.setRecords(detailService.records(projectService.itemIds(id)));
+        DevVOs.ProjectDev dev = devService.projectDev(id);
+        if (dev != null) {
+            // 有型号时还要型号全部已解决才提示结束
+            dev.setSuggestClose(dev.isSuggestClose() && v.getSolved() >= v.getTotal());
+        }
+        v.setDev(dev);
         return Result.ok(v);
+    }
+
+    /** 加上、修改或去掉开发供应商目标 */
+    @PutMapping("/projects/{id}/target")
+    @PreAuthorize(PROJECT)
+    public Result<Void> projectTarget(@PathVariable Long id, @Valid @RequestBody SupplyRequests.Target req) {
+        projectService.setTarget(id, req);
+        return Result.ok();
     }
 
     @PutMapping("/projects/{id}/items")
@@ -254,6 +286,9 @@ public class SupplyController {
                                    @RequestParam(required = false) Integer priority,
                                    @RequestParam(required = false) Long ownerId,
                                    @RequestParam(required = false) Boolean gapsOnly) {
+        if ("supplier".equals(mode)) {
+            return Result.ok(devService.matrix(parentCategoryId, brandId, priority, gapsOnly));
+        }
         return Result.ok(matrixService.matrix(mode, period, parentCategoryId, brandId, priority, ownerId, gapsOnly));
     }
 
@@ -269,5 +304,71 @@ public class SupplyController {
                                                      @RequestParam(defaultValue = "20") int size) {
         var p = matrixService.models(brandId, categoryId, coverage, priority, keyword, all, page, size);
         return Result.ok(PageResult.of(p.getTotal(), p.getRecords()));
+    }
+
+    // ---------------------------------------------------------------- 供应商开发（第二期）
+
+    /** 供应商开发板块的分组列表；stage 为 gap（默认）、todo、doing、done、all；heat 1–3；source 为 demand 或 expansion */
+    @GetMapping("/dev/groups")
+    @PreAuthorize(FOLLOWUP)
+    public Result<DevVOs.GroupPage> devGroups(@RequestParam(required = false) String stage,
+                                              @RequestParam(required = false) Long brandId,
+                                              @RequestParam(required = false) Long parentCategoryId,
+                                              @RequestParam(required = false) Long categoryId,
+                                              @RequestParam(required = false) Integer heat,
+                                              @RequestParam(required = false) String source,
+                                              @RequestParam(required = false) Long ownerId,
+                                              @RequestParam(required = false) String keyword,
+                                              @RequestParam(defaultValue = "1") int page,
+                                              @RequestParam(defaultValue = "20") int size) {
+        return Result.ok(devService.groups(new SupplierDevService.Filter(stage, brandId, parentCategoryId, categoryId, heat,
+                source, ownerId, keyword), page, Math.min(size, 100)));
+    }
+
+    /** 弹窗用的范围信息 */
+    @GetMapping("/dev/scope")
+    @PreAuthorize(ANY)
+    public Result<DevVOs.Scope> devScope(@RequestParam Long brandId, @RequestParam(required = false) Long categoryId) {
+        return Result.ok(devService.scope(brandId, categoryId));
+    }
+
+    @PostMapping("/dev/expansions")
+    @PreAuthorize(DEV)
+    public Result<Long> addExpansion(@Valid @RequestBody SupplyRequests.Expansion req) {
+        return Result.ok(devService.addExpansion(req));
+    }
+
+    @PutMapping("/dev/expansions/{id}")
+    @PreAuthorize(DEV)
+    public Result<Void> updateExpansion(@PathVariable Long id, @Valid @RequestBody SupplyRequests.ExpansionUpdate req) {
+        devService.updateExpansion(id, req);
+        return Result.ok();
+    }
+
+    @PostMapping("/dev/expansions/{id}/remove")
+    @PreAuthorize(DEV)
+    public Result<Void> removeExpansion(@PathVariable Long id, @Valid @RequestBody SupplyRequests.Reason req) {
+        devService.removeExpansion(id, req);
+        return Result.ok();
+    }
+
+    @PostMapping("/projects/{id}/candidates")
+    @PreAuthorize(DEV)
+    public Result<Long> addCandidate(@PathVariable Long id, @Valid @RequestBody SupplyRequests.Candidate req) {
+        return Result.ok(devService.addCandidate(id, req));
+    }
+
+    @PostMapping("/candidates/{id}/link")
+    @PreAuthorize(DEV + " and @perm.has('inquiry:supplier:view')")
+    public Result<Void> linkCandidate(@PathVariable Long id, @Valid @RequestBody SupplyRequests.Link req) {
+        devService.link(id, req);
+        return Result.ok();
+    }
+
+    /** 候选记一次处理 */
+    @PostMapping("/candidates/records")
+    @PreAuthorize(DEV)
+    public Result<DevVOs.RecordResult> candidateRecord(@Valid @RequestBody SupplyRequests.CandidateRecord req) {
+        return Result.ok(devService.record(req));
     }
 }

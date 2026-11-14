@@ -21,8 +21,11 @@ public class ScFollowupLogDO {
     private Integer sourceType;
     private Long sourceId;
     private String sourceDocNo;
+    /** 对象类型（1-型号、2-候选供应商） */
+    private Integer objectType;
     private String content;
     private String demandIds;
+    private String candidateIds;
     private String statusChanges;
     private Long gapProjectId;
     private String nextAction;

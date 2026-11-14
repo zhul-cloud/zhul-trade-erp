@@ -36,7 +36,10 @@ public final class BoardVOs {
         private boolean canProject;
         private boolean canCoverage;
         private boolean canSeeSupplier;
+        private boolean canDev;
         private int evidenceDays;
+        /** 供应商开发板块 */
+        private DevVOs.Overview dev;
     }
 
     /** 一组：品牌 · 品类 */
@@ -96,6 +99,8 @@ public final class BoardVOs {
         private int weekRest;
         private List<TodayCard> overdueCards;
         private List<TodayCard> todayCards;
+        /** 供应商开发的待办（候选下一步、开发任务超期、系统提醒），数字已计入上面的 overdue / dueToday */
+        private List<DevVOs.TodayItem> devItems;
     }
 
     /** 作战卡 */

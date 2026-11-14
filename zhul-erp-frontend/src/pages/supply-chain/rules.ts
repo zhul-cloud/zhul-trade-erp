@@ -1,5 +1,15 @@
 import dayjs, { type Dayjs } from 'dayjs';
-import { COVER, type Demand, PATHS, type Signal, SRC } from './service';
+import {
+  CAND,
+  type Candidate,
+  COVER,
+  type Demand,
+  type DevGroup,
+  type DevSupplier,
+  PATHS,
+  type Signal,
+  SRC,
+} from './service';
 
 /**
  * 下一步的推荐日期（与后端 DemandRules.suggestNextDate 一致）：无渠道、有线索未验证 3 天后，需确认 2 天后，
@@ -104,3 +114,53 @@ export const signalText = (s: Signal) => {
     .filter(Boolean)
     .join(' · ');
 };
+
+// ---------------------------------------------------------------- 第二期：供应商开发
+
+/** 合格依据的说明：「询价 11-08」「采购订单 11-04」 */
+export const evidenceText = (type?: number, date?: string) =>
+  `${type === 2 ? '采购订单' : '询价'} ${md(date)}`;
+
+/** 候选阶段的颜色 */
+export const candidateTone = (stage: number) =>
+  stage === CAND.QUALIFIED
+    ? ('green' as const)
+    : stage === CAND.ABANDONED
+      ? ('mute' as const)
+      : stage === CAND.QUOTED
+        ? ('orange' as const)
+        : stage === CAND.CONTACTED
+          ? ('accent' as const)
+          : ('gray' as const);
+
+/** 范围内合格、但不是本开发任务候选的供应商 */
+export const otherQualified = (
+  g: Pick<DevGroup, 'qualifiedSuppliers' | 'candidates'>,
+): DevSupplier[] => {
+  const mine = new Set(g.candidates.map((c) => c.supplierId).filter(Boolean));
+  return g.qualifiedSuppliers.filter((s) => !mine.has(s.id));
+};
+
+/**
+ * 候选记处理后的阶段（与后端 SupplierDevService.targetStage 一致）：不改时保持；已合格的只能改为已放弃。
+ */
+export const candidateTargetStage = (current: number, requested?: number) => {
+  if (requested == null) return current;
+  if (current === CAND.QUALIFIED && requested !== CAND.ABANDONED)
+    return current;
+  return requested;
+};
+
+/** 所选候选记完处理后都是合格或已放弃时，下一步可以不填 */
+export const candidateNextOptional = (
+  candidates: Pick<Candidate, 'stage'>[],
+  requested?: number,
+) =>
+  candidates.length > 0 &&
+  candidates.every((c) => {
+    const to = candidateTargetStage(c.stage, requested);
+    return to === CAND.QUALIFIED || to === CAND.ABANDONED;
+  });
+
+/** 建开发任务的默认目标家数：等于缺口，最少 1 家 */
+export const defaultTarget = (gap: number) => Math.min(10, Math.max(1, gap));

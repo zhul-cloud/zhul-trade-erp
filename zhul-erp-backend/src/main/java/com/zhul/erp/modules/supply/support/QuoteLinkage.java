@@ -44,6 +44,8 @@ import java.util.concurrent.atomic.AtomicInteger;
  * 事务边界：询价事务提交后（AFTER_COMMIT）交给命名线程池 supply-quote-pool，在新事务里用 {@link TenantContext#runAs} 处理；
  * 供应链处理失败只记日志，不影响回价。处理记录按「来源类型 + 询价记录 id」唯一，重复触发不重复写；
  * 需求对象还不存在时跳过，由每天的定时任务建好后调用 {@link #backfill} 补登。
+ * <p>
+ * 第二期：处理完询价记录后再按证据判定开发任务的候选是否合格（{@link CandidateQualifier}，同一租户上下文、单独事务）。
  */
 @Slf4j
 @Component
@@ -61,12 +63,13 @@ public class QuoteLinkage {
     private final InquiryLookups inquiryLookups;
     private final SupplyLookups lookups;
     private final TransactionTemplate tx;
+    private final CandidateQualifier qualifier;
     private final ThreadPoolExecutor pool;
 
     public QuoteLinkage(SupplySourceMapper sourceMapper, ScDemandMapper demandMapper, ScFollowupLogMapper logMapper,
                         DemandRegistry registry, BrandResolver brandResolver, SignalImporter importer, DemandRecalc recalc,
                         CoverageService coverageService, SupplierMapper supplierMapper, InquiryLookups inquiryLookups,
-                        SupplyLookups lookups, TransactionTemplate tx) {
+                        SupplyLookups lookups, TransactionTemplate tx, CandidateQualifier qualifier) {
         this.sourceMapper = sourceMapper;
         this.demandMapper = demandMapper;
         this.logMapper = logMapper;
@@ -79,6 +82,7 @@ public class QuoteLinkage {
         this.inquiryLookups = inquiryLookups;
         this.lookups = lookups;
         this.tx = tx;
+        this.qualifier = qualifier;
         AtomicInteger seq = new AtomicInteger();
         this.pool = new ThreadPoolExecutor(1, 2, 60, TimeUnit.SECONDS, new ArrayBlockingQueue<>(1000), r -> {
             Thread t = new Thread(r, "supply-quote-pool-" + seq.incrementAndGet());
@@ -103,7 +107,10 @@ public class QuoteLinkage {
     /** 线程池里执行；队列满被丢弃的由每天的补登兜底 */
     public void handleAsync(SourcingQuoteEvent e) {
         try {
-            TenantContext.runAs(e.tenantId(), () -> handle(e.quoteIds(), e.withdrawn()));
+            TenantContext.runAs(e.tenantId(), () -> {
+                handle(e.quoteIds(), e.withdrawn());
+                qualifier.refresh(LocalDate.now());
+            });
         } catch (RuntimeException ex) {
             log.error("供应链询价联动失败，tenantId={}，taskId={}", e.tenantId(), e.taskId(), ex);
         }

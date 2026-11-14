@@ -11,9 +11,11 @@ import com.zhul.erp.modules.supply.constants.SupplyConstants;
 import com.zhul.erp.modules.supply.dto.ProjectVO;
 import com.zhul.erp.modules.supply.dto.SupplyRequests;
 import com.zhul.erp.modules.supply.entity.ScDemandDO;
+import com.zhul.erp.modules.supply.entity.ScDevCandidateDO;
 import com.zhul.erp.modules.supply.entity.ScGapProjectDO;
 import com.zhul.erp.modules.supply.entity.ScGapProjectItemDO;
 import com.zhul.erp.modules.supply.repository.ScDemandMapper;
+import com.zhul.erp.modules.supply.repository.ScDevCandidateMapper;
 import com.zhul.erp.modules.supply.repository.ScGapProjectItemMapper;
 import com.zhul.erp.modules.supply.repository.ScGapProjectMapper;
 import com.zhul.erp.modules.supply.support.DemandAssembler;
@@ -38,6 +40,9 @@ import java.util.Set;
 /**
  * 专项（spec supply-chain/gap-project；design 决策 14）：范围为品牌 + 二级品类（品类可空表示全部品类），
  * 进度按型号的覆盖状态自动算（需确认、可直接报价算已解决）。同一范围同时只有一个进行中的专项，由 active_scope 唯一键保证。
+ * <p>
+ * 第二期（spec supply-chain/gap-project「专项的开发供应商目标」）：supplier_target 有值即为开发任务，须选二级品类、目标 1–10 家；
+ * 带开发目标时可以不含型号。供应商进度只计本专项下合格的候选。
  */
 @Service
 @RequiredArgsConstructor
@@ -46,6 +51,7 @@ public class GapProjectService {
     private final ScGapProjectMapper projectMapper;
     private final ScGapProjectItemMapper itemMapper;
     private final ScDemandMapper demandMapper;
+    private final ScDevCandidateMapper candidateMapper;
     private final DemandAssembler assembler;
     private final SupplyBoardService boardService;
     private final SupplyLookups lookups;
@@ -85,9 +91,14 @@ public class GapProjectService {
         if (req.getDueDate().isBefore(LocalDate.now())) {
             throw new BizException("截止日期不能早于今天");
         }
-        List<ScDemandDO> items = validItems(req.getBrandId(), req.getCategoryId(), req.getDemandIds());
-        if (items.isEmpty()) {
-            throw new BizException("至少包含一个型号");
+        Integer target = req.getSupplierTarget();
+        if (target != null) {
+            checkTarget(req.getCategoryId(), target);
+        }
+        List<ScDemandDO> items = validItems(req.getBrandId(), req.getCategoryId(),
+                req.getDemandIds() == null ? List.of() : req.getDemandIds());
+        if (items.isEmpty() && target == null) {
+            throw new BizException("至少包含一个型号，或者带开发供应商目标");
         }
         ScGapProjectDO p = new ScGapProjectDO();
         p.setTenantId(PiStore.tenantId());
@@ -97,6 +108,7 @@ public class GapProjectService {
         p.setGoal(req.getGoal().trim());
         p.setOwnerId(req.getOwnerId());
         p.setDueDate(req.getDueDate());
+        p.setSupplierTarget(target);
         p.setStatus(SupplyConstants.PROJECT_ACTIVE);
         p.setActiveScope(scope(req.getBrandId(), req.getCategoryId()));
         try {
@@ -105,7 +117,9 @@ public class GapProjectService {
             throw new BizException("这个范围已有进行中的专项", e);
         }
         items.forEach(d -> addItem(p.getId(), d.getId()));
-        docLogs.add(DocumentType.GP, p.getId(), "建立", p.getName() + "，含 " + items.size() + " 个型号，截止 " + p.getDueDate());
+        docLogs.add(DocumentType.GP, p.getId(), "建立", p.getName()
+                + (items.isEmpty() ? "" : "，含 " + items.size() + " 个型号")
+                + (target == null ? "" : "，开发供应商 " + target + " 家") + "，截止 " + p.getDueDate());
         return p.getId();
     }
 
@@ -117,8 +131,8 @@ public class GapProjectService {
                 : validItems(p.getBrandId(), p.getCategoryId() == 0 ? null : p.getCategoryId(), req.getAdd());
         List<Long> remove = req.getRemove() == null ? List.of() : req.getRemove().stream().filter(current::contains).toList();
         int after = current.size() - remove.size() + (int) add.stream().filter(d -> !current.contains(d.getId())).count();
-        if (after <= 0) {
-            throw new BizException("专项至少包含一个型号");
+        if (after <= 0 && p.getSupplierTarget() == null) {
+            throw new BizException("专项至少包含一个型号，或者带开发供应商目标");
         }
         int added = 0;
         for (ScDemandDO d : add) {
@@ -134,6 +148,43 @@ public class GapProjectService {
                     .set(ScGapProjectItemDO::getDeletedAt, LocalDateTime.now()));
         }
         docLogs.add(DocumentType.GP, id, "调整型号", "加入 " + added + " 个，移出 " + remove.size() + " 个");
+    }
+
+    /** 加上、修改或去掉开发供应商目标；去掉时候选保留但不再显示进度 */
+    @Transactional
+    public void setTarget(Long id, SupplyRequests.Target req) {
+        ScGapProjectDO p = open(id);
+        Integer target = req.getTarget();
+        if (target != null) {
+            checkTarget(p.getCategoryId() == 0 ? null : p.getCategoryId(), target);
+        } else if (itemIds(id).isEmpty()) {
+            throw new BizException("专项至少包含一个型号，或者带开发供应商目标");
+        }
+        LambdaUpdateWrapper<ScGapProjectDO> update = new LambdaUpdateWrapper<ScGapProjectDO>()
+                .eq(ScGapProjectDO::getId, id)
+                .set(ScGapProjectDO::getSupplierTarget, target)
+                .set(ScGapProjectDO::getUpdateTime, LocalDateTime.now());
+        // 目标说明是建立时自动生成的（前端不填时），跟着目标家数一起改
+        if (target != null && p.getSupplierTarget() != null && defaultGoal(p.getSupplierTarget()).equals(p.getGoal())) {
+            update.set(ScGapProjectDO::getGoal, defaultGoal(target));
+        }
+        projectMapper.update(null, update);
+        String from = p.getSupplierTarget() == null ? "无" : p.getSupplierTarget() + " 家";
+        docLogs.add(DocumentType.GP, id, "开发目标", from + " → " + (target == null ? "无" : target + " 家"));
+    }
+
+    /** 开发任务不填目标说明时的默认文字，与前端建专项弹窗一致 */
+    static String defaultGoal(int target) {
+        return "开发 " + target + " 家合格供应商";
+    }
+
+    private void checkTarget(Long categoryId, int target) {
+        if (categoryId == null || !lookups.isLevel2(categoryId)) {
+            throw new BizException("开发供应商须选细分品类，合格家数按品牌 × 细分品类计算");
+        }
+        if (target < 1 || target > SupplyConstants.DEV_TARGET_MAX) {
+            throw new BizException("目标家数须在 1–" + SupplyConstants.DEV_TARGET_MAX + " 家之间");
+        }
     }
 
     @Transactional
@@ -205,6 +256,8 @@ public class GapProjectService {
         Map<Long, String> cats = lookups.categoryNames(rows.stream().map(ScGapProjectDO::getCategoryId).toList());
         Map<Long, String> users = inquiryLookups.userNames(rows.stream().map(ScGapProjectDO::getOwnerId).toList());
         LocalDate today = LocalDate.now();
+        Map<Long, Integer> devQualified = devQualified(rows.stream().filter(p -> p.getSupplierTarget() != null)
+                .map(ScGapProjectDO::getId).toList());
         List<ProjectVO> out = new ArrayList<>(rows.size());
         for (ScGapProjectDO p : rows) {
             ProjectVO v = new ProjectVO();
@@ -215,12 +268,29 @@ public class GapProjectService {
             int[] pr = progress(p.getId());
             v.setSolved(pr[0]);
             v.setTotal(pr[1]);
+            v.setDevQualified(devQualified.getOrDefault(p.getId(), 0));
             if (p.getStatus() == SupplyConstants.PROJECT_ACTIVE && p.getDueDate().isBefore(today)) {
                 v.setOverdueDays((int) ChronoUnit.DAYS.between(p.getDueDate(), today));
             }
             v.setCanClose(p.getStatus() == SupplyConstants.PROJECT_ACTIVE && canClose(p));
             out.add(v);
         }
+        return out;
+    }
+
+    /** 专项下合格（已关联供应商库）的候选数 */
+    private Map<Long, Integer> devQualified(List<Long> projectIds) {
+        Map<Long, Integer> out = new java.util.HashMap<>();
+        if (projectIds.isEmpty()) {
+            return out;
+        }
+        candidateMapper.selectList(new LambdaQueryWrapper<ScDevCandidateDO>()
+                        .select(ScDevCandidateDO::getProjectId)
+                        .in(ScDevCandidateDO::getProjectId, projectIds)
+                        .eq(ScDevCandidateDO::getStage, SupplyConstants.CAND_QUALIFIED)
+                        .gt(ScDevCandidateDO::getSupplierId, 0L)
+                        .isNull(ScDevCandidateDO::getDeletedAt))
+                .forEach(c -> out.merge(c.getProjectId(), 1, Integer::sum));
         return out;
     }
 

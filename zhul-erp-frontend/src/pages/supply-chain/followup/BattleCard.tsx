@@ -15,6 +15,9 @@ export const STAGE_NODES: Record<string, string[]> = {
   '2': ['V3', 'V4'],
   '3': ['Q1', 'Q2', 'Q3'],
   '4': ['M4'],
+  'dev:todo': ['M5'],
+  'dev:doing': ['V1', 'V2'],
+  'dev:done': ['M4'],
 };
 
 export const STAGE_NAMES: Record<string, string> = {
@@ -23,6 +26,9 @@ export const STAGE_NAMES: Record<string, string> = {
   review: '待复核',
   paused: '暂不覆盖',
   ...COVER_NAMES,
+  'dev:todo': '待开发',
+  'dev:doing': '开发中',
+  'dev:done': '已达标',
 };
 
 let cache: Promise<Record<string, BattleCardData>> | null = null;

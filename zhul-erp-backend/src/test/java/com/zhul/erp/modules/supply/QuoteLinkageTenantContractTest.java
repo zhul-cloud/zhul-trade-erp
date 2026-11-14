@@ -47,7 +47,7 @@ class QuoteLinkageTenantContractTest extends IntegrationTestBase {
 
     @AfterEach
     void cleanup() {
-        for (String t : List.of("sc_followup_log", "sc_demand", "sc_demand_signal", "sourcing_quote", "sourcing_task",
+        for (String t : List.of("sc_dev_candidate", "sc_gap_project", "supplier", "sc_followup_log", "sc_demand", "sc_demand_signal", "sourcing_quote", "sourcing_task",
                 "inquiry_item")) {
             jdbc.update("delete from " + t + " where tenant_id = ?", TENANT);
         }
@@ -69,6 +69,24 @@ class QuoteLinkageTenantContractTest extends IntegrationTestBase {
         inOtherThread(true);
         assertEquals(1, logs(3), "登记一条撤回处理记录");
         assertEquals(1, coverage(), "没有其他有效证据，改回建议状态");
+    }
+
+    /** 第二期：同一个线程池回调里，按事件租户把已关联供应商库的候选标为合格（tasks 4.4） */
+    @Test
+    void candidateQualifiedUnderEventTenant() throws Exception {
+        jdbc.update("insert into supplier (tenant_id, supplier_code, name, status) values (?, 'IT-SC-SUP', 'IT候选甲', 1)", TENANT);
+        long supplier = jdbc.queryForObject("select id from supplier where tenant_id = ?", Long.class, TENANT);
+        jdbc.update("update sourcing_quote set supplier_id = ? where id = ?", supplier, quoteId);
+        jdbc.update("insert into sc_gap_project (tenant_id, name, brand_id, category_id, goal, owner_id, due_date, supplier_target,"
+                + " status, active_scope) values (?, 'IT开发', ?, 0, 'x', 0, curdate(), 1, 1, ?)", TENANT, BRAND, BRAND + ":0");
+        long project = jdbc.queryForObject("select id from sc_gap_project where tenant_id = ?", Long.class, TENANT);
+        jdbc.update("insert into sc_dev_candidate (tenant_id, project_id, supplier_id, link_key, name, stage) values (?, ?, ?, ?,"
+                + " 'IT候选甲', 3)", TENANT, project, supplier, project + ":" + supplier);
+        inOtherThread(false);
+        assertEquals(4, jdbc.queryForObject("select stage from sc_dev_candidate where tenant_id = ?", Integer.class, TENANT),
+                "回价后候选自动合格");
+        assertEquals(1, jdbc.queryForObject("select count(*) from sc_followup_log where tenant_id = ? and object_type = 2",
+                Integer.class, TENANT), "写一条候选的系统处理记录");
     }
 
     private void inOtherThread(boolean withdrawn) throws InterruptedException {
