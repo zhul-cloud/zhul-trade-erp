@@ -498,6 +498,115 @@ class ReimbursementContractTest extends SalesContractSupport {
         assertFalse(call(get(FE), lin).path("code").asInt() == 0);
     }
 
+    /** change finance-expense-docs：费用单、报销单、其他收入的详情（关联单据、日志、可编辑）与备注附件，生效后金额类字段不能改 */
+    @Test
+    void expenseReimbursementIncomeDocs_detailLogs_remarkAttachments_moneyLocked() throws Exception {
+        Map<String, Object> body = new HashMap<>();
+        body.put("name", "样品快递费");
+        body.put("occurDate", LocalDate.now().toString());
+        body.put("payeeType", 4);
+        body.put("payeeName", "顺丰");
+        body.put("currencyCode", "CNY");
+        body.put("amount", 35);
+        body.put("method", 2);
+        body.put("advanceUserId", BUYER_LIN);
+        body.put("allocations", List.of());
+        body.put("attachmentIds", List.of(upload("EXPENSE", admin)));
+        JsonNode fe = ok(call(json(post(FE), write(body)), admin));
+        long feId = fe.path("id").asLong();
+
+        // 费用单：金额、日期、收款方不能改；名称可改并记日志
+        body.put("amount", 36);
+        assertEquals("金额、币种、收款方、付款方式与发生日期不能修改，录错请作废后重新登记",
+                fail(call(json(put(FE + "/" + feId), write(body)), admin)).path("message").asText());
+        body.put("amount", 35);
+        body.put("occurDate", LocalDate.now().minusDays(1).toString());
+        assertEquals("金额、币种、收款方、付款方式与发生日期不能修改，录错请作废后重新登记",
+                fail(call(json(put(FE + "/" + feId), write(body)), admin)).path("message").asText());
+        body.put("occurDate", LocalDate.now().toString());
+        body.put("name", "样品寄送");
+        ok(call(json(put(FE + "/" + feId), write(body)), admin));
+        JsonNode feDoc = ok(call(get(FE + "/" + feId), admin));
+        assertTrue(feDoc.path("editable").asBoolean());
+        assertEquals("修改", feDoc.path("logs").get(0).path("action").asText());
+        assertTrue(feDoc.path("logs").get(0).path("content").asText().contains("样品快递费 → 样品寄送"));
+        assertEquals("登记", feDoc.path("logs").get(1).path("action").asText());
+        assertEquals("寄样给客户", ok(call(json(post(FE + "/" + feId + "/remark"), write(Map.of("remark", "寄样给客户"))), admin))
+                .path("remark").asText());
+        long proof = feDoc.path("files").get(0).path("id").asLong();
+        assertEquals("员工垫付的费用请上传凭证",
+                fail(call(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete(
+                        FE + "/" + feId + "/attachments/" + proof), admin)).path("message").asText());
+        JsonNode attached = ok(call(json(post(FE + "/" + feId + "/attachments"), write(Map.of("ids", List.of(upload("EXPENSE", admin))))),
+                admin));
+        assertEquals(2, attached.path("files").size());
+
+        // 报销单：提交后费用单记「进入报销单」，报销单关联费用单、可改备注
+        JsonNode item = null;
+        for (JsonNode i : ok(call(get(BX + "/pending"), lin))) {
+            if (i.path("sourceType").asInt() == 4 && i.path("sourceId").asLong() == feId) {
+                item = i;
+            }
+        }
+        long bxId = ok(submit(lin, item)).get(0).path("id").asLong();
+        JsonNode bxDoc = ok(call(get(BX + "/" + bxId), lin));
+        assertTrue(bxDoc.path("editable").asBoolean());
+        assertEquals("提交", bxDoc.path("logs").get(0).path("action").asText());
+        assertEquals("FE", bxDoc.path("related").get(0).path("type").asText());
+        assertEquals(feId, bxDoc.path("related").get(0).path("id").asLong());
+        assertEquals("11 月垫付", ok(call(json(post(BX + "/" + bxId + "/remark"), write(Map.of("remark", "11 月垫付"))), lin))
+                .path("remark").asText());
+        feDoc = ok(call(get(FE + "/" + feId), admin));
+        assertEquals("进入报销单", feDoc.path("logs").get(0).path("action").asText());
+        assertEquals(bxId, feDoc.path("reimbursementId").asLong());
+        assertTrue(java.util.stream.StreamSupport.stream(feDoc.path("related").spliterator(), false)
+                .anyMatch(r -> "BX".equals(r.path("type").asText()) && r.path("id").asLong() == bxId));
+        assertEquals("已在报销单里，不能修改金额与收款方", fail(call(json(put(FE + "/" + feId), write(Map.of("name", "样品寄送",
+                "occurDate", LocalDate.now().toString(), "payeeType", 4, "payeeName", "顺丰", "currencyCode", "CNY", "amount", 40,
+                "method", 2, "advanceUserId", BUYER_LIN))), admin)).path("message").asText());
+
+        // 登记已付、撤销已付记在报销单日志；撤回后只读，费用单记「撤出报销单」
+        ok(call(json(post(BX + "/" + bxId + "/pay"), write(Map.of("bankAccountId", account,
+                "payDate", LocalDate.now().toString(), "attachmentIds", List.of(upload("REIMBURSE", admin))))), admin));
+        bxDoc = ok(call(get(BX + "/" + bxId), admin));
+        assertEquals("登记已付", bxDoc.path("logs").get(0).path("action").asText());
+        assertEquals("PY", bxDoc.path("related").get(0).path("type").asText());
+        assertEquals(1, bxDoc.path("files").size());
+        ok(call(json(post(BX + "/" + bxId + "/unpay"), write(Map.of("reason", "账户选错"))), admin));
+        ok(call(json(post(BX + "/" + bxId + "/withdraw"), write(Map.of("reason", "重新整理"))), lin));
+        bxDoc = ok(call(get(BX + "/" + bxId), lin));
+        assertFalse(bxDoc.path("editable").asBoolean());
+        assertEquals("撤回", bxDoc.path("logs").get(0).path("action").asText());
+        assertEquals("撤销已付", bxDoc.path("logs").get(1).path("action").asText());
+        assertEquals("报销单已撤回", fail(call(json(post(BX + "/" + bxId + "/remark"), write(Map.of("remark", "x"))), lin))
+                .path("message").asText());
+        assertEquals("撤出报销单", ok(call(get(FE + "/" + feId), admin)).path("logs").get(0).path("action").asText());
+
+        // 作废后只读
+        ok(call(json(post(FE + "/" + feId + "/void"), write(Map.of("reason", "重复登记"))), admin));
+        feDoc = ok(call(get(FE + "/" + feId), admin));
+        assertFalse(feDoc.path("editable").asBoolean());
+        assertEquals("作废", feDoc.path("logs").get(0).path("action").asText());
+        assertEquals("费用单已作废", fail(call(json(post(FE + "/" + feId + "/remark"), write(Map.of("remark", "x"))), admin))
+                .path("message").asText());
+
+        // 其他收入：说明必填，登记与作废记日志
+        JsonNode oi = ok(call(json(post("/api/v1/finance/other-incomes"), write(Map.of("incomeDate", LocalDate.now().toString(),
+                "category", "REBATE", "amount", 600, "remark", "信保返点"))), admin));
+        String oiPath = "/api/v1/finance/other-incomes/" + oi.path("id").asLong();
+        JsonNode oiDoc = ok(call(get(oiPath), admin));
+        assertTrue(oiDoc.path("editable").asBoolean());
+        assertEquals("登记", oiDoc.path("logs").get(0).path("action").asText());
+        assertEquals(0, oiDoc.path("related").size());
+        assertEquals("请填写说明", fail(call(json(post(oiPath + "/remark"), write(Map.of("remark", " "))), admin)).path("message").asText());
+        assertEquals("信保 10 月返点", ok(call(json(post(oiPath + "/remark"), write(Map.of("remark", "信保 10 月返点"))), admin))
+                .path("remark").asText());
+        ok(call(json(post(oiPath + "/void"), write(Map.of("reason", "录错"))), admin));
+        oiDoc = ok(call(get(oiPath), admin));
+        assertFalse(oiDoc.path("editable").asBoolean());
+        assertEquals("作废", oiDoc.path("logs").get(0).path("action").asText());
+    }
+
     @Test
     void handlingReturnFreightDefaultsPayerToHandler() throws Exception {
         long sup = supplier("宁波伺服", null);

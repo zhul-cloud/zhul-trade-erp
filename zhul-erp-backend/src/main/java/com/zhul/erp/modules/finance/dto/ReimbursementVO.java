@@ -36,6 +36,12 @@ public class ReimbursementVO {
     private List<AdvanceItemVO> lines = new ArrayList<>();
     /** 当前用户能否撤回（本人、待付款） */
     private boolean canWithdraw;
+    /** 以下只在详情返回（change finance-expense-docs） */
+    private String remark;
+    private List<com.zhul.erp.modules.attachment.dto.AttachmentVO> files;
+    private List<com.zhul.erp.modules.system.doclog.DocRefVO> related;
+    private List<com.zhul.erp.modules.system.doclog.DocLogVO> logs;
+    private Boolean editable;
     private LocalDateTime createTime;
     private String createBy;
     private LocalDateTime updateTime;

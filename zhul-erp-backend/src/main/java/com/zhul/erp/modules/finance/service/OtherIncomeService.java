@@ -47,6 +47,9 @@ public class OtherIncomeService {
     private final AttachmentService attachments;
     private final DictItemService dictItemService;
     private final LogService logService;
+    private final com.zhul.erp.modules.system.doclog.DocLogs docLogs;
+    private final com.zhul.erp.framework.security.PermissionChecker perm;
+    private final com.zhul.erp.modules.finance.repository.CustomerRefundMapper refundMapper;
 
     @Transactional(rollbackFor = Exception.class)
     public OtherIncomeVO create(SaveOtherIncomeRequest req) {
@@ -59,6 +62,8 @@ public class OtherIncomeService {
         x.setBusinessUnitId(businessUnitService.forOptional(req.getBusinessUnitId()));
         mapper.insert(x);
         attachments.sync(AttachmentService.OTHER_INCOME, x.getId(), req.getAttachmentIds());
+        docLogs.add(DocumentType.OI, x.getId(), "登记", "CNY " + x.getAmount().toPlainString() + "，"
+                + categoryNames().getOrDefault(x.getCategory(), x.getCategory()));
         logService.recordOperateLog(MENU, "登记其他收入", null, Map.of("incomeNo", x.getIncomeNo(), "amount", x.getAmount().toPlainString()));
         return detail(x.getId());
     }
@@ -72,6 +77,23 @@ public class OtherIncomeService {
         }
         requireManual(x);
         BigDecimal before = x.getAmount();
+        // 生效后日期与金额不能改，录错作废重开（change finance-expense-docs）
+        if (!Objects.equals(req.getIncomeDate(), x.getIncomeDate())
+                || req.getAmount().setScale(2, RoundingMode.HALF_UP).compareTo(x.getAmount()) != 0) {
+            throw new BizException("日期与金额不能修改，录错请作废后重新登记");
+        }
+        List<String> changes = new ArrayList<>();
+        Map<String, String> names = categoryNames();
+        if (!Objects.equals(req.getCategory(), x.getCategory())) {
+            changes.add("类别 " + names.getOrDefault(x.getCategory(), x.getCategory()) + " → "
+                    + names.getOrDefault(req.getCategory(), req.getCategory()));
+        }
+        if (!Objects.equals(businessUnitService.forOptional(req.getBusinessUnitId()), x.getBusinessUnitId())) {
+            changes.add("所属事业部");
+        }
+        if (req.getRemark() != null && !req.getRemark().trim().equals(x.getRemark())) {
+            changes.add("说明");
+        }
         fill(x, req);
         mapper.updateById(x);
         // 可在「公共」与某事业部之间改，为空也要写回
@@ -79,6 +101,9 @@ public class OtherIncomeService {
                 .set(OtherIncomeDO::getBusinessUnitId, businessUnitService.forOptional(req.getBusinessUnitId()))
                 .eq(OtherIncomeDO::getId, id));
         attachments.sync(AttachmentService.OTHER_INCOME, id, req.getAttachmentIds());
+        if (!changes.isEmpty()) {
+            docLogs.add(DocumentType.OI, id, "修改", String.join("；", changes));
+        }
         logService.recordOperateLog(MENU, "修改其他收入", Map.of("incomeNo", x.getIncomeNo(), "amount", before.toPlainString()),
                 Map.of("incomeNo", x.getIncomeNo(), "amount", x.getAmount().toPlainString()));
         return detail(id);
@@ -99,6 +124,7 @@ public class OtherIncomeService {
         x.setStatus(FinanceConstants.RECORD_VOID);
         x.setVoidReason(why.length() > 200 ? why.substring(0, 200) : why);
         mapper.updateById(x);
+        docLogs.add(DocumentType.OI, id, "作废", x.getVoidReason());
         logService.recordOperateLog(MENU, "作废其他收入", Map.of("incomeNo", x.getIncomeNo(), "status", "有效"),
                 Map.of("incomeNo", x.getIncomeNo(), "status", "已作废", "reason", x.getVoidReason()));
         return detail(id);
@@ -116,7 +142,63 @@ public class OtherIncomeService {
     }
 
     public OtherIncomeVO detail(Long id) {
-        return toVos(List.of(require(id))).get(0);
+        OtherIncomeVO vo = toVos(List.of(require(id))).get(0);
+        List<com.zhul.erp.modules.system.doclog.DocRefVO> related = new ArrayList<>();
+        if (FinanceConstants.SRC_REFUND.equals(vo.getSourceType()) && vo.getSourceId() != null) {
+            com.zhul.erp.modules.finance.entity.CustomerRefundDO r = refundMapper.selectById(vo.getSourceId());
+            if (r != null && Objects.equals(r.getTenantId(), PiStore.tenantId())) {
+                related.add(new com.zhul.erp.modules.system.doclog.DocRefVO(DocumentType.TK.name(), r.getId(),
+                        r.getRefundNo(), r.getStatus(), null));
+            }
+        }
+        vo.setRelated(related);
+        vo.setFiles(attachments.listOf(AttachmentService.OTHER_INCOME, id));
+        vo.setLogs(docLogs.list(DocumentType.OI, id));
+        vo.setEditable(Objects.equals(vo.getStatus(), FinanceConstants.RECORD_VALID) && !Boolean.TRUE.equals(vo.getMigrated())
+                && perm.has("finance:income:edit"));
+        return vo;
+    }
+
+    /** 说明必填（spec finance/other-income） */
+    @Transactional(rollbackFor = Exception.class)
+    public OtherIncomeVO remark(Long id, String remark) {
+        OtherIncomeDO x = editable(id);
+        String text = remark == null ? "" : remark.trim();
+        if (text.isEmpty()) {
+            throw new BizException("请填写说明");
+        }
+        if (text.length() > 500) {
+            throw new BizException("说明最多 500 字");
+        }
+        x.setRemark(text);
+        mapper.updateById(x);
+        docLogs.add(DocumentType.OI, id, "修改说明", text);
+        return detail(id);
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public OtherIncomeVO attach(Long id, List<Long> ids) {
+        editable(id);
+        attachments.attach(AttachmentService.OTHER_INCOME, id, ids);
+        docLogs.add(DocumentType.OI, id, "上传附件", ids.size() + " 个");
+        return detail(id);
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public OtherIncomeVO removeAttachment(Long id, Long attachmentId) {
+        editable(id);
+        attachments.remove(AttachmentService.OTHER_INCOME, id, attachmentId);
+        docLogs.add(DocumentType.OI, id, "删除附件", "");
+        return detail(id);
+    }
+
+    private OtherIncomeDO editable(Long id) {
+        OtherIncomeDO x = lock(id);
+        MigratedGuard.requireEditable(x.getMigrated());
+        if (x.getStatus() == FinanceConstants.RECORD_VOID) {
+            throw new BizException("已作废");
+        }
+        return x;
     }
 
     public Map<String, String> categoryNames() {

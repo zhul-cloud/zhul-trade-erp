@@ -81,6 +81,9 @@ export const DOC_PATHS = {
   payment: (id: number) => `/finance/payments/${id}`,
   payable: (id: number) => `/finance/payables/${id}`,
   fxSettlement: (id: number) => `/finance/fx-settlements/${id}`,
+  expense: (id: number) => `/finance/expenses/${id}`,
+  reimbursement: (id: number) => `/finance/reimbursements/${id}`,
+  otherIncome: (id: number) => `/finance/other-incomes/${id}`,
 };
 
 const DOC_META: Record<
@@ -167,10 +170,19 @@ const DOC_META: Record<
   },
   BX: {
     label: '报销单',
-    href: () => '/finance/reimbursements',
+    href: (id) => DOC_PATHS.reimbursement(id),
     tones: { 1: 'orange', 2: 'green', 3: 'mute' },
   },
-  FE: { label: '费用单', href: () => '/finance/expenses' },
+  FE: {
+    label: '费用单',
+    href: (id) => DOC_PATHS.expense(id),
+    tones: { 1: 'green', 2: 'mute' },
+  },
+  OI: {
+    label: '其他收入',
+    href: (id) => DOC_PATHS.otherIncome(id),
+    tones: { 1: 'green', 2: 'mute' },
+  },
 };
 
 /** 后端返回的关联单据转为关联单据卡片的行 */

@@ -36,7 +36,7 @@ export const sourcePath = (p: Pick<Payable, 'sourceType' | 'sourceId'>) =>
   p.sourceType === SOURCE.PO
     ? `/purchase/orders/${p.sourceId}`
     : p.sourceType === SOURCE.EXPENSE
-      ? '/finance/expenses'
+      ? `/finance/expenses/${p.sourceId}`
       : '/logistics/statements';
 
 /** 付款方式 */

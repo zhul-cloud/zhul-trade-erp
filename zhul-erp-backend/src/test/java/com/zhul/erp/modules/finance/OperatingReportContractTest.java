@@ -112,15 +112,19 @@ class OperatingReportContractTest extends SalesContractSupport {
         money(revenue.subtract(new BigDecimal("357.50")).subtract(cost).toPlainString(), after.path("profit"));
         money("357.50", ok(call(get(REFUND + "/total"), admin)));
 
-        // 其他收入：登记、修改
+        // 其他收入：登记、修改（日期与金额生效后不能改，change finance-expense-docs）
         Map<String, Object> inc = new HashMap<>();
         inc.put("incomeDate", today.toString());
         inc.put("category", "REBATE");
-        inc.put("amount", "600");
+        inc.put("amount", "666.66");
         inc.put("remark", "信保 9 月返点");
         JsonNode income = ok(call(json(post(INCOME), write(inc)), admin));
         assertEquals("OI" + today() + "001", income.path("incomeNo").asText());
+        inc.put("amount", "600");
+        assertEquals("日期与金额不能修改，录错请作废后重新登记",
+                fail(call(json(put(INCOME + "/" + income.path("id").asLong()), write(inc)), admin)).path("message").asText());
         inc.put("amount", "666.66");
+        inc.put("remark", "信保 9 月返点（改）");
         ok(call(json(put(INCOME + "/" + income.path("id").asLong()), write(inc)), admin));
         inc.put("category", "NOPE");
         assertEquals("类别不存在", fail(call(json(post(INCOME), write(inc)), admin)).path("message").asText());

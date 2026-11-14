@@ -415,6 +415,7 @@ public class ReimbursementService {
         bx.setWithdrawReason("");
         bx.setPaidBy("");
         bx.setPayRemark("");
+        bx.setRemark("");
         reimbursementMapper.insert(bx);
         try {
             for (AdvanceItemVO i : chosen) {
@@ -442,6 +443,8 @@ public class ReimbursementService {
             log.put("applicant", bx.getApplicantName());
             log.put("submittedFor", "代提交");
         }
+        docLogs.add(DocumentType.BX, bx.getId(), "提交", chosen.size() + " 项，合计 CNY " + total.toPlainString()
+                + (Objects.equals(applicantId, me.id()) ? "" : "，代 " + bx.getApplicantName() + " 提交"));
         logService.recordOperateLog(MENU, "提交报销单", null, log);
         return detail(bx.getId());
     }
@@ -467,13 +470,17 @@ public class ReimbursementService {
         }
         markPayments(lines.stream().map(l -> item(l.getSourceType(), l.getSourceId(), "", null, "", BigDecimal.ZERO)).toList(),
                 FinanceConstants.REIMBURSE_PENDING, "报销单撤回", "报销单 " + bx.getReimburseNo() + " 已撤回，回到待报销");
+        docLogs.add(DocumentType.BX, id, "撤回", reason.trim());
         logService.recordOperateLog(MENU, "撤回报销单", Map.of("reimburseNo", bx.getReimburseNo(), "status", "待付款"),
                 Map.of("reimburseNo", bx.getReimburseNo(), "status", "已撤回", "reason", reason.trim()));
         return detail(id);
     }
 
-    /** 采购货款、收到退款两种来源的付款单：进报销单为 2，撤回为 1 */
+    /** 采购货款、收到退款两种来源的付款单：进报销单为 2，撤回为 1；费用单只记单据日志 */
     private void markPayments(List<AdvanceItemVO> items, int status, String action, String content) {
+        boolean in = status == FinanceConstants.REIMBURSE_CLAIMED;
+        items.stream().filter(i -> i.getSourceType() == FinanceConstants.ITEM_EXPENSE).forEach(i ->
+                docLogs.add(DocumentType.FE, i.getSourceId(), in ? "进入报销单" : "撤出报销单", content));
         List<Long> ids = items.stream()
                 .filter(i -> i.getSourceType() == FinanceConstants.ITEM_PAYMENT || i.getSourceType() == FinanceConstants.ITEM_REFUND)
                 .map(AdvanceItemVO::getSourceId).toList();
@@ -595,6 +602,8 @@ public class ReimbursementService {
         bx.setPayRemark(req.getRemark() == null ? "" : req.getRemark().trim());
         bx.setPaymentId(p.getId());
         reimbursementMapper.updateById(bx);
+        docLogs.add(DocumentType.BX, bx.getId(), "登记已付", "CNY " + bx.getTotalAmount().toPlainString() + "，付款单 "
+                + p.getPaymentNo() + (shareFrom == null ? "" : "（批量登记）"));
         docLogs.add(DocumentType.PY, p.getId(), "登记", "报销付款：报销单 " + bx.getReimburseNo() + "，CNY "
                 + bx.getTotalAmount().toPlainString() + "，收款人 " + bx.getApplicantName());
         logService.recordOperateLog(MENU, "登记报销已付", null, Map.of("reimburseNo", bx.getReimburseNo(), "paymentNo", p.getPaymentNo(),
@@ -626,6 +635,7 @@ public class ReimbursementService {
         bx.setPayRemark("");
         bx.setPaymentId(null);
         reimbursementMapper.updateById(bx);
+        docLogs.add(DocumentType.BX, id, "撤销已付", reason.trim());
         logService.recordOperateLog(MENU, "撤销报销已付", Map.of("reimburseNo", bx.getReimburseNo(), "status", "已报销"),
                 Map.of("reimburseNo", bx.getReimburseNo(), "status", "待付款", "reason", reason.trim()));
         return detail(id);
@@ -738,7 +748,76 @@ public class ReimbursementService {
         if (bx == null) {
             throw new BizException("报销单不存在");
         }
-        return toVo(bx, true);
+        ReimbursementVO vo = toVo(bx, true);
+        List<com.zhul.erp.modules.system.doclog.DocRefVO> related = new ArrayList<>();
+        if (vo.getPaymentId() != null) {
+            related.add(new com.zhul.erp.modules.system.doclog.DocRefVO(DocumentType.PY.name(), vo.getPaymentId(),
+                    vo.getPaymentNo(), 1, null));
+        }
+        Set<String> seen = new HashSet<>();
+        for (AdvanceItemVO i : vo.getLines()) {
+            String type = switch (i.getSourceType()) {
+                case FinanceConstants.ITEM_PAYMENT, FinanceConstants.ITEM_REFUND -> DocumentType.PY.name();
+                case FinanceConstants.ITEM_EXPENSE -> DocumentType.FE.name();
+                default -> null;
+            };
+            if (type != null && seen.add(type + i.getSourceId())) {
+                related.add(new com.zhul.erp.modules.system.doclog.DocRefVO(type, i.getSourceId(), i.getSourceNo(), null, null));
+            }
+        }
+        vo.setRemark(bx.getRemark());
+        vo.setRelated(related);
+        vo.setFiles(attachments.listOf(AttachmentService.REIMBURSE, id));
+        vo.setLogs(docLogs.list(DocumentType.BX, id));
+        vo.setEditable(canEdit(bx));
+        return vo;
+    }
+
+    /** 没撤回的报销单，报销人、提交人或有报销付款权限的人可改备注与附件 */
+    private boolean canEdit(ReimbursementDO bx) {
+        return bx.getStatus() != FinanceConstants.BX_WITHDRAWN && (perm.has(FinanceConstants.PERM_REIMBURSE_PAY)
+                || Objects.equals(bx.getApplicantId(), currentUser.resolve())
+                || Objects.equals(bx.getCreateBy(), SecurityUtils.getCurrentUsername()));
+    }
+
+    private ReimbursementDO editable(Long id) {
+        ReimbursementDO bx = lock(id);
+        if (bx.getStatus() == FinanceConstants.BX_WITHDRAWN) {
+            throw new BizException("报销单已撤回");
+        }
+        if (!canEdit(bx)) {
+            throw new BizException("只有报销人、提交人或财务可以修改");
+        }
+        return bx;
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public ReimbursementVO remark(Long id, String remark) {
+        ReimbursementDO bx = editable(id);
+        String text = remark == null ? "" : remark.trim();
+        if (text.length() > 500) {
+            throw new BizException("备注最多 500 字");
+        }
+        bx.setRemark(text);
+        reimbursementMapper.updateById(bx);
+        docLogs.add(DocumentType.BX, id, "修改备注", text.isEmpty() ? "清空备注" : text);
+        return detail(id);
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public ReimbursementVO attach(Long id, List<Long> ids) {
+        editable(id);
+        attachments.attach(AttachmentService.REIMBURSE, id, ids);
+        docLogs.add(DocumentType.BX, id, "上传附件", ids.size() + " 个");
+        return detail(id);
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public ReimbursementVO removeAttachment(Long id, Long attachmentId) {
+        editable(id);
+        attachments.remove(AttachmentService.REIMBURSE, id, attachmentId);
+        docLogs.add(DocumentType.BX, id, "删除附件", "");
+        return detail(id);
     }
 
     /** 没有报销付款权限的只看本人的 */

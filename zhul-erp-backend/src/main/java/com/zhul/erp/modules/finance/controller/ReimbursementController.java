@@ -16,9 +16,12 @@ import com.zhul.erp.modules.finance.dto.SubmitReimbursementRequest;
 import com.zhul.erp.modules.finance.dto.VoidPaymentRequest;
 import com.zhul.erp.modules.finance.service.PaymentService;
 import com.zhul.erp.modules.finance.service.ReimbursementService;
+import com.zhul.erp.modules.system.doclog.DocAttachRequest;
+import com.zhul.erp.modules.system.doclog.DocRemarkRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -113,5 +116,23 @@ public class ReimbursementController {
     @PreAuthorize(PAY)
     public Result<ReimbursementVO> unpay(@PathVariable Long id, @Valid @RequestBody VoidPaymentRequest req) {
         return Result.ok(service.unpay(id, req.getReason()));
+    }
+
+    @PostMapping("/{id}/remark")
+    @PreAuthorize(MENU)
+    public Result<ReimbursementVO> remark(@PathVariable Long id, @Valid @RequestBody DocRemarkRequest req) {
+        return Result.ok(service.remark(id, req.getRemark()));
+    }
+
+    @PostMapping("/{id}/attachments")
+    @PreAuthorize(MENU)
+    public Result<ReimbursementVO> attach(@PathVariable Long id, @Valid @RequestBody DocAttachRequest req) {
+        return Result.ok(service.attach(id, req.getIds()));
+    }
+
+    @DeleteMapping("/{id}/attachments/{attachmentId}")
+    @PreAuthorize(MENU)
+    public Result<ReimbursementVO> removeAttachment(@PathVariable Long id, @PathVariable Long attachmentId) {
+        return Result.ok(service.removeAttachment(id, attachmentId));
     }
 }

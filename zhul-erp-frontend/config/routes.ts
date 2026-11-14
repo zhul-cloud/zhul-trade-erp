@@ -675,6 +675,12 @@ export default [
         component: './finance/reimbursements',
       },
       {
+        path: '/finance/reimbursements/:id',
+        hideInMenu: true,
+        access: 'financeReimbursements',
+        component: './finance/reimbursements/detail',
+      },
+      {
         path: '/finance/expenses',
         name: 'expenses',
         icon: 'profile',
@@ -682,11 +688,23 @@ export default [
         component: './finance/expenses',
       },
       {
+        path: '/finance/expenses/:id',
+        hideInMenu: true,
+        access: 'financeExpenses',
+        component: './finance/expenses/detail',
+      },
+      {
         path: '/finance/other-incomes',
         name: 'otherIncomes',
         icon: 'moneyCollect',
         access: 'financeOtherIncomes',
         component: './finance/other-incomes',
+      },
+      {
+        path: '/finance/other-incomes/:id',
+        hideInMenu: true,
+        access: 'financeOtherIncomes',
+        component: './finance/other-incomes/detail',
       },
       {
         path: '/finance/profit-stats',
