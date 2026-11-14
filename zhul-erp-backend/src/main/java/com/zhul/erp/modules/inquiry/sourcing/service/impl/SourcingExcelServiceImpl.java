@@ -27,6 +27,10 @@ import com.zhul.erp.modules.inquiry.support.PriceKeys;
 import com.zhul.erp.modules.inquiry.support.QuoteDictSnapshot;
 import com.zhul.erp.modules.inquiry.support.QuoteDicts;
 import lombok.RequiredArgsConstructor;
+import org.apache.poi.EmptyFileException;
+import org.apache.poi.UnsupportedFileFormatException;
+import org.apache.poi.ooxml.POIXMLException;
+import org.apache.poi.openxml4j.exceptions.OpenXML4JRuntimeException;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellStyle;
 import org.apache.poi.ss.usermodel.DataFormatter;
@@ -380,7 +384,9 @@ public class SourcingExcelServiceImpl implements SourcingExcelService {
                 throw new BizException("找不到「②询价单」工作表");
             }
             vo.setRows(parseRows(sheet, myTaskImpl.taskItems(task.getId()), quoteDicts.snapshot()));
-        } catch (IOException e) {
+        } catch (IOException | POIXMLException | OpenXML4JRuntimeException | UnsupportedFileFormatException
+                 | EmptyFileException e) {
+            // 不是 zip、条目重名（CVE-2025-31672）、XML 损坏、空文件：只拒绝这一份，不让整批预览失败（audit BUS-037）
             throw new BizException("文件已损坏或不是 Excel 文件", e);
         }
     }
