@@ -1,5 +1,5 @@
 import { EditOutlined, PlusOutlined, SearchOutlined } from '@ant-design/icons';
-import { history } from '@umijs/max';
+import { history, useSearchParams } from '@umijs/max';
 import { App, Button, Input, Segmented, Select } from 'antd';
 import React, {
   useCallback,
@@ -19,6 +19,12 @@ import {
   useUsers,
 } from '../components';
 import {
+  CandidateModal,
+  CandidateRecordModal,
+  type CandidateTarget,
+  ExpansionModal,
+} from '../devDialogs';
+import {
   ClassifyModal,
   DeferModal,
   ProjectModal,
@@ -27,10 +33,15 @@ import {
 } from '../dialogs';
 import { ownerParam } from '../rules';
 import {
+  type Candidate,
   COVER_NAMES,
   type Demand,
+  type DevGroup,
+  type DevGroupPage,
+  type DevTodayItem,
   type Group,
   type GroupPage,
+  HEAT_NAMES,
   type Overview,
   PATHS,
   PRIORITY_NAMES,
@@ -43,12 +54,25 @@ import {
   type TodayCard,
 } from '../service';
 import BattleCard from './BattleCard';
+import { DevTable } from './DevTable';
 import { GroupTable } from './GroupTable';
 import { SignalTable } from './SignalTable';
 import TeamView, { type TeamJump } from './TeamView';
 import { TodayView } from './TodayView';
 
 const PAGE_SIZE = 20;
+
+interface CandidateRecordTarget {
+  title: string;
+  candidates: Candidate[];
+  checkedIds?: number[];
+}
+
+/** 开发任务名称；名称里没有品牌品类时补上 */
+const devTitle = (g: DevGroup) =>
+  g.projectName?.includes(scopeName(g))
+    ? g.projectName
+    : [g.projectName, scopeName(g)].filter(Boolean).join(' · ');
 
 interface RecordTarget {
   title?: string;
@@ -74,7 +98,8 @@ const SupplyFollowupPage: React.FC = () => {
   const { message } = App.useApp();
   const { palette } = useAppTheme();
   const wide = useWide();
-  const { brands, categories } = useOptions();
+  const { brands, categories, tops } = useOptions();
+  const [params] = useSearchParams();
   const users = useUsers();
 
   const [view, setView] = useState<'mine' | 'team'>('mine');
@@ -109,7 +134,20 @@ const SupplyFollowupPage: React.FC = () => {
   const [projectScope, setProjectScope] = useState<{
     brandId: number;
     categoryId?: number;
+    dev?: boolean;
   }>();
+  const [devPage, setDevPage] = useState<DevGroupPage>();
+  const [devStage, setDevStage] = useState('gap');
+  const [parentCategoryId, setParentCategoryId] = useState<number>();
+  const [heat, setHeat] = useState<number>();
+  const [expansionOnly, setExpansionOnly] = useState(false);
+  const [focusKey, setFocusKey] = useState<string>();
+  const [expansion, setExpansion] = useState<{
+    brandId: number;
+    categoryId?: number;
+  } | null>();
+  const [candidate, setCandidate] = useState<CandidateTarget>();
+  const [candRecord, setCandRecord] = useState<CandidateRecordTarget>();
   const [classify, setClassify] = useState<Signal[]>();
   const [ignore, setIgnore] = useState<Signal[]>();
   const [signalOpen, setSignalOpen] = useState(false);
@@ -118,6 +156,8 @@ const SupplyFollowupPage: React.FC = () => {
   const canEdit = !!overview?.canEdit;
   const canTeam = !!overview?.canTeam;
   const canProject = !!overview?.canProject;
+  const canDev = !!overview?.canDev;
+  const canSeeSupplier = !!overview?.canSeeSupplier;
   const unclassifiedView = flow === 'intel' && stage === 'unclassified';
 
   const loadTop = useCallback(() => {
@@ -157,37 +197,61 @@ const SupplyFollowupPage: React.FC = () => {
       if (flow === 'today') return;
       const req = ++reqRef.current;
       setLoading(true);
-      const done = unclassifiedView
-        ? supplyApi.unclassified(p, PAGE_SIZE, signalType).then((r) => {
-            if (req !== reqRef.current) return;
-            setSignals(r);
-            setPage(p);
-          })
-        : supplyApi
-            .groups({
-              board: flow,
-              stage,
-              stockout: stockout || undefined,
-              pending: pending || undefined,
-              single: single || undefined,
-              keyword: keyword.trim() || undefined,
-              brandId,
-              categoryId,
-              priority,
-              ownerId: ownerParam(owner),
-              page: p,
-              size: PAGE_SIZE,
-            })
-            .then((r) => {
-              if (req !== reqRef.current) return;
-              setPage(p);
-              setGroups((old) =>
-                p === 1 || !old
-                  ? r
-                  : { ...r, groups: [...old.groups, ...r.groups] },
-              );
-              if (p === 1) setSelected((s) => s ?? r.groups[0]?.items[0]);
-            });
+      const done =
+        flow === 'dev'
+          ? supplyApi
+              .devGroups({
+                stage: devStage,
+                keyword: keyword.trim() || undefined,
+                brandId,
+                categoryId,
+                parentCategoryId,
+                heat,
+                source: expansionOnly ? 'expansion' : undefined,
+                ownerId: ownerParam(owner),
+                page: p,
+                size: PAGE_SIZE,
+              })
+              .then((r) => {
+                if (req !== reqRef.current) return;
+                setPage(p);
+                setDevPage((old) =>
+                  p === 1 || !old
+                    ? r
+                    : { ...r, groups: [...old.groups, ...r.groups] },
+                );
+              })
+          : unclassifiedView
+            ? supplyApi.unclassified(p, PAGE_SIZE, signalType).then((r) => {
+                if (req !== reqRef.current) return;
+                setSignals(r);
+                setPage(p);
+              })
+            : supplyApi
+                .groups({
+                  board: flow,
+                  stage,
+                  stockout: stockout || undefined,
+                  pending: pending || undefined,
+                  single: single || undefined,
+                  keyword: keyword.trim() || undefined,
+                  brandId,
+                  categoryId,
+                  priority,
+                  ownerId: ownerParam(owner),
+                  page: p,
+                  size: PAGE_SIZE,
+                })
+                .then((r) => {
+                  if (req !== reqRef.current) return;
+                  setPage(p);
+                  setGroups((old) =>
+                    p === 1 || !old
+                      ? r
+                      : { ...r, groups: [...old.groups, ...r.groups] },
+                  );
+                  if (p === 1) setSelected((s) => s ?? r.groups[0]?.items[0]);
+                });
       done
         .catch(
           (e) =>
@@ -209,8 +273,26 @@ const SupplyFollowupPage: React.FC = () => {
       priority,
       owner,
       message,
+      devStage,
+      parentCategoryId,
+      heat,
+      expansionOnly,
     ],
   );
+
+  // 覆盖矩阵「按供应商」点格子跳过来：?board=dev&brandId=…&categoryId=…
+  useEffect(() => {
+    if (params.get('board') !== 'dev') return;
+    const b = Number(params.get('brandId')) || undefined;
+    const c = params.get('categoryId');
+    setOwner('all');
+    ownerChecked.current = true;
+    setFlow('dev');
+    setDevStage('all');
+    setBrandId(b);
+    setCategoryId(c != null ? Number(c) : undefined);
+    if (b != null && c != null) setFocusKey(`${b}:${c}`);
+  }, [params]);
 
   useEffect(() => {
     if (view === 'mine') loadTop();
@@ -233,6 +315,8 @@ const SupplyFollowupPage: React.FC = () => {
     setPending(false);
     setSingle(false);
     setGroups(undefined);
+    setDevPage(undefined);
+    setFocusKey(undefined);
     setSelected(undefined);
     setPicked(new Set());
     setPickedSignals([]);
@@ -285,10 +369,28 @@ const SupplyFollowupPage: React.FC = () => {
     ['review', '待复核', o?.review ?? 0],
     ['paused', '暂不覆盖', o?.paused ?? 0],
   ];
+  const devFocus =
+    devPage?.groups.find((g) => g.key === focusKey) ?? devPage?.groups[0];
   const battleStage =
-    flow === 'intel'
-      ? (stage ?? 'watching')
-      : (stage ?? String(selected?.coverageStatus ?? 3));
+    flow === 'dev'
+      ? `dev:${['todo', 'doing', 'done'].includes(devStage) ? devStage : (devFocus?.stage ?? 'todo')}`
+      : flow === 'intel'
+        ? (stage ?? 'watching')
+        : (stage ?? String(selected?.coverageStatus ?? 3));
+  const devChips: [string, string, number][] = [
+    ['gap', '有缺口', o?.dev?.gapGroups ?? 0],
+    ['todo', '待开发', o?.dev?.todo ?? 0],
+    ['doing', '开发中', o?.dev?.doing ?? 0],
+    ['done', '已达标', o?.dev?.done ?? 0],
+  ];
+  const openDev = (i: DevTodayItem) => {
+    switchFlow('dev');
+    setDevStage('all');
+    setOwner('all');
+    setBrandId(i.brandId);
+    setCategoryId(i.categoryId);
+    setFocusKey(`${i.brandId}:${i.categoryId}`);
+  };
 
   const pickedDemands = [...picked]
     .map((id) => loaded.get(id))
@@ -371,7 +473,7 @@ const SupplyFollowupPage: React.FC = () => {
               <Input
                 allowClear
                 prefix={<SearchOutlined />}
-                placeholder="搜索型号"
+                placeholder={flow === 'dev' ? '搜索品牌、品类' : '搜索型号'}
                 style={{ width: 220 }}
                 value={keywordInput}
                 onChange={(e) => setKeywordInput(e.target.value)}
@@ -406,7 +508,15 @@ const SupplyFollowupPage: React.FC = () => {
                 录入信号
               </Button>
             )}
-            {view === 'mine' && canEdit && (
+            {view === 'mine' && flow === 'dev' && canDev && (
+              <Button
+                icon={<PlusOutlined />}
+                onClick={() => setExpansion(null)}
+              >
+                加入主动拓展
+              </Button>
+            )}
+            {view === 'mine' && canEdit && flow !== 'dev' && (
               <Button
                 type="primary"
                 icon={<EditOutlined />}
@@ -440,7 +550,125 @@ const SupplyFollowupPage: React.FC = () => {
               }
               onDefer={(c) => setDefer(c.items.map((d) => d.id))}
               onBrowse={() => switchFlow('cover')}
+              onDev={openDev}
             />
+          ) : flow === 'dev' ? (
+            <>
+              <div
+                style={{
+                  display: 'flex',
+                  gap: 8,
+                  flexWrap: 'wrap',
+                  marginBottom: 12,
+                }}
+              >
+                {devChips.map(([k, label, n]) => (
+                  <Chip
+                    key={k}
+                    active={devStage === k}
+                    onClick={() => setDevStage(k)}
+                  >
+                    {label} <span style={{ opacity: 0.7 }}>{n}</span>
+                  </Chip>
+                ))}
+                <span style={{ flex: 1 }} />
+                <Chip
+                  active={expansionOnly}
+                  onClick={() => setExpansionOnly((v) => !v)}
+                >
+                  主动拓展
+                </Chip>
+                <Select
+                  allowClear
+                  style={{ width: 150 }}
+                  placeholder="品牌"
+                  showSearch={{ optionFilterProp: 'label' }}
+                  value={brandId}
+                  onChange={setBrandId}
+                  options={brands}
+                />
+                <Select
+                  allowClear
+                  style={{ width: 150 }}
+                  placeholder="一级品类"
+                  showSearch={{ optionFilterProp: 'label' }}
+                  value={parentCategoryId}
+                  onChange={(v) => {
+                    setParentCategoryId(v);
+                    setCategoryId(undefined);
+                  }}
+                  options={tops}
+                />
+                <Select
+                  allowClear
+                  style={{ width: 110 }}
+                  placeholder="热度"
+                  value={heat}
+                  onChange={setHeat}
+                  options={[3, 2, 1].map((k) => ({
+                    value: k,
+                    label: HEAT_NAMES[k],
+                  }))}
+                />
+              </div>
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: wide
+                    ? 'minmax(0, 1fr) 320px'
+                    : 'minmax(0, 1fr)',
+                  gap: 16,
+                  alignItems: 'start',
+                }}
+              >
+                <Card style={{ padding: 0, overflow: 'hidden', minWidth: 0 }}>
+                  <DevTable
+                    page={devPage}
+                    loading={loading}
+                    focusKey={focusKey}
+                    canDev={canDev}
+                    canProject={canProject}
+                    canSeeSupplier={canSeeSupplier}
+                    onMore={() => loadList(page + 1)}
+                    onProject={(g) =>
+                      setProjectScope({
+                        brandId: g.brandId,
+                        categoryId: g.categoryId || undefined,
+                        dev: true,
+                      })
+                    }
+                    onRecord={(g, ids) =>
+                      setCandRecord({
+                        title: devTitle(g),
+                        candidates: g.candidates,
+                        checkedIds: ids,
+                      })
+                    }
+                    onCandidate={(g, supplier) => {
+                      if (g.projectTarget == null || !g.projectId) {
+                        message.info('先建开发任务，再把这家加为候选');
+                        if (canProject)
+                          setProjectScope({
+                            brandId: g.brandId,
+                            categoryId: g.categoryId || undefined,
+                            dev: true,
+                          });
+                        return;
+                      }
+                      setCandidate({
+                        projectId: g.projectId,
+                        title: devTitle(g),
+                        count: g.candidates.length,
+                        supplier,
+                      });
+                    }}
+                  />
+                </Card>
+                <div style={wide ? { position: 'sticky', top: 16 } : undefined}>
+                  <BattleCard stage={battleStage} />
+                </div>
+              </div>
+            </>
           ) : (
             <>
               <div
@@ -619,8 +847,50 @@ const SupplyFollowupPage: React.FC = () => {
         scope={projectScope}
         onClose={() => setProjectScope(undefined)}
         onDone={(id) => {
+          const dev = projectScope?.dev;
           setProjectScope(undefined);
-          history.push(PATHS.project(id));
+          if (dev) refresh();
+          else history.push(PATHS.project(id));
+        }}
+      />
+      <ExpansionModal
+        open={expansion !== undefined}
+        scope={expansion ?? undefined}
+        onClose={() => setExpansion(undefined)}
+        onDone={() => {
+          setExpansion(undefined);
+          refresh();
+        }}
+      />
+      <CandidateModal
+        target={candidate}
+        canSeeSupplier={canSeeSupplier}
+        onClose={() => setCandidate(undefined)}
+        onDone={() => {
+          setCandidate(undefined);
+          refresh();
+        }}
+      />
+      <CandidateRecordModal
+        open={!!candRecord}
+        title={candRecord?.title}
+        candidates={candRecord?.candidates}
+        checkedIds={candRecord?.checkedIds}
+        canSeeSupplier={canSeeSupplier}
+        onLink={(c) => {
+          const title = candRecord?.title ?? '';
+          setCandRecord(undefined);
+          setCandidate({
+            projectId: c.projectId,
+            title,
+            count: 0,
+            link: c,
+          });
+        }}
+        onClose={() => setCandRecord(undefined)}
+        onDone={() => {
+          setCandRecord(undefined);
+          refresh();
         }}
       />
       <ClassifyModal

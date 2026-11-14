@@ -10,6 +10,7 @@ import React, { useState } from 'react';
 import { useAppTheme } from '@/theme/AppTheme';
 import { BOARD_COLOR, Card, CoverPill, DueText, Pill } from '../components';
 import {
+  type DevTodayItem,
   modelName,
   PATHS,
   scopeName,
@@ -139,14 +140,75 @@ const TodayCardView: React.FC<{
   );
 };
 
-/** 今日待办：已逾期、今天两组卡片；都处理完时显示本周剩余与去看缺口 */
+const DEV_KIND_NAMES = {
+  candidate: '候选下一步',
+  project: '开发任务超期',
+  remind: '系统提醒',
+};
+
+/** 供应商开发的一条待办：候选下一步、开发任务超期、系统提醒；点击定位到板块里的对应组 */
+const DevItemView: React.FC<{
+  i: DevTodayItem;
+  onOpen: (i: DevTodayItem) => void;
+}> = ({ i, onOpen }) => {
+  const { palette } = useAppTheme();
+  const color = i.overdue ? palette.red : BOARD_COLOR.dev;
+  return (
+    <Card style={{ padding: '14px 20px', marginBottom: 12 }}>
+      <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
+        <span
+          style={{
+            width: 3,
+            alignSelf: 'stretch',
+            borderRadius: 2,
+            background: color,
+            flexShrink: 0,
+          }}
+        />
+        <div style={{ flex: 1, minWidth: 0, display: 'grid', gap: 6 }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              flexWrap: 'wrap',
+            }}
+          >
+            <Pill tone="accent">供应商开发 · {DEV_KIND_NAMES[i.kind]}</Pill>
+            <b style={{ fontSize: 16 }}>{scopeName(i)}</b>
+            {i.candidateName && (
+              <span style={{ color: palette.sub }}>{i.candidateName}</span>
+            )}
+            <span style={{ flex: 1 }} />
+            <span style={{ color: i.overdue ? palette.red : palette.sub }}>
+              {i.overdue ? `逾期 ${i.overdueDays} 天` : '今天'}
+            </span>
+          </div>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <BellOutlined style={{ color: palette.orange }} />
+            <span style={{ flex: 1 }}>
+              {i.kind === 'candidate' ? '我定的下一步：' : ''}
+              {i.text}
+            </span>
+            <Button type="primary" onClick={() => onOpen(i)}>
+              去处理
+            </Button>
+          </div>
+        </div>
+      </div>
+    </Card>
+  );
+};
+
+/** 今日待办：已逾期、今天两组卡片（型号 + 供应商开发）；都处理完时显示本周剩余与去看缺口 */
 export const TodayView: React.FC<{
   today?: Today;
   canEdit: boolean;
   onRecord: (c: TodayCard) => void;
   onDefer: (c: TodayCard) => void;
   onBrowse: () => void;
-}> = ({ today, canEdit, onRecord, onDefer, onBrowse }) => {
+  onDev: (i: DevTodayItem) => void;
+}> = ({ today, canEdit, onRecord, onDefer, onBrowse, onDev }) => {
   const { palette } = useAppTheme();
   const [filter, setFilter] = useState<'overdue' | 'today'>();
   if (!today)
@@ -155,7 +217,8 @@ export const TodayView: React.FC<{
         <Skeleton active paragraph={{ rows: 6 }} />
       </Card>
     );
-  if (!today.overdueCards.length && !today.todayCards.length)
+  const dev = today.devItems ?? [];
+  if (!today.overdueCards.length && !today.todayCards.length && !dev.length)
     return (
       <Card style={{ padding: '48px 24px', textAlign: 'center' }}>
         <CheckCircleOutlined style={{ fontSize: 28, color: palette.green }} />
@@ -189,28 +252,35 @@ export const TodayView: React.FC<{
       {label} {n}
     </Button>
   );
-  const section = (title: string, cards: TodayCard[], red?: boolean) =>
-    cards.length > 0 && (
-      <>
-        <div
-          style={{
-            margin: '16px 0 8px',
-            color: red ? palette.red : palette.sub,
-          }}
-        >
-          {title}
-        </div>
-        {cards.map((c) => (
-          <TodayCardView
-            key={c.key}
-            c={c}
-            canEdit={canEdit}
-            onRecord={onRecord}
-            onDefer={onDefer}
-          />
-        ))}
-      </>
+  const section = (title: string, cards: TodayCard[], red?: boolean) => {
+    const items = dev.filter((i) => i.overdue === !!red);
+    return (
+      (cards.length > 0 || items.length > 0) && (
+        <>
+          <div
+            style={{
+              margin: '16px 0 8px',
+              color: red ? palette.red : palette.sub,
+            }}
+          >
+            {title}
+          </div>
+          {cards.map((c) => (
+            <TodayCardView
+              key={c.key}
+              c={c}
+              canEdit={canEdit}
+              onRecord={onRecord}
+              onDefer={onDefer}
+            />
+          ))}
+          {items.map((i) => (
+            <DevItemView key={i.key} i={i} onOpen={onDev} />
+          ))}
+        </>
+      )
     );
+  };
   return (
     <div>
       <div style={{ display: 'flex', gap: 8 }}>

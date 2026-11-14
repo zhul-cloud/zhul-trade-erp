@@ -24,6 +24,7 @@ import { useAppTheme } from '@/theme/AppTheme';
 import {
   COVER_NAMES,
   type Demand,
+  HEAT_NAMES,
   LEVEL_NAMES,
   type Overview,
   PRIORITY_NAMES,
@@ -65,6 +66,13 @@ export const CoverPill: React.FC<{ status?: number }> = ({ status }) =>
   ) : (
     <Pill tone="mute">未进入矩阵</Pill>
   );
+
+/** 供应商开发的需求热度 */
+export const HeatPill: React.FC<{ value: number }> = ({ value }) => (
+  <Pill tone={value === 3 ? 'red' : value === 2 ? 'orange' : 'gray'}>
+    {HEAT_NAMES[value]}
+  </Pill>
+);
 
 export const PriorityPill: React.FC<{ value?: number }> = ({ value }) =>
   value ? (
@@ -200,7 +208,7 @@ export const EvidenceText: React.FC<{ d: Demand }> = ({ d }) => {
 
 // ---------------------------------------------------------------- 顶部链路
 
-/** 五个板块（与作战地图一致），第 3–5 步本期未上线 */
+/** 五个板块（与作战地图一致），第 4–5 步未上线 */
 const BOARDS = [
   {
     key: 'intel',
@@ -228,17 +236,18 @@ export const BOARD_COLOR = Object.fromEntries(
 );
 export const TODAY_COLOR = '#4F46E5';
 
-export type FlowView = 'today' | 'intel' | 'cover';
+export type FlowView = 'today' | 'intel' | 'cover' | 'dev';
 
 const StageCard: React.FC<{
   b: (typeof BOARDS)[number];
   step: number;
   active: boolean;
   count?: number;
+  unit?: string;
   badge?: React.ReactNode;
   sub?: string;
   onSelect?: () => void;
-}> = ({ b, step, active, count, badge, sub, onSelect }) => {
+}> = ({ b, step, active, count, unit = '个型号', badge, sub, onSelect }) => {
   const { palette } = useAppTheme();
   const open = !!onSelect;
   return (
@@ -305,7 +314,14 @@ const StageCard: React.FC<{
       </div>
       {open ? (
         <>
-          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4 }}>
+          <div
+            style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              alignItems: 'flex-end',
+              gap: 4,
+            }}
+          >
             <span
               style={{
                 fontSize: 26,
@@ -316,7 +332,11 @@ const StageCard: React.FC<{
             >
               {count}
             </span>
-            <span style={{ fontSize: 12, color: palette.sub }}>个型号</span>
+            <span
+              style={{ fontSize: 12, color: palette.sub, whiteSpace: 'nowrap' }}
+            >
+              {unit}
+            </span>
             <span style={{ flex: 1 }} />
             {badge}
           </div>
@@ -419,7 +439,7 @@ const Track: React.FC<{ counts: (number | undefined)[] }> = ({ counts }) => (
   </div>
 );
 
-/** 顶部链路：今日待办 + 作战地图五个板块，本期开放需求情报、供应覆盖 */
+/** 顶部链路：今日待办 + 作战地图五个板块，已开放需求情报、供应覆盖、供应商开发 */
 export const SupplyFlow: React.FC<{
   overview?: Overview;
   active: FlowView;
@@ -468,7 +488,7 @@ export const SupplyFlow: React.FC<{
           </b>
           <span>
             <span style={{ fontSize: 28, fontWeight: 700 }}>{total}</span>
-            <span style={{ fontSize: 12, marginLeft: 4 }}>个型号</span>
+            <span style={{ fontSize: 12, marginLeft: 4 }}>项</span>
           </span>
           <span
             style={{
@@ -516,13 +536,28 @@ export const SupplyFlow: React.FC<{
                     sub={`无渠道 ${o.coverage[1] ?? 0} · 未验证 ${o.coverage[2] ?? 0} · 需确认 ${o.coverage[3] ?? 0} · 可报 ${o.coverage[4] ?? 0}`}
                     onSelect={() => onSelect('cover')}
                   />
+                ) : b.key === 'dev' && o.dev ? (
+                  <StageCard
+                    b={b}
+                    step={3}
+                    active={active === 'dev'}
+                    count={o.dev.gapGroups}
+                    unit="个品牌品类"
+                    badge={
+                      o.dev.gapTotal > 0 && (
+                        <Pill tone="red">缺 {o.dev.gapTotal} 家</Pill>
+                      )
+                    }
+                    sub={`待开发 ${o.dev.todo} · 开发中 ${o.dev.doing} · 已达标 ${o.dev.done}`}
+                    onSelect={() => onSelect('dev')}
+                  />
                 ) : (
                   <StageCard b={b} step={i + 1} active={false} />
                 )}
               </React.Fragment>
             ))}
           </div>
-          <Track counts={[o.intelTotal, o.coverTotal]} />
+          <Track counts={[o.intelTotal, o.coverTotal, o.dev?.gapGroups]} />
         </div>
       </div>
     </div>

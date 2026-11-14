@@ -59,6 +59,43 @@ export const PERM_EDIT = 'supply:followup:edit';
 export const PERM_TEAM = 'supply:followup:team';
 export const PERM_PROJECT = 'supply:project:edit';
 export const PERM_COVERAGE = 'supply:coverage:edit';
+export const PERM_DEV = 'supply:dev:edit';
+
+// ---------------------------------------------------------------- 第二期：供应商开发
+
+export const HEAT_NAMES: Record<number, string> = { 3: '高', 2: '中', 1: '低' };
+export const CAND = {
+  TODO: 1,
+  CONTACTED: 2,
+  QUOTED: 3,
+  QUALIFIED: 4,
+  ABANDONED: 5,
+};
+export const CAND_NAMES: Record<number, string> = {
+  1: '待联系',
+  2: '已联系',
+  3: '已报价',
+  4: '合格',
+  5: '已放弃',
+};
+export const CAND_SRC_NAMES: Record<number, string> = {
+  1: '搜索',
+  2: '展会',
+  3: '同行介绍',
+  4: '平台',
+  5: '供应商库',
+  6: '其他',
+};
+export const DEV_SOURCE_NAMES: Record<string, string> = {
+  demand: '需求',
+  expansion: '主动拓展',
+  both: '需求 + 主动拓展',
+};
+export const DEV_STAGE_NAMES: Record<string, string> = {
+  todo: '待开发',
+  doing: '开发中',
+  done: '已达标',
+};
 
 export const PATHS = {
   followup: '/supply-chain/followup',
@@ -143,7 +180,173 @@ export interface Overview {
   canProject: boolean;
   canCoverage: boolean;
   canSeeSupplier: boolean;
+  canDev: boolean;
   evidenceDays: number;
+  dev?: DevOverview;
+}
+
+export interface DevOverview {
+  gapGroups: number;
+  todo: number;
+  doing: number;
+  done: number;
+  gapTotal: number;
+}
+
+export interface DevSupplier {
+  id: number;
+  name?: string;
+  /** 1 询价记录、2 采购订单行；线索为 0 */
+  evidenceType: number;
+  evidenceDate?: string;
+}
+
+export interface Candidate {
+  id: number;
+  projectId: number;
+  supplierId: number;
+  name?: string;
+  contactName?: string;
+  contactInfo?: string;
+  source: number;
+  stage: number;
+  abandonReason?: string;
+  note?: string;
+  evidenceType?: number;
+  evidenceDate?: string;
+  quotedAt?: string;
+  nextAction?: string;
+  nextActionDate?: string;
+  ownerId?: number;
+  ownerName?: string;
+  lastAction?: string;
+  lastActionAt?: string;
+  lastActionByName?: string;
+  overdueDays: number;
+  linkReminder: boolean;
+}
+
+export interface DevGroup {
+  key: string;
+  brandId: number;
+  brandName?: string;
+  categoryId: number;
+  categoryName?: string;
+  heat: number;
+  source: 'demand' | 'expansion' | 'both';
+  expansionId?: number;
+  expansionHeat?: number;
+  expansionReason?: string;
+  required: number;
+  qualified: number;
+  gap: number;
+  stage: 'todo' | 'doing' | 'done';
+  leads: number;
+  stockoutModels: number;
+  stockoutTimes: number;
+  projectId?: number;
+  projectName?: string;
+  projectTarget?: number;
+  projectQualified: number;
+  projectOwnerId?: number;
+  projectOwnerName?: string;
+  projectDueDate?: string;
+  projectOverdueDays: number;
+  activeCandidates: number;
+  urgentAction?: string;
+  urgentDate?: string;
+  overdue: number;
+  qualifiedSuppliers: DevSupplier[];
+  leadSuppliers: DevSupplier[];
+  candidates: Candidate[];
+}
+
+export interface DevGroupPage {
+  total: number;
+  groups: DevGroup[];
+}
+
+export interface DevScope {
+  brandId: number;
+  brandName?: string;
+  categoryId: number;
+  categoryName?: string;
+  heat: number;
+  required: number;
+  qualified: number;
+  gap: number;
+  expansionId?: number;
+  expansionHeat?: number;
+  expansionReason?: string;
+  expansionOwnerId?: number;
+  activeProjectId?: number;
+  activeProjectName?: string;
+  activeProjectTarget?: number;
+  defaultName: string;
+}
+
+export interface ProjectDev {
+  target: number;
+  qualified: number;
+  rangeQualified: number;
+  required: number;
+  rangeGap: number;
+  suggestClose: boolean;
+  candidates: Candidate[];
+  others: DevSupplier[];
+  records: TimelineItem[];
+  canEdit: boolean;
+  canSeeSupplier: boolean;
+}
+
+export interface DevTodayItem {
+  kind: 'candidate' | 'project' | 'remind';
+  key: string;
+  projectId?: number;
+  projectName?: string;
+  brandId: number;
+  brandName?: string;
+  categoryId: number;
+  categoryName?: string;
+  candidateId?: number;
+  candidateName?: string;
+  text: string;
+  date: string;
+  overdue: boolean;
+  overdueDays: number;
+}
+
+export interface DevGroupQuery {
+  stage?: string;
+  brandId?: number;
+  parentCategoryId?: number;
+  categoryId?: number;
+  heat?: number;
+  source?: string;
+  ownerId?: number;
+  keyword?: string;
+  page?: number;
+  size?: number;
+}
+
+export interface CandidateReq {
+  supplierId?: number;
+  name?: string;
+  contactName?: string;
+  contactInfo?: string;
+  source?: number;
+  note?: string;
+}
+
+export interface CandidateRecordReq {
+  candidateIds: number[];
+  content: string;
+  stage?: number;
+  abandonReason?: string;
+  nextAction?: string;
+  nextActionDate?: string;
+  ownerId?: number;
+  idempotencyKey: string;
 }
 
 export interface Group {
@@ -196,6 +399,7 @@ export interface Today {
   weekRest: number;
   overdueCards: TodayCard[];
   todayCards: TodayCard[];
+  devItems?: DevTodayItem[];
 }
 
 export interface BattleCardData {
@@ -277,6 +481,8 @@ export interface Project {
   ownerId: number;
   ownerName?: string;
   dueDate: string;
+  supplierTarget?: number;
+  devQualified: number;
   status: number;
   resultNote?: string;
   closedAt?: string;
@@ -287,6 +493,7 @@ export interface Project {
   items?: Demand[];
   records?: TimelineItem[];
   logs?: DocLog[];
+  dev?: ProjectDev;
   createTime: string;
   createBy?: string;
 }
@@ -364,7 +571,7 @@ export interface Team {
 }
 
 export interface Matrix {
-  mode: 'cover' | 'stockout';
+  mode: 'cover' | 'stockout' | 'supplier';
   days: number;
   brands: { id: number; name: string; total: number }[];
   categories: { id: number; name: string; total: number }[];
@@ -378,6 +585,13 @@ export interface Matrix {
     stockoutTimes: number;
     projectId?: number;
     projectName?: string;
+    /** 按供应商 */
+    qualified: number;
+    required: number;
+    gap: number;
+    heat: number;
+    leads: number;
+    devProjectId?: number;
   }[];
 }
 
@@ -428,6 +642,7 @@ export interface ProjectReq {
   ownerId: number;
   dueDate: string;
   demandIds: number[];
+  supplierTarget?: number;
 }
 
 // ---------------------------------------------------------------- 接口
@@ -517,6 +732,35 @@ export const supplyApi = {
     ownerId?: number;
     gapsOnly?: boolean;
   }) => get<Matrix>('/matrix', q),
+  devGroups: (q: DevGroupQuery) => get<DevGroupPage>('/dev/groups', q),
+  devScope: (brandId: number, categoryId?: number) =>
+    get<DevScope>('/dev/scope', { brandId, categoryId }),
+  addExpansion: (data: {
+    brandId: number;
+    categoryId: number;
+    heat: number;
+    reason: string;
+    ownerId?: number;
+  }) => send<number>('POST', '/dev/expansions', data),
+  updateExpansion: (
+    id: number,
+    data: { heat: number; reason: string; ownerId?: number },
+  ) => send<void>('PUT', `/dev/expansions/${id}`, data),
+  removeExpansion: (id: number, reason: string) =>
+    send<void>('POST', `/dev/expansions/${id}/remove`, { reason }),
+  addCandidate: (projectId: number, data: CandidateReq) =>
+    send<number>('POST', `/projects/${projectId}/candidates`, data),
+  linkCandidate: (id: number, supplierId: number) =>
+    send<void>('POST', `/candidates/${id}/link`, { supplierId }),
+  candidateRecord: (data: CandidateRecordReq) =>
+    send<{
+      logId?: number;
+      changed: number;
+      skipped: number[];
+      duplicate: boolean;
+    }>('POST', '/candidates/records', data),
+  projectTarget: (id: number, target?: number) =>
+    send<void>('PUT', `/projects/${id}/target`, { target }),
   models: (q: {
     brandId?: number;
     categoryId?: number;

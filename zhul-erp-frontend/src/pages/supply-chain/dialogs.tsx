@@ -15,12 +15,19 @@ import dayjs, { type Dayjs } from 'dayjs';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useAppTheme } from '@/theme/AppTheme';
 import { CoverPill, useOptions, useUsers } from './components';
-import { classifyPlan, nextOptional, recommendDate } from './rules';
+import {
+  classifyPlan,
+  defaultTarget,
+  nextOptional,
+  recommendDate,
+} from './rules';
 import {
   COVER,
   COVER_HINTS,
   COVER_NAMES,
   type Demand,
+  type DevScope,
+  HEAT_NAMES,
   modelName,
   newKey,
   PRIORITY_NAMES,
@@ -31,9 +38,10 @@ import {
   supplyApi,
 } from './service';
 
-const iso = (d?: Dayjs | null) => (d ? d.format('YYYY-MM-DD') : undefined);
+export const iso = (d?: Dayjs | null) =>
+  d ? d.format('YYYY-MM-DD') : undefined;
 
-const Label: React.FC<{
+export const Label: React.FC<{
   children: React.ReactNode;
   extra?: React.ReactNode;
 }> = ({ children, extra }) => {
@@ -55,10 +63,10 @@ const Label: React.FC<{
   );
 };
 
-const Hint: React.FC<{ children: React.ReactNode; tone?: 'warn' | 'link' }> = ({
-  children,
-  tone,
-}) => {
+export const Hint: React.FC<{
+  children: React.ReactNode;
+  tone?: 'warn' | 'link';
+}> = ({ children, tone }) => {
   const { palette } = useAppTheme();
   return (
     <div
@@ -472,7 +480,8 @@ export const CoverageModal: React.FC<{
 // ---------------------------------------------------------------- 建专项（F6）
 
 export const ProjectModal: React.FC<{
-  scope?: { brandId: number; categoryId?: number };
+  /** dev 为 true 时从供应商开发入口发起：默认勾选「开发供应商」、不带型号 */
+  scope?: { brandId: number; categoryId?: number; dev?: boolean };
   onClose: () => void;
   onDone: (id: number) => void;
 }> = ({ scope, onClose, onDone }) => {
@@ -491,6 +500,11 @@ export const ProjectModal: React.FC<{
   const [activeId, setActiveId] = useState(0);
   const [expand, setExpand] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [dev, setDev] = useState(false);
+  const [withItems, setWithItems] = useState(true);
+  const [target, setTarget] = useState<number | null>(1);
+  const [range, setRange] = useState<DevScope>();
+  const [leads, setLeads] = useState(0);
 
   useEffect(() => {
     if (!scope) return;
@@ -499,6 +513,8 @@ export const ProjectModal: React.FC<{
     setGoal('');
     setDue(dayjs().add(14, 'day'));
     setExpand(false);
+    setDev(!!scope.dev);
+    setWithItems(!scope.dev);
   }, [scope]);
 
   useEffect(() => {
@@ -508,21 +524,70 @@ export const ProjectModal: React.FC<{
       .then((r) => {
         setItems(r.items);
         setChecked(r.items.map((d) => d.id));
-        setName(r.defaultName.replace(' · 全部品类', ''));
+        if (!scope.dev) setName(r.defaultName.replace(' · 全部品类', ''));
         setActiveId(r.activeProjectId);
       })
       .catch(() => setItems([]));
   }, [scope, brandId, categoryId]);
 
+  useEffect(() => {
+    if (!scope || !brandId || !categoryId) {
+      setRange(undefined);
+      return;
+    }
+    supplyApi
+      .devScope(brandId, categoryId)
+      .then((r) => {
+        setRange(r);
+        setTarget(defaultTarget(r.gap));
+        if (scope.dev) setName(r.defaultName);
+      })
+      .catch(() => setRange(undefined));
+    supplyApi
+      .devGroups({ brandId, categoryId, stage: 'all', ownerId: 0, size: 1 })
+      .then((r) => setLeads(r.groups[0]?.leads ?? 0))
+      .catch(() => setLeads(0));
+  }, [scope, brandId, categoryId]);
+
   if (!scope) return null;
   const shown = expand ? items : items.slice(0, 4);
+  const plainActive =
+    activeId > 0 &&
+    range?.activeProjectId === activeId &&
+    range.activeProjectTarget == null;
+  const addTargetToActive = dev && plainActive;
+  const demandIds = withItems ? checked : [];
   const submit = async () => {
-    if (!brandId || !name.trim() || !goal.trim() || !ownerId || !due) {
+    if (addTargetToActive) {
+      setSaving(true);
+      try {
+        await supplyApi.projectTarget(activeId, target ?? undefined);
+        message.success('已在原专项上加开发目标');
+        onDone(activeId);
+      } catch (e) {
+        message.error(readBizError(e).message);
+      } finally {
+        setSaving(false);
+      }
+      return;
+    }
+    // 开发任务的目标就是目标家数，说明可以不写
+    const goalText =
+      goal.trim() || (dev && target ? `开发 ${target} 家合格供应商` : '');
+    if (!brandId || !name.trim() || !goalText || !ownerId || !due) {
       message.warning('请填完品牌、名称、目标、负责人和截止日期');
       return;
     }
-    if (!checked.length) {
-      message.warning('至少包含一个型号');
+    if (dev && !categoryId) {
+      message.warning('开发供应商须选二级品类');
+      return;
+    }
+    if (dev && !target) {
+      message.warning('请填写目标家数');
+      return;
+    }
+    if (!dev && !demandIds.length) {
+      message.warning('至少包含一个型号，或者勾选开发供应商');
       return;
     }
     setSaving(true);
@@ -531,12 +596,13 @@ export const ProjectModal: React.FC<{
         brandId,
         categoryId,
         name: name.trim(),
-        goal: goal.trim(),
+        goal: goalText,
         ownerId,
         dueDate: iso(due) as string,
-        demandIds: checked,
+        demandIds,
+        supplierTarget: dev ? (target ?? undefined) : undefined,
       });
-      message.success('已建立专项');
+      message.success(dev ? '已建立开发任务' : '已建立专项');
       onDone(id);
     } catch (e) {
       message.error(readBizError(e).message);
@@ -544,15 +610,22 @@ export const ProjectModal: React.FC<{
       setSaving(false);
     }
   };
+  const stockoutN = items.filter((d) => d.cntStockout).length;
+  const noChannelN = items.filter(
+    (d) => d.coverageStatus === COVER.NO_CHANNEL,
+  ).length;
   return (
     <Modal
-      title="建专项"
+      title={scope.dev ? '建开发任务' : '建专项'}
       open
       width={640}
       onCancel={onClose}
       onOk={submit}
-      okText="建立专项"
-      okButtonProps={{ loading: saving, disabled: activeId > 0 }}
+      okText={addTargetToActive ? '在原专项上加开发目标' : '建立'}
+      okButtonProps={{
+        loading: saving,
+        disabled: activeId > 0 && !addTargetToActive,
+      }}
     >
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
         <div>
@@ -569,8 +642,8 @@ export const ProjectModal: React.FC<{
           <Label>二级品类</Label>
           <Select
             style={{ width: '100%' }}
-            allowClear
-            placeholder="全部品类"
+            allowClear={!dev}
+            placeholder={dev ? '请选择' : '全部品类'}
             showSearch={{ optionFilterProp: 'label' }}
             options={categories}
             value={categoryId}
@@ -578,81 +651,197 @@ export const ProjectModal: React.FC<{
           />
         </div>
       </div>
-      {activeId > 0 && (
-        <Hint tone="warn">
-          这个范围已有进行中的专项，
-          <a href={`/supply-chain/projects/${activeId}`}>去查看</a>
-        </Hint>
-      )}
-      <Label>名称</Label>
-      <Input
-        maxLength={50}
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-      />
-      <Label>目标</Label>
-      <Input
-        maxLength={200}
-        value={goal}
-        onChange={(e) => setGoal(e.target.value)}
-        placeholder="如：月底前让无货的型号都有现货渠道或明确的替代型号"
-      />
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-        <div>
-          <Label>负责人</Label>
-          <Select
-            style={{ width: '100%' }}
-            showSearch={{ optionFilterProp: 'label' }}
-            options={users}
-            value={ownerId}
-            onChange={setOwnerId}
-          />
-        </div>
-        <div>
-          <Label>截止日期</Label>
-          <DatePicker
-            style={{ width: '100%' }}
-            value={due}
-            onChange={setDue}
-            disabledDate={(d) => d.isBefore(dayjs(), 'day')}
-          />
-        </div>
-      </div>
-      <Label
-        extra={`已选 ${checked.length} 个 · 系统带出近 30 天无货和无渠道的型号`}
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          gap: 12,
+          marginTop: 16,
+        }}
       >
-        包含的型号
-      </Label>
-      <div style={{ display: 'grid', gap: 8 }}>
-        {items.length === 0 && (
-          <div style={{ color: palette.mute, fontSize: 13 }}>
-            这个范围内没有缺口型号
-          </div>
-        )}
-        {shown.map((d) => (
-          <ModelRow
-            key={d.id}
-            d={d}
-            checked={checked.includes(d.id)}
-            onChange={(v) =>
-              setChecked((c) =>
-                v ? [...c, d.id] : c.filter((x) => x !== d.id),
-              )
-            }
-            note={d.cntStockout ? `无货 ${d.cntStockout} 次` : undefined}
-          />
-        ))}
-        {!expand && items.length > 4 && (
-          <Button
-            type="link"
-            style={{ padding: 0, justifySelf: 'start' }}
-            onClick={() => setExpand(true)}
-          >
-            还有 {items.length - 4} 个 · 展开
-          </Button>
+        <Checkbox checked={dev} onChange={(e) => setDev(e.target.checked)}>
+          <b>开发供应商</b>
+        </Checkbox>
+        {range && (
+          <span style={{ fontSize: 13, color: palette.mute }}>
+            热度{HEAT_NAMES[range.heat]}，要求 {range.required} 家，现有合格{' '}
+            {range.qualified} 家
+          </span>
         )}
       </div>
+      {dev && (
+        <>
+          <Label>目标家数</Label>
+          <span
+            style={{ display: 'inline-flex', gap: 12, alignItems: 'center' }}
+          >
+            <InputNumber
+              min={1}
+              max={10}
+              precision={0}
+              value={target}
+              onChange={setTarget}
+            />
+            <span style={{ fontSize: 12, color: palette.mute }}>
+              默认等于缺口家数，可以改
+            </span>
+          </span>
+        </>
+      )}
+      {activeId > 0 &&
+        (addTargetToActive ? (
+          <Hint tone="link">
+            这个范围已有只管型号的进行中专项「{range?.activeProjectName}
+            」，不另建，直接在原专项上加开发目标。
+          </Hint>
+        ) : (
+          <Hint tone="warn">
+            这个范围已有进行中的专项，
+            <a href={`/supply-chain/projects/${activeId}`}>去查看</a>
+          </Hint>
+        ))}
+      {!addTargetToActive && (
+        <>
+          <Label>名称</Label>
+          <Input
+            maxLength={50}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
+          <Label>{dev ? '目标说明（选填）' : '目标说明'}</Label>
+          <Input
+            maxLength={200}
+            value={goal}
+            onChange={(e) => setGoal(e.target.value)}
+            placeholder={
+              dev
+                ? `不填则为「开发 ${target ?? 1} 家合格供应商」`
+                : '如：月底前让无货的型号都有现货渠道或明确的替代型号'
+            }
+          />
+          <div
+            style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}
+          >
+            <div>
+              <Label>负责人</Label>
+              <Select
+                style={{ width: '100%' }}
+                showSearch={{ optionFilterProp: 'label' }}
+                options={users}
+                value={ownerId}
+                onChange={setOwnerId}
+              />
+            </div>
+            <div>
+              <Label>截止日期</Label>
+              <DatePicker
+                style={{ width: '100%' }}
+                value={due}
+                onChange={setDue}
+                disabledDate={(d) => d.isBefore(dayjs(), 'day')}
+              />
+            </div>
+          </div>
+          {dev && (
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                gap: 12,
+                marginTop: 16,
+              }}
+            >
+              <Checkbox
+                checked={withItems}
+                onChange={(e) => setWithItems(e.target.checked)}
+              >
+                同时处理型号缺口
+              </Checkbox>
+              <span style={{ fontSize: 13, color: palette.mute }}>
+                选填 · 范围内有 {stockoutN} 个无货、{noChannelN} 个无渠道的型号
+              </span>
+            </div>
+          )}
+          {withItems && (
+            <>
+              <Label
+                extra={`已选 ${checked.length} 个 · 系统带出近 30 天无货和无渠道的型号`}
+              >
+                包含的型号
+              </Label>
+              <div style={{ display: 'grid', gap: 8 }}>
+                {items.length === 0 && (
+                  <div style={{ color: palette.mute, fontSize: 13 }}>
+                    这个范围内没有缺口型号
+                  </div>
+                )}
+                {shown.map((d) => (
+                  <ModelRow
+                    key={d.id}
+                    d={d}
+                    checked={checked.includes(d.id)}
+                    onChange={(v) =>
+                      setChecked((c) =>
+                        v ? [...c, d.id] : c.filter((x) => x !== d.id),
+                      )
+                    }
+                    note={
+                      d.cntStockout ? `无货 ${d.cntStockout} 次` : undefined
+                    }
+                  />
+                ))}
+                {!expand && items.length > 4 && (
+                  <Button
+                    type="link"
+                    style={{ padding: 0, justifySelf: 'start' }}
+                    onClick={() => setExpand(true)}
+                  >
+                    还有 {items.length - 4} 个 · 展开
+                  </Button>
+                )}
+              </div>
+            </>
+          )}
+          {dev && leads > 0 && (
+            <InfoBox>
+              这个品牌品类已有线索供应商 {leads}{' '}
+              家，建立后可以在开发任务里一键加为候选。
+            </InfoBox>
+          )}
+        </>
+      )}
     </Modal>
+  );
+};
+
+/** 蓝色说明框 */
+export const InfoBox: React.FC<{
+  children: React.ReactNode;
+  tone?: 'info' | 'warn';
+  extra?: React.ReactNode;
+}> = ({ children, tone = 'info', extra }) => {
+  const { palette } = useAppTheme();
+  const color = tone === 'warn' ? palette.orange : palette.link;
+  return (
+    <div
+      style={{
+        marginTop: 16,
+        padding: '10px 14px',
+        borderRadius: 10,
+        display: 'flex',
+        gap: 8,
+        alignItems: 'flex-start',
+        fontSize: 13,
+        color,
+        background: `${color}1A`,
+      }}
+    >
+      <InfoCircleOutlined style={{ marginTop: 3 }} />
+      <span style={{ flex: 1 }}>{children}</span>
+      {extra}
+    </div>
   );
 };
 

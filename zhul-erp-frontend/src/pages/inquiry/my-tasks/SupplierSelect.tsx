@@ -8,8 +8,10 @@ const SupplierSelect: React.FC<{
   /** 已保存记录的供应商名称，搜索前用来显示当前值 */
   label?: string;
   status?: 'error';
+  /** 弹窗表单里用：正常尺寸、占满一行 */
+  block?: boolean;
   onChange: (supplierId: number | undefined, name: string) => void;
-}> = ({ value, label, status, onChange }) => {
+}> = ({ value, label, status, block, onChange }) => {
   const [options, setOptions] = useState<{ value: number; label: string }[]>(
     [],
   );
@@ -45,7 +47,8 @@ const SupplierSelect: React.FC<{
 
   return (
     <Select
-      size="small"
+      size={block ? 'middle' : 'small'}
+      style={block ? { width: '100%' } : undefined}
       allowClear
       placeholder="搜索供应商"
       value={value}

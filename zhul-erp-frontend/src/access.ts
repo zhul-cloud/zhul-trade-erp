@@ -92,6 +92,7 @@ export default function access(initialState: {
     'supply:followup:team': can('supply:followup:team'),
     'supply:project:edit': can('supply:project:edit'),
     'supply:coverage:edit': can('supply:coverage:edit'),
+    'supply:dev:edit': can('supply:dev:edit'),
     // 仓库管理
     warehouseMenu: any(
       '/warehouse/receipts',

@@ -1,13 +1,18 @@
 import dayjs from 'dayjs';
 import {
+  candidateNextOptional,
+  candidateTargetStage,
   classifyPlan,
+  defaultTarget,
+  evidenceText,
   nextOptional,
+  otherQualified,
   ownerParam,
   recommendDate,
   signalDoc,
   signalText,
 } from './rules';
-import type { Demand, Signal } from './service';
+import { CAND, type Demand, type DevSupplier, type Signal } from './service';
 
 const sig = (p: Partial<Signal>): Signal => ({
   id: 1,
@@ -165,5 +170,68 @@ describe('signalText', () => {
     expect(
       signalText(sig({ sourceType: 6, platform: '1688', content: '同行在推' })),
     ).toBe('1688 · 同行在推');
+  });
+});
+
+describe('供应商开发', () => {
+  it('合格只能由系统改，人工只能改为已放弃；放弃后可重新跟进', () => {
+    expect(candidateTargetStage(CAND.TODO, undefined)).toBe(CAND.TODO);
+    expect(candidateTargetStage(CAND.TODO, CAND.QUOTED)).toBe(CAND.QUOTED);
+    expect(candidateTargetStage(CAND.QUALIFIED, CAND.CONTACTED)).toBe(
+      CAND.QUALIFIED,
+    );
+    expect(candidateTargetStage(CAND.QUALIFIED, CAND.ABANDONED)).toBe(
+      CAND.ABANDONED,
+    );
+    expect(candidateTargetStage(CAND.ABANDONED, CAND.CONTACTED)).toBe(
+      CAND.CONTACTED,
+    );
+  });
+
+  it('所选候选记完都是合格或放弃时下一步可不填', () => {
+    expect(candidateNextOptional([], CAND.ABANDONED)).toBe(false);
+    expect(candidateNextOptional([{ stage: CAND.QUALIFIED }], undefined)).toBe(
+      true,
+    );
+    expect(
+      candidateNextOptional(
+        [{ stage: CAND.QUALIFIED }, { stage: CAND.TODO }],
+        undefined,
+      ),
+    ).toBe(false);
+    expect(
+      candidateNextOptional(
+        [{ stage: CAND.QUALIFIED }, { stage: CAND.TODO }],
+        CAND.ABANDONED,
+      ),
+    ).toBe(true);
+    expect(candidateNextOptional([{ stage: CAND.TODO }], CAND.QUOTED)).toBe(
+      false,
+    );
+  });
+
+  it('默认目标等于缺口，限 1–10 家', () => {
+    expect(defaultTarget(0)).toBe(1);
+    expect(defaultTarget(2)).toBe(2);
+    expect(defaultTarget(12)).toBe(10);
+  });
+
+  it('其他合格供应商排除已是候选的', () => {
+    const s = (id: number): DevSupplier => ({
+      id,
+      name: `S${id}`,
+      evidenceType: 1,
+      evidenceDate: '2026-11-01',
+    });
+    const rest = otherQualified({
+      qualifiedSuppliers: [s(1), s(2)],
+      candidates: [{ supplierId: 1 } as never, { supplierId: 0 } as never],
+    });
+    expect(rest.map((x) => x.id)).toEqual([2]);
+  });
+
+  it('合格依据文字', () => {
+    expect(evidenceText(2, '2026-11-03')).toBe('采购订单 11-03');
+    expect(evidenceText(1, '2026-11-03')).toBe('询价 11-03');
   });
 });
