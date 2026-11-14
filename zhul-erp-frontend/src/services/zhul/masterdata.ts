@@ -38,6 +38,8 @@ export interface SaveCustomerPayload {
   contactName?: string;
   contactPhone?: string;
   contactEmail?: string;
+  /** 所属事业部：本人主部门不属于事业部且公司有多个事业部时必填 */
+  businessUnitId?: number;
 }
 
 export interface SaveSupplierPayload {

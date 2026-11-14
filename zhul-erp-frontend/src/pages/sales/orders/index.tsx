@@ -1,5 +1,6 @@
 import {
   ClockCircleOutlined,
+  FallOutlined,
   FileDoneOutlined,
   PlusOutlined,
   SearchOutlined,
@@ -69,22 +70,36 @@ interface Filters {
   receiptStatus?: number;
   /** 1-PI 转成、2-手动创建、3-售后补发、4-费用订单 */
   source?: number;
+  /** 只看毛利为负（快捷筛选；经营看板「毛利为负的订单」带过来） */
+  lossOnly?: boolean;
 }
 
 /** 收款状态筛选里的「先采购后收款未收款」 */
 const PAY_LATER_OPEN = -1;
 
-/** 默认最近 3 个月（清空日期看全部）；从销售统计跳转时用 URL 带的销售日期、业务员、事业部 */
+/**
+ * 默认最近 3 个月（清空日期看全部）；从销售统计跳转时用 URL 带的销售日期、业务员、事业部。
+ * 从工作台待办进来：订单状态（progressCode）不限日期；毛利为负（loss=1）带本月销售日期，与待办数字同口径。
+ */
 export const initial = (): Filters => {
   const p = new URLSearchParams(window.location.search);
   const from = p.get('dateFrom');
   const to = p.get('dateTo');
   const owner = Number(p.get('ownerId'));
   const unit = Number(p.get('businessUnitId'));
+  const progressCode = p.get('progressCode') || undefined;
+  const lossOnly = p.get('loss') === '1' || undefined;
   return {
-    range: from && to ? [dayjs(from), dayjs(to)] : recentRange(),
+    range:
+      from && to
+        ? [dayjs(from), dayjs(to)]
+        : progressCode || lossOnly
+          ? null
+          : recentRange(),
     ownerId: owner > 0 ? owner : undefined,
     businessUnitId: unit > 0 ? unit : undefined,
+    progressCode,
+    lossOnly,
   };
 };
 
@@ -133,6 +148,7 @@ const OrderList: React.FC = () => {
           ? undefined
           : filters.receiptStatus,
       payLaterOpen: filters.receiptStatus === PAY_LATER_OPEN || undefined,
+      lossOnly: filters.lossOnly || undefined,
       source: filters.source,
       sortField: sort.order ? sort.field : undefined,
       sortOrder: sort.order ?? undefined,
@@ -179,6 +195,7 @@ const OrderList: React.FC = () => {
     !filters.businessUnitId &&
     !filters.receiptStatus &&
     !filters.source &&
+    !filters.lossOnly &&
     !filters.range;
 
   const sub = (text: React.ReactNode, color: string = palette.mute) => (
@@ -540,7 +557,7 @@ const OrderList: React.FC = () => {
           form={form}
           layout="vertical"
           initialValues={initial()}
-          onFinish={applyFilters}
+          onFinish={(v) => applyFilters({ ...v, lossOnly: filters.lossOnly })}
         >
           <div
             style={{
@@ -709,6 +726,29 @@ const OrderList: React.FC = () => {
                 查询
               </Button>
             </div>
+          </div>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              marginTop: 12,
+            }}
+          >
+            <span style={{ fontSize: 12, color: palette.mute }}>快捷筛选</span>
+            <Button
+              size="small"
+              danger={!!filters.lossOnly}
+              type={filters.lossOnly ? 'primary' : 'default'}
+              icon={<FallOutlined />}
+              onClick={() => {
+                setFilters((f) => ({ ...f, lossOnly: !f.lossOnly }));
+                setPage(1);
+              }}
+              aria-pressed={!!filters.lossOnly}
+            >
+              毛利为负
+            </Button>
           </div>
         </Form>
       </Card>

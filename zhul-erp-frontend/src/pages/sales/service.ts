@@ -345,6 +345,8 @@ export interface OverduePis {
 
 export interface PiStats {
   draftCount: number;
+  /** 待收款的 PI（同工作台「PI 待收款」） */
+  unpaidCount?: number;
   slipOnlyCount: number;
   monthReceivedUsd: number;
   monthReceivedCny: number;
@@ -358,6 +360,8 @@ export interface PiQuery {
   receiptStatus?: number;
   /** 只看已过期未收款 */
   expiredUnpaid?: boolean;
+  /** 只看待收款：已发送或已转订单、还没付清 */
+  unpaid?: boolean;
   ownerId?: number;
   createdFrom?: string;
   createdTo?: string;
@@ -823,6 +827,8 @@ export interface OrderStats {
 export interface OrderQuery {
   /** 只看先采购后收款、还没有水单也没有到账的 */
   payLaterOpen?: boolean;
+  /** 只看毛利为负、进行中的订单 */
+  lossOnly?: boolean;
   keyword?: string;
   status?: number;
   receiptStatus?: number;

@@ -182,7 +182,7 @@ public class BossWidgets {
                         .isNull(SalesOrderDO::getDeletedAt);
                 scope.current().apply(w, SalesOrderDO::getOwnerId);
                 todos.add(W.todo("down", "red", "毛利为负的订单", "本月成交里亏本的订单", orders.selectCount(w), true,
-                        SalesWidgets.ORDERS));
+                        SalesWidgets.ORDERS + "?loss=1&dateFrom=" + W.monthStart() + "&dateTo=" + LocalDate.now()));
             }
             return W.of(W.todos(todos));
         });

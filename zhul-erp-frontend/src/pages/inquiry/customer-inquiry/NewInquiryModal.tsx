@@ -99,6 +99,8 @@ const NewInquiryModal: React.FC<{
   const [plateUploading, setPlateUploading] = useState(0);
   const [saving, setSaving] = useState(false);
   const [quickOpen, setQuickOpen] = useState(false);
+  // 点「新建客户」时先收起客户下拉，否则下拉浮层会盖在新建客户弹窗上
+  const [pickerOpen, setPickerOpen] = useState(false);
   /** 客户进行中的商机；undefined 为还没选客户 */
   const [opps, setOpps] = useState<OpportunityOption[]>();
   const [oppId, setOppId] = useState<number>(NO_OPP);
@@ -392,13 +394,18 @@ const NewInquiryModal: React.FC<{
                 placeholder="搜索客户名称或联系人"
                 options={customers}
                 onChange={(id) => pickCustomer(id)}
+                open={pickerOpen}
+                onOpenChange={setPickerOpen}
                 popupRender={(menu) => (
                   <>
                     {menu}
                     <Button
                       type="link"
                       icon={<PlusOutlined />}
-                      onClick={() => setQuickOpen(true)}
+                      onClick={() => {
+                        setPickerOpen(false);
+                        setQuickOpen(true);
+                      }}
                       style={{ width: '100%' }}
                     >
                       新建客户

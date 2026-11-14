@@ -63,7 +63,16 @@ interface Filters {
   range?: [Dayjs, Dayjs];
   /** 只看已过期未收款（工作台「查看全部」带过来） */
   expiredUnpaid?: boolean;
+  /** 只看待收款：已发送或已转订单、还没付清（工作台「PI 待收款」带过来） */
+  unpaid?: boolean;
 }
+
+/** 从工作台跳来时的快捷筛选（不限创建日期，与工作台数字同口径）；没有时返回 undefined，用默认筛选 */
+export const quickFromUrl = (search: URLSearchParams): Filters | undefined => {
+  if (search.get('expired') === '1') return { expiredUnpaid: true };
+  if (search.get('unpaid') === '1') return { unpaid: true };
+  return undefined;
+};
 
 const PiList: React.FC = () => {
   const { message } = App.useApp();
@@ -71,10 +80,10 @@ const PiList: React.FC = () => {
   const wide = useWide();
   const [form] = Form.useForm<Filters>();
   const [search] = useSearchParams();
-  // 创建日期默认最近 3 个月，清空日期看全部；从「已过期未付款」跳来时看全部
+  // 创建日期默认最近 3 个月，清空日期看全部；从工作台「已过期未收款」「PI 待收款」跳来时看全部
   const [defaults] = useState<Filters>(() => ({ range: recentRange() }));
-  const [filters, setFilters] = useState<Filters>(() =>
-    search.get('expired') === '1' ? { expiredUnpaid: true } : defaults,
+  const [filters, setFilters] = useState<Filters>(
+    () => quickFromUrl(search) ?? defaults,
   );
   const [overdueCount, setOverdueCount] = useState<number>();
   const [page, setPage] = useState(1);
@@ -102,6 +111,7 @@ const PiList: React.FC = () => {
       status: filters.status,
       receiptStatus: filters.receiptStatus,
       expiredUnpaid: filters.expiredUnpaid || undefined,
+      unpaid: filters.unpaid || undefined,
       ownerId: filters.ownerId,
       createdFrom: filters.range?.[0]?.format('YYYY-MM-DD'),
       createdTo: filters.range?.[1]?.format('YYYY-MM-DD'),
@@ -164,6 +174,7 @@ const PiList: React.FC = () => {
     !filters.status &&
     !filters.receiptStatus &&
     !filters.expiredUnpaid &&
+    !filters.unpaid &&
     !filters.ownerId &&
     !filters.range;
 
@@ -476,7 +487,11 @@ const PiList: React.FC = () => {
           layout="vertical"
           initialValues={{ range: filters.range }}
           onFinish={(v) => {
-            setFilters({ ...v, expiredUnpaid: filters.expiredUnpaid });
+            setFilters({
+              ...v,
+              expiredUnpaid: filters.expiredUnpaid,
+              unpaid: filters.unpaid,
+            });
             setPage(1);
           }}
         >
@@ -571,6 +586,18 @@ const PiList: React.FC = () => {
             }}
           >
             <span style={{ fontSize: 12, color: palette.mute }}>快捷筛选</span>
+            <Button
+              size="small"
+              type={filters.unpaid ? 'primary' : 'default'}
+              icon={<WalletOutlined />}
+              onClick={() => {
+                setFilters((f) => ({ ...f, unpaid: !f.unpaid }));
+                setPage(1);
+              }}
+              aria-pressed={!!filters.unpaid}
+            >
+              待收款{stats?.unpaidCount != null ? ` ${stats.unpaidCount}` : ''}
+            </Button>
             <Button
               size="small"
               danger={!!filters.expiredUnpaid}
