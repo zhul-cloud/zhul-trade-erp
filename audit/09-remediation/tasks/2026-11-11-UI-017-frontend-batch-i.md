@@ -58,14 +58,14 @@
 
 | ID | 修复 / 验收范围 | 部署与目标环境验收证据 | 验收人 / 日期 | 结论与剩余项 |
 | --- | --- | --- | --- | --- |
-| UI-017 | 换单 / 关闭后旧详情不改写抽屉，打包只提交当前单；保存、上传进行中换单不影响新单 | 加载部分随 v1.20.0 已部署（[#257](https://github.com/zhul-cloud/zhul-trade-erp/pull/257)；[生产发版](https://github.com/zhul-cloud/zhul-trade-erp/actions/runs/43119493452) 成功，2026-11-12）；保存 / 上传中换单部分 [#261](https://github.com/zhul-cloud/zhul-trade-erp/pull/261) 已合并（`54847eae`）；v1.21.0 已部署（[#272](https://github.com/zhul-cloud/zhul-trade-erp/pull/272) `32fed33e`，生产发版运行 43248664068 成功，2026-11-12）；生产未验收 | — | 已发布待验收 |
-| UI-018 | 事业部晚到不清空费用单草稿 | v1.20.0 已部署（[#257](https://github.com/zhul-cloud/zhul-trade-erp/pull/257)；[生产发版](https://github.com/zhul-cloud/zhul-trade-erp/actions/runs/43119493452) 成功，2026-11-12） | — | 已发布待验收 |
-| UI-024 | 用户列表按部门筛选生效 | v1.20.0 已部署（[#257](https://github.com/zhul-cloud/zhul-trade-erp/pull/257)；[生产发版](https://github.com/zhul-cloud/zhul-trade-erp/actions/runs/43119493452) 成功，2026-11-12） | — | 已发布待验收 |
-| UI-025 | 编辑字典类型可正常保存 | v1.20.0 已部署（[#257](https://github.com/zhul-cloud/zhul-trade-erp/pull/257)；[生产发版](https://github.com/zhul-cloud/zhul-trade-erp/actions/runs/43119493452) 成功，2026-11-12） | — | 已发布待验收 |
-| UI-027 | 收款账户二次编辑保留本轮身份证号 | v1.20.0 已部署（[#257](https://github.com/zhul-cloud/zhul-trade-erp/pull/257)；[生产发版](https://github.com/zhul-cloud/zhul-trade-erp/actions/runs/43119493452) 成功，2026-11-12） | — | 已发布待验收 |
-| UI-031 | 切换显示作废回到第 1 页 | v1.20.0 已部署（[#257](https://github.com/zhul-cloud/zhul-trade-erp/pull/257)；[生产发版](https://github.com/zhul-cloud/zhul-trade-erp/actions/runs/43119493452) 成功，2026-11-12） | — | 已发布待验收 |
-| UI-032 | 同 UI-038，v1.6.0 已上线 | 见 [UI-038 任务](2026-11-03-UI-038-feedback-batch-bugs.md) | — | 随 UI-038 验收 |
-| UI-033 | 备注保存失败保留草稿 | v1.20.0 已部署（[#257](https://github.com/zhul-cloud/zhul-trade-erp/pull/257)；[生产发版](https://github.com/zhul-cloud/zhul-trade-erp/actions/runs/43119493452) 成功，2026-11-12） | — | 已发布待验收 |
+| UI-017 | 换单 / 关闭后旧详情不改写抽屉，打包只提交当前单；保存、上传进行中换单不影响新单 | 加载部分随 v1.20.0 已部署（[#257](https://github.com/zhul-cloud/zhul-trade-erp/pull/257)；[生产发版](https://github.com/zhul-cloud/zhul-trade-erp/actions/runs/43119493452) 成功，2026-11-12）；保存 / 上传中换单部分 [#261](https://github.com/zhul-cloud/zhul-trade-erp/pull/261) 已合并（`54847eae`）；v1.21.0 已部署（[#272](https://github.com/zhul-cloud/zhul-trade-erp/pull/272) `32fed33e`，生产发版运行 43248664068 成功，2026-11-12）；本机验收通过（2026-11-14，见事件记录） | Ezio / 2026-11-14 | 已关闭 |
+| UI-018 | 事业部晚到不清空费用单草稿 | v1.20.0 已部署（[#257](https://github.com/zhul-cloud/zhul-trade-erp/pull/257)；[生产发版](https://github.com/zhul-cloud/zhul-trade-erp/actions/runs/43119493452) 成功，2026-11-12）；本机验收通过（2026-11-14，见事件记录） | Ezio / 2026-11-14 | 已关闭 |
+| UI-024 | 用户列表按部门筛选生效 | v1.20.0 已部署（[#257](https://github.com/zhul-cloud/zhul-trade-erp/pull/257)；[生产发版](https://github.com/zhul-cloud/zhul-trade-erp/actions/runs/43119493452) 成功，2026-11-12）；本机验收通过（2026-11-14，见事件记录） | Ezio / 2026-11-14 | 已关闭 |
+| UI-025 | 编辑字典类型可正常保存 | v1.20.0 已部署（[#257](https://github.com/zhul-cloud/zhul-trade-erp/pull/257)；[生产发版](https://github.com/zhul-cloud/zhul-trade-erp/actions/runs/43119493452) 成功，2026-11-12）；本机验收通过（2026-11-14，见事件记录） | Ezio / 2026-11-14 | 已关闭 |
+| UI-027 | 收款账户二次编辑保留本轮身份证号 | v1.20.0 已部署（[#257](https://github.com/zhul-cloud/zhul-trade-erp/pull/257)；[生产发版](https://github.com/zhul-cloud/zhul-trade-erp/actions/runs/43119493452) 成功，2026-11-12）；本机验收通过（2026-11-14，见事件记录） | Ezio / 2026-11-14 | 已关闭 |
+| UI-031 | 切换显示作废回到第 1 页 | v1.20.0 已部署（[#257](https://github.com/zhul-cloud/zhul-trade-erp/pull/257)；[生产发版](https://github.com/zhul-cloud/zhul-trade-erp/actions/runs/43119493452) 成功，2026-11-12）；本机验收通过（2026-11-14，见事件记录） | Ezio / 2026-11-14 | 已关闭 |
+| UI-032 | 同 UI-038，v1.6.0 已上线 | 见 [UI-038 任务](2026-11-03-UI-038-feedback-batch-bugs.md)；本机验收通过（2026-11-14，见事件记录） | Ezio / 2026-11-14 | 已关闭 |
+| UI-033 | 备注保存失败保留草稿 | v1.20.0 已部署（[#257](https://github.com/zhul-cloud/zhul-trade-erp/pull/257)；[生产发版](https://github.com/zhul-cloud/zhul-trade-erp/actions/runs/43119493452) 成功，2026-11-12）；本机验收通过（2026-11-14，见事件记录） | Ezio / 2026-11-14 | 已关闭 |
 
 ## 事件记录
 
@@ -78,3 +78,4 @@
 | 2026-11-12 / Claude | 6 项随 v1.20.0 上线（#257，发版运行 43119493452 成功）改为已发布待验收；UI-017 补测保存 / 上传中换单发现三处问题并修复，改回待合并 | 创建 PR |
 | 2026-11-12 / Claude | #261 CI 通过并合并（`54847eae`），UI-017 改为已合并待发布 | 随下一个版本发布 |
 | 2026-11-14 / Claude | 核对：UI-017 补充修复 `54847eae`（#261）已包含在 v1.21.0（#272，生产发版运行 43248664068 成功），改为已发布待验收 | 生产验收 |
+| 2026-11-14 / Claude | 本机验收（用户确认本机与生产效果相同）：develop `6bdde1f7`（业务代码与生产 v1.22.1 一致）上后端完整 `mvn test` 1652 条、前端 `npm test` 340 条、AI 编排服务 139 条全部通过，含本记录各 ID 的回归测试。用户 Ezio 作为验收人确认关闭 UI-017、UI-018、UI-024、UI-025、UI-027、UI-031、UI-032、UI-033 | 无 |
