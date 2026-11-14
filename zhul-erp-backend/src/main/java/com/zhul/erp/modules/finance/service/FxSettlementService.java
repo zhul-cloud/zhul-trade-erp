@@ -73,6 +73,9 @@ public class FxSettlementService {
     private final FxRates fxRates;
     private final ReceiptRows receiptRows;
     private final BusinessUnitService businessUnitService;
+    private final com.zhul.erp.modules.attachment.service.AttachmentService attachments;
+    private final com.zhul.erp.modules.system.doclog.DocLogs docLogs;
+    private final com.zhul.erp.framework.security.PermissionChecker perm;
 
     // ---------------------------------------------------------------- 登记
 
@@ -154,6 +157,8 @@ public class FxSettlementService {
             touched.add(r);
         }
         refresh(open, rate);
+        docLogs.add(DocumentType.JH, s.getId(), "登记", currency + " " + amount.toPlainString() + "，汇率 " + rate.toPlainString()
+                + "，入账 CNY " + amountCny.toPlainString() + "，分摊 " + touched.size() + " 笔收款单");
         logService.recordOperateLog(MENU, "登记结汇单", null, Map.of("settleNo", s.getSettleNo(), "amount", currency + " " + amount,
                 "amountCny", amountCny.toPlainString(), "rate", rate.toPlainString(), "receipts", touched.size()));
         return detail(s.getId());
@@ -204,6 +209,7 @@ public class FxSettlementService {
         Map<Long, PaymentReceiptDO> all = new LinkedHashMap<>(receipts);
         lockOpen(s.getBusinessUnitId(), s.getCurrencyCode()).forEach(r -> all.putIfAbsent(r.getId(), r));
         refresh(all.values(), fxRates.estimate(s.getBusinessUnitId(), s.getCurrencyCode()));
+        docLogs.add(DocumentType.JH, id, "作废", s.getVoidReason());
         logService.recordOperateLog(MENU, "作废结汇单", Map.of("settleNo", s.getSettleNo(), "status", "有效"),
                 Map.of("settleNo", s.getSettleNo(), "status", "已作废", "reason", s.getVoidReason()));
         return detail(id);
@@ -263,7 +269,7 @@ public class FxSettlementService {
         if (q.getDateTo() != null) {
             w.le(FxSettlementDO::getSettleDate, q.getDateTo());
         }
-        w.orderByDesc(FxSettlementDO::getSettleDate).orderByDesc(FxSettlementDO::getId);
+        w.orderByDesc(FxSettlementDO::getUpdateTime).orderByDesc(FxSettlementDO::getId);
         int size = q.getPageSize() == null || q.getPageSize() <= 0 ? 20 : Math.min(q.getPageSize(), 100);
         Page<FxSettlementDO> page = settlementMapper.selectPage(new Page<>(Math.max(1, q.getPage() == null ? 1 : q.getPage()), size), w);
         return PageResult.of(page.getTotal(), toVos(page.getRecords(), false));
@@ -274,7 +280,68 @@ public class FxSettlementService {
         if (s == null || s.getDeletedAt() != null || !Objects.equals(s.getTenantId(), PiStore.tenantId())) {
             throw new BizException("结汇单不存在");
         }
-        return toVos(List.of(s), true).get(0);
+        FxSettlementVO vo = toVos(List.of(s), true).get(0);
+        boolean valid = s.getStatus() == FinanceConstants.FX_VALID;
+        vo.setFiles(attachments.listOf(com.zhul.erp.modules.attachment.service.AttachmentService.FX_SETTLEMENT, id));
+        vo.setLogs(docLogs.list(DocumentType.JH, id));
+        vo.setEditable(valid && perm.has(PERM_SETTLE));
+        vo.setRelated(vo.getAllocations().stream().map(FxSettlementVO.Allocation::getReceipt).filter(Objects::nonNull)
+                .map(r -> new com.zhul.erp.modules.system.doclog.DocRefVO(DocumentType.SK.name(), r.getId(), r.getReceiptNo(),
+                        r.getStatus(), Objects.equals(r.getStatus(), 1) ? "有效" : "已作废"))
+                .toList());
+        if (valid && !Boolean.TRUE.equals(vo.getLatest())) {
+            FxSettlementDO latest = fxRates.latest(s.getBusinessUnitId(), s.getCurrencyCode());
+            vo.setBlockingNo(latest == null ? null : latest.getSettleNo());
+        }
+        return vo;
+    }
+
+    // ---------------------------------------------------------------- 备注与附件（change finance-ap-fx-docs）
+
+    private static final String PERM_SETTLE = "finance:fx:settle";
+
+    @Transactional(rollbackFor = Exception.class)
+    public FxSettlementVO remark(Long id, String remark) {
+        FxSettlementDO s = editable(id);
+        String text = remark == null ? "" : remark.trim();
+        if (text.length() > 500) {
+            throw new BizException("备注最多 500 字");
+        }
+        s.setRemark(text);
+        settlementMapper.updateById(s);
+        docLogs.add(DocumentType.JH, id, "修改备注", text.isEmpty() ? "清空备注" : text);
+        return detail(id);
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public FxSettlementVO attach(Long id, List<Long> ids) {
+        editable(id);
+        attachments.attach(com.zhul.erp.modules.attachment.service.AttachmentService.FX_SETTLEMENT, id, ids);
+        docLogs.add(DocumentType.JH, id, "上传附件", ids.size() + " 个");
+        return detail(id);
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public FxSettlementVO removeAttachment(Long id, Long attachmentId) {
+        editable(id);
+        attachments.remove(com.zhul.erp.modules.attachment.service.AttachmentService.FX_SETTLEMENT, id, attachmentId);
+        docLogs.add(DocumentType.JH, id, "删除附件", "");
+        return detail(id);
+    }
+
+    private FxSettlementDO editable(Long id) {
+        FxSettlementDO s = settlementMapper.selectOne(new LambdaQueryWrapper<FxSettlementDO>()
+                .eq(FxSettlementDO::getId, id)
+                .eq(FxSettlementDO::getTenantId, PiStore.tenantId())
+                .isNull(FxSettlementDO::getDeletedAt)
+                .last("FOR UPDATE"));
+        if (s == null) {
+            throw new BizException("结汇单不存在");
+        }
+        if (s.getStatus() == FinanceConstants.FX_VOID) {
+            throw new BizException("结汇单已作废");
+        }
+        return s;
     }
 
     /** 各事业部、各外币的待结汇：余额、估算汇率与按先进先出排序的到账 */
@@ -307,7 +374,13 @@ public class FxSettlementService {
         if (rows.isEmpty()) {
             return List.of();
         }
-        List<FxSettlementAllocationDO> allocs = allocations(rows.stream().map(FxSettlementDO::getId).toList());
+        // 详情里已作废的结汇单显示作废前的分摊（分摊只在作废时软删除）
+        boolean voidedDetail = withAllocations && rows.size() == 1 && rows.get(0).getStatus() == FinanceConstants.FX_VOID;
+        List<FxSettlementAllocationDO> allocs = voidedDetail
+                ? allocationMapper.selectList(new LambdaQueryWrapper<FxSettlementAllocationDO>()
+                        .eq(FxSettlementAllocationDO::getSettlementId, rows.get(0).getId())
+                        .orderByAsc(FxSettlementAllocationDO::getSortOrder))
+                : allocations(rows.stream().map(FxSettlementDO::getId).toList());
         Map<Long, List<FxSettlementAllocationDO>> bySettlement = allocs.stream()
                 .collect(Collectors.groupingBy(FxSettlementAllocationDO::getSettlementId));
         Map<Long, ReceiptRowVO> receipts = !withAllocations || allocs.isEmpty() ? Map.of()

@@ -159,6 +159,7 @@ export default function access(initialState: {
     receiptDocDetail: any('/finance/receipts', '/sales/pi', '/sales/orders'),
     refundDetail: any('/finance/refunds', '/sales/orders'),
     paymentDetail: any('/finance/payments', '/purchase/orders'),
+    payableDetail: any('/finance/payables', '/finance/payments'),
     financeFxSettlements: can('/finance/fx-settlements'),
     'finance:fx:settle': can('finance:fx:settle'),
     financePayables: can('/finance/payables'),

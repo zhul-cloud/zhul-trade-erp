@@ -12,7 +12,7 @@ import {
   RelatedDocsCard,
   SectionTitle,
 } from '@/components/DocFields/DocPage';
-import SourceNos, { listHref } from '@/components/DocFields/SourceNos';
+import SourceNos from '@/components/DocFields/SourceNos';
 import { DocFilesCard } from '@/components/DocFiles';
 import { usePageTitle } from '@/components/PageTabs/hooks';
 import {
@@ -229,7 +229,7 @@ const PurchaseReturnDetail: React.FC = () => {
           {
             label: '应付单',
             no: payable.payableNo,
-            href: listHref('/finance/payables', payable.payableNo),
+            href: `/finance/payables/${payable.id}`,
             statusName: PAY_STATUS_NAME[payable.status],
             tone:
               payable.status === PAY_STATUS.PAID

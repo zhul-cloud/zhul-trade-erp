@@ -79,6 +79,8 @@ export const DOC_PATHS = {
   receiptDoc: (id: number) => `/finance/receipts/${id}`,
   refund: (id: number) => `/finance/refunds/${id}`,
   payment: (id: number) => `/finance/payments/${id}`,
+  payable: (id: number) => `/finance/payables/${id}`,
+  fxSettlement: (id: number) => `/finance/fx-settlements/${id}`,
 };
 
 const DOC_META: Record<
@@ -148,15 +150,19 @@ const DOC_META: Record<
     href: (id) => DOC_PATHS.refund(id),
     tones: { 1: 'green', 2: 'mute' },
   },
-  PY: { label: '付款单', href: (id) => DOC_PATHS.payment(id) },
+  PY: {
+    label: '付款单',
+    href: (id) => DOC_PATHS.payment(id),
+    tones: { 1: 'green', 2: 'mute' },
+  },
   JH: {
     label: '结汇单',
-    href: () => '/finance/fx-settlements',
+    href: (id) => DOC_PATHS.fxSettlement(id),
     tones: { 1: 'green', 2: 'mute' },
   },
   AP: {
     label: '应付单',
-    href: (_, no) => `/finance/payables?keyword=${encodeURIComponent(no)}`,
+    href: (id) => DOC_PATHS.payable(id),
     tones: { 1: 'orange', 2: 'accent', 3: 'green', 4: 'mute' },
   },
   BX: {

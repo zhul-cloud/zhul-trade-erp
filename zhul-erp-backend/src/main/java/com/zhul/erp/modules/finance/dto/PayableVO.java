@@ -45,6 +45,12 @@ public class PayableVO {
     private String paymentTerms;
     private List<Installment> installments = new ArrayList<>();
     private List<PaymentLine> payments = new ArrayList<>();
+    /** 以下为详情页（change finance-ap-fx-docs） */
+    private String remark;
+    private List<com.zhul.erp.modules.attachment.dto.AttachmentVO> files;
+    private List<com.zhul.erp.modules.system.doclog.DocRefVO> related;
+    private List<com.zhul.erp.modules.system.doclog.DocLogVO> logs;
+    private Boolean editable;
     private LocalDateTime createTime;
     private String createBy;
     private LocalDateTime updateTime;

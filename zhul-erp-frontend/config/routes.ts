@@ -636,11 +636,23 @@ export default [
         component: './finance/fx-settlements',
       },
       {
+        path: '/finance/fx-settlements/:id',
+        hideInMenu: true,
+        access: 'financeFxSettlements',
+        component: './finance/fx-settlements/detail',
+      },
+      {
         path: '/finance/payables',
         name: 'payables',
         icon: 'accountBook',
         access: 'financePayables',
         component: './finance/payables',
+      },
+      {
+        path: '/finance/payables/:id',
+        hideInMenu: true,
+        access: 'payableDetail',
+        component: './finance/payables/detail',
       },
       {
         path: '/finance/payments',
