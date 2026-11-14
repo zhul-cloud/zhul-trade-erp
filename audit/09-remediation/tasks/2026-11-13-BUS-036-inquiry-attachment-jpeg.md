@@ -10,7 +10,7 @@
 | 起点 commit / 工作分支 | 26a835fa01d049c08d042c4d56d5b53ae9b5b1d3 / fix/inquiry-attachment-jpeg |
 | OpenSpec | 不适用：缺陷修复，规格「询盘大附件」本就允许 JPG 图片 |
 | PR / 目标分支 | [#279](https://github.com/zhul-cloud/zhul-trade-erp/pull/279) fix/inquiry-attachment-jpeg → develop |
-| 合并证据 | 未合并 |
+| 合并证据 | #279 合并到 develop `31eb430d`；随 v1.22.0 发布（#296 `dc5a2342`，生产发版运行 43571080116 成功） |
 | 目标版本 / 环境 | 下一个 release |
 
 ## 实施与验证结果
@@ -28,7 +28,7 @@
 
 | ID | 修复 / 验收范围 | 部署与目标环境验收证据 | 验收人 / 日期 | 结论与剩余项 |
 | --- | --- | --- | --- | --- |
-| BUS-036 | 新建询盘上传 WhatsApp 的 .jpeg 附件与铭牌 | 已合并到 develop（PR #279，merge commit `31eb430d`），未部署 | — | 待发布与验收 |
+| BUS-036 | 新建询盘上传 WhatsApp 的 .jpeg 附件与铭牌 | v1.22.0 已部署（[#296](https://github.com/zhul-cloud/zhul-trade-erp/pull/296) `dc5a2342`，生产发版运行 43571080116 成功，2026-11-14）；生产未验收 | — | 已发布待验收 |
 
 ## 阻塞与下一步
 
@@ -40,3 +40,4 @@
 | --- | --- | --- |
 | 2026-11-13 / Claude | 认领并修复，单元测试通过；创建 PR #279 | 等用户确认后合并 |
 | 2026-11-13 / Claude | 用户确认后合并 PR #279 到 develop，merge commit `31eb430d` | 随下一个 release 发布；发布后用 .jpeg 图片验收附件与铭牌 |
+| 2026-11-14 / Claude | 核对：#279（`31eb430d`）已包含在 v1.22.0（#296，生产发版运行 43571080116 成功），改为已发布待验收 | 生产验收 |

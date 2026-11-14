@@ -67,8 +67,23 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(MaxUploadSizeExceededException.class)
     public Result<Void> handleMaxUploadSizeExceeded(MaxUploadSizeExceededException e) {
+        if (partHeaderTooLarge(e)) {
+            // Tomcat 每段头部上限 512 字节（默认值，不放宽）：超过约 120 个汉字的文件名会被拒，Spring 把它也归为「上传过大」
+            log.warn("上传文件名过长: {}", e.getMessage());
+            return Result.fail("文件名太长，请改短后重新上传");
+        }
         log.warn("上传文件过大: {}", e.getMessage());
         return Result.fail("上传文件过大，请压缩后重试");
+    }
+
+    /** Tomcat 拒绝 multipart 分段头部过大时的原因：「Header section has more than 512 bytes」 */
+    private static boolean partHeaderTooLarge(Throwable e) {
+        for (Throwable c = e; c != null; c = c.getCause()) {
+            if (c.getMessage() != null && c.getMessage().contains("Header section has more than")) {
+                return true;
+            }
+        }
+        return false;
     }
 
     @ExceptionHandler(AccessDeniedException.class)
