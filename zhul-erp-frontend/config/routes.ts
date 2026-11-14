@@ -597,6 +597,12 @@ export default [
         component: './finance/receipts',
       },
       {
+        path: '/finance/receipts/:id',
+        hideInMenu: true,
+        access: 'receiptDocDetail',
+        component: './finance/receipts/detail',
+      },
+      {
         path: '/finance/refunds',
         name: 'refunds',
         icon: 'rollback',
@@ -608,6 +614,12 @@ export default [
         hideInMenu: true,
         access: 'refundRequestDetail',
         component: './finance/refunds/request-detail',
+      },
+      {
+        path: '/finance/refunds/:id',
+        hideInMenu: true,
+        access: 'refundDetail',
+        component: './finance/refunds/detail',
       },
       {
         path: '/finance/credits',
@@ -636,6 +648,12 @@ export default [
         icon: 'transaction',
         access: 'financePayments',
         component: './finance/payments',
+      },
+      {
+        path: '/finance/payments/:id',
+        hideInMenu: true,
+        access: 'paymentDetail',
+        component: './finance/payments/detail',
       },
       {
         path: '/finance/reimbursements',

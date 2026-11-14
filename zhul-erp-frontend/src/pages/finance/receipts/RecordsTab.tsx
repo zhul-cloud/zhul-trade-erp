@@ -6,9 +6,11 @@ import type { Dayjs } from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
 import { CustomerSub } from '@/components/DocFields';
 import { ellipsisRender } from '@/components/EllipsisText';
+import { auditColumns } from '@/pages/purchase/components';
 import { CURRENCIES } from '@/pages/quotation/components';
 import { Card, PATHS, Pill } from '@/pages/sales/components';
 import { type ReceiptRow, readBizError } from '@/pages/sales/service';
+import { DOC_PATHS } from '@/pages/warehouse/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import {
   UnitPill,
@@ -47,7 +49,7 @@ const initial = (): Filters => ({
   includeVoid: false,
 });
 
-/** 收款单 → 收款记录：全部到账流水，按筛选结果汇总线上 / 线下（报税统计用） */
+/** 收款管理 → 收款单：全部到账，按筛选结果汇总线上 / 线下（报税统计用） */
 const RecordsTab: React.FC = () => {
   const { message } = App.useApp();
   const { palette } = useAppTheme();
@@ -61,6 +63,8 @@ const RecordsTab: React.FC = () => {
   const [total, setTotal] = useState(0);
   const [summary, setSummary] = useState<ReceiptSummary[]>([]);
   const [loading, setLoading] = useState(true);
+  /** 默认按更新时间倒序，表头可切到到账日期 */
+  const [byDate, setByDate] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -75,6 +79,7 @@ const RecordsTab: React.FC = () => {
         settleStatus: filters.settleStatus,
         includeVoid: filters.includeVoid || undefined,
         businessUnitId: filters.unit,
+        sort: byDate ? 'receiptDate' : undefined,
         page,
         pageSize,
       });
@@ -86,7 +91,7 @@ const RecordsTab: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [filters, page, pageSize, message]);
+  }, [filters, page, pageSize, byDate, message]);
 
   useEffect(() => {
     load();
@@ -135,29 +140,56 @@ const RecordsTab: React.FC = () => {
     );
   };
 
+  const open = (r: ReceiptRow) => history.push(DOC_PATHS.receiptDoc(r.id));
+  const source: TableColumnsType<ReceiptRow>[number] = {
+    title: '来源单号',
+    key: 'pi',
+    width: 180,
+    render: (_, r) =>
+      r.piId || r.soId ? (
+        <button
+          type="button"
+          className="zhul-link"
+          style={{ whiteSpace: 'nowrap' }}
+          onClick={() =>
+            history.push(
+              r.piId ? PATHS.pi(r.piId) : PATHS.order(r.soId as number),
+            )
+          }
+        >
+          {r.piNo ?? r.soNo}
+        </button>
+      ) : (
+        '—'
+      ),
+  };
   const columns: TableColumnsType<ReceiptRow> = [
-    { title: '到账日期', dataIndex: 'receiptDate', width: 110 },
     {
-      title: '来源单号',
-      key: 'pi',
-      width: 180,
-      render: (_, r) =>
-        r.piId || r.soId ? (
-          <button
-            type="button"
-            className="zhul-link"
-            style={{ whiteSpace: 'nowrap' }}
-            onClick={() =>
-              history.push(
-                r.piId ? PATHS.pi(r.piId) : PATHS.order(r.soId as number),
-              )
-            }
-          >
-            {r.piNo ?? r.soNo}
-          </button>
-        ) : (
-          '—'
-        ),
+      title: '收款单号',
+      dataIndex: 'receiptNo',
+      width: 150,
+      fixed: 'left',
+      render: (v: string, r) => (
+        <button
+          type="button"
+          className="zhul-link"
+          style={{
+            whiteSpace: 'nowrap',
+            textDecoration: r.status === 2 ? 'line-through' : undefined,
+          }}
+          onClick={() => open(r)}
+        >
+          {v || '—'}
+        </button>
+      ),
+    },
+    {
+      title: '到账日期',
+      dataIndex: 'receiptDate',
+      width: 120,
+      sorter: true,
+      sortOrder: byDate ? 'descend' : null,
+      sortDirections: ['descend'],
     },
     {
       title: '客户',
@@ -211,7 +243,7 @@ const RecordsTab: React.FC = () => {
       ),
     },
     {
-      title: '毛额',
+      title: '到账金额',
       key: 'amount',
       width: 120,
       align: 'right',
@@ -259,6 +291,18 @@ const RecordsTab: React.FC = () => {
       render: (_, r) => <NetCnyCell r={r} />,
     },
     {
+      title: '状态',
+      key: 'status',
+      width: 90,
+      render: (_, r) =>
+        r.status === 2 ? (
+          <Pill tone="mute">已作废</Pill>
+        ) : (
+          <Pill tone="green">有效</Pill>
+        ),
+    },
+    source,
+    {
       title: '登记人',
       key: 'op',
       width: 150,
@@ -270,8 +314,19 @@ const RecordsTab: React.FC = () => {
               {r.claimedByName} 认领
             </div>
           )}
-          {r.status === 2 && <Pill tone="mute">已作废</Pill>}
         </div>
+      ),
+    },
+    ...auditColumns<ReceiptRow>(),
+    {
+      title: '操作',
+      key: 'view',
+      width: 70,
+      fixed: 'right',
+      render: (_, r) => (
+        <button type="button" className="zhul-link" onClick={() => open(r)}>
+          查看
+        </button>
       ),
     },
   ];
@@ -291,7 +346,7 @@ const RecordsTab: React.FC = () => {
             allowClear
             style={{ width: 280 }}
             prefix={<SearchOutlined />}
-            placeholder="PI / 订单编号、客户、平台订单号、付款人"
+            placeholder="收款单号、PI / 订单编号、客户、平台订单号、付款人"
             value={draft.keyword}
             onChange={(e) => setDraft({ ...draft, keyword: e.target.value })}
           />
@@ -397,7 +452,12 @@ const RecordsTab: React.FC = () => {
         dataSource={rows}
         loading={loading}
         scroll={{ x: tableScrollX(columns) }}
-        locale={{ emptyText: '没有符合条件的收款记录' }}
+        locale={{ emptyText: '没有符合条件的收款单' }}
+        onChange={(_, __, sorter) => {
+          const s = Array.isArray(sorter) ? sorter[0] : sorter;
+          setByDate(s?.field === 'receiptDate' && !!s.order);
+          setPage(1);
+        }}
         pagination={{
           current: page,
           pageSize,

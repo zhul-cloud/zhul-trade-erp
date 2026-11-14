@@ -411,7 +411,7 @@ const OrderCostCard: React.FC<{ cost: OrderCost }> = ({ cost }) => {
               <button
                 type="button"
                 className="zhul-link"
-                onClick={() => history.push('/finance/refunds')}
+                onClick={() => history.push(`/finance/refunds/${r.id}`)}
               >
                 {r.refundNo}
               </button>

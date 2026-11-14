@@ -30,6 +30,7 @@ public class ReimbursementVO {
     private String paidBy;
     private LocalDateTime paidAt;
     private String payRemark;
+    private Long paymentId;
     private String paymentNo;
     private List<PayableVO.AttachmentRef> payProofs = new ArrayList<>();
     private List<AdvanceItemVO> lines = new ArrayList<>();

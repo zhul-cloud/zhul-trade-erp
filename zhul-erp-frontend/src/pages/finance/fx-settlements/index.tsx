@@ -1,5 +1,5 @@
 import { PlusOutlined } from '@ant-design/icons';
-import { useAccess } from '@umijs/max';
+import { Link, useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import {
   App,
@@ -875,6 +875,19 @@ const FxSettlementPage: React.FC = () => {
               dataSource={detail.allocations ?? []}
               locale={{ emptyText: '作废后分摊已撤回' }}
               columns={[
+                {
+                  title: '收款单号',
+                  key: 'no',
+                  width: 150,
+                  render: (_, a) =>
+                    a.receipt?.receiptNo ? (
+                      <Link to={`/finance/receipts/${a.receipt.id}`}>
+                        {a.receipt.receiptNo}
+                      </Link>
+                    ) : (
+                      '—'
+                    ),
+                },
                 {
                   title: '到账日期',
                   key: 'd',

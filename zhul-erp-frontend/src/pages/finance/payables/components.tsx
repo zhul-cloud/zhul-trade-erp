@@ -1165,7 +1165,14 @@ export const PayableBody: React.FC<{
             dataSource={lines}
             scroll={{ x: 'max-content' }}
             columns={[
-              { title: '编号', dataIndex: 'paymentNo', width: 150 },
+              {
+                title: '付款单号',
+                dataIndex: 'paymentNo',
+                width: 150,
+                render: (v: string, l) => (
+                  <Link to={`/finance/payments/${l.paymentId}`}>{v}</Link>
+                ),
+              },
               { title: '日期', dataIndex: 'payDate', width: 110 },
               {
                 title: '类型',

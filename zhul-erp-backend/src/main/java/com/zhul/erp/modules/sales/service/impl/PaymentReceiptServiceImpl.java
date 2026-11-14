@@ -38,6 +38,7 @@ import com.zhul.erp.modules.sales.service.SalesOrderService;
 import com.zhul.erp.modules.sales.dto.SalesOrderVO;
 import com.zhul.erp.modules.sales.support.PaymentMethods;
 import com.zhul.erp.modules.sales.support.PiStore;
+import com.zhul.erp.modules.sales.support.ReceiptDocs;
 import com.zhul.erp.modules.sales.support.ReceiptMoney;
 import com.zhul.erp.modules.sales.support.ReceiptRows;
 import com.zhul.erp.modules.sales.support.PiSummary;
@@ -79,6 +80,7 @@ public class PaymentReceiptServiceImpl implements PaymentReceiptService {
     private static final Set<Integer> RECEIVABLE = Set.of(SalesConstants.PI_SENT, SalesConstants.PI_CONVERTED);
 
     private final BankAccountMapper bankAccountMapper;
+    private final ReceiptDocs receiptDocs;
     private final PaymentReceiptMapper receiptMapper;
     private final SysConfigMapper sysConfigMapper;
     private final PiStore store;
@@ -363,7 +365,9 @@ public class PaymentReceiptServiceImpl implements PaymentReceiptService {
         r.setStatus(SalesConstants.RECORD_VALID);
         r.setVoidReason("");
         r.setOperatorId(currentUserId());
+        receiptDocs.number(r);
         receiptMapper.insert(r);
+        receiptDocs.log(r, "登记", "确认到账 " + o.no() + "：" + ReceiptDocs.money(r) + (slip == null ? "" : "，对应 " + slip.getReceiptDate() + " 的水单"));
         refresh(o);
         notifyReceived(o, r);
         Map<String, Object> after2 = new LinkedHashMap<>();
@@ -419,6 +423,7 @@ public class PaymentReceiptServiceImpl implements PaymentReceiptService {
         r.setStatus(SalesConstants.RECORD_VOID);
         r.setVoidReason(trim(why, 200));
         receiptMapper.updateById(r);
+        receiptDocs.log(r, "作废", r.getVoidReason());
         refresh(o);
         logService.recordOperateLog(o.menu(), "作废到账",
                 Map.of(o.noKey(), o.no(), "amount", o.currency() + " " + r.getAmount(), "status", "有效"),
@@ -506,7 +511,9 @@ public class PaymentReceiptServiceImpl implements PaymentReceiptService {
         r.setStatus(SalesConstants.RECORD_VALID);
         r.setVoidReason("");
         r.setOperatorId(currentUserId());
+        receiptDocs.number(r);
         receiptMapper.insert(r);
+        receiptDocs.log(r, "登记", "平台收款 " + o.no() + "：" + ReceiptDocs.money(r) + "，平台订单号 " + orderNo);
         refresh(o);
         notifyReceived(o, r);
         Map<String, Object> after = new LinkedHashMap<>();
@@ -587,6 +594,7 @@ public class PaymentReceiptServiceImpl implements PaymentReceiptService {
         r.setClaimedBy(currentUserId());
         r.setClaimedAt(LocalDateTime.now());
         receiptMapper.updateById(r);
+        receiptDocs.log(r, "认领", "认领到 " + o.no());
         refresh(o);
         notifyReceived(o, r);
         logService.recordOperateLog(o.menu(), "认领到账", null, Map.of(o.noKey(), o.no(),

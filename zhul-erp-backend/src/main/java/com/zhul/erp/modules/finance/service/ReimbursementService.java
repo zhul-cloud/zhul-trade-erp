@@ -100,6 +100,7 @@ public class ReimbursementService {
     private final PermissionChecker perm;
     private final UserBasicMapper userBasicMapper;
     private final LogService logService;
+    private final com.zhul.erp.modules.system.doclog.DocLogs docLogs;
 
     private record Me(Long id, String username) {
     }
@@ -432,7 +433,7 @@ public class ReimbursementService {
         } catch (DuplicateKeyException e) {
             throw new BizException("有的项已经在其他报销单里，请刷新", e);
         }
-        markPayments(chosen, FinanceConstants.REIMBURSE_CLAIMED);
+        markPayments(chosen, FinanceConstants.REIMBURSE_CLAIMED, "进入报销单", "报销单 " + bx.getReimburseNo());
         Map<String, Object> log = new LinkedHashMap<>();
         log.put("reimburseNo", bx.getReimburseNo());
         log.put("items", chosen.size());
@@ -465,14 +466,14 @@ public class ReimbursementService {
             lineMapper.updateById(l);
         }
         markPayments(lines.stream().map(l -> item(l.getSourceType(), l.getSourceId(), "", null, "", BigDecimal.ZERO)).toList(),
-                FinanceConstants.REIMBURSE_PENDING);
+                FinanceConstants.REIMBURSE_PENDING, "报销单撤回", "报销单 " + bx.getReimburseNo() + " 已撤回，回到待报销");
         logService.recordOperateLog(MENU, "撤回报销单", Map.of("reimburseNo", bx.getReimburseNo(), "status", "待付款"),
                 Map.of("reimburseNo", bx.getReimburseNo(), "status", "已撤回", "reason", reason.trim()));
         return detail(id);
     }
 
     /** 采购货款、收到退款两种来源的付款单：进报销单为 2，撤回为 1 */
-    private void markPayments(List<AdvanceItemVO> items, int status) {
+    private void markPayments(List<AdvanceItemVO> items, int status, String action, String content) {
         List<Long> ids = items.stream()
                 .filter(i -> i.getSourceType() == FinanceConstants.ITEM_PAYMENT || i.getSourceType() == FinanceConstants.ITEM_REFUND)
                 .map(AdvanceItemVO::getSourceId).toList();
@@ -480,6 +481,7 @@ public class ReimbursementService {
             PaymentDO p = paymentMapper.selectById(pid);
             p.setReimburseStatus(status);
             paymentMapper.updateById(p);
+            docLogs.add(DocumentType.PY, pid, action, content);
         }
     }
 
@@ -593,6 +595,8 @@ public class ReimbursementService {
         bx.setPayRemark(req.getRemark() == null ? "" : req.getRemark().trim());
         bx.setPaymentId(p.getId());
         reimbursementMapper.updateById(bx);
+        docLogs.add(DocumentType.PY, p.getId(), "登记", "报销付款：报销单 " + bx.getReimburseNo() + "，CNY "
+                + bx.getTotalAmount().toPlainString() + "，收款人 " + bx.getApplicantName());
         logService.recordOperateLog(MENU, "登记报销已付", null, Map.of("reimburseNo", bx.getReimburseNo(), "paymentNo", p.getPaymentNo(),
                 "total", "CNY " + bx.getTotalAmount()));
     }
@@ -611,6 +615,7 @@ public class ReimbursementService {
                 p.setVoidBy(SecurityUtils.getCurrentUsername());
                 p.setVoidReason("撤销报销已付：" + reason.trim());
                 paymentMapper.updateById(p);
+                docLogs.add(DocumentType.PY, p.getId(), "作废", p.getVoidReason());
             }
         }
         bx.setStatus(FinanceConstants.BX_PENDING);
@@ -798,6 +803,7 @@ public class ReimbursementService {
                     .get(bx.getPayAccountId()));
             if (bx.getPaymentId() != null) {
                 PaymentDO p = paymentMapper.selectById(bx.getPaymentId());
+                vo.setPaymentId(p == null ? null : p.getId());
                 vo.setPaymentNo(p == null ? null : p.getPaymentNo());
             }
             vo.setPayProofs(PayableQueryService.refs(attachments.listOf(AttachmentService.REIMBURSE, bx.getId())));

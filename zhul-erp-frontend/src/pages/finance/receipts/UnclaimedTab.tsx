@@ -409,6 +409,24 @@ const UnclaimedTab: React.FC<{
   }, [registerSignal]);
 
   const columns: TableColumnsType<ReceiptRow> = [
+    {
+      title: '收款单号',
+      dataIndex: 'receiptNo',
+      width: 150,
+      render: (v: string | undefined, r) =>
+        v ? (
+          <button
+            type="button"
+            className="zhul-link"
+            style={{ whiteSpace: 'nowrap' }}
+            onClick={() => history.push(`/finance/receipts/${r.id}`)}
+          >
+            {v}
+          </button>
+        ) : (
+          '—'
+        ),
+    },
     { title: '到账日期', dataIndex: 'receiptDate', width: 110 },
     {
       title: '金额',
@@ -495,6 +513,24 @@ const UnclaimedTab: React.FC<{
   ];
 
   const claimedColumns: TableColumnsType<ReceiptRow> = [
+    {
+      title: '收款单号',
+      dataIndex: 'receiptNo',
+      width: 150,
+      render: (v: string | undefined, r) =>
+        v ? (
+          <button
+            type="button"
+            className="zhul-link"
+            style={{ whiteSpace: 'nowrap' }}
+            onClick={() => history.push(`/finance/receipts/${r.id}`)}
+          >
+            {v}
+          </button>
+        ) : (
+          '—'
+        ),
+    },
     { title: '到账日期', dataIndex: 'receiptDate', width: 110 },
     {
       title: '金额',

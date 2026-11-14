@@ -82,6 +82,11 @@ public class PaymentService {
     private final PermissionChecker perm;
     private final LogService logService;
     private final com.zhul.erp.modules.purchase.service.PurchaseOrderService purchaseOrders;
+    private final com.zhul.erp.modules.system.doclog.DocLogs docLogs;
+    private final com.zhul.erp.modules.finance.repository.ReimbursementMapper reimbursementMapper;
+    private final com.zhul.erp.modules.finance.repository.ReimbursementLineMapper reimbursementLineMapper;
+    private final com.zhul.erp.modules.purchase.repository.PurchaseOrderMapper purchaseOrderMapper;
+    private final com.zhul.erp.framework.security.DataScopeResolver dataScopeResolver;
 
     @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public PaymentVO register(RegisterPaymentRequest req) {
@@ -182,6 +187,8 @@ public class PaymentService {
         allocate(pay, targets, credits);
         attachments.attach(OWNER_TYPE, pay.getId(), req.getAttachmentIds());
         ids.forEach(sync::refresh);
+        docLogs.add(DocumentType.PY, pay.getId(), "登记", "付款：" + pay.getCurrencyCode() + " " + amount.toPlainString()
+                + "，" + FinanceConstants.METHOD_NAMES.get(method) + "，收款方 " + pay.getPayeeName());
         logService.recordOperateLog(MENU, "登记付款", null, Map.of("paymentNo", pay.getPaymentNo(), "payee", pay.getPayeeName(),
                 "amount", pay.getCurrencyCode() + " " + amount, "method", FinanceConstants.METHOD_NAMES.get(method)));
         return toVo(paymentMapper.selectById(pay.getId()));
@@ -392,6 +399,8 @@ public class PaymentService {
         allocationMapper.insert(a);
         attachments.attach(OWNER_TYPE, pay.getId(), req.getAttachmentIds());
         sync.refresh(p.getId());
+        docLogs.add(DocumentType.PY, pay.getId(), "登记", "供应商退款：" + pay.getCurrencyCode() + " " + amount.toPlainString()
+                + "，冲减应付单 " + p.getPayableNo());
         logService.recordOperateLog(MENU, "登记供应商退款", null, Map.of("paymentNo", pay.getPaymentNo(), "payable", p.getPayableNo(),
                 "amount", pay.getCurrencyCode() + " " + amount));
         return toVo(paymentMapper.selectById(pay.getId()));
@@ -445,6 +454,8 @@ public class PaymentService {
         allocationMapper.insert(a);
         attachments.attach(OWNER_TYPE, pay.getId(), req.getAttachmentIds());
         sync.refresh(p.getId());
+        docLogs.add(DocumentType.PY, pay.getId(), "登记", "已收到供应商退款：" + pay.getCurrencyCode() + " " + amount.toPlainString()
+                + "，冲减应付单 " + p.getPayableNo());
         logService.recordOperateLog(MENU, "登记已收到退款", null, Map.of("paymentNo", pay.getPaymentNo(), "payable", p.getPayableNo(),
                 "amount", pay.getCurrencyCode() + " " + amount));
         return toVo(paymentMapper.selectById(pay.getId()));
@@ -492,6 +503,7 @@ public class PaymentService {
                 .set(PaymentAllocationDO::getUpdateTime, now)
                 .set(PaymentAllocationDO::getUpdateBy, SecurityUtils.getCurrentUsername()));
         ids.forEach(sync::refresh);
+        docLogs.add(DocumentType.PY, id, "作废", reason.trim());
         logService.recordOperateLog(MENU, "作废付款", Map.of("paymentNo", pay.getPaymentNo(), "status", "有效"),
                 Map.of("paymentNo", pay.getPaymentNo(), "status", "已作废", "reason", reason.trim()));
         return toVo(pay);
@@ -601,6 +613,153 @@ public class PaymentService {
         return w;
     }
 
+    // ---------------------------------------------------------------- 详情、备注与附件（change finance-cash-docs）
+
+    private static final Map<Integer, String> AP_STATUS_NAMES = Map.of(1, "未付", 2, "部分付款", 3, "已付清", 4, "已关闭");
+    private static final Map<Integer, String> BX_STATUS_NAMES = Map.of(FinanceConstants.BX_PENDING, "待付款",
+            FinanceConstants.BX_PAID, "已报销", FinanceConstants.BX_WITHDRAWN, "已撤回");
+
+    /** 「付款管理」菜单看全部；只有采购订单菜单的，看核销到自己数据权限内采购订单的付款单 */
+    public PaymentVO detail(Long id) {
+        PaymentDO p = visible(id);
+        boolean finance = perm.canAccessMenu("/finance/payments");
+        List<PaymentAllocationDO> allocs = allocationsOf(List.of(id)).getOrDefault(id, List.of());
+        Map<Long, PayableDO> payables = payablesOf(allocs);
+        if (!finance && !purchaseVisible(payables.values())) {
+            throw new BizException("付款单不存在");
+        }
+        PaymentVO vo = toVo(p);
+        vo.setFiles(attachments.listOf(OWNER_TYPE, id));
+        List<com.zhul.erp.modules.finance.entity.ReimbursementDO> bxs = reimbursementsOf(p);
+        vo.setRelated(related(allocs, payables, bxs));
+        vo.setLogs(docLogs.list(DocumentType.PY, id));
+        vo.setEditable(finance && p.getVoidAt() == null && !MigratedGuard.isMigrated(p.getMigrated()));
+        if (p.getVoidAt() == null && !vo.isCanVoid() && hasVoidRight(p)) {
+            String bx = bxs.stream().filter(b -> b.getStatus() != FinanceConstants.BX_WITHDRAWN)
+                    .map(com.zhul.erp.modules.finance.entity.ReimbursementDO::getReimburseNo).findFirst().orElse(null);
+            if (Objects.equals(p.getKind(), FinanceConstants.KIND_REIMBURSE)) {
+                vo.setVoidBlockedReason("报销付款请在报销单" + (bx == null ? "" : " " + bx) + " 上撤销已付");
+            } else if (Objects.equals(p.getReimburseStatus(), FinanceConstants.REIMBURSE_CLAIMED)) {
+                vo.setVoidBlockedReason("这笔垫付已进入报销单" + (bx == null ? "" : " " + bx) + "，不能作废");
+            } else if (MigratedGuard.isMigrated(p.getMigrated())) {
+                vo.setVoidBlockedReason(MigratedGuard.MESSAGE);
+            }
+            // 没有作废权限的不提示（不显示作废按钮）
+        }
+        return vo;
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public PaymentVO remark(Long id, String remark) {
+        PaymentDO p = editable(id);
+        String text = remark == null ? "" : remark.trim();
+        if (text.length() > 500) {
+            throw new BizException("备注最多 500 字");
+        }
+        p.setRemark(text);
+        paymentMapper.updateById(p);
+        docLogs.add(DocumentType.PY, id, "修改备注", text.isEmpty() ? "清空备注" : text);
+        return detail(id);
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public PaymentVO attach(Long id, List<Long> ids) {
+        editable(id);
+        attachments.attach(OWNER_TYPE, id, ids);
+        docLogs.add(DocumentType.PY, id, "上传附件", ids.size() + " 个");
+        return detail(id);
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public PaymentVO removeAttachment(Long id, Long attachmentId) {
+        editable(id);
+        attachments.remove(OWNER_TYPE, id, attachmentId);
+        docLogs.add(DocumentType.PY, id, "删除附件", "");
+        return detail(id);
+    }
+
+    private PaymentDO editable(Long id) {
+        visible(id);
+        PaymentDO p = paymentMapper.selectOne(new LambdaQueryWrapper<PaymentDO>().eq(PaymentDO::getId, id).last("FOR UPDATE"));
+        MigratedGuard.requireEditable(p.getMigrated());
+        if (p.getVoidAt() != null) {
+            throw new BizException("付款单已作废");
+        }
+        return p;
+    }
+
+    private Map<Long, PayableDO> payablesOf(List<PaymentAllocationDO> allocs) {
+        List<Long> ids = allocs.stream().map(PaymentAllocationDO::getPayableId).distinct().toList();
+        return ids.isEmpty() ? Map.of() : payableMapper.selectBatchIds(ids).stream()
+                .collect(Collectors.toMap(PayableDO::getId, Function.identity()));
+    }
+
+    private boolean purchaseVisible(java.util.Collection<PayableDO> payables) {
+        if (!perm.canAccessMenu("/purchase/orders")) {
+            return false;
+        }
+        List<Long> poIds = payables.stream().filter(x -> Objects.equals(x.getSourceType(), FinanceConstants.SOURCE_PURCHASE_ORDER))
+                .map(PayableDO::getSourceId).filter(Objects::nonNull).distinct().toList();
+        if (poIds.isEmpty()) {
+            return false;
+        }
+        com.zhul.erp.framework.security.DataScope scope = dataScopeResolver.current();
+        return purchaseOrderMapper.selectBatchIds(poIds).stream()
+                .anyMatch(po -> po.getDeletedAt() == null && scope.canSee(po.getPurchaserId()));
+    }
+
+    /** 垫付进入的报销单（未撤回的行），或报销付款对应的报销单 */
+    private List<com.zhul.erp.modules.finance.entity.ReimbursementDO> reimbursementsOf(PaymentDO p) {
+        List<Long> bxIds = new ArrayList<>();
+        if (Objects.equals(p.getKind(), FinanceConstants.KIND_REIMBURSE)) {
+            reimbursementMapper.selectList(new LambdaQueryWrapper<com.zhul.erp.modules.finance.entity.ReimbursementDO>()
+                            .eq(com.zhul.erp.modules.finance.entity.ReimbursementDO::getTenantId, p.getTenantId())
+                            .eq(com.zhul.erp.modules.finance.entity.ReimbursementDO::getPaymentId, p.getId())
+                            .isNull(com.zhul.erp.modules.finance.entity.ReimbursementDO::getDeletedAt))
+                    .forEach(b -> bxIds.add(b.getId()));
+        } else if (Objects.equals(p.getMethod(), FinanceConstants.METHOD_ADVANCE)) {
+            reimbursementLineMapper.selectList(new LambdaQueryWrapper<com.zhul.erp.modules.finance.entity.ReimbursementLineDO>()
+                            .eq(com.zhul.erp.modules.finance.entity.ReimbursementLineDO::getTenantId, p.getTenantId())
+                            .in(com.zhul.erp.modules.finance.entity.ReimbursementLineDO::getSourceType,
+                                    FinanceConstants.ITEM_PAYMENT, FinanceConstants.ITEM_REFUND)
+                            .eq(com.zhul.erp.modules.finance.entity.ReimbursementLineDO::getSourceId, p.getId())
+                            .isNull(com.zhul.erp.modules.finance.entity.ReimbursementLineDO::getDeletedAt))
+                    .forEach(l -> bxIds.add(l.getReimbursementId()));
+        }
+        if (bxIds.isEmpty()) {
+            return List.of();
+        }
+        return reimbursementMapper.selectBatchIds(bxIds.stream().distinct().toList()).stream()
+                .sorted(java.util.Comparator.comparing(com.zhul.erp.modules.finance.entity.ReimbursementDO::getId).reversed())
+                .toList();
+    }
+
+    /** 关联单据：应付单、应付单的来源（采购订单 / 运费账单 / 费用单）、报销单 */
+    private List<com.zhul.erp.modules.system.doclog.DocRefVO> related(List<PaymentAllocationDO> allocs, Map<Long, PayableDO> payables,
+                                                                      List<com.zhul.erp.modules.finance.entity.ReimbursementDO> bxs) {
+        List<com.zhul.erp.modules.system.doclog.DocRefVO> out = new ArrayList<>();
+        java.util.Set<String> seen = new java.util.HashSet<>();
+        for (PaymentAllocationDO a : allocs) {
+            PayableDO ap = payables.get(a.getPayableId());
+            if (ap == null || !seen.add("AP" + ap.getId())) {
+                continue;
+            }
+            out.add(new com.zhul.erp.modules.system.doclog.DocRefVO(DocumentType.AP.name(), ap.getId(), ap.getPayableNo(),
+                    ap.getStatus(), AP_STATUS_NAMES.get(ap.getStatus())));
+        }
+        for (PayableDO ap : payables.values()) {
+            String type = Objects.equals(ap.getSourceType(), FinanceConstants.SOURCE_PURCHASE_ORDER) ? DocumentType.PO.name()
+                    : Objects.equals(ap.getSourceType(), FinanceConstants.SOURCE_STATEMENT) ? DocumentType.ST.name()
+                    : Objects.equals(ap.getSourceType(), FinanceConstants.SOURCE_EXPENSE) ? DocumentType.FE.name() : null;
+            if (type != null && ap.getSourceId() != null && seen.add(type + ap.getSourceId())) {
+                out.add(new com.zhul.erp.modules.system.doclog.DocRefVO(type, ap.getSourceId(), ap.getSourceNo(), null, null));
+            }
+        }
+        bxs.forEach(b -> out.add(new com.zhul.erp.modules.system.doclog.DocRefVO(DocumentType.BX.name(), b.getId(),
+                b.getReimburseNo(), b.getStatus(), BX_STATUS_NAMES.get(b.getStatus()))));
+        return out;
+    }
+
     private PaymentDO visible(Long id) {
         PaymentDO p = paymentMapper.selectOne(new LambdaQueryWrapper<PaymentDO>()
                 .eq(PaymentDO::getId, id)
@@ -614,7 +773,8 @@ public class PaymentService {
 
     private boolean canVoid(PaymentDO p) {
         return p.getVoidAt() == null && !Objects.equals(p.getReimburseStatus(), FinanceConstants.REIMBURSE_CLAIMED)
-                && !Objects.equals(p.getKind(), FinanceConstants.KIND_REIMBURSE) && hasVoidRight(p);
+                && !Objects.equals(p.getKind(), FinanceConstants.KIND_REIMBURSE) && !MigratedGuard.isMigrated(p.getMigrated())
+                && hasVoidRight(p);
     }
 
     /** 登记人本人或有付款登记权限的人 */
@@ -861,9 +1021,11 @@ public class PaymentService {
                     n.setFromCredit(a.getFromCredit());
                     n.setCreditPayableNo(src == null ? null : src.getPayableNo());
                     n.setAmount(BigDecimal.ZERO);
+                    n.setAmountCny(BigDecimal.ZERO);
                     return n;
                 });
                 v.setAmount(v.getAmount().add(a.getAmount()));
+                v.setAmountCny(v.getAmountCny().add(a.getAmountCny() == null ? BigDecimal.ZERO : a.getAmountCny()));
             }
             vo.setAllocations(new ArrayList<>(merged.values()));
             vo.setAttachments(PayableQueryService.refs(files.getOrDefault(p.getId(), List.of())));

@@ -46,12 +46,23 @@ public class PaymentVO {
     private LocalDateTime updateTime;
     private String updateBy;
 
+    // 以下只在详情接口返回（change finance-cash-docs）
+    /** 附件（归属 PAYMENT，带预览信息） */
+    private List<com.zhul.erp.modules.attachment.dto.AttachmentVO> files;
+    private List<com.zhul.erp.modules.system.doclog.DocRefVO> related;
+    private List<com.zhul.erp.modules.system.doclog.DocLogVO> logs;
+    /** 当前用户能否改备注、增删附件（「付款管理」菜单、有效、非迁移） */
+    private Boolean editable;
+    /** 不能作废的原因（如已进入报销单 BXxxx），能作废或已作废时为空 */
+    private String voidBlockedReason;
+
     @Data
     public static class Allocation {
         private Long payableId;
         private String payableNo;
         private String sourceNo;
         private BigDecimal amount;
+        private BigDecimal amountCny;
         /** 0-实付、1-欠款抵扣、2-退款冲减 */
         private Integer fromCredit;
         private String creditPayableNo;

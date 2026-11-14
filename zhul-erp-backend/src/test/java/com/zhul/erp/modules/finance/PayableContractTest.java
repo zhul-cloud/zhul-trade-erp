@@ -696,4 +696,40 @@ class PayableContractTest extends SalesContractSupport {
             seenPaid |= paid;
         }
     }
+
+    // ---------------------------------------------------------------- 付款单（change finance-cash-docs）
+
+    @Test
+    void paymentDoc_detailAllocationsRelatedLogs_remark_readOnlyAfterVoid_buyerScope() throws Exception {
+        long sup = supplier("深圳工控", null);
+        long poId = orderedPo(sup, "A-1", 10, "1000", List.of(term(100, 1, 0))).path("id").asLong();
+        long apId = bySource(poId, admin).path("id").asLong();
+        long id = ok(pay(payBody(1, "3000.00", Map.of(apId, "3000.00"), admin), admin)).path("id").asLong();
+
+        JsonNode d = ok(call(get(PY + "/" + id), admin));
+        assertEquals(1, d.path("allocations").size());
+        money("3000.00", d.path("allocations").get(0).path("amount"));
+        assertEquals("AP", d.path("related").get(0).path("type").asText());
+        assertEquals("PO", d.path("related").get(1).path("type").asText());
+        assertEquals(1, d.path("files").size());
+        assertEquals("登记", d.path("logs").get(0).path("action").asText());
+        assertTrue(d.path("editable").asBoolean());
+
+        JsonNode r = ok(call(json(post(PY + "/" + id + "/remark"), "{\"remark\":\"首付款\"}"), admin));
+        assertEquals("首付款", r.path("remark").asText());
+
+        // 采购员：核销到自己范围内采购订单的付款单才能看，只读
+        jdbc.update("update purchase_order set purchaser_id = ? where id = ?", BUYER_JIANG, poId);
+        assertEquals("付款单不存在", fail(call(get(PY + "/" + id), lin)).path("message").asText());
+        jdbc.update("update purchase_order set purchaser_id = ? where id = ?", BUYER_LIN, poId);
+        assertFalse(ok(call(get(PY + "/" + id), lin)).path("editable").asBoolean());
+        assertEquals(403, perform(json(post(PY + "/" + id + "/remark"), "{\"remark\":\"x\"}"), lin).getStatus());
+
+        ok(call(json(post(PY + "/" + id + "/void"), write(Map.of("reason", "金额填错"))), admin));
+        JsonNode v = ok(call(get(PY + "/" + id), admin));
+        assertFalse(v.path("editable").asBoolean());
+        assertTrue(v.path("logs").toString().contains("作废"));
+        assertEquals("付款单已作废", fail(call(json(post(PY + "/" + id + "/remark"), "{\"remark\":\"x\"}"), admin))
+                .path("message").asText());
+    }
 }

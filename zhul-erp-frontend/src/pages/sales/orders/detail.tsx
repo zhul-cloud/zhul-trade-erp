@@ -1134,6 +1134,16 @@ const OrderDetail: React.FC = () => {
                             ? '到账（认领）'
                             : '到账'}
                   </b>
+                  {r.receiptNo && (
+                    <button
+                      type="button"
+                      className="zhul-link"
+                      style={{ fontSize: 12 }}
+                      onClick={() => history.push(`/finance/receipts/${r.id}`)}
+                    >
+                      {r.receiptNo}
+                    </button>
+                  )}
                   <b
                     style={{
                       ...num,

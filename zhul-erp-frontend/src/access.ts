@@ -155,6 +155,10 @@ export default function access(initialState: {
     'finance:reimburse:pay': can('finance:reimburse:pay'),
     'finance:expense:edit': can('finance:expense:edit'),
     financeReceipts: can('/finance/receipts'),
+    // 收付退单据详情（change finance-cash-docs）：业务员、采购员从 PI、订单只读打开自己范围内的
+    receiptDocDetail: any('/finance/receipts', '/sales/pi', '/sales/orders'),
+    refundDetail: any('/finance/refunds', '/sales/orders'),
+    paymentDetail: any('/finance/payments', '/purchase/orders'),
     financeFxSettlements: can('/finance/fx-settlements'),
     'finance:fx:settle': can('finance:fx:settle'),
     financePayables: can('/finance/payables'),

@@ -10,6 +10,9 @@ import java.time.LocalDateTime;
 @Data
 public class ReceiptRowVO {
     private Long id;
+    /** 收款单号（change finance-cash-docs） */
+    private String receiptNo;
+    private Long slipId;
     private Long piId;
     private String piNo;
     /** 手动创建的订单的收款 */
@@ -55,6 +58,9 @@ public class ReceiptRowVO {
     private String claimedByName;
     private LocalDateTime claimedAt;
     private LocalDateTime createTime;
+    private String createBy;
+    private LocalDateTime updateTime;
+    private String updateBy;
     /** 历史迁移的单据（只读） */
     private Boolean migrated;
 }

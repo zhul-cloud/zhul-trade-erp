@@ -64,7 +64,8 @@ export type OwnerType =
   | 'SALES_RETURN'
   | 'RETURN_RECEIPT'
   | 'PURCHASE_RETURN'
-  | 'REFUND_REQUEST';
+  | 'REFUND_REQUEST'
+  | 'PAYMENT_RECEIPT';
 
 export interface ShipmentItem {
   id: number;

@@ -1,5 +1,5 @@
 import { request } from '@umijs/max';
-import type { Attachment } from '@/pages/warehouse/service';
+import type { Attachment, DocLog, DocRef } from '@/pages/warehouse/service';
 import type { FileRef } from '../payables/service';
 
 const BASE = '/api/v1/finance/refunds';
@@ -43,6 +43,7 @@ export interface Refund {
   refundRequestId?: number | null;
   requestNo?: string;
   customerName?: string;
+  businessUnitId?: number;
   refundDate: string;
   reason: string;
   reasonName?: string;
@@ -62,6 +63,12 @@ export interface Refund {
   createBy?: string;
   updateTime?: string;
   updateBy?: string;
+  /** 以下只在详情返回（change finance-cash-docs） */
+  items?: RefundRequestItem[];
+  files?: Attachment[];
+  related?: DocRef[];
+  logs?: DocLog[];
+  editable?: boolean;
 }
 
 export interface Refundable {
@@ -118,6 +125,16 @@ export const refundApi = {
   }) => post<Refund>(BASE, body),
   voidRefund: (id: number, reason: string) =>
     post<Refund>(`${BASE}/${id}/void`, { reason }),
+  detail: (id: number) => get<Refund>(`${BASE}/${id}`),
+  remark: (id: number, remark: string) =>
+    post<Refund>(`${BASE}/${id}/remark`, { remark }),
+  attach: (id: number, ids: number[]) =>
+    post<Refund>(`${BASE}/${id}/attachments`, { ids }),
+  removeAttachment: (id: number, attachmentId: number) =>
+    request<{ data: Refund }>(`${BASE}/${id}/attachments/${attachmentId}`, {
+      method: 'DELETE',
+      ...quiet,
+    }).then((r) => r.data),
 };
 
 // ---------------------------------------------------------------- 退款申请（spec finance/refund-request）
