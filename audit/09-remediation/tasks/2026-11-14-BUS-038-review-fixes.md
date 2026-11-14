@@ -9,7 +9,7 @@
 | 目标与影响范围 | 后端退款申请、退款单、附件链接与挂接、退货入库单详情、本地分片直传；前端标签页刷新与未保存登记、单据附件卡、销售退货列表、退款弹窗；AI 编排服务大附件下载、预处理、心跳与用量汇总。不含 14 个暂缓项与 DOC-002 |
 | 起点 commit / 工作分支 | develop `74240e86` / `fix/review-1114-remediation`；刷新标记修正 develop `8548f03e` / `fix/review-1114-refresh-dirty` |
 | OpenSpec | 缺陷修复，不新开提案；没有新界面，刷新确认沿用关标签确认的样式与文案 |
-| PR / 目标分支 | [#312](https://github.com/zhul-cloud/zhul-trade-erp/pull/312) → develop；刷新后未保存标记残留的修正：PR_FIX → develop |
+| PR / 目标分支 | [#312](https://github.com/zhul-cloud/zhul-trade-erp/pull/312) → develop；刷新后未保存标记残留的修正：[#313](https://github.com/zhul-cloud/zhul-trade-erp/pull/313) → develop |
 | 合并证据 | #312 合并到 develop `8548f03e`（2026-11-14，CI 6 项通过）；修正 PR 未合并 |
 | 目标版本 / 环境 | 下一个发布版本；发布前按本机等同生产验收 |
 
