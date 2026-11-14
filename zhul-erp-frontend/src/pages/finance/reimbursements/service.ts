@@ -1,4 +1,5 @@
 import { request } from '@umijs/max';
+import type { Attachment, DocLog, DocRef } from '@/pages/warehouse/service';
 import type { FileRef, Payment } from '../payables/service';
 
 const BX = '/api/v1/finance/reimbursements';
@@ -87,6 +88,12 @@ export interface Reimbursement {
   payProofs: FileRef[];
   lines: AdvanceItem[];
   canWithdraw: boolean;
+  /** 以下只在详情返回（change finance-expense-docs） */
+  remark?: string;
+  files?: Attachment[];
+  related?: DocRef[];
+  logs?: DocLog[];
+  editable?: boolean;
   createTime?: string;
   createBy?: string;
   updateTime?: string;
@@ -153,6 +160,12 @@ export const reimburseApi = {
   }) => send<Reimbursement[]>('POST', `${BX}/batch-pay`, body),
   unpay: (id: number, reason: string) =>
     send<Reimbursement>('POST', `${BX}/${id}/unpay`, { reason }),
+  remark: (id: number, remark: string) =>
+    send<Reimbursement>('POST', `${BX}/${id}/remark`, { remark }),
+  attach: (id: number, ids: number[]) =>
+    send<Reimbursement>('POST', `${BX}/${id}/attachments`, { ids }),
+  removeAttachment: (id: number, attachmentId: number) =>
+    send<Reimbursement>('DELETE', `${BX}/${id}/attachments/${attachmentId}`),
 };
 
 // ---------------------------------------------------------------- 费用单
@@ -205,11 +218,17 @@ export interface Expense {
   payableId?: number;
   payStatus?: number;
   paidAmount?: number;
+  reimbursementId?: number;
   reimburseNo?: string;
   reimburseStatus?: number;
   locked: boolean;
   allocations: ExpenseAlloc[];
   attachments: FileRef[];
+  /** 以下只在详情返回（change finance-expense-docs） */
+  files?: Attachment[];
+  related?: DocRef[];
+  logs?: DocLog[];
+  editable?: boolean;
   createTime?: string;
   createBy?: string;
   updateTime?: string;
@@ -277,4 +296,10 @@ export const expenseApi = {
     send<Expense>('PUT', `${FE}/${id}`, body),
   voidExpense: (id: number, reason: string) =>
     send<Expense>('POST', `${FE}/${id}/void`, { reason }),
+  remark: (id: number, remark: string) =>
+    send<Expense>('POST', `${FE}/${id}/remark`, { remark }),
+  attach: (id: number, ids: number[]) =>
+    send<Expense>('POST', `${FE}/${id}/attachments`, { ids }),
+  removeAttachment: (id: number, attachmentId: number) =>
+    send<Expense>('DELETE', `${FE}/${id}/attachments/${attachmentId}`),
 };

@@ -17,7 +17,7 @@ const num: React.CSSProperties = { fontVariantNumeric: 'tabular-nums' };
 const SOURCE_PATH: Record<string, (id: number) => string | undefined> = {
   PO: (id) => `/purchase/orders/${id}`,
   SHIPMENT: (id) => `/logistics/shipments/${id}`,
-  EXPENSE: () => '/finance/expenses',
+  EXPENSE: (id) => `/finance/expenses/${id}`,
   RETURN: (id) => `/sales/returns/${id}`,
   RETURN_RECEIPT: (id) => `/warehouse/returns/${id}`,
   PURCHASE_RETURN: (id) => `/purchase/returns/${id}`,

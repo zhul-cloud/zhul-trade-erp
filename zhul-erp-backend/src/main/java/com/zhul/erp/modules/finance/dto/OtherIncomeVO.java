@@ -31,4 +31,9 @@ public class OtherIncomeVO {
     /** 来源：空-手动登记、REFUND-余额提现自动生成的汇兑损益（不能修改、作废） */
     private String sourceType;
     private Long sourceId;
+    /** 以下只在详情返回（change finance-expense-docs） */
+    private List<com.zhul.erp.modules.attachment.dto.AttachmentVO> files;
+    private List<com.zhul.erp.modules.system.doclog.DocRefVO> related;
+    private List<com.zhul.erp.modules.system.doclog.DocLogVO> logs;
+    private Boolean editable;
 }

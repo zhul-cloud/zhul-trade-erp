@@ -3,7 +3,7 @@ import {
   PlusOutlined,
   SearchOutlined,
 } from '@ant-design/icons';
-import { useAccess } from '@umijs/max';
+import { Link, useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import {
   Alert,
@@ -22,12 +22,7 @@ import {
 import dayjs, { type Dayjs } from 'dayjs';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ellipsisRender } from '@/components/EllipsisText';
-import {
-  Card,
-  MigratedPill,
-  PageTitle,
-  Pill,
-} from '@/pages/inquiry/shared/components';
+import { Card, PageTitle, Pill } from '@/pages/inquiry/shared/components';
 import {
   auditColumns,
   SHOP_CHANNELS,
@@ -36,7 +31,7 @@ import {
 import { CURRENCIES } from '@/pages/quotation/components';
 import { useUserOptions } from '@/pages/sales/orders/dialogs';
 import { readBizError } from '@/pages/sales/service';
-import { AttachmentWall, ReasonModal } from '@/pages/warehouse/components';
+import { AttachmentWall, DOC_PATHS } from '@/pages/warehouse/components';
 import type { Attachment } from '@/pages/warehouse/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import {
@@ -116,7 +111,8 @@ export const ExpenseDrawer: React.FC<{
   const unitTouched = useRef(false);
   const [options, setOptions] = useState<SoItemOption[]>([]);
   const [saving, setSaving] = useState(false);
-  const locked = !!editing?.locked;
+  // 生效后金额、币种、收款方、付款方式与发生日期不能改，录错作废重开（change finance-expense-docs）
+  const locked = !!editing;
   const [afterSalesId, setAfterSalesId] = useState<number>();
   const [asOptions, setAsOptions] = useState<
     { value: number; label: string }[]
@@ -265,11 +261,7 @@ export const ExpenseDrawer: React.FC<{
           <Alert
             type="info"
             showIcon
-            title={
-              editing?.method === METHOD.COMPANY
-                ? '已经付款：只能改名称、说明与分摊'
-                : '已在报销单里：只能改名称、说明与分摊'
-            }
+            title="金额、币种、收款方、付款方式与发生日期不能修改，录错请作废后重新登记"
           />
         )}
         <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
@@ -338,19 +330,30 @@ export const ExpenseDrawer: React.FC<{
                 { value: PAYEE.SHOP, label: '线上店铺' },
               ]}
             />
-            {(payeeType === PAYEE.SUPPLIER ||
-              payeeType === PAYEE.FORWARDER) && (
-              <SupplierPicker
-                value={supplierId}
-                label={supplierName}
-                aria-label={payeeType === PAYEE.FORWARDER ? '货代' : '供应商'}
-                style={{ width: 280 }}
-                onChange={(id, n) => {
-                  setSupplierId(id);
-                  setSupplierName(n);
-                }}
-              />
-            )}
+            {locked &&
+              (payeeType === PAYEE.SUPPLIER ||
+                payeeType === PAYEE.FORWARDER) && (
+                <Input
+                  style={{ width: 280 }}
+                  value={supplierName}
+                  disabled
+                  aria-label={payeeType === PAYEE.FORWARDER ? '货代' : '供应商'}
+                />
+              )}
+            {!locked &&
+              (payeeType === PAYEE.SUPPLIER ||
+                payeeType === PAYEE.FORWARDER) && (
+                <SupplierPicker
+                  value={supplierId}
+                  label={supplierName}
+                  aria-label={payeeType === PAYEE.FORWARDER ? '货代' : '供应商'}
+                  style={{ width: 280 }}
+                  onChange={(id, n) => {
+                    setSupplierId(id);
+                    setSupplierName(n);
+                  }}
+                />
+              )}
             {payeeType === PAYEE.SHOP && (
               <>
                 <Select
@@ -590,26 +593,30 @@ export const ExpenseDrawer: React.FC<{
             />
           )}
         </div>
-        <div>
-          {label('凭证', method === METHOD.ADVANCE)}
-          <AttachmentWall
-            ownerType="EXPENSE"
-            value={files}
-            onChange={setFiles}
-            max={10}
-            accept={ACCEPT_PROOF}
-          />
-        </div>
-        <div>
-          {label('说明', false)}
-          <Input.TextArea
-            value={remark}
-            onChange={(e) => setRemark(e.target.value)}
-            maxLength={500}
-            autoSize={{ minRows: 2 }}
-            aria-label="说明"
-          />
-        </div>
+        {!editing && (
+          <>
+            <div>
+              {label('凭证', method === METHOD.ADVANCE)}
+              <AttachmentWall
+                ownerType="EXPENSE"
+                value={files}
+                onChange={setFiles}
+                max={10}
+                accept={ACCEPT_PROOF}
+              />
+            </div>
+            <div>
+              {label('说明', false)}
+              <Input.TextArea
+                value={remark}
+                onChange={(e) => setRemark(e.target.value)}
+                maxLength={500}
+                autoSize={{ minRows: 2 }}
+                aria-label="说明"
+              />
+            </div>
+          </>
+        )}
       </Space>
     </Drawer>
   );
@@ -663,7 +670,6 @@ const ExpensePage: React.FC = () => {
   const [monthTotal, setMonthTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [drawer, setDrawer] = useState<{ editing?: Expense }>();
-  const [voiding, setVoiding] = useState<Expense>();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -711,13 +717,14 @@ const ExpensePage: React.FC = () => {
       width: 150,
       fixed: 'left',
       render: (v: string, r) => (
-        <span
+        <Link
+          to={DOC_PATHS.expense(r.id)}
           style={{
             textDecoration: r.status === 2 ? 'line-through' : undefined,
           }}
         >
           {v}
-        </span>
+        </Link>
       ),
     },
     { title: '发生日期', dataIndex: 'occurDate', width: 110 },
@@ -833,33 +840,9 @@ const ExpensePage: React.FC = () => {
     {
       title: '操作',
       key: 'op',
-      width: 110,
+      width: 90,
       fixed: 'right',
-      render: (_, r) =>
-        r.migrated ? (
-          <MigratedPill migrated />
-        ) : canEdit && r.status === 1 ? (
-          <Space size={10}>
-            <button
-              type="button"
-              className="zhul-link"
-              onClick={() => setDrawer({ editing: r })}
-            >
-              修改
-            </button>
-            {!r.locked && (
-              <button
-                type="button"
-                className="zhul-link"
-                onClick={() => setVoiding(r)}
-              >
-                作废
-              </button>
-            )}
-          </Space>
-        ) : (
-          <span style={{ color: palette.mute }}>—</span>
-        ),
+      render: (_, r) => <Link to={DOC_PATHS.expense(r.id)}>查看</Link>,
     },
   ];
 
@@ -1012,21 +995,6 @@ const ExpensePage: React.FC = () => {
         editing={drawer?.editing}
         onClose={() => setDrawer(undefined)}
         onDone={load}
-      />
-      <ReasonModal
-        open={!!voiding}
-        title={`作废 ${voiding?.expenseNo ?? ''}`}
-        description="公司对公的应付单随之关闭，员工垫付的从待报销里去掉。"
-        okText="作废"
-        danger
-        onCancel={() => setVoiding(undefined)}
-        onOk={async (reason) => {
-          if (!voiding) return;
-          await expenseApi.voidExpense(voiding.id, reason);
-          message.success('已作废');
-          setVoiding(undefined);
-          load();
-        }}
       />
     </div>
   );

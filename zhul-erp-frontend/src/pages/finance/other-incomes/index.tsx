@@ -1,5 +1,5 @@
 import { PlusOutlined } from '@ant-design/icons';
-import { useAccess } from '@umijs/max';
+import { Link, useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import {
   App,
@@ -15,15 +15,10 @@ import {
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
-import {
-  Card,
-  MigratedPill,
-  PageTitle,
-  Pill,
-} from '@/pages/inquiry/shared/components';
+import { Card, PageTitle, Pill } from '@/pages/inquiry/shared/components';
 import { auditColumns } from '@/pages/purchase/components';
 import { readBizError } from '@/pages/sales/service';
-import { AttachmentWall, ReasonModal } from '@/pages/warehouse/components';
+import { AttachmentWall, DOC_PATHS } from '@/pages/warehouse/components';
 import type { Attachment } from '@/pages/warehouse/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import {
@@ -52,7 +47,8 @@ const rangeFromUrl = (): [Dayjs, Dayjs] | null => {
   return from && to ? [dayjs(from), dayjs(to)] : recentRange();
 };
 
-const IncomeModal: React.FC<{
+/** 登记与修改其他收入；生效后日期与金额不能改（change finance-expense-docs），凭证在详情页维护 */
+export const IncomeModal: React.FC<{
   open: boolean;
   editing?: OtherIncome;
   onClose: () => void;
@@ -131,6 +127,8 @@ const IncomeModal: React.FC<{
             {label('日期')}
             <DatePicker
               value={date}
+              disabled={!!editing}
+              aria-label="日期"
               allowClear={false}
               disabledDate={(d) => d.isAfter(dayjs(), 'day')}
               onChange={(d) => d && setDate(d)}
@@ -157,6 +155,7 @@ const IncomeModal: React.FC<{
               min={0.01}
               precision={2}
               prefix="CNY"
+              disabled={!!editing}
               value={amount}
               onChange={setAmount}
               style={{ width: '100%' }}
@@ -185,16 +184,22 @@ const IncomeModal: React.FC<{
             onChange={(e) => setRemark(e.target.value)}
           />
         </div>
-        <div>
-          {label('凭证', false)}
-          <AttachmentWall
-            ownerType="OTHER_INCOME"
-            value={files}
-            onChange={setFiles}
-            max={10}
-            accept={ACCEPT_PROOF}
-          />
-        </div>
+        {editing ? (
+          <div style={{ fontSize: 12, color: palette.mute }}>
+            日期与金额不能修改，录错请作废后重新登记
+          </div>
+        ) : (
+          <div>
+            {label('凭证', false)}
+            <AttachmentWall
+              ownerType="OTHER_INCOME"
+              value={files}
+              onChange={setFiles}
+              max={10}
+              accept={ACCEPT_PROOF}
+            />
+          </div>
+        )}
       </Space>
     </Modal>
   );
@@ -222,7 +227,6 @@ const OtherIncomePage: React.FC = () => {
   const [sum, setSum] = useState(0);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState<{ editing?: OtherIncome }>();
-  const [voiding, setVoiding] = useState<OtherIncome>();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -259,13 +263,14 @@ const OtherIncomePage: React.FC = () => {
       width: 150,
       fixed: 'left',
       render: (v: string, r) => (
-        <span
+        <Link
+          to={DOC_PATHS.otherIncome(r.id)}
           style={{
             textDecoration: r.status === 2 ? 'line-through' : undefined,
           }}
         >
           {v}
-        </span>
+        </Link>
       ),
     },
     { title: '日期', dataIndex: 'incomeDate', width: 110 },
@@ -316,38 +321,9 @@ const OtherIncomePage: React.FC = () => {
     {
       title: '操作',
       key: 'op',
-      width: 110,
+      width: 90,
       fixed: 'right',
-      render: (_, r) =>
-        r.migrated ? (
-          <MigratedPill migrated />
-        ) : r.sourceType ? (
-          <span
-            style={{ fontSize: 12, color: palette.mute }}
-            title="余额提现自动生成，作废来源退款单时一起作废"
-          >
-            系统生成
-          </span>
-        ) : canEdit && r.status === 1 ? (
-          <Space size={10}>
-            <button
-              type="button"
-              className="zhul-link"
-              onClick={() => setModal({ editing: r })}
-            >
-              修改
-            </button>
-            <button
-              type="button"
-              className="zhul-link"
-              onClick={() => setVoiding(r)}
-            >
-              作废
-            </button>
-          </Space>
-        ) : (
-          <span style={{ color: palette.mute }}>—</span>
-        ),
+      render: (_, r) => <Link to={DOC_PATHS.otherIncome(r.id)}>查看</Link>,
     },
   ];
 
@@ -467,21 +443,6 @@ const OtherIncomePage: React.FC = () => {
         editing={modal?.editing}
         onClose={() => setModal(undefined)}
         onDone={load}
-      />
-      <ReasonModal
-        open={!!voiding}
-        title={`作废 ${voiding?.incomeNo ?? ''}`}
-        description="作废后不再计入经营统计。"
-        okText="作废"
-        danger
-        onCancel={() => setVoiding(undefined)}
-        onOk={async (why) => {
-          if (!voiding) return;
-          await incomeApi.voidIncome(voiding.id, why);
-          message.success('已作废');
-          setVoiding(undefined);
-          load();
-        }}
       />
     </div>
   );
