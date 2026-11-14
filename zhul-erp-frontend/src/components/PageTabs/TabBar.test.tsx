@@ -53,6 +53,7 @@ it('有未保存修改时，刷新先确认；取消保留，确认后才重建'
   const ok = await screen.findAllByRole('button', { name: '不保存，刷新' });
   fireEvent.click(ok[ok.length - 1]);
   expect(entryKey()).not.toBe(before);
+  expect(top(getTabsState().tabs[0]).dirty).toBe(false);
 });
 
 it('没有未保存修改时直接刷新，不弹确认', async () => {

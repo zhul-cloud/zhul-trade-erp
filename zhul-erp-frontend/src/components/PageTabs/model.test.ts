@@ -190,6 +190,16 @@ describe('菜单标签页', () => {
   });
 });
 
+/** UI-004：确认舍弃后刷新，重建的页面不再带着未保存标记 */
+it('刷新后的页面清掉未保存标记', () => {
+  let s = M.openMenu(start(), '/quotation').state;
+  s = M.navigated(s, '/quotation/1', 'push', menuOf);
+  s = M.setDirty(s, M.top(M.activeTab(s) as M.Tab).key, true);
+  expect(M.isDirty(M.activeTab(s) as M.Tab)).toBe(true);
+  s = M.refresh(s, '/quotation');
+  expect(M.isDirty(M.activeTab(s) as M.Tab)).toBe(false);
+});
+
 /** UI-004：有未保存修改的页面被压到很深也不卸载，其他超出保活深度的照常卸载 */
 it('有未保存修改的页面不受保活深度限制', () => {
   let s = M.openMenu(start(), '/quotation').state;
