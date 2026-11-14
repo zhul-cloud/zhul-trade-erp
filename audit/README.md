@@ -5,6 +5,7 @@
 - [问题状态台账](09-remediation/issues.md)：每个永久 ID 的唯一当前状态、负责人和任务记录入口。
 - [整改流程与状态门槛](09-remediation/README.md)：认领、协作、验证、合并、发布及关闭要求。
 - [修复记录模板与命名](09-remediation/tasks/README.md)：按实际任务建档，可同时关联多个问题 ID。
+- [2026-11-14 整改后风险聚焦复审](09-remediation/tasks/2026-11-14-SEC-005-post-remediation-review.md)：`58686c96` 上新增 8 项、重开 3 项；证据层次与未覆盖验证单列，不替代原审查基线或生产验收。
 
 ## 审查基线与阅读边界
 
