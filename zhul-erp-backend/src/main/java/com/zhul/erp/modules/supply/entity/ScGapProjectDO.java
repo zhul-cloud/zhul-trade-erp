@@ -23,6 +23,8 @@ public class ScGapProjectDO {
     private String goal;
     private Long ownerId;
     private LocalDate dueDate;
+    /** 开发供应商目标家数；为空表示只管型号 */
+    private Integer supplierTarget;
     private Integer status;
     private String activeScope;
     private String resultNote;

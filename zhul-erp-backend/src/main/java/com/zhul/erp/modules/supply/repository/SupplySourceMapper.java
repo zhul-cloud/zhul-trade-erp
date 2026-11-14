@@ -129,4 +129,30 @@ public interface SupplySourceMapper {
     @Select("SELECT q.id FROM sourcing_quote q WHERE q.quoted_at IS NOT NULL AND q.update_time >= #{since}"
             + " AND q.status IN (1, 2)")
     List<Long> recentQuoteIds(@Param("since") LocalDateTime since);
+
+    // ---------------------------------------------------------------- 第二期：供应商开发
+
+    /** 近期有价询价记录（合格供应商的证据）：已生效、有货、单价大于 0、有供应商 */
+    @Select("SELECT q.id AS id, q.model_key AS modelKey, q.brand AS brand, q.supplier_id AS supplierId,"
+            + " DATE(q.quoted_at) AS evidenceDate FROM sourcing_quote q"
+            + " WHERE q.status = 2 AND q.no_stock = 0 AND q.unit_price > 0 AND q.deleted_at IS NULL"
+            + " AND q.quoted_at >= #{since} AND q.supplier_id IS NOT NULL AND q.supplier_id > 0")
+    List<Map<String, Object>> devQuotes(@Param("since") LocalDateTime since);
+
+    /** 近期已下单的采购订单行（合格供应商的证据）；型号未归一化 */
+    @Select("SELECT p.id AS id, p.model AS model, p.brand AS brand, po.supplier_id AS supplierId, po.order_date AS evidenceDate"
+            + " FROM purchase_order_item p JOIN purchase_order po ON po.id = p.po_id"
+            + " WHERE po.status = 2 AND po.deleted_at IS NULL AND p.deleted_at IS NULL AND po.order_date >= #{since}"
+            + " AND po.supplier_id > 0 AND p.unit_price > 0")
+    List<Map<String, Object>> devPos(@Param("since") java.time.LocalDate since);
+
+    /** 启用且未删除的供应商 */
+    @Select("SELECT s.id FROM supplier s WHERE s.deleted_at IS NULL AND s.status = 1")
+    List<Long> activeSupplierIds();
+
+    /** 商品主数据里型号的品牌与品类（按归一化型号） */
+    @Select("<script>SELECT p.mpn_normalized AS modelKey, p.brand_id AS brandId, p.category_id AS categoryId FROM product p"
+            + " WHERE p.deleted_at IS NULL AND p.mpn_normalized IN"
+            + " <foreach collection='keys' item='k' open='(' separator=',' close=')'>#{k}</foreach></script>")
+    List<Map<String, Object>> productScopes(@Param("keys") List<String> keys);
 }

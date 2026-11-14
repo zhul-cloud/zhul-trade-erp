@@ -94,4 +94,39 @@ public final class SupplyConstants {
     public static final String PERM_PROJECT_EDIT = "supply:project:edit";
     public static final String PERM_COVERAGE_EDIT = "supply:coverage:edit";
     public static final String PERM_SUPPLIER_VIEW = "inquiry:supplier:view";
+    public static final String PERM_DEV_EDIT = "supply:dev:edit";
+
+    // ---------------------------------------------------------------- 第二期：供应商开发（V1.5.35）
+
+    /** 合格供应商看近多少天的证据（含今天） */
+    public static final int DEV_WINDOW_DAYS = 90;
+    /** 已报价超过多少天还没关联供应商库时提醒 */
+    public static final int DEV_UNLINKED_REMIND_DAYS = 7;
+    public static final int DEV_TARGET_MAX = 10;
+
+    /** 热度，与优先级同值 */
+    public static final int HEAT_LOW = 1;
+    public static final int HEAT_MID = 2;
+    public static final int HEAT_HIGH = 3;
+
+    /** 候选阶段 */
+    public static final int CAND_TODO = 1;
+    public static final int CAND_CONTACTED = 2;
+    public static final int CAND_QUOTED = 3;
+    public static final int CAND_QUALIFIED = 4;
+    public static final int CAND_ABANDONED = 5;
+
+    /** 候选来源 */
+    public static final int CAND_SRC_SEARCH = 1;
+    public static final int CAND_SRC_SUPPLIER_LIB = 5;
+    public static final int CAND_SRC_OTHER = 6;
+
+    /** 处理记录的对象类型 */
+    public static final int OBJ_DEMAND = 1;
+    public static final int OBJ_CANDIDATE = 2;
+
+    /** 要求家数：高 3、中 2、低 1 */
+    public static int requiredSuppliers(int heat) {
+        return heat >= HEAT_HIGH ? 3 : heat == HEAT_MID ? 2 : 1;
+    }
 }

@@ -8,7 +8,7 @@ import java.util.Map;
 /** 覆盖矩阵：行为品牌，列为二级品类 */
 @Data
 public class MatrixVO {
-    /** cover / stockout */
+    /** cover / stockout / supplier */
     private String mode;
     private int days;
     private List<Axis> brands;
@@ -35,5 +35,12 @@ public class MatrixVO {
         private int stockoutTimes;
         private Long projectId;
         private String projectName;
+        /** 按供应商：合格家数、要求家数、缺口、热度、线索供应商数、进行中的开发任务（专项带开发目标时） */
+        private int qualified;
+        private int required;
+        private int gap;
+        private int heat;
+        private int leads;
+        private Long devProjectId;
     }
 }
