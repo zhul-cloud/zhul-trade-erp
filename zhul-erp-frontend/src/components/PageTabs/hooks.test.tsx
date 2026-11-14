@@ -1,6 +1,11 @@
 import { render } from '@testing-library/react';
 import React from 'react';
-import { PaneContext, useOnReactivate, useTabDirty } from './hooks';
+import {
+  PaneContext,
+  useOnReactivate,
+  useTabDirty,
+  useUnsavedGuard,
+} from './hooks';
 
 jest.mock('./store', () => ({ tabsActions: { setDirty: jest.fn() } }));
 
@@ -64,4 +69,34 @@ it('页面从隐藏回到可见时执行一次', () => {
   expect(fn).toHaveBeenCalledTimes(1);
   view.rerender(h(Reactivate, { active: true, fn }));
   expect(fn).toHaveBeenCalledTimes(1);
+});
+
+const Guard = ({ dirty }: { dirty: boolean }) => {
+  useUnsavedGuard(dirty);
+  return null;
+};
+
+/** audit UI-057：有未保存修改时关闭或刷新浏览器页面要提示，保存后不再提示 */
+it('未保存时拦截浏览器离开，保存后解除', () => {
+  const leave = () => {
+    const e = new Event('beforeunload', { cancelable: true });
+    window.dispatchEvent(e);
+    return e.defaultPrevented;
+  };
+  const view = render(
+    h(
+      PaneContext.Provider,
+      { value: { entryKey: 'e2', active: true } },
+      h(Guard, { dirty: true }),
+    ),
+  );
+  expect(leave()).toBe(true);
+  view.rerender(
+    h(
+      PaneContext.Provider,
+      { value: { entryKey: 'e2', active: true } },
+      h(Guard, { dirty: false }),
+    ),
+  );
+  expect(leave()).toBe(false);
 });

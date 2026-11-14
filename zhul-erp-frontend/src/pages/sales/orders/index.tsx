@@ -15,6 +15,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { CustomerCell } from '@/components/DocFields';
 import SourceNos from '@/components/DocFields/SourceNos';
 import EllipsisText, { ellipsisRender } from '@/components/EllipsisText';
+import { useOnReactivate } from '@/components/PageTabs/hooks';
 import {
   ModalTitle,
   PagedModelsModal,
@@ -169,6 +170,10 @@ const OrderList: React.FC = () => {
   useEffect(() => {
     load();
   }, [load]);
+
+  // 从其他页面返回时重新取数（audit UI-055）
+
+  useOnReactivate(load);
 
   useEffect(() => {
     orderApi

@@ -23,6 +23,7 @@ import React, {
   useState,
 } from 'react';
 import EllipsisText from '@/components/EllipsisText';
+import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { auditColumns } from '@/pages/purchase/components';
 import { usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
@@ -197,6 +198,10 @@ const ProductListInner: React.FC = () => {
   useEffect(() => {
     load();
   }, [load]);
+
+  // 从其他页面返回时重新取数（audit UI-055）
+
+  useOnReactivate(load);
 
   // antd 表格为测量列宽渲染了一行 aria-hidden 的隐藏行，行里带一个"全选"复选框，键盘会 Tab 到它。
   // 组件库没有提供关闭的选项，这里把隐藏行里的输入从 Tab 顺序里拿掉。

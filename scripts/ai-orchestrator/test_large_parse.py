@@ -158,6 +158,18 @@ class SlowDownloadTest(unittest.TestCase):
             self.assertLess(time.monotonic() - started, 2)
             self.assertEqual(os.listdir(work), [])
 
+    def test_whole_read_path_also_streams_within_job_deadline(self):
+        """audit AI-005：单次解析的整份读取同样受整任务期限约束，期限内正常读完"""
+        server = load_server()
+        server.start_job(0.5)
+        started = time.monotonic()
+        with self.assertRaises(server.JobTimeout):
+            server._read_attachment({"url": self.base + "slow.pdf", "ext": "pdf"})
+        self.assertLess(time.monotonic() - started, 3)
+        server.start_job(30)
+        raw, ext = server._read_attachment({"url": self.base + "fast.pdf", "ext": "pdf"})
+        self.assertEqual((len(raw), ext), (200, ".pdf"))
+
     def test_download_within_deadline_completes(self):
         left, _ = deadline_in(30)
         with tempfile.TemporaryDirectory() as work:

@@ -5,6 +5,7 @@ import { App, Button, Checkbox, DatePicker, Input, Select, Table } from 'antd';
 import type { Dayjs } from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
 import SourceNos from '@/components/DocFields/SourceNos';
+import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { Card, PageTitle, Pill } from '@/pages/inquiry/shared/components';
 import { auditColumns } from '@/pages/purchase/components';
 import { CURRENCIES } from '@/pages/quotation/components';
@@ -86,6 +87,10 @@ const PaymentRecords: React.FC = () => {
   useEffect(() => {
     load();
   }, [load]);
+
+  // 从其他页面返回时重新取数（audit UI-055）
+
+  useOnReactivate(load);
 
   const apply = (next: Partial<Filters>) => {
     const f = { ...draft, ...next };

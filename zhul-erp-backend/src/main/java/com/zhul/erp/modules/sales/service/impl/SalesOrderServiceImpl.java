@@ -481,7 +481,7 @@ public class SalesOrderServiceImpl implements SalesOrderService {
             if (f == null || !StringUtils.hasText(f.getFeeName()) || f.getAmount() == null) {
                 continue;
             }
-            if (f.getAmount().signum() <= 0) {
+            if (f.getAmount().setScale(2, RoundingMode.HALF_UP).signum() <= 0) {
                 throw new BizException("费用金额需要大于 0");
             }
             SalesOrderFeeDO x = new SalesOrderFeeDO();

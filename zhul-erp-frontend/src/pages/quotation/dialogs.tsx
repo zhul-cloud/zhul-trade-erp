@@ -23,6 +23,7 @@ import {
 } from 'antd';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useAppTheme } from '@/theme/AppTheme';
+import { liveRequests } from '@/utils/liveRequests';
 import { CHANNEL } from './components';
 import { PickItemsPanel } from './NewQuotationModal';
 import { type Quotation, quotationApi, readBizError } from './service';
@@ -58,18 +59,19 @@ export const TextQuoteModal: React.FC<{
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
-    if (!open || !quotation) return;
+    if (!open || !quotation) return undefined;
+    const { live, cancel } = liveRequests();
     setLoading(true);
     setError(undefined);
     setCopied(false);
-    quotationApi
-      .text(quotation.id, quotation.versionNo)
+    live(quotationApi.text(quotation.id, quotation.versionNo))
       .then((r) => {
         setText(r.text);
         setVersion(r.templateVersionNo);
       })
       .catch((e) => setError(readBizError(e).message))
       .finally(() => setLoading(false));
+    return cancel;
   }, [open, quotation]);
 
   const copy = () => {

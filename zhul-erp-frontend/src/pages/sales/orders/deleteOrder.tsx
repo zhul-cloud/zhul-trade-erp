@@ -4,6 +4,7 @@ import { App, Button, Input, Modal, Skeleton } from 'antd';
 import React, { useEffect, useState } from 'react';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
+import { liveRequests } from '@/utils/liveRequests';
 import {
   type Order,
   type OrderDeleteCheck,
@@ -82,14 +83,15 @@ export const DeleteOrderModal: React.FC<{
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) return undefined;
+    const { live, cancel } = liveRequests();
     setCheck(undefined);
     setError(undefined);
     setReason('');
-    orderApi
-      .deleteCheck(order.id)
+    live(orderApi.deleteCheck(order.id))
       .then(setCheck)
       .catch((e) => setError(readBizError(e).message));
+    return cancel;
   }, [open, order.id]);
 
   const blocked = check?.level === 'BLOCKED';

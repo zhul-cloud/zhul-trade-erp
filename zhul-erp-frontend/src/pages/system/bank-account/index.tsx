@@ -14,11 +14,13 @@ import {
   Table,
 } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
+import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { PageTitle, Pill } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { CURRENCIES } from '@/pages/quotation/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { UnitPill, UnitSelect, useBusinessUnits } from '@/utils/businessUnit';
+import { liveRequests } from '@/utils/liveRequests';
 import { tableScrollX } from '@/utils/tableScroll';
 import {
   ACCOUNT_TYPE,
@@ -43,7 +45,8 @@ const AccountModal: React.FC<{
   const [bu] = useBusinessUnits();
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) return undefined;
+    const { live, cancel } = liveRequests();
     form.resetFields();
     if (!editing) {
       form.setFieldsValue({
@@ -51,14 +54,14 @@ const AccountModal: React.FC<{
         accountType: ACCOUNT_TYPE.PUBLIC,
         businessUnitId: bu.myUnitId ?? bu.units[0]?.id,
       });
-      return;
+      return cancel;
     }
     setLoading(true);
-    bankAccountApi
-      .get(editing.id)
+    live(bankAccountApi.get(editing.id))
       .then((a) => form.setFieldsValue(a))
       .catch((e) => message.error(readBizError(e).message))
       .finally(() => setLoading(false));
+    return cancel;
   }, [open, editing, form, message, bu]);
 
   const submit = async () => {
@@ -218,6 +221,10 @@ const BankAccountPage: React.FC = () => {
   useEffect(() => {
     load();
   }, [load]);
+
+  // 从其他页面返回时重新取数（audit UI-055）
+
+  useOnReactivate(load);
 
   const run = async (fn: () => Promise<void>, done: string) => {
     try {

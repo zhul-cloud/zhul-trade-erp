@@ -13,7 +13,7 @@ import {
 } from '@/components/DocFields/DocPage';
 import SourceNos from '@/components/DocFields/SourceNos';
 import { DocFilesCard } from '@/components/DocFiles';
-import { usePageTitle } from '@/components/PageTabs/hooks';
+import { useOnReactivate, usePageTitle } from '@/components/PageTabs/hooks';
 import { useWide } from '@/pages/inquiry/shared/components';
 import {
   kg,
@@ -67,6 +67,8 @@ const OutboundDetailPage: React.FC = () => {
   useEffect(() => {
     load();
   }, [load]);
+  // 从其他页面返回时重新取数（audit UI-055）
+  useOnReactivate(load);
   const close = useCallback(() => setDialog(undefined), []);
   const done = () => {
     setDialog(undefined);

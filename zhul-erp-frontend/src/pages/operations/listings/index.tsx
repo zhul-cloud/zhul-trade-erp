@@ -3,6 +3,7 @@ import { Link } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { Button, Input, Segmented, Select, Table } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
+import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { Card, PageTitle, Pill } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import {
@@ -74,6 +75,10 @@ const ListingTasksPage: React.FC = () => {
   useEffect(() => {
     load();
   }, [load]);
+
+  // 从其他页面返回时重新取数（audit UI-055）
+
+  useOnReactivate(load);
 
   const apply = () => {
     setQuery({

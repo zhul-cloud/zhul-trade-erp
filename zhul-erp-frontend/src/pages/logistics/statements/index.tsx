@@ -20,6 +20,7 @@ import {
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useOnReactivate } from '@/components/PageTabs/hooks';
 import {
   PayablePanel,
   PayStatusPill,
@@ -530,6 +531,10 @@ const Statements: React.FC = () => {
   useEffect(() => {
     load();
   }, [load]);
+
+  // 从其他页面返回时重新取数（audit UI-055）
+
+  useOnReactivate(load);
 
   const columns: TableColumnsType<Statement> = [
     {

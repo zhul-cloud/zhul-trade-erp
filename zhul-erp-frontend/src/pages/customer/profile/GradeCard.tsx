@@ -3,6 +3,7 @@ import { App, Button, Form, Input, Modal, Radio, Skeleton, Table } from 'antd';
 import React, { useEffect, useState } from 'react';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount, formatDateTime } from '@/utils/format';
+import { liveRequests } from '@/utils/liveRequests';
 import { readBizError } from '../service';
 import { GRADE_NAMES, type Grade, profileApi, type RfmDetail } from './service';
 import { GradeBadge, Stars } from './ui';
@@ -189,13 +190,14 @@ export const RfmModal: React.FC<{
   const [error, setError] = useState<string>();
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) return undefined;
+    const { live, cancel } = liveRequests();
     setData(undefined);
     setError(undefined);
-    profileApi
-      .rfm(customerId)
+    live(profileApi.rfm(customerId))
       .then(setData)
       .catch((e) => setError(readBizError(e).message));
+    return cancel;
   }, [open, customerId]);
 
   const stat = (label: string, value: React.ReactNode) => (

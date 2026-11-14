@@ -32,6 +32,7 @@ import { searchCustomers } from '@/services/zhul/masterdata';
 import { useAppTheme } from '@/theme/AppTheme';
 import { useBusinessUnits } from '@/utils/businessUnit';
 import { formatAmount } from '@/utils/format';
+import { liveRequests } from '@/utils/liveRequests';
 import { CHANNEL, KIND, Pill, partyAddress } from '../components';
 import {
   type BankOption,
@@ -316,13 +317,13 @@ export const PartyModal: React.FC<{
   }, [open, customer.id]);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) return undefined;
+    const { live, cancel } = liveRequests();
     setSave(false);
     setOptions(undefined);
     setForm(value ? { ...value } : { name: '' });
     const otherCustomer = customerId !== customer.id;
-    piApi
-      .parties(piId, otherCustomer ? customerId : undefined)
+    live(piApi.parties(piId, otherCustomer ? customerId : undefined))
       .then((list) => {
         const own = list.filter((p) => p.partyType === type);
         setOptions(own);
@@ -340,6 +341,7 @@ export const PartyModal: React.FC<{
         setOptions([]);
         setMode('edit');
       });
+    return cancel;
   }, [open, piId, type, value, customerId, customer.id]);
 
   const findCustomers = (keyword: string) =>
@@ -1127,15 +1129,16 @@ export const AddItemsModal: React.FC<{
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    if (!open || !pi) return;
+    if (!open || !pi) return undefined;
+    const { live, cancel } = liveRequests();
     setPicked(new Set());
     setQuotations(undefined);
-    piApi
-      .candidateQuotations(pi.customerId)
+    live(piApi.candidateQuotations(pi.customerId))
       .then((list) =>
         setQuotations(list.filter((q) => q.currencyCode === pi.currencyCode)),
       )
       .catch(() => setQuotations([]));
+    return cancel;
   }, [open, pi]);
 
   const present = new Set(pi?.version.items.map((i) => i.quotationItemId));

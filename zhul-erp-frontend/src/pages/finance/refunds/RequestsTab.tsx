@@ -4,6 +4,7 @@ import { App, Button, Input, Segmented, Space, Table } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
 import { CustomerSub } from '@/components/DocFields';
 import SourceNos from '@/components/DocFields/SourceNos';
+import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { Card, Pill } from '@/pages/inquiry/shared/components';
 import { auditColumns } from '@/pages/purchase/components';
 import { RQ_STATUS_TONE } from '@/pages/sales/after-sales/service';
@@ -85,6 +86,10 @@ const RequestsTab: React.FC<{ onChanged?: () => void }> = ({ onChanged }) => {
   useEffect(() => {
     load();
   }, [load]);
+
+  // 从其他页面返回时重新取数（audit UI-055）
+
+  useOnReactivate(load);
 
   const done = () => {
     load();

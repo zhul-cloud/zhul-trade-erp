@@ -361,12 +361,12 @@ def _category_rules(categories: list) -> str:
 
 
 def _read_attachment(ref: dict) -> tuple:
-    """附件内容与扩展名：ref 为后端签发的临时链接 {"url", "ext"}。只接受 http(s)，不读本地文件（audit AI-003）"""
-    url = ref["url"]
-    if urllib.parse.urlsplit(url).scheme not in ("http", "https"):
-        raise ValueError("附件链接只支持 http / https")
-    with urllib.request.urlopen(url, timeout=min(120, remaining())) as resp:
-        return resp.read(), "." + ref.get("ext", "").lower().lstrip(".")
+    """附件内容与扩展名：ref 为后端签发的临时链接 {"url", "ext"}。只接受 http(s)，不读本地文件（audit AI-003）。
+    与大附件一样流式下载：每次读取受整任务期限约束，单个不超过 500MB（audit AI-005）"""
+    with tempfile.TemporaryDirectory(prefix="zhul-read-") as work:
+        path = lp.download(ref, work, remaining)
+        with open(path, "rb") as fh:
+            return fh.read(), "." + ref.get("ext", "").lower().lstrip(".")
 
 
 def _attachment_data(ref) -> tuple:

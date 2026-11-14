@@ -11,7 +11,7 @@ import {
 } from '@/components/DocFields/DocPage';
 import SourceNos from '@/components/DocFields/SourceNos';
 import { DocFilesCard } from '@/components/DocFiles';
-import { usePageTitle } from '@/components/PageTabs/hooks';
+import { useOnReactivate, usePageTitle } from '@/components/PageTabs/hooks';
 import {
   Card,
   PageTitle,
@@ -70,6 +70,8 @@ const ReceiptDocDetail: React.FC = () => {
   useEffect(() => {
     load();
   }, [load]);
+  // 从其他页面返回时重新取数（audit UI-055）
+  useOnReactivate(load);
 
   if (error) return <ErrorHint message={error} onRetry={load} />;
   if (!d) return <Skeleton active paragraph={{ rows: 12 }} />;

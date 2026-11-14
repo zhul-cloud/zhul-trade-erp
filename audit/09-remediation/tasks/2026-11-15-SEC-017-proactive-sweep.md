@@ -69,7 +69,28 @@
 
 ## 实施与验证结果
 
-待实施。
+### 实施
+
+- **SEC-005 补全**：[`AttachmentOwnerScope`](../../../zhul-erp-backend/src/main/java/com/zhul/erp/modules/attachment/service/AttachmentOwnerScope.java) 不再把付款、报销、费用、快递凭证、退货运费凭证归为只校验租户。付款附件改用 [`PaymentService.attachmentVisible`](../../../zhul-erp-backend/src/main/java/com/zhul/erp/modules/finance/service/PaymentService.java)：付款与应付管理看全部；只有采购订单菜单的按核销到的采购订单采购员；运费账单菜单看核销到运费账单应付的；报销菜单看本人垫付的，有报销付款权限的看全部。报销单看申请人，费用看垫付人（费用菜单看全部），快递单看垫付人，退货运费凭证看垫付人或按采购退货负责人；有报销付款权限的看全部。仍只校验租户的类型只剩拍摄、素材、询价回价，以及只对财务菜单开放的其他收入、应付、结汇。
+- **SEC-016 补全**：`reassign` 与 `attach` 一致，未挂附件只有上传人能挂。
+- **SEC-017**：应付按来源对非应付管理用户校验采购订单采购员范围；采购退货按采购订单改用与详情相同的负责人范围；售后单按订单对非财务用户按「售后单负责人或订单负责人在范围内」过滤，与详情一致。
+- **BUS-039**：余额转出的公共边界 `withdraw` 校验实际转出人民币舍入后大于 0，直接转出与退回多收都经过它。
+- **BUS-040**：确认到账、平台收款、登记未认领到账、订单费用行改为按两位 `HALF_UP` 舍入后的金额判断。
+- **AI-005 补全**：`_read_attachment` 改为复用流式下载 `lp.download`，与大附件同样受整任务期限和 500MB 约束。
+- **UI-055**：78 个按 `load` 取数的列表、详情与工作台卡片加 `useOnReactivate(load)`，从其他页面返回时重新取数，筛选、分页、滚动保留。有草稿或就地编辑的页面不加（报价、PI、采购订单详情，商品详情的编辑卡片，AI 设置，汇率与运输时效的表格内编辑，国家资料），以免返回时冲掉未保存内容；费用、其他收入详情在修改弹窗开着时不刷新。
+- **UI-056**：新增 [`liveRequests`](../../../zhul-erp-frontend/src/utils/liveRequests.ts)，effect 清理时作废，旧请求迟到的成功与失败都丢弃；用于售后申请退款与补发、PI 到账认领 / 抬头 / 选报价、新建 PI、余额流水、批量付款与登记付款的收款账户、出运单、发货抽屉、报价定价与报价文本、删除订单检查、选 PI、客户等级与合并候选、银行账户编辑、结汇。登记付款的 `load` 用请求序号丢弃过期结果。只加载全局下拉选项（负责人、品牌品类、取消原因等）的不改。
+- **UI-057**：新增 `useUnsavedGuard`（登记标签未保存并提示浏览器离开），公共附件卡改用它；销售订单备注卡、采购订单草稿编辑（草稿与订单原值比较）、客户表单、供应商表单接入，保存成功或确认离开后清除。
+
+### 验证
+
+| 命令 / 操作与证据 | 环境、commit / 版本 | 预期 | 实际 | 结论 |
+| --- | --- | --- | --- | --- |
+| [`RelatedDocScopeContractTest`](../../../zhul-erp-backend/src/test/java/com/zhul/erp/modules/attachment/RelatedDocScopeContractTest.java)（4 例：付款附件、报销类凭证、`reassign`、按关联单据列出） | 本机 MySQL；修复前 / 后 | 修复前失败、修复后通过 | 修复前 4 例全失败：别人垫付的凭证与别的采购员付款附件返回 200、`reassign` 挂上别人的未挂附件、按来源返回别人订单的应付；修复后全部通过，本人、财务、报销付款权限、应付管理正常 | 通过 |
+| [`CustomerCreditContractTest`](../../../zhul-erp-backend/src/test/java/com/zhul/erp/modules/finance/CustomerCreditContractTest.java)「多收退回」补拒绝对照 | 同上 | 同上 | 修复前 `0.004` 到账登记成功（BUS-040）；单独还原 BUS-039 时实际转出人民币 `-1` 退回成功；修复后两者都拒绝，多收仍待处理、无汇兑收益，正常退回照旧 | 通过 |
+| 后端完整 `mvn test` | 本机 MySQL | 通过 | 1687 条，0 失败、8 条跳过 | 通过 |
+| 编排服务 `test_whole_read_path_also_streams_within_job_deadline` 与全部测试 | 编排服务镜像，2GB 容器；修复前 / 后 | 同上 | 修复前慢流整份读取不在期限停下；修复后 149 条全部通过 | 通过 |
+| 前端：[`liveRequests.test.ts`](../../../zhul-erp-frontend/src/utils/liveRequests.test.ts)、[`deleteOrder.test.tsx`](../../../zhul-erp-frontend/src/pages/sales/orders/deleteOrder.test.tsx) 迟到用例、[`orderFilesUnsaved.test.tsx`](../../../zhul-erp-frontend/src/pages/sales/orders/orderFilesUnsaved.test.tsx)、`hooks.test.tsx` 浏览器离开用例 | Jest；修复前 / 后 | 同上 | 还原订单备注卡与删除订单弹窗时 2 个新用例失败；修复后通过 | 通过 |
+| `npm run lint`、`npx antd lint ./src`、`npm test` | 本机 | 通过 | 无错误；545 个文件无问题；74 组 377 条通过 | 通过 |
 
 ## 合并、部署与逐 ID 验收
 

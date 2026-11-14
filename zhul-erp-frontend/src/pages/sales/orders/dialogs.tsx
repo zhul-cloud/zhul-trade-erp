@@ -22,6 +22,7 @@ import type { Attachment } from '@/pages/warehouse/service';
 import { searchCustomers } from '@/services/zhul/masterdata';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
+import { liveRequests } from '@/utils/liveRequests';
 import { KIND, Pill, RECEIPT_STATUS, ReceiptStatusPill } from '../components';
 import {
   type CreateOrderLine,
@@ -992,16 +993,19 @@ export const NewOrderDrawer: React.FC<{
 
   useEffect(() => {
     if (!open || step !== 2) return undefined;
+    const { live, cancel } = liveRequests();
     const t = window.setTimeout(() => {
-      orderApi
-        .candidatePis(keyword.trim() || undefined)
+      live(orderApi.candidatePis(keyword.trim() || undefined))
         .then(setList)
         .catch((e) => {
           setList([]);
           message.error(readBizError(e).message);
         });
     }, 300);
-    return () => window.clearTimeout(t);
+    return () => {
+      window.clearTimeout(t);
+      cancel();
+    };
   }, [open, step, keyword, message]);
 
   const next = async () => {
