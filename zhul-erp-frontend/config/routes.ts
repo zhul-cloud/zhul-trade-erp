@@ -492,6 +492,47 @@ export default [
     ],
   },
   {
+    path: '/supply-chain',
+    name: 'supplyChain',
+    icon: 'deploymentUnit',
+    access: 'supplyMenu',
+    routes: [
+      { path: '/supply-chain', redirect: '/supply-chain/followup' },
+      {
+        path: '/supply-chain/followup',
+        name: 'followup',
+        icon: 'aim',
+        access: 'supplyFollowup',
+        component: './supply-chain/followup',
+      },
+      {
+        path: '/supply-chain/demands/:id',
+        hideInMenu: true,
+        access: 'supplyFollowup',
+        component: './supply-chain/demand',
+      },
+      {
+        path: '/supply-chain/projects/:id',
+        hideInMenu: true,
+        access: 'supplyMenu',
+        component: './supply-chain/project',
+      },
+      {
+        path: '/supply-chain/coverage',
+        name: 'coverage',
+        icon: 'table',
+        access: 'supplyCoverage',
+        component: './supply-chain/coverage',
+      },
+      {
+        path: '/supply-chain/coverage/models',
+        hideInMenu: true,
+        access: 'supplyCoverage',
+        component: './supply-chain/coverage/models',
+      },
+    ],
+  },
+  {
     path: '/warehouse',
     name: 'warehouse',
     icon: 'inbox',

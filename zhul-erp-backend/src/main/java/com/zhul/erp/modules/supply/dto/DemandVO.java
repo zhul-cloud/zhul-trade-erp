@@ -36,6 +36,8 @@ public class DemandVO {
     private String coverageNote;
     private LocalDate evidenceDate;
     private Boolean evidenceValid;
+    /** 证据最后有效的一天（证据日期 + 有效天数），没有证据为空 */
+    private LocalDate evidenceExpireDate;
     private Long ownerId;
     private String ownerName;
     private String nextAction;
