@@ -2,10 +2,13 @@ package com.zhul.erp.modules.inquiry.sourcing;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.zhul.erp.modules.inquiry.InquiryContractSupport;
+import com.zhul.erp.modules.inquiry.sourcing.event.SourcingQuoteEvent;
 import com.zhul.erp.modules.inquiry.support.PriceKeys;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.support.TransactionTemplate;
+import org.springframework.test.context.event.ApplicationEvents;
+import org.springframework.test.context.event.RecordApplicationEvents;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -27,11 +30,19 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 
 /** 询价任务与询价记录（spec inquiry/sourcing-task、sourcing-quote、price-ledger）：分配、推荐、改派、比价、录入、退回、超时、规则、询价记录 */
+@RecordApplicationEvents
 class SourcingContractTest extends InquiryContractSupport {
 
     @Autowired private TransactionTemplate tx;
 
     @Autowired private PriceKeys priceKeys;
+
+    @Autowired private ApplicationEvents events;
+
+    /** 发给供应链联动的询价事件（tasks 4.4a） */
+    private List<SourcingQuoteEvent> quoteEvents() {
+        return events.stream(SourcingQuoteEvent.class).toList();
+    }
 
     private String admin;
 
@@ -267,11 +278,13 @@ class SourcingContractTest extends InquiryContractSupport {
                 List.of(entry(2, "明和电气", "3200", 1, 1)))), lin));
         assertEquals(1, ok(call(get(MY), lin)).get(0).path("filledCount").asInt(), "草稿也算已填");
         assertEquals(0, jdbc.queryForObject("select priced_item_count from customer_inquiry where id = ?", Integer.class, inq), "草稿不计入回价");
+        assertTrue(quoteEvents().isEmpty(), "草稿不通知供应链");
 
         ok(call(json(put(MY + "/" + task + "/quotes"), quotes(true, items.get(0), false, null,
                 List.of(entry(2, "明和电气", "3200", 1, 1), entry(3, "个人", "1800", 4, 3)))), lin));
         JsonNode afterFirst = ok(call(get(INQ + "/" + inq), admin));
         assertEquals(1, afterFirst.path("inquiry").path("pricedItemCount").asInt(), "部分提交计入回价进度");
+        assertEquals(2, quoteEvents().get(0).quoteIds().size(), "正式采购提交即通知供应链");
         assertEquals(5, afterFirst.path("inquiry").path("status").asInt());
         assertEquals(0, new BigDecimal("3200").compareTo(afterFirst.path("items").get(0).path("selectedQuote").path("unitPriceCny").decimalValue()),
                 "默认选全新原装");
@@ -464,6 +477,10 @@ class SourcingContractTest extends InquiryContractSupport {
             assertEquals("QTIT00000092", preview.path("drafts").get(0).path("quotationNo").asText());
 
             ok(call(post(MY + "/" + task + "/withdraw"), lin));
+            SourcingQuoteEvent w = quoteEvents().get(quoteEvents().size() - 1);
+            assertTrue(w.withdrawn(), "撤回通知供应链");
+            assertEquals(List.of(jdbc.queryForObject("select id from sourcing_quote where inquiry_item_id = ? and deleted_at is null",
+                    Long.class, items.get(0))), w.quoteIds(), "只带撤回的回价");
             assertEquals(2, jdbc.queryForObject("select status from sourcing_task where id = ?", Integer.class, task), "回到询价中");
             assertEquals(5, jdbc.queryForObject("select status from customer_inquiry where id = ?", Integer.class, inq), "询盘回到询价中");
             assertEquals(1, jdbc.queryForObject("select priced_item_count from customer_inquiry where id = ?", Integer.class, inq));

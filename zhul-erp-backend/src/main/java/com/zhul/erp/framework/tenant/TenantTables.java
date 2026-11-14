@@ -86,6 +86,14 @@ public final class TenantTables {
             Map.entry("sourcing_item_handoff", Policy.PRIVATE),
             Map.entry("sourcing_quote", Policy.PRIVATE),
             Map.entry("sourcing_task", Policy.PRIVATE),
+            Map.entry("sc_demand_signal", Policy.PRIVATE),
+            Map.entry("sc_demand", Policy.PRIVATE),
+            Map.entry("sc_coverage_channel", Policy.PRIVATE),
+            Map.entry("sc_followup_log", Policy.PRIVATE),
+            Map.entry("sc_gap_project", Policy.PRIVATE),
+            Map.entry("sc_gap_project_item", Policy.PRIVATE),
+            Map.entry("sc_expansion_scope", Policy.PRIVATE),
+            Map.entry("sc_dev_candidate", Policy.PRIVATE),
             Map.entry("sourcing_task_assignee", Policy.PRIVATE),
             // 报价、PI、销售订单、收款、售后
             // 定价规则：平台默认值 + 租户自己的规则（有则用自己的）

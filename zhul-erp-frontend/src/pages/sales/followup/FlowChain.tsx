@@ -11,7 +11,7 @@ import { Card, Pill } from './components';
 import { OPEN_BOARDS, type Overview, type OverviewBoard } from './service';
 
 /** 卡片之间的渐变圆形箭头 */
-const Arrow: React.FC<{ from: string; to: string }> = ({ from, to }) => (
+export const Arrow: React.FC<{ from: string; to: string }> = ({ from, to }) => (
   <div
     style={{
       display: 'flex',

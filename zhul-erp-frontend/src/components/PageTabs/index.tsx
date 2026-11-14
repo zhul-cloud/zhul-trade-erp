@@ -74,7 +74,7 @@ export const Pane: React.FC<{
   );
 };
 
-const TabBar: React.FC<{ tree: MenuTree }> = ({ tree }) => {
+export const TabBar: React.FC<{ tree: MenuTree }> = ({ tree }) => {
   const s = useTabsState();
   const { palette } = useAppTheme();
   const { modal } = App.useApp();
@@ -98,6 +98,26 @@ const TabBar: React.FC<{ tree: MenuTree }> = ({ tree }) => {
       title: '关闭这个标签？',
       content: `${dirty.map((t) => tabLabel(tree, t)).join('、')} 有未保存的修改，关闭后这些修改会丢失。`,
       okText: '不保存，关闭',
+      cancelText: '取消',
+      okButtonProps: { danger: true },
+      onOk: run,
+    });
+  };
+
+  /** 刷新会重建标签当前显示的页面：它有未保存修改时同样先确认（audit UI-004） */
+  const refreshTab = (t: Tab) => {
+    const run = () => {
+      if (t.menuPath !== s.active) tabsActions.switchTo(t.menuPath);
+      tabsActions.refresh(t.menuPath);
+    };
+    if (!top(t).dirty) {
+      run();
+      return;
+    }
+    modal.confirm({
+      title: '刷新这个页面？',
+      content: `${tabLabel(tree, t)} 有未保存的修改，刷新后这些修改会丢失。`,
+      okText: '不保存，刷新',
       cancelText: '取消',
       okButtonProps: { danger: true },
       onOk: run,
@@ -168,10 +188,8 @@ const TabBar: React.FC<{ tree: MenuTree }> = ({ tree }) => {
               menu={{
                 items,
                 onClick: ({ key }) => {
-                  if (key === 'refresh') {
-                    if (!on) tabsActions.switchTo(t.menuPath);
-                    tabsActions.refresh(t.menuPath);
-                  } else if (key === 'close') closeTab(t);
+                  if (key === 'refresh') refreshTab(t);
+                  else if (key === 'close') closeTab(t);
                   else if (key === 'others') closeOthers(t);
                   else if (key === 'right') closeRight(t);
                 },

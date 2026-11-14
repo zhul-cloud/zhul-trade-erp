@@ -48,6 +48,7 @@ import com.zhul.erp.modules.system.service.LogService;
 import com.zhul.erp.modules.quotation.entity.QuotationDO;
 import com.zhul.erp.modules.quotation.constants.QuotationConstants;
 import com.zhul.erp.modules.inquiry.sourcing.dto.WithdrawPreviewVO;
+import com.zhul.erp.modules.inquiry.sourcing.event.SourcingQuoteEvent;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
@@ -101,6 +102,7 @@ public class MyTaskServiceImpl implements MyTaskService {
     private final MediaIndexer media;
     private final com.zhul.erp.modules.inquiry.support.TaskNameplates taskNameplates;
     private final ItemPriceHistory priceHistory;
+    private final org.springframework.context.ApplicationEventPublisher events;
     private final com.zhul.erp.modules.inquiry.sourcing.repository.SourcingItemHandoffMapper handoffMapper;
 
     /** 兼职工作台按提交统计工作量：已提交、待审核、审核时作废的都算，与是否审核通过无关 */
@@ -673,6 +675,7 @@ public class MyTaskServiceImpl implements MyTaskService {
         boolean review = needsReview(quotedBy);
         java.util.Set<QuoteDraft> recommended = review ? java.util.Set.of() : recommendedDrafts(drafts, items);
         String batch = java.util.UUID.randomUUID().toString();
+        List<Long> effective = new java.util.ArrayList<>();
         // 附件只能是新上传的，或本人在本任务的回价（含刚被新版本替换掉的）上原有的
         List<Long> ownQuoteIds = drafts.stream().anyMatch(d -> !d.attachmentIds().isEmpty())
                 ? quoteMapper.selectList(new LambdaQueryWrapper<SourcingQuoteDO>()
@@ -751,12 +754,18 @@ public class MyTaskServiceImpl implements MyTaskService {
             q.setSubmitBatch(batch);
             q.setQuoteRound(Objects.requireNonNullElse(item.getQuoteRound(), 0));
             quoteMapper.insert(q);
+            if (submit && !review) {
+                effective.add(q.getId());
+            }
             if (!d.attachmentIds().isEmpty()) {
                 attachmentService.reassign(AttachmentService.SOURCING_QUOTE, d.attachmentIds(), ownQuoteIds, q.getId());
             }
             // 回价图片进素材库「供方实拍」；被替换的旧回价上的图片随之移走
             media.indexSourcingQuote(q.getId(), q.getTenantId(), q.getBrand(), q.getModel());
             ownQuoteIds.forEach(old -> media.indexSourcingQuote(old, q.getTenantId(), q.getBrand(), q.getModel()));
+        }
+        if (!effective.isEmpty()) {
+            events.publishEvent(new SourcingQuoteEvent(task.getTenantId(), task.getId(), effective, false));
         }
     }
 
@@ -1125,6 +1134,7 @@ public class MyTaskServiceImpl implements MyTaskService {
                 .set(SourcingQuoteDO::getStatus, InquiryConstants.QUOTE_DRAFT)
                 .set(SourcingQuoteDO::getUpdateTime, LocalDateTime.now()));
         progress.refreshItems(open);
+        events.publishEvent(new SourcingQuoteEvent(task.getTenantId(), taskId, quoteIds, true));
         boolean pending = itemMapper.selectCount(new LambdaQueryWrapper<InquiryItemDO>()
                 .eq(InquiryItemDO::getSourcingTaskId, taskId)
                 .eq(InquiryItemDO::getQuoteStatus, InquiryConstants.ITEM_PENDING)

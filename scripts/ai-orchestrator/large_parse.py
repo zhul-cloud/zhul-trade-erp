@@ -66,7 +66,9 @@ class Unit:
 # ---------------------------------------------------------------- 下载
 
 def download(ref: dict, directory: str, deadline_left) -> str:
-    """把后端签发的临时链接流式写到临时目录，单个超过 500MB 时失败（D7）"""
+    """把后端签发的临时链接流式写到临时目录，单个超过 500MB 时失败（D7）。
+    deadline_left() 返回整任务剩余秒数、到期时抛出任务超时：每次读取前都检查，
+    并把这次读取的等待限制在剩余期限内，慢速但不断有数据的下载也会在期限到时停下（audit AI-005）"""
     url = ref["url"]
     if urllib.parse.urlsplit(url).scheme not in ("http", "https"):
         raise ValueError("附件链接只支持 http / https")
@@ -76,17 +78,28 @@ def download(ref: dict, directory: str, deadline_left) -> str:
     try:
         with urllib.request.urlopen(url, timeout=min(120, deadline_left())) as resp, os.fdopen(fd, "wb") as out:
             while True:
-                chunk = resp.read(DOWNLOAD_CHUNK)
+                _limit_wait(resp, min(120, deadline_left()))
+                # read1 只等一次网络数据就返回；read(n) 会一直等到凑满 n 字节，期间不再检查期限
+                chunk = resp.read1(DOWNLOAD_CHUNK)
                 if not chunk:
                     break
                 written += len(chunk)
                 if written > MAX_FILE_BYTES:
                     raise ValueError("附件超过 500MB")
                 out.write(chunk)
-    except BaseException:
+    except BaseException as e:
         _remove(path)
+        if isinstance(e, TimeoutError):
+            deadline_left()  # 等待被整任务期限截断时按任务超时报告，不算附件读不了
         raise
     return path
+
+
+def _limit_wait(resp, seconds):
+    """下一次读取最多等 seconds 秒；拿不到底层 socket（测试替身）时不处理"""
+    sock = getattr(getattr(getattr(resp, "fp", None), "raw", None), "_sock", None)
+    if sock is not None:
+        sock.settimeout(seconds)
 
 
 def _mkstemp(directory, ext):
@@ -103,24 +116,31 @@ def _remove(path):
 
 # ---------------------------------------------------------------- 预处理
 
-def preprocess(path: str, ext: str, name: str, nameplate_no=None):
-    """把一个附件转成预处理单元；返回 (units, unparsed)"""
+def _no_deadline():
+    return None
+
+
+def preprocess(path: str, ext: str, name: str, nameplate_no=None, check=_no_deadline):
+    """把一个附件转成预处理单元；返回 (units, unparsed)。
+    check() 在每页、每组表格行之前调用，整任务到期时抛出任务超时，不当作文件损坏（audit AI-005）"""
     if ext == ".pdf":
-        return _pdf_units(path, name)
+        return _pdf_units(path, name, check)
     if ext in (".jpg", ".jpeg", ".png", ".gif", ".webp"):
         try:
             return [Unit("image", f"《{name}》", image=_shrink_image(Path(path).read_bytes()), nameplate_no=nameplate_no)], []
         except Exception:  # noqa: BLE001 - 损坏的图片只影响它自己
+            check()
             return [], [{"file": name, "range": "", "reason": "图片无法读取"}]
     if ext in (".xlsx", ".xls", ".csv"):
         try:
-            return _sheet_units(path, ext, name), []
+            return _sheet_units(path, ext, name, check), []
         except Exception:  # noqa: BLE001
+            check()  # 到期抛出的任务超时在这里重新抛出，不算表格读不了
             return [], [{"file": name, "range": "", "reason": "表格无法读取"}]
     return [], [{"file": name, "range": "", "reason": "不支持的文件类型"}]
 
 
-def _pdf_units(path, name):
+def _pdf_units(path, name, check=_no_deadline):
     import pymupdf
     units, unparsed = [], []
     try:
@@ -131,6 +151,7 @@ def _pdf_units(path, name):
         if doc.needs_pass:
             return [], [{"file": name, "range": "", "reason": "已加密，无法读取"}]
         for i in range(len(doc)):
+            check()
             label = f"《{name}》第 {i + 1} 页"
             try:
                 page = doc[i]
@@ -211,7 +232,7 @@ def sheet_text(path, ext) -> str:
     return "\n".join(parts).strip()
 
 
-def _sheet_units(path, ext, name):
+def _sheet_units(path, ext, name, check=_no_deadline):
     """每 200 行一个单元，单元开头注明工作表与行号范围"""
     units, rows, sheet, first = [], [], None, None
 
@@ -224,6 +245,7 @@ def _sheet_units(path, ext, name):
     last = None
     for title, n, cells in sheet_rows(path, ext):
         if title != sheet or len(rows) >= EXCEL_ROWS_PER_UNIT:
+            check()
             flush()
             rows, sheet, first = [], title, n
         rows.append("\t".join(cells))

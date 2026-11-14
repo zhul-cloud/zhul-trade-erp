@@ -23,6 +23,8 @@ public class SopStageDO {
     private String goal;
     /** JSON 字符串数组 */
     private String checklist;
+    /** JSON 字符串数组：怎样算做好（供应链作战卡） */
+    private String qualityChecks;
     private String gateText;
     private String autoHint;
     /** JSON 对象：提醒节点 → 默认动作 */

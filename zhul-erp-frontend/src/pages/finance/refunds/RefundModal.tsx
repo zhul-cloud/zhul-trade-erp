@@ -64,7 +64,9 @@ const RefundModal: React.FC<{
   >([]);
 
   useEffect(() => {
-    if (!open || !soId) return;
+    if (!open || !soId) return undefined;
+    // 关闭或换了一张申请后，上一次打开发出的请求迟到时丢弃，不能改掉这一次的币种和汇率（audit UI-054）
+    let stale = false;
     setDate(dayjs());
     setReason(undefined);
     setAmount(null);
@@ -83,22 +85,31 @@ const RefundModal: React.FC<{
     refundApi
       .refundable(soId)
       .then((r) => {
+        if (stale) return;
         setInfo(r);
         setMethod(request ? request.method : r.platformOnly ? 1 : 2);
       })
-      .catch((e) => message.error(readBizError(e).message));
+      .catch((e) => {
+        if (!stale) message.error(readBizError(e).message);
+      });
     if (!request) {
       afterSalesOptions(soId)
-        .then((rows) =>
+        .then((rows) => {
+          if (stale) return;
           setAsOptions(
             rows.map((a) => ({
               value: a.id,
               label: `${a.asNo} · ${a.statusName} · ${a.symptom}`,
             })),
-          ),
-        )
-        .catch(() => setAsOptions([]));
+          );
+        })
+        .catch(() => {
+          if (!stale) setAsOptions([]);
+        });
     }
+    return () => {
+      stale = true;
+    };
   }, [open, soId, message, request]);
 
   // 实际退出人民币默认按平均到账汇率折算，手动改过后不再跟着变

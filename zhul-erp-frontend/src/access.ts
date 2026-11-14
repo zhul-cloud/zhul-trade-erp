@@ -84,6 +84,15 @@ export default function access(initialState: {
     purchaseBargainStats: can('/purchase/bargain-stats'),
     'purchase:shipment:create': can('purchase:shipment:create'),
     'purchase:discrepancy:handle': can('purchase:discrepancy:handle'),
+    // 供应链管理
+    supplyMenu: any('/supply-chain/followup', '/supply-chain/coverage'),
+    supplyFollowup: can('/supply-chain/followup'),
+    supplyCoverage: can('/supply-chain/coverage'),
+    'supply:followup:edit': can('supply:followup:edit'),
+    'supply:followup:team': can('supply:followup:team'),
+    'supply:project:edit': can('supply:project:edit'),
+    'supply:coverage:edit': can('supply:coverage:edit'),
+    'supply:dev:edit': can('supply:dev:edit'),
     // 仓库管理
     warehouseMenu: any(
       '/warehouse/receipts',

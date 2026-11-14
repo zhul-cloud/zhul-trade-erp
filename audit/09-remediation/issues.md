@@ -45,6 +45,7 @@
 | [BUS-035](tasks/2026-11-11-BUS-001-business-batch-h.md) | 事务内加锁后按 ID 重读，MyBatis 一级缓存返回加锁前的旧对象 | P2 | 已关闭 | Claude | [2026-11-11-BUS-001](tasks/2026-11-11-BUS-001-business-batch-h.md) | 2026-11-14 |
 | [BUS-036](tasks/2026-11-13-BUS-036-inquiry-attachment-jpeg.md) | 询盘附件不能上传 .jpeg 图片（WhatsApp 下载的图片） | P2 | 已关闭 | Claude | [2026-11-13-BUS-036](tasks/2026-11-13-BUS-036-inquiry-attachment-jpeg.md) | 2026-11-14 |
 | [BUS-037](tasks/2026-11-14-DEP-001-p1-upgrades.md) | 询价结果导入时一份内容损坏的 Excel 让整批预览报「系统错误」 | P2 | 已关闭 | Claude | [2026-11-14-DEP-001](tasks/2026-11-14-DEP-001-p1-upgrades.md) | 2026-11-14 |
+| [BUS-038](tasks/2026-11-14-SEC-005-post-remediation-review.md) | 退款申请执行缺少请求验证，负退款金额可绕过服务校验 | P1 | 已合并待发布 | Claude | [2026-11-14-BUS-038](tasks/2026-11-14-BUS-038-review-fixes.md) | 2026-11-14 |
 
 ## 前端
 
@@ -53,7 +54,7 @@
 | [UI-001](../02-frontend/01-接口重放与附件上传.md) | 多选上传的附件被后完成的上传覆盖 | P1 | 已关闭 | Claude | [2026-11-04-UI-001](tasks/2026-11-04-UI-001-frontend-p1-batch-g.md) | 2026-11-14 |
 | [UI-002](../02-frontend/01-接口重放与附件上传.md) | 令牌刷新后的请求重放绕过业务错误校验 | P1 | 已关闭 | Claude | [2026-11-04-UI-001](tasks/2026-11-04-UI-001-frontend-p1-batch-g.md) | 2026-11-14 |
 | [UI-003](../02-frontend/02-表单草稿与页面切换.md) | 我的询价切换任务直接丢失未保存回价 | P1 | 已关闭 | Claude | [2026-11-04-UI-001](tasks/2026-11-04-UI-001-frontend-p1-batch-g.md) | 2026-11-14 |
-| [UI-004](../02-frontend/02-表单草稿与页面切换.md) | 报价单和 PI 的未保存保护遗漏站内导航 | P2 | 已关闭 | Claude | [2026-11-12-UI-004](tasks/2026-11-12-UI-004-batch-k.md) | 2026-11-14 |
+| [UI-004](../02-frontend/02-表单草稿与页面切换.md) | 未保存保护遗漏标签右键刷新，草稿被直接重建丢失 | P2 | 已合并待发布 | Claude | [2026-11-14-BUS-038](tasks/2026-11-14-BUS-038-review-fixes.md) | 2026-11-15 |
 | [UI-005](../02-frontend/02-表单草稿与页面切换.md) | 商品向导宣称自动保存，但补充资料离开即丢失 | P2 | 已关闭 | Claude | [2026-11-12-UI-004](tasks/2026-11-12-UI-004-batch-k.md) | 2026-11-14 |
 | [UI-006](../02-frontend/03-错误恢复字典与列表一致性.md) | 错误页“重试”不能恢复成功页面 | P2 | 已关闭 | Claude | [2026-11-12-UI-004](tasks/2026-11-12-UI-004-batch-k.md) | 2026-11-14 |
 | [UI-007](../02-frontend/03-错误恢复字典与列表一致性.md) | 租户和套餐列表缺少三项固定审计字段 | P3 | 已关闭 | Claude | [2026-11-12-UI-007](tasks/2026-11-12-UI-007-batch-l.md) | 2026-11-14 |
@@ -75,7 +76,7 @@
 | [UI-023](../02-frontend/07-全量前端代码与页面审查.md) | 顶栏“使用文档”仍指向未注册的 welcome 页 | P2 | 已关闭 | Claude | [2026-11-12-OPS-001](tasks/2026-11-12-OPS-001-batch-j.md) | 2026-11-14 |
 | [UI-024](../02-frontend/07-全量前端代码与页面审查.md) | 用户列表的部门筛选没有传给后端 | P2 | 已关闭 | Claude | [2026-11-11-UI-017](tasks/2026-11-11-UI-017-frontend-batch-i.md) | 2026-11-14 |
 | [UI-025](../02-frontend/07-全量前端代码与页面审查.md) | 编辑字典类型漏传必填编码，正常保存被校验拒绝 | P2 | 已关闭 | Claude | [2026-11-11-UI-017](tasks/2026-11-11-UI-017-frontend-batch-i.md) | 2026-11-14 |
-| [UI-026](../02-frontend/07-全量前端代码与页面审查.md) | 表单标签重复关联背景控件，部分自绘财务字段没有可访问名称 | P2 | 已合并待发布 | Claude | [2026-11-12-UI-022](tasks/2026-11-12-UI-022-batch-m.md) | 2026-11-14 |
+| [UI-026](../02-frontend/07-全量前端代码与页面审查.md) | 表单标签重复关联背景控件，部分自绘财务字段没有可访问名称 | P2 | 已关闭 | Claude | [2026-11-12-UI-022](tasks/2026-11-12-UI-022-batch-m.md) | 2026-11-14 |
 | [UI-027](../02-frontend/07-全量前端代码与页面审查.md) | 账户再次局部编辑会丢掉本轮新填的身份证，卡片仍显示已填写 | P2 | 已关闭 | Claude | [2026-11-11-UI-017](tasks/2026-11-11-UI-017-frontend-batch-i.md) | 2026-11-14 |
 | [UI-028](../02-frontend/07-全量前端代码与页面审查.md) | 多事业部公司的公共部门用户无法在询盘中快速新建客户 | P2 | 已关闭 | Claude | [2026-11-12-UI-022](tasks/2026-11-12-UI-022-batch-m.md) | 2026-11-14 |
 | [UI-029](../02-frontend/07-全量前端代码与页面审查.md) | 商品关键词查询保留已隐藏的勾选项，批量操作仍作用于旧商品 | P2 | 已关闭 | Claude | [2026-11-12-OPS-001](tasks/2026-11-12-OPS-001-batch-j.md) | 2026-11-14 |
@@ -101,6 +102,9 @@
 | [UI-049](tasks/2026-11-11-UI-049-notification-content-wrap.md) | 通知抽屉内容在日期、型号中间断行 | P3 | 已关闭 | Claude | [2026-11-11-UI-049](tasks/2026-11-11-UI-049-notification-content-wrap.md) | 2026-11-11 |
 | [UI-050](tasks/2026-11-11-BUS-034-product-media-feedback.md) | 商品档案的图片点开不能预览 | P3 | 已关闭 | Claude | [2026-11-11-BUS-034](tasks/2026-11-11-BUS-034-product-media-feedback.md) | 2026-11-11 |
 | [UI-051](tasks/2026-11-12-UI-051-source-no-column.md) | 售后、退款、发货跟踪、采购入库列表的来源单号仍与客户 / 订单 / 供应商合在一列 | P3 | 已关闭 | Claude | [2026-11-12-UI-051](tasks/2026-11-12-UI-051-source-no-column.md) | 2026-11-14 |
+| [UI-052](tasks/2026-11-14-SEC-005-post-remediation-review.md) | 公共单据附件卡的备注草稿未登记未保存状态 | P2 | 已合并待发布 | Claude | [2026-11-14-BUS-038](tasks/2026-11-14-BUS-038-review-fixes.md) | 2026-11-14 |
+| [UI-053](tasks/2026-11-14-SEC-005-post-remediation-review.md) | 销售退货详情改状态后返回保活列表，状态和计数仍旧 | P2 | 已合并待发布 | Claude | [2026-11-14-BUS-038](tasks/2026-11-14-BUS-038-review-fixes.md) | 2026-11-14 |
+| [UI-054](tasks/2026-11-14-SEC-005-post-remediation-review.md) | 退款弹窗旧订单响应迟到，覆盖新申请的人民币换算 | P2 | 已合并待发布 | Claude | [2026-11-14-BUS-038](tasks/2026-11-14-BUS-038-review-fixes.md) | 2026-11-14 |
 
 ## AI 可靠性
 
@@ -110,10 +114,12 @@
 | [AI-002](../04-ai-and-operations/01-AI任务可靠性与诊断.md) | 结果回调一次失败后被吞掉，已完成 AI 结果没有可靠投递路径 | P1 | 已关闭 | Claude | [2026-11-04-AI-001](tasks/2026-11-04-AI-001-task-reliability-batch-f.md) | 2026-11-14 |
 | [AI-003](../04-ai-and-operations/02-AI附件入口与权限.md) | 普通认证用户可通过通用 AI 入口指定 URL / 本地附件路径 | P1 | 已关闭 | Claude | [2026-11-03-SEC-001](tasks/2026-11-03-SEC-001-session-ai-input-hotfix.md) | 2026-11-04 |
 | [AI-004](../04-ai-and-operations/01-AI任务可靠性与诊断.md) | 串行诊断的总超时预算超过 Java 的 30 秒请求期限 | P2 | 已关闭 | Claude | [2026-11-04-AI-001](tasks/2026-11-04-AI-001-task-reliability-batch-f.md) | 2026-11-14 |
-| [AI-005](../04-ai-and-operations/01-AI任务可靠性与诊断.md) | Claude 续传按单请求计时，整任务可超过 watchdog 期限而继续运行 | P1 | 已关闭 | Claude | [2026-11-04-AI-001](tasks/2026-11-04-AI-001-task-reliability-batch-f.md) | 2026-11-14 |
+| [AI-005](../04-ai-and-operations/01-AI任务可靠性与诊断.md) | 整任务期限遗漏附件下载，慢流可超时后继续运行 | P1 | 已合并待发布 | Claude | [2026-11-14-BUS-038](tasks/2026-11-14-BUS-038-review-fixes.md) | 2026-11-14 |
 | [AI-006](../04-ai-and-operations/03-全量运行脚本与配置审查.md) | 未连接到模型服务商时仍把API Key标为有效 | P2 | 已关闭 | Claude | [2026-11-04-AI-001](tasks/2026-11-04-AI-001-task-reliability-batch-f.md) | 2026-11-14 |
 | [AI-007](../04-ai-and-operations/01-AI任务可靠性与诊断.md) | 个人订阅方式同时只能执行一个任务，其他任务立即失败 | P2 | 已关闭 | Claude | [2026-11-06-AI-007](tasks/2026-11-06-AI-007-subscription-concurrency.md) | 2026-11-14 |
 | [AI-008](../04-ai-and-operations/01-AI任务可靠性与诊断.md) | 编排服务拒绝请求时不读请求体，Windows 下客户端偶发连接被中止 | P3 | 已关闭 | Claude | [2026-11-06-AI-008](tasks/2026-11-06-AI-008-token-reject-drain.md) | 2026-11-14 |
+| [AI-009](tasks/2026-11-14-SEC-005-post-remediation-review.md) | 大附件读取和预处理阶段缺少心跳，未到总期限先被判失败 | P2 | 已合并待发布 | Claude | [2026-11-14-BUS-038](tasks/2026-11-14-BUS-038-review-fixes.md) | 2026-11-14 |
+| [AI-010](tasks/2026-11-14-SEC-005-post-remediation-review.md) | 分批解析失败时未汇总工作线程用量，失败回调漏记消耗 | P2 | 已合并待发布 | Claude | [2026-11-14-BUS-038](tasks/2026-11-14-BUS-038-review-fixes.md) | 2026-11-14 |
 
 ## 身份与对象权限
 
@@ -123,7 +129,7 @@
 | [SEC-002](../07-security/02-身份会话与对象权限.md) | 用户管理写操作缺少目标租户约束 | P1 | 已关闭 | Claude | [2026-11-03-SEC-011](tasks/2026-11-03-SEC-011-tenant-isolation.md) | 2026-11-04 |
 | [SEC-003](../07-security/02-身份会话与对象权限.md) | 角色、部门、岗位及角色授权缺少对象归属校验 | P1 | 已关闭 | Claude | [2026-11-03-SEC-011](tasks/2026-11-03-SEC-011-tenant-isolation.md) | 2026-11-04 |
 | [SEC-004](../07-security/02-身份会话与对象权限.md) | 禁用、删除或管理员重置密码未撤销已有会话 | P1 | 已关闭 | Claude | [2026-11-03-SEC-001](tasks/2026-11-03-SEC-001-session-ai-input-hotfix.md) | 2026-11-04 |
-| [SEC-005](../07-security/02-身份会话与对象权限.md) | 附件链接未继承所属单据的数据可见范围 | P1 | 已关闭 | Claude | [2026-11-03-SEC-005](tasks/2026-11-03-SEC-005-object-guards.md) | 2026-11-04 |
+| [SEC-005](../07-security/02-身份会话与对象权限.md) | 新增附件类型的链接未继承所属单据数据范围 | P1 | 已合并待发布 | Claude | [2026-11-14-BUS-038](tasks/2026-11-14-BUS-038-review-fixes.md) | 2026-11-14 |
 | [SEC-006](../07-security/02-身份会话与对象权限.md) | 登录幂等缓存先于身份验证，且未绑定账号 | P2 | 已关闭 | Claude | [2026-11-03-SEC-005](tasks/2026-11-03-SEC-005-object-guards.md) | 2026-11-04 |
 | [SEC-007](../07-security/02-身份会话与对象权限.md) | 恢复租户会同时重新启用此前单独停用的用户 | P1 | 已关闭 | Claude | [2026-11-03-SEC-005](tasks/2026-11-03-SEC-005-object-guards.md) | 2026-11-04 |
 | [SEC-008](../07-security/03-全量平台与商品代码审查.md) | 管理员重置密码将新密码放入URL查询串 | P1 | 已关闭 | Claude | [2026-11-03-SEC-001](tasks/2026-11-03-SEC-001-session-ai-input-hotfix.md) | 2026-11-04 |
@@ -131,6 +137,10 @@
 | [SEC-010](../07-security/03-全量平台与商品代码审查.md) | 配置与字典按ID维护缺少目标归属校验 | P1 | 已关闭 | Claude | [2026-11-03-SEC-011](tasks/2026-11-03-SEC-011-tenant-isolation.md) | 2026-11-04 |
 | [SEC-011](../07-security/02-身份会话与对象权限.md) | 没有自动租户过滤，租户隔离全靠逐条手写条件 | P1 | 已关闭 | Claude | [2026-11-03-SEC-011](tasks/2026-11-03-SEC-011-tenant-isolation.md) | 2026-11-04 |
 | [SEC-012](../07-security/02-身份会话与对象权限.md) | 用户启停接口不校验状态值，可借它删除用户或写入非法状态 | P3 | 已关闭 | Claude | [2026-11-04-ACCEPT](tasks/2026-11-04-ACCEPT-local-v171.md) | 2026-11-14 |
+| [SEC-013](tasks/2026-11-14-SEC-005-post-remediation-review.md) | 退款申请按 ID 详情、备注和附件维护缺少负责人数据范围 | P1 | 已合并待发布 | Claude | [2026-11-14-BUS-038](tasks/2026-11-14-BUS-038-review-fixes.md) | 2026-11-14 |
+| [SEC-014](tasks/2026-11-14-SEC-005-post-remediation-review.md) | 本地直传完成校验后仍能重写，业务认领信任旧校验结果 | P2 | 已合并待发布 | Claude | [2026-11-14-BUS-038](tasks/2026-11-14-BUS-038-review-fixes.md) | 2026-11-14 |
+| [SEC-015](tasks/2026-11-14-BUS-038-review-fixes.md) | 退货入库单按 ID 详情对销售侧菜单用户未按单据负责人限定 | P2 | 已合并待发布 | Claude | [2026-11-14-BUS-038](tasks/2026-11-14-BUS-038-review-fixes.md) | 2026-11-14 |
+| [SEC-016](tasks/2026-11-14-BUS-038-review-fixes.md) | 挂接未挂附件不核对上传人，可按 ID 挂上别人刚上传的文件再读取 | P2 | 已合并待发布 | Claude | [2026-11-14-BUS-038](tasks/2026-11-14-BUS-038-review-fixes.md) | 2026-11-14 |
 
 ## 运行与迁移
 

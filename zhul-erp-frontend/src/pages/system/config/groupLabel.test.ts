@@ -8,6 +8,7 @@ describe('groupLabel', () => {
       'document',
       'sales',
       'purchase',
+      'supply',
       'product',
       'finance',
       'sys',

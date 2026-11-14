@@ -254,12 +254,15 @@ export const closeRight = (s: TabsState, menuPath: string) => {
   return switchTo(state, menuPath);
 };
 
-/** 刷新：给当前条目换一个 key，页面重新加载 */
+/** 刷新：给当前条目换一个 key，页面重新加载；重建后的页面没有未保存修改（audit UI-004） */
 export const refresh = (s: TabsState, menuPath: string): TabsState => {
   const seq = tick(s);
   return update({ ...s, seq }, menuPath, (t) => ({
     ...t,
-    stack: [...t.stack.slice(0, -1), { ...top(t), key: `e${seq}` }],
+    stack: [
+      ...t.stack.slice(0, -1),
+      { ...top(t), key: `e${seq}`, dirty: false },
+    ],
   }));
 };
 

@@ -118,8 +118,16 @@ public class CustomerRefundService {
         if (!toCredit && (req.getAttachmentIds() == null || req.getAttachmentIds().isEmpty())) {
             throw new BizException("请上传退款凭证");
         }
+        // 直接登记与执行退款申请共用的边界（audit BUS-038）：执行申请的请求体不走 DTO 校验，
+        // 金额按两位 HALF_UP 舍入后须大于 0，舍入成 0 的也拒绝；人民币为空时按到账汇率折算
+        BigDecimal amount = req.getAmount() == null ? null : req.getAmount().setScale(2, RoundingMode.HALF_UP);
+        if (amount == null || amount.signum() <= 0) {
+            throw new BizException("退款金额须大于 0");
+        }
+        if (req.getAmountCny() != null && req.getAmountCny().setScale(2, RoundingMode.HALF_UP).signum() <= 0) {
+            throw new BizException("实际退出人民币须大于 0");
+        }
         RefundableVO r = refundableOf(o, pos);
-        BigDecimal amount = req.getAmount().setScale(2, RoundingMode.HALF_UP);
         if (amount.compareTo(r.getRefundable()) > 0) {
             throw new BizException("最多还能退 " + o.getCurrencyCode() + " " + String.format("%,.2f", r.getRefundable()));
         }
