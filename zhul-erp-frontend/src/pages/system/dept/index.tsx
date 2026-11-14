@@ -785,14 +785,14 @@ const DeptPage: React.FC = () => {
         {isEdit && (
           <div style={{ marginBottom: 24 }}>
             <div style={{ fontSize: 13, marginBottom: 8 }}>部门编码</div>
-            <Input disabled value={editingDept?.code} />
+            <Input disabled aria-label="部门编码" value={editingDept?.code} />
           </div>
         )}
 
         {isCreateChild ? (
           <div style={{ marginBottom: 24 }}>
             <div style={{ fontSize: 13, marginBottom: 8 }}>上级部门</div>
-            <Input disabled value={presetParentName} />
+            <Input disabled aria-label="上级部门" value={presetParentName} />
           </div>
         ) : (
           <ProFormTreeSelect

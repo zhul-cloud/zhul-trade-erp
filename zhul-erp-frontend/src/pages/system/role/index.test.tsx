@@ -1,4 +1,10 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react';
 import { App } from 'antd';
 import React from 'react';
 import {
@@ -233,5 +239,16 @@ describe('RolePage 编辑抽屉的标签（audit UI-026）', () => {
       const target = document.getElementById(id);
       if (target) expect(drawer.contains(target)).toBe(true);
     }
+  });
+
+  it('只读的角色编码框也有可读名称', async () => {
+    renderPage();
+    fireEvent.click((await screen.findAllByText('编辑'))[0]);
+    const drawer = (await screen.findByText('编辑角色 - 角色甲')).closest(
+      '.ant-drawer',
+    ) as HTMLElement;
+    expect(
+      within(drawer).getByRole('textbox', { name: '角色编码' }),
+    ).toBeTruthy();
   });
 });

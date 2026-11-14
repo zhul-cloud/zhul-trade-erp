@@ -32,7 +32,7 @@
 
 | ID | 修复 / 验收范围 | 部署与目标环境验收证据 | 验收人 / 日期 | 结论与剩余项 |
 | --- | --- | --- | --- | --- |
-| AI-008 | 令牌错误、路径不存在时客户端稳定收到 401 / 404 | v1.9.1 已部署（[#197](https://github.com/zhul-cloud/zhul-trade-erp/pull/197) `e5487fbd`，生产发版运行 42210502306 成功，健康检查通过，2026-11-06） | — | 已发布待验收：待生产验收 |
+| AI-008 | 令牌错误、路径不存在时客户端稳定收到 401 / 404 | v1.9.1 已部署（[#197](https://github.com/zhul-cloud/zhul-trade-erp/pull/197) `e5487fbd`，生产发版运行 42210502306 成功，健康检查通过，2026-11-06）；本机验收通过（2026-11-14，见事件记录） | Ezio / 2026-11-14 | 已关闭 |
 
 ## 阻塞与下一步
 
@@ -45,3 +45,4 @@
 | 2026-11-06 / Claude | 验证 AI-007 时发现 `HttpTokenTest` 在 Windows 偶发失败，在 develop 原代码上确认（8 次中 3 次）；新增 AI-008，先写 `RejectDrainTest` 复现，再修复 | 提 PR 发往 `develop` |
 | 2026-11-06 / Claude | [#195](https://github.com/zhul-cloud/zhul-trade-erp/pull/195) CI 通过后合并到 `develop`（`120c8acb`） | 随下一版发布后验收 |
 | 2026-11-06 / Claude | 随 v1.9.1 发布到生产：v1.9.1 已部署（[#197](https://github.com/zhul-cloud/zhul-trade-erp/pull/197) `e5487fbd`，生产发版运行 42210502306 成功，健康检查通过，2026-11-06）；合回 develop 见 `chore/back-merge-1.9.1` | 生产验收 |
+| 2026-11-14 / Claude | 本机验收（用户确认本机与生产效果相同）：develop `6bdde1f7`（业务代码与生产 v1.22.1 一致）上后端完整 `mvn test` 1652 条、前端 `npm test` 340 条、AI 编排服务 139 条全部通过，含本记录各 ID 的回归测试。用户 Ezio 作为验收人确认关闭 AI-008 | 无 |

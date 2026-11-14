@@ -36,10 +36,10 @@
 
 | ID | 修复 / 验收范围 | 部署与目标环境验收证据 | 验收人 / 日期 | 结论与剩余项 |
 | --- | --- | --- | --- | --- |
-| BUS-028 | 填 100% 时提示并阻止保存；填 50% 售价为成本 2 倍 | v1.9.0 已部署（[生产发版](https://github.com/zhul-cloud/zhul-trade-erp/actions/runs/42171099361) 成功） | — | 已发布待验收 |
-| BUS-029 | 供应链主管（自定义数据权限 + 指派权限）看到未指定需求并能分配 | v1.9.0 已部署（[生产发版](https://github.com/zhul-cloud/zhul-trade-erp/actions/runs/42171099361) 成功） | — | 已发布待验收 |
-| BUS-030 | 多型号任务改派后接手人看到原采购记录 | v1.9.0 已部署（[生产发版](https://github.com/zhul-cloud/zhul-trade-erp/actions/runs/42171099361) 成功） | — | 已发布待验收 |
-| UI-042 | 报价单 / PI 导出图片清晰、无大片空白 | v1.9.0 已部署（[生产发版](https://github.com/zhul-cloud/zhul-trade-erp/actions/runs/42171099361) 成功） | — | 已发布待验收 |
+| BUS-028 | 填 100% 时提示并阻止保存；填 50% 售价为成本 2 倍 | v1.9.0 已部署（[生产发版](https://github.com/zhul-cloud/zhul-trade-erp/actions/runs/42171099361) 成功）；本机验收通过（2026-11-14，见事件记录） | Ezio / 2026-11-14 | 已关闭 |
+| BUS-029 | 供应链主管（自定义数据权限 + 指派权限）看到未指定需求并能分配 | v1.9.0 已部署（[生产发版](https://github.com/zhul-cloud/zhul-trade-erp/actions/runs/42171099361) 成功）；本机验收通过（2026-11-14，见事件记录） | Ezio / 2026-11-14 | 已关闭 |
+| BUS-030 | 多型号任务改派后接手人看到原采购记录 | v1.9.0 已部署（[生产发版](https://github.com/zhul-cloud/zhul-trade-erp/actions/runs/42171099361) 成功）；本机验收通过（2026-11-14，见事件记录） | Ezio / 2026-11-14 | 已关闭 |
+| UI-042 | 报价单 / PI 导出图片清晰、无大片空白 | v1.9.0 已部署（[生产发版](https://github.com/zhul-cloud/zhul-trade-erp/actions/runs/42171099361) 成功）；本机验收通过（2026-11-14，见事件记录） | Ezio / 2026-11-14 | 已关闭 |
 
 ## 阻塞与下一步
 
@@ -53,3 +53,4 @@
 | 2026-11-05 / Claude | 创建 PR #184，CI 全部通过 | 待合并 |
 | 2026-11-05 / Claude | 用户确认后合并到 develop（`e217a356`） | 随下一版发布，上线后验收 |
 | 2026-11-11 / Claude | 台账核对：#184 已随 v1.9.0 部署成功，改为已发布待验收 | 待生产验收 |
+| 2026-11-14 / Claude | 本机验收（用户确认本机与生产效果相同）：develop `6bdde1f7`（业务代码与生产 v1.22.1 一致）上后端完整 `mvn test` 1652 条、前端 `npm test` 340 条、AI 编排服务 139 条全部通过，含本记录各 ID 的回归测试。用户 Ezio 作为验收人确认关闭 BUS-028、BUS-029、BUS-030、UI-042 | 无 |
