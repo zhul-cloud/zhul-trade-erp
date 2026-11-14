@@ -1,5 +1,6 @@
 import { request } from '@umijs/max';
 import type { ReceiptRow } from '@/pages/sales/service';
+import type { Attachment, DocLog, DocRef } from '@/pages/warehouse/service';
 import { openFile } from '@/utils/fileLink';
 
 const FIN = '/api/v1/finance/receipts';
@@ -35,6 +36,8 @@ export interface ReceiptRecordQuery {
   includeVoid?: boolean;
   /** 所属事业部 */
   businessUnitId?: number;
+  /** receiptDate 按到账日期倒序；默认按更新时间倒序 */
+  sort?: string;
   page: number;
   pageSize: number;
 }
@@ -111,4 +114,57 @@ export const ledgerApi = {
         };
       }>(`${FIN}/records`, { method: 'POST', data: q, ...quiet }),
     ),
+};
+
+// ---------------------------------------------------------------- 收款单详情（change finance-cash-docs）
+
+export interface ReceiptDoc {
+  receipt: ReceiptRow;
+  /** 登记时的到账凭证与对应水单的文件（只读） */
+  files: { index: number; fileName: string; source: 'RECEIPT' | 'SLIP' }[];
+  attachments: Attachment[];
+  /** 外币收款单的结汇分摊 */
+  settlements: {
+    settlementId: number;
+    settleNo: string;
+    settleDate: string;
+    amount: number;
+    exchangeRate: number;
+    amountCny: number;
+  }[];
+  unsettledAmount?: number;
+  unsettledAmountCny?: number;
+  related?: DocRef[];
+  logs?: DocLog[];
+  editable: boolean;
+}
+
+export const receiptDocApi = {
+  detail: (id: number) =>
+    unwrap(request<{ data: ReceiptDoc }>(`${FIN}/${id}`, quiet)),
+  remark: (id: number, remark: string) =>
+    unwrap(
+      request<{ data: ReceiptDoc }>(`${FIN}/${id}/remark`, {
+        method: 'POST',
+        data: { remark },
+        ...quiet,
+      }),
+    ),
+  attach: (id: number, ids: number[]) =>
+    unwrap(
+      request<{ data: ReceiptDoc }>(`${FIN}/${id}/attachments`, {
+        method: 'POST',
+        data: { ids },
+        ...quiet,
+      }),
+    ),
+  removeAttachment: (id: number, attachmentId: number) =>
+    unwrap(
+      request<{ data: ReceiptDoc }>(
+        `${FIN}/${id}/attachments/${attachmentId}`,
+        { method: 'DELETE', ...quiet },
+      ),
+    ),
+  openFile: (id: number, index: number) =>
+    openFile(`${FIN}/${id}/doc-files/${index}`),
 };

@@ -17,6 +17,7 @@ import com.zhul.erp.modules.sales.entity.SalesOrderDO;
 import com.zhul.erp.modules.sales.repository.PaymentReceiptMapper;
 import com.zhul.erp.modules.sales.repository.ProformaInvoiceMapper;
 import com.zhul.erp.modules.sales.service.ReceiptLedgerService;
+import com.zhul.erp.modules.sales.support.ReceiptDocs;
 import com.zhul.erp.modules.sales.support.PaymentMethods;
 import com.zhul.erp.modules.sales.support.PiStore;
 import com.zhul.erp.modules.sales.support.PiSummary;
@@ -52,6 +53,7 @@ public class ReceiptLedgerServiceImpl implements ReceiptLedgerService {
     private static final int KEYWORD_LIMIT = 500;
 
     private final BankAccountMapper bankAccountMapper;
+    private final ReceiptDocs receiptDocs;
     private final PaymentReceiptMapper receiptMapper;
     private final ProformaInvoiceMapper piMapper;
     private final CustomerMapper customerMapper;
@@ -125,7 +127,9 @@ public class ReceiptLedgerServiceImpl implements ReceiptLedgerService {
         r.setStatus(SalesConstants.RECORD_VALID);
         r.setVoidReason("");
         r.setOperatorId(currentUserId());
+        receiptDocs.number(r);
         receiptMapper.insert(r);
+        receiptDocs.log(r, "登记", "未认领到账：" + ReceiptDocs.money(r) + (r.getPayer().isEmpty() ? "" : "，付款人 " + r.getPayer()));
         Map<String, Object> after = new LinkedHashMap<>();
         after.put("amount", currency + " " + r.getAmount());
         after.put("payer", r.getPayer());
@@ -164,6 +168,7 @@ public class ReceiptLedgerServiceImpl implements ReceiptLedgerService {
         r.setBusinessUnitId(accountUnit);
         r.setBuMismatch(0);
         receiptMapper.updateById(r);
+        receiptDocs.log(r, "取消认领", "从 " + (pi != null ? pi.getPiNo() : so.getSoNo()) + " 退回未认领：" + why);
         if (pi != null) {
             summary.refresh(pi);
         } else {
@@ -198,6 +203,7 @@ public class ReceiptLedgerServiceImpl implements ReceiptLedgerService {
         r.setStatus(SalesConstants.RECORD_VOID);
         r.setVoidReason(trim(why, 200));
         receiptMapper.updateById(r);
+        receiptDocs.log(r, "作废", r.getVoidReason());
         logService.recordOperateLog(SalesConstants.MENU_RECEIPTS, "作废未认领到账",
                 Map.of("amount", r.getCurrencyCode() + " " + r.getAmount(), "payer", r.getPayer()), Map.of("reason", r.getVoidReason()));
     }
@@ -208,11 +214,13 @@ public class ReceiptLedgerServiceImpl implements ReceiptLedgerService {
     public ReceiptRecordPageVO records(ReceiptRecordQuery q) {
         int tenant = PiStore.tenantId();
         LambdaQueryWrapper<PaymentReceiptDO> w = base(tenant)
-                .and(x -> x.isNotNull(PaymentReceiptDO::getPiId).or().isNotNull(PaymentReceiptDO::getSoId))
-                // 余额抵扣不是新到账的钱，不进收款记录与报税统计（在 PI 收款面板与客户余额流水中查看）
+                // 余额抵扣不是新到账的钱，不进收款单列表与报税统计（在 PI 收款面板与客户余额流水中查看）
                 .ne(PaymentReceiptDO::getPaymentMethod, SalesConstants.METHOD_CREDIT);
-        if (!Boolean.TRUE.equals(q.getIncludeVoid())) {
-            w.eq(PaymentReceiptDO::getStatus, SalesConstants.RECORD_VALID);
+        // 默认只列有效、已认领的；勾选后一并列出已作废与未认领（change finance-cash-docs）
+        boolean all = Boolean.TRUE.equals(q.getIncludeVoid());
+        if (!all) {
+            w.eq(PaymentReceiptDO::getStatus, SalesConstants.RECORD_VALID)
+                    .and(x -> x.isNotNull(PaymentReceiptDO::getPiId).or().isNotNull(PaymentReceiptDO::getSoId));
         }
         if (q.getDateFrom() != null) {
             w.ge(PaymentReceiptDO::getReceiptDate, q.getDateFrom());
@@ -268,7 +276,7 @@ public class ReceiptLedgerServiceImpl implements ReceiptLedgerService {
                             .last("LIMIT " + KEYWORD_LIMIT))
                     .stream().map(SalesOrderDO::getId).toList();
             w.and(x -> {
-                x.like(PaymentReceiptDO::getPlatformOrderNo, kw).or().like(PaymentReceiptDO::getPayer, kw);
+                x.like(PaymentReceiptDO::getReceiptNo, kw).or().like(PaymentReceiptDO::getPlatformOrderNo, kw).or().like(PaymentReceiptDO::getPayer, kw);
                 if (!piIds.isEmpty()) {
                     x.or().in(PaymentReceiptDO::getPiId, piIds);
                 }
@@ -277,14 +285,22 @@ public class ReceiptLedgerServiceImpl implements ReceiptLedgerService {
                 }
             });
         }
-        // 汇总按筛选结果（只算有效到账），列表分页
-        List<PaymentReceiptDO> all = receiptMapper.selectList(w.clone().eq(PaymentReceiptDO::getStatus, SalesConstants.RECORD_VALID));
+        // 汇总按筛选结果（只算有效、已认领的到账），列表分页
+        List<PaymentReceiptDO> valid = receiptMapper.selectList(w.clone().eq(PaymentReceiptDO::getStatus, SalesConstants.RECORD_VALID)
+                .and(x -> x.isNotNull(PaymentReceiptDO::getPiId).or().isNotNull(PaymentReceiptDO::getSoId)));
         ReceiptRecordPageVO vo = new ReceiptRecordPageVO();
-        vo.setSummary(List.of(summarize(all, SalesConstants.CHANNEL_ONLINE), summarize(all, SalesConstants.CHANNEL_OFFLINE), summarize(all, 0)));
+        vo.setSummary(List.of(summarize(valid, SalesConstants.CHANNEL_ONLINE), summarize(valid, SalesConstants.CHANNEL_OFFLINE),
+                summarize(valid, 0)));
         long total = receiptMapper.selectCount(w);
         int size = q.getPageSize() == null || q.getPageSize() <= 0 ? 20 : Math.min(q.getPageSize(), 100);
         int page = Math.max(1, q.getPage() == null ? 1 : q.getPage());
-        w.orderByDesc(PaymentReceiptDO::getReceiptDate).orderByDesc(PaymentReceiptDO::getId)
+        // 列表页统一按更新时间倒序；对账时可按到账日期排
+        if ("receiptDate".equals(q.getSort())) {
+            w.orderByDesc(PaymentReceiptDO::getReceiptDate);
+        } else {
+            w.orderByDesc(PaymentReceiptDO::getUpdateTime);
+        }
+        w.orderByDesc(PaymentReceiptDO::getId)
                 .last("LIMIT " + (long) (page - 1) * size + ", " + size);
         vo.setTotal(total);
         vo.setRecords(total == 0 ? List.of() : receiptRows.of(receiptMapper.selectList(w)));

@@ -201,6 +201,11 @@ class ReimbursementContractTest extends SalesContractSupport {
                 write(Map.of("reason", "x"))), lin)).path("message").asText());
         assertEquals("已寄出的采购退货单不能作废", fail(call(json(post("/api/v1/purchase/returns/" + diff + "/void"),
                 write(Map.of("reason", "x"))), admin)).path("message").asText());
+        // 付款单详情（change finance-cash-docs）：提示所在报销单，关联单据带报销单，日志记进入报销单
+        JsonNode payDoc = ok(call(get(PY + "/" + pay.path("id").asLong()), admin));
+        assertEquals("这笔垫付已进入报销单 " + bx.path("reimburseNo").asText() + "，不能作废", payDoc.path("voidBlockedReason").asText());
+        assertTrue(payDoc.path("related").toString().contains(bx.path("reimburseNo").asText()));
+        assertTrue(payDoc.path("logs").toString().contains("进入报销单"));
 
         // 江晓晞不能撤回林熙的；林熙撤回后回到待报销
         long id = bx.path("id").asLong();

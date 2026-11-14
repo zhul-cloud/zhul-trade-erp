@@ -1,5 +1,5 @@
 import { request } from '@umijs/max';
-import type { Attachment } from '@/pages/warehouse/service';
+import type { Attachment, DocLog, DocRef } from '@/pages/warehouse/service';
 
 const AP = '/api/v1/finance/payables';
 const PY = '/api/v1/finance/payments';
@@ -184,6 +184,8 @@ export interface Payment {
     payableNo: string;
     sourceNo: string;
     amount: number;
+    amountCny?: number;
+    /** 0-实付、1-欠款抵扣、2-退款冲减 */
     fromCredit: number;
     creditPayableNo?: string;
   }[];
@@ -193,6 +195,13 @@ export interface Payment {
   createBy?: string;
   updateTime?: string;
   updateBy?: string;
+  /** 以下只在详情返回（change finance-cash-docs） */
+  files?: Attachment[];
+  related?: DocRef[];
+  logs?: DocLog[];
+  editable?: boolean;
+  /** 不能作废的原因，如已进入报销单 */
+  voidBlockedReason?: string;
 }
 
 export interface PaymentQuery {
@@ -301,6 +310,16 @@ export const paymentApi = {
   refund: (body: RefundBody) => send<Payment>(`${PY}/refunds`, body),
   voidPayment: (id: number, reason: string) =>
     send<Payment>(`${PY}/${id}/void`, { reason }),
+  detail: (id: number) => get<Payment>(`${PY}/${id}`),
+  remark: (id: number, remark: string) =>
+    send<Payment>(`${PY}/${id}/remark`, { remark }),
+  attach: (id: number, ids: number[]) =>
+    send<Payment>(`${PY}/${id}/attachments`, { ids }),
+  removeAttachment: (id: number, attachmentId: number) =>
+    request<{ data: Payment }>(`${PY}/${id}/attachments/${attachmentId}`, {
+      method: 'DELETE',
+      skipErrorHandler: true,
+    }).then((r) => r.data),
 };
 
 export type { Attachment };

@@ -257,4 +257,49 @@ class ReceiptManagementContractTest extends SalesContractSupport {
         JsonNode records = ok(call(json(post(FIN + "/records"), "{}"), admin));
         assertEquals("Priya Shah", records.path("records").get(0).path("customerContact").asText());
     }
+
+    // ---------------------------------------------------------------- 收款单（change finance-cash-docs）
+
+    @Test
+    void receiptDoc_numberedInOrder_detailRemarkLogs_readOnlyAfterVoid_salesScopeReadOnly() throws Exception {
+        long id = pi1000("ACROBOT");
+        ok(confirmReceipt(id, "400", null, false, admin));
+        long first = lastReceipt(id).path("id").asLong();
+        ok(confirmReceipt(id, "300", null, false, admin));
+        long second = lastReceipt(id).path("id").asLong();
+
+        JsonNode d1 = ok(call(get(FIN + "/" + first), admin));
+        JsonNode d2 = ok(call(get(FIN + "/" + second), admin));
+        String no1 = d1.path("receipt").path("receiptNo").asText();
+        String no2 = d2.path("receipt").path("receiptNo").asText();
+        String today = LocalDate.now().format(java.time.format.DateTimeFormatter.BASIC_ISO_DATE);
+        assertTrue(no1.matches("SK" + today + "\\d{3}"), no1);
+        assertEquals(Integer.parseInt(no1.substring(10)) + 1, Integer.parseInt(no2.substring(10)), "同一天连续编号");
+        assertTrue(d1.path("editable").asBoolean());
+        assertEquals("登记", d1.path("logs").get(0).path("action").asText());
+        assertEquals("PI", d1.path("related").get(0).path("type").asText());
+        // 关键词按收款单号查
+        assertEquals(1, ok(call(json(post(FIN + "/records"), "{\"keyword\":\"" + no2 + "\"}"), admin)).path("total").asInt());
+
+        JsonNode remarked = ok(call(json(post(FIN + "/" + first + "/remark"), "{\"remark\":\"客户分两笔付\"}"), admin));
+        assertEquals("客户分两笔付", remarked.path("receipt").path("note").asText());
+        assertTrue(remarked.path("logs").toString().contains("修改备注"));
+
+        // 业务员：只读，且只看自己数据范围内 PI 的收款单
+        jdbc.update("insert into role_resource (role_code, resource_id, resource_code) values (?, ?, '')", BUYER_ROLE, MENU_PI);
+        String lin = token("it_lin");
+        assertEquals("收款单不存在", fail(call(get(FIN + "/" + first), lin)).path("message").asText());
+        jdbc.update("update proforma_invoice set owner_id = ? where id = ?", BUYER_LIN, id);
+        JsonNode seen = ok(call(get(FIN + "/" + first), lin));
+        assertFalse(seen.path("editable").asBoolean());
+        assertEquals(403, perform(json(post(FIN + "/" + first + "/remark"), "{\"remark\":\"x\"}"), lin).getStatus());
+
+        // 作废后只读
+        ok(call(json(post(PI + "/" + id + "/receipts/" + first + "/void"), "{\"reason\":\"金额录错\"}"), admin));
+        JsonNode voided = ok(call(get(FIN + "/" + first), admin));
+        assertFalse(voided.path("editable").asBoolean());
+        assertTrue(voided.path("logs").toString().contains("作废"));
+        assertEquals("收款单已作废", fail(call(json(post(FIN + "/" + first + "/remark"), "{\"remark\":\"x\"}"), admin))
+                .path("message").asText());
+    }
 }

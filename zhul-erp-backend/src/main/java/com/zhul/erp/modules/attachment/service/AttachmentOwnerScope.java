@@ -19,7 +19,11 @@ import com.zhul.erp.modules.masterdata.entity.CustomerDO;
 import com.zhul.erp.modules.masterdata.repository.CustomerMapper;
 import com.zhul.erp.modules.purchase.entity.PurchaseOrderDO;
 import com.zhul.erp.modules.purchase.repository.PurchaseOrderMapper;
+import com.zhul.erp.modules.sales.entity.PaymentReceiptDO;
+import com.zhul.erp.modules.sales.entity.ProformaInvoiceDO;
 import com.zhul.erp.modules.sales.entity.SalesOrderDO;
+import com.zhul.erp.modules.sales.repository.PaymentReceiptMapper;
+import com.zhul.erp.modules.sales.repository.ProformaInvoiceMapper;
 import com.zhul.erp.modules.sales.repository.SalesOrderMapper;
 import com.zhul.erp.modules.warehouse.entity.PurchaseReceiptDO;
 import com.zhul.erp.modules.warehouse.entity.SupplierShipmentDO;
@@ -51,6 +55,8 @@ public class AttachmentOwnerScope {
     private final SupplierShipmentMapper shipmentMapper;
     private final PurchaseReceiptMapper receiptMapper;
     private final OutboundOrderMapper outboundMapper;
+    private final PaymentReceiptMapper paymentReceiptMapper;
+    private final ProformaInvoiceMapper piMapper;
 
     public boolean canSee(BizAttachmentDO a) {
         if (a.getOwnerId() == null || a.getOwnerId() == 0) {
@@ -78,6 +84,9 @@ public class AttachmentOwnerScope {
             // 销售出库单的附件与打包照片：仓库看全部，业务员按销售订单负责人
             case AttachmentService.OUTBOUND, AttachmentService.PACKING -> anyMenu("/warehouse/outbounds")
                     || orderVisible(orderOfOutbound(outboundMapper.selectById(id)));
+            // 收款单补充的附件：财务看全部，业务员按 PI 或订单的负责人，未认领的看不到
+            case AttachmentService.PAYMENT_RECEIPT -> anyMenu("/finance/receipts")
+                    || paymentReceiptVisible(paymentReceiptMapper.selectById(id));
             default -> true;
         };
     }
@@ -89,6 +98,17 @@ public class AttachmentOwnerScope {
             }
         }
         return false;
+    }
+
+    private boolean paymentReceiptVisible(PaymentReceiptDO r) {
+        if (r == null) {
+            return false;
+        }
+        if (r.getSoId() != null) {
+            return orderVisible(salesOrderMapper.selectById(r.getSoId()));
+        }
+        ProformaInvoiceDO pi = r.getPiId() == null ? null : piMapper.selectById(r.getPiId());
+        return pi != null && dataScopeResolver.current().canSee(pi.getOwnerId());
     }
 
     private boolean orderVisible(SalesOrderDO o) {

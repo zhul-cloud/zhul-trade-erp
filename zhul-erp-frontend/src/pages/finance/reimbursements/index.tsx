@@ -1,5 +1,5 @@
 import { WarningOutlined } from '@ant-design/icons';
-import { useAccess } from '@umijs/max';
+import { Link, useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import {
   Alert,
@@ -43,6 +43,7 @@ import { ACCEPT_PROOF, ProofLinks } from '../payables/components';
 import {
   type AdvanceItem,
   BX_STATUS,
+  ITEM,
   ITEM_NAMES,
   type RefundReminder,
   type Reimbursement,
@@ -68,7 +69,12 @@ const keyOf = (i: AdvanceItem) => `${i.sourceType}:${i.sourceId}`;
 const sourceCell = (_: unknown, i: AdvanceItem) => (
   <span style={{ whiteSpace: 'nowrap' }}>
     <Pill tone={ITEM_TONE[i.sourceType]}>{ITEM_NAMES[i.sourceType]}</Pill>{' '}
-    {i.sourceNo || '—'}
+    {(i.sourceType === ITEM.PAYMENT || i.sourceType === ITEM.REFUND) &&
+    i.sourceNo ? (
+      <Link to={`/finance/payments/${i.sourceId}`}>{i.sourceNo}</Link>
+    ) : (
+      i.sourceNo || '—'
+    )}
   </span>
 );
 const newKey = () =>
@@ -1046,7 +1052,14 @@ const ListTab: React.FC<{ refreshSignal: number }> = ({ refreshSignal }) => {
                   {detail.payMethod === 3
                     ? `私对私 · ${detail.payPayerAccount}`
                     : detail.payAccountName}{' '}
-                  · {detail.paidBy} 登记 · 付款单 {detail.paymentNo}
+                  · {detail.paidBy} 登记 · 付款单{' '}
+                  {detail.paymentId ? (
+                    <Link to={`/finance/payments/${detail.paymentId}`}>
+                      {detail.paymentNo}
+                    </Link>
+                  ) : (
+                    detail.paymentNo
+                  )}
                 </div>
                 <div style={{ marginTop: 6 }}>
                   转账截图 <ProofLinks files={detail.payProofs} />

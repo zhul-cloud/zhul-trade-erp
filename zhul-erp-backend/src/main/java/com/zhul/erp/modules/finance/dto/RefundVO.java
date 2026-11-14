@@ -44,4 +44,14 @@ public class RefundVO {
     private String updateBy;
     /** 历史迁移的单据（只读） */
     private Boolean migrated;
+
+    // 以下只在详情接口返回（change finance-cash-docs）
+    /** 明细：来源退款申请的明细；没有退款申请的为一行（余额提现或原因 + 金额） */
+    private List<RefundRequestVO.Item> items;
+    /** 附件（归属 REFUND，带预览信息） */
+    private List<com.zhul.erp.modules.attachment.dto.AttachmentVO> files;
+    private List<com.zhul.erp.modules.system.doclog.DocRefVO> related;
+    private List<com.zhul.erp.modules.system.doclog.DocLogVO> logs;
+    /** 当前用户能否改备注、增删附件（「退款管理」菜单、有效、非迁移） */
+    private Boolean editable;
 }

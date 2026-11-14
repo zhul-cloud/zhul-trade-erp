@@ -24,14 +24,13 @@ import {
 } from '@/pages/inquiry/shared/components';
 import { auditColumns } from '@/pages/purchase/components';
 import { orderApi, readBizError } from '@/pages/sales/service';
-import { ReasonModal } from '@/pages/warehouse/components';
+import { DOC_PATHS } from '@/pages/warehouse/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { recentRange } from '@/utils/dateRange';
 import { useDictTexts } from '@/utils/dict';
 import { formatAmount } from '@/utils/format';
 import { usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
-import { ProofLinks } from '../payables/components';
 import RefundModal from './RefundModal';
 import RequestsTab from './RequestsTab';
 import {
@@ -144,7 +143,6 @@ const RefundPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [picking, setPicking] = useState(false);
   const [soId, setSoId] = useState<number>();
-  const [voiding, setVoiding] = useState<Refund>();
   const [view, setView] = useState<'refunds' | 'requests'>(() =>
     new URLSearchParams(window.location.search).get('view') === 'requests'
       ? 'requests'
@@ -203,18 +201,22 @@ const RefundPage: React.FC = () => {
 
   const columns: TableColumnsType<Refund> = [
     {
-      title: '编号',
+      title: '退款单号',
       dataIndex: 'refundNo',
       width: 150,
       fixed: 'left',
       render: (v: string, r) => (
-        <span
+        <button
+          type="button"
+          className="zhul-link"
           style={{
+            whiteSpace: 'nowrap',
             textDecoration: r.status === 2 ? 'line-through' : undefined,
           }}
+          onClick={() => history.push(DOC_PATHS.refund(r.id))}
         >
           {v}
-        </span>
+        </button>
       ),
     },
     {
@@ -270,46 +272,7 @@ const RefundPage: React.FC = () => {
           </div>
         ),
     },
-    {
-      title: '凭证',
-      key: 'files',
-      width: 90,
-      render: (_, r) => <ProofLinks files={r.attachments} />,
-    },
-    {
-      title: '销售订单',
-      dataIndex: 'soNo',
-      width: 150,
-      render: (v: string | undefined, r) =>
-        r.soId ? (
-          <button
-            type="button"
-            className="zhul-link"
-            onClick={() => history.push(`/sales/orders/${r.soId}`)}
-          >
-            {v}
-          </button>
-        ) : (
-          <span style={{ color: palette.mute }}>不挂订单</span>
-        ),
-    },
-    {
-      title: '来源单号',
-      dataIndex: 'requestNo',
-      width: 150,
-      render: (v: string | undefined, r) => (
-        <SourceNos
-          refs={[
-            {
-              no: v,
-              href: r.refundRequestId
-                ? `/finance/refunds/requests/${r.refundRequestId}`
-                : undefined,
-            },
-          ]}
-        />
-      ),
-    },
+
     {
       title: '状态',
       dataIndex: 'status',
@@ -326,26 +289,44 @@ const RefundPage: React.FC = () => {
           <Pill tone="green">有效</Pill>
         ),
     },
+    {
+      title: '来源单号',
+      key: 'source',
+      width: 160,
+      render: (_, r) => (
+        <SourceNos
+          refs={[
+            r.refundRequestId
+              ? {
+                  no: r.requestNo,
+                  href: `/finance/refunds/requests/${r.refundRequestId}`,
+                }
+              : {
+                  no: r.soNo,
+                  href: r.soId ? `/sales/orders/${r.soId}` : undefined,
+                },
+          ]}
+        />
+      ),
+    },
     ...auditColumns<Refund>(),
     {
       title: '操作',
       key: 'op',
       width: 90,
       fixed: 'right',
-      render: (_, r) =>
-        r.migrated ? (
-          <MigratedPill migrated />
-        ) : canEdit && r.status === 1 ? (
+      render: (_, r) => (
+        <span style={{ display: 'inline-flex', gap: 8 }}>
           <button
             type="button"
             className="zhul-link"
-            onClick={() => setVoiding(r)}
+            onClick={() => history.push(DOC_PATHS.refund(r.id))}
           >
-            作废
+            查看
           </button>
-        ) : (
-          <span style={{ color: palette.mute }}>—</span>
-        ),
+          {r.migrated && <MigratedPill migrated />}
+        </span>
+      ),
     },
   ];
 
@@ -555,25 +536,6 @@ const RefundPage: React.FC = () => {
         soId={soId}
         onClose={() => setSoId(undefined)}
         onDone={load}
-      />
-      <ReasonModal
-        open={!!voiding}
-        title={`作废 ${voiding?.refundNo ?? ''}`}
-        description={
-          voiding?.refundType === REFUND_TYPE_WITHDRAW
-            ? '作废后客户余额恢复，自动生成的汇兑损益一起作废。'
-            : '作废后不再冲减订单毛利，也不再计入经营统计；转客户余额的会撤回这笔余额。'
-        }
-        okText="作废"
-        danger
-        onCancel={() => setVoiding(undefined)}
-        onOk={async (why) => {
-          if (!voiding) return;
-          await refundApi.voidRefund(voiding.id, why);
-          message.success('已作废');
-          setVoiding(undefined);
-          load();
-        }}
       />
     </div>
   );

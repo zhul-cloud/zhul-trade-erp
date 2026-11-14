@@ -146,6 +146,8 @@ export interface SlipFile {
 
 export interface Receipt {
   id: number;
+  /** 收款单号（仅到账） */
+  receiptNo?: string;
   /** 1-水单、2-到账 */
   kind: number;
   amount: number;
@@ -187,6 +189,10 @@ export interface Receipt {
 /** 收款单里的一笔到账（未认领到账、可认领列表、收款记录） */
 export interface ReceiptRow {
   id: number;
+  /** 收款单号（SK + 年月日 + 3 位流水；水单为空） */
+  receiptNo?: string;
+  /** 对应的水单 */
+  slipId?: number;
   /** 未认领到账的附件名（最多 5 个） */
   fileNames?: string[];
   piId?: number | null;
@@ -227,6 +233,9 @@ export interface ReceiptRow {
   claimedByName?: string;
   claimedAt?: string;
   createTime: string;
+  createBy?: string;
+  updateTime?: string;
+  updateBy?: string;
 }
 
 export interface Pi {

@@ -1,19 +1,20 @@
 import { SearchOutlined } from '@ant-design/icons';
+import { history } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { App, Button, Checkbox, DatePicker, Input, Select, Table } from 'antd';
 import type { Dayjs } from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
+import SourceNos from '@/components/DocFields/SourceNos';
 import { Card, PageTitle, Pill } from '@/pages/inquiry/shared/components';
 import { auditColumns } from '@/pages/purchase/components';
 import { CURRENCIES } from '@/pages/quotation/components';
 import { readBizError } from '@/pages/sales/service';
-import { ReasonModal } from '@/pages/warehouse/components';
+import { DOC_PATHS } from '@/pages/warehouse/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { recentRange } from '@/utils/dateRange';
 import { formatAmount } from '@/utils/format';
 import { usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
-import { ProofLinks } from '../payables/components';
 import {
   METHOD,
   type Payment,
@@ -54,7 +55,6 @@ const PaymentRecords: React.FC = () => {
   const [total, setTotal] = useState(0);
   const [stats, setStats] = useState<PaymentStats>();
   const [loading, setLoading] = useState(true);
-  const [voiding, setVoiding] = useState<Payment>();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -121,14 +121,22 @@ const PaymentRecords: React.FC = () => {
 
   const columns: TableColumnsType<Payment> = [
     {
-      title: '编号',
+      title: '付款单号',
       dataIndex: 'paymentNo',
       width: 150,
       fixed: 'left',
       render: (v: string, r) => (
-        <span style={{ textDecoration: r.voided ? 'line-through' : undefined }}>
+        <button
+          type="button"
+          className="zhul-link"
+          style={{
+            whiteSpace: 'nowrap',
+            textDecoration: r.voided ? 'line-through' : undefined,
+          }}
+          onClick={() => history.push(DOC_PATHS.payment(r.id))}
+        >
           {v}
-        </span>
+        </button>
       ),
     },
     {
@@ -144,7 +152,7 @@ const PaymentRecords: React.FC = () => {
           <Pill tone="gray">付款</Pill>
         ),
     },
-    { title: '日期', dataIndex: 'payDate', width: 110 },
+    { title: '付款日期', dataIndex: 'payDate', width: 110 },
     {
       title: '收款方',
       key: 'payee',
@@ -241,12 +249,6 @@ const PaymentRecords: React.FC = () => {
       ),
     },
     {
-      title: '截图',
-      key: 'files',
-      width: 90,
-      render: (_, r) => <ProofLinks files={r.attachments} />,
-    },
-    {
       title: '状态',
       key: 'status',
       width: 140,
@@ -262,30 +264,39 @@ const PaymentRecords: React.FC = () => {
           <Pill tone="green">有效</Pill>
         ),
     },
+    {
+      title: '来源单号',
+      key: 'source',
+      width: 160,
+      render: (_, r) => (
+        <SourceNos
+          refs={[
+            ...new Set(r.allocations.map((a) => a.sourceNo).filter(Boolean)),
+          ].map((no) => ({ no }))}
+        />
+      ),
+    },
     ...auditColumns<Payment>(),
     {
       title: '操作',
       key: 'op',
       width: 80,
       fixed: 'right',
-      render: (_, r) =>
-        r.canVoid ? (
-          <button
-            type="button"
-            className="zhul-link"
-            onClick={() => setVoiding(r)}
-          >
-            作废
-          </button>
-        ) : (
-          <span style={{ color: palette.mute }}>—</span>
-        ),
+      render: (_, r) => (
+        <button
+          type="button"
+          className="zhul-link"
+          onClick={() => history.push(DOC_PATHS.payment(r.id))}
+        >
+          查看
+        </button>
+      ),
     },
   ];
 
   return (
     <div>
-      <PageTitle description="公司对公、私对私由财务登记，员工垫付由付款的员工本人登记（进入待报销）；供应商退款也在这里。登记错了由登记人或财务作废，应付随之恢复。" />
+      <PageTitle description="公司对公、私对私由财务登记，员工垫付由付款的员工本人登记（进入待报销）；供应商退款也在这里。登记错了由登记人或财务在详情里作废，应付随之恢复。" />
       <div
         style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginBottom: 16 }}
       >
@@ -389,21 +400,6 @@ const PaymentRecords: React.FC = () => {
           }}
         />
       </Card>
-      <ReasonModal
-        open={!!voiding}
-        title={`作废 ${voiding?.paymentNo ?? ''}`}
-        description="作废后这笔付款的核销与欠款抵扣全部撤回，相关应付单恢复。"
-        okText="作废"
-        danger
-        onCancel={() => setVoiding(undefined)}
-        onOk={async (reason) => {
-          if (!voiding) return;
-          await paymentApi.voidPayment(voiding.id, reason);
-          message.success('已作废');
-          setVoiding(undefined);
-          load();
-        }}
-      />
     </div>
   );
 };

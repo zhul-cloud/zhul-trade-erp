@@ -82,6 +82,7 @@ export interface Reimbursement {
   paidBy?: string;
   paidAt?: string;
   payRemark?: string;
+  paymentId?: number;
   paymentNo?: string;
   payProofs: FileRef[];
   lines: AdvanceItem[];

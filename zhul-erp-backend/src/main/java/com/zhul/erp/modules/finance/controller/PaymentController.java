@@ -73,6 +73,33 @@ public class PaymentController {
         return Result.ok(service.refund(req));
     }
 
+    /** 详情（change finance-cash-docs）：付款管理看全部，采购订单菜单只看核销到自己范围内采购订单的（服务里校验） */
+    @GetMapping("/{id}")
+    @PreAuthorize(MENU + " or @perm.canAccessMenu('/purchase/orders')")
+    public Result<PaymentVO> detail(@PathVariable Long id) {
+        return Result.ok(service.detail(id));
+    }
+
+    @PostMapping("/{id}/remark")
+    @PreAuthorize(MENU)
+    public Result<PaymentVO> remark(@PathVariable Long id,
+                                    @Valid @RequestBody com.zhul.erp.modules.system.doclog.DocRemarkRequest req) {
+        return Result.ok(service.remark(id, req.getRemark()));
+    }
+
+    @PostMapping("/{id}/attachments")
+    @PreAuthorize(MENU)
+    public Result<PaymentVO> attach(@PathVariable Long id,
+                                    @Valid @RequestBody com.zhul.erp.modules.system.doclog.DocAttachRequest req) {
+        return Result.ok(service.attach(id, req.getIds()));
+    }
+
+    @org.springframework.web.bind.annotation.DeleteMapping("/{id}/attachments/{attachmentId}")
+    @PreAuthorize(MENU)
+    public Result<PaymentVO> removeAttachment(@PathVariable Long id, @PathVariable Long attachmentId) {
+        return Result.ok(service.removeAttachment(id, attachmentId));
+    }
+
     /** 作废：登记人本人或有付款登记权限的人（服务里校验） */
     @PostMapping("/{id}/void")
     @PreAuthorize(PAYER)

@@ -694,4 +694,54 @@ class CustomerCreditContractTest extends SalesContractSupport {
         money("0", t.path("total").path("closing").path("amount"));
         assertTrue(t.path("balanced").asBoolean());
     }
+
+    // ---------------------------------------------------------------- 退款单（change finance-cash-docs）
+
+    @Test
+    void refundDoc_detailItemsRelatedLogs_remarkAttach_readOnlyAfterVoid_salesScopeReadOnly() throws Exception {
+        long pi1 = pi(null, null);
+        confirmReceipt(pi1, "1000", null, false, admin);
+        long so = convert(pi1);
+        long id = ok(call(json(post(REFUND), write(refund(so, "200", 2))), admin)).path("id").asLong();
+
+        JsonNode d = ok(call(get(REFUND + "/" + id), admin));
+        assertEquals(1, d.path("items").size(), "直接登记的退款单显示一行");
+        money("200", d.path("items").get(0).path("amount"));
+        assertEquals("SO", d.path("related").get(0).path("type").asText());
+        assertEquals(1, d.path("files").size());
+        assertEquals("登记", d.path("logs").get(0).path("action").asText());
+        assertTrue(d.path("editable").asBoolean());
+
+        JsonNode r = ok(call(json(post(REFUND + "/" + id + "/remark"), "{\"remark\":\"客户要求走对公\"}"), admin));
+        assertEquals("客户要求走对公", r.path("remark").asText());
+        JsonNode a = ok(call(json(post(REFUND + "/" + id + "/attachments"), write(Map.of("ids", List.of(upload("REFUND"))))), admin));
+        assertEquals(2, a.path("files").size());
+        long att = a.path("files").get(1).path("id").asLong();
+        assertEquals(1, ok(call(delete(REFUND + "/" + id + "/attachments/" + att), admin)).path("files").size());
+
+        // 只有销售订单菜单的：订单在自己范围内才能看，只读
+        jdbc.update("insert into role_resource (role_code, resource_id, resource_code) values (?, ?, '')", BUYER_ROLE, MENU_SO);
+        String lin = token("it_lin");
+        assertEquals("销售订单不存在", fail(call(get(REFUND + "/" + id), lin)).path("message").asText());
+        jdbc.update("update sales_order set owner_id = ? where id = ?", BUYER_LIN, so);
+        assertFalse(ok(call(get(REFUND + "/" + id), lin)).path("editable").asBoolean());
+        assertEquals(403, perform(json(post(REFUND + "/" + id + "/remark"), "{\"remark\":\"x\"}"), lin).getStatus());
+
+        ok(call(json(post(REFUND + "/" + id + "/void"), "{\"reason\":\"金额录错\"}"), admin));
+        JsonNode v = ok(call(get(REFUND + "/" + id), admin));
+        assertFalse(v.path("editable").asBoolean());
+        assertTrue(v.path("logs").toString().contains("作废"));
+        assertEquals("退款单已作废", fail(call(json(post(REFUND + "/" + id + "/remark"), "{\"remark\":\"x\"}"), admin))
+                .path("message").asText());
+    }
+
+    @Test
+    void withdrawRefundDoc_showsOneLine_andLogsRegistration() throws Exception {
+        adjust(customer, "USD", "300", "2130");
+        long id = ok(call(json(post(CREDIT + "/withdraw"), write(withdraw("100", "710"))), admin)).path("id").asLong();
+        JsonNode d = ok(call(get(REFUND + "/" + id), admin));
+        assertEquals("余额提现", d.path("items").get(0).path("itemName").asText());
+        assertTrue(d.path("logs").get(0).path("content").asText().startsWith("余额提现"));
+        assertEquals(0, d.path("related").size());
+    }
 }

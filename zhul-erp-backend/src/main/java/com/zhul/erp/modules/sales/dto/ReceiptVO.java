@@ -10,6 +10,8 @@ import java.util.List;
 @Data
 public class ReceiptVO {
     private Long id;
+    /** 收款单号（仅到账；change finance-cash-docs） */
+    private String receiptNo;
     /** 1-水单、2-到账 */
     private Integer kind;
     private BigDecimal amount;

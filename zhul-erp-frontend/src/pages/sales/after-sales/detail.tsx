@@ -20,7 +20,6 @@ import { App, Button, Checkbox, Input, Skeleton } from 'antd';
 import dayjs from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
 import { RelatedDocsCard } from '@/components/DocFields/DocPage';
-import { listHref } from '@/components/DocFields/SourceNos';
 import { usePageTitle } from '@/components/PageTabs/hooks';
 import ExpenseQuickModal from '@/pages/finance/expenses/AfterSalesExpense';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
@@ -780,7 +779,7 @@ const AfterSalesDetail: React.FC = () => {
     ...(a.refunds ?? []).map((f) => ({
       label: '退款单',
       no: f.refundNo,
-      href: listHref('/finance/refunds', f.refundNo),
+      href: `/finance/refunds/${f.id}`,
       extra: (
         <span style={{ color: palette.sub }}>
           {formatAmount(f.amount, f.currencyCode)} · {f.methodName}

@@ -10,6 +10,11 @@ import { App, Checkbox, Input, Modal, Spin, Upload } from 'antd';
 import React, { useEffect, useRef, useState } from 'react';
 import { Card, PageTitle, Pill } from '@/pages/inquiry/shared/components';
 import type { Tone } from '@/pages/inquiry/shared/constants';
+import {
+  AS_STATUS_TONE,
+  RQ_STATUS_TONE,
+  TH_STATUS_TONE,
+} from '@/pages/sales/after-sales/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import {
   type Attachment,
@@ -71,11 +76,18 @@ export const DOC_PATHS = {
   receipt: (id: number) => `/warehouse/receipts/${id}`,
   outbound: (id: number) => `/warehouse/outbounds/${id}`,
   logistics: (id: number) => `/logistics/shipments/${id}`,
+  receiptDoc: (id: number) => `/finance/receipts/${id}`,
+  refund: (id: number) => `/finance/refunds/${id}`,
+  payment: (id: number) => `/finance/payments/${id}`,
 };
 
 const DOC_META: Record<
   string,
-  { label: string; href?: (id: number) => string; tones?: Record<number, Tone> }
+  {
+    label: string;
+    href?: (id: number, no: string) => string;
+    tones?: Record<number, Tone>;
+  }
 > = {
   PO: { label: '采购订单', href: (id) => `/purchase/orders/${id}` },
   SO: { label: '销售订单', href: (id) => `/sales/orders/${id}` },
@@ -109,6 +121,50 @@ const DOC_META: Record<
     href: () => '/warehouse/shoots',
     tones: { 1: 'gray', 2: 'green', 3: 'mute' },
   },
+  // 财务收付退（change finance-cash-docs）
+  PI: { label: '形式发票', href: (id) => `/sales/pi/${id}` },
+  AS: {
+    label: '售后单',
+    href: (id) => `/sales/after-sales/${id}`,
+    tones: AS_STATUS_TONE,
+  },
+  TH: {
+    label: '销售退货单',
+    href: (id) => `/sales/returns/${id}`,
+    tones: TH_STATUS_TONE,
+  },
+  RA: {
+    label: '退款申请',
+    href: (id) => `/finance/refunds/requests/${id}`,
+    tones: RQ_STATUS_TONE,
+  },
+  SK: {
+    label: '收款单',
+    href: (id) => DOC_PATHS.receiptDoc(id),
+    tones: { 1: 'green', 2: 'mute' },
+  },
+  TK: {
+    label: '退款单',
+    href: (id) => DOC_PATHS.refund(id),
+    tones: { 1: 'green', 2: 'mute' },
+  },
+  PY: { label: '付款单', href: (id) => DOC_PATHS.payment(id) },
+  JH: {
+    label: '结汇单',
+    href: () => '/finance/fx-settlements',
+    tones: { 1: 'green', 2: 'mute' },
+  },
+  AP: {
+    label: '应付单',
+    href: (_, no) => `/finance/payables?keyword=${encodeURIComponent(no)}`,
+    tones: { 1: 'orange', 2: 'accent', 3: 'green', 4: 'mute' },
+  },
+  BX: {
+    label: '报销单',
+    href: () => '/finance/reimbursements',
+    tones: { 1: 'orange', 2: 'green', 3: 'mute' },
+  },
+  FE: { label: '费用单', href: () => '/finance/expenses' },
 };
 
 /** 后端返回的关联单据转为关联单据卡片的行 */
@@ -126,7 +182,7 @@ export const relatedRows = (
     return {
       label: m?.label ?? r.type,
       no: r.no,
-      href: m?.href?.(r.id),
+      href: m?.href?.(r.id, r.no),
       statusName: r.statusName,
       tone: r.status != null ? (m?.tones?.[r.status] ?? 'accent') : undefined,
     };
