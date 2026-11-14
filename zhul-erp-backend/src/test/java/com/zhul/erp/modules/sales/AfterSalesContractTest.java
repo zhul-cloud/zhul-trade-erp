@@ -16,6 +16,7 @@ import static com.zhul.erp.support.TestDates.today;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -41,6 +42,24 @@ class AfterSalesContractTest extends SalesContractSupport {
     @AfterEach
     void resetApproval() {
         jdbc.update("update sys_config set config_value = 'false' where tenant_id = 0 and config_key = 'finance.refund-request.approval'");
+        jdbc.update("delete from biz_attachment where file_key like 'it-rq/%'");
+    }
+
+    private static final int MENU_AFTER_SALES = 100120;
+    private static final int MENU_SALES_RETURN = 110231;
+    private static final int MENU_REFUND = 100110;
+    private static final int MENU_WAREHOUSE_RETURN = 100121;
+
+    /** 本机 LOCAL 附件元数据（不需要实体文件就能签发链接）；ownerId 为 0 表示还没挂到单据上 */
+    private long attachment(String ownerType, long ownerId, long uploadedBy) {
+        String key = "it-rq/" + System.nanoTime() + ".pdf";
+        jdbc.update("insert into biz_attachment (tenant_id, owner_type, owner_id, storage, file_key, file_name, content_type, uploaded_by) "
+                + "values (0, ?, ?, 'LOCAL', ?, 'a.pdf', 'application/pdf', ?)", ownerType, ownerId, key, uploadedBy);
+        return jdbc.queryForObject("select id from biz_attachment where file_key = ?", Long.class, key);
+    }
+
+    private int linkStatus(long attachmentId, String token) throws Exception {
+        return perform(get("/api/v1/attachments/" + attachmentId + "/url"), token).getStatus();
     }
 
     // ---------------------------------------------------------------- 准备数据
@@ -759,5 +778,120 @@ class AfterSalesContractTest extends SalesContractSupport {
         String staff = token("it_as_staff");
         assertEquals("售后单不存在", call(get(AS + "/" + as2), staff).path("message").asText());
         assertEquals(0, ok(call(json(post(AS + "/page"), "{\"status\":4}"), staff)).path("total").asInt());
+    }
+
+    /** audit BUS-038：执行退款申请的金额必须为正，拒绝时申请、退款单、凭证都不变；省略人民币时按到账汇率折算 */
+    @Test
+    void refundRequestExecute_rejectsZeroAndNegativeAmounts() throws Exception {
+        bankAccount("USD");
+        long so = manualShipped(customer("Andes Robotics", "Chile"));
+        long id = ok(apply(so, null, "10", 2)).path("id").asLong();
+        long proof = attachment("REFUND", 0, ADMIN_USER);
+        String url = RQ + "/" + id + "/execute";
+        String[][] rejected = {
+                {"-1.00", "1.00", "退款金额须大于 0"},
+                {"0.00", "1.00", "退款金额须大于 0"},
+                {"0.004", "1.00", "退款金额须大于 0"},
+                {"1.00", "-1.00", "实际退出人民币须大于 0"},
+                {"1.00", "0.00", "实际退出人民币须大于 0"},
+                {"1.00", "0.004", "实际退出人民币须大于 0"},
+        };
+        for (String[] c : rejected) {
+            Map<String, Object> b = new HashMap<>();
+            b.put("amount", c[0]);
+            b.put("amountCny", c[1]);
+            b.put("refundDate", LocalDate.now().toString());
+            b.put("attachmentIds", List.of(proof));
+            assertEquals(c[2], msg(call(json(post(url), write(b)), admin)), c[0] + " / " + c[1]);
+        }
+        assertEquals(2, jdbc.queryForObject("select status from fin_refund_request where id = ?", Integer.class, id), "仍待财务处理");
+        assertEquals(0, jdbc.queryForObject("select count(*) from fin_customer_refund where so_id = ?", Integer.class, so));
+        assertEquals(0L, jdbc.queryForObject("select owner_id from biz_attachment where id = ?", Long.class, proof), "凭证没有挂上");
+
+        // 正常：省略人民币时按到账汇率自动折算
+        Map<String, Object> b = new HashMap<>();
+        b.put("amount", "1.00");
+        b.put("refundDate", LocalDate.now().toString());
+        b.put("attachmentIds", List.of(proof));
+        assertEquals("已执行", ok(call(json(post(url), write(b)), admin)).path("statusName").asText());
+        assertTrue(jdbc.queryForObject("select amount_cny from fin_customer_refund where so_id = ?", java.math.BigDecimal.class, so).signum() > 0);
+        // 直接登记退款单同样拒绝负数（DTO 校验）
+        Map<String, Object> direct = new HashMap<>();
+        direct.put("soId", so);
+        direct.put("refundDate", LocalDate.now().toString());
+        direct.put("reason", "QUALITY");
+        direct.put("amount", "-1");
+        direct.put("method", 3);
+        assertTrue(call(json(post(REFUND), write(direct)), admin).path("code").asInt() != 0);
+    }
+
+    /**
+     * audit SEC-013、SEC-005、SEC-015：同租户里看不到订单的业务员，按 ID 读不到退款申请与退货入库单、
+     * 改不了申请备注和附件、拿不到销售退货 / 退货入库 / 退款申请附件的链接；本人、财务、仓库正常
+     */
+    @Test
+    void refundRequestAndReturnDocs_followOrderOwnerScope() throws Exception {
+        bankAccount("USD");
+        long so = manualShipped(customer("Baltic Drives", "Latvia"));
+        Map<String, Object> asBody = new HashMap<>();
+        asBody.put("customerId", jdbc.queryForObject("select customer_id from sales_order where id = ?", Long.class, so));
+        asBody.put("soId", so);
+        asBody.put("items", List.of(Map.of("soItemId", soItem(so), "quantity", 1)));
+        asBody.put("symptom", "无法上电");
+        long asId = ok(call(json(post(AS), write(asBody)), admin)).path("id").asLong();
+        long thId = ok(newReturn(asId, soItem(so), 1)).path("id").asLong();
+        long rrId = confirmReturn(thId).path("id").asLong();
+        long rqId = ok(apply(so, asId, "10", 3)).path("id").asLong();
+        long rqFile = attachment("REFUND_REQUEST", rqId, ADMIN_USER);
+        long thFile = attachment("SALES_RETURN", thId, ADMIN_USER);
+        long rrFile = attachment("RETURN_RECEIPT", rrId, ADMIN_USER);
+
+        // 订单与售后单都归别人：业务员（本人范围）全部拒绝，记录不变
+        jdbc.update("update sales_order set owner_id = ? where id = ?", BUYER_LIN, so);
+        jdbc.update("update after_sales set owner_id = ? where id = ?", BUYER_LIN, asId);
+        loginWithResources("it_rq_staff", MENU_AFTER_SALES, MENU_SO, MENU_SALES_RETURN);
+        String staff = token("it_rq_staff");
+        long mine = attachment("REFUND_REQUEST", 0, ADMIN_USER);
+        assertEquals("退款申请不存在", msg(call(get(RQ + "/" + rqId), staff)));
+        assertEquals("退款申请不存在", msg(call(json(post(RQ + "/" + rqId + "/remark"), "{\"remark\":\"改别人的\"}"), staff)));
+        assertEquals("退款申请不存在", msg(call(json(post(RQ + "/" + rqId + "/attachments"), write(Map.of("ids", List.of(mine)))), staff)));
+        assertEquals("退款申请不存在", msg(call(delete(RQ + "/" + rqId + "/attachments/" + rqFile), staff)));
+        assertEquals("", jdbc.queryForObject("select remark from fin_refund_request where id = ?", String.class, rqId));
+        assertEquals(0L, jdbc.queryForObject("select owner_id from biz_attachment where id = ?", Long.class, mine));
+        assertTrue(jdbc.queryForObject("select deleted_at is null from biz_attachment where id = ?", Boolean.class, rqFile));
+        assertEquals("退货入库单不存在", msg(call(get(RT + "/" + rrId), staff)));
+        assertEquals(403, linkStatus(rqFile, staff), "退款申请附件");
+        assertEquals(403, linkStatus(thFile, staff), "销售退货附件");
+        assertEquals(403, linkStatus(rrFile, staff), "退货入库附件");
+
+        // 财务看全部申请与附件；仓库看全部退货入库单与附件
+        loginWithResources("it_rq_fin", MENU_REFUND);
+        String fin = token("it_rq_fin");
+        assertEquals(rqId, ok(call(get(RQ + "/" + rqId), fin)).path("id").asLong());
+        ok(call(json(post(RQ + "/" + rqId + "/remark"), "{\"remark\":\"财务备注\"}"), fin));
+        assertEquals(200, linkStatus(rqFile, fin));
+        loginWithResources("it_rq_wh", MENU_WAREHOUSE_RETURN);
+        String wh = token("it_rq_wh");
+        assertEquals(rrId, ok(call(get(RT + "/" + rrId), wh)).path("id").asLong());
+        assertEquals(200, linkStatus(rrFile, wh));
+
+        // 订单回到本人名下：业务员详情、备注、挂接与移除附件、三类附件链接都正常
+        jdbc.update("update sales_order set owner_id = ? where id = ?", ADMIN_USER, so);
+        loginWithResources("it_rq_staff", MENU_AFTER_SALES, MENU_SO, MENU_SALES_RETURN);
+        staff = token("it_rq_staff");
+        assertEquals(rqId, ok(call(get(RQ + "/" + rqId), staff)).path("id").asLong());
+        assertEquals("业务员备注", ok(call(json(post(RQ + "/" + rqId + "/remark"), "{\"remark\":\"业务员备注\"}"), staff)).path("remark").asText());
+        ok(call(json(post(RQ + "/" + rqId + "/attachments"), write(Map.of("ids", List.of(mine)))), staff));
+        assertEquals(rqId, jdbc.queryForObject("select owner_id from biz_attachment where id = ?", Long.class, mine));
+        ok(call(delete(RQ + "/" + rqId + "/attachments/" + mine), staff));
+        // audit SEC-016：别人上传、还没挂上的附件不能挂到自己的单据上
+        long othersUpload = attachment("REFUND_REQUEST", 0, BUYER_LIN);
+        assertEquals("附件不存在，请重新上传", msg(call(json(post(RQ + "/" + rqId + "/attachments"),
+                write(Map.of("ids", List.of(othersUpload)))), staff)));
+        assertEquals(0L, jdbc.queryForObject("select owner_id from biz_attachment where id = ?", Long.class, othersUpload));
+        assertEquals(rrId,ok(call(get(RT + "/" + rrId), staff)).path("id").asLong());
+        assertEquals(200, linkStatus(rqFile, staff));
+        assertEquals(200, linkStatus(thFile, staff));
+        assertEquals(200, linkStatus(rrFile, staff));
     }
 }

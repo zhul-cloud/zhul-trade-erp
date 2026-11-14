@@ -961,7 +961,7 @@ class AttachmentSourceTest(unittest.TestCase):
             pdf = doc.tobytes()
         response = mock.MagicMock()
         # 流式下载按块读到返回空为止；mock 必须在第二次读时返回 b""，否则会无限读下去
-        response.__enter__.return_value.read.side_effect = [pdf, b""]
+        response.__enter__.return_value.read1.side_effect = [pdf, b""]
         with mock.patch.object(self.server.urllib.request, "urlopen", return_value=response) as urlopen:
             (status, _), call_parse = self.parse({"attachments": [{"url": "https://files.example/a?sig=1", "ext": "pdf"}]})
         self.assertEqual(status, "success")

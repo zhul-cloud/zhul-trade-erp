@@ -288,9 +288,12 @@ public class AttachmentService {
         }
         List<Long> keys = ids.stream().filter(Objects::nonNull).distinct().toList();
         List<BizAttachmentDO> rows = mapper.selectBatchIds(keys);
+        // 还没挂到单据上的附件只有上传人能看，也只有上传人能挂（audit SEC-016）；后台任务没有当前用户，按调用方传入处理
+        Long me = currentUser.resolve();
         for (BizAttachmentDO a : rows) {
             if (a.getDeletedAt() != null || !Objects.equals(a.getTenantId(), PiStore.tenantId()) || !ownerType.equals(a.getOwnerType())
-                    || (a.getOwnerId() != 0 && !a.getOwnerId().equals(ownerId))) {
+                    || (a.getOwnerId() != 0 && !a.getOwnerId().equals(ownerId))
+                    || (a.getOwnerId() == 0 && me != null && !Objects.equals(a.getUploadedBy(), me))) {
                 throw new BizException("附件不存在，请重新上传");
             }
         }

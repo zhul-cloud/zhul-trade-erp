@@ -46,6 +46,9 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -74,6 +77,19 @@ public class DirectUploadService {
     /** 临时文件键：tmp/{租户}/{会话ID}.{扩展名} */
     private static final Pattern TMP_KEY = Pattern.compile("tmp/(\\d+)/([0-9a-f]{32})\\.([a-z0-9]{1,8})");
     private static final SecureRandom RANDOM = new SecureRandom();
+    /**
+     * 本地分片写入与完成互斥（audit SEC-014）：写入分片拿读锁，各片可以并行；完成时拿写锁，等在途的写入结束、
+     * 作废分片地址后再校验，校验通过的内容就是之后认领的内容。本地存储只在单个后端实例上使用（文件在本机磁盘），
+     * 用进程内按会话分段的锁即可
+     */
+    private static final ReentrantReadWriteLock[] LOCAL_LOCKS = new ReentrantReadWriteLock[256];
+    private static final long COMPLETE_WAIT_SECONDS = 30;
+
+    static {
+        for (int i = 0; i < LOCAL_LOCKS.length; i++) {
+            LOCAL_LOCKS[i] = new ReentrantReadWriteLock();
+        }
+    }
 
     private final Map<String, UploadScene> scenes = new LinkedHashMap<>();
     private final FileStorages storages;
@@ -138,18 +154,34 @@ public class DirectUploadService {
     /** 续签：领取从 from 开始的 count 个分片地址 */
     public List<PartUrlVO> partUrls(String id, int from, int count) {
         UploadSession s = mine(id);
+        if (s.isVerified()) {
+            throw new BizException("这个文件已经上传完成");
+        }
         return urls(s, from, Math.max(1, Math.min(count, PRESIGN_BATCH)));
     }
 
     // ---------------------------------------------------------------- 本地分片
 
-    /** 本地存储时接收一个分片：按流写到临时文件的对应位置，不把整片读进内存；乱序、重复上传同一片都正确 */
+    /**
+     * 本地存储时接收一个分片：按流写到临时文件的对应位置，不把整片读进内存；乱序、重复上传同一片都正确。
+     * 完成后分片地址作废，不能再改写已校验的文件
+     */
     public String receivePart(String id, int n, String token, InputStream body) {
-        UploadSession s = mine(id);
-        if (!FileStorage.LOCAL.equals(s.getStorage())) {
+        if (!FileStorage.LOCAL.equals(mine(id).getStorage())) {
             throw new BizException("这次上传不走本地分片接口");
         }
-        if (token == null || !token.equals(s.getToken())) {
+        Lock lock = localLock(id).readLock();
+        lock.lock();
+        try {
+            // 加锁后重读会话：完成时已作废分片地址
+            return writePart(mine(id), n, token, body);
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    private String writePart(UploadSession s, int n, String token, InputStream body) {
+        if (token == null || s.getToken() == null || !token.equals(s.getToken())) {
             throw new AccessDeniedException("上传地址无效或已过期");
         }
         checkPartNumber(s, n);
@@ -184,7 +216,26 @@ public class DirectUploadService {
     // ---------------------------------------------------------------- 完成与取消
 
     public UploadedFileVO complete(String id, CompleteUploadRequest req) {
-        UploadSession s = mine(id);
+        if (FileStorage.OSS.equals(mine(id).getStorage())) {
+            return finish(mine(id), req);
+        }
+        Lock lock = localLock(id).writeLock();
+        try {
+            if (!lock.tryLock(COMPLETE_WAIT_SECONDS, TimeUnit.SECONDS)) {
+                throw new BizException("还有分片正在上传，请稍后重试");
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new BizException("上传被中断，请重试", e);
+        }
+        try {
+            return finish(mine(id), req);
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    private UploadedFileVO finish(UploadSession s, CompleteUploadRequest req) {
         UploadScene scene = scene(s.getScene());
         boolean oss = FileStorage.OSS.equals(s.getStorage());
         if (oss) {
@@ -204,6 +255,9 @@ public class DirectUploadService {
             if (got == null || got != s.getPartCount()) {
                 throw new BizException("还有分片没有上传完");
             }
+            // 分片地址作废后再校验：之后的写入一律拒绝
+            s.setToken(null);
+            save(s);
         }
         try {
             verify(s, scene, oss);
@@ -391,6 +445,10 @@ public class DirectUploadService {
             // 残留的临时文件由 OSS 生命周期规则或本地清理任务删除
             log.warn("删除直传临时文件失败，uploadId={}：{}", s.getId(), e.toString());
         }
+    }
+
+    private static ReentrantReadWriteLock localLock(String id) {
+        return LOCAL_LOCKS[Math.floorMod(id.hashCode(), LOCAL_LOCKS.length)];
     }
 
     /** 第 n 片的字节数：最后一片是余下的部分 */

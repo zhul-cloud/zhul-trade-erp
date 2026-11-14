@@ -5,19 +5,29 @@ import com.zhul.erp.framework.security.DataScopeResolver;
 import com.zhul.erp.framework.security.PermissionChecker;
 import com.zhul.erp.modules.aftersales.entity.AfterSalesDO;
 import com.zhul.erp.modules.aftersales.entity.AfterSalesLogDO;
+import com.zhul.erp.modules.aftersales.entity.ReturnReceiptDO;
+import com.zhul.erp.modules.aftersales.entity.SalesReturnDO;
 import com.zhul.erp.modules.aftersales.repository.AfterSalesLogMapper;
 import com.zhul.erp.modules.aftersales.repository.AfterSalesMapper;
+import com.zhul.erp.modules.aftersales.repository.ReturnReceiptMapper;
+import com.zhul.erp.modules.aftersales.repository.SalesReturnMapper;
 import com.zhul.erp.modules.attachment.entity.BizAttachmentDO;
 import com.zhul.erp.modules.finance.entity.CustomerCreditEntryDO;
 import com.zhul.erp.modules.finance.entity.CustomerRefundDO;
+import com.zhul.erp.modules.finance.entity.RefundRequestDO;
 import com.zhul.erp.modules.finance.repository.CustomerCreditEntryMapper;
 import com.zhul.erp.modules.finance.repository.CustomerRefundMapper;
+import com.zhul.erp.modules.finance.repository.RefundRequestMapper;
 import com.zhul.erp.modules.inquiry.support.CurrentUserResolver;
+import com.zhul.erp.modules.logistics.entity.LogisticsShipmentDO;
 import com.zhul.erp.modules.logistics.entity.OutboundOrderDO;
+import com.zhul.erp.modules.logistics.repository.LogisticsShipmentMapper;
 import com.zhul.erp.modules.logistics.repository.OutboundOrderMapper;
 import com.zhul.erp.modules.masterdata.entity.CustomerDO;
 import com.zhul.erp.modules.masterdata.repository.CustomerMapper;
 import com.zhul.erp.modules.purchase.entity.PurchaseOrderDO;
+import com.zhul.erp.modules.purchase.purchasereturn.entity.PurchaseReturnDO;
+import com.zhul.erp.modules.purchase.purchasereturn.repository.PurchaseReturnMapper;
 import com.zhul.erp.modules.purchase.repository.PurchaseOrderMapper;
 import com.zhul.erp.modules.sales.entity.PaymentReceiptDO;
 import com.zhul.erp.modules.sales.entity.ProformaInvoiceDO;
@@ -36,7 +46,8 @@ import java.util.Objects;
 
 /**
  * 附件跟随所属单据的数据范围（audit SEC-005）：签发访问链接前，按附件类型检查当前用户能否看到所属单据。
- * 规则与各模块单据详情一致；仓库、物流、财务付款等不按负责人限制的模块，租户校验已足够。
+ * 规则与各模块单据详情一致；仓库、财务付款等不按负责人限制的模块，租户校验已足够。
+ * 每种附件类型都要在这里明确归类，新增类型没有归类时一律拒绝，不能默认放行。
  */
 @Component
 @RequiredArgsConstructor
@@ -57,6 +68,11 @@ public class AttachmentOwnerScope {
     private final OutboundOrderMapper outboundMapper;
     private final PaymentReceiptMapper paymentReceiptMapper;
     private final ProformaInvoiceMapper piMapper;
+    private final SalesReturnMapper salesReturnMapper;
+    private final ReturnReceiptMapper returnReceiptMapper;
+    private final PurchaseReturnMapper purchaseReturnMapper;
+    private final RefundRequestMapper refundRequestMapper;
+    private final LogisticsShipmentMapper logisticsShipmentMapper;
 
     public boolean canSee(BizAttachmentDO a) {
         if (a.getOwnerId() == null || a.getOwnerId() == 0) {
@@ -87,7 +103,25 @@ public class AttachmentOwnerScope {
             // 收款单补充的附件：财务看全部，业务员按 PI 或订单的负责人，未认领的看不到
             case AttachmentService.PAYMENT_RECEIPT -> anyMenu("/finance/receipts")
                     || paymentReceiptVisible(paymentReceiptMapper.selectById(id));
-            default -> true;
+            // 销售退货单：与详情一致，能看到它的售后单才能看
+            case AttachmentService.SALES_RETURN ->
+                    afterSalesVisible(afterSalesOfReturn(salesReturnMapper.selectById(id)));
+            // 退货入库单：仓库看全部，业务员按销售退货单的售后单
+            case AttachmentService.RETURN_RECEIPT -> anyMenu("/warehouse/returns")
+                    || afterSalesVisible(afterSalesOfReceipt(returnReceiptMapper.selectById(id)));
+            case AttachmentService.PURCHASE_RETURN -> purchaseReturnVisible(purchaseReturnMapper.selectById(id));
+            // 退款申请：财务看全部，申请侧按订单负责人
+            case AttachmentService.REFUND_REQUEST -> anyMenu("/finance/refunds")
+                    || orderVisible(orderOfRequest(refundRequestMapper.selectById(id)));
+            // 出运单面单与单据：与出运单详情一致，按出运单负责人
+            case AttachmentService.LOGISTICS, AttachmentService.LOGISTICS_DOC ->
+                    logisticsVisible(logisticsShipmentMapper.selectById(id));
+            // 以下单据不按负责人限制，详情只校验租户（附件服务已校验租户）
+            case AttachmentService.SHOOT, AttachmentService.NETWORK, AttachmentService.SOURCING_QUOTE,
+                 AttachmentService.PAYMENT, AttachmentService.COURIER_PROOF, AttachmentService.RETURN_PROOF,
+                 AttachmentService.EXPENSE, AttachmentService.REIMBURSE, AttachmentService.OTHER_INCOME,
+                 AttachmentService.PAYABLE, AttachmentService.FX_SETTLEMENT -> true;
+            default -> false;
         };
     }
 
@@ -130,6 +164,26 @@ public class AttachmentOwnerScope {
 
     private AfterSalesDO afterSalesOf(AfterSalesLogDO log) {
         return log == null || log.getAfterSalesId() == null ? null : afterSalesMapper.selectById(log.getAfterSalesId());
+    }
+
+    private AfterSalesDO afterSalesOfReturn(SalesReturnDO r) {
+        return r == null || r.getAfterSalesId() == null ? null : afterSalesMapper.selectById(r.getAfterSalesId());
+    }
+
+    private AfterSalesDO afterSalesOfReceipt(ReturnReceiptDO rr) {
+        return rr == null || rr.getAfterSalesId() == null ? null : afterSalesMapper.selectById(rr.getAfterSalesId());
+    }
+
+    private boolean purchaseReturnVisible(PurchaseReturnDO p) {
+        return p != null && dataScopeResolver.current().canSee(p.getOwnerId());
+    }
+
+    private SalesOrderDO orderOfRequest(RefundRequestDO q) {
+        return q == null || q.getSoId() == null ? null : salesOrderMapper.selectById(q.getSoId());
+    }
+
+    private boolean logisticsVisible(LogisticsShipmentDO sh) {
+        return sh != null && dataScopeResolver.current().canSee(sh.getOwnerId());
     }
 
     private boolean refundVisible(CustomerRefundDO f) {

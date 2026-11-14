@@ -9,6 +9,8 @@ import com.zhul.erp.modules.aftersales.dto.ReceiveReturnRequest;
 import com.zhul.erp.modules.aftersales.dto.ReturnQuery;
 import com.zhul.erp.modules.aftersales.dto.ReturnReceiptVO;
 import com.zhul.erp.modules.aftersales.dto.ReturnVO;
+import com.zhul.erp.framework.security.DataScope;
+import com.zhul.erp.framework.security.PermissionChecker;
 import com.zhul.erp.modules.aftersales.entity.AfterSalesDO;
 import com.zhul.erp.modules.aftersales.entity.ReturnReceiptDO;
 import com.zhul.erp.modules.aftersales.entity.ReturnReceiptItemDO;
@@ -95,6 +97,7 @@ public class ReturnReceiptService {
     private final LogService logService;
     private final AfterSalesLogs logs;
     private final DocLogs docLogs;
+    private final PermissionChecker perm;
 
     // ---------------------------------------------------------------- 生成与作废（销售退货单事务内）
 
@@ -496,7 +499,7 @@ public class ReturnReceiptService {
     }
 
     public ReturnReceiptVO detail(Long id) {
-        return toVos(List.of(require(id)), true).get(0);
+        return toVos(List.of(visible(id)), true).get(0);
     }
 
     private List<ReturnReceiptVO> toVos(List<ReturnReceiptDO> rows, boolean full) {
@@ -674,6 +677,24 @@ public class ReturnReceiptService {
     private ReturnReceiptDO require(Long id) {
         ReturnReceiptDO rr = id == null ? null : mapper.selectById(id);
         if (rr == null || rr.getDeletedAt() != null || !Objects.equals(rr.getTenantId(), PiStore.tenantId())) {
+            throw new BizException("退货入库单不存在");
+        }
+        return rr;
+    }
+
+    /**
+     * 按 ID 查看（audit SEC-015）：退货入库菜单（仓库）看本租户全部；只从销售退货、售后进来的人
+     * 与售后单详情一致，售后单负责人或订单负责人在数据范围内才能看
+     */
+    private ReturnReceiptDO visible(Long id) {
+        ReturnReceiptDO rr = require(id);
+        if (perm.canAccessMenu("/warehouse/returns")) {
+            return rr;
+        }
+        DataScope scope = receivingSupport.scope();
+        AfterSalesDO a = rr.getAfterSalesId() == null ? null : afterSalesMapper.selectById(rr.getAfterSalesId());
+        SalesOrderDO o = rr.getSoId() == null ? null : orderMapper.selectById(rr.getSoId());
+        if ((a == null || !scope.canSee(a.getOwnerId())) && (o == null || !scope.canSee(o.getOwnerId()))) {
             throw new BizException("退货入库单不存在");
         }
         return rr;
