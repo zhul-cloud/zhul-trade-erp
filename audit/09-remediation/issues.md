@@ -46,8 +46,8 @@
 | [BUS-036](tasks/2026-11-13-BUS-036-inquiry-attachment-jpeg.md) | 询盘附件不能上传 .jpeg 图片（WhatsApp 下载的图片） | P2 | 已关闭 | Claude | [2026-11-13-BUS-036](tasks/2026-11-13-BUS-036-inquiry-attachment-jpeg.md) | 2026-11-14 |
 | [BUS-037](tasks/2026-11-14-DEP-001-p1-upgrades.md) | 询价结果导入时一份内容损坏的 Excel 让整批预览报「系统错误」 | P2 | 已关闭 | Claude | [2026-11-14-DEP-001](tasks/2026-11-14-DEP-001-p1-upgrades.md) | 2026-11-14 |
 | [BUS-038](tasks/2026-11-14-SEC-005-post-remediation-review.md) | 退款申请执行缺少请求验证，负退款金额可绕过服务校验 | P1 | 已合并待发布 | Claude | [2026-11-14-BUS-038](tasks/2026-11-14-BUS-038-review-fixes.md) | 2026-11-14 |
-| [BUS-039](tasks/2026-11-15-SEC-017-proactive-sweep.md) | 多收退回客户不校验实际转出人民币为正，汇兑收益可被记大 | P1 | 处理中 | Claude | [2026-11-15-SEC-017](tasks/2026-11-15-SEC-017-proactive-sweep.md) | 2026-11-15 |
-| [BUS-040](tasks/2026-11-15-SEC-017-proactive-sweep.md) | 到账与订单费用先判断正数后舍入，可登记 0 元单据 | P3 | 处理中 | Claude | [2026-11-15-SEC-017](tasks/2026-11-15-SEC-017-proactive-sweep.md) | 2026-11-15 |
+| [BUS-039](tasks/2026-11-15-SEC-017-proactive-sweep.md) | 多收退回客户不校验实际转出人民币为正，汇兑收益可被记大 | P1 | 已合并待发布 | Claude | [2026-11-15-SEC-017](tasks/2026-11-15-SEC-017-proactive-sweep.md) | 2026-11-15 |
+| [BUS-040](tasks/2026-11-15-SEC-017-proactive-sweep.md) | 到账与订单费用先判断正数后舍入，可登记 0 元单据 | P3 | 已合并待发布 | Claude | [2026-11-15-SEC-017](tasks/2026-11-15-SEC-017-proactive-sweep.md) | 2026-11-15 |
 
 ## 前端
 
@@ -107,9 +107,9 @@
 | [UI-052](tasks/2026-11-14-SEC-005-post-remediation-review.md) | 公共单据附件卡的备注草稿未登记未保存状态 | P2 | 已合并待发布 | Claude | [2026-11-14-BUS-038](tasks/2026-11-14-BUS-038-review-fixes.md) | 2026-11-14 |
 | [UI-053](tasks/2026-11-14-SEC-005-post-remediation-review.md) | 销售退货详情改状态后返回保活列表，状态和计数仍旧 | P2 | 已合并待发布 | Claude | [2026-11-14-BUS-038](tasks/2026-11-14-BUS-038-review-fixes.md) | 2026-11-14 |
 | [UI-054](tasks/2026-11-14-SEC-005-post-remediation-review.md) | 退款弹窗旧订单响应迟到，覆盖新申请的人民币换算 | P2 | 已合并待发布 | Claude | [2026-11-14-BUS-038](tasks/2026-11-14-BUS-038-review-fixes.md) | 2026-11-14 |
-| [UI-055](tasks/2026-11-15-SEC-017-proactive-sweep.md) | 保活页面从其他页面返回后不刷新，列表与详情显示旧数据 | P2 | 处理中 | Claude | [2026-11-15-SEC-017](tasks/2026-11-15-SEC-017-proactive-sweep.md) | 2026-11-15 |
-| [UI-056](tasks/2026-11-15-SEC-017-proactive-sweep.md) | 多个弹窗切换对象时未丢弃迟到响应，登记付款可分配到上一张应付 | P2 | 处理中 | Claude | [2026-11-15-SEC-017](tasks/2026-11-15-SEC-017-proactive-sweep.md) | 2026-11-15 |
-| [UI-057](tasks/2026-11-15-SEC-017-proactive-sweep.md) | 销售订单备注卡、采购订单草稿编辑、客户与供应商表单未登记未保存 | P2 | 处理中 | Claude | [2026-11-15-SEC-017](tasks/2026-11-15-SEC-017-proactive-sweep.md) | 2026-11-15 |
+| [UI-055](tasks/2026-11-15-SEC-017-proactive-sweep.md) | 保活页面从其他页面返回后不刷新，列表与详情显示旧数据 | P2 | 已合并待发布 | Claude | [2026-11-15-SEC-017](tasks/2026-11-15-SEC-017-proactive-sweep.md) | 2026-11-15 |
+| [UI-056](tasks/2026-11-15-SEC-017-proactive-sweep.md) | 多个弹窗切换对象时未丢弃迟到响应，登记付款可分配到上一张应付 | P2 | 已合并待发布 | Claude | [2026-11-15-SEC-017](tasks/2026-11-15-SEC-017-proactive-sweep.md) | 2026-11-15 |
+| [UI-057](tasks/2026-11-15-SEC-017-proactive-sweep.md) | 销售订单备注卡、采购订单草稿编辑、客户与供应商表单未登记未保存 | P2 | 已合并待发布 | Claude | [2026-11-15-SEC-017](tasks/2026-11-15-SEC-017-proactive-sweep.md) | 2026-11-15 |
 
 ## AI 可靠性
 
@@ -119,7 +119,7 @@
 | [AI-002](../04-ai-and-operations/01-AI任务可靠性与诊断.md) | 结果回调一次失败后被吞掉，已完成 AI 结果没有可靠投递路径 | P1 | 已关闭 | Claude | [2026-11-04-AI-001](tasks/2026-11-04-AI-001-task-reliability-batch-f.md) | 2026-11-14 |
 | [AI-003](../04-ai-and-operations/02-AI附件入口与权限.md) | 普通认证用户可通过通用 AI 入口指定 URL / 本地附件路径 | P1 | 已关闭 | Claude | [2026-11-03-SEC-001](tasks/2026-11-03-SEC-001-session-ai-input-hotfix.md) | 2026-11-04 |
 | [AI-004](../04-ai-and-operations/01-AI任务可靠性与诊断.md) | 串行诊断的总超时预算超过 Java 的 30 秒请求期限 | P2 | 已关闭 | Claude | [2026-11-04-AI-001](tasks/2026-11-04-AI-001-task-reliability-batch-f.md) | 2026-11-14 |
-| [AI-005](../04-ai-and-operations/01-AI任务可靠性与诊断.md) | 整任务期限遗漏附件下载，慢流可超时后继续运行 | P1 | 处理中 | Claude | [2026-11-15-SEC-017](tasks/2026-11-15-SEC-017-proactive-sweep.md) | 2026-11-15 |
+| [AI-005](../04-ai-and-operations/01-AI任务可靠性与诊断.md) | 整任务期限遗漏附件下载，慢流可超时后继续运行 | P1 | 已合并待发布 | Claude | [2026-11-15-SEC-017](tasks/2026-11-15-SEC-017-proactive-sweep.md) | 2026-11-15 |
 | [AI-006](../04-ai-and-operations/03-全量运行脚本与配置审查.md) | 未连接到模型服务商时仍把API Key标为有效 | P2 | 已关闭 | Claude | [2026-11-04-AI-001](tasks/2026-11-04-AI-001-task-reliability-batch-f.md) | 2026-11-14 |
 | [AI-007](../04-ai-and-operations/01-AI任务可靠性与诊断.md) | 个人订阅方式同时只能执行一个任务，其他任务立即失败 | P2 | 已关闭 | Claude | [2026-11-06-AI-007](tasks/2026-11-06-AI-007-subscription-concurrency.md) | 2026-11-14 |
 | [AI-008](../04-ai-and-operations/01-AI任务可靠性与诊断.md) | 编排服务拒绝请求时不读请求体，Windows 下客户端偶发连接被中止 | P3 | 已关闭 | Claude | [2026-11-06-AI-008](tasks/2026-11-06-AI-008-token-reject-drain.md) | 2026-11-14 |
@@ -134,7 +134,7 @@
 | [SEC-002](../07-security/02-身份会话与对象权限.md) | 用户管理写操作缺少目标租户约束 | P1 | 已关闭 | Claude | [2026-11-03-SEC-011](tasks/2026-11-03-SEC-011-tenant-isolation.md) | 2026-11-04 |
 | [SEC-003](../07-security/02-身份会话与对象权限.md) | 角色、部门、岗位及角色授权缺少对象归属校验 | P1 | 已关闭 | Claude | [2026-11-03-SEC-011](tasks/2026-11-03-SEC-011-tenant-isolation.md) | 2026-11-04 |
 | [SEC-004](../07-security/02-身份会话与对象权限.md) | 禁用、删除或管理员重置密码未撤销已有会话 | P1 | 已关闭 | Claude | [2026-11-03-SEC-001](tasks/2026-11-03-SEC-001-session-ai-input-hotfix.md) | 2026-11-04 |
-| [SEC-005](../07-security/02-身份会话与对象权限.md) | 新增附件类型的链接未继承所属单据数据范围 | P1 | 处理中 | Claude | [2026-11-15-SEC-017](tasks/2026-11-15-SEC-017-proactive-sweep.md) | 2026-11-15 |
+| [SEC-005](../07-security/02-身份会话与对象权限.md) | 新增附件类型的链接未继承所属单据数据范围 | P1 | 已合并待发布 | Claude | [2026-11-15-SEC-017](tasks/2026-11-15-SEC-017-proactive-sweep.md) | 2026-11-15 |
 | [SEC-006](../07-security/02-身份会话与对象权限.md) | 登录幂等缓存先于身份验证，且未绑定账号 | P2 | 已关闭 | Claude | [2026-11-03-SEC-005](tasks/2026-11-03-SEC-005-object-guards.md) | 2026-11-04 |
 | [SEC-007](../07-security/02-身份会话与对象权限.md) | 恢复租户会同时重新启用此前单独停用的用户 | P1 | 已关闭 | Claude | [2026-11-03-SEC-005](tasks/2026-11-03-SEC-005-object-guards.md) | 2026-11-04 |
 | [SEC-008](../07-security/03-全量平台与商品代码审查.md) | 管理员重置密码将新密码放入URL查询串 | P1 | 已关闭 | Claude | [2026-11-03-SEC-001](tasks/2026-11-03-SEC-001-session-ai-input-hotfix.md) | 2026-11-04 |
@@ -145,8 +145,8 @@
 | [SEC-013](tasks/2026-11-14-SEC-005-post-remediation-review.md) | 退款申请按 ID 详情、备注和附件维护缺少负责人数据范围 | P1 | 已合并待发布 | Claude | [2026-11-14-BUS-038](tasks/2026-11-14-BUS-038-review-fixes.md) | 2026-11-14 |
 | [SEC-014](tasks/2026-11-14-SEC-005-post-remediation-review.md) | 本地直传完成校验后仍能重写，业务认领信任旧校验结果 | P2 | 已合并待发布 | Claude | [2026-11-14-BUS-038](tasks/2026-11-14-BUS-038-review-fixes.md) | 2026-11-14 |
 | [SEC-015](tasks/2026-11-14-BUS-038-review-fixes.md) | 退货入库单按 ID 详情对销售侧菜单用户未按单据负责人限定 | P2 | 已合并待发布 | Claude | [2026-11-14-BUS-038](tasks/2026-11-14-BUS-038-review-fixes.md) | 2026-11-14 |
-| [SEC-016](tasks/2026-11-14-BUS-038-review-fixes.md) | 挂接未挂附件不核对上传人，可按 ID 挂上别人刚上传的文件再读取 | P2 | 处理中 | Claude | [2026-11-15-SEC-017](tasks/2026-11-15-SEC-017-proactive-sweep.md) | 2026-11-15 |
-| [SEC-017](tasks/2026-11-15-SEC-017-proactive-sweep.md) | 应付按来源、采购退货按采购订单、售后单按订单列出时未校验关联单据范围 | P2 | 处理中 | Claude | [2026-11-15-SEC-017](tasks/2026-11-15-SEC-017-proactive-sweep.md) | 2026-11-15 |
+| [SEC-016](tasks/2026-11-14-BUS-038-review-fixes.md) | 挂接未挂附件不核对上传人，可按 ID 挂上别人刚上传的文件再读取 | P2 | 已合并待发布 | Claude | [2026-11-15-SEC-017](tasks/2026-11-15-SEC-017-proactive-sweep.md) | 2026-11-15 |
+| [SEC-017](tasks/2026-11-15-SEC-017-proactive-sweep.md) | 应付按来源、采购退货按采购订单、售后单按订单列出时未校验关联单据范围 | P2 | 已合并待发布 | Claude | [2026-11-15-SEC-017](tasks/2026-11-15-SEC-017-proactive-sweep.md) | 2026-11-15 |
 
 ## 运行与迁移
 
