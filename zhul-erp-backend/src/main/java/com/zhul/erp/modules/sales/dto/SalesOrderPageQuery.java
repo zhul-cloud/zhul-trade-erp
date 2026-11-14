@@ -21,6 +21,8 @@ public class SalesOrderPageQuery {
     private Integer receiptStatus;
     /** true：只看先采购后收款、还没有水单也没有到账的订单 */
     private Boolean payLaterOpen;
+    /** true：只看毛利为负、进行中的订单（同经营看板「毛利为负的订单」，日期由销售日期条件限定） */
+    private Boolean lossOnly;
     /** 来源：1-PI 转成、2-手动创建、3-售后补发 */
     private Integer source;
     private Long ownerId;

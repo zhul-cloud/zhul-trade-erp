@@ -155,6 +155,31 @@ class WorkbenchContractTest extends TenantContractSupport {
         }
     }
 
+    private static Map<String, String> todoLinks(JsonNode widget) {
+        Map<String, String> out = new java.util.HashMap<>();
+        widget.path("blocks").get(0).path("todos").forEach(t -> out.put(t.path("title").asText(), t.path("link").asText()));
+        return out;
+    }
+
+    /** UI-030：待办点进列表时带上与数字同口径的筛选 */
+    @Test
+    void todoLinks_carrySameFilterAsCount() throws Exception {
+        int[] all = {DASHBOARD, PI, ORDERS, SHIPMENTS, 100051, 100079};
+        role(ROLE, "sales");
+        loginWithResources("it_wb_links", all);
+        Map<String, String> sales = todoLinks(ok(call(get(API + "/widgets/my-todo"), token("it_wb_links", T))));
+        assertEquals("/sales/pi?unpaid=1", sales.get("PI 待收款"));
+        assertEquals("/sales/orders?progressCode=RECEIVED", sales.get("订单待出运"));
+
+        jdbc.update("delete from role where code = ?", ROLE);
+        role(ROLE, "boss");
+        loginWithResources("it_wb_links", all);
+        Map<String, String> boss = todoLinks(ok(call(get(API + "/widgets/risk-alerts"), token("it_wb_links", T))));
+        assertEquals("/sales/orders?loss=1&dateFrom=" + java.time.LocalDate.now().withDayOfMonth(1) + "&dateTo=" + java.time.LocalDate.now(),
+                boss.get("毛利为负的订单"));
+        assertEquals("/sales/pi?expired=1", boss.get("过期未收款 PI"));
+    }
+
     @Test
     void salesTodo_countsOwnInquiriesOnly() throws Exception {
         role(ROLE, "sales");
@@ -168,6 +193,9 @@ class WorkbenchContractTest extends TenantContractSupport {
             assertEquals("待确认的询盘", todos.get(0).path("title").asText());
             assertEquals(1, todos.get(0).path("count").asInt());
             assertEquals(2, todos.get(1).path("count").asInt(), "别人的询盘不算（角色数据范围为本人）");
+            // UI-030：点进询盘列表时按同一状态筛选，不限日期
+            assertEquals("/inquiry/customer-inquiries?status=3", todos.get(0).path("link").asText());
+            assertEquals("/inquiry/customer-inquiries?status=6", todos.get(1).path("link").asText());
         } finally {
             jdbc.update("delete from customer_inquiry where tenant_id = ? and inquiry_code like 'IT-WB-%'", T);
         }
