@@ -323,7 +323,8 @@ public class PaymentReceiptServiceImpl implements PaymentReceiptService {
     }
 
     private void doConfirm(Owner o, ConfirmReceiptRequest req) {
-        if (req.getAmount().signum() <= 0) {
+        // 按入库的两位 HALF_UP 舍入后判断，0.004 这类会存成 0 的金额也拒绝（audit BUS-040）
+        if (req.getAmount().setScale(2, RoundingMode.HALF_UP).signum() <= 0) {
             throw new BizException("到账金额需要大于 0");
         }
         BigDecimal amount = req.getAmount().setScale(2, RoundingMode.HALF_UP);
@@ -480,7 +481,7 @@ public class PaymentReceiptServiceImpl implements PaymentReceiptService {
         if (orderNo.isEmpty()) {
             throw new BizException("请填写平台订单号");
         }
-        if (req.getAmount().signum() <= 0) {
+        if (req.getAmount().setScale(2, RoundingMode.HALF_UP).signum() <= 0) {
             throw new BizException("客户付款金额需要大于 0");
         }
         PaymentReceiptDO dup = receiptMapper.selectOne(new LambdaQueryWrapper<PaymentReceiptDO>()

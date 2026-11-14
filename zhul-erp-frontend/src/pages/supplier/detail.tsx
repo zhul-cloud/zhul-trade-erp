@@ -11,7 +11,7 @@ import {
 import { history, useAccess, useParams } from '@umijs/max';
 import { Button, Skeleton } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
-import { usePageTitle } from '@/components/PageTabs/hooks';
+import { useOnReactivate, usePageTitle } from '@/components/PageTabs/hooks';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatDateTime } from '@/utils/format';
@@ -98,6 +98,10 @@ const SupplierDetailPage: React.FC = () => {
   useEffect(() => {
     load();
   }, [load]);
+
+  // 从其他页面返回时重新取数（audit UI-055）
+
+  useOnReactivate(load);
 
   const back = () => history.push(LIST_PATH);
   const canEdit = !!access['partner:supplier:edit'] && !!record;

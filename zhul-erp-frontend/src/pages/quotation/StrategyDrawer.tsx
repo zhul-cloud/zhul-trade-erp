@@ -21,6 +21,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Pill } from '@/pages/inquiry/shared/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
+import { liveRequests } from '@/utils/liveRequests';
 import { calcLine, formatMargin, MODE_PRICE, round2 } from './calc';
 import { type PriceHistory, quotationApi, readBizError } from './service';
 import {
@@ -100,15 +101,15 @@ const StrategyDrawer: React.FC<{
   const [picked, setPicked] = useState<Set<number>>(new Set());
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) return undefined;
+    const { live, cancel } = liveRequests();
     setSeed(Math.floor(Math.random() * 1e9));
     quotationApi
       .strategyTiers()
       .then(setTiers)
       .catch(() => setTiers([]));
     setHistory(undefined);
-    quotationApi
-      .priceHistory(quotationId, versionNo)
+    live(quotationApi.priceHistory(quotationId, versionNo))
       .then((h) => {
         setHistory(h);
         setPicked(
@@ -118,6 +119,7 @@ const StrategyDrawer: React.FC<{
         );
       })
       .catch(() => setHistory([]));
+    return cancel;
   }, [open, quotationId, versionNo, currency]);
 
   const historyByItem = useMemo(

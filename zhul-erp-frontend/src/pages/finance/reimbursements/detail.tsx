@@ -10,7 +10,7 @@ import {
 } from '@/components/DocFields/DocPage';
 import { DocFilesCard } from '@/components/DocFiles';
 import { ellipsisRender } from '@/components/EllipsisText';
-import { usePageTitle } from '@/components/PageTabs/hooks';
+import { useOnReactivate, usePageTitle } from '@/components/PageTabs/hooks';
 import { Card, PageTitle, useWide } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { readBizError } from '@/pages/sales/service';
@@ -56,6 +56,8 @@ const ReimbursementDetail: React.FC = () => {
   useEffect(() => {
     load();
   }, [load]);
+  // 从其他页面返回时重新取数（audit UI-055）
+  useOnReactivate(load);
 
   if (error) return <ErrorHint message={error} onRetry={load} />;
   if (!bx) return <Skeleton active paragraph={{ rows: 12 }} />;

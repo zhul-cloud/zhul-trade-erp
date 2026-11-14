@@ -6,6 +6,7 @@ import {
 import { history } from '@umijs/max';
 import { Alert, Button, Skeleton } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
+import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { Card, Pill } from '@/pages/inquiry/shared/components';
 import { type OverduePis, piApi, readBizError } from '@/pages/sales/service';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -32,6 +33,10 @@ const OverduePiCard: React.FC = () => {
   useEffect(() => {
     load();
   }, [load]);
+
+  // 从其他页面返回时重新取数（audit UI-055）
+
+  useOnReactivate(load);
 
   const viewAll = () => history.push('/sales/pi?expired=1');
 

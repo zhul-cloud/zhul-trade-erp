@@ -4,6 +4,7 @@ import { App, Input, Segmented, Select, Table } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
 import { ModelQtyCell } from '@/components/DocFields/DocPage';
 import SourceNos, { useUrlFilter } from '@/components/DocFields/SourceNos';
+import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { TagList } from '@/pages/inquiry/customer-inquiry/ModelCells';
 import { Card, Pill } from '@/pages/inquiry/shared/components';
 import { PR_STATUS_TONE } from '@/pages/sales/after-sales/service';
@@ -75,6 +76,8 @@ const PurchaseReturnsPage: React.FC = () => {
   useEffect(() => {
     load();
   }, [load]);
+  // 从其他页面返回时重新取数（audit UI-055）
+  useOnReactivate(load);
 
   const searchSup = async (kw: string) => {
     try {

@@ -7,7 +7,7 @@ import {
   RelatedDocsCard,
 } from '@/components/DocFields/DocPage';
 import { DocFilesCard } from '@/components/DocFiles';
-import { usePageTitle } from '@/components/PageTabs/hooks';
+import { useOnReactivate, usePageTitle } from '@/components/PageTabs/hooks';
 import {
   MigratedPill,
   PageTitle,
@@ -47,6 +47,10 @@ const OtherIncomeDetail: React.FC = () => {
   useEffect(() => {
     load();
   }, [load]);
+  // 从其他页面返回时重新取数（audit UI-055）；修改弹窗开着时不刷新，以免冲掉正在填的内容
+  useOnReactivate(() => {
+    if (!editing) load();
+  });
 
   if (error) return <ErrorHint message={error} onRetry={load} />;
   if (!x) return <Skeleton active paragraph={{ rows: 10 }} />;

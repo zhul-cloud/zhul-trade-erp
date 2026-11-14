@@ -1,7 +1,7 @@
 import { Link, useParams, useSearchParams } from '@umijs/max';
 import { Segmented } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
-import { usePageTitle } from '@/components/PageTabs/hooks';
+import { useOnReactivate, usePageTitle } from '@/components/PageTabs/hooks';
 import { Card, PageTitle, Pill } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -32,6 +32,10 @@ const ListingProductDetail: React.FC = () => {
   useEffect(() => {
     load();
   }, [load]);
+
+  // 从其他页面返回时重新取数（audit UI-055）
+
+  useOnReactivate(load);
 
   if (error) return <ErrorHint message={error} onRetry={load} />;
   if (!data) return <div style={{ color: palette.sub }}>正在加载…</div>;

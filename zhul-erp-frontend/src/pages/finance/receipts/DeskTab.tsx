@@ -9,6 +9,7 @@ import type { TableColumnsType } from 'antd';
 import { App, Button, Form, Input, Segmented, Select, Table } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
 import { CustomerSub } from '@/components/DocFields';
+import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import {
   Card,
@@ -79,6 +80,10 @@ const DeskTab: React.FC<{ onTotal?: (n: number) => void }> = ({ onTotal }) => {
   useEffect(() => {
     load();
   }, [load]);
+
+  // 从其他页面返回时重新取数（audit UI-055）
+
+  useOnReactivate(load);
 
   const rowKey = (r: ReceiptDeskRow) =>
     r.piId ? `P${r.piId}` : `S${r.orderId}`;

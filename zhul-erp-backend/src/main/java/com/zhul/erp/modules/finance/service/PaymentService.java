@@ -735,6 +735,27 @@ public class PaymentService {
                 .collect(Collectors.toMap(PayableDO::getId, Function.identity()));
     }
 
+    /**
+     * 付款单附件的访问链接（audit SEC-005）：与详情、报销一致——付款与应付管理看全部；只有采购订单菜单的按核销到的采购订单采购员；
+     * 运费账单菜单看核销到运费账单应付的；报销菜单看自己垫付的，有报销付款权限的看全部
+     */
+    public boolean attachmentVisible(Long id) {
+        PaymentDO p = id == null ? null : paymentMapper.selectById(id);
+        if (p == null || p.getDeletedAt() != null || !Objects.equals(p.getTenantId(), PiStore.tenantId())) {
+            return false;
+        }
+        if (perm.canAccessMenu("/finance/payments") || perm.canAccessMenu("/finance/payables")) {
+            return true;
+        }
+        if (perm.canAccessMenu("/finance/reimbursements") && (perm.has(FinanceConstants.PERM_REIMBURSE_PAY)
+                || StringUtils.hasText(p.getAdvanceUser()) && p.getAdvanceUser().equals(SecurityUtils.getCurrentUsername()))) {
+            return true;
+        }
+        java.util.Collection<PayableDO> payables = payablesOf(allocationsOf(List.of(id)).getOrDefault(id, List.of())).values();
+        return purchaseVisible(payables) || perm.canAccessMenu("/logistics/statements")
+                && payables.stream().anyMatch(x -> Objects.equals(x.getSourceType(), FinanceConstants.SOURCE_STATEMENT));
+    }
+
     private boolean purchaseVisible(java.util.Collection<PayableDO> payables) {
         if (!perm.canAccessMenu("/purchase/orders")) {
             return false;

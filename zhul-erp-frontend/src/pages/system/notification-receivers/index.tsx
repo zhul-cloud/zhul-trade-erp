@@ -10,6 +10,7 @@ import {
 import { useAccess } from '@umijs/max';
 import { App, Button, Segmented, Select, Skeleton } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
+import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { Card, PageTitle } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { readBizError } from '@/pages/warehouse/service';
@@ -249,6 +250,10 @@ const NotificationReceivers: React.FC = () => {
   useEffect(() => {
     load();
   }, [load]);
+
+  // 从其他页面返回时重新取数（audit UI-055）
+
+  useOnReactivate(load);
 
   const save = async (post: string, poBuyer: boolean, userIds: number[]) => {
     try {

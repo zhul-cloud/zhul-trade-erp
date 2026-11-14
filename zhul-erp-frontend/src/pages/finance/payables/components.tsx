@@ -20,7 +20,14 @@ import {
   Table,
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
+import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { Card, Pill } from '@/pages/inquiry/shared/components';
 import type { Tone } from '@/pages/inquiry/shared/constants';
 import {
@@ -32,6 +39,7 @@ import { AttachmentWall, usePreview } from '@/pages/warehouse/components';
 import type { Attachment } from '@/pages/warehouse/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
+import { liveRequests } from '@/utils/liveRequests';
 import {
   type DueState,
   METHOD,
@@ -324,11 +332,15 @@ export const RegisterPaymentDrawer: React.FC<{
       .catch(() => setAccounts([]));
   }, [open, anchorId, defaultMethod, canCompany, message]);
 
+  // 关闭或换了应付单后，上一次的取数迟到时丢弃，核销分配不能落到上一张应付单上（audit UI-056）
+  const loadSeq = useRef(0);
   const load = useCallback(
     async (id: number) => {
+      const seq = ++loadSeq.current;
       setLoading(true);
       try {
         const list = await payableApi.open(id);
+        if (seq !== loadSeq.current) return;
         setRows(list);
         const due = list
           .filter((r) => r.status !== PAY_STATUS.CLOSED)
@@ -344,9 +356,9 @@ export const RegisterPaymentDrawer: React.FC<{
             : autoFill(list, first),
         );
       } catch (e) {
-        message.error(readBizError(e).message);
+        if (seq === loadSeq.current) message.error(readBizError(e).message);
       } finally {
-        setLoading(false);
+        if (seq === loadSeq.current) setLoading(false);
       }
     },
     [message],
@@ -354,16 +366,20 @@ export const RegisterPaymentDrawer: React.FC<{
 
   useEffect(() => {
     if (open && anchor) load(anchor);
+    return () => {
+      loadSeq.current += 1;
+    };
   }, [open, anchor, load]);
 
   useEffect(() => {
     setPayeeAccounts([]);
     setPayeeAccountId(undefined);
-    if (!open || !anchor) return;
-    paymentApi
-      .payeeAccounts(anchor)
+    if (!open || !anchor) return undefined;
+    const { live, cancel } = liveRequests();
+    live(paymentApi.payeeAccounts(anchor))
       .then(setPayeeAccounts)
       .catch(() => setPayeeAccounts([]));
+    return cancel;
   }, [open, anchor]);
 
   const currency = rows[0]?.currencyCode ?? 'CNY';
@@ -1295,6 +1311,10 @@ export const PayablePanel: React.FC<{
   useEffect(() => {
     load();
   }, [load]);
+
+  // 从其他页面返回时重新取数（audit UI-055）
+
+  useOnReactivate(load);
 
   if (error) {
     return (

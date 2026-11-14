@@ -36,6 +36,7 @@ import {
   shipmentApi,
 } from '@/pages/warehouse/service';
 import { useAppTheme } from '@/theme/AppTheme';
+import { liveRequests } from '@/utils/liveRequests';
 
 export const CARRIERS = [
   '顺丰',
@@ -93,10 +94,10 @@ const ShipmentDrawer: React.FC<{
   }, [open]);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) return undefined;
+    const { live, cancel } = liveRequests();
     setForm(undefined);
-    shipmentApi
-      .form({ poId, shipmentId })
+    live(shipmentApi.form({ poId, shipmentId }))
       .then((f) => {
         setForm(f);
         setCarrier(f.carrier ?? '');
@@ -126,6 +127,7 @@ const ShipmentDrawer: React.FC<{
         message.error(readBizError(e).message);
         onClose();
       });
+    return cancel;
   }, [open, poId, shipmentId, message, onClose]);
 
   // 按快递时效估算预计到货：快递公司或发货日期变了就重新算（手动改过的不覆盖）

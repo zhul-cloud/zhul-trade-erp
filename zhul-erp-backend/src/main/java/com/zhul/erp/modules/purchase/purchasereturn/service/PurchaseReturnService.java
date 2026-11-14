@@ -619,10 +619,9 @@ public class PurchaseReturnService {
 
     /** 采购订单详情：它的采购退货单 */
     public List<PurchaseReturnVO> ofPurchaseOrder(Long poId) {
-        return toVos(mapper.selectList(new LambdaQueryWrapper<PurchaseReturnDO>()
-                .eq(PurchaseReturnDO::getTenantId, PiStore.tenantId())
+        // 与采购退货详情一致，按负责人的数据范围（audit SEC-017）
+        return toVos(mapper.selectList(scoped()
                 .eq(PurchaseReturnDO::getPoId, poId)
-                .isNull(PurchaseReturnDO::getDeletedAt)
                 .orderByDesc(PurchaseReturnDO::getId)), false);
     }
 

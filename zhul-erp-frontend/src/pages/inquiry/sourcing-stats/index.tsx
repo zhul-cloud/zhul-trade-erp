@@ -3,6 +3,7 @@ import type { TableColumnsType } from 'antd';
 import { App, Segmented, Table } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
+import { useOnReactivate } from '@/components/PageTabs/hooks';
 import StatsRangeFilter, { presetRange } from '@/components/StatsRangeFilter';
 import { Card, PageTitle, Pill } from '@/pages/inquiry/shared/components';
 import { readBizError } from '@/pages/sales/service';
@@ -49,6 +50,10 @@ const SourcingStatsPage: React.FC = () => {
   useEffect(() => {
     load();
   }, [load]);
+
+  // 从其他页面返回时重新取数（audit UI-055）
+
+  useOnReactivate(load);
 
   /** 打开该月（合计为整个范围）的询盘单列表 */
   const open = (r: MonthRow) => {

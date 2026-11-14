@@ -1,6 +1,7 @@
 import { history } from '@umijs/max';
 import { Button, Drawer, Skeleton, Table, type TableColumnsType } from 'antd';
 import React, { useEffect, useState } from 'react';
+import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { formatMargin } from '@/pages/quotation/calc';
 import {
@@ -39,6 +40,10 @@ const QuotationPreviewDrawer: React.FC<{
   useEffect(() => {
     load();
   }, [load]);
+
+  // 从其他页面返回时重新取数（audit UI-055）
+
+  useOnReactivate(load);
 
   const cur = q?.currencyCode ?? 'USD';
   const columns: TableColumnsType<QuotationItem> = [

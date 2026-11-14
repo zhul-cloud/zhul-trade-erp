@@ -7,6 +7,7 @@ import {
 import { App, Button, Input, Popconfirm, Upload } from 'antd';
 import React, { useState } from 'react';
 import { useDocPreview } from '@/components/DocFiles';
+import { useUnsavedGuard } from '@/components/PageTabs/hooks';
 import { type Attachment, attachmentApi } from '@/pages/warehouse/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import { downloadFile } from '@/utils/fileLink';
@@ -191,6 +192,10 @@ export const OrderFilesCard: React.FC<{
   const { message } = App.useApp();
   const [editing, setEditing] = useState<string>();
   const [saving, setSaving] = useState(false);
+  // 备注改了还没保存：关标签、刷新、返回或离开浏览器页面前先确认（audit UI-057，与公共附件卡一致）
+  useUnsavedGuard(
+    editing !== undefined && editing.trim() !== (order.remark ?? '').trim(),
+  );
   const files = order.attachments ?? [];
   /** 返回是否成功 */
   const run = async (fn: () => Promise<unknown>, ok: string) => {
