@@ -1786,6 +1786,10 @@ public class SalesOrderServiceImpl implements SalesOrderService {
             w.eq(SalesOrderDO::getPayLater, 1)
                     .inSql(SalesOrderDO::getPiId, piIdsByReceipt(tenant, SalesConstants.RECEIPT_NONE));
         }
+        if (Boolean.TRUE.equals(q.getLossOnly())) {
+            w.eq(SalesOrderDO::getStatus, SalesConstants.SO_ACTIVE)
+                    .lt(SalesOrderDO::getNetProfitCny, BigDecimal.ZERO);
+        }
         if (q.getReceiptStatus() != null) {
             int receipt = q.getReceiptStatus();
             // PI 转成的订单按 PI 的收款状态，手动创建的订单按订单自己的
@@ -1906,11 +1910,12 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         Map<String, Long> byCode = running.stream().filter(o -> !Objects.equals(o.getSource(), SalesConstants.SO_FEE))
                 .collect(Collectors.groupingBy(SalesOrderDO::getProgressCode, Collectors.counting()));
         Map<String, String> names = progress.names();
-        vo.setProgressCounts(progress.ordered().stream().filter(st -> byCode.containsKey(st.code())).map(st -> {
+        // 列出全部进行中的进度（没有订单的计 0），订单状态筛选从工作台带进来时也能显示名称（UI-030）
+        vo.setProgressCounts(progress.ordered().stream().filter(st -> !SalesConstants.PROGRESS_COMPLETED.equals(st.code())).map(st -> {
             SalesOrderStatsVO.ProgressCount c = new SalesOrderStatsVO.ProgressCount();
             c.setCode(st.code());
             c.setName(names.getOrDefault(st.code(), st.name()));
-            c.setCount(byCode.get(st.code()));
+            c.setCount(byCode.getOrDefault(st.code(), 0L));
             return c;
         }).toList());
         Set<Long> runningIds = running.stream().map(SalesOrderDO::getId).collect(Collectors.toSet());

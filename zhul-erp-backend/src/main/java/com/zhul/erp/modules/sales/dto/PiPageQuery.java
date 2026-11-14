@@ -12,6 +12,8 @@ public class PiPageQuery {
     private Integer receiptStatus;
     /** 只看已过期未收款：已发送、未付款且过了有效期 */
     private Boolean expiredUnpaid;
+    /** 只看待收款：已发送或已转订单、还没付清（同工作台「PI 待收款」） */
+    private Boolean unpaid;
     private Long ownerId;
     private LocalDate createdFrom;
     private LocalDate createdTo;

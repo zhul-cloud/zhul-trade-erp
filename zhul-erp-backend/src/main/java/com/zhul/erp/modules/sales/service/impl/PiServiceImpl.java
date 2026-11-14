@@ -1047,6 +1047,9 @@ public class PiServiceImpl implements PiService {
         if (Boolean.TRUE.equals(q.getExpiredUnpaid())) {
             expiredUnpaid(w);
         }
+        if (Boolean.TRUE.equals(q.getUnpaid())) {
+            PiStore.unpaid(w);
+        }
         if (q.getOwnerId() != null) {
             w.eq(ProformaInvoiceDO::getOwnerId, q.getOwnerId());
         }
@@ -1116,6 +1119,7 @@ public class PiServiceImpl implements PiService {
         LocalDateTime monthStart = LocalDate.now().withDayOfMonth(1).atStartOfDay();
         PiStatsVO vo = new PiStatsVO();
         vo.setDraftCount(piMapper.selectCount(scoped().eq(ProformaInvoiceDO::getStatus, SalesConstants.PI_DRAFT)));
+        vo.setUnpaidCount(piMapper.selectCount(PiStore.unpaid(scoped())));
         vo.setSlipOnlyCount(piMapper.selectCount(scoped().ne(ProformaInvoiceDO::getStatus, SalesConstants.PI_VOID)
                 .eq(ProformaInvoiceDO::getReceiptStatus, SalesConstants.RECEIPT_SLIP_ONLY)));
         List<Long> piIds = piMapper.selectList(scoped().select(ProformaInvoiceDO::getId)).stream().map(ProformaInvoiceDO::getId).toList();

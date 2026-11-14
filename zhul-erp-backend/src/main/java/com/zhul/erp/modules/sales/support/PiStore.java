@@ -145,6 +145,12 @@ public class PiStore {
         }
     }
 
+    /** 待收款：已发送或已转订单、还没付清；PI 列表「待收款」与工作台「PI 待收款」共用 */
+    public static LambdaQueryWrapper<ProformaInvoiceDO> unpaid(LambdaQueryWrapper<ProformaInvoiceDO> w) {
+        return w.in(ProformaInvoiceDO::getStatus, SalesConstants.PI_SENT, SalesConstants.PI_CONVERTED)
+                .ne(ProformaInvoiceDO::getReceiptStatus, SalesConstants.RECEIPT_PAID);
+    }
+
     public static int tenantId() {
         Integer t = TenantContext.getTenantId();
         return t == null ? 0 : t;

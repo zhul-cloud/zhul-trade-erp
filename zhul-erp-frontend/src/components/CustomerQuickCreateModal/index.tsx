@@ -12,6 +12,7 @@ import type {
   SaveCustomerPayload,
 } from '@/services/zhul/masterdata';
 import { createCustomer, getCustomer } from '@/services/zhul/masterdata';
+import { UnitSelect, useBusinessUnits } from '@/utils/businessUnit';
 
 interface CustomerQuickCreateModalProps {
   open: boolean;
@@ -35,6 +36,9 @@ const CustomerQuickCreateModal: React.FC<CustomerQuickCreateModalProps> = ({
 }) => {
   const { message, modal } = App.useApp();
   const { options: countryOptions } = useCountries();
+  const [bu] = useBusinessUnits();
+  // 与完整客户表单一致：本人主部门不属于事业部、可选事业部多于一个时必须选（只有一个时后端自动归入）
+  const chooseUnit = bu.enabled && bu.myUnitId == null && bu.units.length > 1;
 
   const submit = async (values: SaveCustomerPayload): Promise<boolean> => {
     try {
@@ -147,6 +151,20 @@ const CustomerQuickCreateModal: React.FC<CustomerQuickCreateModalProps> = ({
           rules={[{ type: 'email', message: '请输入正确的邮箱格式' }]}
         />
       </ProForm.Group>
+      {chooseUnit && (
+        <ProForm.Item
+          name="businessUnitId"
+          label="所属事业部"
+          style={{ width: 328 }}
+          rules={[{ required: true, message: '请选择所属事业部' }]}
+        >
+          <UnitSelect
+            info={bu}
+            placeholder="请选择所属事业部"
+            style={{ width: '100%' }}
+          />
+        </ProForm.Item>
+      )}
     </ModalForm>
   );
 };
