@@ -7,9 +7,9 @@
 
 ## 2. 数据库
 
-- [ ] 2.1 迁移：`sc_demand_signal`、`sc_demand`、`sc_coverage_channel`、`sc_followup_log`、`sc_gap_project`、`sc_gap_project_item` 六张表（按建表规范，含索引）；`sc_demand` 上「租户 + 品牌 + 归一化型号」唯一，信号表上「租户 + 来源类型 + 来源行 id」唯一，处理记录表上系统登记的「租户 + 来源类型 + 来源 id」唯一
-- [ ] 2.2 迁移：一级菜单「供应链管理」与两个页面、四个按钮权限；系统设置「供应证据有效天数」；作战卡内容（从五份 SOP 分册整理）；加进套餐并授给内置租户管理员
-- [ ] 2.3 回滚脚本；六张表在 `TenantTables` 归为私有，`TenantIsolationContractTest` 通过
+- [x] 2.1 迁移：`sc_demand_signal`、`sc_demand`、`sc_coverage_channel`、`sc_followup_log`、`sc_gap_project`、`sc_gap_project_item` 六张表（按建表规范，含索引）；`sc_demand` 上「租户 + 品牌 + 归一化型号」唯一，信号表上「租户 + 来源类型 + 来源行 id」唯一，处理记录表上系统登记的「租户 + 来源类型 + 来源 id」唯一
+- [x] 2.2 迁移：一级菜单「供应链管理」与两个页面、四个按钮权限；系统设置「供应证据有效天数」；作战卡内容（从五份 SOP 分册整理）；加进套餐并授给内置租户管理员
+- [x] 2.3 回滚脚本；六张表在 `TenantTables` 归为私有，`TenantIsolationContractTest` 通过
 
 ## 3. 后端：需求信号与需求对象
 

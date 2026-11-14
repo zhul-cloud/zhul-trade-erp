@@ -9,6 +9,7 @@ const GROUP_LABELS: Record<string, string> = {
   document: '单据',
   sales: '销售',
   purchase: '采购',
+  supply: '供应',
   product: '商品',
   finance: '财务',
   sys: '系统',
