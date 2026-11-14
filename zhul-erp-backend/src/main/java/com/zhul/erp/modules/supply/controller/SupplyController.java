@@ -262,9 +262,12 @@ public class SupplyController {
     public Result<PageResult<DemandVO>> matrixModels(@RequestParam(required = false) Long brandId,
                                                      @RequestParam(required = false) Long categoryId,
                                                      @RequestParam(required = false) Integer coverage,
+                                                     @RequestParam(required = false) Integer priority,
+                                                     @RequestParam(required = false) String keyword,
+                                                     @RequestParam(defaultValue = "false") boolean all,
                                                      @RequestParam(defaultValue = "1") int page,
                                                      @RequestParam(defaultValue = "20") int size) {
-        var p = matrixService.models(brandId, categoryId, coverage, page, size);
+        var p = matrixService.models(brandId, categoryId, coverage, priority, keyword, all, page, size);
         return Result.ok(PageResult.of(p.getTotal(), p.getRecords()));
     }
 }

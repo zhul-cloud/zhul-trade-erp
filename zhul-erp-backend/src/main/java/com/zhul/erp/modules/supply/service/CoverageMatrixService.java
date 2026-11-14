@@ -94,10 +94,18 @@ public class CoverageMatrixService {
         return v;
     }
 
-    /** 型号清单：某品牌某品类下已进入矩阵的需求对象，按更新时间倒序 */
-    public Page<DemandVO> models(Long brandId, Long categoryId, Integer coverage, int page, int size) {
+    /**
+     * 型号清单，按更新时间倒序；all 为 true 时含观察中的需求对象（记处理选型号用），否则只看已进入矩阵的。
+     * keyword 按型号模糊匹配。
+     */
+    public Page<DemandVO> models(Long brandId, Long categoryId, Integer coverage, Integer priority, String keyword,
+                                 boolean all, int page, int size) {
+        String kw = keyword == null ? "" : keyword.trim();
         Page<ScDemandDO> p = demandMapper.selectPage(Page.of(page, Math.min(size, 200)), new LambdaQueryWrapper<ScDemandDO>()
-                .eq(ScDemandDO::getStatus, SupplyConstants.DEMAND_IN_MATRIX)
+                .eq(!all, ScDemandDO::getStatus, SupplyConstants.DEMAND_IN_MATRIX)
+                .ne(all, ScDemandDO::getStatus, SupplyConstants.DEMAND_PAUSED)
+                .eq(priority != null, ScDemandDO::getPriority, priority)
+                .like(!kw.isEmpty(), ScDemandDO::getModel, kw)
                 .eq(brandId != null, ScDemandDO::getBrandId, brandId)
                 .eq(categoryId != null, ScDemandDO::getCategoryId, categoryId)
                 .eq(coverage != null, ScDemandDO::getCoverageStatus, coverage)

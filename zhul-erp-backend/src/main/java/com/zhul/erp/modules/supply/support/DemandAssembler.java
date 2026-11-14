@@ -75,6 +75,7 @@ public class DemandAssembler {
             v.setPriorityManual(d.getPriorityManual() != null && d.getPriorityManual() == 1);
             v.setCoveragePending(d.getCoveragePending() != null && d.getCoveragePending() == 1);
             v.setEvidenceValid(DemandRules.evidenceValid(d.getEvidenceDate(), today, days));
+            v.setEvidenceExpireDate(d.getEvidenceDate() == null ? null : d.getEvidenceDate().plusDays(days));
             v.setBrandName(brands.getOrDefault(d.getBrandId(), ""));
             v.setCategoryName(cats.get(d.getCategoryId()));
             v.setOwnerName(users.get(d.getOwnerId()));

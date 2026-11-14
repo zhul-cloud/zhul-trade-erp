@@ -180,6 +180,35 @@ class SupplyChainContractTest extends IntegrationTestBase {
         assertNotEquals(0, call(get(API + "/demands/" + other), buyer).path("code").asInt(), "跨租户读取被拒");
     }
 
+    @Test
+    void matrixModelsFilters() throws Exception {
+        runJob();
+        // 同品牌再放一个观察中、一个暂不覆盖的需求对象
+        jdbc.update("insert into sc_demand (tenant_id, brand_id, model_key, model, scope_key, status, priority) values"
+                + " (0, ?, 'ITSCW01', 'ITSC-W01', 'm:ITSCW01', 1, 1), (0, ?, 'ITSCP01', 'ITSC-P01', 'm:ITSCP01', 3, 1)",
+                brandId, brandId);
+        loginWithResources("it_sc_viewer", MENU_COVERAGE);
+        String viewer = token("it_sc_viewer");
+        String brand = String.valueOf(brandId);
+
+        JsonNode rows = ok(call(get(API + "/matrix/models").param("brandId", brand), viewer)).path("records");
+        assertEquals(List.of("ITSC-001"), models(rows), "默认只看已进入矩阵的");
+        rows = ok(call(get(API + "/matrix/models").param("brandId", brand).param("all", "true"), viewer)).path("records");
+        assertEquals(2, rows.size(), "all 含观察中，不含暂不覆盖：" + rows);
+        assertTrue(models(rows).containsAll(List.of("ITSC-001", "ITSC-W01")), rows.toString());
+        rows = ok(call(get(API + "/matrix/models").param("brandId", brand).param("all", "true")
+                .param("keyword", " w01 "), viewer)).path("records");
+        assertEquals(List.of("ITSC-W01"), models(rows), "关键词按型号模糊匹配，去掉首尾空格、不分大小写");
+        rows = ok(call(get(API + "/matrix/models").param("brandId", brand).param("priority", "1"), viewer)).path("records");
+        assertEquals(0, rows.size(), "按优先级筛选：矩阵内型号是高优先级");
+    }
+
+    private static List<String> models(JsonNode rows) {
+        List<String> out = new java.util.ArrayList<>();
+        rows.forEach(r -> out.add(r.path("model").asText()));
+        return out;
+    }
+
     private void runJob() {
         TenantContext.runAs(0, () -> job.runTenant(0, LocalDate.now()));
     }
