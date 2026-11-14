@@ -82,3 +82,4 @@
 | 2026-11-14 / Claude | 认领复审 11 项，接续 Codex 复审报告；在 develop `74240e86` 上实施修复，新增 SEC-015、SEC-016 两个审查外发现并一并修复；修复前后测试对照见上表 | 已创建 [#312](https://github.com/zhul-cloud/zhul-trade-erp/pull/312)；合并后在本机按 develop 重建，做真实页面与 HTTP 复测 |
 | 2026-11-14 / Claude | [#312](https://github.com/zhul-cloud/zhul-trade-erp/pull/312) CI 6 项通过，自动合并到 develop `8548f03e`；本机按该代码重建后完成 HTTP / 数据库 31 项与真实页面复测，发现刷新后未保存标记残留（#312 引入），在 `fix/review-1114-refresh-dirty` 修正并复测通过；测试数据已清理 | 修正 PR 合并；发布由用户决定，发布后逐 ID 验收 |
 | 2026-11-15 / Claude | [#313](https://github.com/zhul-cloud/zhul-trade-erp/pull/313) CI 6 项通过，合并到 develop `fca7e86f`；13 个 ID 均为已合并待发布 | 发布由用户决定；发布后按本机等同生产逐 ID 验收再关闭 |
+| 2026-11-15 / Claude | 全项目同类排查发现本轮三项修复不完整：SEC-005 把付款、报销、费用、快递与退货运费凭证误归为只校验租户；SEC-016 未覆盖 `reassign`；AI-005 未覆盖旧的整份读取路径。三项改回处理中，转 [2026-11-15-SEC-017](2026-11-15-SEC-017-proactive-sweep.md) 继续 | 见新任务 |
