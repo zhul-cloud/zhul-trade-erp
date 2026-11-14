@@ -21,7 +21,7 @@ public final class WarehouseConstants {
 
     public static final int GR_VALID = 1;
     public static final int GR_REVERSED = 2;
-    public static final Map<Integer, String> GR_STATUS_NAMES = Map.of(GR_VALID, "有效", GR_REVERSED, "已冲销");
+    public static final Map<Integer, String> GR_STATUS_NAMES = Map.of(GR_VALID, "已入库", GR_REVERSED, "已冲销");
 
     public static final int DIFF_SHORT = 1;
     public static final int DIFF_DEFECTIVE = 2;

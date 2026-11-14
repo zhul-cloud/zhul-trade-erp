@@ -1,22 +1,7 @@
-import {
-  HistoryOutlined,
-  PlusOutlined,
-  SearchOutlined,
-} from '@ant-design/icons';
+import { PlusOutlined, SearchOutlined } from '@ant-design/icons';
 import { history, useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
-import {
-  Alert,
-  App,
-  Button,
-  Checkbox,
-  Drawer,
-  Input,
-  Select,
-  Space,
-  Spin,
-  Table,
-} from 'antd';
+import { App, Button, Checkbox, Input, Select, Space, Table } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
 import { Card, PageTitle } from '@/pages/inquiry/shared/components';
 import { auditColumns } from '@/pages/purchase/components';
@@ -30,7 +15,6 @@ import { BatchPayModal } from './BatchPayModal';
 import { currencyTotals, groupPayables, MAX_BATCH_PAYABLES } from './batch';
 import {
   DueTag,
-  PayableBody,
   PayeeTypePill,
   PayStatusPill,
   RefundModal,
@@ -43,7 +27,7 @@ import {
   type PayableQuery,
   type PayableStats,
   payableApi,
-  SOURCE,
+  sourcePath,
 } from './service';
 
 // 金额不折行（audit UI-041）
@@ -69,14 +53,6 @@ const initial = (): Filters => ({
   showClosed: false,
 });
 
-/** 来源单据链接：采购订单、运费账单 */
-const sourcePath = (p: Payable) =>
-  p.sourceType === SOURCE.PO
-    ? `/purchase/orders/${p.sourceId}`
-    : p.sourceType === SOURCE.EXPENSE
-      ? '/finance/expenses'
-      : '/logistics/statements';
-
 /** 财务管理 → 应付单：采购订单、运费账单确认后自动生成；付款按到期先后核销 */
 const PayableManagement: React.FC = () => {
   const { message } = App.useApp();
@@ -91,8 +67,6 @@ const PayableManagement: React.FC = () => {
   const [total, setTotal] = useState(0);
   const [stats, setStats] = useState<PayableStats>();
   const [loading, setLoading] = useState(true);
-  const [detail, setDetail] = useState<Payable>();
-  const [detailLoading, setDetailLoading] = useState(false);
   const [payAnchor, setPayAnchor] = useState<number | 'pick'>();
   const [refund, setRefund] = useState<Payable>();
   const [picked, setPicked] = useState<Payable[]>([]);
@@ -130,17 +104,7 @@ const PayableManagement: React.FC = () => {
     load();
   }, [load]);
 
-  const openDetail = async (id: number) => {
-    setDetailLoading(true);
-    setDetail(undefined);
-    try {
-      setDetail(await payableApi.detail(id));
-    } catch (e) {
-      message.error(readBizError(e).message);
-    } finally {
-      setDetailLoading(false);
-    }
-  };
+  const openDetail = (id: number) => history.push(`/finance/payables/${id}`);
 
   const apply = (next: Partial<Filters>) => {
     const f = { ...draft, ...next };
@@ -298,7 +262,7 @@ const PayableManagement: React.FC = () => {
     {
       title: '操作',
       key: 'op',
-      width: 110,
+      width: 140,
       fixed: 'right',
       render: (_, r) => (
         <Space size={10}>
@@ -322,15 +286,13 @@ const PayableManagement: React.FC = () => {
               退款
             </button>
           )}
-          {!canRegister && (
-            <button
-              type="button"
-              className="zhul-link"
-              onClick={() => openDetail(r.id)}
-            >
-              查看
-            </button>
-          )}
+          <button
+            type="button"
+            className="zhul-link"
+            onClick={() => openDetail(r.id)}
+          >
+            查看
+          </button>
         </Space>
       ),
     },
@@ -536,73 +498,11 @@ const PayableManagement: React.FC = () => {
           默认按更新时间倒序；按到期筛选时按到期日排序。已关闭且没有欠款的默认不显示。
         </div>
       </Card>
-      <Drawer
-        open={detailLoading || !!detail}
-        onClose={() => setDetail(undefined)}
-        size="min(900px, 96vw)"
-        destroyOnHidden
-        title={
-          detail ? (
-            <Space>
-              {detail.payableNo}
-              <PayStatusPill status={detail.status} />
-            </Space>
-          ) : (
-            '应付单'
-          )
-        }
-        extra={
-          detail && canRegister ? (
-            <Space>
-              {detail.creditAmount > 0 && (
-                <Button onClick={() => setRefund(detail)}>登记退款</Button>
-              )}
-              {(detail.status === PAY_STATUS.UNPAID ||
-                detail.status === PAY_STATUS.PARTIAL) && (
-                <Button type="primary" onClick={() => setPayAnchor(detail.id)}>
-                  登记付款
-                </Button>
-              )}
-            </Space>
-          ) : null
-        }
-      >
-        {!detail ? (
-          <Spin />
-        ) : (
-          <>
-            <div style={{ marginBottom: 14, color: palette.sub }}>
-              {detail.payeeName} <PayeeTypePill type={detail.payeeType} /> ·
-              来源单号{' '}
-              <button
-                type="button"
-                className="zhul-link"
-                onClick={() => history.push(sourcePath(detail))}
-              >
-                {detail.sourceNo}
-              </button>
-            </div>
-            {detail.settledByMigration && (
-              <Alert
-                type="info"
-                showIcon
-                icon={<HistoryOutlined />}
-                style={{ marginBottom: 14 }}
-                title="历史迁移视为已付：迁移前已线下付清，没有付款单"
-              />
-            )}
-            <PayableBody payable={detail} showVoided />
-          </>
-        )}
-      </Drawer>
       <RegisterPaymentDrawer
         open={payAnchor !== undefined}
         anchorId={typeof payAnchor === 'number' ? payAnchor : undefined}
         onClose={() => setPayAnchor(undefined)}
-        onDone={() => {
-          load();
-          if (detail) openDetail(detail.id);
-        }}
+        onDone={load}
       />
       <BatchPayModal
         open={batchOpen}
@@ -617,10 +517,7 @@ const PayableManagement: React.FC = () => {
       <RefundModal
         payable={refund}
         onClose={() => setRefund(undefined)}
-        onDone={() => {
-          load();
-          if (detail) openDetail(detail.id);
-        }}
+        onDone={load}
       />
     </div>
   );

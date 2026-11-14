@@ -1,5 +1,5 @@
 import { InfoCircleOutlined, SendOutlined } from '@ant-design/icons';
-import { useAccess } from '@umijs/max';
+import { Link, useAccess } from '@umijs/max';
 import {
   App,
   Button,
@@ -22,8 +22,7 @@ import {
   readBizError,
 } from '@/pages/logistics/service';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
-import { ReasonModal } from '@/pages/warehouse/components';
-import { OutboundDetail } from '@/pages/warehouse/outbounds/dialogs';
+import { DOC_PATHS, ReasonModal } from '@/pages/warehouse/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { Card } from '../components';
 
@@ -282,7 +281,6 @@ export const OrderOutbounds: React.FC<{
   const [rows, setRows] = useState<Outbound[]>([]);
   const [editing, setEditing] = useState<Outbound>();
   const [withdrawing, setWithdrawing] = useState<Outbound>();
-  const [viewing, setViewing] = useState<Outbound>();
 
   const load = useCallback(() => {
     outboundApi
@@ -310,13 +308,7 @@ export const OrderOutbounds: React.FC<{
               background: palette.inset,
             }}
           >
-            <button
-              type="button"
-              className="zhul-link"
-              onClick={() => setViewing(r)}
-            >
-              {r.obNo}
-            </button>
+            <Link to={DOC_PATHS.outbound(r.id)}>{r.obNo}</Link>
             <ObStatusPill value={r.status}>{r.statusName}</ObStatusPill>
             {r.source === 2 && (
               <span style={{ fontSize: 12, color: palette.orange }}>
@@ -387,16 +379,6 @@ export const OrderOutbounds: React.FC<{
           }
         }}
       />
-      <Modal
-        open={!!viewing}
-        title={viewing ? `销售出库单 ${viewing.obNo}` : ''}
-        footer={null}
-        width={760}
-        onCancel={() => setViewing(undefined)}
-        destroyOnHidden
-      >
-        {viewing && <OutboundDetail ob={viewing} palette={palette} />}
-      </Modal>
     </Card>
   );
 };

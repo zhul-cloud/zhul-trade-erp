@@ -20,11 +20,14 @@ import { App, Button, Checkbox, Input, Skeleton } from 'antd';
 import dayjs from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
 import { RelatedDocsCard } from '@/components/DocFields/DocPage';
-import { listHref } from '@/components/DocFields/SourceNos';
 import { usePageTitle } from '@/components/PageTabs/hooks';
 import ExpenseQuickModal from '@/pages/finance/expenses/AfterSalesExpense';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
-import { AttachmentWall, ReasonModal } from '@/pages/warehouse/components';
+import {
+  AttachmentWall,
+  DOC_PATHS,
+  ReasonModal,
+} from '@/pages/warehouse/components';
 import type { Attachment } from '@/pages/warehouse/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount, formatDateTime } from '@/utils/format';
@@ -780,7 +783,7 @@ const AfterSalesDetail: React.FC = () => {
     ...(a.refunds ?? []).map((f) => ({
       label: '退款单',
       no: f.refundNo,
-      href: listHref('/finance/refunds', f.refundNo),
+      href: `/finance/refunds/${f.id}`,
       extra: (
         <span style={{ color: palette.sub }}>
           {formatAmount(f.amount, f.currencyCode)} · {f.methodName}
@@ -797,6 +800,7 @@ const AfterSalesDetail: React.FC = () => {
     ...(a.expenses ?? []).map((e) => ({
       label: '费用单',
       no: e.expenseNo,
+      href: DOC_PATHS.expense(e.id),
       extra: (
         <span style={{ color: palette.sub }}>
           {e.name} · {formatAmount(e.amountCny, 'CNY')}

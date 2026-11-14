@@ -40,6 +40,8 @@ public class ReimbursementDO {
     @TableField(updateStrategy = FieldStrategy.ALWAYS)
     private LocalDateTime paidAt;
     private String payRemark;
+    /** 备注（change finance-expense-docs） */
+    private String remark;
     @TableField(updateStrategy = FieldStrategy.ALWAYS)
     private Long paymentId;
     private LocalDateTime deletedAt;

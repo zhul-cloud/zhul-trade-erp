@@ -26,3 +26,18 @@ export const buildTaskScript = (
         `${n + 1}. ${brand?.trim() ? `${brand.trim()} ` : ''}${i.model}，要 ${i.quantity} ${i.unit?.trim() || '个'}`,
     ),
   ].join('\n');
+
+export type ItemFilter = 'all' | 'pending' | 'draft' | 'submitted';
+
+/**
+ * 型号按本人回价状态归类（与「只复制未回价的型号」同口径）：
+ * 未回价＝没有任何记录；已提交＝有已提交或待审核；草稿＝只有草稿
+ */
+export const itemFilterOf = (
+  quotes: { status: number }[],
+): Exclude<ItemFilter, 'all'> | undefined => {
+  if (quotes.length === 0) return 'pending';
+  if (quotes.some((q) => q.status === 2 || q.status === 3)) return 'submitted';
+  if (quotes.some((q) => q.status === 1)) return 'draft';
+  return undefined;
+};

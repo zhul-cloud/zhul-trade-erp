@@ -1,12 +1,18 @@
 import { CarOutlined, SearchOutlined } from '@ant-design/icons';
 import { Link, useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
-import { App, Button, Input, Segmented, Table } from 'antd';
+import { Button, Input, Segmented, Space, Table } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
 import { CustomerCell } from '@/components/DocFields';
-import { useUrlFilter } from '@/components/DocFields/SourceNos';
-import EllipsisText, { ellipsisRender } from '@/components/EllipsisText';
-import { kg, LOGISTICS_PATHS } from '@/pages/logistics/components';
+import { ModelQtyCell } from '@/components/DocFields/DocPage';
+import SourceNos, { useUrlFilter } from '@/components/DocFields/SourceNos';
+import { ellipsisRender } from '@/components/EllipsisText';
+import { TagList } from '@/pages/inquiry/customer-inquiry/ModelCells';
+import {
+  kg,
+  LOGISTICS_PATHS,
+  ObStatusPill,
+} from '@/pages/logistics/components';
 import {
   type Outbound,
   outboundApi,
@@ -15,23 +21,35 @@ import {
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { auditColumns } from '@/pages/purchase/components';
 import { useAppTheme } from '@/theme/AppTheme';
-import { formatAmount, formatDateTime } from '@/utils/format';
+import { formatDateTime } from '@/utils/format';
 import { usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
-import { Card, ReasonModal, sub, WarehousePageTitle } from '../components';
-import { HandOverModal, OutboundView, PackDrawer } from './dialogs';
+import {
+  Card,
+  DOC_PATHS,
+  distinctOf,
+  sub,
+  WarehousePageTitle,
+} from '../components';
+import { HandOverModal, PackDrawer } from './dialogs';
 
-type Tab = 'pending' | 'packed' | 'handed';
-const STATUS: Record<Tab, number> = { pending: 1, packed: 2, handed: 3 };
+type Tab = 'pending' | 'packed' | 'handed' | 'all';
+const STATUS: Record<Tab, number | undefined> = {
+  pending: 1,
+  packed: 2,
+  handed: 3,
+  all: undefined,
+};
 
 const Outbounds: React.FC = () => {
   const { palette } = useAppTheme();
-  const { message } = App.useApp();
   const access = useAccess();
   const canPack = !!access['warehouse:outbound:pack'];
   const url = useUrlFilter();
   const [tab, setTab] = useState<Tab>(
-    url.tab === 'packed' || url.tab === 'handed' ? url.tab : 'pending',
+    url.tab === 'packed' || url.tab === 'handed' || url.tab === 'all'
+      ? url.tab
+      : 'pending',
   );
   const [counts, setCounts] = useState<{ pending: number; packed: number }>();
   const [keyword, setKeyword] = useState(url.keyword);
@@ -45,8 +63,6 @@ const Outbounds: React.FC = () => {
   const [packing, setPacking] = useState<number>();
   const [selected, setSelected] = useState<Outbound[]>([]);
   const [handing, setHanding] = useState(false);
-  const [viewing, setViewing] = useState<number>();
-  const [undoing, setUndoing] = useState<Outbound>();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -57,6 +73,7 @@ const Outbounds: React.FC = () => {
         pageSize,
         keyword: query,
         status: STATUS[tab],
+        all: tab === 'all',
       });
       setRows(res.records);
       setTotal(res.total);
@@ -84,220 +101,152 @@ const Outbounds: React.FC = () => {
     refreshCounts();
   };
 
-  const customerCell = (_: unknown, r: Outbound) => (
-    <CustomerCell name={r.customerName} />
-  );
-  const sourceCell = (_: unknown, r: Outbound) => (
-    <Link to={LOGISTICS_PATHS.salesOrder(r.soId)}>{r.soNo}</Link>
-  );
-  const itemsCell = (_: unknown, r: Outbound) => (
-    <div style={{ fontSize: 13 }}>
-      {r.items.map((i) => (
-        <EllipsisText key={i.id} text={`${i.model} × ${i.quantity}`} />
-      ))}
-    </div>
-  );
-  const obCell = (v: string, r: Outbound) => (
-    <button
-      type="button"
-      className="zhul-link"
-      onClick={() => setViewing(r.id)}
-    >
-      {v}
-    </button>
-  );
+  const action = (r: Outbound) => {
+    if (tab === 'pending' && canPack)
+      return (
+        <button
+          type="button"
+          className="zhul-link"
+          onClick={() => setPacking(r.id)}
+        >
+          打包
+        </button>
+      );
+    if (tab === 'packed' && canPack)
+      return (
+        <button
+          type="button"
+          className="zhul-link"
+          onClick={() => setPacking(r.id)}
+        >
+          修改装箱
+        </button>
+      );
+    return null;
+  };
 
-  const columns: TableColumnsType<Outbound> =
-    tab === 'pending'
-      ? [
-          {
-            title: '销售出库单',
-            dataIndex: 'obNo',
-            width: 160,
-            render: obCell,
-          },
-          {
-            title: '客户',
-            key: 'customer',
-            width: 200,
-            render: customerCell,
-          },
-          { title: '货代', dataIndex: 'forwarderName', width: 120 },
-          { title: '型号 · 数量', key: 'items', width: 260, render: itemsCell },
-          {
-            title: '备注',
-            dataIndex: 'note',
-            width: 160,
-            render: (v?: string) =>
-              v || <span style={{ color: palette.mute }}>—</span>,
-          },
-          {
-            title: '来源单号',
-            key: 'so',
-            width: 160,
-            render: sourceCell,
-          },
-          {
-            title: '业务员',
-            dataIndex: 'ownerName',
-            width: 90,
-            render: ellipsisRender,
-          },
-          ...auditColumns<Outbound>(),
-          {
-            title: '操作',
-            key: 'actions',
-            width: 80,
-            fixed: 'right',
-            render: (_, r) =>
-              canPack ? (
-                <button
-                  type="button"
-                  className="zhul-link"
-                  onClick={() => setPacking(r.id)}
-                >
-                  打包
-                </button>
-              ) : null,
-          },
-        ]
-      : tab === 'packed'
-        ? [
-            {
-              title: '销售出库单',
-              dataIndex: 'obNo',
-              width: 160,
-              render: obCell,
-            },
-            {
-              title: '客户',
-              key: 'customer',
-              width: 200,
-              render: customerCell,
-            },
-            { title: '货代', dataIndex: 'forwarderName', width: 120 },
-            {
-              title: '型号 · 数量',
-              key: 'items',
-              width: 240,
-              render: itemsCell,
-            },
-            { title: '箱数', dataIndex: 'boxCount', width: 70 },
-            {
-              title: '计费重',
-              dataIndex: 'chargeableWeight',
-              width: 110,
-              render: (v: number) => kg(v),
-            },
-            {
-              title: '打包',
-              key: 'packed',
-              width: 170,
-              render: (_, r) => (
-                <div>
-                  {r.packedByName}
-                  {sub(palette.mute, formatDateTime(r.packedAt))}
-                </div>
-              ),
-            },
-            {
-              title: '来源单号',
-              key: 'so',
-              width: 160,
-              render: sourceCell,
-            },
-            ...auditColumns<Outbound>(),
-            {
-              title: '操作',
-              key: 'actions',
-              width: 90,
-              fixed: 'right',
-              render: (_, r) =>
-                canPack ? (
-                  <button
-                    type="button"
-                    className="zhul-link"
-                    onClick={() => setPacking(r.id)}
-                  >
-                    修改装箱
-                  </button>
-                ) : null,
-            },
-          ]
-        : [
-            {
-              title: '销售出库单',
-              dataIndex: 'obNo',
-              width: 160,
-              render: obCell,
-            },
-            {
-              title: '客户',
-              key: 'customer',
-              width: 200,
-              render: customerCell,
-            },
-            { title: '货代', dataIndex: 'forwarderName', width: 120 },
-            { title: '箱数', dataIndex: 'boxCount', width: 70 },
-            {
-              title: '国内快递',
-              key: 'courier',
-              width: 200,
-              render: (_, r) => (
-                <div>
-                  <b style={{ color: palette.ink }}>
-                    {[r.courier?.carrier, r.courier?.trackingNo]
-                      .filter(Boolean)
-                      .join(' ') || '—'}
-                  </b>
-                  {sub(
-                    palette.mute,
-                    `${r.courier?.sentDate ?? ''}${
-                      (r.courier?.outboundCount ?? 0) > 1
-                        ? ` · ${r.courier?.outboundCount} 单共用`
-                        : ''
-                    }`,
-                  )}
-                </div>
-              ),
-            },
-            {
-              title: '分到运费',
-              key: 'share',
-              width: 120,
-              render: (_, r) => formatAmount(r.courier?.share, 'CNY'),
-            },
-            {
-              title: '出运单',
-              dataIndex: 'shNo',
-              width: 150,
-              render: (v?: string) =>
-                v || <span style={{ color: palette.mute }}>待出运</span>,
-            },
-            {
-              title: '来源单号',
-              key: 'so',
-              width: 160,
-              render: sourceCell,
-            },
-            ...auditColumns<Outbound>(),
-            {
-              title: '操作',
-              key: 'actions',
-              width: 110,
-              fixed: 'right',
-              render: (_, r) =>
-                canPack && !r.logisticsId ? (
-                  <button
-                    type="button"
-                    className="zhul-link"
-                    onClick={() => setUndoing(r)}
-                  >
-                    撤销交货代
-                  </button>
-                ) : null,
-            },
-          ];
+  const columns: TableColumnsType<Outbound> = [
+    {
+      title: '出库单号 · 通知日期',
+      dataIndex: 'obNo',
+      width: 170,
+      fixed: 'left',
+      render: (v: string, r) => (
+        <div>
+          <Link to={DOC_PATHS.outbound(r.id)}>{v}</Link>
+          {sub(palette.mute, formatDateTime(r.createTime).slice(0, 10))}
+        </div>
+      ),
+    },
+    {
+      title: '客户',
+      key: 'customer',
+      width: 200,
+      render: (_, r) => <CustomerCell name={r.customerName} />,
+    },
+    {
+      title: '型号 · 数量',
+      key: 'items',
+      width: 200,
+      render: (_, r) => (
+        <ModelQtyCell items={r.items} totalQty={r.totalQuantity} />
+      ),
+    },
+    {
+      title: '品牌',
+      key: 'brands',
+      width: 120,
+      render: (_, r) => (
+        <TagList values={distinctOf(r.items, 'brand')} label="品牌" />
+      ),
+    },
+    {
+      title: '品类',
+      key: 'categories',
+      width: 130,
+      render: (_, r) => (
+        <TagList values={distinctOf(r.items, 'category')} label="品类" />
+      ),
+    },
+    {
+      title: '货代',
+      dataIndex: 'forwarderName',
+      width: 110,
+      render: ellipsisRender,
+    },
+    {
+      title: '箱数 · 计费重',
+      key: 'boxes',
+      width: 130,
+      render: (_, r) =>
+        r.boxCount ? (
+          `${r.boxCount} 箱 · ${kg(r.chargeableWeight)}`
+        ) : (
+          <span style={{ color: palette.mute }}>—</span>
+        ),
+    },
+    {
+      title: '国内快递',
+      key: 'courier',
+      width: 170,
+      render: (_, r) =>
+        r.courier ? (
+          <div>
+            <b style={{ color: palette.ink }}>{r.courier.carrier}</b>
+            {sub(
+              palette.mute,
+              `${r.courier.trackingNo ?? ''}${
+                r.courier.outboundCount > 1
+                  ? ` · ${r.courier.outboundCount} 单共用`
+                  : ''
+              }`,
+            )}
+          </div>
+        ) : (
+          <span style={{ color: palette.mute }}>—</span>
+        ),
+    },
+    {
+      title: '状态',
+      dataIndex: 'status',
+      width: 110,
+      render: (v: number, r) => (
+        <div>
+          <ObStatusPill value={v}>{r.statusName}</ObStatusPill>
+          {r.source === 2 && sub(palette.orange, r.sourceName)}
+        </div>
+      ),
+    },
+    {
+      title: '来源单号',
+      key: 'so',
+      width: 160,
+      render: (_, r) => (
+        <SourceNos
+          refs={[{ no: r.soNo, href: LOGISTICS_PATHS.salesOrder(r.soId) }]}
+        />
+      ),
+    },
+    {
+      title: '业务员',
+      dataIndex: 'ownerName',
+      width: 90,
+      render: ellipsisRender,
+    },
+    ...auditColumns<Outbound>(),
+    {
+      title: '操作',
+      key: 'actions',
+      width: 120,
+      fixed: 'right',
+      render: (_, r) => (
+        <Space size={12}>
+          {action(r)}
+          <Link to={DOC_PATHS.outbound(r.id)}>查看</Link>
+        </Space>
+      ),
+    },
+  ];
 
   const apply = () => {
     setQuery(keyword.trim() || undefined);
@@ -335,6 +284,7 @@ const Outbounds: React.FC = () => {
                 : '待交快递',
             },
             { value: 'handed', label: '已交货代' },
+            { value: 'all', label: '全部' },
           ]}
         />
         <Input
@@ -390,7 +340,9 @@ const Outbounds: React.FC = () => {
                   ? '没有待打包的销售出库单'
                   : tab === 'packed'
                     ? '没有待交快递的销售出库单'
-                    : '还没有交货代的销售出库单',
+                    : tab === 'handed'
+                      ? '还没有交货代的销售出库单'
+                      : '还没有销售出库单',
             }}
             pagination={{
               current: page,
@@ -411,7 +363,9 @@ const Outbounds: React.FC = () => {
           ? '按通知时间从早到晚；一个箱子只装一张销售出库单的货'
           : tab === 'packed'
             ? '勾选同一家货代的销售出库单合成一票快递，运费按计费重分摊'
-            : '还没放进出运单的可以撤销交货代，回到待交快递'}
+            : tab === 'handed'
+              ? '还没放进出运单的可以在详情里撤销交快递，回到待交快递'
+              : '含已撤回的发货通知'}
       </div>
       <PackDrawer
         id={packing}
@@ -430,26 +384,6 @@ const Outbounds: React.FC = () => {
           setHanding(false);
           setSelected([]);
           changed();
-        }}
-      />
-      <OutboundView id={viewing} onClose={() => setViewing(undefined)} />
-      <ReasonModal
-        open={!!undoing}
-        title={`撤销交货代 · ${undoing?.obNo ?? ''}`}
-        description="撤销后销售出库单回到「待交快递」，订单型号进度随之回退；共用快递的其他销售出库单重新分摊运费。"
-        okText="撤销"
-        danger
-        onCancel={() => setUndoing(undefined)}
-        onOk={async (reason) => {
-          if (!undoing) return;
-          try {
-            await outboundApi.undoHandOver(undoing.id, reason);
-            message.success('已撤销交货代');
-            setUndoing(undefined);
-            changed();
-          } catch (e) {
-            message.error(readBizError(e).message);
-          }
         }}
       />
     </div>

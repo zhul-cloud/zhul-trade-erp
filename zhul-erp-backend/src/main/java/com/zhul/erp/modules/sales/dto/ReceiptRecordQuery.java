@@ -20,6 +20,8 @@ public class ReceiptRecordQuery {
     private Boolean includeVoid;
     /** 所属事业部 */
     private Integer businessUnitId;
+    /** 排序：receiptDate 按到账日期倒序；默认按更新时间倒序 */
+    private String sort;
     private Integer page = 1;
     private Integer pageSize = 20;
 }

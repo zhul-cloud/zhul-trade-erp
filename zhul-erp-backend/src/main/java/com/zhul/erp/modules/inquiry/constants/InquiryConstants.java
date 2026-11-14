@@ -65,6 +65,8 @@ public final class InquiryConstants {
     public static final int TASK_SALES = 6;
     /** 分配工作台「待审核」页签的查询值（不是任务状态：任务下有兼职回价待审核） */
     public static final int BOARD_TAB_REVIEW = 5;
+    /** 分配工作台「已延后」：待分配里延后到以后的任务 */
+    public static final int BOARD_TAB_DEFERRED = 8;
 
     /** 分配方式 */
     public static final int ASSIGN_MANUAL = 1;
@@ -101,6 +103,14 @@ public final class InquiryConstants {
 
     /** 含税报价没写税率时默认 13%（字典 inquiry_tax_rate 的默认值） */
     public static final int DEFAULT_TAX_RATE = 13;
+
+    /** 粘贴报价的 AI 识别（change sourcing-ai-quote-fill）：技能、原文上限、等待上限 */
+    public static final String SKILL_QUOTE_PARSE = "sourcing-quote-parse";
+    public static final int QUOTE_AI_RAW_MAX = 20000;
+    public static final int QUOTE_AI_TIMEOUT_SECONDS = 90;
+    /** AI 识别结果的把握：确定、请核对 */
+    public static final String CONFIDENCE_SURE = "SURE";
+    public static final String CONFIDENCE_CHECK = "CHECK";
 
     /** 询价记录状态 */
     public static final int QUOTE_DRAFT = 1;

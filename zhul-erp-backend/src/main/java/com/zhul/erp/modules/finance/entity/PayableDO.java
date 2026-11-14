@@ -45,6 +45,8 @@ public class PayableDO {
     private LocalDate nextDueDate;
     /** 历史迁移视为已付（0-否、1-是）：迁移前已线下付清，重算时已付始终等于应付 */
     private Integer settledByMigration;
+    /** 备注（change finance-ap-fx-docs） */
+    private String remark;
     private LocalDateTime deletedAt;
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createTime;

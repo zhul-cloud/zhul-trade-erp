@@ -13,6 +13,8 @@ import java.util.UUID;
 
 import static com.zhul.erp.support.TestDates.today;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 
@@ -63,6 +65,10 @@ class FxSettlementContractTest extends SalesContractSupport {
     private Map<String, Object> receipt(long id) {
         return jdbc.queryForMap("select net_amount_cny, amount_cny, exchange_rate, settled_amount, settle_status, rate_source "
                 + "from payment_receipt where id = ?", id);
+    }
+
+    private static boolean blank(JsonNode n) {
+        return n.isMissingNode() || n.isNull() || n.asText().isEmpty();
     }
 
     private static void eq(String expected, Object actual) {
@@ -175,5 +181,39 @@ class FxSettlementContractTest extends SalesContractSupport {
         eq("0", receipt(a).get("settled_amount"));
         assertEquals(1, ((Number) receipt(a).get("settle_status")).intValue(), "回到未结汇");
         money("100.00", ok(call(get(FX + "/pending"), admin)).get(0).path("balance"));
+    }
+
+    // ---------------------------------------------------------------- 结汇单详情（change finance-ap-fx-docs）
+
+    @Test
+    void settlementDoc_detailRelatedLogs_remark_blockingNo_readOnlyAfterVoid() throws Exception {
+        unclaimed("1000", 5, "Hector Martinez");
+        unclaimed("1000", 3, "ACROBOT");
+        JsonNode s1 = ok(settle("800", "5600"));
+        JsonNode s2 = ok(settle("700", "4900"));
+        long id1 = s1.path("id").asLong();
+        long id2 = s2.path("id").asLong();
+
+        JsonNode d = ok(call(get(FX + "/" + id2), admin));
+        assertEquals(2, d.path("related").size());
+        assertEquals("SK", d.path("related").get(0).path("type").asText());
+        assertEquals("登记", d.path("logs").get(0).path("action").asText());
+        assertTrue(d.path("editable").asBoolean());
+        assertTrue(blank(d.path("blockingNo")));
+        assertEquals(s2.path("settleNo").asText(), ok(call(get(FX + "/" + id1), admin)).path("blockingNo").asText());
+
+        JsonNode r = ok(call(json(post(FX + "/" + id2 + "/remark"), "{\"remark\":\"招行结汇\"}"), admin));
+        assertEquals("招行结汇", r.path("remark").asText());
+        assertEquals("修改备注", r.path("logs").get(0).path("action").asText());
+
+        // 作废后只读，仍显示作废前的分摊
+        ok(call(json(post(FX + "/" + id2 + "/void"), write(Map.of("reason", "入账金额填错"))), admin));
+        JsonNode v = ok(call(get(FX + "/" + id2), admin));
+        assertFalse(v.path("editable").asBoolean());
+        assertEquals(2, v.path("allocations").size());
+        assertEquals("作废", v.path("logs").get(0).path("action").asText());
+        assertEquals("结汇单已作废", fail(call(json(post(FX + "/" + id2 + "/remark"), "{\"remark\":\"x\"}"), admin))
+                .path("message").asText());
+        assertTrue(blank(ok(call(get(FX + "/" + id1), admin)).path("blockingNo")), "之后的作废了，这张成为最新");
     }
 }

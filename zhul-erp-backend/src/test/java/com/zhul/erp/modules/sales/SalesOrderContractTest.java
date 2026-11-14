@@ -101,6 +101,33 @@ class SalesOrderContractTest extends SalesContractSupport {
                 "看不到的订单不会因事业部条件出现");
     }
 
+    /** UI-030：经营看板「毛利为负的订单」进入列表，只列进行中且毛利为负的订单 */
+    @Test
+    void page_lossOnly_activeNegativeProfit() throws Exception {
+        // 订单状态筛选列出全部进行中的进度：没有订单的也有名称，工作台带 progressCode 进来不露出代码
+        Map<String, Long> counts = new java.util.HashMap<>();
+        ok(call(get(SO + "/stats"), admin)).path("progressCounts").forEach(p -> {
+            assertFalse(p.path("name").asText().isBlank(), p.toString());
+            counts.put(p.path("code").asText(), p.path("count").asLong());
+        });
+        assertEquals(0L, counts.get("RECEIVED"), counts.toString());
+        assertFalse(counts.containsKey("COMPLETED"), "已完成单独列在筛选里");
+        long c = customer("ACROBOT", "India");
+        long[] ids = new long[3];
+        for (int i = 0; i < 3; i++) {
+            long pi = sentPi(quotationItemIds(quotation(c, 2, "USD", null, FOUR[0])), null);
+            ok(uploadSlip(pi, "100.00", "2026-10-07", admin));
+            ids[i] = ok(convert(pi)).path("id").asLong();
+        }
+        jdbc.update("update sales_order set net_profit_cny = -12.50 where id = ?", ids[0]);
+        jdbc.update("update sales_order set net_profit_cny = 30.00 where id = ?", ids[1]);
+        jdbc.update("update sales_order set net_profit_cny = -8.00, status = 2 where id = ?", ids[2]);
+        JsonNode loss = ok(call(json(post(SO + "/page"), write(Map.of("lossOnly", true))), admin));
+        assertEquals(1, loss.path("total").asInt(), "毛利为正、已取消的不算");
+        assertEquals(ids[0], loss.path("records").get(0).path("id").asLong());
+        assertEquals(3, ok(call(json(post(SO + "/page"), "{}"), admin)).path("total").asInt(), "不传不过滤");
+    }
+
     /** BUS-026：收款状态筛选改为子查询后结果不变——PI 转成的订单按 PI 的收款状态 */
     @Test
     void page_filterByReceiptStatus_piSubquery() throws Exception {

@@ -103,12 +103,18 @@ const RangeInput: React.FC<{
   </Space.Compact>
 );
 
-/** 进页面时的筛选：询盘日期默认最近 3 个月；从询价统计跳转时用 URL 带的日期 */
-const initialFilters = (): Filters => {
+/**
+ * 进页面时的筛选：询盘日期默认最近 3 个月；从询价统计跳转时用 URL 带的日期。
+ * 从工作台待办进来带 status（待确认、可以报价）：只按状态筛，不限日期，与待办数字同口径。
+ */
+export const initialFilters = (): Filters => {
   const p = new URLSearchParams(window.location.search);
   const from = p.get('dateFrom');
   const to = p.get('dateTo');
-  return { range: from && to ? [dayjs(from), dayjs(to)] : recentRange() };
+  if (from && to) return { range: [dayjs(from), dayjs(to)] };
+  const status = Number(p.get('status'));
+  if (status > 0) return { status };
+  return { range: recentRange() };
 };
 
 const toQuery = (
@@ -817,7 +823,10 @@ const CustomerInquiryPage: React.FC = () => {
               <Button
                 onClick={() => {
                   // 恢复默认：最近 3 个月；看得到哪些询盘由数据权限决定
-                  const defaults: Filters = { range: recentRange() };
+                  const defaults: Filters = {
+                    range: recentRange(),
+                    status: undefined,
+                  };
                   form.resetFields();
                   form.setFieldsValue(defaults);
                   setUrgentOnly(false);

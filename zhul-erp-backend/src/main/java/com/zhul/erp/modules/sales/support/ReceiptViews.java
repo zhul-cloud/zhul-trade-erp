@@ -55,6 +55,7 @@ public class ReceiptViews {
         return rows.stream().map(r -> {
             ReceiptVO vo = new ReceiptVO();
             vo.setId(r.getId());
+            vo.setReceiptNo(r.getReceiptNo());
             vo.setKind(r.getKind());
             vo.setAmount(r.getAmount());
             vo.setAmountCny(r.getAmountCny());

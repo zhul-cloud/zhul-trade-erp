@@ -33,6 +33,13 @@ public class FxSettlementVO {
     /** 是否该币种最新的一张有效结汇单（只有它能作废） */
     private Boolean latest;
     private List<Allocation> allocations;
+    /** 以下为详情页（change finance-ap-fx-docs） */
+    private List<com.zhul.erp.modules.attachment.dto.AttachmentVO> files;
+    private List<com.zhul.erp.modules.system.doclog.DocRefVO> related;
+    private List<com.zhul.erp.modules.system.doclog.DocLogVO> logs;
+    private Boolean editable;
+    /** 不是最新一张有效结汇单时，要先作废的那一张 */
+    private String blockingNo;
     private LocalDateTime createTime;
     private String createBy;
     private LocalDateTime updateTime;

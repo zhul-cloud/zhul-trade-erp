@@ -119,6 +119,7 @@ public class FinanceImporter {
         d.setMigrated(1);
         d.setCreateTime(time(rc, "createTime"));
         d.setCreateBy(r.username(text(rc, "operator")));
+        d.setReceiptNo(r.nextNo(DocumentType.SK, d.getCreateTime() == null ? d.getReceiptDate() : d.getCreateTime().toLocalDate()));
         receiptMapper.insert(d);
         r.record("fxSettlements", key, "payment_receipt", d.getId());
         r.created(STAGE, "到账");

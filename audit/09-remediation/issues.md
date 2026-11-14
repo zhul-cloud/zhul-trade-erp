@@ -43,6 +43,8 @@
 | [BUS-033](tasks/2026-11-10-BUS-033-followup-reconcile-duplicate.md) | 单据换了客户后跟进对象核对失败，新客户看不到该单据跟进 | P2 | 已关闭 | Claude | [2026-11-10-BUS-033](tasks/2026-11-10-BUS-033-followup-reconcile-duplicate.md) | 2026-11-10 |
 | [BUS-034](tasks/2026-11-11-BUS-034-product-media-feedback.md) | 商品档案上传苹果格式的 mp4 视频被判为「内容与扩展名不一致」而拒绝 | P2 | 已关闭 | Claude | [2026-11-11-BUS-034](tasks/2026-11-11-BUS-034-product-media-feedback.md) | 2026-11-11 |
 | [BUS-035](tasks/2026-11-11-BUS-001-business-batch-h.md) | 事务内加锁后按 ID 重读，MyBatis 一级缓存返回加锁前的旧对象 | P2 | 已发布待验收 | Claude | [2026-11-11-BUS-001](tasks/2026-11-11-BUS-001-business-batch-h.md) | 2026-11-12 |
+| [BUS-036](tasks/2026-11-13-BUS-036-inquiry-attachment-jpeg.md) | 询盘附件不能上传 .jpeg 图片（WhatsApp 下载的图片） | P2 | 已合并待发布 | Claude | [2026-11-13-BUS-036](tasks/2026-11-13-BUS-036-inquiry-attachment-jpeg.md) | 2026-11-13 |
+| [BUS-037](tasks/2026-11-14-DEP-001-p1-upgrades.md) | 询价结果导入时一份内容损坏的 Excel 让整批预览报「系统错误」 | P2 | 待合并 | Claude | [2026-11-14-DEP-001](tasks/2026-11-14-DEP-001-p1-upgrades.md) | 2026-11-14 |
 
 ## 前端
 
@@ -69,15 +71,15 @@
 | [UI-019](../02-frontend/06-营销主数据与通用交互补查.md) | AI 测试结果未绑定配置，修改模型或切换服务商后仍显示旧的通过状态 | P2 | 已合并待发布 | Claude | [2026-11-12-OPS-001](tasks/2026-11-12-OPS-001-batch-j.md) | 2026-11-12 |
 | [UI-020](../02-frontend/06-营销主数据与通用交互补查.md) | 迟到的模型列表缓存被用于另一服务商 | P2 | 已合并待发布 | Claude | [2026-11-12-OPS-001](tasks/2026-11-12-OPS-001-batch-j.md) | 2026-11-12 |
 | [UI-021](../02-frontend/06-营销主数据与通用交互补查.md) | 取消候选导入后迟到预览复活，界面可确认却提交空文件 | P2 | 已合并待发布 | Claude | [2026-11-12-OPS-001](tasks/2026-11-12-OPS-001-batch-j.md) | 2026-11-12 |
-| [UI-022](../02-frontend/06-营销主数据与通用交互补查.md) | 列表操作只绑定鼠标点击，键盘 Tab 跳过修改/作废等入口 | P2 | 待合并 | Claude | [2026-11-12-UI-022](tasks/2026-11-12-UI-022-batch-m.md) | 2026-11-12 |
+| [UI-022](../02-frontend/06-营销主数据与通用交互补查.md) | 列表操作只绑定鼠标点击，键盘 Tab 跳过修改/作废等入口 | P2 | 已发布待验收 | Claude | [2026-11-12-UI-022](tasks/2026-11-12-UI-022-batch-m.md) | 2026-11-14 |
 | [UI-023](../02-frontend/07-全量前端代码与页面审查.md) | 顶栏“使用文档”仍指向未注册的 welcome 页 | P2 | 已合并待发布 | Claude | [2026-11-12-OPS-001](tasks/2026-11-12-OPS-001-batch-j.md) | 2026-11-12 |
 | [UI-024](../02-frontend/07-全量前端代码与页面审查.md) | 用户列表的部门筛选没有传给后端 | P2 | 已发布待验收 | Claude | [2026-11-11-UI-017](tasks/2026-11-11-UI-017-frontend-batch-i.md) | 2026-11-12 |
 | [UI-025](../02-frontend/07-全量前端代码与页面审查.md) | 编辑字典类型漏传必填编码，正常保存被校验拒绝 | P2 | 已发布待验收 | Claude | [2026-11-11-UI-017](tasks/2026-11-11-UI-017-frontend-batch-i.md) | 2026-11-12 |
-| [UI-026](../02-frontend/07-全量前端代码与页面审查.md) | 表单标签重复关联背景控件，部分自绘财务字段没有可访问名称 | P2 | 待合并 | Claude | [2026-11-12-UI-022](tasks/2026-11-12-UI-022-batch-m.md) | 2026-11-12 |
+| [UI-026](../02-frontend/07-全量前端代码与页面审查.md) | 表单标签重复关联背景控件，部分自绘财务字段没有可访问名称 | P2 | 已发布待验收 | Claude | [2026-11-12-UI-022](tasks/2026-11-12-UI-022-batch-m.md) | 2026-11-14 |
 | [UI-027](../02-frontend/07-全量前端代码与页面审查.md) | 账户再次局部编辑会丢掉本轮新填的身份证，卡片仍显示已填写 | P2 | 已发布待验收 | Claude | [2026-11-11-UI-017](tasks/2026-11-11-UI-017-frontend-batch-i.md) | 2026-11-12 |
-| [UI-028](../02-frontend/07-全量前端代码与页面审查.md) | 多事业部公司的公共部门用户无法在询盘中快速新建客户 | P2 | 处理中 | Claude | [2026-11-12-UI-022](tasks/2026-11-12-UI-022-batch-m.md) | 2026-11-12 |
+| [UI-028](../02-frontend/07-全量前端代码与页面审查.md) | 多事业部公司的公共部门用户无法在询盘中快速新建客户 | P2 | 已合并待发布 | Claude | [2026-11-12-UI-022](tasks/2026-11-12-UI-022-batch-m.md) | 2026-11-14 |
 | [UI-029](../02-frontend/07-全量前端代码与页面审查.md) | 商品关键词查询保留已隐藏的勾选项，批量操作仍作用于旧商品 | P2 | 已合并待发布 | Claude | [2026-11-12-OPS-001](tasks/2026-11-12-OPS-001-batch-j.md) | 2026-11-12 |
-| [UI-030](../02-frontend/07-全量前端代码与页面审查.md) | 工作台待办数字进入普通列表，丢失待办状态口径 | P2 | 处理中 | Claude | [2026-11-12-UI-022](tasks/2026-11-12-UI-022-batch-m.md) | 2026-11-12 |
+| [UI-030](../02-frontend/07-全量前端代码与页面审查.md) | 工作台待办数字进入普通列表，丢失待办状态口径 | P2 | 已合并待发布 | Claude | [2026-11-12-UI-022](tasks/2026-11-12-UI-022-batch-m.md) | 2026-11-14 |
 | [UI-031](../02-frontend/07-全量前端代码与页面审查.md) | 关闭“显示已作废”未归位分页，现有有效记录被展示为空 | P2 | 已发布待验收 | Claude | [2026-11-11-UI-017](tasks/2026-11-11-UI-017-frontend-batch-i.md) | 2026-11-12 |
 | [UI-032](../02-frontend/07-全量前端代码与页面审查.md) | 询盘列表翻页事件又被排序处理器重置为第一页 | P2 | 已发布待验收 | Claude | [2026-11-11-UI-017](tasks/2026-11-11-UI-017-frontend-batch-i.md) | 2026-11-11 |
 | [UI-033](../02-frontend/07-全量前端代码与页面审查.md) | 订单备注保存失败仍退出编辑，丢失待重试草稿 | P2 | 已发布待验收 | Claude | [2026-11-11-UI-017](tasks/2026-11-11-UI-017-frontend-batch-i.md) | 2026-11-12 |
@@ -88,7 +90,7 @@
 | [UI-038](tasks/2026-11-03-UI-038-feedback-batch-bugs.md) | 询盘管理、销售订单列表点第 2 页无效 | P2 | 已发布待验收 | Claude | [2026-11-03-UI-038](tasks/2026-11-03-UI-038-feedback-batch-bugs.md) | 2026-11-11 |
 | [UI-039](tasks/2026-11-03-UI-038-feedback-batch-bugs.md) | 新建询盘时客户名称过长把「来源」挤出对话框 | P3 | 已发布待验收 | Claude | [2026-11-03-UI-038](tasks/2026-11-03-UI-038-feedback-batch-bugs.md) | 2026-11-11 |
 | [UI-040](tasks/2026-11-03-UI-038-feedback-batch-bugs.md) | 登录过期后页面先提示加载失败再跳登录页 | P2 | 已发布待验收 | Claude | [2026-11-03-UI-038](tasks/2026-11-03-UI-038-feedback-batch-bugs.md) | 2026-11-11 |
-| [UI-041](../02-frontend/07-全量前端代码与页面审查.md) | 表格与列表在电脑低分辨率下布局失效 | P2 | 处理中 | Claude | [2026-11-04-UI-041](tasks/2026-11-04-UI-041-low-res-layout.md) | 2026-11-05 |
+| [UI-041](../02-frontend/07-全量前端代码与页面审查.md) | 表格与列表在电脑低分辨率下布局失效 | P2 | 已发布待验收 | Claude | [2026-11-04-UI-041](tasks/2026-11-04-UI-041-low-res-layout.md) | 2026-11-14 |
 | [UI-042](tasks/2026-11-05-BUS-028-user-feedback-defects.md) | 单据导出图片模糊，且下方大片空白 | P2 | 已发布待验收 | Claude | [2026-11-05-BUS-028](tasks/2026-11-05-BUS-028-user-feedback-defects.md) | 2026-11-11 |
 | [UI-043](tasks/2026-11-05-UI-043-inquiry-stats-filters.md) | 询盘管理顶部统计不随搜索条件变化，与列表对不上 | P2 | 已发布待验收 | Claude / Codex | [2026-11-05-UI-043](tasks/2026-11-05-UI-043-inquiry-stats-filters.md) | 2026-11-11 |
 | [UI-044](tasks/2026-11-09-UI-044-user-feedback-1109.md) | 报价单 / PI 预览模糊、PDF 页边和底部大片空白 | P2 | 已发布待验收 | Claude | [2026-11-09-UI-044](tasks/2026-11-09-UI-044-user-feedback-1109.md) | 2026-11-09 |
@@ -98,7 +100,7 @@
 | [UI-048](tasks/2026-11-11-UI-047-user-feedback-1111.md) | 来源单号与客户 / 供应商合在一列，不符合单据页统一规范 | P3 | 已关闭 | Claude | [2026-11-11-UI-047](tasks/2026-11-11-UI-047-user-feedback-1111.md) | 2026-11-11 |
 | [UI-049](tasks/2026-11-11-UI-049-notification-content-wrap.md) | 通知抽屉内容在日期、型号中间断行 | P3 | 已关闭 | Claude | [2026-11-11-UI-049](tasks/2026-11-11-UI-049-notification-content-wrap.md) | 2026-11-11 |
 | [UI-050](tasks/2026-11-11-BUS-034-product-media-feedback.md) | 商品档案的图片点开不能预览 | P3 | 已关闭 | Claude | [2026-11-11-BUS-034](tasks/2026-11-11-BUS-034-product-media-feedback.md) | 2026-11-11 |
-| [UI-051](tasks/2026-11-12-UI-051-source-no-column.md) | 售后、退款、发货跟踪、采购入库列表的来源单号仍与客户 / 订单 / 供应商合在一列 | P3 | 待合并 | Claude | [2026-11-12-UI-051](tasks/2026-11-12-UI-051-source-no-column.md) | 2026-11-12 |
+| [UI-051](tasks/2026-11-12-UI-051-source-no-column.md) | 售后、退款、发货跟踪、采购入库列表的来源单号仍与客户 / 订单 / 供应商合在一列 | P3 | 已发布待验收 | Claude | [2026-11-12-UI-051](tasks/2026-11-12-UI-051-source-no-column.md) | 2026-11-12 |
 
 ## AI 可靠性
 
@@ -146,9 +148,9 @@
 
 | ID / 原专题 | 简短标题 | 优先级 | 状态 | 负责人 | 任务记录 | 最后更新 |
 | --- | --- | --- | --- | --- | --- | --- |
-| [DEP-001](../03-dependencies/01-security-findings.md) | POI 5.2.5 读取上传 OOXML，命中已确认公告 | P1 | 暂缓 | Ezio（决定） | [2026-11-04-DEP-001](tasks/2026-11-04-DEP-001-dependency-deferred.md) | 2026-11-04 |
-| [DEP-002](../03-dependencies/01-security-findings.md) | Tomcat 10.1.20 的 multipart 解析存在已公开 DoS 修复缺口 | P1 | 暂缓 | Ezio（决定） | [2026-11-04-DEP-001](tasks/2026-11-04-DEP-001-dependency-deferred.md) | 2026-11-04 |
-| [DEP-003](../03-dependencies/01-security-findings.md) | axios 0.27.2 被业务代码使用，却只由 dev 链间接提供 | P1 | 暂缓 | Ezio（决定） | [2026-11-04-DEP-001](tasks/2026-11-04-DEP-001-dependency-deferred.md) | 2026-11-04 |
+| [DEP-001](../03-dependencies/01-security-findings.md) | POI 5.2.5 读取上传 OOXML，命中已确认公告 | P1 | 待合并 | Claude | [2026-11-14-DEP-001](tasks/2026-11-14-DEP-001-p1-upgrades.md) | 2026-11-14 |
+| [DEP-002](../03-dependencies/01-security-findings.md) | Tomcat 10.1.20 的 multipart 解析存在已公开 DoS 修复缺口 | P1 | 待合并 | Claude | [2026-11-14-DEP-001](tasks/2026-11-14-DEP-001-p1-upgrades.md) | 2026-11-14 |
+| [DEP-003](../03-dependencies/01-security-findings.md) | axios 0.27.2 被业务代码使用，却只由 dev 链间接提供 | P1 | 待合并 | Claude | [2026-11-14-DEP-001](tasks/2026-11-14-DEP-001-p1-upgrades.md) | 2026-11-14 |
 | [DEP-004](../03-dependencies/01-security-findings.md) | DOMPurify 3.4.2 位于生产 Markdown/Mermaid 链，需按实际模式验证 | P2 | 暂缓 | Ezio（决定） | [2026-11-04-DEP-001](tasks/2026-11-04-DEP-001-dependency-deferred.md) | 2026-11-04 |
 | [DEP-005](../03-dependencies/01-security-findings.md) | Umi 开发与构建链累计漏洞，按启用能力整改 | P2 | 暂缓 | Ezio（决定） | [2026-11-04-DEP-001](tasks/2026-11-04-DEP-001-dependency-deferred.md) | 2026-11-04 |
 | [DEP-006](../03-dependencies/01-security-findings.md) | 后端传递依赖与 Spring 条件型公告需随 BOM 更新核验 | P2 | 暂缓 | Ezio（决定） | [2026-11-04-DEP-001](tasks/2026-11-04-DEP-001-dependency-deferred.md) | 2026-11-04 |

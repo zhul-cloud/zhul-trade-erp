@@ -74,7 +74,7 @@ const ReceiptManagement: React.FC = () => {
           },
           {
             key: 'records',
-            label: label('收款记录'),
+            label: label('收款单'),
             children: <RecordsTab />,
           },
         ]}

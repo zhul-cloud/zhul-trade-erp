@@ -15,7 +15,7 @@ public class SaveNoticeRequest {
     private Long soId;
     @NotNull(message = "请选择货代")
     private Long forwarderId;
-    @Size(max = 300, message = "备注不能超过300个字")
+    @Size(max = 500, message = "备注不能超过500个字")
     private String note;
     @NotEmpty(message = "请勾选要发货的型号")
     @Valid

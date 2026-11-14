@@ -11,4 +11,6 @@ public class OutboundPageQuery {
     private String keyword;
     private Integer status;
     private Long forwarderId;
+    /** 「全部」页签：不传状态时也列出已撤回的 */
+    private Boolean all;
 }

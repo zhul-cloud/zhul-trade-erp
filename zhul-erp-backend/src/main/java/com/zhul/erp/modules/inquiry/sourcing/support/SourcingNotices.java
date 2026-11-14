@@ -34,6 +34,7 @@ public class SourcingNotices {
         List<SourcingTaskDO> waiting = taskMapper.selectList(new LambdaQueryWrapper<SourcingTaskDO>()
                 .eq(SourcingTaskDO::getCustomerInquiryId, inquiryId)
                 .eq(SourcingTaskDO::getStatus, InquiryConstants.TASK_UNASSIGNED)
+                .and(w -> w.isNull(SourcingTaskDO::getDeferUntil).or().le(SourcingTaskDO::getDeferUntil, java.time.LocalDate.now()))
                 .isNull(SourcingTaskDO::getDeletedAt));
         CustomerInquiryDO inquiry = inquiryMapper.selectById(inquiryId);
         if (waiting.isEmpty() || inquiry == null) {

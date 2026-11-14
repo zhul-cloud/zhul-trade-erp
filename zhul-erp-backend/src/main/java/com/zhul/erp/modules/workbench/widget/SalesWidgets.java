@@ -67,14 +67,14 @@ public class SalesWidgets {
             if (perm.canAccessMenu(INQUIRIES)) {
                 todos.add(W.todo("inbox", "blue", "待确认的询盘", "AI 解析完成，等你核对型号",
                         inquiries.selectCount(inquiry(scope).eq(CustomerInquiryDO::getStatus, InquiryConstants.STATUS_PENDING_CONFIRM)),
-                        true, INQUIRIES));
+                        true, INQUIRIES + "?status=" + InquiryConstants.STATUS_PENDING_CONFIRM));
                 todos.add(W.todo("file-text", "green", "可以报价", "采购已回价，还没做报价单",
                         inquiries.selectCount(inquiry(scope).eq(CustomerInquiryDO::getStatus, InquiryConstants.STATUS_READY_TO_QUOTE)),
-                        true, INQUIRIES));
+                        true, INQUIRIES + "?status=" + InquiryConstants.STATUS_READY_TO_QUOTE));
             }
             if (perm.canAccessMenu(PIS)) {
                 todos.add(W.todo("wallet", "orange", "PI 待收款", "已发给客户，还没付清",
-                        pis.selectCount(unpaidPis(scope)), false, PIS));
+                        pis.selectCount(unpaidPis(scope)), false, PIS + "?unpaid=1"));
             }
             if (perm.canAccessMenu(ORDERS)) {
                 LambdaQueryWrapper<SalesOrderDO> w = new LambdaQueryWrapper<SalesOrderDO>()
@@ -83,7 +83,8 @@ public class SalesWidgets {
                         .eq(SalesOrderDO::getProgressCode, SalesConstants.PROGRESS_RECEIVED)
                         .isNull(SalesOrderDO::getDeletedAt);
                 scope.current().apply(w, SalesOrderDO::getOwnerId);
-                todos.add(W.todo("ship", "violet", "订单待出运", "货已到齐，等安排交货代", orders.selectCount(w), false, ORDERS));
+                todos.add(W.todo("ship", "violet", "订单待出运", "货已到齐，等安排交货代", orders.selectCount(w), false,
+                        ORDERS + "?progressCode=" + SalesConstants.PROGRESS_RECEIVED));
             }
             if (perm.canAccessMenu(AFTER_SALES)) {
                 todos.add(W.todo("alarm-clock", "red", "售后要更新客户", "已逾期或 1 小时内到期的售后单", afterSales.myDueCount(), true,
@@ -288,11 +289,9 @@ public class SalesWidgets {
 
     /** 已发出、还没付清（含只有水单、部分到账）的 PI */
     static LambdaQueryWrapper<ProformaInvoiceDO> unpaidPis(DataScopeResolver scope) {
-        LambdaQueryWrapper<ProformaInvoiceDO> w = new LambdaQueryWrapper<ProformaInvoiceDO>()
+        LambdaQueryWrapper<ProformaInvoiceDO> w = PiStore.unpaid(new LambdaQueryWrapper<ProformaInvoiceDO>()
                 .eq(ProformaInvoiceDO::getTenantId, PiStore.tenantId())
-                .in(ProformaInvoiceDO::getStatus, SalesConstants.PI_SENT, SalesConstants.PI_CONVERTED)
-                .ne(ProformaInvoiceDO::getReceiptStatus, SalesConstants.RECEIPT_PAID)
-                .isNull(ProformaInvoiceDO::getDeletedAt);
+                .isNull(ProformaInvoiceDO::getDeletedAt));
         return scope.current().apply(w, ProformaInvoiceDO::getOwnerId);
     }
 

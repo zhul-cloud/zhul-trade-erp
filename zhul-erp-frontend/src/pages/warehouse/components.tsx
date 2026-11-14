@@ -10,6 +10,11 @@ import { App, Checkbox, Input, Modal, Spin, Upload } from 'antd';
 import React, { useEffect, useRef, useState } from 'react';
 import { Card, PageTitle, Pill } from '@/pages/inquiry/shared/components';
 import type { Tone } from '@/pages/inquiry/shared/constants';
+import {
+  AS_STATUS_TONE,
+  RQ_STATUS_TONE,
+  TH_STATUS_TONE,
+} from '@/pages/sales/after-sales/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import {
   type Attachment,
@@ -62,6 +67,150 @@ export const ShootStatusPill = tone({ 1: 'gray', 2: 'green', 3: 'mute' });
 export const sub = (color: string, text: React.ReactNode) => (
   <div style={{ fontSize: 12, color }}>{text}</div>
 );
+
+// ---------------------------------------------------------------- 单据（change warehouse-logistics-docs）
+
+/** 仓库物流单据的详情页地址 */
+export const DOC_PATHS = {
+  shipment: (id: number) => `/purchase/shipments/${id}`,
+  receipt: (id: number) => `/warehouse/receipts/${id}`,
+  outbound: (id: number) => `/warehouse/outbounds/${id}`,
+  logistics: (id: number) => `/logistics/shipments/${id}`,
+  receiptDoc: (id: number) => `/finance/receipts/${id}`,
+  refund: (id: number) => `/finance/refunds/${id}`,
+  payment: (id: number) => `/finance/payments/${id}`,
+  payable: (id: number) => `/finance/payables/${id}`,
+  fxSettlement: (id: number) => `/finance/fx-settlements/${id}`,
+  expense: (id: number) => `/finance/expenses/${id}`,
+  reimbursement: (id: number) => `/finance/reimbursements/${id}`,
+  otherIncome: (id: number) => `/finance/other-incomes/${id}`,
+};
+
+const DOC_META: Record<
+  string,
+  {
+    label: string;
+    href?: (id: number, no: string) => string;
+    tones?: Record<number, Tone>;
+  }
+> = {
+  PO: { label: '采购订单', href: (id) => `/purchase/orders/${id}` },
+  SO: { label: '销售订单', href: (id) => `/sales/orders/${id}` },
+  SD: {
+    label: '发货单',
+    href: DOC_PATHS.shipment,
+    tones: { 1: 'accent', 2: 'green', 3: 'mute' },
+  },
+  GR: {
+    label: '采购入库单',
+    href: DOC_PATHS.receipt,
+    tones: { 1: 'green', 2: 'mute' },
+  },
+  OB: {
+    label: '销售出库单',
+    href: DOC_PATHS.outbound,
+    tones: { 1: 'orange', 2: 'accent', 3: 'green', 4: 'mute' },
+  },
+  SH: {
+    label: '出运单',
+    href: DOC_PATHS.logistics,
+    tones: { 1: 'accent', 2: 'green', 3: 'mute' },
+  },
+  ST: {
+    label: '运费账单',
+    href: () => '/logistics/statements',
+    tones: { 1: 'orange', 2: 'green' },
+  },
+  SHOOT: {
+    label: '实拍任务',
+    href: () => '/warehouse/shoots',
+    tones: { 1: 'gray', 2: 'green', 3: 'mute' },
+  },
+  // 财务收付退（change finance-cash-docs）
+  PI: { label: '形式发票', href: (id) => `/sales/pi/${id}` },
+  AS: {
+    label: '售后单',
+    href: (id) => `/sales/after-sales/${id}`,
+    tones: AS_STATUS_TONE,
+  },
+  TH: {
+    label: '销售退货单',
+    href: (id) => `/sales/returns/${id}`,
+    tones: TH_STATUS_TONE,
+  },
+  RA: {
+    label: '退款申请',
+    href: (id) => `/finance/refunds/requests/${id}`,
+    tones: RQ_STATUS_TONE,
+  },
+  SK: {
+    label: '收款单',
+    href: (id) => DOC_PATHS.receiptDoc(id),
+    tones: { 1: 'green', 2: 'mute' },
+  },
+  TK: {
+    label: '退款单',
+    href: (id) => DOC_PATHS.refund(id),
+    tones: { 1: 'green', 2: 'mute' },
+  },
+  PY: {
+    label: '付款单',
+    href: (id) => DOC_PATHS.payment(id),
+    tones: { 1: 'green', 2: 'mute' },
+  },
+  JH: {
+    label: '结汇单',
+    href: (id) => DOC_PATHS.fxSettlement(id),
+    tones: { 1: 'green', 2: 'mute' },
+  },
+  AP: {
+    label: '应付单',
+    href: (id) => DOC_PATHS.payable(id),
+    tones: { 1: 'orange', 2: 'accent', 3: 'green', 4: 'mute' },
+  },
+  BX: {
+    label: '报销单',
+    href: (id) => DOC_PATHS.reimbursement(id),
+    tones: { 1: 'orange', 2: 'green', 3: 'mute' },
+  },
+  FE: {
+    label: '费用单',
+    href: (id) => DOC_PATHS.expense(id),
+    tones: { 1: 'green', 2: 'mute' },
+  },
+  OI: {
+    label: '其他收入',
+    href: (id) => DOC_PATHS.otherIncome(id),
+    tones: { 1: 'green', 2: 'mute' },
+  },
+};
+
+/** 后端返回的关联单据转为关联单据卡片的行 */
+export const relatedRows = (
+  refs?: {
+    type: string;
+    id: number;
+    no: string;
+    status?: number;
+    statusName?: string;
+  }[],
+) =>
+  (refs ?? []).map((r) => {
+    const m = DOC_META[r.type];
+    return {
+      label: m?.label ?? r.type,
+      no: r.no,
+      href: m?.href?.(r.id, r.no),
+      statusName: r.statusName,
+      tone: r.status != null ? (m?.tones?.[r.status] ?? 'accent') : undefined,
+    };
+  });
+
+/** 明细里去重后的品牌、品类（列表的品牌、品类列） */
+export const distinctOf = (
+  items: { brand?: string; category?: string }[] | undefined,
+  key: 'brand' | 'category',
+) => [...new Set((items ?? []).map((i) => i[key]).filter(Boolean))] as string[];
 
 /** 预计到货：在途且已过日期时标「超时未到」 */
 export const ArrivalCell: React.FC<{ date?: string; overdue?: boolean }> = ({

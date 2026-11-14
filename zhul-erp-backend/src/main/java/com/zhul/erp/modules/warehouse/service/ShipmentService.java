@@ -13,7 +13,15 @@ import com.zhul.erp.modules.purchase.entity.PurchaseOrderDO;
 import com.zhul.erp.modules.purchase.entity.PurchaseOrderItemDO;
 import com.zhul.erp.modules.purchase.support.PurchaseLogs;
 import com.zhul.erp.modules.sales.support.PiStore;
+import com.zhul.erp.modules.logistics.constants.LogisticsConstants;
+import com.zhul.erp.modules.logistics.entity.LogisticsShipmentDO;
+import com.zhul.erp.modules.logistics.repository.LogisticsShipmentMapper;
+import com.zhul.erp.modules.sales.entity.SalesOrderDO;
+import com.zhul.erp.modules.sales.entity.SalesOrderItemDO;
+import com.zhul.erp.modules.sales.repository.SalesOrderMapper;
 import com.zhul.erp.modules.system.constants.DocumentType;
+import com.zhul.erp.modules.system.doclog.DocLogs;
+import com.zhul.erp.modules.system.doclog.DocRefVO;
 import com.zhul.erp.modules.system.service.DocumentNumberService;
 import com.zhul.erp.modules.system.service.LogService;
 import com.zhul.erp.modules.warehouse.constants.WarehouseConstants;
@@ -24,8 +32,10 @@ import com.zhul.erp.modules.warehouse.dto.ShipmentListVO;
 import com.zhul.erp.modules.warehouse.dto.ShipmentPageQuery;
 import com.zhul.erp.modules.warehouse.dto.ShipmentVO;
 import com.zhul.erp.modules.warehouse.entity.PurchaseReceiptDO;
+import com.zhul.erp.modules.warehouse.entity.PurchaseReceiptItemDO;
 import com.zhul.erp.modules.warehouse.entity.SupplierShipmentDO;
 import com.zhul.erp.modules.warehouse.entity.SupplierShipmentItemDO;
+import com.zhul.erp.modules.warehouse.repository.PurchaseReceiptItemMapper;
 import com.zhul.erp.modules.warehouse.repository.PurchaseReceiptMapper;
 import com.zhul.erp.modules.warehouse.repository.SupplierShipmentItemMapper;
 import com.zhul.erp.modules.warehouse.repository.SupplierShipmentMapper;
@@ -73,6 +83,10 @@ public class ShipmentService {
     private final com.zhul.erp.modules.logistics.support.LogisticsSupport logisticsSupport;
     private final com.zhul.erp.modules.crm.followup.support.FollowupHooks followupHooks;
     private final com.zhul.erp.modules.warehouse.support.WarehouseNotices notices;
+    private final PurchaseReceiptItemMapper receiptItemMapper;
+    private final SalesOrderMapper salesOrderMapper;
+    private final LogisticsShipmentMapper logisticsShipmentMapper;
+    private final DocLogs docLogs;
 
     // ---------------------------------------------------------------- 列表
 
@@ -237,10 +251,93 @@ public class ShipmentService {
     public ShipmentVO detail(Long id, boolean scoped) {
         SupplierShipmentDO s = visible(id, scoped);
         ShipmentVO vo = new ShipmentVO();
-        vo.setShipment(toListVos(List.of(s)).get(0));
+        ShipmentListVO head = toListVos(List.of(s)).get(0);
+        vo.setShipment(head);
         vo.setAttachments(attachments.listOf(AttachmentService.SHIPMENT, id));
         vo.setEditable(s.getStatus() == WarehouseConstants.SHIP_IN_TRANSIT);
+        vo.setRelated(related(s, head));
+        vo.setLogs(docLogs.list(DocumentType.SD, id));
         return vo;
+    }
+
+    /** 详情页：每行补订单数量与已入库数量，列出关联单据（change warehouse-logistics-docs） */
+    private List<DocRefVO> related(SupplierShipmentDO s, ShipmentListVO head) {
+        Map<Long, Integer> orderQty = support.poItems(s.getPoId()).stream()
+                .collect(Collectors.toMap(PurchaseOrderItemDO::getId, PurchaseOrderItemDO::getQuantity, Integer::sum));
+        List<PurchaseReceiptDO> receipts = receiptMapper.selectList(new LambdaQueryWrapper<PurchaseReceiptDO>()
+                .eq(PurchaseReceiptDO::getShipmentId, s.getId())
+                .isNull(PurchaseReceiptDO::getDeletedAt)
+                .orderByAsc(PurchaseReceiptDO::getId));
+        List<Long> valid = receipts.stream().filter(r -> r.getStatus() == WarehouseConstants.GR_VALID).map(PurchaseReceiptDO::getId).toList();
+        Map<Long, Integer> received = valid.isEmpty() ? Map.of() : receiptItemMapper.selectList(new LambdaQueryWrapper<PurchaseReceiptItemDO>()
+                        .in(PurchaseReceiptItemDO::getReceiptId, valid)
+                        .isNull(PurchaseReceiptItemDO::getDeletedAt))
+                .stream().filter(i -> i.getShipmentItemId() != null)
+                .collect(Collectors.groupingBy(PurchaseReceiptItemDO::getShipmentItemId, Collectors.summingInt(PurchaseReceiptItemDO::getReceivedQty)));
+        head.getItems().forEach(i -> {
+            i.setOrderQty(orderQty.get(i.getPoItemId()));
+            i.setReceivedQty(received.getOrDefault(i.getId(), 0));
+        });
+        List<DocRefVO> out = new ArrayList<>(8);
+        PurchaseOrderDO p = support.po(s.getPoId(), false);
+        out.add(new DocRefVO(DocumentType.PO.name(), p.getId(), p.getPoNo(), p.getStatus(), PurchaseConstants.PO_STATUS_NAMES.get(p.getStatus())));
+        receipts.forEach(r -> out.add(new DocRefVO(DocumentType.GR.name(), r.getId(), r.getGrNo(), r.getStatus(),
+                WarehouseConstants.GR_STATUS_NAMES.get(r.getStatus()))));
+        LogisticsShipmentDO sh = s.getLogisticsId() == null ? null : logisticsShipmentMapper.selectById(s.getLogisticsId());
+        if (sh != null) {
+            out.add(new DocRefVO(DocumentType.SH.name(), sh.getId(), sh.getShNo(), sh.getStatus(),
+                    LogisticsConstants.SH_STATUS_NAMES.get(sh.getStatus())));
+        }
+        List<Long> soItemIds = itemsOf(List.of(s.getId())).getOrDefault(s.getId(), List.of()).stream()
+                .map(SupplierShipmentItemDO::getSoItemId).filter(Objects::nonNull).distinct().toList();
+        List<Long> soIds = soItemIds.isEmpty() ? List.of()
+                : soItemMapper.selectBatchIds(soItemIds).stream().map(SalesOrderItemDO::getSoId).distinct().toList();
+        if (!soIds.isEmpty()) {
+            salesOrderMapper.selectBatchIds(soIds).forEach(o -> out.add(new DocRefVO(DocumentType.SO.name(), o.getId(), o.getSoNo(), null, null)));
+        }
+        return out;
+    }
+
+    // ---------------------------------------------------------------- 备注与附件
+
+    @Transactional(rollbackFor = Exception.class)
+    public ShipmentVO remark(Long id, String remark) {
+        visible(id, true);
+        SupplierShipmentDO s = lockShipment(id);
+        requireNotVoid(s);
+        String text = remark == null ? "" : remark.trim();
+        s.setNote(text);
+        shipmentMapper.updateById(s);
+        docLogs.add(DocumentType.SD, id, "修改备注", text.isEmpty() ? "清空备注" : text);
+        return detail(id, true);
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public ShipmentVO attach(Long id, List<Long> ids) {
+        visible(id, true);
+        SupplierShipmentDO s = lockShipment(id);
+        requireInTransit(s, "上传附件");
+        attachments.attach(AttachmentService.SHIPMENT, id, ids);
+        indexMedia(s, new SaveShipmentRequest());
+        docLogs.add(DocumentType.SD, id, "上传附件", ids.size() + " 个");
+        return detail(id, true);
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public ShipmentVO removeAttachment(Long id, Long attachmentId) {
+        visible(id, true);
+        SupplierShipmentDO s = lockShipment(id);
+        requireInTransit(s, "删除附件");
+        attachments.remove(AttachmentService.SHIPMENT, id, attachmentId);
+        indexMedia(s, new SaveShipmentRequest());
+        docLogs.add(DocumentType.SD, id, "删除附件", "");
+        return detail(id, true);
+    }
+
+    private static void requireNotVoid(SupplierShipmentDO s) {
+        if (s.getStatus() == WarehouseConstants.SHIP_VOID) {
+            throw new BizException("发货单已作废");
+        }
     }
 
     /** 采购订单详情里查看它的发货单：只认这张订单下的发货单 */
@@ -323,6 +420,7 @@ public class ShipmentService {
         attachments.attach(AttachmentService.SHIPMENT, s.getId(), req.getAttachmentIds());
         indexMedia(s, req);
         logs.add(p.getId(), "登记发货", s.getSdNo() + "：" + text + trackingText(s), currentUser.resolve());
+        docLogs.add(DocumentType.SD, s.getId(), "登记发货", text + trackingText(s));
         logService.recordOperateLog(WarehouseConstants.MENU_SHIPMENT, "登记发货", null,
                 Map.of("sdNo", s.getSdNo(), "poNo", p.getPoNo(), "items", text));
         followupHooks.purchaseChanged(p.getId());
@@ -357,6 +455,7 @@ public class ShipmentService {
         attachments.sync(AttachmentService.SHIPMENT, id, req.getAttachmentIds());
         indexMedia(s, req);
         logs.add(p.getId(), "修改发货", s.getSdNo() + "：" + before + " → " + after, currentUser.resolve());
+        docLogs.add(DocumentType.SD, id, "修改", before + " → " + after);
         logService.recordOperateLog(WarehouseConstants.MENU_SHIPMENT, "修改发货", Map.of("sdNo", s.getSdNo(), "items", before),
                 Map.of("sdNo", s.getSdNo(), "items", after));
         followupHooks.purchaseChanged(p.getId());
@@ -387,6 +486,7 @@ public class ShipmentService {
         s.setVoidReason(why);
         shipmentMapper.updateById(s);
         logs.add(p.getId(), "作废发货", s.getSdNo() + "，原因：" + why + "；数量回到未发", currentUser.resolve());
+        docLogs.add(DocumentType.SD, id, "作废", why);
         logService.recordOperateLog(WarehouseConstants.MENU_SHIPMENT, "作废发货", Map.of("sdNo", s.getSdNo(), "status", "在途"),
                 Map.of("sdNo", s.getSdNo(), "status", "已作废", "reason", why));
         media.retireDocument(AttachmentService.SHIPMENT, id, s.getTenantId());

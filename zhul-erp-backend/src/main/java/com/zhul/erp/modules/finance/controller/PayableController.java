@@ -6,11 +6,18 @@ import com.zhul.erp.modules.finance.dto.PayableQuery;
 import com.zhul.erp.modules.finance.dto.PayableStatsVO;
 import com.zhul.erp.modules.finance.dto.PayableVO;
 import com.zhul.erp.modules.finance.dto.PayeeOptionVO;
+import com.zhul.erp.modules.finance.service.PayableDocService;
 import com.zhul.erp.modules.finance.service.PayableQueryService;
+import com.zhul.erp.modules.system.doclog.DocAttachRequest;
+import com.zhul.erp.modules.system.doclog.DocRemarkRequest;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -31,6 +38,7 @@ public class PayableController {
             + " or (#sourceType == 2 and @perm.canAccessMenu('/logistics/statements'))";
 
     private final PayableQueryService service;
+    private final PayableDocService docs;
 
     @GetMapping
     @PreAuthorize(MENU)
@@ -66,6 +74,24 @@ public class PayableController {
     @GetMapping("/{id}")
     @PreAuthorize(MENU + " or @perm.canAccessMenu('/finance/payments')")
     public Result<PayableVO> detail(@PathVariable Long id) {
-        return Result.ok(service.detail(id));
+        return Result.ok(docs.detail(id));
+    }
+
+    @PostMapping("/{id}/remark")
+    @PreAuthorize(MENU)
+    public Result<PayableVO> remark(@PathVariable Long id, @Valid @RequestBody DocRemarkRequest req) {
+        return Result.ok(docs.remark(id, req.getRemark()));
+    }
+
+    @PostMapping("/{id}/attachments")
+    @PreAuthorize(MENU)
+    public Result<PayableVO> attach(@PathVariable Long id, @Valid @RequestBody DocAttachRequest req) {
+        return Result.ok(docs.attach(id, req.getIds()));
+    }
+
+    @DeleteMapping("/{id}/attachments/{attachmentId}")
+    @PreAuthorize(MENU)
+    public Result<PayableVO> removeAttachment(@PathVariable Long id, @PathVariable Long attachmentId) {
+        return Result.ok(docs.removeAttachment(id, attachmentId));
     }
 }

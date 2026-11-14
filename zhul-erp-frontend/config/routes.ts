@@ -464,6 +464,12 @@ export default [
         component: './purchase/shipments',
       },
       {
+        path: '/purchase/shipments/:id',
+        hideInMenu: true,
+        access: 'shipmentDetail',
+        component: './purchase/shipments/detail',
+      },
+      {
         path: '/purchase/returns',
         name: 'returns',
         icon: 'undo',
@@ -500,11 +506,23 @@ export default [
         component: './warehouse/receipts',
       },
       {
+        path: '/warehouse/receipts/:id',
+        hideInMenu: true,
+        access: 'receiptDetail',
+        component: './warehouse/receipts/detail',
+      },
+      {
         path: '/warehouse/outbounds',
         name: 'outbounds',
         icon: 'export',
         access: 'warehouseOutbounds',
         component: './warehouse/outbounds',
+      },
+      {
+        path: '/warehouse/outbounds/:id',
+        hideInMenu: true,
+        access: 'outboundDetail',
+        component: './warehouse/outbounds/detail',
       },
       {
         path: '/warehouse/returns',
@@ -579,6 +597,12 @@ export default [
         component: './finance/receipts',
       },
       {
+        path: '/finance/receipts/:id',
+        hideInMenu: true,
+        access: 'receiptDocDetail',
+        component: './finance/receipts/detail',
+      },
+      {
         path: '/finance/refunds',
         name: 'refunds',
         icon: 'rollback',
@@ -590,6 +614,12 @@ export default [
         hideInMenu: true,
         access: 'refundRequestDetail',
         component: './finance/refunds/request-detail',
+      },
+      {
+        path: '/finance/refunds/:id',
+        hideInMenu: true,
+        access: 'refundDetail',
+        component: './finance/refunds/detail',
       },
       {
         path: '/finance/credits',
@@ -606,11 +636,23 @@ export default [
         component: './finance/fx-settlements',
       },
       {
+        path: '/finance/fx-settlements/:id',
+        hideInMenu: true,
+        access: 'financeFxSettlements',
+        component: './finance/fx-settlements/detail',
+      },
+      {
         path: '/finance/payables',
         name: 'payables',
         icon: 'accountBook',
         access: 'financePayables',
         component: './finance/payables',
+      },
+      {
+        path: '/finance/payables/:id',
+        hideInMenu: true,
+        access: 'payableDetail',
+        component: './finance/payables/detail',
       },
       {
         path: '/finance/payments',
@@ -620,11 +662,23 @@ export default [
         component: './finance/payments',
       },
       {
+        path: '/finance/payments/:id',
+        hideInMenu: true,
+        access: 'paymentDetail',
+        component: './finance/payments/detail',
+      },
+      {
         path: '/finance/reimbursements',
         name: 'reimbursements',
         icon: 'fileDone',
         access: 'financeReimbursements',
         component: './finance/reimbursements',
+      },
+      {
+        path: '/finance/reimbursements/:id',
+        hideInMenu: true,
+        access: 'financeReimbursements',
+        component: './finance/reimbursements/detail',
       },
       {
         path: '/finance/expenses',
@@ -634,11 +688,23 @@ export default [
         component: './finance/expenses',
       },
       {
+        path: '/finance/expenses/:id',
+        hideInMenu: true,
+        access: 'financeExpenses',
+        component: './finance/expenses/detail',
+      },
+      {
         path: '/finance/other-incomes',
         name: 'otherIncomes',
         icon: 'moneyCollect',
         access: 'financeOtherIncomes',
         component: './finance/other-incomes',
+      },
+      {
+        path: '/finance/other-incomes/:id',
+        hideInMenu: true,
+        access: 'financeOtherIncomes',
+        component: './finance/other-incomes/detail',
       },
       {
         path: '/finance/profit-stats',

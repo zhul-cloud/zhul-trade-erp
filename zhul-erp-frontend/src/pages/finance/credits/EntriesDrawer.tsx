@@ -20,7 +20,7 @@ const sourceHref = (e: CreditEntry): string | undefined => {
   if (!e.sourceId) return undefined;
   if (e.sourceType === 'PI') return `/sales/pi/${e.sourceId}`;
   if (e.sourceType === 'SO') return `/sales/orders/${e.sourceId}`;
-  if (e.sourceType === 'REFUND') return '/finance/refunds';
+  if (e.sourceType === 'REFUND') return `/finance/refunds/${e.sourceId}`;
   return undefined;
 };
 

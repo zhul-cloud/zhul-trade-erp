@@ -170,6 +170,9 @@ export interface TaskBrief {
   canClaim?: boolean;
   /** 业务员自询 */
   selfSourcing?: boolean;
+  /** 待分配且延后中：回来的日期与原因 */
+  deferUntil?: string;
+  deferReason?: string;
 }
 
 export interface InquiryDetail {
@@ -362,6 +365,8 @@ export interface Board {
     pendingReview?: number;
     pendingReviewItems?: number;
     longestReviewMinutes?: number;
+    /** 延后中的待分配任务数（不计入 unassigned） */
+    deferred?: number;
   };
   /** 当前页签的任务总数 */
   total: number;
@@ -371,7 +376,49 @@ export interface Board {
   tasks: BoardTask[];
   purchasers: Purchaser[];
   /** 页签数字：按搜索与采购员筛选后统计（stats 不受筛选影响） */
-  tabs?: { unassigned: number; sourcing: number; review: number; done: number };
+  tabs?: {
+    unassigned: number;
+    sourcing: number;
+    review: number;
+    done: number;
+    deferred?: number;
+  };
+  /** 「已延后」：同一询盘、延后到同一天的任务合成一行 */
+  deferredGroups?: DeferredGroup[];
+}
+
+export interface DeferredGroup {
+  deferUntil: string;
+  customerInquiryId: number;
+  inquiryCode: string;
+  level?: number;
+  customerName?: string;
+  salesName?: string;
+  taskIds: number[];
+  /** 只有一个任务时的编号、品牌、品类 */
+  taskCode?: string;
+  brand?: string;
+  category?: string;
+  taskCount: number;
+  itemCount: number;
+  /** 这张询盘待分配的任务都延后了 */
+  wholeInquiry: boolean;
+  reason?: string;
+  deferByName?: string;
+  deferTime?: string;
+}
+
+/** 延后整张询盘前的确认信息 */
+export interface DeferPreview {
+  customerInquiryId: number;
+  inquiryCode: string;
+  level?: number;
+  customerName?: string;
+  salesName?: string;
+  taskCount: number;
+  itemCount: number;
+  /** 不在待分配、不受影响的任务数 */
+  otherCount: number;
 }
 
 /** 询价分配「全部」页签的一行 */
@@ -470,6 +517,9 @@ export interface MyTask {
   returnReasonLabel?: string;
   returnNote?: string;
   returnedByName?: string;
+  /** 回价需审核的账号：本人待审核的型号数；没有要做的型号且有待审核时为「审核中」 */
+  pendingReviewCount?: number;
+  reviewing?: boolean;
 }
 
 /** 接手人看到的上一轮记录；兼职看不到价格 */
@@ -654,6 +704,33 @@ export interface PasteRow {
   status: 'MATCHED' | 'UNMATCHED' | 'NO_PRICE';
   /** 型号已报给客户，回价不能再修改 */
   locked: boolean;
+  /** AI 识别才有：确定 / 请核对 */
+  confidence?: 'SURE' | 'CHECK';
+  /** 含税时的不含税价（含税价 ÷ (1 + 税率)，两位小数四舍五入）；不含税时等于单价 */
+  unitPriceExTax?: number | null;
+}
+
+/** AI 识别：原文里属于本人其他待处理任务的型号 */
+export interface PasteOtherTask {
+  taskId: number;
+  taskCode: string;
+  brand?: string;
+  category?: string;
+  modelCount: number;
+}
+
+export interface PastePreview {
+  rows: PasteRow[];
+  common: string;
+  otherTasks?: PasteOtherTask[];
+  unknownModels?: string[];
+}
+
+export interface PasteAiState {
+  aiTaskId: number;
+  status: 'RUNNING' | 'DONE' | 'FAILED';
+  errorMessage?: string;
+  preview?: PastePreview;
 }
 
 export interface ItemQuotes {
@@ -952,6 +1029,17 @@ export const boardApi = {
     send<void>('POST', `${BOARD}/tasks/${taskId}/reassign`, { assigneeId }),
   addAssignee: (taskId: number, assigneeId: number) =>
     send<void>('POST', `${BOARD}/tasks/${taskId}/assignees`, { assigneeId }),
+  /** 延后到某天：给任务 ID，或给询盘 ID 延后整张询盘的待分配任务 */
+  defer: (body: {
+    taskIds?: number[];
+    customerInquiryId?: number;
+    deferUntil: string;
+    reason?: string;
+  }) => send<void>('POST', `${BOARD}/defer`, body),
+  undefer: (taskIds: number[]) =>
+    send<void>('POST', `${BOARD}/undefer`, { taskIds }),
+  deferPreview: (customerInquiryId: number) =>
+    get<DeferPreview>(`${BOARD}/defer-preview`, { customerInquiryId }),
   rulePreview: (taskIds: number[]) =>
     send<RulePreview[]>('POST', `${BOARD}/rule-preview`, { taskIds }),
   assignByRule: (taskIds: number[]) =>
@@ -1072,11 +1160,15 @@ export const myTaskApi = {
   save: (id: number, items: ItemQuotes[], submit: boolean) =>
     send<void>('PUT', `${MY}/${id}/quotes`, { items, submit }),
   pastePreview: (id: number, text: string) =>
-    send<{ rows: PasteRow[]; common: string }>(
-      'POST',
-      `${MY}/${id}/paste-preview`,
-      { text },
-    ),
+    send<PastePreview>('POST', `${MY}/${id}/paste-preview`, { text }),
+  /** 租户没开启 AI 时粘贴报价只有按规则识别 */
+  pasteAiEnabled: () => send<boolean>('GET', `${MY}/paste-ai/enabled`),
+  pasteAi: (id: number, text: string) =>
+    send<PasteAiState>('POST', `${MY}/${id}/paste-ai`, { text }),
+  pasteAiResult: (id: number, aiTaskId: number) =>
+    send<PasteAiState>('GET', `${MY}/${id}/paste-ai/${aiTaskId}`),
+  pasteAiCancel: (id: number, aiTaskId: number) =>
+    send<void>('POST', `${MY}/${id}/paste-ai/${aiTaskId}/cancel`),
   /** 采购回填真实型号：离开输入框即保存，不受「已报给客户」限制 */
   saveActualModel: (id: number, itemId: number, actualModel: string) =>
     send<{

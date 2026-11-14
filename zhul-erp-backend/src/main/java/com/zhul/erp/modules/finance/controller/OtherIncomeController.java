@@ -7,9 +7,12 @@ import com.zhul.erp.modules.finance.dto.OtherIncomeVO;
 import com.zhul.erp.modules.finance.dto.SaveOtherIncomeRequest;
 import com.zhul.erp.modules.finance.dto.VoidPaymentRequest;
 import com.zhul.erp.modules.finance.service.OtherIncomeService;
+import com.zhul.erp.modules.system.doclog.DocAttachRequest;
+import com.zhul.erp.modules.system.doclog.DocRemarkRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -65,5 +68,23 @@ public class OtherIncomeController {
     @PreAuthorize(EDIT)
     public Result<OtherIncomeVO> voidIncome(@PathVariable Long id, @Valid @RequestBody VoidPaymentRequest req) {
         return Result.ok(service.voidIncome(id, req.getReason()));
+    }
+
+    @PostMapping("/{id}/remark")
+    @PreAuthorize(EDIT)
+    public Result<OtherIncomeVO> remark(@PathVariable Long id, @Valid @RequestBody DocRemarkRequest req) {
+        return Result.ok(service.remark(id, req.getRemark()));
+    }
+
+    @PostMapping("/{id}/attachments")
+    @PreAuthorize(EDIT)
+    public Result<OtherIncomeVO> attach(@PathVariable Long id, @Valid @RequestBody DocAttachRequest req) {
+        return Result.ok(service.attach(id, req.getIds()));
+    }
+
+    @DeleteMapping("/{id}/attachments/{attachmentId}")
+    @PreAuthorize(EDIT)
+    public Result<OtherIncomeVO> removeAttachment(@PathVariable Long id, @PathVariable Long attachmentId) {
+        return Result.ok(service.removeAttachment(id, attachmentId));
     }
 }

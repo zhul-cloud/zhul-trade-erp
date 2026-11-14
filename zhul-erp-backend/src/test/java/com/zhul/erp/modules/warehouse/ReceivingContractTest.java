@@ -238,11 +238,70 @@ class ReceivingContractTest extends SalesContractSupport {
         long poId = po.path("id").asLong();
         long sid = ok(ship(poId, Map.of(item(po, 0), 2), lin)).path("shipment").path("id").asLong();
         jdbc.update("delete from role_resource where role_code = ? and resource_id = ?", BUYER_ROLE, MENU_SHIP);
-        assertEquals(403, perform(get(SHIP + "/" + sid), lin).getStatus(), "没有供应商发货菜单");
+        assertEquals(sid, ok(call(get(SHIP + "/" + sid), lin)).path("shipment").path("id").asLong(),
+                "没有供应商发货菜单，有采购订单菜单时可以打开自己订单的发货单详情页");
         JsonNode viewed = ok(call(get("/api/v1/purchase/orders/" + poId + "/shipments/" + sid), lin));
         assertEquals(sid, viewed.path("shipment").path("id").asLong(), "采购订单详情里可以查看自己的发货单");
         assertEquals("发货单不存在", fail(call(get("/api/v1/purchase/orders/" + (poId + 1) + "/shipments/" + sid), lin))
                 .path("message").asText(), "只认这张订单下的发货单");
+    }
+
+    /** 单据化：发货单与采购入库单的详情、关联单据、备注、附件与操作日志（change warehouse-logistics-docs） */
+    @Test
+    void documents_shipmentAndReceipt_detailRemarkAttachmentsLogs() throws Exception {
+        long sup = supplier("华控自动化", null);
+        JsonNode po = orderedPo(sup, l("A-1", 2, "1000", "200"));
+        long poId = po.path("id").asLong();
+        long sid = ok(ship(poId, Map.of(item(po, 0), 2), lin)).path("shipment").path("id").asLong();
+
+        JsonNode sd = ok(call(get(SHIP + "/" + sid), lin));
+        assertEquals("PO", sd.path("related").get(0).path("type").asText(), "发货单关联采购订单");
+        assertEquals(poId, sd.path("related").get(0).path("id").asLong());
+        assertEquals(2, sd.path("shipment").path("items").get(0).path("orderQty").asInt(), "明细带订单数量");
+        assertEquals("登记发货", sd.path("logs").get(0).path("action").asText());
+
+        sd = ok(call(json(post(SHIP + "/" + sid + "/remark"), "{\"remark\":\"供应商说周五到\"}"), lin));
+        assertEquals("供应商说周五到", sd.path("shipment").path("note").asText());
+        long video = upload("SHIPMENT", "v.mp4", MP4, lin);
+        sd = ok(call(json(post(SHIP + "/" + sid + "/attachments"), write(Map.of("ids", List.of(video)))), lin));
+        assertEquals(1, sd.path("attachments").size());
+
+        long grId = ok(accept(sid, List.of(new int[] {2, 1, 1}), keeper)).path("receipt").path("id").asLong();
+        assertEquals("已入库的发货单不能上传附件", fail(call(json(post(SHIP + "/" + sid + "/attachments"),
+                write(Map.of("ids", List.of(upload("SHIPMENT", "w.mp4", MP4, lin))))), lin)).path("message").asText());
+        sd = ok(call(json(post(SHIP + "/" + sid + "/remark"), "{\"remark\":\"已到\"}"), lin));
+        assertEquals("已到", sd.path("shipment").path("note").asText(), "已入库后备注仍可改");
+        assertTrue(actions(sd).contains("验收入库"), "发货单日志记验收入库");
+        assertTrue(types(sd).contains("GR"), "发货单关联采购入库单");
+
+        JsonNode gr = ok(call(get(GR + "/" + grId), keeper));
+        assertTrue(types(gr).containsAll(List.of("SD", "PO", "SHOOT")), "采购入库单关联发货单、采购订单与实拍任务");
+        assertEquals("验收入库", gr.path("logs").get(0).path("action").asText());
+        assertEquals(sid, ok(call(get(GR + "/" + grId), lin)).path("receipt").path("shipmentId").asLong(),
+                "采购员从采购订单可以打开自己订单的采购入库单");
+        gr = ok(call(json(post(GR + "/" + grId + "/remark"), "{\"remark\":\"外箱破损\"}"), keeper));
+        assertEquals("外箱破损", gr.path("receipt").path("note").asText());
+        long defect = upload("RECEIPT_DEFECT", "d.png", PNG, keeper);
+        gr = ok(call(json(post(GR + "/" + grId + "/attachments?defect=true"), write(Map.of("ids", List.of(defect)))), keeper));
+        assertEquals(1, gr.path("defectAttachments").size());
+        assertTrue(actions(gr).containsAll(List.of("修改备注", "上传不良照片")));
+
+        ok(call(json(post(GR + "/" + grId + "/reverse"), "{\"reason\":\"数量录错\"}"), keeper));
+        assertEquals("采购入库单已冲销", fail(call(json(post(GR + "/" + grId + "/remark"), "{\"remark\":\"x\"}"), keeper))
+                .path("message").asText(), "冲销后只读");
+        assertTrue(actions(ok(call(get(SHIP + "/" + sid), lin))).contains("入库单冲销"));
+    }
+
+    private static List<String> actions(JsonNode doc) {
+        List<String> out = new ArrayList<>();
+        doc.path("logs").forEach(x -> out.add(x.path("action").asText()));
+        return out;
+    }
+
+    private static List<String> types(JsonNode doc) {
+        List<String> out = new ArrayList<>();
+        doc.path("related").forEach(x -> out.add(x.path("type").asText()));
+        return out;
     }
 
     // ---------------------------------------------------------------- 验收入库

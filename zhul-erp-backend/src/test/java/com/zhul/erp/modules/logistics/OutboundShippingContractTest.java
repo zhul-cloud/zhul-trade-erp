@@ -24,6 +24,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.doAnswer;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
@@ -306,6 +307,100 @@ class OutboundShippingContractTest extends SalesContractSupport {
         assertEquals("已对账的出运单不能改运费", fail(call(json(put(SH + "/" + shId + "/shipping"), write(Map.of("carrier", "DHL", "waybillNo", "1234567890",
                 "shippedDate", LocalDate.now().toString(), "freight", "100"))), admin)).path("message").asText());
         assertEquals(200, perform(get(ST + "/" + st.path("id").asLong() + "/export"), admin).getStatus());
+    }
+
+    private static final byte[] PDF = {'%', 'P', 'D', 'F', '-', '1', '.', '4', '\n', '%', '%', 'E', 'O', 'F'};
+
+    private long uploadDoc(String ownerType) throws Exception {
+        return ok(call(multipart("/api/v1/attachments").file(new MockMultipartFile("file", "mark.pdf", "application/pdf", PDF))
+                .param("ownerType", ownerType), admin)).path("id").asLong();
+    }
+
+    private static List<String> actions(JsonNode doc) {
+        List<String> out = new ArrayList<>();
+        doc.path("logs").forEach(x -> out.add(x.path("action").asText()));
+        return out;
+    }
+
+    private static List<String> types(JsonNode doc) {
+        List<String> out = new ArrayList<>();
+        doc.path("related").forEach(x -> out.add(x.path("type").asText()));
+        return out;
+    }
+
+    /** 单据化：销售出库单与出运单的详情、关联单据、备注、单据附件、操作日志、「全部」页签（change warehouse-logistics-docs） */
+    @Test
+    void documents_outboundAndLogisticsShipment_detailRemarkAttachmentsLogs() throws Exception {
+        JsonNode po = orderedPo(supplier("华控自动化", null), 10);
+        long soId = soOf(po);
+        receive(po, 10);
+
+        // 撤回的通知：只读，默认列表不显示，「全部」里能查到
+        long withdrawn = ok(notice(soId, 4)).path("id").asLong();
+        ok(call(json(post(OB + "/" + withdrawn + "/withdraw"), "{\"reason\":\"客户改数量\"}"), admin));
+        assertEquals("发货通知已撤回", fail(call(json(post(OB + "/" + withdrawn + "/remark"), "{\"remark\":\"x\"}"), admin))
+                .path("message").asText());
+        assertEquals(0, ok(call(json(post(OB + "/page"), "{}"), admin)).path("total").asInt());
+        assertEquals(1, ok(call(json(post(OB + "/page"), "{\"all\":true}"), admin)).path("total").asInt());
+        assertTrue(actions(ok(call(get(OB + "/" + withdrawn), admin))).containsAll(List.of("发货通知", "撤回")));
+
+        JsonNode ob = ok(notice(soId, 10));
+        long obId = ob.path("id").asLong();
+        JsonNode d = ok(call(get(OB + "/" + obId), admin));
+        assertEquals(List.of("SO"), types(d), "销售出库单关联销售订单");
+        assertEquals("PLC", d.path("items").get(0).path("category").asText(), "明细带品类");
+        d = ok(call(json(post(OB + "/" + obId + "/remark"), "{\"remark\":\"唛头按客户要求\"}"), admin));
+        assertEquals("唛头按客户要求", d.path("note").asText());
+        d = ok(call(json(post(OB + "/" + obId + "/attachments"), write(Map.of("ids", List.of(uploadDoc("OUTBOUND"))))), admin));
+        assertEquals(1, d.path("attachments").size(), "单据附件与打包照片分开");
+        assertEquals(0, d.path("packingAttachments").size());
+        ok(pack(ob, new int[] {55, 40, 30, 3000, 10}));
+        ok(handOver(List.of(obId), "50"));
+        d = ok(call(get(OB + "/" + obId), admin));
+        assertEquals(10, d.path("items").get(0).path("packedQty").asInt());
+        assertTrue(actions(d).containsAll(List.of("发货通知", "修改备注", "上传附件", "打包", "交快递")));
+
+        long customerId = ok(call(get(SH + "/pending"), admin)).get(0).path("customerId").asLong();
+        long shId = ok(call(json(post(SH), write(Map.of("customerId", customerId, "forwarderId", forwarder,
+                "outboundIds", List.of(obId)))), admin)).path("id").asLong();
+        JsonNode sh = ok(call(get(SH + "/" + shId), admin));
+        assertEquals(List.of("OB", "SO"), types(sh), "出运单关联销售出库单与销售订单");
+        assertEquals("新建", sh.path("logs").get(0).path("action").asText());
+        assertTrue(types(ok(call(get(OB + "/" + obId), admin))).contains("SH"), "销售出库单关联出运单");
+        sh = ok(call(json(post(SH + "/" + shId + "/remark"), "{\"remark\":\"客户要求周一前出\"}"), admin));
+        assertEquals("客户要求周一前出", sh.path("note").asText());
+        long file = uploadDoc("LOGISTICS_DOC");
+        sh = ok(call(json(post(SH + "/" + shId + "/attachments"), write(Map.of("ids", List.of(file)))), admin));
+        assertEquals(1, sh.path("attachments").size());
+        assertEquals(0, sh.path("faceSheets").size(), "单据附件与面单分开");
+        sh = ok(call(delete(SH + "/" + shId + "/attachments/" + file), admin));
+        assertEquals(0, sh.path("attachments").size());
+
+        ok(call(json(post(SH + "/" + shId + "/void"), "{\"reason\":\"客户延期\"}"), admin));
+        assertEquals("出运单已作废", fail(call(json(post(SH + "/" + shId + "/remark"), "{\"remark\":\"x\"}"), admin))
+                .path("message").asText(), "作废后只读");
+        assertTrue(actions(ok(call(get(SH + "/" + shId), admin))).containsAll(List.of("新建", "修改备注", "上传附件", "删除附件", "作废")));
+    }
+
+    /** 业务员只有销售订单菜单：只能看、只能备注自己负责订单的销售出库单；仓库人员不受业务员范围限制 */
+    @Test
+    void documents_outbound_salespersonSeesOnlyOwnOrders() throws Exception {
+        JsonNode po = orderedPo(supplier("华控自动化", null), 10);
+        long soId = soOf(po);
+        receive(po, 10);
+        long obId = ok(notice(soId, 10)).path("id").asLong();
+        jdbc.update("insert into role_resource (role_code, resource_id, resource_code) values (?, 100079, '')", BUYER_ROLE);
+
+        jdbc.update("update outbound_order set owner_id = ? where id = ?", BUYER_JIANG, obId);
+        assertEquals("销售出库单不存在", fail(call(get(OB + "/" + obId), lin)).path("message").asText(), "别人的订单看不到");
+        assertEquals("销售出库单不存在", fail(call(json(post(OB + "/" + obId + "/remark"), "{\"remark\":\"x\"}"), lin))
+                .path("message").asText(), "别人的订单不能备注");
+        ok(call(get(OB + "/" + obId), keeper));
+
+        jdbc.update("update outbound_order set owner_id = ? where id = ?", BUYER_LIN, obId);
+        assertEquals(obId, ok(call(get(OB + "/" + obId), lin)).path("id").asLong(), "自己的订单能看");
+        assertEquals("业务员备注", ok(call(json(post(OB + "/" + obId + "/remark"), "{\"remark\":\"业务员备注\"}"), lin))
+                .path("note").asText());
     }
 
     /** audit BUS-018：同一直发货并发加入两张出运单，只能一张成功，另一张提示已在别的出运单上，不能静默改归属 */

@@ -1049,6 +1049,168 @@ export const ProofLinks: React.FC<{
   );
 };
 
+/** 付款计划表（应付单详情与付款面板共用） */
+export const InstallmentTable: React.FC<{ payable: Payable }> = ({
+  payable: p,
+}) => {
+  const c = p.currencyCode;
+  return (
+    <Table
+      rowKey="seq"
+      size="small"
+      pagination={false}
+      dataSource={p.installments}
+      columns={[
+        {
+          title: '期次',
+          dataIndex: 'seq',
+          width: 70,
+          render: (v: number) => `第 ${v} 期`,
+        },
+        {
+          title: '比例 · 时点',
+          width: 140,
+          key: 't',
+          render: (_, i) => `${i.ratio}% · ${i.triggerName}`,
+        },
+        {
+          title: '金额',
+          width: 130,
+          dataIndex: 'amount',
+          align: 'right',
+          render: (v: number) => formatAmount(v, c),
+        },
+        {
+          title: '到期日',
+          width: 120,
+          key: 'due',
+          render: (_, i) => (
+            <DueTag date={i.dueDate} state={i.dueState} days={i.dueDays} />
+          ),
+        },
+        {
+          title: '已付',
+          width: 130,
+          dataIndex: 'paidAmount',
+          align: 'right',
+          render: (v: number) => formatAmount(v, c),
+        },
+        {
+          title: '状态',
+          dataIndex: 'status',
+          width: 100,
+          render: (v: number) => <PayStatusPill status={v} />,
+        },
+      ]}
+    />
+  );
+};
+
+/** 与应付单有关的付款记录：核销、欠款抵扣转入转出、供应商退款 */
+export const PaymentLineTable: React.FC<{
+  payable: Payable;
+  showVoided?: boolean;
+}> = ({ payable: p, showVoided }) => {
+  const { palette } = useAppTheme();
+  const c = p.currencyCode;
+  const lines = p.payments.filter((l) => showVoided || !l.voided);
+  return lines.length === 0 ? (
+    <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="还没有付款" />
+  ) : (
+    <Table<PaymentLine>
+      rowKey={(l) => `${l.paymentId}-${l.relation}-${l.otherPayableNo ?? ''}`}
+      size="small"
+      pagination={false}
+      dataSource={lines}
+      scroll={{ x: 'max-content' }}
+      columns={[
+        {
+          title: '付款单号',
+          dataIndex: 'paymentNo',
+          width: 150,
+          render: (v: string, l) => (
+            <Link to={`/finance/payments/${l.paymentId}`}>{v}</Link>
+          ),
+        },
+        { title: '日期', dataIndex: 'payDate', width: 110 },
+        {
+          title: '类型',
+          key: 'r',
+          width: 130,
+          render: (_, l) => (
+            <span>
+              {RELATION[l.relation]}
+              {l.otherPayableNo ? (
+                <span style={{ color: palette.mute }}>
+                  {' '}
+                  · {l.otherPayableNo}
+                </span>
+              ) : null}
+            </span>
+          ),
+        },
+        {
+          title: '付款方式 · 账户 / 垫付人',
+          width: 220,
+          key: 'm',
+          render: (_, l) => (
+            <div>
+              {l.kind === 2 ? (
+                (l.accountName ?? '—')
+              ) : l.method === METHOD.ADVANCE ? (
+                <span>
+                  <Pill tone="violet">员工垫付</Pill> {l.advanceUser}
+                </span>
+              ) : l.method === METHOD.PRIVATE ? (
+                <span>
+                  <Pill tone="orange">私对私</Pill> {l.payerAccount}
+                </span>
+              ) : (
+                <span>
+                  <Pill tone="accent">公司对公</Pill> {l.accountName}
+                </span>
+              )}
+              {l.payeeAccount && (
+                <div style={{ fontSize: 12, color: palette.mute }}>
+                  付至 {l.payeeAccount}
+                </div>
+              )}
+            </div>
+          ),
+        },
+        {
+          title: '金额',
+          dataIndex: 'amount',
+          align: 'right',
+          width: 130,
+          render: (v: number, l) => (
+            <span
+              style={{
+                textDecoration: l.voided ? 'line-through' : undefined,
+              }}
+            >
+              {formatAmount(v, c)}
+            </span>
+          ),
+        },
+        {
+          title: '截图',
+          key: 'f',
+          width: 90,
+          render: (_, l) => <ProofLinks files={l.attachments} />,
+        },
+        {
+          title: '登记人',
+          dataIndex: 'createBy',
+          width: 100,
+          render: (v: string, l) =>
+            l.voided ? <Pill tone="mute">已作废</Pill> : v,
+        },
+      ]}
+    />
+  );
+};
+
 /** 应付单详情内容：金额汇总、付款计划、付款单（应付单详情与采购订单、运费账单付款面板共用） */
 export const PayableBody: React.FC<{
   payable: Payable;
@@ -1070,7 +1232,6 @@ export const PayableBody: React.FC<{
       </div>
     </div>
   );
-  const lines = p.payments.filter((l) => showVoided || !l.voided);
   return (
     <Space orientation="vertical" size={14} style={{ width: '100%' }}>
       <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
@@ -1097,152 +1258,13 @@ export const PayableBody: React.FC<{
         <div style={{ fontWeight: 600, color: palette.ink, marginBottom: 8 }}>
           付款计划
         </div>
-        <Table
-          rowKey="seq"
-          size="small"
-          pagination={false}
-          dataSource={p.installments}
-          columns={[
-            {
-              title: '期次',
-              dataIndex: 'seq',
-              width: 70,
-              render: (v: number) => `第 ${v} 期`,
-            },
-            {
-              title: '比例 · 时点',
-              width: 140,
-              key: 't',
-              render: (_, i) => `${i.ratio}% · ${i.triggerName}`,
-            },
-            {
-              title: '金额',
-              width: 130,
-              dataIndex: 'amount',
-              align: 'right',
-              render: (v: number) => formatAmount(v, c),
-            },
-            {
-              title: '到期日',
-              width: 120,
-              key: 'due',
-              render: (_, i) => (
-                <DueTag date={i.dueDate} state={i.dueState} days={i.dueDays} />
-              ),
-            },
-            {
-              title: '已付',
-              width: 130,
-              dataIndex: 'paidAmount',
-              align: 'right',
-              render: (v: number) => formatAmount(v, c),
-            },
-            {
-              title: '状态',
-              dataIndex: 'status',
-              width: 100,
-              render: (v: number) => <PayStatusPill status={v} />,
-            },
-          ]}
-        />
+        <InstallmentTable payable={p} />
       </div>
       <div>
         <div style={{ fontWeight: 600, color: palette.ink, marginBottom: 8 }}>
           付款单
         </div>
-        {lines.length === 0 ? (
-          <Empty
-            image={Empty.PRESENTED_IMAGE_SIMPLE}
-            description="还没有付款"
-          />
-        ) : (
-          <Table<PaymentLine>
-            rowKey={(l) =>
-              `${l.paymentId}-${l.relation}-${l.otherPayableNo ?? ''}`
-            }
-            size="small"
-            pagination={false}
-            dataSource={lines}
-            scroll={{ x: 'max-content' }}
-            columns={[
-              { title: '编号', dataIndex: 'paymentNo', width: 150 },
-              { title: '日期', dataIndex: 'payDate', width: 110 },
-              {
-                title: '类型',
-                key: 'r',
-                width: 130,
-                render: (_, l) => (
-                  <span>
-                    {RELATION[l.relation]}
-                    {l.otherPayableNo ? (
-                      <span style={{ color: palette.mute }}>
-                        {' '}
-                        · {l.otherPayableNo}
-                      </span>
-                    ) : null}
-                  </span>
-                ),
-              },
-              {
-                title: '付款方式 · 账户 / 垫付人',
-                width: 220,
-                key: 'm',
-                render: (_, l) => (
-                  <div>
-                    {l.kind === 2 ? (
-                      (l.accountName ?? '—')
-                    ) : l.method === METHOD.ADVANCE ? (
-                      <span>
-                        <Pill tone="violet">员工垫付</Pill> {l.advanceUser}
-                      </span>
-                    ) : l.method === METHOD.PRIVATE ? (
-                      <span>
-                        <Pill tone="orange">私对私</Pill> {l.payerAccount}
-                      </span>
-                    ) : (
-                      <span>
-                        <Pill tone="accent">公司对公</Pill> {l.accountName}
-                      </span>
-                    )}
-                    {l.payeeAccount && (
-                      <div style={{ fontSize: 12, color: palette.mute }}>
-                        付至 {l.payeeAccount}
-                      </div>
-                    )}
-                  </div>
-                ),
-              },
-              {
-                title: '金额',
-                dataIndex: 'amount',
-                align: 'right',
-                width: 130,
-                render: (v: number, l) => (
-                  <span
-                    style={{
-                      textDecoration: l.voided ? 'line-through' : undefined,
-                    }}
-                  >
-                    {formatAmount(v, c)}
-                  </span>
-                ),
-              },
-              {
-                title: '截图',
-                key: 'f',
-                width: 90,
-                render: (_, l) => <ProofLinks files={l.attachments} />,
-              },
-              {
-                title: '登记人',
-                dataIndex: 'createBy',
-                width: 100,
-                render: (v: string, l) =>
-                  l.voided ? <Pill tone="mute">已作废</Pill> : v,
-              },
-            ]}
-          />
-        )}
+        <PaymentLineTable payable={p} showVoided={showVoided} />
       </div>
     </Space>
   );
@@ -1308,9 +1330,15 @@ export const PayablePanel: React.FC<{
         <WalletOutlined style={{ color: palette.link }} />
         <b style={{ color: palette.ink, fontSize: 15 }}>付款</b>
         <PayStatusPill status={data.status} />
-        <span style={{ fontSize: 12, color: palette.mute }}>
-          {data.payableNo}
-        </span>
+        {access.payableDetail ? (
+          <Link to={`/finance/payables/${data.id}`} style={{ fontSize: 12 }}>
+            {data.payableNo}
+          </Link>
+        ) : (
+          <span style={{ fontSize: 12, color: palette.mute }}>
+            {data.payableNo}
+          </span>
+        )}
         <span style={{ flex: 1 }} />
         {open && allowAdvance && access['finance:payment:advance'] && (
           <Button size="small" onClick={() => setDrawer(METHOD.ADVANCE)}>

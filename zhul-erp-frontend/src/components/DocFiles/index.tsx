@@ -405,29 +405,45 @@ const FileTile: React.FC<{
   );
 };
 
-/**
- * 单据详情的「备注与附件」卡片（单据页统一规范）：备注随时可改，附件可上传、预览、删除；
- * editable 为假（已作废或没有权限）时只读。
- */
-export const DocFilesCard: React.FC<{
+/** 「备注与附件」里的一组附件（如采购入库单的验收照片、不良照片） */
+export interface DocFileGroup {
+  label: string;
   ownerType: OwnerType;
   files: Attachment[];
-  remark?: string;
   editable: boolean;
+  accept?: string;
   onAttach: (ids: number[]) => Promise<unknown>;
   onRemove: (id: number) => Promise<unknown>;
+}
+
+/**
+ * 单据详情的「备注与附件」卡片（单据页统一规范）：备注随时可改，附件可上传、预览、删除；
+ * editable 为假（已作废或没有权限）时只读。filesEditable 单独控制附件（如发货单入库后只能改备注）。
+ * 传 groups 时附件按组显示，每组各自上传。
+ */
+export const DocFilesCard: React.FC<{
+  ownerType?: OwnerType;
+  files?: Attachment[];
+  remark?: string;
+  editable: boolean;
+  filesEditable?: boolean;
+  onAttach?: (ids: number[]) => Promise<unknown>;
+  onRemove?: (id: number) => Promise<unknown>;
   onRemark: (remark: string) => Promise<unknown>;
   onChanged: () => void;
+  groups?: DocFileGroup[];
   style?: React.CSSProperties;
 }> = ({
   ownerType,
-  files,
+  files = [],
   remark,
   editable,
+  filesEditable = editable,
   onAttach,
   onRemove,
   onRemark,
   onChanged,
+  groups,
   style,
 }) => {
   const { palette } = useAppTheme();
@@ -435,7 +451,22 @@ export const DocFilesCard: React.FC<{
   const preview = useDocPreview();
   const [editing, setEditing] = useState<string>();
   const [saving, setSaving] = useState(false);
-  const [uploading, setUploading] = useState(0);
+  const [uploading, setUploading] = useState<Record<string, number>>({});
+  const list: DocFileGroup[] =
+    groups ??
+    (ownerType && onAttach && onRemove
+      ? [
+          {
+            label: '',
+            ownerType,
+            files,
+            editable: filesEditable,
+            onAttach,
+            onRemove,
+          },
+        ]
+      : []);
+  const total = list.reduce((n, g) => n + g.files.length, 0);
   const run = async (fn: () => Promise<unknown>, ok: string) => {
     try {
       await fn();
@@ -447,48 +478,54 @@ export const DocFilesCard: React.FC<{
       return false;
     }
   };
-  const beforeUpload = (file: File) => {
-    if (files.length + uploading >= DOC_FILE_MAX) {
+  const bump = (key: string, d: number) =>
+    setUploading((m) => ({ ...m, [key]: (m[key] ?? 0) + d }));
+  const beforeUpload = (g: DocFileGroup) => (file: File) => {
+    if (g.files.length + (uploading[g.label] ?? 0) >= DOC_FILE_MAX) {
       message.error(`附件最多 ${DOC_FILE_MAX} 个`);
       return Upload.LIST_IGNORE;
     }
-    setUploading((n) => n + 1);
+    bump(g.label, 1);
     attachmentApi
-      .upload(ownerType, file)
-      .then((a) => run(() => onAttach([a.id]), '附件已上传'))
+      .upload(g.ownerType, file)
+      .then((a) => run(() => g.onAttach([a.id]), '附件已上传'))
       .catch((e) => message.error(`「${file.name}」${errorText(e)}`))
-      .finally(() => setUploading((n) => n - 1));
+      .finally(() => bump(g.label, -1));
     return Upload.LIST_IGNORE;
   };
+  const uploadLink = (g: DocFileGroup) =>
+    g.editable &&
+    g.files.length < DOC_FILE_MAX && (
+      <Upload
+        multiple
+        accept={g.accept ?? DOC_FILE_ACCEPT}
+        showUploadList={false}
+        beforeUpload={beforeUpload(g)}
+      >
+        <a>
+          <UploadOutlined />{' '}
+          {(uploading[g.label] ?? 0) > 0
+            ? `正在上传 ${uploading[g.label]} 个…`
+            : '上传'}
+        </a>
+      </Upload>
+    );
   const saveRemark = async () => {
     setSaving(true);
     if (await run(() => onRemark((editing ?? '').trim()), '备注已保存'))
       setEditing(undefined);
     setSaving(false);
   };
+  const single = !groups && list.length === 1 ? list[0] : undefined;
   return (
     <Card style={{ padding: 20, marginBottom: 16, ...style }}>
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
         <b style={{ color: palette.ink, fontSize: 15 }}>备注与附件</b>
-        {files.length > 0 && (
-          <span style={{ color: palette.mute, marginLeft: 8 }}>
-            {files.length}
-          </span>
+        {total > 0 && (
+          <span style={{ color: palette.mute, marginLeft: 8 }}>{total}</span>
         )}
         <span style={{ flex: 1 }} />
-        {editable && files.length < DOC_FILE_MAX && (
-          <Upload
-            multiple
-            accept={DOC_FILE_ACCEPT}
-            showUploadList={false}
-            beforeUpload={beforeUpload}
-          >
-            <a>
-              <UploadOutlined />{' '}
-              {uploading > 0 ? `正在上传 ${uploading} 个…` : '上传'}
-            </a>
-          </Upload>
-        )}
+        {single && uploadLink(single)}
       </div>
       {editing === undefined ? (
         <div
@@ -542,32 +579,59 @@ export const DocFilesCard: React.FC<{
           </div>
         </div>
       )}
-      {files.length > 0 ? (
-        <div
-          style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 12 }}
-        >
-          {files.map((f, i) => (
-            <FileTile
-              key={f.id}
-              file={f}
-              onOpen={() => preview.open(files, i)}
-              onRemove={
-                editable
-                  ? () => {
-                      run(() => onRemove(f.id), '附件已删除');
-                    }
-                  : undefined
-              }
-            />
-          ))}
+      {list.map((g) => (
+        <div key={g.label || 'files'}>
+          {groups && (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                margin: '16px 0 0',
+                fontSize: 13,
+              }}
+            >
+              <span style={{ color: palette.sub }}>{g.label}</span>
+              <span style={{ flex: 1 }} />
+              {uploadLink(g)}
+            </div>
+          )}
+          {g.files.length > 0 ? (
+            <div
+              style={{
+                display: 'flex',
+                gap: 12,
+                flexWrap: 'wrap',
+                marginTop: 12,
+              }}
+            >
+              {g.files.map((f, i) => (
+                <FileTile
+                  key={f.id}
+                  file={f}
+                  onOpen={() => preview.open(g.files, i)}
+                  onRemove={
+                    g.editable
+                      ? () => {
+                          run(() => g.onRemove(f.id), '附件已删除');
+                        }
+                      : undefined
+                  }
+                />
+              ))}
+            </div>
+          ) : groups ? (
+            <div style={{ color: palette.mute, fontSize: 12, marginTop: 8 }}>
+              暂无
+            </div>
+          ) : (
+            g.editable && (
+              <div style={{ color: palette.mute, fontSize: 12, marginTop: 10 }}>
+                可以上传图片、视频、PDF、Excel，每张单据最多 {DOC_FILE_MAX} 个
+              </div>
+            )
+          )}
         </div>
-      ) : (
-        editable && (
-          <div style={{ color: palette.mute, fontSize: 12, marginTop: 10 }}>
-            可以上传图片、视频、PDF、Excel，每张单据最多 {DOC_FILE_MAX} 个
-          </div>
-        )
-      )}
+      ))}
       {preview.node}
     </Card>
   );

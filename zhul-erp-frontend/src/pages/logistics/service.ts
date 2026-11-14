@@ -3,6 +3,8 @@ import type {
   Attachment,
   AttachmentModels,
   Audit,
+  DocLog,
+  DocRef,
   PageResult,
 } from '@/pages/warehouse/service';
 
@@ -74,9 +76,16 @@ export interface Outbound extends Audit {
     soItemId: number;
     model: string;
     brand?: string;
+    category?: string;
     quantity: number;
+    /** 已装箱数量 */
+    packedQty?: number;
   }[];
   boxes: OutboundBox[];
+  /** 详情返回：单据附件（与打包照片分开）、关联单据、操作日志 */
+  attachments?: Attachment[];
+  related?: DocRef[];
+  logs?: DocLog[];
   /** 打包发货的照片（详情返回） */
   packingAttachments?: Attachment[];
   /** 还没有营销实拍的型号（详情返回，只提醒） */
@@ -168,6 +177,13 @@ export interface Logistics extends Audit {
   outboundCount: number;
   /** 所装销售出库单号（列表「来源单号」） */
   outboundNos?: string[];
+  outboundIds?: number[];
+  /** 列表：第一个型号与件数、件数合计、去重的品牌与品类 */
+  firstModel?: string;
+  firstQty?: number;
+  totalQuantity?: number;
+  brands?: string[];
+  categories?: string[];
   orders: { id: number; soNo?: string }[];
   boxCount: number;
   chargeableWeight: number;
@@ -183,6 +199,10 @@ export interface Logistics extends Audit {
     paymentRef?: string;
   }[];
   faceSheets?: Attachment[];
+  /** 详情返回：单据附件（与面单分开）、关联单据、操作日志 */
+  attachments?: Attachment[];
+  related?: DocRef[];
+  logs?: DocLog[];
 }
 
 export interface Statement extends Audit {
@@ -302,6 +322,8 @@ export const outboundApi = {
     pageSize: number;
     keyword?: string;
     status?: number;
+    /** 不传状态时含已撤回（「全部」页签） */
+    all?: boolean;
   }) => send<PageResult<Outbound>>('POST', `${L}/outbounds/page`, q),
   counts: () =>
     get<{ pending: number; packed: number }>(`${L}/outbounds/counts`),
@@ -324,6 +346,15 @@ export const outboundApi = {
   }) => send<Outbound[]>('POST', `${L}/outbounds/hand-over`, body),
   undoHandOver: (id: number, reason: string) =>
     send<Outbound>('POST', `${L}/outbounds/${id}/undo-hand-over`, { reason }),
+  remark: (id: number, remark: string) =>
+    send<Outbound>('POST', `${L}/outbounds/${id}/remark`, { remark }),
+  attach: (id: number, ids: number[]) =>
+    send<Outbound>('POST', `${L}/outbounds/${id}/attachments`, { ids }),
+  removeAttachment: (id: number, attachmentId: number) =>
+    send<Outbound>(
+      'DELETE',
+      `${L}/outbounds/${id}/attachments/${attachmentId}`,
+    ),
 };
 
 const SH = `${L}/shipments`;
@@ -350,6 +381,12 @@ export const logisticsApi = {
   ) => send<Logistics>('PUT', `${SH}/${id}/items`, body),
   void: (id: number, reason: string) =>
     send<Logistics>('POST', `${SH}/${id}/void`, { reason }),
+  remark: (id: number, remark: string) =>
+    send<Logistics>('POST', `${SH}/${id}/remark`, { remark }),
+  attach: (id: number, ids: number[]) =>
+    send<Logistics>('POST', `${SH}/${id}/attachments`, { ids }),
+  removeAttachment: (id: number, attachmentId: number) =>
+    send<Logistics>('DELETE', `${SH}/${id}/attachments/${attachmentId}`),
   confirmDirect: (
     id: number,
     shipmentId: number,

@@ -146,6 +146,8 @@ export interface SlipFile {
 
 export interface Receipt {
   id: number;
+  /** 收款单号（仅到账） */
+  receiptNo?: string;
   /** 1-水单、2-到账 */
   kind: number;
   amount: number;
@@ -187,6 +189,10 @@ export interface Receipt {
 /** 收款单里的一笔到账（未认领到账、可认领列表、收款记录） */
 export interface ReceiptRow {
   id: number;
+  /** 收款单号（SK + 年月日 + 3 位流水；水单为空） */
+  receiptNo?: string;
+  /** 对应的水单 */
+  slipId?: number;
   /** 未认领到账的附件名（最多 5 个） */
   fileNames?: string[];
   piId?: number | null;
@@ -227,6 +233,9 @@ export interface ReceiptRow {
   claimedByName?: string;
   claimedAt?: string;
   createTime: string;
+  createBy?: string;
+  updateTime?: string;
+  updateBy?: string;
 }
 
 export interface Pi {
@@ -336,6 +345,8 @@ export interface OverduePis {
 
 export interface PiStats {
   draftCount: number;
+  /** 待收款的 PI（同工作台「PI 待收款」） */
+  unpaidCount?: number;
   slipOnlyCount: number;
   monthReceivedUsd: number;
   monthReceivedCny: number;
@@ -349,6 +360,8 @@ export interface PiQuery {
   receiptStatus?: number;
   /** 只看已过期未收款 */
   expiredUnpaid?: boolean;
+  /** 只看待收款：已发送或已转订单、还没付清 */
+  unpaid?: boolean;
   ownerId?: number;
   createdFrom?: string;
   createdTo?: string;
@@ -814,6 +827,8 @@ export interface OrderStats {
 export interface OrderQuery {
   /** 只看先采购后收款、还没有水单也没有到账的 */
   payLaterOpen?: boolean;
+  /** 只看毛利为负、进行中的订单 */
+  lossOnly?: boolean;
   keyword?: string;
   status?: number;
   receiptStatus?: number;

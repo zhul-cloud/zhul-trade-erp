@@ -165,6 +165,7 @@ const RefundRequestDetail: React.FC = () => {
           {
             label: '退款单',
             no: q.refundNo,
+            href: q.refundId ? `/finance/refunds/${q.refundId}` : undefined,
             statusName: '已执行',
             tone: 'green' as const,
           },

@@ -593,6 +593,11 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
             vo.setAssigneeNames(active.getOrDefault(t.getId(), List.of()).stream().map(a -> names.get(a.getAssigneeId())).toList());
             vo.setReturnReason(t.getReturnReason());
             vo.setReturnNote(t.getReturnNote());
+            if (t.getStatus() == InquiryConstants.TASK_UNASSIGNED && t.getDeferUntil() != null
+                    && t.getDeferUntil().isAfter(java.time.LocalDate.now())) {
+                vo.setDeferUntil(t.getDeferUntil());
+                vo.setDeferReason(t.getDeferReason());
+            }
             boolean salesStage = t.getStatus() == InquiryConstants.TASK_SALES;
             if (salesStage && t.getSalesDeadline() != null) {
                 vo.setSalesRemainingMinutes(Math.max(0, java.time.Duration.between(now, t.getSalesDeadline()).toMinutes()));

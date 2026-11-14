@@ -28,4 +28,7 @@ public class TaskBriefVO {
     private Boolean canClaim;
     /** 业务员自询 */
     private Boolean selfSourcing;
+    /** 待分配且延后到以后：延后到哪天、原因 */
+    private java.time.LocalDate deferUntil;
+    private String deferReason;
 }

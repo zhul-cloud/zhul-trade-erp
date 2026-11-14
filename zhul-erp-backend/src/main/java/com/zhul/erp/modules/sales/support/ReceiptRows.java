@@ -63,6 +63,8 @@ public class ReceiptRows {
             ReceiptRowVO vo = new ReceiptRowVO();
             vo.setMigrated(MigratedGuard.isMigrated(r.getMigrated()));
             vo.setId(r.getId());
+            vo.setReceiptNo(r.getReceiptNo());
+            vo.setSlipId(r.getSlipId());
             vo.setPiId(r.getPiId());
             ProformaInvoiceDO pi = r.getPiId() == null ? null : pis.get(r.getPiId());
             vo.setPiNo(pi == null ? null : pi.getPiNo());
@@ -103,6 +105,9 @@ public class ReceiptRows {
             vo.setClaimedByName(r.getClaimedBy() == null ? null : users.get(r.getClaimedBy()));
             vo.setClaimedAt(r.getClaimedAt());
             vo.setCreateTime(r.getCreateTime());
+            vo.setCreateBy(r.getCreateBy());
+            vo.setUpdateTime(r.getUpdateTime());
+            vo.setUpdateBy(r.getUpdateBy());
             list.add(vo);
         }
         return list;

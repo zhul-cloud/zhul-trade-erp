@@ -54,3 +54,6 @@ zhul-erp-backend/uploads/
 
 # pem key
 *.pem
+
+# Python 运行时缓存
+__pycache__/

@@ -13,7 +13,7 @@
 
     <groupId>com.zhul</groupId>
     <artifactId>zhul-erp</artifactId>
-    <version>1.21.0</version>
+    <version>1.22.0</version>
     <name>zhul-erp</name>
     <description>烛龙ERP — 外贸业财一体化智能中台</description>
 
@@ -28,6 +28,11 @@
         <lombok.version>1.18.30</lombok.version>
         <aliyun-oss.version>3.17.4</aliyun-oss.version>
         <twelvemonkeys.version>3.12.0</twelvemonkeys.version>
+        <!-- POI 5.4.0 以下读取上传 OOXML 命中 CVE-2025-31672（audit DEP-001）；取 5.x 当前稳定版 -->
+        <poi.version>5.5.1</poi.version>
+        <!-- 覆盖 Boot 3.2.5 自带的 Tomcat 10.1.20：multipart 解析 CVE-2025-48988 / 48976 等（audit DEP-002）。
+             Boot 整体升级（DEP-007）后删除这一行，改用 Boot 管理的版本 -->
+        <tomcat.version>10.1.61</tomcat.version>
     </properties>
 
     <dependencies>
@@ -147,7 +152,7 @@
         <dependency>
             <groupId>org.apache.poi</groupId>
             <artifactId>poi-ooxml</artifactId>
-            <version>5.2.5</version>
+            <version>${poi.version}</version>
         </dependency>
 
         <!-- PDFBox，报价单 PDF 渲染为图片（预览与图片导出） -->

@@ -22,6 +22,9 @@ import com.zhul.erp.modules.inquiry.sourcing.dto.ItemHistoryEntryVO;
 import com.zhul.erp.modules.inquiry.sourcing.dto.BoardTaskVO;
 import com.zhul.erp.modules.inquiry.sourcing.dto.BoardVO;
 import com.zhul.erp.modules.inquiry.sourcing.dto.BrandGroupVO;
+import com.zhul.erp.modules.inquiry.sourcing.dto.DeferPreviewVO;
+import com.zhul.erp.modules.inquiry.sourcing.dto.DeferRequest;
+import com.zhul.erp.modules.inquiry.sourcing.dto.DeferredGroupVO;
 import com.zhul.erp.modules.inquiry.sourcing.dto.SalesPendingTaskVO;
 import com.zhul.erp.modules.inquiry.sourcing.dto.SalesPendingVO;
 import com.zhul.erp.modules.inquiry.sourcing.dto.PurchaserVO;
@@ -330,6 +333,9 @@ public class SourcingTaskServiceImpl implements SourcingTaskService {
             if (task.getStatus() != InquiryConstants.TASK_DONE) {
                 task.setStatus(InquiryConstants.TASK_CANCELLED);
                 taskMapper.updateById(task);
+                if (task.getDeferUntil() != null) {
+                    clearDefer(task.getId(), null);
+                }
             }
             deactivateAssignees(task.getId());
         }
@@ -455,6 +461,7 @@ public class SourcingTaskServiceImpl implements SourcingTaskService {
         pageSize = Math.min(Math.max(1, pageSize), InquiryConstants.MAX_PAGE_SIZE);
         int tenantId = tenantId();
         int status0 = status == null ? InquiryConstants.TASK_UNASSIGNED : status;
+        java.time.LocalDate today = java.time.LocalDate.now();
         List<SourcingTaskDO> open = taskMapper.selectList(new LambdaQueryWrapper<SourcingTaskDO>()
                 .eq(SourcingTaskDO::getTenantId, tenantId)
                 .in(SourcingTaskDO::getStatus, InquiryConstants.TASK_UNASSIGNED, InquiryConstants.TASK_SOURCING)
@@ -497,7 +504,7 @@ public class SourcingTaskServiceImpl implements SourcingTaskService {
         List<SourcingTaskDO> listed = new ArrayList<>();
         java.util.Set<Long> timeoutIds = new java.util.HashSet<>();
         BoardStatsVO stats = new BoardStatsVO();
-        int unassigned = 0, sourcing = 0, multi = 0, timeout = 0, returned = 0, doubt = 0;
+        int unassigned = 0, sourcing = 0, multi = 0, timeout = 0, returned = 0, doubt = 0, deferred = 0;
         long longest = 0;
         for (SourcingTaskDO t : open) {
             boolean isTimeout = t.getStatus() != InquiryConstants.TASK_DONE && limits.isTimeout(t, now);
@@ -506,6 +513,8 @@ public class SourcingTaskServiceImpl implements SourcingTaskService {
             }
             if (t.getStatus() == InquiryConstants.TASK_DONE) {
                 // 已回价的任务不计入待分配 / 询价中统计
+            } else if (isDeferred(t, today)) {
+                deferred++;
             } else if (t.getStatus() == InquiryConstants.TASK_UNASSIGNED) {
                 unassigned++;
                 longest = Math.max(longest, waitingMinutes(t, now));
@@ -527,13 +536,23 @@ public class SourcingTaskServiceImpl implements SourcingTaskService {
             }
             List<SourcingQuoteDO> pendingReview = reviewByTask.get(t.getId());
             boolean isListed = status0 == InquiryConstants.BOARD_TAB_REVIEW ? pendingReview != null
-                    : t.getStatus() == status0 && !(status0 == InquiryConstants.TASK_SOURCING && pendingReview != null);
+                    : status0 == InquiryConstants.BOARD_TAB_DEFERRED ? isDeferred(t, today)
+                    : t.getStatus() == status0 && !(status0 == InquiryConstants.TASK_SOURCING && pendingReview != null)
+                    && !isDeferred(t, today);
             if (isListed && pass.test(t.getId())) {
                 listed.add(t);
             }
         }
         BoardVO.TabCounts tabs = new BoardVO.TabCounts();
-        tabs.setUnassigned((int) open.stream().filter(t -> t.getStatus() == InquiryConstants.TASK_UNASSIGNED && pass.test(t.getId())).count());
+        tabs.setUnassigned((int) open.stream().filter(t -> t.getStatus() == InquiryConstants.TASK_UNASSIGNED
+                && !isDeferred(t, today) && pass.test(t.getId())).count());
+        tabs.setDeferred((int) open.stream().filter(t -> isDeferred(t, today) && pass.test(t.getId())).count());
+        // 已延后：按回来的日期、询盘合并成行，不分页
+        List<DeferredGroupVO> deferredGroups = null;
+        if (status0 == InquiryConstants.BOARD_TAB_DEFERRED) {
+            deferredGroups = deferredGroups(listed, open, today);
+            listed.clear();
+        }
         tabs.setSourcing((int) open.stream().filter(t -> t.getStatus() == InquiryConstants.TASK_SOURCING
                 && !reviewByTask.containsKey(t.getId()) && pass.test(t.getId())).count());
         tabs.setReview((int) reviewByTask.keySet().stream().filter(pass::test).count());
@@ -635,6 +654,7 @@ public class SourcingTaskServiceImpl implements SourcingTaskService {
             rows.add(vo);
         }
         stats.setUnassigned(unassigned);
+        stats.setDeferred(deferred);
         stats.setLongestWaitingMinutes(longest);
         stats.setSourcing(sourcing);
         stats.setMultiAssigned(multi);
@@ -654,7 +674,8 @@ public class SourcingTaskServiceImpl implements SourcingTaskService {
         BoardVO vo = new BoardVO();
         vo.setStats(stats);
         vo.setTabs(tabs);
-        vo.setTotal((long) listed.size());
+        vo.setTotal((long) (deferredGroups != null ? deferredGroups.size() : listed.size()));
+        vo.setDeferredGroups(deferredGroups);
         vo.setBrands(List.copyOf(brands.values()));
         vo.setTasks(rows);
         vo.setPurchasers(withSelf(purchasers, assignees));
@@ -963,6 +984,9 @@ public class SourcingTaskServiceImpl implements SourcingTaskService {
             task.setFirstAssignedAt(LocalDateTime.now());
         }
         taskMapper.updateById(task);
+        if (task.getDeferUntil() != null) {
+            clearDefer(task.getId(), null);
+        }
     }
 
     private void insertAssignee(SourcingTaskDO task, Long assigneeId, int mode, Long by) {
@@ -1035,6 +1059,186 @@ public class SourcingTaskServiceImpl implements SourcingTaskService {
             throw new BizException("询价任务不存在");
         }
         return tasks;
+    }
+
+    // ---------------------------------------------------------------- 延后
+
+    /** 最多延后到 180 天后 */
+    private static final int MAX_DEFER_DAYS = 180;
+    private static final String LOG_DEFER = "延后分配";
+    private static final String LOG_UNDEFER = "取消延后";
+
+    /** 待分配且延后到今天之后：不在待分配列表、统计与通知里，到当天自动回来 */
+    static boolean isDeferred(SourcingTaskDO t, java.time.LocalDate today) {
+        return t.getStatus() == InquiryConstants.TASK_UNASSIGNED && t.getDeferUntil() != null && t.getDeferUntil().isAfter(today);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void defer(DeferRequest req) {
+        java.time.LocalDate today = java.time.LocalDate.now();
+        java.time.LocalDate until = req.getDeferUntil();
+        if (!until.isAfter(today)) {
+            throw new BizException("延后日期要晚于今天");
+        }
+        if (until.isAfter(today.plusDays(MAX_DEFER_DAYS))) {
+            throw new BizException("最多延后 " + MAX_DEFER_DAYS + " 天");
+        }
+        List<Long> ids;
+        if (req.getCustomerInquiryId() != null) {
+            ids = waitingTasks(req.getCustomerInquiryId(), today).stream().map(SourcingTaskDO::getId).toList();
+            if (ids.isEmpty()) {
+                throw new BizException("这张询盘没有待分配的任务");
+            }
+        } else if (req.getTaskIds() != null && !req.getTaskIds().isEmpty()) {
+            ids = req.getTaskIds();
+        } else {
+            throw new BizException("请选择要延后的任务");
+        }
+        List<SourcingTaskDO> tasks = unassignedTasks(ids);
+        String reason = req.getReason() == null ? "" : req.getReason().trim();
+        Long me = currentUser.resolve();
+        LocalDateTime now = LocalDateTime.now();
+        taskMapper.update(null, new LambdaUpdateWrapper<SourcingTaskDO>()
+                .in(SourcingTaskDO::getId, ids)
+                .set(SourcingTaskDO::getDeferUntil, until)
+                .set(SourcingTaskDO::getDeferReason, reason)
+                .set(SourcingTaskDO::getDeferBy, me)
+                .set(SourcingTaskDO::getDeferTime, now)
+                // 等待时长从回来当天 0 点算起
+                .set(SourcingTaskDO::getPoolEnteredAt, until.atStartOfDay())
+                .set(SourcingTaskDO::getUpdateTime, now));
+        logService.recordOperateLog("分配工作台", LOG_DEFER,
+                Map.of("tasks", deferNotes(tasks)),
+                Map.of("tasks", tasks.stream().map(SourcingTaskDO::getTaskCode).toList(), "deferUntil", until.toString(),
+                        "reason", reason, "operator", lookups.userNames(List.of(me)).getOrDefault(me, "")));
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void undefer(List<Long> taskIds) {
+        if (taskIds == null || taskIds.isEmpty()) {
+            throw new BizException("请选择任务");
+        }
+        List<SourcingTaskDO> tasks = unassignedTasks(taskIds).stream().filter(t -> t.getDeferUntil() != null).toList();
+        if (tasks.isEmpty()) {
+            return;
+        }
+        LocalDateTime now = LocalDateTime.now();
+        for (SourcingTaskDO t : tasks) {
+            clearDefer(t.getId(), now);
+        }
+        Long me = currentUser.resolve();
+        logService.recordOperateLog("分配工作台", LOG_UNDEFER,
+                Map.of("tasks", deferNotes(tasks)),
+                Map.of("tasks", tasks.stream().map(SourcingTaskDO::getTaskCode).toList(),
+                        "operator", lookups.userNames(List.of(me)).getOrDefault(me, "")));
+    }
+
+    @Override
+    public DeferPreviewVO deferPreview(Long customerInquiryId) {
+        CustomerInquiryDO inquiry = inquiryMapper.selectById(customerInquiryId);
+        if (inquiry == null || inquiry.getDeletedAt() != null || !Objects.equals(inquiry.getTenantId(), tenantId())) {
+            throw new BizException("询盘单不存在");
+        }
+        List<SourcingTaskDO> waiting = waitingTasks(customerInquiryId, java.time.LocalDate.now());
+        long all = taskMapper.selectCount(new LambdaQueryWrapper<SourcingTaskDO>()
+                .eq(SourcingTaskDO::getCustomerInquiryId, customerInquiryId)
+                .ne(SourcingTaskDO::getStatus, InquiryConstants.TASK_CANCELLED)
+                .isNull(SourcingTaskDO::getDeletedAt));
+        InquiryLookups.InquiryBrief brief = lookups.briefs(List.of(customerInquiryId), lookups.isPartTime(currentUser.resolve()))
+                .get(customerInquiryId);
+        DeferPreviewVO vo = new DeferPreviewVO();
+        vo.setCustomerInquiryId(customerInquiryId);
+        vo.setInquiryCode(inquiry.getInquiryCode());
+        if (brief != null) {
+            vo.setLevel(brief.level());
+            vo.setCustomerName(brief.customerName());
+            vo.setSalesName(brief.salesName());
+        }
+        vo.setTaskCount(waiting.size());
+        vo.setItemCount(waiting.stream().mapToInt(t -> t.getItemCount() == null ? 0 : t.getItemCount()).sum());
+        vo.setOtherCount((int) all - waiting.size());
+        return vo;
+    }
+
+    /** 询盘下还在待分配列表里（没延后）的任务 */
+    private List<SourcingTaskDO> waitingTasks(Long customerInquiryId, java.time.LocalDate today) {
+        return taskMapper.selectList(new LambdaQueryWrapper<SourcingTaskDO>()
+                .eq(SourcingTaskDO::getTenantId, tenantId())
+                .eq(SourcingTaskDO::getCustomerInquiryId, customerInquiryId)
+                .eq(SourcingTaskDO::getStatus, InquiryConstants.TASK_UNASSIGNED)
+                .eq(SourcingTaskDO::getSalesHandling, 0)
+                .isNull(SourcingTaskDO::getDeletedAt))
+                .stream().filter(t -> !isDeferred(t, today)).toList();
+    }
+
+    /** 清空延后；poolEnteredAt 不为空时等待时长从这一刻重新算 */
+    private void clearDefer(Long taskId, LocalDateTime poolEnteredAt) {
+        LambdaUpdateWrapper<SourcingTaskDO> w = new LambdaUpdateWrapper<SourcingTaskDO>()
+                .eq(SourcingTaskDO::getId, taskId)
+                .set(SourcingTaskDO::getDeferUntil, null)
+                .set(SourcingTaskDO::getDeferReason, "")
+                .set(SourcingTaskDO::getDeferBy, null)
+                .set(SourcingTaskDO::getDeferTime, null)
+                .set(SourcingTaskDO::getUpdateTime, LocalDateTime.now());
+        if (poolEnteredAt != null) {
+            w.set(SourcingTaskDO::getPoolEnteredAt, poolEnteredAt);
+        }
+        taskMapper.update(null, w);
+    }
+
+    /** 日志里的任务简述，如「XP0001A 延后到 2026-11-14」 */
+    private static List<String> deferNotes(List<SourcingTaskDO> tasks) {
+        return tasks.stream().map(t -> t.getTaskCode() + (t.getDeferUntil() == null ? " 待分配" : " 延后到 " + t.getDeferUntil())).toList();
+    }
+
+    /** 已延后列表：同一张询盘、延后到同一天的任务合成一行，按回来的日期先后排 */
+    private List<DeferredGroupVO> deferredGroups(List<SourcingTaskDO> deferredTasks, List<SourcingTaskDO> open, java.time.LocalDate today) {
+        List<Long> inquiryIds = deferredTasks.stream().map(SourcingTaskDO::getCustomerInquiryId).distinct().toList();
+        if (inquiryIds.isEmpty()) {
+            return List.of();
+        }
+        Map<Long, InquiryLookups.InquiryBrief> briefs = lookups.briefs(inquiryIds, lookups.isPartTime(currentUser.resolve()));
+        Map<Long, String> codes = inquiryMapper.selectBatchIds(inquiryIds).stream()
+                .collect(Collectors.toMap(CustomerInquiryDO::getId, CustomerInquiryDO::getInquiryCode));
+        Map<Long, String> names = lookups.userNames(deferredTasks.stream().map(SourcingTaskDO::getDeferBy).filter(Objects::nonNull).distinct().toList());
+        Set<Long> stillWaiting = open.stream()
+                .filter(t -> t.getStatus() == InquiryConstants.TASK_UNASSIGNED && !isDeferred(t, today))
+                .map(SourcingTaskDO::getCustomerInquiryId).collect(Collectors.toSet());
+        Map<String, List<SourcingTaskDO>> groups = deferredTasks.stream()
+                .sorted(Comparator.comparing(SourcingTaskDO::getDeferUntil).thenComparing(SourcingTaskDO::getTaskCode))
+                .collect(Collectors.groupingBy(t -> t.getDeferUntil() + "#" + t.getCustomerInquiryId(), LinkedHashMap::new, Collectors.toList()));
+        List<DeferredGroupVO> rows = new ArrayList<>(groups.size());
+        for (List<SourcingTaskDO> ts : groups.values()) {
+            SourcingTaskDO first = ts.get(0);
+            SourcingTaskDO latest = ts.stream().max(Comparator.comparing(SourcingTaskDO::getDeferTime,
+                    Comparator.nullsFirst(Comparator.naturalOrder()))).orElse(first);
+            DeferredGroupVO g = new DeferredGroupVO();
+            g.setDeferUntil(first.getDeferUntil());
+            g.setCustomerInquiryId(first.getCustomerInquiryId());
+            g.setInquiryCode(codes.get(first.getCustomerInquiryId()));
+            InquiryLookups.InquiryBrief b = briefs.get(first.getCustomerInquiryId());
+            if (b != null) {
+                g.setLevel(b.level());
+                g.setCustomerName(b.customerName());
+                g.setSalesName(b.salesName());
+            }
+            g.setTaskIds(ts.stream().map(SourcingTaskDO::getId).toList());
+            if (ts.size() == 1) {
+                g.setTaskCode(first.getTaskCode());
+                g.setBrand(first.getBrand());
+                g.setCategory(first.getCategory());
+            }
+            g.setTaskCount(ts.size());
+            g.setItemCount(ts.stream().mapToInt(t -> t.getItemCount() == null ? 0 : t.getItemCount()).sum());
+            g.setWholeInquiry(!stillWaiting.contains(first.getCustomerInquiryId()));
+            g.setReason(ts.stream().map(SourcingTaskDO::getDeferReason).filter(StringUtils::hasText).findFirst().orElse(""));
+            g.setDeferByName(names.get(latest.getDeferBy()));
+            g.setDeferTime(latest.getDeferTime());
+            rows.add(g);
+        }
+        return rows;
     }
 
     // ---------------------------------------------------------------- 规则

@@ -88,6 +88,8 @@ public class ExpenseService {
     private final com.zhul.erp.modules.system.service.DictItemService dictItemService;
     private final com.zhul.erp.modules.aftersales.repository.AfterSalesMapper afterSalesMapper;
     private final com.zhul.erp.modules.aftersales.support.AfterSalesLogs afterSalesLogs;
+    private final com.zhul.erp.modules.system.doclog.DocLogs docLogs;
+    private final com.zhul.erp.framework.security.PermissionChecker perm;
 
     public static final String DICT_CATEGORY = "expense_category";
     public static final String CATEGORY_ORDER = "ORDER";
@@ -120,7 +122,7 @@ public class ExpenseService {
         e.setExpenseNo(documentNumberService.next(DocumentType.FE));
         e.setStatus(FinanceConstants.FE_VALID);
         e.setVoidReason("");
-        fill(e, req, false);
+        fill(e, req, false, false);
         e.setBusinessUnitId(unitOf(req));
         expenseMapper.insert(e);
         saveAllocations(e, req.getAllocations());
@@ -128,6 +130,10 @@ public class ExpenseService {
         attachments.sync(AttachmentService.EXPENSE, e.getId(), req.getAttachmentIds());
         requireProof(e);
         sync.syncExpense(e.getId());
+        docLogs.add(DocumentType.FE, e.getId(), "登记", e.getCurrencyCode() + " " + e.getAmount().toPlainString() + "，"
+                + FinanceConstants.METHOD_NAMES.get(e.getMethod()) + "，收款方 " + e.getPayeeName()
+                + (req.getAllocations() == null || req.getAllocations().isEmpty() ? ""
+                : "，分摊到 " + req.getAllocations().size() + " 个订单型号"));
         logService.recordOperateLog(MENU, "新建费用单", null, Map.of("expenseNo", e.getExpenseNo(), "name", e.getName(),
                 "amount", e.getCurrencyCode() + " " + e.getAmount()));
         return detail(e.getId());
@@ -141,8 +147,9 @@ public class ExpenseService {
             throw new BizException("费用单已作废");
         }
         String before = e.getCurrencyCode() + " " + e.getAmount();
-        boolean locked = locked(e);
-        fill(e, req, locked);
+        java.util.List<String> changes = changes(e, req);
+        // 生效后金额类字段不能改，录错作废重开（change finance-expense-docs）
+        fill(e, req, true, locked(e));
         expenseMapper.updateById(e);
         // 事业部可在「公共」与某事业部之间改，为空也要写回
         expenseMapper.update(null, new LambdaUpdateWrapper<ExpenseDO>()
@@ -152,6 +159,9 @@ public class ExpenseService {
         attachments.sync(AttachmentService.EXPENSE, e.getId(), req.getAttachmentIds());
         requireProof(e);
         sync.syncExpense(e.getId());
+        if (!changes.isEmpty()) {
+            docLogs.add(DocumentType.FE, id, "修改", String.join("；", changes));
+        }
         logService.recordOperateLog(MENU, "修改费用单", Map.of("expenseNo", e.getExpenseNo(), "amount", before),
                 Map.of("expenseNo", e.getExpenseNo(), "amount", e.getCurrencyCode() + " " + e.getAmount()));
         return detail(id);
@@ -172,6 +182,7 @@ public class ExpenseService {
         e.setVoidReason(reason.trim());
         expenseMapper.updateById(e);
         sync.syncExpense(id);
+        docLogs.add(DocumentType.FE, id, "作废", reason.trim());
         logService.recordOperateLog(MENU, "作废费用单", Map.of("expenseNo", e.getExpenseNo(), "status", "有效"),
                 Map.of("expenseNo", e.getExpenseNo(), "status", "已作废", "reason", reason.trim()));
         return detail(id);
@@ -207,7 +218,112 @@ public class ExpenseService {
         if (e == null) {
             throw new BizException("费用单不存在");
         }
-        return toVos(List.of(e)).get(0);
+        return doc(toVos(List.of(e)).get(0));
+    }
+
+    /** 修改费用单时变化的非金额字段（单据日志用；说明与凭证另记） */
+    private java.util.List<String> changes(ExpenseDO e, SaveExpenseRequest req) {
+        java.util.List<String> out = new ArrayList<>();
+        String name = req.getName() == null ? "" : req.getName().trim();
+        if (!name.equals(e.getName())) {
+            out.add("名称 " + e.getName() + " → " + name);
+        }
+        if (StringUtils.hasText(req.getCategory()) && !req.getCategory().trim().equals(e.getCategory())) {
+            Map<String, String> names = categoryNames();
+            out.add("类别 " + names.getOrDefault(e.getCategory(), e.getCategory()) + " → "
+                    + names.getOrDefault(req.getCategory().trim(), req.getCategory().trim()));
+        }
+        int months = req.getAmortizeMonths() == null ? 1 : req.getAmortizeMonths();
+        if (!Objects.equals(months, e.getAmortizeMonths())) {
+            out.add("分摊月数 " + e.getAmortizeMonths() + " → " + months);
+        }
+        if (!Objects.equals(unitOf(req), e.getBusinessUnitId())) {
+            out.add("所属事业部");
+        }
+        if (!Objects.equals(req.getAfterSalesId(), e.getAfterSalesId())) {
+            out.add("关联售后单");
+        }
+        String before = allocationMapper.selectList(new LambdaQueryWrapper<ExpenseAllocationDO>()
+                        .eq(ExpenseAllocationDO::getExpenseId, e.getId()).isNull(ExpenseAllocationDO::getDeletedAt))
+                .stream().map(a -> a.getSoItemId() + ":" + a.getAmount().setScale(2, RoundingMode.HALF_UP).toPlainString())
+                .sorted().collect(Collectors.joining(","));
+        String after = req.getAllocations() == null ? "" : req.getAllocations().stream()
+                .map(a -> a.getSoItemId() + ":" + a.getAmount().setScale(2, RoundingMode.HALF_UP).toPlainString())
+                .sorted().collect(Collectors.joining(","));
+        if (!before.equals(after)) {
+            out.add("分摊");
+        }
+        String remark = req.getRemark() == null ? "" : req.getRemark().trim();
+        if (!remark.equals(e.getRemark())) {
+            out.add("说明");
+        }
+        return out;
+    }
+
+    // ---------------------------------------------------------------- 详情、说明与凭证（change finance-expense-docs）
+
+    private ExpenseVO doc(ExpenseVO vo) {
+        java.util.List<com.zhul.erp.modules.system.doclog.DocRefVO> related = new ArrayList<>();
+        if (vo.getPayableId() != null) {
+            related.add(new com.zhul.erp.modules.system.doclog.DocRefVO(DocumentType.AP.name(), vo.getPayableId(), null,
+                    vo.getPayStatus(), null));
+        }
+        if (vo.getReimbursementId() != null) {
+            related.add(new com.zhul.erp.modules.system.doclog.DocRefVO(DocumentType.BX.name(), vo.getReimbursementId(),
+                    vo.getReimburseNo(), vo.getReimburseStatus(), null));
+        }
+        if (vo.getAfterSalesId() != null) {
+            related.add(new com.zhul.erp.modules.system.doclog.DocRefVO(DocumentType.AS.name(), vo.getAfterSalesId(),
+                    vo.getAsNo(), null, null));
+        }
+        java.util.Set<Long> seen = new HashSet<>();
+        vo.getAllocations().stream().filter(a -> seen.add(a.getSoId())).forEach(a -> related.add(
+                new com.zhul.erp.modules.system.doclog.DocRefVO(DocumentType.SO.name(), a.getSoId(), a.getSoNo(), null, null)));
+        vo.setRelated(related);
+        vo.setFiles(attachments.listOf(AttachmentService.EXPENSE, vo.getId()));
+        vo.setLogs(docLogs.list(DocumentType.FE, vo.getId()));
+        vo.setEditable(Objects.equals(vo.getStatus(), FinanceConstants.FE_VALID) && !Boolean.TRUE.equals(vo.getMigrated())
+                && perm.has("finance:expense:edit"));
+        return vo;
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public ExpenseVO remark(Long id, String remark) {
+        ExpenseDO e = editable(id);
+        String text = remark == null ? "" : remark.trim();
+        if (text.length() > 500) {
+            throw new BizException("说明最多 500 字");
+        }
+        e.setRemark(text);
+        expenseMapper.updateById(e);
+        docLogs.add(DocumentType.FE, id, "修改说明", text.isEmpty() ? "清空说明" : text);
+        return detail(id);
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public ExpenseVO attach(Long id, List<Long> ids) {
+        editable(id);
+        attachments.attach(AttachmentService.EXPENSE, id, ids);
+        docLogs.add(DocumentType.FE, id, "上传附件", ids.size() + " 个");
+        return detail(id);
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public ExpenseVO removeAttachment(Long id, Long attachmentId) {
+        ExpenseDO e = editable(id);
+        attachments.remove(AttachmentService.EXPENSE, id, attachmentId);
+        requireProof(e);
+        docLogs.add(DocumentType.FE, id, "删除附件", "");
+        return detail(id);
+    }
+
+    private ExpenseDO editable(Long id) {
+        ExpenseDO e = lock(id);
+        MigratedGuard.requireEditable(e.getMigrated());
+        if (e.getStatus() == FinanceConstants.FE_VOID) {
+            throw new BizException("费用单已作废");
+        }
+        return e;
     }
 
     /** 分摊时选订单型号：按订单号或型号搜索最近的订单 */
@@ -292,7 +408,7 @@ public class ExpenseService {
         }
     }
 
-    private void fill(ExpenseDO e, SaveExpenseRequest req, boolean locked) {
+    private void fill(ExpenseDO e, SaveExpenseRequest req, boolean locked, boolean paid) {
         if (req.getOccurDate().isAfter(LocalDate.now())) {
             throw new BizException("发生日期不能晚于今天");
         }
@@ -308,9 +424,13 @@ public class ExpenseService {
         if (locked) {
             BigDecimal amount = req.getAmount().setScale(2, RoundingMode.HALF_UP);
             boolean changed = amount.compareTo(e.getAmount()) != 0 || !Objects.equals(req.getMethod(), e.getMethod())
-                    || !Objects.equals(req.getCurrencyCode(), e.getCurrencyCode()) || !samePayee(e, req);
+                    || !Objects.equals(req.getCurrencyCode(), e.getCurrencyCode()) || !samePayee(e, req)
+                    || !Objects.equals(req.getOccurDate(), e.getOccurDate())
+                    || Objects.equals(e.getMethod(), FinanceConstants.METHOD_ADVANCE) && req.getAdvanceUserId() != null
+                    && !Objects.equals(req.getAdvanceUserId(), e.getAdvanceUserId());
             if (changed) {
-                throw new BizException(Objects.equals(e.getMethod(), FinanceConstants.METHOD_COMPANY)
+                throw new BizException(!paid ? "金额、币种、收款方、付款方式与发生日期不能修改，录错请作废后重新登记"
+                        : Objects.equals(e.getMethod(), FinanceConstants.METHOD_COMPANY)
                         ? "已经付款，不能修改金额与收款方" : "已在报销单里，不能修改金额与收款方");
             }
             return;
@@ -578,6 +698,7 @@ public class ExpenseService {
             ReimbursementLineDO line = lines.get(e.getId());
             ReimbursementDO bx = line == null ? null : bxs.get(line.getReimbursementId());
             if (bx != null) {
+                vo.setReimbursementId(bx.getId());
                 vo.setReimburseNo(bx.getReimburseNo());
                 vo.setReimburseStatus(bx.getStatus());
             }

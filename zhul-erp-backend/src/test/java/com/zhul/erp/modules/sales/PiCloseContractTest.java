@@ -1,9 +1,11 @@
 package com.zhul.erp.modules.sales;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.zhul.erp.modules.sales.constants.SalesConstants;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -40,6 +42,27 @@ class PiCloseContractTest extends SalesContractSupport {
 
     private int inquiryStatus(long id) {
         return jdbc.queryForObject("select status from customer_inquiry where id = ?", Integer.class, id);
+    }
+
+    /** UI-030：工作台「PI 待收款」进入列表——已发送或已转订单、还没付清；列表与顶部计数同口径 */
+    @Test
+    void unpaidFilter_sentOrConvertedNotPaid_countMatchesList() throws Exception {
+        long c = customer("Hoorain HTF", "Bangladesh");
+        ok(createPi(quotationItemIds(quotation(c, 2, "USD", null, TWO))));
+        long sent = sentPi(quotationItemIds(quotation(c, 2, "USD", null, TWO)), null);
+        long converted = sentPi(quotationItemIds(quotation(c, 2, "USD", null, TWO)), null);
+        long paid = sentPi(quotationItemIds(quotation(c, 2, "USD", null, TWO)), null);
+        jdbc.update("update proforma_invoice set status = ?, receipt_status = ? where id = ?",
+                SalesConstants.PI_CONVERTED, SalesConstants.RECEIPT_SLIP_ONLY, converted);
+        jdbc.update("update proforma_invoice set status = ?, receipt_status = ? where id = ?",
+                SalesConstants.PI_CONVERTED, SalesConstants.RECEIPT_PAID, paid);
+        JsonNode unpaid = ok(call(json(post(PI + "/page"), "{\"unpaid\":true}"), admin));
+        assertEquals(2, unpaid.path("total").asInt(), "草稿、已付清的不算");
+        List<Long> ids = new ArrayList<>();
+        unpaid.path("records").forEach(r -> ids.add(r.path("id").asLong()));
+        assertTrue(ids.containsAll(List.of(sent, converted)), ids.toString());
+        assertEquals(2, ok(call(get(PI + "/stats"), admin)).path("unpaidCount").asInt(), "顶部计数与列表一致");
+        assertEquals(4, ok(call(json(post(PI + "/page"), "{}"), admin)).path("total").asInt(), "不传不过滤");
     }
 
     @Test

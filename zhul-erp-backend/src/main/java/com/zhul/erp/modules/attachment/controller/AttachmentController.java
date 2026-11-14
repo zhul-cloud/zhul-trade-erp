@@ -30,13 +30,18 @@ public class AttachmentController {
 
     /** 所属单据类型 → 能看这类附件的菜单（任一即可） */
     private static final Map<String, List<String>> MENUS = Map.ofEntries(
-            Map.entry(AttachmentService.SHIPMENT, List.of("/purchase/shipments", "/warehouse/receipts")),
-            Map.entry(AttachmentService.RECEIPT, List.of("/warehouse/receipts", "/purchase/shipments")),
+            Map.entry(AttachmentService.SHIPMENT, List.of("/purchase/shipments", "/warehouse/receipts", "/purchase/orders")),
+            Map.entry(AttachmentService.RECEIPT, List.of("/warehouse/receipts", "/purchase/shipments", "/purchase/orders")),
             Map.entry(AttachmentService.SHOOT, List.of("/warehouse/shoots")),
-            Map.entry(AttachmentService.RECEIPT_DEFECT, List.of("/warehouse/receipts", "/purchase/shipments")),
-            Map.entry(AttachmentService.PACKING, List.of("/warehouse/outbounds")),
+            Map.entry(AttachmentService.RECEIPT_DEFECT, List.of("/warehouse/receipts", "/purchase/shipments", "/purchase/orders")),
+            Map.entry(AttachmentService.PACKING, List.of("/warehouse/outbounds", "/sales/orders")),
+            Map.entry(AttachmentService.OUTBOUND, List.of("/warehouse/outbounds", "/sales/orders")),
             Map.entry(AttachmentService.NETWORK, List.of("/operations/media")),
             Map.entry(AttachmentService.LOGISTICS, List.of("/logistics/shipments")),
+            Map.entry(AttachmentService.LOGISTICS_DOC, List.of("/logistics/shipments")),
+            Map.entry(AttachmentService.PAYABLE, List.of("/finance/payables", "/finance/payments")),
+            Map.entry(AttachmentService.FX_SETTLEMENT, List.of("/finance/fx-settlements")),
+            Map.entry(AttachmentService.PAYMENT_RECEIPT, List.of("/finance/receipts", "/sales/pi", "/sales/orders")),
             Map.entry(AttachmentService.PAYMENT, List.of("/finance/payables", "/finance/payments", "/purchase/orders",
                     "/logistics/statements", "/finance/reimbursements")),
             Map.entry(AttachmentService.COURIER_PROOF, List.of("/finance/reimbursements")),

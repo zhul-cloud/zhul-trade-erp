@@ -70,7 +70,7 @@ class OtherIncomeConcurrencyContractTest extends IntegrationTestBase {
         SaveOtherIncomeRequest req = new SaveOtherIncomeRequest();
         req.setIncomeDate(LocalDate.now());
         req.setCategory("REBATE");
-        req.setAmount(new BigDecimal("120"));
+        req.setAmount(new BigDecimal("100"));
         req.setRemark("返点（改）");
 
         CompletableFuture<Void> edit = CompletableFuture.runAsync(() -> as(auth, () -> {

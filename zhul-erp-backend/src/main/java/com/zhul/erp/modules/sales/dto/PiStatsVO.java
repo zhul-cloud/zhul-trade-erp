@@ -7,6 +7,8 @@ import java.math.BigDecimal;
 @Data
 public class PiStatsVO {
     private Long draftCount;
+    /** 待收款的 PI（同工作台「PI 待收款」） */
+    private Long unpaidCount;
     /** 有水单待到账的 PI */
     private Long slipOnlyCount;
     /** 本月到账（美元） */

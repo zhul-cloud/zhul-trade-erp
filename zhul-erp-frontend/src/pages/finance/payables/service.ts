@@ -1,5 +1,5 @@
 import { request } from '@umijs/max';
-import type { Attachment } from '@/pages/warehouse/service';
+import type { Attachment, DocLog, DocRef } from '@/pages/warehouse/service';
 
 const AP = '/api/v1/finance/payables';
 const PY = '/api/v1/finance/payments';
@@ -31,6 +31,14 @@ export const PAYEE = {
 } as const;
 /** 来源类型 */
 export const SOURCE = { PO: 1, STATEMENT: 2, EXPENSE: 3 } as const;
+/** 来源单据链接：采购订单、运费账单、费用单 */
+export const sourcePath = (p: Pick<Payable, 'sourceType' | 'sourceId'>) =>
+  p.sourceType === SOURCE.PO
+    ? `/purchase/orders/${p.sourceId}`
+    : p.sourceType === SOURCE.EXPENSE
+      ? `/finance/expenses/${p.sourceId}`
+      : '/logistics/statements';
+
 /** 付款方式 */
 export const METHOD = { COMPANY: 1, ADVANCE: 2, PRIVATE: 3 } as const;
 
@@ -113,6 +121,12 @@ export interface Payable {
   createBy?: string;
   updateTime?: string;
   updateBy?: string;
+  /** 以下只在详情返回（change finance-ap-fx-docs） */
+  remark?: string;
+  files?: Attachment[];
+  related?: DocRef[];
+  logs?: DocLog[];
+  editable?: boolean;
 }
 
 export interface PayableStats {
@@ -184,6 +198,8 @@ export interface Payment {
     payableNo: string;
     sourceNo: string;
     amount: number;
+    amountCny?: number;
+    /** 0-实付、1-欠款抵扣、2-退款冲减 */
     fromCredit: number;
     creditPayableNo?: string;
   }[];
@@ -193,6 +209,13 @@ export interface Payment {
   createBy?: string;
   updateTime?: string;
   updateBy?: string;
+  /** 以下只在详情返回（change finance-cash-docs） */
+  files?: Attachment[];
+  related?: DocRef[];
+  logs?: DocLog[];
+  editable?: boolean;
+  /** 不能作废的原因，如已进入报销单 */
+  voidBlockedReason?: string;
 }
 
 export interface PaymentQuery {
@@ -286,6 +309,15 @@ export const payableApi = {
   payees: (keyword?: string) => get<PayeeOption[]>(`${AP}/payees`, { keyword }),
   /** 与这张应付单同一收款方、同一币种，有未付或欠款的应付单 */
   open: (id: number) => get<Payable[]>(`${AP}/${id}/open`),
+  remark: (id: number, remark: string) =>
+    send<Payable>(`${AP}/${id}/remark`, { remark }),
+  attach: (id: number, ids: number[]) =>
+    send<Payable>(`${AP}/${id}/attachments`, { ids }),
+  removeAttachment: (id: number, attachmentId: number) =>
+    request<{ data: Payable }>(`${AP}/${id}/attachments/${attachmentId}`, {
+      method: 'DELETE',
+      ...quiet,
+    }).then((r) => r.data),
 };
 
 export const paymentApi = {
@@ -301,6 +333,16 @@ export const paymentApi = {
   refund: (body: RefundBody) => send<Payment>(`${PY}/refunds`, body),
   voidPayment: (id: number, reason: string) =>
     send<Payment>(`${PY}/${id}/void`, { reason }),
+  detail: (id: number) => get<Payment>(`${PY}/${id}`),
+  remark: (id: number, remark: string) =>
+    send<Payment>(`${PY}/${id}/remark`, { remark }),
+  attach: (id: number, ids: number[]) =>
+    send<Payment>(`${PY}/${id}/attachments`, { ids }),
+  removeAttachment: (id: number, attachmentId: number) =>
+    request<{ data: Payment }>(`${PY}/${id}/attachments/${attachmentId}`, {
+      method: 'DELETE',
+      skipErrorHandler: true,
+    }).then((r) => r.data),
 };
 
 export type { Attachment };

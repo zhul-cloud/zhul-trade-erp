@@ -28,6 +28,7 @@ import java.util.List;
 public class CustomerRefundController {
 
     private static final String VIEW = "@perm.canAccessMenu('/finance/refunds') or @perm.canAccessMenu('/sales/orders')";
+    private static final String MENU = "@perm.canAccessMenu('/finance/refunds')";
     private static final String EDIT = "@perm.has('finance:refund:edit')";
 
     private final CustomerRefundService service;
@@ -72,6 +73,26 @@ public class CustomerRefundController {
     @PreAuthorize(EDIT)
     public Result<RefundVO> create(@Valid @RequestBody SaveRefundRequest req) {
         return Result.ok(service.create(req));
+    }
+
+    @PostMapping("/{id}/remark")
+    @PreAuthorize(MENU)
+    public Result<RefundVO> remark(@PathVariable Long id,
+                                   @Valid @RequestBody com.zhul.erp.modules.system.doclog.DocRemarkRequest req) {
+        return Result.ok(service.remark(id, req.getRemark()));
+    }
+
+    @PostMapping("/{id}/attachments")
+    @PreAuthorize(MENU)
+    public Result<RefundVO> attach(@PathVariable Long id,
+                                   @Valid @RequestBody com.zhul.erp.modules.system.doclog.DocAttachRequest req) {
+        return Result.ok(service.attach(id, req.getIds()));
+    }
+
+    @org.springframework.web.bind.annotation.DeleteMapping("/{id}/attachments/{attachmentId}")
+    @PreAuthorize(MENU)
+    public Result<RefundVO> removeAttachment(@PathVariable Long id, @PathVariable Long attachmentId) {
+        return Result.ok(service.removeAttachment(id, attachmentId));
     }
 
     @PostMapping("/{id}/void")

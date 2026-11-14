@@ -37,6 +37,11 @@ public class SourcingTaskDO {
     private LocalDateTime salesDeadline;
     /** 最近一次进入待分配的时间 */
     private LocalDateTime poolEnteredAt;
+    /** 延后到哪天：大于今天时不进待分配列表、不参与分配；当天回到待分配（spec inquiry/sourcing-task「延后分配」） */
+    private java.time.LocalDate deferUntil;
+    private String deferReason;
+    private Long deferBy;
+    private LocalDateTime deferTime;
     /** 业务员自询中（0-否、1-是） */
     private Integer salesHandling;
     /** 历史迁移（0-否、1-是）；迁移数据只读，见 MigratedGuard */

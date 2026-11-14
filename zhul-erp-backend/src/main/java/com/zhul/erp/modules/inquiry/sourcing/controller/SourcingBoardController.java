@@ -156,6 +156,29 @@ public class SourcingBoardController {
         return Result.ok();
     }
 
+    /** 延后待分配的任务（或整张询盘）到某天，到当天回到待分配 */
+    @PostMapping("/defer")
+    @PreAuthorize(ASSIGN)
+    public Result<Void> defer(@Valid @RequestBody com.zhul.erp.modules.inquiry.sourcing.dto.DeferRequest req) {
+        taskService.defer(req);
+        return Result.ok();
+    }
+
+    /** 已延后的任务现在处理：马上回到待分配 */
+    @PostMapping("/undefer")
+    @PreAuthorize(ASSIGN)
+    public Result<Void> undefer(@Valid @RequestBody TaskIdsRequest req) {
+        taskService.undefer(req.getTaskIds());
+        return Result.ok();
+    }
+
+    /** 延后整张询盘前的确认信息 */
+    @GetMapping("/defer-preview")
+    @PreAuthorize(ASSIGN)
+    public Result<com.zhul.erp.modules.inquiry.sourcing.dto.DeferPreviewVO> deferPreview(@RequestParam Long customerInquiryId) {
+        return Result.ok(taskService.deferPreview(customerInquiryId));
+    }
+
     @PostMapping("/tasks/{id}/reassign")
     @PreAuthorize(ASSIGN)
     public Result<Void> reassign(@PathVariable Long id, @Valid @RequestBody AssigneeRequest req) {

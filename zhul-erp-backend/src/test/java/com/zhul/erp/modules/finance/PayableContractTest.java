@@ -22,6 +22,7 @@ import static com.zhul.erp.support.TestDates.today;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -695,5 +696,95 @@ class PayableContractTest extends SalesContractSupport {
             assertFalse(seenPaid && !paid, "已付清的排在未付之后：" + rows);
             seenPaid |= paid;
         }
+    }
+
+    // ---------------------------------------------------------------- 付款单（change finance-cash-docs）
+
+    @Test
+    void paymentDoc_detailAllocationsRelatedLogs_remark_readOnlyAfterVoid_buyerScope() throws Exception {
+        long sup = supplier("深圳工控", null);
+        long poId = orderedPo(sup, "A-1", 10, "1000", List.of(term(100, 1, 0))).path("id").asLong();
+        long apId = bySource(poId, admin).path("id").asLong();
+        long id = ok(pay(payBody(1, "3000.00", Map.of(apId, "3000.00"), admin), admin)).path("id").asLong();
+
+        JsonNode d = ok(call(get(PY + "/" + id), admin));
+        assertEquals(1, d.path("allocations").size());
+        money("3000.00", d.path("allocations").get(0).path("amount"));
+        assertEquals("AP", d.path("related").get(0).path("type").asText());
+        assertEquals("PO", d.path("related").get(1).path("type").asText());
+        assertEquals(1, d.path("files").size());
+        assertEquals("登记", d.path("logs").get(0).path("action").asText());
+        assertTrue(d.path("editable").asBoolean());
+
+        JsonNode r = ok(call(json(post(PY + "/" + id + "/remark"), "{\"remark\":\"首付款\"}"), admin));
+        assertEquals("首付款", r.path("remark").asText());
+
+        // 采购员：核销到自己范围内采购订单的付款单才能看，只读
+        jdbc.update("update purchase_order set purchaser_id = ? where id = ?", BUYER_JIANG, poId);
+        assertEquals("付款单不存在", fail(call(get(PY + "/" + id), lin)).path("message").asText());
+        jdbc.update("update purchase_order set purchaser_id = ? where id = ?", BUYER_LIN, poId);
+        assertFalse(ok(call(get(PY + "/" + id), lin)).path("editable").asBoolean());
+        assertEquals(403, perform(json(post(PY + "/" + id + "/remark"), "{\"remark\":\"x\"}"), lin).getStatus());
+
+        ok(call(json(post(PY + "/" + id + "/void"), write(Map.of("reason", "金额填错"))), admin));
+        JsonNode v = ok(call(get(PY + "/" + id), admin));
+        assertFalse(v.path("editable").asBoolean());
+        assertTrue(v.path("logs").toString().contains("作废"));
+        assertEquals("付款单已作废", fail(call(json(post(PY + "/" + id + "/remark"), "{\"remark\":\"x\"}"), admin))
+                .path("message").asText());
+    }
+
+    // ---------------------------------------------------------------- 应付单（change finance-ap-fx-docs）
+
+    @Test
+    void payableDoc_detailRelatedLogs_remarkAttachments_anyStatus() throws Exception {
+        long sup = supplier("佛山绍尔", null);
+        long poId = orderedPo(sup, "S-1", 10, "1000", List.of(term(30, 1, 0), term(70, 3, 0))).path("id").asLong();
+        long apId = bySource(poId, admin).path("id").asLong();
+
+        JsonNode d = ok(call(get(AP + "/" + apId), admin));
+        assertEquals("PO", d.path("related").get(0).path("type").asText());
+        assertEquals("生成", d.path("logs").get(0).path("action").asText());
+        assertTrue(d.path("editable").asBoolean());
+        assertEquals("", d.path("remark").asText());
+
+        // 采购订单改价：应付金额变化留痕
+        jdbc.update("update purchase_order set total_amount = 9500 where id = ?", poId);
+        TenantContext.runAs(0, () -> payableSync.syncPurchaseOrder(poId));
+        d = ok(call(get(AP + "/" + apId), admin));
+        assertEquals("应付金额变化", d.path("logs").get(0).path("action").asText());
+        assertTrue(d.path("logs").get(0).path("content").asText().contains("CNY 10000.00 → CNY 9500.00"),
+                d.path("logs").get(0).toString());
+
+        // 付款核销与作废写到应付单
+        long py = ok(pay(payBody(1, "2850.00", Map.of(apId, "2850.00"), admin), admin)).path("id").asLong();
+        d = ok(call(get(AP + "/" + apId), admin));
+        assertEquals("付款核销", d.path("logs").get(0).path("action").asText());
+        assertEquals("PY", d.path("related").get(1).path("type").asText());
+        ok(call(json(post(PY + "/" + py + "/void"), write(Map.of("reason", "金额填错"))), admin));
+        d = ok(call(get(AP + "/" + apId), admin));
+        assertEquals("付款作废", d.path("logs").get(0).path("action").asText());
+        assertEquals("已作废", d.path("related").get(1).path("statusName").asText());
+
+        // 备注与附件
+        JsonNode r = ok(call(json(post(AP + "/" + apId + "/remark"), "{\"remark\":\"入库后付尾款\"}"), admin));
+        assertEquals("入库后付尾款", r.path("remark").asText());
+        long file = ok(call(multipart("/api/v1/attachments").file(new MockMultipartFile("file", "对账单.png", "image/png", PNG))
+                .param("ownerType", "PAYABLE"), admin)).path("id").asLong();
+        r = ok(call(json(post(AP + "/" + apId + "/attachments"), write(Map.of("ids", List.of(file)))), admin));
+        assertEquals(1, r.path("files").size());
+        r = ok(call(delete(AP + "/" + apId + "/attachments/" + file), admin));
+        assertEquals(0, r.path("files").size());
+        assertEquals("删除附件", r.path("logs").get(0).path("action").asText());
+
+        // 取消采购订单后应付单关闭，仍可改备注
+        ok(call(json(post(PO + "/" + poId + "/cancel"), "{\"reason\":\"供应商缺货\"}"), admin));
+        d = ok(call(get(AP + "/" + apId), admin));
+        assertTrue(d.path("logs").toString().contains("关闭"), d.path("logs").toString());
+        assertEquals("补发票", ok(call(json(post(AP + "/" + apId + "/remark"), "{\"remark\":\"补发票\"}"), admin))
+                .path("remark").asText());
+
+        // 采购员没有应付管理菜单：不能改
+        assertEquals(403, perform(json(post(AP + "/" + apId + "/remark"), "{\"remark\":\"x\"}"), lin).getStatus());
     }
 }

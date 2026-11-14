@@ -113,7 +113,7 @@ export const ATTACHMENT_TOTAL_BYTES = 2 * 1024 * 1024 * 1024;
 export const ATTACHMENT_UPLOAD: UploadRules = {
   scene: 'inquiry-attachment',
   exts: ['jpg', 'png', 'xls', 'xlsx', 'csv', 'pdf'],
-  typeHint: '只支持图片（JPG、PNG）、PDF、Excel',
+  typeHint: '只支持图片（JPG、JPEG、PNG）、PDF、Excel',
   maxBytes: ATTACHMENT_MAX_BYTES,
   totalBytes: ATTACHMENT_TOTAL_BYTES,
 };

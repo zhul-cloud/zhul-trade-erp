@@ -1,4 +1,5 @@
 import { request } from '@umijs/max';
+import type { Attachment, DocLog, DocRef } from '@/pages/warehouse/service';
 import type { FileRef } from '../payables/service';
 
 const BASE = '/api/v1/finance/other-incomes';
@@ -31,6 +32,11 @@ export interface OtherIncome {
   sourceType?: string;
   sourceId?: number;
   attachments: FileRef[];
+  /** 以下只在详情返回（change finance-expense-docs） */
+  files?: Attachment[];
+  related?: DocRef[];
+  logs?: DocLog[];
+  editable?: boolean;
   createTime?: string;
   createBy?: string;
   updateTime?: string;
@@ -66,6 +72,13 @@ export const incomeApi = {
   create: (b: SaveOtherIncomeBody) => send<OtherIncome>('POST', BASE, b),
   update: (id: number, b: SaveOtherIncomeBody) =>
     send<OtherIncome>('PUT', `${BASE}/${id}`, b),
+  detail: (id: number) => get<OtherIncome>(`${BASE}/${id}`),
   voidIncome: (id: number, reason: string) =>
     send<OtherIncome>('POST', `${BASE}/${id}/void`, { reason }),
+  remark: (id: number, remark: string) =>
+    send<OtherIncome>('POST', `${BASE}/${id}/remark`, { remark }),
+  attach: (id: number, ids: number[]) =>
+    send<OtherIncome>('POST', `${BASE}/${id}/attachments`, { ids }),
+  removeAttachment: (id: number, attachmentId: number) =>
+    send<OtherIncome>('DELETE', `${BASE}/${id}/attachments/${attachmentId}`),
 };

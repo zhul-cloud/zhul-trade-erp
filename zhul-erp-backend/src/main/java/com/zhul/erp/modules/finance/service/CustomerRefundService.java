@@ -77,6 +77,10 @@ public class CustomerRefundService {
     private final com.zhul.erp.modules.finance.repository.RefundRequestMapper requestMapper;
     private final com.zhul.erp.framework.security.PermissionChecker perm;
     private final com.zhul.erp.framework.security.DataScopeResolver dataScopeResolver;
+    private final com.zhul.erp.modules.system.doclog.DocLogs docLogs;
+    private final com.zhul.erp.modules.finance.repository.RefundRequestItemMapper requestItemMapper;
+    private final com.zhul.erp.modules.sales.repository.SalesOrderItemMapper orderItemMapper;
+    private final com.zhul.erp.modules.aftersales.repository.SalesReturnMapper salesReturnMapper;
 
     /** 订单的可退金额、平均到账汇率与可选去向 */
     public RefundableVO refundable(Long soId) {
@@ -144,6 +148,9 @@ public class CustomerRefundService {
             refundMapper.updateById(f);
         }
         attachments.attach(AttachmentService.REFUND, f.getId(), req.getAttachmentIds());
+        String from = refundRequestId == null ? "登记售后退款" : "执行退款申请 " + requestMapper.selectById(refundRequestId).getRequestNo();
+        docLogs.add(DocumentType.TK, f.getId(), "登记", from + "：" + o.getCurrencyCode() + " " + amount.toPlainString()
+                + "，" + FinanceConstants.REFUND_METHOD_NAMES.get(method));
         logService.recordOperateLog(MENU, "登记退款", null, Map.of("refundNo", f.getRefundNo(), "soNo", o.getSoNo(),
                 "amount", o.getCurrencyCode() + " " + amount, "amountCny", cny.toPlainString(),
                 "method", FinanceConstants.REFUND_METHOD_NAMES.get(method)));
@@ -160,6 +167,8 @@ public class CustomerRefundService {
                 a.currencyCode(), amount, actualCny, method, methodName, payeeAccount, remark);
         f.setReason("");
         refundMapper.insert(f);
+        docLogs.add(DocumentType.TK, f.getId(), "登记", "余额提现：" + a.currencyCode() + " " + amount.toPlainString()
+                + "，" + (StringUtils.hasText(methodName) ? methodName : FinanceConstants.REFUND_METHOD_NAMES.get(method)));
         return f;
     }
 
@@ -202,6 +211,7 @@ public class CustomerRefundService {
                 requestMapper.updateById(q);
             }
         }
+        docLogs.add(DocumentType.TK, f.getId(), "作废", w);
         afterSalesLogs.add(f.getAfterSalesId(), com.zhul.erp.modules.aftersales.constants.AfterSalesConstants.LOG_REFUND,
                 "作废退款单 " + f.getRefundNo() + "：" + w, null);
         logService.recordOperateLog(MENU, "作废退款单", Map.of("refundNo", f.getRefundNo(), "status", "有效"),
@@ -249,7 +259,120 @@ public class CustomerRefundService {
     public RefundVO detail(Long id) {
         CustomerRefundDO f = require(id);
         requireSalesScope(f.getSoId());
-        return toVos(List.of(f)).get(0);
+        RefundVO vo = toVos(List.of(f)).get(0);
+        vo.setItems(items(f, vo));
+        vo.setFiles(attachments.listOf(AttachmentService.REFUND, id));
+        vo.setRelated(related(f));
+        vo.setLogs(docLogs.list(DocumentType.TK, id));
+        vo.setEditable(perm.canAccessMenu("/finance/refunds") && f.getStatus() == FinanceConstants.RECORD_VALID
+                && !MigratedGuard.isMigrated(f.getMigrated()));
+        return vo;
+    }
+
+    /** 改备注（change finance-cash-docs：财务单据生效后只改备注与附件） */
+    @Transactional(rollbackFor = Exception.class)
+    public RefundVO remark(Long id, String remark) {
+        CustomerRefundDO f = editable(id);
+        String text = remark == null ? "" : remark.trim();
+        if (text.length() > 500) {
+            throw new BizException("备注最多 500 字");
+        }
+        f.setRemark(text);
+        refundMapper.updateById(f);
+        docLogs.add(DocumentType.TK, id, "修改备注", text.isEmpty() ? "清空备注" : text);
+        return detail(id);
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public RefundVO attach(Long id, List<Long> ids) {
+        editable(id);
+        attachments.attach(AttachmentService.REFUND, id, ids);
+        docLogs.add(DocumentType.TK, id, "上传附件", ids.size() + " 个");
+        return detail(id);
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public RefundVO removeAttachment(Long id, Long attachmentId) {
+        editable(id);
+        attachments.remove(AttachmentService.REFUND, id, attachmentId);
+        docLogs.add(DocumentType.TK, id, "删除附件", "");
+        return detail(id);
+    }
+
+    private CustomerRefundDO editable(Long id) {
+        require(id);
+        CustomerRefundDO f = refundMapper.selectOne(new LambdaQueryWrapper<CustomerRefundDO>()
+                .eq(CustomerRefundDO::getId, id).last("FOR UPDATE"));
+        MigratedGuard.requireEditable(f.getMigrated());
+        if (f.getStatus() == FinanceConstants.RECORD_VOID) {
+            throw new BizException("退款单已作废");
+        }
+        return f;
+    }
+
+    /** 明细：执行退款申请生成的列申请明细；其余为一行 */
+    private List<com.zhul.erp.modules.finance.dto.RefundRequestVO.Item> items(CustomerRefundDO f, RefundVO vo) {
+        if (f.getRefundRequestId() != null) {
+            List<com.zhul.erp.modules.finance.entity.RefundRequestItemDO> rows = requestItemMapper.selectList(
+                    new LambdaQueryWrapper<com.zhul.erp.modules.finance.entity.RefundRequestItemDO>()
+                            .eq(com.zhul.erp.modules.finance.entity.RefundRequestItemDO::getRequestId, f.getRefundRequestId())
+                            .isNull(com.zhul.erp.modules.finance.entity.RefundRequestItemDO::getDeletedAt)
+                            .orderByAsc(com.zhul.erp.modules.finance.entity.RefundRequestItemDO::getId));
+            if (!rows.isEmpty()) {
+                List<Long> soItemIds = rows.stream().map(com.zhul.erp.modules.finance.entity.RefundRequestItemDO::getSoItemId)
+                        .filter(Objects::nonNull).distinct().toList();
+                Map<Long, String> categories = soItemIds.isEmpty() ? Map.of() : orderItemMapper.selectBatchIds(soItemIds).stream()
+                        .collect(Collectors.toMap(com.zhul.erp.modules.sales.entity.SalesOrderItemDO::getId,
+                                i -> Objects.requireNonNullElse(i.getCategory(), "")));
+                return rows.stream().map(x -> {
+                    com.zhul.erp.modules.finance.dto.RefundRequestVO.Item i = new com.zhul.erp.modules.finance.dto.RefundRequestVO.Item();
+                    i.setId(x.getId());
+                    i.setLineType(x.getLineType());
+                    i.setSoItemId(x.getSoItemId());
+                    i.setSalesReturnItemId(x.getSalesReturnItemId());
+                    i.setItemName(x.getItemName());
+                    i.setBrand(x.getBrand());
+                    i.setCategory(x.getSoItemId() == null ? null : categories.get(x.getSoItemId()));
+                    i.setQuantity(x.getQuantity());
+                    i.setUnitPrice(x.getUnitPrice());
+                    i.setAmount(x.getAmount());
+                    i.setNote(x.getNote());
+                    return i;
+                }).toList();
+            }
+        }
+        com.zhul.erp.modules.finance.dto.RefundRequestVO.Item i = new com.zhul.erp.modules.finance.dto.RefundRequestVO.Item();
+        i.setLineType(FinanceConstants.RQ_LINE_OTHER);
+        i.setItemName(f.getRefundType() == FinanceConstants.REFUND_CREDIT_WITHDRAW ? "余额提现" : vo.getReasonName());
+        i.setAmount(f.getAmount());
+        return List.of(i);
+    }
+
+    /** 关联单据：销售订单、售后单、退款申请、销售退货单（退款申请来自退货时） */
+    private List<com.zhul.erp.modules.system.doclog.DocRefVO> related(CustomerRefundDO f) {
+        List<com.zhul.erp.modules.system.doclog.DocRefVO> out = new ArrayList<>();
+        SalesOrderDO so = f.getSoId() == null ? null : orderMapper.selectById(f.getSoId());
+        if (so != null) {
+            out.add(new com.zhul.erp.modules.system.doclog.DocRefVO(DocumentType.SO.name(), so.getId(), so.getSoNo(), null, null));
+        }
+        com.zhul.erp.modules.aftersales.entity.AfterSalesDO as = f.getAfterSalesId() == null ? null
+                : afterSalesMapper.selectById(f.getAfterSalesId());
+        if (as != null) {
+            out.add(new com.zhul.erp.modules.system.doclog.DocRefVO(DocumentType.AS.name(), as.getId(), as.getAsNo(), as.getStatus(),
+                    com.zhul.erp.modules.aftersales.constants.AfterSalesConstants.AS_STATUS_NAMES.get(as.getStatus())));
+        }
+        RefundRequestDO q = f.getRefundRequestId() == null ? null : requestMapper.selectById(f.getRefundRequestId());
+        if (q != null) {
+            out.add(new com.zhul.erp.modules.system.doclog.DocRefVO(DocumentType.RA.name(), q.getId(), q.getRequestNo(), q.getStatus(),
+                    FinanceConstants.RQ_STATUS_NAMES.get(q.getStatus())));
+            com.zhul.erp.modules.aftersales.entity.SalesReturnDO t = q.getSalesReturnId() == null ? null
+                    : salesReturnMapper.selectById(q.getSalesReturnId());
+            if (t != null) {
+                out.add(new com.zhul.erp.modules.system.doclog.DocRefVO(DocumentType.TH.name(), t.getId(), t.getReturnNo(), t.getStatus(),
+                        com.zhul.erp.modules.aftersales.constants.AfterSalesConstants.RT_STATUS_NAMES.get(t.getStatus())));
+            }
+        }
+        return out;
     }
 
     /** 订单的有效售后退款单（订单成本明细用） */

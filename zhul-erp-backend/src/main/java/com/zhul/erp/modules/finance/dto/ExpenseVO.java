@@ -46,6 +46,7 @@ public class ExpenseVO {
     private Integer payStatus;
     private BigDecimal paidAmount;
     /** 员工垫付：所在报销单编号与状态（1-待付款、2-已报销），没进报销单为空 */
+    private Long reimbursementId;
     private String reimburseNo;
     private Integer reimburseStatus;
     /** 已付款或已进报销单：只能改名称、说明与分摊 */
@@ -69,4 +70,9 @@ public class ExpenseVO {
     }
     /** 历史迁移的单据（只读） */
     private Boolean migrated;
+    /** 以下只在详情返回（change finance-expense-docs） */
+    private List<com.zhul.erp.modules.attachment.dto.AttachmentVO> files;
+    private List<com.zhul.erp.modules.system.doclog.DocRefVO> related;
+    private List<com.zhul.erp.modules.system.doclog.DocLogVO> logs;
+    private Boolean editable;
 }

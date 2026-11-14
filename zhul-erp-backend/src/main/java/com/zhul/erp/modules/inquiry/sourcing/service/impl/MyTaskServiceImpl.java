@@ -165,7 +165,8 @@ public class MyTaskServiceImpl implements MyTaskService {
     @Override
     public QuoteBoardVO quoteBoard() {
         Long me = me();
-        List<MyTaskVO> pending = myTasks(false);
+        // 审核中的任务本人已没有要做的，不算待处理
+        List<MyTaskVO> pending = myTasks(false).stream().filter(t -> !Boolean.TRUE.equals(t.getReviewing())).toList();
         QuoteBoardVO vo = new QuoteBoardVO();
         vo.setPendingTasks(pending.size());
         vo.setTimeoutTasks((int) pending.stream().filter(t -> Boolean.TRUE.equals(t.getTimeout())).count());
@@ -265,12 +266,17 @@ public class MyTaskServiceImpl implements MyTaskService {
                 .last("LIMIT 1"));
         LocalDateTime quoted = last == null ? null : last.getUpdateTime();
         vo.setUpdateTime(quoted != null && (t.getUpdateTime() == null || quoted.isAfter(t.getUpdateTime())) ? quoted : t.getUpdateTime());
-        vo.setFilledCount((int) quoteMapper.selectList(new LambdaQueryWrapper<SourcingQuoteDO>()
-                        .select(SourcingQuoteDO::getInquiryItemId)
+        Map<Long, List<Integer>> myStatuses = quoteMapper.selectList(new LambdaQueryWrapper<SourcingQuoteDO>()
+                        .select(SourcingQuoteDO::getInquiryItemId, SourcingQuoteDO::getStatus)
                         .eq(SourcingQuoteDO::getTaskId, t.getId())
                         .eq(SourcingQuoteDO::getQuotedBy, me)
                         .isNull(SourcingQuoteDO::getDeletedAt))
-                .stream().map(SourcingQuoteDO::getInquiryItemId).distinct().count());
+                .stream().collect(Collectors.groupingBy(SourcingQuoteDO::getInquiryItemId,
+                        Collectors.mapping(SourcingQuoteDO::getStatus, Collectors.toList())));
+        vo.setFilledCount(myStatuses.size());
+        if (needsReview(me)) {
+            applyReviewProgress(vo, myStatuses, t.getItemCount());
+        }
         vo.setStatus(t.getStatus());
         vo.setUrgent(Objects.equals(t.getUrgent(), 1));
         vo.setTimeout(limits.isTimeout(t, now));
@@ -286,6 +292,26 @@ public class MyTaskServiceImpl implements MyTaskService {
             vo.setReturnedByName(lookups.userNames(List.of(t.getReturnedBy())).get(t.getReturnedBy()));
         }
         return vo;
+    }
+
+    /**
+     * 回价需审核的账号：待审核的型号数；本人已没有要做的型号（每个型号都已提交待审核或已通过，含无货）
+     * 且至少一个待审核时归「审核中」。被退回的回价是草稿，算还要做
+     */
+    static void applyReviewProgress(MyTaskVO vo, Map<Long, List<Integer>> myStatuses, Integer itemCount) {
+        int pending = 0;
+        int settled = 0;
+        for (List<Integer> statuses : myStatuses.values()) {
+            if (statuses.contains(InquiryConstants.QUOTE_PENDING_REVIEW)) {
+                pending++;
+            }
+            if (!statuses.contains(InquiryConstants.QUOTE_DRAFT) && (statuses.contains(InquiryConstants.QUOTE_PENDING_REVIEW)
+                    || statuses.contains(InquiryConstants.QUOTE_SUBMITTED))) {
+                settled++;
+            }
+        }
+        vo.setPendingReviewCount(pending);
+        vo.setReviewing(pending > 0 && itemCount != null && settled >= itemCount);
     }
 
     @Override
@@ -951,7 +977,11 @@ public class MyTaskServiceImpl implements MyTaskService {
         if (others == 0) {
             update.set(SourcingTaskDO::getStatus, InquiryConstants.TASK_UNASSIGNED)
                     .set(SourcingTaskDO::getFirstAssignedAt, null)
-                    .set(SourcingTaskDO::getPoolEnteredAt, now);
+                    .set(SourcingTaskDO::getPoolEnteredAt, now)
+                    .set(SourcingTaskDO::getDeferUntil, null)
+                    .set(SourcingTaskDO::getDeferReason, "")
+                    .set(SourcingTaskDO::getDeferBy, null)
+                    .set(SourcingTaskDO::getDeferTime, null);
         } else {
             update.set(SourcingTaskDO::getStatus, InquiryConstants.TASK_SOURCING);
         }

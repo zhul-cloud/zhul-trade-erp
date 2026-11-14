@@ -46,6 +46,7 @@ public class CreditUsageService {
     private static final MathContext MC = MathContext.DECIMAL128;
 
     private final CustomerCreditLedger ledger;
+    private final com.zhul.erp.modules.sales.support.ReceiptDocs receiptDocs;
     private final CustomerCreditEntryMapper entryMapper;
     private final CustomerCreditConsumptionMapper consumptionMapper;
     private final PaymentReceiptMapper receiptMapper;
@@ -222,13 +223,16 @@ public class CreditUsageService {
         r.setOperatorId(currentUser.resolve());
         r.setMigrated(0);
         r.setCreditEntryId(occupation.getId());
+        receiptDocs.number(r);
         receiptMapper.insert(r);
+        receiptDocs.log(r, "登记", r.getNote() + "：" + r.getCurrencyCode() + " " + amount.toPlainString());
     }
 
     private void voidReceipt(PaymentReceiptDO r, String reason) {
         r.setStatus(SalesConstants.RECORD_VOID);
         r.setVoidReason(reason);
         receiptMapper.updateById(r);
+        receiptDocs.log(r, "作废", reason);
     }
 
     /** 来源单据最近一条还有未释放消耗的占用 */
