@@ -865,7 +865,7 @@ const MenuPage: React.FC = () => {
           ) : (
             <div style={{ marginBottom: 24, width: '100%' }}>
               <div style={{ fontSize: 13, marginBottom: 8 }}>父节点</div>
-              <Input disabled value={parentName} />
+              <Input disabled aria-label="父节点" value={parentName} />
             </div>
           )}
 
@@ -889,6 +889,7 @@ const MenuPage: React.FC = () => {
             <div style={{ fontSize: 13, marginBottom: 8 }}>资源编码</div>
             <Input
               disabled
+              aria-label="资源编码"
               value={isEdit ? editingNode?.code : '系统自动生成'}
             />
           </div>

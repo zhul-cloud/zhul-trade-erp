@@ -544,7 +544,11 @@ const DictPage: React.FC = () => {
         {typeDrawerMode === 'edit' ? (
           <div style={{ marginBottom: 24 }}>
             <div style={{ fontSize: 13, marginBottom: 8 }}>字典类型编码</div>
-            <Input disabled value={editingType?.dictType} />
+            <Input
+              disabled
+              aria-label="字典类型编码"
+              value={editingType?.dictType}
+            />
           </div>
         ) : (
           <ProFormText
@@ -619,12 +623,20 @@ const DictPage: React.FC = () => {
       >
         <div style={{ marginBottom: 24 }}>
           <div style={{ fontSize: 13, marginBottom: 8 }}>所属字典类型</div>
-          <Input disabled value={selectedType?.dictName} />
+          <Input
+            disabled
+            aria-label="所属字典类型"
+            value={selectedType?.dictName}
+          />
         </div>
         {itemDrawerMode === 'edit' ? (
           <div style={{ marginBottom: 24 }}>
             <div style={{ fontSize: 13, marginBottom: 8 }}>字典项编码</div>
-            <Input disabled value={editingItem?.itemCode} />
+            <Input
+              disabled
+              aria-label="字典项编码"
+              value={editingItem?.itemCode}
+            />
           </div>
         ) : (
           <ProFormText

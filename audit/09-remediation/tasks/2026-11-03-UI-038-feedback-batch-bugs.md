@@ -46,11 +46,11 @@
 
 | ID | 修复 / 验收范围 | 部署与目标环境验收证据 | 验收人 / 日期 | 结论与剩余项 |
 | --- | --- | --- | --- | --- |
-| UI-038 | 询盘、销售订单列表翻页；排序仍回到第 1 页 | v1.6.0 已部署（[#134](https://github.com/zhul-cloud/zhul-trade-erp/pull/134) 合并 `00eb2ff2`；[生产发版](https://github.com/zhul-cloud/zhul-trade-erp/actions/runs/41653028814) 成功） | — | 待生产验收 |
-| UI-039 | 超长客户名时来源仍在对话框内 | v1.6.0 已部署（[#134](https://github.com/zhul-cloud/zhul-trade-erp/pull/134) 合并 `00eb2ff2`；[生产发版](https://github.com/zhul-cloud/zhul-trade-erp/actions/runs/41653028814) 成功） | — | 待生产验收 |
-| UI-040 | 登录过期停留页面后操作，直接到登录页且无错误提示 | v1.6.0 已部署（[#134](https://github.com/zhul-cloud/zhul-trade-erp/pull/134) 合并 `00eb2ff2`；[生产发版](https://github.com/zhul-cloud/zhul-trade-erp/actions/runs/41653028814) 成功） | — | 待生产验收 |
-| BUS-023 | 改供应商名后应付列表、详情、登记付款的收款方为新名 | v1.6.0 已部署（[#134](https://github.com/zhul-cloud/zhul-trade-erp/pull/134) 合并 `00eb2ff2`；[生产发版](https://github.com/zhul-cloud/zhul-trade-erp/actions/runs/41653028814) 成功） | — | 待生产验收 |
-| BUS-024 | 导出 PI / 报价单：DAP 中文国家名为英文，业务员为昵称 | v1.6.0 已部署（[#134](https://github.com/zhul-cloud/zhul-trade-erp/pull/134) 合并 `00eb2ff2`；[生产发版](https://github.com/zhul-cloud/zhul-trade-erp/actions/runs/41653028814) 成功） | — | 待生产验收 |
+| UI-038 | 询盘、销售订单列表翻页；排序仍回到第 1 页 | v1.6.0 已部署（[#134](https://github.com/zhul-cloud/zhul-trade-erp/pull/134) 合并 `00eb2ff2`；[生产发版](https://github.com/zhul-cloud/zhul-trade-erp/actions/runs/41653028814) 成功）；本机验收通过（2026-11-14，见事件记录） | Ezio / 2026-11-14 | 已关闭 |
+| UI-039 | 超长客户名时来源仍在对话框内 | v1.6.0 已部署（[#134](https://github.com/zhul-cloud/zhul-trade-erp/pull/134) 合并 `00eb2ff2`；[生产发版](https://github.com/zhul-cloud/zhul-trade-erp/actions/runs/41653028814) 成功）；本机验收通过（2026-11-14，见事件记录） | Ezio / 2026-11-14 | 已关闭 |
+| UI-040 | 登录过期停留页面后操作，直接到登录页且无错误提示 | v1.6.0 已部署（[#134](https://github.com/zhul-cloud/zhul-trade-erp/pull/134) 合并 `00eb2ff2`；[生产发版](https://github.com/zhul-cloud/zhul-trade-erp/actions/runs/41653028814) 成功）；本机验收通过（2026-11-14，见事件记录） | Ezio / 2026-11-14 | 已关闭 |
+| BUS-023 | 改供应商名后应付列表、详情、登记付款的收款方为新名 | v1.6.0 已部署（[#134](https://github.com/zhul-cloud/zhul-trade-erp/pull/134) 合并 `00eb2ff2`；[生产发版](https://github.com/zhul-cloud/zhul-trade-erp/actions/runs/41653028814) 成功）；本机验收通过（2026-11-14，见事件记录） | Ezio / 2026-11-14 | 已关闭 |
+| BUS-024 | 导出 PI / 报价单：DAP 中文国家名为英文，业务员为昵称 | v1.6.0 已部署（[#134](https://github.com/zhul-cloud/zhul-trade-erp/pull/134) 合并 `00eb2ff2`；[生产发版](https://github.com/zhul-cloud/zhul-trade-erp/actions/runs/41653028814) 成功）；本机验收通过（2026-11-14，见事件记录） | Ezio / 2026-11-14 | 已关闭 |
 
 ## 阻塞与下一步
 
@@ -73,3 +73,4 @@
 | 2026-11-03 / Claude | 第 9 条无货源型号可报价（OpenSpec `quote-no-source-line`，已归档）实现：迁移 V1.5.2（`quotation_item` 加无货原因与说明两列，存量无货行按有无替代型号回填，可回退；本地回填 38 行为「暂时缺货」、1 行为「停产有替代型号」）；还在询价的型号可手动选、带入为无货行（「未回价，按无货报」），按询盘报价仍只带已回价的；无货原因四种，选「停产有替代型号」须填替代型号、「其他」须填英文说明；整单无货可发送；文字报价与导出按原因输出，存量行输出与之前一致。询盘详情「去报价」在有型号还在询价时先弹出选型号。`QuotationContractTest` 18 项（新增原因与未回价用例）及报价 / 销售 / 单据 / 询盘 / 商机全部 232 项测试通过，前端 165 项测试通过；本地走查通过：询盘 IQ20261015003（5 个型号都在询价）勾 2 个生成 FWQT20261103001，一行改「其他」填说明，文字报价为「GL-VL1 Keyence 2 lead time 12 weeks, please confirm」，整单无货标为已发送成功（合计 USD 0.00），询价任务与型号状态不变 | 随批次提交；迁移 V1.5.2 随发版执行 |
 | 2026-11-03 / Claude | 第 10 条先采购后收款（OpenSpec `order-before-payment`，已归档）实现：迁移 V1.5.3（`sales_order` 加先采购后收款、原因、操作人用户 ID、时间四列与索引，可回退）；PI 没有水单也没有到账时，转订单须勾选「先采购后收款」并填原因（≤200，接口加了 `@Valid`），有水单或到账时忽略；订单列表收款进度旁显示标记、收款状态筛选加「先采购后收款未收款」，详情顶部标记与催款提醒（有水单或到账后消失）；PI 详情「转成订单」不再因未付款置灰。`SalesOrderContractTest` 5 项（新增用例覆盖不勾 / 空原因 / 超长被拒、成功后采购需求生成、筛选、上传水单后退出筛选、有水单时忽略）及销售 / 采购 / 财务全部 165 项测试通过，前端 165 项测试通过；本地走查通过：由 FWQT20261010003 开出 FWPI20261103001 并标为已发送（未付款），勾选先采购后收款转成 SO20261103001，生成 6 条采购需求，详情提醒与列表筛选正常 | 随批次提交；迁移 V1.5.3 随发版执行 |
 | 2026-11-11 / Claude | 台账核对：#134 已合并并随 v1.6.0 部署成功，5 项改为已发布待验收 | 待生产验收 |
+| 2026-11-14 / Claude | 本机验收（用户确认本机与生产效果相同）：develop `6bdde1f7`（业务代码与生产 v1.22.1 一致）上后端完整 `mvn test` 1652 条、前端 `npm test` 340 条、AI 编排服务 139 条全部通过，含本记录各 ID 的回归测试。用户 Ezio 作为验收人确认关闭 BUS-023、BUS-024、UI-038、UI-039、UI-040 | 无 |

@@ -77,7 +77,7 @@
 | ID | 修复 / 验收范围 | 部署与目标环境验收证据 | 验收人 / 日期 | 结论与剩余项 |
 | --- | --- | --- | --- | --- |
 | BUS-002、BUS-025、UI-012、UI-013、UI-014、UI-037、AI-003、SEC-001 至 SEC-011 | 见上表 | 生产已部署 `v1.7.1`；本机脱敏副本验收全部通过（2026-11-04）；未在生产环境操作 | Ezio / 2026-11-04 | 已关闭：用户确认以本机脱敏副本验收为关闭依据 |
-| SEC-012 | 启停只接受 0、1 | v1.8.0 已部署（[#181](https://github.com/zhul-cloud/zhul-trade-erp/pull/181) `75c325bd`，生产发版运行 41950405348 成功，2026-11-05）；生产未验收 | — | 已发布待验收 |
+| SEC-012 | 启停只接受 0、1 | v1.8.0 已部署（[#181](https://github.com/zhul-cloud/zhul-trade-erp/pull/181) `75c325bd`，生产发版运行 41950405348 成功，2026-11-05）；本机验收通过（2026-11-14，见事件记录） | Ezio / 2026-11-14 | 已关闭 |
 
 ## 阻塞与下一步
 
@@ -93,3 +93,4 @@
 | 2026-11-04 / Claude | SEC-012（[#164](https://github.com/zhul-cloud/zhul-trade-erp/pull/164)）CI 三项通过后合并到 `develop`，merge commit `cf86356a` | 随 v1.8.0 发布后验收 |
 | 2026-11-04 / Claude | SEC-012 发布前用 develop 与脱敏副本在本机验收通过，见[本机发布前验收记录](2026-11-04-ACCEPT-local-develop.md)；不是生产验证 | v1.8.0 部署成功后关闭 |
 | 2026-11-05 / Claude | 随 v1.8.0 发布到生产：[#181](https://github.com/zhul-cloud/zhul-trade-erp/pull/181) 合并到 `main`（`75c325bd`），生产发版运行 41950405348 构建与部署（含健康检查）成功；合回 develop 见 [#182](https://github.com/zhul-cloud/zhul-trade-erp/pull/182) | 生产验收后关闭（验收人与日期补进上表） |
+| 2026-11-14 / Claude | 本机验收（用户确认本机与生产效果相同）：develop `6bdde1f7`（业务代码与生产 v1.22.1 一致）上后端完整 `mvn test` 1652 条、前端 `npm test` 340 条、AI 编排服务 139 条全部通过，含本记录各 ID 的回归测试。用户 Ezio 作为验收人确认关闭 SEC-012 | 无 |
