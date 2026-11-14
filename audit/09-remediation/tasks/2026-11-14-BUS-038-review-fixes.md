@@ -7,9 +7,9 @@
 | 负责人 / 协作者 | Claude（实施与验证）；用户 2026-11-14 委托接手复审发现的修复。复审与缺陷见证由 Codex 完成，见[复审报告](2026-11-14-SEC-005-post-remediation-review.md) |
 | 关联 ID / 原专题 | 新增：BUS-038、SEC-013、SEC-014、UI-052、UI-053、UI-054、AI-009、AI-010；重开：SEC-005、UI-004、AI-005；本轮新发现：SEC-015、SEC-016（见下文） |
 | 目标与影响范围 | 后端退款申请、退款单、附件链接与挂接、退货入库单详情、本地分片直传；前端标签页刷新与未保存登记、单据附件卡、销售退货列表、退款弹窗；AI 编排服务大附件下载、预处理、心跳与用量汇总。不含 14 个暂缓项与 DOC-002 |
-| 起点 commit / 工作分支 | develop `74240e86` / `fix/review-1114-refund-scope` |
+| 起点 commit / 工作分支 | develop `74240e86` / `fix/review-1114-remediation` |
 | OpenSpec | 缺陷修复，不新开提案；没有新界面，刷新确认沿用关标签确认的样式与文案 |
-| PR / 目标分支 | 待创建 → develop |
+| PR / 目标分支 | [#312](https://github.com/zhul-cloud/zhul-trade-erp/pull/312) → develop |
 | 合并证据 | 未合并 |
 | 目标版本 / 环境 | 下一个发布版本；发布前按本机等同生产验收 |
 
@@ -41,7 +41,7 @@
 | 编排服务全部测试 | 同上 | 通过 | 148 条通过（原 139 条） | 通过 |
 | 前端新增：[`TabBar.test.tsx`](../../../zhul-erp-frontend/src/components/PageTabs/TabBar.test.tsx)、[`hooks.test.tsx`](../../../zhul-erp-frontend/src/components/PageTabs/hooks.test.tsx)、[`DocFilesCard.test.tsx`](../../../zhul-erp-frontend/src/components/DocFiles/DocFilesCard.test.tsx)、[`RefundModal.test.tsx`](../../../zhul-erp-frontend/src/pages/finance/refunds/RefundModal.test.tsx) | Jest；修复前 / 后 | 修复前失败、修复后通过 | 修复前右键刷新不确认、两处登记互相覆盖、附件卡备注不登记、迟到响应覆盖为 EUR 汇率 7（人民币 70）；修复后 9 例通过，B 的提交为 `execute(2, amount 10, amountCny 90, method 2)` | 通过 |
 | `npm run lint`、`npx antd lint ./src`、`npm test` | 本机 | 通过 | 无错误；525 个文件无问题；71 组 349 条通过 | 通过 |
-| 本机真实页面与 HTTP 复测 | 本机 Docker，按本分支重建 | 待做 | 待填 | 待填 |
+| 本机真实页面与 HTTP 复测 | 本机 Docker，合并后按 develop 重建 | 修复生效、正常场景不回归 | 未执行 | 合并后执行 |
 
 ## 合并、部署与逐 ID 验收
 
@@ -70,4 +70,4 @@
 
 | 日期 / 作者 | 事件与证据 | 下一步 / 交接 |
 | --- | --- | --- |
-| 2026-11-14 / Claude | 认领复审 11 项，接续 Codex 复审报告；在 develop `74240e86` 上实施修复，新增 SEC-015、SEC-016 两个审查外发现并一并修复；修复前后测试对照见上表 | 本机真实环境复测、创建 PR 合入 develop |
+| 2026-11-14 / Claude | 认领复审 11 项，接续 Codex 复审报告；在 develop `74240e86` 上实施修复，新增 SEC-015、SEC-016 两个审查外发现并一并修复；修复前后测试对照见上表 | 已创建 [#312](https://github.com/zhul-cloud/zhul-trade-erp/pull/312)；合并后在本机按 develop 重建，做真实页面与 HTTP 复测 |
