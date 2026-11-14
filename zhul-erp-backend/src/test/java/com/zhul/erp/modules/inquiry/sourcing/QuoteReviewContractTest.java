@@ -2,7 +2,11 @@ package com.zhul.erp.modules.inquiry.sourcing;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.zhul.erp.modules.inquiry.InquiryContractSupport;
+import com.zhul.erp.modules.inquiry.sourcing.event.SourcingQuoteEvent;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.test.context.event.ApplicationEvents;
+import org.springframework.test.context.event.RecordApplicationEvents;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -19,11 +23,19 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 
 /** 兼职回价审核（spec inquiry/part-time-quote-review 及 sourcing-quote、sourcing-task、price-ledger 的相关修改） */
+@RecordApplicationEvents
 class QuoteReviewContractTest extends InquiryContractSupport {
 
     private static final int REVIEW_TAB = 5;
 
     private String admin;
+
+    @Autowired private ApplicationEvents events;
+
+    /** 发给供应链联动的询价事件（tasks 4.4a） */
+    private List<SourcingQuoteEvent> quoteEvents() {
+        return events.stream(SourcingQuoteEvent.class).toList();
+    }
 
     private void login() {
         loginAsAdmin("it_rv_admin");
@@ -112,6 +124,7 @@ class QuoteReviewContractTest extends InquiryContractSupport {
         assertEquals(1, jdbc.queryForObject("select quote_status from inquiry_item where id = ?", Integer.class, a), "仍为待询价");
         assertNull(jdbc.queryForObject("select selected_quote_id from inquiry_item where id = ?", Long.class, a));
         assertEquals(0, historyOf("HG-SN202BJ").path("total").asInt(), "待审核的价格不进询价记录");
+        assertTrue(quoteEvents().isEmpty(), "待审核不通知供应链");
         assertEquals(0, ok(call(get(INQ + "/price-match").param("brand", "Mitsubishi").param("model", "HG-SN202BJ"), admin))
                 .path("sameBrand").size(), "解析确认的历史价复用也看不到");
 
@@ -142,6 +155,8 @@ class QuoteReviewContractTest extends InquiryContractSupport {
         Map<String, Object> tampered = approveItem(a, good, bad);
         tampered.put("unitPrice", "1");
         ok(approve(task, tampered));
+        assertEquals(List.of(good), quoteEvents().get(0).quoteIds(), "审核通过才通知供应链，只带保留的");
+        assertFalse(quoteEvents().get(0).withdrawn());
         assertEquals(0, new BigDecimal("2640").compareTo(jdbc.queryForObject("select unit_price from sourcing_quote where id = ?", BigDecimal.class, good)),
                 "审核不能改价格");
         assertEquals(4, jdbc.queryForObject("select status from sourcing_quote where id = ?", Integer.class, bad));
