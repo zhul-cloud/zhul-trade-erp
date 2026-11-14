@@ -632,7 +632,11 @@ const RolePage: React.FC = () => {
 
         <div style={{ marginBottom: 24 }}>
           <div style={{ fontSize: 13, marginBottom: 8 }}>角色编码</div>
-          <Input disabled value={isEdit ? editingRole?.code : '系统自动生成'} />
+          <Input
+            disabled
+            aria-label="角色编码"
+            value={isEdit ? editingRole?.code : '系统自动生成'}
+          />
         </div>
 
         <Form.Item
