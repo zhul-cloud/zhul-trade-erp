@@ -2,6 +2,7 @@ package com.zhul.erp.modules.inquiry.sourcing;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.zhul.erp.modules.inquiry.InquiryContractSupport;
+import com.zhul.erp.support.DuplicateZipEntry;
 import org.apache.poi.ss.usermodel.DataFormatter;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
@@ -15,6 +16,7 @@ import org.springframework.mock.web.MockMultipartFile;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -173,6 +175,38 @@ class SourcingExcelContractTest extends InquiryContractSupport {
         assertEquals(0, jdbc.queryForObject("select count(*) from sourcing_import where task_id = ?", Integer.class, task));
         jdbc.update("delete from quotation_item where quotation_id = ?", sent);
         jdbc.update("delete from quotation where id = ?", sent);
+    }
+
+    /**
+     * audit DEP-001（CVE-2025-31672）：同名条目重复的 xlsx 不同程序可能读到不同内容，导入时整份拒绝；
+     * audit BUS-037：内容损坏、改了后缀的文件也只拒绝这一份，同批的正常文件照常预览
+     */
+    @Test
+    void importPreview_rejectsDuplicateZipEntries() throws Exception {
+        loginAsAdmin("it_xls_admin");
+        admin = token("it_xls_admin");
+        long task = inquiryWithTask("Mitsubishi", "其他", "MR-PWCNS4");
+        assign(task, PART_TIMER);
+        String wang = token("it_wang");
+        byte[] filled = fill(download(MY + "/package", wang, task));
+        byte[] tampered = DuplicateZipEntry.of(filled, "xl/workbook.xml", "<workbook/>".getBytes(StandardCharsets.UTF_8));
+
+        // 内容损坏（结构是 zip、工作簿 XML 不合法）同样只拒绝这一份，不让整批预览失败
+        byte[] corrupted = DuplicateZipEntry.replaced(filled, "xl/workbook.xml", "<workbook/>".getBytes(StandardCharsets.UTF_8));
+
+        JsonNode preview = ok(call(multipart(MY + "/import/preview")
+                .file(new MockMultipartFile("files", "重复条目.xlsx", XLSX, tampered))
+                .file(new MockMultipartFile("files", "内容损坏.xlsx", XLSX, corrupted))
+                .file(new MockMultipartFile("files", "改了后缀的文本.xlsx", XLSX, "not an excel".getBytes(StandardCharsets.UTF_8)))
+                .file(new MockMultipartFile("files", "正常.xlsx", XLSX, filled)), wang));
+        for (int i = 0; i < 2; i++) {
+            assertEquals("文件已损坏或不是 Excel 文件", preview.get(i).path("rejectReason").asText(), preview.toString());
+            assertEquals(0, preview.get(i).path("rows").size());
+        }
+        assertEquals("只能导入从系统下载的询价包（.xlsx）", preview.get(2).path("rejectReason").asText(), "存储时按文件内容识别");
+        assertTrue(preview.get(3).path("rejectReason").isMissingNode() || preview.get(3).path("rejectReason").isNull(),
+                preview.get(3).toString());
+        assertEquals(task, preview.get(3).path("taskId").asLong());
     }
 
     @Test
