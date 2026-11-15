@@ -32,6 +32,7 @@ import com.zhul.erp.modules.system.service.DocumentNumberService;
 import com.zhul.erp.modules.system.service.LogService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
@@ -185,7 +186,7 @@ public class CustomerRefundService {
         refundMapper.updateById(f);
     }
 
-    @Transactional(rollbackFor = Exception.class)
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public RefundVO voidRefund(Long id, String reason) {
         String why = reason == null ? "" : reason.trim();
         if (why.isEmpty()) {

@@ -74,6 +74,7 @@ import com.zhul.erp.modules.system.service.ExchangeRateService;
 import com.zhul.erp.modules.system.service.LogService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
@@ -517,7 +518,7 @@ public class PiServiceImpl implements PiService {
     // ---------------------------------------------------------------- 编辑
 
     @Override
-    @Transactional(rollbackFor = Exception.class)
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public PiVO save(Long id, SavePiRequest req) {
         ProformaInvoiceDO pi = store.lockVisible(id);
         PiVersionDO v = store.requireEditing(pi);
@@ -549,7 +550,7 @@ public class PiServiceImpl implements PiService {
     // ---------------------------------------------------------------- 状态与版本
 
     @Override
-    @Transactional(rollbackFor = Exception.class)
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public PiVO markSent(Long id, int channel) {
         if (!SalesConstants.CHANNEL_NAMES.containsKey(channel)) {
             throw new BizException("发送方式不正确");
@@ -685,7 +686,7 @@ public class PiServiceImpl implements PiService {
     }
 
     @Override
-    @Transactional(rollbackFor = Exception.class)
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public PiVO abandon(Long id) {
         ProformaInvoiceDO pi = store.lockVisible(id);
         if (pi.getEditingVersionNo() == null) {
@@ -707,7 +708,7 @@ public class PiServiceImpl implements PiService {
     }
 
     @Override
-    @Transactional(rollbackFor = Exception.class)
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public PiVO voidPi(Long id) {
         ProformaInvoiceDO pi = store.lockVisible(id);
         if (pi.getStatus() == SalesConstants.PI_CONVERTED) {
@@ -746,7 +747,7 @@ public class PiServiceImpl implements PiService {
     }
 
     @Override
-    @Transactional(rollbackFor = Exception.class)
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public PiVO close(Long id, ClosePiRequest req) {
         ProformaInvoiceDO pi = store.lockVisible(id);
         List<String> notices = closing.close(pi, req);
@@ -758,7 +759,7 @@ public class PiServiceImpl implements PiService {
     }
 
     @Override
-    @Transactional(rollbackFor = Exception.class)
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public PiVO reopen(Long id, ReopenPiRequest req) {
         ProformaInvoiceDO pi = store.lockVisible(id);
         closing.reopen(pi, req.getValidUntil());
@@ -803,7 +804,7 @@ public class PiServiceImpl implements PiService {
     }
 
     @Override
-    @Transactional(rollbackFor = Exception.class)
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public void delete(Long id) {
         ProformaInvoiceDO pi = store.lockVisible(id);
         if (pi.getStatus() != SalesConstants.PI_DRAFT) {
