@@ -345,6 +345,36 @@ class SalesOrderPartialCancelContractTest extends SalesContractSupport {
         assertFalse(mc.path("partialCancels").isEmpty());
     }
 
+    /**
+     * audit BUS-072：入库后部分取消，在仓的数量转入闲置库存（不挂在入库单上）；冲销这张入库单时一并撤回这部分闲置库存，
+     * 订单已入库数不变成负数；闲置库存已处置时不能冲销
+     */
+    @Test
+    void reverseReceipt_withdrawsHoldMovedAtCancel() throws Exception {
+        long sup = supplier("华北工控", null);
+        long so = order(sup, null, null, "1000", l("A-1", 10, "100", "50"));
+        long draft = draftPo(sup);
+        long a = itemId(detail(so), 0);
+        priceAndConfirm(draft, "100", admin);
+        long gr = receiveAll(draft, 100).path("receipt").path("id").asLong();
+        ok(cancel(so, body("OTHER", a, 4)));
+        JsonNode holds = ok(call(json(post(HOLD + "/page"), write(Map.of("sourceType", 2))), admin));
+        assertEquals(1, holds.path("total").asInt());
+        assertEquals(4, holds.path("records").get(0).path("quantity").asInt());
+
+        // 闲置库存已处置：不能冲销
+        long hold = holds.path("records").get(0).path("id").asLong();
+        jdbc.update("update stock_hold set status = 4 where id = ?", hold);
+        assertEquals("部分取消时转入的闲置库存已处置，不能冲销",
+                fail(call(json(post(GR + "/" + gr + "/reverse"), "{\"reason\":\"录错\"}"), admin)).path("message").asText());
+        jdbc.update("update stock_hold set status = 1 where id = ?", hold);
+
+        ok(call(json(post(GR + "/" + gr + "/reverse"), "{\"reason\":\"录错\"}"), admin));
+        assertEquals(0, ok(call(json(post(HOLD + "/page"), write(Map.of("sourceType", 2))), admin)).path("total").asInt(),
+                "冲销后货不在仓，部分取消时转入的闲置库存一并撤回");
+        assertEquals(0, detail(so).path("items").get(0).path("purchaseReceivedQty").asInt(), "订单已入库数不出现负数");
+    }
+
     @Test
     void untrackedOnlyChangesOrder_handledExcessHoldBlocksReversal() throws Exception {
         long sup = supplier("华南工控", null);

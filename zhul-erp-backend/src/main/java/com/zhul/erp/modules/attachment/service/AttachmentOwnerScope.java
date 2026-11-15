@@ -206,7 +206,7 @@ public class AttachmentOwnerScope {
         return w == null ? null : w.getPayerId();
     }
 
-    /** 采购退货的退货运费凭证：采购退货按负责人可见，或本人垫付 */
+    /** 采购退货的退货运费凭证：采购退货可见（负责人或采购订单的采购员在范围内），或本人垫付 */
     private boolean returnProofVisible(PurchaseReturnDO p) {
         return p != null && (mine(p.getPayerId()) || anyMenu("/purchase/returns") && purchaseReturnVisible(p));
     }
@@ -219,8 +219,10 @@ public class AttachmentOwnerScope {
         return rr == null || rr.getAfterSalesId() == null ? null : afterSalesMapper.selectById(rr.getAfterSalesId());
     }
 
+    /** 采购退货：负责人或采购订单的采购员在数据范围内（audit SEC-022） */
     private boolean purchaseReturnVisible(PurchaseReturnDO p) {
-        return p != null && dataScopeResolver.current().canSee(p.getOwnerId());
+        return p != null && (dataScopeResolver.current().canSee(p.getOwnerId())
+                || p.getPoId() != null && purchaseVisible(purchaseOrderMapper.selectById(p.getPoId())));
     }
 
     private SalesOrderDO orderOfRequest(RefundRequestDO q) {

@@ -117,18 +117,55 @@ public class MyTaskServiceImpl implements MyTaskService {
     @Override
     public List<MyTaskVO> myTasks(boolean done, String keyword) {
         Long me = me();
-        List<SourcingTaskAssigneeDO> mine = activeOf(me);
-        if (mine.isEmpty()) {
+        Map<Long, SourcingTaskAssigneeDO> byTask = activeOf(me).stream()
+                .collect(Collectors.toMap(SourcingTaskAssigneeDO::getTaskId, a -> a, (a, b) -> a));
+        List<MyTaskVO> list = toVos(myTaskRows(byTask, done, keyword), byTask, me);
+        // 待处理：超时 → 紧急 → 更新时间倒序；已回价：更新时间倒序
+        Comparator<MyTaskVO> latest = Comparator.comparing(MyTaskVO::getUpdateTime, Comparator.nullsLast(Comparator.reverseOrder()));
+        list.sort(done ? latest : Comparator.comparing((MyTaskVO v) -> !Boolean.TRUE.equals(v.getTimeout()))
+                .thenComparing(v -> !Boolean.TRUE.equals(v.getUrgent()))
+                .thenComparing(latest));
+        return list;
+    }
+
+    /**
+     * 已回价分页：先按排序时间（本人最后回价时间与任务更新时间取较新的，同 toVo 的 updateTime）一次查出、排好，
+     * 只为当前页组装 VO，查询次数与页大小相关、与历史总量无关（audit OPS-010）
+     */
+    @Override
+    public PageResult<MyTaskVO> doneTasks(String keyword, int page, int pageSize) {
+        int size = Math.min(Math.max(pageSize, 1), 100);
+        Long me = me();
+        Map<Long, SourcingTaskAssigneeDO> byTask = activeOf(me).stream()
+                .collect(Collectors.toMap(SourcingTaskAssigneeDO::getTaskId, a -> a, (a, b) -> a));
+        List<SourcingTaskDO> tasks = myTaskRows(byTask, true, keyword);
+        Map<Long, LocalDateTime> quoted = lastQuotedAt(tasks.stream().map(SourcingTaskDO::getId).toList(), me);
+        java.util.function.Function<SourcingTaskDO, LocalDateTime> sortTime = t -> {
+            LocalDateTime q = quoted.get(t.getId());
+            return q != null && (t.getUpdateTime() == null || q.isAfter(t.getUpdateTime())) ? q : t.getUpdateTime();
+        };
+        List<SourcingTaskDO> sorted = new ArrayList<>(tasks);
+        sorted.sort(Comparator.comparing(sortTime, Comparator.nullsLast(Comparator.reverseOrder())));
+        int from = Math.min((Math.max(page, 1) - 1) * size, sorted.size());
+        return PageResult.of((long) sorted.size(), toVos(sorted.subList(from, Math.min(from + size, sorted.size())), byTask, me));
+    }
+
+    /** 本人有效分配的任务（待处理为询价中，已回价为已完结），按关键词筛选 */
+    private List<SourcingTaskDO> myTaskRows(Map<Long, SourcingTaskAssigneeDO> byTask, boolean done, String keyword) {
+        if (byTask.isEmpty()) {
             return List.of();
         }
-        Map<Long, SourcingTaskAssigneeDO> byTask = mine.stream()
-                .collect(Collectors.toMap(SourcingTaskAssigneeDO::getTaskId, a -> a, (a, b) -> a));
         List<SourcingTaskDO> tasks = taskMapper.selectList(new LambdaQueryWrapper<SourcingTaskDO>()
                 .in(SourcingTaskDO::getId, byTask.keySet())
                 .eq(SourcingTaskDO::getStatus, done ? InquiryConstants.TASK_DONE : InquiryConstants.TASK_SOURCING)
                 .isNull(SourcingTaskDO::getDeletedAt));
-        if (StringUtils.hasText(keyword)) {
-            tasks = keywordMatcher.matching(tasks, keyword);
+        return StringUtils.hasText(keyword) ? keywordMatcher.matching(tasks, keyword) : tasks;
+    }
+
+    /** 列表行：保持 tasks 的顺序 */
+    private List<MyTaskVO> toVos(List<SourcingTaskDO> tasks, Map<Long, SourcingTaskAssigneeDO> byTask, Long me) {
+        if (tasks.isEmpty()) {
+            return new ArrayList<>();
         }
         TaskTimeout limits = TaskTimeout.of(settings, tenantId());
         LocalDateTime now = LocalDateTime.now();
@@ -140,20 +177,26 @@ public class MyTaskServiceImpl implements MyTaskService {
             applyBrief(vo, briefs.get(t.getCustomerInquiryId()));
             list.add(vo);
         }
-        // 待处理：超时 → 紧急 → 更新时间倒序；已回价：更新时间倒序
-        Comparator<MyTaskVO> latest = Comparator.comparing(MyTaskVO::getUpdateTime, Comparator.nullsLast(Comparator.reverseOrder()));
-        list.sort(done ? latest : Comparator.comparing((MyTaskVO v) -> !Boolean.TRUE.equals(v.getTimeout()))
-                .thenComparing(v -> !Boolean.TRUE.equals(v.getUrgent()))
-                .thenComparing(latest));
         return list;
     }
 
-    @Override
-    public PageResult<MyTaskVO> doneTasks(String keyword, int page, int pageSize) {
-        int size = Math.min(Math.max(pageSize, 1), 100);
-        List<MyTaskVO> all = myTasks(true, keyword);
-        int from = Math.min((Math.max(page, 1) - 1) * size, all.size());
-        return PageResult.of((long) all.size(), all.subList(from, Math.min(from + size, all.size())));
+    /** 任务 → 本人在该任务最后一次回价的更新时间；保存回价会软删旧记录再写新记录，所以连已删除的一起取（与 toVo 一致） */
+    private Map<Long, LocalDateTime> lastQuotedAt(List<Long> taskIds, Long me) {
+        Map<Long, LocalDateTime> out = new HashMap<>();
+        if (taskIds.isEmpty()) {
+            return out;
+        }
+        for (Map<String, Object> m : quoteMapper.selectMaps(new QueryWrapper<SourcingQuoteDO>()
+                .select("task_id AS taskId", "MAX(update_time) AS lastAt")
+                .in("task_id", taskIds)
+                .eq("quoted_by", me)
+                .groupBy("task_id"))) {
+            Object at = m.get("lastAt");
+            if (m.get("taskId") != null && at != null) {
+                out.put(((Number) m.get("taskId")).longValue(), at instanceof java.sql.Timestamp ts ? ts.toLocalDateTime() : (LocalDateTime) at);
+            }
+        }
+        return out;
     }
 
     @Override
