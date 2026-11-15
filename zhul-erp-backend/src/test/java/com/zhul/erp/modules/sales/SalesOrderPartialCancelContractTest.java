@@ -1,8 +1,16 @@
 package com.zhul.erp.modules.sales;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.zhul.erp.framework.tenant.TenantContext;
+import com.zhul.erp.modules.workbench.dto.WidgetData;
+import com.zhul.erp.modules.workbench.widget.WorkbenchWidget;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -22,6 +30,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 class SalesOrderPartialCancelContractTest extends SalesContractSupport {
 
     private static final String CREDIT = "/api/v1/finance/credits";
+
+    @Autowired @Qualifier("cashWidget") private WorkbenchWidget cashWidget;
     private static final String SHIP = "/api/v1/purchase/shipments";
     private static final String GR = "/api/v1/warehouse/receipts";
     private static final String HOLD = "/api/v1/warehouse/holds";
@@ -197,6 +207,38 @@ class SalesOrderPartialCancelContractTest extends SalesContractSupport {
         JsonNode all = ok(call(json(post(PI + "/receipt-desk"), "{\"all\":true}"), admin)).path("records").get(0);
         money("750", all.path("totalAmount"));
         money("0", all.path("remainingAmount"));
+    }
+
+    /** audit BUS-080：部分取消后，老板看板「应收未收」按订单合计减已到账，与收款工作台、PI 详情同口径 */
+    @Test
+    void partialCancel_bossOutstandingFollowsOrderTotal() throws Exception {
+        long so = order(null, null, null, "750", l("A-1", 10, "100", "50"), l("B-1", 10, "100", "50"));
+        long pi = jdbc.queryForObject("select pi_id from sales_order where id = ?", Long.class, so);
+        BigDecimal rate = jdbc.queryForObject("select exchange_rate from proforma_invoice where id = ?", BigDecimal.class, pi);
+        BigDecimal before = bossOutstanding();
+
+        ok(cancel(so, body("OUT_OF_STOCK", itemId(detail(so), 0), 2)));
+        money("150", ok(call(get(PI + "/" + pi), admin)).path("remainingAmount"));
+        BigDecimal drop = before.subtract(bossOutstanding());
+
+        // 订单合计少了 2 × 50，应收未收按 PI 汇率折人民币同样少这么多（各 PI 折算后合计再舍入，容差 0.01）
+        BigDecimal expected = new BigDecimal("100").multiply(rate);
+        assertTrue(drop.subtract(expected).abs().compareTo(new BigDecimal("0.01")) <= 0,
+                "应收未收应减少 " + expected + "，实际减少 " + drop);
+    }
+
+    private BigDecimal bossOutstanding() {
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken("it_sales_admin", null, List.of()));
+        TenantContext.setTenantId(0);
+        try {
+            WidgetData d = (WidgetData) cashWidget.load();
+            return d.getBlocks().get(0).getMetrics().stream().filter(m -> "应收未收".equals(m.getLabel()))
+                    .findFirst().orElseThrow().getValue();
+        } finally {
+            TenantContext.clear();
+            SecurityContextHolder.clearContext();
+        }
     }
 
     @Test

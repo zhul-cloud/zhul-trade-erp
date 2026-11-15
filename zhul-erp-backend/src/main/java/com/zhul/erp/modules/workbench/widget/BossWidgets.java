@@ -70,13 +70,18 @@ public class BossWidgets {
 
     @Bean
     public WorkbenchWidget cashWidget(PermissionChecker perm, DataScopeResolver scope, ProformaInvoiceMapper pis,
-                                      PiService piService, PayableQueryService payables, FxSettlementService fx) {
+                                      SalesOrderMapper orders, PiService piService, PayableQueryService payables,
+                                      FxSettlementService fx) {
         return W.widget("cash", List.of(SalesWidgets.PIS, PurchaseLeadWidgets.PAYABLES, FX), () -> {
             List<WidgetData.Metric> items = new ArrayList<>();
             if (perm.canAccessMenu(SalesWidgets.PIS)) {
                 BigDecimal outstanding = BigDecimal.ZERO;
-                for (ProformaInvoiceDO p : pis.selectList(SalesWidgets.unpaidPis(scope))) {
-                    BigDecimal left = W.num(p.getTotalAmount()).subtract(W.num(p.getReceivedAmount()));
+                List<ProformaInvoiceDO> unpaid = pis.selectList(SalesWidgets.unpaidPis(scope));
+                Map<Long, BigDecimal> orderTotals = activeOrderTotals(orders, unpaid);
+                for (ProformaInvoiceDO p : unpaid) {
+                    // 与收款工作台同口径（audit BUS-049、BUS-080）：有有效订单时按订单合计，再减已到账与差额
+                    BigDecimal receivable = orderTotals.getOrDefault(p.getId(), W.num(p.getTotalAmount()));
+                    BigDecimal left = receivable.subtract(W.num(p.getReceivedAmount())).subtract(W.num(p.getFeeDiffAmount()));
                     if (left.signum() > 0) {
                         outstanding = outstanding.add(left.multiply(W.num(p.getExchangeRate())));
                     }
@@ -232,6 +237,19 @@ public class BossWidgets {
         return report.year(d.getYear(), null).getRows().stream()
                 .filter(r -> r.getMonth() != null && r.getMonth() == d.getMonthValue())
                 .findFirst().orElse(null);
+    }
+
+    /** PI 转成的有效订单合计（部分取消、改费用后与 PI 合计不同） */
+    private static Map<Long, BigDecimal> activeOrderTotals(SalesOrderMapper orders, List<ProformaInvoiceDO> pis) {
+        if (pis.isEmpty()) {
+            return Map.of();
+        }
+        return orders.selectList(new LambdaQueryWrapper<SalesOrderDO>()
+                        .select(SalesOrderDO::getPiId, SalesOrderDO::getTotalAmount)
+                        .in(SalesOrderDO::getPiId, pis.stream().map(ProformaInvoiceDO::getId).toList())
+                        .eq(SalesOrderDO::getStatus, SalesConstants.SO_ACTIVE)
+                        .isNull(SalesOrderDO::getDeletedAt))
+                .stream().collect(Collectors.toMap(SalesOrderDO::getPiId, o -> W.num(o.getTotalAmount()), (a, b) -> a));
     }
 
     private static BigDecimal revenue(OperatingReportVO.Row r) {

@@ -334,7 +334,7 @@ const ChannelModal: React.FC<{
   );
 };
 
-/** 合并重复：当前型号的全部信号并到所选型号，当前型号删除 */
+/** 合并重复：当前型号的信号、覆盖渠道和所在专项并到所选型号，当前型号删除（audit BUS-074、UI-094） */
 const MergeModal: React.FC<{
   demand?: Demand;
   onClose: () => void;
@@ -386,7 +386,7 @@ const MergeModal: React.FC<{
     >
       <div style={{ color: palette.sub, margin: '8px 0 12px' }}>
         「{modelName(d)}
-        」的全部需求信号会并到下面选的型号，当前型号随后删除，不能撤销。
+        」的需求信号、覆盖渠道和所在专项都会并到下面选的型号，当前型号随后删除，不能撤销。
       </div>
       <Select
         style={{ width: '100%' }}
