@@ -9,6 +9,7 @@ import com.zhul.erp.modules.aitask.entity.AiTaskDO;
 import com.zhul.erp.modules.aitask.service.AiConfigService;
 import com.zhul.erp.modules.aitask.service.AiTaskResultHandler;
 import com.zhul.erp.modules.aitask.service.AiTaskService;
+import com.zhul.erp.modules.aitask.support.AiTaskKeys;
 import com.zhul.erp.modules.masterdata.customerprofile.entity.CustomerContactDO;
 import com.zhul.erp.modules.masterdata.customerprofile.repository.CustomerContactMapper;
 import com.zhul.erp.modules.masterdata.entity.CustomerDO;
@@ -26,6 +27,7 @@ import java.util.Map;
  * 登记商机新建客户后提交，回调成功时把译名写入客户中文名称，只写仍为空的，不覆盖手动填写。
  * 发给编排服务的 key 为客户 ID；联系人中文名（spec master-data/customer-profile）的 key 为「contact:联系人 ID」，
  * 回填联系人中文名，主联系人同时回填客户的主联系人中文名，同样只写仍为空的。
+ * 两种 key 发出时都带校验码（{@link AiTaskKeys}），回调时校验不通过的丢弃。
  */
 @Slf4j
 @Component
@@ -69,7 +71,7 @@ public class ContactNameTranslations implements AiTaskResultHandler {
         }
         try {
             String input = objectMapper.writeValueAsString(
-                    Map.of("items", List.of(Map.of("key", key, "text", name))));
+                    Map.of("items", List.of(Map.of("key", AiTaskKeys.sign(key), "text", name))));
             aiTaskService.createAndSubmit(SKILL_ID, input, requestedBy);
         } catch (JsonProcessingException e) {
             log.warn("联系人名称翻译请求序列化失败，key={}", key, e);
@@ -95,9 +97,9 @@ public class ContactNameTranslations implements AiTaskResultHandler {
             return;
         }
         for (JsonNode n : items) {
-            String key = n.path("key").asText("");
+            String key = AiTaskKeys.verify(n.path("key").asText(""));
             String text = n.path("text").asText("").trim();
-            if (text.isEmpty()) {
+            if (key == null || text.isEmpty()) {
                 continue;
             }
             String cut = text.length() > MAX_NAME ? text.substring(0, MAX_NAME) : text;

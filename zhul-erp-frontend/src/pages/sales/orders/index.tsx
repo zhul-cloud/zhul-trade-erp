@@ -24,7 +24,7 @@ import {
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
 import { auditColumns } from '@/pages/purchase/components';
 import { CURRENCIES } from '@/pages/quotation/components';
-import { getUserList } from '@/pages/system/user/service';
+import { getUserOptions } from '@/services/zhul/users';
 import { useAppTheme } from '@/theme/AppTheme';
 import { useBusinessUnits } from '@/utils/businessUnit';
 import { recentRange } from '@/utils/dateRange';
@@ -180,11 +180,9 @@ const OrderList: React.FC = () => {
       .stats()
       .then(setStats)
       .catch(() => setStats(undefined));
-    getUserList({ current: 1, pageSize: 200 })
+    getUserOptions()
       .then((res) =>
-        setOwners(
-          res.data.records.map((u) => ({ value: u.id, label: u.name })),
-        ),
+        setOwners(res.map((u) => ({ value: u.id, label: u.name }))),
       )
       .catch(() => setOwners([]));
   }, []);

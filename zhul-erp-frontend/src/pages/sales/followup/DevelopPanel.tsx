@@ -14,7 +14,7 @@ import {
 import dayjs, { type Dayjs } from 'dayjs';
 import React, { useEffect, useState } from 'react';
 import { useCountries } from '@/pages/product/components/useCountries';
-import { getUserList } from '@/pages/system/user/service';
+import { getUserOptions } from '@/services/zhul/users';
 import { useAppTheme } from '@/theme/AppTheme';
 import { UnitSelect, useBusinessUnits } from '@/utils/businessUnit';
 import { fmtDate, iso, Pill } from './components';
@@ -228,10 +228,8 @@ export const ConvertOpportunityModal: React.FC<{
 
   useEffect(() => {
     if (!item) return;
-    getUserList({ current: 1, pageSize: 200 })
-      .then((r) =>
-        setUsers(r.data.records.map((u) => ({ value: u.id, label: u.name }))),
-      )
+    getUserOptions()
+      .then((r) => setUsers(r.map((u) => ({ value: u.id, label: u.name }))))
       .catch(() => setUsers([]));
   }, [item]);
   useEffect(() => {

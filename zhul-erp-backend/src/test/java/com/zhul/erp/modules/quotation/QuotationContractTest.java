@@ -979,10 +979,13 @@ class QuotationContractTest extends InquiryContractSupport {
                 .path("taskId").asLong();
         com.zhul.erp.modules.aitask.dto.AiTaskCallbackRequest cb = new com.zhul.erp.modules.aitask.dto.AiTaskCallbackRequest();
         cb.setStatus("success");
-        cb.setOutput(Map.of("items", List.of(Map.of("key", inquiryItem2 + "#" + lineId, "text", "Analog input module"))));
+        cb.setOutput(Map.of("items", List.of(
+                Map.of("key", inquiryItem2 + "#" + lineId, "text", "Wrong, no check code"),
+                Map.of("key", com.zhul.erp.modules.aitask.support.AiTaskKeys.sign(inquiryItem2 + "#" + lineId), "text", "Analog input module"))));
         aiTaskService.handleCallback(task, cb);
         JsonNode result = ok(call(get("/api/v1/translations/item-descriptions/" + task), admin));
         assertEquals(3, result.path("status").asInt());
+        assertEquals(1, result.path("results").size(), "没有校验码的 key 丢弃（audit AI-011）");
         assertEquals(String.valueOf(lineId), result.path("results").get(0).path("key").asText());
         assertEquals("Analog input module", result.path("results").get(0).path("text").asText());
         assertEquals("Analog input module", jdbc.queryForObject("select description_en from inquiry_item where id = ?", String.class, inquiryItem2));

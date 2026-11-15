@@ -5,6 +5,7 @@ import com.zhul.erp.common.result.Result;
 import com.zhul.erp.modules.system.dto.CreateUserRequest;
 import com.zhul.erp.modules.system.dto.AdminResetPasswordRequest;
 import com.zhul.erp.modules.system.dto.UpdateUserRequest;
+import com.zhul.erp.modules.system.dto.UserOptionVO;
 import com.zhul.erp.modules.system.dto.UserPageQuery;
 import com.zhul.erp.modules.system.dto.UserStatsVO;
 import com.zhul.erp.modules.system.dto.UserVO;
@@ -24,21 +25,36 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
+
 @Tag(name = "用户管理")
 @RestController
 @RequestMapping("/api/v1/system/users")
 @RequiredArgsConstructor
 public class UserController {
 
+    /** 完整用户列表含手机号、邮箱，只给用户管理；部门负责人选择改用 options（audit SEC-018 / SEC-019） */
+    private static final String MENU = "@perm.canAccessMenu('/system/user')";
+
     private final UserService userService;
 
     @Operation(summary = "用户列表")
+    @PreAuthorize(MENU)
     @GetMapping
     public Result<PageResult<UserVO>> list(UserPageQuery query) {
         return Result.ok(userService.listUsers(query));
     }
 
+    @Operation(summary = "用户下拉选项（只有 ID 和姓名，登录即可用）")
+    @GetMapping("/options")
+    public Result<List<UserOptionVO>> options(@RequestParam(required = false) String name,
+                                              @RequestParam(required = false) Integer status,
+                                              @RequestParam(required = false) Integer limit) {
+        return Result.ok(userService.listUserOptions(name, status, limit));
+    }
+
     @Operation(summary = "用户统计")
+    @PreAuthorize(MENU)
     @GetMapping("/stats")
     public Result<UserStatsVO> stats() {
         return Result.ok(userService.getUserStats());

@@ -8,6 +8,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
+import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { PageTitle, useWide } from '@/pages/inquiry/shared/components';
 import { ReasonModal } from '@/pages/warehouse/components';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -300,6 +301,12 @@ const SupplyFollowupPage: React.FC = () => {
   useEffect(() => {
     if (view === 'mine') loadList(1);
   }, [loadList, view]);
+  // 从其他页面返回时重新取数（audit UI-055）
+  useOnReactivate(() => {
+    if (view !== 'mine') return;
+    loadTop();
+    loadList(1);
+  });
 
   const refresh = () => {
     setPicked(new Set());

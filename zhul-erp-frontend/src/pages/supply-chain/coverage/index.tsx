@@ -1,6 +1,7 @@
 import { history, Link, useAccess } from '@umijs/max';
 import { Empty, Segmented, Select, Skeleton, Switch } from 'antd';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
+import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { PageTitle } from '@/pages/inquiry/shared/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { Card, CoverBar, HeatPill, useCoverColors, useOptions, useUsers } from '../components';
@@ -140,8 +141,7 @@ const CoverageMatrixPage: React.FC = () => {
   const [error, setError] = useState('');
   const [projectScope, setProjectScope] = useState<{ brandId: number; categoryId?: number; dev?: boolean }>();
 
-  useEffect(() => {
-    setData(undefined);
+  const load = useCallback(() => {
     const stock = mode === 'stockout';
     const sup = mode === 'supplier';
     supplyApi
@@ -161,6 +161,12 @@ const CoverageMatrixPage: React.FC = () => {
       })
       .catch((e) => setError(readBizError(e).message));
   }, [mode, period, parent, brandId, priority, ownerId, gapsOnly]);
+  // 条件变了先清空再取；从其他页面返回时保留当前矩阵直接重取（audit UI-055）
+  useEffect(() => {
+    setData(undefined);
+    load();
+  }, [load]);
+  useOnReactivate(load);
 
   const stock = mode === 'stockout';
   const sup = mode === 'supplier';

@@ -12,6 +12,7 @@ import com.zhul.erp.modules.aitask.entity.AiTaskDO;
 import com.zhul.erp.modules.aitask.repository.AiTaskMapper;
 import com.zhul.erp.modules.aitask.service.AiTaskResultHandler;
 import com.zhul.erp.modules.aitask.service.AiTaskService;
+import com.zhul.erp.modules.aitask.support.AiTaskKeys;
 import com.zhul.erp.modules.inquiry.item.entity.InquiryItemDO;
 import com.zhul.erp.modules.inquiry.item.repository.InquiryItemMapper;
 import com.zhul.erp.modules.inquiry.support.CurrentUserResolver;
@@ -46,7 +47,7 @@ public class DescriptionTranslations implements AiTaskResultHandler {
         List<Map<String, String>> items = new ArrayList<>(req.getItems().size());
         for (TranslateItemsRequest.Item i : req.getItems()) {
             long inquiryItem = i.getInquiryItemId() == null ? 0 : i.getInquiryItemId();
-            items.add(Map.of("key", inquiryItem + "#" + i.getKey(), "text", i.getText().trim()));
+            items.add(Map.of("key", AiTaskKeys.sign(inquiryItem + "#" + i.getKey()), "text", i.getText().trim()));
         }
         String input;
         try {
@@ -109,7 +110,7 @@ public class DescriptionTranslations implements AiTaskResultHandler {
         });
     }
 
-    /** 编排服务输出 {"items":[{"key","text"}]}；key 不合约定或译文为空的丢弃 */
+    /** 编排服务输出 {"items":[{"key","text"}]}；key 校验码不对、不合约定或译文为空的丢弃 */
     private Map<String, String> parse(String output) {
         Map<String, String> map = new LinkedHashMap<>();
         if (output == null || output.isBlank()) {
@@ -117,9 +118,9 @@ public class DescriptionTranslations implements AiTaskResultHandler {
         }
         try {
             for (JsonNode n : objectMapper.readTree(output).path("items")) {
-                String key = n.path("key").asText("");
+                String key = AiTaskKeys.verify(n.path("key").asText(""));
                 String text = n.path("text").asText("").trim();
-                int hash = key.indexOf('#');
+                int hash = key == null ? -1 : key.indexOf('#');
                 if (hash > 0 && key.substring(0, hash).chars().allMatch(Character::isDigit) && !text.isEmpty()) {
                     map.put(key, text.length() > MAX_TEXT ? text.substring(0, MAX_TEXT) : text);
                 }

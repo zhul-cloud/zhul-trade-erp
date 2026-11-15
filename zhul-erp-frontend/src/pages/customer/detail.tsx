@@ -10,7 +10,8 @@ import {
 import { history, useAccess, useParams } from '@umijs/max';
 import { Button, Skeleton } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
-import { usePageTitle } from '@/components/PageTabs/hooks';
+import { useOnReactivate, usePageTitle } from '@/components/PageTabs/hooks';
+import { tabsActions } from '@/components/PageTabs/store';
 import EntriesDrawer from '@/pages/finance/credits/EntriesDrawer';
 import { type CreditAccount, creditApi } from '@/pages/finance/credits/service';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
@@ -325,13 +326,18 @@ const CustomerDetailPage: React.FC = () => {
       .then(setProfile)
       .catch(() => setProfile(undefined));
   }, [id]);
+  // 从其他页面返回时重新取数（audit UI-055）
+  useOnReactivate(() => {
+    load();
+    loadProfile();
+  });
 
   useEffect(() => {
     load();
     loadProfile();
   }, [load, loadProfile]);
 
-  const back = () => history.push(LIST_PATH);
+  const back = () => tabsActions.backOr(LIST_PATH);
   const canEdit = !!access['partner:customer:edit'];
   const canBackground = !!access['partner:customer:background'];
   const fixPrecheck = canEdit
@@ -421,9 +427,7 @@ const CustomerDetailPage: React.FC = () => {
           <Button
             type={canBackground ? 'default' : 'primary'}
             icon={<EditOutlined />}
-            onClick={() =>
-              history.push(`${LIST_PATH}/${r.id}/edit?from=detail`)
-            }
+            onClick={() => history.push(`${LIST_PATH}/${r.id}/edit`)}
           >
             编辑
           </Button>

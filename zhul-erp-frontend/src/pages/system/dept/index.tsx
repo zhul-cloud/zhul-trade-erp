@@ -29,7 +29,7 @@ import {
 import dayjs, { type Dayjs } from 'dayjs';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { readBizError } from '@/pages/crm/opportunity/service';
-import { getUserList } from '@/pages/system/user/service';
+import { getUserOptions } from '@/services/zhul/users';
 import { useAppTheme } from '@/theme/AppTheme';
 import { useBusinessUnits } from '@/utils/businessUnit';
 import type { DeptItem } from './service';
@@ -238,14 +238,12 @@ const DeptPage: React.FC = () => {
     if (leaderSearchTimer.current) clearTimeout(leaderSearchTimer.current);
     if (!name || name.trim().length < 2) return;
     leaderSearchTimer.current = setTimeout(async () => {
-      const res = await getUserList({
+      const res = await getUserOptions({
         name: name.trim(),
         status: 1,
-        pageSize: 10,
+        limit: 10,
       });
-      setLeaderOptions(
-        (res.data.records ?? []).map((u) => ({ label: u.name, value: u.id })),
-      );
+      setLeaderOptions(res.map((u) => ({ label: u.name, value: u.id })));
     }, 300);
   };
 

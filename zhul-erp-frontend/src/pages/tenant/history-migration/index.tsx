@@ -13,7 +13,7 @@ import {
 } from 'antd';
 import dayjs from 'dayjs';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { useTabActive } from '@/components/PageTabs/hooks';
+import { useOnReactivate, useTabActive } from '@/components/PageTabs/hooks';
 import { Card, PageTitle, Pill } from '@/pages/inquiry/shared/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatDateTime } from '@/utils/format';
@@ -100,6 +100,10 @@ const HistoryMigrationPage: React.FC = () => {
   useEffect(() => {
     if (tenantId) load();
   }, [tenantId, load]);
+  // 从其他页面返回时重新取数（audit UI-055）
+  useOnReactivate(() => {
+    if (tenantId) load();
+  });
 
   const running = batches.some(busy);
   // 有任务在跑时每 5 秒刷新一次进度

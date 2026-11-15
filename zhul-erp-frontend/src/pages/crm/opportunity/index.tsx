@@ -16,7 +16,7 @@ import EllipsisText from '@/components/EllipsisText';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
 import { auditColumns } from '@/pages/purchase/components';
-import { getUserList } from '@/pages/system/user/service';
+import { getUserOptions } from '@/services/zhul/users';
 import { useAppTheme } from '@/theme/AppTheme';
 import { DICT_SOURCE_CHANNEL, useDictOptions } from '@/utils/dict';
 import { usePageSize } from '@/utils/pageSize';
@@ -80,11 +80,9 @@ const OpportunityPage: React.FC = () => {
       .then(setStages)
       .catch(() => undefined);
     // 负责人筛选：有用户管理权限时才能取到名单，取不到就不显示这个筛选项
-    getUserList({ current: 1, pageSize: 200 })
+    getUserOptions()
       .then((res) =>
-        setOwners(
-          res.data.records.map((u) => ({ value: u.id, label: u.name })),
-        ),
+        setOwners(res.map((u) => ({ value: u.id, label: u.name }))),
       )
       .catch(() => setOwners([]));
   }, []);

@@ -13,6 +13,7 @@ import com.zhul.erp.modules.aitask.entity.AiTaskDO;
 import com.zhul.erp.modules.aitask.repository.AiTaskMapper;
 import com.zhul.erp.modules.aitask.service.AiTaskResultHandler;
 import com.zhul.erp.modules.aitask.service.AiTaskService;
+import com.zhul.erp.modules.aitask.support.AiTaskKeys;
 import com.zhul.erp.modules.inquiry.support.CurrentUserResolver;
 import com.zhul.erp.modules.product.candidate.constants.CandidateConstants;
 import com.zhul.erp.modules.product.candidate.dto.CandidateAiFillRequest;
@@ -93,7 +94,7 @@ public class CandidateAiFill implements AiTaskResultHandler {
                 continue;
             }
             Map<String, Object> item = new LinkedHashMap<>();
-            item.put("key", (brand ? "b" : "c") + c.getId() + "#" + (c.getCategoryId() == null ? 0 : c.getCategoryId()));
+            item.put("key", AiTaskKeys.sign((brand ? "b" : "c") + c.getId() + "#" + (c.getCategoryId() == null ? 0 : c.getCategoryId())));
             item.put("brand", nz(c.getBrandText()));
             item.put("model", nz(c.getMpnRaw()));
             item.put("name", cut(c.getProductName()));
@@ -164,7 +165,7 @@ public class CandidateAiFill implements AiTaskResultHandler {
         Long others = null;
         boolean othersLoaded = false;
         for (JsonNode n : output.path("items")) {
-            Key k = Key.parse(n.path("key").asText(""));
+            Key k = Key.parse(AiTaskKeys.verify(n.path("key").asText("")));
             if (k == null || seen.put(k.id(), Boolean.TRUE) != null) {
                 continue;
             }
@@ -201,6 +202,9 @@ public class CandidateAiFill implements AiTaskResultHandler {
     /** 回调 key：模式（c / b）+ 候选 ID#提交时的品类 ID；不合约定的返回 null */
     record Key(boolean brand, long id, long before) {
         static Key parse(String key) {
+            if (key == null) {
+                return null;
+            }
             int hash = key.indexOf('#');
             if (key.length() < 4 || (key.charAt(0) != 'b' && key.charAt(0) != 'c') || hash < 2 || hash == key.length() - 1) {
                 return null;

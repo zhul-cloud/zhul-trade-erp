@@ -30,8 +30,12 @@ import java.util.List;
 @RequiredArgsConstructor
 public class ConfigController {
 
+    /** 系统参数的读取只给系统参数菜单（audit SEC-018） */
+    private static final String MENU = "@perm.canAccessMenu('/system/config')";
+
     private final ConfigService configService;
 
+    @PreAuthorize(MENU)
     @GetMapping
     public Result<PageResult<ConfigVO>> listAll(
             @RequestParam(defaultValue = "1") Integer page,
@@ -41,6 +45,7 @@ public class ConfigController {
         return Result.ok(configService.listAll(page, pageSize, keyword, group));
     }
 
+    @PreAuthorize(MENU)
     @GetMapping("/group-counts")
     public Result<List<ConfigGroupCountVO>> groupCounts() {
         return Result.ok(configService.groupCounts());
