@@ -136,6 +136,21 @@ class SupplyAuditFixContractTest extends IntegrationTestBase {
         assertEquals(1, logs(3), "生效过的回价撤回，补登撤回记录");
     }
 
+    /** audit BUS-073：兼职采购自己撤回待审核的回价（撤回事件路径），从未生效也不登记「回价已撤回」 */
+    @Test
+    void bus073_withdrawPendingReviewByEvent() {
+        long quote = quoteWithDemand("ITAUQ2", 3);
+        jdbc.update("update sourcing_quote set status = 1, update_time = now() where id = ?", quote);
+        TenantContext.runAs(TENANT, () -> linkage.handle(List.of(quote), true));
+        assertEquals(0, logs(3), "待审核回价撤回成草稿，不写撤回记录");
+
+        jdbc.update("update sourcing_quote set status = 2, update_time = now() where id = ?", quote);
+        TenantContext.runAs(TENANT, () -> linkage.handle(List.of(quote), false));
+        jdbc.update("update sourcing_quote set status = 1, update_time = now() where id = ?", quote);
+        TenantContext.runAs(TENANT, () -> linkage.handle(List.of(quote), true));
+        assertEquals(1, logs(3), "生效过的回价经撤回事件撤回，照常登记");
+    }
+
     /** audit BUS-074：合并时被合并方的渠道并到保留方（去重、主渠道降为备选），专项型号换成保留方 */
     @Test
     void bus074_mergeMovesChannelsAndProjectItems() {

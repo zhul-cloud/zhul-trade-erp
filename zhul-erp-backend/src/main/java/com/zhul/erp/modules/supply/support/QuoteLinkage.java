@@ -173,8 +173,8 @@ public class QuoteLinkage {
             return;
         }
         if (withdrawn) {
-            // 补登只看得到当前状态：回到草稿的也可能是从未生效、被审核退回的回价（audit BUS-073），登记过回价的才算撤回
-            if (!withdrawnEvent && !registered(quoteId)) {
+            // 回到草稿的也可能是从未生效的回价：被审核退回，或兼职采购撤回待审核的回价（audit BUS-073），登记过回价的才算撤回
+            if (!registered(quoteId)) {
                 return;
             }
             if (!log(d, SupplyConstants.LOG_SRC_WITHDRAWN, quoteId, task, "询价任务 " + task + " 回价已撤回")) {
