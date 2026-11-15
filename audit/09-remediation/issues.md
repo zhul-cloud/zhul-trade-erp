@@ -48,7 +48,7 @@
 | [BUS-038](tasks/2026-11-14-SEC-005-post-remediation-review.md) | 退款申请执行缺少请求验证，负退款金额可绕过服务校验 | P1 | 已合并待发布 | Claude | [2026-11-14-BUS-038](tasks/2026-11-14-BUS-038-review-fixes.md) | 2026-11-14 |
 | [BUS-039](tasks/2026-11-15-SEC-017-proactive-sweep.md) | 多收退回客户不校验实际转出人民币为正，汇兑收益可被记大 | P1 | 已合并待发布 | Claude | [2026-11-15-SEC-017](tasks/2026-11-15-SEC-017-proactive-sweep.md) | 2026-11-15 |
 | [BUS-040](tasks/2026-11-15-SEC-017-proactive-sweep.md) | 到账与订单费用先判断正数后舍入，可登记 0 元单据 | P3 | 已合并待发布 | Claude | [2026-11-15-SEC-017](tasks/2026-11-15-SEC-017-proactive-sweep.md) | 2026-11-15 |
-| [BUS-041](tasks/2026-11-15-SEC-017-proactive-sweep.md) | 手动、补发、迁移订单 pi_id 为 0 被当成同一张 PI，互相扣退款与利润 | P1 | 待合并 | Claude | [2026-11-15-SEC-017](tasks/2026-11-15-SEC-017-proactive-sweep.md) | 2026-11-15 |
+| [BUS-041](tasks/2026-11-15-SEC-017-proactive-sweep.md) | 手动、补发、迁移订单 pi_id 为 0 被当成同一张 PI，互相扣退款与利润 | P1 | 已合并待发布 | Claude | [2026-11-15-SEC-017](tasks/2026-11-15-SEC-017-proactive-sweep.md) | 2026-11-15 |
 
 ## 前端
 
