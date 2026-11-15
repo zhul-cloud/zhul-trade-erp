@@ -825,13 +825,30 @@ public class SupplierDevService {
             t.setLogId(l.getId());
             t.setSystem(l.getRecordType() == SupplyConstants.LOG_SYSTEM);
             t.setOperatorName(t.getSystem() ? "系统" : users.get(l.getOperatorId()));
-            t.setContent(names ? l.getContent() : t.getSystem() ? "候选阶段由系统更新" : l.getContent());
+            t.setContent(names ? l.getContent() : t.getSystem() ? "候选阶段由系统更新" : hideNames(l.getContent()));
             t.setNextAction(l.getNextAction());
             t.setNextActionDate(l.getNextActionDate());
             t.setStatusChange(stageText(l.getStatusChanges(), names));
             out.add(t);
         }
         return out;
+    }
+
+    /**
+     * 没有「查看货源信息」时去掉系统按模板写进人工记录的候选与供应商名称（加候选、关联供应商库，audit SEC-023）；
+     * 用户自己写的处理内容原样返回。
+     */
+    static String hideNames(String content) {
+        if (content == null) {
+            return null;
+        }
+        if (content.startsWith("加候选「") && content.endsWith("」")) {
+            return "加候选";
+        }
+        if (content.startsWith("「") && content.contains("」关联供应商库：")) {
+            return "候选关联供应商库";
+        }
+        return content;
     }
 
     private String stageText(String json, boolean names) {
