@@ -112,7 +112,7 @@ public class RefundRequestService {
     }
 
     public RequestRefundableVO refundable(Long soId) {
-        SalesOrderDO o = visibleOrder(soId);
+        SalesOrderDO o = activeOrder(soId);
         return refundableOf(o, null);
     }
 
@@ -120,7 +120,7 @@ public class RefundRequestService {
 
     @Transactional(rollbackFor = Exception.class)
     public RefundRequestVO apply(SaveRefundRequestApply req) {
-        SalesOrderDO o = visibleOrder(req.getSoId());
+        SalesOrderDO o = activeOrder(req.getSoId());
         AfterSalesDO as = null;
         if (req.getAfterSalesId() != null) {
             afterSalesService.detail(req.getAfterSalesId());
@@ -684,6 +684,12 @@ public class RefundRequestService {
                 || !dataScopeResolver.current().canSee(o.getOwnerId())) {
             throw new BizException("销售订单不存在");
         }
+        return o;
+    }
+
+    /** 提出申请、查可退金额要求订单有效；撤回与按订单列出不看订单状态，已取消订单上的申请仍能撤回（audit BUS-044） */
+    private SalesOrderDO activeOrder(Long soId) {
+        SalesOrderDO o = visibleOrder(soId);
         if (o.getStatus() != SalesConstants.SO_ACTIVE) {
             throw new BizException("订单已取消，不能申请退款");
         }

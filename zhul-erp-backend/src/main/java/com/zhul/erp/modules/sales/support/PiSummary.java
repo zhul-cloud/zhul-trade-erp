@@ -57,6 +57,10 @@ public class PiSummary {
 
     /** 手动创建的订单：收款记录直接挂在订单上，同样的规则算收款状态 */
     public void refreshOrder(SalesOrderDO o) {
+        if (Objects.equals(o.getSource(), SalesConstants.SO_REPLACEMENT)) {
+            // 售后补发订单 0 元、不收款，收款状态保持「无需收款」（audit BUS-068）
+            return;
+        }
         Totals t = totals(new LambdaQueryWrapper<PaymentReceiptDO>().eq(PaymentReceiptDO::getSoId, o.getId()), o.getTotalAmount());
         o.setReceivedAmount(t.received());
         o.setFeeDiffAmount(t.feeDiff());
