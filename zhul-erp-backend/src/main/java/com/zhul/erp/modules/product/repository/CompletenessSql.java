@@ -36,6 +36,9 @@ public final class CompletenessSql {
     public static final String MISSING_CUSTOMS = "SELECT 1 FROM product_customs c WHERE c.product_id = product.id "
             + "AND c.deleted_at IS NULL AND c.hs_code != ''";
 
+    /** 品类未细分：商品品类是一级品类（没有上级，含兜底「其他」）；外层用 product.category_id IN (...) */
+    public static final String TOP_CATEGORIES = "SELECT pc.id FROM product_category pc WHERE pc.parent_id IS NULL";
+
     public static final String MISSING_PRICE = "SELECT 1 FROM product_reference_price r WHERE r.product_id = product.id "
             + "AND r.deleted_at IS NULL";
 }

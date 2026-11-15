@@ -29,6 +29,7 @@ import com.zhul.erp.modules.product.service.ProductCompletenessService;
 import com.zhul.erp.modules.product.service.ProductService;
 import com.zhul.erp.modules.product.support.LikeUtils;
 import com.zhul.erp.modules.product.support.MpnNormalizer;
+import com.zhul.erp.modules.product.support.ProductCategoryChangedEvent;
 import com.zhul.erp.modules.product.support.ProductOrderCodes;
 import com.zhul.erp.modules.product.support.IndustryScope;
 import com.zhul.erp.modules.product.support.PlatformScopeGuard;
@@ -39,6 +40,7 @@ import com.zhul.erp.modules.product.support.ProductUsageChecker;
 import com.zhul.erp.modules.product.support.TextRules;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -57,6 +59,7 @@ import java.util.Objects;
 public class ProductServiceImpl implements ProductService {
 
     private static final int MPN_MAX = 128;
+    private static final String MISSING_REFINE = "refine";
     /** 关键字按订货号最多带出的商品数 */
     private static final int KEYWORD_CODE_LIMIT = 200;
     private static final String WARN_OBSOLETE_WITH_REPLACEMENT =
@@ -76,6 +79,7 @@ public class ProductServiceImpl implements ProductService {
     private final ProductWriteGuard productWriteGuard;
     private final ProductOrderCodes orderCodes;
     private final ObjectProvider<ProductUsageChecker> usageCheckers;
+    private final ApplicationEventPublisher events;
 
     public ProductServiceImpl(ProductMapper productMapper, ProductBrandMapper brandMapper,
                               ProductCategoryMapper categoryMapper, ProductSeriesMapper seriesMapper,
@@ -85,7 +89,8 @@ public class ProductServiceImpl implements ProductService {
                               ObjectProvider<ProductUsageChecker> usageCheckers,
                               com.zhul.erp.modules.product.candidate.repository.ProductHeatMapper heatMapper,
                               IndustryScope industryScope, ProductWriteGuard productWriteGuard,
-                              ProductOrderCodes orderCodes) {
+                              ProductOrderCodes orderCodes, ApplicationEventPublisher events) {
+        this.events = events;
         this.heatMapper = heatMapper;
         this.orderCodes = orderCodes;
         this.industryScope = industryScope;
@@ -106,53 +111,16 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     public PageResult<ProductVO> page(ProductQuery query) {
-        // includeDeleted 只对平台账号生效，租户账号传了也当没传
-        boolean includeDeleted = Boolean.TRUE.equals(query.getIncludeDeleted()) && platformScopeGuard.isPlatform();
-        LambdaQueryWrapper<ProductDO> wrapper = new LambdaQueryWrapper<ProductDO>()
-                .eq(ProductDO::getTenantId, ProductConstants.PLATFORM_TENANT_ID)
-                .isNull(!includeDeleted, ProductDO::getDeletedAt)
-                .eq(query.getBrandId() != null, ProductDO::getBrandId, query.getBrandId())
-                .in(query.getCategoryId() != null, ProductDO::getCategoryId, categoryWithChildren(query.getCategoryId()))
-                .eq(query.getSeriesId() != null, ProductDO::getSeriesId, query.getSeriesId())
-                .eq(query.getLifecycleStatus() != null, ProductDO::getLifecycleStatus, query.getLifecycleStatus())
-                .eq(query.getStatus() != null, ProductDO::getStatus, query.getStatus());
-        // 只看本租户维护的商品
-        if (Boolean.TRUE.equals(query.getMine()) && !platformScopeGuard.isPlatform()) {
-            wrapper.eq(ProductDO::getOwnerTenantId, com.zhul.erp.framework.tenant.TenantContext.getTenantId());
-        }
-        // 租户只看到本行业的商品（按所属品类的一级品类）
-        java.util.Set<Long> visibleCategories = industryScope.visibleCategoryIds();
-        if (visibleCategories != null) {
-            if (visibleCategories.isEmpty()) {
-                return PageResult.of(0L, List.of());
-            }
-            wrapper.in(ProductDO::getCategoryId, visibleCategories);
+        LambdaQueryWrapper<ProductDO> wrapper = listWrapper(query);
+        if (wrapper == null) {
+            return PageResult.of(0L, List.of());
         }
         Integer heatTenant = platformScopeGuard.isPlatform() ? null : com.zhul.erp.framework.tenant.TenantContext.getTenantId();
         String heatOrder = heatOrder(query.getSort(), heatTenant);
         // 默认按更新时间倒序（列表页统一规范）
         if (heatOrder == null) {
             wrapper.orderByDesc(ProductDO::getUpdateTime).orderByDesc(ProductDO::getId);
-        }
-        // 缺项筛选对平台与租户都生效（租户的范围已按行业过滤）
-        if (StringUtils.hasText(query.getMissing())) {
-            wrapper.notExists(missingSql(query.getMissing().trim()));
-        }
-        if (StringUtils.hasText(query.getKeyword())) {
-            String keyword = LikeUtils.escape(query.getKeyword().trim());
-            String normalized = MpnNormalizer.normalize(query.getKeyword());
-            wrapper.and(w -> {
-                w.like(ProductDO::getProductName, keyword).or().like(ProductDO::getMpnRaw, keyword);
-                if (!normalized.isEmpty()) {
-                    w.or().like(ProductDO::getMpnNormalized, normalized);
-                }
-                List<Long> byCode = orderCodes.productsMatching(query.getKeyword(), KEYWORD_CODE_LIMIT);
-                if (!byCode.isEmpty()) {
-                    w.or().in(ProductDO::getId, byCode);
-                }
-            });
-        }
-        if (heatOrder != null) {
+        } else {
             wrapper.last(heatOrder);
         }
         Page<ProductDO> page = productMapper.selectPage(
@@ -177,6 +145,62 @@ public class ProductServiceImpl implements ProductService {
             records.add(vo);
         }
         return PageResult.of(page.getTotal(), records);
+    }
+
+    /** 列表的筛选条件（不含排序）；租户行业范围为空时返回 null，表示没有可见商品 */
+    private LambdaQueryWrapper<ProductDO> listWrapper(ProductQuery query) {
+        // includeDeleted 只对平台账号生效，租户账号传了也当没传
+        boolean includeDeleted = Boolean.TRUE.equals(query.getIncludeDeleted()) && platformScopeGuard.isPlatform();
+        LambdaQueryWrapper<ProductDO> wrapper = new LambdaQueryWrapper<ProductDO>()
+                .eq(ProductDO::getTenantId, ProductConstants.PLATFORM_TENANT_ID)
+                .isNull(!includeDeleted, ProductDO::getDeletedAt)
+                .eq(query.getBrandId() != null, ProductDO::getBrandId, query.getBrandId())
+                .in(query.getCategoryId() != null, ProductDO::getCategoryId, categoryWithChildren(query.getCategoryId()))
+                .eq(query.getSeriesId() != null, ProductDO::getSeriesId, query.getSeriesId())
+                .eq(query.getLifecycleStatus() != null, ProductDO::getLifecycleStatus, query.getLifecycleStatus())
+                .eq(query.getStatus() != null, ProductDO::getStatus, query.getStatus());
+        // 只看本租户维护的商品
+        if (Boolean.TRUE.equals(query.getMine()) && !platformScopeGuard.isPlatform()) {
+            wrapper.eq(ProductDO::getOwnerTenantId, com.zhul.erp.framework.tenant.TenantContext.getTenantId());
+        }
+        // 租户只看到本行业的商品（按所属品类的一级品类）
+        java.util.Set<Long> visibleCategories = industryScope.visibleCategoryIds();
+        if (visibleCategories != null) {
+            if (visibleCategories.isEmpty()) {
+                return null;
+            }
+            wrapper.in(ProductDO::getCategoryId, visibleCategories);
+        }
+        // 缺项筛选对平台与租户都生效（租户的范围已按行业过滤）
+        if (StringUtils.hasText(query.getMissing())) {
+            applyMissing(wrapper, query.getMissing().trim(), query.getRefineState());
+        }
+        if (StringUtils.hasText(query.getKeyword())) {
+            String keyword = LikeUtils.escape(query.getKeyword().trim());
+            String normalized = MpnNormalizer.normalize(query.getKeyword());
+            wrapper.and(w -> {
+                w.like(ProductDO::getProductName, keyword).or().like(ProductDO::getMpnRaw, keyword);
+                if (!normalized.isEmpty()) {
+                    w.or().like(ProductDO::getMpnNormalized, normalized);
+                }
+                List<Long> byCode = orderCodes.productsMatching(query.getKeyword(), KEYWORD_CODE_LIMIT);
+                if (!byCode.isEmpty()) {
+                    w.or().in(ProductDO::getId, byCode);
+                }
+            });
+        }
+        return wrapper;
+    }
+
+    @Override
+    public List<Long> idsMatching(ProductQuery query, int limit) {
+        LambdaQueryWrapper<ProductDO> wrapper = listWrapper(query);
+        if (wrapper == null) {
+            return List.of();
+        }
+        wrapper.select(ProductDO::getId).orderByDesc(ProductDO::getUpdateTime).orderByDesc(ProductDO::getId)
+                .last("LIMIT " + Math.max(1, limit));
+        return productMapper.selectList(wrapper).stream().map(ProductDO::getId).toList();
     }
 
     /** 热度排序的 ORDER BY；租户 ID 来自登录上下文（整数），不是用户输入 */
@@ -261,10 +285,15 @@ public class ProductServiceImpl implements ProductService {
         // 其余字段放在实体里，才能触发 update_time / update_by 的自动填充
         Long seriesId = change.getSeriesId();
         change.setSeriesId(null);
+        // 手动改了品类：AI 建议和忽略标记一并清除，过期的建议不会再被采纳（spec product/category-refine）
+        boolean categoryChanged = !Objects.equals(change.getCategoryId(), current.getCategoryId());
         try {
             productMapper.update(change, new LambdaUpdateWrapper<ProductDO>()
                     .eq(ProductDO::getId, id)
-                    .set(ProductDO::getSeriesId, seriesId));
+                    .set(ProductDO::getSeriesId, seriesId)
+                    .set(categoryChanged, ProductDO::getAiCategoryId, 0L)
+                    .set(categoryChanged, ProductDO::getAiCategoryState, ProductConstants.AI_CATEGORY_NONE)
+                    .set(categoryChanged, ProductDO::getAiCategoryAt, null));
         } catch (DuplicateKeyException e) {
             throw duplicate(findByMpnLocking(change.getBrandId(), change.getMpnNormalized()), e);
         }
@@ -273,6 +302,9 @@ public class ProductServiceImpl implements ProductService {
         if (req.getOrderCodes() != null || !Objects.equals(change.getBrandId(), current.getBrandId())) {
             orderCodes.replace(id, change.getBrandId(),
                     req.getOrderCodes() != null ? req.getOrderCodes() : orderCodes.codesOf(id));
+        }
+        if (categoryChanged) {
+            events.publishEvent(new ProductCategoryChangedEvent(List.of(id)));
         }
         ProductDO saved = productFinder.active(id);
         ProductVO vo = toVO(saved, productNames.load(List.of(saved)));
@@ -352,11 +384,19 @@ public class ProductServiceImpl implements ProductService {
         summary.setMissingLogistics(countUndeleted(CompletenessSql.MISSING_LOGISTICS));
         summary.setMissingCustoms(countUndeleted(CompletenessSql.MISSING_CUSTOMS));
         summary.setMissingPrice(countUndeleted(CompletenessSql.MISSING_PRICE));
+        summary.setMissingRefine(countWhere(w -> applyMissing(w, MISSING_REFINE, null)));
+        summary.setRefineTodo(countWhere(w -> applyMissing(w, MISSING_REFINE, "todo")));
+        summary.setRefinePending(countWhere(w -> applyMissing(w, MISSING_REFINE, "pending")));
+        summary.setRefineIgnored(countWhere(w -> applyMissing(w, MISSING_REFINE, "ignored")));
         return summary;
     }
 
-    /** 与列表的缺项筛选使用同一组 SQL 片段，统计数量与筛选结果条数才一致 */
     private long countUndeleted(String notExistsSql) {
+        return countWhere(notExistsSql == null ? w -> { } : w -> w.notExists(notExistsSql));
+    }
+
+    /** 与列表的缺项筛选使用同一组条件，统计数量与筛选结果条数才一致 */
+    private long countWhere(java.util.function.Consumer<LambdaQueryWrapper<ProductDO>> condition) {
         LambdaQueryWrapper<ProductDO> wrapper = new LambdaQueryWrapper<ProductDO>()
                 .eq(ProductDO::getTenantId, ProductConstants.PLATFORM_TENANT_ID)
                 .isNull(ProductDO::getDeletedAt);
@@ -368,10 +408,28 @@ public class ProductServiceImpl implements ProductService {
             }
             wrapper.in(ProductDO::getCategoryId, visibleCategories);
         }
-        if (notExistsSql != null) {
-            wrapper.notExists(notExistsSql);
-        }
+        condition.accept(wrapper);
         return productMapper.selectCount(wrapper);
+    }
+
+    /**
+     * 缺项筛选。refine（品类未细分）= 品类是一级品类（含「其他」），可再按 AI 建议状态分档：
+     * todo-待 AI 细分、pending-待确认建议、ignored-已忽略（spec product/category-refine）。
+     */
+    private static void applyMissing(LambdaQueryWrapper<ProductDO> wrapper, String missing, String refineState) {
+        if (!MISSING_REFINE.equals(missing)) {
+            wrapper.notExists(missingSql(missing));
+            return;
+        }
+        wrapper.inSql(ProductDO::getCategoryId, CompletenessSql.TOP_CATEGORIES);
+        if (StringUtils.hasText(refineState)) {
+            wrapper.eq(ProductDO::getAiCategoryState, switch (refineState.trim()) {
+                case "todo" -> ProductConstants.AI_CATEGORY_NONE;
+                case "pending" -> ProductConstants.AI_CATEGORY_PENDING;
+                case "ignored" -> ProductConstants.AI_CATEGORY_IGNORED;
+                default -> throw BizException.of(ProductErrorCodes.PARAM_INVALID, "品类未细分只支持 todo、pending、ignored");
+            });
+        }
     }
 
     private static String missingSql(String missing) {
@@ -381,7 +439,7 @@ public class ProductServiceImpl implements ProductService {
             case "customs" -> CompletenessSql.MISSING_CUSTOMS;
             case "price" -> CompletenessSql.MISSING_PRICE;
             default -> throw BizException.of(ProductErrorCodes.PARAM_INVALID,
-                    "缺项筛选只支持 media、logistics、customs、price");
+                    "缺项筛选只支持 media、logistics、customs、price、refine");
         };
     }
 
@@ -592,6 +650,15 @@ public class ProductServiceImpl implements ProductService {
         vo.setUpdateBy(product.getUpdateBy());
         vo.setOwnerTenantId(product.getOwnerTenantId());
         vo.setEditable(productWriteGuard.canWrite(product));
+        vo.setAiCategoryState(product.getAiCategoryState());
+        vo.setAiCategoryAt(product.getAiCategoryAt());
+        ProductCategoryDO suggested = product.getAiCategoryId() == null ? null : lookup.categories().get(product.getAiCategoryId());
+        if (suggested != null && Objects.equals(product.getAiCategoryState(), ProductConstants.AI_CATEGORY_PENDING)) {
+            vo.setAiCategoryId(suggested.getId());
+            vo.setAiCategoryName(StringUtils.hasText(suggested.getCategoryNameZh()) ? suggested.getCategoryNameZh() : suggested.getCategoryName());
+            vo.setAiCategoryCross(!Objects.equals(suggested.getParentId(), product.getCategoryId())
+                    && (category == null || !ProductConstants.CATEGORY_OTHER_CODE.equals(category.getCategoryCode())));
+        }
         return vo;
     }
 }

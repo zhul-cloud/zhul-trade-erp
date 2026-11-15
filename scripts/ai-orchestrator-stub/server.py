@@ -26,6 +26,8 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 PORT = int(os.environ.get("AI_STUB_PORT", "8899"))
 CALLBACK_TOKEN = os.environ.get("AI_TASK_CALLBACK_TOKEN", "zhul-erp-ai-callback-secret")
 CALLBACK_DELAY_SECONDS = float(os.environ.get("AI_STUB_DELAY_SECONDS", "3"))
+# 设为 1 时 /status 报告两家订阅都已登录，用于本地走查「平台订阅」模式的租户
+SUBSCRIPTION_LOGGED_IN = os.environ.get("AI_STUB_LOGGED_IN") == "1"
 
 # 示例拆单结果，对应本次 UI 原型"客户询盘详情-待确认拆单预览"页展示的数据结构：
 # 按品牌+一级品类分组，每组含若干型号明细，每个型号带细分品类编码 categoryCode（取自品类表）；
@@ -161,6 +163,22 @@ def candidate_output(payload: dict) -> dict:
     return {"items": [{"key": i.get("key"), "categoryId": pick.get("id") or 0, "brand": ""} for i in items]}
 
 
+def refine_output(payload: dict) -> dict:
+    """product-category-refine 的假结果，只用于联调：型号以 6ES7 开头的给清单里第一个细分品类，
+    型号含 UNKNOWN 的判断不出（0），其余给清单里第二个（没有则第一个）"""
+    data = payload.get("input") or {}
+    cats = data.get("categories") or []
+    first = cats[0].get("id") if cats else 0
+    second = cats[1].get("id") if len(cats) > 1 else first
+
+    def pick(model: str) -> int:
+        m = (model or "").upper()
+        if "UNKNOWN" in m:
+            return 0
+        return first if m.startswith("6ES7") else second
+    return {"items": [{"key": i.get("key"), "categoryId": pick(i.get("model")), "brand": ""} for i in data.get("items") or []]}
+
+
 def send_callback(callback_url: str, output=None):
     time.sleep(CALLBACK_DELAY_SECONDS)
     body = json.dumps({"status": "success", "output": output or SAMPLE_OUTPUT, "error": None}).encode("utf-8")
@@ -203,7 +221,8 @@ class Handler(BaseHTTPRequestHandler):
         if self.path != "/status":
             self._send_json(404, {"error": "not found"})
             return
-        self._send_json(200, {"codex": {"logged_in": False}, "claude": {"logged_in": False}})
+        logged_in = {"logged_in": SUBSCRIPTION_LOGGED_IN}
+        self._send_json(200, {"codex": logged_in, "claude": logged_in})
 
     def do_POST(self):
         if not self._authorized():
@@ -243,6 +262,8 @@ class Handler(BaseHTTPRequestHandler):
                 output = name_output(payload)
             elif self.path == "/skills/candidate-classify/run":
                 output = candidate_output(payload)
+            elif self.path == "/skills/product-category-refine/run":
+                output = refine_output(payload)
             threading.Thread(target=send_callback, args=(callback_url, output), daemon=True).start()
 
     def log_message(self, format, *args):

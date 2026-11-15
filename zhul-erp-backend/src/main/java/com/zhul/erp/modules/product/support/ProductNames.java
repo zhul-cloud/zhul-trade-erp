@@ -41,6 +41,8 @@ public class ProductNames {
         }
         Set<Long> brandIds = ids(products, ProductDO::getBrandId);
         Set<Long> categoryIds = ids(products, ProductDO::getCategoryId);
+        // AI 建议的细分品类也一并取回（0 表示没有建议）
+        products.stream().map(ProductDO::getAiCategoryId).filter(id -> id != null && id > 0).forEach(categoryIds::add);
         Set<Long> seriesIds = ids(products, ProductDO::getSeriesId);
         Map<Long, ProductBrandDO> brands = brandMapper.selectBatchIds(brandIds).stream()
                 .collect(Collectors.toMap(ProductBrandDO::getId, Function.identity()));

@@ -49,4 +49,13 @@ public class ProductVO {
     /** 需求热度：关联的询盘型号数、有效销售订单数；租户只统计本公司 */
     private Long inquiryCount;
     private Long dealCount;
+    /** AI 细分品类状态（0-无、1-待确认建议、2-已忽略） */
+    private Integer aiCategoryState;
+    /** AI 建议的细分品类（待确认建议时有值） */
+    private Long aiCategoryId;
+    private String aiCategoryName;
+    /** 建议的细分品类不属于当前一级品类（当前为「其他」时不算） */
+    private Boolean aiCategoryCross;
+    /** 建议时间；已忽略时为忽略时间 */
+    private LocalDateTime aiCategoryAt;
 }

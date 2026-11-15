@@ -10,4 +10,9 @@ public class CompletenessSummaryVO {
     private Long missingLogistics;
     private Long missingCustoms;
     private Long missingPrice;
+    /** 品类未细分（品类是一级品类，含「其他」）及其三档：待 AI 细分、待确认建议、已忽略 */
+    private Long missingRefine;
+    private Long refineTodo;
+    private Long refinePending;
+    private Long refineIgnored;
 }
