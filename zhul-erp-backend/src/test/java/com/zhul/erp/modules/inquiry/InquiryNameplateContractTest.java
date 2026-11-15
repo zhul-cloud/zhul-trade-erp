@@ -280,6 +280,33 @@ class InquiryNameplateContractTest extends InquiryContractSupport {
                 .path("message").asText());
     }
 
+    /** audit BUS-059：待确认时删掉一张铭牌，AI 结果里的编号仍对应 AI 当时看到的图，删掉的图不再挂到型号上；重新解析时编号不变 */
+    @Test
+    void draft_afterRemovingPlate_keepsAiNumbering() throws Exception {
+        loginAsAdmin("it_np_admin");
+        admin = token("it_np_admin");
+        long id = parsedInquiry(OUTPUT);
+        List<Long> p = plateIds(id);
+        jdbc.update("update customer_inquiry_attachment set deleted_at = now() where id = ?", p.get(0));
+
+        JsonNode rows = ok(call(get(INQ + "/" + id + "/draft"), admin)).path("rows");
+        assertEquals(List.of(), ids(rows.path(0).path("nameplateIds")), "编号 1 是已删掉的图，不再挂到型号上");
+        assertEquals(List.of(p.get(1)), ids(rows.path(1).path("nameplateIds")), "编号 2 仍是原来的第 2 张");
+        assertEquals(List.of(), ids(rows.path(2).path("nameplateIds")));
+
+        when(orchestrator.submit(any(), anyLong(), any(), any())).thenReturn(new CompletableFuture<>());
+        ok(call(post(INQ + "/" + id + "/retry-parse"), admin));
+        ArgumentCaptor<String> input = ArgumentCaptor.forClass(String.class);
+        verify(orchestrator, timeout(5000)).submit(eq("inquiry-parse-and-split"), anyLong(), input.capture(), any());
+        List<String> nos = new ArrayList<>();
+        objectMapper.readTree(input.getValue()).path("attachments").forEach(f -> {
+            if ("nameplate".equals(f.path("role").asText())) {
+                nos.add(f.path("no").asText());
+            }
+        });
+        assertEquals(List.of("2", "3"), nos, "删掉的图不再发送，其余铭牌沿用原编号");
+    }
+
     @Test
     void purchasers_seeOnlyTheirTaskPlates() throws Exception {
         loginAsAdmin("it_np_admin");
