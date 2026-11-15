@@ -43,6 +43,9 @@ import com.zhul.erp.modules.masterdata.dto.SupplierCreateResultVO;
 import com.zhul.erp.modules.purchase.support.Counterparty;
 import com.zhul.erp.modules.purchase.support.OrderPurchaseProgress;
 import com.zhul.erp.modules.purchase.support.PurchaseCalc;
+import com.zhul.erp.modules.purchase.purchasereturn.PurchaseReturnConstants;
+import com.zhul.erp.modules.purchase.purchasereturn.entity.PurchaseReturnDO;
+import com.zhul.erp.modules.purchase.purchasereturn.repository.PurchaseReturnMapper;
 import com.zhul.erp.modules.purchase.support.PurchaseDrafts;
 import com.zhul.erp.modules.purchase.support.PurchaseLogs;
 import com.zhul.erp.modules.purchase.support.RequirementQty;
@@ -130,6 +133,7 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
     private final PayableQueryService payableQuery;
     private final AttachmentService attachmentService;
     private final SalesOrderItemMapper soItemMapper;
+    private final PurchaseReturnMapper purchaseReturnMapper;
 
     /** 付款状态筛选（固定 SQL，拼在 purchase_order 的查询上） */
     private static final Map<String, String> PAY_CONDITIONS = Map.of(
@@ -574,6 +578,10 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
                 && payables.hasMoneyMovement(FinanceConstants.SOURCE_PURCHASE_ORDER, id)) {
             throw new BizException("这张采购订单已有付款、欠款抵扣或退款，不能修改币种；如需修改，请先作废相关付款");
         }
+        // 已有采购退货单（未作废）的不能改币种：退款或抵扣按生成时的币种与汇率登记，换币后应付冲减与成本冲减对不上（audit BUS-050）
+        if (ordered && !currency.equals(p.getCurrencyCode()) && hasPurchaseReturn(id)) {
+            throw new BizException("这张采购订单已有采购退货单，退款或抵扣按原币种登记，不能修改币种");
+        }
         if (!currency.equals(p.getCurrencyCode()) || !PurchaseConstants.CNY.equals(currency)) {
             BigDecimal rate = PurchaseConstants.CNY.equals(currency) ? BigDecimal.ONE : exchangeRateService.require(currency).rate();
             p.setCurrencyCode(currency);
@@ -816,6 +824,8 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void addDiscountOnPayment(Long poId, String name, BigDecimal amount) {
+        // 先锁再读，与其他采购订单写操作一致，不用旧数据整行写回（audit BUS-071）
+        orderMapper.lockById(poId);
         PurchaseOrderDO p = orderMapper.selectById(poId);
         if (p == null || p.getDeletedAt() != null) {
             throw new BizException("采购订单不存在");
@@ -839,6 +849,14 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
         logService.recordOperateLog(PurchaseConstants.MENU_ORDER, "付款时登记优惠", null, Map.of("poNo", p.getPoNo(), "changes", content));
         payables.syncPurchaseOrder(poId);
         followupHooks.purchaseChanged(poId);
+    }
+
+    /** 采购订单有没作废的采购退货单 */
+    private boolean hasPurchaseReturn(Long poId) {
+        return purchaseReturnMapper.selectCount(new LambdaQueryWrapper<PurchaseReturnDO>()
+                .eq(PurchaseReturnDO::getPoId, poId)
+                .ne(PurchaseReturnDO::getStatus, PurchaseReturnConstants.VOID)
+                .isNull(PurchaseReturnDO::getDeletedAt)) > 0;
     }
 
     private static String feesText(List<String> parts) {
