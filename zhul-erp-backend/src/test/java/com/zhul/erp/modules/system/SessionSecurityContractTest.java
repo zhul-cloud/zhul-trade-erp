@@ -278,6 +278,31 @@ class SessionSecurityContractTest extends IntegrationTestBase {
         assertEquals(0, loginAs(USERNAME, PASSWORD, UUID.randomUUID().toString()).path("code").asInt(), "恢复公司后照常登录");
     }
 
+    /** 平台重置租户管理员密码同样撤销该管理员的旧会话，含「记住我」的 RefreshToken（audit SEC-004#1） */
+    @Test
+    void platformResetTenantAdminPasswordRevokesSessions() throws Exception {
+        jdbc.update("insert into tenant (id, name, status) values (?, '会话测试公司', 1)", OTHER_TENANT);
+        jdbc.update("update account set tenant_id = ? where id = ?", OTHER_TENANT, USER_ID);
+        jdbc.update("update user_basic set tenant_id = ?, role_code = 'ROLE_ADMIN' where id = ?", OTHER_TENANT, USER_ID);
+        String body = objectMapper.writeValueAsString(Map.of("username", USERNAME, "password", PASSWORD,
+                "idempotencyKey", UUID.randomUUID().toString(), "rememberMe", true));
+        MockHttpServletResponse login = mvc.perform(post("/api/v1/auth/login")
+                .contentType(MediaType.APPLICATION_JSON).content(body)).andReturn().getResponse();
+        JsonNode res = objectMapper.readTree(login.getContentAsString(StandardCharsets.UTF_8));
+        assertEquals(0, res.path("code").asInt(), res.toString());
+        String accessToken = res.path("data").path("accessToken").asText();
+        jakarta.servlet.http.Cookie cookie = login.getCookie("rft");
+        assertNotNull(cookie, login.getHeader("Set-Cookie"));
+
+        TenantContext.setTenantId(0);
+        tenantService.resetPassword(OTHER_TENANT);
+        assertFalse(alive(accessToken), "平台重置管理员密码后旧 AccessToken 失效");
+        assertFalse(Boolean.TRUE.equals(redis.hasKey(RedisKeyConstants.REFRESH_TOKEN_PREFIX + cookie.getValue())),
+                "旧 RefreshToken 不能再续期");
+        assertEquals(0, jdbc.queryForObject("select count(*) from account_access_token where account_id = ? and deleted_at is null",
+                Integer.class, USER_ID));
+    }
+
     /** 记住我：RefreshToken 与 Cookie 30 天，每次刷新重新计时（2026-11-05 用户反馈） */
     @Test
     void rememberMeLasts30DaysAndSlidesOnRefresh() throws Exception {
