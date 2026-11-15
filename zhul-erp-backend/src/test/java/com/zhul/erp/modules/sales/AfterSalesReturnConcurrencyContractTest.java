@@ -3,11 +3,13 @@ package com.zhul.erp.modules.sales;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.zhul.erp.common.exception.BizException;
 import com.zhul.erp.framework.tenant.TenantContext;
+import com.zhul.erp.modules.aftersales.constants.AfterSalesConstants;
 import com.zhul.erp.modules.aftersales.dto.ConfirmReturnRequest;
 import com.zhul.erp.modules.aftersales.dto.ReceiveReturnRequest;
 import com.zhul.erp.modules.aftersales.service.ReturnReceiptService;
 import com.zhul.erp.modules.aftersales.service.SalesReturnService;
 import com.zhul.erp.modules.aftersales.support.AfterSalesLogs;
+import com.zhul.erp.modules.attachment.service.AttachmentService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.mock.mockito.SpyBean;
@@ -51,6 +53,7 @@ class AfterSalesReturnConcurrencyContractTest extends SalesContractSupport {
     @Autowired private SalesReturnService returns;
     @Autowired private ReturnReceiptService receipts;
     @SpyBean private AfterSalesLogs logs;
+    @SpyBean private AttachmentService attachments;
 
     /** 手动订单 A-9 × 4，已到账 500，全部出运 */
     private long manualShipped(long customer) throws Exception {
@@ -160,6 +163,50 @@ class AfterSalesReturnConcurrencyContractTest extends SalesContractSupport {
         assertEquals("退货入库单已验收", failure(second));
         assertEquals(1, jdbc.queryForObject("select count(*) from document_log where doc_type = 'RR' and doc_id = ? and action = '验收'", Integer.class, rrId),
                 "只验收一次");
+    }
+
+    /**
+     * audit BUS-079：验收停在挂附件处（已改完退货入库单、还没改销售退货单）时作废这张销售退货单。
+     * 修复前验收先锁退货入库单、作废先锁销售退货单，互相等待，MySQL 判死锁回滚其中一个；
+     * 修复后两者都先锁销售退货单，作废排在验收后面，看到已入库后被拒绝。
+     */
+    @Test
+    void receiveAndVoidReturn_concurrently_queueInsteadOfDeadlock() throws Exception {
+        long thId = pendingReturn();
+        JsonNode th = ok(call(json(post(TH + "/" + thId + "/confirm"), write(Map.of("refund", Map.of("method", 3)))), admin));
+        long rrId = th.path("receipt").path("id").asLong();
+        long itemId = ok(call(get("/api/v1/warehouse/returns/" + rrId), admin)).path("items").get(0).path("id").asLong();
+        ReceiveReturnRequest req = objectMapper.readValue(write(Map.of("receivedDate", LocalDate.now().toString(),
+                "items", List.of(Map.of("itemId", itemId, "receivedQty", 1, "qualifiedQty", 1)))), ReceiveReturnRequest.class);
+        AtomicReference<Thread> first = new AtomicReference<>();
+        CountDownLatch paused = new CountDownLatch(1);
+        CountDownLatch resume = new CountDownLatch(1);
+        doAnswer(inv -> {
+            if (Thread.currentThread() == first.get()) {
+                paused.countDown();
+                resume.await(10, TimeUnit.SECONDS);
+            }
+            return inv.callRealMethod();
+        }).when(attachments).attach(anyString(), anyLong(), any());
+
+        CompletableFuture<Void> receive = CompletableFuture.runAsync(() -> as(() -> {
+            first.set(Thread.currentThread());
+            receipts.receive(rrId, req);
+        }));
+        assertTrue(paused.await(15, TimeUnit.SECONDS), "验收应已停在挂附件处");
+        CompletableFuture<Void> voiding = CompletableFuture.runAsync(() -> as(() -> returns.voidReturn(thId, "客户不退了")));
+        try {
+            voiding.get(1500, TimeUnit.MILLISECONDS);
+        } catch (TimeoutException expected) {
+            // 作废在等验收持有的行锁
+        } catch (ExecutionException ignored) {
+            // 下面的断言给出原因
+        }
+        resume.countDown();
+        receive.get(15, TimeUnit.SECONDS);
+
+        assertEquals("已入库的退货单不能作废", failure(voiding));
+        assertEquals(AfterSalesConstants.RT_RECEIVED, jdbc.queryForObject("select status from sales_return where id = ?", Integer.class, thId));
     }
 
     private static void as(Runnable action) {

@@ -164,7 +164,7 @@ public class ReturnReceiptService {
 
     @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public ReturnReceiptVO receive(Long id, ReceiveReturnRequest req) {
-        ReturnReceiptDO rr = lock(id);
+        ReturnReceiptDO rr = lockWithReturn(id);
         if (rr.getStatus() != AfterSalesConstants.RR_PENDING) {
             throw new BizException(rr.getStatus() == AfterSalesConstants.RR_VOID ? "退货入库单已作废" : "退货入库单已验收");
         }
@@ -232,7 +232,7 @@ public class ReturnReceiptService {
         if (why.isEmpty()) {
             throw new BizException("请填写撤回原因");
         }
-        ReturnReceiptDO rr = lock(id);
+        ReturnReceiptDO rr = lockWithReturn(id);
         if (rr.getStatus() != AfterSalesConstants.RR_RECEIVED && rr.getStatus() != AfterSalesConstants.RR_DONE) {
             throw new BizException("退货入库单还没入库");
         }
@@ -706,6 +706,15 @@ public class ReturnReceiptService {
         require(id);
         mapper.lockById(id);
         return mapper.selectById(id);
+    }
+
+    /**
+     * 验收、撤回入库会改销售退货单：先锁销售退货单再锁退货入库单，与作废销售退货单（售后单 → 销售退货单 → 退货入库单）
+     * 顺序一致，两者并发时排队而不是死锁（audit BUS-079）
+     */
+    private ReturnReceiptDO lockWithReturn(Long id) {
+        lockReturn(require(id).getSalesReturnId());
+        return lock(id);
     }
 
     private SalesReturnDO lockReturn(Long id) {
