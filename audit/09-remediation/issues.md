@@ -108,9 +108,10 @@
 | [UI-052](tasks/2026-11-14-SEC-005-post-remediation-review.md) | 公共单据附件卡的备注草稿未登记未保存状态 | P2 | 已关闭 | Claude | [2026-11-14-BUS-038](tasks/2026-11-14-BUS-038-review-fixes.md) | 2026-11-15 |
 | [UI-053](tasks/2026-11-14-SEC-005-post-remediation-review.md) | 销售退货详情改状态后返回保活列表，状态和计数仍旧 | P2 | 已关闭 | Claude | [2026-11-14-BUS-038](tasks/2026-11-14-BUS-038-review-fixes.md) | 2026-11-15 |
 | [UI-054](tasks/2026-11-14-SEC-005-post-remediation-review.md) | 退款弹窗旧订单响应迟到，覆盖新申请的人民币换算 | P2 | 已关闭 | Claude | [2026-11-14-BUS-038](tasks/2026-11-14-BUS-038-review-fixes.md) | 2026-11-15 |
-| [UI-055](tasks/2026-11-15-SEC-017-proactive-sweep.md) | 保活页面从其他页面返回后不刷新，列表与详情显示旧数据 | P2 | 已关闭 | Claude | [2026-11-15-SEC-017](tasks/2026-11-15-SEC-017-proactive-sweep.md) | 2026-11-15 |
+| [UI-055](tasks/2026-11-15-SEC-017-proactive-sweep.md) | 保活页面从其他页面返回后不刷新，列表与详情显示旧数据 | P2 | 待认领 | — | [2026-11-15-SEC-018](tasks/2026-11-15-SEC-018-codegraph-sweep.md) | 2026-11-15 |
 | [UI-056](tasks/2026-11-15-SEC-017-proactive-sweep.md) | 多个弹窗切换对象时未丢弃迟到响应，登记付款可分配到上一张应付 | P2 | 已关闭 | Claude | [2026-11-15-SEC-017](tasks/2026-11-15-SEC-017-proactive-sweep.md) | 2026-11-15 |
 | [UI-057](tasks/2026-11-15-SEC-017-proactive-sweep.md) | 销售订单备注卡、采购订单草稿编辑、客户与供应商表单未登记未保存 | P2 | 已关闭 | Claude | [2026-11-15-SEC-017](tasks/2026-11-15-SEC-017-proactive-sweep.md) | 2026-11-15 |
+| [UI-058](tasks/2026-11-15-SEC-018-codegraph-sweep.md) | 客户详情进入编辑时在地址里带 from，违反标签页返回规范 | P3 | 待认领 | — | [2026-11-15-SEC-018](tasks/2026-11-15-SEC-018-codegraph-sweep.md) | 2026-11-15 |
 
 ## AI 可靠性
 
@@ -126,6 +127,7 @@
 | [AI-008](../04-ai-and-operations/01-AI任务可靠性与诊断.md) | 编排服务拒绝请求时不读请求体，Windows 下客户端偶发连接被中止 | P3 | 已关闭 | Claude | [2026-11-06-AI-008](tasks/2026-11-06-AI-008-token-reject-drain.md) | 2026-11-14 |
 | [AI-009](tasks/2026-11-14-SEC-005-post-remediation-review.md) | 大附件读取和预处理阶段缺少心跳，未到总期限先被判失败 | P2 | 已关闭 | Claude | [2026-11-14-BUS-038](tasks/2026-11-14-BUS-038-review-fixes.md) | 2026-11-15 |
 | [AI-010](tasks/2026-11-14-SEC-005-post-remediation-review.md) | 分批解析失败时未汇总工作线程用量，失败回调漏记消耗 | P2 | 已关闭 | Claude | [2026-11-14-BUS-038](tasks/2026-11-14-BUS-038-review-fixes.md) | 2026-11-15 |
+| [AI-011](tasks/2026-11-15-SEC-018-codegraph-sweep.md) | AI 回调信任模型回传的 key，不核对是否属于本次提交 | P3 | 待认领 | — | [2026-11-15-SEC-018](tasks/2026-11-15-SEC-018-codegraph-sweep.md) | 2026-11-15 |
 
 ## 身份与对象权限
 
@@ -148,6 +150,8 @@
 | [SEC-015](tasks/2026-11-14-BUS-038-review-fixes.md) | 退货入库单按 ID 详情对销售侧菜单用户未按单据负责人限定 | P2 | 已关闭 | Claude | [2026-11-14-BUS-038](tasks/2026-11-14-BUS-038-review-fixes.md) | 2026-11-15 |
 | [SEC-016](tasks/2026-11-14-BUS-038-review-fixes.md) | 挂接未挂附件不核对上传人，可按 ID 挂上别人刚上传的文件再读取 | P2 | 已关闭 | Claude | [2026-11-15-SEC-017](tasks/2026-11-15-SEC-017-proactive-sweep.md) | 2026-11-15 |
 | [SEC-017](tasks/2026-11-15-SEC-017-proactive-sweep.md) | 应付按来源、采购退货按采购订单、售后单按订单列出时未校验关联单据范围 | P2 | 已关闭 | Claude | [2026-11-15-SEC-017](tasks/2026-11-15-SEC-017-proactive-sweep.md) | 2026-11-15 |
+| [SEC-018](tasks/2026-11-15-SEC-018-codegraph-sweep.md) | 操作日志、系统参数、角色与菜单授权的读取接口只要求登录 | P2 | 待认领 | — | [2026-11-15-SEC-018](tasks/2026-11-15-SEC-018-codegraph-sweep.md) | 2026-11-15 |
+| [SEC-019](tasks/2026-11-15-SEC-018-codegraph-sweep.md) | 用户列表接口向所有登录用户返回同事的手机号和邮箱 | P3 | 待认领 | — | [2026-11-15-SEC-018](tasks/2026-11-15-SEC-018-codegraph-sweep.md) | 2026-11-15 |
 
 ## 运行与迁移
 
