@@ -21,10 +21,12 @@ import com.zhul.erp.modules.product.candidate.dto.CandidateAiFillVO;
 import com.zhul.erp.modules.product.candidate.entity.ProductCandidateDO;
 import com.zhul.erp.modules.product.candidate.repository.ProductCandidateMapper;
 import com.zhul.erp.modules.product.constants.ProductConstants;
+import com.zhul.erp.modules.product.constants.ProductErrorCodes;
 import com.zhul.erp.modules.product.entity.ProductCategoryDO;
 import com.zhul.erp.modules.product.repository.ProductCategoryMapper;
 import com.zhul.erp.modules.product.support.BrandResolver;
 import com.zhul.erp.modules.product.support.CategoryMatcher;
+import com.zhul.erp.modules.product.support.IndustryScope;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
@@ -36,6 +38,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -63,6 +66,7 @@ public class CandidateAiFill implements AiTaskResultHandler {
     private final AiTaskMapper aiTaskMapper;
     private final CurrentUserResolver currentUser;
     private final ObjectMapper objectMapper;
+    private final IndustryScope industryScope;
 
     public CandidateAiFillVO submit(CandidateAiFillRequest req) {
         Long user = currentUser.resolve();
@@ -127,7 +131,7 @@ public class CandidateAiFill implements AiTaskResultHandler {
         if (task == null || task.getDeletedAt() != null || !SKILL_ID.equals(task.getSkillId())
                 || !Objects.equals(task.getTenantId(), TenantContext.getTenantId())
                 || !Objects.equals(task.getRequestedBy(), currentUser.resolve())) {
-            throw new BizException("AI 解析任务不存在");
+            throw BizException.of(ProductErrorCodes.AI_TASK_NOT_FOUND, "AI 解析任务不存在");
         }
         CandidateAiFillVO vo = new CandidateAiFillVO();
         vo.setTaskId(task.getId());
@@ -219,7 +223,7 @@ public class CandidateAiFill implements AiTaskResultHandler {
         }
     }
 
-    /** 品类必须存在且启用；只改仍待审核、品类仍是提交时那个的候选 */
+    /** 品类必须存在、启用且属于本租户行业；只改仍待审核、品类仍是提交时那个的候选 */
     private boolean writeCategory(Long id, long before, long categoryId, Map<Long, ProductCategoryDO> byId) {
         if (!byId.containsKey(categoryId)) {
             return false;
@@ -279,11 +283,14 @@ public class CandidateAiFill implements AiTaskResultHandler {
         return c == null || c.getParentId() == null || c.getParentId().equals(other);
     }
 
+    /** 启用、未删除的平台品类；租户只取本行业的，回调在任务所属租户下执行，AI 给出其他行业的品类按未识别处理（audit BUS-065） */
     private List<ProductCategoryDO> categories() {
-        return categoryMapper.selectList(new LambdaQueryWrapper<ProductCategoryDO>()
+        Set<Long> visible = industryScope.visibleCategoryIds();
+        List<ProductCategoryDO> all = categoryMapper.selectList(new LambdaQueryWrapper<ProductCategoryDO>()
                 .eq(ProductCategoryDO::getTenantId, ProductConstants.PLATFORM_TENANT_ID)
                 .eq(ProductCategoryDO::getStatus, ProductConstants.STATUS_ENABLED)
                 .isNull(ProductCategoryDO::getDeletedAt));
+        return visible == null ? all : all.stream().filter(c -> visible.contains(c.getId())).toList();
     }
 
     private static String path(ProductCategoryDO c, Map<Long, ProductCategoryDO> byId) {

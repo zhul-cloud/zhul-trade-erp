@@ -30,6 +30,6 @@ public interface ProductService {
     /** 各缺项对应的商品数量，仅平台账号 */
     CompletenessSummaryVO completenessSummary();
 
-    /** 按列表的筛选条件取商品 ID，按更新时间倒序，最多 limit 个（批量操作「按筛选结果」用） */
+    /** 按列表的筛选条件取商品 ID，按更新时间倒序（待 AI 细分时没跑过的在前），最多 limit 个（批量操作「按筛选结果」用） */
     List<Long> idsMatching(ProductQuery query, int limit);
 }
