@@ -39,6 +39,8 @@ import java.util.stream.Collectors;
  * </ul>
  * 精度：原币与人民币 HALF_UP 两位；一笔批次被消耗完时取剩余人民币，避免尾差累积。
  * 并发：同一客户的余额操作先锁客户行（SELECT … FOR UPDATE），在锁内重新计算可用余额；事务边界由调用方的 Service 声明。
+ * 调用方加锁前往往已普通读过单据，可重复读下锁后的读取仍是旧快照，所以调用方入口须声明
+ * {@code isolation = Isolation.READ_COMMITTED}，锁内才能看到先提交的占用与转入（audit BUS-035）。
  */
 @Component
 @RequiredArgsConstructor
@@ -227,8 +229,11 @@ public class CustomerCreditLedger {
     }
 
     private List<Lot> lots(Account a) {
+        // 释放流水（release 生成，related_entry_id 指向被释放的转出，类型可能是抵扣释放或冲销）不是批次：
+        // 被消耗批次的剩余已随消耗明细标为已释放而恢复，再算一次会重复（audit BUS-042）
         List<CustomerCreditEntryDO> ins = entryMapper.selectList(accountWrapper(a).gt(CustomerCreditEntryDO::getAmount, 0)
-                .ne(CustomerCreditEntryDO::getEntryType, FinanceConstants.CREDIT_RELEASE));
+                .ne(CustomerCreditEntryDO::getEntryType, FinanceConstants.CREDIT_RELEASE)
+                .isNull(CustomerCreditEntryDO::getRelatedEntryId));
         Map<Long, Totals> used = consumed(ins.stream().map(CustomerCreditEntryDO::getId).toList());
         return ins.stream()
                 .sorted(Comparator.comparing(CustomerCreditEntryDO::getLotTime).thenComparing(CustomerCreditEntryDO::getId))
