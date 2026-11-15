@@ -713,6 +713,58 @@ def process_candidate(payload: dict, callback_url: str):
         send_callback(callback_url, "failed", error=message[:500])
 
 
+REFINE_SKILL = "product-category-refine"
+
+REFINE_PROMPT = """你是工控自动化产品的商品运营。下面每个商品已经建档，但品类只到一级品类或在兜底「其他」里。
+根据品牌、型号、商品名称、描述和当前品类，判断它属于下面细分品类清单里的哪一个：
+- 只能从清单里选，categoryId 填清单里的 ID；清单只有细分品类
+- 当前品类只作参考：型号明显属于别的一级品类时，按型号判断，不要迁就当前品类
+- 实在判断不出、或清单里没有合适的细分品类时 categoryId 填 0，不要猜
+- brand 一律填空字符串
+- key 原样返回，每条输入都要有对应输出
+只输出 JSON。
+
+细分品类清单（ID：一级品类 / 细分品类）：
+{categories}"""
+
+
+def call_category_refine(cfg: AiConfig, input_data: dict) -> dict:
+    """已建档商品细分到二级品类：复用商品候选的 50 条一批调用，只换提示词；不联网搜索。"""
+    items = input_data.get("items") or []
+    lines = [f"{c.get('id')}：{c.get('name')}" for c in input_data.get("categories") or []]
+    prompt = REFINE_PROMPT.replace("{categories}", "\n".join(lines))
+    results = []
+    for i in range(0, len(items), CANDIDATE_BATCH):
+        batch = items[i:i + CANDIDATE_BATCH]
+        structured = call_api(cfg, prompt, json.dumps({"items": batch}, ensure_ascii=False), [], CANDIDATE_SCHEMA,
+                              model=cfg.parse_model, effort=cfg.parse_effort)
+        if "items" not in structured:
+            raise RuntimeError("AI 未返回符合 schema 的结果")
+        results.extend(structured["items"])
+    print(f"[ai-orchestrator] 商品品类细分完成 {len(items)} 条")
+    return {"items": results}
+
+
+def process_refine(payload: dict, callback_url: str):
+    start_job()
+    key = _api_key_of(payload)
+    try:
+        cfg = parse_ai_config(payload.get("ai"))
+        input_data = payload.get("input") or {}
+        if not input_data.get("items"):
+            send_callback(callback_url, "failed", error="没有需要细分的商品")
+            return
+        send_callback(callback_url, "success", output=call_category_refine(cfg, input_data))
+    except ConfigError as e:
+        send_callback(callback_url, "failed", error=str(e))
+    except (JobTimeout, anthropic.APITimeoutError, openai.APITimeoutError):
+        send_callback(callback_url, "failed", error=f"AI 处理超过 {TIMEOUT_SECONDS} 秒未完成")
+    except Exception as e:
+        message = scrub(str(e), key)
+        print(f"[ai-orchestrator] product-category-refine failed: {message}")
+        send_callback(callback_url, "failed", error=message[:500])
+
+
 BACKGROUND_SKILL = "customer-background"
 
 BACKGROUND_SCHEMA = {
@@ -1644,6 +1696,11 @@ class Handler(BaseHTTPRequestHandler):
         if skill_id == CANDIDATE_SKILL:
             if callback_url:
                 threading.Thread(target=process_candidate, args=(payload, callback_url), daemon=True).start()
+            return
+
+        if skill_id == REFINE_SKILL:
+            if callback_url:
+                threading.Thread(target=process_refine, args=(payload, callback_url), daemon=True).start()
             return
 
         if skill_id == BACKGROUND_SKILL:

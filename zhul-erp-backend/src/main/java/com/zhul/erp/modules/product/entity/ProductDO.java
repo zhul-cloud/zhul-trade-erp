@@ -30,6 +30,12 @@ public class ProductDO {
     private Long brandId;
     /** 品类ID，关联product_category.id */
     private Long categoryId;
+    /** AI 建议的细分品类ID，0 表示没有建议（spec product/category-refine） */
+    private Long aiCategoryId;
+    /** AI 细分品类状态（0-无、1-待确认建议、2-已忽略） */
+    private Integer aiCategoryState;
+    /** AI 给出建议的时间；已忽略时为忽略时间 */
+    private LocalDateTime aiCategoryAt;
     /** 系列ID，关联product_series.id；必须属于brand_id对应品牌；未分配时为空 */
     private Long seriesId;
     /** 产品名称，如SITOP Power Supply */

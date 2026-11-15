@@ -1,4 +1,10 @@
-import { PlusOutlined, SearchOutlined } from '@ant-design/icons';
+import {
+  CheckOutlined,
+  CloseOutlined,
+  PlusOutlined,
+  RobotOutlined,
+  SearchOutlined,
+} from '@ant-design/icons';
 import { history, useAccess } from '@umijs/max';
 import {
   App,
@@ -9,6 +15,7 @@ import {
   type InputRef,
   Select,
   Skeleton,
+  Spin,
   Switch,
   Table,
   Tooltip,
@@ -25,6 +32,7 @@ import React, {
 import EllipsisText from '@/components/EllipsisText';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { auditColumns } from '@/pages/purchase/components';
+import { formatDateTime } from '@/utils/format';
 import { usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import { CompletenessBar } from '../components/CompletenessBar';
@@ -35,15 +43,31 @@ import {
   type BrandOption,
   brandApi,
   type Category,
+  type CategoryOption,
   type CompletenessSummary,
   categoryApi,
   type Product,
   type ProductQuery,
   productApi,
+  type RefineResult,
+  type RefineState,
+  type RefineTask,
+  readBizError,
+  refineApi,
   type SeriesOption,
   seriesApi,
 } from '../service';
 import { PageHeader, ProductThemeProvider, useProductTheme } from '../theme';
+import {
+  AiSuggestion,
+  REFINE_MAX,
+  RechooseSelect,
+  RefineTabs,
+  readRefineJob,
+  refineSummary,
+  SkippedList,
+  writeRefineJob,
+} from './refine';
 
 const FILTER_KEY = 'zhul_product_list_filters';
 
@@ -55,6 +79,8 @@ interface Filters {
   status?: number;
   includeDeleted?: boolean;
   missing?: string;
+  /** 缺项为「品类未细分」时的三档 */
+  refineState?: RefineState;
   /** 只看本公司维护的（租户） */
   mine?: boolean;
 }
@@ -79,6 +105,7 @@ const MISSING_CHIPS: {
   { key: 'logistics', label: '缺物流', field: 'missingLogistics' },
   { key: 'customs', label: '缺海关', field: 'missingCustoms' },
   { key: 'price', label: '缺参考价', field: 'missingPrice' },
+  { key: 'refine', label: '品类未细分', field: 'missingRefine' },
 ];
 
 const ProductListInner: React.FC = () => {
@@ -104,6 +131,13 @@ const ProductListInner: React.FC = () => {
   const [brands, setBrands] = useState<BrandOption[]>([]);
   const [seriesOptions, setSeriesOptions] = useState<SeriesOption[]>([]);
   const searchRef = useRef<InputRef>(null);
+  /** 品类未细分（spec product/category-refine）：当前三档、运行中的 AI 细分、跑完的结果、改选中的行 */
+  const refine = filters.missing === 'refine';
+  const refineState: RefineState = filters.refineState ?? 'todo';
+  const [aiJob, setAiJob] = useState<RefineTask | null>(readRefineJob);
+  const [aiDone, setAiDone] = useState<RefineTask | null>(null);
+  const [subCategories, setSubCategories] = useState<CategoryOption[]>([]);
+  const [rechoose, setRechoose] = useState<{ id: number; value?: number }>();
 
   // 输入即搜，防抖 300ms
   useEffect(() => {
@@ -164,6 +198,15 @@ const ProductListInner: React.FC = () => {
 
   useEffect(loadSummary, [loadSummary]);
 
+  // 改选要用到细分品类，进入「品类未细分」时才取
+  useEffect(() => {
+    if (!refine || subCategories.length) return;
+    categoryApi
+      .options(0)
+      .then(setSubCategories)
+      .catch(() => {});
+  }, [refine, subCategories.length]);
+
   /** 需求热度排序在服务端做（跨页有效）：询盘次数或成交次数倒序 */
   const [heatSort, setHeatSort] = useState<'inquiryCount' | 'dealCount'>();
 
@@ -212,6 +255,34 @@ const ProductListInner: React.FC = () => {
       el.tabIndex = -1;
     }
   }, [rows, loading, firstLoad]);
+
+  // 轮询运行中的 AI 细分；跑完刷新列表与数量并提示结果
+  useEffect(() => {
+    if (!aiJob?.taskId) return;
+    const taskId = aiJob.taskId;
+    const timer = setInterval(async () => {
+      try {
+        const r = await refineApi.status(taskId);
+        if (r.status !== 3 && r.status !== 4) return;
+        setAiJob(null);
+        writeRefineJob(null);
+        if (r.status === 4) {
+          message.error(
+            `AI 细分失败：${r.errorMessage || '未知原因'}，商品没有变化`,
+          );
+          return;
+        }
+        setAiDone({ ...r, skipped: aiJob.skipped });
+        load();
+        loadSummary();
+      } catch {
+        // 任务查不到（如换了账号）：不再轮询
+        setAiJob(null);
+        writeRefineJob(null);
+      }
+    }, 3000);
+    return () => clearInterval(timer);
+  }, [aiJob?.taskId]);
 
   const updateFilters = (patch: Partial<Filters>) => {
     setFilters((prev) => {
@@ -296,6 +367,190 @@ const ProductListInner: React.FC = () => {
     });
   };
 
+  /** 发起 AI 细分：有勾选处理勾选的，没有勾选按当前筛选取「待 AI 细分」最近更新的前 200 个 */
+  const startRefine = () => {
+    if (selected.length > REFINE_MAX) {
+      message.warning(`每次最多 ${REFINE_MAX} 个，已选 ${selected.length} 个`);
+      return;
+    }
+    const picked = selected.length;
+    const count = picked || Math.min(total, REFINE_MAX);
+    const rest = picked ? 0 : Math.max(0, total - REFINE_MAX);
+    modal.confirm({
+      title: 'AI 细分品类',
+      icon: <RobotOutlined style={{ color: '#8B5CF6' }} />,
+      width: 480,
+      content: (
+        <div style={{ display: 'grid', gap: 8 }}>
+          <div>
+            本次处理 <b className="num">{count}</b> 个商品
+            {picked ? '（勾选的商品）' : ''}
+            {rest
+              ? `：当前筛选共 ${total} 个，先跑最近更新的 ${count} 个，其余 ${rest} 个下次再跑`
+              : ''}
+            。
+          </div>
+          <div style={{ color: palette.sub }}>
+            AI 只给建议，确认后才改商品品类；后台运行，可以离开页面。
+          </div>
+        </div>
+      ),
+      okText: '开始细分',
+      cancelText: '取消',
+      onOk: async () => {
+        try {
+          const { page: _p, pageSize: _s, sort: _o, ...filter } = query;
+          const r = await refineApi.submit(
+            picked ? { ids: selected.map(Number) } : { filter },
+          );
+          setAiDone(null);
+          if (!r.taskId) {
+            message.info(
+              '选中的商品都不需要细分（已细分、已有建议、已忽略或由其他公司维护）',
+            );
+            return;
+          }
+          setAiJob(r);
+          writeRefineJob(r);
+          setSelected([]);
+        } catch (e) {
+          const msg = readBizError(e).message;
+          if (msg.includes('AI 未配置')) {
+            modal.confirm({
+              title: '还没有配置 AI',
+              content: '本公司配置 AI 后才能细分品类。',
+              okText: '去 AI 设置',
+              cancelText: '取消',
+              onOk: () => history.push('/system/ai-settings'),
+            });
+          } else {
+            message.warning(msg);
+          }
+        }
+      },
+    });
+  };
+
+  /** 采纳 / 忽略 / 撤销忽略之后：有跳过的逐条说明，刷新列表与数量 */
+  const afterRefine = (verb: string, r: RefineResult) => {
+    if (r.skipped.length) {
+      modal.warning({
+        title: `已${verb} ${r.done} 个，跳过 ${r.skipped.length} 个`,
+        content: (
+          <>
+            <div style={{ marginBottom: 8 }}>以下商品没有改动：</div>
+            <SkippedList result={r} />
+          </>
+        ),
+        okText: '知道了',
+      });
+    } else {
+      message.success(`已${verb} ${r.done} 个`);
+    }
+    setSelected([]);
+    setRechoose(undefined);
+    load();
+    loadSummary();
+  };
+
+  /** 采纳建议：跨一级品类的单独列出，确认后才保存 */
+  const acceptRows = (picked: Product[]) => {
+    const cross = picked.filter((r) => r.aiCategoryCross);
+    const run = async () =>
+      afterRefine('采纳', await refineApi.accept(picked.map((r) => r.id)));
+    if (picked.length === 1 && !cross.length) {
+      run();
+      return;
+    }
+    modal.confirm({
+      title:
+        picked.length === 1
+          ? `采纳「${picked[0].mpnDisplay}」的 AI 建议？`
+          : `采纳 ${picked.length} 个商品的 AI 建议？`,
+      width: 560,
+      content: (
+        <div style={{ display: 'grid', gap: 12 }}>
+          <div>采纳后商品品类改为 AI 建议的细分品类。</div>
+          {cross.length > 0 && (
+            <div
+              style={{
+                padding: 12,
+                borderRadius: 12,
+                background: 'rgba(251,146,60,0.12)',
+                border: '1px solid rgba(251,146,60,0.4)',
+                display: 'grid',
+                gap: 6,
+              }}
+            >
+              <b style={{ color: palette.orange }}>
+                其中 {cross.length} 个会改一级品类
+              </b>
+              <div
+                style={{
+                  maxHeight: 200,
+                  overflow: 'auto',
+                  display: 'grid',
+                  gap: 4,
+                }}
+              >
+                {cross.map((r) => (
+                  <div key={r.id} style={{ display: 'flex', gap: 8 }}>
+                    <b style={{ minWidth: 170 }}>{r.mpnDisplay}</b>
+                    <span style={{ color: palette.sub }}>
+                      {r.categoryNameZh || r.categoryName}
+                    </span>
+                    →<b>{r.aiCategoryName}</b>
+                  </div>
+                ))}
+              </div>
+              {picked.length > 1 && (
+                <span style={{ color: palette.sub, fontSize: 12 }}>
+                  不确定的可以先取消勾选，逐个改选。
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+      ),
+      okText: picked.length === 1 ? '采纳' : `采纳 ${picked.length} 个`,
+      cancelText: '取消',
+      onOk: run,
+    });
+  };
+
+  const ignoreRows = async (ids: number[]) =>
+    afterRefine('忽略', await refineApi.ignore(ids));
+  const unignoreRows = async (ids: number[]) =>
+    afterRefine('撤销忽略', await refineApi.unignore(ids));
+
+  /** 改选：效果同手动改品类（建议一并清除） */
+  const saveRechoose = async (r: Product) => {
+    const categoryId = rechoose?.value;
+    if (!categoryId) {
+      message.warning('请选择细分品类');
+      return;
+    }
+    await productApi.update(r.id, {
+      brandId: r.brandId,
+      categoryId,
+      seriesId: r.seriesId ?? null,
+      mpnRaw: r.mpnRaw,
+      mpnDisplay: r.mpnDisplay,
+      productName: r.productName,
+      shortDescription: r.shortDescription,
+      specSummary: r.specSummary,
+      lifecycleStatus: r.lifecycleStatus,
+      lifecycleSource: r.lifecycleSource,
+    });
+    const name = subCategories.find((c) => c.id === categoryId);
+    message.success(
+      `「${r.mpnDisplay}」已改为 ${name?.categoryNameZh || name?.categoryName || '所选品类'}`,
+    );
+    setRechoose(undefined);
+    load();
+    loadSummary();
+  };
+
   const exportSelected = () => {
     const picked = rows.filter((r) => selected.includes(r.id));
     const header = [
@@ -337,6 +592,8 @@ const ProductListInner: React.FC = () => {
     load();
   };
 
+  /** 待确认建议、已忽略两档只留判断品类要看的列（原型 R4、R7），关键的 AI 建议列不被挤出视野 */
+  const reviewing = refine && refineState !== 'todo';
   const columns: ColumnsType<Product> = [
     {
       title: '商品',
@@ -394,19 +651,49 @@ const ProductListInner: React.FC = () => {
       ),
     },
     {
-      title: '品类',
+      title: refine ? '当前品类' : '品类',
       dataIndex: 'categoryName',
       width: 130,
-      // 单行省略：长品类名不压到右边的生命周期标签上
-      render: (v, r) => <EllipsisText text={r.categoryNameZh || v} />,
+      // 单行省略：长品类名不压到右边的生命周期标签上；品类未细分时「其他」标橙
+      render: (v, r) =>
+        refine && r.categoryCode === 'other' ? (
+          <b style={{ color: palette.orange }}>{r.categoryNameZh || v}</b>
+        ) : (
+          <EllipsisText text={r.categoryNameZh || v} />
+        ),
     },
+    ...(refine && refineState === 'pending'
+      ? ([
+          {
+            title: 'AI 建议品类',
+            key: 'aiCategory',
+            width: 220,
+            render: (_: unknown, r: Product) =>
+              rechoose?.id === r.id ? (
+                <RechooseSelect
+                  row={r}
+                  categories={subCategories}
+                  value={rechoose.value}
+                  onChange={(v) => setRechoose({ id: r.id, value: v })}
+                />
+              ) : (
+                <AiSuggestion row={r} />
+              ),
+          },
+        ] as ColumnsType<Product>)
+      : []),
     {
       title: '生命周期',
       dataIndex: 'lifecycleStatus',
       width: 120,
       render: (v) => <LifecyclePill value={v} />,
     },
-    ...(['inquiryCount', 'dealCount'] as const).map((key) => ({
+    ...(
+      (reviewing ? ['inquiryCount'] : ['inquiryCount', 'dealCount']) as (
+        | 'inquiryCount'
+        | 'dealCount'
+      )[]
+    ).map((key) => ({
       title: key === 'inquiryCount' ? '询盘次数' : '成交次数',
       key,
       width: 120,
@@ -432,18 +719,20 @@ const ProductListInner: React.FC = () => {
         );
       },
     })),
-    ...([
-      {
-        title: '档案完整度',
-        key: 'completeness',
-        width: 190,
-        sorter: (a: Product, b: Product) =>
-          (a.completeness?.done ?? 0) - (b.completeness?.done ?? 0),
-        render: (_: unknown, r: Product) => (
-          <CompletenessBar value={r.completeness} />
-        ),
-      },
-    ] as ColumnsType<Product>),
+    ...(reviewing
+      ? []
+      : ([
+          {
+            title: '档案完整度',
+            key: 'completeness',
+            width: 190,
+            sorter: (a: Product, b: Product) =>
+              (a.completeness?.done ?? 0) - (b.completeness?.done ?? 0),
+            render: (_: unknown, r: Product) => (
+              <CompletenessBar value={r.completeness} />
+            ),
+          },
+        ] as ColumnsType<Product>)),
     {
       title: '维护方',
       key: 'owner',
@@ -459,29 +748,91 @@ const ProductListInner: React.FC = () => {
           <Pill tone="gray">其他公司</Pill>
         ),
     },
-    {
-      title: '状态',
-      dataIndex: 'status',
-      width: 90,
-      render: (_, r) =>
-        canEdit && r.editable && !r.deleted ? (
-          <span
-            onClick={(e) => e.stopPropagation()}
-            onKeyDown={(e) => e.stopPropagation()}
-          >
-            <Switch
-              checked={r.status === 1}
-              aria-label={`${r.mpnDisplay} ${r.status === 1 ? '已启用，点击停用' : '已停用，点击启用'}`}
-              onClick={() => changeStatus(r)}
-            />
-          </span>
-        ) : r.status === 1 ? (
-          <Pill tone="green">启用</Pill>
-        ) : (
-          <Pill tone="gray">已停用</Pill>
-        ),
-    },
-    ...auditColumns<Product>(),
+    ...(reviewing
+      ? ([
+          {
+            title: refineState === 'pending' ? '建议时间' : '忽略时间',
+            dataIndex: 'aiCategoryAt',
+            width: 170,
+            render: (v?: string) => formatDateTime(v),
+          },
+        ] as ColumnsType<Product>)
+      : []),
+    ...(reviewing
+      ? []
+      : ([
+          {
+            title: '状态',
+            dataIndex: 'status',
+            width: 90,
+            render: (_, r) =>
+              canEdit && r.editable && !r.deleted ? (
+                <span
+                  onClick={(e) => e.stopPropagation()}
+                  onKeyDown={(e) => e.stopPropagation()}
+                >
+                  <Switch
+                    checked={r.status === 1}
+                    aria-label={`${r.mpnDisplay} ${r.status === 1 ? '已启用，点击停用' : '已停用，点击启用'}`}
+                    onClick={() => changeStatus(r)}
+                  />
+                </span>
+              ) : r.status === 1 ? (
+                <Pill tone="green">启用</Pill>
+              ) : (
+                <Pill tone="gray">已停用</Pill>
+              ),
+          },
+        ] as ColumnsType<Product>)),
+    ...(reviewing ? [] : auditColumns<Product>()),
+    ...(refine && refineState !== 'todo' && canEdit
+      ? ([
+          {
+            title: '操作',
+            fixed: 'right',
+            key: 'refineOp',
+            width: refineState === 'pending' ? 170 : 100,
+            render: (_: unknown, r: Product) => {
+              const link = (
+                text: string,
+                onClick: () => void,
+                muted?: boolean,
+              ) => (
+                <button
+                  type="button"
+                  className="zhul-link"
+                  style={muted ? { color: palette.mute } : undefined}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onClick();
+                  }}
+                >
+                  {text}
+                </button>
+              );
+              if (!r.editable)
+                return <span style={{ color: palette.mute }}>只读</span>;
+              if (refineState === 'ignored')
+                return link('撤销忽略', () => unignoreRows([r.id]));
+              if (rechoose?.id === r.id) {
+                return (
+                  <span style={{ display: 'inline-flex', gap: 14 }}>
+                    {link('保存', () => saveRechoose(r))}
+                    {link('取消', () => setRechoose(undefined), true)}
+                  </span>
+                );
+              }
+              return (
+                <span style={{ display: 'inline-flex', gap: 14 }}>
+                  {link('采纳', () => acceptRows([r]))}
+                  {link('改选', () => setRechoose({ id: r.id }))}
+                  {link('忽略', () => ignoreRows([r.id]), true)}
+                </span>
+              );
+            },
+          },
+        ] as ColumnsType<Product>)
+      : []),
     // 操作列只有「恢复」（已删除的商品）：列表里没有已删除的商品时不显示这一整列空白（audit UI-041）
     ...(canEdit && rows.some((r) => r.deleted)
       ? ([
@@ -545,10 +896,6 @@ const ProductListInner: React.FC = () => {
       {summary && (
         <div
           style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 12,
-            flexWrap: 'wrap',
             padding: '12px 16px',
             marginBottom: 16,
             borderRadius: 12,
@@ -556,28 +903,136 @@ const ProductListInner: React.FC = () => {
             border: `1px solid ${palette.accentLine}`,
           }}
         >
-          <span style={{ color: palette.ink, fontSize: 14, fontWeight: 600 }}>
-            档案还有可以补充的地方：
-          </span>
-          {MISSING_CHIPS.map((c) => (
-            <button
-              type="button"
-              key={c.key}
-              aria-pressed={filters.missing === c.key}
-              onClick={() =>
-                updateFilters({
-                  missing: filters.missing === c.key ? undefined : c.key,
-                })
-              }
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 12,
+              flexWrap: 'wrap',
+            }}
+          >
+            <span style={{ color: palette.ink, fontSize: 14, fontWeight: 600 }}>
+              档案还有可以补充的地方：
+            </span>
+            {MISSING_CHIPS.map((c) => (
+              <button
+                type="button"
+                key={c.key}
+                aria-pressed={filters.missing === c.key}
+                onClick={() => {
+                  const off = filters.missing === c.key;
+                  updateFilters({
+                    missing: off ? undefined : c.key,
+                    refineState:
+                      !off && c.key === 'refine' ? 'todo' : undefined,
+                  });
+                  setRechoose(undefined);
+                }}
+                style={{
+                  ...chip(filters.missing === c.key),
+                  height: 32,
+                  fontSize: 13,
+                }}
+              >
+                {c.label} <span className="num">{summary[c.field]}</span>
+              </button>
+            ))}
+          </div>
+          {refine && (
+            <div
               style={{
-                ...chip(filters.missing === c.key),
-                height: 32,
-                fontSize: 13,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 12,
+                flexWrap: 'wrap',
+                marginTop: 12,
+                paddingTop: 12,
+                borderTop: `1px solid ${palette.accentLine}`,
               }}
             >
-              {c.label} <span className="num">{summary[c.field]}</span>
+              <RefineTabs
+                summary={summary}
+                value={refineState}
+                onChange={(v) => {
+                  updateFilters({ refineState: v });
+                  setRechoose(undefined);
+                }}
+              />
+              {canEdit &&
+                refineState === 'todo' &&
+                (aiJob?.taskId ? (
+                  <span
+                    role="status"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 10,
+                      height: 36,
+                      padding: '0 16px',
+                      borderRadius: 10,
+                      background: palette.card,
+                      border: `1px solid ${palette.accentLine}`,
+                    }}
+                  >
+                    <Spin size="small" />
+                    <b style={{ color: palette.ink }}>AI 细分中</b>
+                    <span className="num" style={{ color: palette.sub }}>
+                      共 {aiJob.total} 个
+                    </span>
+                  </span>
+                ) : (
+                  <Button
+                    type="primary"
+                    icon={<RobotOutlined />}
+                    disabled={!total && !selected.length}
+                    onClick={startRefine}
+                  >
+                    AI 细分品类
+                  </Button>
+                ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {aiDone && (
+        <div
+          role="status"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            padding: '12px 16px',
+            marginBottom: 16,
+            borderRadius: 12,
+            background: palette.card,
+            border: `1px solid ${palette.hairline}`,
+          }}
+        >
+          <CheckOutlined style={{ color: palette.green }} />
+          <b style={{ color: palette.ink }}>AI 细分完成</b>
+          <span style={{ color: palette.sub }}>{refineSummary(aiDone)}</span>
+          <span style={{ flex: 1 }} />
+          {!!aiDone.suggested && (
+            <button
+              type="button"
+              className="zhul-link"
+              onClick={() => {
+                updateFilters({ missing: 'refine', refineState: 'pending' });
+                setAiDone(null);
+              }}
+            >
+              去确认建议
             </button>
-          ))}
+          )}
+          <Button
+            type="text"
+            size="small"
+            icon={<CloseOutlined />}
+            onClick={() => setAiDone(null)}
+            aria-label="关闭结果提示"
+          />
         </div>
       )}
 
@@ -732,7 +1187,7 @@ const ProductListInner: React.FC = () => {
         )}
       </div>
 
-      {platform && selected.length > 0 && (
+      {(platform || refine) && selected.length > 0 && (
         <div
           role="toolbar"
           aria-label="批量操作"
@@ -750,12 +1205,38 @@ const ProductListInner: React.FC = () => {
           <span style={{ fontWeight: 600 }}>
             已选 <span className="num">{selected.length}</span> 项
           </span>
-          {canEdit && <Button onClick={() => batchStatus(1)}>批量启用</Button>}
-          {canEdit && <Button onClick={() => batchStatus(0)}>批量停用</Button>}
-          <Button onClick={exportSelected}>导出</Button>
           <Button type="link" onClick={() => setSelected([])}>
             取消选择
           </Button>
+          <span style={{ flex: 1 }} />
+          {platform && canEdit && (
+            <Button onClick={() => batchStatus(1)}>批量启用</Button>
+          )}
+          {platform && canEdit && (
+            <Button onClick={() => batchStatus(0)}>批量停用</Button>
+          )}
+          {platform && <Button onClick={exportSelected}>导出</Button>}
+          {refine && canEdit && refineState === 'pending' && (
+            <>
+              <Button onClick={() => ignoreRows(selected.map(Number))}>
+                忽略
+              </Button>
+              <Button
+                type="primary"
+                icon={<CheckOutlined />}
+                onClick={() =>
+                  acceptRows(rows.filter((r) => selected.includes(r.id)))
+                }
+              >
+                采纳建议
+              </Button>
+            </>
+          )}
+          {refine && canEdit && refineState === 'ignored' && (
+            <Button onClick={() => unignoreRows(selected.map(Number))}>
+              撤销忽略
+            </Button>
+          )}
         </div>
       )}
 
@@ -782,14 +1263,16 @@ const ProductListInner: React.FC = () => {
             sticky
             scroll={{ x: tableScrollX(columns) }}
             rowSelection={
-              platform
+              platform || (refine && canEdit)
                 ? {
                     selectedRowKeys: selected,
                     onChange: setSelected,
                     // antd 的类型里没有 aria-label，但会透传给复选框；读屏靠它知道选的是哪一行
+                    // 品类未细分时租户只能勾选本公司维护的商品
                     getCheckboxProps: (r: Product) =>
                       ({
                         'aria-label': `选择 ${r.mpnDisplay}`,
+                        disabled: !platform && !r.editable,
                       }) as unknown as Partial<CheckboxProps>,
                   }
                 : undefined

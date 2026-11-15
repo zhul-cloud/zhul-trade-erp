@@ -6,6 +6,8 @@ import com.zhul.erp.modules.product.dto.ProductQuery;
 import com.zhul.erp.modules.product.dto.ProductVO;
 import com.zhul.erp.modules.product.dto.SaveProductRequest;
 
+import java.util.List;
+
 public interface ProductService {
 
     PageResult<ProductVO> page(ProductQuery query);
@@ -27,4 +29,7 @@ public interface ProductService {
 
     /** 各缺项对应的商品数量，仅平台账号 */
     CompletenessSummaryVO completenessSummary();
+
+    /** 按列表的筛选条件取商品 ID，按更新时间倒序，最多 limit 个（批量操作「按筛选结果」用） */
+    List<Long> idsMatching(ProductQuery query, int limit);
 }
