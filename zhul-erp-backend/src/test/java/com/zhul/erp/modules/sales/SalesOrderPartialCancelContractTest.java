@@ -227,6 +227,23 @@ class SalesOrderPartialCancelContractTest extends SalesContractSupport {
                 "应收未收应减少 " + expected + "，实际减少 " + drop);
     }
 
+    /** audit BUS-081：手动订单的收款记在订单上，老板看板「应收未收」同样计入（与收款工作台一致） */
+    @Test
+    void manualOrder_countedInBossOutstanding() throws Exception {
+        long c = customer("Manual Buyer", "Chile");
+        BigDecimal before = bossOutstanding();
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("customerId", c);
+        m.put("items", List.of(Map.of("productId", manualProduct("M-1"), "quantity", 4, "unitPrice", "100", "costPrice", "60")));
+        long so = ok(call(json(post(SO), write(m)), admin)).path("id").asLong();
+        BigDecimal rate = jdbc.queryForObject("select exchange_rate from sales_order where id = ?", BigDecimal.class, so);
+        BigDecimal rise = bossOutstanding().subtract(before);
+
+        BigDecimal expected = new BigDecimal("400").multiply(rate);
+        assertTrue(rise.subtract(expected).abs().compareTo(new BigDecimal("0.01")) <= 0,
+                "应收未收应增加 " + expected + "，实际增加 " + rise);
+    }
+
     private BigDecimal bossOutstanding() {
         SecurityContextHolder.getContext().setAuthentication(
                 new UsernamePasswordAuthenticationToken("it_sales_admin", null, List.of()));

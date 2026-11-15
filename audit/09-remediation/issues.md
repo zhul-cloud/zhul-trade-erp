@@ -87,6 +87,7 @@
 | [BUS-077](tasks/2026-11-15-BUS-042-incremental-audit.md) | 报价行供应提示和发送确认不跟随需求对象合并，被合并的型号报价时没有货源提示 | P3 | 已合并待发布 | Claude | [2026-11-15-BUS-042](tasks/2026-11-15-BUS-042-incremental-audit.md) | 2026-11-15 |
 | [BUS-079](tasks/2026-11-15-BUS-042-incremental-audit.md) | 退货入库验收与作废销售退货的加锁顺序相反，并发时可能死锁回滚 | P3 | 待合并 | Claude | [2026-11-15-BUS-042](tasks/2026-11-15-BUS-042-incremental-audit.md) | 2026-11-16 |
 | [BUS-080](tasks/2026-11-15-BUS-042-incremental-audit.md) | 经营看板「应收未收」仍按 PI 合计减已到账，订单部分取消或补费用后口径不一致（BUS-049 同类） | P2 | 待合并 | Claude | [2026-11-15-BUS-042](tasks/2026-11-15-BUS-042-incremental-audit.md) | 2026-11-16 |
+| [BUS-081](tasks/2026-11-15-BUS-042-incremental-audit.md) | 经营看板「应收未收」只算 PI，收款记在订单上的手动订单、费用订单没有计入（收款工作台已计入） | P2 | 待合并 | Claude | [2026-11-15-BUS-042](tasks/2026-11-15-BUS-042-incremental-audit.md) | 2026-11-16 |
 
 ## 前端
 

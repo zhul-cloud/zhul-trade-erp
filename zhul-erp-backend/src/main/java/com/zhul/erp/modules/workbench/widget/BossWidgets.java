@@ -86,6 +86,13 @@ public class BossWidgets {
                         outstanding = outstanding.add(left.multiply(W.num(p.getExchangeRate())));
                     }
                 }
+                // 手动订单、费用订单的收款记在订单上，同样计入（与收款工作台一致，audit BUS-081）
+                for (SalesOrderDO o : orders.selectList(unpaidReceiptOrders(scope))) {
+                    BigDecimal left = W.num(o.getTotalAmount()).subtract(W.num(o.getReceivedAmount())).subtract(W.num(o.getFeeDiffAmount()));
+                    if (left.signum() > 0) {
+                        outstanding = outstanding.add(left.multiply(W.num(o.getExchangeRate())));
+                    }
+                }
                 OverduePiVO overdue = piService.overdue();
                 String overdueText = overdue.getTotals() == null || overdue.getTotals().isEmpty() ? "没有过期未收款的 PI"
                         : "其中过期未收款 " + overdue.getTotals().stream()
@@ -237,6 +244,19 @@ public class BossWidgets {
         return report.year(d.getYear(), null).getRows().stream()
                 .filter(r -> r.getMonth() != null && r.getMonth() == d.getMonthValue())
                 .findFirst().orElse(null);
+    }
+
+    /** 收款记在订单上（手动、费用订单）、有效且还没付清的订单 */
+    private static LambdaQueryWrapper<SalesOrderDO> unpaidReceiptOrders(DataScopeResolver scope) {
+        LambdaQueryWrapper<SalesOrderDO> w = new LambdaQueryWrapper<SalesOrderDO>()
+                .select(SalesOrderDO::getId, SalesOrderDO::getTotalAmount, SalesOrderDO::getReceivedAmount,
+                        SalesOrderDO::getFeeDiffAmount, SalesOrderDO::getExchangeRate)
+                .eq(SalesOrderDO::getTenantId, PiStore.tenantId())
+                .in(SalesOrderDO::getSource, SalesConstants.ORDER_RECEIPT_SOURCES)
+                .eq(SalesOrderDO::getStatus, SalesConstants.SO_ACTIVE)
+                .ne(SalesOrderDO::getReceiptStatus, SalesConstants.RECEIPT_PAID)
+                .isNull(SalesOrderDO::getDeletedAt);
+        return scope.current().apply(w, SalesOrderDO::getOwnerId);
     }
 
     /** PI 转成的有效订单合计（部分取消、改费用后与 PI 合计不同） */

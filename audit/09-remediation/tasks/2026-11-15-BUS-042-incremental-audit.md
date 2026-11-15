@@ -507,9 +507,10 @@ P3 的触发步骤、实际行为与复核意见保存在审核结果中，修�
 | --- | --- | --- | --- |
 | BUS-079 | 已修复 | 验收、撤回入库先锁退货入库单再锁销售退货单，作废销售退货单是售后单 → 销售退货单 → 退货入库单。改为验收、撤回入库先锁销售退货单再锁退货入库单（`ReturnReceiptService.lockWithReturn`），与作废顺序一致，并发时排队。 | `AfterSalesReturnConcurrencyContractTest#receiveAndVoidReturn_concurrently_queueInsteadOfDeadlock`：验收停在挂附件处时作废同一张退货单。修复前作废报 `DeadlockLoserDataAccessException`（MySQL 判死锁）；修复后作废等验收提交，被拒「已入库的退货单不能作废」，退货单为已入库。 |
 | BUS-080 | 已修复 | `BossWidgets.cashWidget` 按 PI 合计减已到账。改为与收款工作台同口径：批量查 PI 的有效订单，有订单时按订单合计，再减已到账与记为手续费的差额，按 PI 汇率折人民币。 | `SalesOrderPartialCancelContractTest#partialCancel_bossOutstandingFollowsOrderTotal`：部分取消 2 个后，应收未收应减少 100 × 汇率。修复前减少 0.00，修复后通过。 |
+| BUS-081 | 已修复 | 修 BUS-080 时发现、用户 2026-11-16 要求一并修复：看板只统计 PI，手动订单与费用订单的收款记在订单上，没有计入。改为同时统计有效、未付清的手动订单与费用订单（按数据范围），订单合计减已到账与差额，按订单汇率折人民币。 | `SalesOrderPartialCancelContractTest#manualOrder_countedInBossOutstanding`：新建 400 的手动订单后应收未收应增加 400 × 汇率。修复前增加 0.00，修复后通过。 |
 | UI-094 | 已修复 | 合并弹窗文案改为「需求信号、覆盖渠道和所在专项都会并到下面选的型号」，与 BUS-074 后端行为一致。 | 文案改动，Biome 检查通过；未单独写测试。 |
 
-验证：售后（`AfterSalesContractTest`、`AfterSalesReplacementContractTest`、`AfterSalesReturnConcurrencyContractTest`、`AfterSalesSlaContractTest`）、`SalesOrderPartialCancelContractTest`、`WorkbenchContractTest`、`BossWidgetsMoneyTest`、`SupplyAuditFixContractTest` 共 50 条本机通过；全量以 CI 为准。
+验证：售后（`AfterSalesContractTest`、`AfterSalesReplacementContractTest`、`AfterSalesReturnConcurrencyContractTest`、`AfterSalesSlaContractTest`）、`SalesOrderPartialCancelContractTest`、`WorkbenchContractTest`、`BossWidgetsMoneyTest`、`SupplyAuditFixContractTest` 共 50 条本机通过（加 BUS-081 后部分取消测试类 9 条、工作台与看板金额 13 条重跑通过）；全量以 CI 为准。
 
 ### 需要用户决定或业务确认的事项
 
@@ -527,7 +528,7 @@ P3 的触发步骤、实际行为与复核意见保存在审核结果中，修�
 
 ## 合并、部署与逐 ID 验收
 
-95 条修复已由 PR #338 合并到 develop（合并提交 `4d61850e`，CI 全部通过）；BUS-079、BUS-080、UI-094 在 `fix/audit1115-followup` 修复，待合并。BUS-046 暂缓。各 ID 未发布，发布后按本机验收关闭。
+95 条修复已由 PR #338 合并到 develop（合并提交 `4d61850e`，CI 全部通过）；BUS-079、BUS-080、BUS-081、UI-094 在 `fix/audit1115-followup` 修复，待合并。BUS-046 暂缓。各 ID 未发布，发布后按本机验收关闭。
 
 ## 阻塞与下一步
 
@@ -543,3 +544,4 @@ P3 的触发步骤、实际行为与复核意见保存在审核结果中，修�
 | 2026-11-15 / Claude | 用户授权生产只读核查：BUS-042 无受影响账户；BUS-046 生产仅 1 条补齐商机且为正确赢单。用户确认 BUS-046 暂缓（理由与恢复条件见「生产只读核查」） | 其余问题按用户要求全部修复 |
 | 2026-11-15 / Claude | 用户要求全部修复、本机验收后合并：10 批多代理修复（每条先缺陷见证），95 条修复、BUS-046 暂缓；集成分支后端全量、前端检查与测试、编排服务测试，以及本机接口与页面验收（见上）；修复中新发现 BUS-079、BUS-080、UI-094 并登记 | 已在集成分支 fix/audit-1115 修复并通过本机验收，待合并到 develop |
 | 2026-11-16 / Claude | PR #338 合并到 develop（`4d61850e`，CI 通过），相关 ID 改为已合并待发布；用户要求一并修复 BUS-079、BUS-080、UI-094，缺陷见证测试修复前失败、修复后通过（见上） | 合并后把这 3 条改为已合并待发布；发布由用户决定 |
+| 2026-11-16 / Claude | 用户要求看板「应收未收」也计入手动订单：新登记 BUS-081 并在同一分支修复，缺陷见证修复前失败、修复后通过 | 合并后把 BUS-079、BUS-080、BUS-081、UI-094 改为已合并待发布 |
