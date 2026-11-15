@@ -33,6 +33,7 @@ import {
   DICT_LEVEL,
   DICT_REASON,
   DICT_SOLUTION,
+  type PlanBody,
 } from './service';
 
 const fmt = (d?: Dayjs | null) =>
@@ -609,19 +610,28 @@ export const PlanModal: React.FC<{
         disabled: levelChanged && !levelNote.trim(),
       }}
       onOk={async () => {
+        // 只提交改过的字段，没改的不带，避免用打开时的旧值覆盖他人刚改的内容（audit BUS-052）
+        const body: PlanBody = {};
+        if (levelChanged) {
+          body.levelCode = level;
+          body.levelNote = levelNote.trim();
+        }
+        if (reason !== data.reasonCode) body.reasonCode = reason;
+        if (sol.join(',') !== data.solutions.join(',')) body.solutions = sol;
+        if (ownerId !== data.ownerId) body.ownerId = ownerId;
+        const nextAt = fmt(nextUpdate) ?? null;
+        const nextBefore =
+          fmt(data.nextUpdateAt ? dayjs(data.nextUpdateAt) : null) ?? null;
+        if (
+          nextAction.trim() !== (data.nextAction ?? '') ||
+          nextAt !== nextBefore
+        ) {
+          body.nextAction = nextAction.trim();
+          body.nextUpdateAt = nextAt;
+        }
         setBusy(true);
         try {
-          onDone(
-            await afterSalesApi.plan(data.id, {
-              levelCode: level,
-              levelNote: levelNote.trim() || undefined,
-              reasonCode: reason,
-              solutions: sol,
-              ownerId,
-              nextAction: nextAction.trim(),
-              nextUpdateAt: fmt(nextUpdate) ?? null,
-            }),
-          );
+          onDone(await afterSalesApi.plan(data.id, body));
           message.success('已保存');
         } catch (e) {
           message.error(readBizError(e).message);

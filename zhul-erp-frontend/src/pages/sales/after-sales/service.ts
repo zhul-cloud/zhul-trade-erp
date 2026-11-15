@@ -234,7 +234,9 @@ export interface AfterSalesQuery {
   pageSize: number;
   status?: number;
   keyword?: string;
+  customerId?: number;
   levelCode?: string;
+  reasonCode?: string;
   ownerId?: number;
   /** 只看逾期 */
   overdue?: boolean;
