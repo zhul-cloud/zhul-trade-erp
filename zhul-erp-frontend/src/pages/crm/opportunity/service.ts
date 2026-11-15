@@ -80,6 +80,8 @@ export interface OpportunityDetail extends OpportunityItem {
   closeReason: number;
   closeReasonLabel: string;
   closeNote: string;
+  /** 输单转培育时默认多少天后提醒重新激活（租户参数） */
+  nurtureDefaultDays?: number;
   attachments: OpportunityAttachment[];
   stageLogs: StageLog[];
   inquiries: LinkedInquiry[];

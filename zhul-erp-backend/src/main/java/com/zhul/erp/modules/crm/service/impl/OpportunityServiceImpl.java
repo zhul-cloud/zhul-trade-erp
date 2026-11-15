@@ -94,6 +94,7 @@ public class OpportunityServiceImpl implements OpportunityService {
     private final DictItemService dictItemService;
     private final ContactNameTranslations contactNameTranslations;
     private final com.zhul.erp.modules.crm.followup.support.FollowupSync followupSync;
+    private final com.zhul.erp.modules.crm.followup.support.FollowupSettings followupSettings;
 
     // ---------------------------------------------------------------- 阶段配置
 
@@ -292,6 +293,8 @@ public class OpportunityServiceImpl implements OpportunityService {
                 .eq(OpportunityDO::getId, o.getId()));
         logService.recordOperateLog("商机", "删除商机", Map.of("opportunityCode", o.getOpportunityCode(),
                 "customerId", String.valueOf(o.getCustomerId())), null);
+        // 与登记、改阶段、结束一样随即同步，商机的跟进对象移出商机成交（BUS-055）
+        followupSync.customerChanged(o.getCustomerId());
     }
 
     @Override
@@ -437,6 +440,8 @@ public class OpportunityServiceImpl implements OpportunityService {
                         .orderByDesc(OpportunityStageLogDO::getId))
                 .stream().map(l -> toLogVo(l, stages)).toList());
         vo.setInquiries(opportunityMapper.selectLinkedInquiries(o.getTenantId(), o.getId()));
+        // 输单转培育的默认提醒天数：与结束时后端实际取的租户参数一致（UI-068）
+        vo.setNurtureDefaultDays(followupSettings.params(o.getTenantId()).nurtureDefaultDays());
         return vo;
     }
 

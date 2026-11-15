@@ -156,6 +156,30 @@ class OrderFollowupSyncTest extends IntegrationTestBase {
         assertEquals(1, ((Number) a.get("next_action_source")).intValue());
     }
 
+    /**
+     * audit BUS-033#1：订单改挂到另一个客户（客户合并）后，原客户名下的订单履约跟进对象转给新客户并重新打开，
+     * 不再按新客户新建而撞唯一键；后面的客户经营推导照常执行。
+     */
+    @Test
+    void orderMovedToAnotherCustomer_fulfilItemFollowsOrder() {
+        long c2 = 99200002L;
+        jdbc.update("insert into customer (id, tenant_id, customer_code, name, country, owner_id) values (?, 0, 'CU2', 'Keep GmbH',"
+                + " 'Germany', ?)", c2, OWNER);
+        LocalDate d = LocalDate.of(2026, 10, 25);
+        sync(d);
+        Object id = row(3).get("id");
+        jdbc.update("update sales_order set customer_id = ? where id = ?", c2, SO);
+        sync(d);
+        assertNotNull(row(3).get("closed_at"), "原客户名下没有这张订单了，先结束");
+        TenantContext.runAs(0, () -> followupSync.resync(c2, d, false));
+        Map<String, Object> moved = row(3);
+        assertEquals(id, moved.get("id"), "沿用原来那条，不新建");
+        assertEquals(c2, ((Number) moved.get("customer_id")).longValue());
+        assertNull(moved.get("closed_at"));
+        assertEquals(1, jdbc.queryForObject("select count(*) from followup_item where tenant_id = 0 and target_type = 5 and target_id = ?",
+                Integer.class, SO));
+    }
+
     @Test
     void completedOrder_goesStraightToA2() {
         sync(LocalDate.of(2026, 10, 25));

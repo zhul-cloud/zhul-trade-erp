@@ -76,6 +76,8 @@ class OpportunityApiContractTest extends IntegrationTestBase {
     }
 
     private void cleanup() {
+        jdbc.update("delete from followup_item where tenant_id = 0");
+        jdbc.update("delete from customer_followup where tenant_id = 0");
         jdbc.update("delete from customer_inquiry_attachment where tenant_id = 0");
         jdbc.update("delete from customer_inquiry where tenant_id = 0");
         jdbc.update("delete from opportunity_attachment where tenant_id = 0");
@@ -320,6 +322,41 @@ class OpportunityApiContractTest extends IntegrationTestBase {
         jdbc.update("update opportunity set owner_id = ? where id = ?", SELF, own);
         loginWithResources("opp_editor", MENU, RES_EDIT);
         assertEquals(403, perform(delete(BASE + "/" + own), token("opp_editor")).getStatus(), "没有删除按钮权限");
+    }
+
+    /** audit BUS-055：删除商机后跟进对象随即移出商机成交，不等夜间核对 */
+    @Test
+    void delete_closesFollowupItemImmediately() throws Exception {
+        loginAsAdmin("opp_admin");
+        String admin = token("opp_admin");
+        long id = register(admin, lead("Gone", 5, LocalDate.now().toString(), ",\"email\":\"gone@x.com\""));
+        String open = "select count(*) from followup_item where tenant_id = 0 and board = 2 and target_type = 1 and target_id = ?"
+                + " and closed_at is null";
+        assertEquals(1, jdbc.queryForObject(open, Integer.class, id), "登记后出现在商机成交");
+        ok(call(delete(BASE + "/" + id), admin));
+        assertEquals(0, jdbc.queryForObject(open, Integer.class, id), "删除后跟进对象随即结束");
+    }
+
+    /** audit UI-068：输单弹窗显示的培育天数取租户参数，与实际激活日期一致 */
+    @Test
+    void detail_returnsTenantNurtureDefaultDays_matchingCloseNurtureDate() throws Exception {
+        loginAsAdmin("opp_admin");
+        String admin = token("opp_admin");
+        String key = "sales.followup.nurture.default-days";
+        String before = jdbc.queryForObject("select config_value from sys_config where tenant_id = 0 and config_key = ?",
+                String.class, key);
+        jdbc.update("update sys_config set config_value = '30' where tenant_id = 0 and config_key = ?", key);
+        try {
+            long id = register(admin, lead("Nurture", 5, LocalDate.now().toString(), ",\"email\":\"nurture@x.com\""));
+            ok(call(json(post(BASE + "/" + id + "/stage"), "{\"toStage\":\"S3\"}"), admin));
+            assertEquals(30, ok(call(get(BASE + "/" + id), admin)).path("nurtureDefaultDays").asInt());
+            ok(call(json(post(BASE + "/" + id + "/close"), "{\"result\":\"LOST\",\"reason\":15,\"nurture\":true}"), admin));
+            assertEquals(java.sql.Date.valueOf(LocalDate.now().plusDays(30)), jdbc.queryForObject(
+                    "select nurture_until from followup_item where tenant_id = 0 and target_type = 1 and target_id = ?",
+                    java.sql.Date.class, id), "实际激活日期与弹窗提示一致");
+        } finally {
+            jdbc.update("update sys_config set config_value = ? where tenant_id = 0 and config_key = ?", before, key);
+        }
     }
 
     @Test
